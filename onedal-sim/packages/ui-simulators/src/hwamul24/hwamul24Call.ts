@@ -6,6 +6,8 @@
  */
 
 import type { BaseCall } from '@altari/core-simulator';
+import type { CallDraft, CallOptions, RandomSource } from '@altari/core-simulator';
+import { distanceFare, pickFreightFields } from '@altari/core-simulator';
 
 /** 🚚 화물24시 화면이 읽는 콜 — 공통 칸(`BaseCall`) + 화물24시 칸 (0단계 0-2 ③ · 예전엔 공통 CallItem 의 «화물24시 전용 필드»였다) */
 export type Hwamul24Call = BaseCall & {
@@ -60,3 +62,14 @@ export const formatHwamul24Region = (fullName: string): string => {
     .map(s => s.replace(/시$/, '').replace(/군$/, ''))
     .join(' ');
 };
+
+/**
+ * 🎨 **화물24시 칸을 입힌다** (2026-09-14 · 0단계 0-2 ④) — 공통 칸만 있는 콜에 요금·결제·계산서·차종·물품·회사.
+ * 예전엔 공통 생성기가 인성 칸(합짐·급송·분류·상태)까지 채워 줬지만 화물24시 화면은 그 칸을 안 읽는다 (코드 검색).
+ * 톤수·독차·당상 같은 화물24시 칸은 지금처럼 비워 두고 화면이 기본값을 쓴다 (예전과 같다).
+ */
+export function toHwamul24Call(draft: CallDraft, opts: CallOptions, rng: RandomSource = Math.random): Hwamul24Call {
+  const fare = opts.forced?.fare ?? distanceFare(draft.distanceKm, opts.minFare, rng);
+  const freight = pickFreightFields(rng, opts.forced?.vehicleType);
+  return { ...draft, fare, ...freight };
+}

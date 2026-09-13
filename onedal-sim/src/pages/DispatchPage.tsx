@@ -15,6 +15,7 @@ import { SimulationProvider, useSimulationContext } from '@altari/ui-simulators'
 import { useSimStreaming } from '@altari/ui-simulators';
 import { InseongDispatchBoard, InseongCallDetailScreen, InseongOngoingDetailScreen, InseongDropdownMenu } from '@altari/ui-simulators';
 import { Hwamul24DispatchBoard, Hwamul24CallDetailScreen } from '@altari/ui-simulators';
+import { toInsungCall, toHwamul24Call } from '@altari/ui-simulators';
 import { getPreset, PRESET_KEYS } from '@altari/core-simulator';
 import type { SimCall } from '@altari/ui-simulators';
 import type { NetKey } from './SetupPage';
@@ -82,6 +83,8 @@ function DispatchContent({ net }: { net: NetKey }) {
 
   useSimStreaming({
     config: generatorConfig,
+    // 🎨 공통 칸만 만드는 생성기에 배차망 칸을 입힌다 (0단계 0-2 ④) — 배차망을 전부 아는 곳은 ⑤ 에서 nets.ts 로 모은다
+    toCall: net === 'hwamul24' ? toHwamul24Call : toInsungCall,
     appendCall,
     setIsFetchingOrder,
     isTimerPaused,

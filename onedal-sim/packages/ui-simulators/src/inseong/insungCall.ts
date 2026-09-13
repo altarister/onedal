@@ -7,6 +7,8 @@
  */
 
 import type { BaseCall } from '@altari/core-simulator';
+import type { CallDraft, CallOptions, RandomSource } from '@altari/core-simulator';
+import { distanceFare, pickFreightFields } from '@altari/core-simulator';
 
 /** 🚚 인성 화면이 읽는 콜 — 공통 칸(`BaseCall`) + 인성 칸 (0단계 0-2 ③ · 칸은 «어느 화면이 읽나» 코드 검색으로 갈랐다) */
 export type InsungCall = BaseCall & {
@@ -60,3 +62,19 @@ export const formatInsungVehicle = (vehicleType?: string | null): string => {
   if (!vehicleType) return '오';
   return INSUNG_VEHICLE_ABBR[vehicleType] ?? vehicleType;
 };
+
+/** 인성 콜 분류 — 예전 공통 생성기의 풀 그대로 («보통»이 둘이라 보통이 더 자주 나온다) */
+const CATEGORY_OPTIONS = ['보통', '보통', '예약'];
+
+/**
+ * 🎨 **인성 칸을 입힌다** (2026-09-14 · 0단계 0-2 ④) — 공통 칸만 있는 콜에 요금·합짐·급송·결제·차종·분류·상태.
+ * 예전엔 공통 생성기(`generateSimCall`)가 모든 콜에 채우던 것을 인성 폴더로 옮겼다. 값과 풀은 그대로다.
+ */
+export function toInsungCall(draft: CallDraft, opts: CallOptions, rng: RandomSource = Math.random): InsungCall {
+  const fare = opts.forced?.fare ?? distanceFare(draft.distanceKm, opts.minFare, rng);
+  const isShared = rng() < 0.3;
+  const isExpress = rng() < 0.15;
+  const freight = pickFreightFields(rng, opts.forced?.vehicleType);
+  const callCategory = isExpress ? '급송' : CATEGORY_OPTIONS[Math.floor(rng() * CATEGORY_OPTIONS.length)];
+  return { ...draft, fare, status: '신규', isShared, isExpress, ...freight, callCategory };
+}

@@ -4,12 +4,17 @@
  * GameContext 의존성 없음. 마운트 즉시 스트리밍 시작.
  */
 import { useEffect, useRef } from 'react';
-import { generateSimCall, toForcedPair } from '@altari/core-simulator';
-import type { SimGeneratorConfig, PresetProblem } from '@altari/core-simulator';
+import { generateBaseCall, toForcedPair } from '@altari/core-simulator';
+import type { SimGeneratorConfig, PresetProblem, CallDraft, CallOptions } from '@altari/core-simulator';
 import type { SimCall } from '../nets';
 
 interface UseSimStreamingProps {
   config: SimGeneratorConfig;
+  /**
+   * 🎨 공통 칸만 있는 콜에 **배차망 칸을 입히는 함수** (0단계 0-2 ④) — 인성 `toInsungCall` · 화물24시 `toHwamul24Call`.
+   * 생성기는 배차망을 모르므로 부르는 쪽(DispatchPage)이 고른다.
+   */
+  toCall: (draft: CallDraft, opts: CallOptions) => SimCall;
   appendCall: (call: SimCall) => void;
   setIsFetchingOrder: (fetching: boolean) => void;
   isTimerPaused: boolean;
@@ -34,6 +39,7 @@ interface UseSimStreamingProps {
 
 export const useSimStreaming = ({
   config,
+  toCall,
   appendCall,
   setIsFetchingOrder,
   isTimerPaused,
@@ -43,14 +49,14 @@ export const useSimStreaming = ({
   loop = false
 }: UseSimStreamingProps) => {
 
-  const configRef = useRef({ config, appendCall, setIsFetchingOrder, intervalMs, preset, loop });
+  const configRef = useRef({ config, toCall, appendCall, setIsFetchingOrder, intervalMs, preset, loop });
   const seededRef = useRef(false);
   // 문제지를 어디까지 냈는가 — 한 문제씩 순서대로 낸다
   const presetIdxRef = useRef(0);
 
   useEffect(() => {
-    configRef.current = { config, appendCall, setIsFetchingOrder, intervalMs, preset, loop };
-  }, [config, appendCall, setIsFetchingOrder, intervalMs, preset, loop]);
+    configRef.current = { config, toCall, appendCall, setIsFetchingOrder, intervalMs, preset, loop };
+  }, [config, toCall, appendCall, setIsFetchingOrder, intervalMs, preset, loop]);
 
   /**
    * 다음 콜 하나 — 문제지가 있으면 그 다음 문제, 없으면 랜덤.
@@ -75,9 +81,11 @@ export const useSimStreaming = ({
       });
       if (!forced) return null;
       console.log(`🎯 [문제지] ${p.label} — 앱이 ${p.expect === 'BLOCK' ? '걸러야' : '올려야'} 한다 · ${p.why}`);
-      return generateSimCall(cfg.config, forced);
+      const draft = generateBaseCall(cfg.config, forced);
+      return draft ? cfg.toCall(draft, { minFare: cfg.config.minFare, forced }) : null;
     }
-    return generateSimCall(cfg.config);
+    const draft = generateBaseCall(cfg.config);
+    return draft ? cfg.toCall(draft, { minFare: cfg.config.minFare }) : null;
   };
 
   useEffect(() => {

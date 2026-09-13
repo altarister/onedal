@@ -1,0 +1,843 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`콜의 공통 칸 — 씨앗 하나에 콜 하나 > 랜덤 콜의 주소·좌표·거리 1`] = `
+[
+  {
+    "distanceKm": 20.9,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 수원시 영통구 삼성로 129 삼성전자 디지털시티",
+        "contactName": "한프로",
+        "customerName": "삼성전자 본사",
+        "department": "동문 납품장",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2339-9609",
+        "phone2": "*",
+        "region": "매탄동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.053129,
+          37.257643,
+        ],
+        "code": "",
+        "fullName": "경기 / 수원시 / 영통구",
+        "name": "영통구",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 옥토골길 4-11 전자랜드 경기통합물류센터",
+        "contactName": "정대리",
+        "customerName": "전자랜드 경기통합물류센터",
+        "department": "창고동",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-3946-3787",
+        "phone2": "010-7270-2721",
+        "region": "태전동",
+      },
+    ],
+    "pickupDistanceKm": 7.2,
+    "pickups": [
+      {
+        "centroid": [
+          127.215438978002,
+          37.393983919036,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 옥토골길",
+        "name": "옥토골길",
+      },
+    ],
+  },
+  {
+    "distanceKm": 24.9,
+    "dropoffDetails": [
+      {
+        "addressDetail": "서울 광진구 광나루로56길 85 강변테크노마트",
+        "contactName": "최주임",
+        "customerName": "강변테크노마트",
+        "department": "방재실",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2418-2375",
+        "phone2": "*",
+        "region": "구의동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.095692,
+          37.535725,
+        ],
+        "code": "",
+        "fullName": "서울 / 광진구 / 광나루로56길",
+        "name": "광나루로56길",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 경충대로1127번길 15 초월역동광뷰엘아파트",
+        "contactName": "윤주임",
+        "customerName": "초월역동광뷰엘아파트",
+        "department": "자재창고",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-9308-3310",
+        "phone2": "010-3544-1248",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 0.1,
+    "pickups": [
+      {
+        "centroid": [
+          127.29444030053442,
+          37.376686997522675,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+  {
+    "distanceKm": 12.5,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 성남시 분당구 중앙공원로39번길 31 성남서현1동우체국",
+        "contactName": "임부장",
+        "customerName": "성남서현1동우체국",
+        "department": "출하장",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-3327-2496",
+        "phone2": "010-8172-9851",
+        "region": "서현동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.12634654297968,
+          37.38273185846651,
+        ],
+        "code": "",
+        "fullName": "경기 / 성남시 / 분당구",
+        "name": "분당구",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 송정동 행정타운로 50 광주시청",
+        "contactName": "박사무관",
+        "customerName": "광주시청",
+        "department": "민원실",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-5065-8494",
+        "phone2": "031-760-2114",
+        "region": "송정동",
+      },
+    ],
+    "pickupDistanceKm": 6.7,
+    "pickups": [
+      {
+        "centroid": [
+          127.255069,
+          37.429288,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 송정동",
+        "name": "송정동",
+      },
+    ],
+  },
+  {
+    "distanceKm": 12.8,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 경충대로1127번길 15 초월역동광뷰엘아파트",
+        "contactName": "윤주임",
+        "customerName": "초월역동광뷰엘아파트",
+        "department": "자재창고",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-9308-3310",
+        "phone2": "010-3544-1248",
+        "region": "초월읍",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.29444030053442,
+          37.376686997522675,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 성남시 중원구 사기막골로 169 영원무역 성남물류센터",
+        "contactName": "윤사원",
+        "customerName": "영원무역 성남물류센터",
+        "department": "창고동",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-5104-8216",
+        "phone2": "010-7273-9688",
+        "region": "상대원동",
+      },
+    ],
+    "pickupDistanceKm": 12.7,
+    "pickups": [
+      {
+        "centroid": [
+          127.177269417122,
+          37.44415467714,
+        ],
+        "code": "",
+        "fullName": "경기 / 성남시 / 중원구",
+        "name": "중원구",
+      },
+    ],
+  },
+  {
+    "distanceKm": 5.2,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 광주시 경충대로 1760 하이트진로 성남물류센터",
+        "contactName": "임과장",
+        "customerName": "하이트진로 성남물류센터",
+        "department": "자재창고",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-4122-6266",
+        "phone2": "010-8394-7279",
+        "region": "역동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.242822159822,
+          37.4023653026891,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 경충대로",
+        "name": "경충대로",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 회안대로 5 퍼슨 광주물류센터",
+        "contactName": "박사원",
+        "customerName": "퍼슨 광주물류센터",
+        "department": "정문 접수처",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2985-8765",
+        "phone2": "010-7279-6494",
+        "region": "매산동",
+      },
+    ],
+    "pickupDistanceKm": 4.9,
+    "pickups": [
+      {
+        "centroid": [
+          127.245584088161,
+          37.3557686306486,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 회안대로",
+        "name": "회안대로",
+      },
+    ],
+  },
+  {
+    "distanceKm": 48.1,
+    "dropoffDetails": [
+      {
+        "addressDetail": "인천 연수구 송도국제대로 123 현대프리미엄아울렛 송도점",
+        "contactName": "고반장",
+        "customerName": "송도 현대아울렛",
+        "department": "B1 하역장",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-8076-5824",
+        "phone2": "*",
+        "region": "송도동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          126.657917,
+          37.381629,
+        ],
+        "code": "",
+        "fullName": "인천 / 연수구 / 송도국제대로",
+        "name": "송도국제대로",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 목동길13번길 5-40 캐비아 물류센터",
+        "contactName": "정주임",
+        "customerName": "캐비아 물류센터",
+        "department": "후문 상차장",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-4763-8416",
+        "phone2": "010-5840-6596",
+        "region": "목동",
+      },
+    ],
+    "pickupDistanceKm": 8.1,
+    "pickups": [
+      {
+        "centroid": [
+          127.202585072856,
+          37.3829916491299,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 목동길13번길",
+        "name": "목동길13번길",
+      },
+    ],
+  },
+  {
+    "distanceKm": 21.2,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 이천시 호법면 중부대로798번길 106 현대그린푸드 이천센터",
+        "contactName": "정주임",
+        "customerName": "현대그린푸드 이천센터",
+        "department": "후문 상차장",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-4763-8416",
+        "phone2": "010-5840-6596",
+        "region": "호법면",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.408916970143,
+          37.2394730286309,
+        ],
+        "code": "",
+        "fullName": "경기 / 이천시 / 호법면",
+        "name": "호법면",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 산수로 642-70 CJ대한통운 곤지암 메가허브터미널",
+        "contactName": "임부장",
+        "customerName": "CJ대한통운 곤지암 메가허브터미널",
+        "department": "출하장",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-3327-2496",
+        "phone2": "010-8172-9851",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 4.5,
+    "pickups": [
+      {
+        "centroid": [
+          127.31278842767858,
+          37.41449348494845,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+  {
+    "distanceKm": 8.2,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 광주시 곤지암읍 경충대로543번길 19 곤지암성당",
+        "contactName": "강주임",
+        "customerName": "곤지암성당",
+        "department": "후문 상차장",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-4690-9355",
+        "phone2": "010-3305-6572",
+        "region": "곤지암읍",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.34864212291272,
+          37.34621300791796,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 곤지암읍",
+        "name": "곤지암읍",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 산수로 642-70 CJ대한통운 곤지암 메가허브터미널",
+        "contactName": "임부장",
+        "customerName": "CJ대한통운 곤지암 메가허브터미널",
+        "department": "출하장",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-3327-2496",
+        "phone2": "010-8172-9851",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 4.5,
+    "pickups": [
+      {
+        "centroid": [
+          127.31278842767858,
+          37.41449348494845,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+]
+`;
+
+exports[`콜의 공통 칸 — 씨앗 하나에 콜 하나 > 문제지 콜(정해진 상차·하차)의 주소·좌표·거리 1`] = `
+[
+  {
+    "distanceKm": 15.9,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 성남시 분당구 판교역로 235 에이치스퀘어",
+        "contactName": "신팀장",
+        "customerName": "카카오 판교오피스",
+        "department": "리셉션",
+        "memo": undefined,
+        "mileage": 15,
+        "phone1": "010-6500-6539",
+        "phone2": "*",
+        "region": "삼평동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.108691,
+          37.402048,
+        ],
+        "code": "",
+        "fullName": "경기 / 성남시 / 분당구",
+        "name": "분당구",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 경충대로 1241 초월읍행정복지센터",
+        "contactName": "최주무관",
+        "customerName": "초월읍행정복지센터",
+        "department": "총무과",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2467-2911",
+        "phone2": "031-760-4700",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 1,
+    "pickups": [
+      {
+        "centroid": [
+          127.287923,
+          37.385308,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+  {
+    "distanceKm": 15.9,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 성남시 분당구 판교역로 235 에이치스퀘어",
+        "contactName": "신팀장",
+        "customerName": "카카오 판교오피스",
+        "department": "리셉션",
+        "memo": undefined,
+        "mileage": 15,
+        "phone1": "010-6500-6539",
+        "phone2": "*",
+        "region": "삼평동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.108691,
+          37.402048,
+        ],
+        "code": "",
+        "fullName": "경기 / 성남시 / 분당구",
+        "name": "분당구",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 경충대로 1241 초월읍행정복지센터",
+        "contactName": "최주무관",
+        "customerName": "초월읍행정복지센터",
+        "department": "총무과",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2467-2911",
+        "phone2": "031-760-4700",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 1,
+    "pickups": [
+      {
+        "centroid": [
+          127.287923,
+          37.385308,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+  {
+    "distanceKm": 15.9,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 성남시 분당구 판교역로 235 에이치스퀘어",
+        "contactName": "신팀장",
+        "customerName": "카카오 판교오피스",
+        "department": "리셉션",
+        "memo": undefined,
+        "mileage": 15,
+        "phone1": "010-6500-6539",
+        "phone2": "*",
+        "region": "삼평동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.108691,
+          37.402048,
+        ],
+        "code": "",
+        "fullName": "경기 / 성남시 / 분당구",
+        "name": "분당구",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 경충대로 1241 초월읍행정복지센터",
+        "contactName": "최주무관",
+        "customerName": "초월읍행정복지센터",
+        "department": "총무과",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2467-2911",
+        "phone2": "031-760-4700",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 1,
+    "pickups": [
+      {
+        "centroid": [
+          127.287923,
+          37.385308,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+  {
+    "distanceKm": 15.9,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 성남시 분당구 판교역로 235 에이치스퀘어",
+        "contactName": "신팀장",
+        "customerName": "카카오 판교오피스",
+        "department": "리셉션",
+        "memo": undefined,
+        "mileage": 15,
+        "phone1": "010-6500-6539",
+        "phone2": "*",
+        "region": "삼평동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.108691,
+          37.402048,
+        ],
+        "code": "",
+        "fullName": "경기 / 성남시 / 분당구",
+        "name": "분당구",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 경충대로 1241 초월읍행정복지센터",
+        "contactName": "최주무관",
+        "customerName": "초월읍행정복지센터",
+        "department": "총무과",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2467-2911",
+        "phone2": "031-760-4700",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 1,
+    "pickups": [
+      {
+        "centroid": [
+          127.287923,
+          37.385308,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+  {
+    "distanceKm": 15.9,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 성남시 분당구 판교역로 235 에이치스퀘어",
+        "contactName": "신팀장",
+        "customerName": "카카오 판교오피스",
+        "department": "리셉션",
+        "memo": undefined,
+        "mileage": 15,
+        "phone1": "010-6500-6539",
+        "phone2": "*",
+        "region": "삼평동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.108691,
+          37.402048,
+        ],
+        "code": "",
+        "fullName": "경기 / 성남시 / 분당구",
+        "name": "분당구",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 경충대로 1241 초월읍행정복지센터",
+        "contactName": "최주무관",
+        "customerName": "초월읍행정복지센터",
+        "department": "총무과",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2467-2911",
+        "phone2": "031-760-4700",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 1,
+    "pickups": [
+      {
+        "centroid": [
+          127.287923,
+          37.385308,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+  {
+    "distanceKm": 15.9,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 성남시 분당구 판교역로 235 에이치스퀘어",
+        "contactName": "신팀장",
+        "customerName": "카카오 판교오피스",
+        "department": "리셉션",
+        "memo": undefined,
+        "mileage": 15,
+        "phone1": "010-6500-6539",
+        "phone2": "*",
+        "region": "삼평동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.108691,
+          37.402048,
+        ],
+        "code": "",
+        "fullName": "경기 / 성남시 / 분당구",
+        "name": "분당구",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 경충대로 1241 초월읍행정복지센터",
+        "contactName": "최주무관",
+        "customerName": "초월읍행정복지센터",
+        "department": "총무과",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2467-2911",
+        "phone2": "031-760-4700",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 1,
+    "pickups": [
+      {
+        "centroid": [
+          127.287923,
+          37.385308,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+  {
+    "distanceKm": 15.9,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 성남시 분당구 판교역로 235 에이치스퀘어",
+        "contactName": "신팀장",
+        "customerName": "카카오 판교오피스",
+        "department": "리셉션",
+        "memo": undefined,
+        "mileage": 15,
+        "phone1": "010-6500-6539",
+        "phone2": "*",
+        "region": "삼평동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.108691,
+          37.402048,
+        ],
+        "code": "",
+        "fullName": "경기 / 성남시 / 분당구",
+        "name": "분당구",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 경충대로 1241 초월읍행정복지센터",
+        "contactName": "최주무관",
+        "customerName": "초월읍행정복지센터",
+        "department": "총무과",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2467-2911",
+        "phone2": "031-760-4700",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 1,
+    "pickups": [
+      {
+        "centroid": [
+          127.287923,
+          37.385308,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+  {
+    "distanceKm": 15.9,
+    "dropoffDetails": [
+      {
+        "addressDetail": "경기 성남시 분당구 판교역로 235 에이치스퀘어",
+        "contactName": "신팀장",
+        "customerName": "카카오 판교오피스",
+        "department": "리셉션",
+        "memo": undefined,
+        "mileage": 15,
+        "phone1": "010-6500-6539",
+        "phone2": "*",
+        "region": "삼평동",
+      },
+    ],
+    "dropoffs": [
+      {
+        "centroid": [
+          127.108691,
+          37.402048,
+        ],
+        "code": "",
+        "fullName": "경기 / 성남시 / 분당구",
+        "name": "분당구",
+      },
+    ],
+    "pickupDetails": [
+      {
+        "addressDetail": "경기 광주시 초월읍 경충대로 1241 초월읍행정복지센터",
+        "contactName": "최주무관",
+        "customerName": "초월읍행정복지센터",
+        "department": "총무과",
+        "memo": undefined,
+        "mileage": 0,
+        "phone1": "010-2467-2911",
+        "phone2": "031-760-4700",
+        "region": "초월읍",
+      },
+    ],
+    "pickupDistanceKm": 1,
+    "pickups": [
+      {
+        "centroid": [
+          127.287923,
+          37.385308,
+        ],
+        "code": "",
+        "fullName": "경기 / 광주시 / 초월읍",
+        "name": "초월읍",
+      },
+    ],
+  },
+]
+`;
