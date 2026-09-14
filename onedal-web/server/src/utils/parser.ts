@@ -253,7 +253,13 @@ export function parseDetailedRawText(rawText: string): any {
         }
     }
 
-    return result;
+    /**
+     * 🔴 **못 찾은 칸은 싣지 않는다** (2026-09-14 · 버그 대장 #119).
+     * `/detail` 은 이 결과를 첫 보고의 기억 위에 통째로 펼친다 — `undefined` 칸이 있으면 아는 값을 지운다.
+     * 인성 상세에는 «차종» 줄이 있어 안 드러났고, 픽커 상세(차종 칸 없음)에서 첫 보고가 넣은
+     * 차종 일반값(규칙 ⑤-2)이 사라졌다.
+     */
+    return Object.fromEntries(Object.entries(result).filter(([, v]) => v !== undefined));
 }
 
 

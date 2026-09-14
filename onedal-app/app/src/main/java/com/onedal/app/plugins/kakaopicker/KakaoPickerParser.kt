@@ -162,6 +162,54 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 .any { it.length >= 2 && it in normKeys }
         }
 
+        /** 👀 상세 화면 ↔ 리스트 카드 대조 결과 — 못 고르면 `card = null` 과 그 까닭 (#119) */
+        data class ListCardMatch(val card: SimplifiedOfficeOrder?, val why: String)
+
+        private val DETAIL_FARE_REGEX = Regex("""최종 수익\s*([\d,]+)""")
+        /** 상세의 «픽업 7.2km» — 이 앞은 픽업지 칸, 뒤는 배송지 칸이다 */
+        private val DETAIL_PICKUP_KM_REGEX = Regex("""픽업\s*[\d.]+\s*k?m""")
+
+        /** 지역 한 토막의 대조 열쇠 — «광주시»→«광주» · «중원구»→«중원» · «금광2동»→«금광» (리스트 줄임 표기와 만나게) */
+        private fun regionKey(s: String): String = normalizeRegion(s.trim().removeSuffix("시").removeSuffix("군"))
+
+        private fun regionKeys(text: String): Set<String> =
+            text.split(Regex("""\s+""")).map(::regionKey).filter { it.isNotEmpty() }.toSet()
+
+        private fun cardKeys(region: String): List<String> =
+            region.split(' ').map(::regionKey).filter { it.isNotEmpty() }
+
+        /**
+         * 👀 **이 상세가 리스트의 어느 카드인가 — 누가 열었든 여기 한 곳** (2026-09-14 폰 시험 · 버그 대장 #119).
+         *
+         * 예전엔 알람이 누를 때만 카드를 쥐여 줘서, 기사님이 **손으로 연 상세**는 «리스트 원본이 없다»로
+         * 서버에 아무것도 안 갔다 (클래스 «판단이 한쪽 경로에만 있다» — #75 · #77 과 같은 뿌리).
+         *
+         * 고르는 법 — **최종 수익이 같고, 카드의 픽업 구·동이 상세 픽업지 칸에 다 있는** 카드.
+         *   · 🔴 요금만으로는 안 된다 — 7지점 문제지에 1만 원 카드가 넷이다
+         *   · 🔴 실물 픽커는 배송지를 원달앱이 읽는 글자에 안 올린다 (09-13 `83af36b`) — 그래서 픽업지가 먼저다
+         *   · 여럿이면 배송지로 한 번 더 가르고(시뮬레이터 상세에는 있다), 그래도 못 가르면 **고르지 않는다** (규칙 ④)
+         */
+        fun matchListCard(detailTexts: List<String>, recent: List<SimplifiedOfficeOrder>): ListCardMatch {
+            val joined = detailTexts.joinToString(" ")
+            val fare = DETAIL_FARE_REGEX.find(joined)?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull()
+                ?: return ListCardMatch(null, "상세에서 최종 수익을 못 읽었다")
+            val marker = DETAIL_PICKUP_KM_REGEX.find(joined)
+            val pickupPart = regionKeys(if (marker != null) joined.substring(0, marker.range.first) else joined)
+            val dropoffPart = regionKeys(if (marker != null) joined.substring(marker.range.last + 1) else "")
+            val byPickup = recent
+                .filter { it.fare == fare }
+                .filter { c -> cardKeys(c.pickup).let { k -> k.isNotEmpty() && k.all { it in pickupPart } } }
+                .distinctBy { Triple(it.pickup, it.dropoff, it.fare) }
+            val picked = if (byPickup.size <= 1) byPickup
+                else byPickup.filter { c -> cardKeys(c.dropoff).let { k -> k.isNotEmpty() && k.all { it in dropoffPart } } }
+            return when {
+                picked.size == 1 -> ListCardMatch(picked[0], "요금 ${fare}원 · 픽업지가 맞는 카드 하나")
+                byPickup.isEmpty() -> ListCardMatch(null, "리스트 카드 중 요금 ${fare}원 · 픽업지가 맞는 것이 없다")
+                picked.isEmpty() -> ListCardMatch(null, "요금·픽업지가 맞는 카드 ${byPickup.size}장 — 배송지로도 못 가른다")
+                else -> ListCardMatch(null, "요금·픽업지·배송지가 맞는 카드 ${picked.size}장 — 어느 것인지 모른다")
+            }
+        }
+
         /**
          * 🔔 **축별 판정 결과** (2026-09-14 · 카카오픽커_시뮬레이터.md 3단계 3-2).
          * 시뮬레이터 채점기(`onedal-sim/scripts/pickerAlarmGrade.mjs`)가 판정 순간의 필터로 정답을 다시 계산해 맞춰 본다 —

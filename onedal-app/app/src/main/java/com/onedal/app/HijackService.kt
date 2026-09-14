@@ -712,7 +712,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     handlePreConfirmScreen(rootNode, screenTexts, rawScreenStr)
                 } else {
                     AppLogger.i("1DAL_PICKER", "📄 [상세 실물] ${screenTexts.joinToString(" | ").take(500)}")
-                    sendPickerPreview(rawScreenStr)
+                    sendPickerPreview(rawScreenStr, screenTexts)
                 }
             }
             ScreenContext.DETAIL_CONFIRMED -> handleConfirmedScreen(rootNode, screenTexts, rawScreenStr)
@@ -1017,14 +1017,14 @@ class HijackService : AccessibilityService(), ScanContext {
                 AppLogger.i("1DAL_ALARM", "🚪 [알람 상세] ${order.fare}원 [$cardKind] " +
                     "(${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
                     "닻(${fareNode.rect.centerX()},${fareNode.rect.centerY()}) 머리줄 Y=$listHeaderY — " +
-                    "상세로 이동 · 수락은 기사님 · 30초 무응답 시 자동 복귀")
+                    "상세로 이동 · 수락은 기사님 · 알람 상세 대기 시간 뒤 자동 복귀")
                 /**
-                 * 📎 **리스트에서 읽은 원본을 쥐고 들어간다** (2026-09-02).
-                 * AUTO 가 인성에서 하는 것과 **같은 수단**이다(`lastDetailOrder`) — 상세 화면
-                 * 글자를 다시 파싱해 역추적하지 않아도 된다. 요금·구·동·물품크기·태그가
-                 * 리스트에서 이미 제대로 읽혔고, 상세는 그 위에 원문만 덧댄다.
+                 * 📎 **여기서 카드를 따로 쥐여 주지 않는다** (2026-09-14 · 버그 대장 #119).
+                 * 예전엔 `lastDetailOrder = order` 로 쥐여 줬는데, 그 길이 **알람에만** 있어서 기사님이
+                 * 손으로 연 상세는 «리스트 원본이 없다»로 서버에 아무것도 안 갔다.
+                 * 이제 상세 화면이 누가 열었든 `KakaoPickerParser.matchListCard` 한 곳에서 카드를 찾는다
+                 * (이 카드도 방금 `recentListOrders` 에 들어갔다).
                  */
-                session.lastDetailOrder = order
                 touchManager.performSimulatedTouch(fareNode.node)
                 scheduleAlarmDetailBack()
             } else if (!TargetApp.supportsCatching(currentTargetApp)) {

@@ -18,32 +18,45 @@ import com.onedal.app.core.engine.ScanContext
  *    한 글자도 다르지 않다. 다른 것은 «어디에 사는가»뿐이다.
  */
 
-fun ScanContext.sendPickerPreview(rawScreenStr: String) {
+fun ScanContext.sendPickerPreview(rawScreenStr: String, screenTexts: List<String>) {
     if (session.isDetailScrapSent) return          // 한 콜에 한 번만
-    val base = session.lastDetailOrder
+    /**
+     * 👀 **이 상세가 리스트의 어느 카드인가 — 누가 열었든 한 곳** (2026-09-14 폰 시험 · 버그 대장 #119).
+     * 예전엔 알람이 누를 때만 카드를 쥐여 줘서, 기사님이 손으로 연 상세는 «리스트 원본이 없다»로 끝났다.
+     * 이제 방금 읽은 리스트 카드(`recentListOrders`)에서 요금 + 픽업지로 찾는다 (`matchListCard`).
+     */
+    val match = KakaoPickerParser.matchListCard(screenTexts, recentListOrders)
+    val base = match.card
     if (base == null) {
-        AppLogger.w("1DAL_PICKER", "👀 [미리보기 보류] 리스트 원본이 없다 — 주소를 지어내지 않는다")
+        AppLogger.w("1DAL_PICKER", "👀 [미리보기 보류] ${match.why} — 주소를 지어내지 않는다")
         return
     }
+    session.lastDetailOrder = base                 // 기사님이 수락하면 이 카드를 잡은 콜로 올린다 (`reportPickerAccepted`)
     ensureSessionId()
     session.isPreview = true
-    sendConfirmOnce(
-        base.copy(
-            id = session.currentOrderId,
-            type = "MANUAL_CLICK",                 // 계약은 기사님 손가락 — 직접 갈래다
-            /**
-             * 🚚 **차종은 픽커에 없는 축이다 — 일반값을 넣고 «미확인»으로 표시한다** (규칙 ⑤-2).
-             * 픽커는 물품 크기(초소형·소형·중형)로 가르고 차종 칸이 아예 없다.
-             * 실측 표본 316건에서 소형이 95% 라 승용차·다마스 급이 일반값이다.
-             * 🔴 **표시 없이 값만 쓰면 규칙 ④ 위반이다** — `tagsText` 에 «차종미확인»을 함께 싣는다.
-             */
-            vehicleType = KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE,
-            tagsText = listOfNotNull(base.tagsText, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" "),
-            rawText = rawScreenStr,                // 📄 상세 원문 — 칸 나누기는 실물 캡처 뒤에
-        ),
-        rawScreenStr,
+    val order = base.copy(
+        id = session.currentOrderId,
+        type = "MANUAL_CLICK",                     // 계약은 기사님 손가락 — 직접 갈래다
+        /**
+         * 🚚 **차종은 픽커에 없는 축이다 — 일반값을 넣고 «미확인»으로 표시한다** (규칙 ⑤-2).
+         * 픽커는 물품 크기(초소형·소형·중형)로 가르고 차종 칸이 아예 없다.
+         * 실측 표본 316건에서 소형이 95% 라 승용차·다마스 급이 일반값이다.
+         * 🔴 **표시 없이 값만 쓰면 규칙 ④ 위반이다** — `tagsText` 에 «차종미확인»을 함께 싣는다.
+         */
+        vehicleType = KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE,
+        tagsText = listOfNotNull(base.tagsText, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" "),
+        rawText = rawScreenStr,                    // 📄 상세 원문 — 칸 나누기는 실물 캡처 뒤에
     )
-    AppLogger.i("1DAL_PICKER", "👀 [미리보기 전송] ${base.fare}원 · ${rawScreenStr.length}자 — 수락은 기사님")
+    sendConfirmOnce(order, rawScreenStr)
+    /**
+     * 📡 **둘째 보고까지 보낸다** (#119) — 서버는 `/detail` 이 와야 경로를 찾고 판정 색을 낸다.
+     * 예전엔 «수락하기» 뒤에만 보내, 픽커 미리보기는 관제웹 «평가중» 30초 뒤 사라지고 한 번도 판정되지 않았다.
+     * 미리보기 표시를 단 채라 서버는 잡지 않고(규칙 ①), 픽커는 안전취소가 없어 타이머도 걸지 않는다.
+     * 두 보고는 원달앱 전송 줄 하나(`dispatchExecutor`)로 순서대로 간다 — 서버가 첫 보고의 기억을 이어받는다.
+     */
+    session.accumulatedDetailText = rawScreenStr
+    sendDetail(order)
+    AppLogger.i("1DAL_PICKER", "👀 [미리보기 전송] ${base.fare}원 · ${base.pickup}→${base.dropoff} · ${rawScreenStr.length}자 — 판정은 서버 · 수락은 기사님")
 }
 
 /**
@@ -61,8 +74,8 @@ fun ScanContext.sendPickerPreview(rawScreenStr: String) {
  *    「수락하기」를 누르는 것은 기사님 손가락이다. 픽커는 되돌릴 창이 없다
  *    (버튼 취소 없음 · 전화만 · 하루 5번).
  *
- * ⚠️ 리스트에서 읽어 둔 원본이 없으면 **보내지 않는다** — 상세 화면 글자만으로 주소를
- *    지어내지 않는다 (규칙 ④). 원본은 알람이 상세로 들어갈 때 쥐어 준다.
+ * ⚠️ 리스트 카드를 못 찾으면 **보내지 않는다** — 상세 화면 글자만으로 주소를
+ *    지어내지 않는다 (규칙 ④). 카드는 누가 열었든 `matchListCard` 가 찾는다 (#119 — 예전엔 알람만 쥐여 줬다).
  */
 /**
  * ✅ **픽커에서 기사님이 「수락하기」를 누르셨다 — 잡은 콜로 올린다** (2026-09-02 신설).
@@ -90,7 +103,7 @@ fun ScanContext.reportPickerAccepted(rawScreenStr: String) {
     if (!session.isPreview) {
         // ⚠️ 리스트로 돌아온 경우는 여기 안 온다 (`KakaoPickerKeywords.afterDetail`) — 세션이 비워진 뒤라 까닭을 틀리게 적었다
         AppLogger.d("1DAL_PICKER", "↩️ [승격 안 함] 미리보기 딱지가 없다 — " +
-            (if (session.lastDetailOrder == null) "알람이 연 상세가 아니다 (리스트 원본을 쥐지 않았다 · 손으로 연 상세일 수 있다)" else "이미 올린 콜이다"))
+            (if (session.lastDetailOrder == null) "미리보기를 못 보냈다 (상세에서 리스트 카드를 못 찾았다 — `👀 [미리보기 보류]` 줄에 까닭)" else "이미 올린 콜이다"))
         return
     }
     /**
