@@ -8,7 +8,7 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyO
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
-import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, goalOfCall } from "../state/filterManager";
+import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, goalOfCall, homeCallCaught } from "../state/filterManager";
 import { getActivePolyline, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -1302,7 +1302,7 @@ export async function reportMilestone(
             const distToHome = (home && order.dropoffX != null && order.dropoffY != null)
                 ? haversineKm(order.dropoffY, order.dropoffX, home.y, home.x)
                 : null;
-            const next = decideNextTargetAfterCycle(session.activeFilter.callTarget, distToHome);
+            const next = decideNextTargetAfterCycle(session.activeFilter.callTarget, distToHome, homeCallCaught(session, userId));
             if (next && next !== session.activeFilter.callTarget) {
                 const from = session.activeFilter.callTarget ?? 'DEST';
                 console.log(`🧭 [타겟 자동 순환] ${from} → ${next} (집까지 ${distToHome === null ? '모름' : distToHome.toFixed(1) + 'km'})`);

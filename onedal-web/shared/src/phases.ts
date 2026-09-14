@@ -455,7 +455,8 @@ export const HOME_RADIUS_KM = 5;
  *
  *   노선(DEST) 끝 → 복귀(HOME)      단, 마지막 하차지가 집 반경 안이면 유지 (복귀 무의미)
  *   관내(파생) 끝 → 복귀(HOME)      관내는 보통 시간 채우기 뒤 귀가다
- *   복귀(HOME) 끝  → 노선(DEST)     집에 왔다 — 다음 왕복
+ *   복귀(HOME) 끝  → 노선(DEST)     집에 왔다 — 다음 왕복 · 🔴 **복귀콜을 싣고 끝났을 때만**
+ *   복귀 켬 · 복귀콜 없이 끝남 → 유지   목적지 콜만 내려놓은 것은 복귀가 끝난 게 아니다 (버그 대장 #130)
  *
  * 🔴 **하차 완료로 끝난 사이클에만** 발동한다 — 취소·방출로 0건이 된 것은
  *    일이 끝난 게 아니라 무산된 것이다 (호출부가 endedByDelivery 를 보장).
@@ -463,14 +464,16 @@ export const HOME_RADIUS_KM = 5;
  *
  * @param current        지금 타겟
  * @param distToHomeKm   마지막 하차지 → 집 거리 (모르면 null)
+ * @param homeCaught     이번 운행에 복귀콜(판이 집인 콜)이 있었나 — 서버 `homeCallCaught` 가 목적지 계산과 같은 답을 준다
  * @returns 다음 타겟, 전환하지 않으면 null
  */
 export function decideNextTargetAfterCycle(
     current: string | undefined,
     distToHomeKm: number | null,
+    homeCaught: boolean,
 ): 'DEST' | 'HOME' | null {
     const cur = current ?? 'DEST';
-    if (cur === 'HOME') return 'DEST';                    // 집에 왔다 — 거리 몰라도 성립
+    if (cur === 'HOME') return homeCaught ? 'DEST' : null;   // 복귀콜을 싣고 왔다 — 거리 몰라도 성립 · 없으면 복귀 대기 그대로
     if (distToHomeKm === null) return null;               // 집을 모르면 제안하지 않는다
     if (cur === 'DEST' && distToHomeKm <= HOME_RADIUS_KM) return null;   // 이미 집 근처
     return 'HOME';                                        // DEST(먼 곳) → 복귀 제안 (관내는 파생이라 여기 없다)

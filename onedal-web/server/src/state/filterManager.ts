@@ -93,9 +93,19 @@ export function goalCitiesOf(session: ReturnType<typeof getUserSession>, userId:
     if (session.activeFilter.callTarget !== 'HOME') return dest ? [dest] : [];
     const home = homeCityOf(userId);
     if (!home) return dest ? [dest] : [];
+    return [...new Set(activeGoals(dest, home, { homeOn: true, homeCaught: homeCallCaught(session, userId) }).filter(Boolean))];
+}
+
+/**
+ * 🏠 **이번 운행에 복귀콜을 잡았나** — 판이 집인 콜(하차를 마친 것도 센다 · 취소·방출은 안 센다).
+ * 🔴 **두 곳이 이 함수 하나로 묻는다** — 목적지 계산(`goalCitiesOf`)과 사이클 끝 자동 순환(`dispatchEngine`).
+ *    갈라지면 «목적지는 집 하나인데 복귀는 꺼지는» 모양이 된다 (버그 대장 #130 · 검사 `tests/rules/targetCycle.test.ts`).
+ */
+export function homeCallCaught(session: ReturnType<typeof getUserSession>, userId: string): boolean {
+    const home = homeCityOf(userId);
+    if (!home) return false;
     const cancelled: readonly string[] = ['SAFE_CANCEL', 'ORDER_RELEASED_BY_ME', 'ORDER_RELEASED_BY_OFFICE'];
-    const homeCaught = deckOfCycle(session.myOrders).some(o => !cancelled.includes(o.status) && boardOf(o) === home);
-    return [...new Set(activeGoals(dest, home, { homeOn: true, homeCaught }).filter(Boolean))];
+    return deckOfCycle(session.myOrders).some(o => !cancelled.includes(o.status) && boardOf(o) === home);
 }
 
 /**
