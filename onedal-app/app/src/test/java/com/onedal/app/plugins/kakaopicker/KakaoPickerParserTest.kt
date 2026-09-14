@@ -832,8 +832,24 @@ class AlarmAxesTest {
  */
 class PromotionCheckTest {
 
+    /**
+     * 🔴 **상세에 머무는 중이면 아무것도 적지 않는다** (2026-09-14 18:28:33 · 18:30:33 폰 시험).
+     * 상세 글자(«배송 130분 남음» → «129분»)만 바뀌어 «상세 → 상세»로 화면 변경이 잡히자
+     * `↩️ [승격 보류] 상세 글자가 남은 화면이다 — 이 화면은 버린다` 가 찍혔다 — 떠난 적이 없는데 «버린다»고 적었다.
+     */
     @Test
-    fun `상세에서 리스트로 돌아왔다 - 수락이 아니다 (넘기기 · 뒤로 · 30초 자동 복귀)`() {
+    fun `상세에 머무는 중이다 - 떠난 것이 아니라 아무것도 적지 않는다`() {
+        assertEquals(KakaoPickerKeywords.AfterDetail.STILL_ON_DETAIL,
+            KakaoPickerKeywords.afterDetail(returnedToList = false, residue = true, stillOnDetail = true))
+    }
+
+    @Test
+    fun `돌아옴 문구는 몇 초를 박아 두지 않는다 - 알람 상세 대기 시간은 서버가 정한다`() {
+        assertFalse(KakaoPickerKeywords.RETURNED_TO_LIST_LOG.contains("30초"))
+    }
+
+    @Test
+    fun `상세에서 리스트로 돌아왔다 - 수락이 아니다 (넘기기 · 뒤로 · 자동 복귀)`() {
         assertEquals(KakaoPickerKeywords.AfterDetail.RETURNED_TO_LIST,
             KakaoPickerKeywords.afterDetail(returnedToList = true, residue = false))
     }

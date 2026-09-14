@@ -4,7 +4,7 @@ import { setRouteOrigin } from '../stores/driverPositionStore';
 import { socket } from "../lib/socket";
 import { apiBase } from "../lib/serverTarget";   // 🎯 주소를 정하는 곳은 하나다 (규칙 ③)
 import type { SecuredOrder, OrderSyncPayload, RouteStopInfo } from "@onedal/shared";
-import { isEvaluating, isTerminal } from "@onedal/shared";
+import { isEvaluating, isTerminal, isManualLineage } from "@onedal/shared";
 import { logRoadmapEvent, logStateChange } from "../lib/roadmapLogger";
 import { soundManager } from "../lib/soundManager";
 import { autoKeepEnabled, autoKeepLoadedCount, logAutoKeep } from "../lib/autoKeep";
@@ -202,7 +202,12 @@ export function useOrderEngine() {
                 logRoadmapEvent("웹", "UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현", "관제대시보드");
             } else {
                 logRoadmapEvent("웹", "PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리", "관제대시보드");
-                logRoadmapEvent("웹", "예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)", "관제대시보드");
+                /* 🔴 직접콜·미리보기에는 결재 버튼이 없다(`JudgmentSeat` 의 manual 갈래) — 로그가 «버튼 활성화»라고 적으면 없는 버튼을 믿게 된다 (2026-09-14 폰 시험) */
+                if (secured.isPreview || isManualLineage(secured.type)) {
+                    logRoadmapEvent("웹", "예상 시간/수익률·판정 색 표시 — 직접·미리보기 콜이라 결재 버튼 없음 (결정은 배차망 앱에서)", "관제대시보드");
+                } else {
+                    logRoadmapEvent("웹", "예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)", "관제대시보드");
+                }
             }
             soundManager.playBeep();
             setActiveOrders(prev => prev.map(o => o.id === secured.id ? secured : o));

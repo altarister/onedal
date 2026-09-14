@@ -156,18 +156,22 @@ object KakaoPickerKeywords {
      *
      * 🔴 리스트로 돌아오면 `HijackService` 가 세션(리스트 원본 · 미리보기 딱지)을 **먼저 비운다.** 그 뒤에 승격 확인을 부르면
      *    비워진 값을 보고 «상세를 거쳐 오지 않았다»고 적었다 — 폰 시험(16:23)에서 30초 자동 복귀마다 그렇게 찍혔다.
-     *    리스트로 돌아온 것은 **수락이 아니다** (넘기기 · 뒤로 · 30초 자동 복귀) — 승격 확인을 부르지 않는다.
+     *    리스트로 돌아온 것은 **수락이 아니다** (넘기기 · 뒤로 · 자동 복귀) — 승격 확인을 부르지 않는다.
+     * 🔴 **상세에 머무는 중이면 아무것도 적지 않는다** (2026-09-14 18:28:33 폰 시험) — 상세 글자(«130분 남음»→«129분»)만
+     *    바뀌어도 «상세 → 상세»로 화면 변경이 잡혀, 떠난 적이 없는데 «상세 글자가 남은 화면 — 버린다»가 찍혔다.
      * 순수 함수라 폰 없이 검사된다 (`PromotionCheckTest`).
      */
-    enum class AfterDetail { RETURNED_TO_LIST, RESIDUE, CHECK_ACCEPTED }
+    enum class AfterDetail { STILL_ON_DETAIL, RETURNED_TO_LIST, RESIDUE, CHECK_ACCEPTED }
 
-    fun afterDetail(returnedToList: Boolean, residue: Boolean): AfterDetail = when {
+    fun afterDetail(returnedToList: Boolean, residue: Boolean, stillOnDetail: Boolean = false): AfterDetail = when {
+        stillOnDetail -> AfterDetail.STILL_ON_DETAIL
         returnedToList -> AfterDetail.RETURNED_TO_LIST
         residue -> AfterDetail.RESIDUE
         else -> AfterDetail.CHECK_ACCEPTED
     }
 
-    const val RETURNED_TO_LIST_LOG = "↩️ [승격 안 함] 상세에서 리스트로 돌아왔다 — 수락하지 않았다 (넘기기 · 뒤로 · 30초 자동 복귀)"
+    /** ⏱️ 자동 복귀가 몇 초 뒤인지는 적지 않는다 — 서버 DB 값이다 (`docs/지금/배차망별_대기_시간.md`) */
+    const val RETURNED_TO_LIST_LOG = "↩️ [승격 안 함] 상세에서 리스트로 돌아왔다 — 수락하지 않았다 (넘기기 · 뒤로 · 알람 상세 대기 시간 뒤 자동 복귀)"
 
     /** ✅ 수락한 뒤인가 — 잡은 콜로 승격해도 되는가 */
     fun isAcceptedScreen(rawText: String?): Boolean = stageOf(rawText) in ACCEPTED_STAGES
