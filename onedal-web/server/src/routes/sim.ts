@@ -12,6 +12,9 @@ import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
 import { BOOTED_AT } from "./health";
 import { calculateSoloRoute } from "../services/kakaoService";
 import { createSimCallQueue, pushSimCall, readSimCallInput, simCallsAfter } from "../core/simCallQueue";
+import { startScenario, stepScenario, skipScenarioRow } from "../core/simScenario";
+import type { ScenarioState, ScenarioWorld, WorldOrder, WorldIntel } from "../core/simScenario";
+import { ICHEON_ROUND_TRIP } from "../core/simScenarioIcheon";
 
 const router = Router();
 
@@ -258,6 +261,136 @@ router.get("/preflight", (_req, res) => {
         /** 충청 확장이 실렸는가 — 1,968 이면 실렸고 1,239 면 옛 지도다 */
         map: mapCoverage(),
     });
+});
+
+/**
+ * 🎬 **시나리오콜 — «이천 왕복 하루»를 서버가 사건순으로 낸다** (기사님 지시 2026-09-15 · 설계서 `docs/기획/문제지_이천왕복.md` §7).
+ *
+ * 기사님: *"시뮬레이터에 내기 버튼을 클릭하면 서버가 그냥 콜리스트를 … 순서대로 뿌리면 되는거 아냐?"* —
+ * 현황판 [시작] 한 번이면 여기 1초 타이머가 «세상»(메모리 콜 · 폰 판정 `intel` · 도는 필터)을 읽어
+ * `core/simScenario.stepScenario` 에 넘기고, 낼 콜은 **개별콜과 같은 대기열**(`simCalls`)에 넣는다 — 시뮬레이터는 «🚚 개별콜» 탭으로 켠다.
+ *
+ * 🔴 **여기서 판단하지 않는다** — 옮기기만 한다. 판단은 순수 함수 하나(검사 `tests/core/simScenario.test.ts`).
+ * 🔴 **개발 빌드에서만** — 기사님 콜·필터를 읽는 문이다 (`/preflight` 와 같은 문지기 · 사람 세션 하나일 때만).
+ * 🔴 **시뮬레이터가 안 물으면 시작을 안 받는다** (onedal-49 2026-09-15) — 시뮬레이터는 «처음 물은 뒤»에 들어온 콜만 받아서,
+ *    켜기 전에 시작하면 첫 줄 콜이 사라진다. 현황판 개별콜 칸(`sentNoteOf`)과 같은 10초 기준.
+ * ⚠️ **메모리에만 둔다** — 서버를 다시 띄우면 시나리오도 멈춘다 (타이머와 함께 사라진다).
+ */
+const SCENARIO_TICK_MS = 1000;
+const SIM_POLL_FRESH_MS = 10_000;
+const scenarioDef = ICHEON_ROUND_TRIP;
+let scenario: { userId: string; state: ScenarioState; timer: ReturnType<typeof setInterval> } | null = null;
+
+/** «세상» — 판단에 쓰는 칸만 옮긴다. 메모리 콜은 확정 사본(myOrders)이 도착 시각을 들고 있어 그쪽이 이긴다 */
+function scenarioWorld(userId: string, now: number): ScenarioWorld {
+    const session = getUserSession(userId);
+    const byId = new Map<string, WorldOrder>();
+    const put = (o: any) => {
+        if (!o?.id) return;
+        byId.set(o.id, {
+            id: o.id, status: o.status,
+            pickupX: o.pickupX, pickupY: o.pickupY, dropoffX: o.dropoffX, dropoffY: o.dropoffY,
+            arrivedPickupAt: o.arrivedPickupAt, arrivedDropoffAt: o.arrivedDropoffAt,
+        });
+    };
+    for (const o of session.pendingOrdersData.values()) put(o);
+    for (const o of session.myOrders) put(o);
+    const intel = db.prepare(
+        `SELECT id, pickupX, pickupY, dropoffX, dropoffY, verdict FROM intel ORDER BY id DESC LIMIT 50`,
+    ).all() as WorldIntel[];
+    const f = session.activeFilter;
+    return {
+        now, orders: [...byId.values()], intel,
+        filter: { dispatchPhase: f.dispatchPhase, goalCities: f.goalCities, callTarget: f.callTarget, destinationKeywords: f.destinationKeywords },
+    };
+}
+
+function tickScenario() {
+    if (!scenario) return;
+    const now = Date.now();
+    const before = scenario.state;
+    const r = stepScenario(scenarioDef, before, scenarioWorld(scenario.userId, now));
+    if (r.send) {
+        const q = pushSimCall(simCalls, r.send, now);
+        console.log(`🎬 [시나리오] ${scenarioDef[r.state.index].id} 냄 #${q.seq} — ${r.send.pickup.region} → ${r.send.dropoff.region} · ${r.send.fare} · ${r.send.vehicleType ?? ''}`);
+    }
+    r.state.rows.forEach((row, i) => {
+        const was = before.rows[i];
+        if (row.mark !== was.mark || row.note !== was.note) console.log(`🎬 [시나리오] ${row.id} ${row.mark} — ${row.note}`);
+    });
+    scenario.state = r.state;
+    if (r.state.finished) {
+        clearInterval(scenario.timer);
+        console.log(`🎬 [시나리오] 끝 — ${r.state.rows.map(x => `${x.id} ${x.mark}`).join(' · ')}`);
+    }
+}
+
+function stopScenario() {
+    if (scenario) clearInterval(scenario.timer);
+    scenario = null;
+}
+
+router.get("/scenario", (_req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+    const now = Date.now();
+    const userIds = humanUserIds();
+    const session = userIds.length === 1 ? getUserSession(userIds[0]) : null;
+    const f = session?.activeFilter;
+    const simPolledAgoMs = simCalls.lastPollAt === null ? null : now - simCalls.lastPollAt;
+    /** 시작 조건 — 틀려도 막지는 않는다(시뮬레이터 연결만 막는다) · 기사님이 정한다 */
+    const precheck = [
+        { what: '기사님 세션', ok: userIds.length === 1, got: userIds.length === 1 ? '하나' : `${userIds.length}개` },
+        { what: '목적지', ok: f?.destinationCity === '이천시', got: f?.destinationCity ?? '(없음)' },
+        { what: '복귀', ok: (f?.callTarget ?? 'DEST') !== 'HOME', got: f?.callTarget === 'HOME' ? '켬' : '끔' },
+        { what: '콜', ok: !!session && getActiveCalls(session).length === 0, got: session ? `${getActiveCalls(session).length}건` : '—' },
+        { what: '시뮬레이터 연결', ok: simPolledAgoMs !== null && simPolledAgoMs <= SIM_POLL_FRESH_MS,
+          got: simPolledAgoMs === null ? '한 번도 안 물었다' : `${Math.round(simPolledAgoMs / 1000)}초 전` },
+    ];
+    const st = scenario?.state ?? null;
+    return res.json({
+        ok: true, name: '이천 왕복 하루', running: !!scenario && !st?.finished,
+        index: st?.index ?? null, finished: st?.finished ?? false, startedAt: st?.startedAt ?? null,
+        precheck,
+        rows: scenarioDef.map((d, i) => ({
+            id: d.id, stage: d.stage, kind: d.kind, say: d.say, why: d.why, guess: !!d.guess, blockBy: d.blockBy ?? null,
+            when: 'arrive' in d.when ? `${d.when.arrive} ${d.when.stop === 'pickup' ? '상차' : '하차'}지에 서면` : '앞 줄 뒤',
+            call: d.call ? `${d.call.pickup.name} → ${d.call.dropoff.name} · ${d.call.fare.toLocaleString()} · ${d.call.vehicleType}` : null,
+            ...(st ? st.rows[i] : { mark: 'wait', note: '' }),
+        })),
+    });
+});
+
+router.post("/scenario/start", (_req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+    const userIds = humanUserIds();
+    if (userIds.length !== 1) return res.status(400).json({ ok: false, error: userIds.length ? "세션이 여럿입니다" : "접속한 세션이 없습니다" });
+    const now = Date.now();
+    if (simCalls.lastPollAt === null || now - simCalls.lastPollAt > SIM_POLL_FRESH_MS) {
+        return res.status(409).json({ ok: false, error: "시뮬레이터가 10초 안에 안 물었다 — «🚚 개별콜» 탭으로 켜세요" });
+    }
+    stopScenario();
+    scenario = { userId: userIds[0], state: startScenario(scenarioDef, now), timer: setInterval(tickScenario, SCENARIO_TICK_MS) };
+    scenario.timer.unref?.();
+    console.log(`🎬 [시나리오] 시작 — 이천 왕복 하루 (${scenarioDef.length}줄)`);
+    tickScenario();
+    return res.json({ ok: true });
+});
+
+router.post("/scenario/skip", (_req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+    if (!scenario) return res.status(409).json({ ok: false, error: "시나리오가 안 돌고 있다" });
+    const id = scenarioDef[scenario.state.index]?.id;
+    scenario.state = skipScenarioRow(scenarioDef, scenario.state, Date.now());
+    console.log(`🎬 [시나리오] ${id} 건너뜀`);
+    tickScenario();
+    return res.json({ ok: true });
+});
+
+router.post("/scenario/stop", (_req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+    stopScenario();
+    console.log(`🎬 [시나리오] 멈춤`);
+    return res.json({ ok: true });
 });
 
 export default router;

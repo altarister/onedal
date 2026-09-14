@@ -43,6 +43,7 @@ import { viewAll, tallyMarks, MARK_SIGN } from './callVerdict';
 import { callStepsOf, handmadeOrderFrom, isHandmade } from './handmadeCall';
 import { placeFromFound, sentNoteOf, simCallBody } from './simCall';
 import type { SimPlaceDraft } from './simCall';
+import ScenarioCard from './ScenarioCard';
 /* 🎚️ **눈금이 무엇을 못 보게 하나 — 판단은 순수 함수가 한다** (`dialEffect.ts` 머리 참조) */
 import { dialEffectOf } from './dialEffect';
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
@@ -660,6 +661,8 @@ function TestOnlySection({ phase }: { phase?: string }) {
                 <div className="flex-1 min-w-[240px]"><LocationPickCard /></div>
                 <div className="flex-1 min-w-[240px]"><SimCallCard /></div>
             </div>
+            {/* 🎬 시나리오콜 — 줄이 길어 한 줄을 통째로 쓴다 (설계서 `docs/기획/문제지_이천왕복.md` §7) */}
+            <div className="pt-2"><ScenarioCard /></div>
         </div>
     );
 }
