@@ -836,6 +836,16 @@ class HijackService : AccessibilityService(), ScanContext {
         /** 🔔 이번 스캔의 알람 통과 콜들 — 루프 뒤에 요금 최고 하나만 울린다 (기사님 확정 0830) */
         val alarmHits = mutableListOf<Triple<SimplifiedOfficeOrder, ScreenTextNode, Int>>()
 
+        /**
+         * 🔄 **필터 버전이 바뀌었으면 «막았다» 기억만 비운다** (#135 · 2026-09-15).
+         * 상차 목록은 차가 0.5km 움직일 때마다 바뀐다 — 옛 목록으로 막힌 콜을 새 목록으로 다시 판정해야
+         * «가까워지면 올라온다»가 선다. 누른 콜·통과한 콜·보고한 콜은 그대로다 (`CallMemory` 머리).
+         */
+        val filterVersionNow = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).getString("filterVersion", null)
+        if (callMemory.onFilterVersion(filterVersionNow)) {
+            AppLogger.d(TAG, "🔄 [필터 바뀜] 버전 $filterVersionNow — 막았던 콜을 새 필터로 다시 판정한다")
+        }
+
         // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
         for ((fareNode, cardTexts) in groupedNodes) {
             if (cardTexts.isEmpty()) {
@@ -981,7 +991,8 @@ class HijackService : AccessibilityService(), ScanContext {
              * 나타난 콜을 영영 삼키던 사고의 수리 지점이다. 로그를 남기는 이유는 08-25 와
              * 같다: 침묵하면 «필터가 막았나/잠겼나/못 읽었나»를 가릴 수 없다.
              */
-            callMemory.onScanned(orderHash, wasEvaluated)
+            // #135 — 통과면 «통과했다»(필터가 바뀌어도 다시 안 봄), 막혔으면 «막았다»(필터 버전이 바뀌면 다시 판정)
+            callMemory.onScanned(orderHash, wasEvaluated, passed = isTarget)
             if (!wasEvaluated) {
                 AppLogger.d(TAG, "🔒 [평가 보류] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
                     "${order.fare}원 — 필터 잠김(선점 중·대기), 다음 스캔에서 다시 본다")
