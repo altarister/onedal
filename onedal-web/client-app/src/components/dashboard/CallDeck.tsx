@@ -291,9 +291,16 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
             const tle = (stop: 'pickup' | 'dropoff') =>
                 timeline.find(e => e.orderId === o.id && e.stopType === stop);
             const jd = derivationInputsOf(useJudgmentStore.getState().judgment);
-            const fallback = timeline.length ? null : deriveCallTiming(o, r.reports, r.milestones, Date.now(), jd.rules, jd.unk);
+            /**
+             * 👣 **시간표에 없는 정거장이면 콜 자체의 약속** (기사님 실측 2026-09-14: *"도착하면 값이 빠져서 빈칸으로 보여"*).
+             * 🔴 예전엔 `timeline.length ? null : …` — **시간표가 통째로 빌 때만** 폴백했다. 다녀온 정거장은
+             *    시간표에서 빠지므로 약속이 `--:--` 가 됐다. 문서(`시각_표시.md` «다녀옴»)와 목업은 약속을 남긴다.
+             *    필요할 때 한 번만 계산한다 — 시간표에 다 있으면 안 부른다.
+             */
+            let fallbackMemo: ReturnType<typeof deriveCallTiming> | undefined;
+            const fallbackOf = () => (fallbackMemo ??= deriveCallTiming(o, r.reports, r.milestones, Date.now(), jd.rules, jd.unk));
             const promiseOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.promisedUntil
-                ?? (stop === 'pickup' ? fallback?.pickupPromisedArrivalAt : fallback?.dropoffPromisedArrivalAt)
+                ?? (stop === 'pickup' ? fallbackOf()?.pickupPromisedArrivalAt : fallbackOf()?.dropoffPromisedArrivalAt)
                 ?? null;
             /** ⚠️ 못 지키는 약속 — 경로가 바뀌었거나 앞 약속이 늦춰진 것 */
             const lateOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.lateMinutes ?? 0;
