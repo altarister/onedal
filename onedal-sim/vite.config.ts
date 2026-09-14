@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { buildInfoPlugin } from './buildInfoPlugin';
 
 /**
  * 포트 5173 은 바꾸지 않는다 — `onedal-web/scripts/appLoop.mjs`(pnpm e2e:app)가
@@ -7,6 +8,6 @@ import react from '@vitejs/plugin-react';
  * `host: true` 라야 같은 공유기의 앱폰이 개발용 PC IP 로 들어올 수 있다.
  */
 export default defineConfig({
-    plugins: [react()],
+    plugins: [react(), buildInfoPlugin()],   // 🧾 설정 화면 헤더의 커밋 번호
     server: { host: true, port: 5173 },
 });

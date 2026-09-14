@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { buildInfoPlugin } from './buildInfoPlugin';
 
 /**
  * 🧪 **시뮬레이터 검사** — `pnpm test` (기사님 확정 2026-09-14 · docs/기획/카카오픽커_시뮬레이터.md §11-1)
@@ -10,7 +11,7 @@ import react from '@vitejs/plugin-react';
  * ⚠️ onedal-web 과 같은 vitest 이지만 **워크스페이스는 여전히 따로다** (pnpm-workspace.yaml 머리 주석).
  */
 export default defineConfig({
-    plugins: [react()],   // 화면 검사(.tsx)가 JSX 를 쓴다
+    plugins: [react(), buildInfoPlugin()],   // 화면 검사(.tsx)가 JSX 를 쓴다 · 설정 화면의 커밋 번호는 검사에서 `test` 로 고정
     test: {
         include: ['tests/**/*.test.{ts,tsx}', 'packages/*/src/**/*.test.{ts,tsx}'],
         environment: 'node',

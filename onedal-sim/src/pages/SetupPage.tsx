@@ -20,6 +20,7 @@ import { PRESET_MENU, PRESETS, PRESET_REQUIRES } from '@altari/core-simulator';
 import type { PresetRequires } from '@altari/core-simulator';
 import { SIM_NETS, SIM_NET_LIST } from '@altari/ui-simulators';
 import type { NetKey } from '@altari/ui-simulators';
+import buildInfo from 'virtual:build-info';
 
 /**
  * 어느 배차망 화면으로 볼 것인가 — 목록은 `nets.ts` 한 곳에 있다 (0단계 0-2 ⑤).
@@ -135,6 +136,7 @@ export function SetupPage() {
         */}
       <header className="flex items-center gap-2 px-3 py-2 bg-[#0f2a5c] border-b border-blue-700/30">
         <span className="text-[13px] font-bold text-white tracking-tight whitespace-nowrap">🚚 배차 시뮬레이터</span>
+        <BuildStamp />
         <div className="ml-auto flex rounded-md border border-[#3b5a94] overflow-hidden">
           {NETS.map((n, i) => (
             <button
@@ -305,6 +307,20 @@ export function SetupPage() {
 // ══════════════════════════════════════════════════════════════════
 //  부품
 // ══════════════════════════════════════════════════════════════════
+
+/**
+ * 🧾 **지금 폰이 어느 코드를 보나** (기사님 2026-09-14)
+ * 기사님은 앱으로만 들어오셔서 주소를 칠 수 없다 — 원달앱의 `📦 v…` 처럼 여기서 커밋 번호를 보고 맞춰 본다.
+ * `+` 는 커밋 안 된 고침이 섞였다는 뜻 · `빌드` 는 개발 서버가 아니라 빌드한 판(rehearsal 등)이라는 뜻 (buildInfoPlugin.ts).
+ * 🔴 설정 화면에만 둔다 — 배차 화면은 원달앱이 글자를 읽는 곳이라 글자를 더하지 않는다.
+ */
+function BuildStamp() {
+  return (
+    <span className="font-mono text-[10px] text-blue-200/70 whitespace-nowrap">
+      📦 {buildInfo.commit}{buildInfo.dirty ? '+' : ''}{buildInfo.mode === 'build' ? ' 빌드' : ''}
+    </span>
+  );
+}
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
