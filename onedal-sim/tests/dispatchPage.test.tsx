@@ -28,12 +28,36 @@ describe('배차 화면 — 배차망마다 고르는 부품 (첫 그림)', () =
     afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
     it.each([
-        ['인성', '/dispatch?net=inseong'],
+        // 0-4 에서 이름이 `inseong` → `insung` 으로 바뀌었다 — 스냅숏은 옮기기 전 그대로 (옛 주소 넘김은 addressRedirect.test.tsx)
+        ['인성', '/dispatch?net=insung'],
         ['화물24시', '/dispatch?net=hwamul24'],
-        ['net 없음', '/dispatch'],
-        ['모르는 net', '/dispatch?net=abc'],
         ['없는 문제지', '/dispatch?net=hwamul24&preset=없는문제지'],
     ])('%s', (_name, url) => {
         expect({ frame: frameOf(url), text: textOf(url) }).toMatchSnapshot();
+    });
+});
+
+/**
+ * 🔴 **모르는 배차망이면 멈춘다** (2026-09-14 · 카카오픽커_시뮬레이터.md §3-3 · 0단계 0-4)
+ *
+ * 예전엔 `?net=` 이 화물24시가 아니면 전부 인성으로 그렸다. 인성인 줄 모르고 30분 시험하면 그 30분이 헛것이다 —
+ * 문제지 이름을 못 찾을 때(«문제지 … 가 없습니다»)와 같은 자리다. 이름이 **아예 없을 때**도 같다.
+ */
+describe('배차 화면 — 배차망 이름을 모르면 멈춘다', () => {
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(FIXED_NOW); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it.each([
+        ['모르는 이름', '/dispatch?net=abc', '배차망 «abc» 가 없습니다'],
+        ['이름 없음', '/dispatch?preset=seven', '주소에 배차망 이름(net)이 없습니다'],
+        ['빈 이름', '/dispatch?net=', '주소에 배차망 이름(net)이 없습니다'],
+    ])('%s — 콜 화면을 안 그리고 쓸 수 있는 이름을 보인다', (_name, url, title) => {
+        const text = textOf(url);
+        expect(text).toContain(title);
+        expect(text).toContain('insung');
+        expect(text).toContain('hwamul24');
+        // 인성 리스트도 화물24시 리스트도 아니다
+        expect(text).not.toContain('대기 중인 오더가 없습니다');
+        expect(text).not.toContain('화물정보');
     });
 });

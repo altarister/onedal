@@ -9,7 +9,7 @@ export type { SimulationConfig, DriverLocation } from './context/SimulationConte
 
 // 🌐 배차망을 전부 아는 곳 — 콜 타입 묶음 (0단계 0-2 ③)
 export type { SimCall, SimNet, NetKey, NetScreenProps } from './nets';
-export { SIM_NETS, SIM_NET_LIST, simNetOf } from './nets';
+export { SIM_NETS, SIM_NET_LIST, simNetOf, renamedNetKey } from './nets';
 export { InsungSimScreen } from './inseong/InsungSimScreen';
 export { Hwamul24SimScreen } from './hwamul24/Hwamul24SimScreen';
 export type { InsungCall } from './inseong/insungCall';

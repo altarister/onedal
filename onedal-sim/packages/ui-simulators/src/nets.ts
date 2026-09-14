@@ -21,8 +21,11 @@ import { Hwamul24SimScreen } from './hwamul24/Hwamul24SimScreen';
 /** 시뮬레이터 리스트·잡은 콜이 담는 콜 — 배차망마다 칸이 다르다 */
 export type SimCall = InsungCall | Hwamul24Call;
 
-/** 주소(`?net=`)에 쓰는 배차망 이름 — ⏳ 0단계 0-4 에서 서버·원달앱과 같은 `insung` 으로 맞춘다 */
-export type NetKey = 'inseong' | 'hwamul24';
+/**
+ * 주소(`?net=`)에 쓰는 배차망 이름 — 서버·원달앱과 같은 값이다 (0단계 0-4 · 계획서 §3-5).
+ * 시뮬레이터는 `shared` 를 일부러 안 가져다 쓰므로 코드로 묶지 않고 값만 맞춘다.
+ */
+export type NetKey = 'insung' | 'hwamul24';
 
 /**
  * 배차 화면이 배차망 화면에 넘기는 것 — 콜 목록 · 고른 콜 · 공통 동작.
@@ -68,8 +71,8 @@ export interface SimNet {
 }
 
 export const SIM_NETS: Record<NetKey, SimNet> = {
-  inseong: {
-    key: 'inseong',
+  insung: {
+    key: 'insung',
     label: '인성콜',
     toCall: toInsungCall,
     frameClassName: 'w-full h-dvh py-10 bg-[#111] overflow-hidden relative font-sans text-black',
@@ -87,12 +90,23 @@ export const SIM_NETS: Record<NetKey, SimNet> = {
 };
 
 /** 설정 화면에 늘어놓는 순서 */
-export const SIM_NET_LIST: SimNet[] = [SIM_NETS.inseong, SIM_NETS.hwamul24];
+export const SIM_NET_LIST: SimNet[] = [SIM_NETS.insung, SIM_NETS.hwamul24];
 
 /**
- * 주소의 `?net=` → 배차망.
- * ⏳ **모르는 값·없는 값은 지금은 인성이다** — 예전 동작 그대로. 0단계 0-4 에서 «멈추고 알린다»로 바꾼다 (계획서 §3-3).
+ * 주소의 `?net=` → 배차망. 🔴 **모르는 값·없는 값은 `null` 이다** — 부르는 쪽이 멈추고 알린다 (계획서 §3-3).
+ * 예전엔 화물24시가 아니면 전부 인성으로 그렸다 — 인성인 줄 모르고 30분 시험하면 그 30분이 헛것이다.
  */
-export function simNetOf(key: string | null): SimNet {
-  return key === 'hwamul24' ? SIM_NETS.hwamul24 : SIM_NETS.inseong;
+export function simNetOf(key: string | null): SimNet | null {
+  return SIM_NET_LIST.find(n => n.key === key) ?? null;
+}
+
+/**
+ * 🔀 바뀐 옛 이름 → 새 이름 (0단계 0-4). 폰 북마크와 기록 문서(`docs/기록/필드테스트.md`)의 옛 주소를 살린다.
+ * 옛 이름을 아는 곳은 여기와 옛 경로를 받는 `App.tsx` 뿐이다 (`tests/boundaries.test.ts` 규칙 ④).
+ */
+const RENAMED_NET_KEYS: Record<string, NetKey> = { inseong: 'insung' };
+
+/** 옛 이름이면 새 이름, 아니면 `null` */
+export function renamedNetKey(key: string | null): NetKey | null {
+  return key != null && Object.hasOwn(RENAMED_NET_KEYS, key) ? RENAMED_NET_KEYS[key] : null;
 }

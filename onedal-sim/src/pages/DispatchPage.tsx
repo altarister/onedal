@@ -1,5 +1,5 @@
 /**
- * 🚚 **배차 리스트** (`/dispatch?net=inseong|hwamul24`) — 기사님 확정 2026-09-11
+ * 🚚 **배차 리스트** (`/dispatch?net=insung|hwamul24`) — 기사님 확정 2026-09-11 · 이름은 2026-09-14 에 서버·원달앱과 맞췄다
  *
  * 🔴 **갈라지는 것은 «그리는 화면» 하나뿐이다.** 앱 파서가 **화면에 적힌 글자**를 읽기
  *    때문이다 — 인성은 차종 약자(오·다·라)를 앵커로 요금을 읽고, 화물24시는
@@ -10,13 +10,43 @@
  * 있으면 언젠가 갈라진다 (규칙 ③).
  */
 import { useState, useCallback, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { SimulationProvider, useSimulationContext } from '@altari/ui-simulators';
 import { useSimStreaming } from '@altari/ui-simulators';
-import { simNetOf } from '@altari/ui-simulators';
+import { simNetOf, renamedNetKey, SIM_NET_LIST } from '@altari/ui-simulators';
 import { getPreset, PRESET_KEYS } from '@altari/core-simulator';
 import type { SimCall } from '@altari/ui-simulators';
 import type { SimNet } from '@altari/ui-simulators';
+
+/**
+ * 🔴 **배차망 이름을 모를 때의 멈춤 화면** (2026-09-14 · 0단계 0-4)
+ *
+ * 예전엔 `?net=` 이 모르는 값이거나 아예 없으면 한 배차망 화면으로 조용히 그렸다.
+ * 그 배차망인 줄 모르고 시험하면 그 시간이 통째로 헛것이다 — 아래 «문제지가 없다» 멈춤과 같은 자리다.
+ */
+function UnknownNetScreen({ netKey }: { netKey: string | null }) {
+  return (
+    <div className="w-full h-dvh flex flex-col items-center justify-center gap-3 bg-red-50 p-6 text-center">
+      <div className="text-3xl">🚚</div>
+      <div className="text-lg font-bold text-red-700">
+        {netKey ? <>배차망 «{netKey}» 가 없습니다</> : <>주소에 배차망 이름(net)이 없습니다</>}
+      </div>
+      <div className="text-sm text-red-600">
+        어느 배차망 화면인지 몰라서 <b>콜을 흘리지 않습니다.</b><br />
+        짐작해서 한 배차망으로 그리면, 그 배차망인 줄 모르고 시험한 시간이 헛것이 됩니다.
+      </div>
+      <div className="mt-2 text-xs text-gray-700">
+        <div className="mb-1 font-bold">쓸 수 있는 이름 (<code>?net=</code>)</div>
+        <div className="flex flex-wrap justify-center gap-1">
+          {SIM_NET_LIST.map(n => (
+            <code key={n.key} className="rounded bg-white px-2 py-0.5 border border-red-200">{n.key}</code>
+          ))}
+        </div>
+      </div>
+      <Link to="/" className="mt-3 rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white">설정 화면으로</Link>
+    </div>
+  );
+}
 
 function DispatchContent({ simNet }: { simNet: SimNet }) {
   const navigate = useNavigate();
@@ -168,7 +198,19 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
 
 export function DispatchPage() {
   const [searchParams] = useSearchParams();
-  const simNet = simNetOf(searchParams.get('net'));
+  const netKey = searchParams.get('net');
+
+  // 🔀 바뀐 옛 이름 — 나머지 쿼리(문제지·간격)를 그대로 들고 새 이름으로 넘긴다 (0단계 0-4)
+  const renamed = renamedNetKey(netKey);
+  if (renamed) {
+    const params = new URLSearchParams(searchParams);
+    params.set('net', renamed);
+    return <Navigate to={`/dispatch?${params.toString()}`} replace />;
+  }
+
+  // 🔴 모르는 배차망이면 멈춘다 — 짐작해서 한 배차망으로 그리지 않는다 (nets.ts · 계획서 §3-3)
+  const simNet = simNetOf(netKey);
+  if (!simNet) return <UnknownNetScreen netKey={netKey} />;
 
   const driverLocation = {
     lon: Number(searchParams.get('lon') || '127.2553'),

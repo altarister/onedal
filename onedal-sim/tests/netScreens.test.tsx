@@ -11,6 +11,7 @@ import {
     InsungSimScreen,
     SIM_NETS,
     SIM_NET_LIST,
+    renamedNetKey,
     simNetOf,
     toHwamul24Call,
     toInsungCall,
@@ -92,23 +93,33 @@ describe('배차망 화면 = 예전 DispatchPage 갈래가 고르던 부품', ()
 
 describe('배차망 목록 — 한 곳에서만', () => {
     it('입히기 함수는 각 배차망 폴더의 것', () => {
-        expect(SIM_NETS.inseong.toCall).toBe(toInsungCall);
+        expect(SIM_NETS.insung.toCall).toBe(toInsungCall);
         expect(SIM_NETS.hwamul24.toCall).toBe(toHwamul24Call);
     });
 
     it('설정 화면 색 — 예전에 설정 화면이 직접 고르던 클래스 그대로 (0-3 에서 옮겼다)', () => {
-        expect(SIM_NETS.inseong.setupColors).toEqual({ toggle: 'bg-blue-600 text-white', start: 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-900/40' });
+        expect(SIM_NETS.insung.setupColors).toEqual({ toggle: 'bg-blue-600 text-white', start: 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-900/40' });
         expect(SIM_NETS.hwamul24.setupColors).toEqual({ toggle: 'bg-[#c62828] text-white', start: 'bg-gradient-to-r from-[#c62828] to-[#8e1b1b] shadow-red-900/40' });
     });
 
     it('설정 화면 순서와 이름 — 인성콜 · 화물24시 (예전 목록 그대로)', () => {
-        expect(SIM_NET_LIST.map(n => [n.key, n.label])).toEqual([['inseong', '인성콜'], ['hwamul24', '화물24시']]);
+        expect(SIM_NET_LIST.map(n => [n.key, n.label])).toEqual([['insung', '인성콜'], ['hwamul24', '화물24시']]);
     });
 
-    it('⏳ ?net= 해석 — 모르는 값·없는 값은 지금은 인성 (예전 동작 · 0-4 에서 멈춤으로 바꾼다)', () => {
-        expect(simNetOf('hwamul24').key).toBe('hwamul24');
-        expect(simNetOf('inseong').key).toBe('inseong');
-        expect(simNetOf(null).key).toBe('inseong');
-        expect(simNetOf('abc').key).toBe('inseong');
+    it('🔴 ?net= 해석 — 모르는 값·없는 값·옛 이름은 null (부르는 쪽이 멈추거나 넘긴다 · 0-4)', () => {
+        expect(simNetOf('hwamul24')?.key).toBe('hwamul24');
+        expect(simNetOf('insung')?.key).toBe('insung');
+        expect(simNetOf(null)).toBeNull();
+        expect(simNetOf('')).toBeNull();
+        expect(simNetOf('abc')).toBeNull();
+        expect(simNetOf('inseong')).toBeNull();
+    });
+
+    it('🔀 옛 이름 → 새 이름 — inseong 만 insung 으로', () => {
+        expect(renamedNetKey('inseong')).toBe('insung');
+        expect(renamedNetKey('insung')).toBeNull();
+        expect(renamedNetKey('hwamul24')).toBeNull();
+        expect(renamedNetKey('toString')).toBeNull();
+        expect(renamedNetKey(null)).toBeNull();
     });
 });

@@ -38,9 +38,13 @@ cd onedal-sim && pnpm test                    # 검사 (vitest · 2026-09-14 신
 복권을 긁어야 했다. 문제지는 정해진 콜을 **순서대로 한 문제씩** 흘린다.
 
 ```
-http://<PC IP>:5173/dispatch?net=inseong&preset=hospital      ← 폰에서 치기 쉬운 영문 별칭
+http://<PC IP>:5173/dispatch?net=insung&preset=hospital       ← 폰에서 치기 쉬운 영문 별칭
 http://<PC IP>:5173/dispatch?net=hwamul24&preset=병원복귀      ← 한글도 된다 (브라우저가 인코딩한다)
 ```
+
+> 🔴 **배차망 이름이 2026-09-14 에 `inseong` → `insung` 으로 바뀌었다** — 서버·원달앱과 같은 값이다.
+> 옛 `?net=inseong` 은 새 이름으로 넘어간다(쿼리도 함께). **모르는 이름이거나 `net` 이 없으면
+> 콜을 흘리지 않고 멈춘다** — 예전엔 조용히 인성 화면을 그렸다.
 
 > 🔴 **주소가 2026-09-11 에 바뀌었다.** 배차망이 라우트로 갈리던 것(`/inseong/dispatch`)을
 > **설정 한 장 + `?net=`** 으로 합쳤다 — 설정이 두 벌이라 화물24시 쪽에는 문제지 탭도
