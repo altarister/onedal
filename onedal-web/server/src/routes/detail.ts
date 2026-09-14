@@ -4,10 +4,10 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
-import { isTerminal, isTargetApp, DEFAULT_TARGET_APP } from "@onedal/shared";
+import { isTerminal, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
 import { parseLocationDetails, promoteDetailAddresses, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { DISPATCH_CONFIG } from "../config/dispatchConfig";
+import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
 import { evolveOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
@@ -299,6 +299,14 @@ router.post("/", async (req, res) => {
         // 백그라운드로 평가 진행 (카카오 API 지연 방어)
         evaluateNewOrder(userId, pendingOrder, io, targetApp).catch(console.error);
 
+        /**
+         * ⏱️ **경고는 안전취소 시간에, 강제 해제는 그 +5초에** — 원달앱이 먼저 취소하고 서버가 뒤에 치운다
+         *    (DB · `docs/지금/배차망별_대기_시간.md`).
+         * 🔴 픽커는 안전취소가 없다 — 서버는 스스로 치우지 않는다(규칙 ①). 리스트 복귀 때 `devices.ts` 가 치운다.
+         */
+        const cancelSec = safeCancelSecOf(readWaitTimes(userId), targetApp);
+        if (cancelSec == null) return;
+
         const warningTimer = setTimeout(() => {
             if (session.pendingDecisions.has(payload.order.id)) {
                 if (io) {
@@ -313,7 +321,7 @@ router.post("/", async (req, res) => {
                     });
                 }
             }
-        }, DISPATCH_CONFIG.WAITING_WARNING_MS);
+        }, cancelSec * 1000);
 
         const timeoutTimer = setTimeout(() => {
             const decision = session.pendingDecisions.get(payload.order.id);
@@ -343,7 +351,7 @@ router.post("/", async (req, res) => {
                     io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'SAFE_CANCEL' });
                 }
             }
-        }, DISPATCH_CONFIG.WAITING_TIMEOUT_MS);
+        }, (cancelSec + SERVER_CLEANUP_EXTRA_SEC) * 1000);
 
         // 비상 시 취소를 위해 타이머들 등록
         session.activeTimers.set(`warn_${payload.order.id}`, warningTimer);

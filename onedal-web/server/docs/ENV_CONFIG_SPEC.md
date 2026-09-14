@@ -44,5 +44,5 @@ OSRM_SERVER_URL=http://router.project-osrm.org
 | `DETOUR_HONEY_DIST_MAX` | 15km | 합짐 추가 거리 이 km 이하 → 꿀 |
 | `DETOUR_SHIT_TIME_MIN` | 60분 | 합짐 추가 시간 이 분 이상 → 똥 |
 | `DETOUR_SHIT_DIST_MIN` | 30km | 합짐 추가 거리 이 km 이상 → 똥 |
-| `WAITING_WARNING_MS` | 30000ms | 데스밸리 경고 타이머 |
-| `WAITING_TIMEOUT_MS` | 35000ms | 데스밸리 강제 취소 타이머 |
+| 안전취소 경고 타이머 | 배차망별 안전취소 시간 (DB `user_settings.safe_cancel_sec_insung` · `safe_cancel_sec_hwamul24`, 기본 30초) | 2026-09-14 코드 상수에서 DB 로 옮겼다 — `docs/지금/배차망별_대기_시간.md` |
+| 안전취소 강제 취소 타이머 | 위 값 + `SERVER_CLEANUP_EXTRA_SEC`(5초) | 픽커는 안전취소가 없어 타이머를 걸지 않는다 |

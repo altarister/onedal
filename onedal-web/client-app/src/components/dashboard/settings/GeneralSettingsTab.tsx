@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "../../../api/apiClient";
-import { VEHICLE_OPTIONS } from "@onedal/shared";
+import { VEHICLE_OPTIONS, DEFAULT_WAIT_TIMES } from "@onedal/shared";
+import type { WaitTimes } from "@onedal/shared";
+import { useSettingsStore } from "../../../stores/settingsStore";
 import { soundManager } from "../../../lib/soundManager";
 import { Switch } from "../../ui/switch";
 import { Button } from "../../ui/button";
@@ -21,6 +23,8 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [volume, setVolume] = useState(50);
   const [pickerAlarmMinFare, setPickerAlarmMinFare] = useState(10000);
+  /** ⏱️ 배차망별 대기 시간 (docs/지금/배차망별_대기_시간.md) */
+  const [waitTimes, setWaitTimes] = useState<WaitTimes>(DEFAULT_WAIT_TIMES);
 
   const loadSettings = async () => {
     try {
@@ -33,6 +37,11 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       setGeocodeError(null);
       setIsActive(data.isActive || false);
       setPickerAlarmMinFare(data.pickerAlarmMinFare ?? 10000);
+      setWaitTimes({
+        safeCancelSecInsung: data.safeCancelSecInsung ?? DEFAULT_WAIT_TIMES.safeCancelSecInsung,
+        safeCancelSecHwamul24: data.safeCancelSecHwamul24 ?? DEFAULT_WAIT_TIMES.safeCancelSecHwamul24,
+        pickerAlarmDetailSec: data.pickerAlarmDetailSec ?? DEFAULT_WAIT_TIMES.pickerAlarmDetailSec,
+      });
     } catch (e) {
       console.error("Failed to load settings:", e);
     } finally {
@@ -69,8 +78,11 @@ export default function GeneralSettingsTab({ onClose }: Props) {
         vehicleType, defaultPriority, homeAddress,
         homeX: homeCoords?.x, homeY: homeCoords?.y,
         isActive,
-        pickerAlarmMinFare
+        pickerAlarmMinFare,
+        ...waitTimes
       });
+      // 판정석 장막 · 홀드 진행 막대가 새 값을 바로 쓰게 — 다시 묻지 않는다 (settingsStore)
+      useSettingsStore.getState().setWaitTimes(waitTimes);
       onClose();
     } catch (e) {
       console.error("Failed to save settings:", e);
@@ -180,6 +192,27 @@ export default function GeneralSettingsTab({ onClose }: Props) {
           className="w-full h-9 px-2 rounded border border-border bg-surface text-sm"
         />
         <p className="text-[10px] text-text-muted">이 금액 이상인 픽커 콜만 알람이 울립니다. 현위반경은 🔍 필터의 값을 함께 씁니다.</p>
+      </div>
+
+      {/* ⏱️ 배차망별 대기 시간 — 원천은 서버 DB, 원달앱은 받아 쓴다 (docs/지금/배차망별_대기_시간.md)
+          🔴 인성 값에 상한을 걸지 않는다 — 옆 안내를 보고 기사님이 정하신다 (기사님 확정 2026-09-14) */}
+      <div className="space-y-2 pt-2 border-t">
+        {([
+          { key: 'safeCancelSecInsung', label: '인성 안전취소 시간 (초)', hint: '인성 취소 가능 시간 1분' },
+          { key: 'safeCancelSecHwamul24', label: '화물24시 안전취소 시간 (초)', hint: '화물24시 취소 가능 시간은 미확인' },
+          { key: 'pickerAlarmDetailSec', label: '픽커 알람 상세 대기 시간 (초)', hint: '알람이 연 상세를 이 시간 뒤 닫고 리스트로 돌아갑니다' },
+        ] as { key: keyof WaitTimes; label: string; hint: string }[]).map(({ key, label, hint }) => (
+          <div key={key} className="space-y-1">
+            <label className="text-sm font-semibold text-text-muted">{label}</label>
+            <input
+              type="number" min="1" step="1"
+              value={waitTimes[key]}
+              onChange={(e) => setWaitTimes(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
+              className="w-full h-9 px-2 rounded border border-border bg-surface text-sm"
+            />
+            <p className="text-[10px] text-text-muted">{hint}</p>
+          </div>
+        ))}
       </div>
 
       {/* 🎭 새 화면 미리보기 (화면개편 2단계) — 켜면 지도 배경+3단 시트 무대, 끄면 즉시 옛 화면 */}

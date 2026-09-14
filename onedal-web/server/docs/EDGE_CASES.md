@@ -41,8 +41,8 @@
 
 | 타이머 | 시간 | 동작 |
 |--------|------|------|
-| `WAITING_WARNING_MS` | 30초 | `deathvalley-warning` emit |
-| `WAITING_TIMEOUT_MS` | 35초 | 미결재 시 `order-canceled` + 정리 |
+| 배차망별 안전취소 시간 (DB · 기본 30초) | 30초 | `deathvalley-warning` emit — 2026-09-14 코드 상수에서 DB 로 (`docs/지금/배차망별_대기_시간.md`) |
+| 위 값 + `SERVER_CLEANUP_EXTRA_SEC` | 35초 | 미결재 시 `order-canceled` + 정리 · 픽커는 안 건다 |
 
 KEEP 결재 완료 콜은 타임아웃되어도 절대 취소 안 함.
 

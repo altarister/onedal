@@ -4,6 +4,7 @@ import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@o
 import db from "../db";
 import { capacityFullHold, filterVersionOf } from "../core/helpers";
 import { rememberSentFilterVersion } from "../core/phoneCheck";
+import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { ensureBusinessDay, buildAppOrderKm } from "../state/filterManager";
 
@@ -257,6 +258,8 @@ router.post("/", (req, res) => {
         // 🔔 픽커 알람 요금 하한 — 원천은 DB(user_settings), 화면은 관제웹 일반 설정 (픽커_수집.md 3단계)
         const pickerAlarmRow = db.prepare("SELECT picker_alarm_min_fare FROM user_settings WHERE user_id = ?").get(userId) as { picker_alarm_min_fare?: number } | undefined;
         appFilter.pickerAlarmMinFare = pickerAlarmRow?.picker_alarm_min_fare ?? 10000;
+        // ⏱️ 배차망별 대기 시간 — 원천은 DB(user_settings), 원달앱은 받아 쓴다 (docs/지금/배차망별_대기_시간.md)
+        Object.assign(appFilter, readWaitTimes(userId));
 
         // [Phase 6] 부트스트랩이 끝나기 전에는 콜 잡기를 시키지 않는다.
         // 이 구간(1~3초)의 activeFilter 는 아직 경유도 적재 차종도 반영되지 않은 미완성 상태라,

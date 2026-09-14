@@ -138,21 +138,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
             colors = CardDefaults.cardColors(containerColor = Color(0xFFFCE4EC))
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("⏱️ 안전취소 비상 자동취소 타이머", fontWeight = FontWeight.Bold, color = Color(0xFFC2185B))
+                // ⏱️ 폰에서 고르지 않는다 — 원천은 서버 DB, 고치는 곳은 관제웹 ⚙️ 설정 → 일반 설정 (docs/지금/배차망별_대기_시간.md)
+                Text("⏱️ 대기 시간 (서버에서 받음)", fontWeight = FontWeight.Bold, color = Color(0xFFC2185B))
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val options = listOf(30000L to "30초", 40000L to "40초", 50000L to "50초")
-                    options.forEach { (ms, label) ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = viewModel.safeCancelTimeout == ms,
-                                onClick = { viewModel.saveSafeCancelTimeout(context, ms) }
-                            )
-                            Text(label)
-                        }
-                        if (ms != 50000L) Spacer(modifier = Modifier.width(8.dp))
-                    }
-                }
+                Text(viewModel.waitTimesLabel)
+                Text("고치는 곳: 관제웹 ⚙️ 설정 → 일반 설정", color = Color.Gray)
             }
         }
 

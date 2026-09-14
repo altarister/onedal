@@ -61,7 +61,7 @@
 | 이벤트명 | Payload | 설명 | 소리 |
 |---------|---------|------|------|
 | `emergency-alert` | `EmergencyAlert` | 앱폰 비상 보고 (취소불가 팝업 등) | 🚨 `playEmergencyAlarm()` |
-| `deathvalley-warning` | `DeathValleyWarning` | 30초 경과 경고 (`WAITING_WARNING_MS`) | - |
+| `deathvalley-warning` | `DeathValleyWarning` | 안전취소 시간 경과 경고 (배차망별 · DB `user_settings` · 기본 30초) | - |
 
 ### ⚠️ 서버가 emit하지만 클라 리스너가 없는 이벤트
 `decision-ack` · `recalculate-route-ack` · `two-track-ack` — 응답을 보내지만 아무도 받지 않습니다.

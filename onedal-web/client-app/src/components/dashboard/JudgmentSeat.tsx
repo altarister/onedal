@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { SecuredOrder, CallTarget } from '@onedal/shared';
-import { isManualLineage } from '@onedal/shared';
+import { isManualLineage, safeCancelSecOf } from '@onedal/shared';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { verdictOf, type VerdictColor } from '../../lib/verdict';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -69,6 +70,8 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const { filter } = useFilterConfig();
     const v = verdictOf(route);
     const manual = isManualLineage(route.type) || !!route.isPreview;
+    /** ⏱️ 그 배차망의 안전취소 초 (서버 DB) — 픽커는 안전취소가 없어 null */
+    const cancelSec = useSettingsStore(st => safeCancelSecOf(st, route.targetApp));
     const judged = !!v.color;
     const c = v.color ? SOAK[v.color] : null;
     const hourly = route.judgment?.axes?.find(a => a.key === 'money')?.value;
@@ -183,9 +186,9 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                          style={{ right: 0, bottom: -26, fontSize: 124, letterSpacing: '-25px', color: judged ? 'rgba(0,0,0,.18)' : 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)' }}>
                         {judged ? score ?? '' : '?'}
                     </div>
-                    {/* ⏳ 안전취소 장막 — 30초 차오르면 자동취소 */}
-                    {judged && <div className="absolute top-0 right-0 bottom-0 z-1"
-                         style={{ background: 'linear-gradient(90deg, rgba(0,0,0,.15), rgba(0,0,0,.5))', borderLeft: '2px solid rgba(0,0,0,.5)', animation: 'seat-drain 30s linear forwards' }} />}
+                    {/* ⏳ 안전취소 장막 — 그 배차망의 안전취소 시간만큼 차오르면 자동취소 · 픽커는 안전취소가 없어 안 건다 */}
+                    {judged && cancelSec != null && <div className="absolute top-0 right-0 bottom-0 z-1"
+                         style={{ background: 'linear-gradient(90deg, rgba(0,0,0,.15), rgba(0,0,0,.5))', borderLeft: '2px solid rgba(0,0,0,.5)', animation: `seat-drain ${cancelSec}s linear forwards` }} />}
                     <div className="relative z-2" style={{ lineHeight: 1.5 }}>
                         {judged ? (<>
                             {/* v13 .g1 22px / .g2 13.5 / .g3 12 */}

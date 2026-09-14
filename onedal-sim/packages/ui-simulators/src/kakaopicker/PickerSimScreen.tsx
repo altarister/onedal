@@ -17,10 +17,18 @@ import { PickerCallDetailScreen } from './PickerCallDetailScreen';
 const isPickerCall = (c: SimCall): c is PickerCall => 'net' in c && c.net === 'kakaopicker';
 
 /**
- * 🚫 **이만큼 리스트에 떠 있던 콜은 «남이 가져갔다»** (시뮬레이터 값 · 2026-09-14).
- * 실제로 언제 가져가는지는 모른다 — 30초는 «알람 상세에서 30초 자동 복귀한 뒤 오래된 카드를 누르면 나온다»에 맞춘 값이다.
+ * 🚫 **이 콜을 남이 가져가는 시각** — 리스트에 뜬 뒤 몇 ms (시뮬레이터 값 · 2026-09-14).
+ *
+ * 🔴 **원달앱의 시간과 무관하다.** 처음엔 «알람 상세 30초 자동 복귀»에 맞춰 모든 콜을 30초로 두었는데,
+ *    진짜 픽커는 원달앱이 몇 초 뒤 돌아오는지 모른다 (기사님: *"시뮬레이터는 진짜 픽커 처럼 작동해야"* ·
+ *    `docs/지금/배차망별_대기_시간.md`). 실제로 언제 가져가는지도 모른다.
+ * 콜마다 20초~3분 사이에서 콜 id 로 정한다 — 같은 콜은 늘 같은 시각이라 검사가 흔들리지 않는다.
  */
-export const PICKER_TAKEN_AFTER_MS = 30_000;
+export function pickerTakenAfterMs(callId: string): number {
+  let h = 0;
+  for (let i = 0; i < callId.length; i++) h = (Math.imul(h, 31) + callId.charCodeAt(i)) >>> 0;
+  return 20_000 + (h % 161) * 1_000;
+}
 /** 토스트가 떠 있는 시간 (실물 캡처 03 · 안드로이드 토스트 짧은 길이에 가깝게) */
 export const PICKER_TOAST_MS = 2_500;
 
@@ -49,7 +57,7 @@ export const PickerSimScreen = (p: NetScreenProps) => {
 
   const openOrTaken = (call: SimCall) => {
     const seenAt = firstSeen.current.get(call.id) ?? Date.now();
-    if (Date.now() - seenAt < PICKER_TAKEN_AFTER_MS) {
+    if (Date.now() - seenAt < pickerTakenAfterMs(call.id)) {
       p.openCall(call);
       return;
     }

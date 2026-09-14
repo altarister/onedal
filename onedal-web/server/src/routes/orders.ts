@@ -14,8 +14,9 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia } from "@onedal/shared";
+import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf } from "@onedal/shared";
 import db from "../db";
+import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
 import { parsePolyline, parseSectionEnds, parseSectionStops, parseSectionDriveMin } from "../services/routeComposer";
@@ -217,18 +218,28 @@ router.post("/confirm", (req, res) => {
              * ⚠️ 타이머는 **ID 를 저장해 취소 가능하게** 한다 (CLAUDE.md 규칙 ② 좀비 타이머).
              *    예전에는 저장하지 않아, 콜이 정상 처리된 뒤에도 30초 뒤 깨어나 사고를 쳤다.
              */
-            const graceTimer = setTimeout(() => {
-                session.activeTimers.delete(`presecured_${pendingOrder.id}`);
-                const cached = session.pendingOrdersData.get(pendingOrder.id);
-                // 🔴 여기도 상태 목록을 손으로 적고 있었다 (2026-08-14). `shared` 의
-                //    `EVALUATING_STATUSES` 와 값이 같았지만, 한쪽만 늘어나면 갈라진다.
-                if (cached && isEvaluating(cached.status)) {
-                    console.log(`💀 [서버 안전취소 타이머] 30초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
-                    handleDecision(userId, pendingOrder.id, "SAFE_CANCEL", io);
-                }
-            }, 30000);
-            session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
-            logRoadmapEvent("서버", "안전취소 30초 카운트다운 타이머 감시 연산 (취소 가능하게 등록)");
+            /**
+             * ⏱️ **몇 초인가는 그 콜 배차망의 값이다** (DB · `docs/지금/배차망별_대기_시간.md`).
+             * 🔴 픽커는 안전취소가 없다(수락하기가 곧 계약) — 서버는 스스로 치우지 않고(규칙 ①),
+             *    원달앱이 «리스트로 돌아왔다»고 알리면 `devices.ts` 가 치운다.
+             */
+            const cancelSec = safeCancelSecOf(readWaitTimes(userId), pendingOrder.targetApp);
+            if (cancelSec != null) {
+                const graceTimer = setTimeout(() => {
+                    session.activeTimers.delete(`presecured_${pendingOrder.id}`);
+                    const cached = session.pendingOrdersData.get(pendingOrder.id);
+                    // 🔴 여기도 상태 목록을 손으로 적고 있었다 (2026-08-14). `shared` 의
+                    //    `EVALUATING_STATUSES` 와 값이 같았지만, 한쪽만 늘어나면 갈라진다.
+                    if (cached && isEvaluating(cached.status)) {
+                        console.log(`💀 [서버 안전취소 타이머] ${cancelSec}초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
+                        handleDecision(userId, pendingOrder.id, "SAFE_CANCEL", io);
+                    }
+                }, cancelSec * 1000);
+                session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
+                logRoadmapEvent("서버", `안전취소 ${cancelSec}초 카운트다운 타이머 감시 연산 (취소 가능하게 등록)`);
+            } else {
+                console.log(`👀 [픽커] ${pendingOrder.id} — 안전취소가 없는 배차망이라 서버 타이머를 걸지 않는다 (리스트 복귀 때 치운다)`);
+            }
         }
     } catch (error) {
         console.error("Orders Confirm 에러:", error);

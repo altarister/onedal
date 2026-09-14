@@ -193,18 +193,20 @@ class HijackService : AccessibilityService(), ScanContext {
 
     private fun scheduleAlarmDetailBack() {
         cancelAlarmDetailBack()
+        // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec · docs/지금/배차망별_대기_시간.md)
+        val delayMs = com.onedal.app.core.engine.WaitTimes.pickerAlarmDetailMs(savedFilter())
         val r = Runnable {
             alarmDetailBackRunnable = null
             // 아직 그 상세에 있고, 여전히 알람 판(잡기 수순 없는 배차망)일 때만 나온다
             if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
                 && !TargetApp.supportsCatching(currentTargetApp)
                 && telemetryManager.currentMode == "ALARM") {
-                AppLogger.i("1DAL_ALARM", "↩️ [알람 상세] 30초 무응답 — 리스트로 자동 복귀")
+                AppLogger.i("1DAL_ALARM", "↩️ [알람 상세] ${delayMs / 1000}초 무응답 — 리스트로 자동 복귀")
                 performGlobalAction(GLOBAL_ACTION_BACK)
             }
         }
         alarmDetailBackRunnable = r
-        mainHandler.postDelayed(r, 30_000L)
+        mainHandler.postDelayed(r, delayMs)
     }
 
     private fun cancelAlarmDetailBack() {
@@ -219,10 +221,20 @@ class HijackService : AccessibilityService(), ScanContext {
     private val safeCancelTimer = SafeCancelTimer()
     override lateinit var cautionVerifier: CautionDongVerifier
 
-    // [Safety Mode V3] SharedPreference에서 안전취소 타이머 값 읽기
-    private fun getSafeCancelTimeout(): Long {
-        val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-        return prefs.getLong("safeCancelTimeout", 30000L)
+    /**
+     * ⏱️ **서버가 내려준 필터(저장본)** — 배차망별 대기 시간을 여기서 읽는다 (기사님 확정 2026-09-14).
+     * 🔴 예전엔 폰 안 저장소의 `safeCancelTimeout`(설정 화면 30·40·50초)을 읽었다 — 서버가 모르는 값이었다.
+     *    원천은 이제 서버 DB 다 (docs/지금/배차망별_대기_시간.md). 못 읽으면 `FilterConfig` 기본값(서버 DB 기본값과 같다).
+     */
+    private fun savedFilter(): com.onedal.app.models.FilterConfig {
+        val json = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).getString("activeFilter", null)
+            ?: return com.onedal.app.models.FilterConfig()
+        return try {
+            com.google.gson.Gson().fromJson(json, com.onedal.app.models.FilterConfig::class.java)
+                ?: com.onedal.app.models.FilterConfig()
+        } catch (e: Exception) {
+            com.onedal.app.models.FilterConfig()
+        }
     }
 
     // 화면 꺼짐/켜짐 감지용 리시버 (퇴근 시 즉시 오프라인 통보 / 출근 시 즉시 생존 신고)
@@ -1211,8 +1223,10 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /** 서버 응답 대기용 안전취소 타이머 시작 (응답 없으면 자동 취소) */
     private fun startSafeCancelTimer() {
+        // ⏱️ 그 배차망의 안전취소 시간 (서버 DB) — 픽커는 안전취소가 없어 타이머를 걸지 않는다
+        val timeoutMs = com.onedal.app.core.engine.WaitTimes.safeCancelMs(savedFilter(), currentTargetApp) ?: return
         telemetryManager.isWaitingDecision = true  // [Piggyback V2] 1.0초 단위 강제 무전 타격 시작!
-        safeCancelTimer.start(getSafeCancelTimeout(), session) {
+        safeCancelTimer.start(timeoutMs, session) {
             sendEmergencyReport(EmergencyReason.AUTO_CANCEL, "안전취소 응답 없음 강제취소")
             executeDecisionImmediately("CANCEL")
         }

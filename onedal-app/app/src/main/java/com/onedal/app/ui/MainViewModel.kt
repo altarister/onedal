@@ -53,7 +53,9 @@ class MainViewModel {
 
     // ── 설정값 ──
     var isLiveMode by mutableStateOf(false)
-    var safeCancelTimeout by mutableStateOf(30000L)
+    /** ⏱️ 서버에서 받은 배차망별 대기 시간 — 폰에서는 **보여 주기만** 한다 (고치는 곳은 관제웹 설정) */
+    var waitTimesLabel by mutableStateOf("")
+        private set
 
     /**
      * 1초 폴링 시작
@@ -64,7 +66,7 @@ class MainViewModel {
         // 초기값 로드
         deviceId = prefs.getString("deviceId", null) ?: "(서비스 시작 시 자동 생성됨)"
         isLiveMode = prefs.getBoolean("isLiveMode", false)
-        safeCancelTimeout = prefs.getLong("safeCancelTimeout", 30000L)
+        waitTimesLabel = waitTimesLabelOf(prefs.getString("activeFilter", null))
 
         scope.launch {
             while (true) {
@@ -122,10 +124,16 @@ class MainViewModel {
             .edit().putBoolean("isLiveMode", checked).apply()
     }
 
-    fun saveSafeCancelTimeout(context: Context, ms: Long) {
-        safeCancelTimeout = ms
-        context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-            .edit().putLong("safeCancelTimeout", ms).apply()
+    /**
+     * ⏱️ **대기 시간은 폰에서 고르지 않는다** (기사님 확정 2026-09-14 · docs/지금/배차망별_대기_시간.md).
+     * 예전 «30·40·50초» 고르기는 폰 안에만 저장돼 서버가 몰랐다. 원천은 서버 DB 이고, 여기는 받은 값을 글로 보여 준다.
+     */
+    private fun waitTimesLabelOf(json: String?): String {
+        val f = try {
+            json?.let { com.google.gson.Gson().fromJson(it, com.onedal.app.models.FilterConfig::class.java) }
+        } catch (e: Exception) { null }
+            ?: return "서버 값을 아직 못 받았습니다 — 기본 인성 30초 · 화물24시 30초 · 픽커 알람 상세 60초"
+        return "인성 ${f.safeCancelSecInsung}초 · 화물24시 ${f.safeCancelSecHwamul24}초 · 픽커 알람 상세 ${f.pickerAlarmDetailSec}초"
     }
 
     fun saveLocalIp(context: Context, ip: String) {

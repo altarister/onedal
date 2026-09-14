@@ -177,7 +177,15 @@ ensureColumns('user_settings', { picker_alarm_min_fare: 'INTEGER DEFAULT 10000',
      * ⚠️ **정차 연기 18초(`DWELL_TICKS`)와 다른 값이다** — 저것은 «시뮬이 얼마나 서 있나»,
      *    이것은 «몇 초 이어져야 그렇다고 믿나»다 (규칙 ⑤-4 ⑤).
      */
-    motion_hold_sec: 'INTEGER DEFAULT 10' });
+    motion_hold_sec: 'INTEGER DEFAULT 10',
+    /**
+     * ⏱️ **배차망별 대기 시간** (기사님 확정 2026-09-14 · `docs/지금/배차망별_대기_시간.md`).
+     * 인성·화물24시는 안전취소 시간, 픽커는 알람이 연 상세를 띄워 두는 시간 — 뜻이 달라 칸을 가른다.
+     * 인성 취소 가능 시간은 1분이고 30초는 기사님이 둔 여유다 (상한은 걸지 않는다 — 기사님 확정).
+     */
+    safe_cancel_sec_insung: 'INTEGER DEFAULT 30',
+    safe_cancel_sec_hwamul24: 'INTEGER DEFAULT 30',
+    picker_alarm_detail_sec: 'INTEGER DEFAULT 60' });
 
 // ═══════════════════════════════════════
 // [5] 콜 콜 잡기용 필터 정보

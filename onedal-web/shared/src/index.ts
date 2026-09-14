@@ -910,6 +910,8 @@ export const APP_FILTER_KEYS = [
     'minFare', 'maxFare', 'ratePerKm',
     /* ⬇️ 평면 필터에 없다 — 조립할 때 얹는다 */
     'orderKm', 'pickerAlarmMinFare',
+    /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings (docs/지금/배차망별_대기_시간.md) */
+    'safeCancelSecInsung', 'safeCancelSecHwamul24', 'pickerAlarmDetailSec',
 ] as const;
 
 /**
@@ -1969,3 +1971,38 @@ export * from './callNet';
  *    기사님: *"모의주행할 때는 그걸 줄이고 시험하고 **진짜 때는 10으로**"*
  */
 export const MOTION_HOLD_SEC_DEFAULT = 10;
+
+/**
+ * ⏱️ **배차망별 대기 시간** (기사님 확정 2026-09-14 · `docs/지금/배차망별_대기_시간.md`).
+ *
+ * 원천은 DB `user_settings` 세 칸이다 — 여기는 **값이 없을 때의 기본값**(DB DEFAULT 와 같다)과
+ * «그 배차망은 몇 초인가»를 가르는 한 곳이다. 서버 타이머 · 관제웹 표시가 같은 함수를 부른다.
+ *
+ * 🔴 **뜻이 다른 둘이다** (규칙 ⑤-4 ⑤):
+ *   · 인성·화물24시 — 잡은 뒤 위약금 없이 취소할 수 있는 시간(안전취소).
+ *     인성의 취소 가능 시간은 1분이고, 30초는 기사님이 둔 안전 여유다
+ *   · 픽커 — 수락하기가 곧 계약이라 안전취소가 **없다.** 알람이 연 상세를 띄워 두는 시간만 있다
+ */
+export const SAFE_CANCEL_SEC_DEFAULT = 30;
+export const PICKER_ALARM_DETAIL_SEC_DEFAULT = 60;
+/** 서버는 원달앱이 취소한 **뒤에** 메모리를 치운다 — 그 간격 (옛 30초 경고 · 35초 해제의 차이) */
+export const SERVER_CLEANUP_EXTRA_SEC = 5;
+
+export interface WaitTimes {
+    safeCancelSecInsung: number;
+    safeCancelSecHwamul24: number;
+    pickerAlarmDetailSec: number;
+}
+
+export const DEFAULT_WAIT_TIMES: WaitTimes = {
+    safeCancelSecInsung: SAFE_CANCEL_SEC_DEFAULT,
+    safeCancelSecHwamul24: SAFE_CANCEL_SEC_DEFAULT,
+    pickerAlarmDetailSec: PICKER_ALARM_DETAIL_SEC_DEFAULT,
+};
+
+/** 그 배차망의 안전취소 초 — 픽커는 안전취소가 없어 `null` · 모르는 배차망은 기본 배차망(인성) */
+export function safeCancelSecOf(w: WaitTimes, targetApp: string | null | undefined): number | null {
+    const app = isTargetApp(targetApp) ? targetApp : DEFAULT_TARGET_APP;
+    if (app === 'kakaopicker') return null;
+    return app === 'hwamul24' ? w.safeCancelSecHwamul24 : w.safeCancelSecInsung;
+}

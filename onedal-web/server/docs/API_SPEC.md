@@ -63,7 +63,7 @@
 | `order-canceled` | 취소/방출/타임아웃 → 카드 삭제 |
 | `filter-init` | 소켓 최초 접속 시 `activeFilter` + `baseFilter` 전달 |
 | `filter-updated` | 필터 변경 시 관제탑 UI 동기화 |
-| `deathvalley-warning` | 데스밸리 경고. **30초** (`WAITING_WARNING_MS=30000`) — v3.0의 "15초"는 오기 |
+| `deathvalley-warning` | 데스밸리 경고. **배차망별 안전취소 시간** (DB `user_settings` · 기본 30초 · 2026-09-14 코드 상수에서 옮김) — v3.0의 "15초"는 오기 |
 | `sync-active-orders` | **1초 주기 하트비트**로 활성 오더 전체 배열 전송 (재시작 복구 시에도 발송) |
 | `telemetry-devices` | 기기 목록 + 활성 상태 (1초 주기) |
 | `telemetry-ping` | 프론트엔드 타임아웃 진행바용 핑 |

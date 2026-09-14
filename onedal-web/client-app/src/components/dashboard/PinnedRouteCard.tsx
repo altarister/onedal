@@ -1,7 +1,8 @@
 import { verdictOf, BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
-import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords } from "@onedal/shared";
+import { useSettingsStore } from '../../stores/settingsStore';
+import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords, safeCancelSecOf } from "@onedal/shared";
 import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
@@ -119,6 +120,8 @@ export default function PinnedRouteCard({
     // [텔레메트리 스니펫] 카운터 상태 및 애니메이션 트리거
     const [telemetryCount, setTelemetryCount] = useState(0);
     const [isPinging, setIsPinging] = useState(false);
+    /** ⏱️ 그 배차망의 안전취소 초 (서버 DB · docs/지금/배차망별_대기_시간.md) — 픽커는 안전취소가 없어 null */
+    const cancelSec = useSettingsStore(st => safeCancelSecOf(st, route.targetApp));
 
     // [2026-08-12] 통화/현장 기록은 **카드가 직접 불러오지 않는다.**
     //
@@ -647,11 +650,11 @@ export default function PinnedRouteCard({
                                 </div>
                             )}
 
-                            {/* 텔레메트리 진행 상태 바 (30초 만기) — 자동콜의 안전취소 홀드 표시라 직접 갈래엔 안 건다 */}
-                            {!route.isPreview && !isManualLineage(route.type)
+                            {/* 텔레메트리 진행 상태 바 (그 배차망의 안전취소 시간 만기) — 자동콜의 안전취소 홀드 표시라 직접 갈래엔 안 건다 */}
+                            {!route.isPreview && !isManualLineage(route.type) && cancelSec != null
                                 && (route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (() => {
-                                const isDanger = telemetryCount >= 25;
-                                const isWarning = telemetryCount >= 20 && telemetryCount < 25;
+                                const isDanger = telemetryCount >= cancelSec - 5;
+                                const isWarning = telemetryCount >= cancelSec - 10 && telemetryCount < cancelSec - 5;
                                 const barColor = isDanger ? 'bg-danger/20' : isWarning ? 'bg-warning/20' : 'bg-success/20';
                                 const dotColor = isDanger ? 'bg-danger' : isWarning ? 'bg-warning' : 'bg-success';
                                 const emptyDot = isDanger ? 'bg-danger/40' : isWarning ? 'bg-warning/40' : 'bg-success/40';
@@ -661,7 +664,7 @@ export default function PinnedRouteCard({
                                     <div className="mt-3 bg-surface-alt/30 rounded-md p-1 border border-border relative overflow-hidden">
                                         <div
                                             className={`absolute left-0 top-0 bottom-0 ${barColor} transition-all duration-1000 ease-linear`}
-                                            style={{ width: `${Math.min((telemetryCount / 30) * 100, 100)}%` }}
+                                            style={{ width: `${Math.min((telemetryCount / cancelSec) * 100, 100)}%` }}
                                         ></div>
                                         <div className="flex items-center justify-between relative z-10 px-1 text-xs">
                                             <div className="flex items-center gap-2.5 font-medium">
@@ -672,7 +675,7 @@ export default function PinnedRouteCard({
                                                 폰에서 데이터 수집 및 홀드 중...
                                             </div>
                                             <span className={`font-black tracking-tight tabular-nums ${textColor}`}>
-                                                {Math.min(telemetryCount, 30)}/30초
+                                                {Math.min(telemetryCount, cancelSec)}/{cancelSec}초
                                             </span>
                                         </div>
                                     </div>

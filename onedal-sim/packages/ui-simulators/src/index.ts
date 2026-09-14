@@ -41,4 +41,4 @@ export { PICKER_PRESET_BOOK } from './kakaopicker/pickerPresets';
 export type { PickerCall } from './kakaopicker/pickerCall';
 export { PickerHomeScreen } from './kakaopicker/PickerHomeScreen';
 export { PickerDispatchBoard, formatPickerDistance, formatPickerFare, visibleCardRange, PICKER_CARD_HEIGHT } from './kakaopicker/PickerDispatchBoard';
-export { PickerSimScreen, PICKER_TAKEN_AFTER_MS, PICKER_TOAST_MS } from './kakaopicker/PickerSimScreen';
+export { PickerSimScreen, pickerTakenAfterMs, PICKER_TOAST_MS } from './kakaopicker/PickerSimScreen';
