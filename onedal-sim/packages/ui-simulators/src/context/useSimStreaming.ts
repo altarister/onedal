@@ -80,7 +80,9 @@ export const useSimStreaming = ({
           maxPickupKm: cfg.config.maxPickupKm,
       });
       if (!forced) return null;
-      console.log(`🎯 [문제지] ${p.label} — 앱이 ${p.expect === 'BLOCK' ? '걸러야' : '올려야'} 한다 · ${p.why}`);
+      // 정답이 없는 문제(픽커 — 판정 순간의 폰 필터로 채점한다)는 «올려야»라고 적지 않는다
+      const verdict = p.expect === 'BLOCK' ? '앱이 걸러야 한다' : p.expect === 'PASS' ? '앱이 올려야 한다' : '정답은 채점기가 정한다';
+      console.log(`🎯 [문제지] ${p.label} — ${verdict} · ${p.why}`);
       const draft = generateBaseCall(cfg.config, forced);
       return draft ? cfg.toCall(draft, { minFare: cfg.config.minFare, forced }) : null;
     }

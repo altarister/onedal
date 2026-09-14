@@ -750,3 +750,74 @@ class SimulatorCardTest {
         assertTrue(o.tagsText!!.contains("준비 32분"))
     }
 }
+
+/**
+ * 🔔 **알람 판정을 축별로 낸다** (2026-09-14 · 카카오픽커_시뮬레이터.md 3단계 3-2 · 기사님: *"서버는 서버대로 문제는 문제대로 … 그 정답이 맞는가를 확인"*)
+ *
+ * 시뮬레이터 채점기(`onedal-sim/scripts/pickerAlarmGrade.mjs`)가 **판정 순간 폰이 가진 필터**로 정답을 다시 계산해
+ * 앱의 판정과 맞춰 본다. 틀렸을 때 «요금·상차·도착 중 어디서» 갈렸는지 알아야 고칠 곳이 갈린다 (앱 판정 vs 서버 필터).
+ * 🔴 `decide` 와 **같은 계산 한 벌**이다 — `decide` 는 `decideAxes(...).pass` 를 돌려준다.
+ */
+class AlarmAxesTest {
+
+    private val parser = KakaoPickerParser(null)
+
+    /** 도착 «이천 창전» · 픽업 3.0km · 요금 인자 */
+    private fun card(fare: String, km: String = "3.0km") =
+        parser.parse(listOf("퀵", "소형", "이천", fare, km, "광주", "초월읍", "창전"))
+
+    @Test
+    fun `요금만 하한 아래 - 요금 축만 떨어진다`() {
+        val a = KakaoPickerParser.decideAxes(card("2,900"), 3000, 10.0, listOf("창전동"), emptyMap(), emptyList())
+        assertFalse(a.fare)
+        assertTrue(a.pickup)
+        assertTrue(a.destination)
+        assertFalse(a.pass)
+    }
+
+    @Test
+    fun `상차가 반경 밖 - 상차 축만 떨어진다`() {
+        val a = KakaoPickerParser.decideAxes(card("15,000", "12.0km"), 3000, 10.0, listOf("창전동"), emptyMap(), emptyList())
+        assertTrue(a.fare)
+        assertFalse(a.pickup)
+        assertTrue(a.destination)
+        assertFalse(a.pass)
+    }
+
+    @Test
+    fun `도착 «창전» 은 키워드 «창전동» 과 정규화로 만난다 - 셋 다 통과`() {
+        val a = KakaoPickerParser.decideAxes(card("15,000"), 3000, 10.0, listOf("창전동"), emptyMap(), emptyList())
+        assertTrue(a.destination)
+        assertTrue(a.pass)
+    }
+
+    @Test
+    fun `도착 키워드에 없으면 도착 축만 떨어진다`() {
+        val a = KakaoPickerParser.decideAxes(card("15,000"), 3000, 10.0, listOf("신둔면", "관고동"), emptyMap(), emptyList())
+        assertTrue(a.fare)
+        assertTrue(a.pickup)
+        assertFalse(a.destination)
+        assertFalse(a.pass)
+    }
+
+    @Test
+    fun `decide 는 decideAxes 의 pass 와 같다`() {
+        listOf(card("2,900"), card("15,000", "12.0km"), card("15,000")).forEach { o ->
+            assertEquals(
+                KakaoPickerParser.decideAxes(o, 3000, 10.0, listOf("창전동"), emptyMap(), emptyList()).pass,
+                KakaoPickerParser.decide(o, 3000, 10.0, listOf("창전동"), emptyMap(), emptyList()),
+            )
+        }
+    }
+
+    @Test
+    fun `알람 필터 한 줄 - 채점기가 읽는 JSON 이다`() {
+        val line = KakaoPickerParser.alarmFilterJson(3000, 10.0, listOf("창전동", "신둔면"), mapOf("창전" to listOf("창전로")), listOf("이천"))
+        val parsed = com.google.gson.JsonParser.parseString(line).asJsonObject
+        assertEquals(3000, parsed["minFare"].asInt)
+        assertEquals(10, parsed["pickupRadiusKm"].asInt)
+        assertEquals(2, parsed["destKeywords"].asJsonArray.size())
+        assertEquals("창전로", parsed["keywordTraps"].asJsonObject["창전"].asJsonArray[0].asString)
+        assertEquals("이천", parsed["cityAliases"].asJsonArray[0].asString)
+    }
+}

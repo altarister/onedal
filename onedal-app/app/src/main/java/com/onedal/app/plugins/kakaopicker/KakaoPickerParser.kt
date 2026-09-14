@@ -162,6 +162,32 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 .any { it.length >= 2 && it in normKeys }
         }
 
+        /**
+         * 🔔 **축별 판정 결과** (2026-09-14 · 카카오픽커_시뮬레이터.md 3단계 3-2).
+         * 시뮬레이터 채점기(`onedal-sim/scripts/pickerAlarmGrade.mjs`)가 판정 순간의 필터로 정답을 다시 계산해 맞춰 본다 —
+         * 어긋나면 «요금·상차·도착 중 어디서» 갈렸는지가 고칠 곳(앱 판정 vs 서버 필터)을 가른다.
+         */
+        data class AlarmAxes(val fare: Boolean, val pickup: Boolean, val destination: Boolean) {
+            val pass: Boolean get() = fare && pickup && destination
+        }
+
+        /** 🔴 계산은 여기 한 벌이다 — `decide` 는 이것의 `pass` 를 돌려준다 (채점기의 사본은 «일부러 두 벌» · 그 파일 머리 주석) */
+        fun decideAxes(
+            order: SimplifiedOfficeOrder,
+            minFare: Int,
+            pickupRadiusKm: Double,
+            destKeywords: List<String> = emptyList(),
+            keywordTraps: Map<String, List<String>> = emptyMap(),
+            cityAliases: List<String> = emptyList(),
+        ): AlarmAxes {
+            val fareOk = order.fare >= minFare
+            val pickupOk = order.pickupDistance == null || order.pickupDistance <= pickupRadiusKm
+            val destOk = destKeywords.isEmpty() || order.dropoff.isBlank() ||
+                com.onedal.app.plugins.RegionMatch.anyHit(order.dropoff, destKeywords, keywordTraps) ||
+                dongTokenMatch(order.dropoff, destKeywords + cityAliases)
+            return AlarmAxes(fareOk, pickupOk, destOk)
+        }
+
         fun decide(
             order: SimplifiedOfficeOrder,
             minFare: Int,
@@ -171,23 +197,40 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             cityAliases: List<String> = emptyList(),
             tally: FilterTally? = null,
         ): Boolean {
-            val fareOk = order.fare >= minFare
-            val pickupOk = order.pickupDistance == null || order.pickupDistance <= pickupRadiusKm
-            val destOk = destKeywords.isEmpty() || order.dropoff.isBlank() ||
-                com.onedal.app.plugins.RegionMatch.anyHit(order.dropoff, destKeywords, keywordTraps) ||
-                dongTokenMatch(order.dropoff, destKeywords + cityAliases)
-            val pass = fareOk && pickupOk && destOk
+            val a = decideAxes(order, minFare, pickupRadiusKm, destKeywords, keywordTraps, cityAliases)
             tally?.let { t ->
                 t.seen++
                 when {
-                    pass -> t.passed++
-                    !fareOk -> t.fare++      // 첫 번째로 걸린 축에만 센다 (인성과 같은 규칙)
-                    !pickupOk -> t.pickup++
+                    a.pass -> t.passed++
+                    !a.fare -> t.fare++      // 첫 번째로 걸린 축에만 센다 (인성과 같은 규칙)
+                    !a.pickup -> t.pickup++
                     else -> t.region++
                 }
             }
-            return pass
+            return a.pass
         }
+
+        /**
+         * 🧾 **알람 필터 한 줄** — 채점기가 «그 순간 폰이 가진 필터»로 읽는 JSON (2026-09-14 · 3단계 3-2).
+         * 서버 필터는 콜을 잡고 위치가 움직일 때마다 바뀌므로, 판정 줄과 같은 로그 파일에 **바뀔 때마다** 남긴다.
+         * ⚠️ `org.json` 은 JVM 검사에서 비어 있어 Gson 으로 만든다.
+         */
+        fun alarmFilterJson(
+            minFare: Int,
+            pickupRadiusKm: Double,
+            destKeywords: List<String>,
+            keywordTraps: Map<String, List<String>>,
+            cityAliases: List<String>,
+        ): String = com.google.gson.Gson().toJson(linkedMapOf(
+            "minFare" to minFare,
+            "pickupRadiusKm" to pickupRadiusKm,
+            "destKeywords" to destKeywords,
+            "keywordTraps" to keywordTraps,
+            "cityAliases" to cityAliases,
+        ))
+
+        /** 마지막으로 남긴 알람 필터 — 같으면 다시 안 적는다 (판정은 스캔마다 돈다 · 로그가 그 줄로 덮이지 않게) */
+        @Volatile private var lastAlarmFilterJson: String? = null
     }
 
     /** 알람 조건 묶음 — 피기백 필터에서 읽는다. 기본값은 서버 미응답 시 안전망 */
@@ -311,11 +354,21 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
      */
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
         val c = alarmConfig()
+        // 🧾 판정에 쓴 필터가 바뀌었으면 먼저 한 줄 — 채점기가 이 판정의 정답을 이 필터로 다시 계산한다 (3단계 3-2)
+        val filterJson = alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases)
+        if (filterJson != lastAlarmFilterJson) {
+            lastAlarmFilterJson = filterJson
+            com.onedal.app.core.AppLogger.i("1DAL_PICKER", "🧾 [알람 필터] $filterJson")
+        }
         val pass = decide(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, tally)
+        val a = decideAxes(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases)
+        val mark = { ok: Boolean -> if (ok) "✅" else "❌" }
         // 👁️ 축별 판정을 한 줄 남긴다 — «왜 안 울었나»를 로그로 답하기 위해 (첫 실검증 때 수집 데이터로 역추적했다)
+        //    🔴 채점기(`pickerAlarmGrade.mjs`)가 이 줄의 모양을 읽는다 — 바꾸면 그 정규식도 같이 바꾼다
         com.onedal.app.core.AppLogger.d("1DAL_PICKER",
             "🔔 [알람 판정] ${order.fare}원·픽업 ${order.pickupDistance ?: "?"}km·도착 ${order.dropoff.ifEmpty { "?" }} — " +
-            "하한 ${c.minFare}·반경 ${c.pickupRadiusKm}km·도착목표 ${c.destKeywords.size}개 → ${if (pass) "통과" else "탈락"}")
+            "하한 ${c.minFare}·반경 ${c.pickupRadiusKm}km·도착목표 ${c.destKeywords.size}개 → ${if (pass) "통과" else "탈락"}" +
+            " · 축 요금${mark(a.fare)} 상차${mark(a.pickup)} 도착${mark(a.destination)}")
         return pass
     }
 

@@ -1,92 +1,73 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { generateBaseCall, toForcedPair, calculateDistanceKm } from '@altari/core-simulator';
-import { PICKER_PRESET_BOOK, formatPickerRegion, toPickerCall } from '@altari/ui-simulators';
+import { generateBaseCall, getPresetFrom, SHARED_PRESET_BOOK, toForcedPair } from '@altari/core-simulator';
+import { PICKER_PRESET_BOOK, toPickerCall } from '@altari/ui-simulators';
 import { FIXED_NOW, seededRandom } from './seededRandom';
 
 /**
- * 🎯 **픽커 문제지** (2026-09-14 · 카카오픽커_시뮬레이터.md §9-3 · 3단계 3-2)
+ * 🎯 **픽커 문제지 — «이천 방향» 일곱 지점을 그대로 쓴다** (기사님 2026-09-14 · 카카오픽커_시뮬레이터.md §9-3 · 3단계 3-2)
  *
- * 인성·화물24시 문제지는 요금이 **원** 단위(5만·20만)고 정답이 인성 콜 필터 기준이라 픽커 화면에 못 쓴다.
- * 픽커는 알람 판정의 세 축(요금 하한 · 상차 반경 · 도착지 — `KakaoPickerParser.decide`)을 하나씩 시험하는 문제지를 따로 둔다.
- * `expect` 는 **원달앱 픽커 알람이 울려야 하나(PASS) / 안 울려야 하나(BLOCK)** 다.
+ * 기사님: *"이천 방향 — 집에서 이천까지 일곱 지점, 이 문제로 계속 테스트 중이거든 이걸로 하자"* ·
+ * *"서버는 서버대로 문제는 문제대로 했을 때 정답이 계속 바뀌고 그 정답이 맞는가를 확인하면 어때?"*
+ *
+ * 픽커 문제지는 **지점·순서는 인성 «칠지점» 그대로**, 요금만 P 크기로 바꾸고 **정답·요구 조건을 싣지 않는다.**
+ * 정답은 원달앱이 판정하는 순간 그 폰이 가진 필터로 채점한다 (`onedal-sim/scripts/pickerAlarmGrade.mjs`).
  */
-const KEY = '픽커기본';
-const problems = () => PICKER_PRESET_BOOK.problems[KEY];
-/** 시뮬레이터 배차 화면의 기본 현위치(경기 광주시)와 반경 — DispatchPage 기본값과 같다 */
+const KEY = '칠지점';
+const picker = () => PICKER_PRESET_BOOK.problems[KEY];
+const shared = () => SHARED_PRESET_BOOK.problems[KEY];
 const ctx = { driverLon: 127.2553, driverLat: 37.4095, maxPickupKm: 15 };
 
-describe('픽커 문제지 — §9-3 표 그대로', () => {
-    beforeEach(() => { vi.spyOn(Math, 'random').mockImplementation(seededRandom(93)); });
-    afterEach(() => { vi.restoreAllMocks(); });
-
-    it('다섯 문제 · 요금 · 정답', () => {
-        expect(problems().map(p => [p.fare, p.expect])).toEqual([
-            [2900, 'BLOCK'],    // 1 요금 하한 경계 아래
-            [3000, 'PASS'],     // 2 요금 하한 경계
-            [15000, 'BLOCK'],   // 3 상차 반경 밖
-            [15000, 'PASS'],    // 4 줄임 표기로만 맞는 도착지
-            [15000, 'PASS'],    // 5 예약 콜도 울린다
-        ]);
+describe('픽커 «칠지점» — 인성 «칠지점» 의 지점 그대로', () => {
+    it('일곱 문제 · 같은 순서 — 이름에서 인성 정답 표시(⭕/✖)만 뗐다', () => {
+        expect(picker().length).toBe(7);
+        expect(picker().map(p => p.label)).toEqual(shared().map(p => p.label.replace(/\s*[⭕✖]\s*/g, ' ').replace(/\s+/g, ' ').trim()));
+        picker().forEach(p => expect(p.label).not.toMatch(/[⭕✖]/));
     });
 
-    it('설정 화면 목록에 있고, 요구하는 서버 값은 도착 목표 이천시 · 알람 요금 하한 3,000 (기사님 지금 값 · 2026-09-14)', () => {
-        expect(PICKER_PRESET_BOOK.menu.map(m => m.key)).toContain(KEY);
-        expect(PICKER_PRESET_BOOK.requires[KEY]).toEqual({ destinationCity: '이천시', alarmMinFare: 3000 });
-    });
-
-    it('🔴 주소를 전부 찾는다 — 못 찾으면 그 문제는 조용히 건너뛰어진다', () => {
-        problems().forEach(p => expect(toForcedPair(p, ctx), p.label).not.toBeNull());
-    });
-
-    it('상차 거리 띠 — 3번만 반경 밖(≥ 반경+5km), 나머지는 반경 절반 안', () => {
-        problems().forEach((p, i) => {
-            const f = toForcedPair(p, ctx)!;
-            const d = calculateDistanceKm([ctx.driverLon, ctx.driverLat], [f.pickup.lon, f.pickup.lat]);
-            if (i === 2) expect(d, p.label).toBeGreaterThanOrEqual(ctx.maxPickupKm + 5);
-            else expect(d, p.label).toBeLessThanOrEqual(ctx.maxPickupKm / 2);
+    it('🔴 상차·하차 지점이 한 글자도 같다 — 지점은 인성 문제지 한 곳에서 온다', () => {
+        picker().forEach((p, i) => {
+            const s = shared()[i];
+            expect([p.pickup, p.dropoff, p.pickupFallback, p.dropoffFallback, p.pickupBand, p.dropoffBand], p.label)
+                .toEqual([s.pickup, s.dropoff, s.pickupFallback, s.dropoffFallback, s.pickupBand, s.dropoffBand]);
         });
     });
 
-    it('도착지는 전부 이천시 — 도착 축은 4번만 시험한다', () => {
-        problems().forEach(p => expect(toForcedPair(p, ctx)!.dropoff.addressDetail, p.label).toContain('이천시'));
+    it('요금은 원 ÷ 5 를 10P 단위로 — 인성 5만 원 → 픽커 10,000P · 5천 원 → 1,000P', () => {
+        expect(picker().map(p => p.fare)).toEqual([10000, 1000, 10000, 30000, 10000, 10000, 6000]);
     });
 
-    it('4번 도착지는 화면에 «창전» 으로 줄여 적힌다 — 도착 목표 키워드 «창전동» 과 줄임 표기로만 맞는다', () => {
-        const f = toForcedPair(problems()[3], ctx)!;
-        expect(formatPickerRegion(f.dropoff.addressDetail, f.dropoff.region)).toEqual({ city: '이천', dong: '창전' });
-        // 부분 문자열로는 안 만난다 — «이천 창전» 안에 «창전동» 이 없다
-        expect('이천 창전'.includes('창전동')).toBe(false);
-    });
-
-    it('1·2·3·5번 도착지는 «신둔면» — 면 이름은 줄지 않아 도착 키워드와 그대로 맞는다 (도착 축을 흔들지 않는다)', () => {
-        [0, 1, 2, 4].forEach(i => {
-            const f = toForcedPair(problems()[i], ctx)!;
-            expect(formatPickerRegion(f.dropoff.addressDetail, f.dropoff.region).dong, problems()[i].label).toBe('신둔면');
+    it('🔴 정답 · 차종 · 요구 조건을 싣지 않는다 — 정답은 판정 순간의 폰 필터로 채점한다', () => {
+        picker().forEach(p => {
+            expect(p.expect, p.label).toBeUndefined();
+            expect(p.vehicleType, p.label).toBeUndefined();
         });
+        expect(PICKER_PRESET_BOOK.requires[KEY]).toBeUndefined();
+    });
+
+    it('설정 화면 목록 · 별칭 seven/7', () => {
+        expect(PICKER_PRESET_BOOK.menu.map(m => m.key)).toEqual([KEY]);
+        expect(getPresetFrom(PICKER_PRESET_BOOK, 'seven')).toBe(picker());
+        expect(getPresetFrom(PICKER_PRESET_BOOK, '7')).toBe(picker());
+    });
+
+    it('예전 픽커 문제지(«픽커기본»)는 없다', () => {
+        expect(getPresetFrom(PICKER_PRESET_BOOK, '픽커기본')).toBeNull();
     });
 });
 
-describe('픽커 문제지 → 픽커 콜', () => {
-    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(FIXED_NOW); vi.spyOn(Math, 'random').mockImplementation(seededRandom(93)); });
-    afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+describe('픽커 «칠지점» → 픽커 콜', () => {
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(FIXED_NOW); });
+    afterEach(() => { vi.useRealTimers(); });
 
-    const callOf = (i: number) => {
-        const forced = toForcedPair(problems()[i], ctx)!;
-        const draft = generateBaseCall({ ...ctx, minFare: 0 }, forced, seededRandom(700 + i))!;
-        return toPickerCall(draft, { minFare: 0, forced }, seededRandom(800 + i));
-    };
-
-    it('요금은 배송비 그대로 · 프로모션 0 — 문제지가 정한 요금이 화면의 최종 수익이다', () => {
-        [0, 1, 2, 3, 4].forEach(i => {
-            const c = callOf(i);
-            expect(c.fare).toBe(problems()[i].fare);
-            expect(c.deliveryFee).toBe(problems()[i].fare);
-            expect(c.promotion).toBe(0);
+    it('주소를 전부 찾고, 화면 요금은 문제지 요금 그대로 (프로모션 0 · 예약 없음)', () => {
+        picker().forEach((p, i) => {
+            const forced = toForcedPair(p, ctx);
+            expect(forced, p.label).not.toBeNull();
+            const draft = generateBaseCall({ ...ctx, minFare: 0 }, forced!, seededRandom(900 + i))!;
+            const call = toPickerCall(draft, { minFare: 0, forced: forced! }, seededRandom(950 + i));
+            expect(call.fare, p.label).toBe(p.fare);
+            expect(call.promotion, p.label).toBe(0);
+            expect(call.reservedAt, p.label).toBeUndefined();
         });
-    });
-
-    it('🔴 5번은 예약 콜 — 문제지의 «17:00» 이 픽커 칸으로 간다 (공통 코드는 칸 이름을 모른다)', () => {
-        expect(callOf(4).reservedAt).toBe('17:00');
-        expect(callOf(0).reservedAt).toBeUndefined();
     });
 });

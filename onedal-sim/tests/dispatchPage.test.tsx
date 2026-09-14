@@ -41,7 +41,8 @@ describe('배차 화면 — 배차망마다 고르는 부품 (첫 그림)', () =
  * 🎯 **배차망마다 제 문제지 책을 쓴다 — 없는 이름이면 멈춘다** (2026-09-14 · 카카오픽커_시뮬레이터.md §9-3 · 2단계 2-2 · 3단계 3-2)
  *
  * 지금 문제지는 요금이 **원** 단위(5만 · 15만)이고 정답이 인성 콜 필터 기준이다. 픽커 화면(P · 2천~2만)으로 띄우면
- * 요금 크기부터 틀려 알람 판정이 통째로 헛것이 된다. 픽커는 제 문제지(`픽커기본`)를 쓰고, 남의 책 이름은 «없는 문제지»로 멈춘다.
+ * 요금 크기부터 틀려 알람 판정이 통째로 헛것이 된다. 픽커는 제 책을 쓰고(«칠지점» — 지점은 인성과 같고 요금만 P · 기사님 2026-09-14),
+ * 책에 없는 이름은 «없는 문제지»로 멈춘다.
  */
 describe('배차 화면 — 픽커', () => {
     beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(FIXED_NOW); vi.spyOn(Math, 'random').mockImplementation(seededRandom(5173)); });
@@ -52,21 +53,15 @@ describe('배차 화면 — 픽커', () => {
         expect(text).toContain('시작하기');
     });
 
-    it('🔴 지금 문제지(원 단위)를 붙여 열면 콜을 안 흘리고 멈춘다 — 쓸 수 있는 이름은 픽커 문제지 (3단계 3-2)', () => {
-        const text = textOf('/dispatch?net=kakaopicker&preset=칠지점');
-        expect(text).toContain('문제지 «칠지점» 가 없습니다');
-        expect(text).toContain('픽커기본');
-        expect(text).not.toContain('시작하기');
+    it('픽커 «칠지점» 으로 열면 홈 — 이름은 인성과 같고 요금만 P 인 픽커 책의 문제지 (3단계 3-2)', () => {
+        expect(textOf('/dispatch?net=kakaopicker&preset=칠지점')).toContain('시작하기');
     });
 
-    it('픽커 문제지로 열면 홈 (3단계 3-2)', () => {
-        expect(textOf('/dispatch?net=kakaopicker&preset=픽커기본')).toContain('시작하기');
-    });
-
-    it('🔴 인성에 픽커 문제지를 붙이면 멈춘다 — 요금 크기가 거꾸로 틀린다', () => {
-        const text = textOf('/dispatch?net=insung&preset=픽커기본');
-        expect(text).toContain('문제지 «픽커기본» 가 없습니다');
+    it('🔴 픽커 책에 없는 이름이면 콜을 안 흘리고 멈춘다 — 쓸 수 있는 이름은 픽커 책의 것', () => {
+        const text = textOf('/dispatch?net=kakaopicker&preset=병원복귀');
+        expect(text).toContain('문제지 «병원복귀» 가 없습니다');
         expect(text).toContain('칠지점');
+        expect(text).not.toContain('시작하기');
     });
 
     it('인성·화물24시는 같은 문제지로 그대로 연다', () => {

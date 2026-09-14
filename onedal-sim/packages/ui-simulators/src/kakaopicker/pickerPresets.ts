@@ -1,73 +1,52 @@
 /**
- * 🎯 **픽커 문제지** (2026-09-14 · 카카오픽커_시뮬레이터.md §9-3 · 3단계 3-2)
+ * 🎯 **픽커 문제지 — «이천 방향» 일곱 지점을 그대로 쓴다** (기사님 2026-09-14 · 카카오픽커_시뮬레이터.md §9-3 · 3단계 3-2)
  *
- * 인성·화물24시 문제지는 요금이 **원** 단위(5만·20만)고 정답이 인성 콜 필터 기준이라 픽커 화면에 못 쓴다.
- * 픽커 알람 판정은 축이 셋이다 (`KakaoPickerParser.decide`): ① 요금 ≥ 알람 하한 ② 픽업거리 ≤ 상차 반경 ③ 도착 구·동 ↔ 도착 목표.
- * 문제마다 한 축씩 시험한다. `expect` 는 **원달앱 픽커 알람이 울려야 하나(PASS) / 안 울려야 하나(BLOCK)** 다.
+ * 기사님: *"이천 방향 — 집에서 이천까지 일곱 지점, 이 문제로 계속 테스트 중이거든 이걸로 하자"*
+ *        *"서버는 서버대로 문제는 문제대로 했을 때 정답이 계속 바뀌고 그 정답이 맞는가를 확인하면 어때?"*
  *
- * 🔴 서버 값이 맞아야 채점이다 — 관제웹 «픽커 알람 최소 요금» **3,000** · 도착 목표 **«이천시»** (설정 화면 판 점검이 서버에 물어 대조한다).
- *    **기사님 서버의 지금 값에 맞췄다** (기사님 2026-09-14: *"문제지를 지금 값에 맞춘다"*) — 처음 계획(성남시 · 10,000)대로면 시험마다 기사님 필터를 바꿔야 했다.
- * 🔴 개인정보가 든 실물 11~32 의 주소를 옮기지 않는다 — 주소는 모의 데이터에서 찾는다 (§9-3).
- * ⏳ 6번(오더카드에 20,000P — 원달앱이 누르지 않는가)은 오더카드를 만드는 5단계에서 더한다.
+ * - **지점·순서는 인성 «칠지점» 한 곳에서 온다** (`core-simulator` 의 `presets.ts`) — 두 벌로 적지 않는다 (규칙 ③)
+ * - **요금만 P 크기로** — 원 ÷ 5 를 10P 단위로 (5만 원 → 10,000P · 5천 원 → 1,000P). 픽커 요금 글자는 쉼표가 있어야 해서 1,000P 아래로 안 내린다
+ * - 🔴 **정답(`expect`) · 차종 · 요구 조건을 싣지 않는다** — 서버 필터는 콜을 잡고 위치가 움직일 때마다 바뀐다.
+ *   정답은 원달앱이 판정하는 **그 순간 폰이 가진 필터**로 채점기(`onedal-sim/scripts/pickerAlarmGrade.mjs`)가 다시 계산해 맞춰 본다.
+ * - 인성 문제의 ⭕/✖ 표시는 **인성 콜 필터의 정답**이라 이름에서 뗀다 (픽커엔 차종 축이 없다)
+ *
+ * ⚠️ 처음엔 알람 판정 세 축을 하나씩 시험하는 «픽커기본» 다섯 문제를 짰다 — 서버 값을 문제지에 맞춰야 해서 걷었다.
+ * ⏳ 오더카드(원달앱이 누르지 않는가)는 5단계에서 더한다.
  */
 import type { PresetBook, PresetProblem } from '@altari/core-simulator';
+import { SHARED_PRESET_BOOK } from '@altari/core-simulator';
 
-/**
- * 📍 **도착지 둘** (모의 데이터에서 찾는다 — 지어낸 지점이 없다)
- * - «신둔면»(신둔농협하나로마트 예스파크점) — 픽커 줄임 표기는 «동»만 떼므로 **«신둔면» 그대로** 남아 도착 키워드와 바로 맞는다.
- *   도착 축을 흔들지 않으려고 1·2·3·5 에 쓴다
- * - «창전동»(이천농협 증포아리지점 ATM) — 화면에 **«이천 창전»** 으로 줄어, 키워드 «창전동» 과 부분 문자열로는 안 만나고 정규화로만 만난다 (4번)
- */
-const SINDUN = '도자예술로 72';
-const CHANGJEON = '이섭대천로 1276';
+const KEY = '칠지점';
 
-const PICKER_BASIC: PresetProblem[] = [
-    {
-        label: '1 ✖ 요금 · 2,900P — 알람 하한 바로 아래',
-        pickupBand: 'near', dropoff: SINDUN, fare: 2900, expect: 'BLOCK',
-        why: '알람 하한 3,000(관제웹 설정) 바로 아래 — 상차·도착은 통과하는 콜이라 요금 축만 걸린다',
-    },
-    {
-        label: '2 ⭕ 요금 · 3,000P — 알람 하한과 같다',
-        pickupBand: 'near', dropoff: SINDUN, fare: 3000, expect: 'PASS',
-        why: '하한과 같으면 울린다 (`fare >= minFare`) — 1번과 요금만 다르다',
-    },
-    {
-        label: '3 ✖ 상차 반경 밖 · 15,000P',
-        pickupBand: 'far', dropoff: SINDUN, fare: 15000, expect: 'BLOCK',
-        why: '상차가 반경 + 5km 밖 — 픽업거리 축에서 떨어진다',
-    },
-    {
-        label: '4 ⭕ 도착 «창전» · 15,000P — 줄임 표기로만 맞는 도착지',
-        pickupBand: 'near', dropoff: CHANGJEON, fare: 15000, expect: 'PASS',
-        why: '화면은 «이천 창전», 도착 목표 키워드는 «창전동» — 부분 문자열로는 안 만나고 정규화로만 만난다 (0830 성남행 전부 탈락 사고와 같은 모양)',
-    },
-    {
-        label: '5 ⭕ 예약 17:00 · 15,000P',
-        pickupBand: 'near', dropoff: SINDUN, fare: 15000, expect: 'PASS',
-        netFields: { reservedAt: '17:00' },
-        why: '예약 콜도 울린다 (기사님 확정 08-30 — 미리 확보할 가치가 있다)',
-    },
-];
+/** 원 → P — ÷5 · 10P 단위 · 최소 1,000P (쉼표 든 요금 글자) */
+const toPoints = (won?: number): number | undefined =>
+    won == null ? undefined : Math.max(1000, Math.round(won / 5 / 10) * 10);
+
+const SEVEN_POINTS: PresetProblem[] = (SHARED_PRESET_BOOK.problems[KEY] ?? []).map(p => ({
+    ...p,
+    label: p.label.replace(/\s*[⭕✖]\s*/g, ' ').replace(/\s+/g, ' ').trim(),
+    fare: toPoints(p.fare),
+    expect: undefined,
+    vehicleType: undefined,
+    why: '인성 «칠지점» 지점 그대로 · 정답은 판정 순간의 폰 필터로 채점한다',
+}));
 
 const PROBLEMS: Record<string, PresetProblem[]> = {
-    '픽커기본': PICKER_BASIC,
+    [KEY]: SEVEN_POINTS,
 };
 
 export const PICKER_PRESET_BOOK: PresetBook = {
     problems: PROBLEMS,
     menu: [
         {
-            key: '픽커기본',
-            title: '🔔 픽커 알람 — 요금 하한 · 상차 반경 · 도착지',
-            desc: '5문제 · P 단위. 🔴 **관제웹 «픽커 알람 최소 요금» 3,000** · **도착 목표 «이천시»**. ' +
-                  '① 2,900 ✖ ② 3,000 ⭕ (하한 경계) · ③ 상차 반경 밖 ✖ · ④ 도착 «창전» ⭕ (줄임 표기) · ⑤ 예약 17:00 ⭕. ' +
-                  '원달앱은 **울리고 상세까지만** 간다 — 「수락하기」는 기사님 손가락이다',
+            key: KEY,
+            title: '🚚 이천 방향 — 집에서 이천까지 일곱 지점 (픽커)',
+            desc: '7문제 · **지점은 인성 «칠지점» 그대로**, 요금만 P(원 ÷ 5). ' +
+                  '🔴 **정답을 싣지 않는다** — 서버 필터는 수시로 바뀌므로, 원달앱이 판정하는 순간 그 폰의 필터로 ' +
+                  '`node onedal-sim/scripts/pickerAlarmGrade.mjs` 가 채점한다. 원달앱은 **울리고 상세까지만** 간다 — 「수락하기」는 기사님 손가락이다',
         },
     ],
-    requires: {
-        '픽커기본': { destinationCity: '이천시', alarmMinFare: 3000 },
-    },
+    requires: {},
     keys: Object.keys(PROBLEMS),
-    aliases: { picker: '픽커기본' },
+    aliases: { seven: KEY, '7': KEY },
 };
