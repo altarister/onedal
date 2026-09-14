@@ -170,6 +170,17 @@ object KakaoPickerKeywords {
         else -> AfterDetail.CHECK_ACCEPTED
     }
 
+    /**
+     * 🔎 **이 상세를 누가 열었나 — 로그에 적는 기록일 뿐이다** (기사님 지시 2026-09-14).
+     * 기사님: *"손으로 연 상세가 60초 뒤 돌아오는지 — 로그캣에 넣어서 나중에 확인할 수 있게 만들어"*
+     * 🔴 동작을 가르지 않는다 — 상세 대기 타이머는 누가 열었든 한 곳에서 걸린다 (#124). `[상세 대기]` 줄에만 붙인다.
+     * 알람이 카드를 누른 뒤 상세가 뜨기까지 실측 0.3~0.4초 — 넉넉히 5초 안이면 알람이 연 것이다 (`DetailOpenerTest`).
+     */
+    const val ALARM_OPEN_WINDOW_MS = 5_000L
+
+    fun detailOpener(alarmTapAtMs: Long, nowMs: Long): String =
+        if (alarmTapAtMs > 0L && nowMs - alarmTapAtMs in 0L..ALARM_OPEN_WINDOW_MS) "알람" else "손"
+
     /** ⏱️ 자동 복귀가 몇 초 뒤인지는 적지 않는다 — 서버 DB 값이다 (`docs/지금/배차망별_대기_시간.md`) */
     const val RETURNED_TO_LIST_LOG = "↩️ [승격 안 함] 상세에서 리스트로 돌아왔다 — 수락하지 않았다 (넘기기 · 뒤로 · 상세 대기 시간 뒤 자동 복귀)"
 

@@ -185,6 +185,10 @@ class HijackService : AccessibilityService(), ScanContext {
      *    «상세 → 리스트»일 때만 꺼서, 중간 화면이 끼자 안 꺼진 타이머가 기사님이 손으로 연 다음 상세를 닫았다 (18:30:34).
      */
     private var detailBackRunnable: Runnable? = null
+    /** 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용 — 알람이 카드를 누른 시각(부팅 기준) · 동작은 안 가른다 */
+    private var alarmTapAtMs = 0L
+    private var detailBackOpener = ""
+    private var detailBackArmedAtMs = 0L
 
     /**
      * 🚚 마지막으로 알아본 픽커 운행 단계 — **바뀔 때만 로그를 남기려고** 들고 있다.
@@ -197,13 +201,22 @@ class HijackService : AccessibilityService(), ScanContext {
         if (detailBackRunnable != null) return            // 이미 걸려 있다 — 상세 글자가 바뀔 때마다 새로 걸지 않는다
         // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec · docs/지금/배차망별_대기_시간.md)
         val delayMs = com.onedal.app.core.engine.WaitTimes.pickerAlarmDetailMs(savedFilter())
+        // 🔎 누가 열었나 — 기록만 한다 (나중에 `grep "상세 대기"` 로 «손으로 연 상세도 돌아왔나»를 본다)
+        val now = android.os.SystemClock.elapsedRealtime()
+        val opener = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.detailOpener(alarmTapAtMs, now)
+        alarmTapAtMs = 0L
+        detailBackOpener = opener
+        detailBackArmedAtMs = now
+        AppLogger.i("1DAL_PICKER", "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 · 연 쪽: $opener")
         val r = Runnable {
             detailBackRunnable = null
             // 아직 확정 전 상세에 있고, 잡기 수순이 없는 배차망(픽커)일 때만 나온다 — 모드는 가리지 않는다
             if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
                 && !TargetApp.supportsCatching(currentTargetApp)) {
-                AppLogger.i("1DAL_PICKER", "↩️ [상세 대기] ${delayMs / 1000}초 무응답 — 리스트로 자동 복귀")
+                AppLogger.i("1DAL_PICKER", "↩️ [상세 대기] ${delayMs / 1000}초 무응답 — 리스트로 자동 복귀 · 연 쪽: $opener")
                 performGlobalAction(GLOBAL_ACTION_BACK)
+            } else {
+                AppLogger.i("1DAL_PICKER", "⏹️ [상세 대기] ${delayMs / 1000}초가 됐지만 상세가 아니다 — 뒤로 가지 않는다 · 연 쪽: $opener")
             }
         }
         detailBackRunnable = r
@@ -211,7 +224,11 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     private fun cancelDetailBack() {
-        detailBackRunnable?.let { mainHandler.removeCallbacks(it) }
+        detailBackRunnable?.let {
+            mainHandler.removeCallbacks(it)
+            val stayedSec = (android.os.SystemClock.elapsedRealtime() - detailBackArmedAtMs) / 1000
+            AppLogger.i("1DAL_PICKER", "⏹️ [상세 대기] 풀었다 — ${stayedSec}초 머묾 · 연 쪽: $detailBackOpener (콜 끝 · 리스트 복귀)")
+        }
         detailBackRunnable = null
     }
     override lateinit var collectMachine: DetailCollectMachine
@@ -1029,6 +1046,7 @@ class HijackService : AccessibilityService(), ScanContext {
                  * 이제 상세 화면이 누가 열었든 `KakaoPickerParser.matchListCard` 한 곳에서 카드를 찾는다
                  * (이 카드도 방금 `recentListOrders` 에 들어갔다).
                  */
+                alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽: 알람» 기록용
                 touchManager.performSimulatedTouch(fareNode.node)
                 // ⏱️ 타이머는 여기서 걸지 않는다 — 상세 화면 처리 한 곳에서 누가 열었든 건다 (#124)
             } else if (!TargetApp.supportsCatching(currentTargetApp)) {
