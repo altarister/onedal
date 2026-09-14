@@ -80,6 +80,55 @@ class InsungParser(private val context: Context) : IScrapParser {
         fun sameRow(aTop: Int, aBottom: Int, bTop: Int, bBottom: Int): Boolean =
             aTop < bBottom && aBottom > bTop
 
+        /**
+         * 차종 토큰 중 **숫자처럼 생긴 것**(1.4 · 2.5 · 3.5) — 리스트 줄 맨 앞의 상차·배송 거리 칸과 글자가 같다.
+         * 2.5t · 3.5t 는 화면이 `t` 를 붙이기도 해서 `t` 가 없을 때만 해당한다.
+         */
+        private val NUMBER_LIKE_VEHICLE = Regex("^\\d+\\.\\d+$")
+
+        /**
+         * 🚚 **차종 닻 → (차종, 요금)** — 차종 토큰을 찾고 바로 다음 숫자를 요금(만 원 단위)으로 읽는다.
+         * JVM 검사(`VehicleFareAnchorTest`)가 부르려고 `parse` 에서 떼어냈다.
+         *
+         * 🔴 **닻 후보가 여럿이면 숫자처럼 생긴 차종(1.4 등)은 진다** (2026-09-14 · `VehicleFareAnchorTest`).
+         *    예전엔 **첫 후보**를 썼다 — 상차 거리가 1.4km 인 줄 `1.4, 15.2, …, 5t, 15.0` 에서
+         *    거리 칸 «1.4» 가 차종이 되고 배송거리 15.2 가 요금(152,000원)이 됐다.
+         *    - 진짜 차종 칸(5t · 다 …)이 있으면 그것을 쓴다
+         *    - 후보가 전부 숫자처럼 생겼으면 **마지막** 것을 쓴다 — 차종·요금 칸은 줄의 오른쪽 끝이다
+         *    - 후보가 하나면 예전과 같다 (상세 화면의 요금 대조가 기대는 동작)
+         */
+        internal fun readVehicleAndFare(texts: List<String>): Pair<String?, Int> {
+            data class Anchor(val vehicle: String, val fare: Int)
+
+            val anchors = mutableListOf<Anchor>()
+            // 요금을 못 찾은 차종 토큰 — 후보가 하나도 없을 때 예전처럼 차종만이라도 남긴다
+            var lastVehicleWithoutFare: String? = null
+
+            for (i in texts.indices) {
+                val text = texts[i].trim().replace(",", "")
+
+                // 만약 현재 텍스트(예: "라")가 차종이라면
+                if (VEHICLE_ONLY.matches(text)) {
+                    // 바로 다음 텍스트 노드가 오더 창 우측 끝의 요금(예: "2.2" -> 22,000원)
+                    val nextVal = texts.getOrNull(i + 1)?.trim()?.replace(",", "")?.toDoubleOrNull()
+                    // 요금이 만 단위(0.1만 = 1000원 이상)이면 채택
+                    if (nextVal != null && nextVal > 0) anchors += Anchor(text, (nextVal * 10000).toInt())
+                    else lastVehicleWithoutFare = text
+                } else {
+                    // 예외 fallback: 텍스트 노드가 하나로 뭉쳐진 경우 ("라2.2" 등)
+                    val clumpedMatch = VEHICLE_WITH_FARE.find(text)
+                    if (clumpedMatch != null) {
+                        val nextVal = clumpedMatch.groupValues[2].toDoubleOrNull()
+                        if (nextVal != null && nextVal > 0) anchors += Anchor(clumpedMatch.groupValues[1], (nextVal * 10000).toInt())
+                        else lastVehicleWithoutFare = clumpedMatch.groupValues[1]
+                    }
+                }
+            }
+
+            val chosen = anchors.firstOrNull { !NUMBER_LIKE_VEHICLE.matches(it.vehicle) } ?: anchors.lastOrNull()
+            return if (chosen != null) chosen.vehicle to chosen.fare else lastVehicleWithoutFare to 0
+        }
+
         /** 사각형이 자리를 안 차지한다 — 스크롤 밖 노드의 표식일 수 있다 (계측용) */
         fun isEmptyRect(top: Int, bottom: Int): Boolean = top >= bottom
 
@@ -491,39 +540,7 @@ class InsungParser(private val context: Context) : IScrapParser {
 
         // ── 1. 차종 앵커링을 통한 요금(Fare) 및 차종(VehicleType) 파싱 ──
         // 목록의 원천은 companion 의 VEHICLE_TOKENS 하나다 (세 벌로 갈라져 사고가 났다)
-        val vehicleRegex = VEHICLE_ONLY
-        var fare = 0
-        var vehicleType: String? = null
-
-        for (i in texts.indices) {
-            val text = texts[i].trim().replace(",", "")
-            
-            // 만약 현재 텍스트(예: "라")가 차종이라면
-            if (vehicleRegex.matches(text)) {
-                vehicleType = text
-                // 바로 다음 텍스트 노드가 오더 창 우측 끝의 요금(예: "2.2" -> 22,000원)
-                if (i + 1 < texts.size) {
-                    val nextText = texts[i + 1].trim().replace(",", "")
-                    val nextVal = nextText.toDoubleOrNull()
-                    // 요금이 만 단위(0.1만 = 1000원 이상)이면 채택
-                    if (nextVal != null && nextVal > 0) {
-                        fare = (nextVal * 10000).toInt()
-                        break
-                    }
-                }
-            } else {
-                // 예외 fallback: 텍스트 노드가 하나로 뭉쳐진 경우 ("라2.2" 등)
-                val clumpedMatch = VEHICLE_WITH_FARE.find(text)
-                if (clumpedMatch != null) {
-                    vehicleType = clumpedMatch.groupValues[1]
-                    val nextVal = clumpedMatch.groupValues[2].toDoubleOrNull()
-                    if (nextVal != null && nextVal > 0) {
-                        fare = (nextVal * 10000).toInt()
-                        break
-                    }
-                }
-            }
-        }
+        val (vehicleType, fare) = readVehicleAndFare(texts)
 
         // ── 2. 지역명 파싱 (동/읍/면/리 로 끝나는 텍스트) ──
         // 서버에서 다운받은 동적 키워드 사전에서 uiNoiseWords 로드, 없으면 기본값
