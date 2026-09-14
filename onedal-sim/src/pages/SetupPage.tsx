@@ -99,6 +99,12 @@ export function SetupPage() {
   const [targetRegion, setTargetRegion] = useState('');
 
   const netName = SIM_NETS[net].label;
+  /**
+   * 🎯 지금 문제지를 못 쓰는 배차망(픽커 — 요금 크기가 다르다)이면 시나리오콜 탭을 막고 랜덤콜로 연다 (nets.ts `usesSharedPresets` · 2단계 2-2).
+   * 고른 탭(`tab`)은 그대로 둔다 — 인성으로 돌아오면 보던 탭이 다시 보인다.
+   */
+  const presetsUsable = SIM_NETS[net].usesSharedPresets;
+  const shownTab = presetsUsable ? tab : 'random';
 
   /**
    * 🎯 문제지는 상차·하차·요금이 **전부 고정**이라 넘길 것이 넷뿐이다.
@@ -106,7 +112,7 @@ export function SetupPage() {
    *    화면에 두면 «이게 판정에 영향을 준다»는 오해만 만든다 (기사님 2026-08-24).
    */
   const start = () => {
-    const params = tab === 'scenario'
+    const params = shownTab === 'scenario'
       ? new URLSearchParams({
           net,
           preset: presetKey,
@@ -167,13 +173,13 @@ export function SetupPage() {
 
         {/* 탭 — 어느 쪽 판인지 한 줄로 말한다 */}
         <div className="flex gap-1.5">
-          <TabButton on={tab === 'scenario'} onClick={() => setTab('scenario')}
-                     name="🎯 시나리오콜" hint="문제지가 정한 콜 · 채점된다" />
-          <TabButton on={tab === 'random'} onClick={() => setTab('random')} muted
+          <TabButton on={shownTab === 'scenario'} onClick={() => setTab('scenario')} disabled={!presetsUsable}
+                     name="🎯 시나리오콜" hint={presetsUsable ? '문제지가 정한 콜 · 채점된다' : '이 배차망은 아직 문제지가 없다'} />
+          <TabButton on={shownTab === 'random'} onClick={() => setTab('random')} muted
                      name="🎲 랜덤콜" hint="즉석 조합 · 채점 없음" />
         </div>
 
-        {tab === 'scenario' ? (
+        {shownTab === 'scenario' ? (
           <>
             {/**
               * 🔴 **줄에는 제목과 문제 수만** (기사님 2026-09-11).
@@ -330,14 +336,15 @@ function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
-function TabButton({ on, muted, name, hint, onClick }: {
-  on: boolean; muted?: boolean; name: string; hint: string; onClick: () => void;
+function TabButton({ on, muted, disabled, name, hint, onClick }: {
+  on: boolean; muted?: boolean; disabled?: boolean; name: string; hint: string; onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={on}
-      className={`flex-1 text-left px-2.5 py-2 rounded-lg transition ${
+      className={`flex-1 text-left px-2.5 py-2 rounded-lg transition disabled:opacity-40 ${
         on ? (muted ? 'bg-slate-600 text-white' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20')
            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
       }`}

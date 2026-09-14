@@ -15,6 +15,7 @@ import {
     simNetOf,
     toHwamul24Call,
     toInsungCall,
+    toPickerCall,
 } from '@altari/ui-simulators';
 import type { NetScreenProps } from '@altari/ui-simulators';
 import { callA, callB } from './fixtures';
@@ -95,6 +96,7 @@ describe('배차망 목록 — 한 곳에서만', () => {
     it('입히기 함수는 각 배차망 폴더의 것', () => {
         expect(SIM_NETS.insung.toCall).toBe(toInsungCall);
         expect(SIM_NETS.hwamul24.toCall).toBe(toHwamul24Call);
+        expect(SIM_NETS.kakaopicker.toCall).toBe(toPickerCall);
     });
 
     it('설정 화면 색 — 예전에 설정 화면이 직접 고르던 클래스 그대로 (0-3 에서 옮겼다)', () => {
@@ -102,8 +104,14 @@ describe('배차망 목록 — 한 곳에서만', () => {
         expect(SIM_NETS.hwamul24.setupColors).toEqual({ toggle: 'bg-[#c62828] text-white', start: 'bg-gradient-to-r from-[#c62828] to-[#8e1b1b] shadow-red-900/40' });
     });
 
-    it('설정 화면 순서와 이름 — 인성콜 · 화물24시 (예전 목록 그대로)', () => {
-        expect(SIM_NET_LIST.map(n => [n.key, n.label])).toEqual([['insung', '인성콜'], ['hwamul24', '화물24시']]);
+    it('설정 화면 순서와 이름 — 인성콜 · 화물24시 (예전 목록 그대로) · 픽커 (2단계 2-2 에서 붙였다)', () => {
+        expect(SIM_NET_LIST.map(n => [n.key, n.label])).toEqual([['insung', '인성콜'], ['hwamul24', '화물24시'], ['kakaopicker', '픽커']]);
+    });
+
+    it('🎯 문제지 · 🔙 방문 기록 — 인성·화물24시는 예전 그대로, 픽커만 다르다 (2단계 2-2)', () => {
+        expect(SIM_NET_LIST.map(n => [n.key, n.usesSharedPresets, n.detailInHistory])).toEqual([
+            ['insung', true, false], ['hwamul24', true, false], ['kakaopicker', false, true],
+        ]);
     });
 
     it('🔴 ?net= 해석 — 모르는 값·없는 값·옛 이름은 null (부르는 쪽이 멈추거나 넘긴다 · 0-4)', () => {

@@ -1,5 +1,5 @@
 /**
- * 🚚 **배차 리스트** (`/dispatch?net=insung|hwamul24`) — 기사님 확정 2026-09-11 · 이름은 2026-09-14 에 서버·원달앱과 맞췄다
+ * 🚚 **배차 리스트** (`/dispatch?net=insung|hwamul24|kakaopicker`) — 기사님 확정 2026-09-11 · 이름은 2026-09-14 에 서버·원달앱과 맞췄다
  *
  * 🔴 **갈라지는 것은 «그리는 화면» 하나뿐이다.** 앱 파서가 **화면에 적힌 글자**를 읽기
  *    때문이다 — 인성은 차종 약자(오·다·라)를 앵커로 요금을 읽고, 화물24시는
@@ -9,7 +9,7 @@
  * 화물24시 쪽은 `fillers` 를 안 읽어 **채움 콜이 전부 흘렀다.** 같은 질문에 두 답이
  * 있으면 언젠가 갈라진다 (규칙 ③).
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { SimulationProvider, useSimulationContext } from '@altari/ui-simulators';
 import { useSimStreaming } from '@altari/ui-simulators';
@@ -42,6 +42,26 @@ function UnknownNetScreen({ netKey }: { netKey: string | null }) {
             <code key={n.key} className="rounded bg-white px-2 py-0.5 border border-red-200">{n.key}</code>
           ))}
         </div>
+      </div>
+      <Link to="/" className="mt-3 rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white">설정 화면으로</Link>
+    </div>
+  );
+}
+
+/**
+ * 🎯 **이 배차망 화면은 지금 문제지를 못 쓴다** (2026-09-14 · 2단계 2-2)
+ *
+ * 지금 문제지는 요금이 원 단위(5만·15만)이고 정답이 인성 콜 필터 기준이다. 요금 크기가 다른 배차망 화면으로 띄우면
+ * 알람 판정이 통째로 헛것이 된다 — 콜을 흘리지 않고 멈춘다 (위 «문제지가 없다»와 같은 자리).
+ */
+function PresetNotForNetScreen({ netLabel, presetName }: { netLabel: string; presetName: string }) {
+  return (
+    <div className="w-full h-dvh flex flex-col items-center justify-center gap-3 bg-red-50 p-6 text-center">
+      <div className="text-3xl">🎯</div>
+      <div className="text-lg font-bold text-red-700">«{netLabel}» 화면은 문제지 «{presetName}» 를 쓰지 않습니다</div>
+      <div className="text-sm text-red-600">
+        지금 문제지는 요금이 원 단위라 이 화면의 요금 크기와 맞지 않습니다.<br />
+        그대로 흘리면 알람 판정이 헛것이 되어 <b>콜을 흘리지 않습니다.</b> 설정 화면에서 랜덤콜로 여세요.
       </div>
       <Link to="/" className="mt-3 rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white">설정 화면으로</Link>
     </div>
@@ -121,15 +141,45 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     loop,
   });
 
+  /**
+   * 🔙 **상세를 방문 기록에 남기는 배차망** (`SimNet.detailInHistory` · 계획서 §7-3 · 2단계 2-2).
+   * 원달앱의 «뒤로 가기»(시뮬레이터 앱은 웹뷰 방문 기록으로 넘긴다)가 상세만 닫게, 상세를 열 때 `?detail=<콜 id>` 를 **한 칸 쌓는다.**
+   * 닫을 때는 그 칸을 되돌리고, 주소에서 `detail` 이 사라지면(뒤로 가기) 상세를 닫는다 — 닫는 길이 둘이어도 답은 주소 하나다.
+   * 인성·화물24시는 예전 그대로다 (상태만 바꾼다).
+   */
+  const detailId = simNet.detailInHistory ? presetParams.get('detail') : null;
+
   const handleCallClick = useCallback((call: SimCall) => {
     setSelectedCall(call);
     setSelectedCallId(call.id);
-  }, [setSelectedCallId]);
+    if (simNet.detailInHistory) {
+      const next = new URLSearchParams(presetParams);
+      next.set('detail', call.id);
+      navigate(`/dispatch?${next.toString()}`);
+    }
+  }, [setSelectedCallId, simNet.detailInHistory, presetParams, navigate]);
 
-  const handleCloseDetail = useCallback(() => {
+  const clearSelection = useCallback(() => {
     setSelectedCall(null);
     setSelectedCallId(null);
   }, [setSelectedCallId]);
+
+  const handleCloseDetail = useCallback(() => {
+    // 방문 기록에 쌓은 칸이 있으면 되돌린다 — 아래 useEffect 가 상세를 닫는다
+    if (simNet.detailInHistory && presetParams.get('detail')) navigate(-1);
+    else clearSelection();
+  }, [simNet.detailInHistory, presetParams, navigate, clearSelection]);
+
+  /**
+   * 주소의 `detail` 이 **있다가 사라지면** 닫는다 — «없다»만 보면 안 된다.
+   * 🔴 라우터는 주소 바꾸기를 한 박자 늦게 그린다. 그래서 «고른 콜은 들어갔는데 주소엔 아직 detail 이 없는» 한 순간이 있고,
+   *    «없다»만 보면 그 순간을 뒤로 가기로 읽어 **연 상세를 곧바로 닫는다** (2단계 2-2 검사에서 실제로 났다).
+   */
+  const prevDetailId = useRef<string | null>(null);
+  useEffect(() => {
+    if (simNet.detailInHistory && prevDetailId.current && !detailId && selectedCall) clearSelection();
+    prevDetailId.current = detailId;
+  }, [simNet.detailInHistory, detailId, selectedCall, clearSelection]);
 
   /**
    * 콜 수락 — 인성은 «확정», 화물24시(실물)는 «배차신청» 이다.
@@ -211,6 +261,10 @@ export function DispatchPage() {
   // 🔴 모르는 배차망이면 멈춘다 — 짐작해서 한 배차망으로 그리지 않는다 (nets.ts · 계획서 §3-3)
   const simNet = simNetOf(netKey);
   if (!simNet) return <UnknownNetScreen netKey={netKey} />;
+
+  // 🎯 지금 문제지(원 단위 요금 · 인성 필터 기준)를 못 쓰는 배차망에 문제지를 붙이면 멈춘다 (nets.ts · 계획서 §9-3)
+  const presetName = searchParams.get('preset');
+  if (presetName && !simNet.usesSharedPresets) return <PresetNotForNetScreen netLabel={simNet.label} presetName={presetName} />;
 
   const driverLocation = {
     lon: Number(searchParams.get('lon') || '127.2553'),

@@ -38,6 +38,34 @@ describe('배차 화면 — 배차망마다 고르는 부품 (첫 그림)', () =
 });
 
 /**
+ * 🎯 **픽커 화면에 지금 문제지를 띄우면 멈춘다** (2026-09-14 · 카카오픽커_시뮬레이터.md §9-3 · 2단계 2-2)
+ *
+ * 지금 문제지는 요금이 **원** 단위(5만 · 15만)이고 정답이 인성 콜 필터 기준이다. 픽커 화면(P · 2천~2만)으로 띄우면
+ * 요금 크기부터 틀려 알람 판정이 통째로 헛것이 된다 — 문제지 이름을 못 찾을 때와 같은 자리다.
+ */
+describe('배차 화면 — 픽커', () => {
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(FIXED_NOW); vi.spyOn(Math, 'random').mockImplementation(seededRandom(5173)); });
+    afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+    it('문제지 없이 열면 홈', () => {
+        const text = textOf('/dispatch?net=kakaopicker');
+        expect(text).toContain('시작하기');
+    });
+
+    it('🔴 문제지를 붙여 열면 콜을 안 흘리고 멈춘다', () => {
+        const text = textOf('/dispatch?net=kakaopicker&preset=칠지점');
+        expect(text).toContain('문제지');
+        expect(text).toContain('픽커');
+        expect(text).not.toContain('시작하기');
+    });
+
+    it('인성·화물24시는 같은 문제지로 그대로 연다', () => {
+        expect(textOf('/dispatch?net=insung&preset=칠지점')).toContain('신규');
+        expect(textOf('/dispatch?net=hwamul24&preset=칠지점')).toContain('화물정보');
+    });
+});
+
+/**
  * 🔴 **모르는 배차망이면 멈춘다** (2026-09-14 · 카카오픽커_시뮬레이터.md §3-3 · 0단계 0-4)
  *
  * 예전엔 `?net=` 이 화물24시가 아니면 전부 인성으로 그렸다. 인성인 줄 모르고 30분 시험하면 그 30분이 헛것이다 —
