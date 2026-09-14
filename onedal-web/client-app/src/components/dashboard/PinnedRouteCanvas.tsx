@@ -1,4 +1,5 @@
 import { sectionLinesOf } from '@onedal/shared';
+import { SOAK } from './JudgmentSeat';
 import { logStateChange } from '../../lib/roadmapLogger';
 import React, { useRef, useCallback, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
@@ -742,11 +743,24 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          */
         if (layers.route && hasPolyline && validPolyline.length > 0) {   // 🧅 «경로» 레이어
             const secStops = routeHolder?.sectionStops;
-            const secLines = isPreviewRoute ? [] : sectionLinesOf(validPolyline, routeHolder?.sectionEnds);
-            const canPaintPerSection = !!callColors && !!secStops
-                && secLines.length > 1 && secLines.length === secStops.length
+            const secLines = sectionLinesOf(validPolyline, routeHolder?.sectionEnds);
+            const sectionsOk = !!secStops && secLines.length > 1 && secLines.length === secStops.length
                 && validPolyline.length === currentPolyline.length;   // 걸러진 점이 있으면 경계가 어긋난다
-            if (canPaintPerSection) {
+            const canPaintPerSection = !isPreviewRoute && !!callColors && sectionsOk;
+            /**
+             * 🗺️ **심사 중 — 이 후보가 늘린 구간을 판정 색으로 굵게** (전수표 #38 · 목업 «이 콜을 끼면 이렇게 간다»).
+             *    통째로 노란 점선이면 1~2초에 «어디가 늘었나»가 안 보인다. 구간 주인이 후보 콜이면 판정 색,
+             *    나머지는 노란 점선 그대로 — «아직 내 콜이 아니다»는 지킨다. 판정 전이면 후보 구간도 노랑.
+             * ⚠️ 목업의 깜빡임은 안 옮겼다 — 캔버스를 0.26초마다 다시 칠해야 한다.
+             */
+            const candidateColor = routeHolder?.judgment?.color ? SOAK[routeHolder.judgment.color].bar : '#e6b422';
+            if (isPreviewRoute && sectionsOk) {
+                secLines.forEach((line, i) => {
+                    const mine = secStops![i].orderId === routeHolder!.id;
+                    ctx.strokeStyle = mine ? candidateColor : '#e6b422';
+                    drawPath(line, mine ? 1.6 : 1, mine ? undefined : [10, 8]);
+                });
+            } else if (canPaintPerSection) {
                 secLines.forEach((line, i) => {
                     ctx.strokeStyle = callColors!.get(secStops![i].orderId) ?? mapColors.routeLine;
                     drawPath(line, 1);
