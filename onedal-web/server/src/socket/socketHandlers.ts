@@ -262,8 +262,6 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
             logRoadmapEvent("서버", `관제탑으로 부터 필터 변경(update-filter) 요청 받음. 수신 데이터: ${JSON.stringify(newFilter)}`);
             
-            const isTargetChanged = newFilter.destinationRadiusKm !== undefined && newFilter.destinationRadiusKm !== session.activeFilter.destinationRadiusKm;
-            const isDetourChanged = newFilter.detourRadiusKm !== undefined && newFilter.detourRadiusKm !== session.activeFilter.detourRadiusKm;
 
             /**
              * 🔴 2026-08-12 — **첫짐 지리 연산을 여기서 지웠다.**
@@ -280,20 +278,8 @@ export function registerSocketHandlers(io: Server) {
              * 가 changes 에 있으면 거기서 알아서 다시 계산한다).
              */
 
-            // 합짐 모드: 경유 반경 또는 도착 반경 변경 시
-            if (session.activeFilter.isSharedMode && (isDetourChanged || isTargetChanged)) {
-                const cRadius = newFilter.detourRadiusKm ?? session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM;
-                const dRadius = newFilter.destinationRadiusKm ?? session.activeFilter.destinationRadiusKm ?? 10;
-                
-                const newRegions = recalculateDetourFilter(userId, cRadius, dRadius);
-                if (newRegions) {
-                    // 셋을 **한 벌로** 넘긴다. 예전에는 앞의 둘만 넘겨서 시 별칭이 빠졌고,
-                    // 앱의 2단계 필터(시 + 동 교차 확인)가 조용히 꺼졌다
-                    newFilter.destinationKeywords = newRegions.destinationKeywords;
-                    newFilter.destinationGroups = newRegions.destinationGroups;
-                    newFilter.customCityFilters = newRegions.customCityFilters;
-                }
-            }
+            /* 🕸️ 합짐 중 반경을 바꾸면 `updateActiveFilter` → `refreshDetourIfNeeded` 가 그물로 다시 그린다.
+               예전엔 여기서 옛 경로 버퍼로 먼저 조립했다 (전수표 1단계 · 2026-09-14) */
             
             /**
              * `saveAsDefault` — **"앞으로 계속"** 을 고르셨을 때만 평소 설정까지 바꾼다.

@@ -18,7 +18,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, RADIUS_BASE_KM_DEFAULT,
+import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, isLocalPhase } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
@@ -96,7 +96,7 @@ function netKeywordsOf(
     city: string,
     radiusKm: number,
     line: Array<[number, number]> | null,
-): { flat: string[]; grouped: Record<string, string[]>; byNet: boolean; pruned: number } {
+): { flat: string[]; grouped: Record<string, string[]>; byNet: boolean; pruned: number; progressKm: Record<string, number> } {
     const excluded = session.activeFilter.excludedRegions ?? [];
     /** 🚫 제외로 **몇 개가 빠졌나** — 로그가 «왜 줄었는지»를 말할 수 있어야 한다 */
     const prune = (grouped: Record<string, string[]>, byNet: boolean) => {
@@ -104,7 +104,8 @@ function netKeywordsOf(
         const kept = pruneExcludedRegions(grouped, excluded);
         return { ...kept, byNet, pruned: before - kept.flat.length };
     };
-    const fallback = () => prune(getCityRegionsWithRadius(city, radiusKm).grouped, false);
+    /* 🔴 물러선 목록에는 라인이 없다 — 진행도도 없다 (지어내지 않는다 · 규칙 ④) */
+    const fallback = () => ({ ...prune(getCityRegionsWithRadius(city, radiusKm).grouped, false), progressKm: {} as Record<string, number> });
     const goal = cityCenter(city);
     if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return fallback();
 
@@ -198,7 +199,18 @@ function netKeywordsOf(
         (grouped[region] ??= []).push(d.name);
     }
     for (const k of Object.keys(grouped)) grouped[k] = [...new Set(grouped[k])].sort();
-    return prune(grouped, true);
+    /**
+     * 📏 **진행도도 같은 그물에서 낸다** (전수표 1단계 · 2026-09-14) — 라인 띠로만 든 동에 붙은
+     *    «라인 시작부터 몇 km 지점인가»(`callNet.buildLineNet`). 목록과 진행도가 **한 벌**이라
+     *    옛 경로 버퍼의 진행도로 새 목록의 동을 지우는 일이 없다. 같은 이름이 둘이면 먼 쪽 (옛 계산과 같은 규칙).
+     */
+    const progressKm: Record<string, number> = {};
+    for (const d of net.pass) {
+        if (d.progressKm == null) continue;
+        const prev = progressKm[d.name];
+        if (prev === undefined || d.progressKm > prev) progressKm[d.name] = d.progressKm;
+    }
+    return { ...prune(grouped, true), progressKm };
 }
 
 /**
@@ -224,7 +236,7 @@ export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
 }
 
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, getActivePolyline, progressAlongPolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
+import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율은 user_filters 의 평면 칸에 산다 (④에서 철거했다가 C3-3b 에서 한 벌로 돌아왔다).
@@ -604,11 +616,12 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
     const progress = session.detourProgressKm;
     if (!progress) return false;
 
-    const polyline = getActivePolyline(session);
+    /* 🛣️ 얼린 라인 위 GPS 진행도 — 그물이 동마다 붙인 진행도와 **같은 셈**(`progressAlongKm`)이다 (전수표 #19) */
+    const polyline = filterLineOf(session);
     const gps = session.lastFix;
     if (!polyline || !gps) return false;
 
-    const at = progressAlongPolyline(polyline, gps);
+    const at = progressAlongKm({ lng: gps.x, lat: gps.y }, polyline.map(p => [p.x, p.y] as [number, number]));
     if (at === null || at <= 0) return false;
 
     const before = session.activeFilter.destinationKeywords ?? [];
@@ -665,32 +678,85 @@ function refreshDetourIfNeeded(
     const exNow = JSON.stringify(session.activeFilter.excludedRegions ?? []);
     if (cRadius === before.detourRadiusKm && dRadius === before.destinationRadiusKm && exBefore === exNow) return;
 
-    const regions = recalculateDetourFilter(userId, cRadius, dRadius);
-    if (!regions) return;   // 경로가 아직 없다 — 없는 값을 지어내지 않는다
-    rememberDetourProgress(session, regions);
-
     /**
-     * 🕸️ **합짐도 그물이 만든다** (이식 C1-2) — 라인 띠 ∪ 목적지 원 ∪ 마름모.
-     *    별칭(`customCityFilters`)은 옛 계산이 내던 것을 그대로 쓴다 — 그건 «시 이름»이라
-     *    그물과 무관하고, 빠지면 앱의 2단계 필터가 조용히 꺼진다.
-     * 🔴 목적지를 모르면(합짐은 도시가 비어 있을 수 있다) 옛 경로 주변 목록으로 물러선다.
+     * 🕸️ **합짐도 그물 한 곳이 만든다** (전수표 1단계 · 2026-09-14) — 옛 경로 버퍼(`recalculateDetourFilter`)를 걷었다.
+     *    목록 · 묶음 · 별칭 · 진행도가 **한 벌**로 나온다. 라인은 KEEP 순간 얼린 경로다(`filterLineOf`).
      */
-    const line = getActivePolyline(session);
-    const goal = goalCityOf(session, userId);   // 🎯 파생 목적지 (조사 ①-1)
-    const kept = goal
-        ? netKeywordsOf(session, userId, goal, dRadius,
-            (line?.length ?? 0) >= 2 ? line!.map(p => [p.x, p.y] as [number, number]) : null)
-        : (() => {
-            const k = pruneExcludedRegions(regions.destinationGroups, session.activeFilter.excludedRegions ?? []);
-            const before = new Set(Object.values(regions.destinationGroups).flat()).size;
-            return { ...k, byNet: false, pruned: before - k.flat.length };
-        })();
+    const kept = netFilterOf(session, userId);
+    if (!kept?.line) return;   // 경로가 아직 없다 — 없는 값을 지어내지 않는다
+    rememberDetourProgress(session, progressOf(kept.progressKm));
     session.activeFilter.destinationKeywords = kept.flat;
     session.activeFilter.destinationGroups = kept.grouped;
-    session.activeFilter.customCityFilters = regions.customCityFilters;
-    /* 🔴 **옛 계산과 견주지 않는다** — 그물이 더 담으면 «제외로 −157개 뺌» 같은 거짓말이 나왔다 */
-    console.log(`🛣️ [경유 갱신] 경유 ${cRadius}km · 하차 ${dRadius}km → `
-        + `${kept.byNet ? '그물' : '경로 주변(물러섬)'} 지역 ${kept.flat.length}개`
+    session.activeFilter.customCityFilters = kept.aliases;
+    console.log(`🛣️ [경유 갱신] 라인 ${cRadius}km · 하차 ${dRadius}km → `
+        + `${kept.byNet ? '그물' : '도시 둘레(물러섬)'} 지역 ${kept.flat.length}개`
+        + (kept.pruned > 0 ? ` (제외로 ${kept.pruned}개 뺌)` : ''));
+}
+
+/**
+ * 🛣️ **필터가 쓰는 라인 — KEEP 순간 얼린 경로** (기사님 확정 2026-09-14 · 전수표 #18).
+ *
+ * 기사님: *"운전이 경로를 벗어나든 말든 상관없다. 하차·취소·재탐색으로 다시 잴 필요가 없다 —
+ * 기사는 어찌 되었건 그 목적지로 간다."* 그래서 경로가 다시 재져도(하차 완료·취소) 필터 라인은 안 바뀐다.
+ * ⚠️ 얼린 값이 없으면(서버가 막 켜짐) **지금 경로**를 쓴다 — 메모리라 재시작하면 비어 있다.
+ * 콜이 0건이면 라인이 없다.
+ */
+export function filterLineOf(session: ReturnType<typeof getUserSession>): Array<{ x: number; y: number }> | null {
+    if (getActiveCalls(session).length === 0) return null;
+    const line = session.filterLine ?? getActivePolyline(session);
+    return line && line.length >= 2 ? line : null;
+}
+
+/** 진행도 한 벌 → 세션이 기억하는 세 칸 (트림용 · 앱 순서용 · 경로 위 목록). 셋이 같은 값에서 나온다 */
+function progressOf(progressKm: Record<string, number>) {
+    return { progressKm, orderKm: progressKm, flat: Object.keys(progressKm) };
+}
+
+/**
+ * 🕸️ **지금 필터 목록 한 벌** — 목록을 만드는 모든 때(부팅 · 콜 0건 · KEEP · 경로 재계산 · 반경 변경)가 여기를 지난다.
+ * 목적지를 모르면 `null`.
+ */
+function netFilterOf(session: ReturnType<typeof getUserSession>, userId: string) {
+    const goal = goalCityOf(session, userId);   // 🎯 파생 목적지 (복귀면 집 시)
+    if (!goal) return null;
+    const line = filterLineOf(session);
+    const kept = netKeywordsOf(session, userId, goal, session.activeFilter.destinationRadiusKm || 0,
+        line ? line.map(p => [p.x, p.y] as [number, number]) : null);
+    /* 🔴 별칭은 목록에 든 시 전부에서 — 목적지 시 하나만 실으면 앱의 «시 + 동» 2단계가 경로 위 다른 시를 막는다 */
+    const aliases = new Set<string>();
+    for (const parent of Object.keys(kept.grouped)) for (const a of cityAliases(parent)) aliases.add(a);
+    return { ...kept, aliases: [...aliases], line };
+}
+
+/**
+ * 🕸️ **필터 목록을 다시 만든다 — 한 곳** (전수표 1단계 · 기사님 확정 2026-09-14).
+ *
+ * «7지점 한 바퀴» 06 콜(중리동 → 초월읍)이 도착지 축을 통과했다 — 부팅·0건은 시 경계 버퍼,
+ * KEEP·경로 재계산은 경로 버퍼 ∪ 시 경계 버퍼(옛 계산)가 목록을 만들었고, 그물은 필터를 만질 때만 돌았다.
+ * 이제 모든 때가 그물(`netKeywordsOf`)을 부른다.
+ */
+export function rebuildNetFilter(userId: string, io: any): void {
+    const session = getUserSession(userId);
+    /* 🔒 기사님이 손으로 고친 합짐 목록은 덮지 않는다 (2026-08-12) — 사이클이 끝나면 풀린다 */
+    if (session.activeFilter.userOverrides && getActiveCalls(session).length > 0) {
+        console.log(`🔒 [경유 고정] 기사님이 손으로 고친 필터라 자동 갱신을 건너뜁니다 ` +
+            `(키워드 ${(session.activeFilter.destinationKeywords || []).length}개 유지)`);
+        return;
+    }
+    const kept = netFilterOf(session, userId);
+    if (!kept) {
+        updateActiveFilter(userId, { destinationKeywords: [], destinationGroups: {} }, io);
+        return;
+    }
+    // 🔴 진행도를 **키워드보다 먼저** 기억한다 — updateActiveFilter 끝의 트림이 이 진행도로 뺀다
+    rememberDetourProgress(session, kept.line ? progressOf(kept.progressKm) : null);
+    updateActiveFilter(userId, {
+        destinationKeywords: kept.flat,
+        destinationGroups: kept.grouped,
+        customCityFilters: kept.aliases,
+    }, io);
+    console.log(`🕸️ [필터 목록] ${kept.line ? '라인(얼린 경로)' : '경로 없음'} · `
+        + `${kept.byNet ? '그물' : '도시 둘레(물러섬)'} → ${kept.flat.length}개`
         + (kept.pruned > 0 ? ` (제외로 ${kept.pruned}개 뺌)` : ''));
 }
 
@@ -934,6 +1000,7 @@ export function updateActiveFilter(
             dispatchPhase: 'STANDBY',
         };
         session.detourProgressKm = null;
+        session.filterLine = null;   // 🛣️ 얼린 필터 라인도 이 사이클의 것이다
         session.departedAt = null;   // 사이클이 끝났다 — 다음 운행은 다시 모으기부터
         session.arrivalFired.clear();      // 도착 감지 상태도 같은 수명이다 —
         session.arrivalNoticed.clear();    // 어제 찍은 정거장이 오늘 되살아나지 않는다

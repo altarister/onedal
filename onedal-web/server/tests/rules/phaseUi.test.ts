@@ -1219,7 +1219,7 @@ describe('경유 갱신 — 구현은 하나여야 한다', () => {
 
     it('🔴 경로가 없으면 아무것도 넣지 않는다 (없는 값을 지어내지 않는다)', () => {
         const fn = fm.slice(fm.indexOf('function refreshDetourIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
-        expect(fn).toMatch(/if \(!regions\) return/);
+        expect(fn).toMatch(/if \(!kept\?\.line\) return/);   // 🔄 2026-09-14 그물 한 벌 — 라인이 없으면 안 넣는다
     });
 
     it('🔴 셋을 한 벌로 넣는다 — 별칭이 빠지면 앱의 2단계 필터가 조용히 꺼진다', () => {
@@ -1227,14 +1227,14 @@ describe('경유 갱신 — 구현은 하나여야 한다', () => {
         /* 🚫 앞 둘은 제외를 뺀 `kept` 에서 온다 (이식 C2) — 셋이 **함께** 들어간다는 것이 요점이다 */
         expect(fn).toMatch(/destinationKeywords = kept\.flat/);
         expect(fn).toMatch(/destinationGroups = kept\.grouped/);
-        expect(fn).toMatch(/customCityFilters = regions\.customCityFilters/);
+        expect(fn).toMatch(/customCityFilters = kept\.aliases/);   // 🔄 2026-09-14 별칭도 그물 목록의 시들에서
     });
 
     it('🔴 recalculateDetourFilter 의 구현은 하나다 — dispatchEngine 은 다시 내보내기만 한다', () => {
             expect(engine).toMatch(/export \{ recalculateDetourFilter \} from "\.\.\/state\/filterManager"/);
         expect(engine).not.toMatch(/export const recalculateDetourFilter/);
-        // 부르는 쪽(소켓·설정 라우트)은 여전히 하나의 구현을 본다
-        expect(handlers).toMatch(/recalculateDetourFilter\(/);
+        // 🔄 2026-09-14 (전수표 1단계) — 소켓은 옛 계산을 더 안 거친다. 반경 변경은 refreshDetourIfNeeded 가 그물로 그린다
+        expect(handlers).not.toMatch(/recalculateDetourFilter\(/);
     });
 
     it('경유을 부르는 자리가 늘어나도 계산은 filterManager 한 곳이다', () => {
@@ -1279,7 +1279,8 @@ describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => 
      *    «첫짐에선 빠지는데 합짐에선 들어온다» 가 된다.
      */
     it('🔴 두 파생 길이 모두 pruneExcludedRegions 를 거친다', () => {
-        expect((fm2.match(/pruneExcludedRegions\(/g) || []).length).toBeGreaterThanOrEqual(2);
+        /* 🔄 2026-09-14 (전수표 1단계) — 목록을 만드는 길이 전부 netKeywordsOf 를 지나므로 빼는 자리는 **정확히 하나**다 */
+        expect((fm2.match(/pruneExcludedRegions\(/g) || []).length).toBe(1);
     });
 
     it('🔴 판별 규칙을 서버가 또 쓰지 않는다 (shared 함수 하나로만)', () => {
@@ -1390,7 +1391,8 @@ describe('그물 계산 — 서버도 실험실 것을 쓴다 (이식 C1-2)', ()
 
     it('🔴 제외 지역은 여전히 pruneExcludedRegions 한 곳이 뺀다', () => {
         // 그물로 바꿔도 빼는 자리는 안 늘어난다 (규칙 ③)
-        expect((fm3.match(/pruneExcludedRegions\(/g) || []).length).toBeGreaterThanOrEqual(2);
+        /* 🔄 2026-09-14 (전수표 1단계) — 목록을 만드는 길이 전부 netKeywordsOf 를 지나므로 빼는 자리는 **정확히 하나**다 */
+        expect((fm3.match(/pruneExcludedRegions\(/g) || []).length).toBe(1);
     });
 });
 

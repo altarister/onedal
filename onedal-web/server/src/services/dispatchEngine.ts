@@ -8,8 +8,8 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyO
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
-import { updateActiveFilter, rememberDetourProgress, recalculateDetourFilter, goalCityOf, homeCityOf } from "../state/filterManager";
-import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
+import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf } from "../state/filterManager";
+import { getActivePolyline, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -356,6 +356,8 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         const twin = session.myOrders.find(c => c.id === securedOrder.id);
         if (twin && (twin as any) !== (securedOrder as any)) twin.kakaoTimeExt = timeExt;   // 주기 sync 가 옛 문구로 되돌리지 않게
 
+        /* 🛣️ 첫 콜만 쥔 동안(합짐 전)은 경로를 바꾸면 필터 라인도 따라간다 (기사님 2026-09-14) */
+        if (!isDetour && getActiveCalls(session).length === 1) session.filterLine = getActivePolyline(session);
         if (getActiveCalls(session).some(c => c.id === securedOrder.id)) {
             syncDetourFilter(userId, io);
         }
@@ -388,75 +390,12 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 export { recalculateDetourFilter } from "../state/filterManager";
 
 export const syncDetourFilter = (userId: string, io: any) => {
-    const session = getUserSession(userId);
-
     /**
-     * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우고 «내 주소»로 메운다 (2026-08-31).
-     *    비움 단독은 금지 — 메우는 길이 부트스트랩에만 있어 심사가 origin 없이 돌았다.
+     * 🕸️ **목록은 그물 한 곳(`rebuildNetFilter`)이 만든다** (전수표 1단계 · 2026-09-14).
+     *    예전엔 여기서 옛 경로 버퍼(`recalculateDetourFilter` → turf)로 조립했다 — KEEP·경로 재계산 때
+     *    앱이 받는 목록이 노선/동선도 마름모도 모르는 목록이었다 (7지점 06 콜 통과).
      */
-    let polylineToUse = null;
-
-    // 완료되지 않은 활성 콜만 추출하여 최신 폴리라인을 가져옵니다.
-    const activeCalls = getActiveCalls(session);
-    if (activeCalls.length > 0) {
-        polylineToUse = activeCalls[activeCalls.length - 1]?.routePolyline;
-    }
-
-    /**
-     * 🔴 2026-08-12 — 기사님이 손으로 고친 필터를 자동 갱신이 덮어쓰고 있었다.
-     *
-     * 관제웹은 수동 조작 때 `userOverrides: true` 를 보내는데 **서버가 한 번도 안 읽었다.**
-     * 타입 주석에 "서버 덮어쓰기 방지용"이라 적혀 있는데 방지가 안 됐다 —
-     * 경유를 손으로 좁혀 놔도 다음 경로 갱신 한 번에 되돌아갔다.
-     *
-     * 조용히 넘어가지 않는다. 고정됐다는 사실을 로그와 화면에 남긴다.
-     * (콜 잡기 사이클이 끝나 STANDBY 로 돌아가면 baseFilter 로 리셋되며 자동 해제된다)
-     */
-    if (session.activeFilter.userOverrides) {
-        console.log(`🔒 [경유 고정] 기사님이 손으로 고친 필터라 자동 갱신을 건너뜁니다 ` +
-            `(키워드 ${(session.activeFilter.destinationKeywords || []).length}개 유지)`);
-        return;
-    }
-
-    if (polylineToUse && polylineToUse.length > 0) {
-        /**
-         * 🔴 `getEffectiveDetourRadius` 는 정의만 되어 있고 **호출하는 곳이 없었다.**
-         *    "이 함수를 통해서만 detourRadiusKm 를 결정하므로 하드코딩이 원천 차단됩니다"
-         *    라는 주석이 붙어 있었는데, 정작 여기서 `?? 10` 을 직접 쓰고 있었다.
-         *    그래서 **운행 중(DELIVERING)에도 경유가 안 좁혀졌다** — 우회 금지가 안 걸린 것이다.
-         */
-        const cRadius = getEffectiveDetourRadius(
-            session.activeFilter.dispatchPhase ?? 'STANDBY',
-            session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
-        );
-        const dRadius = session.activeFilter.destinationRadiusKm;
-
-        /**
-         * 🔴 **경유 목록을 여기서 만들지 않는다** (2026-08-25 · «경유 4벌» 클래스).
-         *
-         * 예전엔 `getDetourRegions` 를 직접 불러 조립했다. 그런데 `refreshDetourIfNeeded`
-         * 도 따로 조립하고 있어서, **도착 목표를 한쪽에만 넣자 다른 쪽이 덮어썼다** —
-         * 실측 2026-08-25 12:35:50: 131개로 만들어 둔 목록이 출발 순간 **27개**로 되돌아갔다.
-         *
-         * 조립은 `recalculateDetourFilter` 한 곳뿐이다 (규칙 ③ — 파생값을 만들었으면
-         * 그 입력도 한 곳에서 만든다).
-         */
-        const regions = recalculateDetourFilter(userId, cRadius, dRadius);
-
-        if (regions && regions.destinationKeywords.length > 0) {
-            // 🔴 진행도를 **키워드보다 먼저** 기억한다. updateActiveFilter 의 파생 계산 끝에서
-            //    지나온 구간을 빼는데, 그때 옛 진행도가 남아 있으면 엉뚱한 동이 사라진다
-            //
-            // 🔴 `regions.flat` 은 **경유만**이다 (합집합이 아니라). 여기가 «경로 위가
-            //    어디인가»의 원천이라, 도착 목표에서 온 동을 섞으면 상차지 축이 뚫린다.
-            rememberDetourProgress(session, regions);
-            updateActiveFilter(userId, {
-                destinationKeywords: regions.destinationKeywords,
-                destinationGroups: regions.destinationGroups,
-                customCityFilters: regions.customCityFilters
-            }, io);
-        }
-    }
+    rebuildNetFilter(userId, io);
 };
 
 /** 관제사 최종 판정 처리 */
@@ -588,6 +527,8 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         //    ⚠️ 예전 주석은 `mainCallState/subCalls 할당 완료 후` 였다 — 그 필드는 V2 에서
         //       사라졌고 지금 배정은 myOrders 로 한다 (2026-08-29 정정)
         if (cachedOrder && cachedOrder.routePolyline) {
+            /* 🛣️ 필터 라인을 이 순간의 경로로 얼린다 — 하차·취소·재탐색으로 안 바뀐다 (기사님 2026-09-14 · 전수표 #18) */
+            session.filterLine = getActivePolyline(session);
             syncDetourFilter(userId, io);
             console.log(`🗺️ [경유 갱신] KEEP 후 destinationKeywords ${session.activeFilter.destinationKeywords.length}개로 재계산 완료`);
         }
@@ -867,22 +808,8 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
  * 경유 키워드가 그대로 남았고, 첫짐 모드로 돌아왔는데도 옛 경로 주변만 콜 잡기했다.
  */
 export function rebuildDestinationKeywords(userId: string, io: any): void {
-    const session = getUserSession(userId);
-
-    if (getActiveCalls(session).length > 0) {
-        syncDetourFilter(userId, io);
-        return;
-    }
-
-    const city = goalCityOf(session, userId) || '';   // 🎯 파생 목적지 (조사 ①-1)
-    if (!city) {
-        updateActiveFilter(userId, { destinationKeywords: [], destinationGroups: {} }, io);
-        return;
-    }
-
-    const { flat, grouped } = getCityRegionsWithRadius(city, session.activeFilter.destinationRadiusKm || 0);
-    updateActiveFilter(userId, { destinationKeywords: flat, destinationGroups: grouped }, io);
-    console.log(`🗺️ [키워드 재구성] 첫짐 모드 — '${city}' 기준 ${flat.length}개`);
+    /* 🕸️ 부팅·콜 0건도 그물 한 곳 — 예전엔 목적지 «시 경계»에서 반경만큼 넓힌 옛 목록이었다 (전수표 1단계) */
+    rebuildNetFilter(userId, io);
 }
 
 /** 장부의 도착 마일스톤을 콜 객체 칸으로 되살린다 — 재시작해도 다녀온 곳을 기억하게 */
@@ -1578,6 +1505,7 @@ export async function createHomeReturn(
             isActive: true,
             detourRadiusKm: targetDetour,
         }, io);
+        session.filterLine = getActivePolyline(session);   // 🛣️ 귀가콜도 확정 — 라인을 얼린다
         syncDetourFilter(userId, io);
 
         console.log(`🏠 [귀가콜] 가상 오더 생성 완료: ${settings.home_address}`);

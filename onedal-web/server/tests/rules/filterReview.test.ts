@@ -298,9 +298,10 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         expect(i).toBeGreaterThan(-1);
         const body = de.slice(i - 200, i + 200);
         expect(body).not.toMatch(/destinationCity: city/);
-        /* 빈 차 경유 도출도 파생 목적지를 본다 */
-        const j = de.indexOf('syncDetourFilter(userId, io);\n        return;');
-        expect(de.slice(j, j + 400)).toMatch(/goalCityOf\(/);
+        /* 빈 차 목록도 파생 목적지를 본다 — 🔄 2026-09-14 부팅·0건·KEEP 이 모두 netFilterOf 한 곳을 지난다 */
+        const j = fm.indexOf('function netFilterOf');
+        expect(j).toBeGreaterThan(-1);
+        expect(fm.slice(j, j + 400)).toMatch(/goalCityOf\(/);
     });
 
     it('🔴 앱·지도·요약줄이 «그물의 목적지»를 본다', () => {

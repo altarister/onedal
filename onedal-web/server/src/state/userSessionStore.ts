@@ -273,6 +273,12 @@ export interface UserSession {
      */
     detourFlat: string[] | null;
     /**
+     * 🛣️ **필터가 쓰는 라인 — KEEP 순간 얼린 경로** (기사님 확정 2026-09-14 · 전수표 #18).
+     * 하차 완료·취소·재탐색으로 **안 바뀐다**. 첫 콜만 쥔 동안(합짐 전)은 경로 방침을 바꾸면 따라간다.
+     * 메모리다 — 없으면(부팅 직후) 지금 경로를 쓴다 (`filterLineOf`). 사이클이 끝나면 비운다.
+     */
+    filterLine: Array<{ x: number; y: number }> | null;
+    /**
      * ↩️ **새 콜을 붙이기 직전의 경로 한 벌** (기사님 확정 2026-08-23).
      *
      * 심사 중인 콜이 취소되면 이걸 되돌린다 — 원래 콜은 아무것도 안 바뀌었는데
@@ -323,6 +329,7 @@ function createDefaultSession(userId: string): UserSession {
         detourProgressKm: null,
         detourOrderKm: null,
         detourFlat: null,
+        filterLine: null,
         routeSnapshot: null,
         departedAt: null,
         lastOrderSyncJson: null,

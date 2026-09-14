@@ -142,7 +142,8 @@ describe('도착 목표가 국면을 넘어 살아남는다', () => {
         const de = strip('../../src/services/dispatchEngine.ts');
         const sync = de.slice(de.indexOf('export const syncDetourFilter'));
         expect(sync).not.toMatch(/getDetourRegions\(/);
-        expect(sync).toMatch(/recalculateDetourFilter\(/);
+        // 🔄 2026-09-14 (전수표 1단계) — 조립은 그물 한 곳(rebuildNetFilter)이다
+        expect(sync).toMatch(/rebuildNetFilter\(/);
     });
 
     it('🔴 타겟이 복귀행으로 바뀌면 목록도 따라간다 (2026-08-25 18:58 실측)', () => {
