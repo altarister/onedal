@@ -38,5 +38,5 @@ export { formatHwamul24Region, formatHwamul24Vehicle, toHwamul24Call } from './h
 export { formatPickerRegion, toPickerCall } from './kakaopicker/pickerCall';
 export type { PickerCall } from './kakaopicker/pickerCall';
 export { PickerHomeScreen } from './kakaopicker/PickerHomeScreen';
-export { PickerDispatchBoard, formatPickerDistance, formatPickerFare } from './kakaopicker/PickerDispatchBoard';
+export { PickerDispatchBoard, formatPickerDistance, formatPickerFare, visibleCardRange, PICKER_CARD_HEIGHT } from './kakaopicker/PickerDispatchBoard';
 export { PickerSimScreen } from './kakaopicker/PickerSimScreen';

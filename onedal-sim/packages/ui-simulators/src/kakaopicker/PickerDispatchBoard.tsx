@@ -40,6 +40,26 @@ export const formatPickerDistance = (km?: number): string => {
 /** 요금 «16,870» — 쉼표 필수 · «P»·«원» 을 붙이지 않는다 (원달앱 `FARE_REGEX`) */
 export const formatPickerFare = (fare: number): string => fare.toLocaleString('ko-KR');
 
+/** 카드 한 장 높이 (CSS px) — 실물 덤프 09 의 카드 간격 163px ÷ 폰 배율 2.81 */
+export const PICKER_CARD_HEIGHT = 58;
+
+/**
+ * 🪟 **스크롤 칸 안에 온전히 보이는 카드 범위** `[first, last)` (2026-09-14 · 2단계 2-3).
+ *
+ * 🔴 웹뷰는 스크롤 칸이 가린 카드도 **제 위치 그대로** 원달앱에 넘기고, 화면 끝을 넘은 카드는 **높이 0 으로 한 줄에 겹쳐** 넘긴다.
+ *    첫 폰 판(2026-09-14 14:05)에서 화면 밖 카드 14장이 y=2205 한 줄로 와 원달앱이 «퀵 퀵 퀵 …» 카드 한 장으로 묶었고,
+ *    탭 바 뒤에 숨은 카드는 탭 글자(«신규» · «내 오더»)와 붙어 서버 출발지가 «신규 내 오더 강남» 이 됐다.
+ *    실물 픽커는 목록 앱이라 **보이는 카드만** 넘긴다 — 그래서 시뮬레이터도 보이는 카드만 그린다.
+ * 반쯤 가린 맨 아래 카드는 **안 그린다** (실물은 가린 부분을 잘라 넘기지만 웹뷰는 자르지 않는다 — 온전한 카드만이 안전하다).
+ * 칸 높이를 모르면(`viewportHeight` 0 — 서버 렌더·검사) 전부 그린다.
+ */
+export function visibleCardRange(scrollTop: number, viewportHeight: number, count: number, cardHeight = PICKER_CARD_HEIGHT): [number, number] {
+  if (viewportHeight <= 0) return [0, count];
+  const first = Math.min(count, Math.ceil(scrollTop / cardHeight));
+  const last = Math.min(count, Math.max(first, Math.floor((scrollTop + viewportHeight) / cardHeight)));
+  return [first, last];
+}
+
 const TABS = ['퀵 배송', '도보배송', '대리', '한차배송'];
 const HEADER_CHIPS = ['리스트 설정', '높은 가격순', '20km'];
 
@@ -92,6 +112,21 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
   // 🔴 «높은 가격순» — 머리줄이 그렇게 적혀 있으니 실제로 그 순서로 늘어놓는다
   const sorted = React.useMemo(() => [...calls].sort((a, b) => b.fare - a.fare), [calls]);
 
+  // 🪟 보이는 카드만 — 스크롤 칸의 높이·위치를 재어 둔다 (visibleCardRange 머리 주석)
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const [view, setView] = React.useState({ top: 0, height: 0 });
+  React.useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const measure = () => setView({ top: el.scrollTop, height: el.clientHeight });
+    measure();
+    el.addEventListener('scroll', measure, { passive: true });
+    window.addEventListener('resize', measure);
+    return () => { el.removeEventListener('scroll', measure); window.removeEventListener('resize', measure); };
+  }, []);
+  const shown = activeTab === 'ALL' ? sorted : [];
+  const [first, last] = visibleCardRange(view.top, view.height, shown.length);
+
   return (
     <div className="relative w-full h-full flex flex-col bg-white text-[#1f1f1f] select-none overflow-x-hidden">
       {/* 머리 — 홈 · 알림 · 메뉴 */}
@@ -128,10 +163,13 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
       </div>
 
       {/* 카드 목록 */}
-      <div className="relative flex-1 overflow-y-auto pb-[64px]">
-        {(activeTab === 'ALL' ? sorted : []).map(call => (
+      <div ref={listRef} className="relative flex-1 overflow-y-auto">
+        {/* 안 보이는 카드 자리는 글자 없는 빈 칸 — 스크롤 길이는 그대로 둔다 */}
+        <div style={{ height: first * PICKER_CARD_HEIGHT }} />
+        {shown.slice(first, last).map(call => (
           <PickerCallCard key={call.id} call={call} onCardClick={onCallClick} />
         ))}
+        <div style={{ height: (shown.length - last) * PICKER_CARD_HEIGHT }} />
       </div>
 
       {/* 떠 있는 메뉴 — 실물처럼 맨 아래 카드 위에 걸친다 (원달앱은 이 낱말을 버린다 · NOISE_WORDS) */}

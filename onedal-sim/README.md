@@ -88,6 +88,19 @@ http://<PC IP>:5173/dispatch?net=hwamul24&preset=병원복귀      ← 한글도
 > 🔴 **설정 화면을 새로 만들지 않는다** — 그렇게 해서 두 벌이 됐고 한쪽만 자랐다.
 > 갈라지는 것은 **그리는 화면**뿐이다 (앱 파서가 화면 글자를 읽기 때문).
 
+## 🧰 `scripts/` — 폰으로 보는 검사 도구 (2026-09-14 신설)
+
+`pnpm test` 는 화면 **글자**를 본다. 원달앱 픽커 파서는 글자에 더해 **화면 위치(폰 픽셀)** 를 보므로, 그것은 폰 화면 구조로 검사한다.
+
+```bash
+node onedal-sim/scripts/pickerDumpCheck.mjs                 # 연결된 폰의 지금 화면 (시뮬레이터 픽커 리스트를 띄워 두고)
+node onedal-sim/scripts/pickerDumpCheck.mjs <추출파일.xml>   # 저장된 파일
+node onedal-sim/scripts/pickerDumpCheck.mjs --kotlin        # 카드 글자 목록을 Kotlin listOf(...) 로 (원달앱 단위검사에 붙인다)
+```
+
+검사 다섯(요금 위치 · 「리스트 설정」 경계 · 카드 띠 · 글자 뭉침 · 상세 잔상)과 까닭은 파일 머리 주석에 있다.
+실물 덤프 `log/카카오픽커/화면덤프/09_리스트_퀵7건.xml` 과 줄 간격을 나란히 찍는다.
+
 ## 어디서 왔나
 
 `~/reps/map/map`(지도 암기 게임)에서 **배차 시뮬레이터 부분만** 파일 복사로 가져왔다

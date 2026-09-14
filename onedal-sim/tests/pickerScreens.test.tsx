@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ReactElement } from 'react';
-import { PickerDispatchBoard, PickerHomeScreen, PickerSimScreen, formatPickerDistance } from '@altari/ui-simulators';
+import { PickerDispatchBoard, PickerHomeScreen, PickerSimScreen, formatPickerDistance, visibleCardRange } from '@altari/ui-simulators';
 import type { NetScreenProps } from '@altari/ui-simulators';
 import { FIXED_NOW } from './seededRandom';
 import { pickerA, pickerB, pickerC } from './fixtures';
@@ -96,5 +96,23 @@ describe('픽커 배차 화면 — 홈 → 리스트 → 상세 자리', () => {
         expect(text).toContain('상세 자리');
         expect(text).not.toContain('수락하기');
         expect(text).not.toContain('넘기기');
+    });
+});
+
+/**
+ * 🪟 **보이는 카드만 그린다** (2026-09-14 · 2단계 2-3) — 웹뷰가 화면 밖 카드를 높이 0 으로 원달앱에 넘기던 것.
+ * 폰 판 증거는 `pickerDumpCheck.mjs` ⑦⑧ 이 본다. 여기서는 범위 계산만 문다.
+ */
+describe('visibleCardRange — 스크롤 칸 안에 온전히 보이는 카드', () => {
+    it.each([
+        // [scrollTop, 칸 높이, 카드 수] → [first, last)
+        [0, 400, 23, [0, 6]],        // 400 / 58 = 6.9 → 온전한 6장
+        [58, 400, 23, [1, 7]],       // 한 장 내렸다
+        [30, 400, 23, [1, 7]],       // 첫 장이 반쯤 가렸다 → 안 그린다
+        [0, 400, 3, [0, 3]],         // 카드가 칸보다 적다
+        [1000, 400, 3, [3, 3]],      // 칸 아래로 다 지나갔다
+        [0, 0, 23, [0, 23]],         // 칸 높이를 모른다(서버 렌더·검사) → 전부
+    ])('scrollTop %s · 칸 %s · 카드 %s → %j', (top, height, count, range) => {
+        expect(visibleCardRange(top as number, height as number, count as number)).toEqual(range);
     });
 });

@@ -711,3 +711,42 @@ class PickerHomeRealDumpTest {
         }
     }
 }
+
+/**
+ * 🧪 **`sim_` — 배차망 시뮬레이터 픽커 리스트에서 뜬 카드** (2026-09-14 · 카카오픽커_시뮬레이터.md 2단계 2-3)
+ *
+ * 폰(SM-A245N)에 시뮬레이터 픽커 리스트를 띄우고 `node onedal-sim/scripts/pickerDumpCheck.mjs --kotlin` 이 찍은 카드 글자를
+ * **순서 그대로** 옮겼다. 실물 덤프 문제지(위)와 같은 모양으로 읽혀야 시뮬레이터로 파서를 시험할 수 있다.
+ * 🔴 첫 폰 판에서는 웹뷰가 한 줄의 글자를 뭉쳐(«퀵준비 완료대형» · «2.0km광주초월읍») 칸이 전부 «지역»으로 샜다 —
+ *    시뮬레이터 화면을 고친 뒤의 카드다. 같은 판의 서버 intel 도 이 값으로 들어갔다 (출발 «광주 초월읍» · 도착 «파주 문산읍»).
+ */
+class SimulatorCardTest {
+
+    private val parser = KakaoPickerParser(null)
+
+    @Test
+    fun `sim_ 시뮬레이터 카드 - 준비 완료 대형 2점0km`() {
+        val texts = listOf("퀵", "준비 완료", "대형", "파주", "42,290", "2.0km", "광주", "초월읍", "문산읍")
+        val o = parser.parse(texts)
+        assertEquals(42290, o.fare)
+        assertEquals("광주 초월읍", o.pickup)
+        assertEquals("파주 문산읍", o.dropoff)
+        assertEquals(2.0, o.pickupDistance!!, 0.01)
+        assertEquals("대형", o.itemSize)
+        assertTrue(o.tagsText!!.contains("준비 완료"))
+        assertNull(o.deliveryDistance)
+        assertNull(o.vehicleType)
+    }
+
+    @Test
+    fun `sim_ 시뮬레이터 카드 - 준비 N분 소형 한 글자 동`() {
+        val texts = listOf("퀵", "준비 32분", "소형", "이천", "17,680", "8.1km", "광주", "목", "고담")
+        val o = parser.parse(texts)
+        assertEquals(17680, o.fare)
+        assertEquals("광주 목", o.pickup)
+        assertEquals("이천 고담", o.dropoff)
+        assertEquals(8.1, o.pickupDistance!!, 0.01)
+        assertEquals("소형", o.itemSize)
+        assertTrue(o.tagsText!!.contains("준비 32분"))
+    }
+}
