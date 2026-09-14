@@ -233,3 +233,33 @@ describe('모의 종료 — 콜을 쥔 동안에는 가상 좌표를 걷지 않�
         
     });
 });
+
+/**
+ * 🎭 **모의 주행이 좌표를 계속 보내는 동안은 빈 차여도 그 자리가 «지금 위치»다** (2026-09-15 다섯 번째 바퀴 · onedal-49 합의).
+ *
+ * ③ «빈 차인데 가짜 좌표면 집 주소»는 **멈춘 뒤 남은** 모의 좌표(2026-08-14 파주 156km)를 막으려던 것이다.
+ * 모의 주행은 이제 경로 끝에서도 그 자리 좌표를 계속 보낸다(#133). 그 동안은 모의 GPS 소켓 임자(`mockGpsOwner`)가
+ * 5초 안에 보냈으니 **돌고 있는 모의 주행**이다 — 집 주소로 물러서면 이천에서 빈 차로 서 있는데 상차 목록이 집 둘레로 틀어진다.
+ * 실 GPS 는 원래 제한이 없다 — 제품 동작은 안 바뀐다.
+ */
+describe('originOf ③ — 돌고 있는 모의 주행', () => {
+    beforeEach(() => mockedHome.mockReset());
+    const now = 1_000_000;
+    const standbyMock = (ownerAt: number | null) => ({
+        userId: 'u1', lastFix: { x: 127.4469, y: 37.2774 }, lastFixAt: now - 1000, lastFixIsMock: true, lastFixSource: 'mock' as const,
+        activeFilter: { dispatchPhase: 'STANDBY' },
+        mockGpsOwner: ownerAt == null ? null : { socketId: 's1', at: ownerAt, warned: false },
+    });
+
+    it('🔴 빈 차 + 모의 좌표라도 모의 GPS 가 5초 안에 왔으면 그 자리를 쓴다', () => {
+        mockedHome.mockReturnValue({ x: 127.29, y: 37.37, address: '집' });
+        const o = originOf(standbyMock(now - 2000), now);
+        expect(o).toMatchObject({ x: 127.4469, y: 37.2774, isFallback: false });
+    });
+
+    it('🔴 모의 GPS 가 5초 넘게 조용하면(멈춘 뒤 남은 좌표) 지금처럼 집 주소로 대신한다', () => {
+        mockedHome.mockReturnValue({ x: 127.29, y: 37.37, address: '집' });
+        expect(originOf(standbyMock(now - 6000), now)).toMatchObject({ isFallback: true });
+        expect(originOf(standbyMock(null), now)).toMatchObject({ isFallback: true });
+    });
+});

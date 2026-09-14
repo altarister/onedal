@@ -215,7 +215,16 @@ function judgeSent(row: ScenarioRow, rs: RowState, w: ScenarioWorld, claimed: Se
             }
             return { ...next, mark: 'sent', note: `${row.kind === 'keep' ? '🟢' : '🟡'} 지금 관제웹에서 ${want}` };
         }
-        if (blockedByPhone) return finish(next, 'bad', '🔴 폰이 막았다 — 올라와야 했다', w.now);
+        /**
+         * 🔴 **폰이 막아도 곧바로 끝내지 않는다** (2026-09-15 · onedal-49 합의) — 폰은 새 콜을 직전 필터로 먼저 판정하고
+         *    원달앱 #135 가 다음 필터 버전에 막았던 콜을 다시 판정한다. NO_SHOW_MS 까지 기다려 재판정이 통과해 올라오면 위에서 ✅.
+         *    끝내 막히면 막힘 기록이 몇 번인가로 «재판정 없음 / 재판정도 막힘»을 갈라 적는다 — 원달앱 재스캔이 필요한지 다음 바퀴에서 센다.
+         */
+        if (blockedByPhone) {
+            if (waited < NO_SHOW_MS) return { ...next, mark: 'sent', note: `⏳ 폰이 막았다(${intel!.verdict}) — 새 필터로 다시 판정하기를 기다린다` };
+            const blocks = w.intel.filter(r => r.id > (rs.intelAfter ?? 0) && sameCall(r, call) && !!r.verdict && r.verdict !== 'pass' && r.verdict !== 'locked').length;
+            return finish(next, 'bad', blocks >= 2 ? '🔴 폰이 막았다 — 재판정도 막힘' : '🔴 폰이 막았다 — 재판정 없음(45초)', w.now);
+        }
         if (waited >= NO_SHOW_MS) return { ...next, mark: 'bad', note: '🔴 45초 동안 안 올라왔다 — 시뮬레이터가 «🚚 개별콜» 탭인가 · [건너뛰기]' };
         return { ...next, mark: 'sent', note: `⏳ 폰이 읽는 중 — 올라오면 ${want}` };
     }

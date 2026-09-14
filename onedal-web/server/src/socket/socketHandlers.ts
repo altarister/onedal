@@ -10,7 +10,7 @@ import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromR
 import db, { forgetCallOptions, loadCallOptions } from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
-import { lastKnownPositionOf } from "../services/geoService";
+import { lastKnownPositionOf, MOCK_GPS_OWNER_QUIET_MS } from "../services/geoService";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
@@ -348,7 +348,7 @@ export function registerSocketHandlers(io: Server) {
             if (loc.source === 'mock') {
                 const now = Date.now();
                 const owner = session.mockGpsOwner;
-                if (owner && owner.socketId !== socket.id && now - owner.at < 5_000) {
+                if (owner && owner.socketId !== socket.id && now - owner.at < MOCK_GPS_OWNER_QUIET_MS) {
                     if (!owner.warned) {
                         owner.warned = true;
                         console.warn(`🔒 [모의 GPS 충돌] 관제웹 두 곳이 동시에 모의 주행 중 — 뒤에 온 쪽(${socket.id.slice(0, 6)})을 무시합니다. 탭을 하나만 여세요`);

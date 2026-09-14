@@ -930,6 +930,12 @@ export interface DriverOrigin {
     isFallback: boolean;
 }
 
+/**
+ * 🎭 **모의 GPS 소켓이 이만큼 조용하면 «모의 주행이 멈췄다»** — 관제웹 두 곳이 겹칠 때 임자를 넘기는 기준과 같은 값이다
+ *    (`socketHandlers` 의 «모의 GPS 는 한 소켓만») · `originOf` ③ 이 «돌고 있는 모의 주행»을 가르는 데도 쓴다.
+ */
+export const MOCK_GPS_OWNER_QUIET_MS = 5_000;
+
 export function originOf(
     session: {
         /** 🔑 세션이 제 주인을 안다 — 부르는 쪽이 userId 를 또 들고 다니지 않게 (규칙 ③) */
@@ -939,6 +945,8 @@ export function originOf(
         lastFixIsMock?: boolean;
         lastFixSource?: 'gps' | 'mock' | 'manual';
         activeFilter?: { dispatchPhase?: string | null };
+        /** 🎭 모의 GPS 소켓 임자 — 마지막으로 보낸 시각이 «모의 주행이 지금 돌고 있나»를 답한다 */
+        mockGpsOwner?: { at: number } | null;
     },
     nowMs: number = Date.now(),
 ): DriverOrigin | null {
@@ -947,7 +955,13 @@ export function originOf(
     /* 🔴 가짜 좌표는 **콜을 쥔 동안에만** «지금 위치»다 (기사님 *"출발을 해야 상차를 하지"*) */
     const phase = session.activeFilter?.dispatchPhase;
     const onDuty = phase === 'DELIVERING' || phase === 'GATHERING';
-    const mockUsable = !session.lastFixIsMock || onDuty;
+    /**
+     * 🎭 **돌고 있는 모의 주행은 빈 차여도 믿는다** (2026-09-15 다섯 번째 바퀴 · onedal-49 합의).
+     *    ③ 이 막으려던 것은 «멈춘 뒤 남은» 모의 좌표다(파주 156km). 모의 주행은 경로 끝에서도 좌표를 계속 보내므로(#133)
+     *    임자가 5초 안에 보냈으면 지금 돌고 있다 — 이천에서 빈 차로 서 있는데 상차 목록을 집 둘레로 재지 않는다.
+     */
+    const mockRunning = !!session.mockGpsOwner && nowMs - session.mockGpsOwner.at <= MOCK_GPS_OWNER_QUIET_MS;
+    const mockUsable = !session.lastFixIsMock || onDuty || mockRunning;
 
     if (fix && fresh && mockUsable) {
         return { x: fix.x, y: fix.y, source: session.lastFixSource ?? 'gps', isFallback: false };

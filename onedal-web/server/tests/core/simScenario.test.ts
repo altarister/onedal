@@ -145,6 +145,30 @@ describe('🎬 이천 왕복 — 사건순', () => {
         expect(r.state.rows[d1].note).toMatch(/취소/);
     });
 
+    /**
+     * 🔴 **KEEP 줄이 폰에 막히면 곧바로 🔴 가 아니다 — 재판정을 기다린다** (2026-09-15 다섯 번째 바퀴 · onedal-49 합의).
+     *    폰은 새 콜을 직전 필터로 먼저 판정하고, 원달앱 #135 가 다음 필터 버전에 막았던 콜을 다시 판정한다.
+     *    첫 판정으로 3초 만에 끝내면 그 재판정을 채점이 못 본다. NO_SHOW_MS 까지 기다리고, 끝내 막히면 «재판정 없음 / 재판정도 막힘»을 갈라 적는다.
+     */
+    it('🔴 KEEP 줄이 폰에 막히면 기다린다 — 재판정이 통과해 올라오면 ✅ · 끝까지 막히면 재판정 여부를 적는다', () => {
+        const c3 = idx('C3');
+        const at = (st: ScenarioState) => ({ ...st, index: c3, rows: st.rows.map((x, i) => i < c3 ? { ...x, mark: 'ok' as const } : x) });
+        const sent = () => run(at(startScenario(def, T0)), baseWorld(T0)).state;
+
+        let st = run(sent(), baseWorld(T0 + 3000, { intel: [intelFor('C3', 11, 'pickupList')] })).state;
+        expect(st.rows[c3].mark).toBe('sent');
+        expect(st.rows[c3].note).toMatch(/다시 판정/);
+        st = run(st, baseWorld(T0 + 20_000, { intel: [intelFor('C3', 11, 'pickupList'), intelFor('C3', 12, 'pass')],
+            orders: [orderFor('C3', 'o-c3', 'ORDER_CONFIRMED')] })).state;
+        expect(st.rows[c3].mark).toBe('ok');
+
+        const once = run(sent(), baseWorld(T0 + 50_000, { intel: [intelFor('C3', 11, 'pickupList')] })).state;
+        expect(once.rows[c3].mark).toBe('bad');
+        expect(once.rows[c3].note).toMatch(/재판정 없음/);
+        const twice = run(sent(), baseWorld(T0 + 50_000, { intel: [intelFor('C3', 11, 'pickupList'), intelFor('C3', 12, 'pickupList')] })).state;
+        expect(twice.rows[c3].note).toMatch(/재판정도 막힘/);
+    });
+
     it('45초 동안 안 올라오면 🔴 로 알리고 기다린다 · 건너뛰면 다음 줄', () => {
         let st = startScenario(def, T0);
         const a2 = idx('A2');
