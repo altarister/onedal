@@ -155,10 +155,10 @@ PORT=4099 DB_FILE=smoke-copy.db npx tsx src/index.ts     # 다른 창에서 curl
 `scenario` 는 서버·관제웹만 본다. **앱이 화면을 읽고 → 필터를 걸고 → 터치하는 구간**은
 검사할 방법이 없어서, 실제 배차망에 꿀콜이 뜨기를 기다려야 했다.
 
-배차망 **시뮬레이터**(`~/reps/map/map`)를 띄우면 그 구간이 열린다.
+배차망 **시뮬레이터**(레포 안 `onedal-sim/`)를 띄우면 그 구간이 열린다.
 
 ```bash
-cd ~/reps/map/map && pnpm dev      # 시뮬레이터 (172.30.x.x:5173)
+cd onedal-sim && pnpm dev          # 시뮬레이터 (172.30.x.x:5173)
 # 폰에서 픽업 지역을 한 번 고른 뒤
 cd onedal-web && pnpm e2e:app
 ```

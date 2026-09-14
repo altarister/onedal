@@ -4,7 +4,7 @@
  * `pnpm scenario` 는 서버·관제웹만 본다. 앱이 화면을 읽고 → 필터를 걸고 → 터치하고 →
  * 서버로 보내는 구간은 **검사할 방법이 없었다.** 실제 배차망에 꿀콜이 뜨기를 기다려야 했다.
  *
- * 2026-08-13 에 그 구간이 열렸다 — `~/reps/map/map` 의 배차망 시뮬레이터를
+ * 2026-08-13 에 그 구간이 열렸다 — `~/reps/map/map` 의 배차망 시뮬레이터를(지금은 레포 안 `onedal-sim/`)
  * **크롬으로** 띄우면 앱이 그대로 스크래핑하고 터치까지 한다. 실측으로 확인했다:
  *
  *     07:21:51.419  LIST 인식              ← 크롬 웹페이지를 배차망으로 인식
@@ -68,7 +68,7 @@ async function preflight() {
         const r = await fetch(`http://${ip}:${SIM_PORT}/`, { signal: AbortSignal.timeout(3000) });
         if (!r.ok) throw new Error(String(r.status));
     } catch {
-        die(`시뮬레이터가 ${ip}:${SIM_PORT} 에서 응답하지 않습니다.\n   먼저 띄우세요:  cd ~/reps/map/map && pnpm dev`);
+        die(`시뮬레이터가 ${ip}:${SIM_PORT} 에서 응답하지 않습니다.\n   먼저 띄우세요:  cd onedal-sim && pnpm dev`);
     }
     console.log(`🗺️  시뮬레이터: ${url}`);
     return url;
