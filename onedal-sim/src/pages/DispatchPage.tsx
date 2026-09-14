@@ -14,7 +14,7 @@ import { useSearchParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { SimulationProvider, useSimulationContext } from '@altari/ui-simulators';
 import { useSimStreaming } from '@altari/ui-simulators';
 import { simNetOf, renamedNetKey, SIM_NET_LIST } from '@altari/ui-simulators';
-import { getPreset, PRESET_KEYS } from '@altari/core-simulator';
+import { getPresetFrom } from '@altari/core-simulator';
 import type { SimCall } from '@altari/ui-simulators';
 import type { SimNet } from '@altari/ui-simulators';
 
@@ -42,26 +42,6 @@ function UnknownNetScreen({ netKey }: { netKey: string | null }) {
             <code key={n.key} className="rounded bg-white px-2 py-0.5 border border-red-200">{n.key}</code>
           ))}
         </div>
-      </div>
-      <Link to="/" className="mt-3 rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white">설정 화면으로</Link>
-    </div>
-  );
-}
-
-/**
- * 🎯 **이 배차망 화면은 지금 문제지를 못 쓴다** (2026-09-14 · 2단계 2-2)
- *
- * 지금 문제지는 요금이 원 단위(5만·15만)이고 정답이 인성 콜 필터 기준이다. 요금 크기가 다른 배차망 화면으로 띄우면
- * 알람 판정이 통째로 헛것이 된다 — 콜을 흘리지 않고 멈춘다 (위 «문제지가 없다»와 같은 자리).
- */
-function PresetNotForNetScreen({ netLabel, presetName }: { netLabel: string; presetName: string }) {
-  return (
-    <div className="w-full h-dvh flex flex-col items-center justify-center gap-3 bg-red-50 p-6 text-center">
-      <div className="text-3xl">🎯</div>
-      <div className="text-lg font-bold text-red-700">«{netLabel}» 화면은 문제지 «{presetName}» 를 쓰지 않습니다</div>
-      <div className="text-sm text-red-600">
-        지금 문제지는 요금이 원 단위라 이 화면의 요금 크기와 맞지 않습니다.<br />
-        그대로 흘리면 알람 판정이 헛것이 되어 <b>콜을 흘리지 않습니다.</b> 설정 화면에서 랜덤콜로 여세요.
       </div>
       <Link to="/" className="mt-3 rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white">설정 화면으로</Link>
     </div>
@@ -114,13 +94,17 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
    * 「빈 필터는 제한 없음이 아니라 고장이다」(규칙 ④)와 같은 자리다.
    */
   const presetName = presetParams.get('preset');
-  const presetMissing = !!presetName && !getPreset(presetName);
+  /**
+   * 📚 **이 배차망의 문제지 책에서만** 찾는다 (`nets.ts` 의 `presetBook` · 3단계 3-2) — 인성·화물24시는 원 단위 문제지,
+   * 픽커는 P 단위 문제지. 남의 책 이름이면 아래 «문제지가 없다»로 멈춘다 (요금 크기가 틀린 채점을 흘리지 않는다).
+   */
+  const presetMissing = !!presetName && !getPresetFrom(simNet.presetBook, presetName);
   const preset = useMemo(() => {
-    const all = getPreset(presetParams.get('preset'));
+    const all = getPresetFrom(simNet.presetBook, presetParams.get('preset'));
     if (!all) return all;
     let used = 0;
     return all.filter(p => !p.filler || used++ < fillerLimit);
-  }, [presetParams, fillerLimit]);
+  }, [simNet.presetBook, presetParams, fillerLimit]);
 
   /**
    * 🔁 `?loop=1` — 문제지를 다 내면 처음으로 되돌린다 (기본값 아님).
@@ -214,7 +198,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
         <div className="mt-2 text-xs text-gray-700">
           <div className="mb-1 font-bold">쓸 수 있는 이름</div>
           <div className="flex flex-wrap justify-center gap-1">
-            {PRESET_KEYS.map(k => (
+            {simNet.presetBook.keys.map(k => (
               <code key={k} className="rounded bg-white px-2 py-0.5 border border-red-200">{k}</code>
             ))}
           </div>
@@ -262,9 +246,6 @@ export function DispatchPage() {
   const simNet = simNetOf(netKey);
   if (!simNet) return <UnknownNetScreen netKey={netKey} />;
 
-  // 🎯 지금 문제지(원 단위 요금 · 인성 필터 기준)를 못 쓰는 배차망에 문제지를 붙이면 멈춘다 (nets.ts · 계획서 §9-3)
-  const presetName = searchParams.get('preset');
-  if (presetName && !simNet.usesSharedPresets) return <PresetNotForNetScreen netLabel={simNet.label} presetName={presetName} />;
 
   const driverLocation = {
     lon: Number(searchParams.get('lon') || '127.2553'),

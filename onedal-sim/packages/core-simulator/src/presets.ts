@@ -55,6 +55,11 @@ export interface PresetProblem {
      * 🔴 깃발이 없는 문제(잡는 콜 · 국면 전용 축)는 **언제나 남는다.**
      */
     filler?: boolean;
+    /**
+     * 🧩 **배차망만 아는 칸** — 공통 코드는 이름도 뜻도 모르고 그대로 넘긴다 (2026-09-14 · 카카오픽커_시뮬레이터.md 3단계 3-2).
+     * 예: 픽커 문제지의 예약 시각 `{ reservedAt: '17:00' }` 은 픽커 입히기 함수가 읽는다.
+     */
+    netFields?: Record<string, string | number | boolean>;
     why: string;
 }
 
@@ -1012,7 +1017,7 @@ export function toForcedPair(p: PresetProblem, ctx?: RelativeContext): ForcedPai
         console.warn(`🎯 [문제지] "${p.label}" 의 주소를 모의 데이터에서 못 찾았습니다 — 건너뜁니다`);
         return null;
     }
-    return { pickup, dropoff, fare: p.fare, vehicleType: p.vehicleType };
+    return { pickup, dropoff, fare: p.fare, vehicleType: p.vehicleType, ...(p.netFields ? { netFields: p.netFields } : {}) };
 }
 
 /** 띠를 풀려면 «지금 어디»와 «반경이 얼마»를 알아야 한다 */
@@ -1073,6 +1078,7 @@ export interface PresetRequires {
     /** 첫짐 판인가 — 콜을 하나라도 잡으면 합짐 규칙으로 넘어가 정답이 달라진다 */
     firstLoadOnly?: boolean;
     /** 지도에 이 시도 코드가 있어야 한다 (30 대전 · 43 충북 …) */ mapSido?: string[];
+    /** 알람 요금 하한 — 요금 경계를 시험하는 문제지 (서버 판 점검 `alarmMinFare` · 관제웹 설정) */ alarmMinFare?: number;
 }
 
 /** 문제지 이름 → 요구 상태. 없는 문제지는 «아무 상태에서나 돈다»는 뜻이다 */
@@ -1209,7 +1215,31 @@ export const PRESET_MENU: Array<{ key: string; title: string; desc: string }> = 
     },
 ];
 
-export function getPreset(name?: string | null): PresetProblem[] | null {
+/**
+ * 📚 **문제지 책** — 문제 · 설정 화면 목록 · 요구하는 판 상태 · 별칭을 한 묶음으로 (2026-09-14 · 3단계 3-2).
+ * 배차망마다 제 책을 쓴다(`nets.ts` 의 `presetBook`) — 요금 크기가 다른 배차망이 남의 문제지를 쓰면 채점이 헛것이 된다.
+ * 🔴 이 파일은 배차망 이름을 모른다 — 어느 배차망이 어느 책을 쓰는지는 `nets.ts` 가 정한다.
+ */
+export interface PresetBook {
+    problems: Record<string, PresetProblem[]>;
+    menu: Array<{ key: string; title: string; desc: string }>;
+    requires: Record<string, PresetRequires>;
+    /** 못 찾았을 때 «쓸 수 있는 이름»으로 보인다 */
+    keys: string[];
+    aliases?: Record<string, string>;
+}
+
+/** 원 단위 요금 · 인성 콜 필터 기준으로 만든 지금 문제지 — 화물 배차망 둘이 함께 쓴다 */
+export const SHARED_PRESET_BOOK: PresetBook = {
+    problems: PRESETS, menu: PRESET_MENU, requires: PRESET_REQUIRES, keys: PRESET_KEYS, aliases: ALIASES,
+};
+
+/** 책에서 문제지를 찾는다 — 이름 · 별칭(대소문자 무시). 없으면 null (조용히 랜덤으로 돌지 않게 부르는 쪽이 멈춘다) */
+export function getPresetFrom(book: PresetBook, name?: string | null): PresetProblem[] | null {
     if (!name) return null;
-    return PRESETS[name] ?? PRESETS[ALIASES[name.toLowerCase()] ?? ''] ?? null;
+    return book.problems[name] ?? book.problems[book.aliases?.[name.toLowerCase()] ?? ''] ?? null;
+}
+
+export function getPreset(name?: string | null): PresetProblem[] | null {
+    return getPresetFrom(SHARED_PRESET_BOOK, name);
 }

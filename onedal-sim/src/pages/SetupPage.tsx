@@ -16,7 +16,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PRESET_MENU, PRESETS, PRESET_REQUIRES } from '@altari/core-simulator';
 import type { PresetRequires } from '@altari/core-simulator';
 import { SIM_NETS, SIM_NET_LIST } from '@altari/ui-simulators';
 import type { NetKey } from '@altari/ui-simulators';
@@ -87,7 +86,7 @@ export function SetupPage() {
   const [intervalMs, setIntervalMs] = useState(10000);
 
   // ── 시나리오콜 ──
-  const [presetKey, setPresetKey] = useState(PRESET_MENU[0]?.key ?? '');
+  const [presetKey, setPresetKey] = useState(SIM_NET_LIST[0].presetBook.menu[0]?.key ?? '');
   // 🔁 기본 꺼짐 (기사님 확정 2026-08-25) — 한 바퀴만 돌려야 무엇을 놓쳤는지 셀 수 있다
   const [loop, setLoop] = useState(false);
   const [fillers, setFillers] = useState(0);
@@ -100,10 +99,13 @@ export function SetupPage() {
 
   const netName = SIM_NETS[net].label;
   /**
-   * 🎯 지금 문제지를 못 쓰는 배차망(픽커 — 요금 크기가 다르다)이면 시나리오콜 탭을 막고 랜덤콜로 연다 (nets.ts `usesSharedPresets` · 2단계 2-2).
-   * 고른 탭(`tab`)은 그대로 둔다 — 인성으로 돌아오면 보던 탭이 다시 보인다.
+   * 📚 **고른 배차망의 문제지 책** (nets.ts `presetBook` · 3단계 3-2) — 인성·화물24시는 원 단위 문제지, 픽커는 P 단위 문제지.
+   * 고른 문제지(`presetKey`)가 그 책에 없으면 책의 첫 문제지를 보인다 — 배차망을 바꿨다 돌아오면 고른 것이 다시 보인다.
+   * 책이 비었으면 시나리오콜 탭을 막고 랜덤콜로 연다.
    */
-  const presetsUsable = SIM_NETS[net].usesSharedPresets;
+  const book = SIM_NETS[net].presetBook;
+  const shownPresetKey = book.problems[presetKey] ? presetKey : (book.menu[0]?.key ?? '');
+  const presetsUsable = book.menu.length > 0;
   const shownTab = presetsUsable ? tab : 'random';
 
   /**
@@ -115,7 +117,7 @@ export function SetupPage() {
     const params = shownTab === 'scenario'
       ? new URLSearchParams({
           net,
-          preset: presetKey,
+          preset: shownPresetKey,
           loop: loop ? '1' : '0',
           interval: String(intervalMs),
           fillers: String(fillers),
@@ -189,23 +191,23 @@ export function SetupPage() {
             <div className="min-h-0 flex flex-col">
               <SectionLabel>📋 문제지<span className="ml-auto font-normal text-slate-500">ⓘ 를 누르면 내용</span></SectionLabel>
               <div className="flex flex-col gap-1 min-h-0 overflow-y-auto">
-                {PRESET_MENU.map(m => (
+                {book.menu.map(m => (
                   <PresetRow
                     key={m.key}
                     title={m.title}
-                    count={PRESETS[m.key]?.length ?? 0}
-                    on={presetKey === m.key}
+                    count={book.problems[m.key]?.length ?? 0}
+                    on={shownPresetKey === m.key}
                     onPick={() => setPresetKey(m.key)}
                     onInfo={() => setVeil({
                       title: m.title,
-                      body: <PresetDetail desc={m.desc} requires={PRESET_REQUIRES[m.key]} />,
+                      body: <PresetDetail desc={m.desc} requires={book.requires[m.key]} />,
                     })}
                   />
                 ))}
               </div>
             </div>
 
-            <div className="shrink-0"><Preflight presetKey={presetKey} onOpen={setVeil}
+            <div className="shrink-0"><Preflight presetKey={shownPresetKey} requires={book.requires[shownPresetKey]} onOpen={setVeil}
                        api={new URLSearchParams(window.location.search).get('api')
                             || `http://${window.location.hostname}:4000`} /></div>
 
@@ -442,6 +444,7 @@ function PresetDetail({ desc, requires }: { desc: string; requires?: PresetRequi
   if (requires?.homeAddress) setup.push(['내 주소', requires.homeAddress]);
   if (requires?.firstLoadOnly) setup.push(['판', '첫짐 · 활성 콜 0건']);
   if (requires?.mapSido?.length) setup.push(['지도', `시도 ${requires.mapSido.join('·')} 포함`]);
+  if (requires?.alarmMinFare != null) setup.push(['알람 하한', `${requires.alarmMinFare.toLocaleString('ko-KR')}`]);
 
   return (
     <div className="text-[11px] leading-relaxed text-slate-400 flex flex-col gap-2">
@@ -516,14 +519,16 @@ interface PreflightState {
     activeCalls: number;
     bootedAt: string | null;
     map?: { features?: number; sido?: string[] };
+    /** 알람 요금 하한 (서버 `alarmMinFare` · 관제웹 설정) */
+    alarmMinFare?: number | null;
 }
 
 interface PreflightRow { what: string; want: string; got: string; ok: boolean }
 
-function Preflight({ presetKey, api, onOpen }: {
-  presetKey: string; api: string; onOpen: (v: VeilContent) => void;
+function Preflight({ presetKey, requires, api, onOpen }: {
+  presetKey: string; requires?: PresetRequires; api: string; onOpen: (v: VeilContent) => void;
 }) {
-  const req = PRESET_REQUIRES[presetKey];
+  const req = requires;
   const [now, setNow] = useState<PreflightState | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -566,6 +571,10 @@ function Preflight({ presetKey, api, onOpen }: {
       what: '판', want: '첫짐 · 활성 콜 0건',
       got: `${now.isSharedMode ? '합짐' : '첫짐'} · ${now.activeCalls}건`,
       ok: !now.isSharedMode && now.activeCalls === 0,
+    });
+    if (req.alarmMinFare != null) rows.push({
+      what: '알람 하한', want: req.alarmMinFare.toLocaleString('ko-KR'), got: now.alarmMinFare == null ? '(없음)' : now.alarmMinFare.toLocaleString('ko-KR'),
+      ok: now.alarmMinFare === req.alarmMinFare,
     });
     if (req.mapSido?.length) {
       const have: string[] = now.map?.sido ?? [];

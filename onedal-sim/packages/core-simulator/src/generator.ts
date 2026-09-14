@@ -33,6 +33,8 @@ export interface ForcedPair {
     dropoff: MockEntry;
     fare?: number;
     vehicleType?: string;
+    /** 배차망만 아는 칸 — 문제지(`PresetProblem.netFields`)에서 입히기 함수로 그대로 넘긴다. 공통 코드는 안 읽는다 */
+    netFields?: Record<string, string | number | boolean>;
 }
 
 /**

@@ -76,15 +76,22 @@ const FEE_RANDOM_EXTRA = 800;
  *
  * - 공통 칸은 한 칸도 안 바꾼다 (`tests/pickerCall.test.ts`)
  * - `opts.minFare` 는 **안 쓴다** — 설정 화면의 최소 요금(1만~10만 원)은 인성·화물24시 원 단위라 P 에 맞지 않는다
- * - 🔴 문제지의 정해진 요금(`opts.forced.fare`)은 배송비로 그대로 쓴다 — 그래도 인성·화물24시 문제지는 원 단위라
- *   픽커 화면에 띄우지 않는다 (배차 화면이 막는다 · §9-3)
+ * - 🔴 문제지의 정해진 요금(`opts.forced.fare`)은 배송비로 그대로 쓰고 프로모션은 0 — 픽커 문제지(`pickerPresets.ts` · P 단위)만 온다.
+ *   인성·화물24시 문제지(원 단위)는 픽커의 문제지 책에 없어서 배차 화면이 «문제지가 없다»로 멈춘다 (§9-3 · 3단계 3-2)
  */
 export function toPickerCall(draft: CallDraft, opts: CallOptions, rng: RandomSource = Math.random): PickerCall {
     const pick = pickWith(rng);
     const itemSize = pick(ITEM_SIZE_POOL);
     const isShort = draft.distanceKm < SHORT_DISTANCE_KM;
     const prepMinutes = rng() < 0.3 ? null : 1 + Math.floor(rng() * 40);
-    const reservedAt = rng() < 0.1 ? draft.pickupTime : undefined;
+    /**
+     * 예약 — 문제지가 정했으면(`netFields.reservedAt` · 3단계 3-2) 그것, 문제지 콜이면 **섞지 않는다**, 랜덤 콜이면 10%.
+     * 🔴 랜덤 콜의 난수 뽑는 순서는 예전 그대로 둔다 — 같은 씨앗이면 같은 콜 (`tests/pickerCall.test.ts`).
+     */
+    const forcedReservedAt = opts.forced?.netFields?.reservedAt;
+    const reservedAt = opts.forced
+        ? (typeof forcedReservedAt === 'string' ? forcedReservedAt : undefined)
+        : (rng() < 0.1 ? draft.pickupTime : undefined);
     const deliveryFee = opts.forced?.fare
         ?? Math.floor((FEE_BASE + draft.distanceKm * FEE_PER_KM + rng() * FEE_RANDOM_EXTRA) / 10) * 10;
     const promotion = opts.forced ? 0 : (rng() < 0.2 ? 100 * (1 + Math.floor(rng() * 10)) : 0);

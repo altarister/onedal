@@ -16,7 +16,9 @@ import {
     toHwamul24Call,
     toInsungCall,
     toPickerCall,
+    PICKER_PRESET_BOOK,
 } from '@altari/ui-simulators';
+import { SHARED_PRESET_BOOK } from '@altari/core-simulator';
 import type { NetScreenProps } from '@altari/ui-simulators';
 import { callA, callB } from './fixtures';
 import { FIXED_NOW, seededRandom } from './seededRandom';
@@ -108,10 +110,16 @@ describe('배차망 목록 — 한 곳에서만', () => {
         expect(SIM_NET_LIST.map(n => [n.key, n.label])).toEqual([['insung', '인성콜'], ['hwamul24', '화물24시'], ['kakaopicker', '픽커']]);
     });
 
-    it('🎯 문제지 · 🔙 방문 기록 — 인성·화물24시는 예전 그대로, 픽커만 다르다 (2단계 2-2)', () => {
-        expect(SIM_NET_LIST.map(n => [n.key, n.usesSharedPresets, n.detailInHistory])).toEqual([
-            ['insung', true, false], ['hwamul24', true, false], ['kakaopicker', false, true],
+    it('🔙 방문 기록 — 인성·화물24시는 예전 그대로, 픽커만 상세를 남긴다 (2단계 2-2)', () => {
+        expect(SIM_NET_LIST.map(n => [n.key, n.detailInHistory])).toEqual([
+            ['insung', false], ['hwamul24', false], ['kakaopicker', true],
         ]);
+    });
+
+    it('🎯 문제지 책 — 인성·화물24시는 지금 문제지(원 단위)를 함께 쓰고, 픽커는 제 문제지(P 단위)를 쓴다 (3단계 3-2)', () => {
+        expect(SIM_NETS.insung.presetBook).toBe(SHARED_PRESET_BOOK);
+        expect(SIM_NETS.hwamul24.presetBook).toBe(SHARED_PRESET_BOOK);
+        expect(SIM_NETS.kakaopicker.presetBook).toBe(PICKER_PRESET_BOOK);
     });
 
     it('🔴 ?net= 해석 — 모르는 값·없는 값·옛 이름은 null (부르는 쪽이 멈추거나 넘긴다 · 0-4)', () => {

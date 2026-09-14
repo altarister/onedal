@@ -10,13 +10,15 @@
  * ⚠️ 예전엔 DispatchPage 가 `net === 'hwamul24' ? … : …` 로 부품을 골랐고, SetupPage 가 배차망 목록을 따로 들고 있었다.
  */
 import type { ComponentType } from 'react';
-import type { CallDraft, CallOptions, RandomSource } from '@altari/core-simulator';
+import type { CallDraft, CallOptions, PresetBook, RandomSource } from '@altari/core-simulator';
+import { SHARED_PRESET_BOOK } from '@altari/core-simulator';
 import type { InsungCall } from './insung/insungCall';
 import { toInsungCall } from './insung/insungCall';
 import type { Hwamul24Call } from './hwamul24/hwamul24Call';
 import { toHwamul24Call } from './hwamul24/hwamul24Call';
 import type { PickerCall } from './kakaopicker/pickerCall';
 import { toPickerCall } from './kakaopicker/pickerCall';
+import { PICKER_PRESET_BOOK } from './kakaopicker/pickerPresets';
 import { InsungSimScreen } from './insung/InsungSimScreen';
 import { Hwamul24SimScreen } from './hwamul24/Hwamul24SimScreen';
 import { PickerSimScreen } from './kakaopicker/PickerSimScreen';
@@ -72,10 +74,11 @@ export interface SimNet {
    */
   setupColors: { toggle: string; start: string };
   /**
-   * 🎯 지금 있는 문제지(`presets.ts` — 요금이 **원** 단위 · 정답이 인성 콜 필터 기준)를 이 화면으로 띄워도 되나.
-   * 픽커는 요금 크기(P)가 달라 안 된다 — 띄우면 배차 화면이 멈춘다 (계획서 §9-3 · 2단계 2-2).
+   * 🎯 이 배차망이 쓰는 **문제지 책** (계획서 §9-3 · 3단계 3-2).
+   * 인성·화물24시는 지금 문제지(`presets.ts` — 요금 **원** 단위 · 정답이 인성 콜 필터 기준)를 함께 쓰고, 픽커는 제 책(P 단위)을 쓴다.
+   * 배차 화면은 이 책에서만 이름을 찾는다 — 남의 책 이름이면 «문제지가 없다»로 멈춘다 (2단계 2-2 의 «픽커는 문제지를 못 쓴다» 멈춤을 대신한다).
    */
-  usesSharedPresets: boolean;
+  presetBook: PresetBook;
   /**
    * 🔙 상세를 열 때 방문 기록에 한 칸 남기나 (계획서 §7-3 · 2단계 2-2).
    * 원달앱은 알람으로 상세에 들어간 뒤 30초 무응답이면 «뒤로 가기»를 누른다. 상세가 방문 기록에 없으면
@@ -92,7 +95,7 @@ export const SIM_NETS: Record<NetKey, SimNet> = {
     frameClassName: 'w-full h-dvh py-10 bg-[#111] overflow-hidden relative font-sans text-black',
     Screen: InsungSimScreen,
     setupColors: { toggle: 'bg-blue-600 text-white', start: 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-900/40' },
-    usesSharedPresets: true,
+    presetBook: SHARED_PRESET_BOOK,
     detailInHistory: false,
   },
   hwamul24: {
@@ -102,7 +105,7 @@ export const SIM_NETS: Record<NetKey, SimNet> = {
     frameClassName: 'w-full h-dvh bg-gray-100 overflow-hidden relative font-sans text-black',
     Screen: Hwamul24SimScreen,
     setupColors: { toggle: 'bg-[#c62828] text-white', start: 'bg-gradient-to-r from-[#c62828] to-[#8e1b1b] shadow-red-900/40' },
-    usesSharedPresets: true,
+    presetBook: SHARED_PRESET_BOOK,
     detailInHistory: false,
   },
   kakaopicker: {
@@ -113,7 +116,7 @@ export const SIM_NETS: Record<NetKey, SimNet> = {
     frameClassName: 'w-full h-dvh bg-white overflow-hidden relative font-sans text-black',
     Screen: PickerSimScreen,
     setupColors: { toggle: 'bg-[#4a74da] text-white', start: 'bg-gradient-to-r from-[#4a74da] to-[#2f55b8] shadow-blue-900/40' },
-    usesSharedPresets: false,
+    presetBook: PICKER_PRESET_BOOK,
     detailInHistory: true,
   },
 };
