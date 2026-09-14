@@ -139,13 +139,6 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   });
 
   /**
-   * 🚚 **개별콜 — 현황판에서 낸 콜을 이 목록에 넣는다** (기사님 지시 2026-09-15).
-   * 서버가 들고 있다가 3초마다 넘긴다. 문제지 콜과 같은 길(강제 쌍)로 이 배차망 콜을 입힌다 — 무엇으로 입힐지는 배차망이 안다.
-   * 🔴 개별콜 화면에서만 받는다 (위 `individual`).
-   */
-  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, ready: locationReady, enabled: individual });
-
-  /**
    * 🔙 **상세를 방문 기록에 남기는 배차망** (`SimNet.detailInHistory` · 계획서 §7-3 · 2단계 2-2).
    * 원달앱의 «뒤로 가기»(시뮬레이터 앱은 웹뷰 방문 기록으로 넘긴다)가 상세만 닫게, 상세를 열 때 `?detail=<콜 id>` 를 **한 칸 쌓는다.**
    * 닫을 때는 그 칸을 되돌리고, 주소에서 `detail` 이 사라지면(뒤로 가기) 상세를 닫는다 — 닫는 길이 둘이어도 답은 주소 하나다.
@@ -209,6 +202,23 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     setConfirmedCalls(prev => prev.filter(c => c.id !== call.id));
     handleCloseDetail();
   }, [setConfirmedCalls, handleCloseDetail]);
+
+  /**
+   * 🧹 **이전 콜 리셋** — 서버 회차가 바뀌면(시나리오 다시 시작) 목록·확정 목록을 비운다.
+   * 🔴 열린 상세는 **닫는 길(`handleCloseDetail`)로** 닫는다 — 픽커는 상세가 방문 기록(`?detail=`)에 쌓여 있어 상태만 지우면 뒤로 가기가 꼬인다 (onedal-49).
+   */
+  const resetCalls = useCallback(() => {
+    handleCloseDetail();
+    setStreamingCalls([]);
+    setConfirmedCalls([]);
+  }, [handleCloseDetail, setStreamingCalls, setConfirmedCalls]);
+
+  /**
+   * 🚚 **개별콜 — 현황판에서 낸 콜을 이 목록에 넣는다** (기사님 지시 2026-09-15).
+   * 서버가 들고 있다가 3초마다 넘긴다. 문제지 콜과 같은 길(강제 쌍)로 이 배차망 콜을 입힌다 — 무엇으로 입힐지는 배차망이 안다.
+   * 🔴 개별콜 화면에서만 받는다 (위 `individual`). 닫는 길을 쓰므로 그것보다 아래에 둔다.
+   */
+  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, resetCalls, ready: locationReady, enabled: individual });
 
   // 🔴 문제지 이름을 못 찾았다 — 랜덤으로 흘리지 않고 멈춘다 (위 주석 참조)
   // 콜을 고른 상태면 상세가 먼저다 — 예전 순서(상세 → 문제지 없음 → 리스트) 그대로

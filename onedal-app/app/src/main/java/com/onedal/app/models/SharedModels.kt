@@ -321,7 +321,9 @@ data class ApiStatus(
 )
 
 data class DeviceControl(
-    val mode: String = "MANUAL"
+    val mode: String = "MANUAL",
+    // 🧹 시뮬레이터 회차 — 바뀌면 «본 콜» 기억을 비운다 (CallMemory.onRound). 운영 서버는 안 싣는다(null)
+    val callMemoryRound: Int? = null
 )
 
 // ────────────────────────────────────────────────

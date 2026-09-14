@@ -22,7 +22,7 @@ interface ScenarioRowView {
     checks?: Array<{ label: string; ok: boolean }>;
 }
 interface ScenarioView {
-    ok: boolean; name: string; running: boolean; index: number | null; finished: boolean; startedAt: number | null;
+    ok: boolean; name: string; running: boolean; waitingPhone?: boolean; index: number | null; finished: boolean; startedAt: number | null;
     precheck: Array<{ what: string; ok: boolean; got: string }>;
     rows: ScenarioRowView[];
 }
@@ -113,6 +113,14 @@ export default function ScenarioCard() {
                 ))}
             </div>}
             {error && <div className="text-[10.5px] font-bold text-warning pb-1">— {error}</div>}
+
+            {/* 🧹 시작하면 이전 콜을 리셋한다 — 폰이 본 콜 기억을 비울 번호를 받기 전에는 첫 콜을 안 낸다 */}
+            {view?.waitingPhone && (
+                <div className="rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-2 text-[13px] font-black text-text-primary">
+                    🧹 이전 콜 리셋 중 — 폰이 기억을 비우면 첫 콜이 나간다
+                    <div className="text-[10px] font-bold text-text-muted pt-0.5">시뮬레이터 목록이 비는 순간 폰 화면이 바뀌어 곧 받는다 · 늦어도 1분 (앱 2.9.5 부터)</div>
+                </div>
+            )}
 
             {/* ▶ 지금 줄 — 크게 */}
             {cur && !view?.finished && (

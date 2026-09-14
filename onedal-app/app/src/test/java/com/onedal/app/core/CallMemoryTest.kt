@@ -115,4 +115,21 @@ class CallMemoryTest {
         assertTrue(memory.alreadyEvaluated(11))
         assertFalse(memory.alreadyEvaluated(1))
     }
+
+    @Test
+    fun `🔴 서버 회차가 바뀌면 본 콜 기억을 비운다 - 시나리오를 다시 시작해도 같은 콜을 처음처럼 판정한다`() {
+        val memory = CallMemory()
+        memory.markEvaluated(1)
+        assertTrue(memory.markReportedOnce(1))
+
+        // 처음 받은 회차는 기억만 한다 — 이미 누른 콜을 다시 누르지 않게
+        assertFalse(memory.onRound(0))
+        assertTrue(memory.alreadyEvaluated(1))
+        assertFalse(memory.onRound(0))
+        assertTrue(memory.alreadyEvaluated(1))
+
+        assertTrue(memory.onRound(1))
+        assertFalse(memory.alreadyEvaluated(1))
+        assertTrue(memory.markReportedOnce(1))
+    }
 }

@@ -9,6 +9,7 @@ import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { ensureBusinessDay, buildAppOrderKm } from "../state/filterManager";
 
 import { touchDeviceSession } from "./devices";
+import { callMemoryRoundForPhone } from "./sim";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
 import { PluginFactory } from "../core/plugins/PluginFactory";
@@ -370,6 +371,7 @@ router.post("/", (req, res) => {
         }
 
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
+        const callMemoryRound = callMemoryRoundForPhone();
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
         res.json({
             success: true,
@@ -378,7 +380,9 @@ router.post("/", (req, res) => {
                 totalItems: totalScrap
             },
             deviceControl: {
-                mode: deviceMode
+                mode: deviceMode,
+                /* 📱 시뮬레이터 회차 — 바뀌면 원달앱이 «본 콜» 기억을 비운다 (`routes/sim.ts` 의 `callMemoryRoundForPhone`) · 운영은 안 싣는다 */
+                ...(callMemoryRound !== null ? { callMemoryRound } : {})
             },
             ...(filterVersion !== undefined ? { filterVersion } : {}),
             ...(responseFilter !== undefined ? { dispatchEngineArgs: responseFilter } : {}),

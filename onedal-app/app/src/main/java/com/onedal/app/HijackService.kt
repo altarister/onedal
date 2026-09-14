@@ -385,6 +385,15 @@ class HijackService : AccessibilityService(), ScanContext {
             }
         }
 
+        // 🧹 서버 회차가 바뀌면 «본 콜» 기억을 비운다 — 스캔 루프와 같은 메인 스레드에서 (CallMemory 는 잠금이 없다)
+        telemetryManager.callMemoryRoundCallback = { round ->
+            mainHandler.post {
+                if (callMemory.onRound(round)) {
+                    AppLogger.w(TAG, "🧹 [본 콜 기억 비움] 서버 회차 $round — 이전 콜을 리셋했다 (시나리오 다시 시작)")
+                }
+            }
+        }
+
         // 화면 켜짐/꺼짐 이벤트 수신 등록
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)

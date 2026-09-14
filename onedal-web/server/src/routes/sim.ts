@@ -11,7 +11,7 @@ import { getUserDevicesSnapshot } from "./devices";
 import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
 import { BOOTED_AT } from "./health";
 import { calculateSoloRoute } from "../services/kakaoService";
-import { createSimCallQueue, pushSimCall, readSimCallInput, simCallsAfter } from "../core/simCallQueue";
+import { createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter } from "../core/simCallQueue";
 import { startScenario, stepScenario, skipScenarioRow } from "../core/simScenario";
 import type { ScenarioState, ScenarioWorld, WorldOrder, WorldIntel } from "../core/simScenario";
 import { ICHEON_ROUND_TRIP } from "../core/simScenarioIcheon";
@@ -171,6 +171,19 @@ router.get("/intel", (req, res) => {
  */
 const simCalls = createSimCallQueue();
 
+/** 📱 폰에 마지막으로 실어 보낸 회차 — 시나리오가 «폰이 기억을 비울 번호를 받았나»를 본다 */
+let phoneRoundSent: number | null = null;
+
+/**
+ * 📱 **폰 «본 콜» 기억의 회차 — `/api/scrap` 응답 꼬리(`deviceControl.callMemoryRound`)에 싣는다** (`core/simCallQueue.ts` 머리).
+ * 원달앱은 번호가 바뀐 것을 보면 `CallMemory` 를 비운다. 🔴 개발 빌드에서만 — 운영에는 시뮬레이터 회차가 없다.
+ */
+export function callMemoryRoundForPhone(): number | null {
+    if (!isDevBuild()) return null;
+    phoneRoundSent = simCalls.round;
+    return simCalls.round;
+}
+
 router.post("/calls", (req, res) => {
     if (!isDevBuild()) return res.status(404).json({ error: "not found" });
     const read = readSimCallInput(req.body);
@@ -279,7 +292,12 @@ router.get("/preflight", (_req, res) => {
 const SCENARIO_TICK_MS = 1000;
 const SIM_POLL_FRESH_MS = 10_000;
 const scenarioDef = ICHEON_ROUND_TRIP;
-let scenario: { userId: string; state: ScenarioState; timer: ReturnType<typeof setInterval> } | null = null;
+/**
+ * 🔴 `state` 가 null 이면 **폰이 새 회차를 받기를 기다린다** — 시작하면 이전 콜을 리셋하는데(`resetSimCalls`),
+ *    폰이 기억을 비우기 전에 첫 콜이 뜨면 «⏭️ 이미 본 콜»로 삼킨다 (01:5x 실측 — 같은 A1 이 두 번째 시작에서 판정 0줄).
+ *    폰의 다음 `/api/scrap` 응답이 새 회차를 싣는 순간 첫 줄을 낸다.
+ */
+let scenario: { userId: string; round: number; state: ScenarioState | null; timer: ReturnType<typeof setInterval> } | null = null;
 
 /** «세상» — 판단에 쓰는 칸만 옮긴다. 메모리 콜은 확정 사본(myOrders)이 도착 시각을 들고 있어 그쪽이 이긴다 */
 function scenarioWorld(userId: string, now: number): ScenarioWorld {
@@ -309,6 +327,11 @@ function scenarioWorld(userId: string, now: number): ScenarioWorld {
 function tickScenario() {
     if (!scenario) return;
     const now = Date.now();
+    if (!scenario.state) {
+        if (phoneRoundSent !== scenario.round) return;
+        scenario.state = startScenario(scenarioDef, now);
+        console.log(`🎬 [시나리오] 폰이 회차 ${scenario.round} 을 받았다 — 첫 줄을 낸다`);
+    }
     const before = scenario.state;
     const r = stepScenario(scenarioDef, before, scenarioWorld(scenario.userId, now));
     if (r.send) {
@@ -350,6 +373,8 @@ router.get("/scenario", (_req, res) => {
     const st = scenario?.state ?? null;
     return res.json({
         ok: true, name: '이천 왕복 하루', running: !!scenario && !st?.finished,
+        /** 이전 콜을 리셋하고 폰이 새 회차를 받기를 기다리는 중 */
+        waitingPhone: !!scenario && !st,
         index: st?.index ?? null, finished: st?.finished ?? false, startedAt: st?.startedAt ?? null,
         precheck,
         rows: scenarioDef.map((d, i) => ({
@@ -370,9 +395,11 @@ router.post("/scenario/start", (_req, res) => {
         return res.status(409).json({ ok: false, error: "시뮬레이터가 10초 안에 안 물었다 — «🚚 개별콜» 탭으로 켜세요" });
     }
     stopScenario();
-    scenario = { userId: userIds[0], state: startScenario(scenarioDef, now), timer: setInterval(tickScenario, SCENARIO_TICK_MS) };
+    /* 🧹 이전 콜 리셋 — 서버 대기열을 비우고 회차를 올린다. 시뮬레이터는 목록을, 폰은 본 콜 기억을 이 번호로 비운다 */
+    const round = resetSimCalls(simCalls);
+    scenario = { userId: userIds[0], round, state: null, timer: setInterval(tickScenario, SCENARIO_TICK_MS) };
     scenario.timer.unref?.();
-    console.log(`🎬 [시나리오] 시작 — 이천 왕복 하루 (${scenarioDef.length}줄)`);
+    console.log(`🎬 [시나리오] 시작 — 이천 왕복 하루 (${scenarioDef.length}줄) · 이전 콜 리셋 회차 ${round} · 폰이 받기를 기다린다`);
     tickScenario();
     return res.json({ ok: true });
 });
@@ -380,6 +407,7 @@ router.post("/scenario/start", (_req, res) => {
 router.post("/scenario/skip", (_req, res) => {
     if (!isDevBuild()) return res.status(404).json({ error: "not found" });
     if (!scenario) return res.status(409).json({ ok: false, error: "시나리오가 안 돌고 있다" });
+    if (!scenario.state) return res.status(409).json({ ok: false, error: "폰이 기억을 비우기를 기다리는 중이다 — 폰 화면이 한 번 바뀌면 시작한다" });
     const id = scenarioDef[scenario.state.index]?.id;
     scenario.state = skipScenarioRow(scenarioDef, scenario.state, Date.now());
     console.log(`🎬 [시나리오] ${id} 건너뜀`);

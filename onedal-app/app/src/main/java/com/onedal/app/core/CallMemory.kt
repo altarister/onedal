@@ -27,6 +27,25 @@ class CallMemory(
     /** 🔄 배차망 전환 — 남의 배차망 지문이 남으면 «이미 본 콜»로 삼킨다 (0831) */
     fun clear() { evaluated.clear(); reported.clear() }
 
+    /** 서버가 마지막으로 알려 준 회차 — null 이면 아직 못 받았다 */
+    private var lastRound: Int? = null
+
+    /**
+     * 🧹 **서버 회차 — 바뀌면 기억을 비운다** (2026-09-15 · 서버 `routes/sim.ts` 의 `callMemoryRoundForPhone`).
+     *
+     * 시뮬레이터 시나리오를 다시 시작하면 서버가 이전 콜을 리셋하고 회차를 올린다. 같은 콜이 다시 뜨는데
+     * 지문(상차 동 + 하차 동 + 요금)이 같아 «이미 본 콜»로 판정 없이 삼켰다.
+     * 🔴 **처음 받은 회차는 기억만 한다** — 이미 누른 콜을 다시 누르지 않게 (선등재 기억을 지키는 이유와 같다).
+     * @return 비웠으면 true
+     */
+    fun onRound(round: Int): Boolean {
+        val prev = lastRound
+        lastRound = round
+        if (prev == null || prev == round) return false
+        clear()
+        return true
+    }
+
     /** ① 이 콜은 평가를 마쳤는가 — 맞으면 스캔 루프가 건너뛴다 */
     fun alreadyEvaluated(hash: Int): Boolean = hash in evaluated
 

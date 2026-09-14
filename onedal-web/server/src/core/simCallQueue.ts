@@ -17,6 +17,9 @@
  *
  * 🔴 **번호는 늘기만 한다** — 시뮬레이터는 «마지막으로 받은 번호 뒤»만 가져간다. 늦게 연 화면이 옛 콜을 다시 내지 않고,
  *    시뮬레이터 화면이 둘(폰·PC)이어도 한쪽이 가져가서 다른 쪽이 못 받는 일이 없다.
+ * 🔴 **회차(`round`)는 «이전 콜을 리셋했다»는 표시다** — 시나리오를 다시 시작하면 `resetSimCalls` 가 들고 있던 콜을 비우고 회차를 올린다.
+ *    시뮬레이터는 회차가 바뀐 것을 보고 목록을 비우고, 폰 원달앱은 `/api/scrap` 응답 꼬리(`deviceControl.callMemoryRound`)로 같은 번호를 받아
+ *    «본 콜» 기억(`CallMemory`)을 비운다 — 안 비우면 같은 콜이 두 개가 되고, 폰은 지문이 같아 «이미 본 콜»로 판정하지 않는다.
  * 🔴 **메모리에만 둔다** — 서버를 다시 띄우면 비고 번호도 처음부터다. 시뮬레이터는 «서버 번호가 내 번호보다 작다»를 다시 띄운 것으로 읽는다.
  * 🔴 **값을 채우지 않는다** (규칙 ④) — 칸이 틀리면 받지 않고 무엇이 틀렸는지 말한다.
  */
@@ -53,12 +56,14 @@ export const SIM_CALL_KEEP = 50;
 export interface SimCallQueue {
     calls: QueuedSimCall[];
     lastSeq: number;
+    /** 회차 — `resetSimCalls` 때마다 1씩 오른다 (서버를 다시 띄우면 0) */
+    round: number;
     /** 시뮬레이터가 마지막으로 물은 시각 — 현황판이 «시뮬레이터가 켜져 있나»를 말한다 */
     lastPollAt: number | null;
 }
 
 export function createSimCallQueue(): SimCallQueue {
-    return { calls: [], lastSeq: 0, lastPollAt: null };
+    return { calls: [], lastSeq: 0, round: 0, lastPollAt: null };
 }
 
 const textOf = (v: unknown, max: number): string | null => {
@@ -108,12 +113,26 @@ export function pushSimCall(q: SimCallQueue, call: SimCallInput, now: number): Q
     return queued;
 }
 
+/** 🧹 이전 콜 리셋 — 들고 있던 콜을 버리고 회차를 올린다. 번호는 이어 간다(시뮬레이터가 «번호 뒤»로 묻는 규칙은 그대로) */
+export function resetSimCalls(q: SimCallQueue): number {
+    q.calls = [];
+    q.round += 1;
+    return q.round;
+}
+
+/** 시뮬레이터에 주는 답 — 짝: `onedal-sim/packages/core-simulator/src/injectedCall.ts` 의 `InjectedBatch` */
+export interface SimCallBatch {
+    lastSeq: number;
+    round: number;
+    calls: QueuedSimCall[];
+}
+
 /**
  * 시뮬레이터의 물음에 답한다 — `after` 번호 뒤의 콜.
  * `after` 가 없으면(처음 묻는 시뮬레이터) 콜은 안 주고 지금 번호만 준다 — 열기 전에 낸 콜을 다시 내지 않는다.
  */
-export function simCallsAfter(q: SimCallQueue, after: number | null, now: number): { lastSeq: number; calls: QueuedSimCall[] } {
+export function simCallsAfter(q: SimCallQueue, after: number | null, now: number): SimCallBatch {
     q.lastPollAt = now;
-    if (after === null) return { lastSeq: q.lastSeq, calls: [] };
-    return { lastSeq: q.lastSeq, calls: q.calls.filter(c => c.seq > after) };
+    if (after === null) return { lastSeq: q.lastSeq, round: q.round, calls: [] };
+    return { lastSeq: q.lastSeq, round: q.round, calls: q.calls.filter(c => c.seq > after) };
 }

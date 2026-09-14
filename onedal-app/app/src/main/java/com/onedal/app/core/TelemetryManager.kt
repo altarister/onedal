@@ -98,6 +98,9 @@ class TelemetryManager(
     // [Piggyback V2] 결재 수신 콜백
     var decisionCallback: ((String, String) -> Unit)? = null
 
+    // 🧹 서버 회차 수신 콜백 — 본 콜 기억 비우기 (HijackService 가 메인 스레드로 넘긴다)
+    var callMemoryRoundCallback: ((Int) -> Unit)? = null
+
     /**
      * 🔴 **여기서 «보내기 직전에 화면을 다시 읽기»를 하지 않는다 — 해 봤고, 안 된다** (2026-09-02).
      *
@@ -318,7 +321,8 @@ class TelemetryManager(
                 currentMode = mode
                 AppLogger.d(TAG, "📥 [서버 수신] $triggerStr 완료 (수신된 모드: $mode)")
             },
-            onDecisionReceived = decisionCallback
+            onDecisionReceived = decisionCallback,
+            onCallMemoryRound = callMemoryRoundCallback
         )
 
         // 통신을 방금 했으므로, 다음 하트비트 시점을 한 주기(60초) 뒤로 연기함

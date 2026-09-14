@@ -224,11 +224,13 @@ class ApiClient(private val context: Context) {
      * @param payload ScrapPayload 기본 정보
      * @param onModeReceived 서버로부터 모드(AUTO/MANUAL) 수신 시 콜백
      * @param onDecisionReceived 서버가 결정(KEEP/CANCEL)을 Piggyback으로 보냈을 때 콜백
+     * @param onCallMemoryRound 서버가 시뮬레이터 회차를 실어 보냈을 때 콜백 (본 콜 기억 비우기)
      */
     fun sendScrapTelemetry(
         payload: ScrapPayload, 
         onModeReceived: (String) -> Unit,
-        onDecisionReceived: ((String, String) -> Unit)? = null
+        onDecisionReceived: ((String, String) -> Unit)? = null,
+        onCallMemoryRound: ((Int) -> Unit)? = null
     ) {
         telemetryExecutor.submit {
             val startMs = System.currentTimeMillis()
@@ -342,6 +344,7 @@ class ApiClient(private val context: Context) {
                         prefs.edit().remove("pendingAckDecisionId").apply()
                     }
 
+                    scrapRes.deviceControl.callMemoryRound?.let { onCallMemoryRound?.invoke(it) }
                     onModeReceived(scrapRes.deviceControl.mode)
                 } else {
                     AppLogger.w(TAG, "📡 [텔레메트리] 서버 에러 응답: $code")

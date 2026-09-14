@@ -28,10 +28,18 @@ export interface InjectedCall {
     vehicleType?: string;
 }
 
-/** 서버 `GET /api/sim/calls` 의 답 */
+/** 서버 `GET /api/sim/calls` 의 답 — 짝: 서버 `simCallQueue.ts` 의 `SimCallBatch` */
 export interface InjectedBatch {
     lastSeq: number;
+    /** 회차 — 서버가 이전 콜을 리셋할 때마다 오른다 (시나리오 다시 시작) */
+    round: number;
     calls: InjectedCall[];
+}
+
+/** 어디까지 받았나 — 번호와 회차 */
+export interface InjectedCursor {
+    seq: number;
+    round: number;
 }
 
 const placeOf = (p: InjectedPlace): MockEntry => ({
@@ -53,15 +61,18 @@ export function toInjectedForced(c: InjectedCall): ForcedPair {
 }
 
 /**
- * 받은 묶음 → 이번에 낼 콜 · 다음에 물을 번호.
+ * 받은 묶음 → 이번에 낼 콜 · 다음에 물을 자리 · 목록을 비우나.
  *
- *   · 처음 묻는다(`cursor` 가 null) → 콜은 안 내고 지금 번호만 기억한다 — 시뮬레이터를 열기 전에 낸 콜을 다시 내지 않는다
- *   · 서버 번호가 내 번호보다 작다 → 서버를 다시 띄웠다. 다음 물음에서 처음부터 받는다
+ *   · 처음 묻는다(`cursor` 가 null) → 콜은 안 내고 지금 번호·회차만 기억한다 — 열기 전에 낸 콜을 다시 내지 않고,
+ *     🔴 목록도 안 비운다 (화면을 열 때마다 비우면 안 된다 · onedal-49 2026-09-15)
+ *   · 서버 번호가 내 번호보다 작다 → 서버를 다시 띄웠다. 다음 물음에서 처음부터 받는다 — 회차도 달라졌으면 **비우고** 받는다
+ *   · 회차가 바뀌었다 → 이전 콜을 리셋했다(시나리오 다시 시작). **목록을 비우고** 내 번호 뒤의 콜을 낸다
  *   · 그 밖 → 내 번호 뒤의 콜을 번호 순서대로
  */
-export function takeInjected(cursor: number | null, batch: InjectedBatch): { cursor: number; calls: InjectedCall[] } {
-    if (cursor === null) return { cursor: batch.lastSeq, calls: [] };
-    if (batch.lastSeq < cursor) return { cursor: 0, calls: [] };
-    const calls = batch.calls.filter(c => c.seq > cursor).sort((a, b) => a.seq - b.seq);
-    return { cursor: batch.lastSeq, calls };
+export function takeInjected(cursor: InjectedCursor | null, batch: InjectedBatch): { cursor: InjectedCursor; calls: InjectedCall[]; clear: boolean } {
+    if (cursor === null) return { cursor: { seq: batch.lastSeq, round: batch.round }, calls: [], clear: false };
+    const clear = batch.round !== cursor.round;
+    if (batch.lastSeq < cursor.seq) return { cursor: { seq: 0, round: batch.round }, calls: [], clear };
+    const calls = batch.calls.filter(c => c.seq > cursor.seq).sort((a, b) => a.seq - b.seq);
+    return { cursor: { seq: batch.lastSeq, round: batch.round }, calls, clear };
 }

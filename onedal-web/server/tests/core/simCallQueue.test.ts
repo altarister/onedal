@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-    SIM_CALL_KEEP, createSimCallQueue, pushSimCall, readSimCallInput, simCallsAfter,
+    SIM_CALL_KEEP, createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter,
 } from '../../src/core/simCallQueue';
 import type { SimCallInput } from '../../src/core/simCallQueue';
 
@@ -56,7 +56,7 @@ describe('개별콜 — 번호', () => {
         const q = createSimCallQueue();
         pushSimCall(q, call(), 1);
         pushSimCall(q, call(), 2);
-        expect(simCallsAfter(q, null, 10)).toEqual({ lastSeq: 2, calls: [] });
+        expect(simCallsAfter(q, null, 10)).toEqual({ lastSeq: 2, round: 0, calls: [] });
     });
 
     it('번호 뒤의 콜만 준다 · 물은 시각을 남긴다', () => {
@@ -69,6 +69,28 @@ describe('개별콜 — 번호', () => {
         expect(r.lastSeq).toBe(3);
         expect(r.calls.map(c => c.seq)).toEqual([2, 3]);
         expect(q.lastPollAt).toBe(99);
+    });
+});
+
+describe('개별콜 — 회차 (시나리오를 다시 시작하면 이전 콜을 리셋한다)', () => {
+    it('비우면 회차가 오르고 들고 있던 콜이 사라진다 · 번호는 이어진다', () => {
+        const q = createSimCallQueue();
+        expect(q.round).toBe(0);
+        pushSimCall(q, call(), 1);
+        pushSimCall(q, call(), 2);
+        resetSimCalls(q);
+        expect(q.round).toBe(1);
+        expect(q.calls).toEqual([]);
+        expect(pushSimCall(q, call(), 3).seq).toBe(3);
+    });
+
+    it('답에 회차가 실린다 — 시뮬레이터가 목록을 비울 때를 안다', () => {
+        const q = createSimCallQueue();
+        pushSimCall(q, call(), 1);
+        resetSimCalls(q);
+        pushSimCall(q, call(), 2);
+        expect(simCallsAfter(q, 1, 5)).toMatchObject({ lastSeq: 2, round: 1 });
+        expect(simCallsAfter(q, 1, 5).calls.map(c => c.seq)).toEqual([2]);
     });
 });
 
@@ -100,6 +122,19 @@ describe('🔴 세 곳이 같은 말을 한다 — 현황판 · 서버 · 시뮬
         expect(fieldsOf(board, 'SimCallBody')).toEqual(['dropoff', 'fare', 'pickup']);
         expect(fieldsOf(server, 'SimCallInput')).toEqual(['dropoff', 'fare', 'pickup', 'vehicleType']);
         expect(fieldsOf(sim, 'InjectedCall')).toEqual(['dropoff', 'fare', 'pickup', 'seq', 'vehicleType']);
+    });
+
+    it('답 칸 — 번호 · 회차 · 콜 (서버 답 ↔ 시뮬레이터가 받는 묶음)', () => {
+        expect(fieldsOf(server, 'SimCallBatch')).toEqual(['calls', 'lastSeq', 'round']);
+        expect(fieldsOf(sim, 'InjectedBatch')).toEqual(fieldsOf(server, 'SimCallBatch'));
+    });
+
+    it('🔴 폰 본 콜 기억 회차 — 서버 응답 꼬리 칸 ↔ 원달앱 DeviceControl 칸이 같은 이름', () => {
+        const scrap = codeOnly(readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8'));
+        const kt = readFileSync(join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app/models/SharedModels.kt'), 'utf8');
+        expect(scrap).toMatch(/callMemoryRound/);
+        const i = kt.indexOf('data class DeviceControl');
+        expect(kt.slice(i, kt.indexOf('\n)', i))).toMatch(/val callMemoryRound: Int\? = null/);
     });
 
     it('경로 — 현황판이 내는 곳 · 서버가 받는 곳 · 시뮬레이터가 묻는 곳이 같다', () => {
