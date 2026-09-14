@@ -1,3 +1,4 @@
+import { mockLineOf } from './mockLine';
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { isEvaluating, isTerminal, hasVisitedStop, judgingCallOf, deriveRouteTimeline, derivationInputsOf, deckOfCycle, minRouteBuffer } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
@@ -117,7 +118,16 @@ export function useRouteDerivations(
     /** 🏠 설정의 «내 주소» — GPS 가 없을 때 지도·TSP 의 출발점 (서버와 같은 규칙) */
     const homeLocation = useRef<{ x: number; y: number } | null>(null);
     // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
-    const { currentGps, gpsSource } = useMasterGps(isDriving, activePolyline || null, mockStops);
+    /**
+     * 🎭 **모의 주행이 달릴 선은 지도 선과 따로 고른다** (2026-09-15 · `mockLine.ts`) — 심사 중에는 직전 선을 지킨다.
+     *    지도는 심사 중 미리보기 선을 그리지만, 모의 주행이 그 선으로 갈아타면 순간 이동해 확정 콜이 가짜로 하차 완료된다.
+     */
+    const evaluatingNow = liveRoute.some(r => isEvaluating(r.status));
+    /* 🔴 ref 를 그리는 중에 읽지 않는다(React 규칙) — 심사 중이 아닐 때의 선을 상태로 들고, 그리는 중엔 그 상태만 읽는다 */
+    const [lineBeforeJudging, setLineBeforeJudging] = useState<Array<{ x: number; y: number }> | null>(null);
+    useEffect(() => { if (!evaluatingNow) setLineBeforeJudging(activePolyline || null); }, [evaluatingNow, activePolyline]);
+    const mockPolyline = mockLineOf(lineBeforeJudging, activePolyline || null, evaluatingNow);
+    const { currentGps, gpsSource } = useMasterGps(isDriving, mockPolyline, mockStops);
 
     // 📡 화면이 무엇을 그리고 있었나 — 바뀔 때만 남긴다 (관제앱 웹뷰 초당 5.5회 재그림)
     useEffect(() => { logStateChange("국면", filter?.dispatchPhase ?? "없음", "진행중경로"); }, [filter?.dispatchPhase]);

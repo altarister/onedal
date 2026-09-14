@@ -35,6 +35,12 @@ describe('모의 주행 경로 끝 대기 배선', () => {
         expect(gps).not.toMatch(/homeLeg|fetchHomeLeg/);
     });
 
+    it('🔴 모의 주행은 심사 중 미리보기 선으로 갈아타지 않는다 — 지도 선과 따로 고른다 (2026-09-15 다섯 번째 바퀴 13.1km)', () => {
+        const der = read('hooks/useRouteDerivations.ts');
+        expect(der).toMatch(/mockLineOf\(/);
+        expect(der).toMatch(/useMasterGps\(isDriving, mockPolyline, mockStops\)/);
+    });
+
     it('🔴 끄는 것은 기사님뿐 — 경로 끝이 모의 주행을 끄지 않는다', () => {
         expect(gps).not.toMatch(/useMockDriveStore\.getState\(\)\.stop\(\)/);
     });
