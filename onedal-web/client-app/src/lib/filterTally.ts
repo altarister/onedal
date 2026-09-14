@@ -32,6 +32,7 @@ const AXES: Array<[string, keyof FilterTally]> = [
     ['차종', 'vehicle'],
     ['요금', 'fare'],
     ['상차지', 'pickup'],
+    ['상차 목록', 'pickupList'],
     ['경로순서', 'routeOrder'],
     ['블랙', 'blacklist'],
 ];

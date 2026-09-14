@@ -296,6 +296,8 @@ data class FilterTally(
     var pickup: Int = 0,
     var blacklist: Int = 0,
     var routeOrder: Int = 0,
+    /** 📋 상차 목록에 안 걸린 콜 — 서버가 상차 목록을 보낼 때만 센다 (그때는 pickup·routeOrder 를 안 센다) */
+    var pickupList: Int = 0,
 )
 
 // 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)
@@ -376,6 +378,13 @@ data class FilterConfig(
     val destinationRadiusKm: Double = 10.0,   // 🔴 소수로 받는다 — 위 pickupRadiusKm 과 같은 까닭
     val excludedKeywords: List<String> = emptyList(),
     val destinationKeywords: List<String> = emptyList(),
+    /**
+     * 📋 **상차 목록** — 상차지가 이 읍·면·동에 걸려야 싣는다 (2026-09-15 · docs/지금/필터.md «상차 목록 · 하차 목록»).
+     * 🔴 **null 과 빈 목록은 뜻이 다르다** — null = 서버가 이 칸을 안 보냄(옛 서버) → 옛 판정(상차 반경·경로 순서)으로.
+     *    빈 목록 = 서버가 만들었는데 비었다 → 고장, 잡지 않는다 (규칙 ④ · `PickupListFilter`).
+     * 🔴 null 되돌아가는 길은 3단계(옛 칸 걷는 날)에 함께 지운다 (todo.md).
+     */
+    val pickupKeywords: List<String>? = null,
     val customCityFilters: List<String> = emptyList(),
     val destinationGroups: Map<String, List<String>> = emptyMap(),
     /**

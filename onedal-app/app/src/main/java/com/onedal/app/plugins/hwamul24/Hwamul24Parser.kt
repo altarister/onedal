@@ -3,6 +3,7 @@ package com.onedal.app.plugins.hwamul24
 import android.content.Context
 import com.onedal.app.core.AppLogger
 import com.onedal.app.plugins.RouteOrderFilter
+import com.onedal.app.plugins.PickupListFilter
 import com.onedal.app.plugins.RegionMatch
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.plugins.insung.InsungParser
@@ -107,6 +108,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 destinationRadiusKm = json.optDouble("destinationRadiusKm", 10.0),
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
                 destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
+                // 📋 칸이 없으면 null(옛 서버 → 옛 판정) · 있으면 빈 목록이어도 목록 (빈 목록 = 고장 → 막음) — 인성 파서와 같다
+                pickupKeywords = if (json.has("pickupKeywords")) parseJsonArray(json, "pickupKeywords") else null,
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
                 ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
                 orderKm = progress,
@@ -345,8 +348,15 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                         (!useRateModel || order.fare >= order.deliveryDistance!! * rateFloor!!) &&
                         (!hasFareCeiling || order.fare <= filter.maxFare)
 
-        // ── 조건 4: 상차지 거리 (합짐 모드이면 무시) ──
-        val distanceMatch = if (order.pickupDistance == null) {
+        // ── 조건 4: 상차지 ──
+        // 📋 상차 목록이 오면 그것으로 거른다 — 인성 파서와 같은 규칙 (`PickupListFilter` · docs/지금/필터.md «상차 목록 · 하차 목록»).
+        //    화물24시 상차지 글자(`cleanRegion`)에 동이 실리는지는 실물 캡처로 확인할 것 (규격 표 ⬜)
+        //    🔴 칸이 안 오면(옛 서버) 아래 옛 판정 — 3단계(옛 칸 걷는 날)에 함께 지운다 (todo.md)
+        val pickupListCheck = filter.pickupKeywords?.let { PickupListFilter.check(order.pickup, it, filter.keywordTraps) }
+        val pickupListMatch = pickupListCheck?.passed ?: true
+        val distanceMatch = if (pickupListCheck != null) {
+            true
+        } else if (order.pickupDistance == null) {
             true
         } else if (filter.isSharedMode) {
             true
@@ -369,12 +379,20 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             AppLogger.roadmap("🔍 [24시 필터] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
                     "도착지(${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
                     "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
-                    "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "배차값없음"})=${if(distanceMatch) "✅" else "❌"} " +
+                    (if (pickupListCheck != null)
+                        "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${order.pickup})=${if(pickupListMatch) "✅" else "❌"} "
+                     else
+                        "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "배차값없음"})=${if(distanceMatch) "✅" else "❌"} ") +
                     "블랙=${if(blacklistClear) "✅" else "❌"}", "LIST")
         }
 
         // ── 조건 6: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정 2026-08-18) ──
-        val routeOrder = RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
+        // 📋 상차 목록이 오면 순서 검사를 안 한다 — 뒤쪽은 서버가 «내 위치 둘레»로 이미 뺐다
+        val routeOrder = if (pickupListCheck != null) RouteOrderFilter.Result(true, "상차 목록으로 거른다 — 순서 검사 안 함")
+            else RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
+        if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0) {
+            AppLogger.d(TAG, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
+        }
         if (!routeOrder.passed && order.fare > 0) {
             AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
         } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
@@ -382,7 +400,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             AppLogger.d(TAG, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
         }
 
-        val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear && routeOrder.passed
+        val result = vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
 
         /**
          * 👁️ **성적표를 채운다** — 인성 파서와 **같은 규칙**이다 (첫 축에만 센다).
@@ -395,6 +413,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 !vehicleMatch    -> t.vehicle++
                 !regionMatch     -> t.region++
                 !fareMatch       -> t.fare++
+                !pickupListMatch -> t.pickupList++
                 !distanceMatch   -> t.pickup++
                 !blacklistClear  -> t.blacklist++
                 else             -> t.routeOrder++

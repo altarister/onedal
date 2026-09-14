@@ -1973,6 +1973,8 @@ export interface FilterTally {
     pickup: number;
     blacklist: number;
     routeOrder: number;
+    /** 📋 상차 목록에 안 걸린 콜 — 원달앱 2.9.7 부터 (옛 앱은 안 보낸다 · docs/지금/필터.md «상차 목록 · 하차 목록») */
+    pickupList?: number;
 }
 
 export const CANCEL_BUDGET_PER_ROUND = 10;

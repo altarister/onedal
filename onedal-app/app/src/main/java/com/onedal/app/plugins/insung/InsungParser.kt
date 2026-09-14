@@ -3,6 +3,7 @@ package com.onedal.app.plugins.insung
 import android.content.Context
 import com.onedal.app.core.AppLogger
 import com.onedal.app.plugins.RouteOrderFilter
+import com.onedal.app.plugins.PickupListFilter
 import com.onedal.app.plugins.RegionMatch
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.LocationTextAnalyzer
@@ -345,10 +346,24 @@ class InsungParser(private val context: Context) : IScrapParser {
                     (!hasFareCeiling || order.fare <= filter.maxFare)
             }
 
-            // ── 조건 3: 상차지 거리 ──
-            // 합짐 모드(isSharedMode)에서는 상차지 반경 제한을 무시합니다.
-            // 합짐은 가는 길 위의 콜을 잡는 것이므로 거리가 아닌 경로(경유) 기준으로 판단됩니다.
-            val distanceMatch = if (order.pickupDistance == null) {
+            // ── 조건 3: 상차지 ──
+            /**
+             * 📋 **상차 목록이 오면 그것으로 거른다** (2026-09-15 · docs/지금/필터.md «상차 목록 · 하차 목록» 2단계).
+             * 서버가 «지금 내 위치 둘레»로 만든 읍·면·동 목록에 상차지가 걸리나만 본다 —
+             * 상차 반경 숫자·경로 순서(`RouteOrderFilter`)는 안 쓴다 (이천 왕복 03:08:52 D3 가 순서표에 막혔다).
+             * 상세(확정 전)에서는 상세 글의 «출발지 ~ 도착지» 사이로 대조한다 — 못 자르면 리스트에서 읽은 상차지로.
+             * 🔴 칸이 안 오면(null · 옛 서버) 아래 옛 판정 — 이 되돌아가는 길은 3단계(옛 칸 걷는 날)에 함께 지운다 (todo.md)
+             */
+            val pickupListCheck = filter.pickupKeywords?.let { keys ->
+                val pickupText = (if (isDetailPreConfirmStage) PickupListFilter.insungDetailPickupText(rawText) else null)
+                    ?: order.pickup
+                PickupListFilter.check(pickupText, keys, filter.keywordTraps)
+            }
+            val pickupListMatch = pickupListCheck?.passed ?: true
+            // 합짐 모드(isSharedMode)에서는 상차지 반경 제한을 무시합니다 — 상차 목록이 오면 반경은 아예 안 본다.
+            val distanceMatch = if (pickupListCheck != null) {
+                true
+            } else if (order.pickupDistance == null) {
                 true
             } else if (filter.isSharedMode) {
                 true // 합짐 모드: 상차 반경 무시 (경유 필터가 대신 판단)
@@ -376,13 +391,21 @@ class InsungParser(private val context: Context) : IScrapParser {
                                 "요금/단가(${order.deliveryDistance}km × ${rateFloor}원 = ${((order.deliveryDistance ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "
                              else
                                 "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} ") +
-                            "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "배차값없음"}km)=${if(distanceMatch) "✅" else "❌"} " +
+                            (if (pickupListCheck != null)
+                                "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${order.pickup})=${if(pickupListMatch) "✅" else "❌"} "
+                             else
+                                "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "배차값없음"}km)=${if(distanceMatch) "✅" else "❌"} ") +
                             "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
             }
 
             // ── 조건 5: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정 2026-08-18) ──
             //    합짐·운행중에만 값이 내려온다(첫짐은 빈 맵 → 검사 없음). 국면 분기는 앱에 두지 않는다.
-            val routeOrder = RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
+            // 📋 상차 목록이 오면 순서 검사를 안 한다 — 뒤쪽은 서버가 «내 위치 둘레»로 이미 뺐다
+            val routeOrder = if (pickupListCheck != null) RouteOrderFilter.Result(true, "상차 목록으로 거른다 — 순서 검사 안 함")
+                else RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
+            if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0) {
+                AppLogger.d(TAG, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
+            }
             if (!routeOrder.passed && order.fare > 0) {
                 AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
             } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
@@ -390,7 +413,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 AppLogger.d(TAG, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
             }
 
-            val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear && routeOrder.passed
+            val result = vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
 
             /**
              * 👁️ **성적표를 채운다** — 첫 번째로 걸린 축에만 센다 (기사님 확정 2026-08-23).
@@ -408,6 +431,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 !vehicleMatch    -> "vehicle"
                 !regionMatch     -> "region"
                 !fareMatch       -> "fare"
+                !pickupListMatch -> "pickupList"
                 !distanceMatch   -> "pickup"
                 !blacklistClear  -> "blacklist"
                 else             -> "routeOrder"
@@ -421,6 +445,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                     "region"     -> t.region++
                     "fare"       -> t.fare++
                     "pickup"     -> t.pickup++
+                    "pickupList" -> t.pickupList++
                     "blacklist"  -> t.blacklist++
                     else         -> t.routeOrder++
                 }
@@ -523,6 +548,8 @@ class InsungParser(private val context: Context) : IScrapParser {
                 destinationRadiusKm = json.optDouble("destinationRadiusKm", 10.0),
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
                 destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
+                // 📋 칸이 없으면 null(옛 서버 → 옛 판정) · 있으면 빈 목록이어도 목록 (빈 목록 = 고장 → 막음)
+                pickupKeywords = if (json.has("pickupKeywords")) parseJsonArray(json, "pickupKeywords") else null,
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
                 ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
                 orderKm = progress,
