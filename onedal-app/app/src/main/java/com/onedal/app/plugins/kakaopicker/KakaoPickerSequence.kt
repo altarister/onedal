@@ -88,8 +88,9 @@ fun ScanContext.reportPickerAccepted(rawScreenStr: String) {
      *    ⚠️ 이 함수는 화면이 바뀔 때만 불리므로 로그가 밀리지 않는다.
      */
     if (!session.isPreview) {
+        // ⚠️ 리스트로 돌아온 경우는 여기 안 온다 (`KakaoPickerKeywords.afterDetail`) — 세션이 비워진 뒤라 까닭을 틀리게 적었다
         AppLogger.d("1DAL_PICKER", "↩️ [승격 안 함] 미리보기 딱지가 없다 — " +
-            (if (session.lastDetailOrder == null) "상세를 거쳐 오지 않았다" else "이미 올린 콜이다"))
+            (if (session.lastDetailOrder == null) "알람이 연 상세가 아니다 (리스트 원본을 쥐지 않았다 · 손으로 연 상세일 수 있다)" else "이미 올린 콜이다"))
         return
     }
     /**

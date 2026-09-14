@@ -612,10 +612,15 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         if (!TargetApp.supportsCatching(currentTargetApp) && previous == ScreenContext.DETAIL_PRE_CONFIRM) {
             val residue = com.onedal.app.plugins.kakaopicker.KakaoPickerParser.isDetailResidue(screenTexts)
-            if (residue) {
-                AppLogger.i("1DAL_PICKER", "↩️ [승격 보류] 상세 잔상이 남은 판이다 — 이 판은 버린다")
-            } else {
-                reportPickerAccepted(rawScreenStr)
+            val returnedToList = detected == ScreenContext.LIST || detected == ScreenContext.LIST_COMPLETED
+            // ↩️ 리스트로 돌아온 것은 수락이 아니다 — 세션이 이미 비워져 승격 확인이 엉뚱한 까닭을 적었다 (2026-09-14 · `KakaoPickerKeywords.afterDetail`)
+            when (com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.afterDetail(returnedToList, residue)) {
+                com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.AfterDetail.RETURNED_TO_LIST ->
+                    AppLogger.i("1DAL_PICKER", com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.RETURNED_TO_LIST_LOG)
+                com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.AfterDetail.RESIDUE ->
+                    AppLogger.i("1DAL_PICKER", "↩️ [승격 보류] 상세 글자가 남은 화면이다 — 이 화면은 버린다")
+                com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED ->
+                    reportPickerAccepted(rawScreenStr)
             }
         }
 

@@ -821,3 +821,46 @@ class AlarmAxesTest {
         assertEquals("이천", parsed["cityAliases"].asJsonArray[0].asString)
     }
 }
+
+/**
+ * ↩️ **상세 뒤 화면이 바뀌었을 때 무엇을 할까** (2026-09-14 · 기사님: *"로그 문구는 오해를 할 수 있는 부분이라 수정하고 다음으로 가야 한다"*)
+ *
+ * 폰 시험(16:23)에서 알람 상세 → 30초 자동 복귀 뒤에 `↩️ [승격 안 함] 미리보기 딱지가 없다 — 상세를 거쳐 오지 않았다` 가 찍혔다.
+ * 실제로는 **상세를 거쳐 왔다.** 리스트로 돌아오면 `HijackService` 가 세션(리스트 원본 · 미리보기 딱지)을 먼저 비우고,
+ * 그다음 승격 확인이 비워진 값을 보고 «안 거쳐 왔다»고 적었다.
+ * → 리스트로 돌아온 것은 수락이 아니다 — 승격 확인을 부르지 않고 그대로 적는다.
+ */
+class PromotionCheckTest {
+
+    @Test
+    fun `상세에서 리스트로 돌아왔다 - 수락이 아니다 (넘기기 · 뒤로 · 30초 자동 복귀)`() {
+        assertEquals(KakaoPickerKeywords.AfterDetail.RETURNED_TO_LIST,
+            KakaoPickerKeywords.afterDetail(returnedToList = true, residue = false))
+    }
+
+    @Test
+    fun `리스트로 돌아왔는데 상세 글자가 남았어도 - 돌아온 것이 먼저다`() {
+        assertEquals(KakaoPickerKeywords.AfterDetail.RETURNED_TO_LIST,
+            KakaoPickerKeywords.afterDetail(returnedToList = true, residue = true))
+    }
+
+    @Test
+    fun `리스트가 아닌데 상세 잔상이 남았다 - 그 화면은 버린다`() {
+        assertEquals(KakaoPickerKeywords.AfterDetail.RESIDUE,
+            KakaoPickerKeywords.afterDetail(returnedToList = false, residue = true))
+    }
+
+    @Test
+    fun `리스트도 잔상도 아니다 - 수락 뒤 화면인지 확인한다`() {
+        assertEquals(KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED,
+            KakaoPickerKeywords.afterDetail(returnedToList = false, residue = false))
+    }
+
+    @Test
+    fun `돌아옴 문구는 «수락하지 않았다» 를 말하고 «상세를 거쳐 오지 않았다» 를 말하지 않는다`() {
+        val line = KakaoPickerKeywords.RETURNED_TO_LIST_LOG
+        assertTrue(line.contains("리스트로 돌아왔다"))
+        assertTrue(line.contains("수락하지 않았다"))
+        assertFalse(line.contains("거쳐 오지 않았다"))
+    }
+}

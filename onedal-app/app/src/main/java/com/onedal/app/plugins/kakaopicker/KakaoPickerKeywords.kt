@@ -151,6 +151,24 @@ object KakaoPickerKeywords {
         null             -> null              // 픽커가 아는 화면이 아니다 — 낱말 판별에 맡긴다
     }
 
+    /**
+     * ↩️ **수락 전 상세에서 화면이 바뀌었다 — 무엇을 할까** (2026-09-14 · 기사님: *"로그 문구는 오해를 할 수 있는 부분이라 수정"*).
+     *
+     * 🔴 리스트로 돌아오면 `HijackService` 가 세션(리스트 원본 · 미리보기 딱지)을 **먼저 비운다.** 그 뒤에 승격 확인을 부르면
+     *    비워진 값을 보고 «상세를 거쳐 오지 않았다»고 적었다 — 폰 시험(16:23)에서 30초 자동 복귀마다 그렇게 찍혔다.
+     *    리스트로 돌아온 것은 **수락이 아니다** (넘기기 · 뒤로 · 30초 자동 복귀) — 승격 확인을 부르지 않는다.
+     * 순수 함수라 폰 없이 검사된다 (`PromotionCheckTest`).
+     */
+    enum class AfterDetail { RETURNED_TO_LIST, RESIDUE, CHECK_ACCEPTED }
+
+    fun afterDetail(returnedToList: Boolean, residue: Boolean): AfterDetail = when {
+        returnedToList -> AfterDetail.RETURNED_TO_LIST
+        residue -> AfterDetail.RESIDUE
+        else -> AfterDetail.CHECK_ACCEPTED
+    }
+
+    const val RETURNED_TO_LIST_LOG = "↩️ [승격 안 함] 상세에서 리스트로 돌아왔다 — 수락하지 않았다 (넘기기 · 뒤로 · 30초 자동 복귀)"
+
     /** ✅ 수락한 뒤인가 — 잡은 콜로 승격해도 되는가 */
     fun isAcceptedScreen(rawText: String?): Boolean = stageOf(rawText) in ACCEPTED_STAGES
 
