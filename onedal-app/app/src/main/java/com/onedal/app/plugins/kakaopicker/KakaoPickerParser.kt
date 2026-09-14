@@ -306,6 +306,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 t.startsWith("준비 ") -> tags.add(t)                 // «준비 29분»
                 TIME_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «17:00»
                 t in NOISE_WORDS -> { /* 화면 UI 낱말 — 콜 정보가 아니다, 버린다 */ }
+                // 🚫 배정 완료 토스트가 카드 띠에 섞였다 — 지역이 아니다 (09-02 실주행 가짜 콜 3건 · `AssignedToastTest`)
+                t.contains(KakaoPickerKeywords.ASSIGNED_TOAST_WORD) -> { }
                 // «내일 착불» 처럼 태그 여럿이 한 노드로 붙어 오는 판 — 낱낱이 전부 태그면 태그다
                 t.contains(' ') && t.split(' ').all { it in TAG_WORDS } -> tags.addAll(t.split(' '))
                 t.endsWith("km") -> { /* «20km» 같은 헤더 반경 — 콜 정보가 아니다 */ }

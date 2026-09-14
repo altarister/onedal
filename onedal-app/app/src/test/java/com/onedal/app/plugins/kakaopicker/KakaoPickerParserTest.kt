@@ -864,3 +864,48 @@ class PromotionCheckTest {
         assertFalse(line.contains("거쳐 오지 않았다"))
     }
 }
+
+/**
+ * 🚫 **«이미 배정이 완료된 오더입니다» 토스트를 카드로 읽지 않는다** (2026-09-14 · 카카오픽커_시뮬레이터.md §8-1 · 3단계 3-3)
+ *
+ * 실물(캡처 03): 남이 가져간 콜을 누르면 상세 대신 리스트 아래에 토스트가 뜬다.
+ * 🔴 **09-02 실주행 기록** (`log/1dal-주행로그-20260902/표/버려진콜_intel.json` · id 3000 · 3004 · 3045):
+ *    출발지가 «이미 배정이 완료된⏎오더입니다.» · 도착·거리·크기·태그가 빈 픽커 콜 3건이 서버에 올라갔다 —
+ *    토스트 글자가 가까운 요금에 붙어 **가짜 카드**가 됐다. 원달앱의 에러 글자는 2023 자료의 «다른 기사에게 배정» 이라 못 알아봤다.
+ * → 두 겹: ① 에러 화면 글자에 실물 문구 (토스트가 보이는 동안 리스트를 훑지 않는다) ② 파서가 토스트 글자를 지역으로 쓰지 않는다
+ */
+class AssignedToastTest {
+
+    private val parser = KakaoPickerParser(null)
+    private val realToast = "이미 배정이 완료된\n오더입니다."
+
+    @Test
+    fun `실물 토스트 글자를 에러 화면 글자로 알아본다`() {
+        assertTrue(KakaoPickerKeywords.PICKER.errorKeywords.any { realToast.contains(it) })
+    }
+
+    @Test
+    fun `에러 글자가 실물 리스트 · 상세 글자에 없다 - 멀쩡한 화면을 에러로 보지 않는다`() {
+        val listTexts = listOf("리스트 설정", "높은 가격순", "20km", "퀵", "소형", "예약", "17:00", "15.2km", "중원", "성남", "수지", "동천", "14,168",
+            "서포트모드", "카드설정", "수요지도", "신규", "내 오더", "퀵 오더카드 대기 중...", "퀵 서포트 모드 1장 받기", "0/1건")
+        val detailTexts = listOf("뒤로가기", "물품 정보", "초소형 세 변의 합 70cm ∙ 2kg 이하", "최종 수익", "8,200", "배송비", "7,000P", "프로모션", "1,200P", "넘기기", "수락하기")
+        (listTexts + detailTexts).forEach { t ->
+            assertFalse("«$t» 가 에러 글자에 걸린다", KakaoPickerKeywords.PICKER.errorKeywords.any { t.contains(it) })
+        }
+    }
+
+    @Test
+    fun `09-02 실주행 모양 - 토스트 글자와 요금뿐인 카드에서 토스트가 출발지가 되지 않는다`() {
+        val o = parser.parse(listOf(realToast, "2,942"))
+        assertEquals(2942, o.fare)
+        assertFalse("출발지에 토스트가 들어갔다: ${o.pickup}", o.pickup.contains("배정"))
+        assertFalse("도착지에 토스트가 들어갔다: ${o.dropoff}", o.dropoff.contains("배정"))
+    }
+
+    @Test
+    fun `토스트가 멀쩡한 카드 띠에 섞여도 지역은 그대로다`() {
+        val o = parser.parse(listOf("퀵", "소형", "수지", "14,168", realToast, "15.2km", "중원", "성남", "동천"))
+        assertEquals("중원 성남", o.pickup)
+        assertEquals("수지 동천", o.dropoff)
+    }
+}

@@ -180,6 +180,9 @@ object KakaoPickerKeywords {
     //  화면 판별 사전
     // ══════════════════════════════════════════════════════════════
 
+    /** 🚫 배정 완료 토스트의 글자 — 화면 판별(에러)과 파서(지역에서 뺀다)가 **이 한 곳**을 본다 (규칙 ③) */
+    const val ASSIGNED_TOAST_WORD = "이미 배정이 완료된"
+
     val PICKER = ScreenKeywords(
         // 리스트: 상단 고정 헤더 «리스트 설정»이 이 화면에만 있다 (덤프 04~10 · 0830 전부)
         listRequired = listOf("리스트 설정"),
@@ -206,8 +209,14 @@ object KakaoPickerKeywords {
         pickupKeywords = listOf(NO_SUCH_SCREEN),
         dropoffKeywords = listOf(NO_SUCH_SCREEN),
         memoKeywords = listOf(NO_SUCH_SCREEN),
-        // «이미 배정» 안내 (덤프 10 — 상세 열기 실패)
-        errorKeywords = listOf("다른 기사에게 배정"),
+        /**
+         * 🚫 **«이미 배정이 완료된 오더입니다» 토스트** — 남이 가져간 콜을 눌렀을 때 리스트 위에 뜬다 (실물 캡처 03).
+         * 🔴 **09-02 실주행에서 이 글자를 카드 출발지로 읽어 가짜 콜 3건을 서버에 올렸다**
+         *    (`log/1dal-주행로그-20260902/표/버려진콜_intel.json` id 3000·3004·3045) — 예전 글자 «다른 기사에게 배정»(2023 자료)은
+         *    실물에서 본 적이 없어 못 알아봤다. 토스트가 보이는 동안은 에러 화면으로 보고 리스트를 훑지 않는다.
+         * ⚠️ «다른 기사에게 배정»은 남겨 둔다 — 틀렸다는 증거도 없다 (규칙 ② 안전장치는 빼지 않는다). 검사: `AssignedToastTest`
+         */
+        errorKeywords = listOf(ASSIGNED_TOAST_WORD, "다른 기사에게 배정"),
         /**
          * ⏳ **비워 둔다 — 안 본 것은 안 적는다** (2026-09-02 · 기사님 실측 제보로 수리).
          *
