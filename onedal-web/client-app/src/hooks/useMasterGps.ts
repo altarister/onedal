@@ -1,3 +1,6 @@
+import { fetchHomeLeg } from './homeLegRoute';
+import { useJudgmentStore } from '../stores/judgmentStore';
+import { DEFAULT_JUDGMENT } from '@onedal/shared';
 import { GPS_STALE_MS } from '../components/dashboard/driveMotion';
 import { useEffect, useRef, useState } from 'react';
 import { publishLocation, endMockDriving } from '../lib/gpsBridge';
@@ -55,6 +58,8 @@ export function useMasterGps(
     activePolyline: PolylinePoint[] | null,
     /** 🏁 들러야 할 정거장 — 모의 주행이 도로를 벗어나 실제 좌표를 찍게 한다 (2026-08-25) */
     stops?: PolylinePoint[],
+    /** 🏠 «내 주소» — 모의 주행이 마지막 하차 뒤 여기로 떠난다 (#133). 관제웹이 이미 받은 값을 넘긴다 */
+    homeLocation?: { current: PolylinePoint | null },
 ) {
     const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number } | null>(null);
     const { lat: nativeLat, lng: nativeLng } = useLocationStore();
@@ -134,6 +139,8 @@ export function useMasterGps(
 
     const useMock = canMock && mockRunning && !realIsLive;
 
+    /** 🏠 떠남 거리 — 서버 지나침 이탈과 같은 판정 설정(`pass.awayM`) */
+    const awayM = useJudgmentStore(st => st.judgment?.pass?.awayM ?? DEFAULT_JUDGMENT.pass.awayM);
     const mockGps = useMockGpsSimulator({
         isActive: useMock,
         routePolyline: activePolyline,
@@ -141,6 +148,8 @@ export function useMasterGps(
         speedMultiplier: mockSpeed,   // 🐢🚗🚀 스토어가 정한다 (주소창 `?speed=` 는 첫값으로만)
         // 경로 끝에 닿으면 가상 위치를 걷어내고 마지막 실제 좌표로 되돌린다
         onFinished: () => { endMockDriving(); setSource('none'); useMockDriveStore.getState().stop(); },
+        /* 🏠 마지막 하차 뒤 집으로 떠난다 (#133) — 집을 모르면 경로 끝에서 멈춘다. 떠남 거리는 판정 설정 한 곳 */
+        homeLeg: homeLocation ? { home: homeLocation, awayKm: awayM / 1000, route: fetchHomeLeg } : undefined,
     });
 
     useEffect(() => {

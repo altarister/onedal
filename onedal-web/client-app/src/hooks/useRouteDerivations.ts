@@ -114,8 +114,10 @@ export function useRouteDerivations(
         return out;
     }, [liveRoute]);
 
+    /** 🏠 설정의 «내 주소» — 지도·TSP 출발점이 되고, 모의 주행이 마지막 하차 뒤 여기로 떠난다 (#133 · 서버와 같은 규칙) */
+    const homeLocation = useRef<{ x: number; y: number } | null>(null);
     // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
-    const { currentGps, gpsSource } = useMasterGps(isDriving, activePolyline || null, mockStops);
+    const { currentGps, gpsSource } = useMasterGps(isDriving, activePolyline || null, mockStops, homeLocation);
 
     // 📡 화면이 무엇을 그리고 있었나 — 바뀔 때만 남긴다 (관제앱 웹뷰 초당 5.5회 재그림)
     useEffect(() => { logStateChange("국면", filter?.dispatchPhase ?? "없음", "진행중경로"); }, [filter?.dispatchPhase]);
@@ -127,8 +129,6 @@ export function useRouteDerivations(
      * 진짜 위치(GPS)가 언제나 이긴다. 서버도 같은 값을 쓴다 (SettingsRepository.getHomeLocation).
      */
     const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>(null);
-    /** 🏠 설정의 «내 주소» — 모의 주행이 끝나면 여기로 돌아온다 (서버와 같은 규칙) */
-    const homeLocation = useRef<{ x: number; y: number } | null>(null);
     useEffect(() => {
         let alive = true;
         apiClient.get('/settings')

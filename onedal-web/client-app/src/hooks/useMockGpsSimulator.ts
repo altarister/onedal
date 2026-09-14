@@ -1,4 +1,5 @@
 /* 🧬 경로가 갈렸나 — 값으로 보는 지문 (양끝·길이로는 못 잡는다 · 2026-09-12) */
+import { homeLegNeeded } from './homeLeg';
 import { routeSignature } from './routeSignature';
 import { useEffect, useRef, useState } from 'react';
 import { simStep, initialSimState, type SimState } from './simStep';
@@ -52,6 +53,12 @@ interface MockGpsSimulatorProps {
     speedMultiplier?: number;
     /** 경로 끝에 닿았을 때. 남은 가상 위치를 걷어내라는 신호다 */
     onFinished?: () => void;
+    /**
+     * 🏠 **마지막 하차 뒤 집으로 떠나기** (#133 · 하차 완료가 찍히게) — 없으면 경로 끝에서 멈춘다.
+     *    `awayKm`: 떠남 거리(판정 설정 `pass.awayM`) · `route`: 도로 경로를 받는 함수(`homeLegRoute.fetchHomeLeg`).
+     *    🔴 받는 함수를 넘겨받는다 — 이 훅이 서버 주소(`import.meta`)를 import 하면 서버 jest 가 이 파일을 못 읽는다.
+     */
+    homeLeg?: { home: { current: PolylinePoint | null }; awayKm: number; route: (from: PolylinePoint, to: PolylinePoint) => Promise<PolylinePoint[] | null> };
 }
 
 /**
@@ -67,6 +74,7 @@ export function useMockGpsSimulator({
     stops,
     speedMultiplier = 15,
     onFinished,
+    homeLeg,
 }: MockGpsSimulatorProps) {
     /** 👣 `via` — 이번 틱에 **지나온** 폴리라인 점들. 궤적이 카카오 곡선 그대로 남는다 */
     const [mockLocation, setMockLocation] = useState<{
@@ -94,6 +102,13 @@ export function useMockGpsSimulator({
     const routeRef = useRef(routePolyline);
     /** 이 경로를 끝까지 달렸나 — **끝났으면 다시 출발하지 않는다** */
     const finishedRef = useRef(false);
+    /**
+     * 🏠 **집으로 떠나는 구간** (#133) — `done`: 이 경로 끝에서 한 번 달렸다 · `active`: 지금 그 길을 달린다.
+     *    달리는 동안에는 서버 경로가 새로 와도 갈아타지 않는다 — 갈아타면 마지막 하차지로 되돌아가 떠남이 안 찍힌다.
+     */
+    const homeLegRef = useRef({ done: false, active: false });
+    /** 집으로 가는 길을 받은 뒤 걸음을 다시 켠다 */
+    const [homeLegRun, setHomeLegRun] = useState(0);
     /** 🎭 걸음 각본 상태 — 들른 정거장·정차 연기가 여기 산다 (simStep) */
     const simRef = useRef<SimState>(initialSimState());
     /** stops 는 방문할 때마다 줄어드는 목록이라 최신 것을 본다 (클로저 굳음 방지) */
@@ -161,7 +176,10 @@ export function useMockGpsSimulator({
          *    값이 같으면 같은 지문이라 ⓑ 로 돌아가지 않고, 가운데 한 점이 달라도 잡는다.
          *    점당 곱셈 둘이라 싸고, 이 자리는 매 틱이 아니라 **경로가 올 때만** 돈다.
          */
+        /* 🏠 집으로 가는 길을 달리는 중이면 서버 경로를 안 탄다 — 경로가 비면(콜이 끝남) 걸음은 `isActive` 가 멈춘다 (#133) */
+        if (homeLegRef.current.active) return;
         if (routeSignature(routeRef.current) !== routeSignature(routePolyline)) {
+            homeLegRef.current.done = false;   // 새 경로 — 그 끝에서 다시 집으로 떠날 수 있다
             indexRef.current = nearestIndex(routePolyline, hereRef.current);
             simRef.current.idx = indexRef.current;   // 갈아탄 경로에서도 이어 달린다 (visited 는 유지)
             simRef.current.at = hereRef.current ? { ...hereRef.current } : null;
@@ -238,6 +256,27 @@ export function useMockGpsSimulator({
             if (r.finished) {
                 clearInterval(intervalRef.current!);
                 intervalRef.current = null;
+                /**
+                 * 🏠 **마지막 하차지에서 멈추지 않고 집으로 떠난다** (버그 대장 #133 · 시험 도구).
+                 *    멈추면 서버의 하차 완료(지나침 이탈)가 영영 안 찍혀 복귀 자동 꺼짐(E1)을 확인할 수 없었다.
+                 *    떠남 거리는 판정 설정(`pass.awayM`) — 그보다 집이 가까우면 떠날 수 없는 자리라 그냥 끝낸다.
+                 */
+                if (homeLeg && homeLegNeeded(hereRef.current, homeLeg.home.current, homeLeg.awayKm, homeLegRef.current.done)) {
+                    homeLegRef.current.done = true;
+                    const from = { ...hereRef.current! }, to = { ...homeLeg.home.current! };
+                    console.log(`🏠 [Mock GPS] 마지막 하차 뒤 집으로 떠난다 — 하차 완료(지나침 이탈)가 찍히게`);
+                    void homeLeg.route(from, to).then(leg => {
+                        if (!leg) { console.warn(`🏠 [Mock GPS] 집 가는 도로 경로를 못 받았다 — 여기서 끝낸다`); finishedRef.current = true; onFinished?.(); return; }
+                        homeLegRef.current.active = true;
+                        routeRef.current = leg;
+                        indexRef.current = 0;
+                        simRef.current.idx = 0;
+                        simRef.current.at = { ...from };
+                        setHomeLegRun(n => n + 1);
+                    });
+                    return;
+                }
+                homeLegRef.current.active = false;
                 finishedRef.current = true;   // 다시 켜져도 재출발하지 않는다
                 console.log(`🏁 [Mock GPS] 목적지 도달 — 시뮬레이션 종료 (반복하지 않습니다)`);
                 // 🔴 남은 가상 위치를 걷어내라고 알린다. 안 그러면 서버가 그 자리를
@@ -260,7 +299,7 @@ export function useMockGpsSimulator({
                 intervalRef.current = null;
             }
         };
-    }, [isActive, visible, speedMultiplier]);
+    }, [isActive, visible, speedMultiplier, homeLegRun]);
 
     return mockLocation;
 }
