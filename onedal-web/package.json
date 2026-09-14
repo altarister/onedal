@@ -21,7 +21,8 @@
     "route:order": "node scripts/route-order.mjs",
     "db": "node scripts/db.mjs",
     "reach": "node scripts/reach.mjs",
-    "lint:gate": "pnpm --filter client-app lint:gate"
+    "lint:gate": "pnpm --filter client-app lint:gate",
+    "log": "node scripts/log.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
