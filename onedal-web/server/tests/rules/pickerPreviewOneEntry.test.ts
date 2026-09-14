@@ -28,7 +28,8 @@ describe('픽커 상세 — 카드 찾기는 한 곳 (#119)', () => {
 
     it('🔴 알람 경로가 카드를 따로 쥐여 주지 않는다 — 그 한쪽 길 때문에 손으로 연 상세만 빠졌다', () => {
         const i = hijack.indexOf('🚪 [알람 상세]');
-        const j = hijack.indexOf('scheduleAlarmDetailBack()', i);
+        // 알람이 카드를 누르는 갈래의 끝 — 상세 대기 타이머도 이제 여기서 걸지 않는다 (#124)
+        const j = hijack.indexOf('} else if', i);
         expect(i).toBeGreaterThan(-1);
         expect(j).toBeGreaterThan(i);
         expect(hijack.slice(i, j)).not.toMatch(/lastDetailOrder\s*=/);

@@ -178,11 +178,13 @@ class HijackService : AccessibilityService(), ScanContext {
     private val alarmSignaler by lazy { AlarmSignaler(this) }
 
     /**
-     * 🚪 알람 상세 자동 진입의 복귀 타이머 — **ID 를 저장해 취소 가능하게** (좀비 타이머 규칙).
-     * 우리가 열어 준 상세에서 기사님이 30초 무응답이면 폰이 스스로 뒤로 나와
-     * 리스트 수집을 재개한다. 기사님이 손으로 연 상세는 이 타이머가 안 걸린다.
+     * ⏱️ **픽커 상세 대기 타이머** — **ID 를 저장해 취소 가능하게** (좀비 타이머 규칙).
+     * 확정 전 상세에 들어오면 **누가 열었든(알람·손) · 어느 모드든** 정해진 시간(서버 DB) 뒤 폰이 스스로 뒤로 나와
+     * 리스트 수집을 재개한다 (기사님 확정 2026-09-14 · 버그 대장 #124).
+     * 🔴 거는 곳은 상세 화면 처리 한 곳 · 끄는 곳은 `resetSessionState` 한 곳 — 예전엔 알람이 누를 때만 걸고
+     *    «상세 → 리스트»일 때만 꺼서, 중간 화면이 끼자 안 꺼진 타이머가 기사님이 손으로 연 다음 상세를 닫았다 (18:30:34).
      */
-    private var alarmDetailBackRunnable: Runnable? = null
+    private var detailBackRunnable: Runnable? = null
 
     /**
      * 🚚 마지막으로 알아본 픽커 운행 단계 — **바뀔 때만 로그를 남기려고** 들고 있다.
@@ -191,27 +193,26 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     private var lastPickerStage: com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.Stage? = null
 
-    private fun scheduleAlarmDetailBack() {
-        cancelAlarmDetailBack()
+    private fun scheduleDetailBack() {
+        if (detailBackRunnable != null) return            // 이미 걸려 있다 — 상세 글자가 바뀔 때마다 새로 걸지 않는다
         // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec · docs/지금/배차망별_대기_시간.md)
         val delayMs = com.onedal.app.core.engine.WaitTimes.pickerAlarmDetailMs(savedFilter())
         val r = Runnable {
-            alarmDetailBackRunnable = null
-            // 아직 그 상세에 있고, 여전히 알람 판(잡기 수순 없는 배차망)일 때만 나온다
+            detailBackRunnable = null
+            // 아직 확정 전 상세에 있고, 잡기 수순이 없는 배차망(픽커)일 때만 나온다 — 모드는 가리지 않는다
             if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
-                && !TargetApp.supportsCatching(currentTargetApp)
-                && telemetryManager.currentMode == "ALARM") {
-                AppLogger.i("1DAL_ALARM", "↩️ [알람 상세] ${delayMs / 1000}초 무응답 — 리스트로 자동 복귀")
+                && !TargetApp.supportsCatching(currentTargetApp)) {
+                AppLogger.i("1DAL_PICKER", "↩️ [상세 대기] ${delayMs / 1000}초 무응답 — 리스트로 자동 복귀")
                 performGlobalAction(GLOBAL_ACTION_BACK)
             }
         }
-        alarmDetailBackRunnable = r
+        detailBackRunnable = r
         mainHandler.postDelayed(r, delayMs)
     }
 
-    private fun cancelAlarmDetailBack() {
-        alarmDetailBackRunnable?.let { mainHandler.removeCallbacks(it) }
-        alarmDetailBackRunnable = null
+    private fun cancelDetailBack() {
+        detailBackRunnable?.let { mainHandler.removeCallbacks(it) }
+        detailBackRunnable = null
     }
     override lateinit var collectMachine: DetailCollectMachine
     override val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
@@ -590,10 +591,8 @@ class HijackService : AccessibilityService(), ScanContext {
 
         // 🔔 리스트를 떠났다 — 남의 화면 위에 알람 테두리를 남기지 않는다 (§6-③)
         if (detected != ScreenContext.LIST) alarmSignaler.onLeaveList()
-        // 🚪 상세에서 리스트로 **돌아왔다**(기사님이 뒤로/수락) — 자동 복귀 타이머는 일이 없어졌다.
-        //    🔴 «지금 LIST냐»가 아니라 «상세에서 돌아왔느냐»다 (직전 화면을 본다 — 2026-08-12 규칙).
-        //    클릭 직후 화면이 넘어가기 전의 LIST 이벤트(실측 23:02:12.961)가 타이머를 죽이던 자리.
-        if (detected == ScreenContext.LIST && previous == ScreenContext.DETAIL_PRE_CONFIRM) cancelAlarmDetailBack()
+        // ⏱️ 상세 대기 타이머를 여기서 끄지 않는다 (#124) — «상세 → 리스트» 한 경우만 보다가 중간 화면이 끼면 안 꺼졌다.
+        //    끄는 곳은 `resetSessionState` 한 곳이다 (콜의 끝 · #44 와 같은 자리).
 
         /**
          * ✅ **픽커에서 기사님이 「수락하기」를 누르셨나** — 화면 분류가 아니라 **직접 확인**한다
@@ -715,6 +714,8 @@ class HijackService : AccessibilityService(), ScanContext {
                     handlePreConfirmScreen(rootNode, screenTexts, rawScreenStr)
                 } else {
                     AppLogger.i("1DAL_PICKER", "📄 [상세 실물] ${screenTexts.joinToString(" | ").take(500)}")
+                    // ⏱️ 누가 열었든(알람·손) · 어느 모드든 — 상세 대기 시간 뒤 리스트로 돌아온다 (#124 · 기사님 확정)
+                    scheduleDetailBack()
                     sendPickerPreview(rawScreenStr, screenTexts)
                 }
             }
@@ -1020,7 +1021,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 AppLogger.i("1DAL_ALARM", "🚪 [알람 상세] ${order.fare}원 [$cardKind] " +
                     "(${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
                     "닻(${fareNode.rect.centerX()},${fareNode.rect.centerY()}) 머리줄 Y=$listHeaderY — " +
-                    "상세로 이동 · 수락은 기사님 · 알람 상세 대기 시간 뒤 자동 복귀")
+                    "상세로 이동 · 수락은 기사님 · 상세 대기 시간 뒤 자동 복귀")
                 /**
                  * 📎 **여기서 카드를 따로 쥐여 주지 않는다** (2026-09-14 · 버그 대장 #119).
                  * 예전엔 `lastDetailOrder = order` 로 쥐여 줬는데, 그 길이 **알람에만** 있어서 기사님이
@@ -1029,7 +1030,7 @@ class HijackService : AccessibilityService(), ScanContext {
                  * (이 카드도 방금 `recentListOrders` 에 들어갔다).
                  */
                 touchManager.performSimulatedTouch(fareNode.node)
-                scheduleAlarmDetailBack()
+                // ⏱️ 타이머는 여기서 걸지 않는다 — 상세 화면 처리 한 곳에서 누가 열었든 건다 (#124)
             } else if (!TargetApp.supportsCatching(currentTargetApp)) {
                 /**
                  * 🔴 **안 누른 것도 남긴다.** 조용히 건너뛰면 다음 조사에서 또 «왜 안 눌렀나»를
@@ -1293,6 +1294,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /** 세션 상태 전체 초기화 (리스트 복귀 시 호출) */
     override fun resetSessionState() {
+        cancelDetailBack()   // ⏱️ 콜이 끝났다 — 상세 대기 타이머도 이 한 곳에서 끈다 (#124)
         session.reset {
             cancelSafeCancelTimer()
             telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 콜 잡기 모드

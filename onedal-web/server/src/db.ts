@@ -180,7 +180,7 @@ ensureColumns('user_settings', { picker_alarm_min_fare: 'INTEGER DEFAULT 10000',
     motion_hold_sec: 'INTEGER DEFAULT 10',
     /**
      * ⏱️ **배차망별 대기 시간** (기사님 확정 2026-09-14 · `docs/지금/배차망별_대기_시간.md`).
-     * 인성·화물24시는 안전취소 시간, 픽커는 알람이 연 상세를 띄워 두는 시간 — 뜻이 달라 칸을 가른다.
+     * 인성·화물24시는 안전취소 시간, 픽커는 확정 전 상세를(누가 열었든) 띄워 두는 시간 — 뜻이 달라 칸을 가른다.
      * 인성 취소 가능 시간은 1분이고 30초는 기사님이 둔 여유다 (상한은 걸지 않는다 — 기사님 확정).
      */
     safe_cancel_sec_insung: 'INTEGER DEFAULT 30',

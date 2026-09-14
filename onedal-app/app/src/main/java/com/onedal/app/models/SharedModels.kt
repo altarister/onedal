@@ -357,7 +357,7 @@ data class FilterConfig(
     val pickerAlarmMinFare: Int = 10000,
     /**
      * ⏱️ **배차망별 대기 시간 (초)** — 원천 DB(user_settings) → 피기백 (기사님 확정 2026-09-14 · docs/지금/배차망별_대기_시간.md).
-     * 인성·화물24시는 안전취소 시간, 픽커는 알람이 연 상세를 띄워 두는 시간이다 — 읽는 곳은 `WaitTimes` 한 곳.
+     * 인성·화물24시는 안전취소 시간, 픽커는 확정 전 상세를(누가 열었든) 띄워 두는 시간이다 — 읽는 곳은 `WaitTimes` 한 곳.
      * 기본값은 서버가 죽었을 때만 쓰인다 (서버 DB 기본값과 같다).
      */
     val safeCancelSecInsung: Int = 30,

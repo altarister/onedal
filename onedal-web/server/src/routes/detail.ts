@@ -8,6 +8,7 @@ import { isTerminal, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CL
 import { parseLocationDetails, promoteDetailAddresses, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
+import { pickerDetailAddresses } from "../core/plugins/kakaopicker/pickerDetailText";
 import { getUserSession } from "../state/userSessionStore";
 import { evolveOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
@@ -64,6 +65,17 @@ router.post("/", async (req, res) => {
 
             pendingOrder.pickupDetails = parseLocationDetails(rawText, "[출발지상세]");
             pendingOrder.dropoffDetails = parseLocationDetails(rawText, "[도착지상세]");
+
+            /**
+             * 📍 **픽커 상세 — 전체 주소를 인성 팝업 «위치»와 같은 칸에 담는다** (2026-09-14 · 버그 대장 #124).
+             * 리스트 줄임 이름(«광주 초월읍»)으로는 서버의 지역 불일치 방어가 광주광역시로 보고 버렸다.
+             * 아래 `promoteDetailAddresses` 한 곳이 인성과 똑같이 콜 주소로 올린다. 못 찾은 쪽은 리스트 이름 그대로 (규칙 ④).
+             */
+            if ((payload as any).targetApp === 'kakaopicker' || (pendingOrder as any).targetApp === 'kakaopicker') {
+                const addr = pickerDetailAddresses(rawText);
+                if (addr.pickup) pendingOrder.pickupDetails = [{ addressDetail: addr.pickup }];
+                if (addr.dropoff) pendingOrder.dropoffDetails = [{ addressDetail: addr.dropoff }];
+            }
 
             /**
              * 📍 **주소 승격은 분기 «앞» 여기 한 번이다** (2026-08-30 · 버그 대장 #77).

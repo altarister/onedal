@@ -171,7 +171,7 @@ object KakaoPickerKeywords {
     }
 
     /** ⏱️ 자동 복귀가 몇 초 뒤인지는 적지 않는다 — 서버 DB 값이다 (`docs/지금/배차망별_대기_시간.md`) */
-    const val RETURNED_TO_LIST_LOG = "↩️ [승격 안 함] 상세에서 리스트로 돌아왔다 — 수락하지 않았다 (넘기기 · 뒤로 · 알람 상세 대기 시간 뒤 자동 복귀)"
+    const val RETURNED_TO_LIST_LOG = "↩️ [승격 안 함] 상세에서 리스트로 돌아왔다 — 수락하지 않았다 (넘기기 · 뒤로 · 상세 대기 시간 뒤 자동 복귀)"
 
     /** ✅ 수락한 뒤인가 — 잡은 콜로 승격해도 되는가 */
     fun isAcceptedScreen(rawText: String?): Boolean = stageOf(rawText) in ACCEPTED_STAGES

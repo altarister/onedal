@@ -200,7 +200,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
         {([
           { key: 'safeCancelSecInsung', label: '인성 안전취소 시간 (초)', hint: '인성 취소 가능 시간 1분' },
           { key: 'safeCancelSecHwamul24', label: '화물24시 안전취소 시간 (초)', hint: '화물24시 취소 가능 시간은 미확인' },
-          { key: 'pickerAlarmDetailSec', label: '픽커 알람 상세 대기 시간 (초)', hint: '알람이 연 상세를 이 시간 뒤 닫고 리스트로 돌아갑니다' },
+          { key: 'pickerAlarmDetailSec', label: '픽커 상세 대기 시간 (초)', hint: '상세를(알람이 열었든 손으로 열었든) 이 시간 뒤 닫고 리스트로 돌아갑니다' },
         ] as { key: keyof WaitTimes; label: string; hint: string }[]).map(({ key, label, hint }) => (
           <div key={key} className="space-y-1">
             <label className="text-sm font-semibold text-text-muted">{label}</label>

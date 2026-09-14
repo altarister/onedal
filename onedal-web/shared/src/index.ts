@@ -1981,7 +1981,7 @@ export const MOTION_HOLD_SEC_DEFAULT = 10;
  * 🔴 **뜻이 다른 둘이다** (규칙 ⑤-4 ⑤):
  *   · 인성·화물24시 — 잡은 뒤 위약금 없이 취소할 수 있는 시간(안전취소).
  *     인성의 취소 가능 시간은 1분이고, 30초는 기사님이 둔 안전 여유다
- *   · 픽커 — 수락하기가 곧 계약이라 안전취소가 **없다.** 알람이 연 상세를 띄워 두는 시간만 있다
+ *   · 픽커 — 수락하기가 곧 계약이라 안전취소가 **없다.** 확정 전 상세를(누가 열었든) 띄워 두는 시간만 있다
  */
 export const SAFE_CANCEL_SEC_DEFAULT = 30;
 export const PICKER_ALARM_DETAIL_SEC_DEFAULT = 60;

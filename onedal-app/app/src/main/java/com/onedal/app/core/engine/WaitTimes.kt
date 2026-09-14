@@ -12,7 +12,7 @@ import com.onedal.app.models.FilterConfig
  *
  * 🔴 **뜻이 다른 둘이다**
  *   · 인성·화물24시 — 잡은 뒤 위약금 없이 취소할 수 있는 시간 (안전취소)
- *   · 픽커 — 수락하기가 곧 계약이라 안전취소가 **없다**. 알람이 연 상세를 띄워 두는 시간만 있다
+ *   · 픽커 — 수락하기가 곧 계약이라 안전취소가 **없다**. 확정 전 상세를(누가 열었든) 띄워 두는 시간만 있다
  */
 object WaitTimes {
 
@@ -23,6 +23,6 @@ object WaitTimes {
         else -> filter.safeCancelSecInsung * 1000L
     }
 
-    /** 픽커 알람이 연 상세를 이 시간 뒤 닫고 리스트로 돌아간다 */
+    /** 픽커 상세를(누가 열었든) 이 시간 뒤 닫고 리스트로 돌아간다 */
     fun pickerAlarmDetailMs(filter: FilterConfig): Long = filter.pickerAlarmDetailSec * 1000L
 }
