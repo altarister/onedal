@@ -45,6 +45,18 @@ export function formatPickerRegion(addressDetail?: string, region?: string): { c
     return { city, dong };
 }
 
+/**
+ * 🏠 **상세의 주소 줄** — 시도 · 시(또는 구) · [구] · 동 (실물 05 «경기 성남시 분당구 서현1동» · 06 «경기 성남시 중원구 은행2동»).
+ * 도로명·번지는 안 싣는다 (실물 상세 첫 줄에 없다 — 건물 이름은 둘째 줄). 모르면 빈칸.
+ */
+export function formatPickerAddressLine(addressDetail?: string, region?: string): string {
+    const tokens = (addressDetail ?? '').split(' ').filter(Boolean);
+    if (!tokens.length) return '';
+    const head = tokens.slice(0, 2);
+    if (tokens[2]?.endsWith('구')) head.push(tokens[2]);
+    return [...head, region ?? ''].filter(Boolean).join(' ');
+}
+
 /** 물품 크기 — 실물 리스트는 «소형»이 대부분이다 (덤프 09: 7건 중 6건) */
 const ITEM_SIZE_POOL: PickerCall['itemSize'][] = ['소형', '소형', '소형', '소형', '초소형', '중형', '대형'];
 

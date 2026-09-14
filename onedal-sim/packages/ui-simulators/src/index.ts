@@ -35,7 +35,8 @@ export { Hwamul24CallDetailScreen } from './hwamul24/Hwamul24CallDetailScreen';
 export { formatHwamul24Region, formatHwamul24Vehicle, toHwamul24Call } from './hwamul24/hwamul24Call';
 
 // 카카오T픽커 — 콜 칸 · 지역 줄임 표기 (2단계 2-1) · 홈 · 리스트 · 배차 화면 (2-2)
-export { formatPickerRegion, toPickerCall } from './kakaopicker/pickerCall';
+export { formatPickerAddressLine, formatPickerRegion, toPickerCall } from './kakaopicker/pickerCall';
+export { PickerCallDetailScreen } from './kakaopicker/PickerCallDetailScreen';
 export type { PickerCall } from './kakaopicker/pickerCall';
 export { PickerHomeScreen } from './kakaopicker/PickerHomeScreen';
 export { PickerDispatchBoard, formatPickerDistance, formatPickerFare, visibleCardRange, PICKER_CARD_HEIGHT } from './kakaopicker/PickerDispatchBoard';

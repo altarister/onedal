@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { generateBaseCall } from '@altari/core-simulator';
 import type { CallDraft } from '@altari/core-simulator';
-import { formatPickerRegion, toPickerCall } from '@altari/ui-simulators';
+import { formatPickerAddressLine, formatPickerRegion, toPickerCall } from '@altari/ui-simulators';
 import type { PickerCall } from '@altari/ui-simulators';
 import { FIXED_NOW, seededRandom } from './seededRandom';
 
@@ -30,6 +30,21 @@ describe('formatPickerRegion — 실물 02 에서 뽑은 줄임 규칙 (§9-2)',
 
     it('모르면 빈칸 — 0 이나 «미정»을 넣지 않는다', () => {
         expect(formatPickerRegion(undefined, undefined)).toEqual({ city: '', dong: '' });
+    });
+});
+
+describe('formatPickerAddressLine — 상세의 주소 줄 (실물 05 · 06 «경기 성남시 분당구 서현1동»)', () => {
+    it.each([
+        ['경기 성남시 분당구 판교역로 235', '서현1동', '경기 성남시 분당구 서현1동'],
+        ['경기 광주시 경안로 12', '신현동', '경기 광주시 신현동'],
+        ['서울 강남구 테헤란로 521', '삼성2동', '서울 강남구 삼성2동'],
+        ['경기 과천시 중앙로 3', '중앙동', '경기 과천시 중앙동'],
+    ])('%s · %s → %s', (addressDetail, region, line) => {
+        expect(formatPickerAddressLine(addressDetail, region)).toBe(line);
+    });
+
+    it('모르면 빈칸', () => {
+        expect(formatPickerAddressLine(undefined, undefined)).toBe('');
     });
 });
 

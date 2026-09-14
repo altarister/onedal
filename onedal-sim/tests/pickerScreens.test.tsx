@@ -91,11 +91,10 @@ describe('픽커 배차 화면 — 홈 → 리스트 → 상세 자리', () => {
         expect(text).not.toContain('리스트 설정');
     });
 
-    it('고른 콜이 있으면 상세 자리 — 🔴 원달앱이 상세로 알아볼 글자(넘기기·수락하기)는 아직 없다 (3단계)', () => {
+    it('고른 콜이 있으면 상세 — 원달앱이 수락 전 상세로 알아볼 «넘기기» · «수락하기» (3단계 3-1 에서 자리를 바꿨다)', () => {
         const text = textOf(<PickerSimScreen {...base} selectedCall={pickerA} selectedCallId={pickerA.id} />);
-        expect(text).toContain('상세 자리');
-        expect(text).not.toContain('수락하기');
-        expect(text).not.toContain('넘기기');
+        expect(text).toContain('넘기기');
+        expect(text).toContain('수락하기');
     });
 });
 

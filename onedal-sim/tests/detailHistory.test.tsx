@@ -62,12 +62,12 @@ afterEach(() => {
 });
 
 describe('픽커', () => {
-    it('홈 → 시작하기 → 요금을 누르면 상세 자리 · 주소에 detail 이 붙는다', () => {
+    it('홈 → 시작하기 → 요금을 누르면 상세 · 주소에 detail 이 붙는다', () => {
         mount('/dispatch?net=kakaopicker');
         act(() => { buttonByText('시작하기')!.click(); });
         expect(host!.textContent).toContain('리스트 설정');
         pressFirstFare();
-        expect(host!.textContent).toContain('상세 자리');
+        expect(host!.textContent).toContain('수락하기');
         expect(new URLSearchParams(here.split('?')[1]).get('detail')).toBeTruthy();
     });
 
@@ -79,14 +79,14 @@ describe('픽커', () => {
         expect(here.startsWith('/dispatch')).toBe(true);
         expect(new URLSearchParams(here.split('?')[1]).get('detail')).toBeNull();
         expect(host!.textContent).toContain('리스트 설정');
-        expect(host!.textContent).not.toContain('상세 자리');
+        expect(host!.textContent).not.toContain('수락하기');
     });
 
-    it('상세 자리의 «리스트로» 도 방문 기록을 한 칸 되돌린다 — 뒤로 가기를 한 번 더 누르면 그때 설정 화면', () => {
+    it('상세의 «넘기기» 도 방문 기록을 한 칸 되돌린다 — 뒤로 가기를 한 번 더 누르면 그때 설정 화면', () => {
         mount('/dispatch?net=kakaopicker');
         act(() => { buttonByText('시작하기')!.click(); });
         pressFirstFare();
-        act(() => { buttonByText('리스트로')!.click(); });
+        act(() => { buttonByText('넘기기')!.click(); });
         expect(new URLSearchParams(here.split('?')[1]).get('detail')).toBeNull();
         expect(host!.textContent).toContain('리스트 설정');
         act(() => { navigateRef!(-1); });
