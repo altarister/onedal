@@ -21,17 +21,17 @@ describe('픽커 문제지 — §9-3 표 그대로', () => {
 
     it('다섯 문제 · 요금 · 정답', () => {
         expect(problems().map(p => [p.fare, p.expect])).toEqual([
-            [9900, 'BLOCK'],    // 1 요금 하한 경계 아래
-            [10000, 'PASS'],    // 2 요금 하한 경계
+            [2900, 'BLOCK'],    // 1 요금 하한 경계 아래
+            [3000, 'PASS'],     // 2 요금 하한 경계
             [15000, 'BLOCK'],   // 3 상차 반경 밖
             [15000, 'PASS'],    // 4 줄임 표기로만 맞는 도착지
             [15000, 'PASS'],    // 5 예약 콜도 울린다
         ]);
     });
 
-    it('설정 화면 목록에 있고, 요구하는 판 상태는 도착 목표 성남시 · 알람 요금 하한 10,000', () => {
+    it('설정 화면 목록에 있고, 요구하는 서버 값은 도착 목표 이천시 · 알람 요금 하한 3,000 (기사님 지금 값 · 2026-09-14)', () => {
         expect(PICKER_PRESET_BOOK.menu.map(m => m.key)).toContain(KEY);
-        expect(PICKER_PRESET_BOOK.requires[KEY]).toEqual({ destinationCity: '성남시', alarmMinFare: 10000 });
+        expect(PICKER_PRESET_BOOK.requires[KEY]).toEqual({ destinationCity: '이천시', alarmMinFare: 3000 });
     });
 
     it('🔴 주소를 전부 찾는다 — 못 찾으면 그 문제는 조용히 건너뛰어진다', () => {
@@ -47,13 +47,22 @@ describe('픽커 문제지 — §9-3 표 그대로', () => {
         });
     });
 
-    it('도착지는 전부 성남시 — 도착 축은 4번만 시험한다', () => {
-        problems().forEach(p => expect(toForcedPair(p, ctx)!.dropoff.addressDetail, p.label).toContain('성남시'));
+    it('도착지는 전부 이천시 — 도착 축은 4번만 시험한다', () => {
+        problems().forEach(p => expect(toForcedPair(p, ctx)!.dropoff.addressDetail, p.label).toContain('이천시'));
     });
 
-    it('4번 도착지는 화면에 «정자3» 으로 줄여 적힌다 — 도착 목표 «정자동» 과 줄임 표기로만 맞는다', () => {
+    it('4번 도착지는 화면에 «창전» 으로 줄여 적힌다 — 도착 목표 키워드 «창전동» 과 줄임 표기로만 맞는다', () => {
         const f = toForcedPair(problems()[3], ctx)!;
-        expect(formatPickerRegion(f.dropoff.addressDetail, f.dropoff.region).dong).toBe('정자3');
+        expect(formatPickerRegion(f.dropoff.addressDetail, f.dropoff.region)).toEqual({ city: '이천', dong: '창전' });
+        // 부분 문자열로는 안 만난다 — «이천 창전» 안에 «창전동» 이 없다
+        expect('이천 창전'.includes('창전동')).toBe(false);
+    });
+
+    it('1·2·3·5번 도착지는 «신둔면» — 면 이름은 줄지 않아 도착 키워드와 그대로 맞는다 (도착 축을 흔들지 않는다)', () => {
+        [0, 1, 2, 4].forEach(i => {
+            const f = toForcedPair(problems()[i], ctx)!;
+            expect(formatPickerRegion(f.dropoff.addressDetail, f.dropoff.region).dong, problems()[i].label).toBe('신둔면');
+        });
     });
 });
 
