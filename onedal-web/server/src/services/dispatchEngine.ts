@@ -8,7 +8,7 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyO
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
-import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf } from "../state/filterManager";
+import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, goalOfCall } from "../state/filterManager";
 import { getActivePolyline, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -469,6 +469,14 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
 
         if (!isAlreadyIncluded) {
             logRoadmapEvent("서버", "해당 콜을 '내 퀵(myOrders)' 배열에 추가 및 병합 궤적 생성 연산");
+            /**
+             * 🎯 **판 — 이 콜이 통과한 목적지** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
+             *    복귀 대기면 목적지·집 중 하나이고 둘 다면 집이다. «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다.
+             *    🔴 넣기 **전에** 잰다 — 지금 살아 있는 목적지로. 승격본·캐시본 둘 다 적는다 (화면·장부가 갈리지 않게)
+             */
+            confirmedOrder.goalCity = goalOfCall(session, userId, confirmedOrder) ?? undefined;
+            (cachedOrder as any).goalCity = confirmedOrder.goalCity;
+            if (confirmedOrder.goalCity) console.log(`🎯 [판] ${orderId.slice(0, 8)} → ${confirmedOrder.goalCity}`);
             session.myOrders.push(confirmedOrder);
             
             try {

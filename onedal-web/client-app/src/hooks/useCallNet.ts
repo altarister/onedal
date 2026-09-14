@@ -87,20 +87,31 @@ export interface CallNetInput {
      *    서버 `netKeywordsOf` 가 `session.departedAt` 으로 같은 갈림을 한다 — 관제웹은 국면(`DELIVERING`)으로 안다.
      */
     departed?: boolean;
+    /**
+     * 🏠 **살아 있는 목적지 전부** — 서버 파생값 그대로 (`goalCities` · 전수표 #15 #71 #75).
+     *    복귀 대기면 [목적지, 집] — 목적지마다 그물을 만들어 합친다. 안 주면 `destinationCity` 하나.
+     */
+    goalCities?: readonly string[];
 }
 
 export interface CallNet {
     net: NetResult;
     /** 라인으로 만든 그물인가 — 그리는 쪽이 제 조건으로 다시 판단하지 않게 함께 낸다 (규칙 ③) */
     usedLine: boolean;
-    /** 🎯 목적지 — 지도가 마커로 찍는다 */
+    /** 🎯 목적지 — 지도가 마커로 찍는다 (첫 목적지) */
     goal: NetPoint;
+    /** 🏠 살아 있는 목적지 전부 — 마커를 목적지마다 찍는다 */
+    goals: NetPoint[];
+    /** 목적지마다 마름모 — 한 겹으로 칠한다 */
+    tris: Array<Array<[number, number]>>;
 }
 
 export function useCallNet(i: CallNetInput): CallNet | null {
-    const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape, localMode, serverKeywords, departed } = i;
+    const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape, localMode, serverKeywords, departed, goalCities } = i;
     /** 🔴 배열을 문자로 굳혀 의존성으로 삼는다 — 매 렌더 새 배열이면 그물을 매번 다시 만든다 */
     const serverKey = serverKeywords?.length ? JSON.stringify([...serverKeywords].sort()) : '';
+    /** 🔴 목적지 목록도 문자로 굳힌다 — 순서가 뜻이다(첫째가 목적지 · 관내는 거기만) */
+    const goalKey = goalCities?.length ? JSON.stringify([...goalCities]) : '';
     /** 🛣️ 안 주면 «노선» — 목업 기본값과 같다 (기사님 확정 2026-09-09) */
     const routeMode = i.routeMode ?? true;
     /**
@@ -142,8 +153,12 @@ export function useCallNet(i: CallNetInput): CallNet | null {
 
     return useMemo(() => {
         if (!destinationCity || !myLocation) return null;
-        const goal = cityCenter(destinationCity);
-        if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return null;   // 모르는 도시 — 지어내지 않는다
+        /* 🏠 살아 있는 목적지마다 그물 하나 — 복귀 대기면 목적지 ∪ 집 (서버 `goalCitiesOf` 가 정해 내려준다) */
+        const cities = goalKey ? JSON.parse(goalKey) as string[] : [destinationCity];
+        const goals: NetPoint[] = cities.map(c => ({ ...cityCenter(c), name: c }))
+            .filter(g => Number.isFinite(g.lng) && Number.isFinite(g.lat));
+        if (goals.length === 0) return null;   // 모르는 도시 — 지어내지 않는다
+        const goal = goals[0];
 
         const line: Array<[number, number]> | null = (polyline?.length ?? 0) >= 2
             ? polyline!.map(p => [p.x, p.y] as [number, number]) : null;
@@ -152,7 +167,7 @@ export function useCallNet(i: CallNetInput): CallNet | null {
             ? { name: '마지막 하차지', lng: line[line.length - 1][0], lat: line[line.length - 1][1] }
             : null;
 
-        const net = netForGoal(goal, {
+        const nets = goals.map((g, gi) => netForGoal(g, {
             line,
             lineRadiusKm: lineRadiusKm ?? 6,
             lastDrop,
@@ -166,8 +181,12 @@ export function useCallNet(i: CallNetInput): CallNet | null {
             anchor: { name: '내 위치', lng: myLocation.x, lat: myLocation.y },
             /* 🧩 내 영역은 출발 전에만 · 🏘️ 관내는 목적지 원 안만 — 서버 `netKeywordsOf` 와 같은 두 값 */
             me: departed ? null : { name: '내 위치', lng: myLocation.x, lat: myLocation.y },
-            local: !!localMode,
-        });
+            /* 🏘️ 관내는 첫 목적지(기사님이 정한 목적지)에만 — 집 그물은 관내로 안 잰다 (목업 `isLocal`) */
+            local: !!localMode && gi === 0,
+        }));
+        const net = nets[0];
+        /* 원은 목적지마다 · 내 영역 원은 한 번만 */
+        const circles = nets.flatMap(n => n.circles).filter((c, ci, all) => all.findIndex(x => x.name === c.name) === ci);
         const usedLine = !!line && !localMode;
         /**
          * 🔴 **합치는 규칙은 `mergeGoalNets` 한 곳이다** — 겹침·지나온 곳·통째 제외를 거기서 본다.
@@ -176,20 +195,20 @@ export function useCallNet(i: CallNetInput): CallNet | null {
          *    그 칸을 그날 오후에 팠는데도. **서버는 빼고 지도는 안 빼는** 상태였다.
          * ⚠️ 진행도 트림(`myProgressKm`)은 아직 안 건다 — 달리며 지나온 동을 빼는 것은 다음 판이다.
          */
-        const merged = mergeGoalNets([net], {
+        const merged = mergeGoalNets(nets, {
             departed: false, myProgressKm: 0,   // 🔴 지나온 동은 서버가 뺀다 — 아래에서 서버 목록과 겹친다
             excluded: JSON.parse(excludedKey) as string[],
         });
-        if (!serverKey) return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine, goal };
+        if (!serverKey) return { net: { ...net, circles, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine, goal, goals, tris: nets.map(n => n.tri) };
         const onServer = new Set(JSON.parse(serverKey) as string[]);
         const pass = merged.pass.filter(p => onServer.has(p.name));
         const byRegion = new Map<string, string[]>();
         for (const p of pass) byRegion.set(p.region, [...(byRegion.get(p.region) ?? []), p.name]);
         const groups = [...byRegion.entries()].map(([region, names]) => ({ region, names }))
             .sort((a, b) => b.names.length - a.names.length);
-        return { net: { ...net, pass, groups, count: pass.length }, usedLine, goal };
+        return { net: { ...net, circles, pass, groups, count: pass.length }, usedLine, goal, goals, tris: nets.map(n => n.tri) };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- polyline 은 lineKey 로 굳혀 본다 (위 주석)
         // eslint-disable-next-line react-hooks/exhaustive-deps -- 내 위치는 격자(gridX·gridY)로 굳혀 본다 (위 주석)
     }, [destinationCity, gridX, gridY, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, lineKey,
-        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey, routeMode, localMode, serverKey, departed]);
+        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey, routeMode, localMode, serverKey, departed, goalKey]);
 }

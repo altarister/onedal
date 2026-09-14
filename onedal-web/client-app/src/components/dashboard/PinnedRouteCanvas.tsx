@@ -169,6 +169,10 @@ interface Props {
         lineRadiusKm: number;
         /** 🎯 목적지 — 마름모의 끝 꼭짓점이자 지도 마커 */
         goal: { name: string; lng: number; lat: number };
+        /** 🏠 살아 있는 목적지 전부 — 복귀 대기면 둘 (전수표 #71 #75). 없으면 `goal` 하나 */
+        goals?: Array<{ name: string; lng: number; lat: number }>;
+        /** 목적지마다 마름모 — 없으면 `tri` 하나 */
+        tris?: Array<Array<[number, number]>>;
         /** 🚗 이동 중 지나온 라인 km — 띠를 여기부터 긋는다 (전수표 #60). 0 이면 통째로 */
         trimKm?: number;
     } | null;
@@ -488,11 +492,13 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             // ── 면 (마름모 + 꼭짓점 원) — 한 path 에 모아 **한 번만** 칠한다
             ctx.globalAlpha = 0.22;
             ctx.beginPath();
-            netOverlay.tri.forEach(([x, y], i) => {
-                const { cx, cy } = getScreenPt({ x, y });
-                if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-            });
-            if (netOverlay.tri.length) ctx.closePath();
+            for (const tri of netOverlay.tris ?? [netOverlay.tri]) {
+                tri.forEach(([x, y], i) => {
+                    const { cx, cy } = getScreenPt({ x, y });
+                    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+                });
+                if (tri.length) ctx.closePath();
+            }
             for (const c of netOverlay.circles) {
                 c.ring.forEach(([x, y], i) => {
                     const { cx, cy } = getScreenPt({ x, y });
@@ -526,7 +532,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             // ── 테두리 — 목적지 원은 실선, 내 위치 원은 점선 (기점이 어느 쪽인지 눈으로 갈린다)
             ctx.lineWidth = 2; ctx.strokeStyle = NET_EDGE;
             for (const c of netOverlay.circles) {
-                ctx.setLineDash(c.name === netOverlay.goal.name ? [] : [6, 5]);
+                ctx.setLineDash((netOverlay.goals ?? [netOverlay.goal]).some(g => g.name === c.name) ? [] : [6, 5]);
                 ctx.beginPath();
                 c.ring.forEach(([x, y], i) => {
                     const { cx, cy } = getScreenPt({ x, y });
@@ -545,10 +551,13 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             }
 
             // ── 🎯 목적지 — 실물 지도에 없던 마커다 (자리표 B-2)
-            const g = getScreenPt({ x: netOverlay.goal.lng, y: netOverlay.goal.lat });
-            ctx.fillStyle = mapColors.nodeEvaluating;
-            ctx.beginPath(); ctx.arc(g.cx, g.cy, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.5; ctx.stroke();
+            /* 🏠 복귀 대기면 목적지가 둘 — 목적지마다 찍는다 (전수표 #75) */
+            for (const goalPt of netOverlay.goals ?? [netOverlay.goal]) {
+                const g = getScreenPt({ x: goalPt.lng, y: goalPt.lat });
+                ctx.fillStyle = mapColors.nodeEvaluating;
+                ctx.beginPath(); ctx.arc(g.cx, g.cy, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.5; ctx.stroke();
+            }
             ctx.restore();
         }
 

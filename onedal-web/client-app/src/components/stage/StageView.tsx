@@ -168,6 +168,8 @@ export default function StageView(props: Props) {
         routeHolder: derived.drawHolder,
         /* 🧾 동 점은 서버가 앱에 내린 목록과 겹치는 것만 — 지나온 동이 판정과 같게 빠진다 (전수표 #19) */
         serverKeywords: filter?.destinationKeywords,
+        /* 🏠 복귀 대기면 목적지가 둘 — 서버가 정한 목록 그대로 (전수표 #15) */
+        goalCities: filter?.goalCities,
     });
 
 
@@ -584,7 +586,7 @@ export default function StageView(props: Props) {
                     callColors={derived.callColors}
                     netOverlay={callNet && {
                         tri: callNet.net.tri, pass: callNet.net.pass, circles: callNet.net.circles,
-                        usedLine: callNet.usedLine, lineRadiusKm: radii.detourRadiusKm /* 줄인 값 — 그린 띠와 실제 그물 폭이 같아야 한다 (조사 ①-5) */, goal: callNet.goal,
+                        usedLine: callNet.usedLine, lineRadiusKm: radii.detourRadiusKm /* 줄인 값 — 그린 띠와 실제 그물 폭이 같아야 한다 (조사 ①-5) */, goal: callNet.goal, goals: callNet.goals, tris: callNet.tris,
                         /* 🚗 이동 중이면 띠를 내 진행도 뒤부터 안 긋는다 — 목업 `MapMockup.tsx:2575` (전수표 #60) */
                         trimKm: filter?.dispatchPhase === 'DELIVERING' && myLocation && (derived.drawHolder?.routePolyline?.length ?? 0) >= 2
                             ? progressAlongKm({ lng: myLocation.x, lat: myLocation.y }, derived.drawHolder!.routePolyline!.map(p => [p.x, p.y] as [number, number]))

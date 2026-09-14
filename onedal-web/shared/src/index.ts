@@ -546,6 +546,12 @@ export interface PendingOrder extends OfficeOrder {
     status: OrderStatus;                  // ORDER_PRE_SECURED | ORDER_SECURED_EVALUATING | ORDER_AWAITING_DECISION
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
+    /**
+     * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
+     *    확정 순간 서버가 적는다(`filterManager.goalOfCall`) — 복귀 대기면 목적지·집 중 하나, 둘 다면 집.
+     *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
+     */
+    goalCity?: string;
     /** 👀 미리보기 콜 — 확정 전이라 취소 카운트에 안 들어간다 (용어집 §9 · `DispatchBasicRequest.isPreview`) */
     isPreview?: boolean;
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
@@ -619,6 +625,12 @@ export interface MyOrder extends OfficeOrder {
     status: MyOrderStatus;            // ORDER_CONFIRMED | ORDER_PICKED_UP | ORDER_DELIVERED
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
+    /**
+     * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
+     *    확정 순간 서버가 적는다(`filterManager.goalOfCall`) — 복귀 대기면 목적지·집 중 하나, 둘 다면 집.
+     *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
+     */
+    goalCity?: string;
     /** 🏁 하차한 시각 (장부 `orders.completedAt`) — 화면의 사이클 경계가 본다 (#40) */
     completedAt?: string | null;
     /**
@@ -681,6 +693,12 @@ export interface SecuredOrder extends OfficeOrder {
     status: OrderStatus;                  // 단일 통합 라이프사이클 상태
     capturedDeviceId: string;
     capturedAt: string;
+    /**
+     * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
+     *    확정 순간 서버가 적는다(`filterManager.goalOfCall`) — 복귀 대기면 목적지·집 중 하나, 둘 다면 집.
+     *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
+     */
+    goalCity?: string;
     /**
      * 🏁 **하차한 시각** (장부 `orders.completedAt`). 없으면 아직 안 내렸거나 옛 행이다.
      * 화면의 사이클 경계가 이걸 본다 (`deckOfCycle` — 버그 대장 #40).
@@ -859,6 +877,12 @@ export interface AutoDispatchFilter {
      * 앱에는 이 값이 `destinationCity` 자리에 실려 간다 (앱은 «어디로 가나» 하나만 안다).
      */
     goalCity?: string;
+    /**
+     * 🏠 **살아 있는 목적지 전부** — 서버가 파생 · 읽기 전용 · DB 저장 안 함 (전수표 #6 · `callNet.activeGoals`).
+     *    복귀 끔: [목적지] · 복귀 켬·복귀콜 없음: [목적지, 집] · 복귀콜 잡음: [집]. 지도가 목적지마다 그물을 그린다.
+     *    🔴 앱에 안 내려간다 — 앱은 합친 동 목록(`destinationKeywords`)만 본다.
+     */
+    goalCities?: string[];
 
     // ── 단가 판정 모델 (2026-08-13 확정 · docs/지금/필터.md) ──
     // 셋 다 optional: 구버전 앱은 이 키들을 파싱하지 않으므로 무시된다 (호환).

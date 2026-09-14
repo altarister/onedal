@@ -99,6 +99,12 @@ interface Props {
 
 export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion, callNoOf, openIdx, onOpenIdx, fit, hiddenIds }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
+    /**
+     * 🎯 **판이 둘 이상 섞였을 때만 하차지 옆에 판을 붙인다** (전수표 #70 · 목업 콜 카드 «🎯 목적지»).
+     *    복귀 대기에서 목적지 콜과 복귀콜이 섞이면 «어느 콜이 집으로 가는 콜인가»가 보여야 한다.
+     *    판이 하나뿐이면 모든 줄이 같은 글자라 좁은 격자만 먹는다.
+     */
+    const showBoard = new Set(orders.map(x => x.goalCity).filter(Boolean)).size > 1;
 
     /**
      * 보고 있는 카드를 **인덱스가 아니라 orderId 로** 기억한다.
@@ -390,6 +396,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                                     <span className={`truncate px-1 py-0.5 ${gone ? 'text-text-muted' : 'text-text-primary'}`}
                                         style={{ background: box }}>
                                         {getAddressLabel(stop === 'pickup' ? o.pickup : o.dropoff)}
+                                        {stop === 'dropoff' && showBoard && o.goalCity && <span className="ml-1 text-[9.5px] font-bold text-info">🎯{o.goalCity}</span>}
                                     </span>
                                     {/* ☎️ 통화로 정한 약속은 **보라** — 글자를 더하면 격자가 깨진다 (폭 0인 신호) */}
                                     <span className="text-right px-1 py-0.5"

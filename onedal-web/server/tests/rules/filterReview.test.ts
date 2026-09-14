@@ -275,12 +275,14 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         const i = fm.indexOf('needsGeoRecalc) {');
         expect(i).toBeGreaterThan(-1);
         expect(fm.slice(i, i + 400)).toMatch(/goalCityOf\(/);
-        /* 합짐 갱신 */
-        /* ⚠️ `const kept =` 첫 등장은 netKeywordsOf 안의 다른 줄 — 합짐 갱신의 «goal» 줄을 집는다 */
-        const j = fm.indexOf('const goal = goalCityOf(session, userId);');
+        /* 합짐 갱신 — 🔄 2026-09-14 목적지가 둘일 수 있다(복귀 대기 · 전수표 3단계). 목적지 목록도 파생 한 곳(`goalCitiesOf`)이다 */
+        const j = fm.indexOf('function netOfGoals');
         expect(j).toBeGreaterThan(-1);
-        expect(fm.slice(j, j + 300)).toMatch(/netKeywordsOf\(session, userId, goal/);
-        expect(fm.slice(j, j + 300)).not.toMatch(/activeFilter\.destinationCity/);
+        const goalsBody = fm.slice(j, j + 900);
+        expect(goalsBody).toMatch(/const goals = goalCitiesOf\(session, userId\)/);
+        expect(goalsBody).toMatch(/netKeywordsOf\(session, userId, goal,/);
+        const g = fm.indexOf('export function goalCitiesOf(');
+        expect(fm.slice(g, fm.indexOf('\n}', g))).toMatch(/'HOME'/);
         /* 경유 ∪ 목적지 조립 */
         const k = fm.indexOf('const merged = unionRegions(');
         expect(fm.slice(k, k + 200)).toMatch(/goalCityOf\(/);
@@ -301,7 +303,8 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         /* 빈 차 목록도 파생 목적지를 본다 — 🔄 2026-09-14 부팅·0건·KEEP 이 모두 netFilterOf 한 곳을 지난다 */
         const j = fm.indexOf('function netFilterOf');
         expect(j).toBeGreaterThan(-1);
-        expect(fm.slice(j, j + 400)).toMatch(/goalCityOf\(/);
+        /* 🔄 2026-09-14 — 목적지 목록(`goalCitiesOf` · 복귀 대기면 둘)을 `netOfGoals` 가 돈다 */
+        expect(fm.slice(j, j + 400)).toMatch(/netOfGoals\(/);
     });
 
     it('🔴 앱·지도·요약줄이 «그물의 목적지»를 본다', () => {

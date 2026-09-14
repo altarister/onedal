@@ -19,7 +19,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
-         EVALUATING_STATUSES, isLocalPhase } from "@onedal/shared";
+         EVALUATING_STATUSES, isLocalPhase, activeGoals, deckOfCycle } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -68,6 +68,36 @@ export function goalCityOf(session: ReturnType<typeof getUserSession>, userId: s
     return homeCityOf(userId) ?? mine;
 }
 
+/** 🎯 콜의 판 — 적힌 값. 비었으면(서버가 다시 켜져 메모리가 비었다) 하차지의 시로 대신한다 */
+function boardOf(o: { goalCity?: string; dropoffX?: number; dropoffY?: number }): string | undefined {
+    if (o.goalCity) return o.goalCity;
+    return o.dropoffX != null && o.dropoffY != null ? nearestDong({ lng: o.dropoffX, lat: o.dropoffY }).region : undefined;
+}
+
+/**
+ * 🏠 **살아 있는 목적지 전부** (전수표 #4 #5 #6 · 기사님 확정 2026-09-09 · 규칙은 `callNet.activeGoals` 한 곳).
+ *
+ * ```
+ * 복귀 끔                  [목적지]
+ * 복귀 켬 · 복귀콜 없음    [목적지, 집]   그동안 관내콜을 진행한다
+ * 복귀 켬 · 복귀콜 잡음    [집]           목적지 콜은 뜨면 안 된다
+ * ```
+ *
+ * 🔴 실물은 복귀를 켜는 순간 목적지가 집 하나였다(`goalCityOf`) — 복귀 대기 동안 목적지 콜이 안 떴다.
+ * «복귀콜을 잡았나» = **이번 운행**(`deckOfCycle` — 하차를 마친 같은 운행 콜도 센다)에 판이 집인 콜이 있나.
+ *    취소·방출한 콜은 안 센다 — 목업처럼 복귀콜을 취소하면 복귀 대기로 돌아간다.
+ *    ⚠️ `myOrders` 에는 하차한 콜이 영업일 끝까지 남는다 — 그대로 세면 아침 복귀콜이 저녁 복귀를 «잡음»으로 만든다.
+ */
+export function goalCitiesOf(session: ReturnType<typeof getUserSession>, userId: string): string[] {
+    const dest = session.activeFilter.destinationCity ?? '';
+    if (session.activeFilter.callTarget !== 'HOME') return dest ? [dest] : [];
+    const home = homeCityOf(userId);
+    if (!home) return dest ? [dest] : [];
+    const cancelled: readonly string[] = ['SAFE_CANCEL', 'ORDER_RELEASED_BY_ME', 'ORDER_RELEASED_BY_OFFICE'];
+    const homeCaught = deckOfCycle(session.myOrders).some(o => !cancelled.includes(o.status) && boardOf(o) === home);
+    return [...new Set(activeGoals(dest, home, { homeOn: true, homeCaught }).filter(Boolean))];
+}
+
 /**
  * 🕸️ **그물이 만든 하차지 목록** — 서버도 실험실과 **같은 계산**을 쓴다
  *    (이식 C1-2 · 기사님 확정 2026-09-11 «실험실 것으로 통일» · 명세 §5).
@@ -96,7 +126,9 @@ function netKeywordsOf(
     city: string,
     radiusKm: number,
     line: Array<[number, number]> | null,
-): { flat: string[]; grouped: Record<string, string[]>; byNet: boolean; pruned: number; progressKm: Record<string, number> } {
+    /** 🏘️ 관내로 잴 수 있나 — 기사님이 정한 목적지 그물에만 (집 그물은 관내로 안 잰다 · 목업 `isLocal`) */
+    allowLocal = true,
+): { flat: string[]; grouped: Record<string, string[]>; byNet: boolean; pruned: number; progressKm: Record<string, number>; localMode: boolean } {
     const excluded = session.activeFilter.excludedRegions ?? [];
     /** 🚫 제외로 **몇 개가 빠졌나** — 로그가 «왜 줄었는지»를 말할 수 있어야 한다 */
     const prune = (grouped: Record<string, string[]>, byNet: boolean) => {
@@ -105,7 +137,7 @@ function netKeywordsOf(
         return { ...kept, byNet, pruned: before - kept.flat.length };
     };
     /* 🔴 물러선 목록에는 라인이 없다 — 진행도도 없다 (지어내지 않는다 · 규칙 ④) */
-    const fallback = () => ({ ...prune(getCityRegionsWithRadius(city, radiusKm).grouped, false), progressKm: {} as Record<string, number> });
+    const fallback = () => ({ ...prune(getCityRegionsWithRadius(city, radiusKm).grouped, false), progressKm: {} as Record<string, number>, localMode: false });
     const goal = cityCenter(city);
     if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return fallback();
 
@@ -163,7 +195,7 @@ function netKeywordsOf(
      * ⚠️ 집 좌표가 없으면 «모른다» — 관내가 아니라고 본다 (없는 값을 지어내지 않는다 · 규칙 ④).
      */
     const home = SettingsRepository.getHomeLocation(userId);
-    const localMode = !!(me && home && isLocalPhase(
+    const localMode = allowLocal && !!(me && home && isLocalPhase(
         params, { lng: home.x, lat: home.y }, goal, { lng: me.x, lat: me.y }));
 
     const lastDrop = line && line.length >= 2
@@ -183,8 +215,7 @@ function netKeywordsOf(
         /* 🏘️ 관내는 **목적지 원 안만** (전수표 #29) — 방향도 경로도 안 본다 */
         local: localMode,
     });
-    /* 🩺 화면이 «지금 관내로 재고 있다»를 알아야 한다 — 판정이 달라진 이유다 (규칙 ⑤-4 ④) */
-    session.activeFilter.localMode = localMode;
+    /* 🩺 관내인지는 돌려준다 — 목적지가 둘이면 합쳐서 세션에 적는다 (`netOfGoals`) */
     /**
      * 📏 **자동이 지금 얼마로 줄였나** — 화면이 손잡이에 그 값을 적을 수 있게 (이식 C4-12).
      *    🔴 기사님이 정한 원값(`pickupRadiusKm` 등)은 **안 건드린다** (규칙 ④) —
@@ -232,7 +263,23 @@ function netKeywordsOf(
         if (inNet.has(name) || progressKm[name] !== undefined || !Number.isFinite(km)) continue;
         progressKm[name] = km;
     }
-    return { ...prune(grouped, true), progressKm };
+    return { ...prune(grouped, true), progressKm, localMode };
+}
+
+/**
+ * 🎯 **이 콜의 판 — 통과한 목적지** (전수표 #30 · 목업 `judgeGoals` 의 `preferName`: 집).
+ *    목적지가 하나면 그것. 복귀 대기(둘)면 하차지가 **집 그물** 안이면 집, 아니면 목적지.
+ *    ⚠️ 하차 좌표를 모르면 목적지로 둔다 — 모르는 값으로 «복귀콜을 잡았다»고 하지 않는다 (규칙 ⑤-2 · 복귀 대기가 더 넓다).
+ */
+export function goalOfCall(session: ReturnType<typeof getUserSession>, userId: string, order: { dropoffX?: number; dropoffY?: number }): string | null {
+    const goals = goalCitiesOf(session, userId);
+    if (goals.length <= 1) return goals[0] ?? null;
+    const home = homeCityOf(userId);
+    if (!home || !goals.includes(home) || order.dropoffX == null || order.dropoffY == null) return goals[0];
+    const line = filterLineOf(session);
+    const homeNet = netKeywordsOf(session, userId, home, session.activeFilter.destinationRadiusKm || 0,
+        line ? line.map(p => [p.x, p.y] as [number, number]) : null, false);
+    return homeNet.flat.includes(nearestDong({ lng: order.dropoffX, lat: order.dropoffY }).name) ? home : goals[0];
 }
 
 /**
@@ -307,6 +354,8 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
 function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, changes: Partial<AutoDispatchFilter>, userId: string) {
     /* 🎯 화면·앱이 «지금 그물이 어디를 보나»를 알게 — 파생 · 읽기 전용 (조사 ①-1) */
     session.activeFilter.goalCity = goalCityOf(session, userId) || undefined;
+    /* 🏠 살아 있는 목적지 전부 — 지도가 목적지마다 그물을 그린다 (전수표 #6) */
+    session.activeFilter.goalCities = goalCitiesOf(session, userId);
     /**
      * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/지금/필터.md §4).
      *
@@ -399,8 +448,9 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
          * 🕸️ **그물이 목록을 만든다** (이식 C1-2) — 화면이 그리는 그 계산이다.
          *    제외 지역은 `netKeywordsOf` 안에서 `pruneExcludedRegions` 한 곳이 뺀다 (규칙 ③).
          */
-        const { flat, grouped, byNet, pruned } = netKeywordsOf(session, userId, city, radius, null);
-        const customCityFilters = getCityRegionsWithRadius(city, radius).customCityFilters;
+        /* 🏠 살아 있는 목적지마다 — 복귀 대기면 목적지 ∪ 집 (전수표 #15) */
+        const { flat, grouped, byNet, pruned, goals } = netOfGoals(session, userId, null);
+        const customCityFilters = [...new Set(goals.flatMap(g => getCityRegionsWithRadius(g, radius).customCityFilters))];
         console.log(`🕸️ [FilterManager] ${byNet ? '그물' : '도시 둘레(물러섬)'} → 지역 ${flat.length}개`
             + (pruned > 0 ? ` (제외로 ${pruned}개 뺌)` : ''));
         session.activeFilter.destinationKeywords = flat;
@@ -744,15 +794,44 @@ function progressOf(progressKm: Record<string, number>) {
  * 목적지를 모르면 `null`.
  */
 function netFilterOf(session: ReturnType<typeof getUserSession>, userId: string) {
-    const goal = goalCityOf(session, userId);   // 🎯 파생 목적지 (복귀면 집 시)
-    if (!goal) return null;
     const line = filterLineOf(session);
-    const kept = netKeywordsOf(session, userId, goal, session.activeFilter.destinationRadiusKm || 0,
-        line ? line.map(p => [p.x, p.y] as [number, number]) : null);
+    const kept = netOfGoals(session, userId, line ? line.map(p => [p.x, p.y] as [number, number]) : null);
+    if (!kept.goals.length) return null;
     /* 🔴 별칭은 목록에 든 시 전부에서 — 목적지 시 하나만 실으면 앱의 «시 + 동» 2단계가 경로 위 다른 시를 막는다 */
     const aliases = new Set<string>();
     for (const parent of Object.keys(kept.grouped)) for (const a of cityAliases(parent)) aliases.add(a);
     return { ...kept, aliases: [...aliases], line };
+}
+
+/**
+ * 🏠 **살아 있는 목적지마다 그물을 만들어 합친다** (전수표 3단계 #15 · 목업 `goalNets` → `mergeGoalNets`).
+ *    겹치는 동은 한 번. 진행도는 **어느 그물에서든 진행도 없이 들었으면 없앤다** — 목적지·마름모로 든 동은
+ *    «아직 안 간 곳»이라 지나온 곳 빼기에 먹히면 안 된다 (`callNet.lineZoneOf` 의 `onlyByLine` 과 같은 뜻).
+ *    관내는 기사님이 정한 목적지 그물에만 잰다 (목업 `isLocal`).
+ */
+function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, line: Array<[number, number]> | null) {
+    const goals = goalCitiesOf(session, userId);
+    const grouped: Record<string, string[]> = {};
+    const progressKm: Record<string, number> = {};
+    const unvisited = new Set<string>();
+    let byNet = goals.length > 0, pruned = 0, localMode = false;
+    for (const goal of goals) {
+        const kept = netKeywordsOf(session, userId, goal, session.activeFilter.destinationRadiusKm || 0, line,
+            goal === session.activeFilter.destinationCity);
+        for (const [region, names] of Object.entries(kept.grouped)) grouped[region] = [...new Set([...(grouped[region] ?? []), ...names])].sort();
+        for (const name of kept.flat) {
+            const km = kept.progressKm[name];
+            if (km === undefined) unvisited.add(name);
+            else if (progressKm[name] === undefined || km > progressKm[name]) progressKm[name] = km;
+        }
+        byNet = byNet && kept.byNet;
+        pruned += kept.pruned;
+        localMode = localMode || kept.localMode;
+    }
+    for (const name of unvisited) delete progressKm[name];
+    /* 🩺 화면이 «지금 관내로 재고 있다»를 알아야 한다 — 판정이 달라진 이유다 (규칙 ⑤-4 ④) */
+    session.activeFilter.localMode = localMode;
+    return { flat: [...new Set(Object.values(grouped).flat())].sort(), grouped, byNet, pruned, progressKm, goals };
 }
 
 /**
@@ -782,7 +861,7 @@ export function rebuildNetFilter(userId: string, io: any): void {
         destinationGroups: kept.grouped,
         customCityFilters: kept.aliases,
     }, io);
-    console.log(`🕸️ [필터 목록] ${kept.line ? '라인(얼린 경로)' : '경로 없음'} · `
+    console.log(`🕸️ [필터 목록] 목적지 ${kept.goals.join(' ∪ ')} · ${kept.line ? '라인(얼린 경로)' : '경로 없음'} · `
         + `${kept.byNet ? '그물' : '도시 둘레(물러섬)'} → ${kept.flat.length}개`
         + (kept.pruned > 0 ? ` (제외로 ${kept.pruned}개 뺌)` : ''));
 }

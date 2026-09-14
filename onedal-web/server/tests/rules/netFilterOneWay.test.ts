@@ -186,3 +186,46 @@ describe('🚀 출발 — 주행 감지로 켠다', () => {
         expect(stage).toMatch(/drive !== 'drive'[\s\S]{0,160}GATHERING[\s\S]{0,200}updateFilter\(\{ driverAction: 'DRIVING' \}\)/);
     });
 });
+
+/**
+ * 🏠 **복귀 대기 — 목적지가 둘이다** (전수표 3단계 · #4 #5 #6 #15 #30 #70 #71 #75 · 기사님 확정 2026-09-09).
+ *
+ *   | 상태 | 살아 있는 목적지 |
+ *   |---|---|
+ *   | 복귀 끔 | 목적지 |
+ *   | 복귀 켬 · 복귀콜 없음 | **목적지 ∪ 집** — 그동안 관내콜을 진행한다 |
+ *   | 복귀 켬 · 복귀콜 잡음 | 집 하나 — 목적지 콜은 뜨면 안 된다 |
+ *
+ * 실물은 복귀를 켜는 순간 목적지가 집 하나로 바뀌었다(`goalCityOf`) — 복귀 대기 동안 목적지 콜이 안 떴다.
+ * 규칙은 `callNet.activeGoals` 한 곳이다. «복귀콜을 잡았나»는 **콜의 판**(확정 순간 통과한 목적지 · 둘 다면 집)으로 안다.
+ */
+describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
+    const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    it('🔴 살아 있는 목적지는 activeGoals 한 곳이 정한다 — 복귀콜을 잡았나는 콜의 판(goalCity) · 취소한 콜은 안 센다', () => {
+        const g = body(fm, 'export function goalCitiesOf');
+        expect(g).toMatch(/activeGoals\(/);
+        expect(g).toMatch(/boardOf\(o\) === home/);
+        expect(g).toMatch(/SAFE_CANCEL/);
+        expect(g).toMatch(/deckOfCycle\(/);   // 이번 운행만 — 아침 복귀콜이 저녁 복귀를 «잡음»으로 만들지 않게
+        expect(body(fm, 'function boardOf')).toMatch(/o\.goalCity/);
+    });
+    it('🔴 필터 목록은 살아 있는 목적지마다 그물을 만들어 합친다', () => {
+        const n = body(fm, 'function netOfGoals');
+        expect(n).toMatch(/goalCitiesOf\(session, userId\)/);
+        expect(n).toMatch(/for \(const goal of goals\)/);
+        expect(body(fm, 'function netKeywordsOf')).not.toMatch(/session\.activeFilter\.localMode = /);
+    });
+    it('🔴 확정 순간 통과한 목적지를 콜의 판으로 적는다 — 둘 다면 집 우선', () => {
+        expect(body(de, 'export async function handleDecision')).toMatch(/goalCity = goalOfCall\(/);
+        expect(body(fm, 'export function goalOfCall')).toMatch(/homeCityOf\(userId\)/);
+    });
+    it('🔴 지도는 목적지마다 그물을 그리고 마커를 찍는다 · 콜 카드에 판', () => {
+        const hook = client('hooks/useCallNet.ts');
+        expect(hook).toMatch(/goalCities/);
+        expect(hook).toMatch(/mergeGoalNets\(nets/);
+        expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/netOverlay\.goals/);
+        expect(client('components/stage/StageView.tsx')).toMatch(/goalCities: filter\?\.goalCities/);
+        expect(client('components/dashboard/CallDeck.tsx')).toMatch(/o\.goalCity/);
+    });
+});
