@@ -41,7 +41,7 @@ const noop = () => {};
 const props = (over: Partial<NetScreenProps> = {}): NetScreenProps => ({
     streamingCalls: [pickerA, pickerB], confirmedCalls: [], activeTab: 'ALL', setActiveTab: noop,
     selectedCall: null, selectedCallId: null, openCall: noop, closeDetail: noop,
-    acceptCall: noop, cancelCall: noop,
+    acceptCall: noop, cancelCall: noop, finishCall: noop,
     isTimerPaused: false, toggleTimer: noop, isFetchingOrder: false, maxPickupKm: 15, goSetup: noop,
     ...over,
 });

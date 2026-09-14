@@ -2,7 +2,8 @@
  * 🚚 **픽커 배차 화면** — 홈 → 리스트 → 상세를 픽커가 정한다 (2026-09-14 · 카카오픽커_시뮬레이터.md §8 · 2단계 2-2 · 3단계 3-1 · 3-3)
  *
  * - 처음엔 **홈**이다 (실물도 출근 전 홈에서 「시작하기」를 눌러 리스트로 간다)
- * - 콜을 누르면 **수락 전 상세** (`PickerCallDetailScreen` · 실물 05~07) — 「넘기기」 · 「←」 는 리스트로, 「수락하기」는 4단계 전까지 아무 일도 안 한다
+ * - 콜을 누르면 **수락 전 상세** (`PickerCallDetailScreen` · 실물 05~07) — 「넘기기」 · 「←」 는 리스트로, 「수락하기」는 잡은 콜로 옮기고 «내 오더» 탭
+ * - 잡은 콜을 고르면 **수락 뒤 단계** (`PickerOngoingScreen` · 실물 15~31 · 4단계) — 완료하면 잡은 콜에서 빼고 리스트로
  * - 상세를 열면 방문 기록에 한 칸 남는다 (`nets.ts` 의 `detailInHistory` · §7-3) — 원달앱의 «뒤로 가기»가 상세만 닫는다
  * - 🚫 **리스트에 오래 떠 있던 콜은 남이 가져갔다** — 누르면 상세 대신 «이미 배정이 완료된 오더입니다» 토스트 (실물 캡처 03 · 3-3)
  */
@@ -12,6 +13,8 @@ import type { PickerCall } from './pickerCall';
 import { PickerDispatchBoard } from './PickerDispatchBoard';
 import { PickerHomeScreen } from './PickerHomeScreen';
 import { PickerCallDetailScreen } from './PickerCallDetailScreen';
+import { PickerOngoingScreen } from './PickerOngoingScreen';
+import type { PickerOngoingStep } from './PickerOngoingScreen';
 
 /** 픽커 칸이 입혀진 콜만 — 다른 배차망 콜이 섞여 들어오면 그리지 않는다 */
 const isPickerCall = (c: SimCall): c is PickerCall => 'net' in c && c.net === 'kakaopicker';
@@ -47,6 +50,8 @@ export const PickerSimScreen = (p: NetScreenProps) => {
   const [taken, setTaken] = useState<Set<string>>(() => new Set());
   const [toastVisible, setToastVisible] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 🚚 잡은 콜마다 수락 뒤 어느 단계까지 왔나 — 내 오더에서 다시 열어도 이어진다 */
+  const [steps, setSteps] = useState<Record<string, PickerOngoingStep>>({});
 
   useEffect(() => {
     const now = Date.now();
@@ -68,7 +73,27 @@ export const PickerSimScreen = (p: NetScreenProps) => {
   };
 
   if (p.selectedCall && isPickerCall(p.selectedCall)) {
-    return <PickerCallDetailScreen call={p.selectedCall} onClose={p.closeDetail} />;
+    const call = p.selectedCall;
+    /* 🚚 잡은 콜이면 수락 뒤 단계 — 수락 전 상세(«넘기기»·«수락하기»)를 다시 그리지 않는다 (4단계) */
+    if (p.confirmedCalls.some(c => c.id === call.id)) {
+      return (
+        <PickerOngoingScreen
+          key={call.id}
+          call={call}
+          initialStep={steps[call.id] ?? 'TO_PICKUP'}
+          onStepChange={s => setSteps(prev => ({ ...prev, [call.id]: s }))}
+          onBack={p.closeDetail}
+          onFinish={c => { p.finishCall(c); p.setActiveTab('ALL'); }}
+        />
+      );
+    }
+    return (
+      <PickerCallDetailScreen
+        call={call}
+        onClose={p.closeDetail}
+        onAccept={() => { p.acceptCall(call); p.setActiveTab('CONFIRMED'); }}
+      />
+    );
   }
 
   if (!started) {
@@ -82,6 +107,7 @@ export const PickerSimScreen = (p: NetScreenProps) => {
         activeTab={p.activeTab}
         onTabSelect={p.setActiveTab}
         myOrderCount={p.confirmedCalls.length}
+        myOrders={p.confirmedCalls.filter(isPickerCall)}
         onCallClick={openOrTaken}
         onMenuClick={p.goSetup}
       />

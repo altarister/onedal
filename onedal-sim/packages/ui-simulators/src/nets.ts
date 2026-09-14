@@ -49,6 +49,8 @@ export interface NetScreenProps {
   /** 리스트에서 빼고 잡은 콜에 넣는다 (수락 뒤 무엇을 보일지는 배차망 화면이 정한다) */
   acceptCall: (call: SimCall) => void;
   cancelCall: (call: SimCall) => void;
+  /** 🚚 배송을 끝냈다 — 잡은 콜에서 빼고 상세를 닫는다 (픽커 수락 뒤 단계의 «확인» · 4단계). 취소와 하는 일은 같지만 뜻이 다르다 */
+  finishCall: (call: SimCall) => void;
   isTimerPaused: boolean;
   toggleTimer: () => void;
   isFetchingOrder: boolean;

@@ -6,8 +6,8 @@
  * 상세 글자 원문을 미리보기 콜로 서버에 올린다(`sendPickerPreview`). 30초 동안 손대지 않으면 «뒤로 가기»로 리스트에 돌아간다.
  *
  * - 「넘기기」 · 「←」 — 리스트로
- * - 🔴 「수락하기」 — **3단계에서는 아무 일도 안 한다.** 누르는 순간 계약이고(픽커는 되돌릴 창이 없다), 수락 뒤 화면은 4단계에서 만든다.
- *   인성 «탁송»에서 배웠다 — 모르는 동작을 지어내지 않는다
+ * - 「수락하기」 — 누르는 순간 계약이다(픽커는 되돌릴 창이 없다). 잡은 콜로 옮기고 수락 뒤 단계로 간다 (`PickerOngoingScreen` · 4단계).
+ *   🔴 원달앱은 이 버튼을 **절대 안 누른다**(`clickSafe`) — 사람이 누른다
  * - 🔴 글자 덩어리마다 `div` 하나 (2단계 2-2 에서 웹뷰가 `span` 줄을 뭉친 것을 봤다)
  * - 🔴 모르는 칸은 안 그린다 — 유의사항(모의 데이터에 메모가 없다) · 프로모션 0 · 규격을 모르는 물품 크기
  * - 🔴 수락 뒤 단계 글자(«픽업 준비» · «배송 시간» · «밀어서 …»)를 쓰지 않는다 — 원달앱이 수락 뒤 화면으로 읽는다
@@ -20,6 +20,8 @@ import { formatPickerDistance, formatPickerFare } from './PickerDispatchBoard';
 interface Props {
   call: PickerCall;
   onClose: () => void;
+  /** 「수락하기」 — 잡은 콜로 옮긴다 (배차 화면이 정한다) */
+  onAccept?: () => void;
 }
 
 /** 물품 크기 규격 — 실물에서 본 것만 (05 · 06 소형 · 덤프 11 초소형). 나머지는 모른다 */
@@ -41,7 +43,7 @@ function minutesUntil(hhmm?: string): number | null {
 
 const pointP = (n: number) => `${n.toLocaleString('ko-KR')}P`;
 
-export const PickerCallDetailScreen = ({ call, onClose }: Props) => {
+export const PickerCallDetailScreen = ({ call, onClose, onAccept }: Props) => {
   const pickup = call.pickupDetails?.[0];
   const dropoff = call.dropoffDetails?.[0];
   const pickupLine = formatPickerAddressLine(pickup?.addressDetail, pickup?.region) || call.pickups[0]?.fullName.replace(/ \/ /g, ' ') || '';
@@ -151,8 +153,8 @@ export const PickerCallDetailScreen = ({ call, onClose }: Props) => {
       {/* 넘기기 / 수락하기 — 실물처럼 바닥에 붙는다 */}
       <div className="absolute left-0 right-0 bottom-0 h-[64px] flex text-[20px] font-bold text-white">
         <button onClick={onClose} className="w-[40%] bg-[#76777b]">넘기기</button>
-        {/* 🔴 3단계에서는 아무 일도 안 한다 — 수락 뒤 화면(내 오더 · 픽업 이동 …)은 4단계 */}
-        <button className="flex-1 bg-[#2aa69a]">수락하기</button>
+        {/* 수락 = 계약 — 잡은 콜로 옮기고 «내 오더» · 수락 뒤 단계로 (4단계) */}
+        <button onClick={onAccept} className="flex-1 bg-[#2aa69a]">수락하기</button>
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ import { pickerA, pickerB, pickerC } from './fixtures';
  *
  * 원달앱은 «넘기기 + 수락하기» 둘이 다 보이면 수락 전 상세로 알아보고(`KakaoPickerKeywords.PICKER.detailKeywords`),
  * 상세 글자 원문을 미리보기 콜로 서버에 올린다(`sendPickerPreview`). 계약(수락하기)은 **기사님 손가락**이다.
- * 🔴 수락하기는 3단계에서 **아무 일도 안 한다** — 수락 뒤 화면은 4단계에서 만든다 (인성 «탁송»처럼 지어내지 않는다).
+ * 「수락하기」는 4단계에서 이었다 — 누르면 잡은 콜로 옮기고 수락 뒤 단계로 간다 (`tests/pickerOngoing.test.tsx`).
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

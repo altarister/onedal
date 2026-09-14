@@ -20,13 +20,15 @@
  */
 import React from 'react';
 import type { PickerCall } from './pickerCall';
-import { formatPickerRegion } from './pickerCall';
+import { formatPickerRegion, formatPickerAddressLine } from './pickerCall';
 
 interface BoardProps {
   calls: PickerCall[];
   activeTab: 'ALL' | 'CONFIRMED';
   onTabSelect: (tab: 'ALL' | 'CONFIRMED') => void;
   myOrderCount: number;
+  /** «내 오더» 탭에 보일 잡은 콜 (실물 15) */
+  myOrders?: PickerCall[];
   onCallClick: (call: PickerCall) => void;
   onMenuClick: () => void;
 }
@@ -108,7 +110,20 @@ const PickerCallCard = React.memo(({ call, onCardClick }: { call: PickerCall; on
   );
 });
 
-export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCount, onCallClick, onMenuClick }: BoardProps) => {
+/**
+ * 📦 **«내 오더» 한 줄** (실물 15 · 4단계) — 누르면 수락 뒤 단계로.
+ * 🔴 **요금을 «쉼표 든 숫자» 덩어리로 쓰지 않는다** — 원달앱 요금 닻이 그 모양이라, 잡은 콜을 새 카드로 다시 읽는다. «P» 를 붙인다.
+ */
+const MyOrderRow = ({ call, onClick }: { call: PickerCall; onClick: (call: PickerCall) => void }) => (
+  <div className="border-b border-[#eeeeee] px-[12px] py-[10px] flex flex-col gap-[2px] active:bg-gray-50 cursor-pointer" onClick={() => onClick(call)}>
+    <div className="text-[13px] text-gray-500">{`오더번호 ${call.orderNo}`}</div>
+    <div className="text-[15px] font-bold">{formatPickerAddressLine(call.pickupDetails?.[0]?.addressDetail, call.pickupDetails?.[0]?.region)}</div>
+    <div className="text-[15px]">{formatPickerAddressLine(call.dropoffDetails?.[0]?.addressDetail, call.dropoffDetails?.[0]?.region)}</div>
+    <div className="text-[14px] font-bold tabular-nums">{`${formatPickerFare(call.fare)}P`}</div>
+  </div>
+);
+
+export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCount, myOrders = [], onCallClick, onMenuClick }: BoardProps) => {
   // 🔴 «높은 가격순» — 머리줄이 그렇게 적혀 있으니 실제로 그 순서로 늘어놓는다
   const sorted = React.useMemo(() => [...calls].sort((a, b) => b.fare - a.fare), [calls]);
 
@@ -154,22 +169,31 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
         <div className="rounded-lg bg-[#e8eaf0] h-[56px] flex items-center justify-center text-[16px] font-bold">퀵 오더카드 대기 중...</div>
       </div>
 
-      {/* 🔴 「리스트 설정」 줄 — 오더카드(위)와 리스트 카드(아래)의 경계 · 원달앱이 리스트를 알아보는 글자 */}
-      <div className="h-[60px] flex items-center gap-[6px] px-[10px] border-b border-[#e5e5e5] shrink-0">
-        {HEADER_CHIPS.map(c => (
-          <div key={c} className="bg-[#f5f6f8] rounded px-[10px] py-[5px] text-[13px] text-gray-600 whitespace-nowrap">{c}</div>
-        ))}
-        <span className="ml-auto w-[22px] h-[22px] rounded-full border border-gray-300" />
-      </div>
+      {/* 🔴 「리스트 설정」 줄 — 오더카드(위)와 리스트 카드(아래)의 경계 · 원달앱이 리스트를 알아보는 글자
+          «내 오더» 탭에는 두지 않는다 — 있으면 원달앱이 잡은 콜 목록을 리스트로 읽고 새 콜처럼 알람을 울린다 (4단계) */}
+      {activeTab === 'ALL' && (
+        <div className="h-[60px] flex items-center gap-[6px] px-[10px] border-b border-[#e5e5e5] shrink-0">
+          {HEADER_CHIPS.map(c => (
+            <div key={c} className="bg-[#f5f6f8] rounded px-[10px] py-[5px] text-[13px] text-gray-600 whitespace-nowrap">{c}</div>
+          ))}
+          <span className="ml-auto w-[22px] h-[22px] rounded-full border border-gray-300" />
+        </div>
+      )}
 
       {/* 카드 목록 */}
       <div ref={listRef} className="relative flex-1 overflow-y-auto">
-        {/* 안 보이는 카드 자리는 글자 없는 빈 칸 — 스크롤 길이는 그대로 둔다 */}
-        <div style={{ height: first * PICKER_CARD_HEIGHT }} />
-        {shown.slice(first, last).map(call => (
-          <PickerCallCard key={call.id} call={call} onCardClick={onCallClick} />
-        ))}
-        <div style={{ height: (shown.length - last) * PICKER_CARD_HEIGHT }} />
+        {activeTab === 'CONFIRMED' ? (
+          myOrders.map(call => <MyOrderRow key={call.id} call={call} onClick={onCallClick} />)
+        ) : (
+          <>
+            {/* 안 보이는 카드 자리는 글자 없는 빈 칸 — 스크롤 길이는 그대로 둔다 */}
+            <div style={{ height: first * PICKER_CARD_HEIGHT }} />
+            {shown.slice(first, last).map(call => (
+              <PickerCallCard key={call.id} call={call} onCardClick={onCallClick} />
+            ))}
+            <div style={{ height: (shown.length - last) * PICKER_CARD_HEIGHT }} />
+          </>
+        )}
       </div>
 
       {/* 떠 있는 메뉴 — 실물처럼 맨 아래 카드 위에 걸친다 (원달앱은 이 낱말을 버린다 · NOISE_WORDS) */}

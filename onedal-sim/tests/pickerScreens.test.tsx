@@ -81,7 +81,7 @@ describe('픽커 배차 화면 — 홈 → 리스트 → 상세 자리', () => {
     const base: NetScreenProps = {
         streamingCalls: [pickerA], confirmedCalls: [], activeTab: 'ALL', setActiveTab: noop,
         selectedCall: null, selectedCallId: null, openCall: noop, closeDetail: noop,
-        acceptCall: noop, cancelCall: noop,
+        acceptCall: noop, cancelCall: noop, finishCall: noop,
         isTimerPaused: false, toggleTimer: noop, isFetchingOrder: false, maxPickupKm: 15, goSetup: noop,
     };
 

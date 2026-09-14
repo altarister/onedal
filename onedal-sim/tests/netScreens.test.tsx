@@ -39,7 +39,7 @@ const markup = (el: ReactElement) => {
 const base: NetScreenProps = {
     streamingCalls: [callA, callB], confirmedCalls: [], activeTab: 'ALL', setActiveTab: noop,
     selectedCall: null, selectedCallId: null, openCall: noop, closeDetail: noop,
-    acceptCall: noop, cancelCall: noop,
+    acceptCall: noop, cancelCall: noop, finishCall: noop,
     isTimerPaused: false, toggleTimer: noop, isFetchingOrder: false, maxPickupKm: 15, goSetup: noop,
 };
 

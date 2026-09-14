@@ -188,6 +188,12 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     handleCloseDetail();
   }, [setConfirmedCalls, handleCloseDetail]);
 
+  /** 🚚 배송 완료 — 잡은 콜에서 빼고 상세를 닫는다 (픽커 수락 뒤 단계 · 4단계). 하는 일은 취소와 같지만 이름을 가른다 — 로그·검사가 뜻을 읽게 */
+  const handleFinishCall = useCallback((call: SimCall) => {
+    setConfirmedCalls(prev => prev.filter(c => c.id !== call.id));
+    handleCloseDetail();
+  }, [setConfirmedCalls, handleCloseDetail]);
+
   // 🔴 문제지 이름을 못 찾았다 — 랜덤으로 흘리지 않고 멈춘다 (위 주석 참조)
   // 콜을 고른 상태면 상세가 먼저다 — 예전 순서(상세 → 문제지 없음 → 리스트) 그대로
   if (!selectedCall && presetMissing) {
@@ -232,6 +238,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
       closeDetail={handleCloseDetail}
       acceptCall={handleAcceptCall}
       cancelCall={handleCancelCall}
+      finishCall={handleFinishCall}
       isTimerPaused={isTimerPaused}
       toggleTimer={() => setIsTimerPaused(!isTimerPaused)}
       isFetchingOrder={isFetchingOrder}
