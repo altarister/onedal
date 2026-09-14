@@ -229,3 +229,22 @@ describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
         expect(client('components/dashboard/CallDeck.tsx')).toMatch(/o\.goalCity/);
     });
 });
+
+/**
+ * 🧵 **필터 값을 바꿔도 콜을 쥐었으면 경로 영역이 남는다** (2026-09-14 · 3단계 확인 안내를 쓰다 찾음).
+ *
+ * `recalculateDerivedFields` 의 지리 재계산 분기(복귀 켜기 · 각도 · 마름모반경 · 현위반경 · 제외 지역)가
+ * 목록을 **라인 없이**(`null`) 다시 만들었다. 뒤따라 라인으로 다시 만드는 길이 없어서(`refreshDetourIfNeeded` 는
+ * 라인반경만 본다) 다음 KEEP·하차까지 **경로 영역이 빠진 목록**이 폰에 갔다 — 복귀를 켜는 순간 가는 길의 동이 사라진다.
+ * → 이 분기도 얼린 라인(`filterLineOf`)으로 만들고 진행도를 함께 기억한다 (`rebuildNetFilter` 와 같은 모양).
+ */
+describe('🧵 지리 재계산 분기도 얼린 라인으로', () => {
+    it('🔴 콜을 쥐었으면 라인을 넘기고 진행도를 기억한다 — null 로 다시 만들지 않는다', () => {
+        const i = fm.indexOf('needsGeoRecalc) {');
+        expect(i).toBeGreaterThan(-1);
+        const branch = fm.slice(i, i + 1400);
+        expect(branch).not.toMatch(/netOfGoals\(session, userId, null\)/);
+        expect(branch).toMatch(/filterLineOf\(session\)/);
+        expect(branch).toMatch(/rememberDetourProgress\(/);
+    });
+});

@@ -449,7 +449,15 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
          *    제외 지역은 `netKeywordsOf` 안에서 `pruneExcludedRegions` 한 곳이 뺀다 (규칙 ③).
          */
         /* 🏠 살아 있는 목적지마다 — 복귀 대기면 목적지 ∪ 집 (전수표 #15) */
-        const { flat, grouped, byNet, pruned, goals } = netOfGoals(session, userId, null);
+        /**
+         * 🧵 **콜을 쥐었으면 얼린 라인으로 만든다** (2026-09-14). 예전엔 `null` 이라 복귀를 켜거나 각도·반경을 바꾸면
+         *    다음 KEEP·하차까지 **경로 영역이 빠진 목록**이 폰에 갔다 — 뒤따라 라인으로 다시 만드는 길이 없다.
+         *    진행도도 함께 기억한다 — `rebuildNetFilter` 와 같은 모양 (지나온 곳 빼기가 이 목록을 본다)
+         */
+        const line = filterLineOf(session);
+        const { flat, grouped, byNet, pruned, goals, progressKm } = netOfGoals(session, userId,
+            line ? line.map(p => [p.x, p.y] as [number, number]) : null);
+        rememberDetourProgress(session, line ? progressOf(progressKm) : null);
         const customCityFilters = [...new Set(goals.flatMap(g => getCityRegionsWithRadius(g, radius).customCityFilters))];
         console.log(`🕸️ [FilterManager] ${byNet ? '그물' : '도시 둘레(물러섬)'} → 지역 ${flat.length}개`
             + (pruned > 0 ? ` (제외로 ${pruned}개 뺌)` : ''));
