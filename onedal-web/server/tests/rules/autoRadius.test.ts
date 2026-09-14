@@ -30,16 +30,29 @@ describe('반경 자동 맞춤 — 서버 (C4-12)', () => {
         expect(around).toMatch(/radiusAuto/);
     });
 
-    it('🔴 재는 축이 «마름모의 축»과 같다 — 시작점에서 목적지까지', () => {
-        /**
-         * 마름모반경은 **축에서 좌우로** 재는 값이다. 그러니 자동이 맞출 거리도
-         * 그 축이어야 한다 — 첫짐은 «내 위치 → 목적지», 합짐은 «마지막 하차지 → 목적지».
-         * 다른 축을 재면 «맞췄다는데 안 맞는» 값이 된다.
-         */
+    /**
+     * 🔴 **거리는 하루에 한 번 잰다 — 달리는 동안 다시 재지 않는다** (기사님 확정 2026-09-14 · 필터.md §10-1 ③).
+     *
+     * 예전엔 «합짐이면 마지막 하차지 → 목적지» 로 **그물을 만들 때마다** 다시 쟀다.
+     * «7지점 한 바퀴»에서 중리동(이천 1.2km)에 닿자 배율 0.03 — 목적 원 10km → 0.3km,
+     * 관내 판단도 안 켜져 도착지 목록이 1곳이 됐다. 기사님: *"그럼 나중에 관내콜을 할 수가 없다."*
+     */
+    it('🔴 들고 있는 거리를 먼저 쓰고, 없을 때만 «내 위치 → 목적지»로 잰다', () => {
         const i = fm.indexOf('autoRadii(');
         const around = fm.slice(Math.max(0, i - 900), i + 200);
-        expect(around).toMatch(/haversineKm|distanceKm/);
-        expect(around).toMatch(/lastDrop|anchor|me/);
+        expect(around).toMatch(/heldRadiusDistanceKm\(\s*session\.activeFilter\.radiusDistanceKm/);
+        /* 마지막 하차지(라인 끝)로 거리를 재지 않는다 — 합짐이면 목적지 근처에서 반경이 사라진다 */
+        expect(around).not.toMatch(/quadStart/);
+    });
+
+    it('🔴 기사님이 목적지를 바꾸면 들고 있던 거리를 비운다 — 다른 목적지의 거리를 쓰지 않는다', () => {
+        expect(fm).toMatch(/'destinationCity' in changes[\s\S]{0,200}radiusDistanceKm\s*=\s*undefined/);
+    });
+
+    it('🔴 «다시 구하기»(radiusDistanceKm: null)를 받으면 그물을 다시 그린다', () => {
+        const i = fm.indexOf('const needsGeoRecalc');
+        const body = fm.slice(i, fm.indexOf(';', i));
+        expect(body).toMatch(/'radiusDistanceKm' in changes/);
     });
 
     /**
@@ -80,6 +93,16 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
         expect(modal).toMatch(/자동/);
         expect(modal).toMatch(/수동/);
         expect(modal).toMatch(/radiusAuto/);
+    });
+
+    /**
+     * 🔴 **[↻ 다시 구하기] 는 토글이 아니라 한 번 누르는 동작이다** (기사님 확정 2026-09-14).
+     *    토글 셋째 칸으로 넣으면 «재설정 모드»에 들어가 있는 것처럼 읽힌다.
+     *    누르면 들고 있던 거리를 비운다(`radiusDistanceKm: null`) — 서버가 지금 위치로 다시 잰다.
+     */
+    it('🔴 자동이면 «무엇으로 정했나» 줄과 [↻ 다시 구하기] 가 있다', () => {
+        expect(modal).toMatch(/다시 구하기/);
+        expect(codeOnly(modal)).toMatch(/radiusDistanceKm:\s*null/);
     });
 
     it('🔴 자동이면 반경 손잡이가 흐려진다 — 감추지 않는다', () => {

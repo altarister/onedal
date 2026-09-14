@@ -6,7 +6,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFI
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
-         resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL, effectiveRadii,
+         resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL, effectiveRadii, radiusScaleOf,
          VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
 import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
@@ -927,6 +927,26 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 ))}
                             </div>
                         </div>
+                        {/**
+                          * 📏 **무엇으로 정했나 + [↻ 다시 구하기]** (기사님 확정 2026-09-14 · 필터.md §10-1 ④).
+                          *    자동 반경의 거리는 **하루에 한 번** 잰다 — 달리는 동안 안 바뀐다.
+                          * 🔴 다시 구하기는 **토글 칸이 아니다** — 셋째 칸이면 «재설정 모드»에 들어가 있는 것처럼 읽힌다.
+                          *    누르면 들고 있던 거리를 비운다(`null`) — 서버가 지금 위치 → 목적지로 다시 잰다.
+                          */}
+                        {radiusAuto && (
+                            <div className="flex items-center justify-between gap-2 px-0.5 pb-1 text-[10px] text-text-muted">
+                                <span>
+                                    {Number.isFinite(filter?.radiusDistanceKm as number)
+                                        ? `${Math.round((filter!.radiusDistanceKm as number) * 10) / 10}km 로 정함 · ×${
+                                            Math.round(radiusScaleOf(filter?.radiusDistanceKm, filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) * 100) / 100}`
+                                        : '거리를 아직 못 잼 — 반경을 줄이지 않음'}
+                                </span>
+                                <button type="button" onClick={() => updateFilter({ radiusDistanceKm: null })}
+                                    className="px-2 py-0.5 rounded-lg border border-border-card font-bold text-info">
+                                    ↻ 다시 구하기
+                                </button>
+                            </div>
+                        )}
                         {/**
                           * 📐 **셋이 한 줄** (기사님 2026-09-12: *"필터 남은 것들은 다시 정렬해 주고"*).
                           *    기준거리가 ⚙️ 설정으로 가면서 넷이 셋이 됐다 — 4칸 격자면 **한 칸이 빈다.**

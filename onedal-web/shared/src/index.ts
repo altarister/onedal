@@ -805,8 +805,10 @@ export interface AutoDispatchFilter {
      *    서버는 재료만 싣고 셈은 한 함수가 한다.
      * ⚠️ 자동·수동과 무관하게 싣는다 — 그래야 수동에서 «자동이면 얼마가 되나»를 미리 볼 수 있다.
      *    못 재면 **없다** — 0 으로 지어내지 않는다.
+     * 🔄 **2026-09-14 — 하루에 한 번 잰 값을 들고 있는다** (`heldRadiusDistanceKm`). `null` 은 «다시 구하기» —
+     *    관제웹이 보내면 서버가 지금 위치로 다시 잰다.
      */
-    radiusDistanceKm?: number;
+    radiusDistanceKm?: number | null;
 
     /**
      * 🚚 **기사님이 «받겠다»고 고른 차종** (이식 C4-6b · 2026-09-12).
@@ -1001,6 +1003,8 @@ export function resetToBaseFilter(base: AutoDispatchFilter): AutoDispatchFilter 
         destinationGroups: {},
         customCityFilters: [],
         userOverrides: false,
+        /* 📏 어제 잰 자동 반경 거리가 오늘 살아나지 않는다 (필터.md §10-1 ③ · 2026-09-14) */
+        radiusDistanceKm: undefined,
     };
 }
 

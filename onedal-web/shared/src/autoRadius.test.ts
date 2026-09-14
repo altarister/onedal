@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { autoRadii, RADIUS_BASE_KM_DEFAULT, type RadiusSet } from './phases';
+import { autoRadii, heldRadiusDistanceKm, RADIUS_BASE_KM_DEFAULT, type RadiusSet } from './phases';
+import { resetToBaseFilter } from './index';
 
 /**
  * 📐 **반경 자동 맞춤** (이식 C4-12 · 2026-09-12 · 계획서 §C4-12 에 규칙 ⑤-4 다섯).
@@ -73,5 +74,31 @@ describe('반경 자동 맞춤 (C4-12)', () => {
         expect(r.dstAngleDeg).toBeUndefined();
         expect(Object.keys(r).sort()).toEqual(
             ['destinationRadiusKm', 'detourRadiusKm', 'pickupRadiusKm', 'quadRadiusKm']);
+    });
+});
+
+/**
+ * 📏 **자동 반경의 거리는 하루에 한 번 잰다** (기사님 확정 2026-09-14 · 필터.md §10-1 ③ 개정).
+ *
+ * 기사님: *"자동 반경은 그날 첫짐일 때 적용되는 거다. 위치가 바뀐다고 바뀌어서는 안 된다.
+ * 그럼 나중에 관내콜을 할 수가 없다. 그리고 가는 길에 좋은 콜을 못 잡는다."*
+ *
+ * «7지점 한 바퀴» 실측: 합짐 때 «마지막 하차지(중리동) → 이천» 1.2km 로 다시 재서
+ * 배율 0.03 — 목적 원 10km → 0.3km, 도착지 목록이 1곳이 됐다.
+ */
+describe('자동 반경 거리 — 들고 있으면 다시 재지 않는다 (2026-09-14)', () => {
+    it('🔴 들고 있는 거리가 있으면 지금 잰 값을 버린다 (중리동 1.2km 로 줄지 않는다)', () => {
+        expect(heldRadiusDistanceKm(18.2, 1.2)).toBe(18.2);
+    });
+    it('비어 있으면 지금 잰 값을 쓴다 — 그날 처음 · 다시 구하기(null) · 목적지를 바꾼 뒤', () => {
+        expect(heldRadiusDistanceKm(undefined, 18.2)).toBe(18.2);
+        expect(heldRadiusDistanceKm(null, 7.5)).toBe(7.5);
+    });
+    it('못 재면 없다 — 0 으로 지어내지 않는다 (규칙 ④)', () => {
+        expect(heldRadiusDistanceKm(undefined, null)).toBeUndefined();
+    });
+    it('🔴 영업일이 바뀌면 비운다 — 어제 거리가 오늘 살아나지 않는다 (규칙 ③)', () => {
+        const base = { radiusDistanceKm: 18.2 } as any;
+        expect(resetToBaseFilter(base).radiusDistanceKm).toBeUndefined();
     });
 });

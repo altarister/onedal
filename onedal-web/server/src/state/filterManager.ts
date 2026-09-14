@@ -18,7 +18,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, RADIUS_BASE_KM_DEFAULT,
+import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, isLocalPhase } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
@@ -127,11 +127,13 @@ function netKeywordsOf(
      * ⚠️ **수동이면 손대지 않는다.** 그리고 거리를 못 재면 자동도 **받은 값 그대로** 둔다
      *    (`autoRadii` 안에서 걸러진다 · 규칙 ④).
      */
-    const quadStart = line && line.length >= 2
-        ? { lng: line[line.length - 1][0], lat: line[line.length - 1][1] }
-        : me ? { lng: me.x, lat: me.y } : null;
-    const distanceKm = quadStart
-        ? haversineKm(quadStart.lat, quadStart.lng, goal.lat, goal.lng) : null;
+    /* 🔄 **2026-09-14 개정 — 거리는 하루에 한 번 잰다** (기사님 확정 · 필터.md §10-1 ③).
+       들고 있으면 그것을 쓰고, 비어 있을 때만 «내 위치 → 목적지»로 잰다. 예전엔 합짐이면
+       «마지막 하차지 → 목적지»로 매번 다시 재서 이천 중리동(1.2km)에서 목적 원이 0.3km 가 됐다
+       — 관내콜도 가는 길의 좋은 콜도 못 받는다. 비우는 곳: 다시 구하기(`null`) · 목적지 변경
+       (`updateActiveFilter`) · 영업일 전환(`resetToBaseFilter`). */
+    const distanceKm = heldRadiusDistanceKm(session.activeFilter.radiusDistanceKm,
+        me ? haversineKm(me.y, me.x, goal.lat, goal.lng) : null);
     const auto = session.activeFilter.radiusAuto
         ? autoRadii(distanceKm, {
             pickupRadiusKm: session.activeFilter.pickupRadiusKm ?? 10,
@@ -313,6 +315,8 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
               안 넣었다가 실측에서 «자동을 눌렀는데 164동 그대로»가 났다 (규칙 ⑤-4 ④). */
         'radiusAuto' in changes ||
         'radiusBaseKm' in changes ||
+        /* 📏 [↻ 다시 구하기] — 들고 있던 거리를 비웠으니 지금 위치로 다시 재고 그물을 다시 그린다 (2026-09-14) */
+        'radiusDistanceKm' in changes ||
         /**
          * 🕸️ **그물의 재료 넷** (2026-09-12 전수 조사 ①-3). `netKeywordsOf` 가 실제로 읽는
          *    입력인데 여기 없어서 **바꾸고 💾 해도 `destinationKeywords` 가 옛값**이었다 —
@@ -956,8 +960,15 @@ export function updateActiveFilter(
             destinationRadiusKm: session.activeFilter.destinationRadiusKm,
             excludedRegions: session.activeFilter.excludedRegions,
         };
+        const prevDestinationCity = session.activeFilter.destinationCity;
         // 일반 변경: activeFilter에 직접 덮어쓰기
         session.activeFilter = { ...session.activeFilter, ...changes };
+        /**
+         * 📏 **기사님이 목적지를 바꾸면 자동 반경 거리를 비운다** (필터.md §10-1 ③ · 2026-09-14) — 다른 목적지의 거리를 쓰지 않는다.
+         * 🔴 **값이 실제로 바뀔 때만** — 필터 화면의 저장은 목적지를 늘 같이 보낸다. 그걸로 비우면 달리는 중에 다시 재진다.
+         * ⚠️ 복귀로 «그물이 보는 목적지»가 집이 되는 것(`callTarget`)은 여기를 안 지난다 — 기사님: *"그냥 두자"*.
+         */
+        if ('destinationCity' in changes && changes.destinationCity !== prevDestinationCity && !('radiusDistanceKm' in changes)) session.activeFilter.radiusDistanceKm = undefined;
         // 파생 데이터 재계산
         recalculateDerivedFields(session, changes, userId);
         refreshDetourIfNeeded(session, userId, before);

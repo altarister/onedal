@@ -261,6 +261,23 @@ export function radiusScaleOf(
 }
 
 /**
+ * 📏 **자동 반경이 쓰는 거리 — 들고 있으면 다시 재지 않는다** (기사님 확정 2026-09-14 · 필터.md §10-1 ③).
+ *
+ * 기사님: *"자동 반경은 그날 첫짐일 때 적용되는 거다. 위치가 바뀐다고 바뀌어서는 안 된다.
+ * 그럼 나중에 관내콜을 할 수가 없다. 그리고 가는 길에 좋은 콜을 못 잡는다."*
+ *
+ * 🔴 예전엔 그물을 만들 때마다 다시 쟀다 — 합짐이면 «마지막 하차지 → 목적지» 라, 이천 중리동(1.2km)에서
+ *    배율 0.03 · 목적 원 10km → 0.3km · 도착지 목록 1곳 («7지점 한 바퀴» 실측).
+ * 비우는 때(= 다음에 다시 재는 때): 그날 처음 · [↻ 다시 구하기](`null`) · 기사님이 목적지를 바꿀 때 ·
+ * 영업일 전환(`resetToBaseFilter`) · 서버 재시작(메모리라 비어 있다). 복귀로 목적지가 집이 돼도 그대로 둔다.
+ * 못 재면 **없다** — 0 으로 지어내지 않는다 (규칙 ④).
+ */
+export function heldRadiusDistanceKm(held: number | null | undefined, measuredKm: number | null | undefined): number | undefined {
+    if (Number.isFinite(held as number) && (held as number) > 0) return held as number;
+    return Number.isFinite(measuredKm as number) ? (measuredKm as number) : undefined;
+}
+
+/**
  * 📐 **지금 실제로 쓰이는 반경 넷** — 자동이면 줄인 값, 수동이면 기사님 값 (이식 C4-12).
  *
  * 🔴 **여기가 유일한 곳이다** (규칙 ③). 필터 화면·무대 지도·서버가 **전부** 이것을 부른다.
@@ -275,7 +292,7 @@ export function effectiveRadii(f: {
     quadRadiusKm?: number | null;
     detourRadiusKm?: number | null;
     radiusAuto?: boolean;
-    radiusDistanceKm?: number;
+    radiusDistanceKm?: number | null;
     radiusBaseKm?: number;
 } | null | undefined): RadiusSet {
     const base: RadiusSet = {
