@@ -43,7 +43,7 @@ export interface LocationDetailInfo {
 // BaseCall — 어느 배차망이든 함께 쓰는 콜 칸 (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계 0-2 ③)
 //
 // 예전 이름 CallItem 은 인성 칸·화물24시 칸이 한 그릇에 섞여 있었다. 배차망마다 쓰는 칸은 이제
-// 그 배차망 폴더가 적는다 — 인성 `InsungCall`(inseong/insungCall.ts) · 화물24시 `Hwamul24Call`(hwamul24/hwamul24Call.ts).
+// 그 배차망 폴더가 적는다 — 인성 `InsungCall`(insung/insungCall.ts) · 화물24시 `Hwamul24Call`(hwamul24/hwamul24Call.ts).
 // 칸을 가른 기준은 «어느 화면이 읽나» 코드 검색이다. 🔴 이 파일은 배차망 이름을 모른다.
 export interface BaseCall {
     id: string;

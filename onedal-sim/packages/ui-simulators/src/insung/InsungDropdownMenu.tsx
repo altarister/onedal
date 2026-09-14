@@ -4,7 +4,7 @@ interface DropdownMenuProps {
   onClose: () => void;
 }
 
-export const InseongDropdownMenu: React.FC<DropdownMenuProps> = ({ onClose }) => {
+export const InsungDropdownMenu: React.FC<DropdownMenuProps> = ({ onClose }) => {
   return (
     <>
       {/* Background Overlay */}

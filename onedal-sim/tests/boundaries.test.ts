@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
  *
  * 규칙:
  *   ① 공통 코드(core-simulator/src)는 배차망 이름을 모른다
- *   ② 배차망 폴더(inseong · hwamul24)는 서로를 import 하지 않는다
+ *   ② 배차망 폴더(insung · hwamul24)는 서로를 import 하지 않는다
  *   ③ ui-simulators 에서 배차망 폴더를 import 하는 곳은 nets.ts · index.ts 뿐이다
  *   ④ 앱 껍데기(src)는 배차망 이름을 모른다 — 옛 주소를 받는 App.tsx 만 예외
  *
@@ -50,7 +50,7 @@ describe('배차망을 아는 곳 — 정해진 자리만', () => {
     });
 
     it('② 배차망 폴더는 서로를 import 하지 않는다', () => {
-        const nets = ['inseong', 'hwamul24'];
+        const nets = ['insung', 'hwamul24'];
         const crossing = Object.entries(UI).flatMap(([path, src]) => {
             const own = nets.find(n => path.includes(`/src/${n}/`));
             if (!own) return [];
@@ -61,8 +61,8 @@ describe('배차망을 아는 곳 — 정해진 자리만', () => {
 
     it('③ 배차망 폴더를 import 하는 곳은 nets.ts · index.ts 뿐이다', () => {
         const importers = Object.entries(UI)
-            .filter(([path]) => !/\/src\/(inseong|hwamul24)\//.test(path))
-            .filter(([, src]) => importsOf(src).some(p => /(^|\/)(inseong|hwamul24)\//.test(p)))
+            .filter(([path]) => !/\/src\/(insung|hwamul24)\//.test(path))
+            .filter(([, src]) => importsOf(src).some(p => /(^|\/)(insung|hwamul24)\//.test(p)))
             .map(([path]) => path.replace(/^.*\/ui-simulators\/src\//, ''))
             .sort();
         expect(importers).toEqual(['index.ts', 'nets.ts']);

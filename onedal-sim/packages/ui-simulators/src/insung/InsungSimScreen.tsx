@@ -7,9 +7,9 @@
 import { useState } from 'react';
 import type { NetScreenProps } from '../nets';
 import { SimDispatchBoard } from './SimDispatchBoard';
-import { InseongCallDetailScreen } from './InseongCallDetailScreen';
-import { InseongOngoingDetailScreen } from './InseongOngoingDetailScreen';
-import { InseongDropdownMenu } from './InseongDropdownMenu';
+import { InsungCallDetailScreen } from './InsungCallDetailScreen';
+import { InsungOngoingDetailScreen } from './InsungOngoingDetailScreen';
+import { InsungDropdownMenu } from './InsungDropdownMenu';
 
 export const InsungSimScreen = (p: NetScreenProps) => {
   const [showMenu, setShowMenu] = useState(false);
@@ -20,7 +20,7 @@ export const InsungSimScreen = (p: NetScreenProps) => {
     const isConfirmed = p.confirmedCalls.some(c => c.id === selected.id);
     if (isConfirmed) {
       return (
-        <InseongOngoingDetailScreen
+        <InsungOngoingDetailScreen
           call={selected}
           onClose={p.closeDetail}
           onCancel={p.cancelCall}
@@ -28,7 +28,7 @@ export const InsungSimScreen = (p: NetScreenProps) => {
       );
     }
     return (
-      <InseongCallDetailScreen
+      <InsungCallDetailScreen
         call={selected}
         feedback={null}
         isConfirmed={false}
@@ -56,7 +56,7 @@ export const InsungSimScreen = (p: NetScreenProps) => {
         selectedCallId={p.selectedCallId}
         maxPickupKm={p.maxPickupKm}
       />
-      {showMenu && <InseongDropdownMenu onClose={() => setShowMenu(false)} />}
+      {showMenu && <InsungDropdownMenu onClose={() => setShowMenu(false)} />}
     </div>
   );
 };

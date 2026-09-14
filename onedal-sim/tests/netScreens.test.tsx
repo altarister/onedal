@@ -5,9 +5,9 @@ import {
     Hwamul24CallDetailScreen,
     Hwamul24DispatchBoard,
     Hwamul24SimScreen,
-    InseongCallDetailScreen,
-    InseongDispatchBoard,
-    InseongOngoingDetailScreen,
+    InsungCallDetailScreen,
+    InsungDispatchBoard,
+    InsungOngoingDetailScreen,
     InsungSimScreen,
     SIM_NETS,
     SIM_NET_LIST,
@@ -47,7 +47,7 @@ describe('배차망 화면 = 예전 DispatchPage 갈래가 고르던 부품', ()
     it('인성 리스트', () => {
         expect(markup(<InsungSimScreen {...base} />)).toBe(markup(
             <div className="relative w-full h-full">
-                <InseongDispatchBoard streamingCalls={[callA, callB]} confirmedCalls={[]} activeTab="ALL" onTabSelect={noop} onCallClick={noop}
+                <InsungDispatchBoard streamingCalls={[callA, callB]} confirmedCalls={[]} activeTab="ALL" onTabSelect={noop} onCallClick={noop}
                     onStartClick={noop} onSettingsClick={noop} onMenuClick={noop} isTimerPaused={false} onToggleTimer={noop}
                     isFetchingOrder={false} selectedCallId={null} maxPickupKm={15} />
             </div>,
@@ -56,12 +56,12 @@ describe('배차망 화면 = 예전 DispatchPage 갈래가 고르던 부품', ()
 
     it('인성 상세 — 안 잡은 콜은 수락 전 상세', () => {
         expect(markup(<InsungSimScreen {...base} selectedCall={callA} />))
-            .toBe(markup(<InseongCallDetailScreen call={callA} feedback={null} isConfirmed={false} onClose={noop} onAccept={noop} />));
+            .toBe(markup(<InsungCallDetailScreen call={callA} feedback={null} isConfirmed={false} onClose={noop} onAccept={noop} />));
     });
 
     it('인성 상세 — 잡은 콜은 진행 중 상세', () => {
         expect(markup(<InsungSimScreen {...base} confirmedCalls={[callA]} selectedCall={callA} />))
-            .toBe(markup(<InseongOngoingDetailScreen call={callA} onClose={noop} onCancel={noop} />));
+            .toBe(markup(<InsungOngoingDetailScreen call={callA} onClose={noop} onCancel={noop} />));
     });
 
     it('화물24시 리스트', () => {

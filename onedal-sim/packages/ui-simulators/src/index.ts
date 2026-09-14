@@ -10,22 +10,22 @@ export type { SimulationConfig, DriverLocation } from './context/SimulationConte
 // 🌐 배차망을 전부 아는 곳 — 콜 타입 묶음 (0단계 0-2 ③)
 export type { SimCall, SimNet, NetKey, NetScreenProps } from './nets';
 export { SIM_NETS, SIM_NET_LIST, simNetOf, renamedNetKey } from './nets';
-export { InsungSimScreen } from './inseong/InsungSimScreen';
+export { InsungSimScreen } from './insung/InsungSimScreen';
 export { Hwamul24SimScreen } from './hwamul24/Hwamul24SimScreen';
-export type { InsungCall } from './inseong/insungCall';
+export type { InsungCall } from './insung/insungCall';
 export type { Hwamul24Call } from './hwamul24/hwamul24Call';
 
 // 인성 UI
-export { SimDispatchBoard as InseongDispatchBoard } from './inseong/SimDispatchBoard';
-export { InseongCallDetailScreen } from './inseong/InseongCallDetailScreen';
-export { InseongOngoingDetailScreen } from './inseong/InseongOngoingDetailScreen';
-export { InseongLocationDetailScreen } from './inseong/InseongLocationDetailScreen';
-export { InseongMemoDetailScreen } from './inseong/InseongMemoDetailScreen';
-export { InseongDropdownMenu } from './inseong/InseongDropdownMenu';
+export { SimDispatchBoard as InsungDispatchBoard } from './insung/SimDispatchBoard';
+export { InsungCallDetailScreen } from './insung/InsungCallDetailScreen';
+export { InsungOngoingDetailScreen } from './insung/InsungOngoingDetailScreen';
+export { InsungLocationDetailScreen } from './insung/InsungLocationDetailScreen';
+export { InsungMemoDetailScreen } from './insung/InsungMemoDetailScreen';
+export { InsungDropdownMenu } from './insung/InsungDropdownMenu';
 
 // 인성 표기 — 인성 화면만 쓴다 (0단계 0-2 에서 공통 코드에서 옮겨 왔다)
-export { formatRegionName, formatRegionFullName, formatInsungVehicle, toInsungCall } from './inseong/insungCall';
-export { getNextPickupDetail, getNextDropoffDetail } from './inseong/insungContacts';
+export { formatRegionName, formatRegionFullName, formatInsungVehicle, toInsungCall } from './insung/insungCall';
+export { getNextPickupDetail, getNextDropoffDetail } from './insung/insungContacts';
 
 // 화물24 UI
 export { Hwamul24DispatchBoard } from './hwamul24/Hwamul24DispatchBoard';

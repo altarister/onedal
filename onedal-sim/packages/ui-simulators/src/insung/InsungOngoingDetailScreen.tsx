@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { InsungCall } from './insungCall';
 import type { LocationDetailInfo } from '@altari/core-simulator';
 import { formatRegionName, formatRegionFullName } from './insungCall';
-import { InseongLocationDetailScreen } from './InseongLocationDetailScreen';
-import { InseongMemoDetailScreen } from './InseongMemoDetailScreen';
+import { InsungLocationDetailScreen } from './InsungLocationDetailScreen';
+import { InsungMemoDetailScreen } from './InsungMemoDetailScreen';
 import { getNextPickupDetail, getNextDropoffDetail } from './insungContacts';
 
 
@@ -16,7 +16,7 @@ interface Props {
   onCancel?: (call: InsungCall) => void;
 }
 
-export const InseongOngoingDetailScreen = ({ call, onClose, onCancel }: Props) => {
+export const InsungOngoingDetailScreen = ({ call, onClose, onCancel }: Props) => {
   // 출발지/도착지 및 적요 상세 팝업 상태
   const [locationPopup, setLocationPopup] = useState<{ type: 'PICKUP' | 'DROPOFF'; detail: LocationDetailInfo } | null>(null);
   const [showMemoPopup, setShowMemoPopup] = useState(false);
@@ -149,7 +149,7 @@ export const InseongOngoingDetailScreen = ({ call, onClose, onCancel }: Props) =
 
       {/* 출발지/도착지 상세 팝업 오버레이 */}
       {locationPopup && (
-        <InseongLocationDetailScreen
+        <InsungLocationDetailScreen
           type={locationPopup.type}
           detail={locationPopup.detail}
           onClose={() => setLocationPopup(null)}
@@ -158,7 +158,7 @@ export const InseongOngoingDetailScreen = ({ call, onClose, onCancel }: Props) =
 
       {/* 적요상세 팝업 오버레이 */}
       {showMemoPopup && (
-        <InseongMemoDetailScreen
+        <InsungMemoDetailScreen
           call={call}
           distPickup={distPickup}
           distDelivery={distDelivery}

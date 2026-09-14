@@ -1,7 +1,7 @@
 /**
  * 🌐 **배차망을 전부 아는 곳** (2026-09-14 · 카카오픽커_시뮬레이터.md §3-3 · 0단계 0-2 ⑤)
  *
- * 공통 코드(core-simulator)는 배차망을 모르고, 배차망 폴더(inseong · hwamul24)는 서로를 모른다.
+ * 공통 코드(core-simulator)는 배차망을 모르고, 배차망 폴더(insung · hwamul24)는 서로를 모른다.
  * 둘을 함께 알아야 하는 것은 여기에만 둔다 — 서버의 PluginFactory · 원달앱의 TargetApp.kt 와 같은 자리다.
  *
  * 배차망 하나가 채울 칸은 `SimNet` 인터페이스가 정한다. 넷째 배차망(픽커)을 붙일 때
@@ -11,11 +11,11 @@
  */
 import type { ComponentType } from 'react';
 import type { CallDraft, CallOptions, RandomSource } from '@altari/core-simulator';
-import type { InsungCall } from './inseong/insungCall';
-import { toInsungCall } from './inseong/insungCall';
+import type { InsungCall } from './insung/insungCall';
+import { toInsungCall } from './insung/insungCall';
 import type { Hwamul24Call } from './hwamul24/hwamul24Call';
 import { toHwamul24Call } from './hwamul24/hwamul24Call';
-import { InsungSimScreen } from './inseong/InsungSimScreen';
+import { InsungSimScreen } from './insung/InsungSimScreen';
 import { Hwamul24SimScreen } from './hwamul24/Hwamul24SimScreen';
 
 /** 시뮬레이터 리스트·잡은 콜이 담는 콜 — 배차망마다 칸이 다르다 */

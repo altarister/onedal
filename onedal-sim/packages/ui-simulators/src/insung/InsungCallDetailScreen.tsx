@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import type { InsungCall } from './insungCall';
 import type { LocationDetailInfo } from '@altari/core-simulator';
 import { formatRegionName, formatRegionFullName } from './insungCall';
-import { InseongLocationDetailScreen } from './InseongLocationDetailScreen';
-import { InseongMemoDetailScreen } from './InseongMemoDetailScreen';
+import { InsungLocationDetailScreen } from './InsungLocationDetailScreen';
+import { InsungMemoDetailScreen } from './InsungMemoDetailScreen';
 import { getNextPickupDetail, getNextDropoffDetail } from './insungContacts';
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
   onAccept?: (call: InsungCall) => void;
 }
 
-export const InseongCallDetailScreen = ({ call, feedback, isConfirmed, onClose, onAccept }: Props) => {
+export const InsungCallDetailScreen = ({ call, feedback, isConfirmed, onClose, onAccept }: Props) => {
   const isEvaluated = feedback !== undefined && feedback !== null;
 
   // 출발지/도착지 상세 팝업 상태
@@ -22,8 +22,8 @@ export const InseongCallDetailScreen = ({ call, feedback, isConfirmed, onClose, 
   /**
    * 📋 적요 상세 팝업 — **확정 전에도 열린다** (기사님 실물 확인 2026-08-22).
    *
-   * 🔴 화면은 만들어져 있었는데(`InseongMemoDetailScreen`) 확정 **전** 화면만 버튼에
-   *    연결이 빠져 있었다. 확정 **후** 화면(`InseongOngoingDetailScreen`)은 같은 컴포넌트를
+   * 🔴 화면은 만들어져 있었는데(`InsungMemoDetailScreen`) 확정 **전** 화면만 버튼에
+   *    연결이 빠져 있었다. 확정 **후** 화면(`InsungOngoingDetailScreen`)은 같은 컴포넌트를
    *    잘 열고 있었다 — 한쪽만 연결된 비대칭이었다.
    *    그래서 원달앱의 팝업 서핑이 "적요상세를 눌렀는데 안 열린다"로 첫 칸에서 멈췄다.
    */
@@ -186,7 +186,7 @@ export const InseongCallDetailScreen = ({ call, feedback, isConfirmed, onClose, 
 
       {/* 출발지/도착지 상세 팝업 오버레이 */}
       {locationPopup && (
-        <InseongLocationDetailScreen
+        <InsungLocationDetailScreen
           type={locationPopup.type}
           detail={locationPopup.detail}
           onClose={() => setLocationPopup(null)}
@@ -195,7 +195,7 @@ export const InseongCallDetailScreen = ({ call, feedback, isConfirmed, onClose, 
 
       {/* 적요 상세 팝업 오버레이 — 확정 후 화면과 같은 컴포넌트를 쓴다 */}
       {showMemoPopup && (
-        <InseongMemoDetailScreen
+        <InsungMemoDetailScreen
           call={call}
           distPickup={distPickup}
           distDelivery={distDelivery}

@@ -4,7 +4,7 @@ import { act } from 'react';
 import type { ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
-import { InseongCallDetailScreen, InseongOngoingDetailScreen } from '@altari/ui-simulators';
+import { InsungCallDetailScreen, InsungOngoingDetailScreen } from '@altari/ui-simulators';
 import { callA } from './fixtures';
 
 /**
@@ -43,7 +43,7 @@ const press = (b: HTMLButtonElement) => act(() => { b.click(); });
 describe('인성 상세 (확정 전)', () => {
     const setup = () => {
         const onAccept = vi.fn(); const onClose = vi.fn();
-        const h = mount(<InseongCallDetailScreen call={callA} feedback={null} isConfirmed={false} onClose={onClose} onAccept={onAccept} />);
+        const h = mount(<InsungCallDetailScreen call={callA} feedback={null} isConfirmed={false} onClose={onClose} onAccept={onAccept} />);
         return { h, onAccept, onClose };
     };
 
@@ -81,8 +81,8 @@ describe('인성 확정 페이지', () => {
     const setup = () => {
         const onClose = vi.fn(); const onCancel = vi.fn(); const onConfirm = vi.fn();
         // 옛 «탁송 = 배송 완료» 가 부르던 onConfirm 도 넘겨 본다 — 불리면 안 된다
-        const props = { call: callA, onClose, onCancel, onConfirm } as unknown as Parameters<typeof InseongOngoingDetailScreen>[0];
-        const h = mount(<InseongOngoingDetailScreen {...props} />);
+        const props = { call: callA, onClose, onCancel, onConfirm } as unknown as Parameters<typeof InsungOngoingDetailScreen>[0];
+        const h = mount(<InsungOngoingDetailScreen {...props} />);
         return { h, onClose, onCancel, onConfirm };
     };
 

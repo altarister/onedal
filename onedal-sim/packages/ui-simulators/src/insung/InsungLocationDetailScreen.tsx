@@ -6,7 +6,7 @@ interface Props {
   onClose: () => void;
 }
 
-export const InseongLocationDetailScreen = ({ type, detail, onClose }: Props) => {
+export const InsungLocationDetailScreen = ({ type, detail, onClose }: Props) => {
   const isPickup = type === 'PICKUP';
   const title = isPickup ? '출발지 상세' : '도착지 상세';
   const label = isPickup ? '출발' : '도착';

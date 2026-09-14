@@ -7,7 +7,7 @@ interface Props {
   onClose: () => void;
 }
 
-export const InseongMemoDetailScreen = ({ call, distPickup, distDelivery, onClose }: Props) => {
+export const InsungMemoDetailScreen = ({ call, distPickup, distDelivery, onClose }: Props) => {
   return (
     <div className="absolute inset-0 z-[60] flex flex-col bg-[#eef1f6] font-sans text-black select-none tracking-tight">
 
