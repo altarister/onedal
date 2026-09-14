@@ -67,8 +67,9 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
     });
 
     it('🔴 신호가 오락가락할 때 갈아타지 않는다 (떨림 방지 — 유예 시간이 있다)', () => {
-        expect(gps).toMatch(/REAL_GPS_STALE_MS/);
-        const v = gps.match(/const REAL_GPS_STALE_MS = ([\d_]+)/);
+        /* 🔄 #132 — 끊김 기준은 주행/정차 판정과 한 벌(`driveMotion.GPS_STALE_MS`) */
+        expect(gps).toMatch(/GPS_STALE_MS/);
+        const v = codeOnly(read('components/dashboard/driveMotion.ts')).match(/export const GPS_STALE_MS = ([\d_]+)/);
         expect(v).not.toBeNull();
         expect(Number(v![1].replace(/_/g, ''))).toBeGreaterThanOrEqual(5000);
     });
@@ -220,7 +221,8 @@ describe('속도 표시 — 시뮬레이터 점프를 실제 속도로 말하지
         expect(panel).toMatch(/loc\.source === 'mock'/);      // 출처는 «시뮬» 표시에만 쓴다
         expect(panel).not.toMatch(/if \(isMock\)\s*\{/);
         expect(panel).not.toMatch(/isMoving && !gpsIsMock/);
-        expect(panel).toMatch(/Math\.min\(250,/);            // 튐은 상한으로 막는다
+        /* 🔄 #132 — 속도 계산은 순수 함수 한 곳으로 옮겼다 */
+        expect(codeOnly(read('components/dashboard/driveMotion.ts'))).toMatch(/Math\.min\(250,/);            // 튐은 상한으로 막는다
     });
 });
 

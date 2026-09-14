@@ -6,7 +6,7 @@ import type { SecuredOrder } from "@onedal/shared";
 import { CAPACITY_CONFIDENCE_LABEL, isAlreadyLoaded, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
 import { logStateChange } from '../../lib/roadmapLogger';
-import { getDistanceKm } from "../../lib/routeUtils";
+import { initialMotion, motionOnFix, motionOnTick } from './driveMotion';
 
 import { Badge } from "../ui/badge";
 
@@ -40,66 +40,29 @@ export function useDriveMotion(): 'drive' | 'idle' {
     const holdMs = useSettingsStore(st => st.motionHoldSec) * 1000;
     /**
      * 🔴 **ref 로 든다 — 클로저에 가두면 설정을 바꿔도 안 따른다** (기사님 실측 2026-09-12).
-     *
-     * 처음엔 `holdMs` 를 그냥 썼는데 아래 `useEffect` 의 의존성이 `[]` 라 **첫 렌더의
-     * 10초가 그대로 갇혔다.** 기사님이 1초로 바꾸고 한 판을 도셨는데 여전히 10초로 돌아
-     * 주행 판정이 한 번도 안 떴다 (속도는 수천 km/h 였는데 달리는 구간이 8초였다).
-     *
-     * ⚠️ 의존성에 `[holdMs]` 를 넣으면 값이 바뀔 때마다 **측정 상태(speed·last)가 초기화**된다 —
-     *    그러면 설정을 만지는 순간 속도가 0부터 다시 쌓인다. ref 면 재구독 없이 최신 값을 본다.
-     * ⚠️ `lint:gate` 는 `exhaustive-deps` 를 꺼 뒀으므로 **이 종류는 기계가 안 잡는다** —
-     *    설정값을 effect 안에서 읽을 때는 늘 이 자리를 의심한다.
+     *    ⚠️ 의존성에 `[holdMs]` 를 넣으면 값이 바뀔 때마다 측정 상태가 초기화된다 — ref 면 재구독 없이 최신 값을 본다.
+     *    ⚠️ `lint:gate` 는 `exhaustive-deps` 를 꺼 뒀으므로 **이 종류는 기계가 안 잡는다**.
      */
     const holdRef = useRef(holdMs);
     useEffect(() => { holdRef.current = holdMs; }, [holdMs]);
     useEffect(() => {
-        let speed = 0;
-        let last: { lat: number; lng: number; time: number } | null = null;
-        let driveSince = 0; let idleSince = 0;
-        /**
-         * 🔴 mock 도 실 GPS 와 똑같이 **속도를 재서** 판단한다 (2026-08-31).
-         *    예전엔 mock = 무조건 주행이라, 모의 주행에서 정차 상태(S2·S7)가
-         *    구조적으로 한 번도 안 나왔다 — 시뮬이 정차 연기(18초 같은 자리)를
-         *    하게 됐으므로 측정으로 충분하다. 출처 특례는 판단을 죽인다.
-         */
+        /* 🧮 판정은 `driveMotion` 순수 함수 — 좌표가 끊기면 속도 «모름»으로 주행을 내린다 (#132) */
+        let st = initialMotion();
         const onGps = (e: Event) => {
             const loc = (e as CustomEvent<{ lat: number, lng: number, source?: string }>).detail;
-            const now = Date.now();
-            if (last) {
-                const h = (now - last.time) / 3_600_000;
-                if (h > 0) {
-                    /**
-                     * 🔴 **내려갈 땐 즉시, 올라갈 땐 평활** (기사님 실측 0831 2판).
-                     *    양방향 EWMA 는 모의 순항(수천 km/h)에서 0 으로 내려오는 데만
-                     *    ~17초 — 12초 정차 안에 «5km/h↓ 10초»가 영영 안 찬다.
-                     *    실운행도 같다: 신호 정지의 속도 0 은 잡음이 아니라 사실이다.
-                     *    상한 250 은 GPS 튐(순간 수백 km/h)이 문턱을 흔들지 않게 한다.
-                     */
-                    const measured = Math.min(250, getDistanceKm(last.lat, last.lng, loc.lat, loc.lng) / h);
-                    speed = measured < 5 ? measured : (speed * 0.7) + (measured * 0.3);
-                }
-            }
-            last = { lat: loc.lat, lng: loc.lng, time: now };
+            st = motionOnFix(st, loc, Date.now());
         };
         /**
          * 📡 **판정이 바뀌면 그때의 속도와 함께 남긴다** (기사님 지시 2026-09-01).
-         *    «도착했는데 이동 중»을 눈이 아니라 로그로 잡기 위해서다 — 판이 끝난 뒤
-         *    GPS 정지 구간과 맞대면 «몇 초 만에 정차로 바뀌었나»가 숫자로 나온다.
+         *    «도착했는데 이동 중»을 눈이 아니라 로그로 잡기 위해서다.
          */
-        const apply = (next: 'drive' | 'idle') => {
-            setMode(prev => {
-                if (prev !== next) logStateChange("주행판정", `${next} ${Math.round(speed)}km/h`, "차량");
-                return next;
-            });
-        };
         const tick = setInterval(() => {
-            const now = Date.now();
-            const fast = speed >= 20;
-            const slow = speed <= 5;
-            if (fast) { idleSince = 0; if (!driveSince) driveSince = now; if (now - driveSince >= holdRef.current) apply('drive'); }
-            else driveSince = 0;
-            if (slow) { if (!idleSince) idleSince = now; if (now - idleSince >= holdRef.current) apply('idle'); }
-            else idleSince = 0;
+            const next = motionOnTick(st, Date.now(), holdRef.current);
+            if (next.mode !== st.mode) {
+                logStateChange("주행판정", `${next.mode} ${next.speed === null ? '속도 모름(좌표 끊김)' : `${Math.round(next.speed)}km/h`}`, "차량");
+                setMode(next.mode);
+            }
+            st = next;
         }, 1_000);
         window.addEventListener('local-gps-update', onGps);
         return () => { clearInterval(tick); window.removeEventListener('local-gps-update', onGps); };
@@ -107,37 +70,34 @@ export function useDriveMotion(): 'drive' | 'idle' {
     return mode;
 }
 
-export function MovingBadge() {
-    const [currentSpeed, setCurrentSpeed] = useState<number>(0);
-    const [gpsIsMock, setGpsIsMock] = useState(false);
-    const lastGpsRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
+/**
+ * 🚗 **지금 속도 — 지도 배지·차량 패널이 읽는다** (판정은 `driveMotion` 순수 함수 · #132).
+ *    좌표가 끊기면 `null`(모름) — 마지막 속도로 «이동 중»을 남기지 않는다.
+ */
+export function useGpsSpeed(): { speed: number | null; isMock: boolean } {
+    const [view, setView] = useState<{ speed: number | null; isMock: boolean }>({ speed: null, isMock: false });
     useEffect(() => {
-        const onGpsUpdate = (e: Event) => {
+        let st = initialMotion();
+        let isMock = false;
+        const push = () => setView(v => (v.speed === st.speed && v.isMock === isMock) ? v : { speed: st.speed, isMock });
+        const onGps = (e: Event) => {
             const loc = (e as CustomEvent<{ lat: number, lng: number, source?: string }>).detail;
-            /**
-             * 🔴 **모의도 실제와 같은 잣대로 잰다** (0831 리뷰에서 잡힘).
-             *    예전엔 `if (isMock) 속도 0` + `isMoving = isMock || …` 라 **모의는 무조건
-             *    «시뮬 주행»** 이었다. 같은 날 `useDriveMotion` 에서는 그 특례를 지웠는데
-             *    여기만 남아, 무대 자막이 «정차 중»인 옆에서 배지가 «시뮬 주행»이라고
-             *    반대말을 했다 (시뮬 정차 연기 18초마다). 판정은 한 잣대여야 한다.
-             */
-            const isMock = loc.source === 'mock';
-            const now = Date.now();
-            setGpsIsMock(isMock);
-            if (lastGpsRef.current) {
-                const distKm = getDistanceKm(lastGpsRef.current.lat, lastGpsRef.current.lng, loc.lat, loc.lng);
-                const h = (now - lastGpsRef.current.time) / 3_600_000;
-                // 내려갈 땐 즉시, 올라갈 땐 평활 — useDriveMotion 과 같은 규칙
-                if (h > 0) {
-                    const measured = Math.min(250, distKm / h);
-                    setCurrentSpeed(prev => (measured < 5 ? measured : (prev * 0.7) + (measured * 0.3)));
-                }
-            }
-            lastGpsRef.current = { ...loc, time: now };
+            /* 🔴 모의도 실제와 같은 잣대로 잰다 (0831 리뷰) — 출처는 표시에만 쓴다 */
+            isMock = loc.source === 'mock';
+            st = motionOnFix(st, loc, Date.now());
+            push();
         };
-        window.addEventListener("local-gps-update", onGpsUpdate);
-        return () => window.removeEventListener("local-gps-update", onGpsUpdate);
+        /* 속도만 쓰므로 유지 초는 판정에 안 쓰인다 — 끊김만 본다 */
+        const tick = setInterval(() => { st = motionOnTick(st, Date.now(), 0); push(); }, 1_000);
+        window.addEventListener('local-gps-update', onGps);
+        return () => { clearInterval(tick); window.removeEventListener('local-gps-update', onGps); };
     }, []);
+    return view;
+}
+
+export function MovingBadge() {
+    const { speed, isMock: gpsIsMock } = useGpsSpeed();
+    const currentSpeed = speed ?? 0;
     const isMoving = currentSpeed > 5;
     return (
         <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10.5px] font-black ${isMoving ? 'border-info/30 bg-info/10 text-info' : 'border-border bg-surface-alt text-text-muted'}`}>
@@ -192,18 +152,9 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
 export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOrder[] }) {
     const { filter } = useFilterConfig();
 
-    // GPS 속도 계산을 위한 상태
-    const [currentSpeed, setCurrentSpeed] = useState<number>(0);
-    /**
-     * 지금 좌표를 **시뮬레이터가 대고 있나.**
-     *
-     * 🔴 2026-08-14 — 화면에 `11669 km/h` 가 떴다. 시뮬레이터는 1초에 경로를 1~2km 씩
-     *    **점프**하는데, 속도를 `거리 ÷ 시간` 으로 재니 그 숫자가 나온 것이다.
-     *    상한을 씌우는 건 땜빵이다 — **없는 숫자를 지어내지 않는다**(규칙 ④).
-     *    좌표에 출처가 실려 오므로, 시뮬레이션이면 속도 대신 그 사실을 말한다.
-     */
-    const [gpsIsMock, setGpsIsMock] = useState(false);
-    const lastGpsRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
+    /* 🚗 속도는 `useGpsSpeed` 한 곳 — 좌표가 끊기면 모름(null) → 정차로 보인다 (#132 · 이 자리가 셋째 벌이었다) */
+    const { speed: gpsSpeed, isMock: gpsIsMock } = useGpsSpeed();
+    const currentSpeed = gpsSpeed ?? 0;
 
 
     // 내 차량 정보 (DB 연동)
@@ -230,37 +181,6 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
         };
     }, []);
 
-    useEffect(() => {
-        const onGpsUpdate = (e: Event) => {
-            const customEvent = e as CustomEvent<{ lat: number, lng: number, source?: string }>;
-            const loc = customEvent.detail;
-            /**
-             * 🔴 **모의도 실제와 같은 잣대로 잰다** (0901 검사가 잡음 — 이것이 **셋째 벌**이었다).
-             *    2026-08-31 에 `useDriveMotion` 과 `MovingBadge` 의 특례를 지우면서 여기를
-             *    또 빠뜨렸다. 같은 «달리는가»를 세 곳이 각자 판정하고 있었다 (규칙 ③).
-             */
-            const isMock = loc.source === 'mock';
-            const now = Date.now();
-            setGpsIsMock(isMock);
-            if (lastGpsRef.current) {
-                const distKm = getDistanceKm(lastGpsRef.current.lat, lastGpsRef.current.lng, loc.lat, loc.lng);
-                const timeHours = (now - lastGpsRef.current.time) / (1000 * 60 * 60);
-                if (timeHours > 0) {
-                    // 내려갈 땐 즉시, 올라갈 땐 평활 — useDriveMotion 과 같은 규칙
-                    const measured = Math.min(250, distKm / timeHours);
-                    setCurrentSpeed(prev => (measured < 5 ? measured : (prev * 0.7) + (measured * 0.3)));
-                }
-            }
-            lastGpsRef.current = { ...loc, time: now };
-
-        };
-
-        window.addEventListener("local-gps-update", onGpsUpdate);
-        return () => {
-            window.removeEventListener("local-gps-update", onGpsUpdate);
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [liveCalls.map(c => c.id).join(',')]);
 
 
     // 시뮬레이션 중에는 "달리고 있다"는 사실만 참이다 — 속도는 모른다

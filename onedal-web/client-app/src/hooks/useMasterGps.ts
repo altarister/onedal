@@ -1,3 +1,4 @@
+import { GPS_STALE_MS } from '../components/dashboard/driveMotion';
 import { useEffect, useRef, useState } from 'react';
 import { publishLocation, endMockDriving } from '../lib/gpsBridge';
 import { useMockGpsSimulator } from './useMockGpsSimulator';
@@ -9,8 +10,6 @@ interface PolylinePoint {
     y: number;
 }
 
-/** 실 GPS 가 이 시간 넘게 안 오면 "없는 것"으로 본다 */
-const REAL_GPS_STALE_MS = 15_000;
 
 /**
  * 🔴 **시뮬레이터는 개발 빌드에만 존재한다.**
@@ -95,7 +94,7 @@ export function useMasterGps(
     const [realIsLive, setRealIsLive] = useState(false);
     useEffect(() => {
         if (!isDriving) { setRealIsLive(false); return; }
-        const tick = () => setRealIsLive(Date.now() - lastRealFixAt.current < REAL_GPS_STALE_MS);
+        const tick = () => setRealIsLive(Date.now() - lastRealFixAt.current < GPS_STALE_MS);   // 실 GPS 가 끊겼나 — 주행/정차 판정의 «좌표 끊김»과 같은 질문이라 한 값 (#132)
         tick();
         const id = setInterval(tick, 3000);
         return () => clearInterval(id);
