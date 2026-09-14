@@ -12,7 +12,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { SimulationProvider, useSimulationContext } from '@altari/ui-simulators';
-import { useSimStreaming } from '@altari/ui-simulators';
+import { useSimStreaming, useSimInjectedCalls } from '@altari/ui-simulators';
 import { simNetOf, renamedNetKey, SIM_NET_LIST } from '@altari/ui-simulators';
 import { getPresetFrom } from '@altari/core-simulator';
 import type { SimCall } from '@altari/ui-simulators';
@@ -128,6 +128,13 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     /* 📍 기사님 위치를 받은 뒤에 첫 콜 — 기본 자리로 상차 거리를 재지 않는다 (2026-09-14) */
     ready: locationReady,
   });
+
+  /**
+   * 🚚 **개별콜 — 현황판에서 낸 콜을 이 목록에 넣는다** (기사님 지시 2026-09-15).
+   * 서버가 들고 있다가 3초마다 넘긴다. 문제지 콜과 같은 길(강제 쌍)로 이 배차망 콜을 입힌다 — 무엇으로 입힐지는 배차망이 안다.
+   * 🔴 멈춤과 상관없이 받는다 — 랜덤 콜을 멈추고 한 건씩 넣어 보는 것이 쓰임새다.
+   */
+  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, ready: locationReady });
 
   /**
    * 🔙 **상세를 방문 기록에 남기는 배차망** (`SimNet.detailInHistory` · 계획서 §7-3 · 2단계 2-2).

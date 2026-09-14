@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { SimCall } from '../nets';
+import { simApiBase } from './simApi';
 
 const MAX_STREAMING_CALLS = 50;
 
@@ -93,8 +94,7 @@ export const SimulationProvider = ({ children, initialDriver, initialConfig, ini
    */
   useEffect(() => {
     let alive = true;
-    const params = new URLSearchParams(window.location.search);
-    const api = params.get('api') || `http://${window.location.hostname}:4000`;
+    const api = simApiBase();
     let got = false;
     const apply = (lon: number, lat: number, name: string) => {
       if (!alive) return;

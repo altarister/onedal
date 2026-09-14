@@ -11,6 +11,7 @@ import { getUserDevicesSnapshot } from "./devices";
 import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
 import { BOOTED_AT } from "./health";
 import { calculateSoloRoute } from "../services/kakaoService";
+import { createSimCallQueue, pushSimCall, readSimCallInput, simCallsAfter } from "../core/simCallQueue";
 
 const router = Router();
 
@@ -157,6 +158,39 @@ router.get("/intel", (req, res) => {
         total: (db.prepare("SELECT COUNT(*) as c FROM intel").get() as { c: number }).c,
         rows,
     });
+});
+
+/**
+ * 🚚 **개별콜 — 현황판이 낸 콜을 들고 있다가 시뮬레이터에 넘긴다** (기사님 지시 2026-09-15 · `core/simCallQueue.ts` 머리)
+ *
+ * 🔴 **개발 빌드에서만 열린다** — 다른 sim 문들과 같은 문지기. 운영에는 시뮬레이터가 없다.
+ * 🔴 **세션을 고르지 않는다** — 콜은 기사님 값이 아니라 시뮬레이터 화면에 뜰 가짜 콜이다. 누구의 것도 아니다.
+ */
+const simCalls = createSimCallQueue();
+
+router.post("/calls", (req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+    const read = readSimCallInput(req.body);
+    if (!read.ok) return res.status(400).json({ ok: false, error: read.error });
+    const now = Date.now();
+    const queued = pushSimCall(simCalls, read.call, now);
+    console.log(`🚚 [개별콜] #${queued.seq} 받음 — ${queued.pickup.region} → ${queued.dropoff.region} · ${queued.fare}`);
+    return res.json({
+        ok: true,
+        seq: queued.seq,
+        /** 시뮬레이터가 마지막으로 물은 뒤 몇 ms — 서버 시계로 잰다 (현황판 시계와 안 섞는다). 한 번도 안 물었으면 null */
+        simPolledAgoMs: simCalls.lastPollAt === null ? null : now - simCalls.lastPollAt,
+    });
+});
+
+router.get("/calls", (req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+    const raw = req.query.after;
+    const after = raw === undefined ? null : Number(raw);
+    if (after !== null && !(Number.isInteger(after) && after >= 0)) {
+        return res.status(400).json({ ok: false, error: "after 는 0 이상의 정수다" });
+    }
+    return res.json({ ok: true, ...simCallsAfter(simCalls, after, Date.now()) });
 });
 
 /**

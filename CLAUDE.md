@@ -119,6 +119,7 @@
 | 소켓 이벤트 이름 | ✅ `pnpm audit:socket` |
 | 앱에 내려가는 필터 키 | ✅ `appFilterKeys` |
 | 배차망별 대기 시간 (안전취소 · 픽커 상세) | ✅ `waitTimes` — DB 칸 · 설정 경로 · 원달앱 응답 · 서버 타이머 · 관제웹 · 원달앱이 한 줄로 이어졌나 |
+| 개별콜 모양 (현황판 → 서버 → 시뮬레이터) | ✅ `simCallQueue` — 칸 이름 · 경로 · 개발 빌드만 |
 | 앱이 올리는 콜 칸 | ✅ `intelColumns` |
 | 앱 콜 양식 칸 이름 | ✅ `appOrderShape` |
 | 콜 상태 목록 | ✅ `orderStatus` |

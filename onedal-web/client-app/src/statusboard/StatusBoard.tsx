@@ -41,6 +41,8 @@ import { LAB_EVENING,
    2026-09-12 에 사본(`recheck.ts`)을 지우고 이것으로 갈아탔다 */
 import { viewAll, tallyMarks, MARK_SIGN } from './callVerdict';
 import { callStepsOf, handmadeOrderFrom, isHandmade } from './handmadeCall';
+import { placeFromFound, sentNoteOf, simCallBody } from './simCall';
+import type { SimPlaceDraft } from './simCall';
 /* 🎚️ **눈금이 무엇을 못 보게 하나 — 판단은 순수 함수가 한다** (`dialEffect.ts` 머리 참조) */
 import { dialEffectOf } from './dialEffect';
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
@@ -536,9 +538,114 @@ function LocationPickCard() {
     );
 }
 
+type PlaceSide = 'pickup' | 'dropoff';
+const PLACE_LABEL: Record<PlaceSide, string> = { pickup: '상차', dropoff: '하차' };
+
+/**
+ * 🚚 **개별콜 — 시뮬레이터 목록에 콜 한 건을 낸다** (기사님 지시 2026-09-15 · `simCall.ts` 머리).
+ *
+ * 🔴 **서버가 들고 있다가 시뮬레이터가 3초마다 가져간다** — 폰 원달앱이 그 콜을 다른 콜과 똑같이 읽고·거르고·잡는다.
+ *    아래 «🖐️ 콜 생성»은 서버에 바로 넣어 원달앱을 건너뛴다. 필터를 보려면 이쪽이다.
+ * 🔴 **주소 찾기는 «위치 찍기»와 같은 문**(`GET /settings/geocode`)이다 (규칙 ③).
+ * 🔴 **요금 단위는 받는 배차망이 정한다** — 인성·화물24시는 원, 픽커는 P.
+ */
+function SimCallCard() {
+    const [texts, setTexts] = useState<Record<PlaceSide, string>>({ pickup: '', dropoff: '' });
+    const [places, setPlaces] = useState<Record<PlaceSide, SimPlaceDraft | null>>({ pickup: null, dropoff: null });
+    /** 🔴 못 찾은 이유는 서버가 준 말 그대로 — 여기서 지어내지 않는다 */
+    const [placeErrors, setPlaceErrors] = useState<Record<PlaceSide, string | null>>({ pickup: null, dropoff: null });
+    const [finding, setFinding] = useState<PlaceSide | null>(null);
+    const [fareText, setFareText] = useState('');
+    const [sending, setSending] = useState(false);
+    const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
+
+    const find = async (side: PlaceSide) => {
+        const q = texts[side].trim();
+        if (q.length < 2) { setPlaceErrors(p => ({ ...p, [side]: '주소를 두 글자 넘게 적어 주세요' })); return; }
+        setFinding(side); setPlaceErrors(p => ({ ...p, [side]: null }));
+        try {
+            const { data } = await apiClient.get(`/settings/geocode?address=${encodeURIComponent(q)}`);
+            const read = placeFromFound({ address: (data.address as string) ?? q, lon: data.x as number, lat: data.y as number });
+            setPlaces(p => ({ ...p, [side]: read.ok ? read.place : null }));
+            if (!read.ok) setPlaceErrors(p => ({ ...p, [side]: read.why }));
+        } catch (e) {
+            setPlaces(p => ({ ...p, [side]: null }));
+            const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            setPlaceErrors(p => ({ ...p, [side]: msg || '주소를 못 찾았습니다' }));
+        } finally {
+            setFinding(null);
+        }
+    };
+
+    const send = async () => {
+        const built = simCallBody(places.pickup, places.dropoff, fareText);
+        if (!built.ok) { setNote({ text: `— ${built.why}`, ok: false }); return; }
+        setSending(true); setNote(null);
+        try {
+            const r = await fetch(`${apiBase()}/sim/calls`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(built.body),
+            });
+            const d = await r.json().catch(() => null) as { ok?: boolean; seq?: number; simPolledAgoMs?: number | null; error?: string } | null;
+            if (!r.ok || !d?.ok || typeof d.seq !== 'number') {
+                setNote({ text: `— 서버가 안 받았다 (${d?.error ?? `HTTP ${r.status}`})`, ok: false });
+                return;
+            }
+            setNote(sentNoteOf(d.seq, d.simPolledAgoMs ?? null));
+        } catch {
+            setNote({ text: '— 서버에 못 닿았다', ok: false });
+        } finally {
+            setSending(false);
+        }
+    };
+
+    /* 컴포넌트가 아니라 그리는 함수다 — 컴포넌트로 두면 글자를 칠 때마다 입력칸이 새로 만들어져 커서를 잃는다 */
+    const placeRow = (side: PlaceSide) => {
+        const found = places[side];
+        const error = placeErrors[side];
+        return (
+            <div key={side}>
+                <div className="flex items-center gap-1">
+                    <span className="shrink-0 w-7 text-[10.5px] font-black text-text-muted">{PLACE_LABEL[side]}</span>
+                    <input value={texts[side]}
+                        onChange={e => { const v = e.target.value; setTexts(t => ({ ...t, [side]: v })); setPlaces(p => ({ ...p, [side]: null })); }}
+                        onKeyDown={e => { if (e.key === 'Enter') void find(side); }}
+                        placeholder="예: 경기 광주시 초월읍 경충대로 907"
+                        className="min-w-0 flex-1 px-1.5 py-1 rounded-[6px] border border-border-hover bg-background text-[11px] font-black text-text-primary" />
+                    <button type="button" onClick={() => void find(side)} disabled={finding !== null}
+                        className="shrink-0 px-2 py-1 rounded-md border border-border-card text-[10.5px] font-black text-text-muted hover:text-info hover:border-info/40">
+                        {finding === side ? '찾는 중…' : '🔎 찾기'}
+                    </button>
+                </div>
+                {error && <Row k="못 찾음" v={error} tone="warn" />}
+                {found && <Row k={`${PLACE_LABEL[side]} 동`} v={`${found.region} · ${found.lon.toFixed(5)}, ${found.lat.toFixed(5)}`} tone="ok" />}
+            </div>
+        );
+    };
+
+    return (
+        <Card title="🚚 개별콜" note={'시뮬레이터 목록에 한 건\n폰 원달앱이 읽고 거른다'}>
+            {placeRow('pickup')}
+            {placeRow('dropoff')}
+            <div className="flex items-center gap-1 pt-1">
+                <input value={fareText} onChange={e => setFareText(e.target.value)} inputMode="numeric"
+                    placeholder="요금 — 원 (픽커는 P)"
+                    className="min-w-0 flex-1 px-1.5 py-1 rounded-[6px] border border-border-hover bg-background text-[11px] font-black text-text-primary" />
+                <button type="button" onClick={() => void send()} disabled={sending}
+                    className={`shrink-0 px-2 py-1 rounded-md border text-[10.5px] font-black ${sending
+                        ? 'border-border-card/50 text-text-muted/40'
+                        : 'border-info/40 bg-info/15 text-info hover:bg-info/25'}`}>
+                    {sending ? '내는 중…' : '🚚 시뮬레이터에 내기'}
+                </button>
+            </div>
+            {note && <Row k="방금 낸 것" v={note.text} tone={note.ok ? 'ok' : 'warn'} />}
+        </Card>
+    );
+}
+
 /**
  * 🧪 **테스트용 구역 — 맨 위에 따로 선다** (기사님 지시 2026-09-12).
- *    이 구역의 둘만 **서버를 바꾸고**, 아래 세 줄은 전부 읽기만 한다.
+ *    이 구역의 셋만 **서버를 바꾸고**, 아래 줄들은 읽기만 한다 (예외: «버린 콜» 칸 아래 «🖐️ 콜 생성»).
  *    어드민으로 옮기는 날 **이 구역째** 걷는다.
  */
 function TestOnlySection({ phase }: { phase?: string }) {
@@ -551,6 +658,7 @@ function TestOnlySection({ phase }: { phase?: string }) {
             <div className="flex flex-wrap items-start gap-2">
                 <div className="flex-1 min-w-[240px]"><MockDriveCard phase={phase} /></div>
                 <div className="flex-1 min-w-[240px]"><LocationPickCard /></div>
+                <div className="flex-1 min-w-[240px]"><SimCallCard /></div>
             </div>
         </div>
     );

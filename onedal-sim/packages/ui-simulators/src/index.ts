@@ -5,6 +5,7 @@
 // 컨텍스트 및 훅
 export { SimulationProvider, useSimulationContext } from './context/SimulationContext';
 export { useSimStreaming } from './context/useSimStreaming';
+export { useSimInjectedCalls, INJECTED_POLL_MS } from './context/useSimInjectedCalls';
 export type { SimulationConfig, DriverLocation } from './context/SimulationContext';
 
 // 🌐 배차망을 전부 아는 곳 — 콜 타입 묶음 (0단계 0-2 ③)

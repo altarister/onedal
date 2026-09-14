@@ -23,5 +23,9 @@ export { PRESETS, PRESET_MENU, PRESET_KEYS, PRESET_REQUIRES, getPreset, getPrese
 export type { PresetRequires, PresetBook } from './presets';
 export type { PresetProblem } from './presets';
 
+// 🚚 개별콜 — 서버가 들고 있다가 넘기는 콜 (현황판에서 한 건씩)
+export { toInjectedForced, takeInjected } from './injectedCall';
+export type { InjectedCall, InjectedPlace, InjectedBatch } from './injectedCall';
+
 // 유틸리티
 export { calculateDistanceKm } from './geo';
