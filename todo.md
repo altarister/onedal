@@ -1,5 +1,13 @@
 # 1DAL 정비 계획 (Cleanup & Fix Plan)
 
+## 🟡 상차 목록 · 하차 목록 — 옛 칸 걷는 날 (3단계 · 2026-09-15 규격 초안)
+
+규격: [docs/지금/필터.md](docs/지금/필터.md) «상차 목록 · 하차 목록». 서버 onedal-b5 · 원달앱 onedal-49.
+
+- [ ] 1단계 서버 — `pickupKeywords` 더해 보냄 (옛 칸 유지)
+- [ ] 2단계 원달앱 — `pickupKeywords` 로 거름 · 설치 (앱 버전 확인)
+- [ ] **3단계 옛 칸 걷기** — 서버 `pickupRadiusKm`(앱 응답) · `orderKm` · `buildAppOrderKm` · 동별 km 비교 + 원달앱 «새 칸이 안 오면 옛 칸으로» 길 · `RouteOrderFilter.kt` · `routeOrderCityWide` **를 같은 날 함께** (두 벌 금지)
+
 ## 🔴 `pnpm scenario` 9건이 폐기된 규칙을 묻는다 (2026-09-13 · 배포 전 확인에서 잡힘)
 
 `pnpm scenario` 가 **57건 중 9건 빨간불**이다. **코드가 깨진 게 아니라 검사가 낡았다.**
