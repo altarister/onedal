@@ -386,6 +386,12 @@ export default function PinnedRouteCard({
                             ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
                             : '-'}
                     </Badge>
+                    {/* 🧹 취소·방출한 시각 (전수표 #65) — 안전취소는 배차망 취소 횟수에 들어가 «언제»가 필요하다 */}
+                    {route.terminatedAt && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 rounded font-bold mr-1 text-danger border-danger/40 bg-danger/10">
+                            취소 {new Date(route.terminatedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </Badge>
+                    )}
                     <span className={`${evaluating ? 'text-warning' : 'text-success'} flex-shrink-0 flex items-center font-bold`}>
                         {pLabel}. {getAddressLabel(route.pickup)}{etas?.pickupEta && <span className="text-success/80 ml-0.5 font-normal">({etas.pickupEta})</span>}
                         <DeadlineChip orderId={route.id} stopType="pickup" eta={etas?.pickupEta}

@@ -642,6 +642,8 @@ export interface MyOrder extends OfficeOrder {
     goalCity?: string;
     /** 🏁 하차한 시각 (장부 `orders.completedAt`) — 화면의 사이클 경계가 본다 (#40) */
     completedAt?: string | null;
+    /** 🧹 취소·방출한 시각 (장부 `orders.terminatedAt` · 전수표 #65) — 하차는 `completedAt`, 취소는 이것 */
+    terminatedAt?: string | null;
     /**
      * 👀 미리보기 콜 (용어집 §9). 확정되면 `false` 로 덮여 보통 콜이 된다 —
      * `PendingOrder` 와 **같은 모양이어야** 두 타입이 한 함수(`pickRouteHolder` 등)에
@@ -713,6 +715,8 @@ export interface SecuredOrder extends OfficeOrder {
      * 화면의 사이클 경계가 이걸 본다 (`deckOfCycle` — 버그 대장 #40).
      */
     completedAt?: string | null;
+    /** 🧹 취소·방출한 시각 (장부 `orders.terminatedAt` · 전수표 #65) — 하차는 `completedAt`, 취소는 이것 */
+    terminatedAt?: string | null;
     /** 👀 미리보기 콜 — 확정 전이라 아직 안 잡은 콜이다 (용어집 §9) */
     isPreview?: boolean;
     /** 🎨 판정 스냅샷 — 심사 1회, 불변 ([[JudgmentSnapshot]]) */

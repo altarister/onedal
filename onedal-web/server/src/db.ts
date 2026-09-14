@@ -588,6 +588,13 @@ for (const t of STEP_TABLES) {
     ensureColumns(t.table, Object.fromEntries(t.columns.map(([, c, ty]) => [c, ty])));
 }
 
+/**
+ * 🧹 **취소·방출한 시각** (전수표 #65 · 목업 `labPortMap.ts` 의 `terminatedAt`).
+ *    `completedAt` 은 하차 완료에만 들어가고 취소면 NULL 로 지운다 — «언제 버렸나»가 장부에 없었다.
+ *    안전취소는 배차망 취소 횟수(10회)에 들어가 «언제 몇 번»을 알아야 한다. 적는 곳은 `OrderRepository.updateOrderStatus` 한 곳.
+ */
+ensureColumns('orders', { terminatedAt: 'TEXT' });
+
 // 어느 배차망에서 온 콜인가 (insung/hwamul24/kakaopicker) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)
 ensureColumns('orders', { targetApp: 'TEXT',
     /**

@@ -222,10 +222,17 @@ export class OrderRepository {
 
     /**
      * 수동 취소 등 상태값을 변경합니다.
+     * 🧹 **취소·방출이면 그 시각을 `terminatedAt` 에 처음 한 번만 적는다** (전수표 #65) — 다시 취소로 적혀도 첫 시각이 남는다.
+     * @returns 장부에 있는 취소 시각 — 취소·방출이 아니면 `null`. 부르는 쪽이 메모리 콜에도 적어 화면으로 보낸다
      */
-    public static updateOrderStatus(orderId: string, userId: string, status: string) {
-        const stmt = db.prepare("UPDATE orders SET status = ? WHERE id = ? AND userId = ?");
-        stmt.run(status, orderId, userId);
+    public static updateOrderStatus(orderId: string, userId: string, status: string): string | null {
+        db.prepare(`UPDATE orders SET status = ?,
+                        terminatedAt = CASE WHEN ? IN ('SAFE_CANCEL', 'ORDER_RELEASED_BY_ME', 'ORDER_RELEASED_BY_OFFICE')
+                                            THEN COALESCE(terminatedAt, ?) ELSE terminatedAt END
+                    WHERE id = ? AND userId = ?`).run(status, status, new Date().toISOString(), orderId, userId);
+        const row = db.prepare(`SELECT terminatedAt FROM orders WHERE id = ? AND userId = ?`)
+            .get(orderId, userId) as { terminatedAt?: string | null } | undefined;
+        return row?.terminatedAt ?? null;
     }
 
     /**
