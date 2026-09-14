@@ -165,7 +165,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun decide(
             order: SimplifiedOfficeOrder,
             minFare: Int,
-            pickupRadiusKm: Int,
+            pickupRadiusKm: Double,
             destKeywords: List<String> = emptyList(),
             keywordTraps: Map<String, List<String>> = emptyMap(),
             cityAliases: List<String> = emptyList(),
@@ -193,7 +193,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     /** 알람 조건 묶음 — 피기백 필터에서 읽는다. 기본값은 서버 미응답 시 안전망 */
     private data class AlarmConfig(
         val minFare: Int = 10000,
-        val pickupRadiusKm: Int = 10,
+        val pickupRadiusKm: Double = 10.0,   // 🔴 소수로 받는다 — 자동 반경이면 서버가 4.55 처럼 보낸다
         val destKeywords: List<String> = emptyList(),   // 비면 도착지 제한 없음 (관내·구서버)
         val keywordTraps: Map<String, List<String>> = emptyMap(),
         val cityAliases: List<String> = emptyList(),    // 시 별칭(customCityFilters) — «수정»처럼 구만 남는 카드용
@@ -220,7 +220,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             } ?: emptyList()
             AlarmConfig(
                 minFare = json.optInt("pickerAlarmMinFare", 10000),
-                pickupRadiusKm = json.optInt("pickupRadiusKm", 10),
+                pickupRadiusKm = json.optDouble("pickupRadiusKm", 10.0),
                 destKeywords = keywords,
                 keywordTraps = traps,
                 cityAliases = aliases,

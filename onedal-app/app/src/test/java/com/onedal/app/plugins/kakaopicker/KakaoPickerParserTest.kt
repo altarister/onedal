@@ -66,16 +66,16 @@ class KakaoPickerParserTest {
         val good = parser.parse(listOf("퀵", "반나절", "승", "강동", "14,466", "19.6km", "하남", "신장2", "천호3"))
         // 반경 20km 면 통과 → 알람 대상
         val t1 = FilterTally()
-        assertTrue(KakaoPickerParser.decide(good, 10000, 20, tally = t1))
+        assertTrue(KakaoPickerParser.decide(good, 10000, 20.0, tally = t1))
         assertEquals(1, t1.passed)
         // 같은 콜도 반경 15km 면 픽업거리 축에서 떨어진다
         val t2 = FilterTally()
-        assertFalse(KakaoPickerParser.decide(good, 10000, 15, tally = t2))
+        assertFalse(KakaoPickerParser.decide(good, 10000, 15.0, tally = t2))
         assertEquals(1, t2.pickup)
         // 요금 미달은 요금 축
         val cheap = parser.parse(listOf("퀵", "소형", "광주", "3,000", "1.0km", "광주", "경안", "경안"))
         val t3 = FilterTally()
-        assertFalse(KakaoPickerParser.decide(cheap, 10000, 20, tally = t3))
+        assertFalse(KakaoPickerParser.decide(cheap, 10000, 20.0, tally = t3))
         assertEquals(1, t3.fare)
     }
 
@@ -84,12 +84,12 @@ class KakaoPickerParserTest {
         // 도착 «강동 천호3» — 도착목표가 성남·분당이면 방향이 달라 안 울린다
         val good = parser.parse(listOf("퀵", "반나절", "승", "강동", "14,466", "19.6km", "하남", "신장2", "천호3"))
         val t1 = FilterTally()
-        assertFalse(KakaoPickerParser.decide(good, 10000, 20, listOf("성남", "분당"), emptyMap(), tally = t1))
+        assertFalse(KakaoPickerParser.decide(good, 10000, 20.0, listOf("성남", "분당"), emptyMap(), tally = t1))
         assertEquals(1, t1.region)
         // 도착목표에 강동이 있으면 울린다
-        assertTrue(KakaoPickerParser.decide(good, 10000, 20, listOf("강동", "송파"), emptyMap()))
+        assertTrue(KakaoPickerParser.decide(good, 10000, 20.0, listOf("강동", "송파"), emptyMap()))
         // 도착목표가 비어 있으면(관내 등) 제한 없음 — 지금까지의 동작 그대로
-        assertTrue(KakaoPickerParser.decide(good, 10000, 20, emptyList(), emptyMap()))
+        assertTrue(KakaoPickerParser.decide(good, 10000, 20.0, emptyList(), emptyMap()))
     }
 
     @Test
@@ -99,14 +99,14 @@ class KakaoPickerParserTest {
         val aliases = listOf("성남", "수정구", "분당구", "중원구")
         // «분당 수내3» — 수내동인데 부분 문자열로는 «수내동»과 안 만난다 → 정규화 대조로 통과해야 한다
         val sungnam = parser.parse(listOf("퀵", "승", "예약", "내일", "강남", "16,478", "15.1km", "분당", "수내3", "수내3"))
-        assertTrue(KakaoPickerParser.decide(sungnam, 10000, 20, seongnamDongs, emptyMap(), aliases))
+        assertTrue(KakaoPickerParser.decide(sungnam, 10000, 20.0, seongnamDongs, emptyMap(), aliases))
         // 도착이 구 이름뿐인 카드(«수정») — 시 별칭 «수정구»로 통과해야 한다
         val guOnly = parser.parse(listOf("퀵", "소형", "수정", "12,000", "16.3km", "수정", "위례", "수정"))
-        assertTrue(KakaoPickerParser.decide(guOnly, 10000, 20, seongnamDongs, emptyMap(), aliases))
+        assertTrue(KakaoPickerParser.decide(guOnly, 10000, 20.0, seongnamDongs, emptyMap(), aliases))
         // 성남이 아닌 곳은 여전히 걸러진다
         val yongin = parser.parse(listOf("퀵", "단거리", "준비 완료", "소형", "기흥", "8,650", "16.9km", "기흥", "동백2", "동백2"))
         val t = FilterTally()
-        assertFalse(KakaoPickerParser.decide(yongin, 5000, 20, seongnamDongs, emptyMap(), aliases, tally = t))
+        assertFalse(KakaoPickerParser.decide(yongin, 5000, 20.0, seongnamDongs, emptyMap(), aliases, tally = t))
         assertEquals(1, t.region)
     }
 
@@ -139,7 +139,7 @@ class KakaoPickerParserTest {
         // 화면 끝에 걸린 카드 — 도착 동이 안 잡혀 dropoff 가 빈다 (실수집 4건)
         val edge = parser.parse(listOf("퀵", "소형", "12,000", "5.0km", "태평1"))
         assertTrue(edge.dropoff.isEmpty())
-        assertTrue(KakaoPickerParser.decide(edge, 10000, 20, listOf("성남"), emptyMap()))
+        assertTrue(KakaoPickerParser.decide(edge, 10000, 20.0, listOf("성남"), emptyMap()))
     }
 
     @Test
@@ -156,7 +156,7 @@ class KakaoPickerParserTest {
     @Test
     fun `알람 판정 - 픽업거리를 모르면 막지 않는다 (규칙 5)`() {
         val o = parser.parse(listOf("퀵", "소형", "분당", "12,000", "분당", "야탑1", "이매1"))   // km 노드 없음
-        assertTrue(KakaoPickerParser.decide(o, 10000, 10))
+        assertTrue(KakaoPickerParser.decide(o, 10000, 10.0))
     }
 
     @Test

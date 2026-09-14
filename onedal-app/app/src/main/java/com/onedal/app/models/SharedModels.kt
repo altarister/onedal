@@ -346,7 +346,11 @@ data class FilterConfig(
     val isActive: Boolean = false,
     val isSharedMode: Boolean = false,
     // ── 이하 기본값은 서버 미응답 시 최후 안전망 (서버 기본값과 같은 값으로 맞춘다) ──
-    val pickupRadiusKm: Int = 10,
+    /**
+     * 🔴 **소수로 받는다** (2026-09-14 · `appFilterKeys.test.ts`) — 자동 반경이면 서버가 `4.55` 처럼 보낸다.
+     *    `Int` 였을 때 Gson 이 응답을 **통째로 버려** 새 필터도 모드도 못 받고 MANUAL 로 남았다.
+     */
+    val pickupRadiusKm: Double = 10.0,
     /** 서버 기본값과 동일. 0 으로 두면 하한이 사라져 아무 콜이나 잡는다 */
     val minFare: Int = 30000,
     /** 🔔 픽커 알람 요금 하한 — 원천 DB(user_settings.picker_alarm_min_fare) → 피기백 (2026-08-30) */
@@ -359,7 +363,7 @@ data class FilterConfig(
      */
     val ratePerKm: Map<String, Int> = emptyMap(),
     val destinationCity: String = "",
-    val destinationRadiusKm: Int = 10,
+    val destinationRadiusKm: Double = 10.0,   // 🔴 소수로 받는다 — 위 pickupRadiusKm 과 같은 까닭
     val excludedKeywords: List<String> = emptyList(),
     val destinationKeywords: List<String> = emptyList(),
     val customCityFilters: List<String> = emptyList(),

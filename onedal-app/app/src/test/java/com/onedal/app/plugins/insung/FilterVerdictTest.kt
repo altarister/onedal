@@ -52,7 +52,7 @@ class FilterVerdictTest {
         allowedVehicleTypes = listOf("오토바이", "다마스", "라보", "승용차"),
         isActive = true,
         isSharedMode = true,                       // 합짐/주행중 — 상차 반경을 안 본다
-        pickupRadiusKm = 10,
+        pickupRadiusKm = 10.0,
         minFare = 20000,
         maxFare = 1000000,
         ratePerKm = mapOf(
@@ -60,7 +60,7 @@ class FilterVerdictTest {
             "1t" to 693, "5t" to 1040,
         ),
         destinationCity = "여주시",
-        destinationRadiusKm = 3,
+        destinationRadiusKm = 3.0,
         destinationKeywords = listOf(
             // 경유 — 경로가 밟는 동
             "태전동", "초월읍", "곤지암읍", "부발읍", "대월면", "신둔면", "가남읍",

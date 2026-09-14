@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
-import { APP_FILTER_KEYS } from '@onedal/shared';
+import { APP_FILTER_KEYS, effectiveRadii } from '@onedal/shared';
 
 /**
  * 📦 **앱에 내려가는 키는 표가 정한다** (이식 C5 · 2026-09-11 · 명세 §5).
@@ -73,6 +73,52 @@ describe('앱 피기백 규격 — 서버가 싣는 것과 앱이 읽는 것이 
             expect(`${k} in APP_FILTER_KEYS`).toBe(
                 `${k} ${(APP_FILTER_KEYS as readonly string[]).includes(k) ? 'in' : 'NOT in'} APP_FILTER_KEYS`);
         }
+    });
+
+    /**
+     * 🔴 **이름만 맞으면 안 된다 — 숫자 모양도 맞아야 한다** (기사님 실측 2026-09-14 · 「7지점 한 바퀴」).
+     *
+     * 반경을 «40km 기준(자동)»으로 켜자 서버가 `pickupRadiusKm: 4.554354460578365` 를 보냈고,
+     * 앱은 그 칸을 `Int` 로 받게 되어 있어 **응답을 통째로 버렸다**:
+     * ```
+     * 14:37:33 E/1DAL_API: NumberFormatException: Expected an int but was 4.554354460578365
+     *          path $.dispatchEngineArgs.pickupRadiusKm
+     * ```
+     * 새 필터도 모드도 못 받아 앱이 기본값 MANUAL 로 남았고, 필터를 통과한 콜을 **하나도 안 눌렀다.**
+     * 위 검사들은 **이름**만 봐서 초록이었다 (09-12 `cb82c42` 부터 자동 반경은 소수다).
+     *
+     * «소수가 될 수 있는 칸»은 손으로 적지 않는다 — **서버가 쓰는 그 함수**(`effectiveRadii`)에
+     * 자동을 켜서 물어본다. 새 칸이 소수가 되면 저절로 여기 걸린다.
+     */
+    it('🔴 서버가 소수로 보낼 수 있는 칸을 앱이 정수로 받지 않는다', () => {
+        const eff = effectiveRadii({
+            pickupRadiusKm: 10, destinationRadiusKm: 10, quadRadiusKm: 35, detourRadiusKm: 6,
+            radiusAuto: true, radiusDistanceKm: 18.2, radiusBaseKm: 40,
+        });
+        const fractional = Object.entries(eff)
+            .filter(([k, v]) => (APP_FILTER_KEYS as readonly string[]).includes(k) && !Number.isInteger(v))
+            .map(([k]) => k);
+        expect(fractional.length).toBeGreaterThan(0);   // 이 검사가 헛돌지 않는다 — 자동은 실제로 소수를 낸다
+
+        const models = codeOnly(read(join(APP_JAVA, 'com/onedal/app/models/SharedModels.kt')));
+        const filterConfig = models.slice(models.indexOf('data class FilterConfig('));
+        const block = filterConfig.slice(0, filterConfig.indexOf('\n)'));
+        const intDeclared = fractional.filter(k => new RegExp(`\\bva[lr]\\s+${k}\\s*:\\s*Int\\b`).test(block));
+        expect(intDeclared).toEqual([]);
+
+        /* 저장된 필터를 다시 읽는 파서들 — `optInt` 는 4.55 를 조용히 4 로 자른다 */
+        const truncated: string[] = [];
+        const walk = (dir: string) => {
+            for (const name of readdirSync(dir)) {
+                const p = join(dir, name);
+                if (statSync(p).isDirectory()) { walk(p); continue; }
+                if (!name.endsWith('.kt')) continue;
+                const src = codeOnly(read(p));
+                for (const k of fractional) if (new RegExp(`optInt\\(\\s*"${k}"`).test(src)) truncated.push(`${name}:${k}`);
+            }
+        };
+        walk(APP_JAVA);
+        expect(truncated).toEqual([]);
     });
 
     /**

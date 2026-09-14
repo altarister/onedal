@@ -100,11 +100,11 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
                 isActive = json.optBoolean("isActive", false),   // 키가 없으면 멈춘다 (안전 방향)
                 isSharedMode = json.optBoolean("isSharedMode", false),
-                pickupRadiusKm = json.optInt("pickupRadiusKm", 10),
+                pickupRadiusKm = json.optDouble("pickupRadiusKm", 10.0),
                 minFare = json.optInt("minFare", 30000),         // 서버 기본값과 동일
                 maxFare = json.optInt("maxFare", 1000000),
                 destinationCity = json.optString("destinationCity", ""),
-                destinationRadiusKm = json.optInt("destinationRadiusKm", 10),
+                destinationRadiusKm = json.optDouble("destinationRadiusKm", 10.0),
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
                 destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
