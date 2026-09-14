@@ -1075,6 +1075,11 @@ export interface PresetRequires {
     /** 하차 주변 반경 km — 넓혀야 들어오는 문제지가 있다 */ destinationRadiusKm?: number;
     /** 내 주소 — 상차 반경이 이 자리에서 재어진다. 사람이 읽고 고치는 값이라 글자로 둔다 */
     homeAddress?: string;
+    /**
+     * 상차 반경 — **폰에 실제로 적용되는 값**(자동이면 줄어든 값)이 이 이상이어야 한다 (2026-09-14).
+     * 원값이 아니라 적용값을 본다 — 14:54 에 설정은 10km 인데 폰은 4.55km 로 걸러 첫 콜을 놓쳤다.
+     */
+    minPickupRadiusKm?: number;
     /** 첫짐 판인가 — 콜을 하나라도 잡으면 합짐 규칙으로 넘어가 정답이 달라진다 */
     firstLoadOnly?: boolean;
     /** 지도에 이 시도 코드가 있어야 한다 (30 대전 · 43 충북 …) */ mapSido?: string[];
@@ -1127,6 +1132,13 @@ export const PRESET_REQUIRES: Record<string, PresetRequires> = {
     /** 🔼 경충대로 복귀 — 출발은 롯데아울렛 이천(127.40048, 37.24236), 목적지는 집이 있는 광주 */
     '집복귀': { destinationCity: '광주시', destinationRadiusKm: 20 },
     '집복귀반대': { destinationCity: '광주시', destinationRadiusKm: 20 },
+    /**
+     * 🚚 **7지점 한 바퀴** — 정답표 주석의 전제를 옮겼다 (2026-09-14). 조건이 없어 시작 전 점검 줄이 아예 안 떴다.
+     *    · 도착 목표 이천시 — «06 하차가 초월읍, 이천 목록 밖»
+     *    · 상차 반경 15km 이상 — «07 집에서 17.6km > 반경 15km 에서 걸리는 것이 정답» · «01 상차 2.2km»
+     *    · 내 주소 집 — 코스가 «집 ─2.2─ 모다 …» 로 시작한다 (서버 `user_settings.home_address` 글자 그대로)
+     */
+    '칠지점': { destinationCity: '이천시', minPickupRadiusKm: 15, homeAddress: '경기도 광주 초월 동광뷰엘' },
 };
 
 const ALIASES: Record<string, string> = {

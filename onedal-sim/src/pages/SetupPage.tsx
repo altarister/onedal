@@ -20,6 +20,8 @@ import type { PresetRequires } from '@altari/core-simulator';
 import { SIM_NETS, SIM_NET_LIST } from '@altari/ui-simulators';
 import type { NetKey } from '@altari/ui-simulators';
 import buildInfo from 'virtual:build-info';
+import { preflightRows, SIM_DEFAULT_START } from './preflightRows';
+import type { PreflightState, PreflightRow } from './preflightRows';
 
 /**
  * 어느 배차망 화면으로 볼 것인가 — 목록은 `nets.ts` 한 곳에 있다 (0단계 0-2 ⑤).
@@ -441,6 +443,7 @@ function PresetDetail({ desc, requires }: { desc: string; requires?: PresetRequi
   const setup: Array<[string, string]> = [];
   if (requires?.destinationCity) setup.push(['도착 목표', requires.destinationCity]);
   if (requires?.destinationRadiusKm != null) setup.push(['하차 주변', `${requires.destinationRadiusKm}km`]);
+  if (requires?.minPickupRadiusKm != null) setup.push(['상차 반경', `${requires.minPickupRadiusKm}km 이상 (실제 적용값)`]);
   if (requires?.homeAddress) setup.push(['내 주소', requires.homeAddress]);
   if (requires?.firstLoadOnly) setup.push(['판', '첫짐 · 활성 콜 0건']);
   if (requires?.mapSido?.length) setup.push(['지도', `시도 ${requires.mapSido.join('·')} 포함`]);
@@ -511,20 +514,6 @@ function Veil({ content, onClose }: { content: VeilContent; onClose: () => void 
  * 🔴 **화면에는 한 줄만 산다** (2026-09-11) — 다섯 줄을 늘 펴 두면 시작 버튼이 밀려난다.
  *    어긋난 것이 있으면 그 줄이 빨간불이 되고, 무엇이 어긋났는지는 ⓘ 로 연다.
  */
-interface PreflightState {
-    destinationCity: string | null;
-    destinationRadiusKm: number | null;
-    homeAddress: string | null;
-    isSharedMode: boolean;
-    activeCalls: number;
-    bootedAt: string | null;
-    map?: { features?: number; sido?: string[] };
-    /** 알람 요금 하한 (서버 `alarmMinFare` · 관제웹 설정) */
-    alarmMinFare?: number | null;
-}
-
-interface PreflightRow { what: string; want: string; got: string; ok: boolean }
-
 function Preflight({ presetKey, requires, api, onOpen }: {
   presetKey: string; requires?: PresetRequires; api: string; onOpen: (v: VeilContent) => void;
 }) {
@@ -533,7 +522,6 @@ function Preflight({ presetKey, requires, api, onOpen }: {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!req) return;
     let alive = true;
     const pull = async () => {
       try {
@@ -547,48 +535,16 @@ function Preflight({ presetKey, requires, api, onOpen }: {
     pull();
     const t = setInterval(pull, 4000);
     return () => { alive = false; clearInterval(t); };
-  }, [req, api, presetKey]);
+  }, [api, presetKey]);
 
-  // 문제지가 요구하는 상태가 없으면 «아무 상태에서나 돈다»는 뜻이다 — 줄도 없다
-  if (!req) return null;
+  /**
+   * 📱 **폰 줄은 조건이 없는 문제지에도 뜬다** (2026-09-14) — 폰이 옛 필터로 돌면 어느 문제지든 채점이 아니라 잡음이다.
+   *    서버 대답이 오기 전에는 예전처럼 조건 없는 문제지면 아무것도 안 그린다.
+   */
+  if (!req && !now?.phones) return null;
 
-  /** 한 줄 = 「무엇이 · 무엇이어야 하고 · 지금 무엇인가」 */
-  const rows: PreflightRow[] = [];
-  if (now) {
-    if (req.destinationCity != null) rows.push({
-      what: '도착 목표', want: req.destinationCity, got: String(now.destinationCity ?? '(없음)'),
-      ok: now.destinationCity === req.destinationCity,
-    });
-    if (req.destinationRadiusKm != null) rows.push({
-      what: '하차 주변', want: `${req.destinationRadiusKm}km`, got: `${now.destinationRadiusKm ?? '?'}km`,
-      ok: Number(now.destinationRadiusKm) === req.destinationRadiusKm,
-    });
-    if (req.homeAddress) rows.push({
-      what: '내 주소', want: req.homeAddress, got: String(now.homeAddress ?? '(없음)'),
-      ok: String(now.homeAddress ?? '') === req.homeAddress,
-    });
-    if (req.firstLoadOnly) rows.push({
-      what: '판', want: '첫짐 · 활성 콜 0건',
-      got: `${now.isSharedMode ? '합짐' : '첫짐'} · ${now.activeCalls}건`,
-      ok: !now.isSharedMode && now.activeCalls === 0,
-    });
-    if (req.alarmMinFare != null) rows.push({
-      what: '알람 하한', want: req.alarmMinFare.toLocaleString('ko-KR'), got: now.alarmMinFare == null ? '(없음)' : now.alarmMinFare.toLocaleString('ko-KR'),
-      ok: now.alarmMinFare === req.alarmMinFare,
-    });
-    if (req.mapSido?.length) {
-      const have: string[] = now.map?.sido ?? [];
-      const miss = req.mapSido.filter(c => !have.includes(c));
-      rows.push({
-        what: '지도', want: `시도 ${req.mapSido.join('·')} 포함`,
-        got: `동 ${now.map?.features ?? '?'}개`, ok: miss.length === 0,
-      });
-    }
-    // 🔴 「고친 코드가 도는가」의 유일한 답이 bootedAt 이다 (루트 CLAUDE.md)
-    rows.push({
-      what: '서버 기동', want: '고친 뒤에 뜬 것', got: String(now.bootedAt ?? '').slice(11, 19), ok: true,
-    });
-  }
+  /** 한 줄 = 「무엇이 · 무엇이어야 하고 · 지금 무엇인가」 — 만드는 규칙은 `preflightRows.ts` 한 곳 */
+  const rows: PreflightRow[] = now ? preflightRows(req, now, SIM_DEFAULT_START) : [];
 
   const bad = rows.filter(r => !r.ok);
   const tone = err ? 'border-amber-600/70 bg-amber-950/30 text-amber-300'
@@ -607,8 +563,8 @@ function Preflight({ presetKey, requires, api, onOpen }: {
           <div className="text-[11px] leading-relaxed flex flex-col gap-0.5">
             {err && <div className="text-amber-300">{err}</div>}
             {!err && !now && <div className="text-slate-400">서버에 묻는 중…</div>}
-            {rows.map(r => (
-              <div key={r.what} className="flex gap-2">
+            {rows.map((r, i) => (
+              <div key={`${r.what}-${i}`} className="flex gap-2">
                 <span className="w-14 shrink-0 text-slate-500">{r.what}</span>
                 <span className="shrink-0">{r.ok ? '✅' : '🔴'}</span>
                 <span className={r.ok ? 'text-slate-300' : 'text-red-300'}>

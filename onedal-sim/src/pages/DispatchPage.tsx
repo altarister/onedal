@@ -17,6 +17,7 @@ import { simNetOf, renamedNetKey, SIM_NET_LIST } from '@altari/ui-simulators';
 import { getPresetFrom } from '@altari/core-simulator';
 import type { SimCall } from '@altari/ui-simulators';
 import type { SimNet } from '@altari/ui-simulators';
+import { SIM_DEFAULT_START } from './preflightRows';
 
 /**
  * 🔴 **배차망 이름을 모를 때의 멈춤 화면** (2026-09-14 · 0단계 0-4)
@@ -248,9 +249,10 @@ export function DispatchPage() {
 
 
   const driverLocation = {
-    lon: Number(searchParams.get('lon') || '127.2553'),
-    lat: Number(searchParams.get('lat') || '37.4095'),
-    name: searchParams.get('name') || '경기 광주시',
+    /* 📍 기본값은 시작 전 점검과 한 곳에서 — 점검이 «첫 문제는 여기서 잰다»를 같은 값으로 말한다 */
+    lon: Number(searchParams.get('lon') || String(SIM_DEFAULT_START.lon)),
+    lat: Number(searchParams.get('lat') || String(SIM_DEFAULT_START.lat)),
+    name: searchParams.get('name') || SIM_DEFAULT_START.name,
   };
 
   const simConfig = {

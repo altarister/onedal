@@ -6,6 +6,9 @@ import { originOf } from "../services/geoService";
 import { getActiveCalls } from "../core/helpers";
 import { mapCoverage } from "../services/geoService";
 import { SettingsRepository } from "../repositories/SettingsRepository";
+import { effectiveRadii } from "@onedal/shared";
+import { getUserDevicesSnapshot } from "./devices";
+import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
 import { BOOTED_AT } from "./health";
 import { calculateSoloRoute } from "../services/kakaoService";
 
@@ -194,6 +197,17 @@ router.get("/preflight", (_req, res) => {
         destinationCity: f?.destinationCity ?? null,
         destinationRadiusKm: f?.destinationRadiusKm ?? null,
         pickupRadiusKm: f?.pickupRadiusKm ?? null,
+        /**
+         * 📐 **폰에 실제로 가는 상차 반경** — 자동이면 줄어든 값 (`scrap.ts` 가 싣는 그 계산 · 2026-09-14).
+         *    위 `pickupRadiusKm` 은 기사님이 정한 원값이다. 14:54 에 점검은 10km 로 봤는데 폰은 4.55km 로 걸렀다.
+         */
+        pickupRadiusKmEffective: effectiveRadii(f).pickupRadiusKm,
+        radiusAuto: !!f?.radiusAuto,
+        /**
+         * 📱 **폰마다 «실제로 쓰는» 모드 · 필터 · 연락** (`core/phoneCheck` · 2026-09-14).
+         *    14:41 에 폰이 옛 필터 · 직접 모드로 돌았는데 서버는 그 대답을 들고만 있었다.
+         */
+        phones: getUserDevicesSnapshot(userId).map(d => phoneCheckOf(d, sentFilterVersionOf(d.deviceId), Date.now())),
         /**
          * 🔔 알람 요금 하한 (DB `user_settings.picker_alarm_min_fare`) — 앱이 피기백 `pickerAlarmMinFare` 로 받는 값과 같은 원천(`routes/scrap.ts`).
          * 시뮬레이터 픽커 문제지 1·2 가 이 경계(9,900 / 10,000)를 시험한다 (카카오픽커_시뮬레이터.md §9-3 · 3단계 3-2).

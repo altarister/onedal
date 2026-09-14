@@ -3,6 +3,7 @@ import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS, ef
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
 import { capacityFullHold, filterVersionOf } from "../core/helpers";
+import { rememberSentFilterVersion } from "../core/phoneCheck";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { ensureBusinessDay, buildAppOrderKm } from "../state/filterManager";
 
@@ -360,6 +361,8 @@ router.post("/", (req, res) => {
                     .filter((k: string) => !(k in orderKeys)),
             };
             filterVersion = filterVersionOf(responseFilter);
+            // 📱 폰에 실제로 싣는 이 지문을 기억한다 — 시작 전 점검이 폰의 지문과 비교한다 (core/phoneCheck)
+            if (deviceId) rememberSentFilterVersion(deviceId, filterVersion);
             if (req.body.filterVersion === filterVersion) responseFilter = undefined;   // 안 바뀜 — 본문 생략
         }
 
