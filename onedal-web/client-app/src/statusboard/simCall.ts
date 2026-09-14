@@ -60,16 +60,16 @@ export function simCallBody(pickup: SimPlaceDraft | null, dropoff: SimPlaceDraft
     return { ok: true, body: { pickup, dropoff, fare } };
 }
 
-/** 시뮬레이터가 이보다 오래 안 물었으면 «꺼져 있나»로 본다 — 시뮬레이터는 3초마다 묻는다 */
+/** 시뮬레이터가 이보다 오래 안 물었으면 «꺼져 있나»로 본다 — 시뮬레이터는 «🚚 개별콜»로 시작한 화면에서만 3초마다 묻는다 */
 const SIM_POLL_STALE_MS = 10_000;
 
 /** 낸 뒤 한 줄 — 서버가 잰 «시뮬레이터가 마지막으로 물은 뒤»로 시뮬레이터가 켜져 있나를 함께 말한다 */
 export function sentNoteOf(seq: number, simPolledAgoMs: number | null): { text: string; ok: boolean } {
     if (simPolledAgoMs === null) {
-        return { text: `⚠️ #${seq} 서버가 들고 있다 — 시뮬레이터가 아직 한 번도 안 물었다 (시뮬레이터 화면이 켜져 있나)`, ok: false };
+        return { text: `⚠️ #${seq} 서버가 들고 있다 — 시뮬레이터가 아직 안 물었다 (시뮬레이터를 «🚚 개별콜»로 시작했나)`, ok: false };
     }
     if (simPolledAgoMs > SIM_POLL_STALE_MS) {
-        return { text: `⚠️ #${seq} 서버가 들고 있다 — 시뮬레이터가 ${Math.round(simPolledAgoMs / 1000)}초째 안 묻는다`, ok: false };
+        return { text: `⚠️ #${seq} 서버가 들고 있다 — 시뮬레이터가 ${Math.round(simPolledAgoMs / 1000)}초째 안 묻는다 (개별콜 화면을 나갔나)`, ok: false };
     }
     return { text: `✅ #${seq} 서버가 들고 있다 — 시뮬레이터가 3초 안에 목록에 넣는다`, ok: true };
 }

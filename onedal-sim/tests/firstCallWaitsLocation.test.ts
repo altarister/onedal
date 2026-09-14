@@ -25,8 +25,8 @@ const src = (rel: string) => {
 describe('📍 첫 콜은 위치를 받은 뒤', () => {
     it('🔴 콜을 내는 훅은 위치를 받기 전에는 시드도 주기 스트리밍도 안 한다', () => {
         const hook = src('packages/ui-simulators/src/context/useSimStreaming.ts');
-        expect(hook).toMatch(/if \(isTimerPaused \|\| !ready\) return;/);
-        expect(hook).toMatch(/\[isTimerPaused, initialCount, ready\]/);
+        expect(hook).toMatch(/if \(isTimerPaused \|\| !ready \|\| !enabled\) return;/);
+        expect(hook).toMatch(/\[isTimerPaused, initialCount, ready, enabled\]/);
     });
 
     it('🔴 위치를 처음 받는 순간 «받았음»이 켜지고, 끝내 답이 없으면 기다림을 끝내며 경고를 켠다', () => {

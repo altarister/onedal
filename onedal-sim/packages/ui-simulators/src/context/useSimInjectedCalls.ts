@@ -3,7 +3,7 @@
  *
  * 서버(`GET /api/sim/calls`)에 3초마다 «마지막으로 받은 번호 뒤»를 묻고, 받은 콜을 문제지 콜과 같은 길(강제 쌍)로 만든다.
  *
- * 🔴 **멈춤(isTimerPaused)과 상관없이 받는다** — 랜덤 콜을 멈추고 한 건씩 넣어 보는 것이 쓰임새다.
+ * 🔴 **개별콜 화면에서만 받는다** (`enabled` · 설정 화면 «🚚 개별콜» 탭) — 랜덤·문제지 콜과 섞이면 폰이 무엇을 거르고 잡았는지 떼어 볼 수 없다.
  * 🔴 **기사님 위치를 받은 뒤에 묻기 시작한다** — 상차 거리를 기본 자리에서 재지 않는다 (`useSimStreaming` 의 `ready` 와 같다).
  * 🔴 **서버가 없으면 조용히 넘어간다** — 개별콜이 없을 뿐 시뮬레이터는 돈다 (필드에서 라이브 서버는 이 문을 닫아 둔다).
  */
@@ -23,16 +23,18 @@ interface UseSimInjectedCallsProps {
   appendCall: (call: SimCall) => void;
   /** 기사님 위치를 받았나 — 받기 전에는 묻지 않는다 */
   ready?: boolean;
+  /** 받나 — 개별콜 화면에서만 `true` */
+  enabled: boolean;
 }
 
-export const useSimInjectedCalls = ({ config, toCall, appendCall, ready = true }: UseSimInjectedCallsProps) => {
+export const useSimInjectedCalls = ({ config, toCall, appendCall, ready = true, enabled }: UseSimInjectedCallsProps) => {
   const latest = useRef({ config, toCall, appendCall });
   useEffect(() => {
     latest.current = { config, toCall, appendCall };
   }, [config, toCall, appendCall]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !enabled) return;
     let alive = true;
     let busy = false;
     /** 마지막으로 받은 번호 — null 이면 아직 한 번도 안 물었다 */
@@ -62,5 +64,5 @@ export const useSimInjectedCalls = ({ config, toCall, appendCall, ready = true }
     void pull();
     const t = setInterval(() => { void pull(); }, INJECTED_POLL_MS);
     return () => { alive = false; clearInterval(t); };
-  }, [ready]);
+  }, [ready, enabled]);
 };

@@ -69,6 +69,7 @@ describe('개별콜 — 번호를 이어 받는다', () => {
 const FILES = {
     ...import.meta.glob('../packages/ui-simulators/src/context/useSimInjectedCalls.ts', { query: '?raw', import: 'default', eager: true }),
     ...import.meta.glob('../src/pages/DispatchPage.tsx', { query: '?raw', import: 'default', eager: true }),
+    ...import.meta.glob('../src/pages/SetupPage.tsx', { query: '?raw', import: 'default', eager: true }),
 } as Record<string, string>;
 const src = (rel: string) => {
     const text = FILES[`../${rel}`];
@@ -76,15 +77,24 @@ const src = (rel: string) => {
     return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 };
 
-describe('개별콜 — 배차 화면이 받는다', () => {
-    it('🔴 배차 화면이 배차망 입히기 함수와 «위치 받았음»을 넘긴다', () => {
-        expect(src('src/pages/DispatchPage.tsx'))
-            .toMatch(/useSimInjectedCalls\(\{ config: generatorConfig, toCall: simNet\.toCall, appendCall, ready: locationReady \}\)/);
+describe('개별콜 — 입구와 한 번에 한 종류 (기사님 2026-09-15: 메인 메뉴 «시나리오콜 · 랜덤콜 · 개별콜»)', () => {
+    it('🔴 설정 화면에 «🚚 개별콜» 탭이 있고, 시작하면 배차망과 개별콜 표시만 넘긴다 (간격·채움 없음)', () => {
+        const setup = src('src/pages/SetupPage.tsx');
+        expect(setup).toMatch(/name="🚚 개별콜"/);
+        expect(setup).toMatch(/new URLSearchParams\(\{ net, calls: 'individual' \}\)/);
     });
 
-    it('🔴 위치를 받기 전에는 안 묻고, 멈춤과는 상관없이 받는다', () => {
+    it('🔴 개별콜 화면은 흘리지 않고 서버 콜만 받는다 · 다른 화면은 서버 콜을 안 받는다', () => {
+        const page = src('src/pages/DispatchPage.tsx');
+        expect(page).toMatch(/const individual = presetParams\.get\('calls'\) === 'individual';/);
+        expect(page).toMatch(/enabled: !individual,/);
+        expect(page)
+            .toMatch(/useSimInjectedCalls\(\{ config: generatorConfig, toCall: simNet\.toCall, appendCall, ready: locationReady, enabled: individual \}\)/);
+    });
+
+    it('🔴 받는 훅은 위치를 받기 전·개별콜 화면이 아닐 때 안 묻는다 · 멈춤으로 대신하지 않는다', () => {
         const hook = src('packages/ui-simulators/src/context/useSimInjectedCalls.ts');
-        expect(hook).toMatch(/if \(!ready\) return;/);
+        expect(hook).toMatch(/if \(!ready \|\| !enabled\) return;/);
         expect(hook).not.toMatch(/isTimerPaused/);
     });
 });

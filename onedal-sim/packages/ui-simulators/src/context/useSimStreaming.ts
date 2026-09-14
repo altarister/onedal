@@ -42,6 +42,11 @@ interface UseSimStreamingProps {
    * 안 주면 `true` — 기다리지 않는다.
    */
   ready?: boolean;
+  /**
+   * 🚚 **흘리나** — `false` 면 시드도 주기 콜도 없다 (개별콜 화면 · 기사님 2026-09-15). 안 주면 `true`.
+   * 🔴 «멈춤»(`isTimerPaused`)으로 대신하지 않는다 — 멈춤은 기사님이 누르는 버튼이고, 이것은 들어온 입구다 (규칙 ④).
+   */
+  enabled?: boolean;
 }
 
 export const useSimStreaming = ({
@@ -55,6 +60,7 @@ export const useSimStreaming = ({
   preset = null,
   loop = false,
   ready = true,
+  enabled = true,
 }: UseSimStreamingProps) => {
 
   const configRef = useRef({ config, toCall, appendCall, setIsFetchingOrder, intervalMs, preset, loop });
@@ -100,7 +106,7 @@ export const useSimStreaming = ({
 
   useEffect(() => {
     /* 📍 위치를 받기 전에는 시드도 주기 콜도 없다 — 받는 순간 이 효과가 다시 돌며 그 위치로 첫 콜을 낸다 */
-    if (isTimerPaused || !ready) return;
+    if (isTimerPaused || !ready || !enabled) return;
 
     // 초기 시드: 최초 마운트 시 한 번만 실행
     // 🎯 문제지 모드에서는 **한 문제씩** 봐야 하므로 미리 쏟지 않는다
@@ -133,5 +139,5 @@ export const useSimStreaming = ({
       if (innerTimeoutId) clearTimeout(innerTimeoutId);
       configRef.current.setIsFetchingOrder(false);
     };
-  }, [isTimerPaused, initialCount, ready]);
+  }, [isTimerPaused, initialCount, ready, enabled]);
 };

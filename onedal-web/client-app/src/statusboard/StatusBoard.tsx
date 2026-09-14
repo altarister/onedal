@@ -624,7 +624,7 @@ function SimCallCard() {
     };
 
     return (
-        <Card title="🚚 개별콜" note={'시뮬레이터 목록에 한 건\n폰 원달앱이 읽고 거른다'}>
+        <Card title="🚚 개별콜" note={'시뮬레이터 «🚚 개별콜» 리스트에 한 건\n폰 원달앱이 읽고 거른다'}>
             {placeRow('pickup')}
             {placeRow('dropoff')}
             <div className="flex items-center gap-1 pt-1">

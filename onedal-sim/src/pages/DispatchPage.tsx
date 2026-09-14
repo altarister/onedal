@@ -114,6 +114,13 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
    */
   const loop = presetParams.get('loop') === '1';
 
+  /**
+   * 🚚 **`?calls=individual` — 개별콜 화면** (기사님 지시 2026-09-15: 메인 메뉴 «시나리오콜 · 랜덤콜 · 개별콜»).
+   * 빈 리스트로 시작해 현황판에서 보낸 콜만 받는다. 🔴 **한 번에 한 종류만 흐른다** —
+   * 개별콜 화면에는 랜덤·문제지 콜이 없고, 랜덤·문제지 화면은 현황판 콜을 안 받는다. 섞이면 폰이 무엇을 거르고 잡았는지 떼어 볼 수 없다.
+   */
+  const individual = presetParams.get('calls') === 'individual';
+
   useSimStreaming({
     config: generatorConfig,
     // 🎨 공통 칸만 만드는 생성기에 배차망 칸을 입힌다 — 무엇으로 입힐지는 배차망이 안다 (nets.ts)
@@ -127,14 +134,16 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     loop,
     /* 📍 기사님 위치를 받은 뒤에 첫 콜 — 기본 자리로 상차 거리를 재지 않는다 (2026-09-14) */
     ready: locationReady,
+    /* 🚚 개별콜 화면은 흘리지 않는다 — 시드 5건도 주기 콜도 없다 */
+    enabled: !individual,
   });
 
   /**
    * 🚚 **개별콜 — 현황판에서 낸 콜을 이 목록에 넣는다** (기사님 지시 2026-09-15).
    * 서버가 들고 있다가 3초마다 넘긴다. 문제지 콜과 같은 길(강제 쌍)로 이 배차망 콜을 입힌다 — 무엇으로 입힐지는 배차망이 안다.
-   * 🔴 멈춤과 상관없이 받는다 — 랜덤 콜을 멈추고 한 건씩 넣어 보는 것이 쓰임새다.
+   * 🔴 개별콜 화면에서만 받는다 (위 `individual`).
    */
-  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, ready: locationReady });
+  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, ready: locationReady, enabled: individual });
 
   /**
    * 🔙 **상세를 방문 기록에 남기는 배차망** (`SimNet.detailInHistory` · 계획서 §7-3 · 2단계 2-2).

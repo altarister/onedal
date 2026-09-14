@@ -81,7 +81,7 @@ export function SetupPage() {
 
   // 목록의 첫 배차망이 기본이다 — 배차망 이름은 nets.ts 만 안다 (0단계 0-3)
   const [net, setNet] = useState<NetKey>(SIM_NET_LIST[0].key);
-  const [tab, setTab] = useState<'scenario' | 'random'>('scenario');
+  const [tab, setTab] = useState<'scenario' | 'random' | 'individual'>('scenario');
   const [veil, setVeil] = useState<VeilContent | null>(null);
 
   // ── 공통 ──
@@ -103,19 +103,24 @@ export function SetupPage() {
   /**
    * 📚 **고른 배차망의 문제지 책** (nets.ts `presetBook` · 3단계 3-2) — 인성·화물24시는 원 단위 문제지, 픽커는 P 단위 문제지.
    * 고른 문제지(`presetKey`)가 그 책에 없으면 책의 첫 문제지를 보인다 — 배차망을 바꿨다 돌아오면 고른 것이 다시 보인다.
-   * 책이 비었으면 시나리오콜 탭을 막고 랜덤콜로 연다.
+   * 책이 비었으면 시나리오콜 탭을 막고 랜덤콜로 연다 (개별콜은 문제지가 필요 없어 그대로 연다).
    */
   const book = SIM_NETS[net].presetBook;
   const shownPresetKey = book.problems[presetKey] ? presetKey : (book.menu[0]?.key ?? '');
   const presetsUsable = book.menu.length > 0;
-  const shownTab = presetsUsable ? tab : 'random';
+  const shownTab = presetsUsable || tab === 'individual' ? tab : 'random';
 
   /**
    * 🎯 문제지는 상차·하차·요금이 **전부 고정**이라 넘길 것이 넷뿐이다.
    *    기사 위치·반경·최소요금은 넘기지 않는다 — 콜을 고르는 데 안 쓰이므로
    *    화면에 두면 «이게 판정에 영향을 준다»는 오해만 만든다 (기사님 2026-08-24).
+   * 🚚 개별콜은 **배차망 하나만** 넘긴다 — 콜은 현황판에서 오고, 간격·채움이 없다 (기사님 2026-09-15).
    */
   const start = () => {
+    if (shownTab === 'individual') {
+      navigate(`/dispatch?${new URLSearchParams({ net, calls: 'individual' }).toString()}`);
+      return;
+    }
     const params = shownTab === 'scenario'
       ? new URLSearchParams({
           net,
@@ -181,6 +186,8 @@ export function SetupPage() {
                      name="🎯 시나리오콜" hint={presetsUsable ? '문제지가 정한 콜 · 채점된다' : '이 배차망은 아직 문제지가 없다'} />
           <TabButton on={shownTab === 'random'} onClick={() => setTab('random')} muted
                      name="🎲 랜덤콜" hint="즉석 조합 · 채점 없음" />
+          <TabButton on={shownTab === 'individual'} onClick={() => setTab('individual')}
+                     name="🚚 개별콜" hint="현황판에서 보낸 콜만" />
         </div>
 
         {shownTab === 'scenario' ? (
@@ -246,6 +253,13 @@ export function SetupPage() {
               </span>
             </button>
           </>
+        ) : shownTab === 'individual' ? (
+          /* 🚚 **개별콜 — 설정이 없다** (기사님 2026-09-15). 빈 리스트로 들어가 현황판에서 보낸 콜만 쌓인다 */
+          <div className="shrink-0 rounded-lg border border-slate-600 bg-slate-700/40 px-3 py-2.5 text-[11.5px] leading-relaxed text-slate-300">
+            <div className="font-bold text-slate-100">빈 리스트로 시작합니다</div>
+            <div>관제웹 현황판 «🚚 개별콜»에서 보낸 콜만 3초 안에 리스트 맨 위에 뜹니다.</div>
+            <div className="text-slate-400">랜덤콜·문제지 콜은 흐르지 않습니다 · 설정할 것이 없습니다</div>
+          </div>
         ) : (
           <>
             {/* 기사 현재 위치 — 랜덤콜에만 있다. 상차지를 이 자리 반경에서 고르기 때문 */}
