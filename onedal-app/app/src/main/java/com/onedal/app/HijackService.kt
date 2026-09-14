@@ -711,15 +711,17 @@ class HijackService : AccessibilityService(), ScanContext {
          *    정하지만(위 관문), 이 로그의 목적은 **처음 보는 픽커 화면** — 곧 픽커 글자가 없는 화면 —
          *    의 글자를 모으는 것이라 화면 글자로는 «픽커 화면인가»를 알 수 없다.
          *    «직전 배차망이 픽커면»으로 걸면 잠금화면이 다시 찍힌다 (위 09-02 사고).
+         * ✅ **시뮬레이터 앱은 운행 단계만 찍는다** (기사님 지시 2026-09-15) — 어디까지 찍나는 `TargetApp.pickerLogScope` 한 곳이 정한다.
          */
-        if (TargetApp.isKakaoPickerApp(rootNode.packageName?.toString()) && detected != ScreenContext.LIST) {
+        val pickerLog = TargetApp.pickerLogScope(rootNode.packageName?.toString(), currentTargetApp)
+        if (pickerLog != TargetApp.PickerLog.NONE && detected != ScreenContext.LIST) {
             val stage = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.stageOf(rawScreenStr)
             if (stage != null) {
                 if (stage != lastPickerStage) {
                     AppLogger.i("1DAL_PICKER", "🚚 [운행 단계] ${lastPickerStage ?: "없음"} → $stage")
                     lastPickerStage = stage
                 }
-            } else if (detected == ScreenContext.UNKNOWN) {
+            } else if (detected == ScreenContext.UNKNOWN && pickerLog == TargetApp.PickerLog.STAGE_AND_UNKNOWN) {
                 // 못 알아본 픽커 화면 — 낱말을 고르려면 글자가 있어야 한다
                 AppLogger.w("1DAL_PICKER", "❓ [모르는 화면] ${rawScreenStr.take(300)}")
             }

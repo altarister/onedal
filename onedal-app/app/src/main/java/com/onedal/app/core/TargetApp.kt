@@ -74,6 +74,34 @@ object TargetApp {
      */
     fun isKakaoPickerApp(packageName: String?): Boolean = packageName == KAKAOPICKER_PACKAGE
 
+    /** 📝 픽커 로그를 어디까지 남기나 — `pickerLogScope` 의 답 */
+    enum class PickerLog {
+        /** 안 남긴다 */
+        NONE,
+        /** «🚚 운행 단계»만 — 시뮬레이터 앱이 픽커 화면을 띄울 때 */
+        STAGE_ONLY,
+        /** «🚚 운행 단계» + «❓ 모르는 화면» 글자 — 실제 픽커 앱 */
+        STAGE_AND_UNKNOWN,
+    }
+
+    /**
+     * 📝 **픽커 로그를 어디까지 남기나** (기사님 지시 2026-09-15: *"시뮬레이터에서도 «운행 단계» 로그를 찍어"*).
+     *
+     * · 실제 픽커 앱 → 운행 단계 + 모르는 화면 글자 (㉯ 그대로)
+     * · 시뮬레이터 앱 + 지금 배차망이 픽커 → **운행 단계만**. 시뮬레이터 수락 뒤 화면을 폰 시험으로 확인하려고 연다
+     * · 그 밖 → 안 남긴다
+     *
+     * 🔴 **시뮬레이터에서 «모르는 화면»은 안 모은다** — 시뮬레이터 앱은 설정 화면·인성·화물24시도 띄운다.
+     *    그 글자가 «모르는 픽커 화면»으로 찍히면 09-02 잠금화면 사고처럼 로그가 덮인다.
+     *    모르는 화면을 모으는 까닭은 **실물의 처음 보는 낱말**을 고르는 것이라 실제 앱에서만 뜻이 있다.
+     * 🔴 시뮬레이터는 «지금 배차망이 픽커»일 때만 — 인성·화물24시 화면에 운행 단계 낱말(«시작하기» 등)이 우연히 있어도 안 찍힌다.
+     */
+    fun pickerLogScope(packageName: String?, currentTarget: String): PickerLog = when {
+        isKakaoPickerApp(packageName) -> PickerLog.STAGE_AND_UNKNOWN
+        packageName == SIMULATOR_PACKAGE && currentTarget == KAKAOPICKER -> PickerLog.STAGE_ONLY
+        else -> PickerLog.NONE
+    }
+
     /**
      * 🚧 **이 배차망에 «잡기 시퀀스»가 있는가** (기사님 확정 2026-08-30 · 픽커_수집.md §3-확장).
      *

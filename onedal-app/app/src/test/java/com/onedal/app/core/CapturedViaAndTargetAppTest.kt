@@ -78,4 +78,20 @@ class PickerAppLogConditionTest {
         org.junit.Assert.assertFalse(TargetApp.isKakaoPickerApp("com.kakao.talk"))
         org.junit.Assert.assertFalse(TargetApp.isKakaoPickerApp(null))
     }
+
+    /**
+     * 🚚 **시뮬레이터에서도 운행 단계를 찍는다 — 모르는 화면은 안 모은다** (기사님 지시 2026-09-15).
+     * 시뮬레이터 앱은 설정 화면·인성·화물24시도 띄운다 — 그 글자가 «모르는 픽커 화면»으로 로그를 덮으면 09-02 사고다.
+     */
+    @org.junit.Test
+    fun `로그 범위 - 실제 픽커는 둘 다 · 시뮬레이터 픽커 화면은 운행 단계만 · 그 밖은 없음`() {
+        val sim = TargetApp.SIMULATOR_PACKAGE
+        assertEquals(TargetApp.PickerLog.STAGE_AND_UNKNOWN, TargetApp.pickerLogScope("com.kakaomobility.flexer", TargetApp.KAKAOPICKER))
+        assertEquals(TargetApp.PickerLog.STAGE_AND_UNKNOWN, TargetApp.pickerLogScope("com.kakaomobility.flexer", TargetApp.INSUNG))
+        assertEquals(TargetApp.PickerLog.STAGE_ONLY, TargetApp.pickerLogScope(sim, TargetApp.KAKAOPICKER))
+        assertEquals(TargetApp.PickerLog.NONE, TargetApp.pickerLogScope(sim, TargetApp.INSUNG))      // 시뮬레이터 인성 화면
+        assertEquals(TargetApp.PickerLog.NONE, TargetApp.pickerLogScope(sim, TargetApp.HWAMUL24))
+        assertEquals(TargetApp.PickerLog.NONE, TargetApp.pickerLogScope("com.android.systemui", TargetApp.KAKAOPICKER))   // 잠금화면 (09-02)
+        assertEquals(TargetApp.PickerLog.NONE, TargetApp.pickerLogScope(null, TargetApp.KAKAOPICKER))
+    }
 }
