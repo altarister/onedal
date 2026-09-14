@@ -76,6 +76,12 @@ export interface CallNetInput {
      *    달랐다 — 규칙 ③은 «계산»만이 아니라 **«입력»도 한 곳**이어야 한다.
      */
     localMode?: boolean;
+    /**
+     * 🧾 **서버가 앱에 내린 지역명 목록** (전수표 #19 · 2026-09-14) — 동 점은 이것과 겹치는 것만 남긴다.
+     *    서버는 얼린 라인 위 GPS 진행도로 지나온 동을 뺀다(`filterManager.applyTraveledTrim`). 지도가 제 계산만 보면
+     *    **지나온 동이 계속 점으로 남아** 화면과 판정이 다른 말을 한다. 비어 있으면(필터가 아직 안 옴) 거르지 않는다.
+     */
+    serverKeywords?: readonly string[];
 }
 
 export interface CallNet {
@@ -87,7 +93,9 @@ export interface CallNet {
 }
 
 export function useCallNet(i: CallNetInput): CallNet | null {
-    const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape, localMode } = i;
+    const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape, localMode, serverKeywords } = i;
+    /** 🔴 배열을 문자로 굳혀 의존성으로 삼는다 — 매 렌더 새 배열이면 그물을 매번 다시 만든다 */
+    const serverKey = serverKeywords?.length ? JSON.stringify([...serverKeywords].sort()) : '';
     /** 🛣️ 안 주면 «노선» — 목업 기본값과 같다 (기사님 확정 2026-09-09) */
     const routeMode = i.routeMode ?? true;
     /**
@@ -161,12 +169,19 @@ export function useCallNet(i: CallNetInput): CallNet | null {
          * ⚠️ 진행도 트림(`myProgressKm`)은 아직 안 건다 — 달리며 지나온 동을 빼는 것은 다음 판이다.
          */
         const merged = mergeGoalNets([net], {
-            departed: false, myProgressKm: 0,
+            departed: false, myProgressKm: 0,   // 🔴 지나온 동은 서버가 뺀다 — 아래에서 서버 목록과 겹친다
             excluded: JSON.parse(excludedKey) as string[],
         });
-        return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine: !!line, goal };
+        if (!serverKey) return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine: !!line, goal };
+        const onServer = new Set(JSON.parse(serverKey) as string[]);
+        const pass = merged.pass.filter(p => onServer.has(p.name));
+        const byRegion = new Map<string, string[]>();
+        for (const p of pass) byRegion.set(p.region, [...(byRegion.get(p.region) ?? []), p.name]);
+        const groups = [...byRegion.entries()].map(([region, names]) => ({ region, names }))
+            .sort((a, b) => b.names.length - a.names.length);
+        return { net: { ...net, pass, groups, count: pass.length }, usedLine: !!line, goal };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- polyline 은 lineKey 로 굳혀 본다 (위 주석)
         // eslint-disable-next-line react-hooks/exhaustive-deps -- 내 위치는 격자(gridX·gridY)로 굳혀 본다 (위 주석)
     }, [destinationCity, gridX, gridY, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, lineKey,
-        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey, routeMode, localMode]);
+        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey, routeMode, localMode, serverKey]);
 }

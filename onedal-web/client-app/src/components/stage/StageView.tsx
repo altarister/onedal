@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop, effectiveRadii, isDeliveredCall } from '@onedal/shared';
+import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
@@ -164,6 +164,8 @@ export default function StageView(props: Props) {
         /* 🏘️ 관내 — 서버가 파생한 값을 그대로 (조사 ①-8) */
         localMode: filter?.localMode,
         routeHolder: derived.drawHolder,
+        /* 🧾 동 점은 서버가 앱에 내린 목록과 겹치는 것만 — 지나온 동이 판정과 같게 빠진다 (전수표 #19) */
+        serverKeywords: filter?.destinationKeywords,
     });
 
 
@@ -566,6 +568,10 @@ export default function StageView(props: Props) {
                     netOverlay={callNet && {
                         tri: callNet.net.tri, pass: callNet.net.pass, circles: callNet.net.circles,
                         usedLine: callNet.usedLine, lineRadiusKm: radii.detourRadiusKm /* 줄인 값 — 그린 띠와 실제 그물 폭이 같아야 한다 (조사 ①-5) */, goal: callNet.goal,
+                        /* 🚗 이동 중이면 띠를 내 진행도 뒤부터 안 긋는다 — 목업 `MapMockup.tsx:2575` (전수표 #60) */
+                        trimKm: filter?.dispatchPhase === 'DELIVERING' && myLocation && (derived.drawHolder?.routePolyline?.length ?? 0) >= 2
+                            ? progressAlongKm({ lng: myLocation.x, lat: myLocation.y }, derived.drawHolder!.routePolyline!.map(p => [p.x, p.y] as [number, number]))
+                            : 0,
                     }}
                     onStopTap={focusCall}
                 >

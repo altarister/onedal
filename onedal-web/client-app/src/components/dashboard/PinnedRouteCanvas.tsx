@@ -169,6 +169,8 @@ interface Props {
         lineRadiusKm: number;
         /** 🎯 목적지 — 마름모의 끝 꼭짓점이자 지도 마커 */
         goal: { name: string; lng: number; lat: number };
+        /** 🚗 이동 중 지나온 라인 km — 띠를 여기부터 긋는다 (전수표 #60). 0 이면 통째로 */
+        trimKm?: number;
     } | null;
     unifiedRoutePoints: RoutePoint[];
     /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
@@ -503,9 +505,16 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             // ── 라인 띠 — 잡은 콜들이 만든 실제 경로 양옆 (노선일 때만)
             if (netOverlay.usedLine && validPolyline.length >= 2) {
                 ctx.beginPath();
+                /* 🚗 지나온 만큼 짧아진다 — 목업 `MapMockup.tsx:2575` 그대로. km 셈은 `progressAlongKm` 과 같은 축척 (전수표 #60) */
+                let acc = 0, put = 0;
                 validPolyline.forEach((p, i) => {
+                    if (i > 0) {
+                        const a = validPolyline[i - 1];
+                        acc += Math.hypot((p.x - a.x) * 111.32 * Math.cos(p.y * Math.PI / 180), (p.y - a.y) * 110.574);
+                    }
+                    if (acc < (netOverlay.trimKm ?? 0)) return;
                     const { cx, cy } = getScreenPt(p);
-                    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+                    if (put++ === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
                 });
                 ctx.strokeStyle = NET_SOLID;
                 ctx.lineWidth = Math.max(3, netOverlay.lineRadiusKm * 2 * pxPerKm);

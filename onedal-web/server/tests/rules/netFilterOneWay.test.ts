@@ -64,3 +64,27 @@ describe('🕸️ 필터 목록 — 그물 한 벌 (1단계)', () => {
         expect(trim).not.toMatch(/progressAlongPolyline\(/);
     });
 });
+
+/**
+ * 🗺️ **지도도 같은 것을 그린다** (전수표 #19 지도 · #60 · 2026-09-14).
+ *
+ * 서버는 얼린 라인 위 GPS 진행도로 지나온 동을 앱 목록에서 뺀다. 지도(`useCallNet`)는 그걸 몰라
+ * **지나온 동을 계속 점으로 찍고**(`departed: false`), 라인 띠도 통째로 칠했다 — 화면과 판정이 다른 말을 한다.
+ *   · 동 점 = 서버가 앱에 내린 지역명 목록과 겹치는 것만 (새 칸 없이 이미 오는 `destinationKeywords`)
+ *   · 라인 띠 = 이동 중이면 내 진행도 뒤는 안 긋는다 (목업 `MapMockup.tsx:2575`)
+ */
+describe('🗺️ 지도 — 지나온 곳을 판정과 같게', () => {
+    const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    it('🔴 지도의 동 점은 서버 목록과 겹치는 것만 남긴다', () => {
+        const hook = client('hooks/useCallNet.ts');
+        expect(hook).toMatch(/serverKeywords/);
+        expect(hook).toMatch(/\.pass\.filter\(/);
+        expect(client('components/stage/StageView.tsx')).toMatch(/serverKeywords: filter\?\.destinationKeywords/);
+    });
+    it('🔴 이동 중이면 라인 띠를 내 진행도 뒤부터 긋지 않는다', () => {
+        const stage = client('components/stage/StageView.tsx');
+        expect(stage).toMatch(/trimKm:[\s\S]{0,120}DELIVERING[\s\S]{0,200}progressAlongKm\(/);
+        expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/acc < \(?netOverlay\.trimKm/);
+    });
+});
