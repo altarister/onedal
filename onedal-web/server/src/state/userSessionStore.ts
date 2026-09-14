@@ -261,6 +261,11 @@ export interface UserSession {
      */
     detourOrderKm: Record<string, number> | null;
     /**
+     * 📋 **상차 목록을 마지막으로 만든 자리** (필터.md «상차 목록 · 하차 목록») — 여기서 0.5km 넘게 움직이면 다시 만든다.
+     *    목록 자체는 `activeFilter.pickupKeywords` 에 산다. 저장이 아니라 «언제 다시 만들까»의 기준점이다.
+     */
+    pickupListAt: { x: number; y: number } | null;
+    /**
      * 🛣️ **경로 위에 있는 동 목록** — 상차지 판정의 원천 (2026-08-25 신설).
      *
      * 2026-08-25 부터 `destinationKeywords` 에는 **도착 목표**(첫짐의 «여주시»)에서 온
@@ -329,6 +334,7 @@ function createDefaultSession(userId: string): UserSession {
         isBootstrapping: false,
         detourProgressKm: null,
         detourOrderKm: null,
+        pickupListAt: null,
         detourFlat: null,
         filterLine: null,
         routeSnapshot: null,

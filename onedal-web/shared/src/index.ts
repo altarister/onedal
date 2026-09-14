@@ -790,6 +790,11 @@ export interface AutoDispatchFilter {
     destinationRadiusKm: number;    // 하차 목표 주위 탐색 반경 (km)
     excludedKeywords: string[];     // 제외 단어 배열 (예: ["착불", "수거", "까대기"])
     destinationKeywords: string[];  // (내부망) 앱 파싱용 읍/면/동 50개 키워드 배열
+    /**
+     * 📋 **상차 목록** — 원달앱이 상차지를 거르는 읍·면·동 목록 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 목록 · 하차 목록»).
+     *    서버가 필터 영역에서 파생한다(`filterManager.rebuildPickupList`) · 저장하지 않는다. 아직 안 만들었으면 undefined.
+     */
+    pickupKeywords?: string[];
     destinationGroups?: Record<string, string[]>; // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     customCityFilters: string[];    // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     detourRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 5km, DB설정값)
@@ -950,6 +955,8 @@ export const APP_FILTER_KEYS = [
     'isActive', 'isSharedMode',
     'pickupRadiusKm', 'destinationCity', 'destinationRadiusKm',
     'destinationKeywords', 'customCityFilters', 'keywordTraps',
+    /* 📋 상차 목록 — 1단계는 옛 칸(pickupRadiusKm · orderKm)과 함께 간다 (필터.md «올리는 순서») */
+    'pickupKeywords',
     'excludedKeywords', 'allowedVehicleTypes',
     'minFare', 'maxFare', 'ratePerKm',
     /* ⬇️ 평면 필터에 없다 — 조립할 때 얹는다 */
@@ -1016,6 +1023,8 @@ export const CALL_TARGET_LABEL: Record<CallTarget, string> = {
  * @returns 콜 잡기해도 되면 `null`, 안 되면 **왜 안 되는지** (그대로 로그·화면에 쓴다)
  */
 export function callFilterBlocker(filter: AutoDispatchFilter): string | null {
+    /* 📋 빈 상차 목록은 «제한 없음»이 아니라 고장이다 (규칙 ④ · 필터.md «상차 목록»). 아직 안 만들었으면(undefined) 옛 흐름이라 막지 않는다 */
+    if (Array.isArray(filter.pickupKeywords) && filter.pickupKeywords.length === 0) return '상차 목록이 비었습니다 — 내 위치 둘레에서 동을 못 찾았습니다';
     if (filter.isSharedMode) {
         // 합짐은 경로에서 경유가 나와야 성립한다. 경유가 없으면 "가는 길"이 없는 것이다
         if (!filter.destinationKeywords?.length) return '경유가 아직 안 잡혔습니다';
@@ -1636,6 +1645,7 @@ export * from './regionMatch';
 export * from './pricing';
 export * from './phases';
 export * from './callTargetDay';
+export * from './pickupList';
 export * from './cargoHints';
 export * from './cargoTags';
 export * from './cargoUnits';

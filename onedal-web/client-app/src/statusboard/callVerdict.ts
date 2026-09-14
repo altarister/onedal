@@ -66,6 +66,8 @@ export const VERDICT_AXIS_LABEL: Record<string, string> = {
     pickup: '상차거리',
     blacklist: '제외어',
     routeOrder: '경로순서',
+    /* 📋 상차 목록 — 원달앱 2단계부터 pickup · routeOrder 대신 이 하나 (필터.md «상차 목록 · 하차 목록») */
+    pickupList: '상차 목록 — 상차지가 내 위치 둘레 밖',
 };
 
 /**

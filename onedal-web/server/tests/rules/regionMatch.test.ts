@@ -50,9 +50,12 @@ describe('배선 — 서버·앱이 같은 규칙을 쓴다', () => {
         expect(ev).toMatch(/anyRegionHit\(dropoffText, keywords, filter\.keywordTraps\)/);
     });
 
-    it('🔴 keywordTraps 는 키워드에서 매번 파생된다 — updateActiveFilter 한 곳', () => {
+    it('🔴 keywordTraps 는 키워드에서 매번 파생된다 — 한 함수(`refreshKeywordTraps`) · 상차 ∪ 하차 목록 (2026-09-15)', () => {
         const fm = read('../../src/state/filterManager.ts');
-        expect(fm).toMatch(/keywordTraps = trapsForKeywords\(session\.activeFilter\.destinationKeywords/);
+        expect(fm.match(/keywordTraps = /g)?.length).toBe(1);
+        expect(fm).toMatch(/f\.keywordTraps = trapsForKeywords\(\[\.\.\.new Set\(\[\.\.\.\(f\.destinationKeywords \?\? \[\]\), \.\.\.\(f\.pickupKeywords \?\? \[\]\)\]\)\]\)/);
+        const upd = fm.slice(fm.indexOf('export function updateActiveFilter('));
+        expect(upd.slice(0, upd.indexOf('\n}'))).toMatch(/refreshKeywordTraps\(session\)/);
     });
 
     it('🔴 앱 미러(RegionMatch.kt)가 있고 두 파서가 그것으로 매칭한다', () => {

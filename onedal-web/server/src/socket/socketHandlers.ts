@@ -38,7 +38,7 @@ function routeTlOf(userId: string): RouteTl | undefined {
             Date.now(), sync.routeComputedAt, inputs?.rules, inputs?.unk, dwellLedgerOf);
     } catch { return undefined; }
 }
-import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, trimTraveled } from "../state/filterManager";
+import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, trimTraveled, maybeRebuildPickupList } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "../services/geoService";
 
 
@@ -487,6 +487,8 @@ export function registerSocketHandlers(io: Server) {
                 /* ⏸️ «지금 서 있다» — 궤적이 정차를 남길 수 있게 (문턱을 안 본다) */
                 loc.stopped,
             );
+            /* 📋 0.5km 넘게 움직였으면 상차 목록을 다시 만든다 — 콜이 없어도(콜 전 내 영역) 돈다 (필터.md «상차 목록») */
+            maybeRebuildPickupList(userId, io);
 
             /**
              * 📍 **위치만 나르는 가벼운 길** (2026-09-12 · 기사님 지시로 되돌려 다시 놓음).

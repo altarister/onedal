@@ -462,6 +462,37 @@ export function mapCoverage(): { features: number; sido: string[] } {
     return { features: fs.length, sido: [...sido].sort() };
 }
 
+/**
+ * 📋 **내 영역 — 동 경계가 원에 걸친 읍·면·동** (상차 목록 · 기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 목록 · 하차 목록»).
+ *
+ * 경로 영역(`getDetourRegions`)과 **같은 잣대**(동 경계가 걸치면 든다)다 — 중심점으로만 재면 넓은 읍·면의 가장자리 콜을 놓친다.
+ * 간소화 사본(`simplified`)과 사각형(`bbox`)으로 먼저 거른다 (위 `getDetourRegions` 와 같은 최적화).
+ * 🔴 지도가 없거나 반경을 모르면 **빈 목록** — 지어내지 않는다. 빈 상차 목록은 `callFilterBlocker` 가 고장으로 막는다 (규칙 ④).
+ */
+export function getRegionsTouchingCircle(center: { x: number; y: number }, radiusKm: number): string[] {
+    if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) return [];
+    if (!Number.isFinite(center.x) || !Number.isFinite(center.y) || !(radiusKm > 0)) return [];
+    let circle: any;
+    try {
+        circle = turf.buffer(turf.point([center.x, center.y]), radiusKm, { units: 'kilometers' });
+    } catch {
+        return [];
+    }
+    if (!circle) return [];
+    const cb = turf.bbox(circle);
+    const out = new Set<string>();
+    for (const feature of mergedMapFeatureCollection.features as any[]) {
+        const name = feature.properties?.EMD_KOR_NM;
+        if (!name) continue;
+        const fb = feature.bbox;
+        if (fb && (fb[2] < cb[0] || fb[0] > cb[2] || fb[3] < cb[1] || fb[1] > cb[3])) continue;
+        try {
+            if (turf.booleanIntersects(circle, (feature.simplified ?? feature).geometry ?? feature.geometry)) out.add(name);
+        } catch { /* 형식이 이상한 폴리곤은 건너뛴다 */ }
+    }
+    return [...out].sort();
+}
+
 export function getCityRegionsWithRadius(cityName: string, radiusKm: number): CityRegions {
     if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) {
         return { flat: [], grouped: {}, customCityFilters: [] };

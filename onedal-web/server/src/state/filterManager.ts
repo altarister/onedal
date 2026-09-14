@@ -21,7 +21,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
-         EVALUATING_STATUSES, isLocalPhase, activeGoals } from "@onedal/shared";
+         EVALUATING_STATUSES, isLocalPhase, activeGoals, effectiveRadii, pickupStageOf, pickupListOf, pickupListNeedsRebuild } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -321,7 +321,7 @@ export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
 }
 
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
+import { getCityRegionsWithRadius, getRegionsTouchingCircle, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율은 user_filters 의 평면 칸에 산다 (④에서 철거했다가 C3-3b 에서 한 벌로 돌아왔다).
@@ -888,6 +888,56 @@ export function rebuildNetFilter(userId: string, io: any): void {
     console.log(`🕸️ [필터 목록] 목적지 ${kept.goals.join(' ∪ ')} · ${kept.line ? '라인(얼린 경로)' : '경로 없음'} · `
         + `${kept.byNet ? '그물' : '도시 둘레(물러섬)'} → ${kept.flat.length}개`
         + (kept.pruned > 0 ? ` (제외로 ${kept.pruned}개 뺌)` : ''));
+    /* 📋 하차 목록을 다시 만들면 상차 목록도 — 경로·출발·복귀가 바뀌는 길이 여기로 모인다 */
+    if (rebuildPickupList(session, userId)) broadcastFilter(userId, session, io);
+}
+
+/**
+ * 🗺️ **키워드 트랩 — 한 곳** (regionMatch 사전 확장 · 기사님 확정 ④ · 상차 목록 2026-09-15).
+ *    "남동"→"인천 남동구" 오탐의 원천 수리. 원천은 전국 지명 사전(geoService)이고, 앱·서버 매칭(anyRegionHit)이 이 트랩으로 부분 문자열 오탐을 거른다.
+ *    📋 **상차 목록 ∪ 하차 목록으로 한 벌** — 막는 낱말이 늘 뿐이라 통과를 넓히지 않는다 (필터.md «상차 목록»).
+ *    🔴 목록을 바꾸는 두 길(`updateActiveFilter` · `rebuildPickupList`)이 **이 함수 하나**를 부른다 — 계산이 두 벌이면 한쪽 목록을 빠뜨린다.
+ */
+function refreshKeywordTraps(session: ReturnType<typeof getUserSession>): void {
+    const f = session.activeFilter;
+    f.keywordTraps = trapsForKeywords([...new Set([...(f.destinationKeywords ?? []), ...(f.pickupKeywords ?? [])])]);
+}
+
+const PICKUP_STAGE_LABEL = { line: '경로 영역 ∩ 내 영역', home: '복귀(⬜ 모양 대기 — 내 영역)', departed: '내 영역 ∩ 하차 목록', before: '내 영역(콜 전)' } as const;
+
+/**
+ * 📋 **상차 목록을 만든다 — 한 곳** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 목록 · 하차 목록»).
+ *
+ * 판단은 shared `pickupStageOf` · `pickupListOf`, 동 목록은 지도(`getRegionsTouchingCircle` · `getDetourRegions` — 둘 다 «동 경계가 걸치면»).
+ * 반경은 앱·지도·그물이 쓰는 그 함수(`effectiveRadii`)에서 — 자동이면 줄인 값 (규칙 ③).
+ * 🔴 «경로 몇 km»를 안 본다 — 되돌아가는 경로에서 다시 지날 동이 빠지던 D3 가 이 계산에는 없다.
+ * @returns 목록이 바뀌었나 (부르는 쪽이 관제웹에 알릴지 정한다)
+ */
+export function rebuildPickupList(session: ReturnType<typeof getUserSession>, userId: string): boolean {
+    void userId;
+    const me = originOf(session as Parameters<typeof originOf>[0]);
+    if (!me) return false;
+    const eff = effectiveRadii(session.activeFilter);
+    const line = session.activeFilter.routeMode === false ? null : filterLineOf(session);
+    const stage = pickupStageOf({ hasLine: !!line && line.length >= 2, homeOn: session.activeFilter.callTarget === 'HOME', departed: !!session.departedAt });
+    const meDongs = getRegionsTouchingCircle(me, eff.pickupRadiusKm);
+    const lineDongs = stage === 'line' ? (getDetourRegions(line!, eff.detourRadiusKm)?.flat ?? []) : null;
+    const list = pickupListOf({ stage, meDongs, lineDongs, dropDongs: session.activeFilter.destinationKeywords ?? [] });
+    const prev = session.activeFilter.pickupKeywords;
+    session.pickupListAt = { x: me.x, y: me.y };
+    session.activeFilter.pickupKeywords = list;
+    refreshKeywordTraps(session);
+    const changed = !prev || prev.join(',') !== list.join(',');
+    if (changed) console.log(`📋 [상차 목록] ${PICKUP_STAGE_LABEL[stage]} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);
+    return changed;
+}
+
+/** 📋 GPS 가 0.5km 넘게 움직였으면 상차 목록을 다시 만들고 관제웹에 알린다 (기사님 확정 · `PICKUP_LIST_MOVE_KM`) */
+export function maybeRebuildPickupList(userId: string, io?: any): void {
+    const session = getUserSession(userId);
+    const me = originOf(session as Parameters<typeof originOf>[0]);
+    if (!pickupListNeedsRebuild(session.pickupListAt, me ? { x: me.x, y: me.y } : null)) return;
+    if (rebuildPickupList(session, userId)) broadcastFilter(userId, session, io);
 }
 
 /**
@@ -1171,10 +1221,7 @@ export function updateActiveFilter(
         refreshDetourIfNeeded(session, userId, before);
     }
 
-    // 🗺️ 키워드 트랩 — 지금 키워드에서 매번 파생한다 (regionMatch 사전 확장 · 기사님 확정 ④).
-    //    "남동"→"인천 남동구" 오탐의 원천 수리. 원천은 전국 지명 사전(geoService)이고,
-    //    앱·서버 매칭(anyRegionHit)이 이 트랩으로 부분 문자열 오탐을 거른다.
-    session.activeFilter.keywordTraps = trapsForKeywords(session.activeFilter.destinationKeywords ?? []);
+    refreshKeywordTraps(session);
 
     // [자체 리뷰 B-③] isSharedMode 는 dispatchPhase 에서 파생되는 값이다.
     // (STANDBY = 첫짐 = 단독,  GATHERING/DELIVERING = 합짐)
