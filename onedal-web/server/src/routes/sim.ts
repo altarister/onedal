@@ -288,7 +288,7 @@ function scenarioWorld(userId: string, now: number): ScenarioWorld {
     const put = (o: any) => {
         if (!o?.id) return;
         byId.set(o.id, {
-            id: o.id, status: o.status,
+            id: o.id, status: o.status, pickup: o.pickup, dropoff: o.dropoff, fare: o.fare,
             pickupX: o.pickupX, pickupY: o.pickupY, dropoffX: o.dropoffX, dropoffY: o.dropoffY,
             arrivedPickupAt: o.arrivedPickupAt, arrivedDropoffAt: o.arrivedDropoffAt,
         });
@@ -296,7 +296,8 @@ function scenarioWorld(userId: string, now: number): ScenarioWorld {
     for (const o of session.pendingOrdersData.values()) put(o);
     for (const o of session.myOrders) put(o);
     const intel = db.prepare(
-        `SELECT id, pickupX, pickupY, dropoffX, dropoffY, verdict FROM intel ORDER BY id DESC LIMIT 50`,
+        /* 🔴 폰 기록은 좌표가 비어 있다 — 동 이름·요금도 옮긴다 (버그 대장 #128) */
+        `SELECT id, pickup, dropoff, fare, pickupX, pickupY, dropoffX, dropoffY, verdict FROM intel ORDER BY id DESC LIMIT 50`,
     ).all() as WorldIntel[];
     const f = session.activeFilter;
     return {

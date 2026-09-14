@@ -60,6 +60,21 @@ describe('🎬 이천 왕복 — 사건순', () => {
         expect(r.send).toBeNull();
     });
 
+    /**
+     * 🔴 **폰이 올린 기록(`intel`)에는 좌표가 없다** (2026-09-15 01:32 첫 시험 — A1 을 폰이 `pickup` 으로 옳게 막았는데
+     *    카드는 «❔ 30초 동안 폰이 못 봤다»였다). 폰은 목록 화면의 동 이름·요금·차종만 읽는다 (`intel` 9112·9113 좌표 칸 빈칸).
+     *    → 좌표가 비면 **상차·하차 동 이름 + 요금**으로 짝짓는다. 보낸 뒤 새로 생긴 줄만 보니 같은 동·요금의 옛 줄은 안 섞인다.
+     */
+    it('🔴 좌표 없는 폰 기록도 동 이름·요금으로 짝짓는다', () => {
+        let st = run(startScenario(def, T0), baseWorld(T0, { intel: [{ id: 9111, pickup: '중리동', dropoff: '신둔면', fare: 30000, verdict: 'vehicle' }] })).state;
+        const r = run(st, baseWorld(T0 + 4000, { intel: [
+            { id: 9111, pickup: '중리동', dropoff: '신둔면', fare: 30000, verdict: 'vehicle' },   // 보내기 전 옛 줄 — 안 섞인다
+            { id: 9112, pickup: '중리동', dropoff: '신둔면', fare: 30000, verdict: 'pickup' },
+        ] }));
+        expect(r.state.rows[0].mark).toBe('ok');
+        expect(r.state.rows[0].verdict).toBe('pickup');
+    });
+
     it('🔴 막힘 줄이 다른 축에서 막히면 🟠 · 통과면 🔴 뚫림', () => {
         let st = run(startScenario(def, T0), baseWorld(T0)).state;
         expect(run(st, baseWorld(T0 + 4000, { intel: [intelFor('A1', 11, 'fare')] })).state.rows[0].mark).toBe('warn');

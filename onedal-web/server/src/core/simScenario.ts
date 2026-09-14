@@ -10,8 +10,10 @@ import type { SimCallInput, SimPlace } from './simCallQueue';
  *    기사님 손이 늦으면 뒤가 밀린다. 그래서 줄은 «앞 줄이 끝나면» 또는 «○줄 콜의 상차/하차 도착이 찍히면» 나간다.
  * 🔴 **판단은 이 순수 함수 하나다** — 서버 경로(`routes/sim.ts`)는 1초마다 «세상»을 읽어 넘기고 결과를 옮길 뿐,
  *    현황판은 그리기만 한다. 화면이나 경로에 판단을 두면 돌려 봐야만 틀린 줄을 안다 (검사 `tests/core/simScenario.test.ts`).
- * 🔴 **짝짓기는 좌표로** — 서버가 주소를 `normalizeAddress` 로 줄여 적어 글자로는 불안하다 (onedal-49 확인).
- *    그리고 **보낸 뒤 새로 생긴 것만** 본다 — 좌표가 같은 콜(C2 ↔ D1)이 앞 줄 콜을 제 것으로 집지 않게.
+ * 🔴 **짝짓기는 좌표가 있으면 좌표, 없으면 동 이름·요금** — 서버가 주소를 `normalizeAddress` 로 줄여 적어 긴 글자로는 불안하다
+ *    (onedal-49 확인). 그런데 **폰이 올린 기록(`intel`)에는 좌표가 없다** — 폰은 목록 화면의 동 이름·요금·차종만 읽는다
+ *    (2026-09-15 01:32 첫 시험 · 버그 대장 #128). 그래서 좌표가 비면 상차·하차 동 이름이 들어 있고 요금이 같은가로 본다.
+ *    그리고 **보낸 뒤 새로 생긴 것만** 본다 — 같은 콜(C2 ↔ D1)이 앞 줄 콜을 제 것으로 집지 않게.
  * 🔴 **막힘은 폰이 남긴 판정(`intel.verdict`)으로 가린다** — «안 올라왔다»를 기다리지 않는다. 막힌 칸까지 채점된다.
  */
 
@@ -52,12 +54,16 @@ export interface ScenarioRow {
 export interface WorldOrder {
     id: string;
     status: string;
+    /** 폰이 목록에서 읽은 글자 — 좌표가 아직 없을 때 짝짓기에 쓴다 */
+    pickup?: string; dropoff?: string; fare?: number;
     pickupX?: number; pickupY?: number; dropoffX?: number; dropoffY?: number;
     arrivedPickupAt?: string; arrivedDropoffAt?: string;
 }
 /** 폰이 올린 콜 한 줄 (`intel`) — 판단에 쓰는 칸만 */
 export interface WorldIntel {
     id: number;
+    /** 🔴 폰 기록은 좌표가 비어 있다 — 동 이름·요금으로 짝짓는다 (#128) */
+    pickup?: string | null; dropoff?: string | null; fare?: number | null;
     pickupX?: number | null; pickupY?: number | null; dropoffX?: number | null; dropoffY?: number | null;
     verdict?: string | null;
 }
@@ -122,6 +128,17 @@ const km = (x: number, y: number, p: { lon: number; lat: number }) =>
 const near = (x: number | null | undefined, y: number | null | undefined, p: { lon: number; lat: number }) =>
     x != null && y != null && km(x, y, p) <= MATCH_KM;
 
+/** 이 콜이 그 줄의 콜인가 — 좌표 둘이 다 있으면 좌표로, 아니면 상차·하차 동 이름과 요금으로 (#128) */
+function sameCall(x: { pickupX?: number | null; pickupY?: number | null; dropoffX?: number | null; dropoffY?: number | null;
+                       pickup?: string | null; dropoff?: string | null; fare?: number | null },
+                  call: NonNullable<ScenarioRow['call']>): boolean {
+    if (x.pickupX != null && x.pickupY != null && x.dropoffX != null && x.dropoffY != null) {
+        return near(x.pickupX, x.pickupY, call.pickup) && near(x.dropoffX, x.dropoffY, call.dropoff);
+    }
+    return !!x.pickup && !!x.dropoff && x.pickup.includes(call.pickup.region) && x.dropoff.includes(call.dropoff.region)
+        && (x.fare == null || x.fare === call.fare);
+}
+
 export function startScenario(def: ScenarioRow[], now: number): ScenarioState {
     return {
         startedAt: now, index: 0, finished: def.length === 0,
@@ -179,10 +196,9 @@ function judgeSent(row: ScenarioRow, rs: RowState, w: ScenarioWorld, claimed: Se
     const call = row.call!;
     const order = rs.orderId
         ? w.orders.find(o => o.id === rs.orderId)
-        : w.orders.find(o => !(rs.ordersBefore ?? []).includes(o.id) && !claimed.has(o.id)
-            && near(o.pickupX, o.pickupY, call.pickup) && near(o.dropoffX, o.dropoffY, call.dropoff));
+        : w.orders.find(o => !(rs.ordersBefore ?? []).includes(o.id) && !claimed.has(o.id) && sameCall(o, call));
     const intel = w.intel
-        .filter(r => r.id > (rs.intelAfter ?? 0) && near(r.pickupX, r.pickupY, call.pickup) && near(r.dropoffX, r.dropoffY, call.dropoff))
+        .filter(r => r.id > (rs.intelAfter ?? 0) && sameCall(r, call))
         .sort((a, b) => b.id - a.id)[0];
     let next: RowState = { ...rs, ...(order ? { orderId: order.id } : {}), ...(intel ? { verdict: intel.verdict ?? null } : {}) };
     const waited = w.now - (rs.sentAt ?? w.now);
