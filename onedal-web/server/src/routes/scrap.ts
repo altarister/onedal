@@ -11,6 +11,28 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
 import { PluginFactory } from "../core/plugins/PluginFactory";
 
+/**
+ * 🧭 **경로 순서 맵이 도착지를 얼마나 덮나 — 바뀔 때만 한 줄** (기사님 요청 2026-09-14 «콘솔로그에 넣어서 너도 확인할 수 있도록»).
+ *
+ * 앱의 역주행 검사(`RouteOrderFilter.kt`)는 하차지가 이 맵에 **없으면 «순서 미상 — 통과»**다.
+ * 그런데 도착지 목록(`destinationKeywords`)에는 경로 위가 아닌 동도 들어 있어서,
+ * **도착지로는 통과하는데 순서는 모르는** 동으로 가는 콜이 역주행이어도 잡힌다
+ * (2026-09-14 14:11 «7지점 한 바퀴» ✖06 이천터미널 → 초월읍 — 남은 경로가 이천 안이라 초월읍이 맵에 없었다).
+ * 그 동 목록을 로그에 남겨, 다음 판에서 «왜 통과했나»를 로그만으로 읽게 한다.
+ * ⚠️ 텔레메트리마다 불리므로 **내용이 바뀔 때만** 찍는다.
+ */
+const lastOrderKmSig = new Map<string, string>();
+function logOrderKmCoverage(userId: string, keywords: string[], orderKm: Record<string, number | null>) {
+    if (!orderKm || Object.keys(orderKm).length === 0) return;   // 첫짐 — 앱이 순서 검사를 안 한다
+    const unknown = keywords.filter(k => orderKm[k] === undefined || orderKm[k] === null);
+    const sig = `${keywords.length}|${unknown.join(',')}`;
+    if (lastOrderKmSig.get(userId) === sig) return;
+    lastOrderKmSig.set(userId, sig);
+    const sample = unknown.slice(0, 12).join('·') + (unknown.length > 12 ? ` 외 ${unknown.length - 12}` : '');
+    console.log(`🧭 [경로 순서 맵] 도착지 ${keywords.length}곳 중 순서 아는 곳 ${keywords.length - unknown.length}곳 · ` +
+        `모르는 곳 ${unknown.length}곳 — 모르는 곳으로 가는 콜은 앱이 역주행을 못 가린다` +
+        (unknown.length ? ` (${sample})` : ''));
+}
 const router = Router();
 
 // 🧭 피기백 v2 로 말하는 기기 — 최초 감지 로그를 1회만 찍기 위한 표식 (메모리)
@@ -229,6 +251,7 @@ router.post("/", (req, res) => {
         //    🔴 키 이름은 orderKm — #78 이후 실리는 값이 «순서 전용»이라 이름을 한 벌로
         //       맞췄다 (2026-08-30 기사님 확정 · 옛 이름 progressKm 은 트림용에만 남는다)
         appFilter.orderKm = buildAppOrderKm(session);
+        logOrderKmCoverage(userId, session.activeFilter.destinationKeywords ?? [], appFilter.orderKm as Record<string, number | null>);
 
         // 🔔 픽커 알람 요금 하한 — 원천은 DB(user_settings), 화면은 관제웹 일반 설정 (픽커_수집.md 3단계)
         const pickerAlarmRow = db.prepare("SELECT picker_alarm_min_fare FROM user_settings WHERE user_id = ?").get(userId) as { picker_alarm_min_fare?: number } | undefined;

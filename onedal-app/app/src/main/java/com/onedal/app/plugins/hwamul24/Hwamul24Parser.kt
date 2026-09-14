@@ -377,6 +377,9 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         val routeOrder = RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
         if (!routeOrder.passed && order.fare > 0) {
             AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
+        } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
+            // 🔎 «판단 못 해서 통과»도 남긴다 (인성 파서와 같은 줄 · 기사님 요청 2026-09-14)
+            AppLogger.d(TAG, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
         }
 
         val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear && routeOrder.passed
