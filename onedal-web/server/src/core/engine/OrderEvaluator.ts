@@ -447,6 +447,28 @@ export class OrderEvaluator {
         }
         console.log(`======================================================\n`);
 
+        /**
+         * 🎨 **판정 없이 끝나지 않는다** (2026-09-14 폰 시험 · 버그 대장 #123).
+         *
+         * 판정은 위의 **성공 갈래 안에서만** 만들어졌다 — 좌표를 못 찾거나(«광주 초월읍» 세 건) 카카오가 실패하면
+         * 판정 함수를 안 부르고 이유만 남겨, 서버 로그에 `🎨 [판정]` 이 없고 장부·관제웹에도 색이 없었다.
+         * 기사님: *"판정색은 서버로그에 있어야해. 없으면 문제야."*
+         *
+         * 설계는 `criteria.ts` 머리 표 그대로다 — «주소 못 찾음 · 카카오 실패 · API 키 없음 → 잴 수 없음 (🔴)».
+         * 걸린 시간을 모르니(`totalMinutes: null`) 판정 함수가 «잴 수 없음»을 붙이고, 관제웹은 «판단 불가»로 읽는다.
+         * 🔴 **색을 지어내지 않는다** (규칙 ④) · «못 쟀다»는 «나쁘다»가 아니다 — 딱지가 까닭을 말한다.
+         * 🔴 실패 갈래가 늘어도 빠지지 않게 **관제웹에 보내기 전 한 곳**에 둔다.
+         */
+        if (!(securedOrder as any).judgment) {
+            const why = reasons.length ? reasons.join(' · ') : timeExt;
+            const dry = toSnapshot(judge(CRITERIA, firstLoadFacts({
+                fare: securedOrder.fare, totalMinutes: null, tags: [`판정 불가 — ${why}`],
+            }), judgmentCfg));
+            console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
+            OrderRepository.saveJudgment(securedOrder.id, userId, dry);
+            (securedOrder as any).judgment = dry;
+        }
+
         logRoadmapEvent("서버", "경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산");
         securedOrder.kakaoTimeExt = timeExt;
 

@@ -221,7 +221,13 @@ describe('갈아탔다 — 채점하는 곳은 하나다', () => {
         expect(ev).not.toMatch(/import[\s\S]{0,200}scoreDryRun/);
     });
 
-    it('첫짐·합짐 두 자리 모두 갈아탔다 — 한쪽만 바꾸면 두 벌이 된다', () => {
-        expect((ev.match(/toSnapshot\(judge\(CRITERIA,/g) || []).length).toBe(2);
+    /**
+     * 셋째 자리는 **«판정 없이 끝나지 않는다»** 한 곳이다 (2026-09-14 · 버그 대장 #123) — 좌표를 못 찾거나 카카오가
+     * 실패하면 판정 함수를 안 불러 서버 로그에 판정 색이 없었다. 채점 규칙을 따로 갖지 않고
+     * **같은 함수에 «시간 모름»을 넘길 뿐**이라 두 벌이 아니다 — 그것까지 함께 문다.
+     */
+    it('첫짐·합짐 두 자리 모두 갈아탔다 — 한쪽만 바꾸면 두 벌이 된다 (+ 판정 없이 끝날 때 한 자리)', () => {
+        expect((ev.match(/toSnapshot\(judge\(CRITERIA,/g) || []).length).toBe(3);
+        expect(ev).toMatch(/if \(!\(securedOrder as any\)\.judgment\) \{[\s\S]{0,200}toSnapshot\(judge\(CRITERIA, firstLoadFacts\(\{[\s\S]{0,120}totalMinutes: null/);
     });
 });
