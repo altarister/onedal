@@ -65,9 +65,24 @@ describe('🧭 먼 거리에서는 직전 순서가 못 이긴다 (2026-09-03)',
     /** 성남 여수동에서 물었을 때 — 안양(19.2km)이 가산동(21.7km)보다 가깝다 */
     const AT_SEONGNAM = { x: 127.122541, y: 37.422620 };
 
+    /**
+     * 🔴 **그날 순서가 굳은 순간은 ④(방화동)가 붙을 때였다** — 보낸 순번(②③)이 ④를 모르므로
+     *    «가장 가까운 곳»으로 다시 정하는 자리다. 여기서 직전 순서를 편들어 가산동이 먼저 갔다.
+     *
+     * ⚠️ 2026-09-14 에 이 검사를 ④ 없이 «매 틱» 모양으로 두면 깨졌다 — 그날 기사님 결정으로
+     *    **보낸 순번이 남은 정거장을 다 덮으면 그 순번을 따른다** (`stopOrderStability.test.ts`).
+     *    사고가 난 층은 «새 콜을 붙여 카카오에 보낼 순서를 정할 때»이므로 그 모양으로 되돌렸다.
+     */
     it('🔴 2.5km 나 차이 나면 직전 순서를 안 편든다 — 되돌아가면 +15km 다', () => {
-        const got = name(planArrivalStops(grabbed(SAVED_B_DROP_FIRST), AT_SEONGNAM));
-        expect(got).toBe('C상 B하 C하');
+        const withD = [
+            ...grabbed(SAVED_B_DROP_FIRST),
+            call('D', {                               // ④ 방금 붙은 콜 — 보낸 순번에 없다
+                arrivedPickupAt: '2026-09-03T12:40:00+09:00',
+                dropoffX: 126.815, dropoffY: 37.575,  // 강서 방화동
+            }),
+        ];
+        const got = name(planArrivalStops(withD, AT_SEONGNAM));
+        expect(got.startsWith('C상 B하 C하')).toBe(true);
     });
 
     it('직전 순서가 없어도 같은 답이다 — 가까운 곳부터 (안양이 먼저)', () => {

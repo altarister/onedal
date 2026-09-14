@@ -121,6 +121,41 @@ describe('🧭 후보가 섞인 경로의 주행분', () => {
         expect(하차!.driveMinutes).toBe(25);
     });
 
+    /**
+     * 🔴 **하차까지 마쳐 빠진 콜도 후보가 아니다** (기사님 실측 2026-09-14 · 「7지점 한 바퀴」 모의 주행).
+     *
+     * 위 검사는 «상차를 다녀온» 콜만 본다 — 그 콜은 여전히 활성이라 걸리지 않는다.
+     * 그런데 **하차를 마친 콜은 활성 목록에서 빠진다.** 경로가 계산될 때는 그 콜의 하차지가
+     * `sectionStops` 에 있었으므로, «활성 콜이 아닌 정거장 = 후보»로 세면 **방금 끝난 콜이
+     * 후보로 잡혀** 남은 정거장의 주행분이 전부 비었다:
+     *
+     * ```
+     * 13:05:46.429  ⚠️ 길이 어긋남(주행분 4 ≠ 정거장 3) → 전부 null ⚠️ 후보 포함 경로(d86565)
+     * 13:06:30.474  ⚠️ 길이 어긋남(주행분 3 ≠ 정거장 1) → 전부 null ⚠️ 후보 포함 경로(ef594c)
+     * ```
+     * 둘 다 **그 순간 하차를 마친 콜**이다. 다음 카카오 호출이 채울 때까지 관제웹 타임라인이 빈다.
+     */
+    it('🔴 하차를 마쳐 빠진 콜은 후보 섞임이 아니다 — 남은 정거장의 주행분이 살아 있다', () => {
+        const 끝난첫짐 = 콜('d86565', { status: 'ORDER_DELIVERED' });
+        const 합짐 = 콜('cdfdfa', {
+            sectionStops: [
+                { orderId: 'd86565', stopType: 'dropoff' },   // ← 경로를 잴 때는 남아 있던 정거장
+                { orderId: 'cdfdfa', stopType: 'pickup' },
+                { orderId: 'cdfdfa', stopType: 'dropoff' },
+            ],
+            sectionDriveMin: [18, 26, 33],
+            routeComputedAt: '2026-09-14T04:05:11.000Z',
+        });
+        const s = {
+            userId: 'u1', myOrders: [끝난첫짐, 합짐],
+            pendingOrdersData: new Map<string, any>([['d86565', 끝난첫짐], ['cdfdfa', 합짐]]),
+        } as any;
+        const { routeStops } = buildOrderSync(s);
+        expect(routeStops.map(x => `${x.orderId}|${x.stopType}`)).toEqual(['cdfdfa|pickup', 'cdfdfa|dropoff']);
+        expect(routeStops.find(x => x.stopType === 'pickup')!.driveMinutes).toBe(26);
+        expect(routeStops.find(x => x.stopType === 'dropoff')!.driveMinutes).toBe(33);
+    });
+
     it('후보가 KEEP 되면 그 값이 정상으로 쓰인다', () => {
         const 첫짐 = 콜('bc4682', {
             sectionStops: [

@@ -105,8 +105,13 @@ if (opt.db || (port === '4000' && !opt.file)) {
     }
 }
 const orderOf = (u) => db?.prepare('SELECT status FROM orders WHERE id = ?').get(u) ?? null;
+/**
+ * 단계 행 — 🔴 **행이 있다 ≠ 끝났다.** 출생은 `PLANNED`(시각 없음)으로 태어나고, 일어나면 `occurred_at` 이 찬다.
+ *    처음엔 행 수를 «단계 6/6»으로 세서 상차만 한 콜을 «다 끝났다»로 읽었다 (2026-09-14).
+ */
 const stepsOf = (u) => Object.fromEntries(Object.entries(STEP_TABLE).map(([label, t]) =>
-    [label, db?.prepare(`SELECT occurred_at, source FROM ${t} WHERE orderId = ?`).get(u) ?? null]));
+    [label, db?.prepare(`SELECT status, occurred_at, source FROM ${t} WHERE orderId = ?`).get(u) ?? null]));
+const isDone = (r) => !!r?.occurred_at;
 
 /** 🌱 [출생] 줄 — 서버가 «이 단계 행을 만들었다»고 한 것 */
 const BIRTH = /🌱 \[출생\] ([0-9a-f]{6}) · (상차지 통화|상차지 도착|상차 완료|하차지 통화|하차지 도착|하차 완료)/;
@@ -125,7 +130,7 @@ if (mode === 'call') {
         const o = orderOf(u);
         console.log(`   장부: ${o ? o.status : '없음 (비웠거나 다른 DB)'}`);
         if (o) for (const [label, r] of Object.entries(stepsOf(u)))
-            console.log(`   ${r ? '✅' : '·  '} ${label.padEnd(6)} ${r ? `${kst(r.occurred_at)} ${r.source ?? ''}` : ''}`);
+            console.log(`   ${isDone(r) ? '✅' : r ? '🌱' : '·  '} ${label.padEnd(6)} ${isDone(r) ? `${kst(r.occurred_at)} ${r.source ?? ''}` : r ? `아직 (${r.status})` : '행 없음'}`);
     }
     console.log('');
     let prev = null;
@@ -189,10 +194,10 @@ for (const [u, c] of [...calls].sort((a, b) => a[1].first.localeCompare(b[1].fir
         if (!o) ledger = '장부에 없음 (비웠거나 다른 DB)';
         else {
             const steps = stepsOf(u);
-            const have = Object.values(steps).filter(Boolean).length;
+            const done = Object.values(steps).filter(isDone).length;
             const missing = [...c.births].filter(l => !steps[l]);
             if (missing.length) lost++;
-            ledger = `${o.status} · 단계 ${have}/6` + (missing.length ? ` · 🔴 출생했는데 장부에 없음: ${missing.join('·')}` : '');
+            ledger = `${o.status} · 완료 ${done}/6` + (missing.length ? ` · 🔴 출생했는데 장부에 없음: ${missing.join('·')}` : '');
         }
     }
     console.log(`   ${short(u)}  ${c.first.slice(0, 8)}~${c.last.slice(0, 8)}  ☁️${c.server} 🖥️${c.web}  ${ledger}`);

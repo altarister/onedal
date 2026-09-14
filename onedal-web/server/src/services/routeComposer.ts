@@ -489,10 +489,12 @@ const STOP_ORDER_TIE_KM = 0.5;
  * 화면에서는 번호가 춤춘다 (실측 0901: 한 판에 9번, 두 순서를 오감).
  * 그런데 그렇게 뒤집혀도 **총 거리는 사실상 같다** — 뒤집힐 이유가 없었던 것이다.
  *
- * ⚠️ **얼리는 것이 아니다.** 직전 순서를 그대로 되쓰는 안을 먼저 만들었다가 `pnpm drive` 가
- *    잡았다: 2.4km 앞 하차지를 두고 먼 상차지로 갔고, **도착 하나가 아예 안 찍혔다**
- *    (도착 감시는 «안 찍힌 첫 정거장» 하나만 보므로, 얼린 순서가 실제 동선과 어긋나면
- *    그 정거장이 «다음»이 될 차례가 안 온다). 그래서 편들되 **넘어서면 진다.**
+ * 🔴 **2026-09-14 부터 «카카오에 보낸 순번이 남은 정거장을 다 덮으면» 그 순번을 따른다**
+ *    (기사님 결정 · `stopOrderStability.test.ts`). 굽은 길에서 1번이 뒤집혀 근접 예고가
+ *    엉뚱한 곳으로 가던 것을 막는다. 새 콜이 붙어 순번이 덮지 못할 때만 아래 편들기로 다시 정한다.
+ * ⚠️ 2026-09-01 에는 «얼리면 도착 하나가 아예 안 찍힌다»(`pnpm drive`)로 이 길을 막았다 —
+ *    그때 도착 감시가 «안 찍힌 첫 정거장» 하나만 봤기 때문이다. 09-12 에 도착이 거리로 바뀌어
+ *    (`arrivalByDistance.test.ts`) 그 까닭이 사라졌다.
  */
 /**
  * 📡 **순서를 왜 그렇게 정했나 — 바뀔 때만 남긴다** (기사님 실측 2026-09-12 밤).
@@ -530,6 +532,8 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
     /** 직전 순서에서 몇 번째였나 — 없던 정거장은 맨 뒤로 (편들 근거가 없다) */
     const rankOf = new Map<string, number>();
     previous?.forEach((s, i) => rankOf.set(`${s.orderId}|${s.stopType}`, i));
+    /** 🧭 카카오에 보낸 순번이 **지금 남은 정거장을 전부** 알고 있나 — 알면 그 순번을 따른다 */
+    const followsSent = pool.length > 0 && pool.every(st => rankOf.has(`${st.orderId}|${st.stopType}`));
 
     while (pool.length > 0) {
         let bestIdx = -1, bestD = Infinity;
@@ -547,9 +551,17 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
         if (bestIdx === -1) { out.push(...pool); break; }
         // 근소한 차이면 직전 순서를 지킨다 — 넘어서면 진다 (얼리지 않는다)
         // 🔴 비율만으로는 «번호 춤»과 «되돌아가기»를 못 가른다 — 절대 차이를 함께 본다
-        const tie = incIdx >= 0
-            && incD <= bestD * STOP_ORDER_HYSTERESIS
-            && incD - bestD <= STOP_ORDER_TIE_KM;
+        /**
+         * 🔴 **카카오에 보낸 순번이 남은 정거장을 다 덮으면 그 순번이 이긴다** (기사님 결정 2026-09-14).
+         *    기사님: *"콜이 들어와 경로를 계산하고 그걸로 카카오에 순번까지 보냈으면 그걸로 끝"*.
+         *    직선거리 탐욕법은 굽은 길에서 뒤집힌다 — 13:05:23 실측에서 신둔 하차에 2초 남은 자리를
+         *    사음동 상차가 뺏어 근접 예고가 엉뚱한 곳으로 갔다 (`stopOrderStability.test.ts`).
+         *    09-01 에 «얼리면 도착이 빠진다»로 막았던 까닭은 09-12 에 사라졌다 — 도착은 이제 거리로 찍힌다.
+         * ⚠️ **새 정거장이 끼면(새 콜 KEEP) 덮지 못하므로 아래 «가장 가까운 곳»으로 다시 정한다** —
+         *    그 순서가 카카오에 가고, 돌아오면 새 순번이 된다.
+         */
+        const tie = incIdx >= 0 && (followsSent
+            || (incD <= bestD * STOP_ORDER_HYSTERESIS && incD - bestD <= STOP_ORDER_TIE_KM));
         const pick = tie ? incIdx : bestIdx;
         /* 📡 **첫 정거장을 왜 그렇게 골랐나** — 번호 춤은 늘 ⑴ 이 뒤집히는 것으로 드러난다 */
         if (out.length === 0) {
@@ -559,6 +571,9 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
                     ? `직전순서 없음 — 편들 재료가 없다 · ⑴ ${nameOf(pool[bestIdx])} (${bestD.toFixed(2)}km)`
                 : incIdx < 0
                     ? `⑴ ${nameOf(pool[bestIdx])} (${bestD.toFixed(2)}km) — 직전순서에 갈 수 있는 곳이 없다`
+                : tie && followsSent
+                    ? `⑴ ${nameOf(pool[incIdx])} — 카카오에 보낸 순번대로 ` +
+                      `(${incD.toFixed(2)}km vs 최근접 ${bestD.toFixed(2)}km)`
                 : tie
                     ? `⑴ ${nameOf(pool[incIdx])} 유지 — 직전순서를 편들었다 ` +
                       `(${incD.toFixed(2)}km vs 최근접 ${bestD.toFixed(2)}km · 차 ${(incD - bestD).toFixed(2)}km)`

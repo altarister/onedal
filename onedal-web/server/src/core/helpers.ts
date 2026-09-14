@@ -378,8 +378,20 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
      *    도착 예상·카운트다운·버퍼가 전부 이걸 먹는다.
      */
     const activeIds = new Set(activeCalls.map(c => c.id));
+    /**
+     * 🔴 **끝난 콜은 후보가 아니다** (기사님 실측 2026-09-14 · `routeStopsPending.test.ts`).
+     *    하차를 마친 콜은 활성 목록에서 빠지지만, 경로를 잴 때는 그 하차지가 `sectionStops` 에
+     *    있었다. «활성이 아닌 정거장 = 후보»로만 세면 **방금 끝난 콜이 후보로 잡혀** 남은
+     *    정거장의 주행분이 전부 비었다 (13:05:46 · 13:06:30 «후보 포함 경로(d86565)»).
+     *    후보는 «아직 안 잡은 콜»이다 — 끝난 콜(하차 완료·방출·취소)은 거기 들지 않는다.
+     */
+    const finishedIds = new Set(
+        [...session.myOrders, ...session.pendingOrdersData.values()]
+            .filter(o => isTerminal(o.status)).map(o => o.id));
     const pendingInRoute = secStops
-        ? [...new Set(secStops.filter(st => !activeIds.has(st.orderId)).map(st => st.orderId))]
+        ? [...new Set(secStops
+            .filter(st => !activeIds.has(st.orderId) && !finishedIds.has(st.orderId))
+            .map(st => st.orderId))]
         : [];
     const pairUp = (
         st: Array<{ orderId: string; stopType: string }> | undefined,

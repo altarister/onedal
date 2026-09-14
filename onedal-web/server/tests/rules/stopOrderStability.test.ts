@@ -74,26 +74,86 @@ describe('갈 순서 — 흔들리지 않되 얼지도 않는다', () => {
         expect(name(planArrivalStops(tiedPair(), { x: 127.4270, y: 37.300 }))).toBe('B하 A하');
     });
 
-    it('🔴 진짜로 더 좋은 길이면 바뀐다 — 얼리는 것이 아니다 (drive 가 잡았던 사고)', () => {
-        /**
-         * 직전 순서는 «먼 상차지 먼저»라고 말하는데, 코앞(2.4km)에 하차지가 있다.
-         * 얼렸더니 먼 상차지로 갔고 도착 하나가 통째로 안 찍혔다 — 그 자리를 여기서 막는다.
-         */
-        const near = call('N', {
+    /**
+     * 🔄 **얼리는 것은 «보낸 순번이 다 아는 정거장」까지다 — 새 정거장이 끼면 다시 정한다.**
+     *
+     * ⚠️ 2026-09-01 에는 이 자리가 «직전 순서가 먼 상차지 먼저라도 코앞 하차지가 이긴다»였다
+     *    (`pnpm drive` 가 잡은 «도착 하나가 안 찍힌» 사고). 그 사고의 뿌리는 «도착 감시가 순서에
+     *    매였다»였고 09-12 에 거리로 풀렸다. 그래서 2026-09-14 기사님 결정으로 **보낸 순번이
+     *    다 덮으면 그 순번을 따른다** (위 검사). 여기 남는 것은 «영영 얼지는 않는다» 쪽이다.
+     */
+    it('🔴 새 콜의 정거장이 보낸 순번에 없으면 다시 정한다 — 영영 얼지는 않는다', () => {
+        const near = call('N', {                                       // 방금 KEEP — 아직 경로에 없다
             arrivedPickupAt: '2026-09-01T02:00:00+09:00',
             dropoffX: 127.402, dropoffY: 37.300,                       // 기점에서 ~2km
         });
         const far = call('F', {
             pickupX: 127.700, pickupY: 37.500, dropoffX: 127.800, dropoffY: 37.600,   // 아주 멀다
-            sectionDriveMin: [10, 20, 30],
+            sectionDriveMin: [10, 20],
             sectionStops: [
-                { orderId: 'F', stopType: 'pickup' },                  // 직전 순서는 먼 상차지 먼저
-                { orderId: 'N', stopType: 'dropoff' },
+                { orderId: 'F', stopType: 'pickup' },                  // 보낸 순번은 F 뿐이다
                 { orderId: 'F', stopType: 'dropoff' },
             ],
         });
         const out = planArrivalStops([near, far], { x: 127.380, y: 37.300 });
-        expect(out[0].orderId).toBe('N');   // 코앞 하차지가 이긴다
+        expect(out[0].orderId).toBe('N');   // 순번이 모르는 정거장이 끼었으니 가까운 곳부터 다시 정한다
+    });
+
+    it('보낸 순번이 다 덮으면 코앞 하차지가 있어도 순번대로다 (2026-09-14 결정)', () => {
+        const near = call('N', {
+            arrivedPickupAt: '2026-09-01T02:00:00+09:00',
+            dropoffX: 127.402, dropoffY: 37.300,
+        });
+        const far = call('F', {
+            pickupX: 127.700, pickupY: 37.500, dropoffX: 127.800, dropoffY: 37.600,
+            sectionDriveMin: [10, 20, 30],
+            sectionStops: [
+                { orderId: 'F', stopType: 'pickup' },
+                { orderId: 'N', stopType: 'dropoff' },
+                { orderId: 'F', stopType: 'dropoff' },
+            ],
+        });
+        expect(name(planArrivalStops([near, far], { x: 127.380, y: 37.300 }))).toBe('F상 N하 F하');
+    });
+
+    /**
+     * 🔴 **카카오에 보낸 순번이 남은 정거장을 다 덮으면 그 순번을 따른다** (기사님 결정 2026-09-14).
+     *
+     * 기사님: *"콜이 들어와 경로를 계산하고 그걸로 카카오에 순번까지 보냈으면 그걸로 끝일 거 같은데"*
+     *
+     * ── 실측 (2026-09-14 13:05:23 · 「7지점 한 바퀴」 모의 주행) ──
+     * 13:05:11 에 카카오에 «신둔 하차 → 사음동 상차 → 관고동 하차 → 터미널 하차»로 보냈다.
+     * 12초 뒤 신둔에 **2초 남은 자리**에서, 굽은 길 때문에 사음동(1.91km)이 신둔(2.33km)보다
+     * 직선으로 가까워져 1번을 뺏었다 (비율 1.22 > 버팀 20%). **근접 예고(도착 전 통화)가
+     * 사음동으로 갔고**, 주행분은 카카오 순서로 붙어 «⑷ 누적 18분»이 나왔다.
+     *
+     * 🔴 **09-01 에 «얼리면 도착이 빠진다»로 막았던 까닭은 이제 없다** — 09-12 에 도착·지나침이
+     *    «순서가 아니라 거리»로 바뀌었다 (`arrivalByDistance.test.ts`). 순서가 실제 동선과 달라도
+     *    500m 안에 들어오면 몇 번째든 찍힌다.
+     */
+    it('🔴 카카오에 보낸 순번이 남은 정거장을 다 덮으면 그대로 따른다 — 굽은 길에서 1번을 안 뺏긴다', () => {
+        const 신둔 = call('e4118c', {                         // 첫짐 — 상차는 끝났다
+            arrivedPickupAt: '2026-09-14T13:04:37+09:00',
+            dropoffX: 127.383826605868, dropoffY: 37.2929022381899,
+        });
+        const 관고 = call('8dac1f', {                         // 합짐1 — 상차는 끝났다
+            arrivedPickupAt: '2026-09-14T13:04:58+09:00',
+            dropoffX: 127.429230, dropoffY: 37.285068,
+        });
+        const 사음 = call('a0e61f', {                         // 합짐2 — 경로를 든 콜
+            pickupX: 127.416293, pickupY: 37.294522,
+            dropoffX: 127.446936, dropoffY: 37.277421,
+            sectionDriveMin: [18, 26, 28, 33],
+            sectionStops: [
+                { orderId: 'e4118c', stopType: 'dropoff' },
+                { orderId: 'a0e61f', stopType: 'pickup' },
+                { orderId: '8dac1f', stopType: 'dropoff' },
+                { orderId: 'a0e61f', stopType: 'dropoff' },
+            ],
+        });
+        const at1305_23 = { x: 127.4025, y: 37.3077 };        // 사음동 1.91km · 신둔 2.33km
+        expect(name(planArrivalStops([신둔, 관고, 사음], at1305_23)))
+            .toBe('e4118c하 a0e61f상 8dac1f하 a0e61f하');
     });
 
     it('제 짐을 싣기 전에는 못 내린다 — 버팀이 이 규칙을 넘지 않는다', () => {
