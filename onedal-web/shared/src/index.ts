@@ -2000,6 +2000,18 @@ export const DEFAULT_WAIT_TIMES: WaitTimes = {
     pickerAlarmDetailSec: PICKER_ALARM_DETAIL_SEC_DEFAULT,
 };
 
+/**
+ * ⏱️ **대기 시간 입력 — 1 이상 정수만 값이다** · 아니면 `null` (2026-09-14 리뷰).
+ * 관제웹 칸을 비우고 저장하면 0초가 저장됐다 — 인성 안전취소 0초면 원달앱이 잡자마자 스스로 취소한다.
+ * 🔴 1초 미만은 값이 아니라 고장이다 · 상한은 걸지 않는다(기사님 확정). `null` 이면 설정 경로가 옛 값을 그대로 둔다.
+ */
+export function waitSecOrNull(v: unknown): number | null {
+    const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
+    if (!Number.isFinite(n)) return null;
+    const sec = Math.floor(n);
+    return sec >= 1 ? sec : null;
+}
+
 /** 그 배차망의 안전취소 초 — 픽커는 안전취소가 없어 `null` · 모르는 배차망은 기본 배차망(인성) */
 export function safeCancelSecOf(w: WaitTimes, targetApp: string | null | undefined): number | null {
     const app = isTargetApp(targetApp) ? targetApp : DEFAULT_TARGET_APP;

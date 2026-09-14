@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
     APP_FILTER_KEYS, SAFE_CANCEL_SEC_DEFAULT, PICKER_ALARM_DETAIL_SEC_DEFAULT, SERVER_CLEANUP_EXTRA_SEC,
-    DEFAULT_WAIT_TIMES, safeCancelSecOf,
+    DEFAULT_WAIT_TIMES, safeCancelSecOf, waitSecOrNull,
 } from '@onedal/shared';
 
 /**
@@ -36,6 +36,26 @@ describe('배차망별 대기 시간 — ② 값 (shared 한 곳)', () => {
         expect(PICKER_ALARM_DETAIL_SEC_DEFAULT).toBe(60);
         expect(SERVER_CLEANUP_EXTRA_SEC).toBe(5);
         expect(DEFAULT_WAIT_TIMES).toEqual({ safeCancelSecInsung: 30, safeCancelSecHwamul24: 30, pickerAlarmDetailSec: 60 });
+    });
+
+    /**
+     * 🔴 **1초 미만은 값이 아니라 고장이다** (2026-09-14 리뷰).
+     * 관제웹 칸을 비우고 저장하면 `parseInt('') || 0` 으로 **0초**가 저장됐다 — 인성 안전취소 0초면 원달앱이 잡자마자 스스로 취소한다.
+     * 상한은 걸지 않는다(기사님 확정) · 하한만 막는다. 못 받은 값은 `null` — 설정 경로가 옛 값을 그대로 둔다(COALESCE).
+     */
+    it('🔴 대기 시간 입력 — 1 이상 정수만 받는다 · 0·음수·빈 값·숫자 아님은 null (설정 경로가 옛 값을 둔다)', () => {
+        expect(waitSecOrNull(30)).toBe(30);
+        expect(waitSecOrNull(600)).toBe(600);          // 상한 없음 (기사님 확정)
+        expect(waitSecOrNull('45')).toBe(45);
+        expect(waitSecOrNull(0)).toBeNull();
+        expect(waitSecOrNull(-5)).toBeNull();
+        expect(waitSecOrNull('')).toBeNull();
+        expect(waitSecOrNull(undefined)).toBeNull();
+        expect(waitSecOrNull(null)).toBeNull();
+        expect(waitSecOrNull('abc')).toBeNull();
+        expect(waitSecOrNull(12.7)).toBe(12);
+        const st = codeOnly(read(join(SERVER, 'routes/settings.ts')));
+        for (const k of KEYS) expect(st).toMatch(new RegExp(`${k}: waitSecOrNull\\(payload\\.${k}\\)`));
     });
 
     it('🔴 뜻이 다른 둘을 한 값으로 쓰지 않는다 — 픽커는 안전취소가 없다 (수락하기가 곧 계약)', () => {

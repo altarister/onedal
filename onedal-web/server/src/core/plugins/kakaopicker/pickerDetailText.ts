@@ -28,10 +28,20 @@ const PROVINCES = new Set([
 const SECOND_TIER = /(시|군|구)$/;
 /** 그 뒤 행정 토막 — 구·동·읍·면·가·리 (삼성2동 · 금광2동 같은 숫자 동 포함) */
 const ADMIN_TAIL = /(시|군|구|읍|면|동|가|리)$/;
-/** 건물명이 끝나는 자리 — 상세 화면의 머리 낱말 */
+/**
+ * 건물명이 끝나는 자리 — 상세·수락 뒤 화면의 머리 낱말.
+ * 🔴 «오더» — 수락 뒤 화면의 «오더 확인» 버튼 · «오더 확인 <번호>» 글자가 건물명에 붙었다 (2026-09-14 21:28:04 폰 시험 · 서버 장부 «… 곤지암점 오더 확인»)
+ */
 const STOP_WORDS = new Set([
-    '픽업', '배송', '픽업지', '배송지', '물품', '최종', '넘기기', '수락하기', '뒤로가기', '오더번호',
+    '픽업', '배송', '픽업지', '배송지', '물품', '최종', '넘기기', '수락하기', '뒤로가기', '오더번호', '오더',
 ]);
+
+/**
+ * 🔴 **주소 앞의 «픽업지»·«배송지» 표시가 칸을 정한다** (2026-09-14 리뷰).
+ * 실물 수락 뒤 아래 창(실물 17)에는 **배송지 주소만** 있다 — «먼저 나온 주소 = 픽업지»로만 정하면 배송지를 픽업지로 올린다.
+ * 표시가 없을 때(시뮬레이터 수락 전 상세)만 순서대로 담는다.
+ */
+const LABEL_SLOT: Record<string, keyof PickerDetailAddresses> = { '픽업지': 'pickup', '배송지': 'dropoff' };
 
 export interface PickerDetailAddresses {
     /** 픽업지 전체 주소 — 못 찾으면 null */
@@ -54,10 +64,14 @@ function readAddressAt(tokens: string[], i: number): { text: string; next: numbe
 
 export function pickerDetailAddresses(rawText: string): PickerDetailAddresses {
     const tokens = (rawText ?? '').replace(/kotlin\.Unit/g, ' ').split(/\s+/).filter(Boolean);
-    const found: string[] = [];
-    for (let i = 0; i < tokens.length && found.length < 2; i++) {
+    const out: PickerDetailAddresses = { pickup: null, dropoff: null };
+    for (let i = 0; i < tokens.length && (out.pickup === null || out.dropoff === null); i++) {
         const a = readAddressAt(tokens, i);
-        if (a) { found.push(a.text); i = a.next - 1; }
+        if (!a) continue;
+        const labeled = LABEL_SLOT[tokens[i - 1]];
+        const slot = labeled ?? (out.pickup === null ? 'pickup' : 'dropoff');
+        if (out[slot] === null) out[slot] = a.text;
+        i = a.next - 1;
     }
-    return { pickup: found[0] ?? null, dropoff: found[1] ?? null };
+    return out;
 }

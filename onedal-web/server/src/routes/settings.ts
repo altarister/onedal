@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { DEFAULT_WAIT_TIMES } from "@onedal/shared";
+import { DEFAULT_WAIT_TIMES, waitSecOrNull } from "@onedal/shared";
 import db from "../db";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
@@ -127,9 +127,9 @@ router.put("/", requireAuth, async (req, res) => {
             alarmVolume: payload.alarmVolume ?? null,
             pickerAlarmMinFare: payload.pickerAlarmMinFare ?? null,
             motionHoldSec: payload.motionHoldSec ?? null,
-            safeCancelSecInsung: payload.safeCancelSecInsung ?? null,
-            safeCancelSecHwamul24: payload.safeCancelSecHwamul24 ?? null,
-            pickerAlarmDetailSec: payload.pickerAlarmDetailSec ?? null
+            safeCancelSecInsung: waitSecOrNull(payload.safeCancelSecInsung),
+            safeCancelSecHwamul24: waitSecOrNull(payload.safeCancelSecHwamul24),
+            pickerAlarmDetailSec: waitSecOrNull(payload.pickerAlarmDetailSec)
         });
 
         if (result.changes === 0) {
@@ -147,9 +147,9 @@ router.put("/", requireAuth, async (req, res) => {
                 motionHoldSec: payload.motionHoldSec ?? null,
                 // 🔴 UPDATE 문이 부르는 이름은 전부 실어야 한다 — 빠지면 설정 행이 없던 계정의 첫 저장이 통째로 실패한다
                 pickerAlarmMinFare: payload.pickerAlarmMinFare ?? null,
-                safeCancelSecInsung: payload.safeCancelSecInsung ?? null,
-                safeCancelSecHwamul24: payload.safeCancelSecHwamul24 ?? null,
-                pickerAlarmDetailSec: payload.pickerAlarmDetailSec ?? null
+                safeCancelSecInsung: waitSecOrNull(payload.safeCancelSecInsung),
+                safeCancelSecHwamul24: waitSecOrNull(payload.safeCancelSecHwamul24),
+                pickerAlarmDetailSec: waitSecOrNull(payload.pickerAlarmDetailSec)
             });
         }
 

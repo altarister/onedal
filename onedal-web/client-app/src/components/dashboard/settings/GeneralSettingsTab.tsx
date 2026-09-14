@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { apiClient } from "../../../api/apiClient";
-import { VEHICLE_OPTIONS, DEFAULT_WAIT_TIMES } from "@onedal/shared";
+import { VEHICLE_OPTIONS, DEFAULT_WAIT_TIMES, waitSecOrNull } from "@onedal/shared";
 import type { WaitTimes } from "@onedal/shared";
 import { useSettingsStore } from "../../../stores/settingsStore";
 import { soundManager } from "../../../lib/soundManager";
@@ -25,6 +25,8 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const [pickerAlarmMinFare, setPickerAlarmMinFare] = useState(10000);
   /** ⏱️ 배차망별 대기 시간 (docs/지금/배차망별_대기_시간.md) */
   const [waitTimes, setWaitTimes] = useState<WaitTimes>(DEFAULT_WAIT_TIMES);
+  /** 서버에서 불러온 값 — 칸을 비우거나 0 을 넣고 저장하면 이 값으로 되돌린다 (1초 미만은 고장 · waitSecOrNull) */
+  const loadedWaitTimes = useRef<WaitTimes>(DEFAULT_WAIT_TIMES);
 
   const loadSettings = async () => {
     try {
@@ -37,11 +39,13 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       setGeocodeError(null);
       setIsActive(data.isActive || false);
       setPickerAlarmMinFare(data.pickerAlarmMinFare ?? 10000);
-      setWaitTimes({
+      const loaded: WaitTimes = {
         safeCancelSecInsung: data.safeCancelSecInsung ?? DEFAULT_WAIT_TIMES.safeCancelSecInsung,
         safeCancelSecHwamul24: data.safeCancelSecHwamul24 ?? DEFAULT_WAIT_TIMES.safeCancelSecHwamul24,
         pickerAlarmDetailSec: data.pickerAlarmDetailSec ?? DEFAULT_WAIT_TIMES.pickerAlarmDetailSec,
-      });
+      };
+      loadedWaitTimes.current = loaded;
+      setWaitTimes(loaded);
     } catch (e) {
       console.error("Failed to load settings:", e);
     } finally {
@@ -73,16 +77,23 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const handleSaveSettings = async () => {
     try {
       setIsLoading(true);
+      // 🔴 1초 미만(빈 칸·0)은 고장이다 — 불러온 값으로 되돌려 보낸다. 서버도 같은 함수로 막는다 (waitSecOrNull)
+      const prev = loadedWaitTimes.current;
+      const safeWaitTimes: WaitTimes = {
+        safeCancelSecInsung: waitSecOrNull(waitTimes.safeCancelSecInsung) ?? prev.safeCancelSecInsung,
+        safeCancelSecHwamul24: waitSecOrNull(waitTimes.safeCancelSecHwamul24) ?? prev.safeCancelSecHwamul24,
+        pickerAlarmDetailSec: waitSecOrNull(waitTimes.pickerAlarmDetailSec) ?? prev.pickerAlarmDetailSec,
+      };
       // 노선·반경은 여기서 보내지 않는다 — 편집 자리는 🔍 필터 국면 탭 하나 (④ 철거)
       await apiClient.put('/settings', {
         vehicleType, defaultPriority, homeAddress,
         homeX: homeCoords?.x, homeY: homeCoords?.y,
         isActive,
         pickerAlarmMinFare,
-        ...waitTimes
+        ...safeWaitTimes
       });
       // 판정석 장막 · 홀드 진행 막대가 새 값을 바로 쓰게 — 다시 묻지 않는다 (settingsStore)
-      useSettingsStore.getState().setWaitTimes(waitTimes);
+      useSettingsStore.getState().setWaitTimes(safeWaitTimes);
       onClose();
     } catch (e) {
       console.error("Failed to save settings:", e);
