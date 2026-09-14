@@ -1635,6 +1635,7 @@ export * from './vehicles';
 export * from './regionMatch';
 export * from './pricing';
 export * from './phases';
+export * from './callTargetDay';
 export * from './cargoHints';
 export * from './cargoTags';
 export * from './cargoUnits';

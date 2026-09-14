@@ -11,6 +11,8 @@
  * - activeFilter는 직접 수정하고 직접 읽는 1등 시민(first-class citizen)입니다.
  */
 
+import { isHomeCallSince } from "@onedal/shared";
+import { callTargetToday } from "../core/callTargetEvents";
 import db from "../db";
 import { getActiveCalls, computeLoadedPoints, buildOrderSync } from "../core/helpers";
 import { stepRecordsOf } from "../services/stepSeeder";
@@ -19,7 +21,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
-         EVALUATING_STATUSES, isLocalPhase, activeGoals, deckOfCycle } from "@onedal/shared";
+         EVALUATING_STATUSES, isLocalPhase, activeGoals } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -84,28 +86,32 @@ function boardOf(o: { goalCity?: string; dropoffX?: number; dropoffY?: number })
  * ```
  *
  * 🔴 실물은 복귀를 켜는 순간 목적지가 집 하나였다(`goalCityOf`) — 복귀 대기 동안 목적지 콜이 안 떴다.
- * «복귀콜을 잡았나» = **이번 운행**(`deckOfCycle` — 하차를 마친 같은 운행 콜도 센다)에 판이 집인 콜이 있나.
+ * «복귀콜을 잡았나» = **복귀를 켠 뒤에 잡은** 콜 중 판이 집인 콜이 있나 (`homeCallsOf` · 🔄 #131).
  *    취소·방출한 콜은 안 센다 — 목업처럼 복귀콜을 취소하면 복귀 대기로 돌아간다.
- *    ⚠️ `myOrders` 에는 하차한 콜이 영업일 끝까지 남는다 — 그대로 세면 아침 복귀콜이 저녁 복귀를 «잡음»으로 만든다.
+ *    ⚠️ `myOrders` 에는 하차한 콜이 영업일 끝까지 남는다 — 아침 복귀콜이 저녁 복귀를 «잡음»으로 못 만드는 것은 켠 시각이 막는다.
  */
 export function goalCitiesOf(session: ReturnType<typeof getUserSession>, userId: string): string[] {
     const dest = session.activeFilter.destinationCity ?? '';
     if (session.activeFilter.callTarget !== 'HOME') return dest ? [dest] : [];
     const home = homeCityOf(userId);
     if (!home) return dest ? [dest] : [];
-    return [...new Set(activeGoals(dest, home, { homeOn: true, homeCaught: homeCallCaught(session, userId) }).filter(Boolean))];
+    const homeCaught = homeCallsOf(session, userId, session.myOrders).length > 0;
+    return [...new Set(activeGoals(dest, home, { homeOn: true, homeCaught }).filter(Boolean))];
 }
 
 /**
- * 🏠 **이번 운행에 복귀콜을 잡았나** — 판이 집인 콜(하차를 마친 것도 센다 · 취소·방출은 안 센다).
- * 🔴 **두 곳이 이 함수 하나로 묻는다** — 목적지 계산(`goalCitiesOf`)과 사이클 끝 자동 순환(`dispatchEngine`).
- *    갈라지면 «목적지는 집 하나인데 복귀는 꺼지는» 모양이 된다 (버그 대장 #130 · 검사 `tests/rules/targetCycle.test.ts`).
+ * 🏠 **복귀콜만 골라낸다 — 복귀를 켠 뒤에 잡았고 판이 집인 콜** (버그 대장 #130 · #131 · 판단은 shared `isHomeCallSince`).
+ * 🔴 **셋이 이 함수 하나로 묻는다** — 목적지 계산(`goalCitiesOf`) · 하차 완료 자동 순환(`dispatchEngine`).
+ * 🔴 **이번 운행(`deckOfCycle`)으로 세지 않는다** — 그건 진행 중인 콜이 0건이면 빈 목록이라, 콜 0건 틈에 «안 잡음»이 됐다.
+ *    켠 시각은 `call_target_events` 오늘 줄에서 읽는다 — 서버를 다시 띄워도 같다.
  */
-export function homeCallCaught(session: ReturnType<typeof getUserSession>, userId: string): boolean {
+export function homeCallsOf<T extends { status?: string; capturedAt?: string; goalCity?: string; dropoffX?: number; dropoffY?: number }>(
+    session: ReturnType<typeof getUserSession>, userId: string, orders: T[],
+): T[] {
+    void session;
     const home = homeCityOf(userId);
-    if (!home) return false;
-    const cancelled: readonly string[] = ['SAFE_CANCEL', 'ORDER_RELEASED_BY_ME', 'ORDER_RELEASED_BY_OFFICE'];
-    return deckOfCycle(session.myOrders).some(o => !cancelled.includes(o.status) && boardOf(o) === home);
+    const { homeOnAt } = callTargetToday(userId, Date.now());
+    return orders.filter(o => isHomeCallSince({ status: o.status, capturedAt: o.capturedAt, board: boardOf(o) }, homeOnAt, home));
 }
 
 /**

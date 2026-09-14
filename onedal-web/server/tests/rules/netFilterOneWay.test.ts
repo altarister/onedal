@@ -206,11 +206,12 @@ describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
         const g = body(fm, 'export function goalCitiesOf');
         expect(g).toMatch(/activeGoals\(/);
         /* «복귀콜을 잡았나»는 사이클 끝 자동 순환과 함께 쓰는 함수 하나에 산다 (#130) */
-        expect(g).toMatch(/homeCallCaught\(session, userId\)/);
-        const caught = body(fm, 'export function homeCallCaught');
-        expect(caught).toMatch(/boardOf\(o\) === home/);
-        expect(caught).toMatch(/SAFE_CANCEL/);
-        expect(caught).toMatch(/deckOfCycle\(/);   // 이번 운행만 — 아침 복귀콜이 저녁 복귀를 «잡음»으로 만들지 않게
+        expect(g).toMatch(/homeCallsOf\(session, userId, session\.myOrders\)/);
+        /* 🔄 #131 — «복귀를 켠 뒤에 잡은 콜»로 센다. 아침 복귀콜이 저녁 복귀를 «잡음»으로 못 만드는 것은 켠 시각이 막는다 */
+        const calls = body(fm, 'export function homeCallsOf');
+        expect(calls).toMatch(/boardOf\(o\)/);
+        expect(calls).toMatch(/isHomeCallSince\(/);
+        expect(calls).not.toMatch(/deckOfCycle\(/);
         expect(body(fm, 'function boardOf')).toMatch(/o\.goalCity/);
     });
     it('🔴 필터 목록은 살아 있는 목적지마다 그물을 만들어 합친다', () => {

@@ -594,6 +594,11 @@ for (const t of STEP_TABLES) {
  *    안전취소는 배차망 취소 횟수(10회)에 들어가 «언제 몇 번»을 알아야 한다. 적는 곳은 `OrderRepository.updateOrderStatus` 한 곳.
  */
 ensureColumns('orders', { terminatedAt: 'TEXT' });
+/**
+ * 🎯 **콜의 판 — 이 콜이 통과한 목적지 시** (버그 대장 #131 · `docs/지금/필터.md` «복귀 켬 — 규칙 ⑤-4 의 다섯»).
+ * KEEP 순간 `goalOfCall` 이 적는다. 예전엔 메모리에만 있어 재기동하면 하차지 시로 대신했다 — «복귀콜을 잡았나»가 틀어졌다.
+ */
+ensureColumns('orders', { goalCity: 'TEXT' });
 
 // 어느 배차망에서 온 콜인가 (insung/hwamul24/kakaopicker) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)
 ensureColumns('orders', { targetApp: 'TEXT',
@@ -855,6 +860,22 @@ db.exec(`
         user_id  TEXT NOT NULL,
         app      TEXT NOT NULL,
         reset_at TEXT NOT NULL
+    )
+`);
+
+// ═══════════════════════════════════════
+// 🧭 복귀 켬·끔 — 바꾼 일 (기사님 확정 2026-09-15 · 버그 대장 #131 · `docs/지금/필터.md` «복귀 켬 — 규칙 ⑤-4 의 다섯»)
+//
+// 🔴 지금 복귀인가는 저장하지 않는다 — 오늘 줄의 마지막에서 계산한다 (`shared/src/callTargetDay.ts` · 규칙 ③).
+//    예전엔 메모리 필터에만 있어 서버를 다시 띄우면 복귀 켬이 사라졌다. 선례: 위 `cancel_budget_resets`.
+// target: 'DEST' | 'HOME' · by: 'driver'(기사님이 누름) | 'auto'(자동 순환) — CHECK 를 안 건다 (낡은 CHECK 가 새 값을 조용히 거부한다 · server CLAUDE.md)
+// ═══════════════════════════════════════
+db.exec(`
+    CREATE TABLE IF NOT EXISTS call_target_events (
+        user_id TEXT NOT NULL,
+        target  TEXT NOT NULL,
+        at      TEXT NOT NULL,
+        by      TEXT NOT NULL
     )
 `);
 

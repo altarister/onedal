@@ -803,7 +803,7 @@ export function registerSocketHandlers(io: Server) {
          * 이 핸들러는 **필터만** 바꾼다.
          */
         safeOn(socket, "set-call-target", async (data: { phase: CallTarget }) => {
-            const result = await setCallTarget(userId, data?.phase ?? 'DEST', io);
+            const result = await setCallTarget(userId, data?.phase ?? 'DEST', io, 'driver');
             socket.emit("call-target-ack", result);
         });
 

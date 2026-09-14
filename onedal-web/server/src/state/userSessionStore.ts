@@ -3,6 +3,7 @@ import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVeh
 import type { PhaseKey, JudgmentConfig } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
 import db, { seedCallOptions, loadCallOptions } from "../db";
+import { callTargetToday } from "../core/callTargetEvents";
 import type { CallOption } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
@@ -450,6 +451,8 @@ export function getUserSession(userId: string): UserSession {
                     isSharedMode: false,
                     driverAction: 'WAITING',      // [V2] 세션 복구 시 항상 대기 상태
                     dispatchPhase: 'STANDBY',     // [V2] 세션 복구 시 항상 첫짐 탐색
+                    /* 🧭 복귀 켬은 평소 설정이 아니다 — 오늘 줄에서 되살린다 (#131 · 서버 재기동에 사라지던 자리) */
+                    callTarget: callTargetToday(userId, Date.now()).target,
                 };
                 // [Phase 6] 여기서 무거운 지리 연산(getCityRegionsWithRadius, CPU 집약)을 하지 않는다.
                 // 이 함수는 소켓 연결 시점에 **동기로** 호출되므로 이벤트 루프를 막을 수 있었다.
@@ -470,6 +473,7 @@ export function getUserSession(userId: string): UserSession {
                     isSharedMode: false,
                     driverAction: 'WAITING',      // [V2]
                     dispatchPhase: 'STANDBY',     // [V2]
+                    callTarget: callTargetToday(userId, Date.now()).target,
                 } as AutoDispatchFilter;
                 session.activeFilter.destinationKeywords = [];
                 session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(userVehicleType);

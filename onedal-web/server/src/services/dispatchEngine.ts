@@ -1,4 +1,4 @@
-import { decideNextTargetAfterCycle, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
+import { decideTargetAfterDelivery, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
@@ -8,7 +8,8 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyO
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
-import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, goalOfCall, homeCallCaught } from "../state/filterManager";
+import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, goalOfCall, homeCallsOf } from "../state/filterManager";
+import { recordCallTarget } from "../core/callTargetEvents";
 import { getActivePolyline, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -918,6 +919,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 timestamp: row.timestamp,
                 status: row.status,
                 capturedAt: row.capturedAt,
+                /** 🎯 판 — 안 읽으면 재기동 뒤 전부 하차지 시로 조용히 물러난다 (#131) */
+                goalCity: row.goalCity ?? undefined,
                 capturedDeviceId: row.capturedDeviceId,
                 vehicleType: row.vehicleType,
                 distanceKm: row.distanceKm,
@@ -1297,16 +1300,23 @@ export async function reportMilestone(
          *
          * 자동은 **제안**이다 — setCallTarget 한 길로만 가고(파생 한 곳), 스와이프가 언제나 이긴다.
          */
-        if (remaining.length === 0) {
+        {
             const home = SettingsRepository.getHomeLocation(userId);
             const distToHome = (home && order.dropoffX != null && order.dropoffY != null)
                 ? haversineKm(order.dropoffY, order.dropoffX, home.y, home.x)
                 : null;
-            const next = decideNextTargetAfterCycle(session.activeFilter.callTarget, distToHome, homeCallCaught(session, userId));
+            /* 🔴 «쥔 콜 0건»으로 감싸지 않는다 — 복귀 끝은 0건이 아니라 «마지막 복귀콜을 집 가까이 내림»으로 안다 (#131) */
+            const next = decideTargetAfterDelivery({
+                current: session.activeFilter.callTarget,
+                remainingCount: remaining.length,
+                distToHomeKm: distToHome,
+                deliveredHomeCall: homeCallsOf(session, userId, [order as any]).length > 0,
+                homeCallsInProgress: homeCallsOf(session, userId, remaining).length,
+            });
             if (next && next !== session.activeFilter.callTarget) {
                 const from = session.activeFilter.callTarget ?? 'DEST';
-                console.log(`🧭 [타겟 자동 순환] ${from} → ${next} (집까지 ${distToHome === null ? '모름' : distToHome.toFixed(1) + 'km'})`);
-                await setCallTarget(userId, next, io);
+                console.log(`🧭 [타겟 자동 순환] ${from} → ${next} (집까지 ${distToHome === null ? '모름' : distToHome.toFixed(1) + 'km'} · 남은 콜 ${remaining.length}건)`);
+                await setCallTarget(userId, next, io, 'auto');
                 console.log(`📤 [Socket 푸시] target-auto-switched (${from} → ${next})`);
                 io.to(userId).emit("target-auto-switched", { from, to: next });
             }
@@ -1370,7 +1380,9 @@ export async function reportMilestone(
 export async function setCallTarget(
     userId: string,
     phase: CallTarget,
-    io: any
+    io: any,
+    /** 누가 바꾸나 — 기사님 버튼(`driver`) · 자동 순환(`auto`). `call_target_events` 에 함께 적는다 */
+    by: 'driver' | 'auto',
 ): Promise<{ success: boolean; phase: CallTarget; city?: string; message?: string }> {
     try {
         const session = getUserSession(userId);
@@ -1438,10 +1450,16 @@ export async function setCallTarget(
          *    이제 그물이 향하는 시는 `filterManager.goalCityOf` 가 `callTarget` 에서 **파생**한다.
          *    위의 `city` 는 «집 주소에서 시를 뽑을 수 있나» 확인과 로그용으로만 남는다.
          */
+        const prevTarget = session.activeFilter.callTarget ?? 'DEST';
         updateActiveFilter(userId, {
             callTarget: phase,
             isActive: true,
         }, io);
+        /**
+         * 🧭 **바꾼 일을 적는다** (#131 · `core/callTargetEvents.ts`) — 서버를 다시 띄워도 오늘 줄에서 복귀 켬을 되살린다.
+         *    같은 값으로 다시 누르면 안 적는다. 관내(`LOCAL`)는 파생이라 표에 없다.
+         */
+        if (phase !== prevTarget && (phase === 'HOME' || phase === 'DEST')) recordCallTarget(userId, phase, by, Date.now());
 
         console.log(`🧭 [국면 전환] 완료 → ${CALL_TARGET_LABEL[phase]} · 목적 ${city} ` +
             `(반경 ${session.activeFilter.destinationRadiusKm}km — 국면 설정에서) · ` +
