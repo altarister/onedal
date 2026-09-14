@@ -603,11 +603,13 @@ sqlite> select distinct tollFare from orders where tollFare is not null and toll
 셋 다 고쳤고 `tests/rules/screenTruth.test.ts` (6건)가 소스에서 잠근다.
 ①과 ③은 **한 화면 안에** 있었다 — 윗줄 Parser 는 파생인데 아랫줄만 리터럴이었다.
 
-- [ ] **남은 인스턴스: 배차망 이름 문자열이 «고르는 자리»에 흩어져 있다** — 네 벌로 적었는데
-      2026-09-14 전수 조사에서 **여덟 파일**이었다: `MainViewModel:56,68` · `SettingsScreen:141~154` ·
-      `HijackService:119,279` · `ApiClient:400` · `ScrapParser:23~24` · `TargetApp:20~28` ·
-      세 배차망 `…Keywords` 의 `appLabel`. 🔴 코드↔이름 대응표(`TargetApp.kt`)가 있는데 **나머지가 안 쓴다** 이건 «지금 무엇인가»를 답하는 자리가 아니라 **고르는 자리**라
-      리터럴이 정당하다 — 다만 **새 배차망을 붙일 때 네 곳을 다 찾아야 한다.**
+- [ ] **남은 인스턴스: 배차망 이름 문자열이 «고르는 자리»에 흩어져 있다** — 2026-09-14 전수 조사 때
+      여덟 파일이었고, 같은 날 설정 화면·`MainViewModel` 이 빠져 **일곱 파일**이 됐다:
+      `HijackService:118~119,279` · `ApiClient:400` · `ScrapParser:22~24` · `TargetApp:32~41` ·
+      세 배차망 `…Keywords` 의 `appLabel`. 🔴 코드↔이름 대응표(`TargetApp.kt`)가 있는데 **나머지가 안 쓴다**.
+      이건 «지금 무엇인가»를 답하는 자리가 아니라 **고르는 자리**라
+      리터럴이 정당하다 — 다만 **새 배차망을 붙일 때 일곱 곳을 다 찾아야 한다.**
+      (다시 셀 때: `grep -rn '"인성콜"\|"24시"\|"픽커"' onedal-app/app/src/main`)
       → `docs/기획/배차망_통합.md` §8 체크리스트와 대조해 빠진 자리가 없는지 확인할 것.
       🔴 앱 기본값은 오프라인 안전망이라 **DB 중앙화 대상이 아니다** (CLAUDE.md 규칙 ③)
 
@@ -2773,7 +2775,9 @@ else if (!session.activeFilter.destinationCity) {
 
 ---
 
-## 🔧 이중 타이머 경쟁 — `orders.ts` 의 30초 타이머가 취소 불가 (미수정)
+## 🔧 이중 타이머 경쟁 — `orders.ts` 30초와 `detail.ts` 35초가 같은 콜을 따로 정리한다
+
+> 2026-09-14 확인: `orders.ts` 타이머도 이제 `session.activeTimers` 에 등록된다(`presecured_<id>`) — **취소는 된다.** 남은 것은 두 타이머가 같은 콜을 정리하는 순서다.
 
 2026-08-13 CLAUDE.md 규칙(*"타이머는 ID 를 저장해 취소 가능하게"*)과 코드를 대조하다 나왔다.
 
@@ -2791,7 +2795,7 @@ setTimeout(() => { ... handleDecision(userId, id, "ORDER_CANCELED", io); }, 3000
 (`ORDER_PRE_SECURED|SECURED_EVALUATING|AWAITING_DECISION` 일 때만 취소)가 막고 있어
 사고로 이어지진 않았지만, 실행 순서가 보장되지 않는 구조는 그대로다.
 
-- [ ] `orders.ts` 타이머를 `session.activeTimers` 에 등록 (`confirm_${orderId}`)
+- [x] `orders.ts` 타이머를 `session.activeTimers` 에 등록 (실제 키는 `presecured_${orderId}`)
 - [ ] `forceCancelEvaluatingOrder` / `handleDecision` 에서 함께 `clearTimeout`
 - [ ] 두 타이머의 역할을 하나로 합칠 수 있는지 검토 (지금은 30초·35초가 겹친다)
 - [ ] 🔵 곁가지: `orders.ts:133` 로그가 *"데스밸리 **15초** 카운트다운"* 인데 실제는 30초다

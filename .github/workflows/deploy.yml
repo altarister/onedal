@@ -1,7 +1,7 @@
 name: Auto Deploy to AWS EC2
 
-# 자동 배포 로봇 비활성화 (개발 중 비용 청구 방지)
-# [알림] 다시 켜려면 아래 on: push 블록의 주석을 해제해주세요!
+# 🔴 자동 배포는 **켜져 있다** — main 에 onedal-web/** 또는 onedal-sim/** 변경이 push 되면 실서버(EC2)에 배포된다.
+#    끄려면 아래 on: push 블록을 주석 처리한다. (예전 메모 «비활성화»는 사실이 아니었다 · 2026-09-14 정정)
 on:
   push:
     branches:

@@ -14,6 +14,7 @@
   타입만 주고받으면 안전하다 — `import type` 을 쓸 수 있으면 쓴다
 
 - **DTO 필드를 지우면 앱이 조용히 무너질 수 있다.** 앱은 Kotlin 이라 타입 체크가 같이 안 돈다.
+  콜 양식(`SimplifiedOfficeOrder`)의 **칸 이름**은 `appOrderShape` 검사가 앱 쪽과 대조한다 (2026-09-14) — 타입은 안 본다
   지우기 전에 `onedal-app/app/src/main/java` 를 grep 할 것 (`customFilters` 제거 때 이렇게 했다)
 
 ## 이건 버그가 아니라 규칙이다

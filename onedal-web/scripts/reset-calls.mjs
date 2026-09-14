@@ -10,11 +10,17 @@
  *    (지우는 것은 손으로·의도적으로 — 루트 CLAUDE.md. 그래서 부팅 경로가 아니라 이 스크립트다.)
  *
  * 🔴 **local.db 에만 한다.** 실서버 data.db 는 손대지 않는다. DB_FILE 이 data.db 면 막는다.
+ *
+ * 🔄 **비운 뒤 서버도 스스로 다시 띄운다** (2026-09-14 · 버그 대장 #40 · 기사님 지시).
+ *    창고(DB)만 비우면 떠 있는 서버가 **머릿속(세션 메모리)의 옛 콜**을 화면에 계속 보낸다.
+ *    예전엔 `rehearsal`·`preflight` 가 이 일을 했는데 둘을 지우며 사라졌다 — 콜을 비우는 도구가
+ *    이것 하나로 줄었으니 여기서 한다.
  */
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
+import { restartServer } from './lib/restartServer.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // better-sqlite3 는 서버 워크스페이스에 있다 — 다른 스크립트(lib/db-ledger.mjs 등)와 같은 방식.
@@ -72,3 +78,13 @@ db.close();
 console.log(total > 0
   ? `✅ 콜 ${total} 건을 비웠습니다 (${dbFile}). 설정·필터·좌표캐시는 그대로입니다.`
   : `✅ 이미 비어 있습니다 (${dbFile}).`);
+
+/**
+ * 🔄 **서버도 다시 띄운다** — 창고가 이미 비어 있어도 한다. 머릿속에 옛 콜이 남아 있을 수 있어서다
+ *    (#40 이 정확히 그 모양이었다).
+ *    · 서버가 꺼져 있으면(`pnpm dev:fresh` 처럼) 할 일이 없다 — 다음에 켤 때 빈 창고로 시작한다
+ *    · 🔴 켜져 있는데 **다시 뜬 것을 못 봤으면 성공이라 말하지 않는다** — exit 1
+ */
+const port = process.env.PORT || 4000;
+const r = await restartServer({ base: `http://localhost:${port}`, entry: join(__dirname, '..', 'server/src/index.ts') });
+if (!r.restarted && r.reason !== 'OFFLINE') process.exitCode = 1;

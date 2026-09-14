@@ -24,12 +24,24 @@ const WEB = join(__dirname, '../../..');
 const read = (p: string) => readFileSync(join(WEB, p), 'utf8');
 
 /*
- * 🗑️ **「리허설 초기화 — 장부와 메모리는 한 동작이다」 두 건은 2026-09-14 에 걷었다.**
- *    그 구조(장부를 비우면 도구가 서버 재기동까지 스스로 한다)는 `pnpm rehearsal`·`pnpm preflight`
- *    안에만 있었고, 기사님 지시로 둘을 지웠다. 🔴 **남은 `pnpm reset:calls` 는 DB 만 비운다** —
- *    #40 과 같은 사고를 막는 것은 지금 루트 CLAUDE.md 「짝이 있는 것」의 «감시자까지 내리고
- *    다시 띄운다» 한 줄뿐이다 (구조가 아니라 사람의 기억이다).
+ * 🔁 **이 구조는 처음에 `pnpm rehearsal`·`pnpm preflight` 안에 있었다.** 2026-09-14 에 둘을 지우며
+ *    함께 사라졌고(`a5c9b86`), 같은 날 기사님 지시로 **남은 `pnpm reset:calls` 에 되살렸다.**
+ *    콜을 비우는 도구가 하나로 줄었으니 구조도 그 하나에 산다.
  */
+describe('🧹 콜 비우기 — 장부와 메모리는 한 동작이다', () => {
+    it('🔴 콜을 비우는 도구가 서버 재기동까지 스스로 한다 — 사람에게 넘기지 않는다', () => {
+        const src = read('scripts/reset-calls.mjs');
+        // 장부를 비우는 자리
+        expect(src).toMatch(/DELETE FROM/);
+        // 비운 뒤 **스스로** 서버를 다시 띄우는 자리 (감시자를 깨우는 파일 시각 갱신)
+        expect(src).toMatch(/restartServer/);
+    });
+
+    it('🔴 "재기동해 주세요" 하고 기다리기만 하지 않는다', () => {
+        const src = read('scripts/reset-calls.mjs');
+        expect(src).not.toMatch(/Ctrl\+C 후 pnpm dev 로 재기동해 주세요/);
+    });
+});
 
 /**
  * 🔴 **`pnpm dev` 는 Ctrl+C 로 함께 죽어야 한다.**

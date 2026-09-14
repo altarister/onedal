@@ -188,17 +188,6 @@ const defaultRates = JSON.stringify({
     "5t": 1500, "11t": 2000, "25t": 2500, "특수화물": 3000
 });
 
-// v5 마이그레이션: 기본값(3만 원, 반경 10km 등) 적용을 위해 기존 0으로 설정된 테이블 드롭
-try {
-    const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as Array<{ name: string, dflt_value: any }>;
-    const minFareCol = tableInfo.find(col => col.name === 'min_fare');
-    if (minFareCol && String(minFareCol.dflt_value) === '0') {
-        db.exec("DROP TABLE IF EXISTS user_filters");
-        console.log("🛠️ [DB Migration] user_filters 테이블 초기값 30000 변경을 위해 재생성 완료");
-    }
-} catch (e) {
-    // 무시
-}
 
 /**
  * 📐 **마름모의 모양 — 국면 밖 한 벌** (이식 C3-2 · 2026-09-11 · 명세 §3).
@@ -266,16 +255,6 @@ ensureColumns('user_filters', {
 // ═══════════════════════════════════════
 // [6] (v5) 스캐너가 잡은 콜 및 장소 마스터, 배차 경유지
 // ═══════════════════════════════════════
-// v5 마이그레이션: 기존 orders 테이블은 형식이 맞지 않으므로 과감히 삭제 후 재성성
-try {
-    const tableInfo = db.prepare("PRAGMA table_info(orders)").all() as Array<{ name: string }>;
-    if (tableInfo.length > 0 && !tableInfo.some(col => col.name === 'userId')) {
-        db.exec("DROP TABLE IF EXISTS orders");
-        console.log("🛠️ [DB Migration] 레거시 orders 테이블 삭제 완료 (v5 적용)");
-    }
-} catch (e) {
-    // 무시
-}
 
 db.exec(`
     CREATE TABLE IF NOT EXISTS orders (

@@ -22,8 +22,8 @@
 | 명령 | 잡는 것 | 못 잡는 것 | 검수 |
 |---|---|---|---|
 | `pnpm dev` | 로컬 기동 (서버·관제웹·운행일지). 먼저 `dev-preflight` 가 포트 자리를 본다 | 검사가 아니다 — 떴다고 새 코드가 도는 건 아니다 (`bootedAt` 을 본다) | 도구 아님 |
-| `pnpm dev:fresh` | 콜만 비우고(`reset:calls`) `dev` 를 띄운다 | 앞 서버가 살아 있으면 그 메모리의 콜이 남는다 | 도구 아님 |
-| `pnpm reset:calls` | `local.db` 의 콜 생애만 지운다 (설정·필터·좌표 캐시는 남긴다) | 돌고 있는 서버 메모리 · `data.db` 는 일부러 막는다 | 미실행 — 지우는 도구 (2026-09-14) |
+| `pnpm dev:fresh` | 콜만 비우고(`reset:calls`) `dev` 를 띄운다 — 서버가 꺼져 있을 때 쓴다 | 서버가 이미 떠 있으면 `reset:calls` 가 그 서버를 다시 띄운 뒤 `dev` 가 겹쳐 뜨려다 `dev-preflight` 에 막힌다 — 떠 있으면 `reset:calls` 만 쓴다 | 도구 아님 |
+| `pnpm reset:calls` | `local.db` 의 콜 생애만 지우고 **떠 있는 서버를 다시 띄운다** (설정·필터·좌표 캐시는 남긴다) | 감시자 없이 도는 서버는 못 다시 띄운다 (그때 exit 1) · `data.db` 는 일부러 막는다 | 지우기는 미실행 — 기사님 로컬 콜이 지워진다 · 서버 다시 띄우기는 따로 돌려 확인 (2026-09-14) |
 | `pnpm test:web` | shared·관제웹 vitest | 화면에 무엇이 찍히는지 — 순수 함수만 본다 | 일부러 실패하는 검사를 넣어 exit=1 (2026-09-14) |
 | `pnpm lint:gate` | 「선언 전에 쓴다」(`no-use-before-define`) | 나머지 eslint 규칙 — 아직 안 문다 | 규칙을 켜니 흰 화면 사고의 모양을 짚었다 (2026-09-05 · 루트 CLAUDE.md) |
 | `pnpm scenario` | 실제 서버(전용 포트·DB)로 콜 생애를 끝까지 — 상태·복구·적재·정산 | 주행 중 순서·도착(`drive` 몫) · 앱 구간 · 🔴 **지금 빨간불** — 폐기된 국면 통로를 쏘는 낡은 검사 ([todo.md](../todo.md) 맨 위) | 경로 순서 되돌림을 **못 잡았다** (2026-08-29 변이 · `4ea967f`) |
@@ -38,6 +38,10 @@
 | `pnpm reach` | 쌓인 표본(`reach_samples`)으로 도달 계수(직선 km → 카카오 분) 역산 · **`pnpm reach sweep`** 은 기준점 쌍을 카카오로 재 표본을 쌓는다 | 필터에 자동 반영 안 된다 (계수 확정은 기사님) · `sweep` 은 돌린 시각의 교통이다 | 역산은 돈다 (2026-09-14) · `sweep` 은 미실행 — 카카오 API 비용 |
 | `pnpm route:order` | 「상차 먼저」 vs 「지나가는 길」 순서 비교 | 직선거리다 — 카카오 실주행과 다르다 | 돈다 (2026-09-14) |
 | `pnpm net:compare` | 그물 두 벌(지도 `callNet` ↔ 서버 turf)의 통과 동 목록 차이 | 두 계산은 같은 질문이 아니다 — 차이의 크기일 뿐 · 판정이 없다 | 돈다 (2026-09-14) |
+
+🔧 **도구를 손볼 때** (루트 CLAUDE.md 「커밋 전 필수」에서 옮겼다 · 2026-09-14)
+- `lint:gate` 규칙은 **하나씩 캐서** 늘린다 — 한꺼번에 켜면 늘 빨간불이라 아무도 안 본다
+- `audit:dead` 가 경고해도 **캐기 전에 지우지 않는다** — 잇는 자리가 따로 있을 수 있다 (2026-08-29 에 셋이 그렇게 살아났다)
 
 **`pnpm audit:docs` 의 ⑤ 는 «파일은 있는데 그 일을 더 이상 안 한다»를 잡는다** (2026-08-29 신설).
 
@@ -130,6 +134,20 @@ DRIVE_LOG=1 pnpm drive               # 서버 로그까지 보고 싶을 때
 (상차한 콜이 새로고침에 사라짐 · 짐 신고 무시 · 불일치 경고 미발생 · 착불 미기록).
 
 → **콜 흐름(상태·복구·적재·정산)을 건드렸다면 반드시 돌린다.**
+
+## 기존 DB 사본으로 부팅 — 스키마·`shared` 를 고쳤을 때
+
+빈 DB 는 문제를 숨긴다. 떠 있는 `pnpm dev` 는 건드리지 않고 **따로** 띄운다.
+
+```bash
+cd onedal-web/server
+cp local.db smoke-copy.db
+PORT=4099 DB_FILE=smoke-copy.db npx tsx src/index.ts     # 다른 창에서 curl -s localhost:4099/api/health
+# 확인 뒤: 끄고 rm -f smoke-copy.db smoke-copy.db-wal smoke-copy.db-shm
+```
+
+- 🔴 `DB_FILE` 은 **`server/` 폴더 기준 파일 이름**만 받는다 — 절대 경로를 주면 «directory does not exist»로 안 뜬다
+- `smoke-copy.db` 는 git 이 무시한다 · 포트 `4099` 는 코드에 안 박는다 (「포트」 표 밖의 임시 번호)
 
 ## `pnpm e2e:app` — 앱 구간을 검사하는 유일한 수단
 
