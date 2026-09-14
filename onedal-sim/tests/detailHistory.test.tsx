@@ -63,7 +63,8 @@ afterEach(() => {
 
 describe('픽커', () => {
     it('홈 → 시작하기 → 요금을 누르면 상세 · 주소에 detail 이 붙는다', () => {
-        mount('/dispatch?net=kakaopicker');
+        /* 📍 위치를 주소에 넣고 연다 — 위치를 모르면 시뮬이 첫 콜을 5초 기다린다 (firstCallWaitsLocation · 2026-09-14) */
+        mount('/dispatch?net=kakaopicker&lon=127.29444&lat=37.37669');
         act(() => { buttonByText('시작하기')!.click(); });
         expect(host!.textContent).toContain('리스트 설정');
         pressFirstFare();
@@ -72,7 +73,8 @@ describe('픽커', () => {
     });
 
     it('🔴 뒤로 가기 한 번이면 상세만 닫히고 리스트로 — 설정 화면으로 안 나간다', () => {
-        mount('/dispatch?net=kakaopicker');
+        /* 📍 위치를 주소에 넣고 연다 — 위치를 모르면 시뮬이 첫 콜을 5초 기다린다 (firstCallWaitsLocation · 2026-09-14) */
+        mount('/dispatch?net=kakaopicker&lon=127.29444&lat=37.37669');
         act(() => { buttonByText('시작하기')!.click(); });
         pressFirstFare();
         act(() => { navigateRef!(-1); });
@@ -83,7 +85,8 @@ describe('픽커', () => {
     });
 
     it('상세의 «넘기기» 도 방문 기록을 한 칸 되돌린다 — 뒤로 가기를 한 번 더 누르면 그때 설정 화면', () => {
-        mount('/dispatch?net=kakaopicker');
+        /* 📍 위치를 주소에 넣고 연다 — 위치를 모르면 시뮬이 첫 콜을 5초 기다린다 (firstCallWaitsLocation · 2026-09-14) */
+        mount('/dispatch?net=kakaopicker&lon=127.29444&lat=37.37669');
         act(() => { buttonByText('시작하기')!.click(); });
         pressFirstFare();
         act(() => { buttonByText('넘기기')!.click(); });

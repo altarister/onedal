@@ -35,6 +35,13 @@ interface UseSimStreamingProps {
    * 초반 몇 분만 콜이 오고 나머지는 조용하다. 그때의 `훑음 0` 은 필터 문제로 잘못 읽힌다.
    */
   loop?: boolean;
+  /**
+   * 📍 **기사님 위치를 받았나** (기사님 지시 2026-09-14) — 받기 전에는 첫 콜도 주기 콜도 안 낸다.
+   * 켜지자마자 첫 콜을 내면 위치를 받기 전의 기본 자리(경기 광주시)로 상차 거리를 잰다 —
+   * «7지점 한 바퀴» 01 콜이 실제 2.2km 인데 7.2km 로 적혀 반경에서 떨어졌다 (그날 세 번).
+   * 안 주면 `true` — 기다리지 않는다.
+   */
+  ready?: boolean;
 }
 
 export const useSimStreaming = ({
@@ -46,7 +53,8 @@ export const useSimStreaming = ({
   intervalMs = 5000,
   initialCount = 5,
   preset = null,
-  loop = false
+  loop = false,
+  ready = true,
 }: UseSimStreamingProps) => {
 
   const configRef = useRef({ config, toCall, appendCall, setIsFetchingOrder, intervalMs, preset, loop });
@@ -91,7 +99,8 @@ export const useSimStreaming = ({
   };
 
   useEffect(() => {
-    if (isTimerPaused) return;
+    /* 📍 위치를 받기 전에는 시드도 주기 콜도 없다 — 받는 순간 이 효과가 다시 돌며 그 위치로 첫 콜을 낸다 */
+    if (isTimerPaused || !ready) return;
 
     // 초기 시드: 최초 마운트 시 한 번만 실행
     // 🎯 문제지 모드에서는 **한 문제씩** 봐야 하므로 미리 쏟지 않는다
@@ -124,5 +133,5 @@ export const useSimStreaming = ({
       if (innerTimeoutId) clearTimeout(innerTimeoutId);
       configRef.current.setIsFetchingOrder(false);
     };
-  }, [isTimerPaused, initialCount]);
+  }, [isTimerPaused, initialCount, ready]);
 };

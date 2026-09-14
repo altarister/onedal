@@ -10,6 +10,12 @@ import type { SimCall } from '../nets';
 
 const MAX_STREAMING_CALLS = 50;
 
+/**
+ * ⏳ **위치를 기다리는 최대 시간** — 서버도 폰도 이만큼 안에 답이 없으면 기본 자리로 시작한다.
+ * 시뮬은 어떤 경우에도 돌아야 한다(필드에서 라이브 서버는 위치 문을 닫아 둔다). 그때 화면이 경고한다.
+ */
+export const LOCATION_WAIT_MS = 5000;
+
 export interface DriverLocation {
   lon: number;
   lat: number;
@@ -41,6 +47,10 @@ interface SimulationContextType {
   setDriverLocation: (loc: DriverLocation) => void;
   simConfig: SimulationConfig;
   setSimConfig: (config: SimulationConfig) => void;
+  /** 📍 기사님 위치를 받았나 — 받기 전에는 첫 콜을 안 낸다 (2026-09-14) */
+  locationReady: boolean;
+  /** ⚠️ 끝내 위치를 못 받아 기본 자리로 시작했나 — 화면이 «거리가 틀릴 수 있음»을 띄운다 */
+  locationFallback: boolean;
 }
 
 const SimulationContext = createContext<SimulationContextType | undefined>(undefined);
@@ -49,9 +59,11 @@ interface SimulationProviderProps {
   children: ReactNode;
   initialDriver: DriverLocation;
   initialConfig: SimulationConfig;
+  /** 📍 주소창에 위치(`?lon=&lat=`)를 넣고 열었나 — 그러면 처음부터 «받았음»이다 */
+  initialLocationKnown?: boolean;
 }
 
-export const SimulationProvider = ({ children, initialDriver, initialConfig }: SimulationProviderProps) => {
+export const SimulationProvider = ({ children, initialDriver, initialConfig, initialLocationKnown }: SimulationProviderProps) => {
   const [streamingCalls, setStreamingCalls] = useState<SimCall[]>([]);
   const [confirmedCalls, setConfirmedCalls] = useState<SimCall[]>([]);
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
@@ -61,6 +73,8 @@ export const SimulationProvider = ({ children, initialDriver, initialConfig }: S
 
   const [driverLocation, setDriverLocation] = useState<DriverLocation>(initialDriver);
   const [simConfig, setSimConfig] = useState<SimulationConfig>(initialConfig);
+  const [locationReady, setLocationReady] = useState(!!initialLocationKnown);
+  const [locationFallback, setLocationFallback] = useState(false);
 
   /**
    * 📍 **기사님 현위치를 따라간다 — 두 출처, 순서가 있다** (기사님 확정 2026-08-31).
@@ -81,10 +95,22 @@ export const SimulationProvider = ({ children, initialDriver, initialConfig }: S
     let alive = true;
     const params = new URLSearchParams(window.location.search);
     const api = params.get('api') || `http://${window.location.hostname}:4000`;
+    let got = false;
     const apply = (lon: number, lat: number, name: string) => {
       if (!alive) return;
+      got = true;
       setDriverLocation(prev => (prev.lon === lon && prev.lat === lat) ? prev : { lon, lat, name });
+      /* 📍 같은 렌더에 위치와 «받았음»이 함께 선다 — 첫 콜이 이 위치로 거리를 잰다 */
+      setLocationReady(true);
+      setLocationFallback(false);
     };
+    /* ⏳ 끝내 답이 없으면 기본 자리로 시작한다 — 시뮬은 어떤 경우에도 돌아야 한다. 대신 화면이 경고한다 */
+    const waitT = setTimeout(() => {
+      if (!alive || got) return;
+      console.warn(`📍 [시뮬] ${LOCATION_WAIT_MS / 1000}초 동안 위치를 못 받았다 — 기본 자리로 첫 콜을 낸다 (상차 거리가 틀릴 수 있다)`);
+      setLocationFallback(true);
+      setLocationReady(true);
+    }, LOCATION_WAIT_MS);
     /** 폰 GPS — 서버가 못 답할 때만. 실패해도 조용히 넘어간다 */
     const fromPhone = () => {
       if (!navigator.geolocation) return;
@@ -107,7 +133,7 @@ export const SimulationProvider = ({ children, initialDriver, initialConfig }: S
     };
     pull();
     const t = setInterval(pull, 3000);
-    return () => { alive = false; clearInterval(t); };
+    return () => { alive = false; clearInterval(t); clearTimeout(waitT); };
   }, []);
 
   const appendCall = useCallback((call: SimCall) => {
@@ -127,7 +153,8 @@ export const SimulationProvider = ({ children, initialDriver, initialConfig }: S
       isFetchingOrder, setIsFetchingOrder,
       isTimerPaused, setIsTimerPaused,
       driverLocation, setDriverLocation,
-      simConfig, setSimConfig
+      simConfig, setSimConfig,
+      locationReady, locationFallback,
     }}>
       {children}
     </SimulationContext.Provider>

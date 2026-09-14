@@ -58,6 +58,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     isFetchingOrder, setIsFetchingOrder,
     isTimerPaused, setIsTimerPaused,
     driverLocation, simConfig,
+    locationReady, locationFallback,
   } = useSimulationContext();
 
   const [selectedCall, setSelectedCall] = useState<SimCall | null>(null);
@@ -124,6 +125,8 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     initialCount: 5,
     preset,
     loop,
+    /* 📍 기사님 위치를 받은 뒤에 첫 콜 — 기본 자리로 상차 거리를 재지 않는다 (2026-09-14) */
+    ready: locationReady,
   });
 
   /**
@@ -211,6 +214,13 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   // ── 배차망 화면 — 리스트·상세·수락 뒤를 무엇으로 그릴지는 배차망이 정한다 (nets.ts · 0단계 0-2 ⑤) ──
   const Screen = simNet.Screen;
   return (
+    <>
+    {/* ⚠️ 끝내 위치를 못 받아 기본 자리로 시작했다 — 상차 거리가 틀린 채 채점이 흐르지 않게 화면이 말한다 */}
+    {locationFallback && (
+      <div className="fixed top-0 inset-x-0 z-50 bg-amber-100 border-b border-amber-300 px-3 py-1 text-center text-xs font-bold text-amber-800">
+        📍 기사님 위치를 못 받아 기본 자리({driverLocation.name})로 시작했습니다 — 상차 거리가 틀릴 수 있습니다
+      </div>
+    )}
     <Screen
       streamingCalls={streamingCalls}
       confirmedCalls={confirmedCalls}
@@ -228,6 +238,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
       maxPickupKm={simConfig.maxPickupKm}
       goSetup={() => navigate('/')}
     />
+    </>
   );
 }
 
@@ -268,7 +279,8 @@ export function DispatchPage() {
   };
 
   return (
-    <SimulationProvider initialDriver={driverLocation} initialConfig={simConfig}>
+    <SimulationProvider initialDriver={driverLocation} initialConfig={simConfig}
+      initialLocationKnown={searchParams.has('lon') && searchParams.has('lat')}>
       {/* 겉 테두리도 배차망마다 다르다 — 인성은 검은 테두리 안의 창, 화물24시는 흰 바탕 (nets.ts) */}
       <div className={simNet.frameClassName}>
         <DispatchContent simNet={simNet} />
