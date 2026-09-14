@@ -60,6 +60,11 @@ export interface SimNet {
   frameClassName: string;
   /** 리스트·상세를 그리는 이 배차망의 화면 */
   Screen: ComponentType<NetScreenProps>;
+  /**
+   * 설정 화면에서 이 배차망을 골랐을 때의 색 — 배차망 버튼 · 시작 버튼 (0단계 0-3).
+   * 예전엔 설정 화면이 `net === 'hwamul24' ? 빨강 : 파랑` 으로 직접 골랐다.
+   */
+  setupColors: { toggle: string; start: string };
 }
 
 export const SIM_NETS: Record<NetKey, SimNet> = {
@@ -69,6 +74,7 @@ export const SIM_NETS: Record<NetKey, SimNet> = {
     toCall: toInsungCall,
     frameClassName: 'w-full h-dvh py-10 bg-[#111] overflow-hidden relative font-sans text-black',
     Screen: InsungSimScreen,
+    setupColors: { toggle: 'bg-blue-600 text-white', start: 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-900/40' },
   },
   hwamul24: {
     key: 'hwamul24',
@@ -76,6 +82,7 @@ export const SIM_NETS: Record<NetKey, SimNet> = {
     toCall: toHwamul24Call,
     frameClassName: 'w-full h-dvh bg-gray-100 overflow-hidden relative font-sans text-black',
     Screen: Hwamul24SimScreen,
+    setupColors: { toggle: 'bg-[#c62828] text-white', start: 'bg-gradient-to-r from-[#c62828] to-[#8e1b1b] shadow-red-900/40' },
   },
 };
 

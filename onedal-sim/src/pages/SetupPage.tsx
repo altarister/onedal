@@ -18,7 +18,7 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PRESET_MENU, PRESETS, PRESET_REQUIRES } from '@altari/core-simulator';
 import type { PresetRequires } from '@altari/core-simulator';
-import { SIM_NET_LIST } from '@altari/ui-simulators';
+import { SIM_NETS, SIM_NET_LIST } from '@altari/ui-simulators';
 import type { NetKey } from '@altari/ui-simulators';
 
 /**
@@ -77,7 +77,8 @@ interface VeilContent {
 export function SetupPage() {
   const navigate = useNavigate();
 
-  const [net, setNet] = useState<NetKey>('inseong');
+  // 목록의 첫 배차망이 기본이다 — 배차망 이름은 nets.ts 만 안다 (0단계 0-3)
+  const [net, setNet] = useState<NetKey>(SIM_NET_LIST[0].key);
   const [tab, setTab] = useState<'scenario' | 'random'>('scenario');
   const [veil, setVeil] = useState<VeilContent | null>(null);
 
@@ -96,7 +97,7 @@ export function SetupPage() {
   const [minFare, setMinFare] = useState(30000);
   const [targetRegion, setTargetRegion] = useState('');
 
-  const netName = NETS.find(n => n.key === net)?.name ?? '인성콜';
+  const netName = SIM_NETS[net].label;
 
   /**
    * 🎯 문제지는 상차·하차·요금이 **전부 고정**이라 넘길 것이 넷뿐이다.
@@ -142,7 +143,7 @@ export function SetupPage() {
               aria-pressed={net === n.key}
               className={`px-2.5 py-1 text-[11px] font-bold transition ${i > 0 ? 'border-l border-[#3b5a94]' : ''} ${
                 net === n.key
-                  ? (n.key === 'hwamul24' ? 'bg-[#c62828] text-white' : 'bg-blue-600 text-white')
+                  ? SIM_NETS[n.key].setupColors.toggle
                   : 'text-blue-200/70 hover:text-blue-100'
               }`}
             >
@@ -289,9 +290,7 @@ export function SetupPage() {
         <button
           onClick={start}
           className={`w-full rounded-xl py-3 text-[14px] font-bold text-white shadow-lg transition active:scale-[0.98] ${
-            net === 'hwamul24'
-              ? 'bg-gradient-to-r from-[#c62828] to-[#8e1b1b] shadow-red-900/40'
-              : 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-900/40'
+            SIM_NETS[net].setupColors.start
           }`}
         >
           {netName} 화면으로 시작 →
