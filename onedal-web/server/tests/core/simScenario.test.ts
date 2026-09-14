@@ -43,6 +43,16 @@ describe('🎬 이천 왕복 — 줄 데이터', () => {
             expect(r.call!.dropoff.region).toMatch(/(동|읍|면)$/);
         }
     });
+    /**
+     * 🔴 **폰은 한 번 본 콜을 다시 판정하지 않는다** — 지문이 «상차 동 + 하차 동 + 요금»이다
+     *    (`onedal-app/.../HijackService.kt` · `CallMemory` · 차종은 지문에 없다). 2026-09-15 01:39 두 번째 시작에서
+     *    폰이 A1 을 `⏭️ [이미 본 콜]` 로 넘겨 판정 기록이 안 생겼다. 한 회차 안에 지문이 겹치면 뒤 줄은 채점할 수 없다.
+     */
+    it('🔴 한 회차 안에 폰 지문(상차 동 + 하차 동 + 요금)이 겹치는 콜이 없다', () => {
+        const prints = def.filter(r => r.call).map(r => `${r.call!.pickup.region}|${r.call!.dropoff.region}|${r.call!.fare}`);
+        expect(prints.filter((p, i) => prints.indexOf(p) !== i)).toEqual([]);
+    });
+
     it('«○○에 서면» 줄은 앞에 있는 줄만 가리킨다', () => {
         def.forEach((r, i) => { if ('arrive' in r.when) expect(idx(r.when.arrive)).toBeLessThan(i); });
     });

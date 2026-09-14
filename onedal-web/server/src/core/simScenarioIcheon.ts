@@ -69,9 +69,10 @@ export const ICHEON_ROUND_TRIP: ScenarioRow[] = [
       checks: [{ kind: 'goals', value: 1 }] },
 
     /* ── D 복귀 — 복귀콜 확정 뒤 ── */
+    /* 🔴 요금을 C2 와 다르게 둔다 — 폰은 «상차 동 + 하차 동 + 요금» 지문으로 본 콜을 다시 판정하지 않는다 (`CallMemory` · #128 뒤 01:39 실측) */
     { id: 'D1', stage: 'D', when: { arrive: 'B3', stop: 'dropoff' }, kind: 'block', blockBy: 'region', guess: true,
-      call: { pickup: ICHEON_TERMINAL, dropoff: ICHEON_JEIL, fare: 30000, vehicleType: '승용차' },
-      say: '⚪ 안 올라와야 맞다 — C2 와 같은 콜', why: '목적지 원이 빠졌고 관고동은 지나왔다 (추정)' },
+      call: { pickup: ICHEON_TERMINAL, dropoff: ICHEON_JEIL, fare: 31000, vehicleType: '승용차' },
+      say: '⚪ 안 올라와야 맞다 — C2 와 같은 구간', why: '목적지 원이 빠졌고 관고동은 지나왔다 (추정) · 요금만 C2 와 다르다(폰 지문)' },
     { id: 'D2', stage: 'D', when: { after: 'prev' }, kind: 'block', blockBy: 'region',
       call: { pickup: ICHEON_TERMINAL, dropoff: LOTTE_OUTLET, fare: 50000, vehicleType: '승용차' },
       say: '⚪ 안 올라와야 맞다 — 기다리기만', why: '호법면은 어느 목록에도 없다' },
