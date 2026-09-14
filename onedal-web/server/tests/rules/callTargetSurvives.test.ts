@@ -78,7 +78,7 @@ describe('모의 주행 켬 — 경로가 잠깐 비어도 기사님이 켠 것�
         expect(client('hooks/useMockGpsSimulator.ts')).toMatch(/indexRef\.current = nearestIndex\(routePolyline, hereRef\.current\);/);
     });
 
-    it('끝까지 달리면 멈춘다 — 끄는 것은 기사님과 «끝까지 달림»뿐', () => {
-        expect(client('hooks/useMasterGps.ts')).toMatch(/onFinished: \(\) => \{[^}]*useMockDriveStore\.getState\(\)\.stop\(\)/);
+    it('🔄 끄는 것은 기사님뿐 — 경로 끝에서도 안 끄고 그 자리에서 대기한다 (#133 개정)', () => {
+        expect(client('hooks/useMasterGps.ts')).not.toMatch(/useMockDriveStore\.getState\(\)\.stop\(\)/);
     });
 });

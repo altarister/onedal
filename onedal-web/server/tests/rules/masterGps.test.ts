@@ -55,9 +55,10 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
         expect(gps).not.toMatch(/isTestMode/);
     });
 
-    it('🔴 시뮬레이션이 끝나면 가상 위치를 걷어낸다', () => {
-        // 안 그러면 서버가 그 자리를 "지금 내 위치" 로 믿고 다음 콜의 경로를 엉뚱하게 그린다
-        expect(gps).toMatch(/onFinished: \(\) => \{ endMockDriving\(\)/);
+    it('🔴 시뮬레이션을 멈추면(기사님 · 실 GPS) 마지막 실제 좌표로 되돌린다', () => {
+        // 🔄 #133 개정 — 경로 끝은 «끝»이 아니라 대기다. 끝은 모의 주행을 안 쓰게 된 순간(`useMock` 이 꺼짐)이다
+        expect(gps).toMatch(/if \(useMock\) \{ usedMockRef\.current = true; return; \}/);
+        expect(gps).toMatch(/usedMockRef\.current = false;\s*endMockDriving\(\);/);
     });
 
     it('실 GPS 감시는 테스트 중에도 멈추지 않는다 (살아나면 즉시 넘겨받아야 하니까)', () => {
@@ -113,10 +114,12 @@ describe('GPS 시뮬레이터 — 반복하지 않는다', () => {
         expect(eff).not.toMatch(/if \(!intervalRef\.current\)\s*\{?\s*indexRef\.current = 0/);
     });
 
-    it('🔴 끝까지 달렸으면 다시 출발하지 않는다', () => {
-        expect(sim).toMatch(/finishedRef/);
-        expect(sim).toMatch(/if \(finishedRef\.current\) return/);
-        expect(sim).toMatch(/finishedRef\.current = true/);
+    it('🔴 끝까지 달렸으면 처음부터 다시 출발하지 않는다 — 🔄 그 자리에서 대기한다 (#133 개정)', () => {
+        const i = sim.indexOf('if (r.finished)');
+        expect(i).toBeGreaterThan(-1);
+        const block = sim.slice(i, sim.indexOf('\n            }\n', i));
+        expect(block).toMatch(/stopped: true/);
+        expect(block).not.toMatch(/indexRef\.current = 0|simRef\.current\.idx = 0/);
     });
 
     /**
@@ -128,7 +131,7 @@ describe('GPS 시뮬레이터 — 반복하지 않는다', () => {
      *    차가 **광주 원점으로 순간이동**했고, 그 좌표가 서버로 올라가 위치가 통째로 틀어졌다.
      *    → 완료 표시는 그대로 풀고, 출발 자리만 **가장 가까운 지점**으로 바꿨다.
      */
-    it('경로가 바뀌면 완료 표시를 푼다 · 다만 처음부터가 아니라 가까운 자리에서', () => {
+    it('경로가 바뀌면 대기를 푼다 · 다만 처음부터가 아니라 가까운 자리에서', () => {
         /**
          * 🔄 **2026-09-12 — 견주는 법이 «길이»에서 «참조»로 바뀌었다** (현황판 실측).
          *    점 수가 같으면 «같은 경로»로 보고 옛 인덱스를 그대로 써 **1초에 10.9km** 뛰었다.
@@ -139,7 +142,8 @@ describe('GPS 시뮬레이터 — 반복하지 않는다', () => {
            한 틱에 10.9km 뛰던 것을 고친 자리다. **무엇을 보는지**는 `routeSignature.test.ts` 가 문다 */
         const onRoute = sim.slice(sim.indexOf('routeSignature(routeRef.current) !== routeSignature(routePolyline)'));
         const body = onRoute.slice(0, 420);
-        expect(body).toMatch(/finishedRef\.current = false/);
+        /* 🔄 #133 개정 — «완료 표시» 대신 «대기»를 푼다 */
+        expect(body).toMatch(/waitingRef\.current = false/);
         expect(body).toMatch(/nearestIndex\(/);
         expect(body).not.toMatch(/indexRef\.current = 0/);
     });
@@ -267,8 +271,8 @@ describe('가상 위치는 남지 않는다', () => {
         expect(noReal).not.toMatch(/mock-driving-ended/);
     });
 
-    it('시뮬레이터가 경로 끝에 닿으면 알린다', () => {
-        expect(sim).toMatch(/onFinished\?\.\(\)/);
+    it('🔄 시뮬레이터는 경로 끝에서 끝내지 않고 대기한다 (#133 개정 · `mockHomeLeg.test.ts`)', () => {
+        expect(sim).not.toMatch(/onFinished\?\.\(\)/);
     });
 });
 

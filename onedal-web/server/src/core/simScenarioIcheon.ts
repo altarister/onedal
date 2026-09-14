@@ -85,6 +85,6 @@ export const ICHEON_ROUND_TRIP: ScenarioRow[] = [
 
     /* ── E 끝 ── */
     { id: 'E1', stage: 'E', when: { after: 'prev' }, kind: 'act',
-      say: '🧭 끝까지 달리게 둔다 — 초월역 · 곤지암스타 하차', why: '복귀콜이 있었으니 끝나면 복귀가 저절로 꺼진다',
+      say: '🧭 마지막 하차지에 서면 관제웹에서 하차 완료 — 초월역 · 곤지암스타', why: '모의 주행은 콜이 없으면 그 자리에서 대기한다(떠나야 저절로 찍힌다) · 복귀콜을 집 가까이 내렸으니 복귀가 저절로 꺼진다',
       done: { kind: 'phase', value: 'STANDBY' }, checks: [{ kind: 'target', value: 'DEST' }] },
 ];

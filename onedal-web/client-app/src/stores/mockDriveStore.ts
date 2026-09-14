@@ -113,7 +113,7 @@ export const useMockDriveStore = create<MockDriveState>((set) => ({
      * 🔴 **켤 수 없게 돼도 기사님이 켠 것(`running`)은 지우지 않는다** (버그 대장 #131).
      *    2026-09-15 02:03:28 하차가 끝나 경로가 잠깐 0점이 되자 여기서 `running` 까지 꺼져, 경로가 3초 뒤 돌아와도 차가 섰다.
      *    엉뚱한 좌표는 `useMasterGps` 의 `useMock = canMock && running` 이 막는다 — 경로가 없는 틈에는 안 달리고,
-     *    돌아오면 서 있던 자리에서 가장 가까운 점부터 이어 달린다. 끄는 것은 기사님과 «끝까지 달림»(`onFinished`)뿐이다.
+     *    돌아오면 서 있던 자리에서 가장 가까운 점부터 이어 달린다. 🔴 **끄는 것은 기사님뿐이다** — 경로 끝에서도 안 끄고 그 자리에서 대기한다 (#133 개정).
      */
     setAvailable: (v) => set({ available: v }),
     start: () => set(s => (s.available ? { running: true } : s)),

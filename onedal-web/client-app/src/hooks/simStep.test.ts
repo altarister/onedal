@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { simStep, initialSimState, DWELL_TICKS, KM_PER_TICK, STOP_OFF_ROAD_KM } from './simStep';
+import { nearestIndex } from './useMockGpsSimulator';
 
 /** 위도 1도 ≈ 110.574km — `lib/driveStep` 과 같은 자 */
 const KM_PER_LAT = 110.574;
@@ -195,5 +196,19 @@ describe('모의 주행 연기 — simStep', () => {
         expect(r.stoppedAt).toBeUndefined();
         expect(r.passedBy?.distKm).toBeGreaterThan(STOP_OFF_ROAD_KM);
         expect(r.passedBy?.reachKm).toBeGreaterThan(0);
+    });
+});
+
+describe('대기 뒤 새 경로 — 서 있던 자리에서 출발한다 (#133 개정 · onedal-49 검토)', () => {
+    it('🔴 첫 걸음이 서 있던 자리에서 한 걸음 안이다 — 경로의 먼 점으로 순간이동하지 않는다', () => {
+        /* 서 있던 자리(마지막 하차지) — 새 경로는 그 자리에서 시작해 북쪽으로 갔다가 되돌아온다 */
+        const here = { x: 127.3, y: 37.3 };
+        const outAndBack = [...path.slice(0, 120), ...path.slice(0, 120).reverse()];
+        const st = initialSimState(nearestIndex(outAndBack, here));
+        st.at = { ...here };
+        const r = simStep(st, outAndBack, [], M);
+        expect(r.loc).not.toBeNull();
+        const movedKm = Math.hypot((r.loc!.x - here.x) * 88.6, (r.loc!.y - here.y) * KM_PER_LAT);
+        expect(movedKm).toBeLessThanOrEqual(KM_PER_TICK * M + 0.01);
     });
 });
