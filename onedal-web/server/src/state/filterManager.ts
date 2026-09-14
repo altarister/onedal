@@ -223,8 +223,12 @@ function netKeywordsOf(
         if (prev === undefined || d.progressKm > prev) progressKm[d.name] = d.progressKm;
     }
     /* 🧩 띠에 걸쳐 더한 동도 경로 위다 — 순서는 그 동의 경로 스냅점(순서 전용 값 · #78)으로 */
+    /* 🔴 **그물이 이미 넣은 동에는 안 붙인다** — 목적지·마름모로 든 동은 «아직 안 간 곳»이라 진행도가 없다
+          (`callNet.lineZoneOf` 의 `onlyByLine`). 붙이면 지나온 곳 빼기에 관고동·사음동이 먹혔다 (20:49:47) */
+    const inNet = new Set(net.pass.map(d => d.name));
     if (touch) for (const [name, km] of Object.entries(touch.orderKm)) {
-        if (progressKm[name] === undefined && Number.isFinite(km)) progressKm[name] = km;
+        if (inNet.has(name) || progressKm[name] !== undefined || !Number.isFinite(km)) continue;
+        progressKm[name] = km;
     }
     return { ...prune(grouped, true), progressKm };
 }
@@ -634,7 +638,12 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
 
     /* 🛣️ 얼린 라인 위 GPS 진행도 — 그물이 동마다 붙인 진행도와 **같은 셈**(`progressAlongKm`)이다 (전수표 #19) */
     const polyline = filterLineOf(session);
-    const gps = session.lastFix;
+    /**
+     * 🧭 **지금 위치로만 뺀다** («7지점» 2026-09-14 20:49:47). 부팅 때 되살린 지난 바퀴 끝 점(16분 묵음)으로
+     *    01 KEEP 순간 새 경로의 19.2km 까지를 «지나왔다»며 21 → 10곳으로 뺐다. 묵었거나 집 주소로 대신한 위치면 안 뺀다.
+     */
+    const here = originOf(session as Parameters<typeof originOf>[0]);
+    const gps = here && !here.isFallback ? here : null;
     if (!polyline || !gps) return false;
 
     const at = progressAlongKm({ lng: gps.x, lat: gps.y }, polyline.map(p => [p.x, p.y] as [number, number]));

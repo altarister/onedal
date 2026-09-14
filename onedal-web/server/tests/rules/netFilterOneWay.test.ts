@@ -117,3 +117,26 @@ describe('🧩 앱은 지역명만 본다 — 동을 넉넉하게', () => {
         expect(net).toMatch(/getDetourRegions\(/);
     });
 });
+
+/**
+ * 🧭 **지나온 곳 빼기가 목적지 쪽 동을 먹었다** («7지점» 세 번째 바퀴 · 2026-09-14 20:49:47).
+ *
+ *   ① 서버가 부팅 때 지난 바퀴 끝 위치(신둔 · 20:33:52 · 16분 묵음)를 되살렸고, 01 KEEP 순간 그 위치로
+ *      새 경로의 19.2km 까지를 «지나왔다»며 21 → 10곳으로 뺐다. 새 위치는 20:50:14 에야 왔다
+ *      → 빼기는 **지금 위치(`originOf` · 묵었거나 집 주소로 대신한 것 아님)**로만 한다
+ *   ② «경계가 걸치면 넣기»(#121 후속)가 그물이 이미 넣은 목적지 영역 동(관고동·사음동)에도 순서를 붙여 빼기에 걸렸다.
+ *      목업 규칙: 목적지·마름모로 든 동은 «아직 안 간 곳»이라 진행도가 없다(`callNet.lineZoneOf` `onlyByLine`)
+ *      → 걸쳐서 **새로 들어온 동에만** 순서를 붙인다
+ */
+describe('🧭 지나온 곳 빼기 — 지금 위치로, 경로 영역 동만', () => {
+    it('🔴 빼기는 지금 위치로만 — 묵었거나 집 주소로 대신한 위치면 안 뺀다', () => {
+        const trim = body(fm, 'export function applyTraveledTrim');
+        expect(trim).toMatch(/originOf\(session\b/);
+        expect(trim).toMatch(/isFallback/);
+        expect(trim).not.toMatch(/const gps = session\.lastFix/);
+    });
+    it('🔴 걸쳐서 더한 순서는 그물이 이미 넣은 동에 안 붙는다', () => {
+        const net = body(fm, 'function netKeywordsOf');
+        expect(net).toMatch(/inNet\.has\(name\)/);
+    });
+});
