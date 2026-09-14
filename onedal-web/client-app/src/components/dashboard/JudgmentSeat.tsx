@@ -3,7 +3,8 @@ import type { SecuredOrder, CallTarget } from '@onedal/shared';
 import { isManualLineage, safeCancelSecOf } from '@onedal/shared';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { verdictOf, type VerdictColor } from '../../lib/verdict';
-import { getAddressLabel } from '../../lib/routeUtils';
+import { getAddressLabel, hhmm } from '../../lib/routeUtils';
+import { seatConclusion } from '../../lib/seatConclusion';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 
 /**
@@ -81,6 +82,12 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const positives = route.approvalReasons ?? [];
     const busy = processingId === route.id;
     const name = candidateName(filter?.callTarget ?? 'DEST', confirmedActive);
+    /**
+     * 🧾 **기존 콜이 어떻게 되나** — 결론은 `seatConclusion` 한 곳 (전수표 #45 #46 · 목업 «④ 후보콜에 대한 심사 결론»).
+     *    합짐 심사 때만 있다. 모르면 «❓ 모른다», 늦으면 가장 늦는 정거장, 아니면 «안 밀린다».
+     */
+    const conclusion = seatConclusion(route.judgment);
+    const conclusionClass = conclusion?.kind === 'unknown' ? 'text-danger' : conclusion?.kind === 'late' ? 'text-warning' : 'text-success';
 
     /* ── v13 .row: 42px · 0 16px · gap 10 · 14px ── */
     const header = (
@@ -142,6 +149,9 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                         <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 4, color: negatives.length ? c!.text : 'var(--color-text-muted)' }}>
                             {negatives.length ? negatives.join(' · ') : '걸리는 것 없음'} · 근거 {open ? '▴' : '▾'}
                         </div>
+                        {conclusion && (
+                            <div className={`truncate ${conclusionClass}`} style={{ fontSize: 12.5, fontWeight: 800, marginTop: 3 }}>{conclusion.text}</div>
+                        )}
                         {open && positives.length > 0 && (
                             <div style={{ marginTop: 4, fontSize: 12, color: 'var(--color-text-muted)' }}>✅ {positives.join(' · ')}</div>
                         )}
@@ -149,6 +159,24 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                             <div className="mt-2 flex flex-col gap-1 rounded-md border border-border bg-surface-alt/40 px-2.5 py-2" style={{ fontSize: 12 }}>
                                 {route.judgment.gates.map(g => <div key={g.key} className={g.pass ? 'text-text-muted' : 'text-danger font-bold'}>{g.pass ? '✅' : '🔴'} {g.name}{!g.pass && g.why ? ` — ${g.why}` : ''}</div>)}
                                 {route.judgment.axes.map(a => <div key={a.key}><b>{a.name}</b> {a.raw} <span className="text-text-muted">({a.score ?? '—'}점{a.weight !== 1 ? ` ×${a.weight}` : ''})</span></div>)}
+                                {/* 🧾 기존 콜 정거장마다 «약속 → 예정 (±)» — 이 후보를 받으면 (전수표 #43 #47 · 하차 약속이 곧 시한이다) */}
+                                {(route.judgment.stops ?? []).length > 0 && (
+                                    <div className="mt-1 flex flex-col gap-0.5 border-t border-border pt-1 tabular-nums">
+                                        <div className="text-text-muted font-bold">기존 콜 — 이 후보를 받으면</div>
+                                        {(route.judgment.stops ?? []).map((st, k) => (
+                                            <div key={k} className={`flex justify-between gap-2 ${st.arrived ? 'text-text-muted' : ''}`}>
+                                                <span className="truncate">{st.name}{st.arrived ? ' · 지남' : ''}</span>
+                                                <span className="shrink-0">
+                                                    <span className="text-text-muted">{st.promisedAt ? hhmm(st.promisedAt) : '--:--'}{st.confirmed ? '' : '~'} → </span>
+                                                    <b>{st.etaAt ? hhmm(st.etaAt) : '모름'}</b>
+                                                    {st.lateMin != null && !st.arrived && (
+                                                        <b className={st.lateMin > 0 ? 'text-warning' : 'text-success'}> ({st.lateMin > 0 ? '+' : ''}{st.lateMin}분)</b>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </>) : (<>
@@ -171,7 +199,8 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     className="text-left disabled:opacity-40 overflow-hidden"
                     style={{ flex: 35, borderRadius: 11, padding: '8px 12px', fontSize: 13.5, fontWeight: 700, lineHeight: 1.7,
                              background: 'linear-gradient(180deg,#3a1518,#2c1013)', color: '#e79aa2', border: '1px solid rgba(224,85,99,.35)' }}>
-                    {judged ? (negatives.length ? negatives.map(r => `❌ ${r}`).join('\n') : '거절') : '❌ —'}
+                    {/* ❓ 기존 콜 도착을 모르면 거절 쪽 맨 위에 — 모르는 것이 «걸리는 것 없음»으로 읽히지 않게 (전수표 #45) */}
+                    {judged ? ([conclusion?.kind === 'unknown' ? '❓ 기존 콜 도착 모름' : null, ...negatives.map(r => `❌ ${r}`)].filter(Boolean).join('\n') || '거절') : '❌ —'}
                 </button>
                 <button disabled={!judged || busy}
                     onClick={() => { setProcessingId?.(route.id); onDecision?.(route.id, 'ORDER_CONFIRMED'); }}

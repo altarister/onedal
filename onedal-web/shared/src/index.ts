@@ -619,6 +619,15 @@ export interface JudgmentSnapshot {
     axes: Array<{ key: string; name: string; score: number | null; weight: number; raw: string; value?: number }>;
     gates: Array<{ key: string; name: string; pass: boolean; why: string | null }>;
     tags: string[];
+    /**
+     * 🧾 **기존 콜 정거장마다 — 이 후보를 받으면** (전수표 #43 #45 #46 #47 · 합짐 심사 때만 있다).
+     *    약속(`promisedAt`) · 예정(`etaAt`) · 늦음(분 — 양수면 늦다). 모르면 `null` — 지어내지 않는다 (규칙 ④).
+     *    결론은 관제웹 `seatConclusion` 한 곳이 낸다.
+     */
+    stops?: Array<{ name: string; stopType: 'pickup' | 'dropoff'; promisedAt: string | null; etaAt: string | null;
+        lateMin: number | null; confirmed: boolean; arrived: boolean }>;
+    /** ❓ **기존 콜 도착을 모르는 까닭** — 있으면 심사석이 «안 밀린다»고 말하지 않는다 */
+    unknownWhy?: string | null;
 }
 
 export interface MyOrder extends OfficeOrder {

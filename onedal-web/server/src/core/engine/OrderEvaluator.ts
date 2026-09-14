@@ -381,9 +381,27 @@ export class OrderEvaluator {
                                 tags.push('배송주행 추정(일반값)');
                             }
                             if (!bufAfter) tags.push('버퍼 잴 약속 없음');
+                            /**
+                             * 🧾 **기존 콜 정거장마다 — 이 후보를 받으면** (전수표 4단계 #43 #45 #46 #47 · 목업 «④ 후보콜에 대한 심사 결론»).
+                             *    심사석이 «누가 몇 분 늦어지나»를 말하게 스냅샷에 싣는다. 결론은 관제웹 `seatConclusion` 한 곳이다.
+                             * 🔴 **모르면 모른다고 적는다** — 정거장 순서를 못 받으면 `late` 가 비어 위 관문이 «통과»가 된다.
+                             *    모르는 것이 «약속 보존»으로 읽히면 안 된다. 점수는 안 건드리고 딱지만 붙인다 (규칙 ⑤-2).
+                             */
+                            const stopsView = existing.map(e => ({
+                                name: `${nameOf(e.orderId)} ${e.stopType === 'pickup' ? '상차' : '하차'}`,
+                                stopType: e.stopType,
+                                promisedAt: e.promisedUntil,
+                                etaAt: e.etaMs != null ? new Date(e.etaMs).toISOString() : null,
+                                lateMin: e.etaMs != null && e.promisedUntil ? Math.round((e.etaMs - Date.parse(e.promisedUntil)) / 60_000) : null,
+                                confirmed: e.promiseConfirmed,
+                                arrived: e.arrived,
+                            }));
+                            const unknownWhy = stopsAfter.length === 0 ? '전체 경로의 정거장 순서를 못 받았다'
+                                : stopsView.some(st => !st.arrived && st.etaAt == null) ? '예정을 못 잰 구간이 있다' : null;
+                            if (unknownWhy) tags.push(`기존 콜 도착 모름 — ${unknownWhy}`);
 
                             // ⚖️ 색은 판정 함수 하나가 낸다 (6단계 갈아타기 완료)
-                            const dry = toSnapshot(judge(CRITERIA, mergeFacts({
+                            const dry: ReturnType<typeof toSnapshot> & { stops?: typeof stopsView; unknownWhy?: string | null } = toSnapshot(judge(CRITERIA, mergeFacts({
                                 fare: securedOrder.fare,
                                 extraMinutes: marginal + cost.dwell,
                                 bufferAfterMin: bufAfter?.minutes ?? null,
@@ -391,6 +409,8 @@ export class OrderEvaluator {
                                     ? (Math.max(0, slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
                                 gates, conflicts, tags,
                             }), judgmentCfg));
+                            dry.stops = stopsView;
+                            dry.unknownWhy = unknownWhy;
                             console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
                             // 🧪 도달 반경 dryRun (구현 4 계측) — 앞 일이 많을수록 버퍼가 줄어 반경이 준다 (16-3)
                             if (bufAfter) console.log(`   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +
