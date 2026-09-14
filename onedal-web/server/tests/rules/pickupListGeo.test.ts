@@ -38,6 +38,18 @@ describe('상차 목록 — 실제 지도', () => {
         expect(r.list).toContain('신둔면');   // 집 방향 마름모
     });
 
+    it('🔴 시나리오 A1 — 콜 전 초월읍에서 뒤쪽·원 밖 경안동(이마트 광주점 7km)은 안 든다', () => {
+        const r = pickupListFor({ ...base, me: MODA, line: null, homeOn: false, homeCaught: false });
+        expect(r.list).not.toContain('경안동');
+    });
+
+    it('🔴 시나리오 D4 — 복귀콜 둘을 쥐고 우리주유소에 서면 경로 밖 마장면 상차는 안 든다', () => {
+        const WOORI = { x: 127.39719, y: 37.31740 }, GONJIAM_STAR = { x: 127.33209, y: 37.35310 };
+        const r = pickupListFor({ ...base, me: WOORI, line: [WOORI, GONJIAM_STAR, CHOWOL_STATION], homeOn: true, homeCaught: true });
+        expect(r.list).not.toContain('마장면');
+        expect(r.list).toContain('신둔면');
+    });
+
     it('🔴 읍·면·동 이름만 싣는다', () => {
         const r = pickupListFor({ ...base, me: MODA, line: null, homeOn: false, homeCaught: false });
         expect(r.list.filter(n => /(시|구|군)$/.test(n))).toEqual([]);

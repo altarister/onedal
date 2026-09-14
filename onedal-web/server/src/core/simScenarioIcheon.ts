@@ -23,13 +23,14 @@ const HD_SINDUN      = place('HD현대 신둔', '신둔면', '경기 이천시 �
 const WOORI_OIL      = place('우리주유소', '신둔면', '경기 이천시 신둔면 경충대로 3282 우리주유소', 127.39719, 37.31740);
 const GONJIAM_STAR   = place('곤지암스타주유소', '곤지암읍', '경기 광주시 곤지암읍 경충대로 698 곤지암스타주유소', 127.33209, 37.35310);
 const MAJANG_OIL     = place('마장주유소', '마장면', '경기 이천시 마장면 서이천로 564 마장주유소', 127.40176, 37.27208);
+const EMART_GWANGJU  = place('이마트 광주점', '경안동', '경기 광주시 경안동 493-4 이마트 광주점', 127.258213, 37.410390);
 const LOTTE_OUTLET   = place('롯데아울렛 이천', '호법면', '경기 이천시 호법면 프리미엄아울렛로 177-74 롯데프리미엄아울렛 이천점', 127.40048, 37.24236);
 
 export const ICHEON_ROUND_TRIP: ScenarioRow[] = [
     /* ── A 집 — 모의 주행 멈춤 · 콜 0건 ── */
-    { id: 'A1', stage: 'A', when: { after: 'prev' }, kind: 'block', blockBy: 'pickup',
-      call: { pickup: ICHEON_TERMINAL, dropoff: SINDUN_NH, fare: 30000, vehicleType: '다마스' },
-      say: '⚪ 안 올라와야 맞다 — 기다리기만', why: '첫짐이면 상차 반경이 돈다 — 집에서 17.4km > 4.55km' },
+    { id: 'A1', stage: 'A', when: { after: 'prev' }, kind: 'block', blockBy: 'pickupList',
+      call: { pickup: EMART_GWANGJU, dropoff: SINDUN_NH, fare: 30000, vehicleType: '다마스' },
+      say: '⚪ 안 올라와야 맞다 — 기다리기만', why: '콜 전 상차 목록 = 현위치 원 ∪ 이천 방향 마름모 — 경안동은 뒤쪽 7km(원 밖 · 마름모 밖) (#134)' },
     { id: 'A2', stage: 'A', when: { after: 'prev' }, kind: 'keep',
       call: { pickup: MODA, dropoff: SINDUN_NH, fare: 50000, vehicleType: '다마스' },
       say: '🟢 올라오면 관제웹에서 KEEP', why: '정상 첫짐 — 확정 뒤에도 집 뒤 동(내 영역)이 남아야 한다',
@@ -70,18 +71,18 @@ export const ICHEON_ROUND_TRIP: ScenarioRow[] = [
 
     /* ── D 복귀 — 복귀콜 확정 뒤 ── */
     /* 🔴 요금을 C2 와 다르게 둔다 — 폰은 «상차 동 + 하차 동 + 요금» 지문으로 본 콜을 다시 판정하지 않는다 (`CallMemory` · #128 뒤 01:39 실측) */
-    { id: 'D1', stage: 'D', when: { arrive: 'B3', stop: 'dropoff' }, kind: 'block', blockBy: 'region', guess: true,
+    { id: 'D1', stage: 'D', when: { arrive: 'B3', stop: 'dropoff' }, kind: 'cancel', guess: true,
       call: { pickup: ICHEON_TERMINAL, dropoff: ICHEON_JEIL, fare: 31000, vehicleType: '승용차' },
-      say: '⚪ 안 올라와야 맞다 — C2 와 같은 구간', why: '목적지 원이 빠졌고 관고동은 지나왔다 (추정) · 요금만 C2 와 다르다(폰 지문)' },
+      say: '🟡 올라오면 관제웹에서 ❌ 취소 (올라오는지만 본다)', why: '필터는 방향을 안 본다 — 관고동이 경로 영역 안이면 올라온다(추정) · 판정 색이 가른다 · 요금만 C2 와 다르다(폰 지문)' },
     { id: 'D2', stage: 'D', when: { after: 'prev' }, kind: 'block', blockBy: 'region',
       call: { pickup: ICHEON_TERMINAL, dropoff: LOTTE_OUTLET, fare: 50000, vehicleType: '승용차' },
       say: '⚪ 안 올라와야 맞다 — 기다리기만', why: '호법면은 어느 목록에도 없다' },
     { id: 'D3', stage: 'D', when: { arrive: 'C3', stop: 'pickup' }, kind: 'keep', guess: true,
       call: { pickup: WOORI_OIL, dropoff: GONJIAM_STAR, fare: 30000, vehicleType: '승용차' },
       say: '🟢 올라오면 관제웹에서 KEEP — 오는 길 합짐', why: '곤지암읍은 집 가는 경로 띠에 걸친다 (추정)' },
-    { id: 'D4', stage: 'D', when: { arrive: 'D3', stop: 'pickup' }, kind: 'block', blockBy: 'routeOrder', guess: true,
+    { id: 'D4', stage: 'D', when: { arrive: 'D3', stop: 'pickup' }, kind: 'block', blockBy: 'pickupList',
       call: { pickup: MAJANG_OIL, dropoff: CHOWOL_STATION, fare: 30000, vehicleType: '승용차' },
-      say: '⚪ 안 올라와야 맞다 — 기다리기만', why: '마장면은 지나온 뒤쪽이다 — 경로 밖 상차 (추정)' },
+      say: '⚪ 안 올라와야 맞다 — 기다리기만', why: '복귀콜을 쥐었으니 상차 목록 = 현위치 원 ∩ 라인 띠 — 마장면은 집 가는 라인 밖 (#134 · 실제 지도 검사)' },
 
     /* ── E 끝 ── */
     { id: 'E1', stage: 'E', when: { after: 'prev' }, kind: 'act',

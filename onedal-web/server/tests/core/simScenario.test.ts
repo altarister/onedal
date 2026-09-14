@@ -59,13 +59,13 @@ describe('🎬 이천 왕복 — 줄 데이터', () => {
 });
 
 describe('🎬 이천 왕복 — 사건순', () => {
-    it('🔴 시작하면 A1 콜을 내고, 폰이 상차거리로 막으면 ✅ 막힘', () => {
+    it('🔴 시작하면 A1 콜을 내고, 폰이 상차 목록으로 막으면 ✅ 막힘', () => {
         let st = startScenario(def, T0);
         let r = run(st, baseWorld(T0));
         expect(r.send?.pickup.region).toBe(callOf('A1').pickup.region);
         st = r.state;
         expect(st.rows[0].mark).toBe('sent');
-        r = run(st, baseWorld(T0 + 4000, { intel: [intelFor('A1', 11, 'pickup')] }));
+        r = run(st, baseWorld(T0 + 4000, { intel: [intelFor('A1', 11, 'pickupList')] }));
         expect(r.state.rows[0].mark).toBe('ok');
         expect(r.send).toBeNull();
     });
@@ -76,13 +76,13 @@ describe('🎬 이천 왕복 — 사건순', () => {
      *    → 좌표가 비면 **상차·하차 동 이름 + 요금**으로 짝짓는다. 보낸 뒤 새로 생긴 줄만 보니 같은 동·요금의 옛 줄은 안 섞인다.
      */
     it('🔴 좌표 없는 폰 기록도 동 이름·요금으로 짝짓는다', () => {
-        let st = run(startScenario(def, T0), baseWorld(T0, { intel: [{ id: 9111, pickup: '중리동', dropoff: '신둔면', fare: 30000, verdict: 'vehicle' }] })).state;
+        let st = run(startScenario(def, T0), baseWorld(T0, { intel: [{ id: 9111, pickup: '경안동', dropoff: '신둔면', fare: 30000, verdict: 'vehicle' }] })).state;
         const r = run(st, baseWorld(T0 + 4000, { intel: [
-            { id: 9111, pickup: '중리동', dropoff: '신둔면', fare: 30000, verdict: 'vehicle' },   // 보내기 전 옛 줄 — 안 섞인다
-            { id: 9112, pickup: '중리동', dropoff: '신둔면', fare: 30000, verdict: 'pickup' },
+            { id: 9111, pickup: '경안동', dropoff: '신둔면', fare: 30000, verdict: 'vehicle' },   // 보내기 전 옛 줄 — 안 섞인다
+            { id: 9112, pickup: '경안동', dropoff: '신둔면', fare: 30000, verdict: 'pickupList' },
         ] }));
         expect(r.state.rows[0].mark).toBe('ok');
-        expect(r.state.rows[0].verdict).toBe('pickup');
+        expect(r.state.rows[0].verdict).toBe('pickupList');
     });
 
     it('🔴 막힘 줄이 다른 축에서 막히면 🟠 · 통과면 🔴 뚫림', () => {
@@ -96,7 +96,7 @@ describe('🎬 이천 왕복 — 사건순', () => {
 
     it('🔴 KEEP 줄 — 콜이 오면 «KEEP 하세요», KEEP 되면 ✅ · 3초 뒤 목록 채점 · 다음 줄 콜', () => {
         let st = run(startScenario(def, T0), baseWorld(T0)).state;
-        st = run(st, baseWorld(T0 + 4000, { intel: [intelFor('A1', 11, 'pickup')] })).state;
+        st = run(st, baseWorld(T0 + 4000, { intel: [intelFor('A1', 11, 'pickupList')] })).state;
         let r = run(st, baseWorld(T0 + 8000));                  // A1 끝난 뒤 3초 — A2 로 넘어가 콜을 낸다
         expect(r.state.index).toBe(idx('A2'));
         expect(r.send?.dropoff.region).toBe('신둔면');
@@ -141,7 +141,8 @@ describe('🎬 이천 왕복 — 사건순', () => {
         expect(st.rows[d1].mark).toBe('sent');
         const r = run(st, baseWorld(T0 + 4000, { orders: [old, b3, orderFor('D1', 'o-d1', 'ORDER_SECURED_EVALUATING')] }));
         expect(r.state.rows[d1].orderId).toBe('o-d1');
-        expect(r.state.rows[d1].note).toMatch(/뚫림/);
+        /* 🔄 #134 — D1 은 «막힘»이 아니라 «올라오면 취소»다 (필터는 방향을 안 본다). 짝짓기는 그대로 — 옛 C2 콜이 아니라 새 콜에 붙는다 */
+        expect(r.state.rows[d1].note).toMatch(/취소/);
     });
 
     it('45초 동안 안 올라오면 🔴 로 알리고 기다린다 · 건너뛰면 다음 줄', () => {
