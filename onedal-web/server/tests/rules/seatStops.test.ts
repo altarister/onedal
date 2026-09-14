@@ -32,6 +32,21 @@ describe('🧾 심사석 — 기존 콜 정거장 (4단계)', () => {
         expect(load).toMatch(/stops/);
         expect(load).toMatch(/unknownWhy/);
     });
+    /**
+     * 📞 **전수표 #42 의 빠진 둘** — 목업 시트 심사 카드의 «더 쓰는 시간»(시급의 분모 · 합짐이면 전체 경로가 늘어나는 만큼)과
+     *    «☎️ 전화할 곳»(가장 크게 밀리는 기존 정거장). 숫자는 판정이 이미 쓴 값이다 — 화면이 다시 재지 않는다 (규칙 ③).
+     */
+    it('🔴 첫짐·합짐 판정이 «더 쓰는 시간»을 싣고 · 정거장 줄에 동 이름이 있다', () => {
+        const ev = code('src/core/engine/OrderEvaluator.ts');
+        expect((ev.match(/dry\.extraMin\s*=/g) ?? []).length).toBeGreaterThanOrEqual(2);
+        expect(ev).toMatch(/place:\s*placeOf\(/);
+    });
+    it('🔴 «더 쓰는 시간»도 저장·되살리기에 함께 · 심사석이 보인다', () => {
+        const repo = code('src/repositories/OrderRepository.ts');
+        expect(repo.slice(repo.indexOf('saveJudgment('), repo.indexOf('getJudgmentVerdict('))).toMatch(/extraMin/);
+        expect(repo.slice(repo.indexOf('getJudgmentVerdict('), repo.indexOf('public static getJudgment('))).toMatch(/extraMin/);
+        expect(code('../client-app/src/components/dashboard/JudgmentSeat.tsx')).toMatch(/judgment\?\.extraMin/);
+    });
     it('🔴 심사석은 결론을 seatConclusion 한 곳에서 낸다', () => {
         expect(code('../client-app/src/components/dashboard/JudgmentSeat.tsx')).toMatch(/seatConclusion\(/);
     });

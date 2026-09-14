@@ -1,7 +1,7 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
          deriveRouteTimeline, minRouteBuffer, marginalDetourMin,
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
-         soloMinutesOf, derivationInputsOf } from "@onedal/shared";
+         soloMinutesOf, derivationInputsOf, nearestDong } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
@@ -215,12 +215,14 @@ export class OrderEvaluator {
                          *    옛 채점기는 여기서 손을 뗐다. 갈아타기 전 84건을
                          *    나란히 대조해 **어긋남 0** 을 확인했다 (검사 73 · 실제 리허설 11).
                          */
-                        const dry = toSnapshot(judge(CRITERIA, firstLoadFacts({
+                        const dry: ReturnType<typeof toSnapshot> & { extraMin?: number | null } = toSnapshot(judge(CRITERIA, firstLoadFacts({
                             fare: securedOrder.fare, totalMinutes: total,
                             minAcceptableKrw: rateShort ? previewRate!.minAcceptable : null,
                             tags,
                         }), judgmentCfg));
 
+                        /* ⏱️ 더 쓰는 시간 = 시급의 분모 그대로 — 첫짐은 이 콜 전체 (전수표 #42) */
+                        dry.extraMin = total;
                         if (rateShort && (dry.color === '꿀' || dry.color === '보통')) {
                             console.log(`   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
                                 `실제 ${securedOrder.fare.toLocaleString()}원 < 하한 ${previewRate!.minAcceptable.toLocaleString()}원)`);
@@ -387,8 +389,16 @@ export class OrderEvaluator {
                              * 🔴 **모르면 모른다고 적는다** — 정거장 순서를 못 받으면 `late` 가 비어 위 관문이 «통과»가 된다.
                              *    모르는 것이 «약속 보존»으로 읽히면 안 된다. 점수는 안 건드리고 딱지만 붙인다 (규칙 ⑤-2).
                              */
+                            /* ☎️ 정거장의 동 이름 — 늦으면 «전화할 곳»이다 (전수표 #42). 좌표를 모르면 null (지어내지 않는다) */
+                            const placeOf = (orderId: string, stopType: 'pickup' | 'dropoff') => {
+                                const o = activeCalls.find(c => c.id === orderId) as any;
+                                const x = stopType === 'pickup' ? o?.pickupX : o?.dropoffX;
+                                const y = stopType === 'pickup' ? o?.pickupY : o?.dropoffY;
+                                return Number.isFinite(x) && Number.isFinite(y) ? nearestDong({ lng: x, lat: y }).name : null;
+                            };
                             const stopsView = existing.map(e => ({
                                 name: `${nameOf(e.orderId)} ${e.stopType === 'pickup' ? '상차' : '하차'}`,
+                                place: placeOf(e.orderId, e.stopType),
                                 stopType: e.stopType,
                                 promisedAt: e.promisedUntil,
                                 etaAt: e.etaMs != null ? new Date(e.etaMs).toISOString() : null,
@@ -401,7 +411,7 @@ export class OrderEvaluator {
                             if (unknownWhy) tags.push(`기존 콜 도착 모름 — ${unknownWhy}`);
 
                             // ⚖️ 색은 판정 함수 하나가 낸다 (6단계 갈아타기 완료)
-                            const dry: ReturnType<typeof toSnapshot> & { stops?: typeof stopsView; unknownWhy?: string | null } = toSnapshot(judge(CRITERIA, mergeFacts({
+                            const dry: ReturnType<typeof toSnapshot> & { stops?: typeof stopsView; unknownWhy?: string | null; extraMin?: number | null } = toSnapshot(judge(CRITERIA, mergeFacts({
                                 fare: securedOrder.fare,
                                 extraMinutes: marginal + cost.dwell,
                                 bufferAfterMin: bufAfter?.minutes ?? null,
@@ -411,6 +421,8 @@ export class OrderEvaluator {
                             }), judgmentCfg));
                             dry.stops = stopsView;
                             dry.unknownWhy = unknownWhy;
+                            /* ⏱️ 더 쓰는 시간 = 시급의 분모 그대로 — 합짐은 전체 경로가 늘어나는 만큼 + 정차 (전수표 #42) */
+                            dry.extraMin = marginal + cost.dwell;
                             console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
                             // 🧪 도달 반경 dryRun (구현 4 계측) — 앞 일이 많을수록 버퍼가 줄어 반경이 준다 (16-3)
                             if (bufAfter) console.log(`   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +

@@ -32,6 +32,7 @@ export function seatConclusion(j: Pick<JudgmentSnapshot, 'stops' | 'unknownWhy'>
     if (judged.length === 0) return null;
     const worst = judged.reduce((w, s) => ((s.lateMin as number) > (w.lateMin as number) ? s : w));
     return (worst.lateMin as number) > 0
-        ? { kind: 'late', text: `⚠️ ${worst.name}가 ${worst.lateMin}분 늦어진다`, worst }
+        /* ☎️ 가장 늦는 정거장이 곧 «전화할 곳»이다 — 동 이름이 있으면 함께 (전수표 #42 · 목업 시트 심사 카드) */
+        ? { kind: 'late', text: `⚠️ ${worst.name}${worst.place ? ` (${worst.place})` : ''}가 ${worst.lateMin}분 늦어진다 · ☎️ 전화`, worst }
         : { kind: 'ok', text: '✅ 기존 콜은 안 밀린다', worst: null };
 }

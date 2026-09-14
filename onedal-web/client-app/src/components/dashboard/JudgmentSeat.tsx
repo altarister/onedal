@@ -88,6 +88,12 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
      */
     const conclusion = seatConclusion(route.judgment);
     const conclusionClass = conclusion?.kind === 'unknown' ? 'text-danger' : conclusion?.kind === 'late' ? 'text-warning' : 'text-success';
+    /**
+     * ⏱️ **더 쓰는 시간** — 판정이 시급의 분모로 쓴 분 (전수표 #42 · 목업 시트 심사 카드).
+     *    합짐만 적는다 — 둘째 줄의 «+km, +분»은 주행 증가분뿐이라, 정차까지 더한 «시급의 분»은 따로 말해야 한다.
+     */
+    const extraLine = confirmedActive > 0 && route.judgment?.extraMin != null
+        ? <span style={{ opacity: .75 }}> · 더 쓰는 {route.judgment.extraMin}분</span> : null;
 
     /* ── v13 .row: 42px · 0 16px · gap 10 · 14px ── */
     const header = (
@@ -144,7 +150,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                             {hourly != null ? <>{hourly.toFixed(1)}만<span style={{ fontSize: 14, color: 'var(--color-text-muted)', fontWeight: 700 }}>/h</span></> : <span style={{ fontSize: 15 }}>{v.reason}</span>}
                         </div>
                         {/* v13 .l2 — 14.5px */}
-                        <div style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '-.2px', marginTop: 5 }}>{routeLine(route.distanceKm, routeText) || '경로 계산됨'}</div>
+                        <div className="truncate" style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '-.2px', marginTop: 5 }}>{routeLine(route.distanceKm, routeText) || '경로 계산됨'}{extraLine}</div>
                         {/* v13 .l3 — 12.5px · 걸리는 것만 */}
                         <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 4, color: negatives.length ? c!.text : 'var(--color-text-muted)' }}>
                             {negatives.length ? negatives.join(' · ') : '걸리는 것 없음'} · 근거 {open ? '▴' : '▾'}
@@ -224,7 +230,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                             <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-.6px' }}>
                                 {hourly != null ? <>{hourly.toFixed(1)}만<span style={{ fontSize: 13, fontWeight: 800, opacity: .75 }}>/h</span></> : `${score ?? ''}점`}
                             </div>
-                            <div style={{ fontSize: 13.5, fontWeight: 800, marginTop: 2 }}>{routeLine(route.distanceKm, routeText)}</div>
+                            <div className="truncate" style={{ fontSize: 13.5, fontWeight: 800, marginTop: 2 }}>{routeLine(route.distanceKm, routeText)}{extraLine}</div>
                             <div className="truncate" style={{ fontSize: 12, fontWeight: 700, opacity: .8, marginTop: 1 }}>{positives.length ? positives.join(' · ') : '걸리는 것 없음'}</div>
                         </>) : <span style={{ fontSize: 14, fontWeight: 900 }}>좌표 분석 중…</span>}
                     </div>

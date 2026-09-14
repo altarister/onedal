@@ -625,9 +625,16 @@ export interface JudgmentSnapshot {
      *    결론은 관제웹 `seatConclusion` 한 곳이 낸다.
      */
     stops?: Array<{ name: string; stopType: 'pickup' | 'dropoff'; promisedAt: string | null; etaAt: string | null;
-        lateMin: number | null; confirmed: boolean; arrived: boolean }>;
+        lateMin: number | null; confirmed: boolean; arrived: boolean;
+        /** ☎️ 그 정거장의 동 이름 — 늦으면 «전화할 곳»이다 (전수표 #42). 좌표를 모르면 `null` */
+        place?: string | null }>;
     /** ❓ **기존 콜 도착을 모르는 까닭** — 있으면 심사석이 «안 밀린다»고 말하지 않는다 */
     unknownWhy?: string | null;
+    /**
+     * ⏱️ **더 쓰는 시간(분)** — 판정이 시급의 분모로 쓴 값 (전수표 #42 · 목업 «더 쓰는 시간»).
+     *    첫짐은 이 콜 전체, 합짐은 전체 경로가 늘어나는 만큼 + 정차. 화면이 다시 재지 않는다 (규칙 ③)
+     */
+    extraMin?: number | null;
 }
 
 export interface MyOrder extends OfficeOrder {
