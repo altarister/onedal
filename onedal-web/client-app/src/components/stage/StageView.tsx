@@ -163,6 +163,8 @@ export default function StageView(props: Props) {
         excludedRegions: filter?.excludedRegions,
         /* 🏘️ 관내 — 서버가 파생한 값을 그대로 (조사 ①-8) */
         localMode: filter?.localMode,
+        /* 🚀 출발 전이면 내 영역도 그린다 — 서버 목록과 같은 갈림 (필터.md §5 «필터 영역») */
+        departed: filter?.dispatchPhase === 'DELIVERING',
         routeHolder: derived.drawHolder,
         /* 🧾 동 점은 서버가 앱에 내린 목록과 겹치는 것만 — 지나온 동이 판정과 같게 빠진다 (전수표 #19) */
         serverKeywords: filter?.destinationKeywords,
@@ -392,6 +394,21 @@ export default function StageView(props: Props) {
         feed({ type: 'depart' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [phase]);
+
+    /**
+     * 🚀 **주행이 감지되면 출발이다** (전수표 #2 · 목업 `MapMockup.tsx` 의 `if (driving) setDeparted(true)`).
+     *    «🚀 지금 출발» 버튼만 출발을 켜서 «7지점» 네 바퀴 내내 출발이 0번이었다 — 운전 중에는 누를 수 없다.
+     *    출발이 안 켜지면 필터 영역이 «출발 전»에 머물러 내 영역이 바퀴 내내 남는다 (필터.md §5 «필터 영역»).
+     *    콜을 쥐고(`GATHERING`) 경로가 있을 때만 — 빈 차로 달리는 것은 출발이 아니다.
+     */
+    const hasRoute = liveRoute.length > 0;
+    useEffect(() => {
+        if (drive !== 'drive') return;
+        if (phase !== 'GATHERING' || !hasRoute) return;
+        logRoadmapEvent("웹", "무대 주행 감지 → 🚀 출발 (운행 중 국면)");
+        updateFilter({ driverAction: 'DRIVING' });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [drive, phase, hasRoute]);
 
     /* 🗺️ 다음 정거장 이름표 재료 — 서버 경로 순서(routeStops)에서 첫 미방문 (v22 S3) */
     const next = (() => {

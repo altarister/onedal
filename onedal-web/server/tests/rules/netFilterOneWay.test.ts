@@ -140,3 +140,49 @@ describe('🧭 지나온 곳 빼기 — 지금 위치로, 경로 영역 동만',
         expect(net).toMatch(/inNet\.has\(name\)/);
     });
 });
+
+/**
+ * 🧩 **필터 영역을 서버 목록으로 — 2단계** (기사님 확정 2026-09-14 · `docs/지금/필터.md` §5 · 전수표 #29 #77).
+ *
+ *   · 출발 전(`session.departedAt` 없음)이면 내 영역을 그물에 넘긴다 — 출발하면 안 넘긴다
+ *   · 관내는 목적지 원 안만 — 각도를 360° 로 바꿔 마름모를 원으로 만들던 우회를 걷는다
+ *     (21:16:32 여주·용인 처인까지 35곳)
+ *   · 출발하는 순간 목록을 다시 만든다 — 지나온 곳 빼기는 진행도 있는 동만 빼니 내 영역은 못 뺀다
+ *   · 지도(`useCallNet`)도 같은 두 값으로 그린다
+ */
+describe('🧩 필터 영역 — 출발 전 내 영역 · 관내 목적지 원 (2단계)', () => {
+    const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    it('🔴 서버 그물은 출발 전이면 내 영역을, 관내면 목적지 원을 쓴다', () => {
+        const net = body(fm, 'function netKeywordsOf');
+        expect(net).toMatch(/departedAt/);
+        expect(net).toMatch(/local: localMode/);
+        expect(net).not.toMatch(/360/);
+    });
+    it('🔴 출발하는 순간 목록을 다시 만든다', () => {
+        expect(body(fm, 'export function updateActiveFilter')).toMatch(/rebuildNetFilter\(userId, io\)/);
+    });
+    it('🔴 지도도 같은 두 값으로 그린다', () => {
+        const hook = client('hooks/useCallNet.ts');
+        expect(hook).toMatch(/departed/);
+        expect(hook).toMatch(/local: !!localMode/);
+        expect(hook).not.toMatch(/360/);
+        expect(client('components/stage/StageView.tsx')).toMatch(/departed: filter\?\.dispatchPhase === 'DELIVERING'/);
+    });
+});
+
+/**
+ * 🚀 **주행이 감지되면 출발이다** (전수표 #2 · 목업 `MapMockup.tsx` 의 `if (driving) setDeparted(true)`).
+ *
+ * 실물은 «🚀 지금 출발» 버튼만 출발을 켰다 — «7지점» 네 바퀴 내내 서버 로그에 `🚀 [출발]` 이 0번이라
+ * 국면이 «콜 쥠»에 머물렀다. 운전 중에는 누를 수 없다(기사님: 먼발치 1~2초 · 무입력에도 일이 되게).
+ * 출발이 안 켜지면 필터 영역이 «출발 전»에 머물러 내 영역이 바퀴 내내 남는다.
+ */
+describe('🚀 출발 — 주행 감지로 켠다', () => {
+    const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    it('🔴 관제웹 무대가 주행 신호로 출발(DRIVING)을 보낸다 — 콜을 쥐고 출발 전일 때만', () => {
+        const stage = client('components/stage/StageView.tsx');
+        expect(stage).toMatch(/drive !== 'drive'[\s\S]{0,160}GATHERING[\s\S]{0,200}updateFilter\(\{ driverAction: 'DRIVING' \}\)/);
+    });
+});

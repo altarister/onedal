@@ -434,16 +434,17 @@ describe('4단계 · 지도가 제외지역을 실제로 뺀다 — 키 안의 |
  * ══════════════════════════════════════════════════════════════════════════ */
 describe('5단계 · 관내를 지도도 안다 (조사 ①-8)', () => {
     /**
-     * 서버는 관내면 각도 360°·라인 끔으로 재는데(`filterManager` C4-8b) 지도(`useCallNet`)는
+     * 서버는 관내면 관내 그물로 재는데(`filterManager` C4-8b) 지도(`useCallNet`)는
      * 그 분기가 없었다 → 관내 동안 요약줄 «N 읍면동»이 서버와 달랐다. 같은 함수를 부르면서
      * **입력이 달랐다** — 규칙 ③은 «계산»만이 아니라 «입력»도 한 곳이어야 한다.
+     * 🔄 2026-09-14 — 관내 그물은 목적지 원 안만(`netForGoal` 의 `local`) · 각도 360° 우회는 걷었다 (전수표 #29).
      */
     const cn = codeOnly(readClient('hooks/useCallNet.ts'));
     const sv = codeOnly(readClient('components/stage/StageView.tsx'));
-    it('🔴 useCallNet 이 localMode 를 받아 각도 360°·라인 끔으로 잰다', () => {
+    it('🔴 useCallNet 이 localMode 를 받아 서버와 같은 관내 그물(local)로 잰다', () => {
         expect(cn).toMatch(/localMode\?: boolean/);
-        expect(cn).toMatch(/localMode \? 360/);
-        expect(cn).toMatch(/localMode \? null : line|localMode \? null : polyline/);
+        expect(cn).toMatch(/local: !!localMode/);
+        expect(cn).not.toMatch(/localMode \? 360/);
     });
     it('🔴 무대가 서버 파생값을 그대로 넘긴다', () => {
         expect(sv).toMatch(/localMode: filter\?\.localMode/);

@@ -846,8 +846,17 @@ function distToLineKm(pt: { lng: number; lat: number }, line: Array<[number, num
 export function lineZoneOf(
     line: Array<[number, number]>, lineRadiusKm: number,
     lastDrop: NetPoint | null, p: NetParams, dst: NetPoint,
+    /**
+     * 🧩 **내 영역 — 출발 전에만 넘긴다** (기사님 확정 2026-09-14 · `docs/지금/필터.md` §5 «필터 영역»).
+     *    첫 콜을 확정한 순간부터 출발 전까지는 «내 ∪ 목적지 ∪ 마름모 ∪ 경로», 출발하면 내 영역 중 마름모 밖이 빠진다.
+     *    🔴 이 원으로 든 동은 «지났나»를 물을 값이 아니다 — `onlyByLine` 에서 뺀다. 안 빼면 라인 시작 뒤 동에
+     *       진행도 0 이 붙어 차가 몇 m 움직이자마자 «지나온 곳»으로 빠졌다 («7지점» 21:14:22 매산동·쌍령동·양벌동).
+     */
+    me: NetPoint | null = null,
 ) {
     const ringKm = Math.max(0, p.dstDiamKm / 2);
+    const meKm = Math.max(0, p.srcDiamKm / 2);
+    const inMe = (pt: { lng: number; lat: number }) => !!me && haversineKm(me, pt) <= meKm;
     /**
      * 🔴 **마름모의 시작 꼭짓점에는 원을 두르지 않는다** (기사님 지적 2026-09-09:
      * *"중간 기착지인 평촌동도 점선 라인과 영역에 지역들을 가지고 있는데 이걸 빼야 해"*).
@@ -860,13 +869,13 @@ export function lineZoneOf(
     const inRest = lastDrop ? makeInQuad(p, lastDrop, dst) : () => false;
     const onLine = (pt: { lng: number; lat: number }) => line.length >= 2 && distToLineKm(pt, line) <= lineRadiusKm;
     return {
-        dropIn: (pt: { lng: number; lat: number }) => onLine(pt) || haversineKm(dst, pt) <= ringKm || inRest(pt),
+        dropIn: (pt: { lng: number; lat: number }) => onLine(pt) || haversineKm(dst, pt) <= ringKm || inRest(pt) || inMe(pt),
         pickupIn: onLine,
         /**
          * 🔴 **«라인 띠로만 들어왔나»** — 진행도를 붙일 자격이 여기서 갈린다.
          *    마름모·목적지 원으로 든 동은 **아직 안 간 곳**이라 «지났나»를 물을 값이 아니다.
          */
-        onlyByLine: (pt: { lng: number; lat: number }) => onLine(pt) && !inRest(pt) && haversineKm(dst, pt) > ringKm,
+        onlyByLine: (pt: { lng: number; lat: number }) => onLine(pt) && !inRest(pt) && haversineKm(dst, pt) > ringKm && !inMe(pt),
     };
 }
 
@@ -874,8 +883,10 @@ export function lineZoneOf(
 export function buildLineNet(
     line: Array<[number, number]>, lineRadiusKm: number,
     lastDrop: NetPoint | null, p: NetParams, dst: NetPoint,
+    /** 🧩 내 영역 — 출발 전에만 (`lineZoneOf`) */
+    me: NetPoint | null = null,
 ): NetResult {
-    const { dropIn, onlyByLine } = lineZoneOf(line, lineRadiusKm, lastDrop, p, dst);
+    const { dropIn, onlyByLine } = lineZoneOf(line, lineRadiusKm, lastDrop, p, dst, me);
     const rest = lastDrop ? buildNet(p, lastDrop, dst) : null;
     const { pass, grouped } = collectDongs(dropIn);
     /**
@@ -902,8 +913,11 @@ export function buildLineNet(
             const c = centroidOfDong(m.dong, m.region);
             return { name: m.name, x: c.lng, y: c.lat, inside: dropIn(c) };
         }),
-        // 🔴 원은 **목적지 하나**다 — 마지막 하차지 원은 위 주석대로 안 두른다 (기사님 2026-09-09)
-        circles: [{ name: dst.name, ring: ringOf(dst, Math.max(0, p.dstDiamKm / 2)) }],
+        // 🔴 마지막 하차지 원은 위 주석대로 안 두른다 (기사님 2026-09-09) · 내 영역 원은 출발 전에만 (지도 점선)
+        circles: [
+            { name: dst.name, ring: ringOf(dst, Math.max(0, p.dstDiamKm / 2)) },
+            ...(me ? [{ name: me.name, ring: ringOf(me, Math.max(0, p.srcDiamKm / 2)) }] : []),
+        ],
         count: pass.length,
         groups: [...grouped.entries()]
             .map(([region, names]) => ({ region, names }))
@@ -931,10 +945,39 @@ export function netForGoal(goal: NetPoint, o: {
     params: NetParams;
     /** 라인이 없을 때 마름모의 출발 꼭짓점 — 내 위치 */
     anchor: NetPoint;
+    /** 🧩 내 영역 — **출발 전에만** 넘긴다. 라인 그물에 원을 더한다 (마름모 그물은 원래 내 위치 원이 있다) */
+    me?: NetPoint | null;
+    /**
+     * 🏘️ **관내 — 목적지 원 안 동만** (전수표 #29 · `judgeTwoStage` 의 local 과 같은 원).
+     *    🔴 예전엔 각도를 360° 로 바꿔 마름모를 원으로 만들었다 — 그 원은 **마름모반경**이라
+     *       이천 관내에 여주·용인 처인까지 35곳이 들었다 («7지점» 21:16:32).
+     */
+    local?: boolean;
 }): NetResult {
+    if (o.local) return buildRingNet(goal, o.params);
     return o.line
-        ? buildLineNet(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal)
+        ? buildLineNet(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal, o.me ?? null)
         : buildNet(o.params, o.anchor, goal);
+}
+
+/** 🏘️ 목적지 원 하나의 그물 — 관내 (`netForGoal` 의 `local`) */
+function buildRingNet(dst: NetPoint, p: NetParams): NetResult {
+    const ringKm = Math.max(0, p.dstDiamKm / 2);
+    const inRing = (pt: { lng: number; lat: number }) => haversineKm(dst, pt) <= ringKm;
+    const { pass, grouped } = collectDongs(inRing);
+    return {
+        tri: [],
+        pass,
+        marks: MARK_DONGS.map(m => {
+            const c = centroidOfDong(m.dong, m.region);
+            return { name: m.name, x: c.lng, y: c.lat, inside: inRing(c) };
+        }),
+        circles: [{ name: dst.name, ring: ringOf(dst, ringKm) }],
+        count: pass.length,
+        groups: [...grouped.entries()]
+            .map(([region, names]) => ({ region, names }))
+            .sort((a, b) => b.names.length - a.names.length),
+    };
 }
 
 /**

@@ -170,16 +170,18 @@ function netKeywordsOf(
         ? { name: '마지막 하차지', lng: line[line.length - 1][0], lat: line[line.length - 1][1] }
         : null;
     const net = netForGoal(goal, {
-        /* 🔴 관내는 **방향을 안 본다** (기사님: *"관내콜은 거리로 하지 말자. 그냥 상차지와
-           하차지가 같은 시도에 있으면"*). 그물에서 «방향»은 마름모의 각도이니 **360°**,
-           곧 원이다. 라인(경로 양옆)도 방향이라 함께 끈다. */
         /* 🔷 **동선이면 경로를 안 본다** — 지도(`useCallNet`)와 같은 분기 (조사 ①-9).
            예전엔 서버가 이 값을 몰라 «동선»을 골라도 판정·앱 목록은 노선이었다 */
-        line: (localMode || session.activeFilter.routeMode === false) ? null : line,
+        line: session.activeFilter.routeMode === false ? null : line,
         lineRadiusKm: auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
         lastDrop,
-        params: localMode ? { ...params, srcAngleDeg: 360, dstAngleDeg: 360 } : params,
+        params,
         anchor: me ? { name: '내 위치', lng: me.x, lat: me.y } : { name: '내 위치', lng: goal.lng, lat: goal.lat },
+        /* 🧩 **내 영역은 출발 전에만** (기사님 확정 2026-09-14 · 필터.md §5 «필터 영역»). 출발하면
+           내 영역 중 마름모 밖이 빠진다 — «그래야 진행 방향 뒤가 없어지니까» */
+        me: !session.departedAt && me ? { name: '내 위치', lng: me.x, lat: me.y } : null,
+        /* 🏘️ 관내는 **목적지 원 안만** (전수표 #29) — 방향도 경로도 안 본다 */
+        local: localMode,
     });
     /* 🩺 화면이 «지금 관내로 재고 있다»를 알아야 한다 — 판정이 달라진 이유다 (규칙 ⑤-4 ④) */
     session.activeFilter.localMode = localMode;
@@ -1111,8 +1113,10 @@ export function updateActiveFilter(
      * 그 **사실**을 세션에 새긴다. 이후 정류장에서 driverAction 이 어떻게 바뀌든
      * 운행 중은 유지된다 (마지막 하차로 콜이 0건이 될 때까지).
      */
+    let justDeparted = false;
     if (changes.driverAction === 'DRIVING' && !session.departedAt) {
         session.departedAt = Date.now();
+        justDeparted = true;
         console.log(`🚀 [출발] 이제 모으지 않고 갑니다 — 운행 중 유지 (정류장에서 안 풀림)`);
     }
     // 실은 짐이 없으면 출발했을 리도 없다
@@ -1194,6 +1198,13 @@ export function updateActiveFilter(
 
     logActiveFilter(session, "실시간 변경(activeFilter)", changes);
     broadcastFilter(userId, session, io);
+
+    /**
+     * 🧩 **출발하면 목록을 다시 만든다** — 내 영역 중 마름모 밖이 빠진다 (필터.md §5 «필터 영역»).
+     *    지나온 곳 빼기는 진행도 있는 동만 빼서 이 일을 못 한다.
+     *    ⚠️ 끝에서 한 번 — `rebuildNetFilter` 가 부르는 이 함수는 `driverAction` 을 안 실어 여기로 다시 안 온다.
+     */
+    if (justDeparted) rebuildNetFilter(userId, io);
 
     return session.activeFilter;
 }

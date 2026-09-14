@@ -71,7 +71,7 @@ export interface CallNetInput {
     excludedRegions?: readonly string[];
     /**
      * 🏘️ **관내 — 서버가 파생한 값 그대로** (전수 조사 ①-8 · 2026-09-12).
-     *    서버는 관내면 각도 360°·라인 끔으로 잰다(`filterManager` C4-8b). 지도에 이 분기가
+     *    서버는 관내면 목적지 원 안만 잰다(`netForGoal` 의 `local` · 전수표 #29 · 2026-09-14). 지도에 이 분기가
      *    없어서 **관내 동안 요약줄 «N 읍면동»이 서버와 달랐다.** 같은 함수를 부르면서 입력이
      *    달랐다 — 규칙 ③은 «계산»만이 아니라 **«입력»도 한 곳**이어야 한다.
      */
@@ -82,6 +82,11 @@ export interface CallNetInput {
      *    **지나온 동이 계속 점으로 남아** 화면과 판정이 다른 말을 한다. 비어 있으면(필터가 아직 안 옴) 거르지 않는다.
      */
     serverKeywords?: readonly string[];
+    /**
+     * 🚀 **출발했나** — 안 했으면 경로가 생겨도 내 영역을 함께 그린다 (기사님 확정 2026-09-14 · 필터.md §5 «필터 영역»).
+     *    서버 `netKeywordsOf` 가 `session.departedAt` 으로 같은 갈림을 한다 — 관제웹은 국면(`DELIVERING`)으로 안다.
+     */
+    departed?: boolean;
 }
 
 export interface CallNet {
@@ -93,7 +98,7 @@ export interface CallNet {
 }
 
 export function useCallNet(i: CallNetInput): CallNet | null {
-    const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape, localMode, serverKeywords } = i;
+    const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape, localMode, serverKeywords, departed } = i;
     /** 🔴 배열을 문자로 굳혀 의존성으로 삼는다 — 매 렌더 새 배열이면 그물을 매번 다시 만든다 */
     const serverKey = serverKeywords?.length ? JSON.stringify([...serverKeywords].sort()) : '';
     /** 🛣️ 안 주면 «노선» — 목업 기본값과 같다 (기사님 확정 2026-09-09) */
@@ -148,19 +153,22 @@ export function useCallNet(i: CallNetInput): CallNet | null {
             : null;
 
         const net = netForGoal(goal, {
-            /* 🏘️ 관내는 방향을 안 본다 — 라인 끔 · 각도 360° (서버 `netKeywordsOf` 와 같은 분기) */
-            line: localMode ? null : line,
+            line,
             lineRadiusKm: lineRadiusKm ?? 6,
             lastDrop,
             params: {
-                srcAngleDeg: localMode ? 360 : srcAngleDeg,
-                dstAngleDeg: localMode ? 360 : dstAngleDeg,
+                srcAngleDeg,
+                dstAngleDeg,
                 quadRadiusKm,
                 srcDiamKm: (pickupRadiusKm ?? 10) * 2,
                 dstDiamKm: (destinationRadiusKm ?? 15) * 2,
             },
             anchor: { name: '내 위치', lng: myLocation.x, lat: myLocation.y },
+            /* 🧩 내 영역은 출발 전에만 · 🏘️ 관내는 목적지 원 안만 — 서버 `netKeywordsOf` 와 같은 두 값 */
+            me: departed ? null : { name: '내 위치', lng: myLocation.x, lat: myLocation.y },
+            local: !!localMode,
         });
+        const usedLine = !!line && !localMode;
         /**
          * 🔴 **합치는 규칙은 `mergeGoalNets` 한 곳이다** — 겹침·지나온 곳·통째 제외를 거기서 본다.
          * 🚫 **제외 지역은 서버와 같은 목록을 본다** (이식 C2 · 2026-09-11 저녁).
@@ -172,16 +180,16 @@ export function useCallNet(i: CallNetInput): CallNet | null {
             departed: false, myProgressKm: 0,   // 🔴 지나온 동은 서버가 뺀다 — 아래에서 서버 목록과 겹친다
             excluded: JSON.parse(excludedKey) as string[],
         });
-        if (!serverKey) return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine: !!line, goal };
+        if (!serverKey) return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine, goal };
         const onServer = new Set(JSON.parse(serverKey) as string[]);
         const pass = merged.pass.filter(p => onServer.has(p.name));
         const byRegion = new Map<string, string[]>();
         for (const p of pass) byRegion.set(p.region, [...(byRegion.get(p.region) ?? []), p.name]);
         const groups = [...byRegion.entries()].map(([region, names]) => ({ region, names }))
             .sort((a, b) => b.names.length - a.names.length);
-        return { net: { ...net, pass, groups, count: pass.length }, usedLine: !!line, goal };
+        return { net: { ...net, pass, groups, count: pass.length }, usedLine, goal };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- polyline 은 lineKey 로 굳혀 본다 (위 주석)
         // eslint-disable-next-line react-hooks/exhaustive-deps -- 내 위치는 격자(gridX·gridY)로 굳혀 본다 (위 주석)
     }, [destinationCity, gridX, gridY, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, lineKey,
-        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey, routeMode, localMode, serverKey]);
+        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey, routeMode, localMode, serverKey, departed]);
 }

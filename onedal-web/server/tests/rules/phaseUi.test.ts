@@ -613,15 +613,16 @@ describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
 
     /**
      * 🔴 **방향을 안 본다** (기사님: *"관내콜은 거리로 하지 말자. 그냥 상차지와 하차지가
-     *    같은 시도에 있으면"*). 그물에서 «방향»은 마름모의 각도다 — 관내면 **360°**,
-     *    곧 원이 된다. 라인(경로 양옆)도 안 쓴다 — 그것도 방향이다.
+     *    같은 시도에 있으면"*). 🔄 2026-09-14 — 관내 그물은 **목적지 원 안만**이다 (전수표 #29 ·
+     *    `callNet.judgeTwoStage` 의 local 과 같은 원). 예전엔 각도를 360° 로 바꿔 마름모를 원으로 만들었는데
+     *    그 원이 **마름모반경**이라 이천 관내에 여주·용인 처인까지 35곳이 들었다 («7지점» 21:16:32).
+     *    라인(경로 양옆)은 관내 그물(`netForGoal` 의 local)이 안 본다 — 동선만 라인을 끈다.
      */
-    it('🔴 관내면 방향을 안 본다 — 각도 360° · 라인 없음', () => {
-        const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 3000);
-        expect(net).toMatch(/srcAngleDeg: 360/);
-        expect(net).toMatch(/dstAngleDeg: 360/);
-        /* 🔄 2026-09-12 — 동선(`routeMode === false`)도 라인을 끈다 (전수 조사 ①-9). 관내 분기는 그대로다 */
-        expect(net).toMatch(/\(localMode \|\| session\.activeFilter\.routeMode === false\) \? null : line/);
+    it('🔴 관내면 목적지 원 안만 — 각도 360° 우회를 안 쓴다', () => {
+        const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 4000);
+        expect(net).toMatch(/local: localMode/);
+        expect(net).not.toMatch(/AngleDeg: 360/);
+        expect(net).toMatch(/session\.activeFilter\.routeMode === false \? null : line/);
     });
 
     /**
