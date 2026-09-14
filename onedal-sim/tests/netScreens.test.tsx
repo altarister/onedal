@@ -35,7 +35,7 @@ const markup = (el: ReactElement) => {
 const base: NetScreenProps = {
     streamingCalls: [callA, callB], confirmedCalls: [], activeTab: 'ALL', setActiveTab: noop,
     selectedCall: null, selectedCallId: null, openCall: noop, closeDetail: noop,
-    acceptCall: noop, cancelCall: noop, completeCall: noop,
+    acceptCall: noop, cancelCall: noop,
     isTimerPaused: false, toggleTimer: noop, isFetchingOrder: false, maxPickupKm: 15, goSetup: noop,
 };
 
@@ -60,7 +60,7 @@ describe('배차망 화면 = 예전 DispatchPage 갈래가 고르던 부품', ()
 
     it('인성 상세 — 잡은 콜은 진행 중 상세', () => {
         expect(markup(<InsungSimScreen {...base} confirmedCalls={[callA]} selectedCall={callA} />))
-            .toBe(markup(<InseongOngoingDetailScreen call={callA} onClose={noop} onConfirm={noop} onCancel={noop} />));
+            .toBe(markup(<InseongOngoingDetailScreen call={callA} onClose={noop} onCancel={noop} />));
     });
 
     it('화물24시 리스트', () => {

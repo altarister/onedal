@@ -23,7 +23,6 @@ export const InsungSimScreen = (p: NetScreenProps) => {
         <InseongOngoingDetailScreen
           call={selected}
           onClose={p.closeDetail}
-          onConfirm={p.completeCall}
           onCancel={p.cancelCall}
         />
       );

@@ -41,7 +41,6 @@ export interface NetScreenProps {
   /** 리스트에서 빼고 잡은 콜에 넣는다 (수락 뒤 무엇을 보일지는 배차망 화면이 정한다) */
   acceptCall: (call: SimCall) => void;
   cancelCall: (call: SimCall) => void;
-  completeCall: (call: SimCall) => void;
   isTimerPaused: boolean;
   toggleTimer: () => void;
   isFetchingOrder: boolean;

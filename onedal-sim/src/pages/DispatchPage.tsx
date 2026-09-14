@@ -120,11 +120,6 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     handleCloseDetail();
   }, [setConfirmedCalls, handleCloseDetail]);
 
-  const handleCompleteDelivery = useCallback((call: SimCall) => {
-    setConfirmedCalls(prev => prev.filter(c => c.id !== call.id));
-    handleCloseDetail();
-  }, [setConfirmedCalls, handleCloseDetail]);
-
   // 🔴 문제지 이름을 못 찾았다 — 랜덤으로 흘리지 않고 멈춘다 (위 주석 참조)
   // 콜을 고른 상태면 상세가 먼저다 — 예전 순서(상세 → 문제지 없음 → 리스트) 그대로
   if (!selectedCall && presetMissing) {
@@ -162,7 +157,6 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
       closeDetail={handleCloseDetail}
       acceptCall={handleAcceptCall}
       cancelCall={handleCancelCall}
-      completeCall={handleCompleteDelivery}
       isTimerPaused={isTimerPaused}
       toggleTimer={() => setIsTimerPaused(!isTimerPaused)}
       isFetchingOrder={isFetchingOrder}

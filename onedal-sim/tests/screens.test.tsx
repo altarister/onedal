@@ -55,7 +55,7 @@ describe('화면 글자 — 고정 콜 · 고정 난수 · 고정 시각', () =>
 
     it('인성 상세 · 확정 뒤 상세 · 출발지 팝업 · 적요 팝업 · 메뉴', () => {
         expect(textOf(<InseongCallDetailScreen call={callA} feedback={null} isConfirmed={false} onClose={noop} onAccept={noop} />)).toMatchSnapshot();
-        expect(textOf(<InseongOngoingDetailScreen call={callA} onClose={noop} onConfirm={noop} onCancel={noop} />)).toMatchSnapshot();
+        expect(textOf(<InseongOngoingDetailScreen call={callA} onClose={noop} onCancel={noop} />)).toMatchSnapshot();
         expect(textOf(<InseongLocationDetailScreen type="PICKUP" detail={callA.pickupDetails![0]} onClose={noop} />)).toMatchSnapshot();
         expect(textOf(<InseongMemoDetailScreen call={callA} distPickup="2.4" distDelivery="21.7" onClose={noop} />)).toMatchSnapshot();
         expect(textOf(<InseongDropdownMenu onClose={noop} />)).toMatchSnapshot();

@@ -13,11 +13,10 @@ interface Props {
   isConfirmed?: boolean;
   onClose: () => void;
   onAccept?: (call: InsungCall) => void;
-  onConfirm?: (call: InsungCall) => void;
   onCancel?: (call: InsungCall) => void;
 }
 
-export const InseongOngoingDetailScreen = ({ call, onClose, onConfirm, onCancel }: Props) => {
+export const InseongOngoingDetailScreen = ({ call, onClose, onCancel }: Props) => {
   // 출발지/도착지 및 적요 상세 팝업 상태
   const [locationPopup, setLocationPopup] = useState<{ type: 'PICKUP' | 'DROPOFF'; detail: LocationDetailInfo } | null>(null);
   const [showMemoPopup, setShowMemoPopup] = useState(false);
@@ -180,11 +179,9 @@ export const InseongOngoingDetailScreen = ({ call, onClose, onConfirm, onCancel 
         >
           카드 승인
         </button>
+        {/* 🔴 «탁송»은 배송 완료가 아니다 — 실물은 다른 기능이고 기사님도 아직 모른다 (2026-09-14).
+            예전엔 «배송 완료»로 잡은 콜을 지웠다. 이제 잡은 콜은 위쪽 «취소»로만 빠진다 (tests/buttons.test.tsx) */}
         <button
-          onClick={() => {
-            if (onConfirm) onConfirm(call);
-            else onClose();
-          }}
           className="flex-1 h-12 flex items-center justify-center font-extrabold text-xl rounded-sm shadow-sm bg-[#ffb300] text-gray-800 border-2 border-orange-400 active:scale-95 transition-transform"
         >
           탁송
