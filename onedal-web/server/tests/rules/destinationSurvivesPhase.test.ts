@@ -173,9 +173,10 @@ describe('도착 목표가 국면을 넘어 살아남는다', () => {
         expect(progress).toHaveProperty('산북면');
         expect(progress['산북면']).toBeNull();
 
-        // 🔴 도착목표로만 들어온 동은 **키 자체가 없어야** 한다.
-        //    있으면 앱이 «순서 미상 — 통과» 로 읽어 그 동에서 싣는 콜을 허용한다.
-        expect(progress).not.toHaveProperty('점동면');
-        expect(progress).not.toHaveProperty('세종대왕면');
+        // 🔄 2026-09-14 개정 (기사님 결정 — 필터는 방향을 안 본다): 도착목표로 들어온 동도 **null 로 나간다** — 순서 미상 → 통과.
+        //    옛 규칙(키 자체를 빼서 «경로 밖 — 차단»)이 «7지점» 05 사음동(목적지 영역 안)을 막았다. 뒤로 가는 상차는 필터 영역이 뺀다.
+        expect(progress).toHaveProperty('점동면');
+        expect(progress['점동면']).toBeNull();
+        expect(progress['세종대왕면']).toBeNull();
     });
 });

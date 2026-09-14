@@ -88,3 +88,32 @@ describe('🗺️ 지도 — 지나온 곳을 판정과 같게', () => {
         expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/acc < \(?netOverlay\.trimKm/);
     });
 });
+
+/**
+ * 🧩 **앱이 지역명만 보기 때문에 목업과 달라지는 두 곳** (기사님 결정 2026-09-14 «나» · 7지점 두 번째 바퀴).
+ *
+ *   03 곤지암→관고 — 실제 상차지(곤지암성당)는 경로에서 2.15km 로 띠(2.73km) 안인데 **곤지암읍 동 중심점**은 5.36km →
+ *                    목록에 안 들어가 «경로 밖». 목업은 상차지 좌표로 재지만 앱은 동 이름뿐이다 →
+ *                    **동 경계가 띠에 걸치면 넣는다** (옛 계산 방식 · 앱은 넉넉하게 올린다 규칙 ⑤)
+ *   05 사음동→중리동 — 사음동은 목적지 영역 안이라 목록에 있지만 순서표는 경로 영역 동만 → «경로 밖».
+ *                    필터는 방향을 안 본다(같은 날 결정) → **목록에 든 동은 순서표에 다 넣고, 모르면 null**(앱: 순서 미상 → 통과)
+ */
+describe('🧩 앱은 지역명만 본다 — 동을 넉넉하게', () => {
+    const { buildAppOrderKm } = require('../../src/state/filterManager');
+    it('🔴 목록에 있는데 경로 위가 아닌 동도 순서표에 null 로 나간다 (05 사음동)', () => {
+        const s = {
+            myOrders: [{ id: 'o1', status: 'ORDER_CONFIRMED' }],
+            detourOrderKm: { 신둔면: 10.0 },
+            detourFlat: ['신둔면'],
+            activeFilter: { destinationKeywords: ['신둔면', '사음동'] },
+        } as any;
+        const out = buildAppOrderKm(s);
+        expect(out.신둔면).toBe(10.0);
+        expect(out).toHaveProperty('사음동');
+        expect(out.사음동).toBeNull();
+    });
+    it('🔴 경로 영역은 동 경계가 띠에 걸치면 넣는다 — 그물 목록에 더한다 (03 곤지암읍)', () => {
+        const net = body(fm, 'function netKeywordsOf');
+        expect(net).toMatch(/getDetourRegions\(/);
+    });
+});

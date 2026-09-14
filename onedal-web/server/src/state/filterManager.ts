@@ -198,6 +198,18 @@ function netKeywordsOf(
         const region = d.region ?? '기타 지역';
         (grouped[region] ??= []).push(d.name);
     }
+    /**
+     * 🧩 **경로 영역은 동 경계가 띠에 걸치면 넣는다** (기사님 결정 2026-09-14 «나» · 전수표 #26).
+     *    그물은 동을 **중심점 하나**로 본다. 목업은 상차지 **좌표**로 재니 괜찮지만 스캔앱은 **지역명만** 본다 —
+     *    «7지점» 03 곤지암성당은 경로에서 2.15km(띠 안)인데 곤지암읍 중심점이 5.36km 라 목록에 없어 막혔다.
+     *    앱은 넉넉하게 올리고 판정이 가른다(규칙 ⑤) — 띠에 걸친 동을 더한다. 폭은 그물 라인과 같은 값(자동이면 줄인 값).
+     */
+    const lineUsed = (localMode || session.activeFilter.routeMode === false) ? null : line;
+    const touch = lineUsed
+        ? getDetourRegions(lineUsed.map(([x, y]) => ({ x, y })),
+            auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM))
+        : null;
+    if (touch) for (const [region, names] of Object.entries(touch.grouped)) (grouped[region] ??= []).push(...names);
     for (const k of Object.keys(grouped)) grouped[k] = [...new Set(grouped[k])].sort();
     /**
      * 📏 **진행도도 같은 그물에서 낸다** (전수표 1단계 · 2026-09-14) — 라인 띠로만 든 동에 붙은
@@ -209,6 +221,10 @@ function netKeywordsOf(
         if (d.progressKm == null) continue;
         const prev = progressKm[d.name];
         if (prev === undefined || d.progressKm > prev) progressKm[d.name] = d.progressKm;
+    }
+    /* 🧩 띠에 걸쳐 더한 동도 경로 위다 — 순서는 그 동의 경로 스냅점(순서 전용 값 · #78)으로 */
+    if (touch) for (const [name, km] of Object.entries(touch.orderKm)) {
+        if (progressKm[name] === undefined && Number.isFinite(km)) progressKm[name] = km;
     }
     return { ...prune(grouped, true), progressKm };
 }
@@ -562,9 +578,6 @@ export function buildAppOrderKm(
     const order = session.detourOrderKm;
     if (!order) return {};
 
-    // 경로 위 동 목록 — 없으면(옛 세션) 거르지 않는다. 지금까지의 동작 그대로다
-    const onRoute = session.detourFlat ? new Set(session.detourFlat) : null;
-
     const out: Record<string, number | null> = {};
     for (const dong of session.activeFilter.destinationKeywords ?? []) {
         /**
@@ -581,7 +594,10 @@ export function buildAppOrderKm(
          *    경로 위인데도 순서 맵에 없다. 그 동은 `null`(«순서 미상 — 통과»)로 나가야
          *    맞다 — «모르는 것»과 «경로 밖»은 다르다. 그래서 경유 목록으로 거른다.
          */
-        if (onRoute && !onRoute.has(dong)) continue;
+        /* 🔄 **2026-09-14 개정 — 목록에 든 동은 다 싣는다. 경로 위가 아니면 `null`(순서 미상 → 통과).**
+         *    기사님 결정: *"필터가 그렇게 디테일할 수 없다 — 그냥 올리고 판정에서 나쁜 점수를 받으면 기사는 선택하지 않는다."*
+         *    위 주석의 옛 규칙(경로 밖 동은 빼서 «경로 밖 — 차단»)은 «7지점» 05(사음동 — 목적지 영역 안)를 막았다.
+         *    뒤로 가는 상차는 이제 필터 영역이 뺀다(필터.md §5 «필터 영역» · 전수표 2단계). */
         const v = order[dong];
         // 유한하지 않은 값이 섞여 들면 «순서 미상 — 통과» — 느슨한 쪽이 안전하다 (규칙 ⑤)
         out[dong] = Number.isFinite(v) ? (v as number) : null;
