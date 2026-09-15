@@ -379,9 +379,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         if (myLocation) allCoords.push(myLocation);
         /* 🔺 그물을 켜면 그 삼각형까지 보이게 — 안 그러면 현위치만 확대돼 선 하나만 스쳐 간다 */
         if (coneOverlay) for (const [x, y] of coneOverlay.tri) allCoords.push({ x, y });
-        // 🔵 하차 영역도 화면에 들어와야 한다 — 안 넣으면 마름모 · 목적지가 화면 밖으로 잘린다
-        if (dropoffArea) { for (const q of dropoffArea.quads) allCoords.push(...q);
-            for (const g of dropoffArea.goals) allCoords.push(g); }
+        /* 🎯 목적지 마커만 화면 맞춤에 넣는다 — 영역 모양(마름모 · 원)은 안 넣는다.
+              마름모는 달리는 동안 300m 눈금 · «가까이 옴»으로 계속 바뀌어 확대가 매번 다시 잡혔다
+              (기사님 2026-09-15 «전체 화면이 줄었다 늘었다 해»). 목적지는 움직이지 않는다 */
+        if (dropoffArea) for (const g of dropoffArea.goals) allCoords.push(g);
         if (coneOverlay?.callPath) for (const p of coneOverlay.callPath) allCoords.push({ x: p.x, y: p.y });
 
         if (allCoords.length === 0) {

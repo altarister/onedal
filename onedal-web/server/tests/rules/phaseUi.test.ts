@@ -769,6 +769,19 @@ describe('요약줄 «N 읍면동» — 서버 하차 목록 수 (2026-09-15)', 
         expect(line).not.toMatch(/netCount/);
     });
 
+    /**
+     * 🔴 **화면 맞춤은 영역 모양을 안 본다** (기사님 2026-09-15 «주행할 때마다 덜컥 덜컥 · 전체 화면이 줄었다 늘었다 해 · 기준을 영역을 잡아서 그런가봐»).
+     *    마름모는 내 위치 300m 눈금 · «가까이 옴»으로 달리는 동안 계속 바뀐다 — 그것을 «전체» 맞춤에 넣었더니 확대가 매번 다시 잡혔다.
+     *    맞춤은 경로 · 내 위치 · 🎯 목적지 마커(움직이지 않는다)만 본다.
+     */
+    it('🔴 화면 맞춤에 하차 영역 마름모를 안 넣는다 — 목적지 마커만', () => {
+        const canvas = codeOnly(read(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx')));
+        const i = canvas.indexOf('const allCoords');
+        const fit = canvas.slice(i, canvas.indexOf('if (allCoords.length === 0)', i));
+        expect(fit).not.toMatch(/dropoffArea\.quads/);
+        expect(fit).toMatch(/dropoffArea\.goals/);
+    });
+
     it('🔴 옛 «그물» 레이어 · 훅이 없다 — 지도는 «상차» · «하차» 레이어만', () => {
         expect(require('fs').existsSync(join(CLIENT, 'hooks/useCallNet.ts'))).toBe(false);
         const canvas = codeOnly(read(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx')));   // 주석의 «옛 netOverlay» 설명은 센다지 않는다
