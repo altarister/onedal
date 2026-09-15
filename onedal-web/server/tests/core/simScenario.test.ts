@@ -301,6 +301,29 @@ describe('🎬 할 일 줄은 «○○에 서면»이 먼저다', () => {
     });
 });
 
+describe('🎬 짝짓기 — 좌표가 어긋나도 동 이름·요금이 맞으면 그 줄의 콜이다', () => {
+    /**
+     * 🔴 픽커 목록은 가게 이름만 보여 서버가 찾은 좌표가 문제지 지점과 어긋난다 (22:03 바퀴 — 하차 2.4km).
+     *    좌표로만 보면 KEEP 한 콜을 못 알아봐 75초 🔴 → 건너뜀 → 콜 없이 «모의 주행 시작»이 나온다.
+     *    한 문제지 안에서 동 이름·요금 조합은 겹치지 않는다(«폰 지문이 겹치지 않는다» 검사).
+     */
+    const { ICHEON_FIVE_OK } = require('../../src/core/simScenarioIcheon');
+    const five = ICHEON_FIVE_OK as typeof def;
+
+    it('🔴 픽커 MANUAL 콜 — 하차 좌표가 2.4km 어긋나도 초월읍 → 신둔면 · 50000 이면 S1 ✅', () => {
+        const r = stepScenario(five, startScenario(five, T0), baseWorld(T0));
+        expect(r.send?.dropoff.region).toBe('신둔면');
+        const picked = {
+            id: 'MANUAL-1789477411421', status: 'ORDER_CONFIRMED', fare: 50000,
+            pickup: '경기 광주시 초월읍 모다아울렛', dropoff: '경기 이천시 신둔면 신둔농협 예스파크',
+            pickupX: 127.31258709426947, pickupY: 37.36329808668746, dropoffX: 127.383808316419, dropoffY: 37.2928984230697,
+        };
+        const st = stepScenario(five, r.state, baseWorld(T0 + 4000, { orders: [picked] })).state;
+        expect(st.rows[0].orderId).toBe('MANUAL-1789477411421');
+        expect(st.rows[0].mark).toBe('ok');
+    });
+});
+
 describe('🎬 문제 목록 — 서버가 둘을 들고 현황판이 이천 왕복 하루 아래에 5콜을 그린다', () => {
     const { readFileSync } = require('fs');
     const { join } = require('path');

@@ -134,13 +134,15 @@ const km = (x: number, y: number, p: { lon: number; lat: number }) =>
 const near = (x: number | null | undefined, y: number | null | undefined, p: { lon: number; lat: number }) =>
     x != null && y != null && km(x, y, p) <= MATCH_KM;
 
-/** 이 콜이 그 줄의 콜인가 — 좌표 둘이 다 있으면 좌표로, 아니면 상차·하차 동 이름과 요금으로 (#128) */
+/**
+ * 이 콜이 그 줄의 콜인가 — 좌표 둘이 다 가까우면, 아니면 상차·하차 동 이름과 요금으로 (#128).
+ * 🔴 좌표가 있어도 어긋나면 동 이름·요금으로 다시 본다 — 픽커 목록은 가게 이름만 보여 서버가 찾은 좌표가 수 km 어긋난다.
+ *    한 문제지 안에서 동 이름·요금 조합은 겹치지 않는다 (검사 «폰 지문이 겹치지 않는다»).
+ */
 function sameCall(x: { pickupX?: number | null; pickupY?: number | null; dropoffX?: number | null; dropoffY?: number | null;
                        pickup?: string | null; dropoff?: string | null; fare?: number | null },
                   call: NonNullable<ScenarioRow['call']>): boolean {
-    if (x.pickupX != null && x.pickupY != null && x.dropoffX != null && x.dropoffY != null) {
-        return near(x.pickupX, x.pickupY, call.pickup) && near(x.dropoffX, x.dropoffY, call.dropoff);
-    }
+    if (near(x.pickupX, x.pickupY, call.pickup) && near(x.dropoffX, x.dropoffY, call.dropoff)) return true;
     return !!x.pickup && !!x.dropoff && x.pickup.includes(call.pickup.region) && x.dropoff.includes(call.dropoff.region)
         && (x.fare == null || x.fare === call.fare);
 }
