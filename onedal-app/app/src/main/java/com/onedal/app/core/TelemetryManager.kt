@@ -206,6 +206,10 @@ class TelemetryManager(
     @Volatile
     var currentMode: String = "MANUAL"
 
+    /** 🖼️ 서버에서 모드를 받을 때마다 부른다 — 화면 테두리(`ModeFrame`)가 색을 맞춘다 */
+    @Volatile
+    var modeCallback: ((String) -> Unit)? = null
+
     /**
      * 🚦 **«지금 무슨 일을 하는 중인가»를 보낼 때마다 물어본다** (2026-09-02 · 0단계 ①).
      *
@@ -319,6 +323,7 @@ class TelemetryManager(
             payload = payload,
             onModeReceived = { mode ->
                 currentMode = mode
+                modeCallback?.invoke(mode)
                 AppLogger.d(TAG, "📥 [서버 수신] $triggerStr 완료 (수신된 모드: $mode)")
             },
             onDecisionReceived = decisionCallback,

@@ -176,6 +176,8 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /** 🔔 알람 모드의 폰 쪽 신호 — 소리·진동·테두리 (`docs/지금/기기_모드.md` 2단계) */
     private val alarmSignaler by lazy { AlarmSignaler(this) }
+    /** 🖼️ 접근성이 켜져 있는 동안 화면 전체를 모드 색으로 두른다 — 녹색 알람 · 파랑 자동 · 주황 직접 */
+    private val modeFrame by lazy { com.onedal.app.core.ModeFrame(this) }
 
     /**
      * ⏱️ **픽커 상세 대기 타이머** — **ID 를 저장해 취소 가능하게** (좀비 타이머 규칙).
@@ -394,6 +396,10 @@ class HijackService : AccessibilityService(), ScanContext {
             }
         }
 
+        /* 🖼️ 모드 테두리 — 붙자마자 지금 모드로 두르고, 서버에서 모드를 받을 때마다 색을 맞춘다. 서비스가 내려가면 걷는다(onDestroy) */
+        telemetryManager.modeCallback = { mode -> modeFrame.show(mode) }
+        telemetryManager.currentMode.let { mode -> modeFrame.show(mode) }
+
         // 화면 켜짐/꺼짐 이벤트 수신 등록
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
@@ -433,6 +439,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     override fun onDestroy() {
         super.onDestroy()
+        modeFrame.hideNow()   // 🖼️ 테두리가 없으면 접근성 꺼짐 — 내려가는 순간 걷는다
         unregisterReceiver(screenOffReceiver)
         telemetryManager.stop()
         cancelSafeCancelTimer()
