@@ -251,7 +251,22 @@ object KakaoPickerKeywords {
      * 🔴 내 오더는 리스트 계열이 아니다 — `HijackService` 의 리스트 복귀(세션 비움)에 안 걸려야 수락 뒤 승격이 산다.
      */
     fun pickerScreenContextOf(rawText: String?): ScreenContext? =
-        screenContextOf(stageOf(rawText)) ?: if (isMyOrderTab(rawText)) ScreenContext.MY_ORDERS else null
+        screenContextOf(stageOf(rawText))
+            ?: if (isMyOrderTab(rawText)) ScreenContext.MY_ORDERS
+            else if (isScrolledList(rawText)) ScreenContext.LIST
+            else null
+
+    /**
+     * 📋 **스크롤해서 머리줄 «리스트 설정»이 가려진 신규 리스트** (09-16 05:28 라이브 — 상세에서 돌아온 리스트가 «모르는 화면»으로 떴다).
+     * 아래 탭 줄 «신규 내 오더» + 떠 있는 메뉴 «서포트모드»가 있고, 내 오더 표식(«목록 지도») · 상세 표식(«수락하기»)이 없다.
+     * 머리줄이 보이면 원래 판별(`PICKER.listRequired`)에 맡긴다.
+     * 🔴 머리줄이 안 보이는 리스트에서는 알람이 카드를 누르지 않는다 — `KakaoPickerParser.isListCardAnchor` 가 머리줄 Y 없음이면 false (#111)
+     */
+    fun isScrolledList(rawText: String?): Boolean {
+        val t = rawText ?: return false
+        return !t.contains("리스트 설정") && t.contains("신규 내 오더") && t.contains("서포트모드") &&
+            !t.contains(MY_ORDER_TAB_WORD) && !t.contains("수락하기")
+    }
 
     /** ✅ **수락했다는 증거** — 운행 화면(퀵 흰 페이지 · 도보 «밀어서 …» 등)이거나, 오더가 든 «내 오더» 탭 (수락하면 곧바로 여기로 온다) */
     fun isAcceptedEvidence(rawText: String?): Boolean =

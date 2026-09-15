@@ -119,6 +119,19 @@ class PickerQuickPageTest {
         assertNull("내 오더는 운행 단계가 아니다 — 관제웹 화면 이름은 그대로", k.stageOf(myOrderWithCall))
     }
 
+    /** 🟢 실물 라이브 09-16 05:28:27 — 상세에서 돌아와 스크롤된 리스트 (머리줄 «리스트 설정»이 화면 밖) */
+    private val realScrolledList = "6.8km 광주 송정 역삼1 퀵 반나절 승 예약 17:00 15.9km 분당 백현 영등포 여의 16,632 " +
+        "퀵 중형 예약 09:30 11.8km 광주 능평 병점 진안 14,784 서포트모드 카드설정 수요지도 신규 내 오더"
+
+    @Test
+    fun `🔴 스크롤해서 리스트 설정이 가려진 리스트도 리스트다 - 아래 탭 줄 + 서포트모드 (09-16 05시28분 라이브)`() {
+        assertEquals(com.onedal.app.models.ScreenContext.LIST, k.pickerScreenContextOf(realScrolledList))
+        assertEquals("내 오더 탭은 여전히 내 오더", com.onedal.app.models.ScreenContext.MY_ORDERS, k.pickerScreenContextOf(realMyOrderEmpty))
+        assertNull("수락 전 상세는 리스트가 아니다", k.pickerScreenContextOf("$realScrolledList 넘기기 수락하기"))
+        assertNull("머리줄이 보이면 원래 판별(리스트 설정)에 맡긴다", k.pickerScreenContextOf(realList))
+        assertNull("아래 탭 줄만으로는 리스트가 아니다", k.pickerScreenContextOf("6.8km 광주 송정 역삼1 신규 내 오더"))
+    }
+
     /** 🖥️ 관제웹에 «알 수 없는 화면» 대신 «내 오더»로 보인다 (기사님 지시 · 09-16 04:43 라이브) */
     @Test
     fun `관제웹 화면 이름 - 내 오더 탭은 MY_ORDERS · 퀵 페이지는 운행 화면 · 리스트는 기존 판별에 맡긴다`() {
