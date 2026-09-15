@@ -152,8 +152,10 @@ describe('🎬 이천 왕복 — 사건순', () => {
      */
     it('🔴 KEEP 줄이 폰에 막히면 기다린다 — 재판정이 통과해 올라오면 ✅ · 끝까지 막히면 재판정 여부를 적는다', () => {
         const c3 = idx('C3');
-        const at = (st: ScenarioState) => ({ ...st, index: c3, rows: st.rows.map((x, i) => i < c3 ? { ...x, mark: 'ok' as const } : x) });
-        const sent = () => run(at(startScenario(def, T0)), baseWorld(T0)).state;
+        const at = (st: ScenarioState) => ({ ...st, index: c3, rows: st.rows.map((x, i) => i === idx('B3') ? { ...x, mark: 'ok' as const, orderId: 'o-b3' } : i < c3 ? { ...x, mark: 'ok' as const } : x) });
+        /* C3 는 B3 하차에 선 뒤에 나간다 (여섯 번째 바퀴 개정) — 세계에 B3 하차 도착을 둔다 */
+        const b3 = orderFor('B3', 'o-b3', 'ORDER_DELIVERED', { arrivedDropoffAt: new Date(T0).toISOString() });
+        const sent = () => run(at(startScenario(def, T0)), baseWorld(T0, { orders: [b3] })).state;
 
         let st = run(sent(), baseWorld(T0 + 3000, { intel: [intelFor('C3', 11, 'pickupList')] })).state;
         expect(st.rows[c3].mark).toBe('sent');

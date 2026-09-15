@@ -66,8 +66,10 @@ export interface DriveDial {
     /** 🐢 서행할 때 걸음을 몇 분의 일로 — 4 면 ¼ */
     slowFactor: number;
 }
-/** 도착 정차 연기(실초) — 정차 감지 10초 + 시트가 올라온 것을 «볼» 여유 */
-export const DWELL_TICKS = 18;
+/** 도착 정차 연기(실초) — 「굳는 시간」10초 + 1초(점 수 − 1) + 여유 1초 (`dialEffectOf` 의 문턱 11초).
+ *  🔄 18 → 12 (2026-09-15 여섯 번째 바퀴 · 기사님 «정차가 너무 길다» · onedal-49 제안). 모의 좌표의 도착은 500m 안이면 곧바로라
+ *  (`geoService.evaluateArrivalTick` 의 mock) 정차가 도착을 막지 않는다 — 정차는 «주행/정차» 판정을 보려는 것뿐이다. */
+export const DWELL_TICKS = 12;
 
 /**
  * 🏭 **정거장이 도로에서 벗어나 있는 폭** — 이번 걸음에 이 여유를 더해 «지나쳤나»를 본다.

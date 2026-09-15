@@ -380,7 +380,8 @@ router.get("/scenario", (_req, res) => {
         rows: scenarioDef.map((d, i) => ({
             id: d.id, stage: d.stage, kind: d.kind, say: d.say, why: d.why, guess: !!d.guess, blockBy: d.blockBy ?? null,
             when: 'arrive' in d.when ? `${d.when.arrive} ${d.when.stop === 'pickup' ? '상차' : '하차'}지에 서면` : '앞 줄 뒤',
-            call: d.call ? `${d.call.pickup.name} → ${d.call.dropoff.name} · ${d.call.fare.toLocaleString()} · ${d.call.vehicleType}` : null,
+            /* 🏷️ 동 이름을 앞에 — 폰 콜 목록은 동만 보여 줘서 «이천터미널»만으로는 목록 줄과 짝이 안 맞는다 (기사님 2026-09-15) */
+            call: d.call ? `${d.call.pickup.region} ${d.call.pickup.name} → ${d.call.dropoff.region} ${d.call.dropoff.name} · ${d.call.fare.toLocaleString()} · ${d.call.vehicleType}` : null,
             ...(st ? st.rows[i] : { mark: 'wait', note: '' }),
         })),
     });

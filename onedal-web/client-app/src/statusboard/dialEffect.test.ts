@@ -18,7 +18,7 @@ import { dialEffectOf } from './dialEffect';
  *    답한다 — 그 값을 **넘겨받아** 견준다. 10 을 박아 두면 기사님이 1초로 바꾼 날
  *    화면이 옛 문턱으로 거짓말한다 (규칙 ③).
  */
-const dial = { dwellSec: 18, approachKm: 1, slowFactor: 4, speed: 15, holdSec: 10,
+const dial = { dwellSec: 12, approachKm: 1, slowFactor: 4, speed: 3, holdSec: 10,
                kmPerTick: 0.1, offRoadKm: 0.7 };
 
 describe('연기 눈금 — 이 눈금으로 무엇을 못 보나', () => {
@@ -33,13 +33,13 @@ describe('연기 눈금 — 이 눈금으로 무엇을 못 보나', () => {
         expect(e.requiredDwellSec).toBe(11);       // 굳는 시간 10초 → 11초는 돼야 이어진다
     });
 
-    /** ⚠️ **딱 같은 값은 1초가 모자란다** — 18 과 10 처럼 여유가 있을 때만 초록이다 */
+    /** ⚠️ **딱 같은 값은 1초가 모자란다** — 12 와 10 처럼 여유가 있을 때만 초록이다 */
     it('⚠️ 정차가 「굳는 시간」과 같으면 아직 모자라다', () => {
         expect(dialEffectOf({ ...dial, dwellSec: 10 }).dwellShort).toBe(true);
         expect(dialEffectOf({ ...dial, dwellSec: 11 }).dwellShort).toBe(false);
     });
 
-    it('기본 눈금(18초)은 경고가 없다', () => {
+    it('기본 눈금(12초)은 경고가 없다', () => {
         expect(dialEffectOf(dial).dwellShort).toBe(false);
     });
 

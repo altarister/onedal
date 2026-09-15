@@ -56,14 +56,14 @@ interface MockGpsSimulatorProps {
  * 🧪 지정된 경로(Polyline)를 따라 가상의 GPS 좌표(x, y)를 순차적으로 방출하는 시뮬레이터 훅
  * @param isActive 시뮬레이터 동작 여부
  * @param routePolyline 주행할 경로의 폴리라인 좌표 배열
- * @param speedMultiplier 주행 속도 배속 (기본값: 15배속, 약 1초에 1~2km)
+ * @param speedMultiplier 주행 속도 배속 (기본값: 3배속, 1초에 0.3km — 속도 셋은 `MOCK_DRIVE_SPEEDS`)
  * @returns 현재 주행 중인 가상 위치의 { x, y } 좌표 (경도, 위도)
  */
 export function useMockGpsSimulator({
     isActive,
     routePolyline,
     stops,
-    speedMultiplier = 15,
+    speedMultiplier = 3,
 }: MockGpsSimulatorProps) {
     /** 👣 `via` — 이번 틱에 **지나온** 폴리라인 점들. 궤적이 카카오 곡선 그대로 남는다 */
     const [mockLocation, setMockLocation] = useState<{
@@ -210,7 +210,7 @@ export function useMockGpsSimulator({
 
             /**
              * 🎭 걸음은 전부 simStep 각본이 정한다 (2026-08-31 — 기사님: «시뮬이 연기를 해야
-             * 상태 기계가 밟힌다»): 정거장 1km 앞 감속 · 도착하면 실초 18초 정차(정차 감지
+             * 상태 기계가 밟힌다»): 정거장 1km 앞 감속 · 도착하면 실초로 정차 눈금만큼 정차(정차 감지
              * 10초가 진짜로 발화) · 재출발. 배속은 순항에만 곱한다 — 정차는 실초.
              * 정거장 좌표 찍기(도로에서 떨어진 물류센터 601m)도 각본 안에 있다.
              */
@@ -251,7 +251,7 @@ export function useMockGpsSimulator({
                 return;
             }
             if (!r.loc) return;
-            if (r.stoppedAt) console.log(`🏁 [Mock GPS] 정거장 도착 — 18초 정차 연기 (정차 감지가 발화할 시간)`);
+            if (r.stoppedAt) console.log(`🏁 [Mock GPS] 정거장 도착 — ${dwellSec}초 정차 연기 (정차 감지가 발화할 시간)`);
             else if (simRef.current.phase === 'dwell') { /* 정차 중 — 같은 자리 재송신 */ }
             else console.log(`📍 [Mock GPS] 이동 중: x=${r.loc.x}, y=${r.loc.y} (진척도: ${simRef.current.idx}/${path.length})`);
             hereRef.current = { x: r.loc.x, y: r.loc.y };

@@ -42,7 +42,7 @@ export const ICHEON_ROUND_TRIP: ScenarioRow[] = [
       call: { pickup: MODA, dropoff: ICHEON_TERMINAL, fare: 150000, vehicleType: '5t' },
       say: '⚪ 안 올라와야 맞다 — 기다리기만', why: '5t 는 허용 차종 밖' },
     { id: 'M1', stage: 'A', when: { after: 'prev' }, kind: 'act',
-      say: '🧭 현황판 🎭 모의 주행 ▶ 시작 (🚗 보통 · 정차 30초)', why: '주행이 감지되면 출발이 켜진다 — 내 영역이 빠진다',
+      say: '🧭 현황판 🎭 모의 주행 ▶ 시작 (🚗 보통 3배 · 정차 12초 — 눈금이 다르면 ↩︎ 기본으로)', why: '주행이 감지되면 출발이 켜진다 — 내 영역이 빠진다',
       done: { kind: 'phase', value: 'DELIVERING' }, checks: [{ kind: 'listLacks', value: ['매산동'] }] },
 
     /* ── B 가는 길 ── */
@@ -64,7 +64,9 @@ export const ICHEON_ROUND_TRIP: ScenarioRow[] = [
     { id: 'C2', stage: 'C', when: { arrive: 'B1', stop: 'dropoff' }, kind: 'cancel',
       call: { pickup: ICHEON_TERMINAL, dropoff: ICHEON_JEIL, fare: 30000, vehicleType: '승용차' },
       say: '🟡 올라오면 관제웹에서 ❌ 취소 (올라오는지만 본다)', why: '복귀 대기엔 이천 목적지가 살아 있다 — D1 과 대조' },
-    { id: 'C3', stage: 'C', when: { after: 'prev' }, kind: 'keep',
+    /* 🔄 C3 는 B3 하차(이천터미널)에 선 뒤 — 이천 일을 다 내리고 복귀콜을 받는다. B3 확정 직후에 내면 차는 동쪽(사음동·중리동)으로 가는데
+       상차가 서쪽 신둔이라 뒤로 가기가 된다 (여섯 번째 바퀴 · 기사님 «다 와 가는데 초월 콜을 받았으니 뒤로 가기» · onedal-49: 터미널→신둔면 경계 2.79km, 원 4.6km 안) */
+    { id: 'C3', stage: 'C', when: { arrive: 'B3', stop: 'dropoff' }, kind: 'keep',
       call: { pickup: HD_SINDUN, dropoff: CHOWOL_STATION, fare: 50000, vehicleType: '다마스' },
       say: '🟢 올라오면 관제웹에서 KEEP — 복귀콜', why: '확정하면 목적지가 집 하나 — 🎯 하나 · 마름모 하나',
       checks: [{ kind: 'goals', value: 1 }] },
