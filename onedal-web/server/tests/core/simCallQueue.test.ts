@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-    SIM_CALL_KEEP, createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter,
+    SIM_CALL_KEEP, createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter, withdrawSimCall,
 } from '../../src/core/simCallQueue';
 import type { SimCallInput } from '../../src/core/simCallQueue';
 
@@ -56,7 +56,7 @@ describe('개별콜 — 번호', () => {
         const q = createSimCallQueue();
         pushSimCall(q, call(), 1);
         pushSimCall(q, call(), 2);
-        expect(simCallsAfter(q, null, 10)).toEqual({ lastSeq: 2, round: 0, calls: [] });
+        expect(simCallsAfter(q, null, 10)).toEqual({ lastSeq: 2, round: 0, calls: [], withdrawn: [] });
     });
 
     it('번호 뒤의 콜만 준다 · 물은 시각을 남긴다', () => {
@@ -94,6 +94,32 @@ describe('개별콜 — 회차 (시나리오를 다시 시작하면 이전 콜�
     });
 });
 
+/**
+ * 🫳 **채점이 끝난 줄의 콜은 거둔다 — «다른 기사가 가져갔다»** (2026-09-15 일곱 번째 바퀴 · onedal-49 합의 · 시뮬 쪽은 onedal-49).
+ *    12:06 막힘으로 채점된 B2 콜이 시뮬레이터 목록에 남아, 12:09 복귀를 켜자 폰이 다시 판정해 잡았다 → 적재가 차 C3 가 차종으로 막혔다.
+ *    실주행에서 콜은 누가 잡으면 목록에서 사라진다 — 시험 도구만 영원히 두고 있었다.
+ */
+describe('개별콜 — 거두기', () => {
+    it('🔴 거둔 콜은 목록에서 빠지고 답의 withdrawn 에 실린다 (after 와 무관)', () => {
+        const q = createSimCallQueue();
+        const a = pushSimCall(q, call(), 1);
+        const b = pushSimCall(q, call(), 2);
+        withdrawSimCall(q, a.seq);
+        const batch = simCallsAfter(q, 0, 3);
+        expect(batch.calls.map(c => c.seq)).toEqual([b.seq]);
+        expect(batch.withdrawn).toEqual([a.seq]);
+        expect(simCallsAfter(q, b.seq, 4).withdrawn).toEqual([a.seq]);
+    });
+    it('같은 번호를 두 번 거둬도 한 번만 · 회차가 바뀌면 비운다', () => {
+        const q = createSimCallQueue();
+        const a = pushSimCall(q, call(), 1);
+        withdrawSimCall(q, a.seq); withdrawSimCall(q, a.seq);
+        expect(simCallsAfter(q, 0, 2).withdrawn).toEqual([a.seq]);
+        resetSimCalls(q);
+        expect(simCallsAfter(q, 0, 3).withdrawn).toEqual([]);
+    });
+});
+
 describe('🔴 세 곳이 같은 말을 한다 — 현황판 · 서버 · 시뮬레이터', () => {
     const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     const server = codeOnly(readFileSync(join(__dirname, '../../src/core/simCallQueue.ts'), 'utf8'));
@@ -125,7 +151,7 @@ describe('🔴 세 곳이 같은 말을 한다 — 현황판 · 서버 · 시뮬
     });
 
     it('답 칸 — 번호 · 회차 · 콜 (서버 답 ↔ 시뮬레이터가 받는 묶음)', () => {
-        expect(fieldsOf(server, 'SimCallBatch')).toEqual(['calls', 'lastSeq', 'round']);
+        expect(fieldsOf(server, 'SimCallBatch')).toEqual(['calls', 'lastSeq', 'round', 'withdrawn']);   // 🫳 거둔 번호 (2026-09-15 · 시뮬 짝은 onedal-49)
         expect(fieldsOf(sim, 'InjectedBatch')).toEqual(fieldsOf(server, 'SimCallBatch'));
     });
 

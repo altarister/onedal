@@ -1,4 +1,4 @@
-import { startScenario, stepScenario, skipScenarioRow, NO_SHOW_MS } from '../../src/core/simScenario';
+import { startScenario, stepScenario, skipScenarioRow, NO_SHOW_MS, seqsToWithdraw } from '../../src/core/simScenario';
 import type { ScenarioState, ScenarioWorld, WorldOrder } from '../../src/core/simScenario';
 import { ICHEON_ROUND_TRIP } from '../../src/core/simScenarioIcheon';
 
@@ -185,4 +185,28 @@ describe('🎬 이천 왕복 — 사건순', () => {
         expect(st.rows[a2].mark).toBe('skip');
         expect(st.index).toBe(a2 + 1);
     });
+
+    /**
+     * 🫳 **끝난 줄의 콜을 거둔다** (2026-09-15 일곱 번째 바퀴 · onedal-49 합의).
+     *    막힘으로 채점된 B2 콜이 남아 복귀 켬 뒤 잡혔고, 적재가 차 C3 가 막혔다. 끝난 줄(doneAt)만 거둔다 —
+     *    «🔴 인데 기다리는 중»(doneAt 없음)은 재판정을 기다려야 하니 남긴다.
+     */
+    it('🔴 끝난 줄(ok·skip·끝낸 bad)의 콜 번호만 거둔다 · 기다리는 줄과 이미 거둔 번호는 안 거둔다', () => {
+        const st = startScenario(def, T0);
+        const rows = st.rows.map((x, i) =>
+            i === 0 ? { ...x, mark: 'ok' as const, doneAt: T0, seq: 1 }
+            : i === 1 ? { ...x, mark: 'skip' as const, doneAt: T0, seq: 2 }
+            : i === 2 ? { ...x, mark: 'bad' as const, seq: 3 }              // 🔴 인데 기다리는 중
+            : i === 3 ? { ...x, mark: 'bad' as const, doneAt: T0, seq: 4 }
+            : i === 4 ? { ...x, mark: 'ok' as const, doneAt: T0 }            // 콜 없는 줄 (act)
+            : x);
+        expect(seqsToWithdraw(rows, [2])).toEqual([1, 4]);
+    });
+
+    /** 🔄 D1 — 복귀콜(C3)을 쥐면 하차 목록이 집이다 → 관고동은 막힌다 (일곱 번째 바퀴 intel region · 필터.md «복귀 켬 · 복귀콜 잡음 = 집») */
+    it('🔴 D1 은 «막힘 · 하차지 목록 밖»이다 — 추정이 아니다', () => {
+        const d1 = def[idx('D1')];
+        expect([d1.kind, (d1 as any).blockBy, (d1 as any).guess ?? false]).toEqual(['block', 'region', false]);
+    });
 });
+

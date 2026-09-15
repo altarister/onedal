@@ -99,6 +99,8 @@ export interface RowState {
     passAt?: number;
     /** 끝난 시각 — 없으면 아직 이 줄이다 (🔴 여도 기다리는 중일 수 있다) */
     doneAt?: number;
+    /** 🫳 이 줄이 시뮬레이터에 낸 콜 번호 — 줄이 끝나면 그 콜을 거둔다 (`seqsToWithdraw`) */
+    seq?: number;
     checks?: Array<{ label: string; ok: boolean }>;
 }
 
@@ -299,6 +301,15 @@ export function stepScenario(def: ScenarioRow[], st: ScenarioState, w: ScenarioW
     }
     rows[index] = rs;
     return { state: { ...st, rows, index }, send };
+}
+
+/**
+ * 🫳 **거둘 콜 번호** — 끝난 줄(`doneAt`)이 낸 콜 중 아직 안 거둔 것 (2026-09-15 일곱 번째 바퀴 · onedal-49 합의).
+ *    실주행에서 콜은 누가 잡으면 목록에서 사라진다. 채점이 끝난 콜을 목록에 두면 필터가 바뀐 뒤 잡혀 다음 줄을 오염시킨다(B2 → C3).
+ *    🔴 «🔴 인데 기다리는 중»(doneAt 없음)은 안 거둔다 — 재판정이 통과해 올라올 자리다.
+ */
+export function seqsToWithdraw(rows: RowState[], already: number[]): number[] {
+    return rows.filter(r => r.doneAt != null && r.seq != null && !already.includes(r.seq)).map(r => r.seq!);
 }
 
 /** ⏭️ 건너뛰기 — 지금 줄을 건너뜀으로 적고 다음 줄로 (채점 없이) */

@@ -60,10 +60,15 @@ export interface SimCallQueue {
     round: number;
     /** 시뮬레이터가 마지막으로 물은 시각 — 현황판이 «시뮬레이터가 켜져 있나»를 말한다 */
     lastPollAt: number | null;
+    /**
+     * 🫳 **이번 회차에 거둔 번호** — «다른 기사가 가져갔다» (2026-09-15 일곱 번째 바퀴 · onedal-49 합의).
+     *    채점이 끝난 줄의 콜이 목록에 남아 필터가 바뀐 뒤 잡혔다(B2 → C3 차종 막힘). 시뮬레이터는 이 번호의 행을 목록에서 뺀다.
+     */
+    withdrawn: number[];
 }
 
 export function createSimCallQueue(): SimCallQueue {
-    return { calls: [], lastSeq: 0, round: 0, lastPollAt: null };
+    return { calls: [], lastSeq: 0, round: 0, lastPollAt: null, withdrawn: [] };
 }
 
 const textOf = (v: unknown, max: number): string | null => {
@@ -117,7 +122,14 @@ export function pushSimCall(q: SimCallQueue, call: SimCallInput, now: number): Q
 export function resetSimCalls(q: SimCallQueue): number {
     q.calls = [];
     q.round += 1;
+    q.withdrawn = [];
     return q.round;
+}
+
+/** 🫳 콜 하나를 거둔다 — 들고 있던 목록에서 빼고 «거둔 번호»에 적는다 (두 번 거둬도 한 번) */
+export function withdrawSimCall(q: SimCallQueue, seq: number): void {
+    q.calls = q.calls.filter(c => c.seq !== seq);
+    if (!q.withdrawn.includes(seq)) q.withdrawn.push(seq);
 }
 
 /** 시뮬레이터에 주는 답 — 짝: `onedal-sim/packages/core-simulator/src/injectedCall.ts` 의 `InjectedBatch` */
@@ -125,6 +137,8 @@ export interface SimCallBatch {
     lastSeq: number;
     round: number;
     calls: QueuedSimCall[];
+    /** 🫳 이번 회차에 거둔 번호 전부 — `after` 와 무관하게 누적 (시뮬레이터가 목록에서 그 행을 뺀다 · 옛 서버면 칸이 없다) */
+    withdrawn: number[];
 }
 
 /**
@@ -133,6 +147,6 @@ export interface SimCallBatch {
  */
 export function simCallsAfter(q: SimCallQueue, after: number | null, now: number): SimCallBatch {
     q.lastPollAt = now;
-    if (after === null) return { lastSeq: q.lastSeq, round: q.round, calls: [] };
-    return { lastSeq: q.lastSeq, round: q.round, calls: q.calls.filter(c => c.seq > after) };
+    if (after === null) return { lastSeq: q.lastSeq, round: q.round, calls: [], withdrawn: [...q.withdrawn] };
+    return { lastSeq: q.lastSeq, round: q.round, calls: q.calls.filter(c => c.seq > after), withdrawn: [...q.withdrawn] };
 }

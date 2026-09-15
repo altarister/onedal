@@ -11,8 +11,8 @@ import { getUserDevicesSnapshot } from "./devices";
 import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
 import { BOOTED_AT } from "./health";
 import { calculateSoloRoute } from "../services/kakaoService";
-import { createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter } from "../core/simCallQueue";
-import { startScenario, stepScenario, skipScenarioRow } from "../core/simScenario";
+import { createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter, withdrawSimCall } from "../core/simCallQueue";
+import { seqsToWithdraw, startScenario, stepScenario, skipScenarioRow } from "../core/simScenario";
 import type { ScenarioState, ScenarioWorld, WorldOrder, WorldIntel } from "../core/simScenario";
 import { ICHEON_ROUND_TRIP } from "../core/simScenarioIcheon";
 
@@ -336,7 +336,13 @@ function tickScenario() {
     const r = stepScenario(scenarioDef, before, scenarioWorld(scenario.userId, now));
     if (r.send) {
         const q = pushSimCall(simCalls, r.send, now);
+        r.state.rows[r.state.index] = { ...r.state.rows[r.state.index], seq: q.seq };   // 🫳 줄 ↔ 콜 번호 — 줄이 끝나면 거둔다
         console.log(`🎬 [시나리오] ${scenarioDef[r.state.index].id} 냄 #${q.seq} — ${r.send.pickup.region} → ${r.send.dropoff.region} · ${r.send.fare} · ${r.send.vehicleType ?? ''}`);
+    }
+    /* 🫳 끝난 줄의 콜은 거둔다 — «다른 기사가 가져갔다» (필터가 바뀐 뒤 잡혀 다음 줄을 오염시키지 않게 · 일곱 번째 바퀴 B2 → C3) */
+    for (const seq of seqsToWithdraw(r.state.rows, simCalls.withdrawn)) {
+        withdrawSimCall(simCalls, seq);
+        console.log(`🫳 [시나리오] #${seq} 거둠 — 채점이 끝난 줄의 콜`);
     }
     r.state.rows.forEach((row, i) => {
         const was = before.rows[i];
