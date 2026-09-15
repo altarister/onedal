@@ -1,6 +1,5 @@
 import { verdictOf, BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
-import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords, safeCancelSecOf } from "@onedal/shared";
 import type { SecuredOrder, StepViewRow } from "@onedal/shared";
@@ -65,6 +64,11 @@ interface Props {
      * `list` — 완료됨·취소/방출·전체. 조회용이라 포착시각·방문순서·ETA 를 그대로 둔다.
      */
     variant?: 'deck' | 'list';
+    /**
+     * 🎬 **시트 상태바가 이 콜의 어느 단계를 가리키나** (기사님 2026-09-15 · #143) — 무대의 `barFocusOf` 가 정한다.
+     *    `null`·없음이면 장부의 현재 단계(`stepCurIdx`). 카드는 도착 사건을 따로 듣지 않는다.
+     */
+    focusStep?: 'ARRIVE_PICKUP' | 'ARRIVE_DROPOFF' | null;
 }
 
 export default function PinnedRouteCard({
@@ -81,6 +85,7 @@ export default function PinnedRouteCard({
     records,
     timeline,
     variant = 'list',
+    focusStep = null,
 }: Props) {
     const isDeck = variant === 'deck';
     /**
@@ -164,9 +169,7 @@ export default function PinnedRouteCard({
      *    (어드민의 `[번호]`·`[다녀옴]` 이 한 판에 답을 낸 것과 같은 이유다).
      * ⚠️ 화면은 이 값을 안 읽는다 — 상태가 아니라 **기록용 꼬리표**라 ref 로 둔다.
      */
-    const navByRef = useRef<'도착이 연 것' | '손으로 넘긴 것' | '되돌린 것'>('도착이 연 것');
-    /* 🎯 «방금 도착»을 본다 — 듣는 곳은 스토어 하나다 (2026-09-12 · 아래 효과가 쓴다) */
-    const arrival = useGpsFocusStore(st => st.arrival);
+    const navByRef = useRef<'손으로 넘긴 것' | '되돌린 것'>('손으로 넘긴 것');
     useEffect(() => {
         const onSynced = (p: { orderId: string; steps: StepViewRow[] }) => {
             if (p.orderId === route.id) setSeededSteps(p.steps);
@@ -195,33 +198,16 @@ export default function PinnedRouteCard({
     useEffect(() => { setStepNav(null); }, [stepCurIdx, route.id]);
 
     /**
-     * 🎯 **도착하면 «그 도착 단계»를 보여 준다** (기사님 지시 2026-09-12 · v23 `focus={콜, 단계}`).
+     * 🎬 **보여 줄 단계는 시트 상태바가 정한다** (기사님 2026-09-15 · 버그 대장 #143).
      *
-     * 기사님: *"**스텝과 아코디언을 구분해야지** 그걸 뭉뚱그려 하니까 안 되는 거야.
-     * KEEP 은 시트(다)와 생성된 아코디언(**상차지 통화**) 이렇게 정의되어야 하는 거 아냐?"*
-     *
-     * ── 왜 필요했나 ──
-     * 사건은 **높이**와 **어느 콜**만 정하고, «어느 단계»는 아무도 안 정했다.
-     * 스텝은 장부가 정했다 — `stepCurIdx` 는 «끝난 단계의 **다음**»이다.
-     * 그래서 GPS 도착이 찍히는 순간 그 단계가 **같은 밀리초에 끝나** 다음으로 넘어갔고,
-     * 기사님은 도착 스텝을 **한 프레임도 못 보셨다**
-     * (`🌱 [출생] 상차지 도착 — 지나친 단계 채움` → `상차 완료 ← 상차지 도착 끝`).
-     *
-     * ── 고침 ──
-     * 🔴 **장부는 안 건드린다** — 도착은 실제로 끝난 일이다 (규칙 ④).
-     *    **화면이 무엇을 보여줄지**만 사건이 정한다. 그 장치는 이미 있었다(`stepNav`) —
-     *    손으로 되돌아볼 때 쓰던 것이고, 여기서는 **경로가 낸 사건**이 그 자리에 값을 넣는다.
-     * 🔴 **어느 쪽 도착인지는 경로가 안다** — `auto-arrived` 가 `stopType` 을 싣고 오고
-     *    (`planArrivalStops` 가 정거장 목록에서 뽑는다), 단계표도 `stop` 을 들고 있다.
-     *    여기서 다시 판단하지 않는다 (규칙 ③).
+     * 기사님: *"시트가 맨위로 올라가면 무조건 현황판(시트 상태바)에 표기된 스텝이 표기 되어야 하는데."*
+     * 🔴 **장부는 안 건드린다** — 화면이 볼 자리만 고른다 (규칙 ④). 상태바가 «✅ 초월읍 하차 도착»이면
+     *    `focusStep` 이 `ARRIVE_DROPOFF` 로 오고, 아니면 `null` 이라 장부의 현재 단계(`stepCurIdx`)를 그린다.
+     * 🔴 09-12 에는 이 카드가 도착 사건을 **따로 듣고** 도착 단계를 열었다 — 상태바·장부와 다른 단계가 떠서 걷었다.
      */
-    useEffect(() => {
-        if (!arrival || arrival.orderId !== route.id || !arrival.stopType || !seededSteps) return;
-        const want = arrival.stopType === 'pickup' ? 'ARRIVE_PICKUP' : 'ARRIVE_DROPOFF';
-        const i = seededSteps.findIndex(x => x.step === want);
-        if (i >= 0) { navByRef.current = '도착이 연 것'; setStepNav(i); }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [arrival?.tick, seededSteps?.length]);
+    /* 🎬 도착 사건을 여기서 따로 듣던 효과는 걷었다 (기사님 2026-09-15 · #143) — 단계는 시트 상태바(`focusStep`)가 정한다 */
+    const focusStepIdx = focusStep && seededSteps ? seededSteps.findIndex(x => x.step === focusStep) : -1;
+    useEffect(() => { setStepNav(null); }, [focusStep]);
 
     /**
      * 📡 **화면이 «지금 어느 단계»를 보여주는가 — 로그로 남긴다** (기사님 지시 2026-09-12 밤).
@@ -241,13 +227,13 @@ export default function PinnedRouteCard({
      * ⚠️ `logStateChange` 는 **바뀔 때만** 남긴다 — 초당 재그림에 로그가 안 밀린다.
      *    키에 콜을 넣어 카드가 여럿이어도 서로 안 섞인다.
      */
-    const shownStepIdx = stepNav ?? stepCurIdx;
+    /* 손으로 넘긴 것 → 시트 상태바가 가리킨 단계 → 장부의 현재 단계 (#143) */
+    const shownStepIdx = stepNav ?? (focusStepIdx >= 0 ? focusStepIdx : stepCurIdx);
     useEffect(() => {
         const sv = seededSteps?.[shownStepIdx];
-        logStateChange(`스텝 ${route.id.slice(0, 8)}`,
-            sv ? `${shownStepIdx} ${sv.step} · ${stepNav != null ? navByRef.current : '현재 단계'}` : '없음',
-            '무대');
-    }, [shownStepIdx, stepNav, seededSteps, route.id]);
+        const by = stepNav != null ? navByRef.current : focusStepIdx >= 0 ? '상태바가 연 것' : '현재 단계';
+        logStateChange(`스텝 ${route.id.slice(0, 8)}`, sv ? `${shownStepIdx} ${sv.step} · ${by}` : '없음', '무대');
+    }, [shownStepIdx, stepNav, focusStepIdx, seededSteps, route.id]);
 
     /* 🏗️ deriveCallStep(옛 진행도)도 옛 시트와 함께 철거 — 현재 단계는 stepCurIdx(단계 행의 status)가 정한다 */
 

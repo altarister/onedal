@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm, goalZonesOf, pickupShapeOf } from '@onedal/shared';
@@ -9,6 +9,7 @@ import StageSheet, { type SheetSnap } from './StageSheet';
 import { stageStep, initialStageMemory, type StageEvent } from './stageRules';
 /* 🪟 높이와 «열린 것»을 함께 정하는 규칙 — 한 곳에만 산다 (규칙 ③) */
 import { sheetTransition } from './sheetTransition';
+import { barFocusOf, type BarFocus } from './barFocus';
 /* 🎬 상태바 문구는 여기 한 곳이 정한다 — 화면은 그리기만 한다 (규칙 ③) */
 import { sheetStatus } from '../../lib/sheetStatus';
 import { remainOnRouteKm } from '../../lib/remainOnRoute';
@@ -229,6 +230,12 @@ export default function StageView(props: Props) {
     const drive = useDriveMotion();
     const mem = useRef(initialStageMemory());
     const judging = derived.judging;
+    /**
+     * 🙈 **덱에 실제로 그려지는 목록** — 숨길 id 를 고르는 자리와 «몇 번째가 열렸나»가
+     *    **같은 배열**을 봐야 한다 (규칙 ③). `PinnedRoute` 가 넘기는 것과 글자까지 같다.
+     * 🔴 사건이 «열 콜»의 자리를 찾는 곳도 이 배열이다 — 예전엔 `cycleDeck`(심사 콜 포함)에서 찾아 자리가 어긋날 수 있었다 (#143)
+     */
+    const deckList = deckOrder(cycleDeck).filter(o => o.id !== judging?.id);
 
     /**
      * 📡 **시트 전환은 전부 사유와 함께 로그로 남긴다** (기사님 지시 0831 2판).
@@ -238,6 +245,8 @@ export default function StageView(props: Props) {
     const [ruleTick, setRuleTick] = useState(0);
     const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     /** 규칙에 한 걸음 먹인다 — 결과(높이·사유·미룸)를 화면에 옮기는 것이 여기 할 일의 전부 */
+    /** 🎬 시트 상태바가 가리키는 콜·단계 — 아래(상태바 재료 옆)에서 매 렌더 채운다. feed 는 사건 때 이것을 읽는다 (#143) */
+    const barFocusRef = useRef<BarFocus | null>(null);
     const feed = (ev: StageEvent) => {
         const now = Date.now();
         const r = stageStep(mem.current, {
@@ -271,9 +280,12 @@ export default function StageView(props: Props) {
              *    근데 그 스텝이 열리지는 않았어"*. v23 Ⅲ-S7 은 **«그 콜의 그 단계»** 다.
              * ⚠️ `preferIdx`(약한 추천)로 넘기면 안 된다 — 열린 것에 밀린다.
              */
-            const eventId = ev.type === 'keep' ? keepFocusRef.current
-                          : ev.type === 'arrive' ? ev.orderId : null;
-            const want = eventId ? cycleDeck.findIndex(o => o.id === eventId) : -1;
+            /* 🎬 맨 위로 올라가면 **시트 상태바가 가리키는 콜**을 연다 — KEEP 만 방금 잡은 콜 · 손 탭은 손이 고른 줄 (#143) */
+            const eventId = r.snap !== 'full' ? null
+                          : ev.type === 'keep' ? keepFocusRef.current
+                          : ev.type === 'tap' ? null
+                          : barFocusRef.current?.orderId ?? (ev.type === 'arrive' ? ev.orderId ?? null : null);
+            const want = eventId ? deckList.findIndex(o => o.id === eventId) : -1;
             /**
              * 🕰️ **KEEP 한 콜이 아직 덱에 없으면 «열 것»으로 남겨 둔다** (기사님 실측 2026-09-12:
              *    *"특히 **콜 잡고 난 화면에서 아코디언이 열리지 않아서 스텝이 안 보였어**"*).
@@ -287,7 +299,7 @@ export default function StageView(props: Props) {
             if (eventId && want < 0) pendingOpenRef.current = eventId;
             else if (ev.type === 'keep') pendingOpenRef.current = null;
             const mv = sheetTransition(r.snap, {
-                openIdx, callCount: cycleDeck.length,
+                openIdx, callCount: deckList.length,
                 focusIdx: want >= 0 ? want : undefined,
             });
             setSnap(mv.snap);
@@ -301,7 +313,7 @@ export default function StageView(props: Props) {
              *    그 사실이 화면에도 로그에도 안 남았다.
              */
             if (mv.openIdx !== openIdx) {
-                const who = mv.openIdx >= 0 ? (cycleDeck[mv.openIdx]?.dropoff ?? '?') : '없음';
+                const who = mv.openIdx >= 0 ? (deckList[mv.openIdx]?.dropoff ?? '?') : '없음';
                 const miss = eventId && want < 0 ? ` 🔴 가리킨 콜이 덱에 없다(${eventId.slice(-6)})` : '';
                 logStateChange("시트연콜", `${mv.openIdx} ${who}${miss}`, "무대");
             }
@@ -316,6 +328,12 @@ export default function StageView(props: Props) {
         }
         return r;
     };
+    /**
+     * 🔴 **소켓 처리처럼 한 번만 등록되는 곳은 이 ref 로 부른다** (#143) — `feed` 를 직접 붙잡으면
+     *    화면이 처음 떴을 때의 빈 덱·닫힌 `openIdx` 를 계속 봐, KEEP 해도 그 콜이 안 열렸다.
+     */
+    const feedRef = useRef(feed);
+    useLayoutEffect(() => { feedRef.current = feed; });   // 그리는 도중에 ref 를 안 건드린다 (react-hooks refs)
     /**
      * 🧾 **내가 그린 그물의 수를 요약줄이 읽게 올린다** (이식 C4-11b · 2026-09-12).
      *
@@ -349,7 +367,7 @@ export default function StageView(props: Props) {
         const onConfirmed = (orderId: string) => {
             useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'focus' } });
             keepFocusRef.current = orderId;      // 시트가 열 콜 — feed 가 읽는다
-            feed({ type: 'keep' });
+            feedRef.current({ type: 'keep' });   // 🔴 한 번만 등록된 처리라 최신 feed 를 ref 로 부른다 (#143)
         };
         socket.on('order-confirmed', onConfirmed);
         return () => { socket.off('order-confirmed', onConfirmed); };
@@ -395,13 +413,14 @@ export default function StageView(props: Props) {
     useEffect(() => {
         const want = pendingOpenRef.current;
         if (!want) return;
-        const i = cycleDeck.findIndex(o => o.id === want);
+        const i = deckList.findIndex(o => o.id === want);
         if (i < 0) return;
         pendingOpenRef.current = null;
         setOpenIdx(i);
-        logStateChange("시트연콜", `${i} ${cycleDeck[i]?.dropoff ?? '?'} (덱을 기다려 열었다)`, "무대");
+        logStateChange("시트연콜", `${i} ${deckList[i]?.dropoff ?? '?'} (덱을 기다려 열었다)`, "무대");
+        /* 🔴 길이가 아니라 **콜 id** 가 바뀔 때 — 심사 콜이 KEEP 으로 넘어와도 길이는 그대로다 (#143) */
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [cycleDeck.length]);
+    }, [deckList.map(o => o.id).join(',')]);
 
     /**
      * 🚪 **완료 행동이 문을 닫는다** (v23 Ⅳ · 화면규칙 S14 · 기사님 실측 2026-09-12).
@@ -516,10 +535,13 @@ export default function StageView(props: Props) {
             if (v.x == null || v.y == null) continue;
             if (getDistanceKm(myLocation.y, myLocation.x, v.y, v.x) * 1000 > ARRIVED_HERE_M) continue;
             return { visitNo: v.no, name: v.name, stop: v.type as '상차' | '하차',
-                     callNo: derived.callNoOf(v.orderId) };
+                     callNo: derived.callNoOf(v.orderId), orderId: v.orderId };
         }
         return null;
     })();
+    /** 🎬 시트가 맨 위에서 열 «콜 · 단계» — 상태바와 같은 재료(도착 곁 · 다음 정거장)에서 한 곳이 정한다 (#143) */
+    const barFocus = barFocusOf({ arrivedHere, next });
+    useLayoutEffect(() => { barFocusRef.current = barFocus; });   // 그리는 도중에 ref 를 안 건드린다 (react-hooks refs)
 
     /**
      * 🔍 **다음 정거장까지 직선 m** — «찾기» 경우가 쓴다.
@@ -544,11 +566,6 @@ export default function StageView(props: Props) {
             : derived.etaMap.get(next.orderId)?.dropoffEta) ?? null
         : null;
 
-    /**
-     * 🙈 **덱에 실제로 그려지는 목록** — 숨길 id 를 고르는 자리와 «몇 번째가 열렸나»가
-     *    **같은 배열**을 봐야 한다 (규칙 ③). `PinnedRoute` 가 넘기는 것과 글자까지 같다.
-     */
-    const deckList = deckOrder(cycleDeck).filter(o => o.id !== judging?.id);
     const pastCount = deckList.filter(isDeliveredCall).length;
     /**
      * 🙈 **숨길 콜은 한 벌이다** — 시트와 **지도가 같은 집합**을 본다 (규칙 ③).
@@ -798,10 +815,11 @@ export default function StageView(props: Props) {
                           <div className="w-full flex items-center gap-1">
                             <button type="button"
                                 onClick={() => {
-                                    if (!next) return;
-                                    const i = cycleDeck.findIndex(o => o.id === next.orderId);
+                                    /* 🎬 상태바가 가리키는 콜을 연다 — 도착 곁이면 그 콜 (#143) */
+                                    if (!barFocus) return;
+                                    const i = deckList.findIndex(o => o.id === barFocus.orderId);
                                     const mv = sheetTransition('full',
-                                        { openIdx: i, callCount: cycleDeck.length, preferIdx: i });
+                                        { openIdx: i, callCount: deckList.length, preferIdx: i });
                                     setSnap(mv.snap);
                                     setOpenIdx(mv.openIdx);
                                 }}
@@ -877,6 +895,8 @@ export default function StageView(props: Props) {
                     /* 📏 «내용만큼» 서는 판인가 — 아코디언의 높이 문법이 갈린다 */
                     fit={snap === 'list'}
                     openIdx={openIdx}
+                    /* 🎬 맨 위일 때만 상태바의 «콜 · 단계»를 카드에 넘긴다 (#143) */
+                    focus={snap === 'full' ? barFocus : null}
                     onOpenIdx={(i) => {
                         /**
                          * 🪟 **여는 것이 곧 「다」, 닫는 것이 곧 「나」다** (기사님 정의 2026-09-05).
@@ -898,7 +918,7 @@ export default function StageView(props: Props) {
                         if (!r.snap) return;                      // 유예 중이면 높이는 그대로
                         if (snap !== 'peek') {
                             const mv = sheetTransition(next >= 0 ? 'full' : 'list',
-                                { openIdx: next, callCount: cycleDeck.length, preferIdx: next });
+                                { openIdx: next, callCount: deckList.length, preferIdx: next });
                             setSnap(mv.snap);
                             setOpenIdx(mv.openIdx);
                         }

@@ -9,6 +9,7 @@ import CallDeck from './CallDeck';
 import { EMPTY_RECORDS } from '../../hooks/records';
 import { MovingBadge } from './VehicleStatusPanel';
 import { deckOrder } from '../../lib/deckFocus';
+import type { BarFocus } from '../stage/barFocus';
 import type { RouteStopInfo } from '@onedal/shared';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { isPriorityLocked, PRIORITY_LABEL } from '../../lib/routePriority';
@@ -36,10 +37,12 @@ interface Props {
     /** 🙈 숨길 콜 — 배열에서 빼지 않고 가린다 (`lib/pastCalls` · 기사님 지시 2026-09-13) */
     hiddenIds?: ReadonlySet<string>;
     onOpenIdx?: (i: number) => void;
+    /** 🎬 시트가 맨 위일 때 시트 상태바가 가리키는 «그 콜 · 그 단계» — 무대가 정한다 (`barFocusOf` · #143) */
+    focus?: BarFocus | null;
 }
 
 /** 몸통 — 파생은 밖(기본 내보내기 또는 무대)에서 받아온다. 훅을 안 부르므로 어디에도 담길 수 있다 */
-export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter, sheetOnly, fit, openIdx, onOpenIdx, hiddenIds, d }: Props & { d: ReturnType<typeof useRouteDerivations> }) {
+export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter, sheetOnly, fit, openIdx, onOpenIdx, hiddenIds, focus, d }: Props & { d: ReturnType<typeof useRouteDerivations> }) {
     /**
      * 🪗 **시트에는 «진행 중»만 산다** (기사님 확정 2026-09-03 실주행 뒤):
      * *"올라오는 시트에 진행중, 완료됨.. 그 라인은 거의 필요 없는 것 같아.
@@ -365,6 +368,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                             routeStops={routeStops}
                             routeComputedAt={routeComputedAt}
                             variant="deck"
+                            focusStep={focus && focus.orderId === route.id ? focus.step : null}
                         />
                     )}
                 />

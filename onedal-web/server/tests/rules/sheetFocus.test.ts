@@ -133,16 +133,41 @@ describe('S13·S14·S15 — 마중은 «그 콜의 그 단계»까지다', () =>
      * 스텝은 **장부**가 정했다(`stepCurIdx` = 끝난 단계의 다음). 그래서 GPS 도착이 찍히는
      * 순간 그 단계가 **같은 밀리초에 끝나** 기사님은 도착 스텝을 한 프레임도 못 보셨다.
      */
-    it('🔴 도착하면 «그 도착 단계»를 보여 준다 — 장부는 안 건드린다', () => {
+    /**
+     * 🎬 **시트가 맨 위로 올라가면 시트 상태바가 말하는 «그 콜 · 그 단계»를 연다** (기사님 2026-09-15 · 버그 대장 #143).
+     *
+     * 🔴 09-12 에는 카드가 도착 사건을 **따로 듣고** «도착 단계»를 억지로 열었다. 그 단계는 이미 끝난 단계라
+     *    장부의 현재 단계(`3 LOADED`)와 화면(`2 ARRIVE_PICKUP · 도착이 연 것`)이 갈렸다 — 기사님 지시로 걷는다.
+     *    이제 단계를 정하는 곳은 상태바 하나(`barFocusOf`)이고, 카드는 받은 것을 그린다.
+     */
+    it('🔴 #143 카드는 도착을 따로 듣지 않는다 — 단계는 시트 상태바가 정한다', () => {
         const card = codeOnly(read('components/dashboard/PinnedRouteCard.tsx'));
-        /* 경로가 낸 «어느 쪽»을 그대로 쓴다 — 여기서 다시 판단하지 않는다 */
-        expect(card).toMatch(/arrival\.stopType === 'pickup' \? 'ARRIVE_PICKUP' : 'ARRIVE_DROPOFF'/);
-        /* 화면이 보여줄 단계만 옮긴다 — 장부(stepCurIdx)는 그대로다 */
-        expect(card).toMatch(/setStepNav\(i\)/);
-        /* 그 효과 **안**에서 장부를 안 건드린다 — 화면이 볼 자리만 옮긴다 */
-        const i = card.indexOf('if (!arrival || arrival.orderId !== route.id');
+        expect(card).not.toMatch(/st\.arrival/);
+        expect(card).not.toMatch(/'ARRIVE_PICKUP' : 'ARRIVE_DROPOFF'/);
+        const view = codeOnly(read('components/stage/StageView.tsx'));
+        expect(view).toMatch(/barFocusOf\(/);
+    });
+
+    /**
+     * 🔴 **KEEP 처리가 화면이 처음 떴을 때의 값을 봤다** (2026-09-15 이천 왕복 · 버그 대장 #143).
+     *    `order-confirmed` 를 듣는 효과가 한 번만 등록돼 그 안의 `feed` 가 빈 덱·닫힌 `openIdx` 를 붙잡았다 —
+     *    KEEP 다섯 번 모두 시트는 `full·KEEP` 로 올랐는데 `[시트연콜]` 이 한 줄도 안 찍혔다.
+     */
+    it('🔴 #143 KEEP 처리는 늘 최신 feed 를 부른다', () => {
+        const view = codeOnly(read('components/stage/StageView.tsx'));
+        const i = view.indexOf("const onConfirmed");
         expect(i).toBeGreaterThan(-1);
-        expect(card.slice(i, card.indexOf('}, [arrival', i))).not.toMatch(/setSeededSteps|stepCurIdx\s*=/);
+        const body = view.slice(i, view.indexOf("socket.on('order-confirmed'", i));
+        expect(body).toMatch(/feedRef\.current\(\{ type: 'keep' \}\)/);
+    });
+
+    /**
+     * 🔴 **늦게 여는 길이 덱 «길이»에 묶여 있었다** — 심사 중인 콜이 이미 덱에 들어 있어 KEEP 해도 길이가 안 바뀐다.
+     *    그래서 다음 콜 심사가 들어올 때에야 옛 콜이 열렸다 (`덱을 기다려 열었다`).
+     */
+    it('🔴 #143 못 연 콜은 덱의 콜이 바뀔 때 연다 — 길이가 아니다', () => {
+        const view = codeOnly(read('components/stage/StageView.tsx'));
+        expect(view).not.toMatch(/\}, \[cycleDeck\.length\]\);/);
     });
 
     it('🔴 «어느 쪽 도착인가»는 경로가 낸다 — 단계표가 그 말을 안다', () => {
