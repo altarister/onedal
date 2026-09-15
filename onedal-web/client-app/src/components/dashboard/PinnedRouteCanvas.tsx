@@ -1,4 +1,4 @@
-import { sectionLinesOf } from '@onedal/shared';
+import { sectionLinesOf, aheadOf } from '@onedal/shared';
 import { SOAK } from './JudgmentSeat';
 import { logStateChange } from '../../lib/roadmapLogger';
 import React, { useRef, useCallback, useEffect } from 'react';
@@ -536,6 +536,30 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.drawImage(ring, 0, 0, width, height);
         };
         /**
+         * ✂️ **라인 시작(현위치)에서 경로와 직각인 선 앞쪽만 칠하게 자른다** — 서버와 같은 `aheadOf` (#151).
+         *    끝을 평평하게(butt) 그리는 것만으로는 짧게 꺾인 자리의 둥근 이음이 차 뒤를 덮었다 — 선 하나로 자른다.
+         */
+        const clipAhead = (c2d: CanvasRenderingContext2D, pts: ReadonlyArray<{ x: number; y: number }>, km: number) => {
+            const cut = aheadOf(pts.map(p => [p.x, p.y] as [number, number]), km);
+            if (!cut) return;
+            const s = getScreenPt({ x: cut.start.lng, y: cut.start.lat });
+            const f = getScreenPt({
+                x: cut.start.lng + cut.dir.x / (111.32 * Math.cos((cut.start.lat * Math.PI) / 180)),
+                y: cut.start.lat + cut.dir.y / 110.574,
+            });
+            const len = Math.hypot(f.cx - s.cx, f.cy - s.cy) || 1;
+            const dx = (f.cx - s.cx) / len, dy = (f.cy - s.cy) / len;
+            const big = (width + height) * 4;
+            c2d.beginPath();
+            c2d.moveTo(s.cx - dy * big, s.cy + dx * big);
+            c2d.lineTo(s.cx - dy * big + dx * big, s.cy + dx * big + dy * big);
+            c2d.lineTo(s.cx + dy * big + dx * big, s.cy - dx * big + dy * big);
+            c2d.lineTo(s.cx + dy * big, s.cy - dx * big);
+            c2d.closePath();
+            c2d.clip();
+        };
+
+        /**
          * 🟢 **상차 영역 모양을 그린다 — 한 곳** · 칠하는 색 · 합성 방식은 부르는 쪽이 정한다.
          *    «상차» 레이어가 칠하고, «하차» 레이어가 같은 모양을 **지운다**(먼 목적지는 상차 영역을 뺀다 · 필터.md «하차 영역»).
          */
@@ -549,14 +573,13 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 c2d.fill();
             } else if (area.line.length >= 2) {
                 c2d.clip();
+                /* ✂️ 현위치에서 경로와 직각으로 자른 선 앞쪽만 — 서버 `pickupListFor` 와 같은 `aheadOf` */
+                clipAhead(c2d, area.line, area.lineKm);
                 c2d.beginPath();
                 area.line.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) c2d.moveTo(s.cx, s.cy); else c2d.lineTo(s.cx, s.cy); });
                 c2d.lineWidth = area.lineKm * 2 * pxPerKm;
-                /* ✂️ 시작(현위치)은 평평하게 · 먼 끝만 둥글게 — 서버 `distToLineFlatStartKm` 과 같은 모양 */
-                c2d.lineCap = 'butt'; c2d.lineJoin = 'round';
+                c2d.lineCap = 'round'; c2d.lineJoin = 'round';
                 c2d.stroke();
-                const end = getScreenPt(area.line[area.line.length - 1]);
-                c2d.beginPath(); c2d.arc(end.cx, end.cy, area.lineKm * pxPerKm, 0, Math.PI * 2); c2d.fill();
             }
             c2d.restore();
         };
@@ -607,15 +630,15 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 }
                 for (const l of dropoffArea.lines) {
                     if (l.points.length < 2) continue;
+                    oc.save();
+                    /* ✂️ 시작(운행 뒤면 현위치 — 부르는 쪽이 `lineFromPoint` 로 잘랐다)에서 경로와 직각으로 자른 선 앞쪽만 */
+                    clipAhead(oc, l.points, l.km);
                     oc.beginPath();
                     l.points.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
-                    const w = Math.max(3, l.km * 2 * pxPerKmAt(l.points[0]));
-                    oc.lineWidth = w;
-                    /* ✂️ 시작은 평평하게(운행 뒤면 현위치 — 부르는 쪽이 `lineFromPoint` 로 잘랐다) · 먼 끝만 둥글게 */
-                    oc.lineCap = 'butt'; oc.lineJoin = 'round';
+                    oc.lineWidth = Math.max(3, l.km * 2 * pxPerKmAt(l.points[0]));
+                    oc.lineCap = 'round'; oc.lineJoin = 'round';
                     oc.stroke();
-                    const end = getScreenPt(l.points[l.points.length - 1]);
-                    oc.beginPath(); oc.arc(end.cx, end.cy, w / 2, 0, Math.PI * 2); oc.fill();
+                    oc.restore();
                 }
                 /* ✂️ 먼 목적지 조각에서 상차 영역을 지운다 — 상차 레이어를 꺼도 뺀다 (보기 스위치와 규칙은 따로다) */
                 if (pickupArea) {

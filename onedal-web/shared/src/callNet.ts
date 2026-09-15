@@ -851,24 +851,32 @@ export function lineFromPoint(line: Array<[number, number]>, pt: { lng: number; 
 }
 
 /**
- * ✂️ **점에서 라인까지 km — 시작 끝은 평평하게** (기사님 2026-09-15 «뒤를 자르는 Cap»).
- * `distToLineKm` 과 같되 **첫 선분의 시작 뒤**(수선의 발이 시작점보다 뒤)는 라인 밖이다 — 차 뒤 반원이 안 든다.
- * 꺾인 자리 · 먼 끝 둘레는 둥근 그대로다 — 지도 캔버스의 `lineCap = 'butt'` · 둥근 이음 · 끝 원과 같은 모양.
+ * ✂️ **라인 앞쪽 — 시작점(현위치)에서 경로와 직각인 선으로 자른다** (기사님 «경로와 직각으로 잘릴 꺼라 생각했는데» · #151).
+ * 경로 방향은 시작점에서 라인을 따라 `lookKm` 만큼 간 곳을 본다 — 첫 선분만 보면 짧게 꺾인 곳에서 방향이 흔들리고,
+ * 꺾인 자리의 둥근 이음이 차 뒤를 다시 덮는다. 라인이 점 둘보다 적거나 길이가 없으면 `null`.
+ * 읽는 곳: 서버 상차 목록(`geoService.pickupListFor`) · 지도 «상차» · «하차» 띠(`PinnedRouteCanvas` 의 `clipAhead`).
  */
-export function distToLineFlatStartKm(pt: { lng: number; lat: number }, line: Array<[number, number]>): number {
-    const KX = 111.32 * Math.cos(rad(pt.lat)), KY = 110.574;
-    let best = Infinity;
+export function aheadOf(line: Array<[number, number]>, lookKm: number): { start: { lng: number; lat: number }; dir: { x: number; y: number } } | null {
+    if (line.length < 2) return null;
+    const s = line[0];
+    const KX = 111.32 * Math.cos(rad(s[1])), KY = 110.574;
+    const want = Math.max(0.3, lookKm);
+    let acc = 0, px = 0, py = 0;
     for (let i = 1; i < line.length; i++) {
-        const ax = (line[i - 1][0] - pt.lng) * KX, ay = (line[i - 1][1] - pt.lat) * KY;
-        const bx = (line[i][0] - pt.lng) * KX, by = (line[i][1] - pt.lat) * KY;
-        const dx = bx - ax, dy = by - ay;
-        const L = dx * dx + dy * dy;
-        const raw = L ? -(ax * dx + ay * dy) / L : 0;
-        if (i === 1 && raw < 0) continue;   // 시작 뒤 — 평평하게 자른 자리
-        const t = Math.max(0, Math.min(1, raw));
-        best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+        const ax = (line[i - 1][0] - s[0]) * KX, ay = (line[i - 1][1] - s[1]) * KY;
+        const bx = (line[i][0] - s[0]) * KX, by = (line[i][1] - s[1]) * KY;
+        const L = Math.hypot(bx - ax, by - ay);
+        if (L > 0 && acc + L >= want) { const t = (want - acc) / L; px = ax + (bx - ax) * t; py = ay + (by - ay) * t; break; }
+        acc += L; px = bx; py = by;
     }
-    return best;
+    const len = Math.hypot(px, py);
+    return len ? { start: { lng: s[0], lat: s[1] }, dir: { x: px / len, y: py / len } } : null;
+}
+
+/** ✂️ 점이 자른 선 앞(경로 쪽)인가 — 자른 선 위는 앞이다 */
+export function isAheadOf(pt: { lng: number; lat: number }, cut: { start: { lng: number; lat: number }; dir: { x: number; y: number } }): boolean {
+    const KX = 111.32 * Math.cos(rad(cut.start.lat)), KY = 110.574;
+    return (pt.lng - cut.start.lng) * KX * cut.dir.x + (pt.lat - cut.start.lat) * KY * cut.dir.y >= 0;
 }
 
 /**

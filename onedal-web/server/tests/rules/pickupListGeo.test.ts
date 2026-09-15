@@ -208,13 +208,15 @@ describe('상차 목록 배선', () => {
 
     it('✂️ 라인 띠는 현위치부터 · 시작은 평평하게 — 서버 상차 목록 · 지도 «상차» · «하차» 띠가 같은 함수 (기사님 2026-09-15 «2»)', () => {
         expect(code('services/geoService.ts')).toMatch(/lineFromPoint\(/);
-        expect(code('services/geoService.ts')).toMatch(/distToLineFlatStartKm\(/);
+        expect(code('services/geoService.ts')).toMatch(/isAheadOf\(p, cut\)/);
         const CLIENT = join(__dirname, '../../../client-app/src');
         const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         const sv = strip(readFileSync(join(CLIENT, 'components/stage/StageView.tsx'), 'utf8'));
         expect((sv.match(/lineFromPoint\(/g) || []).length).toBeGreaterThanOrEqual(2);
         const canvas = strip(readFileSync(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx'), 'utf8'));
-        expect((canvas.match(/lineCap = 'butt'/g) || []).length).toBeGreaterThanOrEqual(2);
+        expect(canvas).toMatch(/const clipAhead = /);
+        expect((canvas.match(/clipAhead\(/g) || []).length).toBeGreaterThanOrEqual(2);   // 상차 띠 · 하차 띠
+        expect(canvas).not.toMatch(/lineCap = 'butt'/);
         expect(canvas).not.toMatch(/trimKm/);
     });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lineFromPoint, distToLineFlatStartKm, distToLineKm, pruneExcludedRegions, buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound, foldChainOrder } from './callNet';
+import { lineFromPoint, aheadOf, isAheadOf, distToLineKm, pruneExcludedRegions, buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound, foldChainOrder } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -1047,17 +1047,19 @@ describe('✂️ 라인 — 현위치부터 · 시작은 평평하게', () => {
         expect(lineFromPoint(line, { lng: 0.05, lat: 0 })).toEqual([]);
         expect(lineFromPoint([[0, 0]], { lng: 0, lat: 0 })).toEqual([]);
     });
-    it('🔴 시작 끝 뒤는 라인 밖이다 — 둥근 끝(distToLineKm)이면 들던 뒤쪽 반원', () => {
-        const seg: Array<[number, number]> = [[0, 0], [0.02, 0]];
-        const behind = { lng: -0.005, lat: 0 };
-        expect(distToLineKm(behind, seg)).toBeLessThan(1);
-        expect(distToLineFlatStartKm(behind, seg)).toBe(Infinity);
+    it('🔴 현위치에서 경로와 직각으로 자른다 — 첫 선분이 짧고 바로 꺾여도 차 뒤는 영역 밖 (#151)', () => {
+        const bend: Array<[number, number]> = [[0, 0], [0.0001, 0], [0.0001, 0.04]];   // 11m 동쪽으로 간 뒤 북쪽으로 꺾인다
+        const behind = { lng: 0, lat: -0.005 };   // 차 뒤 550m — 꺾인 자리의 둥근 이음이 덮던 곳
+        expect(distToLineKm(behind, bend)).toBeLessThan(1);
+        const cut = aheadOf(bend, 1)!;
+        expect(cut.dir.y).toBeGreaterThan(0.99);   // 경로 방향은 북쪽 — 11m 첫 선분(동쪽)에 안 흔들린다
+        expect(isAheadOf(behind, cut)).toBe(false);
+        expect(isAheadOf({ lng: 0.001, lat: 0.01 }, cut)).toBe(true);
+        expect(isAheadOf({ lng: 0.02, lat: 0 }, cut)).toBe(true);   // 자른 선 옆은 앞이다
     });
-    it('옆 · 앞 · 먼 끝 둘레는 둥근 끝과 같다', () => {
-        const seg: Array<[number, number]> = [[0, 0], [0.02, 0], [0.02, 0.02]];
-        for (const pt of [{ lng: 0.01, lat: 0.009 }, { lng: 0.03, lat: 0.025 }, { lng: 0.021, lat: 0.001 }]) {
-            expect(distToLineFlatStartKm(pt, seg)).toBeCloseTo(distToLineKm(pt, seg), 9);
-        }
+    it('라인이 점 둘보다 적거나 길이가 없으면 자를 선이 없다', () => {
+        expect(aheadOf([[0, 0]], 1)).toBeNull();
+        expect(aheadOf([[0, 0], [0, 0]], 1)).toBeNull();
     });
 });
 

@@ -3,7 +3,7 @@ import path from 'path';
 import { getActiveCalls } from '../core/helpers';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
-import { DEFAULT_JUDGMENT, isPickupListName, pickupShapeOf, distToLineFlatStartKm, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
+import { DEFAULT_JUDGMENT, isPickupListName, pickupShapeOf, distToLineKm, aheadOf, isAheadOf, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
 import type { GoalZone, NetPoint, NetParams } from '@onedal/shared';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
@@ -591,15 +591,16 @@ export function pickupListFor(o: {
 }): { list: string[]; grouped: Record<string, string[]>; shape: 'me' | 'meLine' | null } {
     const want = pickupShapeOf(o.zones);
     if (!want) return { list: [], grouped: {}, shape: null };   // 목적지가 없다 — 빈 목록은 고장으로 막힌다 (`callFilterBlocker`)
-    /* ✂️ 운행 뒤 띠는 **현위치부터 앞으로만 · 시작은 평평하게** — 지나온 길 · 차 뒤 반원은 상차 영역이 아니다
-          (기사님 2026-09-15 «교집합이긴 한데 뒤가 너무 많이 남는다 · 뒤를 자르는 Cap»). 라인 끝을 지나 앞이 없으면 «라인 없음» — 원 전체 */
+    /* ✂️ 운행 뒤 띠는 **현위치부터 앞으로만** · 현위치에서 **경로와 직각으로** 자른 선 뒤는 상차 영역이 아니다 (`aheadOf` · #151).
+          라인 끝을 지나 앞이 없으면 «라인 없음» — 원 전체 */
     const full = o.line && o.line.length >= 2 ? o.line.map(p => [p.x, p.y] as [number, number]) : null;
     const line = want === 'meLine' && full ? lineFromPoint(full, { lng: o.me.x, lat: o.me.y }) : [];
     const shape = want === 'meLine' && line.length >= 2 ? 'meLine' : 'me';
     const r = o.radii.pickupRadiusKm;
     const inMe = (p: { lng: number; lat: number }) => haversineKm(o.me.y, o.me.x, p.lat, p.lng) <= r;
+    const cut = shape === 'meLine' ? aheadOf(line, o.radii.detourRadiusKm) : null;
     const inArea = shape === 'meLine'
-        ? (p: { lng: number; lat: number }) => inMe(p) && distToLineFlatStartKm(p, line) <= o.radii.detourRadiusKm
+        ? (p: { lng: number; lat: number }) => inMe(p) && distToLineKm(p, line) <= o.radii.detourRadiusKm && (!cut || isAheadOf(p, cut))
         : inMe;
 
     /* 격자 — 영역은 늘 현위치 원 안이라 원을 감싼 사각형만 찍으면 된다 (`circleArea`) */
