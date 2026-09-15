@@ -196,6 +196,60 @@ describe('수락 뒤 단계 — 실물 순서', () => {
     });
 });
 
+describe('픽업 이동 · 배송 중 — 지도 위 시트 (실물 16~18 · 21~22)', () => {
+    const sheet = () => host!.querySelector<HTMLElement>('[data-sheet]')!;
+    /** 손잡이를 끈다 — 누름 → 뗌 사이의 세로 거리 */
+    const drag = (dy: number) => {
+        const handle = host!.querySelector<HTMLElement>('[data-sheet-drag]')!;
+        act(() => {
+            handle.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientY: 400 }));
+            handle.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientY: 400 + dy }));
+        });
+        act(() => { vi.advanceTimersByTime(1); });
+    };
+
+    it('🔴 지도가 시트 뒤 화면 전체에 깔린다 — 픽업 이동은 시트 «중», 끌어 올리면 «상»이어도 지도가 남는다 (실물 16 · 17)', () => {
+        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        expect(host!.querySelector('[data-map]')).not.toBeNull();
+        expect(sheet().dataset.sheet).toBe('MID');
+        expect(sheet().contains(host!.querySelector('[data-map]'))).toBe(false);
+        expect(host!.querySelector('[data-map] button[aria-label="뒤로가기"]')).not.toBeNull();
+        drag(-150);
+        expect(stageOf(text())).toBe('AT_PICKUP');
+        expect(sheet().dataset.sheet).toBe('HIGH');
+        expect(host!.querySelector('[data-map]')).not.toBeNull();
+    });
+
+    it('끌기 — 위로 끌면 창이 올라와 «밀어서 픽업 완료», 아래로 끌면 다시 픽업 이동', () => {
+        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        drag(-150);
+        expect(buttonByText('밀어서 픽업 완료')).toBeTruthy();
+        drag(150);
+        expect(stageOf(text())).toBe('TO_PICKUP');
+        expect(sheet().dataset.sheet).toBe('MID');
+    });
+
+    it('🔴 끈 뒤 따라오는 누르기는 창을 도로 내리지 않는다', () => {
+        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        const handle = host!.querySelector<HTMLElement>('[data-sheet-drag]')!;
+        act(() => {
+            handle.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientY: 400 }));
+            handle.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientY: 250 }));
+        });
+        act(() => { host!.querySelector<HTMLElement>('[data-sheet-drag]')!.click(); });
+        expect(stageOf(text())).toBe('AT_PICKUP');
+    });
+
+    it('배송 중도 같은 구조 — 시트 «중» · 끌어 올리면 «밀어서 사진 촬영» (실물 21 · 22)', () => {
+        mount(<PickerOngoingScreen call={pickerA} initialStep="TO_DROPOFF" onBack={() => {}} onFinish={() => {}} />);
+        expect(host!.querySelector('[data-map]')).not.toBeNull();
+        expect(sheet().dataset.sheet).toBe('MID');
+        drag(-150);
+        expect(stageOf(text())).toBe('AT_DROPOFF');
+        expect(sheet().dataset.sheet).toBe('HIGH');
+    });
+});
+
 describe('픽커 배차 화면 — 수락 뒤', () => {
     const noop = () => {};
     const props = (over: Partial<NetScreenProps> = {}): NetScreenProps => ({

@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { PickerCall } from './pickerCall';
 import { formatPickerAddressLine, minutesLeftToday } from './pickerCall';
 import { formatPickerFare } from './PickerDispatchBoard';
+import { PickerMapBackdrop, usePickerSheetDrag } from './PickerMapSheet';
 
 /** 수락 뒤 단계 — 원달앱 `KakaoPickerKeywords.Stage` 와 같은 이름 (`OVERVIEW` · `PHOTO` · `PHOTO_CHECK` · `SMS` 는 원달앱이 모르는 화면) */
 export type PickerOngoingStep = 'OVERVIEW' | 'TO_PICKUP' | 'AT_PICKUP' | 'TO_DROPOFF' | 'AT_DROPOFF' | 'PHOTO' | 'PHOTO_CHECK' | 'SMS' | 'DONE';
@@ -37,6 +38,10 @@ interface Props {
 const SLIDE_PX = 120;
 /** 아래 창을 이만큼 끌어 올리면(스크롤) 창이 올라온다 (CSS px) */
 const SHEET_PULL_PX = 24;
+/** 시트 «중» 윗변 — 지도가 위 절반쯤 보인다 (실물 16 · 18 · 21) */
+const SHEET_MID_TOP_PCT = 52;
+/** 시트 «상» 윗변 — 지도가 맨 위 한 줄만 남는다 (실물 17 · 22) */
+const SHEET_HIGH_TOP = '28px';
 
 /**
  * «밀어서 …» — 실물은 밀기 · 시뮬레이터는 **누르기와 밀기 둘 다** 받는다 (계획서 §8-2).
@@ -80,6 +85,13 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
   const [step, setStepState] = useState<PickerOngoingStep>(initialStep);
   const [cancelBlocked, setCancelBlocked] = useState(false);
   const setStep = (s: PickerOngoingStep) => { setStepState(s); onStepChange?.(s); };
+  const toDropoff = step === 'TO_DROPOFF' || step === 'AT_DROPOFF';
+  /** 아래 창이 올라왔나 (실물 17 · 22) — 올라와야 «밀어서 …»가 보인다 */
+  const raised = step === 'AT_PICKUP' || step === 'AT_DROPOFF';
+  const raise = () => setStep(toDropoff ? 'AT_DROPOFF' : 'AT_PICKUP');
+  const lower = () => setStep(toDropoff ? 'TO_DROPOFF' : 'TO_PICKUP');
+  /* 훅이라 아래의 화면별 return 보다 먼저 부른다 */
+  const { dragHandlers, onTap } = usePickerSheetDrag(dir => (dir > 0 ? raise() : lower()));
 
   const pickup = call.pickupDetails?.[0];
   const dropoff = call.dropoffDetails?.[0];
@@ -224,30 +236,37 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
     );
   }
 
-  const toDropoff = step === 'TO_DROPOFF' || step === 'AT_DROPOFF';
-  /** 아래 창이 올라왔나 (실물 17 · 22) — 올라와야 «밀어서 …»가 보인다 */
-  const raised = step === 'AT_PICKUP' || step === 'AT_DROPOFF';
-  const raise = () => setStep(toDropoff ? 'AT_DROPOFF' : 'AT_PICKUP');
-  const lower = () => setStep(toDropoff ? 'TO_DROPOFF' : 'TO_PICKUP');
-
   return (
-    <div className="relative w-full h-full flex flex-col bg-[#f4f5f7] text-[#1f1f1f] select-none overflow-hidden">
-      {/* 지도 자리 (실물 16 · 21 위쪽) — 뒤로 · (픽업 이동에만) 배정 취소 · 안내 띠. 창이 올라오면 덮인다 */}
-      {!raised && (
-        <div className="relative h-[40%] bg-[#e9efe7] shrink-0">
-          <button aria-label="뒤로가기" onClick={onBack} className="absolute left-3 top-3 w-10 h-10 rounded-full bg-white shadow flex items-center justify-center">
+    <div className="relative w-full h-full overflow-hidden bg-[#e9efe7] text-[#1f1f1f] select-none">
+      {/* 맨 아래 — 지도가 화면 전체 (실물 16 · 21). 창이 올라오면 위 한 줄만 남는다 (실물 17 · 22)
+          지도 위 — 뒤로 · (픽업 이동에만) 배정 취소 · 내 위치 · 안내 띠. 창이 올라오면 시트에 덮여 안 그린다 */}
+      <PickerMapBackdrop>
+        {!raised && (<>
+          <button aria-label="뒤로가기" onClick={onBack} className="absolute left-3 top-3 w-11 h-11 rounded-full bg-white shadow flex items-center justify-center">
             <div className="w-3 h-3 border-l-2 border-b-2 border-[#333] rotate-45" />
           </button>
-          {!toDropoff && <button className="absolute right-3 top-3 h-10 px-4 rounded-full bg-white shadow text-[15px] font-bold" onClick={() => setCancelBlocked(true)}>배정 취소</button>}
-          <div className="absolute left-3 right-3 bottom-3 rounded-lg bg-black/60 px-3 py-[10px] text-white text-[14px]">
+          {!toDropoff && <button className="absolute right-3 top-3 h-11 px-4 rounded-full bg-white shadow text-[15px] font-bold" onClick={() => setCancelBlocked(true)}>배정 취소</button>}
+          <button aria-label="내 위치" className="absolute right-3 w-11 h-11 rounded-full bg-white shadow flex items-center justify-center" style={{ bottom: `calc(${100 - SHEET_MID_TOP_PCT}% + 84px)` }}>
+            <div className="w-4 h-4 rounded-full border-2 border-[#333]" />
+          </button>
+          <div className="absolute left-3 right-3 rounded-lg bg-black/60 px-3 py-[10px] text-white text-[14px]" style={{ bottom: `calc(${100 - SHEET_MID_TOP_PCT}% + 20px)` }}>
             {toDropoff ? '물품 파손/분실을 주의해 이동해주세요' : '픽업지 근처에 가시면 오더 정보를 확인하세요'}
           </div>
-        </div>
-      )}
+        </>)}
+      </PickerMapBackdrop>
 
-      {/* 아래 창 — 손잡이를 누르거나 끌어 올리면(스크롤) 올라온다 */}
-      <div className={`relative flex-1 min-h-0 flex flex-col bg-white ${raised ? '' : 'rounded-t-2xl -mt-[12px]'}`}>
-        <button aria-label={raised ? '아래 창 내리기' : '아래 창 올리기'} onClick={raised ? lower : raise} className="h-[24px] w-full flex items-center justify-center shrink-0">
+      {/* 가운데 — 시트. «중»(실물 16 · 21) ↔ «상»(실물 17 · 22) · 손잡이 누르기 · 끌기 · 내용 끌어 올리기(스크롤) */}
+      <div
+        data-sheet={raised ? 'HIGH' : 'MID'}
+        className="absolute inset-x-0 bottom-0 flex flex-col bg-white rounded-t-2xl shadow-[0_-2px_8px_rgba(0,0,0,0.08)] transition-[top] duration-200"
+        style={{ top: raised ? SHEET_HIGH_TOP : `${SHEET_MID_TOP_PCT}%` }}
+      >
+        <button
+          {...dragHandlers}
+          aria-label={raised ? '아래 창 내리기' : '아래 창 올리기'}
+          onClick={onTap(raised ? lower : raise)}
+          className="h-[24px] w-full flex items-center justify-center shrink-0 touch-none"
+        >
           <div className="w-[44px] h-[4px] rounded-full bg-[#c8c8c8]" />
         </button>
         <div

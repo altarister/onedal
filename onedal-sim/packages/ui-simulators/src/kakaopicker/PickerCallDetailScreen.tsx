@@ -21,11 +21,11 @@
  * ⚠️ 시트를 «하»로 내려도 가려진 글자가 웹뷰 접근성에는 남는다 — 실물 픽커가 가려진 글자를 내주는지는 모른다.
  * ⚠️ 실물 픽커는 상세의 배송지를 접근성에 안 넘긴다(덤프 11 · 서버 글자인식이 대신 읽는다). 그 흉내는 계획서 §10 «나중»이다 — 지금은 보인다.
  */
-import { useEffect, useRef, useState } from 'react';
-import type { PointerEvent } from 'react';
+import { useState } from 'react';
 import type { PickerCall } from './pickerCall';
 import { formatPickerAddressLine } from './pickerCall';
 import { formatPickerDistance, formatPickerFare } from './PickerDispatchBoard';
+import { PickerMapBackdrop, usePickerSheetDrag } from './PickerMapSheet';
 
 interface Props {
   call: PickerCall;
@@ -39,8 +39,6 @@ type SheetLevel = 'LOW' | 'MID' | 'HIGH';
 const LEVELS: SheetLevel[] = ['LOW', 'MID', 'HIGH'];
 /** 시트 윗변 자리 — 하 는 손잡이 · 태그 · 남은 시간 상자만 버튼 위에 보인다 */
 const SHEET_TOP: Record<SheetLevel, string> = { LOW: 'calc(100% - 216px)', MID: '36%', HIGH: '0px' };
-/** 이만큼 끌면 한 칸 옮긴다 (CSS px) */
-const DRAG_PX = 40;
 /** «중» 이하에서 내용을 이만큼 끌어 올리면(스크롤) «상» (CSS px) */
 const SHEET_PULL_PX = 24;
 /** 바닥 버튼 높이 — 시트 내용이 그 밑에 숨지 않게 아래를 비운다 */
@@ -83,30 +81,8 @@ const ClockIcon = ({ color }: { color: string }) => (
 
 export const PickerCallDetailScreen = ({ call, onClose, onAccept }: Props) => {
   const [level, setLevel] = useState<SheetLevel>('MID');
-  const dragStartY = useRef<number | null>(null);
-  /** 끈 뒤 손을 떼면 «누르기»가 따라온다 — 그 누르기로 한 칸 더 오르지 않게 */
-  const dragged = useRef(false);
-  const draggedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (draggedTimer.current) clearTimeout(draggedTimer.current); }, []);
-
   const step = (by: 1 | -1) => setLevel(l => LEVELS[Math.min(LEVELS.length - 1, Math.max(0, LEVELS.indexOf(l) + by))]);
-  const dragHandlers = {
-    'data-sheet-drag': true,
-    onPointerDown: (e: PointerEvent) => {
-      dragStartY.current = e.clientY;
-      // 🔴 손가락이 손잡이 밖에서 떼어져도 뗌 신호가 이리 오게 묶는다 — 안 묶으면 끌기가 안 먹는다
-      e.currentTarget.setPointerCapture?.(e.pointerId);
-    },
-    onPointerUp: (e: PointerEvent) => {
-      const dy = dragStartY.current == null ? 0 : e.clientY - dragStartY.current;
-      dragStartY.current = null;
-      if (Math.abs(dy) < DRAG_PX) return;
-      step(dy < 0 ? 1 : -1);
-      dragged.current = true;
-      if (draggedTimer.current) clearTimeout(draggedTimer.current);
-      draggedTimer.current = setTimeout(() => { dragged.current = false; }, 0);
-    },
-  };
+  const { dragHandlers, onTap } = usePickerSheetDrag(step);
 
   const pickup = call.pickupDetails?.[0];
   const dropoff = call.dropoffDetails?.[0];
@@ -120,18 +96,14 @@ export const PickerCallDetailScreen = ({ call, onClose, onAccept }: Props) => {
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-[#e9efe7] text-[#1f1f1f] select-none">
-      {/* 맨 아래 — 지도 자리 (실물 05 · 10-2 · 33). 글자 없이 핀 · 경로 · 내 위치만 */}
-      <div data-map className="absolute inset-0">
-        <div className="absolute left-[22%] top-[12%] w-[26px] h-[26px] rounded-full rounded-br-none rotate-45 bg-[#7646d6]" />
-        <div className="absolute left-[46%] top-[17%] w-[26px] h-[26px] rounded-full rounded-br-none rotate-45 bg-[#4a74db]" />
-        <div className="absolute left-[25%] top-[16%] w-[55%] h-[6px] rounded-full bg-[#4a74db]/40 rotate-[14deg] origin-left" />
-        <div className="absolute left-[78%] top-[26%] w-[14px] h-[14px] rounded-full bg-[#e53935] border-2 border-white" />
+      {/* 맨 아래 — 지도 자리 (실물 05 · 10-2 · 33) */}
+      <PickerMapBackdrop>
         {!high && (
           <button aria-label="뒤로가기" onClick={onClose} className="absolute left-3 top-3 w-11 h-11 rounded-full bg-white shadow flex items-center justify-center">
             <BackArrow />
           </button>
         )}
-      </div>
+      </PickerMapBackdrop>
 
       {/* 가운데 — 시트. 윗변 자리만 바뀐다 */}
       <div
@@ -150,7 +122,7 @@ export const PickerCallDetailScreen = ({ call, onClose, onAccept }: Props) => {
           <button
             {...dragHandlers}
             aria-label="아래 창 올리기"
-            onClick={() => { if (!dragged.current) step(1); }}
+            onClick={onTap(() => step(1))}
             className="h-[28px] w-full flex items-center justify-center shrink-0 touch-none"
           >
             <div className="w-[44px] h-[4px] rounded-full bg-[#c8c8c8]" />
