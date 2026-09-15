@@ -16,11 +16,13 @@
  * 🔴 손으로 훑으면 다음에 또 갈라진다. 그래서 매번 소스와 대조한다
  *    (`pnpm audit:socket` 과 같은 방식 · 흐름 지도 `pnpm map` 도 그랬다 — 2026-09-14 에 지웠다).
  *
- * 보는 것 넷
+ * 보는 것
  *   ① 없는 파일        문서가 말하는 `*.ts/.tsx/.kt/.mjs` 가 레포에 있는가
  *   ② 사라진 식별자     문서가 말하는 상수·상태값·칸이 코드에 있는가
  *   ③ 옛말             **`docs/지금/` 만** — 용어집이 폐기한 말로 현재를 설명하는가
  *   ④ 죽은 링크        문서→문서 · 코드→문서
+ *   ⑤ 손 뗀 자리       문서가 «이 파일이 한다»는 일을 그 파일이 아직 하는가
+ *   ⑥ 경위 줄          바꾼 파일에 날짜별 경위 줄이 HEAD 판보다 늘었나
  *
  * ⚠️ **역사 서술은 옛말을 담는 게 당연하다.** `glossary.test.ts` 가 주석을 걷어내고
  *    검사하는 것과 같은 이유다. 그래서 ③은 «지금» 칸에만 건다 —
@@ -57,11 +59,9 @@ const DOCS = ALL.filter(p => {
     return r.startsWith('docs/') || basename(r) === 'CLAUDE.md' || r === 'todo.md';
 });
 
-/** 코드 전문 — 주석까지 포함한다. 문서가 가리키는 이름이 «있기만» 하면 되므로 */
 /**
- * 🔴 **주석은 걷어낸다** (2026-08-29). 예전엔 통째로 이어 붙여서 **묘비 주석**
- *    («`scoreDryRun` 은 철거됐다»)에 이름이 남아 있으면 «코드에 있다»로 봤다.
- *    그래서 문서가 철거된 함수를 가리켜도 감사가 통과했다.
+ * 🔴 **주석은 걷어낸다** — 묘비 주석(«`scoreDryRun` 은 철거됐다»)에 이름이 남으면
+ *    «코드에 있다»로 보여, 문서가 철거된 함수를 가리켜도 감사가 통과한다.
  */
 const codeOnlyView = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 /**
@@ -302,12 +302,50 @@ say('⑤ 손 뗀 자리', '문서가 «이 파일이 한다»는 일을 그 파�
     if (!bad) console.log(`  ${C.g}없음 ✅${C.x}`);
 }
 
+// ═══════════════════════════ ⑥ 경위 줄
+say('⑥ 경위 줄', '바꾼 코드·「지금」 문서에 날짜별 경위가 늘었나');
+{
+    /**
+     * 🔴 **한 가지는 한 곳에만 적는다** — 코드 주석 · `docs/지금/` · `CLAUDE.md` 에는 지금 규칙과 까닭 한 줄,
+     *    날짜별 경위는 버그 대장 · 커밋 메시지로 (루트 CLAUDE.md «코드 주석 · 문서에 무엇을 적나»).
+     *    이미 쌓인 줄은 세지 않는다 — **HEAD 판보다 늘었는가**만 본다. 만질 때 줄이면 된다.
+     * 옮긴 줄(다른 바뀐 파일의 HEAD 판에 같은 줄이 있다)은 늘어난 것으로 안 본다.
+     */
+    const { execFileSync } = await import('child_process');
+    const git = (...a) => { try { return execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 }); } catch { return ''; } };
+    const DATE = '20\\d{2}-\\d{2}-\\d{2}';
+    const SHAPES = [
+        new RegExp(`🔄.*${DATE}|${DATE}.*개정`),
+        /예전(?:엔|에는)/,
+        new RegExp(`기사님.*${DATE}|${DATE}.*기사님`),
+    ];
+    const watched = (p) => /\.(ts|tsx|kt|mjs|md)$/.test(p) && !/^docs\/(?!지금\/)|^todo\.md$/.test(p);
+    const shaped = (text) => text.split('\n').map(l => l.trim()).filter(l => SHAPES.some(r => r.test(l)));
+    const changed = [...new Set([
+        ...git('diff', '--name-only', 'HEAD').split('\n'),
+        ...git('ls-files', '--others', '--exclude-standard').split('\n'),
+    ])].filter(p => p && watched(p));
+    const before = new Map(changed.map(p => [p, shaped(git('show', `HEAD:${p}`))]));
+    const moved = new Set([...before.values()].flat());
+    let bad = 0;
+    for (const p of changed) {
+        if (!existsSync(join(ROOT, p))) continue;
+        const now = shaped(readFileSync(join(ROOT, p), 'utf8'));
+        const fresh = now.filter(l => !moved.has(l));
+        if (now.length <= before.get(p).length || !fresh.length) continue;
+        problems++; bad++;
+        console.log(`  ${C.r}⚠${C.x} ${p} ${C.d}${before.get(p).length} → ${now.length}줄${C.x}`);
+        for (const l of fresh.slice(0, 3)) console.log(`      ${C.y}${l.slice(0, 110)}${C.x}`);
+    }
+    if (!bad) console.log(`  ${C.g}없음 ✅${C.x} ${C.d}(바뀐 파일 ${changed.length}개)${C.x}`);
+}
+
 // ═══════════════════════════ 결론
 console.log('');
 if (problems === 0) {
     console.log(`${C.g}✅ 문서가 코드와 어긋난 곳 없음${C.x} ${C.d}(문서 ${DOCS.length}개)${C.x}\n`);
 } else {
-    console.log(`${C.y}⚠ ${problems}건${C.x} ${C.d}— 문서가 코드와 다른 말을 한다. 어느 쪽이 맞는지 보고 고칠 것${C.x}`);
+    console.log(`${C.y}⚠ ${problems}건${C.x} ${C.d}— 문서가 코드와 다른 말을 하거나(①~⑤) 경위 줄이 늘었다(⑥). 칸마다 보고 고칠 것${C.x}`);
     console.log(`${C.d}  «지금» 칸이 틀리면 읽는 사람이 없는 것을 있다고 믿는다 — 이 레포가 네 번 당한 사고다.${C.x}\n`);
     process.exitCode = 1;
 }
