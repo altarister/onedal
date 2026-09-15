@@ -943,7 +943,7 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const prev = f.pickupKeywords;
     session.pickupListAt = { x: me.x, y: me.y };
     f.pickupKeywords = list;
-    /* 🗺️ 지도가 **같은 점**을 찍게 재료를 싣는다 — 계산은 shared `pickupAreaPoints` 한 곳, 관제웹이 이 값으로 다시 부른다 (기사님 2026-09-15 «교집합이 안 보인다») */
+    /* 🗺️ 지도가 **같은 계획**으로 그리게 재료를 싣는다 — 계획은 shared `pickupAreaPlan` 한 곳, 관제웹이 이 값으로 다시 부른다 (기사님 2026-09-15 «교집합이 안 보인다») */
     f.pickupArea = { at: { x: me.x, y: me.y }, homeCity, homeOn, homeCaught, hasLine: !!line && line.length >= 2 };
     refreshKeywordTraps(session);
     const changed = !prev || prev.join(',') !== list.join(',');

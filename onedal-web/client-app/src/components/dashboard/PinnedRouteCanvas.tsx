@@ -193,10 +193,18 @@ interface Props {
      * 📋 **상차 영역 — 원달앱이 상차지를 거르는 영역** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
      *
      * 🔴 위 `netOverlay`(하차 그물 · 합집합)와 **다른 것**이다. 이쪽은 «현위치 반경 ∩ 라인» 같은 **교집합**이라,
-     *    도형을 겹쳐 칠하면 합집합으로 보인다. 그래서 도형이 아니라 **서버가 목록을 만든 그 격자 점**
-     *    (shared `pickupAreaPoints`)을 받아 칸으로 칠한다 — 그림이 곧 목록의 근거다 (규칙 ③).
+     *    도형을 그냥 겹쳐 칠하면 합집합으로 보인다. 그래서 **내 위치 원으로 잘라(clip)** 그 안에서만 띠·원·마름모를 칠한다.
+     *    계획(`plan` — 항들의 합집합, 항은 도형들의 교집합)은 shared `pickupAreaPlan` 이 낸 그대로다.
      */
-    pickupArea?: { points: Array<{ lng: number; lat: number; stepKm: number }> } | null;
+    pickupArea?: {
+        plan: string[][];
+        me: { x: number; y: number };
+        meKm: number;
+        line: Array<{ x: number; y: number }> | null;
+        lineKm: number;
+        destRing: { x: number; y: number; km: number } | null;
+        quadHome: Array<{ x: number; y: number }> | null;
+    } | null;
     children?: React.ReactNode;
     /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (기본 h-64는 옛 화면용) */
     fill?: boolean;
@@ -493,22 +501,53 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          */
         /**
          * 📋 «상차» 레이어 — 원달앱이 상차지를 거르는 영역 (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
-         * 🔴 도형을 겹쳐 칠하지 않는다 — «반경 ∩ 라인»이 합집합으로 보인다. 서버가 목록을 만든 **격자 칸**을 한 path 에 모아
-         *    **한 번만** 칠한다 (칸이 겹쳐도 두 번 짙어지지 않게). 그물(파랑)과 가르려고 초록으로 칠한다.
+         * 🔴 **내 위치 원으로 잘라(clip) 그 안에서만** 띠·목적지 원·집 마름모를 칠한다 — 원 ∩ 라인이 테두리 매끈하게 나온다.
+         *    항끼리 겹친 자리가 두 번 짙어지지 않게 **숨은 캔버스에 불투명으로 모아 그린 뒤 한 번에 옅게** 올린다.
+         *    그물(파랑)과 가르려고 초록으로 칠한다.
          */
-        if (layers.pickup && pickupArea?.points.length) {
-            ctx.save();
-            ctx.globalAlpha = 0.28;
-            ctx.beginPath();
-            for (const p of pickupArea.points) {
-                const halfLat = p.stepKm / 2 / 110.574, halfLng = p.stepKm / 2 / (111.32 * Math.cos((p.lat * Math.PI) / 180));
-                const a = getScreenPt({ x: p.lng - halfLng, y: p.lat + halfLat });
-                const b = getScreenPt({ x: p.lng + halfLng, y: p.lat - halfLat });
-                ctx.rect(a.cx, a.cy, b.cx - a.cx + 0.5, b.cy - a.cy + 0.5);
+        if (layers.pickup && pickupArea?.plan.length) {
+            const off = document.createElement('canvas');
+            off.width = canvas.width; off.height = canvas.height;
+            const oc = off.getContext('2d');
+            if (oc) {
+                oc.scale(dpr, dpr);
+                const c = getScreenPt(pickupArea.me);
+                const east = getScreenPt({ x: pickupArea.me.x + 1 / (111.32 * Math.cos((pickupArea.me.y * Math.PI) / 180)), y: pickupArea.me.y });
+                const pxPerKm = Math.abs(east.cx - c.cx);
+                const circle = (p: { x: number; y: number }, km: number) => {
+                    const s = getScreenPt(p);
+                    oc.beginPath(); oc.arc(s.cx, s.cy, Math.max(0, km) * pxPerKm, 0, Math.PI * 2);
+                };
+                oc.fillStyle = '#16a34a'; oc.strokeStyle = '#16a34a';
+                for (const term of pickupArea.plan) {
+                    const other = term.find(s => s !== 'me');
+                    oc.save();
+                    if (term.includes('me')) {
+                        circle(pickupArea.me, pickupArea.meKm);
+                        if (!other) { oc.fill(); oc.restore(); continue; }
+                        oc.clip();
+                    }
+                    /* 🔴 모르는 도형(경로·목적지·집이 없음)이 든 항은 칠하지 않는다 — 서버 `pickupAreaTest` 와 같다 (규칙 ④) */
+                    if (other === 'line' && pickupArea.line && pickupArea.line.length >= 2) {
+                        oc.beginPath();
+                        pickupArea.line.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
+                        oc.lineWidth = pickupArea.lineKm * 2 * pxPerKm;
+                        oc.lineCap = 'round'; oc.lineJoin = 'round';
+                        oc.stroke();
+                    } else if (other === 'destRing' && pickupArea.destRing) {
+                        circle(pickupArea.destRing, pickupArea.destRing.km); oc.fill();
+                    } else if (other === 'quadHome' && pickupArea.quadHome && pickupArea.quadHome.length >= 3) {
+                        oc.beginPath();
+                        pickupArea.quadHome.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
+                        oc.closePath(); oc.fill();
+                    }
+                    oc.restore();
+                }
+                ctx.save();
+                ctx.globalAlpha = 0.28;
+                ctx.drawImage(off, 0, 0, width, height);
+                ctx.restore();
             }
-            ctx.fillStyle = '#16a34a';
-            ctx.fill();
-            ctx.restore();
         }
 
         if (layers.net && netOverlay) {   // 🧅 «그물» 레이어

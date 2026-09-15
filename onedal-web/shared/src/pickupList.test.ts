@@ -1,37 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickupAreaPlan, pickupAreaTest, pickupAreaPoints, isPickupListName, pickupListNeedsRebuild, PICKUP_LIST_MOVE_KM, PICKUP_GRID_KM } from './pickupList';
-import { haversineKm } from './callNet';
-
-/**
- * 🧮 **격자 점 — 서버 목록과 관제웹 지도가 같은 점을 쓴다** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
- * 지도가 칠하는 것이 곧 목록을 만든 점이어야 한다 — 여기서 «교집합이 원보다 좁다»를 문다.
- */
-describe('상차 영역 격자 점 — pickupAreaPoints', () => {
-    const MODA = { x: 127.312587, y: 37.363298 };       // 모다아울렛 (초월읍)
-    const TERMINAL = { x: 127.446936, y: 37.277421 };   // 이천터미널 (중리동)
-    const base = {
-        me: MODA,
-        radii: { pickupRadiusKm: 4.55, destinationRadiusKm: 4.55, quadRadiusKm: 15.9, detourRadiusKm: 1 },
-        shape: { srcAngleDeg: 120, dstAngleDeg: 120 },
-        destinationCity: '이천시', homeCity: '광주시', homeOn: false, homeCaught: false,
-    };
-    const inCircle = (pts: { lng: number; lat: number }[]) =>
-        pts.filter(p => haversineKm({ lng: MODA.x, lat: MODA.y }, p) <= base.radii.pickupRadiusKm).length;
-
-    it('🔴 원 ∩ 라인은 원 안 점만 · 원 전체보다 적다 — 교집합이 합집합으로 칠해지면 여기서 걸린다', () => {
-        const whole = pickupAreaPoints({ ...base, line: null });   // 콜 전 = 원 전체
-        const cut = pickupAreaPoints({ ...base, line: [MODA, TERMINAL] });
-        expect(cut.plan).toEqual([['me', 'line']]);
-        expect(cut.points.length).toBeGreaterThan(0);
-        expect(inCircle(cut.points)).toBe(cut.points.length);           // 원 밖 점이 없다
-        expect(cut.points.length).toBeLessThan(inCircle(whole.points));  // 원 전체보다 좁다
-    });
-
-    it('점마다 칸 크기를 싣는다 — 원 항은 격자 한 칸', () => {
-        const cut = pickupAreaPoints({ ...base, line: [MODA, TERMINAL] });
-        expect(cut.points.every(p => p.stepKm === PICKUP_GRID_KM)).toBe(true);
-    });
-});
+import { pickupAreaPlan, pickupAreaTest, isPickupListName, pickupListNeedsRebuild, PICKUP_LIST_MOVE_KM } from './pickupList';
 
 /**
  * 📋 **상차 영역 — 기사님 확정 표** (2026-09-15 · `docs/지금/필터.md` «상차 목록 · 하차 목록»).

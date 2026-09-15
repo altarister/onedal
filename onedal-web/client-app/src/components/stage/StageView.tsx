@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm, pickupAreaPoints, quadShapeFrom } from '@onedal/shared';
+import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm, pickupAreaPlan, quadShapeFrom, quadOutline, cityCenter } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
@@ -183,26 +183,39 @@ export default function StageView(props: Props) {
     });
 
     /**
-     * 📋 **상차 영역 — 서버가 목록을 만든 그 점** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
+     * 📋 **상차 영역 — 도형 그대로** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다» · «왜 도트처럼 그려지는거야?»).
      *
-     * 🔴 계산은 shared `pickupAreaPoints` 한 곳이다 — 서버 `geoService.pickupListFor` 가 같은 함수로 목록을 만든다.
-     *    재료(목록을 만든 자리 · 집 · 복귀 · 라인 썼나)는 서버가 목록과 함께 실어 보낸다(`filter.pickupArea`) —
-     *    화면이 «집 방향 콜을 쥐었나»를 제 손으로 다시 재면 그림과 목록이 갈라진다.
+     * 🔴 계획(어느 도형끼리 겹치나)은 shared `pickupAreaPlan` 한 곳 — 서버 `geoService.pickupListFor` 가 같은 함수로 목록을 만든다.
+     *    재료(목록을 만든 자리 · 집 · 복귀 · 집 방향 콜 쥠 · 라인 썼나)는 서버가 목록과 함께 실어 보낸다(`filter.pickupArea`).
+     * 🔴 지도는 동 이름이 필요 없다 — 격자 점이 아니라 **원 · 띠 · 목적지 원 · 집 마름모**를 넘기고 캔버스가 원으로 잘라 칠한다.
+     *    반지름·띠 폭은 서버와 같은 `effectiveRadii` 에서 온다.
      * ⚠️ 라인 띠만은 **지금 그리는 경로 선**으로 잰다 — 서버의 얼린 경로와 심사 중 잠깐 다를 수 있다.
      */
     const pickupAreaIn = filter?.pickupArea;
     const pickupLine = pickupAreaIn?.hasLine ? derived.drawHolder?.routePolyline ?? null : null;
     const pickupArea = useMemo(() => {
         if (!pickupAreaIn || !filter?.destinationCity) return null;
+        const line = pickupLine && pickupLine.length >= 2 ? pickupLine : null;
+        const plan = pickupAreaPlan({ hasLine: !!line, homeOn: pickupAreaIn.homeOn, homeCaught: pickupAreaIn.homeCaught });
+        const centerOf = (city: string | null | undefined) => {
+            if (!city) return null;
+            try { return cityCenter(city); } catch { return null; }   // 지도에 없는 시 — 그 도형은 모른다
+        };
+        const dest = centerOf(filter.destinationCity), home = centerOf(pickupAreaIn.homeCity);
         const shape = quadShapeFrom(filter as unknown as Record<string, unknown>);   // 서버 `rebuildPickupList` 와 같은 모양 함수
-        return pickupAreaPoints({
-            me: pickupAreaIn.at, radii,
-            shape: { srcAngleDeg: shape.srcAngleDeg, dstAngleDeg: shape.dstAngleDeg },
-            line: pickupLine && pickupLine.length >= 2 ? pickupLine : null,
-            destinationCity: filter.destinationCity,
-            homeCity: pickupAreaIn.homeCity, homeOn: pickupAreaIn.homeOn, homeCaught: pickupAreaIn.homeCaught,
-        });
-    }, [pickupAreaIn, pickupLine, filter?.destinationCity, radii.pickupRadiusKm, radii.destinationRadiusKm, radii.quadRadiusKm, radii.detourRadiusKm, filter?.srcAngleDeg, filter?.dstAngleDeg]);
+        const params = {
+            srcAngleDeg: shape.srcAngleDeg, dstAngleDeg: shape.dstAngleDeg, quadRadiusKm: radii.quadRadiusKm,
+            srcDiamKm: radii.pickupRadiusKm * 2, dstDiamKm: radii.destinationRadiusKm * 2,
+        };
+        const me = { name: '내 위치', lng: pickupAreaIn.at.x, lat: pickupAreaIn.at.y };
+        return {
+            plan, me: pickupAreaIn.at, meKm: radii.pickupRadiusKm,
+            line, lineKm: radii.detourRadiusKm,
+            destRing: dest ? { x: dest.lng, y: dest.lat, km: radii.destinationRadiusKm } : null,
+            quadHome: home && plan.some(t => t.includes('quadHome'))
+                ? quadOutline(params, me, home).map(q => ({ x: q.lng, y: q.lat })) : null,
+        };
+    }, [pickupAreaIn, pickupLine, filter, radii.pickupRadiusKm, radii.destinationRadiusKm, radii.quadRadiusKm, radii.detourRadiusKm]);
 
 
     /**
