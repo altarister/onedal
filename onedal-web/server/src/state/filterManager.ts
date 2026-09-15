@@ -170,7 +170,7 @@ function netKeywordsOf(
      *    값이니(`callNet.makeInQuad`), 자동이 맞출 거리도 그 축이다 —
      *    첫짐은 «내 위치 → 목적지», 합짐은 «마지막 하차지 → 목적지».
      *    다른 축을 재면 «맞췄다는데 안 맞는» 값이 된다.
-     * 🔴 **계산은 `shared` 한 곳이다** — 관제웹 지도(`useCallNet`)가 **같은 함수**를 부른다.
+     * 🔴 **계산은 `shared` 한 곳이다** — 관제웹 지도(`StageView` «상차» · «하차» 레이어 · `effectiveRadii`)가 **같은 함수**를 부른다.
      *    두 벌이면 «지도는 든다는데 판정은 탈락»이 된다 (규칙 ③).
      * ⚠️ **수동이면 손대지 않는다.** 그리고 거리를 못 재면 자동도 **받은 값 그대로** 둔다
      *    (`autoRadii` 안에서 걸러진다 · 규칙 ④).
@@ -223,7 +223,7 @@ function netKeywordsOf(
             : null;
     /* 그물 입력 한 벌 — 중심점 그물(`netForGoal`)과 걸친 동(`regionsTouchingNetGrouped`)이 같은 입력을 본다 (규칙 ③) */
     const netOpts = {
-        /* 🔷 **동선이면 경로를 안 본다** — 지도(`useCallNet`)와 같은 분기 (조사 ①-9).
+        /* 🔷 **동선이면 경로를 안 본다** — 지도(`StageView` 의 `dropoffLine` · `pickupLine`)와 같은 분기 (조사 ①-9).
            예전엔 서버가 이 값을 몰라 «동선»을 골라도 판정·앱 목록은 노선이었다 */
         line: session.activeFilter.routeMode === false ? null : line,
         lineRadiusKm: auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),

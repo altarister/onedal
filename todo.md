@@ -14,7 +14,7 @@
 - [x] 하차 — 먼 목적지의 목적지 원 · 마름모도 **걸친 동**을 넣는다 (`geoService.regionsTouchingNetGrouped` · 로그 16:49 이천 걸친 23 → 36곳 · 2026-09-15)
 - [x] 관내 — 관제웹 표시(필터 창 문구 · 복귀 배지 · 예시 거리 · 현황판 줄) · `useCallNet` 의 `local` · shared 타입 칸 · `callNet.buildRingNet` 을 걷었다 (2026-09-15)
 - [x] 콜의 판(`goalOfCall`) · 관제웹 `goalCities` — `goalCitiesOf` 가 `goalZonesNow` 를 본다 (목적지 콜이 남으면 목적지도 · 2026-09-15)
-- [ ] 옛 «그물» 레이어(`useCallNet` · `netOverlay`)를 걷는다 — «하차» 레이어가 자리 잡았다
+- [x] 옛 «그물» 레이어(`useCallNet` · `netOverlay`)를 걷는다 — «하차» 레이어가 자리 잡았다 (2026-09-15 · 요약줄 «N 읍면동»은 서버 하차 목록 수 · 🎯 목적지 마커는 «하차» 레이어 · 동 점은 없앴다)
 
 ## 🟡 상차 목록 · 하차 목록 — 옛 칸 걷는 날 (3단계 · 2026-09-15 규격 초안)
 

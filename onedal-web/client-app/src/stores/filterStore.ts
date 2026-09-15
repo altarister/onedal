@@ -22,19 +22,8 @@ interface FilterState {
     baseFilter: AutoDispatchFilter | null;
 
     /**
-     * 🧾 **지도가 실제로 그린 그물의 읍·면·동 수** (이식 C4-11b · 2026-09-12).
-     *
-     * 🔴 **왜 store 에 두나 — 계산을 두 벌로 만들지 않으려고** (규칙 ③).
-     *    요약줄이 `useCallNet` 을 제 손으로 또 부르면 **다른 답**이 나온다:
-     *    그 훅이 먹는 `myLocation` 은 `useRouteDerivations` 안의 `useState` 라
-     *    훅 인스턴스마다 따로 산다. 그래서 **무대가 한 번 계산한 것**을 여기 올린다.
-     * 🔴 이 값은 **화면용 파생이지 필터의 일부가 아니다** — 서버로 안 간다.
-     * ⚠️ 지도가 안 떠 있으면 `null` 이다 — 그때 요약줄은 서버가 내려준
-     *    `destinationKeywords` 수로 물러선다 (지어내지 않는다 · 규칙 ④).
-     */
-    netCount: number | null;
-    /**
-     * 🛣️ **무대가 그물을 «라인으로» 쟀나** — 같은 이유로 여기 올린다 (전수 조사 4단계).
+     * 🛣️ **무대가 하차 영역에 쓸 경로선을 가졌나** — 계산을 두 벌로 만들지 않으려고 무대가 올린다 (전수 조사 4단계).
+     *    🔄 2026-09-15 옛 «그물» 레이어를 걷으며 «그물을 라인으로 쟀나»에서 뜻을 옮겼다 — 이름은 그대로 둔다.
      *    필터 화면의 «⏳ 카카오 경로를 기다립니다» 가 이것을 본다: 노선인데 콜을 쥐었고
      *    아직 라인이 없으면(false) 마름모로 재고 있는 **이상한 상태**다 — 몰라선 안 된다.
      *    지도가 안 떠 있으면 `null`(모른다) — 그때는 문구를 안 띄운다 (규칙 ④).
@@ -42,7 +31,6 @@ interface FilterState {
     netUsedLine: boolean | null;
 
     // ── Actions ──
-    setNetCount: (n: number | null) => void;
     setNetUsedLine: (v: boolean | null) => void;
     setFilter: (filter: AutoDispatchFilter) => void;
     setBaseFilter: (filter: AutoDispatchFilter) => void;
@@ -52,10 +40,8 @@ interface FilterState {
 export const useFilterStore = create<FilterState>((set) => ({
     filter: null,
     baseFilter: null,
-    netCount: null,
     netUsedLine: null,
 
-    setNetCount: (n) => set({ netCount: n }),
     setNetUsedLine: (v) => set({ netUsedLine: v }),
     setFilter: (filter) => set({ filter }),
     setBaseFilter: (filter) => set({ baseFilter: filter }),

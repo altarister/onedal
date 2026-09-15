@@ -152,31 +152,6 @@ interface Props {
          *  `color` 는 그 점과 **그 점으로 들어오는 구간**의 색 — 기존 경로와 이번 콜을 색으로 가른다 */
         callPath?: Array<{ x: number; y: number; label: string; color?: string }>;
     } | null;
-    /**
-     * 🕸️ **콜 그물 — 지금 필터가 무엇을 담고 있나** (이식 B3-2 · 2026-09-11).
-     *
-     * 🔴 위 `coneOverlay` 와 **다른 것**이다. 그쪽은 시트 목업이 쓰는 옛 모양(하늘색 점·호박 원)이고,
-     *    이쪽은 **지도 실험실 모양** — 마름모·원을 한 겹으로 옅게 깔고, 라인 띠를 두르고,
-     *    든 동을 점으로 찍는다. 둘을 한 prop 으로 합치면 한쪽을 고칠 때 다른 쪽이 흔들린다.
-     * ⚠️ `usedLine` 은 **계산이 함께 내놓는다** — 그리기가 제 조건으로 다시 판단하면 갈린다
-     *    (2026-09-09 사고: 계산은 라인 그물인데 그리기만 마름모인 척했다 · 규칙 ③).
-     */
-    netOverlay?: {
-        tri: Array<[number, number]>;
-        pass: Array<{ x: number; y: number; name: string; region: string }>;
-        circles: Array<{ name: string; ring: Array<[number, number]> }>;
-        usedLine: boolean;
-        /** 라인 띠의 폭 — 경로 양옆 km */
-        lineRadiusKm: number;
-        /** 🎯 목적지 — 마름모의 끝 꼭짓점이자 지도 마커 */
-        goal: { name: string; lng: number; lat: number };
-        /** 🏠 살아 있는 목적지 전부 — 복귀 대기면 둘 (전수표 #71 #75). 없으면 `goal` 하나 */
-        goals?: Array<{ name: string; lng: number; lat: number }>;
-        /** 목적지마다 마름모 — 없으면 `tri` 하나 */
-        tris?: Array<Array<[number, number]>>;
-        /** 🚗 이동 중 지나온 라인 km — 띠를 여기부터 긋는다 (전수표 #60). 0 이면 통째로 */
-        trimKm?: number;
-    } | null;
     unifiedRoutePoints: RoutePoint[];
     /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
      *  계약을 좁히면 거르기를 잊을 자리가 없어진다 (2026-08-10 전수조사) */
@@ -192,7 +167,7 @@ interface Props {
     /**
      * 📋 **상차 영역 — 원달앱이 상차지를 거르는 영역** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
      *
-     * 🔴 위 `netOverlay`(하차 그물 · 합집합)와 **다른 것**이다. 상차 영역은 **현위치 영역 전체** 아니면
+     * 🔴 아래 `dropoffArea`(하차 영역 · 합집합)와 **다른 것**이다. 상차 영역은 **현위치 영역 전체** 아니면
      *    **현위치 영역 ∩ 라인 영역** 둘뿐이다 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역» · 모양은 shared `pickupShapeOf`).
      *    교집합은 도형을 겹쳐 칠하면 합집합으로 보이니 **내 위치 원으로 잘라(clip)** 그 안에서만 띠를 칠한다.
      */
@@ -207,7 +182,7 @@ interface Props {
      * 🔵 **하차 영역 — 원달앱이 하차지를 거르는 영역** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
      *
      * 살아 있는 목적지마다 원 · 마름모 · 라인 띠를 모은 **합집합**이다 — 조각은 shared `dropoffPartsOf` 가 정한다.
-     * 🔴 위 `netOverlay`(옛 그물)와 **다른 것**이다 — 새 규칙이 자리 잡으면 그물 레이어를 걷는다 (todo «필터 영역 개정»).
+     * 🔄 옛 «그물» 레이어(`netOverlay` · `useCallNet`)를 대신한다 — 2026-09-15 걷었다 (todo «필터 영역 개정»).
      */
     dropoffArea?: {
         /** 먼 목적지 조각의 원 — 여기서 상차 영역을 지운다 */
@@ -215,6 +190,8 @@ interface Props {
         /** 🎯 가까이 온 목적지 원 — 상차 영역을 지운 **뒤에** 칠한다 (빼지 않는다) */
         nearCircles: Array<{ x: number; y: number; km: number }>;
         quads: Array<Array<{ x: number; y: number }>>;
+        /** 🎯 살아 있는 목적지 — 마커를 찍고 화면 맞춤에 넣는다 (옛 «그물» 레이어가 찍던 것) */
+        goals: Array<{ x: number; y: number }>;
         /** `trimKm` — 운행 뒤 지나온 만큼 띠를 여기부터 긋는다 (옛 그물과 같은 `progressAlongKm` 축척) */
         lines: Array<{ points: Array<{ x: number; y: number }>; km: number; trimKm: number }>;
     } | null;
@@ -251,7 +228,7 @@ interface Props {
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, netOverlay, pickupArea, dropoffArea, occludedPx, rainbowNodes = true }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -272,15 +249,18 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      * 🔴 **한 버튼 뒤에 접어 둔다** — 이 레포가 이미 쓴 문법이다 (`a41edca` 폰 줄: *"모드를 하나로 —
      *    누르면 셋이 펼쳐진다"*). 운전 중에는 입력을 못 하므로(실측: 안전취소 24건) 버튼 여섯이
      *    늘 떠 있으면 지도만 좁아진다. 한 번 정해 두고 접는 값이다.
-     * 🔴 **고른 것은 기억한다** — 그물을 껐는데 다음에 켜져 있으면 또 끈다.
+     * 🔴 **고른 것은 기억한다** — 레이어를 껐는데 다음에 켜져 있으면 또 끈다.
      *    브라우저에만 남는 편의값이라 못 읽어도 그만이다 (읽기·쓰기 전부 try).
      */
     const [layers, setLayers] = React.useState<Record<string, boolean>>(() => {
         /* 📋 «상차» · «하차» — 원달앱이 상차지 · 하차지를 거르는 영역 (기사님 2026-09-15 · `docs/지금/필터.md` «상차 영역» · «하차 영역») */
-        const defaults = { base: true, border: true, net: true, pickup: true, dropoff: true, route: true, trail: true };
+        const defaults: Record<string, boolean> = { base: true, border: true, pickup: true, dropoff: true, route: true, trail: true };
         try {
             const v = localStorage.getItem('mapLayers');
-            return v ? { ...defaults, ...JSON.parse(v) } : defaults;
+            if (!v) return defaults;
+            /* 🔴 아는 레이어만 되살린다 — 걷은 «그물»(`net`)이 남아 있으면 🧅 N/M 이 없는 레이어를 센다 (2026-09-15) */
+            const saved = JSON.parse(v) as Record<string, unknown>;
+            return Object.fromEntries(Object.keys(defaults).map(k => [k, typeof saved[k] === 'boolean' ? saved[k] as boolean : defaults[k]]));
         } catch { return defaults; }
     });
     const [layersOpen, setLayersOpen] = React.useState(false);
@@ -294,7 +274,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         `하차 ${dropoffArea
             ? `먼 원 ${dropoffArea.circles.length} · 가까이 원 ${dropoffArea.nearCircles.length} · 마름모 ${dropoffArea.quads.length} · 띠 ${dropoffArea.lines.length}${pickupArea ? ' · 상차 영역 지움' : ''}`
             : '없음'}`,
-        `레이어 상차 ${layers.pickup ? '켬' : '끔'} · 하차 ${layers.dropoff ? '켬' : '끔'} · 그물 ${layers.net ? '켬' : '끔'}`,
+        `레이어 상차 ${layers.pickup ? '켬' : '끔'} · 하차 ${layers.dropoff ? '켬' : '끔'}`,
     ].join(' | ');
     React.useEffect(() => {
         console.log(`🗺️ [지도 영역] ${areaSummary}`);
@@ -387,9 +367,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         if (myLocation) allCoords.push(myLocation);
         /* 🔺 그물을 켜면 그 삼각형까지 보이게 — 안 그러면 현위치만 확대돼 선 하나만 스쳐 간다 */
         if (coneOverlay) for (const [x, y] of coneOverlay.tri) allCoords.push({ x, y });
-        // 🕸️ 그물도 화면에 들어와야 한다 — 안 넣으면 마름모가 화면 밖으로 잘린다
-        if (netOverlay) { for (const [x, y] of netOverlay.tri) allCoords.push({ x, y });
-            for (const c of netOverlay.circles) for (const [x, y] of c.ring) allCoords.push({ x, y }); }
+        // 🔵 하차 영역도 화면에 들어와야 한다 — 안 넣으면 마름모 · 목적지가 화면 밖으로 잘린다
+        if (dropoffArea) { for (const q of dropoffArea.quads) allCoords.push(...q);
+            for (const g of dropoffArea.goals) allCoords.push(g); }
         if (coneOverlay?.callPath) for (const p of coneOverlay.callPath) allCoords.push({ x: p.x, y: p.y });
 
         if (allCoords.length === 0) {
@@ -582,7 +562,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         /**
          * 🟢 «상차» 레이어 — 원달앱이 상차지를 거르는 영역 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
          * 현위치 영역 전체를 칠하거나, **내 위치 원으로 잘라(clip)** 그 안에서만 라인 띠를 칠한다 — 원 ∩ 라인이 테두리 매끈하게 나온다.
-         * 틀에 모아 옅게 올리고 **바깥 테두리**를 긋는다. 그물(파랑)과 가르려고 초록으로 칠한다.
+         * 틀에 모아 옅게 올리고 **바깥 테두리**를 긋는다. 하차(파랑)와 가르려고 초록으로 칠한다.
          */
         if (layers.pickup && pickupArea) {
             const { off, oc } = makeMask();
@@ -626,7 +606,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 for (const l of dropoffArea.lines) {
                     if (l.points.length < 2) continue;
                     oc.beginPath();
-                    /* 🚗 지나온 만큼 짧아진다 — 옛 그물 레이어와 같은 km 셈 (`progressAlongKm` 축척) */
+                    /* 🚗 지나온 만큼 짧아진다 — km 셈은 `progressAlongKm` 과 같은 축척 */
                     let acc = 0, put = 0;
                     l.points.forEach((p, i) => {
                         if (i > 0) {
@@ -661,84 +641,14 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             }
         }
 
-        if (layers.net && netOverlay) {   // 🧅 «그물» 레이어
-            ctx.save();
-            const NET_SOLID = '#2563eb', NET_EDGE = 'rgba(37,99,235,.85)';
-            /** 📏 km → px — 이 화면에서 1km 가 몇 픽셀인가 (줌이 바뀌면 같이 바뀐다) */
-            const a = getScreenPt({ x: netOverlay.goal.lng, y: netOverlay.goal.lat });
-            const b = getScreenPt({ x: netOverlay.goal.lng + 0.01, y: netOverlay.goal.lat });
-            const pxPerKm = Math.abs(b.cx - a.cx) / (0.01 * 88.6);
-
-            // ── 면 (마름모 + 꼭짓점 원) — 한 path 에 모아 **한 번만** 칠한다
-            ctx.globalAlpha = 0.22;
-            ctx.beginPath();
-            for (const tri of netOverlay.tris ?? [netOverlay.tri]) {
-                tri.forEach(([x, y], i) => {
-                    const { cx, cy } = getScreenPt({ x, y });
-                    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-                });
-                if (tri.length) ctx.closePath();
-            }
-            for (const c of netOverlay.circles) {
-                c.ring.forEach(([x, y], i) => {
-                    const { cx, cy } = getScreenPt({ x, y });
-                    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-                });
-                ctx.closePath();
-            }
-            ctx.fillStyle = NET_SOLID; ctx.fill();
-
-            // ── 라인 띠 — 잡은 콜들이 만든 실제 경로 양옆 (노선일 때만)
-            if (netOverlay.usedLine && validPolyline.length >= 2) {
-                ctx.beginPath();
-                /* 🚗 지나온 만큼 짧아진다 — 목업 `MapMockup.tsx:2575` 그대로. km 셈은 `progressAlongKm` 과 같은 축척 (전수표 #60) */
-                let acc = 0, put = 0;
-                validPolyline.forEach((p, i) => {
-                    if (i > 0) {
-                        const a = validPolyline[i - 1];
-                        acc += Math.hypot((p.x - a.x) * 111.32 * Math.cos(p.y * Math.PI / 180), (p.y - a.y) * 110.574);
-                    }
-                    if (acc < (netOverlay.trimKm ?? 0)) return;
-                    const { cx, cy } = getScreenPt(p);
-                    if (put++ === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-                });
-                ctx.strokeStyle = NET_SOLID;
-                ctx.lineWidth = Math.max(3, netOverlay.lineRadiusKm * 2 * pxPerKm);
-                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-                ctx.stroke();
-            }
-            ctx.globalAlpha = 1;
-
-            // ── 테두리 — 목적지 원은 실선, 내 위치 원은 점선 (기점이 어느 쪽인지 눈으로 갈린다)
-            ctx.lineWidth = 2; ctx.strokeStyle = NET_EDGE;
-            for (const c of netOverlay.circles) {
-                ctx.setLineDash((netOverlay.goals ?? [netOverlay.goal]).some(g => g.name === c.name) ? [] : [6, 5]);
-                ctx.beginPath();
-                c.ring.forEach(([x, y], i) => {
-                    const { cx, cy } = getScreenPt({ x, y });
-                    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-                });
-                ctx.closePath(); ctx.stroke();
-            }
-            ctx.setLineDash([]);
-
-            // ── 든 동 — 파란 점. 그물에 무엇이 들었는지가 **점의 수**로 보인다
-            for (const p of netOverlay.pass) {
-                const { cx, cy } = getScreenPt(p);
-                ctx.fillStyle = 'rgba(2,132,199,.8)';
-                ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.2; ctx.stroke();
-            }
-
-            // ── 🎯 목적지 — 실물 지도에 없던 마커다 (자리표 B-2)
-            /* 🏠 복귀 대기면 목적지가 둘 — 목적지마다 찍는다 (전수표 #75) */
-            for (const goalPt of netOverlay.goals ?? [netOverlay.goal]) {
-                const g = getScreenPt({ x: goalPt.lng, y: goalPt.lat });
+        /* 🎯 목적지 마커 — 살아 있는 목적지마다 (옛 «그물» 레이어가 찍던 것 · 자리표 B-2 · 전수표 #75) */
+        if (layers.dropoff && dropoffArea) {
+            for (const goalPt of dropoffArea.goals) {
+                const g = getScreenPt(goalPt);
                 ctx.fillStyle = mapColors.nodeEvaluating;
                 ctx.beginPath(); ctx.arc(g.cx, g.cy, 6, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.5; ctx.stroke();
             }
-            ctx.restore();
         }
 
         /* 🔺 첫 콜 그물 (목업 전용) — 통과한 동을 점으로, 삼각형을 선으로 */
@@ -1088,7 +998,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, netOverlay, pickupArea, dropoffArea, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기
@@ -1282,7 +1192,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 </button>
                 {layersOpen && (
                     <div className="flex flex-col gap-1">
-                        {([['base', '배경'], ['border', '경계'], ['net', '그물'], ['pickup', '상차'], ['dropoff', '하차'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
+                        {([['base', '배경'], ['border', '경계'], ['pickup', '상차'], ['dropoff', '하차'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
                             <button
                                 key={k}
                                 onClick={() => toggleLayer(k)}

@@ -38,7 +38,6 @@ import { useDepartureDue } from '../dashboard/DepartureCountdown';
 import { useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
-import { useCallNet } from '../../hooks/useCallNet';
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 import { socket } from '../../lib/socket';
 /* 🗺️ 지도 아래 두 귀퉁이 — 규칙과 이름은 한 곳에서 온다 (규칙 ③) */
@@ -161,26 +160,6 @@ export default function StageView(props: Props) {
      *    안 줄어** 요약줄이 164동 그대로였다 — 곱셈이 두 곳이 되려던 순간이었다 (규칙 ③).
      */
     const radii = effectiveRadii(filter);
-    const netShape = { srcAngleDeg: filter?.srcAngleDeg, dstAngleDeg: filter?.dstAngleDeg,
-                       quadRadiusKm: radii.quadRadiusKm };
-    const callNet = useCallNet({
-        shape: netShape,
-        routeMode,
-        destinationCity: filter?.goalCity ?? filter?.destinationCity,   // 🎯 복귀면 집 시 (조사 ①-1)
-        myLocation,
-        pickupRadiusKm: radii.pickupRadiusKm,
-        destinationRadiusKm: radii.destinationRadiusKm,
-        lineRadiusKm: radii.detourRadiusKm,
-        /* 🚫 지도도 서버와 **같은 제외 목록**을 본다 — 한쪽만 빼면 화면이 거짓말한다 (이식 C2) */
-        excludedRegions: filter?.excludedRegions,
-        /* 🚀 출발 전이면 내 영역도 그린다 — 서버 목록과 같은 갈림 (필터.md §5 «필터 영역») */
-        departed: filter?.dispatchPhase === 'DELIVERING',
-        routeHolder: derived.drawHolder,
-        /* 🧾 동 점은 서버가 앱에 내린 목록과 겹치는 것만 — 지나온 동이 판정과 같게 빠진다 (전수표 #19) */
-        serverKeywords: filter?.destinationKeywords,
-        /* 🏠 복귀 대기면 목적지가 둘 — 서버가 정한 목록 그대로 (전수표 #15) */
-        goalCities: filter?.goalCities,
-    });
 
     /**
      * 🟢 **상차 영역 — 살아 있는 목적지마다 상태로 정한다** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
@@ -210,7 +189,7 @@ export default function StageView(props: Props) {
     });
     /**
      * 🎯 **목적지 가까이 옴** — 마름모가 현위치 원 ∪ 목적지 원 안에 통째로면 상차 A 전체 · 하차 그 목적지 원 전체 (필터.md «필터 영역»).
-     *    서버 `rebuildPickupList` 와 **같은 `withNearness`** 다. 마름모 계산이 무거워 내 위치를 ~300m 눈금으로 굳힌다 (`useCallNet` 과 같은 방어).
+     *    서버 `rebuildPickupList` 와 **같은 `withNearness`** 다. 마름모 계산이 무거워 내 위치를 ~300m 눈금으로 굳힌다.
      */
     const quadShape = quadShapeFrom(filter as unknown as Record<string, unknown>);
     const meGridX = myLocation ? Math.round(myLocation.x * 300) / 300 : null;
@@ -238,7 +217,7 @@ export default function StageView(props: Props) {
      * 종착지는 경로 순서(`routeStops`)에서 그 목적지 콜의 마지막 하차지(`lastDropOf`) · 라인은 지금 그리는 경로 선을 거기까지 자른 것(`lineUntil`).
      * 🔴 서버 하차 목록(`filterManager.netOfGoals`)도 같은 규칙이다 — 다만 원달앱은 상차 목록 동을 **동 목록**으로 빼고 지도는 **도형**으로 지워,
      *    경계에 걸친 큰 읍·면에서 조금 다를 수 있다 (알고 둔 차이 · 필터.md «지금 코드와 다른 곳»).
-     * 📐 마름모는 계산이 무거워 내 위치를 ~300m 눈금으로 굳혀 다시 만든다 (`useCallNet` 과 같은 방어) — 원 중심은 실시간 위치다.
+     * 📐 마름모는 계산이 무거워 내 위치를 ~300m 눈금으로 굳혀 다시 만든다 — 원 중심은 실시간 위치다.
      */
     const dropoffLine = routeMode ? derived.drawHolder?.routePolyline ?? null : null;
     const dropoffParts = useMemo(() => {
@@ -280,7 +259,9 @@ export default function StageView(props: Props) {
             /* 🎯 가까이 온 목적지 원 — 지운 뒤에 칠한다 (빼지 않는다) */
             nearCircles: dropoffParts.filter(p => p.near).map(p => ({ ...p.center, km: radii.destinationRadiusKm })),
             quads: dropoffParts.flatMap(p => (p.quad ? [p.quad] : [])),
-            /* 🚗 운행 뒤에는 지나온 만큼 띠를 자른다 — 옛 그물 레이어와 같은 `progressAlongKm` */
+            /* 🎯 살아 있는 목적지 — 마커 (옛 «그물» 레이어가 찍던 것) */
+            goals: dropoffParts.map(p => p.center),
+            /* 🚗 운행 뒤에는 지나온 만큼 띠를 자른다 — `progressAlongKm` (서버 지나온 곳 빼기와 같은 축척) */
             lines: dropoffParts.flatMap(p => (p.line ? [{
                 points: p.line, km: radii.detourRadiusKm,
                 trimKm: dropoffDeparted ? progressAlongKm({ lng: myLocation.x, lat: myLocation.y }, p.line.map(q => [q.x, q.y] as [number, number])) : 0,
@@ -421,22 +402,16 @@ export default function StageView(props: Props) {
     const feedRef = useRef(feed);
     useLayoutEffect(() => { feedRef.current = feed; });   // 그리는 도중에 ref 를 안 건드린다 (react-hooks refs)
     /**
-     * 🧾 **내가 그린 그물의 수를 요약줄이 읽게 올린다** (이식 C4-11b · 2026-09-12).
-     *
-     * 기사님 2026-09-12: 요약줄의 «N 읍면동» 을 **지도와 같은 수**로.
-     * 🔴 **계산은 여기 한 번뿐이다** — 요약줄이 `useCallNet` 을 또 부르면 `myLocation` 이
-     *    달라 다른 답이 나온다 (`filterStore.netCount` 주석 참조 · 규칙 ③).
-     * ⚠️ 무대가 사라지면 `null` 로 비운다 — 옛 수가 화면에 남아 거짓말하지 않게.
+     * ⏳ **«노선인데 경로선이 아직 없다»를 필터 판이 읽게 올린다** — 경로선은 무대만 안다 (store `netUsedLine` · 전수 조사 4단계).
+     * 🔄 2026-09-15 — 옛 «그물» 레이어(`useCallNet`)를 걷으며 «그물을 라인으로 쟀나»에서 **«하차 영역이 쓸 경로선이 있나»**로 옮겼다.
+     *    확정 콜이 없으면 `null`(모른다 — 문구를 안 띄운다 · 규칙 ④). ⚠️ 무대가 사라지면 `null` 로 비운다.
      */
-    const setNetCount = useFilterStore(st => st.setNetCount);
     const setNetUsedLine = useFilterStore(st => st.setNetUsedLine);
-    const netCount = callNet?.net.pass.length ?? null;
-    const netUsedLine = callNet ? callNet.usedLine : null;
+    const lineReady = confirmedCalls.length > 0 ? !!dropoffLine && dropoffLine.length >= 2 : null;
     useEffect(() => {
-        setNetCount(netCount);
-        setNetUsedLine(netUsedLine);
-        return () => { setNetCount(null); setNetUsedLine(null); };
-    }, [netCount, netUsedLine, setNetCount, setNetUsedLine]);
+        setNetUsedLine(lineReady);
+        return () => { setNetUsedLine(null); };
+    }, [lineReady, setNetUsedLine]);
 
     useEffect(() => { logStateChange("주행신호", drive, "무대"); }, [drive]);
     useEffect(() => () => { if (holdTimer.current) clearTimeout(holdTimer.current); }, []);
@@ -749,14 +724,6 @@ export default function StageView(props: Props) {
                     drivenTrail={trailOfShown(derived.drivenTrail, shownSinceMs)}
                     routeHolder={derived.drawHolder}
                     callColors={derived.callColors}
-                    netOverlay={callNet && {
-                        tri: callNet.net.tri, pass: callNet.net.pass, circles: callNet.net.circles,
-                        usedLine: callNet.usedLine, lineRadiusKm: radii.detourRadiusKm /* 줄인 값 — 그린 띠와 실제 그물 폭이 같아야 한다 (조사 ①-5) */, goal: callNet.goal, goals: callNet.goals, tris: callNet.tris,
-                        /* 🚗 이동 중이면 띠를 내 진행도 뒤부터 안 긋는다 — 목업 `MapMockup.tsx:2575` (전수표 #60) */
-                        trimKm: filter?.dispatchPhase === 'DELIVERING' && myLocation && (derived.drawHolder?.routePolyline?.length ?? 0) >= 2
-                            ? progressAlongKm({ lng: myLocation.x, lat: myLocation.y }, derived.drawHolder!.routePolyline!.map(p => [p.x, p.y] as [number, number]))
-                            : 0,
-                    }}
                     /* 📋 상차 영역 — 서버가 목록을 만든 그 점 (기사님 2026-09-15 «교집합이 안 보인다») */
                     pickupArea={pickupArea}
                     /* 🔵 하차 영역 — 살아 있는 목적지마다 원 · 마름모 · 띠 (필터.md «하차 영역») */
@@ -805,7 +772,7 @@ export default function StageView(props: Props) {
                       */}
                     <div className="absolute top-[92px] left-3 z-10 flex flex-col items-start gap-1">
                         {/* 🔴 **노선인데 경로가 아직이면 말한다** — 안 그러면 «노선인데 마름모»가 조용한 거짓말이 된다 */}
-                        {routeMode && liveRoute.length > 0 && callNet && !callNet.usedLine && (
+                        {routeMode && lineReady === false && (
                             <span className="px-2 py-1 rounded-md bg-warning/15 text-warning text-[10px] font-bold shadow-lg backdrop-blur-sm">
                                 ⏳ 경로를 기다립니다 — 올 때까지 마름모로 봅니다
                             </span>

@@ -1,4 +1,3 @@
-import { useFilterStore } from '../../stores/filterStore';
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { CALL_TARGET_LABEL, effectiveRadii } from "@onedal/shared";
 import type { CallTarget } from "@onedal/shared";
@@ -43,13 +42,6 @@ export default function OrderFilterStatus({ onOpenFilter }:
         cancelRounds?: Record<string, number>;
     }) {
     const { filter } = useFilterConfig();
-    /**
-     * 🧾 **지도가 실제로 그린 그물의 수** (이식 C4-11b · 2026-09-12 · 쓰는 자리는 아래 `regionCount`).
-     * ⚠️ **훅은 조기 반환보다 위에서 부른다** — 아래 `if (!filter)` 뒤에 두었다가
-     *    `pnpm lint:gate` 의 «훅을 조건부로 부른다»에 걸렸고, 화면이 통째로 까맣게 죽었다.
-     *    `tsc` 도 프로덕션 빌드도 **둘 다 통과했다** (2026-09-12 실측).
-     */
-    const netCount = useFilterStore(st => st.netCount);
 
 
     /**
@@ -82,16 +74,13 @@ export default function OrderFilterStatus({ onOpenFilter }:
         else label = '첫짐 탐색중';
     }
 
-    /** 🧾 지금 필터에 실린 읍·면·동 수 — 앱에 내려가는 그 목록이다 (이식 C4-9) */
     /**
-     * 🧾 **지도가 실제로 그린 수를 먼저 본다** (이식 C4-11b · 2026-09-12).
-     *
-     * 기사님 2026-09-12: 요약줄의 «N 읍면동» 을 **지도와 같은 수**로.
-     * 🔴 예전엔 `destinationKeywords`(서버가 파생해 내려준 목록)만 셌다. 그래서
-     *    **끄는 동안 지도는 움직이는데 이 숫자는 멈춰 있었다** (실측: 368 고정).
-     * ⚠️ 지도가 안 떠 있으면 `netCount` 가 `null` 이다 — 그때만 서버 값으로 물러선다.
+     * 🧾 **지금 원달앱에 내려간 하차 목록의 읍·면·동 수** (이식 C4-9 · 2026-09-15 개정).
+     * 🔄 C4-11b(2026-09-12)는 지도가 그린 그물 수(`netCount`)를 먼저 봐 끄는 동안 숫자도 따라 움직였다.
+     *    옛 «그물» 레이어를 걷어 지도는 영역 도형만 그린다 — 숫자는 서버 목록 하나다(규칙 ③).
+     *    슬라이더를 끄는 동안은 멈춰 있다가 **손을 떼고** 서버가 목록을 다시 만들면 바뀐다.
      */
-    const regionCount = netCount ?? filter.destinationKeywords?.length ?? 0;
+    const regionCount = filter.destinationKeywords?.length ?? 0;
 
     /** v14 국면 색·라벨 — 노선(파랑) · 관내(민트) · 복귀(주황). 지역 라벨도 국면 따라 */
     const V14: Record<CallTarget, { c: string; chipBg: string; chipBd: string; on: string; onBd: string; onGlow: string; region: string }> = {

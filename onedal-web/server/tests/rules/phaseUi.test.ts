@@ -207,7 +207,8 @@ describe('마름모 모양 — 국면 밖 한 벌', () => {
 
     it('🔴 지도는 평면 필터에서 모양을 읽는다 (국면 그릇을 안 본다)', () => {
         const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
-        expect(stage).toMatch(/filter\?\.srcAngleDeg/);
+        /* 🔄 2026-09-15 — 옛 그물 훅에 `filter?.srcAngleDeg` 를 넘기던 자리를 걷었다. «상차» · «하차» 레이어는 서버와 같은 `quadShapeFrom(filter)` 로 읽는다 */
+        expect(stage).toMatch(/quadShapeFrom\(filter\b/);
         expect(stage).not.toMatch(/phaseSettings\[/);
     });
 
@@ -749,39 +750,30 @@ describe('끄는 동안 영역이 바뀐다 (C4-11)', () => {
 });
 
 /**
- * 🧾 **요약줄의 «N 읍면동» 은 지도와 같은 수다** (이식 C4-11b · 2026-09-12).
+ * 🧾 **요약줄의 «N 읍면동» 은 원달앱에 내려간 하차 목록 수다** (이식 C4-9 · 2026-09-15 개정).
  *
- * 기사님 2026-09-12(질문에 답하시며): **«지도와 같은 수로 바꾼다»**.
- *
- * 🔴 **실측에서 잡혔다.** C4-11 로 끄는 동안 지도가 따라 움직이게 만들었는데
- *    요약줄 숫자는 **368 에서 꿈쩍도 안 했다** — 그 숫자만 `filter.destinationKeywords`
- *    (서버가 파생해 내려주는 목록)를 세고 있었기 때문이다. 같은 화면이 두 말을 한다.
- * 🔴 **계산은 한 번이다** (규칙 ③). 요약줄이 `useCallNet` 을 **또 부르지 않는다** —
- *    `myLocation` 은 `useRouteDerivations` 안의 상태라 훅을 또 부르면 **다른 인스턴스**가
- *    된다. 무대가 이미 계산한 값을 store 에 올리고 요약줄이 그것을 읽는다.
- * ⚠️ **지도가 안 떠 있으면 서버 값으로 물러선다** — 지어내지 않는다 (규칙 ④).
+ * 🔄 C4-11b(2026-09-12 · 기사님 «지도와 같은 수로»)는 지도가 그린 그물 수를 store 에 올려 먼저 봤다.
+ *    옛 «그물» 레이어(`useCallNet` · `netOverlay`)를 걷어(기사님 2026-09-15 «1 그렇게 해») 지도는 영역 도형만 그린다 —
+ *    동을 세는 계산이 지도에 없으니 숫자는 서버 목록 하나에서 온다 (규칙 ③).
  */
-describe('요약줄이 지도와 같은 수를 말한다 (C4-11b)', () => {
+describe('요약줄 «N 읍면동» — 서버 하차 목록 수 (2026-09-15)', () => {
     const status = read(join(CLIENT, 'components/dashboard/OrderFilterStatus.tsx'));
     const store = read(join(CLIENT, 'stores/filterStore.ts'));
-    const stage = read(join(CLIENT, 'components/stage/StageView.tsx'));
 
-    it('🔴 그물 수를 담는 자리가 store 에 있다', () => {
-        expect(store).toMatch(/netCount/);
-        expect(store).toMatch(/setNetCount/);
-    });
-
-    it('🔴 무대가 제 계산을 거기에 올린다', () => {
-        expect(stage).toMatch(/setNetCount\(/);
-    });
-
-    it('🔴 요약줄은 그 수를 먼저 보고, 없을 때만 서버 값으로 물러선다', () => {
+    it('🔴 옛 그물 수 칸이 없다 · 요약줄은 destinationKeywords 를 센다', () => {
+        expect(store).not.toMatch(/netCount/);
         const i = status.indexOf('const regionCount');
         expect(i).toBeGreaterThan(-1);
         const line = status.slice(i, status.indexOf(';', i));
-        expect(line).toMatch(/netCount/);
-        /* 물러설 길이 남아 있어야 한다 — 지도가 안 떠 있는 판이 있다 */
         expect(line).toMatch(/destinationKeywords/);
+        expect(line).not.toMatch(/netCount/);
+    });
+
+    it('🔴 옛 «그물» 레이어 · 훅이 없다 — 지도는 «상차» · «하차» 레이어만', () => {
+        expect(require('fs').existsSync(join(CLIENT, 'hooks/useCallNet.ts'))).toBe(false);
+        const canvas = codeOnly(read(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx')));   // 주석의 «옛 netOverlay» 설명은 센다지 않는다
+        expect(canvas).not.toMatch(/netOverlay/);
+        expect(canvas).not.toMatch(/\['net', '그물'\]/);
     });
 });
 
@@ -1368,19 +1360,14 @@ describe('그물 계산 — 서버도 실험실 것을 쓴다 (이식 C1-2)', ()
     });
 
     /**
-     * 🔴 **지도도 제외를 봐야 한다** (2026-09-11 저녁 · 자리표 대조에서 나왔다).
-     *
-     * C2-2 로 제외 칸을 만들면서 **서버는 빼는데 지도는 안 빼는** 상태가 됐다 —
-     * `useCallNet` 이 `excluded: []` 를 넘기고 있었고, 그 옆 주석은 *"실물에 아직 칸이
-     * 없다"* 고 적혀 있었다(그 칸을 그날 오후에 팠는데도). **화면이 «든다»고 그려 놓고
-     * 판정은 탈락시킨다** — 규칙 ⑤-3 이 가장 크게 치는 사고다.
+     * 🔄 **지도의 제외 지역** (2026-09-11 저녁 → 2026-09-15 개정).
+     *    옛 «그물» 레이어는 동 점을 찍어서 제외도 보여야 했다 — 서버만 빼면 화면이 «든다»고 거짓말했다.
+     *    그 레이어를 걷어 지도는 영역 도형만 그리고 동 점이 없다 — 제외는 서버 목록(`pruneExcludedRegions` 한 곳)에만 산다.
      */
-    it('🔴 지도 그물도 제외 지역을 본다 (서버만 빼면 화면이 거짓말한다)', () => {
-        const hook = codeOnly(read(join(CLIENT, 'hooks/useCallNet.ts')));
-        expect(hook).not.toMatch(/excluded:\s*\[\]/);
-        expect(hook).toMatch(/excluded/);
+    it('🔴 지도는 동 점을 안 찍는다 — 제외는 서버 목록 한 곳', () => {
         const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
-        expect(stage).toMatch(/excludedRegions/);
+        expect(stage).not.toMatch(/useCallNet/);
+        expect(stage).not.toMatch(/netOverlay/);
     });
 
     it('🔴 제외 지역은 여전히 pruneExcludedRegions 한 곳이 뺀다', () => {
@@ -1457,7 +1444,6 @@ describe('라인반경 — 화면이 하는 말과 값이 하는 일이 같아�
 describe('노선 ↔ 동선 — 고른 것과 실제를 가른다 (이식)', () => {
 
     const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
-    const hook = codeOnly(read(join(CLIENT, 'hooks/useCallNet.ts')));
     const dash3 = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
 
     /**
@@ -1473,8 +1459,8 @@ describe('노선 ↔ 동선 — 고른 것과 실제를 가른다 (이식)', () 
         expect(stage).toMatch(/routeMode/);
     });
 
-    it('🔴 동선이면 라인을 끈다 — 그물이 마름모로 돌아온다', () => {
-        expect(hook).toMatch(/routeMode/);
+    it('🔴 동선이면 라인을 끈다 — 하차 영역이 마름모로 돌아온다', () => {
+        expect(stage).toMatch(/const dropoffLine = routeMode/);
     });
 
     /**

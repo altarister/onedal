@@ -235,7 +235,8 @@ describe('2단계 · 줄인 반경이 앱·요약줄·지도 띠에 간다 — �
     });
     it('🔴 지도 띠 굵기가 줄인 값이다', () => {
         const sv = codeOnly(readClient('components/stage/StageView.tsx'));
-        expect(sv).toMatch(/lineRadiusKm: radii\.detourRadiusKm/);
+        /* 🔄 2026-09-15 — 옛 그물 레이어(`lineRadiusKm`)를 걷고 «하차» 레이어 띠(`km`)가 같은 값을 쓴다 */
+        expect(sv).toMatch(/km: radii\.detourRadiusKm/);
         expect(sv).not.toMatch(/lineRadiusKm: filter\?\.detourRadiusKm/);
     });
 });
@@ -315,7 +316,8 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         const sc = codeOnly(read('routes/scrap.ts'));
         expect(sc).toMatch(/appFilter\.destinationCity\s*=.*goalCity/);
         const sv = codeOnly(readClient('components/stage/StageView.tsx'));
-        expect(sv).toMatch(/destinationCity: filter\?\.goalCity \?\? filter\?\.destinationCity/);
+        /* 🔄 2026-09-15 — 지도는 옛 그물 훅 대신 shared `goalZonesOf` 로 살아 있는 목적지(목적지 ∪ 집)를 낸다 — 서버 `goalZonesNow` 와 같은 함수 */
+        expect(sv).toMatch(/goalZonesOf\(\{\s*destinationCity: filter\?\.destinationCity/);
         const st = codeOnly(readClient('components/dashboard/OrderFilterStatus.tsx'));
         expect(st).toMatch(/goalCity/);
     });
@@ -422,22 +424,8 @@ describe('4단계 · 목적지 설명줄 · 경로 대기 문구 · 저장 안�
     });
 });
 
-describe('4단계 · 지도가 제외지역을 실제로 뺀다 — 키 안의 | 를 구분자로 쓰지 않는다', () => {
-    /**
-     * 실측(2026-09-12): 광주시를 통째로 뺐더니 **서버는 173 → 148**(«제외로 25개 뺌»)인데
-     * **지도 수는 176 그대로**였다. `useCallNet` 이 의존성용으로 `excludedRegions.join('|')` 를
-     * 만들고 안에서 `split('|')` 로 되푸는데, 키가 `R|광주시`·`S|서울` 처럼 **`|` 를 품고 있어**
-     * `["R","광주시"]` 로 깨졌다 — 지도는 제외를 **한 번도 제대로 적용한 적이 없었다.**
-     * 요약줄이 지도 수를 쓰기 시작해서야(C4-11b) 서버와 다른 숫자로 드러났다.
-     */
-    it('🔴 useCallNet 은 제외 목록을 JSON 으로 굳히고 그대로 되푼다', () => {
-        const cn = codeOnly(readClient('hooks/useCallNet.ts'));
-        expect(cn).not.toMatch(/excludedRegions \?\? \[\]\)\.join\('\|'\)/);
-        expect(cn).not.toMatch(/excludedKey\.split\('\|'\)/);
-        expect(cn).toMatch(/JSON\.stringify\(i\.excludedRegions/);
-        expect(cn).toMatch(/JSON\.parse\(excludedKey\)/);
-    });
-});
+/* 🔄 «4단계 · 지도가 제외지역을 실제로 뺀다»(옛 `useCallNet` 의 제외 목록 굳히기) 검사는 2026-09-15 옛 «그물» 레이어와 함께 걷었다 —
+   지도는 동 점을 안 찍는다 (`phaseUi.test.ts` «지도는 동 점을 안 찍는다 — 제외는 서버 목록 한 곳») */
 
 /* ══════════════════════════════════════════════════════════════════════════
  * 5단계 — 이전부터 끊긴 것 (조사 ①-8·9·10·11)
@@ -448,14 +436,13 @@ describe('5단계 · 관내 표시를 걷었다 — «목적지 가까이 옴»�
      *    관내는 따로 재지 않는다 — 목적지 가까이 옴(`filterArea.withNearness`)이 가른다. 서버는 `af3f8bf4` 에서 걷었고 관제웹도 걷는다.
      *    옛 뜻(조사 ①-8): 서버 관내 그물(`netForGoal` 의 `local`)을 지도도 알게 해 요약줄 «N 읍면동»을 맞췄다.
      */
-    const cn = codeOnly(readClient('hooks/useCallNet.ts'));
     const sv = codeOnly(readClient('components/stage/StageView.tsx'));
     const modal = codeOnly(readClient('components/dashboard/OrderFilterModal.tsx'));
     const board = codeOnly(readClient('statusboard/StatusBoard.tsx'));
     const ix = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
     const net = codeOnly(readFileSync(join(__dirname, '../../../shared/src/callNet.ts'), 'utf8'));
-    it('🔴 관제웹이 localMode 를 안 읽는다 — 지도 훅 · 무대 · 필터 판 · 현황판', () => {
-        for (const src of [cn, sv, modal, board]) expect(src).not.toMatch(/localMode/);
+    it('🔴 관제웹이 localMode 를 안 읽는다 — 무대 · 필터 판 · 현황판', () => {
+        for (const src of [sv, modal, board]) expect(src).not.toMatch(/localMode/);
         expect(modal).not.toMatch(/isLocal/);
     });
     it('🔴 필터 타입에 localMode 칸이 없다 · 그물에 관내 원(local · buildRingNet)이 없다', () => {

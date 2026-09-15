@@ -13,7 +13,7 @@ import { resetToBaseFilter } from './index';
  *    원 둘이 거리보다 크니 마름모가 설 자리가 없어 **손잡이 셋이 아무 일도 안 한다**
  *    (마름모반경을 10km 로 줄여도 100km 로 키워도 163동 그대로).
  *
- * 🔴 **계산은 여기 한 곳이다** — 서버(`filterManager`)와 관제웹(`useCallNet`)이 같은
+ * 🔴 **계산은 여기 한 곳이다** — 서버(`filterManager`)와 관제웹(`StageView` · `effectiveRadii`)이 같은
  *    함수를 부른다. 두 벌이면 «지도는 든다는데 판정은 탈락»이 된다 (규칙 ③).
  */
 const BASE: RadiusSet = { pickupRadiusKm: 10, destinationRadiusKm: 15, quadRadiusKm: 25, detourRadiusKm: 6 };

@@ -296,7 +296,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      * 그래야 그걸 보고 **한번에 조절** 하니까."*
      *
      * 🔴 소켓을 안 탄다 — 끄는 동안 서버로 쏘면 매번 경유 지역을 다시 파생해 **앱에까지**
-     *    내려간다. 그물은 `useCallNet` 이 **클라에서** 다시 그린다 (실측 0.9ms/회).
+     *    내려간다. 지도 «상차» · «하차» 레이어는 **클라에서** 다시 그린다 (옛 `useCallNet` 은 2026-09-15 걷었다).
      * ⚠️ 짝이 있다: 손을 뗄 때 아래 `commitValues` 가 **같은 값을 서버로** 한 번 보낸다.
      */
     const previewValues = (next: ValueForm) => {

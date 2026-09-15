@@ -68,7 +68,7 @@ describe('🕸️ 필터 목록 — 그물 한 벌 (1단계)', () => {
 /**
  * 🗺️ **지도도 같은 것을 그린다** (전수표 #19 지도 · #60 · 2026-09-14).
  *
- * 서버는 얼린 라인 위 GPS 진행도로 지나온 동을 앱 목록에서 뺀다. 지도(`useCallNet`)는 그걸 몰라
+ * 서버는 얼린 라인 위 GPS 진행도로 지나온 동을 앱 목록에서 뺀다. 옛 지도(`useCallNet` · 2026-09-15 걷음)는 그걸 몰라
  * **지나온 동을 계속 점으로 찍고**(`departed: false`), 라인 띠도 통째로 칠했다 — 화면과 판정이 다른 말을 한다.
  *   · 동 점 = 서버가 앱에 내린 지역명 목록과 겹치는 것만 (새 칸 없이 이미 오는 `destinationKeywords`)
  *   · 라인 띠 = 이동 중이면 내 진행도 뒤는 안 긋는다 (목업 `MapMockup.tsx:2575`)
@@ -76,16 +76,13 @@ describe('🕸️ 필터 목록 — 그물 한 벌 (1단계)', () => {
 describe('🗺️ 지도 — 지나온 곳을 판정과 같게', () => {
     const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    it('🔴 지도의 동 점은 서버 목록과 겹치는 것만 남긴다', () => {
-        const hook = client('hooks/useCallNet.ts');
-        expect(hook).toMatch(/serverKeywords/);
-        expect(hook).toMatch(/\.pass\.filter\(/);
-        expect(client('components/stage/StageView.tsx')).toMatch(/serverKeywords: filter\?\.destinationKeywords/);
+    it('🔴 지도는 동 점을 안 찍는다 — 옛 그물 레이어를 걷었다 (2026-09-15)', () => {
+        expect(client('components/stage/StageView.tsx')).not.toMatch(/useCallNet|serverKeywords/);
     });
-    it('🔴 이동 중이면 라인 띠를 내 진행도 뒤부터 긋지 않는다', () => {
+    it('🔴 이동 중이면 하차 띠를 내 진행도 뒤부터 긋지 않는다', () => {
         const stage = client('components/stage/StageView.tsx');
-        expect(stage).toMatch(/trimKm:[\s\S]{0,120}DELIVERING[\s\S]{0,200}progressAlongKm\(/);
-        expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/acc < \(?netOverlay\.trimKm/);
+        expect(stage).toMatch(/trimKm: dropoffDeparted \? progressAlongKm\(/);
+        expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/acc < l\.trimKm/);
     });
 });
 
@@ -148,7 +145,7 @@ describe('🧭 지나온 곳 빼기 — 지금 위치로, 경로 영역 동만',
  *   · 관내는 목적지 원 안만 — 각도를 360° 로 바꿔 마름모를 원으로 만들던 우회를 걷는다
  *     (21:16:32 여주·용인 처인까지 35곳)
  *   · 출발하는 순간 목록을 다시 만든다 — 지나온 곳 빼기는 진행도 있는 동만 빼니 내 영역은 못 뺀다
- *   · 지도(`useCallNet`)도 같은 두 값으로 그린다
+ *   · 지도(«상차» · «하차» 레이어)도 같은 두 값으로 그린다
  */
 describe('🧩 필터 영역 — 출발 전 내 영역 · 관내 목적지 원 (2단계)', () => {
     const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
@@ -166,12 +163,10 @@ describe('🧩 필터 영역 — 출발 전 내 영역 · 관내 목적지 원 (
         expect(body(fm, 'export function updateActiveFilter')).toMatch(/rebuildNetFilter\(userId, io\)/);
     });
     it('🔴 지도도 같은 두 값으로 그린다', () => {
-        const hook = client('hooks/useCallNet.ts');
-        expect(hook).toMatch(/departed/);
-        /* 🔄 2026-09-15 — 관내를 따로 재지 않는다 (목적지 가까이 옴) */
-        expect(hook).not.toMatch(/localMode/);
-        expect(hook).not.toMatch(/360/);
-        expect(client('components/stage/StageView.tsx')).toMatch(/departed: filter\?\.dispatchPhase === 'DELIVERING'/);
+        const stage = client('components/stage/StageView.tsx');
+        /* 🔄 2026-09-15 — 옛 그물 훅을 걷고 «상차» · «하차» 레이어가 shared `goalZonesOf` 에 운행 시작을 넘긴다 · 관내를 따로 재지 않는다 */
+        expect(stage).toMatch(/departed: filter\?\.dispatchPhase === 'DELIVERING'/);
+        expect(stage).not.toMatch(/localMode/);
     });
 });
 
@@ -243,12 +238,12 @@ describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
         expect(body(de, 'export async function handleDecision')).toMatch(/goalCity = goalOfCall\(/);
         expect(body(fm, 'export function goalOfCall')).toMatch(/homeCityOf\(userId\)/);
     });
-    it('🔴 지도는 목적지마다 그물을 그리고 마커를 찍는다 · 콜 카드에 판', () => {
-        const hook = client('hooks/useCallNet.ts');
-        expect(hook).toMatch(/goalCities/);
-        expect(hook).toMatch(/mergeGoalNets\(nets/);
-        expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/netOverlay\.goals/);
-        expect(client('components/stage/StageView.tsx')).toMatch(/goalCities: filter\?\.goalCities/);
+    it('🔴 지도는 목적지마다 하차 조각을 그리고 마커를 찍는다 · 콜 카드에 판', () => {
+        /* 🔄 2026-09-15 — 옛 그물 훅(`goalCities` · `mergeGoalNets`)을 걷었다. 살아 있는 목적지는 shared `goalZonesOf` 한 곳 */
+        const stage = client('components/stage/StageView.tsx');
+        expect(stage).toMatch(/goalZonesOf\(/);
+        expect(stage).toMatch(/goals: dropoffParts\.map\(/);
+        expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/dropoffArea\.goals/);
         expect(client('components/dashboard/CallDeck.tsx')).toMatch(/o\.goalCity/);
     });
 });
