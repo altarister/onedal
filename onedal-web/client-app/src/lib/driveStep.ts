@@ -18,7 +18,8 @@
  *    수도권 폭에서 수백 m 급 오차지만, **목업이 나흘 동안 그 값으로 손맛을 맞춰** 두었다.
  *    바꾸면 목업의 주행이 달라진다 (`pnpm lab` 이 잡는다).
  */
-export interface DrivePoint { lng: number; lat: number }
+/** ⏱️ `atMs` — 그 점을 지난 시각. 숨긴 콜의 자취를 시각으로 가를 때 쓴다(`pastCalls.trailOfShown`). 모르면 없다 */
+export interface DrivePoint { lng: number; lat: number; atMs?: number }
 
 /** 위도 37.28 평면 근사 — 목업 원본 그대로 */
 const KM_PER_LNG = 88.6;
@@ -99,5 +100,5 @@ export function trailFromPoints(
     return [...points]
         .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.atMs))
         .sort((a, b) => a.atMs - b.atMs)
-        .reduce<DrivePoint[][]>((segs, p) => pushTrail(segs, { lng: p.x, lat: p.y }), []);
+        .reduce<DrivePoint[][]>((segs, p) => pushTrail(segs, { lng: p.x, lat: p.y, atMs: p.atMs }), []);
 }

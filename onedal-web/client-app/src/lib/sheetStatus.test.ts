@@ -62,6 +62,12 @@ describe('🎬 시트 상태바 — 일곱 경우', () => {
         expect(sheetStatus({}).kind).toBe('done');
     });
 
+    /** 🗓️ **사이클 = 하루** (기사님 결정 2026-09-15) — 콜 사이 빈 차마다 «사이클을 마쳤다»가 뜨면 거짓말이다. 오늘 한 일을 센다 (화면규칙 E12) */
+    it('🔴 갈 곳이 없으면 «오늘 N콜 마침 · 새 콜 대기»', () => {
+        expect(sheetStatusLine(sheetStatus({ doneToday: 3 }))).toBe('오늘 3콜 마침 · 새 콜 대기');
+        expect(sheetStatusLine(sheetStatus({}))).not.toMatch(/사이클/);
+    });
+
     /** ▶ 달릴 때 궁금한 것은 «언제 닿나» 다 */
     it('주행 — 도착 예정 시각을 말한다', () => {
         const s = sheetStatus({ moving: true, next: gonjiam, etaHhmm: '08:00' });

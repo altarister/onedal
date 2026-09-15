@@ -26,9 +26,10 @@ describe('deckOfCycle — 이번 운행의 카드 목록', () => {
         expect(deck.map(o => o.id)).toEqual(['1', '2']);
     });
 
-    it('🔴 진행 중인 콜이 하나도 없으면 사이클이 끝난 것 — 완료분도 빠진다', () => {
+    /* 🗓️ 2026-09-15 개정 — 사이클 = 하루. 진행 중이 0건이어도 오늘 한 일은 남는다 (아래 «하루 덱») */
+    it('🔴 진행 중인 콜이 하나도 없어도 하차분은 남는다 — 하차 시각을 모르면 남긴다', () => {
         const deck = deckOfCycle([call('1', 'ORDER_DELIVERED'), call('2', 'ORDER_COMPLETED')]);
-        expect(deck).toEqual([]);
+        expect(deck.map(o => o.id)).toEqual(['1', '2']);
     });
 
     it('취소·방출은 즉시 빠진다 — 없던 일이지 한 일이 아니다', () => {
@@ -74,26 +75,29 @@ describe('deckOfCycle — 이번 운행의 카드 목록', () => {
  *
  * 같은 운행이면 자연히 남는다 — 먼저 내린 콜의 하차 시각이 뒤에 잡은 콜보다 나중이다.
  */
-describe('🔵 사이클 경계 — 지난 운행의 완료분은 안 따라온다', () => {
+/* 🗓️ 2026-09-15 개정 — 경계가 «이번 운행»에서 «오늘(자정)»로 바뀌었다. #40 의 뜻(엉뚱한 완료분이 되살아나지 않는다)은 **어제분**으로 지킨다 */
+describe('🔵 사이클 경계 — 어제의 완료분은 안 따라온다', () => {
+    const NOW = Date.parse('2026-08-22T15:00:00+09:00');
     const at = (hhmm: string) => `2026-08-22T${hhmm}:00+09:00`;
     const done = (id: string, capturedAt: string, completedAt: string) =>
         ({ id, status: 'ORDER_DELIVERED', capturedAt, completedAt }) as any;
     const live = (id: string, capturedAt: string) =>
         ({ id, status: 'ORDER_CONFIRMED', capturedAt }) as any;
 
-    it('🔴 지난 운행에서 하차한 콜은 새 콜과 함께 소환되지 않는다 (실측 재현)', () => {
+    it('🔴 어제 하차한 콜은 새 콜과 함께 소환되지 않는다 · 오늘 먼저 내린 콜은 남는다', () => {
         const deck = deckOfCycle([
-            done('문산읍', at('10:04'), at('10:05')),   // 하차하고 진행 중 0건이 됐다
-            live('교하동', at('14:24')),                 // 네 시간 뒤에 잡은 새 콜
-        ]);
-        expect(deck.map(o => o.id)).toEqual(['교하동']);
+            done('어제분', '2026-08-21T10:04:00+09:00', '2026-08-21T10:05:00+09:00'),
+            done('문산읍', at('10:04'), at('10:05')),   // 오늘 아침에 내렸다 — 운행이 끊겼어도 오늘 한 일
+            live('교하동', at('14:24')),
+        ], NOW);
+        expect(deck.map(o => o.id)).toEqual(['문산읍', '교하동']);
     });
 
     it('🔴 같은 운행에서 먼저 내린 콜은 남는다 — 6칸 채워진 모습을 봐야 한다', () => {
         const deck = deckOfCycle([
             done('야당동', at('06:33'), at('06:36')),   // 뒤 콜을 잡은 뒤에 내렸다
             live('문발동', at('06:34')),
-        ]);
+        ], NOW);
         expect(deck.map(o => o.id)).toEqual(['야당동', '문발동']);
     });
 
@@ -101,18 +105,17 @@ describe('🔵 사이클 경계 — 지난 운행의 완료분은 안 따라온�
         const deck = deckOfCycle([
             { id: '옛콜', status: 'ORDER_DELIVERED', capturedAt: at('10:04') } as any,
             live('교하동', at('14:24')),
-        ]);
+        ], NOW);
         expect(deck.map(o => o.id)).toEqual(['옛콜', '교하동']);
     });
 
-    it('🔴 시각은 날짜로 비교한다 — 문자열로 비교하면 UTC 표기에 진다', () => {
-        // 장부의 두 칸은 표기가 다르다: capturedAt 은 +09:00, completedAt 은 Z.
-        // 문자열로 비교하면 '…T01:05Z' < '…T10:04+09:00' 이라 같은 순간이 뒤집힌다.
+    it('🔴 시각은 날짜로 비교한다 — UTC 표기(Z)의 날짜 글자에 속지 않는다', () => {
+        // completedAt 은 Z 표기다. '2026-08-21T15:30Z' 는 글자로는 21일이지만 한국 시각 22일 00:30 — 오늘이다.
         const deck = deckOfCycle([
-            { id: '문산읍', status: 'ORDER_DELIVERED', capturedAt: at('10:04'), completedAt: '2026-08-22T01:05:21.102Z' } as any,
+            { id: '자정직후', status: 'ORDER_DELIVERED', capturedAt: '2026-08-21T23:50:00+09:00', completedAt: '2026-08-21T15:30:00.000Z' } as any,
             live('교하동', at('14:24')),
-        ]);
-        expect(deck.map(o => o.id)).toEqual(['교하동']);
+        ], NOW);
+        expect(deck.map(o => o.id)).toEqual(['자정직후', '교하동']);
     });
 });
 
@@ -167,3 +170,28 @@ describe('경계 — 완료분이 계산에 섞이지 않는다', () => {
         expect(code()).not.toMatch(/<DepartureCountdown/);
     });
 });
+
+/**
+ * 🗓️ **시트의 사이클 = 하루** (기사님 결정 2026-09-15 · 결정_이력 · onedal-49 정리).
+ *    *"시트는 오늘 한 일을 남긴다"* — 진행 중인 콜이 0건이 돼도, 운행이 끊겼다 이어져도 **오늘 하차한 콜은 남는다.**
+ *    어제 하차분은 빠진다(자정 경계 = `businessDayKey` · 서버 `ensureBusinessDay` 와 같은 선). 하차 시각을 모르면 남긴다(규칙 ④).
+ */
+describe('🗓️ 하루 덱 — 오늘 한 일이 남는다', () => {
+    const NOW = Date.parse('2026-09-15T15:00:00+09:00');
+    const done = (id: string, completedAt?: string) => ({ id, status: 'ORDER_DELIVERED', capturedAt: '2026-09-15T08:00:00+09:00', completedAt }) as any;
+    const live = (id: string) => ({ id, status: 'ORDER_CONFIRMED', capturedAt: '2026-09-15T14:00:00+09:00' }) as any;
+
+    it('🔴 진행 중인 콜이 0건이어도 오늘 하차한 콜은 남는다', () => {
+        expect(deckOfCycle([done('아침', '2026-09-15T10:00:00+09:00')], NOW).map(o => o.id)).toEqual(['아침']);
+    });
+    it('🔴 운행이 끊겼다 이어져도 오늘 먼저 내린 콜은 남는다 (옛 «지난 운행» 경계를 걷었다)', () => {
+        expect(deckOfCycle([done('아침', '2026-09-15T10:05:00+09:00'), live('오후')], NOW).map(o => o.id)).toEqual(['아침', '오후']);
+    });
+    it('🔴 어제 하차한 콜은 빠진다 — 자정이 경계다', () => {
+        expect(deckOfCycle([done('어제', '2026-09-14T23:50:00+09:00'), live('오늘')], NOW).map(o => o.id)).toEqual(['오늘']);
+    });
+    it('하차 시각을 모르면 남긴다 (규칙 ④)', () => {
+        expect(deckOfCycle([done('모름')], NOW).map(o => o.id)).toEqual(['모름']);
+    });
+});
+

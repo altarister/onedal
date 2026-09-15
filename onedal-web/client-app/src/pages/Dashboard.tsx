@@ -1,4 +1,4 @@
-import { isTerminal, deckOfCycle, judgingCallOf } from "@onedal/shared";
+import { isTerminal, isEvaluating, judgingCallOf } from "@onedal/shared";
 import { mergeOrderViews } from "../lib/orderMerge";
 import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
@@ -378,7 +378,8 @@ export default function Dashboard() {
                     if (judging && !stagePreview) return (
                         <JudgmentSeat
                             route={judging}
-                            confirmedActive={deckOfCycle(activeRoute).filter(o => o.id !== judging.id).length}
+                            /* 🔢 «합짐N»은 지금 쥔 콜 수 — 하루 덱(오늘 하차분 포함)으로 세면 N 이 하루 종일 커진다 (사이클 = 하루 · 2026-09-15) */
+                            confirmedActive={activeRoute.filter(o => !isTerminal(o.status) && !isEvaluating(o.status) && o.id !== judging.id).length}
                             onDecision={handleDecision}
                             processingId={seatProcessingId}
                             setProcessingId={setSeatProcessingId}

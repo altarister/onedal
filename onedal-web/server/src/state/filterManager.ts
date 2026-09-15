@@ -1463,7 +1463,7 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
      *
      * 하차한 날의 원천은 장부(orders.completedAt)다 — 오늘이 아니면 화면 재료
      * (메모리)에서만 뺀다. 미하차 콜·장부·매출은 건드리지 않는다 (규칙 ① ·
-     * "상태는 콜별 즉시, 화면만 사이클 단위").
+     * "상태는 콜별 즉시, 화면은 하루 단위" · 2026-09-15 «사이클 = 하루» — 자정 경계가 관제웹 `deckOfCycle` 과 같다).
      */
     try {
         const gone = session.myOrders.filter(o => {

@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -45,19 +45,15 @@ router.get("/", requireAuth, (req, res) => {
         const { todayStartIso, unfinishedSinceIso } = restoreWindow(Date.now());
 
         const statusPlaceholders = RESTORABLE_STATUSES.map(() => '?').join(', ');
-        const progressPlaceholders = IN_PROGRESS_STATUSES.map(() => '?').join(', ');
+        /* 🗓️ 창은 shared `restoreWhere` 한 벌 — 재부팅 복구와 같다 · «오늘 하차»도 (자정 넘긴 운행 · 2026-09-15) */
+        const win = restoreWhere(Date.now());
         const stmt = db.prepare(
             `SELECT * FROM orders
              WHERE userId = ? AND status IN (${statusPlaceholders})
-               AND ( timestamp >= ?
-                     OR (status IN (${progressPlaceholders}) AND timestamp >= ?) )
+               AND ${win.sql}
              ORDER BY timestamp ASC`
         );
-        const rows = stmt.all(
-            userId, ...RESTORABLE_STATUSES,
-            todayStartIso,
-            ...IN_PROGRESS_STATUSES, unfinishedSinceIso,
-        );
+        const rows = stmt.all(userId, ...RESTORABLE_STATUSES, ...win.params);
 
         /**
          * 🗺️ **장부의 문자열을 좌표 배열로 되돌려 내보낸다** (2026-08-23 실측 사고).

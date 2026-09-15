@@ -6,7 +6,7 @@ import { isDeliveredCall } from '@onedal/shared';
  *    끝난콜을 숨겼다 보였다 하기만 하면 되는데.."*).
  *
  * ── 왜 «숨김»이고 «빼기»가 아닌가 ──
- * 덱은 하차를 마친 콜도 사이클이 끝날 때까지 함께 보여 준다(`deckOfCycle` — 6단계가
+ * 덱은 하차를 마친 콜도 오늘 하루 함께 보여 준다(`deckOfCycle` · 2026-09-15 «사이클 = 하루» — 6단계가
  * 채워진 모습을 볼 수 없다는 기사님 말씀으로 그렇게 정했다). 그래서 목록에서 **빼면**
  * 되는 것처럼 보이는데, 아코디언은 **목록 자리(`openIdx`)로 열린다.** 배열을 걸러내면
  * 그 자리가 다른 콜을 가리킨다 — 화면규칙 **L3** 가 못박은 그 사고다
@@ -37,4 +37,18 @@ export function hiddenPastIds(
     return new Set(orders
         .filter(o => isDeliveredCall(o) && o.id !== openId)
         .map(o => o.id));
+}
+
+/**
+ * 🗺️ **숨긴 콜의 자취를 가린다** (기사님 확정 2026-09-15 — *"숨기면 지도도 가림"* · 사이클 = 하루).
+ *
+ * 자취는 하루 종일 쌓이는데 조각에 콜 이름이 없다(주행 점에는 «누구 짐»이 없다). 저장 칸을 더하지 않고 **시각으로 가른다**(규칙 ③) —
+ * 보이는 콜 중 가장 먼저 잡은 시각(`sinceMs`)보다 앞선 점은 숨긴 콜들을 하던 때의 길이다.
+ * ⚠️ 시각을 모르는 점은 남긴다 (규칙 ④). 조각이 통째로 비면 뺀다. `sinceMs` 가 `null` 이면 숨김이 없다 — 그대로 돌려준다.
+ */
+export function trailOfShown<P extends { atMs?: number }>(segments: P[][], sinceMs: number | null): P[][] {
+    if (sinceMs == null) return segments;
+    return segments
+        .map(seg => seg.filter(p => p.atMs == null || p.atMs >= sinceMs))
+        .filter(seg => seg.length > 0);
 }

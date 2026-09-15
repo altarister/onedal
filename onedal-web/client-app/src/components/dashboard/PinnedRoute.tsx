@@ -346,7 +346,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                     visitOrderMap={visitOrderMap}
                     /* 순서는 잡은 시간순으로 고정한다 — 새 콜은 뒤에 붙기만 해서
                        기존 위치가 안 밀린다. 근거는 deckOrder() 주석 참고.
-                       🔄 하차한 콜도 사이클이 끝날 때까지 함께 있다 (deckOfCycle) */
+                       🔄 하차한 콜도 오늘 하루 함께 있다 (deckOfCycle · 사이클 = 하루) — ⚠️ 옛 화면의 «완료됨» 탭은 그래서 오늘분이 비어 보인다 (무대가 주 화면) */
                     orders={deckOrder(cycleDeck).filter(o => o.id !== judging?.id)}
                     renderCard={(route) => (
                         <PinnedRouteCard

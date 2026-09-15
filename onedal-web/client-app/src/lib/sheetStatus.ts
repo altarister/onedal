@@ -83,6 +83,8 @@ export interface SheetStatusInput {
     driveMinutes?: number | null;
     /** 🚩 **출발 조각** — `departureDue()` 가 만든 «N분 지각» · «HH:MM 출발». 출발 전이 아니면 null */
     due?: string | null;
+    /** 🗓️ 오늘 하차를 마친 콜 수 — «오늘 N콜 마침» (사이클 = 하루 · 2026-09-15). 모르면 없다 */
+    doneToday?: number;
 }
 
 export interface SheetStatus {
@@ -166,8 +168,11 @@ function sheetStatusCase(i: SheetStatusInput): Omit<SheetStatus, 'due'> {
      */
     if (i.judging && !i.next) return { ...none, kind: 'judging', notice: '새 콜을 판정하고 있습니다' };
 
-    /** 🏁 사이클끝 — 콜은 있는데 갈 곳이 없다. «대기»와 다른 말이다 (B4) */
-    if (!i.next) return { ...none, kind: 'done', notice: '이번 사이클을 마쳤습니다' };
+    /**
+     * 🏁 갈 곳이 없다 — 오늘 한 일이 있다. «대기»(오늘 아무것도 없음)와 다른 말이다 (B4).
+     * 🗓️ 2026-09-15 — 사이클 = 하루라 콜 사이 빈 차마다 «사이클을 마쳤습니다»가 뜨면 거짓말이다 (화면규칙 E12).
+     */
+    if (!i.next) return { ...none, kind: 'done', notice: i.doneToday ? `오늘 ${i.doneToday}콜 마침 · 새 콜 대기` : '새 콜 대기' };
 
     const n = i.next;
     const base = { no: n.visitNo, name: shortStopLabel(n.name),

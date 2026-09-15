@@ -1,5 +1,6 @@
 import { unitPoints } from './cargoUnits';
 import type { CapacityConfidence } from './vehicles';
+import { businessDayKey } from './timing';
 export const EVENT_TYPES = {
     NEW_ORDER: "NEW_ORDER" as const,
     INTEL_BULK: "INTEL_BULK" as const,
@@ -126,6 +127,22 @@ export const UNFINISHED_RESTORE_DAYS = 3;
  * ⚠️ 기준 필드는 `orders.timestamp` 다. 정확해서가 아니라 **기존 동작을 바꾸지 않기 위해서**다
  *    (`capturedAt` 과 섞어 쓰면 Phase 7.5 가 정리할 시각 포맷 문제를 새로 만든다).
  */
+/**
+ * 🗓️ **복구 창의 조건 한 벌** — 재부팅 복구(`restoreAndRecalculateSession`)와 새로고침 이력(`GET /orders`)이 같이 쓴다.
+ *    어긋나면 소켓에는 있는데 HTTP 에는 없는 콜이 생겨 새로고침마다 깜빡인다 (규칙 ③).
+ *    · 오늘 잡은 콜 · 3일 안의 미완료 콜 · **오늘 하차한 콜** — 자정을 넘긴 운행에서 어제 잡고 오늘 내린 콜을 오늘 시트에 올린다
+ *      (기사님 확정 2026-09-15 *"오늘 내린 콜만 분리해서 오늘 시트에 올린다"*).
+ *    `sql` 은 `orders` 의 칸 이름(`timestamp`·`status`·`completedAt`)을 쓴다 — 별칭이 있으면 `prefix` 로 붙인다.
+ */
+export function restoreWhere(nowMs: number, prefix = ''): { sql: string; params: string[] } {
+    const { todayStartIso, unfinishedSinceIso } = restoreWindow(nowMs);
+    const inProgress = IN_PROGRESS_STATUSES.map(() => '?').join(', ');
+    return {
+        sql: `( ${prefix}timestamp >= ? OR (${prefix}status IN (${inProgress}) AND ${prefix}timestamp >= ?) OR ${prefix}completedAt >= ? )`,
+        params: [todayStartIso, ...IN_PROGRESS_STATUSES, unfinishedSinceIso, todayStartIso],
+    };
+}
+
 export function restoreWindow(nowMs: number): { todayStartIso: string; unfinishedSinceIso: string } {
     const todayStart = new Date(nowMs);
     todayStart.setHours(0, 0, 0, 0);
@@ -1719,58 +1736,27 @@ export function isDeliveredCall(c: { status?: string | null }): boolean {
 }
 
 /**
- * 🔄 **이번 운행(사이클)의 카드 목록** (기사님 확정 2026-08-19).
+ * 🗓️ **시트의 카드 목록 — 오늘 한 일** (기사님 결정 2026-09-15 «시트는 오늘 한 일을 남긴다 · 화면의 사이클 = 하루» · 결정_이력).
  *
- * 기사님: *"노선행으로 묶어서 생각해 보면 합짐이 들어가 있는 여러 개의 한 경로로 볼 수
- * 있을 것 같고, 모든 경로가 끝나면 완료로 한꺼번에 상태값을 바꾸면 될 것 같다."*
- * + *"마지막 6번째 바의 하차 완료는 볼 수도 없는 상황인 듯."*
+ * 처음(2026-08-19)엔 «진행 중이 남은 동안만 하차분을 함께» 보여 줬고(6단계 채운 모습을 보려고),
+ * #40(08-22)에서 «이번 운행 — 진행 중 콜을 잡기 전에 내린 것은 뺀다»로 좁혔다. 그래서 콜 사이 빈 차가 될 때마다
+ * 오늘 한 일이 통째로 사라졌다. 이제 경계는 **자정 하나**다 — 오늘 하차한 콜은 진행 중이 0건이어도, 운행이 끊겼다 이어져도 남는다.
  *
- * 하차 완료를 누르는 순간 카드가 사라져서 **6단계가 채워진 모습을 볼 수 없었다.**
- * 그래서 진행 중인 콜이 하나라도 남아 있는 동안에는 **하차한 콜도 함께 보여준다.**
- * 마지막 하차가 끝나면(진행 중 0건) 한꺼번에 빠진다.
- *
- * 🔴 **상태는 미루지 않는다.** 하차한 콜의 운임은 그 순간 발생하므로
- *    `ORDER_DELIVERED` 는 즉시 쓴다 — 미루면 정산·운행일지가 늦고, 서버가 죽으면
- *    "내린 짐이 안 내린 걸로" 남는다. **상태는 콜별 즉시, 화면만 사이클 단위.**
- *
- * ⚠️ 이 목록은 **화면 전용**이다. 경로·적재·운임·카운트다운은 진행 중인 콜만 봐야 한다 —
- *    섞이면 하차한 짐이 계속 실려 있는 것으로 세어진다 (`TERMINAL_STATUSES` 주석의 사고).
+ * 경계는 저장하지 않고 하차 시각에서 파생한다 (규칙 ③ · `businessDayKey` — 서버 `ensureBusinessDay` 와 같은 선).
+ * ⚠️ **하차 시각을 모르면 남긴다.** 없는 값으로 카드를 지우지 않는다 (규칙 ④).
+ * ⚠️ 시각은 **날짜로** 비교한다 — 장부의 두 칸은 표기가 달라(`+09:00` · `Z`) 문자열로 비교하면 뒤집힌다.
+ * 🔴 **상태는 콜별 즉시, 화면만 하루 단위.** 하차의 운임은 그 순간 발생한다.
+ * ⚠️ 이 목록은 **화면 전용**이다. 경로·적재·운임·카운트다운은 진행 중인 콜만 본다 (`TERMINAL_STATUSES` 주석의 사고).
+ * ⚠️ 이름은 옛 «사이클»을 그대로 둔다 — 짝 여럿이 이 이름을 문다. 뜻은 «하루»다.
  */
-export function deckOfCycle<T extends { status?: string | null; capturedAt?: string; completedAt?: string | null }>(calls: T[]): T[] {
+export function deckOfCycle<T extends { status?: string | null; capturedAt?: string; completedAt?: string | null }>(calls: T[], nowMs: number = Date.now()): T[] {
     const inProgress = calls.filter(c => !isTerminal(c.status ?? undefined));
-    if (inProgress.length === 0) return [];          // 사이클이 끝났다 — 완료분도 보낸다
-
-    /**
-     * 🔵 **이번 운행에서 하차한 것만이다** (기사님 확정 2026-08-22 · 버그 대장 #40).
-     *
-     * 기사님: *"상태가 완료된 상황인데 왜 이것이 진행중으로 나오는 거지?
-     * 지금 진행중인 콜과 연결된 것도 없는데 말이지."*
-     *
-     * 예전 규칙은 *"진행 중이 있나"* 와 *"하차했나"* 둘만 물었다. **"같은 운행인가"를
-     * 묻지 않아서**, 10:05 에 하차한 콜이 네 시간 뒤 14:24 에 잡은 새 콜과 함께 되살아났다.
-     *
-     * 경계는 저장하지 않고 데이터에서 파생한다 (규칙 ③):
-     *   이번 운행의 시작 = 지금 진행 중인 콜 중 **가장 먼저 잡은 시각**
-     *   그보다 먼저 하차했으면 지난 운행이다
-     * 같은 운행이면 자연히 남는다 — 먼저 내린 콜의 하차가 뒤 콜을 잡은 뒤이기 때문이다.
-     *
-     * ⚠️ **하차 시각을 모르면 남긴다.** 없는 값으로 카드를 지우지 않는다 (규칙 ④) —
-     *    안 보이는 것이 잘못 보이는 것보다 나쁘다.
-     * ⚠️ 시각은 **반드시 날짜로** 비교한다. 장부의 두 칸은 표기가 달라(`+09:00` · `Z`)
-     *    문자열로 비교하면 같은 순간이 뒤집힌다.
-     */
-    const ms = (s?: string | null) => { const t = Date.parse(s ?? ''); return Number.isNaN(t) ? null : t; };
-    const cycleStart = inProgress.reduce<number | null>((min, c) => {
-        const t = ms(c.capturedAt);
-        return t === null ? min : (min === null ? t : Math.min(min, t));
-    }, null);
-    const inThisCycle = (c: T) => {
-        if (cycleStart === null) return true;        // 잡은 시각을 모르면 가르지 않는다
-        const done = ms(c.completedAt);
-        return done === null || done >= cycleStart;
+    const today = businessDayKey(nowMs);
+    const doneToday = (c: T) => {
+        const t = Date.parse(c.completedAt ?? '');
+        return Number.isNaN(t) || businessDayKey(t) === today;
     };
-
-    return [...inProgress, ...calls.filter(c => isDeliveredCall(c) && inThisCycle(c))]
+    return [...inProgress, ...calls.filter(c => isDeliveredCall(c) && doneToday(c))]
         .sort((a, b) => (a.capturedAt ?? '').localeCompare(b.capturedAt ?? ''));
 }
 

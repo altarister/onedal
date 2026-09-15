@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { hiddenPastIds } from './pastCalls';
+import { trailOfShown, hiddenPastIds } from './pastCalls';
 
 /**
  * 🙈 **지나간 콜 숨기기** (기사님 지시 2026-09-13: *"오른쪽 끝에 지나간 콜 숨기기가
@@ -89,3 +89,19 @@ describe('🗺️ 시트와 지도가 같은 집합을 본다', () => {
         expect(stage).not.toMatch(/visitedTrail=\{derived\.visitedTrail\}/);
     });
 });
+
+/**
+ * 🗺️ **지나간 콜을 숨기면 지도 자취도 가린다** (기사님 확정 2026-09-15 · 사이클 = 하루).
+ *    자취는 하루 종일 쌓이는데 조각에 콜 이름이 없다 — 저장 칸을 더하지 않고 **시각으로 가른다**(규칙 ③):
+ *    보이는 콜 중 가장 먼저 잡은 시각보다 **앞선 점**은 숨긴 콜들의 길이다. 시각을 모르는 점은 남긴다(규칙 ④).
+ */
+describe('🗺️ 숨긴 콜의 자취', () => {
+    const seg = [[{ lng: 1, lat: 1, atMs: 100 }, { lng: 2, lat: 2, atMs: 200 }], [{ lng: 3, lat: 3, atMs: 300 }, { lng: 4, lat: 4 }]];
+    it('🔴 보이는 콜이 잡힌 시각보다 앞선 점은 숨긴다', () => {
+        expect(trailOfShown(seg, 250)).toEqual([[{ lng: 3, lat: 3, atMs: 300 }, { lng: 4, lat: 4 }]]);
+    });
+    it('숨김이 없으면(null) 그대로다', () => {
+        expect(trailOfShown(seg, null)).toBe(seg);
+    });
+});
+

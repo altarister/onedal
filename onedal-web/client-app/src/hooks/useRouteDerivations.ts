@@ -62,7 +62,7 @@ export function useRouteDerivations(
     const liveRoute = useMemo(() => (activeRoute || []).filter(r => !isTerminal(r.status)), [activeRoute]);
 
     /**
-     * 🔄 **이번 운행의 카드 목록** — 하차해도 사이클이 끝날 때까지 남는다 (기사님 2026-08-19).
+     * 🗓️ **오늘의 카드 목록** — 진행 중 + 오늘 하차한 콜 (기사님 2026-08-19 · 2026-09-15 «사이클 = 하루»).
      * 🔴 `liveRoute`(진행 중)와 **엄격히 갈라 둔다.** 이 목록은 덱 화면 전용이고,
      *    경로·적재·운임·카운트다운·타임라인은 전부 `liveRoute` 를 쓴다.
      */
@@ -192,21 +192,21 @@ export function useRouteDerivations(
     useEffect(() => { ensureGpsFocusSubscribed(); ensureDrivenTrailSubscribed(); void loadScreenSettings(); }, []);
     const gpsFocus = useGpsFocusStore(st => st.gpsFocus);
 
-    /** 👣 이번 사이클의 주행 자취 — 사이클이 끝나면(덱이 비면) 접는다 */
+    /** 👣 오늘의 주행 자취 — 하루 종일 쌓고, 덱이 비면(자정에 어제분이 빠져) 접는다 (기사님 확정 2026-09-15 · 사이클 = 하루) */
     const drivenSegments = useDrivenTrailStore(st => st.segments);
     /**
      * 🔁 목업과 **같은 함수**(`pushTrail`)가 쌓기 때문에 스토어는 목업 말(`lng`·`lat`)을 쓴다.
      *    관제웹 지도는 `x`·`y` 로 읽으므로 여기서 **한 번만** 옮긴다 (규칙 ③ — 두 벌로 두지 않는다).
      */
     const drivenTrail = useMemo(
-        () => drivenSegments.map(seg => seg.map(p => ({ x: p.lng, y: p.lat }))),
+        () => drivenSegments.map(seg => seg.map(p => ({ x: p.lng, y: p.lat, atMs: p.atMs }))),
         [drivenSegments]);
     useEffect(() => { if (cycleDeck.length === 0) clearDrivenTrail(); }, [cycleDeck.length]);
     /**
      * 👣 **새로고침 뒤에는 장부에서 자취를 되살린다** (2026-09-12 밤).
      *    스토어가 메모리 전용이라 새로고침하면 0 이 된다 — 그래서 사이클을 처음 알게 된
      *    순간 한 번 물어본다. **한 번만** 읽는 것은 스토어가 지킨다.
-     *    ⚠️ 사이클이 끝나면 위 줄이 비우므로, 늦게 온 응답이 죽은 자취를 남기지 않는다.
+     *    ⚠️ 덱이 비면(영업일이 바뀌면) 위 줄이 비우므로, 늦게 온 응답이 죽은 자취를 남기지 않는다.
      */
     useEffect(() => {
         if (cycleDeck.length === 0) return;
@@ -284,7 +284,7 @@ export function useRouteDerivations(
     }, [routeTimeline]);
 
     /**
-     * 👣 **지나온 발자취 — 사이클이 끝날 때까지 남는다** (기사님 2026-08-31).
+     * 👣 **지나온 발자취 — 오늘 하루 남는다** (기사님 2026-08-31 · 2026-09-15 «사이클 = 하루»).
      *    다녀온 정거장은 경로·순번에서 빠지는 게 맞지만(다시 안 간다), 화면에서
      *    통째로 사라지니 «내가 어디를 돌았는지»를 잃었다.
      *    방문 시각(arrivedAt)순으로 ✓1 ✓2 … 를 단다. 취소·방출은 없던 일이라 안 남는다.

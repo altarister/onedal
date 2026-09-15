@@ -33,12 +33,13 @@ export function ensureDrivenTrailSubscribed() {
          */
         const walked = [...(d.via ?? []), { lat: d.lat, lng: d.lng }];
         let segs = useDrivenTrailStore.getState().segments;
-        for (const p of walked) segs = pushTrail(segs, { lng: p.lng, lat: p.lat });
+        const atMs = Date.now();   // ⏱️ 숨긴 콜의 자취를 시각으로 가른다 (`trailOfShown`)
+        for (const p of walked) segs = pushTrail(segs, { lng: p.lng, lat: p.lat, atMs });
         useDrivenTrailStore.setState({ segments: segs.slice(-2000) });
     });
 }
 
-/** 사이클이 끝나면 자취도 접는다 — 어제 자취가 오늘 지도에 살아나지 않는다 (규칙 ③) */
+/** 오늘 덱이 비면(자정에 어제분이 빠지면) 자취도 접는다 — 어제 자취가 오늘 지도에 살아나지 않는다 (규칙 ③ · 사이클 = 하루 2026-09-15) */
 export const clearDrivenTrail = () => useDrivenTrailStore.setState({ segments: [] });
 
 /**

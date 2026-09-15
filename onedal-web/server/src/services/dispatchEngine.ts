@@ -1,4 +1,4 @@
-import { decideTargetAfterDelivery, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
+import { restoreWhere, decideTargetAfterDelivery, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
@@ -859,6 +859,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         //    종결 콜은 지금처럼 오늘 것만 — 목록이 무한정 길어질 이유가 없다.
         const statusPlaceholders = RESTORABLE_STATUSES.map(() => '?').join(', ');
         const progressPlaceholders = IN_PROGRESS_STATUSES.map(() => '?').join(', ');
+        /* 🗓️ 창은 shared `restoreWhere` 한 벌 — «오늘 하차»도 살린다 (자정 넘긴 운행 · 2026-09-15) */
+        const win = restoreWhere(Date.now(), 'o.');
         const rows = db.prepare(`
             SELECT o.*,
                    pPlace.x as pickupX, pPlace.y as pickupY,
@@ -869,14 +871,9 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             LEFT JOIN orderStops dStop ON dStop.orderId = o.id AND dStop.stopType = 'dropoff'
             LEFT JOIN places dPlace ON dStop.placeId = dPlace.id
             WHERE o.userId = ? AND o.status IN (${statusPlaceholders})
-              AND ( o.timestamp >= ?
-                    OR (o.status IN (${progressPlaceholders}) AND o.timestamp >= ?) )
+              AND ${win.sql}
             ORDER BY o.timestamp ASC
-        `).all(
-            userId, ...RESTORABLE_STATUSES,
-            todayStartIso,
-            ...IN_PROGRESS_STATUSES, unfinishedSinceIso,
-        ) as any[];
+        `).all(userId, ...RESTORABLE_STATUSES, ...win.params) as any[];
 
         // 🔴 상한을 넘겨 **빠진** 미완료 콜은 조용히 사라지게 두지 않는다.
         //    기사님이 모르는 채로 콜을 잃는 것이 2026-08-11 사고의 본질이었다.

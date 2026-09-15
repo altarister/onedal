@@ -12,7 +12,7 @@ import { sheetTransition } from './sheetTransition';
 /* 🎬 상태바 문구는 여기 한 곳이 정한다 — 화면은 그리기만 한다 (규칙 ③) */
 import { sheetStatus } from '../../lib/sheetStatus';
 import { remainOnRouteKm } from '../../lib/remainOnRoute';
-import { hiddenPastIds } from '../../lib/pastCalls';
+import { trailOfShown, hiddenPastIds } from '../../lib/pastCalls';
 import { deckOrder } from '../../lib/deckFocus';
 /**
  * ✅ **«도착»이라고 말할 반경** (기사님 안 2026-09-13 — *"기준점반경 100m"*).
@@ -532,6 +532,9 @@ export default function StageView(props: Props) {
      *    크게 보인다. 접는 목적에 맞다.
      * ⚠️ 하차를 마치지 **않은** 콜의 «다녀온 상차지»는 그대로 남는다 — 그 콜은 진행 중이다.
      */
+    /** 🗺️ 숨김이 켜졌으면 «보이는 콜 중 가장 먼저 잡은 시각» — 그보다 앞선 자취는 숨긴 콜들의 길이다 */
+    const shownSinceMs = hiddenIds.size === 0 ? null
+        : Math.min(...deckList.filter(o => !hiddenIds.has(o.id)).map(o => Date.parse(o.capturedAt ?? '')).filter(Number.isFinite));
     const shownTrail = hiddenIds.size === 0
         ? derived.visitedTrail
         : derived.visitedTrail.filter(v => !hiddenIds.has(v.orderId));
@@ -540,7 +543,9 @@ export default function StageView(props: Props) {
     const departure = useDepartureDue({ orders: liveRoute, records: derived.stepRecords, routeStops, routeComputedAt });
     const bar = sheetStatus({
         due: departure?.due ?? null,
-        idle: liveRoute.length === 0,
+        /* 🗓️ «대기»는 오늘 한 일도 없을 때 — 오늘 하차분이 있으면 «오늘 N콜 마침 · 새 콜 대기» (사이클 = 하루) */
+        idle: cycleDeck.length === 0,
+        doneToday: cycleDeck.filter(isDeliveredCall).length,
         judging: !!judging,
         moving: drive === 'drive',
         next: next ? {
@@ -596,7 +601,8 @@ export default function StageView(props: Props) {
                     liveRoute={liveRoute}
                     myLocation={myLocation}
                     visitedTrail={shownTrail}
-                    drivenTrail={derived.drivenTrail}
+                    /* 🗺️ 숨긴 콜의 자취도 가린다 — 보이는 콜 중 가장 먼저 잡은 시각보다 앞선 점 (기사님 확정 2026-09-15 · `trailOfShown`) */
+                    drivenTrail={trailOfShown(derived.drivenTrail, shownSinceMs)}
                     routeHolder={derived.drawHolder}
                     callColors={derived.callColors}
                     netOverlay={callNet && {

@@ -36,8 +36,10 @@ describe('궤적 — 좌표 알림에서 구간까지', () => {
         ]);
         expect(segs()).toHaveLength(1);
         expect(segs()[0]).toHaveLength(5);
-        expect(segs()[0][0]).toEqual({ lng: 127.3, lat: 37.301 });
-        expect(segs()[0][4]).toEqual({ lng: 127.3, lat: 37.305 });
+        expect(segs()[0][0]).toMatchObject({ lng: 127.3, lat: 37.301 });
+        expect(segs()[0][4]).toMatchObject({ lng: 127.3, lat: 37.305 });
+        /* ⏱️ 점마다 지난 시각을 든다 — 숨긴 콜의 자취를 시각으로 가른다 (`pastCalls.trailOfShown` · 사이클 = 하루 2026-09-15) */
+        expect(Number.isFinite(segs()[0][4].atMs)).toBe(true);
     });
 
     it('🔴 2km 넘게 튀면 **구간을 끊는다** — 순간이동이 직선으로 남지 않는다', () => {
