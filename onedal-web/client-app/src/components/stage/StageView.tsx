@@ -751,11 +751,11 @@ export default function StageView(props: Props) {
                                     <button key={b.key} type="button"
                                         onClick={() => holder && props.onRecalculate?.(holder.id, b.key)}
                                         disabled={locked}
-                                        className={`px-2.5 h-8 rounded-md text-[11.5px] font-black border backdrop-blur-sm
-                                                    whitespace-nowrap transition-all ${
+                                        className={`px-2.5 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg
+                                                    backdrop-blur-sm text-[11px] font-black whitespace-nowrap transition-all border ${
                                             now === b.key
-                                                ? 'bg-info/90 text-white border-info'
-                                                : 'bg-surface-alt/80 text-text-primary border-border hover:bg-surface-hover'}`}>
+                                                ? 'border-info text-info'
+                                                : 'border-border text-text-primary opacity-80 hover:opacity-100'}`}>
                                         {b.naviLabel}
                                     </button>
                                 ))}
