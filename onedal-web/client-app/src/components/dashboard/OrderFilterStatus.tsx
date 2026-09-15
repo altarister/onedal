@@ -1,5 +1,5 @@
 import { useFilterConfig } from "../../hooks/useFilterConfig";
-import { CALL_TARGET_LABEL, effectiveRadii } from "@onedal/shared";
+import { effectiveRadii } from "@onedal/shared";
 import type { CallTarget } from "@onedal/shared";
 
 /**
@@ -26,11 +26,6 @@ import type { CallTarget } from "@onedal/shared";
  * 같은 이유로 출발 감지도 자동 전환이 아니라 "알림만 주고 기사님이 누른다"이다.
  */
 
-
-const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: string }> = {
-    DEST:  { icon: '🎯', accent: 'text-info',       hint: '목적지로 가는 콜 — 첫짐·합짐' },
-    HOME:  { icon: '🏠', accent: 'text-accent',     hint: '집 방향 콜 — 합짐 최대한' },
-};
 
 // 취소 카운트 props 는 받되 안 그린다 (v13 확정안) · 취소 한도 토스트도 뺐다 — 폰·배차망마다 달라 다른 자리에서 (기사님 2026-09-15 · todo.md)
 export default function OrderFilterStatus({ onOpenFilter }:
@@ -110,8 +105,6 @@ export default function OrderFilterStatus({ onOpenFilter }:
         <button type="button" onClick={onOpenFilter} title="누르면 필터가 열립니다"
             className="shrink-0 h-[38px] w-full flex items-center gap-2 px-3 border-b border-border-card text-left
                        bg-surface-alt/30 hover:bg-surface-hover/40 transition-colors">
-            <span className="shrink-0 text-[13px] font-black" style={{ color: v14.c }}>{PHASE_STYLE[phase].icon} {CALL_TARGET_LABEL[phase]}</span>
-            <span className="shrink-0 opacity-40">·</span>
             {/* 🛣️🔷 노선·동선 — 필터 창과 같은 값을 읽는다. 안 적으면 바꿔도 이 줄이 그대로라 바뀐 줄 모른다 */}
             <span className="shrink-0 text-[12.5px] font-black text-text-primary">{(filter.routeMode ?? true) ? '🛣️ 노선' : '🔷 동선'}</span>
             <span className="shrink-0 opacity-40">·</span>
