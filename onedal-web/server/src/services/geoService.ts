@@ -3,8 +3,8 @@ import path from 'path';
 import { getActiveCalls } from '../core/helpers';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
-import { DEFAULT_JUDGMENT, pickupAreaPlan, pickupAreaTest, isPickupListName, quadTesterOf, lineZoneOf, cityCenter } from '@onedal/shared';
-import type { PickupShape, NetParams } from '@onedal/shared';
+import { DEFAULT_JUDGMENT, isPickupListName, pickupShapeOf, distToLineKm } from '@onedal/shared';
+import type { GoalZone } from '@onedal/shared';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
  *    예전에 이 파라미터가 `any` 라, 세션에서 사라진 필드를 읽는 함수가 **몇 달째 null 만
@@ -463,22 +463,45 @@ export function mapCoverage(): { features: number; sido: string[] } {
     return { features: fs.length, sido: [...sido].sort() };
 }
 
+/** 격자 한 칸(km) — 영역 안에 찍는 점 간격. 원(반경 수 km)을 30×30 남짓으로 찍는다 */
+const PICKUP_GRID_KM = 0.3;
+
 /**
- * 📍 **점들이 든 읍·면·동** — 상차 영역을 격자 점으로 찍은 뒤 그 점을 품은 동 (상차 목록 · 필터.md «상차 목록 · 하차 목록»).
- * 간소화 사본(`simplified`)과 사각형(`bbox`)으로 먼저 거른다 (`getDetourRegions` 와 같은 최적화).
+ * 📍 **영역에 걸친 읍·면·동** — 기사님 규칙 «영역에 지역이 걸치고 있으면 들어간다» (2026-09-15).
+ *
+ * «걸침»을 둘로 잡는다 — 하나만 맞아도 넣는다:
+ *   ① 영역 안 격자 점(`PICKUP_GRID_KM`)이 동 안에 있다 — 동이 영역을 넓게 덮을 때 (동 꼭짓점은 전부 영역 밖일 수 있다)
+ *   ② 동 테두리 꼭짓점이 영역 안에 있다 — 격자보다 얇게 걸친 동 (①만 보면 빠진다)
+ * ⚠️ 둘 다 놓치는 것: 동 테두리의 한 변이 꼭짓점 없이 영역 가장자리를 0.3km 보다 얇게 스치는 경우뿐이다.
+ * 간소화 사본(`simplified` · 200m)과 사각형(`bbox`)으로 먼저 거른다 (`getDetourRegions` 와 같은 최적화).
  */
-export function regionsContainingPoints(points: Array<{ lng: number; lat: number }>): string[] {
-    if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features || points.length === 0) return [];
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const p of points) { minX = Math.min(minX, p.lng); maxX = Math.max(maxX, p.lng); minY = Math.min(minY, p.lat); maxY = Math.max(maxY, p.lat); }
+export function regionsTouchingArea(area: {
+    /** 영역을 감싼 사각형 [서, 남, 동, 북] */
+    bbox: [number, number, number, number];
+    inArea: (p: { lng: number; lat: number }) => boolean;
+    /** 영역 안 격자 점 */
+    points: Array<{ lng: number; lat: number }>;
+}): string[] {
+    if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) return [];
+    const [minX, minY, maxX, maxY] = area.bbox;
     const out = new Set<string>();
+    const vertexInArea = (geom: any): boolean => {
+        const rings: number[][][] = geom?.type === 'Polygon' ? geom.coordinates
+            : geom?.type === 'MultiPolygon' ? (geom.coordinates as number[][][][]).flat() : [];
+        for (const ring of rings) for (const [x, y] of ring) {
+            if (x < minX || x > maxX || y < minY || y > maxY) continue;
+            if (area.inArea({ lng: x, lat: y })) return true;
+        }
+        return false;
+    };
     for (const feature of mergedMapFeatureCollection.features as any[]) {
         const name = feature.properties?.EMD_KOR_NM;
         if (!name || out.has(name)) continue;
         const fb = feature.bbox ?? turf.bbox(feature);
         if (fb[2] < minX || fb[0] > maxX || fb[3] < minY || fb[1] > maxY) continue;
         const shape = feature.simplified ?? feature;
-        for (const p of points) {
+        if (vertexInArea(shape.geometry ?? shape)) { out.add(name); continue; }
+        for (const p of area.points) {
             if (p.lng < fb[0] || p.lng > fb[2] || p.lat < fb[1] || p.lat > fb[3]) continue;
             try {
                 if (turf.booleanPointInPolygon(turf.point([p.lng, p.lat]), shape)) { out.add(name); break; }
@@ -488,74 +511,42 @@ export function regionsContainingPoints(points: Array<{ lng: number; lat: number
     return [...out].sort();
 }
 
-/** 격자 한 칸(km) — 겹친 영역이 이보다 가늘면 놓칠 수 있다. 원(반경 수 km)을 30×30 남짓으로 찍는다 */
-const PICKUP_GRID_KM = 0.3;
-
 /**
- * 📋 **상차 목록을 계산한다 — 한 곳** (기사님 확정 표 2026-09-15 · `docs/지금/필터.md` «상차 목록 · 하차 목록»).
+ * 📋 **상차 목록을 계산한다 — 한 곳** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
  *
- * 계획(어느 도형들의 교집합·합집합인가)은 shared `pickupAreaPlan`, 점마다 «그 도형 안인가»는 `callNet` 판정 그대로다
- * (내 위치 원 · `lineZoneOf().pickupIn` 라인 띠 · `quadTesterOf` 현위치 꼭짓점 마름모 · 목적지 원) — 지도·판정과 같은 식 (규칙 ③).
- * 🔴 **도형끼리** 겹친 영역을 격자 점(`PICKUP_GRID_KM`)으로 찍고, 그 점을 품은 동을 모은다 — 동 목록끼리 교집합이 아니다.
+ * 모양은 shared `pickupShapeOf` — 살아 있는 목적지 중 하나라도 운행 뒤가 아니면 **현위치 영역 전체**,
+ * 전부 운행 뒤면 **현위치 영역 ∩ 라인 영역**. 관제웹 «상차» 레이어가 같은 함수로 그린다 (규칙 ③).
+ * 그 영역에 **걸친** 읍·면·동이 목록이다 (`regionsTouchingArea`).
+ * 🔴 운행 뒤인데 라인이 없으면 현위치 영역 전체로 본다 — 라인을 지어내지 않는다 (규칙 ④ · 지도와 같다).
  * 🔴 «경로 몇 km»를 안 본다 — 되돌아가는 경로에서 다시 지날 동이 빠지던 D3 가 이 계산에는 없다.
  * 세션을 모른다 — 서버 `filterManager.rebuildPickupList` 가 값을 넘기고, 검사가 실제 지도로 이 함수를 부른다.
  */
 export function pickupListFor(o: {
     me: { x: number; y: number };
-    radii: { pickupRadiusKm: number; destinationRadiusKm: number; quadRadiusKm: number; detourRadiusKm: number };
-    shape: { srcAngleDeg: number; dstAngleDeg: number };
+    radii: { pickupRadiusKm: number; detourRadiusKm: number };
     line: Array<{ x: number; y: number }> | null;
-    destinationCity: string | null | undefined;
-    homeCity: string | null | undefined;
-    homeOn: boolean;
-    homeCaught: boolean;
-}): { list: string[]; plan: PickupShape[][] } {
-    const hasLine = !!o.line && o.line.length >= 2;
-    const plan = pickupAreaPlan({ hasLine, homeOn: o.homeOn, homeCaught: o.homeCaught });
-    const me = { name: '내 위치', lng: o.me.x, lat: o.me.y };
-    const centerOf = (city: string | null | undefined) => {
-        if (!city) return null;
-        try { return cityCenter(city); } catch { return null; }   // 지도에 없는 시 — 그 도형은 모른다
-    };
-    const dest = centerOf(o.destinationCity), home = centerOf(o.homeCity);
-    const params = {
-        srcAngleDeg: o.shape.srcAngleDeg, dstAngleDeg: o.shape.dstAngleDeg,
-        quadRadiusKm: o.radii.quadRadiusKm, srcDiamKm: o.radii.pickupRadiusKm * 2, dstDiamKm: o.radii.destinationRadiusKm * 2,
-    } as NetParams;
-    const line = hasLine ? o.line!.map(p => [p.x, p.y] as [number, number]) : null;
-    const tests: Partial<Record<PickupShape, (p: { lng: number; lat: number }) => boolean>> = {
-        me: p => haversineKm(o.me.y, o.me.x, p.lat, p.lng) <= o.radii.pickupRadiusKm,
-        ...(line ? { line: lineZoneOf(line, o.radii.detourRadiusKm, null, params, dest ?? me).pickupIn } : {}),
-        ...(dest ? { quadDest: quadTesterOf(params, me, dest), destRing: (p: { lng: number; lat: number }) => haversineKm(dest.lat, dest.lng, p.lat, p.lng) <= o.radii.destinationRadiusKm } : {}),
-        ...(home ? { quadHome: quadTesterOf(params, me, home) } : {}),
-    };
-    const inArea = pickupAreaTest(plan, tests);
+    zones: ReadonlyArray<GoalZone>;
+}): { list: string[]; shape: 'me' | 'meLine' | null } {
+    const want = pickupShapeOf(o.zones);
+    if (!want) return { list: [], shape: null };   // 목적지가 없다 — 빈 목록은 고장으로 막힌다 (`callFilterBlocker`)
+    const line = o.line && o.line.length >= 2 ? o.line.map(p => [p.x, p.y] as [number, number]) : null;
+    const shape = want === 'meLine' && line ? 'meLine' : 'me';
+    const r = o.radii.pickupRadiusKm;
+    const inMe = (p: { lng: number; lat: number }) => haversineKm(o.me.y, o.me.x, p.lat, p.lng) <= r;
+    const inArea = shape === 'meLine'
+        ? (p: { lng: number; lat: number }) => inMe(p) && distToLineKm(p, line!) <= o.radii.detourRadiusKm
+        : inMe;
 
-    /* 격자 — 원이 든 항은 원을 감싼 사각형만 찍으면 된다 · 원이 없는 항(콜 전 마름모)은 목표까지 감싼 사각형을 성기게 */
-    const KX = (lat: number) => 111.32 * Math.cos((lat * Math.PI) / 180), KY = 110.574;
+    /* 격자 — 영역은 늘 현위치 원 안이라 원을 감싼 사각형만 찍으면 된다 */
+    const KX = 111.32 * Math.cos((o.me.y * Math.PI) / 180), KY = 110.574;
+    const bbox: [number, number, number, number] = [o.me.x - r / KX, o.me.y - r / KY, o.me.x + r / KX, o.me.y + r / KY];
     const points: Array<{ lng: number; lat: number }> = [];
-    const sample = (x0: number, y0: number, x1: number, y1: number, stepKm: number) => {
-        const dy = stepKm / KY, dx = stepKm / KX((y0 + y1) / 2);
-        for (let y = y0; y <= y1; y += dy) for (let x = x0; x <= x1; x += dx) {
-            const p = { lng: x, lat: y };
-            if (inArea(p)) points.push(p);
-        }
-    };
-    for (const term of plan) {
-        if (term.includes('me')) {
-            const r = o.radii.pickupRadiusKm;
-            sample(o.me.x - r / KX(o.me.y), o.me.y - r / KY, o.me.x + r / KX(o.me.y), o.me.y + r / KY, PICKUP_GRID_KM);
-            continue;
-        }
-        const goal = term.includes('quadHome') ? home : dest;
-        if (!goal) continue;
-        const pad = o.radii.quadRadiusKm;
-        const x0 = Math.min(o.me.x, goal.lng) - pad / KX(o.me.y), x1 = Math.max(o.me.x, goal.lng) + pad / KX(o.me.y);
-        const y0 = Math.min(o.me.y, goal.lat) - pad / KY, y1 = Math.max(o.me.y, goal.lat) + pad / KY;
-        const longestKm = Math.max((x1 - x0) * KX(o.me.y), (y1 - y0) * KY);
-        sample(x0, y0, x1, y1, Math.max(PICKUP_GRID_KM, longestKm / 120));
+    const dy = PICKUP_GRID_KM / KY, dx = PICKUP_GRID_KM / KX;
+    for (let y = bbox[1]; y <= bbox[3]; y += dy) for (let x = bbox[0]; x <= bbox[2]; x += dx) {
+        const p = { lng: x, lat: y };
+        if (inArea(p)) points.push(p);
     }
-    return { list: regionsContainingPoints(points).filter(isPickupListName), plan };
+    return { list: regionsTouchingArea({ bbox, inArea, points }).filter(isPickupListName), shape };
 }
 
 export function getCityRegionsWithRadius(cityName: string, radiusKm: number): CityRegions {

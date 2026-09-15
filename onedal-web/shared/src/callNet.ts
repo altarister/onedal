@@ -384,7 +384,8 @@ function makeInNet(p: NetParams, src: NetPoint, dst: NetPoint) {
  *    좌우 폭)은 뒤쪽을 못 그려서 180 이상이 전부 같은 모양이었는데, **판정은 넓어지고 있었다.**
  *    이제 그린 모양이 판정 그대로다.
  */
-function quadOutline(p: NetParams, src: NetPoint, dst: NetPoint): Array<{ lng: number; lat: number }> {
+/** 마름모 테두리 점 — 그물 그리기와 관제웹 «하차» 레이어(`StageView` · 목적지마다 마름모)가 함께 쓴다 */
+export function quadOutline(p: NetParams, src: NetPoint, dst: NetPoint): Array<{ lng: number; lat: number }> {
     const inQuad = makeInQuad(p, src, dst);
     const maxKm = haversineKm(src, dst) * 3 + Math.max(0, p.quadRadiusKm) * 2 + 1;
     const out: Array<{ lng: number; lat: number }> = [];
@@ -809,7 +810,8 @@ export function progressAlongKm(pt: { lng: number; lat: number }, line: Array<[n
 }
 
 /** 점 → 폴리라인 최소 거리 (km 평면 근사 — 이 스케일에서 충분) */
-function distToLineKm(pt: { lng: number; lat: number }, line: Array<[number, number]>): number {
+/** 점에서 라인까지 km — 라인 띠 판정(`lineZoneOf`)과 서버 상차 목록(`geoService.pickupListFor`)이 함께 쓴다 */
+export function distToLineKm(pt: { lng: number; lat: number }, line: Array<[number, number]>): number {
     const KX = 111.32 * Math.cos(rad(pt.lat)), KY = 110.574;
     let best = Infinity;
     for (let i = 1; i < line.length; i++) {

@@ -20,7 +20,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
+import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, isLocalPhase, activeGoals, effectiveRadii, pickupListNeedsRebuild } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
@@ -915,10 +915,11 @@ function refreshKeywordTraps(session: ReturnType<typeof getUserSession>): void {
 }
 
 /**
- * 📋 **상차 목록을 만든다** (기사님 확정 표 2026-09-15 · `docs/지금/필터.md` «상차 목록 · 하차 목록»).
+ * 📋 **상차 목록을 만든다** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
  *
- * 계산은 `geoService.pickupListFor` 한 곳 — 여기서는 세션 값을 넘기기만 한다.
- * 반경은 앱·지도·그물이 쓰는 그 함수(`effectiveRadii`)에서 — 자동이면 줄인 값 (규칙 ③). «집 방향 콜을 잡았나»는 `homeCallsOf` 한 곳.
+ * 목적지 상태는 shared `goalZonesOf`, 계산은 `geoService.pickupListFor` 한 곳 — 여기서는 세션 값을 넘기기만 한다.
+ * 관제웹 «상차» 레이어가 **같은 `goalZonesOf`** 로 그린다 (규칙 ③).
+ * 반경은 앱·지도·그물이 쓰는 그 함수(`effectiveRadii`)에서 — 자동이면 줄인 값. «복귀콜을 잡았나»는 `homeCallsOf` 한 곳.
  * @returns 목록이 바뀌었나 (부르는 쪽이 관제웹에 알릴지 정한다)
  */
 export function rebuildPickupList(session: ReturnType<typeof getUserSession>, userId: string): boolean {
@@ -930,24 +931,24 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const line = f.routeMode === false ? null : filterLineOf(session);
     const homeCity = homeCityOf(userId);
     const homeCaught = homeOn && homeCallsOf(session, userId, session.myOrders).length > 0;
-    const { list, plan } = pickupListFor({
-        me: { x: me.x, y: me.y },
-        radii: eff,
-        shape: quadShapeFrom(f as any),
-        line,
+    const zones = goalZonesOf({
         destinationCity: f.destinationCity,
         homeCity,
         homeOn,
         homeCaught,
+        departed: !!session.departedAt,
+        activeCalls: getActiveCalls(session),
     });
+    const { list, shape } = pickupListFor({ me: { x: me.x, y: me.y }, radii: eff, line, zones });
     const prev = f.pickupKeywords;
     session.pickupListAt = { x: me.x, y: me.y };
     f.pickupKeywords = list;
-    /* 🗺️ 지도가 **같은 계획**으로 그리게 재료를 싣는다 — 계획은 shared `pickupAreaPlan` 한 곳, 관제웹이 이 값으로 다시 부른다 (기사님 2026-09-15 «교집합이 안 보인다») */
+    /* 🗺️ 관제웹 «상차» 레이어가 **같은 `goalZonesOf`** 를 부를 재료를 싣는다 (집 · 복귀 · 복귀콜 쥠) */
     f.pickupArea = { at: { x: me.x, y: me.y }, homeCity, homeOn, homeCaught, hasLine: !!line && line.length >= 2 };
     refreshKeywordTraps(session);
     const changed = !prev || prev.join(',') !== list.join(',');
-    if (changed) console.log(`📋 [상차 목록] ${plan.map(t => t.join('∩')).join(' ∪ ')} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);
+    if (changed) console.log(`📋 [상차 목록] ${zones.map(z => `${z.city}:${z.state}`).join(' · ') || '목적지 없음'} → `
+        + `${shape === 'meLine' ? '내 위치 ∩ 라인' : shape === 'me' ? '내 위치' : '없음'} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);
     return changed;
 }
 

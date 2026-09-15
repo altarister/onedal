@@ -7,7 +7,8 @@
 - [ ] 라인을 목적지마다 따로 — 목적지 쪽 L · 집 가는 LH (`filterManager.netOfGoals` 가 라인 한 줄을 모든 목적지에 넘긴다)
 - [ ] 살아 있는 목적지 — 복귀콜을 잡아도 목적지 콜이 남았으면 목적지 유지 (`callNet.activeGoals`)
 - [ ] 하차 — 집이 «콜 없음»이면 운행 뒤에도 현위치 영역 (`netKeywordsOf` 가 운행 뒤 `me` 를 안 넘긴다)
-- [ ] 상차 — 경로 생김(운행 전) · 복귀 켬 복귀콜 없음 = 현위치 영역 전체 (`pickupAreaPlan`)
+- [x] 상차 — 서버 목록도 `goalZonesOf` → `pickupShapeOf` · 걸친 동은 격자 점 ∪ 동 꼭짓점 (`geoService.pickupListFor` · 2026-09-15)
+- [ ] 하차 — 목적지 원 · 마름모도 **걸친 동**을 넣는다 (지금은 동 중심점 · 띠만 경계 걸침) — 기사님 «영역에 지역이 걸치고 있으면 들어간다»
 - [ ] 관내를 따로 재지 않는다 — `netForGoal` 의 `local`(목적지 원만)을 걷고 목적지 «콜 없음» 모양으로 (기사님 2026-09-15 *"그쪽에 도착했으니 다른 곳을 정하지 않았으면 그곳에서 일 있으면 하자"*) · `localMode` 를 읽는 곳(`dispatchEngine` · `StageView` · `OrderFilterModal` · 현황판)을 함께 본다
 - [ ] 지도 «상차» · «그물» 레이어가 같은 정의로 그리는지 (`PinnedRouteCanvas` · `useCallNet`)
 
