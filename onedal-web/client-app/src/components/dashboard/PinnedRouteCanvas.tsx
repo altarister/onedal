@@ -509,44 +509,76 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          *    더 진해져서 «여기가 더 안쪽»처럼 읽힌다. 실험실이 오프스크린 화포를 쓴 이유가 그것이다.
          *    여기서는 같은 일을 `globalAlpha` 한 번으로 한다 — 한 path 에 모아 한 번 칠한다.
          */
+        /** 🎭 기기 픽셀 크기의 숨은 캔버스 — 영역을 **불투명으로 모아 그리는 틀** (겹쳐도 두 번 짙어지지 않고, 테두리를 딸 수 있다) */
+        const makeMask = () => {
+            const off = document.createElement('canvas');
+            off.width = canvas.width; off.height = canvas.height;
+            const oc = off.getContext('2d');
+            oc?.scale(dpr, dpr);
+            return { off, oc };
+        };
+        /**
+         * ✏️ **칠한 모양의 바깥 테두리만 긋는다** (기사님 2026-09-15 «바깥만 하자»).
+         * 틀을 8방향으로 `px` 만큼 밀어 겹친 뒤 원래 틀을 지우면 **바깥 띠만** 남는다 — 원 · 마름모 · 띠가 겹친 안쪽에는 선이 안 생긴다.
+         * ⚠️ 방향을 늘리면 테두리가 더 고르지만 그릴 때마다 전체 화면을 그만큼 더 옮긴다 — 2px 에는 8방향이면 이음새가 안 보인다.
+         */
+        const strokeOuterEdge = (mask: HTMLCanvasElement, color: string, px: number) => {
+            const ring = document.createElement('canvas');
+            ring.width = mask.width; ring.height = mask.height;
+            const rc = ring.getContext('2d');
+            if (!rc) return;
+            const d = px * dpr;
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2;
+                rc.drawImage(mask, Math.cos(a) * d, Math.sin(a) * d);
+            }
+            rc.globalCompositeOperation = 'destination-out';
+            rc.drawImage(mask, 0, 0);
+            rc.globalCompositeOperation = 'source-in';
+            rc.fillStyle = color;
+            rc.fillRect(0, 0, ring.width, ring.height);
+            ctx.drawImage(ring, 0, 0, width, height);
+        };
+
         /**
          * 🟢 «상차» 레이어 — 원달앱이 상차지를 거르는 영역 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
          * 현위치 영역 전체를 칠하거나, **내 위치 원으로 잘라(clip)** 그 안에서만 라인 띠를 칠한다 — 원 ∩ 라인이 테두리 매끈하게 나온다.
-         * 도형이 하나라 한 번에 옅게 칠한다 (띠가 제 몸과 겹쳐도 한 번의 `stroke` 는 두 번 짙어지지 않는다).
-         * 그물(파랑)과 가르려고 초록으로 칠한다.
+         * 틀에 모아 옅게 올리고 **바깥 테두리**를 긋는다. 그물(파랑)과 가르려고 초록으로 칠한다.
          */
         if (layers.pickup && pickupArea) {
-            const c = getScreenPt(pickupArea.me);
-            const east = getScreenPt({ x: pickupArea.me.x + 1 / (111.32 * Math.cos((pickupArea.me.y * Math.PI) / 180)), y: pickupArea.me.y });
-            const pxPerKm = Math.abs(east.cx - c.cx);
-            ctx.save();
-            ctx.globalAlpha = 0.28;
-            ctx.fillStyle = '#16a34a'; ctx.strokeStyle = '#16a34a';
-            ctx.beginPath(); ctx.arc(c.cx, c.cy, Math.max(0, pickupArea.meKm) * pxPerKm, 0, Math.PI * 2);
-            if (!pickupArea.line) {
-                ctx.fill();
-            } else if (pickupArea.line.length >= 2) {
-                ctx.clip();
-                ctx.beginPath();
-                pickupArea.line.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) ctx.moveTo(s.cx, s.cy); else ctx.lineTo(s.cx, s.cy); });
-                ctx.lineWidth = pickupArea.lineKm * 2 * pxPerKm;
-                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-                ctx.stroke();
+            const { off, oc } = makeMask();
+            if (oc) {
+                const c = getScreenPt(pickupArea.me);
+                const east = getScreenPt({ x: pickupArea.me.x + 1 / (111.32 * Math.cos((pickupArea.me.y * Math.PI) / 180)), y: pickupArea.me.y });
+                const pxPerKm = Math.abs(east.cx - c.cx);
+                oc.fillStyle = '#16a34a'; oc.strokeStyle = '#16a34a';
+                oc.beginPath(); oc.arc(c.cx, c.cy, Math.max(0, pickupArea.meKm) * pxPerKm, 0, Math.PI * 2);
+                if (!pickupArea.line) {
+                    oc.fill();
+                } else if (pickupArea.line.length >= 2) {
+                    oc.clip();
+                    oc.beginPath();
+                    pickupArea.line.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
+                    oc.lineWidth = pickupArea.lineKm * 2 * pxPerKm;
+                    oc.lineCap = 'round'; oc.lineJoin = 'round';
+                    oc.stroke();
+                }
+                ctx.save();
+                ctx.globalAlpha = 0.28;
+                ctx.drawImage(off, 0, 0, width, height);
+                ctx.restore();
+                strokeOuterEdge(off, 'rgba(22,163,74,.9)', 2);
             }
-            ctx.restore();
         }
 
         /**
          * 🔵 «하차» 레이어 — 원달앱이 하차지를 거르는 영역 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
-         * 원 · 마름모 · 띠의 **합집합**이다. 겹친 자리가 두 번 짙어지지 않게 **숨은 캔버스에 불투명으로 모아 그린 뒤 한 번에 옅게** 올린다.
+         * 원 · 마름모 · 띠의 **합집합**이다. 틀에 불투명으로 모아 그린 뒤 한 번에 옅게 올리고 **바깥 테두리**를 긋는다.
          * 🔴 모르는 조각(좌표를 모르는 목적지 · 종착지)은 부르는 쪽이 이미 뺐다 — 여기서 지어내지 않는다 (규칙 ④).
          */
         if (layers.dropoff && dropoffArea && (dropoffArea.circles.length || dropoffArea.quads.length || dropoffArea.lines.length)) {
-            const off = document.createElement('canvas');
-            off.width = canvas.width; off.height = canvas.height;
-            const oc = off.getContext('2d');
+            const { off, oc } = makeMask();
             if (oc) {
-                oc.scale(dpr, dpr);
                 const pxPerKmAt = (p: { x: number; y: number }) => {
                     const a = getScreenPt(p);
                     const b = getScreenPt({ x: p.x + 1 / (111.32 * Math.cos((p.y * Math.PI) / 180)), y: p.y });
@@ -585,6 +617,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 ctx.globalAlpha = 0.22;
                 ctx.drawImage(off, 0, 0, width, height);
                 ctx.restore();
+                strokeOuterEdge(off, 'rgba(37,99,235,.9)', 2);
             }
         }
 
