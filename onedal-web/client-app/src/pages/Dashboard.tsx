@@ -330,7 +330,7 @@ export default function Dashboard() {
                 <div className={stagePreview ? "absolute left-0 right-0 top-0 flex flex-col" : "contents"}>
                 {/* 🚚 서버가 대신 찍은 하차 완료·지나침 · 🏠 목적지 자동 전환 — 잠깐 떴다 사라진다 */}
                 {gpsNotice && (
-                    <div className="mx-3 mt-3 rounded-xl border border-primary/40 border-l-4 border-l-primary bg-surface shadow-lg px-4 py-2.5 flex items-center gap-2 text-sm">
+                    <div className="mx-3 mt-3 rounded-md border border-primary/40 inset-shadow-[4px_0_0_var(--color-primary)] bg-surface shadow-lg px-4 py-2.5 flex items-center gap-2 text-sm">
                         <span className="flex-1 font-bold text-text-primary">{gpsNotice}</span>
                         <button
                             onClick={() => setGpsNotice(null)}
@@ -342,7 +342,7 @@ export default function Dashboard() {
 
                 {/* 🔄 서버 재시작 복구 알림 */}
                 {restoredInfo && (
-                    <div className="mx-3 mt-3 rounded-xl border border-warning/40 border-l-4 border-l-warning bg-surface shadow-lg px-4 py-3 flex items-start gap-3">
+                    <div className="mx-3 mt-3 rounded-md border border-warning/40 inset-shadow-[4px_0_0_var(--color-warning)] bg-surface shadow-lg px-4 py-3 flex items-start gap-3">
                         <span className="text-lg leading-none mt-0.5">🔄</span>
                         <div className="flex-1 text-sm">
                             <p className="font-bold text-text-primary">
@@ -365,7 +365,7 @@ export default function Dashboard() {
 
                 {/* ⏳ [T5] 상한을 넘겨 화면에서 빠진 미완료 콜 — 조용한 소실을 만들지 않는다 */}
                 {staleDropped && staleDropped.count > 0 && (
-                    <div className="mx-3 mt-3 rounded-xl border border-warning/45 border-l-4 border-l-warning bg-surface shadow-lg px-4 py-3 flex items-start gap-3">
+                    <div className="mx-3 mt-3 rounded-md border border-warning/45 inset-shadow-[4px_0_0_var(--color-warning)] bg-surface shadow-lg px-4 py-3 flex items-start gap-3">
                         <span className="text-lg leading-none mt-0.5">⏳</span>
                         <div className="flex-1 min-w-0 text-sm">
                             <p className="font-bold text-text-primary">
@@ -393,7 +393,7 @@ export default function Dashboard() {
 
                 {/* 🚨 서버 오류 — 예전에는 서버만 알고 기사님은 몰랐다 */}
                 {serverErrors.map(e => (
-                    <div key={e.at} className="mx-3 mt-3 rounded-xl border border-danger/45 border-l-4 border-l-danger bg-surface shadow-lg px-4 py-3 flex items-start gap-3">
+                    <div key={e.at} className="mx-3 mt-3 rounded-md border border-danger/45 inset-shadow-[4px_0_0_var(--color-danger)] bg-surface shadow-lg px-4 py-3 flex items-start gap-3">
                         <span className="text-lg leading-none mt-0.5">🚨</span>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-text-primary">처리에 실패했습니다</p>
