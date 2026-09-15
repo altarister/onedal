@@ -889,15 +889,14 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         /**
          * 1.7. 👣 지나온 발자취 — 번호는 방문 순서로 동결 (①)
          *
-         * 🩶 **색표를 켜면 다녀온 곳은 회색에 투명도 · 테두리 투명** — 색은 아직 안 간 콜만 쓴다.
+         * 🩶 **색표를 켜면 다녀온 곳은 회색 원 · 진한 회색 번호 · 테두리 투명** — 색은 아직 안 간 콜만 쓴다.
          *    색이 넷이라 다녀온 콜이 색을 들고 있으면 5번째 콜과 같은 색으로 보인다.
          */
         markerHits.current = [];
         trail.forEach((p) => {
             const { cx, cy } = getScreenPt(p);
             markerHits.current.push({ cx, cy, orderId: p.orderId });
-            const kind = p.type === '상차' ? 'pickup' : 'dropoff';
-            const fill = rainbowNodes && p.callNo ? withAlpha(mapColors.textMuted, 0.5) : null;
+            const fill = rainbowNodes && p.callNo ? mapColors.textMuted : null;
             ctx.beginPath();
             ctx.arc(cx, cy, fill ? 10 : 9, 0, 2 * Math.PI);
             ctx.fillStyle = fill ?? withAlpha('#35c3a9', 0.4);       // 초록 채움 = 다녀옴 (옛 문법)
@@ -907,7 +906,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 ? callNodeStroke(true, fill)                          // 다녀왔으니 «동그라미»를 친다
                 : (callColors?.get(p.orderId) ?? '#35c3a9');
             ctx.stroke();
-            ctx.fillStyle = fill ? callNodeText(kind, theme) : '#d7f5ee';
+            ctx.fillStyle = fill ? '#374151' : '#d7f5ee';   // 🩶 다녀온 곳 번호는 진한 회색 — 흰 글자는 회색 원 위에서 여전히 눈을 끈다
             ctx.font = fill ? 'bold 12.5px sans-serif' : 'bold 10px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';

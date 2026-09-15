@@ -10,7 +10,7 @@ describe('🩶 지도 — 지나간 정거장', () => {
     it('🔴 지나간 정거장 원은 흐린 회색으로 칠한다', () => {
         const canvas = join(__dirname, '../../../client-app/src/components/dashboard/PinnedRouteCanvas.tsx');
         /* 지나간 정거장은 발자취 층(`trail.forEach`)이 그린다 */
-        expect(codeOnly(readFileSync(canvas, 'utf8'))).toMatch(/trail\.forEach[\s\S]{0,300}const fill = rainbowNodes && p\.callNo \? withAlpha\(mapColors\.textMuted, 0\.5\)/);
+        expect(codeOnly(readFileSync(canvas, 'utf8'))).toMatch(/trail\.forEach[\s\S]{0,300}const fill = rainbowNodes && p\.callNo \? mapColors\.textMuted :/);
     });
 
     it('🔴 지나간 정거장 테두리는 투명이다', () => {
