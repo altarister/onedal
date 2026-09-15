@@ -6,7 +6,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFI
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
-         resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL, effectiveRadii, radiusScaleOf,
+         resolvePhaseKey, reachRadiusKm, effectiveRadii, radiusScaleOf,
          VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
 import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
@@ -107,16 +107,6 @@ const toValues = (f: ValueForm, prev: Record<FlatValueKey, any>): Record<FlatVal
         out[spec.path] = Number.isFinite(n) ? n : prev[spec.path];
     }
     return out;
-};
-
-/**
- * 🎯 **국면 셋 — 하루의 흐름 순서** (요약줄에서 이사 · C4-5).
- *    기사님: *"목적지행으로 모두 수행하고 거의 도착할 즈음 '이 동네에서 찾기'로 스와이프하고,
- *    이 동네에서 찾고 나면 복귀행으로 넘기면 모든 경우의 수를 커버할 것 같은데."*
- */
-const TARGET_HINT: Record<CallTarget, string> = {
-    DEST:  '목적지로 가는 콜 — 첫짐·합짐',
-    HOME:  '집 방향 콜 — 합짐 최대한',
 };
 
 /**
@@ -268,22 +258,14 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      *    기사님: *"지금은 열림에 열림이 두번이야. **한줄에 열림 하나만 있으면 되.**"*
      *    요약줄의 펼친 판을 걷으면서 그 안에 있던 버튼 셋이 여기로 왔다.
      *
-     * 🔴 **확인창은 그대로 따라왔다** (기사님 2026-08-14: *"이렇게 필터가 쉽게 바뀌면
-     *    오작동이 될 가능성이 있을 것 같다. 버튼을 누르게 하고 알럿창으로 확인받는 것이
-     *    안전할 듯하다"*). 되돌리려면 경유를 통째로 다시 계산해야 한다.
+     * 🔄 **확인창은 걷었다** (기사님 2026-09-15: *"복귀를 클릭하면 알럿창 뜨는데 그거 필요 없겠다"*).
+     *    08-14 에 «필터가 쉽게 바뀌면 오작동»으로 넣었는데, 지금 입구는 필터 안 «↩️ 복귀» 버튼 하나다.
      * 🔴 **닫지 않는다** — 2026-08 에 전환 버튼이 `onClose()` 를 불러 **저장 안 한 값을
      *    조용히 버렸다.** 그 사고를 여기서 되풀이하지 않는다.
      */
     const goPhase = (next: CallTarget) => {
         const now: CallTarget = filter?.callTarget ?? 'DEST';
         if (next === now) return;
-        const ok = confirm(
-            `콜 잡기 방향을 바꿉니다.\n\n` +
-            `  ${CALL_TARGET_LABEL[now]}  →  ${CALL_TARGET_LABEL[next]}\n` +
-            `  ${TARGET_HINT[next]}\n\n` +
-            `잡아 둔 콜은 그대로 있습니다 (필터만 바뀝니다).\n계속할까요?`
-        );
-        if (!ok) return;
         logRoadmapEvent("웹", `국면 전환 버튼 (${now} → ${next})`);
         socket.emit("set-call-target", { phase: next });
     };
