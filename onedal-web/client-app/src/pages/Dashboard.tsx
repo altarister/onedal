@@ -135,7 +135,6 @@ export default function Dashboard() {
         previewRouteHolderId,
         cancelCounts,
         cancelRounds,
-        cancelBudgetToast,
     } = useOrderEngine();
 
 
@@ -278,88 +277,6 @@ export default function Dashboard() {
 
             <div className={`relative flex flex-col max-w-2xl mx-auto w-full ${stagePreview ? "flex-1 min-h-0" : ""}`}>
 
-                {/* 📢 배너 층 (v24) — 무대에서는 흐름 밖으로 띄운다. 흐름 안에 두면 뜰 때마다
-                    아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 (기사님 실측 0831) */}
-                <div className={stagePreview ? "absolute left-0 right-0 z-40" : "contents"}>
-                {/* 🚚 서버가 대신 찍은 하차 완료·지나침 · 🏠 목적지 자동 전환 — 잠깐 떴다 사라진다 */}
-                {gpsNotice && (
-                    <div className="mx-3 mt-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 flex items-center gap-2 text-sm">
-                        <span className="flex-1 font-bold text-text-primary">{gpsNotice}</span>
-                        <button
-                            onClick={() => setGpsNotice(null)}
-                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1"
-                            aria-label="알림 닫기"
-                        >닫기</button>
-                    </div>
-                )}
-
-                {/* 🔄 서버 재시작 복구 알림 */}
-                {restoredInfo && (
-                    <div className="mx-3 mt-3 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 flex items-start gap-3">
-                        <span className="text-lg leading-none mt-0.5">🔄</span>
-                        <div className="flex-1 text-sm">
-                            <p className="font-bold text-text-primary">
-                                서버 재시작으로 진행 중이던 콜 {restoredInfo.restoredCount}건을 복구했습니다.
-                            </p>
-                            <p className="text-text-muted mt-0.5">
-                                적재 상태({restoredInfo.dispatchPhase}) 기준으로 합짐 필터를 다시 계산했습니다.
-                                이미 완료하신 건이 있다면 <b>완료 처리</b>해 주세요. 그래야 남은 적재 공간이 정확해집니다.
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => setRestoredInfo(null)}
-                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1"
-                            aria-label="알림 닫기"
-                        >
-                            닫기
-                        </button>
-                    </div>
-                )}
-
-                {/* ⏳ [T5] 상한을 넘겨 화면에서 빠진 미완료 콜 — 조용한 소실을 만들지 않는다 */}
-                {staleDropped && staleDropped.count > 0 && (
-                    <div className="mx-3 mt-3 rounded-xl border border-warning/45 bg-warning/10 px-4 py-3 flex items-start gap-3">
-                        <span className="text-lg leading-none mt-0.5">⏳</span>
-                        <div className="flex-1 min-w-0 text-sm">
-                            <p className="font-bold text-text-primary">
-                                {staleDropped.days}일이 지난 미완료 콜 {staleDropped.count}건이 화면에서 빠졌습니다
-                            </p>
-                            <p className="text-text-muted text-xs mt-0.5">
-                                끝내지 않은 콜이 남아 있다면 사무실에 확인해 주세요. 적재·합짐 계산에는 반영되지 않습니다.
-                            </p>
-                            <ul className="mt-1.5 flex flex-col gap-0.5">
-                                {staleDropped.orders.slice(0, 5).map(o => (
-                                    <li key={o.id} className="text-[11px] text-text-muted break-keep">
-                                        · {o.pickup} → {o.dropoff}
-                                        <span className="opacity-70"> ({o.daysAgo}일 전 · {o.status === 'ORDER_PICKED_UP' ? '상차 완료' : '확정'})</span>
-                                    </li>
-                                ))}
-                                {staleDropped.orders.length > 5 && (
-                                    <li className="text-[11px] text-text-muted">· 외 {staleDropped.orders.length - 5}건</li>
-                                )}
-                            </ul>
-                        </div>
-                        <button onClick={() => setStaleDropped(null)}
-                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1">닫기</button>
-                    </div>
-                )}
-
-                {/* 🚨 서버 오류 — 예전에는 서버만 알고 기사님은 몰랐다 */}
-                {serverErrors.map(e => (
-                    <div key={e.at} className="mx-3 mt-3 rounded-xl border border-danger/45 bg-danger/10 px-4 py-3 flex items-start gap-3">
-                        <span className="text-lg leading-none mt-0.5">🚨</span>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-text-primary">처리에 실패했습니다</p>
-                            <p className="text-xs text-text-muted mt-0.5 break-all">{e.event} — {e.message}</p>
-                        </div>
-                        <button onClick={() => dismissError(e.at)}
-                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1">닫기</button>
-                    </div>
-                ))}
-
-                {/* 🚨 신고 불일치 — 경고에서 사무실 전화·수행 판단까지 한 카드에서 */}
-                <CargoMismatchBanner orders={activeRoute} />
-                </div>
 
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />
@@ -387,7 +304,7 @@ export default function Dashboard() {
                     );
                     return <OrderFilterStatus
                         onOpenFilter={() => setIsFilterOpen(o => !o)}
-                        cancelCounts={cancelCounts} cancelRounds={cancelRounds} budgetToast={cancelBudgetToast} />;
+                        cancelCounts={cancelCounts} cancelRounds={cancelRounds} />;
                 })()}
 
                 {/**
@@ -405,6 +322,92 @@ export default function Dashboard() {
                     routeMode={routeMode}
                     setRouteMode={setRouteMode}
                 />
+
+                {/* 📢 배너 층 (v24) — 무대에서는 흐름 밖으로 띄운다. 🔴 바탕은 불투명(bg-surface) — 10% 바탕이면 뒤 지도가 비친다 (#146). 흐름 안에 두면 뜰 때마다
+                    아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 (기사님 실측 0831) */}
+                {/* 🗺️ 필터 줄(과 열리는 필터) 아래 · 지도 위 — 헤더·필터 줄을 가리지 않는다 · 높이 0 그릇이라 지도를 밀지 않는다 (기사님 2026-09-15 «지도 위로 하자» · #146) */}
+                <div className={stagePreview ? "relative h-0 z-30" : "contents"}>
+                <div className={stagePreview ? "absolute left-0 right-0 top-0 flex flex-col" : "contents"}>
+                {/* 🚚 서버가 대신 찍은 하차 완료·지나침 · 🏠 목적지 자동 전환 — 잠깐 떴다 사라진다 */}
+                {gpsNotice && (
+                    <div className="mx-3 mt-3 rounded-xl border border-primary/40 border-l-4 border-l-primary bg-surface shadow-lg px-4 py-2.5 flex items-center gap-2 text-sm">
+                        <span className="flex-1 font-bold text-text-primary">{gpsNotice}</span>
+                        <button
+                            onClick={() => setGpsNotice(null)}
+                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1"
+                            aria-label="알림 닫기"
+                        >닫기</button>
+                    </div>
+                )}
+
+                {/* 🔄 서버 재시작 복구 알림 */}
+                {restoredInfo && (
+                    <div className="mx-3 mt-3 rounded-xl border border-warning/40 border-l-4 border-l-warning bg-surface shadow-lg px-4 py-3 flex items-start gap-3">
+                        <span className="text-lg leading-none mt-0.5">🔄</span>
+                        <div className="flex-1 text-sm">
+                            <p className="font-bold text-text-primary">
+                                서버 재시작으로 진행 중이던 콜 {restoredInfo.restoredCount}건을 복구했습니다.
+                            </p>
+                            <p className="text-text-muted mt-0.5">
+                                적재 상태({restoredInfo.dispatchPhase}) 기준으로 합짐 필터를 다시 계산했습니다.
+                                이미 완료하신 건이 있다면 <b>완료 처리</b>해 주세요. 그래야 남은 적재 공간이 정확해집니다.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setRestoredInfo(null)}
+                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1"
+                            aria-label="알림 닫기"
+                        >
+                            닫기
+                        </button>
+                    </div>
+                )}
+
+                {/* ⏳ [T5] 상한을 넘겨 화면에서 빠진 미완료 콜 — 조용한 소실을 만들지 않는다 */}
+                {staleDropped && staleDropped.count > 0 && (
+                    <div className="mx-3 mt-3 rounded-xl border border-warning/45 border-l-4 border-l-warning bg-surface shadow-lg px-4 py-3 flex items-start gap-3">
+                        <span className="text-lg leading-none mt-0.5">⏳</span>
+                        <div className="flex-1 min-w-0 text-sm">
+                            <p className="font-bold text-text-primary">
+                                {staleDropped.days}일이 지난 미완료 콜 {staleDropped.count}건이 화면에서 빠졌습니다
+                            </p>
+                            <p className="text-text-muted text-xs mt-0.5">
+                                끝내지 않은 콜이 남아 있다면 사무실에 확인해 주세요. 적재·합짐 계산에는 반영되지 않습니다.
+                            </p>
+                            <ul className="mt-1.5 flex flex-col gap-0.5">
+                                {staleDropped.orders.slice(0, 5).map(o => (
+                                    <li key={o.id} className="text-[11px] text-text-muted break-keep">
+                                        · {o.pickup} → {o.dropoff}
+                                        <span className="opacity-70"> ({o.daysAgo}일 전 · {o.status === 'ORDER_PICKED_UP' ? '상차 완료' : '확정'})</span>
+                                    </li>
+                                ))}
+                                {staleDropped.orders.length > 5 && (
+                                    <li className="text-[11px] text-text-muted">· 외 {staleDropped.orders.length - 5}건</li>
+                                )}
+                            </ul>
+                        </div>
+                        <button onClick={() => setStaleDropped(null)}
+                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1">닫기</button>
+                    </div>
+                )}
+
+                {/* 🚨 서버 오류 — 예전에는 서버만 알고 기사님은 몰랐다 */}
+                {serverErrors.map(e => (
+                    <div key={e.at} className="mx-3 mt-3 rounded-xl border border-danger/45 border-l-4 border-l-danger bg-surface shadow-lg px-4 py-3 flex items-start gap-3">
+                        <span className="text-lg leading-none mt-0.5">🚨</span>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-text-primary">처리에 실패했습니다</p>
+                            <p className="text-xs text-text-muted mt-0.5 break-all">{e.event} — {e.message}</p>
+                        </div>
+                        <button onClick={() => dismissError(e.at)}
+                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1">닫기</button>
+                    </div>
+                ))}
+
+                {/* 🚨 신고 불일치 — 경고에서 사무실 전화·수행 판단까지 한 카드에서 */}
+                <CargoMismatchBanner orders={activeRoute} />
+                </div>
+                </div>
 
                 {/* 🚚 내 차 요약은 헤더 로고 자리로 이사 (기사님 0831 — 영역 절약). 패널 줄은 뺐다 */}
 

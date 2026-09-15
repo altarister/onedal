@@ -59,7 +59,7 @@ export default function CargoMismatchBanner({ orders }: { orders: SecuredOrder[]
 
                 return (
                     <div key={`${a.orderId}-${a.stopType}`}
-                         className="rounded-xl border border-danger/45 bg-danger/10 px-4 py-3">
+                         className="rounded-xl border border-danger/45 border-l-4 border-l-danger bg-surface shadow-lg px-4 py-3">
                         <div className="flex items-start gap-2.5">
                             <span className="text-lg leading-none mt-0.5">🚨</span>
                             <div className="flex-1 min-w-0">

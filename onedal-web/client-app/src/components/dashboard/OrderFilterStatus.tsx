@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useFilterStore } from '../../stores/filterStore';
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { CALL_TARGET_LABEL, effectiveRadii } from "@onedal/shared";
@@ -7,7 +6,7 @@ import type { CallTarget } from "@onedal/shared";
 /**
  * 요약줄 — 관제탑에 늘 보이는 한 칸. (docs/지금/필터.md §3)
  *
- *   ⚙️        → 필터 열림 (팝업이 아니라 제자리 · C4-3)
+ *   줄 전체   → 필터 열림 (팝업이 아니라 제자리 · C4-3) — 오른쪽 끝 ⚙️ 는 걷었다 (기사님 2026-09-15)
  *   복귀 토글  → 확인 후 전환 (노선행 ↔ 복귀행) — 필터 안에 있다 (C4-5). 🏘️ 관내는 파생
  *
  * 버튼 순서가 하루의 흐름과 같다. 기사님:
@@ -34,16 +33,14 @@ const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: stri
     HOME:  { icon: '🏠', accent: 'text-accent',     hint: '집 방향 콜 — 합짐 최대한' },
 };
 
-// 취소 카운트 props 는 받되 안 그린다 (v13 확정안 — 경고가 필요해지면 ⚙️ 팝업으로)
-export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
+// 취소 카운트 props 는 받되 안 그린다 (v13 확정안) · 취소 한도 토스트도 뺐다 — 폰·배차망마다 달라 다른 자리에서 (기사님 2026-09-15 · todo.md)
+export default function OrderFilterStatus({ onOpenFilter }:
     {
         /** 🪗 누르면 **필터가 열린다** — 이 줄은 제자리에 그대로 있다 (C4-5) */
         onOpenFilter: () => void;
         cancelCounts?: Record<string, number>;
         /** 🚫 몇 판째인가 — 총량이 사라지지 않게 (필터_정의 §2 의 취지) */
         cancelRounds?: Record<string, number>;
-        /** 🚫 한 판을 다 쓴 순간 서버가 보낸 알림 — 뜨면 토스트로 한 번 보여 준다 */
-        budgetToast?: { app: string; used: number; limit: number; round: number } | null;
     }) {
     const { filter } = useFilterConfig();
     /**
@@ -53,8 +50,6 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
      *    `tsc` 도 프로덕션 빌드도 **둘 다 통과했다** (2026-09-12 실측).
      */
     const netCount = useFilterStore(st => st.netCount);
-    /** 🚫 취소 한도 알림만 여기 뜬다 — 국면 전환 알림은 필터로 같이 갔다 (C4-5) */
-    const [toast, setToast] = useState<string | null>(null);
 
 
     /**
@@ -65,20 +60,6 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
      * 고르는 순간 멀쩡한 폰이 멈춘 폰을 가린다 → `DeviceControlPanel` · `lib/filterTally.ts`
      */
 
-    /**
-     * 🚫 **한 판을 다 쓰면 알린다** (기사님 확정 2026-08-23).
-     *
-     * 기사님: *"10회가 되면 토스트 알림주고 리셋해줘."*
-     * 숫자만 조용히 0으로 돌아가면 **다 썼다는 사실 자체를 놓친다.**
-     * 카운터 리셋은 서버가 하고, 화면은 그 순간을 한 번 말해 준다.
-     */
-    useEffect(() => {
-        if (!budgetToast) return;
-        const name = budgetToast.app === 'hwamul24' ? '화물24시' : '인성콜';
-        setToast(`🚫 ${name} 취소 ${budgetToast.limit}회를 다 썼습니다 — ${budgetToast.round}판째 시작 (누적 ${(budgetToast.round - 1) * budgetToast.limit}회)`);
-        const t = setTimeout(() => setToast(null), 6000);   // 페널티 신호라 평소(2초)보다 길게 둔다
-        return () => clearTimeout(t);
-    }, [budgetToast]);
 
     if (!filter) {
         return (
@@ -126,7 +107,7 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
      * 🎯 **한 줄이 전부다** (기사님 확정 2026-09-11: *"지금은 열림에 열림이 두번이야.
      *    **한줄에 열림 하나만 있으면 되.**"*).
      *
-     *   `🎯 노선 · 여기서 10km → 서울 1km · 📦 90/100  ⚙️`
+     *   `🎯 노선 · 여기서 10km → 서울 1km · 163 읍면동  합짐 탐색중`
      *
      * ⚠️ **예전엔 «펼친 판»(158px)이 또 있었다** — 방향 문장 · 지표줄(💰📍📦) · 국면 버튼 셋.
      *    그래서 층이 셋이었다 (접힘 → 펼침 → 팝업). C4-3 이 팝업을 걷었고, 여기서 펼침을 걷는다.
@@ -137,12 +118,6 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
      */
     return (
         <div className="relative shrink-0">
-        {toast && (
-            <span className="absolute right-3 top-1.5 z-50 text-[12px] font-black px-2.5 py-1 rounded-md border"
-                style={{ background: 'var(--color-surface)', borderColor: v14.c, color: v14.c, boxShadow: `0 4px 16px rgba(0,0,0,.5), 0 0 12px ${v14.onGlow}` }}>
-                {toast}
-            </span>
-        )}
         <button type="button" onClick={onOpenFilter} title="누르면 필터가 열립니다"
             className="shrink-0 h-[38px] w-full flex items-center gap-2 px-3 border-b border-border-card text-left
                        bg-surface-alt/30 hover:bg-surface-hover/40 transition-colors">
@@ -179,7 +154,6 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
                     className="shrink-0 text-[11px] text-warning">🔒</span>
             )}
             <span className="shrink-0 text-[11.5px] font-black" style={{ color: v14.c }}>{label}</span>
-            <span className="shrink-0 text-sm text-text-muted">⚙️</span>
         </button>
         </div>
     );
