@@ -16,6 +16,8 @@
  *    **같은 함수**를 부른다. 서버 하차 목록은 아직 옛 그물(`netOfGoals`)이다 ([todo.md](../../../todo.md) «필터 영역 개정»).
  */
 
+import { cityCenter, quadOutline, haversineKm, type NetParams } from './callNet';
+
 export type GoalState = 'idle' | 'routed' | 'driving';
 
 export interface GoalZone {
@@ -23,6 +25,8 @@ export interface GoalZone {
     /** 집(복귀 목적지)인가 */
     isHome: boolean;
     state: GoalState;
+    /** 🎯 목적지 가까이 옴 — `withNearness` 가 채운다. 없으면 «멀다»로 본다 */
+    near?: boolean;
 }
 
 /**
@@ -66,7 +70,32 @@ export function goalZonesOf(o: {
  */
 export function pickupShapeOf(zones: ReadonlyArray<GoalZone>): 'me' | 'meLine' | null {
     if (zones.length === 0) return null;
-    return zones.every(z => z.state === 'driving') ? 'meLine' : 'me';
+    return zones.every(z => z.state === 'driving' && !z.near) ? 'meLine' : 'me';
+}
+
+/**
+ * 🎯 **목적지 가까이 옴** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «필터 영역»).
+ *
+ * **Q(현위치→목적지) 마름모가 현위치 원 ∪ 목적지 원 안에 통째로 들어가면** 가까이 옴 — 상차 A 전체 · 하차 그 목적지 원 전체.
+ * 기사님: *"마름모가 두 영역 사이에 들어가면 상차지는 현위치영역전체 하차지는 목적지전체"* · *"맞아"*.
+ * 🔴 판단 마름모는 목적지 상태와 상관없이 늘 **현위치 → 목적지**다 — «종착지 → 목적지»로 보면 종착지만 목적지 근처여도 차는 먼데 가까이 옴이 된다.
+ * 테두리 점(`quadOutline` · 2° 광선)이 전부 두 원 중 하나 안에 드는가로 잰다. 반지름은 `srcDiamKm / 2` · `dstDiamKm / 2`.
+ */
+export function isNearGoal(o: { me: { x: number; y: number }; goal: { lng: number; lat: number }; params: NetParams }): boolean {
+    const me = { name: '내 위치', lng: o.me.x, lat: o.me.y };
+    const goal = { name: '목적지', lng: o.goal.lng, lat: o.goal.lat };
+    const rMe = Math.max(0, o.params.srcDiamKm / 2), rGoal = Math.max(0, o.params.dstDiamKm / 2);
+    return quadOutline(o.params, me, goal).every(p => haversineKm(me, p) <= rMe || haversineKm(goal, p) <= rGoal);
+}
+
+/** 🎯 목적지마다 «가까이 옴»을 채운다 — 지도에 없는 시(좌표를 모름)는 «멀다»로 둔다 (지어내지 않는다 · 규칙 ④) */
+export function withNearness(zones: ReadonlyArray<GoalZone>, o: { me: { x: number; y: number }; params: NetParams }): GoalZone[] {
+    return zones.map(z => {
+        let goal: { lng: number; lat: number };
+        try { goal = cityCenter(z.city); } catch { return { ...z, near: false }; }
+        if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return { ...z, near: false };
+        return { ...z, near: isNearGoal({ me: o.me, goal, params: o.params }) };
+    });
 }
 
 /** 🏠 **이 콜이 집 콜인가** — 복귀 켬이고 판(`goalCity`)이 집이면 집 콜 · 나머지는 목적지 콜. 콜의 주인은 여기 한 곳이 가른다 */
@@ -85,7 +114,9 @@ export function isHomeCallOf(call: { goalCity?: string | null }, o: { homeOn: bo
  *
  * @param hasLine 그 목적지의 라인이 있나 — 🔷 동선이거나 경로를 모르면 없다. 그때는 «콜 없음» 모양으로 본다 (라인을 지어내지 않는다 · 규칙 ④)
  */
-export function dropoffPartsOf(state: GoalState, hasLine: boolean): { me: boolean; line: boolean; quadFrom: 'me' | 'lastDrop' } {
+export function dropoffPartsOf(state: GoalState, hasLine: boolean, near = false): { me: boolean; line: boolean; quadFrom: 'me' | 'lastDrop' | null } {
+    /* 🎯 가까이 온 목적지는 목적지 원 전체뿐 — 상차 목록 동도 빼지 않는다 (필터.md «하차 영역») */
+    if (near) return { me: false, line: false, quadFrom: null };
     if (state === 'idle' || !hasLine) return { me: true, line: false, quadFrom: 'me' };
     return state === 'routed'
         ? { me: true, line: true, quadFrom: 'lastDrop' }

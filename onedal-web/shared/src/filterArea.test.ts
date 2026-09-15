@@ -1,5 +1,43 @@
 import { describe, it, expect } from 'vitest';
-import { goalZonesOf, pickupShapeOf, dropoffPartsOf, lastDropOf, lineUntil } from './filterArea';
+import { goalZonesOf, pickupShapeOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness } from './filterArea';
+import { cityCenter } from './callNet';
+
+/**
+ * 🎯 **목적지 가까이 옴** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «필터 영역»)
+ * Q(현위치→목적지) 마름모가 현위치 원 ∪ 그 목적지 원 안에 **통째로** 들어가면 — 상차 A 전체 · 하차 그 목적지 원 전체.
+ * 좌표는 이천 왕복 시나리오 실값 · 반경 · 모양은 그때 자동 반경이 준 값.
+ */
+describe('🎯 목적지 가까이 옴 — 마름모가 두 원 안에 통째로', () => {
+    const TERMINAL = { x: 127.446936, y: 37.277421 };   // 이천터미널 — 이천 중심 1.2km
+    const MODA = { x: 127.312587, y: 37.363298 };       // 모다아울렛 — 이천 중심 16km
+    const ICHEON = cityCenter('이천시');
+    const params = { srcAngleDeg: 120, dstAngleDeg: 120, quadRadiusKm: 15.9, srcDiamKm: 4.55 * 2, dstDiamKm: 4.55 * 2 };
+    it('🔴 이천터미널에 서 있으면 이천은 가까이 옴', () => {
+        expect(isNearGoal({ me: TERMINAL, goal: ICHEON, params })).toBe(true);
+    });
+    it('🔴 모다아울렛이면 이천은 멀다 — 마름모가 두 원 밖으로 넓게 나간다', () => {
+        expect(isNearGoal({ me: MODA, goal: ICHEON, params })).toBe(false);
+    });
+    it('반경을 크게 두면(수동) 더 먼 곳에서도 가까이 옴 — 기사님 «수동으로 둘의 크기를 다르게 설정할 수 있어»', () => {
+        expect(isNearGoal({ me: MODA, goal: ICHEON, params: { ...params, quadRadiusKm: 2, srcDiamKm: 24, dstDiamKm: 24 } })).toBe(true);
+    });
+    it('목적지마다 따로 — 이천에 와서 복귀를 켜면 이천은 가까이 옴 · 집(광주)은 멀다 · 모르는 시는 멀다로 둔다', () => {
+        const z = withNearness([
+            { city: '이천시', isHome: false, state: 'idle' },
+            { city: '광주시', isHome: true, state: 'idle' },
+            { city: '없는시', isHome: false, state: 'idle' },
+        ], { me: TERMINAL, params });
+        expect(z.map(g => g.near)).toEqual([true, false, false]);
+    });
+    it('🔴 가까이 온 목적지가 있으면 운행 중이어도 상차는 A 전체', () => {
+        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', near: true }])).toBe('me');
+        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', near: false }])).toBe('meLine');
+    });
+    it('🔴 가까이 온 목적지의 하차 조각은 목적지 원뿐 — 현위치 원 · 라인 · 마름모 없음', () => {
+        expect(dropoffPartsOf('driving', true, true)).toEqual({ me: false, line: false, quadFrom: null });
+        expect(dropoffPartsOf('idle', false, true)).toEqual({ me: false, line: false, quadFrom: null });
+    });
+});
 
 /**
  * 🧩 **필터 영역 — 살아 있는 목적지마다 상태 셋** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «필터 영역» · «상차 영역» · «하차 영역»).

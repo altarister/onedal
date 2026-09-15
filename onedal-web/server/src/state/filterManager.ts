@@ -20,7 +20,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, pickupAreaKey, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
+import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, pickupAreaKey, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, isLocalPhase, activeGoals, effectiveRadii, pickupListNeedsRebuild } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
@@ -931,13 +931,21 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const line = f.routeMode === false ? null : filterLineOf(session);
     const homeCity = homeCityOf(userId);
     const homeCaught = homeOn && homeCallsOf(session, userId, session.myOrders).length > 0;
-    const zones = goalZonesOf({
+    /* 🎯 목적지마다 «가까이 옴» — 마름모가 현위치 원 ∪ 목적지 원 안에 통째로면 상차는 A 전체 (관제웹 «상차» 레이어와 같은 함수 · 필터.md «필터 영역») */
+    const quad = quadShapeFrom(f as any);
+    const zones = withNearness(goalZonesOf({
         destinationCity: f.destinationCity,
         homeCity,
         homeOn,
         homeCaught,
         departed: !!session.departedAt,
         activeCalls: getActiveCalls(session),
+    }), {
+        me: { x: me.x, y: me.y },
+        params: {
+            srcAngleDeg: quad.srcAngleDeg, dstAngleDeg: quad.dstAngleDeg, quadRadiusKm: eff.quadRadiusKm,
+            srcDiamKm: eff.pickupRadiusKm * 2, dstDiamKm: eff.destinationRadiusKm * 2,
+        },
     });
     const { list, shape } = pickupListFor({ me: { x: me.x, y: me.y }, radii: eff, line, zones });
     const prev = f.pickupKeywords;
@@ -949,7 +957,7 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     refreshKeywordTraps(session);
     /* 🔴 목록이 그대로여도 **지도 재료가 바뀌면** 알린다 — 안 그러면 복귀를 꺼도 지도가 옛 «복귀 켬»으로 그린다 (#146) */
     const changed = !prev || prev.join(',') !== list.join(',') || prevArea !== pickupAreaKey(f.pickupArea);
-    if (changed) console.log(`📋 [상차 목록] ${zones.map(z => `${z.city}:${z.state}`).join(' · ') || '목적지 없음'} → `
+    if (changed) console.log(`📋 [상차 목록] ${zones.map(z => `${z.city}:${z.state}${z.near ? '·가까이' : ''}`).join(' · ') || '목적지 없음'} → `
         + `${shape === 'meLine' ? '내 위치 ∩ 라인' : shape === 'me' ? '내 위치' : '없음'} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);
     return changed;
 }
