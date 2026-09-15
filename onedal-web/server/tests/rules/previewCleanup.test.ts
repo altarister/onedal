@@ -1,0 +1,68 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { getUserSession } from '../../src/state/userSessionStore';
+import { forceCancelEvaluatingOrder } from '../../src/services/dispatchEngine';
+import { initGeoService } from '../../src/services/geoService';
+import { OrderRepository } from '../../src/repositories/OrderRepository';
+import * as devices from '../../src/routes/devices';
+
+/**
+ * 🧹 **심사 콜 정리는 한 곳에서 세고 한 곳에서 적는다 — 미리보기는 세지도 적지도 않는다** (2026-09-15 · 기사님 «버그부터 잡자»).
+ *
+ * 미리보기 심사석을 끄는 방법을 찾다 나온 꼬임 셋 (onedal-b5 진단 · onedal-49 검토 요청):
+ * ⓐ 인성 안전취소 타임아웃(detail.ts)이 `forceCancelEvaluatingOrder`(여기서 이미 셈) 뒤에 `countCancel(TIMEOUT)` 을 **또** 불렀다 —
+ *    보통 콜은 **두 번** 세고, 미리보기는 캐시가 지워진 뒤라 딱지를 못 봐 **세면 안 되는데 한 번** 셌다. `order-canceled` 도 두 번 나갔다.
+ * ⓑ `forceCancelEvaluatingOrder` 가 미리보기도 장부에 SAFE_CANCEL 행으로 썼다 → 관제웹 취소 수(`helpers` 의 SAFE_CANCEL 행 수)가 부풀었다.
+ *    미리보기는 인성에서 아무 일도 없던 콜이다 (용어집 §9) — 장부에 들어가는 길이 이 한 줄뿐이었다.
+ * ⓒ 비상 보고(emergency.ts)도 캐시를 지운 뒤 딱지 없이 셌다 — 같은 클래스.
+ * 클래스: **취소를 세는 자리·적는 자리가 경로마다 흩어졌다** (08-18 «취소 저장의 네 번째 경로»와 같은 뿌리).
+ */
+const USER = 'test-preview-cleanup';
+const io = { to: () => ({ emit: jest.fn() }) } as any;
+
+beforeAll(() => { initGeoService(); });
+afterEach(() => jest.restoreAllMocks());
+
+function evaluating(id: string, preview: boolean) {
+    const s = getUserSession(USER);
+    s.pendingOrdersData.set(id, {
+        id, status: 'ORDER_SECURED_EVALUATING', capturedDeviceId: 'phone-1', capturedAt: new Date().toISOString(),
+        pickup: '초월읍', dropoff: '신둔면', fare: 50000, isPreview: preview,
+    } as any);
+    s.deviceEvaluatingMap.set('phone-1', id);
+    return s;
+}
+
+describe('🧹 심사 콜 정리', () => {
+    it('🔴 미리보기를 정리하면 장부에 안 쓴다 — 없던 콜이다', () => {
+        const up = jest.spyOn(OrderRepository, 'upsertOrder').mockImplementation(() => undefined as any);
+        const st = jest.spyOn(OrderRepository, 'updateOrderStatus').mockImplementation(() => null);
+        evaluating('pv-1', true);
+        forceCancelEvaluatingOrder(USER, 'pv-1', io);
+        expect([up.mock.calls.length, st.mock.calls.length]).toEqual([0, 0]);
+    });
+
+    it('보통 콜을 정리하면 장부에 SAFE_CANCEL 로 쓰고 취소를 한 번 센다', () => {
+        const up = jest.spyOn(OrderRepository, 'upsertOrder').mockImplementation(() => undefined as any);
+        const st = jest.spyOn(OrderRepository, 'updateOrderStatus').mockImplementation(() => null);
+        const inc = jest.spyOn(devices, 'incrementDeviceStats').mockImplementation(() => undefined);
+        evaluating('auto-1', false);
+        forceCancelEvaluatingOrder(USER, 'auto-1', io, 'TIMEOUT');
+        expect([up.mock.calls.length, st.mock.calls[0]?.[2], inc.mock.calls.length]).toEqual([1, 'SAFE_CANCEL', 1]);
+    });
+
+    it('🔴 안전취소 타임아웃은 정리 함수 하나만 부른다 — 따로 세지 않는다 (두 번 세던 자리)', () => {
+        const src = readFileSync(join(__dirname, '../../src/routes/detail.ts'), 'utf8');
+        const body = src.slice(src.indexOf('const timeoutTimer = setTimeout'), src.indexOf('(cancelSec + SERVER_CLEANUP_EXTRA_SEC) * 1000'));
+        expect(body).toMatch(/forceCancelEvaluatingOrder\(userId, payload\.order\.id, io, 'TIMEOUT'\)/);
+        expect(body).not.toMatch(/countCancel\(/);
+        expect(body).not.toMatch(/emit\("order-canceled"/);
+    });
+
+    it('🔴 비상 보고는 캐시를 지우기 전에 미리보기 딱지를 뽑아 넘긴다', () => {
+        const src = readFileSync(join(__dirname, '../../src/routes/emergency.ts'), 'utf8');
+        expect(src).toMatch(/countCancel\(session, deviceId, targetOrderId, reason, wasPreview, io\)/);
+        expect(src.indexOf('const wasPreview')).toBeGreaterThan(-1);
+        expect(src.indexOf('const wasPreview')).toBeLessThan(src.indexOf('session.pendingOrdersData.delete(targetOrderId)'));
+    });
+});

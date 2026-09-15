@@ -65,7 +65,11 @@ function applySoloRouteAndSave(holder: Parameters<typeof applySoloRoute>[0], r: 
 }
 
 /** 기존 평가 중이던 콜을 외부에서 강제 삭제할 때 호출 */
-export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: any) {
+/**
+ * @param reason 왜 정리하나 — 화면 이탈·새 콜 진입(`FORCE_CANCEL`) · 안전취소 타임아웃(`TIMEOUT`).
+ *   🔴 **셈은 여기 한 번이다** (2026-09-15) — 타임아웃 경로가 이 함수 뒤에 `countCancel` 을 또 불러 보통 콜을 두 번 셌다.
+ */
+export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: any, reason: 'FORCE_CANCEL' | 'TIMEOUT' = 'FORCE_CANCEL') {
     const session = getUserSession(userId);
     let targetDeviceId: string | undefined;
 
@@ -127,7 +131,11 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
          * 안전취소는 배차망 취소 횟수(10회)에 들어간다. 기사님이 몇 번 썼는지
          * 알려면 **한 건도 새면 안 된다** (용어집 §2-1). 캐시 삭제 전에 저장한다.
          */
-        try {
+        /**
+         * 👀 **미리보기는 장부에 안 쓴다** (2026-09-15) — 인성·픽커에서 아무 일도 없던 콜이다 (용어집 §9).
+         *    써 두면 관제웹 취소 수(`helpers` 의 SAFE_CANCEL 행 수)가 미리보기만큼 부풀었다. 장부에 들어가는 길이 이 한 줄뿐이라 남는 행도 없다.
+         */
+        if (!wasPreview) try {
             const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
             const isExpress = (cached as any).orderForm === '급송' ? 1 : 0;
             OrderRepository.upsertOrder(cached as any, userId, isShared, isExpress);
@@ -153,7 +161,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
         io.to(userId).emit("order-canceled", { id: orderId, status: 'SAFE_CANCEL' });
     }
 
-    countCancel(session, targetDeviceId, orderId, 'FORCE_CANCEL', wasPreview, io);
+    countCancel(session, targetDeviceId, orderId, reason, wasPreview, io);
 
     /**
      * 🔴 콜 잡기 재개(`isActive`)는 **여기서 하지 않는다.**

@@ -13,7 +13,6 @@ import { getUserSession } from "../state/userSessionStore";
 import { evolveOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import db from "../db";
-import { countCancel } from "../core/cancelCount";
 
 const router = Router();
 
@@ -352,16 +351,9 @@ router.post("/", async (req, res) => {
                 //    안전취소는 배차망 취소 횟수(10회)에 들어가므로 한 건도 새면 안 된다 (용어집 §2-1).
                 //    같은 클래스가 네 번째다 — 취소 경로가 여럿인데 저장을 경로마다 붙인 탓이다.
                 session.pendingDecisions.delete(payload.order.id);
-                forceCancelEvaluatingOrder(userId, payload.order.id, io);   // 저장 + 캐시 정리 + order-canceled
-                Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
-                    if (v === payload.order.id) session.deviceEvaluatingMap.delete(k);
-                });
-
-                countCancel(session, payload.deviceId, payload.order.id, 'TIMEOUT', undefined, io);
-
-                if (io) {
-                    io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'SAFE_CANCEL' });
-                }
+                /* 🔴 저장 · 캐시 · 기기 짝 정리 · order-canceled · **취소 셈** 전부 이 한 줄 (2026-09-15) — 예전엔 뒤에서 또 세고(보통 콜 두 번 ·
+                      미리보기는 딱지를 잃고 한 번) order-canceled 도 두 번 쐈다. 미리보기면 셈도 장부도 건너뛴다 */
+                forceCancelEvaluatingOrder(userId, payload.order.id, io, 'TIMEOUT');
             }
         }, (cancelSec + SERVER_CLEANUP_EXTRA_SEC) * 1000);
 
