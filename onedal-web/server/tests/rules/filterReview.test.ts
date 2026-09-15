@@ -278,9 +278,10 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         /* 합짐 갱신 — 🔄 2026-09-14 목적지가 둘일 수 있다(복귀 대기 · 전수표 3단계). 목적지 목록도 파생 한 곳(`goalCitiesOf`)이다 */
         const j = fm.indexOf('function netOfGoals');
         expect(j).toBeGreaterThan(-1);
-        const goalsBody = fm.slice(j, j + 900);
-        expect(goalsBody).toMatch(/const goals = goalCitiesOf\(session, userId\)/);
-        expect(goalsBody).toMatch(/netKeywordsOf\(session, userId, goal,/);
+        const goalsBody = fm.slice(j, j + 1500);
+        /* 🔄 2026-09-15 — 목적지마다 상태 · 가까이 옴은 한 곳(`goalZonesNow`)이 낸다. 목적지는 기사님 목적지(destinationCity)와 집에서 파생 — 덮어쓰지 않는다 */
+        expect(goalsBody).toMatch(/goalZonesNow\(session, userId/);
+        expect(goalsBody).toMatch(/netKeywordsOf\(session, userId, z\.city,/);
         const g = fm.indexOf('export function goalCitiesOf(');
         expect(fm.slice(g, fm.indexOf('\n}', g))).toMatch(/'HOME'/);
         /* 경유 ∪ 목적지 조립 */

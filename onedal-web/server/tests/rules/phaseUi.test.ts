@@ -572,24 +572,11 @@ describe('값 그릇 — 한 벌 (C3-3b)', () => {
 describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
 
     /** 🔴 ② 값 — 판정은 shared 하나가 한다. 서버가 제 규칙을 또 세우지 않는다 (규칙 ③) */
-    it('🔴 관내 판정은 shared 의 isLocalPhase 하나로 한다', () => {
-        /**
-         * 🔴 **그물 «안»을 본다.** `isLocalPhase` 는 **import 줄에도** 있어서 파일 전체를
-         *    훑으면 함수에서 빼도 초록불이다 (변이로 확인했다 — 이 레포가 반복해 당한 모양).
-         */
-        const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 3000);
-        expect(net).toMatch(/isLocalPhase\(/);
-        /**
-         * 서버가 «목적지 근처인가»를 제 손으로 다시 재지 않는다.
-         *
-         * ⚠️ **«그 판단을 내리는 줄»만 본다** (2026-09-12 좁힘). 전에는 함수 전체에
-         *    `haversineKm(` 이 없기를 봤는데, C4-12 가 **다른 질문**을 답하려고 그 함수를
-         *    부르자 빨간불이 났다 — 반경 자동이 재는 것은 «마름모 축이 몇 km 인가»이지
-         *    «관내인가»가 아니다. 한 낱말을 금지하는 대신 **그 자리**를 지킨다.
-         */
-        const decide = net.slice(net.indexOf('const localMode'), net.indexOf(';', net.indexOf('const localMode')));
-        expect(decide).toMatch(/isLocalPhase\(/);
-        expect(decide).not.toMatch(/haversineKm\(/);
+    it('🔴 관내를 따로 재지 않는다 — «목적지 가까이 옴»(part.near)이 가른다 (2026-09-15 개정)', () => {
+        const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 6000);
+        expect(net).toMatch(/part\.near/);
+        expect(net).not.toMatch(/isLocalPhase\(/);
+        expect(net).not.toMatch(/const localMode/);
     });
 
     /** 🔴 ① 스키마 — 파생값이라 **저장하지 않는다**. 저장하면 두 벌이 된다 */
@@ -604,8 +591,8 @@ describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
      * 🔴 ⑤ 읽는 곳 — **그물 한 곳뿐이다.** 둘이 되면 각자 다른 질문을 답하기 시작한다.
      * 🔴 그리고 **목적지를 안 건드린다** — 그게 실물과 목업이 갈리던 자리다.
      */
-    it('🔴 그물이 관내를 읽는다 — 목적지는 안 건드린다', () => {
-        expect(fm).toMatch(/localMode/);
+    it('🔴 그물이 목적지를 안 건드린다 — 관내라고 city 를 갈아치우지 않는다', () => {
+        expect(fm).not.toMatch(/activeFilter\.localMode = /);
         // 관내라고 `city` 를 갈아치우지 않는다 — 넘어온 목적지를 그대로 쓴다
         const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 3000);
         expect(net).not.toMatch(/city = /);
@@ -620,7 +607,7 @@ describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
      */
     it('🔴 관내면 목적지 원 안만 — 각도 360° 우회를 안 쓴다', () => {
         const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 4000);
-        expect(net).toMatch(/local: localMode/);
+        expect(net).not.toMatch(/local: /);
         expect(net).not.toMatch(/AngleDeg: 360/);
         expect(net).toMatch(/session\.activeFilter\.routeMode === false \? null : line/);
     });

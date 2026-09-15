@@ -265,6 +265,8 @@ export interface UserSession {
      *    목록 자체는 `activeFilter.pickupKeywords` 에 산다. 저장이 아니라 «언제 다시 만들까»의 기준점이다.
      */
     pickupListAt: { x: number; y: number } | null;
+    /** 🎯 상차 목록을 만들 때 본 «목적지마다 가까이 옴» — 바뀌면 하차 목록도 다시 만든다 (`filterManager.rebuildPickupList` · 필터.md «하차 영역») */
+    pickupNearKey: string | null;
     /**
      * 🛣️ **경로 위에 있는 동 목록** — 상차지 판정의 원천 (2026-08-25 신설).
      *
@@ -335,6 +337,7 @@ function createDefaultSession(userId: string): UserSession {
         detourProgressKm: null,
         detourOrderKm: null,
         pickupListAt: null,
+        pickupNearKey: null,
         detourFlat: null,
         filterLine: null,
         routeSnapshot: null,

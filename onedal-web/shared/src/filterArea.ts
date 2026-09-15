@@ -12,8 +12,8 @@
  * 🏘️ **관내는 따로 없다** — 목적지에서 콜을 다 내리면 그 목적지는 그냥 `idle` 이다
  *    (기사님 2026-09-15 *"그쪽에 도착했으니 다른 곳을 정하지 않았으면 그곳에서 일 있으면 하자"*).
  *
- * 🔴 **읽는 곳** — 관제웹 «상차» · «하차» 레이어(`StageView`)와 서버 상차 목록(`filterManager.rebuildPickupList` → `geoService.pickupListFor`)이
- *    **같은 함수**를 부른다. 서버 하차 목록은 아직 옛 그물(`netOfGoals`)이다 ([todo.md](../../../todo.md) «필터 영역 개정»).
+ * 🔴 **읽는 곳** — 관제웹 «상차» · «하차» 레이어(`StageView`)와 서버 상차 · 하차 목록(`filterManager.goalZonesNow` → `rebuildPickupList` · `netOfGoals`)이
+ *    **같은 함수**를 부른다 ([todo.md](../../../todo.md) «필터 영역 개정»).
  */
 
 import { cityCenter, quadOutline, haversineKm, type NetParams } from './callNet';
@@ -155,4 +155,38 @@ export function lineUntil<T extends { x: number; y: number }>(line: ReadonlyArra
         if (d < best) { best = d; at = i; }
     });
     return line.slice(0, at + 1);
+}
+
+/**
+ * 🔵 **하차 목록 합치기** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
+ *
+ * 먼 목적지 조각에 걸친 동에서 **상차 목록 동을 뺀다** · 🎯 가까이 온 목적지 동은 빼지 않는다 (관내콜).
+ * 기사님: *"하차는 상차 영역을 빼야 해 — 상차한 지역에 하차하지 않을꺼 같아. 역방향도 많이 걸릴꺼 같고"*.
+ * 🔴 **동 목록으로 뺀다** — 원달앱은 상차지 동이 상차 목록에 있어야 콜을 잡는다(`PickupListFilter.check`). 그래서 이렇게 빼면
+ *    «싣는 동에 내리는 콜»이 정확히 막힌다. 도형으로 빼면 경계에 걸친 큰 읍·면이 두 목록에 다 남아 샌다.
+ * 진행도(지나온 곳 빼기): 같은 동이 여럿이면 먼 쪽 · **어느 조각에서든 진행도 없이 들었으면 없앤다** («아직 안 간 곳» · `callNet.lineZoneOf` 의 `onlyByLine`).
+ *    가까이 온 목적지에서 든 동은 진행도가 없다.
+ */
+export function mergeDropoffGroups(
+    parts: ReadonlyArray<{ near: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }>,
+    pickupList: readonly string[],
+): { grouped: Record<string, string[]>; flat: string[]; progressKm: Record<string, number> } {
+    const pick = new Set(pickupList);
+    const groups: Record<string, Set<string>> = {};
+    const progressKm: Record<string, number> = {};
+    const unvisited = new Set<string>();
+    for (const part of parts) {
+        for (const [region, names] of Object.entries(part.grouped)) {
+            for (const name of names) {
+                if (!part.near && pick.has(name)) continue;
+                (groups[region] ??= new Set()).add(name);
+                const km = part.near ? undefined : part.progressKm[name];
+                if (km === undefined) unvisited.add(name);
+                else if (progressKm[name] === undefined || km > progressKm[name]) progressKm[name] = km;
+            }
+        }
+    }
+    for (const name of unvisited) delete progressKm[name];
+    const grouped = Object.fromEntries(Object.entries(groups).map(([region, set]) => [region, [...set].sort()]));
+    return { grouped, flat: [...new Set(Object.values(grouped).flat())].sort(), progressKm };
 }

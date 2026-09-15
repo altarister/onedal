@@ -467,24 +467,25 @@ export function mapCoverage(): { features: number; sido: string[] } {
 const PICKUP_GRID_KM = 0.3;
 
 /**
- * 📍 **영역에 걸친 읍·면·동** — 기사님 규칙 «영역에 지역이 걸치고 있으면 들어간다» (2026-09-15).
+ * 📍 **영역에 걸친 읍·면·동 — 시·군·구로 묶어서** — 기사님 규칙 «영역에 지역이 걸치고 있으면 들어간다» (2026-09-15).
  *
  * «걸침»을 둘로 잡는다 — 하나만 맞아도 넣는다:
  *   ① 영역 안 격자 점(`PICKUP_GRID_KM`)이 동 안에 있다 — 동이 영역을 넓게 덮을 때 (동 꼭짓점은 전부 영역 밖일 수 있다)
  *   ② 동 테두리 꼭짓점이 영역 안에 있다 — 격자보다 얇게 걸친 동 (①만 보면 빠진다)
  * ⚠️ 둘 다 놓치는 것: 동 테두리의 한 변이 꼭짓점 없이 영역 가장자리를 0.3km 보다 얇게 스치는 경우뿐이다.
  * 간소화 사본(`simplified` · 200m)과 사각형(`bbox`)으로 먼저 거른다 (`getDetourRegions` 와 같은 최적화).
+ * 묶는 이름은 `getCityRegionsWithRadius` 와 같은 칸(`intel.parentName` · `SIG_KOR_NM`) — 시 별칭(`cityAliases`)이 이 이름으로 만들어진다.
  */
-export function regionsTouchingArea(area: {
+export function regionsTouchingAreaGrouped(area: {
     /** 영역을 감싼 사각형 [서, 남, 동, 북] */
     bbox: [number, number, number, number];
     inArea: (p: { lng: number; lat: number }) => boolean;
     /** 영역 안 격자 점 */
     points: Array<{ lng: number; lat: number }>;
-}): string[] {
-    if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) return [];
+}): Record<string, string[]> {
+    if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) return {};
     const [minX, minY, maxX, maxY] = area.bbox;
-    const out = new Set<string>();
+    const groups: Record<string, Set<string>> = {};
     const vertexInArea = (geom: any): boolean => {
         const rings: number[][][] = geom?.type === 'Polygon' ? geom.coordinates
             : geom?.type === 'MultiPolygon' ? (geom.coordinates as number[][][][]).flat() : [];
@@ -496,19 +497,49 @@ export function regionsTouchingArea(area: {
     };
     for (const feature of mergedMapFeatureCollection.features as any[]) {
         const name = feature.properties?.EMD_KOR_NM;
-        if (!name || out.has(name)) continue;
+        if (!name) continue;
+        const parent = feature.properties?.intel?.parentName || feature.properties?.SIG_KOR_NM || '기타 지역';
+        if (groups[parent]?.has(name)) continue;
         const fb = feature.bbox ?? turf.bbox(feature);
         if (fb[2] < minX || fb[0] > maxX || fb[3] < minY || fb[1] > maxY) continue;
         const shape = feature.simplified ?? feature;
-        if (vertexInArea(shape.geometry ?? shape)) { out.add(name); continue; }
-        for (const p of area.points) {
+        let hit = vertexInArea(shape.geometry ?? shape);
+        if (!hit) for (const p of area.points) {
             if (p.lng < fb[0] || p.lng > fb[2] || p.lat < fb[1] || p.lat > fb[3]) continue;
             try {
-                if (turf.booleanPointInPolygon(turf.point([p.lng, p.lat]), shape)) { out.add(name); break; }
+                if (turf.booleanPointInPolygon(turf.point([p.lng, p.lat]), shape)) { hit = true; break; }
             } catch { /* 형식이 이상한 폴리곤은 건너뛴다 */ }
         }
+        if (hit) (groups[parent] ??= new Set()).add(name);
     }
-    return [...out].sort();
+    return Object.fromEntries(Object.entries(groups).map(([parent, names]) => [parent, [...names].sort()]));
+}
+
+/** 📍 영역에 걸친 읍·면·동 **이름만** — 상차 목록(`pickupListFor`)이 쓴다 */
+export function regionsTouchingArea(area: Parameters<typeof regionsTouchingAreaGrouped>[0]): string[] {
+    return [...new Set(Object.values(regionsTouchingAreaGrouped(area)).flat())].sort();
+}
+
+/**
+ * ⭕ **원 하나의 영역 재료** — 원을 감싼 사각형 · 그 안 격자 점 · 판정. `inArea` 를 주면 원 안에서 그 판정으로 점을 거른다 (원 ∩ 라인).
+ *    상차 목록(`pickupListFor`)과 가까이 온 목적지의 하차 목록(`regionsTouchingCircleGrouped`)이 함께 쓴다.
+ */
+function circleArea(center: { lng: number; lat: number }, km: number, inArea?: (p: { lng: number; lat: number }) => boolean) {
+    const KX = 111.32 * Math.cos((center.lat * Math.PI) / 180), KY = 110.574;
+    const test = inArea ?? ((p: { lng: number; lat: number }) => haversineKm(center.lat, center.lng, p.lat, p.lng) <= km);
+    const bbox: [number, number, number, number] = [center.lng - km / KX, center.lat - km / KY, center.lng + km / KX, center.lat + km / KY];
+    const points: Array<{ lng: number; lat: number }> = [];
+    const dy = PICKUP_GRID_KM / KY, dx = PICKUP_GRID_KM / KX;
+    for (let y = bbox[1]; y <= bbox[3]; y += dy) for (let x = bbox[0]; x <= bbox[2]; x += dx) {
+        const p = { lng: x, lat: y };
+        if (test(p)) points.push(p);
+    }
+    return { bbox, inArea: test, points };
+}
+
+/** 🎯 **원에 걸친 읍·면·동 — 시·군·구로 묶어서** — 가까이 온 목적지의 하차 목록 (`filterManager.netKeywordsOf` · 필터.md «하차 영역») */
+export function regionsTouchingCircleGrouped(center: { lng: number; lat: number }, km: number): Record<string, string[]> {
+    return regionsTouchingAreaGrouped(circleArea(center, km));
 }
 
 /**
@@ -537,16 +568,8 @@ export function pickupListFor(o: {
         ? (p: { lng: number; lat: number }) => inMe(p) && distToLineKm(p, line!) <= o.radii.detourRadiusKm
         : inMe;
 
-    /* 격자 — 영역은 늘 현위치 원 안이라 원을 감싼 사각형만 찍으면 된다 */
-    const KX = 111.32 * Math.cos((o.me.y * Math.PI) / 180), KY = 110.574;
-    const bbox: [number, number, number, number] = [o.me.x - r / KX, o.me.y - r / KY, o.me.x + r / KX, o.me.y + r / KY];
-    const points: Array<{ lng: number; lat: number }> = [];
-    const dy = PICKUP_GRID_KM / KY, dx = PICKUP_GRID_KM / KX;
-    for (let y = bbox[1]; y <= bbox[3]; y += dy) for (let x = bbox[0]; x <= bbox[2]; x += dx) {
-        const p = { lng: x, lat: y };
-        if (inArea(p)) points.push(p);
-    }
-    return { list: regionsTouchingArea({ bbox, inArea, points }).filter(isPickupListName), shape };
+    /* 격자 — 영역은 늘 현위치 원 안이라 원을 감싼 사각형만 찍으면 된다 (`circleArea`) */
+    return { list: regionsTouchingArea(circleArea({ lng: o.me.x, lat: o.me.y }, r, inArea)).filter(isPickupListName), shape };
 }
 
 export function getCityRegionsWithRadius(cityName: string, radiusKm: number): CityRegions {

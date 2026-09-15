@@ -153,10 +153,13 @@ describe('🧭 지나온 곳 빼기 — 지금 위치로, 경로 영역 동만',
 describe('🧩 필터 영역 — 출발 전 내 영역 · 관내 목적지 원 (2단계)', () => {
     const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    it('🔴 서버 그물은 출발 전이면 내 영역을, 관내면 목적지 원을 쓴다', () => {
+    it('🔴 서버 그물은 조각이 넣으라 할 때만 현위치 영역을 쓴다 · 관내를 따로 재지 않는다 — 가까이 온 목적지는 목적지 원에 걸친 동 (2026-09-15 개정)', () => {
         const net = body(fm, 'function netKeywordsOf');
-        expect(net).toMatch(/departedAt/);
-        expect(net).toMatch(/local: localMode/);
+        expect(net).toMatch(/me: part\.withMe && me/);
+        expect(net).toMatch(/if \(part\.near\)/);
+        expect(net).toMatch(/regionsTouchingCircleGrouped\(/);
+        expect(net).not.toMatch(/localMode/);
+        expect(net).not.toMatch(/isLocalPhase\(/);
         expect(net).not.toMatch(/360/);
     });
     it('🔴 출발하는 순간 목록을 다시 만든다', () => {
@@ -214,11 +217,22 @@ describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
         expect(calls).not.toMatch(/deckOfCycle\(/);
         expect(body(fm, 'function boardOf')).toMatch(/o\.goalCity/);
     });
-    it('🔴 필터 목록은 살아 있는 목적지마다 그물을 만들어 합친다', () => {
+    it('🔴 하차 목록은 살아 있는 목적지마다 조각을 만들어 합친다 — 먼 목적지는 상차 목록 동을 뺀다 (2026-09-15 개정)', () => {
         const n = body(fm, 'function netOfGoals');
-        expect(n).toMatch(/goalCitiesOf\(session, userId\)/);
-        expect(n).toMatch(/for \(const goal of goals\)/);
-        expect(body(fm, 'function netKeywordsOf')).not.toMatch(/session\.activeFilter\.localMode = /);
+        expect(n).toMatch(/goalZonesNow\(session, userId/);
+        expect(n).toMatch(/planArrivalStops\(/);
+        expect(n).toMatch(/lastDropOf\(/);
+        expect(n).toMatch(/dropoffPartsOf\(/);
+        expect(n).toMatch(/mergeDropoffGroups\(parts, session\.activeFilter\.pickupKeywords/);
+        expect(fm).not.toMatch(/session\.activeFilter\.localMode = /);
+    });
+    it('🔴 상차 목록을 먼저 만들고 하차 목록을 만든다 · 0.5km 마다 상차 목록이나 가까이 옴이 바뀌면 하차 목록도 (2026-09-15)', () => {
+        const r = body(fm, 'export function rebuildNetFilter');
+        const pick = r.indexOf('rebuildPickupList(session, userId)');
+        expect(pick).toBeGreaterThan(-1);
+        expect(pick).toBeLessThan(r.indexOf('netFilterOf(session, userId)'));
+        expect(body(fm, 'export function maybeRebuildPickupList')).toMatch(/rebuildNetFilter\(userId, io, true\)/);
+        expect(body(fm, 'export function rebuildPickupList')).toMatch(/pickupNearKey/);
     });
     it('🔴 확정 순간 통과한 목적지를 콜의 판으로 적는다 — 둘 다면 집 우선', () => {
         expect(body(de, 'export async function handleDecision')).toMatch(/goalCity = goalOfCall\(/);

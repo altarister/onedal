@@ -1,5 +1,44 @@
 import { describe, it, expect } from 'vitest';
-import { goalZonesOf, pickupShapeOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness } from './filterArea';
+import { goalZonesOf, pickupShapeOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups } from './filterArea';
+
+/**
+ * 🔵 **하차 목록 합치기** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»)
+ * 먼 목적지 조각에 걸친 동 − 상차 목록 동 · 가까이 온 목적지 동은 빼지 않는다. 원달앱이 동 이름으로 거르니 **동 목록으로** 뺀다.
+ */
+describe('🔵 하차 목록 — 목적지마다 합치고 상차 목록 동을 뺀다', () => {
+    const pickupList = ['초월읍', '곤지암읍', '중리동'];
+    it('🔴 먼 목적지는 상차 목록 동을 뺀다 — 싣는 동에 내리는 콜이 막힌다', () => {
+        const r = mergeDropoffGroups([
+            { near: false, grouped: { 광주시: ['초월읍', '곤지암읍'], 이천시: ['신둔면', '중리동'] }, progressKm: { 곤지암읍: 5, 신둔면: 12 } },
+        ], pickupList);
+        expect(r.grouped).toEqual({ 이천시: ['신둔면'] });
+        expect(r.flat).toEqual(['신둔면']);
+        expect(r.progressKm).toEqual({ 신둔면: 12 });   // 뺀 동의 진행도는 남기지 않는다
+    });
+    it('🔴 가까이 온 목적지 동은 상차 목록과 겹쳐도 남는다 — 관내콜', () => {
+        const r = mergeDropoffGroups([
+            { near: true, grouped: { 이천시: ['중리동', '관고동'] }, progressKm: {} },
+            { near: false, grouped: { 광주시: ['초월읍', '경안동'] }, progressKm: {} },
+        ], pickupList);
+        expect(r.grouped).toEqual({ 이천시: ['관고동', '중리동'], 광주시: ['경안동'] });
+    });
+    it('같은 동이 두 목적지에서 오면 한 번 · 어느 쪽에서든 진행도 없이 들었으면 진행도를 없앤다 (지나온 곳 빼기에 안 먹힌다)', () => {
+        const r = mergeDropoffGroups([
+            { near: false, grouped: { 이천시: ['신둔면'] }, progressKm: { 신둔면: 12 } },
+            { near: false, grouped: { 이천시: ['신둔면', '사음동'] }, progressKm: { 사음동: 3 } },
+        ], []);
+        expect(r.grouped).toEqual({ 이천시: ['사음동', '신둔면'] });
+        expect(r.progressKm).toEqual({ 사음동: 3 });
+    });
+    it('🔴 가까이 온 목적지에서 든 동은 진행도가 없다 — 먼 쪽 진행도가 있어도 지운다', () => {
+        const r = mergeDropoffGroups([
+            { near: true, grouped: { 이천시: ['중리동'] }, progressKm: {} },
+            { near: false, grouped: { 이천시: ['신둔면'] }, progressKm: { 신둔면: 12 } },
+        ], ['중리동']);
+        expect(r.flat).toEqual(['신둔면', '중리동']);
+        expect(r.progressKm).toEqual({ 신둔면: 12 });
+    });
+});
 import { cityCenter } from './callNet';
 
 /**
