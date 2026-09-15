@@ -2,7 +2,8 @@
  * 🚚 **퀵 — 흰 페이지** — 실물 17-1 «픽업 출발» · 17-2 «픽업 이동» · 22-1 «배송» (카카오픽커_시뮬레이터.md §8-2)
  *
  * 퀵과 도보는 잡은 뒤 **루틴은 같고 페이지가 다르다** — 도보는 지도 위 시트 + «밀어서 …»(16~22), 퀵은 흰 페이지 + 바닥 버튼:
- *   17-1 «픽업 출발» ─「픽업 출발하기」→ 17-2 «픽업 이동» ─「픽업 완료하기」→ 22-1 «배송» ─「배송 완료하기」→ 인증사진 촬영 …
+ *   17-1 «픽업 출발» ─「픽업 출발하기」→ 17-2 «픽업 이동» ─「픽업 완료하기」→ 22-1 «배송 출발해주세요» ─「배송 출발하기」→ 22-1 «배송 완료해주세요» ─「배송 완료하기」→ 인증사진 촬영 …
+ *   🔴 22-1 은 **한 페이지** — 「배송 출발하기」를 누르면 머리와 버튼만 바뀌고 나머지는 그대로다 (실물 22-1 출발하기 · 완료하기 두 장)
  *   색도 단계를 따른다 — 픽업은 파랑, 배송은 보라 (22-1 «배송 완료해주세요» · «배송 완료하기»)
  *   ⚠️ 22-1 뒤(사진 · 문자 · 완료)는 사진이 없어 도보와 같은 페이지를 쓴다 (`PickerOngoingScreen`) — 사진이 생기면 따로 만든다
  *
@@ -22,14 +23,15 @@ import type { PickerCall } from './pickerCall';
 import { minutesLeftToday, PICKER_ITEM_SPEC, pickerTagChipClass } from './pickerCall';
 import { formatPickerDistance, formatPickerFare } from './PickerDispatchBoard';
 
-/** 퀵 흰 페이지의 단계 — 17-1 · 17-2 · 22-1 */
-export type PickerQuickPhase = 'DEPART' | 'TO_PICKUP' | 'TO_DROPOFF';
+/** 퀵 흰 페이지의 단계 — 17-1 · 17-2 · 22-1 출발 전 · 22-1 출발 뒤 */
+export type PickerQuickPhase = 'DEPART' | 'TO_PICKUP' | 'DROPOFF_DEPART' | 'TO_DROPOFF';
 
 interface Props {
   call: PickerCall;
   phase: PickerQuickPhase;
   onDepart: () => void;
   onPickedUp: () => void;
+  onDropoffDepart: () => void;
   onDelivered: () => void;
   onBack: () => void;
   /** 17-1 오른쪽 위 «배정 취소» */
@@ -43,8 +45,9 @@ const DONE_GRAY = '#b5b5b5';
 const HEADER_PX = 52;
 const BOTTOM_PX = 64;
 
-export const PickerQuickPickupPage = ({ call, phase, onDepart, onPickedUp, onDelivered, onBack, onCancel }: Props) => {
-  const delivering = phase === 'TO_DROPOFF';
+export const PickerQuickPickupPage = ({ call, phase, onDepart, onPickedUp, onDropoffDepart, onDelivered, onBack, onCancel }: Props) => {
+  /** 22-1 배송 페이지인가 — 출발 전 · 출발 뒤 둘 다 (머리와 버튼만 다르다) */
+  const delivering = phase === 'DROPOFF_DEPART' || phase === 'TO_DROPOFF';
   const left = minutesLeftToday(call.pickupTime);
   /** 픽업 마감이 지난 분 — 안 지났으면 null */
   const late = !delivering && left !== null && left < 0 ? -left : null;
@@ -59,6 +62,7 @@ export const PickerQuickPickupPage = ({ call, phase, onDepart, onPickedUp, onDel
   const action = {
     DEPART: { label: '픽업 출발하기', color: PICKUP_BLUE, onClick: onDepart },
     TO_PICKUP: { label: '픽업 완료하기', color: PICKUP_BLUE, onClick: onPickedUp },
+    DROPOFF_DEPART: { label: '배송 출발하기', color: DROPOFF_PURPLE, onClick: onDropoffDepart },
     TO_DROPOFF: { label: '배송 완료하기', color: DROPOFF_PURPLE, onClick: onDelivered },
   }[phase];
 
@@ -83,7 +87,7 @@ export const PickerQuickPickupPage = ({ call, phase, onDepart, onPickedUp, onDel
               ? <div className="text-[24px] font-bold" style={red}>픽업이 지연되고 있어요</div>
               : left !== null && <div className="text-[24px] font-bold">{`픽업 ${left}분 남음`}</div>
           )}
-          {delivering && <div className="text-[24px] font-bold" style={purple}>배송 완료해주세요</div>}
+          {delivering && <div className="text-[24px] font-bold" style={purple}>{phase === 'DROPOFF_DEPART' ? '배송 출발해주세요' : '배송 완료해주세요'}</div>}
           <div className="mt-[6px] flex items-center gap-[6px] text-[14px]">
             {delivering
               ? call.deliveryTime && <div style={purple}>{`${call.deliveryTime}까지 배송완료`}</div>

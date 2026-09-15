@@ -24,9 +24,9 @@ import { PickerQuickPickupPage } from './PickerQuickPickupPage';
 /**
  * 수락 뒤 단계 — 원달앱 `KakaoPickerKeywords.Stage` 와 같은 이름
  * (`OVERVIEW` · `DEPART` · `PHOTO` · `PHOTO_CHECK` · `SMS` 는 원달앱이 모르는 화면).
- * `DEPART` 는 퀵만 거친다 — 실물 17-1 «픽업 출발» (도보는 바로 `TO_PICKUP`)
+ * `DEPART` · `DROPOFF_DEPART` 는 퀵만 거친다 — 실물 17-1 «픽업 출발» · 22-1 «배송 출발» (도보는 바로 `TO_PICKUP` · `TO_DROPOFF`)
  */
-export type PickerOngoingStep = 'OVERVIEW' | 'DEPART' | 'TO_PICKUP' | 'AT_PICKUP' | 'TO_DROPOFF' | 'AT_DROPOFF' | 'PHOTO' | 'PHOTO_CHECK' | 'SMS' | 'DONE';
+export type PickerOngoingStep = 'OVERVIEW' | 'DEPART' | 'TO_PICKUP' | 'AT_PICKUP' | 'DROPOFF_DEPART' | 'TO_DROPOFF' | 'AT_DROPOFF' | 'PHOTO' | 'PHOTO_CHECK' | 'SMS' | 'DONE';
 
 interface Props {
   call: PickerCall;
@@ -123,6 +123,7 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
   const quickPhase = pickerKindOf(call) !== '퀵' ? null
     : step === 'DEPART' ? 'DEPART'
     : step === 'TO_PICKUP' || step === 'AT_PICKUP' ? 'TO_PICKUP'
+    : step === 'DROPOFF_DEPART' ? 'DROPOFF_DEPART'
     : step === 'TO_DROPOFF' || step === 'AT_DROPOFF' ? 'TO_DROPOFF'
     : null;
   if (quickPhase) {
@@ -132,7 +133,8 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
           call={call}
           phase={quickPhase}
           onDepart={() => setStep('TO_PICKUP')}
-          onPickedUp={() => setStep('TO_DROPOFF')}
+          onPickedUp={() => setStep('DROPOFF_DEPART')}
+          onDropoffDepart={() => setStep('TO_DROPOFF')}
           onDelivered={() => setStep('PHOTO')}
           onBack={onBack}
           onCancel={() => setCancelBlocked(true)}

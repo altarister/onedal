@@ -315,21 +315,36 @@ describe('퀵 — 도보와 다른 페이지 (실물 17-1 · 17-2)', () => {
         ['지금 바로 출발해 주세요', '09:30까지 픽업완료', '길안내'].forEach(w => expect(words, `«${w}» 는 실물에서 안 읽혔다`).not.toContain(w));
     });
 
-    it('🔴 「픽업 완료하기」 → 곧바로 흰 «배송» 페이지 — 보라 «배송 완료해주세요» · 바닥 «길안내 / 배송 완료하기» · 지도·«밀어서»가 없다 (실물 17-2 → 22-1)', () => {
+    it('🔴 「픽업 완료하기」 → 곧바로 흰 «배송» 페이지 출발 전 — 보라 «배송 출발해주세요» · 바닥 «길안내 / 배송 출발하기» · 지도·«밀어서»가 없다 (실물 17-2 → 22-1 출발하기)', () => {
         const onStepChange = vi.fn();
         mount(<PickerOngoingScreen call={pickerA} initialStep="TO_PICKUP" onStepChange={onStepChange} onBack={() => {}} onFinish={() => {}} />);
         click('픽업 완료하기');
-        expect(onStepChange).toHaveBeenCalledWith('TO_DROPOFF');
+        expect(onStepChange).toHaveBeenCalledWith('DROPOFF_DEPART');
         expect(host!.querySelector('[data-map]')).toBeNull();
-        expect(chunk('배송 완료해주세요')).toBe(true);
+        expect(chunk('배송 출발해주세요')).toBe(true);
         expect(chunk('11:00까지 배송완료')).toBe(true);
         expect(chunk('배송지 21.7km')).toBe(true);
         expect(chunk('세 변의 합 100cm ∙ 5kg 이하')).toBe(true);
         expect(chunk('최종 수익')).toBe(true);
         expect(buttonByText('길안내')).toBeTruthy();
-        expect(buttonByText('배송 완료하기')).toBeTruthy();
+        expect(buttonByText('배송 출발하기')).toBeTruthy();
+        expect(buttonByText('배송 완료하기')).toBeFalsy();
         expect(buttonByText('픽업 완료하기')).toBeFalsy();
         expect(text()).not.toContain('밀어서');
+    });
+
+    it('🔴 「배송 출발하기」 → **같은 페이지**에서 머리와 버튼만 바뀐다 — «배송 완료해주세요» · «배송 완료하기» (실물 22-1 출발하기 → 완료하기)', () => {
+        const onStepChange = vi.fn();
+        mount(<PickerOngoingScreen call={pickerA} initialStep="DROPOFF_DEPART" onStepChange={onStepChange} onBack={() => {}} onFinish={() => {}} />);
+        const same = ['11:00까지 배송완료', '배송지 21.7km', '세 변의 합 100cm ∙ 5kg 이하', '최종 수익', '오더 수행 팁'];
+        same.forEach(t => expect(chunk(t), `출발 전 «${t}»`).toBe(true));
+        click('배송 출발하기');
+        expect(onStepChange).toHaveBeenCalledWith('TO_DROPOFF');
+        expect(chunk('배송 출발해주세요')).toBe(false);
+        expect(chunk('배송 완료해주세요')).toBe(true);
+        expect(buttonByText('배송 출발하기')).toBeFalsy();
+        expect(buttonByText('배송 완료하기')).toBeTruthy();
+        same.forEach(t => expect(chunk(t), `출발 뒤에도 «${t}»`).toBe(true));
     });
 
     it('「배송 완료하기」 → 인증사진 촬영 (⚠️ 22-1 뒤는 사진이 없어 도보와 같은 사진 · 문자 · 완료로 잇는다 · 추정)', () => {
@@ -424,7 +439,7 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
         const finishCall = vi.fn();
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], selectedCall: pickerA, selectedCallId: pickerA.id, finishCall })} />);
         click('픽업 출발하기'); click('픽업 완료하기');   // pickerA 는 퀵 — 흰 페이지 (실물 17-1 · 17-2)
-        click('배송 완료하기');                           // 퀵 배송 흰 페이지 (실물 22-1)
+        click('배송 출발하기'); click('배송 완료하기');   // 퀵 배송 흰 페이지 — 같은 페이지에서 버튼만 바뀐다 (실물 22-1)
         click('인증사진 촬영'); click('문자 전송'); click('배송 완료'); click('오더 목록 보기');
         expect(finishCall).toHaveBeenCalledWith(pickerA);
     });
