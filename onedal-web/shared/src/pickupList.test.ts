@@ -19,7 +19,7 @@ describe('상차 영역 격자 점 — pickupAreaPoints', () => {
         pts.filter(p => haversineKm({ lng: MODA.x, lat: MODA.y }, p) <= base.radii.pickupRadiusKm).length;
 
     it('🔴 원 ∩ 라인은 원 안 점만 · 원 전체보다 적다 — 교집합이 합집합으로 칠해지면 여기서 걸린다', () => {
-        const whole = pickupAreaPoints({ ...base, line: null });   // 콜 전 = 원 ∪ 마름모
+        const whole = pickupAreaPoints({ ...base, line: null });   // 콜 전 = 원 전체
         const cut = pickupAreaPoints({ ...base, line: [MODA, TERMINAL] });
         expect(cut.plan).toEqual([['me', 'line']]);
         expect(cut.points.length).toBeGreaterThan(0);
@@ -36,15 +36,16 @@ describe('상차 영역 격자 점 — pickupAreaPoints', () => {
 /**
  * 📋 **상차 영역 — 기사님 확정 표** (2026-09-15 · `docs/지금/필터.md` «상차 목록 · 하차 목록»).
  *
- * | 콜 전 | 현위치 반경 원 전체 ∪ 목적지 방향 마름모 — «아직 콜을 못 잡았어 뒤로 가서라도 잡아야 해» |
+ * | 콜 전 | 현위치 반경 원 전체 — 마름모 안 더함 (2026-09-15 개정 «마름모 영역까지 상차를 20분 안에 할 수 없잖아») |
  * | 경로가 섰다 (노선) | 현위치 반경 ∩ 라인 띠 — 마름모 안 더함 |
  * | 복귀 켬 · 집 방향 콜 없음 | (현위치 ∩ 집 마름모) ∪ (현위치 ∩ 목적지 원) ∪ 라인 있으면 (현위치 ∩ 라인) |
  * | 복귀 켬 · 집 방향 콜 잡음 | 현위치 반경 ∩ 라인 띠 — 관내 부분은 빠진다 |
  * 도형끼리 교집합·합집합이다 — 동 목록끼리가 아니다.
  */
 describe('상차 영역 계획 — 항들의 합집합 · 항은 도형들의 교집합', () => {
-    it('콜 전: 원 전체 ∪ 목적지 방향 마름모', () => {
-        expect(pickupAreaPlan({ hasLine: false, homeOn: false, homeCaught: false })).toEqual([['me'], ['quadDest']]);
+    it('🔴 콜 전: 내 위치 반경뿐 — 마름모를 더하지 않는다', () => {
+        /* 🔴 기사님 2026-09-15 개정: «아무리 빨리 가도 마름모 영역까지 상차를 20분 안에 할 수 없잖아» — 출발 전 상차지는 내 위치 반경뿐 */
+        expect(pickupAreaPlan({ hasLine: false, homeOn: false, homeCaught: false })).toEqual([['me']]);
     });
     it('🔴 노선 · 경로 섰다: 원 ∩ 라인만 — 마름모를 안 더한다', () => {
         expect(pickupAreaPlan({ hasLine: true, homeOn: false, homeCaught: false })).toEqual([['me', 'line']]);

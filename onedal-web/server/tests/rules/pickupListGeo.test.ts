@@ -18,10 +18,11 @@ const base = { radii, shape, destinationCity: '이천시', homeCity: '광주시'
 beforeAll(() => { initGeoService(); });
 
 describe('상차 목록 — 실제 지도', () => {
-    it('🔴 콜 전: 뒤쪽 원도 · 목적지 방향 마름모 안 먼 곳도 든다 — «뒤로 가서라도 잡아야 해»', () => {
+    it('🔴 콜 전: 내 위치 반경뿐 — 뒤쪽이라도 반경 안이면 들고 · 마름모 안 먼 곳은 안 든다', () => {
         const r = pickupListFor({ ...base, me: MODA, line: null, homeOn: false, homeCaught: false });
         expect(r.list).toContain('초월읍');   // 서 있는 동 (원)
-        expect(r.list).toContain('중리동');   // 17km 앞 이천터미널 — 마름모
+        /* 🔴 기사님 2026-09-15 개정: 출발 전 상차지는 내 위치 반경뿐 — «아무리 빨리 가도 마름모 영역까지 상차를 20분 안에 할 수 없잖아» */
+        expect(r.list).not.toContain('중리동');   // 17km 앞 이천터미널 — 마름모 안이지만 반경 밖
         expect(r.list).not.toContain('역삼1동');   // 원도 마름모도 아닌 곳
     });
 

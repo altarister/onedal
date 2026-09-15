@@ -30,7 +30,7 @@ export const ICHEON_ROUND_TRIP: ScenarioRow[] = [
     /* ── A 집 — 모의 주행 멈춤 · 콜 0건 ── */
     { id: 'A1', stage: 'A', when: { after: 'prev' }, kind: 'block', blockBy: 'pickupList',
       call: { pickup: EMART_GWANGJU, dropoff: SINDUN_NH, fare: 30000, vehicleType: '다마스' },
-      say: '⚪ 안 올라와야 맞다 — 기다리기만', why: '콜 전 상차 목록 = 현위치 원 ∪ 이천 방향 마름모 — 경안동은 뒤쪽 7km(원 밖 · 마름모 밖) (#134)' },
+      say: '⚪ 안 올라와야 맞다 — 기다리기만', why: '콜 전 상차 목록 = 현위치 반경뿐 — 경안동은 뒤쪽 7km(반경 밖) (#134 · 2026-09-15 개정)' },
     { id: 'A2', stage: 'A', when: { after: 'prev' }, kind: 'keep',
       call: { pickup: MODA, dropoff: SINDUN_NH, fare: 50000, vehicleType: '다마스' },
       say: '🟢 올라오면 관제웹에서 KEEP', why: '정상 첫짐 — 확정 뒤에도 집 뒤 동(내 영역)이 남아야 한다',
