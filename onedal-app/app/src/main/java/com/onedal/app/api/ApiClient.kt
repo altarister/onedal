@@ -396,6 +396,44 @@ class ApiClient(private val context: Context) {
         }
     }
 
+    /** 📱 운행 기록 전용 한 줄 스레드 — 서버가 안 닿아 10초씩 걸려도 콜 전송(`telemetryExecutor`)을 막지 않는다 */
+    private val traceExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "1dal-trace").apply { isDaemon = true }
+    }
+
+    /**
+     * 📱 **실물 픽커 운행 기록을 올린다** — `POST /api/logs/app` (`PickerTrace`).
+     * 결과만 알려 준다 — 실패하면 부르는 쪽이 대기열 앞에 되돌린다.
+     * 🔴 기록 줄을 여기서 AppLogger 로 되찍지 않는다 — 부르는 쪽이 이미 찍었다.
+     */
+    fun sendAppTraceLines(lines: List<com.onedal.app.plugins.kakaopicker.PickerTrace.Line>, onResult: (Boolean) -> Unit) {
+        traceExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
+            val ok = try {
+                val fmt = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US)
+                val body = gson.toJson(mapOf(
+                    "deviceId" to getDeviceId(),
+                    "lines" to lines.map { mapOf("at" to fmt.format(java.util.Date(it.atMs)), "msg" to it.msg) },
+                ))
+                val c = java.net.URL(getTargetUrl("/api/logs/app")).openConnection() as java.net.HttpURLConnection
+                conn = c
+                c.requestMethod = "POST"
+                c.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                c.doOutput = true
+                c.connectTimeout = 10000
+                c.readTimeout = 10000
+                c.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                c.responseCode in 200..299
+            } catch (e: Exception) {
+                AppLogger.w(TAG, "📱 [운행 기록 전송 실패] ${e.message} — 대기열에 되돌린다")
+                false
+            } finally {
+                conn?.disconnect()
+            }
+            onResult(ok)
+        }
+    }
+
     fun fetchKeywords() {
         telemetryExecutor.submit {
             var conn: java.net.HttpURLConnection? = null
