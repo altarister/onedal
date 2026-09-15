@@ -63,6 +63,10 @@ export type StageEvent =
     | { type: 'signal' }
     /** KEEP 직후 — 바로 통화해야 한다 (S5) */
     | { type: 'keep' }
+    /** 🕰️ KEEP 한 콜이 목록에 들어왔다 — 늦게 열기도 규칙을 지난다 (#144) */
+    | { type: 'keepReady' }
+    /** 🪧 새 판정이 떴다 — 손 유예보다 먼저다 (#144) */
+    | { type: 'judge' }
     /**
      * 정거장 도착 — 신고 시트가 마중 나간다 (v23 Ⅲ-S7 · 화면규칙 S13).
      *
@@ -111,7 +115,19 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
     // ── 손이 이긴다. 만진 뒤 30초는 자동(신호)이 아무것도 못 바꾼다
     const holding = sig.nowMs < mem.userHoldUntil;
 
+    /* 🪧 판정 중에는 손이 높이를 못 바꾼다 — 화면도 딤드로 막는다 · 잘못 눌러 결재를 놓치지 않게 (기사님 2026-09-15 · #144) */
+    if (sig.judging && (ev.type === 'drag' || ev.type === 'tap')) return out(mem, null, '판정 중 손 막힘');
+
     switch (ev.type) {
+        case 'judge':
+            /* 🪧 새 판정은 손 유예보다 먼저다 — 유예를 끝내고 판정 높이로 (기사님 2026-09-15 «1, 2 자리 바꿈» · #144) */
+            return out({ ...mem, autoRaised: false, userHoldUntil: 0 }, snapOnJudging(sig.snap ?? 'peek'), '판정중');
+
+        case 'keepReady':
+            /* 🕰️ KEEP 사건 때 목록에 없던 콜이 들어왔다 — KEEP 과 같은 자리 (정차면 올라와 열리고 · 주행이면 다음 신호에 내려간다) */
+            if (holding) return out(mem, null, 'KEEP 콜 들어옴(손 유예 중)', true);
+            return out({ ...mem, autoRaised: true }, 'full', 'KEEP 콜 들어옴');
+
         case 'drag':
             // 손으로 끈 것이 곧 의사 표현이다 — 마중은 끝나고, 30초 유예가 시작된다
             return out({ ...mem, autoRaised: false, userHoldUntil: sig.nowMs + USER_HOLD_MS }, ev.to, '손');   // 미룬 도착은 든 채로

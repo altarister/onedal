@@ -101,10 +101,15 @@ interface Props {
      *    엉뚱한 자리에 떴다 (기사님 2026-09-05). 재서 알리는 것이 유일한 원천이다 (규칙 ③).
      */
     onHeightChange?: (px: number) => void;
+    /**
+     * 🪧 **판정 중 잠금** (기사님 2026-09-15 · #144) — *"뭔가 잘못눌러 취소나 킵을 못하면 안되니까"*.
+     *    손잡이 · 상태바 · 콜 목록을 딤드하고 못 누르게 한다. 맨 아래 판정 영역(`bottomBox`)만 살아 있다.
+     */
+    locked?: boolean;
     children: React.ReactNode;
 }
 
-export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onHeightChange, children }: Props) {
+export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onHeightChange, locked = false, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
     const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
@@ -115,7 +120,7 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
         const next = order[Math.max(0, Math.min(2, i))];
         startSnap.current = next;   // 한 제스처로 여러 단 — 기준점을 딛고 계속 끈다
         // 손이 이긴다는 유예는 규칙(stageStep)이 `drag` 사건에서 건다 — 여기서 또 알리지 않는다
-        if (next !== snap) onSnapChange(next);
+        if (next !== snap && !locked) onSnapChange(next);   // 🪧 판정 중에는 손이 높이를 못 바꾼다 (#144)
     };
 
     /**
@@ -163,7 +168,7 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
             <div
                 /* 📸 화면을 찍어 대조할 때 이 손잡이를 눌러 단을 올린다 (`scripts/shot.mjs`) */
                 data-sheet-handle
-                className="shrink-0 py-3 cursor-grab active:cursor-grabbing"
+                className={`shrink-0 py-3 ${locked ? 'opacity-30 pointer-events-none' : 'cursor-grab active:cursor-grabbing'}`}
                 style={{ touchAction: 'none' }}
                 onPointerDown={(e) => { startY.current = e.clientY; startSnap.current = snap; dragged.current = false; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
                 onPointerMove={(e) => {
@@ -182,7 +187,7 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
                 /* 🔴 **높이가 늘 같다** (기사님 2026-09-05: *"상태바의 높이도 항상 일정했으면"*).
                    내용에 따라 줄이 커졌다 작아졌다 하면, 늘 같은 자리에서 같은 것을 읽던
                    눈이 매번 다시 맞춰야 한다 — 달리면서 1~2초에 읽는 줄이다. */
-                <div className="shrink-0 flex items-center px-4 pb-2 text-[13px] font-bold tabular-nums truncate"
+                <div className={`shrink-0 flex items-center px-4 pb-2 text-[13px] font-bold tabular-nums truncate${locked ? ' opacity-40 pointer-events-none' : ''}`}
                      style={{ color: 'var(--color-text-primary, #dfe5ef)', height: 38, boxSizing: 'content-box' }}>{peekBar}</div>
             )}
             {/**
@@ -205,7 +210,7 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
               * ⚠️ 스크롤은 그대로 남는다 — 자식이 스스로 늘어나면(옛 화면) 여기서 스크롤한다.
               */}
             <div data-sheet-scroll
-                 className={`${snap === 'list' ? 'flex-auto' : 'flex-1'} overflow-y-auto min-h-0 flex flex-col`}>{children}</div>
+                 className={`${snap === 'list' ? 'flex-auto' : 'flex-1'} overflow-y-auto min-h-0 flex flex-col${locked ? ' opacity-40 pointer-events-none' : ''}`}>{children}</div>
             {/* 🪧 맨 아래 붙박이 — 목록이 아무리 길어도 여기는 안 밀린다 */}
             {bottomBox && <div className="shrink-0">{bottomBox}</div>}
         </div>

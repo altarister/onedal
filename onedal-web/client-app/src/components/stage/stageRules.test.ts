@@ -276,3 +276,50 @@ describe('🗺️ 「나」도 지도가 볼 자리를 남긴다 (기사님 확�
         expect(SHEET_HEIGHT.full).toBe('100%');
     });
 });
+
+/**
+ * 🪧 **판정이 손보다 먼저다 · 판정 중에는 손이 높이를 못 바꾼다 · 늦게 열기도 규칙을 지난다** (기사님 2026-09-15 · 버그 대장 #144).
+ *
+ * 기사님: *"판정중에는 드레그를 못하도록 딤드"* · *"1, 2를 자리 바꿈"*(새 판정 > 손) ·
+ * *"뭔가 잘못눌러 취소나 킵을 못하면 안되니까"* · *"운전중일때는 올라왔다 내려오면 될꺼 같고
+ * 늦게 열기 효과가 KEEP 한 콜을 열면 다시 올라오고"*.
+ */
+describe('#144 판정 우선 · 판정 중 손 막힘 · 늦게 열기', () => {
+    const held = (): StageMemory => ({ ...initialStageMemory(), userHoldUntil: T0 + USER_HOLD_MS });
+
+    it('손 유예 중에도 새 판정이 뜨면 「나」로 가고 유예는 끝난다', () => {
+        const r = stageStep(held(), sig({ judging: true, snap: 'peek' }), { type: 'judge' });
+        expect(r.snap).toBe('list');
+        expect(r.mem.userHoldUntil).toBe(0);
+        expect(r.deferred).toBe(false);
+    });
+
+    it('판정 중에는 끌기·탭이 높이를 못 바꾸고 유예도 안 건다', () => {
+        for (const ev of [{ type: 'drag', to: 'full' }, { type: 'tap' }] as const) {
+            const r = stageStep(initialStageMemory(), sig({ judging: true }), ev);
+            expect(r.snap).toBeNull();
+            expect(r.mem.userHoldUntil).toBe(0);
+        }
+    });
+
+    it('판정이 없으면 끌기는 지금처럼 30초 유예를 건다', () => {
+        const r = stageStep(initialStageMemory(), sig(), { type: 'drag', to: 'peek' });
+        expect(r.snap).toBe('peek');
+        expect(r.mem.userHoldUntil).toBe(T0 + USER_HOLD_MS);
+    });
+
+    it('KEEP 한 콜이 목록에 들어오면 다시 올라온다 — 손 유예 중이면 미룬다', () => {
+        const r = stageStep(initialStageMemory(), sig(), { type: 'keepReady' });
+        expect(r.snap).toBe('full');
+        expect(r.mem.autoRaised).toBe(true);
+        const h = stageStep(held(), sig(), { type: 'keepReady' });
+        expect(h.snap).toBeNull();
+        expect(h.deferred).toBe(true);
+    });
+
+    it('주행 중 KEEP 은 올라왔다가 주행 신호에 내려간다 (S12)', () => {
+        const k = stageStep(initialStageMemory(), sig({ drive: 'drive' }), { type: 'keep' });
+        expect(k.snap).toBe('full');
+        expect(tick(k.mem, sig({ drive: 'drive' })).snap).toBe('peek');
+    });
+});

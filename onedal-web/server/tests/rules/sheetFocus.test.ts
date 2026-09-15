@@ -118,9 +118,25 @@ describe('S13·S14·S15 — 마중은 «그 콜의 그 단계»까지다', () =>
         expect(view).toMatch(/if \(eventId && want < 0\) pendingOpenRef\.current = eventId/);
         const i = view.indexOf('const want = pendingOpenRef.current');
         expect(i).toBeGreaterThan(-1);
-        expect(view.slice(i, i + 400)).toMatch(/setOpenIdx\(i\)/);
-        /* 🔴 높이는 안 건드린다 — 정하는 손은 하나다 (S6) */
-        expect(view.slice(i, i + 400)).not.toMatch(/setSnap\(/);
+        /**
+         * 🔄 **2026-09-15 개정 (#144)** — 늦게 열기도 **규칙을 지나는 사건**이다. 예전엔 `setOpenIdx` 를 바로 불러
+         *    높이 규칙 밖에서 열었고, 주행에 내려간 시트 안에서 콜만 열리는 «표에 없는 상태»가 났다.
+         *    기사님: *"늦게 열기 효과가 KEEP 한 콜을 열면 다시 올라오고"*. 높이는 여전히 규칙 한 곳이 정한다 (S6).
+         */
+        expect(view.slice(i, i + 500)).toMatch(/feedRef\.current\(\{ type: 'keepReady' \}\)/);
+        expect(view.slice(i, i + 500)).not.toMatch(/setSnap\(|setOpenIdx\(/);
+    });
+
+    /**
+     * 🪧 **판정 중에는 시트가 잠긴다 — 판정 영역만 누를 수 있다** (기사님 2026-09-15 · #144).
+     *    *"뭔가 잘못눌러 취소나 킵을 못하면 안되니까"* — 손잡이 · 상태바(버튼 · 지난 N) · 콜 줄을 딤드하고 막는다.
+     */
+    it('🔴 #144 판정 중에는 시트가 잠기고 · 새 판정은 규칙에 judge 로 들어간다', () => {
+        const sheet = codeOnly(read('components/stage/StageSheet.tsx'));
+        expect(sheet).toMatch(/locked/);
+        const view = codeOnly(read('components/stage/StageView.tsx'));
+        expect(view).toMatch(/locked=\{!!judging\}/);
+        expect(view).toMatch(/type: 'judge'/);
     });
 
     /**

@@ -344,7 +344,7 @@ export default function StageView(props: Props) {
              */
             /* 🎬 맨 위로 올라가면 **시트 상태바가 가리키는 콜**을 연다 — KEEP 만 방금 잡은 콜 · 손 탭은 손이 고른 줄 (#143) */
             const eventId = r.snap !== 'full' ? null
-                          : ev.type === 'keep' ? keepFocusRef.current
+                          : ev.type === 'keep' || ev.type === 'keepReady' ? keepFocusRef.current
                           : ev.type === 'tap' ? null
                           : barFocusRef.current?.orderId ?? (ev.type === 'arrive' ? ev.orderId ?? null : null);
             const want = eventId ? deckList.findIndex(o => o.id === eventId) : -1;
@@ -359,7 +359,7 @@ export default function StageView(props: Props) {
              * 🟢 못 열었으면 ref 를 **비우지 않는다** — 덱이 갱신되는 아래 효과가 다시 연다.
              */
             if (eventId && want < 0) pendingOpenRef.current = eventId;
-            else if (ev.type === 'keep') pendingOpenRef.current = null;
+            else if (ev.type === 'keep' || ev.type === 'keepReady') pendingOpenRef.current = null;
             const mv = sheetTransition(r.snap, {
                 openIdx, callCount: deckList.length,
                 focusIdx: want >= 0 ? want : undefined,
@@ -416,6 +416,12 @@ export default function StageView(props: Props) {
 
     useEffect(() => { logStateChange("주행신호", drive, "무대"); }, [drive]);
     useEffect(() => () => { if (holdTimer.current) clearTimeout(holdTimer.current); }, []);
+
+    /* 🪧 새 판정이 뜨면 손 유예보다 먼저 — 규칙에 judge 로 넣는다 (기사님 2026-09-15 · #144) */
+    const judgingId = judging ? judging.id : null;
+    useEffect(() => { if (judgingId) feed({ type: 'judge' });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [judgingId]);
 
     useEffect(() => { feed({ type: 'signal' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -475,11 +481,10 @@ export default function StageView(props: Props) {
     useEffect(() => {
         const want = pendingOpenRef.current;
         if (!want) return;
-        const i = deckList.findIndex(o => o.id === want);
-        if (i < 0) return;
-        pendingOpenRef.current = null;
-        setOpenIdx(i);
-        logStateChange("시트연콜", `${i} ${deckList[i]?.dropoff ?? '?'} (덱을 기다려 열었다)`, "무대");
+        if (deckList.findIndex(o => o.id === want) < 0) return;
+        /* 🕰️ 규칙을 지나 연다 — 정차면 올라와 열리고 · 주행이면 올라왔다 내려가고 · 손 유예 중이면 미룬다 (기사님 2026-09-15 · #144) */
+        keepFocusRef.current = want;
+        feedRef.current({ type: 'keepReady' });
         /* 🔴 길이가 아니라 **콜 id** 가 바뀔 때 — 심사 콜이 KEEP 으로 넘어와도 길이는 그대로다 (#143) */
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [deckList.map(o => o.id).join(',')]);
@@ -864,6 +869,8 @@ export default function StageView(props: Props) {
 
             {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
             <StageSheet snap={snap} onSnapChange={(s) => feed({ type: 'drag', to: s })}
+                        /* 🪧 판정 중에는 손잡이·상태바·콜 목록을 잠근다 — 판정 영역만 누른다 (#144) */
+                        locked={!!judging}
                         onHeightChange={setSheetPx}
                         /**
                          * 🎬 **요소별로 그린다** — 목업과 같은 모양 (이식 2026-09-05).
