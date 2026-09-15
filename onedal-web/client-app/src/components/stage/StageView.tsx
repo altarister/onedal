@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, progressAlongKm, goalZonesOf, withNearness, pickupShapeOf,
+import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, lineFromPoint, goalZonesOf, withNearness, pickupShapeOf,
     dropoffPartsOf, lastDropOf, lineUntil, dongDotsOf, quadShapeFrom, quadOutline, cityCenter, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
@@ -261,11 +261,14 @@ export default function StageView(props: Props) {
             quads: dropoffParts.flatMap(p => (p.quad ? [p.quad] : [])),
             /* 🎯 살아 있는 목적지 — 마커 (옛 «그물» 레이어가 찍던 것) */
             goals: dropoffParts.map(p => p.center),
-            /* 🚗 운행 뒤에는 지나온 만큼 띠를 자른다 — `progressAlongKm` (서버 지나온 곳 빼기와 같은 축척) */
-            lines: dropoffParts.flatMap(p => (p.line ? [{
-                points: p.line, km: radii.detourRadiusKm,
-                trimKm: dropoffDeparted ? progressAlongKm({ lng: myLocation.x, lat: myLocation.y }, p.line.map(q => [q.x, q.y] as [number, number])) : 0,
-            }] : [])),
+            /* ✂️ 운행 뒤에는 현위치부터 앞으로만 긋는다 — 시작은 캔버스가 평평하게 자른다 (기사님 2026-09-15 «뒤를 자르는 Cap» · 상차 띠와 같은 `lineFromPoint`) */
+            lines: dropoffParts.flatMap(p => {
+                if (!p.line) return [];
+                const points = dropoffDeparted
+                    ? lineFromPoint(p.line.map(q => [q.x, q.y] as [number, number]), { lng: myLocation.x, lat: myLocation.y }).map(([x, y]) => ({ x, y }))
+                    : p.line;
+                return points.length >= 2 ? [{ points, km: radii.detourRadiusKm }] : [];
+            }),
         };
     }, [myLocation, dropoffParts, dropoffDeparted, radii.destinationRadiusKm, radii.pickupRadiusKm, radii.detourRadiusKm]);
 
@@ -276,10 +279,14 @@ export default function StageView(props: Props) {
     const pickupArea = useMemo(() => {
         /* 🔴 내 위치를 모르면 원을 지어내지 않는다 — 안 그린다 (규칙 ④) */
         if (!myLocation || !pickupShape) return null;
+        /* ✂️ 띠는 현위치부터 앞으로만 — 지나온 길은 상차 영역이 아니다 (기사님 2026-09-15 «뒤를 자르는 Cap» · 서버 `pickupListFor` 와 같은 `lineFromPoint`) */
+        const ahead = pickupLine && pickupLine.length >= 2
+            ? lineFromPoint(pickupLine.map(p => [p.x, p.y] as [number, number]), { lng: myLocation.x, lat: myLocation.y }).map(([x, y]) => ({ x, y }))
+            : [];
         return {
             me: myLocation, meKm: radii.pickupRadiusKm,
             /* 🔴 띠가 없으면(동선 · 경로를 모름) 원 전체 — 서버 `pickupListFor` 가 그렇게 목록을 만든다. 안 그리면 하차에서도 안 지워진다 */
-            line: pickupLine && pickupLine.length >= 2 ? pickupLine : null,
+            line: ahead.length >= 2 ? ahead : null,
             lineKm: radii.detourRadiusKm,
         };
     }, [myLocation, pickupShape, pickupLine, radii.pickupRadiusKm, radii.detourRadiusKm]);

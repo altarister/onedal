@@ -1024,7 +1024,7 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     session.pickupNearKey = nearKey;
     const changed = !prev || prev.join(',') !== list.join(',') || prevArea !== pickupAreaKey(f.pickupArea) || nearChanged;
     if (changed) console.log(`📋 [상차 목록] ${zones.map(z => `${z.city}:${z.state}${z.near ? '·가까이' : ''}`).join(' · ') || '목적지 없음'} → `
-        + `${shape === 'meLine' ? '내 위치 ∩ 라인' : shape === 'me' ? '내 위치' : '없음'} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);
+        + `${shape === 'meLine' ? '내 위치 ∩ 라인(현위치부터)' : shape === 'me' ? '내 위치' : '없음'} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);
     return changed;
 }
 

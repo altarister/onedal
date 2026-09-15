@@ -826,6 +826,52 @@ export function distToLineKm(pt: { lng: number; lat: number }, line: Array<[numb
 }
 
 /**
+ * ✂️ **라인을 현위치부터 앞으로만** (기사님 2026-09-15 «교집합이긴 한데 뒤가 너무 많이 남는다 · 뒤를 자르는 Cap» · «2»).
+ * 현위치를 라인에서 가장 가까운 점에 내리고(`progressAlongKm` 과 같은 셈 · 같은 곳을 두 번 지나면 앞 통과) 그 점부터 끝까지 낸다.
+ * 앞으로 남은 라인이 없으면(끝을 지남 · 점이 둘보다 적음) 빈 라인 — 부르는 쪽은 «라인 없음»으로 본다 (지어내지 않는다 · 규칙 ④).
+ * 읽는 곳: 서버 상차 목록(`geoService.pickupListFor`) · 지도 «상차» 띠 · 운행 뒤 «하차» 띠(`StageView`).
+ */
+export function lineFromPoint(line: Array<[number, number]>, pt: { lng: number; lat: number }): Array<[number, number]> {
+    if (line.length < 2) return [];
+    const KX = 111.32 * Math.cos(rad(pt.lat)), KY = 110.574;
+    let best = Infinity, at = 1, tAt = 0;
+    for (let i = 1; i < line.length; i++) {
+        const ax = (line[i - 1][0] - pt.lng) * KX, ay = (line[i - 1][1] - pt.lat) * KY;
+        const bx = (line[i][0] - pt.lng) * KX, by = (line[i][1] - pt.lat) * KY;
+        const dx = bx - ax, dy = by - ay;
+        const L = dx * dx + dy * dy;
+        const t = L ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L)) : 0;
+        const d = Math.hypot(ax + t * dx, ay + t * dy);
+        if (d < best) { best = d; at = i; tAt = t; }
+    }
+    const a = line[at - 1], b = line[at];
+    const rest = line.slice(at);
+    const out: Array<[number, number]> = tAt >= 1 ? rest : [[a[0] + (b[0] - a[0]) * tAt, a[1] + (b[1] - a[1]) * tAt], ...rest];
+    return out.length >= 2 ? out : [];
+}
+
+/**
+ * ✂️ **점에서 라인까지 km — 시작 끝은 평평하게** (기사님 2026-09-15 «뒤를 자르는 Cap»).
+ * `distToLineKm` 과 같되 **첫 선분의 시작 뒤**(수선의 발이 시작점보다 뒤)는 라인 밖이다 — 차 뒤 반원이 안 든다.
+ * 꺾인 자리 · 먼 끝 둘레는 둥근 그대로다 — 지도 캔버스의 `lineCap = 'butt'` · 둥근 이음 · 끝 원과 같은 모양.
+ */
+export function distToLineFlatStartKm(pt: { lng: number; lat: number }, line: Array<[number, number]>): number {
+    const KX = 111.32 * Math.cos(rad(pt.lat)), KY = 110.574;
+    let best = Infinity;
+    for (let i = 1; i < line.length; i++) {
+        const ax = (line[i - 1][0] - pt.lng) * KX, ay = (line[i - 1][1] - pt.lat) * KY;
+        const bx = (line[i][0] - pt.lng) * KX, by = (line[i][1] - pt.lat) * KY;
+        const dx = bx - ax, dy = by - ay;
+        const L = dx * dx + dy * dy;
+        const raw = L ? -(ax * dx + ay * dy) / L : 0;
+        if (i === 1 && raw < 0) continue;   // 시작 뒤 — 평평하게 자른 자리
+        const t = Math.max(0, Math.min(1, raw));
+        best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+    }
+    return best;
+}
+
+/**
  * 🧩 **노선의 그물 — 라인 ∪ 남은 구간 마름모** (기사님 확정 2026-09-09).
  *
  * 기사님: *"내 위치에서 평촌까지는 노선처럼 라인 반경으로 가고 마름모는 평촌에서 파주로 만들어.

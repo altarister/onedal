@@ -65,6 +65,14 @@ describe('상차 목록 — 실제 지도', () => {
         expect(r.list).toContain('신둔면');
     });
 
+    it('🔴 운행 뒤 상차 띠는 현위치부터 앞으로만 · 뒤는 평평하게 — 곤지암에서 지나온 초월읍은 안 든다 (기사님 2026-09-15 «뒤를 자르는 Cap»)', () => {
+        const GONJIAM_STAR = { x: 127.33209, y: 37.35310 }, WOORI = { x: 127.39719, y: 37.31740 };
+        const r = pickupListFor({ radii, me: GONJIAM_STAR, line: [CHOWOL_STATION, GONJIAM_STAR, WOORI, HD_SINDUN], zones: [dest('driving')] });
+        expect(r.shape).toBe('meLine');
+        expect(r.list).toContain('곤지암읍');
+        expect(r.list).not.toContain('초월읍');
+    });
+
     it('🔴 운행 뒤인데 라인이 없으면 현위치 영역 전체 — 라인을 지어내지 않는다 (규칙 ④)', () => {
         const noLine = pickupListFor({ radii, me: TERMINAL, line: null, zones: [dest('driving')] });
         expect(noLine.list).toEqual(pickupListFor({ radii, me: TERMINAL, line: null, zones: [dest('idle')] }).list);
@@ -196,6 +204,18 @@ describe('상차 목록 배선', () => {
         expect(sv).not.toMatch(/activeCalls: liveRoute,/);
         expect(sv).toMatch(/const pickupLine = routeMode/);
         expect(sv).not.toMatch(/pickupShape === 'meLine' && !\(pickupLine/);
+    });
+
+    it('✂️ 라인 띠는 현위치부터 · 시작은 평평하게 — 서버 상차 목록 · 지도 «상차» · «하차» 띠가 같은 함수 (기사님 2026-09-15 «2»)', () => {
+        expect(code('services/geoService.ts')).toMatch(/lineFromPoint\(/);
+        expect(code('services/geoService.ts')).toMatch(/distToLineFlatStartKm\(/);
+        const CLIENT = join(__dirname, '../../../client-app/src');
+        const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        const sv = strip(readFileSync(join(CLIENT, 'components/stage/StageView.tsx'), 'utf8'));
+        expect((sv.match(/lineFromPoint\(/g) || []).length).toBeGreaterThanOrEqual(2);
+        const canvas = strip(readFileSync(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx'), 'utf8'));
+        expect((canvas.match(/lineCap = 'butt'/g) || []).length).toBeGreaterThanOrEqual(2);
+        expect(canvas).not.toMatch(/trimKm/);
     });
 
     it('🔴 빈 상차 목록은 고장 — 잡지 않는다 (규칙 ④) · 아직 안 만들었으면 막지 않는다', () => {

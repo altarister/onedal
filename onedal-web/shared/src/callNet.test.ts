@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pruneExcludedRegions, buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound, foldChainOrder } from './callNet';
+import { lineFromPoint, distToLineFlatStartKm, distToLineKm, pruneExcludedRegions, buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound, foldChainOrder } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -1029,3 +1029,35 @@ describe('🧩 필터 영역 — 출발 전 내 영역', () => {
         expect(withMe.circles).toHaveLength(2);   // 지도도 내 영역 원을 그린다
     });
 });
+
+/**
+ * ✂️ **운행 뒤 라인 띠는 현위치부터 앞으로만 · 시작 끝은 평평하게** (기사님 2026-09-15 «교집합이긴 한데 뒤가 너무 많이 남는다 · 뒤를 자르는 Cap 타입으로» · «2»).
+ * 상차 띠가 지나온 길(출발 → ① → 현위치)까지 그려 역방향이 남았다 — 서버 상차 목록 · 지도 «상차» · «하차» 띠가 같은 두 함수를 쓴다.
+ */
+describe('✂️ 라인 — 현위치부터 · 시작은 평평하게', () => {
+    const line: Array<[number, number]> = [[0, 0], [0.02, 0], [0.04, 0]];
+    it('🔴 현위치를 라인에 내린 점부터 앞으로만 — 지나온 점은 없다', () => {
+        const r = lineFromPoint(line, { lng: 0.01, lat: 0.001 });
+        expect(r).toHaveLength(3);
+        expect(r[0][0]).toBeCloseTo(0.01, 6);
+        expect(r[0][1]).toBeCloseTo(0, 6);
+        expect(r.slice(1)).toEqual([[0.02, 0], [0.04, 0]]);
+    });
+    it('라인 끝을 지났으면 앞으로 남은 라인이 없다 · 점이 둘보다 적으면 빈 라인', () => {
+        expect(lineFromPoint(line, { lng: 0.05, lat: 0 })).toEqual([]);
+        expect(lineFromPoint([[0, 0]], { lng: 0, lat: 0 })).toEqual([]);
+    });
+    it('🔴 시작 끝 뒤는 라인 밖이다 — 둥근 끝(distToLineKm)이면 들던 뒤쪽 반원', () => {
+        const seg: Array<[number, number]> = [[0, 0], [0.02, 0]];
+        const behind = { lng: -0.005, lat: 0 };
+        expect(distToLineKm(behind, seg)).toBeLessThan(1);
+        expect(distToLineFlatStartKm(behind, seg)).toBe(Infinity);
+    });
+    it('옆 · 앞 · 먼 끝 둘레는 둥근 끝과 같다', () => {
+        const seg: Array<[number, number]> = [[0, 0], [0.02, 0], [0.02, 0.02]];
+        for (const pt of [{ lng: 0.01, lat: 0.009 }, { lng: 0.03, lat: 0.025 }, { lng: 0.021, lat: 0.001 }]) {
+            expect(distToLineFlatStartKm(pt, seg)).toBeCloseTo(distToLineKm(pt, seg), 9);
+        }
+    });
+});
+

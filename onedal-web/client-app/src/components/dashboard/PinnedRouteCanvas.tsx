@@ -192,8 +192,8 @@ interface Props {
         quads: Array<Array<{ x: number; y: number }>>;
         /** 🎯 살아 있는 목적지 — 마커를 찍고 화면 맞춤에 넣는다 (옛 «그물» 레이어가 찍던 것) */
         goals: Array<{ x: number; y: number }>;
-        /** `trimKm` — 운행 뒤 지나온 만큼 띠를 여기부터 긋는다 (옛 그물과 같은 `progressAlongKm` 축척) */
-        lines: Array<{ points: Array<{ x: number; y: number }>; km: number; trimKm: number }>;
+        /** 운행 뒤면 현위치부터 앞으로만 (부르는 쪽이 `lineFromPoint` 로 자른다) · 시작은 평평하게 · 먼 끝만 둥글게 긋는다 */
+        lines: Array<{ points: Array<{ x: number; y: number }>; km: number }>;
     } | null;
     /**
      * 📍 **동 점 — 원달앱에 실제로 내려간 목록** (기사님 2026-09-15 «지역에 점찍어 보여줬었는데» · shared `dongDotsOf`).
@@ -281,7 +281,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      *    🔴 좌표는 안 싣는다 — 내 위치가 매초 바뀌어 줄이 매초 찍힌다. 모양 · 반지름 · 조각 수 · 레이어 켬만.
      */
     const areaSummary = [
-        `상차 ${pickupArea ? `${pickupArea.line ? '원∩라인' : '원'} ${pickupArea.meKm.toFixed(1)}km` : '없음'}`,
+        `상차 ${pickupArea ? `${pickupArea.line ? '원∩라인(현위치부터)' : '원'} ${pickupArea.meKm.toFixed(1)}km` : '없음'}`,
         `하차 ${dropoffArea
             ? `먼 원 ${dropoffArea.circles.length} · 가까이 원 ${dropoffArea.nearCircles.length} · 마름모 ${dropoffArea.quads.length} · 띠 ${dropoffArea.lines.length}${pickupArea ? ' · 상차 영역 지움' : ''}`
             : '없음'}`,
@@ -565,8 +565,11 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 c2d.beginPath();
                 area.line.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) c2d.moveTo(s.cx, s.cy); else c2d.lineTo(s.cx, s.cy); });
                 c2d.lineWidth = area.lineKm * 2 * pxPerKm;
-                c2d.lineCap = 'round'; c2d.lineJoin = 'round';
+                /* ✂️ 시작(현위치)은 평평하게 · 먼 끝만 둥글게 — 서버 `distToLineFlatStartKm` 과 같은 모양 (기사님 2026-09-15 «뒤를 자르는 Cap») */
+                c2d.lineCap = 'butt'; c2d.lineJoin = 'round';
                 c2d.stroke();
+                const end = getScreenPt(area.line[area.line.length - 1]);
+                c2d.beginPath(); c2d.arc(end.cx, end.cy, area.lineKm * pxPerKm, 0, Math.PI * 2); c2d.fill();
             }
             c2d.restore();
         };
@@ -618,20 +621,14 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 for (const l of dropoffArea.lines) {
                     if (l.points.length < 2) continue;
                     oc.beginPath();
-                    /* 🚗 지나온 만큼 짧아진다 — km 셈은 `progressAlongKm` 과 같은 축척 */
-                    let acc = 0, put = 0;
-                    l.points.forEach((p, i) => {
-                        if (i > 0) {
-                            const a = l.points[i - 1];
-                            acc += Math.hypot((p.x - a.x) * 111.32 * Math.cos(p.y * Math.PI / 180), (p.y - a.y) * 110.574);
-                        }
-                        if (acc < l.trimKm) return;
-                        const s = getScreenPt(p);
-                        if (put++ === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy);
-                    });
-                    oc.lineWidth = Math.max(3, l.km * 2 * pxPerKmAt(l.points[0]));
-                    oc.lineCap = 'round'; oc.lineJoin = 'round';
+                    l.points.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
+                    const w = Math.max(3, l.km * 2 * pxPerKmAt(l.points[0]));
+                    oc.lineWidth = w;
+                    /* ✂️ 시작은 평평하게(운행 뒤면 현위치 — 부르는 쪽이 `lineFromPoint` 로 잘랐다) · 먼 끝만 둥글게 (기사님 2026-09-15 «뒤를 자르는 Cap») */
+                    oc.lineCap = 'butt'; oc.lineJoin = 'round';
                     oc.stroke();
+                    const end = getScreenPt(l.points[l.points.length - 1]);
+                    oc.beginPath(); oc.arc(end.cx, end.cy, w / 2, 0, Math.PI * 2); oc.fill();
                 }
                 /* ✂️ 먼 목적지 조각에서 상차 영역을 지운다 — 상차 레이어를 꺼도 뺀다 (보기 스위치와 규칙은 따로다) */
                 if (pickupArea) {

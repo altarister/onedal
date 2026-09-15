@@ -79,10 +79,10 @@ describe('🗺️ 지도 — 지나온 곳을 판정과 같게', () => {
     it('🔴 지도는 동 점을 안 찍는다 — 옛 그물 레이어를 걷었다 (2026-09-15)', () => {
         expect(client('components/stage/StageView.tsx')).not.toMatch(/useCallNet|serverKeywords/);
     });
-    it('🔴 이동 중이면 하차 띠를 내 진행도 뒤부터 긋지 않는다', () => {
+    it('🔴 이동 중이면 하차 띠를 현위치부터 긋는다 — 뒤는 평평하게 자른다 (2026-09-15 «뒤를 자르는 Cap»)', () => {
         const stage = client('components/stage/StageView.tsx');
-        expect(stage).toMatch(/trimKm: dropoffDeparted \? progressAlongKm\(/);
-        expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/acc < l\.trimKm/);
+        expect(stage).toMatch(/dropoffDeparted[\s\S]{0,120}lineFromPoint\(/);
+        expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/lineCap = 'butt'/);
     });
 });
 
