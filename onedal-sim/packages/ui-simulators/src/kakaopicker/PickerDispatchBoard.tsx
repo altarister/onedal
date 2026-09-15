@@ -20,7 +20,8 @@
  */
 import React from 'react';
 import type { PickerCall } from './pickerCall';
-import { formatPickerRegion, formatPickerAddressLine } from './pickerCall';
+import { formatPickerRegion, formatPickerAddressLine, minutesLeftToday } from './pickerCall';
+import type { PickerOngoingStep } from './PickerOngoingScreen';
 
 interface BoardProps {
   calls: PickerCall[];
@@ -29,6 +30,8 @@ interface BoardProps {
   myOrderCount: number;
   /** «내 오더» 탭에 보일 잡은 콜 (실물 15) */
   myOrders?: PickerCall[];
+  /** 잡은 콜이 지금 어느 단계인가 — 카드 머리가 «픽업 준비» · «배송 시간»으로 갈린다 (배차 화면이 콜마다 기억한다) */
+  stepOf?: (callId: string) => PickerOngoingStep | undefined;
   onCallClick: (call: PickerCall) => void;
   onMenuClick: () => void;
 }
@@ -114,16 +117,28 @@ const PickerCallCard = React.memo(({ call, onCardClick }: { call: PickerCall; on
  * 📦 **«내 오더» 한 줄** (실물 15 · 4단계) — 누르면 수락 뒤 단계로.
  * 🔴 **요금을 «쉼표 든 숫자» 덩어리로 쓰지 않는다** — 원달앱 요금 닻이 그 모양이라, 잡은 콜을 새 카드로 다시 읽는다. «P» 를 붙인다.
  */
-const MyOrderRow = ({ call, onClick }: { call: PickerCall; onClick: (call: PickerCall) => void }) => (
-  <div className="border-b border-[#eeeeee] px-[12px] py-[10px] flex flex-col gap-[2px] active:bg-gray-50 cursor-pointer" onClick={() => onClick(call)}>
-    <div className="text-[13px] text-gray-500">{`오더번호 ${call.orderNo}`}</div>
-    <div className="text-[15px] font-bold">{formatPickerAddressLine(call.pickupDetails?.[0]?.addressDetail, call.pickupDetails?.[0]?.region)}</div>
-    <div className="text-[15px]">{formatPickerAddressLine(call.dropoffDetails?.[0]?.addressDetail, call.dropoffDetails?.[0]?.region)}</div>
-    <div className="text-[14px] font-bold tabular-nums">{`${formatPickerFare(call.fare)}P`}</div>
-  </div>
-);
+const MyOrderRow = ({ call, step, onClick }: { call: PickerCall; step?: PickerOngoingStep; onClick: (call: PickerCall) => void }) => {
+  const delivering = !!step && step !== 'TO_PICKUP' && step !== 'AT_PICKUP';
+  const pickupLeft = minutesLeftToday(call.pickupTime);
+  const deliveryLeft = minutesLeftToday(call.deliveryTime);
+  const head = delivering
+    ? (deliveryLeft === null ? '배송 중' : `배송 시간 ${Math.max(0, deliveryLeft)}분 남음`)
+    : (pickupLeft === null ? '픽업 준비' : pickupLeft > 0 ? `픽업 준비 ${pickupLeft}분 남음` : '픽업 준비 완료');
+  const place = delivering ? call.dropoffDetails?.[0] : call.pickupDetails?.[0];
+  const dropoffLine = formatPickerAddressLine(call.dropoffDetails?.[0]?.addressDetail, call.dropoffDetails?.[0]?.region);
+  return (
+    <div className="mx-[12px] mt-[12px] rounded-xl bg-white px-[16px] py-[14px] flex flex-col gap-[6px] shadow-sm active:bg-gray-50 cursor-pointer" onClick={() => onClick(call)}>
+      <div className="text-[17px] font-bold">{head}</div>
+      <div className="flex items-center gap-2">
+        <div className="rounded px-2 py-[2px] text-[13px] font-bold text-white" style={{ background: delivering ? '#7646d6' : '#4a74db' }}>{delivering ? '배송' : '픽업'}</div>
+        <div className="text-[18px] font-bold">{place?.customerName ?? formatPickerAddressLine(place?.addressDetail, place?.region)}</div>
+      </div>
+      {!delivering && <div className="text-[14px] text-gray-500">{`배송지: ${dropoffLine}`}</div>}
+    </div>
+  );
+};
 
-export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCount, myOrders = [], onCallClick, onMenuClick }: BoardProps) => {
+export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCount, myOrders = [], stepOf, onCallClick, onMenuClick }: BoardProps) => {
   // 🔴 «높은 가격순» — 머리줄이 그렇게 적혀 있으니 실제로 그 순서로 늘어놓는다
   const sorted = React.useMemo(() => [...calls].sort((a, b) => b.fare - a.fare), [calls]);
 
@@ -183,7 +198,7 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
       {/* 카드 목록 */}
       <div ref={listRef} className="relative flex-1 overflow-y-auto">
         {activeTab === 'CONFIRMED' ? (
-          myOrders.map(call => <MyOrderRow key={call.id} call={call} onClick={onCallClick} />)
+          myOrders.map(call => <MyOrderRow key={call.id} call={call} step={stepOf?.(call.id)} onClick={onCallClick} />)
         ) : (
           <>
             {/* 안 보이는 카드 자리는 글자 없는 빈 칸 — 스크롤 길이는 그대로 둔다 */}

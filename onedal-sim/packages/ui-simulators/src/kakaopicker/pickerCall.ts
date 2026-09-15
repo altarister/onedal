@@ -119,3 +119,19 @@ function orderNumber(rng: RandomSource): string {
     const stamp = `${two(d.getFullYear() % 100)}${two(d.getMonth() + 1)}${two(d.getDate())}${two(d.getHours())}${two(d.getMinutes())}${two(d.getSeconds())}`;
     return stamp + Math.floor(rng() * 1000).toString().padStart(3, '0');
 }
+
+/**
+ * «HH:MM» 까지 **오늘** 남은 분 — 지났으면 0 이하 · 모르면 `null`.
+ * ⚠️ 상세의 `minutesUntil` 과 **일부러 다르다** — 상세는 수락 전이라 지난 시각을 «다음 날 마감»으로 보지만,
+ *    수락 뒤에는 이미 잡은 콜의 마감이라 지났으면 «준비 완료»다 (실물 18 «픽업 준비 완료»).
+ * 읽는 곳: 수락 뒤 화면(`PickerOngoingScreen`) · «내 오더» 카드(`PickerDispatchBoard`).
+ */
+export function minutesLeftToday(hhmm?: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm ?? '');
+  if (!m) return null;
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  return Math.round((target.getTime() - now.getTime()) / 60_000);
+}
+

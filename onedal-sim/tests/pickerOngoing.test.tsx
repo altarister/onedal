@@ -12,9 +12,11 @@ import { pickerA, pickerB } from './fixtures';
 /**
  * 🚚 **픽커 수락 뒤 단계** (2026-09-14 · 카카오픽커_시뮬레이터.md §8-2 · 4단계)
  *
- * 실물 15~31 (기사님 완주 기록 · 레포에는 글만 있다 — `ex_images/카카오픽커/README.md`):
- *   수락 → «내 오더» 탭 → 픽업 이동 → 픽업지(«밀어서 픽업 완료») → 배송 이동 → 배송지(«밀어서 사진 촬영»)
- *   → 사진·문자(한 장으로 줄인다) → «물품이 안전하게 전달» → 리스트
+ * 실물 순서 (`ex_images/카카오픽커/실물_2026/` 15 · 16~17 · 21~22 · 25 · 26 · 30 · 31):
+ *   수락 → «내 오더» 탭(15) → 픽업 이동(16) → 아래 창을 끌어 올리면 «밀어서 픽업 완료»(17) → 배송 중(21)
+ *   → 창을 끌어 올리면 «밀어서 사진 촬영»(22) → 인증사진 촬영(25) → 촬영 확인 · 문자 전송(26)
+ *   → «문자 전송 후 배송 완료버튼을 눌러주세요» · 배송 완료(30) → 배송 완료 · 오더 목록 보기(31)
+ * 모양은 달라도 **단계와 버튼 순서는 실물과 같다** (기사님: «이미지와 같지는 않아도 단계는 같아야»).
  *
  * 원달앱은 이 글자로 운행 단계를 안다 (`KakaoPickerKeywords.STAGE_WORDS`) — `🚚 [운행 단계] … → …` 로그.
  * 🔴 **한 화면에 다른 단계 글자가 섞이면 원달앱이 단계를 잘못 읽는다.** 픽업 이동 화면에도 «배송 33분 남음»이 있는데
@@ -58,6 +60,11 @@ const click = (t: string) => {
     act(() => { b!.click(); });
 };
 const chunk = (t: string) => [...host!.querySelectorAll('div')].some(d => d.children.length === 0 && (d.textContent ?? '').trim() === t);
+const clickLabel = (label: string) => {
+    const b = host!.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement | null;
+    expect(b, `«${label}» 버튼이 없다`).toBeTruthy();
+    act(() => { b!.click(); });
+};
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(FIXED_NOW); });   // 09:00 · pickerA 픽업 09:30 · 배송 11:00
 afterEach(() => {
@@ -76,50 +83,78 @@ describe('상세 «수락하기»', () => {
     });
 });
 
-describe('수락 뒤 단계 — 버튼으로 한 단계씩', () => {
-    it('🔴 픽업 이동 → 픽업지 → 배송 이동 → 배송지 → 사진·문자 → 완료 · 화면마다 원달앱이 읽는 단계가 하나다', () => {
+describe('수락 뒤 단계 — 실물 순서', () => {
+    it('🔴 픽업 이동 → 창 올리기 · 밀어서 픽업 완료 → 배송 중 → 창 올리기 · 밀어서 사진 촬영 → 인증사진 촬영 → 촬영 확인 · 문자 전송 → 배송 완료 → 오더 목록 보기', () => {
         const onFinish = vi.fn();
         mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={onFinish} />);
 
-        // 픽업 이동 (실물 16)
+        // 픽업 이동 (실물 16) — «오더 확인»을 누르는 단계는 없다 · «밀어서 픽업 완료»는 창을 올려야 나온다
         expect(stageOf(text())).toBe('TO_PICKUP');
         expect(chunk('픽업 준비 30분 남음')).toBe(true);
         expect(chunk('배송 120분 남음')).toBe(true);
+        expect(chunk('픽업지 근처에 가시면 오더 정보를 확인하세요')).toBe(true);
         expect(text()).not.toContain('배송 시간');
+        expect(text()).not.toContain('밀어서 픽업 완료');
+        expect(buttonByText('오더 확인')).toBeFalsy();
 
-        // 픽업지 — 아래 창 (실물 17)
-        click('오더 확인');
+        // 창을 끌어 올린다 (실물 17)
+        clickLabel('아래 창 올리기');
         expect(stageOf(text())).toBe('AT_PICKUP');
-        expect(chunk(`오더 확인 ${pickerA.orderNo}`)).toBe(true);
+        expect(chunk(pickerA.orderNo)).toBe(true);
 
-        // 배송 이동 (실물 21)
+        // 배송 중 (실물 21)
         click('밀어서 픽업 완료');
         expect(stageOf(text())).toBe('TO_DROPOFF');
         expect(chunk('배송 시간 120분 남음')).toBe(true);
         expect(chunk('물품 파손/분실을 주의해 이동해주세요')).toBe(true);
         expect(text()).not.toContain('픽업 준비');
+        expect(text()).not.toContain('밀어서 사진 촬영');
 
-        // 배송지 — 아래 창 (실물 22)
-        click('오더 확인');
+        // 창을 끌어 올린다 (실물 22)
+        clickLabel('아래 창 올리기');
         expect(stageOf(text())).toBe('AT_DROPOFF');
 
-        // 사진·문자 — 한 장으로 줄인다 (실물 24~30) · 원달앱이 아는 단계 글자가 없다
+        // 인증사진 촬영 (실물 25) — 원달앱이 아는 단계 글자가 없다
         click('밀어서 사진 촬영');
         expect(stageOf(text())).toBeNull();
-        expect(buttonByText('배송 완료')).toBeTruthy();
+        expect(chunk('물품과 장소가 함께 보이도록 촬영해주세요')).toBe(true);
+        click('인증사진 촬영');
 
-        // 완료 (실물 31)
+        // 촬영 확인 · 문자 전송 (실물 26)
+        expect(chunk('촬영 확인')).toBe(true);
+        expect(chunk('고객에게 문자로 사진 전송')).toBe(true);
+        expect(stageOf(text())).toBeNull();
+        click('문자 전송');
+
+        // 문자 전송 후 배송 완료 (실물 30)
+        expect(chunk('배송 완료버튼을 눌러주세요.')).toBe(true);
+        expect(stageOf(text())).toBeNull();
         click('배송 완료');
+
+        // 배송 완료 (실물 31)
         expect(stageOf(text())).toBe('DONE');
         expect(chunk('16,870P')).toBe(true);
-
-        click('확인');
+        click('오더 목록 보기');
         expect(onFinish).toHaveBeenCalledWith(pickerA);
+    });
+
+    it('🔴 창은 손으로 끌어 올려도(스크롤) 올라온다 — 실물은 시트를 끌어 올린다', () => {
+        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        const sheet = host!.querySelector('[data-sheet-scroll]') as HTMLDivElement;
+        expect(sheet).toBeTruthy();
+        act(() => { sheet.scrollTop = 60; sheet.dispatchEvent(new Event('scroll')); });
+        expect(stageOf(text())).toBe('AT_PICKUP');
+    });
+
+    it('촬영 확인에서 «재촬영»은 인증사진 촬영으로 돌아간다', () => {
+        mount(<PickerOngoingScreen call={pickerA} initialStep="PHOTO_CHECK" onBack={() => {}} onFinish={() => {}} />);
+        click('재촬영');
+        expect(chunk('물품과 장소가 함께 보이도록 촬영해주세요')).toBe(true);
     });
 
     it('🔴 «밀어서 …» 는 밀어도 넘어간다 (실물은 밀기 · 시뮬레이터는 누르기와 밀기 둘 다)', () => {
         mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
-        click('오더 확인');
+        clickLabel('아래 창 올리기');
         const slide = buttonByText('밀어서 픽업 완료')!;
         act(() => {
             slide.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 10 }));
@@ -175,16 +210,19 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
     it('완료하면 잡은 콜에서 뺀다', () => {
         const finishCall = vi.fn();
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], selectedCall: pickerA, selectedCallId: pickerA.id, finishCall })} />);
-        click('오더 확인'); click('밀어서 픽업 완료'); click('오더 확인'); click('밀어서 사진 촬영'); click('배송 완료'); click('확인');
+        clickLabel('아래 창 올리기'); click('밀어서 픽업 완료');
+        clickLabel('아래 창 올리기'); click('밀어서 사진 촬영');
+        click('인증사진 촬영'); click('문자 전송'); click('배송 완료'); click('오더 목록 보기');
         expect(finishCall).toHaveBeenCalledWith(pickerA);
     });
 
-    it('🔴 «내 오더» 탭 — 잡은 콜이 보이고 «리스트 설정»·요금 숫자 모양은 없다 (원달앱이 잡은 콜을 새 콜로 다시 읽지 않게)', () => {
+    it('🔴 «내 오더» 탭 — 실물 15 카드(«픽업 준비 N분 남음» · 픽업 · 배송지) · «리스트 설정»·요금 숫자 모양은 없다 (원달앱이 잡은 콜을 새 콜로 다시 읽지 않게)', () => {
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], activeTab: 'CONFIRMED' })} />);
         click('시작하기');
         expect(text()).toContain('내 오더 1');
         expect(text()).not.toContain('리스트 설정');
-        expect(text()).toContain(pickerA.orderNo);
+        expect(chunk('픽업 준비 30분 남음')).toBe(true);
+        expect(text()).toContain('배송지: ');
         // 원달앱 요금 닻은 «쉼표 든 숫자»만의 글자 덩어리다 — 내 오더 목록에는 그런 덩어리가 없다
         const fareLike = [...host!.querySelectorAll('div')].filter(d => d.children.length === 0 && /^\d{1,3}(,\d{3})+$/.test((d.textContent ?? '').trim()));
         expect(fareLike).toEqual([]);

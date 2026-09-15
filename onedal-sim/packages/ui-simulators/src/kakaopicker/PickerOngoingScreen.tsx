@@ -1,24 +1,26 @@
 /**
- * 🚚 **픽커 수락 뒤 단계** — 실물 15~31 (기사님 완주 기록 2026-09-02 · 레포에는 글만 · `ex_images/카카오픽커/README.md`)
- * (2026-09-14 · 카카오픽커_시뮬레이터.md §8-2 · 4단계)
+ * 🚚 **픽커 수락 뒤 단계** — 실물 `ex_images/카카오픽커/실물_2026/` 16~31 (계획서 카카오픽커_시뮬레이터.md §8-2 · 4단계)
  *
- * 픽업 이동(16·18) → 픽업지 아래 창(17) → 배송 이동(21) → 배송지 아래 창(22) → 사진·문자(24~30 · 한 장으로 줄인다) → 완료(31)
+ * 실물 순서 — 모양은 달라도 **단계와 버튼 순서는 같다** (기사님: «이미지와 같지는 않아도 단계는 같아야»):
+ *   픽업 이동(16) ─아래 창 끌어 올리기→ «밀어서 픽업 완료»(17) → 배송 중(21) ─끌어 올리기→ «밀어서 사진 촬영»(22)
+ *   → 인증사진 촬영(25) → 촬영 확인 · «문자 전송»(26) → «문자 전송 후 배송 완료버튼을 눌러주세요» · «배송 완료»(30)
+ *   → 배송 완료 · «오더 목록 보기»(31)
+ * 문자 앱 고르기 · 문자 쓰기(27~29)는 픽커 밖 화면이라 건너뛴다.
  *
  * 원달앱은 화면 글자로 운행 단계를 안다 (`KakaoPickerKeywords.STAGE_WORDS`):
- *   픽업 이동 «픽업 준비» · 픽업지 «밀어서 픽업 완료» · 배송 이동 «배송 시간»·«물품 파손» · 배송지 «밀어서 사진 촬영» · 완료 «물품이 안전하게 전달»
- * 🔴 **한 화면에 다른 단계 글자를 섞지 않는다** — 픽업 이동 화면에도 «배송 N분 남음»이 있다. «배송 시간»은 배송 이동 화면에만 쓴다.
- * 🔴 **아래 창은 위 화면을 덮을 뿐 지우지 않는다** — 실물도 시트가 헤더를 덮고, 원달앱은 가려진 헤더까지 읽는다.
- *    그래서 원달앱은 «밀어서 …»를 먼저 본다 (STAGE_WORDS 순서).
- * 🔴 사진·문자 한 장에는 원달앱이 아는 단계 글자가 없다 — 카메라·문자 앱은 픽커 밖이다 (계획서 §8-2).
+ *   픽업 이동 «픽업 준비»·«픽업지 근처에» · 픽업지 «밀어서 픽업 완료» · 배송 중 «배송 시간»·«물품 파손» · 배송지 «밀어서 사진 촬영» · 완료 «물품이 안전하게 전달»
+ * 🔴 **한 화면에 다른 단계 글자를 섞지 않는다** — 픽업 이동 화면의 «배송 N분 남음»에 «배송 시간»을 쓰지 않는다.
+ * 🔴 **«밀어서 …»는 창을 올려야 그린다** — 실물도 시트를 끌어 올려야 나온다. 먼저 그리면 원달앱이 창을 올리기 전부터 «도착»으로 읽는다.
+ * 🔴 사진 · 촬영 확인 · 문자 전송에는 원달앱이 아는 단계 글자가 없다.
  * 🔴 모르는 칸은 안 그린다 — 고객 요청 · 오늘 배송 건수·수익(시뮬레이터가 모른다).
  */
 import { useEffect, useRef, useState } from 'react';
 import type { PickerCall } from './pickerCall';
-import { formatPickerAddressLine } from './pickerCall';
+import { formatPickerAddressLine, minutesLeftToday } from './pickerCall';
 import { formatPickerFare } from './PickerDispatchBoard';
 
-/** 수락 뒤 단계 — 원달앱 `KakaoPickerKeywords.Stage` 와 같은 이름 (`PHOTO` 는 원달앱이 모르는 한 장) */
-export type PickerOngoingStep = 'TO_PICKUP' | 'AT_PICKUP' | 'TO_DROPOFF' | 'AT_DROPOFF' | 'PHOTO' | 'DONE';
+/** 수락 뒤 단계 — 원달앱 `KakaoPickerKeywords.Stage` 와 같은 이름 (`PHOTO` · `PHOTO_CHECK` · `SMS` 는 원달앱이 모르는 화면) */
+export type PickerOngoingStep = 'TO_PICKUP' | 'AT_PICKUP' | 'TO_DROPOFF' | 'AT_DROPOFF' | 'PHOTO' | 'PHOTO_CHECK' | 'SMS' | 'DONE';
 
 interface Props {
   call: PickerCall;
@@ -27,39 +29,28 @@ interface Props {
   onStepChange?: (step: PickerOngoingStep) => void;
   /** «←» — 내 오더 목록으로 */
   onBack: () => void;
-  /** 완료 화면의 «확인» — 잡은 콜에서 뺀다 */
+  /** 완료 화면의 «오더 목록 보기» — 잡은 콜에서 뺀다 */
   onFinish: (call: PickerCall) => void;
-}
-
-/**
- * «HH:MM» 까지 **오늘** 남은 분 — 지났으면 0 이하.
- * ⚠️ 상세의 `minutesUntil` 과 **일부러 다르다** — 상세는 수락 전이라 지난 시각을 «다음 날 마감»으로 보지만,
- *    수락 뒤에는 이미 잡은 콜의 마감이라 지났으면 «준비 완료»다 (실물 18 «픽업 준비 완료»).
- */
-function minutesLeftToday(hhmm?: string): number | null {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm ?? '');
-  if (!m) return null;
-  const now = new Date();
-  const target = new Date(now);
-  target.setHours(Number(m[1]), Number(m[2]), 0, 0);
-  return Math.round((target.getTime() - now.getTime()) / 60_000);
 }
 
 /** 옆으로 밀어서 넘기는 거리 (CSS px) */
 const SLIDE_PX = 120;
+/** 아래 창을 이만큼 끌어 올리면(스크롤) 창이 올라온다 (CSS px) */
+const SHEET_PULL_PX = 24;
 
 /**
  * «밀어서 …» — 실물은 밀기 · 시뮬레이터는 **누르기와 밀기 둘 다** 받는다 (계획서 §8-2).
  * 🔴 밀기는 **한 박자 뒤**에 넘긴다 — 손을 뗄 때 «누르기»가 따라오는데, 먼저 넘기면 그 누르기가 새 화면의 같은 자리 버튼을 누른다.
  */
-const SlideButton = ({ label, onDone }: { label: string; onDone: () => void }) => {
+const SlideButton = ({ label, color, onDone }: { label: string; color: string; onDone: () => void }) => {
   const startX = useRef<number | null>(null);
   const swiped = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   return (
     <button
-      className="w-full h-[56px] rounded-full bg-[#2aa69a] text-white text-[18px] font-bold"
+      className="w-full h-[58px] rounded-lg text-white text-[19px] font-bold shrink-0"
+      style={{ background: color }}
       onPointerDown={e => { startX.current = e.clientX; }}
       onPointerUp={e => {
         if (startX.current != null && e.clientX - startX.current > SLIDE_PX) {
@@ -76,6 +67,15 @@ const SlideButton = ({ label, onDone }: { label: string; onDone: () => void }) =
   );
 };
 
+const BackButton = ({ onClick }: { onClick: () => void }) => (
+  <button aria-label="뒤로가기" onClick={onClick} className="w-9 h-9 flex items-center justify-center">
+    <div className="w-3 h-3 border-l-2 border-b-2 border-[#333] rotate-45" />
+  </button>
+);
+
+const PICKUP_BLUE = '#4a74db';
+const DROPOFF_PURPLE = '#7646d6';
+
 export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepChange, onBack, onFinish }: Props) => {
   const [step, setStepState] = useState<PickerOngoingStep>(initialStep);
   const [cancelBlocked, setCancelBlocked] = useState(false);
@@ -90,90 +90,168 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
   const fareP = `${formatPickerFare(call.fare)}P`;
 
   if (step === 'PHOTO') {
-    // 📷 사진·문자 (실물 24~30) — 한 장으로 줄인다 · 원달앱이 아는 단계 글자가 없다
+    // 📷 인증사진 촬영 (실물 25)
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-[18px] bg-white text-[#1f1f1f] px-6 select-none">
-        <div className="text-[20px] font-bold">배송을 완료하셨나요?</div>
-        <div className="text-[14px] text-gray-500">인증사진 · 문자 전송은 시뮬레이터에서 생략합니다</div>
-        <button className="w-full h-[56px] rounded-lg bg-[#2aa69a] text-white text-[18px] font-bold" onClick={() => setStep('DONE')}>배송 완료</button>
+      <div className="w-full h-full flex flex-col bg-[#3b3432] text-white select-none">
+        <div className="h-[52px] flex items-center px-3 shrink-0">
+          <button aria-label="촬영 닫기" onClick={() => setStep('AT_DROPOFF')} className="w-9 h-9 flex items-center justify-center">
+            <div className="relative w-5 h-5"><div className="absolute inset-x-0 top-1/2 h-[2px] bg-white rotate-45" /><div className="absolute inset-x-0 top-1/2 h-[2px] bg-white -rotate-45" /></div>
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-[6px] px-6 text-center">
+          <div className="text-[22px] font-bold">{dropoff?.customerName ?? dropoffLine}</div>
+          <div className="text-[18px] font-bold">{dropoffLine}</div>
+          <div className="text-[17px] font-bold tabular-nums">{call.orderNo}</div>
+        </div>
+        <div className="bg-white text-[#6b3fd1] text-[14px] py-[10px] text-center shrink-0">물품과 장소가 함께 보이도록 촬영해주세요</div>
+        <button className="h-[58px] text-white text-[19px] font-bold shrink-0" style={{ background: DROPOFF_PURPLE }} onClick={() => setStep('PHOTO_CHECK')}>인증사진 촬영</button>
+      </div>
+    );
+  }
+
+  if (step === 'PHOTO_CHECK') {
+    // 🖼️ 촬영 확인 · 문자 전송 (실물 26)
+    return (
+      <div className="w-full h-full flex flex-col bg-white text-[#1f1f1f] select-none">
+        <div className="h-[52px] flex items-center gap-2 px-3 shrink-0">
+          <BackButton onClick={() => setStep('PHOTO')} />
+          <div className="text-[18px]">촬영 확인</div>
+        </div>
+        <div className="h-[38%] bg-[#d9d6d2] shrink-0" />
+        <div className="flex-1 flex flex-col items-center gap-[4px] px-6 pt-[16px] text-center">
+          <div className="text-[17px] font-bold">{dropoff?.customerName ?? dropoffLine}</div>
+          <div className="text-[15px]">{dropoffLine}</div>
+          <div className="text-[16px] tabular-nums">{call.orderNo}</div>
+        </div>
+        <div className="flex flex-col items-center gap-[4px] pb-[14px] shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded" style={{ background: DROPOFF_PURPLE }} />
+            <div className="text-[15px] font-bold">고객에게 문자로 사진 전송</div>
+            <div className="rounded-full bg-[#f1ecfb] px-2 py-[2px] text-[12px] text-[#6b3fd1]">문자비용 발생</div>
+          </div>
+          <div className="text-[13px] text-gray-500">위 사진을 포함하여 문자를 전송합니다.</div>
+        </div>
+        <div className="flex h-[58px] shrink-0">
+          <button className="w-[34%] bg-[#56585c] text-white text-[19px] font-bold" onClick={() => setStep('PHOTO')}>재촬영</button>
+          <button className="flex-1 text-white text-[19px] font-bold" style={{ background: DROPOFF_PURPLE }} onClick={() => setStep('SMS')}>문자 전송</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'SMS') {
+    // ✉️ 문자 전송 후 배송 완료 (실물 30) — 문자 앱(27~29)은 픽커 밖이라 건너뛴다
+    return (
+      <div className="w-full h-full flex flex-col bg-white text-[#1f1f1f] select-none">
+        <div className="h-[52px] flex items-center gap-2 px-3 shrink-0">
+          <BackButton onClick={() => setStep('PHOTO_CHECK')} />
+          <div className="text-[18px]">문자 전송</div>
+        </div>
+        <div className="flex-1 flex flex-col justify-center gap-[10px] px-[16px]">
+          <div className="flex flex-col items-center text-[16px] mb-[14px]">
+            <div>문자 전송 후</div>
+            <div>배송 완료버튼을 눌러주세요.</div>
+          </div>
+          <button className="w-full h-[52px] rounded-lg border border-[#d8d8d8] text-[17px]" onClick={() => {}}>문자 재전송</button>
+          <button className="w-full h-[52px] rounded-lg text-white text-[17px] font-bold" style={{ background: PICKUP_BLUE }} onClick={() => setStep('DONE')}>배송 완료</button>
+        </div>
       </div>
     );
   }
 
   if (step === 'DONE') {
-    // ✅ 완료 (실물 31) — 오늘 건수·수익은 시뮬레이터가 모른다 · 안 그린다
+    // ✅ 배송 완료 (실물 31) — 오늘 건수·수익은 시뮬레이터가 모른다 · 안 그린다
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-[12px] bg-white text-[#1f1f1f] px-6 select-none">
-        <div className="text-[22px] font-bold">배송 완료</div>
-        <div className="text-[28px] font-bold tabular-nums">{fareP}</div>
-        <div className="text-[15px] text-gray-600">물품이 안전하게 전달되었습니다</div>
-        <button className="mt-[18px] w-full h-[52px] rounded-lg bg-[#3d6de0] text-white text-[17px] font-bold" onClick={() => onFinish(call)}>확인</button>
+      <div className="w-full h-full flex flex-col bg-white text-[#1f1f1f] px-[16px] select-none">
+        <div className="flex-1 flex flex-col gap-[10px] pt-[64px]">
+          <div className="text-[24px] font-bold">배송 완료</div>
+          <div className="text-[36px] font-bold tabular-nums">{fareP}</div>
+          <div className="text-[16px] mt-[18px]">물품이 안전하게 전달되었습니다</div>
+        </div>
+        <button className="mb-[16px] w-full h-[54px] rounded-lg text-white text-[18px] font-bold shrink-0" style={{ background: PICKUP_BLUE }} onClick={() => onFinish(call)}>오더 목록 보기</button>
       </div>
     );
   }
 
   const toDropoff = step === 'TO_DROPOFF' || step === 'AT_DROPOFF';
-  const sheetOpen = step === 'AT_PICKUP' || step === 'AT_DROPOFF';
+  /** 아래 창이 올라왔나 (실물 17 · 22) — 올라와야 «밀어서 …»가 보인다 */
+  const raised = step === 'AT_PICKUP' || step === 'AT_DROPOFF';
+  const raise = () => setStep(toDropoff ? 'AT_DROPOFF' : 'AT_PICKUP');
+  const lower = () => setStep(toDropoff ? 'TO_DROPOFF' : 'TO_PICKUP');
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-white text-[#1f1f1f] select-none">
-      {/* 머리 — 뒤로 · (픽업 이동에만) 배정 취소 (실물 16) */}
-      <div className="h-[48px] flex items-center justify-between px-3 border-b border-[#eeeeee] shrink-0">
-        <button aria-label="뒤로가기" onClick={onBack} className="w-8 h-8 flex items-center justify-center">
-          <div className="w-3 h-3 border-l-2 border-b-2 border-[#333] rotate-45" />
+    <div className="relative w-full h-full flex flex-col bg-[#f4f5f7] text-[#1f1f1f] select-none overflow-hidden">
+      {/* 지도 자리 (실물 16 · 21 위쪽) — 뒤로 · (픽업 이동에만) 배정 취소 · 안내 띠. 창이 올라오면 덮인다 */}
+      {!raised && (
+        <div className="relative h-[40%] bg-[#e9efe7] shrink-0">
+          <button aria-label="뒤로가기" onClick={onBack} className="absolute left-3 top-3 w-10 h-10 rounded-full bg-white shadow flex items-center justify-center">
+            <div className="w-3 h-3 border-l-2 border-b-2 border-[#333] rotate-45" />
+          </button>
+          {!toDropoff && <button className="absolute right-3 top-3 h-10 px-4 rounded-full bg-white shadow text-[15px] font-bold" onClick={() => setCancelBlocked(true)}>배정 취소</button>}
+          <div className="absolute left-3 right-3 bottom-3 rounded-lg bg-black/60 px-3 py-[10px] text-white text-[14px]">
+            {toDropoff ? '물품 파손/분실을 주의해 이동해주세요' : '픽업지 근처에 가시면 오더 정보를 확인하세요'}
+          </div>
+        </div>
+      )}
+
+      {/* 아래 창 — 손잡이를 누르거나 끌어 올리면(스크롤) 올라온다 */}
+      <div className={`relative flex-1 min-h-0 flex flex-col bg-white ${raised ? '' : 'rounded-t-2xl -mt-[12px]'}`}>
+        <button aria-label={raised ? '아래 창 내리기' : '아래 창 올리기'} onClick={raised ? lower : raise} className="h-[24px] w-full flex items-center justify-center shrink-0">
+          <div className="w-[44px] h-[4px] rounded-full bg-[#c8c8c8]" />
         </button>
-        {!toDropoff && <button className="text-[14px] text-gray-600" onClick={() => setCancelBlocked(true)}>배정 취소</button>}
-      </div>
+        <div
+          data-sheet-scroll
+          className="flex-1 min-h-0 overflow-y-auto px-[16px] pb-[16px] flex flex-col gap-[12px]"
+          onScroll={e => { if (!raised && e.currentTarget.scrollTop > SHEET_PULL_PX) raise(); }}
+        >
+          {toDropoff ? (
+            <>
+              {deliveryLeft !== null && <div className="text-[20px] font-bold" style={{ color: DROPOFF_PURPLE }}>{`배송 시간 ${Math.max(0, deliveryLeft)}분 남음`}</div>}
+              {dropoff?.customerName && <div className="text-[23px] font-bold">{dropoff.customerName}</div>}
+              <div className="text-[15px] text-gray-500">{dropoffLine}</div>
+            </>
+          ) : (
+            <>
+              <div className="text-[20px] font-bold" style={{ color: PICKUP_BLUE }}>{pickupLeft === null ? '픽업 준비' : pickupLeft > 0 ? `픽업 준비 ${pickupLeft}분 남음` : '픽업 준비 완료'}</div>
+              {pickup?.customerName && <div className="text-[23px] font-bold">{pickup.customerName}</div>}
+              <div className="text-[15px] text-gray-500">{pickupLine}</div>
+              {deliveryLeft !== null && (
+                <div className="rounded-lg bg-[#f2f3f5] py-[10px] flex justify-center items-baseline gap-2">
+                  <div className="text-[17px] font-bold">{`배송 ${Math.max(0, deliveryLeft)}분 남음`}</div>
+                  {pickupLeft !== null && pickupLeft > 0 && <div className="text-[13px] text-gray-600">{`준비 ${pickupLeft}분 포함`}</div>}
+                </div>
+              )}
+              <div className="rounded-lg bg-[#eef1fb] px-[14px] py-[12px] text-[14px]">
+                <div className="font-bold" style={{ color: PICKUP_BLUE }}>"배송 물품 가지러 왔습니다"라고</div>
+                <div>인사 후 아래 정보를 전달하세요.</div>
+              </div>
+            </>
+          )}
 
-      {/* 지도 자리 — 글자를 안 둔다 */}
-      <div className="h-[140px] bg-[#e9efe7] shrink-0" />
-
-      {/* 남은 시간 — 단계마다 원달앱이 읽는 글자가 다르다 */}
-      <div className="mx-[14px] mt-[12px] rounded-lg bg-[#eef2fb] py-[12px] flex flex-col items-center gap-[4px]">
-        {toDropoff ? (
-          <>
-            {deliveryLeft !== null && <div className="text-[17px] font-bold">{`배송 시간 ${Math.max(0, deliveryLeft)}분 남음`}</div>}
-            <div className="text-[13px] text-gray-600">물품 파손/분실을 주의해 이동해주세요</div>
-          </>
-        ) : (
-          <>
-            <div className="text-[17px] font-bold">{pickupLeft === null ? '픽업 준비' : pickupLeft > 0 ? `픽업 준비 ${pickupLeft}분 남음` : '픽업 준비 완료'}</div>
-            {deliveryLeft !== null && <div className="text-[13px] text-gray-600">{`배송 ${Math.max(0, deliveryLeft)}분 남음`}</div>}
-          </>
-        )}
-      </div>
-
-      {/* 가는 곳 */}
-      <div className="px-[14px] pt-[14px] flex flex-col gap-[4px]">
-        <div className="text-[13px] text-gray-500">{toDropoff ? '배송지' : '픽업지'}</div>
-        <div className="text-[17px] font-bold">{toDropoff ? dropoffLine : pickupLine}</div>
-        {(toDropoff ? dropoff : pickup)?.customerName && <div className="text-[14px] text-gray-500">{(toDropoff ? dropoff : pickup)!.customerName}</div>}
-      </div>
-
-      {/* 아래 창 올리기 — 창이 열리면 숨긴다 */}
-      {!sheetOpen && (
-        <div className="absolute left-0 right-0 bottom-0 p-[12px]">
-          <button className="w-full h-[52px] rounded-lg border border-[#d0d0d0] text-[16px] font-bold" onClick={() => setStep(step === 'TO_PICKUP' ? 'AT_PICKUP' : 'AT_DROPOFF')}>오더 확인</button>
-        </div>
-      )}
-
-      {/* 아래에서 올라오는 창 (실물 17 · 22) — 위 화면을 덮을 뿐 지우지 않는다 */}
-      {sheetOpen && (
-        <div className="absolute left-0 right-0 bottom-0 rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] px-[16px] pt-[16px] pb-[16px] flex flex-col gap-[10px]">
-          <div className="text-[15px] font-bold">{`오더 확인 ${call.orderNo}`}</div>
-          <div className="flex gap-3 text-[14px]">
-            <div className="w-[64px] shrink-0 text-gray-500">배송지</div>
-            <div className="font-bold">{dropoffLine}</div>
+          <div className="rounded-lg bg-[#f5f7fc] px-[14px] py-[12px] flex flex-col gap-[10px]">
+            <div className="flex gap-3 items-baseline">
+              <div className="w-[64px] shrink-0 text-[14px] text-gray-500">오더 확인</div>
+              <div className="text-[20px] font-bold tabular-nums">{call.orderNo}</div>
+            </div>
+            {!toDropoff && (
+              <div className="flex gap-3 text-[14px]">
+                <div className="w-[64px] shrink-0 text-gray-500">배송지</div>
+                <div className="font-bold">{dropoffLine}</div>
+              </div>
+            )}
+            <div className="flex gap-3 text-[14px]">
+              <div className="w-[64px] shrink-0 text-gray-500">배송 물품</div>
+              <div className="font-bold">{call.itemSize}</div>
+            </div>
           </div>
-          <div className="flex gap-3 text-[14px]">
-            <div className="w-[64px] shrink-0 text-gray-500">배송 물품</div>
-            <div className="font-bold">{call.itemSize}</div>
-          </div>
-          {step === 'AT_PICKUP'
-            ? <SlideButton label="밀어서 픽업 완료" onDone={() => setStep('TO_DROPOFF')} />
-            : <SlideButton label="밀어서 사진 촬영" onDone={() => setStep('PHOTO')} />}
+          <div className="h-[48px] rounded-lg border border-[#dddddd] flex items-center justify-center text-[15px] shrink-0">도움이 필요하신가요?</div>
+
+          {/* 🔴 «밀어서 …»는 창이 올라왔을 때만 — 내려 있는 동안은 끌어 올릴 자리를 남긴다 */}
+          {raised
+            ? <SlideButton label={toDropoff ? '밀어서 사진 촬영' : '밀어서 픽업 완료'} color={toDropoff ? DROPOFF_PURPLE : PICKUP_BLUE} onDone={() => setStep(toDropoff ? 'PHOTO' : 'TO_DROPOFF')} />
+            : <div className="h-[220px] shrink-0" />}
         </div>
-      )}
+      </div>
 
       {/* 배정 취소 불가 (실물 19) — 픽커는 수락이 곧 계약이다 */}
       {cancelBlocked && (

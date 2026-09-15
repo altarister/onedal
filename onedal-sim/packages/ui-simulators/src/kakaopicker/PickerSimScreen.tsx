@@ -108,6 +108,7 @@ export const PickerSimScreen = (p: NetScreenProps) => {
         onTabSelect={p.setActiveTab}
         myOrderCount={p.confirmedCalls.length}
         myOrders={p.confirmedCalls.filter(isPickerCall)}
+        stepOf={id => steps[id]}
         onCallClick={openOrTaken}
         onMenuClick={p.goSetup}
       />
