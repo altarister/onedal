@@ -210,7 +210,10 @@ interface Props {
      * 🔴 위 `netOverlay`(옛 그물)와 **다른 것**이다 — 새 규칙이 자리 잡으면 그물 레이어를 걷는다 (todo «필터 영역 개정»).
      */
     dropoffArea?: {
+        /** 먼 목적지 조각의 원 — 여기서 상차 영역을 지운다 */
         circles: Array<{ x: number; y: number; km: number }>;
+        /** 🎯 가까이 온 목적지 원 — 상차 영역을 지운 **뒤에** 칠한다 (빼지 않는다) */
+        nearCircles: Array<{ x: number; y: number; km: number }>;
         quads: Array<Array<{ x: number; y: number }>>;
         /** `trimKm` — 운행 뒤 지나온 만큼 띠를 여기부터 긋는다 (옛 그물과 같은 `progressAlongKm` 축척) */
         lines: Array<{ points: Array<{ x: number; y: number }>; km: number; trimKm: number }>;
@@ -539,6 +542,28 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             rc.fillRect(0, 0, ring.width, ring.height);
             ctx.drawImage(ring, 0, 0, width, height);
         };
+        /**
+         * 🟢 **상차 영역 모양을 그린다 — 한 곳** · 칠하는 색 · 합성 방식은 부르는 쪽이 정한다.
+         *    «상차» 레이어가 칠하고, «하차» 레이어가 같은 모양을 **지운다**(먼 목적지는 상차 영역을 뺀다 · 필터.md «하차 영역»).
+         */
+        const tracePickup = (c2d: CanvasRenderingContext2D, area: NonNullable<Props['pickupArea']>) => {
+            const c = getScreenPt(area.me);
+            const east = getScreenPt({ x: area.me.x + 1 / (111.32 * Math.cos((area.me.y * Math.PI) / 180)), y: area.me.y });
+            const pxPerKm = Math.abs(east.cx - c.cx);
+            c2d.save();
+            c2d.beginPath(); c2d.arc(c.cx, c.cy, Math.max(0, area.meKm) * pxPerKm, 0, Math.PI * 2);
+            if (!area.line) {
+                c2d.fill();
+            } else if (area.line.length >= 2) {
+                c2d.clip();
+                c2d.beginPath();
+                area.line.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) c2d.moveTo(s.cx, s.cy); else c2d.lineTo(s.cx, s.cy); });
+                c2d.lineWidth = area.lineKm * 2 * pxPerKm;
+                c2d.lineCap = 'round'; c2d.lineJoin = 'round';
+                c2d.stroke();
+            }
+            c2d.restore();
+        };
 
         /**
          * 🟢 «상차» 레이어 — 원달앱이 상차지를 거르는 영역 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
@@ -548,21 +573,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         if (layers.pickup && pickupArea) {
             const { off, oc } = makeMask();
             if (oc) {
-                const c = getScreenPt(pickupArea.me);
-                const east = getScreenPt({ x: pickupArea.me.x + 1 / (111.32 * Math.cos((pickupArea.me.y * Math.PI) / 180)), y: pickupArea.me.y });
-                const pxPerKm = Math.abs(east.cx - c.cx);
                 oc.fillStyle = '#16a34a'; oc.strokeStyle = '#16a34a';
-                oc.beginPath(); oc.arc(c.cx, c.cy, Math.max(0, pickupArea.meKm) * pxPerKm, 0, Math.PI * 2);
-                if (!pickupArea.line) {
-                    oc.fill();
-                } else if (pickupArea.line.length >= 2) {
-                    oc.clip();
-                    oc.beginPath();
-                    pickupArea.line.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
-                    oc.lineWidth = pickupArea.lineKm * 2 * pxPerKm;
-                    oc.lineCap = 'round'; oc.lineJoin = 'round';
-                    oc.stroke();
-                }
+                tracePickup(oc, pickupArea);
                 ctx.save();
                 ctx.globalAlpha = 0.28;
                 ctx.drawImage(off, 0, 0, width, height);
@@ -574,9 +586,11 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         /**
          * 🔵 «하차» 레이어 — 원달앱이 하차지를 거르는 영역 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
          * 원 · 마름모 · 띠의 **합집합**이다. 틀에 불투명으로 모아 그린 뒤 한 번에 옅게 올리고 **바깥 테두리**를 긋는다.
+         * ✂️ 먼 목적지 조각에서 **상차 영역을 지우고**, 🎯 가까이 온 목적지 원은 **지운 뒤에** 칠한다 (기사님 2026-09-15 «하차는 상차 영역을 빼야 해»).
+         * ⚠️ 원달앱은 **동 목록**으로 빼고 지도는 **도형**으로 지운다 — 경계에 걸친 큰 읍·면에서 둘이 조금 다를 수 있다.
          * 🔴 모르는 조각(좌표를 모르는 목적지 · 종착지)은 부르는 쪽이 이미 뺐다 — 여기서 지어내지 않는다 (규칙 ④).
          */
-        if (layers.dropoff && dropoffArea && (dropoffArea.circles.length || dropoffArea.quads.length || dropoffArea.lines.length)) {
+        if (layers.dropoff && dropoffArea && (dropoffArea.circles.length || dropoffArea.nearCircles.length || dropoffArea.quads.length || dropoffArea.lines.length)) {
             const { off, oc } = makeMask();
             if (oc) {
                 const pxPerKmAt = (p: { x: number; y: number }) => {
@@ -612,6 +626,18 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                     oc.lineWidth = Math.max(3, l.km * 2 * pxPerKmAt(l.points[0]));
                     oc.lineCap = 'round'; oc.lineJoin = 'round';
                     oc.stroke();
+                }
+                /* ✂️ 먼 목적지 조각에서 상차 영역을 지운다 — 상차 레이어를 꺼도 뺀다 (보기 스위치와 규칙은 따로다) */
+                if (pickupArea) {
+                    oc.save();
+                    oc.globalCompositeOperation = 'destination-out';
+                    tracePickup(oc, pickupArea);
+                    oc.restore();
+                }
+                /* 🎯 가까이 온 목적지 원은 지운 뒤에 칠한다 — 빼지 않는다 (관내콜) */
+                for (const c of dropoffArea.nearCircles) {
+                    const s = getScreenPt(c);
+                    oc.beginPath(); oc.arc(s.cx, s.cy, Math.max(0, c.km) * pxPerKmAt(c), 0, Math.PI * 2); oc.fill();
                 }
                 ctx.save();
                 ctx.globalAlpha = 0.22;

@@ -262,7 +262,7 @@ export default function StageView(props: Props) {
             const quad = from && haversineKm(from, center) >= 1
                 ? quadOutline(params, from, { name: z.city, lng: center.lng, lat: center.lat }).map(q => ({ x: q.lng, y: q.lat }))
                 : null;
-            return [{ center: { x: center.lng, y: center.lat }, me: parts.me, line: parts.line ? line : null, quad }];
+            return [{ center: { x: center.lng, y: center.lat }, near: !!z.near, me: parts.me, line: parts.line ? line : null, quad }];
         });
     }, [nearKey, meGridX, meGridY, dropoffLine, routeStops, liveRoute, homeOn, homeCity,
         quadShape.srcAngleDeg, quadShape.dstAngleDeg, radii.quadRadiusKm, radii.pickupRadiusKm, radii.destinationRadiusKm]);
@@ -271,10 +271,13 @@ export default function StageView(props: Props) {
         /* 🔴 내 위치를 모르면 그리지 않는다 (규칙 ④) */
         if (!myLocation || !dropoffParts) return null;
         return {
-            circles: dropoffParts.flatMap(p => [
+            /* 먼 목적지 조각 — 캔버스가 여기서 상차 영역을 지운다 (필터.md «하차 영역» · 원달앱은 상차 목록 동을 뺀다) */
+            circles: dropoffParts.filter(p => !p.near).flatMap(p => [
                 { ...p.center, km: radii.destinationRadiusKm },
                 ...(p.me ? [{ x: myLocation.x, y: myLocation.y, km: radii.pickupRadiusKm }] : []),
             ]),
+            /* 🎯 가까이 온 목적지 원 — 지운 뒤에 칠한다 (빼지 않는다) */
+            nearCircles: dropoffParts.filter(p => p.near).map(p => ({ ...p.center, km: radii.destinationRadiusKm })),
             quads: dropoffParts.flatMap(p => (p.quad ? [p.quad] : [])),
             /* 🚗 운행 뒤에는 지나온 만큼 띠를 자른다 — 옛 그물 레이어와 같은 `progressAlongKm` */
             lines: dropoffParts.flatMap(p => (p.line ? [{
