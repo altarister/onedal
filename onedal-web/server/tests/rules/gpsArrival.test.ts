@@ -22,8 +22,19 @@ describe('도착 판정 한 틱 — 순수 함수 (L2)', () => {
         expect(r.heldSinceMs).toBeNull();
     });
 
-    it('시뮬(mock)은 근접만으로 발화한다 — 15배속엔 정지가 없다', () => {
-        expect(evaluateArrivalTick(null, R - 0.1, 300, 'mock', 0).fire).toBe(true);
+    /**
+     * 🔄 **모의 좌표도 «서면 도착»이다** (2026-09-15 여섯 번째 바퀴 · onedal-49 합의).
+     *    옛 까닭 «15배속엔 정지가 없다»는 사라졌다 — 모의 주행이 정거장에서 정차 연기(`stopped`)를 한다.
+     *    근접만으로 찍으니 모의 차가 5,222km/h 로 달리는 중에 도착이 찍혀(10:56:43) 시트가 올라왔다가 주행 신호에 1초 만에 내려갔다.
+     *    실 GPS 는 도착 때 이미 서 있다 — 모의도 같은 순서여야 시트 마중이 시험된다. 30초는 안 기다린다(정차 12초).
+     */
+    it('🔴 시뮬(mock)은 반경 안이어도 달리는 틱에는 발화하지 않는다', () => {
+        expect(evaluateArrivalTick(null, R - 0.1, 300, 'mock', 0, false).fire).toBe(false);
+        expect(evaluateArrivalTick(null, R - 0.1, 300, 'mock', 0).fire).toBe(false);
+    });
+    it('시뮬(mock)은 반경 안에서 서 있다(정차 연기)고 오면 곧바로 발화한다', () => {
+        expect(evaluateArrivalTick(null, R - 0.1, 0, 'mock', 0, true).fire).toBe(true);
+        expect(evaluateArrivalTick(null, R + 0.1, 0, 'mock', 0, true).fire).toBe(false);
     });
 
     it('🔴 실 GPS 는 통과(고속)로는 발화하지 않는다 — 정거장 옆 도로는 누구나 지나간다', () => {

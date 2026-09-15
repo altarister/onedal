@@ -33,6 +33,11 @@ export interface StageSignals {
      *    규칙은 `snapOnJudging` 하나가 안다 (엿보기면 올리고, 나머지는 그대로).
      */
     snap?: 'peek' | 'list' | 'full';
+    /**
+     * 📍 **지금 곁(100m)에 있는 다녀온 정거장** — `orderId:pickup|dropoff` 꼴.
+     *    유예 중 미룬 도착을 다시 물을 때 «아직 그 정거장 곁인가»를 답한다 (2026-09-15).
+     */
+    hereStops?: string[];
 }
 
 /** 규칙이 기억하는 것 — 이것도 밖에 두고 넣고 받는다 (숨은 상태 없음) */
@@ -41,9 +46,14 @@ export interface StageMemory {
     autoRaised: boolean;
     /** 손이 이기는 유예의 끝 (ms). 0 이면 유예 없음 */
     userHoldUntil: number;
+    /**
+     * 🏁 **유예 중에 미룬 도착** — `orderId:pickup|dropoff`. 최신 하나만 든다 (2026-09-15 여섯 번째 바퀴 · onedal-49 합의).
+     *    예전엔 미룬 뒤 유예가 끝나면 «신호»만 다시 물어 도착 마중이 사라졌다 (10:54:49 하차 도착).
+     */
+    pendingArrival?: string | null;
 }
 
-export const initialStageMemory = (): StageMemory => ({ autoRaised: false, userHoldUntil: 0 });
+export const initialStageMemory = (): StageMemory => ({ autoRaised: false, userHoldUntil: 0, pendingArrival: null });
 
 /** 손이 이기는 시간 — 만지면 이만큼은 자동이 아무것도 못 바꾼다 (v23 Ⅳ) */
 export const USER_HOLD_MS = 30_000;
@@ -104,11 +114,11 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
     switch (ev.type) {
         case 'drag':
             // 손으로 끈 것이 곧 의사 표현이다 — 마중은 끝나고, 30초 유예가 시작된다
-            return out({ autoRaised: false, userHoldUntil: sig.nowMs + USER_HOLD_MS }, ev.to, '손');
+            return out({ ...mem, autoRaised: false, userHoldUntil: sig.nowMs + USER_HOLD_MS }, ev.to, '손');   // 미룬 도착은 든 채로
 
         case 'tap':
             // 지도에서 콜을 골랐다 — 손짓이므로 유예를 준다 (S6)
-            return out({ autoRaised: false, userHoldUntil: sig.nowMs + USER_HOLD_MS }, 'full', '탭');
+            return out({ ...mem, autoRaised: false, userHoldUntil: sig.nowMs + USER_HOLD_MS }, 'full', '탭');
 
         case 'keep':
             if (holding) return out(mem, null, 'KEEP(손 유예 중)', true);
@@ -116,9 +126,11 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
             return out({ ...mem, autoRaised: true }, 'full', 'KEEP');
 
         case 'arrive':
-            if (holding) return out(mem, null, '도착(손 유예 중)', true);
+            /* 🏁 미루되 잊지 않는다 — 유예가 끝나면 «아직 곁이면» 도착으로 다시 올린다. 더 새 도착이 오면 그것 하나만 */
+            if (holding) return out({ ...mem, pendingArrival: ev.orderId && ev.stopType ? `${ev.orderId}:${ev.stopType}` : mem.pendingArrival ?? null },
+                null, '도착(손 유예 중)', true);
             // 신고하는 동안 정차 전환이 못 끌어내린다 — 달리기 시작하면 내려간다 (S7)
-            return out({ ...mem, autoRaised: true }, 'full', '도착');
+            return out({ ...mem, autoRaised: true, pendingArrival: null }, 'full', '도착');
 
         case 'done':
             /**
@@ -126,7 +138,7 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
              *    시트가 스스로 내려간다. 🔴 **유예를 걸지 않는다** — 손으로 끈 것이 아니라
              *    «일을 마친 것»이라, 다음 정거장 도착은 여전히 마중 나가야 한다.
              */
-            return out({ ...mem, autoRaised: false }, 'list', '완료');
+            return out({ ...mem, autoRaised: false, pendingArrival: null }, 'list', '완료');   // 일을 마쳤다 — 미룬 도착도 끝
 
         case 'depart':
             if (holding) return out(mem, null, '출발(손 유예 중)', true);
@@ -134,8 +146,14 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
             return out({ ...mem, autoRaised: false }, 'peek', '출발');
 
         case 'signal':
-        default:
+        default: {
             if (holding) return out(mem, null, '손 유예 중', true);
+            /* 🏁 유예가 끝났다 — 미룬 도착이 있고 **아직 그 정거장 곁이면** 도착으로 올린다. 떠났으면 조용히 잊는다 (한 번만 묻는다) */
+            if (mem.pendingArrival) {
+                const key = mem.pendingArrival;
+                mem = { ...mem, pendingArrival: null };
+                if (sig.hereStops?.includes(key)) return out({ ...mem, autoRaised: true }, 'full', '도착(유예 뒤)');
+            }
             if (sig.judging) {
                 /**
                  * 🪧 **심사가 뜨면 시트를 「나」로 올린다** (기사님 확정 2026-09-05 · 안 ⓑ).
@@ -158,5 +176,6 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
             if (mem.autoRaised) return out(mem, null, '마중 유지');
             if (sig.calls > 0) return out(mem, 'list', '정차');   // S2 — 콜 목록
             return out(mem, 'peek', '콜없음');                     // S1
+        }
     }
 }

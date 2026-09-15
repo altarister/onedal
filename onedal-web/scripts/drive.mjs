@@ -210,13 +210,13 @@ async function main() {
             s.emit('decision', { orderId: id, action: 'ORDER_CONFIRMED' });
             await wait(1800);
         };
-        /** 그 자리에 서서 도착을 찍는다 (mock 은 정지로 본다) */
+        /** 그 자리에 서서 도착을 찍는다 — mock 은 «서 있다(stopped)»고 온 틱에 도착이다 (2026-09-15 · 모의 주행 정차 연기와 같은 말) */
         const arriveAt = async (to) => {
             s.emit('dashboard-gps-update', { lat: to.y + 0.02, lng: to.x, source: 'mock' });  // 2km 앞
             await wait(400);
-            s.emit('dashboard-gps-update', { lat: to.y, lng: to.x, source: 'mock' });
+            s.emit('dashboard-gps-update', { lat: to.y, lng: to.x, source: 'mock', stopped: true });
             await wait(500);
-            s.emit('dashboard-gps-update', { lat: to.y + 0.00001, lng: to.x, source: 'mock' });
+            s.emit('dashboard-gps-update', { lat: to.y + 0.00001, lng: to.x, source: 'mock', stopped: true });
             await wait(900);
         };
 

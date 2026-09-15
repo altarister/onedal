@@ -20,6 +20,15 @@ import { deckOrder } from '../../lib/deckFocus';
  *       도착이라고 말할 자리»이고, 그쪽은 «장부에 도착을 적을 자리»다 (규칙 ⑤-4 ⑤).
  */
 const ARRIVED_HERE_M = 100;
+
+/** 📍 곁(`ARRIVED_HERE_M`)에 있는 다녀온 정거장 열쇠 — `orderId:pickup|dropoff` (시트 규칙이 미룬 도착을 다시 물을 때) */
+function hereStopsOf(trail: Array<{ orderId: string; type: string; x?: number | null; y?: number | null }>,
+                     me: { x: number; y: number } | null): string[] {
+    if (!me) return [];
+    return trail
+        .filter(v => v.x != null && v.y != null && getDistanceKm(me.y, me.x, v.y!, v.x!) * 1000 <= ARRIVED_HERE_M)
+        .map(v => `${v.orderId}:${v.type === '상차' ? 'pickup' : 'dropoff'}`);
+}
 import { callNodeFill, callNodeText } from '../../styles/callPalette';
 import { useTheme } from '../../contexts/ThemeContext';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
@@ -197,6 +206,8 @@ export default function StageView(props: Props) {
         const now = Date.now();
         const r = stageStep(mem.current, {
             nowMs: now, calls: liveRoute.length, judging: !!judging, drive,
+            /* 📍 곁(100m)의 다녀온 정거장 — 유예 중 미룬 도착을 다시 물을 때 «아직 곁인가» (stageRules) */
+            hereStops: hereStopsOf(derived.visitedTrail, myLocation),
             /* 🪧 심사가 뜰 때 «올릴까»는 지금 높이에 달렸다 (`snapOnJudging`) */
             snap,
         }, ev);

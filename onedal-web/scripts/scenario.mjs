@@ -296,11 +296,11 @@ async function run({ main, cod }) {
         check('통과(주행 속도)로는 도착이 찍히지 않는다',
             !mid.ms.some(x => x.milestone === 'ARRIVED_PICKUP'), `수신 auto-arrived ${st.autoArrived || 0}회`);
         check('근접 예고(도착전 통화)가 왔다', (st.approaching || 0) >= 1, `${st.approaching || 0}회`);
-        // ③ 시뮬(mock) 근접 — 이제 발화한다 (그리고 아래 refreshUntil 이 인덱스 전진을 확인)
-        s.emit('dashboard-gps-update', { lat: py, lng: px, source: 'mock' });
+        // ③ 시뮬(mock) 근접 + 서 있다(stopped) — 이제 발화한다 (모의 도착은 정차 연기 틱에만 · 2026-09-15)
+        s.emit('dashboard-gps-update', { lat: py, lng: px, source: 'mock', stopped: true });
         await wait(400);
         // ④ 같은 자리 한 틱 더 — 재발화 금지 (한 정거장당 1회)
-        s.emit('dashboard-gps-update', { lat: py + 0.00001, lng: px, source: 'mock' });
+        s.emit('dashboard-gps-update', { lat: py + 0.00001, lng: px, source: 'mock', stopped: true });
     };
 
     const steps = [

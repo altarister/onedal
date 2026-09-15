@@ -128,6 +128,50 @@ describe('손이 이긴다 — 그리고 유예가 끝나면 잊지 않는다', 
         expect(r.mem.userHoldUntil).toBe(T0 + USER_HOLD_MS);
     });
 
+    /**
+     * 🔴 **유예 중에 온 «도착»은 유예가 끝나면 다시 묻는다 — 아직 그 정거장 곁이면** (2026-09-15 여섯 번째 바퀴 · onedal-49 합의).
+     *    10:54:49 하차 도착이 «list·손» 유예 중에 와 미뤄졌는데, 유예가 끝나자 신호만 다시 물어 «정차»가 됐다 — 마중이 사라졌다.
+     *    도착 직전에 콜 카드를 만져 보는 일은 흔하다 (실주행에서도 난다).
+     *    버릴 때: 그 정거장을 떠났다(지나침·다음 정거장) · 더 새 도착이 왔다(최신 하나) · 완료 행동을 했다.
+     */
+    it('🔴 유예 중 미룬 도착은 유예가 끝나고 아직 곁이면 도착으로 올린다', () => {
+        const g = stageStep(initialStageMemory(), sig(), { type: 'drag', to: 'list' });
+        const a = stageStep(g.mem, sig({ nowMs: T0 + 5_000 }), { type: 'arrive', orderId: 'o1', stopType: 'dropoff' });
+        expect(a.deferred).toBe(true);
+        const t = tick(a.mem, sig({ nowMs: T0 + USER_HOLD_MS + 1, hereStops: ['o1:dropoff'] }));
+        expect([t.snap, t.reason, t.mem.autoRaised]).toEqual(['full', '도착(유예 뒤)', true]);
+        expect(tick(t.mem, sig({ nowMs: T0 + USER_HOLD_MS + 2, hereStops: ['o1:dropoff'] })).reason).not.toBe('도착(유예 뒤)');   // 한 번만
+    });
+
+    it('유예가 끝났을 때 그 정거장을 떠났으면 도착으로 올리지 않는다', () => {
+        const g = stageStep(initialStageMemory(), sig(), { type: 'drag', to: 'list' });
+        const a = stageStep(g.mem, sig({ nowMs: T0 + 5_000 }), { type: 'arrive', orderId: 'o1', stopType: 'dropoff' });
+        const t = tick(a.mem, sig({ nowMs: T0 + USER_HOLD_MS + 1, hereStops: [] }));
+        expect(t.reason).toBe('정차');
+    });
+
+    it('더 새 도착이 오면 그것 하나만 기억한다', () => {
+        const g = stageStep(initialStageMemory(), sig(), { type: 'drag', to: 'list' });
+        let m = stageStep(g.mem, sig({ nowMs: T0 + 1_000 }), { type: 'arrive', orderId: 'o1', stopType: 'pickup' }).mem;
+        m = stageStep(m, sig({ nowMs: T0 + 2_000 }), { type: 'arrive', orderId: 'o2', stopType: 'pickup' }).mem;
+        expect(tick(m, sig({ nowMs: T0 + USER_HOLD_MS + 1, hereStops: ['o1:pickup'] })).reason).toBe('정차');
+        expect(tick(m, sig({ nowMs: T0 + USER_HOLD_MS + 1, hereStops: ['o2:pickup'] })).reason).toBe('도착(유예 뒤)');
+    });
+
+    it('완료 행동을 하면 미룬 도착을 잊는다', () => {
+        const g = stageStep(initialStageMemory(), sig(), { type: 'drag', to: 'list' });
+        const a = stageStep(g.mem, sig({ nowMs: T0 + 1_000 }), { type: 'arrive', orderId: 'o1', stopType: 'pickup' });
+        const d = stageStep(a.mem, sig({ nowMs: T0 + 2_000 }), { type: 'done' });
+        expect(tick(d.mem, sig({ nowMs: T0 + USER_HOLD_MS + 1, hereStops: ['o1:pickup'] })).reason).not.toBe('도착(유예 뒤)');
+    });
+
+    /** 🎭 모의 도착은 정차 첫 틱에 찍힌다 — 주행 신호는 굳는 10초 동안 아직 «주행»이다. 신호가 다시 흐르지 않으면 시트는 그대로다 (onedal-49 짚음) */
+    it('도착으로 올린 시트는 주행 신호가 «바뀌어» 흐를 때만 내려간다 — 도착 사건 자체는 주행 중에도 올린다', () => {
+        const a = stageStep(initialStageMemory(), sig({ drive: 'drive' }), { type: 'arrive', orderId: 'o1', stopType: 'pickup' });
+        expect(a.snap).toBe('full');
+        expect(tick(a.mem, sig({ nowMs: T0 + 10_000, drive: 'idle' })).snap).toBeNull();   // 굳은 «정차»는 마중을 못 끌어내린다
+    });
+
     it('드래그는 마중을 끝낸다 — 손으로 내린 것을 도착 유지가 되돌리지 않는다', () => {
         const a = stageStep(initialStageMemory(), sig(), { type: 'arrive' });
         const g = stageStep(a.mem, sig(), { type: 'drag', to: 'peek' });

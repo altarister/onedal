@@ -1054,9 +1054,13 @@ export function evaluateArrivalTick(
     speedKmh: number | null,
     source: string,
     nowMs: number,
+    /** ⏸️ 모의 주행이 «서 있다»(정차 연기)고 보냈나 — 실 GPS 는 속도로 잰다 */
+    stopped?: boolean,
 ): { fire: boolean; heldSinceMs: number | null } {
     if (distKm >= GPS_ARRIVAL.RADIUS_KM) return { fire: false, heldSinceMs: null };
-    if (source === 'mock') return { fire: true, heldSinceMs: null };
+    /* 🎭 모의 좌표는 «서 있다»고 온 틱에 곧바로 — 30초는 안 기다린다(정차 연기 12초). 달리는 틱엔 안 찍는다 (2026-09-15 여섯 번째 바퀴 ·
+       옛 «근접만으로»는 달리는 중에 도착이 찍혀 시트 마중이 주행 신호에 1초 만에 내려갔다 · gpsArrival.test) */
+    if (source === 'mock') return { fire: !!stopped, heldSinceMs: null };
     const still = speedKmh != null && speedKmh < GPS_ARRIVAL.STILL_KMH;
     if (!still) return { fire: false, heldSinceMs: null };
     const since = heldSinceMs ?? nowMs;
@@ -1257,7 +1261,7 @@ export function processDriverMovement(
     const samePlace = !!prev && prev.x === currentGPS.x && prev.y === currentGPS.y;
     if (samePlace) return;
 
-    watchArrival(userId, session, currentGPS, speedKmh, jumped, src, applyFilterCb, onArrival, onApproaching, onDeparted, onPassed);
+    watchArrival(userId, session, currentGPS, speedKmh, jumped, src, stopped, applyFilterCb, onArrival, onApproaching, onDeparted, onPassed);
 }
 
 /** 정거장 키 — 발화·예고 플래그의 단위 */
@@ -1384,6 +1388,8 @@ function watchArrival(
     speedKmh: number | null,
     jumped: boolean,
     src: string,
+    /** ⏸️ 모의 주행이 «서 있다»고 보냈나 — 모의 도착은 이 틱에만 찍힌다 (`evaluateArrivalTick`) */
+    stopped: boolean | undefined,
     applyFilterCb: (uid: string, filter: any) => void,
     onArrival?: (uid: string, stop: ArrivalStop) => void,
     onApproaching?: (uid: string, stop: ArrivalStop, distKm: number) => void,
@@ -1499,7 +1505,7 @@ function watchArrival(
         }
 
         /* ⏱️ 스톱워치는 **정거장마다** — 다른 곳이 끼어들어도 이 30초가 안 끊긴다 */
-        const tick = evaluateArrivalTick(session.arrivalHeld.get(key) ?? null, distKm, speedKmh, src, Date.now());
+        const tick = evaluateArrivalTick(session.arrivalHeld.get(key) ?? null, distKm, speedKmh, src, Date.now(), stopped);
         session.arrivalHeld.set(key, tick.heldSinceMs);
         if (!tick.fire) continue;
 
