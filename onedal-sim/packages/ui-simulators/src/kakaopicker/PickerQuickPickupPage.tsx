@@ -3,7 +3,9 @@
  *
  * 퀵과 도보는 잡은 뒤 **루틴은 같고 페이지가 다르다** — 도보는 지도 위 시트 + «밀어서 …»(16~22), 퀵은 흰 페이지 + 바닥 버튼:
  *   17-1 «픽업 출발» ─「픽업 출발하기」→ 17-2 «픽업 이동» ─「픽업 완료하기」→ 22-1 «배송 출발해주세요» ─「배송 출발하기」→ 22-1 «배송 완료해주세요» ─「배송 완료하기」→ 인증사진 촬영 …
- *   🔴 22-1 은 **한 페이지** — 「배송 출발하기」를 누르면 머리와 버튼만 바뀌고 나머지는 그대로다 (실물 22-1 출발하기 · 완료하기 두 장)
+ *   🔴 픽업(17-1 → 17-2)도 배송(22-1)도 **한 페이지** — 「○○ 출발하기」를 누르면 머리와 버튼만 바뀌고 나머지 칸은 그대로다
+ *      (실물 22-1 출발하기 · 완료하기 두 장 · 기사님 «17-1 에서 버튼만 바뀐 것이 17-2»). 퀵 한 콜 = 버튼 네 번
+ *   ⚠️ 17-2 사진은 다른 폰·다른 콜이라 «총 수익» · «직접 전달» · 배정 취소 없음 같은 차이는 따르지 않는다 — 머리 글자(«픽업이 지연되고 있어요» · «N분 지연»)만 따른다
  *   색도 단계를 따른다 — 픽업은 파랑, 배송은 보라 (22-1 «배송 완료해주세요» · «배송 완료하기»)
  *   ⚠️ 22-1 뒤(사진 · 문자 · 완료)는 사진이 없어 도보와 같은 페이지를 쓴다 (`PickerOngoingScreen`) — 사진이 생기면 따로 만든다
  *
@@ -151,10 +153,10 @@ export const PickerQuickPickupPage = ({ call, phase, onDepart, onPickedUp, onDro
           )}
         </div>
 
-        {/* 수익 — 17-1 로그 · 22-1 사진은 «최종 수익», 17-2 사진은 «총 수익» */}
+        {/* 수익 — 17-1 로그 · 22-1 사진 «최종 수익» (17-2 사진의 «총 수익»은 다른 폰·다른 콜이라 따르지 않는다 — 한 페이지는 칸이 안 바뀐다) */}
         <div className="mx-[16px] mt-[10px] rounded-lg bg-[#f2f3f5] px-[14px] py-[12px] flex flex-col gap-[8px]">
           <div className="flex items-center justify-between">
-            <div className="text-[18px] font-bold">{phase === 'TO_PICKUP' ? '총 수익' : '최종 수익'}</div>
+            <div className="text-[18px] font-bold">최종 수익</div>
             <div className="flex items-center gap-[6px]">
               <div className="text-[22px] font-bold tabular-nums">{formatPickerFare(call.fare)}</div>
               <div aria-hidden="true" className="w-[22px] h-[22px] rounded-full bg-[#ffc400] text-[12px] font-bold text-[#8a5a00] flex items-center justify-center">P</div>
@@ -171,12 +173,12 @@ export const PickerQuickPickupPage = ({ call, phase, onDepart, onPickedUp, onDro
         </div>
       </div>
 
-      {/* 위 — 뒤로가기 · (17-1) 배정 취소. 🔴 코드 순서는 맨 뒤 — 실물도 끝에 읽힌다 */}
+      {/* 위 — 뒤로가기 · (픽업 페이지) 배정 취소. 🔴 코드 순서는 맨 뒤 — 실물도 끝에 읽힌다 */}
       <div className="absolute inset-x-0 top-0 flex items-center justify-between px-3 bg-white border-b border-[#eeeeee]" style={{ height: HEADER_PX }}>
         <button aria-label="뒤로가기" onClick={onBack} className="w-9 h-9 flex items-center justify-center">
           <div className="w-3 h-3 border-l-2 border-b-2 border-[#333] rotate-45" />
         </button>
-        {phase === 'DEPART' && <button onClick={onCancel} className="px-2 text-[15px] text-gray-600">배정 취소</button>}
+        {!delivering && <button onClick={onCancel} className="px-2 text-[15px] text-gray-600">배정 취소</button>}
       </div>
 
       {/* 바닥 — 길안내(🔴 실물에서 안 읽힌다 · 시뮬레이터에서는 아무 일도 안 한다) · 단계 버튼 (픽업 파랑 · 배송 보라) */}

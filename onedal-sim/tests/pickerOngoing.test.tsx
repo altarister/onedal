@@ -271,18 +271,23 @@ describe('퀵 — 도보와 다른 페이지 (실물 17-1 · 17-2)', () => {
         expect(chunk('픽업 10분 지연 중 (픽업 준비 완료)')).toBe(true);
     });
 
-    it('「픽업 출발하기」 → 흰 «픽업 이동» 페이지 · 바닥 «픽업 완료하기» — 늦었으면 «픽업이 지연되고 있어요» · «N분 지연» (실물 17-2)', () => {
+    it('🔴 「픽업 출발하기」 → **같은 페이지**에서 머리와 버튼만 바뀐다 — 「픽업 완료하기」 · 늦었으면 «픽업이 지연되고 있어요» · 배정 취소 · 최종 수익은 그대로 (실물 17-1 → 17-2 · 22-1 과 같은 짜임)', () => {
         vi.setSystemTime(new Date('2026-09-14T09:40:00+09:00'));
         const onStepChange = vi.fn();
         mount(<PickerOngoingScreen call={pickerA} initialStep="DEPART" onStepChange={onStepChange} onBack={() => {}} onFinish={() => {}} />);
+        const same = ['픽업 장소', '매장 직원에게 문의', '오더번호', pickerA.orderNo, '물품 정보', '최종 수익', '오더 수행 팁', '고객센터 연결'];
+        same.forEach(t => expect(chunk(t), `출발 전 «${t}»`).toBe(true));
+        expect(buttonByText('배정 취소')).toBeTruthy();
         click('픽업 출발하기');
         expect(onStepChange).toHaveBeenCalledWith('TO_PICKUP');
         expect(host!.querySelector('[data-map]')).toBeNull();
         expect(chunk('픽업이 지연되고 있어요')).toBe(true);
         expect(chunk('10분 지연')).toBe(true);
-        expect(chunk('총 수익')).toBe(true);
         expect(buttonByText('픽업 출발하기')).toBeFalsy();
         expect(buttonByText('픽업 완료하기')).toBeTruthy();
+        same.forEach(t => expect(chunk(t), `출발 뒤에도 «${t}»`).toBe(true));
+        expect(buttonByText('배정 취소')).toBeTruthy();
+        expect(chunk('총 수익')).toBe(false);
     });
 
     /**
