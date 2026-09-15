@@ -6,7 +6,6 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
-import DepartureCountdown from './DepartureCountdown';
 import { EMPTY_RECORDS } from '../../hooks/records';
 import { MovingBadge } from './VehicleStatusPanel';
 import { deckOrder } from '../../lib/deckFocus';
@@ -329,9 +328,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
               *    *"첫 콜을 잡았다면 최소 출발 시간이 카운트다운하면 좋을 듯하다"* 는 값이라
               *    콜 목록보다 **먼저** 읽힌다. 자리가 모자라면 아래가 스크롤한다.
               */}
-            {view === 'ACTIVE' && liveRoute.length > 0 && (                <DepartureCountdown orders={liveRoute} records={stepRecords}
-                    routeStops={routeStops} routeComputedAt={routeComputedAt} />
-            )}
+            {/* 🚩 상자는 걷었다 — 출발 조각은 시트 상태바가 든다 (`useDepartureDue` · StageView · 기사님 2026-09-15) */}
 
             {view === 'ACTIVE' && cycleDeck.length > 0 && (
                 <CallDeck

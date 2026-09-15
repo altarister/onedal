@@ -81,6 +81,8 @@ export interface SheetStatusInput {
     remainKm?: number | null;
     /** 🛣️ **도로 기준** 남은 분 — 시각을 모를 때의 폴백 */
     driveMinutes?: number | null;
+    /** 🚩 **출발 조각** — `departureDue()` 가 만든 «N분 지각» · «HH:MM 출발». 출발 전이 아니면 null */
+    due?: string | null;
 }
 
 export interface SheetStatus {
@@ -110,6 +112,11 @@ export interface SheetStatus {
     tail: string;
     /** 갈 곳이 없을 때의 한 문장 */
     notice: string | null;
+    /**
+     * 🚩 **출발 조각** — 어느 경우든 붙는다 (기사님 2026-09-15: *"박스는 지우고 내용은 시트 현황 바에 넣어줘 (몇분 지각 / 몇시 출발)"*).
+     *    예전엔 시트 맨 위 두 줄 상자(`DepartureCountdown`)였는데 두꺼워 콘텐츠를 가렸다. 근거(주행·정차·약속)는 화면이 `title` 로 든다.
+     */
+    due: string | null;
 }
 
 const none = { mark: '', state: '', no: null, callNo: null, stopKind: null, name: '', lead: '', tail: '', notice: null } as const;
@@ -119,6 +126,18 @@ const kindOf = (stop?: '상차' | '하차'): 'pickup' | 'dropoff' | null =>
     stop === '상차' ? 'pickup' : stop === '하차' ? 'dropoff' : null;
 
 export function sheetStatus(i: SheetStatusInput): SheetStatus {
+    return { ...sheetStatusCase(i), due: i.due ?? null };
+}
+
+/**
+ * 🚩 **출발 조각의 말** — 늦었으면 «N분 지각», 아니면 «HH:MM 출발» (기사님 2026-09-15).
+ *    `leftMin` 은 출발 시각까지 남은 분(`minutesUntil`), `atHhmm` 은 그 시각. 계산은 `useDepartureDue` 한 곳이다.
+ */
+export function departureDue(leftMin: number, atHhmm: string): string {
+    return leftMin < 0 ? `${-leftMin}분 지각` : `${atHhmm} 출발`;
+}
+
+function sheetStatusCase(i: SheetStatusInput): Omit<SheetStatus, 'due'> {
     /**
      * ✅ **도착 — 가장 구체적인 사실이 이긴다.** 콜이 하나도 안 남았어도(마지막 하차)
      *    «대기»보다 «도착»이 먼저다. 떠나면 저절로 «대기»로 넘어간다.
@@ -187,7 +206,8 @@ export function sheetStatus(i: SheetStatusInput): SheetStatus {
     return {
         ...none, ...base, kind: 'stopped', mark: '⏸', state: '정차 중',
         lead: i.remainKm != null ? `${i.remainKm}km 남음` : '',
-        tail: [n.stop, '정차 중'].filter(Boolean).join(' · '),
+        /* 🚩 출발 조각이 붙으면 «정차 중»을 뺀다 — ⏸ 기호가 이미 말한다(㉯) · 한 줄 56칸 (B5) */
+        tail: [n.stop, i.due ? null : '정차 중'].filter(Boolean).join(' · '),
     };
 }
 
@@ -200,6 +220,6 @@ export function textWidth(s: string): number {
 
 /** 화면에 실제로 나가는 한 줄 (길이를 재기 위한 것 — 그리기는 화면이 한다) */
 export function sheetStatusLine(s: SheetStatus): string {
-    if (s.notice) return s.notice;
-    return [s.mark, s.no != null ? `${s.no}` : '', s.name, s.lead, s.tail].filter(Boolean).join(' ');
+    if (s.notice) return [s.notice, s.due].filter(Boolean).join(' ');
+    return [s.mark, s.no != null ? `${s.no}` : '', s.name, s.lead, s.tail, s.due].filter(Boolean).join(' ');
 }

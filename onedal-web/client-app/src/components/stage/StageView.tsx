@@ -23,6 +23,7 @@ const ARRIVED_HERE_M = 100;
 import { callNodeFill, callNodeText } from '../../styles/callPalette';
 import { useTheme } from '../../contexts/ThemeContext';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
+import { useDepartureDue } from '../dashboard/DepartureCountdown';
 import { useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -524,7 +525,10 @@ export default function StageView(props: Props) {
         ? derived.visitedTrail
         : derived.visitedTrail.filter(v => !hiddenIds.has(v.orderId));
 
+    /* 🚩 출발 조각 — 계산은 `useDepartureDue` 한 곳 · 진행 중인 콜만 본다 (끝난 약속을 기준으로 잡지 않게) */
+    const departure = useDepartureDue({ orders: liveRoute, records: derived.stepRecords, routeStops, routeComputedAt });
     const bar = sheetStatus({
+        due: departure?.due ?? null,
         idle: liveRoute.length === 0,
         judging: !!judging,
         moving: drive === 'drive',
@@ -750,7 +754,8 @@ export default function StageView(props: Props) {
                                 <span className="shrink-0">{bar.mark}</span>
                                 {bar.notice ? (
                                     <span className="text-text-muted font-semibold">· {bar.notice}</span>
-                                ) : (
+                                ) : null}
+                                {!bar.notice && (
                                     <>
                                         <span className="shrink-0 w-[19px] h-[19px] rounded-full grid place-items-center text-[12px] font-black leading-none"
                                             /* 🎨 **색도 번호도 `bar` 에서 온다** — «도착» 경우엔 번호가
@@ -764,9 +769,17 @@ export default function StageView(props: Props) {
                                         <span className="shrink-0">{bar.name}</span>
                                         {bar.lead && <span className="shrink-0 text-text-muted font-semibold">{bar.lead}</span>}
                                         <span className="ml-auto shrink-0 text-text-muted font-semibold truncate">{bar.tail}</span>
-                                        <span className="shrink-0 text-text-muted">›</span>
                                     </>
                                 )}
+                                {bar.due && departure && (
+                                    /* 🚩 늦으면 붉게 · 15분 안이면 노랗게 — 근거 전문은 손대면 나온다 (title) */
+                                    <span title={departure.title}
+                                        className={`${bar.notice ? 'ml-auto ' : ''}shrink-0 tabular-nums font-black ${
+                                            departure.late ? 'text-danger' : departure.tight ? 'text-warning' : 'text-info'}`}>
+                                        {bar.due}
+                                    </span>
+                                )}
+                                {!bar.notice && <span className="shrink-0 text-text-muted">›</span>}
                             </button>
                             {/**
                               * 🙈 **지나간 콜 숨기기** (기사님 지시 2026-09-13).

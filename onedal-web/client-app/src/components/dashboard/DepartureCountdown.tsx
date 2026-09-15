@@ -7,6 +7,7 @@ import { getAddressLabel } from '../../lib/routeUtils';
 import { EMPTY_RECORDS } from '../../hooks/records';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { useJudgmentStore } from '../../stores/judgmentStore';
+import { departureDue } from '../../lib/sheetStatus';
 
 /**
  * **최소 출발 시각까지 남은 시간**을 센다.
@@ -30,7 +31,15 @@ interface Props {
     routeComputedAt: string | null;
 }
 
-export default function DepartureCountdown({ orders, records, routeStops, routeComputedAt }: Props) {
+/** 🚩 상태바에 싣는 출발 조각 — 말(`due`)·색(`late`·`tight`)·근거(`title`) */
+export interface DepartureDue { due: string; late: boolean; tight: boolean; title: string }
+
+/**
+ * 🚩 **상자를 걷고 시트 상태바 한 조각으로** (기사님 2026-09-15 · 여섯 번째 바퀴).
+ *    *"~ 출발 시각이 지났습니다 이 영역이 너무 두꺼워서 컨텐츠를 모두 가린다. 박스는 지우고 내용은 시트 현황 바에 넣어줘 (몇분 지각 / 몇시 출발)"*
+ *    🔴 계산은 그대로 여기 한 곳이다 — 말만 `sheetStatus.departureDue` 가 짓는다. 근거(주행·정차·약속·버퍼)는 버리지 않고 `title` 에 싣는다 (규칙 ④).
+ */
+export function useDepartureDue({ orders, records, routeStops, routeComputedAt }: Props): DepartureDue | null {
     /**
      * 🚀 **출발했으면 사라진다** (기사님 확정 2026-08-31).
      *    이건 «언제 나가야 하나»를 세는 자리다 — 이미 달리는 중이면 답이 끝난 질문이라
@@ -129,62 +138,19 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
     if (departed || !soonest) return null;
 
     const left = minutesUntil(soonest.at, now)!;
-    const text = formatCountdown(soonest.at, now)!;
     const late = left < 0;
     const tight = !late && left < 15;
-
-    return (
-        <div className={`mx-3 mt-3 rounded-xl border px-4 py-2.5 flex items-center gap-3 ${
-            late ? 'border-danger/45 bg-danger/10'
-            : tight ? 'border-warning/45 bg-warning/10'
-            : 'border-info/40 bg-info/[0.07]'
-        }`}>
-            <span className="text-lg leading-none">{late ? '🚨' : tight ? '⏰' : '🕒'}</span>
-            <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
-                    <span className={`text-[20px] font-black tabular-nums ${
-                        late ? 'text-danger' : tight ? 'text-warning' : 'text-info'
-                    }`}>{text}</span>
-                    <span className="text-[11px] font-bold text-text-primary">
-                        {late ? '출발 시각이 지났습니다' : '뒤에는 출발해야 합니다'}
-                        {/* 어느 약속이 출발을 묶는지 — 없으면 왜 이 시각인지 알 수 없다 */}
-                        {soonest.boundBy && <span className="text-text-muted font-normal"> · {soonest.boundBy} 약속 기준</span>}
-                    </span>
-                </div>
-                {/**
-                  * 📏 **두 줄로 끝낸다** (기사님 2026-09-05: *"이걸 2줄로 만들어 줘"*).
-                  *
-                  * 🔴 예전에는 설명 줄이 세 줄로 접히고 버퍼가 한 줄 더 붙어 **시트의 3분의 1**을
-                  *    먹었다. 달리면서 읽는 값은 «얼마나 늦었나 · 무엇을 해야 하나 · 예산» 셋이다.
-                  * 🔴 **버리지 않는다** — 근거(주행·정차 내역 · 추정 기준 · 어느 약속이 묶는지)는
-                  *    `title` 로 옮겼다. 손대면 전문이 나온다 (규칙 ④ — 잘라 감추지 않는다).
-                  */}
-                <div className="text-[11px] text-text-muted truncate"
-                     title={[
-                         late ? '지금 출발해도 상차 약속보다 늦습니다 — 상차지에 알리세요'
-                              : '그 사이 여기서 콜을 더 잡을 수 있습니다',
-                         soonest.detail ? `(${soonest.detail}${soonest.waitMin != null && !late ? `, 대기 ${soonest.waitMin}` : ''}분)` : '',
-                         soonest.estimated ? `통화 전이라 추정입니다 (${soonest.basis})` : '',
-                         minBuf ? `버퍼 최소 ${minBuf.minutes >= 0 ? '+' : ''}${minBuf.minutes}분${minBuf.firm ? '' : '~'} — ${
-                             minBufOrder ? getAddressLabel(minBuf.stopType === 'pickup' ? minBufOrder.pickup : minBufOrder.dropoff) : ''
-                         } ${minBuf.stopType === 'pickup' ? '상차' : '하차'} 약속이 묶습니다${minBuf.firm ? '' : ' (통화 전 추정)'}` : '',
-                     ].filter(Boolean).join(' · ')}>
-                    {late ? '상차지에 알리세요' : '그 사이 콜을 더 잡을 수 있습니다'}
-                    {soonest.detail && <span className="ml-1 opacity-80">· {soonest.detail}분</span>}
-                    {/* 🧮 예산 — 합짐 심사가 실제로 쓸 수 있는 시간. 색이 곧 답이다 */}
-                    {minBuf && (
-                        <>
-                            <span className="mx-1 opacity-40">·</span>
-                            <span className={`font-bold tabular-nums ${
-                                minBuf.minutes >= 30 ? 'text-success'
-                                : minBuf.minutes >= 10 ? 'text-info'
-                                : minBuf.minutes >= 0 ? 'text-warning' : 'text-danger'
-                            }`}>버퍼 {minBuf.minutes >= 0 ? '+' : ''}{minBuf.minutes}분{minBuf.firm ? '' : '~'}</span>
-                        </>
-                    )}
-                    {soonest.estimated && <span className="ml-1 opacity-70">· ~추정</span>}
-                </div>
-            </div>
-        </div>
-    );
+    const atHhmm = new Date(soonest.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const title = [
+        `${formatCountdown(soonest.at, now)} ${late ? '출발 시각이 지났습니다' : '뒤에는 출발해야 합니다'}`,
+        soonest.boundBy ? `${soonest.boundBy} 약속 기준` : '',
+        late ? '지금 출발해도 상차 약속보다 늦습니다 — 상차지에 알리세요'
+             : '그 사이 여기서 콜을 더 잡을 수 있습니다',
+        soonest.detail ? `(${soonest.detail}${soonest.waitMin != null && !late ? `, 대기 ${soonest.waitMin}` : ''}분)` : '',
+        soonest.estimated ? `통화 전이라 추정입니다 (${soonest.basis})` : '',
+        minBuf ? `버퍼 최소 ${minBuf.minutes >= 0 ? '+' : ''}${minBuf.minutes}분${minBuf.firm ? '' : '~'} — ${
+            minBufOrder ? getAddressLabel(minBuf.stopType === 'pickup' ? minBufOrder.pickup : minBufOrder.dropoff) : ''
+        } ${minBuf.stopType === 'pickup' ? '상차' : '하차'} 약속이 묶습니다${minBuf.firm ? '' : ' (통화 전 추정)'}` : '',
+    ].filter(Boolean).join(' · ');
+    return { due: departureDue(left, atHhmm), late, tight, title };
 }

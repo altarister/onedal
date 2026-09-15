@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sheetStatus, sheetStatusLine, textWidth } from './sheetStatus';
+import { sheetStatus, sheetStatusLine, textWidth, departureDue } from './sheetStatus';
 
 /**
  * 🎬 **시트 상태바 — 경우마다 그 경우의 말을 한다** (기사님 확정 2026-09-13).
@@ -168,10 +168,32 @@ describe('🎬 시트 상태바 — 일곱 경우', () => {
             sheetStatus({ moving: false, next: longName, remainKm: 145 }),
             sheetStatus({ moving: true, next: longName, nearMeters: 340 }),
             sheetStatus({ arrivedHere: longName, next: longName, moving: false }),
+            sheetStatus({ moving: false, next: longName, remainKm: 145, due: departureDue(-125, '08:00') }),
+            sheetStatus({ judging: true, due: departureDue(20, '08:00') }),
         ];
         for (const s of cases) {
             const w = textWidth(sheetStatusLine(s));
             expect(`${s.kind} ${w}칸`).toBe(`${s.kind} ${w <= 56 ? w : '넘침'}칸`);
         }
+    });
+
+    /**
+     * 🚩 **출발 카운트다운은 상태바 한 조각이다** (기사님 2026-09-15 · 여섯 번째 바퀴).
+     *    *"~ 출발 시각이 지났습니다 이 영역이 너무 두꺼워서 컨텐츠를 모두 가린다. 박스는 지우고 내용은 시트 현황 바에 넣어줘 (몇분 지각 / 몇시 출발)"*
+     */
+    describe('🚩 출발 조각', () => {
+        it('늦었으면 «N분 지각» · 아니면 «HH:MM 출발»', () => {
+            expect(departureDue(-12, '10:40')).toBe('12분 지각');
+            expect(departureDue(20, '10:40')).toBe('10:40 출발');
+            expect(departureDue(0, '10:40')).toBe('10:40 출발');
+        });
+        it('상태바가 그 조각을 싣는다 — 어느 경우든 (갈 곳이 없어도)', () => {
+            expect(sheetStatus({ moving: false, next: icheon, remainKm: 3, due: '12분 지각' }).due).toBe('12분 지각');
+            expect(sheetStatus({ judging: true, due: '10:40 출발' }).due).toBe('10:40 출발');
+            expect(sheetStatusLine(sheetStatus({ moving: false, next: icheon, due: '12분 지각' }))).toMatch(/12분 지각/);
+        });
+        it('출발 조각이 없으면 없다 — 지어내지 않는다', () => {
+            expect(sheetStatus({ moving: false, next: icheon }).due).toBeNull();
+        });
     });
 });

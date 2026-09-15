@@ -160,7 +160,10 @@ describe('경계 — 완료분이 계산에 섞이지 않는다', () => {
         expect(c).toMatch(/routeStops, liveRoute,/);          // 타임라인
     });
 
+    /* 🚩 2026-09-15 — 카운트다운 상자를 걷고 시트 상태바 조각(`useDepartureDue`)으로 옮겼다. 뜻은 그대로 — 진행 중인 콜만 */
     it('🔴 카운트다운도 진행 중인 콜만 본다 — 끝난 약속을 기준으로 잡지 않게', () => {
-        expect(code()).toMatch(/<DepartureCountdown orders=\{liveRoute\}/);
+        const stage = readFileSync(join(__dirname, '../../../client-app/src/components/stage/StageView.tsx'), 'utf8');
+        expect(stage).toMatch(/useDepartureDue\(\{ orders: liveRoute,/);
+        expect(code()).not.toMatch(/<DepartureCountdown/);
     });
 });
