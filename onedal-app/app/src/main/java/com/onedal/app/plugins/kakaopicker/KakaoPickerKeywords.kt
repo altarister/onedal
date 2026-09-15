@@ -218,6 +218,18 @@ object KakaoPickerKeywords {
     /** ✅ 수락한 뒤인가 — 잡은 콜로 승격해도 되는가 */
     fun isAcceptedScreen(rawText: String?): Boolean = stageOf(rawText) in ACCEPTED_STAGES
 
+    /**
+     * ⏳ **늦은 수락 확인 — 상세 바로 뒤가 아니어도 승격을 확인하는가** (09-16 03:23 폰 시험 수리).
+     *
+     * 퀵은 수락하면 «내 오더»로 가고 카드를 눌러야 흰 페이지(수락 표식)가 보인다. 상세 바로 뒤(내 오더)에는 표식이 없어
+     * 승격이 보류되고, 흰 페이지에서는 «직전이 상세»가 아니라 확인을 안 해서 **«✅ [수락 확인]» 0건 · 서버 장부 0건**이었다.
+     * 🔴 미리보기 딱지(`isPreview`)는 넘기기 · 뒤로 · 자동 복귀로 **리스트에 가면 비워진다** — 딱지가 남아 있다는 것은
+     *    상세를 떠난 뒤 리스트를 거치지 않았다는 뜻이다. 거기에 수락 뒤 표식이 **실제로 보여야** 한다 (없음이 아니라 있음 · 0902 실사고).
+     * 상세 바로 뒤는 원래 길(`afterDetail` → `reportPickerAccepted`)이 한다 — 두 번 부르지 않는다.
+     */
+    fun shouldCheckLateAcceptance(previousWasDetail: Boolean, isPreview: Boolean, hasDetailOrder: Boolean, rawText: String?): Boolean =
+        !previousWasDetail && isPreview && hasDetailOrder && isAcceptedScreen(rawText)
+
     /** 🔴 원천은 `STAGE_WORDS` 하나다 — 손으로 또 적으면 두 벌이 된다 (규칙 ③) */
     val ACCEPTED_SCREEN_WORDS: List<String> =
         STAGE_WORDS.filter { it.first in ACCEPTED_STAGES }.flatMap { it.second } +

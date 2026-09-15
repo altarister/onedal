@@ -79,6 +79,29 @@ class PickerQuickPageTest {
         assertEquals(KakaoPickerKeywords.Stage.TO_DROPOFF, k.stageOf("배송 시간 15분 남음 쌍용 스윗닷홈아파트 물품 파손/분실을 주의해 이동해주세요"))
     }
 
+    /**
+     * ✅ **늦은 수락 확인** — 퀵은 수락하면 «내 오더»로 가고, 카드를 눌러야 흰 페이지(수락 표식)가 보인다.
+     * 상세 바로 뒤 화면(내 오더)에는 수락 표식이 없어 승격이 보류되고, 흰 페이지에서는 «직전이 상세»가 아니라 영영 승격이 안 됐다
+     * (09-16 03:23 폰 시험 — «✅ [수락 확인]» 0건 · 서버 장부 0건).
+     * 🔴 미리보기 딱지는 넘기기 · 뒤로 · 자동 복귀로 리스트에 가면 비워진다 — 딱지가 남아 있다는 것은 리스트를 거치지 않았다는 뜻이다.
+     */
+    @Test
+    fun `늦은 수락 확인 - 미리보기 딱지가 남은 채 수락 뒤 화면이 보이면 확인한다`() {
+        assertTrue(k.shouldCheckLateAcceptance(previousWasDetail = false, isPreview = true, hasDetailOrder = true, rawText = realDepartTop))
+        assertTrue(k.shouldCheckLateAcceptance(previousWasDetail = false, isPreview = true, hasDetailOrder = true, rawText = pickupGoing))
+        assertTrue("도보 수락 뒤 화면도", k.shouldCheckLateAcceptance(false, true, true, "배송 물품 가지러 왔습니다 도움이 필요하신가요? 밀어서 픽업 완료"))
+    }
+
+    @Test
+    fun `늦은 수락 확인 - 상세 바로 뒤 · 딱지 없음 · 콜 없음 · 수락 표식 없는 화면이면 안 한다`() {
+        assertFalse("상세 바로 뒤는 원래 길이 한다", k.shouldCheckLateAcceptance(previousWasDetail = true, isPreview = true, hasDetailOrder = true, rawText = realDepartTop))
+        assertFalse("딱지가 없다 — 이미 올렸거나 리스트로 돌아갔다", k.shouldCheckLateAcceptance(false, isPreview = false, hasDetailOrder = true, rawText = realDepartTop))
+        assertFalse("올릴 콜이 없다", k.shouldCheckLateAcceptance(false, true, hasDetailOrder = false, rawText = realDepartTop))
+        val myOrderTab = "목록 지도 알림 메뉴 03:47까지 퀵 픽업 초월읍 배송지: 신둔면 초소형 한차배송 신청내역 보기 카드설정 신규 내 오더 1"
+        assertFalse("내 오더 탭은 수락 표식이 아니다", k.shouldCheckLateAcceptance(false, true, true, myOrderTab))
+        assertFalse(k.shouldCheckLateAcceptance(false, true, true, null))
+    }
+
     @Test
     fun `퀵 페이지 표식은 배차망 표식에도 들어간다 - 퀵 페이지도 픽커 화면이다`() {
         k.QUICK_PAGE_MARKERS.forEach { assertTrue(it, listOf(it) in k.NETWORK_MARKERS) }

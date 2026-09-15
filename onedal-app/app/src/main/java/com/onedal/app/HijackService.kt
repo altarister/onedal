@@ -719,6 +719,22 @@ class HijackService : AccessibilityService(), ScanContext {
 
 
         /**
+         * ⏳ **늦은 수락 확인** — 퀵은 수락 → 내 오더 → 카드 → 흰 페이지라 상세 바로 뒤에는 수락 표식이 없다
+         * (`KakaoPickerKeywords.shouldCheckLateAcceptance` · 09-16 03:23 폰 시험 «수락 확인» 0건).
+         * 미리보기 딱지가 남은 채(리스트를 거치지 않음) 수락 뒤 화면이 보이면 그때 승격을 확인한다.
+         */
+        if (!TargetApp.supportsCatching(currentTargetApp) &&
+            com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.shouldCheckLateAcceptance(
+                previousWasDetail = previous == ScreenContext.DETAIL_PRE_CONFIRM,
+                isPreview = session.isPreview,
+                hasDetailOrder = session.lastDetailOrder != null,
+                rawText = rawScreenStr,
+            )) {
+            AppLogger.i("1DAL_PICKER", "⏳ [늦은 수락 확인] 상세 바로 뒤는 아니지만 미리보기 딱지가 남은 채 수락 뒤 화면(${detected.name})이 보인다")
+            reportPickerAccepted(rawScreenStr)
+        }
+
+        /**
          * 🌐 **배차망 불일치 관문** (기사님 확정 2026-08-31 · 1단계).
          * 화면이 가리키는 배차망이 지금 읽는 배차망과 다르면 — 이 판을 통째로 버리고 갈아탄다.
          * 안 버리면 남의 화면을 남의 파서로 읽어 쓰레기 콜이 올라간다 (잔상 사고와 같은 계열).
