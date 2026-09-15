@@ -17,7 +17,7 @@ import { remainOnRouteKm } from '../../lib/remainOnRoute';
 import { trailOfShown, hiddenPastIds } from '../../lib/pastCalls';
 import { deckOrder } from '../../lib/deckFocus';
 /**
- * ✅ **«도착»이라고 말할 반경** (기사님 안 2026-09-13 — *"기준점반경 100m"*).
+ * ✅ **«도착»이라고 말할 반경** (기사님 «기준점반경 100m»).
  *    🔴 서버가 도착을 **찍는** 조건(500m + 정지 30초)과 **다른 값이다.** 이것은 «화면이
  *       도착이라고 말할 자리»이고, 그쪽은 «장부에 도착을 적을 자리»다 (규칙 ⑤-4 ⑤).
  */
@@ -46,21 +46,19 @@ import NaviQr from '../dashboard/NaviQr';
 import JudgmentSeat from '../dashboard/JudgmentSeat';
 
 /**
- * 🎭 **무대 — 지도 배경 + 3단 시트** (화면개편 2단계 · v23/v24 · 기사님 확정 2026-08-31).
+ * 🎭 **무대 — 지도 배경 + 3단 시트.**
  *
  * «새 화면 미리보기» 토글이 켜졌을 때만 그려진다 — 꺼진 동안 옛 화면(PinnedRoute 단독)이
  * 그대로다. 파생은 여기서 제조소를 **한 번만** 부르고, 시트 내용물(PinnedRoute sheetOnly)
- * 에 넘긴다 — 훅 두 번 = 구독·상태 두 벌이라 금지.
- *
- * 3단계(useStageRules)에서 snap 이 자동으로 움직이고, 4단계에서 S4~S7 이 연결된다.
+ * 에 넘긴다 — 🔴 훅 두 번 = 구독·상태 두 벌이라 금지.
  */
 interface Props {
     activeRoute: SecuredOrder[];
     routeStops: RouteStopInfo[];
     routeComputedAt: string | null;
-    /** 🧭 경로를 든 콜 — 서버가 고른 답 (0831) */
+    /** 🧭 경로를 든 콜 — 서버가 고른 답 */
     routeHolderId?: string | null;
-    /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 (2026-09-06) */
+    /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 */
     previewRouteHolderId?: string | null;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
@@ -71,7 +69,6 @@ interface Props {
      *
      * 🔴 **부모(`Dashboard`)가 쥔다** — 고르는 버튼은 **필터**에 있고 그리는 것은 **지도**라,
      *    한쪽이 제 상태를 들면 «필터는 동선인데 지도는 노선»이 된다 (규칙 ③).
-     *    (기사님 지시 2026-09-11: *"노선 동선 버튼도 지도에서 필터로 이사와야해"*)
      */
     routeMode: boolean;
 }
@@ -82,8 +79,7 @@ export default function StageView(props: Props) {
     const { liveRoute, cycleDeck, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
     const [snap, setSnap] = useState<SheetSnap>('list');
     /**
-     * 🙈 **지나간 콜 숨기기** (기사님 지시 2026-09-13: *"오른쪽 끝에 지나간 콜 숨기기가
-     *    있으면 좋겠는데"*). 상태바 오른쪽 끝 버튼이 이 값을 뒤집는다.
+     * 🙈 **지나간 콜 숨기기** — 상태바 오른쪽 끝 버튼이 이 값을 뒤집는다.
      *
      * 🔴 **고른 것은 기억한다** — 숨겼는데 다음 판에 다시 보이면 또 숨겨야 한다
      *    (지도 레이어와 같은 규칙·같은 이유). 브라우저에만 남는 편의값이라 못 읽어도 그만이다.
@@ -97,11 +93,11 @@ export default function StageView(props: Props) {
         return next;
     });
     /**
-     * 🗺️ **시트가 아래를 몇 px 덮고 있나** — 시트가 재서 알려 준다 (2026-09-05).
+     * 🗺️ **시트가 아래를 몇 px 덮고 있나** — 시트가 재서 알려 준다.
      *    지도는 «시트»를 모르고 이 숫자만 받는다 — 부품끼리 얽히지 않게 (규칙 ③).
      */
     const [sheetPx, setSheetPx] = useState(0);
-    /** 🧭 QR 덮개 — «눌러서 크게» (기사님 확정 2026-09-05 · 작게 늘 띄우면 못 찍힌다) */
+    /** 🧭 QR 덮개 — «눌러서 크게» (작게 늘 띄우면 못 찍힌다) */
     const [qrOpen, setQrOpen] = useState(false);
     /** 🪧 결재 처리 중인 콜 — 두 번 눌리는 것을 막는다 (판정석이 스스로 재우지 않는다) */
     const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
@@ -109,16 +105,12 @@ export default function StageView(props: Props) {
     const { theme } = useTheme();
     /**
      * 🪗 **열린 줄** — `-1` 은 «전부 닫힘»이다.
-     * 🔴 콜이 없으면 열 것도 없다. 있으면 처음엔 «다음 갈 콜»을 연다 (S3).
-     */
-    /**
-     * 🔴 **처음은 «전부 닫힘»(-1)이다** — 「나」의 정의가 그것이다
-     *    (*"목록만큼 보일 때는 콜의 아코디언 제목만 보인다"* · L4).
-     * ⚠️ `0` 으로 두면 **「나」인데 하나가 열려** 남는 자리가 없어 그 카드가
-     *    높이 19px 로 찌부러진다 (2026-09-05 실측). 여는 것은 「다」의 일이다.
+     * 🔴 **처음은 «전부 닫힘»(-1)이다** — 「나」는 콜의 아코디언 제목만 보이는 높이다 (L4).
+     * ⚠️ `0` 으로 두면 **「나」인데 하나가 열려** 남는 자리가 없어 그 카드가 찌부러진다.
+     *    여는 것은 「다」의 일이다.
      */
     const [openIdx, setOpenIdx] = useState<number>(-1);
-    /** 📞 방금 KEEP 한 콜 — 시트가 「다」로 올라갈 때 **그 콜을 연다** (2026-09-06) */
+    /** 📞 방금 KEEP 한 콜 — 시트가 「다」로 올라갈 때 **그 콜을 연다** */
     const keepFocusRef = useRef<string | null>(null);
     /** 🕰️ 사건이 가리켰는데 **아직 덱에 없어** 못 연 콜 — 덱이 갱신되면 그때 연다 */
     const pendingOpenRef = useRef<string | null>(null);
@@ -140,41 +132,30 @@ export default function StageView(props: Props) {
         .filter(Boolean) as { name: string; x: number; y: number }[];
     const { filter, updateFilter } = useFilterConfig();
     /**
-     * 🕸️ **지금 필터가 무엇을 담고 있나** — 지도에 그물로 그린다 (이식 B3-2).
-     *    계산은 실험실과 **같은 함수**(`@onedal/shared` 의 `netForGoal`)다 — 두 화면이
-     *    다른 답을 내면 «화면은 든다는데 판정은 탈락»이 된다 (규칙 ③).
-     */
-    /**
-     * 📐 **마름모 모양** — 기사님이 필터에서 고친 값 (이식 C3-2 · 2026-09-11).
+     * 📐 **반경 · 마름모 모양은 기사님이 필터에서 고친 값이다.**
      *
-     * 🔴 **국면 그릇을 안 본다.** 그물의 모양은 국면과 무관한 **한 벌**이라 평면 필터에
-     *    실려 온다 (명세 §3 · DB 자리는 `user_filters`). 아침(C3-1)에는 국면 행에 두고
-     *    «첫짐에서 상속»으로 가렸는데, 다섯 행에 값이 계속 써지는 구조가 남아
-     *    **합짐 행에는 손 안 댄 110° 가 앉아 있었다** — 화면은 「첫짐에서 120°」라고 적으면서.
-     */
-    /**
-     * 📐 **자동이면 «줄인 값»으로 그린다** (이식 C4-12 · 2026-09-12).
-     *
-     * 🔴 **곱하는 자리를 만들지 않는다** — `shared` 의 `effectiveRadii` 하나가 답한다.
-     *    필터 화면도 같은 함수를 부른다. 2026-09-12 실측에서 **서버는 줄였는데 지도는
-     *    안 줄어** 요약줄이 164동 그대로였다 — 곱셈이 두 곳이 되려던 순간이었다 (규칙 ③).
+     * 🔴 **곱하는 자리를 만들지 않는다** — 자동 반경이면 «줄인 값»으로 그리고, 그 답은 `shared` 의
+     *    `effectiveRadii` 하나다. 필터 화면도 같은 함수를 부른다 — 곱셈이 두 곳이면
+     *    «서버는 줄였는데 지도는 원값»이 된다 (규칙 ③).
+     * 🔴 마름모 모양은 **국면 그릇을 안 본다** — 국면과 무관한 **한 벌**이라 평면 필터에 실려 온다
+     *    (명세 §3 · DB 자리는 `user_filters`). 국면 행마다 두면 손 안 댄 행에 옛 값이 남는다.
      */
     const radii = effectiveRadii(filter);
 
     /**
-     * 🟢 **상차 영역 — 살아 있는 목적지마다 상태로 정한다** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
+     * 🟢 **상차 영역 — 살아 있는 목적지마다 상태로 정한다** (`docs/지금/필터.md` «상차 영역»).
      *
      * 🔴 모양은 shared `goalZonesOf` → `pickupShapeOf` 한 곳 — 하나라도 운행 뒤가 아니면 **현위치 영역 전체**,
      *    전부 운행 뒤면 **현위치 영역 ∩ 라인 영역**. 하차 레이어도 같은 `goalZonesOf` 를 쓴다.
      * 🔴 서버 상차 목록(`filterManager.rebuildPickupList`)도 **같은 `goalZonesOf`** 로 동을 찾는다 (규칙 ③).
      * 재료: 집 · 복귀 · 복귀콜 쥠은 서버가 싣는다(`filter.pickupArea`) · 실린 콜은 `liveRoute` 중 **판정 중 후보콜을 뺀 것** ·
      *    운행 시작은 서버 국면(`DELIVERING`) · 반지름·띠 폭은 서버와 같은 `effectiveRadii`.
-     * 📍 **원의 중심은 실시간 내 위치**(`myLocation`)다 (기사님 2026-09-15 «실시간 위치로 바꿔줘»).
-     *    서버가 목록을 만든 자리(`pickupArea.at`)는 0.5km 움직이고 목록이 바뀔 때만 와서 원이 뒤처졌다.
+     * 📍 **원의 중심은 실시간 내 위치**(`myLocation`)다 — 서버가 목록을 만든 자리(`pickupArea.at`)는
+     *    0.5km 움직여 목록이 바뀔 때만 와서 원이 뒤처진다.
      *    ⚠️ 그래서 서버가 목록을 다시 만들기 전까지 지도 원과 원달앱 목록은 0.5km 남짓 어긋날 수 있다.
      * ⚠️ 라인 띠는 **지금 그리는 경로 선**으로 잰다 — 서버의 얼린 경로와 심사 중 잠깐 다를 수 있다.
      */
-    /* 🔴 판정 중 후보콜은 안 센다 — 서버 `getActiveCalls` 는 확정 콜만 본다. 세면 지도만 «경로 생김»이 되고 후보콜 하차지를 종착지로 잡는다 (코드 리뷰 2026-09-15) */
+    /* 🔴 판정 중 후보콜은 안 센다 — 서버 `getActiveCalls` 는 확정 콜만 본다. 세면 지도만 «경로 생김»이 되고 후보콜 하차지를 종착지로 잡는다 */
     const confirmedCalls = useMemo(() => liveRoute.filter(o => !isEvaluating(o.status)), [liveRoute]);
     const pickupAreaIn = filter?.pickupArea;
     const homeOn = pickupAreaIn?.homeOn ?? false;
@@ -210,7 +191,7 @@ export default function StageView(props: Props) {
     const pickupShape = pickupShapeOf(nearZones);
 
     /**
-     * 🔵 **하차 영역 — 살아 있는 목적지마다 조각을 모은다** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
+     * 🔵 **하차 영역 — 살아 있는 목적지마다 조각을 모은다** (`docs/지금/필터.md` «하차 영역»).
      *
      * 조각은 shared `dropoffPartsOf` — 콜 없음: 현위치 원 ∪ Q(현위치→목적지) ∪ 목적지 원 · 경로 생김: 현위치 원 ∪ 라인 ∪ Q(종착지→목적지) ∪ 목적지 원
      *    · 운행 뒤: 라인 ∪ Q(종착지→목적지) ∪ 목적지 원. 목적지가 집이어도 같다.
@@ -259,9 +240,9 @@ export default function StageView(props: Props) {
             /* 🎯 가까이 온 목적지 원 — 지운 뒤에 칠한다 (빼지 않는다) */
             nearCircles: dropoffParts.filter(p => p.near).map(p => ({ ...p.center, km: radii.destinationRadiusKm })),
             quads: dropoffParts.flatMap(p => (p.quad ? [p.quad] : [])),
-            /* 🎯 살아 있는 목적지 — 마커 (옛 «그물» 레이어가 찍던 것) */
+            /* 🎯 살아 있는 목적지 — 마커 */
             goals: dropoffParts.map(p => p.center),
-            /* ✂️ 운행 뒤에는 현위치부터 앞으로만 긋는다 — 시작은 캔버스가 평평하게 자른다 (기사님 2026-09-15 «뒤를 자르는 Cap» · 상차 띠와 같은 `lineFromPoint`) */
+            /* ✂️ 운행 뒤에는 현위치부터 앞으로만 긋는다 — 시작은 캔버스가 평평하게 자른다 (상차 띠와 같은 `lineFromPoint`) */
             lines: dropoffParts.flatMap(p => {
                 if (!p.line) return [];
                 const points = dropoffDeparted
@@ -279,7 +260,7 @@ export default function StageView(props: Props) {
     const pickupArea = useMemo(() => {
         /* 🔴 내 위치를 모르면 원을 지어내지 않는다 — 안 그린다 (규칙 ④) */
         if (!myLocation || !pickupShape) return null;
-        /* ✂️ 띠는 현위치부터 앞으로만 — 지나온 길은 상차 영역이 아니다 (기사님 2026-09-15 «뒤를 자르는 Cap» · 서버 `pickupListFor` 와 같은 `lineFromPoint`) */
+        /* ✂️ 띠는 현위치부터 앞으로만 — 지나온 길은 상차 영역이 아니다 (서버 `pickupListFor` 와 같은 `lineFromPoint`) */
         const ahead = pickupLine && pickupLine.length >= 2
             ? lineFromPoint(pickupLine.map(p => [p.x, p.y] as [number, number]), { lng: myLocation.x, lat: myLocation.y }).map(([x, y]) => ({ x, y }))
             : [];
@@ -291,18 +272,16 @@ export default function StageView(props: Props) {
         };
     }, [myLocation, pickupShape, pickupLine, radii.pickupRadiusKm, radii.detourRadiusKm]);
 
-    /* 📍 동 점 — 원달앱에 실제로 내려간 상차 목록 · 하차 목록 (기사님 2026-09-15 «다시 넣어줘» · shared `dongDotsOf`). 지도가 따로 계산하지 않는다 */
+    /* 📍 동 점 — 원달앱에 실제로 내려간 상차 목록 · 하차 목록 (shared `dongDotsOf`). 지도가 따로 계산하지 않는다 */
     const dongDots = useMemo(() => (filter
         ? dongDotsOf({ pickupGroups: filter.pickupGroups ?? {}, dropoffGroups: filter.destinationGroups ?? {} })
         : null), [filter]);
 
 
     /**
-     * 🧠 **상태 규칙은 `stageRules.stageStep` 한 곳에 있다** (v23 Ⅲ표 · 검사 14건).
+     * 🧠 **상태 규칙은 `stageRules.stageStep` 한 곳에 있다.**
      *
-     * 여기(화면)는 **신호를 재서 넣고, 결과를 그릴 뿐**이다. 규칙을 화면 안에 두면
-     * 검사할 수가 없어서, 2026-08-31 하루에 다섯 번 뒤집는 동안 전부 손으로 확인했다.
-     * 규칙을 옮긴 지금은 «짧은 구간에서 안 내려가던 것» 같은 사고가 책상에서 잡힌다.
+     * 여기(화면)는 **신호를 재서 넣고, 결과를 그릴 뿐**이다 — 🔴 규칙을 화면 안에 두면 검사할 수가 없다.
      */
     const drive = useDriveMotion();
     const mem = useRef(initialStageMemory());
@@ -310,12 +289,12 @@ export default function StageView(props: Props) {
     /**
      * 🙈 **덱에 실제로 그려지는 목록** — 숨길 id 를 고르는 자리와 «몇 번째가 열렸나»가
      *    **같은 배열**을 봐야 한다 (규칙 ③). `PinnedRoute` 가 넘기는 것과 글자까지 같다.
-     * 🔴 사건이 «열 콜»의 자리를 찾는 곳도 이 배열이다 — 예전엔 `cycleDeck`(심사 콜 포함)에서 찾아 자리가 어긋날 수 있었다 (#143)
+     * 🔴 사건이 «열 콜»의 자리를 찾는 곳도 이 배열이다 — `cycleDeck`(심사 콜 포함)에서 찾으면 자리가 어긋난다 (#143)
      */
     const deckList = deckOrder(cycleDeck).filter(o => o.id !== judging?.id);
 
     /**
-     * 📡 **시트 전환은 전부 사유와 함께 로그로 남긴다** (기사님 지시 0831 2판).
+     * 📡 **시트 전환은 전부 사유와 함께 로그로 남긴다.**
      *    서버 로그에 중계되므로(관제웹 로그 릴레이) GPS 궤적(gps_tracks)과 시각을
      *    맞대 «언제 내려가고 올라왔어야 했나»를 사후 검증할 수 있다.
      */
@@ -339,25 +318,11 @@ export default function StageView(props: Props) {
         if (r.snap) {
             logStateChange("시트", `${r.snap}·${r.reason}`, "무대");
             /**
-             * 🔴 **자동 전환도 «높이 규칙» 한 곳을 거친다** (기사님 실물 2026-09-06).
-             *
-             * 기사님: *"킵하고 나서 전화할 수 있게 시트를 최상단으로 올리고 아코디언에
-             * 이번에 킵한 콜 정보를 담아서 열어야 하는데 열려 있지 않았어."*
-             *
-             * 예전엔 여기가 `setSnap` 만 했다. 아코디언을 여는 계산은 `sheetTransition`
-             * 안에 있는데 **손으로 끌 때만 그 길을 탔다** — KEEP·도착으로 자동으로
-             * 「다」에 올라가면 **빈 시트가 지도를 덮었다.** S3(「다」는 콜이 있으면 하나
-             * 열린 상태)와 S4(가·나로 내려오면 닫는다)가 자동 경로에서만 새고 있었다.
-             *
-             * `preferIdx` 는 **방금 KEEP 한 콜**이다 — 포커스와 같은 콜을 연다.
-             */
-            /**
-             * 🪜 **사건이 가리킨 콜을 «강한 지시»로 넘긴다** (화면규칙 S13 · 2026-09-12).
-             *
-             * 🔴 예전엔 **KEEP 만** 실었고 도착은 빈손이었다. 그래서 도착하면 시트는
-             *    올라오는데 **열려 있던 딴 콜이 그대로 남았다** — 기사님: *"시트가 올라갔어
-             *    근데 그 스텝이 열리지는 않았어"*. v23 Ⅲ-S7 은 **«그 콜의 그 단계»** 다.
-             * ⚠️ `preferIdx`(약한 추천)로 넘기면 안 된다 — 열린 것에 밀린다.
+             * 🔴 **자동 전환도 «높이 규칙»(`sheetTransition`) 한 곳을 거친다** — `setSnap` 만 하면
+             *    KEEP·도착으로 「다」에 올라가도 아코디언이 안 열려 **빈 시트가 지도를 덮는다**
+             *    (S3 「다」는 하나 열린 상태 · S4 가·나로 내려오면 닫는다).
+             * 🪜 **사건이 가리킨 콜은 «강한 지시»(`focusIdx`)로 넘긴다** — «그 콜의 그 단계»를 연다 (화면규칙 S13).
+             *    ⚠️ `preferIdx`(약한 추천)로 넘기면 안 된다 — 열려 있던 딴 콜에 밀린다.
              */
             /* 🎬 맨 위로 올라가면 **시트 상태바가 가리키는 콜**을 연다 — KEEP 만 방금 잡은 콜 · 손 탭은 손이 고른 줄 (#143) */
             const eventId = r.snap !== 'full' ? null
@@ -366,13 +331,11 @@ export default function StageView(props: Props) {
                           : barFocusRef.current?.orderId ?? (ev.type === 'arrive' ? ev.orderId ?? null : null);
             const want = eventId ? deckList.findIndex(o => o.id === eventId) : -1;
             /**
-             * 🕰️ **KEEP 한 콜이 아직 덱에 없으면 «열 것»으로 남겨 둔다** (기사님 실측 2026-09-12:
-             *    *"특히 **콜 잡고 난 화면에서 아코디언이 열리지 않아서 스텝이 안 보였어**"*).
+             * 🕰️ **KEEP 한 콜이 아직 덱에 없으면 «열 것»으로 남겨 둔다.**
              *
              * 🔴 KEEP 사건은 서버가 `order-confirmed` 를 쏘는 **그 순간** 오는데, 그 콜이
-             *    덱(`cycleDeck`)에 들어오는 것은 `sync-active-orders` 가 온 **뒤**다.
-             *    그래서 `findIndex` 가 -1 이 되어 **시트는 올라가는데 열린 것이 없었다.**
-             *    도착(`arrive`)은 이미 덱에 있는 콜이라 늘 잘 됐다 — 그래서 안 보였다.
+             *    덱(`cycleDeck`)에 들어오는 것은 `sync-active-orders` 가 온 **뒤**다 —
+             *    이 자리에서는 `findIndex` 가 -1 이라 못 연다 (도착은 이미 덱에 있는 콜이라 된다).
              * 🟢 못 열었으면 ref 를 **비우지 않는다** — 덱이 갱신되는 아래 효과가 다시 연다.
              */
             if (eventId && want < 0) pendingOpenRef.current = eventId;
@@ -384,12 +347,8 @@ export default function StageView(props: Props) {
             setSnap(mv.snap);
             setOpenIdx(mv.openIdx);
             /**
-             * 🪜 **«어느 콜을 열었나»를 함께 남긴다** (기사님 실측 2026-09-12:
-             *    *"시트가 열렸는데 아코디언이 열리지 않은 곳이 있어"*).
-             *
-             * 🔴 시트 «높이»만 찍고 «연 콜»은 안 찍어서, 안 열린 판을 로그로 되짚을 수가
-             *    없었다. 도착 통보가 그 콜이 덱에서 빠진 **뒤**에 오면 열 대상이 없는데,
-             *    그 사실이 화면에도 로그에도 안 남았다.
+             * 🪜 **«어느 콜을 열었나»를 함께 남긴다** — 시트 «높이»만 찍으면 안 열린 경우를 로그로 되짚을 수 없다.
+             *    도착 통보가 그 콜이 덱에서 빠진 **뒤**에 오면 열 대상이 없다 — 그것도 로그에 남긴다.
              */
             if (mv.openIdx !== openIdx) {
                 const who = mv.openIdx >= 0 ? (deckList[mv.openIdx]?.dropoff ?? '?') : '없음';
@@ -399,7 +358,7 @@ export default function StageView(props: Props) {
         }
         /**
          * 🔁 미룬 결정은 **유예가 끝나면 다시 묻는다** — 안 그러면 유예 중에 온 전환이
-         *    영영 사라져 시트가 전체에 눌러앉는다 (0831 3판 실측).
+         *    영영 사라져 시트가 전체에 눌러앉는다.
          */
         if (r.deferred) {
             if (holdTimer.current) clearTimeout(holdTimer.current);
@@ -414,8 +373,7 @@ export default function StageView(props: Props) {
     const feedRef = useRef(feed);
     useLayoutEffect(() => { feedRef.current = feed; });   // 그리는 도중에 ref 를 안 건드린다 (react-hooks refs)
     /**
-     * ⏳ **«노선인데 경로선이 아직 없다»를 필터 판이 읽게 올린다** — 경로선은 무대만 안다 (store `netUsedLine` · 전수 조사 4단계).
-     * 🔄 2026-09-15 — 옛 «그물» 레이어(`useCallNet`)를 걷으며 «그물을 라인으로 쟀나»에서 **«하차 영역이 쓸 경로선이 있나»**로 옮겼다.
+     * ⏳ **«하차 영역이 쓸 경로선이 있나»를 필터 판이 읽게 올린다** — 경로선은 무대만 안다 (store `netUsedLine`).
      *    확정 콜이 없으면 `null`(모른다 — 문구를 안 띄운다 · 규칙 ④). ⚠️ 무대가 사라지면 `null` 로 비운다.
      */
     const setNetUsedLine = useFilterStore(st => st.setNetUsedLine);
@@ -428,7 +386,7 @@ export default function StageView(props: Props) {
     useEffect(() => { logStateChange("주행신호", drive, "무대"); }, [drive]);
     useEffect(() => () => { if (holdTimer.current) clearTimeout(holdTimer.current); }, []);
 
-    /* 🪧 새 판정이 뜨면 손 유예보다 먼저 — 규칙에 judge 로 넣는다 (기사님 2026-09-15 · #144) */
+    /* 🪧 새 판정이 뜨면 손 유예보다 먼저 — 규칙에 judge 로 넣는다 (#144) */
     const judgingId = judging ? judging.id : null;
     useEffect(() => { if (judgingId) feed({ type: 'judge' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -453,16 +411,13 @@ export default function StageView(props: Props) {
     }, []);
 
     /**
-     * 🏁 S7 — 정거장 도착: 시트 전체로 마중 (v23 Ⅲ-S7 · 화면규칙 S13).
+     * 🏁 S7 — 정거장 도착: 시트 전체로 마중 (화면규칙 S13).
      *
-     * 🔴 **소켓을 여기서 직접 듣지 않는다** (기사님 지시 2026-09-12: *"지금 그걸 각자
-     *    하고 있어서 문제 같은데"*). 듣는 곳은 `gpsFocusStore` 하나이고, 이 화면은
-     *    그 스토어가 남긴 «방금 도착»(`arrival`)을 **본다.**
-     *
-     * ⚠️ 2026-08-31 에는 반대로 갔다 — 그때는 포커스 한 칸에 근접·도착이 섞여
-     *    **도착이 덮여 사라졌고**(도착 6번 중 시트 2번), 그래서 «소켓을 따로 듣는» 것으로
-     *    갈랐다. 그러면 듣는 곳이 둘이 되어 이번엔 «덱이 가리킨 콜»과 «시트가 연 콜»이
-     *    갈라졌다. 🟢 **칸을 가르되(`arrival`) 듣는 곳은 하나** — 둘 다 푼다.
+     * 🔴 **소켓을 여기서 직접 듣지 않는다** — 듣는 곳은 `gpsFocusStore` 하나이고, 이 화면은
+     *    그 스토어가 남긴 «방금 도착»(`arrival`)을 **본다.** 듣는 곳이 둘이면
+     *    «덱이 가리킨 콜»과 «시트가 연 콜»이 갈라진다.
+     * ⚠️ 포커스 한 칸에 근접·도착을 섞어도 안 된다 — **도착이 덮여 사라진다.**
+     *    🟢 **칸을 가르되(`arrival`) 듣는 곳은 하나.**
      */
     const arrival = useGpsFocusStore(st => st.arrival);
     useEffect(() => {
@@ -482,18 +437,18 @@ export default function StageView(props: Props) {
     }, [arrival?.tick]);
 
     /**
-     * 🕰️ **덱이 갖춰지면 «못 연 콜»을 연다** (기사님 실측 2026-09-12).
+     * 🕰️ **덱이 갖춰지면 «못 연 콜»을 연다.**
      *
      * KEEP 사건은 콜이 덱에 들어오기 **전에** 오므로 그 자리에서는 열 수가 없다 —
-     * 시트만 올라가고 스텝이 안 보였다. 여기서 한 박자 뒤에 마저 연다.
-     * 🔴 **높이는 안 건드린다** — 이미 「다」로 올라가 있고, 여기서 또 정하면
+     * 여기서 한 박자 뒤에 마저 연다.
+     * 🔴 **여기서 높이를 직접 정하지 않는다** — 규칙(`keepReady`)을 지난다. 따로 정하면
      *    높이를 정하는 손이 둘이 된다 (S6 — 높이를 바꾸는 길은 하나다).
      */
     useEffect(() => {
         const want = pendingOpenRef.current;
         if (!want) return;
         if (deckList.findIndex(o => o.id === want) < 0) return;
-        /* 🕰️ 규칙을 지나 연다 — 정차면 올라와 열리고 · 주행이면 올라왔다 내려가고 · 손 유예 중이면 미룬다 (기사님 2026-09-15 · #144) */
+        /* 🕰️ 규칙을 지나 연다 — 정차면 올라와 열리고 · 주행이면 올라왔다 내려가고 · 손 유예 중이면 미룬다 (#144) */
         keepFocusRef.current = want;
         feedRef.current({ type: 'keepReady' });
         /* 🔴 길이가 아니라 **콜 id** 가 바뀔 때 — 심사 콜이 KEEP 으로 넘어와도 길이는 그대로다 (#143) */
@@ -501,15 +456,11 @@ export default function StageView(props: Props) {
     }, [deckList.map(o => o.id).join(',')]);
 
     /**
-     * 🚪 **완료 행동이 문을 닫는다** (v23 Ⅳ · 화면규칙 S14 · 기사님 실측 2026-09-12).
+     * 🚪 **완료 행동이 문을 닫는다** (화면규칙 S14) — 통화 완료·시트 저장 → focus 해제 +
+     *    **시트 자동 복귀** (뒤로가기를 찾을 일 없음).
      *
-     * v23 원문: *"통화 완료·시트 저장 → focus 해제 + **시트 자동 복귀**
-     * (뒤로가기를 찾을 일 없음)"*.
-     *
-     * 🔴 **이 길이 없어서 기사님이 손으로 내리셨다.** 도착 마중으로 시트가 100% 로
-     *    올라오는데 닫는 길이 «손»뿐이었고, 그 손이 S11 유예(30초)를 걸어
-     *    **다음 도착 마중까지 먹었다** (도착 여섯 중 셋만 마중 · 간격 23초 ↔ 유예 30초).
-     *    손은 «내 뜻»이지만 **완료는 일을 마친 것**이라 유예를 걸지 않는다.
+     * 🔴 **완료는 손이 아니다** — 닫는 길이 «손»뿐이면 그 손이 S11 유예(30초)를 걸어
+     *    **다음 도착 마중까지 먹는다.** 손은 «내 뜻»이지만 완료는 일을 마친 것이라 유예를 걸지 않는다.
      *
      * 🔴 **보내는 곳이 아니라 «받는 곳»에서 잡는다** (규칙 ③) — `report-milestone` 은
      *    스텝 시트 여러 자리에서 나가지만, 서버가 확인해 주는 `milestone-result` 는
@@ -531,7 +482,7 @@ export default function StageView(props: Props) {
     }, []);
 
     /**
-     * 🚀 **국면이 «운행 중»으로 바뀌면 시트를 내린다** (기사님 수순 ④ · 2026-08-31).
+     * 🚀 **국면이 «운행 중»으로 바뀌면 시트를 내린다** (기사님 수순 ④).
      *    버튼을 눌렀을 때는 위에서 이미 내렸고, 이 줄은 **라이브에서 이동이 감지되어
      *    서버가 국면을 바꿨을 때**를 받는다 — 손을 안 대도 같은 수순이 된다.
      */
@@ -543,9 +494,8 @@ export default function StageView(props: Props) {
     }, [phase]);
 
     /**
-     * 🚀 **주행이 감지되면 출발이다** (전수표 #2 · 목업 `MapMockup.tsx` 의 `if (driving) setDeparted(true)`).
-     *    «🚀 지금 출발» 버튼만 출발을 켜서 «7지점» 네 바퀴 내내 출발이 0번이었다 — 운전 중에는 누를 수 없다.
-     *    출발이 안 켜지면 필터 영역이 «출발 전»에 머물러 내 영역이 바퀴 내내 남는다 (필터.md §5 «필터 영역»).
+     * 🚀 **주행이 감지되면 출발이다** — 🔴 «🚀 지금 출발» 버튼에만 맡기지 않는다: 운전 중에는 누를 수 없다.
+     *    출발이 안 켜지면 필터 영역이 «출발 전»에 머물러 내 영역이 운행 내내 남는다 (필터.md §5 «필터 영역»).
      *    콜을 쥐고(`GATHERING`) 경로가 있을 때만 — 빈 차로 달리는 것은 출발이 아니다.
      */
     const hasRoute = liveRoute.length > 0;
@@ -557,7 +507,7 @@ export default function StageView(props: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [drive, phase, hasRoute]);
 
-    /* 🗺️ 다음 정거장 이름표 재료 — 서버 경로 순서(routeStops)에서 첫 미방문 (v22 S3) */
+    /* 🗺️ 다음 정거장 이름표 재료 — 서버 경로 순서(routeStops)에서 첫 미방문 */
     const next = (() => {
         const idx = routeStops.findIndex(st => {
             const o = liveRoute.find(r => r.id === st.orderId);
@@ -567,15 +517,14 @@ export default function StageView(props: Props) {
         const st = routeStops[idx];
         const o = liveRoute.find(r => r.id === st.orderId)!;
         /**
-         * 🔴 **콜 번호는 색과 같은 것을 센다** (기사님 확정 2026-08-31 · 리뷰에서 잡힘).
-         *    예전엔 `liveRoute`(지금 실린 콜)로 셌다. 그런데 콜 색은 `cycleDeck`(이번 사이클,
-         *    하차 완료해도 끝까지 남는 목록) 기준이라, **하차를 하나 끝내는 순간 지도의
-         *    «N번 콜»만 앞당겨져** 색과 번호가 다른 답을 했다. 색만 보고 1~2초에 누르는
-         *    화면에서 그 둘이 어긋나면 안 된다 (규칙 ⑤-3).
+         * 🔴 **콜 번호는 색과 같은 것을 센다** — 콜 색은 `cycleDeck`(이번 사이클,
+         *    하차 완료해도 끝까지 남는 목록) 기준이다. `liveRoute`(지금 실린 콜)로 세면
+         *    **하차를 하나 끝내는 순간 «N번 콜»만 앞당겨져** 색과 번호가 다른 답을 한다.
+         *    색만 보고 1~2초에 누르는 화면에서 그 둘이 어긋나면 안 된다 (규칙 ⑤-3).
          */
         const callNo = cycleDeck.findIndex(r => r.id === st.orderId) + 1;
         return {
-            orderId: st.orderId,   // idx·total 은 «N/M 정거장»과 함께 뺐다 (읽는 곳이 없다)
+            orderId: st.orderId,
             x: st.stopType === 'pickup' ? o.pickupX : o.dropoffX,
             y: st.stopType === 'pickup' ? o.pickupY : o.dropoffY,
             name: getAddressLabel(st.stopType === 'pickup' ? o.pickup : o.dropoff),
@@ -588,21 +537,16 @@ export default function StageView(props: Props) {
     })();
 
     /**
-     * 🎬 자막 줄 (v23 엿보기 줄 · 기사님 확정 ③) — «✅2 초월 → 3 곤지암 이동 중 · ~20km 남음».
-     *    거리는 GPS→다음 정거장 직선이라 ~ 를 붙인다 (규칙 ⑤-2 — 추정은 추정이라 말한다).
-     */
-    /**
-     * 🎬 **시트 상태바** (용어집 확정 2026-09-04) — 읽는 줄. 누르는 부분이 «시트 상태바의 버튼».
+     * 🎬 **시트 상태바** — 읽는 줄. 누르는 부분이 «시트 상태바의 버튼».
      *
-     * 🔴 **문구를 여기서 만들지 않는다** (규칙 ③ · 2026-09-05 정정).
-     *    `lib/sheetStatus` 가 **요소별로** 돌려준다 — 기호 · 번호 · 지명 · ~분 · 꼬리.
-     *    예전엔 이 화면이 자기 문장을 따로 지었고(`⏸️ 정차 중 · 다음 1 초월읍 ~2.3km`),
-     *    그 사이 규칙 파일은 **목업과 검사만 쓰고 있었다** — #96·#97 과 같은 병이다.
+     * 🔴 **문구를 여기서 만들지 않는다** (규칙 ③) — `lib/sheetStatus` 가 **요소별로** 돌려준다
+     *    (기호 · 번호 · 지명 · ~분 · 꼬리). 화면이 제 문장을 따로 지으면 규칙 파일은
+     *    목업과 검사만 쓰게 된다 (#96·#97 과 같은 병).
      * 🔴 거리(km)가 아니라 **주행 분**이다 — 기사님이 읽는 값은 «얼마나 걸리나»다.
-     *    직선 km 는 도로를 안 따르므로 이 줄에서 뺐다.
+     *    직선 km 는 도로를 안 따른다.
      */
     /**
-     * ✅ **지금 곁에 서 있는 «다녀온 정거장»** — «도착» 경우의 방아쇠 (기사님 안 2026-09-13).
+     * ✅ **지금 곁에 서 있는 «다녀온 정거장»** — «도착» 경우의 방아쇠.
      *    🔴 **타이머가 아니라 위치다.** 떠나면 저절로 다음 경우로 넘어가므로 «끄는 것을
      *       잊는» 일이 없다 (관제웹 CLAUDE.md — 깃발을 끄는 걸 잊어 화면이 거짓말한 그 모양).
      *    ⚠️ 좌표를 모르는 발자취(이력만 남은 행)는 건너뛴다 — 거리를 못 잰다.
@@ -630,9 +574,8 @@ export default function StageView(props: Props) {
         ? getDistanceKm(myLocation.y, myLocation.x, next.y, next.x) * 1000 : null;
 
     /**
-     * 🛣️ **길을 따라 남은 km** — «정차» 경우가 쓴다 (기사님 지적: *"frontend에서 다 알고
-     *    있는 값일껀데."*). 카카오 폴리라인이 곧 도로이고 재는 함수도 `shared` 에 있었다 —
-     *    서버에 더 달라고 할 것이 없었다 (`lib/remainOnRoute` 머리 참조).
+     * 🛣️ **길을 따라 남은 km** — «정차» 경우가 쓴다. 카카오 폴리라인이 곧 도로이고 재는 함수도
+     *    `shared` 에 있다 — 서버에 더 달라고 하지 않는다 (`lib/remainOnRoute` 머리 참조).
      */
     const remainKm = remainOnRouteKm(derived.drawHolder?.routePolyline, myLocation,
         next?.x != null && next?.y != null ? { x: next.x, y: next.y } : null);
@@ -648,10 +591,8 @@ export default function StageView(props: Props) {
     /**
      * 🙈 **숨길 콜은 한 벌이다** — 시트와 **지도가 같은 집합**을 본다 (규칙 ③).
      *
-     * 🔴 예전엔 이 계산이 시트를 넘기는 JSX 안에 있었다. 지도까지 숨기려면 그 식이
-     *    두 곳이 되고, 한쪽에 조건이 붙는 순간 **«목록에선 접혔는데 지도엔 남는»** 상태가
-     *    된다 — 이 레포가 반복해 당한 «파생 두 벌» 이다 (기사님 지시 2026-09-13:
-     *    *"지도에 있는 역인 부분과 순번도 같이 숨겨줘"*).
+     * 🔴 식을 시트 JSX 안과 지도에 따로 두지 않는다 — 한쪽에 조건이 붙는 순간
+     *    **«목록에선 접혔는데 지도엔 남는»** 상태가 된다 («파생 두 벌»).
      */
     const hiddenIds = hiddenPastIds(deckList, hidePast, deckList[openIdx]?.id ?? null);
     /**
@@ -691,15 +632,11 @@ export default function StageView(props: Props) {
     });
 
     /**
-     * 🧭 **달리는 중에는 덱도 «향해가는 콜»을 본다** (기사님 실측 2026-08-31 4판).
+     * 🧭 **달리는 중에는 덱도 «향해가는 콜»을 본다.**
      *
-     * 기사님: *"신둔면에서 사음동 간다고 되어 있는데 펼쳐져 있는 건 초월-신둔면이야."*
-     * 자막 줄·지도 이름표는 다음 정거장(사음동)을 가리키는데 **덱만 방금 끝낸 콜**을
-     * 들고 있었다 — 도착 마중이 잡아 둔 포커스가 그대로 남아서다.
-     *
-     * 서버의 근접 예고(3km)가 오면 옮겨 가긴 한다. 그런데 **다음 정거장이 3km 밖이면
-     * 그 구간 내내** 끝난 콜을 보게 된다 (이번 판은 2.9km 라 4초 뒤에 옮겨 갔다).
-     * 정차 중엔 방금 도착한 콜이 맞고, **달리기 시작하면 향해가는 콜**이 맞다.
+     * 정차 중엔 방금 도착한 콜이 맞고, **달리기 시작하면 향해가는 콜**이 맞다 — 도착 마중이
+     * 잡아 둔 포커스가 남으면 상태바는 다음 정거장인데 **덱만 방금 끝낸 콜**을 든다.
+     * 서버의 근접 예고(3km)만 기다리면 **다음 정거장이 3km 밖인 구간 내내** 끝난 콜을 보게 된다.
      *
      * 🔴 시트는 건드리지 않는다 — `kind: 'approach'` 는 덱만 옮긴다 (주행 중 지도가 주인공).
      */
@@ -717,26 +654,25 @@ export default function StageView(props: Props) {
     };
 
     return (
-                // 📏 높이는 실측하지 않는다 — 부모(flex 사슬)가 준다. 실측(rect.top)은 페이지 스크롤과
-        //    되먹임을 만들어 «로딩 후 상단이 밀려 숨는» 사고를 냈다 (기사님 실측 0831)
+                // 📏 🔴 높이는 실측하지 않는다 — 부모(flex 사슬)가 준다. 실측(rect.top)은 페이지 스크롤과
+        //    되먹임을 만들어 로딩 후 상단이 밀려 숨는다
         <section id="stage-view" className="relative flex-1 min-h-0">
             {/* 지도 배경 — 캔버스 재사용 (배경 어댑터 자리: 훗날 카카오 타일 실험) */}
             <div className="absolute inset-0">
                 <PinnedRouteCanvas
                     fill
-                    /* 🪟 시트가 올라온 만큼 지도가 위로 비켜 준다 — 반쯤 열면 둘을 같이 본다 (기사님 0901) */
-                    /* 🗺️ 지도는 «시트»를 모른다 — **아래가 얼마나 가려졌나**만 받는다
-                       (2026-09-05 · 부품 결합을 끊었다) */
+                    /* 🪟 시트가 올라온 만큼 지도가 위로 비켜 준다 — 반쯤 열면 둘을 같이 본다 */
+                    /* 🗺️ 지도는 «시트»를 모른다 — **아래가 얼마나 가려졌나**만 받는다 (부품끼리 얽히지 않게) */
                     occludedPx={sheetPx}
                     unifiedRoutePoints={unifiedRoutePoints}
                     liveRoute={liveRoute}
                     myLocation={myLocation}
                     visitedTrail={shownTrail}
-                    /* 🗺️ 숨긴 콜의 자취도 가린다 — 보이는 콜 중 가장 먼저 잡은 시각보다 앞선 점 (기사님 확정 2026-09-15 · `trailOfShown`) */
+                    /* 🗺️ 숨긴 콜의 자취도 가린다 — 보이는 콜 중 가장 먼저 잡은 시각보다 앞선 점 (`trailOfShown`) */
                     drivenTrail={trailOfShown(derived.drivenTrail, shownSinceMs)}
                     routeHolder={derived.drawHolder}
                     callColors={derived.callColors}
-                    /* 📋 상차 영역 — 서버가 목록을 만든 그 점 (기사님 2026-09-15 «교집합이 안 보인다») */
+                    /* 📋 상차 영역 — 원 중심은 실시간 내 위치 (위 «상차 영역» 주석) */
                     pickupArea={pickupArea}
                     /* 🔵 하차 영역 — 살아 있는 목적지마다 원 · 마름모 · 띠 (필터.md «하차 영역») */
                     dropoffArea={dropoffArea}
@@ -744,16 +680,10 @@ export default function StageView(props: Props) {
                     dongDots={dongDots}
                     onStopTap={focusCall}
                 >
-                    {/* 🏷️ 다음 정거장 이름표 — «어느 콜의 어떤 단계» (v22 S3 · 탭 동선은 4단계에서) */}
                     {/**
-                      * 🗺️ **지도 위 이름표는 뺐다** (기사님 화면 대조 2026-09-05).
-                      *
-                      * 🔴 이 이름표가 지도 좌상단 `전체·현구간·현위치` 버튼과 **같은 자리**라
-                      *    셋을 통째로 덮고 있었다. 화면을 찍어 보고서야 드러났다 —
-                      *    코드만 읽으면 «둘 다 있다»로 보인다.
-                      * 🔴 게다가 **같은 사실을 두 곳이 말했다** — 시트 상태바가 이미
-                      *    «다음 1 초월읍 ~2.3km» 를 말한다 (`lib/sheetStatus` · 규칙 ③).
-                      *    목업도 그 한 곳에만 둔다.
+                      * 🔴 **지도 위에 다음 정거장 이름표를 두지 않는다** — 지도 좌상단
+                      *    `전체·현구간·현위치` 버튼과 **같은 자리**라 셋을 덮는다 (코드만 읽으면 안 보인다).
+                      *    같은 사실을 시트 상태바가 이미 말한다 (`lib/sheetStatus` · 규칙 ③).
                       */}
 
                     {/* 🚀 지금 출발 — 옛 지도와 같은 자리·같은 동작 (짐 있고 출발 전일 때만) */}
@@ -764,7 +694,7 @@ export default function StageView(props: Props) {
                                 logRoadmapEvent("웹", "무대 지도 🚀 지금 출발 클릭 → 운행 중 국면");
                                 updateFilter({ driverAction: 'DRIVING' });
                                 /**
-                                 * 🚀 **출발을 누르면 시트가 내려간다** (기사님 수순 확정 2026-08-31).
+                                 * 🚀 **출발을 누르면 시트가 내려간다** (기사님 수순).
                                  *    누르는 순간이 «이제 달린다»는 의사 표현이다 — 주행 감지(10초)를
                                  *    기다리면 그 사이 시트가 지도를 가린다. 손이 이긴다(유예 30초)는
                                  *    규칙 위에서, 이 손짓만은 내리는 쪽으로 쓴다.
@@ -780,9 +710,8 @@ export default function StageView(props: Props) {
                       * ⏳ **«고른 것»과 «실제»를 가른다** — 노선을 골라도 경로가 아직 없으면
                       *    마름모로 보고, 화면이 **그렇게 말한다**. 직선으로 지어내지 않는다 (규칙 ④).
                       *
-                      * ⚠️ **고르는 버튼은 필터로 이사했다** (기사님 지시 2026-09-11:
-                      *    *"노선 동선 버튼도 지도에서 필터로 이사와야해"* — 목업이 그 자리다).
-                      *    여기 남은 것은 «지금 지도가 무엇을 그리고 있나»라 지도 자리가 맞다.
+                      * ⚠️ 노선/동선을 **고르는 버튼은 필터에 있다** — 여기는
+                      *    «지금 지도가 무엇을 그리고 있나»라 지도 자리가 맞다.
                       */}
                     <div className="absolute top-[92px] left-3 z-10 flex flex-col items-start gap-1">
                         {/* 🔴 **노선인데 경로가 아직이면 말한다** — 안 그러면 «노선인데 마름모»가 조용한 거짓말이 된다 */}
@@ -794,14 +723,14 @@ export default function StageView(props: Props) {
                     </div>
 
                     {/**
-                      * 🗺️ **아래 두 귀퉁이** (기사님 확정 2026-09-05 · 목업 이식):
+                      * 🗺️ **아래 두 귀퉁이**:
                       *   **좌하단** 경로 방침 — 내비추천 · 큰길 우선 · 최단거리
                       *   **우하단** 「QR 코드」 — **치수가 왼쪽과 같다.** 두 귀퉁이가 한 짝으로 읽힌다
                       * 🔴 **시트가 잰 높이 위에 뜬다** (`sheetPx`) — 시트가 «내용만큼» 서면
                       *    snap 이 정한 높이와 실제가 갈라져 버튼이 엉뚱한 자리에 뜬다 (규칙 ③).
                       */}
                     {liveRoute.length > 0 && (() => {
-                        /* 🔴 **화면에 올라 있는 콜을 센다 — 심사 중인 것도 함께** (기사님 0905).
+                        /* 🔴 **화면에 올라 있는 콜을 센다 — 심사 중인 것도 함께**.
                            합짐은 «첫짐 경로 위에서 산출된» 콜이라, 심사 중에 경로를 바꾸면
                            «가는 길에 있다»는 산출 근거 자체가 사라진다. */
                         const locked = isPriorityLocked(liveRoute.length);
@@ -831,7 +760,7 @@ export default function StageView(props: Props) {
                                     </button>
                                 ))}
                                 {/* 🔴 «잠겼다»는 **버튼 하나만 남은 것으로 이미 보인다** —
-                                    글자를 덧붙이지 않는다 (기사님 2026-09-05) */}
+                                    글자를 덧붙이지 않는다 */}
                             </div>
                         );
                     })()}
@@ -852,9 +781,8 @@ export default function StageView(props: Props) {
             </div>
 
             {/**
-              * 🔳 **QR 덮개 — 세 줄이면 끝난다** (기사님 2026-09-05:
-              *    *"그냥 「여수동 상차 / 구로동 하차 / 카메라로 찍어 네비를 켜세요」 이렇게"*).
-              * 🔴 **눌러서 크게**를 고르셨다 (2026-09-05) — 작게 늘 띄우면 못 찍힌다.
+              * 🔳 **QR 덮개 — 세 줄이면 끝난다** (다음 정거장 · QR · «카메라로 찍어 내비를 켜세요»).
+              * 🔴 **눌러서 크게** 띄운다 — 작게 늘 띄우면 못 찍힌다.
               */}
             {qrOpen && qrStop && (
                 <div onClick={() => setQrOpen(false)}
@@ -878,7 +806,7 @@ export default function StageView(props: Props) {
                         locked={!!judging}
                         onHeightChange={setSheetPx}
                         /**
-                         * 🎬 **요소별로 그린다** — 목업과 같은 모양 (이식 2026-09-05).
+                         * 🎬 **요소별로 그린다** — 목업과 같은 모양.
                          *    `▶ ①여수동 ~31분        2번 콜 · 상차 ›`
                          * 🔴 번호 동그라미는 **지도·목록과 같은 색표**다 — 색이 «몇 번 콜»을 말한다.
                          * 🔴 누르면 **「다」로 올라가며 그 콜이 열린다** — 이 줄을 누른 것은
@@ -931,9 +859,9 @@ export default function StageView(props: Props) {
                                 {!bar.notice && <span className="shrink-0 text-text-muted">›</span>}
                             </button>
                             {/**
-                              * 🙈 **지나간 콜 숨기기** (기사님 지시 2026-09-13).
+                              * 🙈 **지나간 콜 숨기기.**
                               *    🔴 **끝난 콜이 있을 때만 뜬다** — 없을 때 떠 있으면 한 줄(56칸)을
-                              *       괜히 먹는다. 사이클 초반에는 줄이 예전 그대로다.
+                              *       괜히 먹는다.
                               *    ⚠️ ▾ 는 «보이는 중», ▸ 는 «접힌 중» — 아코디언과 같은 문법이다.
                               */}
                             {pastCount > 0 && (
@@ -946,9 +874,9 @@ export default function StageView(props: Props) {
                           </div>
                         }
                         /**
-                         * 🪧 **판정석은 시트 맨 아래다** (기사님 확정 2026-09-05 · 안 ⓑ).
+                         * 🪧 **판정석은 시트 맨 아래다.**
                          *
-                         * 🔴 예전 자리(필터 줄·위쪽)는 늘 보이지만 **엄지에서 멀다.**
+                         * 🔴 위쪽(필터 줄)은 늘 보이지만 **엄지에서 멀다.**
                          *    여기는 **콜 목록 바로 밑**이라 KEEP 을 누르면 그 콜이 바로 위
                          *    목록으로 올라간다 — 위에서 아래로 읽는 순서와 손이 맞는다.
                          * 🔴 **맨 아래 붙박이**라 목록이 아무리 길어도 안 밀린다.
@@ -975,7 +903,7 @@ export default function StageView(props: Props) {
                     focus={snap === 'full' ? barFocus : null}
                     onOpenIdx={(i) => {
                         /**
-                         * 🪟 **여는 것이 곧 「다」, 닫는 것이 곧 「나」다** (기사님 정의 2026-09-05).
+                         * 🪟 **여는 것이 곧 「다」, 닫는 것이 곧 「나」다** (기사님 정의).
                          *
                          * | 다 | 지도 자리까지 다 쓰고 **하나만 열린** 상태 |
                          * | 나 | 상태바 + 타이틀 전부 (+ 판정) |

@@ -25,32 +25,16 @@ import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, pickupAreaKey, dro
 import type { } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
-// 🎛️ 국면 옵션 (필터 확정안 v2 · 2026-08-21 전환 완료)
+// 🎛️ 필터 값
 //
-// **값 다섯의 유일한 원천은 user_filters 한 행이고, 컬럼·라벨의 원천은 FILTER_FIELDS 표다** (C3-3b · 2026-09-11).
-// 옛 blob(user_filters.phase_settings)과 평면 4칸은 ④에서 손으로 철거했다 —
-// 병행 절차: 새 그릇 → 이중 쓰기+비교(전수 스모크 일치) → 읽기 전환 → 철거.
-// ⚠️ 실서버 data.db 는 배포 때 같은 손 순서 (배포 절차는 todo.md 🚀 절).
+// **값 다섯의 유일한 원천은 user_filters 한 행이고, 컬럼·라벨의 원천은 FILTER_FIELDS 표다.**
 // ─────────────────────────────────────────────────────────────
 
-/** 국면 5행을 새 그릇에 upsert — 컬럼 목록의 원천은 FILTER_FIELDS 표 */
 /**
- * 🎯 **그물이 향하는 시 — «파생»이다** (2026-09-12 전수 조사 ①-1 · 규칙 ③).
+ * 🏠 **집이 있는 시 — «좌표»로 뽑는다.**
  *
- * `callTarget` 이 HOME 이면 **집이 있는 시**, 아니면 기사님이 정한 `destinationCity`.
- * 🔴 **`destinationCity` 를 덮어쓰지 않는다.** 예전엔 `setCallTarget('HOME')` 이 그것을
- *    집 시로 갈아치워서, DEST 로 돌아올 때 원래 목적지가 **이미 없었다** — 파주가 광주로 굳었다.
- *    지금은 값을 안 건드리고 «어디를 볼지»만 여기서 매번 낸다. 목적지를 읽는 자리
- *    (첫짐 재계산·합짐 갱신·경유 조립·빈 차 경유·앱 피기백)가 **전부 이 함수**를 본다.
- * ⚠️ 집 주소에서 시·군을 못 뽑으면 `destinationCity` 로 물러선다 — 빈 그물을 만들지 않는다.
- */
-/**
- * 🏠 **집이 있는 시 — «좌표»로 뽑는다** (2026-09-12 전수 조사 3단계 실측).
- *
- * 복귀 토글이 서버에 닿았는데 «완료» 줄이 없었다 — 집 주소에서 「시」로 끝나는 조각을
- * 못 찾아 거부됐다. **기사님 실제 주소도 `경기도 광주 초월 동광뷰엘`** 이라 같은 모양이었다.
- * 사람이 적는 주소는 «광주시»라고 안 적는다.
- * 🔴 집에는 좌표가 있다(`home_x/home_y`). `nearestDong` 이 좌표에서 «광주시»를 낸다 —
+ * 🔴 주소 글자에서 「시」로 끝나는 조각을 찾지 않는다 — 사람이 적는 주소는 «광주시»라고 안 적는다
+ *    («경기도 광주 초월 …»). 집 좌표(`home_x/home_y`)를 `nearestDong` 에 넣는다 —
  *    그물이 이미 쓰는 그 표(`DONG_CENTROIDS`)다 (규칙 ③). 좌표가 없을 때만 주소 글자로 물러선다.
  * ⚠️ 서울이면 «서울 영등포구»처럼 구까지 온다 — `cityCenter` 가 그 이름을 그대로 받는다.
  */
@@ -64,6 +48,15 @@ export function homeCityOf(userId: string): string | null {
     return home.address?.split(/\s+/).find(p => p.endsWith('시') || p.endsWith('군')) ?? null;
 }
 
+/**
+ * 🎯 **그물이 향하는 시 — «파생»이다** (규칙 ③).
+ *
+ * `callTarget` 이 HOME 이면 **집이 있는 시**, 아니면 기사님이 정한 `destinationCity`.
+ * 🔴 **`destinationCity` 를 덮어쓰지 않는다** — 덮으면 복귀를 끄고 돌아올 때 원래 목적지가 없다.
+ *    «어디를 볼지»만 여기서 매번 낸다. 목적지를 읽는 자리
+ *    (첫짐 재계산·합짐 갱신·경유 조립·빈 차 경유·앱 피기백)가 **전부 이 함수**를 본다.
+ * ⚠️ 집 주소에서 시·군을 못 뽑으면 `destinationCity` 로 물러선다 — 빈 그물을 만들지 않는다.
+ */
 export function goalCityOf(session: ReturnType<typeof getUserSession>, userId: string): string {
     const mine = session.activeFilter.destinationCity ?? '';
     if (session.activeFilter.callTarget !== 'HOME') return mine;
@@ -77,7 +70,7 @@ function boardOf(o: { goalCity?: string; dropoffX?: number; dropoffY?: number })
 }
 
 /**
- * 🏠 **살아 있는 목적지 전부** (전수표 #4 #5 #6 · 기사님 확정 2026-09-09 · 🔄 2026-09-15 규칙은 shared `filterArea.goalZonesOf` — `goalZonesNow` 한 곳).
+ * 🏠 **살아 있는 목적지 전부** — 규칙은 shared `filterArea.goalZonesOf`, 세션에서 부르는 곳은 `goalZonesNow` 한 곳.
  *
  * ```
  * 복귀 끔                  [목적지]
@@ -85,14 +78,13 @@ function boardOf(o: { goalCity?: string; dropoffX?: number; dropoffY?: number })
  * 복귀 켬 · 복귀콜 잡음    [집]           목적지 콜은 뜨면 안 된다
  * ```
  *
- * 🔴 실물은 복귀를 켜는 순간 목적지가 집 하나였다(`goalCityOf`) — 복귀 대기 동안 목적지 콜이 안 떴다.
- * «복귀콜을 잡았나» = **복귀를 켠 뒤에 잡은** 콜 중 판이 집인 콜이 있나 (`homeCallsOf` · 🔄 #131).
- *    취소·방출한 콜은 안 센다 — 목업처럼 복귀콜을 취소하면 복귀 대기로 돌아간다.
+ * «복귀콜을 잡았나» = **복귀를 켠 뒤에 잡은** 콜 중 판이 집인 콜이 있나 (`homeCallsOf` · #131).
+ *    취소·방출한 콜은 안 센다 — 복귀콜을 취소하면 복귀 대기로 돌아간다.
  *    ⚠️ `myOrders` 에는 하차한 콜이 영업일 끝까지 남는다 — 아침 복귀콜이 저녁 복귀를 «잡음»으로 못 만드는 것은 켠 시각이 막는다.
  */
 export function goalCitiesOf(session: ReturnType<typeof getUserSession>, userId: string): string[] {
-    /* 🔄 2026-09-15 — 새 규칙(`goalZonesOf` — 목적지 콜이 남으면 목적지도) 한 곳 `goalZonesNow` 의 목적지 이름.
-          콜의 판(`goalOfCall`) · 관제웹 `goalCities` 가 하차 · 상차 목록과 같은 답을 본다 (필터.md «필터 영역») */
+    /* `goalZonesOf`(목적지 콜이 남으면 목적지도)의 목적지 이름.
+       콜의 판(`goalOfCall`) · 관제웹 `goalCities` 가 하차 · 상차 목록과 같은 답을 본다 (필터.md «필터 영역») */
     return goalZonesNow(session, userId, null).zones.map(z => z.city);
 }
 
@@ -112,32 +104,10 @@ export function homeCallsOf<T extends { status?: string; capturedAt?: string; go
 }
 
 /**
- * 🕸️ **그물이 만든 하차지 목록** — 서버도 실험실과 **같은 계산**을 쓴다
- *    (이식 C1-2 · 기사님 확정 2026-09-11 «실험실 것으로 통일» · 명세 §5).
- *
- * 앱이 보는 `destinationKeywords` 는 **«이 콜의 하차지가 내 그물 안인가»** 하나를 답한다
- * (`InsungParser.kt` 의 `anyHit(pureDropoffText, …)`). 실험실의 `dropIn` 과 같은 질문이라
- * 그대로 맞물린다 (규칙 ⑤-4 ⑤ — 읽는 곳을 먼저 확정했다).
- *
- * ```
- * 첫짐   line: null  · anchor: 내 위치       → 내 위치 원 ∪ 목적지 원 ∪ 마름모
- * 합짐   line: 지금 경로 · lastDrop: 라인 끝 → 라인 띠 ∪ 목적지 원 ∪ 마름모
- * ```
- *
- * 🔴 **못 그리면 옛 방식(도시 둘레)으로 물러선다** — 목적지를 모르거나(`cityCenter` 가
- *    좌표를 못 냄) 첫짐인데 내 위치를 모르면 그물의 꼭짓점이 없다. 그때 **비우지 않는다**:
- *    빈 목록은 «제한 없음»이 아니라 **고장**이고(루트 CLAUDE.md), 없는 값을 지어내지도
- *    않는다(규칙 ④). 잴 수 있는 방법으로 물러설 뿐이다.
- *
- * ⚠️ **잃는 것을 알고 고른 것이다** — 실험실은 동을 **중심점 하나**로 보고 옛 방식은
- *    **폴리곤 모양**으로 봤다. 면적이 넓은 읍·면은 가장자리가 걸쳐도 중심이 밖이면 빠진다
- *    (인천 조건 실측 45개 · 그중 30개가 읍·면). 차이는 `pnpm net:compare` 로 잰다.
- */
-/**
  * 📏 **자동 반경이 쓸 «잰 거리»를 들고 있게 한다 — 한 곳** (필터.md §10-1 ③ «하루에 한 번 잰다» · #149).
  *    들고 있으면 그대로, 비어 있으면 «내 위치 → 목적지»로 재서 싣는다(`radiusDistanceKm`).
  *    🔴 상차 목록(`rebuildPickupList`)과 하차 목록(`netKeywordsOf`)이 **반경을 쓰기 전에** 부른다 —
- *    예전엔 하차 목록만 재서, 재시작 직후 먼저 만든 상차 목록이 안 줄인 반경(10km)으로 만들어졌다 (2026-09-15 목현동).
+ *    한쪽만 재면 서버를 다시 켠 직후 먼저 만든 목록이 안 줄인 원래 반경으로 만들어진다.
  *    목적지 좌표를 모르면 재지 않는다 (규칙 ④).
  */
 function holdRadiusDistance(session: ReturnType<typeof getUserSession>, city: string, me: { x: number; y: number } | null): number | undefined {
@@ -150,6 +120,26 @@ function holdRadiusDistance(session: ReturnType<typeof getUserSession>, city: st
     return distanceKm;
 }
 
+/**
+ * 🕸️ **그물이 만든 하차지 목록** — 서버도 실험실과 **같은 계산**을 쓴다.
+ *
+ * 앱이 보는 `destinationKeywords` 는 **«이 콜의 하차지가 내 그물 안인가»** 하나를 답한다
+ * (`InsungParser.kt` 의 `anyHit(pureDropoffText, …)`). 실험실의 `dropIn` 과 같은 질문이라
+ * 그대로 맞물린다 (규칙 ⑤-4 ⑤).
+ *
+ * ```
+ * 첫짐   line: null  · anchor: 내 위치       → 내 위치 원 ∪ 목적지 원 ∪ 마름모
+ * 합짐   line: 지금 경로 · lastDrop: 라인 끝 → 라인 띠 ∪ 목적지 원 ∪ 마름모
+ * ```
+ *
+ * 🔴 **못 그리면 도시 둘레로 물러선다** — 목적지를 모르거나(`cityCenter` 가
+ *    좌표를 못 냄) 첫짐인데 내 위치를 모르면 그물의 꼭짓점이 없다. 그때 **비우지 않는다**:
+ *    빈 목록은 «제한 없음»이 아니라 **고장**이고(루트 CLAUDE.md), 없는 값을 지어내지도
+ *    않는다(규칙 ④). 잴 수 있는 방법으로 물러설 뿐이다.
+ *
+ * ⚠️ 그물은 동을 **중심점 하나**로 담는다 — 원 · 마름모 · 띠 가장자리에 걸친 동은 아래에서 따로 더한다.
+ *    도시 둘레(폴리곤)와의 차이는 `pnpm net:compare` 로 잰다.
+ */
 function netKeywordsOf(
     session: ReturnType<typeof getUserSession>,
     userId: string,
@@ -179,24 +169,17 @@ function netKeywordsOf(
 
     const quad = quadShapeFrom(session.activeFilter as any);
     /**
-     * 📐 **반경 자동 맞춤** (이식 C4-12 · 2026-09-12 · 계획서 §C4-12 에 규칙 ⑤-4 다섯).
+     * 📐 **반경 자동 맞춤** — 목적지와의 거리에 따라 반경이 자동으로 바뀐다 · 자동/수동 (필터.md §10-1).
      *
-     * 기사님: *"목적지와의 거리에 따라 … **자동으로 바뀌어 주면 좋겠다. 그래서 자동, 수동으로.**"*
-     *
-     * 🔴 **재는 축이 «마름모의 축»과 같아야 한다.** 마름모반경은 **축에서 좌우로** 재는
-     *    값이니(`callNet.makeInQuad`), 자동이 맞출 거리도 그 축이다 —
-     *    첫짐은 «내 위치 → 목적지», 합짐은 «마지막 하차지 → 목적지».
-     *    다른 축을 재면 «맞췄다는데 안 맞는» 값이 된다.
+     * 🔴 **거리는 하루에 한 번 잰다** (필터.md §10-1 ③ · #117) — 들고 있으면 그것을 쓰고, 비어 있을 때만
+     *    «내 위치 → 목적지»로 잰다(`holdRadiusDistance`). 합짐마다 «마지막 하차지 → 목적지»로 다시 재면
+     *    목적지 앞에서 원이 거의 0 이 되어 관내콜도 가는 길의 좋은 콜도 못 받는다.
+     *    비우는 곳: 다시 구하기(`null`) · 목적지 변경(`updateActiveFilter`) · 영업일 전환(`resetToBaseFilter`).
      * 🔴 **계산은 `shared` 한 곳이다** — 관제웹 지도(`StageView` «상차» · «하차» 레이어 · `effectiveRadii`)가 **같은 함수**를 부른다.
      *    두 벌이면 «지도는 든다는데 판정은 탈락»이 된다 (규칙 ③).
      * ⚠️ **수동이면 손대지 않는다.** 그리고 거리를 못 재면 자동도 **받은 값 그대로** 둔다
      *    (`autoRadii` 안에서 걸러진다 · 규칙 ④).
      */
-    /* 🔄 **2026-09-14 개정 — 거리는 하루에 한 번 잰다** (기사님 확정 · 필터.md §10-1 ③).
-       들고 있으면 그것을 쓰고, 비어 있을 때만 «내 위치 → 목적지»로 잰다. 예전엔 합짐이면
-       «마지막 하차지 → 목적지»로 매번 다시 재서 이천 중리동(1.2km)에서 목적 원이 0.3km 가 됐다
-       — 관내콜도 가는 길의 좋은 콜도 못 받는다. 비우는 곳: 다시 구하기(`null`) · 목적지 변경
-       (`updateActiveFilter`) · 영업일 전환(`resetToBaseFilter`). */
     const distanceKm = holdRadiusDistance(session, city, me);
     const auto = session.activeFilter.radiusAuto
         ? autoRadii(distanceKm, {
@@ -213,13 +196,12 @@ function netKeywordsOf(
         dstDiamKm: (auto ? auto.destinationRadiusKm : radiusKm) * 2,
     };
     /**
-     * 📏 **자동이 지금 얼마로 줄였나** — 화면이 손잡이에 그 값을 적을 수 있게 (이식 C4-12).
-     *    🔴 기사님이 정한 원값(`pickupRadiusKm` 등)은 **안 건드린다** (규칙 ④) —
-     *       배율만 따로 실어 보내고 곱하는 것은 화면이 한다.
+     * 📏 **자동이 지금 얼마로 줄였나** — 화면에는 배율이 아니라 **잰 거리**를 싣는다 (위 `holdRadiusDistance` 가 이미 실었다).
+     *    셈은 `effectiveRadii` 한 곳이다.
+     *    🔴 기사님이 정한 원값(`pickupRadiusKm` 등)은 **안 건드린다** (규칙 ④).
      */
-    /* 배율이 아니라 **거리**를 싣는다 — 셈은 `effectiveRadii` 한 곳 (전수 조사 2단계). 잰 거리는 위 `holdRadiusDistance` 가 이미 실었다 */
     /**
-     * 🎯 **목적지 가까이 옴 → 그 목적지 원에 걸친 동 전체** (기사님 확정 2026-09-15 · 필터.md «하차 영역»).
+     * 🎯 **목적지 가까이 옴 → 그 목적지 원에 걸친 동 전체** (필터.md «하차 영역»).
      *    관내를 따로 재지 않는다 — «가까이 옴»(`withNearness`)이 갈랐다. 상차 목록 동도 안 뺀다 (`mergeDropoffGroups`).
      *    걸침은 상차 목록과 같은 식이다 (`geoService.regionsTouchingAreaGrouped` — 격자 점 ∪ 동 꼭짓점).
      */
@@ -238,8 +220,8 @@ function netKeywordsOf(
             : null;
     /* 그물 입력 한 벌 — 중심점 그물(`netForGoal`)과 걸친 동(`regionsTouchingNetGrouped`)이 같은 입력을 본다 (규칙 ③) */
     const netOpts = {
-        /* 🔷 **동선이면 경로를 안 본다** — 지도(`StageView` 의 `dropoffLine` · `pickupLine`)와 같은 분기 (조사 ①-9).
-           예전엔 서버가 이 값을 몰라 «동선»을 골라도 판정·앱 목록은 노선이었다 */
+        /* 🔷 **동선이면 경로를 안 본다** — 지도(`StageView` 의 `dropoffLine` · `pickupLine`)와 같은 분기다.
+           서버가 이 값을 안 보면 «동선»을 골라도 판정·앱 목록은 노선이 된다 */
         line: session.activeFilter.routeMode === false ? null : line,
         lineRadiusKm: auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
         lastDrop,
@@ -258,15 +240,15 @@ function netKeywordsOf(
         (grouped[region] ??= []).push(d.name);
     }
     /**
-     * 🔵 **원 · 마름모 가장자리에 걸친 동도 넣는다** (기사님 2026-09-15 «영역에 지역이 걸치고 있으면 들어가는거야» · 필터.md «하차 영역»).
-     *    그물은 동을 중심점 하나로 담아 넓은 읍 · 면이 가장자리에 걸쳐도 빠졌다. 판정은 그물과 같은 `netAreaTesterOf` · 걸침은 상차 목록과 같은 식.
+     * 🔵 **원 · 마름모 가장자리에 걸친 동도 넣는다** — 영역에 걸치면 들어간다 (필터.md «하차 영역»).
+     *    그물은 동을 중심점 하나로 담아, 넓은 읍 · 면은 가장자리에 걸쳐도 빠진다. 판정은 그물과 같은 `netAreaTesterOf` · 걸침은 상차 목록과 같은 식.
      */
     const edge = regionsTouchingNetGrouped({ goal, ...netOpts });
     for (const [region, names] of Object.entries(edge)) (grouped[region] ??= []).push(...names);
     /**
-     * 🧩 **경로 영역은 동 경계가 띠에 걸치면 넣는다** (기사님 결정 2026-09-14 «나» · 전수표 #26).
-     *    그물은 동을 **중심점 하나**로 본다. 목업은 상차지 **좌표**로 재니 괜찮지만 스캔앱은 **지역명만** 본다 —
-     *    «7지점» 03 곤지암성당은 경로에서 2.15km(띠 안)인데 곤지암읍 중심점이 5.36km 라 목록에 없어 막혔다.
+     * 🧩 **경로 영역은 동 경계가 띠에 걸치면 넣는다.**
+     *    그물은 동을 **중심점 하나**로 본다. 목업은 상차지 **좌표**로 재니 괜찮지만 원달앱은 **지역명만** 본다 —
+     *    상차지가 띠 안인데 동 중심점이 띠 밖이면 목록에 없어 막힌다.
      *    앱은 넉넉하게 올리고 판정이 가른다(규칙 ⑤) — 띠에 걸친 동을 더한다. 폭은 그물 라인과 같은 값(자동이면 줄인 값).
      */
     const lineUsed = session.activeFilter.routeMode === false ? null : line;
@@ -277,9 +259,9 @@ function netKeywordsOf(
     if (touch) for (const [region, names] of Object.entries(touch.grouped)) (grouped[region] ??= []).push(...names);
     for (const k of Object.keys(grouped)) grouped[k] = [...new Set(grouped[k])].sort();
     /**
-     * 📏 **진행도도 같은 그물에서 낸다** (전수표 1단계 · 2026-09-14) — 라인 띠로만 든 동에 붙은
-     *    «라인 시작부터 몇 km 지점인가»(`callNet.buildLineNet`). 목록과 진행도가 **한 벌**이라
-     *    옛 경로 버퍼의 진행도로 새 목록의 동을 지우는 일이 없다. 같은 이름이 둘이면 먼 쪽 (옛 계산과 같은 규칙).
+     * 📏 **진행도도 같은 그물에서 낸다** — 라인 띠로만 든 동에 붙은
+     *    «라인 시작부터 몇 km 지점인가»(`callNet.buildLineNet`). 목록과 진행도가 **한 벌**이라야
+     *    다른 계산의 진행도로 새 목록의 동을 지우지 않는다. 같은 이름이 둘이면 먼 쪽.
      */
     const progressKm: Record<string, number> = {};
     for (const d of net.pass) {
@@ -289,7 +271,7 @@ function netKeywordsOf(
     }
     /* 🧩 띠에 걸쳐 더한 동도 경로 위다 — 순서는 그 동의 경로 스냅점(순서 전용 값 · #78)으로 */
     /* 🔴 **그물이 이미 넣은 동에는 안 붙인다** — 목적지·마름모로 든 동은 «아직 안 간 곳»이라 진행도가 없다
-          (`callNet.lineZoneOf` 의 `onlyByLine`). 붙이면 지나온 곳 빼기에 관고동·사음동이 먹혔다 (20:49:47) */
+          (`callNet.lineZoneOf` 의 `onlyByLine`). 붙이면 지나온 곳 빼기가 아직 안 간 동을 지운다 */
     /* 원 · 마름모로만 걸쳐 든 동도 «아직 안 간 곳»이다 — 띠에 걸친 동(`touch`)만 진행도를 받는다 */
     const bandNames = new Set(touch ? Object.values(touch.grouped).flat() : []);
     const inNet = new Set([...net.pass.map(d => d.name), ...Object.values(edge).flat().filter(n => !bandNames.has(n))]);
@@ -301,11 +283,11 @@ function netKeywordsOf(
 }
 
 /**
- * 🎯 **이 콜의 판 — 통과한 목적지** (전수표 #30 · 목업 `judgeGoals` 의 `preferName`: 집).
+ * 🎯 **이 콜의 판 — 통과한 목적지** (목업 `judgeGoals` 의 `preferName`: 집).
  *    목적지가 하나면 그것. 복귀 대기(둘)면 하차지가 **목적지 원 안이면 목적지(관내콜)**, 그 밖이면서 **집 그물** 안이면 집, 아니면 목적지.
- *    🔴 목적지 원을 먼저 본다 (2026-09-15 여섯 번째 바퀴 · 기사님 확정) — 집 그물은 꼭짓점이 «내 위치»인 마름모라 차 바로 옆 동(이천 중리동)이
- *       꼭짓점 근처에 들어, 관내콜이 «복귀콜 잡음»으로 적히고 그 뒤 관내콜이 막혔다. 원은 관내로 재는 그 원(`destRingKm`)이다 — 새 값 없음.
- *    ⚠️ 목적지 원이 집 쪽으로 걸치면 그 안의 집 방향 하차지도 관내콜로 적힌다 (원이 작아 손해가 작다 · onedal-49).
+ *    🔴 목적지 원을 먼저 본다 — 집 그물은 꼭짓점이 «내 위치»인 마름모라 차 바로 옆 동이 꼭짓점 근처에 들어,
+ *       관내콜이 «복귀콜 잡음»으로 적히고 그 뒤 관내콜이 막힌다. 원은 관내로 재는 그 원(`destRingKm`)이다 — 새 값 없음.
+ *    ⚠️ 목적지 원이 집 쪽으로 걸치면 그 안의 집 방향 하차지도 관내콜로 적힌다 (원이 작아 손해가 작다).
  *    ⚠️ 하차 좌표를 모르면 목적지로 둔다 — 모르는 값으로 «복귀콜을 잡았다»고 하지 않는다 (규칙 ⑤-2 · 복귀 대기가 더 넓다).
  */
 export function goalOfCall(session: ReturnType<typeof getUserSession>, userId: string, order: { dropoffX?: number; dropoffY?: number }): string | null {
@@ -326,14 +308,8 @@ export function goalOfCall(session: ReturnType<typeof getUserSession>, userId: s
 }
 
 /**
- * 🥣 **국면 행을 읽고 쓰던 셋이 여기 있었다** (`writePhaseRows` · `readPhaseRows` ·
- *    `loadPhaseRows` · 걷어냄 2026-09-11 · 이식 C3-3b).
- *
- * C3-3a 에서 값이 한 벌이 된 뒤로 이 셋이 하던 일은 **같은 값을 다섯 행에 쓰고
- * 다시 다섯을 읽어 한 벌로 접는 것**뿐이었다. 기사님: *"개선되어 중복인건 그냥 삭제 할꺼야."*
- *
- * 🔴 값 다섯은 이제 **평면 한 행**(`user_filters`)에 산다 — 저장은 `saveBaseFilter`,
- *    읽기는 `loadFilterValues` 하나다. 이름도 평면(앱 피기백) 것으로 통일됐다.
+ * 🎛️ **값 다섯은 평면 한 행(`user_filters`)에 산다** — 저장은 `saveBaseFilter`, 읽기는 이 함수 하나다.
+ *    이름은 평면(앱 피기백) 것을 쓴다.
  */
 export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
     try {
@@ -352,10 +328,10 @@ import { planArrivalStops } from '../services/routeComposer';
 import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, regionsTouchingNetGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
-// 노선·반경·할인율은 user_filters 의 평면 칸에 산다 (④에서 철거했다가 C3-3b 에서 한 벌로 돌아왔다).
-// min_fare·max_fare 는 보류 칸 (앱 피기백 — 화물24 단가식 뒤 3단계 강등, 확정안 ①-삭제 #3)
+// 노선·반경·할인율은 user_filters 의 평면 칸에 산다.
+// min_fare·max_fare 는 보류 칸이다 (앱 피기백)
 /**
- * 📐 마름모 셋도 여기 산다 — **국면 밖 한 벌** (이식 C3-2 · 2026-09-11).
+ * 📐 마름모 셋도 같은 행에 산다.
  *    컬럼 목록은 `QUAD_FIELDS` 표에서 뽑는다 (손으로 나열하지 않는다 — 규칙 ③).
  */
 const QUAD_COLS = QUAD_FIELDS.map(f => f.col);
@@ -396,15 +372,15 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
 
 // ━━━ 내부 유틸: 파생 데이터(destinationKeywords, allowedVehicleTypes) 재계산 ━━━
 function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, changes: Partial<AutoDispatchFilter>, userId: string) {
-    /* 🎯 화면·앱이 «지금 그물이 어디를 보나»를 알게 — 파생 · 읽기 전용 (조사 ①-1) */
+    /* 🎯 화면·앱이 «지금 그물이 어디를 보나»를 알게 — 파생 · 읽기 전용 */
     session.activeFilter.goalCity = goalCityOf(session, userId) || undefined;
-    /* 🏠 살아 있는 목적지 전부 — 지도가 목적지마다 그물을 그린다 (전수표 #6) */
+    /* 🏠 살아 있는 목적지 전부 — 지도가 목적지마다 그물을 그린다 */
     session.activeFilter.goalCities = goalCitiesOf(session, userId);
     /**
      * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/지금/필터.md §4).
      *
      * 관제웹은 `callDiscountPct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
-     * 만들면 한쪽만 고쳐진다(경유 4벌·상태목록 3벌과 같은 사고). 원천은
+     * 만들면 한쪽만 고쳐진다. 원천은
      * `user_filters.call_discount_pct` 한 벌이고, 여기가 그것을 표로 펼치는 유일한 자리다.
      */
     if ('callDiscountPct' in changes) {
@@ -421,34 +397,29 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
      * [최적화] 지리 연산은 도시·반경이 **실제로 바뀐 경우에만** 다시 돈다.
      * `isActive`·`minFare` 같은 단순 변경에는 캐시된 키워드를 그대로 쓴다.
      *
-     * ⚠️ 예전 주석은 이 연산을 **"~7초"** 라고 적어 뒀는데, 2026-08-14 실측은 이렇다:
-     *     `파주시 0km` 1ms · `용인시 10km` 13ms · `파주시 10km` 42ms · `서울 0km` 0ms
-     * 7초는 부팅 때 `f.simplified`(200m) 캐시를 넣기 **전** 숫자다(1415ms → 13ms 기록 참조).
-     * 낡은 경고를 믿고 판단하면 **없는 위험 때문에 기능을 포기**하게 된다 — 실제로 그랬다.
+     * ⚠️ «무거우니 피한다»로 기능을 포기하지 않는다 — 부팅 때 `f.simplified`(200m) 캐시를 넣은 뒤로
+     *    이 연산은 가볍다 (몇 초 걸린다는 옛 경고는 그 캐시 전 숫자다).
      */
     /**
-     * 🚫 **제외 지역이 바뀌어도 다시 만든다** (이식 C2-2 · 2026-09-11 실측).
-     *    처음엔 이 조건에 없어서 서울을 통째로 빼고 저장했는데 **「도착목표 298개 동」이
-     *    그대로였다** — DB 에도 남고 화면 칩도 생겼는데 판정이 쓰는 목록만 옛것이었다.
-     *    규칙 ⑤-4 ④ 가 금지하는 «화면이 조용히 거짓말하는» 모양이다.
+     * 🔴 **조건에 빠진 입력이 있으면 «화면이 조용히 거짓말한다»** (규칙 ⑤-4 ④) —
+     *    DB 에도 남고 화면도 바뀌는데 판정·앱이 쓰는 목록만 옛것이 된다.
+     *    `netKeywordsOf` 가 읽는 입력을 새로 더하면 여기에도 더한다.
      */
     const needsGeoRecalc =
         'destinationCity' in changes ||
-        'callTarget' in changes ||          // 🎯 타겟이 바뀌면 그물이 향하는 시가 바뀐다 (조사 ①-1)
-        'routeMode' in changes ||           // 🛣️🔷 노선/동선이 바뀌면 그물의 모양이 바뀐다 (조사 ①-9)
+        'callTarget' in changes ||          // 🎯 타겟이 바뀌면 그물이 향하는 시가 바뀐다
+        'routeMode' in changes ||           // 🛣️🔷 노선/동선이 바뀌면 그물의 모양이 바뀐다
         'destinationRadiusKm' in changes ||
-        'excludedRegions' in changes ||
-        /* 📐 **모드를 바꾸면 반경이 통째로 달라진다** — 그물을 다시 그려야 한다 (이식 C4-12).
-              안 넣었다가 실측에서 «자동을 눌렀는데 164동 그대로»가 났다 (규칙 ⑤-4 ④). */
+        'excludedRegions' in changes ||     // 🚫 제외 지역
+        /* 📐 **모드를 바꾸면 반경이 통째로 달라진다** — 그물을 다시 그려야 한다 */
         'radiusAuto' in changes ||
         'radiusBaseKm' in changes ||
-        /* 📏 [↻ 다시 구하기] — 들고 있던 거리를 비웠으니 지금 위치로 다시 재고 그물을 다시 그린다 (2026-09-14) */
+        /* 📏 [↻ 다시 구하기] — 들고 있던 거리를 비웠으니 지금 위치로 다시 재고 그물을 다시 그린다 */
         'radiusDistanceKm' in changes ||
         /**
-         * 🕸️ **그물의 재료 넷** (2026-09-12 전수 조사 ①-3). `netKeywordsOf` 가 실제로 읽는
-         *    입력인데 여기 없어서 **바꾸고 💾 해도 `destinationKeywords` 가 옛값**이었다 —
-         *    지도(클라)만 바뀌어 «지도는 든다는데 앱은 안 잡는다». 라인반경은 합짐 전용
-         *    `refreshDetourIfNeeded` 가 따로 건진다.
+         * 🕸️ **그물의 재료 넷** — `netKeywordsOf` 가 실제로 읽는 입력이다. 빠지면 바꾸고 💾 해도
+         *    `destinationKeywords` 가 옛값이라 «지도는 든다는데 앱은 안 잡는다».
+         *    라인반경은 합짐 전용 `refreshDetourIfNeeded` 가 따로 건진다.
          */
         'pickupRadiusKm' in changes ||
         'srcAngleDeg' in changes ||
@@ -458,21 +429,15 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
 
     if (changes.destinationKeywords) {
         /**
-         * 명시적으로 키워드가 전달된 경우 (합짐 경유 · 투트랙 등) → 키워드는 그대로 쓴다.
+         * 명시적으로 키워드가 전달된 경우 (합짐 경유 등) → 키워드는 그대로 쓴다.
          *
-         * 🔴 2026-08-12 — 다만 **시 별칭은 같이 안 오면 반드시 다시 만든다.**
-         *
-         * 첫짐에도 별칭을 싣기 시작하면서 생긴 구멍이다. 예전에는 첫짐 별칭이 늘 비어 있어
-         * 앱의 2단계 필터가 아예 안 돌았으므로 옛 값이 남아도 무해했다. 이제는 아니다.
-         *
-         * 옛 `startTwoTrack`(철거됨 · 지금은 `setCallTarget`/`syncDetourFilter`)은
-         * `destinationKeywords` 만 넘겼다. 그러면 스프레드(`...changes`)가
-         * `customCityFilters` 를 안 건드려 **직전 경유의 별칭이 그대로 남는다.**
-         * 앱은 "시가 맞고 동도 맞아야 통과"로 판정하므로, 엉뚱한 시 목록을 들고 있으면
-         * 멀쩡한 투트랙 콜을 전부 걸러낸다 — 조용히, 이유도 안 남기고.
+         * 🔴 **시 별칭(`customCityFilters`)이 같이 안 오면 반드시 다시 만든다.**
+         *    `destinationKeywords` 만 넘기면 스프레드(`...changes`)가 별칭을 안 건드려
+         *    **직전 목록의 별칭이 그대로 남는다.** 앱은 «시가 맞고 동도 맞아야 통과»로 판정하므로,
+         *    엉뚱한 시 목록을 들고 있으면 멀쩡한 콜을 조용히 전부 걸러낸다.
          *
          * 별칭을 못 만들면 **비운다.** 옛 값을 남기느니 2단계 필터가 안 도는 편이 낫다
-         * (동 이름만 보는 것 = 예전 동작). 있지도 않은 근거로 거르는 것이 더 나쁘다.
+         * (동 이름만 본다). 있지도 않은 근거로 거르는 것이 더 나쁘다.
          */
         if (!changes.customCityFilters) {
             const groups = changes.destinationGroups ?? {};
@@ -484,28 +449,27 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         }
     } else if (goalCityOf(session, userId) && needsGeoRecalc) {
         // 도시명/반경/타겟이 변경되었거나 키워드가 아직 계산되지 않은 경우에만 무거운 연산 수행
-        /* 🎯 목적지는 «파생»이다 — HOME 이면 집 시 (조사 ①-1) */
+        /* 🎯 목적지는 «파생»이다 — HOME 이면 집 시 */
         const city = goalCityOf(session, userId);
         const radius = session.activeFilter.destinationRadiusKm || 0;
         console.log(`🗺️ [FilterManager] 지리 연산 트리거 (city=${city}, radius=${radius}km)`);
         /**
-         * 🕸️ **그물이 목록을 만든다** (이식 C1-2) — 화면이 그리는 그 계산이다.
+         * 🕸️ **그물이 목록을 만든다** — 화면이 그리는 그 계산이다. 살아 있는 목적지마다 (복귀 대기면 목적지 ∪ 집).
          *    제외 지역은 `netKeywordsOf` 안에서 `pruneExcludedRegions` 한 곳이 뺀다 (규칙 ③).
          */
-        /* 🏠 살아 있는 목적지마다 — 복귀 대기면 목적지 ∪ 집 (전수표 #15) */
         /**
-         * 🧵 **콜을 쥐었으면 얼린 라인으로 만든다** (2026-09-14). 예전엔 `null` 이라 복귀를 켜거나 각도·반경을 바꾸면
-         *    다음 KEEP·하차까지 **경로 영역이 빠진 목록**이 폰에 갔다 — 뒤따라 라인으로 다시 만드는 길이 없다.
+         * 🧵 **콜을 쥐었으면 얼린 라인으로 만든다.** `null` 로 만들면 복귀를 켜거나 각도·반경을 바꿀 때
+         *    다음 KEEP·하차까지 **경로 영역이 빠진 목록**이 폰에 간다 — 뒤따라 라인으로 다시 만드는 길이 없다.
          *    진행도도 함께 기억한다 — `rebuildNetFilter` 와 같은 모양 (지나온 곳 빼기가 이 목록을 본다)
          */
         const line = filterLineOf(session);
         /* 📋 **상차 목록을 먼저** — 목적지 · 반경 · 자동 반경이 바뀌면 상차 목록도 바뀐다. 안 만들면 0.5km 움직일 때까지 옛 목록이
-              앱에 남고, 하차 목록도 옛 상차 목록을 뺀다 (코드 리뷰 2026-09-15 · 목적지 없이 떴다 정하면 빈 상차 목록으로 전부 막혔다) */
+              앱에 남고, 하차 목록도 옛 상차 목록을 뺀다 (#148) */
         rebuildPickupList(session, userId);
         const { flat, grouped, byNet, pruned, progressKm } = netOfGoals(session, userId,
             line ? line.map(p => [p.x, p.y] as [number, number]) : null);
         rememberDetourProgress(session, line ? progressOf(progressKm) : null);
-        /* 🔴 별칭은 목록에 든 시 전부에서 — `netFilterOf` 와 같다. 걸친 동 · 가까이 온 목적지 원이 이웃 시 동을 더한다 (코드 리뷰 2026-09-15) */
+        /* 🔴 별칭은 목록에 든 시 전부에서 — `netFilterOf` 와 같다. 걸친 동 · 가까이 온 목적지 원이 이웃 시 동을 더한다 */
         const aliases = new Set<string>();
         for (const parent of Object.keys(grouped)) for (const a of cityAliases(parent)) aliases.add(a);
         const customCityFilters = [...aliases];
@@ -514,34 +478,18 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         session.activeFilter.destinationKeywords = flat;
         session.activeFilter.destinationGroups = grouped;
         /**
-         * 🔴 2026-08-12 — 첫짐에도 **시 별칭**을 실어 보낸다.
-         *
-         * 예전에는 여기서 안 채워서 앱의 2단계 필터(`시 + 동` 교차 확인)가
-         * `customCityFilters.isNotEmpty()` 조건에 걸려 **아예 돌지 않았다.**
-         * 동 이름만 보고 판정했고, 수도권 안에만 같은 이름의 동이 97개 있다 —
-         * 파주 필터에 서울 서대문구 `신촌동` 콜이 그대로 통과했다.
+         * 🔴 첫짐에도 **시 별칭**을 실어 보낸다.
+         *    비면 앱의 2단계 필터(`시 + 동` 교차 확인)가 `customCityFilters.isNotEmpty()` 조건에 걸려
+         *    **아예 돌지 않고** 동 이름만 본다 — 수도권에는 같은 이름의 동이 많아 다른 시 콜이 그대로 통과한다.
          */
         session.activeFilter.customCityFilters = customCityFilters;
     } else if ('destinationCity' in changes && !changes.destinationCity) {
         /**
-         * 🔴 **도시를 "지웠을 때"만 경유도 지운다** (todo A번 · 2026-08-14 부터 미수정 → 08-22 수정).
-         *
-         * 예전 조건은 `!session.activeFilter.destinationCity` — *"도시가 **비어 있으면**"* 이었다.
-         * 그래서 **도시와 무관한 변경**(최저 운임·콜 잡기 껐다 켜기·GPS 파생 재계산)에도
-         * 경유 키워드가 통째로 날아갔다.
-         *
-         * 🔴 만드는 쪽과 지우는 쪽이 서로 다른 것을 보고 있었다:
-         *    KEEP → `syncDetourFilter` 는 **경로 기반**으로 꽂는다 (도시를 안 본다)
-         *    그 뒤 아무 변경 → 여기서 *"도시가 비었네"* → 전멸
-         *
-         * 그리고 당시 장부(`user_filter_phases`)에선 **합짐 국면은 목적지 도시가 원래 비어 있었다** —
-         * 즉 첫짐을 KEEP 해서 합짐으로 넘어가는 **정상 흐름이 곧 그 조건**이었다.
-         * (지금은 행이 하나라 그 조건이 성립하지 않는다 — 사고 기록으로 남긴다 · C3-3b)
-         * 경유가 0개가 되면 앱은 아무 콜도 안 올린다 — 화면엔 에러가 없고 **조용히 멈춘다.**
-         * (CLAUDE.md: *"빈 필터는 '제한 없음'이 아니라 고장이다"*)
-         *
-         * 2026-08-14 에 GPS 이동이 이 가지를 밟을 뻔해 전용 통로(`trimTraveled`)로 피했는데,
-         * 가지 자체는 남아 있었다. 이제 **기사님이 도시를 지운 그 순간**에만 걸린다.
+         * 🔴 **도시를 «지웠을 때»만 경유도 지운다** — «도시가 비어 있으면»으로 보지 않는다.
+         *    경유는 **경로 기반**으로 꽂혀 도시를 안 본다(`syncDetourFilter`). «비어 있으면»으로 지우면
+         *    도시와 무관한 변경(최저 운임·콜 잡기 껐다 켜기·GPS 파생 재계산)에도 경유가 통째로 날아가,
+         *    앱이 아무 콜도 안 올리고 **조용히 멈춘다** (빈 필터는 «제한 없음»이 아니라 고장).
+         *    GPS 이동은 이 함수를 안 거치고 전용 통로(`trimTraveled`)로 간다.
          */
         session.activeFilter.destinationKeywords = [];
         session.activeFilter.destinationGroups = {};
@@ -549,31 +497,20 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     }
     // else: 도시/반경 변경 없음 → 기존 캐시된 destinationKeywords 유지 (이벤트 루프 보호)
 
-    // 🔴 allowedVehicleTypes — 예전에는 명시적으로 안 넘기면 **첫짐 목록으로 리셋**했다.
-    //
-    //     if (!changes.allowedVehicleTypes)
-    //         = getEligibleVehicleTypes(내 차종)   ← 만재든 아니든 전 차종 허용
-    //
-    // 그래서 합짐 도중 경유가 갱신될 때마다(syncDetourFilter 는 키워드만 넘긴다)
-    // **적재 용량 제한이 조용히 풀렸다.** 라보 2개를 싣고도 1t 콜을 잡으러 가는 상태가 된다.
-    // 실측: 상태 복구가 [오토바이, 다마스, 승용차] 로 좁혀 놓은 직후 경유 갱신 한 번에
-    //       5종 전체로 되돌아갔다 (2026-08-10 스모크).
-    //
-    // 이슈 W·S 에서 세운 원칙과 같다 — **상태를 저장하지 말고 데이터에서 파생시킨다.**
-    // 지금 실려 있는 짐이 진실이므로 거기서 매번 다시 구한다.
+    // 🔴 allowedVehicleTypes — 명시적으로 안 넘기면 **지금 실린 짐에서** 다시 구한다. 첫짐 목록(전 차종)으로 리셋하지 않는다.
+    //    리셋하면 합짐 도중 경유가 갱신될 때마다(syncDetourFilter 는 키워드만 넘긴다)
+    //    **적재 용량 제한이 조용히 풀려** 짐을 싣고도 큰 차 콜을 잡으러 간다.
+    //    상태를 저장하지 말고 데이터에서 파생시킨다 (규칙 ③).
     if (!changes.allowedVehicleTypes) {
         const myVehicle = session.userVehicleType || '1t';
         const loaded = getActiveCalls(session);
         /**
-         * 🚚 **기사님이 «받겠다»고 고른 것으로 한 번 더 좁힌다** (이식 C4-6b · 2026-09-12).
+         * 🚚 **기사님이 «받겠다»고 고른 것으로 한 번 더 좁힌다** — 1톤이어도 합짐을 위해 작은 짐만 받을 수 있다.
          *
-         * 기사님: *"내 차가 1톤이지만 **라보 다마스 짐만 받겠다** … 합짐을 위해 필요."*
-         *
-         * 🔴 **두 질문을 갈라 둔 이유가 여기 있다** (규칙 ⑤-4 ⑤):
+         * 🔴 **두 질문을 갈라 둔다** (규칙 ⑤-4 ⑤):
          *      · `acceptedVehicleTypes` 는 **기사님이 정한다** — 짐이 오가도 안 바뀐다
          *      · `allowedVehicleTypes`  는 **서버가 파생한다** — 콜마다 다시 난다
-         *    한 칸에 겹쳐 두었더니 경유가 갱신될 때마다 기사님이 좁혀 둔 것이 풀려
-         *    *"라보 2개를 싣고도 1t 콜을 잡으러 가는"* 상태가 됐다 (2026-08-10 스모크).
+         *    한 칸에 겹치면 경유가 갱신될 때마다 기사님이 좁혀 둔 것이 풀린다.
          * 🔴 **비어 있으면 «제한 없음»** — 새 칸이 생겨도 아무것도 안 바뀌는 것이 기본이다.
          * ⚠️ **교집합이 비면 그것이 «만재»다** — 지어내서 채우지 않는다 (규칙 ④).
          */
@@ -587,10 +524,8 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
             session.activeFilter.capacityConfidence = 'CONFIRMED';
             session.activeFilter.slotsUsed = 0;
         } else {
-            // [Phase 8.4] 통화·현장에서 실제 짐 양을 알면 그걸 쓴다.
-            // 차종만 보면 "1t 콜 = 30점 만재"로 추정하는데, 실제로 박스 1개면 2점이다.
-            // 그 차이만큼 **놓치던 합짐 기회**가 열린다.
-            // 🔄 파생 치환 ② — 적재의 재료도 새 장부에서
+            // 통화·현장에서 실제 짐 양을 알면 그걸 쓴다 — 차종만 보면 크게 추정해
+            // 그 차이만큼 합짐 기회를 놓친다. 재료는 단계 장부(`stepRecordsOf`)에서.
             const reports = new Map(loaded.map(c => [c.id, stepRecordsOf(c.id).reports]));
             const { points, confidence } = computeLoadedPoints(loaded, myVehicle, reports);
             session.activeFilter.allowedVehicleTypes = narrow(getRemainingCapacityTypesByPoints(myVehicle, points));
@@ -598,9 +533,8 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
             session.activeFilter.capacityConfidence = confidence;
 
             /**
-             * 관제탑 표시용 — 점수가 곧 **박스**다 (라면박스 축 2026-08-17).
-             * 옛 축에서는 여기서 ÷7.5 로 칸 환산을 했는데, 그 잔재가 남아
-             * "다마스 30박스 → 4/100박스"로 표시되는 사고가 났다 (기사님 실측 2026-08-17).
+             * 관제탑 표시용 — 점수가 곧 **박스**다.
+             * 🔴 칸 환산(나누기)을 넣지 않는다 — 박스가 곧 표시 단위다 (`pricingModel.test.ts`).
              *
              * 별도로 세지 않는 이유: 차종으로 다시 세면 통화로 확인한 실제 짐 양이
              * 반영되지 않아 **화면과 판정이 다른 말을 한다.** 판정이 쓰는 점수에서 파생시킨다.
@@ -653,37 +587,30 @@ export function rememberDetourProgress(
     // 순서용 한 벌도 같은 순간에 — 트림용과 갈라지면 #78 이 되살아난다
     session.detourOrderKm = regions?.orderKm ?? null;
     /**
-     * 🛣️ 경로 위 동 목록도 함께 기억한다 (2026-08-25).
-     * ⚠️ **여기에는 경유만 넣는다.** 도착 목표에서 온 동을 섞으면 상차지 축이 뚫린다
-     *    (`buildAppOrderKm` 주석 참고 — 2026-08-18 파주 사고와 같은 형태).
+     * 🛣️ 경로 위 동 목록도 함께 기억한다.
+     * ⚠️ **여기에는 경유만 넣는다.** 도착 목표에서 온 동을 섞으면 «경로 위»로 읽혀
+     *    뒤로 돌아가 싣는 콜이 통과한다.
      */
     session.detourFlat = regions?.flat ?? null;
 }
 
 /**
- * 🧭 **앱에 내려보낼 경로 순서 맵** — 역주행·경로 밖 상차 차단용 (기사님 확정 2026-08-18)
- *
- * 실사고: 파주 도착 직전에 `초월읍(광주) → 금촌동(파주)` 콜이 앱 필터를 통과했다
- * (2026-08-18 08:50). 앱은 하차지만 보고 상차지를 아무도 안 봐서 — 78km 역주행 콜이었다.
+ * 🧭 **앱에 내려보낼 경로 순서 맵** — 앱이 상차지의 경로 순서(역주행)를 볼 재료다.
  *
  * · 키를 **지금 목록(destinationKeywords)으로 좁힌다** — 세션의 순서 맵은
  *   지나온 동도 계속 들고 있어, 그대로 보내면 지나온 동이 "경로 위"로 남는다
- * · 값 없음(스냅 실패)은 **null** — "순서를 모른다"는 뜻이고 앱은 모르면 막지 않는다
+ * · 경로 위가 아니거나 값을 모르면 **null** — "순서를 모른다"는 뜻이고 앱은 모르면 막지 않는다
  * · 경로가 없으면(첫짐) **빈 객체** — 앱이 순서 검사를 통째로 건너뛴다
  *
- * 🔴 **읽는 것은 `detourOrderKm`(순서 전용 · 순수 스냅점)이다** (#78 · 2026-08-30).
- *    전에는 트림용 `detourProgressKm` 을 그대로 썼다 — pad 가 하차원 판정까지 부풀려
- *    곤지암읍(실제 6km 길목)이 «Infinity → 경로 끝 19.2km»가 됐고, 성당→이천제일이
- *    "2.2km 후진"으로 차단됐다 (7지점 실폰 2회 재현 · `routeOrderKm.test.ts`).
- *    순서용에는 Infinity 가 없으므로 옛 «Infinity → 경로 끝» 치환도 함께 사라졌다 —
- *    하차원 안 동들도 각자의 실제 위치를 가져 서로의 순서가 살아 있다 (2026-08-18 에
- *    null 로 보내 판정이 죽었던 그 자리 — 지금은 유한한 실수가 나가므로 그 일이 없다).
+ * 🔴 **읽는 것은 `detourOrderKm`(순서 전용 · 순수 스냅점)이다** (#78).
+ *    트림용 `detourProgressKm` 은 하차원 판정까지 부풀려 있어, 순서로 쓰면 길목의 동이
+ *    경로 끝으로 밀려 앞길 콜이 «후진»으로 막힌다 (`routeOrderKm.test.ts`).
  */
 export function buildAppOrderKm(
     session: ReturnType<typeof getUserSession>,
 ): Record<string, number | null> {
     /**
-     * 🔴 진행 중 경로가 없으면(활성 콜 0) 순서도 없다 (버그 대장 #39 · 2026-08-22).
+     * 🔴 진행 중 경로가 없으면(활성 콜 0) 순서도 없다 (#39).
      * 옛 사이클의 진행도 잔재를 내려보내면 앱 RouteOrderFilter 가 "경로 밖 상차지
      * 차단"을 **첫짐 탐색에** 발동한다 — 옛 경유 목록 밖 첫짐 후보가 전부 막힌다.
      * 원천(경로)이 없으면 파생도 빈 것이다 (규칙 ③).
@@ -694,24 +621,10 @@ export function buildAppOrderKm(
 
     const out: Record<string, number | null> = {};
     for (const dong of session.activeFilter.destinationKeywords ?? []) {
-        /**
-         * 🔴 **경유에 없는 동은 내보내지 않는다** (2026-08-25).
-         *
-         * 목록에는 이제 도착 목표(첫짐의 «여주시») 에서 온 동이 섞여 있다. 그건
-         * **하차지를 열려고** 넣은 것이지 «경로 위»라는 뜻이 아니다.
-         *
-         * 여기서 `null` 로 내보내면 앱의 `RouteOrderFilter` 가 키가 있다는 이유로
-         * «상차지 순서 미상 — 통과» 로 읽어 **그 동에서 싣는 콜을 허용한다** —
-         * 2026-08-18 파주 사고(78km 뒤로 돌아가 싣기)와 같은 형태다.
-         *
-         * ⚠️ **`order` 의 키로 거르면 안 된다.** `centroid` 가 없어 스냅에 실패한 동은
-         *    경로 위인데도 순서 맵에 없다. 그 동은 `null`(«순서 미상 — 통과»)로 나가야
-         *    맞다 — «모르는 것»과 «경로 밖»은 다르다. 그래서 경유 목록으로 거른다.
-         */
-        /* 🔄 **2026-09-14 개정 — 목록에 든 동은 다 싣는다. 경로 위가 아니면 `null`(순서 미상 → 통과).**
-         *    기사님 결정: *"필터가 그렇게 디테일할 수 없다 — 그냥 올리고 판정에서 나쁜 점수를 받으면 기사는 선택하지 않는다."*
-         *    위 주석의 옛 규칙(경로 밖 동은 빼서 «경로 밖 — 차단»)은 «7지점» 05(사음동 — 목적지 영역 안)를 막았다.
-         *    뒤로 가는 상차는 이제 필터 영역이 뺀다(필터.md §5 «필터 영역» · 전수표 2단계). */
+        /* 🔴 **목록에 든 동은 다 싣는다. 경로 위가 아니면 `null`(순서 미상 → 통과).**
+         *    필터는 그렇게 세밀할 수 없다 — 올리고, 판정에서 나쁜 점수를 받으면 기사님이 고르지 않는다 (규칙 ⑤).
+         *    경로 밖 동을 빼서 «경로 밖 — 차단»으로 만들지 않는다 — 목적지 영역 안의 좋은 콜까지 막힌다.
+         *    뒤로 가는 상차는 필터 영역이 뺀다(필터.md §5 «필터 영역»). */
         const v = order[dong];
         // 유한하지 않은 값이 섞여 들면 «순서 미상 — 통과» — 느슨한 쪽이 안전하다 (규칙 ⑤)
         out[dong] = Number.isFinite(v) ? (v as number) : null;
@@ -722,10 +635,10 @@ export function buildAppOrderKm(
 /**
  * **지나온 구간을 필터에서 뺀다** — 경유를 다시 그리지 않고.
  *
- * 기사님: *"성남을 지났으면 이미 지나온 광주시·성남시 콜은 목록에서 뺀다. 뒤로 안 돌아가니까."*
+ * 까닭: 이미 지나온 곳으로는 뒤로 안 돌아간다 (기사님).
  *
  * 경유를 만들 때 동마다 기록해 둔 진행도(`detourProgressKm`)와 지금 GPS 의 진행도를
- * 비교하기만 한다 — 실측 **0.14ms**. 예전 방식(경유 통째 재계산)은 173ms 였다.
+ * 비교하기만 한다 — 경유를 통째로 다시 계산하지 않는다.
  *
  * 안전 쪽으로 기운 규칙 셋. **일찍 빼면 잡을 수 있는 콜을 버린다:**
  *   ① 진행도를 **모르는 동은 남긴다**
@@ -734,11 +647,9 @@ export function buildAppOrderKm(
  */
 export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): boolean {
     /**
-     * 🔴 **국면을 보지 않는다** (2026-08-14 정정).
-     *
-     * 처음에는 `dispatchPhase === 'DELIVERING'` 일 때만 돌렸다. 그런데 지나온 구간은
-     * **국면과 무관하게 참이다** — 이미 지난 동네는 합짐이든 운행중이든 지난 동네다.
-     * 게다가 도착 감지가 국면을 GATHERING 으로 떨어뜨리자 **달리는 중인데 제거가 멈췄다.**
+     * 🔴 **국면을 보지 않는다.** 지나온 구간은 **국면과 무관하게 참이다** — 이미 지난 동네는
+     *    합짐이든 운행중이든 지난 동네다. 국면으로 거르면 도착 감지가 국면을 GATHERING 으로
+     *    떨어뜨릴 때 **달리는 중인데 제거가 멈춘다.**
      *
      * 조건은 데이터에 맡긴다: 진행도가 있고(= 경유를 그렸고) · 경로가 있고 · GPS 가 있으면 돈다.
      * 콜이 0건이면 경로가 없으니 자연히 안 돈다.
@@ -746,11 +657,11 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
     const progress = session.detourProgressKm;
     if (!progress) return false;
 
-    /* 🛣️ 얼린 라인 위 GPS 진행도 — 그물이 동마다 붙인 진행도와 **같은 셈**(`progressAlongKm`)이다 (전수표 #19) */
+    /* 🛣️ 얼린 라인 위 GPS 진행도 — 그물이 동마다 붙인 진행도와 **같은 셈**(`progressAlongKm`)이다 */
     const polyline = filterLineOf(session);
     /**
-     * 🧭 **지금 위치로만 뺀다** («7지점» 2026-09-14 20:49:47). 부팅 때 되살린 지난 바퀴 끝 점(16분 묵음)으로
-     *    01 KEEP 순간 새 경로의 19.2km 까지를 «지나왔다»며 21 → 10곳으로 뺐다. 묵었거나 집 주소로 대신한 위치면 안 뺀다.
+     * 🧭 **지금 위치로만 뺀다** — 묵었거나 집 주소로 대신한 위치면 안 뺀다.
+     *    부팅 때 되살린 지난 위치로 빼면 새 경로의 앞길까지 «지나왔다»며 지운다.
      */
     const here = originOf(session as Parameters<typeof originOf>[0]);
     const gps = here && !here.isFallback ? here : null;
@@ -805,7 +716,7 @@ function refreshDetourIfNeeded(
     const cRadius = session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM;
     const dRadius = session.activeFilter.destinationRadiusKm ?? 10;
     /**
-     * 🚫 **제외 지역이 바뀌어도 다시 그린다** (이식 C2-2 · 2026-09-11).
+     * 🚫 **제외 지역이 바뀌어도 다시 그린다.**
      *    반경만 보면 합짐 국면에서 «제외했는데 경로 주변 목록은 그대로»가 된다 —
      *    첫짐에선 빠지는데 합짐에선 들어오는, 국면마다 다른 말을 하는 모양이다.
      */
@@ -814,7 +725,7 @@ function refreshDetourIfNeeded(
     if (cRadius === before.detourRadiusKm && dRadius === before.destinationRadiusKm && exBefore === exNow) return;
 
     /**
-     * 🕸️ **합짐도 그물 한 곳이 만든다** (전수표 1단계 · 2026-09-14) — 옛 경로 버퍼(`recalculateDetourFilter`)를 걷었다.
+     * 🕸️ **합짐도 그물 한 곳이 만든다** — 경로 버퍼(`recalculateDetourFilter`)를 부르지 않는다.
      *    목록 · 묶음 · 별칭 · 진행도가 **한 벌**로 나온다. 라인은 KEEP 순간 얼린 경로다(`filterLineOf`).
      */
     const kept = netFilterOf(session, userId);
@@ -829,10 +740,9 @@ function refreshDetourIfNeeded(
 }
 
 /**
- * 🛣️ **필터가 쓰는 라인 — KEEP 순간 얼린 경로** (기사님 확정 2026-09-14 · 전수표 #18).
+ * 🛣️ **필터가 쓰는 라인 — KEEP 순간 얼린 경로.**
  *
- * 기사님: *"운전이 경로를 벗어나든 말든 상관없다. 하차·취소·재탐색으로 다시 잴 필요가 없다 —
- * 기사는 어찌 되었건 그 목적지로 간다."* 그래서 경로가 다시 재져도(하차 완료·취소) 필터 라인은 안 바뀐다.
+ * 경로가 다시 재져도(하차 완료·취소·재탐색) 필터 라인은 안 바뀐다 — 기사는 어찌 되었건 그 목적지로 간다 (기사님).
  * ⚠️ 얼린 값이 없으면(서버가 막 켜짐) **지금 경로**를 쓴다 — 메모리라 재시작하면 비어 있다.
  * 콜이 0건이면 라인이 없다.
  */
@@ -862,7 +772,7 @@ function netFilterOf(session: ReturnType<typeof getUserSession>, userId: string)
 }
 
 /**
- * 🔵 **하차 목록 — 살아 있는 목적지마다 조각을 만들어 합친다** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
+ * 🔵 **하차 목록 — 살아 있는 목적지마다 조각을 만들어 합친다** (`docs/지금/필터.md` «하차 영역»).
  *
  * 목적지 상태 · 가까이 옴은 `goalZonesNow`(상차 목록과 같은 값), 조각은 shared `dropoffPartsOf`,
  * 종착지는 경로 순서(`planArrivalStops` — 관제웹 `routeStops` 와 같은 순서)에서 그 목적지 콜의 마지막 하차지(`lastDropOf`),
@@ -875,11 +785,11 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
     const { zones, homeOn, homeCity } = goalZonesNow(session, userId, origin);
     const activeCalls = getActiveCalls(session);
     const stops = activeCalls.length ? planArrivalStops(activeCalls, origin) : [];
-    /* 🔷 동선이면 라인이 없다 — 조각(`dropoffPartsOf`)과 그물(`netKeywordsOf`)이 같은 답을 보게 여기서 끊는다 (코드 리뷰 2026-09-15) */
+    /* 🔷 동선이면 라인이 없다 — 조각(`dropoffPartsOf`)과 그물(`netKeywordsOf`)이 같은 답을 보게 여기서 끊는다 */
     const lineXY = !line || session.activeFilter.routeMode === false ? null : line.map(([x, y]) => ({ x, y }));
     const radius = session.activeFilter.destinationRadiusKm || 0;
     const parts: Array<{ near: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }> = [];
-    /** 🔎 목적지마다 무엇으로 만들었나 — 로그 한 줄 (`rebuildNetFilter` · 기사님 2026-09-15 «너가 로그를 남겨서 확인할 수 있게 해») */
+    /** 🔎 목적지마다 무엇으로 만들었나 — 로그 한 줄로 확인할 수 있게 (`rebuildNetFilter` 가 찍는다) */
     const details: string[] = [];
     const pickupGroups = session.activeFilter.pickupGroups ?? {};
     const pick = new Set(Object.entries(pickupGroups).flatMap(([region, names]) => names.map(n => `${region}|${n}`)));
@@ -910,20 +820,17 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
 }
 
 /**
- * 🕸️ **필터 목록을 다시 만든다 — 한 곳** (전수표 1단계 · 기사님 확정 2026-09-14).
- *
- * «7지점 한 바퀴» 06 콜(중리동 → 초월읍)이 도착지 축을 통과했다 — 부팅·0건은 시 경계 버퍼,
- * KEEP·경로 재계산은 경로 버퍼 ∪ 시 경계 버퍼(옛 계산)가 목록을 만들었고, 그물은 필터를 만질 때만 돌았다.
- * 이제 모든 때가 그물(`netKeywordsOf`)을 부른다.
+ * 🕸️ **필터 목록을 다시 만든다 — 한 곳.** 부팅 · 콜 0건 · KEEP · 경로 재계산 · 출발이 모두 그물(`netKeywordsOf`)을 부른다.
+ * 🔴 때에 따라 다른 계산(시 경계 버퍼 · 경로 버퍼)으로 만들지 않는다 — 같은 콜이 때마다 통과했다 막혔다 한다.
  */
 export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): void {
     const session = getUserSession(userId);
     const startedAt = Date.now();
     /* 📋 **상차 목록을 먼저** — 하차 목록이 먼 목적지에서 상차 목록 동을 뺀다 (`mergeDropoffGroups` · 필터.md «하차 영역»).
        경로 · 출발 · 복귀가 바뀌는 길이 여기로 모인다. 방송은 아래 `updateActiveFilter` 가 한 번에 한다.
-       🔴 손으로 고친 필터여도 상차 목록은 만든다 — 하차 목록만 기사님 것이다 (코드 리뷰 2026-09-15 · #146 과 같은 모양) */
+       🔴 손으로 고친 필터여도 상차 목록은 만든다 — 하차 목록만 기사님 것이다 (#146 과 같은 모양) */
     const pickupChanged = pickupBuilt || rebuildPickupList(session, userId);
-    /* 🔒 기사님이 손으로 고친 합짐 목록은 덮지 않는다 (2026-08-12) — 사이클이 끝나면 풀린다 */
+    /* 🔒 기사님이 손으로 고친 합짐 목록은 덮지 않는다 — 사이클이 끝나면 풀린다 */
     if (session.activeFilter.userOverrides && getActiveCalls(session).length > 0) {
         console.log(`🔒 [경유 고정] 기사님이 손으로 고친 필터라 자동 갱신을 건너뜁니다 ` +
             `(키워드 ${(session.activeFilter.destinationKeywords || []).length}개 유지)`);
@@ -950,8 +857,8 @@ export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): 
 }
 
 /**
- * 🗺️ **키워드 트랩 — 한 곳** (regionMatch 사전 확장 · 기사님 확정 ④ · 상차 목록 2026-09-15).
- *    "남동"→"인천 남동구" 오탐의 원천 수리. 원천은 전국 지명 사전(geoService)이고, 앱·서버 매칭(anyRegionHit)이 이 트랩으로 부분 문자열 오탐을 거른다.
+ * 🗺️ **키워드 트랩 — 한 곳.**
+ *    "남동"→"인천 남동구" 같은 부분 문자열 오탐을 막는다. 원천은 전국 지명 사전(geoService)이고, 앱·서버 매칭(anyRegionHit)이 이 트랩으로 거른다.
  *    📋 **상차 목록 ∪ 하차 목록으로 한 벌** — 막는 낱말이 늘 뿐이라 통과를 넓히지 않는다 (필터.md «상차 목록»).
  *    🔴 목록을 바꾸는 두 길(`updateActiveFilter` · `rebuildPickupList`)이 **이 함수 하나**를 부른다 — 계산이 두 벌이면 한쪽 목록을 빠뜨린다.
  */
@@ -961,7 +868,7 @@ function refreshKeywordTraps(session: ReturnType<typeof getUserSession>): void {
 }
 
 /**
- * 🎯 **지금 살아 있는 목적지 · 각자 상태 · 가까이 옴 — 한 곳** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «필터 영역»).
+ * 🎯 **지금 살아 있는 목적지 · 각자 상태 · 가까이 옴 — 한 곳** (`docs/지금/필터.md` «필터 영역»).
  *    상차 목록(`rebuildPickupList`)과 하차 목록(`netOfGoals`)이 **같은 값**을 쓴다 — 관제웹 «상차» · «하차» 레이어도 같은 두 shared 함수다 (규칙 ③).
  *    반경은 `effectiveRadii` · 모양은 `quadShapeFrom`. 내 위치를 모르면 «가까이 옴»을 못 재 «멀다»로 둔다 (규칙 ④).
  */
@@ -991,7 +898,7 @@ function goalZonesNow(session: ReturnType<typeof getUserSession>, userId: string
 }
 
 /**
- * 📋 **상차 목록을 만든다** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
+ * 📋 **상차 목록을 만든다** (`docs/지금/필터.md` «상차 영역»).
  *
  * 목적지 상태는 shared `goalZonesOf`, 계산은 `geoService.pickupListFor` 한 곳 — 여기서는 세션 값을 넘기기만 한다.
  * 관제웹 «상차» 레이어가 **같은 `goalZonesOf`** 로 그린다 (규칙 ③).
@@ -1002,7 +909,7 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const me = originOf(session as Parameters<typeof originOf>[0]);
     if (!me) return false;
     const f = session.activeFilter;
-    /* 📏 반경을 먼저 잰다 — 재시작 직후 «잰 거리»가 비어 자동 반경이 안 줄고 원값으로 목록을 만들었다 (#149 · 목현동). 하차 목록과 같은 첫 목적지 */
+    /* 📏 반경을 먼저 잰다 — 재시작 직후엔 «잰 거리»가 비어 있어, 안 재면 자동 반경이 원값으로 목록을 만든다 (#149). 하차 목록과 같은 첫 목적지 */
     const firstGoal = goalZonesNow(session, userId, null).zones[0]?.city;
     if (firstGoal) holdRadiusDistance(session, firstGoal, me);
     const eff = effectiveRadii(f);
@@ -1028,7 +935,7 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     return changed;
 }
 
-/** 📋 GPS 가 0.5km 넘게 움직였으면 상차 목록을 다시 만들고 관제웹에 알린다 (기사님 확정 · `PICKUP_LIST_MOVE_KM`) */
+/** 📋 GPS 가 0.5km 넘게 움직였으면 상차 목록을 다시 만들고 관제웹에 알린다 (`PICKUP_LIST_MOVE_KM`) */
 export function maybeRebuildPickupList(userId: string, io?: any): void {
     const session = getUserSession(userId);
     const me = originOf(session as Parameters<typeof originOf>[0]);
@@ -1038,28 +945,9 @@ export function maybeRebuildPickupList(userId: string, io?: any): void {
 }
 
 /**
- * 🥣 **국면이 바뀔 때 그 벌을 펴던 고리가 여기 있었다**
- *    (`applyPhaseSettingsIfChanged` · 걷어냄 2026-09-11 · 이식 C3-3b).
- *
- * 국면이 바뀌면 그 국면의 값 다섯을 평면 필터에 얹었다. **값이 한 벌이 된 뒤로는
- * 얹어도 같은 값이라** 하는 일이 없었다 — 반경이 안 바뀌니 경유 재계산도 안 돌았다.
- *
- * 🔴 **함께 사라진 것**: `session.appliedPhaseKey`(어느 벌을 폈나) ·
- *    `applyPhaseToFilter`(이름 두 벌 사이 다리) · 단가표 재계산(할인율이 안 바뀐다).
- * ⚠️ **단가표는 여전히 할인율에서 파생된다** — `updateActiveFilter` 가 할인율 변경을
- *    볼 때 다시 만든다. 국면 전환이 아니라 **값이 바뀔 때** 도는 것이 맞다.
- */
-
-/**
- * 🥣 **국면 하나만 저장하던 통로가 여기 있었다** (`savePhaseSettings` ·
- *    걷어냄 2026-09-11 · 이식 C3-3b).
- *
- * *"합짐 탭에서 하차 반경을 고쳤다고 첫짐 필터가 바뀌면 안 된다"* 는 이유로 있던 길이다.
- * **탭이 사라지고(C3-3a) 값이 한 벌이 되면서** 「그 국면이 될 때 꺼내 쓰는 값」 자체가 없다.
- *
- * 🔴 이제 값 다섯은 **평면 통로 하나**로 간다 — 오늘만이면 `updateActiveFilter`,
- *    앞으로 계속이면 `saveBaseFilter`. 마름모·제외지역이 이미 쓰던 그 길이다.
- *    소켓 `save-phase-settings` 도 함께 사라졌다.
+ * 🎛️ **값 다섯은 국면마다 따로 두지 않는다 — 평면 통로 하나로 간다.**
+ *    오늘만이면 `updateActiveFilter`, 앞으로 계속이면 `saveBaseFilter`. 마름모·제외지역도 같은 길이다.
+ *    단가표는 국면 전환이 아니라 **할인율이 바뀔 때** `updateActiveFilter` 가 다시 만든다.
  */
 
 export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, destinationRadiusKm?: number) => {
@@ -1074,32 +962,16 @@ export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, 
         const detour = getDetourRegions(polylineToUse, detourRadiusKm, destinationRadiusKm);
         if (detour && detour.flat.length > 0) {
             /**
-             * 🎯 **지금 도착 목표를 경유에 합친다** (기사님 확정 2026-08-25).
+             * 🎯 **지금 도착 목표를 경유에 합친다** — 경유만 쓰면 «목적지 안인데 경로에서 벗어난 곳»이 통째로 막힌다.
+             *    저장하지 않고 **지금 쓰는 필터 값**에서 파생한다 (규칙 ③).
              *
-             * 기사님: *"가남→세종대왕면 , 가남→점동면 둘다 콜이 올라와야 한다고 난 보는데."*
-             *
-             * 경유만 쓰면 «목적지 안인데 경로에서 벗어난 곳»이 통째로 막힌다.
-             * 저장하지 않고 **지금 쓰는 필터 값**에서 파생한다 (규칙 ③).
-             *
-             * 🔴 **`phaseSettings` 를 직접 읽지 않는다** (2026-08-25 18:58 실측 사고).
-             *    한때 `phaseSettings.first` 를 읽었는데, **복귀행으로 바뀌자 판정만 옛
-             *    노선 목적지(파주)를 계속 봤다.** 화면과 서버는 «복귀행 · 광주시»라고
-             *    정확히 말하고 있었는데 광주로 내리는 콜이 전부 «도착지 밖»이 됐다.
-             *
-             *        ① 국면 설정  →  ② 평면 필터(activeFilter)  →  ③ 파생 목록
-             *                applyPhaseToFilter        여기
-             *
-             *    ①과 ② 사이에 국면 전환·`override`·`auto` 파생이 있다. ③에서 ①을 직접
-             *    읽으면 그 변환이 통째로 무시된다. **파생은 바로 윗단만 본다.**
-             *    ①을 다시 해석하는 것은 `applyPhaseToFilter` 를 두 번째로 구현하는 것이다.
-             *
-             * 🔴 **조립은 여기 한 곳뿐이다.** 예전엔 `syncDetourFilter` 도 따로 조립해서,
-             *    도착 목표를 한쪽에만 넣자 다른 쪽이 덮어썼다 (실측 12:35:50 —
-             *    131개가 출발 순간 27개로 되돌아갔다). «경유 4벌» 과 같은 클래스다.
+             * 🔴 **파생은 바로 윗단(activeFilter · `goalCityOf`)만 본다.** 그 윗단의 원천을 직접 읽으면
+             *    복귀 같은 변환이 통째로 무시되어, 화면은 새 목적지를 말하는데 판정만 옛 목적지를 본다.
+             * 🔴 **조립은 여기 한 곳뿐이다** — 두 곳이 조립하면 한쪽이 다른 쪽을 덮어쓴다 (#31).
              */
             const merged = unionRegions(
                 detour,
-                goalCityOf(session, userId),   // 🎯 파생 목적지 (조사 ①-1)
+                goalCityOf(session, userId),   // 🎯 파생 목적지
                 session.activeFilter.destinationRadiusKm ?? 0,
             );
             return {
@@ -1110,7 +982,7 @@ export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, 
                 /**
                  * 🛣️ **경로 위가 어디인가 — 경유만이다** (상차지 축의 원천).
                  *    도착 목표에서 온 동을 여기 섞으면 앱이 «순서 미상 — 통과» 로 읽어
-                 *    그 동에서 싣는 콜을 허용한다 (2026-08-18 파주 사고와 같은 형태).
+                 *    그 동에서 싣는 콜을 허용한다 (뒤로 돌아가 싣는 콜이 통과한다).
                  */
                 progressKm: detour.progressKm,
                 orderKm: detour.orderKm,
@@ -1123,7 +995,7 @@ export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, 
 
 // ━━━ 내부 유틸: 소켓 브로드캐스트 ━━━
 function broadcastFilter(userId: string, session: ReturnType<typeof getUserSession>, io?: any) {
-    // [Phase 6] 부트스트랩 중에는 중간 상태를 내보내지 않는다.
+    // 부트스트랩 중에는 중간 상태를 내보내지 않는다.
     // 복구 과정에서 updateActiveFilter 가 여러 번(상태 파생 → 경유 재계산) 호출되는데,
     // 그때마다 filter-updated 를 쏘면 관제탑이 첫짐 → 합짐으로 깜빡인다.
     // 확정된 필터는 부트스트랩 끝에서 filter-init 으로 한 번만 나간다.
@@ -1133,18 +1005,14 @@ function broadcastFilter(userId: string, session: ReturnType<typeof getUserSessi
     const payload = {
         activeFilter: session.activeFilter,
         baseFilter: session.baseFilter,
-        /* 🥣 국면별 설정 둘이 여기 실려 갔다 — 값이 한 벌이 되어 평면에 산다 (이식 C3-3b) */
     };
 
     /**
-     * 🔴 **바뀐 게 없으면 안 보낸다** (2026-08-14).
+     * 🔴 **바뀐 게 없으면 안 보낸다.**
      *
-     * 이 함수는 `updateActiveFilter` 끝에서 불리고, 그 호출부가 **22곳**이다.
-     * 한 동작(KEEP 하나)이 내부적으로 여러 단계를 거치면 그 수만큼 나갔다 —
-     * 실측 **54ms 안에 15번**. 관제웹은 중간 상태를 다 받아 그때마다 다시 그렸다.
-     *
-     * 바로 위 `isBootstrapping` 방어가 같은 이유로 있었다("중간 상태를 내보내면 관제탑이
-     * 첫짐 → 합짐으로 깜빡인다"). 그 생각을 부트스트랩 밖까지 민 것이다.
+     * 이 함수는 `updateActiveFilter` 끝에서 불리고 호출부가 많다. 한 동작(KEEP 하나)이
+     * 내부적으로 여러 단계를 거치면 그 수만큼 나가, 관제웹이 중간 상태를 다 받아 그때마다 다시 그린다.
+     * 위 `isBootstrapping` 방어와 같은 까닭을 부트스트랩 밖까지 민 것이다.
      * 판단은 **서버가 한 번** 한다 — 관제웹 여럿이 매번 비교하는 대신.
      */
     const json = JSON.stringify(payload);
@@ -1185,19 +1053,16 @@ export function saveBaseFilter(
             b.isActive ? 1 : 0,
             JSON.stringify(b.excludedRegions || []),
             ...QUAD_FIELDS.map(f => quad[f.path]),
-            /* 🎛️ 값 다섯 — **같은 행에** 쓴다 (이식 C3-3b).
-               예전엔 `writePhaseRows` 로 **국면 다섯 행에 같은 값을 다섯 번** 썼다 */
+            /* 🎛️ 값 다섯 — **같은 행에** 쓴다 */
             ...(() => { const v = filterValuesFrom(b as any); return FILTER_FIELDS.map(f => v[f.path]); })(),
             /**
-             * 📐🚚 **오늘 판 칸 셋** (2026-09-12 전수 조사 ①-5).
-             *    `db.ts` 가 컬럼을 팠는데 여기 줄을 안 더해 **판 곳과 쓰는 곳이 갈라졌다** —
-             *    💾 를 눌러도 안 남아 자정에 자동 모드와 받을 짐이 조용히 풀렸다
-             *    (허용 차종이 풀린 2026-08-10 사고와 같은 모양).
+             * 📐🚚 **`db.ts` 에 칸을 새로 만들면 여기 줄도 더한다.**
+             *    🔴 빠지면 💾 를 눌러도 안 남아, 자정에 그 값(자동 모드 · 받을 짐 등)이 조용히 풀린다.
              */
             b.radiusAuto ? 1 : 0,
             Number.isFinite(b.radiusBaseKm as number) ? b.radiusBaseKm : null,
             JSON.stringify(b.acceptedVehicleTypes || []),
-            b.routeMode === false ? 0 : 1,   // 🛣️🔷 기본은 노선 (조사 ①-9)
+            b.routeMode === false ? 0 : 1,   // 🛣️🔷 기본은 노선
             userId
         );
     } catch (e) {
@@ -1243,19 +1108,10 @@ export function updateActiveFilter(
 
     if (isTransitionToEmpty) {
         /**
-         * 🔴 2026-08-12 — 여기서 `{...session.baseFilter}` 로 **통째로** 덮어쓰고 있었다.
-         *
-         * 바로 위 주석은 *"합짐 사이클에서 사용된 임시 값들(경유, 차종 제한 등)을 리셋"* 이라고
-         * 적혀 있는데, 실제로는 **기사님이 오늘 정한 콜 잡기 설정까지 전부** 되돌렸다 —
-         * 목적지 도시·최저 운임·상차 반경·블랙리스트.
-         *
-         * 기사님 의도: *"출근할 때 오늘 콜이 많이 나올 만한 곳으로 필터를 바꾸고,
-         * 복귀콜이나 그런 것 하면 그 값으로 돌아오게."*
-         * 그런데 코드는 **콜 하나 끝낼 때마다** 돌아갔다. 하루에 대여섯 번씩
-         * "오늘은 용인 쪽으로" 가 사라진 것이다.
-         *
-         * 그래서 되돌리는 것은 **합짐 사이클이 만든 파생값**뿐이다.
-         * 오늘 필터(baseFilter → activeFilter) 는 **영업일이 바뀔 때** 되돌아간다.
+         * 🔴 되돌리는 것은 **합짐 사이클이 만든 파생값**뿐이다 — `{...session.baseFilter}` 로 통째로 덮지 않는다.
+         *    통째로 덮으면 콜 하나 끝날 때마다 기사님이 오늘 정한 콜 필터
+         *    (목적지 도시·최저 운임·상차 반경·블랙리스트)가 사라진다.
+         *    오늘 필터(baseFilter → activeFilter) 는 **영업일이 바뀔 때** 되돌아간다.
          *
          * 나머지 파생값(allowedVehicleTypes · isSharedMode · dispatchPhase)은
          * 아래 불변식 블록이 활성 콜 수에서 매번 다시 구하므로 여기서 손대지 않는다.
@@ -1289,14 +1145,8 @@ export function updateActiveFilter(
             `(오늘 필터 유지 — 도착 ${session.activeFilter.destinationCity}, 최저 ${session.activeFilter.minFare}원)`);
     } else {
         /**
-         * 🔴 **반경이 바뀌면 지역 목록도 다시 그린다** (이식 C3-3b 에서 여기로 옮겼다).
-         *
-         * ⚠️ 예전엔 **국면이 바뀔 때**(`applyPhaseSettingsIfChanged`)와 **국면을 저장할 때**
-         *    (`savePhaseSettings`) 둘이 이 일을 했다. 값이 한 벌이 되며 그 둘이 사라졌는데,
-         *    **부르는 곳이 같이 없어져 경유가 안 다시 그려질 뻔했다** —
-         *    `phaseUi.test.ts` 의 «반경이 바뀌면 지역 목록도 다시 그린다» 가 잡았다.
-         *
-         * 🔴 안 그리면 «하차 0km» 라고 적힌 채 **옛 목록으로 거른다** — 화면과 판정이
+         * 🔴 **반경 · 제외 지역이 바뀌면 지역 목록도 다시 그린다** (`refreshDetourIfNeeded` · `phaseUi.test.ts` 가 문다).
+         *    안 그리면 «하차 0km» 라고 적힌 채 **옛 목록으로 거른다** — 화면과 판정이
          *    다른 말을 하는, 조용히 틀리는 종류다.
          */
         const before = {
@@ -1308,9 +1158,9 @@ export function updateActiveFilter(
         // 일반 변경: activeFilter에 직접 덮어쓰기
         session.activeFilter = { ...session.activeFilter, ...changes };
         /**
-         * 📏 **기사님이 목적지를 바꾸면 자동 반경 거리를 비운다** (필터.md §10-1 ③ · 2026-09-14) — 다른 목적지의 거리를 쓰지 않는다.
+         * 📏 **기사님이 목적지를 바꾸면 자동 반경 거리를 비운다** (필터.md §10-1 ③) — 다른 목적지의 거리를 쓰지 않는다.
          * 🔴 **값이 실제로 바뀔 때만** — 필터 화면의 저장은 목적지를 늘 같이 보낸다. 그걸로 비우면 달리는 중에 다시 재진다.
-         * ⚠️ 복귀로 «그물이 보는 목적지»가 집이 되는 것(`callTarget`)은 여기를 안 지난다 — 기사님: *"그냥 두자"*.
+         * ⚠️ 복귀로 «그물이 보는 목적지»가 집이 되는 것(`callTarget`)은 여기를 안 지난다 — 기사님 결정으로 그대로 둔다.
          */
         if ('destinationCity' in changes && changes.destinationCity !== prevDestinationCity && !('radiusDistanceKm' in changes)) session.activeFilter.radiusDistanceKm = undefined;
         // 파생 데이터 재계산
@@ -1320,33 +1170,19 @@ export function updateActiveFilter(
 
     refreshKeywordTraps(session);
 
-    // [자체 리뷰 B-③] isSharedMode 는 dispatchPhase 에서 파생되는 값이다.
-    // (STANDBY = 첫짐 = 단독,  GATHERING/DELIVERING = 합짐)
-    // 두 값을 따로 세팅해 오다 보니 서버 재시작 시 서로 어긋나는 사고(이슈 W)가 났다.
-    // W 에서는 두 값을 손으로 맞춰놓기만 했을 뿐 어긋날 수 있는 구조는 그대로였으므로,
-    // 여기 단일 진입점에서 불변식을 강제해 divergence 자체를 불가능하게 만든다.
+    // 🔴 isSharedMode · dispatchPhase 는 **데이터에서 파생**된다 — 지금 실린 콜 수가 진실이다.
+    //    (STANDBY = 첫짐 = 단독,  GATHERING/DELIVERING = 합짐)
+    //    여기 단일 진입점에서 불변식으로 강제한다. 저장 상태로 두고 경로마다 바꾸게 하면
+    //    한 경로(예: 완료)가 빠질 때 콜을 다 끝내도 «합짐 탐색중»이 남고, 재시작 때 둘이 어긋난다.
+    //    전이(advanceOnKeep / rollbackOnCancel)와 결과는 같다.
     //
-    // 필드 자체를 없애는 게 이상적이지만, 앱의 InsungParser 가 이 키를 파싱하고 있어
-    // 페이로드 계약을 깨뜨리므로 값만 파생시킨다.
-    //
-    // 🔴 2026-08-10: 그런데 **뿌리가 여전히 저장된 값**이었다.
-    //    isSharedMode 는 dispatchPhase 에서 파생시켜 놨는데, 정작 dispatchPhase 자체는
-    //    누군가 명시적으로 바꿔줘야 하는 저장 상태였다.
-    //    STANDBY 로 되돌리는 코드는 **취소 경로(StateMachine.rollbackOnCancel)에만** 있고
-    //    **완료 경로에는 없었다.** 그래서 마지막 콜을 하차 완료해도
-    //    `GATHERING` 이 남아 관제탑이 계속 "합짐 탐색중"이라 표시했다.
-    //    (기사님: *"콜을 완료했는데 필터가 합짐 탐색중이야"*)
-    //
-    //    → dispatchPhase 도 **데이터에서 파생**시킨다. 지금 실린 콜 수가 진실이다.
-    //      기존 전이(advanceOnKeep / rollbackOnCancel)와 결과가 같으므로 동작은 그대로다.
+    // isSharedMode 필드를 없애지 않는 이유: 앱의 InsungParser 가 이 키를 파싱한다 (페이로드 계약).
     const activeCount = getActiveCalls(session).length;
 
     /**
      * 실은 짐이 없으면 **'운행 중'도 '하차 중'도 될 수 없다.**
      *
-     * 🔴 2026-08-14 — 예전에는 `DRIVING` 만 되돌렸다. 그래서 도착 감지가 켠 `UNLOADING` 이
-     *    콜을 다 끝낸 뒤에도 남아, **빈 차인데 화면은 "하차 중"** 이라고 말했다.
-     *    (도착 감지가 죽어 있던 동안에는 이 값이 켜질 일이 없어 드러나지 않았다)
+     * 🔴 `DRIVING` 만이 아니라 도착 감지가 켠 `UNLOADING` 도 되돌린다 — 남기면 **빈 차인데 화면은 "하차 중"** 이라 말한다.
      *    판정에는 영향이 없지만 — `deriveDispatchPhase` 는 콜 0건이면 무조건 STANDBY —
      *    화면이 사실과 다르게 말하고 다음 콜 잡기가 '하차 중'으로 시작한다.
      */
@@ -1384,16 +1220,12 @@ export function updateActiveFilter(
     }
 
     /**
-     * 🔴 **선점 중인 콜이 없으면 콜 잡기는 켜져 있어야 한다** (2026-08-14).
+     * 🔴 **선점 중인 콜이 없으면 콜 잡기는 켜져 있어야 한다.**
      *
      * `isActive` 는 "지금 콜을 물어도 되는가" 다. `/orders/confirm` 이 콜을 선점하면서
      * `false` 로 끄고(결재 날 때까지 다른 콜을 안 물게), **결재가 나면** `rollbackOnCancel`
-     * 이 다시 켠다.
-     *
-     * 그런데 결재를 거치지 않는 취소 경로가 셋이었다 — 화면 이탈 강제 취소 ·
-     * `/detail` 35초 타임아웃 · 비상 보고. **끄기만 하고 켜지 않았다.**
-     * 실측(22:04:07): 기사님이 앱에서 손으로 리스트로 빠져나오자 카드는 사라졌는데
-     * **콜 잡기가 죽은 채로 남았다.** 화면에 아무 표시도 없어 왜 콜이 안 잡히는지 알 수 없다.
+     * 이 다시 켠다. 결재를 거치지 않는 취소 경로(화면 이탈 강제 취소 · `/detail` 타임아웃 ·
+     * 비상 보고)는 끄기만 한다 — 안 켜면 화면에 아무 표시 없이 **콜 잡기가 죽은 채로 남는다.**
      *
      * 켜는 책임을 취소 경로마다 흩지 않는다 — **선점 중인 콜이 없다**는 데이터에서 파생시킨다.
      * 관제웹은 이 값을 보내지 않으므로(기사님이 손으로 끄는 스위치가 아니다) 안전하다.
@@ -1401,19 +1233,15 @@ export function updateActiveFilter(
      * ⚠️ `pendingOrdersData.size` 로 세면 안 된다 — 그 캐시에는 **종료된 콜도 남아 있다**
      *    (`buildOrderSync` 가 거기서 terminated 를 뽑는다).
      *
-     * 🔴 **«끝나지 않은 콜»로 세도 안 된다** (#80 · 2026-08-30). KEEP 된 콜은 캐시에
+     * 🔴 **«끝나지 않은 콜»로 세도 안 된다** (#80). KEEP 된 콜은 캐시에
      *    **일부러 남는데**(dispatchEngine 승격 덮어쓰기 — 롤백 방지) 끝난 콜이 아니라서,
-     *    그렇게 세면 콜을 하나라도 보유한 순간부터 이 불변식이 벙어리가 된다.
-     *    실측 16:23:19 — 01·03 보유 중에 깨진 05를 강제 정리하자 **콜 잡기가 영영
-     *    잠겼고**, 06·07은 «평가 보류»만 반복했다. 세어야 할 것은 **심사 중**
-     *    (선점~결재 사이 · `EVALUATING_STATUSES`)뿐이다 — 확정 콜은 끝나지도 않았지만
-     *    선점 중도 아니다 («한 값이 두 사실» — #76·#78·#79 와 같은 병).
+     *    그렇게 세면 콜을 하나라도 보유한 순간부터 이 불변식이 안 돌아 콜 잡기가 영영 잠긴다.
+     *    세어야 할 것은 **심사 중**(선점~결재 사이 · `EVALUATING_STATUSES`)뿐이다 —
+     *    확정 콜은 끝나지도 않았지만 선점 중도 아니다.
      *
-     * 🔴 **그런데 이 불변식은 «선점 잠금»만 푸는 것이다** (2026-08-30 코드리뷰).
-     *    기사님이 기기를 「대기」로 두어 끈 것까지 되켜면 안 된다 —
-     *    실제로 그래서 **«대기 = 필터 꺼짐» 이 거짓**이었고, 그 거짓을 용어집에 적을 뻔했다.
+     * 🔴 **이 불변식은 «선점 잠금»만 푼다.** 기사님이 기기를 「대기」로 두어 끈 것까지 되켜지 않는다 —
      *    `filterEnabledByMode` 가 «기사님 의도» 이고, 이 불변식은 그것을 **넘지 않는다**.
-     *    (`undefined` 는 «켬» — 모드를 한 번도 안 고른 사용자는 예전 그대로 돈다)
+     *    (`undefined` 는 «켬» — 모드를 한 번도 안 고른 사용자)
      */
     const evaluating = Array.from(session.pendingOrdersData.values())
         .filter((o: any) => (EVALUATING_STATUSES as readonly string[]).includes(o.status));
@@ -1428,20 +1256,6 @@ export function updateActiveFilter(
         console.log(`🔗 [불변식] isSharedMode ${session.activeFilter.isSharedMode} → ${derivedShared} (dispatchPhase=${derivedPhase})`);
         session.activeFilter.isSharedMode = derivedShared;
     }
-
-    /**
-     * 🧭 **국면이 바뀌었으면 그 국면의 저장값을 평면에 펼친다.** (§2-4)
-     *
-     * 기사님: *"첫짐 도착반경 5km 로 콜을 잡다가 첫짐을 잡으면 … **저장된 합짐 도착반경 1km 를
-     * 저장된 값에서 꺼내와** 콜을 잡고 싶은 거야."*
-     *
-     * ⚠️ **여기가 이 함수의 끝이어야 한다.** 조각을 펼친 뒤 `updateActiveFilter` 를 다시
-     *    부르면 무한 루프가 된다. 파생값(키워드·별칭·허용차종)은 위에서 이미 계산됐고,
-     *    반경이 바뀌면 경유는 다음 경로 계산 때 새 값으로 다시 그려진다.
-     *
-     * 🔴 **기사님이 방금 고친 값은 덮지 않는다.** `changes` 에 들어 있는 키는 건너뛴다 —
-     *    안 그러면 필터 팝업에서 저장한 값이 곧바로 국면 기본값으로 되돌아간다.
-     */
 
     logActiveFilter(session, "실시간 변경(activeFilter)", changes);
     broadcastFilter(userId, session, io);
@@ -1458,22 +1272,6 @@ export function updateActiveFilter(
 
 
 /**
- * **영업일이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.**
- *
- * 기사님이 설명한 흐름 그대로다.
- *   *"사용자 설정에서 디폴트 값을 저장해 두고 세션이 바뀌거나 담날이 되거나 하면
- *     디폴트 값을 가져오고, 운행 시작 전 오늘 콜이 많이 나올 만한 곳으로 필터에 값을 바꾸고…"*
- *   *"아침에 출근시 필터 설정 없으면 그냥 디폴트 값으로 콜을 잡는 거고."*
- *
- * 경계는 **자정**이다 (기사님 결정 2026-08-12).
- * `isActive` 는 끄지 않는다 — 아침에는 기본 설정 그대로 콜 잡기를 시작하는 것이 맞다고 하셨다.
- *
- * ⚠️ 타이머를 두지 않는다. 접속·스크랩처럼 **세션을 건드리는 순간**에 확인한다.
- *    타이머는 서버가 자는 사이를 못 잡고, 프로세스가 죽으면 사라진다.
- *
- * @returns 되돌렸으면 true
- */
-/**
  * 📊 하루의 성과를 설정 스냅샷과 함께 남긴다 — filter_day_results (필터 정의 4장).
  *
  * 근사 둘을 정직하게 적는다:
@@ -1486,7 +1284,7 @@ export function recordDayResult(userId: string, day: string, settingsSnapshot: u
     const range = [`${day}T00:00:00+09:00`, `${day}T24:00:00+09:00`]
         .map(t => new Date(t).toISOString());
     /**
-     * 🔴 매출은 **하차한 날**의 것이다 (버그 대장 #38 · 2026-08-22).
+     * 🔴 매출은 **하차한 날**의 것이다 (#38).
      * 잡은 날(capturedAt) 기준으로 세면 자정을 걸친 콜(어제 잡고 새벽 하차)이
      * 어느 날 기록에도 안 잡힌다 — 어제 기록은 이미 확정됐고 오늘 집계는 잡은 날로
      * 거르니까. 관제앱은 업무 단위 — 콜의 끝은 하차고, 매출은 그날 것이다.
@@ -1520,6 +1318,20 @@ export function recordDayResult(userId: string, day: string, settingsSnapshot: u
         `취소 ${JSON.stringify(cancels)} · 색 ${JSON.stringify(colors)}`);
 }
 
+/**
+ * **영업일이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.**
+ *
+ * 기본 설정은 사용자 설정에 두고, 날이 바뀌면 그것을 가져온다. 기사님은 운행 전 오늘 콜이 많이 나올 곳으로
+ * 필터를 바꾸고, 안 바꾸면 기본 설정 그대로 콜을 잡는다.
+ *
+ * 경계는 **자정**이다.
+ * `isActive` 는 끄지 않는다 — 아침에는 기본 설정 그대로 콜 잡기를 시작한다.
+ *
+ * ⚠️ 타이머를 두지 않는다. 접속·스크랩처럼 **세션을 건드리는 순간**에 확인한다.
+ *    타이머는 서버가 자는 사이를 못 잡고, 프로세스가 죽으면 사라진다.
+ *
+ * @returns 되돌렸으면 true
+ */
 export function ensureBusinessDay(userId: string, io?: any): boolean {
     const session = getUserSession(userId);
     const today = businessDayKey(Date.now());
@@ -1529,7 +1341,7 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
     session.businessDay = today;
 
     /**
-     * 📊 **성과 기록 — 어제치를 리셋 전에 집계한다** (필터 정의 4장 · 확정안 구현 6).
+     * 📊 **성과 기록 — 어제치를 리셋 전에 집계한다** (필터 정의 4장).
      * "이 설정이 얼마를 벌었나" — 설정 스냅샷은 **리셋되기 전의 어제 오늘값**이어야
      * 하므로 아래 되돌리기보다 먼저 찍는다. 실패해도 전환은 계속 (계측이지 흐름이 아니다).
      */
@@ -1537,16 +1349,15 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
     catch (e) { console.error('📊 [성과 기록] 실패:', (e as Error).message); }
 
     /**
-     * 🖥️ **어제 하차분을 화면 사이클에서 정리한다** (버그 대장 #37 · 2026-08-22).
+     * 🖥️ **어제 하차분을 화면 사이클에서 정리한다** (#37).
      *
-     * `deckOfCycle`(기사님 확정 2026-08-19)은 *"진행 중이 남으면 하차한 콜도 같이
-     * 보여준다"* — 6단계 채워진 모습을 보기 위한 화면 규칙이다. 사이클이 자정을
-     * 걸치면(미하차 콜을 남기고 잠들면) 어제 하차한 콜이 오늘 "진행 중"으로 계속
-     * 보였다. 재부팅 복구는 이미 영업일로 거르는데 **살아 있는 세션만 구멍**이었다.
+     * `deckOfCycle` 은 *"진행 중이 남으면 하차한 콜도 같이 보여준다"* — 6단계 채워진 모습을
+     * 보기 위한 화면 규칙이다. 사이클이 자정을 걸치면(미하차 콜을 남기고 잠들면) 어제 하차한
+     * 콜이 오늘 "진행 중"으로 보인다. 재부팅 복구는 영업일로 거르고, 살아 있는 세션은 여기서 뺀다.
      *
      * 하차한 날의 원천은 장부(orders.completedAt)다 — 오늘이 아니면 화면 재료
      * (메모리)에서만 뺀다. 미하차 콜·장부·매출은 건드리지 않는다 (규칙 ① ·
-     * "상태는 콜별 즉시, 화면은 하루 단위" · 2026-09-15 «사이클 = 하루» — 자정 경계가 관제웹 `deckOfCycle` 과 같다).
+     * "상태는 콜별 즉시, 화면은 하루 단위" · 사이클 = 하루 — 자정 경계가 관제웹 `deckOfCycle` 과 같다).
      */
     try {
         const gone = session.myOrders.filter(o => {
@@ -1566,9 +1377,7 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
     // 되돌리는 규칙은 shared 한 곳에만 있다 (세션 생성 때도 같은 규칙을 쓴다)
     session.activeFilter = resetToBaseFilter(session.baseFilter);
 
-    /* 🥣 국면별 오늘값을 되돌리던 줄이 여기 있었다 (이식 C3-3b).
-       값이 한 벌이 되어 **위의 `resetToBaseFilter` 한 번**이 그 일을 다 한다 —
-       기사님: *"오늘 하루 동안 첫짐은 10km 로 고정되는 거지"* 는 그대로 참이다 */
+    /* 값은 한 벌이라 위의 `resetToBaseFilter` 한 번이 오늘값을 다 되돌린다 */
     session.departedAt = null;   // 어제 출발한 것이 오늘 되살아나지 않는다
 
     console.log(`🌅 [영업일 전환] ${yesterday} → ${today} · 오늘 필터를 기본 설정으로 되돌립니다 ` +
