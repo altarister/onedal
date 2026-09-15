@@ -7,6 +7,7 @@ import type { SecuredOrder, OrderSyncPayload, RouteStopInfo } from "@onedal/shar
 import { isEvaluating, isTerminal, isManualLineage } from "@onedal/shared";
 import { logRoadmapEvent, logStateChange } from "../lib/roadmapLogger";
 import { soundManager } from "../lib/soundManager";
+import { withSecuredArrival } from "./securedArrival";
 import { autoKeepEnabled, autoKeepLoadedCount, logAutoKeep } from "../lib/autoKeep";
 
 export function useOrderEngine() {
@@ -166,17 +167,8 @@ export function useOrderEngine() {
             logRoadmapEvent("웹", "PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리", "관제대시보드");
             soundManager.playBeep();
 
-            setActiveOrders(prev => {
-                // ⭐ 같은 기기에서 새 콜이 들어오면 그 기기의 모든 이전 카드를 무조건 제거하되,
-                // 이미 '확정된(KEEP)' 상태인 콜은 절대 임의로 지우지 않음!
-                // (상태 진실 공급원은 서버이므로, 임의 삭제를 방지해야 시스템 엉킴이 발생하지 않음)
-                const cleaned = prev.filter(order =>
-                    order.capturedDeviceId !== secured.capturedDeviceId ||
-                    isTerminal(order.status) || order.status === 'ORDER_CONFIRMED' ||
-                    order.id === secured.id
-                );
-                return [...cleaned, secured];
-            });
+            // ⭐ 같은 기기의 옛 심사 카드만 지운다 — 확정 뒤 단계는 서버가 진실 (#137 · securedArrival)
+            setActiveOrders(prev => withSecuredArrival(prev, secured));
             // 🔴 로그는 updater 밖에서 — StrictMode 가 updater 를 두 번 부른다 (같은 줄이 두 번 찍힌다)
             console.log(`   ➡️ activeOrders 변경: [${activeOrdersRef.current.map(o => o.id.slice(0, 8)).join(', ')}] → [+${secured.id.slice(0, 8)}]`);
 
