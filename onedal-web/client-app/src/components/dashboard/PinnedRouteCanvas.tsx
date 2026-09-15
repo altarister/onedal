@@ -284,6 +284,21 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         } catch { return defaults; }
     });
     const [layersOpen, setLayersOpen] = React.useState(false);
+    /**
+     * 🔎 **지도가 실제로 그리는 상차 · 하차 모양 — 바뀔 때만 한 줄** (기사님 2026-09-15 «너가 로그를 남겨서 확인할 수 있게 해»).
+     *    관제웹 콘솔은 서버 로그로 넘어간다(`roadmapLogger` · `[🖥️콘솔]`) — 서버 `🔵 [하차 목록]` · `📋 [상차 목록]` 줄과 나란히 대조한다.
+     *    🔴 좌표는 안 싣는다 — 내 위치가 매초 바뀌어 줄이 매초 찍힌다. 모양 · 반지름 · 조각 수 · 레이어 켬만.
+     */
+    const areaSummary = [
+        `상차 ${pickupArea ? `${pickupArea.line ? '원∩라인' : '원'} ${pickupArea.meKm.toFixed(1)}km` : '없음'}`,
+        `하차 ${dropoffArea
+            ? `먼 원 ${dropoffArea.circles.length} · 가까이 원 ${dropoffArea.nearCircles.length} · 마름모 ${dropoffArea.quads.length} · 띠 ${dropoffArea.lines.length}${pickupArea ? ' · 상차 영역 지움' : ''}`
+            : '없음'}`,
+        `레이어 상차 ${layers.pickup ? '켬' : '끔'} · 하차 ${layers.dropoff ? '켬' : '끔'} · 그물 ${layers.net ? '켬' : '끔'}`,
+    ].join(' | ');
+    React.useEffect(() => {
+        console.log(`🗺️ [지도 영역] ${areaSummary}`);
+    }, [areaSummary]);
     const toggleLayer = (k: string) => setLayers(prev => {
         const next = { ...prev, [k]: !prev[k] };
         try { localStorage.setItem('mapLayers', JSON.stringify(next)); } catch { /* 못 적어도 화면은 돈다 */ }
