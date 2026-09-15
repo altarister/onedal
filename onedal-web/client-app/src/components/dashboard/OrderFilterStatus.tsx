@@ -112,6 +112,9 @@ export default function OrderFilterStatus({ onOpenFilter }:
                        bg-surface-alt/30 hover:bg-surface-hover/40 transition-colors">
             <span className="shrink-0 text-[13px] font-black" style={{ color: v14.c }}>{PHASE_STYLE[phase].icon} {CALL_TARGET_LABEL[phase]}</span>
             <span className="shrink-0 opacity-40">·</span>
+            {/* 🛣️🔷 노선·동선 — 필터 창과 같은 값을 읽는다. 안 적으면 바꿔도 이 줄이 그대로라 바뀐 줄 모른다 */}
+            <span className="shrink-0 text-[12.5px] font-black text-text-primary">{(filter.routeMode ?? true) ? '🛣️ 노선' : '🔷 동선'}</span>
+            <span className="shrink-0 opacity-40">·</span>
             {/**
               * 🔴 **«몇 개 동»은 끝까지 보인다** (2026-09-12 실측 — 「163 …」로 잘렸다).
               *    줄 전체에 `truncate` 를 걸면 **맨 뒤가 먼저 죽는다.** 자를 것은

@@ -850,6 +850,12 @@ describe('요약줄 — 몇 개 동이 걸리나 (C4-9)', () => {
         expect(status).toMatch(/destinationKeywords/);
     });
 
+    /** 🔴 노선·동선을 바꾸면 요약줄도 바뀐다 — 필터 창과 같은 값(`filter.routeMode`)을 읽는다 */
+    it('🔴 요약줄이 노선·동선을 말한다', () => {
+        expect(status).toMatch(/filter\.routeMode/);
+        expect(status).toMatch(/동선/);
+    });
+
     /**
      * 🔴 **적재는 맨 위 헤더에 이미 있다** (`1t 예약 3 📦 90/100`) — 두 번 적을 자리가 아니다.
      *    한 화면에 같은 말이 두 번 있으면 그게 거짓말이 될 자리를 만든다 (규칙 ③).
