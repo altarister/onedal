@@ -281,7 +281,8 @@ export function stepScenario(def: ScenarioRow[], st: ScenarioState, w: ScenarioW
 
     if (row.kind === 'act') {
         const { ready, note } = readiness(def, { ...st, rows }, row, w);
-        if (row.done && checkOk(row.done, w.filter)) rs = finish(rs, 'ok', `✅ ${checkLabel(row.done)}`, w.now);
+        /* 🔴 «○○에 서면»이 먼저다 — 할 일이 미리 되어 있어도 서기 전에는 안 넘긴다. 넘기면 다음 콜이 엉뚱한 자리에서 나가 폰이 막는다 */
+        if (ready && row.done && checkOk(row.done, w.filter)) rs = finish(rs, 'ok', `✅ ${checkLabel(row.done)}`, w.now);
         else rs = { ...rs, mark: 'wait', note: ready ? row.say : note };
     } else if (rs.sentAt == null) {
         const { ready, note } = readiness(def, { ...st, rows }, row, w);

@@ -122,9 +122,9 @@ export const ICHEON_FIVE_OK: ScenarioRow[] = [
       say: '🟢 올라오면 관제웹에서 KEEP — 복귀콜 전 이천 안 콜', why: '이천 왕복 B3 와 같은 경로 (✅ 13:07) — 복귀를 켠 뒤에 내는 것은 처음이라 추정 · 사음동은 내 위치(관고동) 반경 안' },
 
     /* ── 복귀콜 둘 ── */
-    { id: 'S4', stage: 'D', when: { arrive: 'S3', stop: 'dropoff' }, kind: 'keep',
+    { id: 'S4', stage: 'D', when: { arrive: 'S3', stop: 'pickup' }, kind: 'keep',
       call: { pickup: HD_SINDUN, dropoff: CHOWOL_STATION, fare: 50000, vehicleType: '다마스' },
-      say: '🟢 올라오면 관제웹에서 KEEP — 복귀콜 1', why: '이천 왕복 C3 와 같은 콜 — 이천터미널에 선 뒤 신둔 상차 (✅ 13:10)' },
+      say: '🟢 올라오면 관제웹에서 KEEP — 복귀콜 1', why: '이천 왕복 C3 와 같은 콜 — 사음동에서 신둔 상차 1.7km (이천터미널에서는 4.9km 라 상차 반경 밖)' },
     { id: 'S5', stage: 'D', when: { arrive: 'S4', stop: 'pickup' }, kind: 'keep',
       call: { pickup: WOORI_OIL, dropoff: GONJIAM_STAR, fare: 30000, vehicleType: '승용차' },
       say: '🟢 올라오면 관제웹에서 KEEP — 복귀콜 2 (오는 길 합짐)', why: '이천 왕복 D3 와 같은 콜 (✅ 13:11)' },

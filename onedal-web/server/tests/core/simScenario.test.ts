@@ -247,6 +247,58 @@ describe('🎬 이천 성공하는 5콜 — 줄 데이터', () => {
         const prints = five.filter(r => r.call).map(r => `${r.call!.pickup.region}|${r.call!.dropoff.region}|${r.call!.fare}`);
         expect(new Set(prints).size).toBe(prints.length);
     });
+
+    /**
+     * 🔴 **콜이 나가는 자리에서 상차지까지 4km 안** — 폰은 내 위치 반경(자동이면 줄어든다) 밖 상차지를 막는다.
+     *    나가는 자리 = «○○에 서면»의 그 정거장 · «앞 줄 다음»이면 앞 줄이 나간 자리. 모르는 첫 줄은 뺀다.
+     */
+    it('🔴 콜이 나가는 자리에서 상차지까지 4km 안이다', () => {
+        const rad = Math.PI / 180;
+        const km = (a: { lon: number; lat: number }, b: { lon: number; lat: number }) => {
+            const x = Math.sin((b.lat - a.lat) * rad / 2) ** 2
+                + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin((b.lon - a.lon) * rad / 2) ** 2;
+            return 2 * 6371 * Math.asin(Math.sqrt(x));
+        };
+        const sentAt = (i: number): { lon: number; lat: number } | null => {
+            const r = five[i];
+            if ('arrive' in r.when) { const c = five[at(r.when.arrive)].call!; return r.when.stop === 'pickup' ? c.pickup : c.dropoff; }
+            return i > 0 ? sentAt(i - 1) : null;
+        };
+        const far = five.flatMap((r, i) => {
+            const from = r.call ? sentAt(i) : null;
+            return from && km(from, r.call!.pickup) > 4 ? [`${r.id} ${km(from, r.call!.pickup).toFixed(1)}km`] : [];
+        });
+        expect(far).toEqual([]);
+    });
+});
+
+describe('🎬 할 일 줄은 «○○에 서면»이 먼저다', () => {
+    /** 🔴 도착 전에 할 일이 이미 되어 있어도(복귀를 미리 켬) 넘어가지 않는다 — 넘어가면 다음 콜이 엉뚱한 자리에서 나가 폰이 막는다 */
+    const place = { name: '가', region: '관고동', addressDetail: '경기 이천시 관고동', lon: 127.43, lat: 37.285 };
+    const mini = [
+        { id: 'K', stage: 'A', when: { after: 'prev' }, kind: 'keep', call: { pickup: place, dropoff: place, fare: 50000 }, say: '', why: '' },
+        { id: 'C', stage: 'A', when: { arrive: 'K', stop: 'dropoff' }, kind: 'act', say: '복귀 켬', why: '', done: { kind: 'target', value: 'HOME' } },
+        { id: 'N', stage: 'A', when: { after: 'prev' }, kind: 'keep', call: { pickup: place, dropoff: place, fare: 30000 }, say: '', why: '' },
+    ] as unknown as typeof def;
+    const home = { dispatchPhase: 'DELIVERING', goalCities: ['이천시'], callTarget: 'HOME', destinationKeywords: [] };
+    const ready = (): ScenarioState => {
+        const st = startScenario(mini, T0);
+        st.rows[0] = { ...st.rows[0], mark: 'ok', orderId: 'o1', doneAt: T0 - 10_000 };
+        return { ...st, index: 0 };
+    };
+
+    it('🔴 복귀가 먼저 켜져 있어도 하차지에 서기 전에는 기다린다', () => {
+        let st = stepScenario(mini, ready(), baseWorld(T0, { filter: home, orders: [{ id: 'o1', status: 'IN_TRANSIT' }] })).state;
+        st = stepScenario(mini, st, baseWorld(T0 + 1000, { filter: home, orders: [{ id: 'o1', status: 'IN_TRANSIT' }] })).state;
+        expect(st.index).toBe(1);
+        expect(st.rows[1].mark).toBe('wait');
+    });
+
+    it('🔴 하차지에 서면 그때 ✅ 로 넘어간다', () => {
+        const arrived = [{ id: 'o1', status: 'IN_TRANSIT', arrivedDropoffAt: '2026-09-15T11:17:00Z' }];
+        const st = stepScenario(mini, ready(), baseWorld(T0, { filter: home, orders: arrived })).state;
+        expect(st.rows[1].mark).toBe('ok');
+    });
 });
 
 describe('🎬 문제 목록 — 서버가 둘을 들고 현황판이 이천 왕복 하루 아래에 5콜을 그린다', () => {
