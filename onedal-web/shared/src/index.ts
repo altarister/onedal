@@ -2036,7 +2036,7 @@ export const MOTION_HOLD_SEC_DEFAULT = 10;
  *   · 픽커 — 수락하기가 곧 계약이라 안전취소가 **없다.** 확정 전 상세를(누가 열었든) 띄워 두는 시간만 있다
  */
 export const SAFE_CANCEL_SEC_DEFAULT = 30;
-export const PICKER_ALARM_DETAIL_SEC_DEFAULT = 60;
+export const PICKER_ALARM_DETAIL_SEC_DEFAULT = 30;
 /** 서버는 원달앱이 취소한 **뒤에** 메모리를 치운다 — 그 간격 (옛 30초 경고 · 35초 해제의 차이) */
 export const SERVER_CLEANUP_EXTRA_SEC = 5;
 

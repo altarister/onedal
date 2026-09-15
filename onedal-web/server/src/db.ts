@@ -185,7 +185,7 @@ ensureColumns('user_settings', { picker_alarm_min_fare: 'INTEGER DEFAULT 10000',
      */
     safe_cancel_sec_insung: 'INTEGER DEFAULT 30',
     safe_cancel_sec_hwamul24: 'INTEGER DEFAULT 30',
-    picker_alarm_detail_sec: 'INTEGER DEFAULT 60' });
+    picker_alarm_detail_sec: 'INTEGER DEFAULT 30' });
 
 // ═══════════════════════════════════════
 // [5] 콜 콜 잡기용 필터 정보

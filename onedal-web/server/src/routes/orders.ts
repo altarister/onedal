@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -216,8 +216,10 @@ router.post("/confirm", (req, res) => {
              */
             /**
              * ⏱️ **몇 초인가는 그 콜 배차망의 값이다** (DB · `docs/지금/배차망별_대기_시간.md`).
-             * 🔴 픽커는 안전취소가 없다(수락하기가 곧 계약) — 서버는 스스로 치우지 않고(규칙 ①),
-             *    원달앱이 «리스트로 돌아왔다»고 알리면 `devices.ts` 가 치운다.
+             * 🔴 픽커는 안전취소가 없다(수락하기가 곧 계약) — 서버는 잡은 콜을 스스로 치우지 않는다(규칙 ①).
+             *    원달앱이 «상세를 본 뒤 목록으로 돌아왔다»고 알리면 `devices.ts` 가 치운다.
+             * 🛟 **수락 안 한 미리보기만은 시간으로도 치운다** (#155) — 앱을 끄거나 폰이 꺼지면 그 알림이 영영 안 온다.
+             *    원달앱이 상세를 닫는 시간(픽커 상세 대기 시간) + 정리 여유 뒤. 수락하면 딱지가 벗겨져 건드리지 않는다.
              */
             const cancelSec = safeCancelSecOf(readWaitTimes(userId), pendingOrder.targetApp);
             if (cancelSec != null) {
@@ -233,8 +235,23 @@ router.post("/confirm", (req, res) => {
                 }, cancelSec * 1000);
                 session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
                 logRoadmapEvent("서버", `안전취소 ${cancelSec}초 카운트다운 타이머 감시 연산 (취소 가능하게 등록)`);
+            } else if ((pendingOrder as any).isPreview) {
+                const holdSec = readWaitTimes(userId).pickerAlarmDetailSec + SERVER_CLEANUP_EXTRA_SEC;
+                const key = `presecured_${pendingOrder.id}`;
+                const old = session.activeTimers.get(key);
+                if (old) clearTimeout(old);   // 같은 콜을 다시 열었다 — 옛 타이머가 좀비로 남지 않게
+                const previewTimer = setTimeout(() => {
+                    session.activeTimers.delete(key);
+                    const cached = session.pendingOrdersData.get(pendingOrder.id) as any;
+                    if (cached?.isPreview && isEvaluating(cached.status)) {
+                        console.log(`🛟 [미리보기 정리 · 시간 초과] ${pendingOrder.id} — ${holdSec}초 동안 수락도 목록 복귀도 없었다 (앱이 꺼졌을 수 있다)`);
+                        forceCancelEvaluatingOrder(userId, pendingOrder.id, io, 'TIMEOUT');
+                    }
+                }, holdSec * 1000);
+                session.activeTimers.set(`presecured_${pendingOrder.id}`, previewTimer);
+                console.log(`👀 [픽커 미리보기] ${pendingOrder.id} — ${holdSec}초 안에 수락도 목록 복귀도 없으면 서버가 치운다`);
             } else {
-                console.log(`👀 [픽커] ${pendingOrder.id} — 안전취소가 없는 배차망이라 서버 타이머를 걸지 않는다 (리스트 복귀 때 치운다)`);
+                console.log(`👀 [픽커] ${pendingOrder.id} — 안전취소가 없는 배차망이라 서버 타이머를 걸지 않는다 (규칙 ①)`);
             }
         }
     } catch (error) {

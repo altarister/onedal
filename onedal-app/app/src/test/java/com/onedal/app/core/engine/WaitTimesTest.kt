@@ -36,11 +36,11 @@ class WaitTimesTest {
     }
 
     @Test
-    fun `서버 응답이 없을 때 - 인성 30초 · 화물24시 30초 · 픽커 60초 (서버 DB 기본값과 같다)`() {
+    fun `서버 응답이 없을 때 - 인성 30초 · 화물24시 30초 · 픽커 30초 (서버 DB 기본값과 같다)`() {
         val f = FilterConfig()
         assertEquals(30_000L, WaitTimes.safeCancelMs(f, TargetApp.INSUNG))
         assertEquals(30_000L, WaitTimes.safeCancelMs(f, TargetApp.HWAMUL24))
-        assertEquals(60_000L, WaitTimes.pickerAlarmDetailMs(f))
+        assertEquals(30_000L, WaitTimes.pickerAlarmDetailMs(f))
     }
 
     @Test

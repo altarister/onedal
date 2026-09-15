@@ -137,7 +137,7 @@ export interface DeviceStatusExtras {
 
 export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally, targetApp?: TargetAppType, extras?: DeviceStatusExtras): DeviceModeType => {
     let session = activeDevices.get(deviceId);
-    /** 🧹 직전 화면 — 아래에서 덮기 전에 챙긴다. «목록으로 돌아왔나»(아래 정리)가 이 값을 본다 */
+    /** 🧹 직전 화면 — 아래에서 덮기 전에 챙긴다. «콜이 생길 때 이미 상세였나»(`markDetailSeen`)가 이 값을 본다 */
     const prevScreen = session?.screenContext;
 
     if (!session) {
@@ -309,10 +309,12 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
      *    가 **새어 나갔다** (유령 카드 사고 2026-08-14).
      */
     /**
-     * 🔴 **목록으로 «돌아왔을» 때만 치운다** (#154) — 직전이 목록이 아니었는데 지금 목록이다.
-     *    카드를 여는 순간 폰이 아직 안 그려진 옛 목록 화면을 한 번 더 보내면, «지금 목록»만 보고 방금 연 콜을 치웠다.
+     * 🔴 **상세를 본 콜만 목록 보고 때 치운다** (#154) — «지금 목록»이나 «직전 화면»으로 가르지 않는다.
+     *    카드를 여는 순간 폰이 아직 안 그려진 옛 목록 화면을 한 번 더 보내거나(시뮬레이터 22:15),
+     *    «알 수 없는 화면»이 잠깐 끼면(실제 픽커 9/02) 방금 연 콜을 치웠다. 상세를 봤나는 `markDetailSeen` 한 곳이 적는다.
      */
-    if (isListScreen(screenContext) && !isListScreen(prevScreen)) {
+    markDetailSeen(deviceId, screenContext, prevScreen);
+    if (isListScreen(screenContext)) {
         let userId = "ADMIN_USER";
         if (deviceId) {
             const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
@@ -336,7 +338,9 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
              * 이미 알고 있었으면서 30초를 더 기다리고 있었다.
              */
             const isPreviewStuck = !!(stuckOrder as any)?.isPreview;
-            if (stuckOrder && (isPreviewStuck || !stuckOrder.type?.startsWith("MANUAL"))) {
+            if (stuckOrder && (isPreviewStuck || !stuckOrder.type?.startsWith("MANUAL")) && !(stuckOrder as any).detailSeen) {
+                console.log(`👀 [목록 보고 · 안 치움] ${stuckOrderId} — 이 콜의 상세를 아직 못 봤다 (옛 화면 보고일 수 있다 · 미리보기면 시간·끊김 안전장치가 치운다)`);
+            } else if (stuckOrder && (isPreviewStuck || !stuckOrder.type?.startsWith("MANUAL"))) {
                 console.log(`🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함!` +
                     (isPreviewStuck ? ' 👀 미리보기 콜을 즉시 정리합니다 (안 잡은 콜).' : ' 대기 중이던 AUTO 롱폴링 파이프 강제 파괴.'));
                 forceCancelEvaluatingOrder(userId, stuckOrderId, io);
@@ -346,6 +350,43 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
 
     return session.mode;
 };
+
+/** 이 기기의 사용자 — `user_devices` 에 없으면 `ADMIN_USER` (목록 복귀 정리와 같은 규칙) */
+function userOfDevice(deviceId: string): string {
+    const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
+    return row?.user_id ?? "ADMIN_USER";
+}
+
+/** 상세 계열 화면인가 — 목록도 «알 수 없음»도 아니다. 알 수 없음은 카드를 여는 순간 잠깐 끼기도 한다 (실제 픽커 9/02 · 68건 중 3건) */
+const isDetailish = (s?: string | null): boolean => !!s && s !== 'UNKNOWN' && !isListScreen(s);
+
+/**
+ * 👁️ **심사 중인 콜의 상세를 봤나** (#154) — 콜이 생긴 뒤 상세 계열 보고가 왔거나, 생긴 뒤 첫 보고 때 직전 화면이 이미 상세였으면 본 것이다.
+ * 한 번 본 콜은 계속 본 것이다. 목록 보고 때 치울지는 이 표시 하나로 가른다.
+ */
+function markDetailSeen(deviceId: string, screenContext?: string, prevScreen?: string): void {
+    if (!screenContext) return;
+    const userSession = getUserSession(userOfDevice(deviceId));
+    const id = userSession.deviceEvaluatingMap.get(deviceId);
+    const o = id ? userSession.pendingOrdersData.get(id) as any : null;
+    if (!o || o.detailSeen) return;
+    o.detailSeen = isDetailish(screenContext) || (o.detailSeen === undefined && isDetailish(prevScreen));
+}
+
+/**
+ * 🛟 **이 기기의 미리보기를 치운다** (#155) — 폰이 끊겨 «목록으로 돌아왔다»가 영영 안 올 때.
+ * 🔴 수락 안 한 미리보기만 — 기사님이 잡은 콜은 서버가 버리지 않는다 (규칙 ①). 확정된 콜은 `forceCancelEvaluatingOrder` 가 한 번 더 막는다.
+ * @returns 치웠나
+ */
+export function cleanPreviewOfDevice(userId: string, deviceId: string, io: any, why: string): boolean {
+    const userSession = getUserSession(userId);
+    const id = userSession.deviceEvaluatingMap.get(deviceId);
+    const o = id ? userSession.pendingOrdersData.get(id) as any : null;
+    if (!id || !o?.isPreview) return false;
+    console.log(`🛟 [미리보기 정리 · ${why}] ${id} — 기기(${deviceId})가 보고를 못 보내 서버가 치운다`);
+    forceCancelEvaluatingOrder(userId, id, io, 'TIMEOUT');
+    return true;
+}
 
 /**
  * 특정 기기의 수락/취소 통계 카운트를 즉시 1 올립니다.
@@ -532,6 +573,8 @@ router.post("/:deviceId/offline", (req, res) => {
             session.offlineReason = isDeviceOfflineReason(reason) ? reason : undefined;
             const why = session.offlineReason ? DEVICE_OFFLINE_LABEL[session.offlineReason] : "까닭 모름";
             console.log(`📵 [즉각 오프라인 마킹] 기기(${deviceId})가 자체 보고를 통해 오프라인 전환 완료 — ${why}`);
+            /* 🛟 끊긴 폰은 «목록으로 돌아왔다»를 못 보낸다 — 열어 둔 미리보기를 지금 치운다 (#155 · 보고 없이 끊기면 orders.ts 의 시간 타이머가 치운다) */
+            cleanPreviewOfDevice(userOfDevice(deviceId), deviceId, req.app.get("io"), "폰 끊김");
         }
         res.json({ success: true });
     } catch (error) {

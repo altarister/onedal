@@ -31,11 +31,11 @@ const KEYS = ['safeCancelSecInsung', 'safeCancelSecHwamul24', 'pickerAlarmDetail
 
 describe('배차망별 대기 시간 — ② 값 (shared 한 곳)', () => {
 
-    it('기본은 인성 30초 · 화물24시 30초 · 픽커 알람 상세 60초 · 서버 정리는 +5초', () => {
+    it('기본은 인성 30초 · 화물24시 30초 · 픽커 알람 상세 30초 · 서버 정리는 +5초', () => {
         expect(SAFE_CANCEL_SEC_DEFAULT).toBe(30);
-        expect(PICKER_ALARM_DETAIL_SEC_DEFAULT).toBe(60);
+        expect(PICKER_ALARM_DETAIL_SEC_DEFAULT).toBe(30);
         expect(SERVER_CLEANUP_EXTRA_SEC).toBe(5);
-        expect(DEFAULT_WAIT_TIMES).toEqual({ safeCancelSecInsung: 30, safeCancelSecHwamul24: 30, pickerAlarmDetailSec: 60 });
+        expect(DEFAULT_WAIT_TIMES).toEqual({ safeCancelSecInsung: 30, safeCancelSecHwamul24: 30, pickerAlarmDetailSec: 30 });
     });
 
     /**
@@ -76,7 +76,7 @@ describe('배차망별 대기 시간 — ① 스키마 · ③ 시점', () => {
         const block = ensured.slice(0, ensured.indexOf('});'));
         expect(block).toMatch(/safe_cancel_sec_insung:\s*'INTEGER DEFAULT 30'/);
         expect(block).toMatch(/safe_cancel_sec_hwamul24:\s*'INTEGER DEFAULT 30'/);
-        expect(block).toMatch(/picker_alarm_detail_sec:\s*'INTEGER DEFAULT 60'/);
+        expect(block).toMatch(/picker_alarm_detail_sec:\s*'INTEGER DEFAULT 30'/);
     });
 
     it('③ 설정 경로가 내주고 받아 적는다 — 설정 행이 없던 계정(INSERT 갈래)에서도', () => {

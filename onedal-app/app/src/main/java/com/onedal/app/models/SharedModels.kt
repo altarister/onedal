@@ -366,7 +366,7 @@ data class FilterConfig(
      */
     val safeCancelSecInsung: Int = 30,
     val safeCancelSecHwamul24: Int = 30,
-    val pickerAlarmDetailSec: Int = 60,
+    val pickerAlarmDetailSec: Int = 30,
     val maxFare: Int = 1000000,
     /**
      * 차종별 하한 단가(원/km) — 단가 판정 모델 (docs/지금/필터.md).

@@ -85,17 +85,86 @@ describe('🧹 목록으로 돌아왔을 때만 치운다', () => {
         return s;
     };
 
+    const touch = (phone: string, ...screens: string[]) =>
+        screens.forEach(sc => devices.touchDeviceSession(phone, ADMIN, 0, sc as any, io));
+
     it('🔴 목록 → 카드 열기 → 옛 목록 보고가 또 와도 방금 연 미리보기를 안 치운다', () => {
-        devices.touchDeviceSession('phone-late-list', ADMIN, 0, 'LIST', io);
+        touch('phone-late-list', 'LIST');
         const s = preview('phone-late-list', 'pv-late');
-        devices.touchDeviceSession('phone-late-list', ADMIN, 0, 'LIST', io);
+        touch('phone-late-list', 'LIST');
         expect(s.pendingOrdersData.has('pv-late')).toBe(true);
     });
 
-    it('상세 → 목록으로 돌아오면 치운다', () => {
-        devices.touchDeviceSession('phone-back-list', ADMIN, 0, 'DETAIL_PRE_CONFIRM', io);
+    /** 실제 픽커 9/02 — 카드를 여는 순간 «알 수 없는 화면»이 0.05~0.18초 끼었다 (68건 중 3건) */
+    it('🔴 목록 → 카드 열기 → 잠깐 알 수 없는 화면 → 옛 목록 보고가 와도 안 치운다 — 상세를 아직 못 봤다', () => {
+        touch('phone-blip', 'LIST');
+        const s = preview('phone-blip', 'pv-blip');
+        touch('phone-blip', 'UNKNOWN', 'LIST');
+        expect(s.pendingOrdersData.has('pv-blip')).toBe(true);
+    });
+
+    it('목록 → 카드 열기 → 상세 → 목록이면 치운다', () => {
+        touch('phone-seen', 'LIST');
+        const s = preview('phone-seen', 'pv-seen');
+        touch('phone-seen', 'UNKNOWN', 'DETAIL_PRE_CONFIRM', 'LIST');
+        expect(s.pendingOrdersData.has('pv-seen')).toBe(false);
+    });
+
+    /** 실제 픽커 9/02 18:56:47 — 상세를 보다가 열었고 1.4초 만에 목록으로 나갔다 */
+    it('상세에서 열고 → 알 수 없는 화면 → 목록이면 치운다 — 열 때 이미 상세였다', () => {
+        touch('phone-back-list', 'DETAIL_PRE_CONFIRM');
         const s = preview('phone-back-list', 'pv-back');
-        devices.touchDeviceSession('phone-back-list', ADMIN, 0, 'LIST', io);
+        touch('phone-back-list', 'UNKNOWN', 'LIST');
         expect(s.pendingOrdersData.has('pv-back')).toBe(false);
+    });
+});
+
+/**
+ * 🛟 **안전장치 둘 — 폰이 보고를 못 보내도 미리보기는 치운다** (#155).
+ * 앱을 끄거나 폰이 꺼지면 «목록으로 돌아왔다»가 영영 안 온다 — 픽커는 안전취소 타이머도 없어 판정 카드가 남는다.
+ * 🔴 수락 안 한 미리보기만 — 기사님이 잡은 콜은 서버가 버리지 않는다 (규칙 ①).
+ */
+describe('🛟 미리보기 안전장치', () => {
+    const ADMIN = 'ADMIN_USER';
+    const put = (phone: string, id: string, isPreview: boolean) => {
+        const s = getUserSession(ADMIN);
+        s.pendingOrdersData.set(id, {
+            id, status: 'ORDER_AWAITING_DECISION', capturedDeviceId: phone, capturedAt: new Date().toISOString(),
+            pickup: '사음동', dropoff: '중리동', fare: 50000, isPreview,
+        } as any);
+        s.deviceEvaluatingMap.set(phone, id);
+        return s;
+    };
+
+    it('🔴 폰이 끊겼다고 알리면 그 폰의 미리보기를 치운다', () => {
+        const clean = (devices as any).cleanPreviewOfDevice;
+        expect(typeof clean).toBe('function');
+        const s = put('phone-off', 'pv-off', true);
+        clean(ADMIN, 'phone-off', io, '폰 끊김');
+        expect(s.pendingOrdersData.has('pv-off')).toBe(false);
+    });
+
+    it('🔴 끊겨도 미리보기가 아닌 콜은 안 치운다', () => {
+        const clean = (devices as any).cleanPreviewOfDevice;
+        expect(typeof clean).toBe('function');
+        const s = put('phone-off-kept', 'manual-off', false);
+        clean(ADMIN, 'phone-off-kept', io, '폰 끊김');
+        expect(s.pendingOrdersData.has('manual-off')).toBe(true);
+    });
+
+    it('🔴 끊김 보고 경로가 미리보기 정리를 부른다', () => {
+        const src = readFileSync(join(__dirname, '../../src/routes/devices.ts'), 'utf8');
+        const body = src.slice(src.indexOf('router.post("/:deviceId/offline"'), src.indexOf('POST /api/devices/:deviceId/mode'));
+        expect(body).toMatch(/cleanPreviewOfDevice\(/);
+    });
+
+    it('🔴 픽커 미리보기에는 «상세 대기 시간 + 정리 여유» 뒤 치우는 타이머가 걸린다 — 취소할 수 있게 등록한다', () => {
+        const src = readFileSync(join(__dirname, '../../src/routes/orders.ts'), 'utf8')
+            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        const body = src.slice(src.indexOf('else if ((pendingOrder as any).isPreview)'));
+        expect(body.length).toBeLessThan(src.length);
+        expect(body).toMatch(/pickerAlarmDetailSec \+ SERVER_CLEANUP_EXTRA_SEC/);
+        expect(body).toMatch(/forceCancelEvaluatingOrder\(userId, pendingOrder\.id, io, 'TIMEOUT'\)/);
+        expect(body).toMatch(/activeTimers\.set\(`presecured_\$\{pendingOrder\.id\}`/);
     });
 });
