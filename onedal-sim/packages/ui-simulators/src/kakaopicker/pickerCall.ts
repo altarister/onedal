@@ -14,7 +14,7 @@ import { pickWith } from '@altari/core-simulator';
 export type PickerCall = BaseCall & {
     net: 'kakaopicker';
     itemSize: '초소형' | '소형' | '중형' | '대형';
-    /** 태그줄 앞머리 — 첫째는 늘 «퀵» (지금은 퀵 배송 탭만 흉내 낸다) */
+    /** 태그줄 앞머리 — 첫째는 배송 종류 «퀵» · «도보» (`pickerKindOf` · 실물 15-2) */
     pickerTags: string[];
     /** 준비 N분 — `null` 이면 «준비 완료» */
     prepMinutes: number | null;
@@ -57,6 +57,20 @@ export function formatPickerAddressLine(addressDetail?: string, region?: string)
     return [...head, region ?? ''].filter(Boolean).join(' ');
 }
 
+/**
+ * 🚚 **배송 종류** — 태그 첫째 (실물 15-2). 잡은 뒤 **루틴은 같고 페이지 묶음이 종류마다 다르다**:
+ *   퀵 = 흰 페이지 + 바닥 버튼 (17-1 · 17-2 · `PickerQuickPickupPage`) · 도보 = 지도 위 시트 + «밀어서 …» (16~22 · `PickerOngoingScreen`)
+ */
+export type PickerKind = '퀵' | '도보';
+export const pickerKindOf = (call: PickerCall): PickerKind => (call.pickerTags[0] === '도보' ? '도보' : '퀵');
+
+/** 태그 딱지 색 — 퀵 녹색 · 도보 · 단거리 보라 (실물 15-2 · 17-1). 리스트 · 상세 · 내 오더 · 퀵 페이지가 이 한 곳을 쓴다 */
+export const pickerTagChipClass = (tag: string): string =>
+    tag === '도보' || tag === '단거리' ? 'bg-[#efe6fb] text-[#8a4fd6]' : 'bg-[#e3f6f1] text-[#1aa37a]';
+
+/** 가까운 랜덤 콜 10건 중 이만큼을 도보로 둔다 — 시뮬레이터 값 (실물 비율은 모른다) */
+const WALK_SHARE_OF_10 = 4;
+
 /** 물품 크기 — 실물 리스트는 «소형»이 대부분이다 (덤프 09: 7건 중 6건) */
 const ITEM_SIZE_POOL: PickerCall['itemSize'][] = ['소형', '소형', '소형', '소형', '초소형', '중형', '대형'];
 
@@ -96,8 +110,13 @@ export function toPickerCall(draft: CallDraft, opts: CallOptions, rng: RandomSou
         ?? Math.floor((FEE_BASE + draft.distanceKm * FEE_PER_KM + rng() * FEE_RANDOM_EXTRA) / 10) * 10;
     const promotion = opts.forced ? 0 : (rng() < 0.2 ? 100 * (1 + Math.floor(rng() * 10)) : 0);
     const orderNo = orderNumber(rng);
-
-    const pickerTags = ['퀵', ...(isShort ? ['단거리'] : [])];
+    /**
+     * 🚶 도보 — 랜덤 콜 중 **가까운 콜** 일부 (걸어서 가는 거리). 딱지는 «도보» 하나.
+     * 🔴 난수를 더 뽑지 않는다 — 오더번호 꼬리(난수 3자리)로 가른다. 같은 씨앗이면 같은 콜 · 뽑는 순서도 그대로.
+     * 문제지 콜은 **섞지 않는다**(늘 퀵) — 예약과 같은 규칙.
+     */
+    const isWalk = !opts.forced && isShort && Number(orderNo.slice(-3)) % 10 < WALK_SHARE_OF_10;
+    const pickerTags = isWalk ? ['도보'] : ['퀵', ...(isShort ? ['단거리'] : [])];
     return {
         ...draft,
         net: 'kakaopicker',

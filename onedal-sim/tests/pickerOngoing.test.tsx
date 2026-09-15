@@ -7,7 +7,8 @@ import type { Root } from 'react-dom/client';
 import { PickerCallDetailScreen, PickerOngoingScreen, PickerSimScreen } from '@altari/ui-simulators';
 import type { NetScreenProps } from '@altari/ui-simulators';
 import { FIXED_NOW } from './seededRandom';
-import { pickerA, pickerB } from './fixtures';
+import { PickerDispatchBoard } from '@altari/ui-simulators';
+import { pickerA, pickerB, pickerWalk } from './fixtures';
 
 /**
  * 🚚 **픽커 수락 뒤 단계** (2026-09-14 · 카카오픽커_시뮬레이터.md §8-2 · 4단계)
@@ -86,7 +87,7 @@ describe('상세 «수락하기»', () => {
 describe('수락 뒤 단계 — 실물 순서', () => {
     it('🔴 픽업 이동 → 창 올리기 · 밀어서 픽업 완료 → 배송 중 → 창 올리기 · 밀어서 사진 촬영 → 인증사진 촬영 → 촬영 확인 · 문자 전송 → 배송 완료 → 오더 목록 보기', () => {
         const onFinish = vi.fn();
-        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={onFinish} />);
+        mount(<PickerOngoingScreen call={pickerWalk} onBack={() => {}} onFinish={onFinish} />);
 
         // 픽업 이동 (실물 16) — «오더 확인»을 누르는 단계는 없다 · «밀어서 픽업 완료»는 창을 올려야 나온다
         expect(stageOf(text())).toBe('TO_PICKUP');
@@ -100,7 +101,7 @@ describe('수락 뒤 단계 — 실물 순서', () => {
         // 창을 끌어 올린다 (실물 17)
         clickLabel('아래 창 올리기');
         expect(stageOf(text())).toBe('AT_PICKUP');
-        expect(chunk(pickerA.orderNo)).toBe(true);
+        expect(chunk(pickerWalk.orderNo)).toBe(true);
 
         // 배송 중 (실물 21)
         click('밀어서 픽업 완료');
@@ -135,11 +136,11 @@ describe('수락 뒤 단계 — 실물 순서', () => {
         expect(stageOf(text())).toBe('DONE');
         expect(chunk('16,870P')).toBe(true);
         click('오더 목록 보기');
-        expect(onFinish).toHaveBeenCalledWith(pickerA);
+        expect(onFinish).toHaveBeenCalledWith(pickerWalk);
     });
 
     it('🔴 창은 손으로 끌어 올려도(스크롤) 올라온다 — 실물은 시트를 끌어 올린다', () => {
-        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        mount(<PickerOngoingScreen call={pickerWalk} onBack={() => {}} onFinish={() => {}} />);
         const sheet = host!.querySelector('[data-sheet-scroll]') as HTMLDivElement;
         expect(sheet).toBeTruthy();
         act(() => { sheet.scrollTop = 60; sheet.dispatchEvent(new Event('scroll')); });
@@ -167,7 +168,7 @@ describe('수락 뒤 단계 — 실물 순서', () => {
     });
 
     it('🔴 «밀어서 …» 는 밀어도 넘어간다 (실물은 밀기 · 시뮬레이터는 누르기와 밀기 둘 다)', () => {
-        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        mount(<PickerOngoingScreen call={pickerWalk} onBack={() => {}} onFinish={() => {}} />);
         clickLabel('아래 창 올리기');
         const slide = buttonByText('밀어서 픽업 완료')!;
         act(() => {
@@ -181,13 +182,13 @@ describe('수락 뒤 단계 — 실물 순서', () => {
 
     it('픽업 마감이 지났으면 «픽업 준비 완료» (실물 18)', () => {
         vi.setSystemTime(new Date('2026-09-14T09:40:00+09:00'));
-        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        mount(<PickerOngoingScreen call={pickerWalk} onBack={() => {}} onFinish={() => {}} />);
         expect(chunk('픽업 준비 완료')).toBe(true);
         expect(stageOf(text())).toBe('TO_PICKUP');
     });
 
     it('🔴 «배정 취소» — 「배정 취소 불가」 팝업 (실물 19 · 픽커는 수락이 곧 계약)', () => {
-        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        mount(<PickerOngoingScreen call={pickerWalk} onBack={() => {}} onFinish={() => {}} />);
         click('배정 취소');
         expect(chunk('배정 취소 불가')).toBe(true);
         click('확인');
@@ -209,7 +210,7 @@ describe('픽업 이동 · 배송 중 — 지도 위 시트 (실물 16~18 · 21~
     };
 
     it('🔴 지도가 시트 뒤 화면 전체에 깔린다 — 픽업 이동은 시트 «중», 끌어 올리면 «상»이어도 지도가 남는다 (실물 16 · 17)', () => {
-        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        mount(<PickerOngoingScreen call={pickerWalk} onBack={() => {}} onFinish={() => {}} />);
         expect(host!.querySelector('[data-map]')).not.toBeNull();
         expect(sheet().dataset.sheet).toBe('MID');
         expect(sheet().contains(host!.querySelector('[data-map]'))).toBe(false);
@@ -221,7 +222,7 @@ describe('픽업 이동 · 배송 중 — 지도 위 시트 (실물 16~18 · 21~
     });
 
     it('끌기 — 위로 끌면 창이 올라와 «밀어서 픽업 완료», 아래로 끌면 다시 픽업 이동', () => {
-        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        mount(<PickerOngoingScreen call={pickerWalk} onBack={() => {}} onFinish={() => {}} />);
         drag(-150);
         expect(buttonByText('밀어서 픽업 완료')).toBeTruthy();
         drag(150);
@@ -230,7 +231,7 @@ describe('픽업 이동 · 배송 중 — 지도 위 시트 (실물 16~18 · 21~
     });
 
     it('🔴 끈 뒤 따라오는 누르기는 창을 도로 내리지 않는다', () => {
-        mount(<PickerOngoingScreen call={pickerA} onBack={() => {}} onFinish={() => {}} />);
+        mount(<PickerOngoingScreen call={pickerWalk} onBack={() => {}} onFinish={() => {}} />);
         const handle = host!.querySelector<HTMLElement>('[data-sheet-drag]')!;
         act(() => {
             handle.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientY: 400 }));
@@ -241,12 +242,89 @@ describe('픽업 이동 · 배송 중 — 지도 위 시트 (실물 16~18 · 21~
     });
 
     it('배송 중도 같은 구조 — 시트 «중» · 끌어 올리면 «밀어서 사진 촬영» (실물 21 · 22)', () => {
-        mount(<PickerOngoingScreen call={pickerA} initialStep="TO_DROPOFF" onBack={() => {}} onFinish={() => {}} />);
+        mount(<PickerOngoingScreen call={pickerWalk} initialStep="TO_DROPOFF" onBack={() => {}} onFinish={() => {}} />);
         expect(host!.querySelector('[data-map]')).not.toBeNull();
         expect(sheet().dataset.sheet).toBe('MID');
         drag(-150);
         expect(stageOf(text())).toBe('AT_DROPOFF');
         expect(sheet().dataset.sheet).toBe('HIGH');
+    });
+});
+
+describe('퀵 — 도보와 다른 페이지 (실물 17-1 · 17-2)', () => {
+    it('🔴 퀵 콜은 흰 «픽업 출발» 페이지부터 — 지도·시트·«밀어서»가 없고 바닥에 «길안내 / 픽업 출발하기» (실물 17-1)', () => {
+        mount(<PickerOngoingScreen call={pickerA} initialStep="DEPART" onBack={() => {}} onFinish={() => {}} />);
+        expect(host!.querySelector('[data-map]')).toBeNull();
+        expect(host!.querySelector('[data-sheet]')).toBeNull();
+        expect(chunk('지금 바로 출발해 주세요')).toBe(true);
+        expect(chunk('09:30까지 픽업완료')).toBe(true);
+        expect(chunk('픽업지 12.1km')).toBe(true);
+        expect(chunk('매장 직원에게 문의')).toBe(true);
+        expect(buttonByText('길안내')).toBeTruthy();
+        expect(buttonByText('픽업 출발하기')).toBeTruthy();
+        expect(text()).not.toContain('밀어서');
+    });
+
+    it('픽업 마감이 지났으면 «픽업 N분 지연 중 (픽업 준비 완료)» (실물 17-1)', () => {
+        vi.setSystemTime(new Date('2026-09-14T09:40:00+09:00'));
+        mount(<PickerOngoingScreen call={pickerA} initialStep="DEPART" onBack={() => {}} onFinish={() => {}} />);
+        expect(chunk('픽업 10분 지연 중 (픽업 준비 완료)')).toBe(true);
+    });
+
+    it('「픽업 출발하기」 → 흰 «픽업 이동» 페이지 · 바닥 «픽업 완료하기» — 늦었으면 «픽업이 지연되고 있어요» · «N분 지연» (실물 17-2)', () => {
+        vi.setSystemTime(new Date('2026-09-14T09:40:00+09:00'));
+        const onStepChange = vi.fn();
+        mount(<PickerOngoingScreen call={pickerA} initialStep="DEPART" onStepChange={onStepChange} onBack={() => {}} onFinish={() => {}} />);
+        click('픽업 출발하기');
+        expect(onStepChange).toHaveBeenCalledWith('TO_PICKUP');
+        expect(host!.querySelector('[data-map]')).toBeNull();
+        expect(chunk('픽업이 지연되고 있어요')).toBe(true);
+        expect(chunk('10분 지연')).toBe(true);
+        expect(chunk('총 수익')).toBe(true);
+        expect(buttonByText('픽업 출발하기')).toBeFalsy();
+        expect(buttonByText('픽업 완료하기')).toBeTruthy();
+    });
+
+    /**
+     * 🔴 원달앱이 실물 17-1 에서 **실제로 읽은 글자**와 순서 — `log/1dal-주행로그-20260913/폰로그/A24_logcat_전체_1000-1210.log`
+     *    11:55:15 · 11:56:24 · 11:56:32 (`1DAL_PICKER ❓ [모르는 화면]`). 20초 동안 여러 번 읽었는데 **머리(지연 · 출발해 주세요)와 «길안내»는 한 번도 없었다.**
+     *    원달앱은 접근성 트리를 읽는다 — 시뮬레이터(웹뷰)는 `aria-hidden` 안쪽을 넘기지 않고, `aria-label` 은 그 글자로 넘긴다.
+     */
+    it('🔴 원달앱이 읽는 글자가 실물 로그 순서와 같다 — 머리와 «길안내»는 안 읽힌다 (A24 로그 11:55:15 · 11:56:32)', () => {
+        mount(<PickerOngoingScreen call={pickerA} initialStep="DEPART" onBack={() => {}} onFinish={() => {}} />);
+        const readable = (el: Element): string[] => {
+            if (el.getAttribute('aria-hidden') === 'true') return [];
+            const label = el.getAttribute('aria-label');
+            if (label) return [label];
+            const own = el.children.length === 0 && (el.textContent ?? '').trim() ? [(el.textContent ?? '').trim()] : [];
+            return [...own, ...[...el.children].flatMap(readable)];
+        };
+        const words = readable(host!);
+        const order = [
+            '픽업지 정보', '픽업지 주소 복사하기', '픽업지에 전화하기',
+            '도착지 정보', '도착지 주소 복사하기', '도착지에 전화하기',
+            '픽업 장소', '매장 직원에게 문의', '오더번호', pickerA.orderNo, '물품 정보', '최종 수익',
+            '오더 수행 팁', '고객센터 연결', '뒤로가기', '배정 취소', '픽업 출발하기',
+        ];
+        let at = -1;
+        order.forEach(w => {
+            const i = words.indexOf(w, at + 1);
+            expect(i, `«${w}» 가 순서대로 없다 — 읽힌 글자: ${words.join(' | ')}`).toBeGreaterThan(at);
+            at = i;
+        });
+        ['지금 바로 출발해 주세요', '09:30까지 픽업완료', '길안내'].forEach(w => expect(words, `«${w}» 는 실물에서 안 읽혔다`).not.toContain(w));
+    });
+
+    it('「픽업 완료하기」 → 배송 중 (⚠️ 퀵 배송 화면은 사진이 없어 도보 배송 화면을 쓴다 · 추정)', () => {
+        mount(<PickerOngoingScreen call={pickerA} initialStep="TO_PICKUP" onBack={() => {}} onFinish={() => {}} />);
+        click('픽업 완료하기');
+        expect(stageOf(text())).toBe('TO_DROPOFF');
+    });
+
+    it('🔴 도보 콜은 같은 단계라도 지도 위 시트 페이지 (실물 16)', () => {
+        mount(<PickerOngoingScreen call={pickerWalk} initialStep="TO_PICKUP" onBack={() => {}} onFinish={() => {}} />);
+        expect(host!.querySelector('[data-map]')).not.toBeNull();
+        expect(buttonByText('픽업 완료하기')).toBeFalsy();
     });
 });
 
@@ -271,8 +349,55 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
         expect(closeDetail).toHaveBeenCalledTimes(1);
     });
 
-    it('🔴 잡은 콜을 열면 수락 전 상세도 «오더 전체»(실물 23)도 아니라 픽업 이동(실물 16)이다', () => {
+    it('🔴 퀵 카드를 열면 «픽업 출발»(17-1), 도보 카드를 열면 지도 위 시트(16)', () => {
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], selectedCall: pickerA, selectedCallId: pickerA.id })} />);
+        expect(buttonByText('픽업 출발하기')).toBeTruthy();
+        expect(host!.querySelector('[data-map]')).toBeNull();
+        rerender(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerWalk], selectedCall: pickerWalk, selectedCallId: pickerWalk.id })} />);
+        expect(host!.querySelector('[data-map]')).not.toBeNull();
+        expect(buttonByText('픽업 출발하기')).toBeFalsy();
+    });
+
+    it('🔴 «내 오더»에 퀵·도보가 섞인다 — 딱지 색 · 카드 머리 · 줄이 종류마다 다르다 (실물 15-2)', () => {
+        mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA, pickerWalk], activeTab: 'CONFIRMED' })} />);
+        click('시작하기');
+        const cards = [...host!.querySelectorAll<HTMLElement>('[data-my-order]')];
+        expect(cards.map(c => c.dataset.myOrder)).toEqual(['퀵', '도보']);
+        const [quick, walk] = cards;
+        const chunksOf = (el: HTMLElement) => [...el.querySelectorAll('div')].filter(d => d.children.length === 0).map(d => (d.textContent ?? '').trim());
+        const chip = (el: HTMLElement, t: string) => [...el.querySelectorAll('div')].find(d => d.children.length === 0 && (d.textContent ?? '').trim() === t)!;
+        // 퀵 — 녹색 딱지 · «HH:MM까지» · 픽업 동 · 배송지 동 · 물품 크기
+        expect(chunksOf(quick)).toEqual(expect.arrayContaining(['퀵', '09:30까지', '신현동', '배송지: 중앙동', '소형']));
+        expect(quick.textContent).not.toContain('픽업 준비');
+        expect(chip(quick, '퀵').className).toContain('#1aa37a');
+        // 도보 — 보라 딱지 · «픽업 준비 N분 남음» · 가게 이름
+        expect(chunksOf(walk)).toEqual(expect.arrayContaining(['도보', '픽업 준비 30분 남음', '픽커 고정']));
+        expect(chip(walk, '도보').className).toContain('#8a4fd6');
+    });
+
+    it('도보는 픽업 뒤 카드 머리가 «배송 N분 남음» — «배송 시간»이 아니다 (실물 15-2 · 원달앱 배송 중 단계 글자와 안 겹치게)', () => {
+        mount(<PickerDispatchBoard calls={[]} activeTab="CONFIRMED" onTabSelect={noop} myOrderCount={1} myOrders={[pickerWalk]} stepOf={() => 'TO_DROPOFF'} onCallClick={noop} onMenuClick={noop} />);
+        expect(chunk('배송 120분 남음')).toBe(true);
+        expect(text()).not.toContain('배송 시간');
+    });
+
+    it('신규 리스트 «도보배송» 탭을 누르면 도보 콜만 — «퀵 배송» 탭으로 돌아오면 퀵 콜만', () => {
+        mount(<PickerSimScreen {...props({ streamingCalls: [pickerA, pickerWalk] })} />);
+        click('시작하기');
+        const fares = () => [...host!.querySelectorAll('div')].filter(d => d.children.length === 0 && /^\d{1,3}(,\d{3})+$/.test((d.textContent ?? '').trim())).length;
+        expect(fares()).toBe(1);
+        expect(chunk('도보')).toBe(false);
+        click('도보배송');
+        expect(fares()).toBe(1);
+        expect(chunk('도보')).toBe(true);
+        expect(chunk('퀵')).toBe(false);
+        click('퀵 배송');
+        expect(chunk('퀵')).toBe(true);
+        expect(chunk('도보')).toBe(false);
+    });
+
+    it('🔴 잡은 도보 콜을 열면 수락 전 상세도 «오더 전체»(실물 23)도 아니라 픽업 이동(실물 16)이다', () => {
+        mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerWalk], selectedCall: pickerWalk, selectedCallId: pickerWalk.id })} />);
         expect(text()).not.toContain('수락하기');
         expect(chunk('오더 정보')).toBe(false);
         expect(stageOf(text())).toBe('TO_PICKUP');
@@ -281,7 +406,7 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
     it('완료하면 잡은 콜에서 뺀다', () => {
         const finishCall = vi.fn();
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], selectedCall: pickerA, selectedCallId: pickerA.id, finishCall })} />);
-        clickLabel('아래 창 올리기'); click('밀어서 픽업 완료');
+        click('픽업 출발하기'); click('픽업 완료하기');   // pickerA 는 퀵 — 흰 페이지 (실물 17-1 · 17-2)
         clickLabel('아래 창 올리기'); click('밀어서 사진 촬영');
         click('인증사진 촬영'); click('문자 전송'); click('배송 완료'); click('오더 목록 보기');
         expect(finishCall).toHaveBeenCalledWith(pickerA);
@@ -296,7 +421,7 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerA, pickerB], confirmedCalls: [pickerA], activeTab: 'CONFIRMED', openCall })} />);
         click('시작하기');
         act(() => { vi.advanceTimersByTime(4 * 60_000); });   // 남이 가져가는 시각(20초~3분)을 넘긴다
-        const card = [...host!.querySelectorAll('div')].find(d => d.children.length === 0 && (d.textContent ?? '').startsWith('픽업 준비'));
+        const card = host!.querySelector<HTMLElement>('[data-my-order]');
         expect(card, '내 오더 카드가 없다').toBeTruthy();
         act(() => { card!.click(); });
         expect(openCall).toHaveBeenCalledWith(pickerA);
@@ -304,7 +429,7 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
     });
 
     it('🔴 «내 오더» 탭 — 실물 15 카드(«픽업 준비 N분 남음» · 픽업 · 배송지) · «리스트 설정»·요금 숫자 모양은 없다 (원달앱이 잡은 콜을 새 콜로 다시 읽지 않게)', () => {
-        mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], activeTab: 'CONFIRMED' })} />);
+        mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerWalk], activeTab: 'CONFIRMED' })} />);
         click('시작하기');
         expect(chunk('내 오더')).toBe(true);
         expect(chunk('1')).toBe(true);                       // 파란 동그라미 숫자
@@ -318,7 +443,7 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
         expect(chunk('한차배송 신청내역 보기')).toBe(true);
         expect(chunk('카드설정')).toBe(true);
         expect(text()).not.toContain('수요지도');
-        expect(chunk(pickerA.pickerTags[0])).toBe(true);    // 카드 오른쪽 위 배송 종류 딱지 (실물 «도보»)
+        expect(chunk(pickerWalk.pickerTags[0])).toBe(true);    // 카드 오른쪽 위 배송 종류 딱지 (실물 «도보»)
         expect(chunk('픽업 준비 30분 남음')).toBe(true);
         expect(text()).toContain('배송지: ');
         // 원달앱 요금 닻은 «쉼표 든 숫자»만의 글자 덩어리다 — 내 오더 목록에는 그런 덩어리가 없다

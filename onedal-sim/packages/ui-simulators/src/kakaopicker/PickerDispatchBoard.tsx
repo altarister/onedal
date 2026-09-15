@@ -19,8 +19,8 @@
  *    `pickerDumpCheck.mjs` 검사 ⑥ 이 폰 화면에서 이것을 본다 (픽커는 네이티브 앱이라 실물은 덩어리가 따로 온다).
  */
 import React from 'react';
-import type { PickerCall } from './pickerCall';
-import { formatPickerRegion, formatPickerAddressLine, minutesLeftToday } from './pickerCall';
+import type { PickerCall, PickerKind } from './pickerCall';
+import { formatPickerRegion, formatPickerAddressLine, minutesLeftToday, pickerKindOf, pickerTagChipClass } from './pickerCall';
 import type { PickerOngoingStep } from './PickerOngoingScreen';
 
 interface BoardProps {
@@ -72,6 +72,8 @@ export function visibleCardRange(scrollTop: number, viewportHeight: number, coun
 }
 
 const TABS = ['퀵 배송', '도보배송', '대리', '한차배송'];
+/** 누르면 그 종류 콜만 보이는 탭 — 대리 · 한차배송은 시뮬레이터에 콜이 없어 누를 수 없다 */
+const TAB_KIND: Partial<Record<string, PickerKind>> = { '퀵 배송': '퀵', '도보배송': '도보' };
 const HEADER_CHIPS = ['리스트 설정', '높은 가격순', '20km'];
 
 /** 한 글자 덩어리 — 빈 글자는 요소를 안 만든다 (빈 노드가 카드에 붙지 않게) */
@@ -90,7 +92,7 @@ const PickerCallCard = React.memo(({ call, onCardClick }: { call: PickerCall; on
     >
       {/* 윗줄 — 퀵 · [단거리] · [준비 N분 | 준비 완료] · 크기 · [예약 시각] (실물 02 순서) */}
       <div className="absolute left-[10px] top-[9px] h-[16px] flex items-center gap-[4px] text-[13px] leading-[16px] whitespace-nowrap">
-        <div className="bg-[#e3f6f1] text-[#1aa37a] font-bold px-[3px] rounded-sm">퀵</div>
+        <div className={`${pickerTagChipClass(pickerKindOf(call))} font-bold px-[3px] rounded-sm`}>{pickerKindOf(call)}</div>
         {isShort && <div className="bg-[#efe6fb] text-[#8a4fd6] font-bold px-[3px] rounded-sm">단거리</div>}
         {!call.reservedAt && (
           call.prepMinutes === null
@@ -124,26 +126,44 @@ const PickerCallCard = React.memo(({ call, onCardClick }: { call: PickerCall; on
  * 🔴 **요금을 «쉼표 든 숫자» 덩어리로 쓰지 않는다** — 원달앱 요금 닻이 그 모양이라, 잡은 콜을 새 카드로 다시 읽는다. «P» 를 붙인다.
  */
 const MyOrderRow = ({ call, step, onClick }: { call: PickerCall; step?: PickerOngoingStep; onClick: (call: PickerCall) => void }) => {
-  const delivering = !!step && step !== 'OVERVIEW' && step !== 'TO_PICKUP' && step !== 'AT_PICKUP';
+  const kind = pickerKindOf(call);
+  const delivering = !!step && step !== 'OVERVIEW' && step !== 'DEPART' && step !== 'TO_PICKUP' && step !== 'AT_PICKUP';
   const pickupLeft = minutesLeftToday(call.pickupTime);
   const deliveryLeft = minutesLeftToday(call.deliveryTime);
-  const head = delivering
-    ? (deliveryLeft === null ? '배송 중' : `배송 시간 ${Math.max(0, deliveryLeft)}분 남음`)
-    : (pickupLeft === null ? '픽업 준비' : pickupLeft > 0 ? `픽업 준비 ${pickupLeft}분 남음` : '픽업 준비 완료');
   const place = delivering ? call.dropoffDetails?.[0] : call.pickupDetails?.[0];
-  const dropoffLine = formatPickerAddressLine(call.dropoffDetails?.[0]?.addressDetail, call.dropoffDetails?.[0]?.region);
+  const dropoff = call.dropoffDetails?.[0];
+  /**
+   * 카드 모양이 배송 종류마다 다르다 (실물 15-2):
+   * - 🚶 도보 — 픽업 전 «픽업 준비 N분 남음» · 픽업 뒤 보라 «배송 N분 남음» · 가게 이름 · 배송지 주소
+   *   🔴 «배송 시간»을 쓰지 않는다 — 실물 카드에 없고, 원달앱이 배송 중 단계 글자로 읽는다
+   * - 🚚 퀵 — «HH:MM까지»(픽업 마감) · 픽업 동 이름 · 배송지 동 이름 · 물품 크기
+   *   ⚠️ 픽업 뒤 모양은 사진이 없다 — 배송 마감 «HH:MM까지» · 배송 동 이름으로 추정
+   */
+  const head = kind === '도보'
+    ? (delivering
+      ? (deliveryLeft === null ? '' : `배송 ${Math.max(0, deliveryLeft)}분 남음`)
+      : (pickupLeft === null ? '픽업 준비' : pickupLeft > 0 ? `픽업 준비 ${pickupLeft}분 남음` : '픽업 준비 완료'))
+    : (() => { const at = delivering ? call.deliveryTime : call.pickupTime; return at ? `${at}까지` : ''; })();
+  const placeName = kind === '도보'
+    ? (place?.customerName ?? formatPickerAddressLine(place?.addressDetail, place?.region))
+    : (place?.region ?? formatPickerAddressLine(place?.addressDetail, place?.region));
   return (
-    <div className="mx-[12px] mt-[12px] rounded-xl bg-white px-[16px] py-[14px] flex flex-col gap-[6px] shadow-sm active:bg-gray-50 cursor-pointer" onClick={() => onClick(call)}>
+    <div data-my-order={kind} className="mx-[12px] mt-[12px] rounded-xl bg-white px-[16px] py-[14px] flex flex-col gap-[6px] shadow-sm active:bg-gray-50 cursor-pointer" onClick={() => onClick(call)}>
       <div className="flex items-start justify-between gap-2">
-        <div className="text-[17px] font-bold">{head}</div>
-        {/* 오른쪽 위 배송 종류 딱지 (실물 «도보») — 시뮬레이터 콜은 태그 첫째(«퀵»)가 그 뜻이다 */}
-        {call.pickerTags[0] && <div className="shrink-0 rounded bg-[#efe9fb] px-2 py-[2px] text-[13px] font-bold text-[#6b3fd1]">{call.pickerTags[0]}</div>}
+        {head && <div className="text-[17px] font-bold" style={kind === '도보' && delivering ? { color: '#7646d6' } : undefined}>{head}</div>}
+        {/* 오른쪽 위 배송 종류 딱지 — 퀵 녹색 · 도보 보라 */}
+        <div className={`shrink-0 ml-auto rounded px-2 py-[2px] text-[13px] font-bold ${pickerTagChipClass(kind)}`}>{kind}</div>
       </div>
       <div className="flex items-center gap-2">
         <div className="rounded px-2 py-[2px] text-[13px] font-bold text-white" style={{ background: delivering ? '#7646d6' : '#4a74db' }}>{delivering ? '배송' : '픽업'}</div>
-        <div className="text-[18px] font-bold">{place?.customerName ?? formatPickerAddressLine(place?.addressDetail, place?.region)}</div>
+        <div className="text-[18px] font-bold">{placeName}</div>
       </div>
-      {!delivering && <div className="text-[14px] text-gray-500">{`배송지: ${dropoffLine}`}</div>}
+      {!delivering && (
+        <div className="text-[14px] text-gray-500">
+          {`배송지: ${kind === '도보' ? formatPickerAddressLine(dropoff?.addressDetail, dropoff?.region) : (dropoff?.region ?? '')}`}
+        </div>
+      )}
+      {kind === '퀵' && <div className="text-[14px] text-gray-500">{call.itemSize}</div>}
     </div>
   );
 };
@@ -164,7 +184,10 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
     window.addEventListener('resize', measure);
     return () => { el.removeEventListener('scroll', measure); window.removeEventListener('resize', measure); };
   }, []);
-  const shown = activeTab === 'ALL' ? sorted : [];
+  /** 신규 리스트의 배송 종류 탭 — 처음엔 «퀵 배송» (차로 일하는 기사님의 탭) */
+  const [kindTab, setKindTab] = React.useState<PickerKind>('퀵');
+  const kindCalls = React.useMemo(() => sorted.filter(c => pickerKindOf(c) === kindTab), [sorted, kindTab]);
+  const shown = activeTab === 'ALL' ? kindCalls : [];
   /** «내 오더» 탭 (실물 15) — 머리 «목록 | 지도» · 배송 종류 탭 · 서포트 모드 · 오더카드가 없다 */
   const mine = activeTab === 'CONFIRMED';
   const [first, last] = visibleCardRange(view.top, view.height, shown.length);
@@ -189,9 +212,13 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
       {!mine && (<>
       {/* 배송 종류 탭 */}
       <div className="flex gap-[6px] px-[10px] pb-[10px] shrink-0">
-        {TABS.map((t, i) => (
-          <div key={t} className={`rounded-full px-3 py-[5px] text-[13px] font-bold whitespace-nowrap border ${i === 0 ? 'border-[#3d6de0] border-2' : 'border-gray-300 text-gray-600'}`}>{t}</div>
-        ))}
+        {TABS.map(t => {
+          const kind = TAB_KIND[t];
+          const look = `rounded-full px-3 py-[5px] text-[13px] font-bold whitespace-nowrap border ${kind === kindTab ? 'border-[#3d6de0] border-2' : 'border-gray-300 text-gray-600'}`;
+          return kind
+            ? <button key={t} onClick={() => setKindTab(kind)} className={look}>{t}</button>
+            : <div key={t} className={look}>{t}</div>;
+        })}
       </div>
 
       {/* 서포트 모드 · 오더카드 자리 — 오더카드는 기본 꺼짐 (5단계) */}

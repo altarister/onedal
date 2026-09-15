@@ -91,3 +91,10 @@ export const pickerC: PickerCall = {
     deliveryFee: 2579, fare: 2579,
     orderNo: '260914090000003',
 };
+/** 🚶 pickerWalk: pickerA 와 같은 길 · **도보** (실물 15-2 · 16) — 퀵과 도보가 다른 페이지로 열리는지 가르는 짝 */
+export const pickerWalk: PickerCall = {
+    ...pickerA,
+    id: 'picker_walk',
+    pickerTags: ['도보'],
+    orderNo: '260914090000004',
+};

@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NetScreenProps, SimCall } from '../nets';
 import type { PickerCall } from './pickerCall';
+import { pickerKindOf } from './pickerCall';
 import { PickerDispatchBoard } from './PickerDispatchBoard';
 import { PickerHomeScreen } from './PickerHomeScreen';
 import { PickerCallDetailScreen } from './PickerCallDetailScreen';
@@ -80,8 +81,8 @@ export const PickerSimScreen = (p: NetScreenProps) => {
         <PickerOngoingScreen
           key={call.id}
           call={call}
-          /* 내 오더 카드로 열면 픽업 이동(실물 16)부터 · «오더 전체»(실물 23)로 들어가는 길은 실물에서 확인되면 잇는다 */
-          initialStep={steps[call.id] ?? 'TO_PICKUP'}
+          /* 내 오더 카드로 열면 — 퀵은 «픽업 출발»(실물 17-1), 도보는 픽업 이동(실물 16)부터 · «오더 전체»(실물 23)로 들어가는 길은 실물에서 확인되면 잇는다 */
+          initialStep={steps[call.id] ?? (pickerKindOf(call) === '퀵' ? 'DEPART' : 'TO_PICKUP')}
           onStepChange={s => setSteps(prev => ({ ...prev, [call.id]: s }))}
           onBack={p.closeDetail}
           onFinish={c => { p.finishCall(c); p.setActiveTab('ALL'); }}

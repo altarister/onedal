@@ -16,12 +16,17 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { PickerCall } from './pickerCall';
-import { formatPickerAddressLine, minutesLeftToday } from './pickerCall';
+import { formatPickerAddressLine, minutesLeftToday, pickerKindOf } from './pickerCall';
 import { formatPickerFare } from './PickerDispatchBoard';
 import { PickerMapBackdrop, usePickerSheetDrag } from './PickerMapSheet';
+import { PickerQuickPickupPage } from './PickerQuickPickupPage';
 
-/** 수락 뒤 단계 — 원달앱 `KakaoPickerKeywords.Stage` 와 같은 이름 (`OVERVIEW` · `PHOTO` · `PHOTO_CHECK` · `SMS` 는 원달앱이 모르는 화면) */
-export type PickerOngoingStep = 'OVERVIEW' | 'TO_PICKUP' | 'AT_PICKUP' | 'TO_DROPOFF' | 'AT_DROPOFF' | 'PHOTO' | 'PHOTO_CHECK' | 'SMS' | 'DONE';
+/**
+ * 수락 뒤 단계 — 원달앱 `KakaoPickerKeywords.Stage` 와 같은 이름
+ * (`OVERVIEW` · `DEPART` · `PHOTO` · `PHOTO_CHECK` · `SMS` 는 원달앱이 모르는 화면).
+ * `DEPART` 는 퀵만 거친다 — 실물 17-1 «픽업 출발» (도보는 바로 `TO_PICKUP`)
+ */
+export type PickerOngoingStep = 'OVERVIEW' | 'DEPART' | 'TO_PICKUP' | 'AT_PICKUP' | 'TO_DROPOFF' | 'AT_DROPOFF' | 'PHOTO' | 'PHOTO_CHECK' | 'SMS' | 'DONE';
 
 interface Props {
   call: PickerCall;
@@ -100,6 +105,35 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
   const pickupLeft = minutesLeftToday(call.pickupTime);
   const deliveryLeft = minutesLeftToday(call.deliveryTime);
   const fareP = `${formatPickerFare(call.fare)}P`;
+
+  /* 배정 취소 불가 (실물 19) — 픽커는 수락이 곧 계약이다. 퀵 17-1 의 «배정 취소»도 같은 팝업을 쓴다 (⚠️ 퀵은 추정) */
+  const cancelPopup = cancelBlocked && (
+    <div className="absolute inset-0 bg-black/40 flex items-center justify-center px-8">
+      <div className="w-full rounded-xl bg-white p-[18px] flex flex-col gap-[10px]">
+        <div className="text-[17px] font-bold">배정 취소 불가</div>
+        {/* ⚠️ 뒷부분은 추정이다 — 실물 19 는 «취소 가능 시간이 초과되어…»까지만 적어 뒀다 · 원달앱은 이 글자를 안 읽는다 */}
+        <div className="text-[14px] text-gray-600">취소 가능 시간이 초과되어 배정을 취소할 수 없습니다</div>
+        <button className="mt-[6px] h-[44px] rounded-lg bg-[#3d6de0] text-white font-bold" onClick={() => setCancelBlocked(false)}>확인</button>
+      </div>
+    </div>
+  );
+
+  /* 🚚 퀵은 픽업까지 흰 페이지 (실물 17-1 · 17-2) — 도보의 지도 위 시트와 **다른 페이지**다. 루틴(단계)은 같다 */
+  if (pickerKindOf(call) === '퀵' && (step === 'DEPART' || step === 'TO_PICKUP' || step === 'AT_PICKUP')) {
+    return (
+      <div className="relative w-full h-full">
+        <PickerQuickPickupPage
+          call={call}
+          departed={step !== 'DEPART'}
+          onDepart={() => setStep('TO_PICKUP')}
+          onPickedUp={() => setStep('TO_DROPOFF')}
+          onBack={onBack}
+          onCancel={() => setCancelBlocked(true)}
+        />
+        {cancelPopup}
+      </div>
+    );
+  }
 
   if (step === 'OVERVIEW') {
     // 📋 오더 전체 (실물 23) — 실물에서 어디서 여는지 몰라 지금은 들어가는 길이 없다. ✕ 는 내 오더 탭으로 · 원달앱이 아는 단계 글자가 없다
@@ -323,17 +357,7 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
         </div>
       </div>
 
-      {/* 배정 취소 불가 (실물 19) — 픽커는 수락이 곧 계약이다 */}
-      {cancelBlocked && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center px-8">
-          <div className="w-full rounded-xl bg-white p-[18px] flex flex-col gap-[10px]">
-            <div className="text-[17px] font-bold">배정 취소 불가</div>
-            {/* ⚠️ 뒷부분은 추정이다 — 실물 19 는 «취소 가능 시간이 초과되어…»까지만 적어 뒀다 · 원달앱은 이 글자를 안 읽는다 */}
-            <div className="text-[14px] text-gray-600">취소 가능 시간이 초과되어 배정을 취소할 수 없습니다</div>
-            <button className="mt-[6px] h-[44px] rounded-lg bg-[#3d6de0] text-white font-bold" onClick={() => setCancelBlocked(false)}>확인</button>
-          </div>
-        </div>
-      )}
+      {cancelPopup}
     </div>
   );
 };

@@ -86,10 +86,25 @@ describe('toPickerCall — 공통 칸은 그대로, 픽커 칸만 더한다', ()
         const tagWords = ['퀵', '도보', '한차', '급송', '단거리', '예약', '준비 완료', '반나절', '승', '내일', '오늘', '서포트모드', '착불'];
         calls.forEach(c => {
             expect(itemSizes).toContain(c.itemSize);
-            expect(c.pickerTags[0]).toBe('퀵');
+            expect(['퀵', '도보']).toContain(c.pickerTags[0]);   // 태그 첫째 = 배송 종류 (실물 15-2)
             c.pickerTags.forEach(t => expect(tagWords).toContain(t));
             expect(c.net).toBe('kakaopicker');
         });
+    });
+
+    it('🚶 도보는 가까운 콜에만 섞인다 — 딱지는 «도보» 하나 · 문제지 콜은 늘 퀵 (실물 15-2)', () => {
+        const short = { ...drafts[0], distanceKm: 3 };
+        const kinds = Array.from({ length: 50 }, (_, i) => toPickerCall(short, { minFare: 0 }, seededRandom(3000 + i)));
+        const walks = kinds.filter(c => c.pickerTags[0] === '도보');
+        expect(walks.length).toBeGreaterThan(0);
+        expect(kinds.some(c => c.pickerTags[0] === '퀵')).toBe(true);
+        walks.forEach(c => expect(c.pickerTags).toEqual(['도보']));
+        const long = { ...drafts[0], distanceKm: 20 };
+        Array.from({ length: 50 }, (_, i) => toPickerCall(long, { minFare: 0 }, seededRandom(3000 + i)))
+            .forEach(c => expect(c.pickerTags[0]).toBe('퀵'));
+        const forcedOpts = { minFare: 0, forced: { fare: 5000 } } as unknown as Parameters<typeof toPickerCall>[1];
+        Array.from({ length: 50 }, (_, i) => toPickerCall(short, forcedOpts, seededRandom(3000 + i)))
+            .forEach(c => expect(c.pickerTags[0]).toBe('퀵'));
     });
 
     it('준비 시간은 «준비 완료»(null) 이거나 1분 이상', () => {

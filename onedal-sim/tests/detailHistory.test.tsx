@@ -94,10 +94,11 @@ describe('픽커', () => {
         expect(host!.textContent).not.toContain('수락하기');
         expect(host!.textContent).not.toContain('오더 정보');                         // 오더 전체(실물 23)가 끼지 않는다
         expect(host!.textContent).not.toContain('리스트 설정');                       // 신규 리스트가 아니라 내 오더 탭
-        const card = [...host!.querySelectorAll('div')].find(d => d.children.length === 0 && (d.textContent ?? '').startsWith('픽업 준비'));
+        const card = host!.querySelector<HTMLElement>('[data-my-order]');
         expect(card, '내 오더에 방금 수락한 콜 카드가 없다').toBeTruthy();
         act(() => { card!.click(); });
-        expect(host!.textContent).toContain('픽업지 근처에');                         // 픽업 이동 (실물 16)
+        // «퀵 배송» 탭의 콜이라 퀵 — 흰 «픽업 출발» 페이지 (실물 17-1)
+        expect(host!.textContent).toContain('지금 바로 출발해 주세요');
     });
 
     it('상세의 «넘기기» 도 방문 기록을 한 칸 되돌린다 — 뒤로 가기를 한 번 더 누르면 그때 설정 화면', () => {

@@ -23,7 +23,7 @@
  */
 import { useState } from 'react';
 import type { PickerCall } from './pickerCall';
-import { formatPickerAddressLine } from './pickerCall';
+import { formatPickerAddressLine, pickerTagChipClass } from './pickerCall';
 import { formatPickerDistance, formatPickerFare } from './PickerDispatchBoard';
 import { PickerMapBackdrop, usePickerSheetDrag } from './PickerMapSheet';
 
@@ -138,7 +138,7 @@ export const PickerCallDetailScreen = ({ call, onClose, onAccept }: Props) => {
           {/* 태그 — 예약이면 «예약» 태그만 (시각은 아래 상자에) */}
           <div className="px-[14px] pt-[8px] flex items-center gap-[4px] text-[13px]">
             {call.pickerTags.map(t => (
-              <div key={t} className={`font-bold px-[4px] rounded-sm ${t === '단거리' ? 'bg-[#efe6fb] text-[#8a4fd6]' : 'bg-[#e3f6f1] text-[#1aa37a]'}`}>{t}</div>
+              <div key={t} className={`font-bold px-[4px] rounded-sm ${pickerTagChipClass(t)}`}>{t}</div>
             ))}
             {reserved && <div className="border border-gray-300 px-[3px] font-bold text-gray-700">예약</div>}
           </div>
