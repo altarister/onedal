@@ -889,15 +889,15 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         /**
          * 1.7. 👣 지나온 발자취 — 번호는 방문 순서로 동결 (①)
          *
-         * 🔴 **색표를 켜면 남은 정거장과 같은 규칙으로 그린다** — 다녀온 곳만 다른 문법이면
-         *    색표의 뜻(색상=콜 · 밝기=상차/하차 · 흰 링=다녀옴)이 절반만 적용된다.
+         * 🩶 **색표를 켜면 다녀온 곳은 회색에 투명도 · 테두리 투명** — 색은 아직 안 간 콜만 쓴다.
+         *    색이 넷이라 다녀온 콜이 색을 들고 있으면 5번째 콜과 같은 색으로 보인다.
          */
         markerHits.current = [];
         trail.forEach((p) => {
             const { cx, cy } = getScreenPt(p);
             markerHits.current.push({ cx, cy, orderId: p.orderId });
             const kind = p.type === '상차' ? 'pickup' : 'dropoff';
-            const fill = rainbowNodes && p.callNo ? callNodeFill(p.callNo, kind, theme) : null;
+            const fill = rainbowNodes && p.callNo ? withAlpha(mapColors.textMuted, 0.5) : null;
             ctx.beginPath();
             ctx.arc(cx, cy, fill ? 10 : 9, 0, 2 * Math.PI);
             ctx.fillStyle = fill ?? withAlpha('#35c3a9', 0.4);       // 초록 채움 = 다녀옴 (옛 문법)
