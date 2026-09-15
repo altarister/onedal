@@ -134,8 +134,22 @@ describe('상차 목록 배선', () => {
         const n = fm.slice(fm.indexOf('function netOfGoals('));
         const body = n.slice(0, n.indexOf('\n}'));
         expect(body).toMatch(/routeMode === false/);
-        expect(body).toMatch(/mergeDropoffGroups\(parts, session\.pickupGroups/);
-        expect(fm).toMatch(/session\.pickupGroups = /);
+        expect(body).toMatch(/mergeDropoffGroups\(parts, session\.activeFilter\.pickupGroups/);
+        expect(fm).toMatch(/f\.pickupGroups = grouped/);
+    });
+    it('📍 지도 동 점 — 서버가 상차 목록 묶음을 필터에 싣고 · 무대가 dongDotsOf 로 · 캔버스 «동 점» 레이어 (기사님 2026-09-15 «다시 넣어줘»)', () => {
+        const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        const CLIENT = join(__dirname, '../../../client-app/src');
+        expect(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8')).toMatch(/pickupGroups\?: Record<string, string\[\]>/);
+        const sv = strip(readFileSync(join(CLIENT, 'components/stage/StageView.tsx'), 'utf8'));
+        expect(sv).toMatch(/dongDotsOf\(\{\s*pickupGroups: filter\.pickupGroups/);
+        expect(sv).toMatch(/dropoffGroups: filter\.destinationGroups/);
+        const canvas = strip(readFileSync(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx'), 'utf8'));
+        expect(canvas).toMatch(/\['dots', '동 점'\]/);
+        expect(canvas).toMatch(/dongDots\.both/);
+        /* 묶음은 필터 한 곳에 산다 — 세션에 또 두지 않는다 (규칙 ③) · 원달앱에는 안 간다 (이름 목록 `pickupKeywords` 가 간다) */
+        expect(code('state/userSessionStore.ts')).not.toMatch(/pickupGroups/);
+        expect(APP_FILTER_KEYS as readonly string[]).not.toContain('pickupGroups');
     });
     it('🔴 지도 재료도 서버와 같다 — 판정 중 후보콜은 안 센다 · 동선이면 상차 띠가 없다 · 띠가 없으면 원 전체', () => {
         const sv = readFileSync(join(__dirname, '../../../client-app/src/components/stage/StageView.tsx'), 'utf8')

@@ -17,6 +17,7 @@
  */
 
 import { cityCenter, quadOutline, haversineKm, type NetParams } from './callNet';
+import { DONG_CENTROIDS } from './dongCentroids';
 
 export type GoalState = 'idle' | 'routed' | 'driving';
 
@@ -201,4 +202,36 @@ export function mergeDropoffGroups(
     for (const name of unvisited) delete progressKm[name];
     const grouped = Object.fromEntries(Object.entries(groups).map(([region, set]) => [region, [...set].sort()]));
     return { grouped, flat: [...new Set(Object.values(grouped).flat())].sort(), progressKm };
+}
+
+/** 📍 동 점 하나 — 동 중심점 */
+export interface DongDot { x: number; y: number; name: string; region: string }
+
+/**
+ * 📍 **지도 동 점 — 원달앱에 실제로 내려간 목록** (기사님 2026-09-15 «지역에 점찍어 보여줬었는데 지금은 없어» · «어 다시 넣어줘»).
+ *
+ * 상차 목록(`pickupGroups`) · 하차 목록(`destinationGroups`)을 **«시·군·구 + 동»으로** 동 중심점에 찍는다 — 지도가 따로 계산하지 않는다.
+ * 옛 «그물» 레이어의 점은 지도가 제 계산(중심점 그물)으로 찍어 목록과 달랐다 — 이 점은 목록 그 자체다.
+ * 🔴 이름만 맞추지 않는다 — 같은 이름의 다른 동에 찍히면 화면이 거짓말한다. 좌표를 모르는 동은 `missing` 으로 센다 (지어내지 않는다 · 규칙 ④).
+ * 묶음 이름은 서버와 같은 칸(`intel.parentName`)이다 — `dropoffTouchGeo.test.ts` «같은 시 · 군 · 구 이름»이 잠근다.
+ */
+export function dongDotsOf(o: {
+    pickupGroups: Readonly<Record<string, readonly string[]>>;
+    dropoffGroups: Readonly<Record<string, readonly string[]>>;
+}): { pickup: DongDot[]; dropoff: DongDot[]; both: DongDot[]; missing: number } {
+    const keysOf = (g: Readonly<Record<string, readonly string[]>>) =>
+        new Set(Object.entries(g).flatMap(([region, names]) => names.map(n => `${region}|${n}`)));
+    const pick = keysOf(o.pickupGroups), drop = keysOf(o.dropoffGroups);
+    const at = new Map<string, DongDot>();
+    for (const [name, region, x, y] of DONG_CENTROIDS) {
+        const key = `${region}|${name}`;
+        if ((pick.has(key) || drop.has(key)) && !at.has(key)) at.set(key, { x, y, name, region });
+    }
+    const out = { pickup: [] as DongDot[], dropoff: [] as DongDot[], both: [] as DongDot[], missing: 0 };
+    for (const key of new Set([...pick, ...drop])) {
+        const d = at.get(key);
+        if (!d) { out.missing++; continue; }
+        (pick.has(key) && drop.has(key) ? out.both : pick.has(key) ? out.pickup : out.dropoff).push(d);
+    }
+    return out;
 }

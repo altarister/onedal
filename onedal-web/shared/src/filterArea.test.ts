@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { goalZonesOf, pickupShapeOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups } from './filterArea';
+import { goalZonesOf, pickupShapeOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups, dongDotsOf } from './filterArea';
 
 /**
  * 🔵 **하차 목록 합치기** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»)
@@ -205,6 +205,26 @@ describe('목적지마다 경로의 종착지 — 경로 순서에서 그 목적
     it('그 목적지 하차 정거장이 없거나 좌표를 모르면 null — 지어내지 않는다', () => {
         expect(lastDropOf({ isHome: true, ...home, stops: stops.slice(0, 4), calls })).toBeNull();
         expect(lastDropOf({ isHome: true, ...home, stops, calls: calls.map(c => ({ ...c, dropoffX: undefined })) })).toBeNull();
+    });
+});
+
+/**
+ * 📍 **지도 동 점** (기사님 2026-09-15 «지역에 점찍어 보여줬었는데 지금은 없어» · «어 다시 넣어줘»).
+ * 원달앱에 **실제로 내려간** 상차 목록 · 하차 목록을 «시·군·구 + 동»으로 찍는다 — 지도가 따로 계산하지 않는다.
+ */
+describe('📍 동 점 — 원달앱에 내려간 목록을 «시·군·구 + 동»으로 찍는다', () => {
+    it('🔴 상차만 · 하차만 · 둘 다를 가른다 — 좌표는 동 중심점', () => {
+        const r = dongDotsOf({ pickupGroups: { 광주시: ['초월읍', '곤지암읍'] }, dropoffGroups: { 광주시: ['곤지암읍'], 이천시: ['중리동'] } });
+        expect(r.pickup.map(d => d.name)).toEqual(['초월읍']);
+        expect(r.dropoff.map(d => d.name)).toEqual(['중리동']);
+        expect(r.both.map(d => d.name)).toEqual(['곤지암읍']);
+        expect(r.dropoff[0]).toMatchObject({ x: 127.44073, y: 37.27423 });
+        expect(r.missing).toBe(0);
+    });
+    it('🔴 이름이 같아도 다른 시·군·구면 안 찍는다 — 좌표를 모르는 동은 센다 (지어내지 않는다 · 규칙 ④)', () => {
+        const r = dongDotsOf({ pickupGroups: {}, dropoffGroups: { 광주시: ['중리동'] } });
+        expect(r.dropoff).toEqual([]);
+        expect(r.missing).toBe(1);
     });
 });
 

@@ -866,7 +866,7 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
     const parts: Array<{ near: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }> = [];
     /** 🔎 목적지마다 무엇으로 만들었나 — 로그 한 줄 (`rebuildNetFilter` · 기사님 2026-09-15 «너가 로그를 남겨서 확인할 수 있게 해») */
     const details: string[] = [];
-    const pickupGroups = session.pickupGroups ?? {};
+    const pickupGroups = session.activeFilter.pickupGroups ?? {};
     const pick = new Set(Object.entries(pickupGroups).flatMap(([region, names]) => names.map(n => `${region}|${n}`)));
     let byNet = zones.length > 0, pruned = 0;
     for (const z of zones) {
@@ -890,7 +890,7 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
         byNet = byNet && kept.byNet;
         pruned += kept.pruned;
     }
-    const merged = mergeDropoffGroups(parts, session.pickupGroups ?? {});
+    const merged = mergeDropoffGroups(parts, session.activeFilter.pickupGroups ?? {});
     return { flat: merged.flat, grouped: merged.grouped, byNet, pruned, progressKm: merged.progressKm, goals: zones.map(z => z.city), details };
 }
 
@@ -995,7 +995,7 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const prevArea = pickupAreaKey(f.pickupArea);
     session.pickupListAt = { x: me.x, y: me.y };
     f.pickupKeywords = list;
-    session.pickupGroups = grouped;
+    f.pickupGroups = grouped;
     /* 🗺️ 관제웹 «상차» · «하차» 레이어가 **같은 `goalZonesOf`** 를 부를 재료를 싣는다 (집 · 복귀 · 복귀콜 쥠) */
     f.pickupArea = { at: { x: me.x, y: me.y }, homeCity, homeOn, homeCaught, hasLine: !!line && line.length >= 2 };
     refreshKeywordTraps(session);

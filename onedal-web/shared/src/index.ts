@@ -813,6 +813,12 @@ export interface AutoDispatchFilter {
      */
     pickupKeywords?: string[];
     /**
+     * 🗂️ **상차 목록을 시 · 군 · 구로 묶은 것** (코드 리뷰 2026-09-15 · 기사님 «동 점 다시 넣어줘»).
+     *    서버가 `pickupKeywords` 와 함께 만든다(`filterManager.rebuildPickupList`) · 저장하지 않는다 · 원달앱에는 안 간다(`APP_FILTER_KEYS` 밖).
+     *    읽는 곳 둘: 하차 목록이 «시 + 동»으로 뺀다(`mergeDropoffGroups`) · 관제웹 지도 «동 점»이 찍는다(`dongDotsOf`).
+     */
+    pickupGroups?: Record<string, string[]>;
+    /**
      * 🗺️ **상차 영역을 지도에 그릴 재료** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
      *    목록을 만든 그 순간의 값 — 관제웹이 이것으로 shared `goalZonesOf` 를 다시 불러 서버와 같은 모양을 칠한다 (원 중심은 관제웹 실시간 위치).
      *    ⚠️ **앱에 안 내려간다** (`APP_FILTER_KEYS` 밖). 저장하지 않는다 — `rebuildPickupList` 가 목록과 함께 만든다.

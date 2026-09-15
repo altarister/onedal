@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, progressAlongKm, goalZonesOf, withNearness, pickupShapeOf,
-    dropoffPartsOf, lastDropOf, lineUntil, quadShapeFrom, quadOutline, cityCenter, haversineKm } from '@onedal/shared';
+    dropoffPartsOf, lastDropOf, lineUntil, dongDotsOf, quadShapeFrom, quadOutline, cityCenter, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
@@ -283,6 +283,11 @@ export default function StageView(props: Props) {
             lineKm: radii.detourRadiusKm,
         };
     }, [myLocation, pickupShape, pickupLine, radii.pickupRadiusKm, radii.detourRadiusKm]);
+
+    /* 📍 동 점 — 원달앱에 실제로 내려간 상차 목록 · 하차 목록 (기사님 2026-09-15 «다시 넣어줘» · shared `dongDotsOf`). 지도가 따로 계산하지 않는다 */
+    const dongDots = useMemo(() => (filter
+        ? dongDotsOf({ pickupGroups: filter.pickupGroups ?? {}, dropoffGroups: filter.destinationGroups ?? {} })
+        : null), [filter]);
 
 
     /**
@@ -728,6 +733,8 @@ export default function StageView(props: Props) {
                     pickupArea={pickupArea}
                     /* 🔵 하차 영역 — 살아 있는 목적지마다 원 · 마름모 · 띠 (필터.md «하차 영역») */
                     dropoffArea={dropoffArea}
+                    /* 📍 동 점 — 원달앱이 받은 목록 그대로 */
+                    dongDots={dongDots}
                     onStopTap={focusCall}
                 >
                     {/* 🏷️ 다음 정거장 이름표 — «어느 콜의 어떤 단계» (v22 S3 · 탭 동선은 4단계에서) */}

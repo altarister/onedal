@@ -195,6 +195,17 @@ interface Props {
         /** `trimKm` — 운행 뒤 지나온 만큼 띠를 여기부터 긋는다 (옛 그물과 같은 `progressAlongKm` 축척) */
         lines: Array<{ points: Array<{ x: number; y: number }>; km: number; trimKm: number }>;
     } | null;
+    /**
+     * 📍 **동 점 — 원달앱에 실제로 내려간 목록** (기사님 2026-09-15 «지역에 점찍어 보여줬었는데» · shared `dongDotsOf`).
+     *    🔵 하차만 · 🟢 상차만 · 파랑에 초록 테두리는 둘 다. 좌표는 동 중심점 — 영역 도형과 달리 **목록**을 보여 준다.
+     */
+    dongDots?: {
+        pickup: Array<{ x: number; y: number }>;
+        dropoff: Array<{ x: number; y: number }>;
+        both: Array<{ x: number; y: number }>;
+        /** 좌표를 모르는 동 — 로그로만 센다 */
+        missing: number;
+    } | null;
     children?: React.ReactNode;
     /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (기본 h-64는 옛 화면용) */
     fill?: boolean;
@@ -228,7 +239,7 @@ interface Props {
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, occludedPx, rainbowNodes = true }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -254,7 +265,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      */
     const [layers, setLayers] = React.useState<Record<string, boolean>>(() => {
         /* 📋 «상차» · «하차» — 원달앱이 상차지 · 하차지를 거르는 영역 (기사님 2026-09-15 · `docs/지금/필터.md` «상차 영역» · «하차 영역») */
-        const defaults: Record<string, boolean> = { base: true, border: true, pickup: true, dropoff: true, route: true, trail: true };
+        const defaults: Record<string, boolean> = { base: true, border: true, pickup: true, dropoff: true, dots: true, route: true, trail: true };
         try {
             const v = localStorage.getItem('mapLayers');
             if (!v) return defaults;
@@ -274,7 +285,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         `하차 ${dropoffArea
             ? `먼 원 ${dropoffArea.circles.length} · 가까이 원 ${dropoffArea.nearCircles.length} · 마름모 ${dropoffArea.quads.length} · 띠 ${dropoffArea.lines.length}${pickupArea ? ' · 상차 영역 지움' : ''}`
             : '없음'}`,
-        `레이어 상차 ${layers.pickup ? '켬' : '끔'} · 하차 ${layers.dropoff ? '켬' : '끔'}`,
+        `점 ${dongDots ? `상차 ${dongDots.pickup.length + dongDots.both.length} · 하차 ${dongDots.dropoff.length + dongDots.both.length}${dongDots.missing ? ` · 좌표 모름 ${dongDots.missing}` : ''}` : '없음'}`,
+        `레이어 상차 ${layers.pickup ? '켬' : '끔'} · 하차 ${layers.dropoff ? '켬' : '끔'} · 동 점 ${layers.dots ? '켬' : '끔'}`,
     ].join(' | ');
     React.useEffect(() => {
         console.log(`🗺️ [지도 영역] ${areaSummary}`);
@@ -641,6 +653,20 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             }
         }
 
+        /* 📍 «동 점» 레이어 — 원달앱에 내려간 목록 (🔵 하차 · 🟢 상차 · 둘 다는 파랑에 초록 테두리 · 목적지 마커 아래) */
+        if (layers.dots && dongDots) {
+            const dot = (p: { x: number; y: number }, fill: string, ring: string | null) => {
+                const { cx, cy } = getScreenPt(p);
+                ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+                ctx.fillStyle = fill; ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.2; ctx.stroke();
+                if (ring) { ctx.beginPath(); ctx.arc(cx, cy, 6.5, 0, Math.PI * 2); ctx.strokeStyle = ring; ctx.lineWidth = 2; ctx.stroke(); }
+            };
+            for (const p of dongDots.dropoff) dot(p, 'rgba(2,132,199,.85)', null);
+            for (const p of dongDots.pickup) dot(p, 'rgba(22,163,74,.9)', null);
+            for (const p of dongDots.both) dot(p, 'rgba(2,132,199,.85)', 'rgba(22,163,74,.95)');
+        }
+
         /* 🎯 목적지 마커 — 살아 있는 목적지마다 (옛 «그물» 레이어가 찍던 것 · 자리표 B-2 · 전수표 #75) */
         if (layers.dropoff && dropoffArea) {
             for (const goalPt of dropoffArea.goals) {
@@ -998,7 +1024,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기
@@ -1192,7 +1218,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 </button>
                 {layersOpen && (
                     <div className="flex flex-col gap-1">
-                        {([['base', '배경'], ['border', '경계'], ['pickup', '상차'], ['dropoff', '하차'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
+                        {([['base', '배경'], ['border', '경계'], ['pickup', '상차'], ['dropoff', '하차'], ['dots', '동 점'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
                             <button
                                 key={k}
                                 onClick={() => toggleLayer(k)}
