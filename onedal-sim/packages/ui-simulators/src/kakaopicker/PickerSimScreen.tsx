@@ -80,7 +80,8 @@ export const PickerSimScreen = (p: NetScreenProps) => {
         <PickerOngoingScreen
           key={call.id}
           call={call}
-          initialStep={steps[call.id] ?? 'TO_PICKUP'}
+          /* 처음 열면 수락 직후 «오더 전체»(실물 23) — ✕ 로 내 오더 탭에 가면 그 뒤로는 픽업 이동부터 */
+          initialStep={steps[call.id] ?? 'OVERVIEW'}
           onStepChange={s => setSteps(prev => ({ ...prev, [call.id]: s }))}
           onBack={p.closeDetail}
           onFinish={c => { p.finishCall(c); p.setActiveTab('ALL'); }}

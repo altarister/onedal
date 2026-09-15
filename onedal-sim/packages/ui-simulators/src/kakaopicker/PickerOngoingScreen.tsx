@@ -2,7 +2,7 @@
  * 🚚 **픽커 수락 뒤 단계** — 실물 `ex_images/카카오픽커/실물_2026/` 16~31 (계획서 카카오픽커_시뮬레이터.md §8-2 · 4단계)
  *
  * 실물 순서 — 모양은 달라도 **단계와 버튼 순서는 같다** (기사님: «이미지와 같지는 않아도 단계는 같아야»):
- *   픽업 이동(16) ─아래 창 끌어 올리기→ «밀어서 픽업 완료»(17) → 배송 중(21) ─끌어 올리기→ «밀어서 사진 촬영»(22)
+ *   수락 직후 오더 전체(23) ─✕→ 내 오더 탭(15 · `PickerDispatchBoard`) ─카드→ 픽업 이동(16) ─아래 창 끌어 올리기→ «밀어서 픽업 완료»(17) → 배송 중(21) ─끌어 올리기→ «밀어서 사진 촬영»(22)
  *   → 인증사진 촬영(25) → 촬영 확인 · «문자 전송»(26) → «문자 전송 후 배송 완료버튼을 눌러주세요» · «배송 완료»(30)
  *   → 배송 완료 · «오더 목록 보기»(31)
  * 문자 앱 고르기 · 문자 쓰기(27~29)는 픽커 밖 화면이라 건너뛴다.
@@ -19,8 +19,8 @@ import type { PickerCall } from './pickerCall';
 import { formatPickerAddressLine, minutesLeftToday } from './pickerCall';
 import { formatPickerFare } from './PickerDispatchBoard';
 
-/** 수락 뒤 단계 — 원달앱 `KakaoPickerKeywords.Stage` 와 같은 이름 (`PHOTO` · `PHOTO_CHECK` · `SMS` 는 원달앱이 모르는 화면) */
-export type PickerOngoingStep = 'TO_PICKUP' | 'AT_PICKUP' | 'TO_DROPOFF' | 'AT_DROPOFF' | 'PHOTO' | 'PHOTO_CHECK' | 'SMS' | 'DONE';
+/** 수락 뒤 단계 — 원달앱 `KakaoPickerKeywords.Stage` 와 같은 이름 (`OVERVIEW` · `PHOTO` · `PHOTO_CHECK` · `SMS` 는 원달앱이 모르는 화면) */
+export type PickerOngoingStep = 'OVERVIEW' | 'TO_PICKUP' | 'AT_PICKUP' | 'TO_DROPOFF' | 'AT_DROPOFF' | 'PHOTO' | 'PHOTO_CHECK' | 'SMS' | 'DONE';
 
 interface Props {
   call: PickerCall;
@@ -88,6 +88,57 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
   const pickupLeft = minutesLeftToday(call.pickupTime);
   const deliveryLeft = minutesLeftToday(call.deliveryTime);
   const fareP = `${formatPickerFare(call.fare)}P`;
+
+  if (step === 'OVERVIEW') {
+    // 📋 오더 전체 (실물 23) — 수락 직후. ✕ 는 내 오더 탭으로 · 다음에 열면 픽업 이동부터. 원달앱이 아는 단계 글자가 없다
+    return (
+      <div className="w-full h-full flex flex-col bg-white text-[#1f1f1f] select-none overflow-y-auto">
+        <div className="h-[56px] flex items-center px-3 shrink-0">
+          <button aria-label="닫기" onClick={() => { setStep('TO_PICKUP'); onBack(); }} className="w-9 h-9 flex items-center justify-center">
+            <div className="relative w-5 h-5"><div className="absolute inset-x-0 top-1/2 h-[2px] bg-[#333] rotate-45" /><div className="absolute inset-x-0 top-1/2 h-[2px] bg-[#333] -rotate-45" /></div>
+          </button>
+        </div>
+        <div className="px-[20px] flex flex-col gap-[18px]">
+          <div className="flex gap-3">
+            <div className="mt-[9px] w-[9px] h-[9px] rounded-full shrink-0" style={{ background: PICKUP_BLUE }} />
+            <div className="flex flex-col gap-[2px]">
+              {pickup?.customerName && <div className="text-[20px] font-bold">{pickup.customerName}</div>}
+              <div className="text-[15px] text-gray-500">{pickupLine}</div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <div className="mt-[9px] w-[9px] h-[9px] rounded-full shrink-0" style={{ background: DROPOFF_PURPLE }} />
+            <div className="flex flex-col gap-[2px]">
+              {dropoff?.customerName && <div className="text-[20px] font-bold">{dropoff.customerName}</div>}
+              <div className="text-[15px] text-gray-500">{dropoffLine}</div>
+            </div>
+          </div>
+        </div>
+        <div className="mx-[16px] mt-[22px] rounded-lg bg-[#f5f7fc] px-[16px] py-[14px] flex flex-col gap-[10px]">
+          <div className="text-[16px] font-bold">오더 정보</div>
+          <div className="flex gap-3 items-baseline">
+            <div className="w-[64px] shrink-0 text-[14px] text-gray-500">오더 확인</div>
+            <div className="text-[17px] font-bold tabular-nums">{call.orderNo}</div>
+          </div>
+          <div className="flex gap-3 text-[14px]">
+            <div className="w-[64px] shrink-0 text-gray-500">배송 물품</div>
+            <div className="font-bold">{call.itemSize}</div>
+          </div>
+        </div>
+        <div className="mx-[16px] mt-[12px] mb-[16px] rounded-lg bg-[#f2f3f5] px-[16px] py-[14px] flex flex-col gap-[10px]">
+          <div className="flex items-center justify-between">
+            <div className="text-[18px] font-bold">최종 수익</div>
+            <div className="flex items-center gap-[6px]">
+              <div className="text-[24px] font-bold tabular-nums">{formatPickerFare(call.fare)}</div>
+              <div className="w-6 h-6 rounded-full bg-[#f5c518] text-[#9a6a00] text-[13px] font-bold flex items-center justify-center">P</div>
+            </div>
+          </div>
+          <div className="flex justify-between text-[14px] text-gray-500"><div>배송비</div><div>{`${formatPickerFare(call.deliveryFee)}P`}</div></div>
+          {call.promotion > 0 && <div className="flex justify-between text-[14px] text-gray-500"><div>프로모션</div><div>{`${formatPickerFare(call.promotion)}P`}</div></div>}
+        </div>
+      </div>
+    );
+  }
 
   if (step === 'PHOTO') {
     // 📷 인증사진 촬영 (실물 25)

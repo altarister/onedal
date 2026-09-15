@@ -146,6 +146,20 @@ describe('수락 뒤 단계 — 실물 순서', () => {
         expect(stageOf(text())).toBe('AT_PICKUP');
     });
 
+    it('🔴 수락 직후 «오더 전체»(실물 23) — 픽업지 · 배송지 · 오더 확인 · 최종 수익 · ✕ 를 누르면 내 오더로 (다음에 열면 픽업 이동)', () => {
+        const onBack = vi.fn();
+        const onStepChange = vi.fn();
+        mount(<PickerOngoingScreen call={pickerA} initialStep="OVERVIEW" onStepChange={onStepChange} onBack={onBack} onFinish={() => {}} />);
+        expect(chunk('오더 정보')).toBe(true);
+        expect(chunk('최종 수익')).toBe(true);
+        expect(chunk(pickerA.orderNo)).toBe(true);
+        expect(chunk('16,870')).toBe(true);
+        expect(stageOf(text())).toBeNull();   // 원달앱이 아는 단계 글자가 없다 — 실물도 내 오더 · 픽업 이동에서 수락을 안다
+        clickLabel('닫기');
+        expect(onStepChange).toHaveBeenCalledWith('TO_PICKUP');
+        expect(onBack).toHaveBeenCalledTimes(1);
+    });
+
     it('촬영 확인에서 «재촬영»은 인증사진 촬영으로 돌아간다', () => {
         mount(<PickerOngoingScreen call={pickerA} initialStep="PHOTO_CHECK" onBack={() => {}} onFinish={() => {}} />);
         click('재촬영');
@@ -201,15 +215,16 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
         expect(setActiveTab).toHaveBeenCalledWith('CONFIRMED');
     });
 
-    it('🔴 잡은 콜을 고르면 수락 전 상세가 아니라 운행 화면이다', () => {
+    it('🔴 잡은 콜을 처음 열면 수락 전 상세가 아니라 «오더 전체»(실물 23)다', () => {
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], selectedCall: pickerA, selectedCallId: pickerA.id })} />);
         expect(text()).not.toContain('수락하기');
-        expect(stageOf(text())).toBe('TO_PICKUP');
+        expect(chunk('최종 수익')).toBe(true);
     });
 
     it('완료하면 잡은 콜에서 뺀다', () => {
         const finishCall = vi.fn();
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], selectedCall: pickerA, selectedCallId: pickerA.id, finishCall })} />);
+        clickLabel('닫기');
         clickLabel('아래 창 올리기'); click('밀어서 픽업 완료');
         clickLabel('아래 창 올리기'); click('밀어서 사진 촬영');
         click('인증사진 촬영'); click('문자 전송'); click('배송 완료'); click('오더 목록 보기');
@@ -219,8 +234,19 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
     it('🔴 «내 오더» 탭 — 실물 15 카드(«픽업 준비 N분 남음» · 픽업 · 배송지) · «리스트 설정»·요금 숫자 모양은 없다 (원달앱이 잡은 콜을 새 콜로 다시 읽지 않게)', () => {
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], activeTab: 'CONFIRMED' })} />);
         click('시작하기');
-        expect(text()).toContain('내 오더 1');
+        expect(chunk('내 오더')).toBe(true);
+        expect(chunk('1')).toBe(true);                       // 파란 동그라미 숫자
         expect(text()).not.toContain('리스트 설정');
+        // 실물 15 — 머리 «목록 | 지도» · 배송 종류 탭 · 서포트 모드 · 오더카드가 없다 · 카드 아래 «한차배송 신청내역 보기» · 떠 있는 메뉴는 «카드설정» 하나
+        expect(chunk('목록')).toBe(true);
+        expect(chunk('지도')).toBe(true);
+        expect(text()).not.toContain('도보배송');
+        expect(text()).not.toContain('서포트 모드');
+        expect(text()).not.toContain('오더카드 대기 중');
+        expect(chunk('한차배송 신청내역 보기')).toBe(true);
+        expect(chunk('카드설정')).toBe(true);
+        expect(text()).not.toContain('수요지도');
+        expect(chunk(pickerA.pickerTags[0])).toBe(true);    // 카드 오른쪽 위 배송 종류 딱지 (실물 «도보»)
         expect(chunk('픽업 준비 30분 남음')).toBe(true);
         expect(text()).toContain('배송지: ');
         // 원달앱 요금 닻은 «쉼표 든 숫자»만의 글자 덩어리다 — 내 오더 목록에는 그런 덩어리가 없다

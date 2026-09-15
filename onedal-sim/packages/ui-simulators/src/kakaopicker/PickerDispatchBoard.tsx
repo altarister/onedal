@@ -118,7 +118,7 @@ const PickerCallCard = React.memo(({ call, onCardClick }: { call: PickerCall; on
  * 🔴 **요금을 «쉼표 든 숫자» 덩어리로 쓰지 않는다** — 원달앱 요금 닻이 그 모양이라, 잡은 콜을 새 카드로 다시 읽는다. «P» 를 붙인다.
  */
 const MyOrderRow = ({ call, step, onClick }: { call: PickerCall; step?: PickerOngoingStep; onClick: (call: PickerCall) => void }) => {
-  const delivering = !!step && step !== 'TO_PICKUP' && step !== 'AT_PICKUP';
+  const delivering = !!step && step !== 'OVERVIEW' && step !== 'TO_PICKUP' && step !== 'AT_PICKUP';
   const pickupLeft = minutesLeftToday(call.pickupTime);
   const deliveryLeft = minutesLeftToday(call.deliveryTime);
   const head = delivering
@@ -128,7 +128,11 @@ const MyOrderRow = ({ call, step, onClick }: { call: PickerCall; step?: PickerOn
   const dropoffLine = formatPickerAddressLine(call.dropoffDetails?.[0]?.addressDetail, call.dropoffDetails?.[0]?.region);
   return (
     <div className="mx-[12px] mt-[12px] rounded-xl bg-white px-[16px] py-[14px] flex flex-col gap-[6px] shadow-sm active:bg-gray-50 cursor-pointer" onClick={() => onClick(call)}>
-      <div className="text-[17px] font-bold">{head}</div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="text-[17px] font-bold">{head}</div>
+        {/* 오른쪽 위 배송 종류 딱지 (실물 «도보») — 시뮬레이터 콜은 태그 첫째(«퀵»)가 그 뜻이다 */}
+        {call.pickerTags[0] && <div className="shrink-0 rounded bg-[#efe9fb] px-2 py-[2px] text-[13px] font-bold text-[#6b3fd1]">{call.pickerTags[0]}</div>}
+      </div>
       <div className="flex items-center gap-2">
         <div className="rounded px-2 py-[2px] text-[13px] font-bold text-white" style={{ background: delivering ? '#7646d6' : '#4a74db' }}>{delivering ? '배송' : '픽업'}</div>
         <div className="text-[18px] font-bold">{place?.customerName ?? formatPickerAddressLine(place?.addressDetail, place?.region)}</div>
@@ -155,19 +159,28 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
     return () => { el.removeEventListener('scroll', measure); window.removeEventListener('resize', measure); };
   }, []);
   const shown = activeTab === 'ALL' ? sorted : [];
+  /** «내 오더» 탭 (실물 15) — 머리 «목록 | 지도» · 배송 종류 탭 · 서포트 모드 · 오더카드가 없다 */
+  const mine = activeTab === 'CONFIRMED';
   const [first, last] = visibleCardRange(view.top, view.height, shown.length);
 
   return (
     <div className="relative w-full h-full flex flex-col bg-white text-[#1f1f1f] select-none overflow-x-hidden">
-      {/* 머리 — 홈 · 알림 · 메뉴 */}
-      <div className="flex items-center justify-between px-4 h-[48px] shrink-0">
+      {/* 머리 — 홈 · (내 오더 탭에만) «목록 | 지도» · 알림 · 메뉴 (실물 02 · 15) */}
+      <div className="relative flex items-center justify-between px-4 h-[48px] shrink-0 bg-white">
         <div className="w-6 h-6 rounded-md border-2 border-[#333]" />
+        {mine && (
+          <div className="absolute left-1/2 -translate-x-1/2 flex rounded-full bg-[#f2f3f5] p-[3px] text-[15px]">
+            <div className="rounded-full bg-white px-[18px] py-[4px] font-bold">목록</div>
+            <div className="px-[18px] py-[4px] text-gray-500">지도</div>
+          </div>
+        )}
         <div className="flex items-center gap-4">
           <button aria-label="알림" className="w-6 h-6 rounded-full border-2 border-[#333]" />
           <button aria-label="메뉴" onClick={onMenuClick} className="w-6 h-5 border-y-2 border-[#333]" />
         </div>
       </div>
 
+      {!mine && (<>
       {/* 배송 종류 탭 */}
       <div className="flex gap-[6px] px-[10px] pb-[10px] shrink-0">
         {TABS.map((t, i) => (
@@ -183,6 +196,7 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
         </div>
         <div className="rounded-lg bg-[#e8eaf0] h-[56px] flex items-center justify-center text-[16px] font-bold">퀵 오더카드 대기 중...</div>
       </div>
+      </>)}
 
       {/* 🔴 「리스트 설정」 줄 — 오더카드(위)와 리스트 카드(아래)의 경계 · 원달앱이 리스트를 알아보는 글자
           «내 오더» 탭에는 두지 않는다 — 있으면 원달앱이 잡은 콜 목록을 리스트로 읽고 새 콜처럼 알람을 울린다 (4단계) */}
@@ -196,9 +210,13 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
       )}
 
       {/* 카드 목록 */}
-      <div ref={listRef} className="relative flex-1 overflow-y-auto">
-        {activeTab === 'CONFIRMED' ? (
-          myOrders.map(call => <MyOrderRow key={call.id} call={call} step={stepOf?.(call.id)} onClick={onCallClick} />)
+      <div ref={listRef} className={`relative flex-1 overflow-y-auto ${mine ? 'bg-[#f2f3f5]' : ''}`}>
+        {mine ? (
+          <>
+            {myOrders.map(call => <MyOrderRow key={call.id} call={call} step={stepOf?.(call.id)} onClick={onCallClick} />)}
+            {/* 실물 15 — 카드 아래 «한차배송 신청내역 보기» (시뮬레이터에서는 아무 일도 안 한다) */}
+            <div className="mx-[24px] mt-[14px] h-[48px] rounded bg-white flex items-center justify-center text-[15px] font-bold">한차배송 신청내역 보기</div>
+          </>
         ) : (
           <>
             {/* 안 보이는 카드 자리는 글자 없는 빈 칸 — 스크롤 길이는 그대로 둔다 */}
@@ -213,16 +231,20 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
 
       {/* 떠 있는 메뉴 — 실물처럼 맨 아래 카드 위에 걸친다 (원달앱은 이 낱말을 버린다 · NOISE_WORDS) */}
       <div className="absolute left-1/2 -translate-x-1/2 bottom-[62px] flex items-center gap-[14px] rounded-full bg-[#eef1fb] shadow px-[18px] py-[8px] text-[14px] font-bold whitespace-nowrap">
-        <div>서포트모드</div>
+        {!mine && <div>서포트모드</div>}
         <div>카드설정</div>
-        <div>수요지도</div>
+        {!mine && <div>수요지도</div>}
       </div>
 
       {/* 아래 탭 — 신규 / 내 오더 */}
       <div className="flex h-[52px] border-t border-[#e5e5e5] shrink-0 text-[16px] font-bold">
         <button className={`flex-1 ${activeTab === 'ALL' ? 'text-[#3d6de0]' : 'text-gray-500 bg-[#f7f7f7]'}`} onClick={() => onTabSelect('ALL')}>신규</button>
         <button className={`flex-1 ${activeTab === 'CONFIRMED' ? 'text-[#3d6de0]' : 'text-gray-500 bg-[#f7f7f7]'}`} onClick={() => onTabSelect('CONFIRMED')}>
-          {myOrderCount > 0 ? `내 오더 ${myOrderCount}` : '내 오더'}
+          <div className="flex items-center justify-center gap-[6px]">
+            <div>내 오더</div>
+            {/* 실물 15 — 파란 동그라미 숫자 */}
+            {myOrderCount > 0 && <div className="min-w-[22px] h-[22px] px-[6px] rounded-full bg-[#3d6de0] text-white text-[13px] flex items-center justify-center">{myOrderCount}</div>}
+          </div>
         </button>
       </div>
     </div>
