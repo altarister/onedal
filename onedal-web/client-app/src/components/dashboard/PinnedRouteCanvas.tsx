@@ -407,7 +407,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         /**
          * 🔭 **실제 배율** — 손으로 확대했든 「구간」·「현위치」로 맞춰 확대됐든 하나의 답.
          * 「전체 보기 · 손 안 댐」을 1 로 삼고 지금이 몇 배인지 잰다.
-         * 딤이 걷히는 규칙(`mapTileTone`)이 이 값을 본다 — 어느 길로 확대했든 같아야 한다.
+         * 경로선 두께(`routeLineWidth`)가 이 값을 본다 — 어느 길로 확대했든 같아야 한다.
          */
         const baseViewport = computeViewport(allCoords, width, height, 1, { x: 0, y: 0 }, occludedNow.current);
         const shownZoom = effectiveZoom(viewport.worldSize, baseViewport.worldSize);
@@ -417,11 +417,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         const readyTiles = collectTiles(viewport, width, height, () => drawRef.current());
         if (readyTiles.length > 0) {
             ctx.save();
-            /* 🎨 회색조·연하게 — 배경이 시끄러우면 색이 안 읽힌다 (규칙 ⑤-3).
-               🔍 다만 **확대하면 서서히 제 색을 되찾는다** — 확대는 «지도를 보겠다»는
-                  손짓이다 (기사님 2026-09-04 · `mapTileTone`). */
+            /* 🎨 회색조·연하게 — 배경이 시끄러우면 색 · 영역이 안 읽힌다 (규칙 ⑤-3).
+               🔄 배율과 상관없이 늘 같은 톤이다 — 확대하면 제 색을 되찾던 것을 걷었다 (기사님 2026-09-15 · `mapTileTone`). */
             /* 🔆 밝은 테마는 지도가 흰 바탕 위라 더 밝게 뜬다 — 조금 더 눌러 준다 (기사님 2026-09-04) */
-            const tone = mapTileTone(shownZoom, theme === 'dark' ? 0.5 : 0.62);
+            const tone = mapTileTone(theme === 'dark' ? 0.5 : 0.62);
             if (supportsCanvasFilter(ctx) && tone.filter) ctx.filter = tone.filter;
             ctx.globalAlpha = tone.alpha;
             // 🧅 «배경» 레이어 — 끄면 타일만 빠지고 경계·경로는 남는다

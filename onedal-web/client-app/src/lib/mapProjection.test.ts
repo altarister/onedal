@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, TILE_CLEAR_FROM, TILE_CLEAR_TO, routeLineWidth, viewCoordsFor, FOLLOW_RADIUS_KM, effectiveZoom,
+    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, FOLLOW_RADIUS_KM, effectiveZoom,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
     type GeoPoint, pickViewMode } from './mapProjection';
 
@@ -280,46 +280,22 @@ describe('🤏 핀치 — 두 손가락 중간이 붙잡혀 있다', () => {
 });
 
 /**
- * 🔍 **확대하면 지도가 제 색을 되찾는다** (기사님 확정 2026-09-04)
+ * 🎨 **배경 지도 톤은 배율과 상관없이 늘 같다** (기사님 2026-09-15 «줌인할수록 흐려지는 기능은 필요 없을꺼 같아» · «어»)
  *
- * 기사님: *"줌인이 되면 지도의 색이 투명해도 될 것 같아. 지도를 보겠다는 의지가
- * 있었던 거니까."* — 평소에는 배경이 시끄러우면 판정 색이 안 읽혀 눌러 두지만,
- * 확대는 «여기가 어디인지 보겠다»는 손짓이라 그때는 지도가 주인공이다.
+ * 2026-09-04 에는 «확대하면 지도가 제 색을 되찾는다»였다. 확대할수록 배경이 밝아져 그 위의 옅은 상차 · 하차 영역이
+ * 상대적으로 흐려 보였다 — 영역이 주인공인 지도라 배경은 늘 눌러 둔다.
  */
-describe('🔍 확대하면 지도가 제 색을 되찾는다', () => {
+describe('🎨 배경 지도 톤 — 배율과 상관없이 평소 톤', () => {
     const DIM = 0.5;   // 어두운 테마의 평소 진하기
 
-    it('평소 배율에서는 지금과 똑같다 — 흐리고 회색조', () => {
-        const t = mapTileTone(1, DIM);
+    it('🔴 평소 톤 — 흐리고 회색조', () => {
+        const t = mapTileTone(DIM);
         expect(t.alpha).toBeCloseTo(DIM, 6);
         expect(t.filter).toMatch(/grayscale\(1\.000\)/);
     });
 
-    it('많이 확대하면 원본 그대로 — 필터를 아예 안 건다', () => {
-        expect(mapTileTone(TILE_CLEAR_TO, DIM)).toEqual({ alpha: 1, filter: null });
-        expect(mapTileTone(10, DIM)).toEqual({ alpha: 1, filter: null });
-    });
-
-    it('🔴 한 번에 바뀌지 않는다 — 사이에서 서서히 풀린다', () => {
-        const mid = mapTileTone((TILE_CLEAR_FROM + TILE_CLEAR_TO) / 2, DIM);
-        expect(mid.alpha).toBeGreaterThan(DIM);
-        expect(mid.alpha).toBeLessThan(1);
-        expect(mid.filter).toMatch(/grayscale\(0\.500\)/);
-    });
-
-    it('배율이 오르면 진하기도 회색조도 **함께** 되돌아온다 (한쪽만 풀면 탁해 보인다)', () => {
-        const a = mapTileTone(2.5, DIM), b = mapTileTone(3.5, DIM);
-        expect(b.alpha).toBeGreaterThan(a.alpha);
-        const gray = (f: string | null) => Number(/grayscale\(([\d.]+)\)/.exec(f ?? '')?.[1] ?? 0);
-        expect(gray(b.filter)).toBeLessThan(gray(a.filter));
-    });
-
-    it('축소해도 평소보다 더 흐려지지 않는다', () => {
-        expect(mapTileTone(0.5, DIM).alpha).toBeCloseTo(DIM, 6);
-    });
-
-    it('밝은 테마는 자기 평소값에서 출발한다 — 값을 지어내지 않는다', () => {
-        expect(mapTileTone(1, 0.75).alpha).toBeCloseTo(0.75, 6);
+    it('밝은 테마는 자기 평소값 — 값을 지어내지 않는다', () => {
+        expect(mapTileTone(0.75).alpha).toBeCloseTo(0.75, 6);
     });
 });
 
