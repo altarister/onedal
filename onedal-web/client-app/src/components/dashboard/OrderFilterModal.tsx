@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { useFilterStore } from "../../stores/filterStore";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
-import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
+import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
@@ -96,8 +96,8 @@ const toValues = (f: ValueForm, prev: Record<FlatValueKey, any>): Record<FlatVal
 /* 🔴 순서도 목업 그대로 — 현위 → 목적 → 라인 (`MapMockup.tsx:3229~3232`) */
 const KNOB_FIELDS: FlatValueKey[] = ['pickupRadiusKm', 'destinationRadiusKm', 'detourRadiusKm'];
 
-/** 🧰 **필터 판의 행** — 어디로 · 얼마나 넓게 · 어떤 콜 · 빼는 곳 · 모니터 (기사님 확정 2026-09-15) */
-type RowId = 'where' | 'wide' | 'call' | 'exclude' | 'monitor';
+/** 🧰 **필터 판의 행** — 어디로 · 얼마나 넓게 · 어떤 콜 · 빼는 곳 (기사님 확정 2026-09-15) */
+type RowId = 'where' | 'wide' | 'call' | 'exclude';
 
 /**
  * 🧰 **행 하나 — 머리를 누르면 열리고 닫힌다.** 안쪽 상자 없이 구분선만 긋는다 (필터 판이 이미 상자다).
@@ -110,11 +110,11 @@ function FilterRow({ id, title, summary, open, onToggle, danger = false, childre
         <div id={id} className="border-b border-border-card last:border-b-0">
             <button type="button" aria-expanded={open} onClick={() => onToggle(id)}
                 className="w-full min-h-[40px] flex items-center gap-2 px-3 py-2 text-left hover:bg-surface-hover/30">
-                <span className={`shrink-0 text-[12.5px] font-black ${danger ? 'text-danger' : open ? 'text-info' : 'text-text-primary'}`}>{title}</span>
-                <span className="flex-1 min-w-0 truncate text-right text-[11.5px] font-bold text-text-muted tabular-nums">{summary}</span>
-                <span className={`shrink-0 text-[10px] text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+                <span className={`shrink-0 text-[13px] font-black ${danger ? 'text-danger' : open ? 'text-info' : 'text-text-primary'}`}>{title}</span>
+                <span className="flex-1 min-w-0 truncate text-right text-[12px] font-bold text-text-muted tabular-nums">{summary}</span>
+                <span className={`inline-block shrink-0 text-[10px] text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
             </button>
-            {open && <div className="px-3 pb-3 pt-0.5 space-y-2">{children}</div>}
+            {open && <div className="px-3 pb-2.5 space-y-1.5">{children}</div>}
         </div>
     );
 }
@@ -624,8 +624,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
               *    **여기서 제 높이를 못 박는다.**
               */}
             <section className="relative max-h-[70dvh] bg-bg-base border border-border rounded-xl shadow-lg overflow-hidden flex flex-col">
-                <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-info/10 blur-[100px] rounded-full pointer-events-none" />
-                <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-success/10 blur-[100px] rounded-full pointer-events-none" />
 
                 {/**
                   * 🧰 **네 행 · 모두 닫힌 채 시작 · 하나만 열림** (기사님 확정 2026-09-15 · 목업 https://claude.ai/artifact/RfDCyjwqHM2UcoNGaBTwPy).
@@ -637,8 +635,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                   * 🔴 설명 글(상차 반경은 곧 도달 시간 · 라인반경 뜻 · 국면 문구)은 판에서 뺐다 — 지도가 그 뜻을 그린다.
                   */}
                 <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar relative z-10">
-                    {/* 🎨 행 사이 8px — 목업 aside 의 gap-2 (조사 ③) */}
-                    <div className="space-y-2">
                     <FilterRow id="where" title="🎯 어디로" open={openRow === 'where'} onToggle={toggleRow}
                         summary={`${routeMode ? '노선' : '동선'} · ${filter.goalCity || filter.destinationCity || '—'} · 복귀 ${(filter.callTarget ?? 'DEST') === 'HOME' ? '켬' : '끔'}`}>
                         {/**
@@ -654,7 +650,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             {([[true, '🛣️ 노선', '지금 경로 양옆으로 본다'],
                                [false, '🔷 동선', '내 위치 → 목적지 마름모로 본다']] as const).map(([on, label, hint]) => (
                                 <button key={label} type="button" onClick={() => setRouteMode(on)} title={hint}
-                                    className={`py-2 rounded-lg border text-[12px] font-black transition-all ${routeMode === on
+                                    className={`py-1.5 rounded-lg border text-[12px] font-black transition-all ${routeMode === on
                                         ? (on ? 'border-warning/55 bg-warning/15 text-warning' : 'border-info/55 bg-info/15 text-info')
                                         : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
                                     {label}
@@ -662,17 +658,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             ))}
                         </div>
 
-                        {/**
-                          * 🎯 **목적지 설명줄 — 목업 그대로** (`MapMockup.tsx:3104` · 전수 조사 4단계).
-                          *    «어디로 · 지금 무슨 국면 · 노선/동선» 을 한 줄로. 복귀를 켜면 **집 시**가 적힌다
-                          *    (`goalCity` 파생) — 기사님이 정한 목적지 칸은 그대로다.
-                          * ⚠️ 목업의 «마름모 N개»는 실물에 없는 개념(목적지가 하나)이라 **적지 않는다** (규칙 ④).
-                          */}
-                        <p className="text-[10.5px] text-text-muted leading-snug px-0.5">
-                            🎯 목적지 <b className="text-text-primary">{filter?.goalCity || filter?.destinationCity || '—'}</b>
-                            {' · '}운행 <b className="text-text-primary">{filter?.dispatchPhase === 'DELIVERING' ? '주행 중' : filter?.dispatchPhase === 'GATHERING' ? '콜 쥠' : '대기'}</b>
-                            {' · '}<b className="text-info">{routeMode ? '🛣️ 노선' : '🔷 동선'}</b>
-                        </p>
                         {/**
                           * ⏳ **이상한 상태 하나만 적는다** (목업 `MapMockup.tsx:3187` · 기사님 2026-09-09
                           *    *"«콜을 잡으면 그 경로가 라인이 됩니다» 이것도 필요 없어"*): 늘 참인 말은 안 적는다.
@@ -707,16 +692,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                               *    토글로 켰다 끌 물건이 아니라 **따로 선다** (C4-2b).
                               */}
                             <div className="space-y-1">
-                                <label className="block text-[10px] font-bold text-text-muted pl-1">
-                                    {FILTER_FIELDS.find(f => f.path === 'destinationCity')!.label}
-                                    {(filter.dispatchPhase ?? 'STANDBY') !== 'STANDBY' && (
-                                        <span className="ml-1 font-normal text-text-muted/70">
-                                            {/* 🔴 «왜 지금 이 칸이 안 쓰이나»를 화면이 말한다.
-                                                복귀처럼 **실제 값이 있으면 그 값**을 보여 준다 (빈 말은 고장으로 보인다) */}
-                                            · 지금은 자동 ({tab === 'home' && homeAddress ? homeAddress : PHASE_AUTO_SOURCE[tab]})
-                                        </span>
-                                    )}
-                                </label>
+                                {/* 🎯 목적지가 지금 자동일 때만 그 까닭을 한 줄로 — 늘 참인 라벨은 걷었다 (기사님 2026-09-15 «필요 없는거 지우고») */}
+                                {(filter.dispatchPhase ?? 'STANDBY') !== 'STANDBY' && (
+                                    <p className="px-0.5 text-[10.5px] font-bold text-text-muted">
+                                        목적지는 지금 자동 ({tab === 'home' && homeAddress ? homeAddress : PHASE_AUTO_SOURCE[tab]})
+                                    </p>
+                                )}
                                 <div className="relative grid grid-cols-3 gap-1">
                                     <PickLayer label="🎯 도" value={dstSido || '— 선택 —'}
                                         options={cityGroups.map(g => g.sido)}
@@ -806,6 +787,34 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         summary={`${radiusAuto
                             ? [shownRadii.pickupRadiusKm, shownRadii.destinationRadiusKm, shownRadii.detourRadiusKm].map(n => Math.round(n * 10) / 10).join(' · ')
                             : [cur.pickupRadiusKm, cur.destinationRadiusKm, cur.detourRadiusKm].join(' · ')}km · ${radiusAuto ? '기준' : '수동'}`}>
+                            {/* 📐 기준/수동 · 정한 거리 · 다시 구하기 — 한 줄 (목업 · 기사님 2026-09-15 «공간낭비») */}
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex shrink-0 rounded-lg border border-border-card overflow-hidden">
+                                    {([true, false] as const).map(on => (
+                                        <button key={String(on)} type="button"
+                                            onClick={() => updateFilter({ radiusAuto: on })}
+                                            className={`px-2.5 py-0.5 text-[11px] font-bold ${
+                                                radiusAuto === on ? 'bg-info/15 border-info/55 text-info font-black' : 'text-text-muted'}`}>
+                                            {on ? `${filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT}km 기준 반경` : '수동'}
+                                        </button>
+                                    ))}
+                                </div>
+                                {radiusAuto && (
+                                    <div className="flex min-w-0 items-center gap-1.5 text-[10.5px] font-bold text-text-muted">
+                                        <span className="truncate tabular-nums">
+                                            {Number.isFinite(filter?.radiusDistanceKm as number)
+                                                ? `${Math.round((filter!.radiusDistanceKm as number) * 10) / 10}km · ×${
+                                                    Math.round(radiusScaleOf(filter?.radiusDistanceKm, filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) * 100) / 100}`
+                                                : '거리 못 잼'}
+                                        </span>
+                                        <button type="button" onClick={() => updateFilter({ radiusDistanceKm: null })}
+                                            title="지금 위치에서 목적지까지 다시 잽니다"
+                                            className="shrink-0 rounded-md border border-border-card px-1.5 py-0.5 text-info">
+                                            ↻ 다시 구하기
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             {/* 📐 **마름모의 모양 — 탭 위다** (이식 C3-2 · 2026-09-11 · 명세 §3).
                                 제외 단어와 같은 이유다 — 국면과 무관한 한 벌인데 탭 **안**에 두면
                                 화면이 "이 국면의 값" 이라고 잘못 말한다. 아침(C3-1)에 탭 안에 뒀다가
@@ -816,10 +825,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 (기사님: *"작은 면적에 필요한 것만 잘 디스플레이하고 싶다"*).
                                 머리글 한 줄은 남긴다 — «이게 지도에 바로 보인다»는 말이 필요하다 */}
                             <div className="relative z-10 space-y-1">
-                                <div className="flex items-baseline justify-between px-0.5">
-                                    <span className="text-[10.5px] font-black text-text-muted">📐 그물의 모양</span>
-                                    <span className="text-[9.5px] font-bold text-text-muted">지도에 바로 보입니다</span>
-                                </div>
                                 {/**
                                   * 🎚️ **숫자판이 아니라 슬라이더 레이어다** (이식 C4-1 · 2026-09-11).
                                   *
@@ -883,48 +888,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                               *    원 둘이 서로를 덮어 **마름모·각도가 아무 일도 안 한다**(폭 0).
                               *    기준 40km 의 근거는 `shared` 의 `RADIUS_BASE_KM_DEFAULT` 주석에.
                               */}
-                            <div className="flex items-center justify-between gap-2 px-0.5 pb-1">
-                                <span className="text-[10.5px] font-black text-text-muted">📐 반경</span>
-                                <div className="flex rounded-lg border border-border-card overflow-hidden">
-                                    {([true, false] as const).map(on => (
-                                        <button key={String(on)} type="button"
-                                            onClick={() => updateFilter({ radiusAuto: on })}
-                                            className={`px-2.5 py-0.5 text-[10.5px] font-bold ${
-                                                radiusAuto === on ? 'bg-info/15 border-info/55 text-info font-black' : 'text-text-muted'}`}>
-                                            {/**
-                                              * 📏 **자동 쪽이 «무엇을 기준으로»를 말한다** (기사님 2026-09-12:
-                                              *    *"자동 버튼 안에 들어가는 것이 어떨까? '40km 기준 반경' | '수동'"*).
-                                              *
-                                              * 🔴 예전엔 기준거리가 **일곱 번째 손잡이**로 따로 있었다. 그런데 그것은
-                                              *    «한 번 정하면 두는 값»이고 나머지 셋은 «오늘 조이는 값»이라 **층이 다르다** —
-                                              *    한 그리드에 섞여 있어 «자동이면 이것만 살고 나머지가 흐려지는» 규칙이 생겼다.
-                                              *    이제 고치는 자리는 ⚙️ 설정 → 필터이고, 여기서는 **지금 무엇으로 재는지**만 말한다.
-                                              */}
-                                            {on ? `${filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT}km 기준 반경` : '수동'}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            {/**
-                              * 📏 **무엇으로 정했나 + [↻ 다시 구하기]** (기사님 확정 2026-09-14 · 필터.md §10-1 ④).
-                              *    자동 반경의 거리는 **하루에 한 번** 잰다 — 달리는 동안 안 바뀐다.
-                              * 🔴 다시 구하기는 **토글 칸이 아니다** — 셋째 칸이면 «재설정 모드»에 들어가 있는 것처럼 읽힌다.
-                              *    누르면 들고 있던 거리를 비운다(`null`) — 서버가 지금 위치 → 목적지로 다시 잰다.
-                              */}
-                            {radiusAuto && (
-                                <div className="flex items-center justify-between gap-2 px-0.5 pb-1 text-[10px] text-text-muted">
-                                    <span>
-                                        {Number.isFinite(filter?.radiusDistanceKm as number)
-                                            ? `${Math.round((filter!.radiusDistanceKm as number) * 10) / 10}km 로 정함 · ×${
-                                                Math.round(radiusScaleOf(filter?.radiusDistanceKm, filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) * 100) / 100}`
-                                            : '거리를 아직 못 잼 — 반경을 줄이지 않음'}
-                                    </span>
-                                    <button type="button" onClick={() => updateFilter({ radiusDistanceKm: null })}
-                                        className="px-2 py-0.5 rounded-lg border border-border-card font-bold text-info">
-                                        ↻ 다시 구하기
-                                    </button>
-                                </div>
-                            )}
                             {/**
                               * 📐 **셋이 한 줄** (기사님 2026-09-12: *"필터 남은 것들은 다시 정렬해 주고"*).
                               *    기준거리가 ⚙️ 설정으로 가면서 넷이 셋이 됐다 — 4칸 격자면 **한 칸이 빈다.**
@@ -1097,14 +1060,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                               */}
                             {/* 🔴 **박스 대신 구분선 하나** — 목업 그대로 (`MapMockup.tsx:3288`).
                                 «여기서부터는 빼는 것»이 선 하나로 충분히 갈린다 */}
-                            <div className="relative z-20 border-t border-border-card pt-2 space-y-1">
-                                <div className="flex items-baseline justify-between px-0.5">
-                                    <span className="text-[10.5px] font-black text-danger">🚫 제외 지역</span>
-                                    {/* 🔴 «국면과 무관»을 뺐다 (C4-7) — 국면이 없어졌으니 낡은 말이다 */}
-                                    <span className="text-[9.5px] font-bold text-text-muted">
-                                        {exDraft.length ? `${exDraft.length}곳 제외` : '없음'}
-                                    </span>
-                                </div>
+                            <div className="relative z-20 space-y-1.5">
                                 <div className="relative grid grid-cols-3 gap-1">
                                     <PickLayer label="⛔ 제외 도" options={sidoList()} tone="danger"
                                         value={`${exSido}${exDraft.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
@@ -1193,7 +1149,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             </div>
 
                     </FilterRow>
-                    </div>
                 </div>
 
                 {/**
@@ -1201,7 +1156,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                   * 🔴 저장은 둘뿐이다 — 💾 서버 저장(DB) · ↩︎ 되돌리기(서버 값으로). 값을 만지면 바로 메모리에 들어간다.
                   * ⚠️ 제외 지역의 인라인 💾 저장(메모리)은 «🚫 빼는 곳» 안에 그대로 있다 — 칩 하나 잘못 눌러 곧장 살아나지 않게.
                   */}
-                <div data-save-bar className="shrink-0 relative z-10 flex items-center gap-1.5 border-t border-border bg-bg-base px-2.5 py-2">
+                <div data-save-bar className="shrink-0 relative z-10 flex items-center gap-1.5 border-t border-border bg-bg-base px-3 py-1.5">
                     <span className="flex-1 min-w-0 text-[11px] font-bold leading-tight text-text-muted">
                         {unsaved ? <b className="text-warning">서버와 다름</b> : '서버와 같음'}
                         <span className="block text-[9.5px] font-bold opacity-80">
@@ -1213,7 +1168,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         onClick={handleRevert}
                         disabled={!baseFilter || !unsaved}
                         title="서버에 저장된 값으로 되돌립니다"
-                        className="h-9 shrink-0 rounded-lg bg-surface-alt text-text-primary font-black text-[11.5px] px-2.5 disabled:opacity-40"
+                        className="h-8 shrink-0 rounded-lg bg-surface-alt text-text-primary font-black text-[12px] px-2.5 disabled:opacity-40"
                     >
                         ↩︎ 되돌리기
                     </Button>
@@ -1221,30 +1176,10 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                     <Button
                         onClick={handleSaveToServer}
                         title="지금 값을 DB에 저장합니다 (내일 아침에도 이 조건으로 시작)"
-                        className={`h-9 shrink-0 rounded-lg font-black text-[11.5px] px-3 text-white ${unsaved ? 'bg-success' : 'bg-success/50'}`}
+                        className={`h-8 shrink-0 rounded-lg font-black text-[12px] px-3 text-white ${unsaved ? 'bg-success' : 'bg-success/50'}`}
                     >
                         💾 서버 저장
                     </Button>
-                </div>
-                {/* 🩺 모니터는 조작판(저장 줄) **뒤**에 둔다 — 손잡이가 아니라 확인창이다. 열면 제 안에서 스크롤한다 */}
-                <div className="shrink-0 max-h-[30dvh] overflow-y-auto border-t border-border-card">
-                    {/* 🩺 **모니터 — 지금 앱에 내려가 있는 필터, 원본 그대로** (필터 정의 6장). 늘 쓰는 것이 아니라 닫힌 행이다 */}
-                    <FilterRow id="monitor" title="🩺 앱에 내려간 필터" open={openRow === 'monitor'} onToggle={toggleRow}
-                        summary={`콜 잡기 ${filter.isActive ? 'ON' : 'OFF'}`}>
-                        {/* 🩺 행이 이미 접히므로 안쪽 접기(details)와 상자는 걷었다 — 내용 줄만 (원본 그대로) */}
-                        {filter && (
-                                <div className="flex flex-col gap-1 text-[11px] text-text-primary tabular-nums">
-                                    <div>국면 <b>{filter.callTarget ?? 'DEST'}</b> · 단계 <b>{filter.dispatchPhase ?? 'STANDBY'}</b>{filter.isSharedMode ? ' · 합짐 모드' : ''}</div>
-                                    <div>상차 반경 <b>{filter.pickupRadiusKm}km</b> · 도착 <b>{filter.destinationCity || '—'} {filter.destinationRadiusKm ?? 0}km</b> · 경유 <b>{filter.detourRadiusKm ?? 0}km</b></div>
-                                    <div>콜할인율 <b>{filter.callDiscountPct ?? 10}%</b> · 적재 <b>{Math.round(filter.slotsUsed ?? 0)}/{TRUCK_CAPACITY_SLOTS}박스</b> ({filter.capacityConfidence ? CAPACITY_CONFIDENCE_LABEL[filter.capacityConfidence] : '—'})</div>
-                                    <div className="text-text-muted">단가 하한(원/km): {RATE_TABLE_ORDER.map(v => `${v} ${filter.ratePerKm?.[v]?.toLocaleString() ?? '—'}`).join(' · ')}</div>
-                                    <div className="text-text-muted break-keep">경유 지역 <b className="text-text-primary">{filter.destinationKeywords?.length ?? 0}개 동</b>{(filter.destinationKeywords?.length ?? 0) > 0 && <> — {filter.destinationKeywords!.slice(0, 8).join(', ')}{filter.destinationKeywords!.length > 8 ? ' …' : ''}</>}</div>
-                                    <div className="text-text-muted">제외 단어: {(filter.excludedKeywords?.length ?? 0) > 0 ? filter.excludedKeywords!.join(', ') : '없음'}</div>
-                                    {/* 앱 호환 파생 — 입력 화면은 철거됐고 값만 내려간다 (확정안 ①-삭제) */}
-                                    <div className="text-text-muted opacity-80">피기백 하한/상한(앱 호환 파생): {filter.minFare?.toLocaleString() ?? '—'} / {filter.maxFare?.toLocaleString() ?? '—'}원</div>
-                                </div>
-                        )}
-                    </FilterRow>
                 </div>
             </section>
         </>

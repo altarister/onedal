@@ -89,18 +89,18 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3 }: {
                     };
                     return (
                         <div key={k.key} data-pick
-                            className={`flex flex-col items-stretch gap-0.5 px-1 py-1 rounded-lg border ${k.dim ? 'opacity-50' : ''} ${
+                            className={`flex flex-col items-stretch gap-0 px-1 py-0.5 rounded-lg border ${k.dim ? 'opacity-50' : ''} ${
                                 open === k.key ? 'border-info/55 bg-info/10' : 'border-border-card bg-background'}`}>
                             <span className="px-0.5 text-[9.5px] font-bold text-text-muted leading-tight">{k.label}</span>
-                            <div className="grid grid-cols-[22px_minmax(0,1fr)_22px] items-center gap-0.5">
+                            <div className="grid grid-cols-[20px_minmax(0,1fr)_20px] items-center gap-0.5">
                                 <button type="button" aria-label={`${k.label} 줄이기`} disabled={k.value <= (k.min ?? 0)} onClick={() => bump(-1)}
-                                    className="h-6 rounded-md border border-border-hover bg-surface-alt/40 text-[14px] font-black leading-none disabled:opacity-30">−</button>
+                                    className="h-5 rounded-md border border-border-hover bg-surface-alt/40 text-[13px] font-black leading-none disabled:opacity-30">−</button>
                                 <button type="button" title="눌러서 끌어 옮기기" onClick={() => onOpen(open === k.key ? null : k.key)}
-                                    className="min-w-0 text-center text-[14px] font-black text-text-primary tabular-nums leading-tight whitespace-nowrap">
+                                    className="min-w-0 text-center text-[13px] font-black text-text-primary tabular-nums leading-tight whitespace-nowrap">
                                     {k.value}<span className="text-[9.5px] font-bold text-text-muted">{k.unit}</span>
                                 </button>
                                 <button type="button" aria-label={`${k.label} 늘리기`} disabled={k.value >= k.max} onClick={() => bump(1)}
-                                    className="h-6 rounded-md border border-border-hover bg-surface-alt/40 text-[14px] font-black leading-none disabled:opacity-30">+</button>
+                                    className="h-5 rounded-md border border-border-hover bg-surface-alt/40 text-[13px] font-black leading-none disabled:opacity-30">+</button>
                             </div>
                         </div>
                     );

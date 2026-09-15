@@ -38,6 +38,15 @@ describe('🧰 필터 판 — 네 행 · 하나만 열림 · 저장 줄 고정',
         expect(code.indexOf('↩︎ 되돌리기', bar)).toBeGreaterThan(bar);
     });
 
+    /**
+     * 🔴 **판에 필요 없는 것이 없다** (기사님 2026-09-15: *"필요 없는거 지우고 폰트 사이즈 맞춰주고 · 지금 너무 공간낭비가 많아"*).
+     *    🩺 모니터는 현황판 «📦 앱에 내려갈 필터»가 같은 일을 한다 · 배경 번짐은 장식이다.
+     */
+    it('🔴 모니터 행 · 배경 번짐이 없다', () => {
+        expect(code).not.toMatch(/id="monitor"/);
+        expect(code).not.toMatch(/blur-\[100px\]/);
+    });
+
     it('🔴 설명 글 두 덩어리는 판에서 뺐다', () => {
         expect(code).not.toMatch(/상차 반경<\/b>은 곧/);
         expect(code).not.toMatch(/라인반경<\/b> = 지금 경로/);

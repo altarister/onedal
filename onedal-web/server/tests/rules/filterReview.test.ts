@@ -395,14 +395,17 @@ describe('4단계 · 목적지 설명줄 · 경로 대기 문구 · 저장 안�
     const store = readClient('stores/filterStore.ts');
     const stage = readClient('components/stage/StageView.tsx');
 
-    it('🔴 «🎯 목적지 X · 운행 대기 · 🛣️ 노선» 한 줄이 있다 (목업 MapMockup.tsx:3104)', () => {
-        const i = modal.indexOf('🎯 목적지 <b');
+    /**
+     * 🔄 **2026-09-15 개정 — 설명줄을 걷었다** (기사님: *"목업의 디자인과 너무 다른데? 필요 없는거 지우고"*).
+     *    «목적지 X · 🛣️ 노선» 은 «🎯 어디로» 행 머리 요약이 이미 말한다 — 한 판에 같은 말 두 번은 거짓말 자리다 (규칙 ③).
+     */
+    it('🔴 목적지 · 노선/동선은 «🎯 어디로» 행 머리 요약이 말한다 — 설명줄은 없다', () => {
+        const i = modal.indexOf('<FilterRow id="where"');
         expect(i).toBeGreaterThan(-1);
-        const body = modal.slice(i, i + 500);
-        expect(body).toMatch(/goalCity/);
-        expect(body).toMatch(/routeMode \? '🛣️ 노선' : '🔷 동선'/);
-        /* 실물에 없는 «마름모 N개»는 지어내지 않는다 (규칙 ④) */
-        expect(body).not.toMatch(/마름모 \{/);
+        const head = modal.slice(i, i + 400);
+        expect(head).toMatch(/goalCity/);
+        expect(head).toMatch(/routeMode \? '노선' : '동선'/);
+        expect(modal).not.toMatch(/🎯 목적지 <b/);
     });
 
     it('🔴 «⏳ 카카오 경로를 기다립니다» — 콜은 잡았는데 라인이 없을 때만', () => {
@@ -525,16 +528,21 @@ describe('6단계 · 칸 바깥 스타일을 목업 어휘로 (조사 ③)', () 
     const modal = readClient('components/dashboard/OrderFilterModal.tsx');
     const knob = readClient('components/ui/KnobGrid.tsx');
 
-    it('🔴 섹션 사이 간격이 0 이 아니다 — 목업 aside 는 gap-2', () => {
+    /**
+     * 🔄 **2026-09-15 개정 — 행은 구분선 하나로 나눈다** (기사님: *"필터 박스가 있음으로 내부박스를 따로 만들필요가 없을꺼 같아"* ·
+     *    *"지금 너무 공간낭비가 많아"*). 옛 목업 aside 의 gap-2 는 칸 묶음 사이 틈이었다 — 네 행 구조에서는 틈이 곧 낭비다.
+     */
+    it('🔴 행은 구분선으로 나눈다 — 행 사이 틈을 두지 않는다', () => {
+        expect(modal).toMatch(/border-b border-border-card last:border-b-0/);
         const i = modal.indexOf('custom-scrollbar relative z-10">');
         expect(i).toBeGreaterThan(-1);
-        /* 주석 한 줄이 끼어 있다 — 그 다음 여는 태그를 본다 */
-        expect(modal.slice(i, i + 400)).toMatch(/<div className="space-y-2">/);
+        expect(modal.slice(i, i + 400)).not.toMatch(/<div className="space-y-2">/);
     });
 
-    it('🔴 머리말 규격이 하나다 — 10.5px · font-black · muted (목업 FilterPanel)', () => {
+    /** 🔄 **2026-09-15 개정 — 행 안 소제목을 걷었다** — 이름은 행 머리(📐 얼마나 넓게 · 🚫 빼는 곳)가 말한다 */
+    it('🔴 행 안 소제목이 없다 · 9px 는 안 쓴다', () => {
         for (const h of ['📐 그물의 모양', '📐 반경', '🚫 제외 지역'])
-            expect(modal).toMatch(new RegExp(`text-\\[10\\.5px\\] font-black [^"]*">${h}`));
+            expect(modal).not.toMatch(new RegExp(`">${h}</span>`));
         /* 목업은 9.5 / 10.5 / 11 / 13 / 14 만 쓴다 — 9px·10px 이 섞이지 않는다 (머리말·보조문구) */
         expect(modal).not.toMatch(/text-\[9px\]/);
     });
