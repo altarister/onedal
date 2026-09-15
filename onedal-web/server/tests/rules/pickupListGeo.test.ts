@@ -95,6 +95,8 @@ describe('상차 목록 배선', () => {
         expect(body).toMatch(/goalZonesOf\(/);
         expect(body).toMatch(/pickupListFor\(/);
         expect(body).toMatch(/refreshKeywordTraps\(session\)/);
+        /* 🔴 지도 재료(복귀 켬 · 복귀콜 쥠 · 집 · 라인)가 바뀌어도 «바뀌었다»고 알린다 — 목록만 보면 옛 재료로 그린다 (2026-09-15 15:47) */
+        expect(body).toMatch(/pickupAreaKey\(/);
         expect(code('socket/socketHandlers.ts')).toMatch(/maybeRebuildPickupList\(userId, io\)/);
     });
 

@@ -20,7 +20,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
+import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, pickupAreaKey, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, isLocalPhase, activeGoals, effectiveRadii, pickupListNeedsRebuild } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
@@ -941,12 +941,14 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     });
     const { list, shape } = pickupListFor({ me: { x: me.x, y: me.y }, radii: eff, line, zones });
     const prev = f.pickupKeywords;
+    const prevArea = pickupAreaKey(f.pickupArea);
     session.pickupListAt = { x: me.x, y: me.y };
     f.pickupKeywords = list;
-    /* 🗺️ 관제웹 «상차» 레이어가 **같은 `goalZonesOf`** 를 부를 재료를 싣는다 (집 · 복귀 · 복귀콜 쥠) */
+    /* 🗺️ 관제웹 «상차» · «하차» 레이어가 **같은 `goalZonesOf`** 를 부를 재료를 싣는다 (집 · 복귀 · 복귀콜 쥠) */
     f.pickupArea = { at: { x: me.x, y: me.y }, homeCity, homeOn, homeCaught, hasLine: !!line && line.length >= 2 };
     refreshKeywordTraps(session);
-    const changed = !prev || prev.join(',') !== list.join(',');
+    /* 🔴 목록이 그대로여도 **지도 재료가 바뀌면** 알린다 — 안 그러면 복귀를 꺼도 지도가 옛 «복귀 켬»으로 그린다 (#146) */
+    const changed = !prev || prev.join(',') !== list.join(',') || prevArea !== pickupAreaKey(f.pickupArea);
     if (changed) console.log(`📋 [상차 목록] ${zones.map(z => `${z.city}:${z.state}`).join(' · ') || '목적지 없음'} → `
         + `${shape === 'meLine' ? '내 위치 ∩ 라인' : shape === 'me' ? '내 위치' : '없음'} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);
     return changed;

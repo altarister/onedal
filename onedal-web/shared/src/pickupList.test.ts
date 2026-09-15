@@ -1,5 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { isPickupListName, pickupListNeedsRebuild, PICKUP_LIST_MOVE_KM } from './pickupList';
+import { isPickupListName, pickupListNeedsRebuild, PICKUP_LIST_MOVE_KM, pickupAreaKey } from './pickupList';
+
+describe('🗺️ 지도 재료가 바뀌면 알린다 — 목록이 그대로여도', () => {
+    const area = { at: { x: 127.3, y: 37.3 }, homeCity: '광주시', homeOn: true, homeCaught: false, hasLine: false };
+    it('🔴 복귀를 끄면 키가 달라진다 — 목록이 같아도 관제웹에 보내야 옛 «복귀 켬»으로 안 그린다 (2026-09-15 15:47 광주 원이 남았다)', () => {
+        expect(pickupAreaKey({ ...area, homeOn: false })).not.toBe(pickupAreaKey(area));
+        expect(pickupAreaKey({ ...area, homeCaught: true })).not.toBe(pickupAreaKey(area));
+        expect(pickupAreaKey({ ...area, hasLine: true })).not.toBe(pickupAreaKey(area));
+        expect(pickupAreaKey({ ...area, homeCity: null })).not.toBe(pickupAreaKey(area));
+    });
+    it('목록을 만든 자리(at)만 바뀌면 같은 키 — 지도는 실시간 위치를 쓰니 0.5km 마다 보낼 까닭이 없다', () => {
+        expect(pickupAreaKey({ ...area, at: { x: 127.4, y: 37.2 } })).toBe(pickupAreaKey(area));
+    });
+    it('아직 없으면 빈 키', () => {
+        expect(pickupAreaKey(undefined)).toBe('');
+    });
+});
 
 /**
  * 📋 **상차 목록 — 이름 규칙과 다시 만드는 때** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 목록 · 하차 목록»).

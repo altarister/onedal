@@ -19,6 +19,17 @@ export function isPickupListName(name: string): boolean {
     return /(동|읍|면|가|리)$/.test(name) && !/(시|구|군)$/.test(name);
 }
 
+/**
+ * 🗺️ **지도 재료의 키** — 서버가 상차 목록과 함께 싣는 `pickupArea` 중 **관제웹 «상차» · «하차» 레이어가 읽는 값**만 (버그 대장 #146).
+ *
+ * 서버는 목록이 바뀔 때만 필터를 관제웹에 보냈다. 복귀를 꺼도 상차 목록이 그대로면 옛 «복귀 켬»이 지도에 남아
+ * 광주(집) 쪽 원을 계속 그렸다 (2026-09-15 15:47). 그래서 «바뀌었나»를 **목록 ∪ 이 키**로 본다.
+ * 🔴 목록을 만든 자리(`at`)는 뺀다 — 지도는 실시간 위치로 그린다. 넣으면 0.5km 마다 쓸데없이 보낸다.
+ */
+export function pickupAreaKey(a: { homeCity: string | null; homeOn: boolean; homeCaught: boolean; hasLine: boolean } | null | undefined): string {
+    return a ? JSON.stringify([a.homeCity, a.homeOn, a.homeCaught, a.hasLine]) : '';
+}
+
 /** 다시 만들까 — 처음이면 만든다 · 위치를 모르면 안 만든다 · 0.5km 넘게 움직였으면 */
 export function pickupListNeedsRebuild(last: { x: number; y: number } | null, here: { x: number; y: number } | null, km = PICKUP_LIST_MOVE_KM): boolean {
     if (!here) return false;

@@ -1465,6 +1465,14 @@ export async function setCallTarget(
          *    같은 값으로 다시 누르면 안 적는다. 관내(`LOCAL`)는 파생이라 표에 없다.
          */
         if (phase !== prevTarget && (phase === 'HOME' || phase === 'DEST')) recordCallTarget(userId, phase, by, Date.now());
+        /**
+         * 🕸️ **하차 · 상차 목록을 바로 다시 만든다** (버그 대장 #146 · `docs/지금/필터.md` «상차 목록 · 하차 목록» ③ 시점).
+         *    살아 있는 목적지(`goalCitiesOf`)와 목적지 상태(`goalZonesOf`)가 `callTarget` 에서 파생되는데,
+         *    `updateActiveFilter` 는 이 전환으로 목록을 안 만든다 — 2026-09-15 15:47:09 복귀를 껐는데
+         *    서버가 다시 켜진 15:49:20 까지 원달앱 목록이 옛 «이천 ∪ 광주»였고 지도에 광주 원이 남았다.
+         * 🔴 켠 시각을 적은 **뒤**에 만든다 — «복귀콜을 잡았나»(`homeCallsOf`)가 그 시각을 읽는다.
+         */
+        rebuildNetFilter(userId, io);
 
         console.log(`🧭 [국면 전환] 완료 → ${CALL_TARGET_LABEL[phase]} · 목적 ${city} ` +
             `(반경 ${session.activeFilter.destinationRadiusKm}km — 국면 설정에서) · ` +
