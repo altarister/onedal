@@ -1678,6 +1678,7 @@ export * from './pricing';
 export * from './phases';
 export * from './callTargetDay';
 export * from './pickupList';
+export * from './filterArea';
 export * from './cargoHints';
 export * from './cargoTags';
 export * from './cargoUnits';

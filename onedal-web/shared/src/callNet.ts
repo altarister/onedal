@@ -384,8 +384,7 @@ function makeInNet(p: NetParams, src: NetPoint, dst: NetPoint) {
  *    좌우 폭)은 뒤쪽을 못 그려서 180 이상이 전부 같은 모양이었는데, **판정은 넓어지고 있었다.**
  *    이제 그린 모양이 판정 그대로다.
  */
-/** 마름모 테두리 점 — 그물 그리기와 관제웹 «상차» 레이어(복귀 대기 · 원 ∩ 집 마름모)가 함께 쓴다 */
-export function quadOutline(p: NetParams, src: NetPoint, dst: NetPoint): Array<{ lng: number; lat: number }> {
+function quadOutline(p: NetParams, src: NetPoint, dst: NetPoint): Array<{ lng: number; lat: number }> {
     const inQuad = makeInQuad(p, src, dst);
     const maxKm = haversineKm(src, dst) * 3 + Math.max(0, p.quadRadiusKm) * 2 + 1;
     const out: Array<{ lng: number; lat: number }> = [];

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm, pickupAreaPlan, quadShapeFrom, quadOutline, cityCenter } from '@onedal/shared';
+import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm, goalZonesOf, pickupShapeOf } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
@@ -183,39 +183,36 @@ export default function StageView(props: Props) {
     });
 
     /**
-     * 📋 **상차 영역 — 도형 그대로** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다» · «왜 도트처럼 그려지는거야?»).
+     * 🟢 **상차 영역 — 살아 있는 목적지마다 상태로 정한다** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
      *
-     * 🔴 계획(어느 도형끼리 겹치나)은 shared `pickupAreaPlan` 한 곳 — 서버 `geoService.pickupListFor` 가 같은 함수로 목록을 만든다.
-     *    재료(목록을 만든 자리 · 집 · 복귀 · 집 방향 콜 쥠 · 라인 썼나)는 서버가 목록과 함께 실어 보낸다(`filter.pickupArea`).
-     * 🔴 지도는 동 이름이 필요 없다 — 격자 점이 아니라 **원 · 띠 · 목적지 원 · 집 마름모**를 넘기고 캔버스가 원으로 잘라 칠한다.
-     *    반지름·띠 폭은 서버와 같은 `effectiveRadii` 에서 온다.
-     * ⚠️ 라인 띠만은 **지금 그리는 경로 선**으로 잰다 — 서버의 얼린 경로와 심사 중 잠깐 다를 수 있다.
+     * 🔴 모양은 shared `goalZonesOf` → `pickupShapeOf` 한 곳 — 하나라도 운행 뒤가 아니면 **현위치 영역 전체**,
+     *    전부 운행 뒤면 **현위치 영역 ∩ 라인 영역**. 하차 레이어도 같은 `goalZonesOf` 를 쓴다.
+     * 🔴 **지도가 먼저다** — 서버 상차 목록은 아직 옛 계획(`pickupAreaPlan`)이다. 지도를 눈으로 맞춘 뒤 서버가
+     *    같은 함수로 동을 찾는다 (기사님과 정한 순서 · todo «필터 영역 개정»). 그 사이 지도와 앱 목록이 다를 수 있다.
+     * 재료: 목록을 만든 자리 · 집 · 복귀 · 복귀콜 쥠은 서버가 싣는다(`filter.pickupArea`) · 실린 콜은 `liveRoute` ·
+     *    운행 시작은 서버 국면(`DELIVERING`) · 반지름·띠 폭은 서버와 같은 `effectiveRadii`.
+     * ⚠️ 라인 띠는 **지금 그리는 경로 선**으로 잰다 — 서버의 얼린 경로와 심사 중 잠깐 다를 수 있다.
      */
     const pickupAreaIn = filter?.pickupArea;
-    const pickupLine = pickupAreaIn?.hasLine ? derived.drawHolder?.routePolyline ?? null : null;
+    const pickupShape = pickupShapeOf(goalZonesOf({
+        destinationCity: filter?.destinationCity,
+        homeCity: pickupAreaIn?.homeCity,
+        homeOn: pickupAreaIn?.homeOn ?? false,
+        homeCaught: pickupAreaIn?.homeCaught ?? false,
+        departed: filter?.dispatchPhase === 'DELIVERING',
+        activeCalls: liveRoute,
+    }));
+    const pickupLine = pickupShape === 'meLine' ? derived.drawHolder?.routePolyline ?? null : null;
     const pickupArea = useMemo(() => {
-        if (!pickupAreaIn || !filter?.destinationCity) return null;
-        const line = pickupLine && pickupLine.length >= 2 ? pickupLine : null;
-        const plan = pickupAreaPlan({ hasLine: !!line, homeOn: pickupAreaIn.homeOn, homeCaught: pickupAreaIn.homeCaught });
-        const centerOf = (city: string | null | undefined) => {
-            if (!city) return null;
-            try { return cityCenter(city); } catch { return null; }   // 지도에 없는 시 — 그 도형은 모른다
-        };
-        const dest = centerOf(filter.destinationCity), home = centerOf(pickupAreaIn.homeCity);
-        const shape = quadShapeFrom(filter as unknown as Record<string, unknown>);   // 서버 `rebuildPickupList` 와 같은 모양 함수
-        const params = {
-            srcAngleDeg: shape.srcAngleDeg, dstAngleDeg: shape.dstAngleDeg, quadRadiusKm: radii.quadRadiusKm,
-            srcDiamKm: radii.pickupRadiusKm * 2, dstDiamKm: radii.destinationRadiusKm * 2,
-        };
-        const me = { name: '내 위치', lng: pickupAreaIn.at.x, lat: pickupAreaIn.at.y };
+        if (!pickupAreaIn || !pickupShape) return null;
+        /* 🔴 운행 뒤인데 경로를 모르면 띠를 지어내지 않는다 — 안 그린다 (규칙 ④) */
+        if (pickupShape === 'meLine' && !(pickupLine && pickupLine.length >= 2)) return null;
         return {
-            plan, me: pickupAreaIn.at, meKm: radii.pickupRadiusKm,
-            line, lineKm: radii.detourRadiusKm,
-            destRing: dest ? { x: dest.lng, y: dest.lat, km: radii.destinationRadiusKm } : null,
-            quadHome: home && plan.some(t => t.includes('quadHome'))
-                ? quadOutline(params, me, home).map(q => ({ x: q.lng, y: q.lat })) : null,
+            me: pickupAreaIn.at, meKm: radii.pickupRadiusKm,
+            line: pickupShape === 'meLine' ? pickupLine : null,
+            lineKm: radii.detourRadiusKm,
         };
-    }, [pickupAreaIn, pickupLine, filter, radii.pickupRadiusKm, radii.destinationRadiusKm, radii.quadRadiusKm, radii.detourRadiusKm]);
+    }, [pickupAreaIn, pickupShape, pickupLine, radii.pickupRadiusKm, radii.detourRadiusKm]);
 
 
     /**
