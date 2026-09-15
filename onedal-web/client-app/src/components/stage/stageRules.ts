@@ -38,6 +38,11 @@ export interface StageSignals {
      *    유예 중 미룬 도착을 다시 물을 때 «아직 그 정거장 곁인가»를 답한다 (2026-09-15).
      */
     hereStops?: string[];
+    /**
+     * 🪜 **「나」에 보일 콜 줄이 없나** — 콜 없음 · 지난 콜 숨김으로 전부 가림 (판정 중이면 판정석이 있어 안 빈다).
+     *    비어 있는 「나」는 «내용만큼» 서서 「가」와 거의 같은 높이라, 손으로 끌면 «딸깍»으로만 보였다 (기사님 2026-09-15 · #147).
+     */
+    listEmpty?: boolean;
 }
 
 /** 규칙이 기억하는 것 — 이것도 밖에 두고 넣고 받는다 (숨은 상태 없음) */
@@ -130,7 +135,11 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
 
         case 'drag':
             // 손으로 끈 것이 곧 의사 표현이다 — 마중은 끝나고, 30초 유예가 시작된다
-            return out({ ...mem, autoRaised: false, userHoldUntil: sig.nowMs + USER_HOLD_MS }, ev.to, '손');   // 미룬 도착은 든 채로
+            /* 🪜 비어 있는 「나」는 건너뛴다 — 가던 방향으로 한 단 더 (올리면 「다」 · 내리면 「가」) (#147) */
+            {
+                const to = sig.listEmpty && ev.to === 'list' ? (sig.snap === 'full' ? 'peek' : 'full') : ev.to;
+                return out({ ...mem, autoRaised: false, userHoldUntil: sig.nowMs + USER_HOLD_MS }, to, '손');   // 미룬 도착은 든 채로
+            }
 
         case 'tap':
             // 지도에서 콜을 골랐다 — 손짓이므로 유예를 준다 (S6)

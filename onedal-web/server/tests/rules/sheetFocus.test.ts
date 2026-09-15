@@ -174,6 +174,14 @@ describe('S13·S14·S15 — 마중은 «그 콜의 그 단계»까지다', () =>
      *    예전엔 `focusStep` 값이 바뀔 때만 지웠다 — 다음 정거장 콜은 그 값이 늘 `null` 이라, 손으로 넘겨 둔 단계가
      *    끌어올린 뒤에도 남아 상태바와 다른 단계가 떴다. «이 카드가 상태바의 콜이 된 순간»(`focused`)에 지운다.
      */
+    /** 🪜 **«「나」가 비었나»를 화면이 재서 규칙에 넘긴다** — 건너뛰기 판단은 규칙 한 곳 (#147) */
+    it('🔴 #147 StageView 가 규칙에 listEmpty 를 넘긴다', () => {
+        const view = codeOnly(read('components/stage/StageView.tsx'));
+        const i = view.indexOf('const feed = ');
+        expect(i).toBeGreaterThan(-1);
+        expect(view.slice(i, i + 900)).toMatch(/listEmpty:/);
+    });
+
     it('🔴 #145 카드가 상태바의 콜이 되는 순간 손으로 넘긴 단계를 지운다', () => {
         const route = codeOnly(read('components/dashboard/PinnedRoute.tsx'));
         expect(route).toMatch(/focused=\{!!focus && focus\.orderId === route\.id\}/);

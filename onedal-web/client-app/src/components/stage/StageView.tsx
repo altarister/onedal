@@ -336,6 +336,8 @@ export default function StageView(props: Props) {
             nowMs: now, calls: liveRoute.length, judging: !!judging, drive,
             /* 📍 곁(100m)의 다녀온 정거장 — 유예 중 미룬 도착을 다시 물을 때 «아직 곁인가» (stageRules) */
             hereStops: hereStopsOf(derived.visitedTrail, myLocation),
+            /* 🪜 「나」에 보일 콜 줄이 없나 — 콜 없음 · 지난 콜 숨김으로 전부 가림 · 판정 중이면 판정석이 있어 안 빈다 (#147) */
+            listEmpty: !judging && deckList.every(o => hidePast && isDeliveredCall(o)),
             /* 🪧 심사가 뜰 때 «올릴까»는 지금 높이에 달렸다 (`snapOnJudging`) */
             snap,
         }, ev);

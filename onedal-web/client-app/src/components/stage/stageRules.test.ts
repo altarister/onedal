@@ -323,3 +323,27 @@ describe('#144 판정 우선 · 판정 중 손 막힘 · 늦게 열기', () => {
         expect(tick(k.mem, sig({ drive: 'drive' })).snap).toBe('peek');
     });
 });
+
+/**
+ * 🪜 **비어 있는 「나」는 손으로 끌 때 건너뛴다** (기사님 2026-09-15 · 버그 대장 #147).
+ *
+ * 기사님: *"새로고침 하고 시트올리려 하면 딸깍 하는것 같이 움직이지 않다고 다음번 부터는 움직여"*.
+ * 16:17:01 로그: `peek·콜없음 → list·손` — 규칙은 올렸는데 콜이 없어 「나」(내용만큼)가 「가」(72px)와 거의 같은 높이라
+ * 첫 끌기가 «딸깍»으로만 보였다. 보일 콜 줄이 없으면(콜 없음 · 지난 콜 숨김으로 전부 가림) 「나」에 설 까닭이 없다.
+ */
+describe('#147 비어 있는 「나」 건너뛰기 — 손으로 끌 때', () => {
+    it('「가」에서 올리면 곧장 「다」로 간다', () => {
+        const r = stageStep(initialStageMemory(), sig({ snap: 'peek', listEmpty: true, calls: 0 }), { type: 'drag', to: 'list' });
+        expect(r.snap).toBe('full');
+    });
+
+    it('「다」에서 내리면 곧장 「가」로 간다', () => {
+        const r = stageStep(initialStageMemory(), sig({ snap: 'full', listEmpty: true, calls: 0 }), { type: 'drag', to: 'list' });
+        expect(r.snap).toBe('peek');
+    });
+
+    it('보일 콜 줄이 있으면 지금처럼 「나」에 선다', () => {
+        const r = stageStep(initialStageMemory(), sig({ snap: 'peek', listEmpty: false }), { type: 'drag', to: 'list' });
+        expect(r.snap).toBe('list');
+    });
+});
