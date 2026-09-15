@@ -68,6 +68,12 @@ export const pickerKindOf = (call: PickerCall): PickerKind => (call.pickerTags[0
 export const pickerTagChipClass = (tag: string): string =>
     tag === '도보' || tag === '단거리' ? 'bg-[#efe6fb] text-[#8a4fd6]' : 'bg-[#e3f6f1] text-[#1aa37a]';
 
+/** 물품 크기 규격 — 실물에서 본 것만 (05 · 06 소형 · 덤프 11 · 33 · 22-1 초소형). 나머지는 모른다 · 상세와 퀵 배송 페이지가 이 한 곳을 쓴다 */
+export const PICKER_ITEM_SPEC: Partial<Record<PickerCall['itemSize'], string>> = {
+    '초소형': '세 변의 합 70cm ∙ 2kg 이하',
+    '소형': '세 변의 합 100cm ∙ 5kg 이하',
+};
+
 /** 가까운 랜덤 콜 10건 중 이만큼을 도보로 둔다 — 시뮬레이터 값 (실물 비율은 모른다) */
 const WALK_SHARE_OF_10 = 4;
 

@@ -23,7 +23,7 @@
  */
 import { useState } from 'react';
 import type { PickerCall } from './pickerCall';
-import { formatPickerAddressLine, pickerTagChipClass } from './pickerCall';
+import { formatPickerAddressLine, PICKER_ITEM_SPEC, pickerTagChipClass } from './pickerCall';
 import { formatPickerDistance, formatPickerFare } from './PickerDispatchBoard';
 import { PickerMapBackdrop, usePickerSheetDrag } from './PickerMapSheet';
 
@@ -44,11 +44,6 @@ const SHEET_PULL_PX = 24;
 /** 바닥 버튼 높이 — 시트 내용이 그 밑에 숨지 않게 아래를 비운다 */
 const BUTTONS_PX = 64;
 
-/** 물품 크기 규격 — 실물에서 본 것만 (05 · 06 소형 · 덤프 11 · 33 초소형). 나머지는 모른다 */
-const ITEM_SPEC: Partial<Record<PickerCall['itemSize'], string>> = {
-  '초소형': '세 변의 합 70cm ∙ 2kg 이하',
-  '소형': '세 변의 합 100cm ∙ 5kg 이하',
-};
 
 /** «HH:MM» 이 오늘 몇 시인가 — 지난 시각이면 다음 날로 본다 (자정을 넘긴 마감 · 내일 예약) */
 function targetOf(hhmm?: string): { at: Date; nextDay: boolean } | null {
@@ -90,7 +85,7 @@ export const PickerCallDetailScreen = ({ call, onClose, onAccept }: Props) => {
   const dropoffLine = formatPickerAddressLine(dropoff?.addressDetail, dropoff?.region) || call.dropoffs[0]?.fullName.replace(/ \/ /g, ' ') || '';
   const leftMinutes = minutesUntil(call.deliveryTime);
   const reserved = targetOf(call.reservedAt);
-  const spec = ITEM_SPEC[call.itemSize];
+  const spec = PICKER_ITEM_SPEC[call.itemSize];
   const memo = dropoff?.memo;
   const high = level === 'HIGH';
 

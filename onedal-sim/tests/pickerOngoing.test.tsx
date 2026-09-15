@@ -315,10 +315,27 @@ describe('퀵 — 도보와 다른 페이지 (실물 17-1 · 17-2)', () => {
         ['지금 바로 출발해 주세요', '09:30까지 픽업완료', '길안내'].forEach(w => expect(words, `«${w}» 는 실물에서 안 읽혔다`).not.toContain(w));
     });
 
-    it('「픽업 완료하기」 → 배송 중 (⚠️ 퀵 배송 화면은 사진이 없어 도보 배송 화면을 쓴다 · 추정)', () => {
-        mount(<PickerOngoingScreen call={pickerA} initialStep="TO_PICKUP" onBack={() => {}} onFinish={() => {}} />);
+    it('🔴 「픽업 완료하기」 → 곧바로 흰 «배송» 페이지 — 보라 «배송 완료해주세요» · 바닥 «길안내 / 배송 완료하기» · 지도·«밀어서»가 없다 (실물 17-2 → 22-1)', () => {
+        const onStepChange = vi.fn();
+        mount(<PickerOngoingScreen call={pickerA} initialStep="TO_PICKUP" onStepChange={onStepChange} onBack={() => {}} onFinish={() => {}} />);
         click('픽업 완료하기');
-        expect(stageOf(text())).toBe('TO_DROPOFF');
+        expect(onStepChange).toHaveBeenCalledWith('TO_DROPOFF');
+        expect(host!.querySelector('[data-map]')).toBeNull();
+        expect(chunk('배송 완료해주세요')).toBe(true);
+        expect(chunk('11:00까지 배송완료')).toBe(true);
+        expect(chunk('배송지 21.7km')).toBe(true);
+        expect(chunk('세 변의 합 100cm ∙ 5kg 이하')).toBe(true);
+        expect(chunk('최종 수익')).toBe(true);
+        expect(buttonByText('길안내')).toBeTruthy();
+        expect(buttonByText('배송 완료하기')).toBeTruthy();
+        expect(buttonByText('픽업 완료하기')).toBeFalsy();
+        expect(text()).not.toContain('밀어서');
+    });
+
+    it('「배송 완료하기」 → 인증사진 촬영 (⚠️ 22-1 뒤는 사진이 없어 도보와 같은 사진 · 문자 · 완료로 잇는다 · 추정)', () => {
+        mount(<PickerOngoingScreen call={pickerA} initialStep="TO_DROPOFF" onBack={() => {}} onFinish={() => {}} />);
+        click('배송 완료하기');
+        expect(chunk('물품과 장소가 함께 보이도록 촬영해주세요')).toBe(true);
     });
 
     it('🔴 도보 콜은 같은 단계라도 지도 위 시트 페이지 (실물 16)', () => {
@@ -407,7 +424,7 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
         const finishCall = vi.fn();
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], selectedCall: pickerA, selectedCallId: pickerA.id, finishCall })} />);
         click('픽업 출발하기'); click('픽업 완료하기');   // pickerA 는 퀵 — 흰 페이지 (실물 17-1 · 17-2)
-        clickLabel('아래 창 올리기'); click('밀어서 사진 촬영');
+        click('배송 완료하기');                           // 퀵 배송 흰 페이지 (실물 22-1)
         click('인증사진 촬영'); click('문자 전송'); click('배송 완료'); click('오더 목록 보기');
         expect(finishCall).toHaveBeenCalledWith(pickerA);
     });

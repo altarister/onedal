@@ -118,15 +118,22 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
     </div>
   );
 
-  /* 🚚 퀵은 픽업까지 흰 페이지 (실물 17-1 · 17-2) — 도보의 지도 위 시트와 **다른 페이지**다. 루틴(단계)은 같다 */
-  if (pickerKindOf(call) === '퀵' && (step === 'DEPART' || step === 'TO_PICKUP' || step === 'AT_PICKUP')) {
+  /* 🚚 퀵은 픽업 · 배송 모두 흰 페이지 (실물 17-1 · 17-2 · 22-1) — 도보의 지도 위 시트와 **다른 페이지**다. 루틴(단계)은 같다.
+     22-1 「배송 완료하기」 뒤(사진 · 문자 · 완료)는 사진이 없어 아래 도보와 같은 페이지를 쓴다 (추정) */
+  const quickPhase = pickerKindOf(call) !== '퀵' ? null
+    : step === 'DEPART' ? 'DEPART'
+    : step === 'TO_PICKUP' || step === 'AT_PICKUP' ? 'TO_PICKUP'
+    : step === 'TO_DROPOFF' || step === 'AT_DROPOFF' ? 'TO_DROPOFF'
+    : null;
+  if (quickPhase) {
     return (
       <div className="relative w-full h-full">
         <PickerQuickPickupPage
           call={call}
-          departed={step !== 'DEPART'}
+          phase={quickPhase}
           onDepart={() => setStep('TO_PICKUP')}
           onPickedUp={() => setStep('TO_DROPOFF')}
+          onDelivered={() => setStep('PHOTO')}
           onBack={onBack}
           onCancel={() => setCancelBlocked(true)}
         />
