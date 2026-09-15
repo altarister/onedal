@@ -1,7 +1,7 @@
 /* 🧬 경로가 갈렸나 — 값으로 보는 지문 (양끝·길이로는 못 잡는다 · 2026-09-12) */
 import { routeSignature } from './routeSignature';
 import { useEffect, useRef, useState } from 'react';
-import { simStep, initialSimState, type SimState } from './simStep';
+import { simStep, initialSimState, simStateForStops, type SimState } from './simStep';
 import { useMockDriveStore } from '../stores/mockDriveStore';
 
 /**
@@ -128,7 +128,7 @@ export function useMockGpsSimulator({
          *    7지점 문제지는 판마다 **좌표가 같아서**, 지난 판에 들른 정거장을 이번 판에도
          *    «들렀다»고 보고 정차를 건너뛰었다 — 어제 상태가 오늘 되살아나면 안 된다 (규칙 ③).
          */
-        if (!stops?.length) simRef.current = initialSimState();
+        simRef.current = simStateForStops(simRef.current, stops ?? []);   // 빔은 장부만 비운다 · 자리는 둔다 (여섯 번째 바퀴 256 → 68)
     }, [stops]);
 
     useEffect(() => {

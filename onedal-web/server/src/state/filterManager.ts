@@ -144,7 +144,9 @@ function netKeywordsOf(
     line: Array<[number, number]> | null,
     /** 🏘️ 관내로 잴 수 있나 — 기사님이 정한 목적지 그물에만 (집 그물은 관내로 안 잰다 · 목업 `isLocal`) */
     allowLocal = true,
-): { flat: string[]; grouped: Record<string, string[]>; byNet: boolean; pruned: number; progressKm: Record<string, number>; localMode: boolean } {
+): { flat: string[]; grouped: Record<string, string[]>; byNet: boolean; pruned: number; progressKm: Record<string, number>; localMode: boolean;
+    /** 🏘️ 목적지 원 반경(km) — 관내로 재는 그 원 (`isLocalPhase` 의 `dstDiamKm / 2`). 콜의 판(`goalOfCall`)이 같은 원을 본다 */
+    destRingKm: number } {
     const excluded = session.activeFilter.excludedRegions ?? [];
     /** 🚫 제외로 **몇 개가 빠졌나** — 로그가 «왜 줄었는지»를 말할 수 있어야 한다 */
     const prune = (grouped: Record<string, string[]>, byNet: boolean) => {
@@ -153,7 +155,7 @@ function netKeywordsOf(
         return { ...kept, byNet, pruned: before - kept.flat.length };
     };
     /* 🔴 물러선 목록에는 라인이 없다 — 진행도도 없다 (지어내지 않는다 · 규칙 ④) */
-    const fallback = () => ({ ...prune(getCityRegionsWithRadius(city, radiusKm).grouped, false), progressKm: {} as Record<string, number>, localMode: false });
+    const fallback = () => ({ ...prune(getCityRegionsWithRadius(city, radiusKm).grouped, false), progressKm: {} as Record<string, number>, localMode: false, destRingKm: radiusKm });
     const goal = cityCenter(city);
     if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return fallback();
 
@@ -279,12 +281,15 @@ function netKeywordsOf(
         if (inNet.has(name) || progressKm[name] !== undefined || !Number.isFinite(km)) continue;
         progressKm[name] = km;
     }
-    return { ...prune(grouped, true), progressKm, localMode };
+    return { ...prune(grouped, true), progressKm, localMode, destRingKm: Math.max(0, params.dstDiamKm / 2) };
 }
 
 /**
  * 🎯 **이 콜의 판 — 통과한 목적지** (전수표 #30 · 목업 `judgeGoals` 의 `preferName`: 집).
- *    목적지가 하나면 그것. 복귀 대기(둘)면 하차지가 **집 그물** 안이면 집, 아니면 목적지.
+ *    목적지가 하나면 그것. 복귀 대기(둘)면 하차지가 **목적지 원 안이면 목적지(관내콜)**, 그 밖이면서 **집 그물** 안이면 집, 아니면 목적지.
+ *    🔴 목적지 원을 먼저 본다 (2026-09-15 여섯 번째 바퀴 · 기사님 확정) — 집 그물은 꼭짓점이 «내 위치»인 마름모라 차 바로 옆 동(이천 중리동)이
+ *       꼭짓점 근처에 들어, 관내콜이 «복귀콜 잡음»으로 적히고 그 뒤 관내콜이 막혔다. 원은 관내로 재는 그 원(`destRingKm`)이다 — 새 값 없음.
+ *    ⚠️ 목적지 원이 집 쪽으로 걸치면 그 안의 집 방향 하차지도 관내콜로 적힌다 (원이 작아 손해가 작다 · onedal-49).
  *    ⚠️ 하차 좌표를 모르면 목적지로 둔다 — 모르는 값으로 «복귀콜을 잡았다»고 하지 않는다 (규칙 ⑤-2 · 복귀 대기가 더 넓다).
  */
 export function goalOfCall(session: ReturnType<typeof getUserSession>, userId: string, order: { dropoffX?: number; dropoffY?: number }): string | null {
@@ -293,8 +298,14 @@ export function goalOfCall(session: ReturnType<typeof getUserSession>, userId: s
     const home = homeCityOf(userId);
     if (!home || !goals.includes(home) || order.dropoffX == null || order.dropoffY == null) return goals[0];
     const line = filterLineOf(session);
-    const homeNet = netKeywordsOf(session, userId, home, session.activeFilter.destinationRadiusKm || 0,
-        line ? line.map(p => [p.x, p.y] as [number, number]) : null, false);
+    const lineXY = line ? line.map(p => [p.x, p.y] as [number, number]) : null;
+    const dest = goals.find(g => g !== home);
+    if (dest) {
+        const ringKm = netKeywordsOf(session, userId, dest, session.activeFilter.destinationRadiusKm || 0, lineXY, true).destRingKm;
+        const c = cityCenter(dest);
+        if (haversineKm(order.dropoffY, order.dropoffX, c.lat, c.lng) <= ringKm) return dest;
+    }
+    const homeNet = netKeywordsOf(session, userId, home, session.activeFilter.destinationRadiusKm || 0, lineXY, false);
     return homeNet.flat.includes(nearestDong({ lng: order.dropoffX, lat: order.dropoffY }).name) ? home : goals[0];
 }
 

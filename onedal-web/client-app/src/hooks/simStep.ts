@@ -39,6 +39,20 @@ export const initialSimState = (idx = 0): SimState =>
     ({ idx, at: null, phase: 'cruise', dwellLeft: 0, dwellAt: null, visited: new Set() });
 
 /**
+ * 🚏 **정거장 목록이 바뀌었을 때 걸음 상태** (2026-09-15 여섯 번째 바퀴 · onedal-49 짚음).
+ *
+ * · 비었으면 **들른 장부만** 비운다 — 판마다 좌표가 같은 문제지에서 지난 판에 들른 곳을 «들렀다»로 보지 않게 (2026-08-31).
+ *   🔴 자리(idx·at)는 두고 간다. 예전엔 통째로 `initialSimState()` 라, 합짐 선점 때 목록이 0.2초 빈 틈(#137)에
+ *   256 → 68 로 되감겨 13km 뛰고 들른 상차지에서 또 섰다.
+ * · 채워졌으면 서버가 «들렀다»고 한 정거장을 장부에 옮겨 적는다 — 가동 때만 옮기던 것을 목록이 올 때마다.
+ */
+export function simStateForStops(st: SimState, stops: Array<{ x: number; y: number; visited?: boolean }>): SimState {
+    if (!stops.length) { st.visited.clear(); return st; }
+    for (const s of stops) if (s.visited) st.visited.add(`${s.x},${s.y}`);
+    return st;
+}
+
+/**
  * 🛣️ **한 틱(1초)의 기본 걸음(km)** — 배속을 곱한다 (2026-09-12).
  *    예전엔 `idx += 배속` 으로 **폴리라인 점을 건너뛰어** 카카오 곡선이 직선으로 펴졌다
  *    (기사님: *"궤적이 엉망이야"*). 이제 목업과 **같은 함수**(`lib/driveStep`)로 거리를 간다.

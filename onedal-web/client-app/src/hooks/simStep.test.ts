@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simStep, initialSimState, DWELL_TICKS, KM_PER_TICK, STOP_OFF_ROAD_KM } from './simStep';
+import { simStep, initialSimState, simStateForStops, DWELL_TICKS, KM_PER_TICK, STOP_OFF_ROAD_KM } from './simStep';
 import { nearestIndex } from './useMockGpsSimulator';
 
 /** 위도 1도 ≈ 110.574km — `lib/driveStep` 과 같은 자 */
@@ -210,5 +210,28 @@ describe('대기 뒤 새 경로 — 서 있던 자리에서 출발한다 (#133 �
         expect(r.loc).not.toBeNull();
         const movedKm = Math.hypot((r.loc!.x - here.x) * 88.6, (r.loc!.y - here.y) * KM_PER_LAT);
         expect(movedKm).toBeLessThanOrEqual(KM_PER_TICK * M + 0.01);
+    });
+
+    /**
+     * 🔴 **정거장이 한 순간 비어도 되감기지 않는다** (2026-09-15 여섯 번째 바퀴 · onedal-49 짚음).
+     *    합짐 선점 때 관제웹 목록이 0.2초 비자(#137) 걸음 상태가 통째로 0 이 되어 256 → 68 로 되감기고,
+     *    이미 들른 상차지에서 또 섰다. 뿌리(#137)는 고쳤지만 같은 모양이 다른 틈으로 다시 오지 않게 —
+     *    «빔»은 **들른 장부만** 비우고(판마다 좌표가 같은 문제 · 2026-08-31) 자리(idx·at)는 둔다.
+     *    다시 채워지면 서버가 «들렀다»고 한 정거장을 장부에 옮겨 적는다 (가동 때만 옮기던 것).
+     */
+    it('🔴 정거장이 비었다 다시 채워져도 자리가 안 뛰고 들른 곳에 다시 서지 않는다', () => {
+        const stop = { x: 127.3, y: 37.3 + 20 * 0.001 };
+        let st = initialSimState();
+        st.idx = 60; st.at = { x: 127.3, y: 37.3 + 60 * 0.001 }; st.visited.add(`${stop.x},${stop.y}`);
+        st = simStateForStops(st, []);
+        expect([st.idx, st.at]).toEqual([60, { x: 127.3, y: 37.3 + 60 * 0.001 }]);
+        st = simStateForStops(st, [{ ...stop, visited: true }]);
+        expect(st.visited.has(`${stop.x},${stop.y}`)).toBe(true);
+    });
+
+    it('비었을 때 들른 장부는 비운다 — 다음 판의 같은 좌표를 «들렀다»로 보지 않는다', () => {
+        const st = initialSimState();
+        st.visited.add('127.3,37.32');
+        expect(simStateForStops(st, []).visited.size).toBe(0);
     });
 });

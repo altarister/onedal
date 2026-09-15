@@ -86,7 +86,7 @@ describe('경로를 든 콜 — 판정은 서버 한 곳', () => {
 describe('모의 주행 — 사이클이 닫히면 방문 장부를 비운다', () => {
     it('🔴 정거장이 하나도 없으면 장부를 초기화한다', () => {
         const sim = codeOnly(read('hooks/useMockGpsSimulator.ts'));
-        expect(sim).toMatch(/if \(!stops\?\.length\) simRef\.current = initialSimState\(\)/);
+        expect(sim).toMatch(/simRef\.current = simStateForStops\(simRef\.current, stops \?\? \[\]\)/   /* 🔄 2026-09-15 — 빔은 장부만 비우고 자리는 둔다 (`simStateForStops` · 판단은 simStep.test 가 문다) */);
     });
 });
 
