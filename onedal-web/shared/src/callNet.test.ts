@@ -995,21 +995,19 @@ describe('pruneExcludedRegions — 제외를 빼는 자리는 한 곳 (이식 C2
  *
  *   첫 콜 확정 ~ 출발 전  내 영역 ∪ 목적지 영역 ∪ 마름모 영역 ∪ 경로 영역
  *   출발하면              (마름모 ∩ 내) ∪ 목적지 ∪ 마름모 ∪ 경로   — 내 영역 중 마름모 밖이 빠진다
- *   관내                  목적지 원 안만 (상·하차 둘 다 · `judgeTwoStage` 의 local 과 같은 원)
+ *   관내                  따로 재지 않는다 (2026-09-15 · 목적지 가까이 옴은 `filterArea.test.ts`)
  *
  * «7지점» 네 번째 바퀴(2026-09-14 21:14): 01 KEEP 순간 집 뒤 매산동·쌍령동·양벌동이 «지나온 곳»으로 빠졌다 —
  * 노선 그물에 내 영역이 없어 경로 띠로만 들어왔고, 라인 시작 뒤라 진행도 0 이 붙었다.
  * 03 하차 뒤(21:16:32)에는 관내로 바뀌며 각도 360° 마름모가 여주·용인 처인까지 35곳을 담았다.
  */
-describe('🧩 필터 영역 — 출발 전 내 영역 · 관내는 목적지 원', () => {
+describe('🧩 필터 영역 — 출발 전 내 영역', () => {
     const ME = { name: '내 위치', lng: NET_SRC.lng, lat: NET_SRC.lat };
     const MID = { lng: (NET_SRC.lng + NET_DST.lng) / 2, lat: (NET_SRC.lat + NET_DST.lat) / 2 };
     const LINE: Array<[number, number]> = [[ME.lng, ME.lat], [MID.lng, MID.lat]];
     const LAST_DROP = { name: '마지막 하차지', ...MID };
     /** 집에서 서쪽(진행 반대)으로 4km — 라인 2km 띠 밖 · 내 영역(7.5km) 안 */
     const BEHIND = { lng: ME.lng - 4 / (111.32 * Math.cos(ME.lat * Math.PI / 180)), lat: ME.lat };
-    const km = (a: { lng: number; lat: number }, b: { lng: number; lat: number }) =>
-        Math.hypot((a.lng - b.lng) * 111.32 * Math.cos(a.lat * Math.PI / 180), (a.lat - b.lat) * 110.574);
 
     it('🔴 출발 전에는 경로가 생겨도 내 영역이 필터 영역에 든다 — 진행도는 안 붙는다', () => {
         const before = lineZoneOf(LINE, 2, LAST_DROP, WAIT_PRESET, NET_DST, ME);
@@ -1029,13 +1027,5 @@ describe('🧩 필터 영역 — 출발 전 내 영역 · 관내는 목적지 �
         expect(only.length).toBeGreaterThan(0);
         expect(only.every(d => d.progressKm == null)).toBe(true);
         expect(withMe.circles).toHaveLength(2);   // 지도도 내 영역 원을 그린다
-    });
-
-    it('🔴 관내면 목적지 원 안 동만 — 각도 360° 마름모로 넓히지 않는다', () => {
-        const ringKm = WAIT_PRESET.dstDiamKm / 2;
-        const net = netForGoal(NET_DST, { line: LINE, lineRadiusKm: 2, lastDrop: LAST_DROP, params: WAIT_PRESET, anchor: ME, local: true });
-        expect(net.count).toBeGreaterThan(0);
-        expect(net.pass.every(d => km(NET_DST, { lng: d.x, lat: d.y }) <= ringKm + 0.01)).toBe(true);
-        expect(net.circles).toHaveLength(1);
     });
 });

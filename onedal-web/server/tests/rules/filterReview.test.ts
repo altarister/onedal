@@ -439,22 +439,26 @@ describe('4단계 · 지도가 제외지역을 실제로 뺀다 — 키 안의 |
 /* ══════════════════════════════════════════════════════════════════════════
  * 5단계 — 이전부터 끊긴 것 (조사 ①-8·9·10·11)
  * ══════════════════════════════════════════════════════════════════════════ */
-describe('5단계 · 관내를 지도도 안다 (조사 ①-8)', () => {
+describe('5단계 · 관내 표시를 걷었다 — «목적지 가까이 옴»이 대신한다 (2026-09-15)', () => {
     /**
-     * 서버는 관내면 관내 그물로 재는데(`filterManager` C4-8b) 지도(`useCallNet`)는
-     * 그 분기가 없었다 → 관내 동안 요약줄 «N 읍면동»이 서버와 달랐다. 같은 함수를 부르면서
-     * **입력이 달랐다** — 규칙 ③은 «계산»만이 아니라 «입력»도 한 곳이어야 한다.
-     * 🔄 2026-09-14 — 관내 그물은 목적지 원 안만(`netForGoal` 의 `local`) · 각도 360° 우회는 걷었다 (전수표 #29).
+     * 🔄 **2026-09-15 개정** — 기사님 *"그쪽에 도착했으니 다른 곳을 정하지 않았으면 그곳에서 일 있으면 하자"*.
+     *    관내는 따로 재지 않는다 — 목적지 가까이 옴(`filterArea.withNearness`)이 가른다. 서버는 `af3f8bf4` 에서 걷었고 관제웹도 걷는다.
+     *    옛 뜻(조사 ①-8): 서버 관내 그물(`netForGoal` 의 `local`)을 지도도 알게 해 요약줄 «N 읍면동»을 맞췄다.
      */
     const cn = codeOnly(readClient('hooks/useCallNet.ts'));
     const sv = codeOnly(readClient('components/stage/StageView.tsx'));
-    it('🔴 useCallNet 이 localMode 를 받아 서버와 같은 관내 그물(local)로 잰다', () => {
-        expect(cn).toMatch(/localMode\?: boolean/);
-        expect(cn).toMatch(/local: !!localMode/);
-        expect(cn).not.toMatch(/localMode \? 360/);
+    const modal = codeOnly(readClient('components/dashboard/OrderFilterModal.tsx'));
+    const board = codeOnly(readClient('statusboard/StatusBoard.tsx'));
+    const ix = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
+    const net = codeOnly(readFileSync(join(__dirname, '../../../shared/src/callNet.ts'), 'utf8'));
+    it('🔴 관제웹이 localMode 를 안 읽는다 — 지도 훅 · 무대 · 필터 판 · 현황판', () => {
+        for (const src of [cn, sv, modal, board]) expect(src).not.toMatch(/localMode/);
+        expect(modal).not.toMatch(/isLocal/);
     });
-    it('🔴 무대가 서버 파생값을 그대로 넘긴다', () => {
-        expect(sv).toMatch(/localMode: filter\?\.localMode/);
+    it('🔴 필터 타입에 localMode 칸이 없다 · 그물에 관내 원(local · buildRingNet)이 없다', () => {
+        expect(ix).not.toMatch(/localMode\?: boolean/);
+        expect(net).not.toMatch(/buildRingNet/);
+        expect(net).not.toMatch(/local\?: boolean/);
     });
 });
 

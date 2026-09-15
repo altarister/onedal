@@ -42,12 +42,6 @@ describe('🧰 필터 판 — 네 행 · 하나만 열림 · 저장 줄 고정',
         expect(code).not.toMatch(/상차 반경<\/b>은 곧/);
         expect(code).not.toMatch(/라인반경<\/b> = 지금 경로/);
     });
-
-    it('🔴 관내 표시 셋은 남는다 (onedal-4c 가 걷는다)', () => {
-        expect(code).toMatch(/filter\.localMode/);
-        expect(code).toMatch(/exampleKm/);
-        expect(code).toMatch(/isLocal/);
-    });
 });
 
 describe('🎚️ KnobGrid — 칸 안에서 − / + 로 올리고 내린다', () => {

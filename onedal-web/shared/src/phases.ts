@@ -16,7 +16,7 @@
 
 /**
   * 🔴 **`'local'`(관내)이 여기서 사라졌다** (이식 C3-3b · 2026-09-11).
-  *    관내는 «어디로 가나»가 아니라 **파생**이 되었고(`AutoDispatchFilter.localMode`),
+  *    관내는 «어디로 가나»가 아니다 — 따로 재지 않고(2026-09-15 · `filterArea.withNearness`),
   *    값 그릇(`user_filter_phases`)도 없어져 국면으로 남을 이유가 사라졌다.
   * ⚠️ 이 키들은 이제 **«지금 무엇을 하나»의 문구를 고르는 데만** 쓰인다 — 값은 한 벌이다.
   */
@@ -34,7 +34,7 @@ export const PHASE_LABEL: Record<PhaseKey, string> = {
 /**
  * **국면은 두 축의 조합이다.**
  *
- *   `callTarget`     기사님이 복귀 토글로 고른다 (DEST · HOME) — 관내는 파생(`localMode`)
+ *   `callTarget`     기사님이 복귀 토글로 고른다 (DEST · HOME) — 관내는 따로 재지 않는다 (2026-09-15 · 목적지 가까이 옴 `filterArea.withNearness`)
  *   `dispatchPhase` 콜 상태에서 파생된다 (STANDBY · GATHERING · DELIVERING)
  *
  * | callTarget | dispatchPhase | 탭     |
@@ -61,7 +61,7 @@ export function resolvePhaseKey(callTarget: string, dispatchPhase: string): Phas
     /**
      * 🔴 **관내(`'LOCAL'`)가 여기서 사라졌다** (이식 C4-8b-2 · 2026-09-11).
      *    기사님: *"우린 집으로 갈건지 말껀지만 있어."* 관내는 고르는 것이 아니라
-     *    **파생**이 되었다 (`AutoDispatchFilter.localMode`).
+     *    따로 재지도 않는다 (2026-09-15 · `filterArea.withNearness`).
      */
     return callTarget === 'HOME' ? 'home' : 'first';
 }

@@ -1370,7 +1370,6 @@ export default function StatusBoard({ activeRoute }: Props) {
                     <Row k="slotsUsed" v={filter?.slotsUsed} />
                     <Row k="capacityConfidence" v={filter?.capacityConfidence} />
                     <Row k="driverAction" v={filter?.driverAction} />
-                    <Row k="localMode" v={filter?.localMode === undefined ? undefined : filter.localMode ? '🏘️ 관내로 잰다' : '아니다'} />
                     <Row k="userOverrides" v={filter?.userOverrides === undefined ? undefined : String(filter.userOverrides)}
                          empty="— 손 안 댔다" tone={filter?.userOverrides ? 'warn' : undefined} />
                 </Card>

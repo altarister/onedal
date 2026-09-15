@@ -12,7 +12,7 @@
 - [x] 🎯 목적지 가까이 옴 — 상차 · 하차 · 지도 · 서버 모두 `filterArea.isNearGoal` · `withNearness`
 - [x] 관내 — 서버 `netForGoal` 의 `local` · `localMode` 를 걷었다 (2026-09-15)
 - [x] 하차 — 먼 목적지의 목적지 원 · 마름모도 **걸친 동**을 넣는다 (`geoService.regionsTouchingNetGrouped` · 로그 16:49 이천 걸친 23 → 36곳 · 2026-09-15)
-- [ ] 관내 — 관제웹이 아직 `filter.localMode` 를 읽는다: 필터 창 «🏘️ 관내로 재고 있습니다» · 예시 거리 · 현황판 줄 · `useCallNet` 의 `local` · shared 타입 칸
+- [x] 관내 — 관제웹 표시(필터 창 문구 · 복귀 배지 · 예시 거리 · 현황판 줄) · `useCallNet` 의 `local` · shared 타입 칸 · `callNet.buildRingNet` 을 걷었다 (2026-09-15)
 - [x] 콜의 판(`goalOfCall`) · 관제웹 `goalCities` — `goalCitiesOf` 가 `goalZonesNow` 를 본다 (목적지 콜이 남으면 목적지도 · 2026-09-15)
 - [ ] 옛 «그물» 레이어(`useCallNet` · `netOverlay`)를 걷는다 — «하차» 레이어가 자리 잡았다
 

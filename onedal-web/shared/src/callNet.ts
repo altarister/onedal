@@ -949,14 +949,7 @@ export function netForGoal(goal: NetPoint, o: {
     anchor: NetPoint;
     /** 🧩 내 영역 — **출발 전에만** 넘긴다. 라인 그물에 원을 더한다 (마름모 그물은 원래 내 위치 원이 있다) */
     me?: NetPoint | null;
-    /**
-     * 🏘️ **관내 — 목적지 원 안 동만** (전수표 #29 · `judgeTwoStage` 의 local 과 같은 원).
-     *    🔴 예전엔 각도를 360° 로 바꿔 마름모를 원으로 만들었다 — 그 원은 **마름모반경**이라
-     *       이천 관내에 여주·용인 처인까지 35곳이 들었다 («7지점» 21:16:32).
-     */
-    local?: boolean;
 }): NetResult {
-    if (o.local) return buildRingNet(goal, o.params);
     return o.line
         ? buildLineNet(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal, o.me ?? null)
         : buildNet(o.params, o.anchor, goal);
@@ -979,26 +972,6 @@ export function netAreaTesterOf(goal: NetPoint, o: {
     return o.line
         ? lineZoneOf(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal, o.me ?? null).dropIn
         : makeInNet(o.params, o.anchor, goal);
-}
-
-/** 🏘️ 목적지 원 하나의 그물 — 관내 (`netForGoal` 의 `local`) */
-function buildRingNet(dst: NetPoint, p: NetParams): NetResult {
-    const ringKm = Math.max(0, p.dstDiamKm / 2);
-    const inRing = (pt: { lng: number; lat: number }) => haversineKm(dst, pt) <= ringKm;
-    const { pass, grouped } = collectDongs(inRing);
-    return {
-        tri: [],
-        pass,
-        marks: MARK_DONGS.map(m => {
-            const c = centroidOfDong(m.dong, m.region);
-            return { name: m.name, x: c.lng, y: c.lat, inside: inRing(c) };
-        }),
-        circles: [{ name: dst.name, ring: ringOf(dst, ringKm) }],
-        count: pass.length,
-        groups: [...grouped.entries()]
-            .map(([region, names]) => ({ region, names }))
-            .sort((a, b) => b.names.length - a.names.length),
-    };
 }
 
 /**

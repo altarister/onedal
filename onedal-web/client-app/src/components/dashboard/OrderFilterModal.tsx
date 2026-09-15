@@ -571,8 +571,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const blockedNow = VEHICLE_PICKS.filter(v => (VEHICLE_CAPACITY[v] ?? 0) > remainSlots);
 
     /** 하한표 예시 금액용 거리 — 지금 탭이 보는 대표 거리 */
-    /* 하한표 예시 거리 — 관내면 시 안이라 짧게 본다 (관내는 파생이다 · C4-8b) */
-    const exampleKm = filter.localMode ? 15 : (parseInt(cur.destinationRadiusKm, 10) || 0) + 50;
+    /* 하한표 예시 거리 — 목적지 반경 + 50km (관내를 따로 재지 않는다 · 목적지 가까이 옴 · 2026-09-15) */
+    const exampleKm = (parseInt(cur.destinationRadiusKm, 10) || 0) + 50;
 
     /** 지금 탭의 콜할인율(단가 할인율) — 국면마다 따로 기억한다 */
     const callDiscount = parseFloat(cur.callDiscountPct);
@@ -745,7 +745,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                       *
                                       * 🔴 **목업이 그 모양이다** — 고르는 것은 `homeOn` 하나이고
                                       *    `callTarget` 은 파생이다 (`MapMockup.tsx:978`):
-                                      *    `homeOn ? 'HOME' : localMode ? 'LOCAL' : 'DEST'`.
+                                      *    `homeOn ? 'HOME' : 'DEST'`.
                                       *
                                       * 🔴 **고르는 값과 켜고 끄는 값은 모양도 달라야 한다** — 옆 두 칸(도·시군구)은
                                       *    목록에서 «고르는» 것이고 이것은 «켜고 끄는» 것이다.
@@ -754,14 +754,11 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                       *    알럿창으로 확인받는 것이 안전할 듯하다"*). 되돌리려면 경유를
                                       *    통째로 다시 계산한다 — 실수로 스친 손가락에 바뀌면 안 된다.
                                       *
-                                      * ⚠️ **관내는 «고르는 것»에서만 뺐다.** 지금 관내면 아래에서 보여만 준다 —
-                                      *    실물의 `LOCAL`(목적지를 지금 시로 바꾼다)과 목업의 `localMode`
-                                      *    (재는 법만 바꾼다)는 **다른 물건**이라 파생으로 돌리는 것은 따로 선다.
+                                      * ⚠️ **관내는 표시도 없다** (2026-09-15) — 목적지에 도착해 다른 곳을 안 정했으면
+                                      *    그곳 일을 한다. 영역은 «목적지 가까이 옴»(`filterArea.withNearness`)이 좁힌다.
                                       */}
                                     {(() => {
                                         const homeOn = (filter.callTarget ?? 'DEST') === 'HOME';
-                                        /* 🏘️ 관내는 **서버가 파생**한다 (C4-8b) — 고르는 값이 아니라 «지금 그렇다»다 */
-                                        const isLocal = filter.localMode === true;
                                         return (
                                             <button type="button" onClick={() => goPhase(homeOn ? 'DEST' : 'HOME')}
                                                 title={homeOn ? '끄면 원래 목적지로 돌아갑니다' : '켜면 집 방향 콜을 찾습니다'}
@@ -769,8 +766,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                                     ? 'bg-warning/25 border-warning text-warning'
                                                     : 'border-border-card bg-background hover:border-border-hover'}`}>
                                                 <span className={`text-[9.5px] font-bold leading-tight ${homeOn ? '' : 'text-text-muted'}`}>
-                                                    {/* 🔴 관내는 «지금 그렇다»만 말한다 — 누르는 것은 여전히 복귀다 */}
-                                                    {isLocal ? '🏘️ 관내 · ↩️ 복귀' : '↩️ 복귀'}
+                                                    ↩️ 복귀
                                                 </span>
                                                 <span className="flex items-center gap-1">
                                                     <span className={`w-7 h-4 rounded-full flex items-center px-0.5 transition-colors ${homeOn ? 'bg-warning justify-end' : 'bg-border-card justify-start'}`}>
@@ -786,13 +782,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 </div>
                             </div>
 
-                            {filter.localMode && (
-                                <p className="text-[10px] text-text-muted leading-relaxed">
-                                    🏘️ <b className="text-text-primary">관내로 재고 있습니다</b> —
-                                    상차지와 하차지가 <b className="text-text-primary">모두 같은 시</b>여야 통과합니다
-                                    (방향은 안 봅니다).
-                                </p>
-                            )}
                         {/* 🏠 귀가콜은 전환이 아니라 오더 생성이다 — 복귀일 때 «어디로» 안에 둔다 (유일한 입구) */}
                         {tab === 'home' && (
                                 <Button

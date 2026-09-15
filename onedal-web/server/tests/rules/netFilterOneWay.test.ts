@@ -168,7 +168,8 @@ describe('🧩 필터 영역 — 출발 전 내 영역 · 관내 목적지 원 (
     it('🔴 지도도 같은 두 값으로 그린다', () => {
         const hook = client('hooks/useCallNet.ts');
         expect(hook).toMatch(/departed/);
-        expect(hook).toMatch(/local: !!localMode/);
+        /* 🔄 2026-09-15 — 관내를 따로 재지 않는다 (목적지 가까이 옴) */
+        expect(hook).not.toMatch(/localMode/);
         expect(hook).not.toMatch(/360/);
         expect(client('components/stage/StageView.tsx')).toMatch(/departed: filter\?\.dispatchPhase === 'DELIVERING'/);
     });
