@@ -19,6 +19,9 @@ import type { SimCall } from '@altari/ui-simulators';
 import type { SimNet } from '@altari/ui-simulators';
 import { SIM_DEFAULT_START } from './preflightRows';
 
+/** 🧹 리셋 준비 화면을 띄워 두는 시간 — 폰 접근성 이벤트는 곧바로 오니 사람 눈에 한 번 보일 만큼이면 된다 */
+const ROUND_CURTAIN_MS = 1500;
+
 /**
  * 🔴 **배차망 이름을 모를 때의 멈춤 화면** (2026-09-14 · 0단계 0-4)
  *
@@ -207,10 +210,22 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
    * 🧹 **이전 콜 리셋** — 서버 회차가 바뀌면(시나리오 다시 시작) 목록·확정 목록을 비운다.
    * 🔴 열린 상세는 **닫는 길(`handleCloseDetail`)로** 닫는다 — 픽커는 상세가 방문 기록(`?detail=`)에 쌓여 있어 상태만 지우면 뒤로 가기가 꼬인다 (onedal-49).
    */
+  /**
+   * 🧹 **리셋하면 목록 대신 준비 화면을 잠깐 그린다** — 원달앱은 화면 «종류»가 바뀔 때만 서버에 바로 묻는다
+   *    (`HijackService.updateScreenContext`). 목록이 이미 비어 있으면 바뀔 것이 없어 폰이 새 회차를 60초 주기에야 받고,
+   *    서버는 그때까지 첫 콜을 안 낸다. 목록 → 준비 → 목록으로 종류를 두 번 바꿔 곧바로 받게 한다.
+   */
+  const [roundCurtain, setRoundCurtain] = useState(false);
+  useEffect(() => {
+    if (!roundCurtain) return;
+    const t = setTimeout(() => setRoundCurtain(false), ROUND_CURTAIN_MS);
+    return () => clearTimeout(t);
+  }, [roundCurtain]);
   const resetCalls = useCallback(() => {
     handleCloseDetail();
     setStreamingCalls([]);
     setConfirmedCalls([]);
+    setRoundCurtain(true);
   }, [handleCloseDetail, setStreamingCalls, setConfirmedCalls]);
 
   /**
@@ -248,6 +263,15 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // 🧹 준비 화면 — 목록 글자(배차망 표시·«대기 중인 오더가 없» 등)를 한 자도 안 둔다. 두면 폰이 목록으로 읽어 종류가 안 바뀐다
+  if (roundCurtain) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-white text-lg font-bold text-gray-700">
+        🧹 새 회차 준비 중
       </div>
     );
   }
