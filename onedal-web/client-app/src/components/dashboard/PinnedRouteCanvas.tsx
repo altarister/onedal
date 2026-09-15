@@ -197,7 +197,7 @@ interface Props {
     } | null;
     /**
      * 📍 **동 점 — 원달앱에 실제로 내려간 목록** (기사님 2026-09-15 «지역에 점찍어 보여줬었는데» · shared `dongDotsOf`).
-     *    🔵 하차만 · 🟢 상차만 · 파랑에 초록 테두리는 둘 다. 좌표는 동 중심점 — 영역 도형과 달리 **목록**을 보여 준다.
+     *    🔵 하차만 · 🟢 상차만 · 둘 다는 파랑 (테두리 없음 · 기사님 2026-09-15). 좌표는 동 중심점 — 영역 도형과 달리 **목록**을 보여 준다.
      */
     dongDots?: {
         pickup: Array<{ x: number; y: number }>;
@@ -653,18 +653,16 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             }
         }
 
-        /* 📍 «동 점» 레이어 — 원달앱에 내려간 목록 (🔵 하차 · 🟢 상차 · 둘 다는 파랑에 초록 테두리 · 목적지 마커 아래) */
+        /* 📍 «동 점» 레이어 — 원달앱에 내려간 목록 (🔵 하차 · 🟢 상차 · 둘 다는 파랑 · 테두리 없음 — 기사님 2026-09-15 «점에 테두리는 없어도 될꺼 같아» · 목적지 마커 아래) */
         if (layers.dots && dongDots) {
-            const dot = (p: { x: number; y: number }, fill: string, ring: string | null) => {
+            const dot = (p: { x: number; y: number }, fill: string) => {
                 const { cx, cy } = getScreenPt(p);
                 ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
                 ctx.fillStyle = fill; ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.2; ctx.stroke();
-                if (ring) { ctx.beginPath(); ctx.arc(cx, cy, 6.5, 0, Math.PI * 2); ctx.strokeStyle = ring; ctx.lineWidth = 2; ctx.stroke(); }
             };
-            for (const p of dongDots.dropoff) dot(p, 'rgba(2,132,199,.85)', null);
-            for (const p of dongDots.pickup) dot(p, 'rgba(22,163,74,.9)', null);
-            for (const p of dongDots.both) dot(p, 'rgba(2,132,199,.85)', 'rgba(22,163,74,.95)');
+            for (const p of dongDots.dropoff) dot(p, 'rgba(2,132,199,.85)');
+            for (const p of dongDots.pickup) dot(p, 'rgba(22,163,74,.9)');
+            for (const p of dongDots.both) dot(p, 'rgba(2,132,199,.85)');
         }
 
         /* 🎯 목적지 마커 — 살아 있는 목적지마다 (옛 «그물» 레이어가 찍던 것 · 자리표 B-2 · 전수표 #75) */
