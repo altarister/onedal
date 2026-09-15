@@ -103,4 +103,21 @@ describe('OrderEvaluator', () => {
         // Stage 3 사유 확인
         expect(order.rejectionReasons.some(r => r.includes('요율 미달'))).toBe(true);
     });
+
+    /* 🔴 배차망은 차종을 줄여 적는다(«승»). 원달앱은 줄임말을 맞춰 통과시키는데 서버 판정만 글자 그대로 비교해
+       승용차 콜마다 «차종(승) 불일치»를 붙였다 (2026-09-15 이천 왕복 D1·D4 · 버그 대장 #142) */
+    test('줄여 적은 차종(승)도 허용 목록(승용차)과 맞춰 본다', () => {
+        const session = { activeFilter: { allowedVehicleTypes: ['다마스', '승용차'], excludedKeywords: [] } };
+        const reasons = [], pros = [];
+        evaluator.runStage1ShapeFilter({ id: 'v1', vehicleType: '승', fare: 30000, rawText: '' }, session, reasons, pros);
+        expect(reasons.some(r => r.includes('차종'))).toBe(false);
+        expect(pros.some(r => r.includes('차종'))).toBe(true);
+    });
+
+    test('허용 목록에 없는 차종은 여전히 불일치다', () => {
+        const session = { activeFilter: { allowedVehicleTypes: ['다마스', '승용차'], excludedKeywords: [] } };
+        const reasons = [], pros = [];
+        evaluator.runStage1ShapeFilter({ id: 'v2', vehicleType: '1t', fare: 30000, rawText: '' }, session, reasons, pros);
+        expect(reasons.some(r => r.includes('차종(1t) 불일치'))).toBe(true);
+    });
 });

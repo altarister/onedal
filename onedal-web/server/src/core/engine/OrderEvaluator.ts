@@ -3,7 +3,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { judge, CRITERIA, toSnapshot } from '@onedal/shared';
+import { judge, CRITERIA, toSnapshot, normalizeVehicleType } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
 import { firstLoadFacts, mergeFacts } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
@@ -541,9 +541,9 @@ export class OrderEvaluator {
     private runStage1ShapeFilter(order: SecuredOrder | PendingOrder, session: any, reasons: string[], pros: string[]) {
         const filter = session.activeFilter;
         
-        // 1) 차종 검사
+        // 1) 차종 검사 — 배차망은 줄여 적는다(«승»). 원달앱처럼 줄임말을 맞춰 본다 (버그 대장 #142)
         if (filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 && order.vehicleType) {
-            if (!filter.allowedVehicleTypes.includes(order.vehicleType)) {
+            if (!filter.allowedVehicleTypes.includes(normalizeVehicleType(order.vehicleType) ?? order.vehicleType)) {
                 reasons.push(`차종(${order.vehicleType}) 불일치`);
             } else {
                 pros.push(`차종(${order.vehicleType}) 일치`);
