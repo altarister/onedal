@@ -18,11 +18,12 @@ class PickerTraceTest {
     private val hour = 60 * 60 * 1000L
 
     @Test
-    fun `켜기 전에는 아무것도 안 모은다`() {
+    fun `켜기 전에는 화면 글자를 안 모은다 - 누름은 늘 모은다 (인성·화물24·픽커 공통)`() {
         val t = PickerTrace()
         assertNull(t.onScreen(t0, "픽업 출발하기", "UNKNOWN"))
-        assertNull(t.onClick(t0, "픽업 출발하기"))
         assertTrue(t.drain(50).isEmpty())
+        assertTrue(t.onClick(t0, "배차신청", "insung").contains("«배차신청»"))
+        assertEquals(1, t.drain(50).size)
     }
 
     @Test
@@ -85,15 +86,24 @@ class PickerTraceTest {
         assertNotNull(t.onScreen(t0 + 3, "배송 완료해주세요", "UNKNOWN"))
     }
 
+    /** 🔴 09-16 04:5x 라이브 — 기록이 켜져 있었는데 누름 줄 0건. 빈 글자를 버려서 «알림이 안 온다»와 «글자가 비었다»를 못 갈랐다 */
     @Test
-    fun `누른 버튼 글자를 남긴다 - 빈 글자는 버린다`() {
+    fun `누른 버튼 글자를 남긴다 - 빈 글자도 글자 없음으로 남긴다`() {
         val t = PickerTrace()
-        t.start(t0, "수락")
-        val line = t.onClick(t0 + 1, "  픽업 출발하기 ")
-        assertNotNull(line)
-        assertTrue(line!!.contains("«픽업 출발하기»"))
-        assertNull(t.onClick(t0 + 2, "   "))
-        assertNull(t.onClick(t0 + 3, null))
+        val line = t.onClick(t0 + 1, "  픽업 출발하기 ", "kakaopicker")
+        assertTrue(line.contains("«픽업 출발하기»"))
+        assertTrue(line.contains("kakaopicker"))
+        assertTrue(t.onClick(t0 + 2, "   ", "kakaopicker").contains("〈글자 없음〉"))
+        assertTrue(t.onClick(t0 + 3, null, "insung").contains("〈글자 없음〉"))
+    }
+
+    @Test
+    fun `누른 칸 글자 고르기 - 알림 글자 · 설명 · 칸 안 글자 순서 · 길면 자른다`() {
+        assertEquals("수락하기", PickerTrace.clickLabelOf(listOf("수락하기"), null, emptyList()))
+        assertEquals("뒤로가기", PickerTrace.clickLabelOf(listOf(" "), "뒤로가기", listOf("x")))
+        assertEquals("퀵 소형 16.7km 20,790", PickerTrace.clickLabelOf(emptyList(), null, listOf("퀵", "소형", "16.7km", "20,790")))
+        assertNull(PickerTrace.clickLabelOf(null, null, emptyList()))
+        assertEquals(PickerTrace.CLICK_LABEL_MAX, PickerTrace.clickLabelOf(listOf("가".repeat(500)), null, emptyList())!!.length)
     }
 
     @Test

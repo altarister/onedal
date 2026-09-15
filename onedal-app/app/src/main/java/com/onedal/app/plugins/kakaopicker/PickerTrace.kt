@@ -33,6 +33,19 @@ class PickerTrace(
         /** 이 버튼을 누르면 한 콜이 끝났다 (실물 31 «오더 목록 보기») */
         const val END_BUTTON = "오더 목록 보기"
 
+        /** 누른 칸 글자 한 줄 길이 — 리스트 카드를 누르면 카드 글자가 통째로 온다 */
+        const val CLICK_LABEL_MAX = 200
+        /** 🔴 글자가 비어도 남긴다 — 버리면 «누름 알림이 안 온다»와 «글자가 비었다»를 못 가른다 (09-16 04:5x 라이브 누름 0건) */
+        const val NO_LABEL = "〈글자 없음〉"
+
+        /** 누른 칸 글자 — 알림 글자 → 설명(content-desc) → 누른 칸 안의 글자 순서로 처음 비지 않은 것 · 모두 비면 null */
+        fun clickLabelOf(eventTexts: List<CharSequence?>?, contentDescription: CharSequence?, nodeTexts: List<String>): String? =
+            listOf(
+                eventTexts?.joinToString(" ") { it?.toString().orEmpty() }?.trim(),
+                contentDescription?.toString()?.trim(),
+                nodeTexts.joinToString(" ").trim(),
+            ).firstOrNull { !it.isNullOrBlank() }?.take(CLICK_LABEL_MAX)
+
         /** 홈의 이 버튼을 누르면 켠다 — 기사님 지시: 수락을 안 하는 라이브에서도 리더기가 페이지를 어떻게 읽는지 본다 */
         const val START_BUTTON = "시작하기"
 
@@ -80,14 +93,16 @@ class PickerTrace(
         return msg
     }
 
-    /** 누른 버튼 글자를 남긴다 — 빈 글자는 버린다 · «오더 목록 보기»면 그 줄까지 남기고 끈다 */
+    /**
+     * 누른 버튼 글자를 남긴다 — **기록이 꺼져 있어도 늘** (인성 · 화물24 · 픽커 공통 · 기사님: «분기도 없고 좋다»).
+     * 빈 글자는 «〈글자 없음〉»으로 남긴다 · 켜져 있을 때 «오더 목록 보기»면 그 줄까지 남기고 끈다
+     */
     @Synchronized
-    fun onClick(now: Long, label: String?): String? {
-        val l = label?.trim().orEmpty()
-        if (l.isEmpty() || !isActive(now)) return null
-        val msg = "👆 [누름] «$l»"
+    fun onClick(now: Long, label: String?, app: String = ""): String {
+        val l = label?.trim()?.takeIf { it.isNotEmpty() }
+        val msg = "👆 [누름${if (app.isNotEmpty()) " $app" else ""}] «${l ?: NO_LABEL}»"
         push(Line(now, msg))
-        if (l == END_BUTTON) {
+        if (l == END_BUTTON && isActive(now)) {
             push(Line(now, "⏹️ [기록 끝] «$END_BUTTON»을 눌렀다"))
             startedAt = null
         }

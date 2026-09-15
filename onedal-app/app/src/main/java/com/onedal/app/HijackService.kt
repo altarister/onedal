@@ -99,6 +99,8 @@ class HijackService : AccessibilityService(), ScanContext {
     private val pickerTrace = com.onedal.app.plugins.kakaopicker.PickerTrace()
     /** 올리는 중인가 — 한 번에 한 묶음만 보낸다 (순서가 뒤섞이지 않게) */
     @Volatile private var pickerTraceSending = false
+    /** 👆 마지막으로 배차망 화면으로 알아본 앱 — 그 앱의 누름을 남긴다 (인성·화물24 앱 이름을 따로 안 적는다: 배차망은 화면 글자로 가린다) */
+    @Volatile private var lastNetworkPackage: String? = null
     override lateinit var telemetryManager: TelemetryManager
     override lateinit var scrapParser: ScrapParser
     override lateinit var touchManager: AutoTouchManager
@@ -511,15 +513,18 @@ class HijackService : AccessibilityService(), ScanContext {
          * 화면 판별에는 안 쓴다 — 누름 알림은 화면이 바뀐 사건이 아니다. 여기서 돌아간다.
          */
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-            if (TargetApp.isKakaoPickerApp(event.packageName?.toString())) {
-                val label = event.text?.joinToString(" ")?.takeIf { it.isNotBlank() } ?: event.contentDescription?.toString()
-                if (com.onedal.app.plugins.kakaopicker.PickerTrace.startsOnClick(live = true, label = label)) {
+            val pkg = event.packageName?.toString()
+            val live = TargetApp.isKakaoPickerApp(pkg)
+            // 👆 픽커 · 시뮬레이터 · 마지막으로 배차망 화면이던 앱(인성·화물24) — 누름은 기록이 꺼져 있어도 늘 남기고 올린다
+            if (live || pkg == TargetApp.SIMULATOR_PACKAGE || (pkg != null && pkg == lastNetworkPackage)) {
+                val nodeTexts = mutableListOf<String>()
+                event.source?.let { gatherNodeTexts(it, nodeTexts) }
+                val label = com.onedal.app.plugins.kakaopicker.PickerTrace.clickLabelOf(event.text, event.contentDescription, nodeTexts)
+                if (com.onedal.app.plugins.kakaopicker.PickerTrace.startsOnClick(live = live, label = label)) {
                     startPickerTrace("홈 «시작하기»를 눌렀다")
                 }
-                pickerTrace.onClick(System.currentTimeMillis(), label)?.let {
-                    AppLogger.i("1DAL_TRACE", it)
-                    flushPickerTrace()
-                }
+                AppLogger.i("1DAL_TRACE", pickerTrace.onClick(System.currentTimeMillis(), label, currentTargetApp))
+                flushPickerTrace()
             }
             return
         }
@@ -752,6 +757,7 @@ class HijackService : AccessibilityService(), ScanContext {
             AppLogger.w(TAG, "🌐 [망 판별] 두 배차망 글자가 함께 보인다 $screenNetworks — 바꾸지 않는다")
         }
         val screenNetwork = screenNetworks.singleOrNull()
+        if (screenNetwork != null) lastNetworkPackage = rootNode.packageName?.toString()
         NetworkSwitchGate.switchTargetFor(screenNetwork, currentTargetApp)?.let { target ->
             // 🔄 **기다리지 않는다** (기사님 확정 2026-09-02: "4초 지워").
             //    기다리는 동안 앱은 판을 버려 콜을 한 건도 안 읽는데, 얻는 것이 없었다.

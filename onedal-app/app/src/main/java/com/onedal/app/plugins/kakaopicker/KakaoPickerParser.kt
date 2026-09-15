@@ -191,24 +191,34 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          */
         fun matchListCard(detailTexts: List<String>, recent: List<SimplifiedOfficeOrder>): ListCardMatch {
             val joined = detailTexts.joinToString(" ")
+            /**
+             * 🔴 **실물 픽커 상세는 «최종 수익»을 읽는 글자에 안 올린다** (09-16 04:49 라이브) — 요금은 리스트 카드에 있다.
+             *    요금이 없으면 픽업지(+물품 크기)로 찾고 요금은 카드 것을 쓴다. 못 찾은 콜은 보내지 않는다 (기사님: «못 찾은 콜은 내 콜이 아닌 거지»).
+             */
             val fare = DETAIL_FARE_REGEX.find(joined)?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull()
-                ?: return ListCardMatch(null, "상세에서 최종 수익을 못 읽었다")
+            val size = DETAIL_SIZE_REGEX.find(joined)?.groupValues?.get(1)
+            val how = if (fare != null) "요금 ${fare}원 · 픽업지" else "요금 없이 픽업지${if (size != null) " · 크기 $size" else ""}"
             val marker = DETAIL_PICKUP_KM_REGEX.find(joined)
             val pickupPart = regionKeys(if (marker != null) joined.substring(0, marker.range.first) else joined)
             val dropoffPart = regionKeys(if (marker != null) joined.substring(marker.range.last + 1) else "")
             val byPickup = recent
-                .filter { it.fare == fare }
+                .filter { fare == null || it.fare == fare }
                 .filter { c -> cardKeys(c.pickup).let { k -> k.isNotEmpty() && k.all { it in pickupPart } } }
+                // 요금이 없을 때만 크기로 거른다 — 크기를 모르는 카드는 빼지 않는다 (규칙 ⑤-2 · 모르는 값으로 거르지 않는다)
+                .filter { c -> fare != null || size == null || c.itemSize == null || c.itemSize == size }
                 .distinctBy { Triple(it.pickup, it.dropoff, it.fare) }
             val picked = if (byPickup.size <= 1) byPickup
                 else byPickup.filter { c -> cardKeys(c.dropoff).let { k -> k.isNotEmpty() && k.all { it in dropoffPart } } }
             return when {
-                picked.size == 1 -> ListCardMatch(picked[0], "요금 ${fare}원 · 픽업지가 맞는 카드 하나")
-                byPickup.isEmpty() -> ListCardMatch(null, "리스트 카드 중 요금 ${fare}원 · 픽업지가 맞는 것이 없다")
-                picked.isEmpty() -> ListCardMatch(null, "요금·픽업지가 맞는 카드 ${byPickup.size}장 — 배송지로도 못 가른다")
-                else -> ListCardMatch(null, "요금·픽업지·배송지가 맞는 카드 ${picked.size}장 — 어느 것인지 모른다")
+                picked.size == 1 -> ListCardMatch(picked[0], "$how 이 맞는 카드 하나")
+                byPickup.isEmpty() -> ListCardMatch(null, "리스트 카드 중 $how 이 맞는 것이 없다")
+                picked.isEmpty() -> ListCardMatch(null, "$how 이 맞는 카드 ${byPickup.size}장 — 배송지로도 못 가른다")
+                else -> ListCardMatch(null, "$how · 배송지가 맞는 카드 ${picked.size}장 — 어느 것인지 모른다")
             }
         }
+
+        /** 상세의 «물품 정보 소형 …» — 🔴 «초소형»을 «소형»보다 먼저 본다 */
+        private val DETAIL_SIZE_REGEX = Regex("""물품\s*정보\s*(초소형|소형|중형|대형|특대형)""")
 
         /**
          * 🔔 **축별 판정 결과** (2026-09-14 · 카카오픽커_시뮬레이터.md 3단계 3-2).

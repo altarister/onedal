@@ -20,8 +20,8 @@ import org.junit.Test
  */
 class PickerListCardMatchTest {
 
-    private fun card(pickup: String, dropoff: String, fare: Int) =
-        SimplifiedOfficeOrder(id = "", pickup = pickup, dropoff = dropoff, fare = fare, timestamp = "2026-09-14T17:05:00+09:00")
+    private fun card(pickup: String, dropoff: String, fare: Int, itemSize: String? = null) =
+        SimplifiedOfficeOrder(id = "", pickup = pickup, dropoff = dropoff, fare = fare, timestamp = "2026-09-14T17:05:00+09:00", itemSize = itemSize)
 
     /** 09-14 17:05:38 폰 로그 `📄 [상세 실물]` 그대로 — 기사님이 손으로 연 시뮬레이터 상세 */
     private val handOpened = listOf(
@@ -86,9 +86,56 @@ class PickerListCardMatchTest {
         assertEquals("이천 신둔면", m.card?.dropoff)
     }
 
+    /**
+     * 🔴 **실물 픽커 상세는 «최종 수익»을 읽는 글자에 안 올린다** (09-16 04:49 라이브 · «👀 미리보기 보류 — 최종 수익을 못 읽었다»).
+     * 요금은 리스트 카드에 있다 — 상세에서 읽히는 픽업지(+물품 크기)로 카드 한 장을 찾고, 요금은 카드 것을 쓴다.
+     * 못 찾은 콜은 보내지 않는다 (기사님: «못 찾은 콜은 내 콜이 아닌 거지»).
+     */
     @Test
-    fun `최종 수익을 못 읽으면 고르지 않는다`() {
+    fun `최종 수익을 못 읽으면 픽업지로 찾고 여럿이면 배송지로 가른다`() {
         val noFare = handOpened.filter { it != "최종 수익" && it != "10,000" && it != "10,000P" }
-        assertNull(KakaoPickerParser.matchListCard(noFare, sevenPoints).card)
+        val m = KakaoPickerParser.matchListCard(noFare, sevenPoints)
+        assertEquals("광주 초월읍", m.card?.pickup)
+        assertEquals("이천 신둔면", m.card?.dropoff)
+        assertEquals(10000, m.card?.fare)
+    }
+
+    /** 🟢 09-16 04:49:44 실물 라이브 `📄 [상세 실물]` 그대로 (요금 · 배송지 · 거리가 안 읽혔다) */
+    private val liveDetail = listOf(
+        "픽업지", "경기 성남시 수정구 위례동", "kotlin.Unit", "물품 정보", "소형 세 변의 합 100cm ∙ 5kg 이하",
+        "유의사항", "케이크입니다. 파손되지 않게 잘 부탁드립니다.", "넘기기", "수락하기",
+    )
+
+    /** 🟢 같은 때(04:35) 실물 리스트 카드 — «수정 위례» 카드에는 크기 글자가 없다(«퀵 승 예약 20:00») */
+    private val liveList = listOf(
+        card("수정 위례", "도봉 창3", 20790),
+        card("광주 송정", "강남 역삼1", 19404),
+        card("분당 백현", "영등포 여의", 16632),
+        card("분당 운중", "광진 광장", 13706, "소형"),
+        card("분당 정자1", "하남 감일", 13552, "중형"),
+        card("하남 위례", "강남 청담", 10780),
+    )
+
+    @Test
+    fun `🔴 실물 라이브 - 요금 없이 픽업지로 한 장을 찾는다 · 요금은 리스트 카드 것 (09-16 04시49분)`() {
+        val m = KakaoPickerParser.matchListCard(liveDetail, liveList)
+        assertEquals("수정 위례", m.card?.pickup)
+        assertEquals(20790, m.card?.fare)
+        assertTrue("요금 없이 찾았다고 말한다", m.why.contains("요금 없이"))
+    }
+
+    @Test
+    fun `요금 없이 - 같은 픽업지가 둘이면 물품 크기로 가른다 · 크기를 모르는 카드는 빼지 않는다`() {
+        val m = KakaoPickerParser.matchListCard(liveDetail, listOf(card("수정 위례", "도봉 창3", 20790, "중형"), card("수정 위례", "강남 역삼1", 9000, "소형")))
+        assertEquals(9000, m.card?.fare)
+        val unknownSize = KakaoPickerParser.matchListCard(liveDetail, listOf(card("수정 위례", "도봉 창3", 20790, "중형"), card("수정 위례", "강남 역삼1", 9000)))
+        assertEquals("크기가 다른 카드만 빼고, 모르는 카드는 남긴다", 9000, unknownSize.card?.fare)
+    }
+
+    @Test
+    fun `🔴 요금 없이 - 픽업지 · 크기까지 같은 카드가 둘이면 고르지 않는다`() {
+        val m = KakaoPickerParser.matchListCard(liveDetail, listOf(card("수정 위례", "도봉 창3", 20790, "소형"), card("수정 위례", "강남 역삼1", 9000, "소형")))
+        assertNull(m.card)
+        assertTrue(m.why.contains("2"))
     }
 }
