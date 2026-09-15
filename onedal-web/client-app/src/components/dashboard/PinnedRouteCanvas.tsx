@@ -203,6 +203,18 @@ interface Props {
         line: Array<{ x: number; y: number }> | null;
         lineKm: number;
     } | null;
+    /**
+     * 🔵 **하차 영역 — 원달앱이 하차지를 거르는 영역** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
+     *
+     * 살아 있는 목적지마다 원 · 마름모 · 라인 띠를 모은 **합집합**이다 — 조각은 shared `dropoffPartsOf` 가 정한다.
+     * 🔴 위 `netOverlay`(옛 그물)와 **다른 것**이다 — 새 규칙이 자리 잡으면 그물 레이어를 걷는다 (todo «필터 영역 개정»).
+     */
+    dropoffArea?: {
+        circles: Array<{ x: number; y: number; km: number }>;
+        quads: Array<Array<{ x: number; y: number }>>;
+        /** `trimKm` — 운행 뒤 지나온 만큼 띠를 여기부터 긋는다 (옛 그물과 같은 `progressAlongKm` 축척) */
+        lines: Array<{ points: Array<{ x: number; y: number }>; km: number; trimKm: number }>;
+    } | null;
     children?: React.ReactNode;
     /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (기본 h-64는 옛 화면용) */
     fill?: boolean;
@@ -236,7 +248,7 @@ interface Props {
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, netOverlay, pickupArea, occludedPx, rainbowNodes = true }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, netOverlay, pickupArea, dropoffArea, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -261,8 +273,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      *    브라우저에만 남는 편의값이라 못 읽어도 그만이다 (읽기·쓰기 전부 try).
      */
     const [layers, setLayers] = React.useState<Record<string, boolean>>(() => {
-        /* 📋 «상차» — 원달앱이 상차지를 거르는 영역 (기사님 2026-09-15 «교집합이 안 보인다») */
-        const defaults = { base: true, border: true, net: true, pickup: true, route: true, trail: true };
+        /* 📋 «상차» · «하차» — 원달앱이 상차지 · 하차지를 거르는 영역 (기사님 2026-09-15 · `docs/지금/필터.md` «상차 영역» · «하차 영역») */
+        const defaults = { base: true, border: true, net: true, pickup: true, dropoff: true, route: true, trail: true };
         try {
             const v = localStorage.getItem('mapLayers');
             return v ? { ...defaults, ...JSON.parse(v) } : defaults;
@@ -522,6 +534,58 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 ctx.stroke();
             }
             ctx.restore();
+        }
+
+        /**
+         * 🔵 «하차» 레이어 — 원달앱이 하차지를 거르는 영역 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
+         * 원 · 마름모 · 띠의 **합집합**이다. 겹친 자리가 두 번 짙어지지 않게 **숨은 캔버스에 불투명으로 모아 그린 뒤 한 번에 옅게** 올린다.
+         * 🔴 모르는 조각(좌표를 모르는 목적지 · 종착지)은 부르는 쪽이 이미 뺐다 — 여기서 지어내지 않는다 (규칙 ④).
+         */
+        if (layers.dropoff && dropoffArea && (dropoffArea.circles.length || dropoffArea.quads.length || dropoffArea.lines.length)) {
+            const off = document.createElement('canvas');
+            off.width = canvas.width; off.height = canvas.height;
+            const oc = off.getContext('2d');
+            if (oc) {
+                oc.scale(dpr, dpr);
+                const pxPerKmAt = (p: { x: number; y: number }) => {
+                    const a = getScreenPt(p);
+                    const b = getScreenPt({ x: p.x + 1 / (111.32 * Math.cos((p.y * Math.PI) / 180)), y: p.y });
+                    return Math.abs(b.cx - a.cx);
+                };
+                oc.fillStyle = '#2563eb'; oc.strokeStyle = '#2563eb';
+                for (const c of dropoffArea.circles) {
+                    const s = getScreenPt(c);
+                    oc.beginPath(); oc.arc(s.cx, s.cy, Math.max(0, c.km) * pxPerKmAt(c), 0, Math.PI * 2); oc.fill();
+                }
+                for (const q of dropoffArea.quads) {
+                    if (q.length < 3) continue;
+                    oc.beginPath();
+                    q.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
+                    oc.closePath(); oc.fill();
+                }
+                for (const l of dropoffArea.lines) {
+                    if (l.points.length < 2) continue;
+                    oc.beginPath();
+                    /* 🚗 지나온 만큼 짧아진다 — 옛 그물 레이어와 같은 km 셈 (`progressAlongKm` 축척) */
+                    let acc = 0, put = 0;
+                    l.points.forEach((p, i) => {
+                        if (i > 0) {
+                            const a = l.points[i - 1];
+                            acc += Math.hypot((p.x - a.x) * 111.32 * Math.cos(p.y * Math.PI / 180), (p.y - a.y) * 110.574);
+                        }
+                        if (acc < l.trimKm) return;
+                        const s = getScreenPt(p);
+                        if (put++ === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy);
+                    });
+                    oc.lineWidth = Math.max(3, l.km * 2 * pxPerKmAt(l.points[0]));
+                    oc.lineCap = 'round'; oc.lineJoin = 'round';
+                    oc.stroke();
+                }
+                ctx.save();
+                ctx.globalAlpha = 0.22;
+                ctx.drawImage(off, 0, 0, width, height);
+                ctx.restore();
+            }
         }
 
         if (layers.net && netOverlay) {   // 🧅 «그물» 레이어
@@ -951,7 +1015,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, netOverlay, pickupArea, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, netOverlay, pickupArea, dropoffArea, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기
@@ -1145,7 +1209,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 </button>
                 {layersOpen && (
                     <div className="flex flex-col gap-1">
-                        {([['base', '배경'], ['border', '경계'], ['net', '그물'], ['pickup', '상차'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
+                        {([['base', '배경'], ['border', '경계'], ['net', '그물'], ['pickup', '상차'], ['dropoff', '하차'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
                             <button
                                 key={k}
                                 onClick={() => toggleLayer(k)}

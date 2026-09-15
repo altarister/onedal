@@ -1,7 +1,8 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm, goalZonesOf, pickupShapeOf } from '@onedal/shared';
+import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm, goalZonesOf, pickupShapeOf,
+    dropoffPartsOf, lastDropOf, lineUntil, quadShapeFrom, quadOutline, cityCenter, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
@@ -188,8 +189,7 @@ export default function StageView(props: Props) {
      *
      * 🔴 모양은 shared `goalZonesOf` → `pickupShapeOf` 한 곳 — 하나라도 운행 뒤가 아니면 **현위치 영역 전체**,
      *    전부 운행 뒤면 **현위치 영역 ∩ 라인 영역**. 하차 레이어도 같은 `goalZonesOf` 를 쓴다.
-     * 🔴 **지도가 먼저다** — 서버 상차 목록은 아직 옛 계획(`pickupAreaPlan`)이다. 지도를 눈으로 맞춘 뒤 서버가
-     *    같은 함수로 동을 찾는다 (기사님과 정한 순서 · todo «필터 영역 개정»). 그 사이 지도와 앱 목록이 다를 수 있다.
+     * 🔴 서버 상차 목록(`filterManager.rebuildPickupList`)도 **같은 `goalZonesOf`** 로 동을 찾는다 (규칙 ③).
      * 재료: 집 · 복귀 · 복귀콜 쥠은 서버가 싣는다(`filter.pickupArea`) · 실린 콜은 `liveRoute` ·
      *    운행 시작은 서버 국면(`DELIVERING`) · 반지름·띠 폭은 서버와 같은 `effectiveRadii`.
      * 📍 **원의 중심은 실시간 내 위치**(`myLocation`)다 (기사님 2026-09-15 «실시간 위치로 바꿔줘»).
@@ -198,14 +198,76 @@ export default function StageView(props: Props) {
      * ⚠️ 라인 띠는 **지금 그리는 경로 선**으로 잰다 — 서버의 얼린 경로와 심사 중 잠깐 다를 수 있다.
      */
     const pickupAreaIn = filter?.pickupArea;
-    const pickupShape = pickupShapeOf(goalZonesOf({
+    const homeOn = pickupAreaIn?.homeOn ?? false;
+    const homeCity = pickupAreaIn?.homeCity ?? null;
+    const zones = goalZonesOf({
         destinationCity: filter?.destinationCity,
-        homeCity: pickupAreaIn?.homeCity,
-        homeOn: pickupAreaIn?.homeOn ?? false,
+        homeCity,
+        homeOn,
         homeCaught: pickupAreaIn?.homeCaught ?? false,
         departed: filter?.dispatchPhase === 'DELIVERING',
         activeCalls: liveRoute,
-    }));
+    });
+    const pickupShape = pickupShapeOf(zones);
+
+    /**
+     * 🔵 **하차 영역 — 살아 있는 목적지마다 조각을 모은다** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
+     *
+     * 조각은 shared `dropoffPartsOf` — 콜 없음: 현위치 원 ∪ Q(현위치→목적지) ∪ 목적지 원 · 경로 생김: 현위치 원 ∪ 라인 ∪ Q(종착지→목적지) ∪ 목적지 원
+     *    · 운행 뒤: 라인 ∪ Q(종착지→목적지) ∪ 목적지 원. 목적지가 집이어도 같다.
+     * 종착지는 경로 순서(`routeStops`)에서 그 목적지 콜의 마지막 하차지(`lastDropOf`) · 라인은 지금 그리는 경로 선을 거기까지 자른 것(`lineUntil`).
+     * 🔴 **지도가 먼저다** — 서버 하차 목록은 아직 옛 그물(`netOfGoals`)이라 그 사이 지도와 원달앱 목록이 다를 수 있다 (todo «필터 영역 개정»).
+     * 📐 마름모는 계산이 무거워 내 위치를 ~300m 눈금으로 굳혀 다시 만든다 (`useCallNet` 과 같은 방어) — 원 중심은 실시간 위치다.
+     */
+    const dropoffLine = routeMode ? derived.drawHolder?.routePolyline ?? null : null;
+    const quadShape = quadShapeFrom(filter as unknown as Record<string, unknown>);
+    const meGridX = myLocation ? Math.round(myLocation.x * 300) / 300 : null;
+    const meGridY = myLocation ? Math.round(myLocation.y * 300) / 300 : null;
+    const zonesKey = JSON.stringify(zones);
+    const dropoffParts = useMemo(() => {
+        if (meGridX == null || meGridY == null) return null;
+        const params = {
+            srcAngleDeg: quadShape.srcAngleDeg, dstAngleDeg: quadShape.dstAngleDeg, quadRadiusKm: radii.quadRadiusKm,
+            srcDiamKm: radii.pickupRadiusKm * 2, dstDiamKm: radii.destinationRadiusKm * 2,
+        };
+        const meGrid = { name: '내 위치', lng: meGridX, lat: meGridY };
+        return (JSON.parse(zonesKey) as typeof zones).flatMap(z => {
+            let center: { lng: number; lat: number };
+            try { center = cityCenter(z.city); } catch { return []; }   // 지도에 없는 시 — 그 목적지는 모른다
+            if (!Number.isFinite(center.lng) || !Number.isFinite(center.lat)) return [];
+            const lastDrop = z.state === 'idle' ? null
+                : lastDropOf({ isHome: z.isHome, homeOn, homeCity, stops: routeStops, calls: liveRoute });
+            const line = dropoffLine && lastDrop ? lineUntil(dropoffLine, lastDrop) : [];
+            const parts = dropoffPartsOf(z.state, line.length >= 2);
+            /* 🔴 종착지를 모르면 그 마름모는 안 그린다 — 앞 정거장으로 대신하지 않는다 (규칙 ④) */
+            const from = parts.quadFrom === 'me' ? meGrid : lastDrop ? { name: '종착지', lng: lastDrop.x, lat: lastDrop.y } : null;
+            const quad = from && haversineKm(from, center) >= 1
+                ? quadOutline(params, from, { name: z.city, lng: center.lng, lat: center.lat }).map(q => ({ x: q.lng, y: q.lat }))
+                : null;
+            return [{ center: { x: center.lng, y: center.lat }, me: parts.me, line: parts.line ? line : null, quad }];
+        });
+    }, [zonesKey, meGridX, meGridY, dropoffLine, routeStops, liveRoute, homeOn, homeCity,
+        quadShape.srcAngleDeg, quadShape.dstAngleDeg, radii.quadRadiusKm, radii.pickupRadiusKm, radii.destinationRadiusKm]);
+    const dropoffDeparted = filter?.dispatchPhase === 'DELIVERING';
+    const dropoffArea = useMemo(() => {
+        /* 🔴 내 위치를 모르면 그리지 않는다 (규칙 ④) */
+        if (!myLocation || !dropoffParts) return null;
+        return {
+            circles: dropoffParts.flatMap(p => [
+                { ...p.center, km: radii.destinationRadiusKm },
+                ...(p.me ? [{ x: myLocation.x, y: myLocation.y, km: radii.pickupRadiusKm }] : []),
+            ]),
+            quads: dropoffParts.flatMap(p => (p.quad ? [p.quad] : [])),
+            /* 🚗 운행 뒤에는 지나온 만큼 띠를 자른다 — 옛 그물 레이어와 같은 `progressAlongKm` */
+            lines: dropoffParts.flatMap(p => (p.line ? [{
+                points: p.line, km: radii.detourRadiusKm,
+                trimKm: dropoffDeparted ? progressAlongKm({ lng: myLocation.x, lat: myLocation.y }, p.line.map(q => [q.x, q.y] as [number, number])) : 0,
+            }] : [])),
+        };
+    }, [myLocation, dropoffParts, dropoffDeparted, radii.destinationRadiusKm, radii.pickupRadiusKm, radii.detourRadiusKm]);
+
+    /* 🟢 상차 영역 도형 — 위 «상차 영역» 주석. ⚠️ 하차 계산 **뒤에** 둔다: 앞에 두면 하차 계산이 같은 재료(`liveRoute` · 경로 선)를
+          함수에 넘기는 것을 React 컴파일러가 «메모 뒤의 변경»으로 보고 이 메모를 포기한다 (lint:gate) */
     const pickupLine = pickupShape === 'meLine' ? derived.drawHolder?.routePolyline ?? null : null;
     const pickupArea = useMemo(() => {
         /* 🔴 내 위치를 모르면 원을 지어내지 않는다 — 안 그린다 (규칙 ④) */
@@ -668,6 +730,8 @@ export default function StageView(props: Props) {
                     }}
                     /* 📋 상차 영역 — 서버가 목록을 만든 그 점 (기사님 2026-09-15 «교집합이 안 보인다») */
                     pickupArea={pickupArea}
+                    /* 🔵 하차 영역 — 살아 있는 목적지마다 원 · 마름모 · 띠 (필터.md «하차 영역») */
+                    dropoffArea={dropoffArea}
                     onStopTap={focusCall}
                 >
                     {/* 🏷️ 다음 정거장 이름표 — «어느 콜의 어떤 단계» (v22 S3 · 탭 동선은 4단계에서) */}
