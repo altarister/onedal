@@ -1162,8 +1162,23 @@ class HijackService : AccessibilityService(), ScanContext {
                  * 이제 상세 화면이 누가 열었든 `KakaoPickerParser.matchListCard` 한 곳에서 카드를 찾는다
                  * (이 카드도 방금 `recentListOrders` 에 들어갔다).
                  */
-                alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽: 알람» 기록용
-                touchManager.performSimulatedTouch(fareNode.node)
+                /**
+                 * 🔴 **찍기 직전에 머리줄 아래인가를 한 번 더** (#111 틈 ① · `KakaoPickerParser.stillListCardAtTap`).
+                 * 위 판단은 스캔 때 잰 좌표다 — 누르기 바로 전에 요금 칸과 «리스트 설정» 칸을 둘 다 다시 읽는다.
+                 */
+                val headerNode = allNodes.firstOrNull { KakaoPickerParser.isListHeaderText(it.text) }?.node
+                val refreshedY = { n: android.view.accessibility.AccessibilityNodeInfo? ->
+                    n?.takeIf { it.refresh() }?.let { val r = android.graphics.Rect(); it.getBoundsInScreen(r); r.centerY() }
+                }
+                val fareY = refreshedY(fareNode.node)
+                val headerY = refreshedY(headerNode)
+                if (KakaoPickerParser.stillListCardAtTap(fareY, headerY)) {
+                    alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽: 알람» 기록용
+                    touchManager.performSimulatedTouch(fareNode.node)
+                } else {
+                    AppLogger.w("1DAL_ALARM", "🛑 [알람 상세 보류] ${order.fare}원 — 찍기 직전 다시 재니 머리줄 아래가 아니다 " +
+                        "(요금 Y=$fareY · 머리줄 Y=$headerY · 스캔 때 요금 Y=${fareNode.rect.centerY()} 머리줄 Y=$listHeaderY) · 손대지 않는다")
+                }
                 // ⏱️ 타이머는 여기서 걸지 않는다 — 상세 화면 처리 한 곳에서 누가 열었든 건다 (#124)
             } else if (!TargetApp.supportsCatching(currentTargetApp)) {
                 /**

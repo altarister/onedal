@@ -114,6 +114,18 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun isListCardAnchor(fareCenterY: Int, listHeaderCenterY: Int?): Boolean =
             listHeaderCenterY != null && fareCenterY > listHeaderCenterY
 
+        /** «리스트 설정» 머리줄 칸인가 — 찍기 직전 그 칸을 다시 읽을 때 쓴다 */
+        fun isListHeaderText(text: String): Boolean = text.contains(LIST_HEADER_WORD)
+
+        /**
+         * 🔴 **찍기 직전에 한 번 더** (#111 틈 ①) — 스캔 때 잰 좌표로 «리스트 카드»라 판단한 뒤, 누르기 바로 전에
+         * 요금 칸 · 머리줄을 **둘 다 다시 읽어** 요금이 여전히 머리줄 아래일 때만 누른다.
+         * 09-13 11:46 은 새 카드가 뜬 1초 뒤에 눌렀다 — 스캔과 누름 사이에 구조가 바뀌면 그 자리는 오더카드(곧 계약)일 수 있다.
+         * 다시 못 읽으면(`null`) 누르지 않는다 (규칙 ④). ⚠️ 이 확인과 실제 주입 사이 수십 ms 는 원리상 못 막는다.
+         */
+        fun stillListCardAtTap(fareRefreshedY: Int?, headerRefreshedY: Int?): Boolean =
+            fareRefreshedY != null && isListCardAnchor(fareRefreshedY, headerRefreshedY)
+
         /**
          * 👻 이 리스트 스캔이 **상세 화면 잔상**인가 (0830 23:04 실측 — 복귀 직후 첫 스캔에
          * 상세 글자가 남아 카드 도착지에 «픽업지 경기 성남시…»가 섞였다).
