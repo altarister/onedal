@@ -44,7 +44,8 @@ function resultText(v: ScenarioView): string {
         '눈으로 볼 것: 내 위치 점선 원(A2) · 🎯 둘/하나(C1/C3) · 심사석 결론(B1 B3 C3) · 후보 구간 판정 색(B1)'].join('\n');
 }
 
-export default function ScenarioCard() {
+/** 🎬 카드 하나 = 문제 하나 — 이름표로 서버에 묻고 시작한다 (기사님 2026-09-15 «이천 왕복하루 아래에 이천 성공하는 5콜») */
+export default function ScenarioCard({ scenarioKey, title }: { scenarioKey: 'icheonRound' | 'icheonFive'; title: string }) {
     const [view, setView] = useState<ScenarioView | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -54,7 +55,7 @@ export default function ScenarioCard() {
         let alive = true;
         const read = async () => {
             try {
-                const r = await fetch(`${apiBase()}/sim/scenario`);
+                const r = await fetch(`${apiBase()}/sim/scenario?key=${scenarioKey}`);
                 const d = await r.json() as ScenarioView;
                 if (alive) { setView(d); if (d.ok) setError(null); }
             } catch {
@@ -64,12 +65,14 @@ export default function ScenarioCard() {
         void read();
         const t = setInterval(read, 1500);
         return () => { alive = false; clearInterval(t); };
-    }, []);
+    }, [scenarioKey]);
 
     const post = async (path: 'start' | 'skip' | 'stop') => {
         setBusy(true);
         try {
-            const r = await fetch(`${apiBase()}/sim/scenario/${path}`, { method: 'POST' });
+            const r = await fetch(`${apiBase()}/sim/scenario/${path}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: scenarioKey }),
+            });
             const d = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
             setError(r.ok && d?.ok ? null : (d?.error ?? `HTTP ${r.status}`));
         } catch {
@@ -92,7 +95,7 @@ export default function ScenarioCard() {
     return (
         <div className="rounded-xl border border-border-card bg-surface px-3 py-2">
             <div className="flex items-center gap-2 pb-1">
-                <span className="text-[12px] font-black text-text-primary">🎬 {view?.name ?? '이천 왕복 하루'}</span>
+                <span className="text-[12px] font-black text-text-primary">🎬 {view?.name ?? title}</span>
                 <span className="text-[9.5px] text-text-muted">서버가 사건순으로 콜을 낸다 · 시뮬레이터는 «🚚 개별콜» 탭</span>
                 <span className="ml-auto flex gap-1">
                     {!view?.running && <button type="button" disabled={busy} onClick={() => void post('start')}

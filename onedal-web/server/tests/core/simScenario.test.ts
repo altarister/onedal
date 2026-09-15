@@ -210,3 +210,60 @@ describe('🎬 이천 왕복 — 사건순', () => {
     });
 });
 
+
+/**
+ * 🎬 **이천 성공하는 5콜 — 빨리 도는 문제** (기사님 지시 2026-09-15).
+ *
+ * 기사님: *"빠른시간에 잘되는 콜들로 빨리 빨리 테스트 하고 싶어 — 주소 목록에서 경로를 추출해서 성공하는 콜들로 이루어진
+ * 5개 짜리 문제 · 2개는 갈때 1개는 복귀클릭하고 복귀콜이 잡히기전에 나머지는 복귀 콜로"* · *"이천 왕복하루 아래에"*.
+ * 콜은 이천 왕복 하루에서 **실제로 KEEP 까지 간 경로**(A2 · B1 · B3 · C3 · D3 — 13:04 바퀴)만 쓴다.
+ */
+describe('🎬 이천 성공하는 5콜 — 줄 데이터', () => {
+    const { ICHEON_FIVE_OK } = require('../../src/core/simScenarioIcheon');
+    const five = ICHEON_FIVE_OK as typeof def;
+    const at = (id: string) => five.findIndex(r => r.id === id);
+
+    it('🔴 콜 다섯이 전부 KEEP 이다 — 막힘·취소 줄이 없다 · 할 일 셋(모의 주행 · 복귀 켬 · 하차 완료)', () => {
+        expect(five.filter(r => r.call)).toHaveLength(5);
+        expect(five.filter(r => r.call).every(r => r.kind === 'keep')).toBe(true);
+        expect(five.some(r => r.kind === 'block' || r.kind === 'cancel')).toBe(false);
+        expect(five.filter(r => r.kind === 'act')).toHaveLength(3);
+    });
+
+    it('🔴 가는 길 둘 → 복귀 켬 → 복귀콜 전 이천 안 콜 하나 → 복귀콜 둘', () => {
+        const keeps = five.filter(r => r.kind === 'keep').map(r => r.id);
+        const home = five.findIndex(r => r.kind === 'act' && r.done?.kind === 'target' && r.done.value === 'HOME');
+        expect(home).toBeGreaterThan(-1);
+        expect(keeps.filter(id => at(id) < home)).toHaveLength(2);
+        expect(keeps.filter(id => at(id) > home)).toHaveLength(3);
+        /* 복귀 켠 뒤 첫 콜은 이천 안 — 하차가 이천이다 · 나머지 둘은 집(광주) 방향 */
+        const after = five.filter(r => r.kind === 'keep' && at(r.id) > home);
+        expect(after[0].call!.dropoff.addressDetail).toMatch(/이천시/);
+        expect(after.slice(1).every(r => /광주시/.test(r.call!.dropoff.addressDetail))).toBe(true);
+    });
+
+    it('«○○에 서면» 줄은 앞에 있는 줄만 가리킨다 · 폰 지문이 겹치지 않는다', () => {
+        five.forEach((r, i) => { if ('arrive' in r.when) expect(at(r.when.arrive)).toBeLessThan(i); });
+        const prints = five.filter(r => r.call).map(r => `${r.call!.pickup.region}|${r.call!.dropoff.region}|${r.call!.fare}`);
+        expect(new Set(prints).size).toBe(prints.length);
+    });
+});
+
+describe('🎬 문제 목록 — 서버가 둘을 들고 현황판이 이천 왕복 하루 아래에 5콜을 그린다', () => {
+    const { readFileSync } = require('fs');
+    const { join } = require('path');
+    const sim = readFileSync(join(__dirname, '../../src/routes/sim.ts'), 'utf8');
+    const board = readFileSync(join(__dirname, '../../../client-app/src/statusboard/StatusBoard.tsx'), 'utf8');
+
+    it('🔴 서버가 문제를 이름표로 고른다', () => {
+        expect(sim).toMatch(/icheonRound:\s*\{ name: '이천 왕복 하루', rows: ICHEON_ROUND_TRIP \}/);
+        expect(sim).toMatch(/icheonFive:\s*\{ name: '이천 성공하는 5콜', rows: ICHEON_FIVE_OK \}/);
+    });
+
+    it('🔴 현황판은 이천 왕복 하루 카드 아래에 5콜 카드를 그린다', () => {
+        const a = board.indexOf('<ScenarioCard scenarioKey="icheonRound"');
+        const b = board.indexOf('<ScenarioCard scenarioKey="icheonFive"');
+        expect(a).toBeGreaterThan(-1);
+        expect(b).toBeGreaterThan(a);
+    });
+});

@@ -92,3 +92,45 @@ export const ICHEON_ROUND_TRIP: ScenarioRow[] = [
       say: '🧭 마지막 하차지에 서면 관제웹에서 하차 완료 — 초월역 · 곤지암스타', why: '모의 주행은 콜이 없으면 그 자리에서 대기한다(떠나야 저절로 찍힌다) · 복귀콜을 집 가까이 내렸으니 복귀가 저절로 꺼진다',
       done: { kind: 'phase', value: 'STANDBY' }, checks: [{ kind: 'target', value: 'DEST' }] },
 ];
+
+/**
+ * 🎬 **이천 성공하는 5콜 — 빨리 도는 문제** (기사님 지시 2026-09-15 · 설계서 `docs/기획/문제지_이천왕복.md` §8).
+ *
+ * 기사님: *"빠른시간에 잘되는 콜들로 빨리 빨리 테스트 하고 싶어 — 성공하는 콜들로 이루어진 5개 짜리 문제 ·
+ * 2개는 갈때 1개는 복귀클릭하고 복귀콜이 잡히기전에 나머지는 복귀 콜로"*.
+ * 🔴 **막힘·취소 줄이 없다** — 콜 다섯은 전부 KEEP. 경로는 위 «이천 왕복 하루»에서 **실제로 KEEP 까지 간 것**만 쓴다
+ *    (2026-09-15 13:04 바퀴 · A2 · B1 · B3 · C3 · D3 ✅). 적재는 한 번에 최대 60박스(다마스 둘)라 1t 에 든다.
+ */
+export const ICHEON_FIVE_OK: ScenarioRow[] = [
+    /* ── 가는 길 둘 ── */
+    { id: 'S1', stage: 'A', when: { after: 'prev' }, kind: 'keep',
+      call: { pickup: MODA, dropoff: SINDUN_NH, fare: 50000, vehicleType: '다마스' },
+      say: '🟢 올라오면 관제웹에서 KEEP — 가는 길 1', why: '첫짐 — 이천 왕복 A2 와 같은 콜 (✅ 13:04)' },
+    { id: 'M1', stage: 'A', when: { after: 'prev' }, kind: 'act',
+      say: '🧭 현황판 🎭 모의 주행 ▶ 시작 (🚗 보통 3배 · 정차 12초 — 눈금이 다르면 ↩︎ 기본으로)', why: '주행이 감지되면 출발이 켜진다',
+      done: { kind: 'phase', value: 'DELIVERING' } },
+    { id: 'S2', stage: 'B', when: { arrive: 'S1', stop: 'pickup' }, kind: 'keep',
+      call: { pickup: GONJIAM_CHURCH, dropoff: ICHEON_JEIL, fare: 50000, vehicleType: '다마스' },
+      say: '🟢 올라오면 관제웹에서 KEEP — 가는 길 2', why: '가는 길 합짐 — 이천 왕복 B1 과 같은 콜 (✅ 13:05)' },
+
+    /* ── 이천 — 복귀 켜고, 복귀콜 전에 이천 안 콜 하나 ── */
+    { id: 'C1', stage: 'C', when: { arrive: 'S2', stop: 'dropoff' }, kind: 'act',
+      say: '🧭 관제웹 🔍 필터 ↩️ 복귀 켬', why: '이천 일을 다 내렸다 — 복귀 대기엔 이천 목적지가 아직 살아 있다',
+      done: { kind: 'target', value: 'HOME' } },
+    { id: 'S3', stage: 'C', when: { after: 'prev' }, kind: 'keep', guess: true,
+      call: { pickup: IJO_GALBI, dropoff: ICHEON_TERMINAL, fare: 50000, vehicleType: '다마스' },
+      say: '🟢 올라오면 관제웹에서 KEEP — 복귀콜 전 이천 안 콜', why: '이천 왕복 B3 와 같은 경로 (✅ 13:07) — 복귀를 켠 뒤에 내는 것은 처음이라 추정 · 사음동은 내 위치(관고동) 반경 안' },
+
+    /* ── 복귀콜 둘 ── */
+    { id: 'S4', stage: 'D', when: { arrive: 'S3', stop: 'dropoff' }, kind: 'keep',
+      call: { pickup: HD_SINDUN, dropoff: CHOWOL_STATION, fare: 50000, vehicleType: '다마스' },
+      say: '🟢 올라오면 관제웹에서 KEEP — 복귀콜 1', why: '이천 왕복 C3 와 같은 콜 — 이천터미널에 선 뒤 신둔 상차 (✅ 13:10)' },
+    { id: 'S5', stage: 'D', when: { arrive: 'S4', stop: 'pickup' }, kind: 'keep',
+      call: { pickup: WOORI_OIL, dropoff: GONJIAM_STAR, fare: 30000, vehicleType: '승용차' },
+      say: '🟢 올라오면 관제웹에서 KEEP — 복귀콜 2 (오는 길 합짐)', why: '이천 왕복 D3 와 같은 콜 (✅ 13:11)' },
+
+    /* ── 끝 ── */
+    { id: 'E1', stage: 'E', when: { after: 'prev' }, kind: 'act',
+      say: '🧭 마지막 하차지에 서면 관제웹에서 하차 완료 — 초월역 · 곤지암스타', why: '모의 주행은 콜이 없으면 그 자리에서 대기한다(떠나야 저절로 찍힌다)',
+      done: { kind: 'phase', value: 'STANDBY' } },
+];

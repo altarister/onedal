@@ -14,7 +14,7 @@ import { calculateSoloRoute } from "../services/kakaoService";
 import { createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter, withdrawSimCall } from "../core/simCallQueue";
 import { seqsToWithdraw, startScenario, stepScenario, skipScenarioRow } from "../core/simScenario";
 import type { ScenarioState, ScenarioWorld, WorldOrder, WorldIntel } from "../core/simScenario";
-import { ICHEON_ROUND_TRIP } from "../core/simScenarioIcheon";
+import { ICHEON_ROUND_TRIP, ICHEON_FIVE_OK } from "../core/simScenarioIcheon";
 
 const router = Router();
 
@@ -291,13 +291,23 @@ router.get("/preflight", (_req, res) => {
  */
 const SCENARIO_TICK_MS = 1000;
 const SIM_POLL_FRESH_MS = 10_000;
-const scenarioDef = ICHEON_ROUND_TRIP;
+/**
+ * 🎬 **문제 목록 — 이름표로 고른다** (기사님 2026-09-15: *"이천 왕복하루 아래에 '이천 성공하는 5콜'"*).
+ *    현황판 카드마다 이름표를 들고 시작한다 · 한 번에 하나만 돈다 (새로 시작하면 돌던 것을 멈춘다).
+ */
+const SCENARIOS: Record<'icheonRound' | 'icheonFive', { name: string; rows: typeof ICHEON_ROUND_TRIP }> = {
+    icheonRound: { name: '이천 왕복 하루', rows: ICHEON_ROUND_TRIP },
+    icheonFive: { name: '이천 성공하는 5콜', rows: ICHEON_FIVE_OK },
+};
+type ScenarioKey = keyof typeof SCENARIOS;
+/** 모르는 이름표는 «이천 왕복 하루» — 옛 현황판(이름표 없음)도 그대로 돈다 */
+const scenarioKeyOf = (v: unknown): ScenarioKey => (typeof v === 'string' && v in SCENARIOS ? v as ScenarioKey : 'icheonRound');
 /**
  * 🔴 `state` 가 null 이면 **폰이 새 회차를 받기를 기다린다** — 시작하면 이전 콜을 리셋하는데(`resetSimCalls`),
  *    폰이 기억을 비우기 전에 첫 콜이 뜨면 «⏭️ 이미 본 콜»로 삼킨다 (01:5x 실측 — 같은 A1 이 두 번째 시작에서 판정 0줄).
  *    폰의 다음 `/api/scrap` 응답이 새 회차를 싣는 순간 첫 줄을 낸다.
  */
-let scenario: { userId: string; round: number; state: ScenarioState | null; timer: ReturnType<typeof setInterval> } | null = null;
+let scenario: { key: ScenarioKey; userId: string; round: number; state: ScenarioState | null; timer: ReturnType<typeof setInterval> } | null = null;
 
 /** «세상» — 판단에 쓰는 칸만 옮긴다. 메모리 콜은 확정 사본(myOrders)이 도착 시각을 들고 있어 그쪽이 이긴다 */
 function scenarioWorld(userId: string, now: number): ScenarioWorld {
@@ -326,6 +336,7 @@ function scenarioWorld(userId: string, now: number): ScenarioWorld {
 
 function tickScenario() {
     if (!scenario) return;
+    const scenarioDef = SCENARIOS[scenario.key].rows;
     const now = Date.now();
     if (!scenario.state) {
         if (phoneRoundSent !== scenario.round) return;
@@ -360,9 +371,13 @@ function stopScenario() {
     scenario = null;
 }
 
-router.get("/scenario", (_req, res) => {
+router.get("/scenario", (req, res) => {
     if (!isDevBuild()) return res.status(404).json({ error: "not found" });
     const now = Date.now();
+    const key = scenarioKeyOf(req.query.key);
+    const scenarioDef = SCENARIOS[key].rows;
+    /** 🎬 이 카드의 문제가 지금 도는 문제인가 — 아니면 줄을 «기다림»으로만 보여 준다 */
+    const mine = scenario?.key === key;
     const userIds = humanUserIds();
     const session = userIds.length === 1 ? getUserSession(userIds[0]) : null;
     const f = session?.activeFilter;
@@ -376,11 +391,11 @@ router.get("/scenario", (_req, res) => {
         { what: '시뮬레이터 연결', ok: simPolledAgoMs !== null && simPolledAgoMs <= SIM_POLL_FRESH_MS,
           got: simPolledAgoMs === null ? '한 번도 안 물었다' : `${Math.round(simPolledAgoMs / 1000)}초 전` },
     ];
-    const st = scenario?.state ?? null;
+    const st = mine ? scenario?.state ?? null : null;
     return res.json({
-        ok: true, name: '이천 왕복 하루', running: !!scenario && !st?.finished,
+        ok: true, key, name: SCENARIOS[key].name, running: mine && !st?.finished,
         /** 이전 콜을 리셋하고 폰이 새 회차를 받기를 기다리는 중 */
-        waitingPhone: !!scenario && !st,
+        waitingPhone: mine && !st,
         index: st?.index ?? null, finished: st?.finished ?? false, startedAt: st?.startedAt ?? null,
         precheck,
         rows: scenarioDef.map((d, i) => ({
@@ -393,7 +408,7 @@ router.get("/scenario", (_req, res) => {
     });
 });
 
-router.post("/scenario/start", (_req, res) => {
+router.post("/scenario/start", (req, res) => {
     if (!isDevBuild()) return res.status(404).json({ error: "not found" });
     const userIds = humanUserIds();
     if (userIds.length !== 1) return res.status(400).json({ ok: false, error: userIds.length ? "세션이 여럿입니다" : "접속한 세션이 없습니다" });
@@ -404,9 +419,10 @@ router.post("/scenario/start", (_req, res) => {
     stopScenario();
     /* 🧹 이전 콜 리셋 — 서버 대기열을 비우고 회차를 올린다. 시뮬레이터는 목록을, 폰은 본 콜 기억을 이 번호로 비운다 */
     const round = resetSimCalls(simCalls);
-    scenario = { userId: userIds[0], round, state: null, timer: setInterval(tickScenario, SCENARIO_TICK_MS) };
+    const key = scenarioKeyOf(req.body?.key);
+    scenario = { key, userId: userIds[0], round, state: null, timer: setInterval(tickScenario, SCENARIO_TICK_MS) };
     scenario.timer.unref?.();
-    console.log(`🎬 [시나리오] 시작 — 이천 왕복 하루 (${scenarioDef.length}줄) · 이전 콜 리셋 회차 ${round} · 폰이 받기를 기다린다`);
+    console.log(`🎬 [시나리오] 시작 — ${SCENARIOS[key].name} (${SCENARIOS[key].rows.length}줄) · 이전 콜 리셋 회차 ${round} · 폰이 받기를 기다린다`);
     tickScenario();
     return res.json({ ok: true });
 });
@@ -415,6 +431,7 @@ router.post("/scenario/skip", (_req, res) => {
     if (!isDevBuild()) return res.status(404).json({ error: "not found" });
     if (!scenario) return res.status(409).json({ ok: false, error: "시나리오가 안 돌고 있다" });
     if (!scenario.state) return res.status(409).json({ ok: false, error: "폰이 기억을 비우기를 기다리는 중이다 — 폰 화면이 한 번 바뀌면 시작한다" });
+    const scenarioDef = SCENARIOS[scenario.key].rows;
     const id = scenarioDef[scenario.state.index]?.id;
     scenario.state = skipScenarioRow(scenarioDef, scenario.state, Date.now());
     console.log(`🎬 [시나리오] ${id} 건너뜀`);
