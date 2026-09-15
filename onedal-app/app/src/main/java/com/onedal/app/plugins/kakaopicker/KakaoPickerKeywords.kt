@@ -103,6 +103,33 @@ object KakaoPickerKeywords {
     )
 
     /**
+     * 🚚 **퀵 흰 페이지 표식** — 실물 17-1 · 17-2 · 22-1 (퀵은 도보의 지도 위 시트와 페이지가 다르다).
+     *
+     * 🟢 실물 A24 로그(`log/1dal-주행로그-20260913/폰로그/A24_logcat_전체_1000-1210.log` 11:55:15 · 11:56:32)에서 원달앱이 실제로 읽은 글자다.
+     * 🔴 **머리 글자(«지금 바로 출발해 주세요» · «픽업이 지연되고 있어요» · «배송 출발해주세요»)는 원달앱이 못 읽는다** —
+     *    20초 동안 여러 번 읽었는데 한 번도 없었다. 그래서 표식은 버튼 이름과 가려진 칸 이름이다.
+     * ⚠️ «픽업지 정보» · «도착지 정보»까지 넣는 까닭 — 스크롤된 화면(11:55:15)에는 복사 · 전화 이름이 없고 «도착지 정보»만 있었다.
+     *    표식만으로는 정하지 않는다 — 아래 버튼 글자가 함께 보여야 한다 (수락 전 상세에도 가려진 칸 이름이 있을 수 있다).
+     */
+    val QUICK_PAGE_MARKERS: List<String> = listOf(
+        "픽업지 정보", "도착지 정보",
+        "픽업지 주소 복사하기", "픽업지에 전화하기", "도착지 주소 복사하기", "도착지에 전화하기",
+    )
+
+    /**
+     * 🚚 **퀵 페이지 안의 차례는 바닥 버튼 하나가 답이다** — 한 페이지에서 버튼만 바뀐다 (기사님 확인 · 실물 17-1 → 17-2 · 22-1 두 장).
+     * 출발하기 = 이동(TO) · 완료하기 = 완료 대기(AT) — 도보가 «밀어서 픽업 완료»가 보이는 화면을 AT 로 보는 것과 같은 규칙이라,
+     * 퀵 버튼 네 번이 «픽업 이동 → 픽업 도착 → 배송 이동 → 배송 도착» 순서로 찍힌다.
+     * ⚠️ 실물 로그로 본 것은 «픽업 출발하기» 하나다 — 나머지 셋은 사진 글자다 (운행 기록 `PickerTrace` 로 확인한다).
+     */
+    val QUICK_STAGE_BUTTONS: List<Pair<Stage, String>> = listOf(
+        Stage.AT_DROPOFF to "배송 완료하기",   // 22-1 출발 뒤
+        Stage.TO_DROPOFF to "배송 출발하기",   // 22-1 출발 전
+        Stage.AT_PICKUP  to "픽업 완료하기",   // 17-2
+        Stage.TO_PICKUP  to "픽업 출발하기",   // 17-1 🟢 실물 로그
+    )
+
+    /**
      * 🚚 **이 화면은 운행의 어느 단계인가** — 아니면 `null`(아직 수락 전이거나 딴 화면).
      *
      * 🔴 「수락하기」가 아직 보이면 **무조건 `null`** 이다 (2026-09-02 실사고).
@@ -115,6 +142,10 @@ object KakaoPickerKeywords {
     fun stageOf(rawText: String?): Stage? {
         val t = rawText ?: return null
         if (t.contains("수락하기")) return null          // 아직 계약 전이다
+        // 🚚 퀵 흰 페이지 — 표식 + 바닥 버튼 두 겹 (버튼 글자만으로는 정하지 않는다: 문자 전송 화면에도 «배송 완료»가 있다)
+        if (QUICK_PAGE_MARKERS.any { t.contains(it) }) {
+            QUICK_STAGE_BUTTONS.firstOrNull { (_, button) -> t.contains(button) }?.let { return it.first }
+        }
         return STAGE_WORDS.firstOrNull { (_, words) -> words.any { t.contains(it) } }?.first
     }
 
@@ -189,7 +220,8 @@ object KakaoPickerKeywords {
 
     /** 🔴 원천은 `STAGE_WORDS` 하나다 — 손으로 또 적으면 두 벌이 된다 (규칙 ③) */
     val ACCEPTED_SCREEN_WORDS: List<String> =
-        STAGE_WORDS.filter { it.first in ACCEPTED_STAGES }.flatMap { it.second }
+        STAGE_WORDS.filter { it.first in ACCEPTED_STAGES }.flatMap { it.second } +
+            QUICK_STAGE_BUTTONS.filter { it.first in ACCEPTED_STAGES }.map { it.second }
 
     // ══════════════════════════════════════════════════════════════
     //  화면 판별 사전
@@ -264,5 +296,6 @@ object KakaoPickerKeywords {
      */
     /* 픽커는 리스트·상세 말고도 홈·수락 뒤 단계마다 글자가 따로 있다 — `STAGE_WORDS` 는 «그중 하나라도»라서 낱말 하나가 한 묶음이다 */
     val NETWORK_MARKERS: List<List<String>> =
-        listOf(PICKER.listRequired, PICKER.detailKeywords) + STAGE_WORDS.flatMap { (_, words) -> words.map { listOf(it) } }
+        listOf(PICKER.listRequired, PICKER.detailKeywords) + STAGE_WORDS.flatMap { (_, words) -> words.map { listOf(it) } } +
+            QUICK_PAGE_MARKERS.map { listOf(it) }   // 퀵 흰 페이지도 픽커 화면이다 — 머리 글자를 못 읽어 단계 글자로는 안 잡힌다
 }

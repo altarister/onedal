@@ -37,9 +37,18 @@ const STAGE_WORDS: Record<string, string[]> = {
     TO_DROPOFF: ['배송 시간', '물품 파손'],
     TO_PICKUP: ['픽업 준비', '픽업지 근처에'],
 };
-/** 원달앱 `stageOf` 와 같은 순서로 — 먼저 걸리는 단계가 답 · «수락하기»가 보이면 수락 전 */
+/** 🔴 원달앱 `KakaoPickerKeywords.QUICK_PAGE_MARKERS` · `QUICK_STAGE_BUTTONS` 와 같은 글자 — 퀵 흰 페이지는 표식 + 바닥 버튼 두 겹으로 가른다 */
+const QUICK_PAGE_MARKERS = ['픽업지 정보', '도착지 정보', '픽업지 주소 복사하기', '픽업지에 전화하기', '도착지 주소 복사하기', '도착지에 전화하기'];
+const QUICK_STAGE_BUTTONS: [string, string][] = [
+    ['AT_DROPOFF', '배송 완료하기'], ['TO_DROPOFF', '배송 출발하기'], ['AT_PICKUP', '픽업 완료하기'], ['TO_PICKUP', '픽업 출발하기'],
+];
+/** 원달앱 `stageOf` 와 같은 순서로 — «수락하기»가 보이면 수락 전 · 퀵 페이지면 버튼 · 아니면 먼저 걸리는 단계가 답 */
 const stageOf = (text: string): string | null => {
     if (text.includes('수락하기')) return null;
+    if (QUICK_PAGE_MARKERS.some(m => text.includes(m))) {
+        const hit = QUICK_STAGE_BUTTONS.find(([, button]) => text.includes(button));
+        if (hit) return hit[0];
+    }
     for (const [stage, words] of Object.entries(STAGE_WORDS)) if (words.some(w => text.includes(w))) return stage;
     return null;
 };
@@ -252,6 +261,17 @@ describe('픽업 이동 · 배송 중 — 지도 위 시트 (실물 16~18 · 21~
 });
 
 describe('퀵 — 도보와 다른 페이지 (실물 17-1 · 17-2)', () => {
+    it('🔴 원달앱이 퀵 버튼 네 번을 단계 순서대로 읽는다 — 픽업 이동 → 픽업 도착 → 배송 이동 → 배송 도착 (출발하기 = 이동 · 완료하기 = 완료 대기)', () => {
+        mount(<PickerOngoingScreen call={pickerA} initialStep="DEPART" onBack={() => {}} onFinish={() => {}} />);
+        expect(stageOf(text())).toBe('TO_PICKUP');
+        click('픽업 출발하기');
+        expect(stageOf(text())).toBe('AT_PICKUP');
+        click('픽업 완료하기');
+        expect(stageOf(text())).toBe('TO_DROPOFF');
+        click('배송 출발하기');
+        expect(stageOf(text())).toBe('AT_DROPOFF');
+    });
+
     it('🔴 퀵 콜은 흰 «픽업 출발» 페이지부터 — 지도·시트·«밀어서»가 없고 바닥에 «길안내 / 픽업 출발하기» (실물 17-1)', () => {
         mount(<PickerOngoingScreen call={pickerA} initialStep="DEPART" onBack={() => {}} onFinish={() => {}} />);
         expect(host!.querySelector('[data-map]')).toBeNull();
