@@ -38,10 +38,16 @@ describe('반경 자동 맞춤 — 서버 (C4-12)', () => {
      * 관내 판단도 안 켜져 도착지 목록이 1곳이 됐다. 기사님: *"그럼 나중에 관내콜을 할 수가 없다."*
      */
     it('🔴 들고 있는 거리를 먼저 쓰고, 없을 때만 «내 위치 → 목적지»로 잰다', () => {
+        /* 🔄 2026-09-15 (#149) — 재는 자리를 `holdRadiusDistance` 한 곳으로 모았다. 상차 목록 · 하차 목록이 반경을 쓰기 전에 부른다 */
+        const h = fm.indexOf('function holdRadiusDistance(');
+        expect(h).toBeGreaterThan(-1);
+        const helper = fm.slice(h, fm.indexOf('\n}', h));
+        expect(helper).toMatch(/heldRadiusDistanceKm\(\s*session\.activeFilter\.radiusDistanceKm/);
+        /* 내 위치 → 목적지로 잰다 — 마지막 하차지(라인 끝)로 재지 않는다. 합짐이면 목적지 근처에서 반경이 사라진다 */
+        expect(helper).toMatch(/haversineKm\(me\.y, me\.x, goal\.lat, goal\.lng\)/);
         const i = fm.indexOf('autoRadii(');
         const around = fm.slice(Math.max(0, i - 900), i + 200);
-        expect(around).toMatch(/heldRadiusDistanceKm\(\s*session\.activeFilter\.radiusDistanceKm/);
-        /* 마지막 하차지(라인 끝)로 거리를 재지 않는다 — 합짐이면 목적지 근처에서 반경이 사라진다 */
+        expect(around).toMatch(/holdRadiusDistance\(session, city, me\)/);
         expect(around).not.toMatch(/quadStart/);
     });
 

@@ -133,6 +133,23 @@ export function homeCallsOf<T extends { status?: string; capturedAt?: string; go
  *    **폴리곤 모양**으로 봤다. 면적이 넓은 읍·면은 가장자리가 걸쳐도 중심이 밖이면 빠진다
  *    (인천 조건 실측 45개 · 그중 30개가 읍·면). 차이는 `pnpm net:compare` 로 잰다.
  */
+/**
+ * 📏 **자동 반경이 쓸 «잰 거리»를 들고 있게 한다 — 한 곳** (필터.md §10-1 ③ «하루에 한 번 잰다» · #149).
+ *    들고 있으면 그대로, 비어 있으면 «내 위치 → 목적지»로 재서 싣는다(`radiusDistanceKm`).
+ *    🔴 상차 목록(`rebuildPickupList`)과 하차 목록(`netKeywordsOf`)이 **반경을 쓰기 전에** 부른다 —
+ *    예전엔 하차 목록만 재서, 재시작 직후 먼저 만든 상차 목록이 안 줄인 반경(10km)으로 만들어졌다 (2026-09-15 목현동).
+ *    목적지 좌표를 모르면 재지 않는다 (규칙 ④).
+ */
+function holdRadiusDistance(session: ReturnType<typeof getUserSession>, city: string, me: { x: number; y: number } | null): number | undefined {
+    let goal: { lng: number; lat: number } | null = null;
+    try { goal = cityCenter(city); } catch { goal = null; }
+    const measured = me && goal && Number.isFinite(goal.lng) && Number.isFinite(goal.lat)
+        ? haversineKm(me.y, me.x, goal.lat, goal.lng) : null;
+    const distanceKm = heldRadiusDistanceKm(session.activeFilter.radiusDistanceKm, measured);
+    session.activeFilter.radiusDistanceKm = distanceKm;
+    return distanceKm;
+}
+
 function netKeywordsOf(
     session: ReturnType<typeof getUserSession>,
     userId: string,
@@ -180,8 +197,7 @@ function netKeywordsOf(
        «마지막 하차지 → 목적지»로 매번 다시 재서 이천 중리동(1.2km)에서 목적 원이 0.3km 가 됐다
        — 관내콜도 가는 길의 좋은 콜도 못 받는다. 비우는 곳: 다시 구하기(`null`) · 목적지 변경
        (`updateActiveFilter`) · 영업일 전환(`resetToBaseFilter`). */
-    const distanceKm = heldRadiusDistanceKm(session.activeFilter.radiusDistanceKm,
-        me ? haversineKm(me.y, me.x, goal.lat, goal.lng) : null);
+    const distanceKm = holdRadiusDistance(session, city, me);
     const auto = session.activeFilter.radiusAuto
         ? autoRadii(distanceKm, {
             pickupRadiusKm: session.activeFilter.pickupRadiusKm ?? 10,
@@ -201,8 +217,7 @@ function netKeywordsOf(
      *    🔴 기사님이 정한 원값(`pickupRadiusKm` 등)은 **안 건드린다** (규칙 ④) —
      *       배율만 따로 실어 보내고 곱하는 것은 화면이 한다.
      */
-    /* 배율이 아니라 **거리**를 싣는다 — 셈은 `effectiveRadii` 한 곳 (전수 조사 2단계). 자동·수동 무관 */
-    session.activeFilter.radiusDistanceKm = Number.isFinite(distanceKm as number) ? (distanceKm as number) : undefined;
+    /* 배율이 아니라 **거리**를 싣는다 — 셈은 `effectiveRadii` 한 곳 (전수 조사 2단계). 잰 거리는 위 `holdRadiusDistance` 가 이미 실었다 */
     /**
      * 🎯 **목적지 가까이 옴 → 그 목적지 원에 걸친 동 전체** (기사님 확정 2026-09-15 · 필터.md «하차 영역»).
      *    관내를 따로 재지 않는다 — «가까이 옴»(`withNearness`)이 갈랐다. 상차 목록 동도 안 뺀다 (`mergeDropoffGroups`).
@@ -987,6 +1002,9 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const me = originOf(session as Parameters<typeof originOf>[0]);
     if (!me) return false;
     const f = session.activeFilter;
+    /* 📏 반경을 먼저 잰다 — 재시작 직후 «잰 거리»가 비어 자동 반경이 안 줄고 원값으로 목록을 만들었다 (#149 · 목현동). 하차 목록과 같은 첫 목적지 */
+    const firstGoal = goalZonesNow(session, userId, null).zones[0]?.city;
+    if (firstGoal) holdRadiusDistance(session, firstGoal, me);
     const eff = effectiveRadii(f);
     const line = f.routeMode === false ? null : filterLineOf(session);
     const { zones, homeOn, homeCity, homeCaught } = goalZonesNow(session, userId, me);

@@ -1,6 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { initGeoService, pickupListFor } from '../../src/services/geoService';
+import { getUserSession } from '../../src/state/userSessionStore';
+import { rebuildPickupList } from '../../src/state/filterManager';
 import { APP_FILTER_KEYS, callFilterBlocker, type GoalZone } from '@onedal/shared';
 
 /**
@@ -81,6 +83,42 @@ describe('상차 목록 — 실제 지도', () => {
     it('🔴 읍·면·동 이름만 싣는다', () => {
         const r = pickupListFor({ radii, me: MODA, line: null, zones: [dest('idle')] });
         expect(r.list.filter(n => /(시|구|군)$/.test(n))).toEqual([]);
+    });
+});
+
+/**
+ * 📏 **#149 — 서버를 다시 켠 직후 상차 목록이 자동 반경을 안 줄이고 원값(10km)으로 만들어졌다** (기사님 2026-09-15 «목현동으로 다시 봐줘» · «1»).
+ *
+ * 17:56:37 재시작 — `📋 [상차 목록] … 내 위치 10.0km(집 주소로 대신) → 29곳`. 자동 반경이 쓸 «잰 거리»(`radiusDistanceKm`)는
+ * 하차 목록(`netKeywordsOf`)이 **뒤에서** 재 넣었고(18.2km → 4.6km), 지도는 4.6km 원을 그렸다. 상차 목록은 0.5km 움직일 때까지 10km 그대로 —
+ * 집(광주 초월)에서 **북서 7.4km** 목현동이 목록에 들어 지도 원 밖에 초록 점이 찍혔다. 규칙대로면 안 든다.
+ */
+describe('📏 상차 목록은 자동 반경을 먼저 잰다 (#149)', () => {
+    it('🔴 잰 거리가 비어 있어도(재시작 직후) 먼저 재고 줄인 반경으로 만든다 — 목현동은 안 든다', () => {
+        const U = 'test-pickup-radius-first';
+        const HOME = { x: 127.29444030053442, y: 37.376686997522675 };   // 광주 초월 (그날 집 주소)
+        const s = getUserSession(U);
+        Object.assign(s.activeFilter, {
+            destinationCity: '이천시', callTarget: 'DEST', routeMode: true,
+            radiusAuto: true, radiusBaseKm: 40, radiusDistanceKm: undefined,
+            pickupRadiusKm: 10, destinationRadiusKm: 10, quadRadiusKm: 35, detourRadiusKm: 6, srcAngleDeg: 120, dstAngleDeg: 120,
+        });
+        Object.assign(s, { lastFix: HOME, lastFixAt: Date.now(), lastFixSource: 'gps', lastFixIsMock: false });
+        rebuildPickupList(s, U);
+        expect(s.activeFilter.radiusDistanceKm).toBeGreaterThan(17);
+        expect(s.activeFilter.radiusDistanceKm).toBeLessThan(20);
+        expect(s.activeFilter.pickupKeywords ?? []).not.toContain('목현동');
+        expect(s.activeFilter.pickupKeywords ?? []).toContain('초월읍');
+    });
+    it('🔴 거리를 재는 자리는 한 곳 — 상차 목록 · 하차 목록이 반경을 쓰기 전에 부른다', () => {
+        const fm = readFileSync(join(__dirname, '../../src/state/filterManager.ts'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        expect((fm.match(/heldRadiusDistanceKm\(/g) || []).length).toBe(1);
+        const pick = fm.slice(fm.indexOf('export function rebuildPickupList('));
+        const body = pick.slice(0, pick.indexOf('\n}'));
+        expect(body.indexOf('holdRadiusDistance(')).toBeGreaterThan(-1);
+        expect(body.indexOf('holdRadiusDistance(')).toBeLessThan(body.indexOf('effectiveRadii('));
+        const net = fm.slice(fm.indexOf('function netKeywordsOf('));
+        expect(net.slice(0, net.indexOf('autoRadii('))).toMatch(/holdRadiusDistance\(session, city, me\)/);
     });
 });
 
