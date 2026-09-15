@@ -111,8 +111,12 @@ export interface ScenarioState {
 
 /** 줄이 끝난 뒤 채점까지 기다리는 시간 — 서버가 목록을 다시 만드는 틈 */
 export const SETTLE_MS = 3000;
-/** 🟢·🟡 줄이 이만큼 안 올라오면 🔴 로 알린다 (끝내지는 않는다 — 건너뛰기는 기사님이) */
-export const NO_SHOW_MS = 45_000;
+/**
+ * 🟢·🟡 줄이 이만큼 안 올라오면 🔴 로 알린다 (끝내지는 않는다 — 건너뛰기는 기사님이).
+ * ⏱️ 75초 = 원달앱 하트비트(60초) + 여유 15초 (2026-09-15 여섯 번째 바퀴 · onedal-49 합의) — 폰이 새 필터를 받는 가장 긴 간격이
+ *    하트비트라, 옛 값(45초)이면 B3 처럼 재판정이 63초에 통과해 올라와도 채점이 먼저 끝났다. 모의 주행 속도와는 상관없다.
+ */
+export const NO_SHOW_MS = 75_000;
 /** ⚪ 줄에 폰 판정이 이만큼 없으면 ❔ 로 알린다 */
 export const NO_VERDICT_MS = 30_000;
 /** ⚪ 줄이 `pass` 인데 콜이 안 오면 이만큼 뒤 🔴 로 끝 (폰이 수동 모드면 안 잡는다) */
@@ -223,9 +227,9 @@ function judgeSent(row: ScenarioRow, rs: RowState, w: ScenarioWorld, claimed: Se
         if (blockedByPhone) {
             if (waited < NO_SHOW_MS) return { ...next, mark: 'sent', note: `⏳ 폰이 막았다(${intel!.verdict}) — 새 필터로 다시 판정하기를 기다린다` };
             const blocks = w.intel.filter(r => r.id > (rs.intelAfter ?? 0) && sameCall(r, call) && !!r.verdict && r.verdict !== 'pass' && r.verdict !== 'locked').length;
-            return finish(next, 'bad', blocks >= 2 ? '🔴 폰이 막았다 — 재판정도 막힘' : '🔴 폰이 막았다 — 재판정 없음(45초)', w.now);
+            return finish(next, 'bad', blocks >= 2 ? '🔴 폰이 막았다 — 재판정도 막힘' : `🔴 폰이 막았다 — 재판정 없음(${NO_SHOW_MS / 1000}초)`, w.now);
         }
-        if (waited >= NO_SHOW_MS) return { ...next, mark: 'bad', note: '🔴 45초 동안 안 올라왔다 — 시뮬레이터가 «🚚 개별콜» 탭인가 · [건너뛰기]' };
+        if (waited >= NO_SHOW_MS) return { ...next, mark: 'bad', note: `🔴 ${NO_SHOW_MS / 1000}초 동안 안 올라왔다 — 시뮬레이터가 «🚚 개별콜» 탭인가 · [건너뛰기]` };
         return { ...next, mark: 'sent', note: `⏳ 폰이 읽는 중 — 올라오면 ${want}` };
     }
 

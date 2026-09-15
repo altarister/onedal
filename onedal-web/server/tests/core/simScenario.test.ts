@@ -1,4 +1,4 @@
-import { startScenario, stepScenario, skipScenarioRow } from '../../src/core/simScenario';
+import { startScenario, stepScenario, skipScenarioRow, NO_SHOW_MS } from '../../src/core/simScenario';
 import type { ScenarioState, ScenarioWorld, WorldOrder } from '../../src/core/simScenario';
 import { ICHEON_ROUND_TRIP } from '../../src/core/simScenarioIcheon';
 
@@ -162,22 +162,24 @@ describe('🎬 이천 왕복 — 사건순', () => {
             orders: [orderFor('C3', 'o-c3', 'ORDER_CONFIRMED')] })).state;
         expect(st.rows[c3].mark).toBe('ok');
 
-        const once = run(sent(), baseWorld(T0 + 50_000, { intel: [intelFor('C3', 11, 'pickupList')] })).state;
+        const once = run(sent(), baseWorld(T0 + NO_SHOW_MS + 5_000, { intel: [intelFor('C3', 11, 'pickupList')] })).state;
         expect(once.rows[c3].mark).toBe('bad');
         expect(once.rows[c3].note).toMatch(/재판정 없음/);
-        const twice = run(sent(), baseWorld(T0 + 50_000, { intel: [intelFor('C3', 11, 'pickupList'), intelFor('C3', 12, 'pickupList')] })).state;
+        const twice = run(sent(), baseWorld(T0 + NO_SHOW_MS + 5_000, { intel: [intelFor('C3', 11, 'pickupList'), intelFor('C3', 12, 'pickupList')] })).state;
         expect(twice.rows[c3].note).toMatch(/재판정도 막힘/);
     });
 
-    it('45초 동안 안 올라오면 🔴 로 알리고 기다린다 · 건너뛰면 다음 줄', () => {
+    it('NO_SHOW_MS(75초) 동안 안 올라오면 🔴 로 알리고 기다린다 · 건너뛰면 다음 줄', () => {
         let st = startScenario(def, T0);
         const a2 = idx('A2');
         st = { ...st, index: a2, rows: st.rows.map((x, i) => i < a2 ? { ...x, mark: 'ok' } : x) };
         st = run(st, baseWorld(T0)).state;
-        st = run(st, baseWorld(T0 + 46_000)).state;
+        st = run(st, baseWorld(T0 + 63_000)).state;
+        expect(st.rows[a2].mark).not.toBe('bad');   // 🔴 하트비트(60초)를 넘겨 올라오는 콜은 🔴 가 아니다 (여섯 번째 바퀴 B3 63초)
+        st = run(st, baseWorld(T0 + NO_SHOW_MS + 1_000)).state;
         expect(st.rows[a2].mark).toBe('bad');
         expect(st.index).toBe(a2);
-        st = skipScenarioRow(def, st, T0 + 47_000);
+        st = skipScenarioRow(def, st, T0 + NO_SHOW_MS + 2_000);
         expect(st.rows[a2].mark).toBe('skip');
         expect(st.index).toBe(a2 + 1);
     });
