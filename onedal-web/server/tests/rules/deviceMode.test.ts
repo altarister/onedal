@@ -365,4 +365,14 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
         expect(fn).toMatch(/NotificationType\.Warning|NotificationType\.Error/);
         expect(fn).not.toMatch(/callAudio|loop/);
     });
+
+    /** 🎨 폰 모드 색은 원달앱 테두리와 같다 — 알람 녹색 · 자동 파랑 · 직접 주황. 두 자리가 따로 적으면 한쪽만 바뀐다 */
+    it('🔴 모드 색 — 알람 success · 자동 info · 직접 warning, 버튼과 고르기 목록이 한 표(MODE_TONE)를 쓴다', () => {
+        const c = codeOnly(web('components/dashboard/DeviceControlPanel.tsx'));
+        expect(c).toMatch(/ALARM:\s*'[^']*\bsuccess\b/);
+        expect(c).toMatch(/AUTO:\s*'[^']*\binfo\b/);
+        expect(c).toMatch(/MANUAL:\s*'[^']*\bwarning\b/);
+        expect((c.match(/MODE_TONE\[/g) ?? []).length).toBeGreaterThanOrEqual(2);
+        expect(c).not.toMatch(/mode === 'AUTO' \? 'bg-success/);
+    });
 });

@@ -13,6 +13,16 @@ import type { AutoDispatchFilter } from "@onedal/shared";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
+/**
+ * 🎨 **폰 모드 색 — 원달앱이 폰 화면에 두르는 테두리와 같다**: 알람 녹색 · 자동 파랑 · 직접 주황.
+ * 버튼과 고르기 목록이 이 표 하나를 쓴다 — 따로 적으면 한쪽만 바뀐다.
+ */
+const MODE_TONE: Record<DeviceModeType, string> = {
+    ALARM: 'bg-success/20 text-success border-success/40',
+    AUTO: 'bg-info/20 text-info border-info/40',
+    MANUAL: 'bg-warning/20 text-warning border-warning/40',
+};
+
 const EMERGENCY_LABELS: Record<string, string> = {
     AUTO_CANCEL: "⏱️ 자동취소 실행됨",
     CANCEL_EXPIRED: "🔴 취소 불가 팝업! 배차실 직접 취소 요망!",
@@ -286,9 +296,7 @@ function DeviceRow({
                         onClick={() => setModeOpen(v => !v)}
                         className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border transition-opacity ${
                             applying ? 'opacity-40' : ''
-                        } ${device.mode === 'AUTO' ? 'bg-success/20 text-success border-success/40'
-                            : device.mode === 'ALARM' ? 'bg-info/20 text-info border-info/40'
-                            : 'bg-warning/20 text-warning border-warning/40'}`}>
+                        } ${MODE_TONE[device.mode]}`}>
                         {DEVICE_MODE_LABEL[device.mode]}
                     </button>
                     {applying && (
@@ -303,10 +311,7 @@ function DeviceRow({
                             {[...DEVICE_MODES.filter(m => m !== device.mode), device.mode].map(m => (
                                 <button key={m} type="button"
                                     onClick={() => { setModeOpen(false); onModeChange(device.deviceId, m); }}
-                                    className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border whitespace-nowrap ${
-                                        m === device.mode
-                                            ? 'bg-warning/15 border-warning/45 text-warning'
-                                            : 'bg-surface-alt/40 border-border-card text-text-primary hover:border-warning/45'}`}>
+                                    className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border whitespace-nowrap ${MODE_TONE[m]}`}>
                                     {DEVICE_MODE_LABEL[m]}
                                 </button>
                             ))}
