@@ -267,25 +267,24 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     );
   }
 
-  // 🧹 준비 화면 — 목록 글자(배차망 표시·«대기 중인 오더가 없» 등)를 한 자도 안 둔다. 두면 폰이 목록으로 읽어 종류가 안 바뀐다
-  if (roundCurtain) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-white text-lg font-bold text-gray-700">
-        🧹 새 회차 준비 중
-      </div>
-    );
-  }
-
   // ── 배차망 화면 — 리스트·상세·수락 뒤를 무엇으로 그릴지는 배차망이 정한다 (nets.ts · 0단계 0-2 ⑤) ──
   const Screen = simNet.Screen;
   return (
     <>
+    {/* 🧹 준비 화면 — 배차망 화면은 **내리지 않고 감춘다**(아래 겉싸개). 내리면 픽커의 «시작 → 목록» 같은 화면 상태가 홈으로 돌아간다.
+        감춘 화면은 폰 접근성에서도 빠져 목록 글자가 안 읽히니, 폰은 화면 종류가 바뀐 것으로 본다 */}
+    {roundCurtain && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white text-lg font-bold text-gray-700">
+        🧹 새 회차 준비 중
+      </div>
+    )}
     {/* ⚠️ 끝내 위치를 못 받아 기본 자리로 시작했다 — 상차 거리가 틀린 채 채점이 흐르지 않게 화면이 말한다 */}
     {locationFallback && (
       <div className="fixed top-0 inset-x-0 z-50 bg-amber-100 border-b border-amber-300 px-3 py-1 text-center text-xs font-bold text-amber-800">
         📍 기사님 위치를 못 받아 기본 자리({driverLocation.name})로 시작했습니다 — 상차 거리가 틀릴 수 있습니다
       </div>
     )}
+    <div className="contents" style={{ visibility: roundCurtain ? 'hidden' : 'visible' }}>
     <Screen
       streamingCalls={streamingCalls}
       confirmedCalls={confirmedCalls}
@@ -304,6 +303,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
       maxPickupKm={simConfig.maxPickupKm}
       goSetup={() => navigate('/')}
     />
+    </div>
     </>
   );
 }
