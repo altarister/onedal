@@ -32,7 +32,13 @@ interface BoardProps {
   myOrders?: PickerCall[];
   /** 잡은 콜이 지금 어느 단계인가 — 카드 머리가 «픽업 준비» · «배송 시간»으로 갈린다 (배차 화면이 콜마다 기억한다) */
   stepOf?: (callId: string) => PickerOngoingStep | undefined;
+  /** 신규 탭 카드 — 수락 전 상세로 (오래 떠 있던 콜은 남이 가져갔다 — 부르는 쪽이 가린다) */
   onCallClick: (call: PickerCall) => void;
+  /**
+   * «내 오더» 탭 카드 — **인성 리스트의 «완료» 탭과 같다**: 내가 수락한 콜이라 누르면 그 콜의 운행(픽업 이동)이 바로 열린다.
+   * 🔴 신규 카드 누르기(`onCallClick`)를 같이 쓰지 않는다 — «남이 가져갔다» 토스트가 내 콜을 막는다. 안 주면 `onCallClick`.
+   */
+  onMyOrderClick?: (call: PickerCall) => void;
   onMenuClick: () => void;
 }
 
@@ -142,7 +148,7 @@ const MyOrderRow = ({ call, step, onClick }: { call: PickerCall; step?: PickerOn
   );
 };
 
-export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCount, myOrders = [], stepOf, onCallClick, onMenuClick }: BoardProps) => {
+export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCount, myOrders = [], stepOf, onCallClick, onMyOrderClick, onMenuClick }: BoardProps) => {
   // 🔴 «높은 가격순» — 머리줄이 그렇게 적혀 있으니 실제로 그 순서로 늘어놓는다
   const sorted = React.useMemo(() => [...calls].sort((a, b) => b.fare - a.fare), [calls]);
 
@@ -213,7 +219,7 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
       <div ref={listRef} className={`relative flex-1 overflow-y-auto ${mine ? 'bg-[#f2f3f5]' : ''}`}>
         {mine ? (
           <>
-            {myOrders.map(call => <MyOrderRow key={call.id} call={call} step={stepOf?.(call.id)} onClick={onCallClick} />)}
+            {myOrders.map(call => <MyOrderRow key={call.id} call={call} step={stepOf?.(call.id)} onClick={onMyOrderClick ?? onCallClick} />)}
             {/* 실물 15 — 카드 아래 «한차배송 신청내역 보기» (시뮬레이터에서는 아무 일도 안 한다) */}
             <div className="mx-[24px] mt-[14px] h-[48px] rounded bg-white flex items-center justify-center text-[15px] font-bold">한차배송 신청내역 보기</div>
           </>

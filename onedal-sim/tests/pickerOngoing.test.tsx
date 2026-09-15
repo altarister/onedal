@@ -231,6 +231,22 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
         expect(finishCall).toHaveBeenCalledWith(pickerA);
     });
 
+    /**
+     * 🔴 **«내 오더»는 인성 리스트의 «완료» 탭과 같다** (기사님) — 내가 수락한 콜이다. 누르면 그 콜의 운행(픽업 이동)이 열린다.
+     *    신규 리스트의 «오래 떠 있던 콜은 남이 가져갔다»(토스트)를 타면 안 된다 — 이미 내 콜이다.
+     */
+    it('🔴 «내 오더» 카드를 누르면 오래 지나도 그 콜이 열린다 — «이미 배정이 완료된» 토스트가 아니다', () => {
+        const openCall = vi.fn();
+        mount(<PickerSimScreen {...props({ streamingCalls: [pickerA, pickerB], confirmedCalls: [pickerA], activeTab: 'CONFIRMED', openCall })} />);
+        click('시작하기');
+        act(() => { vi.advanceTimersByTime(4 * 60_000); });   // 남이 가져가는 시각(20초~3분)을 넘긴다
+        const card = [...host!.querySelectorAll('div')].find(d => d.children.length === 0 && (d.textContent ?? '').startsWith('픽업 준비'));
+        expect(card, '내 오더 카드가 없다').toBeTruthy();
+        act(() => { card!.click(); });
+        expect(openCall).toHaveBeenCalledWith(pickerA);
+        expect(text()).not.toContain('이미 배정이 완료된');
+    });
+
     it('🔴 «내 오더» 탭 — 실물 15 카드(«픽업 준비 N분 남음» · 픽업 · 배송지) · «리스트 설정»·요금 숫자 모양은 없다 (원달앱이 잡은 콜을 새 콜로 다시 읽지 않게)', () => {
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], activeTab: 'CONFIRMED' })} />);
         click('시작하기');

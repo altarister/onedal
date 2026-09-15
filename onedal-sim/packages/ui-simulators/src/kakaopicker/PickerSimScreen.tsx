@@ -111,6 +111,8 @@ export const PickerSimScreen = (p: NetScreenProps) => {
         myOrders={p.confirmedCalls.filter(isPickerCall)}
         stepOf={id => steps[id]}
         onCallClick={openOrTaken}
+        /* «내 오더» = 인성 «완료» 탭 — 내 콜이라 «남이 가져갔다»를 안 탄다. 바로 열면 운행(오더 전체 · 픽업 이동)이다 */
+        onMyOrderClick={p.openCall}
         onMenuClick={p.goSetup}
       />
       {toastVisible && (
