@@ -236,7 +236,8 @@ export default function StageView(props: Props) {
      * 조각은 shared `dropoffPartsOf` — 콜 없음: 현위치 원 ∪ Q(현위치→목적지) ∪ 목적지 원 · 경로 생김: 현위치 원 ∪ 라인 ∪ Q(종착지→목적지) ∪ 목적지 원
      *    · 운행 뒤: 라인 ∪ Q(종착지→목적지) ∪ 목적지 원. 목적지가 집이어도 같다.
      * 종착지는 경로 순서(`routeStops`)에서 그 목적지 콜의 마지막 하차지(`lastDropOf`) · 라인은 지금 그리는 경로 선을 거기까지 자른 것(`lineUntil`).
-     * 🔴 **지도가 먼저다** — 서버 하차 목록은 아직 옛 그물(`netOfGoals`)이라 그 사이 지도와 원달앱 목록이 다를 수 있다 (todo «필터 영역 개정»).
+     * 🔴 서버 하차 목록(`filterManager.netOfGoals`)도 같은 규칙이다 — 다만 원달앱은 상차 목록 동을 **동 목록**으로 빼고 지도는 **도형**으로 지워,
+     *    경계에 걸친 큰 읍·면에서 조금 다를 수 있다 (알고 둔 차이 · 필터.md «지금 코드와 다른 곳»).
      * 📐 마름모는 계산이 무거워 내 위치를 ~300m 눈금으로 굳혀 다시 만든다 (`useCallNet` 과 같은 방어) — 원 중심은 실시간 위치다.
      */
     const dropoffLine = routeMode ? derived.drawHolder?.routePolyline ?? null : null;

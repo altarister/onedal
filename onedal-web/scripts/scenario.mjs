@@ -175,9 +175,10 @@ function connect(tok) {
     const s = io(`http://localhost:${PORT}`, { auth: { token: tok }, transports: ['websocket'] });
     const st = { filter: null, phases: null, active: [], terminated: [], steps: new Map(),
                  mismatch: [], errors: [], stale: null };
-    s.on('filter-init', d => { st.filter = d.activeFilter; st.phases = d.phaseSettings ?? st.phases; });
+    s.on('filter-init', d => { st.filter = d.activeFilter; st.base = d.baseFilter ?? st.base; st.phases = d.phaseSettings ?? st.phases; });
     s.on('filter-updated', d => {                                   // 🔴 -updated 다. -update 아니다
         st.filter = d.activeFilter ?? d;
+        st.base = d.baseFilter ?? st.base;   // 💾 평소값 — «두 그릇» 검사가 본다
         st.phases = d.phaseSettings ?? st.phases;
     });
     s.on('sync-active-orders', d => { st.active = d.active || []; st.terminated = d.terminated || []; });
@@ -406,38 +407,42 @@ async function run({ main, cod }) {
         check('스와이프가 자동을 이긴다 — 노선으로 복귀', st.filter?.callTarget === 'DEST', '');
     }
 
-    console.log('\n═══ 국면별 필터 설정 ═══');
-    const savePhase = (phase, patch) => s.emit('save-phase-settings', {
-        phase, settings: { ...(st.phases?.[phase] ?? {}), ...patch }, saveAsDefault: false,
-    });
+    /**
+     * 🔄 **국면별 저장 검사 다섯을 걷었다** (2026-09-15 · todo «`pnpm scenario` 9건이 폐기된 규칙을 묻는다»).
+     *
+     *    `save-phase-settings` 통로와 국면 다섯 행은 이식 C3-3b(2026-09-11 `9a2fd77`)에서 걷혔고,
+     *    관내 타겟(`LOCAL`)은 파생이 됐다가 2026-09-15 «목적지 가까이 옴»으로 없어졌다.
+     *    서버가 안 받는 이벤트를 쏘아 다섯이 **늘 빨간불**이었다 — 다른 진짜 빨간불이 묻힐 자리였다.
+     *
+     *    지금 규칙을 묻는다 (client-app CLAUDE.md «두 그릇»):
+     *    🔍 필터에서 손대면 `activeFilter`(오늘만 · 자정에 되돌아감) · 💾 서버 저장(`saveAsDefault`)이면 `baseFilter` 까지.
+     */
+    console.log('\n═══ 필터 두 그릇 — 오늘만 · 💾 서버 저장 ═══');
+    const baseRadius = st.base?.destinationRadiusKm;
+    check('평소값(baseFilter)을 받았다 — 없으면 아래 «그대로다»가 헛돈다', typeof baseRadius === 'number', `평소 하차 반경=${baseRadius}`);
+    const todayRadius = (typeof baseRadius === 'number' ? baseRadius : (st.filter?.destinationRadiusKm ?? 10)) + 3;
 
-    // ① 지금 국면(first)에 저장하면 **바로** 적용된다
-    savePhase('first', { dropoffRadiusKm: 7 });
-    check('첫짐 저장이 지금 국면이라 바로 적용된다',
-        await untilFilter(() => st.filter?.destinationRadiusKm === 7),
+    // ① 오늘만 바꾸면 지금 필터에 바로 적용된다
+    s.emit('update-filter', { destinationRadiusKm: todayRadius });
+    check('🔍 오늘만 바꾸면 지금 필터에 바로 적용된다',
+        await untilFilter(() => st.filter?.destinationRadiusKm === todayRadius),
         `하차 반경=${st.filter?.destinationRadiusKm}`);
-
-    // ② 다른 국면(local)에 저장해도 **지금 콜 잡기는 안 바뀐다**
-    savePhase('local', { dropoffRadiusKm: 0, discountPct: 20 });
-    await wait(500);
-    check('관내 탭에 저장해도 지금(첫짐) 필터는 그대로다',
-        st.filter?.destinationRadiusKm === 7,
-        `하차 반경=${st.filter?.destinationRadiusKm}`);
-    check('저장은 됐다 — 관내 국면 값이 서버에 남는다',
-        st.phases?.local?.dropoffRadiusKm === 0 && st.phases?.local?.discountPct === 20,
-        JSON.stringify(st.phases?.local));
-
-    // ③ 🔴 국면을 바꾸면 **그 국면의 저장값을 꺼내 쓴다** — 이 기능의 핵심
-    s.emit('set-call-target', { phase: 'LOCAL' });
-    check('관내로 바꾸면 관내 저장값이 펼쳐진다',
-        await untilFilter(() => st.filter?.destinationRadiusKm === 0 && st.filter?.callDiscountPct === 20),
-        `하차 반경=${st.filter?.destinationRadiusKm} · 할인=${st.filter?.callDiscountPct}%`);
-
-    // ④ 돌아오면 첫짐 값도 그대로 살아 있다 (덮이지 않았다)
-    s.emit('set-call-target', { phase: 'DEST' });
-    check('첫짐으로 돌아오면 첫짐 저장값이 되살아난다',
-        await untilFilter(() => st.filter?.destinationRadiusKm === 7),
-        `하차 반경=${st.filter?.destinationRadiusKm}`);
+    // ② 평소값은 그대로다 — 자정에 여기로 돌아온다
+    check('🔍 오늘만 바꾸면 평소값(baseFilter)은 그대로다',
+        typeof baseRadius === 'number' && st.base?.destinationRadiusKm === baseRadius,
+        `평소 하차 반경=${st.base?.destinationRadiusKm} (전 ${baseRadius})`);
+    // ③ 💾 서버 저장이면 평소값까지 바뀐다
+    s.emit('update-filter', { destinationRadiusKm: todayRadius, saveAsDefault: true });
+    check('💾 서버 저장이면 평소값(baseFilter)까지 바뀐다',
+        await untilFilter(() => st.base?.destinationRadiusKm === todayRadius),
+        `평소 하차 반경=${st.base?.destinationRadiusKm}`);
+    // ④ 되돌려 둔다 — 뒤 검사가 원래 필터 위에서 돈다
+    if (typeof baseRadius === 'number') {
+        s.emit('update-filter', { destinationRadiusKm: baseRadius, saveAsDefault: true });
+        check('평소값을 되돌렸다 — 뒤 검사는 원래 필터 위에서 돈다',
+            await untilFilter(() => st.base?.destinationRadiusKm === baseRadius && st.filter?.destinationRadiusKm === baseRadius),
+            `하차 반경=${st.filter?.destinationRadiusKm} · 평소=${st.base?.destinationRadiusKm}`);
+    }
 
     // ⑤ 단가표는 할인율에서 파생된다 (§2-1) — 두 곳에서 만들지 않는다
     check('할인율이 바뀌면 차종별 단가표가 따라 바뀐다',
