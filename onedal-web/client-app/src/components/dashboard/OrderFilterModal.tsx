@@ -6,7 +6,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFI
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
-         resolvePhaseKey, reachRadiusKm, effectiveRadii, radiusScaleOf,
+         resolvePhaseKey, effectiveRadii, radiusScaleOf,
          VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
 import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
@@ -15,7 +15,6 @@ import { useCityOptions, resolveCity } from "../../lib/cityOptions";
 
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { useJudgmentStore } from "../../stores/judgmentStore";
 /* 🎛️ 고르기 칸은 목업과 **같은 부품**이다 (이식 C2-2 · 규칙 ③) */
 import { PickLayer } from "../ui/PickLayer";
 import { KnobGrid } from "../ui/KnobGrid";
@@ -53,25 +52,6 @@ const RATE_TABLE_ORDER = ['오토바이', '다마스', '승용차', '라보', '1
  * 🔴 **«지금 무엇을 하나»는 그대로 남는다** — 아래 문구 표들(`SECTION`·`REGION_CARD`…)이
  *    이제 **고르는 탭이 아니라 «지금 국면»**을 따라간다. 값은 한 벌이고 설명만 상황을 말한다.
  */
-
-/** 국면별 강조색 — Tailwind 가 스캔할 수 있게 **완성된 클래스 문자열**로 적는다 */
-const TAB_STYLE: Record<PhaseKey, { box: string; text: string; input: string; chip: string }> = {
-    first: { box: 'border-info-alt/30',   text: 'text-info-alt',   input: 'border-border',           chip: 'bg-info-alt/10 text-info-alt' },
-    merge: { box: 'border-warning/30',    text: 'text-warning',    input: 'border-warning/30',       chip: 'bg-warning/10 text-warning' },
-    drive: { box: 'border-info/30',       text: 'text-info',       input: 'border-info/30',          chip: 'bg-info/10 text-info' },
-    home:  { box: 'border-accent/30',     text: 'text-accent',     input: 'border-accent/30',        chip: 'bg-accent/10 text-accent' },
-};
-
-/**
- * 섹션 제목과 오른쪽 힌트 — **v6 목업 문구 그대로.**
- * 기사님: *"목업에 만들어둔 명칭도 그대로 사용해."*
- */
-const SECTION: Record<PhaseKey, { title: string; hint: string }> = {
-    first: { title: '어디로 갈까',            hint: '빈 차로 첫 짐을 찾을 때' },
-    merge: { title: '얼마나 돌아갈까',        hint: '짐을 싣고 다음 짐을 찾을 때' },
-    drive: { title: '가는 길만',              hint: '우회를 끊는다' },
-    home:  { title: '집 방향',                hint: '최종 하차지 → 집' },
-};
 
 /* 🧾 지역 카드 문구 표(`REGION_CARD`)가 여기 있었다 — 카드를 걷으며 함께 (C4-9) */
 
@@ -116,6 +96,29 @@ const toValues = (f: ValueForm, prev: Record<FlatValueKey, any>): Record<FlatVal
 /* 🔴 순서도 목업 그대로 — 현위 → 목적 → 라인 (`MapMockup.tsx:3229~3232`) */
 const KNOB_FIELDS: FlatValueKey[] = ['pickupRadiusKm', 'destinationRadiusKm', 'detourRadiusKm'];
 
+/** 🧰 **필터 판의 행** — 어디로 · 얼마나 넓게 · 어떤 콜 · 빼는 곳 · 모니터 (기사님 확정 2026-09-15) */
+type RowId = 'where' | 'wide' | 'call' | 'exclude' | 'monitor';
+
+/**
+ * 🧰 **행 하나 — 머리를 누르면 열리고 닫힌다.** 안쪽 상자 없이 구분선만 긋는다 (필터 판이 이미 상자다).
+ *    닫혀 있어도 머리의 요약으로 값이 읽힌다 — 지도를 가리지 않으려고 닫아 두는 것이지 감추는 것이 아니다.
+ */
+function FilterRow({ id, title, summary, open, onToggle, danger = false, children }: {
+    id: RowId; title: string; summary: string; open: boolean; onToggle: (id: RowId) => void; danger?: boolean; children: React.ReactNode;
+}) {
+    return (
+        <div id={id} className="border-b border-border-card last:border-b-0">
+            <button type="button" aria-expanded={open} onClick={() => onToggle(id)}
+                className="w-full min-h-[40px] flex items-center gap-2 px-3 py-2 text-left hover:bg-surface-hover/30">
+                <span className={`shrink-0 text-[12.5px] font-black ${danger ? 'text-danger' : open ? 'text-info' : 'text-text-primary'}`}>{title}</span>
+                <span className="flex-1 min-w-0 truncate text-right text-[11.5px] font-bold text-text-muted tabular-nums">{summary}</span>
+                <span className={`shrink-0 text-[10px] text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            {open && <div className="px-3 pb-3 pt-0.5 space-y-2">{children}</div>}
+        </div>
+    );
+}
+
 interface OrderFilterModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -135,8 +138,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     /** 🛣️ 무대가 «라인으로 쟀나» — ⏳ 경로 대기 문구가 본다 (store · 모르면 null) */
     const netUsedLine = useFilterStore(st => st.netUsedLine);
 
-    // ⏱️ 시간 축 안내의 재료 — 무통보 상차 한계는 판정 기준 탭에 산다 (읽기 공유 · 확정 2)
-    const judgmentCfg = useJudgmentStore(st => st.judgment);
 
     /**
      * 🔴 **값은 한 벌이다** (이식 C3-3a · 기사님 확정 2026-09-11 *"그 기준은 바꿔"*).
@@ -161,6 +162,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      *    이 칸은 저절로 닫힌다 — 그래서 온 화면 덮개가 필요 없다 (`KnobGrid` 주석 참조).
      */
     const [openKnob, setOpenKnob] = useState<string | null>(null);
+    /** 🧰 **열린 행 하나** — 모두 닫힌 채 시작하고 하나만 열린다. 행을 바꾸면 열려 있던 레이어도 닫는다 */
+    const [openRow, setOpenRow] = useState<RowId | null>(null);
+    const toggleRow = (id: RowId) => { setOpenKnob(null); setOpenRow(o => (o === id ? null : id)); };
     /**
      * 🚫 **제외 지역 — 국면 밖 한 벌** (이식 C2-2 · 2026-09-11 · 명세 §3).
      *
@@ -619,672 +623,178 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
               *    탭 다섯이 빠져(C3-3a) 세로가 줄었지만, 지도·시트와 자리를 나눠 쓰므로
               *    **여기서 제 높이를 못 박는다.**
               */}
-            <section className="relative max-h-[70dvh] bg-bg-base border border-border rounded-xl shadow-lg p-4 overflow-hidden flex flex-col gap-3">
+            <section className="relative max-h-[70dvh] bg-bg-base border border-border rounded-xl shadow-lg overflow-hidden flex flex-col">
                 <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-info/10 blur-[100px] rounded-full pointer-events-none" />
                 <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-success/10 blur-[100px] rounded-full pointer-events-none" />
 
                 {/**
-                  * 🔴 **머리줄을 걷었다** (기사님 판단 2026-09-11 — 넷을 짚으시며 *"이것이 필요한건지 판단해"*).
+                  * 🧰 **네 행 · 모두 닫힌 채 시작 · 하나만 열림** (기사님 확정 2026-09-15 · 목업 https://claude.ai/artifact/RfDCyjwqHM2UcoNGaBTwPy).
                   *
-                  *   · «필터 설정»    요약줄을 눌러 연 것이라 **자명하다**
-                  *   · «오늘 콜 잡기» 아래 저장 버튼 둘(서버 저장·되돌리기)이 **더 정확히** 말한다
-                  *   · «합짐 중»      **요약줄이 이미** «합짐 탐색중»이라고 말한다 — 열면 또 적는 중복
-                  *
-                  * 🔴 «지금 무엇을 하나»가 사라진 것이 아니다 — 요약줄이 그 일을 한다.
-                  *    한 화면에 같은 말이 두 번 있으면 **그게 거짓말이 될 자리**를 만든다 (규칙 ③).
-                  *
-                  * 🔴 **✕ 도 걷었다** (기사님 2026-09-12: *"팝업이 아니니 x 버튼은 지워"*).
-                  *    한동안 «바깥 누르기가 없으니 닫는 길은 보여야 한다»는 이유로 남겨 뒀는데,
-                  *    **닫는 길은 이미 있다** — 요약줄이 토글이라 다시 누르면 접힌다
-                  *    (`Dashboard.tsx` `onOpenFilter={() => setIsFilterOpen(o => !o)}`).
-                  *    ✕ 는 «이건 팝업이다»라고 말하는 표시라, 팝업을 걷은 판에서는 거짓말이다.
+                  * 기사님: *"의도가 지도의 영역을 보면서 반경과 등을 수정하고 싶거든 — 높이 사이즈를 줄이고 모두 닫기 모드로 만든
+                  * 높이만 열리도록 하고 하나만 열리게"* · *"필터 박스가 있음으로 내부박스를 따로 만들필요가 없을꺼 같아"*.
+                  * 🔴 판은 **내용만큼만** 선다(`max-h` 는 상한일 뿐) — 닫혀 있으면 행 머리와 저장 줄뿐이라 아래 지도가 보인다.
+                  * 🔴 안쪽 상자를 두르지 않는다 — 행은 구분선 하나로 나눈다. 닫힌 행도 머리의 요약으로 값이 읽힌다.
+                  * 🔴 설명 글(상차 반경은 곧 도달 시간 · 라인반경 뜻 · 국면 문구)은 판에서 뺐다 — 지도가 그 뜻을 그린다.
                   */}
-
-                {/**
-                  * 🛣️ **노선 ↔ 🔷 동선 — 지도에서 이사해 왔다**
-                  *    (기사님 지시 2026-09-11: *"노선 동선 버튼도 지도에서 필터로 이사와야해"*).
-                  *    **목업이 그 자리다** — 필터 맨 위, 목적지 줄 바로 위 (`MapMockup.tsx:3171`).
-                  *
-                  * 🔴 «그물을 어떤 모양으로 볼까»라 **국면(어디로 가나)과 다른 축**이다.
-                  *    노선이면 경로 양옆(라인반경), 동선이면 내 위치 → 목적지 마름모.
-                  * ⚠️ 상태는 부모가 쥔다 — 지도와 **같은 값**을 봐야 한다 (규칙 ③).
-                  */}
-                <div className="grid grid-cols-2 gap-1 relative z-10">
-                    {([[true, '🛣️ 노선', '지금 경로 양옆으로 본다'],
-                       [false, '🔷 동선', '내 위치 → 목적지 마름모로 본다']] as const).map(([on, label, hint]) => (
-                        <button key={label} type="button" onClick={() => setRouteMode(on)} title={hint}
-                            className={`py-2 rounded-lg border text-[12px] font-black transition-all ${routeMode === on
-                                ? (on ? 'border-warning/55 bg-warning/15 text-warning' : 'border-info/55 bg-info/15 text-info')
-                                : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
-                            {label}
-                        </button>
-                    ))}
-                </div>
-
-                {/**
-                  * 🎯 **목적지 설명줄 — 목업 그대로** (`MapMockup.tsx:3104` · 전수 조사 4단계).
-                  *    «어디로 · 지금 무슨 국면 · 노선/동선» 을 한 줄로. 복귀를 켜면 **집 시**가 적힌다
-                  *    (`goalCity` 파생) — 기사님이 정한 목적지 칸은 그대로다.
-                  * ⚠️ 목업의 «마름모 N개»는 실물에 없는 개념(목적지가 하나)이라 **적지 않는다** (규칙 ④).
-                  */}
-                <p className="text-[10.5px] text-text-muted leading-snug px-0.5">
-                    🎯 목적지 <b className="text-text-primary">{filter?.goalCity || filter?.destinationCity || '—'}</b>
-                    {' · '}운행 <b className="text-text-primary">{filter?.dispatchPhase === 'DELIVERING' ? '주행 중' : filter?.dispatchPhase === 'GATHERING' ? '콜 쥠' : '대기'}</b>
-                    {' · '}<b className="text-info">{routeMode ? '🛣️ 노선' : '🔷 동선'}</b>
-                </p>
-                {/**
-                  * ⏳ **이상한 상태 하나만 적는다** (목업 `MapMockup.tsx:3187` · 기사님 2026-09-09
-                  *    *"«콜을 잡으면 그 경로가 라인이 됩니다» 이것도 필요 없어"*): 늘 참인 말은 안 적는다.
-                  *    남긴 하나 — 콜은 잡았는데 경로가 아직 안 와서 마름모인 것. 그건 몰라선 안 된다.
-                  *    «라인으로 쟀나»는 무대만 안다 — store(`netUsedLine`)로 받는다. 모르면(null) 안 띄운다.
-                  */}
-                {routeMode && netUsedLine === false && filter?.isSharedMode && (
-                    <p className="text-[10.5px] text-warning font-bold leading-snug px-0.5">
-                        ⏳ 카카오 경로를 기다립니다 — 올 때까지는 마름모로 봅니다 (직선으로 지어내지 않습니다)
-                    </p>
-                )}
-
-                {/**
-                  * 🔴 **탭 다섯이 있던 자리다** (이식 C3-3a · 기사님 확정 2026-09-11 *"그 기준은 바꿔"*).
-                  *    값이 한 벌이 되었으니 고를 것이 없다. 「지금 무엇을 하나」는 위 제목줄의
-                  *    배지가 말하고, 아래 문구들(무엇을 찾는 중인가 · 요약줄의 «N 읍면동»)이 그것을 따라간다.
-                  */}
-                {/**
-                     * 🔴 `flex-1 min-h-0` — **`min-h-0` 이 없으면 스크롤이 안 걸린다.**
-                     *    flex 자식은 기본이 `min-height:auto` 라 내용보다 작아지지 않는다.
-                     *    그래서 `overflow-y-auto` 가 있어도 넘칠 일이 없어 그냥 자란다.
-                     */}
-                    <div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1 pb-1 custom-scrollbar relative z-10">
-                    {/* 🎨 섹션 사이 8px — 목업 aside 의 `gap-2` (전수 조사 ③). 맨 div 라 다섯 덩이가 붙어 있었다 */}
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar relative z-10">
+                    {/* 🎨 행 사이 8px — 목업 aside 의 gap-2 (조사 ③) */}
                     <div className="space-y-2">
+                    <FilterRow id="where" title="🎯 어디로" open={openRow === 'where'} onToggle={toggleRow}
+                        summary={`${routeMode ? '노선' : '동선'} · ${filter.goalCity || filter.destinationCity || '—'} · 복귀 ${(filter.callTarget ?? 'DEST') === 'HOME' ? '켬' : '끔'}`}>
                         {/**
-                          * 🗂️ **순서는 목업 그대로다** (기사님 지시 2026-09-11:
-                          *    *"디자인은 목업처럼 해주면 되고"* · `MapMockup.tsx:3145~3402`).
+                          * 🛣️ **노선 ↔ 🔷 동선 — 지도에서 이사해 왔다**
+                          *    (기사님 지시 2026-09-11: *"노선 동선 버튼도 지도에서 필터로 이사와야해"*).
+                          *    **목업이 그 자리다** — 필터 맨 위, 목적지 줄 바로 위 (`MapMockup.tsx:3171`).
                           *
-                          *    국면 셋 → 노선/동선 → **목적지 → 그물의 모양 → 반경 → 값 둘 → ⛔ 제외지역**
-                          *
-                          * ⚠️ 전에는 제외 단어·제외 지역이 **맨 위**, 목적지·반경이 **맨 아래**라
-                          *    목업과 거꾸로였다. «어디로 가나»부터 정하고 «무엇을 뺄까»로 끝나는 것이
-                          *    기사님이 실제로 만지시는 순서다.
-                          * 🔴 **적재 패널은 걷었다** (기사님 2026-09-09: *"적재는 상태값이니 필요 없고"*).
-                          *    요약줄이 이미 `📦 90/100` 을 말한다 — 두 번 적을 자리가 아니다.
+                          * 🔴 «그물을 어떤 모양으로 볼까»라 **국면(어디로 가나)과 다른 축**이다.
+                          *    노선이면 경로 양옆(라인반경), 동선이면 내 위치 → 목적지 마름모.
+                          * ⚠️ 상태는 부모가 쥔다 — 지도와 **같은 값**을 봐야 한다 (규칙 ③).
                           */}
-                        {/**
-                          * 🎯 **목적지 — 도를 고르고 시를 고른다** (이식 C4-2 · 2026-09-11).
-                          *
-                          * 기사님 확정 2026-09-09: *"**선택이 어려우니 도를 선택하고 시를
-                          * 선택하게 할까?**"* — 전국 시·군이 든 `<select>` 하나를 폰에서
-                          * 스크롤해 집는 것은 **운전 중에 불가능하다.**
-                          *
-                          * 🔴 **다섯 행 중 첫짐만 이 값을 입력으로 가진다** — 나머지는 서버가
-                          *    경로·GPS·집 주소에서 파생한다. 그래서 여기는 늘 «첫짐의 목적지»다.
-                          *
-                          * 🔴 **목록의 원천은 `cityGroups` 하나다** (서버가 콜을 검색할 수 있는 시).
-                          *    바로 아래 제외 지역이 쓰는 `sidoList()` 는 **지도 데이터(행정동)** 라
-                          *    다른 질문에 답한다 — 섞으면 2026-08-12 사고가 되돌아온다
-                          *    (화면이 `파주` 를 못 찾고 첫 항목 «용인시»를 그렸다).
-                          *
-                          * ⚠️ **↩️ 복귀 칸은 여기 없다.** 기사님은 *"복귀도 목적지와 같은 뎁스"*
-                          *    라고 하셨지만, 목업의 복귀는 «목적지를 하나 더 얹기»(공짜로 되돌림)인 반면
-                          *    실물의 복귀는 **`callTarget` 전환**(명세 §4-2 가 팝업에서 금지 —
-                          *    기사님 *"필터가 쉽게 바뀌면 오작동"*)이거나 **귀가콜 오더 생성**이다.
-                          *    토글로 켰다 끌 물건이 아니라 **따로 선다** (C4-2b).
-                          */}
-                        <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-text-muted pl-1">
-                                {FILTER_FIELDS.find(f => f.path === 'destinationCity')!.label}
-                                {(filter.dispatchPhase ?? 'STANDBY') !== 'STANDBY' && (
-                                    <span className="ml-1 font-normal text-text-muted/70">
-                                        {/* 🔴 «왜 지금 이 칸이 안 쓰이나»를 화면이 말한다.
-                                            복귀처럼 **실제 값이 있으면 그 값**을 보여 준다 (빈 말은 고장으로 보인다) */}
-                                        · 지금은 자동 ({tab === 'home' && homeAddress ? homeAddress : PHASE_AUTO_SOURCE[tab]})
-                                    </span>
-                                )}
-                            </label>
-                            <div className="relative grid grid-cols-3 gap-1">
-                                <PickLayer label="🎯 도" value={dstSido || '— 선택 —'}
-                                    options={cityGroups.map(g => g.sido)}
-                                    open={openKnob === 'dstSido'}
-                                    onToggle={() => setOpenKnob(o => o === 'dstSido' ? null : 'dstSido')}
-                                    onPick={(v) => {
-                                        setDstSido(v);
-                                        /* 🔴 도를 옮기면 시도 그 도의 것으로 따라간다 —
-                                           안 그러면 «경기 + 김포시» 같은 짝이 화면에 남는다 */
-                                        pickField('destinationCity', citiesOf(v)[0] ?? '');
-                                    }} />
-                                <PickLayer label="시·군·구"
-                                    value={cur.destinationCity
-                                        ? (knownCities.includes(cur.destinationCity)
-                                            ? cur.destinationCity
-                                            : `⚠️ ${cur.destinationCity} (목록에 없음)`)
-                                        : '— 선택 —'}
-                                    options={citiesOf(dstSido)}
-                                    open={openKnob === 'dstCity'}
-                                    onToggle={() => setOpenKnob(o => o === 'dstCity' ? null : 'dstCity')}
-                                    onPick={(v) => pickField('destinationCity', v)} />
-                                {/**
-                                  * ↩️ **복귀 — 고르는 것은 «집으로 갈지 말지» 하나다**
-                                  *    (기사님 확정 2026-09-11: *"우린 집으로 갈건지 말껀지만 있어"* ·
-                                  *     2026-09-09: *"복귀는 토글로 눈에 띄게 해줘. 목적지 → 복귀"*).
-                                  *
-                                  * 🔴 **목업이 그 모양이다** — 고르는 것은 `homeOn` 하나이고
-                                  *    `callTarget` 은 파생이다 (`MapMockup.tsx:978`):
-                                  *    `homeOn ? 'HOME' : localMode ? 'LOCAL' : 'DEST'`.
-                                  *
-                                  * 🔴 **고르는 값과 켜고 끄는 값은 모양도 달라야 한다** — 옆 두 칸(도·시군구)은
-                                  *    목록에서 «고르는» 것이고 이것은 «켜고 끄는» 것이다.
-                                  *
-                                  * 🔴 **확인창은 그대로다** (기사님 2026-08-14: *"버튼을 누르게 하고
-                                  *    알럿창으로 확인받는 것이 안전할 듯하다"*). 되돌리려면 경유를
-                                  *    통째로 다시 계산한다 — 실수로 스친 손가락에 바뀌면 안 된다.
-                                  *
-                                  * ⚠️ **관내는 «고르는 것»에서만 뺐다.** 지금 관내면 아래에서 보여만 준다 —
-                                  *    실물의 `LOCAL`(목적지를 지금 시로 바꾼다)과 목업의 `localMode`
-                                  *    (재는 법만 바꾼다)는 **다른 물건**이라 파생으로 돌리는 것은 따로 선다.
-                                  */}
-                                {(() => {
-                                    const homeOn = (filter.callTarget ?? 'DEST') === 'HOME';
-                                    /* 🏘️ 관내는 **서버가 파생**한다 (C4-8b) — 고르는 값이 아니라 «지금 그렇다»다 */
-                                    const isLocal = filter.localMode === true;
-                                    return (
-                                        <button type="button" onClick={() => goPhase(homeOn ? 'DEST' : 'HOME')}
-                                            title={homeOn ? '끄면 원래 목적지로 돌아갑니다' : '켜면 집 방향 콜을 찾습니다'}
-                                            className={`flex flex-col items-start gap-0.5 px-1.5 py-1 rounded-lg border text-left transition-colors ${homeOn
-                                                ? 'bg-warning/25 border-warning text-warning'
-                                                : 'border-border-card bg-background hover:border-border-hover'}`}>
-                                            <span className={`text-[9.5px] font-bold leading-tight ${homeOn ? '' : 'text-text-muted'}`}>
-                                                {/* 🔴 관내는 «지금 그렇다»만 말한다 — 누르는 것은 여전히 복귀다 */}
-                                                {isLocal ? '🏘️ 관내 · ↩️ 복귀' : '↩️ 복귀'}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <span className={`w-7 h-4 rounded-full flex items-center px-0.5 transition-colors ${homeOn ? 'bg-warning justify-end' : 'bg-border-card justify-start'}`}>
-                                                    <span className="w-3 h-3 rounded-full bg-surface shadow" />
-                                                </span>
-                                                <span className={`text-[11px] font-black leading-tight ${homeOn ? 'text-warning' : 'text-text-muted'}`}>
-                                                    {homeOn ? '켬' : '끔'}
-                                                </span>
-                                            </span>
-                                        </button>
-                                    );
-                                })()}
-                            </div>
-                        </div>
-
-                        {/* 📐 **마름모의 모양 — 탭 위다** (이식 C3-2 · 2026-09-11 · 명세 §3).
-                            제외 단어와 같은 이유다 — 국면과 무관한 한 벌인데 탭 **안**에 두면
-                            화면이 "이 국면의 값" 이라고 잘못 말한다. 아침(C3-1)에 탭 안에 뒀다가
-                            합짐 행에 손 안 댄 110° 가 앉는 것을 실측하고 옮겼다.
-                            라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
-                        {/* 🔴 **테두리 박스를 벗겼다** (C4-7) — 목업은 3칸 격자가 죽 이어진다.
-                            박스를 겹겹이 두르면 폰에서 그 선들이 자리를 먹는다
-                            (기사님: *"작은 면적에 필요한 것만 잘 디스플레이하고 싶다"*).
-                            머리글 한 줄은 남긴다 — «이게 지도에 바로 보인다»는 말이 필요하다 */}
-                        <div className="relative z-10 space-y-1">
-                            <div className="flex items-baseline justify-between px-0.5">
-                                <span className="text-[10.5px] font-black text-text-muted">📐 그물의 모양</span>
-                                <span className="text-[9.5px] font-bold text-text-muted">지도에 바로 보입니다</span>
-                            </div>
-                            {/**
-                              * 🎚️ **숫자판이 아니라 슬라이더 레이어다** (이식 C4-1 · 2026-09-11).
-                              *
-                              * 🔴 **아침에 이 칸을 `type="number"` 로 팠던 것이 지시 위반이었다.**
-                              *    기사님 2026-09-09: *"커서 확인하고 숫자 지우고 입력하고 힘들어"* ·
-                              *    *"클릭하면 슬라이더가 보이는 건 어때?"* · *"밀리는 것 없이 레이어로"*.
-                              *    목업에 이미 답(`KnobGrid`)이 있었는데 실물에 새 칸을 손으로 판 것이다.
-                              *
-                              * 라벨·단위·범위에 더해 **한 칸(step)도 표에서 온다** — 화면이 «각도면 10»을
-                              * 제 손으로 판단하면 표와 갈라진다 (규칙 ③).
-                              */}
-                            <KnobGrid open={openKnob} onOpen={setOpenKnob}
-                                knobs={QUAD_FIELDS.map(f => {
-                                    /**
-                                     * 📐 **마름모반경도 자동을 따른다** (이식 C4-12 · 2026-09-12).
-                                     *    각도 둘은 «방향 허용폭»이라 거리와 무관 — **안 건드린다.**
-                                     * 🔴 안 고쳤더니 실측에서 **서버와 지도는 6.2km 로 줄였는데
-                                     *    이 칸만 25km 라고 적고 있었다** (규칙 ⑤-4 ④ — 화면이 조용히 거짓말).
-                                     */
-                                    const isRadius = f.path === 'quadRadiusKm';
-                                    const auto = radiusAuto && isRadius;
-                                    return {
-                                        key: f.path,
-                                        label: f.label,
-                                        unit: f.unit,
-                                        value: auto
-                                            ? Math.round(shownRadii.quadRadiusKm * 10) / 10
-                                            : Number(quadForm[f.path] ?? 0),
-                                        min: f.min,
-                                        max: f.max,
-                                        step: f.step,
-                                        dim: auto,
-                                        /**
-                                         * 🔴 **끌면 지도가 따라오고, 뗄 때 서버로** — 반경 셋과 같은 규칙 (전수 조사 ①-2).
-                                         *    이 셋만 `set` 이 폼만 바꿔서 «지도에 바로 보입니다»가 거짓이었다.
-                                         *    `quadDirty` 는 💾(DB) 용으로 그대로 든다.
-                                         */
-                                        set: auto ? () => {}
-                                            : (v: number) => { const next = { ...quadForm, [f.path]: String(v) }; setQuadForm(next); setQuadDirty(true); previewFilter(quadShapeFrom(next)); },
-                                        onPreview: auto ? undefined
-                                            : (v: number) => previewFilter(quadShapeFrom({ ...quadForm, [f.path]: String(v) })),
-                                        onCommit: auto ? undefined
-                                            : (v: number) => updateFilter(quadShapeFrom({ ...quadForm, [f.path]: String(v) })),
-                                    };
-                                })} />
-                        </div>
-
-                        {/**
-                          * 🎚️ **반경 셋 — 숫자판이 아니라 슬라이더 레이어** (C4-1 과 같은 부품).
-                          *
-                          * 🔴 **감추지 않고 흐리게 둔다.** «지금 이 칸이 쓰이나»는 **상태에서 파생**하고(노선일 때만 라인반경 · 자동이면 반경 넷),
-                          *    그 그 답은 **`dim` 으로만** 간다 — 감추면 «이 값이 어디 갔나»가 되고
-                          *    그냥 두면 «지금 쓰이는 값»으로 읽힌다 (기사님 2026-09-09 *"모두 꺼내 두고"*).
-                          */}
-                        {/**
-                          * 📐 **[자동 | 수동]** (이식 C4-12 · 2026-09-12).
-                          *    기사님: *"목적지와의 거리에 따라 … **자동으로 바뀌어 주면 좋겠다.
-                          *    그래서 자동, 수동으로** 만들어 주는 거야."*
-                          *
-                          * 🔴 실측: 초월→성남은 15.6km 인데 현위 10 + 목적 15 = **25km** —
-                          *    원 둘이 서로를 덮어 **마름모·각도가 아무 일도 안 한다**(폭 0).
-                          *    기준 40km 의 근거는 `shared` 의 `RADIUS_BASE_KM_DEFAULT` 주석에.
-                          */}
-                        <div className="flex items-center justify-between gap-2 px-0.5 pb-1">
-                            <span className="text-[10.5px] font-black text-text-muted">📐 반경</span>
-                            <div className="flex rounded-lg border border-border-card overflow-hidden">
-                                {([true, false] as const).map(on => (
-                                    <button key={String(on)} type="button"
-                                        onClick={() => updateFilter({ radiusAuto: on })}
-                                        className={`px-2.5 py-0.5 text-[10.5px] font-bold ${
-                                            radiusAuto === on ? 'bg-info/15 border-info/55 text-info font-black' : 'text-text-muted'}`}>
-                                        {/**
-                                          * 📏 **자동 쪽이 «무엇을 기준으로»를 말한다** (기사님 2026-09-12:
-                                          *    *"자동 버튼 안에 들어가는 것이 어떨까? '40km 기준 반경' | '수동'"*).
-                                          *
-                                          * 🔴 예전엔 기준거리가 **일곱 번째 손잡이**로 따로 있었다. 그런데 그것은
-                                          *    «한 번 정하면 두는 값»이고 나머지 셋은 «오늘 조이는 값»이라 **층이 다르다** —
-                                          *    한 그리드에 섞여 있어 «자동이면 이것만 살고 나머지가 흐려지는» 규칙이 생겼다.
-                                          *    이제 고치는 자리는 ⚙️ 설정 → 필터이고, 여기서는 **지금 무엇으로 재는지**만 말한다.
-                                          */}
-                                        {on ? `${filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT}km 기준 반경` : '수동'}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        {/**
-                          * 📏 **무엇으로 정했나 + [↻ 다시 구하기]** (기사님 확정 2026-09-14 · 필터.md §10-1 ④).
-                          *    자동 반경의 거리는 **하루에 한 번** 잰다 — 달리는 동안 안 바뀐다.
-                          * 🔴 다시 구하기는 **토글 칸이 아니다** — 셋째 칸이면 «재설정 모드»에 들어가 있는 것처럼 읽힌다.
-                          *    누르면 들고 있던 거리를 비운다(`null`) — 서버가 지금 위치 → 목적지로 다시 잰다.
-                          */}
-                        {radiusAuto && (
-                            <div className="flex items-center justify-between gap-2 px-0.5 pb-1 text-[10px] text-text-muted">
-                                <span>
-                                    {Number.isFinite(filter?.radiusDistanceKm as number)
-                                        ? `${Math.round((filter!.radiusDistanceKm as number) * 10) / 10}km 로 정함 · ×${
-                                            Math.round(radiusScaleOf(filter?.radiusDistanceKm, filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) * 100) / 100}`
-                                        : '거리를 아직 못 잼 — 반경을 줄이지 않음'}
-                                </span>
-                                <button type="button" onClick={() => updateFilter({ radiusDistanceKm: null })}
-                                    className="px-2 py-0.5 rounded-lg border border-border-card font-bold text-info">
-                                    ↻ 다시 구하기
+                        <div className="grid grid-cols-2 gap-1 relative z-10">
+                            {([[true, '🛣️ 노선', '지금 경로 양옆으로 본다'],
+                               [false, '🔷 동선', '내 위치 → 목적지 마름모로 본다']] as const).map(([on, label, hint]) => (
+                                <button key={label} type="button" onClick={() => setRouteMode(on)} title={hint}
+                                    className={`py-2 rounded-lg border text-[12px] font-black transition-all ${routeMode === on
+                                        ? (on ? 'border-warning/55 bg-warning/15 text-warning' : 'border-info/55 bg-info/15 text-info')
+                                        : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
+                                    {label}
                                 </button>
-                            </div>
-                        )}
-                        {/**
-                          * 📐 **셋이 한 줄** (기사님 2026-09-12: *"필터 남은 것들은 다시 정렬해 주고"*).
-                          *    기준거리가 ⚙️ 설정으로 가면서 넷이 셋이 됐다 — 4칸 격자면 **한 칸이 빈다.**
-                          *    남은 셋은 현위·목적·라인으로 **같은 «반경»**이라 한 줄이 맞다.
-                          */}
-                        <KnobGrid open={openKnob} onOpen={setOpenKnob} cols={3}
-                            knobs={[...KNOB_FIELDS.map(path => {
-                                const f = FILTER_FIELDS.find(x => x.path === path)!;
-                                /**
-                                 * 🔴 **자동이면 «줄인 값»을 보여 준다** — 기사님이 정한 원값에
-                                 *    서버가 실어 보낸 배율을 곱한다. 원값은 **안 건드린다** (규칙 ④):
-                                 *    수동으로 돌리면 그 값이 그대로 살아 있다.
-                                 */
-                                const raw = Number(cur[path] ?? 0);
-                                const KEY = { pickupRadiusKm: 'pickupRadiusKm', destinationRadiusKm: 'destinationRadiusKm',
-                                              detourRadiusKm: 'detourRadiusKm' } as const;
-                                const shown = radiusAuto
-                                    ? Math.round(shownRadii[KEY[path as keyof typeof KEY]] * 10) / 10
-                                    : raw;
-                                return {
-                                    key: path,
-                                    label: f.label,
-                                    unit: f.unit,
-                                    value: shown,
-                                    min: f.min,
-                                    max: f.max,
-                                    step: f.step,
-                                    /* 🔴 **감추지 않고 흐리게** — 자동이거나 지금 안 쓰이는 칸 */
-                                    dim: !inUse(path) || radiusAuto,
-                                    /* 🔴 자동이면 **손으로 못 민다** — 밀면 화면과 값이 갈라진다 */
-                                    set: radiusAuto ? () => {} : (v: number) => setField(path, String(v)),
-                                    /* 🔴 끄는 동안은 **지도까지** 따라 온다 — 소켓은 안 탄다 (C4-11) */
-                                    onPreview: radiusAuto ? undefined
-                                        : (v: number) => previewValues({ ...cur, [path]: String(v) }),
-                                    /* 🔴 **뗄 때** 서버로 (C4-10) */
-                                    onCommit: radiusAuto ? undefined
-                                        : (v: number) => pickField(path, String(v)),
-                                };
-                            })]} />
-
-                        {/**
-                          * 💰🚫 **값 둘도 같은 고르기 칸으로** (기사님 2026-09-09:
-                          *    *"[콜할인율] 이 부분도 디자인에 맞춰 이쁘게 바꿔줘"*).
-                          *    위의 목적지·손잡이들과 **같은 자리·같은 방식**이라야 조작이 하나다.
-                          *
-                          * 🔴 **차종별 하한표는 레이어 «안»으로 들어갔다** — 늘 펴 두면 폰에서 필터가
-                          *    화면을 다 먹는다 (기사님: *"작은 면적에 필요한 것만 잘 디스플레이"*).
-                          *    기사님 2026-09-09: *"읽을 수 있게 통로를 열어 줘야지"* — 없애지 않고 접었다.
-                          *
-                          * ✅ **«🚚 받을 짐»이 아래에 들어왔다** (이식 C4-6b · 2026-09-12).
-                          */}
-
-                        <div className="relative grid grid-cols-3 gap-1">
-                            <PickLayer label="💰 콜할인율"
-                                value={callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`}
-                                options={CALL_DISCOUNT_STEPS.map(st => st.label)}
-                                open={openKnob === 'discount'}
-                                onToggle={() => setOpenKnob(o => o === 'discount' ? null : 'discount')}
-                                onPick={(v) => {
-                                    const st = CALL_DISCOUNT_STEPS.find(x => x.label === v);
-                                    if (st) pickField('callDiscountPct', String(st.value));
-                                }}
-                                foot={
-                                    <div className="flex flex-col gap-0.5">
-                                        <div className="flex items-start justify-between gap-2 pb-1 border-b border-border/50">
-                                            <span className="text-[10px] font-black text-text-primary">{FLOOR_TITLE[tab]}</span>
-                                            <span className="text-[9.5px] text-text-muted/70 text-right whitespace-nowrap">통과 = 요금 ≥ 배송거리 × 단가</span>
-                                        </div>
-                                        {/* 남은 용량에 안 들어가는 차종은 흐리게 — 잡아도 못 싣는다 */}
-                                        {RATE_TABLE_ORDER.map(v => {
-                                            const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - callDiscount / 100));
-                                            const slot = VEHICLE_CAPACITY[v] ?? 0;
-                                            const fits = slot <= remainSlots;
-                                            return (
-                                                <div key={v} className={`flex items-center justify-between text-[10px] ${fits ? '' : 'opacity-35'}`}>
-                                                    <span className="text-text-muted font-bold">
-                                                        {v}<span className="text-text-muted/60 font-normal ml-1">시세 {NET_RATE_PER_KM[v]}원/km · 짐 {slot}박스</span>
-                                                    </span>
-                                                    <span className="font-mono font-black text-success whitespace-nowrap">
-                                                        {!fits ? <span className="text-text-muted font-normal">용량 부족</span>
-                                                         : callDiscount >= 100 ? '전부'
-                                                         : <>≥ {floor.toLocaleString()}원/km
-                                                             <span className="text-text-muted/60 font-normal ml-1.5">{exampleKm}km면 {(floor * exampleKm).toLocaleString()}</span>
-                                                           </>}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>} />
-                            {/**
-                              * 🚫 **제외 단어 — 자주 쓰는 것은 눌러서, 나머지는 손으로** (C4-6).
-                              *
-                              * 🔴 **목업처럼 1칸으로 접되 자유 입력을 없애지 않는다.** 목업의 여섯은
-                              *    목업이라 고정이고, 실물은 기사님이 **아무 단어나** 넣으실 수 있어야 한다 —
-                              *    목록만 남기면 기능이 준다. 그래서 레이어 «안»에 입력칸을 그대로 둔다.
-                              * 🔴 기사님 2026-09-09: *"제외 단어는 입력이 필요하다. 펼치면 내용을 볼 수 있다."*
-                              */}
-                            {/**
-                              * 🚚 **받을 짐 — 목업 그대로** (이식 C4-6b · `MapMockup.tsx:3214`).
-                              *
-                              * 기사님 2026-09-12: *"**디자인도 보여주고 목업에 코드도 다 있는데.**"* —
-                              * 처음에 별도 줄에 버튼 다섯을 새로 그렸다가 걷어냈다.
-                              * 목업은 **콜할인율·받을 짐·제외 단어 3칸**이고 값은 `1t·다` 로 짧다.
-                              *
-                              * 🔴 **보내는 것은 «고른 것»뿐이다** (`acceptedVehicleTypes`).
-                              *    허용 목록(`allowedVehicleTypes`)을 손으로 보내면 서버가
-                              *    `if (!changes.allowedVehicleTypes)` 에 걸려 **제 계산을 건너뛴다**
-                              *    (2026-08-10 사고).
-                              * 🔴 **지금 적재로 막힌 차종은 이름 뒤에 «✕»를 붙여 남긴다** —
-                              *    감추지 않는다 (규칙 ⑤-2). 「왜 이 콜이 안 올라오나」가 읽혀야 한다.
-                              */}
-                            <PickLayer label="🚚 받을 짐"
-                                value={accepted.length ? accepted.map(v => VEHICLE_SHORT[v] ?? v).join('·') : '모두'}
-                                options={[...VEHICLE_PICKS]}
-                                /* 🔴 ✕ 는 옵션 글자에 안 붙인다 — 붙이면 `selected` 비교가 깨져
-                                      막힌 차종은 골라도 강조가 안 켜진다 (2026-09-12 실측) */
-                                mark={Object.fromEntries(blockedNow.map(v => [v, '✕']))}
-                                keepOpen selected={accepted}
-                                open={openKnob === 'vehicles'}
-                                onToggle={() => setOpenKnob(o => o === 'vehicles' ? null : 'vehicles')}
-                                onPick={toggleVehicle}
-                                foot={
-                                    <div className="flex flex-col gap-0.5 text-[10px] tabular-nums">
-                                        <span className="text-[9.5px] font-bold text-text-muted">
-                                            지금 남은 칸 <b className="text-text-primary">{remainSlots}</b> — ✕ 는 지금 적재로 못 받는 것
-                                        </span>
-                                        {VEHICLE_PICKS.map(v => (
-                                            <div key={v} className="flex justify-between gap-1">
-                                                <span><b>{v}</b> <span className="text-text-muted">짐 {VEHICLE_CAPACITY[v] ?? '?'}박스</span></span>
-                                                <b className={blockedNow.includes(v) ? 'text-text-muted' : 'text-info'}>
-                                                    {blockedNow.includes(v) ? '지금 못 받음' : '받는다'}
-                                                </b>
-                                            </div>
-                                        ))}
-                                    </div>} />
-                            <PickLayer label="🚫 제외 단어" tone="warning" keepOpen
-                                value={blacklistWords.length ? `${blacklistWords.length}개` : '없음'}
-                                options={COMMON_EXCLUDED_WORDS}
-                                selected={blacklistWords}
-                                open={openKnob === 'words'}
-                                onToggle={() => setOpenKnob(o => o === 'words' ? null : 'words')}
-                                onPick={(v) => setBlacklistWords(
-                                    blacklistWords.includes(v) ? blacklistWords.filter(w => w !== v) : [...blacklistWords, v])}
-                                foot={
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[9.5px] font-bold text-text-muted">목록에 없는 말은 여기에 — 쉼표로 나눕니다</span>
-                                        <Input type="text" value={blacklist} onChange={handleBlacklistChange}
-                                            onBlur={commitBlacklist} onKeyDown={e => { if (e.key === 'Enter') commitBlacklist(); }}
-                                            placeholder="착불, 수거"
-                                            className="h-8 bg-surface-alt/50 border-border text-[12px] text-text-primary font-bold" />
-                                    </div>} />
-                        </div>
-
-                        {/**
-                          * 🚫 **제외 지역 — 탭 위다** (이식 C2-2 · 2026-09-11 · 명세 §3).
-                          *    *"거긴 안 간다"* 는 그 지역이지 그 국면의 사정이 아니다.
-                          *
-                          * 🔴 **고르기 칸은 목업과 같은 부품**(`PickLayer`)이다 — 손맛이 갈리면
-                          *    두 화면이 다른 물건이 된다. 도 한 층이 있는 이유는 기사님이
-                          *    서울을 빼려고 **구 25개를 하나씩** 누르고 계셨기 때문이다 (2026-09-09).
-                          * 🔴 **💾 를 눌러야 저장 대상이 된다** — 칩 하나 잘못 눌러 그 지역이
-                          *    곧장 살아나면 안 된다.
-                          */}
-                        {/* 🔴 **박스 대신 구분선 하나** — 목업 그대로 (`MapMockup.tsx:3288`).
-                            «여기서부터는 빼는 것»이 선 하나로 충분히 갈린다 */}
-                        <div className="relative z-20 border-t border-border-card pt-2 space-y-1">
-                            <div className="flex items-baseline justify-between px-0.5">
-                                <span className="text-[10.5px] font-black text-danger">🚫 제외 지역</span>
-                                {/* 🔴 «국면과 무관»을 뺐다 (C4-7) — 국면이 없어졌으니 낡은 말이다 */}
-                                <span className="text-[9.5px] font-bold text-text-muted">
-                                    {exDraft.length ? `${exDraft.length}곳 제외` : '없음'}
-                                </span>
-                            </div>
-                            <div className="relative grid grid-cols-3 gap-1">
-                                <PickLayer label="⛔ 제외 도" options={sidoList()} tone="danger"
-                                    value={`${exSido}${exDraft.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
-                                    selected={sidoList().filter(v => exDraft.includes(`S|${v}`))}
-                                    open={openKnob === 'exSido'} onToggle={() => setOpenKnob(o => o === 'exSido' ? null : 'exSido')}
-                                    onPick={v => { setExSido(v); setExSgg(null); }}
-                                    foot={
-                                        <button type="button" onClick={() => toggleEx(`S|${exSido}`)}
-                                            className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${exDraft.includes(`S|${exSido}`)
-                                                ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border-card bg-background text-text-muted hover:border-danger'}`}>
-                                            ◼ {exSido} 통째로 제외 {exDraft.includes(`S|${exSido}`) ? '⛔ 켬' : '끔'}
-                                        </button>} />
-                                <PickLayer label="시·군·구 ⛔ 통째" keepOpen tone="danger" options={sggList(exSido)}
-                                    value={(() => { const n = sggList(exSido).filter(g => exDraft.includes(`R|${g}`)).length; return n ? `${n}곳 제외` : (exSgg ?? '고르기'); })()}
-                                    selected={sggList(exSido).filter(g => exDraft.includes(`R|${g}`))}
-                                    open={openKnob === 'exSgg'} onToggle={() => setOpenKnob(o => o === 'exSgg' ? null : 'exSgg')}
-                                    onPick={v => { setExSgg(v); toggleEx(`R|${v}`); }}
-                                    foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
-                                        누르면 <b className="text-danger">그 시·군·구가 통째로</b> 빠집니다 · 다시 누르면 되살아납니다 ·
-                                        마지막에 누른 곳이 <b>읍·면·동 칸</b>의 대상이 됩니다
-                                    </span>} />
-                                <PickLayer label="읍·면·동" keepOpen tone="danger" options={exSgg ? dongList(exSgg) : []}
-                                    value={exSgg ? (() => { const n = dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
-                                    selected={exSgg ? dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)) : []}
-                                    open={openKnob === 'exDong'} onToggle={() => setOpenKnob(o => o === 'exDong' ? null : 'exDong')}
-                                    onPick={v => { if (exSgg) toggleEx(`D|${exSgg}|${v}`); }}
-                                    foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
-                            </div>
-                            {/**
-                              * 🔴 «지금 무엇이 빠져 있나»는 **늘 보인다** — 레이어를 열어야 알면 화면이 조용히 거짓말한다.
-                              *    다만 여덟 줄을 늘 펴 두면 폰에서 필터가 화면을 다 먹는다. 그래서
-                              *    **닫히면 한 줄, 누르면 전부**다 (목업 그대로 · 기사님 2026-09-09).
-                              * 🔴 **닫힌 줄에서는 지우지 못한다** — 잘린 글을 누르다 실수로 되살아나면 안 된다.
-                              *    펼쳐야 ✕ 가 달린 칩이 된다.
-                              * 🔴 **다 지웠어도 줄은 남는다** — 안 그러면 「💾 저장」이 같이 사라져
-                              *    «전부 되살리기»를 적용할 길이 없다.
-                              */}
-                            {(exDraft.length > 0 || !exApplied) && (!exListOpen ? (
-                                <div className="flex items-center gap-1">
-                                    <button type="button" onClick={() => setExListOpen(true)}
-                                        className={`flex items-center gap-1 min-w-0 flex-1 px-1.5 py-1 rounded-md border bg-background text-left ${
-                                            !exApplied ? 'border-warning/55' : 'border-border-card hover:border-danger'}`}>
-                                        <span className="shrink-0 text-[10.5px] font-black text-danger">⛔ 제외 {exDraft.length}곳</span>
-                                        <span className="min-w-0 flex-1 truncate text-[10.5px] font-bold text-text-muted">
-                                            {exDraft.map(excludedLabel).join(' · ')}
-                                        </span>
-                                        <span className="shrink-0 text-[10px] font-black text-text-muted">▾ 전부</span>
-                                    </button>
-                                    {/* 🔴 닫아 둔 채로 고쳤어도 «아직 안 들어갔다»가 보여야 한다 — 여기서 바로 저장한다 */}
-                                    {!exApplied && (
-                                        <button type="button" onClick={applyExcluded}
-                                            className="shrink-0 px-2 py-1 rounded-md border border-info/55 bg-info/15 text-info text-[11px] font-black">
-                                            💾 저장
-                                        </button>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex flex-wrap gap-1">
-                                        {exDraft.length === 0 && <span className="text-[10.5px] font-bold text-text-muted">제외한 곳이 없습니다 — 저장하면 전국이 그물에 듭니다</span>}
-                                        {exDraft.map(k => (
-                                            <button key={k} type="button" onClick={() => toggleEx(k)} title="누르면 되살립니다"
-                                                className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
-                                                ⛔ {excludedLabel(k)} ✕
-                                            </button>
-                                        ))}
-                                    </div>
-                                    {/* 💾 접기 옆에 저장 (기사님 2026-09-09 그대로) — 고친 것은 여기를 눌러야 그물에 들어간다 */}
-                                    <div className="flex items-center gap-1">
-                                        <button type="button" onClick={() => setExListOpen(false)}
-                                            className="text-[10px] font-black text-text-muted px-1">▴ 접기</button>
-                                        <button type="button" disabled={exApplied} onClick={applyExcluded}
-                                            className={`px-2 py-1 rounded-md border text-[11px] font-black ${!exApplied
-                                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-card bg-background text-text-muted opacity-50'}`}>
-                                            💾 저장{!exApplied ? ` (${exDraft.length}곳)` : ' 완료'}
-                                        </button>
-                                        {!exApplied && (
-                                            <button type="button" onClick={() => setExDraft(filter?.excludedRegions ?? [])}
-                                                className="px-2 py-1 rounded-md border border-border-card bg-background text-[11px] font-black text-text-muted">
-                                                ↩︎ 되돌리기
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
                             ))}
                         </div>
 
-
-                    </div>
-
-                    {/**
-                      * 💬 **설명 줄들** — 손잡이는 전부 위로 갔고 여기 남은 것은 «무슨 뜻인가»다.
-                      *
-                      * 🔴 **테두리 박스를 벗겼다** (C4-7). 반경 칸이 위 3칸으로 옮겨 간 뒤
-                      *    이 박스는 **설명만 담은 빈 상자**가 됐다 — 목업에는 이런 상자가 없다.
-                      * 🔴 **제목은 «지금 무엇을 하나»를 말한다** (기사님이 국면을 걷으며 남기라 하신 둘 중 하나).
-                      *    고르는 탭이 아니라 **지금 국면**을 따라간다.
-                      */}
-                    <div className="space-y-1.5 px-0.5">
-                        <div className="flex items-start justify-between gap-2">
-                            <span className={`text-[11px] font-black ${TAB_STYLE[tab].text}`}>{SECTION[tab].title}</span>
-                            <span className="text-[10px] text-text-muted/70 text-right leading-tight">{SECTION[tab].hint}</span>
-                        </div>
-
-                        {/* ⏱️ 시간 축 예고 (필터 확정안 v2 구현 4 — 계측 단계).
-                            상차 반경의 축은 km → 도달 시간(분)으로 개편 예정이다. 계수(분/km)가
-                            실측으로 확정되기 전에는 **거르지 않고 안내만** 한다 (기사님 확정 3). */}
-                        {/* 🔴 현위반경은 늘 쓰인다 — 국면마다 감추던 규칙이 사라졌다 (C3-3b) */}
-                        {(
-                            <p className="text-[10px] text-text-muted leading-relaxed">
-                                <b className={TAB_STYLE[tab].text}>상차 반경</b>은 곧 <b className="text-text-primary">도달 시간</b>에서
-                                자동으로 정해집니다 — 상차 약속(잡은 시각 + {judgmentCfg.unknown.pickupPromiseMin}분) 안에 닿는 거리
-                                ≈ {reachRadiusKm(judgmentCfg.unknown.pickupPromiseMin)}km <span className="opacity-70">(잠정 계수 — 실측 수집 중, 아직 거르지 않습니다)</span>
-                            </p>
-                        )}
-
                         {/**
-                          * 📏 **라인반경이 무슨 뜻인지** (목업 이름 · 기사님 확정 2026-09-09).
-                          *
-                          * 🔴 **여기 있던 설명이 거짓말이었다** (2026-09-11 정정).
-                          *    *"경유 허용 = 카카오 총거리가 늘어나는 만큼 (100km → 105km 면 5km)"* 이라 적어
-                          *    뒀는데, 이 값은 실제로 **길 양옆 폭**으로 쓰인다. 목업이 그 사고를 미리
-                          *    경고해 뒀다 — *"둘 다 km 라 한 이름으로 부르면 조용히 섞인다."*
-                          *    기사님이 «5» 를 넣을 때 **화면이 말하는 뜻과 실제가 달랐다** (규칙 ⑤-4 ④).
+                          * 🎯 **목적지 설명줄 — 목업 그대로** (`MapMockup.tsx:3104` · 전수 조사 4단계).
+                          *    «어디로 · 지금 무슨 국면 · 노선/동선» 을 한 줄로. 복귀를 켜면 **집 시**가 적힌다
+                          *    (`goalCity` 파생) — 기사님이 정한 목적지 칸은 그대로다.
+                          * ⚠️ 목업의 «마름모 N개»는 실물에 없는 개념(목적지가 하나)이라 **적지 않는다** (규칙 ④).
                           */}
-                        {inUse('detourRadiusKm') && (
-                            <p className="text-[10px] text-text-muted leading-relaxed">
-                                <b className={TAB_STYLE[tab].text}>라인반경</b> = 지금 경로의 <b className="text-text-primary">길 중심선에서 한쪽으로</b> 몇 km 까지 콜을 받나.
-                                {' '}노선일 때만 쓰입니다 — 콜을 안 쥐었으면 마름모가 판단합니다.
-                                {cur.detourRadiusKm === '0' && ' 0 이면 길 위의 콜만 잡습니다 — 콜 잡기를 멈추는 게 아닙니다.'}
+                        <p className="text-[10.5px] text-text-muted leading-snug px-0.5">
+                            🎯 목적지 <b className="text-text-primary">{filter?.goalCity || filter?.destinationCity || '—'}</b>
+                            {' · '}운행 <b className="text-text-primary">{filter?.dispatchPhase === 'DELIVERING' ? '주행 중' : filter?.dispatchPhase === 'GATHERING' ? '콜 쥠' : '대기'}</b>
+                            {' · '}<b className="text-info">{routeMode ? '🛣️ 노선' : '🔷 동선'}</b>
+                        </p>
+                        {/**
+                          * ⏳ **이상한 상태 하나만 적는다** (목업 `MapMockup.tsx:3187` · 기사님 2026-09-09
+                          *    *"«콜을 잡으면 그 경로가 라인이 됩니다» 이것도 필요 없어"*): 늘 참인 말은 안 적는다.
+                          *    남긴 하나 — 콜은 잡았는데 경로가 아직 안 와서 마름모인 것. 그건 몰라선 안 된다.
+                          *    «라인으로 쟀나»는 무대만 안다 — store(`netUsedLine`)로 받는다. 모르면(null) 안 띄운다.
+                          */}
+                        {routeMode && netUsedLine === false && filter?.isSharedMode && (
+                            <p className="text-[10.5px] text-warning font-bold leading-snug px-0.5">
+                                ⏳ 카카오 경로를 기다립니다 — 올 때까지는 마름모로 봅니다 (직선으로 지어내지 않습니다)
                             </p>
                         )}
 
-                        {/**
-                         * 🔴 **팝업 안에 국면 전환 버튼을 두지 않는다** (명세 §4-2 · 2026-08-14).
-                         *
-                         * 여기 `🏘️ 이 동네에서 찾기로 전환` · `🏠 복귀행으로 전환` 이 있었다. 뺀 이유 셋:
-                         *
-                         *   ① 명세가 이미 "팝업에서 삭제 → 메인으로" 라고 정해 뒀다. 내가 어겼다
-                         *   ② 같은 조작인데 **한쪽만 확인창이 뜬다.** 요약줄 버튼에는 confirm 이 있고
-                         *      여기엔 없었다. 기사님이 *"필터가 쉽게 바뀌면 오작동"* 이라며 넣기로 한
-                         *      확인 절차를 이 버튼이 우회했다
-                         *   ③ 🔴 **저장 안 한 값을 조용히 버렸다.** 전환 버튼이 `onClose()` 를 부르므로,
-                         *      관내 반경을 5 로 고치고 전환을 누르면 5 는 사라지고 서버는 **옛 저장값**으로
-                         *      전환한다. 화면에 보이던 숫자와 실제 콜 잡기 기준이 달라진다.
-                         *      국면별 저장(§2-4)이 들어오면서 새로 생긴 해악이다
-                         *
-                         * 국면 전환은 **요약줄 버튼 3개 + confirm** 하나뿐이다 (`OrderFilterStatus`).
-                         */}
-                        {tab === 'drive' && (
+                            {/**
+                              * 🎯 **목적지 — 도를 고르고 시를 고른다** (이식 C4-2 · 2026-09-11).
+                              *
+                              * 기사님 확정 2026-09-09: *"**선택이 어려우니 도를 선택하고 시를
+                              * 선택하게 할까?**"* — 전국 시·군이 든 `<select>` 하나를 폰에서
+                              * 스크롤해 집는 것은 **운전 중에 불가능하다.**
+                              *
+                              * 🔴 **다섯 행 중 첫짐만 이 값을 입력으로 가진다** — 나머지는 서버가
+                              *    경로·GPS·집 주소에서 파생한다. 그래서 여기는 늘 «첫짐의 목적지»다.
+                              *
+                              * 🔴 **목록의 원천은 `cityGroups` 하나다** (서버가 콜을 검색할 수 있는 시).
+                              *    바로 아래 제외 지역이 쓰는 `sidoList()` 는 **지도 데이터(행정동)** 라
+                              *    다른 질문에 답한다 — 섞으면 2026-08-12 사고가 되돌아온다
+                              *    (화면이 `파주` 를 못 찾고 첫 항목 «용인시»를 그렸다).
+                              *
+                              * ⚠️ **↩️ 복귀 칸은 여기 없다.** 기사님은 *"복귀도 목적지와 같은 뎁스"*
+                              *    라고 하셨지만, 목업의 복귀는 «목적지를 하나 더 얹기»(공짜로 되돌림)인 반면
+                              *    실물의 복귀는 **`callTarget` 전환**(명세 §4-2 가 팝업에서 금지 —
+                              *    기사님 *"필터가 쉽게 바뀌면 오작동"*)이거나 **귀가콜 오더 생성**이다.
+                              *    토글로 켰다 끌 물건이 아니라 **따로 선다** (C4-2b).
+                              */}
                             <div className="space-y-1">
-                                <label className="block text-[10px] font-bold text-text-muted pl-1">지나온 구간</label>
-                                {/* 목업은 여기가 선택(자동 제외/유지)이지만 서버에는 **자동 제외뿐이다.**
-                                    고를 수 없는 것을 고르는 것처럼 그리면 화면이 거짓말을 한다 */}
-                                <div className="h-9 flex items-center px-2 rounded-md bg-surface-alt/30 border border-dashed border-border text-[10px] text-text-muted/80">
-                                    자동으로 제외 — GPS 가 지난 구간은 경유에서 빠집니다
+                                <label className="block text-[10px] font-bold text-text-muted pl-1">
+                                    {FILTER_FIELDS.find(f => f.path === 'destinationCity')!.label}
+                                    {(filter.dispatchPhase ?? 'STANDBY') !== 'STANDBY' && (
+                                        <span className="ml-1 font-normal text-text-muted/70">
+                                            {/* 🔴 «왜 지금 이 칸이 안 쓰이나»를 화면이 말한다.
+                                                복귀처럼 **실제 값이 있으면 그 값**을 보여 준다 (빈 말은 고장으로 보인다) */}
+                                            · 지금은 자동 ({tab === 'home' && homeAddress ? homeAddress : PHASE_AUTO_SOURCE[tab]})
+                                        </span>
+                                    )}
+                                </label>
+                                <div className="relative grid grid-cols-3 gap-1">
+                                    <PickLayer label="🎯 도" value={dstSido || '— 선택 —'}
+                                        options={cityGroups.map(g => g.sido)}
+                                        open={openKnob === 'dstSido'}
+                                        onToggle={() => setOpenKnob(o => o === 'dstSido' ? null : 'dstSido')}
+                                        onPick={(v) => {
+                                            setDstSido(v);
+                                            /* 🔴 도를 옮기면 시도 그 도의 것으로 따라간다 —
+                                               안 그러면 «경기 + 김포시» 같은 짝이 화면에 남는다 */
+                                            pickField('destinationCity', citiesOf(v)[0] ?? '');
+                                        }} />
+                                    <PickLayer label="시·군·구"
+                                        value={cur.destinationCity
+                                            ? (knownCities.includes(cur.destinationCity)
+                                                ? cur.destinationCity
+                                                : `⚠️ ${cur.destinationCity} (목록에 없음)`)
+                                            : '— 선택 —'}
+                                        options={citiesOf(dstSido)}
+                                        open={openKnob === 'dstCity'}
+                                        onToggle={() => setOpenKnob(o => o === 'dstCity' ? null : 'dstCity')}
+                                        onPick={(v) => pickField('destinationCity', v)} />
+                                    {/**
+                                      * ↩️ **복귀 — 고르는 것은 «집으로 갈지 말지» 하나다**
+                                      *    (기사님 확정 2026-09-11: *"우린 집으로 갈건지 말껀지만 있어"* ·
+                                      *     2026-09-09: *"복귀는 토글로 눈에 띄게 해줘. 목적지 → 복귀"*).
+                                      *
+                                      * 🔴 **목업이 그 모양이다** — 고르는 것은 `homeOn` 하나이고
+                                      *    `callTarget` 은 파생이다 (`MapMockup.tsx:978`):
+                                      *    `homeOn ? 'HOME' : localMode ? 'LOCAL' : 'DEST'`.
+                                      *
+                                      * 🔴 **고르는 값과 켜고 끄는 값은 모양도 달라야 한다** — 옆 두 칸(도·시군구)은
+                                      *    목록에서 «고르는» 것이고 이것은 «켜고 끄는» 것이다.
+                                      *
+                                      * 🔴 **확인창은 그대로다** (기사님 2026-08-14: *"버튼을 누르게 하고
+                                      *    알럿창으로 확인받는 것이 안전할 듯하다"*). 되돌리려면 경유를
+                                      *    통째로 다시 계산한다 — 실수로 스친 손가락에 바뀌면 안 된다.
+                                      *
+                                      * ⚠️ **관내는 «고르는 것»에서만 뺐다.** 지금 관내면 아래에서 보여만 준다 —
+                                      *    실물의 `LOCAL`(목적지를 지금 시로 바꾼다)과 목업의 `localMode`
+                                      *    (재는 법만 바꾼다)는 **다른 물건**이라 파생으로 돌리는 것은 따로 선다.
+                                      */}
+                                    {(() => {
+                                        const homeOn = (filter.callTarget ?? 'DEST') === 'HOME';
+                                        /* 🏘️ 관내는 **서버가 파생**한다 (C4-8b) — 고르는 값이 아니라 «지금 그렇다»다 */
+                                        const isLocal = filter.localMode === true;
+                                        return (
+                                            <button type="button" onClick={() => goPhase(homeOn ? 'DEST' : 'HOME')}
+                                                title={homeOn ? '끄면 원래 목적지로 돌아갑니다' : '켜면 집 방향 콜을 찾습니다'}
+                                                className={`flex flex-col items-start gap-0.5 px-1.5 py-1 rounded-lg border text-left transition-colors ${homeOn
+                                                    ? 'bg-warning/25 border-warning text-warning'
+                                                    : 'border-border-card bg-background hover:border-border-hover'}`}>
+                                                <span className={`text-[9.5px] font-bold leading-tight ${homeOn ? '' : 'text-text-muted'}`}>
+                                                    {/* 🔴 관내는 «지금 그렇다»만 말한다 — 누르는 것은 여전히 복귀다 */}
+                                                    {isLocal ? '🏘️ 관내 · ↩️ 복귀' : '↩️ 복귀'}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <span className={`w-7 h-4 rounded-full flex items-center px-0.5 transition-colors ${homeOn ? 'bg-warning justify-end' : 'bg-border-card justify-start'}`}>
+                                                        <span className="w-3 h-3 rounded-full bg-surface shadow" />
+                                                    </span>
+                                                    <span className={`text-[11px] font-black leading-tight ${homeOn ? 'text-warning' : 'text-text-muted'}`}>
+                                                        {homeOn ? '켬' : '끔'}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             </div>
-                        )}
 
-                        {tab === 'drive' && (
-                            <p className="text-[10px] text-text-muted/70">
-                                🚀 출발은 <b className="text-text-primary">지도 좌하단 버튼</b>에 있습니다 (운전 중에 팝업을 열지 않도록).
-                            </p>
-                        )}
-
-                        {/* 🏘️ 관내는 국면이 아니라 **파생**이다 (C4-8b) — 고르는 것이 아니라 «지금 그렇다» */}
-                        {filter.localMode && (
-                            <p className="text-[10px] text-text-muted leading-relaxed">
-                                🏘️ <b className="text-text-primary">관내로 재고 있습니다</b> —
-                                상차지와 하차지가 <b className="text-text-primary">모두 같은 시</b>여야 통과합니다
-                                (방향은 안 봅니다).
-                            </p>
-                        )}
-
-                        {tab === 'home' && (
-                            <>
+                            {filter.localMode && (
                                 <p className="text-[10px] text-text-muted leading-relaxed">
-                                    기점은 <b className="text-text-primary">짐이 남았으면 마지막 하차지</b>, 다 내렸으면 <b className="text-text-primary">현재 위치</b>입니다.
-                                    <br />🏠 전환은 <b className="text-text-primary">요약줄 버튼</b>에 있습니다.
+                                    🏘️ <b className="text-text-primary">관내로 재고 있습니다</b> —
+                                    상차지와 하차지가 <b className="text-text-primary">모두 같은 시</b>여야 통과합니다
+                                    (방향은 안 봅니다).
                                 </p>
-                                {/* 귀가콜은 국면 전환이 **아니다** — 집까지 가는 가상 오더를 만든다.
-                                    지금 이것 말고 부르는 곳이 없어서 남겨 뒀다 (§4-2 삭제 목록에도 없다) */}
+                            )}
+                        {/* 🏠 귀가콜은 전환이 아니라 오더 생성이다 — 복귀일 때 «어디로» 안에 둔다 (유일한 입구) */}
+                        {tab === 'home' && (
                                 <Button
                                     onClick={() => {
                                         logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭 (복귀 국면 값으로)");
@@ -1300,65 +810,441 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 >
                                     {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가콜 만들기'}
                                 </Button>
-                            </>
                         )}
-                    </div>
+                    </FilterRow>
 
-                    {/**
-                      * 🧾 **지역 카드가 여기 있었다** (걷어냄 2026-09-12 · 이식 C4-9).
-                      *
-                      * 기사님 2026-09-11: *"이건 **지도의 영역으로 표시 되는거라 없어져도
-                      * 될꺼 같고** 필터 상태바에 «… · 200읍면동» 이렇게 표현해 주면 될듯."*
-                      *
-                      * 🔴 «163개 동이 걸립니다» · 시·군·구 칩 · 「🔍 지금 값으로 미리보기」 —
-                      *    셋 다 **지도가 이미 그리는 것을 글자로 또 적는 것**이었다.
-                      *    값을 만지면 지도가 그 자리에서 바뀌니 미리 볼 것도 없다.
-                      * 🔴 수는 **요약줄**이 말한다 (`OrderFilterStatus` · «200 읍면동»).
-                      * ⚠️ 시·군·구별 내역은 **현황판의 «🗂️ 영역 — 시군구별»** 칸에 있다.
-                      */}
+                    <FilterRow id="wide" title="📐 얼마나 넓게" open={openRow === 'wide'} onToggle={toggleRow}
+                        summary={`${radiusAuto
+                            ? [shownRadii.pickupRadiusKm, shownRadii.destinationRadiusKm, shownRadii.detourRadiusKm].map(n => Math.round(n * 10) / 10).join(' · ')
+                            : [cur.pickupRadiusKm, cur.destinationRadiusKm, cur.detourRadiusKm].join(' · ')}km · ${radiusAuto ? '기준' : '수동'}`}>
+                            {/* 📐 **마름모의 모양 — 탭 위다** (이식 C3-2 · 2026-09-11 · 명세 §3).
+                                제외 단어와 같은 이유다 — 국면과 무관한 한 벌인데 탭 **안**에 두면
+                                화면이 "이 국면의 값" 이라고 잘못 말한다. 아침(C3-1)에 탭 안에 뒀다가
+                                합짐 행에 손 안 댄 110° 가 앉는 것을 실측하고 옮겼다.
+                                라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
+                            {/* 🔴 **테두리 박스를 벗겼다** (C4-7) — 목업은 3칸 격자가 죽 이어진다.
+                                박스를 겹겹이 두르면 폰에서 그 선들이 자리를 먹는다
+                                (기사님: *"작은 면적에 필요한 것만 잘 디스플레이하고 싶다"*).
+                                머리글 한 줄은 남긴다 — «이게 지도에 바로 보인다»는 말이 필요하다 */}
+                            <div className="relative z-10 space-y-1">
+                                <div className="flex items-baseline justify-between px-0.5">
+                                    <span className="text-[10.5px] font-black text-text-muted">📐 그물의 모양</span>
+                                    <span className="text-[9.5px] font-bold text-text-muted">지도에 바로 보입니다</span>
+                                </div>
+                                {/**
+                                  * 🎚️ **숫자판이 아니라 슬라이더 레이어다** (이식 C4-1 · 2026-09-11).
+                                  *
+                                  * 🔴 **아침에 이 칸을 `type="number"` 로 팠던 것이 지시 위반이었다.**
+                                  *    기사님 2026-09-09: *"커서 확인하고 숫자 지우고 입력하고 힘들어"* ·
+                                  *    *"클릭하면 슬라이더가 보이는 건 어때?"* · *"밀리는 것 없이 레이어로"*.
+                                  *    목업에 이미 답(`KnobGrid`)이 있었는데 실물에 새 칸을 손으로 판 것이다.
+                                  *
+                                  * 라벨·단위·범위에 더해 **한 칸(step)도 표에서 온다** — 화면이 «각도면 10»을
+                                  * 제 손으로 판단하면 표와 갈라진다 (규칙 ③).
+                                  */}
+                                <KnobGrid open={openKnob} onOpen={setOpenKnob}
+                                    knobs={QUAD_FIELDS.map(f => {
+                                        /**
+                                         * 📐 **마름모반경도 자동을 따른다** (이식 C4-12 · 2026-09-12).
+                                         *    각도 둘은 «방향 허용폭»이라 거리와 무관 — **안 건드린다.**
+                                         * 🔴 안 고쳤더니 실측에서 **서버와 지도는 6.2km 로 줄였는데
+                                         *    이 칸만 25km 라고 적고 있었다** (규칙 ⑤-4 ④ — 화면이 조용히 거짓말).
+                                         */
+                                        const isRadius = f.path === 'quadRadiusKm';
+                                        const auto = radiusAuto && isRadius;
+                                        return {
+                                            key: f.path,
+                                            label: f.label,
+                                            unit: f.unit,
+                                            value: auto
+                                                ? Math.round(shownRadii.quadRadiusKm * 10) / 10
+                                                : Number(quadForm[f.path] ?? 0),
+                                            min: f.min,
+                                            max: f.max,
+                                            step: f.step,
+                                            dim: auto,
+                                            /**
+                                             * 🔴 **끌면 지도가 따라오고, 뗄 때 서버로** — 반경 셋과 같은 규칙 (전수 조사 ①-2).
+                                             *    이 셋만 `set` 이 폼만 바꿔서 «지도에 바로 보입니다»가 거짓이었다.
+                                             *    `quadDirty` 는 💾(DB) 용으로 그대로 든다.
+                                             */
+                                            set: auto ? () => {}
+                                                : (v: number) => { const next = { ...quadForm, [f.path]: String(v) }; setQuadForm(next); setQuadDirty(true); previewFilter(quadShapeFrom(next)); },
+                                            onPreview: auto ? undefined
+                                                : (v: number) => previewFilter(quadShapeFrom({ ...quadForm, [f.path]: String(v) })),
+                                            onCommit: auto ? undefined
+                                                : (v: number) => updateFilter(quadShapeFrom({ ...quadForm, [f.path]: String(v) })),
+                                        };
+                                    })} />
+                            </div>
 
-                    {/* 콜 잡기 모드 통제 버튼 영역 (1열 5버튼 구조) */}
-                    <div className="pt-2">
-                        <div className="grid grid-cols-2 gap-1.5">
-                            {/* 💾 **서버 저장** — 하나뿐인 저장. 안 누르고 닫으면 «오늘만»이 된다 */}
-                            <Button
-                                onClick={handleSaveToServer}
-                                title="지금 값을 DB에 저장합니다 (내일 아침에도 이 조건으로 시작)"
-                                className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-success to-success/70 text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] transition-all px-1"
-                            >
-                                <span className="relative z-10 drop-shadow-md tracking-wider flex flex-col leading-tight">
-                                    💾 서버 저장
-                                    <span className="text-[8px] font-bold opacity-80">
-                                        {unsaved ? '서버와 다름' : '서버와 같음'}
+                            {/**
+                              * 🎚️ **반경 셋 — 숫자판이 아니라 슬라이더 레이어** (C4-1 과 같은 부품).
+                              *
+                              * 🔴 **감추지 않고 흐리게 둔다.** «지금 이 칸이 쓰이나»는 **상태에서 파생**하고(노선일 때만 라인반경 · 자동이면 반경 넷),
+                              *    그 그 답은 **`dim` 으로만** 간다 — 감추면 «이 값이 어디 갔나»가 되고
+                              *    그냥 두면 «지금 쓰이는 값»으로 읽힌다 (기사님 2026-09-09 *"모두 꺼내 두고"*).
+                              */}
+                            {/**
+                              * 📐 **[자동 | 수동]** (이식 C4-12 · 2026-09-12).
+                              *    기사님: *"목적지와의 거리에 따라 … **자동으로 바뀌어 주면 좋겠다.
+                              *    그래서 자동, 수동으로** 만들어 주는 거야."*
+                              *
+                              * 🔴 실측: 초월→성남은 15.6km 인데 현위 10 + 목적 15 = **25km** —
+                              *    원 둘이 서로를 덮어 **마름모·각도가 아무 일도 안 한다**(폭 0).
+                              *    기준 40km 의 근거는 `shared` 의 `RADIUS_BASE_KM_DEFAULT` 주석에.
+                              */}
+                            <div className="flex items-center justify-between gap-2 px-0.5 pb-1">
+                                <span className="text-[10.5px] font-black text-text-muted">📐 반경</span>
+                                <div className="flex rounded-lg border border-border-card overflow-hidden">
+                                    {([true, false] as const).map(on => (
+                                        <button key={String(on)} type="button"
+                                            onClick={() => updateFilter({ radiusAuto: on })}
+                                            className={`px-2.5 py-0.5 text-[10.5px] font-bold ${
+                                                radiusAuto === on ? 'bg-info/15 border-info/55 text-info font-black' : 'text-text-muted'}`}>
+                                            {/**
+                                              * 📏 **자동 쪽이 «무엇을 기준으로»를 말한다** (기사님 2026-09-12:
+                                              *    *"자동 버튼 안에 들어가는 것이 어떨까? '40km 기준 반경' | '수동'"*).
+                                              *
+                                              * 🔴 예전엔 기준거리가 **일곱 번째 손잡이**로 따로 있었다. 그런데 그것은
+                                              *    «한 번 정하면 두는 값»이고 나머지 셋은 «오늘 조이는 값»이라 **층이 다르다** —
+                                              *    한 그리드에 섞여 있어 «자동이면 이것만 살고 나머지가 흐려지는» 규칙이 생겼다.
+                                              *    이제 고치는 자리는 ⚙️ 설정 → 필터이고, 여기서는 **지금 무엇으로 재는지**만 말한다.
+                                              */}
+                                            {on ? `${filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT}km 기준 반경` : '수동'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {/**
+                              * 📏 **무엇으로 정했나 + [↻ 다시 구하기]** (기사님 확정 2026-09-14 · 필터.md §10-1 ④).
+                              *    자동 반경의 거리는 **하루에 한 번** 잰다 — 달리는 동안 안 바뀐다.
+                              * 🔴 다시 구하기는 **토글 칸이 아니다** — 셋째 칸이면 «재설정 모드»에 들어가 있는 것처럼 읽힌다.
+                              *    누르면 들고 있던 거리를 비운다(`null`) — 서버가 지금 위치 → 목적지로 다시 잰다.
+                              */}
+                            {radiusAuto && (
+                                <div className="flex items-center justify-between gap-2 px-0.5 pb-1 text-[10px] text-text-muted">
+                                    <span>
+                                        {Number.isFinite(filter?.radiusDistanceKm as number)
+                                            ? `${Math.round((filter!.radiusDistanceKm as number) * 10) / 10}km 로 정함 · ×${
+                                                Math.round(radiusScaleOf(filter?.radiusDistanceKm, filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) * 100) / 100}`
+                                            : '거리를 아직 못 잼 — 반경을 줄이지 않음'}
                                     </span>
-                                </span>
-                            </Button>
+                                    <button type="button" onClick={() => updateFilter({ radiusDistanceKm: null })}
+                                        className="px-2 py-0.5 rounded-lg border border-border-card font-bold text-info">
+                                        ↻ 다시 구하기
+                                    </button>
+                                </div>
+                            )}
+                            {/**
+                              * 📐 **셋이 한 줄** (기사님 2026-09-12: *"필터 남은 것들은 다시 정렬해 주고"*).
+                              *    기준거리가 ⚙️ 설정으로 가면서 넷이 셋이 됐다 — 4칸 격자면 **한 칸이 빈다.**
+                              *    남은 셋은 현위·목적·라인으로 **같은 «반경»**이라 한 줄이 맞다.
+                              */}
+                            <KnobGrid open={openKnob} onOpen={setOpenKnob} cols={3}
+                                knobs={[...KNOB_FIELDS.map(path => {
+                                    const f = FILTER_FIELDS.find(x => x.path === path)!;
+                                    /**
+                                     * 🔴 **자동이면 «줄인 값»을 보여 준다** — 기사님이 정한 원값에
+                                     *    서버가 실어 보낸 배율을 곱한다. 원값은 **안 건드린다** (규칙 ④):
+                                     *    수동으로 돌리면 그 값이 그대로 살아 있다.
+                                     */
+                                    const raw = Number(cur[path] ?? 0);
+                                    const KEY = { pickupRadiusKm: 'pickupRadiusKm', destinationRadiusKm: 'destinationRadiusKm',
+                                                  detourRadiusKm: 'detourRadiusKm' } as const;
+                                    const shown = radiusAuto
+                                        ? Math.round(shownRadii[KEY[path as keyof typeof KEY]] * 10) / 10
+                                        : raw;
+                                    return {
+                                        key: path,
+                                        label: f.label,
+                                        unit: f.unit,
+                                        value: shown,
+                                        min: f.min,
+                                        max: f.max,
+                                        step: f.step,
+                                        /* 🔴 **감추지 않고 흐리게** — 자동이거나 지금 안 쓰이는 칸 */
+                                        dim: !inUse(path) || radiusAuto,
+                                        /* 🔴 자동이면 **손으로 못 민다** — 밀면 화면과 값이 갈라진다 */
+                                        set: radiusAuto ? () => {} : (v: number) => setField(path, String(v)),
+                                        /* 🔴 끄는 동안은 **지도까지** 따라 온다 — 소켓은 안 탄다 (C4-11) */
+                                        onPreview: radiusAuto ? undefined
+                                            : (v: number) => previewValues({ ...cur, [path]: String(v) }),
+                                        /* 🔴 **뗄 때** 서버로 (C4-10) */
+                                        onCommit: radiusAuto ? undefined
+                                            : (v: number) => pickField(path, String(v)),
+                                    };
+                                })]} />
+                    </FilterRow>
 
-                            {/* ↩︎ **되돌리기** — 서버에 저장된 값으로. 메모리까지 함께 되돌린다 */}
-                            <Button
-                                onClick={handleRevert}
-                                disabled={!baseFilter || !unsaved}
-                                title="서버에 저장된 값으로 되돌립니다"
-                                className="h-11 rounded-xl bg-gradient-to-r from-surface-alt to-surface-hover text-text-primary font-black text-[11px] shadow-soft hover:shadow-md transition-all px-1 disabled:opacity-40"
-                            >
-                                ↩︎ 되돌리기
-                            </Button>
-                        </div>
+                    <FilterRow id="call" title="💰 어떤 콜" open={openRow === 'call'} onToggle={toggleRow}
+                        summary={`${callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`} · ${accepted.length ? accepted.map(v => VEHICLE_SHORT[v] ?? v).join('·') : '모두'} · 제외 단어 ${blacklistWords.length ? `${blacklistWords.length}개` : '없음'}`}>
+                            {/**
+                              * 💰🚫 **값 둘도 같은 고르기 칸으로** (기사님 2026-09-09:
+                              *    *"[콜할인율] 이 부분도 디자인에 맞춰 이쁘게 바꿔줘"*).
+                              *    위의 목적지·손잡이들과 **같은 자리·같은 방식**이라야 조작이 하나다.
+                              *
+                              * 🔴 **차종별 하한표는 레이어 «안»으로 들어갔다** — 늘 펴 두면 폰에서 필터가
+                              *    화면을 다 먹는다 (기사님: *"작은 면적에 필요한 것만 잘 디스플레이"*).
+                              *    기사님 2026-09-09: *"읽을 수 있게 통로를 열어 줘야지"* — 없애지 않고 접었다.
+                              *
+                              * ✅ **«🚚 받을 짐»이 아래에 들어왔다** (이식 C4-6b · 2026-09-12).
+                              */}
 
-                        <p className="text-[10px] text-text-muted text-center mt-2">
-                            값을 만지면 <b>바로 적용</b>된다 (앱 메모리 · 제외 지역만 칩 줄의 💾 저장) · <b>💾 서버 저장</b>을 눌러야 내일 아침에도 남는다
-                        </p>
+                            <div className="relative grid grid-cols-3 gap-1">
+                                <PickLayer label="💰 콜할인율"
+                                    value={callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`}
+                                    options={CALL_DISCOUNT_STEPS.map(st => st.label)}
+                                    open={openKnob === 'discount'}
+                                    onToggle={() => setOpenKnob(o => o === 'discount' ? null : 'discount')}
+                                    onPick={(v) => {
+                                        const st = CALL_DISCOUNT_STEPS.find(x => x.label === v);
+                                        if (st) pickField('callDiscountPct', String(st.value));
+                                    }}
+                                    foot={
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-start justify-between gap-2 pb-1 border-b border-border/50">
+                                                <span className="text-[10px] font-black text-text-primary">{FLOOR_TITLE[tab]}</span>
+                                                <span className="text-[9.5px] text-text-muted/70 text-right whitespace-nowrap">통과 = 요금 ≥ 배송거리 × 단가</span>
+                                            </div>
+                                            {/* 남은 용량에 안 들어가는 차종은 흐리게 — 잡아도 못 싣는다 */}
+                                            {RATE_TABLE_ORDER.map(v => {
+                                                const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - callDiscount / 100));
+                                                const slot = VEHICLE_CAPACITY[v] ?? 0;
+                                                const fits = slot <= remainSlots;
+                                                return (
+                                                    <div key={v} className={`flex items-center justify-between text-[10px] ${fits ? '' : 'opacity-35'}`}>
+                                                        <span className="text-text-muted font-bold">
+                                                            {v}<span className="text-text-muted/60 font-normal ml-1">시세 {NET_RATE_PER_KM[v]}원/km · 짐 {slot}박스</span>
+                                                        </span>
+                                                        <span className="font-mono font-black text-success whitespace-nowrap">
+                                                            {!fits ? <span className="text-text-muted font-normal">용량 부족</span>
+                                                             : callDiscount >= 100 ? '전부'
+                                                             : <>≥ {floor.toLocaleString()}원/km
+                                                                 <span className="text-text-muted/60 font-normal ml-1.5">{exampleKm}km면 {(floor * exampleKm).toLocaleString()}</span>
+                                                               </>}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>} />
+                                {/**
+                                  * 🚫 **제외 단어 — 자주 쓰는 것은 눌러서, 나머지는 손으로** (C4-6).
+                                  *
+                                  * 🔴 **목업처럼 1칸으로 접되 자유 입력을 없애지 않는다.** 목업의 여섯은
+                                  *    목업이라 고정이고, 실물은 기사님이 **아무 단어나** 넣으실 수 있어야 한다 —
+                                  *    목록만 남기면 기능이 준다. 그래서 레이어 «안»에 입력칸을 그대로 둔다.
+                                  * 🔴 기사님 2026-09-09: *"제외 단어는 입력이 필요하다. 펼치면 내용을 볼 수 있다."*
+                                  */}
+                                {/**
+                                  * 🚚 **받을 짐 — 목업 그대로** (이식 C4-6b · `MapMockup.tsx:3214`).
+                                  *
+                                  * 기사님 2026-09-12: *"**디자인도 보여주고 목업에 코드도 다 있는데.**"* —
+                                  * 처음에 별도 줄에 버튼 다섯을 새로 그렸다가 걷어냈다.
+                                  * 목업은 **콜할인율·받을 짐·제외 단어 3칸**이고 값은 `1t·다` 로 짧다.
+                                  *
+                                  * 🔴 **보내는 것은 «고른 것»뿐이다** (`acceptedVehicleTypes`).
+                                  *    허용 목록(`allowedVehicleTypes`)을 손으로 보내면 서버가
+                                  *    `if (!changes.allowedVehicleTypes)` 에 걸려 **제 계산을 건너뛴다**
+                                  *    (2026-08-10 사고).
+                                  * 🔴 **지금 적재로 막힌 차종은 이름 뒤에 «✕»를 붙여 남긴다** —
+                                  *    감추지 않는다 (규칙 ⑤-2). 「왜 이 콜이 안 올라오나」가 읽혀야 한다.
+                                  */}
+                                <PickLayer label="🚚 받을 짐"
+                                    value={accepted.length ? accepted.map(v => VEHICLE_SHORT[v] ?? v).join('·') : '모두'}
+                                    options={[...VEHICLE_PICKS]}
+                                    /* 🔴 ✕ 는 옵션 글자에 안 붙인다 — 붙이면 `selected` 비교가 깨져
+                                          막힌 차종은 골라도 강조가 안 켜진다 (2026-09-12 실측) */
+                                    mark={Object.fromEntries(blockedNow.map(v => [v, '✕']))}
+                                    keepOpen selected={accepted}
+                                    open={openKnob === 'vehicles'}
+                                    onToggle={() => setOpenKnob(o => o === 'vehicles' ? null : 'vehicles')}
+                                    onPick={toggleVehicle}
+                                    foot={
+                                        <div className="flex flex-col gap-0.5 text-[10px] tabular-nums">
+                                            <span className="text-[9.5px] font-bold text-text-muted">
+                                                지금 남은 칸 <b className="text-text-primary">{remainSlots}</b> — ✕ 는 지금 적재로 못 받는 것
+                                            </span>
+                                            {VEHICLE_PICKS.map(v => (
+                                                <div key={v} className="flex justify-between gap-1">
+                                                    <span><b>{v}</b> <span className="text-text-muted">짐 {VEHICLE_CAPACITY[v] ?? '?'}박스</span></span>
+                                                    <b className={blockedNow.includes(v) ? 'text-text-muted' : 'text-info'}>
+                                                        {blockedNow.includes(v) ? '지금 못 받음' : '받는다'}
+                                                    </b>
+                                                </div>
+                                            ))}
+                                        </div>} />
+                                <PickLayer label="🚫 제외 단어" tone="warning" keepOpen
+                                    value={blacklistWords.length ? `${blacklistWords.length}개` : '없음'}
+                                    options={COMMON_EXCLUDED_WORDS}
+                                    selected={blacklistWords}
+                                    open={openKnob === 'words'}
+                                    onToggle={() => setOpenKnob(o => o === 'words' ? null : 'words')}
+                                    onPick={(v) => setBlacklistWords(
+                                        blacklistWords.includes(v) ? blacklistWords.filter(w => w !== v) : [...blacklistWords, v])}
+                                    foot={
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[9.5px] font-bold text-text-muted">목록에 없는 말은 여기에 — 쉼표로 나눕니다</span>
+                                            <Input type="text" value={blacklist} onChange={handleBlacklistChange}
+                                                onBlur={commitBlacklist} onKeyDown={e => { if (e.key === 'Enter') commitBlacklist(); }}
+                                                placeholder="착불, 수거"
+                                                className="h-8 bg-surface-alt/50 border-border text-[12px] text-text-primary font-bold" />
+                                        </div>} />
+                            </div>
 
-                        {/* 🩺 **모니터 — 지금 앱에 내려가 있는 필터, 원본 그대로** (필터 정의 6장 ·
-                            확정안 구현 7). "이것이 기기이고 오류나 버그가 있을 수 있으니 항상 현재
-                            필터 상황을 모니터할 수 있어야 한다." 파생값(키워드·단가표)까지 편다 —
-                            이 화면과 폼 위의 값이 다르면 저장이 안 됐거나 서버가 옛 코드다. */}
+                    </FilterRow>
+
+                    <FilterRow id="exclude" title="🚫 빼는 곳" danger open={openRow === 'exclude'} onToggle={toggleRow}
+                        summary={`${exDraft.length ? `${exDraft.length}곳 · ${exDraft.map(excludedLabel).join(', ')}` : '없음'}${exApplied ? '' : ' · 저장 전'}`}>
+                            {/**
+                              * 🚫 **제외 지역 — 탭 위다** (이식 C2-2 · 2026-09-11 · 명세 §3).
+                              *    *"거긴 안 간다"* 는 그 지역이지 그 국면의 사정이 아니다.
+                              *
+                              * 🔴 **고르기 칸은 목업과 같은 부품**(`PickLayer`)이다 — 손맛이 갈리면
+                              *    두 화면이 다른 물건이 된다. 도 한 층이 있는 이유는 기사님이
+                              *    서울을 빼려고 **구 25개를 하나씩** 누르고 계셨기 때문이다 (2026-09-09).
+                              * 🔴 **💾 를 눌러야 저장 대상이 된다** — 칩 하나 잘못 눌러 그 지역이
+                              *    곧장 살아나면 안 된다.
+                              */}
+                            {/* 🔴 **박스 대신 구분선 하나** — 목업 그대로 (`MapMockup.tsx:3288`).
+                                «여기서부터는 빼는 것»이 선 하나로 충분히 갈린다 */}
+                            <div className="relative z-20 border-t border-border-card pt-2 space-y-1">
+                                <div className="flex items-baseline justify-between px-0.5">
+                                    <span className="text-[10.5px] font-black text-danger">🚫 제외 지역</span>
+                                    {/* 🔴 «국면과 무관»을 뺐다 (C4-7) — 국면이 없어졌으니 낡은 말이다 */}
+                                    <span className="text-[9.5px] font-bold text-text-muted">
+                                        {exDraft.length ? `${exDraft.length}곳 제외` : '없음'}
+                                    </span>
+                                </div>
+                                <div className="relative grid grid-cols-3 gap-1">
+                                    <PickLayer label="⛔ 제외 도" options={sidoList()} tone="danger"
+                                        value={`${exSido}${exDraft.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
+                                        selected={sidoList().filter(v => exDraft.includes(`S|${v}`))}
+                                        open={openKnob === 'exSido'} onToggle={() => setOpenKnob(o => o === 'exSido' ? null : 'exSido')}
+                                        onPick={v => { setExSido(v); setExSgg(null); }}
+                                        foot={
+                                            <button type="button" onClick={() => toggleEx(`S|${exSido}`)}
+                                                className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${exDraft.includes(`S|${exSido}`)
+                                                    ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border-card bg-background text-text-muted hover:border-danger'}`}>
+                                                ◼ {exSido} 통째로 제외 {exDraft.includes(`S|${exSido}`) ? '⛔ 켬' : '끔'}
+                                            </button>} />
+                                    <PickLayer label="시·군·구 ⛔ 통째" keepOpen tone="danger" options={sggList(exSido)}
+                                        value={(() => { const n = sggList(exSido).filter(g => exDraft.includes(`R|${g}`)).length; return n ? `${n}곳 제외` : (exSgg ?? '고르기'); })()}
+                                        selected={sggList(exSido).filter(g => exDraft.includes(`R|${g}`))}
+                                        open={openKnob === 'exSgg'} onToggle={() => setOpenKnob(o => o === 'exSgg' ? null : 'exSgg')}
+                                        onPick={v => { setExSgg(v); toggleEx(`R|${v}`); }}
+                                        foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
+                                            누르면 <b className="text-danger">그 시·군·구가 통째로</b> 빠집니다 · 다시 누르면 되살아납니다 ·
+                                            마지막에 누른 곳이 <b>읍·면·동 칸</b>의 대상이 됩니다
+                                        </span>} />
+                                    <PickLayer label="읍·면·동" keepOpen tone="danger" options={exSgg ? dongList(exSgg) : []}
+                                        value={exSgg ? (() => { const n = dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
+                                        selected={exSgg ? dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)) : []}
+                                        open={openKnob === 'exDong'} onToggle={() => setOpenKnob(o => o === 'exDong' ? null : 'exDong')}
+                                        onPick={v => { if (exSgg) toggleEx(`D|${exSgg}|${v}`); }}
+                                        foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
+                                </div>
+                                {/**
+                                  * 🔴 «지금 무엇이 빠져 있나»는 **늘 보인다** — 레이어를 열어야 알면 화면이 조용히 거짓말한다.
+                                  *    다만 여덟 줄을 늘 펴 두면 폰에서 필터가 화면을 다 먹는다. 그래서
+                                  *    **닫히면 한 줄, 누르면 전부**다 (목업 그대로 · 기사님 2026-09-09).
+                                  * 🔴 **닫힌 줄에서는 지우지 못한다** — 잘린 글을 누르다 실수로 되살아나면 안 된다.
+                                  *    펼쳐야 ✕ 가 달린 칩이 된다.
+                                  * 🔴 **다 지웠어도 줄은 남는다** — 안 그러면 「💾 저장」이 같이 사라져
+                                  *    «전부 되살리기»를 적용할 길이 없다.
+                                  */}
+                                {(exDraft.length > 0 || !exApplied) && (!exListOpen ? (
+                                    <div className="flex items-center gap-1">
+                                        <button type="button" onClick={() => setExListOpen(true)}
+                                            className={`flex items-center gap-1 min-w-0 flex-1 px-1.5 py-1 rounded-md border bg-background text-left ${
+                                                !exApplied ? 'border-warning/55' : 'border-border-card hover:border-danger'}`}>
+                                            <span className="shrink-0 text-[10.5px] font-black text-danger">⛔ 제외 {exDraft.length}곳</span>
+                                            <span className="min-w-0 flex-1 truncate text-[10.5px] font-bold text-text-muted">
+                                                {exDraft.map(excludedLabel).join(' · ')}
+                                            </span>
+                                            <span className="shrink-0 text-[10px] font-black text-text-muted">▾ 전부</span>
+                                        </button>
+                                        {/* 🔴 닫아 둔 채로 고쳤어도 «아직 안 들어갔다»가 보여야 한다 — 여기서 바로 저장한다 */}
+                                        {!exApplied && (
+                                            <button type="button" onClick={applyExcluded}
+                                                className="shrink-0 px-2 py-1 rounded-md border border-info/55 bg-info/15 text-info text-[11px] font-black">
+                                                💾 저장
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex flex-wrap gap-1">
+                                            {exDraft.length === 0 && <span className="text-[10.5px] font-bold text-text-muted">제외한 곳이 없습니다 — 저장하면 전국이 그물에 듭니다</span>}
+                                            {exDraft.map(k => (
+                                                <button key={k} type="button" onClick={() => toggleEx(k)} title="누르면 되살립니다"
+                                                    className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
+                                                    ⛔ {excludedLabel(k)} ✕
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {/* 💾 접기 옆에 저장 (기사님 2026-09-09 그대로) — 고친 것은 여기를 눌러야 그물에 들어간다 */}
+                                        <div className="flex items-center gap-1">
+                                            <button type="button" onClick={() => setExListOpen(false)}
+                                                className="text-[10px] font-black text-text-muted px-1">▴ 접기</button>
+                                            <button type="button" disabled={exApplied} onClick={applyExcluded}
+                                                className={`px-2 py-1 rounded-md border text-[11px] font-black ${!exApplied
+                                                    ? 'bg-info/15 border-info/55 text-info' : 'border-border-card bg-background text-text-muted opacity-50'}`}>
+                                                💾 저장{!exApplied ? ` (${exDraft.length}곳)` : ' 완료'}
+                                            </button>
+                                            {!exApplied && (
+                                                <button type="button" onClick={() => setExDraft(filter?.excludedRegions ?? [])}
+                                                    className="px-2 py-1 rounded-md border border-border-card bg-background text-[11px] font-black text-text-muted">
+                                                    ↩︎ 되돌리기
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                    </FilterRow>
+                    </div>
+                </div>
+
+                {/**
+                  * 💾 **저장 줄 — 스크롤 밖 판 바닥에 늘 보인다** (기사님 2026-09-15: *"한번에 저장버튼이 보이지 않아서 불편하고"*).
+                  * 🔴 저장은 둘뿐이다 — 💾 서버 저장(DB) · ↩︎ 되돌리기(서버 값으로). 값을 만지면 바로 메모리에 들어간다.
+                  * ⚠️ 제외 지역의 인라인 💾 저장(메모리)은 «🚫 빼는 곳» 안에 그대로 있다 — 칩 하나 잘못 눌러 곧장 살아나지 않게.
+                  */}
+                <div data-save-bar className="shrink-0 relative z-10 flex items-center gap-1.5 border-t border-border bg-bg-base px-2.5 py-2">
+                    <span className="flex-1 min-w-0 text-[11px] font-bold leading-tight text-text-muted">
+                        {unsaved ? <b className="text-warning">서버와 다름</b> : '서버와 같음'}
+                        <span className="block text-[9.5px] font-bold opacity-80">
+                            {unsaved ? '지금 적용 중 · 💾 누르면 내일 아침에도' : <>값을 만지면 <b>바로 적용</b>된다 · 제외 지역만 따로 💾</>}
+                        </span>
+                    </span>
+                    {/* ↩︎ **되돌리기** — 서버에 저장된 값으로. 메모리까지 함께 되돌린다 */}
+                    <Button
+                        onClick={handleRevert}
+                        disabled={!baseFilter || !unsaved}
+                        title="서버에 저장된 값으로 되돌립니다"
+                        className="h-9 shrink-0 rounded-lg bg-surface-alt text-text-primary font-black text-[11.5px] px-2.5 disabled:opacity-40"
+                    >
+                        ↩︎ 되돌리기
+                    </Button>
+                    {/* 💾 **서버 저장** — 하나뿐인 저장 */}
+                    <Button
+                        onClick={handleSaveToServer}
+                        title="지금 값을 DB에 저장합니다 (내일 아침에도 이 조건으로 시작)"
+                        className={`h-9 shrink-0 rounded-lg font-black text-[11.5px] px-3 text-white ${unsaved ? 'bg-success' : 'bg-success/50'}`}
+                    >
+                        💾 서버 저장
+                    </Button>
+                </div>
+                {/* 🩺 모니터는 조작판(저장 줄) **뒤**에 둔다 — 손잡이가 아니라 확인창이다. 열면 제 안에서 스크롤한다 */}
+                <div className="shrink-0 max-h-[30dvh] overflow-y-auto border-t border-border-card">
+                    {/* 🩺 **모니터 — 지금 앱에 내려가 있는 필터, 원본 그대로** (필터 정의 6장). 늘 쓰는 것이 아니라 닫힌 행이다 */}
+                    <FilterRow id="monitor" title="🩺 앱에 내려간 필터" open={openRow === 'monitor'} onToggle={toggleRow}
+                        summary={`콜 잡기 ${filter.isActive ? 'ON' : 'OFF'}`}>
+                        {/* 🩺 행이 이미 접히므로 안쪽 접기(details)와 상자는 걷었다 — 내용 줄만 (원본 그대로) */}
                         {filter && (
-                            <details className="mt-3 rounded-lg border border-border bg-surface-alt/30 px-3 py-2">
-                                <summary className="text-[11px] font-bold text-text-muted cursor-pointer select-none">
-                                    🩺 지금 앱에 내려간 필터 (원본) — 콜 잡기 {filter.isActive ? 'ON' : 'OFF'}
-                                </summary>
-                                <div className="mt-2 flex flex-col gap-1 text-[11px] text-text-primary tabular-nums">
+                                <div className="flex flex-col gap-1 text-[11px] text-text-primary tabular-nums">
                                     <div>국면 <b>{filter.callTarget ?? 'DEST'}</b> · 단계 <b>{filter.dispatchPhase ?? 'STANDBY'}</b>{filter.isSharedMode ? ' · 합짐 모드' : ''}</div>
                                     <div>상차 반경 <b>{filter.pickupRadiusKm}km</b> · 도착 <b>{filter.destinationCity || '—'} {filter.destinationRadiusKm ?? 0}km</b> · 경유 <b>{filter.detourRadiusKm ?? 0}km</b></div>
                                     <div>콜할인율 <b>{filter.callDiscountPct ?? 10}%</b> · 적재 <b>{Math.round(filter.slotsUsed ?? 0)}/{TRUCK_CAPACITY_SLOTS}박스</b> ({filter.capacityConfidence ? CAPACITY_CONFIDENCE_LABEL[filter.capacityConfidence] : '—'})</div>
@@ -1368,9 +1254,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     {/* 앱 호환 파생 — 입력 화면은 철거됐고 값만 내려간다 (확정안 ①-삭제) */}
                                     <div className="text-text-muted opacity-80">피기백 하한/상한(앱 호환 파생): {filter.minFare?.toLocaleString() ?? '—'} / {filter.maxFare?.toLocaleString() ?? '—'}원</div>
                                 </div>
-                            </details>
                         )}
-                    </div>
+                    </FilterRow>
                 </div>
             </section>
         </>

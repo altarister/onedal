@@ -76,16 +76,35 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3 }: {
     return (
         <div className="relative">
             <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-                {knobs.map(k => (
-                    <button key={k.key} type="button" data-pick onClick={() => onOpen(open === k.key ? null : k.key)}
-                        className={`flex flex-col items-start gap-0 px-1.5 py-1 rounded-lg border text-left ${k.dim ? 'opacity-50' : ''} ${
-                            open === k.key ? 'border-info/55 bg-info/10' : 'border-border-card bg-background hover:border-border-hover'}`}>
-                        <span className="text-[9.5px] font-bold text-text-muted leading-tight">{k.label}</span>
-                        <span className="text-[14px] font-black text-text-primary tabular-nums leading-tight">
-                            {k.value}<span className="text-[9.5px] font-bold text-text-muted">{k.unit}</span>
-                        </span>
-                    </button>
-                ))}
+                {knobs.map(k => {
+                    /**
+                     * 🎚️ **칸 안에서 − / + 로 한 칸씩** (기사님 2026-09-15: *"칸을 누르면 올라가기만하거든 내리는것도 필요해"*).
+                     *    지도를 보면서 반경을 조이고 푼다 — 레이어의 ± 와 같은 일이라 **누르는 즉시** 보낸다.
+                     *    크게 옮길 때는 값을 눌러 슬라이더 레이어를 연다 (끄는 것과 다듬는 것 둘 다 — 2026-09-09).
+                     * 🔴 소수 칸(0.5km)이 `4.6 + 0.5 = 5.1000000001` 로 번지지 않게 둘째 자리에서 자른다.
+                     */
+                    const bump = (dir: 1 | -1) => {
+                        const v = clamp(k, Math.round((k.value + dir * (k.step ?? 1)) * 100) / 100);
+                        k.set(v); k.onCommit?.(v);
+                    };
+                    return (
+                        <div key={k.key} data-pick
+                            className={`flex flex-col items-stretch gap-0.5 px-1 py-1 rounded-lg border ${k.dim ? 'opacity-50' : ''} ${
+                                open === k.key ? 'border-info/55 bg-info/10' : 'border-border-card bg-background'}`}>
+                            <span className="px-0.5 text-[9.5px] font-bold text-text-muted leading-tight">{k.label}</span>
+                            <div className="grid grid-cols-[22px_minmax(0,1fr)_22px] items-center gap-0.5">
+                                <button type="button" aria-label={`${k.label} 줄이기`} disabled={k.value <= (k.min ?? 0)} onClick={() => bump(-1)}
+                                    className="h-6 rounded-md border border-border-hover bg-surface-alt/40 text-[14px] font-black leading-none disabled:opacity-30">−</button>
+                                <button type="button" title="눌러서 끌어 옮기기" onClick={() => onOpen(open === k.key ? null : k.key)}
+                                    className="min-w-0 text-center text-[14px] font-black text-text-primary tabular-nums leading-tight whitespace-nowrap">
+                                    {k.value}<span className="text-[9.5px] font-bold text-text-muted">{k.unit}</span>
+                                </button>
+                                <button type="button" aria-label={`${k.label} 늘리기`} disabled={k.value >= k.max} onClick={() => bump(1)}
+                                    className="h-6 rounded-md border border-border-hover bg-surface-alt/40 text-[14px] font-black leading-none disabled:opacity-30">+</button>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
             {/* 🔴 아래 레이어는 **z-30** — `PickLayer` 와 같은 층이다. 제외지역 블록이
                 `relative z-20` 이라 같은 층이면 뒤에 오는 그쪽이 이긴다 (2026-09-12 실측) */}
