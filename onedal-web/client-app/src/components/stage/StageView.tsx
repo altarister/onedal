@@ -189,8 +189,11 @@ export default function StageView(props: Props) {
      *    전부 운행 뒤면 **현위치 영역 ∩ 라인 영역**. 하차 레이어도 같은 `goalZonesOf` 를 쓴다.
      * 🔴 **지도가 먼저다** — 서버 상차 목록은 아직 옛 계획(`pickupAreaPlan`)이다. 지도를 눈으로 맞춘 뒤 서버가
      *    같은 함수로 동을 찾는다 (기사님과 정한 순서 · todo «필터 영역 개정»). 그 사이 지도와 앱 목록이 다를 수 있다.
-     * 재료: 목록을 만든 자리 · 집 · 복귀 · 복귀콜 쥠은 서버가 싣는다(`filter.pickupArea`) · 실린 콜은 `liveRoute` ·
+     * 재료: 집 · 복귀 · 복귀콜 쥠은 서버가 싣는다(`filter.pickupArea`) · 실린 콜은 `liveRoute` ·
      *    운행 시작은 서버 국면(`DELIVERING`) · 반지름·띠 폭은 서버와 같은 `effectiveRadii`.
+     * 📍 **원의 중심은 실시간 내 위치**(`myLocation`)다 (기사님 2026-09-15 «실시간 위치로 바꿔줘»).
+     *    서버가 목록을 만든 자리(`pickupArea.at`)는 0.5km 움직이고 목록이 바뀔 때만 와서 원이 뒤처졌다.
+     *    ⚠️ 그래서 서버가 목록을 다시 만들기 전까지 지도 원과 원달앱 목록은 0.5km 남짓 어긋날 수 있다.
      * ⚠️ 라인 띠는 **지금 그리는 경로 선**으로 잰다 — 서버의 얼린 경로와 심사 중 잠깐 다를 수 있다.
      */
     const pickupAreaIn = filter?.pickupArea;
@@ -204,15 +207,16 @@ export default function StageView(props: Props) {
     }));
     const pickupLine = pickupShape === 'meLine' ? derived.drawHolder?.routePolyline ?? null : null;
     const pickupArea = useMemo(() => {
-        if (!pickupAreaIn || !pickupShape) return null;
+        /* 🔴 내 위치를 모르면 원을 지어내지 않는다 — 안 그린다 (규칙 ④) */
+        if (!myLocation || !pickupShape) return null;
         /* 🔴 운행 뒤인데 경로를 모르면 띠를 지어내지 않는다 — 안 그린다 (규칙 ④) */
         if (pickupShape === 'meLine' && !(pickupLine && pickupLine.length >= 2)) return null;
         return {
-            me: pickupAreaIn.at, meKm: radii.pickupRadiusKm,
+            me: myLocation, meKm: radii.pickupRadiusKm,
             line: pickupShape === 'meLine' ? pickupLine : null,
             lineKm: radii.detourRadiusKm,
         };
-    }, [pickupAreaIn, pickupShape, pickupLine, radii.pickupRadiusKm, radii.detourRadiusKm]);
+    }, [myLocation, pickupShape, pickupLine, radii.pickupRadiusKm, radii.detourRadiusKm]);
 
 
     /**
