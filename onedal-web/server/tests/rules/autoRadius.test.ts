@@ -111,14 +111,25 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
         expect(codeOnly(modal)).toMatch(/radiusDistanceKm:\s*null/);
     });
 
-    it('🔴 자동이면 반경 손잡이가 흐려진다 — 감추지 않는다', () => {
+    /**
+     * 🔄 **2026-09-15 개정 — 자동이어도 흐리거나 잠그지 않는다** (기사님: *"오토이면 왜 딤드여야 하는거지? 그냥 풀어줘도 되는거잖아"* · 안 2).
+     *    칸은 여전히 «줄인 값»을 보여 주고, − / + · 슬라이더로 움직인 만큼 **원래 값**에 더한다 — 자동은 그대로 켜져 있다.
+     *    ⚠️ 그래서 +0.5 를 눌러도 칸은 배율만큼(×0.46 이면 +0.23) 움직인다 — 기사님이 고르신 모양이다.
+     */
+    it('🔴 자동이어도 반경·마름모반경 손잡이를 흐리거나 잠그지 않는다 — 누르면 원래 값이 바뀐다', () => {
         /* ⚠️ `KNOB_FIELDS` 첫 등장은 **선언부**다 — 손잡이를 만드는 «쓰는 자리»를 본다 */
         const i = modal.indexOf('KNOB_FIELDS.map(');
         expect(i).toBeGreaterThan(-1);
-        const body = modal.slice(i, i + 1800);
-        expect(body).toMatch(/dim:/);
-        expect(body).toMatch(/radiusAuto/);
+        const body = modal.slice(i, i + 2400);
+        expect(body).toMatch(/radiusAuto/);                          // 칸은 여전히 줄인 값을 보여 준다
+        expect(body).not.toMatch(/\|\| radiusAuto/);                 // 자동이라고 흐리지 않는다
+        expect(body).not.toMatch(/radiusAuto \? \(\) => \{\}/);      // 자동이라고 잠그지 않는다
         expect(body).not.toMatch(/hidden/);
+        const q0 = modal.indexOf('knobs={QUAD_FIELDS.map');
+        expect(q0).toBeGreaterThan(-1);
+        const quad = modal.slice(q0, q0 + 2400);
+        expect(quad).not.toMatch(/dim: auto/);
+        expect(quad).not.toMatch(/set: auto \? \(\) => \{\}/);
     });
 
     /**
@@ -138,24 +149,31 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
     });
 
     /**
-     * 🔴 **마름모반경도 함께 흐려진다** (2026-09-12 실측에서 잡았다).
+     * 🔴 **마름모반경도 자동을 따른다** (2026-09-12 실측에서 잡았다).
      *    반경 셋(`KNOB_FIELDS`)만 고쳤더니 **서버와 지도는 6.2km 로 줄였는데
-     *    마름모 칸만 25km 라고 적고 있었다.** 각도 둘은 그대로 만질 수 있어야 한다.
+     *    마름모 칸만 25km 라고 적고 있었다.** 각도 둘은 자동과 무관하다.
+     * 🔄 2026-09-15 — «흐린다»는 걷었다(기사님 안 2). 지키는 뜻은 **칸이 줄인 값을 보여 준다**는 것이다.
      */
-    it('🔴 마름모반경도 자동을 따른다 — 각도 둘은 아니다', () => {
+    it('🔴 마름모반경도 자동을 따른다 — 칸이 줄인 값을 보여 준다 · 각도 둘은 아니다', () => {
         /* ⚠️ `QUAD_FIELDS.map(` 은 세 곳이다(초기화·채우기·손잡이) — **손잡이 자리**를 집는다 */
         const i = modal.indexOf('knobs={QUAD_FIELDS.map(');
         expect(i).toBeGreaterThan(-1);
-        const body = modal.slice(i, i + 1600);
-        expect(body).toMatch(/quadRadiusKm/);
-        expect(body).toMatch(/radiusAuto/);
-        expect(body).toMatch(/dim:/);
+        const body = modal.slice(i, i + 2400);
+        expect(body).toMatch(/const auto = radiusAuto && isRadius/);
+        expect(body).toMatch(/shownRadii\.quadRadiusKm/);
     });
 
-    it('🔴 자동이면 손으로 못 민다 — 화면과 값이 갈라지지 않게', () => {
+    /**
+     * 🔄 **2026-09-15 개정 — 자동이어도 민다** (기사님: *"오토이면 왜 딤드여야 하는거지? 그냥 풀어줘"* · 안 2).
+     *    예전엔 «밀면 화면과 값이 갈라진다»며 막았다. 이제 칸에서 움직인 만큼(줄인 값의 변화량)을 **원래 값**에 더한다 —
+     *    화면은 계속 원래 값 × 배율이라 둘은 갈라지지 않는다.
+     */
+    it('🔴 자동이어도 민다 — 움직인 만큼 원래 값에 더해 저장한다', () => {
         const i = modal.indexOf('KNOB_FIELDS.map(');
-        const body = modal.slice(i, i + 1800);
-        /* `set`·`onCommit` 이 자동일 때 막혀야 한다 */
-        expect(body).toMatch(/radiusAuto \?|!radiusAuto/);
+        /* ⚠️ 주석이 길어 `onCommit` 은 첫 줄에서 3000자 넘게 아래다 — 넉넉히 자른다 */
+        const body = modal.slice(i, i + 4000);
+        expect(body).toMatch(/const toRaw = \(v: number\) => radiusAuto \?/);
+        expect(body).toMatch(/set: \(v: number\) => setField\(path, String\(toRaw\(v\)\)\)/);
+        expect(body).toMatch(/onCommit: \(v: number\) => pickField\(path, String\(toRaw\(v\)\)\)/);
     });
 });

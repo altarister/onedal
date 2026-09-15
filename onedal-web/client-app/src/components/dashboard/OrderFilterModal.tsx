@@ -846,6 +846,10 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                          */
                                         const isRadius = f.path === 'quadRadiusKm';
                                         const auto = radiusAuto && isRadius;
+                                        const rawQ = Number(quadForm[f.path] ?? 0);
+                                        const shownQ = auto ? Math.round(shownRadii.quadRadiusKm * 10) / 10 : rawQ;
+                                        /* 🎚️ 자동이어도 민다 — 칸에서 움직인 만큼(줄인 값의 변화량) 원래 값에 더한다 · 자동은 그대로 (기사님 2026-09-15 «오토이면 왜 딤드» · 안 2) */
+                                        const toRaw = (v: number) => auto ? Math.min(f.max, Math.max(f.min ?? 0, Math.round((rawQ + (v - shownQ)) * 10) / 10)) : v;
                                         return {
                                             key: f.path,
                                             label: f.label,
@@ -856,18 +860,14 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                             min: f.min,
                                             max: f.max,
                                             step: f.step,
-                                            dim: auto,
                                             /**
                                              * 🔴 **끌면 지도가 따라오고, 뗄 때 서버로** — 반경 셋과 같은 규칙 (전수 조사 ①-2).
                                              *    이 셋만 `set` 이 폼만 바꿔서 «지도에 바로 보입니다»가 거짓이었다.
                                              *    `quadDirty` 는 💾(DB) 용으로 그대로 든다.
                                              */
-                                            set: auto ? () => {}
-                                                : (v: number) => { const next = { ...quadForm, [f.path]: String(v) }; setQuadForm(next); setQuadDirty(true); previewFilter(quadShapeFrom(next)); },
-                                            onPreview: auto ? undefined
-                                                : (v: number) => previewFilter(quadShapeFrom({ ...quadForm, [f.path]: String(v) })),
-                                            onCommit: auto ? undefined
-                                                : (v: number) => updateFilter(quadShapeFrom({ ...quadForm, [f.path]: String(v) })),
+                                            set: (v: number) => { const next = { ...quadForm, [f.path]: String(toRaw(v)) }; setQuadForm(next); setQuadDirty(true); previewFilter(quadShapeFrom(next)); },
+                                            onPreview: (v: number) => previewFilter(quadShapeFrom({ ...quadForm, [f.path]: String(toRaw(v)) })),
+                                            onCommit: (v: number) => updateFilter(quadShapeFrom({ ...quadForm, [f.path]: String(toRaw(v)) })),
                                         };
                                     })} />
                             </div>
@@ -907,6 +907,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     const shown = radiusAuto
                                         ? Math.round(shownRadii[KEY[path as keyof typeof KEY]] * 10) / 10
                                         : raw;
+                                    /* 🎚️ 자동이어도 민다 — 칸에서 움직인 만큼(줄인 값의 변화량) 원래 값에 더한다 · 자동은 그대로 (기사님 2026-09-15 안 2) */
+                                    const toRaw = (v: number) => radiusAuto ? Math.min(f.max, Math.max(f.min ?? 0, Math.round((raw + (v - shown)) * 10) / 10)) : v;
                                     return {
                                         key: path,
                                         label: f.label,
@@ -915,16 +917,17 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         min: f.min,
                                         max: f.max,
                                         step: f.step,
-                                        /* 🔴 **감추지 않고 흐리게** — 자동이거나 지금 안 쓰이는 칸 */
-                                        dim: !inUse(path) || radiusAuto,
-                                        /* 🔴 자동이면 **손으로 못 민다** — 밀면 화면과 값이 갈라진다 */
-                                        set: radiusAuto ? () => {} : (v: number) => setField(path, String(v)),
+                                        /* 🔴 **감추지 않고 흐리게** — 지금 안 쓰이는 칸만 (자동이라고 흐리지 않는다 · 기사님 2026-09-15) */
+                                        dim: !inUse(path),
+                                        /**
+                                         * 🎚️ **자동이어도 민다** (기사님 2026-09-15: *"오토이면 왜 딤드여야 하는거지? 그냥 풀어줘도 되는거잖아"* · 안 2).
+                                         *    칸은 줄인 값을 보여 주고, 움직인 만큼 **원래 값**에 더한다 — 자동은 그대로 켜져 있다.
+                                         */
+                                        set: (v: number) => setField(path, String(toRaw(v))),
                                         /* 🔴 끄는 동안은 **지도까지** 따라 온다 — 소켓은 안 탄다 (C4-11) */
-                                        onPreview: radiusAuto ? undefined
-                                            : (v: number) => previewValues({ ...cur, [path]: String(v) }),
+                                        onPreview: (v: number) => previewValues({ ...cur, [path]: String(toRaw(v)) }),
                                         /* 🔴 **뗄 때** 서버로 (C4-10) */
-                                        onCommit: radiusAuto ? undefined
-                                            : (v: number) => pickField(path, String(v)),
+                                        onCommit: (v: number) => pickField(path, String(toRaw(v))),
                                     };
                                 })]} />
                     </FilterRow>
