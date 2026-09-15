@@ -72,6 +72,12 @@ describe('상차 목록 — 실제 지도', () => {
         expect(pickupListFor({ radii, me: TERMINAL, line: null, zones: [] }).list).toEqual([]);
     });
 
+    it('🔴 시 · 군 · 구로 묶은 목록도 낸다 — 하차 목록이 같은 이름의 다른 동을 안 빼게 (리뷰 2026-09-15)', () => {
+        const r = pickupListFor({ radii, me: MODA, line: null, zones: [dest('idle')] });
+        expect([...new Set(Object.values(r.grouped).flat())].sort()).toEqual([...r.list].sort());
+        expect(Object.keys(r.grouped).some(k => k.includes('광주'))).toBe(true);
+    });
+
     it('🔴 읍·면·동 이름만 싣는다', () => {
         const r = pickupListFor({ radii, me: MODA, line: null, zones: [dest('idle')] });
         expect(r.list.filter(n => /(시|구|군)$/.test(n))).toEqual([]);
@@ -99,6 +105,45 @@ describe('상차 목록 배선', () => {
         /* 🔴 지도 재료(복귀 켬 · 복귀콜 쥠 · 집 · 라인)가 바뀌어도 «바뀌었다»고 알린다 — 목록만 보면 옛 재료로 그린다 (2026-09-15 15:47) */
         expect(body).toMatch(/pickupAreaKey\(/);
         expect(code('socket/socketHandlers.ts')).toMatch(/maybeRebuildPickupList\(userId, io\)/);
+    });
+
+    /**
+     * 🔎 **코드 리뷰 2026-09-15** — 상차 목록이 늦는 길 둘 · 노선/동선이 갈리는 길 하나.
+     *   ① 필터 판에서 목적지 · 반경 · 자동 반경을 바꾸면 하차 목록만 새로 만들고 상차 목록은 0.5km 움직일 때까지 옛것이었다
+     *      (목적지 없이 떴다가 정하면 빈 상차 목록이 남아 원달앱이 전부 막았다)
+     *   ② 손으로 고친 필터(`userOverrides`)면 상차 목록까지 건너뛰었다 — #146 과 같은 모양
+     *   ③ 동선인데 하차 조각은 라인이 있다고 보고 그물엔 라인을 안 넘겨 «종착지 마름모 + 원»만 남았다
+     */
+    it('🔴 필터 판 값이 바뀌어 하차 목록을 다시 만들 때 상차 목록을 먼저 만든다 · 시 별칭은 목록에 든 시 전부로', () => {
+        const fm = code('state/filterManager.ts');
+        /* 필터 판 값이 바뀌면 `updateActiveFilter` → `recalculateDerivedFields` 의 지리 재계산 분기가 목록을 만든다 */
+        const upd = fm.slice(fm.indexOf('function recalculateDerivedFields('));
+        const geo = upd.slice(upd.indexOf('needsGeoRecalc) {'), upd.indexOf('session.activeFilter.customCityFilters = customCityFilters'));
+        expect(geo).toMatch(/rebuildPickupList\(session, userId\)[\s\S]*netOfGoals\(/);
+        expect(geo).not.toMatch(/getCityRegionsWithRadius\(/);
+    });
+    it('🔴 손으로 고친 필터여도 상차 목록은 새로 만든다', () => {
+        const fm = code('state/filterManager.ts');
+        const r = fm.slice(fm.indexOf('export function rebuildNetFilter('));
+        const body = r.slice(0, r.indexOf('\n}'));
+        expect(body.indexOf('rebuildPickupList(session, userId)')).toBeGreaterThan(-1);
+        expect(body.indexOf('rebuildPickupList(session, userId)')).toBeLessThan(body.indexOf('userOverrides'));
+    });
+    it('🔴 하차 목록은 동선이면 라인이 없다고 본다 · 상차 목록은 시 · 군 · 구로 묶어 뺀다', () => {
+        const fm = code('state/filterManager.ts');
+        const n = fm.slice(fm.indexOf('function netOfGoals('));
+        const body = n.slice(0, n.indexOf('\n}'));
+        expect(body).toMatch(/routeMode === false/);
+        expect(body).toMatch(/mergeDropoffGroups\(parts, session\.pickupGroups/);
+        expect(fm).toMatch(/session\.pickupGroups = /);
+    });
+    it('🔴 지도 재료도 서버와 같다 — 판정 중 후보콜은 안 센다 · 동선이면 상차 띠가 없다 · 띠가 없으면 원 전체', () => {
+        const sv = readFileSync(join(__dirname, '../../../client-app/src/components/stage/StageView.tsx'), 'utf8')
+            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        expect(sv).toMatch(/liveRoute\.filter\(o => !isEvaluating\(o\.status\)\)/);
+        expect(sv).not.toMatch(/activeCalls: liveRoute,/);
+        expect(sv).toMatch(/const pickupLine = routeMode/);
+        expect(sv).not.toMatch(/pickupShape === 'meLine' && !\(pickupLine/);
     });
 
     it('🔴 빈 상차 목록은 고장 — 잡지 않는다 (규칙 ④) · 아직 안 만들었으면 막지 않는다', () => {

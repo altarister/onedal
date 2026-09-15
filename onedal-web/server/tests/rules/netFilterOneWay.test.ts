@@ -227,7 +227,8 @@ describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
         expect(n).toMatch(/planArrivalStops\(/);
         expect(n).toMatch(/lastDropOf\(/);
         expect(n).toMatch(/dropoffPartsOf\(/);
-        expect(n).toMatch(/mergeDropoffGroups\(parts, session\.activeFilter\.pickupKeywords/);
+        /* 🔄 코드 리뷰 2026-09-15 — 상차 목록은 시 · 군 · 구와 짝지어 뺀다 (`session.pickupGroups`) */
+        expect(n).toMatch(/mergeDropoffGroups\(parts, session\.pickupGroups/);
         expect(fm).not.toMatch(/session\.activeFilter\.localMode = /);
     });
     it('🔴 상차 목록을 먼저 만들고 하차 목록을 만든다 · 0.5km 마다 상차 목록이나 가까이 옴이 바뀌면 하차 목록도 (2026-09-15)', () => {

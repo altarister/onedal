@@ -515,11 +515,6 @@ export function regionsTouchingAreaGrouped(area: {
     return Object.fromEntries(Object.entries(groups).map(([parent, names]) => [parent, [...names].sort()]));
 }
 
-/** 📍 영역에 걸친 읍·면·동 **이름만** — 상차 목록(`pickupListFor`)이 쓴다 */
-export function regionsTouchingArea(area: Parameters<typeof regionsTouchingAreaGrouped>[0]): string[] {
-    return [...new Set(Object.values(regionsTouchingAreaGrouped(area)).flat())].sort();
-}
-
 /**
  * ⭕ **원 하나의 영역 재료** — 원을 감싼 사각형 · 그 안 격자 점 · 판정. `inArea` 를 주면 원 안에서 그 판정으로 점을 거른다 (원 ∩ 라인).
  *    상차 목록(`pickupListFor`)과 가까이 온 목적지의 하차 목록(`regionsTouchingCircleGrouped`)이 함께 쓴다.
@@ -583,7 +578,7 @@ export function regionsTouchingCircleGrouped(center: { lng: number; lat: number 
  *
  * 모양은 shared `pickupShapeOf` — 살아 있는 목적지 중 하나라도 운행 뒤가 아니면 **현위치 영역 전체**,
  * 전부 운행 뒤면 **현위치 영역 ∩ 라인 영역**. 관제웹 «상차» 레이어가 같은 함수로 그린다 (규칙 ③).
- * 그 영역에 **걸친** 읍·면·동이 목록이다 (`regionsTouchingArea`).
+ * 그 영역에 **걸친** 읍·면·동이 목록이다 (`regionsTouchingAreaGrouped`).
  * 🔴 운행 뒤인데 라인이 없으면 현위치 영역 전체로 본다 — 라인을 지어내지 않는다 (규칙 ④ · 지도와 같다).
  * 🔴 «경로 몇 km»를 안 본다 — 되돌아가는 경로에서 다시 지날 동이 빠지던 D3 가 이 계산에는 없다.
  * 세션을 모른다 — 서버 `filterManager.rebuildPickupList` 가 값을 넘기고, 검사가 실제 지도로 이 함수를 부른다.
@@ -593,9 +588,9 @@ export function pickupListFor(o: {
     radii: { pickupRadiusKm: number; detourRadiusKm: number };
     line: Array<{ x: number; y: number }> | null;
     zones: ReadonlyArray<GoalZone>;
-}): { list: string[]; shape: 'me' | 'meLine' | null } {
+}): { list: string[]; grouped: Record<string, string[]>; shape: 'me' | 'meLine' | null } {
     const want = pickupShapeOf(o.zones);
-    if (!want) return { list: [], shape: null };   // 목적지가 없다 — 빈 목록은 고장으로 막힌다 (`callFilterBlocker`)
+    if (!want) return { list: [], grouped: {}, shape: null };   // 목적지가 없다 — 빈 목록은 고장으로 막힌다 (`callFilterBlocker`)
     const line = o.line && o.line.length >= 2 ? o.line.map(p => [p.x, p.y] as [number, number]) : null;
     const shape = want === 'meLine' && line ? 'meLine' : 'me';
     const r = o.radii.pickupRadiusKm;
@@ -605,7 +600,11 @@ export function pickupListFor(o: {
         : inMe;
 
     /* 격자 — 영역은 늘 현위치 원 안이라 원을 감싼 사각형만 찍으면 된다 (`circleArea`) */
-    return { list: regionsTouchingArea(circleArea({ lng: o.me.x, lat: o.me.y }, r, inArea)).filter(isPickupListName), shape };
+    /* 🗂️ 시 · 군 · 구로 묶어서도 낸다 — 하차 목록이 같은 이름의 다른 동을 안 빼게 (`mergeDropoffGroups` · 코드 리뷰 2026-09-15) */
+    const grouped = Object.fromEntries(Object.entries(regionsTouchingAreaGrouped(circleArea({ lng: o.me.x, lat: o.me.y }, r, inArea)))
+        .map(([region, names]) => [region, names.filter(isPickupListName)] as [string, string[]])
+        .filter(([, names]) => names.length > 0));
+    return { list: [...new Set(Object.values(grouped).flat())].sort(), grouped, shape };
 }
 
 export function getCityRegionsWithRadius(cityName: string, radiusKm: number): CityRegions {

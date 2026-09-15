@@ -112,12 +112,15 @@ export function isHomeCallOf(call: { goalCity?: string | null }, o: { homeOn: bo
  * | `routed`  | 현위치 원 ∪ 라인 ∪ Q(종착지→목적지) ∪ 목적지 원 |
  * | `driving` | 라인 ∪ Q(종착지→목적지) ∪ 목적지 원 — (A ∩ 라인)은 라인 안이라 현위치 원을 따로 안 넣는다 |
  *
- * @param hasLine 그 목적지의 라인이 있나 — 🔷 동선이거나 경로를 모르면 없다. 그때는 «콜 없음» 모양으로 본다 (라인을 지어내지 않는다 · 규칙 ④)
+ * @param hasLine 그 목적지의 라인이 있나 — 🔷 동선이거나 경로를 모르면 없다. 그때는 라인 · 종착지 없이 마름모를 현위치에서 잰다 (라인을 지어내지 않는다 · 규칙 ④).
+ *    🔴 운행 뒤에는 라인이 없어도 현위치 원을 다시 넣지 않는다 — 상차가 A ∩ 라인이면 라인 밖 A 동이 상차 목록에 없어 안 빠지고,
+ *    «뒤쪽 동에 내리는 콜»이 샌다 (코드 리뷰 2026-09-15)
  */
 export function dropoffPartsOf(state: GoalState, hasLine: boolean, near = false): { me: boolean; line: boolean; quadFrom: 'me' | 'lastDrop' | null } {
     /* 🎯 가까이 온 목적지는 목적지 원 전체뿐 — 상차 목록 동도 빼지 않는다 (필터.md «하차 영역») */
     if (near) return { me: false, line: false, quadFrom: null };
-    if (state === 'idle' || !hasLine) return { me: true, line: false, quadFrom: 'me' };
+    if (state === 'idle') return { me: true, line: false, quadFrom: 'me' };
+    if (!hasLine) return { me: state === 'routed', line: false, quadFrom: 'me' };
     return state === 'routed'
         ? { me: true, line: true, quadFrom: 'lastDrop' }
         : { me: false, line: true, quadFrom: 'lastDrop' };
@@ -145,15 +148,21 @@ export function lastDropOf(o: {
     return null;
 }
 
-/** ✂️ **라인을 종착지까지 자른다** — 종착지에서 가장 가까운 점까지. 점이 둘보다 적으면 빈 라인 */
+/** ✂️ 같은 곳을 다시 지난 것으로 보는 폭 — 가장 가까운 거리에서 이만큼 안이면 같은 자리다 */
+const LINE_UNTIL_SAME_SPOT_KM = 0.2;
+
+/**
+ * ✂️ **라인을 종착지까지 자른다** — 종착지에서 가장 가까운 점까지. 점이 둘보다 적으면 빈 라인.
+ * 🔴 같은 곳을 두 번 지나면 **뒤에 지나는 쪽**까지 자른다 — 종착지는 그 목적지의 **마지막** 하차지라서다.
+ *    앞 통과에서 자르면 D3(신둔 → 이천터미널 → 신둔 → 집)처럼 되돌아오는 라인을 잃는다 (코드 리뷰 2026-09-15).
+ */
 export function lineUntil<T extends { x: number; y: number }>(line: ReadonlyArray<T>, pt: { x: number; y: number }): T[] {
     if (line.length < 2) return [];
     const kx = Math.cos((pt.y * Math.PI) / 180);
-    let best = Infinity, at = 0;
-    line.forEach((p, i) => {
-        const d = ((p.x - pt.x) * kx) ** 2 + (p.y - pt.y) ** 2;
-        if (d < best) { best = d; at = i; }
-    });
+    const km = line.map(p => Math.hypot((p.x - pt.x) * kx, p.y - pt.y) * 111.32);
+    const nearest = Math.min(...km);
+    let at = 0;
+    km.forEach((d, i) => { if (d <= nearest + LINE_UNTIL_SAME_SPOT_KM) at = i; });
     return line.slice(0, at + 1);
 }
 
@@ -164,21 +173,24 @@ export function lineUntil<T extends { x: number; y: number }>(line: ReadonlyArra
  * 기사님: *"하차는 상차 영역을 빼야 해 — 상차한 지역에 하차하지 않을꺼 같아. 역방향도 많이 걸릴꺼 같고"*.
  * 🔴 **동 목록으로 뺀다** — 원달앱은 상차지 동이 상차 목록에 있어야 콜을 잡는다(`PickupListFilter.check`). 그래서 이렇게 빼면
  *    «싣는 동에 내리는 콜»이 정확히 막힌다. 도형으로 빼면 경계에 걸친 큰 읍·면이 두 목록에 다 남아 샌다.
+ * 🔴 **시 · 군 · 구와 짝지어 뺀다** — 이름만 보면 먼 도시의 같은 이름 동(중앙동 · 신촌동 · 수도권에만 97개)까지 빠진다.
+ *    원달앱 하차는 «시 + 동»(`customCityFilters`)으로 보니 먼 쪽 동은 다른 곳이다 (코드 리뷰 2026-09-15).
  * 진행도(지나온 곳 빼기): 같은 동이 여럿이면 먼 쪽 · **어느 조각에서든 진행도 없이 들었으면 없앤다** («아직 안 간 곳» · `callNet.lineZoneOf` 의 `onlyByLine`).
  *    가까이 온 목적지에서 든 동은 진행도가 없다.
  */
 export function mergeDropoffGroups(
     parts: ReadonlyArray<{ near: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }>,
-    pickupList: readonly string[],
+    /** 상차 목록 — 시 · 군 · 구로 묶은 것 (`geoService.pickupListFor` 의 `grouped`) */
+    pickupGroups: Readonly<Record<string, readonly string[]>>,
 ): { grouped: Record<string, string[]>; flat: string[]; progressKm: Record<string, number> } {
-    const pick = new Set(pickupList);
+    const pick = new Set(Object.entries(pickupGroups).flatMap(([region, names]) => names.map(n => `${region}|${n}`)));
     const groups: Record<string, Set<string>> = {};
     const progressKm: Record<string, number> = {};
     const unvisited = new Set<string>();
     for (const part of parts) {
         for (const [region, names] of Object.entries(part.grouped)) {
             for (const name of names) {
-                if (!part.near && pick.has(name)) continue;
+                if (!part.near && pick.has(`${region}|${name}`)) continue;
                 (groups[region] ??= new Set()).add(name);
                 const km = part.near ? undefined : part.progressKm[name];
                 if (km === undefined) unvisited.add(name);

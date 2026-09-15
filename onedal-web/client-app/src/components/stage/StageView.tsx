@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm, goalZonesOf, withNearness, pickupShapeOf,
+import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, progressAlongKm, goalZonesOf, withNearness, pickupShapeOf,
     dropoffPartsOf, lastDropOf, lineUntil, quadShapeFrom, quadOutline, cityCenter, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
@@ -188,13 +188,15 @@ export default function StageView(props: Props) {
      * 🔴 모양은 shared `goalZonesOf` → `pickupShapeOf` 한 곳 — 하나라도 운행 뒤가 아니면 **현위치 영역 전체**,
      *    전부 운행 뒤면 **현위치 영역 ∩ 라인 영역**. 하차 레이어도 같은 `goalZonesOf` 를 쓴다.
      * 🔴 서버 상차 목록(`filterManager.rebuildPickupList`)도 **같은 `goalZonesOf`** 로 동을 찾는다 (규칙 ③).
-     * 재료: 집 · 복귀 · 복귀콜 쥠은 서버가 싣는다(`filter.pickupArea`) · 실린 콜은 `liveRoute` ·
+     * 재료: 집 · 복귀 · 복귀콜 쥠은 서버가 싣는다(`filter.pickupArea`) · 실린 콜은 `liveRoute` 중 **판정 중 후보콜을 뺀 것** ·
      *    운행 시작은 서버 국면(`DELIVERING`) · 반지름·띠 폭은 서버와 같은 `effectiveRadii`.
      * 📍 **원의 중심은 실시간 내 위치**(`myLocation`)다 (기사님 2026-09-15 «실시간 위치로 바꿔줘»).
      *    서버가 목록을 만든 자리(`pickupArea.at`)는 0.5km 움직이고 목록이 바뀔 때만 와서 원이 뒤처졌다.
      *    ⚠️ 그래서 서버가 목록을 다시 만들기 전까지 지도 원과 원달앱 목록은 0.5km 남짓 어긋날 수 있다.
      * ⚠️ 라인 띠는 **지금 그리는 경로 선**으로 잰다 — 서버의 얼린 경로와 심사 중 잠깐 다를 수 있다.
      */
+    /* 🔴 판정 중 후보콜은 안 센다 — 서버 `getActiveCalls` 는 확정 콜만 본다. 세면 지도만 «경로 생김»이 되고 후보콜 하차지를 종착지로 잡는다 (코드 리뷰 2026-09-15) */
+    const confirmedCalls = useMemo(() => liveRoute.filter(o => !isEvaluating(o.status)), [liveRoute]);
     const pickupAreaIn = filter?.pickupArea;
     const homeOn = pickupAreaIn?.homeOn ?? false;
     const homeCity = pickupAreaIn?.homeCity ?? null;
@@ -204,7 +206,7 @@ export default function StageView(props: Props) {
         homeOn,
         homeCaught: pickupAreaIn?.homeCaught ?? false,
         departed: filter?.dispatchPhase === 'DELIVERING',
-        activeCalls: liveRoute,
+        activeCalls: confirmedCalls,
     });
     /**
      * 🎯 **목적지 가까이 옴** — 마름모가 현위치 원 ∪ 목적지 원 안에 통째로면 상차 A 전체 · 하차 그 목적지 원 전체 (필터.md «필터 영역»).
@@ -252,7 +254,7 @@ export default function StageView(props: Props) {
             if (!Number.isFinite(center.lng) || !Number.isFinite(center.lat)) return [];
             /* 🎯 가까이 온 목적지는 목적지 원뿐 — 종착지 · 라인 · 마름모를 안 만든다 */
             const lastDrop = z.state === 'idle' || z.near ? null
-                : lastDropOf({ isHome: z.isHome, homeOn, homeCity, stops: routeStops, calls: liveRoute });
+                : lastDropOf({ isHome: z.isHome, homeOn, homeCity, stops: routeStops, calls: confirmedCalls });
             const line = dropoffLine && lastDrop ? lineUntil(dropoffLine, lastDrop) : [];
             const parts = dropoffPartsOf(z.state, line.length >= 2, z.near);
             /* 🔴 종착지를 모르면 그 마름모는 안 그린다 — 앞 정거장으로 대신하지 않는다 (규칙 ④) */
@@ -263,7 +265,7 @@ export default function StageView(props: Props) {
                 : null;
             return [{ center: { x: center.lng, y: center.lat }, near: !!z.near, me: parts.me, line: parts.line ? line : null, quad }];
         });
-    }, [nearKey, meGridX, meGridY, dropoffLine, routeStops, liveRoute, homeOn, homeCity,
+    }, [nearKey, meGridX, meGridY, dropoffLine, routeStops, confirmedCalls, homeOn, homeCity,
         quadShape.srcAngleDeg, quadShape.dstAngleDeg, radii.quadRadiusKm, radii.pickupRadiusKm, radii.destinationRadiusKm]);
     const dropoffDeparted = filter?.dispatchPhase === 'DELIVERING';
     const dropoffArea = useMemo(() => {
@@ -288,15 +290,15 @@ export default function StageView(props: Props) {
 
     /* 🟢 상차 영역 도형 — 위 «상차 영역» 주석. ⚠️ 하차 계산 **뒤에** 둔다: 앞에 두면 하차 계산이 같은 재료(`liveRoute` · 경로 선)를
           함수에 넘기는 것을 React 컴파일러가 «메모 뒤의 변경»으로 보고 이 메모를 포기한다 (lint:gate) */
-    const pickupLine = pickupShape === 'meLine' ? derived.drawHolder?.routePolyline ?? null : null;
+    /* 🔷 동선이면 띠가 없다 — 서버 `rebuildPickupList` 도 `routeMode === false` 면 라인을 안 넘긴다 */
+    const pickupLine = routeMode && pickupShape === 'meLine' ? derived.drawHolder?.routePolyline ?? null : null;
     const pickupArea = useMemo(() => {
         /* 🔴 내 위치를 모르면 원을 지어내지 않는다 — 안 그린다 (규칙 ④) */
         if (!myLocation || !pickupShape) return null;
-        /* 🔴 운행 뒤인데 경로를 모르면 띠를 지어내지 않는다 — 안 그린다 (규칙 ④) */
-        if (pickupShape === 'meLine' && !(pickupLine && pickupLine.length >= 2)) return null;
         return {
             me: myLocation, meKm: radii.pickupRadiusKm,
-            line: pickupShape === 'meLine' ? pickupLine : null,
+            /* 🔴 띠가 없으면(동선 · 경로를 모름) 원 전체 — 서버 `pickupListFor` 가 그렇게 목록을 만든다. 안 그리면 하차에서도 안 지워진다 */
+            line: pickupLine && pickupLine.length >= 2 ? pickupLine : null,
             lineKm: radii.detourRadiusKm,
         };
     }, [myLocation, pickupShape, pickupLine, radii.pickupRadiusKm, radii.detourRadiusKm]);

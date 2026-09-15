@@ -484,10 +484,16 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
          *    진행도도 함께 기억한다 — `rebuildNetFilter` 와 같은 모양 (지나온 곳 빼기가 이 목록을 본다)
          */
         const line = filterLineOf(session);
-        const { flat, grouped, byNet, pruned, goals, progressKm } = netOfGoals(session, userId,
+        /* 📋 **상차 목록을 먼저** — 목적지 · 반경 · 자동 반경이 바뀌면 상차 목록도 바뀐다. 안 만들면 0.5km 움직일 때까지 옛 목록이
+              앱에 남고, 하차 목록도 옛 상차 목록을 뺀다 (코드 리뷰 2026-09-15 · 목적지 없이 떴다 정하면 빈 상차 목록으로 전부 막혔다) */
+        rebuildPickupList(session, userId);
+        const { flat, grouped, byNet, pruned, progressKm } = netOfGoals(session, userId,
             line ? line.map(p => [p.x, p.y] as [number, number]) : null);
         rememberDetourProgress(session, line ? progressOf(progressKm) : null);
-        const customCityFilters = [...new Set(goals.flatMap(g => getCityRegionsWithRadius(g, radius).customCityFilters))];
+        /* 🔴 별칭은 목록에 든 시 전부에서 — `netFilterOf` 와 같다. 걸친 동 · 가까이 온 목적지 원이 이웃 시 동을 더한다 (코드 리뷰 2026-09-15) */
+        const aliases = new Set<string>();
+        for (const parent of Object.keys(grouped)) for (const a of cityAliases(parent)) aliases.add(a);
+        const customCityFilters = [...aliases];
         console.log(`🕸️ [FilterManager] ${byNet ? '그물' : '도시 둘레(물러섬)'} → 지역 ${flat.length}개`
             + (pruned > 0 ? ` (제외로 ${pruned}개 뺌)` : ''));
         session.activeFilter.destinationKeywords = flat;
@@ -854,12 +860,14 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
     const { zones, homeOn, homeCity } = goalZonesNow(session, userId, origin);
     const activeCalls = getActiveCalls(session);
     const stops = activeCalls.length ? planArrivalStops(activeCalls, origin) : [];
-    const lineXY = line ? line.map(([x, y]) => ({ x, y })) : null;
+    /* 🔷 동선이면 라인이 없다 — 조각(`dropoffPartsOf`)과 그물(`netKeywordsOf`)이 같은 답을 보게 여기서 끊는다 (코드 리뷰 2026-09-15) */
+    const lineXY = !line || session.activeFilter.routeMode === false ? null : line.map(([x, y]) => ({ x, y }));
     const radius = session.activeFilter.destinationRadiusKm || 0;
     const parts: Array<{ near: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }> = [];
     /** 🔎 목적지마다 무엇으로 만들었나 — 로그 한 줄 (`rebuildNetFilter` · 기사님 2026-09-15 «너가 로그를 남겨서 확인할 수 있게 해») */
     const details: string[] = [];
-    const pick = new Set(session.activeFilter.pickupKeywords ?? []);
+    const pickupGroups = session.pickupGroups ?? {};
+    const pick = new Set(Object.entries(pickupGroups).flatMap(([region, names]) => names.map(n => `${region}|${n}`)));
     let byNet = zones.length > 0, pruned = 0;
     for (const z of zones) {
         const lastDrop = z.state === 'idle' || z.near ? null
@@ -874,7 +882,7 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
         });
         parts.push({ near: !!z.near, grouped: kept.grouped, progressKm: kept.progressKm });
         const names = [...new Set(Object.values(kept.grouped).flat())];
-        const removed = z.near ? 0 : names.filter(n => pick.has(n)).length;
+        const removed = z.near ? 0 : Object.entries(kept.grouped).flatMap(([region, ns]) => ns.filter(n => pick.has(`${region}|${n}`))).length;
         const pieces = z.near ? ['원(가까이 옴 · 안 뺌)']
             : [shape.me && '현위치', shape.line && '라인', shape.quadFrom === 'me' ? '마름모(현위치)' : shape.quadFrom === 'lastDrop' ? '마름모(종착지)' : '', '원'].filter(Boolean);
         details.push(`${z.city}:${z.state}${z.near ? '·가까이' : ''}${z.state !== 'idle' && !z.near && !lastDrop ? '·종착지 모름' : ''} `
@@ -882,7 +890,7 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
         byNet = byNet && kept.byNet;
         pruned += kept.pruned;
     }
-    const merged = mergeDropoffGroups(parts, session.activeFilter.pickupKeywords ?? []);
+    const merged = mergeDropoffGroups(parts, session.pickupGroups ?? {});
     return { flat: merged.flat, grouped: merged.grouped, byNet, pruned, progressKm: merged.progressKm, goals: zones.map(z => z.city), details };
 }
 
@@ -895,16 +903,18 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
  */
 export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): void {
     const session = getUserSession(userId);
+    const startedAt = Date.now();
+    /* 📋 **상차 목록을 먼저** — 하차 목록이 먼 목적지에서 상차 목록 동을 뺀다 (`mergeDropoffGroups` · 필터.md «하차 영역»).
+       경로 · 출발 · 복귀가 바뀌는 길이 여기로 모인다. 방송은 아래 `updateActiveFilter` 가 한 번에 한다.
+       🔴 손으로 고친 필터여도 상차 목록은 만든다 — 하차 목록만 기사님 것이다 (코드 리뷰 2026-09-15 · #146 과 같은 모양) */
+    const pickupChanged = pickupBuilt || rebuildPickupList(session, userId);
     /* 🔒 기사님이 손으로 고친 합짐 목록은 덮지 않는다 (2026-08-12) — 사이클이 끝나면 풀린다 */
     if (session.activeFilter.userOverrides && getActiveCalls(session).length > 0) {
         console.log(`🔒 [경유 고정] 기사님이 손으로 고친 필터라 자동 갱신을 건너뜁니다 ` +
             `(키워드 ${(session.activeFilter.destinationKeywords || []).length}개 유지)`);
-        if (pickupBuilt) broadcastFilter(userId, session, io);   // 상차 목록은 이미 바뀌었다 — 그것은 알린다
+        if (pickupChanged) broadcastFilter(userId, session, io);   // 상차 목록은 바뀌었다 — 그것은 알린다
         return;
     }
-    /* 📋 **상차 목록을 먼저** — 하차 목록이 먼 목적지에서 상차 목록 동을 뺀다 (`mergeDropoffGroups` · 필터.md «하차 영역»).
-       경로 · 출발 · 복귀가 바뀌는 길이 여기로 모인다. 방송은 아래 `updateActiveFilter` 가 한 번에 한다 */
-    if (!pickupBuilt) rebuildPickupList(session, userId);
     const kept = netFilterOf(session, userId);
     if (!kept) {
         updateActiveFilter(userId, { destinationKeywords: [], destinationGroups: {} }, io);
@@ -921,7 +931,7 @@ export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): 
         + `${kept.byNet ? '그물' : '도시 둘레(물러섬)'} → ${kept.flat.length}개`
         + (kept.pruned > 0 ? ` (제외로 ${kept.pruned}개 뺌)` : ''));
     /* 🔎 목적지마다 조각 · 뺀 수 — 지도 «하차» 레이어와 원달앱 목록이 맞는지 로그로 대조한다 (필터.md «하차 영역» · `pnpm log`) */
-    console.log(`🔵 [하차 목록] ${kept.details.join(' | ') || '목적지 없음'} → 상차 목록 ${(session.activeFilter.pickupKeywords ?? []).length}곳 · 하차 ${kept.flat.length}곳`);
+    console.log(`🔵 [하차 목록] ${kept.details.join(' | ') || '목적지 없음'} → 상차 목록 ${(session.activeFilter.pickupKeywords ?? []).length}곳 · 하차 ${kept.flat.length}곳 · ${Date.now() - startedAt}ms`);
 }
 
 /**
@@ -980,11 +990,12 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const eff = effectiveRadii(f);
     const line = f.routeMode === false ? null : filterLineOf(session);
     const { zones, homeOn, homeCity, homeCaught } = goalZonesNow(session, userId, me);
-    const { list, shape } = pickupListFor({ me: { x: me.x, y: me.y }, radii: eff, line, zones });
+    const { list, grouped, shape } = pickupListFor({ me: { x: me.x, y: me.y }, radii: eff, line, zones });
     const prev = f.pickupKeywords;
     const prevArea = pickupAreaKey(f.pickupArea);
     session.pickupListAt = { x: me.x, y: me.y };
     f.pickupKeywords = list;
+    session.pickupGroups = grouped;
     /* 🗺️ 관제웹 «상차» · «하차» 레이어가 **같은 `goalZonesOf`** 를 부를 재료를 싣는다 (집 · 복귀 · 복귀콜 쥠) */
     f.pickupArea = { at: { x: me.x, y: me.y }, homeCity, homeOn, homeCaught, hasLine: !!line && line.length >= 2 };
     refreshKeywordTraps(session);

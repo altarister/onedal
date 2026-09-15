@@ -35,6 +35,15 @@ describe('🔵 먼 목적지 조각 — 걸친 동', () => {
         expect(touch.size).toBeGreaterThanOrEqual(centroid.size);
     });
 
+    it('🔴 중심점 그물과 걸친 동이 같은 시 · 군 · 구 이름을 쓴다 — 다르면 상차 목록 빼기(«시 + 동»)가 조용히 안 먹힌다 (코드 리뷰 2026-09-15)', () => {
+        const net = netForGoal(ICHEON, { line: null, lineRadiusKm: 2.73, lastDrop: null, params, anchor: MODA, me: MODA });
+        const touch = regionsTouchingNetGrouped({ goal: ICHEON, anchor: MODA, me: MODA, line: null, lastDrop: null, params, lineRadiusKm: 2.73 });
+        const touchKeys = new Set(Object.entries(touch).flatMap(([region, names]) => names.map(n => `${region}|${n}`)));
+        const touchNames = namesOf(touch);
+        const mismatched = net.pass.filter(d => touchNames.has(d.name) && !touchKeys.has(`${d.region}|${d.name}`)).map(d => `${d.region}|${d.name}`);
+        expect(mismatched).toEqual([]);
+    });
+
     it('시 · 군 · 구로 묶어 낸다 — 시 별칭(`cityAliases`)이 이 이름으로 만들어진다', () => {
         const g = regionsTouchingNetGrouped({ goal: ICHEON, anchor: MODA, me: MODA, line: null, lastDrop: null, params, lineRadiusKm: 2.73 });
         expect(Object.keys(g).some(k => k.includes('이천'))).toBe(true);

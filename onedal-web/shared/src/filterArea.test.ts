@@ -6,7 +6,7 @@ import { goalZonesOf, pickupShapeOf, dropoffPartsOf, lastDropOf, lineUntil, isNe
  * 먼 목적지 조각에 걸친 동 − 상차 목록 동 · 가까이 온 목적지 동은 빼지 않는다. 원달앱이 동 이름으로 거르니 **동 목록으로** 뺀다.
  */
 describe('🔵 하차 목록 — 목적지마다 합치고 상차 목록 동을 뺀다', () => {
-    const pickupList = ['초월읍', '곤지암읍', '중리동'];
+    const pickupList = { 광주시: ['초월읍', '곤지암읍'], 이천시: ['중리동'] };
     it('🔴 먼 목적지는 상차 목록 동을 뺀다 — 싣는 동에 내리는 콜이 막힌다', () => {
         const r = mergeDropoffGroups([
             { near: false, grouped: { 광주시: ['초월읍', '곤지암읍'], 이천시: ['신둔면', '중리동'] }, progressKm: { 곤지암읍: 5, 신둔면: 12 } },
@@ -26,15 +26,21 @@ describe('🔵 하차 목록 — 목적지마다 합치고 상차 목록 동을 
         const r = mergeDropoffGroups([
             { near: false, grouped: { 이천시: ['신둔면'] }, progressKm: { 신둔면: 12 } },
             { near: false, grouped: { 이천시: ['신둔면', '사음동'] }, progressKm: { 사음동: 3 } },
-        ], []);
+        ], {});
         expect(r.grouped).toEqual({ 이천시: ['사음동', '신둔면'] });
         expect(r.progressKm).toEqual({ 사음동: 3 });
+    });
+    it('🔴 이름이 같아도 다른 시 · 군 · 구의 동은 안 뺀다 — 원달앱 하차는 «시 + 동»으로 본다 (리뷰 2026-09-15)', () => {
+        const r = mergeDropoffGroups([
+            { near: false, grouped: { '서울 중구': ['중앙동'], 이천시: ['중리동'] }, progressKm: {} },
+        ], { 광주시: ['중앙동'], 이천시: ['중리동'] });
+        expect(r.grouped).toEqual({ '서울 중구': ['중앙동'] });
     });
     it('🔴 가까이 온 목적지에서 든 동은 진행도가 없다 — 먼 쪽 진행도가 있어도 지운다', () => {
         const r = mergeDropoffGroups([
             { near: true, grouped: { 이천시: ['중리동'] }, progressKm: {} },
             { near: false, grouped: { 이천시: ['신둔면'] }, progressKm: { 신둔면: 12 } },
-        ], ['중리동']);
+        ], { 이천시: ['중리동'] });
         expect(r.flat).toEqual(['신둔면', '중리동']);
         expect(r.progressKm).toEqual({ 신둔면: 12 });
     });
@@ -168,9 +174,12 @@ describe('🔵 하차 영역 — 목적지 하나에 넣는 조각 (목적지 �
     it('운행 뒤: 라인 ∪ 종착지→목적지 마름모 — (A ∩ 라인)은 라인 안이라 현위치 원은 안 넣는다', () => {
         expect(dropoffPartsOf('driving', true)).toEqual({ me: false, line: true, quadFrom: 'lastDrop' });
     });
-    it('🔷 라인이 없으면(동선 · 경로를 모름) «콜 없음» 모양으로 본다 — 라인을 지어내지 않는다', () => {
-        expect(dropoffPartsOf('driving', false)).toEqual({ me: true, line: false, quadFrom: 'me' });
+    it('🔷 라인이 없으면(동선 · 경로를 모름) 라인을 지어내지 않는다 — 마름모는 현위치에서', () => {
         expect(dropoffPartsOf('routed', false)).toEqual({ me: true, line: false, quadFrom: 'me' });
+    });
+    it('🔴 운행 뒤에는 라인이 없어도 현위치 원을 다시 넣지 않는다 — 운행 뒤 하차 영역에 A 가 없다 (리뷰 2026-09-15)', () => {
+        /* 상차가 A ∩ 라인이면 라인 밖 A 동이 안 빠져 «뒤쪽 동에 내리는 콜»이 샌다 */
+        expect(dropoffPartsOf('driving', false)).toEqual({ me: false, line: false, quadFrom: 'me' });
     });
 });
 
@@ -203,6 +212,10 @@ describe('라인을 종착지까지 자른다', () => {
     const line = [{ x: 0, y: 0 }, { x: 0.01, y: 0 }, { x: 0.02, y: 0 }, { x: 0.03, y: 0 }];
     it('종착지에서 가장 가까운 점까지', () => {
         expect(lineUntil(line, { x: 0.019, y: 0.001 })).toEqual(line.slice(0, 3));
+    });
+    it('🔴 같은 곳을 두 번 지나면 뒤에 지나는 쪽까지 — 앞 통과에서 자르면 되돌아오는 라인을 잃는다 (D3 · 리뷰 2026-09-15)', () => {
+        const back = [{ x: 0, y: 0 }, { x: 0.01, y: 0 }, { x: 0.02, y: 0 }, { x: 0.01, y: 0.0001 }, { x: 0, y: 0.0002 }];
+        expect(lineUntil(back, { x: 0.01, y: 0 })).toEqual(back.slice(0, 4));
     });
     it('끝점이 종착지면 통째로 · 점이 둘보다 적으면 빈 라인', () => {
         expect(lineUntil(line, { x: 0.03, y: 0 })).toEqual(line);

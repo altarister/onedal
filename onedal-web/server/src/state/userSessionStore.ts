@@ -267,6 +267,8 @@ export interface UserSession {
     pickupListAt: { x: number; y: number } | null;
     /** 🎯 상차 목록을 만들 때 본 «목적지마다 가까이 옴» — 바뀌면 하차 목록도 다시 만든다 (`filterManager.rebuildPickupList` · 필터.md «하차 영역») */
     pickupNearKey: string | null;
+    /** 🗂️ 상차 목록을 시 · 군 · 구로 묶은 것 — 하차 목록이 «시 + 동»으로 뺀다 (`mergeDropoffGroups`). 앱에는 안 간다 (`pickupKeywords` 가 간다) */
+    pickupGroups: Record<string, string[]> | null;
     /**
      * 🛣️ **경로 위에 있는 동 목록** — 상차지 판정의 원천 (2026-08-25 신설).
      *
@@ -338,6 +340,7 @@ function createDefaultSession(userId: string): UserSession {
         detourOrderKm: null,
         pickupListAt: null,
         pickupNearKey: null,
+        pickupGroups: null,
         detourFlat: null,
         filterLine: null,
         routeSnapshot: null,
