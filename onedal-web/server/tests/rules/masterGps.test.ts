@@ -28,7 +28,7 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
     });
 
     it('🔴 실 GPS 가 언제나 이긴다 — 시뮬레이터는 빈자리만 메운다', () => {
-        expect(gps).toMatch(/&& !realIsLive/);
+        expect(gps).toMatch(/realLive: realIsLive/);   // 🅿️ 판단은 `mockLine.mockDriveOn` 으로 옮겼다 — «실 GPS 가 살아 있으면 안 낸다»는 vitest 가 문다
     });
 
     /**
@@ -85,9 +85,11 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
      * 지키려던 뜻(«빈 차인데 가짜가 달리면 안 된다»)은 그대로다 — 빈 차면 잡은 콜이 없어
      * **경로가 없고**, 경로가 없으면 여전히 안 돈다. 조건이 더 정확해졌다.
      */
-    it('경로가 없으면 시뮬레이터가 안 돈다 (빈 차에는 경로가 없다)', () => {
+    /* 🅿️ 개정 2026-09-15 여섯 번째 바퀴 — 달리던 모의 주행은 선이 사라져도 그 자리에서 대기하며 낸다 (`mockLine.mockDriveOn` · 판단은 vitest 가 문다).
+       «한 번도 안 달렸고 선도 없으면 안 켜진다»는 그대로다 — 켤 수 있나(`canMock`)는 여전히 선이 있어야 참이다. */
+    it('경로가 없으면 켤 수 없다 · 달리던 자리가 있으면 대기한다 (빈 차에는 경로가 없다)', () => {
         expect(gps).toMatch(/const canMock = SIMULATOR_AVAILABLE && !!activePolyline\?\.length/);
-        expect(gps).toMatch(/const useMock = canMock && mockRunning/);
+        expect(gps).toMatch(/const useMock = mockDriveOn\(\{ simulator: SIMULATOR_AVAILABLE, running: mockRunning, realLive: realIsLive, hasLine: canMock, parked \}\)/);
     });
 
     it('좌표를 내보내는 자리는 실 GPS 한 곳 · 시뮬레이터 한 곳', () => {

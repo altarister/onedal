@@ -201,7 +201,12 @@ export function useMockGpsSimulator({
 
         intervalRef.current = setInterval(() => {
             const path = routeRef.current;
-            if (!path || path.length === 0) return;
+            if (!path || path.length === 0) {
+                /* 🅿️ 선이 사라졌다(콜 0건) — 달리던 자리에서 대기하며 계속 낸다 (2026-09-15 여섯 번째 바퀴 · `mockDriveOn`) */
+                if (!waitingRef.current) { waitingRef.current = true; console.log(`🅿️ [Mock GPS] 경로 없음 — 그 자리에서 대기 (새 콜로 경로가 오면 여기서 달린다)`); }
+                if (hereRef.current) setMockLocation({ x: hereRef.current.x, y: hereRef.current.y, stopped: true });
+                return;
+            }
 
             /**
              * 🎭 걸음은 전부 simStep 각본이 정한다 (2026-08-31 — 기사님: «시뮬이 연기를 해야

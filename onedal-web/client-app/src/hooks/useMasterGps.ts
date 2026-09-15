@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { publishLocation, endMockDriving } from '../lib/gpsBridge';
 import { useMockGpsSimulator } from './useMockGpsSimulator';
 import { useMockDriveStore } from '../stores/mockDriveStore';
+import { mockDriveOn } from './mockLine';
 import { useLocationStore } from '../stores/useLocationStore';
 
 interface PolylinePoint {
@@ -132,7 +133,10 @@ export function useMasterGps(
     const mockSpeed = useMockDriveStore(st => st.speed);
     useEffect(() => { setMockAvailable(canMock); }, [canMock, setMockAvailable]);
 
-    const useMock = canMock && mockRunning && !realIsLive;
+    /** 🅿️ 달리던 자리가 있나 — 선이 사라져도(콜 0건) 그 자리에서 대기하며 좌표를 낸다. 기사님이 끄면 잊는다 */
+    const [parked, setParked] = useState(false);
+    useEffect(() => { if (!mockRunning) setParked(false); }, [mockRunning]);
+    const useMock = mockDriveOn({ simulator: SIMULATOR_AVAILABLE, running: mockRunning, realLive: realIsLive, hasLine: canMock, parked });
 
     const mockGps = useMockGpsSimulator({
         isActive: useMock,
@@ -157,6 +161,7 @@ export function useMasterGps(
 
     useEffect(() => {
         if (!useMock || !mockGps) return;
+        setParked(true);
         const loc = { lat: mockGps.y, lng: mockGps.x };
         setSource('mock');
         setCurrentGps(loc);

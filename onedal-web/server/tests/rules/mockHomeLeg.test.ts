@@ -41,6 +41,12 @@ describe('모의 주행 경로 끝 대기 배선', () => {
         expect(der).toMatch(/useMasterGps\(isDriving, mockPolyline, mockStops\)/);
     });
 
+    it('🔴 선이 사라져도(콜 0건) 그 자리 좌표를 «서 있다»로 계속 보낸다 (2026-09-15 여섯 번째 바퀴 — 기점이 집으로 튐)', () => {
+        const j = sim.indexOf('if (!path || path.length === 0) {');
+        expect(j).toBeGreaterThan(-1);
+        expect(sim.slice(j, sim.indexOf('return;', j))).toMatch(/setMockLocation\(\{ x: hereRef\.current\.x, y: hereRef\.current\.y, stopped: true \}\)/);
+    });
+
     it('🔴 끄는 것은 기사님뿐 — 경로 끝이 모의 주행을 끄지 않는다', () => {
         expect(gps).not.toMatch(/useMockDriveStore\.getState\(\)\.stop\(\)/);
     });

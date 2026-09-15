@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mockLineOf } from './mockLine';
+import { mockLineOf, mockDriveOn } from './mockLine';
 
 /**
  * 🎭 **모의 주행이 달릴 선 — 심사 중에는 직전 선을 지킨다** (2026-09-15 다섯 번째 바퀴 · onedal-49 가설).
@@ -25,4 +25,21 @@ describe('모의 주행 선', () => {
     it('선이 사라지면 사라진다 — 콜이 끝났다', () => {
         expect(mockLineOf(A, null, false)).toBeNull();
     });
+});
+
+/**
+ * 🅿️ **콜이 0건이 되어 선이 사라져도 켜 둔 모의 주행은 그 자리 좌표를 계속 낸다** (2026-09-15 여섯 번째 바퀴).
+ * 10:55:56 콜 0건 → 선이 사라져 모의 주행이 좌표를 끊었고, 6초 뒤 B3 심사 기점이 집 주소(서버 «5초 안에 보낸 모의 주행»이 끊김)로 잡혀
+ * 이천 관고동에 선 차가 중리동 → 사음동 → 신둔 → 중리동으로 오갔다 (onedal-49 진단).
+ */
+describe('모의 주행이 좌표를 내는가', () => {
+    const base = { simulator: true, running: true, realLive: false, hasLine: true, parked: false };
+    it('선이 있고 켜 뒀으면 낸다', () => expect(mockDriveOn(base)).toBe(true));
+    it('🔴 선이 사라져도 달리던 자리가 있으면 그 자리에서 대기하며 낸다', () =>
+        expect(mockDriveOn({ ...base, hasLine: false, parked: true })).toBe(true));
+    it('한 번도 달린 적 없고 선도 없으면 안 낸다 — 좌표를 지어내지 않는다', () =>
+        expect(mockDriveOn({ ...base, hasLine: false, parked: false })).toBe(false));
+    it('기사님이 끄면 안 낸다', () => expect(mockDriveOn({ ...base, running: false, parked: true })).toBe(false));
+    it('실 GPS 가 살아 있으면 안 낸다', () => expect(mockDriveOn({ ...base, realLive: true, parked: true })).toBe(false));
+    it('개발 빌드가 아니면 안 낸다', () => expect(mockDriveOn({ ...base, simulator: false, parked: true })).toBe(false));
 });

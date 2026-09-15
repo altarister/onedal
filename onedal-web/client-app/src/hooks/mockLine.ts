@@ -13,3 +13,14 @@ export function mockLineOf(prev: Pt[] | null, current: Pt[] | null, evaluating: 
     if (evaluating && prev?.length) return prev;
     return current;
 }
+
+/**
+ * 🅿️ **모의 주행이 좌표를 내는가** (2026-09-15 여섯 번째 바퀴 · 기사님 «콜을 못 잡으면 그 자리에서 대기»).
+ *
+ * 선이 사라진 것(콜 0건)은 멈출 까닭이 아니다 — 실 GPS 처럼 **달리던 자리(`parked`)에서 계속 낸다.**
+ * 🔴 예전엔 선이 있어야만 냈다. 콜 0건이 되자 좌표가 끊겼고, 서버는 5초 뒤 «돌고 있는 모의 주행이 아니다»로 보고 기점을 집 주소로 잡았다.
+ * 끝은 기사님이 끌 때(`running`) · 실 GPS 가 살아날 때뿐이다. 한 번도 달린 적 없으면 자리가 없으니 안 낸다 (규칙 ④).
+ */
+export function mockDriveOn(o: { simulator: boolean; running: boolean; realLive: boolean; hasLine: boolean; parked: boolean }): boolean {
+    return o.simulator && o.running && !o.realLive && (o.hasLine || o.parked);
+}
