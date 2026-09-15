@@ -34,6 +34,8 @@ export interface InjectedBatch {
     /** 회차 — 서버가 이전 콜을 리셋할 때마다 오른다 (시나리오 다시 시작) */
     round: number;
     calls: InjectedCall[];
+    /** 🫳 이번 회차에서 거둔 번호 전부(누적) — 채점이 끝난 문제지 줄의 콜 · «다른 기사가 가져갔다». 옛 서버면 칸이 없다 */
+    withdrawn: number[];
 }
 
 /** 어디까지 받았나 — 번호와 회차 */
@@ -69,10 +71,12 @@ export function toInjectedForced(c: InjectedCall): ForcedPair {
  *   · 회차가 바뀌었다 → 이전 콜을 리셋했다(시나리오 다시 시작). **목록을 비우고** 내 번호 뒤의 콜을 낸다
  *   · 그 밖 → 내 번호 뒤의 콜을 번호 순서대로
  */
-export function takeInjected(cursor: InjectedCursor | null, batch: InjectedBatch): { cursor: InjectedCursor; calls: InjectedCall[]; clear: boolean } {
-    if (cursor === null) return { cursor: { seq: batch.lastSeq, round: batch.round }, calls: [], clear: false };
+export function takeInjected(cursor: InjectedCursor | null, batch: InjectedBatch): { cursor: InjectedCursor; calls: InjectedCall[]; clear: boolean; withdrawn: number[] } {
+    /* 🫳 거둔 번호는 그대로 넘긴다 — 목록 행과 짝짓는 것은 받은 콜을 기억하는 훅이다. 옛 서버면 칸이 없다 */
+    const withdrawn = Array.isArray(batch.withdrawn) ? batch.withdrawn : [];
+    if (cursor === null) return { cursor: { seq: batch.lastSeq, round: batch.round }, calls: [], clear: false, withdrawn };
     const clear = batch.round !== cursor.round;
-    if (batch.lastSeq < cursor.seq) return { cursor: { seq: 0, round: batch.round }, calls: [], clear };
+    if (batch.lastSeq < cursor.seq) return { cursor: { seq: 0, round: batch.round }, calls: [], clear, withdrawn };
     const calls = batch.calls.filter(c => c.seq > cursor.seq).sort((a, b) => a.seq - b.seq);
-    return { cursor: { seq: batch.lastSeq, round: batch.round }, calls, clear };
+    return { cursor: { seq: batch.lastSeq, round: batch.round }, calls, clear, withdrawn };
 }

@@ -218,7 +218,16 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
    * 서버가 들고 있다가 3초마다 넘긴다. 문제지 콜과 같은 길(강제 쌍)로 이 배차망 콜을 입힌다 — 무엇으로 입힐지는 배차망이 안다.
    * 🔴 개별콜 화면에서만 받는다 (위 `individual`). 닫는 길을 쓰므로 그것보다 아래에 둔다.
    */
-  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, resetCalls, ready: locationReady, enabled: individual });
+  /**
+   * 🫳 **거둔 콜을 목록에서 뺀다** — 서버가 채점을 마친 문제지 줄의 콜을 거뒀다 (실주행에서 남이 잡으면 목록에서 사라지는 것과 같다 · onedal-b5 2026-09-15).
+   * 🔴 **목록 행만 뺀다** — 이미 잡은 콜(확정 목록)과 폰이 열어 둔 상세는 그대로 둔다. 상세를 도중에 닫으면 폰 원달앱이 멀쩡한 확정 흐름에서 튕긴다.
+   */
+  const removeCalls = useCallback((ids: string[]) => {
+    const gone = new Set(ids);
+    setStreamingCalls(prev => prev.filter(c => !gone.has(c.id) || c.id === selectedCallId));
+  }, [setStreamingCalls, selectedCallId]);
+
+  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual });
 
   // 🔴 문제지 이름을 못 찾았다 — 랜덤으로 흘리지 않고 멈춘다 (위 주석 참조)
   // 콜을 고른 상태면 상세가 먼저다 — 예전 순서(상세 → 문제지 없음 → 리스트) 그대로

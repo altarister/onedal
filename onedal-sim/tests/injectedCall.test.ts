@@ -43,11 +43,20 @@ describe('개별콜 → 강제 쌍', () => {
 });
 
 describe('개별콜 — 번호를 이어 받는다', () => {
-    const batch = (lastSeq: number, seqs: number[], round = 0) => ({ lastSeq, round, calls: seqs.map(seq => injected({ seq })) });
+    const batch = (lastSeq: number, seqs: number[], round = 0, withdrawn: number[] = []) => ({ lastSeq, round, calls: seqs.map(seq => injected({ seq })), withdrawn });
     const at = (seq: number, round = 0) => ({ seq, round });
 
     it('처음 물으면 콜을 안 내고 지금 번호·회차만 기억한다 — 열기 전에 낸 콜을 다시 내지 않고, 목록도 안 비운다', () => {
-        expect(takeInjected(null, batch(4, [], 3))).toEqual({ cursor: at(4, 3), calls: [], clear: false });
+        expect(takeInjected(null, batch(4, [], 3))).toEqual({ cursor: at(4, 3), calls: [], clear: false, withdrawn: [] });
+    });
+
+    it('🔴 거둔 번호를 그대로 넘긴다 — 채점이 끝난 문제지 줄의 콜을 목록에서 뺀다 (onedal-b5 2026-09-15)', () => {
+        expect(takeInjected(at(7), batch(7, [], 0, [5, 6])).withdrawn).toEqual([5, 6]);
+    });
+
+    it('🔴 옛 서버(거둔 칸 없음)면 거둘 것이 없다 — 터지지 않는다', () => {
+        const old = { lastSeq: 7, round: 0, calls: [] } as unknown as Parameters<typeof takeInjected>[1];
+        expect(takeInjected(at(7), old).withdrawn).toEqual([]);
     });
 
     it('내 번호 뒤의 콜을 번호 순서대로', () => {
@@ -62,18 +71,18 @@ describe('개별콜 — 번호를 이어 받는다', () => {
     });
 
     it('🔴 서버 번호가 내 번호보다 작다 → 서버를 다시 띄웠다. 다음 물음에서 처음부터 받는다', () => {
-        expect(takeInjected(at(7), batch(2, []))).toEqual({ cursor: at(0), calls: [], clear: false });
+        expect(takeInjected(at(7), batch(2, []))).toEqual({ cursor: at(0), calls: [], clear: false, withdrawn: [] });
         expect(takeInjected(at(0), batch(2, [1, 2])).calls.map(c => c.seq)).toEqual([1, 2]);
     });
 
     it('🔴 회차가 바뀌었다 → 시나리오를 새로 시작했다. 목록을 비우고 새 회차 콜만 낸다', () => {
         const r = takeInjected(at(7, 1), batch(8, [8], 2));
-        expect(r).toEqual({ cursor: at(8, 2), calls: [injected({ seq: 8 })], clear: true });
+        expect(r).toEqual({ cursor: at(8, 2), calls: [injected({ seq: 8 })], clear: true, withdrawn: [] });
     });
 
     it('🔴 서버 재기동과 회차 바뀜이 한 물음에 같이 오면 — 비우고 · 번호 0 · 다음 물음에서 받는다', () => {
-        expect(takeInjected(at(7, 2), batch(1, [1], 0))).toEqual({ cursor: at(0, 0), calls: [], clear: true });
-        expect(takeInjected(at(0, 0), batch(1, [1], 0))).toEqual({ cursor: at(1, 0), calls: [injected({ seq: 1 })], clear: false });
+        expect(takeInjected(at(7, 2), batch(1, [1], 0))).toEqual({ cursor: at(0, 0), calls: [], clear: true, withdrawn: [] });
+        expect(takeInjected(at(0, 0), batch(1, [1], 0))).toEqual({ cursor: at(1, 0), calls: [injected({ seq: 1 })], clear: false, withdrawn: [] });
     });
 });
 
@@ -101,7 +110,17 @@ describe('개별콜 — 입구와 한 번에 한 종류 (기사님 2026-09-15: �
         expect(page).toMatch(/const individual = presetParams\.get\('calls'\) === 'individual';/);
         expect(page).toMatch(/enabled: !individual,/);
         expect(page)
-            .toMatch(/useSimInjectedCalls\(\{ config: generatorConfig, toCall: simNet\.toCall, appendCall, resetCalls, ready: locationReady, enabled: individual \}\)/);
+            .toMatch(/useSimInjectedCalls\(\{ config: generatorConfig, toCall: simNet\.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual \}\)/);
+    });
+
+    it('🔴 거둔 콜은 목록 행만 뺀다 — 폰이 열어 둔 상세는 남기고 · 확정 목록은 안 건드린다 (onedal-b5 2026-09-15)', () => {
+        const page = src('src/pages/DispatchPage.tsx');
+        const i = page.indexOf('const removeCalls = useCallback(');
+        expect(i).toBeGreaterThan(-1);
+        const body = page.slice(i, page.indexOf('}, [', i));
+        expect(body).toMatch(/setStreamingCalls\(prev => prev\.filter\(c => !gone\.has\(c\.id\) \|\| c\.id === selectedCallId\)\)/);
+        expect(body).not.toMatch(/setConfirmedCalls/);
+        expect(body).not.toMatch(/handleCloseDetail/);
     });
 
     it('🔴 받는 훅은 위치를 받기 전·개별콜 화면이 아닐 때 안 묻는다 · 멈춤으로 대신하지 않는다', () => {
@@ -112,7 +131,7 @@ describe('개별콜 — 입구와 한 번에 한 종류 (기사님 2026-09-15: �
 
     it('🔴 회차가 바뀌면 목록을 비운다 — 열린 상세는 닫는 길(handleCloseDetail)로 닫고 확정 목록도 비운다', () => {
         const hook = src('packages/ui-simulators/src/context/useSimInjectedCalls.ts');
-        expect(hook).toMatch(/if \(taken\.clear\) resetCalls\(\);/);
+        expect(hook).toMatch(/if \(taken\.clear\) \{ resetCalls\(\); idOfSeq\.clear\(\); \}/);   // 🫳 번호 짝도 함께 잊는다 — 새 회차 번호가 옛 행을 뺀다
         const page = src('src/pages/DispatchPage.tsx');
         const i = page.indexOf('const resetCalls = useCallback(');
         expect(i).toBeGreaterThan(-1);

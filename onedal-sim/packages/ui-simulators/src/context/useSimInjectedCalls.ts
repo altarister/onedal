@@ -24,17 +24,22 @@ interface UseSimInjectedCallsProps {
   appendCall: (call: SimCall) => void;
   /** 목록 비우기 — 서버 회차가 바뀌었을 때 (열린 상세·확정 목록까지 화면이 정한다) */
   resetCalls: () => void;
+  /**
+   * 🫳 목록에서 빼기 — 서버가 거둔 콜 (채점이 끝난 문제지 줄 · «다른 기사가 가져갔다» · onedal-b5 2026-09-15).
+   * 🔴 무엇을 남길지(이미 잡은 콜 · 열어 둔 상세)는 화면이 정한다 — 여기는 «이 콜들을 거뒀다»만 알린다.
+   */
+  removeCalls: (ids: string[]) => void;
   /** 기사님 위치를 받았나 — 받기 전에는 묻지 않는다 */
   ready?: boolean;
   /** 받나 — 개별콜 화면에서만 `true` */
   enabled: boolean;
 }
 
-export const useSimInjectedCalls = ({ config, toCall, appendCall, resetCalls, ready = true, enabled }: UseSimInjectedCallsProps) => {
-  const latest = useRef({ config, toCall, appendCall, resetCalls });
+export const useSimInjectedCalls = ({ config, toCall, appendCall, resetCalls, removeCalls, ready = true, enabled }: UseSimInjectedCallsProps) => {
+  const latest = useRef({ config, toCall, appendCall, resetCalls, removeCalls });
   useEffect(() => {
-    latest.current = { config, toCall, appendCall, resetCalls };
-  }, [config, toCall, appendCall, resetCalls]);
+    latest.current = { config, toCall, appendCall, resetCalls, removeCalls };
+  }, [config, toCall, appendCall, resetCalls, removeCalls]);
 
   useEffect(() => {
     if (!ready || !enabled) return;
@@ -42,6 +47,8 @@ export const useSimInjectedCalls = ({ config, toCall, appendCall, resetCalls, re
     let busy = false;
     /** 마지막으로 받은 번호·회차 — null 이면 아직 한 번도 안 물었다 */
     let cursor: InjectedCursor | null = null;
+    /** 🫳 번호 → 목록 콜 id — 서버가 거둔 번호를 목록 행으로 찾는다. 뺀 번호는 지운다(두 번 안 뺀다) */
+    const idOfSeq = new Map<number, string>();
 
     const pull = async () => {
       if (busy) return;
@@ -52,15 +59,24 @@ export const useSimInjectedCalls = ({ config, toCall, appendCall, resetCalls, re
         if (!alive || !d?.ok) return;
         const taken = takeInjected(cursor, d as InjectedBatch);
         cursor = taken.cursor;
-        const { config: cfg, toCall: dress, appendCall: add, resetCalls } = latest.current;
+        const { config: cfg, toCall: dress, appendCall: add, resetCalls, removeCalls } = latest.current;
         if (taken.clear) console.log(`🧹 [개별콜] 회차 ${taken.cursor.round} — 이전 콜을 리셋한다 (목록 비움)`);
-        if (taken.clear) resetCalls();
+        if (taken.clear) { resetCalls(); idOfSeq.clear(); }
         for (const c of taken.calls) {
           const forced = toInjectedForced(c);
           const draft = generateBaseCall(cfg, forced);
           if (!draft) continue;
           console.log(`🚚 [개별콜] #${c.seq} 목록에 넣음 — ${c.pickup.region} → ${c.dropoff.region} · ${c.fare}`);
-          add(dress(draft, { minFare: cfg.minFare, forced }));
+          const call = dress(draft, { minFare: cfg.minFare, forced });
+          idOfSeq.set(c.seq, call.id);
+          add(call);
+        }
+        /* 🫳 서버가 거둔 콜 — 받은 적 있고 아직 안 뺀 번호만. 거둔 목록은 누적이라 뺀 번호는 지워 두 번 안 뺀다 */
+        const gone = taken.withdrawn.filter(seq => idOfSeq.has(seq));
+        if (gone.length) {
+          console.log(`🫳 [개별콜] #${gone.join(', #')} 목록에서 뺌 — 채점이 끝난 줄 (다른 기사가 가져갔다)`);
+          removeCalls(gone.map(seq => idOfSeq.get(seq)!));
+          for (const seq of gone) idOfSeq.delete(seq);
         }
       } catch { /* 서버가 없다 — 개별콜이 없을 뿐이다 */ }
       finally { busy = false; }
