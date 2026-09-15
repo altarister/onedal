@@ -45,7 +45,9 @@ describe('복귀 켬 — 바꾼 일을 적고 오늘 줄에서 되살린다', ()
         expect(calls).toMatch(/callTargetToday\(userId/);
         expect(calls).toMatch(/isHomeCallSince\(/);
         expect(calls).not.toMatch(/deckOfCycle/);
-        expect(bodyOf(fm, 'export function goalCitiesOf(')).toMatch(/homeCallsOf\(session, userId, session\.myOrders\)/);
+        /* 🔄 2026-09-15 — 살아 있는 목적지는 새 규칙 한 곳(`goalZonesNow`)이 정하고 «복귀콜을 잡았나»도 거기서 센다 */
+        expect(bodyOf(fm, 'function goalZonesNow(')).toMatch(/homeCallsOf\(session, userId, session\.myOrders\)/);
+        expect(bodyOf(fm, 'export function goalCitiesOf(')).toMatch(/goalZonesNow\(session, userId/);
     });
 });
 

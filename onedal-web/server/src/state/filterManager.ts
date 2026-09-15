@@ -21,7 +21,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, pickupAreaKey, dropoffPartsOf, lastDropOf, lineUntil, mergeDropoffGroups, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
-         EVALUATING_STATUSES, activeGoals, effectiveRadii, pickupListNeedsRebuild } from "@onedal/shared";
+         EVALUATING_STATUSES, effectiveRadii, pickupListNeedsRebuild } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ function boardOf(o: { goalCity?: string; dropoffX?: number; dropoffY?: number })
 }
 
 /**
- * 🏠 **살아 있는 목적지 전부** (전수표 #4 #5 #6 · 기사님 확정 2026-09-09 · 규칙은 `callNet.activeGoals` 한 곳).
+ * 🏠 **살아 있는 목적지 전부** (전수표 #4 #5 #6 · 기사님 확정 2026-09-09 · 🔄 2026-09-15 규칙은 shared `filterArea.goalZonesOf` — `goalZonesNow` 한 곳).
  *
  * ```
  * 복귀 끔                  [목적지]
@@ -91,12 +91,9 @@ function boardOf(o: { goalCity?: string; dropoffX?: number; dropoffY?: number })
  *    ⚠️ `myOrders` 에는 하차한 콜이 영업일 끝까지 남는다 — 아침 복귀콜이 저녁 복귀를 «잡음»으로 못 만드는 것은 켠 시각이 막는다.
  */
 export function goalCitiesOf(session: ReturnType<typeof getUserSession>, userId: string): string[] {
-    const dest = session.activeFilter.destinationCity ?? '';
-    if (session.activeFilter.callTarget !== 'HOME') return dest ? [dest] : [];
-    const home = homeCityOf(userId);
-    if (!home) return dest ? [dest] : [];
-    const homeCaught = homeCallsOf(session, userId, session.myOrders).length > 0;
-    return [...new Set(activeGoals(dest, home, { homeOn: true, homeCaught }).filter(Boolean))];
+    /* 🔄 2026-09-15 — 새 규칙(`goalZonesOf` — 목적지 콜이 남으면 목적지도) 한 곳 `goalZonesNow` 의 목적지 이름.
+          콜의 판(`goalOfCall`) · 관제웹 `goalCities` 가 하차 · 상차 목록과 같은 답을 본다 (필터.md «필터 영역») */
+    return goalZonesNow(session, userId, null).zones.map(z => z.city);
 }
 
 /**
@@ -224,7 +221,8 @@ function netKeywordsOf(
         : line && line.length >= 2
             ? { name: '마지막 하차지', lng: line[line.length - 1][0], lat: line[line.length - 1][1] }
             : null;
-    const net = netForGoal(goal, {
+    /* 그물 입력 한 벌 — 중심점 그물(`netForGoal`)과 걸친 동(`regionsTouchingNetGrouped`)이 같은 입력을 본다 (규칙 ③) */
+    const netOpts = {
         /* 🔷 **동선이면 경로를 안 본다** — 지도(`useCallNet`)와 같은 분기 (조사 ①-9).
            예전엔 서버가 이 값을 몰라 «동선»을 골라도 판정·앱 목록은 노선이었다 */
         line: session.activeFilter.routeMode === false ? null : line,
@@ -234,7 +232,8 @@ function netKeywordsOf(
         anchor: me ? { name: '내 위치', lng: me.x, lat: me.y } : { name: '내 위치', lng: goal.lng, lat: goal.lat },
         /* 🧩 **현위치 영역은 조각이 넣으라 할 때만** — 콜 없음 · 경로 생김(운행 전)이면 넣고 운행 뒤면 뺀다 (shared `dropoffPartsOf` · 필터.md «하차 영역») */
         me: part.withMe && me ? { name: '내 위치', lng: me.x, lat: me.y } : null,
-    });
+    };
+    const net = netForGoal(goal, netOpts);
     /* 🔴 그물이 아무것도 못 담으면 그것도 «고장»이다 — 물러선다 */
     if (!net.pass.length) return fallback();
 
@@ -243,6 +242,12 @@ function netKeywordsOf(
         const region = d.region ?? '기타 지역';
         (grouped[region] ??= []).push(d.name);
     }
+    /**
+     * 🔵 **원 · 마름모 가장자리에 걸친 동도 넣는다** (기사님 2026-09-15 «영역에 지역이 걸치고 있으면 들어가는거야» · 필터.md «하차 영역»).
+     *    그물은 동을 중심점 하나로 담아 넓은 읍 · 면이 가장자리에 걸쳐도 빠졌다. 판정은 그물과 같은 `netAreaTesterOf` · 걸침은 상차 목록과 같은 식.
+     */
+    const edge = regionsTouchingNetGrouped({ goal, ...netOpts });
+    for (const [region, names] of Object.entries(edge)) (grouped[region] ??= []).push(...names);
     /**
      * 🧩 **경로 영역은 동 경계가 띠에 걸치면 넣는다** (기사님 결정 2026-09-14 «나» · 전수표 #26).
      *    그물은 동을 **중심점 하나**로 본다. 목업은 상차지 **좌표**로 재니 괜찮지만 스캔앱은 **지역명만** 본다 —
@@ -270,7 +275,9 @@ function netKeywordsOf(
     /* 🧩 띠에 걸쳐 더한 동도 경로 위다 — 순서는 그 동의 경로 스냅점(순서 전용 값 · #78)으로 */
     /* 🔴 **그물이 이미 넣은 동에는 안 붙인다** — 목적지·마름모로 든 동은 «아직 안 간 곳»이라 진행도가 없다
           (`callNet.lineZoneOf` 의 `onlyByLine`). 붙이면 지나온 곳 빼기에 관고동·사음동이 먹혔다 (20:49:47) */
-    const inNet = new Set(net.pass.map(d => d.name));
+    /* 원 · 마름모로만 걸쳐 든 동도 «아직 안 간 곳»이다 — 띠에 걸친 동(`touch`)만 진행도를 받는다 */
+    const bandNames = new Set(touch ? Object.values(touch.grouped).flat() : []);
+    const inNet = new Set([...net.pass.map(d => d.name), ...Object.values(edge).flat().filter(n => !bandNames.has(n))]);
     if (touch) for (const [name, km] of Object.entries(touch.orderKm)) {
         if (inNet.has(name) || progressKm[name] !== undefined || !Number.isFinite(km)) continue;
         progressKm[name] = km;
@@ -327,7 +334,7 @@ export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
 
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { planArrivalStops } from '../services/routeComposer';
-import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
+import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, regionsTouchingNetGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율은 user_filters 의 평면 칸에 산다 (④에서 철거했다가 C3-3b 에서 한 벌로 돌아왔다).

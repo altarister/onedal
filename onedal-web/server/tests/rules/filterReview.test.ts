@@ -282,8 +282,11 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         /* 🔄 2026-09-15 — 목적지마다 상태 · 가까이 옴은 한 곳(`goalZonesNow`)이 낸다. 목적지는 기사님 목적지(destinationCity)와 집에서 파생 — 덮어쓰지 않는다 */
         expect(goalsBody).toMatch(/goalZonesNow\(session, userId/);
         expect(goalsBody).toMatch(/netKeywordsOf\(session, userId, z\.city,/);
-        const g = fm.indexOf('export function goalCitiesOf(');
+        /* 🔄 2026-09-15 — 복귀(HOME)를 보는 곳은 목적지 상태 한 곳 `goalZonesNow` 다 (`goalCitiesOf` 는 그 목적지 이름만 낸다) */
+        const g = fm.indexOf('function goalZonesNow(');
         expect(fm.slice(g, fm.indexOf('\n}', g))).toMatch(/'HOME'/);
+        const gc = fm.indexOf('export function goalCitiesOf(');
+        expect(fm.slice(gc, fm.indexOf('\n}', gc))).toMatch(/goalZonesNow\(session, userId/);
         /* 경유 ∪ 목적지 조립 */
         const k = fm.indexOf('const merged = unionRegions(');
         expect(fm.slice(k, k + 200)).toMatch(/goalCityOf\(/);
@@ -477,7 +480,8 @@ describe('5단계 · 노선/동선은 필터 값이다 — 서버도 알고 저�
         expect(us.slice(j, us.indexOf('} as AutoDispatchFilter', j))).toMatch(/routeMode/);
     });
     it('🔴 서버 그물이 동선이면 라인을 안 쓴다 · 바꾸면 다시 그린다', () => {
-        const i = fm.indexOf('const net = netForGoal(goal, {');
+        /* 🔄 2026-09-15 — 그물 입력은 한 벌(`netOpts`)로 묶어 중심점 그물과 걸친 동이 같이 쓴다 */
+        const i = fm.indexOf('const netOpts = {');
         expect(fm.slice(i, i + 400)).toMatch(/routeMode === false/);
         const k = fm.indexOf('const needsGeoRecalc');
         expect(fm.slice(k, fm.indexOf(';', k))).toMatch(/'routeMode' in changes/);

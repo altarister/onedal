@@ -3,8 +3,8 @@ import path from 'path';
 import { getActiveCalls } from '../core/helpers';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
-import { DEFAULT_JUDGMENT, isPickupListName, pickupShapeOf, distToLineKm } from '@onedal/shared';
-import type { GoalZone } from '@onedal/shared';
+import { DEFAULT_JUDGMENT, isPickupListName, pickupShapeOf, distToLineKm, netAreaTesterOf } from '@onedal/shared';
+import type { GoalZone, NetPoint, NetParams } from '@onedal/shared';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
  *    예전에 이 파라미터가 `any` 라, 세션에서 사라진 필드를 읽는 함수가 **몇 달째 null 만
@@ -535,6 +535,42 @@ function circleArea(center: { lng: number; lat: number }, km: number, inArea?: (
         if (test(p)) points.push(p);
     }
     return { bbox, inArea: test, points };
+}
+
+/**
+ * 🔵 **먼 목적지 하차 조각에 걸친 읍·면·동 — 시·군·구로 묶어서** (기사님 2026-09-15 «영역에 지역이 걸치고 있으면 들어가는거야»).
+ *
+ * 판정은 그물과 같은 `callNet.netAreaTesterOf` · 걸침은 `regionsTouchingAreaGrouped`(격자 점 ∪ 동 꼭짓점).
+ * 그물(`netForGoal`)은 동을 중심점 하나로 담아 원 · 마름모 가장자리에 걸친 넓은 읍 · 면이 빠졌다 — 그것을 더한다.
+ * ⚠️ 조각을 감싼 사각형이 넓어(마름모 · 라인) 격자를 **성기게** 찍는다 — 한 변 최대 약 150칸. 격자보다 얇게 걸친 동은 꼭짓점 판정이 잡는다.
+ */
+export function regionsTouchingNetGrouped(o: {
+    goal: NetPoint;
+    anchor: NetPoint;
+    me: NetPoint | null;
+    line: Array<[number, number]> | null;
+    lastDrop: NetPoint | null;
+    params: NetParams;
+    lineRadiusKm: number;
+}): Record<string, string[]> {
+    const inArea = netAreaTesterOf(o.goal, { line: o.line, lineRadiusKm: o.lineRadiusKm, lastDrop: o.lastDrop, params: o.params, anchor: o.anchor, me: o.me });
+    const pts = [o.goal, o.anchor, ...(o.me ? [o.me] : []), ...(o.lastDrop ? [o.lastDrop] : []),
+        ...(o.line ?? []).map(([lng, lat]) => ({ lng, lat }))];
+    const lat0 = pts.reduce((sum, p) => sum + p.lat, 0) / pts.length;
+    const KX = 111.32 * Math.cos((lat0 * Math.PI) / 180), KY = 110.574;
+    const pad = Math.max(o.params.quadRadiusKm, o.params.srcDiamKm / 2, o.params.dstDiamKm / 2, o.lineRadiusKm) + 0.5;
+    const bbox: [number, number, number, number] = [
+        Math.min(...pts.map(p => p.lng)) - pad / KX, Math.min(...pts.map(p => p.lat)) - pad / KY,
+        Math.max(...pts.map(p => p.lng)) + pad / KX, Math.max(...pts.map(p => p.lat)) + pad / KY,
+    ];
+    const stepKm = Math.max(PICKUP_GRID_KM, Math.max((bbox[2] - bbox[0]) * KX, (bbox[3] - bbox[1]) * KY) / 150);
+    const points: Array<{ lng: number; lat: number }> = [];
+    const dy = stepKm / KY, dx = stepKm / KX;
+    for (let y = bbox[1]; y <= bbox[3]; y += dy) for (let x = bbox[0]; x <= bbox[2]; x += dx) {
+        const p = { lng: x, lat: y };
+        if (inArea(p)) points.push(p);
+    }
+    return regionsTouchingAreaGrouped({ bbox, inArea, points });
 }
 
 /** 🎯 **원에 걸친 읍·면·동 — 시·군·구로 묶어서** — 가까이 온 목적지의 하차 목록 (`filterManager.netKeywordsOf` · 필터.md «하차 영역») */

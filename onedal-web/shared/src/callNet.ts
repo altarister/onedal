@@ -962,6 +962,25 @@ export function netForGoal(goal: NetPoint, o: {
         : buildNet(o.params, o.anchor, goal);
 }
 
+/**
+ * 🔎 **하차 조각 판정 — 이 점이 그 목적지의 하차 조각 안인가** (`netForGoal` 과 **같은 분기** · 2026-09-15).
+ *    그물(`netForGoal`)은 동을 **중심점 하나**로 담는다. 서버가 «걸친 동»을 찾을 때(`geoService.regionsTouchingNetGrouped`)
+ *    이 판정을 쓴다 — 판정이 두 벌이면 목록과 지도가 갈라진다 (규칙 ③).
+ *    라인이 있으면 `lineZoneOf().dropIn`(라인 띠 ∪ 목적지 원 ∪ 종착지→목적지 마름모 ∪ 현위치 원) · 없으면 `makeInNet`(현위치 원 ∪ 마름모 ∪ 목적지 원).
+ */
+export function netAreaTesterOf(goal: NetPoint, o: {
+    line: Array<[number, number]> | null;
+    lineRadiusKm: number;
+    lastDrop: NetPoint | null;
+    params: NetParams;
+    anchor: NetPoint;
+    me?: NetPoint | null;
+}): (pt: { lng: number; lat: number }) => boolean {
+    return o.line
+        ? lineZoneOf(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal, o.me ?? null).dropIn
+        : makeInNet(o.params, o.anchor, goal);
+}
+
 /** 🏘️ 목적지 원 하나의 그물 — 관내 (`netForGoal` 의 `local`) */
 function buildRingNet(dst: NetPoint, p: NetParams): NetResult {
     const ringKm = Math.max(0, p.dstDiamKm / 2);
