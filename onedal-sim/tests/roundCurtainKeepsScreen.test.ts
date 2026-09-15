@@ -16,4 +16,11 @@ describe('🧹 새 회차 준비 화면', () => {
   it('🔴 준비 화면 동안 배차망 화면은 감춘다 — 폰 접근성에서도 빠진다', () => {
     expect(src).toMatch(/roundCurtain \? 'hidden'/);
   });
+
+  it('🔴 새 회차면 픽커 탭도 «신규»로 돌린다 — «내 오더»에 남으면 새 콜 카드가 안 보인다 (#152)', () => {
+    const i = src.indexOf('const resetCalls = useCallback');
+    expect(i).toBeGreaterThan(-1);
+    const body = src.slice(i, src.indexOf('}, [', i));
+    expect(body).toMatch(/setActiveTab\('ALL'\)/);
+  });
 });

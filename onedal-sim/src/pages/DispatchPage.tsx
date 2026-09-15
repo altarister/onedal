@@ -225,8 +225,10 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     handleCloseDetail();
     setStreamingCalls([]);
     setConfirmedCalls([]);
+    /* 픽커 탭도 «신규»로 — 수락 뒤 «내 오더»에 남은 채 새 회차가 오면 새 콜 카드가 안 보인다 (#152) */
+    setActiveTab('ALL');
     setRoundCurtain(true);
-  }, [handleCloseDetail, setStreamingCalls, setConfirmedCalls]);
+  }, [handleCloseDetail, setStreamingCalls, setConfirmedCalls, setActiveTab]);
 
   /**
    * 🚚 **개별콜 — 현황판에서 낸 콜을 이 목록에 넣는다** (기사님 지시 2026-09-15).

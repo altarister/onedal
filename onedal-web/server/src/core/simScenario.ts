@@ -231,7 +231,7 @@ function judgeSent(row: ScenarioRow, rs: RowState, w: ScenarioWorld, claimed: Se
             const blocks = w.intel.filter(r => r.id > (rs.intelAfter ?? 0) && sameCall(r, call) && !!r.verdict && r.verdict !== 'pass' && r.verdict !== 'locked').length;
             return finish(next, 'bad', blocks >= 2 ? '🔴 폰이 막았다 — 재판정도 막힘' : `🔴 폰이 막았다 — 재판정 없음(${NO_SHOW_MS / 1000}초)`, w.now);
         }
-        if (waited >= NO_SHOW_MS) return { ...next, mark: 'bad', note: `🔴 ${NO_SHOW_MS / 1000}초 동안 안 올라왔다 — 시뮬레이터가 «🚚 개별콜» 탭인가 · [건너뛰기]` };
+        if (waited >= NO_SHOW_MS) return { ...next, mark: 'bad', note: `🔴 ${NO_SHOW_MS / 1000}초 동안 안 올라왔다 — 시뮬레이터가 «🚚 개별콜» 탭인가 · 픽커면 «신규» 탭인가 · [건너뛰기]` };
         return { ...next, mark: 'sent', note: `⏳ 폰이 읽는 중 — 올라오면 ${want}` };
     }
 
@@ -252,7 +252,7 @@ function judgeSent(row: ScenarioRow, rs: RowState, w: ScenarioWorld, claimed: Se
         if (intel.verdict === 'locked' || intel.verdict == null) return finish(next, 'unknown', '❔ 폰이 판정을 안 실었다 (잠김·구앱)', w.now);
         return finish(next, 'warn', '🟠 막혔지만 다른 축', w.now);
     }
-    if (waited >= NO_VERDICT_MS) return { ...next, mark: 'unknown', note: '❔ 30초 동안 폰이 못 봤다 — 시뮬레이터가 «🚚 개별콜» 탭인가 · [건너뛰기]' };
+    if (waited >= NO_VERDICT_MS) return { ...next, mark: 'unknown', note: '❔ 30초 동안 폰이 못 봤다 — 시뮬레이터가 «🚚 개별콜» 탭인가 · 픽커면 «신규» 탭인가 · [건너뛰기]' };
     return { ...next, mark: 'sent', note: '⏳ 폰이 읽는 중 — 안 올라와야 맞다' };
 }
 
