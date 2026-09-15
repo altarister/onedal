@@ -166,19 +166,14 @@ export default function Dashboard() {
     //    같은 정보는 order-evaluated 의 꿀/똥 판정이 더 정확하게 제공한다.
     //    서버 라우트 /api/kakao/directions/compare 는 범용이라 남겨두었다.
 
-    // 귀가콜 자동 도착 알림 핸들러
     /**
-     * 도착 감지 (2026-08-17 소생 — 죽은 문이었다).
-     * 🔴 confirm() 으로 "배달 완료 처리?"를 묻던 옛 코드는 지웠다 — 하차 완료는 물리 행위라
-     *    GPS 도, 확인창도 대신 못 찍는다 (자동은 ARRIVED_* 뿐). 진행 바 전진은 milestone-log 가
-     *    이미 하므로 여기는 잠깐 알림만 띄운다.
+     * 📢 **서버가 «대신 한 일»만 잠깐 알린다.**
+     * 🔴 도착 감지(`auto-arrived`)·근접 예고(`next-stop-approaching`)는 여기서 토스트를 안 띄운다 (기사님 2026-09-15 —
+     *    *"시트가 올라오면 불필요"* · *"시인성이 떨어지고 완전 불필요"*). 도착은 시트가 마중하고 근접은 카드가 따라간다 —
+     *    둘 다 `gpsFocusStore` 가 듣는다. 같은 사건을 토스트로 한 번 더 말하면 소음이고, 하나뿐인 배너 줄을 덮어 3·4번 알림을 가린다.
      */
     const [gpsNotice, setGpsNotice] = useState<string | null>(null);
     useEffect(() => {
-        const onAutoArrived = (data: { stopType: 'pickup' | 'dropoff', message: string }) => {
-            setGpsNotice(`🏁 ${data.message}`);
-            setTimeout(() => setGpsNotice(null), NOTICE_MS);
-        };
         /**
          * 🚚 **떠남 → 하차 완료** (기사님 확정 2026-08-25).
          *
@@ -199,11 +194,6 @@ export default function Dashboard() {
          */
         const onAutoPassed = (data: { orderId: string, stopType: 'pickup' | 'dropoff', message: string }) => {
             setGpsNotice(`🚚 ${data.message}`);
-            setTimeout(() => setGpsNotice(null), NOTICE_MS);
-        };
-        const onApproaching = (data: { stopType: 'pickup' | 'dropoff', distanceKm: number }) => {
-            const label = data.stopType === 'pickup' ? '상차지' : '하차지';
-            setGpsNotice(`📣 다음 정거장(${label}) ${data.distanceKm}km 앞 — 도착전 통화를 걸어 주세요`);
             setTimeout(() => setGpsNotice(null), NOTICE_MS);
         };
         // 타겟 자동 순환 — 미리 눌러 둔 것이니 스와이프로 언제든 뒤집을 수 있다
@@ -228,17 +218,13 @@ export default function Dashboard() {
          */
         const onNewCall = () => setViewFilter('ACTIVE');
 
-        socket.on("auto-arrived", onAutoArrived);
         socket.on("auto-delivered", onAutoDelivered);
         socket.on("auto-passed", onAutoPassed);
-        socket.on("next-stop-approaching", onApproaching);
         socket.on("target-auto-switched", onTargetSwitched);
         socket.on("order-evaluating", onNewCall);
         return () => {
-            socket.off("auto-arrived", onAutoArrived);
             socket.off("auto-delivered", onAutoDelivered);
             socket.off("auto-passed", onAutoPassed);
-            socket.off("next-stop-approaching", onApproaching);
             socket.off("target-auto-switched", onTargetSwitched);
             socket.off("order-evaluating", onNewCall);
         };
@@ -295,7 +281,7 @@ export default function Dashboard() {
                 {/* 📢 배너 층 (v24) — 무대에서는 흐름 밖으로 띄운다. 흐름 안에 두면 뜰 때마다
                     아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 (기사님 실측 0831) */}
                 <div className={stagePreview ? "absolute left-0 right-0 z-40" : "contents"}>
-                {/* 🏁 도착 감지 · 📣 근접 예고 (도착전 통화) — 잠깐 떴다 사라진다 */}
+                {/* 🚚 서버가 대신 찍은 하차 완료·지나침 · 🏠 목적지 자동 전환 — 잠깐 떴다 사라진다 */}
                 {gpsNotice && (
                     <div className="mx-3 mt-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 flex items-center gap-2 text-sm">
                         <span className="flex-1 font-bold text-text-primary">{gpsNotice}</span>
