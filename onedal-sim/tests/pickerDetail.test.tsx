@@ -65,6 +65,15 @@ describe('픽커 상세 — 글자', () => {
             .forEach(w => expect(text, `«${w}»`).not.toContain(w));
     });
 
+    it('예약콜은 «오늘 HH:MM 픽업예약» 상자 — «배송 N분 남음» 대신 (실물 10-1 · 33 · 서버 글자인식이 «픽업예약»으로 예약을 안다)', () => {
+        const later = textOf(<PickerCallDetailScreen call={{ ...pickerA, reservedAt: '17:30' }} onClose={noop} />);
+        expect(later).toContain('오늘 17:30 픽업예약');
+        expect(later).not.toContain('남음');
+        expect(later).not.toMatch(/예약 17:30/);   // 태그 줄에 시각을 따로 안 붙인다
+        const earlier = textOf(<PickerCallDetailScreen call={{ ...pickerA, reservedAt: '08:00' }} onClose={noop} />);
+        expect(earlier).toContain('내일 08:00 픽업예약');
+    });
+
     it('글자 스냅숏', () => {
         expect(textOf(<PickerCallDetailScreen call={pickerA} onClose={noop} />)).toMatchSnapshot();
     });
@@ -97,7 +106,67 @@ describe('픽커 상세 — 버튼', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    it('🔴 「수락하기」 — 3단계에서는 아무 일도 안 한다 (수락 뒤 화면은 4단계)', () => {
+    const sheetOf = (h: HTMLElement) => h.querySelector<HTMLElement>('[data-sheet]')!;
+    const dragOf = (h: HTMLElement) => h.querySelector<HTMLElement>('[data-sheet-drag]')!;
+    /** 끌기 — 원달앱 검사처럼 누름 → 뗌 사이의 세로 거리로 */
+    const drag = (el: HTMLElement, dy: number) => act(() => {
+        el.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientY: 300 }));
+        el.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientY: 300 + dy }));
+    });
+
+    it('처음엔 시트 «중» — 지도 위에 둥근 뒤로가기 하나 (실물 05 · 10-2 · 33)', () => {
+        const h = mount(<PickerCallDetailScreen call={pickerA} onClose={noop} />);
+        expect(sheetOf(h).dataset.sheet).toBe('MID');
+        expect(h.querySelectorAll('button[aria-label="뒤로가기"]').length).toBe(1);
+        expect(h.querySelector('[data-map] button[aria-label="뒤로가기"]')).not.toBeNull();
+    });
+
+    it('손잡이를 누르면 한 칸씩 올라간다 — 하 → 중 → 상 · 상에서는 머리줄 뒤로가기 (실물 10-1 · 06)', () => {
+        const h = mount(<PickerCallDetailScreen call={pickerA} onClose={noop} />);
+        drag(dragOf(h), 100);
+        expect(sheetOf(h).dataset.sheet).toBe('LOW');
+        act(() => { vi.advanceTimersByTime(1); });   // 끌기와 따로 한 누르기 — 끈 뒤 따라오는 누르기가 아니다
+        act(() => { h.querySelector<HTMLButtonElement>('button[aria-label="아래 창 올리기"]')!.click(); });
+        expect(sheetOf(h).dataset.sheet).toBe('MID');
+        act(() => { h.querySelector<HTMLButtonElement>('button[aria-label="아래 창 올리기"]')!.click(); });
+        expect(sheetOf(h).dataset.sheet).toBe('HIGH');
+        expect(h.querySelectorAll('button[aria-label="뒤로가기"]').length).toBe(1);
+        expect(h.querySelector('[data-map] button[aria-label="뒤로가기"]')).toBeNull();
+    });
+
+    it('끌기 — 위로 끌면 올라가고 아래로 끌면 내려간다 · 끈 뒤 따라오는 누르기는 한 칸 더 안 올린다', () => {
+        const h = mount(<PickerCallDetailScreen call={pickerA} onClose={noop} />);
+        drag(dragOf(h), 100);
+        expect(sheetOf(h).dataset.sheet).toBe('LOW');
+        drag(dragOf(h), -100);
+        act(() => { dragOf(h).click(); });
+        expect(sheetOf(h).dataset.sheet).toBe('MID');
+        drag(dragOf(h), -100);
+        expect(sheetOf(h).dataset.sheet).toBe('HIGH');
+        drag(dragOf(h), 100);
+        expect(sheetOf(h).dataset.sheet).toBe('MID');
+    });
+
+    it('«중»에서 시트 내용을 끌어 올리면(스크롤) «상»', () => {
+        const h = mount(<PickerCallDetailScreen call={pickerA} onClose={noop} />);
+        const scroller = h.querySelector<HTMLElement>('[data-sheet-scroll]')!;
+        act(() => { scroller.scrollTop = 60; scroller.dispatchEvent(new Event('scroll')); });
+        expect(sheetOf(h).dataset.sheet).toBe('HIGH');
+    });
+
+    it('🔴 «넘기기» · «수락하기» 는 시트 밖 맨 위층 — 시트가 어느 높이든 보인다', () => {
+        const h = mount(<PickerCallDetailScreen call={pickerA} onClose={noop} />);
+        for (const dy of [100, -100, -100]) {   // 하 · 중 · 상
+            drag(dragOf(h), dy);
+            ['넘기기', '수락하기'].forEach(t => {
+                const b = byText(h, t);
+                expect(b, `${sheetOf(h).dataset.sheet} 에서 «${t}»`).toBeTruthy();
+                expect(sheetOf(h).contains(b)).toBe(false);
+            });
+        }
+    });
+
+    it('「수락하기」 — onAccept 가 없으면 아무 일도 안 한다', () => {
         const onClose = vi.fn();
         const h = mount(<PickerCallDetailScreen call={pickerA} onClose={onClose} />);
         act(() => { byText(h, '수락하기').click(); });
