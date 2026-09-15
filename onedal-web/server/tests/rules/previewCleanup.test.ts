@@ -66,3 +66,36 @@ describe('🧹 심사 콜 정리', () => {
         expect(src.indexOf('const wasPreview')).toBeLessThan(src.indexOf('session.pendingOrdersData.delete(targetOrderId)'));
     });
 });
+
+/**
+ * 🧹 **목록으로 «돌아왔을» 때만 심사 콜을 치운다** — «지금 목록이다»로 치우지 않는다 (#154).
+ * 카드를 여는 순간 폰이 아직 그려지지 않은 옛 화면(LIST)을 한 번 더 보내면, 방금 연 미리보기를 «리스트 이탈»로 치웠다
+ * (22:15 픽커 S3 — 확정 요청 0.16초 뒤 LIST 보고 → 정리 → 판정 카드만 남고 수락한 콜은 번호 없이 `unknown`).
+ * 원달앱도 «LIST 로 돌아왔느냐»(직전 화면)로 가른다.
+ */
+describe('🧹 목록으로 돌아왔을 때만 치운다', () => {
+    const ADMIN = 'ADMIN_USER';   // user_devices 에 없는 기기는 여기로 간다
+    const preview = (phone: string, id: string) => {
+        const s = getUserSession(ADMIN);
+        s.pendingOrdersData.set(id, {
+            id, status: 'ORDER_SECURED_EVALUATING', capturedDeviceId: phone, capturedAt: new Date().toISOString(),
+            pickup: '사음동', dropoff: '중리동', fare: 50000, isPreview: true,
+        } as any);
+        s.deviceEvaluatingMap.set(phone, id);
+        return s;
+    };
+
+    it('🔴 목록 → 카드 열기 → 옛 목록 보고가 또 와도 방금 연 미리보기를 안 치운다', () => {
+        devices.touchDeviceSession('phone-late-list', ADMIN, 0, 'LIST', io);
+        const s = preview('phone-late-list', 'pv-late');
+        devices.touchDeviceSession('phone-late-list', ADMIN, 0, 'LIST', io);
+        expect(s.pendingOrdersData.has('pv-late')).toBe(true);
+    });
+
+    it('상세 → 목록으로 돌아오면 치운다', () => {
+        devices.touchDeviceSession('phone-back-list', ADMIN, 0, 'DETAIL_PRE_CONFIRM', io);
+        const s = preview('phone-back-list', 'pv-back');
+        devices.touchDeviceSession('phone-back-list', ADMIN, 0, 'LIST', io);
+        expect(s.pendingOrdersData.has('pv-back')).toBe(false);
+    });
+});

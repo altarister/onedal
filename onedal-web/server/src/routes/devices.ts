@@ -137,6 +137,8 @@ export interface DeviceStatusExtras {
 
 export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally, targetApp?: TargetAppType, extras?: DeviceStatusExtras): DeviceModeType => {
     let session = activeDevices.get(deviceId);
+    /** 🧹 직전 화면 — 아래에서 덮기 전에 챙긴다. «목록으로 돌아왔나»(아래 정리)가 이 값을 본다 */
+    const prevScreen = session?.screenContext;
 
     if (!session) {
         // 최초 세션 생성 시에만 DB에서 deviceName을 1회 조회 (이후 메모리 캐싱)
@@ -306,7 +308,11 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
      *    예전에는 여기서 `=== 'LIST'` 로 직접 판정해, 앱이 리스트로 치는 `LIST_COMPLETED`
      *    가 **새어 나갔다** (유령 카드 사고 2026-08-14).
      */
-    if (isListScreen(screenContext)) {
+    /**
+     * 🔴 **목록으로 «돌아왔을» 때만 치운다** (#154) — 직전이 목록이 아니었는데 지금 목록이다.
+     *    카드를 여는 순간 폰이 아직 안 그려진 옛 목록 화면을 한 번 더 보내면, «지금 목록»만 보고 방금 연 콜을 치웠다.
+     */
+    if (isListScreen(screenContext) && !isListScreen(prevScreen)) {
         let userId = "ADMIN_USER";
         if (deviceId) {
             const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
