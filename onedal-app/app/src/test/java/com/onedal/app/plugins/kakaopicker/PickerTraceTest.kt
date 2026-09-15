@@ -35,6 +35,24 @@ class PickerTraceTest {
         assertFalse(PickerTrace.shouldStart(live = true, afterDetail = null, acceptedScreen = false))
     }
 
+    /** 🏠 기사님 지시 — 수락을 안 하는 라이브에서도 리더기가 페이지를 어떻게 읽는지 보려고 «시작하기»부터 켠다 */
+    @Test
+    fun `실물 픽커 홈에서 시작하기를 누르면 켠다 - 다른 버튼이나 시뮬레이터 앱은 아니다`() {
+        assertTrue(PickerTrace.startsOnClick(live = true, label = "시작하기"))
+        assertTrue(PickerTrace.startsOnClick(live = true, label = " 시작하기 "))
+        assertFalse(PickerTrace.startsOnClick(live = false, label = "시작하기"))
+        assertFalse(PickerTrace.startsOnClick(live = true, label = "넘기기"))
+        assertFalse(PickerTrace.startsOnClick(live = true, label = null))
+    }
+
+    @Test
+    fun `누름 알림을 놓쳐도 홈에서 리스트로 들어오면 켠다`() {
+        assertTrue(PickerTrace.startsFromHome(live = true, previousWasHome = true, nowList = true))
+        assertFalse(PickerTrace.startsFromHome(live = false, previousWasHome = true, nowList = true))
+        assertFalse(PickerTrace.startsFromHome(live = true, previousWasHome = false, nowList = true))
+        assertFalse(PickerTrace.startsFromHome(live = true, previousWasHome = true, nowList = false))
+    }
+
     @Test
     fun `켜면 시작 줄을 남긴다 - 이미 켜져 있으면 시작 시각이 안 바뀐다`() {
         val t = PickerTrace()

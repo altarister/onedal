@@ -47,6 +47,7 @@ enum class ScreenContext(val value: String) {
      * 인성에는 이 층이 없다(켜면 바로 리스트). 픽커는 「시작하기」가 있는 홈을 거친다.
      * 🔴 «모름»과 갈라 둔다 — 앞은 *"못 읽고 있다"*, 뒤는 *"읽었고 대기 중이다"*.
      */
+    MY_ORDERS("MY_ORDERS"),                    // 📋 픽커 내 오더 탭 — 🔴 리스트 계열이 아니다 (리스트 복귀로 읽으면 승격이 막힌다)
     HOME("HOME"),                              // 🏠 배차망 홈
     UNKNOWN("UNKNOWN");                        // 알 수 없는 화면
 }

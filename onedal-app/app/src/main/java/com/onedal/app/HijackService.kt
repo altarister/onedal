@@ -513,6 +513,9 @@ class HijackService : AccessibilityService(), ScanContext {
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
             if (TargetApp.isKakaoPickerApp(event.packageName?.toString())) {
                 val label = event.text?.joinToString(" ")?.takeIf { it.isNotBlank() } ?: event.contentDescription?.toString()
+                if (com.onedal.app.plugins.kakaopicker.PickerTrace.startsOnClick(live = true, label = label)) {
+                    startPickerTrace("홈 «시작하기»를 눌렀다")
+                }
                 pickerTrace.onClick(System.currentTimeMillis(), label)?.let {
                     AppLogger.i("1DAL_TRACE", it)
                     flushPickerTrace()
@@ -789,6 +792,10 @@ class HijackService : AccessibilityService(), ScanContext {
             if (com.onedal.app.plugins.kakaopicker.PickerTrace.shouldStart(true, null,
                     com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.isAcceptedScreen(rawScreenStr))) {
                 startPickerTrace("수락 후 표식이 보인다")
+            }
+            // 🔴 «바로 앞 화면»이 아니라 «마지막으로 알아본 픽커 단계»로 본다 — 홈 → 리스트 사이에 넘어가는 화면(UNKNOWN)이 서너 번 낀다 (09-16 04:33 라이브)
+            if (com.onedal.app.plugins.kakaopicker.PickerTrace.startsFromHome(true, lastPickerStage == com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.Stage.HOME, detected == ScreenContext.LIST)) {
+                startPickerTrace("홈에서 리스트로 들어왔다")
             }
             pickerTrace.onScreen(traceNow, rawScreenStr, detected.name)?.let {
                 AppLogger.i("1DAL_TRACE", it)
@@ -1330,8 +1337,7 @@ class HijackService : AccessibilityService(), ScanContext {
     private fun detectScreenContext(text: String): ScreenContext {
         val byKeywords = screenDetector.detect(text, keywords)
         if (TargetApp.supportsCatching(currentTargetApp)) return byKeywords
-        val stage = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.stageOf(text)
-        return com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.screenContextOf(stage) ?: byKeywords
+        return com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.pickerScreenContextOf(text) ?: byKeywords
     }
 
     private fun updateScreenContext(context: ScreenContext) {

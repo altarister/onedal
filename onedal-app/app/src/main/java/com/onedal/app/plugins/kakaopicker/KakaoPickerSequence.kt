@@ -111,7 +111,7 @@ fun ScanContext.reportPickerAccepted(rawScreenStr: String) {
      * 30초 자동 복귀가 도는 순간 상세→리스트 중간 프레임에서 「수락하기」만 먼저
      * 사라졌고, 화면 분류가 그걸 «확정»으로 읽어 **안 누른 콜이 잡은 콜로 승격**됐다.
      */
-    if (!KakaoPickerKeywords.isAcceptedScreen(rawScreenStr)) {
+    if (!KakaoPickerKeywords.isAcceptedEvidence(rawScreenStr)) {   // 운행 화면 또는 오더가 든 «내 오더» 탭
         AppLogger.d("1DAL_PICKER", "↩️ [승격 보류] 수락 후 표식이 없다 — 화면 넘어가는 중으로 본다")
         return
     }

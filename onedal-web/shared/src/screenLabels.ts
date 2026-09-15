@@ -79,6 +79,8 @@ export const PICKER_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel
      * 있어야 홈 화면이야"*). 인성에는 이 층이 없어서 여기에만 적는다.
      */
     HOME: { label: "홈", color: GRAY },
+    /** 📋 잡은 콜 목록 (인성 «완료» 탭과 같은 자리) — 목록이라 콜 리스트와 같은 색 */
+    MY_ORDERS: { label: "내 오더", color: GREEN },
     DETAIL_PRE_CONFIRM: { label: "상세페이지", color: BLUE },
     DETAIL_CONFIRMED: { label: "확정페이지", color: AMBER },
     POPUP_ERROR: { label: "이미 배정됨", color: RED_BLINK },

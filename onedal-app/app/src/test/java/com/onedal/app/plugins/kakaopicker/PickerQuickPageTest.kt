@@ -97,9 +97,45 @@ class PickerQuickPageTest {
         assertFalse("상세 바로 뒤는 원래 길이 한다", k.shouldCheckLateAcceptance(previousWasDetail = true, isPreview = true, hasDetailOrder = true, rawText = realDepartTop))
         assertFalse("딱지가 없다 — 이미 올렸거나 리스트로 돌아갔다", k.shouldCheckLateAcceptance(false, isPreview = false, hasDetailOrder = true, rawText = realDepartTop))
         assertFalse("올릴 콜이 없다", k.shouldCheckLateAcceptance(false, true, hasDetailOrder = false, rawText = realDepartTop))
-        val myOrderTab = "목록 지도 알림 메뉴 03:47까지 퀵 픽업 초월읍 배송지: 신둔면 초소형 한차배송 신청내역 보기 카드설정 신규 내 오더 1"
-        assertFalse("내 오더 탭은 수락 표식이 아니다", k.shouldCheckLateAcceptance(false, true, true, myOrderTab))
+        val emptyMyOrderTab = "퀵 최대 합짐 개수 6건 진행 중인 오더가 없어요 한차배송 신청내역 보기 서포트모드 카드설정 수요지도 목록 지도 알림 신규 내 오더"
+        assertFalse("오더가 없는 내 오더 탭은 수락 증거가 아니다", k.shouldCheckLateAcceptance(false, true, true, emptyMyOrderTab))
         assertFalse(k.shouldCheckLateAcceptance(false, true, true, null))
+    }
+
+    /** 🟢 실물 라이브 09-16 04:36:22 — 오더가 없는 내 오더 탭 */
+    private val realMyOrderEmpty = "퀵 최대 합짐 개수 6건 진행 중인 오더가 없어요 한차배송 신청내역 보기 서포트모드 카드설정 수요지도 목록 지도 알림 신규 내 오더"
+    /** 시뮬레이터 09-16 03:23:05 — 수락 직후 오더가 든 내 오더 탭 */
+    private val myOrderWithCall = "목록 지도 알림 메뉴 03:47까지 퀵 픽업 초월읍 배송지: 신둔면 초소형 한차배송 신청내역 보기 카드설정 신규 내 오더 1"
+    /** 🟢 실물 라이브 09-16 04:35:02 — 신규 리스트 («수요지도»는 있어도 «목록 지도»는 없다) */
+    private val realList = "리스트 설정 높은 가격순 20km 퀵 승 예약 20:00 16.7km 수정 위례 도봉 창3 20,790 퀵 승 예약 17:30 6.8km 광주 송정 강남 역삼1 19,404 서포트모드 카드설정 수요지도 신규 내 오더"
+
+    @Test
+    fun `내 오더 탭은 목록 지도로 안다 - 신규 리스트와 상세는 아니다`() {
+        assertTrue(k.isMyOrderTab(realMyOrderEmpty))
+        assertTrue(k.isMyOrderTab(myOrderWithCall))
+        assertFalse(k.isMyOrderTab(realList))
+        assertFalse("아래 탭 줄 «신규 · 내 오더»가 없으면 픽커 탭 화면이 아니다", k.isMyOrderTab("목록 지도 알림 메뉴 03:47까지 퀵 픽업 초월읍"))
+        assertFalse(k.isMyOrderTab("픽업지 경기 성남시 수정구 위례동 물품 정보 소형 넘기기 수락하기"))
+        assertNull("내 오더는 운행 단계가 아니다 — 관제웹 화면 이름은 그대로", k.stageOf(myOrderWithCall))
+    }
+
+    /** 🖥️ 관제웹에 «알 수 없는 화면» 대신 «내 오더»로 보인다 (기사님 지시 · 09-16 04:43 라이브) */
+    @Test
+    fun `관제웹 화면 이름 - 내 오더 탭은 MY_ORDERS · 퀵 페이지는 운행 화면 · 리스트는 기존 판별에 맡긴다`() {
+        assertEquals(com.onedal.app.models.ScreenContext.MY_ORDERS, k.pickerScreenContextOf(myOrderWithCall))
+        assertEquals(com.onedal.app.models.ScreenContext.MY_ORDERS, k.pickerScreenContextOf(realMyOrderEmpty))
+        assertEquals(com.onedal.app.models.ScreenContext.RUN_TO_PICKUP, k.pickerScreenContextOf(realDepartTop))
+        assertNull(k.pickerScreenContextOf(realList))
+    }
+
+    @Test
+    fun `오더가 든 내 오더 탭은 수락 증거다 - 빈 내 오더 탭은 아니다`() {
+        assertTrue(k.isAcceptedEvidence(myOrderWithCall))
+        assertFalse(k.isAcceptedEvidence(realMyOrderEmpty))
+        assertFalse(k.isAcceptedEvidence(realList))
+        assertTrue("퀵 페이지도 그대로", k.isAcceptedEvidence(realDepartTop))
+        assertTrue("상세 → 내 오더 뒤 늦게 봐도", k.shouldCheckLateAcceptance(false, true, true, myOrderWithCall))
+        assertFalse(k.shouldCheckLateAcceptance(false, true, true, realMyOrderEmpty))
     }
 
     @Test

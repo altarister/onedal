@@ -33,6 +33,14 @@ class PickerTrace(
         /** 이 버튼을 누르면 한 콜이 끝났다 (실물 31 «오더 목록 보기») */
         const val END_BUTTON = "오더 목록 보기"
 
+        /** 홈의 이 버튼을 누르면 켠다 — 기사님 지시: 수락을 안 하는 라이브에서도 리더기가 페이지를 어떻게 읽는지 본다 */
+        const val START_BUTTON = "시작하기"
+
+        fun startsOnClick(live: Boolean, label: String?): Boolean = live && label?.trim() == START_BUTTON
+
+        /** 누름 알림을 놓쳤을 때 — 홈에서 리스트로 들어오면 켠다 */
+        fun startsFromHome(live: Boolean, previousWasHome: Boolean, nowList: Boolean): Boolean = live && previousWasHome && nowList
+
         fun shouldStart(live: Boolean, afterDetail: KakaoPickerKeywords.AfterDetail?, acceptedScreen: Boolean): Boolean =
             live && (afterDetail == KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED || acceptedScreen)
     }

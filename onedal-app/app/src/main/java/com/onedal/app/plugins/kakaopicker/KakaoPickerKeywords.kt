@@ -228,7 +228,34 @@ object KakaoPickerKeywords {
      * 상세 바로 뒤는 원래 길(`afterDetail` → `reportPickerAccepted`)이 한다 — 두 번 부르지 않는다.
      */
     fun shouldCheckLateAcceptance(previousWasDetail: Boolean, isPreview: Boolean, hasDetailOrder: Boolean, rawText: String?): Boolean =
-        !previousWasDetail && isPreview && hasDetailOrder && isAcceptedScreen(rawText)
+        !previousWasDetail && isPreview && hasDetailOrder && isAcceptedEvidence(rawText)
+
+    /**
+     * 📋 **«내 오더» 탭** — «목록 지도»(머리 토글)가 있고 «리스트 설정» · «수락하기»가 없다 (실물 라이브 09-16 04:36).
+     * 그날 신규 리스트 기록 4건에는 «목록 지도»가 한 번도 없었다 («수요지도»는 리스트에도 있어 못 쓴다).
+     * 🔴 화면 분류(`ScreenContext`)로는 올리지 않는다 — «완료 리스트»로 두면 리스트 복귀로 읽혀 미리보기 딱지가 비워지고 승격이 막힌다.
+     */
+    fun isMyOrderTab(rawText: String?): Boolean {
+        val t = rawText ?: return false
+        return t.contains(MY_ORDER_TAB_WORD) && MAIN_TAB_WORDS.all { t.contains(it) } &&
+            !t.contains("리스트 설정") && !t.contains("수락하기")
+    }
+    private const val MY_ORDER_TAB_WORD = "목록 지도"
+    /** 아래 탭 줄 «신규 · 내 오더» — 리스트에도 있어(09-16 라이브 8/8) 가르지는 못하지만, 픽커 탭 화면이라는 확인으로 함께 요구한다 (기사님 지시) */
+    private val MAIN_TAB_WORDS = listOf("신규", "내 오더")
+    /** 오더가 없을 때만 나오는 글자 — 이 탭은 수락의 증거가 아니다 (실물 라이브 09-16 04:36) */
+    private const val MY_ORDER_EMPTY = "진행 중인 오더가 없어요"
+
+    /**
+     * 🖥️ **픽커 화면을 관제웹 이름으로** — 운행 단계가 먼저, 아니면 «내 오더» 탭, 둘 다 아니면 `null`(낱말 판별에 맡긴다).
+     * 🔴 내 오더는 리스트 계열이 아니다 — `HijackService` 의 리스트 복귀(세션 비움)에 안 걸려야 수락 뒤 승격이 산다.
+     */
+    fun pickerScreenContextOf(rawText: String?): ScreenContext? =
+        screenContextOf(stageOf(rawText)) ?: if (isMyOrderTab(rawText)) ScreenContext.MY_ORDERS else null
+
+    /** ✅ **수락했다는 증거** — 운행 화면(퀵 흰 페이지 · 도보 «밀어서 …» 등)이거나, 오더가 든 «내 오더» 탭 (수락하면 곧바로 여기로 온다) */
+    fun isAcceptedEvidence(rawText: String?): Boolean =
+        isAcceptedScreen(rawText) || (isMyOrderTab(rawText) && rawText?.contains(MY_ORDER_EMPTY) == false)
 
     /** 🔴 원천은 `STAGE_WORDS` 하나다 — 손으로 또 적으면 두 벌이 된다 (규칙 ③) */
     val ACCEPTED_SCREEN_WORDS: List<String> =
