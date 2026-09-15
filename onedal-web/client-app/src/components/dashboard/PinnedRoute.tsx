@@ -369,6 +369,8 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                             routeComputedAt={routeComputedAt}
                             variant="deck"
                             focusStep={focus && focus.orderId === route.id ? focus.step : null}
+                            /* 🎬 이 카드가 지금 상태바의 콜인가 — 끌어올리는 순간 참이 되어 손으로 넘긴 단계를 지운다 (#145) */
+                            focused={!!focus && focus.orderId === route.id}
                         />
                     )}
                 />

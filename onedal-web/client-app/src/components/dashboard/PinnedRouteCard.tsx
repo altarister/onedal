@@ -69,6 +69,8 @@ interface Props {
      *    `null`·없음이면 장부의 현재 단계(`stepCurIdx`). 카드는 도착 사건을 따로 듣지 않는다.
      */
     focusStep?: 'ARRIVE_PICKUP' | 'ARRIVE_DROPOFF' | null;
+    /** 🎬 이 카드가 지금 시트 상태바의 콜인가 — 맨 위일 때만 참 (#145) */
+    focused?: boolean;
 }
 
 export default function PinnedRouteCard({
@@ -86,6 +88,7 @@ export default function PinnedRouteCard({
     timeline,
     variant = 'list',
     focusStep = null,
+    focused = false,
 }: Props) {
     const isDeck = variant === 'deck';
     /**
@@ -207,7 +210,10 @@ export default function PinnedRouteCard({
      */
     /* 🎬 도착 사건을 여기서 따로 듣던 효과는 걷었다 (기사님 2026-09-15 · #143) — 단계는 시트 상태바(`focusStep`)가 정한다 */
     const focusStepIdx = focusStep && seededSteps ? seededSteps.findIndex(x => x.step === focusStep) : -1;
-    useEffect(() => { setStepNav(null); }, [focusStep]);
+    /* 🎬 끌어올려 상태바의 콜이 되는 순간 손으로 넘긴 단계를 지운다 — 상태바 단계로 맞춘다 (기사님 2026-09-15 · #145) */
+    useEffect(() => {
+        if (focused) setStepNav(null);
+    }, [focused, focusStep]);
 
     /**
      * 📡 **화면이 «지금 어느 단계»를 보여주는가 — 로그로 남긴다** (기사님 지시 2026-09-12 밤).

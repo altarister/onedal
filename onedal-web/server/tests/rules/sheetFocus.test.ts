@@ -169,6 +169,18 @@ describe('S13·S14·S15 — 마중은 «그 콜의 그 단계»까지다', () =>
      *    `order-confirmed` 를 듣는 효과가 한 번만 등록돼 그 안의 `feed` 가 빈 덱·닫힌 `openIdx` 를 붙잡았다 —
      *    KEEP 다섯 번 모두 시트는 `full·KEEP` 로 올랐는데 `[시트연콜]` 이 한 줄도 안 찍혔다.
      */
+    /**
+     * 🔴 **끌어올리면 손으로 넘겨 둔 단계를 지우고 상태바 단계로 맞춘다** (기사님 2026-09-15 · 버그 대장 #145).
+     *    예전엔 `focusStep` 값이 바뀔 때만 지웠다 — 다음 정거장 콜은 그 값이 늘 `null` 이라, 손으로 넘겨 둔 단계가
+     *    끌어올린 뒤에도 남아 상태바와 다른 단계가 떴다. «이 카드가 상태바의 콜이 된 순간»(`focused`)에 지운다.
+     */
+    it('🔴 #145 카드가 상태바의 콜이 되는 순간 손으로 넘긴 단계를 지운다', () => {
+        const route = codeOnly(read('components/dashboard/PinnedRoute.tsx'));
+        expect(route).toMatch(/focused=\{!!focus && focus\.orderId === route\.id\}/);
+        const card = codeOnly(read('components/dashboard/PinnedRouteCard.tsx'));
+        expect(card).toMatch(/if \(focused\) setStepNav\(null\);\s*\}, \[focused, focusStep\]\)/);
+    });
+
     it('🔴 #143 KEEP 처리는 늘 최신 feed 를 부른다', () => {
         const view = codeOnly(read('components/stage/StageView.tsx'));
         const i = view.indexOf("const onConfirmed");
