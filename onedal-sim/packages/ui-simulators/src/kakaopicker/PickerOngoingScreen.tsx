@@ -2,7 +2,7 @@
  * 🚚 **픽커 수락 뒤 단계** — 실물 `ex_images/카카오픽커/실물_2026/` 16~31 (계획서 카카오픽커_시뮬레이터.md §8-2 · 4단계)
  *
  * 실물 순서 — 모양은 달라도 **단계와 버튼 순서는 같다** (기사님: «이미지와 같지는 않아도 단계는 같아야»):
- *   수락 직후 오더 전체(23) ─✕→ 내 오더 탭(15 · `PickerDispatchBoard`) ─카드→ 픽업 이동(16) ─아래 창 끌어 올리기→ «밀어서 픽업 완료»(17) → 배송 중(21) ─끌어 올리기→ «밀어서 사진 촬영»(22)
+ *   수락 → 내 오더 탭(15 · `PickerDispatchBoard`) ─카드→ 픽업 이동(16) ─아래 창 끌어 올리기→ «밀어서 픽업 완료»(17) → 배송 중(21) ─끌어 올리기→ «밀어서 사진 촬영»(22)
  *   → 인증사진 촬영(25) → 촬영 확인 · «문자 전송»(26) → «문자 전송 후 배송 완료버튼을 눌러주세요» · «배송 완료»(30)
  *   → 배송 완료 · «오더 목록 보기»(31)
  * 문자 앱 고르기 · 문자 쓰기(27~29)는 픽커 밖 화면이라 건너뛴다.
@@ -90,7 +90,7 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
   const fareP = `${formatPickerFare(call.fare)}P`;
 
   if (step === 'OVERVIEW') {
-    // 📋 오더 전체 (실물 23) — 수락 직후. ✕ 는 내 오더 탭으로 · 다음에 열면 픽업 이동부터. 원달앱이 아는 단계 글자가 없다
+    // 📋 오더 전체 (실물 23) — 실물에서 어디서 여는지 몰라 지금은 들어가는 길이 없다. ✕ 는 내 오더 탭으로 · 원달앱이 아는 단계 글자가 없다
     return (
       <div className="w-full h-full flex flex-col bg-white text-[#1f1f1f] select-none overflow-y-auto">
         <div className="h-[56px] flex items-center px-3 shrink-0">

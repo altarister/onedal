@@ -146,7 +146,7 @@ describe('수락 뒤 단계 — 실물 순서', () => {
         expect(stageOf(text())).toBe('AT_PICKUP');
     });
 
-    it('🔴 수락 직후 «오더 전체»(실물 23) — 픽업지 · 배송지 · 오더 확인 · 최종 수익 · ✕ 를 누르면 내 오더로 (다음에 열면 픽업 이동)', () => {
+    it('«오더 전체»(실물 23 · 지금 들어가는 길 없음) — 픽업지 · 배송지 · 오더 확인 · 최종 수익 · ✕ 를 누르면 내 오더로 (다음에 열면 픽업 이동)', () => {
         const onBack = vi.fn();
         const onStepChange = vi.fn();
         mount(<PickerOngoingScreen call={pickerA} initialStep="OVERVIEW" onStepChange={onStepChange} onBack={onBack} onFinish={() => {}} />);
@@ -206,25 +206,27 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
         ...over,
     });
 
-    it('🔴 상세에서 수락하면 잡은 콜로 옮기고 «내 오더» 탭으로', () => {
+    it('🔴 상세에서 수락하면 잡은 콜로 옮기고 상세를 닫아 곧바로 «내 오더» 탭으로 (화물24시 «배차내역»과 같은 순서)', () => {
         const acceptCall = vi.fn();
         const setActiveTab = vi.fn();
-        mount(<PickerSimScreen {...props({ selectedCall: pickerA, selectedCallId: pickerA.id, acceptCall, setActiveTab })} />);
+        const closeDetail = vi.fn();
+        mount(<PickerSimScreen {...props({ selectedCall: pickerA, selectedCallId: pickerA.id, acceptCall, setActiveTab, closeDetail })} />);
         click('수락하기');
         expect(acceptCall).toHaveBeenCalledWith(pickerA);
         expect(setActiveTab).toHaveBeenCalledWith('CONFIRMED');
+        expect(closeDetail).toHaveBeenCalledTimes(1);
     });
 
-    it('🔴 잡은 콜을 처음 열면 수락 전 상세가 아니라 «오더 전체»(실물 23)다', () => {
+    it('🔴 잡은 콜을 열면 수락 전 상세도 «오더 전체»(실물 23)도 아니라 픽업 이동(실물 16)이다', () => {
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], selectedCall: pickerA, selectedCallId: pickerA.id })} />);
         expect(text()).not.toContain('수락하기');
-        expect(chunk('최종 수익')).toBe(true);
+        expect(chunk('오더 정보')).toBe(false);
+        expect(stageOf(text())).toBe('TO_PICKUP');
     });
 
     it('완료하면 잡은 콜에서 뺀다', () => {
         const finishCall = vi.fn();
         mount(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], selectedCall: pickerA, selectedCallId: pickerA.id, finishCall })} />);
-        clickLabel('닫기');
         clickLabel('아래 창 올리기'); click('밀어서 픽업 완료');
         clickLabel('아래 창 올리기'); click('밀어서 사진 촬영');
         click('인증사진 촬영'); click('문자 전송'); click('배송 완료'); click('오더 목록 보기');

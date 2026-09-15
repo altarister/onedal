@@ -2,8 +2,8 @@
  * 🚚 **픽커 배차 화면** — 홈 → 리스트 → 상세를 픽커가 정한다 (2026-09-14 · 카카오픽커_시뮬레이터.md §8 · 2단계 2-2 · 3단계 3-1 · 3-3)
  *
  * - 처음엔 **홈**이다 (실물도 출근 전 홈에서 「시작하기」를 눌러 리스트로 간다)
- * - 콜을 누르면 **수락 전 상세** (`PickerCallDetailScreen` · 실물 05~07) — 「넘기기」 · 「←」 는 리스트로, 「수락하기」는 잡은 콜로 옮기고 «내 오더» 탭
- * - 잡은 콜을 고르면 **수락 뒤 단계** (`PickerOngoingScreen` · 실물 15~31 · 4단계) — 완료하면 잡은 콜에서 빼고 리스트로
+ * - 콜을 누르면 **수락 전 상세** (`PickerCallDetailScreen` · 실물 05~07) — 「넘기기」 · 「←」 는 리스트로, 「수락하기」는 잡은 콜로 옮기고 상세를 닫아 곧바로 «내 오더» 탭
+ * - «내 오더» 카드를 누르면 **수락 뒤 단계** (`PickerOngoingScreen` · 실물 16~31 · 4단계) — 픽업 이동부터 · 완료하면 잡은 콜에서 빼고 리스트로
  * - 상세를 열면 방문 기록에 한 칸 남는다 (`nets.ts` 의 `detailInHistory` · §7-3) — 원달앱의 «뒤로 가기»가 상세만 닫는다
  * - 🚫 **리스트에 오래 떠 있던 콜은 남이 가져갔다** — 누르면 상세 대신 «이미 배정이 완료된 오더입니다» 토스트 (실물 캡처 03 · 3-3)
  */
@@ -80,8 +80,8 @@ export const PickerSimScreen = (p: NetScreenProps) => {
         <PickerOngoingScreen
           key={call.id}
           call={call}
-          /* 처음 열면 수락 직후 «오더 전체»(실물 23) — ✕ 로 내 오더 탭에 가면 그 뒤로는 픽업 이동부터 */
-          initialStep={steps[call.id] ?? 'OVERVIEW'}
+          /* 내 오더 카드로 열면 픽업 이동(실물 16)부터 · «오더 전체»(실물 23)로 들어가는 길은 실물에서 확인되면 잇는다 */
+          initialStep={steps[call.id] ?? 'TO_PICKUP'}
           onStepChange={s => setSteps(prev => ({ ...prev, [call.id]: s }))}
           onBack={p.closeDetail}
           onFinish={c => { p.finishCall(c); p.setActiveTab('ALL'); }}
@@ -92,7 +92,8 @@ export const PickerSimScreen = (p: NetScreenProps) => {
       <PickerCallDetailScreen
         call={call}
         onClose={p.closeDetail}
-        onAccept={() => { p.acceptCall(call); p.setActiveTab('CONFIRMED'); }}
+        /* 수락하면 상세를 닫아 곧바로 «내 오더» 탭 — 방금 수락한 콜이 카드로 있다 (화물24시 «배차내역»과 같은 순서) */
+        onAccept={() => { p.acceptCall(call); p.setActiveTab('CONFIRMED'); p.closeDetail(); }}
       />
     );
   }
@@ -111,7 +112,7 @@ export const PickerSimScreen = (p: NetScreenProps) => {
         myOrders={p.confirmedCalls.filter(isPickerCall)}
         stepOf={id => steps[id]}
         onCallClick={openOrTaken}
-        /* «내 오더» = 인성 «완료» 탭 — 내 콜이라 «남이 가져갔다»를 안 탄다. 바로 열면 운행(오더 전체 · 픽업 이동)이다 */
+        /* «내 오더» = 인성 «완료» 탭 — 내 콜이라 «남이 가져갔다»를 안 탄다. 바로 열면 운행(픽업 이동)이다 */
         onMyOrderClick={p.openCall}
         onMenuClick={p.goSetup}
       />
