@@ -812,6 +812,21 @@ export interface AutoDispatchFilter {
      *    서버가 필터 영역에서 파생한다(`filterManager.rebuildPickupList`) · 저장하지 않는다. 아직 안 만들었으면 undefined.
      */
     pickupKeywords?: string[];
+    /**
+     * 🗺️ **상차 영역을 지도에 그릴 재료** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
+     *    목록을 만든 그 순간의 값 — 관제웹이 이것으로 shared `pickupAreaPoints` 를 다시 불러 **목록을 만든 점**을 칠한다.
+     *    ⚠️ **앱에 안 내려간다** (`APP_FILTER_KEYS` 밖). 저장하지 않는다 — `rebuildPickupList` 가 목록과 함께 만든다.
+     */
+    pickupArea?: {
+        /** 목록을 만든 내 위치 */
+        at: { x: number; y: number };
+        homeCity: string | null;
+        homeOn: boolean;
+        /** 집 방향 콜을 쥐었나 (`homeCallsOf`) */
+        homeCaught: boolean;
+        /** 라인 띠를 썼나 — 관제웹은 지금 그리는 경로 선으로 띠를 잰다 */
+        hasLine: boolean;
+    };
     destinationGroups?: Record<string, string[]>; // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     customCityFilters: string[];    // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     detourRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 5km, DB설정값)

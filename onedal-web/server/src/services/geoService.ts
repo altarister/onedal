@@ -3,8 +3,8 @@ import path from 'path';
 import { getActiveCalls } from '../core/helpers';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
-import { DEFAULT_JUDGMENT, pickupAreaPlan, pickupAreaTest, isPickupListName, quadTesterOf, lineZoneOf, cityCenter } from '@onedal/shared';
-import type { PickupShape, NetParams } from '@onedal/shared';
+import { DEFAULT_JUDGMENT, pickupAreaPoints, isPickupListName } from '@onedal/shared';
+import type { PickupShape } from '@onedal/shared';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
  *    예전에 이 파라미터가 `any` 라, 세션에서 사라진 필드를 읽는 함수가 **몇 달째 null 만
@@ -488,9 +488,6 @@ export function regionsContainingPoints(points: Array<{ lng: number; lat: number
     return [...out].sort();
 }
 
-/** 격자 한 칸(km) — 겹친 영역이 이보다 가늘면 놓칠 수 있다. 원(반경 수 km)을 30×30 남짓으로 찍는다 */
-const PICKUP_GRID_KM = 0.3;
-
 /**
  * 📋 **상차 목록을 계산한다 — 한 곳** (기사님 확정 표 2026-09-15 · `docs/지금/필터.md` «상차 목록 · 하차 목록»).
  *
@@ -510,51 +507,8 @@ export function pickupListFor(o: {
     homeOn: boolean;
     homeCaught: boolean;
 }): { list: string[]; plan: PickupShape[][] } {
-    const hasLine = !!o.line && o.line.length >= 2;
-    const plan = pickupAreaPlan({ hasLine, homeOn: o.homeOn, homeCaught: o.homeCaught });
-    const me = { name: '내 위치', lng: o.me.x, lat: o.me.y };
-    const centerOf = (city: string | null | undefined) => {
-        if (!city) return null;
-        try { return cityCenter(city); } catch { return null; }   // 지도에 없는 시 — 그 도형은 모른다
-    };
-    const dest = centerOf(o.destinationCity), home = centerOf(o.homeCity);
-    const params = {
-        srcAngleDeg: o.shape.srcAngleDeg, dstAngleDeg: o.shape.dstAngleDeg,
-        quadRadiusKm: o.radii.quadRadiusKm, srcDiamKm: o.radii.pickupRadiusKm * 2, dstDiamKm: o.radii.destinationRadiusKm * 2,
-    } as NetParams;
-    const line = hasLine ? o.line!.map(p => [p.x, p.y] as [number, number]) : null;
-    const tests: Partial<Record<PickupShape, (p: { lng: number; lat: number }) => boolean>> = {
-        me: p => haversineKm(o.me.y, o.me.x, p.lat, p.lng) <= o.radii.pickupRadiusKm,
-        ...(line ? { line: lineZoneOf(line, o.radii.detourRadiusKm, null, params, dest ?? me).pickupIn } : {}),
-        ...(dest ? { quadDest: quadTesterOf(params, me, dest), destRing: (p: { lng: number; lat: number }) => haversineKm(dest.lat, dest.lng, p.lat, p.lng) <= o.radii.destinationRadiusKm } : {}),
-        ...(home ? { quadHome: quadTesterOf(params, me, home) } : {}),
-    };
-    const inArea = pickupAreaTest(plan, tests);
-
-    /* 격자 — 원이 든 항은 원을 감싼 사각형만 찍으면 된다 · 원이 없는 항(콜 전 마름모)은 목표까지 감싼 사각형을 성기게 */
-    const KX = (lat: number) => 111.32 * Math.cos((lat * Math.PI) / 180), KY = 110.574;
-    const points: Array<{ lng: number; lat: number }> = [];
-    const sample = (x0: number, y0: number, x1: number, y1: number, stepKm: number) => {
-        const dy = stepKm / KY, dx = stepKm / KX((y0 + y1) / 2);
-        for (let y = y0; y <= y1; y += dy) for (let x = x0; x <= x1; x += dx) {
-            const p = { lng: x, lat: y };
-            if (inArea(p)) points.push(p);
-        }
-    };
-    for (const term of plan) {
-        if (term.includes('me')) {
-            const r = o.radii.pickupRadiusKm;
-            sample(o.me.x - r / KX(o.me.y), o.me.y - r / KY, o.me.x + r / KX(o.me.y), o.me.y + r / KY, PICKUP_GRID_KM);
-            continue;
-        }
-        const goal = term.includes('quadHome') ? home : dest;
-        if (!goal) continue;
-        const pad = o.radii.quadRadiusKm;
-        const x0 = Math.min(o.me.x, goal.lng) - pad / KX(o.me.y), x1 = Math.max(o.me.x, goal.lng) + pad / KX(o.me.y);
-        const y0 = Math.min(o.me.y, goal.lat) - pad / KY, y1 = Math.max(o.me.y, goal.lat) + pad / KY;
-        const longestKm = Math.max((x1 - x0) * KX(o.me.y), (y1 - y0) * KY);
-        sample(x0, y0, x1, y1, Math.max(PICKUP_GRID_KM, longestKm / 120));
-    }
+    /* 🔴 영역을 찍는 격자는 shared `pickupAreaPoints` 한 곳 — 관제웹 지도가 **같은 점**을 칠한다 (규칙 ③ · 기사님 2026-09-15 «현위치 영역에 교집합이 안 보인다») */
+    const { plan, points } = pickupAreaPoints(o);
     return { list: regionsContainingPoints(points).filter(isPickupListName), plan };
 }
 

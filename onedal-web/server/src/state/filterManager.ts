@@ -927,19 +927,24 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const f = session.activeFilter;
     const eff = effectiveRadii(f);
     const homeOn = f.callTarget === 'HOME';
+    const line = f.routeMode === false ? null : filterLineOf(session);
+    const homeCity = homeCityOf(userId);
+    const homeCaught = homeOn && homeCallsOf(session, userId, session.myOrders).length > 0;
     const { list, plan } = pickupListFor({
         me: { x: me.x, y: me.y },
         radii: eff,
         shape: quadShapeFrom(f as any),
-        line: f.routeMode === false ? null : filterLineOf(session),
+        line,
         destinationCity: f.destinationCity,
-        homeCity: homeCityOf(userId),
+        homeCity,
         homeOn,
-        homeCaught: homeOn && homeCallsOf(session, userId, session.myOrders).length > 0,
+        homeCaught,
     });
     const prev = f.pickupKeywords;
     session.pickupListAt = { x: me.x, y: me.y };
     f.pickupKeywords = list;
+    /* 🗺️ 지도가 **같은 점**을 찍게 재료를 싣는다 — 계산은 shared `pickupAreaPoints` 한 곳, 관제웹이 이 값으로 다시 부른다 (기사님 2026-09-15 «교집합이 안 보인다») */
+    f.pickupArea = { at: { x: me.x, y: me.y }, homeCity, homeOn, homeCaught, hasLine: !!line && line.length >= 2 };
     refreshKeywordTraps(session);
     const changed = !prev || prev.join(',') !== list.join(',');
     if (changed) console.log(`📋 [상차 목록] ${plan.map(t => t.join('∩')).join(' ∪ ')} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);

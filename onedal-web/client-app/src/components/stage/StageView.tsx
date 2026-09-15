@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm } from '@onedal/shared';
+import { hasVisitedStop, effectiveRadii, isDeliveredCall, progressAlongKm, pickupAreaPoints, quadShapeFrom } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
@@ -181,6 +181,28 @@ export default function StageView(props: Props) {
         /* 🏠 복귀 대기면 목적지가 둘 — 서버가 정한 목록 그대로 (전수표 #15) */
         goalCities: filter?.goalCities,
     });
+
+    /**
+     * 📋 **상차 영역 — 서버가 목록을 만든 그 점** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
+     *
+     * 🔴 계산은 shared `pickupAreaPoints` 한 곳이다 — 서버 `geoService.pickupListFor` 가 같은 함수로 목록을 만든다.
+     *    재료(목록을 만든 자리 · 집 · 복귀 · 라인 썼나)는 서버가 목록과 함께 실어 보낸다(`filter.pickupArea`) —
+     *    화면이 «집 방향 콜을 쥐었나»를 제 손으로 다시 재면 그림과 목록이 갈라진다.
+     * ⚠️ 라인 띠만은 **지금 그리는 경로 선**으로 잰다 — 서버의 얼린 경로와 심사 중 잠깐 다를 수 있다.
+     */
+    const pickupAreaIn = filter?.pickupArea;
+    const pickupLine = pickupAreaIn?.hasLine ? derived.drawHolder?.routePolyline ?? null : null;
+    const pickupArea = useMemo(() => {
+        if (!pickupAreaIn || !filter?.destinationCity) return null;
+        const shape = quadShapeFrom(filter as unknown as Record<string, unknown>);   // 서버 `rebuildPickupList` 와 같은 모양 함수
+        return pickupAreaPoints({
+            me: pickupAreaIn.at, radii,
+            shape: { srcAngleDeg: shape.srcAngleDeg, dstAngleDeg: shape.dstAngleDeg },
+            line: pickupLine && pickupLine.length >= 2 ? pickupLine : null,
+            destinationCity: filter.destinationCity,
+            homeCity: pickupAreaIn.homeCity, homeOn: pickupAreaIn.homeOn, homeCaught: pickupAreaIn.homeCaught,
+        });
+    }, [pickupAreaIn, pickupLine, filter?.destinationCity, radii.pickupRadiusKm, radii.destinationRadiusKm, radii.quadRadiusKm, radii.detourRadiusKm, filter?.srcAngleDeg, filter?.dstAngleDeg]);
 
 
     /**
@@ -613,6 +635,8 @@ export default function StageView(props: Props) {
                             ? progressAlongKm({ lng: myLocation.x, lat: myLocation.y }, derived.drawHolder!.routePolyline!.map(p => [p.x, p.y] as [number, number]))
                             : 0,
                     }}
+                    /* 📋 상차 영역 — 서버가 목록을 만든 그 점 (기사님 2026-09-15 «교집합이 안 보인다») */
+                    pickupArea={pickupArea}
                     onStopTap={focusCall}
                 >
                     {/* 🏷️ 다음 정거장 이름표 — «어느 콜의 어떤 단계» (v22 S3 · 탭 동선은 4단계에서) */}

@@ -189,6 +189,14 @@ interface Props {
      *    화면이 통째로 튄다. 마지막 자리는 몇 km 어긋날 뿐이고 집보다 비교가 안 되게 가깝다.
      */
     myLocationStale?: boolean;
+    /**
+     * 📋 **상차 영역 — 원달앱이 상차지를 거르는 영역** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
+     *
+     * 🔴 위 `netOverlay`(하차 그물 · 합집합)와 **다른 것**이다. 이쪽은 «현위치 반경 ∩ 라인» 같은 **교집합**이라,
+     *    도형을 겹쳐 칠하면 합집합으로 보인다. 그래서 도형이 아니라 **서버가 목록을 만든 그 격자 점**
+     *    (shared `pickupAreaPoints`)을 받아 칸으로 칠한다 — 그림이 곧 목록의 근거다 (규칙 ③).
+     */
+    pickupArea?: { points: Array<{ lng: number; lat: number; stepKm: number }> } | null;
     children?: React.ReactNode;
     /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (기본 h-64는 옛 화면용) */
     fill?: boolean;
@@ -222,7 +230,7 @@ interface Props {
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, netOverlay, occludedPx, rainbowNodes = true }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, netOverlay, pickupArea, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -247,7 +255,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      *    브라우저에만 남는 편의값이라 못 읽어도 그만이다 (읽기·쓰기 전부 try).
      */
     const [layers, setLayers] = React.useState<Record<string, boolean>>(() => {
-        const defaults = { base: true, border: true, net: true, route: true, trail: true };
+        /* 📋 «상차» — 원달앱이 상차지를 거르는 영역 (기사님 2026-09-15 «교집합이 안 보인다») */
+        const defaults = { base: true, border: true, net: true, pickup: true, route: true, trail: true };
         try {
             const v = localStorage.getItem('mapLayers');
             return v ? { ...defaults, ...JSON.parse(v) } : defaults;
@@ -482,6 +491,26 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          *    더 진해져서 «여기가 더 안쪽»처럼 읽힌다. 실험실이 오프스크린 화포를 쓴 이유가 그것이다.
          *    여기서는 같은 일을 `globalAlpha` 한 번으로 한다 — 한 path 에 모아 한 번 칠한다.
          */
+        /**
+         * 📋 «상차» 레이어 — 원달앱이 상차지를 거르는 영역 (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
+         * 🔴 도형을 겹쳐 칠하지 않는다 — «반경 ∩ 라인»이 합집합으로 보인다. 서버가 목록을 만든 **격자 칸**을 한 path 에 모아
+         *    **한 번만** 칠한다 (칸이 겹쳐도 두 번 짙어지지 않게). 그물(파랑)과 가르려고 초록으로 칠한다.
+         */
+        if (layers.pickup && pickupArea?.points.length) {
+            ctx.save();
+            ctx.globalAlpha = 0.28;
+            ctx.beginPath();
+            for (const p of pickupArea.points) {
+                const halfLat = p.stepKm / 2 / 110.574, halfLng = p.stepKm / 2 / (111.32 * Math.cos((p.lat * Math.PI) / 180));
+                const a = getScreenPt({ x: p.lng - halfLng, y: p.lat + halfLat });
+                const b = getScreenPt({ x: p.lng + halfLng, y: p.lat - halfLat });
+                ctx.rect(a.cx, a.cy, b.cx - a.cx + 0.5, b.cy - a.cy + 0.5);
+            }
+            ctx.fillStyle = '#16a34a';
+            ctx.fill();
+            ctx.restore();
+        }
+
         if (layers.net && netOverlay) {   // 🧅 «그물» 레이어
             ctx.save();
             const NET_SOLID = '#2563eb', NET_EDGE = 'rgba(37,99,235,.85)';
@@ -909,7 +938,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, netOverlay, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, netOverlay, pickupArea, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기
@@ -1103,7 +1132,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 </button>
                 {layersOpen && (
                     <div className="flex flex-col gap-1">
-                        {([['base', '배경'], ['border', '경계'], ['net', '그물'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
+                        {([['base', '배경'], ['border', '경계'], ['net', '그물'], ['pickup', '상차'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
                             <button
                                 key={k}
                                 onClick={() => toggleLayer(k)}
