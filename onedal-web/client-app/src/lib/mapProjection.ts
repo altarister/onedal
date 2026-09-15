@@ -328,3 +328,53 @@ export function effectiveZoom(worldSize: number, baseWorldSize: number): number 
     if (!(baseWorldSize > 0)) return 1;
     return worldSize / baseWorldSize;
 }
+
+/** 🔭 경위도 네모 — x 경도 · y 위도 */
+export interface GeoBox { minX: number; minY: number; maxX: number; maxY: number }
+
+/**
+ * 🔭 **영역을 감싼 경위도 네모** — 원 · 띠는 km 만큼 넓힌다. 그릴 것이 없으면 `null`.
+ *    «전체» 화면 맞춤이 영역을 자르지 않게 넣는 재료다 (흔들림은 `stickyFitBox` 가 막는다).
+ */
+export function areaBoxOf(o: {
+    circles: ReadonlyArray<{ x: number; y: number; km: number }>;
+    polygons: ReadonlyArray<ReadonlyArray<GeoPoint>>;
+    lines: ReadonlyArray<{ points: ReadonlyArray<GeoPoint>; km: number }>;
+}): GeoBox | null {
+    let b: GeoBox | null = null;
+    const add = (x: number, y: number, km: number) => {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const dx = km / (111.32 * Math.cos((y * Math.PI) / 180)), dy = km / 110.574;
+        b = b
+            ? { minX: Math.min(b.minX, x - dx), minY: Math.min(b.minY, y - dy), maxX: Math.max(b.maxX, x + dx), maxY: Math.max(b.maxY, y + dy) }
+            : { minX: x - dx, minY: y - dy, maxX: x + dx, maxY: y + dy };
+    };
+    for (const c of o.circles) add(c.x, c.y, Math.max(0, c.km));
+    for (const poly of o.polygons) for (const p of poly) add(p.x, p.y, 0);
+    for (const l of o.lines) for (const p of l.points) add(p.x, p.y, Math.max(0, l.km));
+    return b;
+}
+
+/** 🔭 네모를 새로 잡을 때 둘레에 두는 여유 — 폭의 몇 배 */
+export const FIT_BOX_PAD = 0.15;
+/** 🔭 영역 네모가 이만큼 아래로 줄면 다시 잡는다 (넓이 비율) */
+export const FIT_BOX_SHRINK = 0.5;
+
+/**
+ * 🔭 **흔들리지 않는 맞춤 네모** — 영역이 지금 네모 **밖으로 나가거나** 넓이가 **절반 아래로 줄 때만** 여유를 두고 새로 잡는다.
+ *    그 밖에는 이전 네모를 그대로 돌려준다(같은 객체). 마름모는 달리는 동안 300m 눈금으로 계속 바뀌어,
+ *    그대로 맞추면 «전체» 화면이 줄었다 늘었다 한다 (#150). 영역이 없으면 `null`.
+ */
+export function stickyFitBox(prev: GeoBox | null, next: GeoBox | null): GeoBox | null {
+    if (!next) return null;
+    const padded = (b: GeoBox): GeoBox => {
+        const px = (b.maxX - b.minX) * FIT_BOX_PAD, py = (b.maxY - b.minY) * FIT_BOX_PAD;
+        return { minX: b.minX - px, minY: b.minY - py, maxX: b.maxX + px, maxY: b.maxY + py };
+    };
+    if (!prev) return padded(next);
+    const inside = next.minX >= prev.minX && next.minY >= prev.minY && next.maxX <= prev.maxX && next.maxY <= prev.maxY;
+    const areaOf = (b: GeoBox) => Math.max(0, b.maxX - b.minX) * Math.max(0, b.maxY - b.minY);
+    if (inside && areaOf(padded(next)) >= areaOf(prev) * FIT_BOX_SHRINK) return prev;
+    return padded(next);
+}
+

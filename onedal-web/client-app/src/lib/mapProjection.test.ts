@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, FOLLOW_RADIUS_KM, effectiveZoom,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
-    type GeoPoint, pickViewMode } from './mapProjection';
+    type GeoPoint, pickViewMode, areaBoxOf, stickyFitBox } from './mapProjection';
 
 /**
  * 🧭 **지도 투영·시점 검사** — 2026-09-01 배경 타일을 들이며 신설.
@@ -500,3 +500,38 @@ describe('🔭 보기 버튼을 눌렀다 — pickViewMode', () => {
         }
     });
 });
+
+/**
+ * 🔭 **화면 맞춤에 영역을 넣되 흔들리지 않게** — 막는 것: 영역이 화면 밖으로 잘림 · 달리는 동안 «전체» 화면이 줄었다 늘었다 함 (#150).
+ * 네모는 영역이 밖으로 나가거나 절반 아래로 줄 때만 새로 잡는다.
+ */
+describe('🔭 영역 네모 — 잘리지 않고 흔들리지 않게', () => {
+    it('원 · 다각형 · 띠를 감싼 경위도 네모 — 원과 띠는 km 만큼 넓힌다', () => {
+        const b = areaBoxOf({ circles: [{ x: 127, y: 37, km: 10 }], polygons: [[{ x: 127.5, y: 37.2 }, { x: 127.6, y: 36.9 }]], lines: [] })!;
+        expect(b.minX).toBeCloseTo(127 - 10 / (111.32 * Math.cos(37 * Math.PI / 180)), 4);
+        expect(b.maxY).toBeCloseTo(37.2, 6);
+        expect(b.minY).toBeCloseTo(Math.min(36.9, 37 - 10 / 110.574), 6);
+        expect(b.maxX).toBeCloseTo(127.6, 6);
+        expect(areaBoxOf({ circles: [], polygons: [], lines: [] })).toBeNull();
+    });
+    it('🔴 조금 움직인 영역이 네모 안이면 네모는 그대로 — 화면이 안 흔들린다', () => {
+        const first = stickyFitBox(null, { minX: 127, minY: 37, maxX: 127.2, maxY: 37.2 })!;
+        expect(first.minX).toBeLessThan(127);   // 여유를 두고 잡는다
+        const moved = stickyFitBox(first, { minX: 127.003, minY: 37.002, maxX: 127.203, maxY: 37.202 });
+        expect(moved).toBe(first);
+    });
+    it('🔴 영역이 네모 밖으로 나가면 다시 잡는다 — 잘리지 않는다', () => {
+        const first = stickyFitBox(null, { minX: 127, minY: 37, maxX: 127.2, maxY: 37.2 })!;
+        const out = stickyFitBox(first, { minX: 127, minY: 37, maxX: 127.5, maxY: 37.2 })!;
+        expect(out).not.toBe(first);
+        expect(out.maxX).toBeGreaterThanOrEqual(127.5);
+    });
+    it('🔴 절반 아래로 줄면 다시 잡는다 · 영역이 없으면 네모도 없다', () => {
+        const first = stickyFitBox(null, { minX: 127, minY: 37, maxX: 127.4, maxY: 37.4 })!;
+        const small = stickyFitBox(first, { minX: 127.1, minY: 37.1, maxX: 127.2, maxY: 37.2 })!;
+        expect(small).not.toBe(first);
+        expect(small.maxX).toBeLessThan(127.3);
+        expect(stickyFitBox(first, null)).toBeNull();
+    });
+});
+

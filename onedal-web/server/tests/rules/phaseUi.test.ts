@@ -770,15 +770,15 @@ describe('요약줄 «N 읍면동» — 서버 하차 목록 수 (2026-09-15)', 
     });
 
     /**
-     * 🔴 **화면 맞춤은 영역 모양을 안 본다** (기사님 2026-09-15 «주행할 때마다 덜컥 덜컥 · 전체 화면이 줄었다 늘었다 해 · 기준을 영역을 잡아서 그런가봐»).
-     *    마름모는 내 위치 300m 눈금 · «가까이 옴»으로 달리는 동안 계속 바뀐다 — 그것을 «전체» 맞춤에 넣었더니 확대가 매번 다시 잡혔다.
-     *    맞춤은 경로 · 내 위치 · 🎯 목적지 마커(움직이지 않는다)만 본다.
+     * 🔴 **화면 맞춤은 영역을 감싼 «흔들리지 않는 네모»를 본다** — 막는 것: 영역이 화면 밖으로 잘림 · 달리는 동안 «전체» 화면이 줄었다 늘었다 함 (#150).
+     *    마름모를 그대로 넣으면 300m 눈금 · «가까이 옴»으로 확대가 매번 다시 잡히고, 빼면 영역이 잘린다 — 네모는 `stickyFitBox` 가 쥔다.
      */
-    it('🔴 화면 맞춤에 하차 영역 마름모를 안 넣는다 — 목적지 마커만', () => {
+    it('🔴 화면 맞춤에 영역 네모를 넣되 흔들리지 않는 네모로 — 마름모 점을 그대로 넣지 않는다', () => {
         const canvas = codeOnly(read(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx')));
         const i = canvas.indexOf('const allCoords');
         const fit = canvas.slice(i, canvas.indexOf('if (allCoords.length === 0)', i));
-        expect(fit).not.toMatch(/dropoffArea\.quads/);
+        expect(fit).toMatch(/stickyFitBox\(fitBoxRef\.current, areaBoxOf\(/);
+        expect(fit).not.toMatch(/for \(const q of dropoffArea\.quads\)/);
         expect(fit).toMatch(/dropoffArea\.goals/);
     });
 

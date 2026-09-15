@@ -11,13 +11,13 @@ import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
     TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
-    type Viewport, pickViewMode } from '../../lib/mapProjection';
+    type Viewport, type GeoBox, pickViewMode, areaBoxOf, stickyFitBox } from '../../lib/mapProjection';
 import { occludedPx as occludedOf } from '../../lib/stageLayout';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
 
 /**
- * 🗺️ **배경 타일 — 회색조로 연하게** (기사님 확정 2026-09-01 · 세 안 비교 후 C 채택).
+ * 🗺️ **배경 타일 — 회색조로 연하게** (기사님 확정).
  *
  * 지도한테 빌리는 것은 **«어느 동네 어느 도로인가» 하나뿐**이다. 마커·경로선·발자취·
  * 이름표·탭 판정은 전부 우리가 그린다 — 그래서 SDK 를 들이지 않는다. SDK 를 쓰면
@@ -97,8 +97,7 @@ export interface RoutePoint {
     routeId?: string;
     /**
      * 🔢 이 정거장의 사이클 번호 — **밖에서 실어 준다**(`stopNoOf`).
-     * 🔴 캔버스가 «남은 목록의 몇 번째»로 세면 안 된다 — 2026-09-01 실측:
-     *    이름표는 «1. 곤지암읍», 지도 마커는 «2 곤지암읍» 이라 한 화면이 두 답을 했다.
+     * 🔴 캔버스가 «남은 목록의 몇 번째»로 세지 않는다 — 이름표와 지도 마커가 다른 번호를 말하게 된다.
      */
     no?: number;
     /**
@@ -114,10 +113,10 @@ interface Props {
     /**
      * 👣 지나온 발자취 — 표시 전용. no = 방문 순서로 동결된 사이클 번호표 (①)
      *
-     * 🔴 **좌표는 `null` 일 수 있다** (2026-09-12 밤). 이력(`GET /api/orders`)에는 좌표 칸이
-     *    없어서, 소켓이 그 콜을 안 실어 준 렌더에서는 좌표를 모른다. 그래도 **번호는 살아야**
-     *    하므로 목록은 그 정거장을 담는다 — **못 그리는 것은 지도의 사정**이고, 아래에서 거른다.
-     *    (예전엔 목록이 좌표를 요구해, 그런 렌더에서 번호 여섯이 하나로 줄었다)
+     * 🔴 **좌표는 `null` 일 수 있다** — 이력(`GET /api/orders`)에는 좌표 칸이 없어서, 소켓이
+     *    그 콜을 안 실어 준 렌더에서는 좌표를 모른다. 그래도 **번호는 살아야** 하므로 목록은
+     *    그 정거장을 담는다 — **못 그리는 것은 지도의 사정**이고, 아래에서 거른다.
+     *    목록이 좌표를 요구하게 하면 그런 렌더에서 번호가 줄어든다.
      */
     visitedTrail?: Array<{
         x: number | null; y: number | null; type: '상차' | '하차'; orderId: string; name: string; no: number;
@@ -126,7 +125,7 @@ interface Props {
     }>;
     /** 🎨 콜 ID → 고유 색 — 마커 테두리와 덱 카드 점이 같은 색을 본다 (②) */
     callColors?: Map<string, string>;
-    /** 🖐️ 마커 탭 — 그 콜 카드로 (S6 문법: 지나온 곳은 확인·수정) */
+    /** 🖐️ 마커 탭 — 그 콜 카드로 (지나온 곳은 확인·수정) */
     onStopTap?: (orderId: string) => void;
     /** 👣 이번 사이클에 실제로 달린 자취 — 연한 선으로 남는다 (표시 전용) */
     /**
@@ -134,10 +133,10 @@ interface Props {
      *    한 줄로 이으면 지도를 가로지르는 직선이 생긴다 (`drivenTrailStore` · `pushTrail`).
      */
     drivenTrail?: Array<Array<{ x: number; y: number }>>;
-    /** 🧭 경로를 든 콜 — 서버가 고른 답. 여기서 다시 찾지 않는다 (0831 잔상 수리) */
+    /** 🧭 경로를 든 콜 — 서버가 고른 답. 여기서 다시 찾지 않는다 */
     routeHolder?: SecuredOrder | null;
     /**
-     * 🔺 **첫 콜 그물을 눈으로 본다** — 목업 전용 (기사님 2026-09-06).
+     * 🔺 **첫 콜 그물을 눈으로 본다** — 목업 전용.
      * 꼭짓점을 «목적지»에 둔 삼각형. 출발점 쪽이 넓고 목적지로 갈수록 좁다 —
      * 가까운 곳은 크게 돌아도 싸고, 먼 곳은 조금만 벗어나도 비싸기 때문이다.
      * 지도 위에 겹쳐 그려서 «무엇이 들어오고 무엇이 빠지나»를 보고 이야기한다.
@@ -148,27 +147,26 @@ interface Props {
         marks?: Array<{ name: string; x: number; y: number; inside: boolean }>;
         /** ⭕ 꼭짓점 둘레의 원 — 좌표 배열로 받는다 (화면 픽셀이 아니라 «땅 위의 원»이라야 줌에 안 흔들린다) */
         circles?: Array<{ name: string; ring: Array<[number, number]> }>;
-        /** ⛓️ 잡은 콜의 경로 — 출발지→상차→하차를 직선으로 잇고 점마다 이름표를 단다 (기사님 2026-09-07).
+        /** ⛓️ 잡은 콜의 경로 — 출발지→상차→하차를 직선으로 잇고 점마다 이름표를 단다.
          *  `color` 는 그 점과 **그 점으로 들어오는 구간**의 색 — 기존 경로와 이번 콜을 색으로 가른다 */
         callPath?: Array<{ x: number; y: number; label: string; color?: string }>;
     } | null;
     unifiedRoutePoints: RoutePoint[];
     /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
-     *  계약을 좁히면 거르기를 잊을 자리가 없어진다 (2026-08-10 전수조사) */
+     *  계약을 좁히면 거르기를 잊을 자리가 없어진다 */
     liveRoute: SecuredOrder[];
     myLocation: { x: number, y: number } | null;
     /**
-     * 📍 **이 자리를 언제·무엇으로 받았나** (2026-09-12 · 기사님 확정).
-     *    낡았으면 **흐리게** 그린다 — 지우지도, 집으로 옮기지도 않는다.
-     *    *"GPS 가 30초 끊겼다고 지도가 집으로 날아가면 최악"* — 운전 중 1~2초 흘끗 보는
-     *    화면이 통째로 튄다. 마지막 자리는 몇 km 어긋날 뿐이고 집보다 비교가 안 되게 가깝다.
+     * 📍 **이 자리가 낡았나** — 낡았으면 **흐리게** 그린다. 지우지도, 집으로 옮기지도 않는다.
+     *    GPS 가 잠깐 끊겼다고 지도가 집으로 날아가면 운전 중 1~2초 흘끗 보는 화면이 통째로 튄다.
+     *    마지막 자리는 몇 km 어긋날 뿐이고 집보다 비교가 안 되게 가깝다.
      */
     myLocationStale?: boolean;
     /**
-     * 📋 **상차 영역 — 원달앱이 상차지를 거르는 영역** (기사님 2026-09-15 «현위치 영역에 교집합 영역이 보이지 않는다»).
+     * 📋 **상차 영역 — 원달앱이 상차지를 거르는 영역**.
      *
      * 🔴 아래 `dropoffArea`(하차 영역 · 합집합)와 **다른 것**이다. 상차 영역은 **현위치 영역 전체** 아니면
-     *    **현위치 영역 ∩ 라인 영역** 둘뿐이다 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역» · 모양은 shared `pickupShapeOf`).
+     *    **현위치 영역 ∩ 라인 영역** 둘뿐이다 (`docs/지금/필터.md` «상차 영역» · 모양은 shared `pickupShapeOf`).
      *    교집합은 도형을 겹쳐 칠하면 합집합으로 보이니 **내 위치 원으로 잘라(clip)** 그 안에서만 띠를 칠한다.
      */
     pickupArea?: {
@@ -179,10 +177,9 @@ interface Props {
         lineKm: number;
     } | null;
     /**
-     * 🔵 **하차 영역 — 원달앱이 하차지를 거르는 영역** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
+     * 🔵 **하차 영역 — 원달앱이 하차지를 거르는 영역** (`docs/지금/필터.md` «하차 영역»).
      *
      * 살아 있는 목적지마다 원 · 마름모 · 라인 띠를 모은 **합집합**이다 — 조각은 shared `dropoffPartsOf` 가 정한다.
-     * 🔄 옛 «그물» 레이어(`netOverlay` · `useCallNet`)를 대신한다 — 2026-09-15 걷었다 (todo «필터 영역 개정»).
      */
     dropoffArea?: {
         /** 먼 목적지 조각의 원 — 여기서 상차 영역을 지운다 */
@@ -190,14 +187,14 @@ interface Props {
         /** 🎯 가까이 온 목적지 원 — 상차 영역을 지운 **뒤에** 칠한다 (빼지 않는다) */
         nearCircles: Array<{ x: number; y: number; km: number }>;
         quads: Array<Array<{ x: number; y: number }>>;
-        /** 🎯 살아 있는 목적지 — 마커를 찍고 화면 맞춤에 넣는다 (옛 «그물» 레이어가 찍던 것) */
+        /** 🎯 살아 있는 목적지 — 마커를 찍고 화면 맞춤에 넣는다 */
         goals: Array<{ x: number; y: number }>;
         /** 운행 뒤면 현위치부터 앞으로만 (부르는 쪽이 `lineFromPoint` 로 자른다) · 시작은 평평하게 · 먼 끝만 둥글게 긋는다 */
         lines: Array<{ points: Array<{ x: number; y: number }>; km: number }>;
     } | null;
     /**
-     * 📍 **동 점 — 원달앱에 실제로 내려간 목록** (기사님 2026-09-15 «지역에 점찍어 보여줬었는데» · shared `dongDotsOf`).
-     *    🔵 하차만 · 🟢 상차만 · 둘 다는 파랑 (테두리 없음 · 기사님 2026-09-15). 좌표는 동 중심점 — 영역 도형과 달리 **목록**을 보여 준다.
+     * 📍 **동 점 — 원달앱에 실제로 내려간 목록** (shared `dongDotsOf`).
+     *    🔵 하차만 · 🟢 상차만 · 둘 다는 파랑 (테두리 없음). 좌표는 동 중심점 — 영역 도형과 달리 **목록**을 보여 준다.
      */
     dongDots?: {
         pickup: Array<{ x: number; y: number }>;
@@ -210,30 +207,18 @@ interface Props {
     /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (기본 h-64는 옛 화면용) */
     fill?: boolean;
     /**
-     * 🪟 **지금 시트가 어디까지 올라와 있나** — 그만큼 지도가 위로 비켜 준다
-     * (기사님 요청 2026-09-01: *"반쯤 열리면 같이 볼 수 있을 것 같은데"*).
-     * 옛 화면은 시트가 없으므로 넘기지 않는다 — 그때는 화면 전체가 지도다.
-     */
-    /**
-     * 🗺️ **아래가 몇 px 가려졌나** (2026-09-05 · 부품 결합을 끊으며 바뀐 이름).
+     * 🗺️ **아래가 몇 px 가려졌나** — 그만큼 지도가 위로 비켜 준다. 안 넘기면 화면 전체가 지도다.
      *
-     * 🔴 예전에는 `sheetSnap`·`sheetPx` 로 **«시트»를 받았다.** 그러면 지도가
-     *    «시트라는 것이 있고 세 단을 갖는다»를 알게 되어, **시트를 갈아치우는 날
-     *    지도가 함께 깨진다.** 지도가 알아야 할 것은 «아래가 얼마나 가려졌나» 하나다.
+     * 🔴 **«시트»(단 · 높이)를 받지 않는다** — 지도가 «시트라는 것이 있고 세 단을 갖는다»를
+     *    알게 되면 **시트를 갈아치우는 날 지도가 함께 깨진다.** 지도가 알아야 할 것은
+     *    «아래가 얼마나 가려졌나» 하나다.
      * ⚠️ 상한(무대의 58%)은 `lib/stageLayout` 이 건다 — 여기서 또 자르지 않는다.
      */
     occludedPx?: number;
     /**
-     * 🌈 **콜 색표로 그린다** (기사님 확정 2026-09-04 · `styles/callPalette.ts`).
+     * 🌈 **콜 색표를 쓰는가** (`styles/callPalette.ts`) — 기본이 «쓴다»다.
      * 색상=콜 · 채도=상차/하차 · 테두리=다녀왔나.
-     *
-     * 🔴 **기본은 꺼져 있다** — 실물은 예전대로 그리고, 목업(`/mockup/sheet`)만 켠다.
-     *    기사님이 «이걸로 가자» 하시면 그때 기본값을 뒤집고 이 프롭을 지운다
-     *    (화면개편의 «토글 병행»과 같은 방식).
-     */
-    /**
-     * 🌈 **09-04 색표를 쓰는가** — 기본이 «쓴다»다 (기사님 확정 2026-09-05).
-     * 🔴 기본이 꺼짐이면 **안 넘기는 화면이 조용히 옛 문법**(상차 초록·하차 로즈)으로 그린다.
+     * 🔴 기본을 꺼짐으로 두지 않는다 — **안 넘기는 화면이 조용히 옛 문법**(상차 초록·하차 로즈)으로 그린다.
      *    끄는 자리는 목업 조작판 하나뿐이다 (옛 색과 나란히 보려고 남긴다).
      */
     rainbowNodes?: boolean;
@@ -246,37 +231,36 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
 
     // 초경량 성능을 위한 퓨어 줌/팬 상태 (React State 대신 Ref 사용으로 60fps 보장)
     /**
-     * 🔭 **지도가 무엇에 맞춰지나** — 전체 / 이번 구간 / 현위치 (기사님 실주행 09-03).
-     * 🔴 **손이 이긴다** — 팬·줌을 하면 `all` 로 풀린다. 손으로 옮겨 놓은 화면을
-     *    다음 그림에서 코드가 도로 끌어가면 «내 손이 안 먹는다»가 된다.
+     * 🔭 **지도가 무엇에 맞춰지나** — 전체 / 이번 구간 / 현위치.
+     * 🔴 **손이 이긴다** — 팬·줌은 모드가 정한 기준 위에 쌓인다(모드는 안 푼다 · 아래 `handlePointerMove`).
+     *    손으로 옮겨 놓은 화면을 다음 그림에서 코드가 도로 끌어가면 «내 손이 안 먹는다»가 된다.
      */
     const [viewMode, setViewMode] = React.useState<MapViewMode>('all');
     /**
-     * 🧅 **레이어 — 무엇을 보고 무엇을 덮을까** (이식 B4 · 2026-09-11 · 지도 실험실에서).
+     * 🧅 **레이어 — 무엇을 보고 무엇을 덮을까**.
      *
-     * ⚠️ **다섯이다 — 실험실은 여섯**이었다. 여섯째 «시험콜»은 *지도를 눌러 만든 콜*이라
-     *    실물에 대응이 없다 (콜은 배차망이 준다). 없는 것을 토글로 두면 눌러도 아무 일이 없다.
+     * ⚠️ 실험실의 «시험콜»(지도를 눌러 만든 콜) 레이어는 두지 않는다 — 실물에 대응이 없다
+     *    (콜은 배차망이 준다). 없는 것을 토글로 두면 눌러도 아무 일이 없다.
      *
-     * 🔴 **한 버튼 뒤에 접어 둔다** — 이 레포가 이미 쓴 문법이다 (`a41edca` 폰 줄: *"모드를 하나로 —
-     *    누르면 셋이 펼쳐진다"*). 운전 중에는 입력을 못 하므로(실측: 안전취소 24건) 버튼 여섯이
-     *    늘 떠 있으면 지도만 좁아진다. 한 번 정해 두고 접는 값이다.
+     * 🔴 **한 버튼 뒤에 접어 둔다** — 운전 중에는 입력을 못 하므로 버튼이 늘 떠 있으면
+     *    지도만 좁아진다. 한 번 정해 두고 접는 값이다.
      * 🔴 **고른 것은 기억한다** — 레이어를 껐는데 다음에 켜져 있으면 또 끈다.
      *    브라우저에만 남는 편의값이라 못 읽어도 그만이다 (읽기·쓰기 전부 try).
      */
     const [layers, setLayers] = React.useState<Record<string, boolean>>(() => {
-        /* 📋 «상차» · «하차» — 원달앱이 상차지 · 하차지를 거르는 영역 (기사님 2026-09-15 · `docs/지금/필터.md` «상차 영역» · «하차 영역») */
+        /* 📋 «상차» · «하차» — 원달앱이 상차지 · 하차지를 거르는 영역 (`docs/지금/필터.md` «상차 영역» · «하차 영역») */
         const defaults: Record<string, boolean> = { base: true, border: true, pickup: true, dropoff: true, dots: true, route: true, trail: true };
         try {
             const v = localStorage.getItem('mapLayers');
             if (!v) return defaults;
-            /* 🔴 아는 레이어만 되살린다 — 걷은 «그물»(`net`)이 남아 있으면 🧅 N/M 이 없는 레이어를 센다 (2026-09-15) */
+            /* 🔴 아는 레이어만 되살린다 — 걷은 «그물»(`net`)이 남아 있으면 🧅 N/M 이 없는 레이어를 센다 */
             const saved = JSON.parse(v) as Record<string, unknown>;
             return Object.fromEntries(Object.keys(defaults).map(k => [k, typeof saved[k] === 'boolean' ? saved[k] as boolean : defaults[k]]));
         } catch { return defaults; }
     });
     const [layersOpen, setLayersOpen] = React.useState(false);
     /**
-     * 🔎 **지도가 실제로 그리는 상차 · 하차 모양 — 바뀔 때만 한 줄** (기사님 2026-09-15 «너가 로그를 남겨서 확인할 수 있게 해»).
+     * 🔎 **지도가 실제로 그리는 상차 · 하차 모양 — 바뀔 때만 한 줄**.
      *    관제웹 콘솔은 서버 로그로 넘어간다(`roadmapLogger` · `[🖥️콘솔]`) — 서버 `🔵 [하차 목록]` · `📋 [상차 목록]` 줄과 나란히 대조한다.
      *    🔴 좌표는 안 싣는다 — 내 위치가 매초 바뀌어 줄이 매초 찍힌다. 모양 · 반지름 · 조각 수 · 레이어 켬만.
      */
@@ -309,6 +293,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      *    `drawMap` 은 매번 새 함수라 `onload` 에 직접 걸면 옛 함수가 박힌다.
      */
     const drawRef = useRef<() => void>(() => { });
+    /** 🔭 «전체» 맞춤에 넣는 영역 네모 — 영역이 밖으로 나가거나 절반 아래로 줄 때만 새로 잡는다 (`stickyFitBox` · #150) */
+    const fitBoxRef = useRef<GeoBox | null>(null);
     /**
      * 🪟 **시트를 따라 «미끄러져» 간다** — 지금 반영 중인 가림 높이(px).
      *
@@ -339,9 +325,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
 
         const validPoints = unifiedRoutePoints.filter(p => typeof p.x === 'number' && typeof p.y === 'number') as (RoutePoint & { x: number, y: number })[];
 
-        // 🧭 경로선의 주인은 서버가 정한다 — 여기서 추측하면 판정이 세 벌이 된다 (0831)
+        // 🧭 경로선의 주인은 서버가 정한다 — 여기서 추측하면 판정이 세 벌이 된다
         const currentPolyline = routeHolder?.routePolyline || [];
-        // 🟡 S4 — 평가 중 후보를 붙인 경로는 «미리보기»다. 확정 경로인 척하면 안 된다 (#64)
+        // 🟡 평가 중 후보를 붙인 경로는 «미리보기»다. 확정 경로인 척하면 안 된다 (#64)
         const isPreviewRoute = !!routeHolder && isEvaluating(routeHolder.status);
         const hasPolyline = currentPolyline.length > 0;
 
@@ -356,12 +342,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         const driven = drivenSegs.flat();
 
         /**
-         * 🔬 **계측 — «왜 선이 없나»** (기사님 실측 2026-09-12 밤: *"새로고침하고 나면
-         *    경로가 사라져 있어"*).
+         * 🔬 **계측 — «왜 선이 없나»**.
          *
-         * 🔴 **그리는 조건이 셋인데 화면이 어느 것에 걸렸는지 아무 데도 안 적었다.**
-         *    그래서 「다 돌아서 없는 것」과 「홀더가 비어서 없는 것」과 「레이어가 꺼진 것」을
-         *    가릴 수 없었다. 재료 쪽은 `[경로재료]`(`useRouteDerivations`)가 답한다 —
+         * 🔴 **그리는 조건이 셋이다** — 어느 것에 걸렸는지 적지 않으면 「다 돌아서 없는 것」과
+         *    「홀더가 비어서 없는 것」과 「레이어가 꺼진 것」을 가릴 수 없다. 재료 쪽은 `[경로재료]`(`useRouteDerivations`)가 답한다 —
          *    이 줄은 **그렸나**만 답한다 (한 줄이 두 질문에 답하지 않게 · 규칙 ⑤-4 ⑤).
          * ⚠️ `logStateChange` 는 값이 바뀔 때만 찍는다 — 손짓마다 다시 그려도 로그가 안 밀린다.
          * ⚠️ 계측이다. 원인이 확정되면 지우거나 정식 로그로 승격한다.
@@ -379,9 +363,19 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         if (myLocation) allCoords.push(myLocation);
         /* 🔺 그물을 켜면 그 삼각형까지 보이게 — 안 그러면 현위치만 확대돼 선 하나만 스쳐 간다 */
         if (coneOverlay) for (const [x, y] of coneOverlay.tri) allCoords.push({ x, y });
-        /* 🎯 목적지 마커만 화면 맞춤에 넣는다 — 영역 모양(마름모 · 원)은 안 넣는다.
-              마름모는 달리는 동안 300m 눈금 · «가까이 옴»으로 계속 바뀌어 확대가 매번 다시 잡혔다
-              (기사님 2026-09-15 «전체 화면이 줄었다 늘었다 해»). 목적지는 움직이지 않는다 */
+        /* 🔭 상차 · 하차 영역도 화면에 들어오게 — 영역을 감싼 네모를 넣는다. 네모는 영역이 밖으로 나가거나 절반 아래로 줄 때만 새로 잡는다:
+              마름모는 달리는 동안 300m 눈금 · «가까이 옴»으로 계속 바뀌어, 점을 그대로 넣으면 확대가 매번 다시 잡힌다 (#150) */
+        const areaBox = stickyFitBox(fitBoxRef.current, areaBoxOf({
+            circles: [
+                ...(pickupArea ? [{ x: pickupArea.me.x, y: pickupArea.me.y, km: pickupArea.meKm }] : []),
+                ...(dropoffArea ? [...dropoffArea.circles, ...dropoffArea.nearCircles] : []),
+            ],
+            polygons: dropoffArea ? dropoffArea.quads : [],
+            lines: dropoffArea ? dropoffArea.lines : [],
+        }));
+        fitBoxRef.current = areaBox;
+        if (areaBox) allCoords.push({ x: areaBox.minX, y: areaBox.minY }, { x: areaBox.maxX, y: areaBox.maxY });
+        /* 🎯 목적지 마커 — 움직이지 않는다 */
         if (dropoffArea) for (const g of dropoffArea.goals) allCoords.push(g);
         if (coneOverlay?.callPath) for (const p of coneOverlay.callPath) allCoords.push({ x: p.x, y: p.y });
 
@@ -426,8 +420,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         if (readyTiles.length > 0) {
             ctx.save();
             /* 🎨 회색조·연하게 — 배경이 시끄러우면 색 · 영역이 안 읽힌다 (규칙 ⑤-3).
-               🔄 배율과 상관없이 늘 같은 톤이다 — 확대하면 제 색을 되찾던 것을 걷었다 (기사님 2026-09-15 · `mapTileTone`). */
-            /* 🔆 밝은 테마는 지도가 흰 바탕 위라 더 밝게 뜬다 — 조금 더 눌러 준다 (기사님 2026-09-04) */
+               배율과 상관없이 늘 같은 톤이다 — 확대해도 제 색으로 안 돌린다 (`mapTileTone`). */
+            /* 🔆 밝은 테마는 지도가 흰 바탕 위라 더 밝게 뜬다 — 조금 더 눌러 준다 */
             const tone = mapTileTone(theme === 'dark' ? 0.5 : 0.62);
             if (supportsCanvasFilter(ctx) && tone.filter) ctx.filter = tone.filter;
             ctx.globalAlpha = tone.alpha;
@@ -472,19 +466,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         /**
-         * 0.5. 🗺️ **경계선 — 타일 위에도 얹는다** (기사님 확정 2026-09-04).
-         *
-         * 기사님: *"지도가 보기 좋기는 한데.. 구역이 나뉘어 있지 않으니까
-         * **서울로 간 건지 성남으로 간 건지 잘 모르겠어.**"*
-         *
-         * 자료는 이미 있었다(`sidoData` 60구역 — 서울특별시 + 경기도 시·군·구).
-         * 그런데 **타일이 없을 때만** 그리고 있었다 — 있는 것을 안 쓰고 있었던 셈이다.
+         * 0.5. 🗺️ **경계선 — 타일 위에도 얹는다** — 구역이 안 나뉘면 «서울로 간 건지 성남으로 간 건지» 모른다
+         *    (자료는 `sidoData` — 서울특별시 + 경기도 시·군·구).
          *
          * 🔴 **선만 얹는다. 면은 안 칠한다** — 채우면 회색조 지도가 또 한 겹 탁해져
          *    판정 색이 안 읽힌다 (규칙 ⑤-3).
-         * 🔴 **배율과 무관하게 선명도를 유지한다** (기사님 2026-09-04: *"라인은 지도에도
-         *    표시가 없어. 라인은 선명도를 유지하는 걸로 해줘"*).
-         *    처음엔 «확대하면 타일에 경계가 나오니 물러나자» 고 만들었는데 — **틀렸다.**
+         * 🔴 **배율과 무관하게 선명도를 유지한다** — «확대하면 타일에 경계가 나오니 물러나자»가 아니다.
          *    이 타일에는 행정 경계가 없다. 물러나면 그냥 사라진다.
          */
         if (layers.border && readyTiles.length > 0 && sidoData.features) {   // 🧅 «경계» 레이어
@@ -511,13 +498,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         /**
-         * 🕸️ **콜 그물 — 지도 실험실 모양 그대로** (이식 B3-2 · 2026-09-11).
+         * 🕸️ **영역 레이어 (상차 · 하차)**.
          *
          * 그리는 차례가 뜻이다 — **면을 먼저 옅게 깔고**(마름모·원·라인 띠 한 겹),
-         * 그 위에 **테두리**를 얹고, 마지막에 **든 동**을 점으로 찍는다.
+         * 그 위에 **테두리**를 얹고, 마지막에 **동 점**을 찍는다.
          * 🔴 면을 한 겹으로 모아 칠하는 이유: 마름모와 원이 겹치는 자리가 **두 번 칠해지면**
-         *    더 진해져서 «여기가 더 안쪽»처럼 읽힌다. 실험실이 오프스크린 화포를 쓴 이유가 그것이다.
-         *    여기서는 같은 일을 `globalAlpha` 한 번으로 한다 — 한 path 에 모아 한 번 칠한다.
+         *    더 진해져서 «여기가 더 안쪽»처럼 읽힌다. 그래서 숨은 틀(`makeMask`)에 불투명으로 모은 뒤 한 번에 옅게 올린다.
          */
         /** 🎭 기기 픽셀 크기의 숨은 캔버스 — 영역을 **불투명으로 모아 그리는 틀** (겹쳐도 두 번 짙어지지 않고, 테두리를 딸 수 있다) */
         const makeMask = () => {
@@ -528,7 +514,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             return { off, oc };
         };
         /**
-         * ✏️ **칠한 모양의 바깥 테두리만 긋는다** (기사님 2026-09-15 «바깥만 하자»).
+         * ✏️ **칠한 모양의 바깥 테두리만 긋는다**.
          * 틀을 8방향으로 `px` 만큼 밀어 겹친 뒤 원래 틀을 지우면 **바깥 띠만** 남는다 — 원 · 마름모 · 띠가 겹친 안쪽에는 선이 안 생긴다.
          * ⚠️ 방향을 늘리면 테두리가 더 고르지만 그릴 때마다 전체 화면을 그만큼 더 옮긴다 — 2px 에는 8방향이면 이음새가 안 보인다.
          */
@@ -566,7 +552,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 c2d.beginPath();
                 area.line.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) c2d.moveTo(s.cx, s.cy); else c2d.lineTo(s.cx, s.cy); });
                 c2d.lineWidth = area.lineKm * 2 * pxPerKm;
-                /* ✂️ 시작(현위치)은 평평하게 · 먼 끝만 둥글게 — 서버 `distToLineFlatStartKm` 과 같은 모양 (기사님 2026-09-15 «뒤를 자르는 Cap») */
+                /* ✂️ 시작(현위치)은 평평하게 · 먼 끝만 둥글게 — 서버 `distToLineFlatStartKm` 과 같은 모양 */
                 c2d.lineCap = 'butt'; c2d.lineJoin = 'round';
                 c2d.stroke();
                 const end = getScreenPt(area.line[area.line.length - 1]);
@@ -576,7 +562,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         };
 
         /**
-         * 🟢 «상차» 레이어 — 원달앱이 상차지를 거르는 영역 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
+         * 🟢 «상차» 레이어 — 원달앱이 상차지를 거르는 영역 (`docs/지금/필터.md` «상차 영역»).
          * 현위치 영역 전체를 칠하거나, **내 위치 원으로 잘라(clip)** 그 안에서만 라인 띠를 칠한다 — 원 ∩ 라인이 테두리 매끈하게 나온다.
          * 틀에 모아 옅게 올리고 **바깥 테두리**를 긋는다. 하차(파랑)와 가르려고 초록으로 칠한다.
          */
@@ -594,9 +580,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         /**
-         * 🔵 «하차» 레이어 — 원달앱이 하차지를 거르는 영역 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «하차 영역»).
+         * 🔵 «하차» 레이어 — 원달앱이 하차지를 거르는 영역 (`docs/지금/필터.md` «하차 영역»).
          * 원 · 마름모 · 띠의 **합집합**이다. 틀에 불투명으로 모아 그린 뒤 한 번에 옅게 올리고 **바깥 테두리**를 긋는다.
-         * ✂️ 먼 목적지 조각에서 **상차 영역을 지우고**, 🎯 가까이 온 목적지 원은 **지운 뒤에** 칠한다 (기사님 2026-09-15 «하차는 상차 영역을 빼야 해»).
+         * ✂️ 먼 목적지 조각에서 **상차 영역을 지우고**, 🎯 가까이 온 목적지 원은 **지운 뒤에** 칠한다.
          * ⚠️ 원달앱은 **동 목록**으로 빼고 지도는 **도형**으로 지운다 — 경계에 걸친 큰 읍·면에서 둘이 조금 다를 수 있다.
          * 🔴 모르는 조각(좌표를 모르는 목적지 · 종착지)은 부르는 쪽이 이미 뺐다 — 여기서 지어내지 않는다 (규칙 ④).
          */
@@ -625,7 +611,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                     l.points.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
                     const w = Math.max(3, l.km * 2 * pxPerKmAt(l.points[0]));
                     oc.lineWidth = w;
-                    /* ✂️ 시작은 평평하게(운행 뒤면 현위치 — 부르는 쪽이 `lineFromPoint` 로 잘랐다) · 먼 끝만 둥글게 (기사님 2026-09-15 «뒤를 자르는 Cap») */
+                    /* ✂️ 시작은 평평하게(운행 뒤면 현위치 — 부르는 쪽이 `lineFromPoint` 로 잘랐다) · 먼 끝만 둥글게 */
                     oc.lineCap = 'butt'; oc.lineJoin = 'round';
                     oc.stroke();
                     const end = getScreenPt(l.points[l.points.length - 1]);
@@ -651,7 +637,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             }
         }
 
-        /* 📍 «동 점» 레이어 — 원달앱에 내려간 목록 (🔵 하차 · 🟢 상차 · 둘 다는 파랑 · 테두리 없음 — 기사님 2026-09-15 «점에 테두리는 없어도 될꺼 같아» · 목적지 마커 아래) */
+        /* 📍 «동 점» 레이어 — 원달앱에 내려간 목록 (🔵 하차 · 🟢 상차 · 둘 다는 파랑 · 테두리 없음 · 목적지 마커 아래) */
         if (layers.dots && dongDots) {
             const dot = (p: { x: number; y: number }, fill: string) => {
                 const { cx, cy } = getScreenPt(p);
@@ -663,7 +649,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             for (const p of dongDots.both) dot(p, 'rgba(2,132,199,.85)');
         }
 
-        /* 🎯 목적지 마커 — 살아 있는 목적지마다 (옛 «그물» 레이어가 찍던 것 · 자리표 B-2 · 전수표 #75) */
+        /* 🎯 목적지 마커 — 살아 있는 목적지마다 */
         if (layers.dropoff && dropoffArea) {
             for (const goalPt of dropoffArea.goals) {
                 const g = getScreenPt(goalPt);
@@ -733,9 +719,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         /**
          * 1.5. 기초 연결선 — 정거장을 **직선으로** 잇는 보조 점선.
          *
-         * 🔴 **경로선이 있으면 안 그린다** (기사님 실물 2026-09-04:
-         *    *"지도에서 궤적이 있으면 직선을 표시하지 않는다고 한 것 같은데 점선이 남아 있어"*).
-         *    맞다 — 그때 없앤 것은 «직선 N km» **글자**였고 이 **선**은 그대로 남아 있었다.
+         * 🔴 **경로선이 있으면 안 그린다** — 아래 «직선 N km» 글자와 짝이다 (둘 다 같은 조건으로 끈다).
          *    카카오가 준 실제 도로 경로가 있는데 그 위에 직선을 겹치면 **길이 두 개**로 보인다.
          *    경로가 아직 없거나 실패했을 때만 «대충 이 방향»으로 남긴다 (규칙 ④).
          */
@@ -770,8 +754,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         /**
          * 현위치 - 첫 상차지 간 회색 점선 지점에 직선거리(km) 표기
          *
-         * 🔴 **경로선이 있으면 안 그린다** (기사님 2026-09-04: *"우리에게 직선 거리가
-         *    중요할까? 아닌 것 같은데"*). 맞다 — 기사님은 **도로**를 달리지 직선을 달리지 않는다.
+         * 🔴 **경로선이 있으면 안 그린다** — 기사님은 **도로**를 달리지 직선을 달리지 않는다.
          *    카카오가 준 «주행 68.0km / 106분» 이 더 정확하고, **버퍼·데드라인이 전부 그 값**을 쓴다.
          *    둘을 나란히 두면 한 화면이 **두 답**을 한다.
          *
@@ -779,8 +762,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          *    답이다 — 그때만 남긴다 (규칙 ④: 모르면 모른다고 하되, 아는 만큼은 말한다).
          *
          * 🔴 **두 점이 가까워도 안 그린다.** 이 글자는 두 점의 **중간**에 놓여서, 둘이 붙으면
-         *    중간점이 **마커 위에 올라앉아** 현위치와 이름표를 함께 덮는다
-         *    (기사님 실물 확대 캡처 2026-09-04).
+         *    중간점이 **마커 위에 올라앉아** 현위치와 이름표를 함께 덮는다.
          */
         const MIN_GAP_PX = 90;   // 이보다 가까우면 글자가 마커를 덮는다
         if (myLocation && validPoints.length > 0 && validPolyline.length < 2) {
@@ -807,17 +789,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         /**
-         * 1. 🛣️👣 **두 선을 겹쳐 «얼마나 벗어났나»를 보여 준다** (기사님 안 2026-09-04).
+         * 1. 🛣️👣 **두 선을 겹쳐 «얼마나 벗어났나»를 보여 준다**.
          *
-         * 기사님: *"카카오에서 받아온 걸 **아래** 두고 내가 간 걸 **위**에 두는 거지..
-         * 그럼 얼마나 경로 이탈한 건지 한눈에 볼 수 있겠다. 둘 다 **투명도를 50%씩** 주면
-         * 정확히 지나가면 지도를 가릴 거고 아니면 지도가 보이니 좋을 듯싶다."*
-         *
-         * 🔴 **색을 나눈다. 투명도로 겹치게 하지 않는다** (기사님 재확인 2026-09-04:
-         *    *"이렇게 보니 경로와 내가 간 길하고 어떤 것이 맞는 건지 모르겠다..
-         *    투명도를 빼고 색을 달리 하자"*).
-         *    처음엔 «같은 색 반 투명 둘이 포개지면 진해진다»로 만들었는데 —
-         *    «따라갔나»는 보여 줘도 **«어느 쪽이 뭔지»를 못 갈랐다.**
+         * 🔴 **색을 나눈다. 투명도로 겹치게 하지 않는다** — 같은 색 반투명 둘을 포개면
+         *    «따라갔나»는 보여도 **«어느 쪽이 뭔지»를 못 가른다.**
          *
          *      파란 굵은 선   카카오가 준 **가야 할 길**   (아래)
          *      흰 얇은 선     내가 **실제로 간 길**        (위)
@@ -844,10 +819,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         /**
          * ① 아래 — 카카오가 준 «가야 할 길».
          *
-         * 🌈 **구간마다 그 콜의 색으로 칠한다** (2026-09-11 · 이식 B2 · 지도 실험실 모양).
+         * 🌈 **구간마다 그 콜의 색으로 칠한다**.
          *    서버가 구간 경계(`sectionEnds`)와 구간 주인(`sectionStops`)을 함께 보낸다 —
-         *    실측으로 **둘의 길이가 같고**, 구간 i 는 «정거장 i 에 닿는 길»이다
-         *    (`ends [66,175,912,1432]` ↔ `stops 4개`). 그래서 색은 그 정거장의 콜 색이다.
+         *    **둘의 길이가 같고**, 구간 i 는 «정거장 i 에 닿는 길»이다. 그래서 색은 그 정거장의 콜 색이다.
          * 🔴 **재료가 어긋나면 한 색으로 물러난다** — 길이가 다르거나 색표가 없으면 옛 모양 그대로.
          *    색이 밀려 그려지는 것보다 한 색이 낫다 (규칙 ④: 지어내지 않는다).
          * ⚠️ 미리보기(결재 전)는 **노란 점선 한 색**을 지킨다 — «아직 내 콜이 아니다»가 색의 뜻이다.
@@ -859,10 +833,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 && validPolyline.length === currentPolyline.length;   // 걸러진 점이 있으면 경계가 어긋난다
             const canPaintPerSection = !isPreviewRoute && !!callColors && sectionsOk;
             /**
-             * 🗺️ **심사 중 — 이 후보가 늘린 구간을 판정 색으로 굵게** (전수표 #38 · 목업 «이 콜을 끼면 이렇게 간다»).
+             * 🗺️ **심사 중 — 이 후보가 늘린 구간을 판정 색으로 굵게** («이 콜을 끼면 이렇게 간다»).
              *    통째로 노란 점선이면 1~2초에 «어디가 늘었나»가 안 보인다. 구간 주인이 후보 콜이면 판정 색,
              *    나머지는 노란 점선 그대로 — «아직 내 콜이 아니다»는 지킨다. 판정 전이면 후보 구간도 노랑.
-             * ⚠️ 목업의 깜빡임은 안 옮겼다 — 캔버스를 0.26초마다 다시 칠해야 한다.
+             * ⚠️ 깜빡이게 하지 않는다 — 캔버스를 0.26초마다 다시 칠해야 한다.
              */
             const candidateColor = routeHolder?.judgment?.color ? SOAK[routeHolder.judgment.color].bar : '#e6b422';
             if (isPreviewRoute && sectionsOk) {
@@ -878,7 +852,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 });
             } else {
                 ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
-                // 노란 점선 = 아직 결재 전 (v23 Ⅱ)
+                // 노란 점선 = 아직 결재 전
                 drawPath(validPolyline, 1, isPreviewRoute ? [10, 8] : undefined);
             }
         }
@@ -892,10 +866,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         /**
          * 1.7. 👣 지나온 발자취 — 번호는 방문 순서로 동결 (①)
          *
-         * 🔴 **색표를 켜면 남은 정거장과 같은 규칙으로 그린다** (2026-09-04).
-         *    예전에는 여기만 «초록 채움 + 콜색 테두리»라, 같은 화면에서 **다녀온 곳과
-         *    남은 곳이 다른 문법**으로 그려졌다. 색표의 뜻(색상=콜 · 밝기=상차/하차 ·
-         *    흰 링=다녀옴)이 절반만 적용되던 셈이다.
+         * 🔴 **색표를 켜면 남은 정거장과 같은 규칙으로 그린다** — 다녀온 곳만 다른 문법이면
+         *    색표의 뜻(색상=콜 · 밝기=상차/하차 · 흰 링=다녀옴)이 절반만 적용된다.
          */
         markerHits.current = [];
         trail.forEach((p) => {
@@ -925,12 +897,11 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
 
             if (p.routeId) markerHits.current.push({ cx, cy, orderId: p.routeId });
             ctx.beginPath();
-            /* 🔍 마커는 **목록 동그라미와 같은 크기**다 (기사님 2026-09-04:
-               *"지도에 순번도 리스트에 있는 사이즈로 같이 만들자 지도를 너무 많이 가리는 것 같다"*).
+            /* 🔍 마커는 **목록 동그라미와 같은 크기**다 — 크면 지도를 가리고,
                한 화면에서 같은 것이 두 크기로 보이면 다른 것처럼 읽힌다. */
             ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
             const stopKind = p.type === '상차' ? 'pickup' : 'dropoff';
-            /* 🌈 색상=콜 · 밝기=상차/하차 (기사님 2026-09-04) */
+            /* 🌈 색상=콜 · 밝기=상차/하차 */
             const rainbowFill = rainbowNodes && p.callNo ? callNodeFill(p.callNo, stopKind, theme) : null;
             ctx.fillStyle = rainbowFill
                 ?? (p.type === '상차' ? mapColors.nodePickup : mapColors.nodeDropoff);
@@ -941,7 +912,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 ctx.strokeStyle = mapColors.nodeStrokeEvaluating;
             } else if (rainbowFill) {
                 /* 🖊️ 다녀온 곳에 **동그라미를 친다** — 안 간 곳은 바탕색이라 링이 안 보인다.
-                   1px 로 얇게 — 목록 동그라미와 같은 두께다 (기사님 2026-09-04) */
+                   1px 로 얇게 — 목록 동그라미와 같은 두께다 */
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = callNodeStroke(!!p.visited, rainbowFill);
             } else {
@@ -953,8 +924,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.stroke();
 
             ctx.fillStyle = rainbowNodes && p.callNo ? callNodeText(stopKind, theme) : mapColors.textBody;
-            /* 🔍 정거장 번호 — 달리면서 먼발치로 읽는 숫자다 (기사님 2026-09-04:
-               *"글자가 커져야 하는데 원만 커진 것 같아"*) */
+            /* 🔍 정거장 번호 — 달리면서 먼발치로 읽는 숫자다. 원만 키우지 말고 글자도 키운다 */
             ctx.font = rainbowNodes ? 'bold 12.5px sans-serif' : 'bold 11px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -975,10 +945,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             const { cx, cy } = getScreenPt(myLocation);
 
             /**
-             * 📍 **낡은 자리는 흐리게 — 옮기지도 지우지도 않는다** (기사님 확정 2026-09-12).
+             * 📍 **낡은 자리는 흐리게 — 옮기지도 지우지도 않는다** (기사님 확정).
              *
              * 🔴 **맥박(퍼지는 원)은 «지금 여기 있다»는 말**이다. 낡았으면 그 말을 멈춘다 —
-             *    숨 쉬는 마커가 12분 전 자리에서 뛰고 있으면 화면이 거짓말한다 (규칙 ⑤-2).
+             *    숨 쉬는 마커가 몇 분 전 자리에서 뛰고 있으면 화면이 거짓말한다 (규칙 ⑤-2).
              * ⚠️ 그래도 **점은 남긴다.** 지우면 «어디 있는지 아무 단서가 없는» 화면이 되고,
              *    마지막 자리는 집보다 비교가 안 되게 가깝다.
              */
@@ -1053,13 +1023,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 clientY = e.touches[0].clientY;
             } else if (e.touches.length === 2) {
                 /**
-                 * 🤏 **두 손가락 «중간»을 붙잡은 채 배율만 바꾼다** (기사님 지적 2026-09-03:
-                 * *"손가락 중간을 기준점으로 줌인이 될 거라 생각했는데.. 한쪽 방향으로
-                 * 치우쳐서 줌인되었어"*).
+                 * 🤏 **두 손가락 «중간»을 붙잡은 채 배율만 바꾼다** (#96).
                  *
-                 * 🔴 예전에는 `zoomRef += scaleDiff` 로 **배율만** 바꾸고 팬을 안 건드렸다.
-                 *    그래서 확대의 중심이 화면이 원래 잡고 있던 곳이었고, 손가락이
-                 *    가운데서 벗어날수록 쏠렸다. 09-01 의 «기준점» 수리가 이 갈래를 안 지났다.
+                 * 🔴 `zoomRef` 에 배율만 더하고 팬을 안 건드리면 확대의 중심이 화면이 원래 잡고 있던
+                 *    곳이 되어, 손가락이 가운데서 벗어날수록 쏠린다.
                  * 🔴 계산은 `pinchStep` 하나에 있다 — 휠·버튼(`zoomAround`)과 **같은 공식**이다.
                  */
                 const rect = canvasRef.current?.getBoundingClientRect();
@@ -1092,11 +1059,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         const deltaX = clientX - lastPos.current.x;
         const deltaY = clientY - lastPos.current.y;
 
-        /* ✋ **끌어도 모드를 안 푼다** (기사님 2026-09-04: *"구간, 현위치를 선택한 후
-           드래그하면 줌이 유지되어야 할 것 같아"*).
-           🔴 처음엔 여기서 `setViewMode('all')` 을 했다 — «손이 이긴다»를 지키려는
-              뜻이었는데, 층을 헷갈렸다. 모드는 **기준 배율**을 정하고 팬·줌은 그 **위에
-              더해지는 값**이라, 모드를 풀면 기준이 통째로 바뀌어 **화면이 튀어나갔다.**
+        /* ✋ **끌어도 모드를 안 푼다** — 구간·현위치를 고른 뒤 끌어도 줌이 유지된다.
+           🔴 여기서 `setViewMode('all')` 을 하지 않는다 — 모드는 **기준 배율**을 정하고 팬·줌은 그
+              **위에 더해지는 값**이라, 모드를 풀면 기준이 통째로 바뀌어 **화면이 튀어나간다.**
               팬은 모드와 무관하게 그대로 쌓이므로 **안 풀어도 손은 이미 이긴다.** */
         panRef.current.x += deltaX;
         panRef.current.y += deltaY;
@@ -1121,8 +1086,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
     /**
      * 🔍 **누른 자리를 붙잡은 채 배율만 바꾼다.**
      *
-     * 🔴 기준점은 `anchorBaseOf` 다 — 예전 공식은 화면 원점(0,0)을 기준으로 삼았는데,
-     *    실제 원점은 버튼 여백만큼 밀려 있어 **확대할수록 지도가 옆으로 흘렀다.**
+     * 🔴 기준점은 `anchorBaseOf` 다 — 화면 원점(0,0)을 기준으로 삼지 않는다.
+     *    실제 원점은 버튼 여백만큼 밀려 있어 **확대할수록 지도가 옆으로 흐른다.**
      */
     const zoomAround = (screenX: number, screenY: number, zoomDelta: number) => {
         const rect = canvasRef.current?.getBoundingClientRect();
@@ -1168,13 +1133,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             />
 
             {/**
-              * 🗺️ **위는 지도, 아래는 콜** (기사님 확정 2026-09-04).
+              * 🗺️ **위는 지도, 아래는 콜** (기사님 확정).
               *   좌상단 무엇에 맞출까 · 우상단 배율 · 좌하단 내비 · 우하단 콜 이름표.
               *   자리가 뜻을 나누면 운전 중에 **손이 기억한다.**
               *
               * 🔴 셋을 **풀어서** 놓는다 — 순환 버튼은 «지금 뭐지»를 눌러 봐야 알았다.
-              * 🔴 켜진 것은 **바탕을 안 뒤집는다** — 테두리·글자만 파랗게.
-              *    (기사님: *"현위치에서는 색이 반전되어 잘 보이지 않아"*)
+              * 🔴 켜진 것은 **바탕을 안 뒤집는다** — 테두리·글자만 파랗게 (뒤집으면 잘 안 보인다).
               */}
             <div className="absolute top-3 left-3 flex gap-1.5 z-10">
                 {([['all', '전체'], ['leg', '현구간'], ['follow', '현위치']] as [MapViewMode, string][]).map(([m, label]) => (
@@ -1194,13 +1158,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             </div>
 
             {/**
-              * 🧅 **레이어 — 한 버튼 뒤에 접어 둔다** (이식 B4 · 2026-09-11).
+              * 🧅 **레이어 — 한 버튼 뒤에 접어 둔다**.
               *
-              * 🔴 여섯을 늘 띄우면 400px 화면에서 지도가 그만큼 좁아진다. 그리고
-              *    **운전 중에는 입력을 못 한다**(실측: 안전취소 24건) — 한 번 정하고 접는 값이다.
-              *    이 레포가 이미 쓴 문법이다 (`a41edca` 폰 줄: *"모드를 하나로 — 누르면 셋이 펼쳐진다"*).
+              * 🔴 늘 띄우면 400px 화면에서 지도가 그만큼 좁아진다. 그리고
+              *    **운전 중에는 입력을 못 한다** — 한 번 정하고 접는 값이다.
               * 🔴 자리는 **좌상단** — «무엇에 맞출까»(전체·현구간·현위치) 바로 아래다.
-              *    보는 방식을 정하는 것끼리 모인다 (기사님 0904: *자리가 뜻을 나누면 손이 기억한다*).
+              *    보는 방식을 정하는 것끼리 모인다 (자리가 뜻을 나누면 손이 기억한다).
               */}
             <div className="absolute top-[52px] left-3 flex flex-col items-start gap-1.5 z-10">
                 <button
