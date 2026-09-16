@@ -254,9 +254,20 @@ function netKeywordsOf(
     const lineUsed = session.activeFilter.routeMode === false ? null : line;
     const touch = lineUsed
         ? getDetourRegions(lineUsed.map(([x, y]) => ({ x, y })),
-            auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM))
+            auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
+            undefined,
+            /* ✂️ 하차 조각이라 현위치 원을 도려낸다 — 그물(`netForGoal`) · 걸친 동(`netAreaTesterOf`)과 같은 규칙.
+                  `withMe`(출발 전 현위치 원을 **더하는** 경우)면 빼지 않는다 */
+            part.withMe || !me ? undefined : { lng: me.x, lat: me.y, km: Math.max(0, params.srcDiamKm / 2) })
         : null;
-    if (touch) for (const [region, names] of Object.entries(touch.grouped)) (grouped[region] ??= []).push(...names);
+    /**
+     * 🔴 **띠에 걸친 동을 여기서 또 더하지 않는다** (기사님 지적 — *"연산이 왜 떨어져 3갈래인지부터 봐야 하는 거 아냐?"*).
+     *
+     * 바로 위 `regionsTouchingNetGrouped`(=`netAreaTesterOf` = 그물과 **같은 판정**)가 이미
+     * «격자 점 ∪ 동 꼭짓점»으로 걸침을 본다 — 라인 띠도 그 판정 안에 있다. 여기서 turf 버퍼로 한 번 더
+     * 더하면 **같은 질문에 답이 두 벌**이 되고, 한쪽만 고쳐져 어긋난다 (버그 대장 #159: 캡을 한쪽만 잘라
+     * 뒤쪽 동이 다시 들어왔다). `touch` 는 이제 **진행도(`orderKm`)만** 낸다.
+     */
     for (const k of Object.keys(grouped)) grouped[k] = [...new Set(grouped[k])].sort();
     /**
      * 📏 **진행도도 같은 그물에서 낸다** — 라인 띠로만 든 동에 붙은

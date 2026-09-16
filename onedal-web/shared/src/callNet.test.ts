@@ -501,6 +501,37 @@ describe('노선 — «라인 ∪ 남은 마름모» (기사님 확정 2026-09-0
         expect(zone.pickupIn(PAJU)).toBe(false);
     });
 
+    /**
+     * ✂️ **하차 영역은 «− 현위치 원»이다 — 라인이 있어도** (기사님 확정 · 버그 대장 #159).
+     *
+     * 기사님이 그린 그림: *"내 주위에 녹색이 있고, 파랑과 접경에 보라색 지역이 있고,
+     * 그 이후 목적지 방향으로 파란 점이 있다."* 곧 **내 위치 원 안은 상차만**이고,
+     * 원 경계에 걸친 동만 «둘 다»이며, 그 밖이 하차다.
+     *
+     * 🔴 라인이 없을 때는 이미 도려낸다(`buildNet(..., excludeSrc=true)`). 라인이 생기면
+     *    `lineZoneOf` 로 갈라지는데 거기엔 도려내기가 없어, **운행 중에만** 상차가 하차에 통째로
+     *    잠겼다 — 실측에서 상차 9곳이 전부 «둘 다»였고 «상차만»이 0곳이었다.
+     *    싣는 자리에 그대로 내리는 콜이 통과한다.
+     */
+    /** 라인 위이면서 내 위치 원(7.5km) 안 — 초월에서 장지동 쪽으로 약 2km */
+    const ON_LINE_NEAR = { lng: 127.2759, lat: 37.3880 };
+    /** 라인 위이면서 원 밖 — 같은 방향 약 10km */
+    const ON_LINE_FAR = { lng: 127.2036, lat: 37.4312 };
+    const netOpts = { line: LINE, lineRadiusKm: 5, lastDrop: LAST_DROP, params: WAIT_PRESET, anchor: { ...ME, name: '내 위치' }, me: null };
+
+    it('🔴 내 위치 원 안은 하차가 아니다 — 라인이 있어도 도려낸다', () => {
+        expect(netAreaTesterOf(PAJU, netOpts)(ON_LINE_NEAR)).toBe(false);
+    });
+
+    it('원 밖 라인 위는 그대로 하차다 — 도려내기가 가는 길을 먹으면 안 된다', () => {
+        expect(netAreaTesterOf(PAJU, netOpts)(ON_LINE_FAR)).toBe(true);
+    });
+
+    it('🔴 그물(`netForGoal`)도 같은 답을 낸다 — 판정과 목록이 갈라지면 화면과 앱이 다른 말을 한다', () => {
+        const names = new Set(netForGoal(PAJU, netOpts).pass.map(d => d.name));
+        expect(names.has('초월읍')).toBe(false);   // 내 위치가 선 동 — 상차지이지 하차지가 아니다
+    });
+
     it('🔴 마지막 하차지 둘레에는 원을 안 두른다 — 평촌 남쪽 6km 는 지나온 뒤라 안 담는다', () => {
         // 기사님 지적 2026-09-09: *"중간 기착지인 평촌동도 점선 라인과 영역에 지역들을 가지고 있는데 이걸 빼야 해"*
         // 🔴 자리를 **꼭짓점 원 안**(반경 7.5km)에 잡아야 이 검사가 뜻을 갖는다 — 원 밖에 잡으면

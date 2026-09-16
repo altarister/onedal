@@ -76,3 +76,44 @@ describe('🔵 경유 띠 — 라인 시작 뒤는 안 담는다', () => {
         expect(BEHIND.filter(n => names.has(n))).toEqual([]);
     });
 });
+
+/**
+ * ✂️ **하차 조각은 현위치 원을 도려낸다 — 통째로 든 동만** (기사님 그림 · 버그 대장 #159).
+ *
+ * 기사님: *"내 주위에 녹색이 있고, 파랑과 접경에 보라색 지역이 있고, 그 이후 목적지 방향으로 파란 점."*
+ * 곧 **원 안은 상차만**, 경계에 걸친 동만 «둘 다», 그 밖이 하차다.
+ *
+ * 🔴 라인이 없을 때는 그물이 이미 도려낸다(`callNet.makeInNet` 의 `excludeSrc`). 라인이 생기면
+ *    `lineZoneOf` 와 이 띠 계산으로 갈라지는데 둘 다 도려내기가 없어, **운행 중에만** 상차가
+ *    하차에 통째로 잠겼다 — 실측에서 상차 9곳이 전부 «둘 다»였고 «상차만»이 0곳이었다.
+ * 🔴 걸친 동까지 버리지 않는다 — «싣고 조금 앞에 내리는» 가까운 콜이 통째로 막힌다 (규칙 ⑤).
+ */
+describe('🔵 경유 띠 — 내 위치 원 안은 담지 않는다', () => {
+    const line = [
+        { x: MODA.lng, y: MODA.lat }, { x: SINDUN.lng, y: SINDUN.lat }, { x: TERMINAL.lng, y: TERMINAL.lat },
+    ];
+
+    it('🔴 내 위치 원에 통째로 든 동은 경유가 아니다 — 원 밖 가는 길은 그대로 남는다', () => {
+        const all = getDetourRegions(line, 16);
+        const cut = getDetourRegions(line, 16, undefined, { lng: MODA.lng, lat: MODA.lat, km: 12 });
+        expect(all).not.toBeNull();
+        expect(cut).not.toBeNull();
+        const A = new Set(Object.values(all!.grouped).flat());
+        const B = new Set(Object.values(cut!.grouped).flat());
+        /* 내 위치가 선 동(초월읍)은 도려내기 전에는 들고, 도려내면 빠진다 */
+        expect(A.has('초월읍')).toBe(true);
+        expect(B.has('초월읍')).toBe(false);
+        /* 🔴 가는 길은 살아 있어야 한다 — 도려내기가 앞을 먹으면 이 줄이 먼저 깨진다 */
+        expect(B.has('신둔면')).toBe(true);
+        /* 도려낸 목록은 안 도려낸 목록의 부분집합이다 — 빼기만 한다 */
+        expect([...B].every(n => A.has(n))).toBe(true);
+    });
+
+    it('원이 작아 동이 통째로 안 들면 아무것도 안 뺀다 — 경계에 걸친 동은 남긴다', () => {
+        const all = getDetourRegions(line, 16);
+        const cut = getDetourRegions(line, 16, undefined, { lng: MODA.lng, lat: MODA.lat, km: 8 });
+        const A = new Set(Object.values(all!.grouped).flat());
+        const B = new Set(Object.values(cut!.grouped).flat());
+        expect(B.size).toBe(A.size);
+    });
+});

@@ -198,7 +198,17 @@ export interface DetourRegions {
     orderKm: Record<string, number>;
 }
 
-export function getDetourRegions(polyline: Array<{x: number; y: number}>, detourRadiusKm: number, destinationRadiusKm?: number): DetourRegions | null {
+export function getDetourRegions(
+    polyline: Array<{x: number; y: number}>,
+    detourRadiusKm: number,
+    destinationRadiusKm?: number,
+    /**
+     * ✂️ **도려낼 현위치 원 — 하차 조각 전용** (기사님 그림 · 버그 대장 #159).
+     *    하차 영역은 «띠 ∪ 마름모 ∪ 목적지 원 **−** 현위치 원»이다. 그물(`callNet.lineZoneOf`)이
+     *    같은 도려내기를 하므로 여기도 해야 «목록만 더 넓은» 자리가 안 생긴다 (규칙 ③).
+     */
+    excludeCircle?: { lng: number; lat: number; km: number },
+): DetourRegions | null {
     if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) return null;
     if (!polyline || polyline.length < 2) return null;
 
@@ -259,10 +269,22 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
      *    넓은 읍·면이 자른 선에 걸치면 그 앞부분은 경유가 맞다 (규칙 ⑤ «넉넉하게»).
      */
     const aheadCut = lineCoords.length >= 2 ? aheadOf(lineCoords as Array<[number, number]>, detourRadiusKm) : null;
+    const cornersOf = (fb: number[]): Array<[number, number]> =>
+        [[fb[0], fb[1]], [fb[2], fb[1]], [fb[0], fb[3]], [fb[2], fb[3]]];
     const wholeBehind = (fb?: number[]): boolean => {
         if (!aheadCut || !fb) return false;
-        const corners: Array<[number, number]> = [[fb[0], fb[1]], [fb[2], fb[1]], [fb[0], fb[3]], [fb[2], fb[3]]];
-        return !corners.some(([lng, lat]) => isAheadOf({ lng, lat }, aheadCut));
+        return !cornersOf(fb).some(([lng, lat]) => isAheadOf({ lng, lat }, aheadCut));
+    };
+    /**
+     * ✂️ **현위치 원 안은 경유가 아니다 — 통째로 들었을 때만 버린다** (기사님 그림 · 버그 대장 #159).
+     *
+     * 기사님: *"내 주위에 녹색이 있고, 파랑과 접경에 보라색 지역이 있고, 그 이후 목적지 방향으로 파란 점."*
+     * 곧 원 안은 **상차만**, 경계에 걸친 동만 «둘 다», 그 밖이 하차다.
+     * 🔴 걸친 동까지 버리면 «싣고 조금 앞에 내리는» 가까운 콜이 통째로 막힌다 — 경계는 남긴다 (규칙 ⑤).
+     */
+    const wholeInSrc = (fb?: number[]): boolean => {
+        if (!excludeCircle || !fb) return false;
+        return cornersOf(fb).every(([lng, lat]) => haversineKm(lat, lng, excludeCircle.lat, excludeCircle.lng) <= excludeCircle.km);
     };
 
     // 3. 교차점 검사 (Intersect)
@@ -312,6 +334,8 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
 
         /* ✂️ 라인 시작에서 경로와 직각으로 자른 선 — 통째로 뒤면 가는 길이 아니다 (위 `wholeBehind`) */
         if (wholeBehind(feature.bbox)) continue;
+        /* ✂️ 현위치 원 안에 통째로 든 동은 상차지다 — 하차 조각에서 도려낸다 (위 `wholeInSrc`) */
+        if (wholeInSrc(feature.bbox)) continue;
 
         try {
             // detour(경로 경유)와 feature(행정구역 지도)가 1픽셀이라도 겹치면 T

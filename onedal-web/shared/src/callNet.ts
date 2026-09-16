@@ -920,10 +920,21 @@ export function lineZoneOf(
      *       진행도 0 이 붙어 차가 몇 m 움직이자마자 «지나온 곳»으로 빠졌다 («7지점» 21:14:22 매산동·쌍령동·양벌동).
      */
     me: NetPoint | null = null,
+    /**
+     * ✂️ **도려낼 현위치 — 하차 조각 전용** (기사님 그림: *"내 주위에 녹색, 파랑과 접경에 보라,
+     *    그 이후 목적지 방향으로 파랑"*). 하차 영역은 «라인 ∪ 마름모 ∪ 목적지 원 **−** 현위치 원»이다.
+     *
+     * 🔴 라인이 없을 때는 이미 도려낸다(`makeInNet` 의 `excludeSrc`). 라인이 생기면 이 길로 갈라지는데
+     *    도려내기가 없어 **운행 중에만** 상차가 하차에 통째로 잠겼다 — 싣는 자리에 그대로 내리는 콜이 통과했다.
+     * 🔴 `me`(출발 전 현위치 원을 **더하는** 경우)와 함께 오지 않는다 — 더하면서 빼면 모순이다.
+     */
+    excludeSrcAt: NetPoint | null = null,
 ) {
     const ringKm = Math.max(0, p.dstDiamKm / 2);
     const meKm = Math.max(0, p.srcDiamKm / 2);
     const inMe = (pt: { lng: number; lat: number }) => !!me && haversineKm(me, pt) <= meKm;
+    /* ✂️ 현위치 원 안은 하차가 아니다 — 반경은 `makeInNet` 의 `excludeSrc` 와 같은 값 */
+    const inSrcCut = (pt: { lng: number; lat: number }) => !!excludeSrcAt && haversineKm(excludeSrcAt, pt) <= meKm;
     /**
      * 🔴 **마름모의 시작 꼭짓점에는 원을 두르지 않는다** (기사님 지적 2026-09-09:
      * *"중간 기착지인 평촌동도 점선 라인과 영역에 지역들을 가지고 있는데 이걸 빼야 해"*).
@@ -946,13 +957,15 @@ export function lineZoneOf(
     const onLine = (pt: { lng: number; lat: number }) =>
         line.length >= 2 && distToLineKm(pt, line) <= lineRadiusKm && (!aheadCut || isAheadOf(pt, aheadCut));
     return {
-        dropIn: (pt: { lng: number; lat: number }) => onLine(pt) || haversineKm(dst, pt) <= ringKm || inRest(pt) || inMe(pt),
+        dropIn: (pt: { lng: number; lat: number }) =>
+            !inSrcCut(pt) && (onLine(pt) || haversineKm(dst, pt) <= ringKm || inRest(pt) || inMe(pt)),
         pickupIn: onLine,
         /**
          * 🔴 **«라인 띠로만 들어왔나»** — 진행도를 붙일 자격이 여기서 갈린다.
          *    마름모·목적지 원으로 든 동은 **아직 안 간 곳**이라 «지났나»를 물을 값이 아니다.
          */
-        onlyByLine: (pt: { lng: number; lat: number }) => onLine(pt) && !inRest(pt) && haversineKm(dst, pt) > ringKm && !inMe(pt),
+        onlyByLine: (pt: { lng: number; lat: number }) =>
+            !inSrcCut(pt) && onLine(pt) && !inRest(pt) && haversineKm(dst, pt) > ringKm && !inMe(pt),
     };
 }
 
@@ -962,8 +975,10 @@ export function buildLineNet(
     lastDrop: NetPoint | null, p: NetParams, dst: NetPoint,
     /** 🧩 내 영역 — 출발 전에만 (`lineZoneOf`) */
     me: NetPoint | null = null,
+    /** ✂️ 도려낼 현위치 — 하차 조각 전용 (`lineZoneOf`) */
+    excludeSrcAt: NetPoint | null = null,
 ): NetResult {
-    const { dropIn, onlyByLine } = lineZoneOf(line, lineRadiusKm, lastDrop, p, dst, me);
+    const { dropIn, onlyByLine } = lineZoneOf(line, lineRadiusKm, lastDrop, p, dst, me, excludeSrcAt);
     const rest = lastDrop ? buildNet(p, lastDrop, dst) : null;
     const { pass, grouped } = collectDongs(dropIn);
     /**
@@ -1026,7 +1041,9 @@ export function netForGoal(goal: NetPoint, o: {
     me?: NetPoint | null;
 }): NetResult {
     return o.line
-        ? buildLineNet(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal, o.me ?? null)
+        /* ✂️ 라인이 있어도 시작(현위치) 원은 도려낸다 — 라인 없는 갈래(`buildNet(..., true)`)와 같은 규칙.
+              단 `me` 로 **더하는** 중이면 빼지 않는다 (출발 전) */
+        ? buildLineNet(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal, o.me ?? null, o.me ? null : o.anchor)
         // ✂️ 하차 조각이라 시작(현위치) 원은 도려낸다 — 걸친 동 판정(`netAreaTesterOf`)과 같은 셈
         : buildNet(o.params, o.anchor, goal, MARK_DONGS, true);
 }
@@ -1046,7 +1063,8 @@ export function netAreaTesterOf(goal: NetPoint, o: {
     me?: NetPoint | null;
 }): (pt: { lng: number; lat: number }) => boolean {
     return o.line
-        ? lineZoneOf(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal, o.me ?? null).dropIn
+        /* ✂️ 그물(`netForGoal`)과 **같은 도려내기** — 갈라지면 목록과 지도가 다른 말을 한다 */
+        ? lineZoneOf(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal, o.me ?? null, o.me ? null : o.anchor).dropIn
         // ✂️ 하차 조각이라 시작(현위치) 원은 도려낸다
         : makeInNet(o.params, o.anchor, goal, true);
 }
