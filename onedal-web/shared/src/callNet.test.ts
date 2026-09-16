@@ -344,9 +344,13 @@ describe('관내 국면 — 목적지 원 안 + 출발지 원 밖이면 방향�
  * 📐 **마름모 반경 — 축에서 좌우로 몇 km** (기사님 확정 2026-09-09).
  * *"출발각 목적각 180 이면 안 되잖아.. 좌우를 목적지 출발지의 일직선과 평행하게 좌우에 둔다면"*
  */
-/** 검사용 축 거리 — `lineZoneOf`(반경 r 띠)로 «r 안인가»를 물어 대신 잰다 */
+/**
+ * 검사용 축 거리 — 점에서 축까지 몇 km.
+ * 🔴 **띠 판정(`lineZoneOf`)으로 대신 재지 않는다** — 띠는 시작점 뒤를 직각으로 자르므로
+ *    축 **뒤쪽**에 있는 마름모 꼭짓점이 «띠 밖»으로 나온다. 여기서 묻는 것은 방향이 아니라 **폭**이다.
+ */
 const distToLineKmForTest = (pt: { lng: number; lat: number }, axis: Array<[number, number]>) =>
-    lineZoneOf(axis, 10.5, null, { ...WAIT_PRESET, dstDiamKm: 0 }, NET_DST).pickupIn(pt) ? 0 : 999;
+    distToLineKm(pt, axis);
 
 describe('📐 마름모 반경', () => {
     const P = (angle: number, r: number) => ({ srcDiamKm: 0, dstDiamKm: 0, srcAngleDeg: angle, dstAngleDeg: angle, quadRadiusKm: r });
@@ -433,25 +437,27 @@ describe('🏘️ 관내로 쟀는가 — 판정이 스스로 말한다', () => 
 describe('라인 띠 — 길 하나가 담는 동 (2026-09-07 카카오 실측 · 수식은 lineZoneOf 로 옮겼다)', () => {
     // 상수는 roadsYeoju.ts (생성 파일) — 여기서는 라인 띠 수식이 실측 그대로 동을 담는지 잠근다.
     // 🔴 길은 이름으로 찾는다 — «모든 길» 재생성(2026-09-07 저녁)으로 개수·순서가 바뀔 수 있다
-    it('국도길(성남이천로·중부대로) 경유 띠 ±5km = 43동 — 이천 시내를 관통한다', async () => {
+    /* 🔴 띠는 **길 시작점 뒤를 자른다** — 뒤쪽 반원에 있던 광주시 4동이 빠져 43 → 39 가 됐다 */
+    it('국도길(성남이천로·중부대로) 경유 띠 ±5km = 39동 — 이천 시내를 관통한다', async () => {
         const { YEOJU_ROADS } = await import('./roadsYeoju');
         const { buildLineNet } = await import('./callNet');
         const gukdo = YEOJU_ROADS.find(r => r.name.includes('성남이천로'))!;
         // lastDrop 이 없으면 «라인 ∪ 목적지 원» — 2026-09-09 이전 buildRoadNet 과 같은 식이다 (숫자가 같아야 한다)
         const net = buildLineNet(gukdo.line, 5, null, WAIT_PRESET, NET_DST);
-        expect(net.count).toBe(43);
+        expect(net.count).toBe(39);
         expect(net.groups.map(g => [g.region, g.names.length])).toEqual([
-            ['여주시', 25], ['이천시', 12], ['광주시', 6],
+            ['여주시', 25], ['이천시', 12], ['광주시', 2],
         ]);
         expect(net.groups.flatMap(g => g.names)).toContain('창전동');   // 이천 시내
     });
 
-    it('⛔ 고속길(광주원주) 경유 띠에는 산북면이 든다 — 길이 함정 옆을 지난다: 35동', async () => {
+    /* 🔴 여기도 길 시작점 뒤 광주시 4동이 빠져 35 → 31 이 됐다 */
+    it('⛔ 고속길(광주원주) 경유 띠에는 산북면이 든다 — 길이 함정 옆을 지난다: 31동', async () => {
         const { YEOJU_ROADS } = await import('./roadsYeoju');
         const { buildLineNet } = await import('./callNet');
         const highway = YEOJU_ROADS.find(r => r.name.includes('광주원주'))!;
         const net = buildLineNet(highway.line, 5, null, WAIT_PRESET, NET_DST);
-        expect(net.count).toBe(35);
+        expect(net.count).toBe(31);
         expect(net.groups.flatMap(g => g.names)).toContain('산북면');
         expect(net.groups.find(g => g.region === '이천시')).toBeUndefined();   // 이천을 건너뛴다
     });
@@ -501,6 +507,20 @@ describe('노선 — «라인 ∪ 남은 마름모» (기사님 확정 2026-09-0
         //    원을 두르든 안 두르든 거짓이라 **아무것도 안 잡는다** (처음에 10km 로 잡아 그렇게 됐다).
         const SOUTH_OF_PYEONGCHON = { lng: 126.980, lat: 37.338 };   // 평촌에서 남쪽 6.2km — 라인(5km) 밖, 원(7.5km) 안
         expect(zone.dropIn(SOUTH_OF_PYEONGCHON)).toBe(false);
+    });
+
+    /**
+     * 🔴 **띠의 끝은 둥글지 않고 딱 잘린다** (기사님 지적 — *"경로가 둥근 캡을 쓰고 있는 것이 아니고
+     *    딱 잘린 형태를 쓰고 있어, 그래서 영역이 내 가는 길 뒤를 자르는 거야"*).
+     *
+     * 점에서 라인까지의 최단거리만 재면 **선분 끝에 반원이 붙는다** — 라인 시작(출발 자리) 뒤가
+     * 띠 반경만큼 통째로 하차 후보가 된다. 상차는 이미 `aheadOf`·`isAheadOf` 로 막고(#151),
+     * 지도도 같은 함수로 잘라 그린다. 목록만 안 막아서 **점은 있는데 칠은 없는** 자리가 생겼다.
+     */
+    it('🔴 라인 시작 뒤는 하차가 아니다 — 띠 안이어도 가는 방향 반대면 안 든다', () => {
+        const BEHIND = { lng: ME.lng + 0.045, lat: ME.lat };          // 초월에서 동쪽 4km — 라인은 서쪽으로 간다
+        expect(distToLineKm(BEHIND, LINE)).toBeLessThan(5);           // 띠 반경 안이다 — 캡 모양만이 가른다
+        expect(zone.dropIn(BEHIND)).toBe(false);
     });
 
     /**

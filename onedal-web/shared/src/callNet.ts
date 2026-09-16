@@ -934,7 +934,17 @@ export function lineZoneOf(
      * 원을 또 두르면 **지나온 뒤쪽까지** 담겨 노이즈가 된다 — 그래서 여기는 사각형만 쓴다.
      */
     const inRest = lastDrop ? makeInQuad(p, lastDrop, dst) : () => false;
-    const onLine = (pt: { lng: number; lat: number }) => line.length >= 2 && distToLineKm(pt, line) <= lineRadiusKm;
+    /**
+     * ✂️ **띠의 끝은 둥글지 않고 딱 잘린다** (기사님 지적 — *"경로가 둥근 캡을 쓰는 게 아니고 딱 잘린 형태"*).
+     *
+     * 🔴 점에서 라인까지의 최단거리만 재면 **선분 끝에 반원이 붙어** 라인 시작(출발 자리) 뒤가
+     *    띠 반경만큼 통째로 든다 — «도척면에서 잡아 경안동에 내리는» 역방향 콜이 통과했다.
+     *    상차(`geoService.pickupListFor`)와 지도(`PinnedRouteCanvas` 의 `clipAhead`)는 이미
+     *    같은 `aheadOf` 로 자른다. 여기만 안 잘라서 **점은 있는데 칠은 없는** 자리가 생겼다 (#151 과 같은 모양).
+     */
+    const aheadCut = line.length >= 2 ? aheadOf(line, lineRadiusKm) : null;
+    const onLine = (pt: { lng: number; lat: number }) =>
+        line.length >= 2 && distToLineKm(pt, line) <= lineRadiusKm && (!aheadCut || isAheadOf(pt, aheadCut));
     return {
         dropIn: (pt: { lng: number; lat: number }) => onLine(pt) || haversineKm(dst, pt) <= ringKm || inRest(pt) || inMe(pt),
         pickupIn: onLine,
