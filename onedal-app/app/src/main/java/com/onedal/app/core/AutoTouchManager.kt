@@ -16,6 +16,8 @@ class AutoTouchManager(private val service: AccessibilityService) {
         private const val TAG = "1DAL_TOUCH"
         /** 카드 줄을 찾을 때 조상을 몇 번까지 타고 올라가나 */
         private const val ROW_HOPS = 6
+        /** ⏱️ 손가락을 대고 있는 시간 — 팝업을 여섯 번 여닫는 길에서 건당 30ms 가 쌓인다 */
+        private const val TAP_HOLD_MS = 20L
     }
 
     /** ⏳ 미뤄 둔 찍기를 건 시각(부팅 기준) · 0 이면 없음 — 겹쳐 예약하지 않으려고 둔다 */
@@ -186,7 +188,10 @@ class AutoTouchManager(private val service: AccessibilityService) {
     /** 실제 제스처 주입 — 미루든 안 미루든 마지막 한 걸음은 여기 하나다 */
     private fun fireTap(x: Float, y: Float): Boolean {
         val clickPath = Path().apply { moveTo(x, y) }
-        val clickStroke = GestureDescription.StrokeDescription(clickPath, 0, 50)
+        // ⏱️ 누르고 있는 시간 — 짧을수록 다음 걸음이 빨리 온다. 팝업을 여섯 번 여닫는 길에서
+        //    건당 30ms 가 쌓인다 (기사님 지시 «1초 안에 다 볼 수 있게»).
+        //    🔴 더 줄이지 않는다 — 너무 짧으면 앱이 탭으로 안 친다
+        val clickStroke = GestureDescription.StrokeDescription(clickPath, 0, TAP_HOLD_MS)
         val gesture = GestureDescription.Builder().addStroke(clickStroke).build()
 
         val dispatched = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
