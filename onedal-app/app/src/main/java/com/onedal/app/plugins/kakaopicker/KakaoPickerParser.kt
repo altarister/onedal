@@ -102,6 +102,22 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             tabTopY != null && nodeCenterY >= tabTopY
 
         /**
+         * 🩹 **상세 화면에만 있는 낱말** — 목록 글자에 이것이 섞였으면 두 화면이 겹쳐 읽힌 것이다.
+         * 🔴 «배송»은 쓰지 않는다 — 아래 탭에 «도보배송»·«한차배송»이 늘 있어서 목록에도 나온다.
+         */
+        private val DETAIL_ONLY_WORDS = setOf("픽업지", "물품 정보", "최종 수익", "배송비", "수락하기", "넘기기")
+
+        /**
+         * 🩹 **상세에서 목록으로 넘어오는 찰나, 두 화면 글자가 섞여 들어온다** (09-16 실측: 목록 208번 중 23번).
+         *
+         * 그 판으로 만든 카드는 출발·도착이 뒤섞이고(«만안 분당 → 픽업지 서울 송파구…»), 그 이름으로
+         * 기억되므로 **같은 콜이 다른 콜로 보인다** — 그래서 이미 누른 콜을 또 누른다.
+         * 🔴 그런 판은 통째로 건너뛴다. 다음 읽기(1초 뒤)에는 깨끗하게 들어온다 (규칙 ④ — 모르면 손대지 않는다).
+         */
+        fun detailLeaked(texts: List<String>): Boolean =
+            texts.any { t -> DETAIL_ONLY_WORDS.any { t.contains(it) } }
+
+        /**
          * 📏 「리스트 설정」 머리줄의 중심 Y — 없으면 **null** (0 이 아니다 · 규칙 ④).
          * 입력은 `(글자, 중심Y)` 짝이다 — 순수 함수라 JVM 검사에서 그대로 돈다.
          */
@@ -412,6 +428,17 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     }
 
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
+        /**
+         * 🩹 **두 화면이 겹쳐 읽힌 판은 통째로 건너뛴다** (`detailLeaked`).
+         * 상세에서 목록으로 넘어오는 찰나에 상세 글자가 섞여 들어오면, 그 판으로 만든 카드는
+         * 출발·도착이 뒤섞여 **같은 콜이 다른 콜로 보인다**. 다음 읽기에는 깨끗하게 들어온다.
+         */
+        if (detailLeaked(allNodes.map { it.text })) {
+            com.onedal.app.core.AppLogger.d("1DAL_PICKER",
+                "🩹 [겹친 화면] 목록에 상세 글자가 섞였다 — 이 판은 건너뛴다 (다음 읽기에 다시 본다)")
+            return emptyList()
+        }
+
         val sorted = allNodes.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
         /**
          * 🚧 **화면 맨 아래 탭 줄부터는 빼고 나눈다** (기사님 지시 — 위쪽 «리스트 설정» 경계의 짝).

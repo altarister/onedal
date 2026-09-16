@@ -1186,6 +1186,15 @@ class HijackService : AccessibilityService(), ScanContext {
                      */
                     session.alarmTappedCard = order
                     session.alarmTappedAtMs = alarmTapAtMs
+                    /**
+                     * 📝 **누르기 직전에 이 콜을 기억에 넣는다** (인성 AUTO 와 같은 방어 · 09-16 실측으로 신설).
+                     *
+                     * 여기서 누르면 화면이 상세로 넘어가 **스캔 루프의 끝(`onScanned`)까지 못 간다** —
+                     * 그러면 이 콜은 기억에 안 남고, 목록으로 돌아오자마자 **처음 보는 콜**로 또 눌린다.
+                     * 실측: 30초 상세 → 0.1초 목록 → 또 상세가 끝없이 돌았다.
+                     * 🔴 «눌렀다»는 필터 버전이 바뀌어도 안 지워진다 (`CallMemory.markEvaluated`).
+                     */
+                    callMemory.markEvaluated(orderHash)
                     // 👈 요금 자리(오른쪽 아래)는 상세의 «수락하기»와 같은 자리다 — 같은 줄 왼쪽을 찍는다 (`TapShift`)
                     // ⏳ 자국을 1초 보여 주고, 그 줄의 **왼쪽 끝**을 찍는다 — «수락하기»(오른쪽 아래)에서 가장 먼 자리다
                     touchManager.performSimulatedTouch(
