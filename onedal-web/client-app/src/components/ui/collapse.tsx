@@ -25,6 +25,27 @@ import { useEffect, useRef, useState } from 'react';
  * </Collapse>
  * ```
  */
+/**
+ * 🪗 **지금 자식을 그릴까** — 열려 있거나, 닫히는 중이라 아직 접히고 있거나.
+ *
+ * 🔴 **닫힘이 끝나면 버린다.** 필터처럼 «닫히면 훅·구독이 안 돌게» 스스로 `return null` 하는
+ *    부품을 감싸고 있어서, 늘 그리면 닫아 둔 동안에도 구독이 돈다.
+ * 🔴 **접히는 동안에는 그린다.** 안 그리면 닫는 순간 내용이 사라져 접히는 모습이 안 보인다.
+ */
+export function collapseShows(open: boolean, closing: boolean): boolean {
+    return open || closing;
+}
+
+/**
+ * 🪗 **전환을 걸까** — 첫 그림에는 안 건다.
+ *
+ * 🔴 처음부터 닫혀 있는데 «방금 접힌 것»처럼 움직이면 화면이 거짓말한다.
+ * @returns 첫 그림이면 `'none'`, 아니면 `transition` 에 넣을 값
+ */
+export function collapseMove(first: boolean, ms: number): string {
+    return first ? 'none' : `${ms}ms ease-out`;
+}
+
 export default function Collapse({
     open,
     children,
@@ -38,6 +59,17 @@ export default function Collapse({
     /** 지금 그릴까 — 열려 있거나, 닫히는 중이라 아직 접히고 있거나 */
     const [alive, setAlive] = useState(open);
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /**
+     * 🔴 **처음 그릴 때는 전환하지 않는다** — 화면이 처음 서는 순간 닫혀 있으면
+     *    «방금 접힌 것»처럼 한 번 움직였다. 처음부터 닫힌 것과 방금 닫은 것은 다르다.
+     */
+    /* 🔴 **그릴 때 `ref` 를 읽지 않는다** — React 규칙이고(`lint:gate` 가 문다), 화면을 갈아끼울 때
+       값이 어긋난다. 첫 그림인지는 **상태**로 들고 있다가 그린 뒤에 끈다. */
+    const [first, setFirst] = useState(true);
+    useEffect(() => { setFirst(false); }, []);
+    /* 🪗 판단은 위 순수 함수에 있다 — 검사가 그것을 잠근다 (`collapse.test.ts`) */
+    const move = collapseMove(first, ms);
+    const shows = collapseShows(open, alive);
 
     useEffect(() => {
         if (timer.current) { clearTimeout(timer.current); timer.current = null; }
@@ -48,15 +80,18 @@ export default function Collapse({
     }, [open, ms]);
 
     return (
-        <div className="grid" style={{ gridTemplateRows: open ? '1fr' : '0fr', transition: `grid-template-rows ${ms}ms ease-out` }}>
+        <div className="grid" style={{
+            gridTemplateRows: open ? '1fr' : '0fr',
+            transition: move === 'none' ? 'none' : `grid-template-rows ${move}`,
+        }}>
             {/* 🔴 그리드 칸을 넘는 것을 잘라야 «0fr» 이 실제로 접힌다 */}
             <div className="overflow-hidden">
                 <div style={{
                     transform: open ? 'translateY(0)' : 'translateY(-8px)',
                     opacity: open ? 1 : 0,
-                    transition: `transform ${ms}ms ease-out, opacity ${ms}ms ease-out`,
+                    transition: move === 'none' ? 'none' : `transform ${move}, opacity ${move}`,
                 }}>
-                    {alive && children}
+                    {shows && children}
                 </div>
             </div>
         </div>
