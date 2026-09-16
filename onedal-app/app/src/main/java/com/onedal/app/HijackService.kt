@@ -222,7 +222,8 @@ class HijackService : AccessibilityService(), ScanContext {
             if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
                 && !TargetApp.supportsCatching(currentTargetApp)) {
                 AppLogger.i("1DAL_PICKER", "↩️ [상세 대기] ${delayMs / 1000}초 무응답 — 리스트로 자동 복귀 · 연 쪽: $opener")
-                performGlobalAction(GLOBAL_ACTION_BACK)
+                // 🔴 뒤로 가기도 `touchManager` 한 곳으로 — 거기서 자국을 남긴다 (배차망을 가리지 않는다)
+                touchManager.performBack("${delayMs / 1000}초 무응답")
             } else {
                 AppLogger.i("1DAL_PICKER", "⏹️ [상세 대기] ${delayMs / 1000}초가 됐지만 상세가 아니다 — 뒤로 가지 않는다 · 연 쪽: $opener")
             }

@@ -237,7 +237,15 @@ class AutoTouchManager(private val service: AccessibilityService) {
     /**
      * 시스템 [뒤로 가기] 버튼 기능을 수행합니다.
      */
-    fun performBack(): Boolean {
+    fun performBack(why: String? = null): Boolean {
+        /**
+         * 👁️ **뒤로 가기에도 자국을 남긴다** (기사님 지시 — 앱이 한 짓은 배차망을 가리지 않고 다 보여야 한다).
+         * 찍는 좌표가 없는 길이라 **화면 아래 가운데**에 띄운다.
+         * 🔴 뒤로 가기를 부르는 자리는 여기 하나로 모은다 — 갈라지면 어느 한쪽만 자국이 남는다.
+         */
+        val dm = service.resources.displayMetrics
+        tapMarker.show(dm.widthPixels / 2, dm.heightPixels - TapMarker.RADIUS_PX * 3, why, action = "뒤로")
+
         val dispatched = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
         if (dispatched) {
             AppLogger.d(TAG, "🔙 [백버튼 전송] 글로벌 액션 수행 완료")

@@ -42,12 +42,15 @@ class TapMarker(private val service: AccessibilityService) {
         /** 창 위쪽 y — 찍은 자리에서 반지름만큼 위. 화면 위로는 안 나간다 */
         fun windowTopOf(centerY: Int, radiusPx: Int): Int = maxOf(0, centerY - radiusPx)
 
-        /** 「클릭 · 그 카드 글자」 한 줄. 글자가 없으면 「클릭」만 */
-        fun labelOf(cardText: String?): String {
+        /**
+         * 「클릭 · 그 카드 글자」 한 줄. 글자가 없으면 무슨 짓을 했는지만 («클릭» · «뒤로»).
+         * `action` 은 **무엇을 했나**다 — 좌표를 찍으면 «클릭», 뒤로 가기면 «뒤로».
+         */
+        fun labelOf(cardText: String?, action: String = "클릭"): String {
             val flat = cardText?.trim()?.replace(Regex("\\s+"), " ").orEmpty()
-            if (flat.isEmpty()) return "클릭"
+            if (flat.isEmpty()) return action
             val body = if (flat.length > LABEL_MAX) flat.take(LABEL_MAX - 1) + "…" else flat
-            return "클릭 · $body"
+            return "$action · $body"
         }
     }
 
@@ -57,8 +60,8 @@ class TapMarker(private val service: AccessibilityService) {
     private val hideRunnable = Runnable { hide() }
 
     /** 👉 여기를 찍었다 — 그 자리에 원과 이름표를 띄운다 */
-    fun show(centerX: Int, centerY: Int, cardText: String?) {
-        val label = labelOf(cardText)
+    fun show(centerX: Int, centerY: Int, cardText: String?, action: String = "클릭") {
+        val label = labelOf(cardText, action)
         /**
          * 🏃 **줄 맨 앞에 세운다** — 화면 그리기는 메인 스레드 한 줄에서 차례로 처리된다.
          * 줄 끝에 세웠더니(`post`) 목록이 길 때 자국이 **12초 늦게** 떴다 (09-16 실측 14:58).
