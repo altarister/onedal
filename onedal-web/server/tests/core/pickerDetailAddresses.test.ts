@@ -73,6 +73,26 @@ describe('픽커 상세 글자 → 전체 주소 (#124)', () => {
             .toEqual({ pickup: null, dropoff: '경기 과천시 중앙동 픽커 고정' });
     });
 
+    /**
+     * 🚶 **도보 콜 상세는 라벨 글자가 다르다 — «픽업지 정보» · «도착지 정보»** (실물 라이브 19:25).
+     *
+     * 퀵은 «픽업지»·«배송지» 인데 도보는 뒤에 «정보» 가 붙는다. 그래서 라벨이 안 걸려
+     * 출발·도착이 **하나도 안 채워졌다.** 도보 콜은 목록에 동 이름이 아예 없어(가게 이름 → 건물 이름)
+     * 이 상세가 **주소를 얻는 유일한 자리**다.
+     *
+     * 🔴 «DerivedState(value=픽업 0m)@165403119» 은 픽커 앱이 뱉는 잡음 글자다 (`kotlin.Unit` 계열) — 뗀다.
+     */
+    it('🔴 실물 도보 상세 — «픽업지 정보»·«도착지 정보» 라벨로 출발·도착을 채운다', () => {
+        const WALK_DETAIL =
+            '도보 승용차로 36분 소요 예상 배송 31분 남음 준비 8분 포함 ' +
+            '픽업지 정보 DerivedState(value=픽업 0m)@165403119 죽의고수-성남점 경기 성남시 중원구 금빛로61번길 11 1층 일부호 ' +
+            '도착지 정보 배송 1.4km 일성아파트 경기 성남시 중원구 순환로198번길 12 일성아파트';
+        const got = pickerDetailAddresses(WALK_DETAIL);
+        expect(got.pickup).toContain('경기 성남시 중원구');
+        expect(got.dropoff).toContain('경기 성남시 중원구');
+        expect(`${got.pickup} ${got.dropoff}`).not.toContain('DerivedState');
+    });
+
     it('리스트 줄임 이름만 있으면 아무것도 안 올린다 — «광주 초월읍» 은 시·도 머리가 없다', () => {
         expect(pickerDetailAddresses('퀵 준비 완료 광주 초월읍 이천 신둔면 10,000')).toEqual({ pickup: null, dropoff: null });
         expect(pickerDetailAddresses('')).toEqual({ pickup: null, dropoff: null });
