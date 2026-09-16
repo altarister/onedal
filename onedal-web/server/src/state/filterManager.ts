@@ -20,7 +20,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, pickupAreaKey, dropoffPartsOf, lastDropOf, lineUntil, mergeDropoffGroups, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
+import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, pickupAreaKey, dropoffPartsOf, lastDropOf, lineUntil, lineFromPoint, mergeDropoffGroups, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, effectiveRadii, pickupListNeedsRebuild } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
@@ -796,7 +796,16 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
     for (const z of zones) {
         const lastDrop = z.state === 'idle' || z.near ? null
             : lastDropOf({ isHome: z.isHome, homeOn, homeCity, stops, calls: activeCalls });
-        const goalLine = lineXY && lastDrop ? lineUntil(lineXY, lastDrop) : [];
+        /**
+         * ✂️ **운행 뒤에는 라인을 현위치부터 쓴다** — 관제웹 지도(`StageView` 하차 띠)와 **같은 `lineFromPoint`**.
+         *
+         * 🔴 얼린 경로 그대로 쓰면 띠의 시작이 **콜을 잡던 자리**다. 띠 끝을 직각으로 잘라도(`lineZoneOf`)
+         *    그 자름은 거기에 그어지므로, 지금 내 뒤에 있는 동이 여전히 «앞»으로 남는다 (#159).
+         */
+        const ridden = lineXY && z.state === 'driving' && origin
+            ? lineFromPoint(lineXY.map(p => [p.x, p.y] as [number, number]), { lng: origin.x, lat: origin.y }).map(([x, y]) => ({ x, y }))
+            : lineXY;
+        const goalLine = ridden && lastDrop ? lineUntil(ridden, lastDrop) : [];
         const shape = dropoffPartsOf(z.state, goalLine.length >= 2, !!z.near);
         const kept = netKeywordsOf(session, userId, z.city, radius, {
             line: shape.line ? goalLine.map(p => [p.x, p.y] as [number, number]) : null,

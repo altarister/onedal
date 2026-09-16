@@ -1,4 +1,4 @@
-import { initGeoService, regionsTouchingNetGrouped } from '../../src/services/geoService';
+import { initGeoService, regionsTouchingNetGrouped, getDetourRegions } from '../../src/services/geoService';
 import { netForGoal, cityCenter, quadShapeFrom } from '@onedal/shared';
 
 /**
@@ -47,5 +47,32 @@ describe('🔵 먼 목적지 조각 — 걸친 동', () => {
     it('시 · 군 · 구로 묶어 낸다 — 시 별칭(`cityAliases`)이 이 이름으로 만들어진다', () => {
         const g = regionsTouchingNetGrouped({ goal: ICHEON, anchor: MODA, me: MODA, line: null, lastDrop: null, params, lineRadiusKm: 2.73 });
         expect(Object.keys(g).some(k => k.includes('이천'))).toBe(true);
+    });
+});
+
+/**
+ * 🔴 **경유 띠의 끝도 딱 잘린다 — 둥근 캡이 아니다** (기사님 지적 · 버그 대장 #159).
+ *
+ * 하차 목록은 그물·걸친 동을 구한 **뒤에** `getDetourRegions` 로 「띠에 걸친 동」을 한 번 더 더한다
+ * (`filterManager.netKeywordsOf`). 그런데 그것은 turf 버퍼라 **끝이 둥글다** — 라인 시작(출발 자리)
+ * 뒤로 띠 반경만큼 반원이 붙어, 앞에서 `lineZoneOf` 로 잘라낸 뒤쪽 동이 여기서 **다시 들어왔다.**
+ * 그래서 「도척 상차 → 경안동 하차」 같은 역방향 콜이 통과했다.
+ *
+ * 🔴 띠 계산이 두 벌이면 한쪽만 고쳐진다 — 두 길이 **같은 자름**(`aheadOf`·`isAheadOf`)을 봐야 한다.
+ */
+describe('🔵 경유 띠 — 라인 시작 뒤는 안 담는다', () => {
+    /** 광주 시내 — 모다아울렛(라인 시작)에서 **가는 방향 반대**(서쪽) 5~7km. 띠 반경 안이라 캡 모양만이 가른다 */
+    const BEHIND = ['경안동', '쌍령동', '태전동', '탄벌동', '역동'];
+
+    it('🔴 가는 방향 반대에 있는 동은 띠에 안 든다 — 띠 안이어도', () => {
+        const line = [
+            { x: MODA.lng, y: MODA.lat }, { x: SINDUN.lng, y: SINDUN.lat }, { x: TERMINAL.lng, y: TERMINAL.lat },
+        ];
+        const r = getDetourRegions(line, 16);
+        expect(r).not.toBeNull();
+        const names = new Set(Object.values(r!.grouped).flat());
+        /* 앞쪽(가는 길)은 들어야 한다 — 자름이 너무 세면 이 줄이 먼저 깨진다 */
+        expect(names.has('신둔면')).toBe(true);
+        expect(BEHIND.filter(n => names.has(n))).toEqual([]);
     });
 });

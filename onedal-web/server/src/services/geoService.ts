@@ -247,6 +247,24 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
     // 🚀 [최적화] 완성된 최종 경유 폴리곤의 Bounding Box를 우선 계산
     const detourBbox = turf.bbox(detourPolygon);
 
+    /**
+     * ✂️ **띠의 끝은 둥글지 않고 딱 잘린다** (기사님 지적 · 버그 대장 #159).
+     *
+     * 🔴 `turf.buffer` 는 선분 끝에 **반원**을 붙인다. 그대로 두면 라인 시작(출발 자리) 뒤가
+     *    띠 반경만큼 경유가 되어, 그물·걸친 동에서 이미 잘라낸 뒤쪽 동이 **여기서 다시 들어온다.**
+     *    「도척에서 잡아 경안동에 내리는」 역방향 콜이 그렇게 통과했다.
+     * 🔴 자름은 상차 목록 · 지도 · 하차 그물이 쓰는 **그 함수**다 (`aheadOf`·`isAheadOf` · 규칙 ③) —
+     *    띠 계산이 두 벌이면 한쪽만 고쳐진다.
+     * ⚠️ 판정은 **동 통째로 뒤일 때만** 버린다 (bbox 네 꼭짓점이 전부 뒤). 한 점이라도 앞이면 남긴다 —
+     *    넓은 읍·면이 자른 선에 걸치면 그 앞부분은 경유가 맞다 (규칙 ⑤ «넉넉하게»).
+     */
+    const aheadCut = lineCoords.length >= 2 ? aheadOf(lineCoords as Array<[number, number]>, detourRadiusKm) : null;
+    const wholeBehind = (fb?: number[]): boolean => {
+        if (!aheadCut || !fb) return false;
+        const corners: Array<[number, number]> = [[fb[0], fb[1]], [fb[2], fb[1]], [fb[0], fb[3]], [fb[2], fb[3]]];
+        return !corners.some(([lng, lat]) => isAheadOf({ lng, lat }, aheadCut));
+    };
+
     // 3. 교차점 검사 (Intersect)
     const matchedRegionNames = new Set<string>();
     const groupedRegions: Record<string, Set<string>> = {};
@@ -291,6 +309,9 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
                 continue;
             }
         }
+
+        /* ✂️ 라인 시작에서 경로와 직각으로 자른 선 — 통째로 뒤면 가는 길이 아니다 (위 `wholeBehind`) */
+        if (wholeBehind(feature.bbox)) continue;
 
         try {
             // detour(경로 경유)와 feature(행정구역 지도)가 1픽셀이라도 겹치면 T
