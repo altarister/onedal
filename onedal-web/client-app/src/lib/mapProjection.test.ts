@@ -3,7 +3,7 @@ import {
     projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, FOLLOW_RADIUS_KM, effectiveZoom,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
     type GeoPoint, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox, AREA_FIT_MAX_RATIO,
-    layersByViewFrom, setLayerInView } from './mapProjection';
+    layersByViewFrom, setLayerInView, DIM_FADE_ZOOM } from './mapProjection';
 
 /**
  * 🧭 **지도 투영·시점 검사** — 2026-09-01 배경 타일을 들이며 신설.
@@ -433,25 +433,37 @@ describe('🧅 보기별 레이어 — layersByViewFrom · setLayerInView', () =
  * 🌓 **밝기는 «어둡게» 레이어 하나가 정한다** — 배율·보기 모드와 묶지 않는다.
  * 넓게 볼 때 배경이 시끄러우면 색과 영역이 안 읽힌다 (규칙 ⑤-3) — 끄고 켜는 것은 손이다.
  */
-describe('🌓 지도 밝기 — «어둡게» 레이어 하나가 정한다', () => {
+describe('🌓 지도 밝기 — «어둡게» 레이어와 배율', () => {
     it('🔴 켜면 어둡다 — 회색조로 누르고 어두운 테마는 한 겹 더 덮는다', () => {
-        const t = tileToneFor('dark', true);
+        const t = tileToneFor('dark', 1, true);
         expect(t.filter).toMatch(/grayscale/);
         expect(t.alpha).toBeLessThan(1);
         expect(t.overlay).toBeGreaterThan(0);
     });
 
-    it('🔴 끄면 제 색 그대로', () => {
+    it('🔴 끄면 배율과 상관없이 제 색 그대로', () => {
         for (const theme of ['dark', 'light'] as const) {
-            const t = tileToneFor(theme, false);
-            expect(t.filter).toBeNull();
-            expect(t.alpha).toBe(1);
-            expect(t.overlay).toBe(0);
+            for (const zoom of [1, DIM_FADE_ZOOM, DIM_FADE_ZOOM * 2]) {
+                const t = tileToneFor(theme, zoom, false);
+                expect([t.filter, t.alpha, t.overlay]).toEqual([null, 1, 0]);
+            }
         }
     });
 
+    /** 🔴 켜 두어도 **크게 확대하면** 옅어진다 — 그 배율은 «자세히 보겠다»는 손짓이라 도로가 제 색이어야 한다 */
+    it('🔴 켜 두어도 확대할수록 옅어지고, 많이 확대하면 제 색이다', () => {
+        const near = tileToneFor('dark', 1, true);
+        const mid = tileToneFor('dark', (1 + DIM_FADE_ZOOM) / 2, true);
+        expect(mid.alpha).toBeGreaterThan(near.alpha);
+        expect(mid.overlay).toBeLessThan(near.overlay);
+
+        const far = tileToneFor('dark', DIM_FADE_ZOOM, true);
+        expect([far.filter, far.alpha, far.overlay]).toEqual([null, 1, 0]);
+        expect(tileToneFor('dark', DIM_FADE_ZOOM * 3, true)).toEqual(far);
+    });
+
     it('밝은 테마는 덮개를 안 쓴다 (지도가 흰 바탕이라 회색조로 충분하다)', () => {
-        expect(tileToneFor('light', true).overlay).toBe(0);
+        expect(tileToneFor('light', 1, true).overlay).toBe(0);
     });
 });
 

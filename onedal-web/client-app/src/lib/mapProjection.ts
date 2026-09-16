@@ -237,17 +237,32 @@ export function setLayerInView(byView: LayersByView, mode: MapViewMode, key: str
     return { ...byView, [mode]: { ...byView[mode], [key]: on } };
 }
 
+/** 🌓 이 배율까지 확대하면 어둡게가 다 걷힌다 — 크게 확대하는 것은 «도로를 자세히 보겠다»는 손짓이다 */
+export const DIM_FADE_ZOOM = 4;
+
 /**
- * 🌓 **지도 밝기 — «어둡게» 레이어 하나가 정한다.**
+ * 🌓 **지도 밝기 — «어둡게» 레이어와 배율이 정한다.**
  *
- * 🔴 **배율과 묶지 않는다** — 확대했다고 저절로 밝아지면 «켰는데 왜 밝지»가 된다. 끄고 켜는 것은 손이다 (레이어 버튼).
- * 켜면 회색조로 누른다 — 배경이 시끄러우면 색과 영역이 안 읽힌다 (규칙 ⑤-3).
+ * 🔴 **끄고 켜는 것은 손이다** — 레이어가 꺼져 있으면 배율과 상관없이 제 색이다.
+ * 🔴 켜 두어도 **크게 확대하면** 옅어져 `DIM_FADE_ZOOM` 에서 사라진다 — 보기 모드가 아니라 **배율**만 본다
+ *    (손으로 확대하든 「구간」·「현위치」로 확대되든 같은 배율이면 같은 밝기 · `effectiveZoom`).
+ * 넓게 볼 때 눌러 두는 까닭은 배경이 시끄러우면 색과 영역이 안 읽히기 때문이다 (규칙 ⑤-3).
  * `overlay` 는 어두운 테마에서 한 겹 더 덮는 검정의 진하기다 (0 이면 안 덮는다).
  */
-export function tileToneFor(theme: 'dark' | 'light', dimOn: boolean):
+export function tileToneFor(theme: 'dark' | 'light', zoom: number, dimOn: boolean):
     { alpha: number; filter: string | null; overlay: number } {
-    if (!dimOn) return { alpha: 1, filter: null, overlay: 0 };
-    return { ...mapTileTone(theme === 'dark' ? 0.5 : 0.62), overlay: theme === 'dark' ? 0.35 : 0 };
+    const clear = { alpha: 1, filter: null, overlay: 0 };
+    if (!dimOn) return clear;
+    /** 0 = 전체 배율(가장 어둡다) · 1 = 다 걷혔다 */
+    const t = Math.min(1, Math.max(0, (zoom - 1) / (DIM_FADE_ZOOM - 1)));
+    if (t >= 1) return clear;
+    const keep = 1 - t;
+    const base = theme === 'dark' ? 0.5 : 0.62;
+    return {
+        alpha: base + (1 - base) * t,
+        filter: `grayscale(${keep.toFixed(3)}) brightness(${(1 + 0.06 * keep).toFixed(3)}) contrast(${(1 - 0.28 * keep).toFixed(3)})`,
+        overlay: theme === 'dark' ? 0.35 * keep : 0,
+    };
 }
 
 /**

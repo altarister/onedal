@@ -426,7 +426,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                배율과 상관없이 늘 같은 톤이다 — 확대해도 제 색으로 안 돌린다 (`mapTileTone`). */
             /* 🔆 밝은 테마는 지도가 흰 바탕 위라 더 밝게 뜬다 — 조금 더 눌러 준다 */
             /* 🌓 밝기는 «어둡게» 레이어와 배율이 정한다 — 확대할수록 옅어진다 (`tileToneFor` 한 곳) */
-            const tone = tileToneFor(theme, !!layers.dim);
+            const tone = tileToneFor(theme, shownZoom, !!layers.dim);
             if (supportsCanvasFilter(ctx) && tone.filter) ctx.filter = tone.filter;
             ctx.globalAlpha = tone.alpha;
             // 🧅 «배경» 레이어 — 끄면 타일만 빠지고 경계·경로는 남는다
