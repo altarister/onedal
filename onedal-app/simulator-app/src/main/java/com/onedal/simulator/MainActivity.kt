@@ -45,7 +45,7 @@ class MainActivity : Activity() {
         // 어느 쪽이든 루트(/) 설정 한 장이 열린다 — 거기서 배차망·문제지·옵션을 고르고 시작한다
         // (2026-09-11 이전에는 /inseong · /hwamul24 로 설정이 두 벌이었다)
         private const val REHEARSAL_BASE = "https://rehearsal.altari.com"
-        private const val DEFAULT_IP = "172.30.1.58"
+        private const val DEFAULT_IP = "172.30.1.72"
         private const val SIM_PORT = 5173
         private const val DEFAULT_URL = "$REHEARSAL_BASE/"
     }
