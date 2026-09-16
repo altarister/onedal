@@ -25,7 +25,9 @@
  */
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+// 🧩 낱말 가르는 셈은 `db-dict` 와 **한 벌**로 쓴다 — 두 벌이면 «감사는 지역인데 사전은 미분류» 로 갈라진다
+import { loadDict, loadRegions, collectWords } from './wordKinds.mjs';
 
 // better-sqlite3 는 서버 워크스페이스에 있다 — 다른 `db-*.mjs` 와 같은 방식으로 부른다
 const ROOT = new URL('../..', import.meta.url).pathname;   // 📦 scripts/lib/ 에서 두 칸 위가 onedal-web
@@ -51,7 +53,7 @@ if (!target) {
 }
 
 const rows = db.prepare(
-    `SELECT timestamp, device_id, targetApp, pickup, dropoff, fare, itemSize, pickupDistanceKm, tagsText, rawText
+    `SELECT timestamp, device_id, targetApp, pickup, dropoff, fare, itemSize, pickupDistanceKm, tagsText, rawText, verdict
      FROM intel WHERE targetApp = ? ORDER BY rowid`,
 ).all(target).slice(recent > 0 ? -recent : 0);
 
@@ -92,6 +94,29 @@ for (const r of noDrop) {
 }
 for (const [k, n] of [...dropByKind].sort((a, b) => b[1] - a[1]).slice(0, 6)) console.log(`       · ${k} — ${n}건`);
 
+// ── ①-2 어느 축에서 떨어졌나 — 폰이 남긴 판정 ──
+/**
+ * 🗳️ **떨어진 까닭은 폰이 `intel.verdict` 에 남긴다** — 축 낱말 하나 (`fare` · `pickup` · `region` …).
+ * 🔴 **빈 칸은 «통과» 라는 뜻이다.** 전부 비어 있으면 그 배차망이 아직 판정을 안 싣는 것이다
+ *    (픽커는 «수집 전용» 이라 오래 비워 뒀다 — 알람 판정이 생긴 뒤로는 싣는다).
+ */
+const AXIS_KOR = { fare: '요금', pickup: '상차 거리', region: '도착지', vehicle: '차종', pickupList: '상차 목록', routeOrder: '경로 순서' };
+const byAxis = new Map();
+let noVerdict = 0;
+for (const r of rows) {
+    if (!r.verdict) { noVerdict++; continue; }
+    byAxis.set(r.verdict, (byAxis.get(r.verdict) || 0) + 1);
+}
+console.log('\n①-2 어느 축에서 떨어졌나');
+if (byAxis.size === 0) {
+    console.log(`     판정이 실린 콜 0건 (전부 ${noVerdict}건) — 이 배차망은 아직 판정을 안 싣는다`);
+} else {
+    for (const [a, n] of [...byAxis].sort((x, y) => y[1] - x[1])) {
+        console.log(`     ${(AXIS_KOR[a] || a).padEnd(10)} ${String(n).padStart(5)}건`);
+    }
+    console.log(`     ${'통과'.padEnd(10)} ${String(noVerdict).padStart(5)}건 (판정 칸이 비었다)`);
+}
+
 // ── ② 낯선 글자가 주소 칸에 ──
 const SUSPECT = [
     ['날짜 배지', /\d{1,2}\/\d{1,2}\([월화수목금토일]\)/],
@@ -123,67 +148,9 @@ if (!any) console.log('     없음 ✅');
  *    사람이 «이건 지역이겠지» 하고 어림잡게 된다 — 그러면 진짜 모르는 것이 묻힌다.
  * 🔴 미분류가 0 이 되는 것이 «100% 파싱» 이다 (기사님 지시).
  */
-const dictPath = join(ROOT, 'server/config', `keywords_${target === 'kakaopicker' ? 'picker' : target}.json`);
-let dictWords = [];
-if (existsSync(dictPath)) {
-    const d = JSON.parse(readFileSync(dictPath, 'utf8'));
-    dictWords = Object.values(d).filter(Array.isArray).flat().filter((w) => typeof w === 'string');
-}
-/** 여러 낱말짜리를 먼저 뗀다 — «최종 수익» 을 조각내면 «최종»·«수익» 이 미분류로 잘못 뜬다 */
-const phrases = dictWords.filter((w) => w.includes(' ')).sort((a, b) => b.length - a.length);
-const stripPhrases = (t) => phrases.reduce((acc, p) => acc.split(p).join(' '), t);
-const dictSet = new Set(dictWords);
-
-/**
- * 🗺️ **지도 명부로 지역을 가린다** — 이름을 어림잡지 않는다.
- * 명부는 «서현동» 처럼 온전한 꼴인데 카드는 «서현1» 로 줄여 주므로,
- * 양쪽에서 끝의 «동·읍·면·리·가·구·시·군» 과 숫자를 떼고 맞춘다.
- */
-const MAP_PATH = join(ROOT, 'server/mapData/merged_map.geojson');
-const regionNames = new Set();
-const bare = (s) => s.replace(/(동|읍|면|리|가|구|시|군)$/, '').replace(/\d+$/, '');
-if (existsSync(MAP_PATH)) {
-    const geo = JSON.parse(readFileSync(MAP_PATH, 'utf8'));
-    for (const f of geo.features || []) {
-        const pr = f.properties || {};
-        for (const key of ['EMD_KOR_NM', 'name']) {
-            const v = pr[key];
-            if (typeof v === 'string' && v.trim()) { regionNames.add(v.trim()); regionNames.add(bare(v.trim())); }
-        }
-        const sig = pr.SIG_KOR_NM;
-        if (typeof sig === 'string') for (const part of sig.split(/\s+/)) { regionNames.add(part); regionNames.add(bare(part)); }
-    }
-}
-const isRegion = (w) => regionNames.has(w) || regionNames.has(bare(w));
-/**
- * 🏪 가게·건물 이름의 모양 — «…점» · «[용인둔전]» · «맘스터치-성남점» · «…로12번길» · 여섯 글자 넘는 이름.
- *
- * 🔴 **사전의 `shopWords` 는 여기서만 쓴다 — 앱에는 넣지 않는다.**
- *    가게 이름은 도보 콜의 **진짜 픽업지**라 앱은 그것을 지역 칸에 담아야 맞다.
- *    이 칸은 감사가 «미분류» 와 «가게·건물» 을 가리는 용도일 뿐이다
- *    (그래서 `pickerDictPaired` 의 짝 검사 목록에도 넣지 않는다).
- */
-const isPlace = (w) => /점$|[[\]]|-|로\d+번길$|아파트$|빌라$|타워$|센터$/.test(w) || w.length >= 6;
-
-const kinds = { 지역: new Map(), '가게·건물': new Map(), 미분류: new Map() };
-for (const r of rows) {
-    if (!r.rawText) continue;
-    const taken = new Set(
-        `${r.pickup || ''} ${r.dropoff || ''} ${r.tagsText || ''} ${r.itemSize || ''}`.split(/\s+/).filter(Boolean),
-    );
-    for (const tok of stripPhrases(r.rawText).split(/\s+/)) {
-        const t = tok.trim().replace(/,$/, '');
-        if (!t || taken.has(t) || dictSet.has(t)) continue;
-        if (/^[\d,.]+$/.test(t)) continue;                      // 요금·숫자
-        if (/^\d+(\.\d+)?(km|m)$/.test(t)) continue;            // 거리
-        if (/^\d{1,2}:\d{2}$/.test(t)) continue;                // 시각
-        if (/^\d+분( 내)?$/.test(t)) continue;                   // 남은 시간
-        if (/^\d{1,2}\/\d{1,2}\([월화수목금토일]\)$/.test(t)) continue;   // 예약 날짜
-        if (dictWords.some((w) => w.length >= 2 && t.includes(w))) continue;   // 사전 낱말이 든 덩어리
-        const kind = isRegion(t) ? '지역' : isPlace(t) ? '가게·건물' : '미분류';
-        kinds[kind].set(t, (kinds[kind].get(t) || 0) + 1);
-    }
-}
+const { dictWords, dictSet, stripPhrases } = loadDict(ROOT, target);
+const { regionNames, isRegion } = loadRegions(ROOT);
+const { kinds } = collectWords(rows, { dictWords, dictSet, stripPhrases, isRegion });
 console.log(`\n③ 낱말 갈래 — 지도 명부 ${regionNames.size}개 이름으로 가렸다`);
 for (const [k, m] of Object.entries(kinds)) {
     const mark = k === '미분류' ? (m.size === 0 ? '✅' : '🔴') : '';
