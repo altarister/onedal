@@ -59,9 +59,13 @@ class TapShiftTest {
         assertFalse(TapShift.sameSpot(660, 1519, 660, null))
     }
 
+    /**
+     * ⏳ 지금은 **미루지 않는다** (기사님 지시) — 자국이 찍은 뒤에도 남아 있어 기다릴 까닭이 없다.
+     * 🔴 0 보다 크게 되돌리면 미루는 길이 다시 돌고, 그때는 아래 `sameSpot`·`wokeTooLate` 가 반드시 필요하다.
+     */
     @Test
-    fun `자국을 보여 주는 시간은 0 보다 크다`() {
-        assertTrue(TapShift.PREVIEW_MS > 0)
+    fun `미룸 없이 바로 찍는다`() {
+        assertEquals(0L, TapShift.PREVIEW_MS)
     }
 
     /**

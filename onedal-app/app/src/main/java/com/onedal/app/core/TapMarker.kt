@@ -32,8 +32,12 @@ import android.view.WindowManager
 class TapMarker(private val service: AccessibilityService) {
 
     companion object {
-        /** 자국이 떠 있는 시간 — 알람 테두리(10초)보다 짧다. 찍은 순간만 보이면 된다 */
-        const val HOLD_MS = 1_500L
+        /**
+         * 자국이 떠 있는 시간 — 알람 테두리(10초)보다 짧다.
+         * 🔴 **찍은 뒤에도 남아 있어야 한다** (기사님 지시) — 미루지 않고 바로 찍으므로,
+         *    자국이 짧으면 «무엇을 눌렀나»를 볼 틈이 없다. 화면은 이미 상세로 넘어가 있다.
+         */
+        const val HOLD_MS = 3_000L
         /** 원 반지름 (폰 픽셀 · 손가락 끝만 한 크기 — 화면을 가리지 않게 작게) */
         const val RADIUS_PX = 30
         /** 이름표에 넣는 카드 글자 길이 — 넘으면 자른다 */

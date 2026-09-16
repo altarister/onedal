@@ -79,15 +79,13 @@ class AutoTouchManager(private val service: AccessibilityService) {
          * 그 자리에 무엇이 있을지 모른다. 알람은 원래 «한 번에 요금 최고 하나»다 (규칙 ①·④).
          * ⏱️ 자물쇠는 시각으로 둔다 — 콜백이 유실돼도 스스로 풀린다.
          */
-        if (delayMs > 0L) {
-            val now = android.os.SystemClock.elapsedRealtime()
-            if (pendingTapAtMs > 0L && now - pendingTapAtMs < delayMs + PENDING_GRACE_MS) {
-                AppLogger.w(TAG, "🛑 [찍기 건너뜀] 이미 미뤄 둔 찍기가 있다 — 겹쳐 찍지 않는다 " +
-                    "(${now - pendingTapAtMs}ms 전에 예약됨)")
-                return false
-            }
-            pendingTapAtMs = now
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (pendingTapAtMs > 0L && now - pendingTapAtMs < delayMs + PENDING_GRACE_MS) {
+            AppLogger.w(TAG, "🛑 [찍기 건너뜀] 방금 찍은 것이 있다 — 겹쳐 찍지 않는다 " +
+                "(${now - pendingTapAtMs}ms 전)")
+            return false
         }
+        pendingTapAtMs = now
 
         /**
          * 👁️ 찍는 자리에 자국을 남긴다 — 화면은 곧 넘어가고 로그는 나중에나 본다 (`TapMarker`).
