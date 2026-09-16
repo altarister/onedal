@@ -59,8 +59,12 @@ class TapMarker(private val service: AccessibilityService) {
     private var markerView: View? = null
     private val hideRunnable = Runnable { hide() }
 
-    /** 👉 여기를 찍었다 — 그 자리에 원과 이름표를 띄운다 */
-    fun show(centerX: Int, centerY: Int, cardText: String?, action: String = "클릭") {
+    /**
+     * 👉 여기를 찍었다 — 그 자리에 원과 이름표를 띄운다.
+     * @param holdMs 얼마나 띄워 둘까. 🔴 **미뤘다 찍는 길에서는 찍을 때까지** 띄운다 —
+     *   폰이 늦게 깨어나면 자국이 먼저 사라져 «뭘 누르는지» 못 보신다 (실측 7초 지연).
+     */
+    fun show(centerX: Int, centerY: Int, cardText: String?, action: String = "클릭", holdMs: Long = HOLD_MS) {
         val label = labelOf(cardText, action)
         /**
          * 🏃 **줄 맨 앞에 세운다** — 화면 그리기는 메인 스레드 한 줄에서 차례로 처리된다.
@@ -117,9 +121,9 @@ class TapMarker(private val service: AccessibilityService) {
                 wm.addView(view, lp)
                 markerView = view
                 handler.removeCallbacks(hideRunnable)
-                handler.postDelayed(hideRunnable, HOLD_MS)
+                handler.postDelayed(hideRunnable, holdMs)
                 // 🔎 «안 떴다»와 «떴는데 못 봤다»를 로그로 가른다 — 둘의 고칠 곳이 다르다
-                AppLogger.i("1DAL_TOUCH", "👁️ [클릭 자국] ($centerX,$centerY) «$label» — ${HOLD_MS}ms 동안")
+                AppLogger.i("1DAL_TOUCH", "👁️ [클릭 자국] ($centerX,$centerY) «$label» — ${holdMs}ms 동안")
             } catch (e: Exception) {
                 AppLogger.w("1DAL_TOUCH", "👁️ [클릭 자국 실패] ${e.message}")
             }

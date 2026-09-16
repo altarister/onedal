@@ -89,8 +89,16 @@ class AutoTouchManager(private val service: AccessibilityService) {
             pendingTapAtMs = now
         }
 
-        // 👁️ 찍는 자리에 자국을 남긴다 — 화면은 곧 넘어가고 로그는 나중에나 본다 (`TapMarker`)
-        tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
+        /**
+         * 👁️ 찍는 자리에 자국을 남긴다 — 화면은 곧 넘어가고 로그는 나중에나 본다 (`TapMarker`).
+         * 🔴 **미뤘다 찍는 길에서는 찍을 때까지 띄운다** — 폰이 늦게 깨어나면 자국이 먼저 사라져
+         *    «뭘 누르는지» 못 보신다 (실측: 자국 1.5초 뒤 사라지고 터치는 7.1초 뒤에 나갔다).
+         */
+        tapMarker.show(
+            x.toInt(), y.toInt(),
+            node.text?.toString() ?: node.contentDescription?.toString(),
+            holdMs = if (delayMs > 0L) delayMs + TapShift.LATE_TOL_MS else TapMarker.HOLD_MS,
+        )
 
         /**
          * 🔴 **보내는 순간에 남긴다** — 아래 `onCompleted` 는 **2~4초 늦게** 온다
@@ -111,7 +119,21 @@ class AutoTouchManager(private val service: AccessibilityService) {
          */
         AppLogger.i(TAG, "⏳ [찍기 미룸] ${delayMs}ms 뒤 (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\" — 자국을 먼저 보여 준다")
         handler.postDelayed({
+            // 🐢 깨어난 순간을 **가장 먼저** 잰다 — 아래 한 줄이라도 지나면 재는 뜻이 없다
+            val elapsed = if (pendingTapAtMs > 0L) android.os.SystemClock.elapsedRealtime() - pendingTapAtMs else delayMs
             pendingTapAtMs = 0L        // 🔓 찍든 못 찍든 여기서 잠금을 푼다 — 다음 알람이 걸릴 수 있게
+            // 🧹 자국은 여기서 걷는다 — 보여 줄 만큼 보여 줬고, 찍는 순간 화면이 깨끗해야 한다
+            tapMarker.hide()
+            /**
+             * 🐢 **너무 늦게 깨어났으면 쏘지 않는다** (`TapShift.wokeTooLate`).
+             * 폰이 바쁘면 예약이 몇 초씩 밀린다 — 그사이 목록이 바뀌면 **다른 카드를 찍는다.**
+             * 아래 자리 다시 재기가 한 겹 막지만, 우연히 같은 자리면 못 가린다 (규칙 ④).
+             */
+            if (TapShift.wokeTooLate(delayMs, elapsed)) {
+                AppLogger.w(TAG, "🐢 [찍기 취소] ${delayMs}ms 뒤로 잡았는데 ${elapsed}ms 만에 깨어났다 — " +
+                    "그사이 목록이 바뀌었을 수 있다 · 손대지 않는다 (다음 판에 다시)")
+                return@postDelayed
+            }
             val again = Rect()
             val alive = node.refresh().also { if (it) node.getBoundsInScreen(again) }
             val newX = if (alive) tapXOf(node, again, leftShiftPx, tapRowLeft) else null

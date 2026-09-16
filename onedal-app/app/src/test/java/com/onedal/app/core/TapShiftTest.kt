@@ -63,4 +63,30 @@ class TapShiftTest {
     fun `자국을 보여 주는 시간은 0 보다 크다`() {
         assertTrue(TapShift.PREVIEW_MS > 0)
     }
+
+    /**
+     * 🐢 **너무 늦게 깨어났으면 쏘지 않는다** (기사님 지시).
+     *
+     * 폰이 바쁘면 예약한 일이 제때 안 깨어난다 — 실측에서 «300ms 뒤»로 잡은 일이
+     * 7,191ms 만에 깨어났다 (`🐢 [발사 지연]` 은 원달앱이 예전부터 적어 온 줄이다).
+     * 1초 미뤄 찍기로 잡았는데 7초 뒤에 쏘면, 그사이 목록이 바뀌어 **다른 카드를 찍는다.**
+     * 자리 다시 재기(`sameSpot`)가 한 겹 막지만, 우연히 같은 자리면 못 가린다.
+     * 🔴 늦었으면 쏘지 않고 **다음 판에 다시** 한다 — 알람 한 번을 미루는 값이 오배차보다 싸다.
+     */
+    @Test
+    fun `제때 깨어났으면 쏜다`() {
+        assertFalse(TapShift.wokeTooLate(1_000L, 1_010L))
+        assertFalse("조금 늦은 것은 봐준다", TapShift.wokeTooLate(1_000L, 2_900L))
+    }
+
+    @Test
+    fun `🔴 너무 늦게 깨어났으면 안 쏜다`() {
+        assertTrue(TapShift.wokeTooLate(1_000L, 7_191L))
+        assertTrue(TapShift.wokeTooLate(1_000L, 8_000L))
+    }
+
+    @Test
+    fun `봐주는 여유는 0 보다 크다 - 조금 늦었다고 알람을 죽이지 않는다`() {
+        assertTrue(TapShift.LATE_TOL_MS > 0)
+    }
 }
