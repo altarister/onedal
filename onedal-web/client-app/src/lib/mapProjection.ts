@@ -205,6 +205,38 @@ export function mapTileTone(dim: number): { alpha: number; filter: string | null
     return { alpha: dim, filter: 'grayscale(1.000) brightness(1.060) contrast(0.720)' };
 }
 
+/** 🧅 레이어 이름과 «어느 보기에서 기본으로 켜나» — 걷은 레이어(옛 «그물»)는 여기 없으니 저장본에서도 안 되살아난다 */
+export const LAYER_DEFAULTS_BY_VIEW: Record<MapViewMode, Record<string, boolean>> = {
+    /* 전체 — 영역까지 다 본다 */
+    all: { base: true, dim: true, border: true, pickup: true, dropoff: true, dots: true, route: true, trail: true },
+    /* 구간 — 지금 가는 길만. 영역이 깔리면 그 길이 안 보인다 */
+    leg: { base: true, dim: true, border: true, pickup: false, dropoff: false, dots: true, route: true, trail: true },
+    /* 현위치 — 골목 배율이라 점까지 걷는다 */
+    follow: { base: true, dim: true, border: true, pickup: false, dropoff: false, dots: false, route: true, trail: true },
+};
+
+export type LayersByView = Record<MapViewMode, Record<string, boolean>>;
+
+/**
+ * 🧅 **저장본 → 보기별 레이어** — 안 적힌 것은 그 보기의 기본값으로 채운다.
+ * 🔴 **옛 한 벌 저장본(`{ base: true, … }`)도 읽는다** — 세 보기에 같은 값으로 편다. 안 그러면 쓰던 사람이 켜 둔 것이 한 번에 사라진다.
+ */
+export function layersByViewFrom(saved: Record<string, unknown> | null | undefined): LayersByView {
+    const flat = saved && Object.values(saved).every(v => typeof v === 'boolean') ? saved as Record<string, boolean> : null;
+    const pick = (mode: MapViewMode): Record<string, boolean> => {
+        const base = LAYER_DEFAULTS_BY_VIEW[mode];
+        const mine = flat ?? (saved?.[mode] as Record<string, unknown> | undefined) ?? {};
+        return Object.fromEntries(Object.keys(base).map(k =>
+            [k, typeof mine[k] === 'boolean' ? mine[k] as boolean : base[k]]));
+    };
+    return { all: pick('all'), leg: pick('leg'), follow: pick('follow') };
+}
+
+/** 🧅 지금 보기의 레이어 하나만 바꾼다 — 다른 보기는 그대로 둔다 */
+export function setLayerInView(byView: LayersByView, mode: MapViewMode, key: string, on: boolean): LayersByView {
+    return { ...byView, [mode]: { ...byView[mode], [key]: on } };
+}
+
 /**
  * 🌓 **지도 밝기 — «어둡게» 레이어 하나가 정한다.**
  *

@@ -11,7 +11,7 @@ import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
     TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
-    type Viewport, type GeoBox, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox } from '../../lib/mapProjection';
+    type Viewport, type GeoBox, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox, layersByViewFrom, setLayerInView } from '../../lib/mapProjection';
 import { occludedPx as occludedOf } from '../../lib/stageLayout';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
@@ -247,18 +247,16 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      * 🔴 **고른 것은 기억한다** — 레이어를 껐는데 다음에 켜져 있으면 또 끈다.
      *    브라우저에만 남는 편의값이라 못 읽어도 그만이다 (읽기·쓰기 전부 try).
      */
-    const [layers, setLayers] = React.useState<Record<string, boolean>>(() => {
-        /* 📋 «상차» · «하차» — 원달앱이 상차지 · 하차지를 거르는 영역 (`docs/지금/필터.md` «상차 영역» · «하차 영역») */
-        /* 🌓 «어둡게» — 배경을 눌러 색·영역이 읽히게 한다. 확대하면 저절로 옅어진다 (`tileToneFor`) */
-        const defaults: Record<string, boolean> = { base: true, dim: true, border: true, pickup: true, dropoff: true, dots: true, route: true, trail: true };
-        try {
-            const v = localStorage.getItem('mapLayers');
-            if (!v) return defaults;
-            /* 🔴 아는 레이어만 되살린다 — 걷은 «그물»(`net`)이 남아 있으면 🧅 N/M 이 없는 레이어를 센다 */
-            const saved = JSON.parse(v) as Record<string, unknown>;
-            return Object.fromEntries(Object.keys(defaults).map(k => [k, typeof saved[k] === 'boolean' ? saved[k] as boolean : defaults[k]]));
-        } catch { return defaults; }
+    /**
+     * 🧅 **보기마다 따로 기억한다** — 전체에서는 영역을 보고, 구간·현위치에서는 길만 본다.
+     *    한 벌로 두면 «현구간에서만 상차를 끄고 싶다»가 안 된다. 기본값·되살리기는 `layersByViewFrom` 한 곳 (옛 한 벌 저장본도 읽는다).
+     * 📋 «상차» · «하차» — 원달앱이 상차지 · 하차지를 거르는 영역 (`docs/지금/필터.md`) · 🌓 «어둡게» — 배경을 눌러 색·영역이 읽히게 한다.
+     */
+    const [layersByView, setLayersByView] = React.useState(() => {
+        try { return layersByViewFrom(JSON.parse(localStorage.getItem('mapLayers') ?? 'null')); }
+        catch { return layersByViewFrom(null); }
     });
+    const layers = layersByView[viewMode];
     const [layersOpen, setLayersOpen] = React.useState(false);
     /**
      * 🔎 **지도가 실제로 그리는 상차 · 하차 모양 — 바뀔 때만 한 줄**.
@@ -276,8 +274,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
     React.useEffect(() => {
         console.log(`🗺️ [지도 영역] ${areaSummary}`);
     }, [areaSummary]);
-    const toggleLayer = (k: string) => setLayers(prev => {
-        const next = { ...prev, [k]: !prev[k] };
+    /* 🧅 지금 보기의 레이어 하나만 바꾼다 — 다른 보기는 그대로다 (`setLayerInView`). 저장은 보기별 한 벌을 통째로 */
+    const toggleLayer = (k: string) => setLayersByView(prev => {
+        const next = setLayerInView(prev, viewMode, k, !prev[viewMode][k]);
         try { localStorage.setItem('mapLayers', JSON.stringify(next)); } catch { /* 못 적어도 화면은 돈다 */ }
         return next;
     });

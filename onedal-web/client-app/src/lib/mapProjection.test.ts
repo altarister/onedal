@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
     projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, FOLLOW_RADIUS_KM, effectiveZoom,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
-    type GeoPoint, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox, AREA_FIT_MAX_RATIO } from './mapProjection';
+    type GeoPoint, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox, AREA_FIT_MAX_RATIO,
+    layersByViewFrom, setLayerInView } from './mapProjection';
 
 /**
  * 🧭 **지도 투영·시점 검사** — 2026-09-01 배경 타일을 들이며 신설.
@@ -386,8 +387,47 @@ describe('🔭 지도 보기 — 전체 · 이번 구간 · 현위치', () => {
 });
 
 /**
- * 🔆 **현위치로 보면 지도를 누르지 않는다** — 그 배율에서는 골목·건물을 눈으로 따라가야 한다.
- * 전체·구간은 회색조로 눌러 둔다 — 넓게 볼 때 배경이 시끄러우면 색과 영역이 안 읽힌다 (규칙 ⑤-3).
+ * 🧅 **레이어는 보기마다 따로 기억한다** — 전체에서는 영역을 보고, 구간·현위치에서는 길만 본다.
+ * 한 벌로 두면 «현구간에서만 상차를 끄고 싶다»가 안 된다.
+ */
+describe('🧅 보기별 레이어 — layersByViewFrom · setLayerInView', () => {
+    it('🔴 저장된 것이 없으면 보기마다 기본값이 다르다 — 전체는 영역 켬, 구간·현위치는 끔', () => {
+        const byView = layersByViewFrom(null);
+        expect([byView.all.pickup, byView.all.dropoff, byView.all.dots]).toEqual([true, true, true]);
+        expect([byView.leg.pickup, byView.leg.dropoff]).toEqual([false, false]);
+        expect([byView.follow.pickup, byView.follow.dropoff, byView.follow.dots]).toEqual([false, false, false]);
+        /* 배경·경계·경로·동선은 어느 보기에서도 켜 둔다 */
+        for (const m of ['all', 'leg', 'follow'] as const) {
+            expect([byView[m].base, byView[m].border, byView[m].route, byView[m].trail]).toEqual([true, true, true, true]);
+        }
+    });
+
+    it('🔴 한 보기에서 끈 것이 다른 보기로 옮지 않는다', () => {
+        const next = setLayerInView(layersByViewFrom(null), 'leg', 'dots', false);
+        expect(next.leg.dots).toBe(false);
+        expect(next.all.dots).toBe(true);
+    });
+
+    it('저장된 값을 되살린다 · 안 적힌 것과 걷은 레이어는 기본값으로', () => {
+        const saved = { all: { pickup: false }, leg: { 그물: true } } as unknown as Record<string, unknown>;
+        const byView = layersByViewFrom(saved);
+        expect(byView.all.pickup).toBe(false);
+        expect(byView.all.dropoff).toBe(true);
+        expect('그물' in byView.leg).toBe(false);
+    });
+
+    it('🔴 옛 한 벌 저장본도 읽는다 — 세 보기에 같은 값으로 편다', () => {
+        const byView = layersByViewFrom({ base: true, dim: false, pickup: false } as unknown as Record<string, unknown>);
+        for (const m of ['all', 'leg', 'follow'] as const) {
+            expect(byView[m].dim).toBe(false);
+            expect(byView[m].pickup).toBe(false);
+        }
+    });
+});
+
+/**
+ * 🌓 **밝기는 «어둡게» 레이어 하나가 정한다** — 배율·보기 모드와 묶지 않는다.
+ * 넓게 볼 때 배경이 시끄러우면 색과 영역이 안 읽힌다 (규칙 ⑤-3) — 끄고 켜는 것은 손이다.
  */
 describe('🌓 지도 밝기 — «어둡게» 레이어 하나가 정한다', () => {
     it('🔴 켜면 어둡다 — 회색조로 누르고 어두운 테마는 한 겹 더 덮는다', () => {
