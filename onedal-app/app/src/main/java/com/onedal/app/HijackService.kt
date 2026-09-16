@@ -1174,7 +1174,8 @@ class HijackService : AccessibilityService(), ScanContext {
                 val headerY = refreshedY(headerNode)
                 if (KakaoPickerParser.stillListCardAtTap(fareY, headerY)) {
                     alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽: 알람» 기록용
-                    touchManager.performSimulatedTouch(fareNode.node)
+                    // 👈 요금 자리(오른쪽 아래)는 상세의 «수락하기»와 같은 자리다 — 같은 줄 왼쪽을 찍는다 (`TapShift`)
+                    touchManager.performSimulatedTouch(fareNode.node, com.onedal.app.core.TapShift.PICKER_LIST_LEFT_PX)
                 } else {
                     AppLogger.w("1DAL_ALARM", "🛑 [알람 상세 보류] ${order.fare}원 — 찍기 직전 다시 재니 머리줄 아래가 아니다 " +
                         "(요금 Y=$fareY · 머리줄 Y=$headerY · 스캔 때 요금 Y=${fareNode.rect.centerY()} 머리줄 Y=$listHeaderY) · 손대지 않는다")

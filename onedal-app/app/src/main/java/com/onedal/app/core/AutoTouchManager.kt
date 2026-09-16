@@ -21,7 +21,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
      * @param node 클릭 대상 AccessibilityNodeInfo
      * @return 성패 여부
      */
-    fun performSimulatedTouch(node: AccessibilityNodeInfo): Boolean {
+    fun performSimulatedTouch(node: AccessibilityNodeInfo, leftShiftPx: Int = 0): Boolean {
         /**
          * 🔴 **찍기 직전에 다시 잰다** (2026-09-13 · 라이브 오배차 조사에서 신설).
          *
@@ -42,7 +42,12 @@ class AutoTouchManager(private val service: AccessibilityService) {
         val rect = Rect()
         node.getBoundsInScreen(rect)
 
-        val x = rect.centerX().toFloat()
+        /**
+         * 👈 **요금 자리를 그대로 찍지 않는다** (`TapShift` · 기사님 지시).
+         * 요금 닻과 상세의 «수락하기»가 둘 다 오른쪽 아래라, 화면이 바뀌는 찰나에 그 자리를 찍으면 곧 계약이다.
+         * 같은 줄에서 왼쪽으로 옮겨 찍으면 상세로 똑같이 들어가고, 잘못 눌려도 그 자리는 «넘기기»다.
+         */
+        val x = TapShift.leftOf(rect.centerX(), leftShiftPx).toFloat()
         val y = rect.centerY().toFloat()
 
         if (x <= 0f || y <= 0f) {
