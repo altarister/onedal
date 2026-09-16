@@ -33,6 +33,10 @@ class AutoTouchManager(private val service: AccessibilityService) {
      * @param leftShiftPx 노드 중앙에서 왼쪽으로 옮길 거리 (`tapRowLeft` 가 켜져 있으면 안 쓴다)
      * @param tapRowLeft 그 노드가 속한 **카드 줄의 왼쪽 끝**을 찍는다 (`TapShift.rowLeftOf`)
      * @param delayMs 자국을 이만큼 보여 준 뒤 찍는다 (0 이면 바로)
+     * @param mark 자국(점)을 남길까 — **정보를 모으려고 누르는 길에서는 끈다** (기사님 지시).
+     *   자국은 «앱이 기사님 대신 콜을 건드렸다»를 보이려는 것이다. 팝업을 열고 닫아 글자를
+     *   모으는 길은 **그냥 수집**이라 볼 것이 없고, 점을 띄웠다 지우는 일이 메인 줄에 얹혀
+     *   한 바퀴(여섯 번 누름)에 0.6~0.9초를 더 먹었다 (09-16 실측 · 겹쳐 뜨면 자리도 틀어졌다).
      * @return 성패 여부 (미룰 때는 «예약했다»는 뜻)
      */
     fun performSimulatedTouch(
@@ -40,6 +44,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
         leftShiftPx: Int = 0,
         tapRowLeft: Boolean = false,
         delayMs: Long = 0L,
+        mark: Boolean = true,
     ): Boolean {
         /**
          * 🔴 **찍기 직전에 다시 잰다** (2026-09-13 · 라이브 오배차 조사에서 신설).
@@ -98,12 +103,12 @@ class AutoTouchManager(private val service: AccessibilityService) {
              * 👁️ **누른 다음에 점을 찍는다** (기사님 지시) — 누르기가 먼저라 동작이 안 늦는다.
              * 점은 «다음에 깨어날 때» 지워지므로(`TapMarker`), 폰이 멈춰 있던 만큼만 남는다.
              */
-            tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
+            if (mark) tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
             return fired
         }
 
         // 👁️ 미뤘다 찍는 길에서만 점을 **먼저** 보여 준다 — 기다리는 것 자체가 그 길의 뜻이다
-        tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
+        if (mark) tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
 
         /**
          * ⏳ **자국을 먼저 보여 주고 미뤘다 찍는다** (기사님 지시 — «영역이 보이고 1초 후 클릭»).
@@ -208,13 +213,19 @@ class AutoTouchManager(private val service: AccessibilityService) {
      * @param rootNode 최상위 화면 노드
      * @param targetText 찾을 텍스트 (명확한 식별을 위해 포함 여부 또는 시작 여부 검사)
      * @param isStartsWith true면 startsWith 매칭, false면 정확한 매칭
+     * @param mark 자국(점)을 남길까 — 정보를 모으려고 누르는 길에서는 끈다 (`performSimulatedTouch` 주석)
      * @return 성패 여부
      */
-    fun findAndClickByText(rootNode: AccessibilityNodeInfo?, targetText: String, isStartsWith: Boolean = false): Boolean {
+    fun findAndClickByText(
+        rootNode: AccessibilityNodeInfo?,
+        targetText: String,
+        isStartsWith: Boolean = false,
+        mark: Boolean = true,
+    ): Boolean {
         val targetNode = findNodeByText(rootNode, targetText, isStartsWith)
         if (targetNode != null) {
             AppLogger.roadmap("'$targetText' 버튼 인식 ➡️ 클릭 시도", "")
-            val result = performSimulatedTouch(targetNode)
+            val result = performSimulatedTouch(targetNode, mark = mark)
             targetNode.recycle()
             return result
         }

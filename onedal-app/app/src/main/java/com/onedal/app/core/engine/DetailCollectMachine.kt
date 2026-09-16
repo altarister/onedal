@@ -12,6 +12,11 @@ import com.onedal.app.core.AutoTouchManager
  * 텍스트를 수집하는 상태 머신입니다.
  *
  * 흐름: IDLE → WAITING_FOR_MEMO → WAITING_FOR_PICKUP → WAITING_FOR_DROPOFF → DONE
+ *
+ * 🔴 **여기서 누르는 것에는 자국(점)을 남기지 않는다** (기사님 지시 — *"이건 그럴 필요가 없는 거야,
+ *    그냥 데이터 수집이니까"*). 자국은 «앱이 기사님 대신 **콜을 건드렸다**»를 보이려는 것이고,
+ *    팝업을 열고 닫아 글자를 모으는 일은 볼 것이 없다. 점을 띄웠다 지우는 일이 메인 줄에 얹혀
+ *    한 바퀴(여섯 번 누름)에 0.6~0.9초를 더 먹었다 (09-16 실측 · 겹쳐 뜨면 자리도 틀어졌다).
  */
 class DetailCollectMachine(
     private val touchManager: AutoTouchManager
@@ -36,12 +41,12 @@ class DetailCollectMachine(
         session.accumulatedDetailText = screenTexts.joinToString("\n") + "\n"
 
         AppLogger.d(TAG, "🏄‍♂️ [자동 상세 수집] 확정 화면 진입 확인! 적요상세 팝업 호출 시도")
-        if (touchManager.findAndClickByText(rootNode, "적요상세", isStartsWith = true)) {
+        if (touchManager.findAndClickByText(rootNode, "적요상세", isStartsWith = true, mark = false)) {
             AppLogger.roadmap("확정페이지에서 '적요상세' 추출 후 클릭", "DETAIL_CONFIRMED")
             AppLogger.i(TAG, "📋 [SEQ 81] 적요상세 버튼 클릭 → 적요 정보 요청")
             session.collectState = SessionManager.CollectState.WAITING_FOR_MEMO_POPUP
-        } else if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) ||
-                   touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
+        } else if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true, mark = false) ||
+                   touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true, mark = false)) {
             AppLogger.w(TAG, "⚠️ 적요상세 버튼을 찾을 수 없습니다. 곧바로 출발지 상세 수집으로 넘어갑니다.")
             AppLogger.i(TAG, "📋 [SEQ 82] 출발지/상차 클릭 → 출발지 정보 요청")
             session.collectState = SessionManager.CollectState.WAITING_FOR_PICKUP_POPUP
@@ -57,8 +62,8 @@ class DetailCollectMachine(
         AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 확정페이지 복귀 확인 (잔상 회피 완료)", "DETAIL_CONFIRMED")
         AppLogger.d(TAG, "🏄‍♂️ [자동 상세 수집] 적요 정보 확인 완료. 출발지 정보 확인을 위해 자동 클릭 시도")
         AppLogger.roadmap("확정페이지에서 '출발지' 추출 후 클릭", "DETAIL_CONFIRMED")
-        if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) ||
-            touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
+        if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true, mark = false) ||
+            touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true, mark = false)) {
             // 클릭 성공
         } else {
             AppLogger.w(TAG, "⚠️ [상세 수집 대기] 출발지/상차 버튼을 찾지 못했습니다.")
@@ -72,8 +77,8 @@ class DetailCollectMachine(
         AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 확정페이지 복귀 확인 (잔상 회피 완료)", "DETAIL_CONFIRMED")
         AppLogger.d(TAG, "🏄‍♂️ [자동 상세 수집] 출발지 확인 완료. 도착지 정보 확인을 위해 자동 클릭 시도")
         AppLogger.roadmap("확정페이지에서 '도착지' 추출 후 클릭", "DETAIL_CONFIRMED")
-        if (touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true) ||
-            touchManager.findAndClickByText(rootNode, "하차", isStartsWith = true)) {
+        if (touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true, mark = false) ||
+            touchManager.findAndClickByText(rootNode, "하차", isStartsWith = true, mark = false)) {
             // 클릭 성공
         } else {
             AppLogger.w(TAG, "⚠️ [상세 수집 대기] 팝업은 닫혔으나 도착지/하차 버튼을 찾지 못했습니다. (대기)")
@@ -104,7 +109,7 @@ class DetailCollectMachine(
         AppLogger.i(TAG, "📋 [SEQ 81-82] 적요상세 추출 완료 → 닫기")
         AppLogger.roadmap("[Current Page: POPUP_MEMO] 진입 완료 (\"적요 내용\" 텍스트 매칭 확인)", "POPUP_MEMO")
         AppLogger.roadmap("적요상세 데이터 추출 및 메모리에 누적 저장", "POPUP_MEMO")
-        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
+        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true, mark = false)
         session.collectState = SessionManager.CollectState.WAITING_FOR_PICKUP_POPUP
         return true
     }
@@ -130,7 +135,7 @@ class DetailCollectMachine(
         AppLogger.d(TAG, "📝 출발지 스크래핑 성공! 닫기 버튼 누름")
         AppLogger.roadmap("[Current Page: POPUP_PICKUP] 진입 완료 (\"전화1\" 텍스트 매칭 확인)", "POPUP_PICKUP")
         AppLogger.roadmap("출발지 데이터 추출 및 메모리에 누적 저장", "POPUP_PICKUP")
-        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
+        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true, mark = false)
         session.collectState = SessionManager.CollectState.WAITING_FOR_DROPOFF_POPUP
         return true
     }
@@ -158,7 +163,7 @@ class DetailCollectMachine(
         AppLogger.d(TAG, "📝 도착지 스크래핑 성공! 닫기 누름 및 전체 내용 /detail 로 발송")
         AppLogger.roadmap("[Current Page: POPUP_DROPOFF] 진입 완료 (\"전화1\" 텍스트 매칭 확인)", "POPUP_DROPOFF")
         AppLogger.roadmap("도착지 데이터 추출 및 메모리에 누적 저장", "POPUP_DROPOFF")
-        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
+        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true, mark = false)
         session.collectState = SessionManager.CollectState.DONE
         AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 상세 수집 종료 (State Machine: DONE)", "DETAIL_CONFIRMED")
         return true  // 호출자에게 /detail 전송 신호
