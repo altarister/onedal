@@ -260,6 +260,29 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val pass: Boolean get() = fare && pickup && destination
         }
 
+        /** 배송 종류 태그 — 퀵은 지역이 넷(출발 시·동 · 도착 시·동), 도보는 가게 이름이라 넷이 안 된다 */
+        private const val QUICK_TAG = "퀵"
+        private const val WALK_TAG = "도보"
+
+        /**
+         * ⏸️ **퀵 콜인데 하차지를 못 읽었나** (기사님 지시).
+         *
+         * 목록을 넘기는 중에는 픽커가 글자를 **반만** 올린다 — 실측 원문
+         * «퀵 승 예약 16:10 14.4km 분당 서초 방배본 15,540» 처럼 지역 한 토막이 빠진다.
+         * 그 상태로 울리면 하차지를 모른 채 상세로 들어가고, 30초 동안 목록을 못 본다.
+         *
+         * 🔴 **거르는 것이 아니라 미루는 것이다** — 다음 화면 읽기에서 읽히면 그때 운다.
+         *    모르는 값을 불리하게 보지 않는다는 규칙(⑤-2)은 그대로다. 여기서 막는 것은
+         *    «아직 덜 읽힌 화면»이지 «조건이 나쁜 콜»이 아니다.
+         * 🔴 **도보는 원래 하차지가 빈다** — 함께 막으면 도보 알람이 통째로 죽는다.
+         * 🔴 **무엇인지 모르면(태그가 없으면) 막지 않는다.**
+         */
+        fun quickDropoffUnread(tagsText: String?, dropoff: String): Boolean {
+            val tags = tagsText.orEmpty()
+            if (tags.isBlank() || tags.contains(WALK_TAG)) return false
+            return tags.contains(QUICK_TAG) && dropoff.isBlank()
+        }
+
         /** 🔴 계산은 여기 한 벌이다 — `decide` 는 이것의 `pass` 를 돌려준다 (채점기의 사본은 «일부러 두 벌» · 그 파일 머리 주석) */
         fun decideAxes(
             order: SimplifiedOfficeOrder,
@@ -271,9 +294,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         ): AlarmAxes {
             val fareOk = order.fare >= minFare
             val pickupOk = order.pickupDistance == null || order.pickupDistance <= pickupRadiusKm
-            val destOk = destKeywords.isEmpty() || order.dropoff.isBlank() ||
-                com.onedal.app.plugins.RegionMatch.anyHit(order.dropoff, destKeywords, keywordTraps) ||
-                dongTokenMatch(order.dropoff, destKeywords + cityAliases)
+            val destOk = when {
+                // ⏸️ 퀵인데 하차지가 안 읽혔다 — 화면이 덜 올라온 것이라 이번 판은 미룬다 (`quickDropoffUnread`)
+                quickDropoffUnread(order.tagsText, order.dropoff) -> false
+                destKeywords.isEmpty() || order.dropoff.isBlank() -> true
+                else -> com.onedal.app.plugins.RegionMatch.anyHit(order.dropoff, destKeywords, keywordTraps) ||
+                    dongTokenMatch(order.dropoff, destKeywords + cityAliases)
+            }
             return AlarmAxes(fareOk, pickupOk, destOk)
         }
 

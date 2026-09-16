@@ -135,11 +135,23 @@ class KakaoPickerParserTest {
     }
 
     @Test
-    fun `알람 판정 - 도착지를 못 읽은 카드는 막지 않는다 (규칙 5 - 모르는 값으로 거르지 않는다)`() {
+    fun `알람 판정 - 퀵인데 도착지를 못 읽었으면 이번 판은 미룬다 (기사님 지시)`() {
         // 화면 끝에 걸린 카드 — 도착 동이 안 잡혀 dropoff 가 빈다 (실수집 4건)
+        // 🔴 **거르는 것이 아니라 미루는 것이다** — 목록을 넘기는 중에는 픽커가 글자를 반만 올린다.
+        //    그 판으로 상세에 들어가면 30초 동안 목록을 못 보고, 그동안 뜬 콜은 평가되지 않는다.
+        //    다음 화면 읽기에서 읽히면 그때 운다 (`quickDropoffUnread` · `PickerAlarmDropoffTest`).
         val edge = parser.parse(listOf("퀵", "소형", "12,000", "5.0km", "태평1"))
         assertTrue(edge.dropoff.isEmpty())
-        assertTrue(KakaoPickerParser.decide(edge, 10000, 20.0, listOf("성남"), emptyMap()))
+        assertFalse(KakaoPickerParser.decide(edge, 10000, 20.0, listOf("성남"), emptyMap()))
+    }
+
+    @Test
+    fun `알람 판정 - 도보는 도착지가 비어도 막지 않는다 (규칙 5 - 모르는 값으로 거르지 않는다)`() {
+        // 🔴 도보 콜은 **원래** 하차지가 빈다 — 리스트에 가게 이름과 시간만 나와 지역 토막이 넷이 안 된다.
+        //    퀵과 함께 막으면 도보 알람이 통째로 죽는다.
+        val walk = parser.parse(listOf("도보", "준비 완료", "2,979", "18.3km", "올영 용인역북점"))
+        assertTrue(walk.dropoff.isEmpty())
+        assertTrue(KakaoPickerParser.decide(walk, 2000, 20.0, listOf("성남"), emptyMap()))
     }
 
     @Test
