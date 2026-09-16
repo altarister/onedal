@@ -21,14 +21,30 @@ class PickerWalkCardTest {
 
     private val parser = KakaoPickerParser(null)
 
+    /**
+     * 🔴 **«31분 내» 는 실물에서 한 덩어리로 온다** — 실물 원문:
+     *   «31분 내 준비 18분 487m 도보 3,200 교촌치킨-야탑역점 금호프라자 15.0km»
+     * 처음엔 «31분» 과 «내» 가 따로 오는 줄 알고 규칙을 만들어 안 들었다 (「준비 완료」와 같은 실수).
+     */
     @Test
-    fun `남은 시간은 지역이 아니라 꼬리표다`() {
+    fun `남은 시간은 지역이 아니라 꼬리표다 - 붙어서 온다`() {
+        val o = parser.parse(
+            listOf("31분 내", "준비 18분", "487m", "도보", "3,200", "교촌치킨-야탑역점", "금호프라자", "15.0km"),
+        )
+        assertEquals(3200, o.fare)
+        assertTrue("가게 이름이 출발지에 없다: ${o.pickup}", o.pickup.contains("교촌치킨-야탑역점"))
+        assertTrue("남은 시간이 주소에 샜다: ${o.pickup}→${o.dropoff}", !"${o.pickup} ${o.dropoff}".contains("31분"))
+        assertTrue("남은 시간이 꼬리표에 없다: ${o.tagsText}", o.tagsText?.contains("31분 내") == true)
+    }
+
+    /** 따로 떨어져 오는 판도 있을 수 있다 — 그때도 주소로 새면 안 된다 */
+    @Test
+    fun `남은 시간이 쪼개져 와도 지역이 아니다`() {
         val o = parser.parse(
             listOf("31분", "내", "준비 14분", "1.5km", "도보", "2,241", "GS슈퍼[용인둔전]", "임원마을영화아파트", "14.0km"),
         )
         assertEquals(2241, o.fare)
         assertTrue("가게 이름이 출발지에 없다: ${o.pickup}", o.pickup.contains("GS슈퍼[용인둔전]"))
-        assertTrue("«내» 가 주소에 샜다: ${o.pickup}→${o.dropoff}", !"${o.pickup} ${o.dropoff}".contains(" 내 "))
         assertTrue("남은 시간이 꼬리표에 없다: ${o.tagsText}", o.tagsText?.contains("31분") == true)
     }
 

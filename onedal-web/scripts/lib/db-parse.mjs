@@ -18,13 +18,14 @@
  * 🔴 **판정하지 않는다 — 보여만 준다.** 무엇이 버그인지는 사람이 고른다.
  *
  * 쓰기:
- *   pnpm db parse                 배차망 목록과 건수
- *   pnpm db parse kakaopicker     그 배차망만 감사
+ *   pnpm db parse                     배차망 목록과 건수
+ *   pnpm db parse kakaopicker         그 배차망만 감사
+ *   pnpm db parse kakaopicker 100     최근 100건만 — 고친 뒤 확인할 때 옛 자료에 묻히지 않게
  *   DB_FILE=data.db pnpm db parse kakaopicker    라이브 DB 로
  */
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 // better-sqlite3 는 서버 워크스페이스에 있다 — 다른 `db-*.mjs` 와 같은 방식으로 부른다
 const ROOT = new URL('../..', import.meta.url).pathname;   // 📦 scripts/lib/ 에서 두 칸 위가 onedal-web
@@ -39,6 +40,7 @@ if (!existsSync(DB_PATH)) {
 
 const db = new Database(DB_PATH, { readonly: true });
 const target = process.argv[2];
+const recent = Number(process.argv[3]) || 0;   // ⓑ 최근 N건만 — 고친 뒤 확인할 때 옛 자료에 묻히지 않게
 
 // ── 배차망 목록 ──
 const apps = db.prepare(`SELECT targetApp, COUNT(*) n FROM intel GROUP BY targetApp ORDER BY n DESC`).all();
@@ -51,7 +53,7 @@ if (!target) {
 const rows = db.prepare(
     `SELECT timestamp, device_id, targetApp, pickup, dropoff, fare, itemSize, pickupDistanceKm, tagsText, rawText
      FROM intel WHERE targetApp = ? ORDER BY rowid`,
-).all(target);
+).all(target).slice(recent > 0 ? -recent : 0);
 
 if (rows.length === 0) {
     console.error(`🔴 «${target}» 으로 저장된 콜이 없다. 위 목록에서 고른다.`);
@@ -59,7 +61,7 @@ if (rows.length === 0) {
 }
 
 const pct = (n) => `${((n / rows.length) * 100).toFixed(0)}%`;
-console.log(`🔍 «${target}» 파싱 감사 — 장부 ${rows.length}건\n`);
+console.log(`🔍 «${target}» 파싱 감사 — 장부 ${rows.length}건${recent > 0 ? ` (최근 ${recent}건만)` : ''}\n`);
 
 // ── ④ 출처 확인 — 먼저 본다. 실물 자료가 아니면 아래 숫자가 다 헛것이다 ──
 const by = (k) => {
@@ -114,13 +116,28 @@ if (!any) console.log('     없음 ✅');
 
 // ── ③ 원문에 자주 나오는데 어느 칸에도 안 담긴 글자 ──
 console.log('\n③ 어느 칸에도 안 담긴 글자 — 새 배지가 생기면 여기 뜬다');
+/**
+ * 🔴 **사전의 «여러 낱말» 을 먼저 뗀다** — «최종 수익» 을 조각내 세면 «최종»·«수익» 이
+ *    «앱이 모르는 글자» 로 잘못 뜬다 (첫 판이 그랬다). 사전에 있는 그대로 빼고 남은 것만 센다.
+ */
+const dictPath = join(ROOT, 'server/config', `keywords_${target === 'kakaopicker' ? 'picker' : target}.json`);
+let phrases = [];
+if (existsSync(dictPath)) {
+    const d = JSON.parse(readFileSync(dictPath, 'utf8'));
+    phrases = Object.values(d)
+        .filter(Array.isArray)
+        .flat()
+        .filter((w) => typeof w === 'string' && w.includes(' '))
+        .sort((a, b) => b.length - a.length);   // 긴 것부터 떼야 짧은 것이 먼저 먹지 않는다
+}
+const stripPhrases = (t) => phrases.reduce((acc, p) => acc.split(p).join(' '), t);
 const freq = new Map();
 for (const r of rows) {
     if (!r.rawText) continue;
     const taken = new Set(
         `${r.pickup || ''} ${r.dropoff || ''} ${r.tagsText || ''} ${r.itemSize || ''}`.split(/\s+/).filter(Boolean),
     );
-    for (const tok of r.rawText.split(/\s+/)) {
+    for (const tok of stripPhrases(r.rawText).split(/\s+/)) {
         const t = tok.trim();
         if (!t || taken.has(t)) continue;
         if (/^[\d,.]+$/.test(t)) continue;                 // 요금·숫자

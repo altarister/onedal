@@ -259,6 +259,8 @@ object KakaoPickerKeywords {
         screenContextOf(stageOf(rawText))
             ?: if (isMyOrderTab(rawText)) ScreenContext.MY_ORDERS
             else if (isScrolledList(rawText)) ScreenContext.LIST
+            // 📋 머리줄도 아래 탭도 안 보이는 가운데 토막 — 카드 모양으로 알아본다 (기사님 라이브)
+            else if (looksLikeCardList(rawText)) ScreenContext.LIST
             else null
 
     /**
@@ -271,6 +273,28 @@ object KakaoPickerKeywords {
         val t = rawText ?: return false
         return !t.contains("리스트 설정") && t.contains("신규 내 오더") && t.contains("서포트모드") &&
             !t.contains(MY_ORDER_TAB_WORD) && !t.contains("수락하기")
+    }
+
+    /** 📋 «14.6km … 7,315» — 거리 뒤에 요금이 오는 카드 한 장의 모양 */
+    private val CARD_SHAPE = Regex("""\d+(?:\.\d+)?km\s.{0,40}?\d{1,3}(?:,\d{3})+""")
+
+    /** 📋 리스트로 보려면 카드가 이만큼은 보여야 한다 — 상세(한 장)와 가르는 선 */
+    private const val CARD_LIST_MIN = 3
+
+    /**
+     * 📋 **위도 아래도 안 보이는 «가운데 토막» 도 리스트다** (기사님 라이브: *"지금도 리스트 페이지야"*).
+     *
+     * 머리줄(«리스트 설정»)이 가려지면 아래 탭 두 글자로 알아보는데(`isScrolledList`),
+     * 목록 한가운데를 보고 있으면 **위도 아래도 안 보인다** — 카드만 가득하다. 그때 관제웹에
+     * «픽커 알 수 없는 화면»이 떴다.
+     *
+     * 🔴 **낱말이 아니라 카드 «모양»으로 알아본다** — 「거리 + 요금」이 세 벌 넘게 되풀이되면 리스트다.
+     *    픽커가 탭 이름을 바꿔도 안 뚫리고, 상세는 카드가 한 장뿐이라 안 걸린다.
+     */
+    fun looksLikeCardList(rawText: String?): Boolean {
+        val t = rawText ?: return false
+        if (t.contains("수락하기") || t.contains(MY_ORDER_TAB_WORD)) return false   // 상세 · 내 오더는 아니다
+        return CARD_SHAPE.findAll(t).count() >= CARD_LIST_MIN
     }
 
     /** ✅ **수락했다는 증거** — 운행 화면(퀵 흰 페이지 · 도보 «밀어서 …» 등)이거나, 오더가 든 «내 오더» 탭 (수락하면 곧바로 여기로 온다) */

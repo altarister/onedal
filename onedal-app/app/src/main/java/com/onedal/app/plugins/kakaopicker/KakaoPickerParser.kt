@@ -52,9 +52,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 서버 장부 537건 중 **144건**이 주소 칸에 «N분 내» 를 달고 저장됐다 (`pnpm db parse` 가 찾았다).
          * 🔴 **버리지 않고 꼬리표로 챙긴다** — 언제까지 가야 하는지가 콜을 고르는 정보다.
          */
-        private val MINUTES_REGEX = Regex("""^\d{1,3}분$""")
+        private val MINUTES_REGEX = Regex("""^\d{1,3}분( 내)?$""")
 
-        /** ⏳ «31분» 뒤에 따로 오는 «내» — 남은 시간 표시의 꼬리다 (지역 이름이 아니다) */
+        /**
+         * ⏳ «31분» 뒤에 **따로** 오는 «내» — 남은 시간 표시의 꼬리다 (지역 이름이 아니다).
+         * 🔴 실물은 «31분 내» 가 **한 덩어리**로 온다 (`MINUTES_REGEX` 가 그쪽을 잡는다).
+         *    쪼개져 오는 판도 있을 수 있어 둘 다 막는다 — 「준비 완료」와 같은 계열이다.
+         */
         private const val WITHIN_WORD = "내"
         /** 태그줄에 오는 낱말들 — 지역 이름과 구분하는 근거 (덤프 전수에서 수집) */
         private val TAG_WORDS = setOf(
@@ -65,6 +69,10 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "내일", "오늘",  // 예약 콜의 날짜 표식 (시각 노드와 별개)
             "서포트모드",    // 서포트 모드 관련 배지
             "착불",          // 결제 배지 — 실수집에서 도착동으로 오인됐다 («착불 분당»)
+            // 09-16 라이브에서 더 찾은 것 — 🔴 서버 사전(`tagWords`)과 **짝**이다. 한쪽만 넣으면
+            //    서버가 죽었을 때(또는 검사에서) 그 낱말이 통째로 지역 이름으로 샌다.
+            "경유",          // 들를 곳이 여럿인 콜 (6만 원짜리도 있었다)
+            "비즈",          // 상세 머리의 상품 표시
         )
         private val ITEM_SIZES = setOf("초소형", "소형", "중형", "대형", "특대형")
         /** 화면 붙박이 UI 낱말 — 카드 띠에 섞여 들어와 지역으로 오인되던 것들 (0830 실수집에서 발견) */
@@ -72,6 +80,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "카드설정", "수요지도",                       // 하단 메뉴 (맨 아래 카드 띠에 걸침)
             "리스트 설정", "추천순", "높은 가격순", "낮은 가격순", "가까운순",  // 상단 헤더
             "수락",                                       // 오더카드(화면 위 제안 카드)의 초록 버튼 (0830 실물)
+            // 🔴 서버 사전(`uiNoiseWords`)과 **짝** — 픽커 앱이 뱉는 잡음 글자다 (그쪽 버그)
+            "kotlin.Unit", "DerivedState",
         )
         /** 카드 띠의 반높이 — 요금 중심에서 태그줄·지역줄까지 실측 ±35, 여유 포함 (알람 테두리도 같은 값 · #83) */
         const val CARD_BAND_PX = 60
@@ -125,10 +135,46 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             tabTopY != null && nodeCenterY >= tabTopY
 
         /**
+         * 📢 **광고 구간의 표시** — 목록 맨 아래, 마지막 카드와 탭 줄 사이에 구인 광고가 붙는다.
+         * 그 안에 «정기배송·운전» · «경기 포천시» · «모집 중» 처럼 **콜처럼 생긴 글자**가 섞여 있어
+         * 그냥 두면 지역·배지로 샌다.
+         *
+         * 🔴 **제목 문구로 막지 않는다** (기사님 지시 — 문구는 바뀐다). «이런 일거리 어떤가요?» 는
+         *    오늘 본 제목일 뿐이고, 늘 붙는 것은 **광고 표시 «Ad»** 다.
+         *    실측: 목록 269줄 중 «Ad» 가 든 줄 3개 · 그 뒤에 요금이 또 나온 줄 **0개**.
+         * 🔴 낱말 하나라 **정확히 같을 때만** 본다 — 주소·상호에 든 «Ad» 를 광고로 삼지 않으려고.
+         *    제목 문구는 서버 사전 `adStartWords` 로 **덧붙일 수** 있다 (모양이 또 바뀌면 그쪽에 더한다).
+         */
+        private val AD_START_WORDS = setOf("Ad")
+
+        /**
+         * 📢 광고가 시작하는 **맨 위** 중심 Y — 광고가 없으면 **null** (0 이 아니다 · 규칙 ④).
+         * 위쪽 경계(`listHeaderCenterY`) · 아래쪽 경계(`bottomTabTopY`)와 같은 꼴이다.
+         */
+        fun adTopY(nodes: List<Pair<String, Int>>, words: Set<String> = AD_START_WORDS): Int? =
+            nodes.filter { n -> n.first.trim().let { t -> words.any { w -> t == w || t.startsWith(w) } } }
+                .minOfOrNull { it.second }
+
+        /** 📢 그 글자가 광고 자리이거나 그 아래인가 — **광고를 못 찾았으면 아무것도 안 버린다** */
+        fun isBelowAd(nodeCenterY: Int, adTopY: Int?): Boolean =
+            adTopY != null && nodeCenterY >= adTopY
+
+        /**
+         * 🔀 **경유 콜 — 들를 곳이 쉼표로 이어진 한 덩어리로 온다** (실물: «수지, 영통, 상록, …»).
+         * 첫 곳만 주소로 쓰고 나머지는 잃지 않게 개수를 꼬리표에 남긴다 (기사님: 버리지 말 것).
+         * 서버 경로는 상차 한 곳 · 하차 한 곳으로 세므로 주소 칸에는 첫 곳이 들어간다.
+         */
+        fun viaFirst(text: String): String = text.substringBefore(',').trim()
+
+        /** 🔀 들를 곳이 몇 곳인가 — 쉼표로 센다 (한 곳이면 1) */
+        fun viaCount(text: String): Int = text.split(',').count { it.isNotBlank() }
+
+        /**
          * 🩹 **상세 화면에만 있는 낱말** — 목록 글자에 이것이 섞였으면 두 화면이 겹쳐 읽힌 것이다.
          * 🔴 «배송»은 쓰지 않는다 — 아래 탭에 «도보배송»·«한차배송»이 늘 있어서 목록에도 나온다.
          */
-        private val DETAIL_ONLY_WORDS = setOf("픽업지", "물품 정보", "최종 수익", "배송비", "수락하기", "넘기기")
+        // 🔴 서버 사전(`detailOnlyWords`)과 **짝** — 한쪽만 넣으면 서버가 죽었을 때 겹친 화면을 못 가른다
+        private val DETAIL_ONLY_WORDS = setOf("픽업지", "물품 정보", "최종 수익", "배송비", "수락하기", "넘기기", "유의사항")
 
         /**
          * 🩹 **상세에서 목록으로 넘어오는 찰나, 두 화면 글자가 섞여 들어온다** (09-16 실측: 목록 208번 중 23번).
@@ -465,6 +511,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     /** 🩹 상세 화면에만 있는 글자 — 목록에 섞였으면 두 화면이 겹쳐 읽힌 것이다 */
     private fun detailOnlyWords(): Set<String> = wordsFrom("detailOnlyWords", DETAIL_ONLY_WORDS)
 
+    /** 📢 광고가 시작하는 글자 — 이 줄부터 아래는 콜이 아니다 */
+    private fun adStartWords(): Set<String> = wordsFrom("adStartWords", AD_START_WORDS)
+
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         /**
          * 🩹 **두 화면이 겹쳐 읽힌 판은 통째로 건너뛴다** (`detailLeaked`).
@@ -483,7 +532,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 목록 끝에서 마지막 카드가 탭 줄에 붙으면 «신규»·«내 오더» 가 그 카드의 지역 이름이 됐다.
          */
         val tabTopY = bottomTabTopY(sorted.map { it.text to (it.rect.top + it.rect.bottom) / 2 }, bottomTabWords())
-        val body = sorted.filterNot { isBelowBottomTab((it.rect.top + it.rect.bottom) / 2, tabTopY) }
+        /**
+         * 📢 **광고 줄부터 아래도 뺀다** (기사님 지시 — «이 일거리 어떤가요부터는 광고, 거기는 볼 거 없어»).
+         * 마지막 카드와 탭 줄 **사이**라 탭 경계만으로는 안 걸린다.
+         */
+        val adY = adTopY(sorted.map { it.text to (it.rect.top + it.rect.bottom) / 2 }, adStartWords())
+        val body = sorted.filterNot {
+            val y = (it.rect.top + it.rect.bottom) / 2
+            isBelowBottomTab(y, tabTopY) || isBelowAd(y, adY)
+        }
         val anchors = body.filter { isFareAnchor(it.text, (it.rect.left + it.rect.right) / 2) }
         if (anchors.isEmpty()) return emptyList()
         val anchorCenters = anchors.map { (it.rect.top + it.rect.bottom) / 2 }
@@ -527,6 +584,17 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 // «내일 착불» 처럼 태그 여럿이 한 노드로 붙어 오는 판 — 낱낱이 전부 태그면 태그다
                 t.contains(' ') && t.split(' ').all { it in tagSet } -> tags.addAll(t.split(' '))
                 t.endsWith("km") -> { /* «20km» 같은 헤더 반경 — 콜 정보가 아니다 */ }
+                /**
+                 * 🔀 **경유 콜의 들를 곳 목록** — «수지, 영통, 상록, …» 이 한 덩어리로 온다.
+                 * 첫 곳만 지역으로 쓰고 **몇 곳인지는 꼬리표에 남긴다** (버리지 않는다).
+                 */
+                t.contains(',') -> {
+                    locations.add(viaFirst(t))
+                    val n = viaCount(t)
+                    if (n > 1) tags.add("경유 ${n}곳")
+                }
+                // 🔀 경유 콜은 «기흥 신갈» 처럼 시·동이 한 덩어리로 온다 — 넷을 채우려면 쪼갠다
+                tags.contains("경유") && t.contains(' ') -> locations.addAll(t.split(' '))
                 t.isNotEmpty() -> locations.add(t)
             }
         }
