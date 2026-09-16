@@ -16,6 +16,9 @@ class AutoTouchManager(private val service: AccessibilityService) {
         private const val TAG = "1DAL_TOUCH"
     }
 
+    /** 👁️ 찍은 자리를 눈으로 보이게 하는 자국 — 기사님이 «어디에 무엇이 눌렸나»를 그 자리에서 본다 */
+    private val tapMarker by lazy { TapMarker(service) }
+
     /**
      * 특정 UI 노드의 Bounds(좌표 영역)를 계산하여 화면 정중앙을 터치합니다.
      * @param node 클릭 대상 AccessibilityNodeInfo
@@ -61,6 +64,9 @@ class AutoTouchManager(private val service: AccessibilityService) {
          *    서비스 메인 핸들러에 줄을 서기 때문이다. 완료 로그만 보면 **시각이 거짓말한다.**
          */
         AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\"")
+
+        // 👁️ 찍는 자리에 자국을 남긴다 — 화면은 곧 넘어가고 로그는 나중에나 본다 (`TapMarker`)
+        tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
 
         val clickPath = Path().apply { moveTo(x, y) }
         val clickStroke = GestureDescription.StrokeDescription(clickPath, 0, 50)
