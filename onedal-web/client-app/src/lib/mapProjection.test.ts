@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, FOLLOW_RADIUS_KM, effectiveZoom,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
-    type GeoPoint, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox, AREA_FIT_MAX_RATIO, layersForView, DIM_FADE_ZOOM } from './mapProjection';
+    type GeoPoint, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox, AREA_FIT_MAX_RATIO } from './mapProjection';
 
 /**
  * 🧭 **지도 투영·시점 검사** — 2026-09-01 배경 타일을 들이며 신설.
@@ -389,31 +389,17 @@ describe('🔭 지도 보기 — 전체 · 이번 구간 · 현위치', () => {
  * 🔆 **현위치로 보면 지도를 누르지 않는다** — 그 배율에서는 골목·건물을 눈으로 따라가야 한다.
  * 전체·구간은 회색조로 눌러 둔다 — 넓게 볼 때 배경이 시끄러우면 색과 영역이 안 읽힌다 (규칙 ⑤-3).
  */
-describe('🌓 지도 밝기 — «어둡게» 레이어와 배율이 정한다', () => {
-    it('전체 배율(1배)에서는 회색조로 누른다', () => {
-        const t = tileToneFor('dark', 1, true);
+describe('🌓 지도 밝기 — «어둡게» 레이어 하나가 정한다', () => {
+    it('🔴 켜면 어둡다 — 회색조로 누르고 어두운 테마는 한 겹 더 덮는다', () => {
+        const t = tileToneFor('dark', true);
         expect(t.filter).toMatch(/grayscale/);
         expect(t.alpha).toBeLessThan(1);
         expect(t.overlay).toBeGreaterThan(0);
     });
 
-    it('🔴 확대할수록 옅어진다 — 많이 확대하면 제 색 그대로', () => {
-        const mid = tileToneFor('dark', (1 + DIM_FADE_ZOOM) / 2, true);
-        const near = tileToneFor('dark', 1, true);
-        expect(mid.alpha).toBeGreaterThan(near.alpha);
-        expect(mid.overlay).toBeLessThan(near.overlay);
-
-        const far = tileToneFor('dark', DIM_FADE_ZOOM, true);
-        expect(far.filter).toBeNull();
-        expect(far.alpha).toBe(1);
-        expect(far.overlay).toBe(0);
-        /* 더 확대해도 더 밝아질 것이 없다 */
-        expect(tileToneFor('dark', DIM_FADE_ZOOM * 3, true)).toEqual(far);
-    });
-
-    it('🔴 «어둡게»를 끄면 배율과 상관없이 제 색 그대로', () => {
+    it('🔴 끄면 제 색 그대로', () => {
         for (const theme of ['dark', 'light'] as const) {
-            const t = tileToneFor(theme, 1, false);
+            const t = tileToneFor(theme, false);
             expect(t.filter).toBeNull();
             expect(t.alpha).toBe(1);
             expect(t.overlay).toBe(0);
@@ -421,7 +407,7 @@ describe('🌓 지도 밝기 — «어둡게» 레이어와 배율이 정한다'
     });
 
     it('밝은 테마는 덮개를 안 쓴다 (지도가 흰 바탕이라 회색조로 충분하다)', () => {
-        expect(tileToneFor('light', 1, true).overlay).toBe(0);
+        expect(tileToneFor('light', true).overlay).toBe(0);
     });
 });
 
@@ -429,33 +415,6 @@ describe('🌓 지도 밝기 — «어둡게» 레이어와 배율이 정한다'
  * 🧅 **현위치로 보면 영역을 덮는다** — 골목 배율에서 상차·하차 영역이 화면을 덮으면 길이 안 보인다.
  * 🔴 기사님이 끈 레이어를 켜지는 않는다 — 덮기만 한다.
  */
-describe('🧅 보기 모드가 덮는 레이어 — layersForView', () => {
-    const on = { base: true, border: true, route: true, trail: true, pickup: true, dropoff: true, dots: true };
-
-    it('전체는 고른 그대로 둔다', () => {
-        expect(layersForView('all', on)).toEqual(on);
-    });
-
-    it('🔴 현위치는 상차·하차·동 점을 덮는다 — 나머지는 그대로', () => {
-        const v = layersForView('follow', on);
-        expect([v.pickup, v.dropoff, v.dots]).toEqual([false, false, false]);
-        expect([v.base, v.border, v.route, v.trail]).toEqual([true, true, true, true]);
-    });
-
-    /** 🔴 구간은 «지금 가는 길»만 본다 — 영역이 깔리면 그 길이 안 보인다. 동 점은 남긴다(어느 동이 목록에 있나는 달리면서도 본다) */
-    it('🔴 구간은 상차·하차를 덮는다 — 동 점과 나머지는 그대로', () => {
-        const v = layersForView('leg', on);
-        expect([v.pickup, v.dropoff]).toEqual([false, false]);
-        expect([v.dots, v.base, v.border, v.route, v.trail]).toEqual([true, true, true, true, true]);
-    });
-
-    it('🔴 꺼 둔 것을 켜지 않는다', () => {
-        const off = { ...on, route: false, pickup: false };
-        expect(layersForView('follow', off).route).toBe(false);
-        expect(layersForView('all', off).pickup).toBe(false);
-    });
-});
-
 /**
  * 🔭 **영역은 경로 네모의 2배까지만** — 통째로 담으면 먼 원 하나가 화면을 다 먹어 경로가 실처럼 보인다.
  * 🔴 아주 빼지는 않는다 — 가까운 영역은 보여야 한다 (전에 «영역이 너무 짤린다»고 하셨다).

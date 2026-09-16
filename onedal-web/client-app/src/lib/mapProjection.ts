@@ -205,31 +205,17 @@ export function mapTileTone(dim: number): { alpha: number; filter: string | null
     return { alpha: dim, filter: 'grayscale(1.000) brightness(1.060) contrast(0.720)' };
 }
 
-/** 🌓 이 배율까지 가면 어둡게가 다 걷힌다 — 확대는 «자세히 보겠다»는 손짓이라 그 끝에서는 제 색이어야 한다 */
-export const DIM_FADE_ZOOM = 4;
-
 /**
- * 🌓 **지도 밝기 — «어둡게» 레이어와 배율이 정한다.**
+ * 🌓 **지도 밝기 — «어둡게» 레이어 하나가 정한다.**
  *
- * 🔴 **한 규칙이다** — 손으로 확대하든 「구간」·「현위치」로 확대되든 같은 배율이면 같은 밝기다 (`effectiveZoom`).
- * 🔴 넓게 볼 때는 눌러 둔다 — 배경이 시끄러우면 색과 영역이 안 읽힌다 (규칙 ⑤-3). 확대할수록 옅어져 `DIM_FADE_ZOOM` 에서 사라진다.
- * 🧅 «어둡게»를 끄면 배율과 상관없이 제 색이다.
+ * 🔴 **배율과 묶지 않는다** — 확대했다고 저절로 밝아지면 «켰는데 왜 밝지»가 된다. 끄고 켜는 것은 손이다 (레이어 버튼).
+ * 켜면 회색조로 누른다 — 배경이 시끄러우면 색과 영역이 안 읽힌다 (규칙 ⑤-3).
  * `overlay` 는 어두운 테마에서 한 겹 더 덮는 검정의 진하기다 (0 이면 안 덮는다).
  */
-export function tileToneFor(theme: 'dark' | 'light', zoom: number, dimOn: boolean):
+export function tileToneFor(theme: 'dark' | 'light', dimOn: boolean):
     { alpha: number; filter: string | null; overlay: number } {
-    const clear = { alpha: 1, filter: null, overlay: 0 };
-    if (!dimOn) return clear;
-    /** 0 = 전체 배율(가장 어둡다) · 1 = 다 걷혔다 */
-    const t = Math.min(1, Math.max(0, (zoom - 1) / (DIM_FADE_ZOOM - 1)));
-    if (t >= 1) return clear;
-    const keep = 1 - t;                                  // 얼마나 남겨 두나
-    const base = theme === 'dark' ? 0.5 : 0.62;
-    return {
-        alpha: base + (1 - base) * t,
-        filter: `grayscale(${keep.toFixed(3)}) brightness(${(1 + 0.06 * keep).toFixed(3)}) contrast(${(1 - 0.28 * keep).toFixed(3)})`,
-        overlay: theme === 'dark' ? 0.35 * keep : 0,
-    };
+    if (!dimOn) return { alpha: 1, filter: null, overlay: 0 };
+    return { ...mapTileTone(theme === 'dark' ? 0.5 : 0.62), overlay: theme === 'dark' ? 0.35 : 0 };
 }
 
 /**
@@ -237,28 +223,6 @@ export function tileToneFor(theme: 'dark' | 'light', zoom: number, dimOn: boolea
  * 넓히면 먼 원 하나가 화면을 다 먹어 경로가 실처럼 보인다. 영역은 경로 네모 안에 드는 만큼만 보인다.
  */
 export const AREA_FIT_MAX_RATIO = 1;
-
-/**
- * 🧅 **보기 모드마다 덮는 레이어** — 좁혀 볼수록 영역을 걷는다. 그 배율에서 영역이 깔리면 길이 안 보인다.
- * 🔴 구간은 동 점을 남긴다 — «어느 동이 목록에 있나»는 달리면서도 본다.
- */
-export const HIDDEN_LAYERS_BY_VIEW: Record<MapViewMode, readonly string[]> = {
-    all: [],
-    leg: ['pickup', 'dropoff'],
-    follow: ['pickup', 'dropoff', 'dots'],
-};
-
-/**
- * 🧅 **보기 모드가 덮는 레이어** — 위 표 한 곳이 답한다.
- * 🔴 **끈 것을 켜지 않는다** — 덮기만 한다. 고른 값(`layers`)은 그대로 두고, 그릴 때와 버튼 표시가 이 답을 함께 본다 (규칙 ③).
- */
-export function layersForView(mode: MapViewMode, layers: Record<string, boolean>): Record<string, boolean> {
-    const hidden = HIDDEN_LAYERS_BY_VIEW[mode] ?? [];
-    if (hidden.length === 0) return layers;
-    const shown = { ...layers };
-    for (const k of hidden) shown[k] = false;
-    return shown;
-}
 
 /**
  * 🔭 **영역은 경로 네모의 몇 배 안까지만 담는다** — 통째로 담으면 먼 원 하나가 화면을 다 먹어 경로가 실처럼 보인다.

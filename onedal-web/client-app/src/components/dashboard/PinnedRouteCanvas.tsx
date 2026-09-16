@@ -11,7 +11,7 @@ import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
     TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
-    type Viewport, type GeoBox, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox, layersForView } from '../../lib/mapProjection';
+    type Viewport, type GeoBox, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox } from '../../lib/mapProjection';
 import { occludedPx as occludedOf } from '../../lib/stageLayout';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
@@ -265,8 +265,6 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      *    관제웹 콘솔은 서버 로그로 넘어간다(`roadmapLogger` · `[🖥️콘솔]`) — 서버 `🔵 [하차 목록]` · `📋 [상차 목록]` 줄과 나란히 대조한다.
      *    🔴 좌표는 안 싣는다 — 내 위치가 매초 바뀌어 줄이 매초 찍힌다. 모양 · 반지름 · 조각 수 · 레이어 켬만.
      */
-    /* 🧅 **화면에 실제로 그리는 레이어** — 현위치로 보면 상차·하차·동 점을 덮는다 (`layersForView` 한 곳 · 고른 값은 그대로 둔다) */
-    const shownLayers = layersForView(viewMode, layers);
     const areaSummary = [
         `상차 ${pickupArea ? `${pickupArea.line ? '원∩라인(현위치부터)' : '원'} ${pickupArea.meKm.toFixed(1)}km` : '없음'}`,
         `하차 ${dropoffArea
@@ -429,7 +427,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                배율과 상관없이 늘 같은 톤이다 — 확대해도 제 색으로 안 돌린다 (`mapTileTone`). */
             /* 🔆 밝은 테마는 지도가 흰 바탕 위라 더 밝게 뜬다 — 조금 더 눌러 준다 */
             /* 🌓 밝기는 «어둡게» 레이어와 배율이 정한다 — 확대할수록 옅어진다 (`tileToneFor` 한 곳) */
-            const tone = tileToneFor(theme, shownZoom, !!shownLayers.dim);
+            const tone = tileToneFor(theme, !!layers.dim);
             if (supportsCanvasFilter(ctx) && tone.filter) ctx.filter = tone.filter;
             ctx.globalAlpha = tone.alpha;
             // 🧅 «배경» 레이어 — 끄면 타일만 빠지고 경계·경로는 남는다
@@ -596,7 +594,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          * 현위치 영역 전체를 칠하거나, **내 위치 원으로 잘라(clip)** 그 안에서만 라인 띠를 칠한다 — 원 ∩ 라인이 테두리 매끈하게 나온다.
          * 틀에 모아 옅게 올리고 **바깥 테두리**를 긋는다. 하차(파랑)와 가르려고 초록으로 칠한다.
          */
-        if (shownLayers.pickup && pickupArea) {
+        if (layers.pickup && pickupArea) {
             const { off, oc } = makeMask();
             if (oc) {
                 oc.fillStyle = '#16a34a'; oc.strokeStyle = '#16a34a';
@@ -616,7 +614,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          * ⚠️ 원달앱은 **동 목록**으로 빼고 지도는 **도형**으로 지운다 — 경계에 걸친 큰 읍·면에서 둘이 조금 다를 수 있다.
          * 🔴 모르는 조각(좌표를 모르는 목적지 · 종착지)은 부르는 쪽이 이미 뺐다 — 여기서 지어내지 않는다 (규칙 ④).
          */
-        if (shownLayers.dropoff && dropoffArea && (dropoffArea.circles.length || dropoffArea.nearCircles.length || dropoffArea.quads.length || dropoffArea.lines.length)) {
+        if (layers.dropoff && dropoffArea && (dropoffArea.circles.length || dropoffArea.nearCircles.length || dropoffArea.quads.length || dropoffArea.lines.length)) {
             const { off, oc } = makeMask();
             if (oc) {
                 const pxPerKmAt = (p: { x: number; y: number }) => {
@@ -668,7 +666,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         /* 📍 «동 점» 레이어 — 원달앱에 내려간 목록 (🔵 하차 · 🟢 상차 · 둘 다는 파랑 · 테두리 없음 · 목적지 마커 아래) */
-        if (shownLayers.dots && dongDots) {
+        if (layers.dots && dongDots) {
             const dot = (p: { x: number; y: number }, fill: string) => {
                 const { cx, cy } = getScreenPt(p);
                 ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
@@ -680,7 +678,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         /* 🎯 목적지 마커 — 살아 있는 목적지마다 */
-        if (shownLayers.dropoff && dropoffArea) {
+        if (layers.dropoff && dropoffArea) {
             for (const goalPt of dropoffArea.goals) {
                 const g = getScreenPt(goalPt);
                 ctx.fillStyle = mapColors.nodeEvaluating;
@@ -1019,7 +1017,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, shownLayers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기
@@ -1202,7 +1200,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                         layersOpen ? 'border border-info text-info' : 'border border-border text-text-primary opacity-80 hover:opacity-100'
                     }`}
                 >
-                    🧅 {Object.values(shownLayers).filter(Boolean).length}/{Object.keys(shownLayers).length}
+                    🧅 {Object.values(layers).filter(Boolean).length}/{Object.keys(layers).length}
                 </button>
                 {layersOpen && (
                     <div className="flex flex-col gap-1">
@@ -1211,10 +1209,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                                 key={k}
                                 onClick={() => toggleLayer(k)}
                                 className={`h-7 px-2 flex items-center gap-1 bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg backdrop-blur-sm text-[11px] font-black transition-all ${
-                                    shownLayers[k] ? 'border border-info text-info' : 'border border-border text-text-muted opacity-70'
+                                    layers[k] ? 'border border-info text-info' : 'border border-border text-text-muted opacity-70'
                                 }`}
                             >
-                                {shownLayers[k] ? '👁' : '🚫'} {label}
+                                {layers[k] ? '👁' : '🚫'} {label}
                             </button>
                         ))}
                     </div>
