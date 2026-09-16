@@ -329,13 +329,18 @@ export default function Dashboard() {
                   * 🔴 닫혀 있으면 **만들지 않는다** — 훅과 구독이 도는 것을 막는다
                   *    (`OrderFilterModal` 안의 `if (!isOpen) return null`).
                   */}
-                <OrderFilterModal
-                    isOpen={isFilterOpen}
-                    onClose={() => setIsFilterOpen(false)}
-                    hasHomeReturnActive={hasHomeReturnActive}
-                    routeMode={routeMode}
-                    setRouteMode={setRouteMode}
-                />
+                {/* 🪗 **펴질 때도 밀려 내려온다** (기사님: *"뿅 하고 나타나서 지도가 확 찌그러진다"*).
+                    닫혀 있는 동안에는 `Collapse` 가 자식을 안 그려, 훅·구독이 도는 것을 막는
+                    `if (!isOpen) return null` 의 뜻이 그대로 지켜진다 (`ui/collapse` 주석). */}
+                <Collapse open={isFilterOpen}>
+                    <OrderFilterModal
+                        isOpen={isFilterOpen}
+                        onClose={() => setIsFilterOpen(false)}
+                        hasHomeReturnActive={hasHomeReturnActive}
+                        routeMode={routeMode}
+                        setRouteMode={setRouteMode}
+                    />
+                </Collapse>
 
                 {/* 📢 배너 층 (v24) — 무대에서는 흐름 밖으로 띄운다. 🔴 바탕은 불투명(bg-surface) — 10% 바탕이면 뒤 지도가 비친다 (#146). 흐름 안에 두면 뜰 때마다
                     아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 (기사님 실측 0831) */}
