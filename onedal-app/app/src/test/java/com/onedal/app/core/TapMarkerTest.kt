@@ -52,9 +52,15 @@ class TapMarkerTest {
         assertTrue("잘렸음을 보여야 한다", label.endsWith("…"))
     }
 
+    /**
+     * 🧹 **고정된 시간으로 지우지 않는다** (기사님 지시) — 지우기를 메인 줄 맨 뒤에 세워
+     * 폰이 깨어나는 순간 지워지게 했다. 고정 시간이면 폰이 멈춘 사이 점이 먼저 사라지거나,
+     * 반대로 상세 화면을 오래 가린다. 시간 상수가 되살아나면 그 병도 함께 돌아온다.
+     */
     @Test
-    fun `자국은 스스로 걷힌다 - 표시 시간은 0 보다 크고 알람 테두리보다 짧다`() {
-        assertTrue(TapMarker.HOLD_MS > 0)
-        assertTrue(TapMarker.HOLD_MS < AlarmSignaler.HOLD_MS)
+    fun `🔴 점을 지우는 고정 시간 상수를 두지 않는다`() {
+        // ⚠️ `const val` 은 **바깥 클래스**의 필드로 만들어진다 — `Companion` 을 보면 늘 비어 통과한다(허수 검사)
+        val names = TapMarker::class.java.declaredFields.map { it.name }
+        assertTrue("HOLD_MS 같은 고정 시간이 되살아났다: $names", names.none { it.contains("HOLD") })
     }
 }

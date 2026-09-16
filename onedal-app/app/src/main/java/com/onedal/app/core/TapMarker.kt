@@ -32,12 +32,6 @@ import android.view.WindowManager
 class TapMarker(private val service: AccessibilityService) {
 
     companion object {
-        /**
-         * 자국이 떠 있는 시간 — 알람 테두리(10초)보다 짧다.
-         * 🔴 **찍은 뒤에도 남아 있어야 한다** (기사님 지시) — 미루지 않고 바로 찍으므로,
-         *    자국이 짧으면 «무엇을 눌렀나»를 볼 틈이 없다. 화면은 이미 상세로 넘어가 있다.
-         */
-        const val HOLD_MS = 3_000L
         /** 원 반지름 (폰 픽셀 · 손가락 끝만 한 크기 — 화면을 가리지 않게 작게) */
         const val RADIUS_PX = 30
         /** 이름표에 넣는 카드 글자 길이 — 넘으면 자른다 */
@@ -64,11 +58,13 @@ class TapMarker(private val service: AccessibilityService) {
     private val hideRunnable = Runnable { hide() }
 
     /**
-     * 👉 여기를 찍었다 — 그 자리에 원과 이름표를 띄운다.
-     * @param holdMs 얼마나 띄워 둘까. 🔴 **미뤘다 찍는 길에서는 찍을 때까지** 띄운다 —
-     *   폰이 늦게 깨어나면 자국이 먼저 사라져 «뭘 누르는지» 못 보신다 (실측 7초 지연).
+     * 👉 여기를 찍었다 — 그 자리에 점을 띄운다.
+     *
+     * 🔴 **고정된 시간으로 지우지 않는다** (기사님 지시). 지우기를 **메인 줄 맨 뒤**에 세워 두어,
+     *    폰이 바빠 멈춰 있으면 그동안 점이 남고 **깨어나는 순간 지워진다.**
+     *    그래서 점이 오래 남아 있었다는 것 자체가 «그만큼 폰이 멈춰 있었다»는 뜻이 된다.
      */
-    fun show(centerX: Int, centerY: Int, cardText: String?, action: String = "클릭", holdMs: Long = HOLD_MS) {
+    fun show(centerX: Int, centerY: Int, cardText: String?, action: String = "클릭") {
         val label = labelOf(cardText, action)
         /**
          * 🏃 **줄 맨 앞에 세운다** — 화면 그리기는 메인 스레드 한 줄에서 차례로 처리된다.
@@ -84,25 +80,10 @@ class TapMarker(private val service: AccessibilityService) {
                         style = Paint.Style.FILL
                         color = Color.argb(205, 60, 60, 60)
                     }
-                    private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        color = Color.WHITE
-                        textSize = 34f
-                        isFakeBoldText = true
-                        setShadowLayer(6f, 0f, 0f, Color.BLACK)   // 어떤 배경 위에서도 읽히게
-                    }
-
+                    // 🔴 **글자는 그리지 않는다** (기사님 지시) — 점 하나면 «어디를 눌렀나»가 보인다.
+                    //    무엇을 눌렀는지는 로그에 남는다 (아래 `👁️ [클릭 자국]` 줄).
                     override fun onDraw(canvas: Canvas) {
-                        val cy = height / 2f
-                        canvas.drawCircle(centerX.toFloat(), cy, RADIUS_PX.toFloat(), fill)
-                        // 이름표는 넓은 쪽에 붙인다 — 화면 밖으로 밀려 잘리지 않게
-                        val gap = RADIUS_PX + 16f
-                        if (centerX > width / 2) {
-                            text.textAlign = Paint.Align.RIGHT
-                            canvas.drawText(label, centerX - gap, cy + 12f, text)
-                        } else {
-                            text.textAlign = Paint.Align.LEFT
-                            canvas.drawText(label, centerX + gap, cy + 12f, text)
-                        }
+                        canvas.drawCircle(centerX.toFloat(), height / 2f, RADIUS_PX.toFloat(), fill)
                     }
                 }
                 // 🔴 우리 스캐너가 이 창을 화면 글자로 읽지 않게 한다 (그림이라 원래 안 읽히지만 못 박아 둔다)
@@ -124,10 +105,30 @@ class TapMarker(private val service: AccessibilityService) {
                 }
                 wm.addView(view, lp)
                 markerView = view
+                /**
+                 * 🧹 **지우기를 메인 줄 맨 뒤에 세운다** (기사님 지시).
+                 * 고정된 시간으로 지우면 폰이 멈춘 사이 점이 먼저 사라지거나, 반대로 화면을 오래 가린다.
+                 * 맨 뒤에 세워 두면 **밀린 일이 다 끝나 깨어나는 순간** 지워진다 —
+                 * 점이 오래 남았다는 것 자체가 «그만큼 폰이 멈춰 있었다»는 뜻이 된다.
+                 */
                 handler.removeCallbacks(hideRunnable)
-                handler.postDelayed(hideRunnable, holdMs)
+                handler.post(hideRunnable)
                 // 🔎 «안 떴다»와 «떴는데 못 봤다»를 로그로 가른다 — 둘의 고칠 곳이 다르다
-                AppLogger.i("1DAL_TOUCH", "👁️ [클릭 자국] ($centerX,$centerY) «$label» — ${holdMs}ms 동안")
+                AppLogger.i("1DAL_TOUCH", "👁️ [클릭 자국] ($centerX,$centerY) «$label»")
+                /**
+                 * 📐 **그리자고 한 자리와 실제로 그려진 자리를 함께 남긴다** (기사님 지시 — 점이 어긋난다).
+                 * 창 좌표는 시스템이 조정할 수 있다 — 어긋나면 이 두 값이 달라진다.
+                 * `post` 로 한 번 미루는 까닭: 창이 화면에 붙어 자리를 잡은 뒤라야 실제 값이 나온다.
+                 */
+                view.post {
+                    val at = IntArray(2)
+                    view.getLocationOnScreen(at)
+                    val drawnX = at[0] + centerX          // 창 안에서 원은 centerX 자리에 그린다
+                    val drawnY = at[1] + view.height / 2  // 창 한가운데에 그린다
+                    val gap = if (drawnX == centerX && drawnY == centerY) "맞다" else "어긋났다"
+                    AppLogger.i("1DAL_TOUCH", "📐 [자국 자리] 그리려던 ($centerX,$centerY) → 실제 ($drawnX,$drawnY) · $gap " +
+                        "(창 왼위 ${at[0]},${at[1]} · 창 높이 ${view.height})")
+                }
             } catch (e: Exception) {
                 AppLogger.w("1DAL_TOUCH", "👁️ [클릭 자국 실패] ${e.message}")
             }

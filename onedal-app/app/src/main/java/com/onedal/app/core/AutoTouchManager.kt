@@ -88,25 +88,23 @@ class AutoTouchManager(private val service: AccessibilityService) {
         pendingTapAtMs = now
 
         /**
-         * 👁️ 찍는 자리에 자국을 남긴다 — 화면은 곧 넘어가고 로그는 나중에나 본다 (`TapMarker`).
-         * 🔴 **미뤘다 찍는 길에서는 찍을 때까지 띄운다** — 폰이 늦게 깨어나면 자국이 먼저 사라져
-         *    «뭘 누르는지» 못 보신다 (실측: 자국 1.5초 뒤 사라지고 터치는 7.1초 뒤에 나갔다).
-         */
-        tapMarker.show(
-            x.toInt(), y.toInt(),
-            node.text?.toString() ?: node.contentDescription?.toString(),
-            holdMs = if (delayMs > 0L) delayMs + TapShift.LATE_TOL_MS else TapMarker.HOLD_MS,
-        )
-
-        /**
          * 🔴 **보내는 순간에 남긴다** — 아래 `onCompleted` 는 **2~4초 늦게** 온다
          *    (09-13 실측: 12:00:10.387 에 보낸 것이 12:00:12.676 에 찍혔다). 콜백이
          *    서비스 메인 핸들러에 줄을 서기 때문이다. 완료 로그만 보면 **시각이 거짓말한다.**
          */
         if (delayMs <= 0L) {
             AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\"")
-            return fireTap(x, y)
+            val fired = fireTap(x, y)
+            /**
+             * 👁️ **누른 다음에 점을 찍는다** (기사님 지시) — 누르기가 먼저라 동작이 안 늦는다.
+             * 점은 «다음에 깨어날 때» 지워지므로(`TapMarker`), 폰이 멈춰 있던 만큼만 남는다.
+             */
+            tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
+            return fired
         }
+
+        // 👁️ 미뤘다 찍는 길에서만 점을 **먼저** 보여 준다 — 기다리는 것 자체가 그 길의 뜻이다
+        tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
 
         /**
          * ⏳ **자국을 먼저 보여 주고 미뤘다 찍는다** (기사님 지시 — «영역이 보이고 1초 후 클릭»).
