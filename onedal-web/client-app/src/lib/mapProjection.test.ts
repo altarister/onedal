@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, FOLLOW_RADIUS_KM, effectiveZoom,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
-    type GeoPoint, pickViewMode, areaBoxOf, stickyFitBox } from './mapProjection';
+    type GeoPoint, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox, AREA_FIT_MAX_RATIO } from './mapProjection';
 
 /**
  * 🧭 **지도 투영·시점 검사** — 2026-09-01 배경 타일을 들이며 신설.
@@ -382,6 +382,58 @@ describe('🔭 지도 보기 — 전체 · 이번 구간 · 현위치', () => {
         expect(viewCoordsFor('leg', ALL, null, null, null)).toEqual(ALL);
         expect(viewCoordsFor('leg', ALL, ME, null)).toEqual(ALL);
         expect(viewCoordsFor('follow', ALL, null, NEXT)).toEqual(ALL);
+    });
+});
+
+/**
+ * 🔆 **현위치로 보면 지도를 누르지 않는다** — 그 배율에서는 골목·건물을 눈으로 따라가야 한다.
+ * 전체·구간은 회색조로 눌러 둔다 — 넓게 볼 때 배경이 시끄러우면 색과 영역이 안 읽힌다 (규칙 ⑤-3).
+ */
+describe('🔆 지도 밝기 — 보기 모드가 정한다', () => {
+    it('전체·구간은 회색조로 누른다', () => {
+        for (const m of ['all', 'leg'] as const) {
+            const t = tileToneFor(m, 'dark');
+            expect(t.filter).toMatch(/grayscale/);
+            expect(t.alpha).toBeLessThan(1);
+            expect(t.overlay).toBeGreaterThan(0);
+        }
+    });
+
+    it('🔴 현위치는 제 색 그대로 — 회색조도 덮개도 없다', () => {
+        for (const theme of ['dark', 'light'] as const) {
+            const t = tileToneFor('follow', theme);
+            expect(t.filter).toBeNull();
+            expect(t.alpha).toBe(1);
+            expect(t.overlay).toBe(0);
+        }
+    });
+});
+
+/**
+ * 🔭 **영역은 경로 네모의 2배까지만** — 통째로 담으면 먼 원 하나가 화면을 다 먹어 경로가 실처럼 보인다.
+ * 🔴 아주 빼지는 않는다 — 가까운 영역은 보여야 한다 (전에 «영역이 너무 짤린다»고 하셨다).
+ */
+describe('🔭 영역 네모 자르기 — capAreaBox', () => {
+    const route = { minX: 127.0, minY: 37.0, maxX: 127.1, maxY: 37.1 };
+
+    it('경로 네모 안에 드는 영역은 그대로 둔다', () => {
+        const small = { minX: 127.02, minY: 37.02, maxX: 127.08, maxY: 37.08 };
+        expect(capAreaBox(route, small)).toEqual(small);
+    });
+
+    it('🔴 넓은 영역은 경로 네모의 2배 안으로 자른다', () => {
+        const huge = { minX: 126.0, minY: 36.0, maxX: 128.0, maxY: 38.0 };
+        const cut = capAreaBox(route, huge)!;
+        expect((cut.maxX - cut.minX)).toBeCloseTo((route.maxX - route.minX) * AREA_FIT_MAX_RATIO, 9);
+        expect((cut.maxY - cut.minY)).toBeCloseTo((route.maxY - route.minY) * AREA_FIT_MAX_RATIO, 9);
+        /* 가운데는 경로 네모의 가운데다 — 한쪽으로 쏠리지 않는다 */
+        expect((cut.minX + cut.maxX) / 2).toBeCloseTo((route.minX + route.maxX) / 2, 9);
+    });
+
+    it('경로가 없으면 영역을 그대로 쓴다 · 영역이 없으면 없다', () => {
+        const area = { minX: 126.9, minY: 36.9, maxX: 127.4, maxY: 37.4 };
+        expect(capAreaBox(null, area)).toEqual(area);
+        expect(capAreaBox(route, null)).toBeNull();
     });
 });
 

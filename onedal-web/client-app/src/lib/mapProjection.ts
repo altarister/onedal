@@ -206,6 +206,43 @@ export function mapTileTone(dim: number): { alpha: number; filter: string | null
 }
 
 /**
+ * 🔆 **보기 모드가 지도 밝기를 정한다.**
+ *
+ * 🔴 **현위치는 누르지 않는다** — 그 배율에서는 골목·건물을 눈으로 따라가야 한다.
+ * 🔴 전체·구간은 회색조로 눌러 둔다 — 넓게 볼 때 배경이 시끄러우면 색과 영역이 안 읽힌다 (규칙 ⑤-3).
+ * `overlay` 는 어두운 테마에서 한 겹 더 덮는 검정의 진하기다 (0 이면 안 덮는다).
+ */
+export function tileToneFor(mode: MapViewMode, theme: 'dark' | 'light'):
+    { alpha: number; filter: string | null; overlay: number } {
+    if (mode === 'follow') return { alpha: 1, filter: null, overlay: 0 };
+    const dim = mapTileTone(theme === 'dark' ? 0.5 : 0.62);
+    return { ...dim, overlay: theme === 'dark' ? 0.35 : 0 };
+}
+
+/** 🔭 영역 네모는 경로 네모의 몇 배까지 화면에 반영하나 */
+export const AREA_FIT_MAX_RATIO = 2;
+
+/**
+ * 🔭 **영역은 경로 네모의 몇 배 안까지만 담는다** — 통째로 담으면 먼 원 하나가 화면을 다 먹어 경로가 실처럼 보인다.
+ *
+ * 🔴 **아주 빼지는 않는다** — 가까운 영역은 보여야 한다 (그 전 지적: *"영역이 너무 짤리는데"*).
+ *    경로 네모를 가운데 두고 `ratio` 배까지 넓힌 자리와 영역이 겹치는 만큼만 남긴다.
+ * 경로 네모가 없으면(콜 없음) 영역이 곧 볼 것이다 — 그대로 쓴다.
+ */
+export function capAreaBox(routeBox: GeoBox | null, areaBox: GeoBox | null, ratio = AREA_FIT_MAX_RATIO): GeoBox | null {
+    if (!areaBox) return null;
+    if (!routeBox) return areaBox;
+    const cx = (routeBox.minX + routeBox.maxX) / 2, cy = (routeBox.minY + routeBox.maxY) / 2;
+    const halfX = ((routeBox.maxX - routeBox.minX) * ratio) / 2, halfY = ((routeBox.maxY - routeBox.minY) * ratio) / 2;
+    const box = {
+        minX: Math.max(areaBox.minX, cx - halfX), minY: Math.max(areaBox.minY, cy - halfY),
+        maxX: Math.min(areaBox.maxX, cx + halfX), maxY: Math.min(areaBox.maxY, cy + halfY),
+    };
+    /* 겹치는 데가 없으면 영역은 화면 밖이다 — 그것 때문에 경로를 줄이지 않는다 */
+    return box.maxX > box.minX && box.maxY > box.minY ? box : null;
+}
+
+/**
  * 🖊️ **경로선 두께 — 확대해도 도로를 덮지 않는다** (기사님 지적 2026-09-04).
  *
  * 기사님: *"라인이 너무 두꺼워 길을 잘 간 건지 모르겠어. 줌에 따라 두께가 달라져야 할 것 같아."*

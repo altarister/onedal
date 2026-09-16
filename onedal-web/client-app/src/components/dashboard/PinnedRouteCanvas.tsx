@@ -10,8 +10,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
-    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
-    type Viewport, type GeoBox, pickViewMode, areaBoxOf, stickyFitBox } from '../../lib/mapProjection';
+    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
+    type Viewport, type GeoBox, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox } from '../../lib/mapProjection';
 import { occludedPx as occludedOf } from '../../lib/stageLayout';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
@@ -373,8 +373,11 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             polygons: dropoffArea ? dropoffArea.quads : [],
             lines: dropoffArea ? dropoffArea.lines : [],
         }));
-        fitBoxRef.current = areaBox;
-        if (areaBox) allCoords.push({ x: areaBox.minX, y: areaBox.minY }, { x: areaBox.maxX, y: areaBox.maxY });
+        fitBoxRef.current = areaBox;   // 🔭 흔들림 방지 기억은 **자르기 전** 값이다 — 자른 값을 넣으면 매 프레임 다시 잡힌다
+        /* 🔭 영역은 경로 네모의 2배 안까지만 — 통째로 담으면 먼 원 하나가 화면을 다 먹어 경로가 실처럼 보인다 (`capAreaBox`) */
+        const routeBox = areaBoxOf({ circles: [], polygons: [allCoords], lines: [] });
+        const fitArea = capAreaBox(routeBox, areaBox);
+        if (fitArea) allCoords.push({ x: fitArea.minX, y: fitArea.minY }, { x: fitArea.maxX, y: fitArea.maxY });
         /* 🎯 목적지 마커 — 움직이지 않는다 */
         if (dropoffArea) for (const g of dropoffArea.goals) allCoords.push(g);
         if (coneOverlay?.callPath) for (const p of coneOverlay.callPath) allCoords.push({ x: p.x, y: p.y });
@@ -422,14 +425,15 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             /* 🎨 회색조·연하게 — 배경이 시끄러우면 색 · 영역이 안 읽힌다 (규칙 ⑤-3).
                배율과 상관없이 늘 같은 톤이다 — 확대해도 제 색으로 안 돌린다 (`mapTileTone`). */
             /* 🔆 밝은 테마는 지도가 흰 바탕 위라 더 밝게 뜬다 — 조금 더 눌러 준다 */
-            const tone = mapTileTone(theme === 'dark' ? 0.5 : 0.62);
+            /* 🔆 현위치로 보면 안 누른다 — 골목·건물을 눈으로 따라가는 배율이다 (`tileToneFor` 한 곳) */
+            const tone = tileToneFor(viewMode, theme);
             if (supportsCanvasFilter(ctx) && tone.filter) ctx.filter = tone.filter;
             ctx.globalAlpha = tone.alpha;
             // 🧅 «배경» 레이어 — 끄면 타일만 빠지고 경계·경로는 남는다
             if (layers.base) readyTiles.forEach(t => ctx.drawImage(t.img, t.cx, t.cy, t.size + 1, t.size + 1));
             ctx.restore();
-            if (theme === 'dark') {
-                ctx.fillStyle = 'rgba(10, 14, 22, 0.35)';   // 어두운 테마에서 한 겹 더 눌러 준다
+            if (tone.overlay > 0) {
+                ctx.fillStyle = `rgba(10, 14, 22, ${tone.overlay})`;   // 어두운 테마에서 한 겹 더 눌러 준다
                 ctx.fillRect(0, 0, width, height);
             }
         } else if (sidoData.features) {
