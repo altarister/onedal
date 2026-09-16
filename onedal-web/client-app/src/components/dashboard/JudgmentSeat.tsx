@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { SecuredOrder, CallTarget } from '@onedal/shared';
-import { isManualLineage, safeCancelSecOf } from '@onedal/shared';
+import { isManualLineage, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from '@onedal/shared';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { verdictOf, type VerdictColor } from '../../lib/verdict';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
@@ -73,6 +73,16 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const manual = isManualLineage(route.type) || !!route.isPreview;
     /** ⏱️ 그 배차망의 안전취소 초 (서버 DB) — 픽커는 안전취소가 없어 null */
     const cancelSec = useSettingsStore(st => safeCancelSecOf(st, route.targetApp));
+    /**
+     * 👀 **미리보기는 언제 사라지나** — 서버가 «픽커 상세 대기 시간 + 정리 여유» 뒤 스스로 치운다 (#155).
+     * 🔴 흐른 만큼 **미리 차 있게** 한다(`animationDelay` 에 음수) — 새로고침했다고 처음부터 다시 차오르면 화면이 거짓말한다.
+     * 🔴 **그 값은 콜마다 한 번만 센다** — 다시 그릴 때마다 `Date.now()` 를 새로 재면 시작점이 흔들려 배경이 튄다.
+     */
+    const previewHoldSec = useSettingsStore(st => st.pickerAlarmDetailSec) + SERVER_CLEANUP_EXTRA_SEC;
+    const previewElapsedSec = useMemo(
+        () => (route.isPreview && route.capturedAt ? Math.max(0, (Date.now() - Date.parse(route.capturedAt)) / 1000) : 0),
+        [route.isPreview, route.capturedAt],
+    );
     const judged = !!v.color;
     const c = v.color ? SOAK[v.color] : null;
     const hourly = route.judgment?.axes?.find(a => a.key === 'money')?.value;
@@ -133,6 +143,14 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     if (manual) {
         return (
             <div className="relative overflow-hidden flex flex-col" style={{ margin: inset ?? '8px 12px', borderRadius: 14, border: `1px solid ${c ? `${c.bar}73` : '#2a3450'}`, background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)', height: open ? 'auto' : 158, minHeight: 158 }}>
+                {/**
+                  * ⏳ 미리보기 장막 — 서버가 치울 때까지 배경이 **오른쪽에서 왼쪽으로** 차오른다. 다 차면 카드가 저절로 사라진다.
+                  * 🔴 `width` 가 아니라 `transform` 으로 늘린다 — 폭을 재우면 글자 배치를 매 프레임 다시 계산해 눈에 띄게 튄다.
+                  * 🔴 **경계선을 긋지 않는다** — 지나가는 선이 눈을 끌어 금액·판정 색보다 먼저 읽힌다 (규칙 ⑤-3).
+                  */}
+                {route.isPreview && <div className="absolute inset-0 z-0 pointer-events-none"
+                     style={{ background: 'linear-gradient(270deg, rgba(0,0,0,.45), rgba(0,0,0,.10))', transformOrigin: 'right center',
+                              animation: `seat-drain-x ${previewHoldSec}s linear forwards`, animationDelay: `-${previewElapsedSec.toFixed(1)}s` }} />}
                 {judged && <div className="absolute inset-0 z-0" style={{ background: `linear-gradient(165deg, ${c!.tint} 0%, rgba(0,0,0,0) 45%, transparent 100%)` }} />}
                 <div className="absolute left-0 top-0 bottom-0 z-10" style={{ width: 5, background: c ? `linear-gradient(180deg, ${c.bar}, ${c.bar}59)` : '#3a4358', boxShadow: c ? `2px 0 14px ${c.glow}` : undefined }} />
                 {/* v13 .wm — 158px · right 2 · bottom -34 */}
@@ -143,7 +161,9 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     {judged ? score ?? '' : '?'}
                 </div>
                 {header}
-                <div className="relative z-10 tabular-nums cursor-pointer" style={{ padding: '8px 16px 12px 21px' }} onClick={() => judged && setOpen(o => !o)}>
+                {/* 👀 미리보기는 **누르면 치운다** — 배차망엔 아무 일도 안 생기고(안 잡은 콜) 취소 한도도 안 깎인다. 펼치기는 안 쓴다 (운전 중 두 손짓은 못 기억한다) */}
+                <div className="relative z-10 tabular-nums cursor-pointer" style={{ padding: '8px 16px 12px 21px' }}
+                     onClick={() => route.isPreview ? onDecision?.(route.id, 'SAFE_CANCEL') : judged && setOpen(o => !o)}>
                     {judged ? (<>
                         {/* v13 .core .l1 — 27px */}
                         <div style={{ fontSize: 27, fontWeight: 900, letterSpacing: '-.5px', lineHeight: 1.15 }}>
@@ -190,7 +210,15 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                         <div className="animate-pulse" style={{ height: 12, width: 230, borderRadius: 6, background: 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)', marginTop: 8 }} />
                         <div className="animate-pulse" style={{ height: 12, width: 180, borderRadius: 6, background: 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)', marginTop: 8 }} />
                     </>)}
+                    {/* 👀 미리보기 — 무엇을 하면 되는지 한 줄. 남은 시간은 배경이 말한다 (숫자를 세려고 매초 다시 그리지 않는다) */}
+                    {route.isPreview && (
+                        <div style={{ marginTop: 6, fontSize: 12, fontWeight: 800, color: 'var(--color-text-muted)' }}>
+                            👀 미리보기 — 눌러서 치우기 · 두면 저절로 사라집니다
+                        </div>
+                    )}
                 </div>
+                {/* ⏳ 배경이 차오르는 문법 — 오른쪽 끝에 붙어 왼쪽으로 늘어난다 (자동콜 판의 `seat-drain` 과 다른 이름인 것은 일부러다: 그쪽은 폭을 잰다) */}
+                <style>{`@keyframes seat-drain-x { from { transform: scaleX(0) } to { transform: scaleX(1) } }`}</style>
             </div>
         );
     }

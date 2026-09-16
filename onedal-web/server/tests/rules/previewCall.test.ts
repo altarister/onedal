@@ -169,8 +169,12 @@ describe('✋ 미리보기 콜 — 확정 전에는 잡지 않는다', () => {
         // 심사석(JudgmentSeat)의 직접·알람 판에도 결재 버튼이 없다 — 버튼은 자동 갈래(else)에만 산다
         const seat = code(read('client-app/src/components/dashboard/JudgmentSeat.tsx'));
         expect(seat).toMatch(/if \(manual\)/);
-        // 직접·알람 갈래(if (manual) 반환문)에는 결재 호출이 없다 — 자동 갈래(파란 테두리 래퍼부터)에만 있다
-        expect(seat.split('if (manual)')[1]?.split('rgba(79,141,249,.35)')[0] ?? '').not.toMatch(/onDecision\?\.\(/);
+        /**
+         * 직접·알람 갈래(if (manual) 반환문)에는 **결재**(KEEP·CANCEL) 호출이 없다 — 자동 갈래(파란 테두리 래퍼부터)에만 있다.
+         * ⚠️ `SAFE_CANCEL` 은 결재가 아니라 **치우기**라 여기 있어도 된다 — 안 잡은 콜이라 배차망엔 아무 일도
+         *    안 생기고 취소 한도도 안 깎인다(`countCancel` 이 미리보기를 안 센다). 그 길은 `previewSeat` 검사가 문다.
+         */
+        expect(seat.split('if (manual)')[1]?.split('rgba(79,141,249,.35)')[0] ?? '').not.toMatch(/onDecision\?\.\([^)]*'(KEEP|CANCEL)'/);
     });
 });
 
