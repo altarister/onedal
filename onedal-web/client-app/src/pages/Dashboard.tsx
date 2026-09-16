@@ -2,6 +2,7 @@ import { isTerminal, isEvaluating, judgingCallOf } from "@onedal/shared";
 import { mergeOrderViews } from "../lib/orderMerge";
 import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
+import Collapse from "../components/ui/collapse";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import { useFilterConfig } from "../hooks/useFilterConfig";
 import JudgmentSeat from "../components/dashboard/JudgmentSeat";
@@ -278,8 +279,21 @@ export default function Dashboard() {
             <div className={`relative flex flex-col max-w-2xl mx-auto w-full ${stagePreview ? "flex-1 min-h-0" : ""}`}>
 
 
-                {/* 🎛️ 앱폰 제어 패널 */}
-                <DeviceControlPanel />
+                {/**
+                  * 🎛️ 앱폰 제어 패널
+                  *
+                  * 🔴 **필터를 펼치면 위로 밀려 올라가며 접힌다** (기사님 지시).
+                  *    400px 폰에서 필터가 열리면 화면이 모자라고, 이 줄은 «폰이 붙어 있나»를
+                  *    보는 것이라 필터를 만지는 동안에는 볼 일이 없다.
+                  *    🔴 **그냥 없애면 «어디로 갔나»를 잃는다** — 다시 여는 길이 안 보인다.
+                  *       올라가는 것이 보이면 내려오는 길도 보인다.
+                  *
+                  * 🔴 접는 셈(그리드 · transform · 시간)은 `ui/collapse` 안에만 둔다 — 여기서 또 적으면
+                  *    접을 자리가 늘 때마다 같은 다섯 줄이 베껴지고 곧 갈라진다 (규칙 ③).
+                  */}
+                <Collapse open={!isFilterOpen}>
+                    <DeviceControlPanel />
+                </Collapse>
 
                 {/* ⚙️ 오더 필터 한 줄 현황판 ↔ 🪧 심사석 — **같은 슬롯 1:1 치환** (기사님 확정 0831).
                     둘 다 158px 고정이라 아래 내용이 한 픽셀도 안 밀린다. 차량 패널은 늘 그 자리 —
