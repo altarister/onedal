@@ -281,6 +281,16 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         return next;
     });
     const zoomRef = useRef(1);
+    /**
+     * 🎨 **레이어를 칠할 때 쓰는 가리개·테두리 캔버스 — 한 장씩 쥐고 다시 쓴다**
+     *    (기사님: «상차·하차 레이어가 있으면 확실히 버벅인다»).
+     *
+     * 예전엔 레이어마다 `document.createElement('canvas')` 로 화면 크기 캔버스를 새로 만들었다.
+     * 상차·하차 둘만 켜도 한 번 그릴 때마다 **전화면 캔버스 넷**이 났다 사라져, 폰에서
+     * 할당·회수 비용이 그대로 프레임에 얹혔다. 크기가 바뀔 때만 다시 잡고 평소엔 지워서 쓴다.
+     */
+    const maskRef = useRef<HTMLCanvasElement | null>(null);
+    const ringRef = useRef<HTMLCanvasElement | null>(null);
     const panRef = useRef({ x: 0, y: 0 });
     const isDragging = useRef(false);
     const lastPos = useRef({ x: 0, y: 0 });
@@ -510,11 +520,26 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          *    더 진해져서 «여기가 더 안쪽»처럼 읽힌다. 그래서 숨은 틀(`makeMask`)에 불투명으로 모은 뒤 한 번에 옅게 올린다.
          */
         /** 🎭 기기 픽셀 크기의 숨은 캔버스 — 영역을 **불투명으로 모아 그리는 틀** (겹쳐도 두 번 짙어지지 않고, 테두리를 딸 수 있다) */
+        /**
+         * 🎨 **가리개 캔버스는 만들지 말고 다시 쓴다** (기사님: «상차·하차 레이어가 있으면 버벅인다»).
+         *
+         * 레이어마다 화면 크기 캔버스를 새로 만들면, 상차·하차 둘만 켜도 한 번 그릴 때마다
+         * **전화면 캔버스 넷**이 났다 사라진다 — 폰에서 할당·회수 비용이 그대로 프레임에 얹힌다.
+         * 하나를 쥐고 있다가 **지우고 다시 쓴다.**
+         */
         const makeMask = () => {
-            const off = document.createElement('canvas');
-            off.width = canvas.width; off.height = canvas.height;
+            const off = maskRef.current ??= document.createElement('canvas');
+            if (off.width !== canvas.width || off.height !== canvas.height) {
+                off.width = canvas.width; off.height = canvas.height;
+            }
             const oc = off.getContext('2d');
-            oc?.scale(dpr, dpr);
+            if (oc) {
+                oc.setTransform(1, 0, 0, 1, 0, 0);   // 앞 레이어가 남긴 배율을 지운다
+                oc.clearRect(0, 0, off.width, off.height);
+                oc.globalCompositeOperation = 'source-over';
+                oc.globalAlpha = 1;
+                oc.scale(dpr, dpr);
+            }
             return { off, oc };
         };
         /**
@@ -523,13 +548,21 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          * ⚠️ 방향을 늘리면 테두리가 더 고르지만 그릴 때마다 전체 화면을 그만큼 더 옮긴다 — 2px 에는 8방향이면 이음새가 안 보인다.
          */
         const strokeOuterEdge = (mask: HTMLCanvasElement, color: string, px: number) => {
-            const ring = document.createElement('canvas');
-            ring.width = mask.width; ring.height = mask.height;
+            /* 🎨 테두리 캔버스도 다시 쓴다 — `makeMask` 와 같은 까닭 */
+            const ring = ringRef.current ??= document.createElement('canvas');
+            if (ring.width !== mask.width || ring.height !== mask.height) {
+                ring.width = mask.width; ring.height = mask.height;
+            }
             const rc = ring.getContext('2d');
             if (!rc) return;
+            rc.setTransform(1, 0, 0, 1, 0, 0);
+            rc.clearRect(0, 0, ring.width, ring.height);
+            rc.globalCompositeOperation = 'source-over';
             const d = px * dpr;
-            for (let i = 0; i < 8; i++) {
-                const a = (i / 8) * Math.PI * 2;
+            /* 🔴 **여덟 방향이 아니라 넷이다** — 굵기 2px 테두리에서 눈으로 차이가 안 나는데
+               `drawImage` 가 레이어마다 여덟 번씩 돌아 폰에서 값을 치렀다. */
+            for (let i = 0; i < 4; i++) {
+                const a = (i / 4) * Math.PI * 2;
                 rc.drawImage(mask, Math.cos(a) * d, Math.sin(a) * d);
             }
             rc.globalCompositeOperation = 'destination-out';

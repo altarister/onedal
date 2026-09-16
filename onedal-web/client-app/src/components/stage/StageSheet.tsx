@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { STAGE_MAX_OCCLUDE_RATIO, STAGE_MAX_OCCLUDE_CSS, occludedPx } from '../../lib/stageLayout';
 
 /**
@@ -133,6 +133,39 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
      */
     /* 📏 자기 높이를 재서 알린다 — 지도 위 버튼들이 이 값을 보고 시트를 피한다 */
     const selfRef = useRef<HTMLDivElement>(null);
+
+    /**
+     * 🏃 **단이 바뀔 때 높이를 전환하지 않는다 — 옮기기만 전환한다** (기사님 지시 · 폰에서 더덕였다).
+     *
+     * 예전엔 `transition: height .25s` 였다. 높이가 바뀌면 브라우저가 **0.25초 내내 매 프레임**
+     * 레이아웃을 다시 잡고, 시트 안 목록·판정까지 통째로 다시 선다.
+     *
+     * 그래서 이렇게 한다 — 레이아웃은 **한 번만** 다시 잡히고, 나머지는 GPU 합성이 맡는다:
+     *   ① 높이는 즉시 새 값이 된다 (전환 없음)
+     *   ② 같은 프레임에 `translateY(옛높이 − 새높이)` 를 줘서 **눈에는 옛 자리**로 둔다
+     *   ③ 다음 프레임에 `translateY(0)` 로 0.25초 전환 → 미끄러져 제자리로
+     *
+     * 🔴 **안쪽 구조는 하나도 안 건드린다** — 「나」의 «내용만큼» · 스크롤러 flex · 맨 아래 붙박이가
+     *    그대로다. 시트를 무대 높이로 고정하는 길은 붙박이(판정)가 화면 밖으로 나가서 못 쓴다.
+     * 🔴 되돌리려면 이 훅 하나만 빼면 된다.
+     */
+    const prevHeight = useRef<number | null>(null);
+    useLayoutEffect(() => {
+        const el = selfRef.current;
+        if (!el) return;
+        const now = el.offsetHeight;
+        const before = prevHeight.current;
+        prevHeight.current = now;
+        if (before == null || before === now) return;   // 첫 그림 · 높이 그대로면 애니메이션할 것이 없다
+        el.style.transition = 'none';
+        el.style.transform = `translateY(${now - before}px)`;
+        /* 다음 프레임에 제자리로 — 한 프레임 미뤄야 브라우저가 «시작 자리»를 인식한다 */
+        const id = requestAnimationFrame(() => {
+            el.style.transition = 'transform .25s ease';
+            el.style.transform = 'translateY(0)';
+        });
+        return () => cancelAnimationFrame(id);
+    }, [snap]);
     useEffect(() => {
         const el = selfRef.current;
         if (!el || !onHeightChange) return;
@@ -157,7 +190,8 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
                 background: 'var(--color-surface)',
                 borderColor: 'color-mix(in srgb, var(--color-border-card) 60%, #4f8df9)',
                 boxShadow: '0 -10px 30px rgba(0,0,0,.45)',
-                transition: 'height .25s ease',
+                /* 🏃 높이는 즉시 바뀌고, 미끄러지는 것은 `transform` 이 맡는다 (위 `useLayoutEffect`) */
+                willChange: 'transform',
             }}
         >
             {/* 손잡이 — 40px 끌 때마다 한 단씩. touch-action:none 이 없으면 폰에서
@@ -165,31 +199,56 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
                 ✋ **손잡이는 언제나 있다** (기사님 확정 2026-09-05) — 콜이 없어도 올라간다.
                 막아 두면 끌었는데 아무 일이 없어 고장처럼 보인다. 관행(iOS·안드로이드 기본
                 시트)도 단은 내용과 무관하게 늘 있고, 안에 «아직 없습니다»를 보여 준다 */}
+            {/**
+              * ✋ **잡는 자리는 손잡이 + 상태바 줄이다** (기사님: *"영역이 어디까지인지 몰라서
+              *    부정확하게 터치하는 경향"*). 예전엔 44×5 막대 둘레(높이 약 32px)에서만 끌렸다 —
+              *    그 밖을 잡으면 아무 일도 안 나 «안 먹힌다»로 느껴졌다. 상태바까지 묶으면 70px 이 된다.
+              *
+              * 🏃 **끄는 동안 시트가 손을 따라온다.** 예전엔 40px 을 넘기는 순간 한 단씩 «톡» 튀어서
+              *    얼마나 끌어야 하는지 보이지 않았다. 지금은 손가락만큼 따라오고, 떼면 가까운 단에 붙는다.
+              */}
             <div
                 /* 📸 화면을 찍어 대조할 때 이 손잡이를 눌러 단을 올린다 (`scripts/shot.mjs`) */
                 data-sheet-handle
-                className={`shrink-0 py-3 ${locked ? 'opacity-30 pointer-events-none' : 'cursor-grab active:cursor-grabbing'}`}
+                className={`shrink-0 ${locked ? 'opacity-30 pointer-events-none' : 'cursor-grab active:cursor-grabbing'}`}
                 style={{ touchAction: 'none' }}
-                onPointerDown={(e) => { startY.current = e.clientY; startSnap.current = snap; dragged.current = false; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
+                onPointerDown={(e) => {
+                    startY.current = e.clientY; startSnap.current = snap; dragged.current = false;
+                    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                }}
+                /**
+                 * 🔴 **끄는 동안 시트를 «따라 움직이게» 하지 않는다** (2026-09-17 되돌림).
+                 *
+                 * 시트는 화면 **바닥에 붙어 높이만 변하는** 구조다. 끄는 동안 `translateY` 로 위로
+                 * 들어 올렸더니 **바닥과의 사이가 벌어져 아래에 지도가 드러났다** (기사님 사진).
+                 * 위로 끌 때는 시트가 «올라가는» 것이 아니라 «커져야» 맞는데 `transform` 으로는
+                 * 그것을 표현할 수 없다. 시트를 화면 높이로 고정하는 길도 막혀 있다 —
+                 * 그러면 맨 아래 붙박이(판정)가 화면 밖으로 나간다.
+                 * 그래서 **40px 을 넘기면 한 단**만 옮기고, 부드러움은 단이 바뀔 때 도는 FLIP 이 맡는다.
+                 */
                 onPointerMove={(e) => {
-                    if (startY.current == null) return;
+                    if (startY.current == null || locked) return;
                     const dy = startY.current - e.clientY;
                     if (Math.abs(dy) > 40) { dragged.current = true; move(dy > 0 ? 1 : -1); startY.current = e.clientY; }
                 }}
                 onPointerUp={() => { startY.current = null; }}
+                onPointerCancel={() => { startY.current = null; }}
                 onClick={() => { if (dragged.current) { dragged.current = false; return; }   // 드래그 직후 click 무시
                     startSnap.current = snap; move(snap === 'full' ? -1 : 1); }}
             >
-                <div className="mx-auto rounded-full"
-                     style={{ width: 44, height: 5, background: 'var(--color-border-hover, #3a4358)' }} />
+                <div className="py-3">
+                    <div className="mx-auto rounded-full"
+                         style={{ width: 44, height: 5, background: 'var(--color-border-hover, #3a4358)' }} />
+                </div>
+                {peekBar && (
+                    /* 🔴 **높이가 늘 같다** (기사님 2026-09-05: *"상태바의 높이도 항상 일정했으면"*).
+                       내용에 따라 줄이 커졌다 작아졌다 하면, 늘 같은 자리에서 같은 것을 읽던
+                       눈이 매번 다시 맞춰야 한다 — 달리면서 1~2초에 읽는 줄이다.
+                       ✋ 이 줄도 «잡는 자리»다 — 위 묶음 안에 있어 손잡이와 함께 끌린다. */
+                    <div className={`flex items-center px-4 pb-2 text-[13px] font-bold tabular-nums truncate${locked ? ' opacity-40' : ''}`}
+                         style={{ color: 'var(--color-text-primary, #dfe5ef)', height: 38, boxSizing: 'content-box' }}>{peekBar}</div>
+                )}
             </div>
-            {peekBar && (
-                /* 🔴 **높이가 늘 같다** (기사님 2026-09-05: *"상태바의 높이도 항상 일정했으면"*).
-                   내용에 따라 줄이 커졌다 작아졌다 하면, 늘 같은 자리에서 같은 것을 읽던
-                   눈이 매번 다시 맞춰야 한다 — 달리면서 1~2초에 읽는 줄이다. */
-                <div className={`shrink-0 flex items-center px-4 pb-2 text-[13px] font-bold tabular-nums truncate${locked ? ' opacity-40 pointer-events-none' : ''}`}
-                     style={{ color: 'var(--color-text-primary, #dfe5ef)', height: 38, boxSizing: 'content-box' }}>{peekBar}</div>
-            )}
             {/**
               * 📏 **「나」에서는 내용만큼 선다** — `flex-1`(= `flex: 1 1 0%`)은 남는 공간이
               *    없으면 **높이 0 으로 찌부러진다.** 시트가 «내용만큼» 서면 남는 공간이라는

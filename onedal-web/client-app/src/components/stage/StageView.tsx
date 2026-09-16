@@ -744,9 +744,11 @@ export default function StageView(props: Props) {
                         const now = ext.includes('[최단시간]') ? 'TIME'
                                   : ext.includes('[최단거리]') ? 'DISTANCE' : 'RECOMMEND';
                         const shown = ROUTE_PRIORITIES.filter(b => !locked || b.key === now);
+                        /* 🏃 시트와 **같은 0.25초**로 함께 움직인다 — `bottom` 을 바꾸면 레이아웃이
+                           다시 잡히고 버튼만 톡 튀어 시트와 따로 논다 (기사님: «버튼 때문에 더 더덕이는 건가») */
                         return (
-                            <div className="absolute left-3 z-10 flex flex-col gap-1.5 items-start"
-                                 style={{ bottom: sheetPx + 12 }}>
+                            <div className="absolute left-3 bottom-3 z-10 flex flex-col gap-1.5 items-start"
+                                 style={{ transform: `translateY(${-sheetPx}px)`, transition: 'transform .25s ease', willChange: 'transform' }}>
                                 {shown.map(b => (
                                     <button key={b.key} type="button"
                                         onClick={() => holder && props.onRecalculate?.(holder.id, b.key)}
@@ -769,10 +771,10 @@ export default function StageView(props: Props) {
                         **덮개를 열면 그 두 줄이 말한다** (주행 중에도 있는 버튼이라 «출발»이 아니다) */}
                     {qrStop && (
                         <button type="button" onClick={() => setQrOpen(true)}
-                            className="absolute right-3 z-10 flex items-center gap-1 rounded-md px-2.5 h-8
-                                       text-[11.5px] font-black text-white whitespace-nowrap
-                                       active:scale-95 transition-transform"
-                            style={{ bottom: sheetPx + 12, background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)',
+                            className="absolute right-3 bottom-3 z-10 flex items-center gap-1 rounded-md px-2.5 h-8
+                                       text-[11.5px] font-black text-white whitespace-nowrap active:scale-95"
+                            style={{ transform: `translateY(${-sheetPx}px)`, transition: 'transform .25s ease', willChange: 'transform',
+                                     background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)',
                                      boxShadow: '0 4px 12px rgba(79,141,249,.35)' }}>
                             🧭 QR 코드
                         </button>
