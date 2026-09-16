@@ -461,7 +461,7 @@ describe('🔭 영역 네모 자르기 — capAreaBox', () => {
         expect(capAreaBox(route, small)).toEqual(small);
     });
 
-    it('🔴 넓은 영역은 경로 네모의 2배 안으로 자른다', () => {
+    it('🔴 넓은 영역은 경로 네모 안으로 자른다 — 영역 때문에 화면이 넓어지지 않는다', () => {
         const huge = { minX: 126.0, minY: 36.0, maxX: 128.0, maxY: 38.0 };
         const cut = capAreaBox(route, huge)!;
         expect((cut.maxX - cut.minX)).toBeCloseTo((route.maxX - route.minX) * AREA_FIT_MAX_RATIO, 9);

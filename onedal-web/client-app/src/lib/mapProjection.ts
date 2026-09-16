@@ -232,8 +232,11 @@ export function tileToneFor(theme: 'dark' | 'light', zoom: number, dimOn: boolea
     };
 }
 
-/** 🔭 영역 네모는 경로 네모의 몇 배까지 화면에 반영하나 */
-export const AREA_FIT_MAX_RATIO = 2;
+/**
+ * 🔭 **영역 네모는 경로 네모의 몇 배까지 화면에 반영하나** — 1 이면 영역 때문에 화면이 넓어지지 않는다.
+ * 넓히면 먼 원 하나가 화면을 다 먹어 경로가 실처럼 보인다. 영역은 경로 네모 안에 드는 만큼만 보인다.
+ */
+export const AREA_FIT_MAX_RATIO = 1;
 
 /** 🧅 현위치로 볼 때 덮는 레이어 — 골목 배율에서 이것들이 깔리면 길이 안 보인다 */
 export const FOLLOW_HIDDEN_LAYERS = ['pickup', 'dropoff', 'dots'] as const;
