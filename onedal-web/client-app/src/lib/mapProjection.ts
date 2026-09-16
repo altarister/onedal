@@ -207,12 +207,12 @@ export function mapTileTone(dim: number): { alpha: number; filter: string | null
 
 /** 🧅 레이어 이름과 «어느 보기에서 기본으로 켜나» — 걷은 레이어(옛 «그물»)는 여기 없으니 저장본에서도 안 되살아난다 */
 export const LAYER_DEFAULTS_BY_VIEW: Record<MapViewMode, Record<string, boolean>> = {
-    /* 전체 — 영역까지 다 본다 */
+    /* 전체 — 다 켠다. 넓게 보며 영역과 색을 함께 읽는 자리다 */
     all: { base: true, dim: true, border: true, pickup: true, dropoff: true, dots: true, route: true, trail: true },
-    /* 구간 — 지금 가는 길만. 영역이 깔리면 그 길이 안 보인다 */
-    leg: { base: true, dim: true, border: true, pickup: false, dropoff: false, dots: true, route: true, trail: true },
+    /* 구간 — 지금 가는 길만. 영역이 깔리면 그 길이 안 보이고, 어둡게까지 걷어 도로를 제 색으로 본다 */
+    leg: { base: true, dim: false, border: true, pickup: false, dropoff: false, dots: true, route: true, trail: true },
     /* 현위치 — 골목 배율이라 점까지 걷는다 */
-    follow: { base: true, dim: true, border: true, pickup: false, dropoff: false, dots: false, route: true, trail: true },
+    follow: { base: true, dim: false, border: true, pickup: false, dropoff: false, dots: false, route: true, trail: true },
 };
 
 export type LayersByView = Record<MapViewMode, Record<string, boolean>>;

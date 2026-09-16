@@ -391,11 +391,15 @@ describe('🔭 지도 보기 — 전체 · 이번 구간 · 현위치', () => {
  * 한 벌로 두면 «현구간에서만 상차를 끄고 싶다»가 안 된다.
  */
 describe('🧅 보기별 레이어 — layersByViewFrom · setLayerInView', () => {
-    it('🔴 저장된 것이 없으면 보기마다 기본값이 다르다 — 전체는 영역 켬, 구간·현위치는 끔', () => {
+    it('🔴 저장된 것이 없으면 보기마다 기본값이 다르다', () => {
         const byView = layersByViewFrom(null);
-        expect([byView.all.pickup, byView.all.dropoff, byView.all.dots]).toEqual([true, true, true]);
-        expect([byView.leg.pickup, byView.leg.dropoff]).toEqual([false, false]);
-        expect([byView.follow.pickup, byView.follow.dropoff, byView.follow.dots]).toEqual([false, false, false]);
+        /* 전체 — 다 켬 */
+        expect(Object.values(byView.all).every(Boolean)).toBe(true);
+        /* 구간 — 상차·하차·어둡게 끔 */
+        expect([byView.leg.pickup, byView.leg.dropoff, byView.leg.dim]).toEqual([false, false, false]);
+        expect(byView.leg.dots).toBe(true);
+        /* 현위치 — 상차·하차·어둡게·동 점 끔 */
+        expect([byView.follow.pickup, byView.follow.dropoff, byView.follow.dim, byView.follow.dots]).toEqual([false, false, false, false]);
         /* 배경·경계·경로·동선은 어느 보기에서도 켜 둔다 */
         for (const m of ['all', 'leg', 'follow'] as const) {
             expect([byView[m].base, byView[m].border, byView[m].route, byView[m].trail]).toEqual([true, true, true, true]);
