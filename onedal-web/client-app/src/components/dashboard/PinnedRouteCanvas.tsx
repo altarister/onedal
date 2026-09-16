@@ -204,6 +204,19 @@ interface Props {
         missing: number;
     } | null;
     children?: React.ReactNode;
+    /**
+     * 🔝 **오른쪽 세로줄에 이어 붙일 버튼** — 확대(＋ − 초기화) **아래**에 같은 묶음으로 들어간다.
+     *
+     * 🔴 바깥에서 `absolute top-[104px]` 처럼 **좌표로 맞추지 않는다** (기사님 지적 — QR 이 초기화를 덮었다).
+     *    확대 버튼 수가 바뀌거나 글꼴이 달라지면 그 숫자가 바로 어긋난다. 같은 묶음에 넣으면
+     *    간격을 `space-y-2` 하나가 정하므로 갈라질 자리가 없다 (규칙 ③).
+     */
+    rightButtons?: React.ReactNode;
+    /**
+     * 🔝 **지도 위 한가운데에 놓을 버튼** — 왼쪽 줄과 오른쪽 줄 사이 빈 자리다 (기사님 지시).
+     * 🔴 좌표를 안 쓴다 — `left-1/2 -translate-x-1/2` 라 폭이 바뀌어도 늘 가운데다.
+     */
+    centerButtons?: React.ReactNode;
     /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (기본 h-64는 옛 화면용) */
     fill?: boolean;
     /**
@@ -224,7 +237,27 @@ interface Props {
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, occludedPx, rainbowNodes = true }: Props) {
+/**
+ * 🎛️ **지도 버튼 한 벌 — 모양은 여기서만 낸다.**
+ *
+ * 왼쪽(전체·구간·위치·🧅) · 가운데(QR) · 오른쪽(방침·＋ −·초기화)이 **같은 버튼**인데
+ * 바탕·그림자·테두리를 각자 손으로 적고 있었다. 크기나 색을 한 번 고치려면 여섯 곳을
+ * 찾아다녀야 했고, 실제로 「고른 것은 파랗게」 규칙이 자리마다 조금씩 달랐다.
+ *
+ * 🔴 **켜진 것은 바탕을 안 뒤집는다** — 테두리·글자만 파랗게 (뒤집으면 잘 안 보인다 · 기사님 확정).
+ * @param active 지금 골라져 있나
+ * @param extra  그 자리에서만 다른 것 (크기 · 글자 크기)
+ */
+function mapBtn(active: boolean, extra = ''): string {
+    return [
+        'flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover',
+        'rounded-md shadow-lg backdrop-blur-sm font-black transition-all border',
+        active ? 'border-info text-info' : 'border-border text-text-primary opacity-80 hover:opacity-100',
+        extra,
+    ].join(' ');
+}
+
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, rightButtons, centerButtons, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -290,7 +323,6 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      * 할당·회수 비용이 그대로 프레임에 얹혔다. 크기가 바뀔 때만 다시 잡고 평소엔 지워서 쓴다.
      */
     const maskRef = useRef<HTMLCanvasElement | null>(null);
-    const ringRef = useRef<HTMLCanvasElement | null>(null);
     const panRef = useRef({ x: 0, y: 0 });
     const isDragging = useRef(false);
     const lastPos = useRef({ x: 0, y: 0 });
@@ -547,31 +579,6 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          * 틀을 8방향으로 `px` 만큼 밀어 겹친 뒤 원래 틀을 지우면 **바깥 띠만** 남는다 — 원 · 마름모 · 띠가 겹친 안쪽에는 선이 안 생긴다.
          * ⚠️ 방향을 늘리면 테두리가 더 고르지만 그릴 때마다 전체 화면을 그만큼 더 옮긴다 — 2px 에는 8방향이면 이음새가 안 보인다.
          */
-        const strokeOuterEdge = (mask: HTMLCanvasElement, color: string, px: number) => {
-            /* 🎨 테두리 캔버스도 다시 쓴다 — `makeMask` 와 같은 까닭 */
-            const ring = ringRef.current ??= document.createElement('canvas');
-            if (ring.width !== mask.width || ring.height !== mask.height) {
-                ring.width = mask.width; ring.height = mask.height;
-            }
-            const rc = ring.getContext('2d');
-            if (!rc) return;
-            rc.setTransform(1, 0, 0, 1, 0, 0);
-            rc.clearRect(0, 0, ring.width, ring.height);
-            rc.globalCompositeOperation = 'source-over';
-            const d = px * dpr;
-            /* 🔴 **여덟 방향이 아니라 넷이다** — 굵기 2px 테두리에서 눈으로 차이가 안 나는데
-               `drawImage` 가 레이어마다 여덟 번씩 돌아 폰에서 값을 치렀다. */
-            for (let i = 0; i < 4; i++) {
-                const a = (i / 4) * Math.PI * 2;
-                rc.drawImage(mask, Math.cos(a) * d, Math.sin(a) * d);
-            }
-            rc.globalCompositeOperation = 'destination-out';
-            rc.drawImage(mask, 0, 0);
-            rc.globalCompositeOperation = 'source-in';
-            rc.fillStyle = color;
-            rc.fillRect(0, 0, ring.width, ring.height);
-            ctx.drawImage(ring, 0, 0, width, height);
-        };
         /**
          * ✂️ **라인 시작(현위치)에서 경로와 직각인 선 앞쪽만 칠하게 자른다** — 서버와 같은 `aheadOf` (#151).
          *    끝을 평평하게(butt) 그리는 것만으로는 짧게 꺾인 자리의 둥근 이음이 차 뒤를 덮었다 — 선 하나로 자른다.
@@ -635,7 +642,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 ctx.globalAlpha = 0.28;
                 ctx.drawImage(off, 0, 0, width, height);
                 ctx.restore();
-                strokeOuterEdge(off, 'rgba(22,163,74,.9)', 2);
+                /* 🔴 **테두리는 긋지 않는다** (기사님 지시) — 채움만으로 영역이 읽히고, 폰에서 값이 싸다 */
             }
         }
 
@@ -693,7 +700,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 ctx.globalAlpha = 0.22;
                 ctx.drawImage(off, 0, 0, width, height);
                 ctx.restore();
-                strokeOuterEdge(off, 'rgba(37,99,235,.9)', 2);
+                /* 🔴 **테두리는 긋지 않는다** (기사님 지시) — 채움만으로 영역이 읽히고, 폰에서 값이 싸다 */
             }
         }
 
@@ -1199,21 +1206,54 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
               * 🔴 셋을 **풀어서** 놓는다 — 순환 버튼은 «지금 뭐지»를 눌러 봐야 알았다.
               * 🔴 켜진 것은 **바탕을 안 뒤집는다** — 테두리·글자만 파랗게 (뒤집으면 잘 안 보인다).
               */}
-            <div className="absolute top-3 left-3 flex gap-1.5 z-10">
-                {([['all', '전체'], ['leg', '현구간'], ['follow', '현위치']] as [MapViewMode, string][]).map(([m, label]) => (
+            {/**
+              * 🗺️ **왼쪽 위 — 줌 묶음과 같은 꼴** (기사님 지시): 바깥 한 겹 안에
+              *   ① **전체 · 구간 · 위치**를 왼쪽 끝 **세로**로 세워 늘 보이게
+              *   ② 🧅 레이어 · QR코드는 그 옆에
+              * 자리가 뜻을 나누면 운전 중에 손이 기억한다.
+              */}
+            <div className="absolute top-3 left-3 flex flex-row gap-2 items-start z-10">
+                {/* 🔭 무엇에 맞출까 — 세로 한 줄, 상시 노출 */}
+                <div className="flex flex-col items-start gap-2">
+                {/* 🔤 글자는 짧게 — 달리면서 1~2초에 읽는 줄이다 (기사님 지시) */}
+                {([['all', '전체'], ['leg', '구간'], ['follow', '위치']] as [MapViewMode, string][]).map(([m, label]) => (
                     <button
                         key={m}
                         onClick={() => pickViewMode(m, { setViewMode, zoom: zoomRef, pan: panRef, draw: drawMap })}
                         title={m === 'all' ? '정거장·경로가 다 보이게' : m === 'leg' ? '지금 가는 구간이 다 보이게' : '내 위치 둘레를 크게'}
-                        className={`h-8 px-2.5 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg backdrop-blur-sm text-[11px] font-black transition-all ${
-                            viewMode === m
-                                ? 'border border-info text-info'
-                                : 'border border-border text-text-primary opacity-80 hover:opacity-100'
-                        }`}
+                        className={mapBtn(viewMode === m, 'h-8 px-2.5 text-[11px]')}
                     >
                         {label}
                     </button>
                 ))}
+                </div>
+                {/* 🧅 레이어 · QR코드 — 그 옆에 세로로 */}
+                <div className="flex flex-col items-start gap-2">
+                    {/* 🔴 **펼침 목록은 버튼 바로 아래에 붙는다** — 좌표(`top-[52px]`)로 두면 버튼이
+                        옮겨질 때마다 목록만 옛 자리에 남는다 (규칙 ③). `relative` 안에서 따라다닌다. */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setLayersOpen(o => !o)}
+                            title="지도에 무엇을 그릴까"
+                            className={mapBtn(layersOpen, 'h-8 px-2.5 text-[11px]')}
+                        >
+                            🧅 {Object.values(layers).filter(Boolean).length}/{Object.keys(layers).length}
+                        </button>
+                        {layersOpen && (
+                            <div className="absolute top-full left-0 mt-2 flex flex-col gap-1 z-10">
+                                {([['base', '배경'], ['dim', '어둡게'], ['border', '경계'], ['pickup', '상차'], ['dropoff', '하차'], ['dots', '동 점'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
+                                    <button
+                                        key={k}
+                                        onClick={() => toggleLayer(k)}
+                                        className={mapBtn(layers[k], 'h-7 px-2 gap-1 text-[11px] whitespace-nowrap')}
+                                    >
+                                        {layers[k] ? '👁' : '🚫'} {label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/**
@@ -1224,52 +1264,44 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
               * 🔴 자리는 **좌상단** — «무엇에 맞출까»(전체·현구간·현위치) 바로 아래다.
               *    보는 방식을 정하는 것끼리 모인다 (자리가 뜻을 나누면 손이 기억한다).
               */}
-            <div className="absolute top-[52px] left-3 flex flex-col items-start gap-1.5 z-10">
-                <button
-                    onClick={() => setLayersOpen(o => !o)}
-                    title="지도에 무엇을 그릴까"
-                    className={`h-8 px-2.5 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg backdrop-blur-sm text-[11px] font-black transition-all ${
-                        layersOpen ? 'border border-info text-info' : 'border border-border text-text-primary opacity-80 hover:opacity-100'
-                    }`}
-                >
-                    🧅 {Object.values(layers).filter(Boolean).length}/{Object.keys(layers).length}
-                </button>
-                {layersOpen && (
-                    <div className="flex flex-col gap-1">
-                        {([['base', '배경'], ['dim', '어둡게'], ['border', '경계'], ['pickup', '상차'], ['dropoff', '하차'], ['dots', '동 점'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
-                            <button
-                                key={k}
-                                onClick={() => toggleLayer(k)}
-                                className={`h-7 px-2 flex items-center gap-1 bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg backdrop-blur-sm text-[11px] font-black transition-all ${
-                                    layers[k] ? 'border border-info text-info' : 'border border-border text-text-muted opacity-70'
-                                }`}
-                            >
-                                {layers[k] ? '👁' : '🚫'} {label}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
+            {/* 🔝 지도 위 한가운데 — 왼쪽 줄과 오른쪽 줄 사이 (`centerButtons` 주석) */}
+            {centerButtons && (
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                    {centerButtons}
+                </div>
+            )}
 
-            <div className="absolute top-3 right-3 flex flex-col space-y-2 z-10">
-                <button
-                    onClick={() => handleZoomClick(1.2)}
-                    className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm font-black opacity-80 hover:opacity-100 transition-all"
-                >
-                    +
-                </button>
-                <button
-                    onClick={() => handleZoomClick(0.8)}
-                    className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm font-black opacity-80 hover:opacity-100 transition-all"
-                >
-                    -
-                </button>
-                <button
-                    onClick={() => pickViewMode('all', { setViewMode, zoom: zoomRef, pan: panRef, draw: drawMap })}
-                    className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm text-[10px] font-bold opacity-80 hover:opacity-100 transition-all"
-                >
-                    초기화
-                </button>
+            {/**
+              * 🔝 **오른쪽 위 — 윗줄은 가로, 확대 셋은 그 아래 세로** (기사님 지시).
+              *
+              * 여섯을 세로로 쌓으면 지도를 반이나 덮었고, 여섯을 가로로 늘어놓으면 왼쪽 줄과 부딪힌다.
+              * 자주 쓰는 것(방침·QR)은 윗줄에 가로로, **＋ − 초기화는 아래로 떨어뜨려 늘 보이게** 둔다.
+              * 간격은 `gap-2` 하나가 정한다 — 좌표로 맞추지 않는다 (규칙 ③).
+              */}
+            {/* 🔝 오른쪽 위 — 바깥 버튼(방침)과 줌 셋이 **가로로 나란히** 선다 (기사님 지시) */}
+            <div className="absolute top-3 right-3 flex flex-row gap-2 items-start z-10">
+                {rightButtons}
+                {/* 🔍 줌 셋은 세로 한 줄 — 늘 보인다 */}
+                <div className="flex flex-col items-end gap-2">
+                    <button
+                        onClick={() => handleZoomClick(1.2)}
+                        className={mapBtn(false, 'w-8 h-8')}
+                    >
+                        +
+                    </button>
+                    <button
+                        onClick={() => handleZoomClick(0.8)}
+                        className={mapBtn(false, 'w-8 h-8')}
+                    >
+                        -
+                    </button>
+                    <button
+                        onClick={() => pickViewMode('all', { setViewMode, zoom: zoomRef, pan: panRef, draw: drawMap })}
+                        className={mapBtn(false, 'w-8 h-8 text-[10px]')}
+                    >
+                        초기화
+                    </button>
+                </div>
             </div>
             {children}
         </div>
