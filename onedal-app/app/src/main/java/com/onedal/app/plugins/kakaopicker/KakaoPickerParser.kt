@@ -101,7 +101,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /** 요금은 화면 오른쪽에 정렬된다 — 왼쪽의 km·거리 숫자와 구분 */
         private const val FARE_MIN_CENTER_X = 600
 
-        /** 요금 닻인가 — 글자꼴과 위치(오른쪽 정렬)를 함께 본다. 순수 함수(검사용 공개) */
+        /** 카드를 가르는 기준점(요금 글자)인가 — 글자꼴과 위치(오른쪽 정렬)를 함께 본다. 순수 함수(검사용 공개) */
         fun isFareAnchor(text: String, centerX: Int): Boolean =
             text.matches(FARE_REGEX) && centerX >= FARE_MIN_CENTER_X
 
@@ -129,23 +129,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         private const val LIST_HEADER_WORD = "리스트 설정"
 
         /**
-         * 🚧 **화면 맨 아래 탭 줄의 글자** — 이 줄부터 아래는 콜이 아니다.
-         * 위쪽 경계(`LIST_HEADER_WORD`)의 짝이다. 목록 끝에서 마지막 카드가 탭 줄에 붙으면
-         * 탭 글자가 요금 ±60픽셀 안에 들어와 **지역 이름으로 취급됐다** (09-16 실측: 픽업지 «신규 내 오더»).
-         * 🔴 낱말 목록(`uiNoiseWords`)은 아는 글자만 막지만, 이 선은 탭 이름이 바뀌어도 막는다.
+         * 🚧 **화면 맨 아래 탭 막대의 글자** — 이 낱말들만 버린다.
+         *
+         * 🔴 **자리로 자르지 않는다.** 탭 막대는 경계가 아니라 **목록 위에 겹쳐 떠 있는 막대**이고,
+         *    목록은 그 뒤로 이어진다. 아래를 통째로 버렸더니 마지막 카드의 아랫줄(출발동·도착동·거리)이
+         *    늘 잘렸고, 카드 키가 큰 도보 콜은 **요금까지 막대 아래로 내려가 콜 한 건이 통째로** 사라졌다.
+         * 🔴 이름으로 버리므로 픽커가 탭을 바꾸면 **서버 사전 `bottomTabWords` 한 줄**로 따라간다
+         *    (앱 재설치 없음). 잠그는 검사는 `PickerBottomTabTest`(퀵)·`PickerListWholeScreenTest`(도보).
          */
         private val BOTTOM_TAB_WORDS = setOf("서포트모드", "카드설정", "수요지도", "신규", "내 오더")
-
-        /**
-         * 🚧 아래 탭 줄의 **맨 위** 중심 Y — 탭 글자가 하나도 없으면 **null** (0 이 아니다 · 규칙 ④).
-         * 입력은 `(글자, 중심Y)` 짝이다 — 순수 함수라 폰 없이 검사된다.
-         */
-        fun bottomTabTopY(nodes: List<Pair<String, Int>>, words: Set<String> = BOTTOM_TAB_WORDS): Int? =
-            nodes.filter { it.first.trim() in words }.minOfOrNull { it.second }
-
-        /** 🚧 그 글자가 탭 줄 자리이거나 그 아래인가 — **탭 줄을 못 찾았으면 아무것도 안 버린다** */
-        fun isBelowBottomTab(nodeCenterY: Int, tabTopY: Int?): Boolean =
-            tabTopY != null && nodeCenterY >= tabTopY
 
         /**
          * 📢 **광고 구간의 표시** — 목록 맨 아래, 마지막 카드와 탭 줄 사이에 구인 광고가 붙는다.
@@ -252,6 +244,21 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          */
         fun isDetailResidue(texts: List<String>): Boolean = texts.any { it.contains("수락하기") }
 
+        /** 📏 요금이 하나뿐이라 이웃이 없을 때 쓰는 카드 한 장 높이 (실측 카드 간격 163~185의 절반보다 넉넉히) */
+        private const val LONE_CARD_PX = 100
+
+        /**
+         * 📏 **묶는 칸은 «이웃 요금까지 간격의 절반» 이다 — 고정 픽셀이 아니다** (기사님 지시).
+         *
+         * 카드 높이는 **배지 줄 수에 따라 다르다** — 예약 카드는 줄이 하나 더 있어 맨 윗줄이
+         * 요금에서 80픽셀 떨어진다. 실물 덤프에서 재면 제 카드 글자는 최대 80px, 남의 카드는
+         * 최소 83px 이라 **간격의 절반이면 둘을 정확히 가른다**.
+         *
+         * 🔴 **고정값을 쓰지 않는 까닭**: 카드 높이는 배지 줄 수에 따라 달라진다. 실측값 하나를 박아 두면
+         *    줄이 하나 더 붙는 날 또 잘린다. 간격의 절반은 화면이 바뀌어도 스스로 맞는다
+         *    (덤프 전체 570글자로 재니 잘리는 글자 60px 규칙 1개 → 새 규칙 0개).
+         * 🔴 **한 글자는 한 카드에만 붙는다** — 두 카드에 겹쳐 들어가던 사고(0830 «처인 대치2»)는 그대로 막는다.
+         */
         fun nearestAnchorIndex(anchorCentersY: List<Int>, nodeCenterY: Int): Int {
             var best = -1
             var bestDist = Int.MAX_VALUE
@@ -259,7 +266,50 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 val d = kotlin.math.abs(c - nodeCenterY)
                 if (d < bestDist) { bestDist = d; best = i }
             }
-            return if (bestDist <= CARD_BAND_PX) best else -1
+            if (best < 0) return -1
+            val limit = anchorCentersY.indices
+                .filter { it != best }
+                .minOfOrNull { kotlin.math.abs(anchorCentersY[it] - anchorCentersY[best]) / 2 }
+                ?: LONE_CARD_PX
+            return if (bestDist <= limit) best else -1
+        }
+
+        /**
+         * 🖼️ **화면 글자를 요금 기준으로 카드에 나눠 담는다 — 순수 함수라 폰 없이 실물 좌표로 검사된다.**
+         *
+         * 🔴 **조각만 검사하면 합쳐진 결과가 틀린 것을 못 본다.** 묶는 칸 · 위 경계 · 아래 탭 · 광고가
+         *    저마다 초록인데 화면 맨 아래 카드가 통째로 빠지고 있었다 (`PickerListWholeScreenTest`).
+         *
+         * @param nodes (글자, 중심Y, 중심X) — 화면에 보이는 차례(위→아래, 왼→오른쪽)로 들어온다
+         * @return (기준점이 된 요금 글자의 자리번호, 그 카드에 담긴 글자들)
+         */
+        fun groupByFare(
+            nodes: List<Triple<String, Int, Int>>,
+            tabWords: Set<String> = BOTTOM_TAB_WORDS,
+            adWords: Set<String> = AD_START_WORDS,
+        ): List<Pair<Int, List<String>>> {
+            /**
+             * 📢 **광고 줄부터 아래는 뺀다** (기사님 지시 — «이 일거리 어떤가요부터는 광고, 거기는 볼 거 없어»).
+             * 실측: 광고는 홈 화면에만 붙고, 광고 아래에 요금이 또 나온 판은 0개다.
+             */
+            val adY = adTopY(nodes.map { it.first to it.second }, adWords)
+            /**
+             * 🚧 **아래 탭 막대는 «이름»으로만 버린다 — 자리로 자르지 않는다** (`BOTTOM_TAB_WORDS` 주석).
+             * 막대는 목록 위에 겹쳐 떠 있을 뿐이라, 그 아래에도 멀쩡한 카드가 이어진다.
+             */
+            val body = nodes.withIndex().filterNot { (_, n) ->
+                n.first.trim() in tabWords || isBelowAd(n.second, adY)
+            }
+            val anchors = body.filter { isFareAnchor(it.value.first, it.value.third) }
+            if (anchors.isEmpty()) return emptyList()
+            val anchorCenters = anchors.map { it.value.second }
+            // 🧲 각 글자를 가장 가까운 요금 하나에만 배정 — 두 카드에 겹쳐 들어가는 것을 막는다 (#86)
+            val cardTexts = List(anchors.size) { mutableListOf<String>() }
+            for ((_, n) in body) {
+                val i = nearestAnchorIndex(anchorCenters, n.second)
+                if (i >= 0) cardTexts[i].add(n.first)
+            }
+            return anchors.mapIndexed { i, a -> Pair(a.index, cardTexts[i] as List<String>) }
         }
 
         /**
@@ -402,6 +452,32 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             return AlarmAxes(fareOk, pickupOk, destOk)
         }
 
+        /**
+         * 🗳️ **떨어진 까닭을 한 낱말로 — 통과면 null** (기사님 지시 — 탈락 원본이 잘 들어가는지 보다 드러났다).
+         *
+         * 탈락한 콜은 원문과 함께 장부에 잘 들어가는데 **어느 축에서 떨어졌는지가 안 남아**,
+         * «왜 이 콜이 안 울렸나» 를 폰 로그로만 되짚을 수 있었다. 폰 로그는 3일치뿐이다.
+         *
+         * 🔴 **성적표(`decide`)와 같은 분기다** — 따로 세면 «성적표는 요금, 장부는 지역» 으로 갈라진다.
+         * 🔴 **축 낱말은 서버가 쓰는 말 그대로** — `fare` · `pickup` · `region` (`simScenario.ts` 의 `blockBy`).
+         */
+        fun verdictAxisOf(
+            order: SimplifiedOfficeOrder,
+            minFare: Int,
+            pickupRadiusKm: Double,
+            destKeywords: List<String> = emptyList(),
+            keywordTraps: Map<String, List<String>> = emptyMap(),
+            cityAliases: List<String> = emptyList(),
+        ): String? {
+            val a = decideAxes(order, minFare, pickupRadiusKm, destKeywords, keywordTraps, cityAliases)
+            return when {
+                a.pass -> null          // 통과 — 빈 칸이 «통과» 라는 뜻이다
+                !a.fare -> "fare"
+                !a.pickup -> "pickup"
+                else -> "region"
+            }
+        }
+
         fun decide(
             order: SimplifiedOfficeOrder,
             minFare: Int,
@@ -539,31 +615,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             return emptyList()
         }
 
+        // 🖼️ 나누는 셈은 순수 함수 `groupByFare` 에 있다 — 실물 좌표로 통째로 검사하려고 떼어 놨다
         val sorted = allNodes.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
-        /**
-         * 🚧 **화면 맨 아래 탭 줄부터는 빼고 나눈다** (기사님 지시 — 위쪽 «리스트 설정» 경계의 짝).
-         * 목록 끝에서 마지막 카드가 탭 줄에 붙으면 «신규»·«내 오더» 가 그 카드의 지역 이름이 됐다.
-         */
-        val tabTopY = bottomTabTopY(sorted.map { it.text to (it.rect.top + it.rect.bottom) / 2 }, bottomTabWords())
-        /**
-         * 📢 **광고 줄부터 아래도 뺀다** (기사님 지시 — «이 일거리 어떤가요부터는 광고, 거기는 볼 거 없어»).
-         * 마지막 카드와 탭 줄 **사이**라 탭 경계만으로는 안 걸린다.
-         */
-        val adY = adTopY(sorted.map { it.text to (it.rect.top + it.rect.bottom) / 2 }, adStartWords())
-        val body = sorted.filterNot {
-            val y = (it.rect.top + it.rect.bottom) / 2
-            isBelowBottomTab(y, tabTopY) || isBelowAd(y, adY)
-        }
-        val anchors = body.filter { isFareAnchor(it.text, (it.rect.left + it.rect.right) / 2) }
-        if (anchors.isEmpty()) return emptyList()
-        val anchorCenters = anchors.map { (it.rect.top + it.rect.bottom) / 2 }
-        // 🧲 각 노드를 가장 가까운 요금 글자 하나에만 배정 — 두 카드에 겹쳐 들어가는 것을 막는다 (#86)
-        val cardTexts = List(anchors.size) { mutableListOf<String>() }
-        for (node in body) {
-            val i = nearestAnchorIndex(anchorCenters, (node.rect.top + node.rect.bottom) / 2)
-            if (i >= 0) cardTexts[i].add(node.text)
-        }
-        return anchors.mapIndexed { i, fareNode -> Pair(fareNode, cardTexts[i] as List<String>) }
+        return groupByFare(
+            sorted.map { Triple(it.text, (it.rect.top + it.rect.bottom) / 2, (it.rect.left + it.rect.right) / 2) },
+            bottomTabWords(),
+            adStartWords(),
+        ).map { (i, texts) -> Pair(sorted[i], texts) }
     }
 
     override fun parse(texts: List<String>): SimplifiedOfficeOrder {
@@ -689,11 +747,17 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         Regex("""(\d+(?:\.\d+)?)km""").find(rawText)?.groupValues?.get(1)?.toDoubleOrNull()
 
     /**
-     * 🗳️ **판정을 안 싣는다 — 픽커는 수집 전용이라 잡기 판정이 없다** (2026-09-12).
-     *    🔴 **«안 함»도 제 손으로 적는다** — 인터페이스에 기본값을 두었더니 위임 누락을
-     *       컴파일러가 못 잡아 `verdict` 가 내리 `null` 이었다 (#84 와 같은 병).
-     *    실으려면 `InsungParser.withVerdict` 처럼 **판정 함수가 고른 축**을 그대로 넣는다 —
-     *    성적표와 같은 분기를 써야 «성적표는 요금, 화면은 지역»으로 갈라지지 않는다.
+     * 🗳️ **알람 판정에서 떨어진 축을 장부에 싣는다** (기사님 지시).
+     *
+     * 픽커는 «수집 전용이라 잡기 판정이 없다» 며 오래 비워 뒀는데, 알람 판정(요금·상차·도착)이
+     * 생긴 뒤로는 실을 것이 있다. 이게 없으면 «왜 이 콜이 안 울렸나» 를 3일치 폰 로그로만 볼 수 있다.
+     * 🔴 `InsungParser.withVerdict` 와 같은 꼴 — **판정 함수가 고른 축**을 그대로 넣어,
+     *    성적표와 장부가 «성적표는 요금, 장부는 지역» 으로 갈라지지 않게 한다.
      */
-    override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder = order
+    override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder {
+        val c = alarmConfig()
+        return order.copy(
+            verdict = verdictAxisOf(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases),
+        )
+    }
 }
