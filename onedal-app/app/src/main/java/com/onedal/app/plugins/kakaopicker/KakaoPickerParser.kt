@@ -94,8 +94,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 🚧 아래 탭 줄의 **맨 위** 중심 Y — 탭 글자가 하나도 없으면 **null** (0 이 아니다 · 규칙 ④).
          * 입력은 `(글자, 중심Y)` 짝이다 — 순수 함수라 폰 없이 검사된다.
          */
-        fun bottomTabTopY(nodes: List<Pair<String, Int>>): Int? =
-            nodes.filter { it.first.trim() in BOTTOM_TAB_WORDS }.minOfOrNull { it.second }
+        fun bottomTabTopY(nodes: List<Pair<String, Int>>, words: Set<String> = BOTTOM_TAB_WORDS): Int? =
+            nodes.filter { it.first.trim() in words }.minOfOrNull { it.second }
 
         /** 🚧 그 글자가 탭 줄 자리이거나 그 아래인가 — **탭 줄을 못 찾았으면 아무것도 안 버린다** */
         fun isBelowBottomTab(nodeCenterY: Int, tabTopY: Int?): Boolean =
@@ -114,8 +114,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 기억되므로 **같은 콜이 다른 콜로 보인다** — 그래서 이미 누른 콜을 또 누른다.
          * 🔴 그런 판은 통째로 건너뛴다. 다음 읽기(1초 뒤)에는 깨끗하게 들어온다 (규칙 ④ — 모르면 손대지 않는다).
          */
-        fun detailLeaked(texts: List<String>): Boolean =
-            texts.any { t -> DETAIL_ONLY_WORDS.any { t.contains(it) } }
+        fun detailLeaked(texts: List<String>, words: Set<String> = DETAIL_ONLY_WORDS): Boolean =
+            texts.any { t -> words.any { t.contains(it) } }
 
         /**
          * 📏 「리스트 설정」 머리줄의 중심 Y — 없으면 **null** (0 이 아니다 · 규칙 ④).
@@ -415,17 +415,32 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
      * 🔴 **서버 목록과 앱 기본값을 합쳐서 쓴다** — 서버가 죽거나 목록이 비어도 최소한은 걸러야 한다
      *    (규칙 ④ — 비면 «전부 통과»가 아니다).
      */
-    private fun noiseWords(): Set<String> {
-        val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE) ?: return NOISE_WORDS
+    private fun wordsFrom(key: String, fallback: Set<String>): Set<String> {
+        val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE) ?: return fallback
         return try {
-            val saved = prefs.getString("targetAppKeywords", null) ?: return NOISE_WORDS
-            val arr = JSONObject(saved).optJSONArray("uiNoiseWords") ?: return NOISE_WORDS
+            val saved = prefs.getString("targetAppKeywords", null) ?: return fallback
+            val arr = JSONObject(saved).optJSONArray(key) ?: return fallback
             val fromServer = (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }.toSet()
-            if (fromServer.isEmpty()) NOISE_WORDS else fromServer + NOISE_WORDS
+            if (fromServer.isEmpty()) fallback else fromServer + fallback
         } catch (e: Exception) {
-            NOISE_WORDS
+            fallback
         }
     }
+
+    /** 🧹 버릴 화면 메뉴 글자 */
+    private fun noiseWords(): Set<String> = wordsFrom("uiNoiseWords", NOISE_WORDS)
+
+    /** 🏷️ 배송 종류·조건 표시 — 지역 이름이 아니다. 콜에 실어 서버로 보낸다 (`tagsText`) */
+    private fun tagWords(): Set<String> = wordsFrom("tagWords", TAG_WORDS)
+
+    /** 📦 물품 크기 — 픽커에는 차종 대신 이 축이 있다 */
+    private fun itemSizeWords(): Set<String> = wordsFrom("itemSizes", ITEM_SIZES)
+
+    /** 🚧 화면 맨 아래 탭 줄의 글자 — 이 줄부터 아래는 콜이 아니다 */
+    private fun bottomTabWords(): Set<String> = wordsFrom("bottomTabWords", BOTTOM_TAB_WORDS)
+
+    /** 🩹 상세 화면에만 있는 글자 — 목록에 섞였으면 두 화면이 겹쳐 읽힌 것이다 */
+    private fun detailOnlyWords(): Set<String> = wordsFrom("detailOnlyWords", DETAIL_ONLY_WORDS)
 
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         /**
@@ -433,7 +448,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 상세에서 목록으로 넘어오는 찰나에 상세 글자가 섞여 들어오면, 그 판으로 만든 카드는
          * 출발·도착이 뒤섞여 **같은 콜이 다른 콜로 보인다**. 다음 읽기에는 깨끗하게 들어온다.
          */
-        if (detailLeaked(allNodes.map { it.text })) {
+        if (detailLeaked(allNodes.map { it.text }, detailOnlyWords())) {
             com.onedal.app.core.AppLogger.d("1DAL_PICKER",
                 "🩹 [겹친 화면] 목록에 상세 글자가 섞였다 — 이 판은 건너뛴다 (다음 읽기에 다시 본다)")
             return emptyList()
@@ -444,7 +459,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 🚧 **화면 맨 아래 탭 줄부터는 빼고 나눈다** (기사님 지시 — 위쪽 «리스트 설정» 경계의 짝).
          * 목록 끝에서 마지막 카드가 탭 줄에 붙으면 «신규»·«내 오더» 가 그 카드의 지역 이름이 됐다.
          */
-        val tabTopY = bottomTabTopY(sorted.map { it.text to (it.rect.top + it.rect.bottom) / 2 })
+        val tabTopY = bottomTabTopY(sorted.map { it.text to (it.rect.top + it.rect.bottom) / 2 }, bottomTabWords())
         val body = sorted.filterNot { isBelowBottomTab((it.rect.top + it.rect.bottom) / 2, tabTopY) }
         val anchors = body.filter { isFareAnchor(it.text, (it.rect.left + it.rect.right) / 2) }
         if (anchors.isEmpty()) return emptyList()
@@ -459,7 +474,10 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     }
 
     override fun parse(texts: List<String>): SimplifiedOfficeOrder {
-        val noise = noiseWords()          // 🧹 서버가 내려준 «버릴 글자» + 앱 기본값
+        // 🗂️ 낱말은 배차망 사전에서 온다 — 서버가 내려준 것 + 앱 기본값 (못 받아도 최소한은 돈다)
+        val noise = noiseWords()
+        val tagSet = tagWords()
+        val sizeSet = itemSizeWords()
         var fare = 0
         var pickupKm: Double? = null
         var itemSize: String? = null
@@ -473,15 +491,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 t.matches(FARE_REGEX) -> fare = t.replace(",", "").toIntOrNull() ?: 0
                 KM_REGEX.matches(t) -> pickupKm = KM_REGEX.find(t)?.groupValues?.get(1)?.toDoubleOrNull()
                 M_REGEX.matches(t) -> pickupKm = M_REGEX.find(t)?.groupValues?.get(1)?.toDoubleOrNull()?.div(1000)
-                t in ITEM_SIZES -> itemSize = t
-                t in TAG_WORDS -> tags.add(t)
+                t in sizeSet -> itemSize = t
+                t in tagSet -> tags.add(t)
                 t.startsWith("준비 ") -> tags.add(t)                 // «준비 29분»
                 TIME_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «17:00»
                 t in noise -> { /* 화면 메뉴 글자 — 콜 정보가 아니다, 버린다 (서버 목록 + 앱 기본값) */ }
                 // 🚫 배정 완료 토스트가 카드 띠에 섞였다 — 지역이 아니다 (09-02 실주행 가짜 콜 3건 · `AssignedToastTest`)
                 t.contains(KakaoPickerKeywords.ASSIGNED_TOAST_WORD) -> { }
                 // «내일 착불» 처럼 태그 여럿이 한 노드로 붙어 오는 판 — 낱낱이 전부 태그면 태그다
-                t.contains(' ') && t.split(' ').all { it in TAG_WORDS } -> tags.addAll(t.split(' '))
+                t.contains(' ') && t.split(' ').all { it in tagSet } -> tags.addAll(t.split(' '))
                 t.endsWith("km") -> { /* «20km» 같은 헤더 반경 — 콜 정보가 아니다 */ }
                 t.isNotEmpty() -> locations.add(t)
             }
