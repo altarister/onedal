@@ -50,6 +50,27 @@ object TapShift {
     const val MOVE_TOL_PX = 24
 
     /** 예약한 때보다 이만큼까지 늦게 깨어난 것은 봐준다 — 조금 늦었다고 알람을 죽이지 않는다 */
+    /** 🔒 미뤄 둔 찍기의 잠금이 스스로 풀리기까지 주는 여유 — 콜백이 유실돼도 영영 안 찍히지 않게 */
+    const val PENDING_GRACE_MS = 500L
+
+    /**
+     * 🔒 **미뤄 둔 찍기가 있어 이번 찍기를 건너뛸 것인가.**
+     *
+     * 막으려는 것은 «**미뤄 둔 예약이 둘 쌓이는 것**» 하나다 — 화면 읽기가 1초마다 도는 탓에
+     * 미루는 사이 다음 읽기가 또 알람을 울리면 예약이 쌓이고, 둘째가 뒤늦게 발사되면
+     * 상세 화면 위를 찍는다 (알람은 «한 번에 요금 최고 하나» · 규칙 ①·④).
+     *
+     * 🔴 **바로 찍는 길(`delayMs <= 0`)은 절대 막지 않는다.** 앱이 팝업을 차례로 열고 닫는 길은
+     *    0.2~0.4초 간격으로 연달아 눌러야 한다 — 거기까지 막으면 「닫기」가 삼켜져 팝업이 안 닫히고
+     *    순회가 처음부터 되풀이된다 (`TapShiftTest` · 인성 적요·출발지·도착지 셋 돌기).
+     *
+     * @param pendingAtMs 미뤄 둔 찍기를 건 시각(부팅 기준) · 0 이면 없음
+     * @param nowMs 지금(부팅 기준)
+     * @param delayMs 이번 찍기를 얼마나 미루나 (0 이면 바로 찍는다 — 그 길은 안 막는다)
+     */
+    fun blockedByPending(pendingAtMs: Long, nowMs: Long, delayMs: Long): Boolean =
+        delayMs > 0L && pendingAtMs > 0L && nowMs - pendingAtMs < delayMs + PENDING_GRACE_MS
+
     const val LATE_TOL_MS = 2_000L
 
     /**

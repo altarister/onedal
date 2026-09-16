@@ -19,6 +19,50 @@ import org.junit.Test
  */
 class TapShiftTest {
 
+    /**
+     * 🔒 **연달아 누르는 길을 막지 않는다 — 막을 것은 «미뤄 둔 예약이 둘 쌓이는 것»뿐이다.**
+     *
+     * 인성에서 손으로 콜을 열면 앱이 **적요상세 → 출발지 → 도착지** 팝업을 차례로 열고 닫아
+     * 정보를 모아 미리보기로 보낸다. 그 길은 **0.2~0.4초 간격으로 연달아** 눌러야 한다.
+     * 잠금이 바로 찍는 길까지 막자 「닫기」가 아홉 번 내리 삼켜져 팝업이 안 닫혔고,
+     * 순회가 적요상세부터 끝없이 되풀이됐다 (09-16 실측 21:53~21:58).
+     *
+     * ── 실물 간격 (폰 로그) ──
+     * ```
+     *   적요상세 찍음 → 262ms 뒤 「닫기」   ← 막히면 안 된다
+     *   출발지  찍음 → 293ms 뒤 「닫기」   ← 막히면 안 된다
+     *   도착지  찍음 → 418ms 뒤 「닫기」   ← 막히면 안 된다
+     * ```
+     */
+    @Test
+    fun `바로 찍는 길은 연달아 눌러도 안 막힌다 - 인성 팝업 셋 돌기`() {
+        // 적요상세를 바로 찍고(delay 0) 262ms 뒤 「닫기」를 바로 찍는다
+        assertFalse("적요→닫기 262ms", TapShift.blockedByPending(pendingAtMs = 1_000L, nowMs = 1_262L, delayMs = 0L))
+        assertFalse("출발지→닫기 293ms", TapShift.blockedByPending(pendingAtMs = 1_000L, nowMs = 1_293L, delayMs = 0L))
+        assertFalse("도착지→닫기 418ms", TapShift.blockedByPending(pendingAtMs = 1_000L, nowMs = 1_418L, delayMs = 0L))
+    }
+
+    /** 🔴 미뤄 둔 예약이 둘 쌓이는 것은 그대로 막는다 — 이 잠금이 생긴 까닭 (09-16 14:58:52) */
+    @Test
+    fun `미뤄 둔 예약이 있으면 새 예약을 안 건다`() {
+        assertTrue(
+            "1초 미룬 예약 뒤 300ms 만에 또 예약",
+            TapShift.blockedByPending(pendingAtMs = 1_000L, nowMs = 1_300L, delayMs = 1_000L),
+        )
+    }
+
+    /** 🔓 여유(`PENDING_GRACE_MS`)가 지나면 스스로 풀린다 — 콜백이 유실돼도 영영 안 찍히지 않게 */
+    @Test
+    fun `여유가 지나면 잠금이 스스로 풀린다`() {
+        assertFalse(TapShift.blockedByPending(pendingAtMs = 1_000L, nowMs = 2_600L, delayMs = 1_000L))
+    }
+
+    @Test
+    fun `미뤄 둔 것이 없으면 안 막는다`() {
+        assertFalse(TapShift.blockedByPending(pendingAtMs = 0L, nowMs = 9_999L, delayMs = 1_000L))
+        assertFalse(TapShift.blockedByPending(pendingAtMs = 0L, nowMs = 9_999L, delayMs = 0L))
+    }
+
     @Test
     fun `요금 자리에서 왼쪽으로 옮긴다`() {
         assertEquals(681, TapShift.leftOf(981, 300))

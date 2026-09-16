@@ -16,8 +16,6 @@ class AutoTouchManager(private val service: AccessibilityService) {
         private const val TAG = "1DAL_TOUCH"
         /** 카드 줄을 찾을 때 조상을 몇 번까지 타고 올라가나 */
         private const val ROW_HOPS = 6
-        /** 미뤄 둔 찍기의 잠금이 스스로 풀리기까지 주는 여유 — 콜백이 유실돼도 영영 안 찍히지 않게 */
-        private const val PENDING_GRACE_MS = 500L
     }
 
     /** ⏳ 미뤄 둔 찍기를 건 시각(부팅 기준) · 0 이면 없음 — 겹쳐 예약하지 않으려고 둔다 */
@@ -80,12 +78,13 @@ class AutoTouchManager(private val service: AccessibilityService) {
          * ⏱️ 자물쇠는 시각으로 둔다 — 콜백이 유실돼도 스스로 풀린다.
          */
         val now = android.os.SystemClock.elapsedRealtime()
-        if (pendingTapAtMs > 0L && now - pendingTapAtMs < delayMs + PENDING_GRACE_MS) {
-            AppLogger.w(TAG, "🛑 [찍기 건너뜀] 방금 찍은 것이 있다 — 겹쳐 찍지 않는다 " +
+        if (TapShift.blockedByPending(pendingTapAtMs, now, delayMs)) {
+            AppLogger.w(TAG, "🛑 [찍기 건너뜀] 미뤄 둔 찍기가 있다 — 겹쳐 예약하지 않는다 " +
                 "(${now - pendingTapAtMs}ms 전)")
             return false
         }
-        pendingTapAtMs = now
+        // 🔒 잠금은 **미루는 길에서만** 세운다 — 바로 찍기가 세우면 뒤따르는 미룬 예약이 애꿎게 막힌다
+        if (delayMs > 0L) pendingTapAtMs = now
 
         /**
          * 🔴 **보내는 순간에 남긴다** — 아래 `onCompleted` 는 **2~4초 늦게** 온다
