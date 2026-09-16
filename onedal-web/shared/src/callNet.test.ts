@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lineFromPoint, aheadOf, isAheadOf, distToLineKm, pruneExcludedRegions, buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound, foldChainOrder } from './callNet';
+import { lineFromPoint, aheadOf, isAheadOf, distToLineKm, pruneExcludedRegions, buildNet, netForGoal, lineZoneOf, netAreaTesterOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound, foldChainOrder } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -13,6 +13,33 @@ import { lineFromPoint, aheadOf, isAheadOf, distToLineKm, pruneExcludedRegions, 
  */
 
 const flat = (r: ReturnType<typeof buildNet>) => r.groups.flatMap(g => g.names);
+
+/**
+ * 🔵 **하차 조각은 현위치 원을 도려낸다** (기사님 확정).
+ *
+ * 하차 영역은 «마름모 ∪ 목적지 원 − 현위치 원»이다 — 싣는 자리에 그대로 내리는 콜을 막으려는 것이고,
+ * 지도 캔버스는 이미 그렇게 그린다(`PinnedRouteCanvas` 의 `destination-out`).
+ * 그런데 서버 판정(`makeInNet`)은 현위치 원을 **OR 로 더하고** 있었다 — 같은 «하차 영역»을
+ * 두 곳이 다르게 세어 화면과 목록이 갈라졌다.
+ *
+ * 🔴 **상차 판정은 그대로 둔다** — 상차는 현위치 원이 있어야 한다 (`judgeTwoStage`).
+ *    도려내기는 하차 두 길(`netForGoal` · `netAreaTesterOf`)에서만 켠다.
+ */
+describe('🔵 하차 조각 — 현위치 원은 도려낸다', () => {
+    /** 현위치 원이 20km 로 분명히 있는 판 — 0 이면 도려낼 것이 없어 검사가 헛돈다 */
+    const params = { ...WAIT_PRESET, srcDiamKm: 20 };
+    const inArea = netAreaTesterOf(NET_DST, {
+        line: null, lineRadiusKm: 0, lastDrop: null, params, anchor: NET_SRC,
+    });
+
+    it('🔴 현위치 자리는 하차 조각에 안 든다 — 싣는 자리에 내리는 콜', () => {
+        expect(inArea({ lng: NET_SRC.lng, lat: NET_SRC.lat })).toBe(false);
+    });
+
+    it('목적지 자리는 그대로 든다', () => {
+        expect(inArea({ lng: NET_DST.lng, lat: NET_DST.lat })).toBe(true);
+    });
+});
 
 describe('대기 프리셋 — «여주를 목적지로 느긋하게» (⑭ 검산 2026-09-07)', () => {
     const net = buildNet(WAIT_PRESET);

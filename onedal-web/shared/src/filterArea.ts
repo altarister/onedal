@@ -118,12 +118,19 @@ export function isHomeCallOf(call: { goalCity?: string | null }, o: { homeOn: bo
  */
 export function dropoffPartsOf(state: GoalState, hasLine: boolean, near = false): { me: boolean; line: boolean; quadFrom: 'me' | 'lastDrop' | null } {
     /* 🎯 가까이 온 목적지는 목적지 원 전체뿐 — 상차 목록 동도 빼지 않는다 (필터.md «하차 영역») */
+    /**
+     * 🔴 **현위치 원(A)은 하차 조각에 넣지 않는다** (기사님 확정).
+     *
+     * A 는 사방으로 퍼진 원이라 뒤쪽 동까지 하차 후보가 됐고, 그것을 «상차 목록 빼기»로 지웠다.
+     * 그런데 상차 목록도 A 라서 **A 를 넣었다가 A 를 도로 빼는 꼴**이었고, 그 과정에서
+     * A 와 마름모가 겹치는 **가는 방향의 동까지 함께 지워졌다** — 광주(집)에서 이천으로 갈 때
+     * 신둔면이 상차 반경 안이라는 이유로 하차에서 빠져 «광주 → 신둔면»을 못 잡았다.
+     * A 를 안 넣으면 하차 영역이 «마름모 ∪ 목적지 원»만 남아 방향이 저절로 지켜진다.
+     */
     if (near) return { me: false, line: false, quadFrom: null };
-    if (state === 'idle') return { me: true, line: false, quadFrom: 'me' };
-    if (!hasLine) return { me: state === 'routed', line: false, quadFrom: 'me' };
-    return state === 'routed'
-        ? { me: true, line: true, quadFrom: 'lastDrop' }
-        : { me: false, line: true, quadFrom: 'lastDrop' };
+    if (state === 'idle') return { me: false, line: false, quadFrom: 'me' };
+    if (!hasLine) return { me: false, line: false, quadFrom: 'me' };
+    return { me: false, line: true, quadFrom: 'lastDrop' };
 }
 
 /**
@@ -169,28 +176,35 @@ export function lineUntil<T extends { x: number; y: number }>(line: ReadonlyArra
 /**
  * 🔵 **하차 목록 합치기** (`docs/지금/필터.md` «하차 영역»).
  *
- * 먼 목적지 조각에 걸친 동에서 **상차 목록 동을 뺀다** · 🎯 가까이 온 목적지 동은 빼지 않는다 (관내콜).
- * 까닭: 싣는 곳에 다시 내리는 콜은 드물고, 남겨 두면 역방향 콜이 많이 걸린다.
- * 🔴 **동 목록으로 뺀다** — 원달앱은 상차지 동이 상차 목록에 있어야 콜을 잡는다(`PickupListFilter.check`). 그래서 이렇게 빼면
- *    «싣는 동에 내리는 콜»이 정확히 막힌다. 도형으로 빼면 경계에 걸친 큰 읍·면이 두 목록에 다 남아 샌다.
- * 🔴 **시 · 군 · 구와 짝지어 뺀다** — 이름만 보면 먼 도시의 같은 이름 동(중앙동 · 신촌동 · 수도권에만 97개)까지 빠진다.
- *    원달앱 하차는 «시 + 동»(`customCityFilters`)으로 보니 먼 쪽 동은 다른 곳이다 (버그 대장 #148).
+ * 조각에 걸친 동을 그대로 합친다.
+ *
+ * 🔴 **상차 목록을 빼지 않는다** (기사님 확정 — *"하차지에서 상차지 빼는 것을 하지 말자.
+ *    지금은 상차지 하차지가 나뉘어 있으니
+ *    하차지는 무조건 역방향은 없다"*). 하차 조각에서 현위치 원(A)을 빼고 나면
+ *    하차 영역은 «마름모 ∪ 목적지 원»뿐이라 **방향이 저절로 지켜진다** — 역방향이 애초에 안 든다.
+ *    그런데도 빼면 A 와 마름모가 겹치는 **가는 방향의 동까지 지워졌다**:
+ *    광주(집)에서 이천으로 갈 때 신둔면이 상차 반경 안이라는 이유로 하차 27곳에서 빠져
+ *    «광주 → 신둔면»(명백한 전진 콜)을 못 잡았다.
+ * ⚠️ 옛 규칙이 막던 «싣는 동에 내리는 콜»은 요금 필터가 거른다 — 짧은 거리라 요금이 낮다.
  * 진행도(지나온 곳 빼기): 같은 동이 여럿이면 먼 쪽 · **어느 조각에서든 진행도 없이 들었으면 없앤다** («아직 안 간 곳» · `callNet.lineZoneOf` 의 `onlyByLine`).
  *    가까이 온 목적지에서 든 동은 진행도가 없다.
  */
 export function mergeDropoffGroups(
     parts: ReadonlyArray<{ near: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }>,
-    /** 상차 목록 — 시 · 군 · 구로 묶은 것 (`geoService.pickupListFor` 의 `grouped`) */
+    /**
+     * 상차 목록 — 시 · 군 · 구로 묶은 것 (`geoService.pickupListFor` 의 `grouped`).
+     * 🔴 **지금은 쓰지 않는다** — 빼기를 없앴다. 자리를 남겨 둔 것은 서버가 이 꼴로 부르는지
+     *    무는 짝 검사(`netFilterOneWay` · `pickupListGeo`)가 호출 모양을 보기 때문이다.
+     */
     pickupGroups: Readonly<Record<string, readonly string[]>>,
 ): { grouped: Record<string, string[]>; flat: string[]; progressKm: Record<string, number> } {
-    const pick = new Set(Object.entries(pickupGroups).flatMap(([region, names]) => names.map(n => `${region}|${n}`)));
+    void pickupGroups;
     const groups: Record<string, Set<string>> = {};
     const progressKm: Record<string, number> = {};
     const unvisited = new Set<string>();
     for (const part of parts) {
         for (const [region, names] of Object.entries(part.grouped)) {
             for (const name of names) {
-                if (!part.near && pick.has(`${region}|${name}`)) continue;
                 (groups[region] ??= new Set()).add(name);
                 const km = part.near ? undefined : part.progressKm[name];
                 if (km === undefined) unvisited.add(name);

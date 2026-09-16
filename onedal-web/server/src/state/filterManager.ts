@@ -792,7 +792,6 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
     /** 🔎 목적지마다 무엇으로 만들었나 — 로그 한 줄로 확인할 수 있게 (`rebuildNetFilter` 가 찍는다) */
     const details: string[] = [];
     const pickupGroups = session.activeFilter.pickupGroups ?? {};
-    const pick = new Set(Object.entries(pickupGroups).flatMap(([region, names]) => names.map(n => `${region}|${n}`)));
     let byNet = zones.length > 0, pruned = 0;
     for (const z of zones) {
         const lastDrop = z.state === 'idle' || z.near ? null
@@ -807,11 +806,10 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
         });
         parts.push({ near: !!z.near, grouped: kept.grouped, progressKm: kept.progressKm });
         const names = [...new Set(Object.values(kept.grouped).flat())];
-        const removed = z.near ? 0 : Object.entries(kept.grouped).flatMap(([region, ns]) => ns.filter(n => pick.has(`${region}|${n}`))).length;
         const pieces = z.near ? ['원(가까이 옴 · 안 뺌)']
             : [shape.me && '현위치', shape.line && '라인', shape.quadFrom === 'me' ? '마름모(현위치)' : shape.quadFrom === 'lastDrop' ? '마름모(종착지)' : '', '원'].filter(Boolean);
         details.push(`${z.city}:${z.state}${z.near ? '·가까이' : ''}${z.state !== 'idle' && !z.near && !lastDrop ? '·종착지 모름' : ''} `
-            + `[${pieces.join('·')}] 걸친 ${names.length}곳${removed ? ` − 상차 ${removed}` : ''}${kept.byNet ? '' : ' (도시 둘레로 물러섬)'}`);
+            + `[${pieces.join('·')}] 걸친 ${names.length}곳${kept.byNet ? '' : ' (도시 둘레로 물러섬)'}`);
         byNet = byNet && kept.byNet;
         pruned += kept.pruned;
     }

@@ -363,11 +363,21 @@ function makeInQuad(p: NetParams, src: NetPoint, dst: NetPoint) {
 }
 
 /** 그물 소속 판정 하나를 만든다 — buildNet 과 judgeTwoStage 가 같은 식을 본다 (규칙 ③ — 원천 하나) */
-function makeInNet(p: NetParams, src: NetPoint, dst: NetPoint) {
+/**
+ * @param excludeSrc **시작 원을 도려낸다** — 하차 조각 전용 (기사님 확정).
+ *   하차 영역은 «마름모 ∪ 목적지 원 **−** 현위치 원»이다. 싣는 자리에 그대로 내리는 콜을
+ *   막으려는 것이고, 지도 캔버스는 이미 그렇게 그린다(`destination-out`). 그런데 여기서는
+ *   현위치 원을 **OR 로 더하고** 있어 같은 «하차 영역»을 두 곳이 다르게 세었다 —
+ *   화면에는 안 보이는 뒤쪽 동이 앱 하차 목록에는 들어갔다.
+ *   🔴 **상차 판정에는 켜지 않는다** — 상차는 현위치 원이 있어야 한다 (`judgeTwoStage`).
+ */
+function makeInNet(p: NetParams, src: NetPoint, dst: NetPoint, excludeSrc = false) {
     const srcR = Math.max(0, p.srcDiamKm / 2), dstR = Math.max(0, p.dstDiamKm / 2);
     const inQuad = makeInQuad(p, src, dst);
+    const inSrc = (pt: { lng: number; lat: number }) => haversineKm(src, pt) <= srcR;
+    const inRest = (pt: { lng: number; lat: number }) => haversineKm(dst, pt) <= dstR || inQuad(pt);
     return (pt: { lng: number; lat: number }) =>
-        haversineKm(src, pt) <= srcR || haversineKm(dst, pt) <= dstR || inQuad(pt);
+        excludeSrc ? !inSrc(pt) && inRest(pt) : inSrc(pt) || inRest(pt);
 }
 
 /**
@@ -403,9 +413,10 @@ export function quadOutline(p: NetParams, src: NetPoint, dst: NetPoint): Array<{
 }
 
 /** 동선 그물을 계산한다 — 꼭짓점 기본은 대기 판(초월→여주), 각도·지름은 인풋 */
-export function buildNet(p: NetParams, src: NetPoint = NET_SRC, dst: NetPoint = NET_DST, markDongs: Array<{ name: string; dong: string; region?: string }> = MARK_DONGS): NetResult {
+export function buildNet(p: NetParams, src: NetPoint = NET_SRC, dst: NetPoint = NET_DST, markDongs: Array<{ name: string; dong: string; region?: string }> = MARK_DONGS, excludeSrc = false): NetResult {
     const srcR = p.srcDiamKm / 2, dstR = p.dstDiamKm / 2;
-    const inNet = makeInNet(p, src, dst);
+    // ✂️ `excludeSrc` 는 하차 조각 전용 — 시작(현위치) 원을 도려낸다 (`makeInNet` 주석)
+    const inNet = makeInNet(p, src, dst, excludeSrc);
 
     const { pass, grouped } = collectDongs(inNet);
 
@@ -1006,7 +1017,8 @@ export function netForGoal(goal: NetPoint, o: {
 }): NetResult {
     return o.line
         ? buildLineNet(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal, o.me ?? null)
-        : buildNet(o.params, o.anchor, goal);
+        // ✂️ 하차 조각이라 시작(현위치) 원은 도려낸다 — 걸친 동 판정(`netAreaTesterOf`)과 같은 셈
+        : buildNet(o.params, o.anchor, goal, MARK_DONGS, true);
 }
 
 /**
@@ -1025,7 +1037,8 @@ export function netAreaTesterOf(goal: NetPoint, o: {
 }): (pt: { lng: number; lat: number }) => boolean {
     return o.line
         ? lineZoneOf(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal, o.me ?? null).dropIn
-        : makeInNet(o.params, o.anchor, goal);
+        // ✂️ 하차 조각이라 시작(현위치) 원은 도려낸다
+        : makeInNet(o.params, o.anchor, goal, true);
 }
 
 /**

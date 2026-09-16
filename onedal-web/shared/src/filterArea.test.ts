@@ -5,22 +5,31 @@ import { goalZonesOf, pickupShapeOf, dropoffPartsOf, lastDropOf, lineUntil, isNe
  * 🔵 **하차 목록 합치기** (`docs/지금/필터.md` «하차 영역»)
  * 막는 것: 싣는 동에 내리는 콜이 새는 것 · 가까이 온 목적지의 관내콜이 빠지는 것 · 먼 도시의 같은 이름 동까지 빠지는 것.
  */
-describe('🔵 하차 목록 — 목적지마다 합치고 상차 목록 동을 뺀다', () => {
+describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼지 않는다)', () => {
     const pickupList = { 광주시: ['초월읍', '곤지암읍'], 이천시: ['중리동'] };
-    it('🔴 먼 목적지는 상차 목록 동을 뺀다 — 싣는 동에 내리는 콜이 막힌다', () => {
+    /**
+     * 🔴 **상차 목록을 빼지 않는다** (기사님 확정 — *"하차지에서 상차지 빼는 것을 하지 말자"*).
+     *
+     * 하차 조각에서 **현위치 원(A)을 빼면** 하차 영역은 가는 방향(마름모 ∪ 목적지 원)만 담는다 —
+     * 역방향이 애초에 안 든다. 그런데도 상차 목록을 빼면 **가는 방향의 동까지 같이 지워진다**:
+     * 광주(집)에서 이천으로 갈 때 신둔면이 상차 반경 안이라는 이유로 하차에서 빠져
+     * «광주 → 신둔면»(명백한 전진 콜)을 못 잡았다.
+     */
+    it('🔴 상차 목록 동도 그대로 남는다 — 가는 방향이면 싣는 곳 근처라도 내린다', () => {
         const r = mergeDropoffGroups([
             { near: false, grouped: { 광주시: ['초월읍', '곤지암읍'], 이천시: ['신둔면', '중리동'] }, progressKm: { 곤지암읍: 5, 신둔면: 12 } },
         ], pickupList);
-        expect(r.grouped).toEqual({ 이천시: ['신둔면'] });
-        expect(r.flat).toEqual(['신둔면']);
-        expect(r.progressKm).toEqual({ 신둔면: 12 });   // 뺀 동의 진행도는 남기지 않는다
+        expect(r.grouped).toEqual({ 광주시: ['곤지암읍', '초월읍'], 이천시: ['신둔면', '중리동'] });
+        expect(r.flat).toEqual(['곤지암읍', '신둔면', '중리동', '초월읍']);
+        expect(r.progressKm).toEqual({ 곤지암읍: 5, 신둔면: 12 });   // 진행도 없는 동은 안 싣는다
     });
     it('🔴 가까이 온 목적지 동은 상차 목록과 겹쳐도 남는다 — 관내콜', () => {
         const r = mergeDropoffGroups([
             { near: true, grouped: { 이천시: ['중리동', '관고동'] }, progressKm: {} },
             { near: false, grouped: { 광주시: ['초월읍', '경안동'] }, progressKm: {} },
         ], pickupList);
-        expect(r.grouped).toEqual({ 이천시: ['관고동', '중리동'], 광주시: ['경안동'] });
+        // 이제 먼 목적지에서도 안 빼므로 초월읍(상차 목록)도 남는다
+        expect(r.grouped).toEqual({ 이천시: ['관고동', '중리동'], 광주시: ['경안동', '초월읍'] });
     });
     it('같은 동이 두 목적지에서 오면 한 번 · 어느 쪽에서든 진행도 없이 들었으면 진행도를 없앤다 (지나온 곳 빼기에 안 먹힌다)', () => {
         const r = mergeDropoffGroups([
@@ -30,11 +39,12 @@ describe('🔵 하차 목록 — 목적지마다 합치고 상차 목록 동을 
         expect(r.grouped).toEqual({ 이천시: ['사음동', '신둔면'] });
         expect(r.progressKm).toEqual({ 사음동: 3 });
     });
-    it('🔴 이름이 같아도 다른 시 · 군 · 구의 동은 안 뺀다 — 원달앱 하차는 «시 + 동»으로 본다 (리뷰 2026-09-15)', () => {
+    /** 🔴 상차 목록은 이제 아무것도 안 뺀다 — 같은 이름이든 다른 시든 그대로 남는다 */
+    it('🔴 상차 목록에 같은 이름이 있어도 하차에서 안 지운다', () => {
         const r = mergeDropoffGroups([
             { near: false, grouped: { '서울 중구': ['중앙동'], 이천시: ['중리동'] }, progressKm: {} },
         ], { 광주시: ['중앙동'], 이천시: ['중리동'] });
-        expect(r.grouped).toEqual({ '서울 중구': ['중앙동'] });
+        expect(r.grouped).toEqual({ '서울 중구': ['중앙동'], 이천시: ['중리동'] });
     });
     it('🔴 가까이 온 목적지에서 든 동은 진행도가 없다 — 먼 쪽 진행도가 있어도 지운다', () => {
         const r = mergeDropoffGroups([
@@ -165,18 +175,27 @@ describe('모르는 값은 지어내지 않는다 (규칙 ④)', () => {
     });
 });
 
-describe('🔵 하차 영역 — 목적지 하나에 넣는 조각 (목적지 원은 늘 넣는다)', () => {
-    it('콜 없음: 현위치 원 ∪ 현위치→목적지 마름모', () => {
-        expect(dropoffPartsOf('idle', false)).toEqual({ me: true, line: false, quadFrom: 'me' });
+/**
+ * 🔵 **하차 조각에는 현위치 원(A)을 넣지 않는다** (기사님 확정).
+ *
+ * A 는 사방으로 퍼진 원이라 뒤쪽 동까지 하차 후보가 됐고, 그것을 «상차 목록 빼기»로 지웠다.
+ * 그런데 상차 목록도 A 라서 **A 를 넣었다가 A 를 도로 빼는 꼴**이었고, 그 과정에서
+ * A 와 마름모가 겹치는 **가는 방향의 동(신둔면)까지 함께 지워졌다.**
+ * A 를 아예 안 넣으면 하차 영역이 «마름모 ∪ 목적지 원»만 남아 방향이 저절로 지켜지고,
+ * 빼기도 필요 없어진다.
+ */
+describe('🔵 하차 영역 — 목적지 하나에 넣는 조각 (목적지 원은 늘 넣는다 · 현위치 원은 안 넣는다)', () => {
+    it('콜 없음: 현위치→목적지 마름모 (현위치 원은 안 넣는다)', () => {
+        expect(dropoffPartsOf('idle', false)).toEqual({ me: false, line: false, quadFrom: 'me' });
     });
-    it('경로 생김 (운행 전): 현위치 원 ∪ 라인 ∪ 종착지→목적지 마름모', () => {
-        expect(dropoffPartsOf('routed', true)).toEqual({ me: true, line: true, quadFrom: 'lastDrop' });
+    it('경로 생김 (운행 전): 라인 ∪ 종착지→목적지 마름모', () => {
+        expect(dropoffPartsOf('routed', true)).toEqual({ me: false, line: true, quadFrom: 'lastDrop' });
     });
     it('운행 뒤: 라인 ∪ 종착지→목적지 마름모 — (A ∩ 라인)은 라인 안이라 현위치 원은 안 넣는다', () => {
         expect(dropoffPartsOf('driving', true)).toEqual({ me: false, line: true, quadFrom: 'lastDrop' });
     });
     it('🔷 라인이 없으면(동선 · 경로를 모름) 라인을 지어내지 않는다 — 마름모는 현위치에서', () => {
-        expect(dropoffPartsOf('routed', false)).toEqual({ me: true, line: false, quadFrom: 'me' });
+        expect(dropoffPartsOf('routed', false)).toEqual({ me: false, line: false, quadFrom: 'me' });
     });
     it('🔴 운행 뒤에는 라인이 없어도 현위치 원을 다시 넣지 않는다 — 운행 뒤 하차 영역에 A 가 없다 (리뷰 2026-09-15)', () => {
         /* 상차가 A ∩ 라인이면 라인 밖 A 동이 안 빠져 «뒤쪽 동에 내리는 콜»이 샌다 */
