@@ -24,6 +24,16 @@ object TapShift {
 
     fun leftOf(centerX: Int, shiftPx: Int): Int = maxOf(MIN_X, centerX - shiftPx)
 
+    /** 카드 줄의 왼쪽 끝에서 안쪽으로 이만큼 들어와 찍는다 — 테두리·여백을 피한다 */
+    const val ROW_INSET_PX = 40
+
+    /**
+     * 👈 **그 줄의 왼쪽 끝을 찍는다** (기사님 지시 — «금액에서 -300px 말고 그 라인의 왼쪽 끝»).
+     * 요금에서 일정 거리를 빼는 방식은 카드 폭에 따라 여전히 오른쪽에 남는다 —
+     * 줄의 왼쪽 끝은 «수락하기»(오른쪽 아래)에서 **가장 먼 자리**라 화면이 바뀌어도 그 자리가 아니다.
+     */
+    fun rowLeftOf(rowLeft: Int): Int = maxOf(MIN_X, rowLeft + ROW_INSET_PX)
+
     /**
      * ⏳ **자국을 보여 주고 이만큼 미뤘다 찍는다** (기사님 지시 — «영역이 보이고 1초 후 클릭»).
      * 🔴 알람이 상세로 들어가는 자리에만 쓴다. 인성 꿀콜 선점에 미루면 남에게 뺏긴다.

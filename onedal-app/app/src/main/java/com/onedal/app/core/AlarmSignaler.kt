@@ -94,10 +94,20 @@ class AlarmSignaler(private val service: AccessibilityService) {
     private var activeBandHalfPx: Int = 0
     private val hideRunnable = Runnable { hide("10초 경과") }
 
-    /** 🔔 필터를 통과한 콜이 리스트에 떴다 — 소리·진동·테두리를 한 번에 */
-    fun fire(anchorRect: Rect, bandHalfPx: Int, orderHash: Int) {
+    /**
+     * 🔔 필터를 통과한 콜이 리스트에 떴다 — 소리·진동·테두리를 한 번에.
+     *
+     * @param withBorder 줄을 테두리로 가리킬까. 🔴 **앱이 상세까지 들어가 주는 배차망(픽커)은 끈다**
+     *   (기사님 지시) — 어느 줄인지 찾을 필요가 없고, 찍는 자리는 `TapMarker` 자국이 알려 준다.
+     *   잡기 수순이 있는 배차망(인성·화물24)은 기사님이 직접 그 줄을 눌러야 해서 켜 둔다.
+     */
+    fun fire(anchorRect: Rect, bandHalfPx: Int, orderHash: Int, withBorder: Boolean = true) {
         beepTwice()
         vibrateStrong()
+        if (!withBorder) {
+            AppLogger.i("1DAL_ALARM", "🔔 [알람] 소리 2 · 진동 — 테두리 없음 (앱이 상세까지 들어간다)")
+            return
+        }
         val (top, bottom) = borderSpan(anchorRect.top, anchorRect.bottom, bandHalfPx)
         activeBandHalfPx = bandHalfPx
         showBorder(top, bottom, orderHash)
