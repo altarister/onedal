@@ -114,42 +114,86 @@ for (const [name, re] of SUSPECT) {
 }
 if (!any) console.log('     없음 ✅');
 
-// ── ③ 원문에 자주 나오는데 어느 칸에도 안 담긴 글자 ──
-console.log('\n③ 어느 칸에도 안 담긴 글자 — 새 배지가 생기면 여기 뜬다');
+// ── ③ 낱말을 종류별로 나눈다 — 지역 · 가게·건물 · 미분류 ──
 /**
- * 🔴 **사전의 «여러 낱말» 을 먼저 뗀다** — «최종 수익» 을 조각내 세면 «최종»·«수익» 이
- *    «앱이 모르는 글자» 로 잘못 뜬다 (첫 판이 그랬다). 사전에 있는 그대로 빼고 남은 것만 센다.
+ * 🗂️ **모르는 낱말은 «미분류» 로 남긴다** (기사님 지시).
+ *
+ * 낱말을 셋으로 나눈다 — **지역**(지도 명부가 안다) · **가게·건물**(이름 모양으로 안다) · **미분류**.
+ * 🔴 «아는 것 / 모르는 것» 둘로만 가르면 지역 이름까지 «모르는 글자» 로 떠서,
+ *    사람이 «이건 지역이겠지» 하고 어림잡게 된다 — 그러면 진짜 모르는 것이 묻힌다.
+ * 🔴 미분류가 0 이 되는 것이 «100% 파싱» 이다 (기사님 지시).
  */
 const dictPath = join(ROOT, 'server/config', `keywords_${target === 'kakaopicker' ? 'picker' : target}.json`);
-let phrases = [];
+let dictWords = [];
 if (existsSync(dictPath)) {
     const d = JSON.parse(readFileSync(dictPath, 'utf8'));
-    phrases = Object.values(d)
-        .filter(Array.isArray)
-        .flat()
-        .filter((w) => typeof w === 'string' && w.includes(' '))
-        .sort((a, b) => b.length - a.length);   // 긴 것부터 떼야 짧은 것이 먼저 먹지 않는다
+    dictWords = Object.values(d).filter(Array.isArray).flat().filter((w) => typeof w === 'string');
 }
+/** 여러 낱말짜리를 먼저 뗀다 — «최종 수익» 을 조각내면 «최종»·«수익» 이 미분류로 잘못 뜬다 */
+const phrases = dictWords.filter((w) => w.includes(' ')).sort((a, b) => b.length - a.length);
 const stripPhrases = (t) => phrases.reduce((acc, p) => acc.split(p).join(' '), t);
-const freq = new Map();
+const dictSet = new Set(dictWords);
+
+/**
+ * 🗺️ **지도 명부로 지역을 가린다** — 이름을 어림잡지 않는다.
+ * 명부는 «서현동» 처럼 온전한 꼴인데 카드는 «서현1» 로 줄여 주므로,
+ * 양쪽에서 끝의 «동·읍·면·리·가·구·시·군» 과 숫자를 떼고 맞춘다.
+ */
+const MAP_PATH = join(ROOT, 'server/mapData/merged_map.geojson');
+const regionNames = new Set();
+const bare = (s) => s.replace(/(동|읍|면|리|가|구|시|군)$/, '').replace(/\d+$/, '');
+if (existsSync(MAP_PATH)) {
+    const geo = JSON.parse(readFileSync(MAP_PATH, 'utf8'));
+    for (const f of geo.features || []) {
+        const pr = f.properties || {};
+        for (const key of ['EMD_KOR_NM', 'name']) {
+            const v = pr[key];
+            if (typeof v === 'string' && v.trim()) { regionNames.add(v.trim()); regionNames.add(bare(v.trim())); }
+        }
+        const sig = pr.SIG_KOR_NM;
+        if (typeof sig === 'string') for (const part of sig.split(/\s+/)) { regionNames.add(part); regionNames.add(bare(part)); }
+    }
+}
+const isRegion = (w) => regionNames.has(w) || regionNames.has(bare(w));
+/**
+ * 🏪 가게·건물 이름의 모양 — «…점» · «[용인둔전]» · «맘스터치-성남점» · «…로12번길» · 여섯 글자 넘는 이름.
+ *
+ * 🔴 **사전의 `shopWords` 는 여기서만 쓴다 — 앱에는 넣지 않는다.**
+ *    가게 이름은 도보 콜의 **진짜 픽업지**라 앱은 그것을 지역 칸에 담아야 맞다.
+ *    이 칸은 감사가 «미분류» 와 «가게·건물» 을 가리는 용도일 뿐이다
+ *    (그래서 `pickerDictPaired` 의 짝 검사 목록에도 넣지 않는다).
+ */
+const isPlace = (w) => /점$|[[\]]|-|로\d+번길$|아파트$|빌라$|타워$|센터$/.test(w) || w.length >= 6;
+
+const kinds = { 지역: new Map(), '가게·건물': new Map(), 미분류: new Map() };
 for (const r of rows) {
     if (!r.rawText) continue;
     const taken = new Set(
         `${r.pickup || ''} ${r.dropoff || ''} ${r.tagsText || ''} ${r.itemSize || ''}`.split(/\s+/).filter(Boolean),
     );
     for (const tok of stripPhrases(r.rawText).split(/\s+/)) {
-        const t = tok.trim();
-        if (!t || taken.has(t)) continue;
-        if (/^[\d,.]+$/.test(t)) continue;                 // 요금·숫자
-        if (/^\d+(\.\d+)?(km|m)$/.test(t)) continue;        // 거리
-        if (/^\d{1,2}:\d{2}$/.test(t)) continue;            // 시각
-        if (/^\d+분$/.test(t)) continue;
-        freq.set(t, (freq.get(t) || 0) + 1);
+        const t = tok.trim().replace(/,$/, '');
+        if (!t || taken.has(t) || dictSet.has(t)) continue;
+        if (/^[\d,.]+$/.test(t)) continue;                      // 요금·숫자
+        if (/^\d+(\.\d+)?(km|m)$/.test(t)) continue;            // 거리
+        if (/^\d{1,2}:\d{2}$/.test(t)) continue;                // 시각
+        if (/^\d+분( 내)?$/.test(t)) continue;                   // 남은 시간
+        if (/^\d{1,2}\/\d{1,2}\([월화수목금토일]\)$/.test(t)) continue;   // 예약 날짜
+        if (dictWords.some((w) => w.length >= 2 && t.includes(w))) continue;   // 사전 낱말이 든 덩어리
+        const kind = isRegion(t) ? '지역' : isPlace(t) ? '가게·건물' : '미분류';
+        kinds[kind].set(t, (kinds[kind].get(t) || 0) + 1);
     }
 }
-const top = [...freq].sort((a, b) => b[1] - a[1]).slice(0, 20);
-if (top.length === 0) console.log('     없음 ✅');
-for (const [w, n] of top) console.log(`     ${String(n).padStart(5)}  ${w}`);
-console.log('     ↳ 지역·가게 이름이면 정상이다. 그 밖의 것이 «앱이 모르는 배지»다');
+console.log(`\n③ 낱말 갈래 — 지도 명부 ${regionNames.size}개 이름으로 가렸다`);
+for (const [k, m] of Object.entries(kinds)) {
+    const mark = k === '미분류' ? (m.size === 0 ? '✅' : '🔴') : '';
+    console.log(`     ${k.padEnd(7)} ${String(m.size).padStart(4)}가지 ${mark}`);
+}
+const un = [...kinds['미분류']].sort((a, b) => b[1] - a[1]);
+if (un.length) {
+    console.log('\n     🔴 미분류 — 정체를 밝혀야 할 낱말 (많은 순)');
+    for (const [w, n] of un.slice(0, 25)) console.log(`       ${String(n).padStart(5)}  ${w}`);
+    console.log('       ↳ 배지면 사전에, 지역이면 지도 명부에 넣는다. 0 이 되면 100% 파싱이다');
+}
 
 db.close();
