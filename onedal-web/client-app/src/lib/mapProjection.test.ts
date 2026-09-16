@@ -432,14 +432,21 @@ describe('🌓 지도 밝기 — «어둡게» 레이어와 배율이 정한다'
 describe('🧅 보기 모드가 덮는 레이어 — layersForView', () => {
     const on = { base: true, border: true, route: true, trail: true, pickup: true, dropoff: true, dots: true };
 
-    it('전체·구간은 고른 그대로 둔다', () => {
-        for (const m of ['all', 'leg'] as const) expect(layersForView(m, on)).toEqual(on);
+    it('전체는 고른 그대로 둔다', () => {
+        expect(layersForView('all', on)).toEqual(on);
     });
 
     it('🔴 현위치는 상차·하차·동 점을 덮는다 — 나머지는 그대로', () => {
         const v = layersForView('follow', on);
         expect([v.pickup, v.dropoff, v.dots]).toEqual([false, false, false]);
         expect([v.base, v.border, v.route, v.trail]).toEqual([true, true, true, true]);
+    });
+
+    /** 🔴 구간은 «지금 가는 길»만 본다 — 영역이 깔리면 그 길이 안 보인다. 동 점은 남긴다(어느 동이 목록에 있나는 달리면서도 본다) */
+    it('🔴 구간은 상차·하차를 덮는다 — 동 점과 나머지는 그대로', () => {
+        const v = layersForView('leg', on);
+        expect([v.pickup, v.dropoff]).toEqual([false, false]);
+        expect([v.dots, v.base, v.border, v.route, v.trail]).toEqual([true, true, true, true, true]);
     });
 
     it('🔴 꺼 둔 것을 켜지 않는다', () => {

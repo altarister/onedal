@@ -238,17 +238,25 @@ export function tileToneFor(theme: 'dark' | 'light', zoom: number, dimOn: boolea
  */
 export const AREA_FIT_MAX_RATIO = 1;
 
-/** 🧅 현위치로 볼 때 덮는 레이어 — 골목 배율에서 이것들이 깔리면 길이 안 보인다 */
-export const FOLLOW_HIDDEN_LAYERS = ['pickup', 'dropoff', 'dots'] as const;
+/**
+ * 🧅 **보기 모드마다 덮는 레이어** — 좁혀 볼수록 영역을 걷는다. 그 배율에서 영역이 깔리면 길이 안 보인다.
+ * 🔴 구간은 동 점을 남긴다 — «어느 동이 목록에 있나»는 달리면서도 본다.
+ */
+export const HIDDEN_LAYERS_BY_VIEW: Record<MapViewMode, readonly string[]> = {
+    all: [],
+    leg: ['pickup', 'dropoff'],
+    follow: ['pickup', 'dropoff', 'dots'],
+};
 
 /**
- * 🧅 **보기 모드가 덮는 레이어** — 현위치면 상차·하차·동 점을 덮는다.
+ * 🧅 **보기 모드가 덮는 레이어** — 위 표 한 곳이 답한다.
  * 🔴 **끈 것을 켜지 않는다** — 덮기만 한다. 고른 값(`layers`)은 그대로 두고, 그릴 때와 버튼 표시가 이 답을 함께 본다 (규칙 ③).
  */
 export function layersForView(mode: MapViewMode, layers: Record<string, boolean>): Record<string, boolean> {
-    if (mode !== 'follow') return layers;
+    const hidden = HIDDEN_LAYERS_BY_VIEW[mode] ?? [];
+    if (hidden.length === 0) return layers;
     const shown = { ...layers };
-    for (const k of FOLLOW_HIDDEN_LAYERS) shown[k] = false;
+    for (const k of hidden) shown[k] = false;
     return shown;
 }
 
