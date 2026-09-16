@@ -30,6 +30,7 @@ const VIEWS = {
     ledger:  { file: 'lib/db-ledger.mjs',  args: '[건수]',          what: '콜별 단계와 출처 (직접·자동·건너뜀) — 화면(메모리)과 장부(DB)가 갈렸나' },
     options: { file: 'lib/db-options.mjs', args: '[갈래]',          what: '콜 옵션 선택지와 값 — 단위 환산·상하차 분·보호 시간' },
     track:   { file: 'lib/db-track.mjs',   args: '[콜 id 앞부분]',   what: 'GPS 궤적 — 콜별 점 수·끊긴 구간·상하차지 최접근' },
+    parse:   { file: 'lib/db-parse.mjs',   args: '[배차망]',        what: '앱이 화면을 제대로 읽었나 — 반쪽 읽힘·주소 칸의 낯선 글자·모르는 배지 (새 배차망을 붙일 때)' },
 };
 
 const [name, ...rest] = process.argv.slice(2);

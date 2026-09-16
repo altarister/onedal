@@ -33,6 +33,29 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /** 1km 미만 픽업거리는 «581m» 로 온다 (0831 실측) — km 만 알면 거리가 도착지로 샌다 */
         private val M_REGEX = Regex("""^(\d+)m$""")
         private val TIME_REGEX = Regex("""^\d{1,2}:\d{2}$""")
+
+        /**
+         * 📅 **예약 날짜 배지 — «9/23(수)»** (실물 카카오T픽커 · 09-16 라이브).
+         *
+         * 시각(«17:30»)은 알아보면서 날짜는 못 알아봐, 날짜가 **지역 이름 자리로 들어갔다.**
+         * 그러면 지역 칸이 한 칸씩 밀려 출발·도착이 통째로 틀어진다
+         * (서버 장부 537건 중 24건이 «9/23(수) 광주 → 수정 수진2» 꼴로 저장됐다).
+         * 🔴 **버리지 않고 꼬리표로 챙긴다** — 예약이 언제인지는 콜을 고르는 정보다.
+         */
+        private val DATE_REGEX = Regex("""^\d{1,2}/\d{1,2}\([월화수목금토일]\)$""")
+
+        /**
+         * ⏳ **도보 콜의 남은 시간 — «31분» «내»** (실물 카카오T픽커 · 09-16 라이브).
+         *
+         * 도보 카드는 «31분 내 … 가게 이름 … 건물 이름 …» 꼴이다. «준비 29분» 은 한 덩어리로 와서
+         * 챙기는데, 앞에 **따로 떨어져 오는 «31분» 과 «내» 는 어디에도 안 걸려 지역 이름으로 샜다** —
+         * 서버 장부 537건 중 **144건**이 주소 칸에 «N분 내» 를 달고 저장됐다 (`pnpm db parse` 가 찾았다).
+         * 🔴 **버리지 않고 꼬리표로 챙긴다** — 언제까지 가야 하는지가 콜을 고르는 정보다.
+         */
+        private val MINUTES_REGEX = Regex("""^\d{1,3}분$""")
+
+        /** ⏳ «31분» 뒤에 따로 오는 «내» — 남은 시간 표시의 꼬리다 (지역 이름이 아니다) */
+        private const val WITHIN_WORD = "내"
         /** 태그줄에 오는 낱말들 — 지역 이름과 구분하는 근거 (덤프 전수에서 수집) */
         private val TAG_WORDS = setOf(
             "퀵", "도보", "한차", "급송", "단거리", "예약", "준비 완료",
@@ -494,7 +517,10 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 t in sizeSet -> itemSize = t
                 t in tagSet -> tags.add(t)
                 t.startsWith("준비 ") -> tags.add(t)                 // «준비 29분»
+                MINUTES_REGEX.matches(t) -> tags.add(t)             // 도보 «31분» — 남은 시간이지 지역이 아니다
+                t == WITHIN_WORD -> tags.add(t)                     // 그 뒤의 «내» («31분 내»)
                 TIME_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «17:00»
+                DATE_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «9/23(수)» — 지역이 아니다
                 t in noise -> { /* 화면 메뉴 글자 — 콜 정보가 아니다, 버린다 (서버 목록 + 앱 기본값) */ }
                 // 🚫 배정 완료 토스트가 카드 띠에 섞였다 — 지역이 아니다 (09-02 실주행 가짜 콜 3건 · `AssignedToastTest`)
                 t.contains(KakaoPickerKeywords.ASSIGNED_TOAST_WORD) -> { }
