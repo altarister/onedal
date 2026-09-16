@@ -82,7 +82,20 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "수락",                                       // 오더카드(화면 위 제안 카드)의 초록 버튼 (0830 실물)
             // 🔴 서버 사전(`uiNoiseWords`)과 **짝** — 픽커 앱이 뱉는 잡음 글자다 (그쪽 버그)
             "kotlin.Unit", "DerivedState",
+            // 🎈 화면 위에 겹쳐 뜨는 메뉴 — 카드 글자 사이에 섞여 지역 자리를 차지했다 (09-16 라이브 3건)
+            "서포트 모드", "1장 받기", "0/1건",
         )
+
+        /**
+         * 🧹 **건물 이름에 달라붙는 잡음 글자** — 떼어내되 **이름은 살린다**.
+         * «동물의료센터kotlin.Unit» · «멜로즈핑크kotlin.Unit» 처럼 픽커 앱이 뒤에 붙여 보낸다 (그쪽 버그).
+         * 🔴 통째로 버리면 건물 이름을 잃는다 — 버릴 것(떠 있는 메뉴)과 뗄 것(잡음)은 다루는 법이 다르다.
+         */
+        private val STICKY_NOISE = listOf("kotlin.Unit", "DerivedState")
+
+        /** 🧹 달라붙은 잡음을 뗀 글자 — 뗄 것이 없으면 그대로 */
+        fun stripSticky(text: String): String =
+            STICKY_NOISE.fold(text) { acc, n -> acc.replace(n, "") }.trim()
         /** 카드 띠의 반높이 — 요금 중심에서 태그줄·지역줄까지 실측 ±35, 여유 포함 (알람 테두리도 같은 값 · #83) */
         const val CARD_BAND_PX = 60
         /** 요금은 화면 오른쪽에 정렬된다 — 왼쪽의 km·거리 숫자와 구분 */
@@ -566,7 +579,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         val locations = mutableListOf<String>()
 
         for (raw in texts) {
-            val t = raw.trim()
+            // 🧹 달라붙은 잡음(«…kotlin.Unit»)을 먼저 뗀다 — 건물 이름은 살린다
+            val t = stripSticky(raw.trim())
             when {
                 t.matches(FARE_REGEX) -> fare = t.replace(",", "").toIntOrNull() ?: 0
                 KM_REGEX.matches(t) -> pickupKm = KM_REGEX.find(t)?.groupValues?.get(1)?.toDoubleOrNull()
@@ -583,6 +597,16 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 t.contains(KakaoPickerKeywords.ASSIGNED_TOAST_WORD) -> { }
                 // «내일 착불» 처럼 태그 여럿이 한 노드로 붙어 오는 판 — 낱낱이 전부 태그면 태그다
                 t.contains(' ') && t.split(' ').all { it in tagSet } -> tags.addAll(t.split(' '))
+                /**
+                 * 🎈 **떠 있는 메뉴가 한 덩어리로 끼어든다** — «퀵 서포트 모드 1장 받기» (09-16 라이브 3건).
+                 *
+                 * 낱말 목록으로는 못 막는다 — 화면이 붙여서 주면 목록에 없는 새 글자가 된다.
+                 * 낱낱으로 갈라 봐도 안 된다: 사전에는 «서포트 모드» · «1장 받기» 가 **두 낱말짜리**로
+                 * 들어 있어 «서포트» 하나로는 안 걸린다.
+                 * 🔴 그래서 **덩어리 안에 메뉴 낱말이 들어 있으면** 콜 정보가 아니다 —
+                 *    지역 이름에는 메뉴 글자가 들어갈 일이 없다 (건물 이름의 잡음은 위에서 이미 뗐다).
+                 */
+                t.contains(' ') && noise.any { it.length >= 2 && t.contains(it) } -> { }
                 t.endsWith("km") -> { /* «20km» 같은 헤더 반경 — 콜 정보가 아니다 */ }
                 /**
                  * 🔀 **경유 콜의 들를 곳 목록** — «수지, 영통, 상록, …» 이 한 덩어리로 온다.
