@@ -5,6 +5,7 @@ import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuf
 import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
+import { callNow } from "../../lib/phoneCall";
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 
 
@@ -760,7 +761,7 @@ export default function PinnedRouteCard({
 
                                     {/* 🏢 퀵사무실 — 신고와 실제가 다를 때 여기로 건다. 한 줄만 남긴다 */}
                                     {quickPhone && (
-                                        <a href={telHref(quickPhone)} onClick={e => e.stopPropagation()}
+                                        <a href={telHref(quickPhone)} onClick={e => { e.stopPropagation(); e.preventDefault(); callNow(quickPhone); }}
                                            className="text-[11px] text-info font-bold underline underline-offset-2 px-0.5">
                                             🏢 {quickClean} {quickPhone}
                                         </a>

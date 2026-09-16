@@ -1,5 +1,6 @@
 package kr.co.onedal.dashboard;
 
+import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import com.getcapacitor.BridgeActivity;
@@ -29,6 +30,16 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "1DAL_DASH";
+
+    /**
+     * 📞 «누르면 바로 건다» 플러그인을 등록한다 (`DirectCallPlugin`).
+     * 🔴 **`super.onCreate` 보다 먼저** 불러야 한다 — 다리(Bridge)가 만들어진 뒤에 등록하면 웹에서 안 보인다.
+     */
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(DirectCallPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {

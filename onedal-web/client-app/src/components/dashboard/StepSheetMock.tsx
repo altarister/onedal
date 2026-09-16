@@ -33,6 +33,7 @@ import { useDerivation } from '../../stores/judgmentStore';
 import { useState, useEffect } from 'react';
 import { socket } from '../../lib/socket';
 import { telHref } from '../../lib/routeUtils';
+import { callNow } from '../../lib/phoneCall';
 import {
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT, HANDLING_METHODS,
     PROTECTIONS, protectionMinutes,
@@ -850,7 +851,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
                         {place.address && <div className="text-[11px] text-text-muted break-keep">{place.address}</div>}
                     </div>
                     {place.phone && (
-                        <a href={telHref(place.phone)} onClick={e => e.stopPropagation()}
+                        <a href={telHref(place.phone)} onClick={e => { e.stopPropagation(); e.preventDefault(); callNow(place.phone); }}
                             className="shrink-0 px-2.5 py-1.5 rounded-md border border-success/45 bg-success/10 text-success text-[12px] font-black">
                             📞 {place.phone}
                         </a>

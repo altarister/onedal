@@ -8,7 +8,12 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/AppTheme">
+        <!--
+            🔴 세로로 고정한다 — 거치대에 세워 둔 폰이 주행 중 흔들려 가로로 돌면
+            운전 중에 화면을 다시 잡아야 한다. 관제탑은 세로 한 벌만 그린다.
+        -->
         <activity
+            android:screenOrientation="portrait"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
@@ -48,4 +53,7 @@
 
     <!-- 네이티브 진동 피드백 (꿀콜/똥콜 알림) -->
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- 📞 누르면 바로 걸기 (DirectCallPlugin) — 없으면 다이얼러만 열려 한 번 더 눌러야 한다 -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
 </manifest>
