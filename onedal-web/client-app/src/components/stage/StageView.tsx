@@ -4,6 +4,7 @@ import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, lineFromPoint, goalZonesOf, withNearness, pickupShapeOf,
     dropoffPartsOf, lastDropOf, lineUntil, dongDotsOf, quadShapeFrom, quadOutline, cityCenter, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
+import { useSidePanelRoom } from '../../hooks/useSidePanelRoom';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from './StageSheet';
@@ -77,6 +78,8 @@ export default function StageView(props: Props) {
     const { activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId, routeMode } = props;
     const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId);
     const { liveRoute, cycleDeck, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
+    /* 🖥️ 곁 패널이 설 만큼 넓은가 — 현황판과 «🚀 지금 출발»이 **같은 답**을 본다 (규칙 ③) */
+    const wideScreen = useSidePanelRoom();
     const [snap, setSnap] = useState<SheetSnap>('list');
     /**
      * 🙈 **지나간 콜 숨기기** — 상태바 오른쪽 끝 버튼이 이 값을 뒤집는다.
@@ -771,8 +774,12 @@ export default function StageView(props: Props) {
                       *    같은 사실을 시트 상태바가 이미 말한다 (`lib/sheetStatus` · 규칙 ③).
                       */}
 
-                    {/* 🚀 지금 출발 — 옛 지도와 같은 자리·같은 동작 (짐 있고 출발 전일 때만) */}
-                    {filter && filter.dispatchPhase !== 'DELIVERING' && liveRoute.length > 0 && (
+                    {/**
+                      * 🚀 지금 출발 — 옛 지도와 같은 자리·같은 동작 (짐 있고 출발 전일 때만).
+                      * 🔴 **좁은 화면(폰)에는 안 낸다** — 현황판을 숨기는 것과 **같은 기준**(`useSidePanelRoom`)이다.
+                      *    운전 중에는 누를 수 없고, 주행이 감지되면 스스로 출발로 넘어간다 — 지도를 덮을 값어치가 없다.
+                      */}
+                    {wideScreen && filter && filter.dispatchPhase !== 'DELIVERING' && liveRoute.length > 0 && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();

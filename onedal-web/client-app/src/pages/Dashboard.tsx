@@ -5,6 +5,7 @@ import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import Collapse from "../components/ui/collapse";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import { useFilterConfig } from "../hooks/useFilterConfig";
+import { useSidePanelRoom } from "../hooks/useSidePanelRoom";
 import JudgmentSeat from "../components/dashboard/JudgmentSeat";
 import StageView from "../components/stage/StageView";
 /* 🔬 곁 패널 — 지울 때 이 줄과 아래 호출 한 줄만 지운다 (2026-09-11) */
@@ -74,12 +75,8 @@ export default function Dashboard() {
      *    붙는다. 운행 중 화면에 무게를 얹지 않는다.
      * 🔴 이 패널은 **언젠가 통째로 지운다** — 지우는 법은 `SidePanel.tsx` 머리에 적었다.
      */
-    const [sidePanelRoom, setSidePanelRoom] = useState(() => window.innerWidth - 672 >= 346);
-    useEffect(() => {
-        const onResize = () => setSidePanelRoom(window.innerWidth - 672 >= 346);
-        window.addEventListener('resize', onResize);
-        return () => window.removeEventListener('resize', onResize);
-    }, []);
+    /* 📏 폭 판단은 `useSidePanelRoom` 한 곳 — 무대의 «🚀 지금 출발»도 **같은 답**을 본다 (규칙 ③) */
+    const sidePanelRoom = useSidePanelRoom();
     useEffect(() => {
         const on = () => setStagePreview(localStorage.getItem('stagePreview') === '1');
         window.addEventListener('stage-preview-changed', on);
