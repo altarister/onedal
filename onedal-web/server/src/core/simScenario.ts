@@ -175,10 +175,14 @@ function checkOk(c: ScenarioCheck, f: WorldFilter): boolean {
     }
 }
 
+/** ☎️ 문제지 콜의 상차지 전화 — 하차지 번호는 문제지 장소가 들고 있다 (`simScenarioIcheon` 의 `SCENARIO_PHONE`) */
+const PICKUP_PHONE = '010-2684-8748';
+
 function toSimCall(call: NonNullable<ScenarioRow['call']>): SimCallInput {
     const simPlace = (p: ScenarioPlace): SimPlace =>
         ({ addressDetail: p.addressDetail, region: p.region, lon: p.lon, lat: p.lat, customerName: p.name, phone1: p.phone1 });
-    return { pickup: simPlace(call.pickup), dropoff: simPlace(call.dropoff), fare: call.fare, vehicleType: call.vehicleType };
+    /* ☎️ 상차지는 하차지와 다른 번호다 — 걸었을 때 «어디로 걸렸는지»가 구분돼야 한다 */
+    return { pickup: { ...simPlace(call.pickup), phone1: PICKUP_PHONE }, dropoff: simPlace(call.dropoff), fare: call.fare, vehicleType: call.vehicleType };
 }
 
 /** «○○에 서면» — 그 줄 콜의 상차/하차 도착이 찍혔나 */
