@@ -14,7 +14,14 @@ class AutoTouchManager(private val service: AccessibilityService) {
 
     companion object {
         private const val TAG = "1DAL_TOUCH"
+        /** 카드 줄을 찾을 때 조상을 몇 번까지 타고 올라가나 */
+        private const val ROW_HOPS = 6
+        /** 미뤄 둔 찍기의 잠금이 스스로 풀리기까지 주는 여유 — 콜백이 유실돼도 영영 안 찍히지 않게 */
+        private const val PENDING_GRACE_MS = 500L
     }
+
+    /** ⏳ 미뤄 둔 찍기를 건 시각(부팅 기준) · 0 이면 없음 — 겹쳐 예약하지 않으려고 둔다 */
+    private var pendingTapAtMs = 0L
 
     /** 👁️ 찍은 자리를 눈으로 보이게 하는 자국 — 기사님이 «어디에 무엇이 눌렸나»를 그 자리에서 본다 */
     private val tapMarker by lazy { TapMarker(service) }
@@ -23,11 +30,19 @@ class AutoTouchManager(private val service: AccessibilityService) {
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
     /**
-     * 특정 UI 노드의 Bounds(좌표 영역)를 계산하여 화면 정중앙을 터치합니다.
+     * 특정 UI 노드의 Bounds(좌표 영역)를 계산하여 터치합니다.
      * @param node 클릭 대상 AccessibilityNodeInfo
-     * @return 성패 여부
+     * @param leftShiftPx 노드 중앙에서 왼쪽으로 옮길 거리 (`tapRowLeft` 가 켜져 있으면 안 쓴다)
+     * @param tapRowLeft 그 노드가 속한 **카드 줄의 왼쪽 끝**을 찍는다 (`TapShift.rowLeftOf`)
+     * @param delayMs 자국을 이만큼 보여 준 뒤 찍는다 (0 이면 바로)
+     * @return 성패 여부 (미룰 때는 «예약했다»는 뜻)
      */
-    fun performSimulatedTouch(node: AccessibilityNodeInfo, leftShiftPx: Int = 0, delayMs: Long = 0L): Boolean {
+    fun performSimulatedTouch(
+        node: AccessibilityNodeInfo,
+        leftShiftPx: Int = 0,
+        tapRowLeft: Boolean = false,
+        delayMs: Long = 0L,
+    ): Boolean {
         /**
          * 🔴 **찍기 직전에 다시 잰다** (2026-09-13 · 라이브 오배차 조사에서 신설).
          *
@@ -48,12 +63,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
         val rect = Rect()
         node.getBoundsInScreen(rect)
 
-        /**
-         * 👈 **요금 자리를 그대로 찍지 않는다** (`TapShift` · 기사님 지시).
-         * 요금 닻과 상세의 «수락하기»가 둘 다 오른쪽 아래라, 화면이 바뀌는 찰나에 그 자리를 찍으면 곧 계약이다.
-         * 같은 줄에서 왼쪽으로 옮겨 찍으면 상세로 똑같이 들어가고, 잘못 눌려도 그 자리는 «넘기기»다.
-         */
-        val x = TapShift.leftOf(rect.centerX(), leftShiftPx).toFloat()
+        val x = tapXOf(node, rect, leftShiftPx, tapRowLeft).toFloat()
         val y = rect.centerY().toFloat()
 
         if (x <= 0f || y <= 0f) {
@@ -62,13 +72,31 @@ class AutoTouchManager(private val service: AccessibilityService) {
         }
 
         /**
+         * 🔴 **미뤄 둔 찍기가 있으면 새로 걸지 않는다** (09-16 실측 14:58:52 · 두 건이 동시에 예약됐다).
+         *
+         * 화면 읽기는 1초마다 돈다 — 미루는 그 1초 사이에 다음 읽기가 또 알람을 울리면 **예약이 쌓인다.**
+         * 첫 예약이 찍혀 상세로 넘어간 뒤 둘째가 뒤늦게 발사되면 **상세 화면 위를 찍는다** —
+         * 그 자리에 무엇이 있을지 모른다. 알람은 원래 «한 번에 요금 최고 하나»다 (규칙 ①·④).
+         * ⏱️ 자물쇠는 시각으로 둔다 — 콜백이 유실돼도 스스로 풀린다.
+         */
+        if (delayMs > 0L) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (pendingTapAtMs > 0L && now - pendingTapAtMs < delayMs + PENDING_GRACE_MS) {
+                AppLogger.w(TAG, "🛑 [찍기 건너뜀] 이미 미뤄 둔 찍기가 있다 — 겹쳐 찍지 않는다 " +
+                    "(${now - pendingTapAtMs}ms 전에 예약됨)")
+                return false
+            }
+            pendingTapAtMs = now
+        }
+
+        // 👁️ 찍는 자리에 자국을 남긴다 — 화면은 곧 넘어가고 로그는 나중에나 본다 (`TapMarker`)
+        tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
+
+        /**
          * 🔴 **보내는 순간에 남긴다** — 아래 `onCompleted` 는 **2~4초 늦게** 온다
          *    (09-13 실측: 12:00:10.387 에 보낸 것이 12:00:12.676 에 찍혔다). 콜백이
          *    서비스 메인 핸들러에 줄을 서기 때문이다. 완료 로그만 보면 **시각이 거짓말한다.**
          */
-        // 👁️ 찍는 자리에 자국을 남긴다 — 화면은 곧 넘어가고 로그는 나중에나 본다 (`TapMarker`)
-        tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
-
         if (delayMs <= 0L) {
             AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\"")
             return fireTap(x, y)
@@ -83,10 +111,13 @@ class AutoTouchManager(private val service: AccessibilityService) {
          */
         AppLogger.i(TAG, "⏳ [찍기 미룸] ${delayMs}ms 뒤 (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\" — 자국을 먼저 보여 준다")
         handler.postDelayed({
+            pendingTapAtMs = 0L        // 🔓 찍든 못 찍든 여기서 잠금을 푼다 — 다음 알람이 걸릴 수 있게
             val again = Rect()
             val alive = node.refresh().also { if (it) node.getBoundsInScreen(again) }
-            val newX = if (alive) TapShift.leftOf(again.centerX(), leftShiftPx) else null
+            val newX = if (alive) tapXOf(node, again, leftShiftPx, tapRowLeft) else null
             val newY = if (alive) again.centerY() else null
+            // 🧹 자국은 여기서 걷는다 — 보여 줄 만큼 보여 줬고, 찍는 순간 화면이 깨끗해야 한다
+            tapMarker.hide()
             if (TapShift.sameSpot(x.toInt(), y.toInt(), newX, newY)) {
                 AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) — ${delayMs}ms 미룬 뒤 자리 그대로")
                 fireTap(x, y)
@@ -96,6 +127,38 @@ class AutoTouchManager(private val service: AccessibilityService) {
             }
         }, delayMs)
         return true
+    }
+
+    /**
+     * 👈 **어느 x 를 찍나.**
+     * - `tapRowLeft` — 그 노드가 속한 카드 줄의 **왼쪽 끝**. «수락하기»(오른쪽 아래)에서 가장 먼 자리다
+     * - 아니면 노드 중앙에서 `leftShiftPx` 만큼 왼쪽 (기본 0 = 중앙 그대로)
+     */
+    private fun tapXOf(node: AccessibilityNodeInfo, rect: Rect, leftShiftPx: Int, tapRowLeft: Boolean): Int {
+        if (tapRowLeft) {
+            rowRectOf(node)?.let { return TapShift.rowLeftOf(it.left) }
+            AppLogger.w(TAG, "⚠️ [줄 못 찾음] 카드 줄을 못 찾아 요금 자리에서 왼쪽으로 옮겨 찍는다")
+            return TapShift.leftOf(rect.centerX(), TapShift.PICKER_LIST_LEFT_PX)
+        }
+        return TapShift.leftOf(rect.centerX(), leftShiftPx)
+    }
+
+    /**
+     * 📐 그 글자가 속한 **카드 줄**의 사각형 — 화면 폭의 절반을 넘는 첫 조상.
+     * 요금 글자 자체는 오른쪽 끝의 짧은 한 조각이라, 줄의 왼쪽 끝을 알려면 부모를 타고 올라가야 한다.
+     */
+    private fun rowRectOf(node: AccessibilityNodeInfo): Rect? {
+        val screenWidth = service.resources.displayMetrics.widthPixels
+        var cur: AccessibilityNodeInfo? = node.parent
+        var hops = 0
+        while (cur != null && hops < ROW_HOPS) {
+            val r = Rect()
+            cur.getBoundsInScreen(r)
+            if (r.width() >= screenWidth / 2) return r
+            cur = cur.parent
+            hops++
+        }
+        return null
     }
 
     /** 실제 제스처 주입 — 미루든 안 미루든 마지막 한 걸음은 여기 하나다 */

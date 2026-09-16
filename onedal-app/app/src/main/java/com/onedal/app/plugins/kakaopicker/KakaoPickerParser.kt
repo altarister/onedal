@@ -83,6 +83,25 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         private const val LIST_HEADER_WORD = "리스트 설정"
 
         /**
+         * 🚧 **화면 맨 아래 탭 줄의 글자** — 이 줄부터 아래는 콜이 아니다.
+         * 위쪽 경계(`LIST_HEADER_WORD`)의 짝이다. 목록 끝에서 마지막 카드가 탭 줄에 붙으면
+         * 탭 글자가 요금 ±60픽셀 안에 들어와 **지역 이름으로 취급됐다** (09-16 실측: 픽업지 «신규 내 오더»).
+         * 🔴 낱말 목록(`uiNoiseWords`)은 아는 글자만 막지만, 이 선은 탭 이름이 바뀌어도 막는다.
+         */
+        private val BOTTOM_TAB_WORDS = setOf("서포트모드", "카드설정", "수요지도", "신규", "내 오더")
+
+        /**
+         * 🚧 아래 탭 줄의 **맨 위** 중심 Y — 탭 글자가 하나도 없으면 **null** (0 이 아니다 · 규칙 ④).
+         * 입력은 `(글자, 중심Y)` 짝이다 — 순수 함수라 폰 없이 검사된다.
+         */
+        fun bottomTabTopY(nodes: List<Pair<String, Int>>): Int? =
+            nodes.filter { it.first.trim() in BOTTOM_TAB_WORDS }.minOfOrNull { it.second }
+
+        /** 🚧 그 글자가 탭 줄 자리이거나 그 아래인가 — **탭 줄을 못 찾았으면 아무것도 안 버린다** */
+        fun isBelowBottomTab(nodeCenterY: Int, tabTopY: Int?): Boolean =
+            tabTopY != null && nodeCenterY >= tabTopY
+
+        /**
          * 📏 「리스트 설정」 머리줄의 중심 Y — 없으면 **null** (0 이 아니다 · 규칙 ④).
          * 입력은 `(글자, 중심Y)` 짝이다 — 순수 함수라 JVM 검사에서 그대로 돈다.
          */
@@ -343,14 +362,42 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         }
     }
 
+    /**
+     * 🧹 **버릴 화면 메뉴 글자 — 서버에서 받는다** (기사님 지시).
+     *
+     * 인성·화물24와 같은 길(`GET /api/config/keywords?app=픽커` → `targetAppKeywords`)을 픽커도 쓴다.
+     * 화면 아래 탭 글자(«신규»·«내 오더» 등)가 마지막 카드에 섞이면 **픽업지가 그 글자가 된다** —
+     * 낱말을 서버에서 받으면 그런 글자가 새로 생겨도 앱을 다시 깔지 않고 막을 수 있다.
+     *
+     * 🔴 **서버 목록과 앱 기본값을 합쳐서 쓴다** — 서버가 죽거나 목록이 비어도 최소한은 걸러야 한다
+     *    (규칙 ④ — 비면 «전부 통과»가 아니다).
+     */
+    private fun noiseWords(): Set<String> {
+        val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE) ?: return NOISE_WORDS
+        return try {
+            val saved = prefs.getString("targetAppKeywords", null) ?: return NOISE_WORDS
+            val arr = JSONObject(saved).optJSONArray("uiNoiseWords") ?: return NOISE_WORDS
+            val fromServer = (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }.toSet()
+            if (fromServer.isEmpty()) NOISE_WORDS else fromServer + NOISE_WORDS
+        } catch (e: Exception) {
+            NOISE_WORDS
+        }
+    }
+
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         val sorted = allNodes.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
-        val anchors = sorted.filter { isFareAnchor(it.text, (it.rect.left + it.rect.right) / 2) }
+        /**
+         * 🚧 **화면 맨 아래 탭 줄부터는 빼고 나눈다** (기사님 지시 — 위쪽 «리스트 설정» 경계의 짝).
+         * 목록 끝에서 마지막 카드가 탭 줄에 붙으면 «신규»·«내 오더» 가 그 카드의 지역 이름이 됐다.
+         */
+        val tabTopY = bottomTabTopY(sorted.map { it.text to (it.rect.top + it.rect.bottom) / 2 })
+        val body = sorted.filterNot { isBelowBottomTab((it.rect.top + it.rect.bottom) / 2, tabTopY) }
+        val anchors = body.filter { isFareAnchor(it.text, (it.rect.left + it.rect.right) / 2) }
         if (anchors.isEmpty()) return emptyList()
         val anchorCenters = anchors.map { (it.rect.top + it.rect.bottom) / 2 }
-        // 🧲 각 노드를 가장 가까운 닻 하나에만 배정 — 두 카드에 겹쳐 들어가는 것을 막는다 (#86)
+        // 🧲 각 노드를 가장 가까운 요금 글자 하나에만 배정 — 두 카드에 겹쳐 들어가는 것을 막는다 (#86)
         val cardTexts = List(anchors.size) { mutableListOf<String>() }
-        for (node in sorted) {
+        for (node in body) {
             val i = nearestAnchorIndex(anchorCenters, (node.rect.top + node.rect.bottom) / 2)
             if (i >= 0) cardTexts[i].add(node.text)
         }
@@ -358,6 +405,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     }
 
     override fun parse(texts: List<String>): SimplifiedOfficeOrder {
+        val noise = noiseWords()          // 🧹 서버가 내려준 «버릴 글자» + 앱 기본값
         var fare = 0
         var pickupKm: Double? = null
         var itemSize: String? = null
@@ -375,7 +423,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 t in TAG_WORDS -> tags.add(t)
                 t.startsWith("준비 ") -> tags.add(t)                 // «준비 29분»
                 TIME_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «17:00»
-                t in NOISE_WORDS -> { /* 화면 UI 낱말 — 콜 정보가 아니다, 버린다 */ }
+                t in noise -> { /* 화면 메뉴 글자 — 콜 정보가 아니다, 버린다 (서버 목록 + 앱 기본값) */ }
                 // 🚫 배정 완료 토스트가 카드 띠에 섞였다 — 지역이 아니다 (09-02 실주행 가짜 콜 3건 · `AssignedToastTest`)
                 t.contains(KakaoPickerKeywords.ASSIGNED_TOAST_WORD) -> { }
                 // «내일 착불» 처럼 태그 여럿이 한 노드로 붙어 오는 판 — 낱낱이 전부 태그면 태그다

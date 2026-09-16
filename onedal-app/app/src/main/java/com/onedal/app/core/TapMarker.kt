@@ -34,8 +34,8 @@ class TapMarker(private val service: AccessibilityService) {
     companion object {
         /** 자국이 떠 있는 시간 — 알람 테두리(10초)보다 짧다. 찍은 순간만 보이면 된다 */
         const val HOLD_MS = 1_500L
-        /** 원 반지름 (폰 픽셀 · 손가락 끝만 한 크기) */
-        const val RADIUS_PX = 60
+        /** 원 반지름 (폰 픽셀 · 손가락 끝만 한 크기 — 화면을 가리지 않게 작게) */
+        const val RADIUS_PX = 30
         /** 이름표에 넣는 카드 글자 길이 — 넘으면 자른다 */
         const val LABEL_MAX = 24
 
@@ -59,18 +59,19 @@ class TapMarker(private val service: AccessibilityService) {
     /** 👉 여기를 찍었다 — 그 자리에 원과 이름표를 띄운다 */
     fun show(centerX: Int, centerY: Int, cardText: String?) {
         val label = labelOf(cardText)
-        handler.post {
+        /**
+         * 🏃 **줄 맨 앞에 세운다** — 화면 그리기는 메인 스레드 한 줄에서 차례로 처리된다.
+         * 줄 끝에 세웠더니(`post`) 목록이 길 때 자국이 **12초 늦게** 떴다 (09-16 실측 14:58).
+         * 찍기 타이머도 같은 줄이라 함께 밀려, 자국이 뜬 지 0.07초 만에 터치가 나갔다.
+         */
+        handler.postAtFrontOfQueue {
             hide()
             try {
                 val view = object : View(service) {
+                    // 진한 회색 한 겹 — 테두리는 두지 않는다 (기사님 지시)
                     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                         style = Paint.Style.FILL
-                        color = Color.argb(110, 90, 90, 90)      // 반투명 회색 — 아래 글자가 비친다
-                    }
-                    private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        style = Paint.Style.STROKE
-                        strokeWidth = 5f
-                        color = Color.argb(220, 40, 40, 40)
+                        color = Color.argb(205, 60, 60, 60)
                     }
                     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                         color = Color.WHITE
@@ -82,7 +83,6 @@ class TapMarker(private val service: AccessibilityService) {
                     override fun onDraw(canvas: Canvas) {
                         val cy = height / 2f
                         canvas.drawCircle(centerX.toFloat(), cy, RADIUS_PX.toFloat(), fill)
-                        canvas.drawCircle(centerX.toFloat(), cy, RADIUS_PX.toFloat(), edge)
                         // 이름표는 넓은 쪽에 붙인다 — 화면 밖으로 밀려 잘리지 않게
                         val gap = RADIUS_PX + 16f
                         if (centerX > width / 2) {
@@ -123,7 +123,8 @@ class TapMarker(private val service: AccessibilityService) {
         }
     }
 
-    private fun hide() {
+    /** 🧹 자국을 지금 걷는다 — 미뤘다 찍는 길에서는 **찍는 순간** 걷는다 (기사님 지시) */
+    fun hide() {
         handler.removeCallbacks(hideRunnable)
         markerView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
         markerView = null
