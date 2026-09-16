@@ -1132,7 +1132,11 @@ class HijackService : AccessibilityService(), ScanContext {
         val bestIdx = AlarmSignaler.pickBestIndex(alarmHits.map { it.first.fare })
         if (bestIdx >= 0) {
             val (order, fareNode, orderHash) = alarmHits[bestIdx]
-            alarmSignaler.fire(fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash)
+            // 🔔 테두리는 «기사님이 직접 그 줄을 눌러야 하는» 배차망에만 — 픽커는 앱이 상세까지 들어간다
+            alarmSignaler.fire(
+                fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash,
+                withBorder = TargetApp.supportsCatching(currentTargetApp),
+            )
             /**
              * 🔴 **머리줄 위의 요금은 오더카드다 — 누르면 그 자리에서 계약이다**
              *    (2026-09-13 · 라이브 오배차 조사에서 신설).
@@ -1174,12 +1178,19 @@ class HijackService : AccessibilityService(), ScanContext {
                 val headerY = refreshedY(headerNode)
                 if (KakaoPickerParser.stillListCardAtTap(fareY, headerY)) {
                     alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽: 알람» 기록용
+                    /**
+                     * 🎯 **찍는 그 카드를 쥐여 둔다 — 상세에서 다시 찾지 않는다** (기사님 지시).
+                     * 앱이 직접 누르고 들어가는 판이라 어느 콜인지 이미 안다. 상세 글자로 되찾다가
+                     * 길 이름(«태전동로») ↔ 동 이름(«태전») 차이로 «맞는 카드 없음»을 내던 자리다.
+                     */
+                    session.alarmTappedCard = order
+                    session.alarmTappedAtMs = alarmTapAtMs
                     // 👈 요금 자리(오른쪽 아래)는 상세의 «수락하기»와 같은 자리다 — 같은 줄 왼쪽을 찍는다 (`TapShift`)
-                    // ⏳ 자국을 1초 보여 주고 찍는다 — 기사님이 «어디를 누르는지» 눈으로 본다 (상세 진입이라 1초가 손해가 아니다)
+                    // ⏳ 자국을 1초 보여 주고, 그 줄의 **왼쪽 끝**을 찍는다 — «수락하기»(오른쪽 아래)에서 가장 먼 자리다
                     touchManager.performSimulatedTouch(
                         fareNode.node,
-                        com.onedal.app.core.TapShift.PICKER_LIST_LEFT_PX,
-                        com.onedal.app.core.TapShift.PREVIEW_MS,
+                        tapRowLeft = true,
+                        delayMs = com.onedal.app.core.TapShift.PREVIEW_MS,
                     )
                 } else {
                     AppLogger.w("1DAL_ALARM", "🛑 [알람 상세 보류] ${order.fare}원 — 찍기 직전 다시 재니 머리줄 아래가 아니다 " +

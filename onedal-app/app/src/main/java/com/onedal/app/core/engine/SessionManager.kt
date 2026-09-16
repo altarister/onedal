@@ -73,6 +73,22 @@ class SessionManager {
     /** 상세 화면에서 참조할 원본 오더 데이터 */
     var lastDetailOrder: SimplifiedOfficeOrder? = null
 
+    /**
+     * 🎯 **알람이 방금 찍은 리스트 카드** — 그 상세가 어느 콜인지 **이미 아는 답**이다 (기사님 지시).
+     *
+     * 앱이 직접 그 줄을 찍고 들어간 상세는 대조하지 않는다 — 상세 글자로 되찾으면
+     * 길 이름(«태전동로») ↔ 동 이름(«태전») 차이로 못 맞추는 판이 있다.
+     * 🔴 손으로 연 상세는 `KakaoPickerParser.matchListCard` 로 찾는다 (버그 대장 #119 — 그 길을 없애면 안 된다).
+     */
+    var alarmTappedCard: SimplifiedOfficeOrder? = null
+
+    /**
+     * 알람이 그 카드를 찍은 시각(부팅 기준). `KakaoPickerKeywords.detailOpener` 로 «알람이 연 상세인가»를 가린다.
+     * ⚠️ `HijackService.alarmTapAtMs` 와 **일부러 따로 둔다** — 그쪽은 `[상세 대기]` 로그의 «연 쪽»을
+     *    찍고 바로 0 으로 비우고, 이쪽은 미리보기가 카드를 되찾을 때까지 남아 있어야 한다.
+     */
+    var alarmTappedAtMs: Long = 0L
+
     /** 동명이동 3단계 검증 상태 (null=일반, VERIFY/ACCEPT/CANCEL) */
     var cautionAction: String? = null
 
@@ -128,6 +144,8 @@ class SessionManager {
         collectState = CollectState.IDLE
         accumulatedDetailText = ""
         lastDetailOrder = null
+        alarmTappedCard = null
+        alarmTappedAtMs = 0L
         currentOrderId = ""
         isAutoActive = false
         isWaitingForDecision = false

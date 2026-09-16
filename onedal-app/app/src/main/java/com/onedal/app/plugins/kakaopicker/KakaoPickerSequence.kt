@@ -21,15 +21,26 @@ import com.onedal.app.core.engine.ScanContext
 fun ScanContext.sendPickerPreview(rawScreenStr: String, screenTexts: List<String>) {
     if (session.isDetailScrapSent) return          // 한 콜에 한 번만
     /**
-     * 👀 **이 상세가 리스트의 어느 카드인가 — 누가 열었든 한 곳** (2026-09-14 폰 시험 · 버그 대장 #119).
-     * 예전엔 알람이 누를 때만 카드를 쥐여 줘서, 기사님이 손으로 연 상세는 «리스트 원본이 없다»로 끝났다.
-     * 이제 방금 읽은 리스트 카드(`recentListOrders`)에서 요금 + 픽업지로 찾는다 (`matchListCard`).
+     * 🎯 **알람이 연 상세는 대조하지 않는다 — 방금 찍은 그 카드가 답이다** (기사님 지시).
+     *
+     * 앱이 직접 그 줄을 찍고 들어온 판이라 어느 콜인지 **이미 안다.** 그걸 버리고 상세 글자로
+     * 다시 찾다가, 상세는 길 이름(«태전동로»)·리스트는 동 이름(«태전»)이라 못 맞춰 평가를 걸렀다.
+     *
+     * 🔴 **손으로 연 상세는 여전히 대조한다** (버그 대장 #119) — 그 길엔 아는 카드가 없다.
+     *    예전에 알람만 쥐여 주던 때 손으로 연 상세가 통째로 빠졌다. 두 길을 다 살린다.
      */
-    val match = KakaoPickerParser.matchListCard(screenTexts, recentListOrders)
-    val base = match.card
-    if (base == null) {
-        AppLogger.w("1DAL_PICKER", "👀 [미리보기 보류] ${match.why} — 주소를 지어내지 않는다")
-        return
+    val opener = KakaoPickerKeywords.detailOpener(session.alarmTappedAtMs, android.os.SystemClock.elapsedRealtime())
+    val tappedCard = session.alarmTappedCard?.takeIf { opener == KakaoPickerKeywords.OPENER_ALARM }
+    val base = if (tappedCard != null) {
+        AppLogger.i("1DAL_PICKER", "🎯 [미리보기] 알람이 찍은 카드를 그대로 쓴다 — ${tappedCard.fare}원 · ${tappedCard.pickup}→${tappedCard.dropoff} (대조 안 함)")
+        tappedCard
+    } else {
+        val match = KakaoPickerParser.matchListCard(screenTexts, recentListOrders)
+        if (match.card == null) {
+            AppLogger.w("1DAL_PICKER", "👀 [미리보기 보류] ${match.why} — 주소를 지어내지 않는다 (손으로 연 상세)")
+            return
+        }
+        match.card
     }
     session.lastDetailOrder = base                 // 기사님이 수락하면 이 카드를 잡은 콜로 올린다 (`reportPickerAccepted`)
     ensureSessionId()

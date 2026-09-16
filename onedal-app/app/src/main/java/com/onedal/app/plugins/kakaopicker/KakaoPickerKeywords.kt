@@ -209,8 +209,13 @@ object KakaoPickerKeywords {
      */
     const val ALARM_OPEN_WINDOW_MS = 5_000L
 
+    /** 앱(알람)이 찍어 연 상세 */
+    const val OPENER_ALARM = "알람"
+    /** 기사님이 손으로 연 상세 */
+    const val OPENER_HAND = "손"
+
     fun detailOpener(alarmTapAtMs: Long, nowMs: Long): String =
-        if (alarmTapAtMs > 0L && nowMs - alarmTapAtMs in 0L..ALARM_OPEN_WINDOW_MS) "알람" else "손"
+        if (alarmTapAtMs > 0L && nowMs - alarmTapAtMs in 0L..ALARM_OPEN_WINDOW_MS) OPENER_ALARM else OPENER_HAND
 
     /** ⏱️ 자동 복귀가 몇 초 뒤인지는 적지 않는다 — 서버 DB 값이다 (`docs/지금/배차망별_대기_시간.md`) */
     const val RETURNED_TO_LIST_LOG = "↩️ [승격 안 함] 상세에서 리스트로 돌아왔다 — 수락하지 않았다 (넘기기 · 뒤로 · 상세 대기 시간 뒤 자동 복귀)"
