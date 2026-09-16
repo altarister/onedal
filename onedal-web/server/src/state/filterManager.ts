@@ -1163,6 +1163,13 @@ export function updateActiveFilter(
          * ⚠️ 복귀로 «그물이 보는 목적지»가 집이 되는 것(`callTarget`)은 여기를 안 지난다 — 기사님 결정으로 그대로 둔다.
          */
         if ('destinationCity' in changes && changes.destinationCity !== prevDestinationCity && !('radiusDistanceKm' in changes)) session.activeFilter.radiusDistanceKm = undefined;
+        /**
+         * 📏 **[↻ 다시 구하기] 는 값이 같아도 한 번 내보낸다** (버그 대장 #158).
+         *    같은 자리에서 다시 재면 **같은 거리**가 나온다 — 집 주소로 대신 재는 책상에서는 늘 그렇다.
+         *    그러면 아래 방송이 «바뀐 게 없다»(`lastFilterJson`)로 걸러져, 누를 때 비운 값이 화면에
+         *    되돌아오지 못한다. 눌렀다는 것 자체가 «다시 실어 보내라»는 뜻이므로 여기서 한 번 푼다.
+         */
+        if ('radiusDistanceKm' in changes) session.lastFilterJson = null;
         // 파생 데이터 재계산
         recalculateDerivedFields(session, changes, userId);
         refreshDetourIfNeeded(session, userId, before);

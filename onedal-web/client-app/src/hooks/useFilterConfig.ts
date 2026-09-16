@@ -31,7 +31,16 @@ export function useFilterConfig() {
     const updateFilter = (newFilter: Partial<AutoDispatchFilter>, saveAsDefault = false) => {
         // 오늘 콜 잡기는 언제나 바뀐다
         if (filter) {
-            setFilter({ ...filter, ...newFilter });
+            /**
+             * 📏 **잰 거리(`radiusDistanceKm`)만은 화면이 미리 바꾸지 않는다** (버그 대장 #158).
+             *    이 값은 서버가 «내 위치 → 목적지»로 **재서 실어 보내는** 것이라 화면이 답을 모른다.
+             *    [↻ 다시 구하기]가 화면까지 비우면 «거리 못 잼»이 되어 배율이 1 로 돌아가는데,
+             *    서버가 같은 자리에서 다시 재면 값이 같아 방송이 걸러져 **그 상태에 갇힌다** —
+             *    그동안 화면은 두 배 넓은 반경을 말하고 서버는 줄인 반경으로 거른다.
+             */
+            const shown: Partial<AutoDispatchFilter> = { ...newFilter };
+            delete shown.radiusDistanceKm;
+            setFilter({ ...filter, ...shown });
         }
         // 평소 설정은 그렇게 하겠다고 했을 때만 바뀐다 — 서버 동작과 화면을 맞춘다
         if (saveAsDefault && baseFilter) {
