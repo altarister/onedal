@@ -19,12 +19,15 @@ class AutoTouchManager(private val service: AccessibilityService) {
     /** 👁️ 찍은 자리를 눈으로 보이게 하는 자국 — 기사님이 «어디에 무엇이 눌렸나»를 그 자리에서 본다 */
     private val tapMarker by lazy { TapMarker(service) }
 
+    /** ⏳ 자국을 먼저 보여 주고 미뤘다 찍을 때 쓴다 */
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+
     /**
      * 특정 UI 노드의 Bounds(좌표 영역)를 계산하여 화면 정중앙을 터치합니다.
      * @param node 클릭 대상 AccessibilityNodeInfo
      * @return 성패 여부
      */
-    fun performSimulatedTouch(node: AccessibilityNodeInfo, leftShiftPx: Int = 0): Boolean {
+    fun performSimulatedTouch(node: AccessibilityNodeInfo, leftShiftPx: Int = 0, delayMs: Long = 0L): Boolean {
         /**
          * 🔴 **찍기 직전에 다시 잰다** (2026-09-13 · 라이브 오배차 조사에서 신설).
          *
@@ -63,11 +66,40 @@ class AutoTouchManager(private val service: AccessibilityService) {
          *    (09-13 실측: 12:00:10.387 에 보낸 것이 12:00:12.676 에 찍혔다). 콜백이
          *    서비스 메인 핸들러에 줄을 서기 때문이다. 완료 로그만 보면 **시각이 거짓말한다.**
          */
-        AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\"")
-
         // 👁️ 찍는 자리에 자국을 남긴다 — 화면은 곧 넘어가고 로그는 나중에나 본다 (`TapMarker`)
         tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
 
+        if (delayMs <= 0L) {
+            AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\"")
+            return fireTap(x, y)
+        }
+
+        /**
+         * ⏳ **자국을 먼저 보여 주고 미뤘다 찍는다** (기사님 지시 — «영역이 보이고 1초 후 클릭»).
+         *
+         * 🔴 미룬 사이에 리스트가 갱신되면 **잰 자리에 다른 카드가 와 있다** — 09-13 오배차의 모양이다.
+         *    그래서 쏘기 직전에 한 번 더 재서 **그대로일 때만** 쏜다 (`TapShift.sameSpot`).
+         *    되돌아오는 값은 «발사됐다»가 아니라 «예약했다»는 뜻이다 — 지금 이 길은 반환값을 안 쓴다.
+         */
+        AppLogger.i(TAG, "⏳ [찍기 미룸] ${delayMs}ms 뒤 (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\" — 자국을 먼저 보여 준다")
+        handler.postDelayed({
+            val again = Rect()
+            val alive = node.refresh().also { if (it) node.getBoundsInScreen(again) }
+            val newX = if (alive) TapShift.leftOf(again.centerX(), leftShiftPx) else null
+            val newY = if (alive) again.centerY() else null
+            if (TapShift.sameSpot(x.toInt(), y.toInt(), newX, newY)) {
+                AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) — ${delayMs}ms 미룬 뒤 자리 그대로")
+                fireTap(x, y)
+            } else {
+                AppLogger.w(TAG, "🛑 [찍기 취소] 미룬 ${delayMs}ms 사이에 자리가 움직였다 " +
+                    "(잰 자리 X:${x.toInt()},Y:${y.toInt()} → 지금 X:$newX,Y:$newY) · 손대지 않는다")
+            }
+        }, delayMs)
+        return true
+    }
+
+    /** 실제 제스처 주입 — 미루든 안 미루든 마지막 한 걸음은 여기 하나다 */
+    private fun fireTap(x: Float, y: Float): Boolean {
         val clickPath = Path().apply { moveTo(x, y) }
         val clickStroke = GestureDescription.StrokeDescription(clickPath, 0, 50)
         val gesture = GestureDescription.Builder().addStroke(clickStroke).build()

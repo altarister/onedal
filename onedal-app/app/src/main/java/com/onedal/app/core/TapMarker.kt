@@ -115,6 +115,8 @@ class TapMarker(private val service: AccessibilityService) {
                 markerView = view
                 handler.removeCallbacks(hideRunnable)
                 handler.postDelayed(hideRunnable, HOLD_MS)
+                // 🔎 «안 떴다»와 «떴는데 못 봤다»를 로그로 가른다 — 둘의 고칠 곳이 다르다
+                AppLogger.i("1DAL_TOUCH", "👁️ [클릭 자국] ($centerX,$centerY) «$label» — ${HOLD_MS}ms 동안")
             } catch (e: Exception) {
                 AppLogger.w("1DAL_TOUCH", "👁️ [클릭 자국 실패] ${e.message}")
             }

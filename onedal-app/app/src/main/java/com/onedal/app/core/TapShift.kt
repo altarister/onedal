@@ -23,4 +23,23 @@ object TapShift {
     const val PICKER_LIST_LEFT_PX = 300
 
     fun leftOf(centerX: Int, shiftPx: Int): Int = maxOf(MIN_X, centerX - shiftPx)
+
+    /**
+     * ⏳ **자국을 보여 주고 이만큼 미뤘다 찍는다** (기사님 지시 — «영역이 보이고 1초 후 클릭»).
+     * 🔴 알람이 상세로 들어가는 자리에만 쓴다. 인성 꿀콜 선점에 미루면 남에게 뺏긴다.
+     */
+    const val PREVIEW_MS = 1_000L
+
+    /** 미룬 사이 이만큼까지 움직인 것은 같은 자리로 본다 (폰 픽셀 · 손가락 끝 굵기) */
+    const val MOVE_TOL_PX = 24
+
+    /**
+     * 🔴 **미룬 뒤에는 자리를 다시 재고, 그대로일 때만 쏜다.**
+     * 미룬 사이에 리스트가 갱신되면 «잰 자리»에 다른 카드가 와 있다 — 그게 09-13 오배차의 모양이다.
+     * 다시 못 쟀으면(노드가 사라졌으면) 안 쏜다 (규칙 ④ — 모르면 손대지 않는다).
+     */
+    fun sameSpot(oldX: Int, oldY: Int, newX: Int?, newY: Int?): Boolean {
+        if (newX == null || newY == null) return false
+        return kotlin.math.abs(newX - oldX) <= MOVE_TOL_PX && kotlin.math.abs(newY - oldY) <= MOVE_TOL_PX
+    }
 }
