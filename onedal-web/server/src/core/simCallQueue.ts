@@ -33,6 +33,12 @@ export interface SimPlace {
     lat: number;
     /** 상호 — 없으면 시뮬레이터 상세에 안 보인다 */
     customerName?: string;
+    /**
+     * 전화 — 시뮬레이터 상세의 «전화1» 칸. 🔴 **실물 콜에는 늘 있다** — 없으면 상세에 `*` 로 떠서
+     * 원달앱·관제웹 어디서도 전화를 걸 수 없는, 실물에 없는 콜이 된다.
+     * ⚠️ 하이픈을 넣는다 — 관제웹이 상호 글자에서 전화를 뽑을 때 `\d{2,3}-\d{3,4}-\d{4}` 로 찾는다.
+     */
+    phone1?: string;
 }
 
 export interface SimCallInput {
@@ -89,10 +95,18 @@ function readPlace(v: unknown, what: string): SimPlace | string {
     if (!isNumber(p.lon) || !isNumber(p.lat)) return `${what} 좌표가 숫자가 아니다`;
     /* 경도·위도를 바꿔 넣는 실수를 여기서 잡는다 — 한국 밖이면 받지 않는다 */
     if (p.lon < 124 || p.lon > 132 || p.lat < 33 || p.lat > 39) return `${what} 좌표가 한국 밖이다 (경도·위도가 바뀌었나)`;
-    if (p.customerName === undefined) return { addressDetail, region, lon: p.lon, lat: p.lat };
-    const customerName = textOf(p.customerName, 60);
-    if (!customerName) return `${what} 상호가 비었다`;
-    return { addressDetail, region, lon: p.lon, lat: p.lat, customerName };
+    const out: SimPlace = { addressDetail, region, lon: p.lon, lat: p.lat };
+    if (p.customerName !== undefined) {
+        const customerName = textOf(p.customerName, 60);
+        if (!customerName) return `${what} 상호가 비었다`;
+        out.customerName = customerName;
+    }
+    if (p.phone1 !== undefined) {
+        const phone1 = textOf(p.phone1, 20);
+        if (!phone1) return `${what} 전화가 비었다`;
+        out.phone1 = phone1;
+    }
+    return out;
 }
 
 /** 요청 몸통 → 콜 한 건. 틀리면 무엇이 틀렸는지 */

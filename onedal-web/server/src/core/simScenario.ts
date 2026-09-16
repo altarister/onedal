@@ -177,7 +177,7 @@ function checkOk(c: ScenarioCheck, f: WorldFilter): boolean {
 
 function toSimCall(call: NonNullable<ScenarioRow['call']>): SimCallInput {
     const simPlace = (p: ScenarioPlace): SimPlace =>
-        ({ addressDetail: p.addressDetail, region: p.region, lon: p.lon, lat: p.lat, customerName: p.name });
+        ({ addressDetail: p.addressDetail, region: p.region, lon: p.lon, lat: p.lat, customerName: p.name, phone1: p.phone1 });
     return { pickup: simPlace(call.pickup), dropoff: simPlace(call.dropoff), fare: call.fare, vehicleType: call.vehicleType };
 }
 

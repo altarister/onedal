@@ -9,8 +9,16 @@ import type { ScenarioPlace, ScenarioRow } from './simScenario';
  * 좌표는 카카오 장소검색 실값이다 (`onedal-sim/packages/core-simulator/src/presets.ts` 의 같은 지점).
  */
 
-const place = (name: string, region: string, addressDetail: string, lon: number, lat: number): ScenarioPlace =>
-    ({ name, region, addressDetail, lon, lat });
+/**
+ * ☎️ **문제지 콜의 전화번호** — 실물 콜에는 전화가 늘 있다. 없으면 상세에 `*` 로 떠서
+ * «전화를 걸 수 없는 콜»이 되는데, 그런 콜은 배차망에 없다.
+ * 🔴 시험에서 실제로 걸어 보는 번호라 기사님 번호다 — 남의 번호를 적으면 시험이 곧 오배차다.
+ * ⚠️ 하이픈을 지우지 않는다 — 관제웹이 전화를 뽑는 정규식이 하이픈을 본다.
+ */
+const SCENARIO_PHONE = '010-5246-9062';
+
+const place = (name: string, region: string, addressDetail: string, lon: number, lat: number, phone1 = SCENARIO_PHONE): ScenarioPlace =>
+    ({ name, region, addressDetail, lon, lat, phone1 });
 
 const CHOWOL_STATION = place('초월역', '초월읍', '경기 광주시 초월읍 경충대로 1066 초월역', 127.299905, 37.373379);
 const MODA           = place('모다아울렛', '초월읍', '경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점', 127.312587, 37.363298);

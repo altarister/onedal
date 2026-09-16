@@ -18,6 +18,8 @@ export interface InjectedPlace {
     lon: number;
     lat: number;
     customerName?: string;
+    /** 전화 — 상세의 «전화1» 칸. 없으면 `*` 로 떠서 걸 수 없는 콜이 된다 (실물 콜에는 늘 있다) */
+    phone1?: string;
 }
 
 export interface InjectedCall {
@@ -50,6 +52,7 @@ const placeOf = (p: InjectedPlace): MockEntry => ({
     lon: p.lon,
     lat: p.lat,
     ...(p.customerName ? { customerName: p.customerName } : {}),
+    ...(p.phone1 ? { phone1: p.phone1 } : {}),
 });
 
 /** 받은 콜 → 강제 쌍. 차종이 없으면 비워 둔다 — 배차망 입히기 함수가 고른다 */

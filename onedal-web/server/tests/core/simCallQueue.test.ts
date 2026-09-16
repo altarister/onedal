@@ -140,7 +140,8 @@ describe('🔴 세 곳이 같은 말을 한다 — 현황판 · 서버 · 시뮬
     it('자리 칸 — 주소 · 동 이름 · 경도 · 위도', () => {
         const core = ['addressDetail', 'lat', 'lon', 'region'];
         expect(fieldsOf(board, 'SimPlaceDraft')).toEqual(core);
-        expect(fieldsOf(server, 'SimPlace').filter(k => k !== 'customerName')).toEqual(core);
+        /* 상호·전화는 서버·시뮬만 주고받는다 — 현황판 개별콜 입력에는 그 칸이 없다 */
+        expect(fieldsOf(server, 'SimPlace').filter(k => k !== 'customerName' && k !== 'phone1')).toEqual(core);
         expect(fieldsOf(sim, 'InjectedPlace')).toEqual(fieldsOf(server, 'SimPlace'));
     });
 
