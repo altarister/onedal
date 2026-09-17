@@ -138,7 +138,7 @@ export function registerSocketHandlers(io: Server) {
         }
 
         // 접속 시 초기 데이터 전송 (유저별 등록 기기 목록 포함)
-        socket.emit("telemetry-devices", getUserDevicesSnapshot(userId));
+        socket.emit("telemetry-devices", getUserDevicesSnapshot(userId, io));
 
         // [Phase 6] 필터는 부트스트랩이 끝난 뒤 **완성본으로 한 번만** 보낸다.
         //
@@ -839,7 +839,8 @@ export function registerSocketHandlers(io: Server) {
         const userIds = getAllActiveUserIds();
         for (const uid of userIds) {
             // [Q4 소켓 브로드캐스트 분리 완료] 각 기사별로 자신의 등록된 기기 목록(+상태)만 전달
-            io.to(uid).emit("telemetry-devices", getUserDevicesSnapshot(uid));
+            /* 🛟 `io` 를 넘긴다 — 데드맨이 끊김으로 넘기며 그 폰의 미리보기를 치울 때 관제웹에 알려야 한다 (#159 뒤 개정) */
+            io.to(uid).emit("telemetry-devices", getUserDevicesSnapshot(uid, io));
 
             const session = getUserSession(uid);
             const sync = buildOrderSync(session);

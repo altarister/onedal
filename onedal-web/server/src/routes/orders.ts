@@ -222,7 +222,22 @@ router.post("/confirm", (req, res) => {
              *    원달앱이 상세를 닫는 시간(픽커 상세 대기 시간) + 정리 여유 뒤. 수락하면 딱지가 벗겨져 건드리지 않는다.
              */
             const cancelSec = safeCancelSecOf(readWaitTimes(userId), pendingOrder.targetApp);
-            if (cancelSec != null) {
+            /**
+             * ⏱️ **남은 판정 시간 — 화면에 적을 숫자일 뿐 콜을 끄지 않는다** (기사님 확정).
+             *
+             * 기사님: *"타이머로 미리보기 켜고 끄기 하는 기능은 빼. 미리보기 끄는 건 그 미리보기 판정을 연
+             * 스캔폰의 상태값 즉 상세페이지일 때만 노출하고 페이지를 이탈하면 끄는 걸로."*
+             *
+             * 🔴 **미리보기에는 안전취소 타이머를 걸지 않는다.** 안전취소는 **잡은 콜**을 위약금 없이 무르는
+             *    장치다 (규칙 ②). 미리보기는 아직 안 잡은 콜이라 무를 것이 없고, 시간으로 끄면 폰 화면과
+             *    어긋난다 — 끄는 기준은 하나여야 한다 (`devices.leftDetail`).
+             * ⏱️ 배차망별 값: 인성 · 화물24시는 안전취소 시간, 픽커는 상세 대기 시간. 셋 다 DB 기본 30초.
+             */
+            if ((pendingOrder as any).isPreview) {
+                const holdSec = cancelSec ?? readWaitTimes(userId).pickerAlarmDetailSec;
+                (pendingOrder as any).judgeUntil = Date.now() + holdSec * 1000;
+                console.log(`👀 [미리보기] ${pendingOrder.id} — 남은 판정 시간 ${holdSec}초 (표시용 · 끄는 것은 폰 화면이 정한다)`);
+            } else if (cancelSec != null) {
                 const graceTimer = setTimeout(() => {
                     session.activeTimers.delete(`presecured_${pendingOrder.id}`);
                     const cached = session.pendingOrdersData.get(pendingOrder.id);
@@ -235,21 +250,6 @@ router.post("/confirm", (req, res) => {
                 }, cancelSec * 1000);
                 session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
                 logRoadmapEvent("서버", `안전취소 ${cancelSec}초 카운트다운 타이머 감시 연산 (취소 가능하게 등록)`);
-            } else if ((pendingOrder as any).isPreview) {
-                const holdSec = readWaitTimes(userId).pickerAlarmDetailSec + SERVER_CLEANUP_EXTRA_SEC;
-                const key = `presecured_${pendingOrder.id}`;
-                const old = session.activeTimers.get(key);
-                if (old) clearTimeout(old);   // 같은 콜을 다시 열었다 — 옛 타이머가 좀비로 남지 않게
-                const previewTimer = setTimeout(() => {
-                    session.activeTimers.delete(key);
-                    const cached = session.pendingOrdersData.get(pendingOrder.id) as any;
-                    if (cached?.isPreview && isEvaluating(cached.status)) {
-                        console.log(`🛟 [미리보기 정리 · 시간 초과] ${pendingOrder.id} — ${holdSec}초 동안 수락도 목록 복귀도 없었다 (앱이 꺼졌을 수 있다)`);
-                        forceCancelEvaluatingOrder(userId, pendingOrder.id, io, 'TIMEOUT');
-                    }
-                }, holdSec * 1000);
-                session.activeTimers.set(`presecured_${pendingOrder.id}`, previewTimer);
-                console.log(`👀 [픽커 미리보기] ${pendingOrder.id} — ${holdSec}초 안에 수락도 목록 복귀도 없으면 서버가 치운다`);
             } else {
                 console.log(`👀 [픽커] ${pendingOrder.id} — 안전취소가 없는 배차망이라 서버 타이머를 걸지 않는다 (규칙 ①)`);
             }

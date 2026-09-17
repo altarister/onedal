@@ -5,6 +5,7 @@ import { forceCancelEvaluatingOrder } from '../../src/services/dispatchEngine';
 import { initGeoService } from '../../src/services/geoService';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
 import * as devices from '../../src/routes/devices';
+import { UNKNOWN_LEAVE_SEC } from '@onedal/shared';
 
 /**
  * 🧹 **심사 콜 정리는 한 곳에서 세고 한 곳에서 적는다 — 미리보기는 세지도 적지도 않는다** (2026-09-15 · 기사님 «버그부터 잡자»).
@@ -158,13 +159,103 @@ describe('🛟 미리보기 안전장치', () => {
         expect(body).toMatch(/cleanPreviewOfDevice\(/);
     });
 
-    it('🔴 픽커 미리보기에는 «상세 대기 시간 + 정리 여유» 뒤 치우는 타이머가 걸린다 — 취소할 수 있게 등록한다', () => {
-        const src = readFileSync(join(__dirname, '../../src/routes/orders.ts'), 'utf8')
-            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-        const body = src.slice(src.indexOf('else if ((pendingOrder as any).isPreview)'));
+    it('🔴 데드맨이 무응답을 끊김으로 넘길 때 그 폰의 미리보기를 치운다 — 앱이 아무 말도 못 하고 죽은 경우', () => {
+        const src = readFileSync(join(__dirname, '../../src/routes/devices.ts'), 'utf8');
+        const body = src.slice(src.indexOf('getActiveDevicesSnapshot'), src.indexOf('GET /api/devices (유저별)'));
+        /* 까닭을 «통신 두절»로 적고(앱이 보낸 «앱 꺼짐»과 다르다) 미리보기를 치운다 */
+        expect(body).toMatch(/NO_CONTACT/);
+        expect(body).toMatch(/cleanPreviewOfDevice\(/);
+    });
+});
+
+/**
+ * 👀 **미리보기 심사석은 «그 폰이 상세를 보고 있는 동안»만 산다** (기사님 확정).
+ *
+ * 기사님: *"미리보기 끄는 건 그 미리보기 판정을 연 스캔폰의 상태값 즉 상세페이지일 때만 노출하고
+ * 페이지를 이탈하면 끄는 걸로 예외 없이 적용해."* · *"타이머로 미리보기 켜고 끄기 하는 기능은 빼."*
+ *
+ * 조건은 둘이다 — **상세를 한 번 봤고**(열리는 중에는 안 치운다 · #154) **지금도 상세다**.
+ * 🔴 «상세»는 양의 목록(`shared.DETAIL_SCREENS`)이다. «목록도 모름도 아니면 상세»로 뒤집어 재면
+ *    `HOME` · `MY_ORDERS` · 운행 화면까지 상세가 되어, 수락한 뒤에도 미리보기가 떠 있게 된다.
+ */
+describe('👀 미리보기 노출 — 상세를 보고 있는 동안만', () => {
+    const ADMIN = 'ADMIN_USER';
+    const preview = (phone: string, id: string) => {
+        const s = getUserSession(ADMIN);
+        s.pendingOrdersData.set(id, {
+            id, status: 'ORDER_SECURED_EVALUATING', capturedDeviceId: phone, capturedAt: new Date().toISOString(),
+            pickup: '사음동', dropoff: '중리동', fare: 50000, isPreview: true,
+        } as any);
+        s.deviceEvaluatingMap.set(phone, id);
+        return s;
+    };
+    const touch = (phone: string, ...screens: string[]) =>
+        screens.forEach(sc => devices.touchDeviceSession(phone, ADMIN, 0, sc as any, io));
+
+    it('🔴 내 오더 탭으로 가면 치운다 — 목록이 아니어도 상세를 떠난 것이다', () => {
+        touch('phone-my', 'DETAIL_PRE_CONFIRM');
+        const s = preview('phone-my', 'pv-my');
+        touch('phone-my', 'MY_ORDERS');
+        expect(s.pendingOrdersData.has('pv-my')).toBe(false);
+    });
+
+    it('🔴 홈으로 가면 치운다', () => {
+        touch('phone-home', 'DETAIL_PRE_CONFIRM');
+        const s = preview('phone-home', 'pv-home');
+        touch('phone-home', 'HOME');
+        expect(s.pendingOrdersData.has('pv-home')).toBe(false);
+    });
+
+    it('상세 위 팝업은 이탈이 아니다 — 인성은 팝업으로 적요 · 출발지 · 도착지를 훑는다', () => {
+        touch('phone-popup', 'DETAIL_PRE_CONFIRM');
+        const s = preview('phone-popup', 'pv-popup');
+        touch('phone-popup', 'POPUP_MEMO', 'POPUP_PICKUP', 'POPUP_DROPOFF', 'DETAIL_PRE_CONFIRM');
+        expect(s.pendingOrdersData.has('pv-popup')).toBe(true);
+    });
+
+    it('🔴 알 수 없는 화면이 스치면 안 치운다 — 카드를 여는 순간 0.05~0.18초 낀다 (실제 픽커 68건 중 3건)', () => {
+        touch('phone-blip2', 'DETAIL_PRE_CONFIRM');
+        const s = preview('phone-blip2', 'pv-blip2');
+        touch('phone-blip2', 'UNKNOWN', 'DETAIL_PRE_CONFIRM');
+        expect(s.pendingOrdersData.has('pv-blip2')).toBe(true);
+    });
+
+    it('🔴 알 수 없는 화면이 유예를 넘겨 이어지면 치운다 — 배차망 앱 밖으로 나간 것이다', () => {
+        touch('phone-unk', 'DETAIL_PRE_CONFIRM');
+        const s = preview('phone-unk', 'pv-unk');
+        touch('phone-unk', 'UNKNOWN');
+        expect(s.pendingOrdersData.has('pv-unk')).toBe(true);
+        jest.spyOn(Date, 'now').mockReturnValue(Date.now() + (UNKNOWN_LEAVE_SEC + 1) * 1000);
+        touch('phone-unk', 'UNKNOWN');
+        expect(s.pendingOrdersData.has('pv-unk')).toBe(false);
+    });
+
+    it('🔴 상세를 아직 못 봤으면 안 치운다 — 카드가 열리는 중이다 (#154)', () => {
+        touch('phone-opening', 'LIST');
+        const s = preview('phone-opening', 'pv-opening');
+        touch('phone-opening', 'LIST');
+        expect(s.pendingOrdersData.has('pv-opening')).toBe(true);
+    });
+});
+
+/**
+ * ⏱️ **타이머는 «남은 판정 시간»을 알릴 뿐 콜을 끄지 않는다** (기사님 확정).
+ * 끄는 것은 폰의 화면 상태 하나가 정한다 (위 describe).
+ */
+describe('⏱️ 미리보기 타이머 — 표시만', () => {
+    const codeOf = (rel: string) => readFileSync(join(__dirname, '../../src', rel), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+
+    it('🔴 미리보기 타이머가 콜을 취소하지 않는다', () => {
+        const src = codeOf('routes/orders.ts');
+        const body = src.slice(src.indexOf('isPreview'));
         expect(body.length).toBeLessThan(src.length);
-        expect(body).toMatch(/pickerAlarmDetailSec \+ SERVER_CLEANUP_EXTRA_SEC/);
-        expect(body).toMatch(/forceCancelEvaluatingOrder\(userId, pendingOrder\.id, io, 'TIMEOUT'\)/);
-        expect(body).toMatch(/activeTimers\.set\(`presecured_\$\{pendingOrder\.id\}`/);
+        expect(body).not.toMatch(/forceCancelEvaluatingOrder/);
+    });
+
+    it('🔴 남은 판정 시간은 배차망별 값이다 — 인성 · 화물24시는 안전취소 시간, 픽커는 상세 대기 시간', () => {
+        const src = codeOf('routes/orders.ts');
+        expect(src).toMatch(/safeCancelSecOf/);
+        expect(src).toMatch(/pickerAlarmDetailSec/);
     });
 });

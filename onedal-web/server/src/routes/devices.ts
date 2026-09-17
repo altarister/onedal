@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
 import { generatePin, consumePin } from "../state/pairingStore";
@@ -314,13 +314,44 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
      *    «알 수 없는 화면»이 잠깐 끼면(실제 픽커 9/02) 방금 연 콜을 치웠다. 상세를 봤나는 `markDetailSeen` 한 곳이 적는다.
      */
     markDetailSeen(deviceId, screenContext, prevScreen);
+    /**
+     * ⏳ **«알 수 없는 화면»이 이어진 시간을 잰다** — 상세든 목록이든 다른 화면이 오면 지운다.
+     *    카드를 여는 순간 잠깐 끼는 것(0.05~0.18초)과 **앱 밖으로 나간 것**을 가르는 값이다 (`leftDetail`).
+     */
+    if (screenContext === 'UNKNOWN') session.unknownSince ??= Date.now();
+    else if (screenContext) session.unknownSince = undefined;
+
+    /**
+     * 👀 **미리보기는 그 폰이 상세를 보고 있는 동안만 산다** (기사님 확정 · 버그 대장 #159 뒤 개정).
+     *
+     * 기사님: *"미리보기 끄는 건 그 미리보기 판정을 연 스캔폰의 상태값 즉 상세페이지일 때만 노출하고
+     * 페이지를 이탈하면 끄는 걸로 예외 없이 적용해."*
+     *
+     * 🔴 **미리보기가 아닌 콜은 옛 규칙(목록 복귀) 그대로다** — AUTO 롱폴링을 푸는 것이고,
+     *    직접 잡은 콜은 서버가 버리지 않는다 (규칙 ①).
+     */
+    {
+        const userId = userOfDevice(deviceId);
+        const userSession = getUserSession(userId);
+        const stuckOrderId = userSession.deviceEvaluatingMap.get(deviceId);
+        const stuck = stuckOrderId ? userSession.pendingOrdersData.get(stuckOrderId) as any : null;
+        if (stuck?.isPreview) {
+            /* 🔴 상세를 아직 못 봤으면 «열리는 중»이다 — 치우지 않는다 (#154) */
+            if (!stuck.detailSeen) {
+                console.log(`👀 [상세 못 봄 · 안 치움] ${stuckOrderId} — 카드가 아직 열리는 중이다 (화면: ${screenContext ?? '모름'})`);
+            } else if (leftDetail(session)) {
+                console.log(`👀 [상세 이탈] 기기(${deviceId})가 상세를 떠났다 (화면: ${screenNowOf(session) ?? '끊김'}) — 미리보기를 치운다`);
+                forceCancelEvaluatingOrder(userId, stuckOrderId!, io);
+            }
+        }
+    }
     if (isListScreen(screenContext)) {
         let userId = "ADMIN_USER";
         if (deviceId) {
             const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
             if (row) userId = row.user_id;
         }
-        
+
         const userSession = getUserSession(userId);
         const stuckOrderId = userSession.deviceEvaluatingMap.get(deviceId);
         if (stuckOrderId) {
@@ -359,6 +390,27 @@ function userOfDevice(deviceId: string): string {
 
 /** 상세 계열 화면인가 — 목록도 «알 수 없음»도 아니다. 알 수 없음은 카드를 여는 순간 잠깐 끼기도 한다 (실제 픽커 9/02 · 68건 중 3건) */
 const isDetailish = (s?: string | null): boolean => !!s && s !== 'UNKNOWN' && !isListScreen(s);
+
+/**
+ * 👀 **이 폰이 상세를 떠났나 — 미리보기 노출의 유일한 기준** (기사님 확정).
+ *
+ * 🔴 **끊긴 폰은 화면을 말하지 않는다** (`screenNowOf`) — 마지막으로 들은 «상세»는 «아까 그것»이라,
+ *    그대로 쓰면 전원이 나간 폰의 심사석이 영영 안 꺼진다.
+ * 🔴 **«상세»는 양의 목록이다** (`DETAIL_SCREENS`) — 팝업은 상세 위에 뜬 것이라 이탈이 아니고,
+ *    `HOME` · `MY_ORDERS` · 운행 화면은 상세가 아니다.
+ * ⏳ **«알 수 없음»만 유예가 있다** — 스치는 것(0.05~0.18초)은 이탈이 아니고, 이어지면 이탈이다.
+ *    이것은 콜의 수명을 재는 타이머가 아니라 «이탈»의 정의에 든 시간이다.
+ */
+function leftDetail(session: DeviceSession): boolean {
+    const now = screenNowOf(session);
+    if (!now) return true;
+    if (isDetailScreen(now)) return false;
+    if (now === 'UNKNOWN') {
+        const since = session.unknownSince;
+        return !!since && Date.now() - since >= UNKNOWN_LEAVE_SEC * 1000;
+    }
+    return true;
+}
 
 /**
  * 👁️ **심사 중인 콜의 상세를 봤나** (#154) — 콜이 생긴 뒤 상세 계열 보고가 왔거나, 생긴 뒤 첫 보고 때 직전 화면이 이미 상세였으면 본 것이다.
@@ -689,7 +741,10 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
  * GET /api/devices
  * 관제 대시보드에서 1초마다 현재 모든 기기의 상태를 조회
  */
-export const getActiveDevicesSnapshot = (): DeviceSession[] => {
+/**
+ * @param io 소켓 — 데드맨이 끊김으로 넘기며 미리보기를 치울 때 관제웹에 알린다. 없으면 치우되 방송만 못 한다
+ */
+export const getActiveDevicesSnapshot = (io?: any): DeviceSession[] => {
     const now = Date.now();
     const result: DeviceSession[] = [];
 
@@ -706,7 +761,19 @@ export const getActiveDevicesSnapshot = (): DeviceSession[] => {
         // 한 번 MANUAL로 떨어지면 복귀 후에도 되돌아오지 않아 콜 잡기가 멈추는 부작용만 컸습니다.
         // 관제탑 UI에는 status(OFFLINE)가 별도로 표시되므로 식별에도 문제가 없습니다.
         if (now - session.lastSeen > DEADMAN_TIMEOUT_MS) {
+            const wasOnline = session.status !== "OFFLINE";
             session.status = "OFFLINE";
+            /**
+             * 📡 **말이 끊긴 것과 앱이 «꺼진다»고 말한 것은 다르다** (기사님 지시).
+             *    앱이 보낸 까닭이 있으면 그대로 두고, 없을 때만 «통신 두절»로 적는다 — 지어내지 않는다 (규칙 ④).
+             */
+            session.offlineReason ??= 'NO_CONTACT';
+            /**
+             * 🛟 **끊긴 폰의 미리보기는 여기서 치운다** — 앱이 죽거나 통신이 끊기면 «목록으로 돌아왔다»도
+             *    «오프라인이 된다»도 영영 안 온다. 이 길이 없으면 심사석을 치울 사람이 아무도 없다.
+             *    🔴 넘어가는 순간 한 번만 — 매 스냅샷마다 부르면 이미 치운 콜을 계속 찾는다.
+             */
+            if (wasOnline) cleanPreviewOfDevice(userOfDevice(session.deviceId), session.deviceId, io, "통신 두절");
         }
 
         result.push(session);
@@ -719,12 +786,12 @@ export const getActiveDevicesSnapshot = (): DeviceSession[] => {
  * GET /api/devices (유저별)
  * DB에 등록된 유저의 기기 목록을 바탕으로, 활성 세션 상태(Memory)를 병합하여 반환합니다.
  */
-export const getUserDevicesSnapshot = (userId: string): DeviceSession[] => {
+export const getUserDevicesSnapshot = (userId: string, io?: any): DeviceSession[] => {
     // 1. DB에서 해당 유저의 등록 기기 조회
     const registered = db.prepare("SELECT device_id, device_name FROM user_devices WHERE user_id = ?").all(userId) as any[];
-    
+
     // 2. 전체 활성 기기 스냅샷 (데드맨 갱신됨)
-    const allActive = getActiveDevicesSnapshot();
+    const allActive = getActiveDevicesSnapshot(io);
     
     const result: DeviceSession[] = [];
     
@@ -757,7 +824,7 @@ export const getUserDevicesSnapshot = (userId: string): DeviceSession[] => {
  * (예비용) 관제 대시보드 강제 폴링 시 현재 기기 상태 조회
  */
 router.get("/", requireAuth, (req, res) => {
-    res.json({ devices: getActiveDevicesSnapshot() });
+    res.json({ devices: getActiveDevicesSnapshot(req.app.get("io")) });
 });
 
 /**

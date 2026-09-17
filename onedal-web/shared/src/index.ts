@@ -1251,16 +1251,33 @@ export interface DispatchConfirmResponse {
  */
 export type DeviceStatusType = "ONLINE" | "OFFLINE";
 
-/** 📵 오프라인이 된 까닭 — 앱이 스스로 말해 준 것만 담는다 (모르면 `undefined`) */
-export const DEVICE_OFFLINE_REASONS = ["ACCESSIBILITY_OFF", "APP_SHUTDOWN"] as const;
+/**
+ * 📵 **앱이 스스로 말해 준 까닭** — 앱만이 «접근성이 꺼졌다»를 사실로 안다 (모르면 `undefined`).
+ * 🔴 서버가 판정하는 까닭을 여기 섞지 않는다 — 이 목록은 **앱 입력을 거르는 자**다 (`isDeviceOfflineReason`).
+ */
+export const DEVICE_OFFLINE_REASONS_APP = ["ACCESSIBILITY_OFF", "APP_SHUTDOWN"] as const;
+
+/**
+ * 📡 **서버가 판정하는 까닭** — 앱은 이 값을 보내지 않는다.
+ *
+ * `NO_CONTACT` 는 데드맨(`DEADMAN_TIMEOUT_MS` 무응답)이 붙인다. 앱이 «앱 꺼짐»을 보내고 죽은 것과
+ * **말 없이 사라진 것**은 기사님이 하실 일이 다르다 — 앞은 앱을 켜면 되고, 뒤는 폰·통신을 봐야 한다.
+ */
+export const DEVICE_OFFLINE_REASONS_SERVER = ["NO_CONTACT"] as const;
+
+export const DEVICE_OFFLINE_REASONS = [...DEVICE_OFFLINE_REASONS_APP, ...DEVICE_OFFLINE_REASONS_SERVER] as const;
 export type DeviceOfflineReason = typeof DEVICE_OFFLINE_REASONS[number];
+
+/** 📵 **앱이 보낸 까닭인가** — 앱 입력 검증 전용이라 서버 판정 값(`NO_CONTACT`)은 거짓이다 */
 export function isDeviceOfflineReason(v: unknown): v is DeviceOfflineReason {
-    return typeof v === "string" && (DEVICE_OFFLINE_REASONS as readonly string[]).includes(v);
+    return typeof v === "string" && (DEVICE_OFFLINE_REASONS_APP as readonly string[]).includes(v);
 }
 /** 📵 화면에 적을 말 — 기사님이 **무엇을 하셔야 하는지**가 갈리므로 낱말도 가른다 */
 export const DEVICE_OFFLINE_LABEL: Record<DeviceOfflineReason, string> = {
     ACCESSIBILITY_OFF: "접근성 꺼짐",
     APP_SHUTDOWN: "앱 꺼짐",
+    /* 📡 말이 끊겼다 — 앱이 아무 말도 못 하고 사라졌다 (데드맨). «연결 끊김»보다 무엇이 일어났는지를 말한다 */
+    NO_CONTACT: "통신 두절",
 };
 
 /**
@@ -1493,6 +1510,38 @@ export function isListScreen(screenContext?: string | null): boolean {
 }
 
 /**
+ * 🔎 **«상세를 보고 있는 화면» — 여기 하나뿐이다** (기사님 확정: *"미리보기 판정을 연 스캔폰의 상태값이
+ *    상세페이지일 때만 노출하고 페이지를 이탈하면 끈다"*).
+ *
+ * 🔴 **양의 목록으로 적는다.** «목록도 모름도 아니면 상세»로 뒤집어 재면 `HOME` · `MY_ORDERS` ·
+ *    운행 화면(`RUN_*`)까지 상세가 된다 — 수락한 뒤 화면인데 미리보기가 계속 떠 있게 된다.
+ * 🔴 **팝업은 상세를 떠난 것이 아니다.** 인성은 상세 위에 적요 · 출발지 · 도착지 팝업을 띄워 훑는다
+ *    (`DetailCollectMachine`). 팝업을 이탈로 읽으면 정보를 모으는 동안 카드가 사라진다.
+ */
+export const DETAIL_SCREENS: ScreenContextType[] = [
+    'DETAIL_PRE_CONFIRM', 'DETAIL_CONFIRMED',
+    'POPUP_PICKUP', 'POPUP_DROPOFF', 'POPUP_MEMO', 'POPUP_ERROR',
+];
+
+/** 지금 화면이 상세 계열인가 (`DETAIL_SCREENS`) — `UNKNOWN` 은 «모름»이라 여기서 거짓이다 */
+export function isDetailScreen(screenContext?: string | null): boolean {
+    return !!screenContext && (DETAIL_SCREENS as string[]).includes(screenContext);
+}
+
+/**
+ * 📵 **끊긴 폰의 화면은 «지금»이 아니다 — 말하지 않는다** (기사님 지시: *"페이지를 모르는 것 상위에
+ *    상태가 노출되면 모순이 사라진다"*).
+ *
+ * 마지막으로 들은 화면 이름은 «아까 그것»이다. 그대로 쓰면 전원이 나간 폰이 영영 «상세»로 남아
+ * 미리보기 심사석이 안 꺼진다. 표시(`screenLabels.deviceScreenBadge`)는 이미 이 층위를 지킨다 —
+ * 판정도 **같은 함수**를 봐야 두 벌이 안 된다 (규칙 ③).
+ */
+export function screenNowOf(device: { status?: string | null; screenContext?: ScreenContextType | null }): ScreenContextType | null {
+    if (device.status === 'OFFLINE') return null;
+    return device.screenContext ?? null;
+}
+
+/**
  * 🚨 Safety Mode V3: 비상 보고 사유
  */
 export type EmergencyReason =
@@ -1565,6 +1614,12 @@ export interface DeviceSession {
      * ⚠️ 다시 보고가 오면 지운다 — 옛 이유가 살아 있으면 화면이 거짓말한다.
      */
     offlineReason?: DeviceOfflineReason;
+    /**
+     * ⏳ **«알 수 없는 화면»이 처음 온 시각** (밀리초) — 상세나 다른 화면이 오면 지운다.
+     *    카드를 여는 순간 잠깐 끼는 `UNKNOWN`(0.05~0.18초)과 **앱 밖으로 나간 것**을 가른다
+     *    (`UNKNOWN_LEAVE_SEC` · 미리보기 노출 판정만 읽는다).
+     */
+    unknownSince?: number;
     /**
      * ⏱️ **직전 보고 시각** (밀리초) — `lastSeen` 과의 간격이 «그 사이에 일이 있었나»를 답한다.
      * 지금 읽는 곳은 서버의 `🖥️ [화면 바뀜]` 로그 하나뿐이다 («직전 보고와 N초 만»).
@@ -2044,6 +2099,18 @@ export const SAFE_CANCEL_SEC_DEFAULT = 30;
 export const PICKER_ALARM_DETAIL_SEC_DEFAULT = 30;
 /** 서버는 원달앱이 취소한 **뒤에** 메모리를 치운다 — 그 간격 (옛 30초 경고 · 35초 해제의 차이) */
 export const SERVER_CLEANUP_EXTRA_SEC = 5;
+
+/**
+ * ⏳ **«알 수 없는 화면»이 이만큼 이어지면 상세를 떠난 것으로 본다** (버그 대장 #155 실측).
+ *
+ * 카드를 여는 순간 `UNKNOWN` 이 **0.05~0.18초** 끼는 일이 있다(실제 픽커 68건 중 3건). 그것을 이탈로
+ * 읽으면 카드가 깜빡인다. 반대로 영영 무시하면 배차망 앱 밖으로 나갔을 때를 못 잡는다 — 그때도
+ * 하트비트는 계속 오기 때문이다. 앱은 **화면이 바뀌면 즉시** 보고하므로, 몇 초를 넘겨 모름이
+ * 이어진다는 것은 스침이 아니라 실제로 다른 곳에 있다는 뜻이다.
+ *
+ * 🔴 이것은 콜의 수명을 재는 타이머가 아니다 — «이탈»의 정의에 든 시간이다 (기사님: 타이머로 미리보기를 켜고 끄지 않는다).
+ */
+export const UNKNOWN_LEAVE_SEC = 5;
 
 export interface WaitTimes {
     safeCancelSecInsung: number;
