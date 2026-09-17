@@ -11,7 +11,7 @@ import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, goalOfCall, homeCallsOf } from "../state/filterManager";
 import { recordCallTarget } from "../core/callTargetEvents";
 import { getActivePolyline, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
-import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
+import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline, type RouteHolder } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
@@ -322,7 +322,8 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             if (!result) return { success: false, msg: "좌표가 있는 활성 콜이 없음" };
 
             // 병합 궤적은 "마지막 활성 콜"에 싣는다 (routeComposer 규약).
-            const routeHolder = pickRouteHolder(existingActive, securedOrder);
+            /* 🔴 제네릭을 명시한다 — 활성 콜은 `MyOrder[]`, 심사 콜은 `PendingOrder` 라 추론에 맡기면 «둘 중 하나»가 안 된다 (`RouteHolder`) */
+            const routeHolder = pickRouteHolder<RouteHolder>(existingActive, securedOrder);
             /**
              * ↩️ **덮기 직전 모습을 한 벌 떠 둔다** (기사님 확정 2026-08-23).
              *

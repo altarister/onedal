@@ -571,6 +571,11 @@ export interface PendingOrder extends OfficeOrder {
     goalCity?: string;
     /** 👀 미리보기 콜 — 확정 전이라 취소 카운트에 안 들어간다 (용어집 §9 · `DispatchBasicRequest.isPreview`) */
     isPreview?: boolean;
+    /**
+     * ⏱️ **남은 판정 시간이 끝나는 시각** (밀리초) — 미리보기에만 싣는다. 심사석 배경이 이것으로 찬다.
+     * 🔴 이 시각이 지나도 콜은 안 사라진다 — 끄는 것은 폰의 화면 상태 하나다 (`devices.leftDetail` · 버그 대장 #160).
+     */
+    judgeUntil?: number;
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
     kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
     routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
@@ -743,6 +748,14 @@ export interface SecuredOrder extends OfficeOrder {
     terminatedAt?: string | null;
     /** 👀 미리보기 콜 — 확정 전이라 아직 안 잡은 콜이다 (용어집 §9) */
     isPreview?: boolean;
+    /**
+     * ⏱️ **남은 판정 시간이 끝나는 시각** (밀리초) — 미리보기에만 실린다. 심사석 배경이 이것으로 찬다.
+     *
+     * 🔴 **이 시각이 지나도 콜은 안 사라진다.** 끄는 것은 폰의 화면 상태 하나가 정한다
+     *    (`devices.leftDetail` · 버그 대장 #160) — 기사님: *"타이머는 «남은 판정 시간»을 알려주는 기능으로만 사용된다."*
+     * ⏱️ 길이는 배차망별 값이다 — 인성 · 화물24시는 안전취소 시간, 픽커는 상세 대기 시간 (DB 기본 30초).
+     */
+    judgeUntil?: number;
     /** 🎨 판정 스냅샷 — 심사 1회, 불변 ([[JudgmentSnapshot]]) */
     judgment?: JudgmentSnapshot;
     kakaoCalculatedFare?: number;

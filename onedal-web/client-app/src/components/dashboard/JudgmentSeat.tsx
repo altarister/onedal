@@ -78,7 +78,16 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
      * 🔴 흐른 만큼 **미리 차 있게** 한다(`animationDelay` 에 음수) — 새로고침했다고 처음부터 다시 차오르면 화면이 거짓말한다.
      * 🔴 **그 값은 콜마다 한 번만 센다** — 다시 그릴 때마다 `Date.now()` 를 새로 재면 시작점이 흔들려 배경이 튄다.
      */
-    const previewHoldSec = useSettingsStore(st => st.pickerAlarmDetailSec) + SERVER_CLEANUP_EXTRA_SEC;
+    /**
+     * ⏱️ **길이는 서버가 고른 배차망별 값이다** (`judgeUntil` · 버그 대장 #160).
+     *    인성 · 화물24시는 안전취소 시간, 픽커는 상세 대기 시간 — 여기서 배차망을 다시 가르지 않는다 (규칙 ③).
+     * 🔴 **이 배경이 다 차도 카드는 안 사라진다** — 끄는 것은 폰의 화면 상태 하나다.
+     *    옛 코드는 픽커 값 하나로 세고 있었고, 그때는 서버 타이머가 실제로 치웠다.
+     */
+    const pickerHoldSec = useSettingsStore(st => st.pickerAlarmDetailSec);
+    const previewHoldSec = route.judgeUntil && route.capturedAt
+        ? Math.max(1, (route.judgeUntil - Date.parse(route.capturedAt)) / 1000)
+        : pickerHoldSec + SERVER_CLEANUP_EXTRA_SEC;
     const previewElapsedSec = useMemo(
         () => (route.isPreview && route.capturedAt ? Math.max(0, (Date.now() - Date.parse(route.capturedAt)) / 1000) : 0),
         [route.isPreview, route.capturedAt],
@@ -213,7 +222,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     {/* 👀 미리보기 — 무엇을 하면 되는지 한 줄. 남은 시간은 배경이 말한다 (숫자를 세려고 매초 다시 그리지 않는다) */}
                     {route.isPreview && (
                         <div style={{ marginTop: 6, fontSize: 12, fontWeight: 800, color: 'var(--color-text-muted)' }}>
-                            👀 미리보기 — 눌러서 치우기 · 두면 저절로 사라집니다
+                            👀 미리보기 — 눌러서 치우기 · 폰에서 상세를 닫으면 사라집니다
                         </div>
                     )}
                 </div>

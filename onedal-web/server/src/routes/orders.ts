@@ -235,7 +235,7 @@ router.post("/confirm", (req, res) => {
              */
             if ((pendingOrder as any).isPreview) {
                 const holdSec = cancelSec ?? readWaitTimes(userId).pickerAlarmDetailSec;
-                (pendingOrder as any).judgeUntil = Date.now() + holdSec * 1000;
+                pendingOrder.judgeUntil = Date.now() + holdSec * 1000;
                 console.log(`👀 [미리보기] ${pendingOrder.id} — 남은 판정 시간 ${holdSec}초 (표시용 · 끄는 것은 폰 화면이 정한다)`);
             } else if (cancelSec != null) {
                 const graceTimer = setTimeout(() => {
