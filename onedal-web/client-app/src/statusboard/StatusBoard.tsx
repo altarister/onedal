@@ -44,6 +44,8 @@ import { callStepsOf, handmadeOrderFrom, isHandmade } from './handmadeCall';
 import { placeFromFound, sentNoteOf, simCallBody } from './simCall';
 import type { SimPlaceDraft } from './simCall';
 import ScenarioCard from './ScenarioCard';
+/* 🚪 시뮬 전용 문은 여기 하나로만 연다 — 라이브에서는 닫혀 있다 (`simDoor.ts`) */
+import { simAsk, simFetch, useSimDoor } from './simDoor';
 /* 🎚️ **눈금이 무엇을 못 보게 하나 — 판단은 순수 함수가 한다** (`dialEffect.ts` 머리 참조) */
 import { dialEffectOf } from './dialEffect';
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
@@ -254,10 +256,9 @@ function useDriverLocation(): DriverLoc | null {
     useEffect(() => {
         let alive = true;
         const ask = async () => {
-            try {
-                const r = await fetch(`${apiBase()}/sim/driver-location`);
-                if (alive) setLoc(await r.json() as DriverLoc);
-            } catch { if (alive) setLoc(null); }
+            /* 🔴 **`ok` 를 안 보고 본문을 위치로 믿었다** — 라이브 404 본문이 «위치»가 됐다 (규칙 ④) */
+            const d = await simFetch<DriverLoc>('/driver-location');
+            if (alive) setLoc(d);
         };
         void ask();
         const t = setInterval(() => { void ask(); }, 5_000);   // 위치는 자주 바뀐다 — health(10초)보다 촘촘히
@@ -267,12 +268,15 @@ function useDriverLocation(): DriverLoc | null {
 }
 
 function DriverLocationCard({ loc }: { loc: DriverLoc | null }) {
+    /* 🚪 이 칸도 `/sim/driver-location` **하나로만** 산다 — 문이 닫혔으면 영영 «못 물었다»다 */
+    const door = useSimDoor();
     const ago = agoOf(loc?.at);
     const stale = loc?.at != null && Date.now() - loc.at > LOCATION_STALE_SEC * 1000;
     const src = loc?.source;
     /* 🔴 출처를 모르면 «모른다»고 적는다 — 지어내지 않는다 (규칙 ④) */
     const srcText = loc?.ok === false ? undefined : src ? (LOCATION_SOURCE_LABEL[src] ?? src) : undefined;
 
+    if (door === 'closed') return null;
     return (
         <Card title="📍 내 위치" note={'서버가 쥔 것\n5초마다 다시 묻는다'}>
             <Row k="출처" v={srcText} empty={loc?.reason ?? '— 서버에 못 물었다'}
@@ -583,18 +587,15 @@ function SimCallCard() {
         if (!built.ok) { setNote({ text: `— ${built.why}`, ok: false }); return; }
         setSending(true); setNote(null);
         try {
-            const r = await fetch(`${apiBase()}/sim/calls`, {
+            const r = await simAsk<{ ok?: boolean; seq?: number; simPolledAgoMs?: number | null }>('/calls', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(built.body),
             });
-            const d = await r.json().catch(() => null) as { ok?: boolean; seq?: number; simPolledAgoMs?: number | null; error?: string } | null;
-            if (!r.ok || !d?.ok || typeof d.seq !== 'number') {
-                setNote({ text: `— 서버가 안 받았다 (${d?.error ?? `HTTP ${r.status}`})`, ok: false });
+            if (!r.ok || !r.data?.ok || typeof r.data.seq !== 'number') {
+                setNote({ text: `— 서버가 안 받았다 (${r.ok ? '답이 비었다' : r.why})`, ok: false });
                 return;
             }
-            setNote(sentNoteOf(d.seq, d.simPolledAgoMs ?? null));
-        } catch {
-            setNote({ text: '— 서버에 못 닿았다', ok: false });
+            setNote(sentNoteOf(r.data.seq, r.data.simPolledAgoMs ?? null));
         } finally {
             setSending(false);
         }
@@ -650,6 +651,13 @@ function SimCallCard() {
  *    어드민으로 옮기는 날 **이 구역째** 걷는다.
  */
 function TestOnlySection({ phase }: { phase?: string }) {
+    /**
+     * 🚪 **문이 닫힌 서버(라이브)에서는 이 구역이 통째로 없다** — 서버 `isDevBuild()` 와 짝이다.
+     *    여기 칸은 **전부 시뮬 전용 문으로만 산다.** 라이브에 세워 두면 영영 못 쓰는 칸이
+     *    좁은 현황판의 자리를 차지하고, 5초·1.5초마다 404 를 두드린다.
+     * ⚠️ `unknown`(아직 안 물어봄) 에서는 **세운다** — 세워야 물어보고, 물어봐야 답을 안다.
+     */
+    if (useSimDoor() === 'closed') return null;
     return (
         <div className="shrink-0 border-b border-border-card px-2 pt-1.5 pb-2">
             <div className="flex items-baseline gap-2 px-1 pb-1">
@@ -772,13 +780,10 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
     useEffect(() => {
         let alive = true;
         const ask = async () => {
-            try {
-                const r = await fetch(`${apiBase()}/sim/intel?limit=40`);
-                if (!alive) return;
-                if (!r.ok) { setRows(null); setWhy(`— 서버에 읽는 문이 없다 (HTTP ${r.status})`); return; }
-                const d = await r.json() as { rows?: IntelRow[]; total?: number };
-                setRows(d.rows ?? []); setTotal(d.total ?? null); setWhy(null);
-            } catch { if (alive) { setRows(null); setWhy('— 서버에 못 물었다'); } }
+            const r = await simAsk<{ rows?: IntelRow[]; total?: number }>('/intel?limit=40');
+            if (!alive) return;
+            if (!r.ok) { setRows(null); setWhy(`— ${r.why}`); return; }
+            setRows(r.data.rows ?? []); setTotal(r.data.total ?? null); setWhy(null);
         };
         void ask();
         const t = setInterval(() => { void ask(); }, 10_000);

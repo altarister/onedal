@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { apiBase } from './bridge';
+/* 🚪 시뮬 전용 문은 문지기 하나로만 연다 — 라이브에서는 닫혀 있다 (`simDoor.ts`) */
+import { simAsk } from './simDoor';
 import { VERDICT_AXIS_LABEL } from './callVerdict';
 
 /**
@@ -54,13 +55,14 @@ export default function ScenarioCard({ scenarioKey, title }: { scenarioKey: 'ich
     useEffect(() => {
         let alive = true;
         const read = async () => {
-            try {
-                const r = await fetch(`${apiBase()}/sim/scenario?key=${scenarioKey}`);
-                const d = await r.json() as ScenarioView;
-                if (alive) { setView(d); if (d.ok) setError(null); }
-            } catch {
-                if (alive) setError('서버에 못 닿았다');
-            }
+            const r = await simAsk<ScenarioView>(`/scenario?key=${scenarioKey}`);
+            if (!alive) return;
+            /**
+             * 🔴 **줄이 온 것만 화면으로 세운다** (규칙 ④ · 버그 대장 #161).
+             *    `index !== null` 은 `undefined` 를 통과시킨다 — 그러면 `rows[undefined]` 로 죽는다.
+             */
+            if (!r.ok || !Array.isArray(r.data.rows)) { setError(r.ok ? '서버가 줄을 안 줬다' : r.why); return; }
+            setView(r.data); setError(null);
         };
         void read();
         const t = setInterval(read, 1500);
@@ -70,13 +72,10 @@ export default function ScenarioCard({ scenarioKey, title }: { scenarioKey: 'ich
     const post = async (path: 'start' | 'skip' | 'stop') => {
         setBusy(true);
         try {
-            const r = await fetch(`${apiBase()}/sim/scenario/${path}`, {
+            const r = await simAsk<{ ok?: boolean }>(`/scenario/${path}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: scenarioKey }),
             });
-            const d = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
-            setError(r.ok && d?.ok ? null : (d?.error ?? `HTTP ${r.status}`));
-        } catch {
-            setError('서버에 못 닿았다');
+            setError(r.ok && r.data?.ok ? null : (r.ok ? '서버가 안 받았다' : r.why));
         } finally {
             setBusy(false);
         }
