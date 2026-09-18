@@ -241,6 +241,11 @@ private fun ScanContext.handlePickerPreConfirmSnapshot(
                     val fallbackOrder = tappedCard ?: matchedListCard
                     if (fallbackOrder != null) {
                         session.isVerifyingSnapshot = false
+                        if (session.isDetailScrapSent) return@post
+                        if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
+                            AppLogger.w(TAG, "📸 [스냅샷 폴백 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
+                            return@post
+                        }
                         ensureSessionId()
                         val orderWithId = fallbackOrder.copy(
                             id = session.currentOrderId.ifEmpty { fallbackOrder.id },
@@ -263,6 +268,11 @@ private fun ScanContext.handlePickerPreConfirmSnapshot(
                     val fallbackOrder = tappedCard ?: matchedListCard
                     if (fallbackOrder != null) {
                         session.isVerifyingSnapshot = false
+                        if (session.isDetailScrapSent) return@post
+                        if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
+                            AppLogger.w(TAG, "📸 [스냅샷 폴백 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
+                            return@post
+                        }
                         ensureSessionId()
                         val orderWithId = fallbackOrder.copy(
                             id = session.currentOrderId.ifEmpty { fallbackOrder.id },
