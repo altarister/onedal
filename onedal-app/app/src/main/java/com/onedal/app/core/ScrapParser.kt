@@ -3,9 +3,6 @@ package com.onedal.app.core
 import android.content.Context
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
-import com.onedal.app.plugins.hwamul24.Hwamul24Parser
-import com.onedal.app.plugins.insung.InsungParser
-import com.onedal.app.plugins.kakaopicker.KakaoPickerParser
 
 /**
  * 파서 위임자(Delegator) 및 라우터.
@@ -18,12 +15,8 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
         private const val TAG = "1DAL_PARSER"
     }
 
-    private val delegate: IScrapParser = when (targetApp) {
-        "24시" -> Hwamul24Parser(context)
-        "픽커" -> KakaoPickerParser(context)   // 수집 전용 — 잡기 수순 없음 (픽커_수집.md)
-        "인성콜" -> InsungParser(context)
-        else -> InsungParser(context) // 기본값
-    }
+    private val delegate: IScrapParser =
+        com.onedal.app.plugins.DispatchPluginRegistry.findByLabel(targetApp).parser
 
     /** 현재 어떤 파서를 쓰고 있는지 확인 */
     fun currentParserName(): String = delegate::class.simpleName ?: "Unknown"

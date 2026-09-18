@@ -28,18 +28,12 @@ object TargetApp {
     const val SIMULATOR_PACKAGE = "com.onedal.simulator"
 
     /** 저장된 라벨 → 서버 코드. 모르는 라벨은 인성 — 오프라인 안전망과 같은 결 */
-    fun codeOf(label: String?): String = when (label) {
-        "24시" -> HWAMUL24
-        "픽커" -> KAKAOPICKER
-        else -> INSUNG
-    }
+    fun codeOf(label: String?): String =
+        com.onedal.app.plugins.DispatchPluginRegistry.findByLabel(label).code
 
     /** 코드 → 저장 라벨 (자동 전환이 프리퍼런스를 같은 말로 되돌릴 때) */
-    fun labelOf(code: String): String = when (code) {
-        HWAMUL24 -> "24시"
-        KAKAOPICKER -> "픽커"
-        else -> "인성콜"
-    }
+    fun labelOf(code: String): String =
+        com.onedal.app.plugins.DispatchPluginRegistry.get(code).label
 
     /**
      * 🏷️ **배차망마다 «그 배차망 화면에만 있는 글자 묶음»** — 원천은 각 배차망 폴더의 Keywords 다.
@@ -122,8 +116,6 @@ object TargetApp {
      * 이 함수를 읽는 자리들이 곧 «인성 전용 구간»이다 (🚧 주석) —
      * 픽커로 잡기를 시작하는 날, 그 표시를 따라 인성 수순을 떼어낸다.
      */
-    fun supportsCatching(code: String): Boolean = when (code) {
-        KAKAOPICKER -> false   // 수순 미구현 — 수집·알람 전용 (1차 확정)
-        else -> true
-    }
+    fun supportsCatching(code: String): Boolean =
+        com.onedal.app.plugins.DispatchPluginRegistry.get(code).supportsCatching
 }

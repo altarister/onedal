@@ -146,18 +146,15 @@ class HijackService : AccessibilityService(), ScanContext {
      * (남의 배차망 지문이 남으면 «이미 본 콜»로 삼킨다).
      */
     private fun applyTargetApp(label: String, isSwitch: Boolean = false) {
-        currentTargetApp = TargetApp.codeOf(label)
-        keywords = when (label) {
-            "24시" -> Hwamul24Keywords.TWENTYFOUR
-            "픽커" -> KakaoPickerKeywords.PICKER
-            else -> InsungKeywords.INSUNG
-        }
+        val plugin = com.onedal.app.plugins.DispatchPluginRegistry.findByLabel(label)
+        currentTargetApp = plugin.code
+        keywords = plugin.keywords
         scrapParser = ScrapParser(this, label)
         if (isSwitch) {
             callMemory.clear()
             resetSessionState()
         }
-        AppLogger.i(TAG, "🎯 타겟 앱 ${if (isSwitch) "자동 전환" else "설정"} 완료: $label")
+        AppLogger.i(TAG, "🎯 타겟 앱 ${if (isSwitch) "자동 전환" else "설정"} 완료: ${plugin.label}")
     }
 
     /**
@@ -344,6 +341,7 @@ class HijackService : AccessibilityService(), ScanContext {
         AppLogger.attachFile(this)
         AppLogger.i(TAG, "📝 [로그 파일] 여기에 쌓는다 — ${AppLogger.filePath ?: "열지 못했다"}")
 
+        com.onedal.app.plugins.DispatchPluginRegistry.init(this)
         val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
         val targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
         applyTargetApp(targetApp)
@@ -1402,8 +1400,8 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     private fun detectScreenContext(text: String, pkg: String? = null): ScreenContext {
         val byKeywords = screenDetector.detect(text, keywords)
-        val resolved = if (TargetApp.supportsCatching(currentTargetApp)) byKeywords
-        else com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.pickerScreenContextOf(text) ?: byKeywords
+        val currentPlugin = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp)
+        val resolved = currentPlugin.resolveScreenContext(text, byKeywords)
 
         if (resolved != ScreenContext.UNKNOWN) return resolved
 
@@ -1413,12 +1411,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 return ScreenContext.LAUNCHER
             }
             val isSimulator = p == TargetApp.SIMULATOR_PACKAGE.lowercase() || p.contains("simulator")
-            val isTargetApp = isSimulator || when (currentTargetApp) {
-                TargetApp.INSUNG -> p.contains("insung")
-                TargetApp.HWAMUL24 -> p.contains("logione") || p.contains("carrier")
-                TargetApp.KAKAOPICKER -> p.contains("flexer")
-                else -> false
-            }
+            val isTargetApp = isSimulator || currentPlugin.isTargetPackage(p)
             if (!isTargetApp && p != "com.onedal.app") {
                 return ScreenContext.OTHER_APP
             }

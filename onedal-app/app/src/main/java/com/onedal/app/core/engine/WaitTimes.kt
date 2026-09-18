@@ -2,6 +2,7 @@ package com.onedal.app.core.engine
 
 import com.onedal.app.core.TargetApp
 import com.onedal.app.models.FilterConfig
+import com.onedal.app.plugins.DispatchPluginRegistry
 
 /**
  * ⏱️ **배차망별 대기 시간 — 서버가 정하고 원달앱은 받아 쓴다** (기사님 확정 2026-09-14 · docs/지금/배차망별_대기_시간.md)
@@ -17,12 +18,14 @@ import com.onedal.app.models.FilterConfig
 object WaitTimes {
 
     /** 그 배차망의 안전취소 시간 — 픽커는 안전취소가 없어 `null` */
-    fun safeCancelMs(filter: FilterConfig, targetApp: String): Long? = when (targetApp) {
-        TargetApp.KAKAOPICKER -> null
-        TargetApp.HWAMUL24 -> filter.safeCancelSecHwamul24 * 1000L
-        else -> filter.safeCancelSecInsung * 1000L
-    }
+    fun safeCancelMs(filter: FilterConfig, targetApp: String): Long? =
+        DispatchPluginRegistry.get(targetApp).getSafeCancelMs(filter)
 
     /** 픽커 상세를(누가 열었든) 이 시간 뒤 닫고 리스트로 돌아간다 */
-    fun pickerAlarmDetailMs(filter: FilterConfig): Long = filter.pickerAlarmDetailSec * 1000L
+    fun pickerAlarmDetailMs(filter: FilterConfig): Long =
+        DispatchPluginRegistry.get(TargetApp.KAKAOPICKER).getDetailBackTimeoutMs(filter)
+
+    /** 배차망별 상세 자동 복귀 시간 (ms) */
+    fun detailBackTimeoutMs(filter: FilterConfig, targetApp: String): Long =
+        DispatchPluginRegistry.get(targetApp).getDetailBackTimeoutMs(filter)
 }
