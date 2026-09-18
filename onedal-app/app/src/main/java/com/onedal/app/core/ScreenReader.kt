@@ -41,7 +41,10 @@ class ScreenReader(private val service: AccessibilityService) {
         val parsedSummary: String,
     )
 
-    private val executor = Executors.newSingleThreadExecutor()
+    @Volatile private var isClosed = false
+    private val executor = Executors.newSingleThreadScheduledExecutor { r ->
+        Thread(r, "1dal-ocr").apply { isDaemon = true }
+    }
     private val recognizer: TextRecognizer =
         TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
     /** 첫 호출은 모델을 올리느라 느리다 — 서비스가 붙을 때 빈 그림으로 한 번 돌려 둔다 */
@@ -49,13 +52,31 @@ class ScreenReader(private val service: AccessibilityService) {
         val t0 = SystemClock.elapsedRealtime()
         val blank = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).apply { eraseColor(0xFFFFFFFF.toInt()) }
         recognizer.process(InputImage.fromBitmap(blank, 0))
-            .addOnSuccessListener { AppLogger.i(TAG, "🔥 예열 완료 ${SystemClock.elapsedRealtime() - t0}ms") }
-            .addOnFailureListener { AppLogger.e(TAG, "예열 실패", it) }
+            .addOnSuccessListener(executor) { AppLogger.i(TAG, "🔥 예열 완료 ${SystemClock.elapsedRealtime() - t0}ms") }
+            .addOnFailureListener(executor) { AppLogger.e(TAG, "예열 실패", it) }
     }
 
     fun close() {
+        isClosed = true
         recognizer.close()
-        executor.shutdown()
+        executor.shutdownNow()
+    }
+
+    /**
+     * ⏱️ 전용 스레드에서 delayMs 뒤 판독을 시작한다 (메인 핸들러 큐 지연 회피).
+     */
+    fun <T> scheduleReadAndVerifyDetail(
+        delayMs: Long,
+        parser: ScreenOcrParser<T>,
+        onSuccess: (result: T, lines: List<OcrLine>) -> Unit,
+        onParseFailed: (reason: String, lines: List<OcrLine>) -> Unit,
+        onError: (error: String) -> Unit
+    ) {
+        if (isClosed || executor.isShutdown) return
+        executor.schedule({
+            if (isClosed) return@schedule
+            readAndVerifyDetail(parser, onSuccess, onParseFailed, onError)
+        }, delayMs, java.util.concurrent.TimeUnit.MILLISECONDS)
     }
 
     /**
@@ -72,13 +93,21 @@ class ScreenReader(private val service: AccessibilityService) {
         onParseFailed: (reason: String, lines: List<OcrLine>) -> Unit,
         onError: (error: String) -> Unit
     ) {
+        if (isClosed) {
+            onError("서비스 종료됨")
+            return
+        }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             onError("안드로이드 11 미만 — 접근성 스크린샷 없음")
             return
         }
 
+        val t0 = SystemClock.elapsedRealtime()
         service.takeScreenshot(Display.DEFAULT_DISPLAY, executor, object : AccessibilityService.TakeScreenshotCallback {
             override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
+                val tCaptured = SystemClock.elapsedRealtime()
+                val captureMs = tCaptured - t0
+
                 val hb = screenshot.hardwareBuffer
                 val hw = Bitmap.wrapHardwareBuffer(hb, screenshot.colorSpace)
                 hb.close()
@@ -89,36 +118,52 @@ class ScreenReader(private val service: AccessibilityService) {
                 val sw = hw.copy(Bitmap.Config.ARGB_8888, false)
                 hw.recycle()
 
+                val tCropStart = SystemClock.elapsedRealtime()
                 val cropped = parser.crop(sw)
                 sw.recycle()
 
                 val h = cropped.height * TARGET_WIDTH / cropped.width
                 val scaled = Bitmap.createScaledBitmap(cropped, TARGET_WIDTH, h, true)
                 cropped.recycle()
+                val convertMs = SystemClock.elapsedRealtime() - tCropStart
 
+                val tOcrStart = SystemClock.elapsedRealtime()
                 recognizer.process(InputImage.fromBitmap(scaled, 0))
-                    .addOnSuccessListener { text ->
+                    .addOnSuccessListener(executor) { text ->
+                        val ocrMs = SystemClock.elapsedRealtime() - tOcrStart
                         scaled.recycle()
                         val lines = text.textBlocks.flatMap { b -> b.lines }
                             .map { OcrLine(it.boundingBox?.top ?: 0, it.text) }
 
+                        val tParseStart = SystemClock.elapsedRealtime()
                         val parsed = parser.parse(lines)
+                        val parseMs = SystemClock.elapsedRealtime() - tParseStart
+                        val totalMs = SystemClock.elapsedRealtime() - t0
+
+                        AppLogger.i(
+                            TAG,
+                            "⏱️ [스냅샷 실측] 찍기 ${captureMs}ms · 변환 ${convertMs}ms · OCR ${ocrMs}ms · 파싱 ${parseMs}ms → 총 ${totalMs}ms (${lines.size}줄)"
+                        )
+
                         if (parsed == null) {
-                            AppLogger.w(TAG, "👀 [스냅샷 판독 실패] 파서가 결과를 반환하지 못함 · ${lines.size}줄")
+                            AppLogger.w(TAG, "👀 [스냅샷 판독 실패] 파서가 결과를 반환하지 못함 · ${lines.size}줄 (${totalMs}ms)")
                             onParseFailed("머리 둘(픽업/배송) 누락", lines)
                             return@addOnSuccessListener
                         }
 
                         onSuccess(parsed, lines)
                     }
-                    .addOnFailureListener { e ->
+                    .addOnFailureListener(executor) { e ->
+                        val ocrMs = SystemClock.elapsedRealtime() - tOcrStart
                         scaled.recycle()
-                        AppLogger.e(TAG, "인식 실패", e)
+                        AppLogger.e(TAG, "인식 실패 (${ocrMs}ms)", e)
                         onError("인식 실패: ${e.message}")
                     }
             }
 
             override fun onFailure(errorCode: Int) {
+                val failMs = SystemClock.elapsedRealtime() - t0
+                AppLogger.w(TAG, "❌ [스냅샷 캡처 실패] code=$errorCode (${failMs}ms 소요 후 실패)")
                 onError("스크린샷 실패 code=$errorCode")
             }
         })
@@ -180,7 +225,7 @@ class ScreenReader(private val service: AccessibilityService) {
 
         val tOcr = SystemClock.elapsedRealtime()
         recognizer.process(InputImage.fromBitmap(scaled, 0))
-            .addOnSuccessListener { text ->
+            .addOnSuccessListener(executor) { text ->
                 val ocrMs = SystemClock.elapsedRealtime() - tOcr
                 val lines = text.textBlocks.flatMap { b -> b.lines }
                     .map { OcrLine(it.boundingBox?.top ?: 0, it.text) }
@@ -193,10 +238,10 @@ class ScreenReader(private val service: AccessibilityService) {
                 lines.forEach { AppLogger.d(TAG, "   y=${it.y} ${it.text}") }
                 done(Result(label, StageMs(captureMs, convertMs, ocrMs, parseMs), lines, summary))
             }
-            .addOnFailureListener { e ->
+            .addOnFailureListener(executor) { e ->
                 scaled.recycle()
                 AppLogger.e(TAG, "[$label] 인식 실패", e)
-                done(Result(label, StageMs(captureMs, convertMs, -1, 0), emptyList(), "인식 실패: ${e.message}"))
+                done(Result(label, StageMs(captureMs, convertMs, SystemClock.elapsedRealtime() - tOcr, 0), emptyList(), "실패: ${e.message}"))
             }
     }
 }

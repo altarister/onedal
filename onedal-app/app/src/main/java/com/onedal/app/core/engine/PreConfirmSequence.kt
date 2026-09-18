@@ -190,115 +190,114 @@ private fun ScanContext.handlePreConfirmSnapshot(
         return
     }
 
-    mainHandler.postDelayed({
-        screenReader.readAndVerifyDetail(
-            parser = pickerParser,
-            onSuccess = { detail, lines ->
-                mainHandler.post {
-                    val verifyResult = pickerParser.verify(detail, tappedCard, matchedListCard, screenTexts, rawScreenStr)
-                    when (verifyResult) {
-                        is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Success -> {
-                            val verifiedOrder = verifyResult.order
-                            session.isVerifyingSnapshot = false
-                            if (session.isDetailScrapSent) return@post
-                            if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
-                                AppLogger.w(TAG, "📸 [스냅샷 성공 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
-                                return@post
-                            }
-                            ensureSessionId()
-                            val orderWithId = verifiedOrder.copy(
-                                id = session.currentOrderId.ifEmpty { verifiedOrder.id }
-                            )
-                            session.setOrderId(orderWithId.id)
-                            session.lastDetailOrder = orderWithId
-                            session.isPreview = true
-                            session.accumulatedDetailText = rawScreenStr
-
-                            AppLogger.roadmap("📸 [스냅샷 통과] 픽커 상세 검증 완료: ${orderWithId.pickup} → ${orderWithId.dropoff}", telemetryManager.currentScreenContext.name)
-                            sendConfirmOnce(orderWithId, rawScreenStr)
-                            sendDetail(orderWithId)
-                        }
-                        is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Mismatch -> {
-                            val reason = verifyResult.reason
-                            AppLogger.w(TAG, "🚨 [스냅샷 불일치] $reason -> 리스트로 안전 복귀 회피 기동")
-                            apiClient.sendAnomalyReport(
-                                targetApp = currentTargetApp,
-                                screenName = telemetryManager.currentScreenContext.name,
-                                failureReason = "SNAPSHOT_MISMATCH: $reason",
-                                listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
-                                detailParsedText = rawScreenStr.take(500),
-                                ocrResult = mapOf("pickup" to detail.pickup.admin, "dropoff" to detail.dropoff.admin, "straightKm" to detail.dropoff.straightKm)
-                            )
-                            abortPreConfirm()
-                        }
-                    }
-                }
-            },
-            onParseFailed = { reason, lines ->
-                mainHandler.post {
-                    AppLogger.w(TAG, "⚠️ [스냅샷 판독 실패] $reason -> 카드 정보로 폴백 선행 전송하고 이상 징후 보고")
-                    apiClient.sendAnomalyReport(
-                        targetApp = currentTargetApp,
-                        screenName = telemetryManager.currentScreenContext.name,
-                        failureReason = "SNAPSHOT_PARSE_FAILED: $reason",
-                        listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
-                        detailParsedText = rawScreenStr.take(500),
-                        ocrResult = mapOf("linesCount" to lines.size)
-                    )
-
-                    // 콜 증발 방지: 탭 카드가 있으면 카드 정보로 폴백
-                    val fallbackOrder = tappedCard ?: matchedListCard
-                    if (fallbackOrder != null) {
+    screenReader.scheduleReadAndVerifyDetail(
+        delayMs = ScreenReader.DETAIL_STABILIZE_IDLE_MS,
+        parser = pickerParser,
+        onSuccess = { detail, lines ->
+            mainHandler.post {
+                val verifyResult = pickerParser.verify(detail, tappedCard, matchedListCard, screenTexts, rawScreenStr)
+                when (verifyResult) {
+                    is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Success -> {
+                        val verifiedOrder = verifyResult.order
                         session.isVerifyingSnapshot = false
                         if (session.isDetailScrapSent) return@post
                         if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
-                            AppLogger.w(TAG, "📸 [스냅샷 폴백 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
+                            AppLogger.w(TAG, "📸 [스냅샷 성공 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
                             return@post
                         }
                         ensureSessionId()
-                        val orderWithId = fallbackOrder.copy(
-                            id = session.currentOrderId.ifEmpty { fallbackOrder.id },
-                            rawText = rawScreenStr
+                        val orderWithId = verifiedOrder.copy(
+                            id = session.currentOrderId.ifEmpty { verifiedOrder.id }
                         )
                         session.setOrderId(orderWithId.id)
                         session.lastDetailOrder = orderWithId
                         session.isPreview = true
                         session.accumulatedDetailText = rawScreenStr
+
+                        AppLogger.roadmap("📸 [스냅샷 통과] 픽커 상세 검증 완료: ${orderWithId.pickup} → ${orderWithId.dropoff}", telemetryManager.currentScreenContext.name)
                         sendConfirmOnce(orderWithId, rawScreenStr)
                         sendDetail(orderWithId)
-                    } else {
-                        abortPreConfirm()
                     }
-                }
-            },
-            onError = { error ->
-                mainHandler.post {
-                    AppLogger.e(TAG, "❌ [스냅샷 에러] $error")
-                    val fallbackOrder = tappedCard ?: matchedListCard
-                    if (fallbackOrder != null) {
-                        session.isVerifyingSnapshot = false
-                        if (session.isDetailScrapSent) return@post
-                        if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
-                            AppLogger.w(TAG, "📸 [스냅샷 폴백 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
-                            return@post
-                        }
-                        ensureSessionId()
-                        val orderWithId = fallbackOrder.copy(
-                            id = session.currentOrderId.ifEmpty { fallbackOrder.id },
-                            rawText = rawScreenStr
+                    is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Mismatch -> {
+                        val reason = verifyResult.reason
+                        AppLogger.w(TAG, "🚨 [스냅샷 불일치] $reason -> 리스트로 안전 복귀 회피 기동")
+                        apiClient.sendAnomalyReport(
+                            targetApp = currentTargetApp,
+                            screenName = telemetryManager.currentScreenContext.name,
+                            failureReason = "SNAPSHOT_MISMATCH: $reason",
+                            listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
+                            detailParsedText = rawScreenStr.take(500),
+                            ocrResult = mapOf("pickup" to detail.pickup.admin, "dropoff" to detail.dropoff.admin, "straightKm" to detail.dropoff.straightKm)
                         )
-                        session.setOrderId(orderWithId.id)
-                        session.lastDetailOrder = orderWithId
-                        session.isPreview = true
-                        session.accumulatedDetailText = rawScreenStr
-                        sendConfirmOnce(orderWithId, rawScreenStr)
-                        sendDetail(orderWithId)
-                    } else {
                         abortPreConfirm()
                     }
                 }
             }
-        )
-    }, ScreenReader.DETAIL_STABILIZE_IDLE_MS)
+        },
+        onParseFailed = { reason, lines ->
+            mainHandler.post {
+                AppLogger.w(TAG, "⚠️ [스냅샷 판독 실패] $reason -> 카드 정보로 폴백 선행 전송하고 이상 징후 보고")
+                apiClient.sendAnomalyReport(
+                    targetApp = currentTargetApp,
+                    screenName = telemetryManager.currentScreenContext.name,
+                    failureReason = "SNAPSHOT_PARSE_FAILED: $reason",
+                    listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
+                    detailParsedText = rawScreenStr.take(500),
+                    ocrResult = mapOf("linesCount" to lines.size)
+                )
+
+                // 콜 증발 방지: 탭 카드가 있으면 카드 정보로 폴백
+                val fallbackOrder = tappedCard ?: matchedListCard
+                if (fallbackOrder != null) {
+                    session.isVerifyingSnapshot = false
+                    if (session.isDetailScrapSent) return@post
+                    if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
+                        AppLogger.w(TAG, "📸 [스냅샷 폴백 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
+                        return@post
+                    }
+                    ensureSessionId()
+                    val orderWithId = fallbackOrder.copy(
+                        id = session.currentOrderId.ifEmpty { fallbackOrder.id },
+                        rawText = rawScreenStr
+                    )
+                    session.setOrderId(orderWithId.id)
+                    session.lastDetailOrder = orderWithId
+                    session.isPreview = true
+                    session.accumulatedDetailText = rawScreenStr
+                    sendConfirmOnce(orderWithId, rawScreenStr)
+                    sendDetail(orderWithId)
+                } else {
+                    abortPreConfirm()
+                }
+            }
+        },
+        onError = { error ->
+            mainHandler.post {
+                AppLogger.e(TAG, "❌ [스냅샷 에러] $error")
+                val fallbackOrder = tappedCard ?: matchedListCard
+                if (fallbackOrder != null) {
+                    session.isVerifyingSnapshot = false
+                    if (session.isDetailScrapSent) return@post
+                    if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
+                        AppLogger.w(TAG, "📸 [스냅샷 폴백 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
+                        return@post
+                    }
+                    ensureSessionId()
+                    val orderWithId = fallbackOrder.copy(
+                        id = session.currentOrderId.ifEmpty { fallbackOrder.id },
+                        rawText = rawScreenStr
+                    )
+                    session.setOrderId(orderWithId.id)
+                    session.lastDetailOrder = orderWithId
+                    session.isPreview = true
+                    session.accumulatedDetailText = rawScreenStr
+                    sendConfirmOnce(orderWithId, rawScreenStr)
+                    sendDetail(orderWithId)
+                } else {
+                    abortPreConfirm()
+                }
+            }
+        }
+    )
 }
 
