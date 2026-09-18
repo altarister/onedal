@@ -1,5 +1,7 @@
 package com.onedal.app.plugins.kakaopicker
 
+import com.onedal.app.core.OcrLine
+
 /**
  * 📷 **픽커 상세 화면을 «그림으로» 읽은 줄들을 콜 한 건으로 옮긴다.**
  *
@@ -13,13 +15,12 @@ package com.onedal.app.plugins.kakaopicker
  *
  * 무엇을 믿고 나누나: 화면은 「픽업 Nkm」/「배송 Nkm」 가 각 주소 덩어리의 머리다. 그 둘을 경계로
  * 위에서 아래로 자른다. 지도(잡음이 많다)는 첫 머리 앞이라 저절로 잘려 나간다.
- *
+ */
+
+/**
  * 🔴 여기서 좌표를 구하지 않는다 — «줄 → 칸» 하나만 한다.
  * 🔴 `straightKm` 은 직선거리다 — 도로는 1.23~1.24 배다. 그대로 쓰면 나쁜 콜이 24% 좋아 보인다.
  */
-
-/** OCR 한 줄 — `y` 는 위에서부터의 자리(위가 작다). 엔진이 무엇이든 이 둘만 주면 된다 */
-data class OcrLine(val y: Int, val text: String)
 
 data class PickerStopFromImage(
     /** 행정동까지 — `경기 성남시 수정구 위례동` */

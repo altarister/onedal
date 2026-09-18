@@ -26,6 +26,7 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
     override val label: String = "인성콜"
     override val packageKeywords: List<String> = listOf("insung")
     override val keywords: ScreenKeywords = InsungKeywords.INSUNG
+    override val networkMarkers: List<List<String>> = InsungKeywords.NETWORK_MARKERS
     override val parser: IScrapParser by lazy {
         InsungParser(context ?: throw IllegalStateException("InsungParser requires non-null Context"))
     }
@@ -35,6 +36,9 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
     override val ocrParser: ScreenOcrParser<*>? = null
 
     override fun getSafeCancelMs(filter: FilterConfig): Long =
+        filter.safeCancelSecInsung * 1000L
+
+    override fun getDetailBackTimeoutMs(filter: FilterConfig): Long =
         filter.safeCancelSecInsung * 1000L
 
     override fun executePreConfirmSpecial(

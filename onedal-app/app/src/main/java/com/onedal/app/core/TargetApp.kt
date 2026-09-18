@@ -1,9 +1,5 @@
 package com.onedal.app.core
 
-import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
-import com.onedal.app.plugins.insung.InsungKeywords
-import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
-
 /**
  * 🌐 **배차망 라벨↔코드 — 매핑은 여기 한 곳뿐** (기사님 확정 2026-08-30 · 픽커_수집.md §6-전)
  *
@@ -39,11 +35,8 @@ object TargetApp {
      * 🏷️ **배차망마다 «그 배차망 화면에만 있는 글자 묶음»** — 원천은 각 배차망 폴더의 Keywords 다.
      * 배차망을 더하면 여기 한 줄 + 그 폴더에 `NETWORK_MARKERS` 하나.
      */
-    fun networkMarkers(): Map<String, List<List<String>>> = mapOf(
-        INSUNG to InsungKeywords.NETWORK_MARKERS,
-        HWAMUL24 to Hwamul24Keywords.NETWORK_MARKERS,
-        KAKAOPICKER to KakaoPickerKeywords.NETWORK_MARKERS,
-    )
+    fun networkMarkers(): Map<String, List<List<String>>> =
+        com.onedal.app.plugins.DispatchPluginRegistry.all().associate { it.code to it.networkMarkers }
 
     /**
      * 🖥️ **이 화면에 글자가 보이는 배차망들** (기사님 확정 2026-09-14 · 원달앱 계획서 ③).

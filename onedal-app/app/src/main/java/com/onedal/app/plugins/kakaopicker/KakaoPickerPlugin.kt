@@ -23,6 +23,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
     override val label: String = "픽커"
     override val packageKeywords: List<String> = listOf("flexer")
     override val keywords: ScreenKeywords = KakaoPickerKeywords.PICKER
+    override val networkMarkers: List<List<String>> = KakaoPickerKeywords.NETWORK_MARKERS
     override val parser: IScrapParser by lazy { KakaoPickerParser(context) }
 
     override val supportsCatching: Boolean = false

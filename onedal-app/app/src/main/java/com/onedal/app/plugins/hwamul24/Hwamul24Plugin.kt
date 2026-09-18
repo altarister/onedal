@@ -23,6 +23,7 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
     override val label: String = "24시"
     override val packageKeywords: List<String> = listOf("logione", "carrier")
     override val keywords: ScreenKeywords = Hwamul24Keywords.TWENTYFOUR
+    override val networkMarkers: List<List<String>> = Hwamul24Keywords.NETWORK_MARKERS
     override val parser: IScrapParser by lazy {
         Hwamul24Parser(context ?: throw IllegalStateException("Hwamul24Parser requires non-null Context"))
     }
@@ -32,5 +33,8 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
     override val ocrParser: ScreenOcrParser<*>? = null
 
     override fun getSafeCancelMs(filter: FilterConfig): Long =
+        filter.safeCancelSecHwamul24 * 1000L
+
+    override fun getDetailBackTimeoutMs(filter: FilterConfig): Long =
         filter.safeCancelSecHwamul24 * 1000L
 }

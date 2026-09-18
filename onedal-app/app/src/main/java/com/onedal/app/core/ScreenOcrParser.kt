@@ -1,7 +1,9 @@
 package com.onedal.app.core
 
 import android.graphics.Bitmap
-import com.onedal.app.plugins.kakaopicker.OcrLine
+
+/** OCR 한 줄 — `y` 는 위에서부터의 자리(위가 작다). 엔진이 무엇이든 이 둘만 주면 된다 */
+data class OcrLine(val y: Int, val text: String)
 
 /**
  * 📷 **배차망별 화면 OCR 자르기 및 줄 해석 위임 규격**

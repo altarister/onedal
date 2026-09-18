@@ -1,5 +1,6 @@
 package com.onedal.app.plugins.kakaopicker
 
+import com.onedal.app.core.OcrLine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -187,20 +188,20 @@ class PickerScreenOcrTest {
     @Test
     fun `동 대조는 마지막 토막(동)을 엄격 검증하여 같은 구 이웃 동 오판을 막는다`() {
         // 정상 일치
-        assertTrue(com.onedal.app.core.ScreenReader.matchDong("분당 야탑3", "경기 성남시 분당구 야탑3동"))
-        assertTrue(com.onedal.app.core.ScreenReader.matchDong("광주 광남1", "경기 광주시 광남1동"))
-        assertTrue(com.onedal.app.core.ScreenReader.matchDong("성남 상대원", "경기 성남시 중원구 상대원동"))
-        assertTrue(com.onedal.app.core.ScreenReader.matchDong("강남 역삼동", "서울 강남구 역삼2동"))
+        assertTrue(PickerDetailOcrParser.matchDong("분당 야탑3", "경기 성남시 분당구 야탑3동"))
+        assertTrue(PickerDetailOcrParser.matchDong("광주 광남1", "경기 광주시 광남1동"))
+        assertTrue(PickerDetailOcrParser.matchDong("성남 상대원", "경기 성남시 중원구 상대원동"))
+        assertTrue(PickerDetailOcrParser.matchDong("강남 역삼동", "서울 강남구 역삼2동"))
 
         // 같은 구 내의 다른 동 끼어들기 방어 (분당 야탑3 vs 분당구 이매1동) -> 실패해야 정상!
-        assertFalse(com.onedal.app.core.ScreenReader.matchDong("분당 야탑3", "경기 성남시 분당구 이매1동"))
-        assertFalse(com.onedal.app.core.ScreenReader.matchDong("강남 역삼동", "서울 강남구 논현동"))
+        assertFalse(PickerDetailOcrParser.matchDong("분당 야탑3", "경기 성남시 분당구 이매1동"))
+        assertFalse(PickerDetailOcrParser.matchDong("강남 역삼동", "서울 강남구 논현동"))
     }
 
     @Test
     fun `화면 텍스트에서 픽커 요금을 추출한다`() {
-        assertEquals(9693, com.onedal.app.core.ScreenReader.extractFareFromTexts(listOf("접수완료", "9,693P", "포인트 적립")))
-        assertEquals(15000, com.onedal.app.core.ScreenReader.extractFareFromTexts(listOf("배송비 15,000원", "수락하기")))
-        assertEquals(0, com.onedal.app.core.ScreenReader.extractFareFromTexts(listOf("픽업 10km", "배송 20km")))
+        assertEquals(9693, PickerDetailOcrParser.extractFareFromTexts(listOf("접수완료", "9,693P", "포인트 적립")))
+        assertEquals(15000, PickerDetailOcrParser.extractFareFromTexts(listOf("배송비 15,000원", "수락하기")))
+        assertEquals(0, PickerDetailOcrParser.extractFareFromTexts(listOf("픽업 10km", "배송 20km")))
     }
 }
