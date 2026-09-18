@@ -69,6 +69,7 @@ android {
 dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.window)
+    implementation(libs.mlkit.text.recognition.korean)   // 📷 화면을 찍어 읽는다 (ScreenReader)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

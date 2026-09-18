@@ -10,6 +10,7 @@ activityCompose = "1.9.3"
 composeBom = "2024.12.01"
 lifecycle = "2.8.7"
 window = "1.3.0"
+mlkitTextKorean = "16.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -28,6 +29,8 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-window = { group = "androidx.window", name = "window", version.ref = "window" }
+# 📷 온디바이스 한국어 글자 인식 — 픽커 상세를 그림으로 읽는다 (모델 번들, 첫 실행 다운로드 없음)
+mlkit-text-recognition-korean = { group = "com.google.mlkit", name = "text-recognition-korean", version.ref = "mlkitTextKorean" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

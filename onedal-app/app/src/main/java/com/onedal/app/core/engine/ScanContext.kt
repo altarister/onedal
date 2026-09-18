@@ -77,6 +77,13 @@ interface ScanContext {
     /** 지금 보고 있는 배차망 코드 (`insung`·`hwamul24`·`kakaopicker`) */
     val currentTargetApp: String
 
+    /** 📷 화면 판독기 (온디바이스 OCR 스냅샷 검증) */
+    val screenReader: com.onedal.app.core.ScreenReader
+
+    /** 📡 서버 통신 클라이언트 */
+    val apiClient: com.onedal.app.api.ApiClient
+
+
     // ── 공통 동작 — 배차망이 달라도 같은 일 ────────────────
 
     /** 📤 1차 선점을 보낸다 — 한 콜에 한 번만 */

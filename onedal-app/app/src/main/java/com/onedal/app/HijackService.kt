@@ -90,10 +90,38 @@ class HijackService : AccessibilityService(), ScanContext {
         internal const val FARE_RANGE_MAX = 9999.0
 
         // 🚨 [동명이동 방어] CAUTION_DONGS는 CautionDongVerifier.CAUTION_DONGS로 이동
+
+        /** 📷 살아 있는 서비스 — 설정 화면의 «화면 찍어 읽기» 시험 버튼이 부른다. 붙으면 채우고 내려가면 비운다 */
+        @Volatile var live: HijackService? = null
+    }
+
+    /** 📷 화면을 찍어 글자로 읽는다 — 지금은 시험용 (설정 화면 버튼) */
+    override lateinit var screenReader: com.onedal.app.core.ScreenReader
+
+    /**
+     * 📷 시험: `delayMs` 뒤에 앞 화면을 찍어 읽고 단계별 ms 를 설정 화면과 로그에 적는다.
+     * 버튼을 누른 뒤 픽커 상세로 넘어갈 시간을 준다.
+     */
+    fun benchScreenRead(delayMs: Long) {
+        mainHandler.postDelayed({
+            screenReader.bench(
+                onDone = { results ->
+                    val report = results.joinToString("\n") { r ->
+                        "[${r.label}] 합계 ${r.ms.total}ms = 찍기 ${r.ms.capture} + 변환 ${r.ms.convert} + 인식 ${r.ms.ocr} + 나누기 ${r.ms.parse} · ${r.lines.size}줄\n  → ${r.parsedSummary}"
+                    }
+                    com.onedal.app.core.ScreenReadBench.lastReport = report
+                    android.widget.Toast.makeText(this, report.lines().first(), android.widget.Toast.LENGTH_LONG).show()
+                },
+                onError = { msg ->
+                    com.onedal.app.core.ScreenReadBench.lastReport = "실패: $msg"
+                    android.widget.Toast.makeText(this, "📷 실패: $msg", android.widget.Toast.LENGTH_LONG).show()
+                },
+            )
+        }, delayMs)
     }
 
     // ── 4대 엔진 ──
-    private lateinit var apiClient: ApiClient
+    override lateinit var apiClient: ApiClient
     /** 📱 실물 픽커 운행 기록 — 수락부터 «오더 목록 보기»(최대 5시간)까지 (`PickerTrace`) */
     private val pickerTrace = com.onedal.app.plugins.kakaopicker.PickerTrace()
     /** 올리는 중인가 — 한 번에 한 묶음만 보낸다 (순서가 뒤섞이지 않게) */
@@ -326,6 +354,9 @@ class HijackService : AccessibilityService(), ScanContext {
         touchManager = AutoTouchManager(this)
         collectMachine = DetailCollectMachine(touchManager)
         cautionVerifier = CautionDongVerifier(this)
+        screenReader = com.onedal.app.core.ScreenReader(this)
+        screenReader.warmUp()   // 📷 첫 인식이 느리다 — 붙을 때 모델을 올려 둔다
+        live = this
 
         /**
          * 💤 시작할 때의 화면 상태는 **물어봐서** 세운다 — 기본값(켜짐)으로 두면
@@ -449,6 +480,8 @@ class HijackService : AccessibilityService(), ScanContext {
 
     override fun onDestroy() {
         super.onDestroy()
+        live = null
+        if (::screenReader.isInitialized) screenReader.close()
         modeFrame.hideNow()   // 🖼️ 테두리가 없으면 접근성 꺼짐 — 내려가는 순간 걷는다
         unregisterReceiver(screenOffReceiver)
         telemetryManager.stop()

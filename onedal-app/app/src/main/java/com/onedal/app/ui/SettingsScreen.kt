@@ -298,6 +298,51 @@ fun SettingsScreen(viewModel: MainViewModel) {
             }
         }
 
+        // ── 카드: 📷 화면 찍어 읽기 시험 (0.5초 안에 되는지 이 폰에서 잰다) ──
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "📷 화면 찍어 읽기 시험",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1D4ED8)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "누르고 5초 안에 픽커 상세를 열어 두세요. 찍기·변환·인식·나누기 ms 가 아래와 로그(1DAL_OCR)에 남습니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF1E3A8A)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        val svc = com.onedal.app.HijackService.live
+                        if (svc == null) {
+                            com.onedal.app.core.ScreenReadBench.lastReport = "접근성 서비스가 꺼져 있어 못 찍는다"
+                        } else {
+                            com.onedal.app.core.ScreenReadBench.lastReport = "5초 뒤 찍는다…"
+                            svc.benchScreenRead(5_000)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(text = "📷 5초 뒤 화면 찍어 읽기", fontWeight = FontWeight.SemiBold)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = com.onedal.app.core.ScreenReadBench.lastReport,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color(0xFF1E3A8A)
+                )
+            }
+        }
+
         // ── 버튼: 시스템 접근성 설정 바로가기 ──
         OutlinedButton(
             onClick = {

@@ -2,9 +2,11 @@ package com.onedal.app.core.engine
 
 import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.core.AppLogger
+import com.onedal.app.core.ScreenReader
 import com.onedal.app.core.TargetApp
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.insung.handleInsungPreConfirmExecution
+import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
 
 private const val TAG = "1DAL_PRE_CONFIRM"
 
@@ -39,6 +41,17 @@ fun ScanContext.handlePreConfirmScreen(
     ensureSessionId()
 
     AppLogger.roadmap("[Current Page: DETAIL_PRE_CONFIRM] 진입 완료", telemetryManager.currentScreenContext.name)
+
+    // ⏱️ 누가 열었든(알람·손) · 어느 모드든 — 상세 대기 시간 뒤 리스트로 돌아온다 (#124 · 기사님 확정)
+    if (!TargetApp.supportsCatching(currentTargetApp)) {
+        scheduleDetailBack()
+    }
+
+    // 📸 [카카오픽커 분기] 픽커는 접근성 트리에 배송지가 오지 않으므로, 화면 스냅샷 OCR로 판독한다 (스냅샷 계획 3·7단계)
+    if (currentTargetApp == "kakaopicker") {
+        handlePickerPreConfirmSnapshot(rootNode, screenTexts, rawScreenStr)
+        return
+    }
 
     // 최근 LIST 화면에서 파싱된 원본 오더와 대조 매칭 (전표오염 회피)
     val matchedOrder = scrapParser.matchDetailOrder(screenTexts, recentListOrders)
@@ -110,7 +123,6 @@ fun ScanContext.handlePreConfirmScreen(
             session.accumulatedDetailText = rawScreenStr
             sendDetail(finalOrder)
             AppLogger.i("1DAL_PICKER", "📄 [상세 실물] ${screenTexts.joinToString(" | ").take(500)}")
-            scheduleDetailBack()
         }
     } else {
         // [AUTO 모드이면서 2차 필터 실패] -> 공통 즉시 취소/뒤로가기 회피 기동
@@ -119,11 +131,133 @@ fun ScanContext.handlePreConfirmScreen(
         AppLogger.d(TAG, "⚠️ [2차 필터 실패] 상세 정보를 확인한 결과 똥콜(블랙리스트 등)로 판명됨. '$cancelBtnForReject' 회피 기동!")
 
         AppLogger.roadmap("상세페이지에서 '$cancelBtnForReject' 추출 후 클릭", telemetryManager.currentScreenContext.name)
-        if (!touchManager.findAndClickByText(rootNode, cancelBtnForReject, isStartsWith = true)) {
-            touchManager.performBack()
+        abortPreConfirm {
+            if (!touchManager.findAndClickByText(rootNode, cancelBtnForReject, isStartsWith = true)) {
+                touchManager.performBack()
+            }
         }
-
-        AppLogger.roadmap("리스트 페이지 진입", telemetryManager.currentScreenContext.name)
-        resetSessionState()
     }
 }
+
+/**
+ * 🚪 상세 화면 회피 복귀 및 세션 초기화 (콜의 끝).
+ * 뒤로가기 수행 후 세션을 정리하여 불완전한 상태가 다음 콜에 남지 않게 한다.
+ */
+private fun ScanContext.abortPreConfirm(action: (() -> Unit)? = null) {
+    action?.invoke() ?: touchManager.performBack()
+    AppLogger.roadmap("리스트 페이지 진입 (회피 복귀)", telemetryManager.currentScreenContext.name)
+    resetSessionState()
+}
+
+/**
+ * 📸 **픽커 상세 스냅샷 검증 및 처리** (기획서 3·7단계 및 버그 대장 #119 수호).
+ *
+ * 1. 150ms 유휴 대기(DETAIL_STABILIZE_IDLE_MS) 후 화면 멈춤 상태에서 스냅샷 캡처 및 OCR 판독.
+ * 2. 알람 콜(`alarmTappedCard != null`): 리스트 기억 카드와 대조하여 일치 시 정상 전송, 불일치 시 이상 징후 보고 후 뒤로가기.
+ * 3. 수동 콜(`alarmTappedCard == null`): 대조 카드가 없으므로 OCR 판독 결과로 오더를 조립하여 정상 전송 (손으로 연 콜 구제).
+ * 4. 판독 실패(null) 시: 이상 징후 보고 후, 탭 카드가 있으면 카드 정보로 폴백 전송하여 콜 증발 방지.
+ */
+private fun ScanContext.handlePickerPreConfirmSnapshot(
+    rootNode: AccessibilityNodeInfo,
+    screenTexts: List<String>,
+    rawScreenStr: String
+) {
+    val opener = KakaoPickerKeywords.detailOpener(
+        session.alarmTappedAtMs,
+        android.os.SystemClock.elapsedRealtime()
+    )
+    val tappedCard = session.alarmTappedCard?.takeIf { opener == KakaoPickerKeywords.OPENER_ALARM }
+
+    mainHandler.postDelayed({
+        screenReader.readAndVerifyPickerDetail(
+            alarmTappedCard = tappedCard,
+            rawScreenStr = rawScreenStr,
+            onSuccess = { verifiedOrder, detail ->
+                mainHandler.post {
+                    if (session.isDetailScrapSent) return@post
+                    ensureSessionId()
+                    val orderWithId = verifiedOrder.copy(
+                        id = session.currentOrderId.ifEmpty { verifiedOrder.id }
+                    )
+                    session.setOrderId(orderWithId.id)
+                    session.lastDetailOrder = orderWithId
+                    session.isPreview = true
+                    session.accumulatedDetailText = rawScreenStr
+
+                    AppLogger.roadmap("📸 [스냅샷 통과] 픽커 상세 검증 완료: ${orderWithId.pickup} → ${orderWithId.dropoff}", telemetryManager.currentScreenContext.name)
+                    sendConfirmOnce(orderWithId, rawScreenStr)
+                    sendDetail(orderWithId)
+                }
+            },
+            onMismatch = { reason, detail, lines ->
+                mainHandler.post {
+                    AppLogger.w(TAG, "🚨 [스냅샷 불일치] $reason -> 리스트로 안전 복귀 회피 기동")
+                    apiClient.sendAnomalyReport(
+                        targetApp = currentTargetApp,
+                        screenName = telemetryManager.currentScreenContext.name,
+                        failureReason = "SNAPSHOT_MISMATCH: $reason",
+                        listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
+                        detailParsedText = rawScreenStr.take(500),
+                        ocrResult = detail?.let {
+                            mapOf("pickup" to it.pickup.admin, "dropoff" to it.dropoff.admin, "straightKm" to it.dropoff.straightKm)
+                        }
+                    )
+                    abortPreConfirm()
+                }
+            },
+            onParseFailed = { reason, lines ->
+                mainHandler.post {
+                    AppLogger.w(TAG, "⚠️ [스냅샷 판독 실패] $reason -> 카드 정보로 폴백 선행 전송하고 이상 징후 보고")
+                    apiClient.sendAnomalyReport(
+                        targetApp = currentTargetApp,
+                        screenName = telemetryManager.currentScreenContext.name,
+                        failureReason = "SNAPSHOT_PARSE_FAILED: $reason",
+                        listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
+                        detailParsedText = rawScreenStr.take(500),
+                        ocrResult = mapOf("linesCount" to lines.size)
+                    )
+
+                    // 콜 증발 방지: 탭 카드가 있으면 카드 정보로 폴백
+                    val fallbackOrder = tappedCard ?: scrapParser.matchDetailOrder(screenTexts, recentListOrders)
+                    if (fallbackOrder != null) {
+                        ensureSessionId()
+                        val orderWithId = fallbackOrder.copy(
+                            id = session.currentOrderId.ifEmpty { fallbackOrder.id },
+                            rawText = rawScreenStr
+                        )
+                        session.setOrderId(orderWithId.id)
+                        session.lastDetailOrder = orderWithId
+                        session.isPreview = true
+                        session.accumulatedDetailText = rawScreenStr
+                        sendConfirmOnce(orderWithId, rawScreenStr)
+                        sendDetail(orderWithId)
+                    } else {
+                        abortPreConfirm()
+                    }
+                }
+            },
+            onError = { error ->
+                mainHandler.post {
+                    AppLogger.e(TAG, "❌ [스냅샷 에러] $error")
+                    val fallbackOrder = tappedCard ?: scrapParser.matchDetailOrder(screenTexts, recentListOrders)
+                    if (fallbackOrder != null) {
+                        ensureSessionId()
+                        val orderWithId = fallbackOrder.copy(
+                            id = session.currentOrderId.ifEmpty { fallbackOrder.id },
+                            rawText = rawScreenStr
+                        )
+                        session.setOrderId(orderWithId.id)
+                        session.lastDetailOrder = orderWithId
+                        session.isPreview = true
+                        session.accumulatedDetailText = rawScreenStr
+                        sendConfirmOnce(orderWithId, rawScreenStr)
+                        sendDetail(orderWithId)
+                    } else {
+                        abortPreConfirm()
+                    }
+                }
+            }
+        )
+    }, ScreenReader.DETAIL_STABILIZE_IDLE_MS)
+}
+

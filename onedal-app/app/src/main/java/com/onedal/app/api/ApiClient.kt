@@ -401,6 +401,11 @@ class ApiClient(private val context: Context) {
         Thread(r, "1dal-trace").apply { isDaemon = true }
     }
 
+    /** 📸 이상 징후 전용 한 줄 스레드 — 초당 스크랩(`telemetryExecutor`)이나 확정(`dispatchExecutor`)을 막지 않는다 */
+    private val anomalyExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "1dal-anomaly").apply { isDaemon = true }
+    }
+
     /**
      * 📱 **실물 픽커 운행 기록을 올린다** — `POST /api/logs/app` (`PickerTrace`).
      * 결과만 알려 준다 — 실패하면 부르는 쪽이 대기열 앞에 되돌린다.
@@ -561,9 +566,67 @@ class ApiClient(private val context: Context) {
         }
     }
 
+    /**
+     * 🚨 **스냅샷 검증 실패 또는 UI 이상 징후를 서버에 보고한다** — `POST /api/telemetry/anomalies`
+     */
+    fun sendAnomalyReport(
+        targetApp: String,
+        screenName: String?,
+        failureReason: String,
+        listOrderInfo: Any? = null,
+        detailParsedText: String? = null,
+        ocrResult: Any? = null,
+        screenshotBase64: String? = null
+    ) {
+        anomalyExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
+            try {
+                val payload = mutableMapOf<String, Any?>(
+                    "timestamp" to java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                        timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    }.format(java.util.Date()),
+                    "deviceId" to getDeviceId(),
+                    "targetApp" to targetApp,
+                    "screenName" to screenName,
+                    "failureReason" to failureReason,
+                    "listOrderInfo" to listOrderInfo,
+                    "detailParsedText" to detailParsedText,
+                    "ocrResult" to ocrResult,
+                    "screenshotBase64" to screenshotBase64
+                )
+                val jsonBody = gson.toJson(payload)
+                val targetUrl = getTargetUrl("/api/telemetry/anomalies")
+                val u = java.net.URL(targetUrl)
+                val c = u.openConnection() as java.net.HttpURLConnection
+                conn = c
+                c.requestMethod = "POST"
+                c.connectTimeout = 5000
+                c.readTimeout = 5000
+                c.doOutput = true
+                c.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                c.outputStream.use { os ->
+                    os.write(jsonBody.toByteArray(Charsets.UTF_8))
+                }
+                val code = c.responseCode
+                if (code == 200) {
+                    AppLogger.w(TAG, "🚨 [이상 징후 보고 완료] $targetApp · $failureReason")
+                } else {
+                    AppLogger.e(TAG, "🚨 [이상 징후 보고 HTTP $code] $targetApp · $failureReason")
+                }
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "🚨 [이상 징후 보고 전송 실패] ${e.message}")
+            } finally {
+                conn?.disconnect()
+            }
+        }
+    }
+
     fun shutdown() {
         dispatchExecutor.shutdown()
         emergencyExecutor.shutdown()
         telemetryExecutor.shutdown()
+        traceExecutor.shutdown()
+        anomalyExecutor.shutdown()
     }
 }
+
