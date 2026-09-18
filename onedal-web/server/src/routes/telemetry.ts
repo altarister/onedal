@@ -1,5 +1,6 @@
 import { Router } from "express";
 import db from "../db";
+import { requireAuth } from "../middlewares/authMiddleware";
 
 const router = Router();
 
@@ -86,9 +87,9 @@ router.post("/anomalies", (req, res) => {
 
 /**
  * GET /api/telemetry/anomalies
- * 최근 수신된 이상 징후 목록 조회 (기본 50건)
+ * 최근 수신된 이상 징후 목록 조회 (기본 50건, 관리자/사용자 인증 필요)
  */
-router.get("/anomalies", (req, res) => {
+router.get("/anomalies", requireAuth, (req, res) => {
     try {
         const limit = Math.min(Number(req.query.limit) || 50, 200);
         const rows = db.prepare(`

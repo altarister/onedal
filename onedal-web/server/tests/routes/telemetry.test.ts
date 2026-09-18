@@ -93,10 +93,15 @@ describe("📸 이상 징후(telemetry) 라우트 및 DB 저장 검증", () => {
         expect(parsedOcr.extractedPickup).toBe("야탑3동 푸라닭");
         expect(parsedOcr.extractedDropoff).toBeNull();
 
-        // GET /anomalies 핸들러 테스트
-        const getHandler = (telemetryRouter as any).stack.find(
+        // GET /anomalies 핸들러 및 인증 미들웨어 검증
+        const getRoute = (telemetryRouter as any).stack.find(
             (layer: any) => layer.route?.path === "/anomalies" && layer.route?.methods?.get
-        )?.route?.stack[0]?.handle;
+        )?.route;
+
+        expect(getRoute).toBeDefined();
+        expect(getRoute.stack.length).toBeGreaterThanOrEqual(2); // requireAuth + handler
+
+        const getHandler = getRoute.stack[getRoute.stack.length - 1]?.handle;
 
         let getResult: any = null;
         const resGet: any = {
@@ -104,7 +109,7 @@ describe("📸 이상 징후(telemetry) 라우트 및 DB 저장 검증", () => {
             status: () => resGet
         };
 
-        await getHandler({ query: { limit: 10 } }, resGet);
+        await getHandler({ query: { limit: 10 }, user: { id: "test-user" } }, resGet);
         expect(getResult.success).toBe(true);
         expect(getResult.data.some((r: any) => r.id === postResult.id)).toBe(true);
 
