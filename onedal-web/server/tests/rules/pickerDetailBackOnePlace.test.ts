@@ -18,8 +18,10 @@ import { join } from 'path';
 const APP = join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app');
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 const hijack = codeOnly(readFileSync(join(APP, 'HijackService.kt'), 'utf8'));
+const sequence = codeOnly(readFileSync(join(APP, 'core/engine/PreConfirmSequence.kt'), 'utf8'));
+const allCode = hijack + '\n' + sequence;
 
-const countOf = (re: RegExp) => (hijack.match(re) || []).length;
+const countOf = (re: RegExp) => (allCode.match(re) || []).length;
 const bodyOf = (signature: string) => {
     const i = hijack.indexOf(signature);
     return i < 0 ? '' : hijack.slice(i, hijack.indexOf('\n    }', i));
@@ -29,13 +31,12 @@ describe('픽커 상세 대기 타이머 — 한 곳 (#124)', () => {
 
     it('🔴 거는 곳은 상세 화면 처리 한 곳 — 알람이 카드를 누르는 자리에는 없다', () => {
         // 부르는 곳만 센다 — 함수 정의 줄(`fun scheduleDetailBack()`)은 빼고
-        expect(countOf(/(?<!fun )\bscheduleDetailBack\(\)/g)).toBe(1);
+        expect(countOf(/(?<!fun ScanContext\.|override fun |fun )\bscheduleDetailBack\(\)/g)).toBe(1);
         const alarm = hijack.indexOf('🚪 [알람 상세]');
         const alarmBlock = hijack.slice(alarm, hijack.indexOf('} else if', alarm));
         expect(alarm).toBeGreaterThan(-1);
         expect(alarmBlock).not.toMatch(/DetailBack\(\)/);
-        const detailBranch = hijack.slice(hijack.indexOf('ScreenContext.DETAIL_PRE_CONFIRM -> {'));
-        expect(detailBranch.slice(0, 1500)).toMatch(/scheduleDetailBack\(\)/);
+        expect(sequence).toMatch(/handlePreConfirmScreen[\s\S]*?scheduleDetailBack\(\)/);
     });
 
     it('🔴 끄는 곳은 세션을 비우는 한 곳 — «상세 → 리스트» 한 경우에만 끄지 않는다', () => {
@@ -45,7 +46,7 @@ describe('픽커 상세 대기 타이머 — 한 곳 (#124)', () => {
     });
 
     it('🔴 모드를 가리지 않는다 — 알람일 때만 돌아오지 않는다', () => {
-        const fn = bodyOf('private fun scheduleDetailBack()');
+        const fn = bodyOf('override fun scheduleDetailBack()') || bodyOf('private fun scheduleDetailBack()');
         expect(fn.length).toBeGreaterThan(0);
         expect(fn).not.toMatch(/currentMode\s*==\s*"ALARM"/);
     });

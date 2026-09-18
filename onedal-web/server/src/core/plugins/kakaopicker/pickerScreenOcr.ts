@@ -68,6 +68,20 @@ const HEAD_RE = /^(픽업|배송)\s*([0-9]+(?:\.[0-9]+)?)\s*km/;
 const TIME_RE = /^(오늘|내일|모레)?\s*([0-9]{1,2}:[0-9]{2})$/;
 
 /**
+ * `10:00까지 픽업` · `12:39까지 배송` — **오늘 콜**은 시각이 이 꼴로 온다 (2026-09-19 A24 실측).
+ * 🔴 이 줄을 시각으로 안 보면 **건물명 자리에 들어간다** — 첫 판에서 그랬다.
+ */
+const DEADLINE_RE = /^([0-9]{1,2}:[0-9]{2}까지)\s*(픽업|배송)$/;
+
+/** 시각 줄이면 화면에 적힌 시각 그대로(`내일 15:00` · `10:00까지`), 아니면 null */
+function timeOf(text: string): string | null {
+    const t = TIME_RE.exec(text);
+    if (t) return t[0].trim();
+    const d = DEADLINE_RE.exec(text);
+    return d ? d[1] : null;
+}
+
+/**
  * OCR 이 줄 앞에 붙이는 불릿(`•`·`·`·`*`)과 군더더기를 턴다.
  * ⚠️ 한글·숫자·영문이 나오는 첫 자리부터 남긴다 — 가운뎃점은 주소 안에 안 쓰인다.
  */
@@ -140,13 +154,13 @@ function readStop(
     const admin = block.find(l => isAdminLine(l.text))?.text ?? null;
     if (!admin) return null;
 
-    const at = block.map(l => TIME_RE.exec(l.text)).find(m => m)?.[0]?.trim() ?? null;
+    const at = block.map(l => timeOf(l.text)).find(t => t != null) ?? null;
 
     /* 건물명 — 머리·행정동·시각을 뺀 나머지 첫 줄 */
     const place = block.find(l =>
         l.text !== admin
         && !HEAD_RE.test(l.text)
-        && !TIME_RE.test(l.text),
+        && timeOf(l.text) == null,
     )?.text ?? null;
 
     return { admin, place, straightKm: head.km, at };

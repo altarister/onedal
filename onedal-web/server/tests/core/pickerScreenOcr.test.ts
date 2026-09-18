@@ -169,3 +169,42 @@ describe('픽커 상세를 그림으로 읽는다', () => {
         expect(r.dropoff.place).toBe('더에스엠씨그룹');
     });
 });
+
+/**
+ * 🔬 실측 2 — 2026-09-19 A24 · 폰 안 ML Kit 출력 그대로 (아래 60% 를 540폭으로 자른 판).
+ *    09-13 판과 다른 점: **오늘 콜**이라 시각이 「10:00까지 픽업」·「12:39까지 배송」 줄로 온다.
+ *    첫 판에서는 이 줄이 시각으로 안 잡혀 **건물명 자리에 「10:00까지 픽업」이 들어가고 시각은 null** 이었다.
+ */
+const 실물_광남1동_남한산성면: OcrLine[] = [
+    { y: 31, text: '퀵 반나절 예약' },
+    { y: 94, text: '오늘 10:00 픽업예약' },
+    { y: 190, text: '픽업 5.0km' },
+    { y: 193, text: '경기 광주시 광남1동' },
+    { y: 222, text: '10:00까지 픽업' },
+    { y: 235, text: '온미' },
+    { y: 283, text: '경기 광주시 남한산성면' },
+    { y: 285, text: '배송 10.8km' },
+    { y: 315, text: '12:39까지 배송' },
+    { y: 328, text: '산성달숨' },                      // 상호를 헛읽은 것 — 그대로 둔다
+    { y: 428, text: '물품 정보' },
+    { y: 429, text: '중형 세 변의 합 140cm. 20kg 이하' },
+    { y: 565, text: '넘기기' },
+    { y: 567, text: '수락하기' },
+];
+
+describe('픽커 상세 — 오늘 콜의 「HH:MM까지 픽업」 줄 (2026-09-19 A24 실측)', () => {
+    it('시각은 「10:00까지」로 읽히고 건물명 자리에 새지 않는다', () => {
+        const r = parsePickerDetailOcr(실물_광남1동_남한산성면)!;
+        expect(r).not.toBeNull();
+        expect(r.pickup.admin).toBe('경기 광주시 광남1동');
+        expect(r.pickup.at).toBe('10:00까지');
+        expect(r.pickup.place).toBe('온미');
+        expect(r.dropoff.admin).toBe('경기 광주시 남한산성면');
+        expect(r.dropoff.at).toBe('12:39까지');
+        expect(r.dropoff.place).toBe('산성달숨');
+        expect(r.pickup.straightKm).toBe(5.0);
+        expect(r.dropoff.straightKm).toBe(10.8);
+        expect(r.reserved).toBe(true);
+        expect(r.itemSize).toBe('중형 세 변의 합 140cm. 20kg 이하');
+    });
+});

@@ -879,4 +879,25 @@ db.exec(`
     )
 `);
 
+// ═══════════════════════════════════════
+// 📸 이상 징후 (스냅샷 검증 실패 및 배차망 UI 변경 텔레메트리)
+// ═══════════════════════════════════════
+db.exec(`
+    CREATE TABLE IF NOT EXISTS telemetry_anomalies (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp          TEXT NOT NULL,
+        device_id          TEXT NOT NULL,
+        target_app         TEXT NOT NULL,
+        screen_name        TEXT,
+        failure_reason     TEXT NOT NULL,
+        list_order_info    TEXT,
+        detail_parsed_text TEXT,
+        ocr_result         TEXT,
+        screenshot_path    TEXT,
+        created_at         TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_telemetry_anomalies_target ON telemetry_anomalies(target_app, created_at)`);
+
 export default db;
+

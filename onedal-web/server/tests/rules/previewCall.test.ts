@@ -51,7 +51,7 @@ const sliceFn = (src: string, name: string): string => {
     return next < 0 ? rest : rest.slice(0, next);
 };
 
-const SEQUENCE_FILES = ['HijackService.kt', 'plugins/insung/InsungSequence.kt'];
+const SEQUENCE_FILES = ['HijackService.kt', 'plugins/insung/InsungSequence.kt', 'core/engine/PreConfirmSequence.kt'];
 const app = (p: string) => (p === 'HijackService.kt' ? SEQUENCE_FILES : [p])
     .map(f => readFileSync(join(APP, f), 'utf8')).join('\n');
 /** 주석은 검사에서 뺀다 — "이렇게 하자"고 적어 둔 글이 구현으로 세어지면 안 된다 */
@@ -247,14 +247,14 @@ describe('💸 미리보기 — 필터 밖이라 단가를 다시 본다 (A안)'
 describe('🏄 상세 수집 — 손으로 연 상세는 읽고 나서 올린다', () => {
     it('🔴 확정 전 상세에서도 상세 수집을 시작한다', () => {
         const src = code(app('HijackService.kt'));
-        // handlePreConfirmScreen 안에서 상세 수집을 거는 자리가 있어야 한다
-        const fn = sliceFn(src, 'handlePreConfirmScreen');
+        // handlePreConfirmScreen 및 인성 집행부 안에서 상세 수집을 거는 자리가 있어야 한다
+        const fn = sliceFn(src, 'handlePreConfirmScreen') + '\n' + sliceFn(src, 'handleInsungPreConfirmExecution');
         expect(fn).toMatch(/startCollect|surfPreConfirm/);
     });
 
     it('🔴 필터콜(앱이 누른 것)은 지금 그대로 — 광클을 늦추지 않는다', () => {
         const src = code(app('HijackService.kt'));
-        const fn = sliceFn(src, 'handlePreConfirmScreen');
+        const fn = sliceFn(src, 'handlePreConfirmScreen') + '\n' + sliceFn(src, 'handleInsungPreConfirmExecution');
         // 상세 수집은 isAutoActive == false 인 갈래에서만 걸린다
         expect(fn).toMatch(/!session\.isAutoActive/);
     });
