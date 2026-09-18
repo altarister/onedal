@@ -20,13 +20,10 @@ import com.onedal.app.plugins.kakaopicker.PickerScreenOcr
 import java.util.concurrent.Executors
 
 /**
- * 📷 **화면을 찍어 글자로 읽는다** — 접근성 스크린샷(API 30↑) → 540폭 축소 → 온디바이스 한국어 인식.
+ * 📷 **픽커 상세 화면 스냅샷 OCR 판독기** — 접근성 스크린샷(API 30↑) → 540폭 축소 → 온디바이스 한국어 인식.
  *
- * 왜 폰에서 읽나: 픽커 상세는 접근성 트리에 배송지가 안 온다. 서버로 그림을 보내 읽으면 왕복만으로
- * 0.5초를 넘긴다(기사님 지시 «폰에서 0.5초 안에»). 그래서 인식 모델을 앱에 번들로 넣는다.
- *
- * 🔴 지금은 **시험용**이다 — 설정 화면 버튼이 부르고, 단계별 ms 를 로그·화면에 적는다.
- *    콜 흐름(대조·뒤로가기)에는 아직 안 물려 있다. 0.5초가 나오는지 이 폰(A24)에서 먼저 잰다.
+ * PreConfirmSequence에서 호출되어 픽커 상세 진입 시 리스트 카드와 정합성을 대조 검증하고,
+ * 손으로 연 상세(alarmTappedCard == null)는 OCR 결과를 단독 원천으로 콜을 구제한다 (#119 수호).
  *
  * 시스템 제한: 접근성 스크린샷은 0.33초에 한 번만 허용된다 — 상세 한 장에 한 번이라 걸리지 않는다.
  */
@@ -36,8 +33,40 @@ class ScreenReader(private val service: AccessibilityService) {
         private const val TAG = "1DAL_OCR"
         /** 9월 13일 실측과 같은 폭 — 그 문제지의 y 간격이 이 폭 기준이다 */
         const val TARGET_WIDTH = 540
-        /** ⏱️ 상세 화면 진입 후 접근성 이벤트 정지 확인 유휴 시간 (규칙 ⑤-4) */
+        /** ⏱️ 상세 화면 진입 후 픽커 UI 애니메이션 멈춤 대기 (150ms) */
         const val DETAIL_STABILIZE_IDLE_MS = 150L
+
+        /**
+         * 🎯 카드 주소와 OCR 행정동 대조: 마지막 토막(동/읍/면)이 반드시 행정동에 포함되어야 한다.
+         * (예: "분당 야탑3" → "야탑3"이 "경기 성남시 분당구 야탑3동"에 포함됨)
+         * 앞선 구 이름("분당")만으로 이웃 동("이매1동")이 오판 통과되는 것을 방어한다.
+         */
+        fun matchDong(cardText: String, adminText: String): Boolean {
+            val tokens = cardText.split(' ', '·').map { it.trim() }.filter { it.length >= 2 }
+            if (tokens.isEmpty()) return true
+            val lastToken = tokens.last()
+            val cleanDong = lastToken.removeSuffix("동").removeSuffix("읍").removeSuffix("면").removeSuffix("리")
+            return if (cleanDong.length >= 2) {
+                adminText.contains(cleanDong, ignoreCase = true)
+            } else {
+                adminText.contains(lastToken, ignoreCase = true)
+            }
+        }
+
+        /**
+         * 💰 화면 텍스트에서 요금(예: "9,693P", "9693P", "15,000원") 추출
+         */
+        fun extractFareFromTexts(texts: List<String>): Int {
+            val fareRe = Regex("([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{3,})\\s*(?:P|p|원)")
+            for (text in texts) {
+                val match = fareRe.find(text)
+                if (match != null) {
+                    val num = match.groupValues[1].replace(",", "").toIntOrNull()
+                    if (num != null && num > 0) return num
+                }
+            }
+            return 0
+        }
     }
 
     data class StageMs(
@@ -72,12 +101,14 @@ class ScreenReader(private val service: AccessibilityService) {
     /**
      * 📷 **픽커 상세 화면을 찍어 읽고 검증한다** (공통 관문 PreConfirmSequence 연동).
      *
-     * - 알람 콜(alarmTappedCard != null): 리스트 기억 카드와 동 이름을 대조 (contains). 일치 시 정상 오더, 불일치 시 onMismatch.
-     * - 수동 콜(alarmTappedCard == null): OCR 판독 결과 자체가 화면 실물의 유일한 원천 (#119). OCR 결과로 새 오더 조립.
+     * - 알람 콜(alarmTappedCard != null): 리스트 기억 카드와 동 이름을 엄격 대조 (matchDong). 일치 시 정상 오더, 불일치 시 onMismatch.
+     * - 수동 콜(alarmTappedCard == null): 리스트 매칭 카드로 요금을 살리고 OCR 결과로 주소 채움 (#119).
      * - 판독 실패(null): onParseFailed (콜 증발 방지 및 폴백용).
      */
     fun readAndVerifyPickerDetail(
         alarmTappedCard: SimplifiedOfficeOrder?,
+        matchedListOrder: SimplifiedOfficeOrder? = null,
+        screenTexts: List<String> = emptyList(),
         rawScreenStr: String,
         onSuccess: (order: SimplifiedOfficeOrder, detail: PickerDetailFromImage) -> Unit,
         onMismatch: (reason: String, detail: PickerDetailFromImage?, lines: List<OcrLine>) -> Unit,
@@ -123,12 +154,9 @@ class ScreenReader(private val service: AccessibilityService) {
                         }
 
                         if (alarmTappedCard != null) {
-                            // 🎯 [알람 콜] 리스트에서 누른 카드와 대조
-                            val pickupTokens = alarmTappedCard.pickup.split(' ', '·').map { it.trim() }.filter { it.length >= 2 }
-                            val dropoffTokens = alarmTappedCard.dropoff.split(' ', '·').map { it.trim() }.filter { it.length >= 2 }
-
-                            val pickupMatch = pickupTokens.isEmpty() || pickupTokens.any { parsed.pickup.admin.contains(it) || it.contains(parsed.pickup.admin) }
-                            val dropoffMatch = dropoffTokens.isEmpty() || dropoffTokens.any { parsed.dropoff.admin.contains(it) || it.contains(parsed.dropoff.admin) }
+                            // 🎯 [알람 콜] 리스트에서 누른 카드와 마지막 토막(동) 엄격 대조
+                            val pickupMatch = matchDong(alarmTappedCard.pickup, parsed.pickup.admin)
+                            val dropoffMatch = matchDong(alarmTappedCard.dropoff, parsed.dropoff.admin)
 
                             if (pickupMatch && dropoffMatch) {
                                 AppLogger.i(TAG, "🎯 [스냅샷 대조 일치] 알람 카드와 일치: ${parsed.pickup.admin} → ${parsed.dropoff.admin}")
@@ -145,17 +173,32 @@ class ScreenReader(private val service: AccessibilityService) {
                                 onMismatch(reason, parsed, lines)
                             }
                         } else {
-                            // 🖐️ [손으로 연 상세] 대조 카드가 없으므로 OCR 판독 결과 자체가 유일한 원천 (#119)
-                            AppLogger.i(TAG, "🖐️ [손으로 연 상세] OCR 결과로 오더 조립: ${parsed.pickup.admin} → ${parsed.dropoff.admin}")
+                            // 🖐️ [손으로 연 상세] 리스트 매칭 카드로 요금을 살리고 OCR 결과로 주소 채움 (#119)
+                            val baseOrder = matchedListOrder
+                            val resolvedFare = baseOrder?.fare?.takeIf { it > 0 } ?: extractFareFromTexts(screenTexts)
+
+                            AppLogger.i(TAG, "🖐️ [손으로 연 상세] OCR 결과로 오더 조립: ${parsed.pickup.admin} → ${parsed.dropoff.admin} (요금: ${resolvedFare}원)")
                             val now = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
                                 timeZone = java.util.TimeZone.getTimeZone("UTC")
                             }.format(java.util.Date())
-                            val manualOrder = SimplifiedOfficeOrder(
+
+                            val manualOrder = baseOrder?.copy(
+                                id = baseOrder.id.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
+                                type = "MANUAL_CLICK",
+                                pickup = parsed.pickup.admin,
+                                dropoff = parsed.dropoff.admin,
+                                fare = resolvedFare,
+                                timestamp = now,
+                                rawText = rawScreenStr,
+                                itemSize = parsed.itemSize ?: baseOrder.itemSize,
+                                vehicleType = KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE,
+                                tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ")
+                            ) ?: SimplifiedOfficeOrder(
                                 id = "MANUAL-${System.currentTimeMillis()}",
                                 type = "MANUAL_CLICK",
                                 pickup = parsed.pickup.admin,
                                 dropoff = parsed.dropoff.admin,
-                                fare = 0,
+                                fare = resolvedFare,
                                 timestamp = now,
                                 rawText = rawScreenStr,
                                 itemSize = parsed.itemSize,

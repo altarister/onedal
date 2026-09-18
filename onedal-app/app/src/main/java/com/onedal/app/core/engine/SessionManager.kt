@@ -105,6 +105,9 @@ class SessionManager {
      */
     var isPreview: Boolean = false
 
+    /** 📸 픽커 상세 화면 스냅샷 OCR 판독 진행 중 여부 (중복 트리거 및 0.33초 제한 방어) */
+    var isVerifyingSnapshot: Boolean = false
+
     // ── CollectState enum ──
     enum class CollectState {
         IDLE,
@@ -151,6 +154,7 @@ class SessionManager {
         isWaitingForDecision = false
         cautionAction = null
         isPreview = false
+        isVerifyingSnapshot = false
         onReset?.invoke()
         AppLogger.roadmap("🔄 세션 및 콜 잡기 상태 완전 초기화 (새로운 타겟 대기)", "SESSION")
         AppLogger.i(TAG, "🔄 세션 상태 완전 초기화")

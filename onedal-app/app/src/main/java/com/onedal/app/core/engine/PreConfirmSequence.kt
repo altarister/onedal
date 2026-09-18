@@ -4,6 +4,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.ScreenReader
 import com.onedal.app.core.TargetApp
+import com.onedal.app.models.ScreenContext
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.insung.handleInsungPreConfirmExecution
 import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
@@ -48,7 +49,7 @@ fun ScanContext.handlePreConfirmScreen(
     }
 
     // 📸 [카카오픽커 분기] 픽커는 접근성 트리에 배송지가 오지 않으므로, 화면 스냅샷 OCR로 판독한다 (스냅샷 계획 3·7단계)
-    if (currentTargetApp == "kakaopicker") {
+    if (currentTargetApp == TargetApp.KAKAOPICKER) {
         handlePickerPreConfirmSnapshot(rootNode, screenTexts, rawScreenStr)
         return
     }
@@ -141,10 +142,15 @@ fun ScanContext.handlePreConfirmScreen(
 
 /**
  * 🚪 상세 화면 회피 복귀 및 세션 초기화 (콜의 끝).
- * 뒤로가기 수행 후 세션을 정리하여 불완전한 상태가 다음 콜에 남지 않게 한다.
+ * 현재 화면이 여전히 상세 화면일 때만 뒤로가기를 집행하여 리스트 화면 오클릭을 방지한다.
  */
 private fun ScanContext.abortPreConfirm(action: (() -> Unit)? = null) {
-    action?.invoke() ?: touchManager.performBack()
+    session.isVerifyingSnapshot = false
+    if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
+        action?.invoke() ?: touchManager.performBack()
+    } else {
+        AppLogger.i(TAG, "🚪 [회피 복귀 생략] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
+    }
     AppLogger.roadmap("리스트 페이지 진입 (회피 복귀)", telemetryManager.currentScreenContext.name)
     resetSessionState()
 }
@@ -153,8 +159,8 @@ private fun ScanContext.abortPreConfirm(action: (() -> Unit)? = null) {
  * 📸 **픽커 상세 스냅샷 검증 및 처리** (기획서 3·7단계 및 버그 대장 #119 수호).
  *
  * 1. 150ms 유휴 대기(DETAIL_STABILIZE_IDLE_MS) 후 화면 멈춤 상태에서 스냅샷 캡처 및 OCR 판독.
- * 2. 알람 콜(`alarmTappedCard != null`): 리스트 기억 카드와 대조하여 일치 시 정상 전송, 불일치 시 이상 징후 보고 후 뒤로가기.
- * 3. 수동 콜(`alarmTappedCard == null`): 대조 카드가 없으므로 OCR 판독 결과로 오더를 조립하여 정상 전송 (손으로 연 콜 구제).
+ * 2. 알람 콜(`alarmTappedCard != null`): 리스트 기억 카드와 동 토막을 엄격 대조하여 일치 시 정상 전송, 불일치 시 이상 징후 보고 후 뒤로가기.
+ * 3. 수동 콜(`alarmTappedCard == null`): 리스트 매칭 카드로 요금을 살리고 OCR 결과로 오더를 조립하여 정상 전송 (손으로 연 콜 구제).
  * 4. 판독 실패(null) 시: 이상 징후 보고 후, 탭 카드가 있으면 카드 정보로 폴백 전송하여 콜 증발 방지.
  */
 private fun ScanContext.handlePickerPreConfirmSnapshot(
@@ -162,19 +168,33 @@ private fun ScanContext.handlePickerPreConfirmSnapshot(
     screenTexts: List<String>,
     rawScreenStr: String
 ) {
+    if (session.isVerifyingSnapshot) {
+        AppLogger.d(TAG, "📸 [스냅샷 중복 진입 방어] 이미 OCR 판독 진행 중")
+        return
+    }
+    session.isVerifyingSnapshot = true
+
     val opener = KakaoPickerKeywords.detailOpener(
         session.alarmTappedAtMs,
         android.os.SystemClock.elapsedRealtime()
     )
     val tappedCard = session.alarmTappedCard?.takeIf { opener == KakaoPickerKeywords.OPENER_ALARM }
+    val matchedListCard = scrapParser.matchDetailOrder(screenTexts, recentListOrders)
 
     mainHandler.postDelayed({
         screenReader.readAndVerifyPickerDetail(
             alarmTappedCard = tappedCard,
+            matchedListOrder = matchedListCard,
+            screenTexts = screenTexts,
             rawScreenStr = rawScreenStr,
             onSuccess = { verifiedOrder, detail ->
                 mainHandler.post {
+                    session.isVerifyingSnapshot = false
                     if (session.isDetailScrapSent) return@post
+                    if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
+                        AppLogger.w(TAG, "📸 [스냅샷 성공 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
+                        return@post
+                    }
                     ensureSessionId()
                     val orderWithId = verifiedOrder.copy(
                         id = session.currentOrderId.ifEmpty { verifiedOrder.id }
@@ -218,8 +238,9 @@ private fun ScanContext.handlePickerPreConfirmSnapshot(
                     )
 
                     // 콜 증발 방지: 탭 카드가 있으면 카드 정보로 폴백
-                    val fallbackOrder = tappedCard ?: scrapParser.matchDetailOrder(screenTexts, recentListOrders)
+                    val fallbackOrder = tappedCard ?: matchedListCard
                     if (fallbackOrder != null) {
+                        session.isVerifyingSnapshot = false
                         ensureSessionId()
                         val orderWithId = fallbackOrder.copy(
                             id = session.currentOrderId.ifEmpty { fallbackOrder.id },
@@ -239,8 +260,9 @@ private fun ScanContext.handlePickerPreConfirmSnapshot(
             onError = { error ->
                 mainHandler.post {
                     AppLogger.e(TAG, "❌ [스냅샷 에러] $error")
-                    val fallbackOrder = tappedCard ?: scrapParser.matchDetailOrder(screenTexts, recentListOrders)
+                    val fallbackOrder = tappedCard ?: matchedListCard
                     if (fallbackOrder != null) {
+                        session.isVerifyingSnapshot = false
                         ensureSessionId()
                         val orderWithId = fallbackOrder.copy(
                             id = session.currentOrderId.ifEmpty { fallbackOrder.id },
