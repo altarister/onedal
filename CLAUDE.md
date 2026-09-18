@@ -133,6 +133,8 @@
 | 서버 낱말 사전 `onedal-web/server/config/keywords_*.json` | 🟡 앱 `FALLBACK_NOISE_WORDS` (일부러 일부만) |
 | 배차망 이름 | 🟡 `TargetApp.kt` · [todo.md](todo.md) 자리 목록 |
 | DB 스키마 · `onedal-web/shared/` | 🟡 기존 DB 사본으로 부팅 (빈 DB 는 문제를 숨긴다) · 빈 DB 로도 부팅 |
+| 픽커 상세 화면 OCR 파서 | 🟡 앱 `PickerScreenOcr.kt` ↔ 서버 `pickerScreenOcr.ts` (두 검사가 같은 문제지를 문다) |
+
 
 ## 도메인 용어
 
