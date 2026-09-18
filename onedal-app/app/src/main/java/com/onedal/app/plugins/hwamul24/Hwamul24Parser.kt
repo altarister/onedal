@@ -490,4 +490,9 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
      *    성적표와 같은 분기를 써야 «성적표는 요금, 화면은 지역»으로 갈라지지 않는다.
      */
     override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder = order
+
+    override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
+        val tempOrder = parse(screenTexts)
+        return recentOrders.reversed().find { it.fare > 0 && it.fare == tempOrder.fare }
+    }
 }

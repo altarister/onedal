@@ -347,3 +347,32 @@ describe('#147 비어 있는 「나」 건너뛰기 — 손으로 끌 때', () =
         expect(r.snap).toBe('list');
     });
 });
+
+/**
+ * 🔍 **필터 열림 우선순위 — 판정(1순위) > 필터(2순위) > 주행/정차(3순위)**
+ */
+describe('🔍 필터 열림 우선순위 — 판정(1순위) > 필터(2순위) > 주행/정차(3순위)', () => {
+    it('판정이 없을 때 필터가 열리면 시트를 엿보기(peek)로 내려 지도를 확보한다', () => {
+        const r = tick(initialStageMemory(), sig({ filterOpen: true, calls: 2, drive: 'idle' }));
+        expect(r.snap).toBe('peek');
+        expect(r.reason).toBe('필터열림');
+    });
+
+    it('👑 판정 중이면 필터가 열려 있어도 판정이 최우선으로 이겨 「나」(list)에 선다', () => {
+        const r = tick(initialStageMemory(), sig({ filterOpen: true, judging: true, snap: 'peek' }));
+        expect(r.snap).toBe('list');
+        expect(r.reason).toBe('판정중');
+    });
+
+    it('필터가 열려 있어도 새 판정 이벤트(judge)가 뜨면 즉시 결재석(list)으로 올라온다', () => {
+        const r = stageStep(initialStageMemory(), sig({ filterOpen: true, judging: true, snap: 'peek' }), { type: 'judge' });
+        expect(r.snap).toBe('list');
+        expect(r.reason).toBe('판정중');
+    });
+
+    it('필터가 닫히면 평소 정차 규칙에 따라 「나」(list)로 복귀한다', () => {
+        const r = tick(initialStageMemory(), sig({ filterOpen: false, calls: 2, drive: 'idle' }));
+        expect(r.snap).toBe('list');
+        expect(r.reason).toBe('정차');
+    });
+});

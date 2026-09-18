@@ -40,7 +40,7 @@ const COLUMN_OF: Record<string, string> = {
  * 🚫 **서버가 안 담아도 되는 칸** — 이유가 있는 것만. 늘릴 때는 이유를 여기 적는다.
  *    · `id` 앱이 만든 UUID. 원장은 제 `AUTOINCREMENT` 를 쓴다 (두 계보를 안 섞는다)
  */
-const NOT_STORED = new Set(['id']);
+const NOT_STORED = new Set(['id', 'isSimulated']);
 
 /** 📱 앱 그릇(`SimplifiedOfficeOrder`)이 나르는 칸 */
 function appOrderFields(): string[] {

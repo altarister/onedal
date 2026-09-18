@@ -21,8 +21,8 @@ const read = (abs: string) => readFileSync(abs, 'utf8');
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 const hijack = codeOnly(read(join(APP, 'HijackService.kt')));
-const seq = codeOnly(read(join(APP, 'plugins/kakaopicker/KakaoPickerSequence.kt')));
-const previewFn = seq.slice(seq.indexOf('fun ScanContext.sendPickerPreview'), seq.indexOf('fun ScanContext.reportPickerAccepted'));
+const preConfirmSeq = codeOnly(read(join(APP, 'core/engine/PreConfirmSequence.kt')));
+const pickerParser = codeOnly(read(join(APP, 'plugins/kakaopicker/KakaoPickerParser.kt')));
 
 describe('픽커 상세 — 카드 찾기는 한 곳 (#119)', () => {
 
@@ -36,16 +36,16 @@ describe('픽커 상세 — 카드 찾기는 한 곳 (#119)', () => {
     });
 
     it('🔴 미리보기는 리스트 카드를 찾는 함수 하나를 거친다', () => {
-        expect(previewFn.length).toBeGreaterThan(0);
-        expect(previewFn).toMatch(/KakaoPickerParser\.matchListCard\(/);
+        expect(preConfirmSeq).toMatch(/scrapParser\.matchDetailOrder\(/);
+        expect(pickerParser).toMatch(/matchListCard\(screenTexts,\s*recentOrders\)/);
     });
 });
 
 describe('픽커 상세 — 미리보기도 판정까지 간다 (#119)', () => {
 
     it('🔴 첫 보고 뒤 둘째 보고까지 보낸다 — 서버는 둘째 보고가 와야 경로를 찾는다', () => {
-        const confirm = previewFn.indexOf('sendConfirmOnce(');
-        const detail = previewFn.indexOf('sendDetail(');
+        const confirm = preConfirmSeq.indexOf('sendConfirmOnce(');
+        const detail = preConfirmSeq.indexOf('sendDetail(');
         expect(confirm).toBeGreaterThan(-1);
         expect(detail).toBeGreaterThan(confirm);
     });

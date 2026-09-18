@@ -93,6 +93,12 @@ class AutoTouchManager(private val service: AccessibilityService) {
         // 🔒 잠금은 **미루는 길에서만** 세운다 — 바로 찍기가 세우면 뒤따르는 미룬 예약이 애꿎게 막힌다
         if (delayMs > 0L) pendingTapAtMs = now
 
+        val showMarkerPref = try {
+            service.getSharedPreferences("OneDalPrefs", android.content.Context.MODE_PRIVATE)
+                .getBoolean("showTapMarker", false)
+        } catch (_: Exception) { false }
+        val shouldMark = mark && showMarkerPref
+
         /**
          * 🔴 **보내는 순간에 남긴다** — 아래 `onCompleted` 는 **2~4초 늦게** 온다
          *    (09-13 실측: 12:00:10.387 에 보낸 것이 12:00:12.676 에 찍혔다). 콜백이
@@ -104,13 +110,14 @@ class AutoTouchManager(private val service: AccessibilityService) {
             /**
              * 👁️ **누른 다음에 점을 찍는다** (기사님 지시) — 누르기가 먼저라 동작이 안 늦는다.
              * 점은 «다음에 깨어날 때» 지워지므로(`TapMarker`), 폰이 멈춰 있던 만큼만 남는다.
+             * 🔒 설정의 «터치 위치 표시» 스위치가 켜져 있을 때만 그린다.
              */
-            if (mark) tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
+            if (shouldMark) tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
             return fired
         }
 
         // 👁️ 미뤘다 찍는 길에서만 점을 **먼저** 보여 준다 — 기다리는 것 자체가 그 길의 뜻이다
-        if (mark) tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
+        if (shouldMark) tapMarker.show(x.toInt(), y.toInt(), node.text?.toString() ?: node.contentDescription?.toString())
 
         /**
          * ⏳ **자국을 먼저 보여 주고 미뤘다 찍는다** (기사님 지시 — «영역이 보이고 1초 후 클릭»).
@@ -125,7 +132,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
             val elapsed = if (pendingTapAtMs > 0L) android.os.SystemClock.elapsedRealtime() - pendingTapAtMs else delayMs
             pendingTapAtMs = 0L        // 🔓 찍든 못 찍든 여기서 잠금을 푼다 — 다음 알람이 걸릴 수 있게
             // 🧹 자국은 여기서 걷는다 — 보여 줄 만큼 보여 줬고, 찍는 순간 화면이 깨끗해야 한다
-            tapMarker.hide()
+            if (shouldMark) tapMarker.hide()
             /**
              * 🐢 **너무 늦게 깨어났으면 쏘지 않는다** (`TapShift.wokeTooLate`).
              * 폰이 바쁘면 예약이 몇 초씩 밀린다 — 그사이 목록이 바뀌면 **다른 카드를 찍는다.**
@@ -141,7 +148,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
             val newX = if (alive) tapXOf(node, again, leftShiftPx, tapRowLeft) else null
             val newY = if (alive) again.centerY() else null
             // 🧹 자국은 여기서 걷는다 — 보여 줄 만큼 보여 줬고, 찍는 순간 화면이 깨끗해야 한다
-            tapMarker.hide()
+            if (shouldMark) tapMarker.hide()
             if (TapShift.sameSpot(x.toInt(), y.toInt(), newX, newY)) {
                 AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) — ${delayMs}ms 미룬 뒤 자리 그대로")
                 fireTap(x, y)
@@ -226,7 +233,14 @@ class AutoTouchManager(private val service: AccessibilityService) {
         targetText: String,
         isStartsWith: Boolean = false,
         mark: Boolean = true,
+        currentMode: String? = null,
     ): Boolean {
+        // 🛑 [체험 모드 하드락] 체험 모드일 때는 수락/확정 관련 텍스트 터치를 물리적으로 100% 원천 차단!
+        if (currentMode == "SIMULATION" && (targetText.contains("수락") || targetText.contains("확정") || targetText == "닫기")) {
+            AppLogger.e(TAG, "🛑 [체험 모드 절대 방어] '$targetText' 버튼 터치 시도가 감지되었으나 물리적으로 원천 차단(Block)되었습니다!")
+            return false
+        }
+
         val targetNode = findNodeByText(rootNode, targetText, isStartsWith)
         if (targetNode != null) {
             AppLogger.roadmap("'$targetText' 버튼 인식 ➡️ 클릭 시도", "")
@@ -274,10 +288,16 @@ class AutoTouchManager(private val service: AccessibilityService) {
         /**
          * 👁️ **뒤로 가기에도 자국을 남긴다** (기사님 지시 — 앱이 한 짓은 배차망을 가리지 않고 다 보여야 한다).
          * 찍는 좌표가 없는 길이라 **화면 아래 가운데**에 띄운다.
-         * 🔴 뒤로 가기를 부르는 자리는 여기 하나로 모은다 — 갈라지면 어느 한쪽만 자국이 남는다.
+         * 🔴 설정의 «터치 위치 표시» 스위치가 켜져 있을 때만 그린다.
          */
-        val dm = service.resources.displayMetrics
-        tapMarker.show(dm.widthPixels / 2, dm.heightPixels - TapMarker.RADIUS_PX * 3, why, action = "뒤로")
+        val showMarkerPref = try {
+            service.getSharedPreferences("OneDalPrefs", android.content.Context.MODE_PRIVATE)
+                .getBoolean("showTapMarker", false)
+        } catch (_: Exception) { false }
+        if (showMarkerPref) {
+            val dm = service.resources.displayMetrics
+            tapMarker.show(dm.widthPixels / 2, dm.heightPixels - TapMarker.RADIUS_PX * 3, why, action = "뒤로")
+        }
 
         val dispatched = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
         if (dispatched) {

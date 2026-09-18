@@ -49,6 +49,8 @@ enum class ScreenContext(val value: String) {
      */
     MY_ORDERS("MY_ORDERS"),                    // 📋 픽커 내 오더 탭 — 🔴 리스트 계열이 아니다 (리스트 복귀로 읽으면 승격이 막힌다)
     HOME("HOME"),                              // 🏠 배차망 홈
+    LAUNCHER("LAUNCHER"),                      // 📱 스마트폰 홈 런처 (바탕화면)
+    OTHER_APP("OTHER_APP"),                    // 📱 배차망 외 기타 일반 앱 (네비, 유튜브 등)
     UNKNOWN("UNKNOWN");                        // 알 수 없는 화면
 }
 
@@ -119,7 +121,8 @@ data class SimplifiedOfficeOrder(
      * ⚠️ **못 정하면 `null`** 이다 — 구필터·값 없음. 화면은 그걸 «못 잼»으로 그린다
      *    (규칙 ④: 지어내지 않는다).
      */
-    val verdict: String? = null
+    val verdict: String? = null,
+    val isSimulated: Boolean? = null
 )
 
 // ────────────────────────────────────────────────

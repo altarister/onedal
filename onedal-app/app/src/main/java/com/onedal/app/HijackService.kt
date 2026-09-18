@@ -10,9 +10,8 @@ import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
 import com.onedal.app.plugins.insung.InsungKeywords
 import com.onedal.app.plugins.insung.handleConfirmedScreen
 import com.onedal.app.plugins.kakaopicker.reportPickerAccepted
-import com.onedal.app.plugins.kakaopicker.sendPickerPreview
 import com.onedal.app.plugins.insung.handleMemoPopup
-import com.onedal.app.plugins.insung.handlePreConfirmScreen
+import com.onedal.app.core.engine.handlePreConfirmScreen
 import com.onedal.app.plugins.insung.buildOrderFromScreen
 import com.onedal.app.plugins.insung.isPopupResidue
 import com.onedal.app.plugins.insung.advanceCollect
@@ -205,7 +204,7 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     private var lastPickerStage: com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.Stage? = null
 
-    private fun scheduleDetailBack() {
+    override fun scheduleDetailBack() {
         if (detailBackRunnable != null) return            // 이미 걸려 있다 — 상세 글자가 바뀔 때마다 새로 걸지 않는다
         // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec · docs/지금/배차망별_대기_시간.md)
         val delayMs = com.onedal.app.core.engine.WaitTimes.pickerAlarmDetailMs(savedFilter())
@@ -215,9 +214,11 @@ class HijackService : AccessibilityService(), ScanContext {
         alarmTapAtMs = 0L
         detailBackOpener = opener
         detailBackArmedAtMs = now
-        AppLogger.i("1DAL_PICKER", "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 · 연 쪽: $opener")
+        telemetryManager.isWaitingDecision = true          // ⏱️ [1초 고속 무전] 상세에 머무는 동안 서버 판결(유지/취소)을 1초마다 물어본다
+        AppLogger.i("1DAL_PICKER", "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 (1초 주기 판결 수신 가동) · 연 쪽: $opener")
         val r = Runnable {
             detailBackRunnable = null
+            telemetryManager.isWaitingDecision = false
             // 아직 확정 전 상세에 있고, 잡기 수순이 없는 배차망(픽커)일 때만 나온다 — 모드는 가리지 않는다
             if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
                 && !TargetApp.supportsCatching(currentTargetApp)) {
@@ -239,6 +240,7 @@ class HijackService : AccessibilityService(), ScanContext {
             AppLogger.i("1DAL_PICKER", "⏹️ [상세 대기] 풀었다 — ${stayedSec}초 머묾 · 연 쪽: $detailBackOpener (콜 끝 · 리스트 복귀)")
         }
         detailBackRunnable = null
+        telemetryManager.isWaitingDecision = false         // ⏱️ 상세 대기 해제 시 1초 무전 종료
     }
     override lateinit var collectMachine: DetailCollectMachine
     override val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
@@ -378,8 +380,9 @@ class HijackService : AccessibilityService(), ScanContext {
         val firstScreen = rootInActiveWindow?.let { node ->
             val texts = mutableListOf<String>()
             gatherNodeTexts(node, texts)
+            val pkg = node.packageName?.toString()
             node.recycle()
-            detectScreenContext(texts.joinToString(" "))
+            detectScreenContext(texts.joinToString(" "), pkg)
         } ?: ScreenContext.UNKNOWN
         AppLogger.i(TAG, "🖥️ 붙는 순간 화면: $firstScreen")
         updateScreenContext(firstScreen)
@@ -439,7 +442,7 @@ class HijackService : AccessibilityService(), ScanContext {
     override fun onInterrupt() {
         telemetryManager.stop()
         cancelSafeCancelTimer()
-        apiClient.sendOffline() // 접근성 권한 해제 시 오프라인 통보
+        apiClient.sendOffline("ACCESSIBILITY_OFF") // 접근성 권한 해제 시 오프라인 통보 — 사유 명시
         AppLogger.roadmap("⚠️ 1DAL 서비스 일시 중지 (접근성 권한 해제)", "INTERRUPT")
         AppLogger.w(TAG, "⚠️ 1DAL Service Interrupted! (접근성 권한 일시 중지)")
     }
@@ -561,7 +564,7 @@ class HijackService : AccessibilityService(), ScanContext {
         if (screenDetector.isLoading(rawScreenStr, keywords)) { rootNode.recycle(); return }
 
         // 화면 종류 판별 및 서버(텔레메트리) 즉각 동기화
-        val detected = detectScreenContext(rawScreenStr)
+        val detected = detectScreenContext(rawScreenStr, rootNode.packageName?.toString())
         if (detected == ScreenContext.UNKNOWN) {
             AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자): ${rawScreenStr.take(300)}")
             /**
@@ -826,22 +829,7 @@ class HijackService : AccessibilityService(), ScanContext {
         // 화면별 핸들러 라우팅
         when (detected) {
             ScreenContext.LIST -> handleListScreen(rootNode, screenTexts)
-            ScreenContext.DETAIL_PRE_CONFIRM -> {
-                /**
-                 * 🚧 **배차망별로 갈라 보낸다** (2026-09-02 · 인성 수순을 폴더로 뺀 뒤).
-                 * 잡기 수순이 있는 배차망은 인성 수순으로, 없는 배차망(픽커)은
-                 * «읽고 미리보기만» 하는 길로. 예전에는 인성 함수 **안에** 픽커 분기가
-                 * 들어 있었다 — 그게 두 배차망이 한 자리에 섞여 있던 증거다.
-                 */
-                if (TargetApp.supportsCatching(currentTargetApp)) {
-                    handlePreConfirmScreen(rootNode, screenTexts, rawScreenStr)
-                } else {
-                    AppLogger.i("1DAL_PICKER", "📄 [상세 실물] ${screenTexts.joinToString(" | ").take(500)}")
-                    // ⏱️ 누가 열었든(알람·손) · 어느 모드든 — 상세 대기 시간 뒤 리스트로 돌아온다 (#124 · 기사님 확정)
-                    scheduleDetailBack()
-                    sendPickerPreview(rawScreenStr, screenTexts)
-                }
-            }
+            ScreenContext.DETAIL_PRE_CONFIRM -> handlePreConfirmScreen(rootNode, screenTexts, rawScreenStr)
             ScreenContext.DETAIL_CONFIRMED -> handleConfirmedScreen(rootNode, screenTexts, rawScreenStr)
             ScreenContext.POPUP_MEMO -> handleMemoPopup(rootNode, screenTexts)
             ScreenContext.POPUP_PICKUP -> handlePickupPopup(rootNode, screenTexts)
@@ -1031,15 +1019,12 @@ class HijackService : AccessibilityService(), ScanContext {
              * 서버 알람(관제웹 소리)과 같은 원리다. 여기서는 모으기만 하고, 루프 뒤에서
              * **요금 최고 하나만** 울린다 (동시 통과 3건 실측 — 마지막 콜이 이기던 것은 우연).
              */
-            if (!session.isAutoActive && telemetryManager.currentMode == "ALARM" && isTarget) {
+            if (!session.isAutoActive && (telemetryManager.currentMode == "ALARM" || (telemetryManager.currentMode == "SIMULATION" && !TargetApp.supportsCatching(currentTargetApp))) && isTarget) {
                 alarmHits.add(Triple(order, fareNode, orderHash))
             }
 
-            // 🌟 [AUTO 실행] 콜 잡기 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
-            // 🚧 인성 전용 구간 — 잡기 수순 없는 배차망(픽커)은 **AUTO 자동 클릭을 안 한다**.
-            //    ⚠️ «아무것도 안 누른다»가 아니다 — 알람일 때는 상세까지 들어간다(아래 알람 절).
-            //    막는 것은 계약 버튼 하나뿐이고 그건 `KakaoPickerParser.clickSafe` 가 본다 (0902 기사님 교정)
-            if (!session.isAutoActive && telemetryManager.currentMode == "AUTO"
+            // 🌟 [AUTO / SIMULATION 실행] 콜 잡기 중이지 않고 AUTO 또는 SIMULATION 모드일 때만 실제 클릭 동작 수행
+            if (!session.isAutoActive && (telemetryManager.currentMode == "AUTO" || telemetryManager.currentMode == "SIMULATION")
                 && TargetApp.supportsCatching(currentTargetApp)) {
                 if (isTarget) {
                     AppLogger.roadmap("🎯 [Current Page: LIST] 1차 필터 통과 → AUTO 타겟 발견, 강제 터치 진행", telemetryManager.currentScreenContext.name)
@@ -1382,10 +1367,30 @@ class HijackService : AccessibilityService(), ScanContext {
      *
      * ⚠️ 인성·24시는 이 줄을 안 지난다 — `supportsCatching` 이 참이라 예전과 완전히 같다.
      */
-    private fun detectScreenContext(text: String): ScreenContext {
+    private fun detectScreenContext(text: String, pkg: String? = null): ScreenContext {
         val byKeywords = screenDetector.detect(text, keywords)
-        if (TargetApp.supportsCatching(currentTargetApp)) return byKeywords
-        return com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.pickerScreenContextOf(text) ?: byKeywords
+        val resolved = if (TargetApp.supportsCatching(currentTargetApp)) byKeywords
+        else com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.pickerScreenContextOf(text) ?: byKeywords
+
+        if (resolved != ScreenContext.UNKNOWN) return resolved
+
+        if (pkg != null) {
+            val p = pkg.lowercase()
+            if (p.contains("launcher") || p.contains("nexuslauncher") || p == "com.sec.android.app.launcher") {
+                return ScreenContext.LAUNCHER
+            }
+            val isSimulator = p == TargetApp.SIMULATOR_PACKAGE.lowercase() || p.contains("simulator")
+            val isTargetApp = isSimulator || when (currentTargetApp) {
+                TargetApp.INSUNG -> p.contains("insung")
+                TargetApp.HWAMUL24 -> p.contains("logione") || p.contains("carrier")
+                TargetApp.KAKAOPICKER -> p.contains("flexer")
+                else -> false
+            }
+            if (!isTargetApp && p != "com.onedal.app") {
+                return ScreenContext.OTHER_APP
+            }
+        }
+        return ScreenContext.UNKNOWN
     }
 
     private fun updateScreenContext(context: ScreenContext) {
@@ -1419,7 +1424,22 @@ class HijackService : AccessibilityService(), ScanContext {
     /** 서버 판결(KEEP/CANCEL) 결과 행동을 실제 화면 액션으로 쏨 */
     private fun executeDecisionImmediately(decision: String) {
         cancelSafeCancelTimer() // 타이머 해제
-        if (!session.isAutoActive) return // 이미 풀렸으면 스킵
+        cancelDetailBack()     // ⏱️ 픽커 상세 대기 타이머 해제
+
+        // 🐥 [가상 체험 모드] 판결이 KEEP/CANCEL이어도 실제 수락/취소 버튼을 누르지 않고 안전하게 뒤로가기(Back) 집행!
+        val isSimulated = decision == "SIMULATED_KEEP" || decision == "SIMULATED_CANCEL" || telemetryManager.currentMode == "SIMULATION"
+        if (isSimulated) {
+            AppLogger.roadmap("🐥 [체험 모드] 관제탑 판결 $decision 수신 → 안전한 뒤로가기(Back) 집행", telemetryManager.currentScreenContext.name)
+            AppLogger.d(TAG, "🐥 [체험] 실서버 버튼을 누르지 않고 GLOBAL_ACTION_BACK 실행")
+            mainHandler.postDelayed({
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                resetSessionState()
+                AppLogger.roadmap("✅ [체험] 뒤로가기 완료 → 리스트 복귀, 합짐 콜 스캔 대기", telemetryManager.currentScreenContext.name)
+            }, 300)
+            return
+        }
+
+        if (!session.isAutoActive) return // AUTO 모드가 아니면 스킵
 
         val targetBtnStr = if (decision == "KEEP") "닫기" else "취소"
         AppLogger.roadmap("🛡️ 관제탑 판결 수신 (Action: $decision) → '$targetBtnStr' 버튼 클릭 집행 개시", telemetryManager.currentScreenContext.name)
@@ -1431,7 +1451,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 resetSessionState()
                 return@postDelayed
             }
-            if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)) {
+            if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = telemetryManager.currentMode)) {
                 if (decision == "KEEP") {
                     AppLogger.roadmap("✅ 판결 KEEP 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 합짐 콜 잡기 루프 회귀", telemetryManager.currentScreenContext.name)
                 } else {

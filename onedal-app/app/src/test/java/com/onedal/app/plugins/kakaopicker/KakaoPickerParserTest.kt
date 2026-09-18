@@ -937,3 +937,108 @@ class AssignedToastTest {
         assertEquals("수지 동천", o.dropoff)
     }
 }
+
+class PickerLocationParsingEdgeCaseTest {
+
+    private val parser = KakaoPickerParser(null)
+
+    @Test
+    fun `2토막 카드 - 하남 출발 종로 도착이 뒤집히지 않고 정확히 추출된다`() {
+        val o = parser.parse(listOf("퀵", "초소형", "종로", "12,705", "16.9km", "하남"))
+        assertEquals(12705, o.fare)
+        assertEquals("하남", o.pickup)
+        assertEquals("종로", o.dropoff)
+    }
+
+    @Test
+    fun `3토막 카드 Case A - 하남 감일 출발 종로 도착에서 하차지가 증발하지 않는다`() {
+        val o = parser.parse(listOf("퀵", "초소형", "종로", "15,000", "16.9km", "하남", "감일"))
+        assertEquals(15000, o.fare)
+        assertEquals("하남 감일", o.pickup)
+        assertEquals("종로", o.dropoff)
+    }
+
+    @Test
+    fun `3토막 실측 분당 서초 방배본 - 태그줄에 도착지가 없어도 구와 동을 알아본다`() {
+        val o = parser.parse(listOf("퀵", "16:10", "15,540", "14.4km", "분당", "서초", "방배본"))
+        assertEquals(15540, o.fare)
+        assertEquals("분당", o.pickup)
+        assertEquals("서초 방배본", o.dropoff)
+    }
+
+    @Test
+    fun `5토막 카드 - 뒤에 건물명이 붙어도 행정동을 골라 하차지로 조립한다`() {
+        val o = parser.parse(listOf("퀵", "초소형", "강남", "25,000", "18.0km", "분당", "수내1", "역삼1", "타워팰리스"))
+        assertEquals(25000, o.fare)
+        assertEquals("분당 수내1", o.pickup)
+        assertEquals("강남 역삼1", o.dropoff)
+    }
+
+    /**
+     * 🌅 09-16 오전 라이브 실측 덤프에서 놓쳤던 실물 콜들:
+     * 과거에는 2토막·3토막 하차지 증발 버그 때문에 하차지가 빈칸이 되어 탈락했었다.
+     */
+    @Test
+    fun `오전 실측 콜 1 - 광주 송정 출발 강남 도착 19404원 (3토막 하차지 증발 버그 복구)`() {
+        // 실측: 퀵 승 예약 17:30 6.8km 광주 송정 강남 19,404
+        val o = parser.parse(listOf("퀵", "승", "예약", "17:30", "강남", "19,404", "6.8km", "광주", "송정"))
+        assertEquals(19404, o.fare)
+        assertEquals("광주 송정", o.pickup)
+        assertEquals("강남", o.dropoff) // 🔴 과거에는 dropoff="" 로 날아가서 19,404원 꿀콜 탈락! 이제 완벽 복구!
+        assertEquals(6.8, o.pickupDistance!!, 0.01)
+
+        // 서울 필터 대조: 통과해야 함!
+        val seoulKeywords = listOf("서울", "강남", "서초", "송파", "영등포")
+        assertTrue("강남 도착은 서울 필터를 통과해야 한다",
+            KakaoPickerParser.decide(o, minFare = 10000, pickupRadiusKm = 10.0, destKeywords = seoulKeywords))
+    }
+
+    @Test
+    fun `오전 실측 콜 2 - 송파 출발 영등포 도착 11242원 (2토막 구-구 콜)`() {
+        // 실측: 퀵 반나절 중형 예약 18.7km 송파 영등포 11,242
+        val o = parser.parse(listOf("퀵", "반나절", "중형", "예약", "영등포", "11,242", "18.7km", "송파"))
+        assertEquals(11242, o.fare)
+        assertEquals("송파", o.pickup)
+        assertEquals("영등포", o.dropoff)
+
+        // 영등포(서울) 필터 통과
+        val seoulKeywords = listOf("서울", "영등포")
+        assertTrue(KakaoPickerParser.decide(o, minFare = 10000, pickupRadiusKm = 20.0, destKeywords = seoulKeywords))
+    }
+
+    @Test
+    fun `오전 실측 콜 3 - 분당 야탑3 출발 서초 방배본 도착 15540원 (4토막 실콜)`() {
+        // 실측: 퀵 승 예약 16:10 14.4km 분당 야탑3 서초 방배본 15,540
+        val o = parser.parse(listOf("퀵", "승", "예약", "16:10", "서초", "15,540", "14.4km", "분당", "야탑3", "방배본"))
+        assertEquals(15540, o.fare)
+        assertEquals("분당 야탑3", o.pickup)
+        assertEquals("서초 방배본", o.dropoff)
+
+        // 서초(서울) 필터 통과
+        val seoulKeywords = listOf("서울", "서초", "방배동")
+        assertTrue(KakaoPickerParser.decide(o, minFare = 10000, pickupRadiusKm = 15.0, destKeywords = seoulKeywords))
+    }
+
+    @Test
+    fun `오전 실측 콜 4 - 수정 신촌 출발 성북 장위3 도착 17362원 (4토막 실콜)`() {
+        // 실측: 퀵 중형 18.6km 수정 신촌 성북 장위3 17,362
+        val o = parser.parse(listOf("퀵", "중형", "성북", "17,362", "18.6km", "수정", "신촌", "장위3"))
+        assertEquals(17362, o.fare)
+        assertEquals("수정 신촌", o.pickup)
+        assertEquals("성북 장위3", o.dropoff)
+
+        // 성북(서울) 필터 통과
+        val seoulKeywords = listOf("서울", "성북", "장위동")
+        assertTrue(KakaoPickerParser.decide(o, minFare = 10000, pickupRadiusKm = 20.0, destKeywords = seoulKeywords))
+    }
+
+    @Test
+    fun `오전 실측 콜 5 - 태그가 늦게 로드되어 본문에만 3토막이 들어온 콜도 복구`() {
+        // 태그에 지역이 없고 본문에 "광주 송정 강남" 3토막만 있는 변칙 상황
+        val o = parser.parse(listOf("퀵", "승", "17:30", "19,404", "6.8km", "광주", "송정", "강남"))
+        assertEquals(19404, o.fare)
+        assertEquals("광주 송정", o.pickup)
+        assertEquals("강남", o.dropoff) // 본문 3토막이어도 [구, 동, 구] -> 출발: 광주 송정, 도착: 강남
+    }
+}
+

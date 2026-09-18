@@ -12,6 +12,7 @@ import { pickerDetailAddresses } from "../core/plugins/kakaopicker/pickerDetailT
 import { getUserSession } from "../state/userSessionStore";
 import { evolveOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
+import { getDeviceMode } from "./devices";
 import db from "../db";
 
 const router = Router();
@@ -45,6 +46,7 @@ router.post("/", async (req, res) => {
 
         // 🧠 앞의 기억(`/orders/confirm` 이 남긴 것)에서 시작한다 — 날 payload 로 시작하지 않는다.
         //    payload 에 없는 키(예: `targetApp`)가 여기서 증발하던 자리다 (2026-08-18).
+        const deviceMode = getDeviceMode(payload.deviceId, userId);
         let pendingOrder: PendingOrder = evolveOrder(session, realOrderId, {
             ...payload.order,
             status: 'ORDER_SECURED_EVALUATING' as any,
@@ -52,6 +54,7 @@ router.post("/", async (req, res) => {
             capturedAt: payload.capturedAt || new Date().toISOString(),
             // 👀 미리보기 딱지는 두 요청이 같은 말을 해야 한다 — 확정을 누르면 둘 다 false 로 온다
             isPreview: !!(payload as any).isPreview,
+            isSimulated: deviceMode === 'SIMULATION',
         });
 
         logRoadmapEvent("서버", "상하차지 주소 및 적요 텍스트 정제 연산");
@@ -183,14 +186,18 @@ router.post("/", async (req, res) => {
          * 확정을 누르면 앱이 딱지 없이 다시 보내고, 그때 이 갈래로 들어와 KEEP 된다.
          */
         const isPreviewCall = !!(payload as any).isPreview;
-        const isManual = !isPreviewCall
+        const isSimulated = deviceMode === 'SIMULATION' || pendingOrder.id?.startsWith('SIM-') || !!(pendingOrder as any).isSimulated;
+        const isManual = !isPreviewCall && !isSimulated
             && (pendingOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL");
         const rawTargetApp = (payload as any).targetApp;
         const targetApp = isTargetApp(rawTargetApp) ? rawTargetApp : DEFAULT_TARGET_APP;   // 값 표준은 shared 한 벌
 
-        if (isManual) {
+        if (isSimulated) {
+            pendingOrder.type = 'SIMULATION';
+            console.log(`🐥 [SIMULATION] 가상 체험 콜 평가 진입 (id=${pendingOrder.id}, deviceMode=${deviceMode})`);
+        } else if (isManual) {
             pendingOrder.type = 'MANUAL';  // 프론트엔드 배지 표시를 위해 명시적 설정
-            console.log(`✋ [Two-Track MANUAL] 기사님 수동 클릭 콜. 즉시 KEEP 처리. (type=${pendingOrder.type}, matchType=${payload.matchType})`);
+            console.log(`✋ [Two-Track MANUAL] 기사님 직접 터치 콜. 즉시 KEEP 처리. (type=${pendingOrder.type}, matchType=${payload.matchType})`);
 
             /**
              * 🔴 [P3] **서버가 못 읽은 것을 숨기지 않는다.**

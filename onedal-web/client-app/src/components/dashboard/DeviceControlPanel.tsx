@@ -20,27 +20,25 @@ import { Button } from "../ui/button";
 const MODE_TONE: Record<DeviceModeType, string> = {
     ALARM: 'bg-success/20 text-success border-success/40',
     AUTO: 'bg-info/20 text-info border-info/40',
-    MANUAL: 'bg-warning/20 text-warning border-warning/40',
+    MANUAL: 'bg-surface-alt text-text-muted border-border/40',
+    SIMULATION: 'bg-amber-400/20 text-amber-400 border-amber-400/40',
 };
 
 const EMERGENCY_LABELS: Record<string, string> = {
     AUTO_CANCEL: "⏱️ 자동취소 실행됨",
     CANCEL_EXPIRED: "🔴 취소 불가 팝업! 배차실 직접 취소 요망!",
     UNKNOWN_SCREEN: "🟠 알 수 없는 화면에 진입함",
-    BUTTON_NOT_FOUND: "🟡 버튼을 찾을 수 없음",
-    APP_CRASH: "💀 앱 비정상 종료 후 재시작",
+    POPUP_ORDER_MISSING: "⚠️ 팝업 감지 실패",
+    BUTTON_NOT_FOUND: "⚠️ 버튼 감지 실패",
 };
 
 /**
- * 🏷️ **화면 이름표는 배차망마다 다르다 — 여기서는 «고르기»만 한다** (기사님 설계 2026-09-02).
+ * 📱 **폰 한 대의 카드**
  *
- * 기사님: *"`SCREEN_LABELS` 가 인성·픽커·화물24 이렇게 따로따로 있어야 할 것 같아.
- * 이 파일에 있으면 안 되고, 각 라벨들을 import 해 와서 망에 따라 바꿔서 보일 수 있도록."*
- *
- * 예전에는 이 파일 안에 이름표 아홉 개가 있었는데 **전부 인성 화면**이었다. 픽커를 돌리면
- * 운행 중 다섯이 갈 자리가 없어 **«알 수 없는 화면»(빨간 깜빡임)** 으로 떴다 —
- * 기사님이 가장 알고 싶은 순간에 관제가 가장 모르는 상태였다.
- * 목록은 `shared/screenLabels.ts` 에 배차망별로 있고, **이 파일은 공통으로 남는다.**
+ * 📐 **한 줄 41px 기준** (기사님 2026-09-05: *"폰 영역 높이가 115px 인데 41px 정도로"*).
+ *    이름(볼드) · 통신 점 · 모드 버튼 · 3개 점만 한 줄에 두고,
+ *    작업 단계 · 누적 카운트 · 취소 등은 3개 점을 눌렀을 때만 편다.
+ *    (실제 운행 중에는 폰 이름과 통신 상태·모드만 보면 된다)
  */
 
 function DeviceRow({
@@ -51,7 +49,7 @@ function DeviceRow({
     onDismissAlert,
     onDismissWarning,
     currentFilter,
-    filterAlarm
+    filterAlarm,
 }: {
     device: DeviceSession;
     onModeChange: (id: string, mode: DeviceModeType) => void;
@@ -60,7 +58,7 @@ function DeviceRow({
     onDismissAlert: (timestamp: string) => void;
     onDismissWarning: (orderId: string) => void;
     currentFilter: AutoDispatchFilter | null;
-    filterAlarm: FilterPassAlarm | null;
+    filterAlarm?: FilterPassAlarm | null;
 }) {
     const isDisconnected = device.status === "OFFLINE";
     /**
@@ -345,13 +343,7 @@ function DeviceRow({
                 </div>
             )}
 
-            {/**
-              * 🔔 **알람 — «지금 인성 리스트에서 누르십시오»** (기사님 확정 2026-08-30).
-              *
-              * 🔴 소리만 나고 화면에 아무것도 없으면 *"방금 그게 무슨 소리였지"* 가 된다.
-              *    운전 중에는 먼발치로 1~2초에 읽혀야 하므로 **글자를 크게, 한 줄로** 적는다.
-              * 🔇 10초 뒤 스스로 사라진다 — 손으로 끄게 하지 않는다 (무입력에도 일이 되게).
-              */}
+            {/* 🔔 알람 — «지금 인성 리스트에서 직접 누르십시오» */}
             {filterAlarm && (
                 <div className="mx-1 mt-1 rounded border border-info/40 bg-info/15 px-2 py-1.5 flex items-center gap-2 animate-pulse">
                     <span className="text-base leading-none">🔔</span>
@@ -428,7 +420,6 @@ export default function DeviceControlPanel() {
                                 onDismissAlert={dismissAlert}
                                 onDismissWarning={dismissWarning}
                                 currentFilter={filter}
-                                /** 🔔 알람은 **그 폰의 것**이다 — 폰이 둘이면 어느 쪽이 울렸는지 갈려야 한다 */
                                 filterAlarm={filterAlarm?.deviceId === device.deviceId ? filterAlarm : null}
                             />
                         ))

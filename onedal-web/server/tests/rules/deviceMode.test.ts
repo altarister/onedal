@@ -28,9 +28,9 @@ const web = (p: string) => readFileSync(join(__dirname, '../../../client-app/src
 /** 주석은 «앞으로 할 말»을 담는다 — 코드만 본다 */
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-describe('🎛️ 모드 셋 — 값과 그 뜻', () => {
-    it('🔴 모드는 정확히 셋이다 (자동·알람·직접)', () => {
-        expect([...DEVICE_MODES].sort()).toEqual(['ALARM', 'AUTO', 'MANUAL']);
+describe('🎛️ 모드 넷 — 값과 그 뜻', () => {
+    it('🔴 모드는 넷이다 (자동·알람·직접·체험)', () => {
+        expect([...DEVICE_MODES].sort()).toEqual(['ALARM', 'AUTO', 'MANUAL', 'SIMULATION']);
     });
 
     /**
@@ -45,6 +45,7 @@ describe('🎛️ 모드 셋 — 값과 그 뜻', () => {
         expect(isDeviceMode('AUTO')).toBe(true);
         expect(isDeviceMode('ALARM')).toBe(true);
         expect(isDeviceMode('MANUAL')).toBe(true);
+        expect(isDeviceMode('SIMULATION')).toBe(true);
         expect(isDeviceMode('')).toBe(false);
         expect(isDeviceMode('auto')).toBe(false);
         expect(isDeviceMode('STANDBY')).toBe(false);
@@ -56,17 +57,18 @@ describe('🎛️ isActive 는 «필터가 도는가» 다 — «누가 누르�
     /**
      * 🔴 **여기가 이 일의 핵심이다.** 앱의 `decide()` 는 맨 앞에서
      *    `if (!filter.isActive) return false` 로 끊는다 (`InsungParser:165`).
-     *    그래서 알람 모드에서 `isActive` 가 꺼져 있으면 **필터가 아예 안 돌고
-     *    아무것도 안 울린다** — 기능이 통째로 죽는다.
+     *    그래서 알람/체험 모드에서 `isActive` 가 꺼져 있으면 **필터가 아예 안 돌고
+     *    아무것도 안 울린다/안 잡힌다** — 기능이 통째로 죽는다.
      *
-     * 값이 둘일 땐 «필터가 돈다»와 «앱이 누른다»가 같은 말이었다. 알람이 생기며 갈라졌다.
+     * 값이 둘일 땐 «필터가 돈다»와 «앱이 누른다»가 같은 말이었다. 알람/체험이 생기며 갈라졌다.
      */
-    it('🔴 자동·알람 둘 다 필터를 켠다 (알람에서 필터가 죽으면 안 울린다)', () => {
+    it('🔴 자동·알람·체험 셋 다 필터를 켠다 (필터가 죽으면 콜을 못 본다)', () => {
         const c = codeOnly(srv('routes/devices.ts'));
         const block = c.split('hasFilteringDevice')[1]?.slice(0, 300) ?? '';
         expect(block).toBeTruthy();
         expect(block).toMatch(/mode === "AUTO"/);
         expect(block).toMatch(/mode === "ALARM"/);
+        expect(block).toMatch(/mode === "SIMULATION"/);
     });
 
     /**
@@ -366,12 +368,13 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
         expect(fn).not.toMatch(/callAudio|loop/);
     });
 
-    /** 🎨 폰 모드 색은 원달앱 테두리와 같다 — 알람 녹색 · 자동 파랑 · 직접 주황. 두 자리가 따로 적으면 한쪽만 바뀐다 */
-    it('🔴 모드 색 — 알람 success · 자동 info · 직접 warning, 버튼과 고르기 목록이 한 표(MODE_TONE)를 쓴다', () => {
+    /** 🎨 폰 모드 색은 원달앱 테두리와 같다 — 알람 녹색 · 자동 파랑 · 체험 노랑 · 직접 회색. */
+    it('🔴 모드 색 — 알람 success · 자동 info · 체험 amber · 직접 surface-alt, 버튼과 고르기 목록이 한 표(MODE_TONE)를 쓴다', () => {
         const c = codeOnly(web('components/dashboard/DeviceControlPanel.tsx'));
         expect(c).toMatch(/ALARM:\s*'[^']*\bsuccess\b/);
         expect(c).toMatch(/AUTO:\s*'[^']*\binfo\b/);
-        expect(c).toMatch(/MANUAL:\s*'[^']*\bwarning\b/);
+        expect(c).toMatch(/SIMULATION:\s*'[^']*\bamber\b/);
+        expect(c).toMatch(/MANUAL:\s*'[^']*\bsurface-alt\b/);
         expect((c.match(/MODE_TONE\[/g) ?? []).length).toBeGreaterThanOrEqual(2);
         expect(c).not.toMatch(/mode === 'AUTO' \? 'bg-success/);
     });

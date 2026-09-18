@@ -19,21 +19,32 @@ const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
     dispatchPhase: 'STANDBY',     // [V2] 콜 잡기 전략 기본값
 };
 
+export interface ActiveWebSession {
+    socketId: string;
+    clientSessionId: string;
+    deviceInfo: string;
+    connectedAt: number;
+}
+
 // 1명의 기사가 가지는 '모든' 상태 캡슐화
 export interface UserSession {
     /** 이 세션의 주인 — 파생 쿼리(취소 카운터 등)가 세션만 받고도 장부를 읽을 수 있게 */
     userId: string;
+    /** 🖥️ 단일 활성 관제탑 웹 세션 — 다른 기기나 탭 접속 시 인계/차단 기준 */
+    activeWebSession?: ActiveWebSession | null;
     /**
      * 🛰️ **궤적에 마지막으로 남긴 점** — 솎기 기준 (2026-08-26).
      *    `lastFix` 과 다르다: 저것은 «지금 위치»(매 좌표 갱신),
      *    이것은 «디스크에 남긴 마지막 점»이다. 50m·15초 문턱을 이걸로 잰다.
      */
     lastTrackPoint?: { x: number; y: number; atMs: number } | null;
+    /** 📱 실기기(native/browser) GPS가 마지막으로 들어온 시각 (PC 모의 주행 mock과의 충돌 방지용 우선순위 게이트) */
+    lastRealGpsAt?: number;
     /** ⛔ 만석 홀드를 이미 알렸는가 — 5초 하트비트마다 같은 로그가 쌓이지 않게 (상태 전환 시에만 찍는다) */
     capacityHoldNotified?: boolean;
     myOrders: MyOrder[];                    // [계층 2-B] 확정된 내 퀵 배열 (단일 배열, 상태 필터링으로 관리)
     // [Option B] 응답 객체 대신 판결(Decision) 데이터를 저장하는 큐 형식으로 변경
-    pendingDecisions: Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>;
+    pendingDecisions: Map<string, { action: "KEEP" | "CANCEL" | "SIMULATED_KEEP" | null; evaluatedAt: number }>;
     // [Option B] 비상벨(emergency) 시 취소할 수 있도록 안전취소 타이머 저장
     activeTimers: Map<string, NodeJS.Timeout>;
     pendingOrdersData: Map<string, PendingOrder>;  // [계층 2-A] 심사 중 오더 (아직 내 퀵이 아님)
@@ -313,6 +324,7 @@ function safeJsonArray(v: unknown): string[] {
 function createDefaultSession(userId: string): UserSession {
     return {
         userId,
+        activeWebSession: null,
         lastTrackPoint: null,
         myOrders: [],
         pendingDecisions: new Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>(),

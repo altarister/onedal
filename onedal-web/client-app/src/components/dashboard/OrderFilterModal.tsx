@@ -698,7 +698,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         목적지는 지금 자동 ({tab === 'home' && homeAddress ? homeAddress : PHASE_AUTO_SOURCE[tab]})
                                     </p>
                                 )}
-                                <div className="relative grid grid-cols-3 gap-1">
+                                {/* 🎯 도 · 시·군·구 두 칸 — 복귀 토글이 저장 줄로 가면서 세 칸에서 줄었다 */}
+                                <div className="relative grid grid-cols-2 gap-1">
                                     <PickLayer label="🎯 도" value={dstSido || '— 선택 —'}
                                         options={cityGroups.map(g => g.sido)}
                                         open={openKnob === 'dstSido'}
@@ -720,46 +721,13 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         onToggle={() => setOpenKnob(o => o === 'dstCity' ? null : 'dstCity')}
                                         onPick={(v) => pickField('destinationCity', v)} />
                                     {/**
-                                      * ↩️ **복귀 — 고르는 것은 «집으로 갈지 말지» 하나다**
-                                      *    (기사님 확정 2026-09-11: *"우린 집으로 갈건지 말껀지만 있어"* ·
-                                      *     2026-09-09: *"복귀는 토글로 눈에 띄게 해줘. 목적지 → 복귀"*).
+                                      * ↩️ **복귀 토글은 여기 없다 — 저장 줄 맨 왼쪽으로 옮겼다** (기사님: *"2번 터치는 불편하다"*).
                                       *
-                                      * 🔴 **목업이 그 모양이다** — 고르는 것은 `homeOn` 하나이고
-                                      *    `callTarget` 은 파생이다 (`MapMockup.tsx:978`):
-                                      *    `homeOn ? 'HOME' : 'DEST'`.
-                                      *
-                                      * 🔴 **고르는 값과 켜고 끄는 값은 모양도 달라야 한다** — 옆 두 칸(도·시군구)은
-                                      *    목록에서 «고르는» 것이고 이것은 «켜고 끄는» 것이다.
-                                      *
-                                      * 🔴 **확인창은 그대로다** (기사님 2026-08-14: *"버튼을 누르게 하고
-                                      *    알럿창으로 확인받는 것이 안전할 듯하다"*). 되돌리려면 경유를
-                                      *    통째로 다시 계산한다 — 실수로 스친 손가락에 바뀌면 안 된다.
-                                      *
-                                      * ⚠️ **관내는 표시도 없다** (2026-09-15) — 목적지에 도착해 다른 곳을 안 정했으면
-                                      *    그곳 일을 한다. 영역은 «목적지 가까이 옴»(`filterArea.withNearness`)이 좁힌다.
+                                      * 🔴 이 행은 **접힌 채로** 열린다. 그래서 여기 두면 «펼치기 → 누르기» 두 겹이 됐다 —
+                                      *    운행 중 가장 자주 만지는 스위치인데 가장 깊었다. 저장 줄은 스크롤 밖에 늘 붙어 있어
+                                      *    **필터를 열면 바로 보이고 한 번에 눌린다.**
+                                      * 🔴 고르는 것은 여전히 `callTarget` 하나다 (`homeOn ? 'HOME' : 'DEST'`) — 자리만 옮겼다.
                                       */}
-                                    {(() => {
-                                        const homeOn = (filter.callTarget ?? 'DEST') === 'HOME';
-                                        return (
-                                            <button type="button" onClick={() => goPhase(homeOn ? 'DEST' : 'HOME')}
-                                                title={homeOn ? '끄면 원래 목적지로 돌아갑니다' : '켜면 집 방향 콜을 찾습니다'}
-                                                className={`flex flex-col items-start gap-0.5 px-1.5 py-1 rounded-lg border text-left transition-colors ${homeOn
-                                                    ? 'bg-warning/25 border-warning text-warning'
-                                                    : 'border-border-card bg-background hover:border-border-hover'}`}>
-                                                <span className={`text-[9.5px] font-bold leading-tight ${homeOn ? '' : 'text-text-muted'}`}>
-                                                    ↩️ 복귀
-                                                </span>
-                                                <span className="flex items-center gap-1">
-                                                    <span className={`w-7 h-4 rounded-full flex items-center px-0.5 transition-colors ${homeOn ? 'bg-warning justify-end' : 'bg-border-card justify-start'}`}>
-                                                        <span className="w-3 h-3 rounded-full bg-surface shadow" />
-                                                    </span>
-                                                    <span className={`text-[11px] font-black leading-tight ${homeOn ? 'text-warning' : 'text-text-muted'}`}>
-                                                        {homeOn ? '켬' : '끔'}
-                                                    </span>
-                                                </span>
-                                            </button>
-                                        );
-                                    })()}
                                 </div>
                             </div>
 
@@ -1160,6 +1128,29 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                   * ⚠️ 제외 지역의 인라인 💾 저장(메모리)은 «🚫 빼는 곳» 안에 그대로 있다 — 칩 하나 잘못 눌러 곧장 살아나지 않게.
                   */}
                 <div data-save-bar className="shrink-0 relative z-10 flex items-center gap-1.5 border-t border-border bg-bg-base px-3 py-1.5">
+                    {/**
+                      * ↩️ **복귀 — 저장 줄 맨 왼쪽** (기사님: *"2번 터치해야 들어가는 건 불편하다"*).
+                      *
+                      * 🔴 **필터를 열면 바로 보이고, 한 번 누르면 적용된다.** 예전에는 「🎯 어디로」를 펼쳐야 닿아
+                      *    두 겹에 묻혀 있었다 — 운행 중 가장 자주 만지는 스위치인데 가장 깊었다.
+                      * 🔴 **모달 밖에는 두지 않는다** (기사님: *"처음에 보이면 오작동할 수 있어"*) —
+                      *    필터를 연 사람만 만진다. 지도 위에 두면 운전 중 스쳐서 켜진다.
+                      * ⚠️ 켜고 끄는 것은 `callTarget` 하나다 — 귀가콜(집으로 가는 콜을 **만드는** 것)은 다른 일이라 여기 없다.
+                      */}
+                    {(() => {
+                        const homeOn = (filter?.callTarget ?? 'DEST') === 'HOME';
+                        return (
+                            <Button
+                                onClick={() => goPhase(homeOn ? 'DEST' : 'HOME')}
+                                title={homeOn ? '끄면 원래 목적지로 돌아갑니다' : '켜면 집 방향 콜을 찾습니다'}
+                                className={`h-8 shrink-0 rounded-lg border font-black text-[12px] px-3 ${homeOn
+                                    ? 'bg-warning/25 border-warning text-warning'
+                                    : 'bg-surface-alt border-border-card text-text-muted'}`}
+                            >
+                                ↩️ 복귀 {homeOn ? '켬' : '끔'}
+                            </Button>
+                        );
+                    })()}
                     <span className="flex-1 min-w-0 text-[11px] font-bold leading-tight text-text-muted">
                         {unsaved ? <b className="text-warning">서버와 다름</b> : '서버와 같음'}
                         <span className="block text-[9.5px] font-bold opacity-80">

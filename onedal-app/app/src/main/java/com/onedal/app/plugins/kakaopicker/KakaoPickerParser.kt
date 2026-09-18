@@ -153,6 +153,35 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         private val AD_START_WORDS = setOf("Ad")
 
         /**
+         * 🗺️ 주요 자치구 및 시 약칭 (카카오픽커 리스트 카드에서 '구'/'시' 접미사가 생략되어 나타나는 토큰)
+         */
+        val KNOWN_GU_OR_CITY_SET = setOf(
+            // 서울 25개 자치구
+            "강남", "강동", "강북", "강서", "관악", "광진", "구로", "금천", "노원", "도봉",
+            "동대문", "동작", "마포", "서대문", "서초", "성동", "성북", "송파", "양천", "영등포",
+            "용산", "은평", "종로", "중구", "중랑",
+            // 경기/인천 주요 구 및 시 약칭
+            "분당", "수지", "기흥", "처인", "일산동", "일산서", "덕양", "단원", "상록",
+            "권선", "팔달", "영통", "장안", "만안", "동안", "원미", "소사", "오정", "중원", "수정",
+            "수원", "성남", "안양", "부천", "광명", "평택", "안산", "고양", "과천", "구리",
+            "남양주", "오산", "시흥", "군포", "의왕", "하남", "용인", "파주", "이천", "안성",
+            "김포", "화성", "광주", "양주", "포천", "여주", "연천", "가평", "양평", "인천"
+        )
+
+        fun isGuOrCity(token: String): Boolean {
+            val t = token.trim()
+            if (t.isEmpty()) return false
+            return t.endsWith("구") || t.endsWith("시") || t.endsWith("군") || t in KNOWN_GU_OR_CITY_SET
+        }
+
+        fun isDongLike(token: String): Boolean {
+            val t = token.trim()
+            if (t.isEmpty()) return false
+            return t.endsWith("동") || t.endsWith("읍") || t.endsWith("면") || t.endsWith("리") ||
+                   (t.length >= 2 && t.last().isDigit())
+        }
+
+        /**
          * 📢 광고가 시작하는 **맨 위** 중심 Y — 광고가 없으면 **null** (0 이 아니다 · 규칙 ④).
          * 위쪽 경계(`listHeaderCenterY`) · 아래쪽 경계(`bottomTabTopY`)와 같은 꼴이다.
          */
@@ -635,14 +664,26 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         var scheduleTime: String? = null
         val tags = mutableListOf<String>()
         val locations = mutableListOf<String>()
+        val tagLocations = mutableListOf<String>()
+        val bodyLocations = mutableListOf<String>()
+        var seenFareOrDistance = false
 
         for (raw in texts) {
             // 🧹 달라붙은 잡음(«…kotlin.Unit»)을 먼저 뗀다 — 건물 이름은 살린다
             val t = stripSticky(raw.trim())
             when {
-                t.matches(FARE_REGEX) -> fare = t.replace(",", "").toIntOrNull() ?: 0
-                KM_REGEX.matches(t) -> pickupKm = KM_REGEX.find(t)?.groupValues?.get(1)?.toDoubleOrNull()
-                M_REGEX.matches(t) -> pickupKm = M_REGEX.find(t)?.groupValues?.get(1)?.toDoubleOrNull()?.div(1000)
+                t.matches(FARE_REGEX) -> {
+                    fare = t.replace(",", "").toIntOrNull() ?: 0
+                    seenFareOrDistance = true
+                }
+                KM_REGEX.matches(t) -> {
+                    pickupKm = KM_REGEX.find(t)?.groupValues?.get(1)?.toDoubleOrNull()
+                    seenFareOrDistance = true
+                }
+                M_REGEX.matches(t) -> {
+                    pickupKm = M_REGEX.find(t)?.groupValues?.get(1)?.toDoubleOrNull()?.div(1000)
+                    seenFareOrDistance = true
+                }
                 t in sizeSet -> itemSize = t
                 t in tagSet -> tags.add(t)
                 t.startsWith("준비 ") -> tags.add(t)                 // «준비 29분»
@@ -671,30 +712,91 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                  * 첫 곳만 지역으로 쓰고 **몇 곳인지는 꼬리표에 남긴다** (버리지 않는다).
                  */
                 t.contains(',') -> {
-                    locations.add(viaFirst(t))
+                    val first = viaFirst(t)
+                    locations.add(first)
+                    if (!seenFareOrDistance) tagLocations.add(first) else bodyLocations.add(first)
                     val n = viaCount(t)
                     if (n > 1) tags.add("경유 ${n}곳")
                 }
                 // 🔀 경유 콜은 «기흥 신갈» 처럼 시·동이 한 덩어리로 온다 — 넷을 채우려면 쪼갠다
-                tags.contains("경유") && t.contains(' ') -> locations.addAll(t.split(' '))
-                t.isNotEmpty() -> locations.add(t)
+                tags.contains("경유") && t.contains(' ') -> {
+                    val parts = t.split(' ')
+                    locations.addAll(parts)
+                    if (!seenFareOrDistance) tagLocations.addAll(parts) else bodyLocations.addAll(parts)
+                }
+                t.isNotEmpty() -> {
+                    locations.add(t)
+                    if (!seenFareOrDistance) tagLocations.add(t) else bodyLocations.add(t)
+                }
             }
         }
 
         /**
-         * 지역 토큰의 순서는 좌표 정렬(top→left)에서 나온다 (실측 전 카드 동일):
-         *   [도착 시(태그줄 끝), 출발 시, 출발 동, 도착 동]
-         * 넷이 안 되면 아는 만큼만 채우고 원문(rawText)으로 남긴다 — 지어내지 않는다 (규칙 ④).
+         * 🗺️ 픽커 카드의 지역 토큰 분리 및 조립:
+         * 1) 상단 태그줄(요금/거리 이전)에 위치한 토큰 = 도착 시/구 전담
+         * 2) 본문(요금/거리 이후)에 위치한 토큰 = 출발지 및 도착 상세 동
+         * 3) 태그줄에 지역이 없는 경우: 전체 locations를 순서 및 행정구역 패턴에 따라 조립
          */
         val pickup: String
         val dropoff: String
-        when {
-            locations.size >= 4 -> {
-                pickup = "${locations[1]} ${locations[2]}"
-                dropoff = "${locations[0]} ${locations.last()}"
+
+        if (tagLocations.isNotEmpty()) {
+            val destTag = tagLocations[0]
+            when {
+                bodyLocations.isEmpty() -> {
+                    pickup = ""
+                    dropoff = destTag
+                }
+                bodyLocations.size == 1 -> {
+                    // [도착구] + [출발구] (2토막 콜: 종로 + 하남 -> 하남 ➔ 종로)
+                    pickup = bodyLocations[0]
+                    dropoff = destTag
+                }
+                bodyLocations.size == 2 -> {
+                    // [도착구] + [출발구, 출발동] (3토막 콜: 종로 + 하남, 감일 -> 하남 감일 ➔ 종로)
+                    pickup = "${bodyLocations[0]} ${bodyLocations[1]}"
+                    dropoff = destTag
+                }
+                else -> {
+                    // 4개 이상 토막: [도착구] + [출발구, 출발동, 도착동...]
+                    pickup = "${bodyLocations[0]} ${bodyLocations[1]}"
+                    val dropDong = bodyLocations.drop(2).firstOrNull { isDongLike(it) } ?: bodyLocations[2]
+                    dropoff = "$destTag $dropDong"
+                }
             }
-            locations.size == 2 -> { pickup = locations[0]; dropoff = locations[1] }
-            else -> { pickup = locations.joinToString(" "); dropoff = "" }
+        } else {
+            // 상단 태그에 도착 지역이 없는 경우: 전체 locations로 조립
+            when {
+                locations.size >= 4 -> {
+                    pickup = "${locations[0]} ${locations[1]}"
+                    val dropDong = locations.drop(3).firstOrNull { isDongLike(it) } ?: locations[3]
+                    dropoff = "${locations[2]} $dropDong"
+                }
+                locations.size == 3 -> {
+                    // Case 1: [구, 구, 동] -> 출발구 ➔ 도착구+도착동 (예: 분당 ➔ 서초 방배본)
+                    // Case 2: [구, 동, 구] -> 출발구+출발동 ➔ 도착구 (예: 하남 감일 ➔ 종로)
+                    if (isGuOrCity(locations[1])) {
+                        pickup = locations[0]
+                        dropoff = "${locations[1]} ${locations[2]}"
+                    } else {
+                        pickup = "${locations[0]} ${locations[1]}"
+                        dropoff = locations[2]
+                    }
+                }
+                locations.size == 2 -> {
+                    // 태그가 없는 순수 2토막은 앞이 출발, 뒤가 도착
+                    pickup = locations[0]
+                    dropoff = locations[1]
+                }
+                locations.size == 1 -> {
+                    pickup = locations[0]
+                    dropoff = ""
+                }
+                else -> {
+                    pickup = ""
+                    dropoff = ""
+                }
+            }
         }
 
         return SimplifiedOfficeOrder(
@@ -759,5 +861,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         return order.copy(
             verdict = verdictAxisOf(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases),
         )
+    }
+
+    override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
+        return matchListCard(screenTexts, recentOrders).card
     }
 }

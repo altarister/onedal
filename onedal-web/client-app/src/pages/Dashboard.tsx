@@ -92,6 +92,19 @@ export default function Dashboard() {
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = prev; };
     }, [stagePreview]);
+
+    /**
+     * 🪗 **필터 열림 시 Esc 키로 닫기**
+     */
+    useEffect(() => {
+        if (!isFilterOpen) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setIsFilterOpen(false);
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [isFilterOpen]);
+
     /**
      * 🎯 판정 기준을 **탭이 아니라 여기서** 구독한다 (2026-08-16).
      *    탭에서만 구독하면 서버의 첫 `judgment-init` 을 놓쳐 폼이 잠긴다.
@@ -273,6 +286,18 @@ export default function Dashboard() {
             {/* 📍 공통 헤더 컴포넌트 */}
             <Header isConnected={isConnected} liveCalls={liveCalls} />
 
+            {/* 🛡️ 필터 바깥 터치 시 닫기 백드롭 (운행 중 흔들림에 의한 하단 카드/지도 고스트 클릭 방지) */}
+            {isFilterOpen && (
+                <div
+                    className="fixed inset-0 z-30 bg-black/25 backdrop-blur-[0.5px] transition-opacity"
+                    onClick={() => setIsFilterOpen(false)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    aria-label="필터 닫기"
+                    role="button"
+                    tabIndex={-1}
+                />
+            )}
+
             <div className={`relative flex flex-col max-w-2xl mx-auto w-full ${stagePreview ? "flex-1 min-h-0" : ""}`}>
 
 
@@ -292,52 +317,57 @@ export default function Dashboard() {
                     <DeviceControlPanel />
                 </Collapse>
 
-                {/* ⚙️ 오더 필터 한 줄 현황판 ↔ 🪧 심사석 — **같은 슬롯 1:1 치환** (기사님 확정 0831).
-                    둘 다 158px 고정이라 아래 내용이 한 픽셀도 안 밀린다. 차량 패널은 늘 그 자리 —
-                    예전엔 심사 때 차량 패널까지 숨겨서 전환마다 아래가 출렁였다. */}
-                {(() => {
-                    // 🔴 술어를 여기서 다시 쓰지 않는다 — «심사석에 뜬 콜»과 «덱에서 빠진 콜»이 갈린다 (0831 리뷰)
-                    const judging = judgingCall;
-                    /**
-                     * 🪧 **무대에서는 판정석이 시트 맨 아래다** (기사님 확정 2026-09-05 · 안 ⓑ).
-                     *    그래서 이 자리는 **늘 필터**다 — 둘이 같은 슬롯을 다투지 않는다.
-                     * ⚠️ 옛 화면(무대 아님)은 그대로 1:1 치환이다 (0831 확정) — 거기는 시트가 없다.
-                     */
-                    if (judging && !stagePreview) return (
-                        <JudgmentSeat
-                            route={judging}
-                            /* 🔢 «합짐N»은 지금 쥔 콜 수 — 하루 덱(오늘 하차분 포함)으로 세면 N 이 하루 종일 커진다 (사이클 = 하루 · 2026-09-15) */
-                            confirmedActive={activeRoute.filter(o => !isTerminal(o.status) && !isEvaluating(o.status) && o.id !== judging.id).length}
-                            onDecision={handleDecision}
-                            processingId={seatProcessingId}
-                            setProcessingId={setSeatProcessingId}
-                        />
-                    );
-                    return <OrderFilterStatus
-                        onOpenFilter={() => setIsFilterOpen(o => !o)}
-                        cancelCounts={cancelCounts} cancelRounds={cancelRounds} />;
-                })()}
-
                 {/**
-                  * 🪗 **필터 — 요약줄 바로 아래, 제자리에서 열린다** (이식 C4-3).
-                  *    팝업이 아니라 **형제**라 덮지 않는다. 층이 셋(접힘 → 펼침 → 팝업)이던 것이
-                  *    둘(한 줄 → 열림)이 됐다 — 기사님 2026-09-09:
-                  *    *"열려 있을 때 또 팝업이 뜬다. 그 UI 가 별로다."*
-                  * 🔴 닫혀 있으면 **만들지 않는다** — 훅과 구독이 도는 것을 막는다
-                  *    (`OrderFilterModal` 안의 `if (!isOpen) return null`).
+                  * 🪗 **필터 영역** — 열렸을 때 백드롭(z-30) 위에 안전하게 뜨도록 z-40 부여 (바깥 터치 시 안전하게 닫힘)
                   */}
-                {/* 🪗 **펴질 때도 밀려 내려온다** (기사님: *"뿅 하고 나타나서 지도가 확 찌그러진다"*).
-                    닫혀 있는 동안에는 `Collapse` 가 자식을 안 그려, 훅·구독이 도는 것을 막는
-                    `if (!isOpen) return null` 의 뜻이 그대로 지켜진다 (`ui/collapse` 주석). */}
-                <Collapse open={isFilterOpen}>
-                    <OrderFilterModal
-                        isOpen={isFilterOpen}
-                        onClose={() => setIsFilterOpen(false)}
-                        hasHomeReturnActive={hasHomeReturnActive}
-                        routeMode={routeMode}
-                        setRouteMode={setRouteMode}
-                    />
-                </Collapse>
+                <div className={isFilterOpen ? "relative z-40" : "relative"}>
+                    {/* ⚙️ 오더 필터 한 줄 현황판 ↔ 🪧 심사석 — **같은 슬롯 1:1 치환** (기사님 확정 0831).
+                        둘 다 158px 고정이라 아래 내용이 한 픽셀도 안 밀린다. 차량 패널은 늘 그 자리 —
+                        예전엔 심사 때 차량 패널까지 숨겨서 전환마다 아래가 출렁였다. */}
+                    {(() => {
+                        // 🔴 술어를 여기서 다시 쓰지 않는다 — «심사석에 뜬 콜»과 «덱에서 빠진 콜»이 갈린다 (0831 리뷰)
+                        const judging = judgingCall;
+                        /**
+                         * 🪧 **무대에서는 판정석이 시트 맨 아래다** (기사님 확정 2026-09-05 · 안 ⓑ).
+                         *    그래서 이 자리는 **늘 필터**다 — 둘이 같은 슬롯을 다투지 않는다.
+                         * ⚠️ 옛 화면(무대 아님)은 그대로 1:1 치환이다 (0831 확정) — 거기는 시트가 없다.
+                         */
+                        if (judging && !stagePreview) return (
+                            <JudgmentSeat
+                                route={judging}
+                                /* 🔢 «합짐N»은 지금 쥔 콜 수 — 하루 덱(오늘 하차분 포함)으로 세면 N 이 하루 종일 커진다 (사이클 = 하루 · 2026-09-15) */
+                                confirmedActive={activeRoute.filter(o => !isTerminal(o.status) && !isEvaluating(o.status) && o.id !== judging.id).length}
+                                onDecision={handleDecision}
+                                processingId={seatProcessingId}
+                                setProcessingId={setSeatProcessingId}
+                            />
+                        );
+                        return <OrderFilterStatus
+                            onOpenFilter={() => setIsFilterOpen(o => !o)}
+                            cancelCounts={cancelCounts} cancelRounds={cancelRounds} />;
+                    })()}
+
+                    {/**
+                      * 🪗 **필터 — 요약줄 바로 아래, 제자리에서 열린다** (이식 C4-3).
+                      *    팝업이 아니라 **형제**라 덮지 않는다. 층이 셋(접힘 → 펼침 → 팝업)이던 것이
+                      *    둘(한 줄 → 열림)이 됐다 — 기사님 2026-09-09:
+                      *    *"열려 있을 때 또 팝업이 뜬다. 그 UI 가 별로다."*
+                      * 🔴 닫혀 있으면 **만들지 않는다** — 훅과 구독이 도는 것을 막는다
+                      *    (`OrderFilterModal` 안의 `if (!isOpen) return null`).
+                      */}
+                    {/* 🪗 **펴질 때도 밀려 내려온다** (기사님: *"뿅 하고 나타나서 지도가 확 찌그러진다"*).
+                        닫혀 있는 동안에는 `Collapse` 가 자식을 안 그려, 훅·구독이 도는 것을 막는
+                        `if (!isOpen) return null` 의 뜻이 그대로 지켜진다 (`ui/collapse` 주석). */}
+                    <Collapse open={isFilterOpen}>
+                        <OrderFilterModal
+                            isOpen={isFilterOpen}
+                            onClose={() => setIsFilterOpen(false)}
+                            hasHomeReturnActive={hasHomeReturnActive}
+                            routeMode={routeMode}
+                            setRouteMode={setRouteMode}
+                        />
+                    </Collapse>
+                </div>
 
                 {/* 📢 배너 층 (v24) — 무대에서는 흐름 밖으로 띄운다. 🔴 바탕은 불투명(bg-surface) — 10% 바탕이면 뒤 지도가 비친다 (#146). 흐름 안에 두면 뜰 때마다
                     아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 (기사님 실측 0831) */}
@@ -432,6 +462,7 @@ export default function Dashboard() {
                        운행 중이면 여기가 KEEP/CANCEL 을 하는 유일한 창구다 */}
                 <ErrorBoundary label="결재 카드">
                     {stagePreview ? <StageView
+                        isFilterOpen={isFilterOpen}
                         routeMode={routeMode}
                         routeStops={routeStops}
                         routeComputedAt={routeComputedAt}

@@ -3,7 +3,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { socket } from "../../lib/socket";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
-import { CAPACITY_CONFIDENCE_LABEL, isAlreadyLoaded, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
+import { CAPACITY_CONFIDENCE_LABEL, isAlreadyLoaded, isEvaluating, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
 import { logStateChange } from '../../lib/roadmapLogger';
 import { initialMotion, motionOnFix, motionOnTick } from './driveMotion';
@@ -114,8 +114,9 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
         apiClient.get('/settings').then(({ data }) => { if (data?.vehicleType) setDbVehicleType(data.vehicleType); }).catch(() => {});
     }, []);
     const myVehicle = dbVehicleType || filter?.allowedVehicleTypes?.[0] || '1t';
-    const reserved = liveCalls.filter(o => !isAlreadyLoaded(o));
-    const loaded = liveCalls.filter(o => isAlreadyLoaded(o));
+    const confirmedCalls = liveCalls.filter(o => !isEvaluating(o.status));
+    const reserved = confirmedCalls.filter(o => !isAlreadyLoaded(o));
+    const loaded = confirmedCalls.filter(o => isAlreadyLoaded(o));
     /**
      * 🧮 **괄호 목록을 뺐다** (목업 이식 2026-09-05).
      *

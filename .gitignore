@@ -71,3 +71,6 @@ onedal-web/server/local.db.backup-*
 #    ⚠️ 01~10 은 이 규칙 이전에 이미 추적 중이라 그대로 남는다 (ignore 는 추적본에 안 걸린다).
 #    파서를 고칠 때 쓰는 문제지는 이미지가 아니라 `intel.rawDetailText` 다.
 ex_images/카카오픽커/실물_2026/
+
+# 📝 리뷰 및 분석 문서 — 로컬 전용으로 관리하며 깃에 올리지 않는다
+reviews/

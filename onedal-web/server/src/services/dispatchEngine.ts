@@ -20,6 +20,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 /* 📍 서버가 다시 떠도 «내가 어디 있었나»를 잃지 않는다 (2026-09-12) */
 import { lastTrackPointOf } from "./gpsTrackStore";
 import { PlaceRepository } from "../repositories/PlaceRepository";
+import { getDeviceMode } from "../routes/devices";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
@@ -96,6 +97,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
      * **판단에 쓸 값을 지운 다음에 판단하지 않는다.**
      */
     const wasPreview = !!(current as any)?.isPreview;
+    const wasSimulated = !!(current as any)?.isSimulated;
 
     /**
      * ↩️ **취소는 원래 경로로 되돌아가는 것이다** (기사님 확정 2026-08-23).
@@ -132,10 +134,10 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
          * 알려면 **한 건도 새면 안 된다** (용어집 §2-1). 캐시 삭제 전에 저장한다.
          */
         /**
-         * 👀 **미리보기는 장부에 안 쓴다** (2026-09-15) — 인성·픽커에서 아무 일도 없던 콜이다 (용어집 §9).
+         * 👀 **미리보기/가상체험은 장부에 안 쓴다** (2026-09-15) — 인성·픽커에서 아무 일도 없던 콜이다 (용어집 §9).
          *    써 두면 관제웹 취소 수(`helpers` 의 SAFE_CANCEL 행 수)가 미리보기만큼 부풀었다. 장부에 들어가는 길이 이 한 줄뿐이라 남는 행도 없다.
          */
-        if (!wasPreview) try {
+        if (!wasPreview && !wasSimulated) try {
             const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
             const isExpress = (cached as any).orderForm === '급송' ? 1 : 0;
             OrderRepository.upsertOrder(cached as any, userId, isShared, isExpress);
@@ -420,20 +422,26 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
      */
     clearOrderTimers(session, orderId);
 
+    const cachedPending = session.pendingOrdersData.get(orderId);
+    const targetDeviceId = cachedPending?.capturedDeviceId
+        ?? session.myOrders.find(c => c.id === orderId)?.capturedDeviceId;
+    const isSimulatedMode = (cachedPending as any)?.isSimulated === true
+        || (targetDeviceId ? getDeviceMode(targetDeviceId, userId) === 'SIMULATION' : false);
+
     const isKeep = status === 'ORDER_CONFIRMED';
-    const piggybackAction = isKeep ? 'KEEP' : 'CANCEL';
+    const piggybackAction = isKeep ? (isSimulatedMode ? 'SIMULATED_KEEP' : 'KEEP') : 'CANCEL';
 
     // [Option B] Piggyback 결재 기록: pendingDecisions에 action을 기록하면
     // 다음 1.0초 텔레메트리(/scrap) 응답에 이 결재가 태워져서 앱으로 전달됩니다.
     if (session.pendingDecisions.has(orderId)) {
         const decisionData = session.pendingDecisions.get(orderId)!;
         decisionData.action = piggybackAction;
-        if (isKeep) logRoadmapEvent("서버", "앱폰에게 Action=Keep 최종 판결 Piggyback 등록");
+        if (isKeep) logRoadmapEvent("서버", `앱폰에게 Action=${piggybackAction} 최종 판결 Piggyback 등록`);
         else logRoadmapEvent("서버", "앱폰에게 Action=Cancel 최종 판결 Piggyback 등록");
         console.log(`📦 [Piggyback V2] 관제탑 판결(${piggybackAction})을 큐에 기록. 다음 텔레메트리에 태워 보냅니다. (orderId: ${orderId})`);
     } else {
         // pendingDecisions에 없는 경우 (이미 타임아웃으로 삭제되었거나, MANUAL 건)
-        if (isKeep) logRoadmapEvent("서버", "앱폰에게 Action=Keep 최종 판결 응답 전달 (즉시)");
+        if (isKeep) logRoadmapEvent("서버", `앱폰에게 Action=${piggybackAction} 최종 판결 응답 전달 (즉시)`);
         else logRoadmapEvent("서버", "앱폰에게 Action=Cancel 최종 판결 응답 전달 (즉시)");
         console.log(`⚠️ [Piggyback V2] pendingDecisions에 ${orderId}가 없습니다. (MANUAL 건이거나 이미 타임아웃 처리됨)`);
     }
@@ -443,35 +451,30 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
     // scrap.ts → deviceEvaluatingMap.get(deviceId) 조회가 성공해야 합니다.
     // 실제 삭제는 scrap.ts의 ACK 처리 블록에서만 수행합니다.
 
-    const targetDeviceId = session.pendingOrdersData.get(orderId)?.capturedDeviceId;
-
     // 삭제됨: 중복된 !isKeep 로직은 하단의 else 블록으로 통합되었습니다.
 
     if (isKeep) {
-        logRoadmapEvent("서버", "관제탑으로 부터 Keep 결재 요청 받음");
+        logRoadmapEvent("서버", `관제탑으로 부터 Keep 결재 요청 받음${isSimulatedMode ? ' [가상 체험 모드]' : ''}`);
         const cachedOrder = session.pendingOrdersData.get(orderId);
 
         if (!cachedOrder) return { success: false, action: status };
 
         /**
-         * ✅ **수락을 센다** (기사님 지적 2026-08-23).
-         *
-         * 관제웹의 `수락:N` 이 **항상 0** 이었다 — 올리는 자리가 코드에 하나도 없었다.
-         * 취소(`countCancel`)와 **같은 파일에 나란히** 둔다. 둘은 한 사건의 양면이라
-         * 떨어져 있으면 미리보기 예외 같은 조건이 한쪽만 고쳐진다.
-         *
-         * ⚠️ 딱지가 아직 캐시에 살아 있을 때 센다 — 아래에서 `pendingOrdersData` 를
-         *    승격본으로 덮어쓰므로, **판단에 쓸 값을 지운 다음에 판단하지 않는다.**
+         * ✅ **수락을 센다** (가상 체험 콜은 실제 수락 카운트에 산입하지 않음).
          */
-        countKeep(session, targetDeviceId, orderId, !!(cachedOrder as any).isPreview);
+        if (!isSimulatedMode && !(cachedOrder as any).isSimulated) {
+            countKeep(session, targetDeviceId, orderId, !!(cachedOrder as any).isPreview);
+        }
 
         // [V2 핵심] PendingOrder → MyOrder 승격 (심사 완료 → 내 퀵 확정)
         const confirmedOrder: MyOrder = {
             ...cachedOrder,
             status: 'ORDER_CONFIRMED',
+            isSimulated: isSimulatedMode || !!(cachedOrder as any).isSimulated,
         };
-        // phase는 PendingOrder 전용이므로 제거
+        // phase 및 isPreview는 심사(PendingOrder) 전용이므로 확정 시 완전 제거
         delete (confirmedOrder as any).phase;
+        delete (confirmedOrder as any).isPreview;
 
         // ⭐ 핵심 수정: 승격된 객체를 하트비트 메모리맵에 덮어씌워서 롤백 현상 방지
         session.pendingOrdersData.set(orderId, confirmedOrder as any);
@@ -575,42 +578,46 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             // isExpress: 파서가 추출한 orderForm이 "급송"이면 true
             const isExpress = (cachedOrder.orderForm === '급송') ? 1 : 0;
 
-            // 1. orders 등록 (v5 전체 컬럼)
-            OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
+            if (!confirmedOrder.isSimulated) {
+                // 1. orders 등록 (v5 전체 컬럼)
+                OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
 
-            // 2. places UPSERT 및 orderStops 추가 (상차지)
-            const pickupName = normalizePlaceName(cachedOrder.pickupDetails?.[0]?.customerName || "배차값없음");
-            const pickupAddress = cachedOrder.pickupDetails?.[0]?.addressDetail || cachedOrder.pickup;
-            const pickupRegion = cachedOrder.pickupDetails?.[0]?.region || cachedOrder.pickup.split(' ').slice(0, 2).join(' ') || "배차값없음";
-            
-            const pPlaceId = PlaceRepository.upsertPlace(
-                pickupAddress, pickupName, pickupRegion,
-                cachedOrder.pickupX || null, cachedOrder.pickupY || null,
-                cachedOrder.pickupDetails?.[0]?.phone1 || null
-            );
-            if (pPlaceId) {
-                OrderRepository.insertOrderStop(
-                    cachedOrder.id, pPlaceId, 'pickup', pickupName, cachedOrder.pickupDetails?.[0]?.phone1 || null
+                // 2. places UPSERT 및 orderStops 추가 (상차지)
+                const pickupName = normalizePlaceName(cachedOrder.pickupDetails?.[0]?.customerName || "배차값없음");
+                const pickupAddress = cachedOrder.pickupDetails?.[0]?.addressDetail || cachedOrder.pickup;
+                const pickupRegion = cachedOrder.pickupDetails?.[0]?.region || cachedOrder.pickup.split(' ').slice(0, 2).join(' ') || "배차값없음";
+                
+                const pPlaceId = PlaceRepository.upsertPlace(
+                    pickupAddress, pickupName, pickupRegion,
+                    cachedOrder.pickupX || null, cachedOrder.pickupY || null,
+                    cachedOrder.pickupDetails?.[0]?.phone1 || null
                 );
-            }
+                if (pPlaceId) {
+                    OrderRepository.insertOrderStop(
+                        cachedOrder.id, pPlaceId, 'pickup', pickupName, cachedOrder.pickupDetails?.[0]?.phone1 || null
+                    );
+                }
 
-            // 3. places UPSERT 및 orderStops 추가 (하차지)
-            const dropoffName = normalizePlaceName(cachedOrder.dropoffDetails?.[0]?.customerName || "배차값없음");
-            const dropoffAddress = cachedOrder.dropoffDetails?.[0]?.addressDetail || cachedOrder.dropoff;
-            const dropoffRegion = cachedOrder.dropoffDetails?.[0]?.region || cachedOrder.dropoff.split(' ').slice(0, 2).join(' ') || "배차값없음";
-            
-            const dPlaceId = PlaceRepository.upsertPlace(
-                dropoffAddress, dropoffName, dropoffRegion,
-                cachedOrder.dropoffX || null, cachedOrder.dropoffY || null,
-                cachedOrder.dropoffDetails?.[0]?.phone1 || null
-            );
-            if (dPlaceId) {
-                OrderRepository.insertOrderStop(
-                    cachedOrder.id, dPlaceId, 'dropoff', dropoffName, cachedOrder.dropoffDetails?.[0]?.phone1 || null
+                // 3. places UPSERT 및 orderStops 추가 (하차지)
+                const dropoffName = normalizePlaceName(cachedOrder.dropoffDetails?.[0]?.customerName || "배차값없음");
+                const dropoffAddress = cachedOrder.dropoffDetails?.[0]?.addressDetail || cachedOrder.dropoff;
+                const dropoffRegion = cachedOrder.dropoffDetails?.[0]?.region || cachedOrder.dropoff.split(' ').slice(0, 2).join(' ') || "배차값없음";
+                
+                const dPlaceId = PlaceRepository.upsertPlace(
+                    dropoffAddress, dropoffName, dropoffRegion,
+                    cachedOrder.dropoffX || null, cachedOrder.dropoffY || null,
+                    cachedOrder.dropoffDetails?.[0]?.phone1 || null
                 );
-            }
+                if (dPlaceId) {
+                    OrderRepository.insertOrderStop(
+                        cachedOrder.id, dPlaceId, 'dropoff', dropoffName, cachedOrder.dropoffDetails?.[0]?.phone1 || null
+                    );
+                }
 
-            console.log(`💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);
+                console.log(`💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);
+            } else {
+                console.log(`🐥 [가상 체험 콜] ${cachedOrder.id} - DB 저장 건너뜀 (메모리 세션에서만 합짐 시뮬레이션 가동)`);
+            }
         } catch (dbErr) {
             console.error("DB 저장 에러:", dbErr);
         }
@@ -658,23 +665,11 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         // (두 메모리를 함께 갱신 — 여기는 원래 둘 다 쓰고 있었지만 규약으로 통일한다)
         setOrderStatus(session, orderId, status);
 
-        /**
-         * 🔴 **버린 콜도 장부에 남긴다** (기사님 2026-08-18)
-         *
-         * 예전에는 `myOrders` 에 있는 콜만 저장했다 — 즉 **KEEP 한 뒤 버린 것만** 남고,
-         * 심사 중에 버린 안전취소는 행이 없는 채로 `UPDATE` 가 0행에 적용돼 조용히 사라졌다.
-         * 3개월치 백업에도 `SAFE_CANCEL` 이 **0건**이었다.
-         *
-         * 화면(취소 탭)에는 보였는데 그건 세션 메모리라 **서버를 재시작하면 없어진다.**
-         * 기사님: *"인성 입장에선 내가 잡았다 버린 거니 10회 페널티에 들어간다.
-         *          내가 알고 있어야 한다."*
-         *
-         * → 행이 없으면 **만들고** 상태를 준다. 순서가 중요하다 —
-         *   `upsertOrder` 는 항상 `ORDER_CONFIRMED` 로 넣으므로 그 뒤에 진짜 상태를 덮는다.
-         */
         const cachedForLedger = session.myOrders.find(c => c.id === orderId)
             ?? session.pendingOrdersData.get(orderId);
-        if (cachedForLedger) {
+        const isSimulatedOrder = (cachedForLedger as any)?.isSimulated;
+
+        if (cachedForLedger && !isSimulatedOrder) {
             try {
                 const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
                 const isExpress = (cachedForLedger as any).orderForm === '급송' ? 1 : 0;
@@ -687,7 +682,11 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             }
         }
 
-        countCancel(session, targetDeviceId, orderId, 'DECISION_CANCEL', undefined, io);
+        if (!isSimulatedOrder) {
+            countCancel(session, targetDeviceId, orderId, 'DECISION_CANCEL', undefined, io);
+        } else {
+            console.log(`🐥 [가상 체험 콜 종료] ${orderId} - 패널티 카운트 없이 안전하게 세션 정리 완료`);
+        }
 
         if (io) {
             logRoadmapEvent("서버", "관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달");
@@ -1539,6 +1538,8 @@ export async function createHomeReturn(
 
         session.myOrders.push(homeOrder as any);
         await evaluateNewOrder(userId, homeOrder as any, io);
+        // 🏠 귀가콜은 기사님이 직접 생성한 확정 콜이므로, 평가 후 AWAITING_DECISION으로 바뀐 상태를 ORDER_CONFIRMED로 즉시 복원
+        homeOrder.status = 'ORDER_CONFIRMED';
 
         const targetDetour = options?.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM;
         updateActiveFilter(userId, {

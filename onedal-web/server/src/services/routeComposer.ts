@@ -590,6 +590,112 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
 }
 
 /**
+ * 🧭 **유효 순열 최단거리 탐색기 (Branch & Bound)**
+ *
+ * 단순 한 걸음 탐욕법(Greedy)의 치명적 결함인 «서울 마포 찍고 분당으로 되돌아오는 유턴 핑퐁»을 원천 차단한다.
+ * 
+ * ── 물리 법칙 제약 ──
+ * 1. 동일 콜 내에서만: 제 짐을 싣기 전에는 내릴 수 없다 (pickup < dropoff)
+ * 2. 서로 다른 콜 간에는: 얼마든지 자유롭게 상하차가 교차 가능 (interleaving)
+ *
+ * ── 알고리즘 ──
+ * N <= 8 일 때: DFS + 가지치기(Branch & Bound)로 모든 유효 순열 중 누적 거리가 가장 짧은 최적 순서 탐색.
+ *              탐색 도중 현재 누적 거리가 이미 찾은 최단 거리보다 크면 즉시 계산 중단(prune).
+ * N > 8 일 때: 기존의 빠른 탐욕법(orderByNearest)으로 안전하게 폴백.
+ */
+export function findOptimalStopOrder<T extends Coord & { orderId: string; stopType: 'pickup' | 'dropoff' }>(
+    startLoc: Coord, pickups: T[], dropoffs: T[],
+    previous?: Array<{ orderId: string; stopType: string }> | null,
+): T[] {
+    const totalCount = pickups.length + dropoffs.length;
+    if (totalCount === 0) return [];
+    if (totalCount === 1) return [...pickups, ...dropoffs];
+
+    // 정거장이 8개 초과인 극한 상황은 기존 탐욕법으로 안전 폴백
+    if (totalCount > 8) {
+        return orderByNearest(startLoc, pickups, dropoffs, previous);
+    }
+
+    const allStops = [...pickups, ...dropoffs];
+    // 아직 상차 안 된 콜 추적 (동일 콜 내 pickup < dropoff 보장)
+    const initialNotLoaded = new Set<string>(pickups.map(p => p.orderId));
+
+    let bestOrder: T[] = [];
+    let bestDist = Infinity;
+
+    // DFS 백트래킹 + 가지치기
+    function search(
+        currentLoc: Coord,
+        remaining: T[],
+        notLoaded: Set<string>,
+        currentPath: T[],
+        accumDist: number,
+    ) {
+        // 모든 정거장을 다 방문했을 때
+        if (remaining.length === 0) {
+            if (accumDist < bestDist) {
+                bestDist = accumDist;
+                bestOrder = [...currentPath];
+            }
+            return;
+        }
+
+        for (let i = 0; i < remaining.length; i++) {
+            const nextStop = remaining[i];
+
+            // 🛑 물리 제약: 동일 콜의 상차를 아직 안 했으면 하차 불가 (서로 다른 콜끼리는 자유 교차)
+            if (nextStop.stopType === 'dropoff' && notLoaded.has(nextStop.orderId)) {
+                continue;
+            }
+
+            const stepDist = haversineKm(currentLoc.y, currentLoc.x, nextStop.y, nextStop.x);
+            const nextDist = accumDist + stepDist;
+
+            // ✂️ 가지치기 (Branch & Bound): 이미 최단 거리보다 길면 즉시 중단
+            if (nextDist >= bestDist) {
+                continue;
+            }
+
+            // 다음 상태 준비
+            const nextRemaining = remaining.slice(0, i).concat(remaining.slice(i + 1));
+            let nextNotLoaded = notLoaded;
+            if (nextStop.stopType === 'pickup') {
+                nextNotLoaded = new Set(notLoaded);
+                nextNotLoaded.delete(nextStop.orderId);
+            }
+
+            currentPath.push(nextStop);
+            search(nextStop, nextRemaining, nextNotLoaded, currentPath, nextDist);
+            currentPath.pop();
+        }
+    }
+
+    search(startLoc, allStops, initialNotLoaded, [], 0);
+
+    // 유효 순열을 찾았으면 채택
+    if (bestOrder.length === totalCount) {
+        // 직전 순서가 있고, 직전 순서 탐욕 결과와 최적 순열 거리 차이가 0.5km 이내로 미미하다면
+        // 번호 춤(떨림) 방지를 위해 직전 순서 유지
+        if (previous && previous.length > 0) {
+            const greedyOrder = orderByNearest(startLoc, pickups, dropoffs, previous);
+            let greedyDist = 0;
+            let h = startLoc;
+            for (const st of greedyOrder) {
+                greedyDist += haversineKm(h.y, h.x, st.y, st.x);
+                h = st;
+            }
+            if (greedyDist <= bestDist + STOP_ORDER_TIE_KM) {
+                return greedyOrder;
+            }
+        }
+        return bestOrder;
+    }
+
+    // 폴백
+    return orderByNearest(startLoc, pickups, dropoffs, previous);
+}
+
+/**
  * **정거장 계획 — 어디를 어떤 순서로 들르는가.** 카카오를 부르지 않는 **순수 함수**다.
  *
  * 🔴 떼어낸 이유: 2026-08-14 에 `OrderEvaluator` 가 이 조립을 **손으로 다시 하고 있었고**,

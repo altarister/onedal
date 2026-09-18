@@ -4,6 +4,7 @@ import { publishLocation, endMockDriving } from '../lib/gpsBridge';
 import { useMockGpsSimulator } from './useMockGpsSimulator';
 import { useMockDriveStore } from '../stores/mockDriveStore';
 import { mockDriveOn } from './mockLine';
+import { useDriverPositionStore, ensureDriverPositionSubscribed } from '../stores/driverPositionStore';
 import { useLocationStore } from '../stores/useLocationStore';
 
 interface PolylinePoint {
@@ -77,6 +78,24 @@ export function useMasterGps(
     useEffect(() => {
         if (nativeLat === null || nativeLng === null) return;
         pushReal({ lat: nativeLat, lng: nativeLng }, 'native');
+    }, [nativeLat, nativeLng]);
+
+    // ── 1-B. 원격 실기기(S23 실폰)가 서버로 쏘아 올린 실제 위치 수신 (PC 관제 브라우저 화면 동기화)
+    useEffect(() => {
+        ensureDriverPositionSubscribed();
+        return useDriverPositionStore.subscribe((state) => {
+            const p = state.myPosition;
+            if (!p) return;
+            // S23 실기기 본체는 자체 네이티브 GPS가 있으므로 서버 에코를 무시 (중복 방지)
+            if (nativeLat !== null && nativeLng !== null) return;
+            // 서버가 보낸 좌표가 실기기 GPS(gps)인 경우에만 PC 화면의 좌표로 채택
+            if (p.source === 'gps') {
+                lastRealFixAt.current = Date.now();
+                setSource('real');
+                setCurrentGps({ lat: p.y, lng: p.x });
+                // ⚠️ 재발송 금지 (서버가 이미 보낸 좌표이므로 publishLocation은 절대 부르지 않는다)
+            }
+        });
     }, [nativeLat, nativeLng]);
 
     // ── 2. 브라우저 위치 — **테스트 중에도 계속 지켜본다.**

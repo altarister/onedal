@@ -11,7 +11,7 @@ import db, { forgetCallOptions, loadCallOptions } from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { lastKnownPositionOf, MOCK_GPS_OWNER_QUIET_MS } from "../services/geoService";
-import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
+import { getUserSession, getAllActiveUserIds, UserSession } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
 import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
@@ -112,14 +112,26 @@ export function registerSocketHandlers(io: Server) {
         }
     });
 
-    // 2. 개별 유저 연결 수립
-    io.on("connection", (socket: Socket) => {
-        const userId = socket.data.user.id;
-        const role = socket.data.user.role;
-        console.log(`🔌 [소켓 연결] 유저 접속: ${socket.data.user.name} (${userId})`);
+    /**
+     * 📱 기기 User-Agent 또는 클라이언트 보고값을 깔끔한 한글 기기명으로 정리
+     */
+    function parseFriendlyDeviceInfo(raw?: string): string {
+        if (!raw) return "웹 브라우저";
+        if (raw.includes("SM-S711N")) return "삼성 Galaxy S23 FE";
+        if (raw.includes("SM-S911N")) return "삼성 Galaxy S23";
+        if (raw.includes("SM-A245N")) return "삼성 Galaxy A24";
+        if (raw.includes("iPhone")) return "Apple iPhone";
+        if (raw.includes("iPad")) return "Apple iPad";
+        if (raw.includes("Macintosh") || raw.includes("Mac OS")) return "Mac PC (브라우저)";
+        if (raw.includes("Windows")) return "Windows PC";
+        if (raw.includes("Android")) return "안드로이드 폰";
+        return raw.length > 25 ? raw.slice(0, 25) + "..." : raw;
+    }
 
-        const session = getUserSession(userId);
-
+    /**
+     * 🖥️ 관제탑 소켓 세션 활성화 및 초기 데이터 전송
+     */
+    function activateUserSocket(socket: Socket, userId: string, role: string, session: UserSession, io: Server) {
         // 방 참여 (개별 유저 룸) — 부트스트랩이 emit 하기 전에 반드시 먼저 들어가 있어야 한다
         socket.join(userId);
 
@@ -141,10 +153,6 @@ export function registerSocketHandlers(io: Server) {
         socket.emit("telemetry-devices", getUserDevicesSnapshot(userId, io));
 
         // [Phase 6] 필터는 부트스트랩이 끝난 뒤 **완성본으로 한 번만** 보낸다.
-        //
-        // 예전에는 여기서 곧바로 filter-init 을 쐈는데, 그 시점의 activeFilter 는
-        // 아직 복구 전(첫짐·경유 없음)이라 관제탑이 첫짐 → 합짐으로 깜빡였고
-        // 앱폰도 그 사이 잘못된 필터를 가져갔다.
         if (!session.isRestored) {
             // 첫 접속: 부트스트랩이 완료 시점에 filter-init 을 룸으로 emit 한다
             logRoadmapEvent("서버", "관제탑 소켓 접속 — 부트스트랩 시작 (필터는 확정 후 1회 전송)");
@@ -158,24 +166,83 @@ export function registerSocketHandlers(io: Server) {
             logRoadmapEvent("서버", `관제탑에게 확정 필터(filter-init) 전달 — minFare=${session.activeFilter.minFare}`);
         }
 
-        /**
-         * 🎯 **판정 기준 — 콜 필터와 별도 이벤트로 오간다** (2026-08-16).
-         *
-         * 🔴 `filter-updated` 페이로드에 얹지 않는다. 기사님 확정:
-         *    *"필터와 완전 분리 격리되어 각각 따로 작동해야 한다."*
-         *    한 페이로드에 태우면 필터가 바뀔 때마다 판정 기준이 딸려 나가고, 관제웹도
-         *    둘을 한 덩어리로 다루게 된다 — 그러면 갈라 놓은 의미가 없다.
-         *
-         * 🔴 **앱에는 가지 않는다.** 이건 소켓이고 앱은 REST 피기백만 쓴다 (규칙 ⑤-1).
-         */
         socket.emit("judgment-init", session.judgment);
-        /**
-         * 🎛️ **콜 옵션 — 화면의 칩과 그 분(分)** (2026-08-29 이음).
-         *    통화 시트가 「수작업 10분」·「검수 60분」이라고 그리는 그 값이다.
-         *    🔴 **판정과 같은 표에서 온다** — 낮에 판정 기준 탭에 또 만들었다가 되돌렸다.
-         *    두 그릇이면 «화면 10분 / 판정 19분» 같은 두 목소리가 난다 (#71).
-         */
         socket.emit("call-options-init", session.callOptions);
+    }
+
+    // 2. 개별 유저 연결 수립
+    io.on("connection", (socket: Socket) => {
+        const userId = socket.data.user.id;
+        const role = socket.data.user.role;
+        const clientSessionId = (socket.handshake.auth?.clientSessionId as string) ||
+                                (socket.handshake.query?.clientSessionId as string) ||
+                                `anon_${socket.id}`;
+        const rawDevice = (socket.handshake.auth?.deviceInfo as string) ||
+                          (socket.handshake.headers['user-agent'] as string) ||
+                          '웹 브라우저';
+        const deviceInfo = parseFriendlyDeviceInfo(rawDevice);
+
+        console.log(`🔌 [소켓 연결] 유저 접속: ${socket.data.user.name} (${userId}) | 세션: ${clientSessionId.slice(0, 15)} | 기기: ${deviceInfo}`);
+
+        const session = getUserSession(userId);
+        const currentActive = session.activeWebSession;
+        const currentSocket = currentActive ? io.sockets.sockets.get(currentActive.socketId) : null;
+
+        socket.on("check-session-conflict", () => {
+            const curActive = session.activeWebSession;
+            const curSocket = curActive ? io.sockets.sockets.get(curActive.socketId) : null;
+            if (curActive && curSocket && curSocket.id !== socket.id && curActive.clientSessionId !== clientSessionId) {
+                socket.emit("session-conflict", {
+                    existingDeviceInfo: curActive.deviceInfo || "다른 기기",
+                    connectedAt: curActive.connectedAt
+                });
+            }
+        });
+
+        // 🛡️ 세션 충돌 검사: 기존 세션이 살아있고, 브라우저 세션 ID가 다른 경우 (다른 기기 / 새 창)
+        if (currentActive && currentSocket && currentSocket.id !== socket.id && currentActive.clientSessionId !== clientSessionId) {
+            console.log(`⚠️ [세션 충돌 감지] 유저(${userId}) 기존 세션(${currentActive.deviceInfo}) 활성 중 ➡️ 새 세션(${deviceInfo}) 대기`);
+            
+            socket.emit("session-conflict", {
+                existingDeviceInfo: currentActive.deviceInfo || "다른 기기",
+                connectedAt: currentActive.connectedAt
+            });
+
+
+            socket.on("takeover-session", () => {
+                console.log(`🔄 [세션 인계 승인] 유저(${userId}) 새 기기(${deviceInfo})로 관제탑 세션 인계`);
+                const oldSock = io.sockets.sockets.get(session.activeWebSession?.socketId || '');
+                if (oldSock) {
+                    io.to(oldSock.id).emit("session-superseded", {
+                        message: "다른 기기(또는 새 창)에서 관제탑을 시작하여 현재 연결이 종료되었습니다.",
+                        newDeviceInfo: deviceInfo
+                    });
+                    oldSock.disconnect(true);
+                }
+                session.activeWebSession = {
+                    socketId: socket.id,
+                    clientSessionId,
+                    deviceInfo,
+                    connectedAt: Date.now()
+                };
+                activateUserSocket(socket, userId, role, session, io);
+                socket.emit("takeover-approved");
+            });
+
+            socket.on("cancel-takeover", () => {
+                console.log(`🚫 [세션 인계 취소] 유저(${userId}) 새 기기(${deviceInfo}) 접속 취소`);
+                socket.disconnect(true);
+            });
+        } else {
+            // 정상 단독 접속 또는 동일 브라우저 탭 새로고침
+            session.activeWebSession = {
+                socketId: socket.id,
+                clientSessionId,
+                deviceInfo,
+                connectedAt: currentActive?.connectedAt || Date.now()
+            };
+            activateUserSocket(socket, userId, role, session, io);
+        }
 
         /**
          * 🔴 **놓친 뒤에도 받을 수 있어야 한다** (2026-08-16 실측).
@@ -340,13 +407,16 @@ export function registerSocketHandlers(io: Server) {
         // ━━━ [관제웹 Master GPS 수신부] ━━━
         socket.on("dashboard-gps-update", (loc: { lat: number, lng: number, source?: string, speedMultiplier?: number, stopped?: boolean }) => {
             /**
-             * 🔒 **모의 GPS 는 한 소켓만** (2026-08-31 실측). 관제웹이 두 개 붙어 있으면
-             * (폰 + 데스크톱) 시뮬 두 대가 좌표를 섞어 쏜다 — 옛 번들 탭이 끼면 정차 연기
-             * 없는 궤적이 이겨 «각본이 안 돈다»로 보인다. 먼저 달리기 시작한 소켓이 임자,
-             * 5초 조용하면 넘겨준다. 실 GPS 는 제한 없음 (진짜는 어차피 한 몸이다).
+             * 📱 **실기기(native/browser/manual) 우선 원칙** (기사님 확정: «폰을 켠 건 그걸로 뭔가 한다는 것이니 실기기 우선»).
+             *
+             * 실기기 GPS 가 최근 15초 안에 수신 중이면, PC 브라우저 등에서 쏘는 가상 좌표(`mock`)는 즉시 차단한다.
+             * S23 실폰(광주)과 PC 모의 주행(용인)이 1초마다 번갈아 들어와 내 위치가 15km 널뛰기하는 사고를 원천 방어한다.
              */
             if (loc.source === 'mock') {
                 const now = Date.now();
+                if (session.lastRealGpsAt && now - session.lastRealGpsAt < 15_000) {
+                    return;
+                }
                 const owner = session.mockGpsOwner;
                 if (owner && owner.socketId !== socket.id && now - owner.at < MOCK_GPS_OWNER_QUIET_MS) {
                     if (!owner.warned) {
@@ -356,6 +426,8 @@ export function registerSocketHandlers(io: Server) {
                     return;
                 }
                 session.mockGpsOwner = { socketId: socket.id, at: now, warned: owner?.warned ?? false };
+            } else {
+                session.lastRealGpsAt = Date.now();
             }
             /* 🔴 예전엔 여기서 «임시 출발지» 플래그를 껐다 — 이제 `originOf` 가 고르므로 끌 것이 없다.
                진짜 GPS 가 들어오면 그 좌표가 싱싱하다는 사실만으로 집 주소를 이긴다 (파생) */
@@ -521,16 +593,20 @@ export function registerSocketHandlers(io: Server) {
              *    "콜을 잡는 순간 모든 상세값이 임시로 정해진다" — 그 순간이 여기다.
              *    실패해도 결재는 이미 끝났다 — 시딩이 KEEP 을 막으면 안 된다.
              */
-            if (action === 'ORDER_CONFIRMED') {
+            const session = getUserSession(userId);
+            const confirmedCall = session.myOrders.find((o: any) => o.id === orderId);
+            const isSimulated = confirmedCall?.isSimulated;
+
+            if (action === 'ORDER_CONFIRMED' && !isSimulated) {
                 try {
                     // 🌱 출생 모델 (기사님 2026-08-20): KEEP 은 **첫 행(상차지 통화)만** 낳는다.
                     //    나머지는 각 단계가 끝날 때 앞 값을 물려받아 태어난다 — 뒤 행을 찾아다니며
                     //    고치는 코드가 없어야 화면·장부가 갈라질 수 없다.
-                    const judgment = getUserSession(userId)?.judgment;
+                    const judgment = session?.judgment;
                     const tl = routeTlOf(userId);
                     birthFirstStep(userId, orderId, judgment, tl);
                     // 🧭 합짐이 붙으면 **경로 위 모든 콜**의 흐르는 예상이 민다 — 굳은 약속은 불변
-                    for (const c of getUserSession(userId).myOrders.filter((o: any) => !isTerminal(o.status))) {
+                    for (const c of session.myOrders.filter((o: any) => !isTerminal(o.status) && !o.isSimulated)) {
                         refreshPlannedSteps(userId, c.id, judgment, tl);
                         io.to(userId).emit("steps-synced", { orderId: c.id, steps: stepsView(c.id, judgment) });
                     }
@@ -821,6 +897,9 @@ export function registerSocketHandlers(io: Server) {
 
         socket.on("disconnect", () => {
             console.log(`❌ [소켓 해제] 클라이언트 종료: ${socket.id}`);
+            if (session.activeWebSession?.socketId === socket.id) {
+                session.activeWebSession = null;
+            }
         });
     });
 

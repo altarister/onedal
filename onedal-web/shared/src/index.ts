@@ -5,6 +5,8 @@ export const EVENT_TYPES = {
     NEW_ORDER: "NEW_ORDER" as const,
     INTEL_BULK: "INTEL_BULK" as const,
     MANUAL: "MANUAL" as const,
+    SIMULATION: "SIMULATION" as const,
+    ALARM: "ALARM" as const,
 };
 
 export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
@@ -507,6 +509,8 @@ export interface SimplifiedOfficeOrder {
      * 🔍 이 값이 직선거리인지 도로거리인지는 실콜 대조 대기 중 (docs/지금/필터.md §11)
      */
     deliveryDistance?: number;
+    /** 🐥 가상 체험 모드로 잡은 가상 주문 (실서버 미수락) */
+    isSimulated?: boolean;
 }
 // 2. [상세 페이지] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
 export interface DetailedOfficeOrder {
@@ -1287,10 +1291,10 @@ export function isDeviceOfflineReason(v: unknown): v is DeviceOfflineReason {
 }
 /** 📵 화면에 적을 말 — 기사님이 **무엇을 하셔야 하는지**가 갈리므로 낱말도 가른다 */
 export const DEVICE_OFFLINE_LABEL: Record<DeviceOfflineReason, string> = {
-    ACCESSIBILITY_OFF: "접근성 꺼짐",
-    APP_SHUTDOWN: "앱 꺼짐",
+    ACCESSIBILITY_OFF: "⚠️ 접근성 꺼짐",
+    APP_SHUTDOWN: "🛑 앱 종료됨",
     /* 📡 말이 끊겼다 — 앱이 아무 말도 못 하고 사라졌다 (데드맨). «연결 끊김»보다 무엇이 일어났는지를 말한다 */
-    NO_CONTACT: "통신 두절",
+    NO_CONTACT: "📵 통신 두절",
 };
 
 /**
@@ -1319,7 +1323,7 @@ export const DEVICE_OFFLINE_LABEL: Record<DeviceOfflineReason, string> = {
  *
  * 알람·대기로 잡은 콜은 기사님이 직접 누른 것이라 **직접콜**이고 심사하지 않는다 (규칙 ①).
  */
-export const DEVICE_MODES = ["AUTO", "ALARM", "MANUAL"] as const;
+export const DEVICE_MODES = ["AUTO", "ALARM", "MANUAL", "SIMULATION"] as const;
 export type DeviceModeType = typeof DEVICE_MODES[number];
 
 /** 모르는 값을 모드로 받지 않는다 — 값이 늘어도 여기 한 곳만 본다 (규칙 ③) */
@@ -1327,11 +1331,12 @@ export function isDeviceMode(v: unknown): v is DeviceModeType {
     return typeof v === "string" && (DEVICE_MODES as readonly string[]).includes(v);
 }
 
-/** 화면에 적히는 이름 — MANUAL 의 화면 이름은 «직접» (기사님 확정 2026-08-30 · 구 «대기» — «쉬는 중»으로 오독되던 이름이라 직접콜 가족으로 통일) */
+/** 화면에 적히는 이름 — MANUAL 의 화면 이름은 «직접», SIMULATION 의 화면 이름은 «체험» (기사님 확정 2026-09-18) */
 export const DEVICE_MODE_LABEL: Record<DeviceModeType, string> = {
     AUTO: "자동",
     ALARM: "알람",
     MANUAL: "직접",
+    SIMULATION: "체험",
 };
 
 /**
@@ -1444,7 +1449,9 @@ export type ScreenContextType =
      * (규칙 ⑤-4 ⑤ — 한 값이 두 사실을 답하게 두지 않는다)
      */
     | 'HOME'                  // 🏠 배차망 홈 — 리스트에 들어가기 전
-    | 'UNKNOWN';              // 알 수 없는 화면
+    | 'LAUNCHER'              // 📱 안드로이드 바탕화면 (홈 런처)
+    | 'OTHER_APP'             // 📱 기타 앱 (배차망 밖)
+    | 'UNKNOWN';              // 알 수 없는 화면 / 미등록 팝업
 
 /**
  * 🔴 **"콜에서 손을 뗀 화면"의 정의 — 여기 하나뿐이다.**
@@ -1805,8 +1812,13 @@ export function hasVisitedStop(
 export function judgingCallOf<T extends { status?: string | null; isPreview?: boolean }>(
     calls: T[],
 ): T | undefined {
-    return calls.find(c => !isTerminal(c.status ?? undefined)
-        && (isEvaluating(c.status ?? undefined) || !!c.isPreview));
+    return calls.find(c => {
+        const s = c.status ?? undefined;
+        if (isTerminal(s)) return false;
+        // 🛡️ 이미 배차가 확정되었거나 운행 중인 콜은 심사 대상이 아니다 (잔여 isPreview 플래그 방어)
+        if (s === 'ORDER_CONFIRMED' || s === 'ORDER_PICKED_UP' || s === 'ORDER_DELIVERED') return false;
+        return isEvaluating(s) || !!c.isPreview;
+    });
 }
 
 /**

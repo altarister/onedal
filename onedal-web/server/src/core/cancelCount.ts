@@ -38,8 +38,8 @@ export function countCancel(
     const order = session.pendingOrdersData.get(orderId)
         ?? session.myOrders.find(o => o.id === orderId);
 
-    if (isPreviewHint || order?.isPreview) {
-        console.log(`   👀 [미리보기] ${orderId} — 확정 전이라 인성엔 취소가 없다. 카운트에 넣지 않는다 (reason: ${reason})`);
+    if (isPreviewHint || order?.isPreview || order?.isSimulated) {
+        console.log(`   👀 [미리보기/체험] ${orderId} — 확정 전이거나 가상 체험 콜이라 실제 배차망 취소가 없다. 카운트에 넣지 않는다 (reason: ${reason})`);
         return;
     }
 
@@ -129,8 +129,8 @@ export function countKeep(
     const order = session.pendingOrdersData.get(orderId)
         ?? session.myOrders.find(o => o.id === orderId);
 
-    if (isPreviewHint || order?.isPreview) {
-        console.log(`   👀 [미리보기] ${orderId} — 확정 전이라 아직 내 콜이 아니다. 수락에 넣지 않는다`);
+    if (isPreviewHint || order?.isPreview || order?.isSimulated) {
+        console.log(`   👀 [미리보기/체험] ${orderId} — 확정 전이거나 가상 체험 콜이라 실제 배차망 수락이 아니다. 수락에 넣지 않는다`);
         return;
     }
 

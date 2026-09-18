@@ -16,7 +16,7 @@
 | `onedal-sim/`               | 배차망 시뮬레이터 — 앱폰이 읽을 가짜 배차망 화면               | Vite 7, React 19                                |
 | `onedal-map/`               | 지도 공장 — 콜 필터 그물이 쓰는 읍면동 폴리곤을 만든다         | Node · Python 스크립트                          |
 
-앱이 아닌 자리: `docs/` 문서 · `ex_images/` 실물 캡처 · `log/` 주행 로그 백업
+앱이 아닌 자리: `docs/` 문서 · `ex_images/` 실물 캡처 · `log/` 주행 로그 백업 · `reviews/` 분석 및 리뷰 문서 (로컬 전용)
 
 통신: 앱 → 서버는 REST(`POST /api/scrap`), 서버 → 앱은 **응답 꼬리에 명령을 싣는 피기백**.
 서버 ↔ 관제탑만 Socket.IO. (모바일 웹소켓 끊김을 피하려는 의도된 설계)
@@ -235,6 +235,19 @@
 - **⑤-5** 시간 계산은 `onedal-web/shared/src/timing.ts` 를 먼저 읽는다 — 약속은 «도착 시각»이고, **상차버퍼**(상차지에서 더 기다릴 수 있는 분)와 **경유버퍼**(배송 중 남는 분)는 다른 값이다. 새 상수를 만들지 않는다
 
 **⑥ 콜 진행 6단계(`CALL_STEPS`)는 한 번에 한 단계씩만 넘긴다**
+
+**⑦ 일반적인 개발 상식과 다른 구조적 특이점 (엔지니어 주의사항)**
+- **세션 저장소 계층 분리 (`UserSession` vs `DeviceSession`)**:
+  - 사용자 세션(`userSessionStore.ts`)과 기기 세션(`routes/devices.ts`의 `activeDevices: Map` 및 SQLite `user_devices`)은 물리적·메모리상으로 완전히 분리되어 있다.
+  - 🔴 `session.devices` 같은 속성은 존재하지 않으며, 호출 시 런타임 `TypeError`로 전체 배차가 마비된다. 기기 모드 조회가 필요할 때는 항상 `getDeviceMode(deviceId, userId)` 함수를 사용한다.
+- **UI 컴포넌트 단위 테스트의 맹점 (정규식·단편 Mock 검증의 한계)**:
+  - 관제탑(`client-app`)의 다수 단위 테스트는 컴포넌트 트리를 실제 렌더링(`render`)하지 않고 `codeOnly` 정규식이나 순수 로직에 의존한다.
+  - 부모 컴포넌트에서 필수 Prop을 누락하거나 미선언 변수를 참조해도 `vitest` 및 `tsc`를 통과할 수 있다. 핵심 UI 수정 시 최소 1개 이상의 마운트 스모크 테스트와 브라우저 렌더링 확인이 필수다.
+- **취소·페널티의 단일 진실 공급원 (SSOT)**:
+  - 콜이 끝나는 경로(웹 결재 취소, 폰 화면 이탈, 30초 타임아웃, 긴급 리셋, 신규 콜 선점)는 다양하지만, 가상 콜 필터링 및 기사 취소 페널티(10회) 누적 방지는 반드시 `core/cancelCount.ts` 내부에서 단일하게 처리한다.
+- **인메모리 가상 데이터와 SQLite DB의 비대칭성**:
+  - 가상/체험 모드(`SIMULATION`) 콜은 관제 계산을 위해 Node.js RAM(`session.myOrders`)에는 올라가지만, 실제 SQLite DB(`orders`, `places`)에는 쓰이지 않는다.
+  - "메모리에 콜이 있으니 DB에도 당연히 행이 있다"고 가정하고 마일스톤 생성(`birthFirstStep`) 등 DB 조회를 호출하면 예외가 터지므로 반드시 `!isSimulated` 가드로 격리한다.
 
 ## 지금은 테스트 단계다 — **마이그레이션을 고려하지 않는다**
 

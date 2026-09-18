@@ -58,8 +58,11 @@ export function useRouteDerivations(
     const stepRecords = useStepRecords(activeRoute.map(o => o.id));
     const { filter } = useFilterConfig();
 
-    // 지도 렌더링용: 완료된 콜 제외한 현재 진행 중인 오더만 추출
-    const liveRoute = useMemo(() => (activeRoute || []).filter(r => !isTerminal(r.status)), [activeRoute]);
+    // 지도 렌더링용: 완료된 콜 및 심사 중인 후보콜을 제외한 현재 확정 진행 중인 오더만 추출
+    const liveRoute = useMemo(
+        () => (activeRoute || []).filter(r => !isTerminal(r.status) && !isEvaluating(r.status)),
+        [activeRoute]
+    );
 
     /**
      * 🗓️ **오늘의 카드 목록** — 진행 중 + 오늘 하차한 콜 (기사님 2026-08-19 · 2026-09-15 «사이클 = 하루»).
@@ -84,8 +87,8 @@ export function useRouteDerivations(
      * 순서를 뒤집지 않는다 — 운행 중에 새 콜이 심사에 들어와도 **가고 있는 길**이 먼저다.
      */
     const previewHolder = useMemo(
-        () => (previewRouteHolderId ? liveRoute.find(r => r.id === previewRouteHolderId) ?? null : null),
-        [liveRoute, previewRouteHolderId]);
+        () => (previewRouteHolderId ? (activeRoute || []).find(r => r.id === previewRouteHolderId) ?? null : null),
+        [activeRoute, previewRouteHolderId]);
     const drawHolder = routeHolder ?? previewHolder;
     const activePolyline = useMemo(
         () => (drawHolder?.routePolyline?.length ? drawHolder.routePolyline : null),
@@ -241,30 +244,54 @@ export function useRouteDerivations(
         const covered = new Set<string>();
         for (const st of routeStops) {
             const r = byId.get(st.orderId);
-            if (!r) continue;                          // 좀비 정거장 (취소 후 재계산 전) — 그리지 않는다
+            if (!r) continue;                          // 좀비 정거장 또는 심사 중 콜 — 그리지 않는다
             covered.add(`${st.orderId}:${st.stopType}`);
             /**
-             * 🚏 다녀온 정거장은 여기서도 뺀다 (기사님 실측 0831 — 숫자가 하나씩 밀림).
-             *    도착 직후 서버 재계산 전까지 routeStops 에 남아 있어, 발자취(✅번호)와
-             *    남은 목록에 **이중으로** 세어졌다. 표시는 발자취가 이어받는다.
-             */
+              * 🚏 다녀온 정거장은 여기서도 뺀다 (기사님 실측 0831 — 숫자가 하나씩 밀림).
+              *    도착 직후 서버 재계산 전까지 routeStops 에 남아 있어, 발자취(✅번호)와
+              *    남은 목록에 **이중으로** 세어졌다. 표시는 발자취가 이어받는다.
+              */
             if (hasVisitedStop(r, st.stopType)) continue;
             const isP = st.stopType === 'pickup';
             pts.push({ type: isP ? '상차' : '하차', name: getAddressLabel(isP ? r.pickup : r.dropoff),
-                       isEvaluating: isEvaluating(r.status),
+                       isEvaluating: false,
                        x: isP ? r.pickupX : r.dropoffX, y: isP ? r.pickupY : r.dropoffY, routeId: r.id });
         }
         for (const r of liveRoute) {
             // 🚏 다녀온 정거장은 폴백에서도 되살리지 않는다 (기사님 실측 2026-08-19) — hasVisitedStop 하나
             if (!covered.has(`${r.id}:pickup`) && !hasVisitedStop(r, 'pickup'))
-                pts.push({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: isEvaluating(r.status),
+                pts.push({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: false,
                            x: r.pickupX, y: r.pickupY, routeId: r.id });
             if (!covered.has(`${r.id}:dropoff`) && !hasVisitedStop(r, 'dropoff'))
-                pts.push({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: isEvaluating(r.status),
+                pts.push({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: false,
                            x: r.dropoffX, y: r.dropoffY, routeId: r.id });
         }
+        // 🟡 심사 중인 후보콜 — 경로선과 함께 상차·하차 마커와 지명도 지도에 그린다
+        const candidate = judging ?? previewHolder;
+        if (candidate && isEvaluating(candidate.status)) {
+            if (candidate.pickupX != null && candidate.pickupY != null) {
+                pts.push({
+                    type: '상차',
+                    name: getAddressLabel(candidate.pickup),
+                    isEvaluating: true,
+                    x: candidate.pickupX,
+                    y: candidate.pickupY,
+                    routeId: candidate.id,
+                });
+            }
+            if (candidate.dropoffX != null && candidate.dropoffY != null) {
+                pts.push({
+                    type: '하차',
+                    name: getAddressLabel(candidate.dropoff),
+                    isEvaluating: true,
+                    x: candidate.dropoffX,
+                    y: candidate.dropoffY,
+                    routeId: candidate.id,
+                });
+            }
+        }
         return pts;
-    }, [liveRoute, routeStops]);
+    }, [liveRoute, routeStops, judging, previewHolder]);
 
     /**
      * 🕐 콜별 상하차 예상 시각 — 재료는 타임라인 하나다 (기사님 질문 2026-08-30).

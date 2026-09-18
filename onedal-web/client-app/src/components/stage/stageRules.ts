@@ -26,6 +26,8 @@ export interface StageSignals {
     calls: number;
     /** 심사 중인 콜이 있나 (S4) */
     judging: boolean;
+    /** 🔍 오더 필터 패널이 열려 있나 (판정이 없을 때 시트를 최하단으로 내려 지도 확보) */
+    filterOpen?: boolean;
     /** 주행/정차 — GPS 속도의 히스테리시스 결과 */
     drive: 'drive' | 'idle';
     /**
@@ -109,6 +111,95 @@ export interface StageResult {
     deferred: boolean;
 }
 
+/**
+ * 📋 **신호 처리 우선순위 룰 테이블 (Declarative Priority Rule Table)**
+ *
+ * 위에서부터 순서대로 조건을 평가하며, 가장 먼저 매칭된 규칙이 시트 높이를 결정한다.
+ * 순서 = 우선순위:
+ *   1순위: 👑 심사 판정 (최우선 — 결재 버튼 사수, 필터보다 무조건 우선)
+ *   2순위: 🔍 필터 열림 (판정 아닐 때 지도 확보를 위해 최하단 peek)
+ *   3순위: ⏳ 손 유예 중 (30초 동안 자동 주행/정차 차단)
+ *   4순위: 🚗 주행 중 (달릴 때는 지도 집중)
+ *   5순위: 🪜 마중 유지 (KEEP·도착으로 올라간 시트 유지)
+ *   6순위: 🛑 정차 중 (콜 목록 표시)
+ *   7순위: 📭 기본 (콜 없음)
+ */
+export interface StageRule {
+    name: string;
+    match: (sig: StageSignals, mem: StageMemory) => boolean;
+    resolve: (sig: StageSignals, mem: StageMemory) => {
+        snap: Snap | null;
+        autoRaised?: boolean;
+        userHoldUntil?: number;
+        deferred?: boolean;
+    };
+}
+
+export const SIGNAL_RULES: StageRule[] = [
+    // 👑 1순위: 심사 판정 (최우선 — 필터보다 무조건 우선하며 결재석 'list' 사수)
+    {
+        name: '판정중',
+        match: (sig) => sig.judging,
+        resolve: (sig) => ({
+            snap: snapOnJudging(sig.snap ?? 'peek'),
+            autoRaised: false,
+            userHoldUntil: 0,
+        }),
+    },
+    // 🔍 2순위: 필터 열림 (판정이 아닐 때 지도를 넓게 보기 위해 최하단 peek)
+    {
+        name: '필터열림',
+        match: (sig) => Boolean(sig.filterOpen),
+        resolve: () => ({
+            snap: 'peek',
+            autoRaised: false,
+            userHoldUntil: 0,
+        }),
+    },
+    // ⏳ 3순위: 손 유예 중 (기사님이 손으로 시트를 만진 뒤 30초 동안은 자동 주행/정차가 못 바꿈)
+    {
+        name: '손 유예 중',
+        match: (sig, mem) => sig.nowMs < mem.userHoldUntil,
+        resolve: () => ({
+            snap: null,
+            deferred: true,
+        }),
+    },
+    // 🚗 4순위: 주행 중 (달릴 때는 지도가 주인공)
+    {
+        name: '주행',
+        match: (sig) => sig.drive === 'drive',
+        resolve: () => ({
+            snap: 'peek',
+            autoRaised: false,
+        }),
+    },
+    // 🪜 5순위: 마중 유지 (KEEP·도착으로 올라간 시트는 정차가 끌어내리지 못함)
+    {
+        name: '마중 유지',
+        match: (_sig, mem) => mem.autoRaised,
+        resolve: () => ({
+            snap: null,
+        }),
+    },
+    // 🛑 6순위: 정차 중 (콜이 있으면 아코디언 목록 확인)
+    {
+        name: '정차',
+        match: (sig) => sig.calls > 0,
+        resolve: () => ({
+            snap: 'list',
+        }),
+    },
+    // 📭 7순위: 기본 상태 (콜 없음)
+    {
+        name: '콜없음',
+        match: () => true,
+        resolve: () => ({
+            snap: 'peek',
+        }),
+    },
+];
+
 const out = (mem: StageMemory, snap: Snap | null, reason: string, deferred = false): StageResult =>
     ({ mem, snap, reason, deferred });
 
@@ -159,10 +250,10 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
 
         case 'done':
             /**
-             * 🚪 **완료 행동이 문을 닫는다** (v23 Ⅳ · S14) — 통화 완료·저장을 누르면
-             *    시트가 스스로 내려간다. 🔴 **유예를 걸지 않는다** — 손으로 끈 것이 아니라
-             *    «일을 마친 것»이라, 다음 정거장 도착은 여전히 마중 나가야 한다.
-             */
+              * 🚪 **완료 행동이 문을 닫는다** (v23 Ⅳ · S14) — 통화 완료·저장을 누르면
+              *    시트가 스스로 내려간다. 🔴 **유예를 걸지 않는다** — 손으로 끈 것이 아니라
+              *    «일을 마친 것»이라, 다음 정거장 도착은 여전히 마중 나가야 한다.
+              */
             return out({ ...mem, autoRaised: false, pendingArrival: null }, 'list', '완료');   // 일을 마쳤다 — 미룬 도착도 끝
 
         case 'depart':
@@ -172,35 +263,25 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
 
         case 'signal':
         default: {
-            if (holding) return out(mem, null, '손 유예 중', true);
             /* 🏁 유예가 끝났다 — 미룬 도착이 있고 **아직 그 정거장 곁이면** 도착으로 올린다. 떠났으면 조용히 잊는다 (한 번만 묻는다) */
-            if (mem.pendingArrival) {
+            if (!holding && mem.pendingArrival) {
                 const key = mem.pendingArrival;
                 mem = { ...mem, pendingArrival: null };
                 if (sig.hereStops?.includes(key)) return out({ ...mem, autoRaised: true }, 'full', '도착(유예 뒤)');
             }
-            if (sig.judging) {
-                /**
-                 * 🪧 **심사가 뜨면 시트를 「나」로 올린다** (기사님 확정 2026-09-05 · 안 ⓑ).
-                 *
-                 * 🔴 예전에는 **내렸다**(peek) — «지도가 판정의 근거다»(S4)를 지키려던 것이다.
-                 *    그런데 판정석이 **시트 맨 아래**로 오면서 내리면 **결재 버튼이 안 보인다.**
-                 *    실물에 콜을 하나 올려 찍어 보고서야 드러났다.
-                 * 🟢 **둘 다 지킨다** — 「나」는 58% 상한이라 **지도가 절반 남는다.**
-                 *    후보 경로(노란 점선)를 보면서 아래에서 결재한다.
-                 * ⚠️ 이미 「다」로 올려 두셨으면 그대로다 — 손이 이긴다 (`snapOnJudging`).
-                 * 🔴 규칙은 `sheetTransition` 한 곳이 안다 — 여기서 다시 적지 않는다 (규칙 ③).
-                 */
-                return out({ ...mem, autoRaised: false }, snapOnJudging(sig.snap ?? 'peek'), '판정중');
-            }
-            if (sig.drive === 'drive') {
-                // S3 — 달리면 지도가 주인공. 자동으로 올라간 시트도 여기서는 진다
-                return out({ ...mem, autoRaised: false }, 'peek', '주행');
-            }
-            // 🪜 KEEP·도착으로 올라간 시트는 «정차»가 끌어내리지 못한다
-            if (mem.autoRaised) return out(mem, null, '마중 유지');
-            if (sig.calls > 0) return out(mem, 'list', '정차');   // S2 — 콜 목록
-            return out(mem, 'peek', '콜없음');                     // S1
+
+            const rule = SIGNAL_RULES.find(r => r.match(sig, mem))!;
+            const res = rule.resolve(sig, mem);
+            return out(
+                {
+                    ...mem,
+                    autoRaised: res.autoRaised !== undefined ? res.autoRaised : mem.autoRaised,
+                    userHoldUntil: res.userHoldUntil !== undefined ? res.userHoldUntil : mem.userHoldUntil,
+                },
+                res.snap,
+                rule.name,
+                res.deferred ?? false
+            );
         }
     }
 }

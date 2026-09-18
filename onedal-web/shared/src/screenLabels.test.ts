@@ -64,18 +64,18 @@ describe('deviceScreenBadge — 화면 켜짐과 화면명은 한 배지', () =>
             offlineReason: 'ACCESSIBILITY_OFF',
         });
         expect(badge!.network).toBeNull();
-        expect(badge!.label).toBe('접근성 꺼짐');
+        expect(badge!.label).toBe('⚠️ 접근성 꺼짐');
         expect(badge!.label).not.toContain('리스트');
     });
 
     it('앱이 스스로 내려간 것과 접근성이 꺼진 것을 가른다 — 하실 일이 다르다', () => {
         expect(deviceScreenBadge({ status: 'OFFLINE', offlineReason: 'APP_SHUTDOWN' })!.label)
-            .toBe('앱 꺼짐');
+            .toBe('🛑 앱 종료됨');
     });
 
-    it('까닭을 못 들었으면 «연결 끊김» — 지어내지 않는다 (규칙 ④)', () => {
+    it('까닭을 못 들었으면 «📵 통신 끊김» — 지어내지 않는다 (규칙 ④)', () => {
         const badge = deviceScreenBadge({ status: 'OFFLINE', targetApp: 'insung', screenContext: 'LIST' });
-        expect(badge!.label).toBe('연결 끊김');
+        expect(badge!.label).toBe('📵 통신 끊김');
     });
 
     it('화면명도 배차망도 없으면 아무것도 안 그린다', () => {
@@ -86,5 +86,38 @@ describe('deviceScreenBadge — 화면 켜짐과 화면명은 한 배지', () =>
         const badge = deviceScreenBadge({ status: 'ONLINE', targetApp: 'insung', isScreenOn: true });
         expect(badge!.network).toBe('인성');
         expect(badge!.label).toBe('');
+    });
+
+    it('Tier 2: 바탕화면 홈 런처인 경우 «📱 바탕화면 (홈)»으로 배차망 없이 표기한다', () => {
+        const badge = deviceScreenBadge({
+            status: 'ONLINE',
+            targetApp: 'kakaopicker',
+            screenContext: 'LAUNCHER',
+            isScreenOn: true,
+        });
+        expect(badge!.network).toBeNull();
+        expect(badge!.label).toBe('📱 바탕화면 (홈)');
+    });
+
+    it('Tier 2: 타 앱인 경우 «📱 기타 앱 (배차망 밖)»으로 표기한다', () => {
+        const badge = deviceScreenBadge({
+            status: 'ONLINE',
+            targetApp: 'kakaopicker',
+            screenContext: 'OTHER_APP',
+            isScreenOn: true,
+        });
+        expect(badge!.network).toBeNull();
+        expect(badge!.label).toBe('📱 기타 앱 (배차망 밖)');
+    });
+
+    it('Tier 1: 배차망 앱 내에서 미등록 화면/팝업인 경우 «⚠️ 미등록 팝업»으로 표기한다', () => {
+        const badge = deviceScreenBadge({
+            status: 'ONLINE',
+            targetApp: 'kakaopicker',
+            screenContext: 'UNKNOWN',
+            isScreenOn: true,
+        });
+        expect(badge!.network).toBe('픽커');
+        expect(badge!.label).toBe('⚠️ 미등록 팝업');
     });
 });

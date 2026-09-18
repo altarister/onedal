@@ -11,14 +11,15 @@ import org.junit.Test
 class ModeFrameTest {
 
     @Test
-    fun `알람은 녹색 · 자동은 짙은 파랑 · 직접은 주황`() {
+    fun `알람은 녹색 · 자동은 짙은 파랑 · 직접은 회색 · 체험은 노랑`() {
         assertEquals(0xFF22C55E.toInt(), ModeFrame.colorOf("ALARM"))
         assertEquals(0xFF1D4ED8.toInt(), ModeFrame.colorOf("AUTO"))
-        assertEquals(0xFFF97316.toInt(), ModeFrame.colorOf("MANUAL"))
+        assertEquals(0xFF64748B.toInt(), ModeFrame.colorOf("MANUAL"))
+        assertEquals(0xFFF59E0B.toInt(), ModeFrame.colorOf("SIMULATION"))
     }
 
     @Test
-    fun `모르는 모드는 직접(주황) — 서버 답을 못 받았을 때의 앱 기본값과 같다`() {
+    fun `모르는 모드는 직접(회색) — 서버 답을 못 받았을 때의 앱 기본값과 같다`() {
         assertEquals(ModeFrame.colorOf("MANUAL"), ModeFrame.colorOf("무엇"))
     }
 

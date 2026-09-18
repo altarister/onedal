@@ -11,6 +11,7 @@ import { useAuth } from "./contexts/AuthContext";
 import { useNativeLocation } from "./hooks/useNativeLocation";
 import { useGpsTelemetry } from "./hooks/useGpsTelemetry";
 import { isNaviDevice, markNaviDevice, clearNaviDevice } from "./lib/naviDevice";
+import { SessionGuard } from "./components/session/SessionGuard";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -95,6 +96,9 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen">
+      {/* 🛡️ 단일 세션 인계 관리 — 다른 기기에서 열었을 때 충돌 팝업 및 종료 처리 */}
+      <SessionGuard />
+
       {/* 🧭 **조용히 끄지 않는다** — 이 브라우저를 나중에 관제로 쓸 때
           «왜 궤적이 안 남지»를 헤매지 않도록 화면이 먼저 말한다 (관제웹 규칙:
           «저장된 값이 목록에 없으면 다른 항목을 대신 보여주지 않는다» 와 같은 결). */}

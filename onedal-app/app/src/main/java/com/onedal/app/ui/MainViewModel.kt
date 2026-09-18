@@ -53,6 +53,8 @@ class MainViewModel {
 
     // ── 설정값 ──
     var isLiveMode by mutableStateOf(false)
+    var showTapMarker by mutableStateOf(false)
+        private set
     /** ⏱️ 서버에서 받은 배차망별 대기 시간 — 폰에서는 **보여 주기만** 한다 (고치는 곳은 관제웹 설정) */
     var waitTimesLabel by mutableStateOf("")
         private set
@@ -66,6 +68,7 @@ class MainViewModel {
         // 초기값 로드
         deviceId = prefs.getString("deviceId", null) ?: "(서비스 시작 시 자동 생성됨)"
         isLiveMode = prefs.getBoolean("isLiveMode", false)
+        showTapMarker = prefs.getBoolean("showTapMarker", false)
         waitTimesLabel = waitTimesLabelOf(prefs.getString("activeFilter", null))
 
         scope.launch {
@@ -79,6 +82,7 @@ class MainViewModel {
                 apiScrapRes = prefs.getString("api_scrap_res", "없음") ?: "없음"
                 apiConfirmReq = prefs.getString("api_confirm_req", "없음") ?: "없음"
                 apiConfirmRes = prefs.getString("api_confirm_res", "없음") ?: "없음"
+                showTapMarker = prefs.getBoolean("showTapMarker", false)
                 delay(1000)
             }
         }
@@ -122,6 +126,12 @@ class MainViewModel {
         isLiveMode = checked
         context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
             .edit().putBoolean("isLiveMode", checked).apply()
+    }
+
+    fun saveShowTapMarker(context: Context, enabled: Boolean) {
+        showTapMarker = enabled
+        context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+            .edit().putBoolean("showTapMarker", enabled).apply()
     }
 
     /**

@@ -27,15 +27,18 @@ class ModeFrame(private val service: AccessibilityService) {
         val ALARM_GREEN: Int = 0xFF22C55E.toInt()
         /** 알람 콜 띠(청록 `#00E5FF`)와 헷갈리지 않게 짙은 파랑 */
         val AUTO_BLUE: Int = 0xFF1D4ED8.toInt()
-        val MANUAL_ORANGE: Int = 0xFFF97316.toInt()
+        val MANUAL_GRAY: Int = 0xFF64748B.toInt()
+        /** 🐥 햇병아리 노랑 — 가상 체험 모드 (기사님 확정) */
+        val SIMULATION_YELLOW: Int = 0xFFF59E0B.toInt()
         /** 테두리 굵기(px) — 굵으면 화면 가장자리 글자·버튼을 가린다 */
         private const val STROKE_PX = 6f
 
-        /** 모드 → 테두리 색. 모르는 값은 직접(주황) — 서버 답을 못 받았을 때의 앱 기본값(`TelemetryManager.currentMode`)과 같다 */
+        /** 모드 → 테두리 색. 모르는 값은 직접(회색) — 서버 답을 못 받았을 때의 앱 기본값(`TelemetryManager.currentMode`)과 같다 */
         fun colorOf(mode: String): Int = when (mode) {
             "ALARM" -> ALARM_GREEN
             "AUTO" -> AUTO_BLUE
-            else -> MANUAL_ORANGE
+            "SIMULATION" -> SIMULATION_YELLOW
+            else -> MANUAL_GRAY
         }
     }
 

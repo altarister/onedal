@@ -53,6 +53,12 @@ interface IScrapParser {
     fun parsePickupDistance(rawText: String): Double?
 
     /**
+     * 상세 화면에서 추출된 텍스트 목록과 최근 리스트 오더 목록을 대조하여
+     * 원본 리스트 오더를 매칭합니다. 매칭 실패 시 null을 반환합니다.
+     */
+    fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder?
+
+    /**
      * 리스트 화면의 전체 텍스트 노드들을 콜(Card/Row) 단위로 묶어줍니다.
      * @return 요금 노드(클릭 대상)와 해당 콜을 구성하는 전체 텍스트들의 리스트 쌍(Pair)
      */

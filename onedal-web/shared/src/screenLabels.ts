@@ -42,7 +42,9 @@ const COMMON: Partial<Record<ScreenContextType, ScreenLabel>> = {
     // 완료 리스트도 "콜에서 손을 뗀" 화면이다 — 앱이 여기로 빠져나가면 서버가 콜을 놓는다.
     // 예전에는 이 값이 shared 타입에 없어서, 앱만 보내고 아무도 못 읽었다 (유령 카드 사고)
     LIST_COMPLETED: { label: "완료 리스트", color: GREEN },
-    UNKNOWN: { label: "알 수 없는 화면", color: RED_BLINK },
+    UNKNOWN: { label: "⚠️ 미등록 팝업", color: RED_BLINK },
+    LAUNCHER: { label: "바탕화면 (홈)", color: GRAY },
+    OTHER_APP: { label: "기타 앱 (배차망 밖)", color: AMBER },
 };
 
 /** 🏢 인성콜 — 잡는 수순이 곧 화면이다. 진행은 GPS 가 답한다 */
@@ -107,13 +109,24 @@ export function screenLabelsOf(targetApp?: string | null) {
 }
 
 /**
- * 🏷️ 이 배차망의 이 화면을 뭐라 부르나 — 목록에 없으면 «알 수 없는 화면».
+ * 🏷️ 이 배차망의 이 화면을 뭐라 부르나 — 목록에 없으면 배차망 내부 시 «⚠️ 미등록 팝업», 배차망 밖이면 «⚠️ 알 수 없는 화면».
  *
  * 🔴 **빠진 화면을 조용히 비우지 않는다.** 비우면 «못 읽는 중»과 «그런 화면이 없음»이
  *    같아 보인다 — 이 레포가 «연결됐다»와 «읽고 있다»를 섞어 당한 것과 같은 모양이다.
  */
 export function screenLabelOf(targetApp: string | null | undefined, screen?: ScreenContextType | null): ScreenLabel | null {
     if (!screen) return null;
+    if (screen === 'LAUNCHER') {
+        return { label: "바탕화면 (홈)", color: GRAY };
+    }
+    if (screen === 'OTHER_APP') {
+        return { label: "기타 앱 (배차망 밖)", color: AMBER };
+    }
+    if (screen === 'UNKNOWN') {
+        return targetApp
+            ? { label: "⚠️ 미등록 팝업", color: RED_BLINK }
+            : { label: "알 수 없는 화면", color: RED_BLINK };
+    }
     return screenLabelsOf(targetApp)[screen] ?? { label: "알 수 없는 화면", color: RED_BLINK };
 }
 
@@ -164,10 +177,10 @@ export function deviceScreenBadge(device: {
      * 그 값은 폰이 마지막으로 말해 준 «아까 그것»이라, 계속 그리면 화면이
      * *"지금 이 화면이다"* 라고 **단언**한다. 대신 **왜 끊겼는지**를 적는다 —
      * 접근성을 켜야 하는 것과 폰·통신을 봐야 하는 것은 기사님이 하실 일이 다르다.
-     * ⚠️ 까닭을 못 들었으면 «연결 끊김» 이다 — 못 들은 것을 «접근성 꺼짐»으로 지어내지 않는다.
+     * ⚠️ 까닭을 못 들었으면 «📵 통신 끊김» 이다 — 못 들은 것을 «⚠️ 접근성 꺼짐»으로 지어내지 않는다.
      */
     if (disconnected) {
-        const why = device.offlineReason ? DEVICE_OFFLINE_LABEL[device.offlineReason] : "연결 끊김";
+        const why = device.offlineReason ? DEVICE_OFFLINE_LABEL[device.offlineReason] : "📵 통신 끊김";
         return { network: null, label: why, color: MUTED };
     }
 
@@ -175,13 +188,28 @@ export function deviceScreenBadge(device: {
         return { network: null, label: "💤 화면 꺼짐", color: SLEEP };
     }
 
+    // Tier 2: 배차망 외부 (바탕화면 홈 런처 또는 기타 앱)
+    if (device.screenContext === "LAUNCHER") {
+        return { network: null, label: "📱 바탕화면 (홈)", color: GRAY };
+    }
+    if (device.screenContext === "OTHER_APP") {
+        return { network: null, label: "📱 기타 앱 (배차망 밖)", color: AMBER };
+    }
+
+    // Tier 1: 배차망 내부
     const screen = screenLabelOf(device.targetApp, device.screenContext);
     const network = device.targetApp
         ? (TARGET_APP_LABEL[device.targetApp as TargetAppType] ?? device.targetApp)
         : null;
 
     if (!screen && !network) return null;
+    
     // 폭을 아끼려고 화면명의 낱말 사이를 붙인다 — «인성 콜리스트» (기사님 0831).
-    // 💤 은 이 함수가 지은 말이라 그대로 둔다 (붙이면 «💤화면 꺼짐» 이 된다)
-    return { network, label: screen?.label.replace(" ", "") ?? "", color: screen?.color ?? MUTED };
+    // ⚠️, 📱 등 이모지나 특수 접두사가 있는 경우는 원문 유지
+    const rawLabel = screen?.label ?? "";
+    const cleanLabel = rawLabel.startsWith("⚠️") || rawLabel.startsWith("📱")
+        ? rawLabel
+        : rawLabel.replace(" ", "");
+
+    return { network, label: cleanLabel, color: screen?.color ?? MUTED };
 }

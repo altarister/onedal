@@ -48,6 +48,23 @@ function resolveDefaultMode(deviceId: string, userId: string): DeviceModeType {
 }
 
 /**
+ * 기기의 현재 모드를 가져온다 (메모리 세션 > DB 저장값 > 폴백).
+ */
+export function getDeviceMode(deviceId: string, userId?: string): DeviceModeType {
+    const session = activeDevices.get(deviceId);
+    if (session?.mode) return session.mode;
+    if (userId) {
+        return resolveDefaultMode(deviceId, userId);
+    }
+    try {
+        const row = db.prepare("SELECT mode FROM user_devices WHERE device_id = ?").get(deviceId) as { mode?: string } | undefined;
+        if (isDeviceMode(row?.mode)) return row.mode;
+    } catch {}
+    return "MANUAL";
+}
+
+
+/**
  * 데드맨 스위치 감지 주기.
  *
  * [Phase 1.5] 70초 → 150초로 상향.
@@ -299,6 +316,17 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         }
     }
     activeDevices.set(deviceId, session);
+
+    // [모드 동기화] 유저 세션의 filterEnabledByMode 가 현재 기기들의 모드 상태와 일치하는지 확인 및 자동 동기화
+    const userSession = getUserSession(userId);
+    const userDeviceIds = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(userId).map((r: any) => r.device_id);
+    const hasFilteringDevice = Array.from(activeDevices.values()).some(d =>
+        userDeviceIds.includes(d.deviceId) && (d.mode === "AUTO" || d.mode === "ALARM" || d.mode === "SIMULATION")
+    );
+    if (userSession.filterEnabledByMode !== hasFilteringDevice) {
+        userSession.filterEnabledByMode = hasFilteringDevice;
+        updateActiveFilter(userId, { isActive: hasFilteringDevice }, io);
+    }
 
     // [Zero-Latency 동기화 핵심 로직] 
     // 기사님이 수동으로 닫기를 누르거나 오더가 사라져서 안드로이드 앱이 리스트 화면으로 이탈했다면, 
@@ -717,7 +745,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
 
         const userDeviceIds = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(userId).map((r: any) => r.device_id);
         const hasFilteringDevice = Array.from(activeDevices.values()).some(d =>
-            userDeviceIds.includes(d.deviceId) && (d.mode === "AUTO" || d.mode === "ALARM")
+            userDeviceIds.includes(d.deviceId) && (d.mode === "AUTO" || d.mode === "ALARM" || d.mode === "SIMULATION")
         );
 
         /**

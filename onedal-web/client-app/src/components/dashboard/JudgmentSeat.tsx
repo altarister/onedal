@@ -70,7 +70,8 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const [open, setOpen] = useState(false);
     const { filter } = useFilterConfig();
     const v = verdictOf(route);
-    const manual = isManualLineage(route.type) || !!route.isPreview;
+    // 🐥 가상 체험 모드(isSimulated)에서는 픽커 미리보기 콜이어도 관제탑에서 KEEP/거절 결재 버튼(35:65)을 노출한다
+    const manual = !route.isSimulated && (isManualLineage(route.type) || !!route.isPreview);
     /** ⏱️ 그 배차망의 안전취소 초 (서버 DB) — 픽커는 안전취소가 없어 null */
     const cancelSec = useSettingsStore(st => safeCancelSecOf(st, route.targetApp));
     /**
@@ -119,6 +120,8 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
         <div className="flex items-center relative z-10" style={{ gap: 10, padding: '0 16px', minHeight: 42, fontSize: 14, borderBottom: '1px solid var(--color-border-card)' }}>
             {manual && <span style={{ borderRadius: 7, padding: '3px 10px', fontSize: 12, fontWeight: 800, background: 'rgba(79,141,249,.14)', color: '#9db9ff', border: '1px solid rgba(79,141,249,.35)' }}>
                 {route.capturedVia === 'ALARM' ? '🔔' : '✋'}</span>}
+            {route.isSimulated && <span style={{ borderRadius: 7, padding: '3px 8px', fontSize: 11, fontWeight: 900, background: 'rgba(56,189,248,.18)', color: '#38bdf8', border: '1px solid rgba(56,189,248,.4)' }}>
+                🐥 체험</span>}
             {/**
               * 🔢 **잡으면 목록의 몇 번이 되나** (기사님 2026-09-05:
               *    *"이걸 클릭하면 2번이 될 거라고 보이면 좋겠어"*).

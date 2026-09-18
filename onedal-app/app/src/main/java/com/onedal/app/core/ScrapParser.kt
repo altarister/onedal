@@ -34,6 +34,9 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
         return delegate.parsePickupDistance(rawText)
     }
 
+    override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? =
+        delegate.matchDetailOrder(screenTexts, recentOrders)
+
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         return delegate.groupListNodes(allNodes)
     }

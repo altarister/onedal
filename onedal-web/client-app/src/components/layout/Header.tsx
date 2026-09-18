@@ -92,7 +92,7 @@ export default function Header({ isConnected, liveCalls }: { isConnected: boolea
                             )}
                             <span className="text-xs font-mono font-bold text-text-muted tracking-wide">
                                 {/* ⚠️ 포맷은 `lib/clock` 하나에 있다 — 여기서 또 만들면 같은 화면에 두 모양이 뜬다 */}
-                                {isConnected ? formatClock(serverNow(clock, tick)) : "연결끊김"}
+                                {isConnected ? formatClock(serverNow(clock, tick)) : "☁️ 서버 끊김"}
                             </span>
                         </div>
 

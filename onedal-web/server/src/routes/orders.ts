@@ -19,6 +19,7 @@ import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
+import { getDeviceMode } from "./devices";
 import { parsePolyline, parseSectionEnds, parseSectionStops, parseSectionDriveMin } from "../services/routeComposer";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
@@ -158,6 +159,7 @@ router.post("/confirm", (req, res) => {
             session.deviceEvaluatingMap.set(payload.deviceId, payload.order.id);
         }
 
+        const deviceMode = getDeviceMode(payload.deviceId, userId);
         const pendingOrder: PendingOrder = {
             ...payload.order,
             status: 'ORDER_PRE_SECURED' as OrderStatus,
@@ -180,6 +182,7 @@ router.post("/confirm", (req, res) => {
              *    취소 카운트가 새고, 그건 배차망 10회 패널티와 어긋난다.
              */
             isPreview: !!(payload as any).isPreview,
+            isSimulated: deviceMode === 'SIMULATION',
         } as PendingOrder;
 
         if (pendingOrder.id && pendingOrder.id !== "unknown") {

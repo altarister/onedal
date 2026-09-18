@@ -72,10 +72,12 @@ interface Props {
      *    한쪽이 제 상태를 들면 «필터는 동선인데 지도는 노선»이 된다 (규칙 ③).
      */
     routeMode: boolean;
+    /** 🔍 오더 필터가 열려 있나 (열리면 시트를 최하단 peek으로 내림, 단 판정보다는 하위) */
+    isFilterOpen?: boolean;
 }
 
 export default function StageView(props: Props) {
-    const { activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId, routeMode } = props;
+    const { activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId, routeMode, isFilterOpen } = props;
     const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId);
     const { liveRoute, cycleDeck, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
     /* 🖥️ 곁 패널이 설 만큼 넓은가 — 현황판과 «🚀 지금 출발»이 **같은 답**을 본다 (규칙 ③) */
@@ -312,6 +314,7 @@ export default function StageView(props: Props) {
         const now = Date.now();
         const r = stageStep(mem.current, {
             nowMs: now, calls: liveRoute.length, judging: !!judging, drive,
+            filterOpen: Boolean(isFilterOpen),
             /* 📍 곁(100m)의 다녀온 정거장 — 유예 중 미룬 도착을 다시 물을 때 «아직 곁인가» (stageRules) */
             hereStops: hereStopsOf(derived.visitedTrail, myLocation),
             /* 🪜 「나」에 보일 콜 줄이 없나 — 콜 없음 · 지난 콜 숨김으로 전부 가림 · 판정 중이면 판정석이 있어 안 빈다 (#147) */
@@ -399,7 +402,7 @@ export default function StageView(props: Props) {
 
     useEffect(() => { feed({ type: 'signal' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [drive, judging ? judging.id : null, liveRoute.length, ruleTick]);
+    }, [drive, judging ? judging.id : null, liveRoute.length, ruleTick, isFilterOpen]);
 
     /**
      * 📞 S5 — KEEP 직후: 시트 전체 + 그 콜 포커스 (킵 직후 바로 통화 원칙).

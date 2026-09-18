@@ -34,9 +34,9 @@ class SimulatorButtonTest {
     }
 
     @Test
-    fun `🔴 설정 화면이 다른 프로젝트 주소를 열지 않는다 - 시뮬레이터 앱을 켠다`() {
+    fun `🔴 설정 화면에서 더 이상 가상콜 화면 열기 버튼을 두지 않는다 - 기사님 요청으로 삭제`() {
         val src = codeOnly("src/main/java/com/onedal/app/ui/SettingsScreen.kt")
         assertFalse(src.contains("map.altari.com"))
-        assertTrue(src.contains("getLaunchIntentForPackage(TargetApp.SIMULATOR_PACKAGE)"))
+        assertFalse(src.contains("테스트 가상 콜 화면 열기"))
     }
 }

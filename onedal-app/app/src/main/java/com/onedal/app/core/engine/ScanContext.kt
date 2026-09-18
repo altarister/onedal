@@ -96,4 +96,7 @@ interface ScanContext {
 
     /** 👆 주어진 낱말 중 첫 번째로 보이는 버튼을 누른다 */
     fun clickFirstMatchingButton(rootNode: android.view.accessibility.AccessibilityNodeInfo, texts: List<String>): Boolean
+
+    /** ⏱️ 상세 화면 진입 시 설정된 대기 시간 후 자동으로 리스트로 복귀하는 타이머를 작동 */
+    fun scheduleDetailBack()
 }

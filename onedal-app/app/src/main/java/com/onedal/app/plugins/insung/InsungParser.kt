@@ -718,6 +718,11 @@ class InsungParser(private val context: Context) : IScrapParser {
         return null
     }
 
+    override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
+        val tempOrder = parse(screenTexts)
+        return recentOrders.reversed().find { it.fare > 0 && it.fare == tempOrder.fare }
+    }
+
     // ════════════════════════════════════════════════════════════════
     //  groupListNodes(): 인성콜 Row 기반 노드 그룹화
     // ════════════════════════════════════════════════════════════════

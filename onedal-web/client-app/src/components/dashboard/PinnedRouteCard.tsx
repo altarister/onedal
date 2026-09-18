@@ -347,6 +347,24 @@ export default function PinnedRouteCard({
                             {route.capturedVia === 'ALARM' ? '🔔 알람콜' : '직접콜'}
                         </span>
                     )}
+                    {route.isSimulated && !isTerminal(route.status) && (
+                        <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/40 text-[11px] font-black flex items-center gap-1">
+                            <span>🐥 체험 운행 중</span>
+                            {onDecision && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDecision(route.id, 'SAFE_CANCEL');
+                                    }}
+                                    className="ml-1 text-[10px] text-danger hover:underline font-bold"
+                                    title="가상 체험 콜 종료"
+                                >
+                                    [체험 종료]
+                                </button>
+                            )}
+                        </span>
+                    )}
                     {evaluating && <span className="text-warning font-black animate-pulse">평가중</span>}
                     {/* 🎨 판정색 칩 — 색은 KEEP 버튼 배경에만 살아서, 버튼 없는 직접·알람 콜은
                         판정을 받아도 **색이 보일 자리가 없었다** (0831 실측 «그런 거 없어»).
@@ -413,6 +431,25 @@ export default function PinnedRouteCard({
                     확정을 누르면 앱이 딱지 없이 다시 보내므로 이 배지가 사라진다. */}
                 {route.isPreview && !isTerminal(route.status) && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-warning/10 border-warning/30 text-warning flex-shrink-0 ml-2 shadow-sm rounded">👀 아직 안 잡음</Badge>
+                )}
+                {/* 🐥 **가상 체험 모드 콜** — 실서버에 안 잡고 가상으로 합짐 테스트 중인 콜 */}
+                {route.isSimulated && !isTerminal(route.status) && (
+                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-amber-400/15 border-amber-400/40 text-amber-400 flex-shrink-0 ml-2 shadow-sm rounded flex items-center gap-1">
+                        <span>🐥 체험 운행 중</span>
+                        {onDecision && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDecision(route.id, 'SAFE_CANCEL');
+                                }}
+                                className="ml-1 text-[10px] text-danger hover:underline font-bold"
+                                title="가상 체험 콜 종료"
+                            >
+                                [종료]
+                            </button>
+                        )}
+                    </Badge>
                 )}
                 {/* 🧭 어떻게 잡았나(capturedVia) — 알람 듣고 잡은 콜과 손으로 잡은 콜을 가른다.
                     둘 다 matchType 은 MANUAL 이라 이 배지가 유일한 구분이다 (6하원칙의 «어떻게»). */}
@@ -498,7 +535,8 @@ export default function PinnedRouteCard({
                         갇혀 있어 직접·알람 콜은 근거를 통째로 못 보던 것을 가른다. */}
                     {(evaluating || route.isPreview) && (
                         <>
-                            {!route.isPreview && !isManualLineage(route.type) && onDecision && (
+                            {/* 🐥 가상 체험 모드(isSimulated)에서는 픽커 미리보기 콜이어도 관제탑에서 결재 버튼을 활성화한다 */}
+                            {(!route.isPreview || route.isSimulated) && (!isManualLineage(route.type) || route.isSimulated) && onDecision && (
                             <div className="mt-1 flex gap-3">
                                 <Button 
                                     variant="destructive"
@@ -578,7 +616,7 @@ export default function PinnedRouteCard({
 
                             {/* 🪧 직접·알람 콜의 판정 안내판 — KEEP 버튼이 하던 말(색·판정·근거)을
                                 누를 수 없는 판으로 그대로 한다. 결정은 스캔앱에서, 근거는 여기서 (기사님 0831) */}
-                            {(route.isPreview || isManualLineage(route.type)) && (() => {
+                            {!route.isSimulated && (route.isPreview || isManualLineage(route.type)) && (() => {
                                 const v = verdictOf(route);
                                 if (!v.color) return null;
                                 const cleanReason = (route.kakaoTimeExt ?? '')
