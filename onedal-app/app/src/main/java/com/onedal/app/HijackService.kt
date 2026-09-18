@@ -104,7 +104,9 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     fun benchScreenRead(delayMs: Long) {
         mainHandler.postDelayed({
+            val parser = com.onedal.app.plugins.DispatchPluginRegistry.get(com.onedal.app.core.TargetApp.KAKAOPICKER).ocrParser
             screenReader.bench(
+                parser = parser,
                 onDone = { results ->
                     val report = results.joinToString("\n") { r ->
                         "[${r.label}] 합계 ${r.ms.total}ms = 찍기 ${r.ms.capture} + 변환 ${r.ms.convert} + 인식 ${r.ms.ocr} + 나누기 ${r.ms.parse} · ${r.lines.size}줄\n  → ${r.parsedSummary}"

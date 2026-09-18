@@ -30,8 +30,8 @@ interface IDispatchAppPlugin {
     /** 안전취소 가능 시간 (ms) — 안전취소가 없는 배차망(픽커 등)은 null */
     fun getSafeCancelMs(filter: FilterConfig): Long?
 
-    /** 상세 화면 머묾 타이머 시간 (ms) — 서버 DB 값이 원천이므로 각 배차망이 FilterConfig에서 조회 */
-    fun getDetailBackTimeoutMs(filter: FilterConfig): Long
+    /** 상세 화면 머묾 타이머 시간 (ms) — 상세 자동 복귀가 있는 배차망(픽커)만 반환, 인성·24시는 null */
+    fun getDetailBackTimeoutMs(filter: FilterConfig): Long? = null
 
     /** 화면 문맥 판별 (배차망별 특수 해석이 필요할 때 오버라이드) */
     fun resolveScreenContext(text: String, defaultContext: com.onedal.app.models.ScreenContext): com.onedal.app.models.ScreenContext = defaultContext

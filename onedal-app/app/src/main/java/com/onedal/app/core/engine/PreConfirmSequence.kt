@@ -182,8 +182,13 @@ private fun ScanContext.handlePreConfirmSnapshot(
     val tappedCard = session.alarmTappedCard?.takeIf { opener == KakaoPickerKeywords.OPENER_ALARM }
     val matchedListCard = scrapParser.matchDetailOrder(screenTexts, recentListOrders)
 
-    val pickerParser = (plugin.ocrParser as? com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser)
-        ?: com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser()
+    val pickerParser = plugin.ocrParser as? com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser
+    if (pickerParser == null) {
+        AppLogger.w(TAG, "📸 [스냅샷 파서 불일치] ${plugin.code}의 ocrParser가 PickerDetailOcrParser가 아님 — 지어내지 않고 즉시 중단")
+        session.isVerifyingSnapshot = false
+        abortPreConfirm()
+        return
+    }
 
     mainHandler.postDelayed({
         screenReader.readAndVerifyDetail(

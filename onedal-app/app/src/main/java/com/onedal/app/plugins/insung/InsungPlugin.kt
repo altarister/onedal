@@ -38,9 +38,6 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
     override fun getSafeCancelMs(filter: FilterConfig): Long =
         filter.safeCancelSecInsung * 1000L
 
-    override fun getDetailBackTimeoutMs(filter: FilterConfig): Long =
-        filter.safeCancelSecInsung * 1000L
-
     override fun executePreConfirmSpecial(
         context: ScanContext,
         rootNode: AccessibilityNodeInfo,

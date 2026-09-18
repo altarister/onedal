@@ -24,8 +24,5 @@ object WaitTimes {
     /** 픽커 상세를(누가 열었든) 이 시간 뒤 닫고 리스트로 돌아간다 */
     fun pickerAlarmDetailMs(filter: FilterConfig): Long =
         DispatchPluginRegistry.get(TargetApp.KAKAOPICKER).getDetailBackTimeoutMs(filter)
-
-    /** 배차망별 상세 자동 복귀 시간 (ms) */
-    fun detailBackTimeoutMs(filter: FilterConfig, targetApp: String): Long =
-        DispatchPluginRegistry.get(targetApp).getDetailBackTimeoutMs(filter)
+            ?: (filter.pickerAlarmDetailSec * 1000L)
 }

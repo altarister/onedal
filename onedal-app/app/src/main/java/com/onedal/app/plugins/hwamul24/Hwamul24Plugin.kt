@@ -34,7 +34,4 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
 
     override fun getSafeCancelMs(filter: FilterConfig): Long =
         filter.safeCancelSecHwamul24 * 1000L
-
-    override fun getDetailBackTimeoutMs(filter: FilterConfig): Long =
-        filter.safeCancelSecHwamul24 * 1000L
 }
