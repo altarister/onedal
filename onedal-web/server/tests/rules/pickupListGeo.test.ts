@@ -3,7 +3,7 @@ import { join } from 'path';
 import { initGeoService, pickupListFor } from '../../src/services/geoService';
 import { getUserSession } from '../../src/state/userSessionStore';
 import { rebuildPickupList } from '../../src/state/filterManager';
-import { APP_FILTER_KEYS, callFilterBlocker, type GoalZone } from '@onedal/shared';
+import { APP_FILTER_KEYS, callFilterBlocker } from '@onedal/shared';
 
 /**
  * 📋 **상차 목록 — 실제 지도로** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역» · 모양 검사 `shared/src/filterArea.test.ts`).
@@ -16,14 +16,14 @@ const TERMINAL = { x: 127.446936, y: 37.277421 };       // 이천터미널 (중�
 const HD_SINDUN = { x: 127.40410, y: 37.30574 };        // HD현대 신둔 (신둔면)
 const CHOWOL_STATION = { x: 127.299905, y: 37.373379 }; // 초월역 (초월읍)
 const radii = { pickupRadiusKm: 4.55, detourRadiusKm: 2.73 };
-const dest = (state: GoalZone['state']): GoalZone => ({ city: '이천시', isHome: false, state });
-const home = (state: GoalZone['state']): GoalZone => ({ city: '광주시', isHome: true, state });
+/* 🧱 조각을 그대로 넘긴다 — `pickupListFor` 는 «무엇을 켤까»를 다시 판단하지 않는다 (설계서 ⑤) */
+const parts = (line: boolean, goalCities: string[] = []) => ({ line, goalCities });
 
 beforeAll(() => { initGeoService(); });
 
 describe('상차 목록 — 실제 지도', () => {
     it('🔴 콜 없음: 내 위치 반경뿐 — 뒤쪽이라도 반경 안이면 들고 · 먼 곳은 안 든다', () => {
-        const r = pickupListFor({ radii, me: MODA, line: null, zones: [dest('idle')] });
+        const r = pickupListFor({ radii, me: MODA, line: null, parts: parts(false) });
         expect(r.list).toContain('초월읍');
         expect(r.list).not.toContain('중리동');   // 17km 앞 이천터미널 — 반경 밖
         expect(r.list).not.toContain('역삼1동');
@@ -31,65 +31,77 @@ describe('상차 목록 — 실제 지도', () => {
 
     it('🔴 콜을 잡아 경로가 생김 (운행 전) → 현위치 영역 전체 — 라인 밖이라도 원 안이면 든다', () => {
         const line = [TERMINAL, HD_SINDUN, CHOWOL_STATION];
-        const idle = pickupListFor({ radii, me: TERMINAL, line: null, zones: [dest('idle')] }).list;
-        const routed = pickupListFor({ radii, me: TERMINAL, line, zones: [dest('routed')] }).list;
-        const driving = pickupListFor({ radii, me: TERMINAL, line, zones: [dest('driving')] }).list;
+        const idle = pickupListFor({ radii, me: TERMINAL, line: null, parts: parts(false) }).list;
+        const routed = pickupListFor({ radii, me: TERMINAL, line, parts: parts(false) }).list;
+        const driving = pickupListFor({ radii, me: TERMINAL, line, parts: parts(true) }).list;
         expect(routed).toEqual(idle);
         /* 운행 뒤는 원 ∩ 라인 — 원 전체보다 좁다 */
         expect(driving.every(n => routed.includes(n))).toBe(true);
         expect(driving.length).toBeLessThan(routed.length);
     });
 
-    it('🔴 운행 뒤 · 목적지 콜 남음 · 복귀 켬 (집은 콜 없음) → 현위치 영역 전체 · 이천 안 관내도 든다', () => {
+    /**
+     * 🔴 **복귀를 켜도 상차가 안 늘어난다** (설계서 ⑥ · 2026-09-20 실측).
+     *
+     * 옛 코드는 «모든 목적지가 운행 뒤인가»를 물어 라인을 켰다. 복귀를 켜면 집이 «콜 없음»으로 들어와
+     * 그 물음이 거짓이 되고 **라인이 통째로 꺼졌다** — 상차지가 118곳에서 419곳으로 늘어 뒤쪽이 전부 통과했다.
+     * 조각은 이제 «내가 달리나»만 보므로 목적지가 몇이든 답이 같다.
+     */
+    it('🔴 복귀를 켜도(목적지 둘) 상차는 라인으로 좁힌 그대로다 — 원 전체로 늘지 않는다', () => {
         const line = [TERMINAL, HD_SINDUN, CHOWOL_STATION];
-        const both = pickupListFor({ radii, me: TERMINAL, line, zones: [dest('driving'), home('idle')] }).list;
-        expect(both).toEqual(pickupListFor({ radii, me: TERMINAL, line: null, zones: [dest('idle')] }).list);
-        expect(both).toContain('중리동');
+        const both = pickupListFor({ radii, me: TERMINAL, line, parts: parts(true) }).list;
+        const whole = pickupListFor({ radii, me: TERMINAL, line: null, parts: parts(false) }).list;
+        expect(both.length).toBeLessThan(whole.length);
+        expect(both).toEqual(pickupListFor({ radii, me: TERMINAL, line, parts: parts(true) }).list);
     });
 
     it('🔴 D3 — 복귀콜을 쥐고 되돌아가는 경로에서 이천터미널에 서 있어도 다시 지날 신둔면이 든다 · 경로 위라도 원 밖은 안 든다', () => {
         const line = [HD_SINDUN, TERMINAL, HD_SINDUN, CHOWOL_STATION];
-        const r = pickupListFor({ radii, me: TERMINAL, line, zones: [home('driving')] });
+        const r = pickupListFor({ radii, me: TERMINAL, line, parts: parts(true) });
         expect(r.list).toContain('신둔면');
         expect(r.list).not.toContain('초월읍');   // 가까워지면 올라온다
     });
 
     it('🔴 시나리오 A1 — 콜 전 초월읍에서 뒤쪽·원 밖 경안동(이마트 광주점 7km)은 안 든다', () => {
-        expect(pickupListFor({ radii, me: MODA, line: null, zones: [dest('idle')] }).list).not.toContain('경안동');
+        expect(pickupListFor({ radii, me: MODA, line: null, parts: parts(false) }).list).not.toContain('경안동');
     });
 
     it('🔴 시나리오 D4 — 복귀콜만 쥐고 운행 중 우리주유소에 서면 경로 밖 마장면 상차는 안 든다', () => {
         const WOORI = { x: 127.39719, y: 37.31740 }, GONJIAM_STAR = { x: 127.33209, y: 37.35310 };
-        const r = pickupListFor({ radii, me: WOORI, line: [WOORI, GONJIAM_STAR, CHOWOL_STATION], zones: [home('driving')] });
+        const r = pickupListFor({ radii, me: WOORI, line: [WOORI, GONJIAM_STAR, CHOWOL_STATION], parts: parts(true) });
         expect(r.list).not.toContain('마장면');
         expect(r.list).toContain('신둔면');
     });
 
     it('🔴 운행 뒤 상차 띠는 현위치부터 앞으로만 · 뒤는 평평하게 — 곤지암에서 지나온 초월읍은 안 든다 (기사님 2026-09-15 «뒤를 자르는 Cap»)', () => {
         const GONJIAM_STAR = { x: 127.33209, y: 37.35310 }, WOORI = { x: 127.39719, y: 37.31740 };
-        const r = pickupListFor({ radii, me: GONJIAM_STAR, line: [CHOWOL_STATION, GONJIAM_STAR, WOORI, HD_SINDUN], zones: [dest('driving')] });
-        expect(r.shape).toBe('meLine');
+        const r = pickupListFor({ radii, me: GONJIAM_STAR, line: [CHOWOL_STATION, GONJIAM_STAR, WOORI, HD_SINDUN], parts: parts(true) });
         expect(r.list).toContain('곤지암읍');
         expect(r.list).not.toContain('초월읍');
     });
 
     it('🔴 운행 뒤인데 라인이 없으면 현위치 영역 전체 — 라인을 지어내지 않는다 (규칙 ④)', () => {
-        const noLine = pickupListFor({ radii, me: TERMINAL, line: null, zones: [dest('driving')] });
-        expect(noLine.list).toEqual(pickupListFor({ radii, me: TERMINAL, line: null, zones: [dest('idle')] }).list);
+        const noLine = pickupListFor({ radii, me: TERMINAL, line: null, parts: parts(true) });
+        expect(noLine.list).toEqual(pickupListFor({ radii, me: TERMINAL, line: null, parts: parts(false) }).list);
     });
 
+    /**
+     * 🔴 **목적지 개수는 조각이 볼 사실이 아니다** (설계서 ⑥) — 조각은 «출발했나 · 경로가 있나 · 가까이 온 목적지»만 본다.
+     *    그래서 «목적지를 모르면 빈 목록»은 부르는 쪽(`rebuildPickupList`)이 가른다. 여기서 그 배선을 문다.
+     */
     it('🔴 목적지가 없으면 빈 목록 — 빈 목록은 고장으로 막힌다 (아래 배선)', () => {
-        expect(pickupListFor({ radii, me: TERMINAL, line: null, zones: [] }).list).toEqual([]);
+        const fm = readFileSync(join(__dirname, '../../src/state/filterManager.ts'), 'utf8');
+        expect(fm).toMatch(/zones\.length === 0\s*\n?\s*\? \{ list: \[\] as string\[\]/);
     });
 
     it('🔴 시 · 군 · 구로 묶은 목록도 낸다 — 하차 목록이 같은 이름의 다른 동을 안 빼게 (리뷰 2026-09-15)', () => {
-        const r = pickupListFor({ radii, me: MODA, line: null, zones: [dest('idle')] });
+        const r = pickupListFor({ radii, me: MODA, line: null, parts: parts(false) });
         expect([...new Set(Object.values(r.grouped).flat())].sort()).toEqual([...r.list].sort());
         expect(Object.keys(r.grouped).some(k => k.includes('광주'))).toBe(true);
     });
 
     it('🔴 읍·면·동 이름만 싣는다', () => {
-        const r = pickupListFor({ radii, me: MODA, line: null, zones: [dest('idle')] });
+        const r = pickupListFor({ radii, me: MODA, line: null, parts: parts(false) });
         expect(r.list.filter(n => /(시|구|군)$/.test(n))).toEqual([]);
     });
 });
@@ -202,8 +214,9 @@ describe('상차 목록 배선', () => {
             .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         expect(sv).toMatch(/liveRoute\.filter\(o => !isEvaluating\(o\.status\)\)/);
         expect(sv).not.toMatch(/activeCalls: liveRoute,/);
-        expect(sv).toMatch(/const pickupLine = routeMode/);
-        expect(sv).not.toMatch(/pickupShape === 'meLine' && !\(pickupLine/);
+        expect(sv).toMatch(/const drawLine = routeMode/);
+        /* 🔴 띠를 켤지는 조각이 정한다 — 화면이 다시 판단하지 않는다 (설계서 ⑥) */
+        expect(sv).toMatch(/const pickupLine = pickupParts\.line \? drawLine : null/);
     });
 
     it('✂️ 라인 띠는 현위치부터 · 시작은 평평하게 — 서버 상차 목록 · 지도 «상차» · «하차» 띠가 같은 함수 (기사님 2026-09-15 «2»)', () => {

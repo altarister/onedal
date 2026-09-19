@@ -164,8 +164,9 @@ describe('🧩 필터 영역 — 출발 전 내 영역 · 관내 목적지 원 (
     });
     it('🔴 지도도 같은 두 값으로 그린다', () => {
         const stage = client('components/stage/StageView.tsx');
-        /* 🔄 2026-09-15 — 옛 그물 훅을 걷고 «상차» · «하차» 레이어가 shared `goalZonesOf` 에 운행 시작을 넘긴다 · 관내를 따로 재지 않는다 */
-        expect(stage).toMatch(/departed: filter\?\.dispatchPhase === 'DELIVERING'/);
+        /* 🔴 «출발했나»는 목적지 묶음이 아니라 **조각**이 본다 — 지도도 서버와 같은 사실을 쓴다 (설계서 ⑥) */
+        expect(stage).toMatch(/const departed = filter\?\.dispatchPhase === 'DELIVERING'/);
+        expect(stage).toMatch(/pickupPartsOf\(\{\s*\n?\s*departed,/);
         expect(stage).not.toMatch(/localMode/);
     });
 });

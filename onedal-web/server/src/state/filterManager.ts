@@ -20,7 +20,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, pickupAreaKey, dropoffPartsOf, lastDropOf, lineUntil, lineFromPoint, mergeDropoffGroups, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
+import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, nearGoalCitiesOf, goalStateLabel, pickupPartsOf, pickupAreaKey, dropoffPartsOf, lastDropOf, lineUntil, lineFromPoint, mergeDropoffGroups, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, effectiveRadii, pickupListNeedsRebuild, peakLoadPoints } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
@@ -808,7 +808,7 @@ function netFilterOf(session: ReturnType<typeof getUserSession>, userId: string)
  */
 function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, line: Array<[number, number]> | null) {
     const origin = originOf(session as Parameters<typeof originOf>[0]);
-    const { zones, homeOn, homeCity } = goalZonesNow(session, userId, origin);
+    const { zones, homeOn, homeCity, departed } = goalZonesNow(session, userId, origin);
     const activeCalls = getActiveCalls(session);
     const stops = activeCalls.length ? planArrivalStops(activeCalls, origin) : [];
     /* 🔷 동선이면 라인이 없다 — 조각(`dropoffPartsOf`)과 그물(`netKeywordsOf`)이 같은 답을 보게 여기서 끊는다 */
@@ -820,7 +820,8 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
     const pickupGroups = session.activeFilter.pickupGroups ?? {};
     let byNet = zones.length > 0, pruned = 0;
     for (const z of zones) {
-        const lastDrop = z.state === 'idle' || z.nearGoal ? null
+        /* 🔴 마름모 시작점은 «그 목적지의 마지막 하차지를 아는가»로 정한다 — 「가까이 옴」은 여기 안 든다 (설계서 ⑥) */
+        const lastDrop = !z.hasCalls ? null
             : lastDropOf({ isHome: z.isHome, homeOn, homeCity, stops, calls: activeCalls });
         /**
          * ✂️ **운행 뒤에는 라인을 현위치부터 쓴다** — 관제웹 지도(`StageView` 하차 띠)와 **같은 `lineFromPoint`**.
@@ -828,22 +829,26 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
          * 🔴 얼린 경로 그대로 쓰면 띠의 시작이 **콜을 잡던 자리**다. 띠 끝을 직각으로 잘라도(`lineZoneOf`)
          *    그 자름은 거기에 그어지므로, 지금 내 뒤에 있는 동이 여전히 «앞»으로 남는다 (#159).
          */
-        const ridden = lineXY && z.state === 'driving' && origin
+        const ridden = lineXY && departed && origin
             ? lineFromPoint(lineXY.map(p => [p.x, p.y] as [number, number]), { lng: origin.x, lat: origin.y }).map(([x, y]) => ({ x, y }))
             : lineXY;
         const goalLine = ridden && lastDrop ? lineUntil(ridden, lastDrop) : [];
-        const shape = dropoffPartsOf(z.state, goalLine.length >= 2, !!z.nearGoal);
+        const shape = dropoffPartsOf(goalLine.length >= 2);
         const kept = netKeywordsOf(session, userId, z.city, radius, {
             line: shape.line ? goalLine.map(p => [p.x, p.y] as [number, number]) : null,
             lastDrop: shape.quadFrom === 'lastDrop' ? lastDrop : null,
-            withMe: shape.me,
+            withMe: false,   // 🔴 현위치 원은 하차 조각에 안 넣는다 (shared `dropoffPartsOf` 머리)
             nearGoal: !!z.nearGoal,
         });
         parts.push({ nearGoal: !!z.nearGoal, grouped: kept.grouped, progressKm: kept.progressKm });
         const names = [...new Set(Object.values(kept.grouped).flat())];
-        const pieces = z.nearGoal ? ['원(가까이 옴 · 안 뺌)']
-            : [shape.me && '현위치', shape.line && '라인', shape.quadFrom === 'me' ? '마름모(현위치)' : shape.quadFrom === 'lastDrop' ? '마름모(확정콜의 마지막 하차지)' : '', '원'].filter(Boolean);
-        details.push(`${z.city}:${z.state}${z.nearGoal ? '·가까이' : ''}${z.state !== 'idle' && !z.nearGoal && !lastDrop ? '·확정콜의 마지막 하차지 모름' : ''} `
+        /* 🔎 켜진 조각을 그대로 적는다 — 조합을 이름 하나로 뭉치지 않는다 (설계서 ⑥-5) */
+        const pieces = [
+            shape.line && '라인',
+            shape.quadFrom === 'lastDrop' ? '마름모(확정콜의 마지막 하차지)' : '마름모(현위치)',
+            z.nearGoal ? '원(가까이 옴 · 상차 동 안 뺌)' : '원',
+        ].filter(Boolean);
+        details.push(`${z.city}:${goalStateLabel(z.hasCalls, departed)}${z.nearGoal ? '·가까이' : ''}${z.hasCalls && !lastDrop ? '·확정콜의 마지막 하차지 모름' : ''} `
             + `[${pieces.join('·')}] 걸친 ${names.length}곳${kept.byNet ? '' : ' (도시 둘레로 물러섬)'}`);
         byNet = byNet && kept.byNet;
         pruned += kept.pruned;
@@ -916,18 +921,15 @@ function goalZonesNow(session: ReturnType<typeof getUserSession>, userId: string
         homeCity,
         homeOn,
         homeCaught,
-        departed: !!session.departedAt,
         activeCalls: getActiveCalls(session),
     });
-    const quad = quadShapeFrom(f as any);
+    /* 🎯 가까이 옴은 **목적지 반경 하나**로 잰다 — 현위치 반경을 더하지 않는다 (shared `isNearGoal`) */
     const zones = me ? withNearness(base, {
         me: { x: me.x, y: me.y },
-        params: {
-            srcAngleDeg: quad.srcAngleDeg, dstAngleDeg: quad.dstAngleDeg, quadRadiusKm: eff.quadRadiusKm,
-            srcDiamKm: eff.pickupRadiusKm * 2, dstDiamKm: eff.destinationRadiusKm * 2,
-        },
+        destinationRadiusKm: eff.destinationRadiusKm,
     }) : base;
-    return { zones, homeOn, homeCity, homeCaught };
+    /* 🔴 «출발했나»는 목적지마다가 아니라 **하나**다 — 조각이 이 값을 직접 본다 (설계서 ⑥) */
+    return { zones, homeOn, homeCity, homeCaught, departed: !!session.departedAt };
 }
 
 /**
@@ -947,8 +949,18 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     if (firstGoal) holdRadiusDistance(session, firstGoal, me);
     const eff = effectiveRadii(f);
     const line = f.routeMode === false ? null : filterLineOf(session);
-    const { zones, homeOn, homeCity, homeCaught } = goalZonesNow(session, userId, me);
-    const { list, grouped, shape } = pickupListFor({ me: { x: me.x, y: me.y }, radii: eff, line, zones });
+    const { zones, homeOn, homeCity, homeCaught, departed } = goalZonesNow(session, userId, me);
+    /* 🟢 조각이 **사실**을 직접 본다 — 목적지 목록을 뒤져 «내가 달리나»를 묻지 않는다 (설계서 ⑥) */
+    const parts = pickupPartsOf({
+        departed,
+        hasLine: !!line && line.length >= 2,
+        nearGoalCities: nearGoalCitiesOf(zones),
+    });
+    /* 🔴 **목적지를 모르면 빈 목록이다** — «제한 없음»이 아니라 «고장»이다 (규칙 ④ · `callFilterBlocker` 가 막는다).
+          목적지 개수는 조각이 볼 사실이 아니므로 여기서 가른다 */
+    const { list, grouped } = zones.length === 0
+        ? { list: [] as string[], grouped: {} as Record<string, string[]> }
+        : pickupListFor({ me: { x: me.x, y: me.y }, radii: eff, line, parts });
     const prev = f.pickupKeywords;
     const prevArea = pickupAreaKey(f.pickupArea);
     session.pickupListAt = { x: me.x, y: me.y };
@@ -963,8 +975,11 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const nearChanged = session.pickupNearKey !== nearGoalKey;
     session.pickupNearKey = nearGoalKey;
     const changed = !prev || prev.join(',') !== list.join(',') || prevArea !== pickupAreaKey(f.pickupArea) || nearChanged;
-    if (changed) console.log(`📋 [상차 목록] ${zones.map(z => `${z.city}:${z.state}${z.nearGoal ? '·가까이' : ''}`).join(' · ') || '목적지 없음'} → `
-        + `${shape === 'meLine' ? '내 위치 ∩ 라인(현위치부터)' : shape === 'me' ? '내 위치' : '없음'} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);
+    /* 🔎 켜진 조각을 그대로 적는다 — 조합을 이름 하나로 뭉치면 새 조합이 «없음»으로 찍힌다 (설계서 ⑥-5) */
+    const shown = ['내 위치', parts.line && '라인(현위치부터)', parts.goalCities.length ? `목적지 원(${parts.goalCities.join('·')})` : '']
+        .filter(Boolean).join(' ∩ ');
+    if (changed) console.log(`📋 [상차 목록] ${zones.map(z => `${z.city}:${goalStateLabel(z.hasCalls, departed)}${z.nearGoal ? '·가까이' : ''}`).join(' · ') || '목적지 없음'} → `
+        + `${shown} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);
     return changed;
 }
 

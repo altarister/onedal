@@ -3,7 +3,7 @@ import path from 'path';
 import { getActiveCalls } from '../core/helpers';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
-import { DEFAULT_JUDGMENT, isPickupListName, pickupShapeOf, cityCenter, distToLineKm, aheadOf, isAheadOf, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
+import { DEFAULT_JUDGMENT, isPickupListName, cityCenter, distToLineKm, aheadOf, isAheadOf, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
 import type { GoalZone, NetPoint, NetParams } from '@onedal/shared';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
@@ -619,60 +619,63 @@ export function regionsTouchingCircleGrouped(center: { lng: number; lat: number 
 }
 
 /**
- * 📋 **상차 목록을 계산한다 — 한 곳** (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 영역»).
+ * 🟢 **상차 목록 — 켜진 조각을 전부 겹친 영역에 걸친 읍·면·동** (`docs/기획/필터_파이프라인_설계.md` ④⑤).
  *
- * 모양은 shared `pickupShapeOf` — 살아 있는 목적지 중 하나라도 운행 뒤가 아니면 **현위치 영역 전체**,
- * 전부 운행 뒤면 **현위치 영역 ∩ 라인 영역**. 관제웹 «상차» 레이어가 같은 함수로 그린다 (규칙 ③).
- * 그 영역에 **걸친** 읍·면·동이 목록이다 (`regionsTouchingAreaGrouped`).
- * 🔴 운행 뒤인데 라인이 없으면 현위치 영역 전체로 본다 — 라인을 지어내지 않는다 (규칙 ④ · 지도와 같다).
- * 🔴 «경로 몇 km»를 안 본다 — 되돌아가는 경로에서 다시 지날 동이 빠지던 D3 가 이 계산에는 없다.
- * 세션을 모른다 — 서버 `filterManager.rebuildPickupList` 가 값을 넘기고, 검사가 실제 지도로 이 함수를 부른다.
+ * 조각은 부르는 쪽이 shared `pickupPartsOf` 로 정한다. 여기서는 **겹치기(∩)만** 한다 —
+ * 무엇을 켤지 다시 판단하지 않는다. 판단이 두 곳이면 갈라진다 (규칙 ③).
+ *
+ * | 조각 | 판정 |
+ * |---|---|
+ * | 현위치 원 | 늘 — 격자도 이 원을 감싼 사각형에서만 찍는다 |
+ * | 라인 띠 | 현위치부터 앞으로만 (`lineFromPoint` + `aheadOf`) |
+ * | 목적지 원 | 가까이 온 목적지들의 원을 **더한 것**(∪) 안에 드나 |
+ *
+ * 🔴 **좌표를 모르는 시는 그냥 뺀다** — 원을 지어내지 않는다 (규칙 ④). 가까이 온 목적지가 있는데
+ *    전부 좌표를 모르면 목적지 원 조건이 아예 안 걸린다.
+ * 🔴 **목적지 원 여럿은 더한다(∪)** — 겹치면(∩) 두 원이 안 만날 때 영역이 비고, 빈 목록은 «고장»이다.
+ * 🔴 **«경로 몇 km»를 안 본다** — 되돌아가는 경로에서 다시 지날 동이 빠지던 자리다.
+ * 세션을 모른다 — `filterManager.rebuildPickupList` 가 값을 넘기고, 검사가 실제 지도로 이 함수를 부른다.
  */
-/** 🎯 가까이 온 목적지의 시내 좌표 — 여럿이면 첫째. 지도에 없는 시는 `null` (지어내지 않는다 · 규칙 ④) */
-function nearGoalCenterOf(zones: ReadonlyArray<GoalZone>): { lng: number; lat: number } | null {
-    for (const z of zones) {
-        if (!z.nearGoal) continue;
-        try { const c = cityCenter(z.city); if (Number.isFinite(c.lng) && Number.isFinite(c.lat)) return c; } catch { /* 지도에 없는 시 */ }
-    }
-    return null;
-}
-
 export function pickupListFor(o: {
     me: { x: number; y: number };
     radii: { pickupRadiusKm: number; detourRadiusKm: number; destinationRadiusKm?: number };
     line: Array<{ x: number; y: number }> | null;
-    zones: ReadonlyArray<GoalZone>;
-}): { list: string[]; grouped: Record<string, string[]>; shape: 'me' | 'meLine' | 'meGoal' | null } {
-    const want = pickupShapeOf(o.zones);
-    if (!want) return { list: [], grouped: {}, shape: null };   // 목적지가 없다 — 빈 목록은 고장으로 막힌다 (`callFilterBlocker`)
-    /* ✂️ 운행 뒤 띠는 **현위치부터 앞으로만** · 현위치에서 **경로와 직각으로** 자른 선 뒤는 상차 영역이 아니다 (`aheadOf` · #151).
-          라인 끝을 지나 앞이 없으면 «라인 없음» — 원 전체 */
+    parts: { line: boolean; goalCities: readonly string[] };
+}): { list: string[]; grouped: Record<string, string[]> } {
+    /* ✂️ 띠는 **현위치부터 앞으로만** · 현위치에서 **경로와 직각으로** 자른 선 뒤는 상차 영역이 아니다 (`aheadOf` · #151).
+          라인 끝을 지나 앞이 없으면 «라인 없음» — 그 조각만 빠진다 */
     const full = o.line && o.line.length >= 2 ? o.line.map(p => [p.x, p.y] as [number, number]) : null;
-    const line = want === 'meLine' && full ? lineFromPoint(full, { lng: o.me.x, lat: o.me.y }) : [];
-    /**
-     * 🎯 **가까이 온 목적지가 있으면 «현위치 원 ∩ 목적지 원»** (기사님 확정 · 「나」안).
-     *    좌표를 모르는 시(지도에 없다)는 겹칠 곳을 못 재므로 현위치 원 그대로 둔다 — 지어내지 않는다 (규칙 ④).
-     */
-    const goalPt = want === 'meGoal' ? nearGoalCenterOf(o.zones) : null;
-    const shape: 'me' | 'meLine' | 'meGoal' =
-        want === 'meGoal' ? (goalPt ? 'meGoal' : 'me')
-        : want === 'meLine' && line.length >= 2 ? 'meLine' : 'me';
-    const r = o.radii.pickupRadiusKm;
-    const inMe = (p: { lng: number; lat: number }) => haversineKm(o.me.y, o.me.x, p.lat, p.lng) <= r;
-    const cut = shape === 'meLine' ? aheadOf(line, o.radii.detourRadiusKm) : null;
+    const band = o.parts.line && full ? lineFromPoint(full, { lng: o.me.x, lat: o.me.y }) : [];
+    const useBand = band.length >= 2;
+    const cut = useBand ? aheadOf(band, o.radii.detourRadiusKm) : null;
+
+    /* 🎯 가까이 온 목적지들의 시내 좌표 — 지도에 없는 시는 뺀다 (지어내지 않는다) */
+    const goalPts: Array<{ lng: number; lat: number }> = [];
+    for (const city of o.parts.goalCities) {
+        try {
+            const c = cityCenter(city);
+            if (Number.isFinite(c.lng) && Number.isFinite(c.lat)) goalPts.push({ lng: c.lng, lat: c.lat });
+        } catch { /* 지도에 없는 시 — 그 원은 없는 것으로 둔다 */ }
+    }
     const rGoal = o.radii.destinationRadiusKm ?? 0;
-    const inArea = shape === 'meLine'
-        ? (p: { lng: number; lat: number }) => inMe(p) && distToLineKm(p, line) <= o.radii.detourRadiusKm && (!cut || isAheadOf(p, cut))
-        : shape === 'meGoal'
-        ? (p: { lng: number; lat: number }) => inMe(p) && haversineKm(goalPt!.lat, goalPt!.lng, p.lat, p.lng) <= rGoal
-        : inMe;
+    const r = o.radii.pickupRadiusKm;
+
+    const inMe = (p: { lng: number; lat: number }) => haversineKm(o.me.y, o.me.x, p.lat, p.lng) <= r;
+    const inBand = (p: { lng: number; lat: number }) =>
+        distToLineKm(p, band) <= o.radii.detourRadiusKm && (!cut || isAheadOf(p, cut));
+    const inGoal = (p: { lng: number; lat: number }) =>
+        goalPts.some(g => haversineKm(g.lat, g.lng, p.lat, p.lng) <= rGoal);
+
+    /* 🔴 켜진 조각을 **전부 겹친다**(∩) */
+    const inArea = (p: { lng: number; lat: number }) =>
+        inMe(p) && (!useBand || inBand(p)) && (goalPts.length === 0 || inGoal(p));
 
     /* 격자 — 영역은 늘 현위치 원 안이라 원을 감싼 사각형만 찍으면 된다 (`circleArea`) */
-    /* 🗂️ 시 · 군 · 구로 묶어서도 낸다 — 하차 목록이 같은 이름의 다른 동을 안 빼게 (`mergeDropoffGroups` · 코드 리뷰 2026-09-15) */
+    /* 🗂️ 시 · 군 · 구로 묶어서도 낸다 — 하차 목록이 같은 이름의 다른 동을 안 빼게 (`mergeDropoffGroups`) */
     const grouped = Object.fromEntries(Object.entries(regionsTouchingAreaGrouped(circleArea({ lng: o.me.x, lat: o.me.y }, r, inArea)))
         .map(([region, names]) => [region, names.filter(isPickupListName)] as [string, string[]])
         .filter(([, names]) => names.length > 0));
-    return { list: [...new Set(Object.values(grouped).flat())].sort(), grouped, shape };
+    return { list: [...new Set(Object.values(grouped).flat())].sort(), grouped };
 }
 
 export function getCityRegionsWithRadius(cityName: string, radiusKm: number): CityRegions {

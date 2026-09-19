@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { goalZonesOf, pickupShapeOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups, dongDotsOf } from './filterArea';
+import { goalZonesOf, pickupPartsOf, nearGoalCitiesOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups, dongDotsOf } from './filterArea';
 
 /**
  * 🔵 **하차 목록 합치기** (`docs/지금/필터.md` «하차 영역»)
@@ -58,118 +58,109 @@ describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼
 import { cityCenter } from './callNet';
 
 /**
- * 🎯 **목적지 가까이 옴** (`docs/지금/필터.md` «필터 영역»)
- * 막는 것: 마름모가 두 원 밖으로 나가는데 «가까이 옴»으로 보는 것 · 가까이 온 목적지에서 상차 · 하차 영역이 좁혀지는 것.
- * 좌표는 이천 왕복 시나리오 실값 · 반경 · 모양은 그때 자동 반경이 준 값.
+ * 🎯 **목적지 가까이 옴 — 현위치가 그 목적지 영역 안인가** (`docs/기획/필터_파이프라인_설계.md` ⑥)
+ * 막는 것: 아직 목적지 영역 밖인데 «가까이 옴»으로 보는 것 · 「가까이 옴」이 재료를 끄는 것.
+ * 좌표는 이천 왕복 시나리오 실값.
  */
-describe('🎯 목적지 가까이 옴 — 마름모가 두 원 안에 통째로', () => {
+describe('🎯 목적지 가까이 옴 — 현위치가 목적지 영역 안인가', () => {
     const TERMINAL = { x: 127.446936, y: 37.277421 };   // 이천터미널 — 이천 중심 1.2km
     const MODA = { x: 127.312587, y: 37.363298 };       // 모다아울렛 — 이천 중심 16km
     const ICHEON = cityCenter('이천시');
-    const params = { srcAngleDeg: 120, dstAngleDeg: 120, quadRadiusKm: 15.9, srcDiamKm: 4.55 * 2, dstDiamKm: 4.55 * 2 };
+
     it('🔴 이천터미널에 서 있으면 이천은 가까이 옴', () => {
-        expect(isNearGoal({ me: TERMINAL, goal: ICHEON, params })).toBe(true);
+        expect(isNearGoal({ me: TERMINAL, goal: ICHEON, destinationRadiusKm: 4.55 })).toBe(true);
     });
-    it('🔴 모다아울렛이면 이천은 멀다 — 마름모가 두 원 밖으로 넓게 나간다', () => {
-        expect(isNearGoal({ me: MODA, goal: ICHEON, params })).toBe(false);
+    it('🔴 모다아울렛이면 이천은 멀다 — 목적지 영역 밖이다', () => {
+        expect(isNearGoal({ me: MODA, goal: ICHEON, destinationRadiusKm: 4.55 })).toBe(false);
     });
-    it('반경을 크게 두면(수동) 더 먼 곳에서도 가까이 옴 — 기사님 «수동으로 둘의 크기를 다르게 설정할 수 있어»', () => {
-        expect(isNearGoal({ me: MODA, goal: ICHEON, params: { ...params, quadRadiusKm: 2, srcDiamKm: 24, dstDiamKm: 24 } })).toBe(true);
+    it('목적지 반경을 크게 두면(수동) 더 먼 곳에서도 가까이 옴 — 기사님 «수동으로 둘의 크기를 다르게 설정할 수 있어»', () => {
+        expect(isNearGoal({ me: MODA, goal: ICHEON, destinationRadiusKm: 20 })).toBe(true);
     });
     it('목적지마다 따로 — 이천에 와서 복귀를 켜면 이천은 가까이 옴 · 집(광주)은 멀다 · 모르는 시는 멀다로 둔다', () => {
         const z = withNearness([
-            { city: '이천시', isHome: false, state: 'idle' },
-            { city: '광주시', isHome: true, state: 'idle' },
-            { city: '없는시', isHome: false, state: 'idle' },
-        ], { me: TERMINAL, params });
+            { city: '이천시', isHome: false, hasCalls: false },
+            { city: '광주시', isHome: true, hasCalls: false },
+            { city: '없는시', isHome: false, hasCalls: false },
+        ], { me: TERMINAL, destinationRadiusKm: 4.55 });
         expect(z.map(g => g.nearGoal)).toEqual([true, false, false]);
     });
-    /* 🔄 «가까이 오면 A 전체»는 기사님이 「나」안으로 바꾸셨다 — **A ∩ 목적지 원**.
-       A 전체면 권역 밖 뒤쪽이 통과한다 (복정에서 26.5km 뒤 도척면). 눈금은 `nearGoalPickup.test.ts` */
-    it('🔴 가까이 온 목적지가 있으면 운행 중이어도 라인으로 안 자른다 — 대신 목적지 원과 겹친 곳', () => {
-        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: true }])).toBe('meGoal');
-        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: false }])).toBe('meLine');
+
+    /**
+     * 🔴 **「가까이 옴」은 더하기만 한다** (기사님 확정) — 상차에 목적지 원을 더할 뿐,
+     *    라인도 마름모도 끄지 않는다. 목적지에 닿아 콜을 다 내리면 경로가 없어져 라인이 저절로 사라진다.
+     */
+    it('🔴 가까이 와도 라인을 끄지 않는다 — 목적지 원을 더할 뿐이다', () => {
+        const nearZone = [{ city: '이천시', isHome: false, hasCalls: true, nearGoal: true }];
+        expect(pickupPartsOf({ departed: true, hasLine: true, nearGoalCities: nearGoalCitiesOf(nearZone) }))
+            .toEqual({ line: true, goalCities: ['이천시'] });
     });
-    it('🔴 가까이 온 목적지의 하차 조각은 목적지 원뿐 — 현위치 원 · 라인 · 마름모 없음', () => {
-        expect(dropoffPartsOf('driving', true, true)).toEqual({ me: false, line: false, quadFrom: null });
-        expect(dropoffPartsOf('idle', false, true)).toEqual({ me: false, line: false, quadFrom: null });
+    it('🔴 가까이 와도 하차 재료는 그대로다 — 라인이 있으면 라인 ∪ 마름모(마지막 하차지)', () => {
+        expect(dropoffPartsOf(true)).toEqual({ line: true, quadFrom: 'lastDrop' });
     });
 });
 
 /**
- * 🧩 **필터 영역 — 살아 있는 목적지마다 상태 셋** (`docs/지금/필터.md` «필터 영역» · «상차 영역» · «하차 영역»).
- * 막는 것: 목적지 · 집이 살아야 할 때 죽거나 그 반대 · 상태에 맞지 않는 상차 도형.
- *
- * | 그 목적지의 상태 | 필터 영역 | 상차 영역 |
- * | 콜 없음 (idle)            | A ∪ Q(현위치→목적지) ∪ 목적지 영역 | A |
- * | 경로 생김 · 운행 전 (routed) | A ∪ 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 영역 | A |
- * | 운행 뒤 (driving)         | (A ∩ 라인) ∪ 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 영역 | A ∩ 라인 |
+ * 🧩 **살아 있는 목적지 — «사실»만 담는다** (`docs/기획/필터_파이프라인_설계.md` ⑥).
+ * 막는 것: 목적지 · 집이 살아야 할 때 죽거나 그 반대 · 목적지 칸에 «출발했나»가 다시 섞이는 것.
  *
  * 살아 있는 목적지: 목적지 = 복귀 끔 · 복귀콜 아직 못 잡음 · 목적지 콜 남음 / 집 = 복귀 켬
+ * 🔴 **상차 영역은 여기서 안 본다** — 목적지가 몇이든 상차는 «내가 달리나»만 본다 (`filterFacts.test.ts`)
  */
-const base = { destinationCity: '이천시', homeCity: '광주시', homeOn: false, homeCaught: false, departed: false };
+const base = { destinationCity: '이천시', homeCity: '광주시', homeOn: false, homeCaught: false };
 const destCall = { goalCity: '이천시' };
 const homeCall = { goalCity: '광주시' };
 
 describe('살아 있는 목적지와 상태 — 기사님이 적은 경우 그대로', () => {
-    it('콜 없음 → 목적지 하나 · 콜 없음 · 상차는 A', () => {
+    it('콜 없음 → 목적지 하나 · 콜 없음', () => {
         const z = goalZonesOf({ ...base, activeCalls: [] });
-        expect(z).toEqual([{ city: '이천시', isHome: false, state: 'idle' }]);
-        expect(pickupShapeOf(z)).toBe('me');
+        expect(z).toEqual([{ city: '이천시', isHome: false, hasCalls: false }]);
     });
-    it('콜을 잡아 경로가 생김 (운행 전) → 상차는 A 전체', () => {
+    it('콜을 잡아 경로가 생김 (운행 전) ', () => {
         const z = goalZonesOf({ ...base, activeCalls: [destCall] });
-        expect(z).toEqual([{ city: '이천시', isHome: false, state: 'routed' }]);
-        expect(pickupShapeOf(z)).toBe('me');
+        expect(z).toEqual([{ city: '이천시', isHome: false, hasCalls: true }]);
     });
-    it('운행 시작 뒤 → 상차는 A ∩ 라인', () => {
-        const z = goalZonesOf({ ...base, departed: true, activeCalls: [destCall] });
-        expect(z).toEqual([{ city: '이천시', isHome: false, state: 'driving' }]);
-        expect(pickupShapeOf(z)).toBe('meLine');
+    it('운행 시작 뒤 ', () => {
+        const z = goalZonesOf({ ...base, activeCalls: [destCall] });
+        expect(z).toEqual([{ city: '이천시', isHome: false, hasCalls: true }]);
     });
     it('🔴 운행 뒤 · 목적지 콜 남음 · 복귀 켬 → 집은 «콜 없음»이라 상차는 A 전체', () => {
-        const z = goalZonesOf({ ...base, homeOn: true, departed: true, activeCalls: [destCall] });
+        const z = goalZonesOf({ ...base, homeOn: true, activeCalls: [destCall] });
         expect(z).toEqual([
-            { city: '이천시', isHome: false, state: 'driving' },
-            { city: '광주시', isHome: true, state: 'idle' },
+            { city: '이천시', isHome: false, hasCalls: true },
+            { city: '광주시', isHome: true, hasCalls: false },
         ]);
-        expect(pickupShapeOf(z)).toBe('me');
     });
-    it('🔴 위 + 집 가는 콜 잡음 → 목적지 콜이 남았으니 목적지도 산다 · 상차는 A ∩ 라인', () => {
-        const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, departed: true, activeCalls: [destCall, homeCall] });
+    it('🔴 위 + 집 가는 콜 잡음 → 목적지 콜이 남았으니 목적지도 산다', () => {
+        const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, activeCalls: [destCall, homeCall] });
         expect(z).toEqual([
-            { city: '이천시', isHome: false, state: 'driving' },
-            { city: '광주시', isHome: true, state: 'driving' },
+            { city: '이천시', isHome: false, hasCalls: true },
+            { city: '광주시', isHome: true, hasCalls: true },
         ]);
-        expect(pickupShapeOf(z)).toBe('meLine');
     });
-    it('목적지 콜 끝 · 복귀 켬 · 집 가는 콜 잡음 → 집만 · 상차는 A ∩ 라인', () => {
-        const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, departed: true, activeCalls: [homeCall] });
-        expect(z).toEqual([{ city: '광주시', isHome: true, state: 'driving' }]);
-        expect(pickupShapeOf(z)).toBe('meLine');
+    it('목적지 콜 끝 · 복귀 켬 · 집 가는 콜 잡음 → 집만', () => {
+        const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, activeCalls: [homeCall] });
+        expect(z).toEqual([{ city: '광주시', isHome: true, hasCalls: true }]);
     });
 });
 
 describe('표에 안 적힌 경우 — 같은 규칙으로', () => {
     it('복귀 켬 · 복귀콜 아직 없음 · 콜 0건 → 목적지 ∪ 집 · 둘 다 콜 없음 (관내 가까운 콜도 하자)', () => {
         const z = goalZonesOf({ ...base, homeOn: true, activeCalls: [] });
-        expect(z.map(g => [g.city, g.state])).toEqual([['이천시', 'idle'], ['광주시', 'idle']]);
-        expect(pickupShapeOf(z)).toBe('me');
+        expect(z.map(g => [g.city, g.hasCalls])).toEqual([['이천시', false], ['광주시', false]]);
     });
     it('복귀콜을 잡았다 내렸고 둘째를 아직 못 잡음 → 집만 · 콜 없음 (목적지는 다시 안 산다)', () => {
         const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, activeCalls: [] });
-        expect(z).toEqual([{ city: '광주시', isHome: true, state: 'idle' }]);
+        expect(z).toEqual([{ city: '광주시', isHome: true, hasCalls: false }]);
     });
     it('🏘️ 관내는 따로 없다 — 목적지에서 콜을 다 내리면 그냥 «콜 없음»', () => {
-        expect(goalZonesOf({ ...base, activeCalls: [] })[0].state).toBe('idle');
+        expect(goalZonesOf({ ...base, activeCalls: [] })[0].hasCalls).toBe(false);
     });
 });
 
 describe('모르는 값은 지어내지 않는다 (규칙 ④)', () => {
-    it('목적지를 모르면 목적지가 없다 · 상차 도형도 없다', () => {
+    it('목적지를 모르면 목적지가 없다', () => {
         const z = goalZonesOf({ ...base, destinationCity: null, activeCalls: [] });
         expect(z).toEqual([]);
-        expect(pickupShapeOf(z)).toBeNull();
     });
     it('복귀 켬인데 집을 모르면 목적지만 — 서버 `goalCitiesOf` 와 같다', () => {
         const z = goalZonesOf({ ...base, homeCity: null, homeOn: true, activeCalls: [destCall] });
@@ -177,33 +168,7 @@ describe('모르는 값은 지어내지 않는다 (규칙 ④)', () => {
     });
 });
 
-/**
- * 🔵 **하차 조각에는 현위치 원(A)을 넣지 않는다** (기사님 확정).
- *
- * A 는 사방으로 퍼진 원이라 뒤쪽 동까지 하차 후보가 됐고, 그것을 «상차 목록 빼기»로 지웠다.
- * 그런데 상차 목록도 A 라서 **A 를 넣었다가 A 를 도로 빼는 꼴**이었고, 그 과정에서
- * A 와 마름모가 겹치는 **가는 방향의 동(신둔면)까지 함께 지워졌다.**
- * A 를 아예 안 넣으면 하차 영역이 «마름모 ∪ 목적지 원»만 남아 방향이 저절로 지켜지고,
- * 빼기도 필요 없어진다.
- */
-describe('🔵 하차 영역 — 목적지 하나에 넣는 조각 (목적지 원은 늘 넣는다 · 현위치 원은 안 넣는다)', () => {
-    it('콜 없음: 현위치→목적지 마름모 (현위치 원은 안 넣는다)', () => {
-        expect(dropoffPartsOf('idle', false)).toEqual({ me: false, line: false, quadFrom: 'me' });
-    });
-    it('경로 생김 (운행 전): 라인 ∪ 확정콜의 마지막 하차지→목적지 마름모', () => {
-        expect(dropoffPartsOf('routed', true)).toEqual({ me: false, line: true, quadFrom: 'lastDrop' });
-    });
-    it('운행 뒤: 라인 ∪ 확정콜의 마지막 하차지→목적지 마름모 — (A ∩ 라인)은 라인 안이라 현위치 원은 안 넣는다', () => {
-        expect(dropoffPartsOf('driving', true)).toEqual({ me: false, line: true, quadFrom: 'lastDrop' });
-    });
-    it('🔷 라인이 없으면(동선 · 경로를 모름) 라인을 지어내지 않는다 — 마름모는 현위치에서', () => {
-        expect(dropoffPartsOf('routed', false)).toEqual({ me: false, line: false, quadFrom: 'me' });
-    });
-    it('🔴 운행 뒤에는 라인이 없어도 현위치 원을 다시 넣지 않는다 — 운행 뒤 하차 영역에 A 가 없다 (리뷰 2026-09-15)', () => {
-        /* 상차가 A ∩ 라인이면 라인 밖 A 동이 안 빠져 «뒤쪽 동에 내리는 콜»이 샌다 */
-        expect(dropoffPartsOf('driving', false)).toEqual({ me: false, line: false, quadFrom: 'me' });
-    });
-});
+/* 🔵 하차 조각 눈금은 `filterFacts.test.ts` 로 옮겼다 — 조각은 사실 하나(라인이 있나)만 본다 */
 
 describe('목적지마다 경로의 확정콜의 마지막 하차지 — 경로 순서에서 그 목적지 콜의 마지막 하차지', () => {
     const calls = [

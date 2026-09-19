@@ -1,69 +1,71 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { pickupShapeOf } from './filterArea';
+import { pickupPartsOf, nearGoalCitiesOf } from './filterArea';
 
 const codeOnly = (x: string) => x.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 const read = (rel: string) => codeOnly(readFileSync(join(__dirname, '../..', rel), 'utf8'));
 
 /**
- * 🎯 **목적지에 가까이 왔으면 상차 영역은 «현위치 원 ∩ 목적지 원»이다** (기사님 확정 · 「나」안)
+ * 🎯 **「목적지에 가까이 옴」은 더하기만 한다 — 배선 검사** (`docs/기획/필터_파이프라인_설계.md` ⑥)
  *
  * 기사님: *"근거리 배송의 의미는 그 지역에 있는 콜을 모두 받겠다는 건데, 「목적지에 가까이 옴」이라 했다면
  * 모든 점이 상차지이고 하차지일 수 있어야 한다."*
- *
- * 그런데 상차는 **현위치 원**, 하차는 **목적지 원**이라 중심이 달라 두 목록이 절대 같아지지 않았다.
- * 상차를 두 원의 **겹친 곳**으로 두면 «상차만»인 점이 사라진다 — 상차 목록 ⊆ 하차 목록.
+ * 상차를 목적지 원과 **겹친 곳**으로 두면 «상차만»인 점이 사라진다 — 상차 목록 ⊆ 하차 목록.
  * 「20분 안에 상차」(현위치 원)도 지켜진다.
  *
  * 무엇을 막나
- * - 목적지에 가까이 왔다고 **현위치 원 전체**를 상차로 여는 것 — 권역 밖 뒤쪽 동이 통과한다.
- *   2026-09-20: 복정에서 서울로 가는 중에 26.5km 뒤 도척면이 상차 목록에 들어왔다 (잡으면 왕복 53km)
- * - 가까이 왔는데 **라인으로 자르는 것** — 권역 안에서는 방향을 안 따진다 (기사님 확정)
+ * - 가까이 왔다고 **현위치 원 전체**를 여는 것 — 권역 밖 뒤쪽 동이 통과한다 (실측: 26.5km 뒤 도척면)
+ * - 가까이 왔다고 **라인을 끄는 것** — 콜을 쥐고 달리는 중이면 그 길을 따라가야 한다.
+ *   목적지에 닿아 콜을 다 내리면 경로가 없어져 라인이 저절로 사라진다
+ * - 서버와 지도가 **각자 다르게 겹치는 것** — 둘이 같은 조각을 써야 갈라지지 않는다
  */
-describe('🎯 목적지에 가까이 왔을 때의 상차 영역', () => {
-    const zone = (o: Partial<{ state: 'idle' | 'routed' | 'driving'; nearGoal: boolean }>) =>
-        ({ city: '서울', isHome: false, state: 'idle' as const, ...o });
+describe('🎯 가까이 옴은 목적지 원을 «더할» 뿐이다', () => {
+    const zone = (nearGoal: boolean) => ({ city: '서울', isHome: false, hasCalls: true, nearGoal });
 
-    it('🔴 가까이 왔으면 «현위치 원 ∩ 목적지 원» — 현위치 원 전체가 아니다', () => {
-        expect(pickupShapeOf([zone({ state: 'driving', nearGoal: true })])).toBe('meGoal');
-        expect(pickupShapeOf([zone({ state: 'idle', nearGoal: true })])).toBe('meGoal');
-        expect(pickupShapeOf([zone({ state: 'routed', nearGoal: true })])).toBe('meGoal');
+    it('🔴 가까이 와도 라인이 살아 있다 — 목적지 원이 하나 늘 뿐', () => {
+        const facts = { departed: true, hasLine: true };
+        expect(pickupPartsOf({ ...facts, nearGoalCities: nearGoalCitiesOf([zone(false)]) }))
+            .toEqual({ line: true, goalCities: [] });
+        expect(pickupPartsOf({ ...facts, nearGoalCities: nearGoalCitiesOf([zone(true)]) }))
+            .toEqual({ line: true, goalCities: ['서울'] });
     });
 
-    it('🔴 가까이 안 왔고 운행 뒤면 «현위치 원 ∩ 라인» — 뒤쪽을 자른다', () => {
-        expect(pickupShapeOf([zone({ state: 'driving', nearGoal: false })])).toBe('meLine');
+    it('아직 안 떠났으면 라인이 없다 — 가까이 왔든 아니든', () => {
+        expect(pickupPartsOf({ departed: false, hasLine: true, nearGoalCities: ['서울'] }).line).toBe(false);
     });
 
-    it('가까이 안 왔고 아직 안 떠났으면 현위치 원 전체', () => {
-        expect(pickupShapeOf([zone({ state: 'idle', nearGoal: false })])).toBe('me');
-        expect(pickupShapeOf([zone({ state: 'routed', nearGoal: false })])).toBe('me');
-    });
-
-    it('🔴 목적지가 둘일 때 — 하나라도 가까이 왔으면 그 목적지 권역이 열린다', () => {
-        expect(pickupShapeOf([
-            zone({ state: 'driving', nearGoal: false }),
-            zone({ state: 'driving', nearGoal: true }),
-        ])).toBe('meGoal');
-    });
-
-    it('목적지가 없으면 모양도 없다 — 빈 목록은 «고장»으로 막힌다', () => {
-        expect(pickupShapeOf([])).toBeNull();
+    it('🔴 목적지가 둘일 때 — 가까이 온 것만 원을 준다', () => {
+        const zones = [zone(true), { city: '광주시', isHome: true, hasCalls: false, nearGoal: false }];
+        expect(nearGoalCitiesOf(zones)).toEqual(['서울']);
     });
 });
 
-/**
- * 🔴 **모양을 냈는데 아무도 안 쓰면 아무 일도 안 일어난다** — 서버 목록과 지도가 같은 모양을 봐야 한다 (규칙 ③).
- */
-describe('🎯 서버 목록과 지도가 같은 모양을 쓴다 (배선)', () => {
-    it('🔴 서버 상차 목록이 목적지 원과 겹친다', () => {
+describe('🔌 배선 — 서버와 지도가 같은 조각을 겹친다', () => {
+    it('🔴 서버 상차 목록이 켜진 조각을 전부 겹친다(∩)', () => {
         const geo = read('server/src/services/geoService.ts');
-        expect(geo).toMatch(/'meGoal'/);
-        expect(geo).toMatch(/destinationRadiusKm/);
+        // 현위치 원은 늘 · 띠와 목적지 원은 켜졌을 때만 — 하나라도 빠지면 영역이 넓어진다
+        expect(geo).toMatch(/inMe\(p\)\s*&&\s*\(!useBand \|\| inBand\(p\)\)\s*&&\s*\(goalPts\.length === 0 \|\| inGoal\(p\)\)/);
+        // 목적지 원 여럿은 더한다(∪)
+        expect(geo).toMatch(/goalPts\.some\(/);
     });
 
-    it('🔴 지도도 목적지 원으로 겹쳐 그린다', () => {
-        expect(read('client-app/src/components/stage/StageView.tsx')).toMatch(/pickupShape === 'meGoal'/);
-        expect(read('client-app/src/components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/area\.goal/);
+    it('🔴 서버가 조각을 스스로 다시 고르지 않는다 — 부르는 쪽이 정한 것을 받는다', () => {
+        const geo = read('server/src/services/geoService.ts');
+        expect(geo).toContain('parts: { line: boolean; goalCities: readonly string[] }');
+        expect(geo).not.toMatch(/pickupShapeOf|pickupPartsOf\(/);
+    });
+
+    it('🔴 지도가 목적지 원 여럿을 겹쳐 그린다', () => {
+        const canvas = read('client-app/src/components/dashboard/PinnedRouteCanvas.tsx');
+        expect(canvas).toMatch(/goals: Array<\{ at: \{ x: number; y: number \}; km: number \} *>/);
+        // 목적지 원이 있어도 라인 띠를 그린다 — 「가까이 옴」이 라인을 끄지 않는다
+        expect(canvas).toMatch(/if \(area\.goals\.length\) \{[\s\S]*?c2d\.clip\(\);[\s\S]*?\}\s*\n\s*if \(band\)/);
+    });
+
+    it('🔴 관제웹도 서버와 같은 `pickupPartsOf` 를 쓴다 — 두 벌로 계산하지 않는다', () => {
+        const stage = read('client-app/src/components/stage/StageView.tsx');
+        expect(stage).toContain('pickupPartsOf({');
+        expect(stage).toContain('nearGoalCitiesOf(nearZones)');
     });
 });

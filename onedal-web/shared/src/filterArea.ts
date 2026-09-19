@@ -16,18 +16,30 @@
  *    **같은 함수**를 부른다 — 따로 계산하면 지도와 목록이 갈라진다.
  */
 
-import { cityCenter, quadOutline, haversineKm, type NetParams } from './callNet';
+import { cityCenter, haversineKm } from './callNet';
 import { DONG_CENTROIDS } from './dongCentroids';
 
-export type GoalState = 'idle' | 'routed' | 'driving';
-
+/**
+ * 🎯 **살아 있는 목적지 하나 — «사실»만 담는다.**
+ *
+ * 🔴 **«출발했나»를 여기 담지 않는다** (설계서 ⑥). 그 목적지로 갈 콜이 있나(`hasCalls`)는 **목적지마다 다르고**,
+ *    출발했나는 **목적지가 몇이든 하나**다. 둘을 한 칸(옛 `state`)에 담았더니 «내가 달리나»를 물으려고
+ *    목적지 목록을 뒤지게 됐고, 복귀를 켜서 목적지가 둘이 되자 답이 뒤집혀 상차 라인이 통째로 꺼졌다.
+ *    화면·로그에 쓸 이름이 필요하면 `goalStateLabel(hasCalls, departed)` 로 **그때 만든다.**
+ */
 export interface GoalZone {
     city: string;
     /** 집(복귀 목적지)인가 */
     isHome: boolean;
-    state: GoalState;
+    /** 그 목적지로 갈 콜이 지금 있나 */
+    hasCalls: boolean;
     /** 🎯 목적지 가까이 옴 — `withNearness` 가 채운다. 없으면 «멀다»로 본다 */
     nearGoal?: boolean;
+}
+
+/** 🏷️ **화면·로그에 적을 이름** — 계산에 쓰지 않는다 (뭉친 이름은 읽기에 좋고 계산에 나쁘다) */
+export function goalStateLabel(hasCalls: boolean, departed: boolean): string {
+    return !hasCalls ? '콜 없음' : departed ? '운행 뒤' : '경로 생김';
 }
 
 /**
@@ -39,81 +51,100 @@ export interface GoalZone {
  *
  * @param homeCaught 복귀를 켠 뒤 복귀콜을 잡은 적 있나 — 서버 `homeCallsOf` (하차한 콜도 센다)
  * @param activeCalls 지금 실린(진행 중인) 콜만
+ *
+ * 🔴 **«출발했나»를 받지 않는다** — 목적지가 사는 조건과 상관없다. 그 사실은 조각이 직접 본다 (설계서 ⑥)
  */
 export function goalZonesOf(o: {
     destinationCity: string | null | undefined;
     homeCity: string | null | undefined;
     homeOn: boolean;
     homeCaught: boolean;
-    departed: boolean;
     activeCalls: ReadonlyArray<{ goalCity?: string | null }>;
 }): GoalZone[] {
     const homeAlive = o.homeOn && !!o.homeCity;
     const homeCalls = o.activeCalls.filter(c => isHomeCallOf(c, o)).length;
     const destCalls = o.activeCalls.length - homeCalls;
-    const stateOf = (calls: number): GoalState => calls === 0 ? 'idle' : o.departed ? 'driving' : 'routed';
 
     const zones: GoalZone[] = [];
     if (o.destinationCity && (!homeAlive || !o.homeCaught || destCalls > 0)) {
-        zones.push({ city: o.destinationCity, isHome: false, state: stateOf(destCalls) });
+        zones.push({ city: o.destinationCity, isHome: false, hasCalls: destCalls > 0 });
     }
-    if (homeAlive) zones.push({ city: o.homeCity as string, isHome: true, state: stateOf(homeCalls) });
+    if (homeAlive) zones.push({ city: o.homeCity as string, isHome: true, hasCalls: homeCalls > 0 });
     return zones;
 }
 
 /**
- * 🟢 **상차 영역의 모양 — 한 곳** (`docs/지금/필터.md` «상차 영역»).
+ * 🟢 **상차 조각 — 각자 자기 사실만 본다** (`docs/기획/필터_파이프라인_설계.md` ⑥).
  *
- * | 목적지 상태 | 상차 영역 | 왜 |
+ * 상차의 주어는 **나**다. 「내가 20분 안에 가서 실을 수 있고, 내가 지금 달리는 길에 있는 곳」이다.
+ * 목적지가 몇이든 나는 하나고 내가 달리는 길도 하나다. 그래서 **목적지 목록을 받지 않는다.**
+ *
+ * | 조각 | 켜지는 조건 | 주인 |
  * |---|---|---|
- * | 🎯 **목적지에 가까이 옴** | **`meGoal` — 현위치 원 ∩ 목적지 원** | 권역 안에서는 방향을 안 따진다. 다만 **권역 밖까지 열지는 않는다** |
- * | 멀고 운행 뒤 | `meLine` — 현위치 원 ∩ 라인(앞으로만) | 뒤로 돌아가는 상차는 손해다 |
- * | 그 밖 | `me` — 현위치 원 | 아직 길이 없다 |
+ * | 현위치 원 | 늘 (반환에 없다 — 부르는 쪽이 늘 넣는다) | 나 |
+ * | 라인 띠 | 출발했고 경로가 있으면 | 나 |
+ * | 목적지 원 | 가까이 온 목적지가 있으면 — 그 원들을 **더한다**(∪) | 목적지마다 |
  *
- * 🔴 **가까이 왔다고 현위치 원 전체를 열지 않는다** (기사님 확정 · 「나」안).
- *    원 전체를 열면 목적지 권역 **밖 뒤쪽**이 통과한다 — 복정에서 서울로 가는 중에 26.5km 뒤 도척면이
- *    상차 목록에 들어왔다 (잡으면 왕복 53km).
- * 🔴 **두 원의 겹친 곳이라 «상차만»인 점이 사라진다** — 상차 목록 ⊆ 하차 목록(목적지 원).
- *    기사님: *"「목적지에 가까이 옴」이라 했다면 모든 점이 상차지이고 하차지일 수 있어야 한다."*
- *    상차를 목적지 원 전체로 열면 그 말에 더 맞지만, 22km 원은 끝에서 끝까지 44km라
- *    «20분 안에 상차»(현위치 원)가 깨진다. 그래서 겹친 곳으로 둔다.
- * 🔴 **하나라도 가까이 왔으면 `meGoal`** — 그 목적지 권역이 열린다. 나머지는 그 뒤에 본다.
+ * 켜진 조각을 **전부 겹친다**(∩) — 상차는 «다 만족해야» 갈 수 있다.
+ *
+ * 🔴 **「내가 달리나」를 목적지 목록으로 묻지 않는다.** 옛 코드는 `zones.every(z => z.state === 'driving')`
+ *    이었고, 복귀를 켜서 목적지가 둘이 되자 하나가 «콜 없음»이라 거짓이 되어 **라인이 통째로 꺼졌다.**
+ *    실측으로 상차지가 118곳에서 419곳으로 늘었다 — 뒤쪽 상차가 전부 통과했다.
+ * 🔴 **가까이 온 목적지가 둘이면 두 원을 더한다**(∪) — 겹치면(∩) 두 원이 안 만날 때 영역이 비고,
+ *    빈 영역은 «전부 통과»가 아니라 «고장»이다 (규칙 ④).
+ * 🔴 **마름모는 상차에 안 쓴다** — 기사님: *"아무리 빨리 가도 마름모 영역까지 상차를 20분 안에 할 수 없잖아."*
+ * 🔴 **「가까이 옴」이 라인을 끄지 않는다** — 목적지 원을 **더할** 뿐이다. 목적지에 닿아 콜을 다 내리면
+ *    경로가 없어져 라인이 저절로 사라진다. 조건 하나가 재료 여럿을 끄면 거리를 넓히는 일과
+ *    방향을 버리는 일을 한 손이 하게 된다.
  */
-export function pickupShapeOf(zones: ReadonlyArray<GoalZone>): 'me' | 'meLine' | 'meGoal' | null {
-    if (zones.length === 0) return null;
-    if (zones.some(z => z.nearGoal)) return 'meGoal';
-    return zones.every(z => z.state === 'driving') ? 'meLine' : 'me';
+export function pickupPartsOf(o: {
+    /** 출발을 눌렀나 — 목적지가 몇이든 하나다 */
+    departed: boolean;
+    /** 확정된 경로가 있나 (🔷 동선이면 없다) */
+    hasLine: boolean;
+    /** 가까이 온 목적지의 시 이름 — 없으면 빈 배열 */
+    nearGoalCities: ReadonlyArray<string>;
+}): { line: boolean; goalCities: readonly string[] } {
+    return {
+        line: o.departed && o.hasLine,
+        goalCities: o.nearGoalCities,
+    };
 }
 
 /**
- * 🎯 **목적지에 가까이 옴** (`docs/지금/필터.md` «필터 영역»).
+ * 🎯 **목적지에 가까이 옴 — 내가 그 목적지 영역 안에 들어왔나** (설계서 ⑥).
  *
- * **Q(현위치→목적지) 마름모가 현위치 원 ∪ 목적지 원 안에 통째로 들어가면** 가까이 옴 — 상차 A 전체.
- * 🔴 판단 마름모는 목적지 상태와 상관없이 늘 **현위치 → 목적지**다.
- * 테두리 점(`quadOutline` · 2° 광선)이 전부 두 원 중 하나 안에 드는가로 잰다.
- *
- * 🔴 **이 식은 기사님이 말씀하신 뜻과 아직 맞지 않는다** (결정 대기).
- *    기사님: *"「목적지에 가까이 옴」이라 했다면 모든 점이 상차지이고 하차지일 수 있어야 하므로 **모두 보라색 점**이어야 한다."*
- *    그러려면 상차 목록과 하차 목록이 같아야 하는데, 지금은 상차가 **현위치 원**이고 하차가 **목적지 원**이라
- *    중심이 달라 절대 같아지지 않는다. 그리고 이 식은 두 원이 크면 **출발점에서도 참**이라,
- *    라인 자르기가 꺼져 뒤쪽 상차가 통과한다 — 복정에서 26.5km 뒤 도척면이 상차 목록에 들어왔다.
- *    고치는 방향은 «가까이 옴이면 상차도 목적지 원을 본다» — 기사님 결정 뒤에 바꾼다.
+ * 🔴 **목적지 반경 하나로만 잰다 — 현위치 반경을 더하지 않는다.** 기사님이 목적지 반경을 정하신 것이
+ *    곧 *"이만큼이 내 목적지 근처다"* 라는 말씀이다. 두 반경을 합쳐 보면 내가 정한 근처보다 훨씬
+ *    멀리서 켜진다 — 목적지 반경 22 · 현위치 반경 18.6 에서 옛 식은 40km 밖까지 참이었다.
+ * 🔴 켜지면 하는 일은 **더하기뿐**이다 — 상차에 목적지 원을 더하고(`pickupPartsOf`),
+ *    하차에서 상차 목록 동을 안 뺀다. 라인·마름모는 끄지 않는다.
  */
-export function isNearGoal(o: { me: { x: number; y: number }; goal: { lng: number; lat: number }; params: NetParams }): boolean {
-    const me = { name: '내 위치', lng: o.me.x, lat: o.me.y };
-    const goal = { name: '목적지', lng: o.goal.lng, lat: o.goal.lat };
-    const rMe = Math.max(0, o.params.srcDiamKm / 2), rGoal = Math.max(0, o.params.dstDiamKm / 2);
-    return quadOutline(o.params, me, goal).every(p => haversineKm(me, p) <= rMe || haversineKm(goal, p) <= rGoal);
+export function isNearGoal(o: {
+    me: { x: number; y: number };
+    goal: { lng: number; lat: number };
+    destinationRadiusKm: number;
+}): boolean {
+    return haversineKm({ lng: o.me.x, lat: o.me.y }, { lng: o.goal.lng, lat: o.goal.lat })
+        <= Math.max(0, o.destinationRadiusKm);
 }
 
 /** 🎯 목적지마다 «가까이 옴»을 채운다 — 지도에 없는 시(좌표를 모름)는 «멀다»로 둔다 (지어내지 않는다 · 규칙 ④) */
-export function withNearness(zones: ReadonlyArray<GoalZone>, o: { me: { x: number; y: number }; params: NetParams }): GoalZone[] {
+export function withNearness(
+    zones: ReadonlyArray<GoalZone>,
+    o: { me: { x: number; y: number }; destinationRadiusKm: number },
+): GoalZone[] {
     return zones.map(z => {
         let goal: { lng: number; lat: number };
         try { goal = cityCenter(z.city); } catch { return { ...z, nearGoal: false }; }
         if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return { ...z, nearGoal: false };
-        return { ...z, nearGoal: isNearGoal({ me: o.me, goal, params: o.params }) };
+        return { ...z, nearGoal: isNearGoal({ me: o.me, goal, destinationRadiusKm: o.destinationRadiusKm }) };
     });
+}
+
+/** 🎯 가까이 온 목적지의 시 이름만 — 상차의 목적지 원은 이 시들의 원을 **더한** 것이다(∪) */
+export function nearGoalCitiesOf(zones: ReadonlyArray<GoalZone>): string[] {
+    return zones.filter(z => z.nearGoal).map(z => z.city);
 }
 
 /** 🏠 **이 콜이 집 콜인가** — 복귀 켬이고 판(`goalCity`)이 집이면 집 콜 · 나머지는 목적지 콜. 콜의 주인은 여기 한 곳이 가른다 */
@@ -122,33 +153,30 @@ export function isHomeCallOf(call: { goalCity?: string | null }, o: { homeOn: bo
 }
 
 /**
- * 🔵 **하차 영역 — 목적지 하나에 넣는 조각** (목적지 원은 늘 넣는다).
+ * 🔵 **하차 조각 — 그 목적지 하나에 넣는 것** (`docs/기획/필터_파이프라인_설계.md` ⑥).
  *
- * | 상태 | 하차 영역 |
- * |---|---|
- * | `idle`    | 현위치 원 ∪ Q(현위치→목적지) ∪ 목적지 원 |
- * | `routed`  | 현위치 원 ∪ 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 원 |
- * | `driving` | 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 원 — (A ∩ 라인)은 라인 안이라 현위치 원을 따로 안 넣는다 |
+ * 하차의 주어는 **목적지**다. 「그 목적지 쪽으로 가는 곳」이라 목적지마다 만들어 **더한다**(∪).
+ * 목적지 원은 늘 넣으므로 여기 없다 — 부르는 쪽이 늘 넣는다.
  *
- * @param hasLine 그 목적지의 라인이 있나 — 🔷 동선이거나 경로를 모르면 없다. 그때는 라인 · 확정콜의 마지막 하차지 없이 마름모를 현위치에서 잰다 (라인을 지어내지 않는다 · 규칙 ④).
- *    🔴 운행 뒤에는 라인이 없어도 현위치 원을 다시 넣지 않는다 — 상차가 A ∩ 라인이면 라인 밖 A 동이 상차 목록에 없어 안 빠지고,
- *    «뒤쪽 동에 내리는 콜»이 샌다 (버그 대장 #148)
+ * | 그 목적지까지 자른 라인이 | 라인 띠 | 마름모 시작점 |
+ * |---|---|---|
+ * | 있다 | ✅ | 확정콜의 마지막 하차지 |
+ * | 없다 | ❌ | 현위치 |
+ *
+ * 🔴 **묻는 것이 하나다.** 옛 코드는 목적지 «상태»와 «가까이 옴»까지 셋을 봤는데, 세 갈래가 결국
+ *    이 하나로 갈렸다 — 콜이 없으면 마지막 하차지가 없어 라인도 없고, 「가까이 옴」은 재료를 끄지 않는다.
+ * 🔴 **「가까이 옴」이 여기 들어오지 않는다** — 받을 수 없으면 끌 수도 없다. 가까이 옴이 하차에서
+ *    하는 일은 «상차 목록 동을 안 뺀다» 하나뿐이고 그것은 합치는 쪽(`mergeDropoffGroups`)이 안다.
+ * 🔴 **현위치 원(A)은 하차 조각에 넣지 않는다** (기사님 확정). A 는 사방으로 퍼진 원이라 뒤쪽 동까지
+ *    하차 후보가 됐고, 그것을 빼다가 **가는 방향의 동까지 함께 지워졌다** — 광주(집)에서 이천으로 갈 때
+ *    신둔면이 상차 반경 안이라는 이유로 하차에서 빠져 «광주 → 신둔면»을 못 잡았다.
+ * 🔴 **라인이 없다고 현위치 원을 다시 넣지 않는다** — 상차가 A ∩ 라인이면 라인 밖 A 동이 상차 목록에
+ *    없어 안 빠지고 «뒤쪽 동에 내리는 콜»이 샌다 (버그 대장 #148).
+ *
+ * @param hasLine 그 목적지의 라인이 있나 — 🔷 동선이거나 경로를 모르면 없다 (라인을 지어내지 않는다 · 규칙 ④)
  */
-export function dropoffPartsOf(state: GoalState, hasLine: boolean, nearGoal = false): { me: boolean; line: boolean; quadFrom: 'me' | 'lastDrop' | null } {
-    /* 🎯 가까이 온 목적지는 목적지 원 전체뿐 — 상차 목록 동도 빼지 않는다 (필터.md «하차 영역») */
-    /**
-     * 🔴 **현위치 원(A)은 하차 조각에 넣지 않는다** (기사님 확정).
-     *
-     * A 는 사방으로 퍼진 원이라 뒤쪽 동까지 하차 후보가 됐고, 그것을 «상차 목록 빼기»로 지웠다.
-     * 그런데 상차 목록도 A 라서 **A 를 넣었다가 A 를 도로 빼는 꼴**이었고, 그 과정에서
-     * A 와 마름모가 겹치는 **가는 방향의 동까지 함께 지워졌다** — 광주(집)에서 이천으로 갈 때
-     * 신둔면이 상차 반경 안이라는 이유로 하차에서 빠져 «광주 → 신둔면»을 못 잡았다.
-     * A 를 안 넣으면 하차 영역이 «마름모 ∪ 목적지 원»만 남아 방향이 저절로 지켜진다.
-     */
-    if (nearGoal) return { me: false, line: false, quadFrom: null };
-    if (state === 'idle') return { me: false, line: false, quadFrom: 'me' };
-    if (!hasLine) return { me: false, line: false, quadFrom: 'me' };
-    return { me: false, line: true, quadFrom: 'lastDrop' };
+export function dropoffPartsOf(hasLine: boolean): { line: boolean; quadFrom: 'me' | 'lastDrop' } {
+    return hasLine ? { line: true, quadFrom: 'lastDrop' } : { line: false, quadFrom: 'me' };
 }
 
 /**

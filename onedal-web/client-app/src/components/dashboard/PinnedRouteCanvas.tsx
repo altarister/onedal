@@ -173,8 +173,8 @@ interface Props {
      * 📋 **상차 영역 — 원달앱이 상차지를 거르는 영역**.
      *
      * 🔴 아래 `dropoffArea`(하차 영역 · 합집합)와 **다른 것**이다. 상차 영역은 **현위치 영역 전체** 아니면
-     *    **현위치 영역 ∩ 라인 영역** 둘뿐이다 (`docs/지금/필터.md` «상차 영역» · 모양은 shared `pickupShapeOf`).
-     *    교집합은 도형을 겹쳐 칠하면 합집합으로 보이니 **내 위치 원으로 잘라(clip)** 그 안에서만 띠를 칠한다.
+     *    **켜진 조각을 전부 겹친 것**이다 (조각은 shared `pickupPartsOf` · 설계서 ⑥).
+     *    교집합은 도형을 겹쳐 칠하면 합집합으로 보이니 **잘라(clip) 가며** 좁힌 뒤 마지막에 한 번 칠한다.
      */
     pickupArea?: {
         me: { x: number; y: number };
@@ -183,11 +183,10 @@ interface Props {
         line: Array<{ x: number; y: number }> | null;
         lineKm: number;
         /**
-         * 🎯 **목적지에 가까이 왔을 때 겹칠 목적지 원** (기사님 확정 · 「나」안).
-         *    있으면 **현위치 원 ∩ 목적지 원**을 칠한다 — 권역 밖 뒤쪽을 열지 않으려는 것이다.
-         *    `line` 과 함께 오지 않는다: 가까이 왔으면 방향을 안 따지므로 라인 띠가 없다.
+         * 🎯 **가까이 온 목적지들의 원** (설계서 ⑥). 있으면 그 원들을 **더한 것**(∪)과 겹친다.
+         * 🔴 **`line` 과 함께 올 수 있다** — 「가까이 옴」은 라인을 끄지 않는다. 셋 다 겹친다.
          */
-        goal?: { at: { x: number; y: number }; km: number } | null;
+        goals: Array<{ at: { x: number; y: number }; km: number }>;
     } | null;
     /**
      * 🔵 **하차 영역 — 원달앱이 하차지를 거르는 영역** (`docs/지금/필터.md` «하차 영역»).
@@ -310,7 +309,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
      *    🔴 좌표는 안 싣는다 — 내 위치가 매초 바뀌어 줄이 매초 찍힌다. 모양 · 반지름 · 조각 수 · 레이어 켬만.
      */
     const areaSummary = [
-        `상차 ${pickupArea ? `${pickupArea.goal ? '원∩목적지원' : pickupArea.line ? '원∩라인(현위치부터)' : '원'} ${pickupArea.meKm.toFixed(1)}km` : '없음'}`,
+        `상차 ${pickupArea
+            ? `${['원', pickupArea.line && '라인(현위치부터)', pickupArea.goals.length ? `목적지원×${pickupArea.goals.length}` : ''].filter(Boolean).join('∩')} ${pickupArea.meKm.toFixed(1)}km`
+            : '없음'}`,
         `하차 ${dropoffArea
             ? `먼 원 ${dropoffArea.circles.length} · 가까이 원 ${dropoffArea.nearCircles.length} · 마름모 ${dropoffArea.quads.length} · 띠 ${dropoffArea.lines.length}${pickupArea ? ' · 상차 영역 지움' : ''}`
             : '없음'}`,
@@ -624,25 +625,33 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
             const c = getScreenPt(area.me);
             const east = getScreenPt({ x: area.me.x + 1 / (111.32 * Math.cos((area.me.y * Math.PI) / 180)), y: area.me.y });
             const pxPerKm = Math.abs(east.cx - c.cx);
+            const meR = Math.max(0, area.meKm) * pxPerKm;
+            const band = area.line && area.line.length >= 2 ? area.line : null;
             c2d.save();
-            c2d.beginPath(); c2d.arc(c.cx, c.cy, Math.max(0, area.meKm) * pxPerKm, 0, Math.PI * 2);
-            if (area.goal) {
-                /* 🎯 목적지에 가까이 옴 — 현위치 원으로 자른 뒤 목적지 원만 칠한다 (겹친 곳) */
-                c2d.clip();
-                const g = getScreenPt(area.goal.at);
-                c2d.beginPath(); c2d.arc(g.cx, g.cy, Math.max(0, area.goal.km) * pxPerKm, 0, Math.PI * 2);
-                c2d.fill();
-            } else if (!area.line) {
-                c2d.fill();
-            } else if (area.line.length >= 2) {
-                c2d.clip();
-                /* ✂️ 현위치에서 경로와 직각으로 자른 선 앞쪽만 — 서버 `pickupListFor` 와 같은 `aheadOf` */
-                clipAhead(c2d, area.line, area.lineKm);
+            /* 🔴 **켜진 조각을 전부 겹친다**(∩) — 하나씩 clip 으로 좁히고 마지막에 한 번 칠한다.
+                  겹쳐 칠하면 합집합으로 보인다 (기사님이 잡아 주신 자리) */
+            c2d.beginPath(); c2d.arc(c.cx, c.cy, meR, 0, Math.PI * 2); c2d.clip();
+            if (area.goals.length) {
+                /* 🎯 가까이 온 목적지 원들은 서로 **더한다**(∪) — 한 경로에 원 여럿을 그리면 합집합으로 clip 된다 */
                 c2d.beginPath();
-                area.line.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) c2d.moveTo(s.cx, s.cy); else c2d.lineTo(s.cx, s.cy); });
+                for (const g of area.goals) {
+                    const s = getScreenPt(g.at);
+                    c2d.moveTo(s.cx + Math.max(0, g.km) * pxPerKm, s.cy);
+                    c2d.arc(s.cx, s.cy, Math.max(0, g.km) * pxPerKm, 0, Math.PI * 2);
+                }
+                c2d.clip();
+            }
+            if (band) {
+                /* ✂️ 현위치에서 경로와 직각으로 자른 선 앞쪽만 — 서버 `pickupListFor` 와 같은 `aheadOf` */
+                clipAhead(c2d, band, area.lineKm);
+                c2d.beginPath();
+                band.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) c2d.moveTo(s.cx, s.cy); else c2d.lineTo(s.cx, s.cy); });
                 c2d.lineWidth = area.lineKm * 2 * pxPerKm;
                 c2d.lineCap = 'round'; c2d.lineJoin = 'round';
                 c2d.stroke();
+            } else {
+                /* 띠가 없으면 여기까지 좁힌 영역을 통째로 칠한다 */
+                c2d.beginPath(); c2d.arc(c.cx, c.cy, meR, 0, Math.PI * 2); c2d.fill();
             }
             c2d.restore();
         };
