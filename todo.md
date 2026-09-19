@@ -17,18 +17,13 @@
 - [x] 라인을 목적지마다 — 그 목적지 콜의 마지막 하차지까지 자른다 (`netOfGoals` · `lastDropOf` · `lineUntil` · 2026-09-15)
 - [x] 살아 있는 목적지 · 목적지 상태 · 가까이 옴 — 하차 · 상차 목록이 한 곳(`goalZonesNow`) · 지도 두 레이어도 같은 shared 함수
 - [x] 하차 — 현위치 영역은 조각이 넣으라 할 때만 (`dropoffPartsOf`)
-- [x] 상차 — 서버 목록도 `goalZonesOf` → `pickupPartsOf` · 걸친 동은 격자 점 ∪ 동 꼭짓점 (`geoService.pickupListFor`)
+- [x] 상차 — 서버 목록도 `goalZonesOf` → `pickupShapeOf` · 걸친 동은 격자 점 ∪ 동 꼭짓점 (`geoService.pickupListFor` · 2026-09-15)
 - [x] 하차 — 먼 목적지는 **상차 목록 동을 뺀다**(`mergeDropoffGroups`) · 가까이 온 목적지는 원에 걸친 동 전체 · 상차 목록 먼저 · 0.5km 마다 다시 (2026-09-15)
 - [x] 🎯 목적지 가까이 옴 — 상차 · 하차 · 지도 · 서버 모두 `filterArea.isNearGoal` · `withNearness`
 - [x] 관내 — 서버 `netForGoal` 의 `local` · `localMode` 를 걷었다 (2026-09-15)
 - [x] 하차 — 먼 목적지의 목적지 원 · 마름모도 **걸친 동**을 넣는다 (`geoService.regionsTouchingNetGrouped` · 로그 16:49 이천 걸친 23 → 36곳 · 2026-09-15)
 - [x] 관내 — 관제웹 표시(필터 창 문구 · 복귀 배지 · 예시 거리 · 현황판 줄) · `useCallNet` 의 `local` · shared 타입 칸 · `callNet.buildRingNet` 을 걷었다 (2026-09-15)
 - [x] 콜의 판(`goalOfCall`) · 관제웹 `goalCities` — `goalCitiesOf` 가 `goalZonesNow` 를 본다 (목적지 콜이 남으면 목적지도 · 2026-09-15)
-- [x] 🎯 **가까이 옴은 더하기만 한다 — 재료를 끄지 않는다** (기사님 확정 ①②③ · 표는 [docs/기획/필터_재료_스위치_표.md](docs/기획/필터_재료_스위치_표.md))
-      · ① 상차 `pickupPartsOf` 가 `{ me, line, goal }` 세 칸 — 켜진 재료를 전부 겹친다(∩)
-      · ② 하차 `dropoffPartsOf` 는 `nearGoal` 을 **인자로 받지 않는다** — 관제웹은 가까이 온 목적지의 원·마름모·띠를 지운 뒤에 칠한다
-      · ③ 재는 식은 «현위치가 목적지 영역 안인가» 하나 — 옛 식은 두 반경을 합쳐 40km 밖까지 참이었다
-- [ ] 🔴 **실주행에서 본다** — 22~40km 구간에서 상차가 A ∩ 라인으로 도는지, 목적지 권역에 들어와야 목적지 원이 더해지는지
 - [x] 옛 «그물» 레이어(`useCallNet` · `netOverlay`)를 걷는다 — «하차» 레이어가 자리 잡았다 (2026-09-15 · 요약줄 «N 읍면동»은 서버 하차 목록 수 · 🎯 목적지 마커는 «하차» 레이어 · 동 점은 없앴다)
 
 ## 🟡 상차 목록 · 하차 목록 — 옛 칸 걷는 날 (3단계 · 2026-09-15 규격 초안)

@@ -803,7 +803,6 @@ function netFilterOf(session: ReturnType<typeof getUserSession>, userId: string)
  * 목적지 상태 · 가까이 옴은 `goalZonesNow`(상차 목록과 같은 값), 조각은 shared `dropoffPartsOf`,
  * 확정콜의 마지막 하차지는 경로 순서(`planArrivalStops` — 관제웹 `routeStops` 와 같은 순서)에서 그 목적지 콜의 마지막 하차지(`lastDropOf`),
  * 라인은 얼린 경로를 거기까지 자른 것(`lineUntil`). 합치기는 `mergeDropoffGroups` — 먼 목적지는 **상차 목록 동을 뺀다** · 가까이 온 목적지는 안 뺀다.
- * 🔴 「가까이 옴」이 하는 일은 **그 «안 뺌» 하나뿐이다** — 라인 · 마름모는 끄지 않는다 (shared `dropoffPartsOf` ②).
  * 🔴 상차 목록이 먼저 만들어져 있어야 한다 — `rebuildNetFilter` 가 그 순서로 부른다.
  * 관내는 따로 재지 않는다 — 가까이 옴이 갈랐다.
  */
@@ -821,8 +820,7 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
     const pickupGroups = session.activeFilter.pickupGroups ?? {};
     let byNet = zones.length > 0, pruned = 0;
     for (const z of zones) {
-        /* 🎯 가까이 와도 확정콜의 마지막 하차지는 그대로 쓴다 — 「가까이 옴」은 재료를 끄지 않는다 (shared `dropoffPartsOf` ②) */
-        const lastDrop = z.state === 'idle' ? null
+        const lastDrop = z.state === 'idle' || z.nearGoal ? null
             : lastDropOf({ isHome: z.isHome, homeOn, homeCity, stops, calls: activeCalls });
         /**
          * ✂️ **운행 뒤에는 라인을 현위치부터 쓴다** — 관제웹 지도(`StageView` 하차 띠)와 **같은 `lineFromPoint`**.
@@ -834,7 +832,7 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
             ? lineFromPoint(lineXY.map(p => [p.x, p.y] as [number, number]), { lng: origin.x, lat: origin.y }).map(([x, y]) => ({ x, y }))
             : lineXY;
         const goalLine = ridden && lastDrop ? lineUntil(ridden, lastDrop) : [];
-        const shape = dropoffPartsOf(z.state, goalLine.length >= 2);
+        const shape = dropoffPartsOf(z.state, goalLine.length >= 2, !!z.nearGoal);
         const kept = netKeywordsOf(session, userId, z.city, radius, {
             line: shape.line ? goalLine.map(p => [p.x, p.y] as [number, number]) : null,
             lastDrop: shape.quadFrom === 'lastDrop' ? lastDrop : null,
@@ -843,9 +841,8 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
         });
         parts.push({ nearGoal: !!z.nearGoal, grouped: kept.grouped, progressKm: kept.progressKm });
         const names = [...new Set(Object.values(kept.grouped).flat())];
-        const pieces = [shape.me && '현위치', shape.line && '라인',
-            shape.quadFrom === 'me' ? '마름모(현위치)' : shape.quadFrom === 'lastDrop' ? '마름모(확정콜의 마지막 하차지)' : '',
-            z.nearGoal ? '원(가까이 옴 · 상차 동 안 뺌)' : '원'].filter(Boolean);
+        const pieces = z.nearGoal ? ['원(가까이 옴 · 안 뺌)']
+            : [shape.me && '현위치', shape.line && '라인', shape.quadFrom === 'me' ? '마름모(현위치)' : shape.quadFrom === 'lastDrop' ? '마름모(확정콜의 마지막 하차지)' : '', '원'].filter(Boolean);
         details.push(`${z.city}:${z.state}${z.nearGoal ? '·가까이' : ''}${z.state !== 'idle' && !z.nearGoal && !lastDrop ? '·확정콜의 마지막 하차지 모름' : ''} `
             + `[${pieces.join('·')}] 걸친 ${names.length}곳${kept.byNet ? '' : ' (도시 둘레로 물러섬)'}`);
         byNet = byNet && kept.byNet;

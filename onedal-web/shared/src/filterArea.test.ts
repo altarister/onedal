@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { goalZonesOf, pickupPartsOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups, dongDotsOf } from './filterArea';
+import { goalZonesOf, pickupShapeOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups, dongDotsOf } from './filterArea';
 
 /**
  * 🔵 **하차 목록 합치기** (`docs/지금/필터.md` «하차 영역»)
@@ -61,10 +59,10 @@ import { cityCenter } from './callNet';
 
 /**
  * 🎯 **목적지 가까이 옴** (`docs/지금/필터.md` «필터 영역»)
- * 막는 것: 아직 목적지 영역 밖인데 «가까이 옴»으로 보는 것 · 「가까이 옴」이 상차 · 하차 재료를 끄는 것.
+ * 막는 것: 마름모가 두 원 밖으로 나가는데 «가까이 옴»으로 보는 것 · 가까이 온 목적지에서 상차 · 하차 영역이 좁혀지는 것.
  * 좌표는 이천 왕복 시나리오 실값 · 반경 · 모양은 그때 자동 반경이 준 값.
  */
-describe('🎯 목적지 가까이 옴 — 내가 목적지 영역 안에 들어왔나', () => {
+describe('🎯 목적지 가까이 옴 — 마름모가 두 원 안에 통째로', () => {
     const TERMINAL = { x: 127.446936, y: 37.277421 };   // 이천터미널 — 이천 중심 1.2km
     const MODA = { x: 127.312587, y: 37.363298 };       // 모다아울렛 — 이천 중심 16km
     const ICHEON = cityCenter('이천시');
@@ -75,27 +73,8 @@ describe('🎯 목적지 가까이 옴 — 내가 목적지 영역 안에 들어
     it('🔴 모다아울렛이면 이천은 멀다 — 마름모가 두 원 밖으로 넓게 나간다', () => {
         expect(isNearGoal({ me: MODA, goal: ICHEON, params })).toBe(false);
     });
-    it('목적지 반경을 크게 두면(수동) 더 먼 곳에서도 가까이 옴 — 기사님 «수동으로 둘의 크기를 다르게 설정할 수 있어»', () => {
-        expect(isNearGoal({ me: MODA, goal: ICHEON, params: { ...params, dstDiamKm: 40 } })).toBe(true);
-    });
-
-    /**
-     * 🔴 **「가까이 옴」은 목적지 반경 하나로 잰다** (기사님 확정 ③) — 기사님이 목적지 반경을 정한 것이
-     *    «이만큼이 내 목적지 근처다»라는 말씀이다. 그 안에 들어왔으면 가까이 온 것이다.
-     *
-     * 옛 식은 «Q(현위치→목적지) 마름모가 현위치 원 ∪ 목적지 원 안에 통째로 드나»였다. 두 원을 **합쳐** 보니
-     * 현위치 반경 18.6 · 목적지 반경 22 에서 **40km 밖까지 «가까이 옴»** 이었다 — 광주에서 서울로 갈 때
-     * 출발하자마자 켜졌다. 이름과 맞지 않는 식이었다.
-     */
-    it('🔴 현위치 반경이 아무리 커도 목적지 반경 밖이면 «멀다»다 — 두 원을 합쳐 보지 않는다 (기사님 확정 ③)', () => {
-        expect(isNearGoal({ me: MODA, goal: ICHEON, params: { ...params, srcDiamKm: 200, dstDiamKm: 9.1 } })).toBe(false);
-    });
-
-    it('🔴 목적지 반경 언저리에서 갈린다 — 안이면 가까이 옴 · 밖이면 멀다', () => {
-        const p = (dstDiamKm: number) => ({ ...params, dstDiamKm });
-        // MODA 는 이천 중심에서 16km
-        expect(isNearGoal({ me: MODA, goal: ICHEON, params: p(17 * 2) })).toBe(true);
-        expect(isNearGoal({ me: MODA, goal: ICHEON, params: p(15 * 2) })).toBe(false);
+    it('반경을 크게 두면(수동) 더 먼 곳에서도 가까이 옴 — 기사님 «수동으로 둘의 크기를 다르게 설정할 수 있어»', () => {
+        expect(isNearGoal({ me: MODA, goal: ICHEON, params: { ...params, quadRadiusKm: 2, srcDiamKm: 24, dstDiamKm: 24 } })).toBe(true);
     });
     it('목적지마다 따로 — 이천에 와서 복귀를 켜면 이천은 가까이 옴 · 집(광주)은 멀다 · 모르는 시는 멀다로 둔다', () => {
         const z = withNearness([
@@ -107,28 +86,13 @@ describe('🎯 목적지 가까이 옴 — 내가 목적지 영역 안에 들어
     });
     /* 🔄 «가까이 오면 A 전체»는 기사님이 「나」안으로 바꾸셨다 — **A ∩ 목적지 원**.
        A 전체면 권역 밖 뒤쪽이 통과한다 (복정에서 26.5km 뒤 도척면). 눈금은 `nearGoalPickup.test.ts` */
-    it('🔴 가까이 와도 라인은 켜 둔다 — 목적지 원을 «더할» 뿐이다 (기사님 확정 ①)', () => {
-        expect(pickupPartsOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: true }]))
-            .toEqual({ me: true, line: true, goal: true });
-        expect(pickupPartsOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: false }]))
-            .toEqual({ me: true, line: true, goal: false });
+    it('🔴 가까이 온 목적지가 있으면 운행 중이어도 라인으로 안 자른다 — 대신 목적지 원과 겹친 곳', () => {
+        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: true }])).toBe('meGoal');
+        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: false }])).toBe('meLine');
     });
-    /**
-     * 🔴 **「목적지에 가까이 옴」은 재료를 끄지 않는다 — 더하기만 한다** (기사님 확정 ①②).
-     *
-     * 상차는 목적지 원을 더하고(①), 하차는 «상차 목록 동을 안 뺀다»를 더한다(②).
-     * 둘 다 **켜져 있던 라인 · 마름모는 그대로 둔다.** 조건 하나가 재료 여럿을 끄면
-     * 거리를 넓히는 일과 방향을 버리는 일을 한 손이 하게 된다.
-     */
-    it('🔴 가까이 옴은 하차 재료 함수에 들어가지 않는다 — 인자에 없다 (기사님 확정 ②)', () => {
-        const src = readFileSync(join(__dirname, 'filterArea.ts'), 'utf8');
-        const sig = src.slice(src.indexOf('export function dropoffPartsOf'));
-        expect(sig.slice(0, sig.indexOf(')'))).not.toContain('nearGoal');
-    });
-
-    it('🔴 가까이 와도 하차 재료는 상태가 정한 그대로다 — 라인 · 마름모를 끄지 않는다 (기사님 확정 ②)', () => {
-        expect(dropoffPartsOf('driving', true)).toEqual({ me: false, line: true, quadFrom: 'lastDrop' });
-        expect(dropoffPartsOf('idle', false)).toEqual({ me: false, line: false, quadFrom: 'me' });
+    it('🔴 가까이 온 목적지의 하차 조각은 목적지 원뿐 — 현위치 원 · 라인 · 마름모 없음', () => {
+        expect(dropoffPartsOf('driving', true, true)).toEqual({ me: false, line: false, quadFrom: null });
+        expect(dropoffPartsOf('idle', false, true)).toEqual({ me: false, line: false, quadFrom: null });
     });
 });
 
@@ -151,17 +115,17 @@ describe('살아 있는 목적지와 상태 — 기사님이 적은 경우 그�
     it('콜 없음 → 목적지 하나 · 콜 없음 · 상차는 A', () => {
         const z = goalZonesOf({ ...base, activeCalls: [] });
         expect(z).toEqual([{ city: '이천시', isHome: false, state: 'idle' }]);
-        expect(pickupPartsOf(z)).toMatchObject({ me: true, line: false });
+        expect(pickupShapeOf(z)).toBe('me');
     });
     it('콜을 잡아 경로가 생김 (운행 전) → 상차는 A 전체', () => {
         const z = goalZonesOf({ ...base, activeCalls: [destCall] });
         expect(z).toEqual([{ city: '이천시', isHome: false, state: 'routed' }]);
-        expect(pickupPartsOf(z)).toMatchObject({ me: true, line: false });
+        expect(pickupShapeOf(z)).toBe('me');
     });
     it('운행 시작 뒤 → 상차는 A ∩ 라인', () => {
         const z = goalZonesOf({ ...base, departed: true, activeCalls: [destCall] });
         expect(z).toEqual([{ city: '이천시', isHome: false, state: 'driving' }]);
-        expect(pickupPartsOf(z)).toMatchObject({ me: true, line: true });
+        expect(pickupShapeOf(z)).toBe('meLine');
     });
     it('🔴 운행 뒤 · 목적지 콜 남음 · 복귀 켬 → 집은 «콜 없음»이라 상차는 A 전체', () => {
         const z = goalZonesOf({ ...base, homeOn: true, departed: true, activeCalls: [destCall] });
@@ -169,7 +133,7 @@ describe('살아 있는 목적지와 상태 — 기사님이 적은 경우 그�
             { city: '이천시', isHome: false, state: 'driving' },
             { city: '광주시', isHome: true, state: 'idle' },
         ]);
-        expect(pickupPartsOf(z)).toMatchObject({ me: true, line: false });
+        expect(pickupShapeOf(z)).toBe('me');
     });
     it('🔴 위 + 집 가는 콜 잡음 → 목적지 콜이 남았으니 목적지도 산다 · 상차는 A ∩ 라인', () => {
         const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, departed: true, activeCalls: [destCall, homeCall] });
@@ -177,12 +141,12 @@ describe('살아 있는 목적지와 상태 — 기사님이 적은 경우 그�
             { city: '이천시', isHome: false, state: 'driving' },
             { city: '광주시', isHome: true, state: 'driving' },
         ]);
-        expect(pickupPartsOf(z)).toMatchObject({ me: true, line: true });
+        expect(pickupShapeOf(z)).toBe('meLine');
     });
     it('목적지 콜 끝 · 복귀 켬 · 집 가는 콜 잡음 → 집만 · 상차는 A ∩ 라인', () => {
         const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, departed: true, activeCalls: [homeCall] });
         expect(z).toEqual([{ city: '광주시', isHome: true, state: 'driving' }]);
-        expect(pickupPartsOf(z)).toMatchObject({ me: true, line: true });
+        expect(pickupShapeOf(z)).toBe('meLine');
     });
 });
 
@@ -190,7 +154,7 @@ describe('표에 안 적힌 경우 — 같은 규칙으로', () => {
     it('복귀 켬 · 복귀콜 아직 없음 · 콜 0건 → 목적지 ∪ 집 · 둘 다 콜 없음 (관내 가까운 콜도 하자)', () => {
         const z = goalZonesOf({ ...base, homeOn: true, activeCalls: [] });
         expect(z.map(g => [g.city, g.state])).toEqual([['이천시', 'idle'], ['광주시', 'idle']]);
-        expect(pickupPartsOf(z)).toMatchObject({ me: true, line: false });
+        expect(pickupShapeOf(z)).toBe('me');
     });
     it('복귀콜을 잡았다 내렸고 둘째를 아직 못 잡음 → 집만 · 콜 없음 (목적지는 다시 안 산다)', () => {
         const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, activeCalls: [] });
@@ -205,7 +169,7 @@ describe('모르는 값은 지어내지 않는다 (규칙 ④)', () => {
     it('목적지를 모르면 목적지가 없다 · 상차 도형도 없다', () => {
         const z = goalZonesOf({ ...base, destinationCity: null, activeCalls: [] });
         expect(z).toEqual([]);
-        expect(pickupPartsOf(z)).toBeNull();
+        expect(pickupShapeOf(z)).toBeNull();
     });
     it('복귀 켬인데 집을 모르면 목적지만 — 서버 `goalCitiesOf` 와 같다', () => {
         const z = goalZonesOf({ ...base, homeCity: null, homeOn: true, activeCalls: [destCall] });
