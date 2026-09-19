@@ -1,4 +1,4 @@
-import { PendingOrder } from "@onedal/shared";
+import { PendingOrder, isTerminal } from "@onedal/shared";
 import { UserSession } from "./userSessionStore";
 
 /**
@@ -24,4 +24,30 @@ export function evolveOrder<T extends object>(
 ): PendingOrder & T {
     const prev = session.pendingOrdersData.get(orderId);
     return { ...(prev ?? {}), ...patch } as PendingOrder & T;
+}
+
+/**
+ * 🚪 **콜을 메모리에 적는 유일한 문 — 종결된 콜은 되살아나지 않는다**
+ *
+ * `TERMINAL_STATUSES` 에 «종결 상태 (더 이상 상태 전이 없음)» 이라 적혀 있었지만 **강제하는 곳이 없었다.**
+ * 상태를 정하는 권한이 호출부마다 흩어져 있어, 늦게 온 요청 하나가 죽은 콜을 심사 중으로 되돌렸다.
+ *
+ * 🔴 같은 모양이 세 번 났고 전부 **다른 경로**였다 (대장 #12 정리 경로 · #13 재열람 대조 · 상세 경로).
+ *    그때마다 그 경로에 분기를 하나 넣었기 때문에 경로가 늘 때마다 다시 났다. 그래서 **문을 하나로** 모았다 —
+ *    새 경로가 생겨도 이 문을 지나므로 저절로 지켜진다. 우회를 막는 검사는 `rules/orderMemoryGate.test.ts`.
+ *
+ * 🔴 **죽은 것은 장부에도 있다** — 캐시에서 지워졌어도 `myOrders` 에 종결로 남아 있으면 죽은 콜이다.
+ * ⚠️ **종결 → 종결은 막지 않는다** — 서버를 다시 띄울 때 복구가 그 상태 그대로 다시 적는다.
+ *
+ * @returns 적었으면 `true`, 되살리기를 막았으면 `false` (부르는 쪽은 그때 하던 일을 멈춘다)
+ */
+export function rememberOrder(session: UserSession, order: PendingOrder | { id: string; status?: string }): boolean {
+    const id = order.id;
+    const prev = session.pendingOrdersData.get(id) ?? session.myOrders.find(o => o.id === id);
+    if (prev && isTerminal(prev.status) && !isTerminal(order.status)) {
+        console.log(`🚪 [되살리기 막음] ${id} 는 ${prev.status} 로 끝난 콜이다 — ${order.status} 로 덮지 않는다`);
+        return false;
+    }
+    session.pendingOrdersData.set(id, order as PendingOrder);
+    return true;
 }

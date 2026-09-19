@@ -18,6 +18,7 @@ import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow,
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
+import { rememberOrder } from "../state/orderMemory";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
 import { getDeviceMode } from "./devices";
 import { parsePolyline, parseSectionEnds, parseSectionStops, parseSectionDriveMin } from "../services/routeComposer";
@@ -187,7 +188,7 @@ router.post("/confirm", (req, res) => {
 
         if (pendingOrder.id && pendingOrder.id !== "unknown") {
             logRoadmapEvent("서버", "콜의 가확정 상태를 메모리에 캐싱 연산");
-            session.pendingOrdersData.set(pendingOrder.id, pendingOrder);
+            rememberOrder(session, pendingOrder);
         }
 
         if (io) {

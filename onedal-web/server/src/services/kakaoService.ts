@@ -1,4 +1,4 @@
-import { sectionEndsOf } from '@onedal/shared';
+import { sectionEndsOf , sidoOfPlaceName } from '@onedal/shared';
 /**
  * 카카오 모빌리티 API 서비스 (kakaoUtil.ts 리팩토링)
  * 
@@ -70,27 +70,6 @@ export function getGeoCacheStats() {
     const dbCount = (db.prepare("SELECT COUNT(*) as cnt FROM geocode_cache").get() as any)?.cnt || 0;
     return { l1Size: geoL1.size, l2Size: dbCount };
 }
-
-// ━━━━━━━━━━ [지역명 매핑 (지오코딩 방어)] ━━━━━━━━━━
-const REGION_MAP: Record<string, string> = {
-    "서울": "서울", "서울특별시": "서울",
-    "경기": "경기", "경기도": "경기",
-    "인천": "인천", "인천광역시": "인천",
-    "강원": "강원", "강원도": "강원", "강원특별자치도": "강원",
-    "충남": "충남", "충청남도": "충남",
-    "충북": "충북", "충청북도": "충북",
-    "대전": "대전", "대전광역시": "대전",
-    "세종": "세종", "세종특별자치시": "세종",
-    "경북": "경북", "경상북도": "경북",
-    "경남": "경남", "경상남도": "경남",
-    "대구": "대구", "대구광역시": "대구",
-    "부산": "부산", "부산광역시": "부산",
-    "울산": "울산", "울산광역시": "울산",
-    "전북": "전북", "전라북도": "전북", "전북특별자치도": "전북",
-    "전남": "전남", "전라남도": "전남",
-    "광주": "광주", "광주광역시": "광주",
-    "제주": "제주", "제주특별자치도": "제주", "제주도": "제주"
-};
 
 // ━━━━━━━━━━ [타입 정의] ━━━━━━━━━━
 export interface RouteResult {
@@ -591,10 +570,18 @@ export async function geocodeAddress(query: string): Promise<{x: number, y: numb
 
         const results = await Promise.all(promises);
         
-        let expectedRegion: string | null = null;
-        if (words.length > 0 && REGION_MAP[words[0]]) {
-            expectedRegion = REGION_MAP[words[0]];
-        }
+        /**
+         * 🗺️ **기대지역은 지도가 답한다 — 손으로 적은 시도 목록을 두지 않는다** (버그 대장 #123 «남은 것»).
+         *
+         * 🔴 **쿼리 첫 낱말로 기대지역을 추측하지 않는다.** 첫 낱말이 시·군이면(「이천 신둔면」)
+         *    기대가 없어 방어가 아예 안 돌고, 광역시와 이름이 겹치는 시면(「광주 초월읍」)
+         *    광주광역시를 기대해 **정답(경기 광주시)을 버린다.** 지도는 「초월읍은 경기 광주시」를 안다.
+         *    같은 클래스를 `cityAliases` 가 이미 없앴다 — *«판단은 지도에서 센다 — 손으로 적은 목록을 두지 않는다»*.
+         *
+         * 🔴 **방어 자체는 그대로다** — 기대가 경기인데 카카오가 광주광역시를 주면 여전히 버린다.
+         *    지도가 모르는 이름에는 기대가 없어 방어가 안 걸릴 뿐, 없는 지역을 지어내지 않는다 (규칙 ④).
+         */
+        const expectedRegion: string | null = sidoOfPlaceName(query);
 
         // 우선순위(index)가 가장 높은(낮은 숫자) 성공 결과를 채택하되, 지역 불일치는 스킵
         const validResults = results.filter(r => r !== null).sort((a, b) => a!.index - b!.index);

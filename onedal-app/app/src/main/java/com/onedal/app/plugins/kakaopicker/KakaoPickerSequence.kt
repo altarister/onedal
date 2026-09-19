@@ -57,7 +57,12 @@ fun ScanContext.reportPickerAccepted(rawScreenStr: String) {
     }
     val order = session.lastDetailOrder ?: return
     session.isPreview = false
-    session.accumulatedDetailText = rawScreenStr   // 수락 후 화면 글자(주소 전문이 여기 있다)
+    /**
+     * 📝 **상세에서 모은 글자를 덮지 않는다** — 고르는 일은 `detailTextForAccept` 한 곳이다.
+     *    수락 뒤 화면에 주소 전문이 있는 판(퀵 흰 페이지)도 있지만, 「내 오더」 탭에는 줄임 이름뿐이다.
+     */
+    session.accumulatedDetailText =
+        KakaoPickerKeywords.detailTextForAccept(session.accumulatedDetailText, rawScreenStr)
     AppLogger.i("1DAL_PICKER", "✅ [수락 확인] 기사님이 「수락하기」를 누르셨다 — 잡은 콜로 올린다")
     AppLogger.roadmap("👀 [미리보기 → 확정] 픽커 수락 화면 감지 — 딱지를 벗고 서버에 알린다",
         telemetryManager.currentScreenContext.name)

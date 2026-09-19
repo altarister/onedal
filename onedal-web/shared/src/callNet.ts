@@ -180,6 +180,42 @@ export function dongList(sgg: string): string[] {
     return [...new Set(DONG_CENTROIDS.filter(d => d[1] === sgg).map(d => d[0]))].sort();
 }
 
+/**
+ * 🗺️ **이름(읍·면·동)으로 그 지역의 시도를 찾는다 — 지도가 유일하게 알 때만 답한다**
+ *
+ * 지오코딩의 «기대지역»이 쓴다. 카카오가 「광주 초월읍」에 광주광역시를 줄 수 있어 «기대와 다르면 버린다»는
+ * 방어가 있는데, 그 기대를 **쿼리 첫 낱말**로 추측하면 두 가지로 틀린다 —
+ * 첫 낱말이 시·군이면(「이천 신둔면」) 기대가 없어 방어가 안 돌고,
+ * 광역시와 겹치는 시면(「광주 초월읍」) 틀린 기대로 **정답을 버린다**.
+ *
+ * 🔴 **손으로 적은 시도 목록을 두지 않는다** — 지도가 원천이다 (`cityAliases` 가 같은 클래스를 이미 없앴다).
+ * 🔴 **이름이 여러 시도에 걸쳐 있으면 답하지 않는다** — 단정하면 멀쩡한 결과를 버린다 (규칙 ④).
+ * ⚠️ 지도는 수도권·충청권만 담는다. 모르는 이름에는 답하지 않으므로 **방어가 안 걸릴 뿐**이고,
+ *    있지도 않은 지역을 지어내지는 않는다.
+ */
+export function sidoOfPlaceName(text: string): string | null {
+    const sidosOf = (name: string): Set<string> => {
+        if (/[동읍면리]$/.test(name)) return new Set(DONG_CENTROIDS.filter(d => d[0] === name).map(d => d[4]));
+        if (/[시군구]$/.test(name)) {
+            return new Set(DONG_CENTROIDS
+                .filter(d => d[1] === name || d[1].endsWith(` ${name}`))
+                .map(d => d[4]));
+        }
+        return new Set();
+    };
+
+    const found = new Set<string>();
+    for (const word of (text ?? '').split(/[\s,·]+/)) {
+        const name = word.replace(/[()[\]]/g, '');
+        if (name.length < 2) continue;
+        const sidos = sidosOf(name);
+        // 🔴 여러 시도에 걸친 이름은 **그냥 넘긴다** — 단정하지도, 다른 낱말이 준 답을 지우지도 않는다
+        if (sidos.size === 1) found.add([...sidos][0]);
+    }
+    // 낱말들이 서로 다른 시도를 가리키면 답하지 않는다
+    return found.size === 1 ? [...found][0] : null;
+}
+
 /** 도시의 «시내» 좌표 — 그 시 법정동('동' 행) 평균. 여주 시내(NET_DST)와 같은 셈법이다 */
 export function cityCenter(city: string, label?: string): NetPoint {
     // 구가 있는 시는 사전 표기가 «화성시 동탄구»처럼 갈라져 있다 — 정확 일치가 없으면 접두로 모은다 (2026-09-08 화성시에서 실측)

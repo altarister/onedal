@@ -8,6 +8,7 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyO
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
+import { rememberOrder } from "../state/orderMemory";
 import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, goalOfCall, homeCallsOf } from "../state/filterManager";
 import { recordCallTarget } from "../core/callTargetEvents";
 import { getActivePolyline, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
@@ -477,7 +478,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         delete (confirmedOrder as any).isPreview;
 
         // ⭐ 핵심 수정: 승격된 객체를 하트비트 메모리맵에 덮어씌워서 롤백 현상 방지
-        session.pendingOrdersData.set(orderId, confirmedOrder as any);
+        rememberOrder(session, confirmedOrder as any);
 
         const isAlreadyIncluded = session.myOrders.some(c => c.id === orderId);
 
@@ -973,7 +974,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                  */
                 judgment: OrderRepository.getJudgmentVerdict(row.id) ?? undefined,
             };
-            session.pendingOrdersData.set(order.id, order as any);
+            rememberOrder(session, order as any);
         }
 
         const allLoaded = Array.from(session.pendingOrdersData.values()) as MyOrder[];

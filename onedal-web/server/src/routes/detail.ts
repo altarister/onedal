@@ -10,7 +10,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { pickerDetailAddresses } from "../core/plugins/kakaopicker/pickerDetailText";
 import { getUserSession } from "../state/userSessionStore";
-import { evolveOrder } from "../state/orderMemory";
+import { evolveOrder, rememberOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getDeviceMode } from "./devices";
 import db from "../db";
@@ -149,7 +149,13 @@ router.post("/", async (req, res) => {
         }
 
 
-        session.pendingOrdersData.set(payload.order.id, pendingOrder);
+        /**
+         * 🚪 **종결된 콜은 되살리지 않는다** (2026-09-19 체험). 상세가 늦게 닿으면 이미 치운 콜을
+         *    심사 중으로 되돌려, 판정 카드가 화면에 남는다. 막는 규칙은 `rememberOrder` 한 곳에 있다.
+         */
+        if (!rememberOrder(session, pendingOrder)) {
+            return res.json({ deviceId: 'server', action: 'CANCEL' });
+        }
 
         if (io) {
             console.log(`📤 [Socket 푸시] order-detail-received (${pendingOrder.id}) - 상태 승급: ${pendingOrder.status}`);
