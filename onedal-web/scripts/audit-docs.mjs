@@ -18,7 +18,7 @@
  *
  * 보는 것
  *   ① 없는 파일        문서가 말하는 `*.ts/.tsx/.kt/.mjs` 가 레포에 있는가
- *   ② 사라진 식별자     문서가 말하는 상수·상태값·칸이 코드에 있는가
+ *   ② 사라진 식별자     문서가 말하는 상수·상태값·칸이 코드에 있는가 (「기획」·「아카이브」·todo 는 뺀다)
  *   ③ 옛말             **`docs/지금/` 만** — 용어집이 폐기한 말로 현재를 설명하는가
  *   ④ 죽은 링크        문서→문서 · 코드→문서
  *   ⑤ 손 뗀 자리       문서가 «이 파일이 한다»는 일을 그 파일이 아직 하는가
@@ -141,9 +141,9 @@ const NOT_OURS = [
     const bad = new Map();
     for (const d of DOCS) {
         const r = rel(d);
-        // 🔴 「기획」과 `todo.md` 는 **아직 안 만든 것**을 적는 자리다 — 코드에 없는 게 당연하다.
+        // 🔴 「기획」과 `todo.md` 는 **아직 안 만든 것**을, 「아카이브」는 **안 만들고 접은 것**을 적는 자리다 — 코드에 없는 게 당연하다.
         //    (①·③·④ 는 그대로 건다 — «없는 파일을 가리키는 것»과 «옛말»은 거기서도 문제다)
-        if (r.startsWith('docs/기획/') || r === 'todo.md') continue;
+        if (r.startsWith('docs/기획/') || r.startsWith('docs/아카이브/') || r === 'todo.md') continue;
         const s = readFileSync(d, 'utf8');
         const names = new Set([...s.matchAll(re)].map(x => x[1]));
         for (const m of [...s.matchAll(reFn)].map(x => x[1])) names.add(m);
@@ -312,7 +312,8 @@ say('⑥ 경위 줄', '바꾼 코드·「지금」 문서에 날짜별 경위가
      * 옮긴 줄(다른 바뀐 파일의 HEAD 판에 같은 줄이 있다)은 늘어난 것으로 안 본다.
      */
     const { execFileSync } = await import('child_process');
-    const git = (...a) => { try { return execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 }); } catch { return ''; } };
+    // 🔴 `core.quotepath` 를 끄지 않으면 한글 경로가 `"docs/\354\247\200…"` 로 나와 `docs/지금/` 에 안 걸린다 — 한글 문서만 바뀐 날 ⑥ 이 «바뀐 파일 0개»로 지나갔다
+    const git = (...a) => { try { return execFileSync('git', ['-c', 'core.quotepath=off', ...a], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 }); } catch { return ''; } };
     const DATE = '20\\d{2}-\\d{2}-\\d{2}';
     const SHAPES = [
         new RegExp(`🔄.*${DATE}|${DATE}.*개정`),
