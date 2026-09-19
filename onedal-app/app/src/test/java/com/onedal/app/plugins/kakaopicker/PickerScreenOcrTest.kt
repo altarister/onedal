@@ -204,4 +204,46 @@ class PickerScreenOcrTest {
         assertEquals(15000, PickerDetailOcrParser.extractFareFromTexts(listOf("배송비 15,000원", "수락하기")))
         assertEquals(0, PickerDetailOcrParser.extractFareFromTexts(listOf("픽업 10km", "배송 20km")))
     }
+
+    /**
+     * 📷 **머리가 줄 **가운데**에 오는 판** — 실측 실패 (이상 기록 #46·#48·#39).
+     *
+     * 픽커 상세에는 모양이 둘이다. 하나는 「픽업 2.2km」가 줄 처음에 오고, 다른 하나는
+     * **주소 뒤에** 붙는다. 정규식이 `^` 로 줄 처음만 봐서 뒤 모양을 통째로 놓쳤다 —
+     * 사진에 배송지가 또렷이 찍혀 있는데 「머리 둘 누락」으로 버렸다.
+     *
+     * 🔴 «먼저 나오는 것 하나만» 이라는 지도 라벨 방어는 그대로다 — `^` 가 그 방어가 아니었다.
+     */
+    private val 실물_곤지암_신둔면 = listOf(
+        OcrLine(40, "뒤로가기"),
+        OcrLine(70, "아래 창 올리기"),
+        OcrLine(110, "퀵 배송"),
+        OcrLine(150, "224분 남음"),
+        OcrLine(180, "준비 19분 포함"),
+        OcrLine(240, "경기 광주시 초월읍 모다아울렛 곤지암점 픽업 2.2km 17:48까지 픽업"),
+        OcrLine(300, "경기 이천시 신둔면 신둔농협하나로마트 예스파크점 배송 10.0km 20:47까지 배송"),
+        OcrLine(360, "픽업 장소 매장 직원에게 문의"),
+        OcrLine(400, "오더번호 260919170258396"),
+        OcrLine(440, "물품 정보 중형"),
+        OcrLine(480, "최종 수익 10,000 P"),
+        OcrLine(510, "배송비 10,000P"),
+        OcrLine(560, "넘기기"),
+        OcrLine(600, "수락하기"),
+    )
+
+    @Test
+    fun `머리가 주소 뒤에 와도 읽는다 — 줄 처음만 보지 않는다`() {
+        val r = PickerScreenOcr.parseDetail(실물_곤지암_신둔면)
+        assertNotNull("사진에 배송지가 있는데 «머리 둘 누락»으로 버렸다 (이상 기록 #46·#48·#39)", r)
+        assertEquals(2.2, r!!.pickup.straightKm, 0.01)
+        assertEquals(10.0, r.dropoff.straightKm, 0.01)
+    }
+
+    @Test
+    fun `지도 라벨과 안 섞인다 — 먼저 나오는 머리 하나씩만 본다`() {
+        val 지도라벨섞임 = listOf(OcrLine(90, "배송"), OcrLine(160, "픽업")) + 실물_곤지암_신둔면
+        val r = PickerScreenOcr.parseDetail(지도라벨섞임)
+        assertNotNull(r)
+        assertEquals(2.2, r!!.pickup.straightKm, 0.01)
+    }
 }
