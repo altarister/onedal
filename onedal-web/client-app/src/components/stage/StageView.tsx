@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, lineFromPoint, goalZonesOf, withNearness, pickupShapeOf,
+import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, lineFromPoint, goalZonesOf, withNearness, pickupPartsOf,
     dropoffPartsOf, lastDropOf, lineUntil, dongDotsOf, quadShapeFrom, quadOutline, cityCenter, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { useSidePanelRoom } from '../../hooks/useSidePanelRoom';
@@ -195,7 +195,8 @@ export default function StageView(props: Props) {
         });
     }, [zonesKey, meGridX, meGridY, quadShape.srcAngleDeg, quadShape.dstAngleDeg, radii.quadRadiusKm, radii.pickupRadiusKm, radii.destinationRadiusKm]);
     const nearGoalKey = JSON.stringify(nearZones);
-    const pickupShape = pickupShapeOf(nearZones);
+    /* 🔴 메모해 둔다 — 재료 칸은 객체라, 매 렌더 새로 만들면 아래 `pickupArea` 메모가 늘 깨진다 */
+    const pickupParts = useMemo(() => pickupPartsOf(nearZones), [nearZones]);
 
     /**
      * 🔵 **하차 영역 — 살아 있는 목적지마다 조각을 모은다** (`docs/지금/필터.md` «하차 영역»).
@@ -263,16 +264,16 @@ export default function StageView(props: Props) {
     /* 🟢 상차 영역 도형 — 위 «상차 영역» 주석. ⚠️ 하차 계산 **뒤에** 둔다: 앞에 두면 하차 계산이 같은 재료(`liveRoute` · 경로 선)를
           함수에 넘기는 것을 React 컴파일러가 «메모 뒤의 변경»으로 보고 이 메모를 포기한다 (lint:gate) */
     /* 🔷 동선이면 띠가 없다 — 서버 `rebuildPickupList` 도 `routeMode === false` 면 라인을 안 넘긴다 */
-    const pickupLine = routeMode && pickupShape === 'meLine' ? derived.drawHolder?.routePolyline ?? null : null;
+    const pickupLine = routeMode && pickupParts?.line ? derived.drawHolder?.routePolyline ?? null : null;
     const pickupArea = useMemo(() => {
         /* 🔴 내 위치를 모르면 원을 지어내지 않는다 — 안 그린다 (규칙 ④) */
-        if (!myLocation || !pickupShape) return null;
+        if (!myLocation || !pickupParts) return null;
         /* ✂️ 띠는 현위치부터 앞으로만 — 지나온 길은 상차 영역이 아니다 (서버 `pickupListFor` 와 같은 `lineFromPoint`) */
         const ahead = pickupLine && pickupLine.length >= 2
             ? lineFromPoint(pickupLine.map(p => [p.x, p.y] as [number, number]), { lng: myLocation.x, lat: myLocation.y }).map(([x, y]) => ({ x, y }))
             : [];
         /* 🎯 목적지에 가까이 옴 — 현위치 원 ∩ 목적지 원 (서버 `pickupListFor` 의 `meGoal` 과 같은 자리) */
-        const nearAt = pickupShape === 'meGoal' ? nearZones.find(z => z.nearGoal) : null;
+        const nearAt = pickupParts.goal ? nearZones.find(z => z.nearGoal) : null;
         let goalPt: { lng: number; lat: number } | null = null;
         if (nearAt) { try { goalPt = cityCenter(nearAt.city); } catch { goalPt = null; } }
         return {
@@ -282,7 +283,7 @@ export default function StageView(props: Props) {
             line: ahead.length >= 2 ? ahead : null,
             lineKm: radii.detourRadiusKm,
         };
-    }, [myLocation, pickupShape, pickupLine, nearZones, radii.pickupRadiusKm, radii.detourRadiusKm, radii.destinationRadiusKm]);
+    }, [myLocation, pickupParts, pickupLine, nearZones, radii.pickupRadiusKm, radii.detourRadiusKm, radii.destinationRadiusKm]);
 
     /* 📍 동 점 — 원달앱에 실제로 내려간 상차 목록 · 하차 목록 (shared `dongDotsOf`). 지도가 따로 계산하지 않는다 */
     const dongDots = useMemo(() => (filter
