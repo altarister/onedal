@@ -596,7 +596,7 @@ for (const t of STEP_TABLES) {
 ensureColumns('orders', { terminatedAt: 'TEXT' });
 /**
  * 🎯 **콜의 판 — 이 콜이 통과한 목적지 시** (버그 대장 #131 · `docs/지금/필터.md` «복귀 켬 — 규칙 ⑤-4 의 다섯»).
- * KEEP 순간 `goalOfCall` 이 적는다. 예전엔 메모리에만 있어 재기동하면 하차지 시로 대신했다 — «복귀콜을 잡았나»가 틀어졌다.
+ * KEEP 순간 그때의 필터값(`goalCityOf`)을 적는다. 메모리에만 두면 재기동할 때 마지막 KEEP 콜의 목표값을 잃는다.
  */
 ensureColumns('orders', { goalCity: 'TEXT' });
 

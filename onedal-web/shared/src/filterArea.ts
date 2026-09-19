@@ -43,41 +43,42 @@ export function goalStateLabel(hasCalls: boolean, departed: boolean): string {
 }
 
 /**
- * 살아 있는 목적지와 각자의 상태.
+ * 🎯 **목적지 — 둘을 합친 것. 최대 둘이다** (기사님 확정).
  *
- * - 목적지는 **복귀 끔** 이거나 **복귀콜을 아직 못 잡음** 이면 산다
- * - 집은 **복귀 켬**이면 산다 — 집을 모르면 없다 (지어내지 않는다 · 규칙 ④)
+ * ```
+ * 목적지 = { 필터값 } ∪ { 마지막으로 KEEP 한 콜의 목표값 }
+ * ```
  *
- * 🔴 **집 방향 콜을 잡는 순간 목적지가 하나가 된다** (기사님 확정). 목적지를 둘로 두는 까닭은
- *    «미리 잡으려는 것»이다 — 서울 중심에 전국행 콜이 많아 목적지로 삼았는데, 도착해야만 집 방향을
- *    잡는다면 가는 길에 올라오는 «서울 → 광주» 콜을 다 놓친다. 그래서 둘 다 열어 둘 다 올리고,
- *    **기사님이 고른 것이 곧 결정**이다. 목적지 콜이 남았다고 목적지를 살려 두면 집으로 못 간다.
- * 🔴 **바뀌는 것이지 닫히는 것이 아니다** — 이미 잡은 목적지 콜은 그대로 배달하고 경로도 그대로다.
- *    새 콜은 집 방향으로 받는다 (가는 길에 더 싣는 합짐).
- * - 콜의 주인: 복귀 켬이고 판(`goalCity`)이 집이면 집 콜 · 나머지는 목적지 콜
+ * 첫 콜을 잡을 때는 그 콜의 목표값이 곧 그때의 필터값이라 **둘이 같아 하나**다.
+ * 기사님이 필터값을 바꾸면 마지막 콜의 목표값은 그대로라 **둘**이 된다 — 둘 다 올려야
+ * 목적지에 닿기 전에 새 방향 콜을 미리 잡을 수 있다. 새 방향 콜을 잡으면 마지막 콜의 목표값이
+ * 그것이 되어 **저절로 하나**가 된다.
  *
- * @param homeCaught 복귀를 켠 뒤 복귀콜을 잡은 적 있나 — 서버 `homeCallsOf` (하차한 콜도 센다)
+ * 🔴 **«죽이는» 코드를 두지 않는다** — 마지막 콜이 바뀌면 합쳐진다. 지우는 규칙이 따로 있으면
+ *    그 규칙과 이 계산이 갈라진다 (규칙 ③).
+ * 🔴 **집을 특별 취급하지 않는다** — 복귀는 필터값을 집으로 바꾸는 일일 뿐이다. `isHome` 은
+ *    화면에 집 마커를 찍으려는 **표시용**이고 계산에 쓰지 않는다.
+ * 🔴 **콜이 있나는 목표값으로 센다** — 하차지 좌표로 «어느 목적지 쪽인가»를 가르지 않는다.
+ *    콜의 목표값은 잡던 순간의 필터값이라 이미 답이 적혀 있다.
+ *
+ * @param filterCity 지금 향하는 곳 — 복귀를 켰으면 집 (서버 `goalCityOf`)
+ * @param lastKeptGoalCity 마지막으로 KEEP 한 콜의 목표값 (서버 `session.myOrders` 의 끝)
  * @param activeCalls 지금 실린(진행 중인) 콜만
- *
- * 🔴 **«출발했나»를 받지 않는다** — 목적지가 사는 조건과 상관없다. 그 사실은 조각이 직접 본다 (설계서 ⑥)
  */
 export function goalZonesOf(o: {
-    destinationCity: string | null | undefined;
+    filterCity: string | null | undefined;
+    lastKeptGoalCity: string | null | undefined;
     homeCity: string | null | undefined;
-    homeOn: boolean;
-    homeCaught: boolean;
     activeCalls: ReadonlyArray<{ goalCity?: string | null }>;
 }): GoalZone[] {
-    const homeAlive = o.homeOn && !!o.homeCity;
-    const homeCalls = o.activeCalls.filter(c => isHomeCallOf(c, o)).length;
-    const destCalls = o.activeCalls.length - homeCalls;
-
-    const zones: GoalZone[] = [];
-    if (o.destinationCity && (!homeAlive || !o.homeCaught)) {
-        zones.push({ city: o.destinationCity, isHome: false, hasCalls: destCalls > 0 });
-    }
-    if (homeAlive) zones.push({ city: o.homeCity as string, isHome: true, hasCalls: homeCalls > 0 });
-    return zones;
+    const names: string[] = [];
+    if (o.filterCity) names.push(o.filterCity);
+    if (o.lastKeptGoalCity && o.lastKeptGoalCity !== o.filterCity) names.push(o.lastKeptGoalCity);
+    return names.map(city => ({
+        city,
+        isHome: !!o.homeCity && city === o.homeCity,
+        hasCalls: o.activeCalls.some(c => c.goalCity === city),
+    }));
 }
 
 /**

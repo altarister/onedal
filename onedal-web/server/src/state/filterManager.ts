@@ -84,7 +84,7 @@ function boardOf(o: { goalCity?: string; dropoffX?: number; dropoffY?: number })
  */
 export function goalCitiesOf(session: ReturnType<typeof getUserSession>, userId: string): string[] {
     /* `goalZonesOf`(목적지 콜이 남으면 목적지도)의 목적지 이름.
-       콜의 판(`goalOfCall`) · 관제웹 `goalCities` 가 하차 · 상차 목록과 같은 답을 본다 (필터.md «필터 영역») */
+       관제웹 `goalCities` 가 하차 · 상차 목록과 같은 답을 본다 (필터.md «필터 영역») */
     return goalZonesNow(session, userId, null).zones.map(z => z.city);
 }
 
@@ -148,7 +148,7 @@ function netKeywordsOf(
     /** 그 목적지의 조각 — 라인(확정콜의 마지막 하차지까지 자른 것) · 확정콜의 마지막 하차지 · 현위치 원을 넣나 · 🎯 가까이 옴 (shared `dropoffPartsOf` · 필터.md «하차 영역») */
     part: { line: Array<[number, number]> | null; lastDrop: { x: number; y: number } | null; withMe: boolean; nearGoal: boolean },
 ): { flat: string[]; grouped: Record<string, string[]>; byNet: boolean; pruned: number; progressKm: Record<string, number>;
-    /** 🎯 목적지 원 반경(km) — `dstDiamKm / 2` · 가까이 온 목적지의 하차 목록이 쓰는 그 원이다. 콜의 판(`goalOfCall`)이 같은 원을 본다 */
+    /** 🎯 목적지 원 반경(km) — `dstDiamKm / 2` · 가까이 온 목적지의 하차 목록이 쓰는 그 원이다. */
     destRingKm: number } {
     const line = part.line;
     const excluded = session.activeFilter.excludedRegions ?? [];
@@ -293,30 +293,6 @@ function netKeywordsOf(
     return { ...prune(grouped, true), progressKm, destRingKm: Math.max(0, params.dstDiamKm / 2) };
 }
 
-/**
- * 🎯 **이 콜의 판 — 통과한 목적지** (목업 `judgeGoals` 의 `preferName`: 집).
- *    목적지가 하나면 그것. 복귀 대기(둘)면 하차지가 **목적지 원 안이면 목적지(관내콜)**, 그 밖이면서 **집 그물** 안이면 집, 아니면 목적지.
- *    🔴 목적지 원을 먼저 본다 — 집 그물은 꼭짓점이 «내 위치»인 마름모라 차 바로 옆 동이 꼭짓점 근처에 들어,
- *       관내콜이 «복귀콜 잡음»으로 적히고 그 뒤 관내콜이 막힌다. 원은 관내로 재는 그 원(`destRingKm`)이다 — 새 값 없음.
- *    ⚠️ 목적지 원이 집 쪽으로 걸치면 그 안의 집 방향 하차지도 관내콜로 적힌다 (원이 작아 손해가 작다).
- *    ⚠️ 하차 좌표를 모르면 목적지로 둔다 — 모르는 값으로 «복귀콜을 잡았다»고 하지 않는다 (규칙 ⑤-2 · 복귀 대기가 더 넓다).
- */
-export function goalOfCall(session: ReturnType<typeof getUserSession>, userId: string, order: { dropoffX?: number; dropoffY?: number }): string | null {
-    const goals = goalCitiesOf(session, userId);
-    if (goals.length <= 1) return goals[0] ?? null;
-    const home = homeCityOf(userId);
-    if (!home || !goals.includes(home) || order.dropoffX == null || order.dropoffY == null) return goals[0];
-    const line = filterLineOf(session);
-    const lineXY = line ? line.map(p => [p.x, p.y] as [number, number]) : null;
-    const dest = goals.find(g => g !== home);
-    if (dest) {
-        const ringKm = netKeywordsOf(session, userId, dest, session.activeFilter.destinationRadiusKm || 0, { line: lineXY, lastDrop: null, withMe: false, nearGoal: false }).destRingKm;
-        const c = cityCenter(dest);
-        if (haversineKm(order.dropoffY, order.dropoffX, c.lat, c.lng) <= ringKm) return dest;
-    }
-    const homeNet = netKeywordsOf(session, userId, home, session.activeFilter.destinationRadiusKm || 0, { line: lineXY, lastDrop: null, withMe: !session.departedAt, nearGoal: false });
-    return homeNet.flat.includes(nearestDong({ lng: order.dropoffX, lat: order.dropoffY }).name) ? home : goals[0];
-}
 
 /**
  * 🎛️ **값 다섯은 평면 한 행(`user_filters`)에 산다** — 저장은 `saveBaseFilter`, 읽기는 이 함수 하나다.
@@ -915,12 +891,16 @@ function goalZonesNow(session: ReturnType<typeof getUserSession>, userId: string
     const eff = effectiveRadii(f);
     const homeOn = f.callTarget === 'HOME';
     const homeCity = homeCityOf(userId);
-    const homeCaught = homeOn && homeCallsOf(session, userId, session.myOrders).length > 0;
+    /**
+     * 🎯 **목적지 = 필터값 ∪ 마지막으로 KEEP 한 콜의 목표값** (기사님 확정 · shared `goalZonesOf`).
+     *    `myOrders` 는 KEEP 한 차례로 쌓이므로 **끝이 곧 마지막 콜**이다.
+     *    새 방향 콜을 잡으면 그 목표값이 필터값과 같아져 저절로 하나가 된다 — 지우는 코드가 없다.
+     */
+    const lastKept = session.myOrders[session.myOrders.length - 1];
     const base = goalZonesOf({
-        destinationCity: f.destinationCity,
+        filterCity: goalCityOf(session, userId),
+        lastKeptGoalCity: (lastKept as { goalCity?: string } | undefined)?.goalCity ?? null,
         homeCity,
-        homeOn,
-        homeCaught,
         activeCalls: getActiveCalls(session),
     });
     /* 🎯 가까이 옴은 **목적지 반경 하나**로 잰다 — 현위치 반경을 더하지 않는다 (shared `isNearGoal`) */
@@ -929,6 +909,8 @@ function goalZonesNow(session: ReturnType<typeof getUserSession>, userId: string
         destinationRadiusKm: eff.destinationRadiusKm,
     }) : base;
     /* 🔴 «출발했나»는 목적지마다가 아니라 **하나**다 — 조각이 이 값을 직접 본다 (설계서 ⑥) */
+    /* ⏭️ `homeCaught` 는 아직 관제웹·소켓 규격이 읽는다 — 목적지 계산에는 안 쓴다 (걷어내기는 다음 걸음) */
+    const homeCaught = homeOn && homeCallsOf(session, userId, session.myOrders).length > 0;
     return { zones, homeOn, homeCity, homeCaught, departed: !!session.departedAt };
 }
 

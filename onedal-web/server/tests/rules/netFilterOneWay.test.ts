@@ -203,13 +203,14 @@ describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
     const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     it('🔴 살아 있는 목적지는 activeGoals 한 곳이 정한다 — 복귀콜을 잡았나는 콜의 판(goalCity) · 취소한 콜은 안 센다', () => {
-        /* 🔄 2026-09-15 — 살아 있는 목적지는 새 규칙(`goalZonesOf` — 목적지 콜이 남으면 목적지도) 한 곳 `goalZonesNow` 가 정한다.
-              콜의 판(`goalOfCall`) · 관제웹 `goalCities` 도 `goalCitiesOf` → `goalZonesNow` 로 같은 답을 본다 */
+        /* 🔴 목적지는 «필터값 ∪ 마지막으로 KEEP 한 콜의 목표값» 한 곳이 정한다 (shared `goalZonesOf`).
+              `myOrders` 는 KEEP 차례로 쌓이므로 끝이 곧 마지막 콜이다 */
         const g = body(fm, 'export function goalCitiesOf');
         expect(g).toMatch(/goalZonesNow\(session, userId/);
         expect(g).not.toMatch(/activeGoals\(/);
-        /* «복귀콜을 잡았나»는 사이클 끝 자동 순환과 함께 쓰는 함수 하나에 산다 (#130) */
-        expect(body(fm, 'function goalZonesNow')).toMatch(/homeCallsOf\(session, userId, session\.myOrders\)/);
+        const now = body(fm, 'function goalZonesNow');
+        expect(now).toMatch(/filterCity: goalCityOf\(session, userId\)/);
+        expect(now).toMatch(/session\.myOrders\[session\.myOrders\.length - 1\]/);
         /* 🔄 #131 — «복귀를 켠 뒤에 잡은 콜»로 센다. 아침 복귀콜이 저녁 복귀를 «잡음»으로 못 만드는 것은 켠 시각이 막는다 */
         const calls = body(fm, 'export function homeCallsOf');
         expect(calls).toMatch(/boardOf\(o\)/);
@@ -235,14 +236,14 @@ describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
         expect(body(fm, 'export function maybeRebuildPickupList')).toMatch(/rebuildNetFilter\(userId, io, true\)/);
         expect(body(fm, 'export function rebuildPickupList')).toMatch(/pickupNearKey/);
     });
-    it('🔴 확정 순간 통과한 목적지를 콜의 판으로 적는다 — 둘 다면 집 우선', () => {
-        expect(body(de, 'export async function handleDecision')).toMatch(/goalCity = goalOfCall\(/);
-        expect(body(fm, 'export function goalOfCall')).toMatch(/homeCityOf\(userId\)/);
+    it('🔴 확정 순간 그때의 «필터값»을 콜의 목표값으로 적는다 — 좌표로 되짚지 않는다', () => {
+        expect(body(de, 'export async function handleDecision')).toMatch(/goalCity = goalCityOf\(session, userId\)/);
+        expect(fm).not.toMatch(/function goalOfCall/);
     });
     it('🔴 지도는 목적지마다 하차 조각을 그리고 마커를 찍는다 · 콜 카드에 판', () => {
-        /* 🔄 2026-09-15 — 옛 그물 훅(`goalCities` · `mergeGoalNets`)을 걷었다. 살아 있는 목적지는 shared `goalZonesOf` 한 곳 */
+        /* 🔴 지도는 서버가 낸 목적지 목록을 받아 쓴다 — 다시 계산하지 않는다 */
         const stage = client('components/stage/StageView.tsx');
-        expect(stage).toMatch(/goalZonesOf\(/);
+        expect(stage).toMatch(/filter\?\.goalCities/);
         expect(stage).toMatch(/goals: dropoffParts\.map\(/);
         expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/dropoffArea\.goals/);
         expect(client('components/dashboard/CallDeck.tsx')).toMatch(/o\.goalCity/);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
-import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, lineFromPoint, goalZonesOf, withNearness, pickupPartsOf, nearGoalCitiesOf,
+import type { SecuredOrder, RouteStopInfo, GoalZone } from '@onedal/shared';
+import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, lineFromPoint, withNearness, pickupPartsOf, nearGoalCitiesOf,
     dropoffPartsOf, lastDropOf, lineUntil, dongDotsOf, quadShapeFrom, quadOutline, cityCenter, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { useSidePanelRoom } from '../../hooks/useSidePanelRoom';
@@ -169,13 +169,19 @@ export default function StageView(props: Props) {
     const homeCity = pickupAreaIn?.homeCity ?? null;
     /* 🔴 «출발했나»는 목적지마다가 아니라 **하나**다 — 조각이 이 값을 직접 본다 (설계서 ⑥) */
     const departed = filter?.dispatchPhase === 'DELIVERING';
-    const zones = goalZonesOf({
-        destinationCity: filter?.destinationCity,
-        homeCity,
-        homeOn,
-        homeCaught: pickupAreaIn?.homeCaught ?? false,
-        activeCalls: confirmedCalls,
-    });
+    /**
+     * 🎯 **목적지 목록은 서버가 정한 것을 받는다** — 여기서 다시 계산하지 않는다 (규칙 ③).
+     *
+     * 목적지는 «필터값 ∪ 마지막으로 KEEP 한 콜의 목표값»인데, **마지막 KEEP 순서는 관제웹이 모른다** —
+     * 서버가 보내는 콜 목록은 캐시와 장부를 합친 것이라 KEEP 차례가 아니다. 서버가 낸 `goalCities`
+     * (shared `goalZonesOf`)를 그대로 쓴다. 나머지 두 칸은 여기서 채워도 서버와 같은 값이다.
+     */
+    const zonesKeyIn = (filter?.goalCities ?? []).join('|');
+    const zones: GoalZone[] = useMemo(() => (zonesKeyIn ? zonesKeyIn.split('|') : []).map(city => ({
+        city,
+        isHome: !!homeCity && city === homeCity,
+        hasCalls: confirmedCalls.some(c => c.goalCity === city),
+    })), [zonesKeyIn, homeCity, confirmedCalls]);
     /**
      * 🎯 **목적지 가까이 옴 — 현위치가 그 목적지 영역 안인가** (shared `isNearGoal` · 설계서 ⑥).
      *    목적지 반경 하나로만 잰다. 켜지면 **더하기만 한다** — 상차에 목적지 원을 더하고, 하차에서 상차 동을 안 뺀다.

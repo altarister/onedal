@@ -569,7 +569,7 @@ export interface PendingOrder extends OfficeOrder {
     capturedAt: string;               // 낚아챈 실제 타임스탬프
     /**
      * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
-     *    확정 순간 서버가 적는다(`filterManager.goalOfCall`) — 복귀 대기면 목적지·집 중 하나, 둘 다면 집.
+     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterManager.goalCityOf`) — 좌표로 가르지 않는다.
      *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
      */
     goalCity?: string;
@@ -669,7 +669,7 @@ export interface MyOrder extends OfficeOrder {
     capturedAt: string;               // 낚아챈 실제 타임스탬프
     /**
      * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
-     *    확정 순간 서버가 적는다(`filterManager.goalOfCall`) — 복귀 대기면 목적지·집 중 하나, 둘 다면 집.
+     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterManager.goalCityOf`) — 좌표로 가르지 않는다.
      *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
      */
     goalCity?: string;
@@ -739,7 +739,7 @@ export interface SecuredOrder extends OfficeOrder {
     capturedAt: string;
     /**
      * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
-     *    확정 순간 서버가 적는다(`filterManager.goalOfCall`) — 복귀 대기면 목적지·집 중 하나, 둘 다면 집.
+     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterManager.goalCityOf`) — 좌표로 가르지 않는다.
      *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
      */
     goalCity?: string;

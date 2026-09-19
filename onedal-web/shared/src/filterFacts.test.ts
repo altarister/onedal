@@ -73,12 +73,12 @@ describe('🎯 가까이 옴 — 목적지 반경 하나로 잰다', () => {
 });
 
 describe('🧱 목적지는 «사실»만 담는다', () => {
-    const callTo = (goalCity: string) => ({ goalCity });
     it('그 목적지로 갈 콜이 있나만 담는다 — 출발 여부는 안 담는다', () => {
-        const z = goalZonesOf({ destinationCity: '서울', homeCity: '광주시', homeOn: true, homeCaught: false, activeCalls: [callTo('서울')] });
+        const z = goalZonesOf({ filterCity: '광주시', lastKeptGoalCity: '서울', homeCity: '광주시',
+            activeCalls: [{ goalCity: '서울' }] });
         expect(z).toEqual([
-            { city: '서울', isHome: false, hasCalls: true },
             { city: '광주시', isHome: true, hasCalls: false },
+            { city: '서울', isHome: false, hasCalls: true },
         ]);
     });
     it('🔴 «출발했나»를 인자로 받지 않는다 — 목적지가 사는 조건과 무관하다', () => {
@@ -118,38 +118,63 @@ describe('🔒 구조를 잠근다 — 표가 다시 생기지 못하게', () =>
 });
 
 /**
- * 🏠 **복귀콜을 잡으면 목적지가 바뀐다 — 닫는 것이 아니다** (기사님 확정)
+ * 🎯 **목적지는 둘을 합친 것 — 최대 둘이다** (기사님 확정)
  *
- * 목적지를 둘로 두는 까닭은 **미리 잡으려는 것**이다. 서울 중심에 전국행 콜이 많아 목적지로 삼았는데,
- * 도착해야만 집 방향 콜을 잡는다면 가는 길에 올라오는 «서울 → 광주» 콜을 다 놓친다.
- * 그래서 둘 다 열어 두고 둘 다 올린다. 🔴 **기사님이 집 방향 콜을 잡는 순간이 곧 결정**이고, 목적지가 하나가 된다.
+ * ```
+ * 목적지 = { 필터값 } ∪ { 마지막으로 KEEP 한 콜의 목표값 }
+ * ```
+ *
+ * 첫 콜을 잡을 때는 그 콜의 목표값이 곧 그때의 필터값이라 둘이 같다 — 하나다.
+ * 필터값을 바꾸면 마지막 콜의 목표값은 그대로라 **둘**이 된다. 둘 다 올려 미리 잡게 한다.
+ * 새 목적지로 가는 콜을 잡으면 마지막 콜의 목표값이 그것이 되어 **저절로 하나**가 된다.
  *
  * 무엇을 막나
- * - 복귀콜을 잡았는데 **목적지 콜이 남았다고 목적지를 살려 두는 것** — 그러면 집으로 못 간다
- * - 「목적지를 닫으면 콜이 끊긴다」는 오해 — 끊기지 않는다. 방향이 바뀌어 그쪽 콜을 받는다
+ * - **목적지가 셋 이상이 되는 것** — 값이 둘뿐이니 구조적으로 못 된다
+ * - **«죽이는» 코드가 생기는 것** — 마지막 콜이 바뀌면 저절로 합쳐진다. 지우는 규칙을 따로 두지 않는다
+ * - **집을 특별 취급하는 것** — 복귀는 필터값을 집으로 바꾸는 일일 뿐이다
  */
-describe('🏠 집 방향 콜을 잡으면 목적지가 하나가 된다', () => {
-    const at = { destinationCity: '서울', homeCity: '광주시', homeOn: true };
-    const destCall = { goalCity: '서울' };
-    const homeCall = { goalCity: '광주시' };
+describe('🎯 목적지 = 필터값 ∪ 마지막 KEEP 콜의 목표값', () => {
+    const z = (o: Parameters<typeof goalZonesOf>[0]) => goalZonesOf(o).map(g => g.city);
 
-    it('🔴 집 콜을 잡으면 목적지 콜이 남아 있어도 목적지가 죽는다 — 잡은 것이 곧 결정이다', () => {
-        const z = goalZonesOf({ ...at, homeCaught: true, activeCalls: [destCall, destCall, homeCall] });
-        expect(z.map(g => g.city)).toEqual(['광주시']);
+    it('🔴 첫 콜을 잡을 때는 둘이 같아 하나다', () => {
+        expect(z({ filterCity: '파주', lastKeptGoalCity: '파주', homeCity: null, activeCalls: [{ goalCity: '파주' }] }))
+            .toEqual(['파주']);
     });
 
-    it('아직 못 잡았으면 둘 다 산다 — 둘 다 올려야 미리 잡을 수 있다', () => {
-        const z = goalZonesOf({ ...at, homeCaught: false, activeCalls: [destCall] });
-        expect(z.map(g => g.city)).toEqual(['서울', '광주시']);
+    it('🔴 필터값을 바꾸면 둘이 된다 — 둘 다 올려 미리 잡는다', () => {
+        expect(z({ filterCity: '안양', lastKeptGoalCity: '파주', homeCity: null, activeCalls: [{ goalCity: '파주' }] }))
+            .toEqual(['안양', '파주']);
     });
 
-    it('복귀를 안 켰으면 목적지 하나뿐이다', () => {
-        const z = goalZonesOf({ ...at, homeOn: false, homeCaught: false, activeCalls: [destCall] });
-        expect(z.map(g => g.city)).toEqual(['서울']);
+    it('🔴 새 목적지로 가는 콜을 잡으면 저절로 하나가 된다 — 지우는 코드가 없다', () => {
+        expect(z({ filterCity: '안양', lastKeptGoalCity: '안양', homeCity: null, activeCalls: [{ goalCity: '파주' }, { goalCity: '안양' }] }))
+            .toEqual(['안양']);
     });
 
-    it('집 콜을 다 내린 뒤에도 집만 남는다 — 목적지는 되살아나지 않는다', () => {
-        const z = goalZonesOf({ ...at, homeCaught: true, activeCalls: [] });
-        expect(z.map(g => g.city)).toEqual(['광주시']);
+    it('🔴 셋이 될 수 없다 — 값이 둘뿐이다', () => {
+        const r = goalZonesOf({ filterCity: '안양', lastKeptGoalCity: '파주', homeCity: '광주시',
+            activeCalls: [{ goalCity: '파주' }, { goalCity: '서울' }, { goalCity: '이천시' }] });
+        expect(r.length).toBeLessThanOrEqual(2);
+    });
+
+    it('잡은 콜이 없으면 필터값 하나다', () => {
+        expect(z({ filterCity: '파주', lastKeptGoalCity: null, homeCity: null, activeCalls: [] }))
+            .toEqual(['파주']);
+    });
+
+    it('필터값을 모르면 목적지가 없다 — 지어내지 않는다 (규칙 ④)', () => {
+        expect(z({ filterCity: null, lastKeptGoalCity: null, homeCity: null, activeCalls: [] })).toEqual([]);
+    });
+
+    it('콜이 있나는 **목표값**으로 센다 — 좌표로 가르지 않는다', () => {
+        const r = goalZonesOf({ filterCity: '안양', lastKeptGoalCity: '파주', homeCity: null,
+            activeCalls: [{ goalCity: '파주' }] });
+        expect(r.map(g => [g.city, g.hasCalls])).toEqual([['안양', false], ['파주', true]]);
+    });
+
+    it('복귀는 필터값을 집으로 바꾸는 일일 뿐이다 — 집도 그냥 한 곳이다', () => {
+        const r = goalZonesOf({ filterCity: '광주시', lastKeptGoalCity: '서울', homeCity: '광주시',
+            activeCalls: [{ goalCity: '서울' }] });
+        expect(r.map(g => [g.city, g.isHome])).toEqual([['광주시', true], ['서울', false]]);
     });
 });

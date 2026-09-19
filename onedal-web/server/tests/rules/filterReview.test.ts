@@ -318,8 +318,10 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         const sc = codeOnly(read('routes/scrap.ts'));
         expect(sc).toMatch(/appFilter\.destinationCity\s*=.*goalCity/);
         const sv = codeOnly(readClient('components/stage/StageView.tsx'));
-        /* 🔄 2026-09-15 — 지도는 옛 그물 훅 대신 shared `goalZonesOf` 로 살아 있는 목적지(목적지 ∪ 집)를 낸다 — 서버 `goalZonesNow` 와 같은 함수 */
-        expect(sv).toMatch(/goalZonesOf\(\{\s*destinationCity: filter\?\.destinationCity/);
+        /* 🔴 지도는 목적지 목록을 **다시 계산하지 않는다** — 서버가 낸 `goalCities` 를 그대로 쓴다.
+              마지막 KEEP 순서는 관제웹이 모르므로 여기서 계산하면 서버와 갈라진다 (규칙 ③) */
+        expect(sv).toMatch(/filter\?\.goalCities/);
+        expect(sv).not.toMatch(/goalZonesOf\(/);
         const st = codeOnly(readClient('components/dashboard/OrderFilterStatus.tsx'));
         expect(st).toMatch(/goalCity/);
     });

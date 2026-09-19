@@ -1,46 +1,62 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { getUserSession } from '../../src/state/userSessionStore';
-import { goalOfCall } from '../../src/state/filterManager';
+import { goalCityOf } from '../../src/state/filterManager';
 import { initGeoService } from '../../src/services/geoService';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 
 /**
- * 🎯 **복귀 대기 중 관내콜은 «복귀콜»이 아니다 — 하차지가 목적지 원 안이면 목적지 판** (2026-09-15 여섯 번째 바퀴 · 기사님 확정).
+ * 🎯 **콜의 목표값은 잡던 순간의 «필터값»이다 — 하차지 좌표로 가르지 않는다** (기사님 확정).
  *
- * 10:56:07 B3(이천 사음동 → 이천 중리동 · 관내콜)를 복귀를 켠 뒤 잡자 «🎯 [판] → 광주시»로 적혔다.
- * 집 그물은 꼭짓점이 «내 위치»인 집 방향 마름모라, 차 바로 옆 동(중리동)이 꼭짓점 근처에 들었다 →
- * «복귀콜 잡음»이 되어 하차 목록이 집만 남고 그 뒤 관내콜이 막혔다 (기사님 뜻 «집 방향 콜 잡기 전까지 관내 하자»와 어긋남).
- * 기사님 확정: **하차지가 목적지 원(관내로 재는 그 원) 안이면 관내콜 · 그 밖이면서 집 그물이면 복귀콜.** 새 값 없음.
- * ⚠️ 목적지 원이 집 쪽으로 걸치면 그 안의 집 방향 하차지도 관내콜로 적힌다 (onedal-49 짚음 · 원이 작아 손해가 작다).
+ * 목적지는 «필터값 ∪ 마지막으로 KEEP 한 콜의 목표값»이고 최대 둘이다. 그 계산이 맞으려면
+ * 콜에 적히는 목표값이 **틀림없어야** 한다. 기사님이 그 필터값을 보고 잡으신 것이니 답이 이미 적혀 있다.
+ *
+ * 무엇을 막나
+ * - **좌표로 되짚는 것** — 예전에는 하차지가 어느 목적지 권역·그물에 드는지로 갈랐다.
+ *   집 방향 마름모의 꼭짓점이 차 바로 옆이라 **관내 하차지가 집 판으로 찍혔고**, 그 한 건으로
+ *   목적지가 잘못 합쳐져 관내콜이 막혔다. 그 계산 자체를 없앴다
+ * - **목표값을 메모리에만 두는 것** — 재기동하면 마지막 KEEP 콜의 목표값을 잃는다 (DB 칸 `orders.goalCity`)
  */
-const USER = 'test-goal-of-call-local';
-const HOME = { x: 127.294440, y: 37.376687, address: '경기 광주시 초월읍' };   // 여섯 번째 바퀴 집 좌표
-const JUNGNI = { x: 127.446936, y: 37.277421 };      // 이천터미널 (중리동) — B3 하차
-const GWANGO = { x: 127.429230, y: 37.285068 };      // 이천제일 (관고동) — 차가 선 곳
-const CHOWOL = { x: 127.299905, y: 37.373379 };      // 초월역 — C3 하차 (복귀콜)
+const USER = 'test-goal-city-of';
+const HOME = { x: 127.294440, y: 37.376687, address: '경기 광주시 초월읍' };
+const SRC = (rel: string) => readFileSync(join(__dirname, '../../src', rel), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 beforeAll(() => { initGeoService(); });
 beforeEach(() => { jest.spyOn(SettingsRepository, 'getHomeLocation').mockReturnValue(HOME as any); });
 afterEach(() => jest.restoreAllMocks());
 
-function waitingHome() {
+function session(callTarget: 'DEST' | 'HOME') {
     const s = getUserSession(USER);
     s.activeFilter.destinationCity = '이천시';
     s.activeFilter.destinationRadiusKm = 5;
-    s.activeFilter.callTarget = 'HOME';
-    s.activeFilter.dispatchPhase = 'GATHERING';
+    s.activeFilter.callTarget = callTarget;
     s.myOrders = [];
-    (s as any).lastFix = { x: GWANGO.x, y: GWANGO.y };
-    (s as any).lastFixAt = Date.now();
-    (s as any).lastFixIsMock = false;
-    (s as any).lastFixSource = 'gps';
     return s;
 }
 
-describe('🎯 복귀 대기 중 콜의 판', () => {
-    it('🔴 하차지가 이천 목적지 원 안(중리동)이면 관내콜 — 목적지 판', () => {
-        expect(goalOfCall(waitingHome(), USER, { dropoffX: JUNGNI.x, dropoffY: JUNGNI.y })).toBe('이천시');
+describe('🎯 목표값은 그때의 필터값이다', () => {
+    it('복귀를 안 켰으면 기사님이 정한 목적지', () => {
+        expect(goalCityOf(session('DEST'), USER)).toBe('이천시');
     });
-    it('하차지가 목적지 원 밖이면서 집 쪽(초월역)이면 복귀콜 — 집 판', () => {
-        expect(goalOfCall(waitingHome(), USER, { dropoffX: CHOWOL.x, dropoffY: CHOWOL.y })).toBe('광주시');
+
+    it('🔴 복귀를 켜면 집이 필터값이다 — 그 뒤 잡는 콜은 하차지가 어디든 집 목표다', () => {
+        expect(goalCityOf(session('HOME'), USER)).toBe('광주시');
+    });
+});
+
+describe('🔒 좌표로 되짚는 계산이 없다', () => {
+    it('🔴 KEEP 할 때 필터값을 그대로 적는다', () => {
+        const eng = SRC('services/dispatchEngine.ts');
+        expect(eng).toMatch(/confirmedOrder\.goalCity = goalCityOf\(session, userId\)/);
+    });
+
+    it('🔴 하차지 좌표로 목표값을 고르는 함수가 없다', () => {
+        expect(SRC('state/filterManager.ts')).not.toMatch(/function goalOfCall/);
+        expect(SRC('services/dispatchEngine.ts')).not.toMatch(/goalOfCall\(/);
+    });
+
+    it('목표값은 DB 에도 남는다 — 재기동해도 마지막 KEEP 콜의 목표값을 안 잃는다', () => {
+        expect(SRC('db.ts')).toMatch(/ensureColumns\('orders', \{ goalCity: 'TEXT' \}\)/);
     });
 });

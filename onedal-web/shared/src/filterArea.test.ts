@@ -99,72 +99,7 @@ describe('🎯 목적지 가까이 옴 — 현위치가 목적지 영역 안인�
     });
 });
 
-/**
- * 🧩 **살아 있는 목적지 — «사실»만 담는다** (`docs/기획/필터_파이프라인_설계.md` ⑥).
- * 막는 것: 목적지 · 집이 살아야 할 때 죽거나 그 반대 · 목적지 칸에 «출발했나»가 다시 섞이는 것.
- *
- * 살아 있는 목적지: 목적지 = 복귀 끔 · 복귀콜 아직 못 잡음 · 목적지 콜 남음 / 집 = 복귀 켬
- * 🔴 **상차 영역은 여기서 안 본다** — 목적지가 몇이든 상차는 «내가 달리나»만 본다 (`filterFacts.test.ts`)
- */
-const base = { destinationCity: '이천시', homeCity: '광주시', homeOn: false, homeCaught: false };
-const destCall = { goalCity: '이천시' };
-const homeCall = { goalCity: '광주시' };
-
-describe('살아 있는 목적지와 상태 — 기사님이 적은 경우 그대로', () => {
-    it('콜 없음 → 목적지 하나 · 콜 없음', () => {
-        const z = goalZonesOf({ ...base, activeCalls: [] });
-        expect(z).toEqual([{ city: '이천시', isHome: false, hasCalls: false }]);
-    });
-    it('콜을 잡아 경로가 생김 (운행 전) ', () => {
-        const z = goalZonesOf({ ...base, activeCalls: [destCall] });
-        expect(z).toEqual([{ city: '이천시', isHome: false, hasCalls: true }]);
-    });
-    it('운행 시작 뒤 ', () => {
-        const z = goalZonesOf({ ...base, activeCalls: [destCall] });
-        expect(z).toEqual([{ city: '이천시', isHome: false, hasCalls: true }]);
-    });
-    it('🔴 운행 뒤 · 목적지 콜 남음 · 복귀 켬 → 집은 «콜 없음»이라 상차는 A 전체', () => {
-        const z = goalZonesOf({ ...base, homeOn: true, activeCalls: [destCall] });
-        expect(z).toEqual([
-            { city: '이천시', isHome: false, hasCalls: true },
-            { city: '광주시', isHome: true, hasCalls: false },
-        ]);
-    });
-    /* 🔄 집 콜을 잡는 순간 목적지가 하나가 된다 (기사님 확정) — 눈금은 `filterFacts.test.ts` */
-    it('🔴 위 + 집 가는 콜 잡음 → 목적지 콜이 남아도 집만 남는다 — 잡은 것이 곧 결정이다', () => {
-        const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, activeCalls: [destCall, homeCall] });
-        expect(z).toEqual([{ city: '광주시', isHome: true, hasCalls: true }]);
-    });
-    it('목적지 콜 끝 · 복귀 켬 · 집 가는 콜 잡음 → 집만', () => {
-        const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, activeCalls: [homeCall] });
-        expect(z).toEqual([{ city: '광주시', isHome: true, hasCalls: true }]);
-    });
-});
-
-describe('표에 안 적힌 경우 — 같은 규칙으로', () => {
-    it('복귀 켬 · 복귀콜 아직 없음 · 콜 0건 → 목적지 ∪ 집 · 둘 다 콜 없음 (관내 가까운 콜도 하자)', () => {
-        const z = goalZonesOf({ ...base, homeOn: true, activeCalls: [] });
-        expect(z.map(g => [g.city, g.hasCalls])).toEqual([['이천시', false], ['광주시', false]]);
-    });
-    it('복귀콜을 잡았다 내렸고 둘째를 아직 못 잡음 → 집만 · 콜 없음 (목적지는 다시 안 산다)', () => {
-        const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, activeCalls: [] });
-        expect(z).toEqual([{ city: '광주시', isHome: true, hasCalls: false }]);
-    });
-    it('🏘️ 관내는 따로 없다 — 목적지에서 콜을 다 내리면 그냥 «콜 없음»', () => {
-        expect(goalZonesOf({ ...base, activeCalls: [] })[0].hasCalls).toBe(false);
-    });
-});
-
-describe('모르는 값은 지어내지 않는다 (규칙 ④)', () => {
-    it('목적지를 모르면 목적지가 없다', () => {
-        const z = goalZonesOf({ ...base, destinationCity: null, activeCalls: [] });
-        expect(z).toEqual([]);
-    });
-    it('복귀 켬인데 집을 모르면 목적지만 — 서버 `goalCitiesOf` 와 같다', () => {
-        const z = goalZonesOf({ ...base, homeCity: null, homeOn: true, activeCalls: [destCall] });
-        expect(z.map(g => g.city)).toEqual(['이천시']);
-    });
-});
+/* 🎯 목적지 눈금(필터값 ∪ 마지막 KEEP 콜의 목표값)은 `filterFacts.test.ts` 로 옮겼다 */
 
 /* 🔵 하차 조각 눈금은 `filterFacts.test.ts` 로 옮겼다 — 조각은 사실 하나(라인이 있나)만 본다 */
 

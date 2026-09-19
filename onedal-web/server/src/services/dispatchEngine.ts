@@ -9,7 +9,7 @@ import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirect
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { rememberOrder } from "../state/orderMemory";
-import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, goalOfCall, homeCallsOf } from "../state/filterManager";
+import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, homeCallsOf } from "../state/filterManager";
 import { recordCallTarget } from "../core/callTargetEvents";
 import { getActivePolyline, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline, type RouteHolder } from "./routeComposer";
@@ -485,13 +485,16 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         if (!isAlreadyIncluded) {
             logRoadmapEvent("서버", "해당 콜을 '내 퀵(myOrders)' 배열에 추가 및 병합 궤적 생성 연산");
             /**
-             * 🎯 **판 — 이 콜이 통과한 목적지** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
-             *    복귀 대기면 목적지·집 중 하나이고 둘 다면 집이다. «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다.
-             *    🔴 넣기 **전에** 잰다 — 지금 살아 있는 목적지로. 승격본·캐시본 둘 다 적는다 (화면·장부가 갈리지 않게)
+             * 🎯 **목표값 — 이 콜을 잡던 순간의 필터값** (기사님 확정).
+             *
+             * 🔴 **하차지 좌표로 «어느 목적지 쪽인가»를 가르지 않는다.** 기사님이 그 필터값으로 콜을 보고 잡으신 것이니
+             *    답이 이미 적혀 있다. 좌표로 가르면 마름모 자락에 걸친 콜이 엉뚱한 목적지로 찍혀
+             *    목적지가 잘못 합쳐진다. 목적지는 «필터값 ∪ 마지막 KEEP 콜의 목표값»이다 (shared `goalZonesOf`).
+             * 🔴 넣기 **전에** 적는다 — 승격본·캐시본 둘 다 (화면·장부가 갈리지 않게)
              */
-            confirmedOrder.goalCity = goalOfCall(session, userId, confirmedOrder) ?? undefined;
+            confirmedOrder.goalCity = goalCityOf(session, userId) || undefined;
             (cachedOrder as any).goalCity = confirmedOrder.goalCity;
-            if (confirmedOrder.goalCity) console.log(`🎯 [판] ${orderId.slice(0, 8)} → ${confirmedOrder.goalCity}`);
+            if (confirmedOrder.goalCity) console.log(`🎯 [목표] ${orderId.slice(0, 8)} → ${confirmedOrder.goalCity}`);
             session.myOrders.push(confirmedOrder);
             
             try {
