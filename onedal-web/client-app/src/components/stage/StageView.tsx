@@ -162,7 +162,7 @@ export default function StageView(props: Props) {
      *    ⚠️ 그래서 서버가 목록을 다시 만들기 전까지 지도 원과 원달앱 목록은 0.5km 남짓 어긋날 수 있다.
      * ⚠️ 라인 띠는 **지금 그리는 경로 선**으로 잰다 — 서버의 얼린 경로와 심사 중 잠깐 다를 수 있다.
      */
-    /* 🔴 판정 중 후보콜은 안 센다 — 서버 `getActiveCalls` 는 확정 콜만 본다. 세면 지도만 «경로 생김»이 되고 후보콜 하차지를 종착지로 잡는다 */
+    /* 🔴 판정 중 후보콜은 안 센다 — 서버 `getActiveCalls` 는 확정 콜만 본다. 세면 지도만 «경로 생김»이 되고 후보콜 하차지를 확정콜의 마지막 하차지로 잡는다 */
     const confirmedCalls = useMemo(() => liveRoute.filter(o => !isEvaluating(o.status)), [liveRoute]);
     const pickupAreaIn = filter?.pickupArea;
     const homeOn = pickupAreaIn?.homeOn ?? false;
@@ -194,15 +194,15 @@ export default function StageView(props: Props) {
             },
         });
     }, [zonesKey, meGridX, meGridY, quadShape.srcAngleDeg, quadShape.dstAngleDeg, radii.quadRadiusKm, radii.pickupRadiusKm, radii.destinationRadiusKm]);
-    const nearKey = JSON.stringify(nearZones);
+    const nearGoalKey = JSON.stringify(nearZones);
     const pickupShape = pickupShapeOf(nearZones);
 
     /**
      * 🔵 **하차 영역 — 살아 있는 목적지마다 조각을 모은다** (`docs/지금/필터.md` «하차 영역»).
      *
-     * 조각은 shared `dropoffPartsOf` — 콜 없음: 현위치 원 ∪ Q(현위치→목적지) ∪ 목적지 원 · 경로 생김: 현위치 원 ∪ 라인 ∪ Q(종착지→목적지) ∪ 목적지 원
-     *    · 운행 뒤: 라인 ∪ Q(종착지→목적지) ∪ 목적지 원. 목적지가 집이어도 같다.
-     * 종착지는 경로 순서(`routeStops`)에서 그 목적지 콜의 마지막 하차지(`lastDropOf`) · 라인은 지금 그리는 경로 선을 거기까지 자른 것(`lineUntil`).
+     * 조각은 shared `dropoffPartsOf` — 콜 없음: 현위치 원 ∪ Q(현위치→목적지) ∪ 목적지 원 · 경로 생김: 현위치 원 ∪ 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 원
+     *    · 운행 뒤: 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 원. 목적지가 집이어도 같다.
+     * 확정콜의 마지막 하차지는 경로 순서(`routeStops`)에서 그 목적지 콜의 마지막 하차지(`lastDropOf`) · 라인은 지금 그리는 경로 선을 거기까지 자른 것(`lineUntil`).
      * 🔴 서버 하차 목록(`filterManager.netOfGoals`)도 같은 규칙이다 — 다만 원달앱은 상차 목록 동을 **동 목록**으로 빼고 지도는 **도형**으로 지워,
      *    경계에 걸친 큰 읍·면에서 조금 다를 수 있다 (알고 둔 차이 · 필터.md «지금 코드와 다른 곳»).
      * 📐 마름모는 계산이 무거워 내 위치를 ~300m 눈금으로 굳혀 다시 만든다 — 원 중심은 실시간 위치다.
@@ -215,24 +215,24 @@ export default function StageView(props: Props) {
             srcDiamKm: radii.pickupRadiusKm * 2, dstDiamKm: radii.destinationRadiusKm * 2,
         };
         const meGrid = { name: '내 위치', lng: meGridX, lat: meGridY };
-        return (JSON.parse(nearKey) as typeof zones).flatMap(z => {
+        return (JSON.parse(nearGoalKey) as typeof zones).flatMap(z => {
             let center: { lng: number; lat: number };
             try { center = cityCenter(z.city); } catch { return []; }   // 지도에 없는 시 — 그 목적지는 모른다
             if (!Number.isFinite(center.lng) || !Number.isFinite(center.lat)) return [];
-            /* 🎯 가까이 온 목적지는 목적지 원뿐 — 종착지 · 라인 · 마름모를 안 만든다 */
-            const lastDrop = z.state === 'idle' || z.near ? null
+            /* 🎯 가까이 온 목적지는 목적지 원뿐 — 확정콜의 마지막 하차지 · 라인 · 마름모를 안 만든다 */
+            const lastDrop = z.state === 'idle' || z.nearGoal ? null
                 : lastDropOf({ isHome: z.isHome, homeOn, homeCity, stops: routeStops, calls: confirmedCalls });
             const line = dropoffLine && lastDrop ? lineUntil(dropoffLine, lastDrop) : [];
-            const parts = dropoffPartsOf(z.state, line.length >= 2, z.near);
-            /* 🔴 종착지를 모르면 그 마름모는 안 그린다 — 앞 정거장으로 대신하지 않는다 (규칙 ④) */
+            const parts = dropoffPartsOf(z.state, line.length >= 2, z.nearGoal);
+            /* 🔴 확정콜의 마지막 하차지를 모르면 그 마름모는 안 그린다 — 앞 정거장으로 대신하지 않는다 (규칙 ④) */
             const from = parts.quadFrom === 'me' ? meGrid
-                : parts.quadFrom === 'lastDrop' && lastDrop ? { name: '종착지', lng: lastDrop.x, lat: lastDrop.y } : null;
+                : parts.quadFrom === 'lastDrop' && lastDrop ? { name: '확정콜의 마지막 하차지', lng: lastDrop.x, lat: lastDrop.y } : null;
             const quad = from && haversineKm(from, center) >= 1
                 ? quadOutline(params, from, { name: z.city, lng: center.lng, lat: center.lat }).map(q => ({ x: q.lng, y: q.lat }))
                 : null;
-            return [{ center: { x: center.lng, y: center.lat }, near: !!z.near, me: parts.me, line: parts.line ? line : null, quad }];
+            return [{ center: { x: center.lng, y: center.lat }, nearGoal: !!z.nearGoal, me: parts.me, line: parts.line ? line : null, quad }];
         });
-    }, [nearKey, meGridX, meGridY, dropoffLine, routeStops, confirmedCalls, homeOn, homeCity,
+    }, [nearGoalKey, meGridX, meGridY, dropoffLine, routeStops, confirmedCalls, homeOn, homeCity,
         quadShape.srcAngleDeg, quadShape.dstAngleDeg, radii.quadRadiusKm, radii.pickupRadiusKm, radii.destinationRadiusKm]);
     const dropoffDeparted = filter?.dispatchPhase === 'DELIVERING';
     const dropoffArea = useMemo(() => {
@@ -240,12 +240,12 @@ export default function StageView(props: Props) {
         if (!myLocation || !dropoffParts) return null;
         return {
             /* 먼 목적지 조각 — 캔버스가 여기서 상차 영역을 지운다 (필터.md «하차 영역» · 원달앱은 상차 목록 동을 뺀다) */
-            circles: dropoffParts.filter(p => !p.near).flatMap(p => [
+            circles: dropoffParts.filter(p => !p.nearGoal).flatMap(p => [
                 { ...p.center, km: radii.destinationRadiusKm },
                 ...(p.me ? [{ x: myLocation.x, y: myLocation.y, km: radii.pickupRadiusKm }] : []),
             ]),
             /* 🎯 가까이 온 목적지 원 — 지운 뒤에 칠한다 (빼지 않는다) */
-            nearCircles: dropoffParts.filter(p => p.near).map(p => ({ ...p.center, km: radii.destinationRadiusKm })),
+            nearCircles: dropoffParts.filter(p => p.nearGoal).map(p => ({ ...p.center, km: radii.destinationRadiusKm })),
             quads: dropoffParts.flatMap(p => (p.quad ? [p.quad] : [])),
             /* 🎯 살아 있는 목적지 — 마커 */
             goals: dropoffParts.map(p => p.center),

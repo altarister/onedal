@@ -1115,7 +1115,7 @@ export function netForGoal(goal: NetPoint, o: {
  * 🔎 **하차 조각 판정 — 이 점이 그 목적지의 하차 조각 안인가** (`netForGoal` 과 **같은 분기** · 2026-09-15).
  *    그물(`netForGoal`)은 동을 **중심점 하나**로 담는다. 서버가 «걸친 동»을 찾을 때(`geoService.regionsTouchingNetGrouped`)
  *    이 판정을 쓴다 — 판정이 두 벌이면 목록과 지도가 갈라진다 (규칙 ③).
- *    라인이 있으면 `lineZoneOf().dropIn`(라인 띠 ∪ 목적지 원 ∪ 종착지→목적지 마름모 ∪ 현위치 원) · 없으면 `makeInNet`(현위치 원 ∪ 마름모 ∪ 목적지 원).
+ *    라인이 있으면 `lineZoneOf().dropIn`(라인 띠 ∪ 목적지 원 ∪ 확정콜의 마지막 하차지→목적지 마름모 ∪ 현위치 원) · 없으면 `makeInNet`(현위치 원 ∪ 마름모 ∪ 목적지 원).
  */
 export function netAreaTesterOf(goal: NetPoint, o: {
     line: Array<[number, number]> | null;

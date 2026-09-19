@@ -279,7 +279,9 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         /* 합짐 갱신 — 🔄 2026-09-14 목적지가 둘일 수 있다(복귀 대기 · 전수표 3단계). 목적지 목록도 파생 한 곳(`goalCitiesOf`)이다 */
         const j = fm.indexOf('function netOfGoals');
         expect(j).toBeGreaterThan(-1);
-        const goalsBody = fm.slice(j, j + 1500);
+        /* 🔴 **길이로 자르지 않는다** — 이름이 길어지면 찾는 줄이 창 밖으로 밀려 «없다»가 된다
+           (2026-09-20 `near` → `nearGoal` 개명에서 실제로 그랬다). 함수 끝까지 본다 (루트 CLAUDE.md 규약) */
+        const goalsBody = fm.slice(j, fm.indexOf('\n}', j));
         /* 🔄 2026-09-15 — 목적지마다 상태 · 가까이 옴은 한 곳(`goalZonesNow`)이 낸다. 목적지는 기사님 목적지(destinationCity)와 집에서 파생 — 덮어쓰지 않는다 */
         expect(goalsBody).toMatch(/goalZonesNow\(session, userId/);
         expect(goalsBody).toMatch(/netKeywordsOf\(session, userId, z\.city,/);

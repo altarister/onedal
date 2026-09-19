@@ -6,8 +6,8 @@
  * | 상태 | 뜻 | 필터 영역 | 상차 영역 |
  * |---|---|---|---|
  * | `idle`    | 그 목적지 콜 없음        | A ∪ Q(현위치→목적지) ∪ 목적지 영역 | A |
- * | `routed`  | 콜을 잡아 경로가 생김 (운행 전) | A ∪ 라인 ∪ Q(종착지→목적지) ∪ 목적지 영역 | A |
- * | `driving` | 운행 시작 뒤             | (A ∩ 라인) ∪ 라인 ∪ Q(종착지→목적지) ∪ 목적지 영역 | A ∩ 라인 |
+ * | `routed`  | 콜을 잡아 경로가 생김 (운행 전) | A ∪ 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 영역 | A |
+ * | `driving` | 운행 시작 뒤             | (A ∩ 라인) ∪ 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 영역 | A ∩ 라인 |
  *
  * 🏘️ **관내는 따로 없다** — 목적지에서 콜을 다 내리면 그 목적지는 그냥 `idle` 이다
  *    (기사님: 다른 곳을 정하지 않았으면 도착한 곳에서 일한다).
@@ -27,7 +27,7 @@ export interface GoalZone {
     isHome: boolean;
     state: GoalState;
     /** 🎯 목적지 가까이 옴 — `withNearness` 가 채운다. 없으면 «멀다»로 본다 */
-    near?: boolean;
+    nearGoal?: boolean;
 }
 
 /**
@@ -71,15 +71,22 @@ export function goalZonesOf(o: {
  */
 export function pickupShapeOf(zones: ReadonlyArray<GoalZone>): 'me' | 'meLine' | null {
     if (zones.length === 0) return null;
-    return zones.every(z => z.state === 'driving' && !z.near) ? 'meLine' : 'me';
+    return zones.every(z => z.state === 'driving' && !z.nearGoal) ? 'meLine' : 'me';
 }
 
 /**
- * 🎯 **목적지 가까이 옴** (`docs/지금/필터.md` «필터 영역»).
+ * 🎯 **목적지에 가까이 옴** (`docs/지금/필터.md` «필터 영역»).
  *
- * **Q(현위치→목적지) 마름모가 현위치 원 ∪ 목적지 원 안에 통째로 들어가면** 가까이 옴 — 상차 A 전체 · 하차 그 목적지 원 전체.
- * 🔴 판단 마름모는 목적지 상태와 상관없이 늘 **현위치 → 목적지**다 — «종착지 → 목적지»로 보면 종착지만 목적지 근처여도 차는 먼데 가까이 옴이 된다.
- * 테두리 점(`quadOutline` · 2° 광선)이 전부 두 원 중 하나 안에 드는가로 잰다. 반지름은 `srcDiamKm / 2` · `dstDiamKm / 2`.
+ * **Q(현위치→목적지) 마름모가 현위치 원 ∪ 목적지 원 안에 통째로 들어가면** 가까이 옴 — 상차 A 전체.
+ * 🔴 판단 마름모는 목적지 상태와 상관없이 늘 **현위치 → 목적지**다.
+ * 테두리 점(`quadOutline` · 2° 광선)이 전부 두 원 중 하나 안에 드는가로 잰다.
+ *
+ * 🔴 **이 식은 기사님이 말씀하신 뜻과 아직 맞지 않는다** (결정 대기).
+ *    기사님: *"「목적지에 가까이 옴」이라 했다면 모든 점이 상차지이고 하차지일 수 있어야 하므로 **모두 보라색 점**이어야 한다."*
+ *    그러려면 상차 목록과 하차 목록이 같아야 하는데, 지금은 상차가 **현위치 원**이고 하차가 **목적지 원**이라
+ *    중심이 달라 절대 같아지지 않는다. 그리고 이 식은 두 원이 크면 **출발점에서도 참**이라,
+ *    라인 자르기가 꺼져 뒤쪽 상차가 통과한다 — 복정에서 26.5km 뒤 도척면이 상차 목록에 들어왔다.
+ *    고치는 방향은 «가까이 옴이면 상차도 목적지 원을 본다» — 기사님 결정 뒤에 바꾼다.
  */
 export function isNearGoal(o: { me: { x: number; y: number }; goal: { lng: number; lat: number }; params: NetParams }): boolean {
     const me = { name: '내 위치', lng: o.me.x, lat: o.me.y };
@@ -92,9 +99,9 @@ export function isNearGoal(o: { me: { x: number; y: number }; goal: { lng: numbe
 export function withNearness(zones: ReadonlyArray<GoalZone>, o: { me: { x: number; y: number }; params: NetParams }): GoalZone[] {
     return zones.map(z => {
         let goal: { lng: number; lat: number };
-        try { goal = cityCenter(z.city); } catch { return { ...z, near: false }; }
-        if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return { ...z, near: false };
-        return { ...z, near: isNearGoal({ me: o.me, goal, params: o.params }) };
+        try { goal = cityCenter(z.city); } catch { return { ...z, nearGoal: false }; }
+        if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return { ...z, nearGoal: false };
+        return { ...z, nearGoal: isNearGoal({ me: o.me, goal, params: o.params }) };
     });
 }
 
@@ -109,14 +116,14 @@ export function isHomeCallOf(call: { goalCity?: string | null }, o: { homeOn: bo
  * | 상태 | 하차 영역 |
  * |---|---|
  * | `idle`    | 현위치 원 ∪ Q(현위치→목적지) ∪ 목적지 원 |
- * | `routed`  | 현위치 원 ∪ 라인 ∪ Q(종착지→목적지) ∪ 목적지 원 |
- * | `driving` | 라인 ∪ Q(종착지→목적지) ∪ 목적지 원 — (A ∩ 라인)은 라인 안이라 현위치 원을 따로 안 넣는다 |
+ * | `routed`  | 현위치 원 ∪ 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 원 |
+ * | `driving` | 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 원 — (A ∩ 라인)은 라인 안이라 현위치 원을 따로 안 넣는다 |
  *
- * @param hasLine 그 목적지의 라인이 있나 — 🔷 동선이거나 경로를 모르면 없다. 그때는 라인 · 종착지 없이 마름모를 현위치에서 잰다 (라인을 지어내지 않는다 · 규칙 ④).
+ * @param hasLine 그 목적지의 라인이 있나 — 🔷 동선이거나 경로를 모르면 없다. 그때는 라인 · 확정콜의 마지막 하차지 없이 마름모를 현위치에서 잰다 (라인을 지어내지 않는다 · 규칙 ④).
  *    🔴 운행 뒤에는 라인이 없어도 현위치 원을 다시 넣지 않는다 — 상차가 A ∩ 라인이면 라인 밖 A 동이 상차 목록에 없어 안 빠지고,
  *    «뒤쪽 동에 내리는 콜»이 샌다 (버그 대장 #148)
  */
-export function dropoffPartsOf(state: GoalState, hasLine: boolean, near = false): { me: boolean; line: boolean; quadFrom: 'me' | 'lastDrop' | null } {
+export function dropoffPartsOf(state: GoalState, hasLine: boolean, nearGoal = false): { me: boolean; line: boolean; quadFrom: 'me' | 'lastDrop' | null } {
     /* 🎯 가까이 온 목적지는 목적지 원 전체뿐 — 상차 목록 동도 빼지 않는다 (필터.md «하차 영역») */
     /**
      * 🔴 **현위치 원(A)은 하차 조각에 넣지 않는다** (기사님 확정).
@@ -127,14 +134,14 @@ export function dropoffPartsOf(state: GoalState, hasLine: boolean, near = false)
      * 신둔면이 상차 반경 안이라는 이유로 하차에서 빠져 «광주 → 신둔면»을 못 잡았다.
      * A 를 안 넣으면 하차 영역이 «마름모 ∪ 목적지 원»만 남아 방향이 저절로 지켜진다.
      */
-    if (near) return { me: false, line: false, quadFrom: null };
+    if (nearGoal) return { me: false, line: false, quadFrom: null };
     if (state === 'idle') return { me: false, line: false, quadFrom: 'me' };
     if (!hasLine) return { me: false, line: false, quadFrom: 'me' };
     return { me: false, line: true, quadFrom: 'lastDrop' };
 }
 
 /**
- * 🏁 **목적지마다 경로의 종착지** — 경로 순서(`routeStops`)에서 그 목적지 콜의 **마지막 하차지**.
+ * 🏁 **목적지마다 경로의 확정콜의 마지막 하차지** — 경로 순서(`routeStops`)에서 그 목적지 콜의 **마지막 하차지**.
  *    목적지가 집이어도 같다.
  * 그 목적지 하차 정거장이 없거나 좌표를 모르면 `null` — 앞 정거장으로 대신하지 않는다 (규칙 ④).
  */
@@ -159,8 +166,8 @@ export function lastDropOf(o: {
 const LINE_UNTIL_SAME_SPOT_KM = 0.2;
 
 /**
- * ✂️ **라인을 종착지까지 자른다** — 종착지에서 가장 가까운 점까지. 점이 둘보다 적으면 빈 라인.
- * 🔴 같은 곳을 두 번 지나면 **뒤에 지나는 쪽**까지 자른다 — 종착지는 그 목적지의 **마지막** 하차지라서다.
+ * ✂️ **라인을 확정콜의 마지막 하차지까지 자른다** — 확정콜의 마지막 하차지에서 가장 가까운 점까지. 점이 둘보다 적으면 빈 라인.
+ * 🔴 같은 곳을 두 번 지나면 **뒤에 지나는 쪽**까지 자른다 — 확정콜의 마지막 하차지는 그 목적지의 **마지막** 하차지라서다.
  *    앞 통과에서 자르면 «신둔 → 이천터미널 → 신둔 → 집»처럼 되돌아오는 라인을 잃는다 (버그 대장 #148).
  */
 export function lineUntil<T extends { x: number; y: number }>(line: ReadonlyArray<T>, pt: { x: number; y: number }): T[] {
@@ -190,7 +197,7 @@ export function lineUntil<T extends { x: number; y: number }>(line: ReadonlyArra
  *    가까이 온 목적지에서 든 동은 진행도가 없다.
  */
 export function mergeDropoffGroups(
-    parts: ReadonlyArray<{ near: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }>,
+    parts: ReadonlyArray<{ nearGoal: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }>,
     /**
      * 상차 목록 — 시 · 군 · 구로 묶은 것 (`geoService.pickupListFor` 의 `grouped`).
      * 🔴 **지금은 쓰지 않는다** — 빼기를 없앴다. 자리를 남겨 둔 것은 서버가 이 꼴로 부르는지
@@ -206,7 +213,7 @@ export function mergeDropoffGroups(
         for (const [region, names] of Object.entries(part.grouped)) {
             for (const name of names) {
                 (groups[region] ??= new Set()).add(name);
-                const km = part.near ? undefined : part.progressKm[name];
+                const km = part.nearGoal ? undefined : part.progressKm[name];
                 if (km === undefined) unvisited.add(name);
                 else if (progressKm[name] === undefined || km > progressKm[name]) progressKm[name] = km;
             }

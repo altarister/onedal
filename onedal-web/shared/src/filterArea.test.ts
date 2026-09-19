@@ -17,7 +17,7 @@ describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼
      */
     it('🔴 상차 목록 동도 그대로 남는다 — 가는 방향이면 싣는 곳 근처라도 내린다', () => {
         const r = mergeDropoffGroups([
-            { near: false, grouped: { 광주시: ['초월읍', '곤지암읍'], 이천시: ['신둔면', '중리동'] }, progressKm: { 곤지암읍: 5, 신둔면: 12 } },
+            { nearGoal: false, grouped: { 광주시: ['초월읍', '곤지암읍'], 이천시: ['신둔면', '중리동'] }, progressKm: { 곤지암읍: 5, 신둔면: 12 } },
         ], pickupList);
         expect(r.grouped).toEqual({ 광주시: ['곤지암읍', '초월읍'], 이천시: ['신둔면', '중리동'] });
         expect(r.flat).toEqual(['곤지암읍', '신둔면', '중리동', '초월읍']);
@@ -25,16 +25,16 @@ describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼
     });
     it('🔴 가까이 온 목적지 동은 상차 목록과 겹쳐도 남는다 — 관내콜', () => {
         const r = mergeDropoffGroups([
-            { near: true, grouped: { 이천시: ['중리동', '관고동'] }, progressKm: {} },
-            { near: false, grouped: { 광주시: ['초월읍', '경안동'] }, progressKm: {} },
+            { nearGoal: true, grouped: { 이천시: ['중리동', '관고동'] }, progressKm: {} },
+            { nearGoal: false, grouped: { 광주시: ['초월읍', '경안동'] }, progressKm: {} },
         ], pickupList);
         // 이제 먼 목적지에서도 안 빼므로 초월읍(상차 목록)도 남는다
         expect(r.grouped).toEqual({ 이천시: ['관고동', '중리동'], 광주시: ['경안동', '초월읍'] });
     });
     it('같은 동이 두 목적지에서 오면 한 번 · 어느 쪽에서든 진행도 없이 들었으면 진행도를 없앤다 (지나온 곳 빼기에 안 먹힌다)', () => {
         const r = mergeDropoffGroups([
-            { near: false, grouped: { 이천시: ['신둔면'] }, progressKm: { 신둔면: 12 } },
-            { near: false, grouped: { 이천시: ['신둔면', '사음동'] }, progressKm: { 사음동: 3 } },
+            { nearGoal: false, grouped: { 이천시: ['신둔면'] }, progressKm: { 신둔면: 12 } },
+            { nearGoal: false, grouped: { 이천시: ['신둔면', '사음동'] }, progressKm: { 사음동: 3 } },
         ], {});
         expect(r.grouped).toEqual({ 이천시: ['사음동', '신둔면'] });
         expect(r.progressKm).toEqual({ 사음동: 3 });
@@ -42,14 +42,14 @@ describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼
     /** 🔴 상차 목록은 이제 아무것도 안 뺀다 — 같은 이름이든 다른 시든 그대로 남는다 */
     it('🔴 상차 목록에 같은 이름이 있어도 하차에서 안 지운다', () => {
         const r = mergeDropoffGroups([
-            { near: false, grouped: { '서울 중구': ['중앙동'], 이천시: ['중리동'] }, progressKm: {} },
+            { nearGoal: false, grouped: { '서울 중구': ['중앙동'], 이천시: ['중리동'] }, progressKm: {} },
         ], { 광주시: ['중앙동'], 이천시: ['중리동'] });
         expect(r.grouped).toEqual({ '서울 중구': ['중앙동'], 이천시: ['중리동'] });
     });
     it('🔴 가까이 온 목적지에서 든 동은 진행도가 없다 — 먼 쪽 진행도가 있어도 지운다', () => {
         const r = mergeDropoffGroups([
-            { near: true, grouped: { 이천시: ['중리동'] }, progressKm: {} },
-            { near: false, grouped: { 이천시: ['신둔면'] }, progressKm: { 신둔면: 12 } },
+            { nearGoal: true, grouped: { 이천시: ['중리동'] }, progressKm: {} },
+            { nearGoal: false, grouped: { 이천시: ['신둔면'] }, progressKm: { 신둔면: 12 } },
         ], { 이천시: ['중리동'] });
         expect(r.flat).toEqual(['신둔면', '중리동']);
         expect(r.progressKm).toEqual({ 신둔면: 12 });
@@ -82,11 +82,11 @@ describe('🎯 목적지 가까이 옴 — 마름모가 두 원 안에 통째로
             { city: '광주시', isHome: true, state: 'idle' },
             { city: '없는시', isHome: false, state: 'idle' },
         ], { me: TERMINAL, params });
-        expect(z.map(g => g.near)).toEqual([true, false, false]);
+        expect(z.map(g => g.nearGoal)).toEqual([true, false, false]);
     });
     it('🔴 가까이 온 목적지가 있으면 운행 중이어도 상차는 A 전체', () => {
-        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', near: true }])).toBe('me');
-        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', near: false }])).toBe('meLine');
+        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: true }])).toBe('me');
+        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: false }])).toBe('meLine');
     });
     it('🔴 가까이 온 목적지의 하차 조각은 목적지 원뿐 — 현위치 원 · 라인 · 마름모 없음', () => {
         expect(dropoffPartsOf('driving', true, true)).toEqual({ me: false, line: false, quadFrom: null });
@@ -100,8 +100,8 @@ describe('🎯 목적지 가까이 옴 — 마름모가 두 원 안에 통째로
  *
  * | 그 목적지의 상태 | 필터 영역 | 상차 영역 |
  * | 콜 없음 (idle)            | A ∪ Q(현위치→목적지) ∪ 목적지 영역 | A |
- * | 경로 생김 · 운행 전 (routed) | A ∪ 라인 ∪ Q(종착지→목적지) ∪ 목적지 영역 | A |
- * | 운행 뒤 (driving)         | (A ∩ 라인) ∪ 라인 ∪ Q(종착지→목적지) ∪ 목적지 영역 | A ∩ 라인 |
+ * | 경로 생김 · 운행 전 (routed) | A ∪ 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 영역 | A |
+ * | 운행 뒤 (driving)         | (A ∩ 라인) ∪ 라인 ∪ Q(확정콜의 마지막 하차지→목적지) ∪ 목적지 영역 | A ∩ 라인 |
  *
  * 살아 있는 목적지: 목적지 = 복귀 끔 · 복귀콜 아직 못 잡음 · 목적지 콜 남음 / 집 = 복귀 켬
  */
@@ -188,10 +188,10 @@ describe('🔵 하차 영역 — 목적지 하나에 넣는 조각 (목적지 �
     it('콜 없음: 현위치→목적지 마름모 (현위치 원은 안 넣는다)', () => {
         expect(dropoffPartsOf('idle', false)).toEqual({ me: false, line: false, quadFrom: 'me' });
     });
-    it('경로 생김 (운행 전): 라인 ∪ 종착지→목적지 마름모', () => {
+    it('경로 생김 (운행 전): 라인 ∪ 확정콜의 마지막 하차지→목적지 마름모', () => {
         expect(dropoffPartsOf('routed', true)).toEqual({ me: false, line: true, quadFrom: 'lastDrop' });
     });
-    it('운행 뒤: 라인 ∪ 종착지→목적지 마름모 — (A ∩ 라인)은 라인 안이라 현위치 원은 안 넣는다', () => {
+    it('운행 뒤: 라인 ∪ 확정콜의 마지막 하차지→목적지 마름모 — (A ∩ 라인)은 라인 안이라 현위치 원은 안 넣는다', () => {
         expect(dropoffPartsOf('driving', true)).toEqual({ me: false, line: true, quadFrom: 'lastDrop' });
     });
     it('🔷 라인이 없으면(동선 · 경로를 모름) 라인을 지어내지 않는다 — 마름모는 현위치에서', () => {
@@ -203,7 +203,7 @@ describe('🔵 하차 영역 — 목적지 하나에 넣는 조각 (목적지 �
     });
 });
 
-describe('목적지마다 경로의 종착지 — 경로 순서에서 그 목적지 콜의 마지막 하차지', () => {
+describe('목적지마다 경로의 확정콜의 마지막 하차지 — 경로 순서에서 그 목적지 콜의 마지막 하차지', () => {
     const calls = [
         { id: 'a', goalCity: '이천시', dropoffX: 127.43, dropoffY: 37.28 },
         { id: 'b', goalCity: '광주시', dropoffX: 127.30, dropoffY: 37.37 },
@@ -248,16 +248,16 @@ describe('📍 동 점 — 원달앱에 내려간 목록을 «시·군·구 + �
     });
 });
 
-describe('라인을 종착지까지 자른다', () => {
+describe('라인을 확정콜의 마지막 하차지까지 자른다', () => {
     const line = [{ x: 0, y: 0 }, { x: 0.01, y: 0 }, { x: 0.02, y: 0 }, { x: 0.03, y: 0 }];
-    it('종착지에서 가장 가까운 점까지', () => {
+    it('확정콜의 마지막 하차지에서 가장 가까운 점까지', () => {
         expect(lineUntil(line, { x: 0.019, y: 0.001 })).toEqual(line.slice(0, 3));
     });
     it('🔴 같은 곳을 두 번 지나면 뒤에 지나는 쪽까지 — 앞 통과에서 자르면 되돌아오는 라인을 잃는다 (D3 · 리뷰 2026-09-15)', () => {
         const back = [{ x: 0, y: 0 }, { x: 0.01, y: 0 }, { x: 0.02, y: 0 }, { x: 0.01, y: 0.0001 }, { x: 0, y: 0.0002 }];
         expect(lineUntil(back, { x: 0.01, y: 0 })).toEqual(back.slice(0, 4));
     });
-    it('끝점이 종착지면 통째로 · 점이 둘보다 적으면 빈 라인', () => {
+    it('끝점이 확정콜의 마지막 하차지면 통째로 · 점이 둘보다 적으면 빈 라인', () => {
         expect(lineUntil(line, { x: 0.03, y: 0 })).toEqual(line);
         expect(lineUntil([{ x: 0, y: 0 }], { x: 0, y: 0 })).toEqual([]);
     });

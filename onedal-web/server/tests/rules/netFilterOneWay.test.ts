@@ -153,7 +153,7 @@ describe('🧩 필터 영역 — 출발 전 내 영역 · 관내 목적지 원 (
     it('🔴 서버 그물은 조각이 넣으라 할 때만 현위치 영역을 쓴다 · 관내를 따로 재지 않는다 — 가까이 온 목적지는 목적지 원에 걸친 동 (2026-09-15 개정)', () => {
         const net = body(fm, 'function netKeywordsOf');
         expect(net).toMatch(/me: part\.withMe && me/);
-        expect(net).toMatch(/if \(part\.near\)/);
+        expect(net).toMatch(/if \(part\.nearGoal\)/);
         expect(net).toMatch(/regionsTouchingCircleGrouped\(/);
         expect(net).not.toMatch(/localMode/);
         expect(net).not.toMatch(/isLocalPhase\(/);
