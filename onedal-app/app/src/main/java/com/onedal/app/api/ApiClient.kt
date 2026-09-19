@@ -27,12 +27,6 @@ import java.util.concurrent.Executors
  */
 class ApiClient(private val context: Context) {
 
-    /**
-     * 🔄 **필터가 바뀌면 알릴 곳** — 서비스가 스스로 채운다 (`HijackService.onCreate`).
-     *    옛 목록으로 막은 콜을 새 목록으로 **바로** 다시 판정하려는 것이다. 없으면 다음 화면 변화까지 기다린다.
-     */
-    var onFilterChanged: ((String) -> Unit)? = null
-
     companion object {
         private const val TAG = "1DAL_API"
     }
@@ -298,20 +292,10 @@ class ApiClient(private val context: Context) {
                             AppLogger.w(TAG, "📋 [필터 원문 없음] 응답에서 dispatchEngineArgs 를 못 꺼냈습니다 — 저장본을 그대로 둡니다")
                         } else {
                         val prevFilterJson = prefs.getString("activeFilter", null)
-                        val prevVersion = prefs.getString("filterVersion", null)
                         prefs.edit().putString("activeFilter", filterJson).apply()
                         // 🧭 [피기백 v2] 필터와 함께 온 버전을 저장 — 다음 텔레메트리에 실어 보내면
                         //    서버가 같을 때 본문을 생략한다. 응답에 필터가 없으면(버전 일치) 저장본 유지
-                        val nextVersion = scrapRes.filterVersion ?: ""
-                        prefs.edit().putString("filterVersion", nextVersion).apply()
-                        /**
-                         * 🔄 **바뀐 때만 «다시 보라»를 알린다**.
-                         *    매 응답마다 부르면 1초 폴링 구간에서 화면을 계속 다시 읽는다.
-                         *    받는 쪽이 메인 스레드로 넘긴다 — 여기는 네트워크 스레드다.
-                         */
-                        if (nextVersion.isNotEmpty() && prevVersion != null && prevVersion != nextVersion) {
-                            onFilterChanged?.invoke(nextVersion)
-                        }
+                        prefs.edit().putString("filterVersion", scrapRes.filterVersion ?: "").apply()
 
                         // 서버가 이제 Array로 내려주므로 Gson 파싱(역직렬화) 시 에러(IllegalStateException)가 전혀 발생하지 않음
                         val updatedFilter = gson.fromJson(filterJson, FilterConfig::class.java)

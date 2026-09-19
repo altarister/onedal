@@ -349,8 +349,6 @@ class HijackService : AccessibilityService(), ScanContext {
         applyTargetApp(targetApp)
 
         apiClient = ApiClient(this)
-        /* 🔄 필터가 바뀌면 화면이 안 움직여도 다시 본다 — `onFilterChanged` 가 메인 스레드로 넘긴다 */
-        apiClient.onFilterChanged = { version -> onFilterChanged(version) }
         telemetryManager = TelemetryManager(apiClient, this)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
 
         touchManager = AutoTouchManager(this)
@@ -530,30 +528,6 @@ class HijackService : AccessibilityService(), ScanContext {
         }
     }
 
-    /**
-     * 🔄 **필터가 바뀌면 화면이 안 움직여도 다시 본다**.
-     *
-     * 🔴 **같은 뿌리로 세 번째다** — *화면이 안 움직이면 아무도 다시 안 본다.*
-     *    ① 붙는 순간 화면(첫 값이 굳음) ② 알럿을 닫고 홈으로(마지막 값이 굳음) ③ 이번(옛 목록으로 막은 콜).
-     *    앞의 둘은 «어떤 이벤트를 듣나»를 넓혀 고쳤지만, 뿌리는 **방아쇠가 접근성 이벤트 하나뿐**인 것이다.
-     *    그래서 이번엔 방아쇠를 하나 더 둔다 — «다시 봐야 할 까닭»이 생기면 스스로 부른다.
-     *
-     * 실측: 복귀를 켜 하차 목록이 늘었는데 폰은 옛 목록으로 막았다. 새 필터는 **0.3초 뒤** 도착했지만
-     * 화면이 멎어 있어 1분 넘게 다시 안 봤다 (버그 대장).
-     *
-     * 🔴 **메인 스레드로 넘긴다** — 이 함수를 부르는 곳은 네트워크 스레드다. 접근성 노드를
-     *    거기서 읽으면 죽는다.
-     * 🔴 **지문을 비운다** — 화면 글자가 그대로라 `lastScreenFingerprint` 가 스캔을 도로 막는다.
-     */
-    override fun onFilterChanged(version: String) {
-        mainHandler.post {
-            lastScreenFingerprint = 0
-            AppLogger.d(TAG, "🔄 [필터 도착] 버전 $version — 화면이 그대로여도 다시 본다")
-            runCatching { onAccessibilityEvent(null) }   // event == null = 스스로 부른 재스캔
-                .onFailure { AppLogger.w(TAG, "🔄 [필터 도착] 재스캔 실패: ${it.message}") }
-        }
-    }
-
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         /**
          * 🪟 **«내용이 바뀜»과 «창이 바뀜» 둘 다 화면이 바뀐 것이다** (2026-09-02 수리).
@@ -592,11 +566,8 @@ class HijackService : AccessibilityService(), ScanContext {
             return
         }
 
-        /* 🔄 `event == null` 은 **스스로 부른 재스캔**이다 (`onFilterChanged`) — 시스템은 늘 이벤트를 준다.
-              화면이 안 움직여도 다시 봐야 할 까닭이 생겼을 때 쓰는 두 번째 방아쇠다 */
-        val watched = event == null ||
-                event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
-                event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        val watched = event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
+                event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
         if (!watched) return
 
         /**
