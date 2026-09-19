@@ -3,7 +3,7 @@ import path from 'path';
 import { getActiveCalls } from '../core/helpers';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
-import { DEFAULT_JUDGMENT, isPickupListName, pickupShapeOf, distToLineKm, aheadOf, isAheadOf, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
+import { DEFAULT_JUDGMENT, isPickupListName, pickupShapeOf, cityCenter, distToLineKm, aheadOf, isAheadOf, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
 import type { GoalZone, NetPoint, NetParams } from '@onedal/shared';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
@@ -628,24 +628,43 @@ export function regionsTouchingCircleGrouped(center: { lng: number; lat: number 
  * 🔴 «경로 몇 km»를 안 본다 — 되돌아가는 경로에서 다시 지날 동이 빠지던 D3 가 이 계산에는 없다.
  * 세션을 모른다 — 서버 `filterManager.rebuildPickupList` 가 값을 넘기고, 검사가 실제 지도로 이 함수를 부른다.
  */
+/** 🎯 가까이 온 목적지의 시내 좌표 — 여럿이면 첫째. 지도에 없는 시는 `null` (지어내지 않는다 · 규칙 ④) */
+function nearGoalCenterOf(zones: ReadonlyArray<GoalZone>): { lng: number; lat: number } | null {
+    for (const z of zones) {
+        if (!z.nearGoal) continue;
+        try { const c = cityCenter(z.city); if (Number.isFinite(c.lng) && Number.isFinite(c.lat)) return c; } catch { /* 지도에 없는 시 */ }
+    }
+    return null;
+}
+
 export function pickupListFor(o: {
     me: { x: number; y: number };
-    radii: { pickupRadiusKm: number; detourRadiusKm: number };
+    radii: { pickupRadiusKm: number; detourRadiusKm: number; destinationRadiusKm?: number };
     line: Array<{ x: number; y: number }> | null;
     zones: ReadonlyArray<GoalZone>;
-}): { list: string[]; grouped: Record<string, string[]>; shape: 'me' | 'meLine' | null } {
+}): { list: string[]; grouped: Record<string, string[]>; shape: 'me' | 'meLine' | 'meGoal' | null } {
     const want = pickupShapeOf(o.zones);
     if (!want) return { list: [], grouped: {}, shape: null };   // 목적지가 없다 — 빈 목록은 고장으로 막힌다 (`callFilterBlocker`)
     /* ✂️ 운행 뒤 띠는 **현위치부터 앞으로만** · 현위치에서 **경로와 직각으로** 자른 선 뒤는 상차 영역이 아니다 (`aheadOf` · #151).
           라인 끝을 지나 앞이 없으면 «라인 없음» — 원 전체 */
     const full = o.line && o.line.length >= 2 ? o.line.map(p => [p.x, p.y] as [number, number]) : null;
     const line = want === 'meLine' && full ? lineFromPoint(full, { lng: o.me.x, lat: o.me.y }) : [];
-    const shape = want === 'meLine' && line.length >= 2 ? 'meLine' : 'me';
+    /**
+     * 🎯 **가까이 온 목적지가 있으면 «현위치 원 ∩ 목적지 원»** (기사님 확정 · 「나」안).
+     *    좌표를 모르는 시(지도에 없다)는 겹칠 곳을 못 재므로 현위치 원 그대로 둔다 — 지어내지 않는다 (규칙 ④).
+     */
+    const goalPt = want === 'meGoal' ? nearGoalCenterOf(o.zones) : null;
+    const shape: 'me' | 'meLine' | 'meGoal' =
+        want === 'meGoal' ? (goalPt ? 'meGoal' : 'me')
+        : want === 'meLine' && line.length >= 2 ? 'meLine' : 'me';
     const r = o.radii.pickupRadiusKm;
     const inMe = (p: { lng: number; lat: number }) => haversineKm(o.me.y, o.me.x, p.lat, p.lng) <= r;
     const cut = shape === 'meLine' ? aheadOf(line, o.radii.detourRadiusKm) : null;
+    const rGoal = o.radii.destinationRadiusKm ?? 0;
     const inArea = shape === 'meLine'
         ? (p: { lng: number; lat: number }) => inMe(p) && distToLineKm(p, line) <= o.radii.detourRadiusKm && (!cut || isAheadOf(p, cut))
+        : shape === 'meGoal'
+        ? (p: { lng: number; lat: number }) => inMe(p) && haversineKm(goalPt!.lat, goalPt!.lng, p.lat, p.lng) <= rGoal
         : inMe;
 
     /* 격자 — 영역은 늘 현위치 원 안이라 원을 감싼 사각형만 찍으면 된다 (`circleArea`) */

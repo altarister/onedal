@@ -62,16 +62,27 @@ export function goalZonesOf(o: {
 }
 
 /**
- * 🟢 **상차 도형** — 필터 영역 중 현위치 영역이 들어간 항만 상차 자리다
- *    (마름모 끝까지는 20분 안에 상차하러 갈 수 없다).
+ * 🟢 **상차 영역의 모양 — 한 곳** (`docs/지금/필터.md` «상차 영역»).
  *
- * 목적지마다 상차는 `idle`·`routed` 면 A, `driving` 이면 A ∩ 라인 — 합치면
- * **하나라도 `driving` 이 아니면 A 전체**, 전부 `driving` 이면 A ∩ 라인이다.
- * 목적지가 없으면 `null` — 그릴 것이 없다.
+ * | 목적지 상태 | 상차 영역 | 왜 |
+ * |---|---|---|
+ * | 🎯 **목적지에 가까이 옴** | **`meGoal` — 현위치 원 ∩ 목적지 원** | 권역 안에서는 방향을 안 따진다. 다만 **권역 밖까지 열지는 않는다** |
+ * | 멀고 운행 뒤 | `meLine` — 현위치 원 ∩ 라인(앞으로만) | 뒤로 돌아가는 상차는 손해다 |
+ * | 그 밖 | `me` — 현위치 원 | 아직 길이 없다 |
+ *
+ * 🔴 **가까이 왔다고 현위치 원 전체를 열지 않는다** (기사님 확정 · 「나」안).
+ *    원 전체를 열면 목적지 권역 **밖 뒤쪽**이 통과한다 — 복정에서 서울로 가는 중에 26.5km 뒤 도척면이
+ *    상차 목록에 들어왔다 (잡으면 왕복 53km).
+ * 🔴 **두 원의 겹친 곳이라 «상차만»인 점이 사라진다** — 상차 목록 ⊆ 하차 목록(목적지 원).
+ *    기사님: *"「목적지에 가까이 옴」이라 했다면 모든 점이 상차지이고 하차지일 수 있어야 한다."*
+ *    상차를 목적지 원 전체로 열면 그 말에 더 맞지만, 22km 원은 끝에서 끝까지 44km라
+ *    «20분 안에 상차»(현위치 원)가 깨진다. 그래서 겹친 곳으로 둔다.
+ * 🔴 **하나라도 가까이 왔으면 `meGoal`** — 그 목적지 권역이 열린다. 나머지는 그 뒤에 본다.
  */
-export function pickupShapeOf(zones: ReadonlyArray<GoalZone>): 'me' | 'meLine' | null {
+export function pickupShapeOf(zones: ReadonlyArray<GoalZone>): 'me' | 'meLine' | 'meGoal' | null {
     if (zones.length === 0) return null;
-    return zones.every(z => z.state === 'driving' && !z.nearGoal) ? 'meLine' : 'me';
+    if (zones.some(z => z.nearGoal)) return 'meGoal';
+    return zones.every(z => z.state === 'driving') ? 'meLine' : 'me';
 }
 
 /**

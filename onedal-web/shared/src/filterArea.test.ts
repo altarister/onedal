@@ -84,8 +84,10 @@ describe('🎯 목적지 가까이 옴 — 마름모가 두 원 안에 통째로
         ], { me: TERMINAL, params });
         expect(z.map(g => g.nearGoal)).toEqual([true, false, false]);
     });
-    it('🔴 가까이 온 목적지가 있으면 운행 중이어도 상차는 A 전체', () => {
-        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: true }])).toBe('me');
+    /* 🔄 «가까이 오면 A 전체»는 기사님이 「나」안으로 바꾸셨다 — **A ∩ 목적지 원**.
+       A 전체면 권역 밖 뒤쪽이 통과한다 (복정에서 26.5km 뒤 도척면). 눈금은 `nearGoalPickup.test.ts` */
+    it('🔴 가까이 온 목적지가 있으면 운행 중이어도 라인으로 안 자른다 — 대신 목적지 원과 겹친 곳', () => {
+        expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: true }])).toBe('meGoal');
         expect(pickupShapeOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: false }])).toBe('meLine');
     });
     it('🔴 가까이 온 목적지의 하차 조각은 목적지 원뿐 — 현위치 원 · 라인 · 마름모 없음', () => {

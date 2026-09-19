@@ -182,6 +182,12 @@ interface Props {
         /** `null` 이면 현위치 영역 전체 · 있으면 현위치 영역 ∩ 이 라인의 띠 */
         line: Array<{ x: number; y: number }> | null;
         lineKm: number;
+        /**
+         * 🎯 **목적지에 가까이 왔을 때 겹칠 목적지 원** (기사님 확정 · 「나」안).
+         *    있으면 **현위치 원 ∩ 목적지 원**을 칠한다 — 권역 밖 뒤쪽을 열지 않으려는 것이다.
+         *    `line` 과 함께 오지 않는다: 가까이 왔으면 방향을 안 따지므로 라인 띠가 없다.
+         */
+        goal?: { at: { x: number; y: number }; km: number } | null;
     } | null;
     /**
      * 🔵 **하차 영역 — 원달앱이 하차지를 거르는 영역** (`docs/지금/필터.md` «하차 영역»).
@@ -304,7 +310,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
      *    🔴 좌표는 안 싣는다 — 내 위치가 매초 바뀌어 줄이 매초 찍힌다. 모양 · 반지름 · 조각 수 · 레이어 켬만.
      */
     const areaSummary = [
-        `상차 ${pickupArea ? `${pickupArea.line ? '원∩라인(현위치부터)' : '원'} ${pickupArea.meKm.toFixed(1)}km` : '없음'}`,
+        `상차 ${pickupArea ? `${pickupArea.goal ? '원∩목적지원' : pickupArea.line ? '원∩라인(현위치부터)' : '원'} ${pickupArea.meKm.toFixed(1)}km` : '없음'}`,
         `하차 ${dropoffArea
             ? `먼 원 ${dropoffArea.circles.length} · 가까이 원 ${dropoffArea.nearCircles.length} · 마름모 ${dropoffArea.quads.length} · 띠 ${dropoffArea.lines.length}${pickupArea ? ' · 상차 영역 지움' : ''}`
             : '없음'}`,
@@ -620,7 +626,13 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
             const pxPerKm = Math.abs(east.cx - c.cx);
             c2d.save();
             c2d.beginPath(); c2d.arc(c.cx, c.cy, Math.max(0, area.meKm) * pxPerKm, 0, Math.PI * 2);
-            if (!area.line) {
+            if (area.goal) {
+                /* 🎯 목적지에 가까이 옴 — 현위치 원으로 자른 뒤 목적지 원만 칠한다 (겹친 곳) */
+                c2d.clip();
+                const g = getScreenPt(area.goal.at);
+                c2d.beginPath(); c2d.arc(g.cx, g.cy, Math.max(0, area.goal.km) * pxPerKm, 0, Math.PI * 2);
+                c2d.fill();
+            } else if (!area.line) {
                 c2d.fill();
             } else if (area.line.length >= 2) {
                 c2d.clip();

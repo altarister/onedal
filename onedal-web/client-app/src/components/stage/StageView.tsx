@@ -271,13 +271,18 @@ export default function StageView(props: Props) {
         const ahead = pickupLine && pickupLine.length >= 2
             ? lineFromPoint(pickupLine.map(p => [p.x, p.y] as [number, number]), { lng: myLocation.x, lat: myLocation.y }).map(([x, y]) => ({ x, y }))
             : [];
+        /* 🎯 목적지에 가까이 옴 — 현위치 원 ∩ 목적지 원 (서버 `pickupListFor` 의 `meGoal` 과 같은 자리) */
+        const nearAt = pickupShape === 'meGoal' ? nearZones.find(z => z.nearGoal) : null;
+        let goalPt: { lng: number; lat: number } | null = null;
+        if (nearAt) { try { goalPt = cityCenter(nearAt.city); } catch { goalPt = null; } }
         return {
             me: myLocation, meKm: radii.pickupRadiusKm,
+            goal: goalPt ? { at: { x: goalPt.lng, y: goalPt.lat }, km: radii.destinationRadiusKm } : null,
             /* 🔴 띠가 없으면(동선 · 경로를 모름) 원 전체 — 서버 `pickupListFor` 가 그렇게 목록을 만든다. 안 그리면 하차에서도 안 지워진다 */
             line: ahead.length >= 2 ? ahead : null,
             lineKm: radii.detourRadiusKm,
         };
-    }, [myLocation, pickupShape, pickupLine, radii.pickupRadiusKm, radii.detourRadiusKm]);
+    }, [myLocation, pickupShape, pickupLine, nearZones, radii.pickupRadiusKm, radii.detourRadiusKm, radii.destinationRadiusKm]);
 
     /* 📍 동 점 — 원달앱에 실제로 내려간 상차 목록 · 하차 목록 (shared `dongDotsOf`). 지도가 따로 계산하지 않는다 */
     const dongDots = useMemo(() => (filter
