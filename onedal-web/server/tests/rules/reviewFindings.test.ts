@@ -34,7 +34,7 @@ maybe('① 🔴 점수를 못 내도 판정 저장이 터지지 않는다', () =
      */
     it('가중치를 다 끄면 점수가 null 인데, 저장이 터지지 않는다', () => {
         const v = judge(CRITERIA, { money: { fare: 50_000, extraMinutes: 30 , firstLoad: false } }, cfg({
-            weights: { revenueDetour: 0, bufferCost: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0 },
+            weights: { revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0 },
         }));
         expect(v.score).toBeNull();
         db.prepare(`DELETE FROM order_judgments WHERE orderId = ?`).run(ID);

@@ -98,8 +98,6 @@ export interface JudgmentConfig {
     weights: {
         /** 우회 시급 — 요금 ÷ 한계 추가 소요 (기사님 확정 ②: 시간·거리 통합) */
         revenueDetour: number;
-        /** 버퍼 소비 — 붙인 뒤 남는 최소 버퍼 */
-        bufferCost: number;
         slots: number;
         /**
          * 🔒 **기존 콜 약속 보존** — 이 콜을 붙이면 이미 잡은 콜의 약속이 깨지는가.
@@ -181,7 +179,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupPromiseMin: 20 },
     pass: { nearM: 300, awayM: 400 },
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
-    weights: { revenueDetour: 1, bufferCost: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 1 },
+    weights: { revenueDetour: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 1 },
     target: { hourlyKrw: 30_000, honeyHourlyKrw: 50_000, soloHourlyKrw: 25_000 },
     destBonus: { max: 2.0, min: 0.5 },
     deadline: { ratioPct: 150 },
@@ -260,9 +258,6 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'weight_revenue_detour', path: ['weights', 'revenueDetour'], group: '가중치',
       label: '우회 시급', unit: '배', min: 0, max: 10, int: false,
       why: '요금 ÷ 한계 추가 소요. 0 이면 색에 반영하지 않는다 (표시는 계속한다)' },
-    { col: 'weight_buffer_cost', path: ['weights', 'bufferCost'], group: '가중치',
-      label: '버퍼 소비', unit: '배', min: 0, max: 10, int: false,
-      why: '붙인 뒤 남는 최소 버퍼 — 통화로 약속이 굳은 운행에서 살아나는 축' },
     { col: 'weight_slots', path: ['weights', 'slots'], group: '가중치',
       label: '적재 용량', unit: '배', min: 0, max: 10, int: false,
       why: '**공간** — 몇 칸 남았나. 아래 «같이 못 실음»(성질)과 다른 축이다' },

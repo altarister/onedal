@@ -1211,8 +1211,13 @@ export function deriveRouteTimeline(
             ?? (estMs != null ? new Date(estMs).toISOString() : null);
 
         /**
-         * ⚠️ 실현가능성 — 경로상 도착예상이 **확정** 약속을 넘겼는가.
-         *    추정 약속은 도착예상에서 파생되므로 넘길 수가 없다 (확정만 검사한다).
+         * ⚠️ 실현가능성 — 경로상 도착예상이 **확정** 약속을 넘겼는가. **확정만 검사한다.**
+         *
+         * 🔴 «추정 약속은 도착예상에서 파생되니 넘길 수가 없다»가 아니다 — **상차는 넘긴다.**
+         *    상차 추정 약속은 «잡은 시각 + 20분»이라 상차지가 20분보다 멀면 그냥 넘겨진다.
+         *    그걸 지각으로 세면 「약속」 기준이 색을 🔴 로 덮어 **상차지가 먼 콜이 전부 사고**가 된다.
+         *    통화를 안 했을 뿐인 멀쩡한 콜이다 — 그래서 아래 `declared` 가 안전장치가 아니라 **본줄**이다.
+         *    (검사: `server/tests/rules/hardFailIsConfirmed.test.ts` «상차지가 20분보다 멀어도»)
          */
         /**
          * 🚚 **지나간 정거장의 기준은 실제 시각이다** (기사님 실측 2026-08-19, 모의주행).
@@ -1332,7 +1337,7 @@ export interface RouteBufferMin {
  * 그래서 화면이 예산으로 내미는 숫자는 **아직 안 간 정거장 전부의 최소값** 하나다.
  *
  * 콜별 칩(내 약속의 여유)과 뜻이 다르다 — 칩은 "이 콜은 어떤가", 이것은 "지금
- * 경로에 무엇을 더 실을 수 있는가". 판정 재설계의 `bufferCost` 축도 이 값을 먹는다.
+ * 경로에 무엇을 더 실을 수 있는가". 「약속」 기준이 이 값을 먹는다 (옛 `bufferCost` 축은 약속과 합쳐 없어졌다).
  */
 export function minRouteBuffer(timeline: RouteTimelineEntry[]): RouteBufferMin | null {
     let best: RouteBufferMin | null = null;

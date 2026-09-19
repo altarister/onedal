@@ -93,7 +93,7 @@ describe('② 기준을 빼도 나머지가 그대로 돈다', () => {
 
     it('전부 끄면 색을 지어내지 않는다', () => {
         const v = judge(CRITERIA, 좋은합짐(), cfg({
-            revenueDetour: 0, bufferCost: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0,
+            revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0,
         }));
         expect(v.score).toBeNull();
         expect(v.color).toBe('사고');

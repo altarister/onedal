@@ -37,10 +37,15 @@ const 우회좋고_약속깨짐: JudgeFacts = {
 };
 
 describe('판정 기준 다섯 — 가중치로 켜고 끈다', () => {
-    it('기본값은 다섯 다 1 이다 (예전 동작과 같다)', () => {
+    it('🔴 기본값은 다섯 다 1 이다 — 지리까지 켜졌다', () => {
         const w = DEFAULT_JUDGMENT.weights;
-        expect([w.revenueDetour, w.bufferCost, w.slots, w.promiseGuard, w.cargoCompat])
+        expect([w.revenueDetour, w.slots, w.promiseGuard, w.cargoCompat, w.geography])
             .toEqual([1, 1, 1, 1, 1]);
+    });
+
+    it('🔴 가중치 칸은 기준과 1:1 이다 — 읽는 곳 없는 칸을 남기지 않는다', () => {
+        expect(Object.keys(DEFAULT_JUDGMENT.weights).sort())
+            .toEqual([...CRITERIA.map(c => c.weightKey)].sort());
     });
 
     it('🔴 약속 보존을 켜 두면 — 다른 축이 만점이어도 색은 «사고»', () => {
@@ -72,7 +77,7 @@ describe('판정 기준 다섯 — 가중치로 켜고 끈다', () => {
             space: { freePct: 0, hasLoad: true },
             nature: { conflicts: [], excludedHits: [], hasLoad: true },
         };
-        const v = judge(CRITERIA, 우회보통, cfg({ bufferCost: 0, slots: 0, promiseGuard: 0, cargoCompat: 0 }));
+        const v = judge(CRITERIA, 우회보통, cfg({ slots: 0, promiseGuard: 0, cargoCompat: 0 }));
         // ⚠️ 끈 축도 **목록에는 남는다** (숫자는 계속 보인다 — judgment.ts 의 약속).
         //    색에 들어가는 것은 가중치가 있는 축뿐이다.
         const 색에드는축 = v.criteria.filter(a => a.weight > 0 && a.outcome.kind === 'scored');
@@ -82,7 +87,7 @@ describe('판정 기준 다섯 — 가중치로 켜고 끈다', () => {
     });
 
     it('최적 경로면 만점이 나온다 — 관련 없는 기준을 끈 상태에서', () => {
-        const v = judge(CRITERIA, 우회좋고_약속깨짐, cfg({ bufferCost: 0, slots: 0, promiseGuard: 0, cargoCompat: 0 }));
+        const v = judge(CRITERIA, 우회좋고_약속깨짐, cfg({ slots: 0, promiseGuard: 0, cargoCompat: 0 }));
         expect(v.score).toBe(100);
         expect(v.color).toBe('꿀');
     });
