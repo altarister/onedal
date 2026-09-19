@@ -60,7 +60,7 @@ describe('DB 값이 실제로 색을 바꾼다', () => {
 
     /** 2026-08-15 실측 콜 — 9.9만 · 우회 31분 */
     const 콜 = {
-        money: { fare: 99_000, extraMinutes: 31 },
+        money: { fare: 99_000, extraMinutes: 31 , firstLoad: false },
         promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 20 },
         space: { freePct: 60, hasLoad: true },
         nature: { conflicts: [], excludedHits: [], hasLoad: true },

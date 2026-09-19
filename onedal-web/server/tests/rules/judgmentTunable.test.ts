@@ -18,7 +18,7 @@ import type { JudgmentConfig, JudgeFacts } from '@onedal/shared';
 const cfg = (over: Partial<JudgmentConfig>): JudgmentConfig => ({ ...DEFAULT_JUDGMENT, ...over });
 
 const 합짐 = (bufferAfterMin: number | null): JudgeFacts => ({
-    money: { fare: 50_000, extraMinutes: 30 },
+    money: { fare: 50_000, extraMinutes: 30 , firstLoad: false },
     promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin },
     space: { freePct: 70, hasLoad: true },
     nature: { conflicts: [], excludedHits: [], hasLoad: true },

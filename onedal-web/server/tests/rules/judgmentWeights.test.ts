@@ -29,7 +29,7 @@ const cfg = (over: Partial<JudgmentConfig['weights']>): JudgmentConfig => ({
 
 /** 합짐 한 건 — 우회는 아주 좋고(만점권), 약속은 깨진다 */
 const 우회좋고_약속깨짐: JudgeFacts = {
-    money: { fare: 50_000, extraMinutes: 8 },      // 5만 ÷ 8분 = 37.5만/h → 만점
+    money: { fare: 50_000, extraMinutes: 8 , firstLoad: false },      // 5만 ÷ 8분 = 37.5만/h → 만점
     promise: { hasExistingCalls: true, bufferAfterMin: 30,
                lateStops: [{ label: '첫짐 하차 약속이 12분 깨집니다', lateMinutes: null }] },
     space: { freePct: 100, hasLoad: true },        // 적재도 만점
@@ -67,7 +67,7 @@ describe('판정 기준 다섯 — 가중치로 켜고 끈다', () => {
      */
     it('🔴 경로만 볼 때 — 우회 하나만 켜면 그 축 점수가 곧 총점이다', () => {
         const 우회보통: JudgeFacts = {
-            money: { fare: 50_000, extraMinutes: 100 },
+            money: { fare: 50_000, extraMinutes: 100 , firstLoad: false },
             promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: -50 },
             space: { freePct: 0, hasLoad: true },
             nature: { conflicts: [], excludedHits: [], hasLoad: true },

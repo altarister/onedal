@@ -26,11 +26,11 @@ const cfg = (over: Partial<JudgmentConfig['weights']> = {}): JudgmentConfig => (
 
 /** 다 좋은 합짐 하나 — 기준마다 재료가 다 있다 */
 const 좋은합짐 = (): JudgeFacts => ({
-    money: { fare: 50_000, extraMinutes: 30 },                    // 10만/h → 만점권
+    money: { fare: 50_000, extraMinutes: 30 , firstLoad: false },                    // 10만/h → 만점권
     promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 30 },
     space: { freePct: 70, hasLoad: true },
     nature: { conflicts: [], excludedHits: [], hasLoad: true },
-    geography: { onDetourPath: true },
+    geography: { firstLoad: false, progressRatio: null },
 });
 
 describe('① 기준은 자기 몫의 사실만 본다', () => {
@@ -128,7 +128,7 @@ describe('③ 기준을 더해도 엔진을 안 고친다', () => {
 describe('④ 세 대답이 갈린다', () => {
     it('첫짐은 「약속」이 **잴 게 없음** 이다 — 못 쟀다가 아니다', () => {
         const f: JudgeFacts = {
-            money: { fare: 60_000, extraMinutes: 40 },
+            money: { fare: 60_000, extraMinutes: 40 , firstLoad: false },
             promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
             space: { freePct: null, hasLoad: false },
             nature: { conflicts: [], excludedHits: [], hasLoad: false },
@@ -140,7 +140,7 @@ describe('④ 세 대답이 갈린다', () => {
     });
 
     it('🔴 재료가 없으면 **잴 수 없음** — 색은 🔴 이고 이유를 적는다', () => {
-        const f: JudgeFacts = { ...좋은합짐(), money: { fare: 50_000, extraMinutes: null } };
+        const f: JudgeFacts = { ...좋은합짐(), money: { fare: 50_000, extraMinutes: null , firstLoad: false } };
         const v = judge(CRITERIA, f, cfg());
         expect(v.color).toBe('사고');
         expect(v.notes.join(' ')).toContain('돈');
@@ -161,23 +161,37 @@ describe('④ 세 대답이 갈린다', () => {
     });
 });
 
-describe('🧭 지리는 자리와 이름이 있되 꺼져 있다 (기사님 확정)', () => {
-    it('기본 가중치가 0 이다', () => {
-        expect(DEFAULT_JUDGMENT.weights.geography).toBe(0);
+/**
+ * 🧭 지리는 **첫짐의 목적지 전진 배수**다 (기사님 확정). 옛 결정이 «잴 값이 생기면 켠다»고
+ *    자리만 남겨 둔 그 기준이고, 전진율이 그 첫 잴 값이다. 눈금·경계는 `destBonus.test.ts` 가 문다 —
+ *    여기서는 **다른 기준과 섞이지 않는가**만 본다.
+ */
+describe('🧭 지리는 첫짐의 배수다 — 평균에 섞이지 않는다', () => {
+    it('가중치가 켜져 있다 — 켜는 조건(잴 값)이 생겼다', () => {
+        expect(DEFAULT_JUDGMENT.weights.geography).toBeGreaterThan(0);
     });
 
-    it('꺼져 있어도 목록에 보인다 — 「일단 만들고 나중에 노출」이 아니다', () => {
-        const v = judge(CRITERIA, 좋은합짐(), cfg());
-        const 지리줄 = v.criteria.find(c => c.key === 'geography')!;
+    it('🔴 합짐에서는 «잴 게 없다» — 그쪽 지리는 「돈」(우회 시급)이 이미 센다', () => {
+        const 지리줄 = judge(CRITERIA, 좋은합짐(), cfg()).criteria.find(c => c.key === 'geography')!;
         expect(지리줄.name).toBe('지리');
-        expect(지리줄.weight).toBe(0);
+        expect(지리줄.outcome.kind).toBe('nothing');
     });
 
-    it('켜면 바로 돈다 — 경유를 벗어나면 0점', () => {
-        const f = 좋은합짐();
-        f.geography = { onDetourPath: false };
-        const v = judge(CRITERIA, f, cfg({ geography: 1 }));
-        expect(v.criteria.find(c => c.key === 'geography')!.outcome).toMatchObject({ score: 0 });
+    it('🔴 그래서 합짐 총점에는 지리가 안 섞인다 — 켜도 꺼도 같은 점수', () => {
+        expect(judge(CRITERIA, 좋은합짐(), cfg({ geography: 1 })).score)
+            .toBe(judge(CRITERIA, 좋은합짐(), cfg({ geography: 0 })).score);
+    });
+
+    it('🔴 첫짐에서는 배수로 답한다 — 평균의 한 항이 아니다', () => {
+        const 첫짐 = {
+            money: { fare: 30_000, extraMinutes: 60, firstLoad: true },
+            promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
+            space: { freePct: null, hasLoad: false },
+            nature: { conflicts: [], excludedHits: [], hasLoad: false },
+            geography: { firstLoad: true, progressRatio: 1 },
+        };
+        const 줄 = judge(CRITERIA, 첫짐, cfg()).criteria.find(c => c.key === 'geography')!;
+        expect(줄.outcome).toMatchObject({ kind: 'scored', multiplier: DEFAULT_JUDGMENT.destBonus.max });
     });
 });
 

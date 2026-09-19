@@ -48,8 +48,11 @@ import type { JudgmentConfig } from './judgment';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export type Outcome =
-    /** 쟀다. `hardFail` 이면 점수와 무관하게 «잡으면 사고» — 가중치가 0 이면 이것도 안 본다 */
-    | { kind: 'scored'; score: number; why: string; hardFail?: boolean; value?: number }
+    /**
+     * 쟀다. `hardFail` 이면 점수와 무관하게 «잡으면 사고» — 가중치가 0 이면 이것도 안 본다.
+     * `multiplier` 는 **배수 기준**(`role: 'multiplier'`)만 싣는다 — 평균에 안 들고 총점에 곱한다.
+     */
+    | { kind: 'scored'; score: number; why: string; hardFail?: boolean; value?: number; multiplier?: number }
     /** 잴 **대상**이 없다 — 첫짐엔 지킬 약속이 없고, 빈 차엔 자리 문제가 없다 */
     | { kind: 'nothing'; why: string }
     /** 잴 **재료**가 없다 — 카카오가 터졌다, 주소를 못 찾았다 */
@@ -57,6 +60,13 @@ export type Outcome =
 
 export const scored = (score: number, why: string, hardFail = false, value?: number): Outcome =>
     ({ kind: 'scored', score: Math.max(0, Math.min(100, Math.round(score))), why, hardFail, value });
+/**
+ * 🔴 **배수로 답한다** — 평균의 한 항이 되지 않고 **총점에 곱한다** (`role: 'multiplier'` 기준만).
+ *    `score` 는 화면에 그리는 눈금(0~100)이고 색을 정하는 것은 `multiplier` 다.
+ *    까닭: 덧셈으로 섞으면 «요금 0원인데 방향만 맞는 콜»이 절반 점수를 받는다.
+ */
+export const multiplied = (multiplier: number, score: number, why: string): Outcome =>
+    ({ kind: 'scored', score: Math.max(0, Math.min(100, Math.round(score))), why, multiplier });
 export const nothing = (why: string): Outcome => ({ kind: 'nothing', why });
 export const unmeasurable = (why: string): Outcome => ({ kind: 'unmeasurable', why });
 
@@ -75,6 +85,13 @@ export interface Criterion<F> {
     /** 한 줄 설명 — 화면이 «무엇을 보는 기준인가»를 말할 수 있게 */
     asks: string;
     weightKey: WeightKey;
+    /**
+     * 점수를 **평균에 넣나**(`'score'`, 기본) 아니면 **총점에 곱하나**(`'multiplier'`).
+     *
+     * 🔴 배수 기준의 가중치는 **켜고 끄는 데만** 쓴다 — 0 이면 배수가 안 붙고, 크기는 뜻이 없다.
+     *    배수의 크기는 그 기준이 읽는 설정값이 정한다.
+     */
+    role?: 'score' | 'multiplier';
     /**
      * 🔴 **자기 몫의 사실만 받는다.** 남의 칸은 타입에 없다.
      *    `undefined` 는 «그 사실 자체가 안 왔다» — 대개 「잴 수 없다」다.
@@ -139,10 +156,20 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
     const counted = rows.filter(r => r.weight > 0 && r.outcome.kind === 'scored');
     const cannot = rows.filter(r => r.weight > 0 && r.outcome.kind === 'unmeasurable');
 
-    const totalW = counted.reduce((a, r) => a + r.weight, 0);
+    /**
+     * 🔴 **배수는 평균에 안 든다 — 평균에 곱한다.**
+     *    더하기로 섞으면 «요금 0원인데 목적지 방향만 맞는 콜»이 절반 점수를 받는다.
+     *    배수는 돈을 **키우는** 것이지 돈과 더하는 것이 아니다 (설계서 §4-3).
+     */
+    const byRole = (want: boolean) => counted.filter(r =>
+        (criteria.find(c => c.key === r.key)?.role === 'multiplier') === want);
+    const averaged = byRole(false), multipliers = byRole(true);
+
+    const totalW = averaged.reduce((a, r) => a + r.weight, 0);
+    const mult = multipliers.reduce((a, r) => a * ((r.outcome as { multiplier?: number }).multiplier ?? 1), 1);
     const score = totalW > 0
-        ? Math.round(counted.reduce((a, r) =>
-            a + (r.outcome as { score: number }).score * r.weight, 0) / totalW)
+        ? Math.max(0, Math.min(100, Math.round(averaged.reduce((a, r) =>
+            a + (r.outcome as { score: number }).score * r.weight, 0) / totalW * mult)))
         : null;
 
     /**

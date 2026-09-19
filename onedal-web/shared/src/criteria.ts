@@ -1,4 +1,4 @@
-import { defineCriterion, scored, nothing, unmeasurable } from './judge';
+import { defineCriterion, scored, multiplied, nothing, unmeasurable } from './judge';
 import type { Criterion } from './judge';
 
 /**
@@ -19,7 +19,7 @@ import type { Criterion } from './judge';
  * | 이미 잡은 콜이 늦는다 | **약속** |
  * | 자리 부족 | **공간** |
  * | 같이 못 싣는 조합 · 제외 키워드 | **성질** |
- * | 경유 이탈 | **지리** (지금은 안 봄 — 아래 참고) |
+ * | 경유 이탈 | 🪦 **지웠다** — 합짐의 지리는 「돈」(우회 시급)이 이미 센다. 지금 「지리」는 **첫짐의 목적지 전진 배수**다 |
  * | 요금 초과 · 경유 미확정 · **차종 불일치** | **딱지** (색을 안 건드린다) |
  * | 주소 못 찾음 · 카카오 실패 · API 키 없음 | **잴 수 없음** (🔴) |
  */
@@ -233,35 +233,57 @@ export const NATURE = defineCriterion<NatureFacts>({
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🧭 지리 — 가는 길 위에 있나  (지금은 **안 봄**)
+// 🧭 지리 — 목적지로 전진하나  (첫짐의 **배수**)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export interface GeographyFacts {
-    /** 목적지가 경유 위에 있는가. 모르면 `null` */
-    onDetourPath: boolean | null;
+    /** 빈 차에 처음 싣는 콜인가 — **배수는 첫짐에만 붙는다** */
+    firstLoad: boolean;
+    /**
+     * **전진율** −1~1 — 이 콜로 움직이는 거리 중 얼마가 목적지 쪽으로 줄어드는가.
+     * `(dist(현위치, 목적지) − dist(하차지, 목적지)) ÷ dist(현위치, 하차지)`
+     *
+     * 🔴 **여기서 계산하지 않는다** (규칙 ③) — 이미 잰 값을 받는다. 못 쟀으면 `null`.
+     */
+    progressRatio: number | null;
+    /** 못 쟀으면 그 까닭 — 「목적지 미설정」 같은 것. 쟀으면 `null` */
+    unknownWhy?: string | null;
 }
 
 /**
- * 🔴 **기본 가중치가 0 이다** (기사님과 확정 2026-08-29). 자리와 이름은 화면에 **보이되
- *    꺼져 있다** — 「일단 만들고 나중에 노출」이 아니다 (규칙 ⑤-4).
+ * 🧭 **첫짐이 목적지로 얼마나 전진하나 — 점수에 곱한다** (기사님 확정 · 설계서 §4-3)
  *
- * 왜 껐나 — 셋 다 «같은 사실을 두 번 세는 것»이 되기 때문이다:
- *   ① **합짐**의 지리는 「돈」이 이미 센다. 역주행이면 우회 주행이 길어지고,
- *      그건 우회 시급이 그대로 깎는다
- *   ② **첫짐**의 지리는 앱이 집기 전에 이미 걸렀다. 서버가 `progressKm` 를 계산해
- *      내려보내고 앱이 그걸로 방향을 거른다 (규칙 ⑤-1 의 지리 판)
- *   ③ 지리로 점수를 깎으면 **잡을 수 있었던 콜을 놓친다** (규칙 ① · ⑤)
+ * 2026-08-29 에 «잴 값이 생기면 켠다»고 자리만 남겨 둔 기준이다. **전진율이 그 첫 잴 값**이다.
  *
- * 🔴 **다만 「돈」이 못 보는 것이 하나 있다** — 역주행은 시간이 같아도 **다음 콜 기회**를
- *    죽인다(목적지에서 멀어지면 그 자리에서 합짐을 못 잡는다). 그런데 **그걸 잴 값이
- *    아직 없다.** 근거가 생기면 기사님이 판정 기준 탭에서 켜시면 된다.
+ * 🔴 **평균의 한 항이 아니라 배수다** (`role: 'multiplier'`). 더하기로 섞으면
+ *    «요금 0원인데 목적지 방향만 맞는 콜»이 절반 점수를 받는다 — 목적지 가치는 돈을
+ *    **키우는** 것이지 돈과 더하는 것이 아니다.
+ *
+ * 🔴 **합짐에는 안 붙인다** — 그쪽 지리는 「돈」(우회 시급)이 이미 센다. 역주행이면 우회 주행이
+ *    길어지고 우회 시급이 그대로 깎는다. 같은 사실을 두 번 세지 않는다.
+ *
+ * 🔴 **못 쟀으면 배수 1.0 이다** (규칙 ⑤-2) — 목적지를 안 정하셨다고 콜을 떨어뜨리지 않는다.
+ *    「잴 수 없음」으로 답하면 색이 통째로 🔴 가 되므로, 까닭만 적고 배수를 1.0 으로 둔다.
+ *
+ * ⚠️ 전진율은 **방향 지표**다 — 직선으로 재므로 **거리로 읽지 않는다**
+ *    (왕복 분리 도로에서 직선은 실제와 크게 다르다).
  */
 export const GEOGRAPHY = defineCriterion<GeographyFacts>({
-    key: 'geography', name: '지리', asks: '가는 길 위에 있나',
-    weightKey: 'geography',
-    measure(f) {
-        if (!f || f.onDetourPath == null) return unmeasurable('경유를 아직 못 정했습니다');
-        return f.onDetourPath ? scored(100, '경유 적중') : scored(0, '경유 이탈');
+    key: 'geography', name: '지리', asks: '목적지로 전진하나',
+    weightKey: 'geography', role: 'multiplier',
+    measure(f, cfg) {
+        if (!f) return nothing('전진율을 안 받았습니다');
+        if (!f.firstLoad) return nothing('합짐입니다 — 지리는 「돈」이 셉니다');
+
+        const { max, min } = cfg.destBonus;
+        if (f.progressRatio == null) {
+            return multiplied(1, 50, `${f.unknownWhy ?? '전진율을 못 쟀습니다'} — 배수 ×1.0`);
+        }
+        const p = Math.max(-1, Math.min(1, f.progressRatio));
+        const bonus = Math.max(min, Math.min(max, 1 + (max - 1) * p));
+        const sign = p >= 0 ? '+' : '';
+        // 화면 눈금은 −1~1 을 0~100 으로 펴 놓은 것이다 (색을 정하는 것은 배수다)
+        return multiplied(bonus, (p + 1) / 2 * 100, `전진율 ${sign}${p.toFixed(2)} → 배수 ×${bonus.toFixed(2)}`);
     },
 });
 

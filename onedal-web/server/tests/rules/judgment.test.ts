@@ -22,7 +22,7 @@ describe('실측 콜 회귀 — 옛 사고가 새 채점기에서 재발하지 �
     /** 그날 실제로 있었던 콜 (2026-08-15) — 99,000원 · 한계 우회 +6분 + 정차 25분 */
     it('🔴 99,000원 · +31분이면 「돈」이 만점이다 (옛 채점기는 마감 여유 0 으로 뭉개 똥이었다)', () => {
         const v = judge(CRITERIA, {
-            money: { fare: 99_000, extraMinutes: 6 + DWELL_UNKNOWN_PICKUP_MINUTES + DWELL_UNKNOWN_DROPOFF_MINUTES },
+            money: { fare: 99_000, extraMinutes: 6 + DWELL_UNKNOWN_PICKUP_MINUTES + DWELL_UNKNOWN_DROPOFF_MINUTES , firstLoad: false },
             promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: null },
             space: { freePct: 60, hasLoad: true },
             nature: { conflicts: [], excludedHits: [], hasLoad: true },
@@ -42,7 +42,7 @@ describe('실측 콜 회귀 — 옛 사고가 새 채점기에서 재발하지 �
     it('첫짐 — 운행시간이 아무리 길어도 시급이 좋으면 꿀이다 (2026-08-18 실측 그 콜)', () => {
         // 100,000원 · 98분(+정차 25) — 옛 시간 기준(40/90분)으로는 0점 똥이었다
         const v = judge(CRITERIA, {
-            money: { fare: 100_000, extraMinutes: 123 },
+            money: { fare: 100_000, extraMinutes: 123 , firstLoad: false },
             promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
             space: { freePct: null, hasLoad: false },
             nature: { conflicts: [], excludedHits: [], hasLoad: false },
@@ -54,7 +54,7 @@ describe('실측 콜 회귀 — 옛 사고가 새 채점기에서 재발하지 �
         const cfg = { ...DEFAULT_JUDGMENT,
             weights: { ...DEFAULT_JUDGMENT.weights, slots: 0 } };
         const 사실 = (freePct: number | null) => ({
-            money: { fare: 35_000, extraMinutes: 40 },
+            money: { fare: 35_000, extraMinutes: 40 , firstLoad: false },
             promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 20 },
             space: { freePct, hasLoad: true },
             nature: { conflicts: [], excludedHits: [], hasLoad: true },

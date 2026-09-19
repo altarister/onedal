@@ -33,7 +33,7 @@ maybe('① 🔴 점수를 못 내도 판정 저장이 터지지 않는다', () =
      *    `try` 가 그걸 삼켜 **「카카오 연산 실패」로 둔갑**한다 — 판정이 통째로 사라진다.
      */
     it('가중치를 다 끄면 점수가 null 인데, 저장이 터지지 않는다', () => {
-        const v = judge(CRITERIA, { money: { fare: 50_000, extraMinutes: 30 } }, cfg({
+        const v = judge(CRITERIA, { money: { fare: 50_000, extraMinutes: 30 , firstLoad: false } }, cfg({
             weights: { revenueDetour: 0, bufferCost: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0 },
         }));
         expect(v.score).toBeNull();
@@ -97,7 +97,7 @@ maybe('② 🔴 콜 옵션 표의 정차 값이 **판정 경로에** 닿는다',
 
 describe('③ 🔴 못 잰 기준을 화면이 「0점」이라 말하지 않는다', () => {
     const 첫짐: JudgeFacts = {
-        money: { fare: 50_000, extraMinutes: 40 },
+        money: { fare: 50_000, extraMinutes: 40 , firstLoad: false },
         promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
         space: { freePct: null, hasLoad: false },
         nature: { conflicts: [], excludedHits: [], hasLoad: false },
@@ -126,7 +126,7 @@ describe('④ 「약속」이 깨진 이유에 «0분 늦음» 을 붙이지 않
      */
     it('분을 모르면 «N분 늦음» 을 안 적는다', () => {
         const v = judge(CRITERIA, {
-            money: { fare: 50_000, extraMinutes: 20 },
+            money: { fare: 50_000, extraMinutes: 20 , firstLoad: false },
             promise: { hasExistingCalls: true, bufferAfterMin: 10,
                        lateStops: [{ label: '첫짐 하차 약속이 12분 깨집니다', lateMinutes: null }] },
             space: { freePct: 70, hasLoad: true },
@@ -139,7 +139,7 @@ describe('④ 「약속」이 깨진 이유에 «0분 늦음» 을 붙이지 않
 
     it('분을 알면 적는다', () => {
         const v = judge(CRITERIA, {
-            money: { fare: 50_000, extraMinutes: 20 },
+            money: { fare: 50_000, extraMinutes: 20 , firstLoad: false },
             promise: { hasExistingCalls: true, bufferAfterMin: 10,
                        lateStops: [{ label: '노선콜 하차', lateMinutes: 7 }] },
             space: { freePct: 70, hasLoad: true },

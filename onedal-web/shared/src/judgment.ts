@@ -139,6 +139,19 @@ export interface JudgmentConfig {
         soloHourlyKrw: number;
     };
     /**
+     * 🧭 **첫짐의 목적지 전진 배수** — 「지리」 기준이 이 두 끝으로 배수를 만든다.
+     *
+     * 전진율 `p`(−1~1)를 `clamp(1 + (max − 1) × p, min, max)` 로 옮긴다 —
+     * 목적지로 완벽히 전진하면 `max`, 수직이면 1.0, 완전히 반대면 `min`.
+     * 🔴 **첫짐에만 붙는다** — 합짐의 지리는 우회 시급이 이미 센다 (설계서 §4-3).
+     */
+    destBonus: {
+        /** 목적지로 완벽히 전진할 때의 배수 — 1 보다 커야 뜻이 있다 */
+        max: number;
+        /** 완전히 반대로 갈 때의 배수 — 0 보다 크고 1 보다 작아야 뜻이 있다 */
+        min: number;
+    };
+    /**
      * ⏱️ **배달 데드라인 배율** (두 시계 · 시간체계 ⑯ · 2026-08-21).
      *    데드라인 = **상차 완료 + 배송 주행 × (ratioPct/100)** — 기산점은 상차 완료다.
      *    (~~잡은 시각 기산 + 픽업 20분 보정~~ 은 소숙 검증으로 기각 — §16-2)
@@ -168,8 +181,9 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupPromiseMin: 20 },
     pass: { nearM: 300, awayM: 400 },
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
-    weights: { revenueDetour: 1, bufferCost: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 0 },
+    weights: { revenueDetour: 1, bufferCost: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 1 },
     target: { hourlyKrw: 30_000, honeyHourlyKrw: 50_000, soloHourlyKrw: 25_000 },
+    destBonus: { max: 2.0, min: 0.5 },
     deadline: { ratioPct: 150 },
     color: { honeyMin: 70, normalMin: 40 },
     // 🔴 여유 곡선은 «어떻게 잴 것인가» 라 여기 산다. 정차 값(박스당 분·검수 분)은
@@ -259,8 +273,8 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
       label: '같이 못 실음', unit: '배', min: 0, max: 10, int: false,
       why: '함께 실어도 되는 **성질**인가 (위험물+식료품 등). 적재(공간)와 다르다. 0 이면 검사를 끈다' },
     { col: 'weight_geography', path: ['weights', 'geography'], group: '가중치',
-      label: '지리', unit: '배', min: 0, max: 10, int: false,
-      why: '가는 길 위에 있나. **기본 0 (안 봄)** — 합짐의 지리는 우회 시급이, 첫짐의 지리는 앱 필터가 이미 본다. 같은 사실을 두 번 세지 않으려고 꺼 뒀다 (2026-08-29 확정). 역주행이 «다음 콜 기회»를 죽이는 것을 잴 값이 생기면 켠다' },
+      label: '지리 (첫짐 전진 배수)', unit: '켜기/끄기', min: 0, max: 10, int: false,
+      why: '**0 이면 배수를 안 붙인다 — 크기는 뜻이 없다** (배수는 평균의 한 항이 아니라 총점에 곱하는 값이라서). 배수의 크기는 위 «첫짐» 무리의 두 칸이 정한다. 합짐에는 안 붙는다 — 그쪽 지리는 우회 시급이 이미 센다' },
     { col: 'slack_full_min', path: ['slack', 'fullMin'], group: '정차·여유',
       label: '여유 만점 기준', unit: '분', min: 5, max: 120, int: true,
       why: '남는 여유가 이만큼이면 「약속」 기준이 만점. 낮추면 빠듯한 합짐도 만점을 받는다(공격적). 2026-08-29 까지 코드에 박혀 있던 30분을 그대로 올린 것' },
@@ -273,6 +287,12 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'honey_hourly_krw', path: ['target', 'honeyHourlyKrw'], group: '합짐',
       label: '꿀 시급 (🔵 100점)', unit: '원/h', min: 10000, max: 300000, int: true,
       why: '합짐의 우회 시급이 이만큼이면 **🔵 꿀 100점**. 업계 기준값 — 우리 실측이 쌓이면 바꾼다. **보통 시급보다 커야** 눈금이 서고, 사이가 넓으면 좋은 콜끼리 구분이 커진다' },
+    { col: 'dest_bonus_max', path: ['destBonus', 'max'], group: '첫짐',
+      label: '목적지 전진 배수 (최대)', unit: '배', min: 1, max: 5, int: false,
+      why: '목적지 쪽으로 **완벽히** 전진하는 첫짐의 점수를 이만큼 곱한다. 올리면 «목적지로 가는 콜»을 더 세게 밀어 준다' },
+    { col: 'dest_bonus_min', path: ['destBonus', 'min'], group: '첫짐',
+      label: '목적지 전진 배수 (최소)', unit: '배', min: 0.1, max: 1, int: false,
+      why: '**완전히 반대로** 가는 첫짐의 점수를 이만큼 곱한다. 내리면 역주행 콜이 확 깎인다. 0 으로는 안 둔다 — 그건 «버려라»고 서버가 정하는 것이다 (규칙 ①)' },
     { col: 'solo_hourly_krw', path: ['target', 'soloHourlyKrw'], group: '첫짐',
       label: '첫짐 기준 시급 (100점)', unit: '원/h', min: 10000, max: 300000, int: true,
       why: '빈 차에 처음 싣는 콜이 이만큼이면 100점. 합짐 보통보다 **낮게** 둔다 — 빈 차는 안 잡으면 0원이라 같은 눈금이면 길가에 묶인다. 업계 기준값 · 실측 전 임시값' },

@@ -113,10 +113,14 @@ describe('🎨 실험실 사실 → 실물 엔진이 색을 낸다', () => {
         expect(row?.outcome.kind).not.toBe('unmeasurable');   // 못 잰 것이 아니다
     });
 
-    it('🧭 지리는 기본 가중치가 0 이라 «안 봄» — 색을 사고로 만들지 않는다', () => {
+    /**
+     * 🧭 지리는 첫짐의 **목적지 전진 배수**다. 실험실은 목적지를 안 두므로 전진율을 안 넘긴다 —
+     *    그때 «잴 게 없다»가 되어야 한다. 「잴 수 없음」이면 실험실 콜이 통째로 🔴 가 된다.
+     */
+    it('🧭 전진율을 안 넘기면 «잴 게 없다» — 색을 사고로 만들지 않는다', () => {
         const row = judge(CRITERIA, buildLabFacts(base), DEFAULT_JUDGMENT).criteria
             .find(c => c.key === 'geography');
-        expect(row?.weight).toBe(0);
+        expect(row?.outcome.kind).toBe('nothing');
         expect(colorOf(buildLabFacts(base))).not.toBe('사고');
     });
 });
