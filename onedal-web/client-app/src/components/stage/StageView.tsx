@@ -176,8 +176,9 @@ export default function StageView(props: Props) {
         activeCalls: confirmedCalls,
     });
     /**
-     * 🎯 **목적지 가까이 옴** — 마름모가 현위치 원 ∪ 목적지 원 안에 통째로면 상차 A 전체 · 하차 그 목적지 원 전체 (필터.md «필터 영역»).
-     *    서버 `rebuildPickupList` 와 **같은 `withNearness`** 다. 마름모 계산이 무거워 내 위치를 ~300m 눈금으로 굳힌다.
+     * 🎯 **목적지 가까이 옴** — 현위치가 그 목적지 영역(목적지 반경) 안이면 참 (shared `isNearGoal` · 필터.md «필터 영역»).
+     *    켜지면 **더하기만 한다** — 상차에 목적지 원을 더하고(①), 하차에서 상차 목록 동을 안 뺀다(②).
+     *    서버 `rebuildPickupList` 와 **같은 `withNearness`** 다. 내 위치를 ~300m 눈금으로 굳힌다 (마름모 계산이 무겁다).
      */
     const quadShape = quadShapeFrom(filter as unknown as Record<string, unknown>);
     const meGridX = myLocation ? Math.round(myLocation.x * 300) / 300 : null;

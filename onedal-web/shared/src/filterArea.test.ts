@@ -61,10 +61,10 @@ import { cityCenter } from './callNet';
 
 /**
  * 🎯 **목적지 가까이 옴** (`docs/지금/필터.md` «필터 영역»)
- * 막는 것: 마름모가 두 원 밖으로 나가는데 «가까이 옴»으로 보는 것 · 가까이 온 목적지에서 상차 · 하차 영역이 좁혀지는 것.
+ * 막는 것: 아직 목적지 영역 밖인데 «가까이 옴»으로 보는 것 · 「가까이 옴」이 상차 · 하차 재료를 끄는 것.
  * 좌표는 이천 왕복 시나리오 실값 · 반경 · 모양은 그때 자동 반경이 준 값.
  */
-describe('🎯 목적지 가까이 옴 — 마름모가 두 원 안에 통째로', () => {
+describe('🎯 목적지 가까이 옴 — 내가 목적지 영역 안에 들어왔나', () => {
     const TERMINAL = { x: 127.446936, y: 37.277421 };   // 이천터미널 — 이천 중심 1.2km
     const MODA = { x: 127.312587, y: 37.363298 };       // 모다아울렛 — 이천 중심 16km
     const ICHEON = cityCenter('이천시');
@@ -75,8 +75,27 @@ describe('🎯 목적지 가까이 옴 — 마름모가 두 원 안에 통째로
     it('🔴 모다아울렛이면 이천은 멀다 — 마름모가 두 원 밖으로 넓게 나간다', () => {
         expect(isNearGoal({ me: MODA, goal: ICHEON, params })).toBe(false);
     });
-    it('반경을 크게 두면(수동) 더 먼 곳에서도 가까이 옴 — 기사님 «수동으로 둘의 크기를 다르게 설정할 수 있어»', () => {
-        expect(isNearGoal({ me: MODA, goal: ICHEON, params: { ...params, quadRadiusKm: 2, srcDiamKm: 24, dstDiamKm: 24 } })).toBe(true);
+    it('목적지 반경을 크게 두면(수동) 더 먼 곳에서도 가까이 옴 — 기사님 «수동으로 둘의 크기를 다르게 설정할 수 있어»', () => {
+        expect(isNearGoal({ me: MODA, goal: ICHEON, params: { ...params, dstDiamKm: 40 } })).toBe(true);
+    });
+
+    /**
+     * 🔴 **「가까이 옴」은 목적지 반경 하나로 잰다** (기사님 확정 ③) — 기사님이 목적지 반경을 정한 것이
+     *    «이만큼이 내 목적지 근처다»라는 말씀이다. 그 안에 들어왔으면 가까이 온 것이다.
+     *
+     * 옛 식은 «Q(현위치→목적지) 마름모가 현위치 원 ∪ 목적지 원 안에 통째로 드나»였다. 두 원을 **합쳐** 보니
+     * 현위치 반경 18.6 · 목적지 반경 22 에서 **40km 밖까지 «가까이 옴»** 이었다 — 광주에서 서울로 갈 때
+     * 출발하자마자 켜졌다. 이름과 맞지 않는 식이었다.
+     */
+    it('🔴 현위치 반경이 아무리 커도 목적지 반경 밖이면 «멀다»다 — 두 원을 합쳐 보지 않는다 (기사님 확정 ③)', () => {
+        expect(isNearGoal({ me: MODA, goal: ICHEON, params: { ...params, srcDiamKm: 200, dstDiamKm: 9.1 } })).toBe(false);
+    });
+
+    it('🔴 목적지 반경 언저리에서 갈린다 — 안이면 가까이 옴 · 밖이면 멀다', () => {
+        const p = (dstDiamKm: number) => ({ ...params, dstDiamKm });
+        // MODA 는 이천 중심에서 16km
+        expect(isNearGoal({ me: MODA, goal: ICHEON, params: p(17 * 2) })).toBe(true);
+        expect(isNearGoal({ me: MODA, goal: ICHEON, params: p(15 * 2) })).toBe(false);
     });
     it('목적지마다 따로 — 이천에 와서 복귀를 켜면 이천은 가까이 옴 · 집(광주)은 멀다 · 모르는 시는 멀다로 둔다', () => {
         const z = withNearness([

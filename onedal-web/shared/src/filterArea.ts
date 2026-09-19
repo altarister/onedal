@@ -16,7 +16,7 @@
  *    **같은 함수**를 부른다 — 따로 계산하면 지도와 목록이 갈라진다.
  */
 
-import { cityCenter, quadOutline, haversineKm, type NetParams } from './callNet';
+import { cityCenter, haversineKm, type NetParams } from './callNet';
 import { DONG_CENTROIDS } from './dongCentroids';
 
 export type GoalState = 'idle' | 'routed' | 'driving';
@@ -89,24 +89,19 @@ export function pickupPartsOf(zones: ReadonlyArray<GoalZone>): { me: boolean; li
 }
 
 /**
- * 🎯 **목적지에 가까이 옴** (`docs/지금/필터.md` «필터 영역»).
+ * 🎯 **목적지에 가까이 옴 — 내가 그 목적지 영역 안에 들어왔나** (`docs/지금/필터.md` «필터 영역»).
  *
- * **Q(현위치→목적지) 마름모가 현위치 원 ∪ 목적지 원 안에 통째로 들어가면** 가까이 옴 — 상차 A 전체.
- * 🔴 판단 마름모는 목적지 상태와 상관없이 늘 **현위치 → 목적지**다.
- * 테두리 점(`quadOutline` · 2° 광선)이 전부 두 원 중 하나 안에 드는가로 잰다.
+ * **현위치가 목적지 영역(목적지 반경) 안이면** 가까이 옴. 목적지마다 따로 잰다.
  *
- * 🔴 **이 식은 기사님이 말씀하신 뜻과 아직 맞지 않는다** (결정 대기).
- *    기사님: *"「목적지에 가까이 옴」이라 했다면 모든 점이 상차지이고 하차지일 수 있어야 하므로 **모두 보라색 점**이어야 한다."*
- *    그러려면 상차 목록과 하차 목록이 같아야 하는데, 지금은 상차가 **현위치 원**이고 하차가 **목적지 원**이라
- *    중심이 달라 절대 같아지지 않는다. 그리고 이 식은 두 원이 크면 **출발점에서도 참**이라,
- *    라인 자르기가 꺼져 뒤쪽 상차가 통과한다 — 복정에서 26.5km 뒤 도척면이 상차 목록에 들어왔다.
- *    고치는 방향은 «가까이 옴이면 상차도 목적지 원을 본다» — 기사님 결정 뒤에 바꾼다.
+ * 🔴 **목적지 반경 하나로만 잰다 — 현위치 반경을 더하지 않는다** (기사님 확정 ③).
+ *    기사님이 목적지 반경을 정하신 것이 곧 *"이만큼이 내 목적지 근처다"* 라는 말씀이다.
+ *    두 반경을 합쳐 보면 «내가 정한 근처»보다 훨씬 멀리서 켜진다.
+ *
+ * 🔴 켜지면 하는 일은 **더하기뿐**이다 — 상차에 목적지 원을 더하고(`pickupPartsOf` ①),
+ *    하차에서 상차 목록 동을 안 뺀다(②). 라인 · 마름모는 끄지 않는다.
  */
 export function isNearGoal(o: { me: { x: number; y: number }; goal: { lng: number; lat: number }; params: NetParams }): boolean {
-    const me = { name: '내 위치', lng: o.me.x, lat: o.me.y };
-    const goal = { name: '목적지', lng: o.goal.lng, lat: o.goal.lat };
-    const rMe = Math.max(0, o.params.srcDiamKm / 2), rGoal = Math.max(0, o.params.dstDiamKm / 2);
-    return quadOutline(o.params, me, goal).every(p => haversineKm(me, p) <= rMe || haversineKm(goal, p) <= rGoal);
+    return haversineKm({ lng: o.me.x, lat: o.me.y }, { lng: o.goal.lng, lat: o.goal.lat }) <= Math.max(0, o.params.dstDiamKm / 2);
 }
 
 /** 🎯 목적지마다 «가까이 옴»을 채운다 — 지도에 없는 시(좌표를 모름)는 «멀다»로 둔다 (지어내지 않는다 · 규칙 ④) */
@@ -140,11 +135,11 @@ export function isHomeCallOf(call: { goalCity?: string | null }, o: { homeOn: bo
 export function dropoffPartsOf(state: GoalState, hasLine: boolean): { me: boolean; line: boolean; quadFrom: 'me' | 'lastDrop' | null } {
     /**
      * 🔴 **「목적지에 가까이 옴」은 여기 들어오지 않는다** (기사님 확정 ②) — 그래서 인자에 없다.
- *    상차에서 목적지 원을 더하듯, 하차에서 가까이 옴이 하는 일은 «상차 목록 동을 안 뺀다» 하나뿐이다
- *    (서버 `mergeDropoffGroups` · 관제웹은 지운 **뒤에** 칠한다). 재료를 끄면 거리를 넓히는 일과
- *    방향을 버리는 일을 한 손이 하게 된다 — 그 손을 아예 없앤다.
- *
- * 🔴 **현위치 원(A)은 하차 조각에 넣지 않는다** (기사님 확정).
+     *    상차에서 목적지 원을 더하듯, 하차에서 가까이 옴이 하는 일은 «상차 목록 동을 안 뺀다» 하나뿐이다
+     *    (서버 `mergeDropoffGroups` · 관제웹은 지운 **뒤에** 칠한다). 재료를 끄면 거리를 넓히는 일과
+     *    방향을 버리는 일을 한 손이 하게 된다 — 그 손을 아예 없앤다.
+     *
+     * 🔴 **현위치 원(A)은 하차 조각에 넣지 않는다** (기사님 확정).
      *
      * A 는 사방으로 퍼진 원이라 뒤쪽 동까지 하차 후보가 됐고, 그것을 «상차 목록 빼기»로 지웠다.
      * 그런데 상차 목록도 A 라서 **A 를 넣었다가 A 를 도로 빼는 꼴**이었고, 그 과정에서
