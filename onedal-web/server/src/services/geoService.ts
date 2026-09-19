@@ -619,6 +619,27 @@ export function regionsTouchingCircleGrouped(center: { lng: number; lat: number 
 }
 
 /**
+ * ✂️ **현위치에서 «남은 길이 가는 쪽»으로 그은 직각선** — 그 뒤는 지나온 곳이다.
+ *
+ * 방향은 **잘라 온 라인의 첫 점에서 끝점까지** 잇는 직선이다. 남은 길 전체의 방향이라
+ * 한 구간에 흔들리지 않는다.
+ *
+ * 🔴 **마지막 한 구간에서 뽑지 않는다** — 라인의 끝자락은 골목이라 초 단위로 방향이 바뀌고,
+ *    목적지에 가까워 남은 길이 짧아지면 그 한 구간이 방향을 지배한다.
+ *    실측: 양재에서 서울로 가는 중 상차 영역이 목적지 반대편 남서쪽 반원이 되어 역삼동(3.3km)이 빠졌다.
+ * 🔴 **남은 길이 없으면 `null`** — 자르지 않는다. 지어내지 않는다 (규칙 ④).
+ */
+function cutTowardGoal(band: Array<[number, number]>):
+    { start: { lng: number; lat: number }; dir: { x: number; y: number } } | null {
+    if (band.length < 2) return null;
+    const a = band[0], b = band[band.length - 1];
+    const KX = 111.32 * Math.cos((a[1] * Math.PI) / 180), KY = 110.574;
+    const dx = (b[0] - a[0]) * KX, dy = (b[1] - a[1]) * KY;
+    const len = Math.hypot(dx, dy);
+    return len > 0.01 ? { start: { lng: a[0], lat: a[1] }, dir: { x: dx / len, y: dy / len } } : null;
+}
+
+/**
  * 🟢 **상차 목록 — 켜진 조각을 전부 겹친 영역에 걸친 읍·면·동** (`docs/기획/필터_파이프라인_설계.md` ④⑤).
  *
  * 조각은 부르는 쪽이 shared `pickupPartsOf` 로 정한다. 여기서는 **겹치기(∩)만** 한다 —
@@ -627,7 +648,7 @@ export function regionsTouchingCircleGrouped(center: { lng: number; lat: number 
  * | 조각 | 판정 |
  * |---|---|
  * | 현위치 원 | 늘 — 격자도 이 원을 감싼 사각형에서만 찍는다 |
- * | 라인 띠 | 현위치부터 앞으로만 (`lineFromPoint` + `aheadOf`) |
+ * | 라인 띠 | 현위치부터 앞으로만 (`lineFromPoint` — 방향으로 자르지 않는다) |
  * | 목적지 원 | 가까이 온 목적지들의 원을 **더한 것**(∪) 안에 드나 |
  *
  * 🔴 **좌표를 모르는 시는 그냥 뺀다** — 원을 지어내지 않는다 (규칙 ④). 가까이 온 목적지가 있는데
@@ -642,12 +663,20 @@ export function pickupListFor(o: {
     line: Array<{ x: number; y: number }> | null;
     parts: { line: boolean; goalCities: readonly string[] };
 }): { list: string[]; grouped: Record<string, string[]> } {
-    /* ✂️ 띠는 **현위치부터 앞으로만** · 현위치에서 **경로와 직각으로** 자른 선 뒤는 상차 영역이 아니다 (`aheadOf` · #151).
-          라인 끝을 지나 앞이 없으면 «라인 없음» — 그 조각만 빠진다 */
+    /**
+     * ✂️ **띠는 «얼마나 왔나»로 자른다** — 라인을 내 자리에서 끊고(`lineFromPoint`) 그 뒤만 쓴다.
+     *    라인 끝을 지나 앞이 없으면 «라인 없음» — 그 조각만 빠진다.
+     *
+     * 🔴 **자름선의 방향은 «남은 길 전체»다 — 마지막 한 구간에서 가져오지 않는다** (기사님 확정).
+     *
+     * 두 겹이 다 필요하다. 라인을 끊어 지나온 **길**을 버리고, 자름선으로 띠의 **둥근 끝**이 덮는 면을 버린다.
+     * 끊기만 하면 시작점 둘레로 반경만큼 부풀어 곤지암에서 6km 뒤 초월읍이 다시 든다 («뒤를 자르는 Cap»).
+     *
+     * 방향을 **마지막 한 구간**에서 뽑으면 골목이 영역을 통째로 돌린다 — 그 까닭과 실측은 `cutTowardGoal` 머리에.
+     */
     const full = o.line && o.line.length >= 2 ? o.line.map(p => [p.x, p.y] as [number, number]) : null;
     const band = o.parts.line && full ? lineFromPoint(full, { lng: o.me.x, lat: o.me.y }) : [];
     const useBand = band.length >= 2;
-    const cut = useBand ? aheadOf(band, o.radii.detourRadiusKm) : null;
 
     /* 🎯 가까이 온 목적지들의 시내 좌표 — 지도에 없는 시는 뺀다 (지어내지 않는다) */
     const goalPts: Array<{ lng: number; lat: number }> = [];
@@ -659,6 +688,9 @@ export function pickupListFor(o: {
     }
     const rGoal = o.radii.destinationRadiusKm ?? 0;
     const r = o.radii.pickupRadiusKm;
+
+    /** ✂️ 현위치에서 **남은 길이 가는 쪽**으로 그은 직각선 — 그 뒤는 띠의 둥근 끝이 덮어도 상차 영역이 아니다 */
+    const cut = useBand ? cutTowardGoal(band) : null;
 
     const inMe = (p: { lng: number; lat: number }) => haversineKm(o.me.y, o.me.x, p.lat, p.lng) <= r;
     const inBand = (p: { lng: number; lat: number }) =>

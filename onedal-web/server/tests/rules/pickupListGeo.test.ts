@@ -229,6 +229,8 @@ describe('상차 목록 배선', () => {
         const canvas = strip(readFileSync(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx'), 'utf8'));
         expect(canvas).toMatch(/const clipAhead = /);
         expect((canvas.match(/clipAhead\(/g) || []).length).toBeGreaterThanOrEqual(2);   // 상차 띠 · 하차 띠
+        /* 🔴 상차 띠의 자름 방향은 «첫 점 → 끝점» — 마지막 한 구간에서 뽑으면 골목이 영역을 돌린다 */
+        expect(canvas).toMatch(/clipAhead\(c2d, \[band\[0\], band\[band\.length - 1\]\]/);
         expect(canvas).not.toMatch(/lineCap = 'butt'/);
         expect(canvas).not.toMatch(/trimKm/);
     });

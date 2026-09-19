@@ -642,8 +642,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                 c2d.clip();
             }
             if (band) {
-                /* ✂️ 현위치에서 경로와 직각으로 자른 선 앞쪽만 — 서버 `pickupListFor` 와 같은 `aheadOf` */
-                clipAhead(c2d, band, area.lineKm);
+                /* ✂️ 시작을 평평하게 자른다 — 띠의 둥근 끝이 지나온 곳을 덮지 않게 (서버 `pickupListFor` 와 같다).
+                   🔴 방향은 **첫 점 → 끝점**이다. 마지막 한 구간에서 뽑으면 골목이 영역을 통째로 돌린다 */
+                clipAhead(c2d, [band[0], band[band.length - 1]], area.lineKm);
                 c2d.beginPath();
                 band.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) c2d.moveTo(s.cx, s.cy); else c2d.lineTo(s.cx, s.cy); });
                 c2d.lineWidth = area.lineKm * 2 * pxPerKm;

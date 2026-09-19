@@ -178,3 +178,47 @@ describe('🎯 목적지 = 필터값 ∪ 마지막 KEEP 콜의 목표값', () =>
         expect(r.map(g => [g.city, g.isHome])).toEqual([['광주시', true], ['서울', false]]);
     });
 });
+
+/**
+ * ✂️ **상차 띠는 «얼마나 왔나»로 자른다 — «어느 쪽을 보나»로 자르지 않는다** (기사님 확정)
+ *
+ * 라인을 내 자리에서 끊는 것(`lineFromPoint`)만으로 뒤쪽이 이미 빠진다. 그 위에 직각선을 또 그으면
+ * **마지막 골목 한 구간이 방향을 지배**한다. 목적지에 가까워 남은 길이 띠 반경보다 짧아지면
+ * 라인 끝까지 보게 되어 그 쏠림이 커진다.
+ *
+ * 실측: 양재에서 서울로 가는 중 상차 목록이 1분 만에 262곳 → 62곳으로 줄고 역삼동(3.3km)이 빠졌다.
+ * 화면의 상차 영역이 목적지 반대편인 남서쪽 반원이었다.
+ *
+ * 무엇을 막나
+ * - **자름선을 다시 들이는 것** — `aheadOf`·`isAheadOf` 는 방향으로 자른다. 상차에서는 쓰지 않는다
+ * - 라인을 내 자리에서 **안 끊는 것** — 그러면 지나온 길이 통째로 상차 영역이 된다
+ */
+describe('✂️ 상차 띠는 방향으로 자르지 않는다', () => {
+    const geo = readFileSync(join(__dirname, '../../server/src/services/geoService.ts'), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const body = geo.slice(geo.indexOf('export function pickupListFor'), geo.indexOf('export function getCityRegionsWithRadius'));
+
+    /**
+     * 🔴 **자름선은 남기되 방향을 «목적지»에서 가져온다.**
+     *
+     * 자름선을 아예 걷으면 띠의 **둥근 끝**이 시작점 둘레로 반경만큼 부풀어 지나온 곳을 덮는다 —
+     * 곤지암에 서면 6km 뒤 초월읍이 다시 든다 (기사님 «뒤를 자르는 Cap»). 그래서 두 겹이 필요하다:
+     * 라인을 내 자리에서 끊어 «길»을 버리고, 자름선으로 둥근 끝이 덮는 «면»을 버린다.
+     * 문제는 그 선의 방향을 **마지막 한 구간에서** 가져온 것이었다. 남은 길 전체로 보면 안 흔들린다.
+     */
+    it('🔴 자름선의 방향을 라인에서 가져오지 않는다 — 마지막 골목이 영역을 통째로 돌린다', () => {
+        expect(body).not.toMatch(/aheadOf\(band/);
+    });
+
+    it('🔴 자름선의 방향은 «남은 길 전체»다 — 첫 점에서 끝점까지', () => {
+        expect(body).toMatch(/cutTowardGoal\(band\)/);
+    });
+
+    it('🔴 라인은 내 자리에서 끊는다 — 그것만으로 지나온 길이 빠진다', () => {
+        expect(body).toMatch(/lineFromPoint\(full, \{ lng: o\.me\.x, lat: o\.me\.y \}\)/);
+    });
+
+    it('🔴 띠 판정은 «그 잘린 라인까지의 거리» 하나다', () => {
+        expect(body).toMatch(/distToLineKm\(p, band\) <= o\.radii\.detourRadiusKm/);
+    });
+});
