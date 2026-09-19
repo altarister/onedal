@@ -30,6 +30,33 @@ export function haversineKm(a: { lng: number; lat: number }, b: { lng: number; l
     return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 
+/**
+ * 🧭 **전진율 −1~1 — 이 콜로 움직이는 거리 중 얼마가 목적지 쪽으로 줄어드는가**
+ *
+ * 첫짐의 「지리」 기준이 이 값을 배수로 바꾼다 (`docs/기획/실전_콜_판정_설계.md` §4-3).
+ *
+ * ```
+ * (dist(현위치, 목적지) − dist(하차지, 목적지)) ÷ dist(현위치, 하차지)
+ * ```
+ *
+ * 🔴 **분모가 «현위치 → 목적지»가 아니다** — 그 분모는 목적지에 가까워지면 0 으로 수렴해
+ *    터지고, 터지기 전에도 목적지 근처에서 어떤 콜이든 전진율이 낮게 나온다. 목적지 근처가
+ *    콜이 많은 곳일 수 있다. 분모를 **이 콜이 움직이는 거리**로 두면 0 이 되지 않고 뜻도 정확하다.
+ *
+ * 🔴 **못 쟀으면 `null`** — 상차지와 하차지가 같은 자리면 전진을 잴 수가 없다 (규칙 ④).
+ * ⚠️ 직선으로 잰다 — **방향 지표**이지 거리 값이 아니다 (왕복 분리 도로에서 직선은 실제와 다르다).
+ */
+export function destProgressRatio(
+    now: { lng: number; lat: number },
+    dropoff: { lng: number; lat: number },
+    goal: { lng: number; lat: number },
+): number | null {
+    const moveKm = haversineKm(now, dropoff);
+    if (!(moveKm > 0)) return null;
+    const gain = haversineKm(now, goal) - haversineKm(dropoff, goal);
+    return Math.max(-1, Math.min(1, gain / moveKm));
+}
+
 function bearingDeg(a: { lng: number; lat: number }, b: { lng: number; lat: number }): number {
     const y = Math.sin(rad(b.lng - a.lng)) * Math.cos(rad(b.lat));
     const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lng - a.lng));

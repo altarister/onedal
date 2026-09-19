@@ -1,3 +1,4 @@
+import { cityCenter, destProgressRatio, haversineKm } from '@onedal/shared';
 import type { JudgeFacts } from '@onedal/shared';
 import type { DryRunGate } from '@onedal/shared';
 
@@ -22,6 +23,11 @@ export function firstLoadFacts(input: {
     totalMinutes: number | null;
     /** 미리보기 콜의 평소 하한가. 필터콜은 넘기지 않는다 (규칙 ⑤-1) */
     minAcceptableKrw?: number | null;
+    /**
+     * 🧭 **목적지 전진율** −1~1 — 「지리」 기준이 배수로 바꾼다. 못 쟀으면 `null` 과 까닭.
+     *    잰 곳은 `destProgressOf` 하나다 (여기서 다시 재지 않는다 · 규칙 ③).
+     */
+    progress?: { ratio: number | null; unknownWhy: string | null };
     tags: string[];
 }): JudgeFacts {
     return {
@@ -29,8 +35,46 @@ export function firstLoadFacts(input: {
         promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
         space: { freePct: null, hasLoad: false },
         nature: { conflicts: [], excludedHits: [], hasLoad: false },
+        geography: {
+            firstLoad: true,
+            progressRatio: input.progress?.ratio ?? null,
+            unknownWhy: input.progress?.unknownWhy ?? '전진율을 안 넘겼습니다',
+        },
         notes: [...input.tags],
     };
+}
+
+/**
+ * 🧭 **첫짐의 전진율을 잰다 — 이 콜로 목적지에 얼마나 가까워지나** (설계서 §4-3)
+ *
+ * 세 점이 필요하다: **지금 자리**(`originOf`) · **하차지**(지오코딩 결과) · **목적지**(`goalCityOf` 의 시내).
+ * 🔴 하나라도 없으면 **지어내지 않고 까닭을 적는다** — 그때 배수는 1.0 이다 (규칙 ④ · ⑤-2).
+ * 🔴 **셈은 `destProgressRatio` 한 곳**에 있다. 여기서는 점 셋을 모아 넘기기만 한다 (규칙 ③).
+ *
+ * ⚠️ **목적지 반경 안에 있으면 안 잰다** — 이미 도착했으니 «전진할 것»이 없다.
+ *    그때도 배수 1.0 이라, 목적지 둘레의 관내콜이 방향 때문에 깎이지 않는다.
+ */
+export function destProgressOf(input: {
+    me: { x: number; y: number } | null;
+    dropoff: { x?: number | null; y?: number | null };
+    goalCity: string;
+    /** 목적지 반경(km) — 이 안에 있으면 전진을 재지 않는다 */
+    destinationRadiusKm?: number | null;
+}): { ratio: number | null; unknownWhy: string | null } {
+    const no = (why: string) => ({ ratio: null, unknownWhy: why });
+    if (!input.me) return no('내 위치를 모릅니다');
+    if (!input.goalCity) return no('목적지 미설정');
+    if (input.dropoff.x == null || input.dropoff.y == null) return no('하차지 좌표 미확인');
+
+    let goal: { lng: number; lat: number };
+    try { goal = cityCenter(input.goalCity); } catch { return no(`목적지 좌표 미확인 (${input.goalCity})`); }
+
+    const me = { lng: input.me.x, lat: input.me.y };
+    const radiusKm = input.destinationRadiusKm ?? 0;
+    if (radiusKm > 0 && haversineKm(me, goal) <= radiusKm) return no(`목적지 반경 ${radiusKm}km 안입니다`);
+
+    const ratio = destProgressRatio(me, { lng: input.dropoff.x, lat: input.dropoff.y }, goal);
+    return ratio == null ? no('상차지와 하차지가 같은 자리입니다') : { ratio, unknownWhy: null };
 }
 
 /** 합짐 — 이미 실린 짐이 있다. 다섯 기준을 다 잰다 (지리는 가중치 0 이라 안 본다) */

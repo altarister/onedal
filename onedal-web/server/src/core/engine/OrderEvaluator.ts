@@ -5,11 +5,12 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
-import { firstLoadFacts, mergeFacts } from './judgeFacts';
+import { firstLoadFacts, mergeFacts, destProgressOf } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf, dwellLedgerFor } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
+import { goalCityOf } from "../../state/filterManager";
 import { findLoadConflicts, totalDetourCost } from "../helpers";
 import { haversineKm, originOf } from "../../services/geoService";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
@@ -215,9 +216,21 @@ export class OrderEvaluator {
                          *    옛 채점기는 여기서 손을 뗐다. 갈아타기 전 84건을
                          *    나란히 대조해 **어긋남 0** 을 확인했다 (검사 73 · 실제 리허설 11).
                          */
+                        /**
+                         * 🧭 **첫짐은 목적지로 얼마나 전진하나까지 본다** (기사님 확정 · 설계서 §4-3).
+                         *    빈 차라 「돈」 하나가 색을 정하던 자리다 — 04:54 복정동 → 대치4동(1.1만/h)이
+                         *    강남으로 올라가는 콜인데 🟡 로 떨어졌다. 셈은 `destProgressOf` 한 곳에 있다.
+                         */
+                        const progress = destProgressOf({
+                            me: originOf(session),
+                            dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
+                            goalCity: goalCityOf(session, userId),
+                            destinationRadiusKm: session.activeFilter.destinationRadiusKm,
+                        });
                         const dry: ReturnType<typeof toSnapshot> & { extraMin?: number | null } = toSnapshot(judge(CRITERIA, firstLoadFacts({
                             fare: securedOrder.fare, totalMinutes: total,
                             minAcceptableKrw: rateShort ? previewRate!.minAcceptable : null,
+                            progress,
                             tags,
                         }), judgmentCfg));
 
