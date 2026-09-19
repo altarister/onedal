@@ -286,10 +286,10 @@ export default function Dashboard() {
             {/* 📍 공통 헤더 컴포넌트 */}
             <Header isConnected={isConnected} liveCalls={liveCalls} />
 
-            {/* 🛡️ 필터 바깥 터치 시 닫기 백드롭 (운행 중 흔들림에 의한 하단 카드/지도 고스트 클릭 방지) */}
+            {/* 🛡️ 필터 바깥 터치 시 닫기 백드롭 (운행 중 흔들림에 의한 하단 카드/지도 고스트 클릭 방지 · 어둡지 않고 밝게 유지) */}
             {isFilterOpen && (
                 <div
-                    className="fixed inset-0 z-30 bg-black/25 backdrop-blur-[0.5px] transition-opacity"
+                    className="fixed inset-0 z-30 bg-transparent"
                     onClick={() => setIsFilterOpen(false)}
                     onPointerDown={(e) => e.stopPropagation()}
                     aria-label="필터 닫기"

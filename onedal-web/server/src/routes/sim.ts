@@ -13,8 +13,9 @@ import { BOOTED_AT } from "./health";
 import { calculateSoloRoute } from "../services/kakaoService";
 import { createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter, withdrawSimCall } from "../core/simCallQueue";
 import { seqsToWithdraw, startScenario, stepScenario, skipScenarioRow } from "../core/simScenario";
-import type { ScenarioState, ScenarioWorld, WorldOrder, WorldIntel } from "../core/simScenario";
+import type { ScenarioState, ScenarioWorld, WorldOrder, WorldIntel, ScenarioRow } from "../core/simScenario";
 import { ICHEON_ROUND_TRIP, ICHEON_FIVE_OK } from "../core/simScenarioIcheon";
+import { GANGNAM_FIVE_OK } from "../core/simScenarioGangnam";
 
 const router = Router();
 
@@ -292,12 +293,13 @@ router.get("/preflight", (_req, res) => {
 const SCENARIO_TICK_MS = 1000;
 const SIM_POLL_FRESH_MS = 10_000;
 /**
- * 🎬 **문제 목록 — 이름표로 고른다** (기사님 2026-09-15: *"이천 왕복하루 아래에 '이천 성공하는 5콜'"*).
+ * 🎬 **문제 목록 — 이름표로 고른다** (기사님 2026-09-15 · 2026-09-19 확장).
  *    현황판 카드마다 이름표를 들고 시작한다 · 한 번에 하나만 돈다 (새로 시작하면 돌던 것을 멈춘다).
  */
-const SCENARIOS: Record<'icheonRound' | 'icheonFive', { name: string; rows: typeof ICHEON_ROUND_TRIP }> = {
+const SCENARIOS: Record<'icheonRound' | 'icheonFive' | 'gangnamFive', { name: string; rows: ScenarioRow[] }> = {
     icheonRound: { name: '이천 왕복 하루', rows: ICHEON_ROUND_TRIP },
     icheonFive: { name: '이천 성공하는 5콜', rows: ICHEON_FIVE_OK },
+    gangnamFive: { name: '강남 진입과 광주 복귀 5콜', rows: GANGNAM_FIVE_OK },
 };
 type ScenarioKey = keyof typeof SCENARIOS;
 /** 모르는 이름표는 «이천 왕복 하루» — 옛 현황판(이름표 없음)도 그대로 돈다 */

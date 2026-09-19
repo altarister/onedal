@@ -673,6 +673,8 @@ function TestOnlySection({ phase }: { phase?: string }) {
             <div className="pt-2"><ScenarioCard scenarioKey="icheonRound" title="이천 왕복 하루" /></div>
             {/* 🎬 빨리 도는 문제 — 성공하는 콜 다섯 (기사님 2026-09-15 «이천 왕복하루 아래에») */}
             <div className="pt-2"><ScenarioCard scenarioKey="icheonFive" title="이천 성공하는 5콜" /></div>
+            {/* 🎬 실전 판정 및 버그 종합 검증 — 강남 진입과 광주 복귀 5콜 (2026-09-19) */}
+            <div className="pt-2"><ScenarioCard scenarioKey="gangnamFive" title="강남 진입과 광주 복귀 5콜" /></div>
         </div>
     );
 }
