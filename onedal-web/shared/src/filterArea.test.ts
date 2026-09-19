@@ -130,12 +130,10 @@ describe('살아 있는 목적지와 상태 — 기사님이 적은 경우 그�
             { city: '광주시', isHome: true, hasCalls: false },
         ]);
     });
-    it('🔴 위 + 집 가는 콜 잡음 → 목적지 콜이 남았으니 목적지도 산다', () => {
+    /* 🔄 집 콜을 잡는 순간 목적지가 하나가 된다 (기사님 확정) — 눈금은 `filterFacts.test.ts` */
+    it('🔴 위 + 집 가는 콜 잡음 → 목적지 콜이 남아도 집만 남는다 — 잡은 것이 곧 결정이다', () => {
         const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, activeCalls: [destCall, homeCall] });
-        expect(z).toEqual([
-            { city: '이천시', isHome: false, hasCalls: true },
-            { city: '광주시', isHome: true, hasCalls: true },
-        ]);
+        expect(z).toEqual([{ city: '광주시', isHome: true, hasCalls: true }]);
     });
     it('목적지 콜 끝 · 복귀 켬 · 집 가는 콜 잡음 → 집만', () => {
         const z = goalZonesOf({ ...base, homeOn: true, homeCaught: true, activeCalls: [homeCall] });

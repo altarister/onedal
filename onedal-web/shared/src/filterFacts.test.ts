@@ -116,3 +116,40 @@ describe('🔒 구조를 잠근다 — 표가 다시 생기지 못하게', () =>
         }
     });
 });
+
+/**
+ * 🏠 **복귀콜을 잡으면 목적지가 바뀐다 — 닫는 것이 아니다** (기사님 확정)
+ *
+ * 목적지를 둘로 두는 까닭은 **미리 잡으려는 것**이다. 서울 중심에 전국행 콜이 많아 목적지로 삼았는데,
+ * 도착해야만 집 방향 콜을 잡는다면 가는 길에 올라오는 «서울 → 광주» 콜을 다 놓친다.
+ * 그래서 둘 다 열어 두고 둘 다 올린다. 🔴 **기사님이 집 방향 콜을 잡는 순간이 곧 결정**이고, 목적지가 하나가 된다.
+ *
+ * 무엇을 막나
+ * - 복귀콜을 잡았는데 **목적지 콜이 남았다고 목적지를 살려 두는 것** — 그러면 집으로 못 간다
+ * - 「목적지를 닫으면 콜이 끊긴다」는 오해 — 끊기지 않는다. 방향이 바뀌어 그쪽 콜을 받는다
+ */
+describe('🏠 집 방향 콜을 잡으면 목적지가 하나가 된다', () => {
+    const at = { destinationCity: '서울', homeCity: '광주시', homeOn: true };
+    const destCall = { goalCity: '서울' };
+    const homeCall = { goalCity: '광주시' };
+
+    it('🔴 집 콜을 잡으면 목적지 콜이 남아 있어도 목적지가 죽는다 — 잡은 것이 곧 결정이다', () => {
+        const z = goalZonesOf({ ...at, homeCaught: true, activeCalls: [destCall, destCall, homeCall] });
+        expect(z.map(g => g.city)).toEqual(['광주시']);
+    });
+
+    it('아직 못 잡았으면 둘 다 산다 — 둘 다 올려야 미리 잡을 수 있다', () => {
+        const z = goalZonesOf({ ...at, homeCaught: false, activeCalls: [destCall] });
+        expect(z.map(g => g.city)).toEqual(['서울', '광주시']);
+    });
+
+    it('복귀를 안 켰으면 목적지 하나뿐이다', () => {
+        const z = goalZonesOf({ ...at, homeOn: false, homeCaught: false, activeCalls: [destCall] });
+        expect(z.map(g => g.city)).toEqual(['서울']);
+    });
+
+    it('집 콜을 다 내린 뒤에도 집만 남는다 — 목적지는 되살아나지 않는다', () => {
+        const z = goalZonesOf({ ...at, homeCaught: true, activeCalls: [] });
+        expect(z.map(g => g.city)).toEqual(['광주시']);
+    });
+});

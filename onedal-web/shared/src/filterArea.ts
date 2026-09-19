@@ -45,8 +45,15 @@ export function goalStateLabel(hasCalls: boolean, departed: boolean): string {
 /**
  * 살아 있는 목적지와 각자의 상태.
  *
- * - 목적지는 **복귀 끔 · 복귀콜을 아직 못 잡음 · 목적지 콜이 남아 있음** 중 하나면 산다
+ * - 목적지는 **복귀 끔** 이거나 **복귀콜을 아직 못 잡음** 이면 산다
  * - 집은 **복귀 켬**이면 산다 — 집을 모르면 없다 (지어내지 않는다 · 규칙 ④)
+ *
+ * 🔴 **집 방향 콜을 잡는 순간 목적지가 하나가 된다** (기사님 확정). 목적지를 둘로 두는 까닭은
+ *    «미리 잡으려는 것»이다 — 서울 중심에 전국행 콜이 많아 목적지로 삼았는데, 도착해야만 집 방향을
+ *    잡는다면 가는 길에 올라오는 «서울 → 광주» 콜을 다 놓친다. 그래서 둘 다 열어 둘 다 올리고,
+ *    **기사님이 고른 것이 곧 결정**이다. 목적지 콜이 남았다고 목적지를 살려 두면 집으로 못 간다.
+ * 🔴 **바뀌는 것이지 닫히는 것이 아니다** — 이미 잡은 목적지 콜은 그대로 배달하고 경로도 그대로다.
+ *    새 콜은 집 방향으로 받는다 (가는 길에 더 싣는 합짐).
  * - 콜의 주인: 복귀 켬이고 판(`goalCity`)이 집이면 집 콜 · 나머지는 목적지 콜
  *
  * @param homeCaught 복귀를 켠 뒤 복귀콜을 잡은 적 있나 — 서버 `homeCallsOf` (하차한 콜도 센다)
@@ -66,7 +73,7 @@ export function goalZonesOf(o: {
     const destCalls = o.activeCalls.length - homeCalls;
 
     const zones: GoalZone[] = [];
-    if (o.destinationCity && (!homeAlive || !o.homeCaught || destCalls > 0)) {
+    if (o.destinationCity && (!homeAlive || !o.homeCaught)) {
         zones.push({ city: o.destinationCity, isHome: false, hasCalls: destCalls > 0 });
     }
     if (homeAlive) zones.push({ city: o.homeCity as string, isHome: true, hasCalls: homeCalls > 0 });
