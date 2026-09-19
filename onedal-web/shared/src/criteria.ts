@@ -160,6 +160,14 @@ export interface SpaceFacts {
     freePct: number | null;
     /** 이미 실린 짐이 있는가 — 없으면 자리는 **잴 게 없다** */
     hasLoad: boolean;
+    /**
+     * 📦 **그 적재량을 어떻게 알았나** — 색을 덮을지 가르는 값이다.
+     *
+     * `CONFIRMED` 현장 실측 · `DECLARED` 통화 신고 → **확정값**이라 안 들어가면 🔴
+     * `ESTIMATED` 차종에서 추정 → 오독일 수 있어 **점수만** 깎는다
+     * `null` 모른다 → 안 덮는다 (없는 확신을 지어내지 않는다 · 규칙 ④)
+     */
+    confidence?: 'CONFIRMED' | 'DECLARED' | 'ESTIMATED' | null;
 }
 
 /**
@@ -190,11 +198,20 @@ export const SPACE = defineCriterion<SpaceFacts>({
         if (!f.hasLoad) return nothing('빈 차입니다');
         if (f.freePct == null) return unmeasurable('남는 자리를 못 쟀습니다');
         /**
-         * 🔴 자리가 모자라면 0점이다. **«무조건 빨간불»로 덮지는 않는다** —
-         *    기사님 확정: *"나중에 가중치를 높일 거야. 그러면 빨간색으로 보일 거야."*
-         *    만석을 색으로 다루는 방법은 **가중치**이지 덮어쓰기가 아니다.
+         * 🔴 **자리가 모자랄 때 색을 덮는 것은 «확정값»일 때만이다** (기사님 확정).
+         *
+         *   신고·실측 → 🔴 못 싣는 짐을 추천하면 현장에서 상차 거부 사고가 난다
+         *   추정      → 점수 0 만. 차종 글자를 오독하면 멀쩡한 콜이 🔴 가 된다
+         *               (실측: 리스트 29개 중 9개가 파싱에 실패했다 — 차종 불일치를 딱지로 내린 것과 같은 까닭)
+         *
+         * 옛 규칙은 근거를 안 가리고 **언제나 점수만** 깎았다. 그때 기사님 말씀이
+         * *"나중에 가중치를 높일 거야"* 였고, 가른 지금은 확정값에서만 덮는다.
          */
-        if (f.freePct < 0) return scored(0, `자리 부족 ${Math.round(f.freePct)}%`);
+        if (f.freePct < 0) {
+            const sure = f.confidence === 'DECLARED' || f.confidence === 'CONFIRMED';
+            const how = sure ? (f.confidence === 'CONFIRMED' ? '실측' : '신고') : '추정';
+            return scored(0, `자리 부족 ${Math.round(f.freePct)}% (${how})`, sure);
+        }
         return scored(f.freePct, `여유 ${Math.round(f.freePct)}%`);
     },
 });

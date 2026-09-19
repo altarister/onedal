@@ -21,7 +21,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, pickupAreaKey, dropoffPartsOf, lastDropOf, lineUntil, lineFromPoint, mergeDropoffGroups, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
-         EVALUATING_STATUSES, effectiveRadii, pickupListNeedsRebuild } from "@onedal/shared";
+         EVALUATING_STATUSES, effectiveRadii, pickupListNeedsRebuild, peakLoadPoints } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -538,8 +538,20 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
             // 통화·현장에서 실제 짐 양을 알면 그걸 쓴다 — 차종만 보면 크게 추정해
             // 그 차이만큼 합짐 기회를 놓친다. 재료는 단계 장부(`stepRecordsOf`)에서.
             const reports = new Map(loaded.map(c => [c.id, stepRecordsOf(c.id).reports]));
-            const { points, confidence } = computeLoadedPoints(loaded, myVehicle, reports);
-            session.activeFilter.allowedVehicleTypes = narrow(getRemainingCapacityTypesByPoints(myVehicle, points));
+            const { points, confidence, pointsByOrder } = computeLoadedPoints(loaded, myVehicle, reports);
+            /**
+             * 📦 **자리는 «함께 실리는 최대»로 센다 — 잡은 콜을 다 더한 값이 아니다** (기사님: KEEP 은 예약이다).
+             *
+             * 다 더해 세면 하루 노선 3 + 복귀 3 을 도는데 **3~4콜에서 «만재»로 막힌다** — 3번을 싣기 전에
+             * 1번을 내리면 그 자리가 돌아오는데 그걸 안 셌다. 셈은 shared `peakLoadPoints` 한 곳에 있다.
+             *
+             * 🔴 **순서를 모르면 다 더한 값으로 물러선다** (규칙 ④) — 낙관하면 «들어갈 줄 알았는데 안 들어가는» 사고다.
+             *    순서는 **경로를 실제로 잰 콜**이 들고 있다 (`sectionStops` · `routeComposer` 와 같은 자리에서 읽는다).
+             */
+            const orderedStops = [...loaded].reverse().find(c => c.sectionStops?.length)?.sectionStops ?? null;
+            const pickedUpIds = loaded.filter(c => c.status === 'ORDER_PICKED_UP').map(c => c.id);
+            const peak = peakLoadPoints(pointsByOrder, orderedStops, pickedUpIds);
+            session.activeFilter.allowedVehicleTypes = narrow(getRemainingCapacityTypesByPoints(myVehicle, peak));
             session.capacityConfidence = confidence;
             session.activeFilter.capacityConfidence = confidence;
 
@@ -552,8 +564,11 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
              */
             session.activeFilter.slotsUsed = Math.min(
                 TRUCK_CAPACITY_SLOTS,
-                Math.round(points * 10) / 10
+                Math.round(peak * 10) / 10
             );
+            if (peak !== points) {
+                console.log(`   - 📦 [적재] 함께 실리는 최대 ${peak}박스 (잡은 콜 합 ${points}박스 — 경로에서 자리가 ${points - peak}박스 돌아온다)`);
+            }
         }
     }
 

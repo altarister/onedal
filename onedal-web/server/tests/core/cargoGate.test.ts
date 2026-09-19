@@ -1,5 +1,7 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { computeLoadedPoints } from '../../src/core/helpers';
-import { cargoMismatchRatio, unitPoints } from '@onedal/shared';
+import { cargoMismatchRatio, unitPoints, peakLoadPoints } from '@onedal/shared';
 import type { CargoReport, MyOrder } from '@onedal/shared';
 
 /**
@@ -96,5 +98,71 @@ describe('cargoMismatchRatio — 화면이 보내는 unit 으로 판정한다', 
         const d = rp('DECLARED', { unit: '파레트', quantity: 1 });
         expect(cargoMismatchRatio(d, null)).toBeNull();
         expect(cargoMismatchRatio(null, d)).toBeNull();
+    });
+});
+
+/**
+ * 📦 **잡은 콜을 다 더해 세지 않는다 — «함께 실리는 최대»다** (기사님: KEEP 은 예약이다)
+ *
+ * `computeLoadedPoints` 가 내는 `points` 는 **합**이다. 그대로 «지금 적재»로 쓰면
+ * 하루 노선 3 + 복귀 3 을 도는데 3~4콜에서 «만재»로 막힌다. 여기서 둘을 나란히 놓고 잠근다.
+ */
+describe('📦 합과 최대는 다르다', () => {
+    const reports = (ids: string[], boxes: number) =>
+        new Map(ids.map(id => [id, [rp('DECLARED', { unit: '라면박스', quantity: boxes } as any)]]));
+
+    it('🔴 다 더한 값과 함께 실리는 최대가 다르다 — 안 겹치면 하나뿐이다', () => {
+        const calls = [call('A'), call('B'), call('C')];
+        const { points, pointsByOrder } = computeLoadedPoints(calls, '1t', reports(['A', 'B', 'C'], 30));
+        expect(points).toBe(90);                    // 합 — 1t 정원 100 을 거의 먹는다
+
+        // 한 건씩 싣고 내리는 경로라면 함께 실리는 것은 30 이다
+        const 차례로 = [
+            { orderId: 'A', stopType: 'pickup' as const }, { orderId: 'A', stopType: 'dropoff' as const },
+            { orderId: 'B', stopType: 'pickup' as const }, { orderId: 'B', stopType: 'dropoff' as const },
+            { orderId: 'C', stopType: 'pickup' as const }, { orderId: 'C', stopType: 'dropoff' as const },
+        ];
+        expect(peakLoadPoints(pointsByOrder, 차례로, [])).toBe(30);
+    });
+
+    it('🔴 셋을 다 싣고 달리는 경로면 합과 같다 — 낙관하지 않는다', () => {
+        const calls = [call('A'), call('B'), call('C')];
+        const { points, pointsByOrder } = computeLoadedPoints(calls, '1t', reports(['A', 'B', 'C'], 30));
+        const 모아서 = [
+            { orderId: 'A', stopType: 'pickup' as const }, { orderId: 'B', stopType: 'pickup' as const },
+            { orderId: 'C', stopType: 'pickup' as const }, { orderId: 'A', stopType: 'dropoff' as const },
+            { orderId: 'B', stopType: 'dropoff' as const }, { orderId: 'C', stopType: 'dropoff' as const },
+        ];
+        expect(peakLoadPoints(pointsByOrder, 모아서, [])).toBe(points);
+    });
+
+    it('🔴 콜마다의 점수를 함께 낸다 — 최대를 세는 재료다', () => {
+        const { pointsByOrder } = computeLoadedPoints([call('A'), call('B')], '1t', reports(['A'], 30));
+        expect(pointsByOrder.A).toBe(30);
+        expect(pointsByOrder.B).toBeGreaterThan(0);   // 신고가 없으면 차종 추정
+    });
+});
+
+/**
+ * 🔴 **배선이 합으로 되돌아가면 아무 검사도 안 문다** — 함수는 멀쩡한데 부르는 쪽이 `points` 를
+ *    넘기면 다시 3~4콜에서 막힌다. 그 되돌림을 여기서 문다.
+ */
+describe('📦 필터가 «최대»를 쓴다 (배선)', () => {
+    const codeOnly = (x: string) => x.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const fm = codeOnly(readFileSync(join(__dirname, '../../src/state/filterManager.ts'), 'utf8'));
+
+    it('🔴 남은 차종을 «최대»로 구한다 — 합이 아니다', () => {
+        expect(fm).toMatch(/getRemainingCapacityTypesByPoints\(myVehicle,\s*peak\)/);
+        expect(fm).not.toMatch(/getRemainingCapacityTypesByPoints\(myVehicle,\s*points\)/);
+    });
+
+    it('🔴 화면에 보이는 적재도 «최대»다 — 화면과 판정이 두 말을 하면 안 된다', () => {
+        expect(fm).toMatch(/slotsUsed = Math\.min\([\s\S]{0,80}Math\.round\(peak \* 10\)/);
+    });
+
+    it('🔴 순서와 «이미 실은 콜»을 함께 넘긴다 — 둘 중 하나가 빠지면 셈이 틀린다', () => {
+        expect(fm).toMatch(/peakLoadPoints\(pointsByOrder,\s*orderedStops,\s*pickedUpIds\)/);
+        expect(fm).toMatch(/sectionStops\?\.length/);
+        expect(fm).toMatch(/status === 'ORDER_PICKED_UP'/);
     });
 });

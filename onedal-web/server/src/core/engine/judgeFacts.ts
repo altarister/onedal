@@ -84,8 +84,10 @@ export function mergeFacts(input: {
     extraMinutes: number | null;
     /** 붙인 뒤 남는 가장 빠듯한 여유(분). 잴 약속이 없으면 null */
     bufferAfterMin: number | null;
-    /** 실었을 때 남는 자리(%). 못 세면 null */
+    /** 실었을 때 남는 자리(%). 못 세면 null. 🔴 음수를 0 으로 자르지 않는다 — 자르면 부족이 안 보인다 */
     freePct: number | null;
+    /** 그 적재량을 어떻게 알았나 — 확정값(신고·실측)일 때만 색을 덮는다 */
+    confidence?: 'CONFIRMED' | 'DECLARED' | 'ESTIMATED' | null;
     /** 옛 채점기가 쓰던 통과/실패 조건 그대로 — 여기서 다시 판단하지 않는다 */
     gates: DryRunGate[];
     /** 같이 못 싣는 조합 (성질) */
@@ -107,7 +109,7 @@ export function mergeFacts(input: {
     return {
         money: { fare: input.fare, extraMinutes: input.extraMinutes, firstLoad: false },
         promise: { hasExistingCalls: true, lateStops, bufferAfterMin: input.bufferAfterMin },
-        space: { freePct: input.freePct, hasLoad: true },
+        space: { freePct: input.freePct, hasLoad: true, confidence: input.confidence ?? null },
         nature: { conflicts: input.conflicts, excludedHits: [], hasLoad: true },
         notes: [...input.tags],
     };

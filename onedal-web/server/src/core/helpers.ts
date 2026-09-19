@@ -34,6 +34,11 @@ export function getActiveCalls(session: { myOrders: MyOrder[] }): MyOrder[] {
  *   통화 신고(DECLARED) → 신고
  *   없음               → 차종으로 추정 (**그 차종의 정원을 다 먹는다**고 가정)
  *
+ * 🔴 **여기서 내는 `points` 는 «다 더한 값»이다 — 그대로 «지금 적재»로 쓰면 안 된다.**
+ *    잡아 둔 콜을 다 더해 세면 하루 6~7콜을 도는데 3~4콜에서 «만재»로 막힌다 (KEEP 은 예약이다).
+ *    자리를 물을 때는 `peakLoadPoints`(shared) 로 **함께 실리는 최대**를 낸다 — 이 함수가 함께 내는
+ *    `pointsByOrder` 가 그 재료다. `points` 는 순서를 모를 때의 «가장 나쁜 경우»로만 쓴다.
+ *
  * ⚠️ 예전 주석은 "1t 콜이면 30점"이라 적었는데 **틀렸다** — 30 은 다마스 값이고
  *    1t 는 80(정원 100 중)이다. 라면박스 축 전환(2026-08-17) 전 숫자가 남은 것이다.
  *    적재 판정이 이 값을 먹으므로 숫자를 여기 다시 적지 않는다 — 원천은
@@ -43,10 +48,12 @@ export function computeLoadedPoints(
     calls: MyOrder[],
     myVehicle: string,
     reportsByOrder: Map<string, CargoReport[]>,
-): { points: number; confidence: CapacityConfidence } {
+): { points: number; confidence: CapacityConfidence; pointsByOrder: Record<string, number> } {
     let points = 0;
     let anyEstimated = false;
     let anyDeclaredOnly = false;
+    /** 🔴 콜마다의 점수도 함께 낸다 — «함께 실리는 최대»(`peakLoadPoints`)가 이 값을 먹는다 */
+    const pointsByOrder: Record<string, number> = {};
 
     for (const c of calls) {
         const reports = reportsByOrder.get(c.id) || [];
@@ -68,16 +75,19 @@ export function computeLoadedPoints(
 
         if (reported > 0) {
             points += reported;
+            pointsByOrder[c.id] = reported;
             if (!actual) anyDeclaredOnly = true;
         } else {
-            points += VEHICLE_CAPACITY[normalizeVehicleType(c.vehicleType || myVehicle) || myVehicle] ?? 0;
+            const guess = VEHICLE_CAPACITY[normalizeVehicleType(c.vehicleType || myVehicle) || myVehicle] ?? 0;
+            points += guess;
+            pointsByOrder[c.id] = guess;
             anyEstimated = true;
         }
     }
 
     const confidence: CapacityConfidence =
         anyEstimated ? 'ESTIMATED' : anyDeclaredOnly ? 'DECLARED' : 'CONFIRMED';
-    return { points, confidence };
+    return { points, confidence, pointsByOrder };
 }
 
 /**

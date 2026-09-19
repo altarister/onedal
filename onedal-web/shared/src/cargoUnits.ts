@@ -191,3 +191,52 @@ export function afterworkMinutes(
     const table = override ?? AFTERWORK_MINUTES;
     return (list ?? []).reduce((a, k) => a + ((table as Record<string, number>)[k] ?? 0), 0);
 }
+
+/**
+ * 📦 **함께 실리는 최대 적재 — 「잡은 콜을 다 더한 값」이 아니다** (기사님: KEEP 은 예약이다)
+ *
+ * 하루에 노선 3 + 복귀 3 을 도는데, 잡아 둔 콜을 다 더해 세면 **3~4콜에서 «만재»로 막힌다.**
+ * 3번 콜을 싣기 전에 1번을 내리면 그 자리는 돌아온다 — 겹치는 구간만 함께 센다.
+ *
+ * ```
+ * 경로를 순서대로 걷는다:  상차 → 더한다 · 하차 → 뺀다 · 그 동안의 **최대값**
+ * 이미 상차를 마친 콜은 **처음부터 실려 있다** (그 상차 정거장은 경로에서 빠졌다)
+ * ```
+ *
+ * 🔴 **순서를 모르면 다 더한다** — 가장 나쁜 경우로 물러선다 (규칙 ④). 낙관하면 «들어갈 줄 알았는데
+ *    안 들어가는» 사고가 난다. 물러서는 경우 셋: 정거장 목록이 없다 · 안 실린 콜의 상차가 목록에 없다 ·
+ *    이미 실은 콜의 하차가 목록에 없다(언제 자리가 도는지 모른다).
+ *
+ * @param pointsByOrder 콜마다의 적재 점수(박스) — 세는 법은 서버 `computeLoadedPoints`
+ * @param orderedStops  남은 경로의 정거장 순서 (`sectionStops`). 없으면 `null`
+ * @param pickedUpIds   이미 상차를 마친 콜 — 처음부터 실려 있다
+ */
+export function peakLoadPoints(
+    pointsByOrder: Record<string, number>,
+    orderedStops: ReadonlyArray<{ orderId: string; stopType: 'pickup' | 'dropoff' }> | null | undefined,
+    pickedUpIds: ReadonlyArray<string>,
+): number {
+    const ids = Object.keys(pointsByOrder);
+    const sum = ids.reduce((a, id) => a + (pointsByOrder[id] ?? 0), 0);
+    if (!orderedStops || orderedStops.length === 0) return sum;
+
+    const picked = new Set(pickedUpIds);
+    const has = (id: string, stopType: 'pickup' | 'dropoff') =>
+        orderedStops.some(s => s.orderId === id && s.stopType === stopType);
+    // 🔴 순서가 콜 전부를 덮지 않으면 믿지 않는다 — 반쪽 순서로 재면 자리가 넘치게 보인다
+    for (const id of ids) {
+        if (!has(id, 'dropoff')) return sum;
+        if (!picked.has(id) && !has(id, 'pickup')) return sum;
+    }
+
+    let now = ids.filter(id => picked.has(id)).reduce((a, id) => a + (pointsByOrder[id] ?? 0), 0);
+    let peak = now;
+    for (const st of orderedStops) {
+        const pt = pointsByOrder[st.orderId];
+        if (pt == null) continue;
+        if (st.stopType === 'pickup') { if (!picked.has(st.orderId)) { now += pt; if (now > peak) peak = now; } }
+        else now -= pt;
+    }
+    return peak;
+}
+

@@ -428,8 +428,13 @@ export class OrderEvaluator {
                                 fare: securedOrder.fare,
                                 extraMinutes: marginal + cost.dwell,
                                 bufferAfterMin: bufAfter?.minutes ?? null,
-                                freePct: slotsTotal > 0
-                                    ? (Math.max(0, slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
+                                /**
+                                 * 📦 **음수를 0 으로 자르지 않는다.** 자르면 «자리 부족»이 «여유 0%»로 보여
+                                 *    무조건 빨간불이 영영 안 켜진다 — 얼마나 넘치는지도 사라진다 (규칙 ④).
+                                 */
+                                freePct: slotsTotal > 0 ? ((slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
+                                /** 📦 그 적재량을 어떻게 알았나 — 확정값일 때만 색을 덮는다 */
+                                confidence: session.activeFilter.capacityConfidence ?? null,
                                 gates, conflicts, tags,
                             }), judgmentCfg));
                             dry.stops = stopsView;
