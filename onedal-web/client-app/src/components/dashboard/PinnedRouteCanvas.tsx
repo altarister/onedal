@@ -136,6 +136,13 @@ interface Props {
     /** 🧭 경로를 든 콜 — 서버가 고른 답. 여기서 다시 찾지 않는다 */
     routeHolder?: SecuredOrder | null;
     /**
+     * 🟡 **심사 중인 후보의 경로 — 확정 경로 «위에» 노란 점선으로 겹쳐 그린다** (기사님 확정).
+     *    «가고 있는 길»과 «이 콜을 붙이면 갈 길»을 함께 보고 1~2초에 누르신다.
+     *    🔴 `routeHolder` 와 같은 콜이면 넘기지 않는다 — 두 번 그리게 된다 (`useRouteDerivations`가 가른다).
+     *    🔴 영역(상차·하차)에는 안 쓴다 — 잡지도 않은 콜이 원달앱 목록을 흔들면 안 된다.
+     */
+    candidateHolder?: SecuredOrder | null;
+    /**
      * 🔺 **첫 콜 그물을 눈으로 본다** — 목업 전용.
      * 꼭짓점을 «목적지»에 둔 삼각형. 출발점 쪽이 넓고 목적지로 갈수록 좁다 —
      * 가까운 곳은 크게 돌아도 싸고, 먼 곳은 조금만 벗어나도 비싸기 때문이다.
@@ -257,7 +264,7 @@ function mapBtn(active: boolean, extra = ''): string {
     ].join(' ');
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, rightButtons, centerButtons, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, occludedPx, rainbowNodes = true }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candidateHolder, myLocation, myLocationStale, children, rightButtons, centerButtons, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -924,6 +931,38 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
                 // 노란 점선 = 아직 결재 전
                 drawPath(validPolyline, 1, isPreviewRoute ? [10, 8] : undefined);
+            }
+        }
+
+        /**
+         * ①-2 🟡 **후보 경로 — 확정 경로 «위에» 겹쳐 그린다** (기사님 확정).
+         *
+         * *"지금 영역은 그냥 경로에 그려 두고, 새로 추가되는 경로(후보)는 새 레이어에 그리자.
+         * 그러면 기존 경로와 새 경로가 한 지도 위에 보일 거고, 버리면 새 레이어만 리셋하면 되니까."*
+         *
+         * 🔴 **확정 경로를 지우지 않는다** — «가고 있는 길»과 «붙이면 갈 길»을 견주어 1~2초에 누르신다.
+         *    «확정 ?? 후보»로 하나만 고르면 콜을 쥐고 있을 때 이 점선이 안 뜬다.
+         * 🔴 **영역에는 안 쓴다** — 잡지도 않은 콜이 원달앱 상차·하차 목록을 흔들면 안 된다.
+         *    버리면 이 레이어만 사라진다 (`candidateHolder` 가 null 이 된다).
+         * 🌈 늘어난 구간은 판정 색으로 굵게 — 위 «심사 중» 규칙과 같은 모양이다.
+         */
+        const candLine = (candidateHolder?.routePolyline ?? [])
+            .filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
+        if (layers.route && candidateHolder && candLine.length > 1) {   // 🧅 «경로» 레이어 위
+            const cStops = candidateHolder.sectionStops;
+            const cLines = sectionLinesOf(candLine, candidateHolder.sectionEnds);
+            const cOk = !!cStops && cLines.length > 1 && cLines.length === cStops.length
+                && candLine.length === (candidateHolder.routePolyline?.length ?? 0);
+            const cColor = candidateHolder.judgment?.color ? SOAK[candidateHolder.judgment.color].bar : '#e6b422';
+            if (cOk) {
+                cLines.forEach((line, i) => {
+                    const mine = cStops![i].orderId === candidateHolder.id;
+                    ctx.strokeStyle = mine ? cColor : '#e6b422';
+                    drawPath(line, mine ? 1.6 : 1, mine ? undefined : [10, 8]);
+                });
+            } else {
+                ctx.strokeStyle = '#e6b422';
+                drawPath(candLine, 1, [10, 8]);
             }
         }
 

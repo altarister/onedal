@@ -83,13 +83,24 @@ export function useRouteDerivations(
         () => (routeHolderId ? liveRoute.find(r => r.id === routeHolderId) ?? null : null),
         [liveRoute, routeHolderId]);
     /**
-     * 🟡 **KEEP 된 콜이 우선, 없으면 심사 중인 콜의 궤적을 그린다.**
-     * 순서를 뒤집지 않는다 — 운행 중에 새 콜이 심사에 들어와도 **가고 있는 길**이 먼저다.
+     * 🟡 **심사 중인 콜의 경로 — «이 콜을 붙이면 이렇게 간다»** (기사님 확정).
+     *
+     * 🔴 **확정 경로와 «둘 중 하나»가 아니다. 둘 다 그린다** — 기사님이 «가고 있는 길»과
+     *    «붙이면 갈 길»을 견주어 1~2초에 누르신다. 하나만 고르면 콜을 쥐고 있을 때 후보 점선이 안 뜬다.
+     *    화면규칙이 판정 중 시트를 내리는 까닭이 «지도가 판정의 근거다 (후보 경로가 노란 점선으로 겹쳐 뜬다)» 이다.
+     * 🔴 **영역 계산에는 안 들어간다** — 상차·하차 영역은 확정 콜만 본다. 후보를 세면
+     *    목적지 상태가 `routed` 가 되고 종착지가 후보 하차지로 바뀌어, 잡지도 않은 콜 때문에
+     *    원달앱 목록이 통째로 움직인다. 버리면 이 레이어만 사라진다.
      */
     const previewHolder = useMemo(
         () => (previewRouteHolderId ? (activeRoute || []).find(r => r.id === previewRouteHolderId) ?? null : null),
         [activeRoute, previewRouteHolderId]);
+    /** 🧭 실선으로 그릴 경로 — 확정 콜. 없으면 후보가 그 자리를 대신한다 (콜 0건일 때) */
     const drawHolder = routeHolder ?? previewHolder;
+    /** 🟡 점선으로 겹쳐 그릴 경로 — 실선과 **다른 콜**일 때만. 같으면 두 번 그리지 않는다 */
+    const candidateHolder = useMemo(
+        () => (previewHolder && previewHolder.id !== drawHolder?.id ? previewHolder : null),
+        [previewHolder, drawHolder]);
     const activePolyline = useMemo(
         () => (drawHolder?.routePolyline?.length ? drawHolder.routePolyline : null),
         [drawHolder]);
@@ -567,7 +578,7 @@ export function useRouteDerivations(
          * 주행분이 없어 `routeHolder` 가 비는데, **그릴 궤적은 있다.**
          * 캔버스는 이 값으로 «미리보기(노란 점선)»인지도 판정한다.
          */
-        drawHolder, isDriving, mockStops,
+        drawHolder, candidateHolder, isDriving, mockStops,
         currentGps, gpsSource, myLocation, safeRoute, allEvaluating, judging, gpsFocus,
         routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, callColors, callNoOf, drivenTrail, stopNoOf,
         visitedTrail: visitedTrailNumbered,

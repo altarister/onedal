@@ -762,6 +762,8 @@ export default function StageView(props: Props) {
                     /* 🗺️ 숨긴 콜의 자취도 가린다 — 보이는 콜 중 가장 먼저 잡은 시각보다 앞선 점 (`trailOfShown`) */
                     drivenTrail={trailOfShown(derived.drivenTrail, shownSinceMs)}
                     routeHolder={derived.drawHolder}
+                    /* 🟡 후보 경로 — 확정 경로 위에 노란 점선으로 겹친다. 영역에는 안 쓴다 (버리면 이 레이어만 사라진다) */
+                    candidateHolder={derived.candidateHolder}
                     callColors={derived.callColors}
                     /* 📋 상차 영역 — 원 중심은 실시간 내 위치 (위 «상차 영역» 주석) */
                     pickupArea={pickupArea}
