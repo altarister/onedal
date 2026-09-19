@@ -111,6 +111,12 @@ export function mergeFacts(input: {
         promise: { hasExistingCalls: true, lateStops, bufferAfterMin: input.bufferAfterMin },
         space: { freePct: input.freePct, hasLoad: true, confidence: input.confidence ?? null },
         nature: { conflicts: input.conflicts, excludedHits: [], hasLoad: true },
+        /**
+         * 🧭 **국면을 실어 준다 — 배수는 안 붙지만 까닭은 사실대로 적혀야 한다.**
+         *    안 실으면 「지리」가 «전진율을 안 받았습니다» 라고 적어, 합짐인데 «재료가 빠졌나»로 읽힌다.
+         *    합짐의 지리는 원래 안 재는 것이다 — 우회 시급이 이미 센다.
+         */
+        geography: { firstLoad: false, progressRatio: null },
         notes: [...input.tags],
     };
 }

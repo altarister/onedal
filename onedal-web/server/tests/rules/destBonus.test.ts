@@ -1,5 +1,6 @@
 import { judge, CRITERIA, DEFAULT_JUDGMENT, JUDGMENT_FIELDS, judgmentDefaults, toSnapshot } from "@onedal/shared";
 import type { JudgeFacts, JudgmentConfig } from "@onedal/shared";
+import { mergeFacts } from "../../src/core/engine/judgeFacts";
 
 /**
  * 🧭 **첫짐의 목적지 전진 배수** (기사님 확정 · docs/기획/실전_콜_판정_설계.md §4-3)
@@ -89,6 +90,20 @@ describe('🧭 합짐에는 배수를 붙이지 않는다 — 우회 시급이 �
 
     it('🔴 합짐의 지리는 «잴 게 없다»다 (전진율을 실어 줘도)', () => {
         expect(지리줄(합짐(0.95)).outcome.kind).toBe('nothing');
+    });
+
+    /**
+     * 🔴 **까닭이 화면에 거짓말을 하면 안 된다** — 합짐인데 «전진율을 안 받았습니다» 라고 적히면
+     *    기사님이 «재료가 빠졌나»로 읽는다. 합짐은 원래 안 재는 것이다 — 우회 시급이 이미 센다.
+     */
+    it('🔴 합짐이면 «합짐이라 안 잰다»고 적는다 — 사실을 채우는 쪽이 국면을 실어 준다', () => {
+        const f = mergeFacts({
+            fare: 30_000, extraMinutes: 60, bufferAfterMin: 60, freePct: 100,
+            gates: [], conflicts: [], tags: [],
+        });
+        const 줄 = judge(CRITERIA, f, cfg()).criteria.find(c => c.key === 'geography')!;
+        expect(줄.outcome.why).toContain('합짐');
+        expect(줄.outcome.why).not.toContain('안 받았');
     });
 
     it('🔴 그래서 합짐 점수는 돈 그대로다 — 3만/h → 50점', () => {
