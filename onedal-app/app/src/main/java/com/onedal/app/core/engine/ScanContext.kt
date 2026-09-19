@@ -68,6 +68,12 @@ interface ScanContext {
     /** 지연 실행 (자동 복귀 타이머 등) */
     val mainHandler: Handler
 
+    /**
+     * 🔄 **필터가 바뀌었다 — 화면이 안 움직여도 다시 보라**.
+     *    부르는 쪽은 네트워크 스레드다. 받는 쪽이 `mainHandler` 로 넘겨야 접근성 노드를 안전하게 읽는다.
+     */
+    fun onFilterChanged(version: String)
+
     /** 동명이동 검증 (같은 동 이름이 여러 시에 있는 문제) */
     val cautionVerifier: CautionDongVerifier
 
