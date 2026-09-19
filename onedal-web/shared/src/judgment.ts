@@ -122,10 +122,21 @@ export interface JudgmentConfig {
          */
         geography: number;
     };
-    /** 채점의 기준 시급 — 우회 시급·시급 축이 이 값 대비 %로 점수가 된다 */
+    /**
+     * 채점의 기준 시급 — 「돈」 기준이 이 값들로 점수를 만든다.
+     *
+     * 🔴 **합짐은 두 점 꺾은선**(`hourlyKrw` 에서 50점 · `honeyHourlyKrw` 에서 100점)이고
+     *    **첫짐은 `soloHourlyKrw` 에서 100점**이다. 눈금이 다른 까닭은 기회비용이 달라서다 —
+     *    합짐은 안 잡아도 잃는 것이 없고, 첫짐은 안 잡으면 그 시간이 0원이다 (기사님 확정).
+     *    까닭과 검산은 `docs/기획/실전_콜_판정_설계.md` §4-2·§4-3.
+     */
     target: {
-        /** 원/시간. 문제지 캘리브레이션으로 확정 (기사님 2026-08-21) */
+        /** 원/시간. 합짐이 **🟢 보통(50점)** 을 받는 기준선 */
         hourlyKrw: number;
+        /** 원/시간. 합짐이 **🔵 꿀(100점)** 을 받는 기준선. `hourlyKrw` 보다 커야 한다 */
+        honeyHourlyKrw: number;
+        /** 원/시간. **첫짐**이 100점을 받는 기준선 */
+        soloHourlyKrw: number;
     };
     /**
      * ⏱️ **배달 데드라인 배율** (두 시계 · 시간체계 ⑯ · 2026-08-21).
@@ -158,7 +169,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     pass: { nearM: 300, awayM: 400 },
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
     weights: { revenueDetour: 1, bufferCost: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 0 },
-    target: { hourlyKrw: 30_000 },
+    target: { hourlyKrw: 30_000, honeyHourlyKrw: 50_000, soloHourlyKrw: 25_000 },
     deadline: { ratioPct: 150 },
     color: { honeyMin: 70, normalMin: 40 },
     // 🔴 여유 곡선은 «어떻게 잴 것인가» 라 여기 산다. 정차 값(박스당 분·검수 분)은
@@ -256,9 +267,15 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'slack_zero_score', path: ['slack', 'zeroScore'], group: '정차·여유',
       label: '여유 0분일 때 점수', unit: '점', min: 0, max: 100, int: true,
       why: '여유가 딱 0분일 때 「약속」이 받는 점수. 낮추면 빠듯한 콜이 확 깎인다(보수적). 옛 상수 40점' },
-    { col: 'target_hourly_krw', path: ['target', 'hourlyKrw'], group: '가중치',
-      label: '목표 시급', unit: '원/h', min: 10000, max: 100000, int: true,
-      why: '우회 시급·시급 축의 기준. 노하우 실측 역산(4콜 14.1만÷4.5h≈3.1만) — 문제지 캘리브레이션으로 확정 (2026-08-21)' },
+    { col: 'target_hourly_krw', path: ['target', 'hourlyKrw'], group: '합짐',
+      label: '보통 시급 (🟢 50점)', unit: '원/h', min: 10000, max: 100000, int: true,
+      why: '합짐의 우회 시급이 이만큼이면 **🟢 보통 50점**. 노하우 실측 역산(4콜 14.1만÷4.5h≈3.1만) · 문제지로 맞춘 값. 올리면 까다로워진다' },
+    { col: 'honey_hourly_krw', path: ['target', 'honeyHourlyKrw'], group: '합짐',
+      label: '꿀 시급 (🔵 100점)', unit: '원/h', min: 10000, max: 300000, int: true,
+      why: '합짐의 우회 시급이 이만큼이면 **🔵 꿀 100점**. 업계 기준값 — 우리 실측이 쌓이면 바꾼다. **보통 시급보다 커야** 눈금이 서고, 사이가 넓으면 좋은 콜끼리 구분이 커진다' },
+    { col: 'solo_hourly_krw', path: ['target', 'soloHourlyKrw'], group: '첫짐',
+      label: '첫짐 기준 시급 (100점)', unit: '원/h', min: 10000, max: 300000, int: true,
+      why: '빈 차에 처음 싣는 콜이 이만큼이면 100점. 합짐 보통보다 **낮게** 둔다 — 빈 차는 안 잡으면 0원이라 같은 눈금이면 길가에 묶인다. 업계 기준값 · 실측 전 임시값' },
 
     { col: 'deadline_ratio_pct', path: ['deadline', 'ratioPct'], group: '데드라인',
       label: '데드라인 배율', unit: '%', min: 100, max: 300, int: true,

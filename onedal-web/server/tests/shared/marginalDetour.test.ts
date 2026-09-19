@@ -19,14 +19,24 @@ describe('🧮 한계 우회', () => {
         expect(marginalDetourMin(213, null, 109)).toBe(109);
     });
 
-    it('🔴 그 한계 비용으로 재면 16번은 꿀이다 (합격선 그대로)', () => {
-        const v = judge(CRITERIA, {
-            money: { fare: 35_000, extraMinutes: marginalDetourMin(294, 251, 189) + 25 },  // + 정차 25
+    /**
+     * 🔴 **무엇을 막나** — 누적으로 재면 이 콜이 죽는다. 그 차이를 숫자로 잠근다.
+     *    돈 눈금이 두 점 꺾은선으로 바뀐 뒤에도(보통 3만 50점 · 꿀 5만 100점) 이 대조는 그대로 참이다 —
+     *    바뀐 것은 «한계로 재면 몇 점인가»(100 → 52)이고, **한계가 누적보다 훨씬 높다**는 사실은 안 바뀐다.
+     */
+    it('🔴 그 한계 비용으로 재면 16번이 살아난다 — 누적으로 재면 똥이다', () => {
+        const 잰다 = (extraMinutes: number) => judge(CRITERIA, {
+            money: { fare: 35_000, extraMinutes, firstLoad: false },
             promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 30 },
             space: { freePct: 85, hasLoad: true },
             nature: { conflicts: [], excludedHits: [], hasLoad: true },
         }, DEFAULT_JUDGMENT);
-        expect((v.criteria.find(c => c.key === 'money')!.outcome as any).score).toBe(100);  // 3.1만/h ≥ 목표
-        expect(v.color).toBe('꿀');
+
+        const 한계 = 잰다(marginalDetourMin(294, 251, 189) + 25);      // 43 + 정차 25 = 68분 → 3.1만/h
+        const 누적 = 잰다(189 + 25);                                    // 214분 → 1.0만/h
+
+        expect((한계.criteria.find(c => c.key === 'money')!.outcome as any).score).toBe(52);   // 보통 기준선 바로 위
+        expect((누적.criteria.find(c => c.key === 'money')!.outcome as any).score).toBe(16);   // 🟡 똥
+        expect(한계.color).not.toBe('똥');
     });
 });

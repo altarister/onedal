@@ -39,11 +39,23 @@ export interface MoneyFacts {
     extraMinutes: number | null;
     /** 이 콜에 걸린 평소 하한가(원). 없으면 안 본다 */
     minAcceptableKrw?: number | null;
+    /**
+     * **빈 차에 처음 싣는 콜인가.** 눈금을 고르는 데만 쓴다 — 첫짐은 `soloHourlyKrw` 하나로,
+     * 합짐은 두 점 꺾은선(`hourlyKrw` 50점 · `honeyHourlyKrw` 100점)으로 잰다.
+     *
+     * 🔴 **판정 함수는 여전히 하나다** (2026-08-29 결정) — 갈래는 여기, 사실을 채울 때 갈린다.
+     *    까닭: 기회비용이 다르다. 합짐은 안 잡아도 잃는 것이 없고 첫짐은 안 잡으면 0원이다.
+     */
+    firstLoad: boolean;
 }
 
 /**
- * 기사님 확정 (2026-08-21 판정색 v2): *"같은 40분이라도 3.5만이면 좋고 5천원이면 나쁘다."*
- * → **절대 문턱(30분 이하면 꿀)을 폐기**하고 시급으로 잰다. 그 옛 상수 넷은 2026-08-29 에 지웠다.
+ * 기사님 확정: *"같은 40분이라도 3.5만이면 좋고 5천원이면 나쁘다."*
+ * → **절대 문턱(30분 이하면 꿀)을 폐기**하고 시급으로 잰다. 그 옛 상수 넷은 지웠다.
+ *
+ * 🔴 **눈금은 두 점이다** — 보통 시급에서 50점, 꿀 시급에서 100점 (기사님 확정).
+ *    한 점 비율이던 시절엔 보통 기준에서 이미 천장을 쳐 좋은 콜끼리 구분이 없었다.
+ *    첫짐은 제 기준선 하나로 잰다 — 까닭은 아래 `measure` 안에.
  *
  * 🔴 **여기가 돈을 보는 유일한 곳이다.** 규칙 ⑤-1 — 돈은 앱이 이미 걸렀다.
  *    다른 기준이 요금을 다시 보면 같은 사실을 두 번 세는 것이다.
@@ -59,14 +71,32 @@ export const MONEY = defineCriterion<MoneyFacts>({
 
         const hourly = (f.fare / f.extraMinutes) * 60;
         const toManwon = (n: number) => (n / 10_000).toFixed(1);
-        const why = `${toManwon(f.fare)}만 ÷ ${f.extraMinutes}분 = ${toManwon(hourly)}만/h`;
+        const T = cfg.target.hourlyKrw, H = cfg.target.honeyHourlyKrw, S = cfg.target.soloHourlyKrw;
+        const scaleNote = f.firstLoad ? `첫짐 기준 ${toManwon(S)}만` : `보통 ${toManwon(T)}만 · 꿀 ${toManwon(H)}만`;
+        const why = `${toManwon(f.fare)}만 ÷ ${f.extraMinutes}분 = ${toManwon(hourly)}만/h (${scaleNote})`;
+
+        /**
+         * 🔴 **눈금이 국면마다 다르다** (기사님 확정 · 설계서 §4-2·§4-3).
+         *    판정 함수는 하나고(2026-08-29), 갈리는 것은 **눈금 하나**다 — 까닭은 기회비용이다.
+         *
+         *    첫짐   안 잡으면 그 시간이 0원이다        → 제 기준선 하나로 후하게
+         *    합짐   안 잡아도 잃는 것이 없다            → 두 점 꺾은선으로 엄격하게
+         *
+         *    🔴 합짐을 한 점 비율로 재면 **보통 기준에서 천장을 쳐** 3만/h 와 5만/h 가 같은 꿀이 된다.
+         *       그래서 우회 235분짜리도 요금만 크면 보통으로 올라왔다 (쌓인 판정 53건).
+         */
+        const base = f.firstLoad
+            ? (hourly / S) * 100
+            : hourly <= T
+                ? 50 * (hourly / T)
+                // 꿀 기준을 보통 이하로 내려 두면 «보통을 넘으면 꿀»이 된다 — 꺾은선의 극한이라 값을 지어내지 않는다
+                : H > T ? 50 + 50 * ((hourly - T) / (H - T)) : 100;
 
         /**
          * 🔴 **하한가 미달은 색을 «무조건 빨간불»로 만들지 않는다** (규칙 ①).
          *    서버는 콜을 자동으로 버리지 않는다 — 점수로만 말한다.
          *    노하우 13번(3만원짜리 고수의 콜)을 «하한 미달 똥»으로 낙제시키던 자리다.
          */
-        const base = (hourly / cfg.target.hourlyKrw) * 100;
         if (f.minAcceptableKrw && f.fare < f.minAcceptableKrw) {
             return scored(base * 0.6, `${why} · 평소 하한(${toManwon(f.minAcceptableKrw)}만) 미달`, false, hourly / 10_000);
         }

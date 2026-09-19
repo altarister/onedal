@@ -95,7 +95,8 @@ export function buildLabFacts(i: LabJudgeInput): JudgeFacts {
     const extraMinutes = i.driveMin == null ? null : i.driveMin + i.dwellMin;
     const free = i.capacitySlots - i.slotsUsed - i.boxes;
     return {
-        money: { fare: i.fare, extraMinutes },
+        // 🔴 첫짐이면 눈금이 다르다 — 잡아 둔 콜이 없는 것이 곧 첫짐이다 (실물 `firstLoadFacts` 와 같은 뜻)
+        money: { fare: i.fare, extraMinutes, firstLoad: !i.hasExistingCalls },
         promise: { hasExistingCalls: i.hasExistingCalls, lateStops, bufferAfterMin },
         space: { hasLoad: i.slotsUsed > 0, freePct: i.capacitySlots > 0 ? (free / i.capacitySlots) * 100 : null },
         // 🏷️ 적요가 없는 콜이다 — 「제외 단어에 걸린 것 없음 · 같이 못 싣는 짐 없음」이 사실이다

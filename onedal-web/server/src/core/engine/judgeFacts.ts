@@ -11,8 +11,8 @@ import type { DryRunGate } from '@onedal/shared';
  * 🔴 **새로 계산하지 않는다.** 여기서 무엇이든 다시 재면 같은 값이 두 곳에서 태어난다
  *    (규칙 ③). 이 파일에 산술이 생기면 잘못 만든 것이다.
  *
- * ⚠️ 지금은 **옛 채점기와 나란히 놓고 대조하는 용도**다. 색은 아직 옛것이 낸다.
- *    두 답이 어긋나면 로그에 남고, 어긋남이 없는 것을 확인한 뒤 갈아탄다 (규칙 ②).
+ * 🔴 **여기서 채운 사실이 곧 화면의 색이다** — `OrderEvaluator` 가 이 사실로 `judge` 를 부르고
+ *    그 결과를 콜에 붙인다. 칸 하나를 빼먹으면 색이 조용히 달라진다.
  */
 
 /** 첫짐 — 잡아 둔 콜이 없다. 약속·공간은 «잴 게 없다»가 된다 */
@@ -25,7 +25,7 @@ export function firstLoadFacts(input: {
     tags: string[];
 }): JudgeFacts {
     return {
-        money: { fare: input.fare, extraMinutes: input.totalMinutes, minAcceptableKrw: input.minAcceptableKrw ?? null },
+        money: { fare: input.fare, extraMinutes: input.totalMinutes, minAcceptableKrw: input.minAcceptableKrw ?? null, firstLoad: true },
         promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
         space: { freePct: null, hasLoad: false },
         nature: { conflicts: [], excludedHits: [], hasLoad: false },
@@ -61,7 +61,7 @@ export function mergeFacts(input: {
         : [];
 
     return {
-        money: { fare: input.fare, extraMinutes: input.extraMinutes },
+        money: { fare: input.fare, extraMinutes: input.extraMinutes, firstLoad: false },
         promise: { hasExistingCalls: true, lateStops, bufferAfterMin: input.bufferAfterMin },
         space: { freePct: input.freePct, hasLoad: true },
         nature: { conflicts: input.conflicts, excludedHits: [], hasLoad: true },
