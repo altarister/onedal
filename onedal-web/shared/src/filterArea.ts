@@ -137,10 +137,14 @@ export function isHomeCallOf(call: { goalCity?: string | null }, o: { homeOn: bo
  *    🔴 운행 뒤에는 라인이 없어도 현위치 원을 다시 넣지 않는다 — 상차가 A ∩ 라인이면 라인 밖 A 동이 상차 목록에 없어 안 빠지고,
  *    «뒤쪽 동에 내리는 콜»이 샌다 (버그 대장 #148)
  */
-export function dropoffPartsOf(state: GoalState, hasLine: boolean, nearGoal = false): { me: boolean; line: boolean; quadFrom: 'me' | 'lastDrop' | null } {
-    /* 🎯 가까이 온 목적지는 목적지 원 전체뿐 — 상차 목록 동도 빼지 않는다 (필터.md «하차 영역») */
+export function dropoffPartsOf(state: GoalState, hasLine: boolean): { me: boolean; line: boolean; quadFrom: 'me' | 'lastDrop' | null } {
     /**
-     * 🔴 **현위치 원(A)은 하차 조각에 넣지 않는다** (기사님 확정).
+     * 🔴 **「목적지에 가까이 옴」은 여기 들어오지 않는다** (기사님 확정 ②) — 그래서 인자에 없다.
+ *    상차에서 목적지 원을 더하듯, 하차에서 가까이 옴이 하는 일은 «상차 목록 동을 안 뺀다» 하나뿐이다
+ *    (서버 `mergeDropoffGroups` · 관제웹은 지운 **뒤에** 칠한다). 재료를 끄면 거리를 넓히는 일과
+ *    방향을 버리는 일을 한 손이 하게 된다 — 그 손을 아예 없앤다.
+ *
+ * 🔴 **현위치 원(A)은 하차 조각에 넣지 않는다** (기사님 확정).
      *
      * A 는 사방으로 퍼진 원이라 뒤쪽 동까지 하차 후보가 됐고, 그것을 «상차 목록 빼기»로 지웠다.
      * 그런데 상차 목록도 A 라서 **A 를 넣었다가 A 를 도로 빼는 꼴**이었고, 그 과정에서
@@ -148,7 +152,6 @@ export function dropoffPartsOf(state: GoalState, hasLine: boolean, nearGoal = fa
      * 신둔면이 상차 반경 안이라는 이유로 하차에서 빠져 «광주 → 신둔면»을 못 잡았다.
      * A 를 안 넣으면 하차 영역이 «마름모 ∪ 목적지 원»만 남아 방향이 저절로 지켜진다.
      */
-    if (nearGoal) return { me: false, line: false, quadFrom: null };
     if (state === 'idle') return { me: false, line: false, quadFrom: 'me' };
     if (!hasLine) return { me: false, line: false, quadFrom: 'me' };
     return { me: false, line: true, quadFrom: 'lastDrop' };

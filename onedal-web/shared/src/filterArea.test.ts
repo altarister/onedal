@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { goalZonesOf, pickupPartsOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups, dongDotsOf } from './filterArea';
 
 /**
@@ -92,9 +94,22 @@ describe('🎯 목적지 가까이 옴 — 마름모가 두 원 안에 통째로
         expect(pickupPartsOf([{ city: '이천시', isHome: false, state: 'driving', nearGoal: false }]))
             .toEqual({ me: true, line: true, goal: false });
     });
-    it('🔴 가까이 온 목적지의 하차 조각은 목적지 원뿐 — 현위치 원 · 라인 · 마름모 없음', () => {
-        expect(dropoffPartsOf('driving', true, true)).toEqual({ me: false, line: false, quadFrom: null });
-        expect(dropoffPartsOf('idle', false, true)).toEqual({ me: false, line: false, quadFrom: null });
+    /**
+     * 🔴 **「목적지에 가까이 옴」은 재료를 끄지 않는다 — 더하기만 한다** (기사님 확정 ①②).
+     *
+     * 상차는 목적지 원을 더하고(①), 하차는 «상차 목록 동을 안 뺀다»를 더한다(②).
+     * 둘 다 **켜져 있던 라인 · 마름모는 그대로 둔다.** 조건 하나가 재료 여럿을 끄면
+     * 거리를 넓히는 일과 방향을 버리는 일을 한 손이 하게 된다.
+     */
+    it('🔴 가까이 옴은 하차 재료 함수에 들어가지 않는다 — 인자에 없다 (기사님 확정 ②)', () => {
+        const src = readFileSync(join(__dirname, 'filterArea.ts'), 'utf8');
+        const sig = src.slice(src.indexOf('export function dropoffPartsOf'));
+        expect(sig.slice(0, sig.indexOf(')'))).not.toContain('nearGoal');
+    });
+
+    it('🔴 가까이 와도 하차 재료는 상태가 정한 그대로다 — 라인 · 마름모를 끄지 않는다 (기사님 확정 ②)', () => {
+        expect(dropoffPartsOf('driving', true)).toEqual({ me: false, line: true, quadFrom: 'lastDrop' });
+        expect(dropoffPartsOf('idle', false)).toEqual({ me: false, line: false, quadFrom: 'me' });
     });
 });
 

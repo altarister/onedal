@@ -197,13 +197,15 @@ interface Props {
     dropoffArea?: {
         /** 먼 목적지 조각의 원 — 여기서 상차 영역을 지운다 */
         circles: Array<{ x: number; y: number; km: number }>;
-        /** 🎯 가까이 온 목적지 원 — 상차 영역을 지운 **뒤에** 칠한다 (빼지 않는다) */
-        nearCircles: Array<{ x: number; y: number; km: number }>;
         quads: Array<Array<{ x: number; y: number }>>;
-        /** 🎯 살아 있는 목적지 — 마커를 찍고 화면 맞춤에 넣는다 */
-        goals: Array<{ x: number; y: number }>;
         /** 운행 뒤면 현위치부터 앞으로만 (부르는 쪽이 `lineFromPoint` 로 자른다) · 시작은 평평하게 · 먼 끝만 둥글게 긋는다 */
         lines: Array<{ points: Array<{ x: number; y: number }>; km: number }>;
+        /** 🎯 가까이 온 목적지 조각 — 상차 영역을 지운 **뒤에** 칠한다 (빼지 않는다). 원 · 마름모 · 띠 셋 다 온다 */
+        nearCircles: Array<{ x: number; y: number; km: number }>;
+        nearQuads: Array<Array<{ x: number; y: number }>>;
+        nearLines: Array<{ points: Array<{ x: number; y: number }>; km: number }>;
+        /** 🎯 살아 있는 목적지 — 마커를 찍고 화면 맞춤에 넣는다 */
+        goals: Array<{ x: number; y: number }>;
     } | null;
     /**
      * 📍 **동 점 — 원달앱에 실제로 내려간 목록** (shared `dongDotsOf`).
@@ -312,7 +314,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
     const areaSummary = [
         `상차 ${pickupArea ? `${pickupArea.goal ? '원∩목적지원' : pickupArea.line ? '원∩라인(현위치부터)' : '원'} ${pickupArea.meKm.toFixed(1)}km` : '없음'}`,
         `하차 ${dropoffArea
-            ? `먼 원 ${dropoffArea.circles.length} · 가까이 원 ${dropoffArea.nearCircles.length} · 마름모 ${dropoffArea.quads.length} · 띠 ${dropoffArea.lines.length}${pickupArea ? ' · 상차 영역 지움' : ''}`
+            ? `먼 원 ${dropoffArea.circles.length}·마름모 ${dropoffArea.quads.length}·띠 ${dropoffArea.lines.length} · `
+            + `가까이 원 ${dropoffArea.nearCircles.length}·마름모 ${dropoffArea.nearQuads.length}·띠 ${dropoffArea.nearLines.length}${pickupArea ? ' · 상차 영역 지움(먼 것만)' : ''}`
             : '없음'}`,
         `점 ${dongDots ? `상차 ${dongDots.pickup.length + dongDots.both.length} · 하차 ${dongDots.dropoff.length + dongDots.both.length}${dongDots.missing ? ` · 좌표 모름 ${dongDots.missing}` : ''}` : '없음'}`,
         `레이어 상차 ${layers.pickup ? '켬' : '끔'} · 하차 ${layers.dropoff ? '켬' : '끔'} · 동 점 ${layers.dots ? '켬' : '끔'}`,
@@ -425,8 +428,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                 ...(pickupArea ? [{ x: pickupArea.me.x, y: pickupArea.me.y, km: pickupArea.meKm }] : []),
                 ...(dropoffArea ? [...dropoffArea.circles, ...dropoffArea.nearCircles] : []),
             ],
-            polygons: dropoffArea ? dropoffArea.quads : [],
-            lines: dropoffArea ? dropoffArea.lines : [],
+            polygons: dropoffArea ? [...dropoffArea.quads, ...dropoffArea.nearQuads] : [],
+            lines: dropoffArea ? [...dropoffArea.lines, ...dropoffArea.nearLines] : [],
         }));
         fitBoxRef.current = areaBox;   // 🔭 흔들림 방지 기억은 **자르기 전** 값이다 — 자른 값을 넣으면 매 프레임 다시 잡힌다
         /* 🔭 영역은 경로 네모의 2배 안까지만 — 통째로 담으면 먼 원 하나가 화면을 다 먹어 경로가 실처럼 보인다 (`capAreaBox`) */
@@ -672,7 +675,11 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
          * ⚠️ 원달앱은 **동 목록**으로 빼고 지도는 **도형**으로 지운다 — 경계에 걸친 큰 읍·면에서 둘이 조금 다를 수 있다.
          * 🔴 모르는 조각(좌표를 모르는 목적지 · 확정콜의 마지막 하차지)은 부르는 쪽이 이미 뺐다 — 여기서 지어내지 않는다 (규칙 ④).
          */
-        if (layers.dropoff && dropoffArea && (dropoffArea.circles.length || dropoffArea.nearCircles.length || dropoffArea.quads.length || dropoffArea.lines.length)) {
+        const dropoffPieces = dropoffArea
+            ? dropoffArea.circles.length + dropoffArea.quads.length + dropoffArea.lines.length
+              + dropoffArea.nearCircles.length + dropoffArea.nearQuads.length + dropoffArea.nearLines.length
+            : 0;
+        if (layers.dropoff && dropoffArea && dropoffPieces) {
             const { off, oc } = makeMask();
             if (oc) {
                 const pxPerKmAt = (p: { x: number; y: number }) => {
@@ -681,28 +688,36 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                     return Math.abs(b.cx - a.cx);
                 };
                 oc.fillStyle = '#2563eb'; oc.strokeStyle = '#2563eb';
-                for (const c of dropoffArea.circles) {
-                    const s = getScreenPt(c);
-                    oc.beginPath(); oc.arc(s.cx, s.cy, Math.max(0, c.km) * pxPerKmAt(c), 0, Math.PI * 2); oc.fill();
-                }
-                for (const q of dropoffArea.quads) {
-                    if (q.length < 3) continue;
-                    oc.beginPath();
-                    q.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
-                    oc.closePath(); oc.fill();
-                }
-                for (const l of dropoffArea.lines) {
-                    if (l.points.length < 2) continue;
-                    oc.save();
-                    /* ✂️ 시작(운행 뒤면 현위치 — 부르는 쪽이 `lineFromPoint` 로 잘랐다)에서 경로와 직각으로 자른 선 앞쪽만 */
-                    clipAhead(oc, l.points, l.km);
-                    oc.beginPath();
-                    l.points.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
-                    oc.lineWidth = Math.max(3, l.km * 2 * pxPerKmAt(l.points[0]));
-                    oc.lineCap = 'round'; oc.lineJoin = 'round';
-                    oc.stroke();
-                    oc.restore();
-                }
+                /** 🧱 한 목적지 묶음을 칠한다 — 먼 목적지는 지우기 **앞**, 가까이 온 목적지는 지우기 **뒤**에 같은 붓으로 */
+                const paint = (
+                    circles: Array<{ x: number; y: number; km: number }>,
+                    quads: Array<Array<{ x: number; y: number }>>,
+                    lines: Array<{ points: Array<{ x: number; y: number }>; km: number }>,
+                ) => {
+                    for (const c of circles) {
+                        const s = getScreenPt(c);
+                        oc.beginPath(); oc.arc(s.cx, s.cy, Math.max(0, c.km) * pxPerKmAt(c), 0, Math.PI * 2); oc.fill();
+                    }
+                    for (const q of quads) {
+                        if (q.length < 3) continue;
+                        oc.beginPath();
+                        q.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
+                        oc.closePath(); oc.fill();
+                    }
+                    for (const l of lines) {
+                        if (l.points.length < 2) continue;
+                        oc.save();
+                        /* ✂️ 시작(운행 뒤면 현위치 — 부르는 쪽이 `lineFromPoint` 로 잘랐다)에서 경로와 직각으로 자른 선 앞쪽만 */
+                        clipAhead(oc, l.points, l.km);
+                        oc.beginPath();
+                        l.points.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
+                        oc.lineWidth = Math.max(3, l.km * 2 * pxPerKmAt(l.points[0]));
+                        oc.lineCap = 'round'; oc.lineJoin = 'round';
+                        oc.stroke();
+                        oc.restore();
+                    }
+                };
+                paint(dropoffArea.circles, dropoffArea.quads, dropoffArea.lines);
                 /* ✂️ 먼 목적지 조각에서 상차 영역을 지운다 — 상차 레이어를 꺼도 뺀다 (보기 스위치와 규칙은 따로다) */
                 if (pickupArea) {
                     oc.save();
@@ -710,11 +725,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                     tracePickup(oc, pickupArea);
                     oc.restore();
                 }
-                /* 🎯 가까이 온 목적지 원은 지운 뒤에 칠한다 — 빼지 않는다 (관내콜) */
-                for (const c of dropoffArea.nearCircles) {
-                    const s = getScreenPt(c);
-                    oc.beginPath(); oc.arc(s.cx, s.cy, Math.max(0, c.km) * pxPerKmAt(c), 0, Math.PI * 2); oc.fill();
-                }
+                /* 🎯 가까이 온 목적지 조각은 지운 뒤에 칠한다 — 빼지 않는다 (서버 `mergeDropoffGroups` 와 같은 규칙).
+                   원뿐 아니라 마름모 · 띠도 함께다 — 「가까이 옴」은 재료를 끄지 않으니(②) 그 조각들도 안 빼야 서버와 같다 */
+                paint(dropoffArea.nearCircles, dropoffArea.nearQuads, dropoffArea.nearLines);
                 ctx.save();
                 ctx.globalAlpha = 0.22;
                 ctx.drawImage(off, 0, 0, width, height);
