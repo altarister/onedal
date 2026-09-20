@@ -207,10 +207,17 @@ describe('콜 필터 ↔ 판정 기준 — 화면까지 갈라져 있다', () =>
          *    한 탭에 합치면 그 구분이 화면에서 사라진다.
          */
         const m = rc('components/dashboard/SettingsModal.tsx');
-        expect(m).toMatch(/value="judgment"/);
-        expect(m).toMatch(/value="dispatch"/);
-        expect(m).toMatch(/>판정</);
-        expect(m).toMatch(/>필터</);
+        /* 🔴 **두 탭이 서로 다른 화면을 그린다** — 이름보다 이게 «갈려 있다»의 본체다 */
+        expect(m).toMatch(/value="judgment"[\s\S]{0,200}?<JudgmentSettingsTab/);
+        expect(m).toMatch(/value="dispatch"[\s\S]{0,200}?<PricingSettingsTab/);
+        /**
+         * 이름도 갈려 있다.
+         * 🔴 **라벨이 어디에 적히든 잡는다** — JSX 에 직접(`>판정<`) 이든 탭 표에
+         *    모아(`label: "판정"`) 두든 상관없다. 글자 모양으로 막으면 화면을 조금만
+         *    고쳐도 빨간불이 켜진다 (2026-09-21 에 탭을 표로 옮기며 실제로 그랬다).
+         */
+        expect(m).toMatch(/["'>]판정["'<]/);
+        expect(m).toMatch(/["'>]필터["'<]/);
         /* 한 탭이 둘을 겸하면 안 된다 */
         expect(m).not.toMatch(/판정\/필터|필터\/판정/);
     });

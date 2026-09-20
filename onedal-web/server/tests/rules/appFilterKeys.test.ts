@@ -22,20 +22,30 @@ const read = (abs: string) => readFileSync(abs, 'utf8');
 /** 주석을 걷어낸 코드만 — 주석의 역사 기록에 걸리지 않게 */
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-/** 📱 앱(Kotlin) 소스를 전부 읽어 «필터에서 실제로 읽는 키»를 긁는다 */
+/**
+ * 📱 **앱이 서버 필터에서 읽는 키** — 앱이 그 JSON 을 통째로 담는 타입(`FilterConfig`)의
+ *    필드가 곧 그것이다. 필드가 있다는 것은 «이 키가 오기를 기대한다»는 뜻이고,
+ *    표에 없으면 서버가 안 실어 보내 **앱은 늘 기본값으로 거른다.**
+ *
+ * 🔴 **Kotlin 전체에서 `filter.xxx` 를 긁지 않는다.** 앱에는 화면 표시용으로 **가공한**
+ *    객체(`MainViewModel.ParsedFilter` — «전체 허용» · «3개 등록» 같은 사람이 읽는 문자열)도
+ *    `filter` 라는 이름으로 돌아다닌다. 그걸 서버 키로 읽으면, 서버가 보낼 수도 없는 이름이
+ *    «빠졌다»고 빨간불이 켜진다 — 화면 문구를 하나 늘릴 때마다 게이트가 막힌다.
+ */
 function appReadKeys(): Set<string> {
+    const src = read(join(APP_JAVA, 'com/onedal/app/models/SharedModels.kt'));
+    const head = src.indexOf('data class FilterConfig(');
+    if (head < 0) throw new Error('FilterConfig 를 못 찾았다 — 앱이 서버 필터를 담는 타입이 바뀌었나');
+    /* 여는 괄호부터 짝이 맞는 닫는 괄호까지가 본문이다 */
+    let depth = 0, end = -1;
+    for (let i = src.indexOf('(', head); i < src.length; i++) {
+        if (src[i] === '(') depth++;
+        else if (src[i] === ')' && --depth === 0) { end = i; break; }
+    }
+    if (end < 0) throw new Error('FilterConfig 본문의 끝을 못 찾았다');
+    const body = codeOnly(src.slice(head, end));
     const out = new Set<string>();
-    const walk = (dir: string) => {
-        for (const name of readdirSync(dir)) {
-            const p = join(dir, name);
-            if (statSync(p).isDirectory()) { walk(p); continue; }
-            if (!name.endsWith('.kt')) continue;
-            const src = read(p);
-            /* `filter.pickupRadiusKm` 꼴 — 파싱된 필터 객체의 필드 */
-            for (const m of src.matchAll(/\bfilter\.([a-zA-Z][a-zA-Z0-9]*)/g)) out.add(m[1]);
-        }
-    };
-    walk(APP_JAVA);
+    for (const m of body.matchAll(/\bval\s+([a-zA-Z][a-zA-Z0-9]*)\s*:/g)) out.add(m[1]);
     return out;
 }
 

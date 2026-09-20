@@ -390,7 +390,12 @@ data class FilterConfig(
      */
     val pickupKeywords: List<String>? = null,
     val customCityFilters: List<String> = emptyList(),
-    val destinationGroups: Map<String, List<String>> = emptyMap(),
+    /**
+     * 🔴 `destinationGroups` 는 **여기 두지 않는다** — 서버가 일부러 안 보낸다.
+     *    시·구로 묶은 읍면동 목록은 관제웹 화면용이고, 한때 응답의 27%를 차지해 뺐다
+     *    (`APP_FILTER_KEYS` 밖). 앱은 `destinationKeywords`(평면 목록)로 거른다.
+     *    필드를 되살리면 늘 빈 맵이 온다 — `appFilterKeys` 검사가 빨간불을 켠다.
+     */
     /**
      * 🧭 동마다 "경로 출발점에서 몇 km 지점인가" — 역주행·경로 밖 상차 차단용
      * (기사님 확정 2026-08-18). null = 경로 위지만 순서를 모름(막지 않는다).
