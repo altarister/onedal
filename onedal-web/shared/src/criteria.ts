@@ -97,10 +97,40 @@ export const MONEY = defineCriterion<MoneyFacts>({
          *    서버는 콜을 자동으로 버리지 않는다 — 점수로만 말한다.
          *    노하우 13번(3만원짜리 고수의 콜)을 «하한 미달 똥»으로 낙제시키던 자리다.
          */
+        /**
+         * 🛣️ **긴 우회는 «가는 길»이 아니다 — 값을 깎는다** (기사님 확정).
+         *
+         * 합짐은 «가는 길에 붙이는 것»이다. 네 시간짜리 우회는 그 전제가 깨진 것이라
+         * 시급이 나와도 하루를 통째로 건다 (우회 235분 15만원이 보통 위로 올라오던 자리).
+         *
+         * 🔴 **시급 눈금으로는 못 잡는다** — 시급은 «얼마나 버나»를 재고 이건 «이게 합짐인가»를
+         *    묻는다. 눈금을 올리면 짧은 콜까지 함께 깎인다.
+         * 🔴 **기회비용(요금 − 보통시급×시간)으로 빼지 않는다** — 눈금을 평행이동할 뿐이라
+         *    순위가 그대로이고, 보통 시급 콜이 0점이 된다 (기존 눈금이 이미 그 몫을 담고 있다).
+         * 🔴 **버리지 않는다** (규칙 ①) — 색으로만 말한다.
+         *
+         * 첫짐에는 안 붙인다 — 빈 차에 처음 싣는 시간은 «우회»가 아니라 그 콜 자체다.
+         */
+        const decayOf = (mins: number): number => {
+            const { freeMin, cautionMin, hardMin } = cfg.detour;
+            const dungCut = 0.39;                // 만점 콜도 40점 아래로 (color.normalMin)
+            if (mins <= freeMin) return 1;
+            if (mins <= cautionMin) return 1 - 0.5 * ((mins - freeMin) / Math.max(1, cautionMin - freeMin));
+            if (mins <= hardMin) return 0.5 - (0.5 - dungCut) * ((mins - cautionMin) / Math.max(1, hardMin - cautionMin));
+            return dungCut * (hardMin / mins);        // 넘을수록 계속 무거워진다
+        };
+        const decay = f.firstLoad ? 1 : decayOf(f.extraMinutes);
+        const decayNote = decay < 1 ? ` · 우회 ${f.extraMinutes}분이라 값 ${Math.round(decay * 100)}%` : '';
+        /**
+         * 🔴 **100 으로 먼저 맞춘 뒤 깎는다.** 시급 10만/h 면 `base` 가 225 까지 올라가는데,
+         *    거기에 절반을 곱해도 112 라 깎인 티가 안 난다 — 만점 위의 «여분»이 감쇠를 삼킨다.
+         */
+        const capped = Math.min(100, base);
+
         if (f.minAcceptableKrw && f.fare < f.minAcceptableKrw) {
-            return scored(base * 0.6, `${why} · 평소 하한(${toManwon(f.minAcceptableKrw)}만) 미달`, false, hourly / 10_000);
+            return scored(capped * decay * 0.6, `${why}${decayNote} · 평소 하한(${toManwon(f.minAcceptableKrw)}만) 미달`, false, hourly / 10_000);
         }
-        return scored(base, why, false, hourly / 10_000);
+        return scored(capped * decay, `${why}${decayNote}`, false, hourly / 10_000);
     },
 });
 
@@ -210,7 +240,15 @@ export const SPACE = defineCriterion<SpaceFacts>({
         if (f.freePct < 0) {
             const sure = f.confidence === 'DECLARED' || f.confidence === 'CONFIRMED';
             const how = sure ? (f.confidence === 'CONFIRMED' ? '실측' : '신고') : '추정';
-            return scored(0, `자리 부족 ${Math.round(f.freePct)}% (${how})`, sure);
+            if (sure) return scored(0, `자리 부족 ${Math.round(f.freePct)}% (${how})`, true);
+            /**
+             * 🔴 **추정으로 나온 부족은 «못 쟀다» 다** (규칙 ⑤-2 · 기사님 확정).
+             *    적재량을 차종 글자에서 추정하는데 그 글자를 자주 못 읽는다(실측 29개 중 9개).
+             *    0점을 주면 **오독 하나가 멀쩡한 꿀콜의 평균을 끌어내린다.**
+             *    «못 쟀다»는 가중평균에서 아예 빠지고 이유만 화면에 남는다 —
+             *    *«모르는 값은 불리하게 가정해 떨어뜨리지 않는다»*.
+             */
+            return unmeasurable(`자리 부족 ${Math.round(f.freePct)}% (${how}) — 차종을 못 읽었을 수 있습니다`);
         }
         return scored(f.freePct, `여유 ${Math.round(f.freePct)}%`);
     },
@@ -231,7 +269,7 @@ export interface NatureFacts {
 
 export const NATURE = defineCriterion<NatureFacts>({
     key: 'nature', name: '성질', asks: '같이 실어도 되는 짐인가',
-    weightKey: 'cargoCompat',
+    weightKey: 'cargoCompat', role: 'gate',
     measure(f) {
         // ⚠️ 재료가 반만 와도 죽지 않는다 — 판정이 터지면 색이 아예 안 뜬다
         if (!f || !Array.isArray(f.excludedHits) || !Array.isArray(f.conflicts))

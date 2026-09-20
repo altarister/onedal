@@ -5,7 +5,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
-import { firstLoadFacts, mergeFacts, destProgressOf } from './judgeFacts';
+import { firstLoadFacts, mergeFacts, destProgressOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf, dwellLedgerFor } from "../../services/stepSeeder";
@@ -225,7 +225,7 @@ export class OrderEvaluator {
                             me: originOf(session),
                             dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
                             goalCity: goalCityOf(session, userId),
-                            destinationRadiusKm: session.activeFilter.destinationRadiusKm,
+                            destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
                         });
                         const dry: ReturnType<typeof toSnapshot> & { extraMin?: number | null } = toSnapshot(judge(CRITERIA, firstLoadFacts({
                             fare: securedOrder.fare, totalMinutes: total,

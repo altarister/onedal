@@ -100,11 +100,18 @@ describe('🎨 실험실 사실 → 실물 엔진이 색을 낸다', () => {
         expect(colorOf(facts)).toBe('사고');
     });
 
-    it('📦 자리가 모자라면 공간 점수가 0 으로 떨어진다', () => {
+    /**
+     * 🔴 **추정 적재로 모자라면 «못 쟀다» 다** (규칙 ⑤-2).
+     *    실험실 사실에는 «어떻게 알았나»(`confidence`)가 없어 추정으로 다룬다 — 차종 오독
+     *    하나가 멀쩡한 콜의 평균을 끌어내리지 않게, 0점 대신 가중평균에서 아예 뺀다.
+     */
+    it('📦 자리가 모자라면 «못 쟀다» 로 빠진다 — 추정이라 0점으로 깎지 않는다', () => {
         const facts = buildLabFacts({ ...base, slotsUsed: 95, boxes: 20 });
         expect(facts.space?.freePct).toBeLessThan(0);
-        expect(judge(CRITERIA, facts, DEFAULT_JUDGMENT).criteria
-            .find(c => c.key === 'space')?.outcome).toMatchObject({ score: 0 });
+        const out = judge(CRITERIA, facts, DEFAULT_JUDGMENT).criteria
+            .find(c => c.key === 'space')?.outcome;
+        expect(out?.kind).toBe('unmeasurable');
+        expect(out?.why).toContain('추정');
     });
 
     it('🏷️ 성질은 «잴 게 없다»로 지나간다 — 적요가 없는 콜이라 빈 배열이 사실이다', () => {

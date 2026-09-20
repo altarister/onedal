@@ -45,6 +45,15 @@ export function firstLoadFacts(input: {
 }
 
 /**
+ * 🎯 **판정의 목적지 도착 반경** (3km).
+ * 콜 필터의 탐색 반경(`destinationRadiusKm`, 보통 20~25km)과 분리한다 (설계서 §9 10번).
+ * 탐색 반경(22km)을 그대로 쓰면 서울 외곽(복정·송파)에서 강남으로 진입하는 첫짐이 전부 «도착»으로
+ * 오판되어 전진 배수(1.5~2.0배)가 마비되는 사고(04:54 복정→대치 36점 똥콜)가 났다.
+ * 판정은 도심 중심 3km 이내에 진짜 도달했을 때만 «도착»으로 인정한다.
+ */
+export const DEST_ARRIVED_RADIUS_KM = 3;
+
+/**
  * 🧭 **첫짐의 전진율을 잰다 — 이 콜로 목적지에 얼마나 가까워지나** (설계서 §4-3)
  *
  * 세 점이 필요하다: **지금 자리**(`originOf`) · **하차지**(지오코딩 결과) · **목적지**(`goalCityOf` 의 시내).
@@ -58,7 +67,7 @@ export function destProgressOf(input: {
     me: { x: number; y: number } | null;
     dropoff: { x?: number | null; y?: number | null };
     goalCity: string;
-    /** 목적지 반경(km) — 이 안에 있으면 전진을 재지 않는다 */
+    /** 목적지 반경(km) — 이 안에 있으면 전진을 재지 않는다 (판정은 DEST_ARRIVED_RADIUS_KM 3km 사용) */
     destinationRadiusKm?: number | null;
 }): { ratio: number | null; unknownWhy: string | null } {
     const no = (why: string) => ({ ratio: null, unknownWhy: why });

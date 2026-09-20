@@ -34,6 +34,7 @@ const VIEWS = {
     track:   { file: 'lib/db-track.mjs',   args: '[콜 id 앞부분]',   what: 'GPS 궤적 — 콜별 점 수·끊긴 구간·상하차지 최접근' },
     parse:   { file: 'lib/db-parse.mjs',   args: '[배차망]',        what: '앱이 화면을 제대로 읽었나 — 반쪽 읽힘·주소 칸의 낯선 글자·모르는 배지 (새 배차망을 붙일 때)' },
     dict:    { file: 'lib/db-dict.mjs',    args: '[배차망]',        what: '장부 원문으로 그 배차망의 낱말 사전 초안을 뽑는다 — 갈래로 나눠 서버 사전에 붙일 조각까지' },
+    judge:   { file: 'lib/db-judge.mjs',   args: '[건수]',          what: '실전 판정 전수 보기 — 색상·총점·5대 기준 축별 점수·지연 및 우회 시간' },
 };
 
 const [name, ...rest] = process.argv.slice(2);

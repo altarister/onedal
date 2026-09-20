@@ -42,7 +42,10 @@ describe('실측 콜 회귀 — 옛 사고가 새 채점기에서 재발하지 �
     it('첫짐 — 운행시간이 아무리 길어도 시급이 좋으면 꿀이다 (2026-08-18 실측 그 콜)', () => {
         // 100,000원 · 98분(+정차 25) — 옛 시간 기준(40/90분)으로는 0점 똥이었다
         const v = judge(CRITERIA, {
-            money: { fare: 100_000, extraMinutes: 123 , firstLoad: false },
+            /* 🔴 **첫짐이다** — 빈 차로 서 있을 때의 2시간 단독 콜이라 «우회»가 아니라 본 운행이다.
+               긴 우회 감쇠는 합짐에만 걸린다 (`detourDecay.test.ts`). 이름은 «첫짐»인데
+               `firstLoad: false` 로 적혀 있어, 감쇠를 넣자 «합짐 2시간 우회»로 읽혀 보통이 됐다 */
+            money: { fare: 100_000, extraMinutes: 123 , firstLoad: true },
             promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
             space: { freePct: null, hasLoad: false },
             nature: { conflicts: [], excludedHits: [], hasLoad: false },

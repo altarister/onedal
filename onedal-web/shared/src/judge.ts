@@ -86,12 +86,15 @@ export interface Criterion<F> {
     asks: string;
     weightKey: WeightKey;
     /**
-     * 점수를 **평균에 넣나**(`'score'`, 기본) 아니면 **총점에 곱하나**(`'multiplier'`).
+     * 점수를 **평균에 넣나**(`'score'`, 기본), **총점에 곱하나**(`'multiplier'`),
+     * 아니면 **1층 안전 문지기로만 쓰나**(`'gate'`).
      *
-     * 🔴 배수 기준의 가중치는 **켜고 끄는 데만** 쓴다 — 0 이면 배수가 안 붙고, 크기는 뜻이 없다.
+     * 🔴 'gate' 역할: 점수 가중평균에 전혀 섞이지 않고(0~100점 점수 왜곡 방지),
+     *    실패 시(`hardFail: true`) 🔴 사고로 단호하게 차단하는 일만 맡는다.
+     * 🔴 배수('multiplier') 기준의 가중치는 **켜고 끄는 데만** 쓴다 — 0 이면 배수가 안 붙고, 크기는 뜻이 없다.
      *    배수의 크기는 그 기준이 읽는 설정값이 정한다.
      */
-    role?: 'score' | 'multiplier';
+    role?: 'score' | 'multiplier' | 'gate';
     /**
      * 🔴 **자기 몫의 사실만 받는다.** 남의 칸은 타입에 없다.
      *    `undefined` 는 «그 사실 자체가 안 왔다» — 대개 「잴 수 없다」다.
@@ -157,13 +160,14 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
     const cannot = rows.filter(r => r.weight > 0 && r.outcome.kind === 'unmeasurable');
 
     /**
-     * 🔴 **배수는 평균에 안 든다 — 평균에 곱한다.**
-     *    더하기로 섞으면 «요금 0원인데 목적지 방향만 맞는 콜»이 절반 점수를 받는다.
-     *    배수는 돈을 **키우는** 것이지 돈과 더하는 것이 아니다 (설계서 §4-3).
+     * 🔴 **역할별로 가른다**
+     *    - 'score' (기본): 가중평균에 들어가 2층 점수를 만든다.
+     *    - 'multiplier': 총점에 곱한다 (첫짐 지리 배수).
+     *    - 'gate': 가중평균에 전혀 섞이지 않는다. hardFail 발생 시 🔴 사고 차단만 담당한다.
      */
-    const byRole = (want: boolean) => counted.filter(r =>
-        (criteria.find(c => c.key === r.key)?.role === 'multiplier') === want);
-    const averaged = byRole(false), multipliers = byRole(true);
+    const roleOf = (key: string) => criteria.find(c => c.key === key)?.role ?? 'score';
+    const averaged = counted.filter(r => roleOf(r.key) === 'score');
+    const multipliers = counted.filter(r => roleOf(r.key) === 'multiplier');
 
     const totalW = averaged.reduce((a, r) => a + r.weight, 0);
     const mult = multipliers.reduce((a, r) => a * ((r.outcome as { multiplier?: number }).multiplier ?? 1), 1);

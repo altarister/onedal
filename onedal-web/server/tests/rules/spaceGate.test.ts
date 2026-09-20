@@ -39,7 +39,8 @@ describe('📦 신고한 적재로 자리가 없으면 색을 덮는다', () => 
     it('🔴 추정 적재는 덮지 않는다 — 오독으로 멀쩡한 콜을 버리면 안 된다', () => {
         const f = 합짐(-20, 'ESTIMATED');
         expect(덮었나(f)).toBe(false);
-        expect((공간줄(f).outcome as { score: number }).score).toBe(0);
+        /* 🔴 점수를 안 낸다 — 추정 오독이 평균을 끌어내리지 않게 (규칙 ⑤-2) */
+        expect(공간줄(f).outcome.kind).toBe('unmeasurable');
         expect(공간줄(f).outcome.why).toContain('추정');
     });
 

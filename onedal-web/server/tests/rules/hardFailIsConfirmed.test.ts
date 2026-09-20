@@ -54,7 +54,10 @@ describe('🚫 색을 덮는 것은 약속·성질 둘이다 (공간은 아직 �
         const f = 합짐({ space: { freePct: -20, hasLoad: true } });
         expect(덮은기준(f)).toEqual([]);
         const 공간 = judge(CRITERIA, f, cfg).criteria.find(c => c.key === 'space')!;
-        expect((공간.outcome as { score: number }).score).toBe(0);
+        /* 🔴 **점수를 안 낸다** (규칙 ⑤-2). 추정 오독 하나가 멀쩡한 콜의 **평균까지**
+           끌어내리면 안 되므로 «못 쟀다»로 두어 가중평균에서 뺀다 — 색을 안 덮는다는
+           규칙은 그대로다 */
+        expect(공간.outcome.kind).toBe('unmeasurable');
     });
 
     it('🔴 빠듯한 여유(음수)도 색을 안 덮는다 — 그건 임시 계산이다', () => {

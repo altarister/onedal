@@ -195,6 +195,58 @@ describe('🧭 지리는 첫짐의 배수다 — 평균에 섞이지 않는다',
     });
 });
 
+describe('🧪 1층 문지기(gate) — 점수 가중평균에 섞이지 않고 사고만 차단한다', () => {
+    it('🔴 성질(nature)은 정상이어도 100점을 점수 평균에 얹어주지 않는다', () => {
+        const 기본합짐 = 좋은합짐();
+        const v = judge(CRITERIA, 기본합짐, cfg());
+        // 성질 줄은 통과(scored)이지만 role: 'gate'이므로 총점에 +25점을 거저 얹지 않는다
+        const 성질줄 = v.criteria.find(c => c.key === 'nature')!;
+        expect(성질줄.outcome.kind).toBe('scored');
+        // 돈만 켰을 때와 총점이 왜곡 없이 직결되는지 확인
+        const 돈만켠것 = judge(CRITERIA, 기본합짐, cfg({ slots: 0, promiseGuard: 0, cargoCompat: 1 }));
+        expect(돈만켠것.score).toBe((기본합짐.money!.fare / 기본합짐.money!.extraMinutes!) * 60 >= 50_000 ? 100 : 50);
+    });
+
+    it('🔴 성질(nature)에 충돌이나 제외 키워드가 걸리면 즉시 🔴 사고로 차단한다', () => {
+        const 상극합짐 = {
+            ...좋은합짐(),
+            nature: { conflicts: [['위험물', '식료품'] as [string, string]], excludedHits: [], hasLoad: true },
+        };
+        const v = judge(CRITERIA, 상극합짐, cfg());
+        expect(v.color).toBe('사고');
+        expect(v.criteria.find(c => c.key === 'nature')!.outcome).toMatchObject({ hardFail: true });
+    });
+});
+
+describe('📊 실전 콜 순위 검증 — 고수익 콜이 저수익 콜을 압도한다', () => {
+    it('🔴 3.9만/h 고수익 콜이 1.6만/h 저수익 콜보다 항상 높은 점수를 받는다', () => {
+        // 실전에서 뒤집혔던 두 콜 (설계서 §1-①, §5)
+        const 저수익콜: JudgeFacts = {
+            money: { fare: 16_000, extraMinutes: 60, firstLoad: false }, // 1.6만/h -> 돈 27점
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 3 },
+            space: { freePct: 20, hasLoad: true },
+            nature: { conflicts: [], excludedHits: [], hasLoad: true },
+        };
+        const 고수익콜: JudgeFacts = {
+            money: { fare: 39_000, extraMinutes: 60, firstLoad: false }, // 3.9만/h -> 돈 73점
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 15 },
+            space: { freePct: 50, hasLoad: true },
+            nature: { conflicts: [], excludedHits: [], hasLoad: true },
+        };
+
+        // 사용자의 원칙: "나머지가 점수에 영향을 주지 못하도록 격리 (slots: 0, promiseGuard: 0)"
+        const 순수돈cfg = cfg({ slots: 0, promiseGuard: 0 });
+        const v저 = judge(CRITERIA, 저수익콜, 순수돈cfg);
+        const v고 = judge(CRITERIA, 고수익콜, 순수돈cfg);
+
+        expect(v고.score!).toBe(73);
+        expect(v고.color).toBe('꿀');
+        expect(v저.score!).toBe(27);
+        expect(v저.color).toBe('똥');
+        expect(v고.score!).toBeGreaterThan(v저.score!);
+    });
+});
+
 describe('설명 한 줄', () => {
     it('점수·기준·딱지를 한 줄로 적는다', () => {
         const v = judge(CRITERIA, { ...좋은합짐(), notes: ['배송주행 추정(일반값)'] }, cfg());

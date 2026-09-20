@@ -171,6 +171,20 @@ export interface JudgmentConfig {
      *    만점을 받고(공격적), `zeroScore` 를 낮추면 여유 0분짜리가 확 깎인다(보수적).
      */
     slack: { fullMin: number; zeroScore: number };
+    /**
+     * 🛣️ **긴 우회는 «가는 길»이 아니다 — 시급이 좋아도 값을 깎는다** (기사님 확정).
+     *
+     * 합짐은 «가는 길에 붙이는 것»이다. 네 시간짜리 우회는 그 전제가 깨진 것이라
+     * 시급이 나와도 하루를 통째로 건다. 우회 235분 15만원이 보통 위로 올라오던 자리다.
+     *
+     * 🔴 **시급 눈금으로는 못 잡는다** — 시급은 «얼마나 버나»를 재고 이것은 «이게 합짐인가»를
+     *    묻는다. 눈금을 움직이면 짧은 콜까지 함께 움직인다.
+     *
+     *   `freeMin` 까지    깎지 않는다 (진짜 «덤»)
+     *   `cautionMin` 에서 절반 (아무리 좋아도 🟢 보통까지)
+     *   `hardMin` 넘으면  🟡 똥 (40점 아래)
+     */
+    detour: { freeMin: number; cautionMin: number; hardMin: number };
 }
 
 export const DEFAULT_JUDGMENT: JudgmentConfig = {
@@ -188,6 +202,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     //    **화면의 칩에 붙는 숫자**라 콜 옵션 표로 옮겼다 (2026-08-29 · 규칙 ③) —
     //    같은 값을 두 그릇에 담지 않는다.
     slack: { fullMin: 30, zeroScore: 40 },
+    detour: { freeMin: 60, cautionMin: 120, hardMin: 180 },
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -276,6 +291,15 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'slack_zero_score', path: ['slack', 'zeroScore'], group: '정차·여유',
       label: '여유 0분일 때 점수', unit: '점', min: 0, max: 100, int: true,
       why: '여유가 딱 0분일 때 「약속」이 받는 점수. 낮추면 빠듯한 콜이 확 깎인다(보수적). 옛 상수 40점' },
+    { col: 'detour_free_min', path: ['detour', 'freeMin'], group: '합짐',
+      label: '우회 무감점 한계', unit: '분', min: 10, max: 240, int: true,
+      why: '여기까지는 «가는 길에 붙이는 덤»이라 시급 그대로 본다. 올리면 긴 우회도 너그럽게 받는다' },
+    { col: 'detour_caution_min', path: ['detour', 'cautionMin'], group: '합짐',
+      label: '우회 주의 한계 (점수 절반)', unit: '분', min: 20, max: 360, int: true,
+      why: '이만큼 우회하면 시급이 아무리 좋아도 **점수가 절반**이 되어 🟢 보통까지만 올라온다. 합짐의 전제(«가는 길»)가 흔들리기 시작하는 자리' },
+    { col: 'detour_hard_min', path: ['detour', 'hardMin'], group: '합짐',
+      label: '우회 한계 (🟡 똥)', unit: '분', min: 30, max: 600, int: true,
+      why: '이만큼 넘게 우회하면 시급과 무관하게 🟡 로 내린다 — 그건 «가는 길에 붙이는 콜»이 아니라 **하루를 거는 일**이다. 🔴 **버리지는 않는다** (규칙 ①) — 색으로만 말하고 결정은 기사님이 하신다' },
     { col: 'target_hourly_krw', path: ['target', 'hourlyKrw'], group: '합짐',
       label: '보통 시급 (🟢 50점)', unit: '원/h', min: 10000, max: 100000, int: true,
       why: '합짐의 우회 시급이 이만큼이면 **🟢 보통 50점**. 노하우 실측 역산(4콜 14.1만÷4.5h≈3.1만) · 문제지로 맞춘 값. 올리면 까다로워진다' },

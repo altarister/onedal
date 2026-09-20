@@ -35,8 +35,10 @@ describe('🧮 한계 우회', () => {
         const 한계 = 잰다(marginalDetourMin(294, 251, 189) + 25);      // 43 + 정차 25 = 68분 → 3.1만/h
         const 누적 = 잰다(189 + 25);                                    // 214분 → 1.0만/h
 
-        expect((한계.criteria.find(c => c.key === 'money')!.outcome as any).score).toBe(52);   // 보통 기준선 바로 위
-        expect((누적.criteria.find(c => c.key === 'money')!.outcome as any).score).toBe(16);   // 🟡 똥
+        /* 68분이라 무감점 한계(60분)를 조금 넘어 7% 깎인다 — «보통 기준선 위»라는 뜻은 그대로 */
+        expect((한계.criteria.find(c => c.key === 'money')!.outcome as any).score).toBe(49);   // 보통 기준선 바로 위
+        /* 214분이라 한계(180분)를 넘어 더 깎인다 — 🟡 똥이라는 뜻은 그대로 */
+        expect((누적.criteria.find(c => c.key === 'money')!.outcome as any).score).toBe(5);    // 🟡 똥
         expect(한계.color).not.toBe('똥');
     });
 });
