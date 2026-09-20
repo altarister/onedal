@@ -170,7 +170,14 @@ export interface JudgmentConfig {
      * 🔴 이 둘이 **「약속」 기준 전체**를 정한다. `fullMin` 을 낮추면 빠듯한 합짐도
      *    만점을 받고(공격적), `zeroScore` 를 낮추면 여유 0분짜리가 확 깎인다(보수적).
      */
-    slack: { fullMin: number; zeroScore: number };
+    slack: {
+        fullMin: number; zeroScore: number;
+        /**
+         * ⏰ 통화 전 임시 지연 — 세 자리를 지나는 꺾은선 (5분 90점 · 15분 60점 · 30분 0점).
+         * 🔴 **색은 안 덮는다** — 지레짐작한 시간으로 🔴 를 내지 않는다 (`hardFailIsConfirmed`).
+         */
+        lateSoftMin: number; lateWarnMin: number; lateZeroMin: number;
+    };
     /**
      * 🛣️ **긴 우회는 «가는 길»이 아니다 — 시급이 좋아도 값을 깎는다** (기사님 확정).
      *
@@ -201,7 +208,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     // 🔴 여유 곡선은 «어떻게 잴 것인가» 라 여기 산다. 정차 값(박스당 분·검수 분)은
     //    **화면의 칩에 붙는 숫자**라 콜 옵션 표로 옮겼다 (2026-08-29 · 규칙 ③) —
     //    같은 값을 두 그릇에 담지 않는다.
-    slack: { fullMin: 30, zeroScore: 40 },
+    slack: { fullMin: 30, zeroScore: 95, lateSoftMin: 5, lateWarnMin: 15, lateZeroMin: 30 },
     detour: { freeMin: 90, cautionMin: 120, hardMin: 180 },
 };
 
@@ -290,7 +297,16 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
       why: '남는 여유가 이만큼이면 「약속」 기준이 만점. 낮추면 빠듯한 합짐도 만점을 받는다(공격적). 2026-08-29 까지 코드에 박혀 있던 30분을 그대로 올린 것' },
     { col: 'slack_zero_score', path: ['slack', 'zeroScore'], group: '정차·여유',
       label: '여유 0분일 때 점수', unit: '점', min: 0, max: 100, int: true,
-      why: '여유가 딱 0분일 때 「약속」이 받는 점수. 낮추면 빠듯한 콜이 확 깎인다(보수적). 옛 상수 40점' },
+      why: '여유가 딱 0분일 때 「약속」이 받는 점수. 낮추면 빠듯한 콜이 확 깎인다(보수적). 🔴 아래 «지연» 세 칸보다 높아야 한다 — 낮으면 늦는 콜이 딱 맞춘 콜보다 좋아진다' },
+    { col: 'slack_late_soft_min', path: ['slack', 'lateSoftMin'], group: '정차·여유',
+      label: '지연 — 거의 문제없음', unit: '분', min: 1, max: 60, int: true,
+      why: '통화 전 임시 지연이 이만큼까지는 90점. 정차 중에 3~4콜을 모으려면 몇 분씩은 밀린다 — 그걸 다 버리지 않으려는 자리다' },
+    { col: 'slack_late_warn_min', path: ['slack', 'lateWarnMin'], group: '정차·여유',
+      label: '지연 — 주의', unit: '분', min: 2, max: 120, int: true,
+      why: '여기서 60점. 「거의 문제없음」과 「한계」 사이의 꺾이는 자리다' },
+    { col: 'slack_late_zero_min', path: ['slack', 'lateZeroMin'], group: '정차·여유',
+      label: '지연 — 0점', unit: '분', min: 5, max: 240, int: true,
+      why: '이만큼 밀리면 「약속」이 0점이다(색은 대개 똥). 🔴 **색을 덮지는 않는다** — 통화 전 지연은 서버가 지레짐작한 시간이라 그것으로 🔴 를 내지 않는다. 굳힌 약속이 깨지는 것은 이 칸과 무관하게 늘 빨간불이다' },
     { col: 'detour_free_min', path: ['detour', 'freeMin'], group: '합짐',
       label: '우회 무감점 한계', unit: '분', min: 10, max: 240, int: true,
       why: '여기까지는 «가는 길에 붙이는 덤»이라 시급 그대로 본다. 수도권에서 1.5시간 합짐은 일상이라 90분으로 두었다(실측 117건 중 60~90분이 24건). 올리면 긴 우회도 너그럽게 받는다' },

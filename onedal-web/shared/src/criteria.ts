@@ -175,10 +175,33 @@ export const PROMISE = defineCriterion<PromiseFacts>({
          *    예전엔 `30분 만점 · 0분 40점` 이 여기 박혀 있어 기사님이 못 고쳤다.
          *    값은 그대로다 — 자리만 옮겼다.
          */
-        const fullMin = cfg.slack.fullMin, zeroScore = cfg.slack.zeroScore;
+        const { fullMin, zeroScore, lateSoftMin, lateWarnMin, lateZeroMin } = cfg.slack;
         const a = f.bufferAfterMin;
-        const s = a >= fullMin ? 100 : a >= 0 ? zeroScore + ((100 - zeroScore) / fullMin) * a : 0;
-        return scored(s, `최소 ${a >= 0 ? '+' : ''}${a}분`);
+        if (a >= fullMin) return scored(100, `최소 +${a}분`);
+        if (a >= 0) return scored(zeroScore + ((100 - zeroScore) / fullMin) * a, `최소 +${a}분`);
+
+        /**
+         * ⏰ **통화 전 임시 지연은 분만큼만 깎는다** (기사님 확정).
+         *    🔴 한 번에 0 으로 떨어뜨리면 몇 분 밀리는 콜을 다 버린다 —
+         *    정차 중에 3~4콜을 모으려면 몇 분씩은 밀린다.
+         *
+         * 🔴 **분은 설정, 계수는 코드** — 우회 감쇠(`decayOf`)와 같은 모양이다.
+         * 🔴 통화로 굳힌 약속(`lateStops`)이 깨지는 것은 위에서 이미 빨간불이다. 여긴 그 전 단계다.
+         */
+        const softScore = 90, warnScore = 60;
+        const late = -a;
+        /**
+         * 🔴 **색을 덮지 않는다** — 이건 서버가 지레짐작한 시간이다 (`hardFailIsConfirmed`).
+         *    0 점이면 색이 «똥» 이라 충분히 말린다. 덮는 것은 **통화로 굳힌 약속**뿐이다.
+         */
+        if (late >= lateZeroMin) return scored(0, `${late}분 지연 — 한계(${lateZeroMin}분) 밖`);
+        const span = (lo: number, hi: number) => Math.max(1, hi - lo);
+        const s = late <= lateSoftMin
+            ? zeroScore - (zeroScore - softScore) * (late / Math.max(1, lateSoftMin))
+            : late <= lateWarnMin
+                ? softScore - (softScore - warnScore) * ((late - lateSoftMin) / span(lateSoftMin, lateWarnMin))
+                : warnScore * (1 - (late - lateWarnMin) / span(lateWarnMin, lateZeroMin));
+        return scored(s, `${late}분 지연`);
     },
 });
 
