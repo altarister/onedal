@@ -3,7 +3,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { judge, CRITERIA, toSnapshot, normalizeVehicleType } from '@onedal/shared';
+import { judge, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
 import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
@@ -437,7 +437,10 @@ export class OrderEvaluator {
                                 freePct: slotsTotal > 0 ? ((slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
                                 /** 📦 그 적재량을 어떻게 알았나 — 확정값일 때만 색을 덮는다 */
                                 confidence: session.activeFilter.capacityConfidence ?? null,
-                                conflicts, excludedHits, lateStops, tags,
+                                conflicts, excludedHits, lateStops,
+                                // 🏗️ 정차 중(모으는 중) ↔ 주행 중 — 가르는 곳은 `resolvePhaseKey` 하나다
+                                phase: resolvePhaseKey(session.activeFilter.callTarget, session.activeFilter.dispatchPhase),
+                                tags,
                             }), judgmentCfg));
                             dry.stops = stopsView;
                             dry.unknownWhy = unknownWhy;

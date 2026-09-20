@@ -1,5 +1,5 @@
-import { cityCenter, destProgressRatio, haversineKm, isPickupBackward } from '@onedal/shared';
-import type { JudgeFacts } from '@onedal/shared';
+import { cityCenter, destProgressRatio, haversineKm, isPickupBackward, PHASE_LABEL } from '@onedal/shared';
+import type { JudgeFacts, PhaseKey } from '@onedal/shared';
 
 /**
  * 🧾 **판정이 쓸 «사실»을 모은다** (2026-08-29 · 6단계)
@@ -152,6 +152,12 @@ export function mergeFacts(input: {
      *    분을 모르면 `null` — 지어내지 않는다 (규칙 ④).
      */
     lateStops: Array<{ label: string; lateMinutes: number | null }>;
+    /**
+     * 🏗️ **어느 국면에서 재나** — 정차 중(`merge`) ↔ 주행 중(`drive`).
+     *    가르는 곳은 `resolvePhaseKey` 하나다 (규칙 ③). 지금은 딱지로만 말하고
+     *    잣대는 안 가른다 — 그건 Step 6·7 이다.
+     */
+    phase: PhaseKey;
     tags: string[];
 }): JudgeFacts {
     return {
@@ -165,6 +171,7 @@ export function mergeFacts(input: {
          *    합짐의 지리는 원래 안 재는 것이다 — 우회 시급이 이미 센다.
          */
         geography: { firstLoad: false, progressRatio: null },
-        notes: [...input.tags],
+        // 🏗️ 잰 쪽이 «어느 국면으로 쟀는지» 말한다 — 이름은 `PHASE_LABEL` 이 원천이다
+        notes: [PHASE_LABEL[input.phase], ...input.tags],
     };
 }

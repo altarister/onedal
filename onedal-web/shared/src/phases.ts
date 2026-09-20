@@ -55,7 +55,10 @@ export const PHASE_LABEL: Record<PhaseKey, string> = {
  * @param callTarget     'DEST' | 'HOME'
  * @param dispatchPhase 'STANDBY' | 'GATHERING' | 'DELIVERING'
  */
-export function resolvePhaseKey(callTarget: string, dispatchPhase: string): PhaseKey {
+export function resolvePhaseKey(
+    callTarget: string | null | undefined,
+    dispatchPhase: string | null | undefined,
+): PhaseKey {
     if (dispatchPhase === 'DELIVERING') return 'drive';
     if (dispatchPhase === 'GATHERING') return 'merge';
     /**

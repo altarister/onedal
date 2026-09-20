@@ -90,7 +90,7 @@ describe('🔙 등 뒤 상차 — 첫짐에서만 잰다', () => {
     it('🔴 합짐은 이 판을 안 본다 — 한계 우회가 이미 셌다', () => {
         const v = toSnapshot(judge(CRITERIA, mergeFacts({
             fare: 50_000, extraMinutes: 30, bufferAfterMin: 20, freePct: 40,
-            conflicts: [], excludedHits: [], lateStops: [], tags: [],
+            conflicts: [], excludedHits: [], lateStops: [], phase: 'merge' as const, tags: [],
         }), cfg));
         expect(v.color).not.toBe('사고');
     });

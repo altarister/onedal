@@ -34,7 +34,7 @@ const codeOnly = (f: string) =>
 
 const 합짐 = (over: Record<string, unknown> = {}) => mergeFacts({
     fare: 50_000, extraMinutes: 30, bufferAfterMin: 20, freePct: 40,
-    conflicts: [], tags: [], excludedHits: [], lateStops: [], ...over,
+    conflicts: [], tags: [], excludedHits: [], lateStops: [], phase: 'merge' as const, ...over,
 });
 
 const 첫짐 = (over: Record<string, unknown> = {}) => firstLoadFacts({

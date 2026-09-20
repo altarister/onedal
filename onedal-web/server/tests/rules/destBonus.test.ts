@@ -99,7 +99,7 @@ describe('🧭 합짐에는 배수를 붙이지 않는다 — 우회 시급이 �
     it('🔴 합짐이면 «합짐이라 안 잰다»고 적는다 — 사실을 채우는 쪽이 국면을 실어 준다', () => {
         const f = mergeFacts({
             fare: 30_000, extraMinutes: 60, bufferAfterMin: 60, freePct: 100,
-            conflicts: [], excludedHits: [], lateStops: [], tags: [],
+            conflicts: [], excludedHits: [], lateStops: [], phase: 'merge' as const, tags: [],
         });
         const 줄 = judge(CRITERIA, f, cfg()).criteria.find(c => c.key === 'geography')!;
         expect(줄.outcome.why).toContain('합짐');

@@ -29,7 +29,7 @@ const codeOnly = (f: string) =>
 
 const 합짐 = (over: Record<string, unknown> = {}) => mergeFacts({
     fare: 50_000, extraMinutes: 30, bufferAfterMin: 20, freePct: 40,
-    conflicts: [], excludedHits: [], tags: [], lateStops: [], ...over,
+    conflicts: [], excludedHits: [], tags: [], lateStops: [], phase: 'merge' as const, ...over,
 });
 
 const 늦음 = (label: string, lateMinutes: number) => ({ label, lateMinutes });
