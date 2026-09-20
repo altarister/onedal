@@ -24,7 +24,7 @@ import type { JudgmentConfig, MoneyFacts } from '@onedal/shared';
  */
 
 const MONEY = CRITERIA.find(c => c.key === 'money')!;
-const cfg: JudgmentConfig = DEFAULT_JUDGMENT;   // 무감점 60 · 주의 120 · 한계 180
+const cfg: JudgmentConfig = DEFAULT_JUDGMENT;   // 무감점 90 · 주의 120 · 한계 180
 
 const score = (fare: number, extraMinutes: number, firstLoad = false): number => {
     const out = MONEY.measure({ fare, extraMinutes, firstLoad } as MoneyFacts as never, cfg);
@@ -42,14 +42,20 @@ describe('🛣️ 우회 시간 — 길수록 값을 깎는다', () => {
         expect(score(150_000, 235)).toBeLessThan(40);      // color.normalMin
     });
 
-    it('무감점 한계(60분)까지는 시급 그대로다 — 덤은 덤이다', () => {
-        expect(시급6만(30)).toBe(시급6만(60));
-        expect(시급6만(60)).toBe(100);                      // 6만/h = 꿀 시급
+    /** 🔴 수도권에서 1.5시간 합짐은 일상이다 — 실측 117건 중 60~90분이 24건 */
+    it('무감점 한계(90분)까지는 시급 그대로다 — 덤은 덤이다', () => {
+        expect(시급6만(30)).toBe(시급6만(90));
+        expect(시급6만(90)).toBe(100);                      // 6만/h = 꿀 시급
     });
 
-    it('주의 한계(120분)에서는 아무리 좋아도 보통까지다', () => {
-        // 시급 10만/h 로 만점을 받아도 절반으로 깎인다
-        expect(score(200_000, 120)).toBeLessThanOrEqual(50);
+    /**
+     * 🔴 **주의 한계에서도 대박 콜은 🔵 를 지킨다** (기사님 확정 · 실측 대조 뒤 0.5 → 0.75).
+     *    절반까지 깎았더니 115분 12만원(6.3만/h) 같은 전형적인 대박 합짐이 🟢 로 내려와
+     *    «왜 보통이지»를 묻게 됐다. 어중간한 콜만 내려오게 3/4 로 둔다.
+     */
+    it('주의 한계(120분)에서 값이 3/4 다 — 대박 콜은 꿀을 지킨다', () => {
+        expect(score(200_000, 120)).toBe(75);               // 10만/h 만점 × 0.75
+        expect(score(120_000, 115)).toBeGreaterThanOrEqual(70);   // 실측: 6.3만/h 대박 합짐
     });
 
     it('🔴 한계(180분)를 넘으면 시급과 무관하게 똥이다', () => {
@@ -57,7 +63,7 @@ describe('🛣️ 우회 시간 — 길수록 값을 깎는다', () => {
     });
 
     it('같은 시급이면 우회가 길수록 낮다 — 뒤집히지 않는다', () => {
-        const a = 시급6만(60), b = 시급6만(120), c = 시급6만(180), d = 시급6만(240);
+        const a = 시급6만(90), b = 시급6만(120), c = 시급6만(180), d = 시급6만(240);
         expect(a).toBeGreaterThan(b);
         expect(b).toBeGreaterThan(c);
         expect(c).toBeGreaterThan(d);

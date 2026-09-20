@@ -115,8 +115,9 @@ export const MONEY = defineCriterion<MoneyFacts>({
             const { freeMin, cautionMin, hardMin } = cfg.detour;
             const dungCut = 0.39;                // 만점 콜도 40점 아래로 (color.normalMin)
             if (mins <= freeMin) return 1;
-            if (mins <= cautionMin) return 1 - 0.5 * ((mins - freeMin) / Math.max(1, cautionMin - freeMin));
-            if (mins <= hardMin) return 0.5 - (0.5 - dungCut) * ((mins - cautionMin) / Math.max(1, hardMin - cautionMin));
+            const caution = 0.75;               // 주의 한계에서 3/4 — 대박 콜은 🔵 를 지킨다
+            if (mins <= cautionMin) return 1 - (1 - caution) * ((mins - freeMin) / Math.max(1, cautionMin - freeMin));
+            if (mins <= hardMin) return caution - (caution - dungCut) * ((mins - cautionMin) / Math.max(1, hardMin - cautionMin));
             return dungCut * (hardMin / mins);        // 넘을수록 계속 무거워진다
         };
         const decay = f.firstLoad ? 1 : decayOf(f.extraMinutes);
