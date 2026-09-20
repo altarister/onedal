@@ -5,7 +5,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
-import { firstLoadFacts, mergeFacts, destProgressOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
+import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf, dwellLedgerFor } from "../../services/stepSeeder";
@@ -231,6 +231,16 @@ export class OrderEvaluator {
                             fare: securedOrder.fare, totalMinutes: total,
                             minAcceptableKrw: rateShort ? previewRate!.minAcceptable : null,
                             progress,
+                            /**
+                             * 🔙 **등 뒤 상차** — 첫짐에는 한계 우회가 없어 되돌아가는 거리를
+                             *    「돈」이 못 센다. 그물이 쓰는 식과 한 벌이다 (`isPickupBackward`).
+                             */
+                            pickupBackward: pickupBackwardOf({
+                                me: originOf(session),
+                                pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
+                                goalCity: goalCityOf(session, userId),
+                                pickupRadiusKm: session.activeFilter.pickupRadiusKm,
+                            }),
                             excludedHits,
                             tags,
                         }), judgmentCfg));
@@ -513,7 +523,14 @@ export class OrderEvaluator {
         if (!(securedOrder as any).judgment) {
             const why = reasons.length ? reasons.join(' · ') : timeExt;
             const dry = toSnapshot(judge(CRITERIA, firstLoadFacts({
-                fare: securedOrder.fare, totalMinutes: null, excludedHits, tags: [`판정 불가 — ${why}`],
+                fare: securedOrder.fare, totalMinutes: null, excludedHits,
+                pickupBackward: pickupBackwardOf({
+                    me: originOf(session),
+                    pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
+                    goalCity: goalCityOf(session, userId),
+                    pickupRadiusKm: session.activeFilter.pickupRadiusKm,
+                }),
+                tags: [`판정 불가 — ${why}`],
             }), judgmentCfg));
             console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
             OrderRepository.saveJudgment(securedOrder.id, userId, dry);

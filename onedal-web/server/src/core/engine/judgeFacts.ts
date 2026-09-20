@@ -1,4 +1,4 @@
-import { cityCenter, destProgressRatio, haversineKm } from '@onedal/shared';
+import { cityCenter, destProgressRatio, haversineKm, isPickupBackward } from '@onedal/shared';
 import type { JudgeFacts } from '@onedal/shared';
 import type { DryRunGate } from '@onedal/shared';
 
@@ -15,6 +15,31 @@ import type { DryRunGate } from '@onedal/shared';
  * 🔴 **여기서 채운 사실이 곧 화면의 색이다** — `OrderEvaluator` 가 이 사실로 `judge` 를 부르고
  *    그 결과를 콜에 붙인다. 칸 하나를 빼먹으면 색이 조용히 달라진다.
  */
+
+/**
+ * 🔙 **등 뒤 상차인가** — 목적지까지 «상차 : 현위치» 를 견준다 (여유 = 상차 반경).
+ *    식은 그물과 한 벌이다 (`isPickupBackward`) — 여기서 새로 만들지 않는다 (규칙 ③).
+ *    셋 중 하나라도 없으면 `null` — 목적지를 안 정하셨으면 잴 수가 없다 (규칙 ④).
+ */
+export function pickupBackwardOf(input: {
+    me: { x: number; y: number } | null;
+    pickup: { x?: number | null; y?: number | null };
+    goalCity: string;
+    /** 여유 — 옆 동네 픽업과 GPS 흔들림을 살린다 (그물이 쓰는 값 그대로) */
+    pickupRadiusKm: number;
+}): boolean | null {
+    if (!input.me || !input.goalCity) return null;
+    if (input.pickup.x == null || input.pickup.y == null) return null;
+
+    let goal: { lng: number; lat: number };
+    try { goal = cityCenter(input.goalCity); } catch { return null; }
+
+    return isPickupBackward(
+        haversineKm({ lng: input.pickup.x, lat: input.pickup.y }, goal),
+        haversineKm({ lng: input.me.x, lat: input.me.y }, goal),
+        input.pickupRadiusKm,
+    );
+}
 
 /** 첫짐 — 잡아 둔 콜이 없다. 약속·공간은 «잴 게 없다»가 된다 */
 export function firstLoadFacts(input: {
@@ -33,6 +58,8 @@ export function firstLoadFacts(input: {
      *    찾는 곳은 `OrderEvaluator.runStage1ShapeFilter` 하나다.
      */
     excludedHits: string[];
+    /** 🔙 등 뒤 상차인가 — 못 쟀으면 `null`. 잰 곳은 `pickupBackwardOf` 하나다 */
+    pickupBackward: boolean | null;
     tags: string[];
 }): JudgeFacts {
     return {
@@ -44,6 +71,7 @@ export function firstLoadFacts(input: {
             firstLoad: true,
             progressRatio: input.progress?.ratio ?? null,
             unknownWhy: input.progress?.unknownWhy ?? '전진율을 안 넘겼습니다',
+            pickupBackward: input.pickupBackward,
         },
         notes: [...input.tags],
     };

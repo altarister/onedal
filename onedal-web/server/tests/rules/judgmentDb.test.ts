@@ -96,7 +96,14 @@ describe('세션이 DB 값을 읽고, 판정이 그 값을 쓴다', () => {
     it('🔴 판정이 기본값이 아니라 **세션 값**을 쓴다', () => {
         const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
         expect(ev).toMatch(/judgmentCfg = session\.judgment/);
-        expect(ev).toMatch(/judge\(CRITERIA,[\s\S]{0,400}judgmentCfg\)/);
+        /**
+         * 🔴 **자리·길이로 자르지 않는다** — 판정 재료가 한 칸 늘면 «400자 안»이 깨져,
+         *    멀쩡한 코드를 빨간불로 만든다. 세는 것은 «호출마다 세션 값을 쓰는가»다.
+         */
+        const 판정호출 = (ev.match(/judge\(CRITERIA,/g) ?? []).length;
+        const 세션값으로 = (ev.match(/\}\), judgmentCfg\)/g) ?? []).length;
+        expect(판정호출).toBeGreaterThan(0);
+        expect(세션값으로).toBe(판정호출);
         // 재탐색은 색을 다시 정하지 않는다 — 스냅샷 고정 (확정 ④). 채점 호출이 없어야 한다
         expect(codeOnly(read('services/dispatchEngine.ts'))).not.toMatch(/scoreDryRun|scoreMerge|judge\(CRITERIA/);
     });

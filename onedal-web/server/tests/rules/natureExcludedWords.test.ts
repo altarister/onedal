@@ -38,7 +38,7 @@ const 합짐 = (over: Record<string, unknown> = {}) => mergeFacts({
 });
 
 const 첫짐 = (over: Record<string, unknown> = {}) => firstLoadFacts({
-    fare: 50_000, totalMinutes: 60, tags: [], excludedHits: [], ...over,
+    fare: 50_000, totalMinutes: 60, tags: [], excludedHits: [], pickupBackward: null, ...over,
 });
 
 describe('🧪 제외어 — 서버가 찾은 것이 색에 실린다', () => {

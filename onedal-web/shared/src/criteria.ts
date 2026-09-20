@@ -304,6 +304,11 @@ export interface GeographyFacts {
     progressRatio: number | null;
     /** 못 쟀으면 그 까닭 — 「목적지 미설정」 같은 것. 쟀으면 `null` */
     unknownWhy?: string | null;
+    /**
+     * 🔙 **등 뒤 상차인가** — 첫짐에만 쓴다. 합짐은 한계 우회가 이미 센다.
+     * 못 쟀으면 `null` — 깎지 않는다 (규칙 ⑤-2). 잰 곳은 `isPickupBackward` 하나다.
+     */
+    pickupBackward?: boolean | null;
 }
 
 /**
@@ -330,6 +335,15 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
     measure(f, cfg) {
         if (!f) return nothing('전진율을 안 받았습니다');
         if (!f.firstLoad) return nothing('합짐입니다 — 지리는 「돈」이 셉니다');
+
+        /**
+         * 🔙 **등 뒤 상차는 사고다** — 첫짐에는 한계 우회가 없어 되돌아가는 거리를 아무도 안 센다.
+         *    합짐이면 위에서 이미 빠졌다 — 「돈」이 한계 우회로 센다 (규칙 ③).
+         *    🔴 못 쟀으면(`null`) 깎지 않는다 — 목적지를 안 정하셨을 뿐이다 (규칙 ⑤-2).
+         */
+        if (f.pickupBackward === true) {
+            return scored(0, '등 뒤 상차 — 목적지에서 멀어집니다', true);
+        }
 
         const { max, min } = cfg.destBonus;
         if (f.progressRatio == null) {

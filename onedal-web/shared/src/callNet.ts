@@ -609,6 +609,16 @@ export function nearestDong(pt: { lng: number; lat: number }): { name: string; r
  * 7번 하나(~152:26:~137 — 상차가 15km 등 뒤)였고 **그 콜만 취소로 끝났다.**
  * 폭은 후하게, 방향은 엄격하게 — 영역을 넓혀도 2단계가 뒤를 막는다.
  */
+/**
+ * 🔙 **등 뒤 상차인가** — 목적지까지 «상차 : 현위치» 를 견준다. 여유는 상차 반경이다
+ * (옆 동네 픽업과 GPS 흔들림을 살린다).
+ *
+ * 🔴 **식은 여기 하나다** — 그물(`judgeTwoStage` 2단계 ②)과 첫짐 판정이 같이 쓴다.
+ *    각자 쓰면 언젠가 갈라진다 (규칙 ③).
+ */
+export const isPickupBackward = (distPickKm: number, distMeKm: number, pickupRadiusKm: number): boolean =>
+    distPickKm > distMeKm + pickupRadiusKm;
+
 export interface TwoStageVerdict {
     /** 상차·하차 좌표의 최근접 동 (근사 — 폴리곤이 아니라 중심점 거리) */
     pickupDong: { name: string; region: string };
@@ -688,7 +698,7 @@ export function judgeTwoStage(
         || haversineKm(me, pickup) <= 1.5
         || haversineKm(dst, pickup) <= dstRingKm;
     const dropBackward = distDropKm > distPickKm && distDropKm > dstRingKm;
-    const pickupBackward = distPickKm > distMeKm + pickupRadiusKm;
+    const pickupBackward = isPickupBackward(distPickKm, distMeKm, pickupRadiusKm);
 
     return {
         pickupDong: nearestDong(pickup), dropDong: nearestDong(drop),
