@@ -70,7 +70,7 @@ describe('🧭 못 쟀으면 까닭을 적는다 — 지어내지 않는다', ()
 
 describe('🧭 판정까지 이어진다', () => {
     const 색 = (progress: ReturnType<typeof destProgressOf>) => judge(CRITERIA, firstLoadFacts({
-        fare: 12_000, totalMinutes: 65, progress, tags: [],
+        fare: 12_000, totalMinutes: 65, progress, excludedHits: [], tags: [],
     }), { ...DEFAULT_JUDGMENT, weights: { ...DEFAULT_JUDGMENT.weights, geography: 1 } });
 
     it('🔴 전진하는 첫짐이 꿀로 올라간다 — 돈만 보면 44점(보통)이다', () => {
@@ -88,7 +88,7 @@ describe('🧭 판정까지 이어진다', () => {
     });
 
     it('🔴 전진율을 안 넘기면 그 사실이 화면에 적힌다 — 조용히 1.0 이 되지 않는다', () => {
-        const 안넘김 = judge(CRITERIA, firstLoadFacts({ fare: 12_000, totalMinutes: 65, tags: [] }),
+        const 안넘김 = judge(CRITERIA, firstLoadFacts({ fare: 12_000, totalMinutes: 65, excludedHits: [], tags: [] }),
             { ...DEFAULT_JUDGMENT, weights: { ...DEFAULT_JUDGMENT.weights, geography: 1 } });
         expect(안넘김.criteria.find(c => c.key === 'geography')!.outcome.why).toContain('안 넘겼습니다');
     });

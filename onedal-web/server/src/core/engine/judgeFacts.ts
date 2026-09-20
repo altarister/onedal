@@ -28,13 +28,18 @@ export function firstLoadFacts(input: {
      *    잰 곳은 `destProgressOf` 하나다 (여기서 다시 재지 않는다 · 규칙 ③).
      */
     progress?: { ratio: number | null; unknownWhy: string | null };
+    /**
+     * 🧪 **형상 필터가 이미 찾아 둔 제외어** — 여기서 다시 훑지 않는다 (규칙 ③).
+     *    찾는 곳은 `OrderEvaluator.runStage1ShapeFilter` 하나다.
+     */
+    excludedHits: string[];
     tags: string[];
 }): JudgeFacts {
     return {
         money: { fare: input.fare, extraMinutes: input.totalMinutes, minAcceptableKrw: input.minAcceptableKrw ?? null, firstLoad: true },
         promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
         space: { freePct: null, hasLoad: false },
-        nature: { conflicts: [], excludedHits: [], hasLoad: false },
+        nature: { conflicts: [], excludedHits: input.excludedHits, hasLoad: false },
         geography: {
             firstLoad: true,
             progressRatio: input.progress?.ratio ?? null,
@@ -101,6 +106,8 @@ export function mergeFacts(input: {
     gates: DryRunGate[];
     /** 같이 못 싣는 조합 (성질) */
     conflicts: Array<[string, string]>;
+    /** 🧪 형상 필터가 이미 찾아 둔 제외어 — 여기서 다시 훑지 않는다 (규칙 ③) */
+    excludedHits: string[];
     tags: string[];
 }): JudgeFacts {
     /**
@@ -119,7 +126,7 @@ export function mergeFacts(input: {
         money: { fare: input.fare, extraMinutes: input.extraMinutes, firstLoad: false },
         promise: { hasExistingCalls: true, lateStops, bufferAfterMin: input.bufferAfterMin },
         space: { freePct: input.freePct, hasLoad: true, confidence: input.confidence ?? null },
-        nature: { conflicts: input.conflicts, excludedHits: [], hasLoad: true },
+        nature: { conflicts: input.conflicts, excludedHits: input.excludedHits, hasLoad: true },
         /**
          * 🧭 **국면을 실어 준다 — 배수는 안 붙지만 까닭은 사실대로 적혀야 한다.**
          *    안 실으면 「지리」가 «전진율을 안 받았습니다» 라고 적어, 합짐인데 «재료가 빠졌나»로 읽힌다.

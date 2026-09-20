@@ -76,7 +76,7 @@ export class OrderEvaluator {
         securedOrder.dropoff = this.plugin.normalizeAddress(securedOrder.dropoff);
 
         // Stage 1. 형상 필터
-        this.runStage1ShapeFilter(securedOrder, session, reasons, pros);
+        const { excludedHits } = this.runStage1ShapeFilter(securedOrder, session, reasons, pros);
 
         // Stage 1.5 지오코딩 및 카카오 연산
         try {
@@ -231,6 +231,7 @@ export class OrderEvaluator {
                             fare: securedOrder.fare, totalMinutes: total,
                             minAcceptableKrw: rateShort ? previewRate!.minAcceptable : null,
                             progress,
+                            excludedHits,
                             tags,
                         }), judgmentCfg));
 
@@ -435,7 +436,7 @@ export class OrderEvaluator {
                                 freePct: slotsTotal > 0 ? ((slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
                                 /** 📦 그 적재량을 어떻게 알았나 — 확정값일 때만 색을 덮는다 */
                                 confidence: session.activeFilter.capacityConfidence ?? null,
-                                gates, conflicts, tags,
+                                gates, conflicts, excludedHits, tags,
                             }), judgmentCfg));
                             dry.stops = stopsView;
                             dry.unknownWhy = unknownWhy;
@@ -512,7 +513,7 @@ export class OrderEvaluator {
         if (!(securedOrder as any).judgment) {
             const why = reasons.length ? reasons.join(' · ') : timeExt;
             const dry = toSnapshot(judge(CRITERIA, firstLoadFacts({
-                fare: securedOrder.fare, totalMinutes: null, tags: [`판정 불가 — ${why}`],
+                fare: securedOrder.fare, totalMinutes: null, excludedHits, tags: [`판정 불가 — ${why}`],
             }), judgmentCfg));
             console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
             OrderRepository.saveJudgment(securedOrder.id, userId, dry);
@@ -556,7 +557,12 @@ export class OrderEvaluator {
         }
     }
 
-    private runStage1ShapeFilter(order: SecuredOrder | PendingOrder, session: any, reasons: string[], pros: string[]) {
+    /**
+     * 🧪 **찾은 제외어를 함께 내보낸다** — 색이 그것을 말해야 한다 (규칙 ⑤-3).
+     *    `reasons` 문장에만 남기면 판정이 못 받아 「성질」 기준이 빈손으로 돈다.
+     *    훑는 곳은 여기 하나다 — 판정은 **옮겨 담기만** 한다 (규칙 ③).
+     */
+    private runStage1ShapeFilter(order: SecuredOrder | PendingOrder, session: any, reasons: string[], pros: string[]): { excludedHits: string[] } {
         const filter = session.activeFilter;
         
         // 1) 차종 검사 — 배차망은 줄여 적는다(«승»). 원달앱처럼 줄임말을 맞춰 본다 (버그 대장 #142)
@@ -605,16 +611,16 @@ export class OrderEvaluator {
         }
 
         // 4) 제외 키워드 검사 (플러그인 커스텀 룰 혼합)
+        const excludedHits: string[] = [];
         const rawText = `${order.pickup} ${order.dropoff} ${order.detailMemo || ''} ${(order as any).rawText || ''}`;
         if (filter.excludedKeywords && filter.excludedKeywords.length > 0) {
-            let hasExcluded = false;
             for (const kw of filter.excludedKeywords) {
                 if (kw && rawText.includes(kw)) {
                     reasons.push(`제외키워드(${kw}) 감지`);
-                    hasExcluded = true;
+                    excludedHits.push(kw);
                 }
             }
-            if (!hasExcluded) pros.push(`제외키워드 없음`);
+            if (!excludedHits.length) pros.push(`제외키워드 없음`);
         }
         
         const customReasons = this.plugin.evaluateCustomRules(rawText);
@@ -647,6 +653,7 @@ export class OrderEvaluator {
         }
 
         console.log(`   - 🔍 [Stage 1] 형상 필터 검증 완료: ${reasons.length === 0 ? '✅ 통과' : `❌ ${reasons.join(', ')}`}`);
+        return { excludedHits };
     }
 
     /**

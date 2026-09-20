@@ -38,7 +38,7 @@ describe('판정 없이 끝나지 않는다 (#123)', () => {
 
     it('좌표가 없어 걸린 시간을 모르면 — 🔴 · 점수 없음 · «잴 수 없음» 딱지 (관제웹이 «판단 불가»로 읽는 모양)', () => {
         const v = toSnapshot(judge(CRITERIA, firstLoadFacts({
-            fare: 10_000, totalMinutes: null, tags: ['판정 불가 — 후보콜의 상차지 주소를 찾지 못했습니다'],
+            fare: 10_000, totalMinutes: null, excludedHits: [], tags: ['판정 불가 — 후보콜의 상차지 주소를 찾지 못했습니다'],
         }), DEFAULT_JUDGMENT));
         expect(v.color).toBe('사고');
         expect(v.score).toBeNull();
