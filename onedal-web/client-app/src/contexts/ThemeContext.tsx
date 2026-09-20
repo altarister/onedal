@@ -13,7 +13,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [theme, setThemeState] = useState<Theme>(() => {
         const savedTheme = localStorage.getItem('onedal-ui-theme');
-        return (savedTheme as Theme) || 'dark'; // 기본값은 dark 이지만, 1dal 클릭시 토글됨
+        // 🌓 고르는 자리는 ☰ 서랍 발 하나다 (`Drawer` · 화면규칙 D2). 기본은 어둡게 — 밤 운행이 많다
+        return (savedTheme as Theme) || 'dark';
     });
 
     const setTheme = (newTheme: Theme) => {

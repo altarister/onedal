@@ -1,6 +1,6 @@
-import { isEvaluating, isDeliveredCall } from "@onedal/shared";
+import { isEvaluating } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas from './PinnedRouteCanvas';
@@ -9,6 +9,7 @@ import CallDeck from './CallDeck';
 import { EMPTY_RECORDS } from '../../hooks/records';
 import { MovingBadge } from './VehicleStatusPanel';
 import { deckOrder } from '../../lib/deckFocus';
+import { callsInView, countsByView } from '../../lib/finishedCalls';
 import type { BarFocus } from '../stage/barFocus';
 import type { RouteStopInfo } from '@onedal/shared';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -51,6 +52,14 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
      * 그대로 있고, **새 자리는 기사님과 정한다** (todo 0-G · 아직 미정).
      */
     const view = sheetOnly ? 'ACTIVE' : viewFilter;
+    /** 끝난 콜을 가릴 때 쓴다 — 사이클에 아직 있는 콜은 «완료됨»에 넣지 않는다 */
+    const cycleDeckIds = useMemo(() => new Set(d.cycleDeck.map(c => c.id)), [d.cycleDeck]);
+    /**
+     * 🔴 **탭에 적는 숫자도 목록과 같은 규칙에서 나온다** (`countsByView`).
+     *    따로 세던 때는 «완료됨»만 사이클 덱을 빼고 취소·방출은 안 빼서,
+     *    숫자와 목록이 어긋날 수 있었다 (`finishedCallsSingleSource` 가 문다).
+     */
+    const finishedCounts = useMemo(() => countsByView(activeRoute, cycleDeckIds), [activeRoute, cycleDeckIds]);
     /**
      * 🏭 파생은 전부 **제조소 훅** 한 곳에서 (화면개편 1단계 · 2026-08-31).
      * 이 컴포넌트에는 화면 상태(펼침·탭·처리중)만 남는다.
@@ -297,20 +306,20 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'COMPLETED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
                         {/* 🔄 사이클이 도는 동안 하차한 콜은 진행 중 탭에 있다 — 두 곳에서 세지 않는다 */}
-                        완료됨 ({safeRoute.filter(r => isDeliveredCall(r) && !cycleDeck.some(c => c.id === r.id)).length})
+                        완료됨 ({finishedCounts.COMPLETED})
                     </button>
                     {/* 취소와 방출을 따로 센다 (기사님 2026-08-18) */}
                     <button
                         onClick={() => { setViewFilter('CANCELED'); scrollToCalls(); }}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'CANCELED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
-                        취소 ({safeRoute.filter(r => r.status === 'SAFE_CANCEL').length})
+                        취소 ({finishedCounts.CANCELED})
                     </button>
                     <button
                         onClick={() => { setViewFilter('RELEASED'); scrollToCalls(); }}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'RELEASED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
-                        방출 ({safeRoute.filter(r => r.status === 'ORDER_RELEASED_BY_ME' || r.status === 'ORDER_RELEASED_BY_OFFICE').length})
+                        방출 ({finishedCounts.RELEASED})
                     </button>
                     <button
                         onClick={() => { setViewFilter('ALL'); scrollToCalls(); }}
@@ -385,36 +394,9 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
             {/* 오더 관리 아코디언 리스트 (완료됨 · 취소/방출 · 전체) */}
             {view !== 'ACTIVE' && safeRoute.length > 0 && (
                 <div className="flex flex-col">
-                    {[...activeRoute]
-                        .filter(route => {
-                            // ACTIVE 는 위 덱이 담당하므로 여기 오지 않는다
-                            if (view === 'COMPLETED') {
-                                // 하차 보고(ORDER_DELIVERED)가 곧 배송 완료다 (Phase 8.3)
-                                // 🔄 다만 사이클이 도는 동안에는 진행 중 탭에 남아 있다 —
-                                //    같은 콜이 두 탭에 동시에 보이지 않게 여기서 뺀다
-                                return isDeliveredCall(route) && !cycleDeck.some(c => c.id === route.id);
-                            }
-                            if (view === 'CANCELED') {
-                                return route.status === 'SAFE_CANCEL';
-                            }
-                            if (view === 'RELEASED') {
-                                return route.status === 'ORDER_RELEASED_BY_ME' || route.status === 'ORDER_RELEASED_BY_OFFICE';
-                            }
-                            return true; // ALL
-                        })
-                        .sort((a, b) => {
-                            const aEval = isEvaluating(a.status);
-                            const bEval = isEvaluating(b.status);
-                            // 평가중인 콜은 항상 맨 위에
-                            if (aEval && !bEval) return -1;
-                            if (!aEval && bEval) return 1;
-
-                            const timeA = a.capturedAt ? new Date(a.capturedAt).getTime() : 0;
-                            const timeB = b.capturedAt ? new Date(b.capturedAt).getTime() : 0;
-
-                            // 기본적으로 시간 역순 (나중에 잡은게 위로, 먼저 잡은게 아래로)
-                            return timeB - timeA;
-                        })
+                    {/* 🔴 **거르고 줄 세우는 규칙은 `lib/finishedCalls` 한 벌이다** (규칙 ③).
+                        ☰ 서랍이 같은 함수를 부른다 — 두 벌이면 «탭에는 있는데 서랍에는 없는» 콜이 생긴다 */}
+                    {callsInView(activeRoute, view, cycleDeckIds)
                         .map((route) => {
                             const routeEval = isEvaluating(route.status);
                             const isExpanded = routeEval || expandedIds.has(route.id);

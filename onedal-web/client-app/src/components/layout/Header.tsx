@@ -3,7 +3,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import SettingsModal from "../dashboard/SettingsModal";
 import { VehicleLogoSummary } from "../dashboard/VehicleStatusPanel";
 import type { SecuredOrder } from "@onedal/shared";
-import { useTheme } from "../../contexts/ThemeContext";
 import { useServerClock } from "../../hooks/useServerClock";
 import { serverNow, isSynced, isDrifting } from "../../lib/serverClock";
 import { formatClock } from "../../lib/clock";
@@ -12,7 +11,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 
 
-export default function Header({ isConnected, liveCalls }: { isConnected: boolean; liveCalls?: SecuredOrder[] }) {
+export default function Header({ isConnected, liveCalls, onMenu }: {
+    isConnected: boolean;
+    liveCalls?: SecuredOrder[];
+    /** ☰ 를 누르면 왼쪽 서랍이 열린다 — 안 주면 버튼을 안 그린다(로그인 등 서랍 없는 화면) */
+    onMenu?: () => void;
+}) {
     /**
      * 🕐 **서버 시계다 — 폰 시계가 아니다** (기사님 2026-09-05:
      *    *"폰 시계가 아니고 서버 시계로 만들어야 해.. 그래야 서버 시간으로 우리가 계산하지."*)
@@ -25,7 +29,6 @@ export default function Header({ isConnected, liveCalls }: { isConnected: boolea
     const [tick, setTick] = useState(() => Date.now());
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { user } = useAuth();
-    const { toggleTheme } = useTheme();
     const { isRinging, stopAll } = useSoundManager();
 
     useEffect(() => {
@@ -55,14 +58,24 @@ export default function Header({ isConnected, liveCalls }: { isConnected: boolea
         <>
             <header ref={headerRef} className="sticky top-0 z-20 bg-bg-base/95 backdrop-blur-sm border-b border-border-card px-3 py-2.5">
                 <div className="flex items-center justify-between max-w-2xl mx-auto">
-                    <div className="flex items-center gap-2">
-                        {/* 🚚 로고 자리 = 내 차 상황 (기사님 0831: "로고는 테마 전환 역할뿐 — 영역을 아끼자").
-                            누르면 여전히 테마 전환. liveCalls 없는 화면(로그인 등)은 1DAL 그대로 */}
-                        <button onClick={toggleTheme} className="focus:outline-none active:scale-95 transition-transform text-left">
+                    <div className="flex items-center gap-3">
+                        {/* ☰ **왼쪽 서랍을 연다** — 끝난 콜(완료됨·취소·방출)이 사는 자리.
+                            🔴 로고와 떼어 놓는다(gap-3). 붙이면 운전 중 잘못 눌러 엉뚱한 것이 열린다 */}
+                        {onMenu && (
+                            <button onClick={onMenu} aria-label="메뉴 열기"
+                                className="shrink-0 w-9 h-9 -ml-1 flex items-center justify-center rounded-lg
+                                           text-text-primary focus:outline-none active:scale-95 transition-transform">
+                                <span className="text-xl leading-none">☰</span>
+                            </button>
+                        )}
+                        {/* 🚚 로고 자리 = 내 차 상황 (기사님 0831: "영역을 아끼자").
+                            🔴 테마 전환은 **서랍 발**로 옮겼다 — 여기 두면 운행 중 오탭으로 화면이 뒤집힌다.
+                            liveCalls 없는 화면(로그인 등)은 1DAL 그대로 */}
+                        <div className="text-left">
                             {liveCalls ? <VehicleLogoSummary liveCalls={liveCalls} /> : (
                                 <h1 className="text-2xl font-black tracking-tighter text-text-primary">1DAL</h1>
                             )}
-                        </button>
+                        </div>
                     </div>
                     <div className="flex gap-2 items-center">
                         {isRinging && (

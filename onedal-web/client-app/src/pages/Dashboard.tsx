@@ -1,6 +1,7 @@
 import { isTerminal, isEvaluating, judgingCallOf } from "@onedal/shared";
 import { mergeOrderViews } from "../lib/orderMerge";
 import Header from "../components/layout/Header";
+import Drawer from "../components/layout/Drawer";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import Collapse from "../components/ui/collapse";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
@@ -66,6 +67,8 @@ export default function Dashboard() {
     const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
     // 🎭 새 화면 미리보기 토글 (화면개편 · 기사님 확정 0831) — 표시만 바뀐다, 상태는 공용
     const [stagePreview, setStagePreview] = useState(() => localStorage.getItem('stagePreview') === '1');
+    /** ☰ 왼쪽 서랍 — 끝난 콜(완료됨·취소·방출)이 사는 자리 (기사님 확정) */
+    const [drawerOpen, setDrawerOpen] = useState(false);
     /**
      * 🔬 **곁 패널 자리가 되나** — 무대는 `max-w-2xl`(672px) 가운데 고정이라 창이 넓으면
      *    **왼쪽 여백**이 남는다. 그 여백이 한 칸(330px)을 담을 만큼일 때만 만든다.
@@ -277,14 +280,18 @@ export default function Dashboard() {
     const withPanel = stagePreview && sidePanelRoom;
     const body = (
         <main className={stagePreview
-            ? "h-dvh overflow-hidden flex flex-col bg-bg-base font-sans"      /* 🎭 무대: 화면 = 상자, 스크롤은 시트 안 */
-            : "min-h-screen bg-bg-base font-sans pb-24"}
+            /* 🔴 `relative` 는 ☰ 서랍의 자리다 — 서랍은 이 상자 안에서만 깔려 곁 패널(현황판)을 안 덮는다 */
+            ? "relative h-dvh overflow-hidden flex flex-col bg-bg-base font-sans"  /* 🎭 무대: 화면 = 상자, 스크롤은 시트 안 */
+            : "relative min-h-screen bg-bg-base font-sans pb-24"}
             /* 🛡️ overflow-hidden 이어도 프로그램 스크롤(scrollIntoView·포커스)은 민다 —
                무대에서 어떤 경로로든 밀리면 즉시 0 으로 (상단 날아감 재발 방지) */
             onScroll={stagePreview ? (e) => { e.currentTarget.scrollTop = 0; e.currentTarget.scrollLeft = 0; } : undefined}>
 
             {/* 📍 공통 헤더 컴포넌트 */}
-            <Header isConnected={isConnected} liveCalls={liveCalls} />
+            <Header isConnected={isConnected} liveCalls={liveCalls} onMenu={() => setDrawerOpen(true)} />
+
+            {/* ☰ 왼쪽 서랍 — 생김새를 정한 자리는 `/mockup/drawer` 다 */}
+            <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} activeRoute={activeRoute} />
 
             {/* 🛡️ 필터 바깥 터치 시 닫기 백드롭 (운행 중 흔들림에 의한 하단 카드/지도 고스트 클릭 방지 · 어둡지 않고 밝게 유지) */}
             {isFilterOpen && (

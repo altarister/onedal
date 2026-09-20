@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
 import SheetMockup from "./pages/SheetMockup";
 import MapMockup from "./pages/MapMockup";
+import DrawerMockup from "./pages/DrawerMockup";
 import Settlement from "./pages/Settlement";
 import Login from "./pages/Login";
 import { logRoadmapEvent } from "./lib/roadmapLogger";
@@ -167,6 +168,10 @@ export default function App() {
         {/* 🗺️ **지도 실험실** — 필터 두 단계(영역→거리)를 지도 클릭으로 검증한다 (기사님 2026-09-07).
             자기 캔버스로만 그리고 서버·소켓·GPS 를 안 쓴다 — 다른 화면에 영향 없음 */}
         <Route path="/mockup/map" element={<MapMockup />} />
+        {/* ☰ **왼쪽 서랍 목업** — 끝난 콜(완료됨·취소·방출)을 관제에서 빼 여기로 (기사님).
+            새 화면으로 굳히면 옛 화면의 탭 줄이 사라지는데, 폰에서는 현황판도 안 떠 볼 곳이 없어진다.
+            고정값만 그리고 서버·소켓·GPS 를 안 쓴다 */}
+        <Route path="/mockup/drawer" element={<DrawerMockup />} />
         <Route 
           path="/*" 
           element={
