@@ -5,7 +5,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
-import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
+import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, trappedOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf, dwellLedgerFor } from "../../services/stepSeeder";
@@ -241,6 +241,8 @@ export class OrderEvaluator {
                                 goalCity: goalCityOf(session, userId),
                                 pickupRadiusKm: session.activeFilter.pickupRadiusKm,
                             }),
+                            // 🏔️ 들어가면 빈 차로 나오는 곳 — 요금으로는 안 보인다 (노하우 148행)
+                            trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
                             excludedHits,
                             tags,
                         }), judgmentCfg));
@@ -524,6 +526,7 @@ export class OrderEvaluator {
                     goalCity: goalCityOf(session, userId),
                     pickupRadiusKm: session.activeFilter.pickupRadiusKm,
                 }),
+                trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
                 tags: [`판정 불가 — ${why}`],
             }), judgmentCfg));
             console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);

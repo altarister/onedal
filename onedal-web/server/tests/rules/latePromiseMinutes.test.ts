@@ -114,6 +114,7 @@ describe('⏰ 약속 지연 — 몇 분인지 화면이 말한다', () => {
             expect(call).toMatch(/lateStops/);
             expect(call).not.toMatch(/lateStops:\s*\[\s*\]/);   // 빈손을 박지 않는다
         }
-        expect(src).toMatch(/lateStopsOf\(/);                       // 재는 곳을 쓴다
+        /** 🔴 짓는 곳을 쓰는가 — 손으로 다시 만들면 조건 문장과 갈라진다 (규칙 ③) */
+        expect(src).toMatch(/lateStopsOf\(/);
     });
 });

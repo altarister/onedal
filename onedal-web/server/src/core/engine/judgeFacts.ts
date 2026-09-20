@@ -1,4 +1,4 @@
-import { cityCenter, destProgressRatio, haversineKm, isPickupBackward, PHASE_LABEL } from '@onedal/shared';
+import { cityCenter, destProgressRatio, haversineKm, isPickupBackward, isTrappedRegion, nearestDong, PHASE_LABEL } from '@onedal/shared';
 import type { JudgeFacts, PhaseKey } from '@onedal/shared';
 
 /**
@@ -40,6 +40,16 @@ export function pickupBackwardOf(input: {
     );
 }
 
+/**
+ * 🏔️ **하차지가 «못 빠져나오는 곳»인가** — 좌표에서 시군구·읍면동을 얻어 견준다.
+ *    목록과 판단은 `isTrappedRegion` 하나다 (규칙 ③). 좌표가 없으면 `null` (규칙 ④).
+ */
+export function trappedOf(dropoff: { x?: number | null; y?: number | null }): boolean | null {
+    if (dropoff.x == null || dropoff.y == null) return null;
+    const d = nearestDong({ lng: dropoff.x, lat: dropoff.y });
+    return isTrappedRegion(d.region, d.name);
+}
+
 /** 첫짐 — 잡아 둔 콜이 없다. 약속·공간은 «잴 게 없다»가 된다 */
 export function firstLoadFacts(input: {
     fare: number;
@@ -59,6 +69,8 @@ export function firstLoadFacts(input: {
     excludedHits: string[];
     /** 🔙 등 뒤 상차인가 — 못 쟀으면 `null`. 잰 곳은 `pickupBackwardOf` 하나다 */
     pickupBackward: boolean | null;
+    /** 🏔️ 하차지가 «못 빠져나오는 곳»인가 — 잰 곳은 `isTrappedRegion` 하나다 */
+    trapped: boolean | null;
     tags: string[];
 }): JudgeFacts {
     return {
@@ -71,6 +83,7 @@ export function firstLoadFacts(input: {
             progressRatio: input.progress?.ratio ?? null,
             unknownWhy: input.progress?.unknownWhy ?? '전진율을 안 넘겼습니다',
             pickupBackward: input.pickupBackward,
+            trapped: input.trapped,
         },
         notes: [...input.tags],
     };

@@ -38,7 +38,7 @@ const 합짐 = (over: Record<string, unknown> = {}) => mergeFacts({
 });
 
 const 첫짐 = (over: Record<string, unknown> = {}) => firstLoadFacts({
-    fare: 50_000, totalMinutes: 60, tags: [], excludedHits: [], pickupBackward: null, ...over,
+    fare: 50_000, totalMinutes: 60, tags: [], excludedHits: [], pickupBackward: null, trapped: null, ...over,
 });
 
 describe('🧪 제외어 — 서버가 찾은 것이 색에 실린다', () => {
@@ -89,6 +89,8 @@ describe('🧪 제외어 — 서버가 찾은 것이 색에 실린다', () => {
         for (const i of spots) {
             const call = src.slice(i, src.indexOf('}), judgmentCfg', i));
             expect(call).toMatch(/excludedHits/);
+            /** 🔴 빈손을 박아도 통과하면 안 된다 — 형상 필터가 찾은 것을 넘겨야 한다 */
+            expect(call).not.toMatch(/excludedHits:\s*\[\s*\]/);
         }
     });
 

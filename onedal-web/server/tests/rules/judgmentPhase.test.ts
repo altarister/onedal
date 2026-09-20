@@ -78,8 +78,8 @@ describe('🏗️ 판정이 국면을 안다', () => {
         expect(spots.length).toBeGreaterThan(0);
         for (const i of spots) {
             const call = src.slice(i, src.indexOf('}), judgmentCfg', i));
-            expect(call).toMatch(/phase/);
-            expect(call).not.toMatch(/phase:\s*'(merge|drive|first|home)'/);   // 박아 넣지 않는다
+            /** 🔴 «가르는 함수를 쓰는가» 를 본다 — 값을 박아 넣으면 빨간불 */
+            expect(call).toMatch(/phase:\s*resolvePhaseKey\(/);
         }
     });
 });

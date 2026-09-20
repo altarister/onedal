@@ -134,7 +134,7 @@ describe('🧭 배수의 두 끝은 판정 기준 탭에 있다 (규칙 ⑤-4 �
     });
 
     it('🔴 기본값은 설계서 §6 그대로다 — 최대 2.0 · 최소 0.5', () => {
-        expect(DEFAULT_JUDGMENT.destBonus).toEqual({ max: 2.0, min: 0.5 });
+        expect(DEFAULT_JUDGMENT.destBonus).toEqual({ max: 2.0, min: 0.5, trappedMult: 0.6 });
     });
 
     it('🔴 기사님이 최대를 내리면 배수가 따라 내려간다', () => {

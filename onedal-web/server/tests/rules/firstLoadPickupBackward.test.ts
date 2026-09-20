@@ -39,7 +39,7 @@ const 잰다 = (me: typeof 대전 | null, pickup: { x?: number | null; y?: numbe
 
 const 첫짐 = (over: Record<string, unknown> = {}) => firstLoadFacts({
     fare: 50_000, totalMinutes: 60, tags: [], excludedHits: [],
-    pickupBackward: null, ...over,
+    pickupBackward: null, trapped: null, ...over,
 });
 
 describe('🔙 등 뒤 상차 — 첫짐에서만 잰다', () => {

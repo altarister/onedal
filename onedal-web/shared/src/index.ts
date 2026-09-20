@@ -2095,6 +2095,7 @@ export * from './sectionLine';
  *    «화면은 든다는데 판정은 탈락»이 안 생긴다 (규칙 ③).
  */
 export * from './callNet';
+export * from './trappedRegions';
 
 /**
  * ⏱️ **«주행·정차»로 굳는 데 걸리는 초 — 기본값** (기사님 확정 2026-09-12 · 화면규칙 S16).

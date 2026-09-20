@@ -332,6 +332,11 @@ export interface GeographyFacts {
      * 못 쟀으면 `null` — 깎지 않는다 (규칙 ⑤-2). 잰 곳은 `isPickupBackward` 하나다.
      */
     pickupBackward?: boolean | null;
+    /**
+     * 🏔️ **하차지가 갇힘 지역인가** — 들어가면 빈 차로 나온다 (`isTrappedRegion`).
+     * 첫짐에만 쓴다. 못 쟀으면 `null` — 깎지 않는다 (규칙 ⑤-2).
+     */
+    trapped?: boolean | null;
 }
 
 /**
@@ -375,8 +380,16 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
         const p = Math.max(-1, Math.min(1, f.progressRatio));
         const bonus = Math.max(min, Math.min(max, 1 + (max - 1) * p));
         const sign = p >= 0 ? '+' : '';
+        /**
+         * 🏔️ **갇힘 지역은 한 번 더 깎는다** — 들어가면 빈 차로 나온다 (노하우 148행).
+         *    요금으로는 안 보인다: 그쪽 콜은 오히려 비싸다 (아무도 안 가려 하니까).
+         *    🔴 버리지 않는다 (규칙 ①) — 색으로만 말한다.
+         */
+        const trapMult = f.trapped === true ? cfg.destBonus.trappedMult : 1;
+        const why = `전진율 ${sign}${p.toFixed(2)} → 배수 ×${bonus.toFixed(2)}`
+            + (f.trapped === true ? ` · 🏔️ 못 빠져나오는 곳 ×${trapMult}` : '');
         // 화면 눈금은 −1~1 을 0~100 으로 펴 놓은 것이다 (색을 정하는 것은 배수다)
-        return multiplied(bonus, (p + 1) / 2 * 100, `전진율 ${sign}${p.toFixed(2)} → 배수 ×${bonus.toFixed(2)}`);
+        return multiplied(bonus * trapMult, (p + 1) / 2 * 100 * trapMult, why);
     },
 });
 
