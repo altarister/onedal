@@ -183,13 +183,7 @@ router.put("/", requireAuth, async (req, res) => {
         }
 
 
-        // 자동 콜 잡기 스위치(isActive)만 user_filters 로 — 노선·반경 편집 자리는 국면 탭 하나 (④ 철거)
-        const filterChanges: any = {};
-        if (payload.isActive !== undefined) filterChanges.isActive = payload.isActive;
-
-        if (Object.keys(filterChanges).length > 0) {
-            saveBaseFilter(userId, filterChanges, req.app.get("io"));
-        }
+        // 🎛️ 콜 필터 켬/끔(isActive)은 기기 모드(AUTO/MANUAL)가 유일한 원천이라 여기서 다루지 않는다
 
         // 클라이언트(내 차 패널 등)가 실시간으로 갱신될 수 있도록 소켓 이벤트 발송
         req.app.get("io").to(userId).emit("settings-updated", payload);
@@ -352,8 +346,8 @@ router.get("/pricing", requireAuth, (req, res) => {
 router.put("/pricing", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
-        // ④ 철거 — 콜할인율(maxDiscountPercent)·반경은 국면 탭이 원천이라 받지 않는다
-        const { vehicleRates, agencyFeePercent, excludedKeywords, minFare, maxFare } = req.body;
+        // ④ 철거 — 콜할인율(maxDiscountPercent)·반경·블랙리스트는 🔍 필터가 원천이라 받지 않는다
+        const { vehicleRates, agencyFeePercent, minFare, maxFare } = req.body;
 
         db.prepare("INSERT OR IGNORE INTO user_filters (user_id) VALUES (?)").run(userId);
 
@@ -376,10 +370,21 @@ router.put("/pricing", requireAuth, (req, res) => {
         const filterChanges: any = {};
         if (minFare !== undefined) filterChanges.minFare = minFare;
         if (maxFare !== undefined) filterChanges.maxFare = maxFare;
-        if (excludedKeywords !== undefined) filterChanges.excludedKeywords = excludedKeywords;
 
+        const io = req.app.get("io");
         if (Object.keys(filterChanges).length > 0) {
-            saveBaseFilter(userId, filterChanges, req.app.get("io"));
+            saveBaseFilter(userId, filterChanges, io);
+        }
+
+        /**
+         * 🔴 **요율·수수료는 앱이 콜을 거르는 단가표(`ratePerKm`)의 원천이다** (버그 대장 #163).
+         *    위 UPDATE 는 DB 만 고치고, `saveBaseFilter` 도 `activeFilter` 는 일부러 안 건드린다.
+         *    여기서 파생을 다시 만들지 않으면 **설정 화면엔 새 값이 뜨는데 앱에는 옛 단가가
+         *    계속 내려간다** — 집는 콜의 범위가 옛 요율로 굳는다.
+         *    표는 `filterManager` 가 만든다 — 여기서 직접 만들지 않는다 (규칙 ③).
+         */
+        if (vehicleRates !== undefined || agencyFeePercent !== undefined) {
+            updateActiveFilter(userId, {}, io);
         }
 
         console.log(`💰 [요율 설정 저장] userId: ${userId}, 수수료: ${agencyFeePercent}%`);

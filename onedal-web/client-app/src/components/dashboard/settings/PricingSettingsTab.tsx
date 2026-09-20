@@ -26,9 +26,14 @@ export default function PricingSettingsTab({ onClose }: Props) {
   const { filter, updateFilter } = useFilterConfig();
   const [vehicleRates, setVehicleRates] = useState<Record<string, number>>({});
   const [agencyFeePercent, setAgencyFeePercent] = useState(23);
-  const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
-  const [newKeyword, setNewKeyword] = useState("");
+  const [radiusBaseKm, setRadiusBaseKm] = useState<number>(filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (filter?.radiusBaseKm !== undefined) {
+      setRadiusBaseKm(filter.radiusBaseKm);
+    }
+  }, [filter?.radiusBaseKm]);
 
   const loadPricing = async () => {
     try {
@@ -36,7 +41,6 @@ export default function PricingSettingsTab({ onClose }: Props) {
       const { data: p } = await apiClient.get('/settings/pricing');
       setVehicleRates(p.vehicleRates || {});
       setAgencyFeePercent(p.agencyFeePercent ?? 23);
-      setExcludedKeywords(p.excludedKeywords || []);
     } catch (e) {
       console.error("Failed to load pricing:", e);
     } finally {
@@ -52,8 +56,13 @@ export default function PricingSettingsTab({ onClose }: Props) {
   const handleSavePricing = async () => {
     try {
       setIsLoading(true);
+      /* 📏 기준거리는 사용자가 [설정 저장]을 누를 때 단가표와 함께 영구 저장한다 (취소 시 롤백 보장) */
+      if (radiusBaseKm !== filter?.radiusBaseKm) {
+        const v = radiusBaseKm;
+        updateFilter({ radiusBaseKm: v }, true);
+      }
       await apiClient.put('/settings/pricing', {
-        vehicleRates, agencyFeePercent, excludedKeywords,
+        vehicleRates, agencyFeePercent,
       });
       onClose();
     } catch (e) {
@@ -89,10 +98,10 @@ export default function PricingSettingsTab({ onClose }: Props) {
         <label htmlFor="radius-base" className="text-sm font-semibold text-text-muted">📏 반경 기준거리 (km)</label>
         <div className="flex items-center gap-2">
           <Input id="radius-base" type="number" min={10} max={100} step={5}
-            value={filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT}
+            value={radiusBaseKm}
             onChange={(e) => {
               const v = Math.max(10, Math.min(100, Number(e.target.value) || RADIUS_BASE_KM_DEFAULT));
-              updateFilter({ radiusBaseKm: v }, true);
+              setRadiusBaseKm(v);
             }}
             className="h-8 w-24 text-right" />
           <p className="text-[11px] text-text-muted leading-relaxed">
@@ -130,32 +139,9 @@ export default function PricingSettingsTab({ onClose }: Props) {
         </p>
       </div>
 
-      {/* 블랙리스트 */}
-      <div className="space-y-1.5 pt-2 border-t">
-        <label className="text-sm font-semibold text-text-muted">🚫 블랙리스트 키워드</label>
-        <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
-          {excludedKeywords.map((kw, i) => (
-            <span key={i} className="inline-flex items-center gap-1 bg-destructive/10 text-destructive text-[11px] font-bold px-2 py-0.5 rounded-full border border-destructive/20">
-              {kw}
-              <button onClick={() => setExcludedKeywords(prev => prev.filter((_, idx) => idx !== i))} className="hover:opacity-70">×</button>
-            </span>
-          ))}
-        </div>
-        <Input
-          type="text" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && newKeyword.trim()) {
-              setExcludedKeywords(prev => [...prev, newKeyword.trim()]);
-              setNewKeyword('');
-            }
-          }}
-          placeholder="제외할 키워드 입력 후 Enter" className="h-9"
-        />
-      </div>
-
-      {/* 노선·반경의 편집 자리는 하나다 — 두 번째 편집 화면을 되살리지 않는다 */}
+      {/* 노선·반경·블랙리스트의 편집 자리는 하나다 — 두 번째 편집 화면을 되살리지 않는다 */}
       <p className="text-[10px] text-text-muted break-keep pt-2 border-t">
-        📍 목적지 · 현위반경 · 라인반경 · 목적반경은 <b>관제탑 🔍 필터</b>에서
+        📍 목적지 · 제외 키워드(블랙리스트) · 현위반경 · 라인반경 · 목적반경은 <b>관제탑 🔍 필터</b>에서
         정합니다 — <b>💾 서버 저장</b>을 누르면 매일 아침 그 값으로 시작합니다.
         하한 금액은 입력하지 않습니다 — 단가표 × 콜할인율에서 파생됩니다.
       </p>

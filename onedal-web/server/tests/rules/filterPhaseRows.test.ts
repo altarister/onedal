@@ -110,13 +110,12 @@ describe('값 다섯의 원천은 «한 행»이다 (이식 C3-3b · 2026-09-11)
      * 화면이었고, 평면 1km vs 국면 15km "두 벌 값" 사고의 뿌리였다.
      * 절대 하한가·상한가 입력도 함께 폐기 — 하한은 단가표 × 콜할인율 파생만.
      */
-    it('🔴 요율 탭에 노선·반경·절대가 편집이 없다 (편집 자리는 🔍 필터 하나)', () => {
+    it('🔴 요율 탭에 노선·반경·절대가·블랙리스트 편집이 없다 (편집 자리는 🔍 필터 하나)', () => {
         const tab = codeOnly(readFileSync(join(__dirname,
             '../../../client-app/src/components/dashboard/settings/PricingSettingsTab.tsx'), 'utf8'));
         expect(tab).not.toMatch(/setDestinationCity|setDestinationRadiusKm|setDetourRadiusKm/);
         expect(tab).not.toMatch(/setMinFare|setMaxFare|setPickupRadiusKm/);
         expect(tab).toMatch(/vehicleRates/);          // 금액 축의 원천은 남는다
-        expect(tab).toMatch(/excludedKeywords/);
     });
 
     it('🔴 컬럼 목록을 db.ts 가 손으로 적지 않는다 (FILTER_FIELDS 표에서 뽑는다)', () => {

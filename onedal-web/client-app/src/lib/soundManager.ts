@@ -14,8 +14,8 @@ class SoundManager {
     // 상태 변경 구독을 위한 리스너
     private listeners: Set<() => void> = new Set();
 
-    // 볼륨 설정 (0.0 ~ 1.0)
-    private volume: number = 0.5;
+    // 🔊 볼륨 설정 (0.0 ~ 1.0) — 기본 최대 출력 (1.0). 스마트폰의 물리 볼륨 버튼으로 조절한다
+    private volume: number = 1.0;
 
     constructor() {
         this.callAudio = new Audio(callSoundPath);
@@ -23,13 +23,15 @@ class SoundManager {
         this.beepAudio = new Audio(beepSoundPath);
         this.emergencyAudio = new Audio(emergencySoundPath);
 
-        // 저장된 볼륨 설정 불러오기
+        // 저장된 볼륨 설정 불러오기 (기본값 1.0)
         const savedVolume = localStorage.getItem('onedal_sound_volume');
         if (savedVolume !== null) {
             const parsed = parseFloat(savedVolume);
             if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
                 this.volume = parsed;
             }
+        } else {
+            this.volume = 1.0;
         }
         
         // 볼륨 일괄 적용

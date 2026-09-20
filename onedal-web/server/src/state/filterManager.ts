@@ -370,15 +370,20 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
      * 만들면 한쪽만 고쳐진다. 원천은
      * `user_filters.call_discount_pct` 한 벌이고, 여기가 그것을 표로 펼치는 유일한 자리다.
      */
-    if ('callDiscountPct' in changes) {
-        // 요율·수수료의 원천은 DB 다 (설정 화면에서 기사님이 바꾼다).
-        const pricing = SettingsRepository.loadPricingConfig(userId);
-        session.activeFilter.ratePerKm = rateFloorsFrom(
-            changes.callDiscountPct ?? 10,
-            pricing.vehicleRates,
-            pricing.agencyFeePercent,
-        );
-    }
+    /**
+     * 🔴 **방아쇠를 입력 하나로 좁히지 않는다** (버그 대장 #163).
+     *    이 표는 **세 입력**의 파생이다 — 콜할인율 · `vehicle_rates` · `agency_fee_percent`.
+     *    뒤의 둘은 설정 화면이 **DB 에 직접 쓴다** — `changes` 에 안 실린다. 그래서
+     *    «무엇이 바뀌었나»로 조건을 걸면 표가 조용히 낡는다. **늘** 다시 만든다 —
+     *    입력이 늘어도 빠뜨릴 자리가 없다.
+     *    (요율·수수료의 원천은 DB 이고, 한 줄 SELECT 라 매번 읽어도 가볍다)
+     */
+    const pricing = SettingsRepository.loadPricingConfig(userId);
+    session.activeFilter.ratePerKm = rateFloorsFrom(
+        session.activeFilter.callDiscountPct ?? 10,
+        pricing.vehicleRates,
+        pricing.agencyFeePercent,
+    );
 
     /**
      * [최적화] 지리 연산은 도시·반경이 **실제로 바뀐 경우에만** 다시 돈다.

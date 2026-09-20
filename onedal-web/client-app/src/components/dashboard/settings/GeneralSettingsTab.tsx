@@ -3,8 +3,6 @@ import { apiClient } from "../../../api/apiClient";
 import { VEHICLE_OPTIONS, DEFAULT_WAIT_TIMES, waitSecOrNull } from "@onedal/shared";
 import type { WaitTimes } from "@onedal/shared";
 import { useSettingsStore } from "../../../stores/settingsStore";
-import { soundManager } from "../../../lib/soundManager";
-import { Switch } from "../../ui/switch";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 
@@ -19,9 +17,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const [homeCoords, setHomeCoords] = useState<{ x: number; y: number } | null>(null);
   const [isGeocodingLoading, setIsGeocodingLoading] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
-  const [isActive, setIsActive] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [volume, setVolume] = useState(50);
   const [pickerAlarmMinFare, setPickerAlarmMinFare] = useState(10000);
   /** ⏱️ 배차망별 대기 시간 (docs/지금/배차망별_대기_시간.md) */
   const [waitTimes, setWaitTimes] = useState<WaitTimes>(DEFAULT_WAIT_TIMES);
@@ -37,7 +33,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       setHomeAddress(data.homeAddress || "");
       setHomeCoords(null);
       setGeocodeError(null);
-      setIsActive(data.isActive || false);
       setPickerAlarmMinFare(data.pickerAlarmMinFare ?? 10000);
       const loaded: WaitTimes = {
         safeCancelSecInsung: data.safeCancelSecInsung ?? DEFAULT_WAIT_TIMES.safeCancelSecInsung,
@@ -55,7 +50,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
 
   useEffect(() => {
     loadSettings();
-    setVolume(Math.round(soundManager.getVolume() * 100));
   }, []);
 
 
@@ -88,7 +82,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       await apiClient.put('/settings', {
         vehicleType, defaultPriority, homeAddress,
         homeX: homeCoords?.x, homeY: homeCoords?.y,
-        isActive,
         pickerAlarmMinFare,
         ...safeWaitTimes
       });
@@ -103,11 +96,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
     }
   };
 
-  const handleVolumeChange = (v: number) => {
-    setVolume(v);
-    soundManager.setVolume(v / 100);
-  };
-
   if (isLoading) {
     return (
       <div className="flex justify-center py-10">
@@ -118,23 +106,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/*
-        🎛️ **콜 필터 켬/끔** — 용어집 §1 의 그 스위치다 (`isActive`).
-        기기별 모드(`mode: AUTO/MANUAL`)의 **집계**라 이름이 같다 —
-        AUTO 기기가 하나라도 있으면 켜진 것으로 파생된다 (`devices.ts` 의 hasAnyAutoDevice).
-
-        ⚠️ 이름을 두 번 고쳤다 (2026-08-29): «무인 서핑 모드»는 용어집이 폐기한 말이었고,
-           그 대응어 «상세 수집»(팝업을 넘겨 적요를 읽는 것)은 **이 스위치가 아니다.**
-           잠시 «자동 콜 잡기»로 뒀다가, 기기 모드와 같은 개념임이 확인돼 용어집 등재어로 맞췄다
-      */}
-      <div className="flex items-center justify-between rounded-lg border p-3">
-        <div className="space-y-0.5">
-          <h3 className="text-sm font-bold">🚀 콜 필터 (Full Auto)</h3>
-          <p className="text-[10px] text-text-muted">켜면 앱이 필터로 콜을 잡습니다 (필터콜). 끄면 보고만 하고 못 잡습니다.</p>
-        </div>
-        <Switch checked={isActive} onCheckedChange={setIsActive} />
-      </div>
-
       {/* 내 차량 종류 */}
       <div className="space-y-1.5">
         <label className="text-sm font-semibold text-text-muted">내 차량 종류</label>
@@ -239,23 +210,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
                         window.dispatchEvent(new Event('stage-preview-changed'));
                     }} />
             </div>
-
-            {/* 볼륨 */}
-      <div className="space-y-2 pt-2 border-t">
-        <div className="flex justify-between items-center">
-          <label className="text-sm font-semibold text-text-muted">시스템 알림 볼륨</label>
-          <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">{volume}%</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <input
-            type="range" min="0" max="100"
-            value={volume}
-            onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
-            className="flex-1 h-1.5 bg-surface-alt rounded-lg appearance-none cursor-pointer accent-primary"
-          />
-          <Button variant="outline" size="sm" onClick={() => soundManager.playBeep()}>🔊 테스트</Button>
-        </div>
-      </div>
 
       <div className="flex justify-end gap-2 mt-2">
         <Button variant="ghost" onClick={onClose}>취소</Button>
