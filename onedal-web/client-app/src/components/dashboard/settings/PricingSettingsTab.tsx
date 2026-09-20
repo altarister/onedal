@@ -82,73 +82,99 @@ export default function PricingSettingsTab({ onClose }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/**
-        * 📏 **기준거리 — «반경을 몇 km 갈 때에 맞출 것인가»** (기사님 지시 2026-09-12).
-        *
-        * 🔴 **🔍 필터에서 여기로 옮겼다.** 필터의 반경 셋(현위·목적·라인)은 «오늘 조이는 값»이고
-        *    기준거리는 «한 번 정하면 두는 값»이라 **층이 다르다** — 한 그리드에 섞여 있어
-        *    «자동이면 이것만 살고 나머지가 흐려지는» 규칙이 생겼다.
-        * 🔴 **필터 화면은 이 값을 «말하기만» 한다** — 자동 버튼이 `40km 기준 반경` 으로 뜬다
-        *    (기사님: *"자동 버튼 안에 들어가는 것이 어떨까?"*). 고치는 자리는 여기 하나다.
-        * 🔴 **«오늘만»이 없다** — 설정에서 고치면 곧 평소값이다(`saveAsDefault`).
-        *    «오늘만 기준거리»는 말이 안 된다.
-        */}
-      <div className="space-y-1.5">
-        <label htmlFor="radius-base" className="text-sm font-semibold text-text-muted">📏 반경 기준거리 (km)</label>
-        <div className="flex items-center gap-2">
-          <Input id="radius-base" type="number" min={10} max={100} step={5}
-            value={radiusBaseKm}
-            onChange={(e) => {
-              const v = Math.max(10, Math.min(100, Number(e.target.value) || RADIUS_BASE_KM_DEFAULT));
-              setRadiusBaseKm(v);
-            }}
-            className="h-8 w-24 text-right" />
-          <p className="text-[11px] text-text-muted leading-relaxed">
-            반경이 <b className="text-text-primary">자동</b>일 때, 목적지가 이 거리보다 가까우면
-            그만큼 반경을 줄입니다. 멀면 정한 값 그대로 씁니다.
-          </p>
-        </div>
-      </div>
-
-      {/* 차종별 단가 — 금액 축의 원천 (정의서 3장: 통과 = 요금 ≥ 거리 × 단가 × (1−콜할인율)) */}
-      <div className="space-y-1.5">
-        <label className="text-sm font-semibold text-text-muted">💰 차종별 km당 적정 단가 (원)</label>
-        <div className="grid grid-cols-3 gap-2">
-          {VEHICLE_OPTIONS.map((vType) => (
-            <div key={vType} className="flex items-center gap-1">
-              <span className="text-[11px] text-text-muted w-12 shrink-0 text-right">{vType}</span>
-              <Input
-                type="number"
-                value={vehicleRates[vType] || ''}
-                onChange={(e) => setVehicleRates(prev => ({ ...prev, [vType]: Number(e.target.value) || 0 }))}
-                className="h-8 text-right"
-                placeholder="0"
-              />
+    <div className="flex flex-col gap-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        {/* 좌측: 기준거리 및 수수료 */}
+        <div className="space-y-3 rounded-lg border border-border-card p-3 bg-surface-alt/20 flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="border-b border-border-card pb-1.5">
+              <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                📏 기준거리 및 수수료 환경
+              </span>
+              <p className="text-[10.5px] text-text-muted mt-0.5">거리 비례 자동 반경 축소 및 퀵사 수수료율 기준입니다.</p>
             </div>
-          ))}
+
+            {/* 반경 기준거리 */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="radius-base" className="text-xs font-semibold text-text-muted">📏 반경 기준거리 (km)</label>
+                <div className="flex items-center gap-1">
+                  <Input id="radius-base" type="number" min={10} max={100} step={5}
+                    value={radiusBaseKm}
+                    onChange={(e) => {
+                      const v = Math.max(10, Math.min(100, Number(e.target.value) || RADIUS_BASE_KM_DEFAULT));
+                      setRadiusBaseKm(v);
+                    }}
+                    className="h-8 w-20 text-right text-xs font-bold tabular-nums" />
+                  <span className="text-xs text-text-muted">km</span>
+                </div>
+              </div>
+              <p className="text-[10.5px] text-text-muted leading-relaxed">
+                반경이 <b className="text-text-primary">자동</b>일 때, 목적지가 이 거리보다 가까우면 그에 맞춰 반경을 줄입니다.
+              </p>
+            </div>
+
+            {/* 퀵사 수수료율 */}
+            <div className="space-y-1.5 pt-2 border-t border-border-card">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-text-muted">📊 퀵사 기본 수수료율 (%)</label>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    value={agencyFeePercent}
+                    onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)}
+                    className="h-8 w-20 text-right text-xs font-bold tabular-nums"
+                  />
+                  <span className="text-xs text-text-muted">%</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-text-muted/70">
+                🔻 할인율은 <b>🔍 필터의 국면별 콜할인율</b>에서 정합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 우측: 차종별 km당 적정 단가 */}
+        <div className="space-y-3 rounded-lg border border-border-card p-3 bg-surface-alt/20 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="border-b border-border-card pb-1.5">
+              <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                💰 차종별 km당 적정 단가 (원)
+              </span>
+              <p className="text-[10.5px] text-text-muted mt-0.5">통과 판정식: 요금 ≥ 거리 × 단가 × (1 − 콜할인율)</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              {VEHICLE_OPTIONS.map((vType) => (
+                <div key={vType} className="flex items-center justify-between bg-surface/60 rounded px-2.5 py-1.5 border border-border/50">
+                  <span className="text-xs font-medium text-text-primary">{vType}</span>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={vehicleRates[vType] || ''}
+                      onChange={(e) => setVehicleRates(prev => ({ ...prev, [vType]: Number(e.target.value) || 0 }))}
+                      className="h-7 w-20 text-right text-xs tabular-nums font-semibold"
+                      placeholder="0"
+                    />
+                    <span className="text-[10.5px] text-text-muted">원</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 수수료 — 할인율은 필터의 콜할인율(국면별)가 대체했다 (docs/지금/필터.md) */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-text-muted">📊 퀵사 수수료율 (%)</label>
-        <Input type="number" value={agencyFeePercent} onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)} className="h-9 text-center font-bold" />
-        <p className="text-[10px] text-text-muted/70">
-          🔻 할인율은 <b>🔍 필터의 국면별 콜할인율</b>에서 정합니다 — 같은 뜻의 값이 두 곳에 있으면 어느 게 진짜인지 알 수 없습니다
+      {/* 하단 안내 및 버튼 */}
+      <div className="pt-2 border-t border-border-card flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <p className="text-[10px] text-text-muted leading-tight">
+          📍 목적지 · 제외 키워드 · 반경은 <b>관제탑 🔍 필터</b>에서 실시간 관리됩니다.
         </p>
-      </div>
-
-      {/* 노선·반경·블랙리스트의 편집 자리는 하나다 — 두 번째 편집 화면을 되살리지 않는다 */}
-      <p className="text-[10px] text-text-muted break-keep pt-2 border-t">
-        📍 목적지 · 제외 키워드(블랙리스트) · 현위반경 · 라인반경 · 목적반경은 <b>관제탑 🔍 필터</b>에서
-        정합니다 — <b>💾 서버 저장</b>을 누르면 매일 아침 그 값으로 시작합니다.
-        하한 금액은 입력하지 않습니다 — 단가표 × 콜할인율에서 파생됩니다.
-      </p>
-
-      <div className="flex justify-end gap-2 mt-2">
-        <Button variant="ghost" onClick={onClose}>취소</Button>
-        <Button onClick={handleSavePricing}>설정 저장</Button>
+        <div className="flex justify-end gap-2 shrink-0">
+          <Button variant="ghost" size="sm" onClick={onClose}>취소</Button>
+          <Button size="sm" onClick={handleSavePricing}>설정 저장</Button>
+        </div>
       </div>
     </div>
   );

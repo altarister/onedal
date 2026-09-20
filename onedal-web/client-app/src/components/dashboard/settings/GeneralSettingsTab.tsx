@@ -105,87 +105,114 @@ export default function GeneralSettingsTab({ onClose }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 내 차량 종류 */}
-      <div className="space-y-1.5">
-        <label className="text-sm font-semibold text-text-muted">내 차량 종류</label>
-        <select
-          value={vehicleType}
-          onChange={(e) => setVehicleType(e.target.value)}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          {VEHICLE_OPTIONS.map((opt) => (
-            <option key={opt} value={opt} className="bg-surface-alt">{opt}</option>
-          ))}
-        </select>
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        {/* 좌측: 차량 및 경로/집 주소 */}
+        <div className="space-y-3 rounded-lg border border-border-card p-3 bg-surface-alt/20 flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="border-b border-border-card pb-1.5">
+              <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                🚗 내 차량 및 경로 환경
+              </span>
+              <p className="text-[10.5px] text-text-muted mt-0.5">내 차종 및 홈 귀가 경로 기본 옵션을 설정합니다.</p>
+            </div>
 
-      {/* 경로/집 */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-text-muted">경로 탐색 옵션</label>
-          <select
-            value={defaultPriority}
-            onChange={(e) => setDefaultPriority(e.target.value)}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="RECOMMEND" className="bg-surface-alt">추천</option>
-            <option value="TIME" className="bg-surface-alt">최단시간</option>
-            <option value="DISTANCE" className="bg-surface-alt">최단거리</option>
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-text-muted">🏠 집 주소</label>
-          <div className="flex gap-1.5">
-            <Input
-              type="text"
-              value={homeAddress}
-              onChange={(e) => { setHomeAddress(e.target.value); setHomeCoords(null); setGeocodeError(null); }}
-              placeholder="경기 광주시 오포읍..."
-              className="h-9 flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleVerifyAddress}
-              disabled={isGeocodingLoading || !homeAddress.trim()}
-              className="h-9 px-2 text-[11px] shrink-0 whitespace-nowrap"
-            >
-              {isGeocodingLoading ? '⏳' : '📍 위치 확인'}
-            </Button>
+            {/* 내 차량 종류 */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-text-muted">내 차량 종류</label>
+              <select
+                value={vehicleType}
+                onChange={(e) => setVehicleType(e.target.value)}
+                className="flex h-8.5 w-full rounded-md border border-input bg-surface px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {VEHICLE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt} className="bg-surface-alt">{opt}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* 경로 탐색 옵션 */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-text-muted">경로 탐색 옵션</label>
+              <select
+                value={defaultPriority}
+                onChange={(e) => setDefaultPriority(e.target.value)}
+                className="flex h-8.5 w-full rounded-md border border-input bg-surface px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="RECOMMEND" className="bg-surface-alt">추천 경로</option>
+                <option value="TIME" className="bg-surface-alt">최단시간 우선</option>
+                <option value="DISTANCE" className="bg-surface-alt">최단거리 우선</option>
+              </select>
+            </div>
+
+            {/* 집 주소 */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-text-muted">🏠 집 주소 (귀가 기준지)</label>
+              <div className="flex gap-1.5">
+                <Input
+                  type="text"
+                  value={homeAddress}
+                  onChange={(e) => { setHomeAddress(e.target.value); setHomeCoords(null); setGeocodeError(null); }}
+                  placeholder="경기 광주시 오포읍..."
+                  className="h-8.5 text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleVerifyAddress}
+                  disabled={isGeocodingLoading || !homeAddress.trim()}
+                  className="h-8.5 px-2.5 text-[11px] shrink-0 whitespace-nowrap"
+                >
+                  {isGeocodingLoading ? '⏳' : '📍 위치 확인'}
+                </Button>
+              </div>
+              {homeCoords && (
+                <p className="text-[10px] text-success font-semibold mt-0.5">✅ 좌표 확인 완료 ({homeCoords.x.toFixed(4)}, {homeCoords.y.toFixed(4)})</p>
+              )}
+              {geocodeError && (
+                <p className="text-[10px] text-destructive font-semibold mt-0.5">❌ {geocodeError}</p>
+              )}
+            </div>
           </div>
-          {homeCoords && (
-            <p className="text-[10px] text-success font-semibold">✅ 좌표 확인 완료 ({homeCoords.x.toFixed(5)}, {homeCoords.y.toFixed(5)})</p>
-          )}
-          {geocodeError && (
-            <p className="text-[10px] text-destructive font-semibold">❌ {geocodeError}</p>
-          )}
+        </div>
+
+        {/* 우측: 배차망별 대기 시간 */}
+        <div className="space-y-3 rounded-lg border border-border-card p-3 bg-surface-alt/20 flex flex-col justify-between">
+          <div className="space-y-2.5">
+            <div className="border-b border-border-card pb-1.5">
+              <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                ⏱️ 배차망별 안전 대기 시간
+              </span>
+              <p className="text-[10.5px] text-text-muted mt-0.5">스캔앱에 실시간 전달되는 배차망별 취소/복귀 시간(초)입니다.</p>
+            </div>
+
+            {([
+              { key: 'safeCancelSecInsung', label: '인성 안전취소 시간 (초)', hint: '인성 취소 가능 시간 1분 이내 권장' },
+              { key: 'safeCancelSecHwamul24', label: '화물24시 안전취소 시간 (초)', hint: '화물24시 오잡기 안전 취소 대기 시간' },
+              { key: 'pickerAlarmDetailSec', label: '픽커 상세 대기 시간 (초)', hint: '상세 화면 진입 후 목록으로 자동 복귀하는 시간' },
+            ] as { key: keyof WaitTimes; label: string; hint: string }[]).map(({ key, label, hint }) => (
+              <div key={key} className="space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-text-muted">{label}</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number" min="1" step="1"
+                      value={waitTimes[key]}
+                      onChange={(e) => setWaitTimes(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
+                      className="w-20 h-7.5 px-2 rounded border border-border bg-surface text-xs text-right tabular-nums font-semibold"
+                    />
+                    <span className="text-[11px] text-text-muted">초</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-text-muted/70">{hint}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-
-      {/* ⏱️ 배차망별 대기 시간 — 원천은 서버 DB, 원달앱은 받아 쓴다 (docs/지금/배차망별_대기_시간.md)
-          🔴 인성 값에 상한을 걸지 않는다 — 옆 안내를 보고 기사님이 정하신다 (기사님 확정 2026-09-14) */}
-      <div className="space-y-2 pt-2 border-t">
-        {([
-          { key: 'safeCancelSecInsung', label: '인성 안전취소 시간 (초)', hint: '인성 취소 가능 시간 1분' },
-          { key: 'safeCancelSecHwamul24', label: '화물24시 안전취소 시간 (초)', hint: '화물24시 취소 가능 시간은 미확인' },
-          { key: 'pickerAlarmDetailSec', label: '픽커 상세 대기 시간 (초)', hint: '상세를(알람이 열었든 손으로 열었든) 이 시간 뒤 닫고 리스트로 돌아갑니다' },
-        ] as { key: keyof WaitTimes; label: string; hint: string }[]).map(({ key, label, hint }) => (
-          <div key={key} className="space-y-1">
-            <label className="text-sm font-semibold text-text-muted">{label}</label>
-            <input
-              type="number" min="1" step="1"
-              value={waitTimes[key]}
-              onChange={(e) => setWaitTimes(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
-              className="w-full h-9 px-2 rounded border border-border bg-surface text-sm"
-            />
-            <p className="text-[10px] text-text-muted">{hint}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-between items-center pt-3 border-t mt-2">
+      {/* 하단 버튼 바 */}
+      <div className="flex justify-between items-center pt-2.5 border-t border-border-card mt-1">
         <Button
           variant="destructive"
           size="sm"
@@ -199,8 +226,8 @@ export default function GeneralSettingsTab({ onClose }: Props) {
           로그아웃
         </Button>
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={onClose}>취소</Button>
-          <Button onClick={handleSaveSettings}>설정 저장</Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>취소</Button>
+          <Button size="sm" onClick={handleSaveSettings}>설정 저장</Button>
         </div>
       </div>
     </div>

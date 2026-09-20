@@ -72,47 +72,54 @@ export default function JudgmentSettingsTab() {
     };
 
     return (
-        <div className="space-y-4 text-sm">
-            <p className="text-xs text-text-muted leading-relaxed">
-                콜을 <b>집은 뒤</b> 서버가 색(🔵🟢🟡)을 매기는 기준입니다.
-                콜을 <b>집기 전</b>에 거르는 조건은 <b>🔍 필터</b>에 있습니다 — 둘은 따로 돕니다.
-                <br />여기서 바꾸면 <b>바로 계속 적용</b>됩니다 — 콜 필터처럼 💾 서버 저장을 따로 누르지 않습니다.
-            </p>
+        <div className="space-y-3 text-sm">
+            <div className="rounded-md bg-surface-alt/30 border border-border-card/60 px-3 py-1.5 flex items-center justify-between">
+                <p className="text-[11px] text-text-muted">
+                    콜을 <b>수집한 뒤</b> 서버가 색상(🔵꿀 · 🟢보통 · 🟡똥)을 매기는 5대 판정표입니다. (수정 즉시 백엔드 실시간 적용)
+                </p>
+            </div>
 
-            {GROUP_ORDER.map(group => {
-                const fields = JUDGMENT_FIELDS.filter(f => f.group === group);
-                if (fields.length === 0) return null;
-                return (
-                    <section key={group} className="rounded-lg border border-border/60 p-3">
-                        <div className="mb-1 font-bold">{GROUP_ICON[group]} {group}</div>
-                        <div className="mb-2 text-[11px] text-text-muted">{GROUP_HINT[group]}</div>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                            {fields.map(f => (
-                                <label key={f.col} className="block">
-                                    <span className="text-xs font-medium">{f.label}</span>
-                                    <span className="ml-1 flex items-baseline gap-1">
-                                        <input
-                                            type="number"
-                                            className="w-20 rounded border border-border bg-surface px-2 py-1 text-right tabular-nums"
-                                            disabled={!loaded}
-                                            min={f.min} max={f.max} step={f.int ? 1 : 0.5}
-                                            value={draft[f.col] ?? ''}
-                                            onChange={e => {
-                                                const raw = Number(e.target.value);
-                                                if (!Number.isFinite(raw)) return;
-                                                setDraft(d => ({ ...d, [f.col]: Math.min(f.max, Math.max(f.min, raw)) }));
-                                            }}
-                                        />
-                                        <span className="text-[11px] text-text-muted">{f.unit}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {GROUP_ORDER.map(group => {
+                    const fields = JUDGMENT_FIELDS.filter(f => f.group === group);
+                    if (fields.length === 0) return null;
+                    return (
+                        <section key={group} className="rounded-lg border border-border-card p-2.5 bg-surface-alt/15 flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center justify-between mb-0.5">
+                                    <span className="text-xs font-bold text-text-primary flex items-center gap-1">
+                                        {GROUP_ICON[group]} {group}
                                     </span>
-                                    {/* 🔴 근거를 여기 띄운다 — 문서를 안 열어도 왜 그 값인지 보인다 */}
-                                    {f.why && <span className="mt-0.5 block text-[10px] leading-tight text-text-muted/80">ⓘ {f.why}</span>}
-                                </label>
-                            ))}
-                        </div>
-                    </section>
-                );
-            })}
+                                </div>
+                                <div className="mb-2 text-[10px] text-text-muted line-clamp-1">{GROUP_HINT[group]}</div>
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+                                    {fields.map(f => (
+                                        <label key={f.col} className="block">
+                                            <span className="text-[11px] font-medium text-text-muted truncate block">{f.label}</span>
+                                            <span className="mt-0.5 flex items-center gap-1">
+                                                <input
+                                                    type="number"
+                                                    className="w-full h-7 rounded border border-border bg-surface px-1.5 py-0.5 text-right text-xs font-semibold tabular-nums"
+                                                    disabled={!loaded}
+                                                    min={f.min} max={f.max} step={f.int ? 1 : 0.5}
+                                                    value={draft[f.col] ?? ''}
+                                                    onChange={e => {
+                                                        const raw = Number(e.target.value);
+                                                        if (!Number.isFinite(raw)) return;
+                                                        setDraft(d => ({ ...d, [f.col]: Math.min(f.max, Math.max(f.min, raw)) }));
+                                                    }}
+                                                />
+                                                <span className="text-[10.5px] text-text-muted shrink-0">{f.unit}</span>
+                                            </span>
+                                            {f.why && <span className="mt-0.5 block text-[9.5px] leading-tight text-text-muted/70 truncate" title={f.why}>ⓘ {f.why}</span>}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+                    );
+                })}
+            </div>
 
             <div className="flex items-center gap-2 border-t border-border/60 pt-3">
                 <span className="text-xs text-text-muted">

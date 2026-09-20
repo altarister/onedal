@@ -130,49 +130,76 @@ export default function DeviceSettingsTab({ onClose }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      {registeredDevices.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-text-muted text-sm mb-1">등록된 기기가 없습니다</p>
-          <p className="text-text-muted/70 text-xs">아래 버튼으로 안드로이드 앱폰을 연동해주세요</p>
+    <div className="space-y-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        {/* 좌측: 새 기기 연동 안내 및 PIN 발급 */}
+        <div className="space-y-3 rounded-lg border border-border-card p-3.5 bg-surface-alt/20 flex flex-col justify-between">
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-text-primary flex items-center gap-1.5 border-b border-border-card pb-1.5">
+              🔑 새 안드로이드 폰 연동
+            </span>
+            <p className="text-[11px] text-text-muted leading-relaxed">
+              원달 스캔앱을 설치한 스마트폰의 [⚙️ 설정] 탭에서 아래 PIN 코드를 입력하면 즉시 관제탑과 양방향 연동됩니다.
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            className="w-full h-11 border-primary/40 text-primary hover:bg-primary/10 font-bold text-xs"
+            onClick={handleRequestPin}
+          >
+            + 연동 PIN 코드 발급하기
+          </Button>
         </div>
-      ) : (
-        <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
-          {registeredDevices.map((device) => (
-            <div key={device.device_id} className="flex items-center justify-between bg-surface-alt/30 p-3 rounded-lg border border-border">
-              <div className="flex flex-col gap-1 min-w-0 flex-1">
-                {editingDeviceId === device.device_id ? (
-                  <div className="flex gap-2">
-                    <Input type="text" value={editingName} onChange={(e) => setEditingName(e.target.value)}
-                      placeholder="기기 별명 입력" className="h-7 text-xs flex-1" autoFocus
-                      onKeyDown={(e) => e.key === "Enter" && handleSaveDeviceName(device.device_id)} />
-                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => handleSaveDeviceName(device.device_id)}>확인</Button>
-                    <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setEditingDeviceId(null)}>취소</Button>
-                  </div>
-                ) : (
-                  <>
-                    <span className="text-sm font-bold truncate">{device.device_name || device.device_id.slice(0, 12) + "…"}</span>
-                    <span className="text-[10px] text-text-muted font-mono truncate">{device.device_id.slice(0, 16)}…</span>
-                  </>
-                )}
-              </div>
-              {editingDeviceId !== device.device_id && (
-                <div className="flex items-center gap-1 ml-2 shrink-0">
-                  <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => { setEditingDeviceId(device.device_id); setEditingName(device.device_name || ""); }}>별명수정</Button>
-                  <Button size="sm" variant="destructive" className="h-7 text-[10px]" onClick={() => handleDeleteDevice(device.device_id)}>해제</Button>
-                </div>
-              )}
+
+        {/* 우측: 등록된 기기 목록 */}
+        <div className="space-y-2 rounded-lg border border-border-card p-3.5 bg-surface-alt/20 flex flex-col justify-between">
+          <div className="border-b border-border-card pb-1.5 flex items-center justify-between">
+            <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+              📱 등록된 기기 ({registeredDevices.length}대)
+            </span>
+          </div>
+
+          {registeredDevices.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-text-muted text-xs mb-1">등록된 기기가 없습니다</p>
+              <p className="text-text-muted/70 text-[10.5px]">좌측의 PIN 발급 버튼으로 앱폰을 연동하세요</p>
             </div>
-          ))}
+          ) : (
+            <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
+              {registeredDevices.map((device) => (
+                <div key={device.device_id} className="flex items-center justify-between bg-surface p-2.5 rounded-lg border border-border/60">
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                    {editingDeviceId === device.device_id ? (
+                      <div className="flex gap-1.5">
+                        <Input type="text" value={editingName} onChange={(e) => setEditingName(e.target.value)}
+                          placeholder="기기 별명 입력" className="h-6.5 text-xs flex-1" autoFocus
+                          onKeyDown={(e) => e.key === "Enter" && handleSaveDeviceName(device.device_id)} />
+                        <Button size="sm" variant="outline" className="h-6.5 px-2 text-[10px]" onClick={() => handleSaveDeviceName(device.device_id)}>확인</Button>
+                        <Button size="sm" variant="ghost" className="h-6.5 px-2 text-[10px]" onClick={() => setEditingDeviceId(null)}>취소</Button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-xs font-bold truncate text-text-primary">{device.device_name || device.device_id.slice(0, 12) + "…"}</span>
+                        <span className="text-[9.5px] text-text-muted font-mono truncate">{device.device_id.slice(0, 16)}…</span>
+                      </>
+                    )}
+                  </div>
+                  {editingDeviceId !== device.device_id && (
+                    <div className="flex items-center gap-1 ml-2 shrink-0">
+                      <Button size="sm" variant="ghost" className="h-6.5 px-2 text-[10px]" onClick={() => { setEditingDeviceId(device.device_id); setEditingName(device.device_name || ""); }}>수정</Button>
+                      <Button size="sm" variant="destructive" className="h-6.5 px-2 text-[10px]" onClick={() => handleDeleteDevice(device.device_id)}>해제</Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      <Button variant="outline" className="w-full h-12 border-success/30 text-success hover:bg-success/10" onClick={handleRequestPin}>
-        + 새 기기 연동하기
-      </Button>
-
-      <div className="flex justify-end mt-2">
-        <Button variant="ghost" onClick={onClose}>닫기</Button>
+      <div className="flex justify-end pt-2 border-t border-border-card">
+        <Button variant="ghost" size="sm" onClick={onClose}>닫기</Button>
       </div>
     </div>
   );
