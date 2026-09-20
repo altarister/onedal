@@ -144,11 +144,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
          *    카드를 묶을 때와 다른 규칙을 여기 적으면 «카드는 묶었는데 요금이 0» 이 되어
          *    콜이 통째로 버려진다 — 한 조각("70,000원")과 두 조각("200,000" + "원")을 둘 다 받는다.
          */
-        var fare = 0
-        for (i in texts.indices) {
-            val parsedFare = Hwamul24CardGrouping.fareAt(texts, i) ?: continue
-            if (parsedFare > fare) fare = parsedFare // 가장 큰 값을 운송료로 채택
-        }
+        val fare = Hwamul24CardGrouping.fareOf(texts)
 
         // ── 2. 차종(VehicleType) 파싱: "2.5톤/윙", "3.5톤/전체", "1톤/카/윙" 등 ──
         var vehicleType: String? = null
@@ -465,15 +461,22 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         // Y축(top)을 최우선으로, X축(left)을 차순위로 정렬
         val sortedNodes = allNodes.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
-        val cells = sortedNodes.map {
+        val allCells = sortedNodes.map {
             Hwamul24CardGrouping.Cell(it.text, it.rect.top, it.rect.left)
         }
+        /**
+         * 🔴 **머리 줄을 먼저 뺀다** — 첫 카드는 화면 맨 위부터 시작하므로, 안 빼면
+         *    «잔액 : 388,276 원»이 첫 장에 섞여 **요금으로 읽힌다** (실측 `요금=247947`).
+         */
+        val keep = Hwamul24CardGrouping.bodyIndices(allCells)
+        val body = keep.map { sortedNodes[it] }
+        val cells = keep.map { allCells[it] }
         val groups = mutableListOf<Pair<ScreenTextNode, List<String>>>()
         var start = 0
         for (card in Hwamul24CardGrouping.cards(cells)) {
-            val cardNodes = sortedNodes.subList(start, card.endIndex + 1)
+            val cardNodes = body.subList(start, card.endIndex + 1)
             // 대표는 요금 **숫자** 노드다 — 진단 로그와 «이 콜이 화면 어디에 있나»가 이것을 읽는다
-            groups.add(Pair(sortedNodes[card.fareIndex], cardNodes.map { it.text }))
+            groups.add(Pair(body[card.fareIndex], cardNodes.map { it.text }))
             start = card.endIndex + 1
         }
         return groups

@@ -35,7 +35,7 @@ object Hwamul24CardGrouping {
      *    그 줄도 숫자와 «원»이 따로 온다(시뮬레이터 `잔액 : <span>{n}</span>원`).
      *    낱말이 **같은 줄**에 있는지로 가른다 — 높이를 하드코딩하지 않는다.
      */
-    private val NOT_FARE_WORDS = listOf("잔액", "충전", "포인트", "예치금")
+    private val NOT_FARE_WORDS = listOf("잔액", "충전", "포인트", "예치금", "건/최대", "자동터치", "오더검색")
 
     /** 같은 줄로 볼 세로 오차(px) — 글자 크기가 달라도 한 줄이면 이 안에 든다 */
     private const val SAME_LINE_PX = 24
@@ -56,32 +56,79 @@ object Hwamul24CardGrouping {
     fun cards(cells: List<Cell>): List<Card> {
         val out = mutableListOf<Card>()
         for ((i, c) in cells.withIndex()) {
-            val whole = FARE_WHOLE.matches(c.text)
-            // 두 조각 — 숫자 뒤에 «원» 하나가 따라온다
-            val split = !whole && FARE_NUMBER.matches(c.text) &&
-                cells.getOrNull(i + 1)?.let { WON_ONLY.matches(it.text) } == true
-            if (!whole && !split) continue
             if (isOnExcludedLine(c, cells)) continue
-            out.add(Card(fareIndex = i, endIndex = if (whole) i else i + 1))
+            if (FARE_WHOLE.matches(c.text)) {
+                out.add(Card(fareIndex = i, endIndex = i))
+                continue
+            }
+            if (!FARE_NUMBER.matches(c.text)) continue
+            /**
+             * 🔴 **«바로 다음 조각»이 아니라 «같은 줄에서 바로 오른쪽»이다.**
+             *    요금은 큰 글자, 단위는 작은 글자라 `top` 이 어긋나고, 위에서 아래로 정렬하면
+             *    **같은 줄의 왼쪽 글자들이 사이에 끼어든다** (실측: «30,000»(top 701) 다음이
+             *    «계산서»(709)·«독차»(712) 이고 «원»(712)은 그 뒤). 인접만 보면 못 찾는다.
+             */
+            val right = rightNeighborIndex(i, cells) ?: continue
+            if (!WON_ONLY.matches(cells[right].text)) continue
+            out.add(Card(fareIndex = i, endIndex = maxOf(i, right)))
         }
         return out
     }
 
     /**
-     * 글자 목록의 `i` 번째부터 요금을 읽는다 — **한 조각이든 두 조각이든**.
+     * **카드가 될 수 있는 자리만** — 머리 줄(«잔액 : 388,276 원» · «성공 0 건/최대 15 건»)을 뺀다.
      *
-     * 🔴 카드 묶기와 **같은 규칙**을 쓰라고 공개한다 (규칙 ③). 파서가 따로 정규식을 적으면
-     *    «카드는 묶었는데 요금이 0» 이 되어 콜이 통째로 버려진다.
+     * 🔴 **빼지 않으면 첫 카드가 머리 줄을 통째로 삼킨다.** 카드는 «이전 카드 끝 다음»부터
+     *    시작하므로 첫 장은 화면 맨 위부터다. 그 안에 잔액이 들어가면 요금으로 읽히고
+     *    (실측: `상차=최대, 요금=247947`) 콜이 아닌 것이 서버로 올라간다.
      *
-     * @return 원 단위 금액. 그 자리가 요금이 아니면 `null`
+     * @return 남길 자리들 — 부르는 쪽이 이 순서로 다시 목록을 만든다
      */
-    fun fareAt(texts: List<String>, i: Int): Int? {
-        val t = texts.getOrNull(i)?.trim() ?: return null
-        FARE_WHOLE.find(t)?.let { return it.value.dropLast(1).replace(",", "").toIntOrNull() }
-        if (FARE_NUMBER.matches(t) && WON_ONLY.matches(texts.getOrNull(i + 1)?.trim() ?: "")) {
-            return t.replace(",", "").toIntOrNull()
+    fun bodyIndices(cells: List<Cell>): List<Int> =
+        cells.indices.filter { !isOnExcludedLine(cells[it], cells) }
+
+    /** 같은 줄에서 **오른쪽으로 가장 가까운** 조각의 자리 */
+    private fun rightNeighborIndex(i: Int, cells: List<Cell>): Int? {
+        val c = cells[i]
+        var best: Int? = null
+        for ((j, o) in cells.withIndex()) {
+            if (j == i) continue
+            if (kotlin.math.abs(o.top - c.top) > SAME_LINE_PX) continue
+            if (o.left <= c.left) continue
+            if (best == null || o.left < cells[best!!].left) best = j
         }
-        return null
+        return best
+    }
+
+    /**
+     * **카드 한 장의 글자들**에서 요금을 읽는다 — 한 조각("30,000원")이든 두 조각이든.
+     *
+     * 🔴 여기는 **좌표가 없다**(카드를 묶고 난 뒤의 글자 목록). 두 조각일 때 숫자와 «원» 은
+     *    정렬 때문에 떨어져 있을 수 있으므로 **«원» 단독 조각이 카드에 있으면** 숫자 중
+     *    가장 큰 값을 요금으로 본다. 카드 밖(«잔액» 줄)은 `cards()` 가 이미 걸렀다.
+     *
+     * @return 원 단위 금액. 없으면 0 (부르는 쪽이 «못 읽음»으로 다룬다)
+     */
+    fun fareOf(texts: List<String>): Int {
+        var whole = 0
+        var biggestNumber = 0
+        var hasWonAlone = false
+        for (raw in texts) {
+            val t = raw.trim()
+            FARE_WHOLE.find(t)?.let {
+                val v = it.value.dropLast(1).replace(",", "").toIntOrNull() ?: 0
+                if (v > whole) whole = v
+                return@let
+            }
+            if (WON_ONLY.matches(t)) hasWonAlone = true
+            if (FARE_NUMBER.matches(t)) {
+                val v = t.replace(",", "").toIntOrNull() ?: 0
+                if (v > biggestNumber) biggestNumber = v
+            }
+        }
+        // 한 조각으로 읽힌 값이 있으면 그것이 우선 — 지어내지 않는다
+        if (whole > 0) return whole
+        return if (hasWonAlone) biggestNumber else 0
     }
 
     /** 한 조각으로 온 거리 — `11Km` */
@@ -108,10 +155,14 @@ object Hwamul24CardGrouping {
         return null
     }
 
-    /** 그 조각과 **같은 줄**에 «잔액» 같은 낱말이 있나 */
+    /**
+     * 그 조각이 **머리 줄에 있나** — 같은 줄(자기 자신 포함)에 «잔액» 같은 낱말이 있으면 그렇다.
+     *
+     * 🔴 **자기 자신도 본다.** «잔액 : » 조각 자체는 같은 줄의 «다른» 조각만 보면 안 걸려
+     *    카드에 섞여 들어갔다 (실측).
+     */
     private fun isOnExcludedLine(cell: Cell, cells: List<Cell>): Boolean =
         cells.any { other ->
-            other !== cell &&
             kotlin.math.abs(other.top - cell.top) <= SAME_LINE_PX &&
             NOT_FARE_WORDS.any { other.text.contains(it) }
         }

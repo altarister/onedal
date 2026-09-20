@@ -16,7 +16,7 @@ android {
         // 어떤 빌드가 폰에 깔려 있는지 눈으로 구분하기 위한 버전 표기.
         // 앱 대시보드 상단과 서비스 기동 로그에 그대로 노출된다.
         versionCode = 59
-        versionName = "2.9.11-pickerui"
+        versionName = "2.9.12-hwamul24"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
