@@ -1,6 +1,5 @@
 import { cityCenter, destProgressRatio, haversineKm, isPickupBackward } from '@onedal/shared';
 import type { JudgeFacts } from '@onedal/shared';
-import type { DryRunGate } from '@onedal/shared';
 
 /**
  * 🧾 **판정이 쓸 «사실»을 모은다** (2026-08-29 · 6단계)
@@ -119,6 +118,20 @@ export function destProgressOf(input: {
     return ratio == null ? no('상차지와 하차지가 같은 자리입니다') : { ratio, unknownWhy: null };
 }
 
+/**
+ * ⏰ **깨지는 약속을 «무엇이 · 몇 분»으로 옮긴다** — 분은 `deriveRouteTimeline` 이 이미 쟀다.
+ *    여기서 다시 세지 않는다 (규칙 ③). 문장도 이 목록 하나에서 나온다 — 판정과 로그가 같은 말을 한다.
+ */
+export function lateStopsOf(
+    late: Array<{ orderId: string; stopType: string; lateMinutes: number }>,
+    nameOf: (orderId: string) => string,
+): Array<{ label: string; lateMinutes: number | null }> {
+    return late.map(e => ({
+        label: `${nameOf(e.orderId)} ${e.stopType === 'pickup' ? '상차' : '하차'} 약속`,
+        lateMinutes: e.lateMinutes,
+    }));
+}
+
 /** 합짐 — 이미 실린 짐이 있다. 다섯 기준을 다 잰다 (지리는 가중치 0 이라 안 본다) */
 export function mergeFacts(input: {
     fare: number;
@@ -130,29 +143,20 @@ export function mergeFacts(input: {
     freePct: number | null;
     /** 그 적재량을 어떻게 알았나 — 확정값(신고·실측)일 때만 색을 덮는다 */
     confidence?: 'CONFIRMED' | 'DECLARED' | 'ESTIMATED' | null;
-    /** 옛 채점기가 쓰던 통과/실패 조건 그대로 — 여기서 다시 판단하지 않는다 */
-    gates: DryRunGate[];
     /** 같이 못 싣는 조합 (성질) */
     conflicts: Array<[string, string]>;
     /** 🧪 형상 필터가 이미 찾아 둔 제외어 — 여기서 다시 훑지 않는다 (규칙 ③) */
     excludedHits: string[];
+    /**
+     * ⏰ **깨지는 약속과 몇 분인지** — 이미 잰 값을 받는다 (`deriveRouteTimeline` 의 `lateMinutes`).
+     *    분을 모르면 `null` — 지어내지 않는다 (규칙 ④).
+     */
+    lateStops: Array<{ label: string; lateMinutes: number | null }>;
     tags: string[];
 }): JudgeFacts {
-    /**
-     * 🔴 «늦는 약속»은 옛 조건(`routePromiseGuard`)이 이미 문장으로 들고 있다.
-     *    분(分)은 그 문장 안에만 있어 숫자로 못 꺼낸다 — **지어내지 않는다** (규칙 ④).
-     *    깨졌다는 사실만 넘기고, 몇 분인지는 그 문장이 말한다.
-     */
-    const guard = input.gates.find(g => g.key === 'routePromiseGuard');
-    const lateStops = guard && !guard.pass
-        // 🔴 분(分)은 그 문장 안에만 있다 — **자리표시자 0 을 넣지 않는다.**
-        //    넣었더니 «…12분 깨집니다 **0분 늦음**» 이라 스스로 모순됐다 (규칙 ④)
-        ? [{ label: guard.why ?? guard.name, lateMinutes: null }]
-        : [];
-
     return {
         money: { fare: input.fare, extraMinutes: input.extraMinutes, firstLoad: false },
-        promise: { hasExistingCalls: true, lateStops, bufferAfterMin: input.bufferAfterMin },
+        promise: { hasExistingCalls: true, lateStops: input.lateStops, bufferAfterMin: input.bufferAfterMin },
         space: { freePct: input.freePct, hasLoad: true, confidence: input.confidence ?? null },
         nature: { conflicts: input.conflicts, excludedHits: input.excludedHits, hasLoad: true },
         /**

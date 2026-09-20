@@ -5,7 +5,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
-import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
+import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf, dwellLedgerFor } from "../../services/stepSeeder";
@@ -346,17 +346,8 @@ export class OrderEvaluator {
                                     ? callName({ target: session.activeFilter.callTarget, index: idx })
                                     : id.slice(-6);
                             };
-                            const gates: DryRunGate[] = [{
-                                key: 'routePromiseGuard', name: '기존 콜 약속 보존', pass: late.length === 0,
-                                why: late.length
-                                    ? `잡으면 ${late.map(e =>
-                                        `${nameOf(e.orderId)} ${e.stopType === 'pickup' ? '상차' : '하차'} 약속이 ${e.lateMinutes}분 깨집니다`).join(' · ')}`
-                                    : null,
-                            }];
-                            if (conflicts.length) gates.push({
-                                key: 'cargoTagCompat', name: '같이 못 실음', pass: false,
-                                why: `같이 못 싣는 조합 — ${conflicts.map(([a, b]) => `${a}+${b}`).join(' · ')}`,
-                            });
+                            // ⏰ 깨지는 약속 — 짓는 곳은 `lateStopsOf` 하나다 (규칙 ③)
+                            const lateStops = lateStopsOf(late as never, nameOf);
 
                             const bufAfter = minRouteBuffer(existing);
 
@@ -446,7 +437,7 @@ export class OrderEvaluator {
                                 freePct: slotsTotal > 0 ? ((slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
                                 /** 📦 그 적재량을 어떻게 알았나 — 확정값일 때만 색을 덮는다 */
                                 confidence: session.activeFilter.capacityConfidence ?? null,
-                                gates, conflicts, excludedHits, tags,
+                                conflicts, excludedHits, lateStops, tags,
                             }), judgmentCfg));
                             dry.stops = stopsView;
                             dry.unknownWhy = unknownWhy;
