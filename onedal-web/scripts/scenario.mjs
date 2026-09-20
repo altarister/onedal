@@ -38,6 +38,13 @@ const ROOT = new URL('..', import.meta.url).pathname;
 const SERVER = join(ROOT, 'server');
 const PORT = 4012;
 const DB = 'scen.db';
+/**
+ * 🌱 씨앗으로 쓸 DB — 좌표가 붙은 콜 2건이 있어야 한다 (`seed()` 가 확인한다).
+ *    기본은 `local.db` 다. 콜 목록을 비웠을 때(`reset:calls`) 씨앗이 사라지므로
+ *    `SCENARIO_SEED=smoke-mode.db pnpm scenario` 처럼 다른 사본을 줄 수 있다.
+ *    🔴 읽기만 한다 — 실제로 도는 DB 는 언제나 `scen.db` 사본이다.
+ */
+const SEED = process.env.SCENARIO_SEED || 'local.db';
 
 const require = createRequire(join(SERVER, 'index.js'));
 const Database = require('better-sqlite3');
@@ -52,7 +59,7 @@ const check = (name, ok, detail = '') => {
 
 // ─────────────────────────── 시드 ───────────────────────────
 async function seed() {
-    const src = join(SERVER, 'local.db');
+    const src = join(SERVER, SEED);
     if (!existsSync(src)) {
         console.error(`🔴 ${src} 가 없습니다. 개발 서버를 한 번 띄워 DB 를 만든 뒤 다시 실행하세요.`);
         process.exit(1);
@@ -73,10 +80,11 @@ async function seed() {
     `).all().map(r => r.id);
 
     if (withStops.length < 2) {
-        console.error('🔴 좌표가 붙은 콜이 2건 미만이라 시나리오를 못 돌립니다.');
-        console.error('   이 검사는 `server/local.db` 의 **실제 콜을 씨앗으로** 씁니다 —');
+        console.error(`🔴 좌표가 붙은 콜이 2건 미만이라 시나리오를 못 돌립니다 (씨앗: ${SEED}).`);
+        console.error('   이 검사는 **실제 콜을 씨앗으로** 씁니다 —');
         console.error('   콜 목록을 지우면 씨앗이 사라져 돌지 않습니다 (2026-08-16 에 실제로 그랬습니다).');
-        console.error('   콜을 한두 건 잡아 상·하차 좌표가 붙은 뒤 다시 돌리세요.');
+        console.error('   콜을 한두 건 잡아 상·하차 좌표가 붙은 뒤 다시 돌리거나,');
+        console.error('   씨앗이 남아 있는 사본을 주세요 — 예: SCENARIO_SEED=smoke-mode.db pnpm scenario');
         process.exit(1);
     }
 
