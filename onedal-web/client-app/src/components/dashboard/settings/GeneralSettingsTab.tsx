@@ -20,7 +20,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const [isGeocodingLoading, setIsGeocodingLoading] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [pickerAlarmMinFare, setPickerAlarmMinFare] = useState(10000);
   /** ⏱️ 배차망별 대기 시간 (docs/지금/배차망별_대기_시간.md) */
   const [waitTimes, setWaitTimes] = useState<WaitTimes>(DEFAULT_WAIT_TIMES);
   /** 서버에서 불러온 값 — 칸을 비우거나 0 을 넣고 저장하면 이 값으로 되돌린다 (1초 미만은 고장 · waitSecOrNull) */
@@ -35,7 +34,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       setHomeAddress(data.homeAddress || "");
       setHomeCoords(null);
       setGeocodeError(null);
-      setPickerAlarmMinFare(data.pickerAlarmMinFare ?? 10000);
       const loaded: WaitTimes = {
         safeCancelSecInsung: data.safeCancelSecInsung ?? DEFAULT_WAIT_TIMES.safeCancelSecInsung,
         safeCancelSecHwamul24: data.safeCancelSecHwamul24 ?? DEFAULT_WAIT_TIMES.safeCancelSecHwamul24,
@@ -84,7 +82,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       await apiClient.put('/settings', {
         vehicleType, defaultPriority, homeAddress,
         homeX: homeCoords?.x, homeY: homeCoords?.y,
-        pickerAlarmMinFare,
         ...safeWaitTimes
       });
       // 판정석 장막 · 홀드 진행 막대가 새 값을 바로 쓰게 — 다시 묻지 않는다 (settingsStore)
@@ -166,17 +163,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
         </div>
       </div>
 
-      {/* 🔔 픽커 알람 하한 — 픽커는 배송거리가 없어 단가식이 안 되는 판이라 하한 하나로 거른다 (픽커_수집.md 3단계) */}
-      <div className="space-y-1 pt-2 border-t">
-        <label className="text-sm font-semibold text-text-muted">픽커 알람 요금 하한 (원)</label>
-        <input
-          type="number" min="0" step="1000"
-          value={pickerAlarmMinFare}
-          onChange={(e) => setPickerAlarmMinFare(parseInt(e.target.value) || 0)}
-          className="w-full h-9 px-2 rounded border border-border bg-surface text-sm"
-        />
-        <p className="text-[10px] text-text-muted">이 금액 이상인 픽커 콜만 알람이 울립니다. 현위반경은 🔍 필터의 값을 함께 씁니다.</p>
-      </div>
 
       {/* ⏱️ 배차망별 대기 시간 — 원천은 서버 DB, 원달앱은 받아 쓴다 (docs/지금/배차망별_대기_시간.md)
           🔴 인성 값에 상한을 걸지 않는다 — 옆 안내를 보고 기사님이 정하신다 (기사님 확정 2026-09-14) */}
