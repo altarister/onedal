@@ -79,8 +79,9 @@ describe('☰ 서랍으로 가는 길 — 폰에서 끝난 콜을 볼 유일한 
     });
 
     /**
-     * 🔴 **새 화면에서도 보여야 한다.** 무대(`stagePreview`)에서 헤더나 서랍을 접으면
-     *    폰에서 끝난 콜을 볼 길이 사라진다 — 이 서랍이 생긴 이유가 그것이다.
+     * 🔴 **어떤 조건 뒤에도 숨기지 않는다.** 헤더나 서랍을 조건부로 접으면 폰에서
+     *    끝난 콜을 볼 길이 사라진다 — 이 서랍이 생긴 이유가 그것이다.
+     *    (`stagePreview` 는 걷힌 옛 토글이다 — 되살아나면 여기서 빨간불)
      */
     it('🔴 서랍을 새 화면 분기 뒤에 숨기지 않는다', () => {
         const line = DASHBOARD.split('\n').find(l => l.includes('<Drawer')) ?? '';
@@ -96,6 +97,25 @@ describe('☰ 서랍으로 가는 길 — 폰에서 끝난 콜을 볼 유일한 
     it('🔴 서랍이 화면 전체(fixed)가 아니라 관제 영역 안(absolute)에 깔린다', () => {
         expect(DRAWER).toMatch(/absolute[^"'`]*inset-0/);
         expect(DRAWER).not.toMatch(/fixed\s+inset-0/);
+    });
+});
+
+describe('📋 끝난 콜 — 언제 끝났나', () => {
+    /**
+     * 🔴 **하차는 `completedAt`, 취소·방출은 `terminatedAt`** 이다 — 서버가 나눠 적는다
+     *    (`shared` 의 두 칸 주석). 하나만 읽으면 «완료됨» 탭의 시각이 통째로 어긋난다.
+     */
+    it('🔴 두 칸을 다 본다 — 하차와 취소는 다른 칸에 적힌다', () => {
+        expect(DRAWER).toMatch(/completedAt\s*\?\?\s*c\.terminatedAt/);
+    });
+
+    /**
+     * 🔴 **잡은 시각으로 메우지 않는다.** `capturedAt` 을 폴백으로 쓰면
+     *    «14:22 에 취소»가 «09:03 에 취소»로 보인다 — 화면이 조용히 거짓말한다 (규칙 ④).
+     */
+    it('🔴 끝난 시각이 없으면 «—» 다 — 잡은 시각으로 메우지 않는다', () => {
+        expect(DRAWER).not.toMatch(/capturedAt/);
+        expect(DRAWER).toMatch(/return '—'/);
     });
 });
 

@@ -230,8 +230,20 @@ describe('운행 중 — 출발한 사실에서 나온다', () => {
         expect(client).not.toMatch(/filter\.driverAction !== 'DRIVING'/);
     });
 
+    /**
+     * 🔴 **«🚀 지금 출발» 버튼 블록만 본다.** 같은 `updateFilter({ driverAction: 'DRIVING' })` 를
+     *    **자동 주행 감지**도 부르고 그쪽이 파일에서 먼저 나온다 — 첫 등장을 집으면
+     *    버튼은 한 글자도 안 물면서 초록불이 된다.
+     */
+    const departButton = () => {
+        const i = client.indexOf("dispatchPhase !== 'DELIVERING'");
+        return i < 0 ? '' : client.slice(i, i + 900);
+    };
+
     it('🚀 버튼이 우회 반경을 직접 정하지 않는다 (운행중 국면 설정이 준다)', () => {
-        const onClick = client.slice(client.indexOf("updateFilter({ driverAction: 'DRIVING'"));
-        expect(onClick.slice(0, 80)).not.toMatch(/detourRadiusKm/);
+        const b = departButton();
+        // 🔴 먼저 «정말 그 버튼을 집었나» — 빈 문자열은 무엇이든 통과시킨다
+        expect(b).toMatch(/updateFilter\(\{ driverAction: 'DRIVING'/);
+        expect(b).not.toMatch(/detourRadiusKm/);
     });
 });

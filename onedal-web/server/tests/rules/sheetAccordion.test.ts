@@ -12,7 +12,7 @@ import { join } from 'path';
  * 그날 S23 실물에서 확인된 문제다 — 콜 목록 밑에 «어느 콜의 것인지 모르는 스텝»이
  * 이어져, 스크롤하면 주어가 사라졌다.
  *
- * ⚠️ 옛 화면(토글 꺼짐)은 스와이프 덱 그대로다 — 이 검사는 «시트»만 잠근다.
+ * ⚠️ `CallDeck` 의 스와이프 갈래는 쓰는 곳이 없다(옛 화면과 함께 걷혔다) — 이 검사는 «시트»만 잠근다.
  */
 const CLIENT = join(__dirname, '../../../client-app/src');
 const read = (p: string) => readFileSync(join(CLIENT, p), 'utf8');

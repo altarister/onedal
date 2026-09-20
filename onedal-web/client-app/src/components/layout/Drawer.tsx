@@ -40,9 +40,14 @@ type FinishedTab = Exclude<CallView, 'ACTIVE' | 'ALL'>;
 const won = (n?: number | null) =>
     n == null ? '—' : `${(n / 10000).toFixed(1)}만`;
 
-/** 끝난 시각 — 없으면 «—». 🔴 0 이나 지금 시각으로 지어내지 않는다 (규칙 ④) */
+/**
+ * 끝난 시각 — **하차는 `completedAt`, 취소·방출은 `terminatedAt`** 이다 (서버가 나눠 적는다).
+ *
+ * 🔴 `capturedAt`(잡은 시각)으로 메우지 않는다 — 그러면 «14:22 에 취소»가 «09:03 에 취소»로
+ *    보인다. 화면이 조용히 거짓말하느니 «—» 가 낫다 (규칙 ④).
+ */
 const clockOf = (c: SecuredOrder): string => {
-    const raw = c.terminatedAt ?? c.capturedAt;
+    const raw = c.completedAt ?? c.terminatedAt;
     if (!raw) return '—';
     const d = new Date(raw);
     return Number.isNaN(d.getTime())
@@ -128,7 +133,8 @@ export default function Drawer({ open, onClose, activeRoute }: Props) {
                             <div className="flex items-baseline justify-between gap-2">
                                 <span className="text-[13px] font-bold text-text-primary truncate">
                                     {FINISHED_TABS.find(t => t.key === tab)?.mark}{' '}
-                                    {getAddressLabel(c.pickup) || '—'} → {getAddressLabel(c.dropoff) || '—'}
+                                    {/* 🔴 `getAddressLabel` 이 빈 주소에 «배차값없음» 을 돌려준다 — 여기서 또 감싸지 않는다 */}
+                                    {getAddressLabel(c.pickup)} → {getAddressLabel(c.dropoff)}
                                 </span>
                                 <span className="text-[12px] font-bold tabular-nums text-text-muted shrink-0">
                                     {won(c.fare)}

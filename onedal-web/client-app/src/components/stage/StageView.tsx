@@ -47,11 +47,10 @@ import NaviQr from '../dashboard/NaviQr';
 import JudgmentSeat from '../dashboard/JudgmentSeat';
 
 /**
- * 🎭 **무대 — 지도 배경 + 3단 시트.**
+ * 🎭 **무대 — 지도 배경 + 3단 시트.** 관제 화면(`/`)이 그리는 유일한 화면이다.
  *
- * «새 화면 미리보기» 토글이 켜졌을 때만 그려진다 — 꺼진 동안 옛 화면(PinnedRoute 단독)이
- * 그대로다. 파생은 여기서 제조소를 **한 번만** 부르고, 시트 내용물(PinnedRoute sheetOnly)
- * 에 넘긴다 — 🔴 훅 두 번 = 구독·상태 두 벌이라 금지.
+ * 파생은 여기서 제조소(`useRouteDerivations`)를 **한 번만** 부르고 시트 내용물
+ * (`PinnedRouteBody`)에 넘긴다 — 🔴 훅 두 번 = 구독·상태 두 벌이라 금지.
  */
 interface Props {
     activeRoute: SecuredOrder[];
@@ -859,7 +858,7 @@ export default function StageView(props: Props) {
                 </div>
             )}
 
-            {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
+            {/* 3단 시트 — 내용물은 콜 목록(`PinnedRouteBody`) */}
             <StageSheet snap={snap} onSnapChange={(s) => feed({ type: 'drag', to: s })}
                         /* 🪧 판정 중에는 손잡이·상태바·콜 목록을 잠근다 — 판정 영역만 누른다 (#144) */
                         locked={!!judging}
