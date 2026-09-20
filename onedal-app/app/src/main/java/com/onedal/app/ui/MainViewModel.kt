@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.util.Locale
 
 /**
  * MainActivity의 SharedPreferences 폴링 로직을 담당하는 ViewModel
@@ -88,7 +89,40 @@ class MainViewModel {
         }
     }
 
-    // ── 파싱된 표시 문자열 (computed) ──
+    // ── 파싱된 표시 문자열 및 모델 (computed) ──
+
+    data class ParsedFilter(
+        val allowedVehicles: String = "전체 허용",
+        val pickerAlarmMinFare: Int = 10000,
+        val pickupRadiusKm: Double = 0.0,
+        val destinationCity: String = "미설정",
+        val destKeywordsCount: Int = 0,
+        val excludedKeywordsCount: Int = 0,
+        val waitTimes: String = ""
+    )
+
+    fun getParsedFilter(): ParsedFilter = try {
+        val json = JSONObject(activeFilterJson)
+        if (json.length() == 0) {
+            ParsedFilter(allowedVehicles = "대기 중 (서버 응답 없음)", waitTimes = waitTimesLabel)
+        } else {
+            val vehicleArr = json.optJSONArray("allowedVehicleTypes")
+            val vehicleStr = if (vehicleArr != null && vehicleArr.length() > 0) {
+                (0 until vehicleArr.length()).map { vehicleArr.getString(it) }.joinToString(", ")
+            } else "전체 허용"
+            val destArr = json.optJSONArray("destinationKeywords")
+            val exclArr = json.optJSONArray("excludedKeywords")
+            ParsedFilter(
+                allowedVehicles = vehicleStr,
+                pickerAlarmMinFare = json.optInt("pickerAlarmMinFare", 10000),
+                pickupRadiusKm = json.optDouble("pickupRadiusKm", 0.0),
+                destinationCity = json.optString("destinationCity", "미설정"),
+                destKeywordsCount = destArr?.length() ?: 0,
+                excludedKeywordsCount = exclArr?.length() ?: 0,
+                waitTimes = waitTimesLabel
+            )
+        }
+    } catch (e: Exception) { ParsedFilter(allowedVehicles = "파싱 오류", waitTimes = waitTimesLabel) }
 
     fun getFilterDisplayText(): String = try {
         val json = JSONObject(activeFilterJson)
@@ -98,9 +132,11 @@ class MainViewModel {
             val vehicleStr = if (vehicleArr != null && vehicleArr.length() > 0) {
                 (0 until vehicleArr.length()).map { vehicleArr.getString(it) }.joinToString(", ")
             } else "전체 허용"
+            val pickerFare = json.optInt("pickerAlarmMinFare", 10000)
+            val formatFare = java.text.NumberFormat.getNumberInstance(Locale.KOREA).format(pickerFare)
 
             "allowedVehicleTypes: $vehicleStr\n" +
-            "minFare: ${json.optString("minFare", "0")}원\n" +
+            "pickerAlarmMinFare: ${formatFare}원 (콜할인율 연동)\n" +
             "pickupRadiusKm: ${json.optString("pickupRadiusKm", "0")}km\n" +
             "destinationCity: ${json.optString("destinationCity", "미설정")}\n" +
             "destinationKeywords: ${json.optString("destinationKeywords", "없음")}\n" +
