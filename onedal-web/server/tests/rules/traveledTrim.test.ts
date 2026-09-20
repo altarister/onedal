@@ -206,7 +206,7 @@ describe('GPS 경로는 전용 통로로 간다', () => {
 describe('운행 중 — 출발한 사실에서 나온다', () => {
 
     const store = codeOnly(read('state/userSessionStore.ts'));
-    const client = codeOnly(readFileSync(join(__dirname, '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8'));
+    const client = codeOnly(readFileSync(join(__dirname, '../../../client-app/src/components/stage/StageView.tsx'), 'utf8'));
 
     it('🔴 출발 사실을 세션에 새긴다 (driverAction 으로 대신하지 않는다)', () => {
         expect(store).toMatch(/departedAt: number \| null/);

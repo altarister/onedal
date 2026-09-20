@@ -183,8 +183,8 @@ describe('규칙 ① — 강제 정리는 심사 중인 콜만 건드린다', ()
 describe('합짐 중 경로 우선순위 잠금', () => {
     it('🔴 진행 2건 이상이면 선택된 것만 남기고 잠근다', () => {
         const route = readFileSync(join(__dirname,
-            '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8');
-        expect(route).toMatch(/priorityLocked/);
+            '../../../client-app/src/components/stage/StageView.tsx'), 'utf8');
+        expect(route).toMatch(/isPriorityLocked\(/);
     });
 
     /**
@@ -204,8 +204,9 @@ describe('합짐 중 경로 우선순위 잠금', () => {
      */
     it('🔴 심사 중인 콜도 «화면의 콜»로 센다 — 예외를 두지 않는다', () => {
         const route = readFileSync(join(__dirname,
-            '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8');
-        const lock = route.match(/const priorityLocked = [^;]+;/)?.[0] ?? '';
+            '../../../client-app/src/components/stage/StageView.tsx'), 'utf8');
+        // 🔴 변수 이름에 기대지 않는다 — 잠금을 «어디서 얻는가»가 규칙이다
+        const lock = route.match(/const \w+ = isPriorityLocked\([^;]+;/)?.[0] ?? '';
         // 규칙은 한 곳(lib/routePriority)에서 온다 — 여기서 다시 세지 않는다
         expect(lock).toMatch(/isPriorityLocked\(/);
         // 🔴 옛 예외가 되살아나면 빨간불

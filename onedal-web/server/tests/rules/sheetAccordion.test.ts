@@ -22,20 +22,26 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
     const route = () => codeOnly(read('components/dashboard/PinnedRoute.tsx'));
     const deck = () => codeOnly(read('components/dashboard/CallDeck.tsx'));
 
+    /**
+     * 🔴 **탭 줄은 아예 없다** — 끝난 콜(완료됨·취소·방출)은 ☰ 서랍이 든다
+     *    (`components/layout/Drawer` · 화면규칙 D3). 시트에는 «진행 중»만 산다 —
+     *    갈래를 고르는 상태(`viewFilter`·`sheetOnly`)를 다시 들이지 않는다.
+     */
     it('탭 줄(진행중·완료됨·취소·방출·전체)은 시트에 없다', () => {
-        // 탭 줄 블록이 !sheetOnly 뒤에만 그려진다
-        expect(route()).toMatch(/\{!sheetOnly && safeRoute\.length > 0 && \(\s*<div\s*\n?\s*ref=\{tabBarRef\}/);
+        expect(route()).not.toMatch(/ref=\{tabBarRef\}/);
+        expect(route()).not.toMatch(/setViewFilter\(/);
     });
 
-    it('시트는 «진행 중»으로 고정된다 — 탭이 없으니 view 가 남아돌면 안 된다', () => {
-        expect(route()).toMatch(/view = sheetOnly \? 'ACTIVE' : viewFilter/);
-        // 렌더 분기가 viewFilter 를 직접 읽으면 시트가 옛 탭 상태를 따라간다
-        expect(route()).not.toMatch(/\{viewFilter === 'ACTIVE' &&/);
-        expect(route()).not.toMatch(/\{viewFilter !== 'ACTIVE' &&/);
+    it('시트는 «진행 중»으로 고정된다 — 고를 갈래가 없다', () => {
+        // 갈래를 고르는 상태가 남아 있으면 시트가 «진행 중» 아닌 것을 그릴 수 있다
+        expect(route()).not.toMatch(/\bviewFilter\b/);
+        expect(route()).not.toMatch(/\bsheetOnly\b/);
+        // 덱에 넘기는 것은 늘 사이클 목록이다
+        expect(route()).toMatch(/\{cycleDeck\.length > 0 && \(/);
     });
 
     it('시트의 덱은 아코디언이다', () => {
-        expect(route()).toMatch(/accordion=\{sheetOnly\}/);
+        expect(route()).toMatch(/<CallDeck\s+accordion\b/);
     });
 
     it('헤더는 «내용 사이사이»에 끼워 그린다 — 내용이 자기 헤더 바로 밑에 온다', () => {

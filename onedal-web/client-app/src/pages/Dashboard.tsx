@@ -1,4 +1,4 @@
-import { isTerminal, isEvaluating, judgingCallOf } from "@onedal/shared";
+import { isTerminal } from "@onedal/shared";
 import { mergeOrderViews } from "../lib/orderMerge";
 import Header from "../components/layout/Header";
 import Drawer from "../components/layout/Drawer";
@@ -7,12 +7,10 @@ import Collapse from "../components/ui/collapse";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import { useFilterConfig } from "../hooks/useFilterConfig";
 import { useSidePanelRoom } from "../hooks/useSidePanelRoom";
-import JudgmentSeat from "../components/dashboard/JudgmentSeat";
 import StageView from "../components/stage/StageView";
 /* 🔬 곁 패널 — 지울 때 이 줄과 아래 호출 한 줄만 지운다 (2026-09-11) */
 import StatusBoard from "../statusboard/StatusBoard";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
-import PinnedRoute from "../components/dashboard/PinnedRoute";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
 import { ensureJudgmentSocketSubscribed } from "../stores/judgmentStore";
 import CargoMismatchBanner from "../components/dashboard/CargoMismatchBanner";
@@ -63,10 +61,6 @@ export default function Dashboard() {
     const { filter, updateFilter } = useFilterConfig();
     const routeMode = filter?.routeMode ?? true;
     const setRouteMode = (v: boolean) => updateFilter({ routeMode: v });
-    // 🪧 심사석 결재 버튼의 처리 중 표시 (자동콜 갈래)
-    const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
-    // 🎭 새 화면 미리보기 토글 (화면개편 · 기사님 확정 0831) — 표시만 바뀐다, 상태는 공용
-    const [stagePreview, setStagePreview] = useState(() => localStorage.getItem('stagePreview') === '1');
     /** ☰ 왼쪽 서랍 — 끝난 콜(완료됨·취소·방출)이 사는 자리 (기사님 확정) */
     const [drawerOpen, setDrawerOpen] = useState(false);
     /**
@@ -80,21 +74,15 @@ export default function Dashboard() {
      */
     /* 📏 폭 판단은 `useSidePanelRoom` 한 곳 — 무대의 «🚀 지금 출발»도 **같은 답**을 본다 (규칙 ③) */
     const sidePanelRoom = useSidePanelRoom();
-    useEffect(() => {
-        const on = () => setStagePreview(localStorage.getItem('stagePreview') === '1');
-        window.addEventListener('stage-preview-changed', on);
-        return () => window.removeEventListener('stage-preview-changed', on);
-    }, []);
     /**
      * 🎭 무대 모드 — **문서 스크롤을 잠근다** (기사님 0831: 헤더 빼고 다 같이 움직여 들썩).
      * 고정부(헤더·폰영역·슬롯)는 붙박이, 스크롤은 시트 안(overflow-y)에서만 일어난다.
      */
     useEffect(() => {
-        if (!stagePreview) return;
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = prev; };
-    }, [stagePreview]);
+    }, []);
 
     /**
      * 🪗 **필터 열림 시 Esc 키로 닫기**
@@ -118,7 +106,6 @@ export default function Dashboard() {
 
     useEffect(() => { ensureJudgmentSocketSubscribed(); }, []);
 
-    const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL'>('ACTIVE');
     // [이슈 W] 서버 재시작으로 진행 중 콜이 복구됐을 때 표시할 배너
     const [restoredInfo, setRestoredInfo] = useState<{ restoredCount: number; dispatchPhase: string } | null>(null);
     // ⏱️ 복구 알림도 스스로 닫힌다 — 예전에는 손으로 닫기 전까지 남아 화면을 덮었다
@@ -163,8 +150,7 @@ export default function Dashboard() {
     //    서버의 복구 쿼리 두 곳과 합쳐 같은 목록이 세 군데 손으로 적혀 있었다.
     //    `mergeOrderViews` 로 뽑아 한 곳에서 정하고, 렌더 없이 테스트한다.
     const activeRoute = mergeOrderViews(orders, terminatedOrders, liveCalls);
-    /** 🪧 심사 중인 콜 — 술어는 shared 한 곳에서 (규칙 ③) */
-    const judgingCall = judgingCallOf(activeRoute);
+    /* 🪧 심사 중인 콜은 무대(`StageView`)가 파생 훅에서 직접 고른다 (`d.judging`) */
     // 취소·방출·완료된 귀가콜은 "진행 중"이 아니다.
     // 걸러내지 않으면 한 번 귀가콜을 만들었다 취소한 뒤로 다시 만들 수 없게 된다.
     const hasHomeReturnActive = activeRoute.some(
@@ -226,10 +212,13 @@ export default function Dashboard() {
          * 🔴 화면 불편이 아니라 **콜을 잃는 사고**다 — 안전취소 30초 안에 결재해야 하는데
          *    화면에 없으면 아무것도 못 한다.
          *
-         * ⚠️ 아무 때나 탭을 뺏지는 않는다. **평가 중으로 들어오는 새 콜**에만 —
+         * 🔴 **끝난 콜을 보는 자리는 이제 ☰ 서랍이다** — 탭은 걷었지만 사고 모양은 같다.
+         *    서랍이 덮고 있으면 새 콜이 와도 못 누른다. 그래서 **서랍을 닫는다.**
+         *
+         * ⚠️ 아무 때나 뺏지는 않는다. **평가 중으로 들어오는 새 콜**에만 —
          *    화면을 뺏는 것은 결재를 위해서만 정당하다 (규칙 ①).
          */
-        const onNewCall = () => setViewFilter('ACTIVE');
+        const onNewCall = () => setDrawerOpen(false);
 
         socket.on("auto-delivered", onAutoDelivered);
         socket.on("auto-passed", onAutoPassed);
@@ -277,15 +266,16 @@ export default function Dashboard() {
      *
      * 🔴 **지울 때는 이 감싸개와 패널 한 줄만** 걷어내면 된다. `body` 는 안 건드린다.
      */
-    const withPanel = stagePreview && sidePanelRoom;
+    const withPanel = sidePanelRoom;
+    /**
+     * 🎭 화면 = 상자, 스크롤은 시트 안에서만 일어난다 (기사님 확정 0831).
+     * 🔴 `relative` 는 ☰ 서랍의 자리다 — 서랍이 이 상자 안에서만 깔려 곁 패널(현황판)을 안 덮는다.
+     */
     const body = (
-        <main className={stagePreview
-            /* 🔴 `relative` 는 ☰ 서랍의 자리다 — 서랍은 이 상자 안에서만 깔려 곁 패널(현황판)을 안 덮는다 */
-            ? "relative h-dvh overflow-hidden flex flex-col bg-bg-base font-sans"  /* 🎭 무대: 화면 = 상자, 스크롤은 시트 안 */
-            : "relative min-h-screen bg-bg-base font-sans pb-24"}
+        <main className="relative h-dvh overflow-hidden flex flex-col bg-bg-base font-sans"
             /* 🛡️ overflow-hidden 이어도 프로그램 스크롤(scrollIntoView·포커스)은 민다 —
                무대에서 어떤 경로로든 밀리면 즉시 0 으로 (상단 날아감 재발 방지) */
-            onScroll={stagePreview ? (e) => { e.currentTarget.scrollTop = 0; e.currentTarget.scrollLeft = 0; } : undefined}>
+            onScroll={(e) => { e.currentTarget.scrollTop = 0; e.currentTarget.scrollLeft = 0; }}>
 
             {/* 📍 공통 헤더 컴포넌트 */}
             <Header isConnected={isConnected} liveCalls={liveCalls} onMenu={() => setDrawerOpen(true)} />
@@ -305,7 +295,7 @@ export default function Dashboard() {
                 />
             )}
 
-            <div className={`relative flex flex-col max-w-2xl mx-auto w-full ${stagePreview ? "flex-1 min-h-0" : ""}`}>
+            <div className="relative flex flex-col max-w-2xl mx-auto w-full flex-1 min-h-0">
 
 
                 {/**
@@ -331,28 +321,13 @@ export default function Dashboard() {
                     {/* ⚙️ 오더 필터 한 줄 현황판 ↔ 🪧 심사석 — **같은 슬롯 1:1 치환** (기사님 확정 0831).
                         둘 다 158px 고정이라 아래 내용이 한 픽셀도 안 밀린다. 차량 패널은 늘 그 자리 —
                         예전엔 심사 때 차량 패널까지 숨겨서 전환마다 아래가 출렁였다. */}
-                    {(() => {
-                        // 🔴 술어를 여기서 다시 쓰지 않는다 — «심사석에 뜬 콜»과 «덱에서 빠진 콜»이 갈린다 (0831 리뷰)
-                        const judging = judgingCall;
-                        /**
-                         * 🪧 **무대에서는 판정석이 시트 맨 아래다** (기사님 확정 2026-09-05 · 안 ⓑ).
-                         *    그래서 이 자리는 **늘 필터**다 — 둘이 같은 슬롯을 다투지 않는다.
-                         * ⚠️ 옛 화면(무대 아님)은 그대로 1:1 치환이다 (0831 확정) — 거기는 시트가 없다.
-                         */
-                        if (judging && !stagePreview) return (
-                            <JudgmentSeat
-                                route={judging}
-                                /* 🔢 «합짐N»은 지금 쥔 콜 수 — 하루 덱(오늘 하차분 포함)으로 세면 N 이 하루 종일 커진다 (사이클 = 하루 · 2026-09-15) */
-                                confirmedActive={activeRoute.filter(o => !isTerminal(o.status) && !isEvaluating(o.status) && o.id !== judging.id).length}
-                                onDecision={handleDecision}
-                                processingId={seatProcessingId}
-                                setProcessingId={setSeatProcessingId}
-                            />
-                        );
-                        return <OrderFilterStatus
-                            onOpenFilter={() => setIsFilterOpen(o => !o)}
-                            cancelCounts={cancelCounts} cancelRounds={cancelRounds} />;
-                    })()}
+                    {/**
+                      * 🪧 **판정석은 시트 맨 아래다** (기사님 확정 · 안 ⓑ) — 그래서 이 슬롯은 **늘 필터**다.
+                      *    둘이 같은 자리를 다투지 않는다.
+                      */}
+                    <OrderFilterStatus
+                        onOpenFilter={() => setIsFilterOpen(o => !o)}
+                        cancelCounts={cancelCounts} cancelRounds={cancelRounds} />
 
                     {/**
                       * 🪗 **필터 — 요약줄 바로 아래, 제자리에서 열린다** (이식 C4-3).
@@ -379,8 +354,8 @@ export default function Dashboard() {
                 {/* 📢 배너 층 (v24) — 무대에서는 흐름 밖으로 띄운다. 🔴 바탕은 불투명(bg-surface) — 10% 바탕이면 뒤 지도가 비친다 (#146). 흐름 안에 두면 뜰 때마다
                     아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 (기사님 실측 0831) */}
                 {/* 🗺️ 필터 줄(과 열리는 필터) 아래 · 지도 위 — 헤더·필터 줄을 가리지 않는다 · 높이 0 그릇이라 지도를 밀지 않는다 (기사님 2026-09-15 «지도 위로 하자» · #146) */}
-                <div className={stagePreview ? "relative h-0 z-30" : "contents"}>
-                <div className={stagePreview ? "absolute left-0 right-0 top-0 flex flex-col" : "contents"}>
+                <div className="relative h-0 z-30">
+                <div className="absolute left-0 right-0 top-0 flex flex-col">
                 {/* 🚚 서버가 대신 찍은 하차 완료·지나침 · 🏠 목적지 자동 전환 — 잠깐 떴다 사라진다 */}
                 {gpsNotice && (
                     <div className="mx-3 mt-3 rounded-md border border-primary/40 inset-shadow-[4px_0_0_var(--color-primary)] bg-surface shadow-lg px-4 py-2.5 flex items-center gap-2 text-sm">
@@ -468,7 +443,7 @@ export default function Dashboard() {
                     🔴 결재 카드가 터져도 관제탑 전체가 죽지 않게 경계를 둔다 —
                        운행 중이면 여기가 KEEP/CANCEL 을 하는 유일한 창구다 */}
                 <ErrorBoundary label="결재 카드">
-                    {stagePreview ? <StageView
+                    <StageView
                         isFilterOpen={isFilterOpen}
                         routeMode={routeMode}
                         routeStops={routeStops}
@@ -478,19 +453,7 @@ export default function Dashboard() {
                         activeRoute={activeRoute}
                         onDecision={handleDecision}
                         onRecalculate={handleRecalculate}
-                        viewFilter={viewFilter}
-                        setViewFilter={setViewFilter}
-                    /> : <PinnedRoute 
-                        routeStops={routeStops}
-                        routeComputedAt={routeComputedAt}
-                        routeHolderId={routeHolderId}
-                        previewRouteHolderId={previewRouteHolderId}
-                        activeRoute={activeRoute} 
-                        onDecision={handleDecision} 
-                        onRecalculate={handleRecalculate} 
-                        viewFilter={viewFilter}
-                        setViewFilter={setViewFilter}
-                    />}
+                    />
                 </ErrorBoundary>
             </div>
 

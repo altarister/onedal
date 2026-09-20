@@ -128,6 +128,14 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
     const part = (items: typeof liveCalls, prefix: string) =>
         items.length ? `${prefix} ${items.length}` : null;
     const text = [part(loaded, '상차'), part(reserved, '예약')].filter(Boolean).join(' · ') || '예약 0건';
+    /**
+     * 💰 **진행 중 운임** — 지금 쥔 콜로 얼마를 버나 (기사님 확정 · 옛 화면 머리 줄에서 옮겨 왔다).
+     *
+     * 🔴 **`confirmedCalls` 로만 더한다** — 심사 중인 콜은 아직 내 것이 아니고,
+     *    끝난 콜(취소·방출)은 한 푼도 못 받는다. 전체를 더하면 진행 2건인데 종료분까지
+     *    합쳐 과다 표시된다. 완료분은 계산에 섞지 않는다.
+     */
+    const fareSum = confirmedCalls.reduce((sum, o) => sum + (o.fare || 0), 0);
     return (
         <span className="flex items-baseline gap-1.5 whitespace-nowrap">
             <span className="text-[17px] font-black text-text-primary">{myVehicle}</span>
@@ -138,6 +146,12 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
                 <span className={`shrink-0 text-[12px] font-black tabular-nums ${
                     filter.slotsUsed >= 85 ? 'text-warning' : 'text-text-muted'}`}>
                     📦{Math.round(filter.slotsUsed)}/{TRUCK_CAPACITY_SLOTS}
+                </span>
+            )}
+            {/* 💰 진행 중 운임 — 콜이 없으면 안 그린다 (0원을 지어내지 않는다 · 규칙 ④) */}
+            {fareSum > 0 && (
+                <span className="shrink-0 text-[12px] font-black tabular-nums text-text-primary">
+                    {(fareSum / 10000).toFixed(1)}만
                 </span>
             )}
             {liveCalls.length > 0 && filter?.capacityConfidence && (

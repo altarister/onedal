@@ -156,11 +156,19 @@ describe('경계 — 완료분이 계산에 섞이지 않는다', () => {
         expect(code()).toMatch(/deckOfCycle/);
     });
 
-    it('🔴 적재·운임·경로는 여전히 liveRoute(진행 중)를 쓴다', () => {
-        const c = code();
-        expect(c).toMatch(/적재 \{liveRoute\.length\}건/);
-        expect(c).toMatch(/liveRoute\.reduce\(\(sum, o\) => sum \+ \(o\.fare \|\| 0\)/);
-        expect(c).toMatch(/routeStops, liveRoute,/);          // 타임라인
+    /**
+     * 🔴 **완료분이 계산에 섞이지 않는다.** 적재·운임은 옛 화면 머리 줄과 함께 헤더로 옮겼고
+     *    (`VehicleLogoSummary` · 기사님 확정), 거기서는 `confirmedCalls`(= 진행 중)로 센다.
+     *    전체를 더하면 취소·방출한 콜의 운임까지 합쳐져 과다 표시된다.
+     */
+    it('🔴 적재·운임·경로는 여전히 «진행 중»만 쓴다', () => {
+        expect(code()).toMatch(/routeStops, liveRoute,/);          // 타임라인
+        const head = readFileSync(join(__dirname,
+            '../../../client-app/src/components/dashboard/VehicleStatusPanel.tsx'), 'utf8');
+        expect(head).toMatch(/const confirmedCalls = liveCalls\.filter\(o => !isEvaluating\(o\.status\)\)/);
+        expect(head).toMatch(/confirmedCalls\.reduce\(\(sum, o\) => sum \+ \(o\.fare \|\| 0\)/);
+        // 🔴 심사 중·끝난 콜이 섞인 배열로 더하지 않는다
+        expect(head).not.toMatch(/liveCalls\.reduce\(\(sum, o\) => sum \+ \(o\.fare/);
     });
 
     /* 🚩 2026-09-15 — 카운트다운 상자를 걷고 시트 상태바 조각(`useDepartureDue`)으로 옮겼다. 뜻은 그대로 — 진행 중인 콜만 */

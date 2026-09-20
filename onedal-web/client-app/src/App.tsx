@@ -43,13 +43,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 // Navigation Wrapper
 function AppLayout() {
   const location = useLocation();
-  // 🎭 무대 토글 즉시 반영 — localStorage 만 읽으면 다음 렌더까지 옛 값이 남는다
-  const [stageOn, setStageOn] = useState(() => localStorage.getItem('stagePreview') === '1');
-  useEffect(() => {
-    const on = () => setStageOn(localStorage.getItem('stagePreview') === '1');
-    window.addEventListener('stage-preview-changed', on);
-    return () => window.removeEventListener('stage-preview-changed', on);
-  }, []);
 
   /**
    * 🧭 **내비 화면에서는 위치를 안 보낸다** (기사님 지적 2026-09-03).
@@ -122,13 +115,13 @@ function AppLayout() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {/* 하단 네비게이션 — 🎭 무대(새 화면)와 🧭 내비 한 장에서는 숨김.
+      {/* 하단 네비게이션 — 🎭 관제(무대)와 🧭 내비 한 장에서는 숨김.
+          관제는 시트가 그 자리를 쓴다 (기사님 0831).
           내비는 개인 폰이 여는 «큰 버튼 하나»짜리 화면이라 관제 메뉴가 갈 자리가 없다 —
-          실물에서 이 바가 안내문을 덮었다 (기사님 폰 캡처 2026-09-03).
-          🎭 무대는 기사님 0831: 시트가 그 자리를 쓴다.
-          정산은 헤더 아바타 → 설정 경로가 아니라 «토글 끄면» 다시 보인다 — 비교 운행용 임시 규칙,
-          새 화면 확정 시 정산 가는 길을 다시 정한다 (아바타 메뉴 등). */}
-      {!(location.pathname === "/" && stageOn) && !naviOnly && (
+          실물에서 이 바가 안내문을 덮었다 (기사님 폰 캡처).
+          🔴 **관제에서 정산으로 가는 길은 아직 없다** — 정산은 운행일지(logbook)가 받기로 했다
+             (기사님 확정). 정산 화면에서는 이 바가 떠서 관제로 돌아올 수 있다. */}
+      {location.pathname !== "/" && !naviOnly && (
       <nav className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl flex z-50 rounded-t-2xl shadow-[0_-4px_30px_rgba(0,0,0,0.08)]">
         <Link
           to="/"

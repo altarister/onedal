@@ -24,7 +24,11 @@ describe('새 콜 — 조회 탭에 있어도 놓치지 않는다', () => {
     it('🔴 새 콜이 뜨면 진행 중 탭으로 돌아온다', () => {
         const dash = code('../../../client-app/src/pages/Dashboard.tsx');
         expect(dash).toMatch(/order-evaluating/);
-        expect(dash).toMatch(/setViewFilter\('ACTIVE'\)/);
+        /**
+         * 🔴 **끝난 콜을 보는 자리가 탭에서 ☰ 서랍으로 옮겨졌다** — 사고 모양은 같다.
+         *    서랍이 덮고 있으면 새 콜이 와도 못 누른다. 그래서 서랍을 닫는다.
+         */
+        expect(dash).toMatch(/setDrawerOpen\(false\)/);
     });
 });
 

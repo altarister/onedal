@@ -285,7 +285,7 @@ describe('관제탑 — 한 곳이 터져도 전체가 죽지 않는다', () => 
 
     it('🔴 결재 카드에 에러 경계가 있다', () => {
         const dash = rc2('pages/Dashboard.tsx');
-        expect(dash).toMatch(/<ErrorBoundary label="결재 카드">[\s\S]*?<PinnedRoute[\s\S]*?<\/ErrorBoundary>/);
+        expect(dash).toMatch(/<ErrorBoundary label="결재 카드">[\s\S]*?<StageView[\s\S]*?<\/ErrorBoundary>/);
     });
 
     it('🔴 경계가 예외를 삼키지 않는다 — 콘솔에 원래 예외를 남긴다', () => {

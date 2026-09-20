@@ -63,8 +63,6 @@ interface Props {
     previewRouteHolderId?: string | null;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
-    viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL';
-    setViewFilter: (f: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL') => void;
     /**
      * 🛣️ **노선 ↔ 🔷 동선 — 기사님이 고르는 그물 모양** (명세 §5).
      *
@@ -953,7 +951,7 @@ export default function StageView(props: Props) {
                                 setProcessingId={setSeatProcessingId}
                             />
                         ) : undefined}>
-                <PinnedRouteBody {...props} sheetOnly d={derived}
+                <PinnedRouteBody {...props} d={derived}
                     /* 🙈 지나간 콜 — 배열에서 빼지 않고 가린다 (`lib/pastCalls` 머리 참조).
                        열어 둔 콜은 끝났어도 안 가린다 — 손이 고른 것이 규칙보다 세다 */
                     hiddenIds={hiddenIds}

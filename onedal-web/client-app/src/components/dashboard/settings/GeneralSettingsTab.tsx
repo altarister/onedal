@@ -5,12 +5,14 @@ import type { WaitTimes } from "@onedal/shared";
 import { useSettingsStore } from "../../../stores/settingsStore";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import { useAuth } from "../../../contexts/AuthContext";
 
 interface Props {
   onClose: () => void;
 }
 
 export default function GeneralSettingsTab({ onClose }: Props) {
+  const { logout } = useAuth();
   const [vehicleType, setVehicleType] = useState<string>("1t");
   const [defaultPriority, setDefaultPriority] = useState<string>("RECOMMEND");
   const [homeAddress, setHomeAddress] = useState<string>("");
@@ -197,23 +199,23 @@ export default function GeneralSettingsTab({ onClose }: Props) {
         ))}
       </div>
 
-      {/* 🎭 새 화면 미리보기 (화면개편 2단계) — 켜면 지도 배경+3단 시트 무대, 끄면 즉시 옛 화면 */}
-            <div className="flex items-center justify-between pt-2 border-t">
-                <div>
-                    <label className="text-sm font-semibold text-text-muted">🎭 새 화면 미리보기</label>
-                    <p className="text-[10px] text-text-muted">지도 배경 + 끌어올리는 시트 — 비교 운행용. 언제든 꺼서 옛 화면으로</p>
-                </div>
-                <input type="checkbox" className="w-5 h-5 accent-blue-500"
-                    defaultChecked={localStorage.getItem('stagePreview') === '1'}
-                    onChange={(e) => {
-                        localStorage.setItem('stagePreview', e.target.checked ? '1' : '0');
-                        window.dispatchEvent(new Event('stage-preview-changed'));
-                    }} />
-            </div>
-
-      <div className="flex justify-end gap-2 mt-2">
-        <Button variant="ghost" onClick={onClose}>취소</Button>
-        <Button onClick={handleSaveSettings}>설정 저장</Button>
+      <div className="flex justify-between items-center pt-3 border-t mt-2">
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={async () => {
+            if (window.confirm("정말 로그아웃 하시겠습니까?")) {
+              await logout();
+              onClose();
+            }
+          }}
+        >
+          로그아웃
+        </Button>
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={onClose}>취소</Button>
+          <Button onClick={handleSaveSettings}>설정 저장</Button>
+        </div>
       </div>
     </div>
   );

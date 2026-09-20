@@ -105,7 +105,7 @@ describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
     it('🔴 좁은 화면에서는 컴포넌트를 만들지 않는다 (숨기는 게 아니다)', () => {
         const dash = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
         // 자리가 되는지 재고, 안 되면 **그 앞에서 돌아선다**
-        expect(dash).toMatch(/const withPanel = stagePreview && sidePanelRoom/);
+        expect(dash).toMatch(/const withPanel = sidePanelRoom/);
         expect(dash).toMatch(/if \(!withPanel\) return body;/);
     });
 
