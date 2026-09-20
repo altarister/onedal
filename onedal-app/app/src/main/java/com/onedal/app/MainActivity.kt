@@ -21,6 +21,7 @@ import android.content.ComponentName
 import android.text.TextUtils
 import com.onedal.app.ui.MainViewModel
 import com.onedal.app.ui.DashboardScreen
+import com.onedal.app.ui.NetworksScreen
 import com.onedal.app.ui.SettingsScreen
 
 fun isAccessibilityServiceEnabled(context: Context, service: Class<*>): Boolean {
@@ -69,9 +70,9 @@ class MainActivity : ComponentActivity() {
                         vm.startPolling(context)
                     }
 
-                    // 2탭 구조: 대시보드 / 설정
+                    // 3탭 구조: 대시보드 / 배차망 / 설정
                     var selectedTab by remember { mutableStateOf(0) }
-                    val tabs = listOf("📊 대시보드", "⚙️ 설정")
+                    val tabs = listOf("📊 대시보드", "🚚 배차망", "⚙️ 설정")
 
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -102,7 +103,8 @@ class MainActivity : ComponentActivity() {
                         ) {
                             when (selectedTab) {
                                 0 -> DashboardScreen(viewModel = vm)
-                                1 -> SettingsScreen(viewModel = vm)
+                                1 -> NetworksScreen(viewModel = vm)
+                                2 -> SettingsScreen(viewModel = vm)
                             }
                         }
                     }

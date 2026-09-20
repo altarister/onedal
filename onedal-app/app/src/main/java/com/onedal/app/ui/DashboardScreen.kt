@@ -129,7 +129,8 @@ fun DashboardScreen(viewModel: MainViewModel) {
                     Column(modifier = Modifier.weight(1f)) {
                         FilterLabelValue(label = "차종", value = filter.allowedVehicles)
                         Spacer(modifier = Modifier.height(4.dp))
-                        FilterLabelValue(label = "상차반경", value = "${filter.pickupRadiusKm}km")
+                        val radiusStr = if (filter.pickupRadiusKm > 0) String.format(Locale.KOREA, "%.1fkm", filter.pickupRadiusKm) else "미설정"
+                        FilterLabelValue(label = "상차반경", value = radiusStr)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {

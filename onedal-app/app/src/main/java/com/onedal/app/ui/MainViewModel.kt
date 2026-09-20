@@ -124,6 +124,11 @@ class MainViewModel {
         }
     } catch (e: Exception) { ParsedFilter(allowedVehicles = "파싱 오류", waitTimes = waitTimesLabel) }
 
+    fun getFilterConfig(): com.onedal.app.models.FilterConfig? = try {
+        if (activeFilterJson.isBlank() || activeFilterJson == "{}") null
+        else com.google.gson.Gson().fromJson(activeFilterJson, com.onedal.app.models.FilterConfig::class.java)
+    } catch (e: Exception) { null }
+
     fun getFilterDisplayText(): String = try {
         val json = JSONObject(activeFilterJson)
         if (json.length() == 0) "대기 중 (서버 응답 없음)"
