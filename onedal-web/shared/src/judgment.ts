@@ -150,6 +150,10 @@ export interface JudgmentConfig {
         min: number;
         /** 🏔️ 하차지가 «못 빠져나오는 곳»일 때 한 번 더 곱하는 값 (`isTrappedRegion`) */
         trappedMult: number;
+        /** 🛫 이만큼 멀어지는 것까지는 안 깎는다 (km) — 흔한 일이다 */
+        awayFreeKm: number;
+        /** 🛫 이만큼 멀어지면 배수가 바닥(`min`)이다 (km) */
+        awayHardKm: number;
     };
     /**
      * ⏱️ **배달 데드라인 배율** (두 시계 · 시간체계 ⑯ · 2026-08-21).
@@ -204,7 +208,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
     weights: { revenueDetour: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 1 },
     target: { hourlyKrw: 30_000, honeyHourlyKrw: 50_000, soloHourlyKrw: 25_000 },
-    destBonus: { max: 2.0, min: 0.5, trappedMult: 0.6 },
+    destBonus: { max: 2.0, min: 0.5, trappedMult: 0.6, awayFreeKm: 30, awayHardKm: 150 },
     deadline: { ratioPct: 150 },
     color: { honeyMin: 70, normalMin: 40 },
     // 🔴 여유 곡선은 «어떻게 잴 것인가» 라 여기 산다. 정차 값(박스당 분·검수 분)은
@@ -333,6 +337,12 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'dest_bonus_trapped_mult', path: ['destBonus', 'trappedMult'], group: '첫짐',
       label: '갇힘 지역 배수', unit: '배', min: 0.1, max: 1, int: false,
       why: '하차지가 «들어가면 빈 차로 나오는 곳»(강화·연천·양평·가평·춘천 · 남양주 수동면 · 포천 영북면)일 때 첫짐 점수를 이만큼 곱한다. 그쪽 콜은 요금이 비싸 「돈」 기준만으로는 🔵 가 나온다 — 하루가 거기서 끝나는 것은 요금에 안 보인다. 1 로 두면 안 깎는다. 🔴 0 으로는 안 둔다 — 그건 «버려라»고 서버가 정하는 것이다 (규칙 ①)' },
+    { col: 'dest_away_free_km', path: ['destBonus', 'awayFreeKm'], group: '첫짐',
+      label: '멀어짐 무감점 한계', unit: 'km', min: 5, max: 200, int: true,
+      why: '첫짐 하차지가 목적지에서 이만큼 멀어지는 것까지는 안 깎는다. 목적지 반경(보통 20~25km) 언저리로 두었다 — 그 안이면 «도착»으로 치는 거리다. 🔴 **가까워지는 콜은 아무리 멀어도 안 걸린다** — 목적지 쪽 장거리 꿀콜을 죽이지 않으려는 자리다' },
+    { col: 'dest_away_hard_km', path: ['destBonus', 'awayHardKm'], group: '첫짐',
+      label: '멀어짐 한계', unit: 'km', min: 20, max: 500, int: true,
+      why: '이만큼 멀어지면 배수가 바닥(«목적지 전진 배수 (최소)»)이다. 수도권을 벗어나는 거리로 두었다 — 그만큼 멀어지면 돌아오는 데만 두 시간이 넘어 오전이 1콜로 끝난다 (노하우 25행)' },
     { col: 'solo_hourly_krw', path: ['target', 'soloHourlyKrw'], group: '첫짐',
       label: '첫짐 기준 시급 (100점)', unit: '원/h', min: 10000, max: 300000, int: true,
       why: '빈 차에 처음 싣는 콜이 이만큼이면 100점. 합짐 보통보다 **낮게** 둔다 — 빈 차는 안 잡으면 0원이라 같은 눈금이면 길가에 묶인다. 업계 기준값 · 실측 전 임시값' },

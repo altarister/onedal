@@ -46,6 +46,21 @@ export function haversineKm(a: { lng: number; lat: number }, b: { lng: number; l
  * 🔴 **못 쟀으면 `null`** — 상차지와 하차지가 같은 자리면 전진을 잴 수가 없다 (규칙 ④).
  * ⚠️ 직선으로 잰다 — **방향 지표**이지 거리 값이 아니다 (왕복 분리 도로에서 직선은 실제와 다르다).
  */
+/**
+ * 🎯 **이 콜로 목적지에 몇 km 가까워지나** — 음수면 그만큼 **멀어진다**.
+ *
+ * 🔴 전진율(`destProgressRatio`)은 이 값을 **움직이는 거리로 나눈 것**이라 «얼마나»가
+ *    약분된다 — 60km 멀어짐과 180km 멀어짐이 둘 다 `-1` 이다. 「지리」가 거리를 보려면
+ *    나누기 **전의** 이 값이 필요하다. 셈은 여기 한 곳이다 (규칙 ③).
+ */
+export function destGainKm(
+    now: { lng: number; lat: number },
+    dropoff: { lng: number; lat: number },
+    goal: { lng: number; lat: number },
+): number {
+    return haversineKm(now, goal) - haversineKm(dropoff, goal);
+}
+
 export function destProgressRatio(
     now: { lng: number; lat: number },
     dropoff: { lng: number; lat: number },
@@ -53,8 +68,7 @@ export function destProgressRatio(
 ): number | null {
     const moveKm = haversineKm(now, dropoff);
     if (!(moveKm > 0)) return null;
-    const gain = haversineKm(now, goal) - haversineKm(dropoff, goal);
-    return Math.max(-1, Math.min(1, gain / moveKm));
+    return Math.max(-1, Math.min(1, destGainKm(now, dropoff, goal) / moveKm));
 }
 
 function bearingDeg(a: { lng: number; lat: number }, b: { lng: number; lat: number }): number {

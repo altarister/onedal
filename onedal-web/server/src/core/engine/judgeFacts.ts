@@ -1,4 +1,4 @@
-import { cityCenter, destProgressRatio, haversineKm, isPickupBackward, isTrappedRegion, nearestDong, PHASE_LABEL } from '@onedal/shared';
+import { cityCenter, destGainKm, destProgressRatio, haversineKm, isPickupBackward, isTrappedRegion, nearestDong, PHASE_LABEL } from '@onedal/shared';
 import type { JudgeFacts, PhaseKey } from '@onedal/shared';
 
 /**
@@ -61,7 +61,7 @@ export function firstLoadFacts(input: {
      * 🧭 **목적지 전진율** −1~1 — 「지리」 기준이 배수로 바꾼다. 못 쟀으면 `null` 과 까닭.
      *    잰 곳은 `destProgressOf` 하나다 (여기서 다시 재지 않는다 · 규칙 ③).
      */
-    progress?: { ratio: number | null; unknownWhy: string | null };
+    progress?: { ratio: number | null; unknownWhy: string | null; awayKm?: number | null };
     /**
      * 🧪 **형상 필터가 이미 찾아 둔 제외어** — 여기서 다시 훑지 않는다 (규칙 ③).
      *    찾는 곳은 `OrderEvaluator.runStage1ShapeFilter` 하나다.
@@ -82,6 +82,7 @@ export function firstLoadFacts(input: {
             firstLoad: true,
             progressRatio: input.progress?.ratio ?? null,
             unknownWhy: input.progress?.unknownWhy ?? '전진율을 안 넘겼습니다',
+            awayKm: input.progress?.awayKm ?? null,
             pickupBackward: input.pickupBackward,
             trapped: input.trapped,
         },
@@ -114,8 +115,8 @@ export function destProgressOf(input: {
     goalCity: string;
     /** 목적지 반경(km) — 이 안에 있으면 전진을 재지 않는다 (판정은 DEST_ARRIVED_RADIUS_KM 3km 사용) */
     destinationRadiusKm?: number | null;
-}): { ratio: number | null; unknownWhy: string | null } {
-    const no = (why: string) => ({ ratio: null, unknownWhy: why });
+}): { ratio: number | null; unknownWhy: string | null; awayKm: number | null } {
+    const no = (why: string) => ({ ratio: null, unknownWhy: why, awayKm: null });
     if (!input.me) return no('내 위치를 모릅니다');
     if (!input.goalCity) return no('목적지 미설정');
     if (input.dropoff.x == null || input.dropoff.y == null) return no('하차지 좌표 미확인');
@@ -127,8 +128,11 @@ export function destProgressOf(input: {
     const radiusKm = input.destinationRadiusKm ?? 0;
     if (radiusKm > 0 && haversineKm(me, goal) <= radiusKm) return no(`목적지 반경 ${radiusKm}km 안입니다`);
 
-    const ratio = destProgressRatio(me, { lng: input.dropoff.x, lat: input.dropoff.y }, goal);
-    return ratio == null ? no('상차지와 하차지가 같은 자리입니다') : { ratio, unknownWhy: null };
+    const drop = { lng: input.dropoff.x, lat: input.dropoff.y };
+    const ratio = destProgressRatio(me, drop, goal);
+    // 🛫 나누기 **전의** 값 — 전진율은 이걸 움직인 거리로 나눠 «얼마나»를 잃는다 (규칙 ③)
+    const awayKm = -destGainKm(me, drop, goal);
+    return ratio == null ? no('상차지와 하차지가 같은 자리입니다') : { ratio, unknownWhy: null, awayKm };
 }
 
 /**

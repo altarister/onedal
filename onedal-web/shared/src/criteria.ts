@@ -337,6 +337,11 @@ export interface GeographyFacts {
      * 첫짐에만 쓴다. 못 쟀으면 `null` — 깎지 않는다 (규칙 ⑤-2).
      */
     trapped?: boolean | null;
+    /**
+     * 🛫 **목적지에서 몇 km 멀어지나** — 음수면 가까워지는 것이라 안 깎는다.
+     * 전진율은 나누기라 «얼마나»가 약분된다 (`destGainKm` 이 나누기 전 값이다).
+     */
+    awayKm?: number | null;
 }
 
 /**
@@ -386,10 +391,22 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
          *    🔴 버리지 않는다 (규칙 ①) — 색으로만 말한다.
          */
         const trapMult = f.trapped === true ? cfg.destBonus.trappedMult : 1;
+        /**
+         * 🛫 **반대쪽으로 «얼마나» 멀어지나** — 전진율은 나누기라 60km 와 180km 가 같다.
+         *    🔴 가까워지는 콜(음수)은 아무리 멀어도 안 깎는다 — 목적지 쪽 장거리 꿀콜을
+         *    죽이지 않으려는 자리다 (노하우 231행).
+         */
+        const { awayFreeKm, awayHardKm } = cfg.destBonus;
+        const away = f.awayKm ?? 0;
+        const awayMult = away <= awayFreeKm ? 1
+            : away >= awayHardKm ? min
+            : 1 - (1 - min) * ((away - awayFreeKm) / Math.max(1, awayHardKm - awayFreeKm));
+        const mult = bonus * trapMult * awayMult;
         const why = `전진율 ${sign}${p.toFixed(2)} → 배수 ×${bonus.toFixed(2)}`
-            + (f.trapped === true ? ` · 🏔️ 못 빠져나오는 곳 ×${trapMult}` : '');
+            + (f.trapped === true ? ` · 🏔️ 못 빠져나오는 곳 ×${trapMult}` : '')
+            + (awayMult < 1 ? ` · 🛫 ${Math.round(away)}km 멀어짐 ×${awayMult.toFixed(2)}` : '');
         // 화면 눈금은 −1~1 을 0~100 으로 펴 놓은 것이다 (색을 정하는 것은 배수다)
-        return multiplied(bonus * trapMult, (p + 1) / 2 * 100 * trapMult, why);
+        return multiplied(mult, (p + 1) / 2 * 100 * trapMult * awayMult, why);
     },
 });
 

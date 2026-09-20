@@ -520,6 +520,16 @@ export class OrderEvaluator {
             const why = reasons.length ? reasons.join(' · ') : timeExt;
             const dry = toSnapshot(judge(CRITERIA, firstLoadFacts({
                 fare: securedOrder.fare, totalMinutes: null, excludedHits,
+                /**
+                 * 🧭 **시간을 못 재도 방향은 잰다** — 좌표만 있으면 전진율과 «멀어진 km» 가 나온다.
+                 *    까닭이 빠지면 화면이 «재료가 없다» 로 읽는다.
+                 */
+                progress: destProgressOf({
+                    me: originOf(session),
+                    dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
+                    goalCity: goalCityOf(session, userId),
+                    destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
+                }),
                 pickupBackward: pickupBackwardOf({
                     me: originOf(session),
                     pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
