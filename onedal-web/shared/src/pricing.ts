@@ -76,3 +76,18 @@ export function rateFloorsFrom(
     return floors;
 }
 
+/**
+ * 🔔 픽커 알람 요금 하한 계산 — 콜할인율(callDiscountPct)에서 파생.
+ *    할인율 100%("전부")면 0원(금액 무관 통과).
+ *    그 외에는 baseMin × (1 - discountPct / 100)으로 하한이 비례하여 내려간다.
+ */
+export function computePickerAlarmMinFare(
+    baseMin: number = 10000,
+    callDiscountPct: number = 0,
+): number {
+    if (callDiscountPct >= 100) return 0;
+    const keep = Math.max(0, 1 - callDiscountPct / 100);
+    return Math.round(baseMin * keep);
+}
+
+

@@ -1,9 +1,6 @@
 import { useState } from "react";
-import { useAuth } from "../../contexts/AuthContext";
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Button } from "../ui/button";
 
 import GeneralSettingsTab from "./settings/GeneralSettingsTab";
 import PricingSettingsTab from "./settings/PricingSettingsTab";
@@ -19,7 +16,6 @@ interface SettingsModalProps {
 type TabType = "settings" | "dispatch" | "devices" | 'judgment' | "screen";
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("settings");
 
   return (
@@ -31,18 +27,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         */}
       <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-hidden flex flex-col bg-surface border-border-card text-text-primary">
         <DialogHeader className="mb-2">
-          <DialogTitle className="flex justify-between items-center text-xl font-bold">
+          <DialogTitle className="text-xl font-bold">
             사용자 설정
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                logout();
-                onClose();
-              }}
-            >
-              로그아웃
-            </Button>
           </DialogTitle>
         </DialogHeader>
 
