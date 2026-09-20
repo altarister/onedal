@@ -137,16 +137,17 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
     override fun parse(texts: List<String>): SimplifiedOfficeOrder {
         val rawJoined = texts.joinToString(", ")
 
-        // ── 1. 요금(Fare) 파싱: "70,000원" 또는 "300,000원" 패턴 ──
+        /**
+         * ── 1. 요금(Fare) 파싱 ──
+         *
+         * 🔴 **무엇이 요금인가는 `Hwamul24CardGrouping` 한 곳이 정한다** (규칙 ③).
+         *    카드를 묶을 때와 다른 규칙을 여기 적으면 «카드는 묶었는데 요금이 0» 이 되어
+         *    콜이 통째로 버려진다 — 한 조각("70,000원")과 두 조각("200,000" + "원")을 둘 다 받는다.
+         */
         var fare = 0
-        val fareRegex = Regex("""(\d{1,3}(?:,\d{3})*)원""")
-        for (text in texts) {
-            val match = fareRegex.find(text.trim())
-            if (match != null) {
-                val fareStr = match.groupValues[1].replace(",", "")
-                val parsedFare = fareStr.toIntOrNull() ?: 0
-                if (parsedFare > fare) fare = parsedFare // 가장 큰 값을 운송료로 채택
-            }
+        for (i in texts.indices) {
+            val parsedFare = Hwamul24CardGrouping.fareAt(texts, i) ?: continue
+            if (parsedFare > fare) fare = parsedFare // 가장 큰 값을 운송료로 채택
         }
 
         // ── 2. 차종(VehicleType) 파싱: "2.5톤/윙", "3.5톤/전체", "1톤/카/윙" 등 ──
@@ -189,16 +190,11 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         val dropoff = dropoffInfo?.cleanRegion ?: "배차값없음"
         val scheduleText = pickupInfo?.scheduleText ?: dropoffInfo?.scheduleText
 
-        // ── 4. 거리(pickupDistance) 파싱: "11Km", "15Km" 등 ──
-        var pickupDistance: Double? = null
-        val distRegex = Regex("""(\d+)Km""", RegexOption.IGNORE_CASE)
-        for (text in texts) {
-            val match = distRegex.find(text.trim())
-            if (match != null) {
-                pickupDistance = match.groupValues[1].toDoubleOrNull()
-                break
-            }
-        }
+        /**
+         * ── 4. 거리(pickupDistance) 파싱 ──
+         * 🔴 규칙은 `Hwamul24CardGrouping` 한 곳 — 한 조각("11Km")도 두 조각("14"+"Km")도 읽는다.
+         */
+        val pickupDistance: Double? = Hwamul24CardGrouping.pickupDistanceOf(texts)
 
         // ── 5. 시간(postTime) 파싱: "06:31" 등 ──
         var postTime: String? = null
@@ -458,26 +454,27 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
     
     /**
      * 화물24시 카드형 리스트를 묶습니다.
-     * 요금 노드("70,000원")가 카드의 끝부분에 위치하므로, 
-     * 화면 상단부터 Y축 기준으로 정렬한 뒤 이전 요금 노드 다음부터 
-     * 현재 요금 노드까지의 모든 노드를 하나의 카드로 묶습니다.
-     * 이 방식을 통해 특정 높이를 하드코딩하지 않고 동적으로 대응합니다.
+     * 요금이 카드의 **끝**에 오므로, 화면 위에서 아래로 정렬한 뒤 «이전 카드의 끝 다음»부터
+     * «이번 요금»까지를 한 장으로 묶습니다. 높이를 하드코딩하지 않습니다.
+     *
+     * 🔴 **요금은 한 조각일 수도, 두 조각일 수도 있다** — 시뮬레이터는 «200,000» 과 «원»을
+     *    따로 그린다. 한 조각만 요금으로 보던 때는 카드를 **한 장도 못 묶었다**
+     *    (폰 2026-09-14 · `콜그룹 0`). 무엇이 요금인지 가르는 규칙은
+     *    `Hwamul24CardGrouping` 한 곳에 있다 — 거기는 접근성 노드 없이 검사할 수 있다.
      */
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         // Y축(top)을 최우선으로, X축(left)을 차순위로 정렬
         val sortedNodes = allNodes.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
+        val cells = sortedNodes.map {
+            Hwamul24CardGrouping.Cell(it.text, it.rect.top, it.rect.left)
+        }
         val groups = mutableListOf<Pair<ScreenTextNode, List<String>>>()
-        var lastFareIndex = -1
-        
-        val fareRegex = Regex("""^\d{1,3}(,\d{3})*원$""")
-        
-        for ((index, node) in sortedNodes.withIndex()) {
-            if (node.text.matches(fareRegex)) {
-                // 이전 요금 노드 다음 노드부터 현재 요금 노드까지 하나의 카드로 묶음
-                val cardNodes = sortedNodes.subList(lastFareIndex + 1, index + 1)
-                groups.add(Pair(node, cardNodes.map { it.text }))
-                lastFareIndex = index
-            }
+        var start = 0
+        for (card in Hwamul24CardGrouping.cards(cells)) {
+            val cardNodes = sortedNodes.subList(start, card.endIndex + 1)
+            // 대표는 요금 **숫자** 노드다 — 진단 로그와 «이 콜이 화면 어디에 있나»가 이것을 읽는다
+            groups.add(Pair(sortedNodes[card.fareIndex], cardNodes.map { it.text }))
+            start = card.endIndex + 1
         }
         return groups
     }
