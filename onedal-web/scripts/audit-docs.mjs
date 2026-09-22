@@ -315,9 +315,16 @@ say('⑥ 경위 줄', '문서·스크립트에 경위가 있나 · 코드 주석
     const SELF = 'onedal-web/scripts/audit-docs.mjs';
     const strict = (p) => p !== SELF && (/(^|\/)CLAUDE\.md$/.test(p) || p === 'README.md' || /^onedal-web\/scripts\/.*\.mjs$/.test(p));
     const exempt = (p, line) => p === 'onedal-web/CLAUDE.md' && /^\| `pnpm /.test(line);
-    const hits = (p, text, shapes) => text.split('\n')
-        .map((l, i) => ({ n: i + 1, l: l.trim() }))
-        .filter(({ l }) => l && !exempt(p, l) && shapes.some(r => r.test(l)));
+    /** 문서의 코드 블록(```) 안 줄은 문장이 아니라 명령이라 건너뛴다 */
+    const hits = (p, text, shapes) => {
+        let fence = false;
+        return text.split('\n')
+            .map((l, i) => ({ n: i + 1, l: l.trim() }))
+            .filter(({ l }) => {
+                if (p.endsWith('.md') && l.startsWith('```')) { fence = !fence; return false; }
+                return l && !(fence && p.endsWith('.md')) && !exempt(p, l) && shapes.some(r => r.test(l));
+            });
+    };
 
     let bad = 0;
     // 가) 있으면 빨간불
