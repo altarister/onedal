@@ -2,17 +2,12 @@ import { useEffect, useState } from 'react';
 import { socket } from '../lib/socket';
 
 /**
- * [2026-08-10 전수조사] 서버가 보내는 오류를 화면에 띄운다.
+ * 서버가 보내는 오류를 화면에 띄운다.
  *
- * 🔴 서버는 `safeOn` 래퍼에서 핸들러 예외를 잡아 `handler-error` 로 돌려주고 있었는데,
- *    **관제탑이 그 이벤트를 아무도 듣고 있지 않았다.**
- *
- *    그래서 DB 컬럼이 없어 `save-cargo-report` 가 실패했을 때
- *    화면에서는 "통화 종료 저장을 눌렀는데 아무 일도 안 일어난다"로만 보였다.
- *    서버 콘솔에는 `🚨 [소켓 핸들러 실패]` 가 찍히고 있었는데도.
- *
- *    크래시를 막은 안전망이 오히려 원인을 감춘 셈이다.
- *    **조용한 실패는 실패한 줄도 모르게 만든다.**
+ * 🔴 서버는 `safeOn` 래퍼에서 핸들러 예외를 잡아 `handler-error` 로 돌려준다. 관제웹이 이것을 안 들으면
+ *    서버 쪽 실패(예: DB 컬럼이 없어 `save-cargo-report` 가 실패)가 화면에서
+ *    «통화 종료 저장을 눌렀는데 아무 일도 안 일어난다»로만 보이고, 원인은 서버 콘솔에만 남는다.
+ *    크래시를 막는 안전망이 원인을 감추지 않게 여기서 띄운다.
  */
 export interface ServerError {
     event: string;
@@ -29,9 +24,8 @@ export function useServerErrors() {
             setErrors(prev => [{ ...e, at: Date.now() }, ...prev].slice(0, 5));
         };
         /**
-         * ack 4종. 서버는 처리 결과를 돌려주는데 **아무도 듣지 않고 있었다.**
-         * 화면은 낙관적으로만 그리고, 실패하면 1초 `sync-active-orders` 가 되돌려
-         * "눌렀는데 되돌아갔다"로만 보였다. 왜 실패했는지는 아무도 몰랐다.
+         * ack 4종 — 서버가 돌려주는 처리 결과를 듣는다. 안 들으면 화면은 낙관적으로만 그리고,
+         * 실패하면 1초 `sync-active-orders` 가 되돌려 "눌렀는데 되돌아갔다"로만 보이고 까닭은 안 남는다.
          */
         const ACK_EVENTS = ['decision-ack', 'recalculate-route-ack', 'call-target-ack', 'milestone-result'] as const;
         const ackHandlers = ACK_EVENTS.map(ev => {
