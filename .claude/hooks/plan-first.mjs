@@ -7,8 +7,8 @@
  * 왜 «직전» 말씀까지 보나: 같은 메시지에 글과 도구 호출이 함께 있으면 Claude Code 가 그 글을
  *   기록 파일에 «생각 요약(thinking)»으로 바꿔 적을 때가 있어, 이번 차례의 글만 보면 놓친다.
  *   글만 있는 메시지는 온전히 적히므로 «계획(글만) → 기사님 답 → 도구» 흐름은 늘 잡힌다.
- *   직전 차례의 계획은 기사님의 마지막 말씀이 **짧을 때**(«가»·«계속»·«고쳐» — SHORT_REPLY 자 이하)만 인정한다.
- *   긴 새 지시에는 이번 차례의 «계획:»이 있어야 한다.
+ *   기사님의 짧은 답(«가»·«계속»·«고쳐» — SHORT_REPLY 자 이하)이 **연달아** 이어지는 동안은 같은 일로 본다 —
+ *   마지막 긴 말씀(새 지시) 뒤에 쓴 «계획:»까지 거슬러 인정한다. 긴 새 지시에는 그 뒤의 «계획:»이 있어야 한다.
  * 왜 프로그램으로 막나: CLAUDE.md 의 글은 제가 «일의 종류»를 정하는 첫 순간에 읽히지 않는다.
  * 안 막는 것: 하위 에이전트(agent_id 가 있음) — 계획은 주 세션이 쓴다.
  */
@@ -66,10 +66,13 @@ function userText(rec) {
     return raw.replace(/<[a-z_]+>[\s\S]*?<\/[a-z_]+>/g, '').trim();
 }
 const SHORT_REPLY = 20;
+const isShort = (i) => userText(recs[i]).length <= SHORT_REPLY;
 const last = userIdx[userIdx.length - 1];
-const shortReply = last != null && userText(recs[last]).length <= SHORT_REPLY;
-// 짧은 답이면 직전 차례(뒤에서 둘째 사용자 메시지 이후)까지, 아니면 이번 차례만 — 사용자 메시지가 없으면 처음부터
-const from = last == null ? 0 : (shortReply && userIdx.length >= 2 ? userIdx[userIdx.length - 2] : last) + 1;
+const shortReply = last != null && isShort(last);
+// 뒤에서부터 짧은 답을 건너뛰어, 마지막 긴 말씀(새 지시) 이후를 본다 — 전부 짧으면 처음부터
+let k = userIdx.length - 1;
+while (k >= 0 && isShort(userIdx[k])) k--;
+const from = k < 0 ? 0 : userIdx[k] + 1;
 const planned = recs.slice(from).some(rec => assistantTexts(rec).some(t => PLAN_LINE.test(t)));
 
 if (!planned) {
