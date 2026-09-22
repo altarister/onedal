@@ -16,15 +16,13 @@ const codeOnly = (src: string) =>
     src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 /**
- * 🔴 2026-08-13 — **국면 전환은 필터만 바꾼다. 콜은 건드리지 않는다.**
- *
- * 옛 `startTwoTrack` 은 전환하면서 활성 콜을 전부 `ORDER_COMPLETED` 로 만들었다.
+ * 🔴 **국면 전환은 필터만 바꾼다. 콜은 건드리지 않는다.**
  *
  *   기사님: *"투트랙은 활성콜을 완료처리하는 것이 아니고 지금 상황에 맞는 콜을
  *   필터에 넣어야 한다는 거지. **콜은 무조건 배달을 해서 완료되어야 한다.**"*
  *
- * 짐을 싣고 가는 중에 눌렀다면 배달하지도 않은 콜이 완료로 기록됐다 —
- * 정산도 운행일지도 통째로 틀어진다. 이 테스트가 그 코드의 부활을 막는다.
+ * 전환하면서 활성 콜을 `ORDER_COMPLETED` 로 만들면, 짐을 싣고 가는 중에 눌렀을 때 배달하지도 않은
+ * 콜이 완료로 기록된다 — 정산도 운행일지도 통째로 틀어진다. 이 검사가 그런 코드(`startTwoTrack`)를 막는다.
  */
 describe('국면 전환 (CallTarget) — 콜을 건드리지 않는다', () => {
 
@@ -54,19 +52,16 @@ describe('국면 전환 (CallTarget) — 콜을 건드리지 않는다', () => {
     });
 
     /**
-     * 🔄 **개정 2026-09-11 — 관내가 «고르는 것»에서 «파생»이 되었다** (이식 C4-8b·C4-8b-2).
+     * 🔴 **관내는 고르는 것이 아니라 «파생»이다**.
      *
-     * 기사님 2026-09-11: *"우린 **집으로 갈건지 말껀지만** 있어."*
+     * 기사님: *"우린 **집으로 갈건지 말껀지만** 있어."*
      *
-     * ⚠️ 옛 검사는 *«LOCAL 국면은 GPS 가 없으면 전환을 거부한다»* 였다. 그때는 옳았다 —
-     *    관내로 가려면 «지금 어느 시인가»를 알아야 했고, 그래서 `destinationCity` 를
-     *    **갈아치웠다**(김포시 → 성남시).
-     * 🔴 **그 갈아치움이 문제였다.** 파생으로 두면 기사님이 정한 목적지가 저절로 바뀐다.
-     *    지금 관내는 따로 재지 않는다 — **목적지는 그대로 둔 채**
-     *    «목적지 가까이 옴»(`filterArea.withNearness`)이 영역을 가른다. 그러니 여기서 거부할 일이 없다.
+     * 관내로 전환하면서 `destinationCity` 를 지금 있는 시로 갈아치우면 기사님이 정한 목적지가
+     * 저절로 바뀐다. 그래서 **목적지는 그대로 둔 채** «목적지 가까이 옴»(`filterArea.withNearness`)이
+     * 영역을 가른다. 전환이 없으니 GPS 가 없다고 거부할 일도 없다.
      *
-     * 🔴 **«위치를 지어내지 않는다»는 그대로다** — 자리가 옮겨졌을 뿐이다.
-     *    내 위치가 없으면 «가까이 옴»은 **거짓**이 된다 (멀다로 본다 · `filterArea.withNearness`).
+     * 🔴 **«위치를 지어내지 않는다»는 `filterArea.withNearness` 가 지킨다** —
+     *    내 위치가 없으면 «가까이 옴»은 **거짓**이 된다 (멀다로 본다).
      */
     it('🔄 관내 전환 길이 사라졌다 — 파생이라 «전환»이 없다', () => {
         expect(setCallTargetBody).not.toMatch(/'LOCAL'/);
@@ -81,15 +76,14 @@ describe('국면 전환 (CallTarget) — 콜을 건드리지 않는다', () => {
 
     it('파생값(키워드·별칭)을 직접 채우지 않는다 — filterManager 한 곳에서만 만든다', () => {
         // destinationCity/RadiusKm 같은 **입력만** 넘겨야 recalculateDerivedFields 가
-        // customCityFilters 까지 채운다 (사고)
+        // customCityFilters 까지 채운다 — 여기서 파생값을 채우면 두 곳이 갈라진다
         expect(setCallTargetBody).not.toMatch(/destinationKeywords:/);
         expect(setCallTargetBody).not.toMatch(/customCityFilters:/);
     });
 
     /**
-     * 🔄 **개정 2026-09-11 — 셋에서 «둘»로** (이식 C4-8b-2).
-     *    관내는 고르는 것이 아니라 파생이라 `CallTarget` 에서 걷었다.
-     *    🔄 2026-09-15 — 관내는 따로 재지도 않는다 (목적지 가까이 옴 `filterArea.withNearness`).
+     * 🔴 **국면은 둘이다** — 노선행 · 복귀행.
+     *    관내는 고르는 것이 아니라 파생이라 `CallTarget` 에 없다 (목적지 가까이 옴 `filterArea.withNearness`).
      */
     it('🔄 국면 라벨은 둘이다 — 노선행 · 복귀행', () => {
         const phases: CallTarget[] = ['DEST', 'HOME'];
