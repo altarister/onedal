@@ -14,11 +14,9 @@ const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
  * ```
  * 기사님: *"단어를 조합하여 이름을 만들자는 이야기야."*
  *
- * 그전엔 `본콜` 하나가 **세 뜻**으로 쓰였다 —
- *   `routeComposer`   잡아 둔 첫 콜
- *   `kakaoService`    첫짐
- *   `OrderEvaluator`  `본콜 좌표 누락` → 실제로는 **후보콜**
- * 그래서 기사님이 *"내가 KEEP 한 첫 콜에 문제가 있나?"* 로 잘못 읽으셨다.
+ * 한 이름이 여러 뜻(잡아 둔 첫 콜 · 첫짐 · 후보콜)을 가지면 후보콜의 오류가
+ * *"내가 KEEP 한 첫 콜에 문제가 있나?"* 로 읽힌다. 그래서 이름은 `callName` 한 곳에서 조합하고,
+ * 코드는 `본콜` 이라 부르지 않는다.
  */
 describe('콜 이름 — 조합 규칙', () => {
 
@@ -64,8 +62,7 @@ describe('콜 이름 — 조합 규칙', () => {
 });
 
 /**
- * 🎨 `computeAllowedDetour`(마감 구분 — 상차엔 접근만·하차엔 전부) 검사는 함수 철거와
- * 함께 걷었다 (판정색 확정안 v2 전환 · 2026-08-21). 그 교훈("빼는 값이 정거장마다
- * 다르다")은 timing.ts 의 두 시계 검사(timelineDeadlineCap 등)가 잇는다.
+ * 🎨 «빼는 값이 정거장마다 다르다»는 규칙은 timing.ts 의 두 시계 검사
+ * (`tests/shared/routeTimeline.test.ts` 의 timelineDeadlineCap 등)가 지킨다.
  */
 
