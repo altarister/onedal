@@ -7,19 +7,11 @@ import { optimizeWaypoints } from "../utils/routeOptimizer";
 /**
  * 합짐 경로를 만드는 공통 규약.
  *
- * 예전에는 아래 4곳이 **똑같은 20여 줄을 각자 복사해** 가지고 있었다.
- *   handleDecision(KEEP) · recalculateActiveKakaoRoute(취소 후) ·
- *   recalculateKakaoRoute(재탐색) · restoreAndRecalculateSession(재시작 복구)
+ * 부르는 곳은 넷이다 — handleDecision(KEEP) · recalculateActiveKakaoRoute(취소 후) ·
+ *   recalculateKakaoRoute(재탐색) · restoreAndRecalculateSession(재시작 복구).
+ * 각자 복사하면 결과를 기록하는 콜 · 거리 단위 · TSP 시작점 · 좌표 없는 콜 거르기가 조금씩 어긋난다.
  *
- * 복사본이라 조금씩 어긋나 있었고, 그 어긋남이 그대로 버그가 됐다.
- *   - 결과를 기록하는 콜이 제각각 (securedOrder / activeSubs[last] / existingActive[last])
- *     → 재탐색해도 지도가 안 바뀌던 이슈 BB-③
- *   - 거리 단위가 제각각 (Math.round / 나눗셈 그대로 / toFixed)
- *     → 합짐 104.7km, 단독 105.0km 로 표기가 튀던 이슈 DD
- *   - TSP 시작점이 제각각 (origin 유무)
- *   - 좌표가 없는 콜을 거르는 곳과 안 거르는 곳
- *
- * 이제 규약은 여기 한 곳뿐이다.
+ * 규약은 여기 한 곳뿐이다.
  *   ① 경로는 `composeMergedRoute()` 로만 만든다
  *   ② 결과는 `pickRouteHolder()` 가 고른 콜에 `applyRoute()` 로만 기록한다
  *   ③ 거리·시간 단위 변환은 `toKm()` / `toMin()` 으로만 한다
@@ -43,9 +35,9 @@ export interface RouteResult {
     sectionDriveMin?: Array<number | null>;
     /** 🧭 구간마다 어느 정거장인가 — `sectionDriveMin` 과 같은 길이. 자리가 아니라 이름으로 맞추는 열쇠 */
     sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
-    /** 🎨 **구간이 끝나는 자리** — `routePolyline` 안의 누적 끝 인덱스 (이식 B1) */
+    /** 🎨 **구간이 끝나는 자리** — `routePolyline` 안의 누적 끝 인덱스 */
     sectionEnds?: number[];
-    /** 현위치 → 첫 상차지 소요 시간(초). 카카오가 주는데 예전에는 로그만 찍고 버렸다 */
+    /** 현위치 → 첫 상차지 소요 시간(초). 카카오가 준다 */
     approachDuration?: number;
     /** 현위치 → 첫 상차지 거리(미터) */
     approachDistance?: number;
@@ -79,7 +71,7 @@ export function applySoloRoute(holder: RouteHolder, r: RouteResult): void {
     const approachM = r.approachDistance ?? 0;
 
     holder.routePolyline = r.polyline;
-    holder.sectionEnds = r.sectionEnds;        // 🎨 구간 경계 — 선은 한 벌뿐이다 (이식 B1)
+    holder.sectionEnds = r.sectionEnds;        // 🎨 구간 경계 — 선은 한 벌뿐이다
     holder.totalDistanceKm = toKm(r.distance);
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
@@ -228,7 +220,7 @@ export function restoreRouteSnapshot(
 /** 경로 연산 결과를 콜에 기록한다. 어떤 필드를 쓰는지도 여기서만 정한다. */
 export function applyRoute(holder: RouteHolder, r: RouteResult): void {
     holder.routePolyline = r.polyline;
-    holder.sectionEnds = r.sectionEnds;        // 🎨 구간 경계 — 선은 한 벌뿐이다 (이식 B1)
+    holder.sectionEnds = r.sectionEnds;        // 🎨 구간 경계 — 선은 한 벌뿐이다
     holder.totalDistanceKm = toKm(r.distance);
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
@@ -239,7 +231,7 @@ export function applyRoute(holder: RouteHolder, r: RouteResult): void {
             ? (r as any).sectionStops : undefined;
     }
     holder.routeComputedAt = new Date().toISOString();   // 타임라인 추정 약속의 기준 = 카카오호출시점
-    // 통화 대본의 "여기서 N분 걸립니다" — 예전에는 계산해 놓고 로그만 찍고 버렸다
+    // 통화 대본의 "여기서 N분 걸립니다"
     if (r.approachDuration) holder.approachDurationMin = toMin(r.approachDuration);
 }
 
@@ -267,8 +259,7 @@ export interface ComposeMergedRouteParams {
  */
 // 정의는 shared 로 옮겼다 (— 관제웹 지도 폴백도 같은 판단을 쓴다). 재수출만 남긴다.
 // ⚠️ **경로에 상차지를 넣을지는 이걸로 정하지 않는다** — `hasVisitedStop(c, 'pickup')` 이다.
-//    2026-08-25 에 단독 경로 세 곳이 이걸 보고 있어서, 사이클 끝(콜 1건)마다 여주에서
-//    성남 상차지로 50km 되돌아가는 경로가 나왔다.
+//    이걸 보면 버튼을 안 누른 채 달릴 때 다녀온 상차지로 되돌아가는 경로가 나온다(예: 여주 → 성남 50km).
 export { isAlreadyLoaded, hasVisitedStop };
 
 /**
@@ -276,7 +267,7 @@ export { isAlreadyLoaded, hasVisitedStop };
  * 좌표가 온전한 콜이 하나도 없으면 `null`을 준다 (호출부가 조용히 건너뛸 수 있게).
  */
 /**
- * 🚚 **그 콜의 «상차지 → 하차지»를 한 번만 재서 남긴다** (A단계 · 기사님 확정 2026-09-01).
+ * 🚚 **그 콜의 «상차지 → 하차지»를 한 번만 재서 남긴다** (A단계 · 기사님 확정).
  *
  * 기사님: *"KEEP 직후 그 콜의 단독 배송주행을 카카오로 한 번 재서 저장 후 각 콜마다
  * 디스플레이한다."*
@@ -334,7 +325,7 @@ export async function measureSoloDelivery(
 }
 
 /**
- * 🗄️ **base 경로 캐시 — 한 자리에서 합짐을 여러 번 볼 때 카카오를 아낀다** (C단계 · 기사님 확정 2026-09-01)
+ * 🗄️ **base 경로 캐시 — 한 자리에서 합짐을 여러 번 볼 때 카카오를 아낀다** (C단계 · 기사님 확정)
  *
  * 기사님: *"보통 한 자리에서 합짐 하나까지 하니까 base 까지 보내는 건 이동 중 합짐이
  * 들어올 때만 하는 것이 좋겠다. 그러므로 조건은 기점이 200m 안까지만 사용."*
@@ -399,7 +390,7 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     if (!plan) return null;
 
     /**
-     * 🧮 **후보를 뺀 «기존 전부» 경로를 같은 기점에서 함께 잰다** (기사님 실측 2026-08-26).
+     * 🧮 **후보를 뺀 «기존 전부» 경로를 같은 기점에서 함께 잰다** (기사님 실측).
      *
      * 카카오는 어차피 두 번 불린다(base · merged). 그런데 base 가 «첫짐 하나»라
      * `timeDiffMin` 이 앞 합짐들의 비용까지 뒤집어썼고, 그걸 피하려 판정이 **저장된**
@@ -433,15 +424,11 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     /**
      * 🧭 **구간의 주인 — 방금 카카오에 보낸 그 순서다** (`plan.orderedStops`).
      *
-     * 🔴 예전에는 `planArrivalStops`(도착 계획)로 따로 만들었고, 주석은 *"같은
-     *    optimizeWaypoints 를 쓰므로 순서가 같다"* 고 적혀 있었다. **2026-08-25 에
-     *    갈라진 뒤로 거짓이었다** — 도착 계획은 «지나가는 길목부터»(최근접 탐욕),
-     *    이 요청은 «상차 전부 먼저»다. 정거장 수는 같아 아래 길이 검사를 통과하고
-     *    **주행분이 남의 이름에 붙었다** (tests/rules/sectionStopsOrder.test.ts).
+     * 🔴 이름표를 다른 계획에서 따로 만들지 않는다 — 두 계획의 순서가 갈라지면 정거장 수는 같아
+     *    길이 검사를 통과하고 **주행분이 남의 이름에 붙는다** (tests/rules/sectionStopsOrder.test.ts).
      *
      * 🔴 **`merged` 안에 붙인다** — 호출부는 전부 `applyRoute(holder, result.merged)` 라
-     *    바깥에 붙이면 홀더에 영영 안 실린다. 실제로 그렇게 끊겨 있어서 #32 증상
-     *    (도착마다 길이 어긋남 → 주행분 전부 null)이 4콜 모의주행에서 재발했다
+     *    바깥에 붙이면 홀더에 영영 안 실려 도착마다 주행분이 전부 null 이 된다
      *    (tests/services/sectionStopsPlumbing.test.ts 가 이 이음새를 지킨다).
      */
     if (result?.merged) {
@@ -451,7 +438,7 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
 }
 
 /**
- * 🔒 **동점 근처에서는 직전 순서가 이긴다 — 버티는 폭** (기사님 승인 2026-09-01).
+ * 🔒 **동점 근처에서는 직전 순서가 이긴다 — 버티는 폭** (기사님 승인).
  *
  * 20%: 4.4km 떨어진 두 하차지 사이를 지날 때 기점이 300m 움직이면 «가장 가까운 곳»이
  * 뒤집히는데, 그때 두 길의 **총 거리 차이는 3% 남짓**이다 — 첫 걸음만 보는 탐욕법이
@@ -460,7 +447,7 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
  */
 const STOP_ORDER_HYSTERESIS = 1.20;
 /**
- * 🧭 **«근소»의 진짜 잣대 — 몇 km 차이인가** (기사님 실측 2026-09-03).
+ * 🧭 **«근소»의 진짜 잣대 — 몇 km 차이인가** (기사님 실측).
  *
  * 비율만 보면 두 경우를 못 가른다. 오히려 **거꾸로** 나온다:
  * ```
@@ -477,7 +464,7 @@ const STOP_ORDER_HYSTERESIS = 1.20;
 const STOP_ORDER_TIE_KM = 0.5;
 
 /**
- * 🧭 **방문 순서 — 지나가는 길목부터** (기사님 실측 2026-08-25).
+ * 🧭 **방문 순서 — 지나가는 길목부터** (기사님 실측).
  *
  * 한 통에 넣고 가까운 순으로 돌되 **한 가지만 지킨다** — 제 짐을 싣기 전에는 못 내린다.
  * 순수 함수라 폰·카카오 없이 검사된다 (`tests/rules/stopOrderNearest.test.ts`).
@@ -486,18 +473,15 @@ const STOP_ORDER_TIE_KM = 0.5;
  *
  * 이 함수는 1초 동기화와 GPS 매 틱이 부른다 — 기사님이 달리는 동안 **기점이 매초 바뀐다.**
  * 첫 걸음만 보는 탐욕법이라 두 후보가 엇비슷하면 몇백 미터 움직인 것만으로 1번이 바뀌고,
- * 화면에서는 번호가 춤춘다 (실측 0901: 한 판에 9번, 두 순서를 오감).
- * 그런데 그렇게 뒤집혀도 **총 거리는 사실상 같다** — 뒤집힐 이유가 없었던 것이다.
+ * 화면에서는 번호가 춤춘다. 그렇게 뒤집혀도 **총 거리는 사실상 같다** — 뒤집힐 이유가 없다.
  *
- * 🔴 **2026-09-14 부터 «카카오에 보낸 순번이 남은 정거장을 다 덮으면» 그 순번을 따른다**
+ * 🔴 **«카카오에 보낸 순번이 남은 정거장을 다 덮으면» 그 순번을 따른다**
  *    (기사님 결정 · `stopOrderStability.test.ts`). 굽은 길에서 1번이 뒤집혀 근접 예고가
  *    엉뚱한 곳으로 가던 것을 막는다. 새 콜이 붙어 순번이 덮지 못할 때만 아래 편들기로 다시 정한다.
- * ⚠️ 2026-09-01 에는 «얼리면 도착 하나가 아예 안 찍힌다»(`pnpm drive`)로 이 길을 막았다 —
- *    그때 도착 감시가 «안 찍힌 첫 정거장» 하나만 봤기 때문이다. 09-12 에 도착이 거리로 바뀌어
- *    (`arrivalByDistance.test.ts`) 그 까닭이 사라졌다.
+ * ⚠️ 순번을 얼려도 도착은 안 빠진다 — 도착은 거리로 잰다 (`arrivalByDistance.test.ts`).
  */
 /**
- * 📡 **순서를 왜 그렇게 정했나 — 바뀔 때만 남긴다** (기사님 실측 2026-09-12 밤).
+ * 📡 **순서를 왜 그렇게 정했나 — 바뀔 때만 남긴다** (기사님 실측 밤).
  *
  * 기사님: *"순서가 주행 중에 바뀌는 문제가 있는 것 같아. 이거 그냥 수정하지 말고
  * **원인을 찾아야 해.**"*
@@ -521,7 +505,7 @@ function logOrderDecision(line: string): void {
 
 function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' | 'dropoff' }>(
     startLoc: Coord, pickups: T[], dropoffs: T[],
-    /** 직전에 정한 순서 (`holder.sectionStops`) — 없으면 예전 그대로 «가장 가까운 곳부터» */
+    /** 직전에 정한 순서 (`holder.sectionStops`) — 없으면 «가장 가까운 곳부터» */
     previous?: Array<{ orderId: string; stopType: string }> | null,
 ): T[] {
     const pool = [...pickups, ...dropoffs];
@@ -552,7 +536,7 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
         // 근소한 차이면 직전 순서를 지킨다 — 넘어서면 진다 (얼리지 않는다)
         // 🔴 비율만으로는 «번호 춤»과 «되돌아가기»를 못 가른다 — 절대 차이를 함께 본다
         /**
-         * 🔴 **카카오에 보낸 순번이 남은 정거장을 다 덮으면 그 순번이 이긴다** (기사님 결정 2026-09-14).
+         * 🔴 **카카오에 보낸 순번이 남은 정거장을 다 덮으면 그 순번이 이긴다** (기사님 결정).
          *    기사님: *"콜이 들어와 경로를 계산하고 그걸로 카카오에 순번까지 보냈으면 그걸로 끝"*.
          *    직선거리 탐욕법은 굽은 길에서 뒤집힌다 — 13:05:23 실측에서 신둔 하차에 2초 남은 자리를
          *    사음동 상차가 뺏어 근접 예고가 엉뚱한 곳으로 갔다 (`stopOrderStability.test.ts`).
@@ -698,10 +682,8 @@ export function findOptimalStopOrder<T extends Coord & { orderId: string; stopTy
 /**
  * **정거장 계획 — 어디를 어떤 순서로 들르는가.** 카카오를 부르지 않는 **순수 함수**다.
  *
- * 🔴 떼어낸 이유: 2026-08-14 에 `OrderEvaluator` 가 이 조립을 **손으로 다시 하고 있었고**,
- *    그래서 이미 상차한 콜의 상차지를 경유지에 넣고 있었다. 고쳐 놓고도 **값으로 증명할
- *    방법이 없었다** — 카카오 호출 안에 묻혀 있었기 때문이다.
- *    떼어 두면 "실은 콜의 상차지가 경유지에 없다"를 테스트가 직접 확인한다.
+ * 🔴 카카오 호출에서 떼어 둔 까닭: 카카오 호출 안에 묻혀 있으면 «실은 콜의 상차지가 경유지에 없다»를
+ *    **값으로 증명할 방법이 없다.** 떼어 두면 테스트가 직접 확인한다.
  *    (`buildSoloRouteUrl` 을 뗀 것과 같은 이유)
  */
 export function planMergedStops(
@@ -718,12 +700,11 @@ export function planMergedStops(
     skippedPickups: number;
 } | null {
     /**
-     * 🔴 2026-08-13 — **이미 상차한 콜의 상차지는 경유지에서 뺀다.**
+     * 🔴 **이미 상차한 콜의 상차지는 경유지에서 뺀다.**
      *
-     * 예전에는 활성 콜이면 무조건 상차·하차를 **둘 다** 경유지에 넣었다.
-     * `ORDER_PICKED_UP`(짐을 이미 실은 콜)의 상차지까지 남아서,
-     * **이미 다녀온 곳을 다시 가는 경로**가 나왔다. 거리와 시간이 부풀고,
-     * 그 값으로 우회 예산을 재니 합짐 판정이 통째로 틀어진다.
+     * 활성 콜이라고 상차·하차를 **둘 다** 넣으면 짐을 이미 실은 콜의 상차지까지 남아
+     * **이미 다녀온 곳을 다시 가는 경로**가 된다. 거리와 시간이 부풀고, 그 값으로 우회 예산을 재니
+     * 합짐 판정이 통째로 틀어진다.
      *
      * 기사님이 정리한 원칙과 같은 줄기다 — **KEEP 은 예약이고 상차가 적재다.**
      * 짐을 실었으면 그 콜에 남은 일은 **하차뿐**이다.
@@ -732,10 +713,8 @@ export function planMergedStops(
      * 🧭 좌표에 **이름표를 붙여** 나른다.
      *
      * 구간 주행분(`sectionDriveMin`)은 카카오가 준 순서 그대로이고, 화면·판정은
-     * 그것을 «어느 정거장의 값인가»로 조회한다. 예전에는 그 이름표를
-     * `planArrivalStops`(도착 계획)로 따로 만들었는데, 두 계획은 2026-08-25 에
-     * **갈라졌다** — 도착 계획은 «지나가는 길목부터»(최근접), 여기는 «상차 전부 먼저».
-     * 정거장 수는 같아 길이 검사를 통과하고, **값이 남의 이름에 붙었다.**
+     * 그것을 «어느 정거장의 값인가»로 조회한다. 이름표를 다른 계획에서 따로 만들면 두 계획의 순서가
+     * 갈라질 때 정거장 수는 같아 길이 검사를 통과하고 **값이 남의 이름에 붙는다.**
      *
      * → 이름표를 **계획을 세우는 이 자리에서 함께** 만든다. 좌표를 되짚어 맞추면
      *   같은 지점을 쓰는 두 콜에서 또 갈라진다 (규칙 ③ — 파생값은 한 곳에서).
@@ -752,12 +731,10 @@ export function planMergedStops(
         };
         /**
          * 🚏 **다녀온 정거장은 경유지에서 뺀다** — 판단은 `hasVisitedStop` 하나.
-         *    예전엔 `isAlreadyLoaded`(상차 완료 버튼)만 봐서, **GPS 로 이미 다녀온
-         *    상차지를 다시 가는 경로**가 나왔다 (실측: 없는 우회 20km).
-         * 🔴 **하차지도 같은 규칙이다** (#36 — #32·#35 계보의 세 번째).
-         *    하차 완료된 콜(사이클까지 활성)의 하차지를 계속 넣어, 다녀온 하차지를
-         *    다시 가는 경로가 나왔고 planArrivalStops(둘 다 뺌)와 정거장 수가 갈라져
-         *    주행중 합짐 KEEP 뒤 **주행분 전부 null** — 두 계획의 방문 규칙은 하나다.
+         *    `isAlreadyLoaded`(상차 완료 버튼)만 보면 **GPS 로 이미 다녀온 상차지를 다시 가는 경로**가 나온다
+         *    (없는 우회 비용).
+         * 🔴 **하차지도 같은 규칙이다** — 다녀온 하차지를 넣으면 도착 계획과 정거장 수가 갈라져
+         *    주행중 합짐 KEEP 뒤 **주행분이 전부 null** 이 된다. 두 계획의 방문 규칙은 하나다.
          */
         const visitedPickup = hasVisitedStop(c, 'pickup');
         if (visitedPickup) skippedPickups++;
@@ -779,9 +756,7 @@ export function planMergedStops(
      * 🔇 **여기서 로그를 찍지 않는다**.
      *
      * 이 함수는 순수 계획이라 **1초 동기화(`helpers.buildOrderSync`)와 GPS 매 틱
-     * (`geoService.nextStopOf`)에서도 불린다.** 예전엔 도착 계획이 자기 순서를 따로
-     * 만들어서 이 자리가 카카오 호출 직전에만 돌았는데, 08-29 에 둘을 합치면서
-     * **같은 줄이 초당 여러 번 찍혔다** — 실측으로 기사님 화면 로그가 이 줄로 덮였다.
+     * (`geoService.nextStopOf`)에서도 불린다.** 여기서 찍으면 **같은 줄이 초당 여러 번** 찍혀 로그가 덮인다.
      *
      * 알림은 **실제로 경로를 만들 때**(`composeMergedRoute`) 한 번만 찍는다.
      * 로그가 너무 자주 울리면 로그가 아니다 — 다른 줄을 묻는다.
@@ -792,31 +767,28 @@ export function planMergedStops(
     if (allDropoffs.length === 0) return null;   // 갈 곳이 없다 — 사이클 끝 (경로를 지어내지 않는다)
 
     // TSP 시작점: 기사님 현위치를 알면 거기서부터 최적화한다.
-    // 예전에는 4곳 중 2곳만 origin을 쓰고 나머지는 첫 상차지를 썼는데,
-    // 같은 콜 조합인데도 어디서 호출했느냐에 따라 경유지 순서가 달라졌다.
+    // 부르는 곳마다 시작점이 다르면 같은 콜 조합인데도 경유지 순서가 달라진다.
     //
     // ⚠️ 짐을 다 싣고 하차만 남았으면 `allPickups` 가 **비어 있다**. 그때는 첫 하차지에서 시작한다.
     //    (GPS 가 없고 상차지도 없는데 `allPickups[0]` 을 쓰면 undefined 가 그대로 흘러간다)
     const startLoc = from || allPickups[0] || allDropoffs[0];
 
     /**
-     * 🔴 **상차를 전부 앞에 몰지 않는다 — 지나가는 길목부터 들른다** (기사님 실측 2026-08-25).
+     * 🔴 **상차를 전부 앞에 몰지 않는다 — 지나가는 길목부터 들른다** (기사님 실측).
      *
-     * 예전엔 `optimizeWaypoints` 로 상차·하차를 따로 정렬해 `[...상차, ...하차]` 로 붙였다.
-     * 상차지를 전부 앞에 몰아 두는 규칙인데, **새 콜이 붙으면 차를 그 상차지로 끌고 간다.**
+     * 상차·하차를 따로 정렬해 `[...상차, ...하차]` 로 붙이면 상차지를 전부 앞에 몰아, **새 콜이 붙을 때
+     * 차를 그 상차지로 끌고 간다.**
      *
-     * 실측 14:07:53 — 기사님 위치에서 **곤지암 하차 4.0km · 가남 29.9km** 인데 순서가
+     * 기사님 실측 — 기사님 위치에서 **곤지암 하차 4.0km · 가남 29.9km** 인데 순서가
      *   ⑴ 가남상차 ⑵ 가남하차 ⑶ 세종대왕면하차 **⑷ 곤지암하차(94분)**
-     * 로 나왔다. 4km 앞 하차지를 두고 **30km 동쪽으로 갔다가 되돌아오는** 경로다.
+     * 로 나온다. 4km 앞 하차지를 두고 **30km 동쪽으로 갔다가 되돌아오는** 경로다.
      *
      * ⚠️ **적재 때문에 상차가 먼저인 것이 아니다.** 하차는 이미 실은 짐을 내리는 것이라
      *    지나가는 길에 내리는 편이 싸다. 상차가 하차보다 먼저여야 하는 것은
      *    **같은 콜 안에서뿐**이다 (제 짐을 싣기 전에 내릴 수 없다).
      *
-     * 🔴 **2026-08-29 — 이 규칙이 여기 없었다.** 08-25 에는 `planArrivalStops`(도착 감지·화면)만
-     *    고쳤고 **실제 카카오 경로는 그대로**였다. 그래서 기사님이 겪은 경로 문제는 안 고쳐진 채
-     *    감시와 화면만 경로에서 떨어졌고, 구간 주행분이 남의 이름에 붙는 결함이 됐다
-     *   . 규칙을 **경로를 만드는 이 자리**로 옮기고, 도착 계획은 이걸 되쓴다.
+     * 🔴 **이 규칙은 경로를 만드는 이 자리에 있다** — 도착 계획은 이걸 되쓴다. 도착 계획만 고치면
+     *    감시와 화면만 경로에서 떨어지고 구간 주행분이 남의 이름에 붙는다.
      */
     /**
      * 🔒 직전 순서는 **경로를 실제로 잰 그 콜**이 들고 있다 (`sectionStops`).
@@ -878,14 +850,9 @@ export interface ArrivalStop {
  * 카카오 경로와 다르면 도착해도 안 찍히고, 근접 예고(도착전 통화)가 엉뚱한 곳에서 울리며,
  * 화면의 방문 순서가 내비게이션과 다른 말을 한다.
  *
- * ⚠️ **2026-08-25 의 고침은 층을 잘못 짚었다.** 기사님 실측
- *    (*"곤지암 하차 4.0km · 가남 29.9km 인데 가남부터 갔다가 되돌아온다"*)은 **경로** 문제인데,
- *    그때 바꾼 것은 이 도착 계획뿐이라 **카카오 경로는 그대로**였다. 결과는 «경로는 안 고쳐지고
- *    감시와 화면만 경로에서 떨어진» 상태였고, 구간 주행분이 남의 이름에 붙는 결함으로 드러났다
- *   .
- *
- * → 둘을 하나로 되돌린다. **경로 순서를 바꿀지는 별개 문제**다 (`pnpm route:order` 로 재는 중).
- *   바꾸면 여기가 저절로 따라오므로 다시 갈라지지 않는다.
+ * ⚠️ 순서 문제(*"곤지암 하차 4.0km · 가남 29.9km 인데 가남부터 갔다가 되돌아온다"*)는 **경로**의 층에서 푼다 —
+ *    도착 계획만 따로 고치면 감시와 화면만 경로에서 떨어진다. 둘은 하나다: 경로 순서(`planMergedStops` —
+ *    «지나가는 길목부터»)를 바꾸면 여기가 저절로 따라온다.
  *
  * `planMergedStops` 와 달리 **마지막 하차지도 포함**한다 (경유지가 아니라 정거장이므로) —
  * `orderedStops` 가 이미 `[...waypoints, mergedDest]` 라 그대로 맞는다.
