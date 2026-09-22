@@ -6,7 +6,7 @@ import { judge, CRITERIA, DEFAULT_JUDGMENT, cityCenter } from '@onedal/shared';
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 /**
- * 🧭 **첫짐의 전진율을 서버가 실어 준다** (docs/기획/실전_콜_판정_설계.md §4-3)
+ * 🧭 **첫짐의 전진율을 서버가 실어 준다**
  *
  * 무엇을 막나
  * - 세 점 중 하나가 없을 때 **지어내는 것** — 까닭을 적고 배수 1.0 이 되어야 한다 (규칙 ④ · ⑤-2)
@@ -37,7 +37,7 @@ describe('🧭 못 쟀으면 까닭을 적는다 — 지어내지 않는다', ()
     const 기본 = { dropoff: { x: 대치4동.lng, y: 대치4동.lat }, goalCity: '서울 강남구' };
 
     it('내 위치를 모를 때', () => {
-        expect(destProgressOf({ ...기본, me: null })).toEqual({ ratio: null, unknownWhy: '내 위치를 모릅니다' });
+        expect(destProgressOf({ ...기본, me: null })).toEqual({ ratio: null, unknownWhy: '내 위치를 모릅니다', awayKm: null });
     });
 
     it('목적지를 안 정하셨을 때', () => {
@@ -81,7 +81,7 @@ describe('🧭 판정까지 이어진다', () => {
     });
 
     it('🔴 못 쟀으면 돈 점수 그대로이고 색이 🔴 가 아니다', () => {
-        const 모름 = 색({ ratio: null, unknownWhy: '목적지 미설정' });
+        const 모름 = 색({ ratio: null, unknownWhy: '목적지 미설정', awayKm: null });
         expect(모름.score).toBe(44);
         expect(모름.color).toBe('보통');
         expect(모름.criteria.find(c => c.key === 'geography')!.outcome.why).toContain('목적지 미설정');
