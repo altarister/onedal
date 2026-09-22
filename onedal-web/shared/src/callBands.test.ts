@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { callBandsOf } from './callBands';
+import { callBandsOf, uncoveredSectionsOf } from './callBands';
 
 /**
  * 🌈 **콜마다 «내 짐이 차에 있는 동안»을 띠로 그린다** (기사님 확정).
@@ -34,5 +34,27 @@ describe('콜별 띠 — 실으러 가는 길부터 내릴 때까지', () => {
 
     it('정거장이 없으면 빈 것을 준다', () => {
         expect(callBandsOf([]).size).toBe(0);
+    });
+});
+
+describe('띠가 없는 구간 — 어느 콜의 짐도 안 실린 길', () => {
+    it('🔴 다 내리고 다음 상차지로 가는 길은 어느 띠에도 안 든다', () => {
+        // A상차 → A하차 → B상차 → B하차 : 2번 구간(B 실으러 가는 길)은 A 가 이미 내린 뒤다
+        const stops = [
+            { orderId: 'A', stopType: 'pickup' as const },
+            { orderId: 'A', stopType: 'dropoff' as const },
+            { orderId: 'B', stopType: 'pickup' as const },
+            { orderId: 'B', stopType: 'dropoff' as const },
+        ];
+        expect(uncoveredSectionsOf(stops, 4)).toEqual([]);      // B 띠가 2~3 을 덮는다
+    });
+
+    it('🔴 하차지가 목록에 없는 콜의 상차 구간은 덮이지 않는다', () => {
+        const stops = [{ orderId: 'A', stopType: 'pickup' as const }];
+        expect(uncoveredSectionsOf(stops, 1)).toEqual([0]);
+    });
+
+    it('정거장이 없으면 구간 전부가 덮이지 않은 것이다', () => {
+        expect(uncoveredSectionsOf([], 2)).toEqual([0, 1]);
     });
 });

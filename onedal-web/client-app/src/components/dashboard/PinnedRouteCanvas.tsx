@@ -1,4 +1,4 @@
-import { sectionLinesOf, aheadOf, callBandsOf } from '@onedal/shared';
+import { sectionLinesOf, aheadOf, callBandsOf, uncoveredSectionsOf } from '@onedal/shared';
 import { SOAK } from './JudgmentSeat';
 import { logStateChange } from '../../lib/roadmapLogger';
 import React, { useRef, useCallback, useEffect } from 'react';
@@ -956,21 +956,31 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                  * 🔴 **바닥 한 줄을 먼저 긋는다** — 띠가 없는 구간(다 내린 뒤 집으로 가는 길 등)이
                  *    비어 보이면 경로가 끊긴 것으로 읽힌다.
                  */
-                ctx.strokeStyle = withAlpha(mapColors.routeLine, 0.5);
-                drawPath(validPolyline, 0.9);
                 /**
-                 * 🎨 **색은 진하게, 선은 얇게, 자리는 나란히** (기사님 지시 — 투명도로 섞으니 흐려서 안 읽힌다).
-                 *    콜마다 진행 방향의 직각으로 조금씩 밀어 그린다. 함께 가는 구간은 두 줄로 보인다.
+                 * 🩶 **빈 차로 가는 길은 회색 점선** — 어느 콜의 짐도 안 실린 구간이다
+                 *    (다 내리고 다음 상차지로 가는 길 · 마지막 하차 뒤 집으로 가는 길).
+                 *    콜 색으로 그으면 «이 콜을 싣고 간다»로 읽힌다 — 색과 모양을 함께 달리한다.
+                 */
+                ctx.strokeStyle = mapColors.textMuted;
+                for (const i of uncoveredSectionsOf(secStops!, secLines.length)) drawPath(secLines[i], 0.8, [7, 6]);
+                /**
+                 * 🎨 **색은 진하게, 두께는 같게, 자리는 나란히** (기사님 지시 — 투명도로 섞으니 흐려서 안 읽힌다).
+                 *    콜마다 진행 방향의 직각으로 밀어 그린다. 함께 가는 구간은 두 줄로 보인다.
+                 * 🔴 **지금 향하는 콜을 맨 나중에 긋는다** — 겹치는 자리에서 가장 급한 콜이 위로 온다.
                  */
                 const bands = [...callBandsOf(secStops!)];
-                const gapPx = 2.2;
-                bands.forEach(([orderId, band], bi) => {
+                const nextOrderId = secStops![0]?.orderId;
+                const drawOrder = bands
+                    .map((b, i) => ({ b, i }))
+                    .sort((p, q) => Number(p.b[0] === nextOrderId) - Number(q.b[0] === nextOrderId));
+                const gapPx = 3;
+                for (const { b: [orderId, band], i: bi } of drawOrder) {
                     const color = callColors!.get(orderId);
-                    if (!color) return;
+                    if (!color) continue;
                     const shift = (bi - (bands.length - 1) / 2) * gapPx;
                     ctx.strokeStyle = color;
-                    for (let i = band.from; i <= band.to && i < secLines.length; i++) drawPath(secLines[i], 0.8, undefined, shift);
-                });
+                    for (let i = band.from; i <= band.to && i < secLines.length; i++) drawPath(secLines[i], 0.9, undefined, shift);
+                }
             } else {
                 ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
                 // 노란 점선 = 아직 결재 전

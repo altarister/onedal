@@ -27,3 +27,23 @@ export function callBandsOf(
     });
     return bands;
 }
+
+/**
+ * 🩶 **어느 콜의 짐도 안 실린 구간** — 지도가 여기만 «구분되는 회색 점선»으로 긋는다.
+ *
+ * 콜 띠는 «실으러 가는 길부터 내릴 때까지»다. 그 사이에 안 드는 구간이 생긴다 —
+ * 다 내리고 다음 상차지로 가는 길, 마지막 하차 뒤 집으로 가는 길이 그렇다.
+ * 🔴 그 구간을 콜 색으로 그리면 «이 콜을 싣고 간다»로 읽힌다 — 빈 차로 가는 길이라 색을 달리한다.
+ */
+export function uncoveredSectionsOf(
+    sectionStops: ReadonlyArray<{ orderId: string; stopType: 'pickup' | 'dropoff' }> | null | undefined,
+    sectionCount: number,
+): number[] {
+    const covered = new Set<number>();
+    for (const band of callBandsOf(sectionStops).values()) {
+        for (let i = band.from; i <= band.to; i++) covered.add(i);
+    }
+    const out: number[] = [];
+    for (let i = 0; i < sectionCount; i++) if (!covered.has(i)) out.push(i);
+    return out;
+}
