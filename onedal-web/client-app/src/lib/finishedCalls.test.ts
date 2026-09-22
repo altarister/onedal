@@ -3,11 +3,11 @@ import type { OrderStatus } from '@onedal/shared';
 import { belongsToView, callsInView, countsByView, finishedCount, FINISHED_TABS } from './finishedCalls';
 
 /**
- * 📋 **끝난 콜 갈래 — 서랍과 옛 화면이 같은 답을 내는가**
+ * 📋 **끝난 콜 갈래 — ☰ 서랍이 쓰는 규칙 한 벌을 고정한다**
  *
- * 이 규칙이 두 벌이 되면 «취소 탭에는 있는데 서랍에는 없는» 콜이 생긴다.
+ * 이 규칙이 두 벌이 되면 «한쪽에는 있는데 다른 쪽에는 없는» 콜이 생긴다.
  * 여기서 규칙을 고정하고, `finishedCallsSingleSource` 규칙 검사가
- * **두 화면이 정말 이 함수를 부르는지**를 따로 문다.
+ * **서랍이 정말 이 함수를 부르는지**를 따로 문다.
  */
 
 const call = (id: string, status: OrderStatus, capturedAt?: string) => ({ id, status, capturedAt });
