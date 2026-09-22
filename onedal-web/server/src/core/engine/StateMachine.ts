@@ -21,14 +21,12 @@ export class StateMachine {
         const currentPhase = session.activeFilter.dispatchPhase || 'STANDBY';
 
         /**
-         * 🔴 **경유 한 벌(키워드·묶음·별칭)은 여기서 싣지 않는다** (#81 · 2026-08-30).
+         * 🔴 **경유 한 벌(키워드·묶음·별칭)은 여기서 싣지 않는다** (#81).
          *
-         * 전이 직전에 `syncDetourFilter` 가 셋을 **한 벌로** 이미 넣었다. 예전엔 여기서
-         * `destinationKeywords` 만 다시 실었는데, 키워드만 오면 필터 매니저의 별칭
-         * 재생성 가드가 «묶음이 없으니 별칭을 못 만든다 → 비운다»로 동작해 **방금 채운
-         * 별칭을 지웠다.** 빈 별칭이 앱에 내려가면 3단계 동명이동 검증이 빈손이 되어
-         * 주의 동(중리동 등) 하차 콜을 전부 «동명이동!»으로 죽인다 — 7지점 05가
-         * 세 판 연속 확정 직전에 죽은 이유다. 전이의 일은 국면·차종뿐이다 (규칙 ③).
+         * 전이 직전에 `syncDetourFilter` 가 셋을 **한 벌로** 이미 넣었다. 여기서 키워드만 다시 실으면
+         * 필터 매니저가 «묶음이 없으니 별칭을 못 만든다 → 비운다»로 **방금 채운 별칭을 지운다** —
+         * 빈 별칭이 앱에 내려가면 동명이동 검증이 주의 동(중리동 등) 하차 콜을 전부 죽인다.
+         * 전이의 일은 국면·차종뿐이다 (규칙 ③).
          */
         const newFilter: Partial<AutoDispatchFilter> = {
             isSharedMode: true,
@@ -66,7 +64,6 @@ export class StateMachine {
         activeCallsCount: number
     ): StateTransitionResult {
         // 콜 잡기가 꺼져 있거나(선점 중이라 서버가 내려 둔 상태) 합짐 상태일 때만 필터를 재조정
-        // ⚠️ 예전 주석은 "멈춰있지 **않고**" 라 조건을 정반대로 적고 있었다
         if (!session.activeFilter.isActive || session.activeFilter.isSharedMode) {
             const resetFilter: Partial<AutoDispatchFilter> = { isActive: true };
 
