@@ -11,21 +11,20 @@ import {
 /**
  * 적재 용량 모델 회귀 방어 (이슈 S)
  *
- * 기사님 실측 규칙: 1t 트럭 한 대에
- *   1t짐 ×1 = 라보 ×2 = 다마스 ×3 = 승용차 ×5
- *   오토바이 짐은 조수석 → 짐칸 미점유, 상한 없음
+ * 적재는 라면박스 단위다 (기사님 실측): 1t 트럭 한 대 = 100박스
+ *   1t짐 80(파레트 2개) · 라보 40 · 다마스 30 · 승용차 5 · 오토바이 1
+ *   오토바이 짐도 1박스씩 차지한다 — 안 세면 아무리 실어도 자리가 줄지 않는다
  */
 describe('적재 용량 점수표', () => {
     /**
-     * 🔴 라면박스 축 (기사님 확정).
-     *    옛 조합표(라보×2 = 다마스×3 = 승용차×5 = 1t짐)는 폐기 — 비율이 실측으로 바뀌었다.
+     * 🔴 라면박스 축 (기사님 확정) — 차종별 박스 수는 실측 비율이다.
      */
     test('차종별 적재 — 1t짐 80(파레트 2개) · 라보 40 · 다마스 30 · 승용차 5 · 오토바이 1', () => {
         expect(VEHICLE_CAPACITY['1t']).toBe(80);
         expect(VEHICLE_CAPACITY['라보']).toBe(40);
         expect(VEHICLE_CAPACITY['다마스']).toBe(30);
         expect(VEHICLE_CAPACITY['승용차']).toBe(5);
-        expect(VEHICLE_CAPACITY['오토바이']).toBe(1);   // 옛 "조수석 0점" 폐기
+        expect(VEHICLE_CAPACITY['오토바이']).toBe(1);   // 오토바이 짐도 1박스를 차지한다
         expect(VEHICLE_CAPACITY['라보'] * 2).toBe(VEHICLE_CAPACITY['1t']);   // 라보×2 = 1t짐
         expect(TRUCK_CAPACITY_SLOTS).toBe(100);          // 내 그릇 = 짐 80 + 자투리 20
     });
@@ -77,7 +76,7 @@ describe('getEligibleVehicleTypes — 빈차 기준 수행 가능 등급', () =>
 
 describe('getRemainingCapacityTypes — 합짐 잔여 공간 기준', () => {
     test('🔴 이슈 S 재현 방어: 오토바이 짐(1박스)을 실어도 콜 잡기 범위가 줄지 않는다', () => {
-        // 수정 전에는 [오토바이] 하나만 반환되어 합짐 콜 잡기가 정지했다.
+        // [오토바이] 하나만 돌려주면 합짐 콜 잡기가 멈춘다.
         const types = getRemainingCapacityTypes('1t', ['오토바이']);
         expect(types).toEqual(expect.arrayContaining(['오토바이', '승용차', '다마스', '라보', '1t']));
     });
