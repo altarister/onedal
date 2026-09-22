@@ -349,18 +349,20 @@ export function parseCapturedAt(iso: string | null | undefined, nowMs: number): 
  *    5~6시간 뒤가 되어 **여유가 실제보다 훨씬 크게** 나온다.
  *
  * ```
- * 하차 마감 = 상차 마감(실어 보내는 시각) + 단독 주행 + 휴식 여유
+ * 하차 마감 = 상차 마감(실어 보내는 시각) + 단독 주행 × 마감 비율
  * ```
- * 휴식 여유(기본 30분)는 기사님 말이다 — *"1시간 정도 하차지로 이동하면서 30분 정도는
- * 휴게소 가거나 할 수 있을 거야."*
+ * 🔴 **경로 타임라인(`deriveRouteTimeline`)과 같은 식이다** (기사님 확정) —
+ *    기사님: *"상차하고는 150%를 꼭 지켜야 한다."* 식이 둘이면 같은 콜의 하차 시각이
+ *    콜 카드와 시트에서 다르게 보인다.
+ * 🔴 비율은 판정 기준 탭의 값(`deadlineRatioPct`)이다 — 코드에 숫자를 박으면 탭에서 바꿔도 카드만 안 따라온다.
  */
 export function dropoffDeadlineFromPickup(
     pickupDeadlineIso: string | null | undefined,
     soloMinutes: number | null | undefined,
-    restMarginMinutes: number,
+    deadlineRatioPct: number,
 ): string | null {
     if (!pickupDeadlineIso || soloMinutes == null) return null;
-    const ms = new Date(pickupDeadlineIso).getTime() + (soloMinutes + restMarginMinutes) * 60_000;
+    const ms = new Date(pickupDeadlineIso).getTime() + Math.round(soloMinutes * deadlineRatioPct / 100) * 60_000;
     return new Date(ms).toISOString();
 }
 
@@ -800,10 +802,10 @@ export function deriveCallTiming(
      * ```
      *    상차 약속 = 콜 잡은 시각 + 20분      (그 시각까지 상차지 도착)
      *    상차 마감 = 상차 약속 + 상차 정차       (실어 **보내는** 시각)
-     *    하차 마감 = 상차 마감 + 단독 주행 + 휴식 여유   (`dropoffDeadlineFromPickup`)
+     *    하차 마감 = 상차 마감 + 단독 주행 × 마감 비율   (`dropoffDeadlineFromPickup`)
      * ```
-     * ⚠️ 경로 타임라인(`deriveRouteTimeline`)의 하차 약속은 두 시계(상차 완료 + 배송 주행 × 150%)라
-     *    이 식과 다르다 — 코드가 지금 이렇게 돈다. 어느 쪽으로 맞출지는 기사님이 정하실 일이다.
+     * 🔴 경로 타임라인(`deriveRouteTimeline`)의 하차 약속도 **같은 식**이다 (기사님 확정) —
+     *    카드와 시트가 같은 콜에 같은 시각을 말해야 한다.
      */
     const capturedMs = parseCapturedAt(order.capturedAt, nowMs);
     if (!pickupDeadlineAt && capturedMs != null) {
@@ -820,7 +822,7 @@ export function deriveCallTiming(
     }
     if (!dropoffDeadlineAt) {
         dropoffDeadlineAt = dropoffDeadlineFromPickup(
-            pickupDeadlineAt, soloMinutes, rules.restMarginMinutes);
+            pickupDeadlineAt, soloMinutes, rules.deadlineRatioPct ?? 150);
         if (dropoffDeadlineAt) deadlineEstimated = true;
     }
 

@@ -2,6 +2,7 @@ import {
     BUSINESS_DAY_END_HOUR, DEFAULT_DELIVERY_SLACK_MINUTES,
     businessDayEnd, defaultDropoffDeadline, derivePickupDeadline, buildArrivalSlots,
     departureDeadline, minutesUntil, formatCountdown, deriveCallTiming, businessDayKey, resetToBaseFilter,
+    DEFAULT_DEADLINE_RULES,
 } from '@onedal/shared';
 
 /**
@@ -208,7 +209,7 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
      * ```
      *    상차 약속 = 콜 잡은 시각 + 20분                (그 시각까지 상차지 도착)
      *    상차 마감 = 상차 약속 + 상차 정차               (실어 보내는 시각)
-     *    하차 마감 = 상차 마감 + 단독 주행 + 휴식 여유
+     *    하차 마감 = 상차 마감 + 단독 주행 × 마감 비율   (기본 150%)
      * ```
      *    하차 도착 예상에서 거꾸로 잡으면 100km 콜의 마감이 5~6시간 뒤로 잡혀 **여유가 실제보다 훨씬 크게** 나온다.
      *
@@ -227,6 +228,26 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
         expect(new Date(t.pickupPromisedArrivalAt!).getTime() - NOW).toBe(20 * 60_000);
         expect(new Date(t.pickupDeadlineAt!).getTime() - new Date(t.pickupPromisedArrivalAt!).getTime())
             .toBe(t.pickupDwell * 60_000);
+    });
+
+    /**
+     * 🔴 **하차 마감은 카드와 타임라인이 같은 식을 쓴다** (기사님 확정) —
+     *    `상차 마감 + 단독 주행 × 마감 비율`. 식이 둘이면 같은 콜의 하차 시각이
+     *    콜 카드와 시트에서 다르게 보인다.
+     * 🔴 비율은 **판정 기준 탭의 값**(`deadlineRatioPct`)이다 — 코드에 숫자를 박으면
+     *    기사님이 탭에서 바꿔도 카드만 옛 값으로 남는다.
+     */
+    it('🔴 하차 마감 = 상차 마감 + 단독 주행 × 마감 비율', () => {
+        const t = deriveCallTiming({ ...order, capturedAt: new Date(NOW).toISOString() }, [], [], NOW);
+        const gap = new Date(t.dropoffDeadlineAt!).getTime() - new Date(t.pickupDeadlineAt!).getTime();
+        expect(gap).toBe(Math.round(t.soloMinutes! * 150 / 100) * 60_000);   // 86분 × 150% = 129분
+    });
+
+    it('🔴 마감 비율은 판정 기준 탭의 값을 쓴다 — 코드에 박지 않는다', () => {
+        const rules = { ...DEFAULT_DEADLINE_RULES, deadlineRatioPct: 200 };
+        const t = deriveCallTiming({ ...order, capturedAt: new Date(NOW).toISOString() }, [], [], NOW, rules);
+        const gap = new Date(t.dropoffDeadlineAt!).getTime() - new Date(t.pickupDeadlineAt!).getTime();
+        expect(gap).toBe(Math.round(t.soloMinutes! * 2) * 60_000);
     });
 
     it('🔴 콜 잡은 시각을 모르면 마감을 지어내지 않는다', () => {
