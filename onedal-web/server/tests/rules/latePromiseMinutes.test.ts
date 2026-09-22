@@ -4,16 +4,16 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * ⏰ **몇 분 늦는지를 화면이 말한다** (Step 5.5-2)
+ * ⏰ **몇 분 늦는지를 화면이 말한다**
  *
  * ── 왜 ──
  *
  * 🔴 **색은 이미 옳다 — 건드리지 않는다.** `lateStops` 에 들어오는 약속은
  *    통화로 굳힌 것뿐이라(`hardFailIsConfirmed.test.ts`) 깨지면 사고가 맞다 (기사님 확정).
  *
- * 모자란 것은 **말**이다. 서버는 «12분 깨집니다»를 이미 알고 있는데
- * (`deriveRouteTimeline` 의 `lateMinutes`), 판정에는 `null` 로 넘겨
- * 기사님이 화면에서 1분인지 60분인지 못 보셨다.
+ * 지킬 것은 **말**이다. 서버는 «12분 깨집니다»를 이미 안다
+ * (`deriveRouteTimeline` 의 `lateMinutes`). 판정에 `null` 로 넘기면
+ * 기사님이 화면에서 1분인지 60분인지 못 보신다.
  *
  * ── 어떻게 ──
  *
@@ -36,7 +36,7 @@ const 늦음 = (label: string, lateMinutes: number) => ({ label, lateMinutes });
 
 describe('⏰ 약속 지연 — 몇 분인지 화면이 말한다', () => {
 
-    /** 🔴 이 검사가 생긴 까닭 — 분을 알면서 null 로 넘겼다 */
+    /** 🔴 분을 알면서 null 로 넘기지 않는다 */
     it('🔴 잰 분이 그대로 실린다 — 1분과 60분이 달라 보여야 한다', () => {
         const f = 합짐({ lateStops: [늦음('합짐1콜 하차 약속', 12)] });
         expect(f.promise!.lateStops).toEqual([{ label: '합짐1콜 하차 약속', lateMinutes: 12 }]);
@@ -52,7 +52,7 @@ describe('⏰ 약속 지연 — 몇 분인지 화면이 말한다', () => {
         expect(JSON.stringify(v)).toMatch(/12분/);
     });
 
-    /** 🔴 색은 그대로다 — 이 판은 «말»만 고친다 (기사님 확정) */
+    /** 🔴 색은 그대로다 — 이 검사는 «말»만 본다 (기사님 확정) */
     it('🔴 깨진 약속은 여전히 사고다 — 분이 작아도 봐주지 않는다', () => {
         for (const mins of [1, 12, 60]) {
             const v = toSnapshot(judge(CRITERIA, 합짐({ lateStops: [늦음('합짐1콜 하차 약속', mins)] }), cfg));
@@ -73,7 +73,7 @@ describe('⏰ 약속 지연 — 몇 분인지 화면이 말한다', () => {
 
     /**
      * 🔗 **재는 곳을 직접 문다** — 문자열 검사는 «넘긴다»만 보지 «제대로 재서 넘기나»를 못 본다.
-     *    (변이 검수에서 드러났다: 분을 `null` 로 바꿔도, 빈 목록을 넘겨도 전부 초록이었다.)
+     *    (분을 `null` 로 바꿔도, 빈 목록을 넘겨도 문자열 검사는 전부 초록이다.)
      */
     it('🔴 잰 분을 그대로 옮긴다 — 자리표시자로 바꾸지 않는다', () => {
         const out = lateStopsOf(
