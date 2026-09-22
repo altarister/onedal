@@ -3,8 +3,8 @@ import { deriveCallTiming, DEFAULT_DEADLINE_RULES } from '@onedal/shared';
 /**
  * 🕒 **약속은 도착 시각이다 — 상차 소요와 분리한다** (기사님 확정)
  *
- * 실측 사고: 통화로 "40박스 수작업"을 신고하자 상차 소요가 15→30분으로 늘며
- * 완료 기준 약속이 흔들려 **갑자기 지각**이 떴다. 전화로 화주와 잡는 것은
+ * 통화로 "40박스 수작업"을 신고하면 상차 소요가 15→30분으로 는다. 완료를 약속으로 삼으면
+ * 약속이 흔들려 **갑자기 지각**이 뜬다 (실측). 전화로 화주와 잡는 것은
  * "몇 시까지 갈게요"(도착)다 — 짐 양에 따라 변하는 상차 소요를 약속에 섞으면
  * 신고할 때마다 약속이 움직인다.
  *
@@ -25,7 +25,7 @@ describe('도착 약속 (promisedArrivalAt)', () => {
     }] as any);
 
     it('완료 시각 = 도착 약속 + 상차 소요 (파생)', () => {
-        // 수작업 20박스 = 7분 (박스당 20초 · 2026-08-18 새 축)
+        // 수작업 20박스 = 7분 (박스당 20초)
         const t = deriveCallTiming(order, report({ unit: '라면박스', quantity: 20, handling: '수작업' }), [], NOW);
         expect(t.pickupDeadlineAt).toBe('2026-08-18T05:37:00.000Z');
     });
@@ -39,13 +39,13 @@ describe('도착 약속 (promisedArrivalAt)', () => {
 
     it('통화 전 추정 — 상차 약속 = 콜 잡은 시각 + 20분 (기사님 확정 0831)', () => {
         const t = deriveCallTiming(order, [], [], NOW);
-        // 잡음 05:00 + 20분 = 05:20. 도착 예상(05:14)을 따라가지 않는다 — max 폐기
+        // 잡음 05:00 + 20분 = 05:20. 도착 예상(05:14)과 견줘 늦은 쪽을 고르지 않는다
         expect(t.pickupPromisedArrivalAt).toBe('2026-08-18T05:20:00.000Z');
         expect(t.deadlineEstimated).toBe(true);
     });
 
     it('상차지까지 몇 분인지 몰라도 약속은 «잡은 시각 + 20분» 그대로다', () => {
-        // 30분·60분은 20분 룰을 모를 때의 가정치라 폐기 (기사님 확정)
+        // 30분·60분 같은 가정치를 쓰지 않고 20분 규칙을 쓴다 (기사님 확정)
         const noApproach = { ...order, approachDurationMin: null, totalDistanceKm: null };
         const t = deriveCallTiming(noApproach, [], [], NOW);
         // 약속은 «도착» 시각 — 주행을 몰라도 잡은 시각 + 20분 그대로다
