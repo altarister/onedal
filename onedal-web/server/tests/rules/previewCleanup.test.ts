@@ -8,15 +8,15 @@ import * as devices from '../../src/routes/devices';
 import { UNKNOWN_LEAVE_SEC } from '@onedal/shared';
 
 /**
- * 🧹 **심사 콜 정리는 한 곳에서 세고 한 곳에서 적는다 — 미리보기는 세지도 적지도 않는다** (기사님 «버그부터 잡자»).
+ * 🧹 **심사 콜 정리는 한 곳에서 세고 한 곳에서 적는다 — 미리보기는 세지도 적지도 않는다**.
  *
- * 미리보기 심사석을 끄는 방법을 찾다 나온 꼬임 셋 (onedal-b5 진단 · onedal-49 검토 요청):
- * ⓐ 인성 안전취소 타임아웃(detail.ts)이 `forceCancelEvaluatingOrder`(여기서 이미 셈) 뒤에 `countCancel(TIMEOUT)` 을 **또** 불렀다 —
- *    보통 콜은 **두 번** 세고, 미리보기는 캐시가 지워진 뒤라 딱지를 못 봐 **세면 안 되는데 한 번** 셌다. `order-canceled` 도 두 번 나갔다.
- * ⓑ `forceCancelEvaluatingOrder` 가 미리보기도 장부에 SAFE_CANCEL 행으로 썼다 → 관제웹 취소 수(`helpers` 의 SAFE_CANCEL 행 수)가 부풀었다.
- *    미리보기는 인성에서 아무 일도 없던 콜이다 — 장부에 들어가는 길이 이 한 줄뿐이었다.
- * ⓒ 비상 보고(emergency.ts)도 캐시를 지운 뒤 딱지 없이 셌다 — 같은 클래스.
- * 클래스: **취소를 세는 자리·적는 자리가 경로마다 흩어졌다** (08-18 «취소 저장의 네 번째 경로»와 같은 뿌리).
+ * 지키는 것 셋:
+ * ⓐ 인성 안전취소 타임아웃(detail.ts)은 `forceCancelEvaluatingOrder`(여기서 이미 센다) 하나만 부른다 — 뒤에 `countCancel(TIMEOUT)` 을
+ *    **또** 부르면 보통 콜은 **두 번** 세고, 미리보기는 캐시가 지워진 뒤라 딱지를 못 봐 **세면 안 되는데 한 번** 센다. `order-canceled` 도 두 번 나간다.
+ * ⓑ `forceCancelEvaluatingOrder` 는 미리보기를 장부에 쓰지 않는다 — SAFE_CANCEL 행으로 쓰면 관제웹 취소 수(`helpers` 의 SAFE_CANCEL 행 수)가 부푼다.
+ *    미리보기는 인성에서 아무 일도 없던 콜이다.
+ * ⓒ 비상 보고(emergency.ts)도 캐시를 지우기 전에 딱지를 뽑아 넘긴다 — 같은 클래스.
+ * 클래스: **취소를 세는 자리·적는 자리가 경로마다 흩어지면** 한쪽만 고쳐진다.
  */
 const USER = 'test-preview-cleanup';
 const io = { to: () => ({ emit: jest.fn() }) } as any;
@@ -70,8 +70,8 @@ describe('🧹 심사 콜 정리', () => {
 
 /**
  * 🧹 **목록으로 «돌아왔을» 때만 심사 콜을 치운다** — «지금 목록이다»로 치우지 않는다 (#154).
- * 카드를 여는 순간 폰이 아직 그려지지 않은 옛 화면(LIST)을 한 번 더 보내면, 방금 연 미리보기를 «리스트 이탈»로 치웠다
- * (22:15 픽커 S3 — 확정 요청 0.16초 뒤 LIST 보고 → 정리 → 판정 카드만 남고 수락한 콜은 번호 없이 `unknown`).
+ * 카드를 여는 순간 폰이 아직 그려지지 않은 직전 화면(LIST)을 한 번 더 보낼 수 있다 — «지금 목록이다»로 치우면 방금 연 미리보기를
+ * «리스트 이탈»로 치워, 판정 카드만 남고 수락한 콜은 번호 없이 `unknown` 이 된다 (픽커 실측: 확정 요청 0.16초 뒤 LIST 보고).
  * 원달앱도 «LIST 로 돌아왔느냐»(직전 화면)로 가른다.
  */
 describe('🧹 목록으로 돌아왔을 때만 치운다', () => {
@@ -96,7 +96,7 @@ describe('🧹 목록으로 돌아왔을 때만 치운다', () => {
         expect(s.pendingOrdersData.has('pv-late')).toBe(true);
     });
 
-    /** 실제 픽커 9/02 — 카드를 여는 순간 «알 수 없는 화면»이 0.05~0.18초 끼었다 (68건 중 3건) */
+    /** 실제 픽커 — 카드를 여는 순간 «알 수 없는 화면»이 0.05~0.18초 낀다 (68건 중 3건) */
     it('🔴 목록 → 카드 열기 → 잠깐 알 수 없는 화면 → 옛 목록 보고가 와도 안 치운다 — 상세를 아직 못 봤다', () => {
         touch('phone-blip', 'LIST');
         const s = preview('phone-blip', 'pv-blip');
@@ -111,7 +111,7 @@ describe('🧹 목록으로 돌아왔을 때만 치운다', () => {
         expect(s.pendingOrdersData.has('pv-seen')).toBe(false);
     });
 
-    /** 실제 픽커 9/02 18:56:47 — 상세를 보다가 열었고 1.4초 만에 목록으로 나갔다 */
+    /** 실제 픽커 — 상세를 열고 1.4초 만에 목록으로 나간 경우 */
     it('상세에서 열고 → 알 수 없는 화면 → 목록이면 치운다 — 열 때 이미 상세였다', () => {
         touch('phone-back-list', 'DETAIL_PRE_CONFIRM');
         const s = preview('phone-back-list', 'pv-back');
