@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { seatConclusion } from './seatConclusion';
 
 /**
- * 🧾 **심사석의 결론 — 이 후보를 받으면 기존 콜이 어떻게 되나** (전수표 #43 #45 #46 #47 · 목업 «④ 후보콜에 대한 심사 결론»).
+ * 🧾 **심사석의 결론 — 이 후보를 받으면 기존 콜이 어떻게 되나**.
  *
- * 목업 기사님 2026-09-09: *"'기존 콜은 안 밀린다'가 아니고 모른다, 카카오가 값을 잘못 줬다 … 이렇게 표시하던가 해야 하는 거지"*
+ * 기사님: *"'기존 콜은 안 밀린다'가 아니고 모른다, 카카오가 값을 잘못 줬다 … 이렇게 표시하던가 해야 하는 거지"*
  * 기사님은 색만 보고 1~2초에 누르신다 — 모르는 것을 초록(«안 밀린다»)으로 칠하는 것이 가장 큰 사고다.
  */
 const stop = (over: Partial<{ name: string; place: string; stopType: 'pickup' | 'dropoff'; promisedAt: string | null; etaAt: string | null; lateMin: number | null; confirmed: boolean; arrived: boolean }> = {}) => ({
