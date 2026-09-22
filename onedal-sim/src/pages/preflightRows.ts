@@ -1,17 +1,14 @@
 import type { PresetRequires } from '@altari/core-simulator';
 
 /**
- * 🧪 **테스트 시작 전 점검 줄을 만든다** — 설정 화면(`SetupPage`)이 그린다 (기사님 지시 · 넓힘)
+ * 🧪 **테스트 시작 전 점검 줄을 만든다** — 설정 화면(`SetupPage`)이 그린다 (기사님 지시)
  *
- * 2026-09-14 기사님: *"지금 여러 번 같은 지점에 오류가 계속되고 있어 … 먼발치에서 근본적인 원인을 찾아"*
- *
- * 🔴 **그날 콜이 안 잡힌 두 번은 조건이 틀어져 있었는데 점검은 초록이었다** — 점검이 «서버가 정한 값»만 봤다.
- *    · 14:41 폰이 옛 필터 · 직접 모드로 돌았다 → **폰 줄** (모드 · 필터 · 연락)
- *    · 14:54 폰에 실제로 적용된 상차 반경 4.55km(자동) → **상차 반경 줄** (원값이 아니라 실제 적용값)
- *    · 14:54 첫 문제가 기본 위치(경기 광주시)에서 나가 7.2km → **시작 위치 줄**
- *    그래서 «폰·시뮬레이터가 실제로 쓰는 값»을 비교하는 줄을 더했다. 폰 값의 비교는 서버(`core/phoneCheck.ts`)가 하고
- *    여기는 옮겨 적는다.
- * 🔴 **순수 함수로 뗐다** — 화면 안에 있으면 검사가 못 본다 (`tests/preflightRows.test.ts`).
+ * 🔴 **«서버가 정한 값»만 보면 조건이 틀어져도 점검이 초록이다** — 그래서 «폰·시뮬레이터가 실제로 쓰는 값»을 비교하는 줄을 둔다.
+ *    · 폰이 최신이 아닌 필터 · 다른 모드로 돈다 → **폰 줄** (모드 · 필터 · 연락)
+ *    · 폰에 실제로 적용된 상차 반경이 자동으로 줄었다 → **상차 반경 줄** (원값이 아니라 실제 적용값)
+ *    · 첫 문제가 기본 위치(경기 광주시)에서 나가 상차 거리가 틀린다 → **시작 위치 줄**
+ *    폰 값의 비교는 서버(`core/phoneCheck.ts`)가 하고 여기는 옮겨 적는다.
+ * 🔴 **순수 함수로 둔다** — 화면 안에 있으면 검사가 못 본다 (`tests/preflightRows.test.ts`).
  */
 
 /**
@@ -43,7 +40,7 @@ export interface PreflightState {
   map?: { features?: number; sido?: string[] };
   /** 알람 요금 하한 (서버 `alarmMinFare` · 관제웹 설정) */
   alarmMinFare?: number | null;
-  /** 📱 폰마다 실제로 쓰는 모드·필터·연락 — 옛 서버는 안 싣는다(그때는 줄이 없다) */
+  /** 📱 폰마다 실제로 쓰는 모드·필터·연락 — 서버가 안 실으면 폰 줄을 안 그린다 */
   phones?: PhoneCheckRow[];
   /** 📐 폰에 실제로 가는 상차 반경 — 자동이면 줄어든 값 */
   pickupRadiusKmEffective?: number | null;
@@ -98,7 +95,7 @@ export function preflightRows(
       what: '내 주소', want: req.homeAddress, got: String(now.homeAddress ?? '(없음)'),
       ok: String(now.homeAddress ?? '') === req.homeAddress,
     });
-    /* 📐 원값이 아니라 **폰에 실제로 가는 값** — 자동이면 줄어든 값이 문제지 정답을 바꾼다 (14:54) */
+    /* 📐 원값이 아니라 **폰에 실제로 가는 값** — 자동이면 줄어든 값이 문제지 정답을 바꾼다 */
     if (req.minPickupRadiusKm != null) {
       const eff = now.pickupRadiusKmEffective;
       rows.push({
@@ -124,7 +121,7 @@ export function preflightRows(
         got: `동 ${now.map?.features ?? '?'}개`, ok: miss.length === 0,
       });
     }
-    /* 📍 첫 문제가 나갈 자리 ↔ 서버의 내 위치 — 멀면 첫 문제의 «현위치→상차지» 거리가 거짓이다 (14:54 · 7.2km) */
+    /* 📍 첫 문제가 나갈 자리 ↔ 서버의 내 위치 — 멀면 첫 문제의 «현위치→상차지» 거리가 거짓이다 */
     if (now.lastFix) {
       const gap = kmBetween(simStart, { lon: now.lastFix.x, lat: now.lastFix.y });
       rows.push({
