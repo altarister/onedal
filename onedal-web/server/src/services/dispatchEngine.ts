@@ -206,7 +206,8 @@ export async function recalcRouteIfStopsChanged(userId: string, io: any, why: st
     const session = getUserSession(userId);
     const calls = getActiveCalls(session);
     const sent = [...calls].reverse().find(c => (c as any).sectionStops?.length)?.sectionStops ?? null;
-    const remaining = planArrivalStops(calls as any, originOf(session))
+    /* ⏱️ 남은 정거장도 **약속을 본 순서**로 낸다 — 통화로 미룬 약속이 순서를 바꾸면 여기서 드러난다 */
+    const remaining = planArrivalStops(calls as any, originOf(session), promiseOrderOpts(session))
         .map(st => ({ orderId: st.orderId, stopType: st.stopType }));
     if (!routeNeedsRecompute(sent, remaining)) {
         console.log(`🗺️ [경로 유지] ${why} — 남은 정거장 ${remaining.length}곳이 그대로라 카카오를 다시 부르지 않습니다`);

@@ -931,8 +931,10 @@ export interface ArrivalStop {
 export function planArrivalStops(
     calls: RouteHolder[],
     origin: Coord | null | undefined,
+    /** ⏱️ 굳은 약속 — 주면 순서를 약속이 정한다. 경로와 **같은 잣대**를 써야 둘이 안 갈린다 */
+    promiseOpts?: PromiseOrderOpts | null,
 ): ArrivalStop[] {
-    const plan = planMergedStops(calls, null, origin);
+    const plan = planMergedStops(calls, null, origin, promiseOpts);
     if (!plan) return [];
 
     // 좌표는 콜에서 다시 집는다 — `orderedStops` 는 이름표만 나른다

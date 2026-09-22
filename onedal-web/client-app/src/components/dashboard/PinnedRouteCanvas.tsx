@@ -1023,8 +1023,13 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
 
         // ② 위 — 내가 «실제로 간 길». 얇고 밝다. 파란 길 밖으로 나가면 그게 이탈이다
         if (layers.trail) {   // 🧅 «동선» 레이어 — 🔴 구간마다 **따로** 긋는다 (목업과 한 벌)
+            /**
+             * 🔴 **콜이 늘면 동선도 함께 얇아진다** (기사님 지시) — 콜 띠는 콜 수에 맞춰 얇아지는데
+             *    동선만 그대로면 흰 줄이 색 줄을 덮어 «어느 콜의 길인가»가 안 읽힌다.
+             */
+            const trailWidth = 0.55 * (bandStrokeOf(callColors?.size ?? 1, 0).widthScale / 0.9);
             ctx.strokeStyle = mapColors.drivenLine;
-            for (const seg of drivenSegs) drawPath(seg, 0.55);
+            for (const seg of drivenSegs) drawPath(seg, trailWidth);
         }
 
         /**

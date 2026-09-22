@@ -13,7 +13,7 @@ import { PlaceRepository } from "../repositories/PlaceRepository";
 import { lastKnownPositionOf, MOCK_GPS_OWNER_QUIET_MS } from "../services/geoService";
 import { getUserSession, getAllActiveUserIds, UserSession } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
-import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
+import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
 import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
 import type { RouteTl } from "../services/stepSeeder";
 
@@ -733,6 +733,20 @@ export function registerSocketHandlers(io: Server) {
             if (ratio !== null && (ratio >= 1.5 || ratio <= 0.5)) {
                 console.warn(`⚠️ [신고 불일치] ${label} — 실측이 신고의 ${ratio.toFixed(1)}배`);
                 io.to(userId).emit("cargo-mismatch", { orderId, stopType: report.stopType, ratio });
+            }
+
+            /**
+             * ⏱️ **통화로 약속을 저장하면 그 자리에서 경로를 다시 짠다** (기사님 확정).
+             *
+             * 굳은 약속은 정거장 순서를 정한다(`orderByPromise`). 저장만 하고 경로를 그냥 두면
+             * 미뤄 둔 약속이 **다음 사건이 올 때까지** 순서에 반영되지 않아, 기사님이 바로 화면을 보시면
+             * 옛 순서가 그대로다.
+             * 🔴 **약속이 든 저장일 때만** 부른다 — 짐만 신고한 저장으로 카카오를 더 부르지 않는다.
+             *    순서가 그대로면 안쪽에서 다시 «경로 유지»로 걸러진다 (`recalcRouteIfStopsChanged`).
+             */
+            if ((report as any).promisedArrivalAt || (report as any).onwardDeadlineAt) {
+                recalcRouteIfStopsChanged(userId, io, '통화 약속 저장')
+                    .catch(e => console.error('🗺️ [통화 뒤 경로 재계산 실패]', (e as Error).message));
             }
 
             // 🔴 짐 양을 신고하면 여기서 필터를 다시 파생시킨다 — 안 하면 잔여 용량(allowedVehicleTypes)이
