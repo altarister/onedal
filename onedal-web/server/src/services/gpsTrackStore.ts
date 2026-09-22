@@ -17,7 +17,7 @@ import { haversineKm } from './geoService';
  * 일인지 장소를 바꿀 일인지 판단할 근거가 없었다.
  *
  * 「위치 점프」 경고 줄에서 복원해 봤지만 그 줄은 **시각이 없고 «이상할 때만»** 찍혀
- * 궤적이 아니라 «흔들린 순간» 모음이었다 — 실제로 한 번 오독했다.
+ * 궤적이 아니라 «흔들린 순간» 모음이다 — 그래서 점을 따로 쌓는다.
  *
  * ── 비용 (서버가 작다 — 메모리 911MB 중 가용 345MB) ──
  * ```
@@ -26,7 +26,7 @@ import { haversineKm } from './geoService';
  * ```
  *   ① **문턱** — 정차 중에는 15초에 한 점만 쌓인다
  *   ② **일괄 쓰기** — 5점 또는 10초마다 트랜잭션 하나. 1점씩 넣는 것보다 다섯 배 싸다
- *      (처음엔 20점·30초였다 — SIGKILL 로 버퍼가 통째로 날아가 낮췄다, 아래 FLUSH_POINTS 참조)
+ *      (더 크게 모으면 SIGKILL 로 버퍼가 통째로 날아간다 — 아래 FLUSH_POINTS 참조)
  *   ③ **7일 보관** — 부팅 때 정리. 8일째 부팅하면 1일차가 지워진다
  *      (서버 로그가 3일치만 두는 것과 같은 규칙)
  *
@@ -66,7 +66,7 @@ export interface GpsPoint {
     atMs: number;
     source?: string;
     speedKmh?: number | null;
-    /** 🎭 모의 배속 — 위 속도는 이미 나눈 «실제 속도»다. 실 GPS 는 1 (현황판 실측 2026-09-12) */
+    /** 🎭 모의 배속 — 위 속도는 이미 나눈 «실제 속도»다. 실 GPS 는 1 (현황판 실측) */
     speedMultiplier?: number | null;
     /** 그때 어느 콜을 향하고 있었나 — 경로 대조의 열쇠 (모르면 비운다) */
     orderId?: string | null;
@@ -76,7 +76,7 @@ export interface GpsPoint {
      */
     stopType?: 'pickup' | 'dropoff' | null;
     /**
-     * 🛣️ **부여받은 경로에서 얼마나 벗어났나 (m)** — 기사님 지시 2026-09-12 밤.
+     * 🛣️ **부여받은 경로에서 얼마나 벗어났나 (m)** — 기사님 지시.
      *    이 표를 만든 원래 이유가 «경로 ↔ 궤적 대조»다. 경로를 모르면 **null**(0 이 아니다 · 규칙 ④).
      */
     offRouteM?: number | null;
@@ -93,7 +93,7 @@ export function shouldStoreGpsPoint(
     prev: { x: number; y: number; atMs: number } | null | undefined,
     now: { x: number; y: number; atMs: number },
     /**
-     * ⏸️ **«지금 서 있다»는 사실** — 오면 문턱을 안 본다 (현황판 실측 2026-09-12).
+     * ⏸️ **«지금 서 있다»는 사실** — 오면 문턱을 안 본다 (현황판 실측).
      *
      * 🔴 **정지는 «사건이 없는 것»이 아니라 «같은 자리에 있다»는 사실이다** —
      *    `gpsBridge` 에 이미 그렇게 적혀 있었는데, **서버 저장에는 그 논리가 없었다.**
@@ -189,7 +189,7 @@ export interface TrackPoint {
     orderId: string | null;
     stopType: 'pickup' | 'dropoff' | null;
     /**
-     * 🛣️ **부여받은 경로에서 얼마나 벗어났나 (m)** — 기사님 지시 2026-09-12 밤:
+     * 🛣️ **부여받은 경로에서 얼마나 벗어났나 (m)** — 기사님 지시:
      *    *"카카오 라인과 내 궤적이 같이 있어야 **얼마나 잘못 갔는지** 확인할 수 있을 것 같아."*
      *    🔴 경로를 몰랐으면 `null` 이다 — 0 은 «경로 위에 정확히 있었다»는 뜻이라 섞으면 안 된다.
      */
@@ -254,7 +254,7 @@ export function trackOfOrder(userId: string, orderId: string): TrackPoint[] {
 }
 
 /**
- * 🛣️ **오늘 달린 자취를 한 번에 — 콜에 안 붙은 점까지** (어드민 요청 2026-09-13).
+ * 🛣️ **오늘 달린 자취를 한 번에 — 콜에 안 붙은 점까지** (어드민 요청).
  *
  * ── 왜 필요한가 ──
  * `trackOfOrder` 는 **콜별로** 묻는다. 그런데 `order_id` 가 빈 점이 **7~9%** 있다
