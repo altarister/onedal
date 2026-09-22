@@ -20,12 +20,10 @@ export const InsungCallDetailScreen = ({ call, feedback, isConfirmed, onClose, o
   // 출발지/도착지 상세 팝업 상태
   const [locationPopup, setLocationPopup] = useState<{ type: 'PICKUP' | 'DROPOFF'; detail: LocationDetailInfo } | null>(null);
   /**
-   * 📋 적요 상세 팝업 — **확정 전에도 열린다** (기사님 실물 확인 2026-08-22).
+   * 📋 적요 상세 팝업 — **확정 전에도 열린다** (기사님 실물 확인).
    *
-   * 🔴 화면은 만들어져 있었는데(`InsungMemoDetailScreen`) 확정 **전** 화면만 버튼에
-   *    연결이 빠져 있었다. 확정 **후** 화면(`InsungOngoingDetailScreen`)은 같은 컴포넌트를
-   *    잘 열고 있었다 — 한쪽만 연결된 비대칭이었다.
-   *    그래서 원달앱의 팝업 서핑이 "적요상세를 눌렀는데 안 열린다"로 첫 칸에서 멈췄다.
+   * 🔴 확정 **전**(이 화면)과 확정 **후**(`InsungOngoingDetailScreen`) 둘 다 같은 팝업(`InsungMemoDetailScreen`)을 연다.
+   *    한쪽만 이어져 있으면 원달앱의 팝업 서핑이 «적요상세를 눌렀는데 안 열린다»로 첫 칸에서 멈춘다.
    */
   const [showMemoPopup, setShowMemoPopup] = useState(false);
   const isCorrect = feedback?.isCorrect;
@@ -233,7 +231,7 @@ export const InsungCallDetailScreen = ({ call, feedback, isConfirmed, onClose, o
             </button>
 
             {/* 🔴 «탁송»은 수락이 아니다 — 실물은 다른 기능이고 기사님도 아직 모른다.
-                예전엔 확정과 똑같이 수락했다. 모르는 기능을 지어내지 않고 아무 일도 안 하게 뒀다 (tests/buttons.test.tsx) */}
+                모르는 기능을 지어내지 않고 아무 일도 안 한다 (tests/buttons.test.tsx) */}
             <button
               className="flex-1 h-12 flex items-center justify-center font-extrabold text-xl rounded-sm shadow-sm bg-[#ffb300] text-gray-800 border-2 border-orange-400 active:scale-95 transition-transform"
             >
