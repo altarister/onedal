@@ -1,15 +1,15 @@
 import { initGeoService, getCityRegionsWithRadius, cityAliases } from '../../src/services/geoService';
 
 /**
- * 🔴 2026-08-12 — 필터가 조용히 새고 있던 두 가지를 고정한다.
+ * 🔴 필터가 조용히 새는 두 길을 막는다.
  *
- * ① 반경의 뜻이 **"닿으면 포함"** 이었다. 동 하나가 수 km 라, 10km 라고 해 놓고
- *    훨씬 바깥 동네가 통째로 들어왔다. 기사님이 숫자를 줄여도 목록이 안 줄었다.
+ * ① 반경은 **동 중심점이 반경 안인가**로 잰다. «닿으면 포함»으로 재면 동 하나가 수 km 라,
+ *    10km 라고 해 놓고 훨씬 바깥 동네가 통째로 들어와 기사님이 숫자를 줄여도 목록이 안 준다.
  *
- * ② 첫짐 모드에는 **시 별칭(`customCityFilters`)이 비어 있었다.** 그래서 앱의
- *    2단계 필터(`시 + 동` 교차 확인)가 아예 돌지 않고 동 이름만 봤다.
+ * ② 첫짐 모드에도 **시 별칭(`customCityFilters`)을 채운다.** 비어 있으면 앱의
+ *    2단계 필터(`시 + 동` 교차 확인)가 아예 돌지 않고 동 이름만 본다.
  *    수도권 안에만 같은 이름의 동이 97개 있다 — 파주 필터에 서울 서대문구
- *    `신촌동` 콜이 그대로 통과했다.
+ *    `신촌동` 콜이 그대로 통과한다.
  */
 beforeAll(() => {
     initGeoService();
@@ -36,13 +36,13 @@ describe('getCityRegionsWithRadius', () => {
     });
 
     /**
-     * 회귀 방지의 핵심. 예전 방식(`booleanIntersects`)은 파주 10km 에 140개를 넣었다.
-     * 중심점 기준으로 바꾼 뒤 122개다. 다시 140 근처로 돌아가면 판정이 되돌아간 것이다.
+     * 회귀 방지의 핵심. 중심점 기준이면 파주 10km 가 122개다. «닿으면 포함»(`booleanIntersects`)으로
+     * 재면 140개가 된다 — 140 근처로 가면 판정이 «닿으면 포함»으로 돌아간 것이다.
      */
     it('반경이 커져도 "닿기만 한" 동네까지 쓸어오지 않는다', () => {
         const r10 = getCityRegionsWithRadius('파주', 10);
         expect(r10.flat.length).toBeGreaterThan(getCityRegionsWithRadius('파주', 0).flat.length);
-        expect(r10.flat.length).toBeLessThan(135);   // 옛 방식은 140개였다
+        expect(r10.flat.length).toBeLessThan(135);   // «닿으면 포함»이면 140개다
     });
 
     it('반경을 줄이면 목록도 실제로 줄어든다 (기사님이 못 믿던 지점)', () => {
