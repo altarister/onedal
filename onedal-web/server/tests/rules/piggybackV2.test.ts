@@ -8,9 +8,8 @@ const scrap = () => readFileSync(join(__dirname, '../../src/routes/scrap.ts'), '
 /**
  * 🧭 **피기백 규격 v2** (기사님 확정 — "같은 목록을 왜 두 번 보내나")
  *
- * 실측: 대기 상태 응답 4.0KB 중 destinationKeywords(1.06KB)와 orderKm(1.96KB · 옛 이름 progressKm)의
- * **키 집합이 동일**했고(buildAppOrderKm 이 키워드를 순회해 만든다), 필터가 안
- * 바뀌어도 매 5초 전부 재전송됐다.
+ * destinationKeywords 와 orderKm 은 **키 집합이 같다**(buildAppOrderKm 이 키워드를 순회해 만든다).
+ * 둘 다 보내고 필터가 안 바뀌어도 매 5초 전부 보내면 대기 응답(실측 4.0KB)의 3KB 가까이가 중복이다.
  *
  *   ① 중복 제거 — 신앱은 도착 목록을 `키워드 ∪ orderKm 키` 로 합친다.
  *      서버는 orderKm 에 실린 동을 키워드에서 뺀다
