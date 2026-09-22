@@ -45,8 +45,8 @@ describe('🎬 이천 왕복 — 줄 데이터', () => {
     });
     /**
      * 🔴 **폰은 한 번 본 콜을 다시 판정하지 않는다** — 지문이 «상차 동 + 하차 동 + 요금»이다
-     *    (`onedal-app/.../HijackService.kt` · `CallMemory` · 차종은 지문에 없다). 2026-09-15 01:39 두 번째 시작에서
-     *    폰이 A1 을 `⏭️ [이미 본 콜]` 로 넘겨 판정 기록이 안 생겼다. 한 회차 안에 지문이 겹치면 뒤 줄은 채점할 수 없다.
+     *    (`onedal-app/.../HijackService.kt` · `CallMemory` · 차종은 지문에 없다).
+     *    한 회차 안에 지문이 겹치면 폰이 뒤 줄을 `⏭️ [이미 본 콜]` 로 넘겨 판정 기록이 안 생기므로, 뒤 줄은 채점할 수 없다.
      */
     it('🔴 한 회차 안에 폰 지문(상차 동 + 하차 동 + 요금)이 겹치는 콜이 없다', () => {
         const prints = def.filter(r => r.call).map(r => `${r.call!.pickup.region}|${r.call!.dropoff.region}|${r.call!.fare}`);
@@ -71,14 +71,14 @@ describe('🎬 이천 왕복 — 사건순', () => {
     });
 
     /**
-     * 🔴 **폰이 올린 기록(`intel`)에는 좌표가 없다** (2026-09-15 01:32 첫 시험 — A1 을 폰이 `pickup` 으로 옳게 막았는데
-     *    카드는 «❔ 30초 동안 폰이 못 봤다»였다). 폰은 목록 화면의 동 이름·요금·차종만 읽는다 (`intel` 9112·9113 좌표 칸 빈칸).
-     *    → 좌표가 비면 **상차·하차 동 이름 + 요금**으로 짝짓는다. 보낸 뒤 새로 생긴 줄만 보니 같은 동·요금의 옛 줄은 안 섞인다.
+     * 🔴 **폰이 올린 기록(`intel`)에는 좌표가 없다** — 폰은 목록 화면의 동 이름·요금·차종만 읽는다.
+     *    좌표로만 짝지으면 폰이 옳게 막은 콜도 카드에 «❔ 30초 동안 폰이 못 봤다»로 뜬다.
+     *    → 좌표가 비면 **상차·하차 동 이름 + 요금**으로 짝짓는다. 보낸 뒤 새로 생긴 줄만 보니 보내기 전에 있던 같은 동·요금 줄은 안 섞인다.
      */
     it('🔴 좌표 없는 폰 기록도 동 이름·요금으로 짝짓는다', () => {
         let st = run(startScenario(def, T0), baseWorld(T0, { intel: [{ id: 9111, pickup: '경안동', dropoff: '신둔면', fare: 30000, verdict: 'vehicle' }] })).state;
         const r = run(st, baseWorld(T0 + 4000, { intel: [
-            { id: 9111, pickup: '경안동', dropoff: '신둔면', fare: 30000, verdict: 'vehicle' },   // 보내기 전 옛 줄 — 안 섞인다
+            { id: 9111, pickup: '경안동', dropoff: '신둔면', fare: 30000, verdict: 'vehicle' },   // 보내기 전에 있던 줄 — 안 섞인다
             { id: 9112, pickup: '경안동', dropoff: '신둔면', fare: 30000, verdict: 'pickupList' },
         ] }));
         expect(r.state.rows[0].mark).toBe('ok');
@@ -141,7 +141,7 @@ describe('🎬 이천 왕복 — 사건순', () => {
         expect(st.rows[d1].mark).toBe('sent');
         const r = run(st, baseWorld(T0 + 4000, { orders: [old, b3, orderFor('D1', 'o-d1', 'ORDER_SECURED_EVALUATING')] }));
         expect(r.state.rows[d1].orderId).toBe('o-d1');
-        /* 🔄 #134 — D1 은 «막힘»이 아니라 «올라오면 취소»다 (필터는 방향을 안 본다). 짝짓기는 그대로 — 옛 C2 콜이 아니라 새 콜에 붙는다 */
+        /* 🔄 #134 — D1 은 «막힘»이 아니라 «올라오면 취소»다 (필터는 방향을 안 본다). 짝짓기는 그대로 — 앞서 잡은 C2 콜이 아니라 새 콜에 붙는다 */
         expect(r.state.rows[d1].note).toMatch(/취소/);
     });
 
@@ -203,7 +203,7 @@ describe('🎬 이천 왕복 — 사건순', () => {
         expect(seqsToWithdraw(rows, [2])).toEqual([1, 4]);
     });
 
-    /** 🔄 D1 — 복귀콜(C3)을 쥐면 하차 목록이 집이다 → 관고동은 막힌다 (일곱 번째 바퀴 intel region · 필터.md «복귀 켬 · 복귀콜 잡음 = 집») */
+    /** 🔄 D1 — 복귀콜(C3)을 쥐면 하차 목록이 집이다 → 관고동은 막힌다 (일곱 번째 바퀴 intel region · 복귀콜 잡음 = 집») */
     it('🔴 D1 은 «막힘 · 하차지 목록 밖»이다 — 추정이 아니다', () => {
         const d1 = def[idx('D1')];
         expect([d1.kind, (d1 as any).blockBy, (d1 as any).guess ?? false]).toEqual(['block', 'region', false]);
@@ -216,7 +216,7 @@ describe('🎬 이천 왕복 — 사건순', () => {
  *
  * 기사님: *"빠른시간에 잘되는 콜들로 빨리 빨리 테스트 하고 싶어 — 주소 목록에서 경로를 추출해서 성공하는 콜들로 이루어진
  * 5개 짜리 문제 · 2개는 갈때 1개는 복귀클릭하고 복귀콜이 잡히기전에 나머지는 복귀 콜로"* · *"이천 왕복하루 아래에"*.
- * 콜은 이천 왕복 하루에서 **실제로 KEEP 까지 간 경로**(A2 · B1 · B3 · C3 · D3 — 13:04 바퀴)만 쓴다.
+ * 콜은 이천 왕복 하루에서 **실제로 KEEP 까지 간 경로**(A2 · B1 · B3 · C3 · D3)만 쓴다.
  */
 describe('🎬 이천 성공하는 5콜 — 줄 데이터', () => {
     const { ICHEON_FIVE_OK } = require('../../src/core/simScenarioIcheon');
