@@ -4,8 +4,8 @@ import { restoreWhere, RESTORABLE_STATUSES } from '@onedal/shared';
 /**
  * 🗓️ **자정을 넘긴 운행 — 오늘 내린 콜은 오늘 시트에 되살린다** (기사님 확정 · 사이클 = 하루).
  *
- * 재부팅 복구(`restoreAndRecalculateSession`)와 새로고침 이력(`GET /orders`)은 «잡은 시각이 오늘»인 종결 콜만 살렸다.
- * 어제 잡고 오늘 하차한 콜은 재부팅 뒤 시트에서 빠졌다. 기사님: *"오늘 내린 콜만 분리해서 오늘 시트에 올린다."*
+ * 재부팅 복구(`restoreAndRecalculateSession`)와 새로고침 이력(`GET /orders`)은 «잡은 시각이 오늘»인 종결 콜에 더해
+ * **오늘 하차한 콜**도 살린다 — 안 그러면 어제 잡고 오늘 하차한 콜이 재부팅 뒤 시트에서 빠진다. 기사님: *"오늘 내린 콜만 분리해서 오늘 시트에 올린다."*
  * 🔴 두 곳이 **같은 창**이어야 한다(어긋나면 새로고침마다 깜빡인다) — 조건은 shared `restoreWhere` 한 곳.
  */
 describe('🗓️ 복구 창 — 오늘 잡은 콜 · 3일 안 미완료 · 오늘 하차한 콜', () => {
