@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 /**
- * 🔒 **배차망을 아는 곳은 정해져 있다** (카카오픽커_시뮬레이터.md §3-3 · 0단계 0-3)
+ * 🔒 **배차망을 아는 곳은 정해져 있다**
  *
- * 0-2 에서 공통 코드의 배차망별 코드를 배차망 폴더로 옮기고, 배차망을 고르는 일은 `nets.ts` 로 모았다.
- * 다시 새지 않게 소스를 훑어 잠근다 — 서버에도 같은 병이 있었다 (판정이 `=== 'kakaopicker'` 로 묻고, 관제웹 토스트가 픽커를 «인성콜»로 적었다). 막는 검사가 없어서였다.
+ * 배차망별 코드는 배차망 폴더에 두고, 배차망을 고르는 일은 `nets.ts` 한 곳에서 한다.
+ * 소스를 훑어 잠근다 — 공통 코드가 배차망 이름(`=== 'kakaopicker'`)으로 물으면 새 배차망을 더할 때마다 공통 코드를 고쳐야 하고,
+ * 빠뜨린 자리는 그 콜을 다른 배차망처럼 다룬다 (픽커 콜을 «인성콜»로 적는 식).
  *
  * 규칙:
  *   ① 공통 코드(core-simulator/src)는 배차망 이름을 모른다
@@ -12,7 +13,7 @@ import { describe, expect, it } from 'vitest';
  *   ③ ui-simulators 에서 배차망 폴더를 import 하는 곳은 nets.ts · index.ts 뿐이다
  *   ④ 앱 껍데기(src)는 배차망 이름을 모른다 — 옛 주소를 받는 App.tsx 만 예외
  *
- * 주석은 뺀다 — 주석에는 사연을 적는다 (규칙이 막는 것은 **코드**다).
+ * 주석은 뺀다 — 규칙이 막는 것은 **코드**다 (주석은 설명이라 배차망 이름을 적어도 된다).
  * 소스는 Vite 의 `import.meta.glob`(?raw)으로 읽는다 — 시뮬레이터 tsconfig 에 Node 타입을 들이지 않으려고.
  */
 const NAMES = /inseong|insung|hwamul24|kakaopicker|Inseong|Insung|Hwamul24|Picker|인성|화물24|픽커/;
