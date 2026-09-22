@@ -2,30 +2,29 @@ import { recordsOfSteps, deriveRouteTimeline } from '@onedal/shared';
 
 /**
  * ⏱️ **정차의 입력도 한 곳이다 — 계획 짐값(차종 기본값)을 타임라인도 먹는다**
- * (리허설 13~16 실측)
+ * (실측)
  *
  * 서버 시딩(stepSeeder)은 KEEP 때 미리 눌러 둔 **계획 신고**(라면박스 5 · 수작업 ·
- * 결박 = 상차 6분)를 정차로 세는데, 관제웹 타임라인은 `recordsOfSteps` 가
- * PLANNED 행을 통째로 버려서 **미확인 15분**으로 갈랐다. 그래서 한 화면에서:
+ * 결박 = 상차 6분)를 정차로 센다. 관제웹 타임라인도 같은 값을 먹어야 한다 — `recordsOfSteps` 가
+ * PLANNED 행을 통째로 버리면 **미확인 15분**으로 갈라져 한 화면에서:
  *
  *   덱 줄   진위면 ~15:46   ← 완료 13:51(15분) + 77×1.5
  *   칩      데드라인 15:37  ← 완료 13:42(6분)  + 77×1.5
  *   경유버퍼 +29분~          ← 서버 약속 − 클라 예상 (서로 다른 정차의 뺄셈)
  *
- * 규칙 ③: **파생값을 만들었으면 그 입력도 한 곳에서 만든다.** 같은 사고 클래스
- * 4번째다 (경유 4벌 · 상태목록 3벌 · 시별칭 · 이제 정차 2벌).
+ * 규칙 ③: **파생값을 만들었으면 그 입력도 한 곳에서 만든다.**
  *
  * 🔴 단, 계획 행의 `promised_arrival_at` 은 서버의 **추정**이지 통화가 아니다 —
  *    DECLARED 로 내보내면 굳은 약속으로 오독된다 (안 깎는 규칙이 걸린다).
  *    그래서 kind 'PLANNED' 로 **짐값만** 나가고, 약속·확정 표시는 안 나간다.
  */
 
-const ANCHOR = '2026-08-21T03:38:00Z';          // KST 12:38 — 리허설 13번의 아침
+const ANCHOR = '2026-08-21T03:38:00Z';          // KST 12:38 — 실측 콜(R13)의 아침
 const NOW = Date.parse(ANCHOR);
 const kst = (ms: number) => new Date(ms).toLocaleTimeString('ko-KR',
     { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' });
 
-// 리허설 13 의 모형 — 접근 58 · 단독 77 · KEEP 이 계획 신고(차종 기본값 6분)를 심었다
+// 실측 콜 R13 의 모형 — 접근 58 · 단독 77 · KEEP 이 계획 신고(차종 기본값 6분)를 심었다
 const steps = [{
     step: 'CALL_PICKUP', born: true,
     row: {
@@ -70,15 +69,15 @@ describe('계획 짐값 → 타임라인 정차 (규칙 ③ — 입력 한 곳)'
     it('계획 신고는 통화가 아니다 — promiseConfirmed 는 여전히 false', () => {
         const p = run().find(e => e.stopType === 'pickup')!;
         expect(p.promiseConfirmed).toBe(false);
-        // 상차 약속 = 잡은 시각 + 20분 = 12:58 (0831 확정 — 도착 예상을 따라가지 않는다)
+        // 상차 약속 = 잡은 시각 + 20분 = 12:58 (도착 예상을 따라가지 않는다)
         expect(kst(Date.parse(p.promisedUntil!))).toBe('12:58');
     });
 
     /**
-     * 🔴 **실측은 상태와 무관하게 실측이다** (scenario C 실측).
+     * 🔴 **실측은 상태와 무관하게 실측이다**.
      * 시드/복구된 콜은 상차 완료 밀스톤 없이 실측 신고만 올 수 있다 — LOADED 행이
      * PLANNED 인 채 actual_* 만 앉는다. 상태 가드가 그걸 버리면 적재 신뢰도가
-     * CONFIRMED 로 못 올라간다 (옛 장부는 올라갔다 — 두 장부 두 목소리).
+     * CONFIRMED 로 못 올라간다.
      */
     it('🔴 PLANNED 인 LOADED 행의 실측(actual)도 ACTUAL 로 나간다', () => {
         const withActual = [{
