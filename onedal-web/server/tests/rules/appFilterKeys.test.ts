@@ -3,23 +3,22 @@ import { join } from 'path';
 import { APP_FILTER_KEYS, effectiveRadii } from '@onedal/shared';
 
 /**
- * 📦 **앱에 내려가는 키는 표가 정한다** (이식 C5 · 2026-09-11 · 명세 §5).
+ * 📦 **앱에 내려가는 키는 표가 정한다**.
  *
- * 🔴 **예전엔 «떼는 키»를 손으로 나열했다** — `const { destinationGroups, dispatchPhase,
- *    … } = activeFilter`. 그러면 **새 칸이 생길 때마다 그 목록에 넣어야 하고, 안 넣으면
- *    조용히 앱으로 간다.** 2026-09-11 하루에만 마름모 셋과 제외 지역을 그렇게 손으로
- *    넣었다 — 한 번만 잊으면 규격이 어긋난다.
+ * 🔴 **«떼는 키»를 손으로 나열하지 않고, 보낼 키를 표로 고른다** — `const { destinationGroups, dispatchPhase,
+ *    … } = activeFilter` 처럼 떼는 키를 나열하면 **새 칸이 생길 때마다 그 목록에 넣어야 하고, 안 넣으면
+ *    조용히 앱으로 간다.** 한 번만 잊으면 규격이 어긋난다.
  *
  * 이 검사가 잡는 것은 **두 방향의 어긋남**이다:
  *   · 앱이 읽는데 서버가 안 보낸다 → **조용한 고장** (빈 값으로 거른다)
- *   · 서버가 보내는데 앱이 안 읽는다 → **낭비** (하트비트마다 재전송.
- *     2026-08-22 에 `destinationGroups` 하나가 응답의 27%였다)
+ *   · 서버가 보내는데 앱이 안 읽는다 → **낭비** (하트비트마다 재전송된다.
+ *     실측에서 `destinationGroups` 하나가 응답의 27%였다)
  */
 
 const SERVER = join(__dirname, '../../src');
 const APP_JAVA = join(__dirname, '../../../../onedal-app/app/src/main/java');
 const read = (abs: string) => readFileSync(abs, 'utf8');
-/** 주석을 걷어낸 코드만 — 주석의 역사 기록에 걸리지 않게 */
+/** 주석을 걷어낸 코드만 — 주석이 예로 든 글자에 걸리지 않게 */
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 /**
@@ -70,7 +69,7 @@ describe('앱 피기백 규격 — 서버가 싣는 것과 앱이 읽는 것이 
     it('🔴 서버는 표로 **고른다** — 떼는 목록을 손으로 나열하지 않는다', () => {
         const scrap = codeOnly(read(join(SERVER, 'routes/scrap.ts')));
         expect(scrap).toMatch(/APP_FILTER_KEYS/);
-        // 옛 방식(떼어내는 구조분해)이 남아 있지 않다
+        // 떼어내는 구조분해가 없다
         expect(scrap).not.toMatch(/const \{ destinationGroups,/);
     });
 
@@ -86,16 +85,16 @@ describe('앱 피기백 규격 — 서버가 싣는 것과 앱이 읽는 것이 
     });
 
     /**
-     * 🔴 **이름만 맞으면 안 된다 — 숫자 모양도 맞아야 한다** (기사님 실측 2026-09-14 · 「7지점 한 바퀴」).
+     * 🔴 **이름만 맞으면 안 된다 — 숫자 모양도 맞아야 한다** (기사님 실측 · 「7지점 한 바퀴」).
      *
-     * 반경을 «40km 기준(자동)»으로 켜자 서버가 `pickupRadiusKm: 4.554354460578365` 를 보냈고,
-     * 앱은 그 칸을 `Int` 로 받게 되어 있어 **응답을 통째로 버렸다**:
+     * 반경을 «40km 기준(자동)»으로 켜면 서버가 `pickupRadiusKm: 4.554354460578365` 같은 소수를 보낸다.
+     * 앱이 그 칸을 `Int` 로 받으면 **응답을 통째로 버린다**:
      * ```
-     * 14:37:33 E/1DAL_API: NumberFormatException: Expected an int but was 4.554354460578365
+     * E/1DAL_API: NumberFormatException: Expected an int but was 4.554354460578365
      *          path $.dispatchEngineArgs.pickupRadiusKm
      * ```
-     * 새 필터도 모드도 못 받아 앱이 기본값 MANUAL 로 남았고, 필터를 통과한 콜을 **하나도 안 눌렀다.**
-     * 위 검사들은 **이름**만 봐서 초록이었다 (09-12 `cb82c42` 부터 자동 반경은 소수다).
+     * 새 필터도 모드도 못 받아 앱이 기본값 MANUAL 로 남고, 필터를 통과한 콜을 **하나도 안 누른다.**
+     * 위 검사들은 **이름**만 봐서 이것을 못 잡는다 (자동 반경은 소수다).
      *
      * «소수가 될 수 있는 칸»은 손으로 적지 않는다 — **서버가 쓰는 그 함수**(`effectiveRadii`)에
      * 자동을 켜서 물어본다. 새 칸이 소수가 되면 저절로 여기 걸린다.
