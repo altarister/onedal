@@ -18,7 +18,7 @@ import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone
 import type { RouteTl } from "../services/stepSeeder";
 
 /**
- * 🧭 **경로가 아는 시각을 시딩에 먹인다** (기사님 실측 2026-08-21 — 합짐 예측 없음).
+ * 🧭 **경로가 아는 시각을 시딩에 먹인다** (기사님 실측 — 합짐 예측 없음).
  * 파생은 `deriveRouteTimeline` 한 곳이다 (규칙 ③) — 여기서는 부르기만 한다.
  * 실패하면 undefined — 시딩은 콜 단독 값으로 폴백한다 (경로를 몰라도 죽지 않는다).
  */
@@ -91,7 +91,7 @@ export function registerSocketHandlers(io: Server) {
             const decoded = jwt.verify(token, jwtSecret()) as any;
 
             /**
-             * 🔴 **서명은 «어느 서버가 발급했나»를 구분하지 못한다** (기사님 실측 2026-08-26).
+             * 🔴 **서명은 «어느 서버가 발급했나»를 구분하지 못한다** (기사님 실측).
              *
              * 로컬과 라이브가 같은 JWT 비밀을 쓰므로 라이브 토큰이 로컬 서명 검증을 통과한다.
              * 그대로 들이면 `getUserSession` 이 **DB 에 없는 유저의 메모리 세션**을 만들고,
@@ -152,7 +152,7 @@ export function registerSocketHandlers(io: Server) {
         // 접속 시 초기 데이터 전송 (유저별 등록 기기 목록 포함)
         socket.emit("telemetry-devices", getUserDevicesSnapshot(userId, io));
 
-        // [Phase 6] 필터는 부트스트랩이 끝난 뒤 **완성본으로 한 번만** 보낸다.
+        // 필터는 부트스트랩이 끝난 뒤 **완성본으로 한 번만** 보낸다.
         if (!session.isRestored) {
             // 첫 접속: 부트스트랩이 완료 시점에 filter-init 을 룸으로 emit 한다
             logRoadmapEvent("서버", "관제탑 소켓 접속 — 부트스트랩 시작 (필터는 확정 후 1회 전송)");
@@ -248,10 +248,8 @@ export function registerSocketHandlers(io: Server) {
          * 🔴 **놓친 뒤에도 받을 수 있어야 한다**.
          *
          * 위 `judgment-init` 은 **접속 순간에 한 번** 나간다. 그런데 관제웹은 기사님이
-         * ⚙️ 설정 → 「판정 기준」 탭을 **여는 순간** 비로소 구독한다 — 그때는 이미 지나갔다.
-         * 그래서 값이 안 오고 폼이 잠긴 채였다. 기사님: *"값을 바꿀 수 없다."*
-         *
-         * 콜 필터가 같은 문제를 이미 겪었고 `request-filter-init` 으로 풀었다. 같은 방식이다.
+         * ⚙️ 설정 → 「판정 기준」 탭을 **여는 순간** 비로소 구독한다 — 그때는 이미 지나갔으므로
+         * 탭이 따로 요청해 받는다(콜 필터의 `request-filter-init` 과 같은 방식). 안 그러면 폼이 잠긴다.
          */
         socket.on("request-judgment", () => {
             socket.emit("judgment-init", session.judgment);
@@ -313,7 +311,7 @@ export function registerSocketHandlers(io: Server) {
         socket.on("request-filter-init", () => {
             console.log(`📡 [웹 수신] request-filter-init (초기 필터 동기화 요청) - userId: ${userId}`);
             const session = getUserSession(userId);
-            // [Phase 6] 아직 확정 전이면 응답하지 않는다. 부트스트랩이 끝나면서 filter-init 이 나간다.
+            // 아직 확정 전이면 응답하지 않는다. 부트스트랩이 끝나면서 filter-init 이 나간다.
             if (session.isBootstrapping) {
                 console.log(`⏳ [부트스트랩 중] filter-init 응답 보류 — 확정 후 자동 전송됩니다`);
                 return;
@@ -331,14 +329,10 @@ export function registerSocketHandlers(io: Server) {
             
 
             /**
-             * 🔴 2026-08-12 — **첫짐 지리 연산을 여기서 지웠다.**
+             * 🔴 **첫짐 지리 연산을 여기서 하지 않는다.**
              *
-             * 예전에는 여기서 `getCityRegionsWithRadius` 를 직접 부르고
-             * `destinationKeywords` · `destinationGroups` 만 채워 넘겼다.
-             *
-             * 그러면 `recalculateDerivedFields` 는 `changes.destinationKeywords` 가
-             * 이미 있으니 **자기 계산을 건너뛴다** — 그래서 `customCityFilters`(시 별칭)가
-             * 영영 안 채워졌다. 관제웹으로 필터를 바꾸는 순간 동명이인 방어가 풀린 것이다.
+             * 여기서 `destinationKeywords` · `destinationGroups` 를 채워 넘기면 `recalculateDerivedFields` 가
+             * **자기 계산을 건너뛰어** `customCityFilters`(시 별칭)가 안 채워진다 — 동명이인 방어가 풀린다.
              *
              * 같은 파생값을 두 곳에서 만들면 **한쪽만 고쳐진다.** 입력만 넘기고
              * 파생은 `filterManager` 한 곳에 맡긴다 (`destinationCity`/`destinationRadiusKm`
@@ -357,8 +351,7 @@ export function registerSocketHandlers(io: Server) {
              *     그 값으로 돌아오게 하려는 의도였다."*
              *
              * 그래서 기본은 **오늘만**이다 (activeFilter, 자정에 되돌아간다).
-             * 다만 화면에 그 구분이 없어서 "왜 내일 또 원래대로냐"를 알 수 없었다.
-             * 이제 관제웹이 어느 쪽인지 **명시적으로 말한다.**
+             * 관제웹은 어느 쪽인지 **명시적으로 말한다** — 안 그러면 "왜 내일 또 원래대로냐"를 알 수 없다.
              */
             const { saveAsDefault, ...filterChanges } = newFilter as Partial<AutoDispatchFilter> & { saveAsDefault?: boolean };
 
@@ -372,35 +365,27 @@ export function registerSocketHandlers(io: Server) {
         });
 
         /**
-         * 🥣 **국면 저장 통로가 여기 있었다** (`save-phase-settings` ·
-         *    걷어냄 2026-09-11 · 이식 C3-3b).
+         * 🥣 **국면마다 저장하는 통로는 없다** — 값이 한 벌이라 실어 보낼 «어느 국면»이 없다.
          *
-         * *"합짐 탭에서 고친 값이 첫짐에 저장되면 안 된다"* 는 이유로 «어느 국면인지»를
-         * 실어 보내던 전용 길이다. **탭이 사라지고(C3-3a) 값이 한 벌이 되면서**
-         * 실어 보낼 «어느 국면»이 없어졌다.
-         *
-         * 🔴 값 다섯은 이제 **평면 통로**(`update-filter` · `save-base-filter`)로 간다 —
+         * 🔴 값 다섯은 **평면 통로**(`update-filter` · `save-base-filter`)로 간다 —
          *    마름모·제외지역이 이미 쓰던 그 길이다.
          */
 
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
         /**
-         * 🔴 **`update-my-location` 을 지웠다**.
-         *    `session.lastFix` 을 **직접** 덮어써 `processDriverMovement` 를 우회했다 —
-         *    지나온 구간 제거도 도착 감지도 안 돌았을 것이다. 그런데 **쏘는 곳이 한 곳도 없었다**
-         *    (git 전체 이력에서 관제웹·앱 어디에도 없다. 태어날 때부터 죽어 있었다).
-         *    위치가 서버로 들어오는 문은 아래 `dashboard-gps-update` **하나뿐**이다.
+         * 🔴 **위치가 서버로 들어오는 문은 아래 `dashboard-gps-update` 하나뿐이다.**
+         *    `session.lastFix` 를 직접 덮어쓰는 문을 따로 두면 `processDriverMovement` 를 우회해
+         *    지나온 구간 제거도 도착 감지도 안 돈다.
          */
 
         /**
- * 🧹 **«모의 주행 종료» 수신을 걷었다** (기사님 지시).
+ * 🧹 **«모의 주행 종료» 사건을 받지 않는다** (기사님 지시).
  *
  * 기사님: *"함수가 함수를 부르는 것이 이상해. 상태가 바뀌면 거기에 따라 알아서
  * 바뀌어야 하는 거 아냐?"*
  *
- * 주행이 끝났다는 **사건을 기다려** 가상 좌표를 걷어냈는데, 그러면 «끝나는 길»마다
- * 손이 필요하고 하나를 놓치면 그날처럼 «반만 고침»이 난다 (14:38 · 경로 순서 뒤집힘).
- * 지금은 `originOf` 가 **물을 때마다** 「이 좌표를 지금 기점으로 쓸까」를 고르므로
+ * 주행이 끝났다는 **사건을 기다려** 가상 좌표를 걷어내면 «끝나는 길»마다 손이 필요하고, 하나를 놓치면
+ * 경로 순서가 뒤집힌다. `originOf` 가 **물을 때마다** 「이 좌표를 지금 기점으로 쓸까」를 고르므로
  * 끝났다고 알릴 일이 없다 — 상태가 바뀌면 다음 답이 저절로 달라진다 (규칙 ③).
  */
 
@@ -429,7 +414,7 @@ export function registerSocketHandlers(io: Server) {
             } else {
                 session.lastRealGpsAt = Date.now();
             }
-            /* 🔴 예전엔 여기서 «임시 출발지» 플래그를 껐다 — 이제 `originOf` 가 고르므로 끌 것이 없다.
+            /* 🔴 «임시 출발지» 플래그는 없다 — `originOf` 가 고른다.
                진짜 GPS 가 들어오면 그 좌표가 싱싱하다는 사실만으로 집 주소를 이긴다 (파생) */
             processDriverMovement(userId, loc.lat, loc.lng, session,
                 (uid, filterUpdate) => updateActiveFilter(uid, filterUpdate, io),
@@ -438,10 +423,8 @@ export function registerSocketHandlers(io: Server) {
                 loc.source,
                 /**
                  * 도착 확정 → 마일스톤 자동 기록 (재설계).
-                 * ⚠️ ~~GPS 가 기록하는 마일스톤은 ARRIVED_* 둘뿐이다 — 절대 자동으로 찍지 않는다~~
-                 *    **2026-09-03 폐기** (기사님: *"이 명제는 이제 유효하지 않다 삭제하는 것이
-                 *    맞아. 지나가면 실었다가 맞아."*). 지금은 «지나침 판정»이 상차·하차 완료를
-                 *    둘 다 자동으로 찍는다 — 아래 `onPassed` 갈래.
+                 * ⚠️ «지나침 판정»이 상차·하차 완료를 둘 다 자동으로 찍는다 — 아래 `onPassed` 갈래
+                 *    (기사님: *"지나가면 실었다가 맞아."*).
                  *    여기(도착 확정)는 여전히 ARRIVED_* 만 찍는다.
                  * 역행·중복은 reportMilestone 안에서 걸러진다 (canReportMilestone + DB UNIQUE).
                  */
@@ -480,13 +463,8 @@ export function registerSocketHandlers(io: Server) {
                  * 기사님: *"곤지암과 부발에서 멀어진 거면 하차를 했는데 버튼을 못 누른 걸로
                  * 봐야 하지 않을까… 운행 중에 클릭 못 할 거라 말이지."*
                  *
-                 * 🔴 위 주석의 *"상차·하차 완료는 절대 자동으로 찍지 않는다"* 를 **하차에 한해**
-                 *    푼다. 근거는 «도착 + 2km 이탈» 이라는 물리적 사실이고, 실측에서
-                 *    GPS 도착 3건이 다 찍혔는데 손으로 눌러야 하는 네 단계가 전부 비어 있었다 —
-                 *    적재가 안 풀려 다음 콜이 차종에서 막혔다.
-                 *
-                 * ⚠️ ~~상차 완료(PICKED_UP)는 여전히 자동으로 안 찍는다~~ — **2026-09-03 폐기.**
-                 *    기사님: *"지나가면 실었다가 맞아."* 지나침 판정이 상차도 찍는다.
+                 * 🔴 근거는 «도착 + 2km 이탈» 이라는 물리적 사실이다 — 손으로 눌러야만 찍히면 운행 중에는
+                 *    못 눌러 적재가 안 풀리고, 다음 콜이 차종에서 막힌다. 상차 완료도 지나침 판정이 찍는다.
                  *
                  * 되돌릴 수 있다: 단계 표는 `UNIQUE(orderId)` + `INSERT OR REPLACE` 라 그 단계에서
                  * 고칠 수 있고, 하차 완료된 콜은 `TERMINAL_STATUSES` 라 다른 콜과 관계가 끊긴다.
@@ -527,8 +505,7 @@ export function registerSocketHandlers(io: Server) {
                     const label = stop.stopType === 'pickup' ? '상차지' : '하차지';
                     /**
                      * 🔴 **하나도 안 써졌으면 알리지 않는다** (코드 리뷰가 잡음).
-                     *    예전에는 성공 여부와 무관하게 «기록했습니다»를 띄웠다 — 아무것도
-                     *    안 적혔는데 화면이 적혔다고 말하는 자리다 (규칙 ④).
+                     *    성공 여부와 무관하게 «기록했습니다»를 띄우면 아무것도 안 적혔는데 화면이 적혔다고 말한다 (규칙 ④).
                      */
                     let wrote = false;
                     for (const m of [arrived, done]) {
@@ -554,28 +531,26 @@ export function registerSocketHandlers(io: Server) {
                         message: `${label}를 지나쳐 도착·완료로 기록했습니다 (GPS)`,
                     });
                 },
-                /* 🎭 모의 배속 — 궤적에 «실제 속도»를 남기려고 넘긴다 (현황판 실측 2026-09-12) */
+                /* 🎭 모의 배속 — 궤적에 «실제 속도»를 남기려고 넘긴다 (현황판 실측) */
                 loc.speedMultiplier,
                 /* ⏸️ «지금 서 있다» — 궤적이 정차를 남길 수 있게 (문턱을 안 본다) */
                 loc.stopped,
             );
-            /* 📋 0.5km 넘게 움직였으면 상차 목록을 다시 만든다 — 콜이 없어도(콜 전 내 영역) 돈다 (필터.md «상차 목록») */
+            /* 📋 0.5km 넘게 움직였으면 상차 목록을 다시 만든다 — 콜이 없어도(콜 전 내 영역) 돈다 */
             maybeRebuildPickupList(userId, io);
 
             /**
-             * 📍 **위치만 나르는 가벼운 길** (기사님 지시로 되돌려 다시 놓음).
+             * 📍 **위치만 나르는 가벼운 길** (기사님 지시).
              *
              * ── 왜 따로 내나 ──
-             * 처음엔 `sync-active-orders` 봉투에 얹었다. **그게 틀렸다** — 그 봉투는
-             * «콜이 바뀔 때» 나가는데 위치는 **1초마다** 바뀐다. 화면이 봉투의 값을 따르게
-             * 해 놓으니, 봉투가 올 때마다 **옛 좌표가 내 점을 뒤로 당겨** 모의 주행이
-             * 멈춘 것처럼 보였다 (기사님 실측). **값마다 제 시점이 있다** (규칙 ⑤-4 ③).
+             * `sync-active-orders` 봉투는 «콜이 바뀔 때» 나가는데 위치는 **1초마다** 바뀐다. 봉투에 얹으면
+             * 봉투가 올 때마다 **옛 좌표가 내 점을 뒤로 당겨** 모의 주행이 멈춘 것처럼 보인다 (기사님 실측).
+             * **값마다 제 시점이 있다** (규칙 ⑤-4 ③).
              *
-             * 🔴 **봉투를 1초마다 보내지 않는다** — 그 페이로드는 초당 474KB 로 무거웠던
-             *    이력이 있다(종료 콜 폴리라인을 떼어 고쳤다). 여기 싣는 것은 숫자 몇 개뿐이라
+             * 🔴 **봉투를 1초마다 보내지 않는다** — 그 페이로드는 무겁다. 여기 싣는 것은 숫자 몇 개뿐이라
              *    **한 번에 100바이트도 안 된다.**
              * 🔴 **여기서 emit 한다** — 좌표가 서버로 들어오는 문은 이 핸들러 **하나**다.
-             *    다른 자리에서 또 쏘면 «두 곳에서 쏘던» 사고가 되살아난다.
+             *    다른 자리에서 또 쏘면 두 곳이 서로 다른 시점의 좌표를 보낸다.
              * ⚠️ `routeOrigin` 은 봉투에 그대로 둔다 — 그건 **정거장 순서를 짠 기점**이라
              *    경로와 한 벌이다. 위치와 시점이 다르다.
              */
@@ -589,7 +564,7 @@ export function registerSocketHandlers(io: Server) {
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
             /**
-             * 🌱 **KEEP 하면 여섯 단계가 생긴다** (기사님 2026-08-20 — 시험 버튼 대체).
+             * 🌱 **KEEP 하면 여섯 단계가 생긴다** (기사님 — 시험 버튼 대체).
              *    "콜을 잡는 순간 모든 상세값이 임시로 정해진다" — 그 순간이 여기다.
              *    실패해도 결재는 이미 끝났다 — 시딩이 KEEP 을 막으면 안 된다.
              */
@@ -599,7 +574,7 @@ export function registerSocketHandlers(io: Server) {
 
             if (action === 'ORDER_CONFIRMED' && !isSimulated) {
                 try {
-                    // 🌱 출생 모델 (기사님 2026-08-20): KEEP 은 **첫 행(상차지 통화)만** 낳는다.
+                    // 🌱 출생 모델 (기사님): KEEP 은 **첫 행(상차지 통화)만** 낳는다.
                     //    나머지는 각 단계가 끝날 때 앞 값을 물려받아 태어난다 — 뒤 행을 찾아다니며
                     //    고치는 코드가 없어야 화면·장부가 갈라질 수 없다.
                     const judgment = session?.judgment;
@@ -634,13 +609,13 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // ━━━ [운행 완료 처리] ━━━
-        // [Phase 8.2] 관제탑에서 누르는 상차/하차 보고.
+        // 관제탑에서 누르는 상차/하차 보고.
         // 앱의 화면 자동 감지(AUTO_SCRAPE)가 붙어도 이 핸들러는 그대로 두면 된다 —
         // 진입점만 늘어날 뿐 본체(reportMilestone)는 하나이기 때문이다.
         safeOn(socket, "report-milestone", async (data: { orderId: string, milestone: Milestone, occurredAt?: string, predictedAt?: string, source?: MilestoneSource, reasons?: string[] }) => {
             /**
-             * 🔴 **출처를 손으로 덮어쓰지 않는다** (기사님 2026-08-19).
-             *    예전엔 `'MANUAL_WEB'` 로 고정이라 **건너뛴 것도 "직접 확인"으로 둔갑**했다.
+             * 🔴 **출처를 손으로 덮어쓰지 않는다** (기사님).
+             *    고정값(`'MANUAL_WEB'`)으로 덮으면 **건너뛴 것도 "직접 확인"으로 둔갑**한다.
              *    기사님: *"내가 확인한 건지 아닌지가 명확하게 데이터로 남아 있어야 한다."*
              *    관제웹이 보낸 출처를 그대로 적되, 없으면 직접 누른 것으로 본다.
              */
@@ -674,7 +649,7 @@ export function registerSocketHandlers(io: Server) {
             socket.emit("milestone-result", { orderId: data.orderId, ...result });
         });
 
-        // [Phase 8.4] 통화 결과 / 현장 확인 기록
+        // 통화 결과 / 현장 확인 기록
         /** 이미 만들어 둔 여섯 단계를 그대로 읽는다 (화면 새로고침용) */
         safeOn(socket, "request-steps", (data: { orderId: string }) => {
             if (!data?.orderId) throw new Error("orderId 누락");
@@ -692,9 +667,9 @@ export function registerSocketHandlers(io: Server) {
             const { orderId, step, minutes } = data ?? ({} as any);
             if (!orderId || !step) throw new Error("orderId·step 누락");
             /**
-             * 🔴 **안 먹었으면 조용히 넘어가지 않는다** (자기 리뷰 2026-08-30).
-             *    행이 아직 안 태어났거나 완료 단계가 아니면 저장이 안 되는데, 예전엔
-             *    `false` 를 돌리고 끝이라 **기사님은 눌렀는데 안 바뀐 화면**만 보셨다.
+             * 🔴 **안 먹었으면 조용히 넘어가지 않는다** (자기 리뷰).
+             *    행이 아직 안 태어났거나 완료 단계가 아니면 저장이 안 되는데, `false` 만 돌리고 끝내면
+             *    **기사님은 눌렀는데 안 바뀐 화면**만 보신다.
              *    던지면 `safeOn` 이 `handler-error` 로 이유를 화면에 보낸다.
              */
             if (!saveStepDwell(orderId, step, minutes)) {
@@ -707,7 +682,7 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "save-cargo-report", (data: { orderId: string } & CargoReport) => {
             const { orderId, ...report } = data;
             if (!orderId) throw new Error("orderId 누락");
-            // 🔄 옛 장부(stop_cargo_reports) 쓰기는 철거됐다 — 새 장부가 유일한 원천
+            // 단계 행(새 장부)이 유일한 원천이다
             bridgeCargoReport(userId, orderId, report as CargoReport, getUserSession(userId)?.judgment, routeTlOf(userId));
             socket.emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
 
@@ -717,7 +692,7 @@ export function registerSocketHandlers(io: Server) {
 
             const label = report.stopType === 'pickup' ? '상차지' : '하차지';
             const kindLabel = report.kind === 'DECLARED' ? '통화 신고' : '현장 실측';
-            // 옛 `sizeClass` 를 찍고 있어 화면이 보내는 값과 무관하게 늘 '-' 였다
+            // 화면이 보내는 것은 `unit` 이다 — `sizeClass` 는 옛 필드라 폴백으로만 본다
             console.log(`📞 [${label} ${kindLabel}] ${report.unit || report.sizeClass || '-'} × ${report.quantity ?? '-'} · ${report.handling || '-'}`);
 
             /**
@@ -760,9 +735,8 @@ export function registerSocketHandlers(io: Server) {
                 io.to(userId).emit("cargo-mismatch", { orderId, stopType: report.stopType, ratio });
             }
 
-            // 🔴 2026-08-11 — 여기서 필터를 다시 파생시키지 않아, 짐 양을 신고해도
-            //    잔여 용량(allowedVehicleTypes)이 **다음 이벤트가 올 때까지 그대로**였다.
-            //    적재 계산을 고쳐도(T2) 이 호출이 없으면 화면에 반영되지 않는다.
+            // 🔴 짐 양을 신고하면 여기서 필터를 다시 파생시킨다 — 안 하면 잔여 용량(allowedVehicleTypes)이
+            //    **다음 이벤트가 올 때까지 그대로**다.
             //
             //    무겁지 않다 — recalculateDerivedFields 의 needsGeoRecalc 가드 때문에
             //    `{}` 로는 지리 연산이 돌지 않고, broadcastFilter 는 관제웹 소켓으로만 나간다.
@@ -800,12 +774,12 @@ export function registerSocketHandlers(io: Server) {
             logRoadmapEvent("서버", `[착불] ${data.received ? '현장 수령' : '미수금 등록'} ${amount}원`);
         });
 
-        // 🔄 settlement-updated·request-settlement 은 철거 — 착불 표시는 단계 행(cod_received)이, 상태는 orders 가 원천
+        // 착불 표시는 단계 행(cod_received)이, 상태는 orders 가 원천이다
 
         // 카드 헤더에서 약속 시각만 바꾼다. 짐 정보는 건드리지 않는다
         safeOn(socket, "set-stop-deadline", (data: { orderId: string, stopType: 'pickup' | 'dropoff', deadlineAt: string | null }) => {
             if (!data.orderId) throw new Error("orderId 누락");
-            // 🔄 새 장부의 통화 행 약속만 고친다 (짐 정보 불변) — 옛 setStopDeadline 철거
+            // 새 장부의 통화 행 약속만 고친다 (짐 정보 불변)
             const table = data.stopType === 'pickup' ? 'step_call_pickup' : 'step_call_dropoff';
             db.prepare(`UPDATE ${table} SET promised_arrival_at = ? WHERE orderId = ?`)
               .run(data.deadlineAt, data.orderId);
@@ -815,7 +789,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         /**
-         * [Phase 8.4] 신고 불일치를 어떻게 할지 결정.
+         * 신고 불일치를 어떻게 할지 결정.
          *
          * 기사님: *"거짓된 통화로 확인되면 퀵사무실과 통화하여 이 콜의 수행 여부를
          * 결정할 수 있어야 함."* — 전화는 관제탑에서 tel: 로 걸고,
@@ -843,7 +817,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         /**
-         * [Phase 8.4] 현장에서 상차를 포기한다.
+         * 현장에서 상차를 포기한다.
          *
          * 신고와 실물이 다르거나, 물건 상태가 나쁘거나, 상차가 불가능한 경우다.
          * 방출(ORDER_RELEASED_BY_ME)과 같지만 **그 장소에 이유를 남긴다** —
@@ -861,16 +835,12 @@ export function registerSocketHandlers(io: Server) {
         });
 
         /**
-         * 🔴 **`dispatch-complete` 를 지웠다**. 역시 **쏘는 곳이 없었다.**
-         *
-         *    이 문이 부르던 `completeOrder` 는 상태를 `ORDER_COMPLETED` 로 썼는데, 살아 있는
-         *    경로(마일스톤 `DELIVERED`)는 `ORDER_DELIVERED` 를 쓴다 — **같은 뜻, 이름 둘.**
-         *    그 어긋남이 매출 집계를 0원으로 만들고 있었다(`statService`).
+         * 🔴 **배송 완료는 마일스톤 `DELIVERED` 하나로 `ORDER_DELIVERED` 가 된다.** 완료 문을 따로 두면
+         *    `ORDER_COMPLETED` 와 **같은 뜻, 이름 둘**이 되어 매출 집계(`statService`)가 어긋난다.
          *
          *    `ORDER_COMPLETED` 는 **타입에 남겨 둔다** — 기사님 결정대로
          *    *관제앱은 업무 단위, 정산은 별도 페이지*이므로 **정산 완료**를 뜻하는 자리다.
-         *    다만 그 페이지가 생길 때 **거기서** 만든다. `completeOrder` 는 관제앱 동작
-         *    (경로 재계산·필터 브로드캐스트)을 하고 있어 정산용으로 쓸 수 없었다.
+         *    그 페이지가 생길 때 **거기서** 만든다.
          */
 
         /**
@@ -906,12 +876,10 @@ export function registerSocketHandlers(io: Server) {
     /**
      * 3. 백그라운드 싱크 — **바뀌었을 때만 보낸다.**
      *
-     * 🔴 2026-08-14 — 예전에는 1초마다 **무조건** 전체를 보냈다. 실측 초당 237KB.
-     *    관제웹은 그걸 받아 `JSON.stringify` 로 두 번 비교했으니 **초당 474KB 의 문자열**이
-     *    만들어지고 버려졌다. 한 시간이면 1.7GB — **브라우저가 시간이 지나면 죽었다.**
-     *    종료 콜은 하루 종일 쌓이기만 하므로 오후로 갈수록 나빠졌다.
+     * 🔴 1초마다 **무조건** 전체를 보내면 관제웹이 매초 큰 문자열을 만들고 버려 **브라우저가 시간이 지나면 죽는다**
+     *    (종료 콜은 하루 종일 쌓이므로 오후로 갈수록 나빠진다).
      *
-     * 자동 치유를 없앤 것이 아니다 — 소켓이 새로 붙으면 `lastOrderSyncJson` 을 비워
+     * 자동 치유는 그대로다 — 소켓이 새로 붙으면 `lastOrderSyncJson` 을 비워
      * **무조건 한 번 보낸다**(아래 connection 핸들러). 그게 원래 노렸던 복구다.
      */
     setInterval(() => {
