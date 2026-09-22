@@ -37,14 +37,14 @@ class ApiClient(private val context: Context) {
      * 배차 라이프사이클 전용 (confirm/detail) — **한 줄로 세운다** (기사님 확정).
      *
      * 🔴 서버 계약은 *"`confirm` 이 콜을 만들고 `detail` 이 승급한다"* 라 **순서가 뒤집히면
-     *    안 된다.** 2스레드였을 때 둘이 동시에 출발해 실측(19:04:57)에서 `detail` 이 10ms
-     *    먼저 닿았다 — 승급할 콜이 아직 없는 상태였다.
+     *    안 된다.** 스레드가 둘이면 둘이 동시에 출발해 `detail` 이 먼저 닿을 수 있다
+     *    (실측 10ms 차) — 승급할 콜이 아직 없는 상태가 된다.
      *
      * 던지는 쪽은 **여전히 기다리지 않는다**(규칙 ② *"HTTP 를 물고 기다리지 않는다"*).
      * 큐가 넣은 순서대로 하나씩 꺼낼 뿐이다.
      *
-     * ⚠️ 2스레드는 2026-05-08(`9750c58`)에 **롱폴링이 스레드를 오래 물어서** 늘린 것이다.
-     *    피기백 V2 로 `sendDetail` 이 202 만 받고 즉시 리턴하는 지금 그 이유는 사라졌다.
+     * ⚠️ 스레드 하나로 충분하다 — 피기백 V2 로 `sendDetail` 이 202 만 받고 즉시 리턴하므로
+     *    롱폴링이 스레드를 오래 무는 일이 없다.
      *    판결은 텔레메트리(별도 스레드)로 온다. 앱 규칙 *"한 번에 하나만 평가한다"* 와도 맞다.
      */
     private val dispatchExecutor = Executors.newSingleThreadExecutor()
@@ -243,7 +243,7 @@ class ApiClient(private val context: Context) {
                 prefs.edit().putString("api_scrap_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/scrap")
 
-                // [Phase 1.5] 생존신고(scrap)에도 1회 자동 재시도를 적용합니다.
+                // 생존신고(scrap)에도 1회 자동 재시도를 적용합니다.
                 // 기존에는 confirm/detail/emergency만 재시도가 있고 scrap은 맨 요청이라,
                 // 터널·기지국 전환으로 1회만 실패해도 다음 하트비트까지 120초 공백이 생겨
                 // 서버 데드맨이 오작동(기기를 죽은 것으로 판정)하는 원인이 되었습니다.
@@ -266,20 +266,17 @@ class ApiClient(private val context: Context) {
                     
                     if (scrapRes.dispatchEngineArgs != null) {
                         /**
-                         * 🕳️ **서버가 보낸 원문을 그대로 보관한다** (기사님 실측 2026-08-23).
+                         * 🕳️ **서버가 보낸 원문을 그대로 보관한다** (기사님 실측).
                          *
-                         * 예전에는 `gson.toJson(scrapRes.dispatchEngineArgs)` 로 **되말아서**
-                         * 저장했다. Gson 은 기본으로 `null` 필드를 직렬화하지 않으므로
-                         * `{"분당구": null}` 같은 항목이 **그 왕복에서 통째로 사라졌다.**
-                         *
-                         * 실측: 서버가 435개를 보냈는데 앱은 **407개**를 들고 있었다 —
-                         * 차이 28개가 정확히 진행도를 모르는(null) 지역 수였다.
+                         * `gson.toJson(scrapRes.dispatchEngineArgs)` 로 **되말아** 저장하면, Gson 은 기본으로
+                         * `null` 필드를 직렬화하지 않으므로 `{"분당구": null}` 같은 항목이 **그 왕복에서 통째로 사라진다**
+                         * (실측: 서버 435개 → 앱 407개, 차이 28개가 진행도를 모르는 지역 수).
                          *
                          * 🔴 이게 왜 치명적인가: `RouteOrderFilter` 에서 **뜻이 뒤집힌다.**
                          *      키가 있고 값이 null → *"순서 미상 — 통과"*   ← 서버의 의도
                          *      키가 아예 없음      → *"경로 밖 — 차단"*     ← 사라진 뒤 동작
                          *    *"진행도를 모르는 동은 남긴다"* 는 규칙이 **저장 계층에서**
-                         *    조용히 깨져 있었다. 콜을 못 잡는데 화면은 멀쩡해 보였다.
+                         *    조용히 깨진다. 콜을 못 잡는데 화면은 멀쩡해 보인다.
                          *
                          * 원문을 그대로 두면 어떤 값도 잃지 않는다 — 왕복 자체를 없앤다.
                          *
@@ -300,7 +297,7 @@ class ApiClient(private val context: Context) {
                         // 서버가 이제 Array로 내려주므로 Gson 파싱(역직렬화) 시 에러(IllegalStateException)가 전혀 발생하지 않음
                         val updatedFilter = gson.fromJson(filterJson, FilterConfig::class.java)
 
-                        // [Phase 3 / 이슈 A2] 로그 다이어트
+                        // 로그 다이어트
                         // 기존에는 필터 전체 스키마(키워드 400여 개 포함, ~10KB)를 매 응답마다 d 레벨로 찍었다.
                         // 안전취소 대기 중엔 1초 폴링이라 초당 10KB가 쌓여 logcat 버퍼 한계에 걸려
                         // 문자열이 잘리고, 정작 봐야 할 로그가 묻혔다.
@@ -531,11 +528,11 @@ class ApiClient(private val context: Context) {
      * 빠른 종료를 위해 readTimeout을 굉장히 짧게 주어 서버 응답을 기다리지 않습니다.
      */
     /**
-     * 📵 **왜 내려가는지를 함께 보낸다** (기사님 지적 2026-09-02:
+     * 📵 **왜 내려가는지를 함께 보낸다** (기사님 지적:
      * *"'접근성 꺼짐' 이렇게 표현되면 좋겠는데"*).
      *
-     * 관제웹은 지금까지 끊긴 폰에도 **마지막으로 본 화면 이름**을 계속 그렸다 —
-     * 그 폰은 아무 말도 안 하는데 *"지금 이 화면이다"* 라고 단언한 셈이다.
+     * 까닭 없이 끊기면 관제웹은 끊긴 폰에도 **마지막으로 본 화면 이름**을 계속 그린다 —
+     * 그 폰은 아무 말도 안 하는데 *"지금 이 화면이다"* 라고 단언하는 셈이다.
      * 까닭을 아는 것은 **앱뿐**이므로 죽기 전에 실어 보낸다.
      */
     fun sendOffline(reason: String? = null) {
