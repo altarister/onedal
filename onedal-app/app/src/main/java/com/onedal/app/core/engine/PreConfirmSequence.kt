@@ -243,7 +243,15 @@ private fun ScanContext.handlePreConfirmSnapshot(
                     failureReason = "SNAPSHOT_PARSE_FAILED: $reason",
                     listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
                     detailParsedText = rawScreenStr.take(500),
-                    ocrResult = mapOf("linesCount" to lines.size)
+                    /**
+                     * 👀 **읽은 줄을 그대로 싣는다** — 개수만 세면 «무엇을 읽었길래 실패했나»가 사라진다.
+                     *    그러면 «화면에 없었나»와 «파서가 못 읽었나»를 못 가른다 — 원인이 아주 다르다.
+                     *    y 좌표까지 담는다: 파서가 줄 순서로 덩어리를 가르므로 그 값이 곧 단서다.
+                     */
+                    ocrResult = mapOf(
+                        "linesCount" to lines.size,
+                        "lines" to lines.take(60).map { mapOf("y" to it.y, "text" to it.text) },
+                    )
                 )
 
                 // 콜 증발 방지: 탭 카드가 있으면 카드 정보로 폴백

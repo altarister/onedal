@@ -25,6 +25,8 @@ class ScreenReader(private val service: AccessibilityService) {
     companion object {
         private const val TAG = "1DAL_OCR"
         /** 9월 13일 실측과 같은 폭 — 그 문제지의 y 간격이 이 폭 기준이다 */
+        /** 📸 찍은 화면을 몇 장까지 남기나 — 넘으면 오래된 것부터 지운다 */
+        const val KEEP_SHOTS = 20
         const val TARGET_WIDTH = 540
         /** ⏱️ 상세 화면 진입 후 배차망 UI 애니메이션 멈춤 대기 (150ms) */
         const val DETAIL_STABILIZE_IDLE_MS = 150L
@@ -131,7 +133,7 @@ class ScreenReader(private val service: AccessibilityService) {
                 recognizer.process(InputImage.fromBitmap(scaled, 0))
                     .addOnSuccessListener(executor) { text ->
                         val ocrMs = SystemClock.elapsedRealtime() - tOcrStart
-                        scaled.recycle()
+                        /* 🔴 여기서 버리지 않는다 — 아래에서 사진으로 남긴다 */
                         val lines = text.textBlocks.flatMap { b -> b.lines }
                             .map { OcrLine(it.boundingBox?.top ?: 0, it.text) }
 
@@ -145,11 +147,17 @@ class ScreenReader(private val service: AccessibilityService) {
                             "⏱️ [스냅샷 실측] 찍기 ${captureMs}ms · 변환 ${convertMs}ms · OCR ${ocrMs}ms · 파싱 ${parseMs}ms → 총 ${totalMs}ms (${lines.size}줄)"
                         )
 
+                        /* 📸 찍은 것을 남긴다 — 성공·실패를 가리지 않는다 */
+                        val shot = saveShot(scaled, if (parsed == null) "fail" else "ok")
+                        scaled.recycle()
+
                         if (parsed == null) {
-                            AppLogger.w(TAG, "👀 [스냅샷 판독 실패] 파서가 결과를 반환하지 못함 · ${lines.size}줄 (${totalMs}ms)")
+                            AppLogger.w(TAG, "👀 [스냅샷 판독 실패] 파서가 결과를 반환하지 못함 · ${lines.size}줄 (${totalMs}ms)"
+                                + (shot?.let { " · 사진 " + it } ?: " · 사진 저장 실패"))
                             onParseFailed("머리 둘(픽업/배송) 누락", lines)
                             return@addOnSuccessListener
                         }
+                        AppLogger.i(TAG, "📸 [스냅샷] 사진 " + (shot ?: "저장 실패"))
 
                         onSuccess(parsed, lines)
                     }
@@ -244,6 +252,21 @@ class ScreenReader(private val service: AccessibilityService) {
                 done(Result(label, StageMs(captureMs, convertMs, SystemClock.elapsedRealtime() - tOcr, 0), emptyList(), "실패: ${e.message}"))
             }
     }
+
+    /**
+     * 📸 **찍은 화면을 파일로 남긴다** (기사님 지시) — `files/snapshots/` 에 최근 것만.
+     *
+     * 글자만으로는 «화면에 없었나 · 파서가 못 읽었나»를 못 가른다 — 원인이 아주 다르다.
+     * 🔴 파일 하나 쓰는 데 실패해도 **판독 흐름을 멈추지 않는다** — 사진은 곁다리다 (`runCatching`).
+     * 오래된 것부터 지워 `KEEP_SHOTS` 장만 둔다. 앱 전용 폴더라 앱을 지우면 함께 사라진다.
+     */
+    private fun saveShot(bmp: Bitmap, tag: String): String? = runCatching {
+        val dir = java.io.File(service.filesDir, "snapshots").apply { mkdirs() }
+        dir.listFiles()?.sortedByDescending { it.lastModified() }?.drop(KEEP_SHOTS - 1)?.forEach { it.delete() }
+        val f = java.io.File(dir, tag + "_" + System.currentTimeMillis() + ".jpg")
+        java.io.FileOutputStream(f).use { bmp.compress(Bitmap.CompressFormat.JPEG, 60, it) }
+        f.name
+    }.getOrNull()
 }
 
 /** 설정 화면이 보는 마지막 시험 결과 — 시험용이라 여기 한 곳에만 둔다 */
