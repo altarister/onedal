@@ -2,12 +2,12 @@ import { getUserSession } from '../../src/state/userSessionStore';
 import { updateActiveFilter } from '../../src/state/filterManager';
 
 /**
- * 🛣️ **경유 키워드는 도시와 무관한 변경에 살아남는다** (todo A번 · 2026-08-14 부터 미수정)
+ * 🛣️ **경유 키워드는 도시와 무관한 변경에 살아남는다**
  *
  * 🔴 **만드는 쪽과 지우는 쪽이 서로 다른 것을 본다.**
  *
  *   KEEP → `syncDetourFilter` → 경유 키워드를 **경로 기반**으로 꽂는다 (도시를 안 본다)
- *   그 뒤 아무 필터 변경 → `recalculateDerivedFields` → *"도시가 비었네"* → **전멸**
+ *   그 뒤 아무 필터 변경 → `recalculateDerivedFields` 가 «도시가 비었으면» 으로 지우면 → **전멸**
  *
  * 그리고 장부를 보면 **합짐 국면은 목적지 도시가 원래 비어 있다** (`user_filter_phases`):
  *   first(첫짐) 파주시 · merge(합짐) 빈칸 · drive·local·home 빈칸
@@ -16,12 +16,11 @@ import { updateActiveFilter } from '../../src/state/filterManager';
  * 곧 그 조건이다. 경유 키워드가 가장 중요한 국면에서 0개가 되면 앱은 아무 콜도 안 올린다 —
  * **화면에 에러는 없고 그냥 콜이 안 오는 것처럼 보인다.**
  *
- * ⚠️ CLAUDE.md: *"빈 필터는 '제한 없음'이 아니라 **고장**이다."*
+ * ⚠️ README 「이건 버그가 아니라 규칙이다」: *"필터가 비어 있으면 «전부 통과»가 아니라 «고장»으로 다룬다"*
  *
- * 2026-08-14 에 GPS 이동(0.5km 마다)이 이 가지를 밟을 뻔했고, 그때는 전용 통로
- * (`trimTraveled`)를 파서 피했다. **가지는 그대로 남아 있었다.**
+ * GPS 이동(0.5km 마다)은 이 함수를 안 거치고 전용 통로(`trimTraveled`)로 간다.
  *
- * 고침: 도시를 **지웠을 때만** 지운다 — `'destinationCity' in changes && !changes.destinationCity`
+ * 규칙: 도시를 **지웠을 때만** 지운다 — `'destinationCity' in changes && !changes.destinationCity`
  */
 
 const USER = 'test-detour-survives';
