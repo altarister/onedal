@@ -46,7 +46,7 @@ export const FILTER_ALARM_HOLD_MS = 10_000;
  * Safety Mode V3: 비상 알림 & 안전취소 경고 수신 훅
  * 
  * emergency-alert: 앱폰이 POST /emergency로 보고한 비상 상황
- * safecancel-warning: 서버 30초 타임아웃 시 관제탑 경고 (안전취소 만료 임박)
+ * safecancel-warning: 서버의 안전취소 시간(배차망별 DB 값)이 다 됐을 때 관제탑 경고 (안전취소 만료 임박)
  */
 export function useSystemAlerts() {
     const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
@@ -81,7 +81,7 @@ export function useSystemAlerts() {
          * 오더가 취소/확정되면 해당 경고 자동 제거.
          *
          * 🔴 두 이벤트의 **모양이 다르다** — 확정은 문자열, 취소는 `{ id, status }`.
-         *    예전에는 문자열로만 받아 취소 쪽이 **한 번도 안 지워졌다**.
+         *    문자열로만 받으면 취소 쪽이 **한 번도 안 지워진다**.
          *    푸는 법은 `orderIdOf` 한 곳에 있다 (규칙 ③).
          */
         const handleOrderCleared = (payload: unknown) => {
