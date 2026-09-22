@@ -27,22 +27,22 @@ describe('parseCargoHints — 적요에서 통화 시트 미리 채우기', () =
     it('상하차 방법이 적혀 있을 때만 읽는다', () => {
         expect(parseCargoHints('카트가지고 고객님앞').handling).toBe('수작업');
         expect(parseCargoHints('지게차 상차').handling).toBe('지게차');
-        // 🔴 크레인·호이스트는 매핑하지 않는다 (— 방법 목록에서 뺐다).
+        // 🔴 크레인·호이스트는 매핑하지 않는다 (방법 목록에 없다).
         //    지게차로 바꿔 넣으면 없는 사실을 지어내는 것이라, **미확인**으로 두고 통화에서 정한다.
         expect(parseCargoHints('크레인 필요').handling).toBeUndefined();
         expect(parseCargoHints('마대 1개').handling).toBeUndefined();
     });
 
     it('적요의 낱말을 단위로 그대로 읽는다', () => {
-        // 단위를 기사님이 쓰는 말로 두니 추측할 것이 없어졌다.
-        // 예전에는 "마대"를 소·중·대 중 무엇으로 볼지 알 수 없어 포기했다.
+        // 단위를 기사님이 쓰는 말로 두니 추측할 것이 없다 —
+        // "마대"를 소·중·대 중 무엇으로 볼지 고르지 않고 "마대" 그대로 읽는다.
         expect(parseCargoHints('마대 1개').unit).toBe('마대');
         expect(parseCargoHints('박스 1개').unit).toBe('라면박스');
         expect(parseCargoHints('서류봉투').unit).toBe('서류봉투');
         expect(parseCargoHints('파렛트 2개').unit).toBe('파레트');
         expect(parseCargoHints('쇼핑백 2개').unit).toBe('쇼핑백');
         // '가전' 은 단위가 아니다 — 냉장고와 전기면도기가 같은 부피일 리 없다.
-        // 2026-08-12 에 성질에서도 뺐다 (부피도 취급도 제각각이라 묶이지 않는다).
+        // 성질에도 없다 (부피도 취급도 제각각이라 묶이지 않는다).
         expect(parseCargoHints('소형 가전').unit).toBeUndefined();
         expect(parseCargoHints('소형 가전').tags).toBeUndefined();
     });
