@@ -5,11 +5,11 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * 🏔️ **들어가면 빈 차로 나온다 — 첫짐의 탈출력** (Step 8-1)
+ * 🏔️ **들어가면 빈 차로 나온다 — 첫짐의 탈출력**
  *
  * ── 왜 ──
  *
- * 노하우 148행 「못 빠져나온다」 줄에 일곱 곳이 적혀 있다 —
+ * 노하우의 「못 빠져나온다」 줄에 일곱 곳이 적혀 있다 —
  * 강화도 · 연천 · 양평 · 남양주 수동면 · 포천 산정호수 · 춘천 · 가평.
  * *"들어가면 **빈차로 돌아온다**"*
  *
@@ -62,7 +62,7 @@ describe('🏔️ 갇힘 지역 — 첫짐의 탈출력', () => {
         expect(isTrappedRegion(null, null)).toBe(false);
     });
 
-    /** 🔴 이 검사가 생긴 까닭 — 요금이 높아도 하루가 끝난다 */
+    /** 🔴 요금이 높아도 하루가 끝난다 */
     it('🔴 갇힘 지역 하차는 배수가 깎인다', () => {
         expect(배수({ trapped: true })).toBeLessThan(배수({ trapped: false }));
     });
@@ -71,7 +71,7 @@ describe('🏔️ 갇힘 지역 — 첫짐의 탈출력', () => {
         expect(배수({ trapped: null })).toBe(배수({ trapped: false }));
     });
 
-    /** 🔴 합짐은 이 판을 안 본다 — 한계 우회가 이미 센다 (규칙 ③) */
+    /** 🔴 합짐은 이 배수를 안 본다 — 한계 우회가 이미 센다 (규칙 ③) */
     it('🔴 합짐의 지리는 그대로 «잴 게 없다» 다', () => {
         const out = GEOGRAPHY.measure({ firstLoad: false, progressRatio: null, trapped: true } as never, cfg);
         expect(out.kind).toBe('nothing');
