@@ -8,8 +8,8 @@ import type { CallOption } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 // ━━━ 서비스 권장 기본값 (신규 가입자용) ━━━
-// 노선·반경·할인율은 여기 없다 — 그 값들의 원천은 국면 표(DEFAULT_PHASE_SETTINGS)이고,
-// 로그인 때 첫짐 국면에서 파생해 얹는다 (④ 철거 — 같은 값의 두 번째 기본값을 두지 않는다)
+// 노선·반경·할인율은 여기 없다 — 그 값들의 기본값은 shared `DEFAULT_FILTER_VALUES` 하나다
+// (같은 값의 두 번째 기본값을 두지 않는다)
 const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
     minFare: 30000,           // 하한가 3만 원 (보류 칸 — 앱 피기백, 확정안 ①-삭제 #3)
     maxFare: 1000000,         // 상한가 100만 원
@@ -60,11 +60,10 @@ export interface UserSession {
      *    ② 지금 콜을 물어도 되는가        ← 선점 잠금 · 불변식이 되켠다
      *    ③ 필터를 믿을 수 있는가          ← `scrap.ts` (부트스트랩·만석·미접속·고장)
      *
-     * 셋은 **AND** 여야 하는데 서로 덮어쓰고 있었다. 실제로 「대기」로 두어도
-     * 불변식이 `isActive` 를 곧바로 되켜서 **«대기 = 필터 꺼짐» 이 거짓**이었다
-     * (코드리뷰). ①을 여기 따로 담아 불변식이 넘지 못하게 한다.
+     * 셋은 **AND** 다 — 서로 덮어쓰면 「대기」로 두어도 불변식이 `isActive` 를 되켜 **«대기 = 필터 꺼짐» 이 거짓**이 된다.
+     * 그래서 ①을 여기 따로 담아 불변식이 넘지 못하게 한다.
      *
-     * ⚠️ **`undefined` 는 «켬» 이다.** 모드를 한 번도 안 고른 사용자는 예전 그대로
+     * ⚠️ **`undefined` 는 «켬» 이다.** 모드를 한 번도 안 고른 사용자는 켠 채로
      *    돌아야 한다 — 기본을 «끔» 으로 읽으면 콜 필터가 통째로 죽는다.
      */
     filterEnabledByMode?: boolean;
@@ -87,10 +86,9 @@ export interface UserSession {
      * 📍 **마지막으로 «받은» 좌표 — 원자료다. 아무도 지우지 않는다** (개편).
      *
      * 🔴 **«지금 기점»이 아니다.** 기점은 `originOf(session)` 이 물을 때마다 고른다 —
-     *    낡았나 · 빈 차인데 가짜인가 · 집 주소로 대신할까. 전에는 그 판단 결과를 이 칸에
-     *    **써 두고** 조건이 어긋나면 **지웠는데**, 지우는 손이 넷이라 그중 하나를 놓쳐
-     *    2026-09-12 에 사고가 났다 (콜을 쥔 채 위치가 집으로 튀어 경로 순서가 뒤집힘).
-     *    지금은 **지울 일이 없다** — 상태가 바뀌면 다음 답이 저절로 달라진다 (규칙 ③).
+     *    낡았나 · 빈 차인데 가짜인가 · 집 주소로 대신할까. 판단 결과를 이 칸에 써 두면 지우는 손이 여럿이라
+     *    하나를 놓친다 (콜을 쥔 채 위치가 집으로 튀어 경로 순서가 뒤집힌다).
+     *    **지울 일을 만들지 않는다** — 상태가 바뀌면 다음 답이 저절로 달라진다 (규칙 ③).
      */
     lastFix: { x: number; y: number } | null;
     /**
@@ -99,7 +97,7 @@ export interface UserSession {
      */
     lastFixIsMock: boolean;
     /**
-     * 📍 **이 좌표가 어디서 왔나** (원자료 · 2026-09-12 현황판 요청 ①).
+     * 📍 **이 좌표가 어디서 왔나** (원자료).
      *
      * 🔴 **`home` 이 없다** — 집 주소는 «받은 좌표»가 아니라 **없을 때 대신 쓰는 것**이라
      *    파생이다 (`originOf` 의 `source`). 한 칸에 섞으면 «받은 적 없음»과
@@ -113,11 +111,10 @@ export interface UserSession {
     /** 🔒 모의 GPS 임자 소켓 — 관제웹 둘이 시뮬을 겹쳐 쏘면 궤적이 섞인다 */
     mockGpsOwner?: { socketId: string; at: number; warned: boolean } | null;
     /**
-     * 📍 **`lastFix` 를 받은 시각** (epoch ms · 2026-08-25 신설).
+     * 📍 **`lastFix` 를 받은 시각** (epoch ms).
      *
-     * 좌표만 들고 있으면 **얼마나 낡았는지 알 수가 없다.** 2026-08-25 실측:
-     * 14:24 에 모의 주행이 여주에서 끝났고, 4시간 25분 뒤 광주에서 콜을 잡는데도
-     * 서버가 그 여주 좌표를 «지금 내 위치»로 믿어 접근 구간을 **40km 뒤로** 그렸다.
+     * 좌표만 들고 있으면 **얼마나 낡았는지 알 수가 없다** — 몇 시간 전 좌표를 «지금 내 위치»로 믿으면
+     * 접근 구간을 엉뚱한 곳에서 그린다.
      *
      * 🔴 **낡음은 저장하는 상태가 아니라 시각 차이에서 파생된다** (규칙 ③) — `originOf` 가 잰다.
      */
@@ -130,30 +127,23 @@ export interface UserSession {
      */
     businessDay: string;
     /**
-     * [Phase 6] 부트스트랩(데이터 로드 → 노선 산출 → 상태 파생 → 경유 도출) 진행 중 여부.
+     * 부트스트랩(데이터 로드 → 노선 산출 → 상태 파생 → 경유 도출) 진행 중 여부.
      * true 인 동안에는 activeFilter 가 아직 미완성이므로 앱폰에 콜 잡기를 시키지 않는다.
-     * (예전에는 복구가 끝나기 전 1~3초 동안 "첫짐 필터(경유 없음)"가 앱에 나가
-     *  경로를 벗어난 콜을 잡을 수 있었다)
+     * (막지 않으면 복구가 끝나기 전 1~3초 동안 "첫짐 필터(경유 없음)"가 앱에 나가 경로를 벗어난 콜을 잡는다)
      */
     isBootstrapping: boolean;
-    /** [Phase 8.4] 지금 잔여 적재량을 얼마나 믿을 수 있는가 (추정/신고/확정) */
+    /** 지금 잔여 적재량을 얼마나 믿을 수 있는가 (추정/신고/확정) */
     capacityConfidence: CapacityConfidence;
 
     /**
-     * 🥣 **국면별 필터 설정 셋이 여기 있었다** (`basePhaseSettings` · `phaseSettings` ·
-     *    `appliedPhaseKey` · 걷어냄 2026-09-11 · 이식 C3-3b).
-     *
-     * 값이 한 벌이 되면서(C3-3a) 다섯 벌을 담을 그릇도, «지금 어느 벌을 폈나»도 필요 없어졌다.
-     * 🔴 값 다섯은 이제 **`baseFilter`/`activeFilter` 안에** 평면 이름으로 산다 —
-     *    평소값 ↔ 오늘값의 이원 구조는 그대로다. 그릇만 하나가 됐다.
+     * 🔴 **필터 값 다섯은 `baseFilter`/`activeFilter` 안에** 평면 이름으로 산다 — 국면마다 따로 담지 않는다.
+     *    평소값 ↔ 오늘값의 이원 구조는 그대로다.
      */
 
     /**
      * 관제탑에 마지막으로 보낸 오더 동기화 본문. **바뀌었을 때만 보내려고** 들고 있다.
      *
-     * 🔴 예전에는 1초마다 **무조건** 전체를 보냈고, 관제웹이 받아서 `JSON.stringify` 로
-     *    두 번 비교했다. 실측 초당 474KB — 한 시간이면 1.7GB 의 임시 문자열이라
-     *    **브라우저가 시간이 지나면 죽었다.**
+     * 🔴 1초마다 **무조건** 전체를 보내면 초당 수백 KB 가 오가 **브라우저가 시간이 지나면 죽는다.**
      *
      *    비교는 어차피 해야 한다. 다만 **관제웹 여럿이 매초 하는 대신 서버가 한 번** 한다.
      */
@@ -164,7 +154,7 @@ export interface UserSession {
      *
      * 🔴 `updateActiveFilter` 는 호출부가 22곳이고, 불릴 때마다 무조건 broadcast 했다.
      *    KEEP 하나가 내부적으로 여러 단계를 거치면 **관제웹이 중간 상태를 다 받는다** —
-     *    2026-08-14 실측 54ms 안에 15번.
+     *    (예: 54ms 안에 15번).
      *    이미 같은 이유로 `isBootstrapping` 중에는 안 보내고 있었다(중간 상태로 화면이
      *    깜빡인다). 그 생각을 끝까지 민 것이다.
      */
@@ -173,9 +163,7 @@ export interface UserSession {
     /**
      * 지나온 구간 제거를 마지막으로 돌린 위치. 0.5km 이상 움직였을 때만 다시 돈다.
      *
-     * 🔴 예전에는 `(session as any).lastTrimGPS` 로 **선언 없이** 붙여 쓰고 있었다.
-     *    `as any` 로 붙인 필드는 오타가 나도 tsc 가 못 잡는다 — 세션에서 사라진 필드를
-     *    읽던 오늘의 사고와 같은 뿌리다. 쓸 거면 선언한다.
+     * 🔴 세션 필드는 **선언하고** 쓴다 — `as any` 로 붙인 필드는 오타가 나도 tsc 가 못 잡는다.
      */
     lastTrimGPS?: { x: number; y: number };
 
@@ -190,13 +178,10 @@ export interface UserSession {
     /**
      * ⏱️ **정거장마다 스톱워치를 따로 든다** (밤 · 어드민 지적).
      *
-     * 🔴 **예전에는 하나뿐이었다** (`arrivalWatch: { stopKey, heldSinceMs }`). 보는 정거장이
-     *    바뀌면 `heldSinceMs` 가 **0으로 되돌아갔다** — 실 GPS 는 «500m 안 + 5km/h↓» 가
-     *    **30초** 이어져야 도착으로 찍는데, 정거장 순서가 2초마다 흔들리면
-     *    **그 30초가 영영 안 찬다.** 기사님 실측 2026-09-12: 한 정거장이 36초 사이에
-     *    ⑴ → ⑷ → ⑴ 로 오갔다.
+     * 🔴 스톱워치가 하나뿐이면 보는 정거장이 바뀔 때 **0으로 되돌아간다** — 실 GPS 는 «500m 안 + 5km/h↓» 가
+     *    **30초** 이어져야 도착으로 찍는데, 정거장 순서가 흔들리면 **그 30초가 영영 안 찬다** (기사님 실측).
      * 🔴 **«서 있었다»는 사실이지, «지금 그 정거장을 보고 있나»에 딸린 값이 아니다** —
-     *    한 값이 두 질문에 답하고 있었다 (규칙 ⑤-4 ⑤).
+     *    한 값이 두 질문에 답하면 안 된다 (규칙 ⑤-4 ⑤).
      * ⚠️ **모의 주행으로는 못 본다** — `source === 'mock'` 이면 근접만으로 즉시 발화해서
      *    30초 갈래가 검사에서 한 번도 안 돈다. 실 GPS 에서만 드러나는 결함이다.
      *
@@ -248,8 +233,8 @@ export interface UserSession {
      * 🔴 이건 파생값이 아니라 **입력**이다 — 기사님이 누르지 않으면 알 수 없다.
      *    (규칙 ③ 은 *파생값*을 저장하지 말라는 것이지 입력을 저장하지 말라는 게 아니다)
      *
-     * 예전에는 `driverAction === 'DRIVING'` 으로 대신했는데, 그 값은 **정류장마다 바뀐다.**
-     * 하차지에 도착해 `UNLOADING` 이 되는 순간 운행중이 통째로 풀렸다.
+     * `driverAction === 'DRIVING'` 으로 대신하지 않는다 — 그 값은 **정류장마다 바뀌어**
+     * 하차지에 도착해 `UNLOADING` 이 되는 순간 운행중이 통째로 풀린다.
      *
      * 끄는 것도 따로 없다 — 콜이 0건이 되면(마지막 하차 완료) 여기서 지운다.
      */
@@ -264,7 +249,7 @@ export interface UserSession {
      */
     detourProgressKm: Record<string, number> | null;
     /**
-     * 🧭 경유의 동마다 **경로 몇 km 지점인가 — 순서 전용** (순수 스냅점 · #78 · 2026-08-30).
+     * 🧭 경유의 동마다 **경로 몇 km 지점인가 — 순서 전용** (순수 스냅점 · #78).
      *
      * `detourProgressKm` 은 트림용이라 pad·Infinity 가 섞여 있다 — 순서 판정에 쓰면
      * 지리가 뒤집힌다 (곤지암읍이 경로 끝 뒤로 갔다). 앱 피기백(`buildAppOrderKm`)은
@@ -272,16 +257,16 @@ export interface UserSession {
      */
     detourOrderKm: Record<string, number> | null;
     /**
-     * 📋 **상차 목록을 마지막으로 만든 자리** (필터.md «상차 목록 · 하차 목록») — 여기서 0.5km 넘게 움직이면 다시 만든다.
+     * 📋 **상차 목록을 마지막으로 만든 자리** (하차 목록») — 여기서 0.5km 넘게 움직이면 다시 만든다.
      *    목록 자체는 `activeFilter.pickupKeywords` 에 산다. 저장이 아니라 «언제 다시 만들까»의 기준점이다.
      */
     pickupListAt: { x: number; y: number } | null;
-    /** 🎯 상차 목록을 만들 때 본 «목적지마다 가까이 옴» — 바뀌면 하차 목록도 다시 만든다 (`filterManager.rebuildPickupList` · 필터.md «하차 영역») */
+    /** 🎯 상차 목록을 만들 때 본 «목적지마다 가까이 옴» — 바뀌면 하차 목록도 다시 만든다 (`filterManager.rebuildPickupList`) */
     pickupNearKey: string | null;
     /**
      * 🛣️ **경로 위에 있는 동 목록** — 상차지 판정의 원천.
      *
-     * 2026-08-25 부터 `destinationKeywords` 에는 **도착 목표**(첫짐의 «여주시»)에서 온
+     * `destinationKeywords` 에는 **도착 목표**(첫짐의 «여주시»)에서 온
      * 동이 섞인다. 그건 **하차지를 열려고** 넣은 것이지 «경로 위»라는 뜻이 아니다.
      *
      * 🔴 `detourProgressKm` 의 키로는 구분할 수 없다 — `centroid` 가 없어 스냅에 실패한
@@ -388,7 +373,7 @@ export function getUserSession(userId: string): UserSession {
              * 없으면 한 줄 만든다. 컬럼의 `DEFAULT` 가 표(`JUDGMENT_FIELDS`)의 값을 채우므로
              * 여기서 값을 손으로 적지 않는다 — **기본값의 원천은 표 하나다.**
              *
-             * `오늘만` 이 없으므로 그릇도 하나다 (기사님 2026-08-16:
+             * `오늘만` 이 없으므로 그릇도 하나다 (기사님:
              * *"필터에서는 오늘만 버튼이 있어야 하고… 하지만 판정 기준은 그런 것이 없다"*).
              */
             let judgeRow = db.prepare("SELECT * FROM user_judgment WHERE user_id = ?").get(userId) as any;
@@ -401,19 +386,14 @@ export function getUserSession(userId: string): UserSession {
             /**
              * 🎛️ **콜 옵션 — 화면의 선택지와 그 값** (시딩 · 이음).
              *
-             * ⚠️ 이 자리에 «아직 아무도 안 읽는다 — 다음 단계에서 화면을 잇는다» 고
-             *    적혀 있었다. **2026-08-29 에 이었다.**
-             *
              * 🔴 정차 값(지게차·수작업 박스당 분 · 검수 분)의 **원천이 이 표다.**
-             *    낮에 판정 기준 탭으로 올렸다가 되돌렸다 — 그 셋은 «어떻게 잴 것인가»가
-             *    아니라 **화면의 칩에 붙는 숫자**이고, 이 표에 이미 칸이 있었다 (규칙 ③).
+             *    그 셋은 «어떻게 잴 것인가»(판정 기준 탭)가 아니라 **화면의 칩에 붙는 숫자**다 (규칙 ③).
              */
             seedCallOptions(userId);
             session.callOptions = loadCallOptions(userId);
 
             /**
-             * 🎛️ **값 다섯의 원천은 `user_filters` 한 행이다** (이식 C3-3b · 2026-09-11).
-             *    예전엔 `user_filter_phases` 다섯 행을 읽어 한 벌로 접었다.
+             * 🎛️ **값 다섯의 원천은 `user_filters` 한 행이다**.
              *    require 지연 — filterManager ↔ 여기 순환 방지.
              */
             const firstPatch = (() => {
@@ -442,9 +422,9 @@ export function getUserSession(userId: string): UserSession {
                         filterRow.vehicle_rates ? JSON.parse(filterRow.vehicle_rates) : undefined,
                         filterRow.agency_fee_percent ?? 23,
                     ),
-                    // 📐 마름모의 모양 — 국면 밖 한 벌 (이식 C3-2). 칸이 비었으면 기본값 110/110/25
+                    // 📐 마름모의 모양 — 국면 밖 한 벌. 칸이 비었으면 기본값 110/110/25
                     ...quadShapeFrom(filterRow as any),
-                    /* 🚫 제외 지역 — 국면 밖 한 벌 (이식 C2). 깨진 JSON 은 «없음»으로 (규칙 ④) */
+                    /* 🚫 제외 지역 — 국면 밖 한 벌. 깨진 JSON 은 «없음»으로 (규칙 ④) */
                     excludedRegions: safeJsonArray(filterRow.excluded_regions),
                     /**
                      * 📐🚚 **오늘 판 칸 셋** (전수 조사 ①-5) — 안 읽으면 재접속에 풀린다.
@@ -465,8 +445,7 @@ export function getUserSession(userId: string): UserSession {
                 // 진행 중인 콜이 있으면 이후 restoreAndRecalculateSession()이 DB에서
                 // 콜을 복구한 뒤 dispatchPhase / isSharedMode / allowedVehicleTypes /
                 // 경유 키워드를 **데이터로부터 다시 파생**시켜 덮어쓴다. (이슈 W)
-                // 그 연결이 없던 동안, 진행 중인 콜이 3건 있어도 필터는 첫짐인 채로
-                // 콜 잡기가 돌아 경로를 벗어난 콜을 잡을 수 있는 상태였다.
+                // 안 하면 진행 중인 콜이 여럿이어도 필터가 첫짐인 채로 콜 잡기가 돌아 경로를 벗어난 콜을 잡는다.
                 session.activeFilter = {
                     ...session.baseFilter,
                     isSharedMode: false,
@@ -475,7 +454,7 @@ export function getUserSession(userId: string): UserSession {
                     /* 🧭 복귀 켬은 평소 설정이 아니다 — 오늘 줄에서 되살린다 (#131 · 서버 재기동에 사라지던 자리) */
                     callTarget: callTargetToday(userId, Date.now()).target,
                 };
-                // [Phase 6] 여기서 무거운 지리 연산(getCityRegionsWithRadius, CPU 집약)을 하지 않는다.
+                // 여기서 무거운 지리 연산(getCityRegionsWithRadius, CPU 집약)을 하지 않는다.
                 // 이 함수는 소켓 연결 시점에 **동기로** 호출되므로 이벤트 루프를 막을 수 있었다.
                 // 키워드는 부트스트랩 ⑤단계(rebuildDestinationKeywords)에서 한 번만 계산한다.
                 session.activeFilter.destinationKeywords = [];
@@ -530,10 +509,8 @@ export function clearUserSession(userId: string): void {
 /**
  * 한 오더에 걸려 있는 **모든 타이머를 끈다.**
  *
- * 🔴 타이머 키가 여러 곳에 손으로 나열돼 있었다 (`warn_` · `timeout_` 을 scrap · emergency ·
- *    dispatchEngine 세 곳이 각자 지웠다). 2026-08-14 에 네 번째 키(`presecured_`)를 더하면서
- *    **한 곳만 고치면 나머지가 좀비 타이머로 남는** 구조라는 게 드러났다.
- *    콜이 정상 처리된 뒤에 깨어난 타이머가 멀쩡한 콜을 취소하는 것이 이 레포의 오래된 사고다.
+ * 🔴 타이머 키를 여러 곳에 손으로 나열하면 **한 곳만 고칠 때 나머지가 좀비 타이머로 남는다** —
+ *    콜이 정상 처리된 뒤에 깨어난 타이머가 멀쩡한 콜을 취소한다.
  *
  * 새 타이머를 만들면 **키를 여기에만 더한다.**
  */
