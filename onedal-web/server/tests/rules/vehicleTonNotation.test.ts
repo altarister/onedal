@@ -21,7 +21,7 @@ import { normalizeVehicleType, defaultCargoByVehicle } from '@onedal/shared';
  *
  * ⚠️ **앱에도 같은 다리가 있다** (`Hwamul24Parser` 의 «크로스 매칭: 서버 1t ↔ 파싱 1톤»).
  *    일부러 둔 두 벌이다 — 앱 쪽은 **서버가 죽어도 콜을 걸러야** 해서 자기 판단을 든다
- *    (루트 CLAUDE.md 규칙 ③ «앱의 기본값은 예외»).
+ *    (루트 README.md 규칙 ③ «앱의 기본값은 예외»).
  */
 
 describe('🚚 «톤» 표기를 읽는다', () => {

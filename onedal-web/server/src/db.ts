@@ -398,7 +398,7 @@ ensureColumns('user_judgment', JUDGMENT_COLS);
  * 🔴 값 다섯은 이제 **`user_filters` 한 행**에 산다 (위 `FILTER_COLS`).
  *    그러면서 **이름 두 벌도 사라졌다** — `detour_allow_km` → `detour_radius_km` 처럼
  *    평면(앱 피기백) 이름으로 통일됐다.
- * ⚠️ **지금은 테스트 단계라 마이그레이션을 안 한다** (루트 CLAUDE.md).
+ * ⚠️ **지금은 테스트 단계라 마이그레이션을 안 한다** (루트 README.md).
  *    옛 표는 그대로 남아 있어도 **아무도 안 읽는다** — 지우는 것은 손으로, 의도적으로.
  */
 

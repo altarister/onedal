@@ -49,7 +49,7 @@ describe('🧹 콜 비우기 — 장부와 메모리는 한 동작이다', () =>
  * `a & b & c` 는 셋을 전부 백그라운드로 보내고 창에 프롬프트를 돌려준다.
  * Ctrl+C 는 **포그라운드 작업에만** 가므로 서버는 살아남는다 — 기사님은 껐다고
  * 믿는데 옛 서버가 계속 도는, 이 레포가 반복해서 오진한 바로 그 상황이다
- * (루트 CLAUDE.md 「무엇이 실제로 돌고 있는가」).
+ * (루트 README.md 「무엇이 실제로 돌고 있는가」).
  */
 describe('🔌 pnpm dev — 끄면 같이 꺼진다', () => {
     const dev = () => JSON.parse(read('package.json')).scripts.dev as string;
@@ -78,7 +78,7 @@ describe('🔌 pnpm dev — 끄면 같이 꺼진다', () => {
  * 코드로 서버를 되살렸다.** 기사님 화면에는 고친 코드가 안 돌고 있었다.
  *
  * 이 레포가 반복해서 오진한 *"고쳤는데 옛 코드가 돌고 있다"* 의 뿌리다
- * (루트 CLAUDE.md 「무엇이 실제로 돌고 있는가」).
+ * (루트 README.md 「무엇이 실제로 돌고 있는가」).
  */
 describe('🚦 pnpm dev — 겹쳐 띄우지 않는다', () => {
     it('🔴 dev 가 사전 점검을 먼저 부른다', () => {
@@ -104,12 +104,12 @@ describe('🚦 pnpm dev — 겹쳐 띄우지 않는다', () => {
 
 /**
  * 📄 **문서가 안 되는 방법을 안내하지 않는다.**
- * 루트 CLAUDE.md 는 `Ctrl+C 후 pnpm dev` 를 재기동 방법으로 적어 두었는데,
+ * 루트 README.md 는 `Ctrl+C 후 pnpm dev` 를 재기동 방법으로 적어 두었는데,
  * 위의 `&` 구조에서는 그게 실제로 듣지 않았다 (2026-08-22 실측).
  */
 describe('📄 재기동 안내가 사실인가', () => {
     it('🔴 안 듣는 방법을 유일한 안내로 적어 두지 않는다', () => {
-        const md = read('../CLAUDE.md');
+        const md = read('../README.md');   // 재기동 안내는 루트 README 「무엇이 실제로 돌고 있는가」에 산다
         const line = md.split('\n').find(l => l.includes('tsx watch') && l.includes('Ctrl+C'));
         expect(line).toBeDefined();
         // 감시자(tsx watch)가 부모라는 사실과 함께 적혀 있어야 한다

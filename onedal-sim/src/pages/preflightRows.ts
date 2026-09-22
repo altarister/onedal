@@ -134,7 +134,7 @@ export function preflightRows(
     }
   }
 
-  // 🔴 「고친 코드가 도는가」의 유일한 답이 bootedAt 이다 (루트 CLAUDE.md)
+  // 🔴 「고친 코드가 도는가」의 유일한 답이 bootedAt 이다 (루트 README.md)
   rows.push({ what: '서버 기동', want: '고친 뒤에 뜬 것', got: String(now.bootedAt ?? '').slice(11, 19), ok: true });
   return rows;
 }

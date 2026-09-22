@@ -38,7 +38,7 @@ const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 if (!WEB.includes('localhost')) { console.error('🔴 로컬에서만 씁니다'); process.exit(1); }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-/* 🔌 크롬 조종 포트 — 루트 CLAUDE.md 「포트」 표의 자리 (shot 과 안 겹치게 9300~9599) */
+/* 🔌 크롬 조종 포트 — 루트 README.md 「포트」 표의 자리 (shot 과 안 겹치게 9300~9599) */
 const PORT = 9300 + (process.pid % 300);
 const chrome = spawn(CHROME, [
     '--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run',

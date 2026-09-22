@@ -7,18 +7,18 @@ import { join } from 'path';
  * 기사님: *"문서나 폴더를 생성할 때 CLAUDE.md 구성과 다르면 사용자에게 물어봐라.
  * 이런 것도 있어야 우리 구성이 항상 코드와 같을 것 같다."*
  *
- * 🔴 **표와 폴더가 갈라지면 루트 CLAUDE.md 가 매 세션 틀린 구성을 가르친다.**
+ * 🔴 **표와 폴더가 갈라지면 루트 README.md 가 매 세션 틀린 구성을 가르친다.**
  *    2026-09-14 한 줄씩 대조에서 표에 없는 폴더가 셋(`onedal-sim` · `onedal-app/simulator-app`
  *    · `onedal-map`)이었고, `shared` 는 «앱 ↔ 서버»라 적혀 있었다 (앱은 0곳에서 쓴다).
  *
- * 규칙(«새 폴더를 만들기 전에 묻는다»)은 루트 CLAUDE.md 「작업 스타일」에 있다.
+ * 규칙(«새 폴더를 만들기 전에 묻는다»)은 루트 CLAUDE.md 「일하는 순서」에 있다.
  * 이 검사는 그 뒤 **«표에 올렸나»** 를 문다 — 글로만 적어 두면 잊는다.
  */
 
 const ROOT = join(__dirname, '../../../..');
-const md = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8');
+const md = readFileSync(join(ROOT, 'README.md'), 'utf8');
 
-/** 루트 CLAUDE.md 의 「## 구성」 절 — 다음 `## ` 앞까지 */
+/** 루트 README.md 의 「## 구성」 절 — 다음 `## ` 앞까지 */
 function layoutSection(): string {
     const start = md.indexOf('\n## 구성');
     if (start < 0) return '';
@@ -35,7 +35,7 @@ const isApp = (abs: string) =>
 
 describe('🗂️ 「구성」과 실제 폴더는 늘 같다', () => {
 
-    it('루트 CLAUDE.md 에 「구성」 절이 있다', () => {
+    it('루트 README.md 에 「구성」 절이 있다', () => {
         expect(layoutSection()).not.toBe('');
     });
 

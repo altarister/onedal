@@ -1,7 +1,7 @@
 # server — 판정 엔진
 
 파싱·카카오 경로·요율 연산. Express 5 + better-sqlite3 + Socket.IO (port 4000).
-루트 [CLAUDE.md](../../CLAUDE.md) 가 먼저다 — **명령·커밋 게이트·경계를 넘는 규칙은 거기 있다.**
+루트 [CLAUDE.md](../../CLAUDE.md) 가 먼저다 — **명령·커밋 게이트·경계를 넘는 규칙은 루트 [README.md](../../README.md) 에 있다.**
 여기에는 **서버 안에서만 참인 것**만 둔다.
 
 ## 이건 버그가 아니라 규칙이다

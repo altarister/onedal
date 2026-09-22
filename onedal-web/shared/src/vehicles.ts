@@ -104,7 +104,7 @@ export function normalizeVehicleType(raw?: string | null): string | null {
      * 🔴 사전에 없는 톤수(«1.5톤»)는 그대로 `null` 이다 — 가까운 값으로 때우지 않는다 (규칙 ④).
      *
      * ⚠️ 앱에도 같은 다리가 있다 (`Hwamul24Parser` 의 «크로스 매칭»). **일부러 둔 두 벌**이다 —
-     *    앱은 서버가 죽어도 콜을 걸러야 해서 자기 판단을 든다 (루트 CLAUDE.md 규칙 ③ «앱의 기본값은 예외»).
+     *    앱은 서버가 죽어도 콜을 걸러야 해서 자기 판단을 든다 (루트 README.md 규칙 ③ «앱의 기본값은 예외»).
      */
     const ton = /^(\d+(?:\.\d+)?)\s*톤(?:[/\s].*)?$/.exec(v);
     if (ton && VEHICLE_CAPACITY[`${ton[1]}t`] !== undefined) return `${ton[1]}t`;

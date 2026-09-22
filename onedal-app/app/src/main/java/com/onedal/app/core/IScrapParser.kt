@@ -42,7 +42,7 @@ interface IScrapParser {
      *
      *    `alarmBandHalfPx` 가 기본값 `0` 때문에 픽커 테두리를 반 토막 냈을 때(#84)
      *    **«기본값을 없애 컴파일러가 누락을 잡는다»** 로 끝냈는데, 여기서 같은 편의를 또 썼다.
-     *    🔴 **같은 병이 두 번이면 인스턴스가 아니라 그 클래스를 없앤다** (루트 CLAUDE.md).
+     *    🔴 **같은 병이 두 번이면 인스턴스가 아니라 그 클래스를 없앤다** (루트 README.md).
      *    그래서 기본값을 지운다 — 안 싣는 파서도 **제 손으로 «안 싣는다»고 적는다.**
      */
     fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally? = null): SimplifiedOfficeOrder

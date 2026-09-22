@@ -32,7 +32,7 @@ export type OrderStatus =
     | 'ORDER_CONFIRMED'            // (패널티 O) 관제탑 승인 (내 퀵)
     | 'ORDER_PICKED_UP'            // (패널티 O) 상차 완료 (픽업지에서 서명)
     | 'ORDER_DELIVERED'            // (패널티 O) 하차 완료 (수취인 서명)
-    | 'ORDER_COMPLETED'            // 정산 완료 — 지금은 아무도 안 쓴다. 정산 화면이 생기면 거기서 만든다 (하차 완료는 ORDER_DELIVERED · 루트 CLAUDE.md 「관제앱은 업무 단위다」)
+    | 'ORDER_COMPLETED'            // 정산 완료 — 지금은 아무도 안 쓴다. 정산 화면이 생기면 거기서 만든다 (하차 완료는 ORDER_DELIVERED · 루트 README.md 「관제앱은 업무 단위다」)
     // --- [취소 및 방출 단계] ---
     // 취소의 세 갈래 — 패널티(배차망 취소 횟수 10회)는 **안전취소에만** 붙는다
     | 'SAFE_CANCEL'                // (패널티 O) 안전취소 — 확정 후 30초 안에 내가 취소
