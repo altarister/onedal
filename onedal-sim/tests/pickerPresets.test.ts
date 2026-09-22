@@ -4,7 +4,7 @@ import { PICKER_PRESET_BOOK, toPickerCall } from '@altari/ui-simulators';
 import { FIXED_NOW, seededRandom } from './seededRandom';
 
 /**
- * 🎯 **픽커 문제지 — «이천 방향» 일곱 지점을 그대로 쓴다** (기사님 2026-09-14 · 카카오픽커_시뮬레이터.md §9-3 · 3단계 3-2)
+ * 🎯 **픽커 문제지 — «이천 방향» 일곱 지점을 그대로 쓴다** (기사님 확정)
  *
  * 기사님: *"이천 방향 — 집에서 이천까지 일곱 지점, 이 문제로 계속 테스트 중이거든 이걸로 하자"* ·
  * *"서버는 서버대로 문제는 문제대로 했을 때 정답이 계속 바뀌고 그 정답이 맞는가를 확인하면 어때?"*
