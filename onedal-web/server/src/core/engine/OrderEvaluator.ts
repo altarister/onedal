@@ -109,9 +109,7 @@ export class OrderEvaluator {
                 }
 
                 // 카카오 라우팅 연산
-                // ⚠️ 예전에는 `pickupX && dropoff**Y**` 라 두 축이 섞여 있었다. X·Y 는 위에서
-                //    같은 좌표 객체로 **함께** 채워지므로 동작은 같지만(확인함), 아래 else 의
-                //    진단문은 X 로 «어느 쪽이 없나»를 가른다 — 축을 맞춘다
+                // ⚠️ 두 쪽 모두 X 로 본다 — 아래 else 의 진단문이 X 로 «어느 쪽이 없나»를 가른다
                 if (securedOrder.pickupX && securedOrder.dropoffX) {
                     const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
                     const activeCalls = getActiveCalls(session);
@@ -130,10 +128,8 @@ export class OrderEvaluator {
                             routingOptions.carType
                         );
 
-                        // 🔴 예전에는 여기서 손으로 필드를 채웠다. routeComposer 의 규약을 안 타서
-                        //    **접근 구간(현위치 → 상차지)이 통째로 버려지고** 있었다.
-                        //    콜을 잡는 이 경로가 주 경로인데, 여기만 규약 밖에 있었던 것이다.
-                        //    (EE 리팩터링에서 composeMergedRoute 를 쓰는 곳만 통일하고 여기를 놓쳤다)
+                        // 🔴 필드를 손으로 채우지 않는다 — routeComposer 의 규약을 안 타면
+                        //    **접근 구간(현위치 → 상차지)이 통째로 버려진다.** 콜을 잡는 주 경로라 특히 그렇다.
                         applySoloRoute(securedOrder, result);
 
                         /**
@@ -164,8 +160,8 @@ export class OrderEvaluator {
                          * 🎯 **첫짐 판정 — 단가로 잰다** (기사님 확정)
                          *
                          * 🔴 운행시간 축을 버렸다. 첫짐에서 운행시간이 길다는 건 나쁜 게 아니라
-                         *    **그게 일감**이다. 노선(광주→파주)이 늘 80~100분이라 옛 기준(40/90분)으로는
-                         *    잡은 콜이 **전부 똥**으로 떴다 — 100,000원짜리가 0점이었다.
+                         *    **그게 일감**이다. 노선(광주→파주)이 늘 80~100분이라 시간 기준(40/90분)으로 재면
+                         *    잡은 콜이 **전부 똥**이 된다 — 100,000원짜리가 0점이 된다.
                          *
                          * 기사님: *"필터는 최저값보다 크기만 하면 올려주니, 내가 판단하는 건
                          *          단가가 좋은지 아닌지로 하면 된다."*
@@ -175,8 +171,8 @@ export class OrderEvaluator {
                          */
                         /**
                          * 🎨 **첫짐 판정 = 시급 축** (판정색 확정안 v2 · 문제지 4/4 통과 후 전환).
-                         * 🔴 요율 재계산은 철거했다 — 돈은 앱이 이미 걸렀다 (규칙 ⑤-1).
-                         *    노하우 13번(3만, 고수의 콜)을 "하한 3.79만 미달 똥"으로 낙제시키던 자리다.
+                         * 🔴 요율을 다시 재지 않는다 — 돈은 앱이 이미 걸렀다 (규칙 ⑤-1). 다시 재면 고수의 3만원 콜이
+                         *    «하한 미달 똥»으로 떨어진다.
                          */
                         const dwell = totalDetourCost(0, securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
                         const total = securedOrder.totalDurationMin != null
@@ -217,7 +213,7 @@ export class OrderEvaluator {
                          *    나란히 대조해 **어긋남 0** 을 확인했다 (검사 73 · 실제 리허설 11).
                          */
                         /**
-                         * 🧭 **첫짐은 목적지로 얼마나 전진하나까지 본다** (기사님 확정 · 설계서 §4-3).
+                         * 🧭 **첫짐은 목적지로 얼마나 전진하나까지 본다** (기사님 확정).
                          *    빈 차라 「돈」 하나가 색을 정하던 자리다 — 04:54 복정동 → 대치4동(1.1만/h)이
                          *    강남으로 올라가는 콜인데 🟡 로 떨어졌다. 셈은 `destProgressOf` 한 곳에 있다.
                          */
@@ -275,15 +271,9 @@ export class OrderEvaluator {
                         /**
                          * 합짐(Detour) 연산 — **경유지 조립은 `routeComposer` 한 곳에만 있다.**
                          *
-                         * 🔴 2026-08-14 — 여기가 `allPickups`/`allDropoffs` 를 **손으로 조립**하고
-                         *    `calculateDetourRoute` 를 직접 불렀다. 그래서 **이미 상차한 콜의
-                         *    상차지까지 경유지에 넣었다** — 다녀온 곳을 다시 가는 경로다.
-                         *    거리·시간이 부풀고, 그 값으로 우회 예산을 재니 **합짐 판정이 통째로
-                         *    틀어진다**(꿀콜이 똥콜이 되고 순서가 뒤집힌다).
-                         *
-                         *    같은 파일이 같은 이유로 **두 번째**다 — 위 103행에
-                         *    *"EE 리팩터링에서 composeMergedRoute 를 쓰는 곳만 통일하고 여기를
-                         *    놓쳤다"* 고 적혀 있다. 이번엔 조립을 아예 안 한다.
+                         * 🔴 여기서 경유지를 **손으로 조립하지 않는다** — 손으로 모으면 **이미 상차한 콜의 상차지까지**
+                         *    경유지에 넣어 다녀온 곳을 다시 가는 경로가 된다. 거리·시간이 부풀고 그 값으로 우회 예산을 재니
+                         *    **합짐 판정이 통째로 틀어진다**(꿀콜이 똥콜이 되고 순서가 뒤집힌다).
                          *
                          *    `extra` 가 정확히 이 자리를 위한 파라미터다 —
                          *    *"후보 콜은 아직 안 실었으므로 상차지를 남긴다."*
@@ -304,9 +294,9 @@ export class OrderEvaluator {
                         const distDiff = parseFloat(result.distDiffKm);
 
                         /**
-                         * 🎨 **합짐 판정 = 확정안 v2 채점기** (문제지 4/4 통과 후 전환 · 2026-08-21).
-                         * 🔴 절대치 문턱(scoreMerge)은 철거 — 노하우 14·15·16을 "+75/+122/+162분
-                         *    초과 똥"으로 낙제시키던 자리다. 우회의 절대 크기는 딱지(사실)로만 남는다.
+                         * 🎨 **합짐 판정 = 확정안 v2 채점기** (문제지 4/4 통과 후 전환).
+                         * 🔴 우회의 절대 크기는 감점하지 않고 딱지(사실)로만 남긴다 — 절대 문턱으로 재면 긴 우회의 좋은 합짐이
+                         *    «+N분 초과 똥»으로 떨어진다.
                          * 🔴 카카오의 `timeDiffMin` 은 **주행 delta 뿐**이라 상하차를 더해야 한다.
                          */
                         const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
@@ -360,17 +350,14 @@ export class OrderEvaluator {
                              * 직전 총 소요는 경로 홀더가 들고 있다 — "값이 있는 마지막 콜".
                              */
                             /**
-                             * 🧮 **같은 시각·같은 기점의 두 경로를 뺀다** (기사님 실측 2026-08-26).
+                             * 🧮 **같은 시각·같은 기점의 두 경로를 뺀다** (기사님 실측).
                              *
-                             * 예전엔 «저장된 직전 총주행»을 뺐다. 그 값은 **KEEP 하던 시각·
-                             * 그때의 기점**에서 잰 것이라, 기사님이 달린 만큼 짧아진 게
-                             * *"우회가 줄었다"* 로 읽혔다 — 되돌아가는 콜에 **우회 −4.6km**.
-                             * 달릴수록 심해지는 치우침이다.
+                             * «저장된 직전 총주행»을 빼면 안 된다 — 그 값은 **KEEP 하던 시각·그때의 기점**에서 잰 것이라,
+                             * 기사님이 달린 만큼 짧아진 게 *"우회가 줄었다"* 로 읽힌다(달릴수록 심해지는 치우침).
                              *
                              * 이제 `composeMergedRoute` 가 base 를 **기존 활성 콜 전부**로
                              * 잰다(같은 호출·같은 기점). 그래서 카카오가 준 `timeDiffMin` ·
                              * `distDiffKm` 이 **그대로 정확한 한계 비용**이다.
-                             * 2026-08-21 의 «부풀림»(base=첫짐 단독)도 그 수정으로 사라졌다.
                              */
                             const marginal = marginalDetourMin(
                                 Math.round(result.merged.duration / 60), null, result.timeDiffMin);
@@ -382,9 +369,8 @@ export class OrderEvaluator {
                             /**
                              * 📞 **상차 약속을 못 지키면 통화가 필요하다** — 그 약속은 타임라인이
                              *    이미 만들어 놨다(`promisedUntil`: 통화 > 적요 > 잡은 시각 + 20분).
-                             * 🔴 예전엔 여기서 `지금 + 설정분` 으로 **다시 만들었다** — 기준이
-                             *    «콜 잡은 시각»이 아니라 «지금»이었고, 적요·통화 갈래가 통째로
-                             *    빠진 반쪽이었다 (단일 원천 검사가 잡음 · 규칙 ③).
+                             * 🔴 여기서 `지금 + 설정분` 으로 다시 만들지 않는다 — 기준이 «지금»이 되고
+                             *    적요·통화 갈래가 빠진다 (규칙 ③).
                              */
                             const candPromiseMs = candPickup?.promisedUntil
                                 ? Date.parse(candPickup.promisedUntil) : null;
@@ -392,7 +378,7 @@ export class OrderEvaluator {
                                 && candPickup.etaMs > candPromiseMs) tags.push('통화 필수 — 무통보 상차 한계 밖');
                             if (cost.hasUnknown) tags.push('정차 미확인(일반값)');
                             /**
-                             * 🚚 **추정으로 채웠으면 화면이 그렇게 말해야 한다** (규칙 ⑤-2 · 2026-08-26).
+                             * 🚚 **추정으로 채웠으면 화면이 그렇게 말해야 한다** (규칙 ⑤-2).
                              *    합짐 콜은 단독 경로를 안 재므로 배송거리 ÷ 속도로 채운다.
                              *    숫자만 쓰고 «추정»을 안 적으면 그게 규칙 ④ 위반이 된다.
                              */
@@ -480,10 +466,8 @@ export class OrderEvaluator {
                 } else {
                     /**
                      * 🔴 **좌표가 없는 것은 `후보콜` 자신이다**.
-                     *    예전 메시지는 `본콜 좌표 누락` 이었는데, 기사님이
-                     *    *"내가 KEEP 한 첫 콜에 문제가 있나?"* 로 읽으셨다 — 실제로는 방금
-                     *    앱이 집어 온 **후보콜의 주소를 카카오가 못 찾은 것**이다.
-                     *    (실측: 초월읍 신세계사이먼 아울렛 — 3중 폴백 끝에 실패)
+                     *    방금 앱이 집어 온 **후보콜의 주소를 카카오가 못 찾은 것**이다 — «본콜»이라 적으면
+                     *    기사님이 *"내가 KEEP 한 첫 콜에 문제가 있나?"* 로 읽으신다 (본콜은 금지어다).
                      */
                     const who = callName({ target: session.activeFilter.callTarget,
                                            index: getActiveCalls(session).length, candidate: true });
@@ -553,10 +537,8 @@ export class OrderEvaluator {
         // 최종 평가 합산
         securedOrder.rejectionReasons = reasons;
         securedOrder.approvalReasons = pros;
-        // 🪦 `isRejected` 는 철거됐다 — 쓰기만 하고 **읽는 곳이 0** 이었다.
-        //    *"서버 종합 평가: 똥콜인가"* 라는 옛 설계의 흔적인데, 규칙 ①(콜의 주인은
-        //    기사님)과 정면으로 어긋난다. 서버는 콜을 자동으로 버리지 않는다 —
-        //    사유만 표시하고 판단은 기사님이 한다. 되살리지 말 것.
+        // 🔴 «똥콜인가» 종합 판정 칸은 두지 않는다 — 서버는 콜을 자동으로 버리지 않는다(규칙 ① 콜의 주인은 기사님).
+        //    사유만 표시하고 판단은 기사님이 한다.
 
         if (reasons.length > 0) {
             console.log(`   - 💩 [종합 평가] 똥콜 판정 (${reasons.length}건): ${reasons.join(' | ')}`);
@@ -653,9 +635,8 @@ export class OrderEvaluator {
         /**
          * 5) 도착지 키워드 검사 (합짐 모드일 때)
          *
-         * 🔴 2026-08-12 — 예전에는 `length > 0` 일 때만 검사했다. 즉 **경유가 없으면
-         *    검사를 통째로 건너뛰었다.** 앱도 같은 방향으로 열려 있어서
-         *    (`isEmpty() → true`) 두 겹이 동시에 무력화됐다.
+         * 🔴 **경유가 비어도 검사한다** — `length > 0` 일 때만 보면 경유가 없을 때 검사를 통째로 건너뛰고,
+         *    앱도 같은 방향(`isEmpty() → true`)이라 두 겹이 동시에 무력화된다.
          *
          *    경유를 못 구한 상태는 "어디든 좋다"가 아니라 **"판단할 근거가 없다"** 다.
          *    안전취소 30초 안에 근거 없이 KEEP 하면 그대로 똥콜을 안고 간다.
