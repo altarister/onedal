@@ -35,7 +35,7 @@ export function getAddressLabel(addr: string) {
 }
 
 /**
- * 전화 걸기 링크. 같은 정규식이 네 곳에 복사돼 있었다.
+ * 전화 걸기 링크 — 만드는 곳은 여기 하나다.
  * 하이픈·공백·괄호를 걷어내되 국제번호 `+` 는 남긴다.
  */
 export function telHref(phone?: string | null): string | undefined {
@@ -44,7 +44,7 @@ export function telHref(phone?: string | null): string | undefined {
     return digits ? `tel:${digits}` : undefined;
 }
 
-/** 시:분 (24시간). 세 곳에 복사돼 있던 포맷 */
+/** 시:분 (24시간) — 이 포맷을 만드는 곳은 여기 하나다 */
 export function hhmm(iso?: string | null): string {
     if (!iso) return '';
     const d = new Date(iso);
@@ -55,9 +55,8 @@ export function hhmm(iso?: string | null): string {
  * ✂️ **시트 상태바에 넣을 만큼만 자른 지명** (기사님 확정).
  *
  * 지명은 대개 3~4자(`초월읍`·`가산동`)인데, 아파트·상호가 그 자리에 들어오면
- * `경기광주자연앤자이점`(10자)·`더샵오포센트럴포레`(9자)처럼 길어진다 —
- * 실제 09-03 자료에서 72종 중 평균 3.5자, 최장 10자였다.
- * 한 줄(폰 400px)이 약 56칸인데 최장이 71칸이라 **두 경우가 넘쳤다.**
+ * `경기광주자연앤자이점`(10자)·`더샵오포센트럴포레`(9자)처럼 길어진다.
+ * 한 줄(폰 400px)이 약 56칸인데 이런 이름이 들면 71칸까지 가서 **넘친다.**
  *
  * 🔴 **자르되 잘렸다고 말한다** — `…` 를 붙인다. 말없이 자르면 «저게 이름 전부»로 읽힌다 (규칙 ④).
  */
