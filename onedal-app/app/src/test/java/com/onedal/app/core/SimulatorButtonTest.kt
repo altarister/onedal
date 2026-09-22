@@ -7,15 +7,14 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🧪 **설정 화면 «테스트 가상 콜 화면 열기»는 시뮬레이터 앱을 켠다** (원달앱 계획서 ①)
+ * 🧪 **설정 화면에는 «테스트 가상 콜 화면 열기» 버튼을 두지 않는다 — 시뮬레이터는 따로 켜는 앱이다**
  *
- * 이 버튼은 브라우저로 `map.altari.com/inseong` 을 열었다. 그 주소는 열리지만 **다른 프로젝트의
- * 지도 게임**이 뜬다 (기사님 확인 2026-09-14) — 시뮬레이터는 2026-08-22 에 `onedal-sim` 으로 옮겨 왔다.
- * 그리고 우리 시뮬레이터는 브라우저로 열면 안 된다 — 접근성 트리에 웹 글자가 제대로 안 올라와서
+ * 그 버튼이 열던 브라우저 주소 `map.altari.com/inseong` 에는 **다른 프로젝트의 지도 게임**이 뜬다.
+ * 시뮬레이터는 `onedal-sim` 이고, 브라우저로 열면 접근성 트리에 웹 글자가 제대로 안 올라와서
  * 앱(`com.onedal.simulator`)으로 감쌌다 (onedal-sim/README.md).
  *
- * 안드로이드 11 이상에서 다른 앱을 켜려면 매니페스트에 그 앱을 적어 둬야 한다(`<queries>`).
- * 안 적으면 `getLaunchIntentForPackage` 가 조용히 null 을 준다 — 버튼이 아무 일도 안 하는 것처럼 보인다.
+ * 매니페스트의 `<queries>` 에는 시뮬레이터 앱을 적어 둔다 — 안드로이드 11 이상에서 다른 앱을 찾으려면
+ * 거기 적혀 있어야 하고, 안 적으면 `getLaunchIntentForPackage` 가 조용히 null 을 준다.
  */
 class SimulatorButtonTest {
 
