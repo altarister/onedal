@@ -14,11 +14,9 @@ export function useOrderEngine() {
     /**
      * 📒 **장부에서 되살린 콜들** — `GET /orders` 가 `orders` 테이블 행을 그대로 준다.
      *
-     * 🔴 **`SimplifiedOfficeOrder` 로 적혀 있었다** (고침). 그 타입에는
-     *    `status` 가 없는데 `mergeOrderViews` 는 `o.status` 를 읽는다 — 그래서 부르는
-     *    쪽이 `as any` 로 풀고 있었다. **선언이 실제로 오는 것과 달랐던 것**이고,
-     *    `as any` 가 그 어긋남을 덮고 있었다.
+     * 🔴 **타입은 `SecuredOrder` 다** — `mergeOrderViews` 가 `o.status` 를 읽고,
      *    테이블에는 `status`·`capturedDeviceId`·`capturedAt` 이 다 있다 (`db.ts` orders).
+     *    선언이 실제로 오는 것과 다르면 부르는 쪽의 `as any` 가 그 어긋남을 덮는다.
      */
     const [orders, setOrders] = useState<SecuredOrder[]>([]);
     const [isConnected, setIsConnected] = useState(socket.connected);
@@ -36,19 +34,19 @@ export function useOrderEngine() {
      * 관제탑의 완료/취소 탭 표시용 — 적재·경로 계산에는 절대 쓰지 않는다.
      */
     const [terminatedOrders, setTerminatedOrders] = useState<SecuredOrder[]>([]);
-    /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의 2026-08-19) */
+    /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의) */
     const [routeStops, setRouteStops] = useState<RouteStopInfo[]>([]);
     const [routeComputedAt, setRouteComputedAt] = useState<string | null>(null);
-    /** 🧭 경로를 든 콜 — 서버가 고른 답. 지도·시뮬이 추측하지 않는다 (0831) */
+    /** 🧭 경로를 든 콜 — 서버가 고른 답. 지도·시뮬이 추측하지 않는다 */
     const [routeHolderId, setRouteHolderId] = useState<string | null>(null);
     /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 — KEEP 전 30초의 그림을 살린다 */
     const [previewRouteHolderId, setPreviewRouteHolderId] = useState<string | null>(null);
-    // 🚫 취소 예산 — 한 판에서 몇 번 썼나. 서버가 장부에서 파생해 sync 에 싣는다
+    // 🚫 취소 예산 — 한 차례(라운드)에서 몇 번 썼나. 서버가 장부에서 파생해 sync 에 싣는다
     const [cancelCounts, setCancelCounts] = useState<Record<string, number>>({});
-    // 🚫 몇 판째인가 — 판수가 남으므로 총량은 사라지지 않는다 (필터_정의 §2 의 취지)
+    // 🚫 몇 차례째인가 — 차례 수가 남으므로 쓴 총량은 사라지지 않는다
     const [cancelRounds, setCancelRounds] = useState<Record<string, number>>({});
     /**
-     * 🚫 **한 판을 다 쓴 순간** 서버가 보내는 알림 (기사님 확정).
+     * 🚫 **한 차례를 다 쓴 순간** 서버가 보내는 알림 (기사님 확정).
      * 숫자만 조용히 0으로 돌아가면 **다 썼다는 사실 자체를 놓친다.**
      */
     const [cancelBudgetToast, setCancelBudgetToast] =
@@ -60,10 +58,8 @@ export function useOrderEngine() {
 
     // 🚚 지금 실제로 트럭에 실려 있는 콜. **여기가 유일한 판정처다.**
     //
-    // 서버의 sync-active-orders 는 '취소/방출' 탭 표시를 위해 종료된 콜까지
-    // 한 배열에 담아 보낸다. 그래서 소비하는 쪽마다 isTerminal 을 기억해야 했고,
-    // 2026-08-09 하루에만 세 번 그걸 잊어서 버그가 났다.
-    //   AA 적재 7건으로 표시 · BB 취소된 콜을 재탐색 · DD 취소분까지 운임 합산
+    // 종료된 콜이 섞여 있으면 소비하는 쪽마다 isTerminal 을 기억해야 하고, 잊는 순간
+    // 적재 건수 · 재탐색 대상 · 운임 합계가 조용히 틀린다.
     // "기억해야 하는 규칙"을 "고를 수 없는 구조"로 바꾼다.
     // 서버가 이미 걸러서 보내지만(buildOrderSync), 낙관적 UI 가 만든 임시 항목이
     // 섞일 수 있으므로 한 겹 더 둔다. 비용이 없고 계약이 깨져도 안전하다.
@@ -83,9 +79,8 @@ export function useOrderEngine() {
             if (!order.kakaoTimeExt) return false;
             
             /**
-             * 3. 🎨 **색은 값에서 온다** (4단계). 예전엔 여기서도 문장에
-             *    `'똥'` 이 들어 있나 뒤졌다 — 재탐색이 쓰는 `💩` 모양은 못 잡아
-             *    **똥콜에도 벨이 울렸다.** 판정은 `lib/verdict.ts` 하나가 한다 (규칙 ③).
+             * 3. 🎨 **색은 값에서 온다**. 문장에 `'똥'` 이 들어 있나 뒤지면
+             *    재탐색이 쓰는 `💩` 모양은 못 잡아 **똥콜에도 벨이 울린다.** 판정은 `lib/verdict.ts` 하나가 한다 (규칙 ③).
              */
             const color = verdictOf(order).color;
             if (color === '똥' || color === '사고') return false;
@@ -107,25 +102,21 @@ export function useOrderEngine() {
     }, []);
 
     /**
-     * 🔴 **종료된 콜은 장부(DB)에서 다시 읽는다** (실측으로 발견).
+     * 🔴 **종료된 콜은 장부(DB)에서 다시 읽는다**.
      *
      * `terminatedOrders` 는 서버 **세션 메모리**에서 온다(`buildOrderSync`). 그런데 취소된 콜은
      * 캐시 정리(TTL·새 콜 진입)로 메모리에서 빠지므로, 다음 싱크에 목록에서 **통째로 사라진다** —
-     * 기사님 실측: 30초 자동 취소가 취소 탭에 뜬 뒤, 새 콜을 올리자 **취소 수가 0** 이 됐다.
-     * DB 에는 멀쩡히 3건이 남아 있었다. 화면만 거짓말한 것이다.
+     * DB 에는 남아 있는데 화면의 취소 수가 0 이 된다.
      *
      * 취소 횟수는 배차망 패널티(10회)와 직결되므로 한 건도 새면 안 된다.
      * → 콜이 끝나는 순간(`order-canceled`·`order-confirmed`) 이력을 다시 읽는다.
      */
     /**
-     * 🔴 **주소를 손으로 적지 않는다** (기사님 실측 2026-08-26).
+     * 🔴 **주소는 `apiBase()` 를 따른다** (기사님 실측).
      *
-     * 예전엔 `fetch("/api/orders")` 였다. 브라우저에서 서버를 안 바꾸면 상대 경로가
-     * 곧 정답이라 **아무 증상이 없었다.** 볼륨 업 스위치가 생기고 나서 드러났다 —
-     * 로그인·소켓·기기목록은 `apiBase()` 를 따라 **라이브**로 갔는데 이 한 줄만
-     * **로컬**로 갔다. 한 화면이 두 서버에 걸쳐 라이브 토큰으로 로컬에 물어봤고,
-     * 401 이 났다. 관제앱에서는 더 나쁘다 — 상대 경로가 `https://localhost`(자기
-     * 번들)라 **이력이 영영 안 온다.**
+     * 상대 경로(`/api/orders`)로 적으면 서버 스위치를 라이브로 돌렸을 때 로그인·소켓·기기목록은
+     * **라이브**로 가는데 이 한 줄만 **로컬**로 가 라이브 토큰으로 로컬에 물어 401 이 난다.
+     * 관제앱에서는 더 나쁘다 — 상대 경로가 `https://localhost`(자기 번들)라 **이력이 영영 안 온다.**
      */
     const reloadHistory = useCallback(() => {
         const token = localStorage.getItem('access_token');
@@ -143,8 +134,7 @@ export function useOrderEngine() {
 
         const onConnect = () => {
             /**
-             * 📡 **소켓이 붙고 끊긴 순간을 남긴다** (필드테스트 ④ · 2026-08-25).
-             *    어제 문서 §4-2 가 *"주행 중 소켓이 몇 번 끊겼나"* 를 모른다고 적어 뒀다.
+             * 📡 **소켓이 붙고 끊긴 순간을 남긴다** — *"주행 중 소켓이 몇 번 끊겼나"* 를 알기 위해서다.
              *    끊긴 동안 쌓아 뒀다가 붙으면 한꺼번에 올라간다 (`roadmapLogger`).
              */
             logStateChange("소켓", "연결됨", "관제대시보드");
@@ -157,9 +147,6 @@ export function useOrderEngine() {
             logStateChange("소켓", `끊김${reason ? `(${reason})` : ''}`, "관제대시보드");
             setIsConnected(false);
         };
-        // ※ `new-order` 리스너 제거됨 (Phase 0): 유일한 발신처였던 레거시 `POST /api/orders`가
-        //    삭제되어 이 이벤트는 더 이상 발생하지 않습니다.
-
         // 1단계: 1차 선점 수신 (BASIC) — 닫기/취소 버튼 노출
         const onOrderEvaluating = (secured: SecuredOrder) => {
             logRoadmapEvent("웹", `🟢 [웹 수신] order-evaluating | ID: ${secured.id} | 기기: ${secured.capturedDeviceId} | ${secured.dropoff}`, "관제대시보드");
@@ -278,12 +265,11 @@ export function useOrderEngine() {
         // 소켓 이벤트 누락 복구 + 웹 클라이언트 첫 접속/새로고침 시 전체 데이터 복원 기능
         const onSyncActiveOrders = (payload: OrderSyncPayload | SecuredOrder[]) => {
             // 🔴 서버가 진행/종료를 **나눠서** 보낸다.
-            //    예전에는 한 배열로 와서 받는 쪽마다 isTerminal 을 기억해야 했고,
-            //    잊으면 조용히 틀렸다 (AA 적재 건수 · BB 재탐색 대상 · DD 운임 합계).
-            //    이제 나뉘어 오므로 **잊을 수가 없다.**
+            //    나뉘어 오므로 받는 쪽이 isTerminal 을 기억할 일이 없다 — 잊으면 적재 건수 ·
+            //    재탐색 대상 · 운임 합계가 조용히 틀린다.
             //
-            //    배열로 오면 옛 서버가 돌고 있다는 뜻이다. 조용히 넘기지 않고 경고한다 —
-            //    이 프로젝트에서 tsx watch 가 변경을 놓치는 일이 반복됐다.
+            //    배열로 오면 옛 코드의 서버가 돌고 있다는 뜻이다(tsx watch 가 변경을 놓친 경우).
+            //    조용히 넘기지 않고 경고한다.
             if (Array.isArray(payload)) {
                 console.warn('⚠️ [계약 불일치] sync-active-orders 가 배열로 왔습니다. '
                     + '서버가 옛 코드입니다 — 재기동하세요. 종료된 콜이 진행 중으로 섞여 보일 수 있습니다.');
@@ -295,11 +281,10 @@ export function useOrderEngine() {
             /**
              * 🔴 **여기서 비교하지 않는다**.
              *
-             * 예전에는 `JSON.stringify(prev) !== JSON.stringify(server)` 로 매초 비교했다.
-             * 실측: active 118KB · terminated 119KB 가 1초마다 왔고, 양쪽을 문자열로 만드니
-             * **초당 474KB 의 임시 문자열**이 생겼다 다시 버려졌다. 한 시간이면 1.7GB —
-             * **브라우저가 시간이 지나면 죽었다.** 종료 콜은 하루 종일 쌓이기만 하므로
-             * 오후로 갈수록 나빠졌다.
+             * `JSON.stringify(prev) !== JSON.stringify(server)` 로 매초 비교하면 active·terminated
+             * (각 ~120KB)를 1초마다 문자열로 만들어 **초당 수백 KB 의 임시 문자열**이 생겼다 버려진다 —
+             * 한 시간이면 GB 단위라 **브라우저가 시간이 지나면 죽는다.** 종료 콜은 하루 종일
+             * 쌓이기만 하므로 오후로 갈수록 나빠진다.
              *
              * 비교는 어차피 필요하다. 다만 **서버가 한 번** 한다 (`socketHandlers` 의 백그라운드
              * 싱크가 직전 전송본과 같으면 아예 안 보낸다). 그러니 **도착했다는 것 자체가
@@ -325,8 +310,8 @@ export function useOrderEngine() {
 
             /**
              * 🔴 로그는 **updater 밖에서** 찍는다.
-             *    `setActiveOrders(prev => { console.log(...) })` 로 넣었더니 개발 중에
-             *    **같은 줄이 두 번** 찍혔다 — React StrictMode 가 updater 를 두 번 부르기
+             *    `setActiveOrders(prev => { console.log(...) })` 로 넣으면 개발 중에
+             *    **같은 줄이 두 번** 찍힌다 — React StrictMode 가 updater 를 두 번 부르기
              *    때문이다(순수해야 할 함수에 부작용을 넣으면 이렇게 드러난다).
              *    화면이 "두 번 일어났다"고 잘못 말하게 된다.
              */
@@ -345,7 +330,7 @@ export function useOrderEngine() {
         socket.on("sync-active-orders", onSyncActiveOrders);
 
         /**
-         * 🚫 **취소 한 판을 다 썼다** — 서버가 리셋하는 그 순간에만 온다.
+         * 🚫 **취소 한 차례를 다 썼다** — 서버가 리셋하는 그 순간에만 온다.
          *    숫자는 sync 로 0이 되지만, 그 사실은 이 이벤트로만 알 수 있다.
          */
         const onCancelBudgetReached = (p: { app: string; used: number; limit: number; round: number }) => {
@@ -371,7 +356,7 @@ export function useOrderEngine() {
     }, []);
 
     const handleDecision = useCallback((id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => {
-        // 다이어그램 Line 84~99: 관제탑 → 서버 [Socket] 취소/유지 전달
+        // 관제탑 → 서버 [Socket] 취소/유지 전달
         logRoadmapEvent("웹", `[Socket] ${action === 'ORDER_CONFIRMED' ? '유지' : '취소'} 전달`, "관제대시보드");
         socket.emit("decision", { orderId: id, action });
     }, []);
