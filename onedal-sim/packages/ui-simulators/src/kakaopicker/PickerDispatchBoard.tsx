@@ -1,5 +1,5 @@
 /**
- * 📋 **픽커 리스트** — 실물 캡처 02 · 실물 덤프 `09_리스트_퀵7건.xml` (카카오픽커_시뮬레이터.md §7-2 · §8-1 · 2단계 2-2)
+ * 📋 **픽커 리스트** — 실물 캡처 02 · 실물 화면 덤프 09
  *
  * 원달앱 픽커 파서(`KakaoPickerParser.kt`)는 **글자와 화면 위치를 함께** 본다:
  *   - 요금 = 쉼표 든 숫자 + 글자 가운데가 **가로 600px 이상** (폰 픽셀)
@@ -10,12 +10,12 @@
  * 📏 **크기는 실물 덤프를 폰 배율로 나눈 값이다** — 폰 `SM-A245N` 1080px · 밀도 450 → CSS 1px = 폰 2.81px.
  *   카드 163px → **58px** · 태그줄 가운데 카드 위에서 48px → **17px** · 지역줄 112px → **40px** ·
  *   도착 칸 490px → **174px** · 요금 오른쪽 끝 1052px → **오른쪽 10px** · 「리스트 설정」 줄 가운데에서 첫 요금까지 166px → 줄 높이 **60px**.
- *   🔴 눈으로 맞추지 않는다 — 2-3 의 `pickerDumpCheck.mjs`(신설)가 폰 화면 구조로 확인한다.
+ *   🔴 눈으로 맞추지 않는다 — `scripts/pickerDumpCheck.mjs` 가 폰 화면 구조로 확인한다.
  *
  * 🔴 **글자 덩어리마다 `div` 하나** — 웹뷰는 `span` 만 담은 줄 하나를 **글자 하나로 뭉쳐** 넘긴다.
- *    2026-09-14 첫 폰 판에서 `퀵준비 완료대형` · `2.0km광주초월읍` · `서포트모드카드설정수요지도` 가 그렇게 왔고,
- *    원달앱은 거리·크기·태그를 못 뽑아 전부 «지역»으로 읽었다 (서버 intel 출발지 «분당 12.3km광주신현»).
- *    카드에 바로 붙은 글자(도착 시·동 · 요금)는 따로 왔다 — 줄 안의 `span` 이 문제였다. 그래서 줄 안 글자를 **블록 요소(div)** 로 둔다.
+ *    `span` 줄로 두면 `퀵준비 완료대형` · `2.0km광주초월읍` · `서포트모드카드설정수요지도` 처럼 붙어 오고,
+ *    원달앱은 거리·크기·태그를 못 뽑아 전부 «지역»으로 읽는다 (서버 intel 출발지가 «분당 12.3km광주신현» 꼴이 된다).
+ *    카드에 바로 붙은 글자(도착 시·동 · 요금)는 따로 온다 — 줄 안의 `span` 이 문제다. 그래서 줄 안 글자를 **블록 요소(div)** 로 둔다.
  *    `pickerDumpCheck.mjs` 검사 ⑥ 이 폰 화면에서 이것을 본다 (픽커는 네이티브 앱이라 실물은 덩어리가 따로 온다).
  */
 import React from 'react';
@@ -42,7 +42,7 @@ interface BoardProps {
   onMenuClick: () => void;
 }
 
-/** 픽업거리 — 1km 미만은 «581m» (0831 실측 · 원달앱 `M_REGEX`) */
+/** 픽업거리 — 1km 미만은 «581m» (실물 실측 · 원달앱 `M_REGEX`) */
 export const formatPickerDistance = (km?: number): string => {
   if (km == null) return '';
   return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
@@ -55,11 +55,11 @@ export const formatPickerFare = (fare: number): string => fare.toLocaleString('k
 export const PICKER_CARD_HEIGHT = 58;
 
 /**
- * 🪟 **스크롤 칸 안에 온전히 보이는 카드 범위** `[first, last)` (2단계 2-3).
+ * 🪟 **스크롤 칸 안에 온전히 보이는 카드 범위** `[first, last)`.
  *
  * 🔴 웹뷰는 스크롤 칸이 가린 카드도 **제 위치 그대로** 원달앱에 넘기고, 화면 끝을 넘은 카드는 **높이 0 으로 한 줄에 겹쳐** 넘긴다.
- *    첫 폰 판에서 화면 밖 카드 14장이 y=2205 한 줄로 와 원달앱이 «퀵 퀵 퀵 …» 카드 한 장으로 묶었고,
- *    탭 바 뒤에 숨은 카드는 탭 글자(«신규» · «내 오더»)와 붙어 서버 출발지가 «신규 내 오더 강남» 이 됐다.
+ *    그러면 화면 밖 카드들이 한 줄로 와 원달앱이 «퀵 퀵 퀵 …» 카드 한 장으로 묶고,
+ *    탭 바 뒤에 숨은 카드는 탭 글자(«신규» · «내 오더»)와 붙어 서버 출발지가 «신규 내 오더 강남» 꼴이 된다.
  *    실물 픽커는 목록 앱이라 **보이는 카드만** 넘긴다 — 그래서 시뮬레이터도 보이는 카드만 그린다.
  * 반쯤 가린 맨 아래 카드는 **안 그린다** (실물은 가린 부분을 잘라 넘기지만 웹뷰는 자르지 않는다 — 온전한 카드만이 안전하다).
  * 칸 높이를 모르면(`viewportHeight` 0 — 서버 렌더·검사) 전부 그린다.
@@ -122,8 +122,8 @@ const PickerCallCard = React.memo(({ call, onCardClick }: { call: PickerCall; on
 });
 
 /**
- * 📦 **«내 오더» 한 줄** (실물 15 · 4단계) — 누르면 수락 뒤 단계로.
- * 🔴 **요금을 «쉼표 든 숫자» 덩어리로 쓰지 않는다** — 원달앱 요금 닻이 그 모양이라, 잡은 콜을 새 카드로 다시 읽는다. «P» 를 붙인다.
+ * 📦 **«내 오더» 한 줄** (실물 15) — 누르면 수락 뒤 단계로.
+ * 🔴 **요금을 «쉼표 든 숫자» 덩어리로 쓰지 않는다** — 원달앱이 그 모양을 리스트 카드 요금으로 알아보므로, 잡은 콜을 새 카드로 다시 읽는다. «P» 를 붙인다.
  */
 const MyOrderRow = ({ call, step, onClick }: { call: PickerCall; step?: PickerOngoingStep; onClick: (call: PickerCall) => void }) => {
   const kind = pickerKindOf(call);
@@ -221,7 +221,7 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
         })}
       </div>
 
-      {/* 서포트 모드 · 오더카드 자리 — 오더카드는 기본 꺼짐 (5단계) */}
+      {/* 서포트 모드 · 오더카드 자리 — 오더카드는 기본 꺼짐 */}
       <div className="bg-[#f2f3f5] px-[10px] pt-[8px] pb-[10px] shrink-0">
         <div className="flex justify-center items-center gap-[6px] text-[13px] mb-[8px]">
           <div>퀵 서포트 모드 1장 받기</div>
@@ -232,7 +232,7 @@ export const PickerDispatchBoard = ({ calls, activeTab, onTabSelect, myOrderCoun
       </>)}
 
       {/* 🔴 「리스트 설정」 줄 — 오더카드(위)와 리스트 카드(아래)의 경계 · 원달앱이 리스트를 알아보는 글자
-          «내 오더» 탭에는 두지 않는다 — 있으면 원달앱이 잡은 콜 목록을 리스트로 읽고 새 콜처럼 알람을 울린다 (4단계) */}
+          «내 오더» 탭에는 두지 않는다 — 있으면 원달앱이 잡은 콜 목록을 리스트로 읽고 새 콜처럼 알람을 울린다 */}
       {activeTab === 'ALL' && (
         <div className="h-[60px] flex items-center gap-[6px] px-[10px] border-b border-[#e5e5e5] shrink-0">
           {HEADER_CHIPS.map(c => (
