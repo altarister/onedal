@@ -4,25 +4,19 @@ import { join } from 'path';
 /**
  * 🔴 **스키마 진화는 테이블이 만들어진 «뒤에» 돌아야 한다**
  *
- * `db.ts` 는 그 규칙을 구분선 주석으로 선언해 두고 **스스로 어기고 있었다** —
- * ```
- * 487행  ensureColumns('intel', { targetApp: 'TEXT' })   ← 먼저 돈다
- * 555행  CREATE TABLE IF NOT EXISTS intel (…)            ← 나중에 만들어진다 (targetApp 없음)
- * ```
- * `ensureColumns` 는 **테이블이 없으면 조용히 return** 한다(db.ts:32). 그래서 빈 DB 로
- * 처음 부팅하면 `intel.targetApp` 이 **안 붙고**, `CREATE` 문에도 그 칸이 없다.
- * 그 상태에서 `scrap.ts:68` 이 `INSERT INTO intel (…, targetApp)` 을 쏜다 →
- * **런타임 `no such column`**. 재부팅하면 그때는 표가 있으니 자가치유돼서, 증상이
+ * `ensureColumns` 는 **테이블이 없으면 조용히 return** 한다. 그래서 `ensureColumns('intel', { targetApp: 'TEXT' })` 가
+ * `CREATE TABLE IF NOT EXISTS intel (…)` 보다 먼저 돌면, 빈 DB 로 처음 부팅할 때 `intel.targetApp` 이
+ * **안 붙고** `CREATE` 문에도 그 칸이 없다. 그 상태에서 `scrap.ts` 가 `INSERT INTO intel (…, targetApp)` 을 쏘면
+ * **런타임 `no such column`**. 재부팅하면 그때는 표가 있으니 저절로 붙어서, 증상이
  * «첫 부팅 세션에만» 나타난다 — 가장 찾기 어려운 모양이다.
  *
- * 🔴 이건 CLAUDE.md 가 이미 경고한 함정의 재발이다 —
- *    *"`CREATE TABLE IF NOT EXISTS` 는 기존 테이블에 컬럼을 추가하지 않는다.
- *      `tsc`·`jest` 는 통과하고 런타임에서만 터진다"*. 그 경고를 지키려고 만든
- *    `ensureColumns` 가 **호출 순서 때문에** 무력화된 것이라, 검사로 못박는다.
+ * 🔴 서버 CLAUDE.md 의 규칙 —
+ *    *"`CREATE TABLE IF NOT EXISTS` 는 기존 테이블에 컬럼을 추가하지 않는다. 칸 추가는 `ensureColumns()` 로 한다"*.
+ *    그 `ensureColumns` 가 **호출 순서 때문에** 무력화되지 않게 검사로 못박는다.
  *
  * 검사 방식: `db.ts` 를 텍스트로 읽어 **호출 순서**를 본다. 부팅을 실제로 시켜서
  * 잡으려면 «빈 DB» 를 만들어야 하는데, 그건 이미 부팅된 검사 환경에서는 재현이 안 된다
- * (표가 이미 있으므로 조용히 통과한다) — 그 통과가 바로 이 버그를 숨겨 온 이유다.
+ * (표가 이미 있으므로 조용히 통과한다) — 그 통과가 이 버그를 숨긴다.
  */
 const SRC = readFileSync(join(__dirname, '../../src/db.ts'), 'utf8');
 
