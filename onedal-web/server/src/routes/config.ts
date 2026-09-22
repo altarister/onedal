@@ -11,9 +11,8 @@ const router = Router();
  *    앱의 `LocationTextAnalyzer` 2차 규칙이 **순수 한글 2~4자면 축약 지역명으로 인정**하기
  *    때문에(`의왕`·`강남`·`광주` 를 잡으려던 규칙), 여기에 없는 버튼 글자는 그대로 지역이 된다.
  *
- *    2026-08-14: 운행 중에 잡은 콜이 **상차지 "전표" · 하차지 "신규"** 로 올라왔다.
- *    `전표` 는 확정 상세 화면의 버튼, `신규` 는 리스트 화면의 첫 탭이다. 둘 다 한글 2자라
- *    통과했고, 사전에 없었다.
+ *    예: `전표`(확정 상세 화면의 버튼) · `신규`(리스트 화면의 첫 탭)는 한글 2자라 사전에 없으면
+ *    상차지 «전표» · 하차지 «신규»로 올라온다.
  *
  * ⚠️ **이 사전을 늘리는 것은 근본 해결이 아니다.** 배차망이 버튼 하나 추가하면 또 뚫린다.
  *    근본은 *"실재하는 지역인지 대조"* 다 — 서버에 전국 읍/면/동 1239개가 이미 있고(geoService),
@@ -30,7 +29,7 @@ router.get("/keywords", (req, res) => {
         
         // __dirname은 src/routes (tsx 실행) 또는 dist/routes (빌드 실행).
         // 두 경우 모두 2단계 위가 server/ 이고, 설정 파일은 server/config/ 에 있다.
-        // [Phase 1.5] 기존 "../../../config"는 onedal-web/config 를 가리켜 항상 실패했다.
+        // 기존 "../../../config"는 onedal-web/config 를 가리켜 항상 실패했다.
         const configPath = path.join(__dirname, "../../config", fileName);
         
         if (fs.existsSync(configPath)) {
