@@ -33,10 +33,10 @@ const none = (_id: string) => [] as any;
 
 describe('타임라인 — 부터(하한)는 기다림으로 뒤 정거장에 전파된다', () => {
     /**
-     * 🔄 **기준을 "부터"에서 "까지"로 바꿨다** (코드리뷰).
+     * 🔄 **뒤 계산의 기준은 "부터"가 아니라 "까지"다** (코드리뷰).
      *
-     * 처음엔 "부터"(05:00)만 기다림으로 전파했다 — 구간의 이점(여유)을 살리려는
-     * 낙관이었다. 그런데 그러면 **뒤 약속을 못 지킨다**: 05:00 기준으로 하차를
+     * "부터"(05:00)만 기다림으로 전파하면 구간의 여유를 살리는 것 같지만
+     * **뒤 약속을 못 지킨다**: 05:00 기준으로 하차를
      * 약속했는데 실제로 05:30 에 상차하면 그대로 30분 지각이다.
      * 화주와 정하는 것은 언제나 "언제까지"이므로, 뒤 계산의 기준도 **상한**이어야 한다.
      * 구간의 여유는 *이 정거장에서 합짐을 잡을 시간*으로 쓰이지, 뒤 약속을 당기는
@@ -84,7 +84,7 @@ describe('저장 경로 — 부터가 유실되지 않는다', () => {
     const read = (p: string) => readFileSync(join(__dirname, p), 'utf8');
 
     it('🔴 저장 경로(bridgeCargoReport → 단계 행)가 부터를 실어 나른다', () => {
-        // 🏗️ 옛 upsert(stop_cargo_reports)는 철거 — 부터의 저장 경로는 다리 하나다
+        // 🏗️ 부터의 저장 경로는 다리(bridgeCargoReport) 하나다
         const seeder = read('../../src/services/stepSeeder.ts');
         expect(seeder).toContain('promised_arrival_from_at: report.promisedArrivalFromAt');
         const records = read('../../../shared/src/stepRecords.ts');
@@ -92,7 +92,7 @@ describe('저장 경로 — 부터가 유실되지 않는다', () => {
     });
 
     it('🔴 새 단계 시트가 부터(기간)를 저장하고, 단계 행에 칸이 있다', () => {
-        // 🏗️ 옛 시트는 철거 — 기간 저장은 StepSheetMock + 단계 행이 잇는다
+        // 🏗️ 기간 저장은 StepSheetMock + 단계 행이 진다
         const sheet = read('../../../client-app/src/components/dashboard/StepSheetMock.tsx');
         expect(sheet).toContain('promisedArrivalFromAt');
         const tables = read('../../../shared/src/stepTables.ts');
