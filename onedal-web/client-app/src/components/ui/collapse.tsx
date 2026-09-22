@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
  * 반대로 **뿅 하고 나타나면 아래가 한 번에 찌그러진다** — 펴질 때도 같은 셈으로 내려온다.
  *
  * 🔴 **높이를 전환하지 않는다.** 높이가 바뀌면 브라우저가 전환 내내 매 프레임 레이아웃을
- *    다시 잡아 폰에서 더덕인다 (시트에서 겪은 그것). `grid-template-rows: 1fr ↔ 0fr` 로
+ *    다시 잡아 폰에서 더덕인다. `grid-template-rows: 1fr ↔ 0fr` 로
  *    두고, 올라가는 모양은 `transform`·`opacity` 가 맡는다.
  *
  * 🔴 **닫힌 뒤에는 자식을 안 그린다 — 접히는 동안만 들고 있는다.**
@@ -61,7 +61,7 @@ export default function Collapse({
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
     /**
      * 🔴 **처음 그릴 때는 전환하지 않는다** — 화면이 처음 서는 순간 닫혀 있으면
-     *    «방금 접힌 것»처럼 한 번 움직였다. 처음부터 닫힌 것과 방금 닫은 것은 다르다.
+     *    «방금 접힌 것»처럼 한 번 움직인다. 처음부터 닫힌 것과 방금 닫은 것은 다르다.
      */
     /* 🔴 **그릴 때 `ref` 를 읽지 않는다** — React 규칙이고(`lint:gate` 가 문다), 화면을 갈아끼울 때
        값이 어긋난다. 첫 그림인지는 **상태**로 들고 있다가 그린 뒤에 끈다. */
