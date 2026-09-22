@@ -3,7 +3,7 @@ import { httpsUpgradeUrl } from './naviLink';
 
 /**
  * 🔒 «위치를 못 읽는다»의 진짜 까닭이 http 일 때, 화면이 **옮겨 갈 곳**을 줄 수 있어야 한다.
- * 2026-09-03 실물: 기사님이 http 로 여셨는데 화면은 «권한을 허용해 주세요»라고만 했다.
+ * http 로 열면 브라우저가 위치를 막는데, 화면이 «권한을 허용해 주세요»라고만 하면 풀 길이 없다.
  */
 describe('httpsUpgradeUrl — http 로 열렸는가', () => {
     it('http 실주소면 https 주소를 준다', () => {
