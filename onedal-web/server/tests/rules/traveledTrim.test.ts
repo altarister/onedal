@@ -3,7 +3,7 @@ import { join } from "path";
 
 const SERVER = join(__dirname, "../../src");
 const read = (rel: string) => readFileSync(join(SERVER, rel), "utf8");
-/** 주석을 걷어낸 코드만 — 주석의 역사 기록에 걸리지 않게 */
+/** 주석을 걷어낸 코드만 — 주석이 예로 든 글자에 걸리지 않게 */
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 const geo = codeOnly(read("services/geoService.ts"));
@@ -16,9 +16,8 @@ const engine = codeOnly(read("services/dispatchEngine.ts"));
  * 기사님: *"성남을 지난 지금, 이미 지나온 광주시·성남시 콜을 계속 잡을까?
  * — 자동으로 제외. 뒤로 안 돌아가니까. 앞쪽(송파·강남)만 남는다. 이것이 맞아."*
  *
- * 예전 구현은 이동할 때마다 **경유을 통째로 다시 그렸고**(실측 173ms), 그 비용 때문에
- * 2km 마다만 돌렸다. 게다가 `getActivePolyline` 이 죽어 있어 **한 번도 실행되지 않았다.**
- * 지금은 경유을 만들 때 동마다 진행도를 같이 기록하고, 이동 시에는 숫자만 비교한다(0.14ms).
+ * 이동할 때마다 **경유를 통째로 다시 그리면** 비싸다(실측 173ms).
+ * 그래서 경유를 만들 때 동마다 진행도를 같이 기록하고, 이동 시에는 숫자만 비교한다(0.14ms).
  */
 describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교한다', () => {
 
@@ -83,7 +82,7 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
     });
 
     it('경유을 만드는 자리는 **모두** 진행도를 같이 기억한다', () => {
-        // 키워드만 갱신하고 진행도를 두면, 옛 경로 기준으로 멀쩡한 동이 사라진다
+        // 키워드만 갱신하고 진행도를 두면, 바뀌기 전 경로 기준으로 멀쩡한 동이 사라진다
         for (const src of [fm, engine]) {
             const calls = (src.match(/getDetourRegions\(/g) || []).length;
             if (calls === 0) continue;
@@ -113,8 +112,8 @@ describe('지나온 구간 제거 — 일찍 빼지 않는다', () => {
     const body = fn.slice(0, fn.indexOf('\n}\n') + 2);
 
     it('🔴 국면을 보지 않는다 — 지나온 동네는 합짐이든 운행중이든 지난 동네다', () => {
-        // 2026-08-14 정정: 처음엔 DELIVERING 일 때만 돌렸는데, 도착 감지가 국면을
-        // GATHERING 으로 떨어뜨리자 **달리는 중인데 제거가 멈췄다.**
+        // 국면(DELIVERING)으로 가르면, 도착 감지가 국면을 GATHERING 으로 떨어뜨릴 때
+        // **달리는 중인데 제거가 멈춘다.**
         // 조건은 데이터에 맡긴다 — 진행도 · 경로 · GPS 가 있으면 돈다
         expect(body).not.toMatch(/dispatchPhase/);
         expect(body).toMatch(/const progress = session\.detourProgressKm/);
@@ -145,13 +144,13 @@ describe('지나온 구간 제거 — 일찍 빼지 않는다', () => {
 
 /**
  * 🔴 **같은 일을 하는 두 번째 구현을 남기지 않는다.**
- * 경유 계산은 이 레포에서 이미 4벌로 갈라진 적이 있다.
+ * 경유 계산을 두 벌 두면 한쪽만 고쳐져 갈라진다.
  */
 describe('옛 방식은 지웠다', () => {
 
     it('trimCorridorByProgress(경유 통째 재계산)는 더 이상 없다', () => {
         expect(geo).not.toMatch(/export function trimCorridorByProgress/);
-        // 부르던 곳도 없다
+        // 부르는 곳도 없다
         expect(codeOnly(read('routes/scrap.ts'))).not.toMatch(/trimCorridorByProgress/);
     });
 
@@ -166,7 +165,7 @@ describe('옛 방식은 지웠다', () => {
 /**
  * 🔴 **GPS 경로는 필터 변경 통로를 쓰지 않는다.**
  *
- * 2026-08-14 에 `applyFilterCb(userId, {})` 로 파생 재계산을 트리거했다가 되돌렸다.
+ * `applyFilterCb(userId, {})` 로 파생 재계산을 트리거하지 않고 전용 통로(`trimTraveled`)를 쓴다.
  * `recalculateDerivedFields` 안에 *"도착 도시가 비어 있으면 키워드를 지운다"* 는 가지가 있어,
  * 도시를 안 고른 채 운행하면 **0.5km 마다 경유이 통째로 지워진다.**
  * 빈 필터는 "제한 없음"이 아니라 **고장**이라 콜 잡기가 조용히 멈춘다.
@@ -199,9 +198,9 @@ describe('GPS 경로는 전용 통로로 간다', () => {
  *
  * 기사님: *"이동중인데 필터 값이 변경되지 않았어."*
  *
- * 도착 감지가 `driverAction = UNLOADING` 을 켜자 `dispatchPhase` 가 GATHERING 으로 떨어졌고,
- * **증상 넷이 한꺼번에** 나왔다 — 지나온 구간 제거 정지 · 우회 0 이 풀려 경유이 넓어짐 ·
- * 🚀 출발 버튼 재등장 · 요약줄이 "대기". 전부 판정 한 줄에서 나왔다.
+ * 도착 감지가 `driverAction = UNLOADING` 을 켤 때 `dispatchPhase` 가 GATHERING 으로 떨어지면
+ * **증상 넷이 한꺼번에** 난다 — 지나온 구간 제거 정지 · 우회 0 이 풀려 경유가 넓어짐 ·
+ * 🚀 출발 버튼 재등장 · 요약줄이 "대기". 전부 판정 한 줄에서 나온다.
  */
 describe('운행 중 — 출발한 사실에서 나온다', () => {
 
