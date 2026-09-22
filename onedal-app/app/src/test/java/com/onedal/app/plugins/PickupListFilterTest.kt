@@ -10,11 +10,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 📋 **상차 목록으로 거른다 — 2단계 원달앱** (하차 목록»).
+ * 📋 **상차 목록으로 거른다 — 2단계 원달앱**.
  *
- * 이천 왕복 03:08:52 D3: 이천터미널에 서서 집 가는 앞길 위 «신둔면 → 곤지암읍» 콜을
- * `RouteOrderFilter` 가 «경로 밖 — 상차지(신둔면)가 경유 목록에 없음»으로 막았다 (폰 logcat 원문).
- * 서버가 이제 «내 위치 둘레»로 상차 목록을 보내고, 거기 신둔면이 든다 (서버 `pickupListGeo.test.ts`).
+ * 서버는 «내 위치 둘레»로 상차 목록을 보내고(서버 `pickupListGeo.test.ts`), 원달앱은 그 목록으로 상차지를 거른다.
+ * 예: 이천터미널에 서서 집 가는 앞길 위 «신둔면 → 곤지암읍» 콜 — 상차 목록에 신둔면이 들어
+ * `RouteOrderFilter` 가 «경로 밖 — 상차지(신둔면)가 경유 목록에 없음»으로 막지 않는다.
  */
 class PickupListFilterTest {
 
@@ -52,7 +52,7 @@ class PickupListFilterTest {
 
     // ── 인성 파서 판정 ──
 
-    /** 03:08:40 폰이 받은 필터 모양 — 순서표에 신둔면이 빠진 뒤 (서버 로그·logcat) */
+    /** 폰이 받는 필터 모양 — 순서표에 신둔면이 빠진 뒤 (서버 로그·logcat 실물) */
     private fun filter(pickupKeywords: List<String>?) = FilterConfig(
         allowedVehicleTypes = listOf("오토바이", "다마스", "라보", "승용차"),
         isActive = true,
@@ -97,7 +97,7 @@ class PickupListFilterTest {
         val far = d3.copy(pickupDistance = 30.0)
         val firstLoad = filter(listOf("신둔면")).copy(isSharedMode = false, orderKm = emptyMap())
         assertEquals(InsungParser.Companion.Verdict(true, "pass"), InsungParser.judge(far, firstLoad))
-        // 옛 서버면 같은 콜이 반경(4.55km)에 막힌다
+        // 상차 목록이 안 오면(null) 같은 콜이 반경(4.55km)에 막힌다
         assertEquals(InsungParser.Companion.Verdict(false, "pickup"), InsungParser.judge(far, firstLoad.copy(pickupKeywords = null)))
     }
 }
