@@ -183,13 +183,6 @@ export function buildDefaultCallOptions(): CallOption[] {
         unitLabel: '분', sortOrder: 1, minValue: 0, maxValue: 240,
         why: '콜을 잡으면 이만큼 안에 그 상차지에 도착한다 (기사님 확정 2026-08-31)',
     }));
-    out.push(opt({
-        category: 'timing', key: 'rest_margin', label: '휴게 여유',
-        num1: DEFAULT_DEADLINE_RULES.restMarginMinutes ?? 30,
-        unitLabel: '분', sortOrder: 2, minValue: 0, maxValue: 240,
-        why: '하차 약속 = 상차 완료 + 주행 + 이만큼',
-    }));
-
     return out;
 }
 

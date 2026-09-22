@@ -586,8 +586,6 @@ export interface DeadlineRules {
      *    우선순위: 통화 약속 > 적요 상차 시각 > 이 값 (용어집).
      */
     pickupPromiseMinutes: number;
-    /** 상차 마감 + 단독 주행 + 이만큼 = 하차 마감 (휴식 여유) */
-    restMarginMinutes: number;
     /** ⏱️ 하차 마감 = 상차 완료 + 배송 주행 × (이 배율/100) — 배차망 관행 */
     deadlineRatioPct?: number;
     /** 🚚 배송 주행을 모를 때 쓰는 속도 (km/h) — 판정 기준 탭에서 온다 */
@@ -601,9 +599,6 @@ export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
      * 🔴 근거는 배송 원칙(20분 룰)이다.
      */
     pickupPromiseMinutes: 20,
-    /** 🏗️ `deriveCallTiming` 의 하차 마감 사슬(`dropoffDeadlineFromPickup`)과 콜 옵션 기본값만 읽는다.
-     *  경로 타임라인은 두 시계(⑯ — 상차 완료 + 배송 × 150%)를 쓴다 */
-    restMarginMinutes: 30,
     deadlineRatioPct: 150,
     // 카카오 실측 45건 중앙값. 근거는 judgment.ts 의 speed 절에
     speedShortKmh: 25, speedMidKmh: 46, speedLongKmh: 56,
