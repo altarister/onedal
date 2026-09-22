@@ -19,8 +19,7 @@ const activeDevices = new Map<string, DeviceSession>();
  * `activeDevices` 의 `session.mode` 는 통신 두절·오프라인 보고로 덮어써지지만,
  * 이 칸은 **"기사님의 의도"** 만 담으며 그런 사건에 흔들리지 않는다.
  *
- * 🔴 **예전엔 메모리 맵이었다.** 값이 둘일 때는 서버가 다시 떠도 `activeFilter.isActive`
- *    로 되살릴 수 있었는데, 셋이 되면서 `isActive === false` 에서 **「대기」와 「알람」을
+ * 🔴 **DB 에 둔다** — 메모리에만 두면 서버가 다시 뜰 때 `activeFilter.isActive` 로는 **「대기」와 「알람」을
  *    못 가른다.** 그러면 알람이 말없이 대기로 떨어지고 **화면은 멀쩡한 채 알람만 안 울린다.**
  *
  * 🔴 **`user_id` 로 반드시 거른다** (코드리뷰). `requireAuth` 는
@@ -67,7 +66,7 @@ export function getDeviceMode(deviceId: string, userId?: string): DeviceModeType
 /**
  * 데드맨 스위치 감지 주기.
  *
- * [Phase 1.5] 70초 → 150초로 상향.
+ * 70초 → 150초로 상향.
  * 앱 하트비트가 60초 주기(TelemetryManager.HEARTBEAT_INTERVAL_MS)인데 70초는 여유가 10초뿐이라,
  * 터널·기지국 전환 등으로 전송이 1회만 실패해도(다음 전송까지 120초) 데드맨이 오작동했습니다.
  * 하트비트 주기를 줄이면 /api/scrap 트래픽이 배로 늘어나므로, 대신 판정 여유를 늘렸습니다.
@@ -91,8 +90,7 @@ function lookupDeviceName(deviceId: string): string | undefined {
  *
  * 기사님: *"분명 폰 이름 1234에 파란불이 들어와 있었어."*
  *
- * 접근성이 막혀 콜을 하나도 못 읽는 동안 관제웹은 파란불이었다 — `status` 는
- * *"데이터가 왔는가"* 만 보기 때문이다. **「연결됐다」와 「읽고 있다」는 다른 말이다.**
+ * `status` 는 *"데이터가 왔는가"* 만 본다 — 접근성이 막혀 콜을 하나도 못 읽어도 파란불이다. **「연결됐다」와 「읽고 있다」는 다른 말이다.**
  *
  * 🔴 판단은 근거 있는 것만: `노드 0` = 접근성 트리가 안 온다(명백한 고장).
  *    *"노드는 있는데 콜이 0"* 은 빈 리스트일 수 있어 여기서 단정하지 않는다 (규칙 ⑤-4 ②).
@@ -176,7 +174,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             stats: { polled: addedPollCount, grabbed: 0, canceled: 0 }
         };
     } else {
-        // [Phase 1.5] OFFLINE → ONLINE 복귀 시 사용자가 지정했던 모드를 되살립니다.
+        // OFFLINE → ONLINE 복귀 시 사용자가 지정했던 모드를 되살립니다.
         //
         // ⚖️ 설계 결정 (승욱님 확인):
         // PRD §3 의 "누적 페널티 킬스위치"는 데드맨이 mode 를 MANUAL 로 강제하는 것으로
@@ -212,12 +210,12 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         session.stats.polled += addedPollCount;
         if (screenContext) {
             /**
-             * 🖥️ **화면이 바뀐 보고만 한 줄 남긴다** (기사님 지시 2026-09-02:
+             * 🖥️ **화면이 바뀐 보고만 한 줄 남긴다** (기사님 지시:
              * *"페이지 바뀌거나 할 때 post 로 서버로 값을 보내는 거지? 그때 콘솔을 꼭 넣어서
              * 트래킹 할 수 있게 해 줘."*).
              *
              * 🔴 **간격을 함께 적는다.** 그 숫자가 *"앱이 알아채는 데 얼마나 걸렸나"* 를 말한다 —
-             *    2026-09-02 에 정지 화면에서 18.3초가 걸린다는 것을 이 숫자로 알았다.
+             *    예: 정지 화면에서 18.3초가 걸린다는 것을 이 숫자로 안다.
              * ⚠️ **판정을 적지 않고 사실만 적는다** — «조용/움직임»을 여기서 정하면
              *    같은 값을 두 곳이 각자 판정하게 된다 (규칙 ⑤-4 ⑤ · 판정은 `isDeviceQuiet` 하나).
              */
@@ -279,7 +277,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     if (filterTally) {
         session.filterTally = filterTally;
         /**
-         * 🕐 **받은 순간을 서버 시계로 찍는다** (기사님 지적 2026-08-23).
+         * 🕐 **받은 순간을 서버 시계로 찍는다** (기사님 지적).
          *
          * 숫자만 있으면 *"지금 그런 것"* 과 *"아까 그러고 멈춘 것"* 이 똑같이 보인다.
          * 🔴 앱이 보낸 시각을 쓰지 않는다 — 폰 시계가 틀어지면 화면이 미래를 말한다.
@@ -333,8 +331,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     // 서버가 쥐고 있는 대기 중(롱폴링)인 콜 결정을 즉시 강제 파괴하여 데드락을 방지합니다!
     /**
      * 🔴 "리스트 계열인가"는 `shared.isListScreen` 이 유일한 정의다.
-     *    예전에는 여기서 `=== 'LIST'` 로 직접 판정해, 앱이 리스트로 치는 `LIST_COMPLETED`
-     *    가 **새어 나갔다** (유령 카드 사고 2026-08-14).
+     *    `=== 'LIST'` 로 직접 판정하면 앱이 리스트로 치는 `LIST_COMPLETED` 가 **새어 나가** 유령 카드가 남는다.
      */
     /**
      * 🔴 **상세를 본 콜만 목록 보고 때 치운다** (#154) — «지금 목록»이나 «직전 화면»으로 가르지 않는다.
@@ -385,7 +382,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         if (stuckOrderId) {
             const stuckOrder = userSession.pendingOrdersData.get(stuckOrderId);
             /**
-             * 🔄 **미리보기는 리스트로 돌아가면 즉시 정리한다** (기사님 실측 2026-08-22).
+             * 🔄 **미리보기는 리스트로 돌아가면 즉시 정리한다** (기사님 실측).
              *
              * 직접콜(MANUAL)을 정리에서 빼는 것은 규칙 ① *"기사님이 잡은 콜을 서버가 버리지
              * 않는다"* 때문이다. 하지만 **미리보기는 아직 안 잡은 콜**이라 그 보호가 필요 없다.
@@ -640,12 +637,12 @@ router.post("/:deviceId/offline", (req, res) => {
         const session = activeDevices.get(deviceId);
         if (session) {
             // 메모리 세션을 즉시 OFFLINE 처리.
-            // [Phase 1.5] mode는 건드리지 않습니다. 화면이 꺼졌다고 기사님의 AUTO 의도가
+            // mode는 건드리지 않습니다. 화면이 꺼졌다고 기사님의 AUTO 의도가
             // 사라진 것은 아니며, 복귀 시 touchDeviceSession이 다시 복원합니다.
             session.status = "OFFLINE";
             session.lastSeen = 0; // 데드맨 스위치 완전 침묵 처리
             /**
-             * 📵 **왜 내려갔는지를 앱한테 그대로 받아 적는다** (기사님 지적 2026-09-02).
+             * 📵 **왜 내려갔는지를 앱한테 그대로 받아 적는다** (기사님 지적).
              * 서버가 추측하지 않는다 — 앱만이 «접근성이 꺼졌다»를 사실로 안다.
              * 모르면 비워 둔다(«연결 끊김»으로 그려진다) — 지어내지 않는다 (규칙 ④).
              */
@@ -674,8 +671,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
 
         /**
          * 🔴 **값을 손으로 나열하지 않는다** — `isDeviceMode` 한 곳이 목록의 원천이다.
-         *    예전엔 `mode !== "AUTO" && mode !== "MANUAL"` 이라, 모드가 늘 때 여기를
-         *    같이 안 고치면 **새 모드가 400 으로 조용히 막혔다** (규칙 ③).
+         *    손으로 나열하면 모드가 늘 때 여기를 같이 안 고쳐 **새 모드가 400 으로 조용히 막힌다** (규칙 ③).
          */
         if (!isDeviceMode(mode)) {
             return res.status(400).json({ error: "올바르지 않은 모드입니다." });
@@ -724,8 +720,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
         /**
          * 🔴 **`isActive` 는 «누가 누르나»가 아니라 «필터가 도는가» 다** (모드 셋).
          *
-         * 값이 둘일 때는 그 둘이 같은 말이었다 — AUTO 면 필터가 돌고 앱이 누른다.
-         * **알람이 생기면서 갈라진다**: 알람은 필터가 돌아야 하는데 앱은 안 누른다.
+         * 둘은 다른 말이다 — **알람은 필터가 돌아야 하는데 앱은 안 누른다.**
          *
          * 앱의 `decide()` 는 맨 앞에서 `if (!filter.isActive) return false` 로 끊는다
          * (`InsungParser`). 여기서 AUTO 만 세면 **알람 모드에서 필터가 아예 안 돌아
@@ -784,7 +779,7 @@ export const getActiveDevicesSnapshot = (io?: any): DeviceSession[] => {
         }
 
         // 데드맨 스위치: 일정 시간 핑이 없으면 통신 단절(OFFLINE) 표기
-        // [Phase 1.5] mode를 MANUAL로 강제하던 로직 제거.
+        // mode를 MANUAL로 강제하던 로직 제거.
         // 통신이 끊긴 기기는 어차피 콜을 못 잡으므로 모드를 바꿀 실익이 없는 반면,
         // 한 번 MANUAL로 떨어지면 복귀 후에도 되돌아오지 않아 콜 잡기가 멈추는 부작용만 컸습니다.
         // 관제탑 UI에는 status(OFFLINE)가 별도로 표시되므로 식별에도 문제가 없습니다.
