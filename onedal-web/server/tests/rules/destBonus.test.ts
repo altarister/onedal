@@ -19,7 +19,7 @@ const cfg = (over: Partial<JudgmentConfig['destBonus']> = {}): JudgmentConfig =>
     destBonus: { ...DEFAULT_JUDGMENT.destBonus, ...over },
 });
 
-/** 04:54 복정동 → 대치4동 — 1.2만 ÷ 65분 = 1.1만/h → 돈 44점 */
+/** 복정동 → 대치4동 — 1.2만 ÷ 65분 = 1.1만/h → 돈 44점 */
 const 첫짐 = (progressRatio: number | null, fare = 12_000, unknownWhy: string | null = null): JudgeFacts => ({
     money: { fare, extraMinutes: 65, firstLoad: true },
     promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
