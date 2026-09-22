@@ -2,13 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { isDeviceQuiet, DEVICE_QUIET_MS } from './index';
 
 /**
- * ⏱️ **폰이 조용한가** (기사님 확정 · 폰_상태바.md §2 1단계)
+ * ⏱️ **폰이 조용한가** (기사님 확정)
  *
- * 🔴 이 판정은 **문서에 ✅ 로 적혀 있었는데 함수도 검사도 화면도 없었다**
- *    (전수 대조 2026-09-05 — 「계획을 완료로 적는」 사고의 다섯 번째).
- *    `devices.ts` 주석이 *"판정은 `isDeviceQuiet` 하나"* 라며 **없는 이름을 가리켰다.**
+ * 판정은 `isDeviceQuiet` 하나다 (`routes/devices.ts` 가 부른다).
  *
- * ⑤-4 의 다섯은 폰_상태바.md 에 이미 확정돼 있다 —
+ * ⑤-4 의 다섯 —
  * ① `DeviceSession.prevSeen`(메모리만) ② **30초** ③ `lastSeen` 을 덮기 직전
  * ④ 폰 이름 옆 `⏱️` — **조용할 때만** ⑤ **관제웹 배지 하나뿐**
  */
