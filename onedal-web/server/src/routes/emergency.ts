@@ -19,9 +19,7 @@
  *      · 남아 있으면      → 경로 재계산 (recalculateActiveKakaoRoute)
  *   5. 관제탑에 emergency-alert · order-canceled emit
  *
- * ⚠️ 3번은 예전에 `mainCallState 가 해당 orderId 면 null 로 초기화` 라고 적혀 있었다.
- *    그 필드는 V2 리팩터링에서 사라졌는데 주석만 현재형으로 남아, **없는 처리를 있다고**
- *    말하고 있었다. 지금 기준은 «남은 활성 콜이 있는가» 하나다.
+ * ⚠️ 4번의 기준은 «남은 활성 콜이 있는가» 하나다.
  */
 
 import { Router } from "express";
@@ -105,10 +103,8 @@ router.post("/", async (req, res) => {
             }
             
             /**
-             * 🔴 여기만 종결 상태를 **손으로 적어** 두었고 `ORDER_DELIVERED` 가 빠져 있었다
-             *   . 그래서 비상 보고 때 **하차를 마친 콜을 아직 실려 있다고 셌다.**
-             *    나머지 코드는 전부 `isTerminal()` 을 쓴다 — CLAUDE.md 가 경고한 "상태목록 N벌"의
-             *    또 한 벌이었다. 목록은 `shared` 한 곳에만 둔다.
+             * 🔴 종결 상태는 손으로 적지 않고 `isTerminal()` 을 쓴다 — 손으로 적으면 `ORDER_DELIVERED` 를 빠뜨려
+             *    하차를 마친 콜을 아직 실려 있다고 센다. 목록은 `shared` 한 곳에만 둔다.
              */
             const activeCalls = session.myOrders.filter(c => !isTerminal(c.status));
             if (activeCalls.length === 0) {
