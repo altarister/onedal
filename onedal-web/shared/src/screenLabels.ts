@@ -2,16 +2,15 @@ import { TARGET_APP_LABEL, DEVICE_OFFLINE_LABEL } from './index';
 import type { ScreenContextType, TargetAppType, DeviceOfflineReason } from './index';
 
 /**
- * 🏷️ **화면 이름표 — 배차망마다 따로 둔다** (기사님 설계 2026-09-02).
+ * 🏷️ **화면 이름표 — 배차망마다 따로 둔다** (기사님 설계).
  *
  * 기사님: *"`SCREEN_LABELS` 가 인성·픽커·화물24 이렇게 따로따로 있어야 할 것 같아.
  * 이 파일에 있으면 안 되고, 각 라벨들을 import 해 와서 가지고 있다가
  * **망에 따라 바꿔서 보일 수 있도록** 해야 할 것 같은데."*
  *
- * ── 왜 갈랐나 ──
- * 예전에는 `DeviceControlPanel.tsx` 안에 `SCREEN_LABELS` 한 벌이 있었고, 그 아홉 개가
- * **전부 인성 화면**이었다(콜 리스트·상세페이지·확정페이지·팝업 3종…). 픽커를 돌리면
- * 운행 중 다섯 화면이 갈 자리가 없어 **«알 수 없는 화면»(빨간 깜빡임)** 으로 떴다.
+ * ── 왜 가르나 ──
+ * 이름표가 한 벌이면 한 배차망의 화면만 담긴다. 픽커의 운행 화면처럼 갈 자리가 없는 화면은
+ * **«알 수 없는 화면»(빨간 깜빡임)** 으로 뜬다.
  *
  * ── 왜 `client-app` 이 아니라 `shared` 인가 ──
  * 관제웹만 쓰는 것이 아니다 — 운행일지도 «어느 화면이었나»를 보여 줄 수 있고, 서버가
@@ -40,7 +39,7 @@ const GRAY = "text-text-muted bg-text-muted/15 border-text-muted/20";
 const COMMON: Partial<Record<ScreenContextType, ScreenLabel>> = {
     LIST: { label: "콜 리스트", color: GREEN },
     // 완료 리스트도 "콜에서 손을 뗀" 화면이다 — 앱이 여기로 빠져나가면 서버가 콜을 놓는다.
-    // 예전에는 이 값이 shared 타입에 없어서, 앱만 보내고 아무도 못 읽었다 (유령 카드 사고)
+    // 이 값이 shared 타입에 있어야 서버·관제웹이 읽는다 — 빠지면 앱만 보내고 아무도 못 읽어 유령 카드가 남는다
     LIST_COMPLETED: { label: "완료 리스트", color: GREEN },
     UNKNOWN: { label: "⚠️ 미등록 팝업", color: RED_BLINK },
     LAUNCHER: { label: "바탕화면 (홈)", color: GRAY },
@@ -77,7 +76,7 @@ export const HWAMUL24_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLab
 export const PICKER_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel>> = {
     ...COMMON,
     /**
-     * 🏠 「시작하기」 버튼이 있는 화면 (기사님 확정 2026-09-02 · *"'시작하기' 이 버튼이
+     * 🏠 「시작하기」 버튼이 있는 화면 (기사님 확정 · *"'시작하기' 이 버튼이
      * 있어야 홈 화면이야"*). 인성에는 이 층이 없어서 여기에만 적는다.
      */
     HOME: { label: "홈", color: GRAY },
@@ -145,7 +144,7 @@ export interface DeviceScreenBadge {
 }
 
 /**
- * 🖥️ **6번(화면 켜짐)과 9번(화면명)을 한 배지로 고른다** (기사님과 확정 2026-09-02).
+ * 🖥️ **6번(화면 켜짐)과 9번(화면명)을 한 배지로 고른다** (기사님과 확정).
  *
  * 포함 관계가 이렇게 서 있다 — **위가 꺼지면 아래는 뜻이 없다.**
  * ```
@@ -153,7 +152,7 @@ export interface DeviceScreenBadge {
  * ```
  * 그래서 화면이 꺼진 폰에 «픽커 홈»을 그리면 **읽지도 않고 단언하는 것**이다 —
  * 그 값은 화면이 꺼지기 **전에** 읽은 것이고, 그 사이 기사님이 무엇을 하셨는지 앱은 모른다.
- * (오전에 같은 병으로 세 자리를 고쳤다 · `tests/rules/screenTruth.test.ts`)
+ * (같은 규칙을 `tests/rules/screenTruth.test.ts` 가 문다)
  *
  * 🔴 **표시를 합치는 것이지 값을 합치는 것이 아니다.** `isScreenOn`·`screenContext` 는
  *    서버·검사가 각자 쓰던 그대로 남는다 (규칙 ⑤-4 ⑤ — 읽는 곳이 늘어난 것이 아니다).
@@ -171,7 +170,7 @@ export function deviceScreenBadge(device: {
     const disconnected = device.status === "OFFLINE";
 
     /**
-     * 📵 **말이 없는 폰의 화면 이름은 그리지 않는다** (기사님 지적 2026-09-02).
+     * 📵 **말이 없는 폰의 화면 이름은 그리지 않는다** (기사님 지적).
      *
      * 그 값은 폰이 마지막으로 말해 준 «아까 그것»이라, 계속 그리면 화면이
      * *"지금 이 화면이다"* 라고 **단언**한다. 대신 **왜 끊겼는지**를 적는다 —
@@ -203,7 +202,7 @@ export function deviceScreenBadge(device: {
 
     if (!screen && !network) return null;
     
-    // 폭을 아끼려고 화면명의 낱말 사이를 붙인다 — «인성 콜리스트» (기사님 0831).
+    // 폭을 아끼려고 화면명의 낱말 사이를 붙인다 — «인성 콜리스트» (기사님).
     // ⚠️, 📱 등 이모지나 특수 접두사가 있는 경우는 원문 유지
     const rawLabel = screen?.label ?? "";
     const cleanLabel = rawLabel.startsWith("⚠️") || rawLabel.startsWith("📱")
