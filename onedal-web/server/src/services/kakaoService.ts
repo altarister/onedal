@@ -81,7 +81,7 @@ export interface RouteResult {
     polyline?: Array<{x: number; y: number}>; // 카카오 실제 도로 곡선 데이터
     sectionEtas?: string[]; // 각 구간 도착 시점(HH:mm) 배열
     sectionDriveMin?: Array<number | null>; // 정거장별 누적 주행(분) — 상대값이라 낡지 않는다. 현위치 미상이면 null
-    /** 🎨 **구간이 끝나는 자리** — `polyline` 안의 누적 끝 인덱스. 선을 복제하지 않는다 (이식 B1) */
+    /** 🎨 **구간이 끝나는 자리** — `polyline` 안의 누적 끝 인덱스. 선을 복제하지 않는다 */
     sectionEnds?: number[];
 }
 
@@ -114,8 +114,8 @@ function isValidKoreaCoord(x: unknown, y: unknown): boolean {
 /**
  * 🗺️ **카카오 응답에서 궤적을 뽑는다** — 구간을 이어 붙인 통짜 점열.
  *
- * 🔴 **`extractSectionLines` 한 벌에서 나온다** (이식 B1). 예전에는 둘이
- *    각자 걸었는데, 그러면 «버리는 잣대»(한반도 밖 좌표)가 한쪽만 바뀌어도 조용히 갈린다 —
+ * 🔴 **`extractSectionLines` 한 벌에서 나온다** — 둘이 각자 걸으면 «버리는 잣대»(한반도 밖 좌표)가
+ *    한쪽만 바뀌어도 조용히 갈린다 —
  *    그리고 `sectionLinesOf` 는 **이어 붙이면 같다**는 전제 위에 서 있다. 한 번만 걷고 잇는다.
  */
 function extractPolyline(routes?: any[]): Array<{ x: number; y: number }> {
@@ -133,11 +133,10 @@ function extractPolyline(routes?: any[]): Array<{ x: number; y: number }> {
 
 /**
  * 🎨 **구간마다 따로 담은 폴리라인** — `extractPolyline` 이 통째로 이은 것을 **끊어서** 준다
- *    (이식 B1).
+ *   .
  *
  * 🔴 **왜 필요한가** — 지도가 «구간마다 그 콜의 색»으로 그리려면 어느 점이 어느 구간인지
- *    알아야 한다. 통짜 배열은 그 경계를 잃는다. 지도 실험실은 `/sim/chain` 이 끊어 주는
- *    덕에 그렇게 그려 왔고, 실물은 그 경계가 없어서 **선이 한 색**이었다.
+ *    알아야 한다. 통짜 배열은 그 경계를 잃어 **선이 한 색**이 된다.
  *
  * 🔴 **기존 `extractPolyline` 을 안 건드린다** — 그 값을 읽는 곳이 여럿이라(궤적·경유 지역·
  *    진행도) 모양을 바꾸면 그 전부가 흔들린다. 같은 원본에서 **한 벌 더** 뽑을 뿐이고,
@@ -175,8 +174,8 @@ export function calculateDriveMinutes(sections: any[] | undefined, startsAtFirst
     if (!sections) return [];
     /**
      * 🔴 현위치를 몰라 출발점을 첫 정거장으로 삼은 경로 — 접근 주행이 통째로 없다.
-     *    예전엔 첫 정거장에 0 을 적었다: "지금 즉시 도착"이라는 지어낸 값이 되어
-     *    타임라인이 낙관 약속을 만들었다 (규칙 ④ — 없는 숫자를 지어내지 않는다).
+     *    첫 정거장에 0 을 적으면 "지금 즉시 도착"이라는 지어낸 값이 되어 타임라인이 낙관 약속을 만든다
+     *    (규칙 ④ — 없는 숫자를 지어내지 않는다).
      *    출발점을 모르면 누적의 기준 자체가 없다 — **전부 null** 이 정직하다.
      *    (타임라인은 null 을 보면 콜별 파생으로 폴백하고, 시트는 "주행 모름"을 말한다)
      */
@@ -193,8 +192,7 @@ export function calculateDriveMinutes(sections: any[] | undefined, startsAtFirst
 /**
  * 각 정거장 **도착 예정 시각** 배열을 만든다.
  *
- * 🔴 예전에는 카카오 section 을 그대로 누적해서 돌려줬는데, section 개수가
- *    **현위치를 아느냐에 따라 하나 달라진다.**
+ * 🔴 카카오 section 을 그대로 누적하면 안 된다 — section 개수가 **현위치를 아느냐에 따라 하나 달라진다.**
  *      현위치 있음: [현위치→상차, 상차→하차]  → ETA 2개 (상차 도착, 하차 도착)
  *      현위치 없음: [상차→하차]               → ETA 1개 (하차 도착)  ← 상차 ETA 가 없다
  *
@@ -246,7 +244,7 @@ function parseKakaoErrorMsg(resultCode: number, resultMsg: string): string {
  *    경유지에 넣으면 안 된다 — 넣으면 되돌아가는 경로가 나온다.
  *    판단 자체는 `hasVisitedStop(c, 'pickup')` 한 곳에 있다.
  *    ⚠️ **`isAlreadyLoaded`(상차 완료 버튼)가 아니다.** 그걸 보면 버튼을 안 누른 채 달릴 때
- *    되돌아간다 — 2026-08-25 에 실제로 났다 (여주 → 성남 왕복 50km).
+ *    되돌아간다 (예: 여주 → 성남 왕복 50km).
  */
 export function buildSoloRouteUrl(
     pickupX: number, pickupY: number,
@@ -255,7 +253,7 @@ export function buildSoloRouteUrl(
     priority: string = "RECOMMEND",
     carType: number = 1,
     skipPickup = false,
-    /** 회피 축 (카카오 avoid: motorway·toll 등) — 노선에서 고른 옵션을 콜 실측이 따라가게 (기사님 2026-09-08) */
+    /** 회피 축 (카카오 avoid: motorway·toll 등) — 노선에서 고른 옵션을 콜 실측이 따라가게 (기사님) */
     avoid?: string,
 ): string {
     const viaPickup = !!driverLoc && !skipPickup;
@@ -332,7 +330,7 @@ export async function calculateDetourRoute(
     carType: number = 1,
     /**
      * 🧮 **후보를 뺀 «기존 전부» 경로** — base 의 경유지와 종점.
-     *    안 넘기면 예전처럼 «첫짐 단독»으로 잰다 (기존 콜이 하나면 같은 값이다).
+     *    안 넘기면 «첫짐 단독»으로 잰다 (기존 콜이 하나면 같은 값이다).
      */
     basePlan?: { waypoints: Array<{ x: number; y: number }>; dest: { x: number; y: number } } | null,
     /**
@@ -347,21 +345,16 @@ export async function calculateDetourRoute(
     const headers = getHeaders();
 
     /**
-     * 🧮 **base 는 «기존 활성 콜 전부»다** (기사님 실측 2026-08-26).
+     * 🧮 **base 는 «기존 활성 콜 전부»다** (기사님 실측).
      *
-     * 예전엔 `base` 가 **첫짐 콜 하나**였다. 그러면 `timeDiffMin` 이
-     * *"첫짐 단독 대비"* 가 되어 **앞 합짐들의 비용까지 뒤집어쓴다** (부풀림).
-     * 그걸 피하려고 2026-08-21 에 판정이 «저장된 직전 총주행»을 빼도록 바꿨는데,
-     * 저장값은 **KEEP 하던 시각·그때의 기점**에서 잰 것이라 이번엔 **축소**가 생겼다 —
-     * 기사님이 달린 만큼 짧아진 게 *"우회가 줄었다"* 로 읽힌다.
-     *
-     *     실측: 되돌아가는 콜인데 **우회 −9분 · −4.6km**
-     *           (이전 24.9km 는 집 근처에서, 새 20.3km 는 인삼농협 근처에서 잰 값)
+     * `base` 가 **첫짐 콜 하나**면 `timeDiffMin` 이 *"첫짐 단독 대비"* 가 되어 **앞 합짐들의 비용까지 뒤집어쓴다** (부풀림).
+     * «저장된 직전 총주행»을 빼면 저장값이 **KEEP 하던 시각·그때의 기점**에서 잰 것이라 **축소**가 생긴다 —
+     * 기사님이 달린 만큼 짧아진 게 *"우회가 줄었다"* 로 읽힌다 (예: 되돌아가는 콜인데 우회 −9분).
      *
      * 🔴 카카오는 **이미 두 번** 불린다. `base` 의 기준만 바로잡으면
      *    `timeDiffMin` 이 **같은 시각·같은 기점의 정확한 한계 비용**이 된다 —
      *    호출 수는 그대로고 근사도 아니다.
-     * ⚠️ 기존이 한 콜뿐이면 base 는 그 콜의 단독 경로 — **예전과 같은 값**이다.
+     * ⚠️ 기존이 한 콜뿐이면 base 는 그 콜의 단독 경로다.
      */
     let baseOriginX = mainPickupX;
     let baseOriginY = mainPickupY;
@@ -576,7 +569,7 @@ export async function geocodeAddress(query: string): Promise<{x: number, y: numb
          * 🔴 **쿼리 첫 낱말로 기대지역을 추측하지 않는다.** 첫 낱말이 시·군이면(「이천 신둔면」)
          *    기대가 없어 방어가 아예 안 돌고, 광역시와 이름이 겹치는 시면(「광주 초월읍」)
          *    광주광역시를 기대해 **정답(경기 광주시)을 버린다.** 지도는 「초월읍은 경기 광주시」를 안다.
-         *    같은 클래스를 `cityAliases` 가 이미 없앴다 — *«판단은 지도에서 센다 — 손으로 적은 목록을 두지 않는다»*.
+         *    판단은 지도에서 센다 — 손으로 적은 목록을 두지 않는다.
          *
          * 🔴 **방어 자체는 그대로다** — 기대가 경기인데 카카오가 광주광역시를 주면 여전히 버린다.
          *    지도가 모르는 이름에는 기대가 없어 방어가 안 걸릴 뿐, 없는 지역을 지어내지 않는다 (규칙 ④).
