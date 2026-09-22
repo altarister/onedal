@@ -4,13 +4,13 @@ import { toHwamul24Call, toInsungCall } from '@altari/ui-simulators';
 import { FIXED_NOW, seededRandom } from './seededRandom';
 
 /**
- * 🎲 **콜 생성기와 배차망별 입히기 함수** (카카오픽커_시뮬레이터.md 0단계 0-2 ④)
+ * 🎲 **콜 생성기와 배차망별 입히기 함수**
  *
  * 생성기(`generateBaseCall`)는 공통 칸만 만들고, 인성·화물24시가 각자 요금·차종·결제를 입힌다.
- * 가르면서 난수를 뽑는 **순서**가 바뀌어, 가르기 전 «콜 다섯 개 통째» 스냅숏은 맞을 수 없다 —
- * 계획서가 미리 밝힌 대로 검사를 셋으로 나눴다:
- *   ① 주소·좌표·거리는 가르기 전과 **똑같다** — `commonFields.test.ts` (가르기 전에 뜬 스냅숏)
- *   ② 요금·차종·결제는 **예전과 같은 범위**다 — 여기
+ * 난수를 뽑는 **순서**가 배차망마다 갈리므로 «콜 다섯 개 통째» 스냅숏 하나로는 볼 수 없다 —
+ * 그래서 검사를 셋으로 나눈다:
+ *   ① 주소·좌표·거리는 씨앗마다 **똑같다** — `commonFields.test.ts`
+ *   ② 요금·차종·결제는 **정해진 범위 안**이다 (하한 이상 · 천 원 단위 · 정해진 선택지) — 여기
  *   ③ 화면 글자는 **한 글자도 안 바뀐다** — `screens.test.tsx` (고정 콜이라 난수 순서와 무관)
  */
 const config = { driverLon: 127.294, driverLat: 37.3772, maxPickupKm: 15, minFare: 30000 };
