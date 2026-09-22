@@ -23,9 +23,8 @@ const router = Router();
  * 🧪 **배차망 시뮬레이터 전용 문** (기사님 확정).
  *
  * 시뮬(`onedal-sim` · :5173)이 콜을 출제할 때 **«현위치 → 상차지» 거리**를 화면에 적는데,
- * 그 현위치가 **URL 로 한 번 고른 뒤 움직이지 않는 고정 좌표**였다. 기사님은 달리는데
- * 숫자는 그대로라, 상차 반경 축이 **실제 지리와 무관한 값으로 채점**됐다 —
- * 실측(0831): 적요는 «7.2km»인데 실제는 11.4km 였고, 22.4km 뒤 상차지가 통과했다.
+ * 그 현위치는 **서버가 아는 기사님의 지금 위치**여야 한다 — 고정 좌표면 기사님이 달려도 숫자가 그대로라
+ * 상차 반경 축이 **실제 지리와 무관한 값으로 채점**된다.
  *
  * 실제 인성은 배차망 서버가 그 거리를 **매번 계산해서** 화면에 띄운다. 시뮬도 같아야
  * 책상 판의 채점이 진짜가 된다 — 그래서 여기서 «지금 어디»를 내준다.
@@ -37,8 +36,7 @@ const router = Router();
  * 🔴 **«라이브인가»를 혼자 판정하지 않는다** (0831 리뷰에서 잡힘).
  *    레포에는 이미 `isLiveServer()` 가 있고 그 주석이 이 함정을 적어 뒀다 —
  *    *"신호를 둘 본다… 한쪽만 보면 그 설정이 빠진 날 조용히 열린다."*
- *    처음엔 `NODE_ENV` 하나만 봤는데, PM2 설정에서 그게 빠지면 **기사님 실시간 좌표가
- *    무인증으로 열린다.** 2026-08-09 에 «정찰 정보 노출»로 지운 자리보다 민감한 값이다.
+ *    `NODE_ENV` 하나만 보면 PM2 설정에서 그게 빠진 날 **기사님 실시간 좌표가 무인증으로 열린다.**
  */
 const isDevBuild = () => !isLiveServer();
 
@@ -100,10 +98,8 @@ router.get("/driver-location", (_req, res) => {
          *   `home`   아무것도 없어 **설정의 집 주소로 대신**한 것
          *
          * 🔴 **여기서 다시 판단하지 않는다** (현황판 담당 요청 ①).
-         *    예전엔 `lastFixIsMock ? 'manual' : 'gps'` 로 **파생**했는데,
-         *    그 플래그는 «지어낸 좌표인가»를 답하는 칸이라 **시뮬레이터로 달리는 중에도
-         *    화면이 «손으로 찍음»이라고 말했다.** 한 칸이 두 사실을 답한 것이다 (규칙 ⑤-4 ⑤).
-         *    이제 `lastFixSource` 가 **온 그대로** 들고 있고 여기는 그것을 옮긴다 (규칙 ③).
+         *    `lastFixIsMock` 은 «지어낸 좌표인가»를 답하는 칸이라, 거기서 파생하면 시뮬레이터로 달리는 중에도
+         *    «손으로 찍음»이 된다 (규칙 ⑤-4 ⑤). `lastFixSource` 가 **온 그대로** 들고 있고 여기는 그것을 옮긴다 (규칙 ③).
          * ⚠️ «집 주소로 대신»은 여전히 먼저다 — **좌표가 없다는 사실**이 출처보다 앞선다.
          */
         source: loc.source,
@@ -224,7 +220,6 @@ router.get("/calls", (req, res) => {
  *    매번 ㉯였고, 알아내는 데 판마다 20~30분이 갔다.
  *
  * 그래서 **문제지가 요구하는 상태와 지금 상태를 기계가 대조**하게 한다.
- * 옛 `pnpm preflight`(에 지웠다)는 «비우기»였고 이건 «맞는가»다 — 둘은 다른 일이었다.
  *
  * 🔴 `/driver-location` 과 같은 문이다 — **개발 빌드에서만 열린다.**
  *    기사님의 현위치·필터가 나가는 값이라 운영에서는 404 다.
@@ -244,18 +239,18 @@ router.get("/preflight", (_req, res) => {
     return res.json({
         ok: true,
         bootedAt: BOOTED_AT.toISOString(),
-        /** 도는 필터(메모리) — 설정(DB)이 아니다. 둘이 갈라지는 것이 오늘의 사고였다 */
+        /** 도는 필터(메모리) — 설정(DB)이 아니다. 둘은 갈라질 수 있다 */
         destinationCity: f?.destinationCity ?? null,
         destinationRadiusKm: f?.destinationRadiusKm ?? null,
         pickupRadiusKm: f?.pickupRadiusKm ?? null,
         /**
-         * 📐 **폰에 실제로 가는 상차 반경** — 자동이면 줄어든 값 (`scrap.ts` 가 싣는 그 계산 · 2026-09-14).
+         * 📐 **폰에 실제로 가는 상차 반경** — 자동이면 줄어든 값 (`scrap.ts` 가 싣는 그 계산).
          *    위 `pickupRadiusKm` 은 기사님이 정한 원값이다. 14:54 에 점검은 10km 로 봤는데 폰은 4.55km 로 걸렀다.
          */
         pickupRadiusKmEffective: effectiveRadii(f).pickupRadiusKm,
         radiusAuto: !!f?.radiusAuto,
         /**
-         * 📱 **폰마다 «실제로 쓰는» 모드 · 필터 · 연락** (`core/phoneCheck` · 2026-09-14).
+         * 📱 **폰마다 «실제로 쓰는» 모드 · 필터 · 연락** (`core/phoneCheck`).
          *    14:41 에 폰이 옛 필터 · 직접 모드로 돌았는데 서버는 그 대답을 들고만 있었다.
          */
         phones: getUserDevicesSnapshot(userId).map(d => phoneCheckOf(d, sentFilterVersionOf(d.deviceId), Date.now())),
@@ -286,14 +281,14 @@ router.get("/preflight", (_req, res) => {
  *
  * 🔴 **여기서 판단하지 않는다** — 옮기기만 한다. 판단은 순수 함수 하나(검사 `tests/core/simScenario.test.ts`).
  * 🔴 **개발 빌드에서만** — 기사님 콜·필터를 읽는 문이다 (`/preflight` 와 같은 문지기 · 사람 세션 하나일 때만).
- * 🔴 **시뮬레이터가 안 물으면 시작을 안 받는다** (onedal-49 2026-09-15) — 시뮬레이터는 «처음 물은 뒤»에 들어온 콜만 받아서,
+ * 🔴 **시뮬레이터가 안 물으면 시작을 안 받는다** (onedal-49) — 시뮬레이터는 «처음 물은 뒤»에 들어온 콜만 받아서,
  *    켜기 전에 시작하면 첫 줄 콜이 사라진다. 현황판 개별콜 칸(`sentNoteOf`)과 같은 10초 기준.
  * ⚠️ **메모리에만 둔다** — 서버를 다시 띄우면 시나리오도 멈춘다 (타이머와 함께 사라진다).
  */
 const SCENARIO_TICK_MS = 1000;
 const SIM_POLL_FRESH_MS = 10_000;
 /**
- * 🎬 **문제 목록 — 이름표로 고른다** (기사님 2026-09-15 · 2026-09-19 확장).
+ * 🎬 **문제 목록 — 이름표로 고른다** (기사님).
  *    현황판 카드마다 이름표를 들고 시작한다 · 한 번에 하나만 돈다 (새로 시작하면 돌던 것을 멈춘다).
  */
 const SCENARIOS: Record<'icheonRound' | 'icheonFive' | 'gangnamFive', { name: string; rows: ScenarioRow[] }> = {
@@ -403,7 +398,7 @@ router.get("/scenario", (req, res) => {
         rows: scenarioDef.map((d, i) => ({
             id: d.id, stage: d.stage, kind: d.kind, say: d.say, why: d.why, guess: !!d.guess, blockBy: d.blockBy ?? null,
             when: 'arrive' in d.when ? `${d.when.arrive} ${d.when.stop === 'pickup' ? '상차' : '하차'}지에 서면` : '앞 줄 뒤',
-            /* 🏷️ 동 이름을 앞에 — 폰 콜 목록은 동만 보여 줘서 «이천터미널»만으로는 목록 줄과 짝이 안 맞는다 (기사님 2026-09-15) */
+            /* 🏷️ 동 이름을 앞에 — 폰 콜 목록은 동만 보여 줘서 «이천터미널»만으로는 목록 줄과 짝이 안 맞는다 (기사님) */
             call: d.call ? `${d.call.pickup.region} ${d.call.pickup.name} → ${d.call.dropoff.region} ${d.call.dropoff.name} · ${d.call.fare.toLocaleString()} · ${d.call.vehicleType}` : null,
             ...(st ? st.rows[i] : { mark: 'wait', note: '' }),
         })),
@@ -451,7 +446,7 @@ router.post("/scenario/stop", (_req, res) => {
 export default router;
 
 /**
- * 🗺️ **실험실 전용 — 정거장 점들을 실도로 곡선으로 잇는다** (기사님 2026-09-07).
+ * 🗺️ **실험실 전용 — 정거장 점들을 실도로 곡선으로 잇는다** (기사님).
  *
  * 지도 실험실(`/mockup/map`)이 콜을 확정해 경로가 다시 짜일 때 한 번 부른다.
  * 다리(연속 두 점)마다 카카오 길찾기 1회 — 구간별 폴리라인을 따로 돌려줘야
@@ -465,12 +460,12 @@ router.post("/route", async (req, res) => {
         const valid = Array.isArray(points) && points.length >= 2 && points.length <= 24
             && points.every(p => Number.isFinite(p?.x) && Number.isFinite(p?.y));
         if (!valid) return res.status(400).json({ error: "points 는 2~24개의 {x,y} 배열이어야 합니다" });
-        // 옵션 축 — 노선에서 고른 것(우선순위·회피)을 콜 실측·확정 경로가 따라간다 (기사님 2026-09-08)
+        // 옵션 축 — 노선에서 고른 것(우선순위·회피)을 콜 실측·확정 경로가 따라간다 (기사님)
         const priority = ["RECOMMEND", "TIME", "DISTANCE"].includes(req.body?.priority) ? req.body.priority as string : "RECOMMEND";
         const avoid = ["motorway", "toll"].includes(req.body?.avoid) ? req.body.avoid as string : undefined;
 
         const legs: Array<Array<{ x: number; y: number }>> = [];
-        /** 구간별 실측 — 콜 리스트 카드(거리·시간·톨비)가 읽는다 (기사님 2026-09-08) */
+        /** 구간별 실측 — 콜 리스트 카드(거리·시간·톨비)가 읽는다 (기사님) */
         // 🔴 못 잰 구간은 **null** 이다 — 0 도 직선 근사도 아니다 (규칙 ④). `/chain` 과 같은 규약
         const legInfo: Array<{ distKm: number | null; durMin: number | null; tollWon: number | null; failed?: boolean }> = [];
         let distance = 0, duration = 0;
@@ -493,11 +488,10 @@ router.post("/route", async (req, res) => {
                 distance += r.distance; duration += r.duration;
             } catch (legErr) {
                 /**
-                 * 🔴 **못 쟀으면 «못 쟀다»고 한다 — 직선 km 를 지어내지 않는다** (규칙 ④ · 2026-09-09).
+                 * 🔴 **못 쟀으면 «못 쟀다»고 한다 — 직선 km 를 지어내지 않는다** (규칙 ④).
                  *
-                 * 예전엔 직선거리를 넣고 `durMin: 0` 을 붙였다. **0분은 «즉시 도착»으로 읽힌다** —
-                 * 그 값이 시급(요금 ÷ 분)에 들어가면 색이 통째로 틀린다. 같은 파일의 `/chain`
-                 * 은 이미 `null` 로 두고 있었으니 **한 서버가 같은 질문에 두 답**을 하던 셈이다.
+                 * **`durMin: 0` 은 «즉시 도착»으로 읽힌다** — 그 값이 시급(요금 ÷ 분)에 들어가면 색이 통째로 틀린다.
+                 * 같은 파일의 `/chain` 도 `null` 로 둔다.
                  * 실물도 카카오가 실패하면 `kakaoSoloDurationMin` 을 null 로 남긴다.
                  */
                 console.warn(`⚠️ [sim/route] 구간 ${i} 실측 실패 — 못 쟀다로 남긴다:`, String((legErr as Error)?.message ?? legErr));
@@ -513,7 +507,7 @@ router.post("/route", async (req, res) => {
 
 /**
  * 🛣️ **실험실 전용 — 길 찾기: 카카오 «모든 옵션»을 실시간으로, 합치지 않고 그대로**
- * (기사님 2026-09-08: *"길찾기를 합하지 말고 카카오 모든 옵션을 뿌려주면? — 카카오 호출하자는 이야기"*).
+ * (기사님: *"길찾기를 합하지 말고 카카오 모든 옵션을 뿌려주면? — 카카오 호출하자는 이야기"*).
  *
  * 미리 만든 길 파일과 달리 **누르는 그 시각의 소요시간**이 나온다 — 밤 출발이면 밤의 길.
  * 옵션 5종(추천·최단시간·최단거리·고속도로 피하기·톨게이트 피하기) × 대안 경로, 중복 병합 없음.
@@ -526,7 +520,7 @@ router.post("/roads", async (req, res) => {
         const ok = (p: unknown): p is { x: number; y: number } =>
             !!p && Number.isFinite((p as { x: number }).x) && Number.isFinite((p as { y: number }).y);
         if (!ok(origin) || !ok(dest)) return res.status(400).json({ error: "origin/dest 는 {x,y} 여야 합니다" });
-        // ➕ 경유지를 이어 붙인 경로 (기사님 2026-09-08 «두 단으로 가기») — 카카오가 «빠름» 축만 알아서
+        // ➕ 경유지를 이어 붙인 경로 (기사님 «두 단으로 가기») — 카카오가 «빠름» 축만 알아서
         //    남쪽으로 도는 길을 절대 안 준다. 경유점을 지나는 조건을 걸면 그 길이 나온다
         const wps: Array<{ x: number; y: number }> = Array.isArray(waypoints) ? waypoints.filter(ok).slice(0, 5) : [];
         const wpParam = wps.length ? `&waypoints=${wps.map(w => `${w.x},${w.y}`).join("|")}` : "";
