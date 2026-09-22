@@ -105,7 +105,7 @@ for (const r of rows) {
 }
 const multi = groups.filter(g => g.calls.length >= 2);
 
-console.log(`\n🧭 경로 순서 비교 — 「상차 먼저」(지금) vs 「지나가는 길목부터」  (server/${DB_FILE})`);
+console.log(`\n🧭 경로 순서 비교 — 「상차 먼저」 vs 「지나가는 길목부터」(지금 규칙)  (server/${DB_FILE})`);
 console.log(`   좌표 있는 콜 ${rows.length}건 · 2건 이상 묶인 조합 ${multi.length}개\n`);
 
 if (multi.length === 0) {
@@ -127,7 +127,7 @@ for (const g of multi) {
 
     const mark = Math.abs(diff) < 0.05 ? '  =' : diff > 0 ? ' 🟢' : ' 🔴';
     const short = (s) => (s || '').split(/\s+/).slice(1, 3).join(' ');
-    console.log(`${mark} ${g.calls.length}콜  상차먼저 ${a.toFixed(1)}km · 길목부터 ${b.toFixed(1)}km` +
+    console.log(`${mark} ${g.calls.length}콜  상차먼저 ${a.toFixed(1)}km · 길목부터(지금) ${b.toFixed(1)}km` +
         `  (차이 ${diff >= 0 ? '−' : '+'}${Math.abs(diff).toFixed(1)}km)`);
     console.log(`      ${g.calls.map(c => `${short(c.pickup)}→${short(c.dropoff)}`).join(' · ')}`);
 }
