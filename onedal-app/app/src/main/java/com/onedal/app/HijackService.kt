@@ -73,12 +73,8 @@ class HijackService : AccessibilityService(), ScanContext {
         /**
          * 🔴 **시각에는 시간대를 함께 실어 보낸다**.
          *
-         * 예전 형식은 `yyyy-MM-dd'T'HH:mm:ss'Z'` 였다 — **한국 시각을 찍고 뒤에 글자 `Z`(=UTC)를
-         * 붙인** 것이다. 서버는 그걸 UTC 로 읽으니 **9시간이 밀렸다.**
-         *
-         * 실측: 09:10 KST 에 잡은 콜이 `2026-08-16T09:10:12Z` 로 저장돼
-         * 서버가 18:10 KST 로 읽었고, 상차 마감이 19:10 이 되어
-         * 화면에 **"대기 572분"** (맞게는 32분)이 떴다.
+         * `yyyy-MM-dd'T'HH:mm:ss'Z'` 로 쓰면 **한국 시각을 찍고 뒤에 글자 `Z`(=UTC)를 붙인** 것이 된다.
+         * 서버는 그걸 UTC 로 읽으니 **9시간이 밀려**, 상차 마감이 어긋나고 화면에 «대기 572분» 같은 값이 뜬다.
          *
          * `Z` 대신 `XXX` 를 쓰면 `+09:00` 이 붙어 어느 시간대에서 찍었는지가 값에 남는다.
          */
@@ -183,8 +179,8 @@ class HijackService : AccessibilityService(), ScanContext {
      * 정지 화면(픽커 홈 등)에서는 갈아탄 뒤 **다음 이벤트가 영영 안 올 수 있다.** 그러면
      * 판은 픽커인데 화면 이름은 «알 수 없는 화면»으로 굳은 채 60초 생존신고만 나간다.
      *
-     * ⚠️ 이것은 2026-09-02 에 실패한 «몇 박자 뒤 다시 읽기»와 **다르다.** 그때는 화면이
-     *    바뀌기를 기대하며 다시 읽었고, 접근성 캐시가 아까 화면을 돌려줘 실패했다.
+     * ⚠️ 이것은 «몇 박자 뒤 다시 읽기»와 **다르다.** 그쪽은 화면이
+     *    바뀌기를 기대하며 다시 읽는데, 접근성 캐시가 아까 화면을 돌려줄 수 있다.
      *    여기서 필요한 것은 **바뀐 화면이 아니라 바뀐 파서**다 — 캐시가 주는 그 화면이
      *    바로 지금 화면이고, 그것을 새 파서로 읽으면 된다.
      */
@@ -215,8 +211,8 @@ class HijackService : AccessibilityService(), ScanContext {
      * ⏱️ **픽커 상세 대기 타이머** — **ID 를 저장해 취소 가능하게** (좀비 타이머 규칙).
      * 확정 전 상세에 들어오면 **누가 열었든(알람·손) · 어느 모드든** 정해진 시간(서버 DB) 뒤 폰이 스스로 뒤로 나와
      * 리스트 수집을 재개한다 (기사님 확정).
-     * 🔴 거는 곳은 상세 화면 처리 한 곳 · 끄는 곳은 `resetSessionState` 한 곳 — 예전엔 알람이 누를 때만 걸고
-     *    «상세 → 리스트»일 때만 꺼서, 중간 화면이 끼자 안 꺼진 타이머가 기사님이 손으로 연 다음 상세를 닫았다 (18:30:34).
+     * 🔴 거는 곳은 상세 화면 처리 한 곳 · 끄는 곳은 `resetSessionState` 한 곳 — 거는 길이나 끄는 길이
+     *    한쪽에만 있으면, 중간 화면이 낄 때 안 꺼진 타이머가 기사님이 손으로 연 다음 상세를 닫는다.
      */
     private var detailBackRunnable: Runnable? = null
     /** 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용 — 알람이 카드를 누른 시각(부팅 기준) · 동작은 안 가른다 */
@@ -227,7 +223,7 @@ class HijackService : AccessibilityService(), ScanContext {
     /**
      * 🚚 마지막으로 알아본 픽커 운행 단계 — **바뀔 때만 로그를 남기려고** 들고 있다.
      * 매 스캔(1초)마다 찍으면 로그가 그 줄로 덮여 다른 줄을 묻는다
-     * (`planMergedStops` 가 08-29 에 당한 것과 같은 계열).
+     * (같은 줄이 로그를 덮는 계열).
      */
     private var lastPickerStage: com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.Stage? = null
 
@@ -279,8 +275,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /**
      * ⏱️ **서버가 내려준 필터(저장본)** — 배차망별 대기 시간을 여기서 읽는다 (기사님 확정).
-     * 🔴 예전엔 폰 안 저장소의 `safeCancelTimeout`(설정 화면 30·40·50초)을 읽었다 — 서버가 모르는 값이었다.
-     *    원천은 이제 서버 DB 다. 못 읽으면 `FilterConfig` 기본값(서버 DB 기본값과 같다).
+     * 🔴 원천은 서버 DB 다 — 폰 안 저장소 값은 서버가 모르는 값이 된다. 못 읽으면 `FilterConfig` 기본값(서버 DB 기본값과 같다).
      */
     private fun savedFilter(): com.onedal.app.models.FilterConfig {
         val json = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).getString("activeFilter", null)
@@ -299,9 +294,8 @@ class HijackService : AccessibilityService(), ScanContext {
             /**
              * 💤 **화면 상태는 이벤트로 한 번 알리고 끝내지 않는다** (기사님 확정).
              *
-             * 예전에는 `sendOffline()` 한 번이 전부였다. 그런데 화면이 꺼져도 앱은 60초마다
-             * 생존신고를 계속하고, 그 하트비트가 서버에서 `status = "ONLINE"` 으로
-             * **되돌려 버린다** — 실측 20:28 에 꺼짐을 보고했는데 20:32 에 관제웹은 녹색이었다.
+             * `sendOffline()` 한 번으로 끝내면, 화면이 꺼져도 앱은 60초마다 생존신고를 계속하고
+             * 그 하트비트가 서버에서 `status = "ONLINE"` 으로 **되돌려 버린다** — 관제웹은 녹색이 된다.
              *
              * 그래서 **플래그를 세워 매 텔레메트리에 실어 보낸다.** 서버가 추측할 일이 없다.
              * 접근성 스크래핑은 화면이 켜져 있어야 도니, 화면 꺼짐 = **콜을 못 잡는 상태**다.
@@ -337,7 +331,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
         /**
          * 📝 **가장 먼저 로그 파일을 연다** — 이 아래에서 무슨 일이 나든 남게 한다.
-         *    logcat 은 우리 로그를 세 시간도 못 지킨다 (09-13 조사: 08:22 의 앱 로그 0줄).
+         *    logcat 은 우리 로그를 세 시간도 못 지킨다 (몇 시간 전 앱 로그가 0줄로 남는다).
          *    자리: `/sdcard/Android/data/com.onedal.app/files/logs/1dal-YYYY-MM-DD.log`
          */
         AppLogger.attachFile(this)
@@ -382,23 +376,21 @@ class HijackService : AccessibilityService(), ScanContext {
         }
         telemetryManager.start()
         /**
-         * 🟢 **붙자마자 한 번 쏜다** (기사님 실측 2026-09-02: *"폰이랑 서버랑 연결이 안 되는데?"*).
+         * 🟢 **붙자마자 한 번 쏜다** (기사님 실측: *"폰이랑 서버랑 연결이 안 되는데?"*).
          *
-         * `start()` 는 **60초 생존신고 시계만** 건다. 그래서 앱이 떠도 첫 보고가 1분 뒤였고,
-         * 그동안 관제웹에서는 이 폰이 **아예 없는 것처럼** 보였다. 접근성을 껐다 켜면 그
-         * 시계가 처음부터 다시 시작하므로, 실측에서는 세 번 토글하는 사이 1분 넘게 조용했다.
+         * `start()` 는 **60초 생존신고 시계만** 건다. 그것만 두면 앱이 떠도 첫 보고가 1분 뒤고,
+         * 그동안 관제웹에서는 이 폰이 **아예 없는 것처럼** 보인다. 접근성을 껐다 켜면 그 시계가 처음부터 다시 시작한다.
          */
         telemetryManager.forceHeartbeat()
         apiClient.fetchKeywords()
 
         /**
-         * 🖥️ **첫 보고는 «본 것»이어야 한다** (기사님 실측 제보로 수리).
+         * 🖥️ **첫 보고는 «본 것»이어야 한다** (기사님 실측 제보).
          *
          * 기사님: *"픽커는 지금 홈에 있는데. 콜 리스트로 나오고 있어."*
          *
-         * 예전에는 여기서 `updateScreenContext(ScreenContext.LIST)` 로 **화면을 읽지도 않고**
-         * «콜 리스트»라고 세웠다. 인성에서는 우연히 맞았다 — 스캐너를 켜는 자리가 대개
-         * 리스트니까. 픽커 홈에서 그 우연이 깨졌고, 관제웹이 계속 거짓말을 했다.
+         * 화면을 읽지 않고 «콜 리스트»라고 세우면 인성에서는 우연히 맞지만(스캐너를 켜는 자리가
+         * 대개 리스트다) 픽커 홈에서는 틀리고, 관제웹이 계속 거짓말을 한다.
          *
          * 🔴 **왜 스스로 안 고쳐지나** — 홈 화면은 움직이지 않아
          * `TYPE_WINDOW_CONTENT_CHANGED` 가 **안 온다.** 이벤트가 없으면 판별도 없고,
@@ -457,11 +449,9 @@ class HijackService : AccessibilityService(), ScanContext {
         AppLogger.i(TAG, "  🔍 Parser     (${scrapParser.currentParserName()})")
         AppLogger.i(TAG, "  👆 Touch      (준비 완료)")
         /**
-         * 🔴 **읽어서 답한다 — 지어내지 않는다** (수리).
+         * 🔴 **읽어서 답한다 — 지어내지 않는다**.
          *
-         * 예전엔 `"(인성콜)"` 이 박혀 있었다. 바로 윗줄 Parser 는 파생인데 이 줄만
-         * 리터럴이라, **픽커로 돌 때도 「인성콜」이라 찍혔다.** 그날 홈 화면 오보를
-         * 진단하다 이 로그를 믿고 한 번 헛짚었다.
+         * 배차망 이름을 글자로 박으면 픽커로 돌 때도 «인성콜»이라 찍혀, 로그를 믿고 헛짚는다.
          *
          * 같은 자리의 «붙는 순간 화면»(위 `firstScreen`)과 **같은 클래스**다 —
          * 읽지 않고 단언하는 것. 인스턴스를 하나씩 고치는 대신 규칙으로 잠갔다
@@ -487,7 +477,7 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager.stop()
         cancelSafeCancelTimer()
         /**
-         * 📵 **왜 내려가는지 지금 알 수 있다** (기사님 지적 2026-09-02).
+         * 📵 **왜 내려가는지 지금 알 수 있다** (기사님 지적).
          * 접근성 스위치를 끄면 안드로이드가 이 서비스를 죽인다. 그 순간 «켜진 접근성
          * 목록»에 우리가 **없으면** 그건 추측이 아니라 사실이다 — 기사님이 끄신 것이다.
          * 목록에 아직 있으면 앱·시스템 사정으로 내려가는 것이라 «앱 꺼짐»이다.
@@ -530,17 +520,16 @@ class HijackService : AccessibilityService(), ScanContext {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         /**
-         * 🪟 **«내용이 바뀜»과 «창이 바뀜» 둘 다 화면이 바뀐 것이다** (수리).
+         * 🪟 **«내용이 바뀜»과 «창이 바뀜» 둘 다 화면이 바뀐 것이다**.
          *
          * 기사님: *"「나가시겠습니까」 알럿창에 「네」 하고 홈으로 왔는데 알 수 없는 화면으로
          * 계속 남아 있어."*
          *
-         * 예전엔 `TYPE_WINDOW_CONTENT_CHANGED` 하나만 봤다. 다이얼로그가 닫히고 홈으로
-         * 돌아가는 것은 **창이 바뀌는 사건**이라 그 이름으로 오지 않는다 — 그래서 판별이
-         * 아예 안 돌았고, 알럿 화면이던 `UNKNOWN` 이 1분 넘게 굳었다.
+         * `TYPE_WINDOW_CONTENT_CHANGED` 하나만 보면, 다이얼로그가 닫히고 홈으로 돌아가는 것은
+         * **창이 바뀌는 사건**이라 그 이름으로 오지 않아 판별이 아예 안 돌고, 알럿 화면이던 `UNKNOWN` 이 굳는다.
          *
          * 🔴 앞의 «붙는 순간 화면»과 뿌리가 같다 — *화면이 안 움직이면 아무도 다시 안 본다.*
-         *    그때는 **첫 값**이 굳었고 이번엔 **마지막 값**이 굳었다.
+         *    그쪽은 **첫 값**이, 이쪽은 **마지막 값**이 굳는다.
          *
          * ⚠️ 인성은 안 흔들린다 — 스캔이 늘어도 아래 **지문 비교**가 같은 화면을 거른다.
          *    오히려 팝업이 닫히는 순간을 더 정확히 본다.
@@ -571,16 +560,15 @@ class HijackService : AccessibilityService(), ScanContext {
         if (!watched) return
 
         /**
-         * ⏱️ **창이 바뀌면 한 번으로 안 믿는다** (2026-09-02 · 기사님 실측:
+         * ⏱️ **창이 바뀌면 한 번으로 안 믿는다** (기사님 실측:
          * *"바뀌고 나서 1분 가까이 기다려야 하는 것 같아"*).
          *
          * 전환 이벤트가 오는 **그 순간의 창은 아직 옛 내용**이다. 그래서 아래 지문 비교에
          * 걸려 건너뛰고, 새 화면이 정지 화면이면 **아무도 다시 안 본다.**
-         * 실측 19초 — 그것도 프로모션 배너가 저절로 움직여 준 덕이었다.
+         * (프로모션 배너처럼 저절로 움직이는 것이 없으면 계속 굳는다.)
          *
          * 그려질 시간을 주고 몇 박자 뒤 다시 본다. 헛읽기가 늘어도 **지문이 막아** 전송은
-         * 안 는다. 재확인은 **읽기만** 한다 — 터치하면 2026-08-12 「LIST 오탐 → 세션 리셋」
-         * 이 되살아난다.
+         * 안 는다. 재확인은 **읽기만** 한다 — 터치하면 «LIST 오탐 → 세션 리셋»이 난다.
          */
         val rootNode = rootInActiveWindow ?: return
 
@@ -647,7 +635,7 @@ class HijackService : AccessibilityService(), ScanContext {
          * 📡 **막히면 «어디서» 막혔는지 말한다** (새벽).
          *
          * 🔴 조건이 넷인데 **조용히 빠졌다.** 승격이 안 되면 로그가 한 줄도 안 남아,
-         *    «수락했는데 콜이 안 잡혔다»가 되면 넷 중 무엇이 걸렸는지 알 방법이 없었다.
+         *    «수락했는데 콜이 안 잡혔다»가 되면 넷 중 무엇이 걸렸는지 알 방법이 없다.
          *    그날 판을 한 번 더 돌려야 하는데 픽커는 **하루 5번**뿐이다 — 되돌릴 창이
          *    없는 판에서 «한 번 더 해 보자»는 비싼 말이다.
          * ⚠️ 조건이 **다 맞을 때는 안 찍는다** — 그때는 `reportPickerAccepted` 가 제 말을 한다.
@@ -679,7 +667,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
         /**
          * ⏳ **늦은 수락 확인** — 퀵은 수락 → 내 오더 → 카드 → 흰 페이지라 상세 바로 뒤에는 수락 표식이 없다
-         * (`KakaoPickerKeywords.shouldCheckLateAcceptance` · 09-16 03:23 폰 시험 «수락 확인» 0건).
+         * (`KakaoPickerKeywords.shouldCheckLateAcceptance`).
          * 미리보기 딱지가 남은 채(리스트를 거치지 않음) 수락 뒤 화면이 보이면 그때 승격을 확인한다.
          */
         if (!TargetApp.supportsCatching(currentTargetApp) &&
@@ -707,21 +695,17 @@ class HijackService : AccessibilityService(), ScanContext {
         /**
          * 수동/자동 복귀 감지: 기사님이 닫기·취소·뒤로가기로 리스트에 돌아오면 락을 푼다.
          *
-         * 🔴 2026-08-13 — 예전에는 **"지금 화면이 LIST 냐"** 만 봤다. 그래서
-         *    자동 터치 **직후**(상세가 아직 안 그려져 화면이 여전히 LIST)에도 걸려
-         *    `resetSessionState()` 가 `isAutoActive` 를 꺼 버렸다.
-         *
-         *    실측 (05:16:18, 0.3초 사이):
+         * 🔴 **"지금 화면이 LIST 냐"** 만 보면, 자동 터치 **직후**(상세가 아직 안 그려져 화면이 여전히 LIST)에도
+         *    걸려 `resetSessionState()` 가 `isAutoActive` 를 꺼 버린다 — 0.3초 사이의 실측:
          *      .397  💥 [AUTO] 꿀콜 조건 통과! 강제 터치 진행!     ← isAutoActive = true
          *      .704  [복귀 감지] LIST 화면으로 이탈 감지됨          ← 아직 LIST · 오탐
          *      .705  🔄 세션 상태 완전 초기화                      ← isAutoActive = false
          *      19.06 모드: MANUAL (매크로클릭: false)              ← AUTO 인데 MANUAL 로 보고
+         * 
+         *    그 한 글자가 서버의 배차 흐름을 통째로 바꾼다. MANUAL 은 안전취소 없이 즉시 확정되고,
+         *    앱이 리스트로 이탈해도 서버가 안 치운다(기사님이 손으로 잡은 콜을 서버가 버리면 안 되므로).
          *
-         *    그 한 글자가 서버의 배차 흐름을 통째로 바꾼다. MANUAL 은 안전취소 없이
-         *    즉시 확정되고, 앱이 리스트로 이탈해도 서버가 안 치운다(일부러 그렇게 설계됐다 —
-         *    기사님이 손으로 잡은 콜을 서버가 버리면 안 되므로). 그래서 유령이 남았다.
-         *
-         * 문서의 상태 기계가 정답을 갖고 있었다.
+         * 상태 기계로 보면 이렇다.
          *      LIST               --> DETAIL_PRE_CONFIRM : 콜 클릭
          *      DETAIL_PRE_CONFIRM --> LIST               : 취소 · 뒤로가기
          * 리셋이 필요한 건 **두 번째 전이**다. 즉 "지금 LIST" 가 아니라 **"LIST 로 돌아왔다"**.
@@ -730,13 +714,10 @@ class HijackService : AccessibilityService(), ScanContext {
          * (타이머로 유예를 주는 방법도 있지만, 몇 밀리초를 줘야 하는지에 근거가 없다.
          *  화면 전이는 이미 상태로 표현돼 있으므로 그걸 쓴다)
          *
-         * 🔴 **그런데 2026-08-23 에 같은 사고가 다시 났다** — 이 판정은 멀쩡했는데
-         *    `handleListScreen` 첫 줄이 **조건 없이** 리셋을 부르고 있어서 무의미했다.
-         *    이번엔 `matchType` 이 아니라 **미리보기**가 뒤집혔다: 앱이 자기가 터치한 콜을
-         *    "손으로 연 상세"로 읽어 확정을 안 눌렀고, 🔵 100점 판정까지 받고 콜을 놓쳤다.
-         *    → 그 자리를 없애고 **리셋은 여기 한 곳에서만** 한다 (`sessionEndsWithCall.test.ts`).
+         * 🔴 **리셋은 여기 한 곳에서만** 한다 (`sessionEndsWithCall.test.ts`). 리스트 핸들러가 조건 없이 리셋을
+         *    부르면 이 판정이 무의미해지고, 앱이 자기가 터치한 콜을 «손으로 연 상세»로 읽어 확정을 안 누른다.
          *
-         * ⚠️ 조건(`hasActiveSession()`)도 뗐다. 그건 `isAutoActive`·`isWaitingForDecision`·
+         * ⚠️ 조건(`hasActiveSession()`)을 걸지 않는다. 그건 `isAutoActive`·`isWaitingForDecision`·
          *    `currentOrderId` 만 보므로 `collectState`·`isPreview` 가 더럽게 남으면 그냥
          *    통과한다. **복귀는 그 자체로 콜의 끝**이니 조건 없이 지우는 것이 맞다.
          */
@@ -745,14 +726,13 @@ class HijackService : AccessibilityService(), ScanContext {
                            rawScreenStr.contains("대기 중인 오더가 없")
         val wasListScreen = previous == ScreenContext.LIST || previous == ScreenContext.LIST_COMPLETED
         /**
-         * 👁️ **리스트를 못 보고 있던 동안을 기록한다** (기사님 요청 2026-08-25).
+         * 👁️ **리스트를 못 보고 있던 동안을 기록한다** (기사님 요청).
          *
          * 앱은 한 번에 콜 하나만 평가한다 — 상세로 들어가면 그동안 **리스트를 아예 안 읽는다.**
          * 그 사이 배차망에 뜬 콜은 평가조차 되지 않고 조용히 사라진다.
          *
-         * 🔴 2026-08-25 실측: `②` 를 잡는 데 **11.7초** 가 걸렸고, 그동안 `③` 이 화면에
-         *    떴다 사라졌다. 로그에 아무 기록이 없어서 *"필터가 걸렀나 / 안 떴나 / 못 봤나"* 를
-         *    구분할 수 없었다. **놓친 콜과 걸러낸 콜은 전혀 다른 것**인데 같아 보였다.
+         * 🔴 콜 하나를 잡는 데 **10초 넘게** 걸리기도 하고, 그동안 다른 콜이 화면에 떴다 사라진다.
+         *    기록이 없으면 *"필터가 걸렀나 / 안 떴나 / 못 봤나"* 를 구분할 수 없다 — **놓친 콜과 걸러낸 콜은 전혀 다르다.**
          *
          * 그래서 리스트를 떠난 시각을 재 두고, 돌아올 때 얼마나 못 봤는지 남긴다.
          * (배차망 콜 간격보다 이 시간이 길면 문제지가 통째로 지나간다)
@@ -795,9 +775,9 @@ class HijackService : AccessibilityService(), ScanContext {
          * 화면이 가리키는 배차망이 지금 읽는 배차망과 다르면 — 이 판을 통째로 버리고 갈아탄다.
          * 안 버리면 남의 화면을 남의 파서로 읽어 쓰레기 콜이 올라간다 (잔상 사고와 같은 계열).
          *
-         * 🖥️ **화면이 가리키는 배차망은 화면 글자로 안다** (기사님 확정 · 원달앱 계획서 ③).
-         *    예전엔 앱 이름(패키지)으로 갈랐는데, 시뮬레이터는 세 배차망을 한 앱으로 띄워
-         *    픽커·24시 화면도 늘 «인성»으로 읽었다. 배차망 글자가 없는 화면(카톡·잠금화면)은
+         * 🖥️ **화면이 가리키는 배차망은 화면 글자로 안다** (기사님 확정).
+         *    앱 이름(패키지)으로 가르면 시뮬레이터는 세 배차망을 한 앱으로 띄우므로
+         *    픽커·24시 화면도 늘 «인성»으로 읽는다. 배차망 글자가 없는 화면(카톡·잠금화면)은
          *    null 이라 관문 대상이 아니다 — 직전 배차망 그대로 흐른다.
          */
         val screenNetworks = TargetApp.networksOnScreen(screenTexts)
@@ -808,23 +788,23 @@ class HijackService : AccessibilityService(), ScanContext {
         if (screenNetwork != null) lastNetworkPackage = rootNode.packageName?.toString()
         NetworkSwitchGate.switchTargetFor(screenNetwork, currentTargetApp)?.let { target ->
             // 🔄 **기다리지 않는다** (기사님 확정: "4초 지워").
-            //    기다리는 동안 앱은 판을 버려 콜을 한 건도 안 읽는데, 얻는 것이 없었다.
+            //    기다리는 동안 앱은 콜을 한 건도 안 읽는데, 얻는 것이 없다.
             switchNetworkTo(target)
             // 갈아탄 파서로 이 판을 다시 읽는다 — 다음 이벤트를 기다리지 않는다
-            //    (정지 화면이면 그 «다음»이 영영 안 온다 — 2026-09-02 실측 2분)
+            //    (정지 화면이면 그 «다음»이 영영 안 온다 — 실측 2분)
             rootNode.recycle()
             return
         }
 
         /**
-         * 🚚 **운행 단계를 로그로 남긴다** (기사님 지시 2026-09-02:
+         * 🚚 **운행 단계를 로그로 남긴다** (기사님 지시:
          * *"페이지만 만들어 두면 오늘 저녁 들어올 때 훨씬 잘 구분할 거야"*).
          *
-         * 낱말이 2023 자료 추정이라 **오늘은 인식과 기록만 한다** — 장부(마일스톤)에는
-         * 아직 잇지 않는다. 틀린 낱말로 장부에 쓰면 되돌릴 수 없다 (규칙 ④).
+         * 낱말이 2023 자료 추정이라 **인식과 기록만 한다** — 장부(마일스톤)에는
+         * 잇지 않는다. 틀린 낱말로 장부에 쓰면 되돌릴 수 없다 (규칙 ④).
          *
-         * 🔴 **못 알아본 화면은 글자를 남긴다.** 저녁에 이 줄들을 모으면 «어느 낱말이
-         *    빠졌는지»를 실물로 고를 수 있다 — 그게 오늘 판의 산출물이다.
+         * 🔴 **못 알아본 화면은 글자를 남긴다.** 이 줄들을 모으면 «어느 낱말이
+         *    빠졌는지»를 실물로 고를 수 있다 — 그 글자가 낱말을 고르는 재료다.
          */
         /**
          * 🔴 **픽커 화면일 때만 본다** — 패키지로 가른다 (실측 수리).
@@ -836,7 +816,7 @@ class HijackService : AccessibilityService(), ScanContext {
          * ✅ **이 조건에 한해서만 앱 이름을 본다** (기사님 확정 ㉯). 배차망은 화면 글자로
          *    정하지만(위 관문), 이 로그의 목적은 **처음 보는 픽커 화면** — 곧 픽커 글자가 없는 화면 —
          *    의 글자를 모으는 것이라 화면 글자로는 «픽커 화면인가»를 알 수 없다.
-         *    «직전 배차망이 픽커면»으로 걸면 잠금화면이 다시 찍힌다 (위 09-02 사고).
+         *    «직전 배차망이 픽커면»으로 걸면 잠금화면이 다시 찍힌다.
          * ✅ **시뮬레이터 앱은 운행 단계만 찍는다** (기사님 지시) — 어디까지 찍나는 `TargetApp.pickerLogScope` 한 곳이 정한다.
          */
         val pickerLog = TargetApp.pickerLogScope(rootNode.packageName?.toString(), currentTargetApp)
@@ -847,7 +827,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.isAcceptedScreen(rawScreenStr))) {
                 startPickerTrace("수락 후 표식이 보인다")
             }
-            // 🔴 «바로 앞 화면»이 아니라 «마지막으로 알아본 픽커 단계»로 본다 — 홈 → 리스트 사이에 넘어가는 화면(UNKNOWN)이 서너 번 낀다 (09-16 04:33 라이브)
+            // 🔴 «바로 앞 화면»이 아니라 «마지막으로 알아본 픽커 단계»로 본다 — 홈 → 리스트 사이에 넘어가는 화면(UNKNOWN)이 서너 번 낀다
             if (com.onedal.app.plugins.kakaopicker.PickerTrace.startsFromHome(true, lastPickerStage == com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.Stage.HOME, detected == ScreenContext.LIST)) {
                 startPickerTrace("홈에서 리스트로 들어왔다")
             }
@@ -916,12 +896,9 @@ class HijackService : AccessibilityService(), ScanContext {
         /**
          * 🔚 **여기서 세션을 지우지 않는다** (기사님 확정).
          *
-         * 예전에는 첫 줄이 `resetSessionState()` 였다. *"리스트로 돌아오면 리셋"* 이라고
-         * 적혀 있었지만 실제로는 **"리스트를 보고 있으면 리셋"** 이었다 — 이 핸들러는
-         * 리스트에 머무는 5초마다 돌기 때문이다.
-         *
-         * 그래서 자동 터치 직후 화면이 아직 안 바뀐 사이(118ms)에 LIST 이벤트가 한 번 더
-         * 오면 **방금 잡은 콜이 통째로 지워졌다.** 리셋은 위쪽 **복귀 판정**이 한다.
+         * 이 핸들러는 리스트에 머무는 5초마다 돈다 — 여기서 리셋하면 «리스트로 돌아오면»이 아니라
+         * «리스트를 보고 있으면» 리셋이 되어, 자동 터치 직후 화면이 아직 안 바뀐 사이(118ms)에 LIST 이벤트가
+         * 한 번 더 오면 **방금 잡은 콜이 통째로 지워진다.** 리셋은 위쪽 **복귀 판정**이 한다.
          *
          * 🔴 세션을 지우는 자리는 전부 *"이 콜은 끝났다"* 여야 한다 — 복귀 · 동명이동 실패 ·
          *    2차 필터 실패 · 판결 집행. **"지금 무슨 화면이냐"는 콜의 끝이 아니다.**
@@ -947,9 +924,8 @@ class HijackService : AccessibilityService(), ScanContext {
         /**
          * 👁️ **빈 카드를 센다** — 필드 테스트 1회차 ① 의 계측.
          *
-         * 2026-08-23 실주행: `💸 요금 못 읽음` 12,467회인데 **뒤가 공백**이었다.
-         * 요금이 이상한 게 아니라 **같은 줄 글자가 하나도 안 묶였다** — 스캔당 약 30개.
-         * 그때 빌드에는 진단 로그가 아예 없어(`👁️` 0줄) 원인을 못 봤다.
+         * 실주행에서 `💸 요금 못 읽음` 이 **뒤가 공백**인 채로 무더기로 난다 — 요금이 이상한 게 아니라
+         * **같은 줄 글자가 하나도 안 묶인** 것이다(스캔당 약 30개).
          *
          * 🔴 겹침은 «열린 구간»이라 높이 0인 사각형은 **닻 자신과도 안 겹친다**
          *    (`RowGroupingTest` 로 재현). 스크롤 밖 노드의 bounds 가 `(0,0,0,0)` 으로
@@ -964,7 +940,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val alarmHits = mutableListOf<Triple<SimplifiedOfficeOrder, ScreenTextNode, Int>>()
 
         /**
-         * 🔄 **필터 버전이 바뀌었으면 «막았다» 기억만 비운다** (#135 · 2026-09-15).
+         * 🔄 **필터 버전이 바뀌었으면 «막았다» 기억만 비운다** (#135).
          * 상차 목록은 차가 0.5km 움직일 때마다 바뀐다 — 옛 목록으로 막힌 콜을 새 목록으로 다시 판정해야
          * «가까워지면 올라온다»가 선다. 누른 콜·통과한 콜·보고한 콜은 그대로다 (`CallMemory` 머리).
          */
@@ -998,9 +974,8 @@ class HijackService : AccessibilityService(), ScanContext {
                  * 카드마다 매번 찍히지 않게 **못 읽은 것만** 남긴다.
                  */
                 /**
-                 * 🔴 **빈 카드는 여기서 안 찍는다**. 2026-08-23 실주행에서
-                 *    이 줄이 **12,467회** 나왔고 뒤가 전부 공백이었다 — 그 소음이 다른
-                 *    로그를 통째로 묻었다. 빈 카드는 스캔 요약(`👁️ [리스트 스캔]`)이
+                 * 🔴 **빈 카드는 스캔 요약이 찍는다** — 여기서 찍으면 실주행에서 수만 줄이 나와 다른
+                 *    로그를 통째로 묻는다. 빈 카드는 스캔 요약(`👁️ [리스트 스캔]`)이
                  *    좌표와 함께 한 줄로 말한다. 여기는 **글자는 있는데 요금만 못 읽은**
                  *    진짜 파싱 실패만 남긴다.
                  */
@@ -1013,14 +988,13 @@ class HijackService : AccessibilityService(), ScanContext {
             val orderHash = (order.pickup + order.dropoff + order.fare.toString()).hashCode()
             scanHashes[orderHash] = fareNode.rect   // 🔔 이미 본 콜도 «아직 화면에 있다 + 지금 여기 있다»는 사실은 남긴다
             /**
-             * ⏭️ **건너뛰었다는 사실을 남긴다** (시험 두 판을 여기서 잃었다).
+             * ⏭️ **건너뛰었다는 사실을 남긴다**.
              *
              * 지문은 **상차+하차+요금**이라 차종만 바꾼 콜은 같은 콜로 보인다. 그런데
              * 아무 로그 없이 `continue` 하니, 화면엔 떴는데 판정이 한 줄도 안 남는다 —
              * *"필터가 막았나 / 요금을 못 읽었나 / 서버가 안 보냈나"* 를 가릴 수가 없다.
              *
-             * 실측 2026-08-25: 문제지 ⑧⑨ 를 승용차로 바꿔 다시 흘렸는데 세 판 내리
-             * 조용히 건너뛰었고, **서버를 고쳤는지조차 확인 못 했다.**
+             * 차종만 바꾼 문제지를 다시 흘리면 조용히 건너뛰어 **서버를 고쳤는지조차 확인 못 한다.**
              * (캐시는 접근성 토글로 서비스가 새로 만들어져야 비워진다 — 앱을 밀어내도 안 된다)
              */
             if (callMemory.alreadyEvaluated(orderHash)) {
@@ -1031,7 +1005,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
             // 🌟 [항시 인터셉터] 콜 필터 매칭 검사 (디버그 로그를 위해 MANUAL/AUTO 무관하게 항시 실행)
             /**
-             * 🔒 **평가가 실제로 돌았는지는 성적표가 답한다** (#79 · 2026-08-30).
+             * 🔒 **평가가 실제로 돌았는지는 성적표가 답한다** (#79).
              * `decide()` 는 필터가 잠겨 있으면(선점 중·대기) 첫 줄에서 돌아서며
              * `tally.seen` 을 올리지 않는다 — 앞뒤 차이가 «평가했다»의 유일한 원천이다.
              * 여기서 필터를 다시 읽어 판단하면 decide 와 두 벌이 된다 (규칙 ③).
@@ -1041,7 +1015,7 @@ class HijackService : AccessibilityService(), ScanContext {
             val wasEvaluated = tally.seen > seenBefore
 
             /**
-             * 🗳️ **판정을 콜에 실어 보낸다** (현황판 의뢰 2026-09-12).
+             * 🗳️ **판정을 콜에 실어 보낸다**.
              *
              * 현황판이 「🗑️ 버린 콜」 목록을 그릴 때 앱 판정식을 **TS 로 옮겨 적은 사본**으로
              * 다시 재고 있었고, 그것이 이미 한 번 갈라졌다 — 앱은 요율 모델이 서면
@@ -1090,9 +1064,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     /**
                      * 📊 **잡은 콜도 수집에 센다** (기사님 확정).
                      *
-                     * 예전에는 여기서 바로 `break` 라, 아래의 `enqueue` 에 못 닿았다.
-                     * 그래서 관제웹의 `수집:N` 이 **탈락한 콜만** 센 숫자였다 —
-                     * 16콜을 돌렸는데 13 이 뜨는 이유가 이것이었다.
+                     * 여기서 바로 `break` 하면 아래의 `enqueue` 에 못 닿아, 관제웹의 `수집:N` 이 **탈락한 콜만** 센 숫자가 된다.
                      *
                      * 기사님: *"실전에서는 리스트에 몇 개가 뜨는지 모르니까,
                      * 필터가 잘 돌고 있는지 알 수가 없어 답답하다."*
@@ -1112,8 +1084,8 @@ class HijackService : AccessibilityService(), ScanContext {
             /**
              * 🔒 평가가 안 돈 콜(선점 잠금·대기)은 **기억에 남기지 않는다** (#79).
              * 잠금이 풀리는 다음 스캔에서 처음처럼 평가된다 — 콜을 잡는 10~30초 사이에
-             * 나타난 콜을 영영 삼키던 사고의 수리 지점이다. 로그를 남기는 이유는 08-25 와
-             * 같다: 침묵하면 «필터가 막았나/잠겼나/못 읽었나»를 가릴 수 없다.
+             * 나타난 콜을 영영 삼키지 않는다. 로그를 남기는 이유는
+             * 이렇다: 침묵하면 «필터가 막았나/잠겼나/못 읽었나»를 가릴 수 없다.
              */
             // #135 — 통과면 «통과했다»(필터가 바뀌어도 다시 안 봄), 막혔으면 «막았다»(필터 버전이 바뀌면 다시 판정)
             callMemory.onScanned(orderHash, wasEvaluated, passed = isTarget)
@@ -1128,12 +1100,11 @@ class HijackService : AccessibilityService(), ScanContext {
          *
          * 기사님: *"분명 폰 이름 1234에 파란불이 들어와 있었어."*
          *
-         * 접근성이 막혀 콜을 하나도 못 읽는 동안 **관제웹은 파란불이었다.** 텔레메트리는
-         * 계속 갔고 화면 판별(`LIST`)도 됐기 때문이다. 그런데 로그는 `resetSessionState`
-         * 에서 끊겨 **노드를 몇 개 읽었는지조차 알 수 없었다.**
+         * 접근성이 막혀 콜을 하나도 못 읽어도 텔레메트리가 가고 화면 판별(`LIST`)이 되면 **관제웹은 파란불**이다.
+         * 노드를 몇 개 읽었는지 남기지 않으면 고장인지 알 수 없다.
          *
-         * 🔴 실운행이면 콜을 통째로 놓치는데 기사님이 알 방법이 없다. 8/21 은 하루 종일
-         *    `LIST` + 0항목이 18,824회였다 — 대부분 진짜 빈 리스트지만 **고장과 구분이 안 된다.**
+         * 🔴 실운행이면 콜을 통째로 놓치는데 기사님이 알 방법이 없다. `LIST` + 0항목은
+         *    하루에 수만 번 찍힌다 — 대부분 진짜 빈 리스트지만 **고장과 구분이 안 된다.**
          *
          * 세 숫자가 그걸 가른다:
          *   노드 많음 + 그룹 0  → 콜은 화면에 있는데 **못 뽑는다**
@@ -1144,8 +1115,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val picked = groupedNodes.size - fareFail
         /**
          * 🔴 **`picked == 0` 일 때만 찍으면 안 된다**.
-         *    2026-08-23 패턴은 «그룹 30 · 통과 1» 이라 `picked = 1` 이었다 —
-         *    빈 카드가 29개인데도 **한 줄도 안 남았을 것**이다.
+         *    «그룹 30 · 통과 1» 이면 `picked = 1` 이라 빈 카드가 29개인데도 **한 줄도 안 남는다**.
          *    빈 카드가 하나라도 있으면 남긴다.
          */
         if (picked == 0 || emptyCard > 0) {
@@ -1168,13 +1138,11 @@ class HijackService : AccessibilityService(), ScanContext {
                 withBorder = TargetApp.supportsCatching(currentTargetApp),
             )
             /**
-             * 🔴 **머리줄 위의 요금은 오더카드다 — 누르면 그 자리에서 계약이다**
-             *    (라이브 오배차 조사에서 신설).
+             * 🔴 **머리줄 위의 요금은 오더카드다 — 누르면 그 자리에서 계약이다**.
              *
-             * 09-13 새벽 기사님이 주무시는 사이 이 자리가 픽커 카드를 눌러 두 건이 배차됐다.
-             * 종전 방어는 `clickSafe` 하나였는데 그건 요금 중심 **±60픽셀** 안의 글자만 본다 —
-             * 오더카드의 「수락」은 요금 **약 70픽셀 아래**라 **띠 밖이고 그대로 통과했다.**
-             * 이제 **「리스트 설정」 머리줄보다 아래인가**를 함께 본다 (`isListCardAnchor`).
+             * `clickSafe` 는 요금 중심 **±60픽셀** 안의 글자만 보는데, 오더카드의 「수락」은 요금 **약 70픽셀 아래**라
+             * **띠 밖이다**(기사님이 주무시는 사이 두 건이 배차된 적이 있다). 그래서 **「리스트 설정」 머리줄보다
+             * 아래인가**를 함께 본다 (`isListCardAnchor`).
              * 머리줄을 못 읽은 판은 **손대지 않는다** (규칙 ④ — 모르면 고장으로 친다).
              */
             val listHeaderY = KakaoPickerParser.listHeaderCenterY(
@@ -1191,9 +1159,9 @@ class HijackService : AccessibilityService(), ScanContext {
                     "상세로 이동 · 수락은 기사님 · 상세 대기 시간 뒤 자동 복귀")
                 /**
                  * 📎 **여기서 카드를 따로 쥐여 주지 않는다**.
-                 * 예전엔 `lastDetailOrder = order` 로 쥐여 줬는데, 그 길이 **알람에만** 있어서 기사님이
-                 * 손으로 연 상세는 «리스트 원본이 없다»로 서버에 아무것도 안 갔다.
-                 * 이제 상세 화면이 누가 열었든 `KakaoPickerParser.matchListCard` 한 곳에서 카드를 찾는다
+                 * 여기서 `lastDetailOrder = order` 로 쥐여 주면 그 길이 **알람에만** 있어, 기사님이
+                 * 손으로 연 상세는 «리스트 원본이 없다»로 서버에 아무것도 안 간다.
+                 * 그래서 상세 화면이 누가 열었든 `KakaoPickerParser.matchListCard` 한 곳에서 카드를 찾는다
                  * (이 카드도 방금 `recentListOrders` 에 들어갔다).
                  */
                 /**
@@ -1216,11 +1184,11 @@ class HijackService : AccessibilityService(), ScanContext {
                     session.alarmTappedCard = order
                     session.alarmTappedAtMs = alarmTapAtMs
                     /**
-                     * 📝 **누르기 직전에 이 콜을 기억에 넣는다** (인성 AUTO 와 같은 방어 · 09-16 실측으로 신설).
+                     * 📝 **누르기 직전에 이 콜을 기억에 넣는다** (인성 AUTO 와 같은 방어).
                      *
                      * 여기서 누르면 화면이 상세로 넘어가 **스캔 루프의 끝(`onScanned`)까지 못 간다** —
                      * 그러면 이 콜은 기억에 안 남고, 목록으로 돌아오자마자 **처음 보는 콜**로 또 눌린다.
-                     * 실측: 30초 상세 → 0.1초 목록 → 또 상세가 끝없이 돌았다.
+                     * 그러면 «30초 상세 → 0.1초 목록 → 또 상세»가 끝없이 돈다.
                      * 🔴 «눌렀다»는 필터 버전이 바뀌어도 안 지워진다 (`CallMemory.markEvaluated`).
                      */
                     callMemory.markEvaluated(orderHash)
@@ -1239,7 +1207,7 @@ class HijackService : AccessibilityService(), ScanContext {
             } else if (!TargetApp.supportsCatching(currentTargetApp)) {
                 /**
                  * 🔴 **안 누른 것도 남긴다.** 조용히 건너뛰면 다음 조사에서 또 «왜 안 눌렀나»를
-                 *    못 본다 — 09-13 조사가 이틀 걸린 이유가 로그의 침묵이었다.
+                 *    못 본다 — 로그의 침묵이 조사를 가장 늦춘다.
                  */
                 val why = if (!onListCard) "머리줄 아래가 아니다 (오더카드이거나 머리줄을 못 읽었다)"
                           else "카드에 「수락」이 보인다"
@@ -1363,8 +1331,8 @@ class HijackService : AccessibilityService(), ScanContext {
              * 🔴 **전송이 실패하면 기다리지 않고 바로 뱉는다** (기사님 확정).
              *
              * `ApiClient.sendDetail` 은 실패 시(비2xx · 재시도 소진 · 예외) `CANCEL` 을 준다.
-             * 예전에는 이 콜백을 **버리고** 30초 안전취소 타이머에 맡겼다. 실패 경로를 재어
-             * 보니 그 대기가 **버는 것 없이 잃기만** 했다:
+             * 이 콜백을 버리고 30초 안전취소 타이머에 맡기면 그 대기가 **버는 것 없이 잃기만** 한다
+             * (실패 경로를 잰 값):
              * ```
              *   서버 5xx        → 1초 미만 (응답이 왔으니 재시도 안 함)
              *   연결 자체 불가  → 1~2초    (즉시 실패 ×2 + 0.5초)
@@ -1409,7 +1377,7 @@ class HijackService : AccessibilityService(), ScanContext {
      * 🔴 **치환은 배차망 폴더 안에서 한다** — 여기는 «부르기»만 한다. 페이지 이름(`Stage`)은
      *    픽커 폴더 밖으로 안 나오고, 나오는 것은 공통 화면 값 하나뿐이다.
      *
-     * ⚠️ 인성·24시는 이 줄을 안 지난다 — `supportsCatching` 이 참이라 예전과 완전히 같다.
+     * ⚠️ 인성·24시는 이 줄을 안 지난다 — `supportsCatching` 이 참이라 낱말 판별만 쓴다.
      */
     private fun detectScreenContext(text: String, pkg: String? = null): ScreenContext {
         val byKeywords = screenDetector.detect(text, keywords)
@@ -1545,7 +1513,7 @@ class HijackService : AccessibilityService(), ScanContext {
     /**
      * 앱별 확정 버튼 텍스트 리스트 중 첫 번째로 발견되는 버튼을 클릭합니다.
      * 목록은 배차망 플러그인의 `confirmKeywords` 가 정한다 — 여기 손으로 적지 않는다.
-     * ⚠️ 예전 주석은 *"인성콜: 확정 하나만"* 이라 했는데 실제로는 둘이다("확정"·"배차").
+     * ⚠️ 인성은 둘이다("확정"·"배차").
      */
     override fun clickFirstMatchingButton(rootNode: AccessibilityNodeInfo, buttonTexts: List<String>): Boolean {
         for (btnText in buttonTexts) {
