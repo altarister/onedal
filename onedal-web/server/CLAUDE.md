@@ -27,6 +27,18 @@
   DB 행을 전제하는 호출(`birthFirstStep` 등)은 `!isSimulated` 로 막는다.
   ⚠️ 배차망 시뮬레이터(`onedal-sim`) 화면에서 잡은 콜은 체험 콜이 아니다 — 보통 콜처럼 DB 에 쓰인다
 
+## 로그는 파일에도 남는다
+
+```
+logs/server-YYYY-MM-DD.log        평소(4000)
+logs/server-YYYY-MM-DD-4012.log   다른 포트(검사·재현용)
+```
+
+- 터미널 출력은 **그대로** 있다 — 파일은 추가지 대체가 아니다. 콘솔은 스크롤이 지나가면 사라지니 «몇 번 찍혔나»·«언제 꺼졌나»는 파일로 본다
+- 보관 기간은 `src/utils/fileLogger.ts` 의 `KEEP_DAYS` — 부팅 때 자동 정리된다. `.gitignore` 에 들어 있다
+- ⚠️ **파일을 지우면 서버를 다시 띄울 때까지 안 쌓인다** (열려 있던 스트림이 지워진 파일을 계속 문다)
+- 읽는 명령은 `cd .. && pnpm log` ([onedal-web/CLAUDE.md](../CLAUDE.md) 스크립트 표)
+
 ## 함정
 
 - **조건부 `DROP TABLE` 마이그레이션을 새로 추가하지 않는다** (`db.ts` — 부팅 경로에서 데이터가 날아감).
