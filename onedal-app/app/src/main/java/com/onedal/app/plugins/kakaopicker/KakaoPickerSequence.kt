@@ -4,7 +4,7 @@ import com.onedal.app.core.AppLogger
 import com.onedal.app.core.engine.ScanContext
 
 /**
- * 🌐 **픽커 수순 — 여기가 그 집이다** (신설 · 기획/배차망_통합.md ②).
+ * 🌐 **픽커 수순 — 여기가 그 집이다**.
  *
  * 🔴 **픽커에는 «잡기» 수순이 없다.** 「수락하기」를 누르는 순간 계약이 성립하고
  * 되돌릴 창이 없다(버튼 취소 없음 · 전화만 · 하루 5번). 그래서 앱은 **읽고 알릴 뿐**이고,
