@@ -13,7 +13,7 @@ describe('StateMachine', () => {
         expect(result.changed).toBe(true);
         expect(result.newFilter?.dispatchPhase).toBe('GATHERING');
         expect(result.newFilter?.isSharedMode).toBe(true);
-        // 🔴 경유 한 벌(키워드·묶음·별칭)은 전이가 싣지 않는다 (#81 · 2026-08-30) —
+        // 🔴 경유 한 벌(키워드·묶음·별칭)은 전이가 싣지 않는다 (#81) —
         //    키워드만 실으면 별칭 재생성 가드가 방금 채운 별칭을 지운다.
         //    행동 검사는 keepKeepsAliases.test.ts 에 있다.
         expect('destinationKeywords' in (result.newFilter ?? {})).toBe(false);
