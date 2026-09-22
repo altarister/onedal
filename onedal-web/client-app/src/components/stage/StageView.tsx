@@ -63,7 +63,7 @@ interface Props {
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
     /**
-     * 🛣️ **노선 ↔ 🔷 동선 — 기사님이 고르는 그물 모양** (명세 §5).
+     * 🛣️ **노선 ↔ 🔷 동선 — 기사님이 고르는 그물 모양**.
      *
      * 🔴 **부모(`Dashboard`)가 쥔다** — 고르는 버튼은 **필터**에 있고 그리는 것은 **지도**라,
      *    한쪽이 제 상태를 들면 «필터는 동선인데 지도는 노선»이 된다 (규칙 ③).
@@ -142,7 +142,7 @@ export default function StageView(props: Props) {
      *    `effectiveRadii` 하나다. 필터 화면도 같은 함수를 부른다 — 곱셈이 두 곳이면
      *    «서버는 줄였는데 지도는 원값»이 된다 (규칙 ③).
      * 🔴 마름모 모양은 **국면 그릇을 안 본다** — 국면과 무관한 **한 벌**이라 평면 필터에 실려 온다
-     *    (명세 §3 · DB 자리는 `user_filters`). 국면 행마다 두면 손 안 댄 행에 옛 값이 남는다.
+     *    (DB 자리는 `user_filters`). 국면 행마다 두면 손 안 댄 행에 옛 값이 남는다.
      */
     const radii = effectiveRadii(filter);
 
@@ -164,7 +164,7 @@ export default function StageView(props: Props) {
     const pickupAreaIn = filter?.pickupArea;
     const homeOn = pickupAreaIn?.homeOn ?? false;
     const homeCity = pickupAreaIn?.homeCity ?? null;
-    /* 🔴 «출발했나»는 목적지마다가 아니라 **하나**다 — 조각이 이 값을 직접 본다 (설계서 ⑥) */
+    /* 🔴 «출발했나»는 목적지마다가 아니라 **하나**다 — 조각이 이 값을 직접 본다 */
     const departed = filter?.dispatchPhase === 'DELIVERING';
     /**
      * 🎯 **목적지 목록은 서버가 정한 것을 받는다** — 여기서 다시 계산하지 않는다 (규칙 ③).
@@ -180,7 +180,7 @@ export default function StageView(props: Props) {
         hasCalls: confirmedCalls.some(c => c.goalCity === city),
     })), [zonesKeyIn, homeCity, confirmedCalls]);
     /**
-     * 🎯 **목적지 가까이 옴 — 현위치가 그 목적지 영역 안인가** (shared `isNearGoal` · 설계서 ⑥).
+     * 🎯 **목적지 가까이 옴 — 현위치가 그 목적지 영역 안인가** (shared `isNearGoal`).
      *    목적지 반경 하나로만 잰다. 켜지면 **더하기만 한다** — 상차에 목적지 원을 더하고, 하차에서 상차 동을 안 뺀다.
      *    서버 `rebuildPickupList` 와 **같은 `withNearness`** 다. 마름모 계산이 무거워 내 위치를 ~300m 눈금으로 굳힌다.
      */
@@ -202,7 +202,7 @@ export default function StageView(props: Props) {
      *    없으면 «Q(현위치→목적지) ∪ 목적지 원». 목적지가 집이어도 같다. 🔴 현위치 원은 안 넣는다.
      * 확정콜의 마지막 하차지는 경로 순서(`routeStops`)에서 그 목적지 콜의 마지막 하차지(`lastDropOf`) · 라인은 지금 그리는 경로 선을 거기까지 자른 것(`lineUntil`).
      * 🔴 서버 하차 목록(`filterManager.netOfGoals`)도 같은 규칙이다 — 다만 원달앱은 상차 목록 동을 **동 목록**으로 빼고 지도는 **도형**으로 지워,
-     *    경계에 걸친 큰 읍·면에서 조금 다를 수 있다 (알고 둔 차이 · 필터.md «지금 코드와 다른 곳»).
+     *    경계에 걸친 큰 읍·면에서 조금 다를 수 있다 (알고 둔 차이).
      * 📐 마름모는 계산이 무거워 내 위치를 ~300m 눈금으로 굳혀 다시 만든다 — 원 중심은 실시간 위치다.
      */
     const dropoffLine = routeMode ? derived.drawHolder?.routePolyline ?? null : null;
@@ -217,7 +217,7 @@ export default function StageView(props: Props) {
             let center: { lng: number; lat: number };
             try { center = cityCenter(z.city); } catch { return []; }   // 지도에 없는 시 — 그 목적지는 모른다
             if (!Number.isFinite(center.lng) || !Number.isFinite(center.lat)) return [];
-            /* 🔴 마름모 시작점은 «그 목적지의 마지막 하차지를 아는가»로 정한다 — 「가까이 옴」은 여기 안 든다 (설계서 ⑥) */
+            /* 🔴 마름모 시작점은 «그 목적지의 마지막 하차지를 아는가»로 정한다 — 「가까이 옴」은 여기 안 든다 */
             const lastDrop = !z.hasCalls ? null
                 : lastDropOf({ isHome: z.isHome, homeOn, homeCity, stops: routeStops, calls: confirmedCalls });
             const line = dropoffLine && lastDrop ? lineUntil(dropoffLine, lastDrop) : [];
@@ -237,7 +237,7 @@ export default function StageView(props: Props) {
         /* 🔴 내 위치를 모르면 그리지 않는다 (규칙 ④) */
         if (!myLocation || !dropoffParts) return null;
         return {
-            /* 먼 목적지 조각 — 캔버스가 여기서 상차 영역을 지운다 (필터.md «하차 영역» · 원달앱은 상차 목록 동을 뺀다) */
+            /* 먼 목적지 조각 — 캔버스가 여기서 상차 영역을 지운다 (원달앱은 상차 목록 동을 뺀다) */
             circles: dropoffParts.filter(p => !p.nearGoal).map(p => ({ ...p.center, km: radii.destinationRadiusKm })),
             /* 🎯 가까이 온 목적지 원 — 지운 뒤에 칠한다 (빼지 않는다) */
             nearCircles: dropoffParts.filter(p => p.nearGoal).map(p => ({ ...p.center, km: radii.destinationRadiusKm })),
@@ -259,7 +259,7 @@ export default function StageView(props: Props) {
           함수에 넘기는 것을 React 컴파일러가 «메모 뒤의 변경»으로 보고 이 메모를 포기한다 (lint:gate) */
     /* 🔷 동선이면 띠가 없다 — 서버 `rebuildPickupList` 도 `routeMode === false` 면 라인을 안 넘긴다 */
     const drawLine = routeMode ? derived.drawHolder?.routePolyline ?? null : null;
-    /* 🟢 조각이 **사실**을 직접 본다 — 서버 `rebuildPickupList` 와 같은 `pickupPartsOf` (설계서 ⑥) */
+    /* 🟢 조각이 **사실**을 직접 본다 — 서버 `rebuildPickupList` 와 같은 `pickupPartsOf` */
     const pickupParts = useMemo(
         () => pickupPartsOf({ departed, hasLine: !!drawLine && drawLine.length >= 2, nearGoalCities: nearGoalCitiesOf(nearZones) }),
         [departed, drawLine, nearZones]);
@@ -512,7 +512,7 @@ export default function StageView(props: Props) {
 
     /**
      * 🚀 **주행이 감지되면 출발이다** — 🔴 «🚀 지금 출발» 버튼에만 맡기지 않는다: 운전 중에는 누를 수 없다.
-     *    출발이 안 켜지면 필터 영역이 «출발 전»에 머물러 내 영역이 운행 내내 남는다 (필터.md §5 «필터 영역»).
+     *    출발이 안 켜지면 필터 영역이 «출발 전»에 머물러 내 영역이 운행 내내 남는다.
      *    콜을 쥐고(`GATHERING`) 경로가 있을 때만 — 빈 차로 달리는 것은 출발이 아니다.
      */
     const hasRoute = liveRoute.length > 0;
@@ -682,11 +682,11 @@ export default function StageView(props: Props) {
                     /* 🗺️ 지도는 «시트»를 모른다 — **아래가 얼마나 가려졌나**만 받는다 (부품끼리 얽히지 않게) */
                     occludedPx={sheetPx}
                     /**
-                     * 🔝 **QR · 경로 방침도 지도 버튼과 한 묶음이다** (기사님 지시 — *"같은 뎁스에 넣어줘"*).
+                     * 🔝 **QR · 경로 방침도 지도 버튼 줄에 싣는다** (기사님 지시 — *"같은 뎁스에 넣어줘"*).
                      *
-                     * 예전엔 이 둘을 지도 **위에 따로 얹고** `top-[104px]` 처럼 좌표로 맞췄다.
-                     * 확대 버튼 수·글꼴이 조금만 달라도 어긋나 **QR 이 「초기화」를 덮었다**.
-                     * 이제 자리는 지도의 오른쪽 묶음 하나가 정한다 — 겹칠 자리가 없다 (규칙 ③).
+                     * 지도 **위에 따로 얹고** `top-[104px]` 처럼 좌표로 맞추면, 확대 버튼 수·글꼴이
+                     * 조금만 달라도 어긋나 **QR 이 「초기화」를 덮는다**.
+                     * 자리는 지도의 버튼 줄(`centerButtons` 가운데 · `rightButtons` 오른쪽)이 정한다 — 겹칠 자리가 없다 (규칙 ③).
                      */
                     /**
                      * 🔝 **«QR코드» 는 지도 위 한가운데** (기사님 지시) — 왼쪽 줄과 오른쪽 줄 사이 빈 자리다.
@@ -724,7 +724,7 @@ export default function StageView(props: Props) {
                                           : ext.includes('[최단거리]') ? 'DISTANCE' : 'RECOMMEND';
                                 const shown = ROUTE_PRIORITIES.filter(b => !locked || b.key === now);
                                 /**
-                                 * 🔤 **카카오내비 화면의 이름 그대로** (`naviLabel` · 기사님 2026-09-05).
+                                 * 🔤 **카카오내비 화면의 이름 그대로** (`naviLabel` · 기사님).
                                  *    관제폰이 「시간」이라 하고 개인폰 내비가 「큰길 우선」이라 하면 같은 것을
                                  *    다르게 부르는 것이라 그 자리에서 헷갈린다. 접어 두니 긴 이름도 자리를 안 먹는다.
                                  */
@@ -776,7 +776,7 @@ export default function StageView(props: Props) {
                     callColors={derived.callColors}
                     /* 📋 상차 영역 — 원 중심은 실시간 내 위치 (위 «상차 영역» 주석) */
                     pickupArea={pickupArea}
-                    /* 🔵 하차 영역 — 살아 있는 목적지마다 원 · 마름모 · 띠 (필터.md «하차 영역») */
+                    /* 🔵 하차 영역 — 살아 있는 목적지마다 원 · 마름모 · 띠 */
                     dropoffArea={dropoffArea}
                     /* 📍 동 점 — 원달앱이 받은 목록 그대로 */
                     dongDots={dongDots}
@@ -789,7 +789,7 @@ export default function StageView(props: Props) {
                       */}
 
                     {/**
-                      * 🚀 지금 출발 — 옛 지도와 같은 자리·같은 동작 (짐 있고 출발 전일 때만).
+                      * 🚀 지금 출발 — 짐 있고 출발 전일 때만.
                       * 🔴 **좁은 화면(폰)에는 안 낸다** — 현황판을 숨기는 것과 **같은 기준**(`useSidePanelRoom`)이다.
                       *    운전 중에는 누를 수 없고, 주행이 감지되면 스스로 출발로 넘어간다 — 지도를 덮을 값어치가 없다.
                       */}
