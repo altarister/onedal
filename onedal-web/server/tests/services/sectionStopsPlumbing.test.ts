@@ -4,17 +4,17 @@ import * as kakao from '../../src/services/kakaoService';
 /**
  * 🧭 **구간 주인(sectionStops)은 홀더까지 배달되어야 한다** (모의주행)
  *
- * #32 수리는 두 조각이었다 — ⓐ 경로 연산이 구간마다 주인을 남긴다,
- * ⓑ 내보낼 때 (orderId, stopType) 키로 조회한다. 그런데 ⓐ의 배선이 끊겨 있었다:
+ * 구간 주인은 두 조각으로 잇는다 (#32) — ⓐ 경로 연산이 구간마다 주인을 남긴다,
+ * ⓑ 내보낼 때 (orderId, stopType) 키로 조회한다. ⓐ의 배선이 끊기면:
  *
- *   composeMergedRoute 는 `result` **바깥**에 sectionStops 를 붙이는데,
- *   모든 호출부는 `applyRoute(holder, result.merged)` — **안쪽**을 넘긴다.
- *   applyRoute 는 받은 것에서 sectionStops 를 찾으니 **항상 undefined** — 홀더에 영영 안 실렸다.
+ *   composeMergedRoute 가 `result` **바깥**에 sectionStops 를 붙이는데
+ *   호출부는 `applyRoute(holder, result.merged)` — **안쪽**을 넘긴다.
+ *   그러면 applyRoute 가 받은 것에는 sectionStops 가 **늘 undefined** — 홀더에 영영 안 실린다.
  *
- * 그래서 4콜 모의주행 내내 도착할 때마다
- * `길이 어긋남(주행분 8 ≠ 정거장 7) → 전부 null` — #32 증상이 그대로 재발했다.
- * 기존 검사(routeStopsAlign)는 sectionStops 가 **이미 실린** 홀더로 소비부만 검사했다 —
- * 생산부의 이음새는 아무도 안 보고 있었다.
+ * 그러면 모의주행 내내 도착할 때마다
+ * `길이 어긋남(주행분 8 ≠ 정거장 7) → 전부 null` — #32 증상이 그대로 난다.
+ * 소비부 검사(routeStopsAlign)는 sectionStops 가 **이미 실린** 홀더로 돌아
+ * 생산부의 이음새를 못 본다 — 그 이음새를 여기서 본다.
  */
 
 jest.mock('../../src/services/kakaoService', () => ({
@@ -31,11 +31,11 @@ describe('경유 계획 = 도착 계획 — 같은 방문 규칙', () => {
     const { planMergedStops, planArrivalStops } = require('../../src/services/routeComposer');
 
     /**
-     * 🔴 **다녀온 하차지도 경유지에서 뺀다** (실측 — #32·#35 계보의 세 번째).
-     * planMergedStops 는 다녀온 **상차지만** 빼고 하차지는 항상 넣었다. 하차 완료된
-     * 콜(사이클까지 활성)의 하차지를 카카오 경로가 다시 방문했고, planArrivalStops(둘 다
-     * 뺌)와 정거장 수가 갈라져 **주행분 전부 null** — 주행중 합짐(11) KEEP 뒤 운행
-     * 내내 타임라인이 죽었다. 두 계획의 방문 규칙은 hasVisitedStop 하나여야 한다.
+     * 🔴 **다녀온 하차지도 경유지에서 뺀다** (실측 — #32·#35 계보).
+     * planMergedStops 가 다녀온 **상차지만** 빼고 하차지를 넣으면, 하차 완료된
+     * 콜(사이클까지 활성)의 하차지를 카카오 경로가 다시 방문하고, planArrivalStops(둘 다
+     * 뺌)와 정거장 수가 갈라져 **주행분 전부 null** — 주행중 합짐 KEEP 뒤 운행
+     * 내내 타임라인이 죽는다. 두 계획의 방문 규칙은 hasVisitedStop 하나여야 한다.
      */
     it('🔴 하차 완료된 콜의 하차지가 카카오 경유에서 빠진다 — 도착 계획과 같은 수', () => {
         const calls = [
