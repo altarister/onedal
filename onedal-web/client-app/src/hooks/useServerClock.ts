@@ -3,7 +3,7 @@ import { apiBase } from '../lib/serverTarget';
 import { measureOffset, CLOCK_RESYNC_MS, type ClockSync } from '../lib/serverClock';
 
 /**
- * 🕐 **서버 시계를 맞춰 들고 있는다** (기사님 2026-09-05).
+ * 🕐 **서버 시계를 맞춰 들고 있는다** (기사님).
  *
  * 🔴 **재는 곳은 여기 하나다** (규칙 ③). 화면은 `serverNow(sync)` 로 읽기만 한다 —
  *    여러 자리가 각자 재면 같은 화면에 두 시각이 뜬다.
