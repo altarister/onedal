@@ -6,7 +6,7 @@ import { MOTION_HOLD_SEC_DEFAULT } from "@onedal/shared";
 import { useSettingsStore } from "../../../stores/settingsStore";
 
 /**
- * 🖥️ **화면 설정 탭** — «화면이 어떻게 반응하나»를 정하는 자리 (기사님 제안 2026-09-12).
+ * 🖥️ **화면 설정 탭** — «화면이 어떻게 반응하나»를 정하는 자리 (기사님 제안).
  *
  * 기사님: *"기본 설정 / 요율·필터 / 판정 기준 / 기기 설정 … 여기에 **화면 설정**
  * 이렇게 탭을 하나 더 만들면 어때?"*
