@@ -19,7 +19,7 @@ import { join } from 'path';
  * 실제 인성은 배차망 서버가 그 거리를 매번 계산해 화면에 띄운다. 시뮬도 같아야 한다.
  *
  * ⚠️ **딸려 오는 것**: 정답표가 «어디서 시작했느냐»에 따라 달라진다. 7지점 채점은
- *    **집에서 시작하는 판** 기준이다 (docs/지금/폰_테스트.md 에 못박아 뒀다).
+ *    **집에서 시작하는 판** 기준이다.
  */
 const SIM = join(__dirname, '../../../../onedal-sim');
 const read = (rel: string) => readFileSync(join(SIM, rel), 'utf8');

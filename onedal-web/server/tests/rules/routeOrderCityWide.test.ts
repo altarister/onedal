@@ -9,7 +9,7 @@ const codeOnly = (src: string) =>
 
 /**
  * 🧭 **구 단위 상차지는 합짐에서 막는다 — 이건 버그가 아니라 결정이다**
- *    (기사님 확정 2026-09-12 · 원천은 [docs/지금/필터.md §5 `routeOrder` 축]).
+ *    (기사님 확정 2026-09-12).
  *
  * 🔴 **왜 이 검사가 있나** — 「왜 합짐이 안 붙나」를 쫓다가 **고치려 드는 것**을 막으려고.
  *
@@ -69,12 +69,11 @@ describe('구 단위 상차지는 합짐에서 막는다 (기사님 확정 2026-
         expect(f).toMatch(/dropoffHits\.values\.filterNotNull\(\)\.minOrNull\(\)/);
     });
 
-    it('🔴 이 결정이 문서에 «왜»와 함께 남아 있다', () => {
-        /* 코드만 있고 이유가 없으면 다음 사람이 «버그네» 하고 고친다 */
-        /* ⚠️ 레포 루트까지와 문서 경로를 **쪼개 적는다** — 한 문자열로 붙이면
-              `audit:docs` 가 «../../…/docs/…» 를 통째로 루트 기준 경로로 읽어 죽은 링크로 본다 */
-        const doc = readFileSync(join(__dirname, '../../../..', 'docs/지금/필터.md'), 'utf8');
-        expect(doc).toMatch(/\*\*구 단위 상차지는 막는다\*\*/);
-        expect(doc).toMatch(/인성이나 24시도 그렇게 작동하니까/);
+    it('🔴 이 결정이 막는 코드 옆에 «왜»와 함께 남아 있다', () => {
+        /* 코드만 있고 이유가 없으면 다음 사람이 «버그네» 하고 고친다 — 주석까지 든 원문을 본다 */
+        const raw = readApp('plugins/RouteOrderFilter.kt');
+        const why = raw.slice(0, raw.indexOf('pickupHits.isEmpty()'));
+        expect(why).toMatch(/\*\*구 단위 상차지는 막는다/);
+        expect(why).toMatch(/인성이나 24시도 그렇게 작동하니까/);
     });
 });

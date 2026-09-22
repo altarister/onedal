@@ -6,26 +6,34 @@
 
 ## 이건 버그가 아니라 규칙이다
 
-- **필터는 두 그릇이고 서로 남남이다.**
-  `baseFilter`(DB · 평소 설정) 와 `activeFilter`(메모리 · 오늘의 콜 필터)는 로그인 시 1회 복사된 뒤
-  완전히 격리된다. 설정을 바꿔도 진행 중인 콜 잡기에 영향이 없어야 한다
+- **필터는 두 그릇이다.** `baseFilter`(DB · 평소 설정) 와 `activeFilter`(메모리 · 오늘의 콜 필터).
+  base → active 로 되돌리는 때는 **세션을 만들 때와 영업일이 바뀔 때**(`resetToBaseFilter`) 뿐이고, 그 사이에는 따로 논다
   · `saveBaseFilter()` — DB 만, activeFilter 안 건드림
   · `updateActiveFilter()` — 메모리만, DB 안 건드림
+  · 관제웹 💾 저장(`saveAsDefault`)은 둘을 차례로 부른다 (`socketHandlers.ts`) — 그 밖의 길은 한쪽만 바꾼다
 
-- **파생값은 `filterManager` 한 곳에서만 만든다.**
-  호출부는 **입력만** 넘긴다(`destinationCity`·`destinationRadiusKm`). 키워드를 직접 채워 넘기면
-  `recalculateDerivedFields` 가 자기 계산을 건너뛰어 **다른 파생값이 안 채워진다.**
-  🔴 2026-08-12 소켓 핸들러가 지리 연산을 자기가 해서 `customCityFilters` 가 영영 비었다
+- **경유 한 벌(`destinationKeywords` · `destinationGroups` · `customCityFilters`)은 `filterManager` 한 곳에서 조립해 함께 싣는다.**
+  다른 호출부는 **입력만** 넘긴다(`destinationCity`·`destinationRadiusKm`).
+  키워드를 직접 채워 넘기면 `recalculateDerivedFields` 가 자기 계산을 건너뛰고,
+  묶음 없이 키워드만 오면 시 별칭이 **비워져** 앱이 멀쩡한 콜을 조용히 거른다 (`keepKeepsAliases` 가 문다)
 
-- **`destinationKeywords` 를 넘길 땐 `customCityFilters` 도 같이.** 안 넘기면 옛 별칭이 남아
-  멀쩡한 콜을 조용히 거른다 (투트랙에서 실제로 났다)
+- **세션은 두 층이고 서로 남남이다** — 사용자 세션(`userSessionStore.ts`)과 기기 세션(`routes/devices.ts` 의 `activeDevices` · `user_devices` 표).
+  🔴 `session.devices` 는 없다 — 부르면 런타임 `TypeError` 로 배차가 멈춘다. 기기 모드는 `getDeviceMode(deviceId, userId)` 로 묻는다
+
+- **취소·수락을 세는 자리는 `core/cancelCount.ts` 하나다.** 콜이 끝나는 길(결재 취소 · 화면 이탈 · 안전취소 시간 초과 · 긴급 리셋 · 새 콜 선점)은 여럿이어도
+  배차망 취소 패널티를 세는 조건은 여기서만 판단한다 — 미리보기 콜 · 체험 콜은 세지 않는다
+
+- **체험 콜은 메모리에만 있다.** 기기 모드가 `SIMULATION` 인 콜은 `session.myOrders` 에는 올라가지만 `orders` · `places` 표에는 안 쓰인다.
+  DB 행을 전제하는 호출(`birthFirstStep` 등)은 `!isSimulated` 로 막는다.
+  ⚠️ 배차망 시뮬레이터(`onedal-sim`) 화면에서 잡은 콜은 체험 콜이 아니다 — 보통 콜처럼 DB 에 쓰인다
 
 ## 함정
 
 - **조건부 `DROP TABLE` 마이그레이션을 새로 추가하지 않는다** (`db.ts` — 부팅 경로에서 데이터가 날아감)
 
-- **`CREATE TABLE IF NOT EXISTS` 는 기존 테이블에 컬럼을 추가하지 않는다.**
-  `ensureColumns()` / `dropStaleCheck()` 를 쓴다. 낡은 `CHECK` 제약이 새 enum 값을 조용히 거부한다.
+- **`CREATE TABLE IF NOT EXISTS` 는 기존 테이블에 컬럼을 추가하지 않는다.** 칸 추가는 `ensureColumns()` 로 한다.
+  enum 성 칸에는 `CHECK` 를 걸지 않는다 — 낡은 `CHECK` 는 새 값을 조용히 거부하고 `ALTER` 로 못 고친다 (`db.ts` 머리).
+  (`dropStaleCheck()` 는 남아 있지만 지금 부르는 곳이 없다)
   ⚠️ `tsc`·`jest` 는 통과하고 **런타임에서만** `no such column` 으로 터진다 —
   빈 DB 가 아니라 **기존 DB 사본**으로 부팅해 봐야 드러난다
 
@@ -33,15 +41,4 @@
   **jest 가 파싱 단계에서 죽는다.** 쓰는 것만 개별 import (`@turf/bbox` 등)
 
 - **`turf.buffer` 는 반경이 작을수록 비싸다** (작은 버퍼는 원본 디테일을 그대로 문다).
-  부팅 때 만들어 둔 `f.simplified`(200m) 로 버퍼링한다 — 1415ms → 13ms
-
-- ⚠️ **검증 전에 `bootedAt` 을 확인할 것.** `tsx watch` 가 변경을 놓치거나 포트에 옛 서버가
-  살아 있으면 **고친 코드가 안 돌고 있다.** 이걸로 오진한 적이 여러 번 있다
-
-## 신뢰할 수 있는 문서 (2026-08-07 · 08-09 대조)
-
-`docs/DISPATCH_STATE_MACHINE.md` · `docs/ENV_CONFIG_SPEC.md` — 코드와 일치
-`docs/SERVER_ARCHITECTURE.md` (v4.0) · `docs/API_SPEC.md` (v3.1) — 2026-08-09 재작성
-
-> 재작성 전 `SERVER_ARCHITECTURE.md` 는 계획을 완료로 기술해 **존재하지 않는 파일**을 안내했다.
-> 재작성본 상단에 "무엇이 사실이 아니었는지"가 남아 있다.
+  부팅 때 만들어 둔 `f.simplified`(`geoService.ts`) 로 버퍼링한다

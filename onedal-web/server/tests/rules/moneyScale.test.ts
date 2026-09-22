@@ -2,7 +2,7 @@ import { judge, CRITERIA, DEFAULT_JUDGMENT, JUDGMENT_FIELDS, judgmentDefaults } 
 import type { JudgeFacts, JudgmentConfig } from "@onedal/shared";
 
 /**
- * 💰 **돈 눈금 — 합짐은 두 점, 첫짐은 제 기준선** (기사님 확정 · docs/기획/실전_콜_판정_설계.md §4-2·§4-3)
+ * 💰 **돈 눈금 — 합짐은 두 점, 첫짐은 제 기준선** (기사님 확정)
  *
  * 무엇을 막나
  * - 합짐이 **한 점 비율**로 돌아가는 것 — 목표 시급에서 100점을 쳐 버리면 3만/h 와 5만/h 가 같은 꿀이 되고

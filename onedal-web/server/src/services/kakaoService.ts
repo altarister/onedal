@@ -133,7 +133,7 @@ function extractPolyline(routes?: any[]): Array<{ x: number; y: number }> {
 
 /**
  * 🎨 **구간마다 따로 담은 폴리라인** — `extractPolyline` 이 통째로 이은 것을 **끊어서** 준다
- *    (2026-09-11 · 이식 B1 · `docs/기획/이식_계획_지도필터콜.md` §6 B).
+ *    (2026-09-11 · 이식 B1).
  *
  * 🔴 **왜 필요한가** — 지도가 «구간마다 그 콜의 색»으로 그리려면 어느 점이 어느 구간인지
  *    알아야 한다. 통짜 배열은 그 경계를 잃는다. 지도 실험실은 `/sim/chain` 이 끊어 주는
@@ -571,7 +571,7 @@ export async function geocodeAddress(query: string): Promise<{x: number, y: numb
         const results = await Promise.all(promises);
         
         /**
-         * 🗺️ **기대지역은 지도가 답한다 — 손으로 적은 시도 목록을 두지 않는다** (버그 대장 #123 «남은 것»).
+         * 🗺️ **기대지역은 지도가 답한다 — 손으로 적은 시도 목록을 두지 않는다**.
          *
          * 🔴 **쿼리 첫 낱말로 기대지역을 추측하지 않는다.** 첫 낱말이 시·군이면(「이천 신둔면」)
          *    기대가 없어 방어가 아예 안 돌고, 광역시와 이름이 겹치는 시면(「광주 초월읍」)

@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🚪 **현황판은 시뮬 전용 문(`/api/sim/*`)을 문지기 하나로만 연다** (버그 대장 #161).
+ * 🚪 **현황판은 시뮬 전용 문(`/api/sim/*`)을 문지기 하나로만 연다**.
  *
  * 서버는 이 문들을 운영에서 닫는다 (`routes/sim.ts` 의 `isDevBuild()` — 기사님 실시간 좌표를
  * 무인증으로 여는 문이라 **일부러** 닫았다). 그래서 라이브의 404 는 고장이 아니라 **답**이다.

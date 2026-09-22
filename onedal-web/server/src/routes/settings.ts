@@ -55,7 +55,7 @@ router.get("/", requireAuth, (req, res) => {
             pickerAlarmMinFare: row.picker_alarm_min_fare ?? 10000,
             /* ⏱️ «주행·정차»로 굳는 초 — 모의 주행에서는 줄여 쓴다 (화면규칙 S16) */
             motionHoldSec: row.motion_hold_sec ?? 10,
-            /* ⏱️ 배차망별 대기 시간 — 인성·화물24시 안전취소 · 픽커 상세 (docs/지금/배차망별_대기_시간.md) */
+            /* ⏱️ 배차망별 대기 시간 — 인성·화물24시 안전취소 · 픽커 상세 */
             safeCancelSecInsung: row.safe_cancel_sec_insung ?? DEFAULT_WAIT_TIMES.safeCancelSecInsung,
             safeCancelSecHwamul24: row.safe_cancel_sec_hwamul24 ?? DEFAULT_WAIT_TIMES.safeCancelSecHwamul24,
             pickerAlarmDetailSec: row.picker_alarm_detail_sec ?? DEFAULT_WAIT_TIMES.pickerAlarmDetailSec,
@@ -377,7 +377,7 @@ router.put("/pricing", requireAuth, (req, res) => {
         }
 
         /**
-         * 🔴 **요율·수수료는 앱이 콜을 거르는 단가표(`ratePerKm`)의 원천이다** (버그 대장 #163).
+         * 🔴 **요율·수수료는 앱이 콜을 거르는 단가표(`ratePerKm`)의 원천이다**.
          *    위 UPDATE 는 DB 만 고치고, `saveBaseFilter` 도 `activeFilter` 는 일부러 안 건드린다.
          *    여기서 파생을 다시 만들지 않으면 **설정 화면엔 새 값이 뜨는데 앱에는 옛 단가가
          *    계속 내려간다** — 집는 콜의 범위가 옛 요율로 굳는다.

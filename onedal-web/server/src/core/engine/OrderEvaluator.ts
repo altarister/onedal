@@ -68,7 +68,7 @@ export class OrderEvaluator {
         console.log(`\n======================================================`);
         console.log(`[서버-사이드 카카오 연산] 🚀 ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
 
-        // 1. 주소 승격·정규화 — 승격 판단은 promoteDetailAddresses 한 곳이다 (버그 대장 #77).
+        // 1. 주소 승격·정규화 — 승격 판단은 promoteDetailAddresses 한 곳이다.
         //    detail 수신 때 이미 한 번 승격되지만, 직접 이 심사로 들어오는 옛 경로를 위해
         //    같은 함수를 한 번 더 태운다 (멱등 — 두 벌 코드가 아니라 같은 문이다)
         promoteDetailAddresses(securedOrder);
@@ -505,7 +505,7 @@ export class OrderEvaluator {
         console.log(`======================================================\n`);
 
         /**
-         * 🎨 **판정 없이 끝나지 않는다** (2026-09-14 폰 시험 · 버그 대장 #123).
+         * 🎨 **판정 없이 끝나지 않는다** (2026-09-14 폰 시험).
          *
          * 판정은 위의 **성공 갈래 안에서만** 만들어졌다 — 좌표를 못 찾거나(«광주 초월읍» 세 건) 카카오가 실패하면
          * 판정 함수를 안 부르고 이유만 남겨, 서버 로그에 `🎨 [판정]` 이 없고 장부·관제웹에도 색이 없었다.
@@ -589,7 +589,7 @@ export class OrderEvaluator {
     private runStage1ShapeFilter(order: SecuredOrder | PendingOrder, session: any, reasons: string[], pros: string[]): { excludedHits: string[] } {
         const filter = session.activeFilter;
         
-        // 1) 차종 검사 — 배차망은 줄여 적는다(«승»). 원달앱처럼 줄임말을 맞춰 본다 (버그 대장 #142)
+        // 1) 차종 검사 — 배차망은 줄여 적는다(«승»). 원달앱처럼 줄임말을 맞춰 본다
         if (filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 && order.vehicleType) {
             if (!filter.allowedVehicleTypes.includes(normalizeVehicleType(order.vehicleType) ?? order.vehicleType)) {
                 reasons.push(`차종(${order.vehicleType}) 불일치`);

@@ -167,7 +167,7 @@ object KakaoPickerKeywords {
      *
      * 🔴 **치환은 배차망 안에서 한다.** 페이지(`Stage`)는 픽커 폴더 밖으로 나가지 않고,
      *    나가는 것은 **공통 화면 값 하나**뿐이다 — 마일스톤을 안 늘리는 것과 같은 원리다
-     *    (`docs/기획/배차망_통합.md` §2). 그래야 배차망이 늘어도 공통 목록이 안 부푼다.
+     *   . 그래야 배차망이 늘어도 공통 목록이 안 부푼다.
      *
      * ⚠️ 홈은 `null` 이다 — 홈은 운행 화면이 아니고, 화면 판별이 «로딩»으로 건너뛴다.
      */
@@ -217,7 +217,7 @@ object KakaoPickerKeywords {
     fun detailOpener(alarmTapAtMs: Long, nowMs: Long): String =
         if (alarmTapAtMs > 0L && nowMs - alarmTapAtMs in 0L..ALARM_OPEN_WINDOW_MS) OPENER_ALARM else OPENER_HAND
 
-    /** ⏱️ 자동 복귀가 몇 초 뒤인지는 적지 않는다 — 서버 DB 값이다 (`docs/지금/배차망별_대기_시간.md`) */
+    /** ⏱️ 자동 복귀가 몇 초 뒤인지는 적지 않는다 — 서버 DB 값이다 */
     const val RETURNED_TO_LIST_LOG = "↩️ [승격 안 함] 상세에서 리스트로 돌아왔다 — 수락하지 않았다 (넘기기 · 뒤로 · 상세 대기 시간 뒤 자동 복귀)"
 
     /** ✅ 수락한 뒤인가 — 잡은 콜로 승격해도 되는가 */

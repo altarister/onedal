@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 /**
- * 🚗 **주행/정차 판정은 한 곳 — 좌표가 끊기면 모름** (버그 대장 #132 · 판단 검사는 `client-app/src/components/dashboard/driveMotion.test.ts`).
+ * 🚗 **주행/정차 판정은 한 곳 — 좌표가 끊기면 모름** (판단 검사는 `client-app/src/components/dashboard/driveMotion.test.ts`).
  *
  * 무대 신호(`useDriveMotion`)와 지도 배지(`MovingBadge`)가 속도 계산을 **각자** 들고 있었다 — 한쪽만 고치면
  * «자막은 정차인데 배지는 이동 중»이 난다(0831 에 한 번 났다). «실 GPS 가 끊겼나»(`useMasterGps`)도 같은 질문이라 같은 기준을 쓴다.

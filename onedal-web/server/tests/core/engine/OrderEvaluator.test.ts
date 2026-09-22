@@ -105,7 +105,7 @@ describe('OrderEvaluator', () => {
     });
 
     /* 🔴 배차망은 차종을 줄여 적는다(«승»). 원달앱은 줄임말을 맞춰 통과시키는데 서버 판정만 글자 그대로 비교해
-       승용차 콜마다 «차종(승) 불일치»를 붙였다 (2026-09-15 이천 왕복 D1·D4 · 버그 대장 #142) */
+       승용차 콜마다 «차종(승) 불일치»를 붙였다 (2026-09-15 이천 왕복 D1·D4) */
     test('줄여 적은 차종(승)도 허용 목록(승용차)과 맞춰 본다', () => {
         const session = { activeFilter: { allowedVehicleTypes: ['다마스', '승용차'], excludedKeywords: [] } };
         const reasons = [], pros = [];

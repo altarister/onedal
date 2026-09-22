@@ -18,7 +18,7 @@ import { buildSoloRouteUrl } from '../../src/services/kakaoService';
  * 누른 뒤엔 경유지 3개·+0.7km·🔵80점 — **없는 우회 비용 20km를 물고 있었다.**
  *
  * 클래스: "같은 사실을 두 식으로 판단". 인스턴스를 세 번 고쳤으니 이제 클래스를 없앤다
- * (버그 대장 #24 의 연장 — 그때는 타임라인만 고쳤다).
+ *.
  *
  * → `hasVisitedStop(order, stopType)` 하나로 판단한다.
  *   **GPS 도착이면 다녀온 것**이다 — 500m 안에 들어와야 찍히므로 "거기 갔다"는 뜻이고,

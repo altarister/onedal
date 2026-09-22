@@ -70,7 +70,7 @@ for(const r of db.prepare("SELECT query,x,y FROM geocode_cache WHERE query LIKE 
   console.log(r.query, r.x, r.y);'
 ```
 
-캐시에 있으면 **그걸 쓴다** — 카카오를 안 불러도 되고, 리허설 문제지에도 그대로 쓸 수 있다.
+캐시에 있으면 **그걸 쓴다** — 카카오를 안 불러도 되고, 시뮬레이터 문제지에도 그대로 쓸 수 있다.
 없으면 [주소생성](../주소생성/SKILL.md) 으로 만들고 [주소검증](../주소검증/SKILL.md) 으로 확인한다.
 
 ### ④ 🔴 거리를 검산한다 — **이 단계를 건너뛰지 않는다**

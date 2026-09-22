@@ -1,7 +1,7 @@
 /**
  * 국면별 필터 설정 — **다섯 국면이 같은 5개 키를 갖는다.**
  *
- * 근거: docs/지금/필터.md §3 (2026-08-14 기사님 확정)
+ * 근거: 기사님 확정 (2026-08-14)
  *
  * 기사님: *"모두 통일하면 타입이 간단해질 거고 저장해 다루기 편할 듯.
  * 탭마다 디스플레이만 달리해서 숨기고 노출하면 될 듯."*
@@ -388,7 +388,7 @@ export const DEFAULT_QUAD_SHAPE: QuadShape = { srcAngleDeg: 110, dstAngleDeg: 11
 
 /**
  * 아무 그릇(평면 필터·DB 행·폼)에서 마름모 셋만 꺼낸다. 없거나 이상하면 기본값 —
- * **0 으로 읽지 않는다** (`Number(null) === 0` · 버그 대장 #105).
+ * **0 으로 읽지 않는다** (`Number(null) === 0`).
  */
 export function quadShapeFrom(src: Record<string, unknown> | null | undefined): QuadShape {
     const out = { ...DEFAULT_QUAD_SHAPE };
@@ -434,7 +434,7 @@ export function reachRadiusKm(reachMin: number, coefMinPerKm: number = REACH_COE
  *    `phaseFromFlat`. 다섯 행을 읽고 쓰고, **이름 두 벌 사이를 옮기던** 것들이다.
  *    그릇이 하나가 되어 전부 할 일이 없어졌다.
  *
- * 🔴 **`Number(null) === 0` 을 막는다** (버그 대장 #105). 새 칸은 늘 NULL 로 태어나는데
+ * 🔴 **`Number(null) === 0` 을 막는다**. 새 칸은 늘 NULL 로 태어나는데
  *    그냥 `Number()` 를 태우면 **NULL 의 0 이 기본값을 이긴다.** `''` 도 같은 길이다.
  */
 export function filterValuesFrom(src: Record<string, unknown> | null | undefined): Record<FlatValueKey, any> {
@@ -450,12 +450,11 @@ export function filterValuesFrom(src: Record<string, unknown> | null | undefined
     return out;
 }
 
-/** 복귀 전환을 생략하는 집 반경 (근거: docs/기록/결정_이력.md «타겟은 사이클이 끝나면 저절로 넘어간다») */
+/** 복귀 전환을 생략하는 집 반경 */
 export const HOME_RADIUS_KM = 5;
 
 /**
- * 🧭 **타겟 자동 순환 — 하차를 마칠 때마다 묻는다** (결정 이력 «타겟은 사이클이 끝나면 저절로 넘어간다» ·
- *    `docs/지금/필터.md` «복귀 켬 — 규칙 ⑤-4 의 다섯» · 버그 대장 #130 · #131).
+ * 🧭 **타겟 자동 순환 — 하차를 마칠 때마다 묻는다** — 타겟은 사이클이 끝나면 저절로 넘어간다.
  *
  *   노선(DEST) 콜을 다 내렸다 → 복귀(HOME) 제안     단, 마지막 하차지가 집 반경 안이면 유지 (복귀 무의미)
  *   복귀(HOME) → 노선(DEST)                          🔴 **마지막 복귀콜을 집 가까이(`HOME_RADIUS_KM`) 내렸을 때만**

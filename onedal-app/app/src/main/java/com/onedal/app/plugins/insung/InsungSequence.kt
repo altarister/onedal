@@ -160,7 +160,7 @@ fun ScanContext.handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTex
 
     /**
      * 👀 **미리보기로 보다가 확정을 눌렀다 — 딱지를 벗고 서버에 알린다**
-     * (기사님 실측 2026-08-22 18:57 · 용어집 §9).
+     * (기사님 실측 2026-08-22 18:57).
      *
      * 기사님: *"관제엡의 노랑색을 보고 확정을 눌렀어. 그런데 관제엡은 내가 생각한 것과
      * 다르게 움직이고 있어. 싱크가 전혀 안 되는 것 같아."*
@@ -196,7 +196,7 @@ fun ScanContext.handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTex
         }
 
         /**
-         * 👀 확정을 눌렀으니 **미리보기가 아니다.** 여기서 딱지를 벗는다 (용어집 §9).
+         * 👀 확정을 눌렀으니 **미리보기가 아니다.** 여기서 딱지를 벗는다.
          *    손으로 연 상세에서 미리보기로 판정을 받아 본 뒤 확정을 누른 경우가 이 길이다.
          *    🔴 딱지는 **벗겨지기만 한다** — 잡은 콜을 안 잡은 것으로 되돌리면 취소
          *    카운트가 새고, 그건 배차망 10회 패널티와 어긋난다.
@@ -223,7 +223,7 @@ fun ScanContext.handleInsungPreConfirmExecution(
     screenTexts: List<String>,
     finalOrder: SimplifiedOfficeOrder
 ): Boolean {
-    // 1. 손으로 연 상세는 팝업 3장을 먼저 읽는다 (기사님 확정 2026-08-22 · 용어집 §9)
+    // 1. 손으로 연 상세는 팝업 3장을 먼저 읽는다 (기사님 확정 2026-08-22)
     if (!session.isAutoActive && session.collectState == SessionManager.CollectState.IDLE) {
         session.isPreview = true
         AppLogger.roadmap("👀 [미리보기] 손으로 연 상세 — 팝업 3장을 먼저 읽고 판정을 받는다", telemetryManager.currentScreenContext.name)

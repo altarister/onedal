@@ -2,7 +2,7 @@ import { judge, CRITERIA, DEFAULT_JUDGMENT, deriveRouteTimeline } from '@onedal/
 import type { JudgeFacts } from '@onedal/shared';
 
 /**
- * 🚫 **무조건 빨간불은 «확정값»만 본다** (기사님 확정 · docs/기획/실전_콜_판정_설계.md §4-1)
+ * 🚫 **무조건 빨간불은 «확정값»만 본다** (기사님 확정)
  *
  * 색을 덮는 것은 세 가지뿐이고, 셋 다 **추정이 아니라 확정된 사실**이어야 한다 —
  * 통화로 굳힌 약속 · 이 콜 자체의 성질 · (아직 안 만든) 기사님이 신고한 적재.

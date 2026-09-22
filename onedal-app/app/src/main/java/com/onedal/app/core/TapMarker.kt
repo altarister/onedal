@@ -22,7 +22,7 @@ import android.view.WindowManager
  *    - `TYPE_ACCESSIBILITY_OVERLAY` — 접근성 서비스의 창이라 「다른 앱 위에 표시」 권한이 필요 없다
  *    - `FLAG_NOT_TOUCHABLE` — 터치를 먹지 않는다. 자국이 떠 있는 동안에도 기사님 손이 그대로 닿는다
  *    - `FLAG_LAYOUT_IN_SCREEN` + `NO_LIMITS` — 접근성 좌표(화면 절대값)와 창 좌표의 원점을 맞춘다
- *      (없으면 상태바 높이만큼 아래에 그려진다 · 버그 대장 #83-①)
+ *      (없으면 상태바 높이만큼 아래에 그려진다)
  *    - `HOLD_MS` 뒤 스스로 걷힌다
  *
  * 🔴 **이 글자는 접근성으로 읽히지 않는다** — `Canvas` 에 그림으로 칠한 것이라 노드가 아니다.

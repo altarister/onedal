@@ -3,7 +3,7 @@ import { effectiveRadii } from "@onedal/shared";
 import type { CallTarget } from "@onedal/shared";
 
 /**
- * 요약줄 — 관제탑에 늘 보이는 한 칸. (docs/지금/필터.md §3)
+ * 요약줄 — 관제탑에 늘 보이는 한 칸.
  *
  *   줄 전체   → 필터 열림 (팝업이 아니라 제자리 · C4-3) — 오른쪽 끝 ⚙️ 는 걷었다 (기사님 2026-09-15)
  *   복귀 토글  → 확인 후 전환 (노선행 ↔ 복귀행) — 필터 안에 있다 (C4-5). 🏘️ 관내는 파생
@@ -27,7 +27,7 @@ import type { CallTarget } from "@onedal/shared";
  */
 
 
-// 취소 카운트 props 는 받되 안 그린다 (v13 확정안) · 취소 한도 토스트도 뺐다 — 폰·배차망마다 달라 다른 자리에서 (기사님 2026-09-15 · todo.md)
+// 취소 카운트 props 는 받되 안 그린다 (v13 확정안) · 취소 한도 토스트도 뺐다 — 폰·배차망마다 달라 다른 자리에서 (기사님 2026-09-15)
 export default function OrderFilterStatus({ onOpenFilter }:
     {
         /** 🪗 누르면 **필터가 열린다** — 이 줄은 제자리에 그대로 있다 (C4-5) */

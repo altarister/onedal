@@ -181,7 +181,7 @@ export interface DetourRegions {
      *
      * ⚠️ 동의 반지름(pad)을 더하고, 하차원 안이면 Infinity 다 — «늦게 빼기 위한»
      *    안전 방향이라 트림에는 맞다. **순서 판정에 쓰면 지리가 뒤집힌다** — 그건
-     *    아래 `orderKm` 의 일이다 (버그 대장 #78).
+     *    아래 `orderKm` 의 일이다.
      */
     progressKm: Record<string, number>;
     /**
@@ -203,7 +203,7 @@ export function getDetourRegions(
     detourRadiusKm: number,
     destinationRadiusKm?: number,
     /**
-     * ✂️ **도려낼 현위치 원 — 하차 조각 전용** (기사님 그림 · 버그 대장 #159).
+     * ✂️ **도려낼 현위치 원 — 하차 조각 전용** (기사님 그림).
      *    하차 영역은 «띠 ∪ 마름모 ∪ 목적지 원 **−** 현위치 원»이다. 그물(`callNet.lineZoneOf`)이
      *    같은 도려내기를 하므로 여기도 해야 «목록만 더 넓은» 자리가 안 생긴다 (규칙 ③).
      */
@@ -258,7 +258,7 @@ export function getDetourRegions(
     const detourBbox = turf.bbox(detourPolygon);
 
     /**
-     * ✂️ **띠의 끝은 둥글지 않고 딱 잘린다** (기사님 지적 · 버그 대장 #159).
+     * ✂️ **띠의 끝은 둥글지 않고 딱 잘린다** (기사님 지적).
      *
      * 🔴 `turf.buffer` 는 선분 끝에 **반원**을 붙인다. 그대로 두면 라인 시작(출발 자리) 뒤가
      *    띠 반경만큼 경유가 되어, 그물·걸친 동에서 이미 잘라낸 뒤쪽 동이 **여기서 다시 들어온다.**
@@ -276,7 +276,7 @@ export function getDetourRegions(
         return !cornersOf(fb).some(([lng, lat]) => isAheadOf({ lng, lat }, aheadCut));
     };
     /**
-     * ✂️ **현위치 원 안은 경유가 아니다 — 통째로 들었을 때만 버린다** (기사님 그림 · 버그 대장 #159).
+     * ✂️ **현위치 원 안은 경유가 아니다 — 통째로 들었을 때만 버린다** (기사님 그림).
      *
      * 기사님: *"내 주위에 녹색이 있고, 파랑과 접경에 보라색 지역이 있고, 그 이후 목적지 방향으로 파란 점."*
      * 곧 원 안은 **상차만**, 경계에 걸친 동만 «둘 다», 그 밖이 하차다.
@@ -640,7 +640,7 @@ function cutTowardGoal(band: Array<[number, number]>):
 }
 
 /**
- * 🟢 **상차 목록 — 켜진 조각을 전부 겹친 영역에 걸친 읍·면·동** (`docs/기획/필터_파이프라인_설계.md` ④⑤).
+ * 🟢 **상차 목록 — 켜진 조각을 전부 겹친 영역에 걸친 읍·면·동**.
  *
  * 조각은 부르는 쪽이 shared `pickupPartsOf` 로 정한다. 여기서는 **겹치기(∩)만** 한다 —
  * 무엇을 켤지 다시 판단하지 않는다. 판단이 두 곳이면 갈라진다 (규칙 ③).
@@ -976,7 +976,7 @@ export function isSpeedSampleUsable(movedKm: number, elapsedS: number): boolean 
 }
 
 /**
- * 도착 감지 파라미터 (근거: docs/기록/결정_이력.md «도착은 GPS 가 찍는다»)
+ * 도착 감지 파라미터
  *
  * · RADIUS_KM 0.5 — 기존값 유지. 주차 위치·GPS 오차 감안 (바꿀 실측 근거가 아직 없다)
  * · STILL_KMH 5 · HOLD_SEC 30 — "통과"와 "도착"을 가른다. 정거장 옆 도로를 지나가는
@@ -984,7 +984,7 @@ export function isSpeedSampleUsable(movedKm: number, elapsedS: number): boolean 
  *   ⚠️ 신호 대기(60~120초)는 못 거른다 — 오발 시 undo 로 뒤집는다 (자동은 ARRIVED_* 뿐이라
  *   상태 피해가 없다). L4 실측으로 빈도를 보고 조정한다.
  * · 시뮬(`mock`)은 15배속이라 "정지"가 없다 — 근접만으로 판정 (안 가르면 L4 검증 불가)
- * · NOTICE_KM 3 — 근접 예고(도착전 통화). 시내 ~35km/h 로 약 5분 (용어집 §10)
+ * · NOTICE_KM 3 — 근접 예고(도착전 통화). 시내 ~35km/h 로 약 5분
  */
 export const GPS_ARRIVAL = {
     RADIUS_KM: 0.5,

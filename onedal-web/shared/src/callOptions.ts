@@ -4,7 +4,7 @@
  * 기사님(2026-08-20): *"콜 옵션이 모두 들어가 있는 디폴트 값을 정의하는 테이블을
  * 만들 스키마를 만든다. 타입스크립트로도 만든다."*
  *
- * 🔴 **왜 필요한가** — 6단계 전수 조사(docs/기록/결정_이력.md)에서 드러났다:
+ * 🔴 **왜 필요한가** — 6단계 전수 조사에서 드러났다:
  *    화면의 짐 관련 값 **열 중 아홉이 코드 상수**라 기사님이 못 바꾼다.
  *    단위·환산·차종 정원·상하차 방법·보호·후작업·성질이 전부 코드에 박혀 있다.
  *    규칙 ⑤-4 의 **①스키마가 빈 상태**이며, 그 값이 기사님이 1~2초에 누르는 색을 정한다.
@@ -128,7 +128,7 @@ const opt = (o: Partial<CallOption> & Pick<CallOption, 'category' | 'key'>): Cal
 export function buildDefaultCallOptions(): CallOption[] {
     const out: CallOption[] = [];
 
-    // ── 짐 단위 — 라면박스가 축이다 (용어집 §5)
+    // ── 짐 단위 — 라면박스가 축이다
     CARGO_UNITS.forEach((u, i) => out.push(opt({
         category: 'unit', key: u, num1: CARGO_UNIT_POINTS[u] ?? null,
         unitLabel: '박스', sortOrder: i, minValue: 0, maxValue: 200,

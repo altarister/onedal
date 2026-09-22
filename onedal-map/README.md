@@ -5,24 +5,7 @@
 ## 🔴 이 폴더가 생긴 이유
 
 우리 서버가 읽는 `onedal-web/server/mapData/merged_map.geojson` 은
-**`~/reps/map/map` (지도 퀴즈 게임)에서 만들어 복사해 온 것**이다 — 해시가 같다.
-
-그런데 **그 사실이 이 레포 어디에도 안 적혀 있었다.** 2026-09-06 에 지도를 넓히려다
-「문서도 스크립트도 없다」고 잘못 보고했고, 기사님이 알려주셔야 찾았다.
-**이 README 가 그 이음매다.**
-
-## 원본 — 손대지 않는다
-
-```
-~/reps/map/map/apps/map-game/scripts/     ← 원본. 읽기만 한다
-~/reps/map/map/docs/REGION_EXPANSION_POLICY_AND_GUIDE.md   ← 매뉴얼 (REPG-001)
-~/reps/map/map/.env                        ← vworld_kr 키
-```
-
-`scripts/` 아래는 그 사본이다. **원본을 고치지 않는다** — 게임은 게임대로 돈다.
-
-> ⚠️ 매뉴얼 §9.2 Step 1 은 *"QGIS 등으로 수동 변환"* 이라 적혀 있는데 **낡았다.**
-> `generate_bjd_data.py` 가 VWorld API 를 직접 부른다. 확장은 `--regions` 한 줄이다.
+**지도 퀴즈 게임에서 만들어 복사해 온 것**이다.
 
 ## 사슬
 
@@ -62,6 +45,5 @@ python scripts/generate_bjd_data.py --regions 11 28 41 30 36 43 44
 
 ## 안 건드리는 것
 
-- `~/reps/map/map` — 읽기만
 - 게임 — 산출물을 주지 않는다 (별도 판)
 - 배포 — `onedal-map/**` 은 트리거가 아니다 (`.github/workflows/deploy.yml`)

@@ -22,8 +22,7 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
  * 우리프로젝트에 목업으로 만들어줘."*
  *
  * ── 원본 ──
- * 생김새의 원본은 [docs/기획/화면개편/wireframe-v25-accordion.html] 이다. **그 파일은 손대지 않는다.**
- * 여기는 그것을 **앱의 재료(Tailwind + 테마 토큰)** 로 다시 지은 것이다.
+ * 와이어프레임(v25 아코디언)을 **앱의 재료(Tailwind + 테마 토큰)** 로 다시 지은 것이다.
  *
  * ── 왜 앱 안에 짓나 ──
  * 🔴 원본은 색을 직접 박아 넣어서(`#4f8df9`) **어두운 테마 하나만** 그린다.
@@ -36,7 +35,7 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
  * ⚠️ **기능은 없다.** 서버·소켓·GPS 를 쓰지 않는다. 디자인만 보는 자리다.
  *
  * ── 이 판이 참이라고 보는 전제 ──
- * 🔴 **원천은 [docs/지금/전제_점검표.md] 다.** 조작판 맨 아래에 **화면에도 적어 두었다** —
+ * 🔴 **원천은 조작판 맨 아래에 화면으로 적어 둔 목록이다** —
  *    문서에만 적으면 목업을 보는 자리에서는 안 읽힌다. 이 목업이 오래 **3콜에 박혀 있던 것**도
  *    전제가 어디에도 안 적혀 있었기 때문이다 (점검표 5부 · 기사님 2026-09-04).
  *    전제가 틀린 것이 보이면 **점검표가 먼저 고쳐지고** 그다음에 이 화면이 고쳐진다.
@@ -50,7 +49,7 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
 
 /** 🚚 헤더 — 로고 자리가 «내 차 상황»이다 (기사님 0831: 로고는 테마 전환 역할뿐) */
 /**
- * 🧑‍✈️ **헤더가 답하는 것 — 「내 지금 상태」** (기사님 2026-09-05 · 원천 `docs/기획/헤더.md`)
+ * 🧑‍✈️ **헤더가 답하는 것 — 「내 지금 상태」** (기사님 2026-09-05)
  *
  * 기사님: *"머리 부분은 **내 현상태**를 표현하고 싶었어. 로그인도 있고 **내 설정을
  * 불러오는 것**도 있고 내 차도, 내 차의 상황도.. 서버랑의 통신도.."*
@@ -388,7 +387,7 @@ function DeviceOneRow({ d, mode, pending, open, more, onPick, onOpen, onMore }: 
                       * 🔴 **빌드 번호를 빼고 «취소 한도»를 넣었다** (기사님 2026-09-05).
                       *    `(49)` 는 버전명이 이미 답하는 것이라 자리를 두 번 쓰고 있었다.
                       *    배차망 **취소 10회**는 걸리면 그 폰이 **그날 일을 못 하는** 한도다
-                      *    (용어집 §2-1) — 누적 안에 `취소2` 로 묻혀 있어 한도가 안 보였다.
+                      *    — 누적 안에 `취소2` 로 묻혀 있어 한도가 안 보였다.
                       */}
                     <span className="px-1.5 rounded border border-warning/40 bg-warning/10 font-extrabold text-warning">
                         취소 2/10
@@ -881,7 +880,7 @@ export default function SheetMockup() {
      * 📱 **지금 어느 상황인가** — 값은 `DEVICE_CASES` 한 곳에서 온다 (규칙 ③).
      *    조작판 버튼이 이것만 바꾸면 폰 줄이 따라온다.
      */
-    /** 🧑‍✈️ 헤더가 지금 무슨 상황인가 (원천 `docs/기획/헤더.md`) */
+    /** 🧑‍✈️ 헤더가 지금 무슨 상황인가 */
     const [headerCase, setHeaderCase] = useState('평소');
     const header: HeaderState = {
         ...HEADER_NORMAL,
@@ -2129,7 +2128,7 @@ export default function SheetMockup() {
                 </>)}
 
                 {/**
-                  * 🧑‍✈️ **헤더 — 「내 지금 상태」** (기사님 2026-09-05 · 원천 `docs/기획/헤더.md`)
+                  * 🧑‍✈️ **헤더 — 「내 지금 상태」** (기사님 2026-09-05)
                   *
                   * 값과 폭은 `HEADER_CASES` 한 곳에서 온다 — 버튼과 화면이 갈라지지 않게 (규칙 ③).
                   */}
@@ -2430,7 +2429,7 @@ export default function SheetMockup() {
                     이 목업이 참이라고 보는 전제
                 </h2>
                 <p className="text-[11.5px] text-text-muted mb-2.5">
-                    원천은 <b className="text-text-primary">docs/지금/전제_점검표.md</b> 입니다.
+                    원천은 <b className="text-text-primary">이 목록</b>입니다.
                     틀린 것이 보이면 <b className="text-text-primary">여기가 먼저 고쳐지고</b> 그다음에 화면이 고쳐집니다.
                 </p>
                 <ul className="space-y-1 text-[12px] leading-relaxed">
@@ -2470,7 +2469,6 @@ export default function SheetMockup() {
                     <li><b className="text-text-primary">색이 전부 앱 토큰</b>이다 — 그래서 위 «밝게/어둡게»로 <b className="text-text-primary">두 테마를 그 자리에서</b> 본다</li>
                     <li>상차·하차 동그라미는 <b className="text-text-primary">지도 핀과 같은 색</b>을 쓴다 (<code>MAP_THEME_COLORS</code>)</li>
                     <li>확정되면 이식이 <b className="text-text-primary">번역이 아니라 옮기기</b>가 된다 — 같은 클래스, 같은 토큰</li>
-                    <li>생김새의 원본은 <code>docs/기획/화면개편/wireframe-v25-accordion.html</code> — 그 파일은 손대지 않는다</li>
                 </ul>
             </div>
         </div>

@@ -5,7 +5,7 @@ import { goalZonesOf, pickupPartsOf, dropoffPartsOf, nearGoalCitiesOf, isNearGoa
 
 /**
  * 🧱 **조각은 사실을 직접 본다 — 뭉친 이름을 거치지 않는다**
- *    (`docs/기획/필터_파이프라인_설계.md` ⑥)
+ *   
  *
  * 무엇을 막나
  * - **「내가 달리나」를 목적지 목록으로 묻는 것** — 목적지가 하나 늘면 답이 뒤집힌다.

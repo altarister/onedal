@@ -3,8 +3,7 @@ import { join } from "path";
 import { decideTargetAfterDelivery, HOME_RADIUS_KM } from "@onedal/shared";
 
 /**
- * 🧭 타겟 자동 순환 규칙 (근거: docs/기록/결정_이력.md «타겟은 사이클이 끝나면 저절로 넘어간다» ·
- *    docs/지금/필터.md «복귀 켬 — 규칙 ⑤-4 의 다섯» · 버그 대장 #130 · #131)
+ * 🧭 타겟 자동 순환 규칙
  * 노선 끝→복귀 (집 근처면 유지) · 🔴 복귀는 **마지막 복귀콜을 집 가까이 내렸을 때만** 끈다 — 쥔 콜 0건으로 끄지 않는다.
  */
 

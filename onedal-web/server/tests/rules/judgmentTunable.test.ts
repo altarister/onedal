@@ -32,7 +32,7 @@ const 약속점수 = (f: JudgeFacts, c: JudgmentConfig) => {
 describe('⏰ 여유 곡선 — 두 끝이 판정 기준 탭에서 온다', () => {
     /**
      * 🔴 «여유 0분» 점수는 «지연 5분»(90점)보다 높아야 한다 — 낮으면 **늦는 콜이 딱 맞춘
-     *    콜보다 좋아진다**. 곡선은 `latePromiseSlope.test.ts` · `docs/지금/판정.md` 의 «지연 곡선».
+     *    콜보다 좋아진다**. 곡선은 `latePromiseSlope.test.ts`.
      */
     it('기본값 — 30분 만점 · 0분 95점 · 지연 세 자리', () => {
         expect(DEFAULT_JUDGMENT.slack).toEqual({

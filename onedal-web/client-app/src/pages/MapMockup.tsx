@@ -80,7 +80,7 @@ const ROUTE_COMBO: { priority: string; avoid?: string; label: string } = { prior
  * ⚠️ **하한 3분을 둔다.** 실물 계수는 «기본 0분 + 수작업 박스당 20초»라 1박스면 **0분**이 된다 —
  *    그건 «차 대고 받아서 서명하는» 시간조차 없다는 뜻이라 또 다른 거짓말이다.
  *    3분은 **실측이 아니라 이 목업의 하한**이고, 실물 상수를 고치는 것은 별개 판이다
- *    (`todo.md` ② 「정차 시간이 차종을 안 본다」).
+ *   .
  */
 const LAB_DWELL_FLOOR_MIN = 3;
 const labDwellOfBoxes = (boxes: number, label: string) =>
@@ -147,8 +147,7 @@ const LAB_DEFAULTS = {
 /**
  * ⛔ **제외지역 기본값 — «들어가면 못 빠져나오는 곳»** (기사님 확정 2026-09-09 · 「다 + 가」).
  *
- * 출처는 노하우 영상 「이 선을 넘지 마세요」 —
- * `docs/자료/노하우/일하는_법/노하우_추출.md` §9 에 이유와 함께 적혀 있다.
+ * 출처는 노하우 영상 「이 선을 넘지 마세요」다.
  *
  * 🔴 **영상의 선을 통째로 옮기지 않았다.** 그 선은 볼트(김포) 기준이고 기사님 집은 광주 초월이라
  *    경계가 다르다. 여기 넣은 것은 **집 위치와 무관하게 «빈차로 돌아오는»** 여덟 곳뿐이다.
@@ -1335,7 +1334,7 @@ export default function MapMockup() {
                 setLegFailed(all.map(c => c?.failed ?? true));
             })
             // 🔴 폴백에 들어가면 반드시 소리를 낸다 — 조용한 폴백이 /api 이중 붙임 404 를
-            //    «원래 직선인가 보다»로 몇 시간 살게 했다 (버그 대장 #101)
+            //    «원래 직선인가 보다»로 몇 시간 살게 했다
             .catch(err => console.warn('[실경로] 못 받아 직선 폴백:', err));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [effPathKey, routeCombo.priority, routeCombo.avoid]);
@@ -3505,7 +3504,7 @@ export default function MapMockup() {
                                 {/* 어디서 받아온 값인가 — 누르면 보낸 값·받은 값 전문 */}
                                 {/**
                                   * 🛰️ **접어 둔다** — 이건 «어디서 받아온 값인가»를 캘 때만 보는 것이고,
-                                  * **실험실 전용**이라 실물 심사창에는 안 간다 (이식 계획 §5).
+                                  * **실험실 전용**이라 실물 심사창에는 안 간다.
                                   * 콜 하나에 서너 건이 세 줄씩 펴져 심사창을 밀어내고 있었다.
                                   */}
                                 {uploadTag && apiLog.some(l => l.tag === uploadTag) && (

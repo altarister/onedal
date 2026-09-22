@@ -22,7 +22,7 @@ interface SettingsState extends WaitTimes {
     /** 서버에서 한 번 읽어 온 적이 있나 — 두 번 묻지 않게 */
     loaded: boolean;
     setMotionHoldSec: (n: number) => void;
-    /** ⏱️ 배차망별 대기 시간 — 판정석 장막 · 홀드 진행 막대가 읽는다 (docs/지금/배차망별_대기_시간.md) */
+    /** ⏱️ 배차망별 대기 시간 — 판정석 장막 · 홀드 진행 막대가 읽는다 */
     setWaitTimes: (w: WaitTimes) => void;
 }
 

@@ -40,7 +40,7 @@ export interface EtaCell {
 /* 🏗️ **`PromiseLines`(상차·하차 약속 줄)는 2026-09-05 에 철거했다.**
    기사님: *"타이틀하고 중복인 것 같은데 이걸 지우고 타이틀에 다 표현할 수 있지?"*
    ⚠️ 08-30 의 «안 A»(펼치면 원래 값과 지금 값을 둘 다 적는다)를 개정한 것이다 —
-      옛 시각은 지나간 값이고, «달라졌나»는 **색**이 답한다 (`docs/지금/시각_표시.md`). */
+      옛 시각은 지나간 값이고, «달라졌나»는 **색**이 답한다. */
 
 interface Props {
     route: SecuredOrder;
@@ -93,7 +93,7 @@ export default function PinnedRouteCard({
 }: Props) {
     const isDeck = variant === 'deck';
     /**
-     * 👀 **미리보기에게 "결재 대기"는 판정 완료다** (기사님 실측 2026-08-22 · 용어집 §9).
+     * 👀 **미리보기에게 "결재 대기"는 판정 완료다** (기사님 실측 2026-08-22).
      *
      * 기사님: *"평가를 보여주면 좋을 것 같은데 계속 평가중만 깜박이고 있어."*
      *
@@ -129,7 +129,7 @@ export default function PinnedRouteCard({
     // [텔레메트리 스니펫] 카운터 상태 및 애니메이션 트리거
     const [telemetryCount, setTelemetryCount] = useState(0);
     const [isPinging, setIsPinging] = useState(false);
-    /** ⏱️ 그 배차망의 안전취소 초 (서버 DB · docs/지금/배차망별_대기_시간.md) — 픽커는 안전취소가 없어 null */
+    /** ⏱️ 그 배차망의 안전취소 초 (서버 DB) — 픽커는 안전취소가 없어 null */
     const cancelSec = useSettingsStore(st => safeCancelSecOf(st, route.targetApp));
 
     // [2026-08-12] 통화/현장 기록은 **카드가 직접 불러오지 않는다.**
@@ -202,7 +202,7 @@ export default function PinnedRouteCard({
     useEffect(() => { setStepNav(null); }, [stepCurIdx, route.id]);
 
     /**
-     * 🎬 **보여 줄 단계는 시트 상태바가 정한다** (기사님 2026-09-15 · 버그 대장 #143).
+     * 🎬 **보여 줄 단계는 시트 상태바가 정한다** (기사님 2026-09-15).
      *
      * 기사님: *"시트가 맨위로 올라가면 무조건 현황판(시트 상태바)에 표기된 스텝이 표기 되어야 하는데."*
      * 🔴 **장부는 안 건드린다** — 화면이 볼 자리만 고른다 (규칙 ④). 상태바가 «✅ 초월읍 하차 도착»이면
@@ -426,7 +426,7 @@ export default function PinnedRouteCard({
                 {evaluating && (
                     <Badge className={`text-[10px] font-black px-1.5 py-0 animate-pulse flex-shrink-0 ml-2 rounded ${route.status === 'ORDER_PRE_SECURED' ? 'bg-danger/20 text-danger hover:bg-danger/20' : 'bg-warning/20 text-warning hover:bg-warning/20'}`}>평가중</Badge>
                 )}
-                {/* 👀 **미리보기 콜** — 기사님이 확정을 누르기 전에 판정만 받아 보는 콜 (용어집 §9).
+                {/* 👀 **미리보기 콜** — 기사님이 확정을 누르기 전에 판정만 받아 보는 콜.
                     아직 안 잡은 콜이므로 "이건 아직 내 것이 아니다"가 한눈에 보여야 한다.
                     확정을 누르면 앱이 딱지 없이 다시 보내므로 이 배지가 사라진다. */}
                 {route.isPreview && !isTerminal(route.status) && (
@@ -509,7 +509,6 @@ export default function PinnedRouteCard({
                     isDeck ? 'flex-1 min-h-0 flex flex-col overflow-y-auto' : ''}`}>
 
                     {/* 🕐 **안 A — 펼치면 원래 값과 지금 값을 둘 다 적는다** (기사님 확정 2026-08-30)
-                        원천: docs/지금/시각_표시.md
                         접힌 줄(덱)은 «틀어졌나»만 기호로 답하고(안 C), 몇 시였는지는 여기서 답한다.
                         통화의 대사가 이 줄에서 나온다 — *"원래 3시 15분이라 했는데 20분쯤 되겠습니다."* */}
                     {/**
@@ -523,7 +522,7 @@ export default function PinnedRouteCard({
                       *    몇 분인지는 심사 중이면 심사석 위 한 줄이 이미 말한다 (규칙 ③).
                       */}
 
-                    {/* 👀 **미리보기 콜에는 결재 버튼을 띄우지 않는다** (기사님 확정 2026-08-22 · 용어집 §9).
+                    {/* 👀 **미리보기 콜에는 결재 버튼을 띄우지 않는다** (기사님 확정 2026-08-22).
                         아직 배차망에서 안 잡은 콜이라 여기서 KEEP 을 눌러도 잡히지 않는다 —
                         결재는 **인성 앱의 확정 버튼**으로 한다. 관제웹은 판정 색만 보여준다.
                         (MANUAL 콜에 버튼을 안 띄우는 것과 같은 이유의 연장이다) */}

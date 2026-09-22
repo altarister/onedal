@@ -314,7 +314,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             val hasFareCeiling = filter.maxFare in 1..999_999
 
             /**
-             * 🔴 2026-08-13 — **단가 판정** (docs/지금/필터.md)
+             * 🔴 2026-08-13 — **단가 판정**
              *
              * 기사님: *"합짐은 경로 중 우회되는 짧은 구간이 들어올 수 있다.
              * 그래서 여기는 단가가 들어가야 할 것 같은데."*
@@ -348,11 +348,11 @@ class InsungParser(private val context: Context) : IScrapParser {
 
             // ── 조건 3: 상차지 ──
             /**
-             * 📋 **상차 목록이 오면 그것으로 거른다** (2026-09-15 · docs/지금/필터.md «상차 목록 · 하차 목록» 2단계).
+             * 📋 **상차 목록이 오면 그것으로 거른다** (2026-09-15 · 하차 목록» 2단계).
              * 서버가 «지금 내 위치 둘레»로 만든 읍·면·동 목록에 상차지가 걸리나만 본다 —
              * 상차 반경 숫자·경로 순서(`RouteOrderFilter`)는 안 쓴다 (이천 왕복 03:08:52 D3 가 순서표에 막혔다).
              * 상세(확정 전)에서는 상세 글의 «출발지 ~ 도착지» 사이로 대조한다 — 못 자르면 리스트에서 읽은 상차지로.
-             * 🔴 칸이 안 오면(null · 옛 서버) 아래 옛 판정 — 이 되돌아가는 길은 3단계(옛 칸 걷는 날)에 함께 지운다 (todo.md)
+             * 🔴 칸이 안 오면(null · 옛 서버) 아래 옛 판정 — 이 되돌아가는 길은 3단계(옛 칸 걷는 날)에 함께 지운다
              */
             val pickupListCheck = filter.pickupKeywords?.let { keys ->
                 val pickupText = (if (isDetailPreConfirmStage) PickupListFilter.insungDetailPickupText(rawText) else null)

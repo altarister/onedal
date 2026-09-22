@@ -183,7 +183,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
 
   /**
    * 콜 수락 — 인성은 «확정», 화물24시(실물)는 «배차신청» 이다.
-   * 🔴 인성 «탁송»은 수락이 아니다 (기사님 2026-09-14) — 버튼마다 하는 일은 docs/지금/시뮬레이터_화면과_버튼.md
+   * 🔴 인성 «탁송»은 수락이 아니다 (기사님 2026-09-14)
    */
   const handleAcceptCall = useCallback((call: SimCall) => {
     setStreamingCalls(prev => prev.filter(c => c.id !== call.id));

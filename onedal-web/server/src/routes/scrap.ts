@@ -262,7 +262,7 @@ router.post("/", (req, res) => {
         const pickerAlarmRow = db.prepare("SELECT picker_alarm_min_fare FROM user_settings WHERE user_id = ?").get(userId) as { picker_alarm_min_fare?: number } | undefined;
         const baseMin = pickerAlarmRow?.picker_alarm_min_fare ?? 10000;
         appFilter.pickerAlarmMinFare = computePickerAlarmMinFare(baseMin, discountPct);
-        // ⏱️ 배차망별 대기 시간 — 원천은 DB(user_settings), 원달앱은 받아 쓴다 (docs/지금/배차망별_대기_시간.md)
+        // ⏱️ 배차망별 대기 시간 — 원천은 DB(user_settings), 원달앱은 받아 쓴다
         Object.assign(appFilter, readWaitTimes(userId));
 
         // [Phase 6] 부트스트랩이 끝나기 전에는 콜 잡기를 시키지 않는다.

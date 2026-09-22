@@ -132,10 +132,10 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
          * 저장은 결재 경로에만 있었다 — 아래 isActive 주석이 경고한 바로 그 형태다.
          *
          * 안전취소는 배차망 취소 횟수(10회)에 들어간다. 기사님이 몇 번 썼는지
-         * 알려면 **한 건도 새면 안 된다** (용어집 §2-1). 캐시 삭제 전에 저장한다.
+         * 알려면 **한 건도 새면 안 된다**. 캐시 삭제 전에 저장한다.
          */
         /**
-         * 👀 **미리보기/가상체험은 장부에 안 쓴다** (2026-09-15) — 인성·픽커에서 아무 일도 없던 콜이다 (용어집 §9).
+         * 👀 **미리보기/가상체험은 장부에 안 쓴다** (2026-09-15) — 인성·픽커에서 아무 일도 없던 콜이다.
          *    써 두면 관제웹 취소 수(`helpers` 의 SAFE_CANCEL 행 수)가 미리보기만큼 부풀었다. 장부에 들어가는 길이 이 한 줄뿐이라 남는 행도 없다.
          */
         if (!wasPreview && !wasSimulated) try {
@@ -951,7 +951,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 // [T8] 착불 여부가 복구에서 빠져 있었다 — 재접속 직후 착불 표시가 사라진다
                 paymentType: row.paymentType,
                 /**
-                 * 🏁 **하차 시각** — 화면의 사이클 경계가 이걸 본다 (버그 대장 #40).
+                 * 🏁 **하차 시각** — 화면의 사이클 경계가 이걸 본다.
                  * 없으면 관제웹이 "언제 내렸는지 모른다"가 되어 지난 운행의 완료분을
                  * 못 가른다 (그래도 카드를 지우진 않는다 — 규칙 ④).
                  */
@@ -1256,7 +1256,7 @@ export async function reportMilestone(
                 /**
                  * 🏁 **메모리에도 같이 적는다** — 장부에만 쓰면 재시작 전까지 화면이
                  * 하차 시각을 모른다. 그러면 사이클 경계(`deckOfCycle`)가 지난 운행의
-                 * 완료분을 못 가른다 (버그 대장 #40 · 「기억 갈라짐」 클래스 예방).
+                 * 완료분을 못 가른다 (「기억 갈라짐」 클래스 예방).
                  */
                 (order as any).completedAt = deliveredAt;
                 const cachedDone = session.pendingOrdersData.get(orderId);
@@ -1301,7 +1301,7 @@ export async function reportMilestone(
         console.log(`🚚 [적재 회복] 하차 완료 → 남은 활성 콜 ${remaining.length}건 기준으로 필터 재계산`);
 
         /**
-         * 🧭 타겟 자동 순환 (근거: docs/기록/결정_이력.md «타겟은 사이클이 끝나면 저절로 넘어간다»)
+         * 🧭 타겟 자동 순환
          *
          * 🔴 **여기(DELIVERED 처리부)에 있는 이유**: "하차 완료로 끝난 사이클"에만 발동해야
          *    하는데, STANDBY 복귀 불변식은 취소·방출로 0건이 된 경우도 지나간다 — 거기서는
@@ -1470,7 +1470,7 @@ export async function setCallTarget(
          */
         if (phase !== prevTarget && (phase === 'HOME' || phase === 'DEST')) recordCallTarget(userId, phase, by, Date.now());
         /**
-         * 🕸️ **하차 · 상차 목록을 바로 다시 만든다** (버그 대장 #146 · `docs/지금/필터.md` «상차 목록 · 하차 목록» ③ 시점).
+         * 🕸️ **하차 · 상차 목록을 바로 다시 만든다** (하차 목록» ③ 시점).
          *    살아 있는 목적지(`goalCitiesOf`)와 목적지 상태(`goalZonesOf`)가 `callTarget` 에서 파생되는데,
          *    `updateActiveFilter` 는 이 전환으로 목록을 안 만든다 — 2026-09-15 15:47:09 복귀를 껐는데
          *    서버가 다시 켜진 15:49:20 까지 원달앱 목록이 옛 «이천 ∪ 광주»였고 지도에 광주 원이 남았다.

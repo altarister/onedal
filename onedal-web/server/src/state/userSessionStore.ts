@@ -180,7 +180,7 @@ export interface UserSession {
     lastTrimGPS?: { x: number; y: number };
 
     /**
-     * 도착 감지 상태 (근거: docs/기록/결정_이력.md «도착은 GPS 가 찍는다»)
+     * 도착 감지 상태
      * · arrivalFired    한 번 찍은 정거장(`orderId:stopType`) — **한 정거장당 발화 1회**의 근거
      * · arrivalHeld     **정거장마다** «언제부터 서 있나» (실 GPS 만)
      * · arrivalNoticed  근접 예고(3km)를 이미 보낸 정거장
@@ -449,7 +449,7 @@ export function getUserSession(userId: string): UserSession {
                     /**
                      * 📐🚚 **오늘 판 칸 셋** (2026-09-12 전수 조사 ①-5) — 안 읽으면 재접속에 풀린다.
                      *    `radius_base_km` 이 NULL 이면 **모른다**로 둔다 — 화면·서버가 기본값
-                     *    (`RADIUS_BASE_KM_DEFAULT`)으로 물러선다. 0 으로 읽지 않는다 (버그 대장 #105).
+                     *    (`RADIUS_BASE_KM_DEFAULT`)으로 물러선다. 0 으로 읽지 않는다.
                      */
                     radiusAuto: Boolean(filterRow.radius_auto),
                     radiusBaseKm: Number.isFinite(filterRow.radius_base_km) ? filterRow.radius_base_km : undefined,

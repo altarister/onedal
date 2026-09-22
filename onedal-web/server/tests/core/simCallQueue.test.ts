@@ -128,7 +128,7 @@ describe('🔴 세 곳이 같은 말을 한다 — 현황판 · 서버 · 시뮬
     const simHook = codeOnly(readFileSync(join(__dirname, '../../../../onedal-sim/packages/ui-simulators/src/context/useSimInjectedCalls.ts'), 'utf8'));
     const board = codeOnly(readFileSync(join(__dirname, '../../../client-app/src/statusboard/simCall.ts'), 'utf8'));
     const boardCard = codeOnly(readFileSync(join(__dirname, '../../../client-app/src/statusboard/StatusBoard.tsx'), 'utf8'));
-    /** 🚪 현황판이 시뮬 문을 여는 **유일한 자리** — 주소 접두(`/sim`)는 여기 한 곳에 산다 (버그 대장 #161) */
+    /** 🚪 현황판이 시뮬 문을 여는 **유일한 자리** — 주소 접두(`/sim`)는 여기 한 곳에 산다 */
     const boardDoor = codeOnly(readFileSync(join(__dirname, '../../../client-app/src/statusboard/simDoor.ts'), 'utf8'));
 
     /** `interface 이름 { … }` 안의 칸 이름들 */
@@ -170,7 +170,7 @@ describe('🔴 세 곳이 같은 말을 한다 — 현황판 · 서버 · 시뮬
         expect(route).toMatch(/router\.post\("\/calls"/);
         expect(route).toMatch(/router\.get\("\/calls"/);
         /**
-         * 🚪 **현황판은 주소를 손으로 적지 않는다** (버그 대장 #161) — `/sim` 접두는
+         * 🚪 **현황판은 주소를 손으로 적지 않는다** — `/sim` 접두는
          *    문지기(`simDoor.ts`)가 붙이고 카드는 **뒷자리만** 적는다.
          *    🔴 세 곳이 같은 말을 하는지는 그대로 본다: **접두 + 뒷자리**.
          */

@@ -62,7 +62,7 @@ function DeviceRow({
 }) {
     const isDisconnected = device.status === "OFFLINE";
     /**
-     * 🖥️ **배차망·화면명·화면 꺼짐은 배지 하나다** (기사님과 확정 2026-09-02 · `docs/기획/폰_상태바.md` §2).
+     * 🖥️ **배차망·화면명·화면 꺼짐은 배지 하나다** (기사님과 확정 2026-09-02).
      * 고르는 일은 `shared` 가 한다 — 여기서는 그리기만 한다 (운행일지도 같은 것을 물을 수 있다).
      */
     const screenBadge = deviceScreenBadge(device);

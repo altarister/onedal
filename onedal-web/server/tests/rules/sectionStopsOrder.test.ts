@@ -1,7 +1,7 @@
 import { planArrivalStops, planMergedStops } from '../../src/services/routeComposer';
 
 /**
- * 🔴 **구간의 주인은 «카카오에 보낸 순서»여야 한다** (2026-08-29 발견 · 버그 대장 #32 계보)
+ * 🔴 **구간의 주인은 «카카오에 보낸 순서»여야 한다** (2026-08-29 발견)
  *
  * `sectionDriveMin` 은 카카오 응답의 구간 배열이고, `sectionStops` 는 «그 구간이 어느
  * 정거장인가»의 이름표다. `helpers.ts` 가 **인덱스로 둘을 짝짓는다** —

@@ -362,7 +362,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                     {TITLE_STYLE === '격자' && <>
                     {/**
                       * 🧮 **격자 — 칸마다 뜻이 정해져 자리가 곧 이름이다** (기사님 2026-09-11: *"그냥 목업처럼 해"*).
-                      *    원천은 `docs/지금/시각_표시.md` 의 「개정 2026-09-11」 절이다.
+                      *    규약은 `timeDisplay.test.ts` 머리에 있고 그 검사가 문다.
                       *
                       *    `[번호][지명][약속][±][예상]` × 상·하차, 가운데 10px 틈으로 가른다.
                       * 🔴 **0905 의 「안 C」(기호 ▲▼)는 폐기됐다** — 기사님이 실험실에서
@@ -511,7 +511,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                             open ? (fit ? 'flex-auto' : 'flex-1') : 'flex-none'}`}>
                             {rowOf(o, i)}
                             {/* 🔴 접힌 콜도 **마운트한 채** 숨긴다 — 언마운트하면 통화 중 적던
-                                단위·수량이 날아가고 카드가 서버에 단계를 다시 청한다 (버그 대장 #95)
+                                단위·수량이 날아가고 카드가 서버에 단계를 다시 청한다
                                 🟢 **잘라 감추지 않고 스크롤한다** — 모자라면 손으로 내려 보는 것이
                                    «없는 것»보다 낫다 (규칙 ④) */}
                             <div hidden={!open}
@@ -585,7 +585,7 @@ function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0, shift
     /**
      * ⏱️ **앞 정거장이 예측과 달라 이 시각이 밀린 분** — 접힌 줄에서는 **기호로만** 말한다.
      *
-     * 기사님 확정 2026-08-30 (안 C · docs/지금/시각_표시.md):
+     * 기사님 확정 2026-08-30 (안 C):
      * 달리면서 필요한 답은 **«틀어졌나» 하나**다. 몇 분인지는 통화하려고 카드를 펼칠 때
      * 필요하고, 거기서는 `3:15 → 3:20 (+5)` 로 전부 적는다 (안 A).
      *

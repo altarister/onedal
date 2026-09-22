@@ -290,7 +290,7 @@ export function registerSocketHandlers(io: Server) {
          *   ③ 세션과 화면을 갱신   — 지금 열려 있는 관제웹이 바로 새 값을 본다
          *
          * ⚠️ ②를 빠뜨리면 «화면은 새 값 · 판정은 옛 값» 이 된다 — 이 레포가 오늘만
-         *    세 번 겪은 #33 클래스다 (버그 대장 #71).
+         *    세 번 겪은 #33 클래스다.
          */
         safeOn(socket, "save-call-options", (list: unknown) => {
             if (!Array.isArray(list) || list.length === 0) return;
@@ -465,7 +465,7 @@ export function registerSocketHandlers(io: Server) {
                         });
                     }
                 },
-                // 근접 예고 — 도착전 통화 시점 (용어집 §10)
+                // 근접 예고 — 도착전 통화 시점
                 (uid, stop, distKm) => {
                     console.log(`📤 [Socket 푸시] next-stop-approaching (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
                     io.to(uid).emit("next-stop-approaching", {

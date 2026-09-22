@@ -8,7 +8,7 @@ import { InsungCallDetailScreen, InsungOngoingDetailScreen } from '@altari/ui-si
 import { callA } from './fixtures';
 
 /**
- * 👆 **인성 버튼을 눌렀을 때 무엇이 불리나** (2026-09-14 · docs/지금/시뮬레이터_화면과_버튼.md §1-3 · §4)
+ * 👆 **인성 버튼을 눌렀을 때 무엇이 불리나** (2026-09-14 · §4)
  *
  * 화면 글자 스냅숏은 **글자**만 본다 — 누른 뒤 무엇이 일어나는지는 못 본다. 그래서 따로 누른다.
  *

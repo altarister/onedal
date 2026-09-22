@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 📏 **빈 카드의 정체를 좌표로 재현한다** (필드 테스트 1회차 ① · todo.md)
+ * 📏 **빈 카드의 정체를 좌표로 재현한다** (필드 테스트 1회차 ①)
  *
  * ── 2026-08-23 실주행 3시간에서 센 것 ──
  * ```

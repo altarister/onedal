@@ -13,6 +13,6 @@ export const DISPATCH_CONFIG = {
     // 3. 통신 타임아웃 — 🪦 **여기서 뺐다** (2026-09-14)
     //    30초 경고 · 35초 해제를 코드 숫자로 두어 원달앱·관제웹의 30초와 서로 몰랐다.
     //    이제 DB `user_settings` 의 배차망별 값이다 — `safeCancelSecOf` · `SERVER_CLEANUP_EXTRA_SEC`
-    //    (docs/지금/배차망별_대기_시간.md)
+    //   
 };
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

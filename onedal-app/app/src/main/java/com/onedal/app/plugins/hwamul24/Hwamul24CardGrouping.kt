@@ -14,7 +14,7 @@ package com.onedal.app.plugins.hwamul24
  *    `AccessibilityNodeInfo` 가 들어 있어 **폰 없이는 만들 수 없다.** 그래서 카드를
  *    한 장도 못 읽던 시절에도 검사를 쓸 수가 없었다. 판정에 필요한 것은 «글자와 자리»뿐이라
  *    그것만 받는 함수로 떼어 두면 문제지를 손으로 먹일 수 있다
- *    (인성 필터를 `InsungParser.decide` 로 쪼갠 것과 같은 까닭 · 버그 대장 #29~35).
+ *    (인성 필터를 `InsungParser.decide` 로 쪼갠 것과 같은 까닭).
  */
 object Hwamul24CardGrouping {
 

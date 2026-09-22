@@ -5,7 +5,7 @@ import com.onedal.app.models.FilterConfig
 import com.onedal.app.plugins.DispatchPluginRegistry
 
 /**
- * ⏱️ **배차망별 대기 시간 — 서버가 정하고 원달앱은 받아 쓴다** (기사님 확정 2026-09-14 · docs/지금/배차망별_대기_시간.md)
+ * ⏱️ **배차망별 대기 시간 — 서버가 정하고 원달앱은 받아 쓴다** (기사님 확정 2026-09-14)
  *
  * 기사님: *"서버가 30초란걸 알고 있고 그걸 받아서 스켄앱이 그렇게 작동해야 하는거야."*
  *

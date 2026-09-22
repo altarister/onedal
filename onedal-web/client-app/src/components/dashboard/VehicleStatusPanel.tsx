@@ -207,7 +207,7 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
      *
      * 예전에는 GPS 가 상차지 500m 안을 지나가면 자체 pickedUpSet 에 넣어
      * "상차 1건"으로 표시했다 — 장부는 ORDER_CONFIRMED(상차 보고 없음)인데
-     * 요약만 실었다고 말하는 "한 화면 두 세상"이었다 (버그 대장 #11 과 같은 뿌리).
+     * 요약만 실었다고 말하는 "한 화면 두 세상"이었다.
      * GPS 는 도착까지만 안다. 실었는가의 원천은 기사님의 상차 완료 보고
      * (ORDER_PICKED_UP) 하나고, 판별은 shared 의 isAlreadyLoaded 하나다.
      */

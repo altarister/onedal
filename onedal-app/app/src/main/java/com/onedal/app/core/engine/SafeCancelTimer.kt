@@ -22,7 +22,7 @@ class SafeCancelTimer {
     /**
      * ⏱️ **언제 끝나는가** (`SystemClock.elapsedRealtime` 기준 · 0 = 안 도는 중).
      * 관제웹이 «안전취소 12초»를 그리려면 **남은 초**가 있어야 한다
-     * (`docs/기획/폰_상태바.md` 0단계 ① — 다섯 칸 중 하나).
+     *.
      * 🔴 벽시계가 아니라 **부팅 기준 시계**를 쓴다 — 폰 시계가 틀어져도 안 흔들린다.
      */
     private var deadlineAt = 0L

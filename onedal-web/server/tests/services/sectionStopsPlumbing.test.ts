@@ -2,7 +2,7 @@ import { composeMergedRoute, applyRoute } from '../../src/services/routeComposer
 import * as kakao from '../../src/services/kakaoService';
 
 /**
- * 🧭 **구간 주인(sectionStops)은 홀더까지 배달되어야 한다** (버그 대장 #32 재발 · 2026-08-21 모의주행)
+ * 🧭 **구간 주인(sectionStops)은 홀더까지 배달되어야 한다** (2026-08-21 모의주행)
  *
  * #32 수리는 두 조각이었다 — ⓐ 경로 연산이 구간마다 주인을 남긴다,
  * ⓑ 내보낼 때 (orderId, stopType) 키로 조회한다. 그런데 ⓐ의 배선이 끊겨 있었다:
@@ -27,7 +27,7 @@ const call = (id: string, px: number, dx: number) => ({
     pickupX: px, pickupY: 37.4, dropoffX: dx, dropoffY: 37.7,
 }) as any;
 
-describe('경유 계획 = 도착 계획 — 같은 방문 규칙 (버그 대장 #36)', () => {
+describe('경유 계획 = 도착 계획 — 같은 방문 규칙', () => {
     const { planMergedStops, planArrivalStops } = require('../../src/services/routeComposer');
 
     /**

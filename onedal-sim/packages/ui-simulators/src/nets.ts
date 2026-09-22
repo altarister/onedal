@@ -135,7 +135,7 @@ export function simNetOf(key: string | null): SimNet | null {
 }
 
 /**
- * 🔀 바뀐 옛 이름 → 새 이름 (0단계 0-4). 폰 북마크와 기록 문서(`docs/기록/필드테스트.md`)의 옛 주소를 살린다.
+ * 🔀 바뀐 옛 이름 → 새 이름 (0단계 0-4). 폰 북마크와 기록 문서의 옛 주소를 살린다.
  * 옛 이름을 아는 곳은 여기와 옛 경로를 받는 `App.tsx` 뿐이다 (`tests/boundaries.test.ts` 규칙 ④).
  */
 const RENAMED_NET_KEYS: Record<string, NetKey> = { inseong: 'insung' };

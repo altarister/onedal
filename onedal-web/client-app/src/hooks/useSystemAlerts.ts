@@ -23,7 +23,7 @@ export interface SafeCancelWarning {
 
 /**
  * 🔔 **알람 모드 — 필터를 통과한 콜이 리스트에 떴다** (기사님 확정 2026-08-30).
- * 앱은 누르지 않는다. 기사님이 인성 리스트에서 직접 누르신다 (`docs/지금/기기_모드.md`).
+ * 앱은 누르지 않는다. 기사님이 인성 리스트에서 직접 누르신다.
  */
 export interface FilterPassAlarm {
     deviceId: string;

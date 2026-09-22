@@ -7,7 +7,7 @@ const codeOnly = (x: string) => x.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
 const read = (rel: string) => codeOnly(readFileSync(join(__dirname, '../..', rel), 'utf8'));
 
 /**
- * 🎯 **「목적지에 가까이 옴」은 더하기만 한다 — 배선 검사** (`docs/기획/필터_파이프라인_설계.md` ⑥)
+ * 🎯 **「목적지에 가까이 옴」은 더하기만 한다 — 배선 검사**
  *
  * 기사님: *"근거리 배송의 의미는 그 지역에 있는 콜을 모두 받겠다는 건데, 「목적지에 가까이 옴」이라 했다면
  * 모든 점이 상차지이고 하차지일 수 있어야 한다."*

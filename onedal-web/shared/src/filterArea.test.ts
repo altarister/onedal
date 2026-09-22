@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { goalZonesOf, pickupPartsOf, nearGoalCitiesOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups, dongDotsOf } from './filterArea';
 
 /**
- * 🔵 **하차 목록 합치기** (`docs/지금/필터.md` «하차 영역»)
+ * 🔵 **하차 목록 합치기**
  * 막는 것: 싣는 동에 내리는 콜이 새는 것 · 가까이 온 목적지의 관내콜이 빠지는 것 · 먼 도시의 같은 이름 동까지 빠지는 것.
  */
 describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼지 않는다)', () => {
@@ -58,7 +58,7 @@ describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼
 import { cityCenter } from './callNet';
 
 /**
- * 🎯 **목적지 가까이 옴 — 현위치가 그 목적지 영역 안인가** (`docs/기획/필터_파이프라인_설계.md` ⑥)
+ * 🎯 **목적지 가까이 옴 — 현위치가 그 목적지 영역 안인가**
  * 막는 것: 아직 목적지 영역 밖인데 «가까이 옴»으로 보는 것 · 「가까이 옴」이 재료를 끄는 것.
  * 좌표는 이천 왕복 시나리오 실값.
  */

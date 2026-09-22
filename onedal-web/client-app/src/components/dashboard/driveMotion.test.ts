@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { initialMotion, motionOnFix, motionOnTick, GPS_STALE_MS } from './driveMotion';
 
 /**
- * 🚗 **주행/정차 판정 — 좌표가 끊기면 «마지막 속도 그대로»가 아니다** (버그 대장 #132).
+ * 🚗 **주행/정차 판정 — 좌표가 끊기면 «마지막 속도 그대로»가 아니다**.
  *
  * 2026-09-15 이천 왕복: 앞 바퀴 모의 주행이 02:11:50 «주행 75km/h» 뒤 끝났다 — 좌표가 끊겨 속도가 그대로 남아
  * 54분 동안 «주행»이 박혔고, 03:05:47 A2 KEEP 으로 경로가 생기자 차가 서 있는데 «🚀 출발»이 켜졌다.

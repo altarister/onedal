@@ -178,7 +178,7 @@ data class DispatchBasicRequest(
     val capturedVia: String? = null,
     /**
      * 👀 **미리보기 콜** — 기사님이 확정을 누르기 전에 팝업 3장을 읽어 판정만 받아 보는 콜
-     * (기사님 확정 2026-08-22 · 용어집 §9). 아직 안 잡은 콜이라 인성에는 아무 일도
+     * (기사님 확정 2026-08-22). 아직 안 잡은 콜이라 인성에는 아무 일도
      * 일어나지 않았으므로 **서버가 취소 카운트에서 뺀다.**
      */
     val isPreview: Boolean = false
@@ -220,7 +220,7 @@ data class ScrapPayload(
     //    구서버는 이 필드를 무시하고 늘 전부 보낸다 (호환)
     val filterVersion: String? = null,
     /**
-     * 📦 **이 폰에 깔린 앱 버전** (기사님 확정 2026-09-02 · `docs/기획/폰_상태바.md` 5번).
+     * 📦 **이 폰에 깔린 앱 버전** (기사님 확정 2026-09-02).
      * `DeviceSession.version` 칸은 예전부터 있었는데 **아무도 안 채웠다.**
      * 고친 것이 폰에 실제로 들어갔는지를 관제웹에서 바로 볼 수 있어야 한다.
      */
@@ -364,7 +364,7 @@ data class FilterConfig(
     /** 🔔 픽커 알람 요금 하한 — 원천 DB(user_settings.picker_alarm_min_fare) → 피기백 (2026-08-30) */
     val pickerAlarmMinFare: Int = 10000,
     /**
-     * ⏱️ **배차망별 대기 시간 (초)** — 원천 DB(user_settings) → 피기백 (기사님 확정 2026-09-14 · docs/지금/배차망별_대기_시간.md).
+     * ⏱️ **배차망별 대기 시간 (초)** — 원천 DB(user_settings) → 피기백 (기사님 확정 2026-09-14).
      * 인성·화물24시는 안전취소 시간, 픽커는 확정 전 상세를(누가 열었든) 띄워 두는 시간이다 — 읽는 곳은 `WaitTimes` 한 곳.
      * 기본값은 서버가 죽었을 때만 쓰인다 (서버 DB 기본값과 같다).
      */
@@ -373,7 +373,7 @@ data class FilterConfig(
     val pickerAlarmDetailSec: Int = 30,
     val maxFare: Int = 1000000,
     /**
-     * 차종별 하한 단가(원/km) — 단가 판정 모델 (docs/지금/필터.md).
+     * 차종별 하한 단가(원/km) — 단가 판정 모델.
      * 판정: fare ≥ deliveryDistance × ratePerKm[차종]
      * 비어 있으면(서버가 구버전이거나 미응답) minFare 판정으로 동작한다 — 오프라인 안전망.
      */
@@ -383,10 +383,10 @@ data class FilterConfig(
     val excludedKeywords: List<String> = emptyList(),
     val destinationKeywords: List<String> = emptyList(),
     /**
-     * 📋 **상차 목록** — 상차지가 이 읍·면·동에 걸려야 싣는다 (2026-09-15 · docs/지금/필터.md «상차 목록 · 하차 목록»).
+     * 📋 **상차 목록** — 상차지가 이 읍·면·동에 걸려야 싣는다 (2026-09-15 · 하차 목록»).
      * 🔴 **null 과 빈 목록은 뜻이 다르다** — null = 서버가 이 칸을 안 보냄(옛 서버) → 옛 판정(상차 반경·경로 순서)으로.
      *    빈 목록 = 서버가 만들었는데 비었다 → 고장, 잡지 않는다 (규칙 ④ · `PickupListFilter`).
-     * 🔴 null 되돌아가는 길은 3단계(옛 칸 걷는 날)에 함께 지운다 (todo.md).
+     * 🔴 null 되돌아가는 길은 3단계(옛 칸 걷는 날)에 함께 지운다.
      */
     val pickupKeywords: List<String>? = null,
     val customCityFilters: List<String> = emptyList(),

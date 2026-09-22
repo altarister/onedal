@@ -278,7 +278,7 @@ router.get("/preflight", (_req, res) => {
 });
 
 /**
- * 🎬 **시나리오콜 — «이천 왕복 하루»를 서버가 사건순으로 낸다** (기사님 지시 2026-09-15 · 설계서 `docs/기획/문제지_이천왕복.md` §7).
+ * 🎬 **시나리오콜 — «이천 왕복 하루»를 서버가 사건순으로 낸다** (기사님 지시 2026-09-15).
  *
  * 기사님: *"시뮬레이터에 내기 버튼을 클릭하면 서버가 그냥 콜리스트를 … 순서대로 뿌리면 되는거 아냐?"* —
  * 현황판 [시작] 한 번이면 여기 1초 타이머가 «세상»(메모리 콜 · 폰 판정 `intel` · 도는 필터)을 읽어
@@ -326,7 +326,7 @@ function scenarioWorld(userId: string, now: number): ScenarioWorld {
     for (const o of session.pendingOrdersData.values()) put(o);
     for (const o of session.myOrders) put(o);
     const intel = db.prepare(
-        /* 🔴 폰 기록은 좌표가 비어 있다 — 동 이름·요금도 옮긴다 (버그 대장 #128) */
+        /* 🔴 폰 기록은 좌표가 비어 있다 — 동 이름·요금도 옮긴다 */
         `SELECT id, pickup, dropoff, fare, pickupX, pickupY, dropoffX, dropoffY, verdict FROM intel ORDER BY id DESC LIMIT 50`,
     ).all() as WorldIntel[];
     const f = session.activeFilter;

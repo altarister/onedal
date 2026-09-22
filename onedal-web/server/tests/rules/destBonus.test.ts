@@ -3,7 +3,7 @@ import type { JudgeFacts, JudgmentConfig } from "@onedal/shared";
 import { mergeFacts } from "../../src/core/engine/judgeFacts";
 
 /**
- * 🧭 **첫짐의 목적지 전진 배수** (기사님 확정 · docs/기획/실전_콜_판정_설계.md §4-3)
+ * 🧭 **첫짐의 목적지 전진 배수** (기사님 확정)
  *
  * 무엇을 막나
  * - **덧셈으로 섞는 것** — 목적지 방향만 맞으면 요금 0원짜리가 보통색이 된다. 배수는 돈을 키우는 것이지 돈과 더하는 것이 아니다

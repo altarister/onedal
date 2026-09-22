@@ -147,7 +147,7 @@ export default function StageView(props: Props) {
     const radii = effectiveRadii(filter);
 
     /**
-     * 🟢 **상차 영역 — 살아 있는 목적지마다 상태로 정한다** (`docs/지금/필터.md` «상차 영역»).
+     * 🟢 **상차 영역 — 살아 있는 목적지마다 상태로 정한다**.
      *
      * 🔴 모양은 shared `goalZonesOf` → `pickupShapeOf` 한 곳 — 하나라도 운행 뒤가 아니면 **현위치 영역 전체**,
      *    전부 운행 뒤면 **현위치 영역 ∩ 라인 영역**. 하차 레이어도 같은 `goalZonesOf` 를 쓴다.
@@ -196,7 +196,7 @@ export default function StageView(props: Props) {
     const nearGoalKey = JSON.stringify(nearZones);
 
     /**
-     * 🔵 **하차 영역 — 살아 있는 목적지마다 조각을 모은다** (`docs/지금/필터.md` «하차 영역»).
+     * 🔵 **하차 영역 — 살아 있는 목적지마다 조각을 모은다**.
      *
      * 조각은 shared `dropoffPartsOf` — 그 목적지까지 자른 라인이 있으면 «라인 ∪ Q(마지막 하차지→목적지) ∪ 목적지 원»,
      *    없으면 «Q(현위치→목적지) ∪ 목적지 원». 목적지가 집이어도 같다. 🔴 현위치 원은 안 넣는다.

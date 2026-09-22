@@ -14,7 +14,7 @@ const router = Router();
 const activeDevices = new Map<string, DeviceSession>();
 
 /**
- * 🎛️ **기사님이 고른 모드를 DB 에 적는다** (기사님 확정 2026-08-30 · `docs/지금/기기_모드.md` §6-①).
+ * 🎛️ **기사님이 고른 모드를 DB 에 적는다** (기사님 확정 2026-08-30).
  *
  * `activeDevices` 의 `session.mode` 는 통신 두절·오프라인 보고로 덮어써지지만,
  * 이 칸은 **"기사님의 의도"** 만 담으며 그런 사건에 흔들리지 않는다.
@@ -134,7 +134,7 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
  * @returns 현재 기기의 관제 모드 (AUTO | MANUAL)
  */
 /**
- * 📦🚦🎛️ **폰 상태 바가 쓰는 셋** (2026-09-02 · `docs/기획/폰_상태바.md` 3단계).
+ * 📦🚦🎛️ **폰 상태 바가 쓰는 셋** (2026-09-02).
  * 앱 안엔 있었는데 여태 안 올라오던 값들이다 — 서버는 **받아 적기만** 한다.
  * ⚠️ 구앱은 안 보낸다 → `undefined` 로 남고, 화면이 아무것도 안 그린다 (규칙 ④).
  */
@@ -195,7 +195,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         }
 
         /**
-         * ⏱️ **덮기 전에 직전 보고 시각을 챙긴다** (기사님 확정 2026-09-02 · `docs/기획/폰_상태바.md` 3번).
+         * ⏱️ **덮기 전에 직전 보고 시각을 챙긴다** (기사님 확정 2026-09-02).
          *
          * 앱은 **화면에 일이 생기면 그때** 보내고, 아무 일도 없으면 **60초마다** 살아있다고만
          * 알린다. 그래서 «마지막 두 보고의 간격»이 곧 *"그 사이에 일이 있었나"* 다 —
@@ -292,7 +292,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         session.filterTallyAt = session.lastSeen;
 
         /**
-         * 🔔 **알람 모드 — 필터를 통과한 콜이 떴다** (기사님 확정 2026-08-30 · `docs/지금/기기_모드.md`).
+         * 🔔 **알람 모드 — 필터를 통과한 콜이 떴다** (기사님 확정 2026-08-30).
          *
          * 앱은 이 모드에서 **누르지 않는다.** 기사님이 인성 리스트에서 직접 누르므로,
          * 서버가 할 일은 *"통과한 콜이 지금 리스트에 있다"* 를 관제웹에 알리는 것뿐이다.
@@ -350,7 +350,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     else if (screenContext) session.unknownSince = undefined;
 
     /**
-     * 👀 **미리보기는 그 폰이 상세를 보고 있는 동안만 산다** (기사님 확정 · 버그 대장 #159 뒤 개정).
+     * 👀 **미리보기는 그 폰이 상세를 보고 있는 동안만 산다** (기사님 확정).
      *
      * 기사님: *"미리보기 끄는 건 그 미리보기 판정을 연 스캔폰의 상태값 즉 상세페이지일 때만 노출하고
      * 페이지를 이탈하면 끄는 걸로 예외 없이 적용해."*
@@ -385,7 +385,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         if (stuckOrderId) {
             const stuckOrder = userSession.pendingOrdersData.get(stuckOrderId);
             /**
-             * 🔄 **미리보기는 리스트로 돌아가면 즉시 정리한다** (기사님 실측 2026-08-22 · 용어집 §9).
+             * 🔄 **미리보기는 리스트로 돌아가면 즉시 정리한다** (기사님 실측 2026-08-22).
              *
              * 직접콜(MANUAL)을 정리에서 빼는 것은 규칙 ① *"기사님이 잡은 콜을 서버가 버리지
              * 않는다"* 때문이다. 하지만 **미리보기는 아직 안 잡은 콜**이라 그 보호가 필요 없다.

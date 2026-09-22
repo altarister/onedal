@@ -59,7 +59,7 @@ export function mapVehicleToKakaoCarType(vehicle: string): number {
  * ⚠️ 예전엔 "1t 트럭 = 30점 기준"이라 적혀 있었는데 **옛 5칸/30점 축**이다.
  *    지금은 1t 짐 80박스 · 내 트럭 100박스(TRUCK_CAPACITY_SLOTS) 다 (2026-08-29 정정).
  *
- * 🔴 **라면박스 축** (기사님 확정 2026-08-17 · docs/지금/용어집.md §5·§7이 원천):
+ * 🔴 **라면박스 축** (기사님 확정 2026-08-17):
  *   표시 차종 X 의 콜 = X 한 대 분량의 짐. 1t 짐만 예외로 **80박스**(파레트 2개) —
  *   내 트럭 용량(TRUCK_CAPACITY_SLOTS = 100박스)과 다르다. 자투리 20박스가 안전 여유.
  *   오토바이 짐 = 1박스 (옛 "조수석 0점·상한 없음" 규칙은 폐기 — 용어집 확정).
@@ -194,8 +194,8 @@ export const CAPACITY_CONFIDENCE_LABEL: Record<CapacityConfidence, string> = {
 
 /**
  * 내 트럭(1t)의 총 적재 용량 — **라면박스 100개** (기사님 확정 2026-08-17).
- * 파레트 2개(80박스) + 여유 20박스. 용어집 §7이 원천.
- * (식별자의 SLOTS 는 역사적 이름 — 값의 단위는 박스다. 용어집 §9 "적재 용량" 키 유지 결정)
+ * 파레트 2개(80박스) + 여유 20박스. 차종 표의 원천은 이 파일이다.
+ *
  */
 export const TRUCK_CAPACITY_SLOTS = 100;
 

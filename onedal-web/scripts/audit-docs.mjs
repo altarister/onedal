@@ -2,31 +2,20 @@
 /**
  * 문서 검사 — **문서가 코드와 다른 말을 하는가.**
  *
- * 이 레포가 반복해서 당한 사고는 «문서가 거짓말하는 것»이다. CLAUDE.md 가 «네 번 발생»
- * 이라 적어 뒀고, 2026-08-28 전수조사에서 또 나왔다:
+ * 문서가 옛 이름·없는 파일·폐기된 말을 현재형으로 말하면 다음 사람이 그걸 믿는다.
+ * 🔴 손으로 훑으면 다음에 또 갈라진다. 그래서 매번 소스와 대조한다 (`pnpm audit:socket` 과 같은 방식).
  *
- *   `지금/안전모드.md`  뼈대가 코드에 없었다 (mainCallState · subCalls · pendingDetailRequests
- *                       · isAutoSessionActive — 전부 0곳). 참조 8곳 중 6곳이 이미
- *                       «거짓말한 문서»로 지목하고 있었는데도 «지금» 칸에 있었다
- *   `지금/이벤트_명세`   ORDER_CANCELED · ORDER_RELEASED · ORDER_FORCE_CANCELED —
- *                       셋 다 폐기된 이름인데 명세가 그걸 현재형으로 말했다
- *   `지금/필터`          `filterHunt.test.ts` 를 가리켰다. 그 검사는 개명됐을 뿐 살아 있었지만,
- *                       **문서가 옛 이름을 복제**해 다음 사람이 «검사가 사라졌다»로 읽는다
- *
- * 🔴 손으로 훑으면 다음에 또 갈라진다. 그래서 매번 소스와 대조한다
- *    (`pnpm audit:socket` 과 같은 방식 · 흐름 지도 `pnpm map` 도 그랬다 — 2026-09-14 에 지웠다).
+ * 문서 = 레포의 모든 `.md` (각 앱의 `CLAUDE.md` · README · 스킬)
  *
  * 보는 것
  *   ① 없는 파일        문서가 말하는 `*.ts/.tsx/.kt/.mjs` 가 레포에 있는가
- *   ② 사라진 식별자     문서가 말하는 상수·상태값·칸이 코드에 있는가 (「기획」·「아카이브」·todo 는 뺀다)
- *   ③ 옛말             **`docs/지금/` 만** — 용어집이 폐기한 말로 현재를 설명하는가
+ *   ② 사라진 식별자     문서가 말하는 상수·상태값·칸이 코드에 있는가
+ *   ③ 옛말             `CLAUDE.md` 가 용어집이 폐기한 말로 현재를 설명하는가
  *   ④ 죽은 링크        문서→문서 · 코드→문서
  *   ⑤ 손 뗀 자리       문서가 «이 파일이 한다»는 일을 그 파일이 아직 하는가
  *   ⑥ 경위 줄          바꾼 파일에 날짜별 경위 줄이 HEAD 판보다 늘었나
  *
- * ⚠️ **역사 서술은 옛말을 담는 게 당연하다.** `glossary.test.ts` 가 주석을 걷어내고
- *    검사하는 것과 같은 이유다. 그래서 ③은 «지금» 칸에만 건다 —
- *    기록·자료·기획은 그때의 말로 적혀야 맞다.
+ * ⚠️ **역사 서술은 옛말을 담는 게 당연하다** — 옛일을 적는 줄(→ · 폐기 · 그때)은 ③ 이 넘어간다.
  *
  * 사용: pnpm audit:docs
  */
@@ -52,12 +41,8 @@ const ALL = walk(ROOT);
 const rel = p => relative(ROOT, p);
 const FILE_NAMES = new Set(ALL.map(p => basename(p)));
 
-/** 검사 대상 문서 — docs 전체 + 각 앱의 CLAUDE.md + todo */
-const DOCS = ALL.filter(p => {
-    const r = rel(p);
-    if (!r.endsWith('.md')) return false;
-    return r.startsWith('docs/') || basename(r) === 'CLAUDE.md' || r === 'todo.md';
-});
+/** 검사 대상 문서 — 레포의 모든 `.md` */
+const DOCS = ALL.filter(p => rel(p).endsWith('.md'));
 
 /**
  * 🔴 **주석은 걷어낸다** — 묘비 주석(«`scoreDryRun` 은 철거됐다»)에 이름이 남으면
@@ -70,7 +55,7 @@ const codeOnlyView = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\
  *    실제로 `scoreDryRun` 이 그랬다. 문서가 물어보는 것은 «제품에 있는가» 다.
  */
 const CODE = ALL
-    .filter(p => /\.(ts|tsx|kt|mjs|cjs|js)$/.test(p) && !p.includes('/dist/')
+    .filter(p => /\.(ts|tsx|kt|mjs|cjs|js|py)$/.test(p) && !p.includes('/dist/')
                  && !/[\\/]tests?[\\/]|\.test\./.test(p))
     .map(p => { try { return codeOnlyView(readFileSync(p, 'utf8')); } catch { return ''; } })
     .join('\n');
@@ -127,7 +112,7 @@ say('② 사라진 식별자', '문서가 말하는 상수·상태값·칸이 �
     /**
  * 🪦 **걷힌 이름 — 역사 문서에 묘비로 남는다.** 코드에서 사라졌으니 ②가 «없는 식별자»로 잡는데,
  *    버그 대장·용어집이 «그때 그 표»를 말하는 것은 낡은 서술이 아니라 **기록**이다.
- *    ⚠️ 여기 넣기 전에 «지금» 문서가 그 이름을 **현재형**으로 쓰는지 먼저 훑는다 — 그건 고쳐야 한다.
+ *    ⚠️ 여기 넣기 전에 문서가 그 이름을 **현재형**으로 쓰는지 먼저 훑는다 — 그건 고쳐야 한다.
  *    (2026-09-12: `user_filter_phases` 는 C3-3b 에서 걷혔다. `filter-show.ts` 가 그 표를 읽던
  *     SQL 을 한 벌로 고치자 코드에서 완전히 사라져 여기로 왔다)
  */
@@ -141,9 +126,6 @@ const NOT_OURS = [
     const bad = new Map();
     for (const d of DOCS) {
         const r = rel(d);
-        // 🔴 「기획」과 `todo.md` 는 **아직 안 만든 것**을, 「아카이브」는 **안 만들고 접은 것**을 적는 자리다 — 코드에 없는 게 당연하다.
-        //    (①·③·④ 는 그대로 건다 — «없는 파일을 가리키는 것»과 «옛말»은 거기서도 문제다)
-        if (r.startsWith('docs/기획/') || r.startsWith('docs/아카이브/') || r === 'todo.md') continue;
         const s = readFileSync(d, 'utf8');
         const names = new Set([...s.matchAll(re)].map(x => x[1]));
         for (const m of [...s.matchAll(reFn)].map(x => x[1])) names.add(m);
@@ -154,9 +136,6 @@ const NOT_OURS = [
             const lines = s.split('\n').filter(l => l.includes(m));
             //    «얹는다·붙인다» 도 앞으로 만들 것이다. «만 보므로» 는 옛 이름을 세는 문장이다
             const ok = /→|폐기|옛|그때|예전|없다|사라|바뀌|이었|예정|후보|한다면|삭제|만들|신설|제안|분리|기록|얹|만 보므로|철거|되살|철거|되살|\[x\]/;
-            // 🔴 **문서 전체가 «옛 설계의 기록»이면** 그 안의 이름은 코드에 없는 게 맞다.
-            //    (`안전모드_설계` 는 머리말이 «전부 0곳» 이라고 스스로 적어 뒀다)
-            if (/^docs\/기록\//.test(r) && /0곳|철거|없앴|폐기/.test(s.slice(0, 800))) continue;
             if (lines.every(l => ok.test(l))) continue;
             if (!bad.has(m)) bad.set(m, new Set());
             bad.get(m).add(r);
@@ -169,8 +148,8 @@ const NOT_OURS = [
     }
 }
 
-// ═══════════════════════════ ③ 옛말 — 「지금」 칸만
-say('③ 옛말', 'docs/지금/ 이 폐기된 말로 현재를 설명하는가');
+// ═══════════════════════════ ③ 옛말 — CLAUDE.md
+say('③ 옛말', 'CLAUDE.md 가 폐기된 말로 현재를 설명하는가');
 {
     /**
      * 🔴 **금지어의 원천은 `glossary.test.ts` 하나다.** 여기에 목록을 또 적으면 두 벌이 된다
@@ -189,12 +168,10 @@ say('③ 옛말', 'docs/지금/ 이 폐기된 말로 현재를 설명하는가')
         console.log(`  ${C.y}⚠ glossary.test.ts 에서 금지어를 못 읽었다 — 이 검사가 헛돈다${C.x}`);
         problems++;
     } else {
-        /** 용어집은 **대응표**라 옛말이 자료다. 이유 있는 유일한 예외 */
-        const EXEMPT = new Set(['docs/지금/용어집.md']);
         const hits = [];
         for (const d of DOCS) {
             const r = rel(d);
-            if (!r.startsWith('docs/지금/') || EXEMPT.has(r)) continue;
+            if (basename(r) !== 'CLAUDE.md') continue;
             const lines = readFileSync(d, 'utf8').split('\n');
             lines.forEach((l, i) => {
                 // 역사 서술 한 줄은 넘어간다 (「예전엔 ~이라 불렀다」)
@@ -240,13 +217,9 @@ say('④ 죽은 링크', '문서→문서 · 코드→문서');
 say('⑤ 손 뗀 자리', '문서가 «이 파일이 한다»는 일을 그 파일이 아직 하는가');
 {
     /**
-     * 🔴 **왜 필요한가** — 2026-08-29 판정을 갈아탄 뒤, `docs/지금/판정.md` 가
-     *    여전히 «채점기 = `shared/src/dryRun.ts`» 라고 가리켰다. 그런데 감사는
-     *    **통과했다**:
-     *      ① 없는 파일 — `dryRun.ts` 는 아직 있다
-     *      ② 사라진 식별자 — `scoreDryRun` 도 아직 export 된다
-     *      ③ 옛말 — 「문지기·축」은 용어집 금지어가 아니다 (개발 중에 생긴 말)
-     *    **«파일은 있는데 그 일을 더 이상 안 한다»** 를 볼 눈이 없었다.
+     * 🔴 **왜 필요한가** — 문서가 «채점기 = `dryRun.ts`» 처럼 역할을 가리키는데 그 파일이
+     *    일을 놓으면 ①(파일은 있다)·②(export 도 있다)·③(금지어가 아니다) 가 다 통과한다.
+     *    **«파일은 있는데 그 일을 더 이상 안 한다»** 를 이것이 본다.
      *
      * 어떻게 보나: 문서가 «역할 = 파일» 이라고 적은 표 줄을 찾아, **제품 코드가
      * 그 파일에서 무언가를 실제로 들여오는지** 본다. 아무도 안 들여오면 손 뗀 것이다.
@@ -285,7 +258,7 @@ say('⑤ 손 뗀 자리', '문서가 «이 파일이 한다»는 일을 그 파�
         });
     };
     let bad = 0;
-    for (const d of DOCS.filter(x => x.includes('/docs/지금/'))) {
+    for (const d of DOCS) {
         const s = readFileSync(d, 'utf8');
         // 표의 «… | `경로/파일.ts` |» 꼴만 본다 — 산문 속 언급은 역사일 수 있다
         for (const m of new Set([...s.matchAll(/\|[^|\n]*\|\s*`([\w./-]+\.tsx?)`\s*\|/g)].map(x => x[1]))) {
@@ -303,16 +276,16 @@ say('⑤ 손 뗀 자리', '문서가 «이 파일이 한다»는 일을 그 파�
 }
 
 // ═══════════════════════════ ⑥ 경위 줄
-say('⑥ 경위 줄', '바꾼 코드·「지금」 문서에 날짜별 경위가 늘었나');
+say('⑥ 경위 줄', '바꾼 코드·문서에 날짜별 경위가 늘었나');
 {
     /**
-     * 🔴 **한 가지는 한 곳에만 적는다** — 코드 주석 · `docs/지금/` · `CLAUDE.md` 에는 지금 규칙과 까닭 한 줄,
-     *    날짜별 경위는 버그 대장 · 커밋 메시지로 (루트 CLAUDE.md «코드 주석 · 문서에 무엇을 적나»).
+     * 🔴 **한 가지는 한 곳에만 적는다** — 코드 주석 · `CLAUDE.md` 에는 지금 규칙과 까닭 한 줄,
+     *    날짜별 경위는 커밋 메시지로 (루트 CLAUDE.md «코드 주석 · 문서에 무엇을 적나»).
      *    이미 쌓인 줄은 세지 않는다 — **HEAD 판보다 늘었는가**만 본다. 만질 때 줄이면 된다.
      * 옮긴 줄(다른 바뀐 파일의 HEAD 판에 같은 줄이 있다)은 늘어난 것으로 안 본다.
      */
     const { execFileSync } = await import('child_process');
-    // 🔴 `core.quotepath` 를 끄지 않으면 한글 경로가 `"docs/\354\247\200…"` 로 나와 `docs/지금/` 에 안 걸린다 — 한글 문서만 바뀐 날 ⑥ 이 «바뀐 파일 0개»로 지나갔다
+    // 🔴 `core.quotepath` 를 끄지 않으면 한글 경로가 `"\354\247\200…"` 로 나와 경로 비교가 틀린다
     const git = (...a) => { try { return execFileSync('git', ['-c', 'core.quotepath=off', ...a], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 }); } catch { return ''; } };
     const DATE = '20\\d{2}-\\d{2}-\\d{2}';
     const SHAPES = [
@@ -320,7 +293,7 @@ say('⑥ 경위 줄', '바꾼 코드·「지금」 문서에 날짜별 경위가
         /예전(?:엔|에는)/,
         new RegExp(`기사님.*${DATE}|${DATE}.*기사님`),
     ];
-    const watched = (p) => /\.(ts|tsx|kt|mjs|md)$/.test(p) && !/^docs\/(?!지금\/)|^todo\.md$/.test(p);
+    const watched = (p) => /\.(ts|tsx|kt|mjs|md)$/.test(p);
     const shaped = (text) => text.split('\n').map(l => l.trim()).filter(l => SHAPES.some(r => r.test(l)));
     const changed = [...new Set([
         ...git('diff', '--name-only', 'HEAD').split('\n'),
@@ -347,6 +320,6 @@ if (problems === 0) {
     console.log(`${C.g}✅ 문서가 코드와 어긋난 곳 없음${C.x} ${C.d}(문서 ${DOCS.length}개)${C.x}\n`);
 } else {
     console.log(`${C.y}⚠ ${problems}건${C.x} ${C.d}— 문서가 코드와 다른 말을 하거나(①~⑤) 경위 줄이 늘었다(⑥). 칸마다 보고 고칠 것${C.x}`);
-    console.log(`${C.d}  «지금» 칸이 틀리면 읽는 사람이 없는 것을 있다고 믿는다 — 이 레포가 네 번 당한 사고다.${C.x}\n`);
+    console.log(`${C.d}  문서가 틀리면 읽는 사람이 없는 것을 있다고 믿는다.${C.x}\n`);
     process.exitCode = 1;
 }

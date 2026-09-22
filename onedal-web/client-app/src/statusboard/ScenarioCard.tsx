@@ -4,7 +4,7 @@ import { simAsk } from './simDoor';
 import { VERDICT_AXIS_LABEL } from './callVerdict';
 
 /**
- * 🎬 **시나리오콜 카드 — «이천 왕복 하루»** (기사님 지시 2026-09-15 · 설계서 `docs/기획/문제지_이천왕복.md` §7).
+ * 🎬 **시나리오콜 카드 — «이천 왕복 하루»** (기사님 지시 2026-09-15).
  *
  * 기사님: *"너가 알려주는 건 안 돼, 시선이 분산되니까. 현황판에서 모두 해결할 수 있도록 해줘"*
  * → 기사님이 할 일은 **[시작] 한 번 + 이 카드의 «지금» 줄이 시키는 KEEP · 취소 · ↩️ 복귀 켬** 뿐이다.
@@ -58,7 +58,7 @@ export default function ScenarioCard({ scenarioKey, title }: { scenarioKey: 'ich
             const r = await simAsk<ScenarioView>(`/scenario?key=${scenarioKey}`);
             if (!alive) return;
             /**
-             * 🔴 **줄이 온 것만 화면으로 세운다** (규칙 ④ · 버그 대장 #161).
+             * 🔴 **줄이 온 것만 화면으로 세운다** (규칙 ④).
              *    `index !== null` 은 `undefined` 를 통과시킨다 — 그러면 `rows[undefined]` 로 죽는다.
              */
             if (!r.ok || !Array.isArray(r.data.rows)) { setError(r.ok ? '서버가 줄을 안 줬다' : r.why); return; }

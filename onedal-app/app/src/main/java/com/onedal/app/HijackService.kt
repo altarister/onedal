@@ -206,7 +206,7 @@ class HijackService : AccessibilityService(), ScanContext {
     // ── 세션 상태 (SessionManager로 통합) ──
     override val session = SessionManager()
 
-    /** 🔔 알람 모드의 폰 쪽 신호 — 소리·진동·테두리 (`docs/지금/기기_모드.md` 2단계) */
+    /** 🔔 알람 모드의 폰 쪽 신호 — 소리·진동·테두리 */
     private val alarmSignaler by lazy { AlarmSignaler(this) }
     /** 🖼️ 접근성이 켜져 있는 동안 화면 전체를 모드 색으로 두른다 — 녹색 알람 · 파랑 자동 · 주황 직접 */
     private val modeFrame by lazy { com.onedal.app.core.ModeFrame(this) }
@@ -214,7 +214,7 @@ class HijackService : AccessibilityService(), ScanContext {
     /**
      * ⏱️ **픽커 상세 대기 타이머** — **ID 를 저장해 취소 가능하게** (좀비 타이머 규칙).
      * 확정 전 상세에 들어오면 **누가 열었든(알람·손) · 어느 모드든** 정해진 시간(서버 DB) 뒤 폰이 스스로 뒤로 나와
-     * 리스트 수집을 재개한다 (기사님 확정 2026-09-14 · 버그 대장 #124).
+     * 리스트 수집을 재개한다 (기사님 확정 2026-09-14).
      * 🔴 거는 곳은 상세 화면 처리 한 곳 · 끄는 곳은 `resetSessionState` 한 곳 — 예전엔 알람이 누를 때만 걸고
      *    «상세 → 리스트»일 때만 꺼서, 중간 화면이 끼자 안 꺼진 타이머가 기사님이 손으로 연 다음 상세를 닫았다 (18:30:34).
      */
@@ -233,7 +233,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     override fun scheduleDetailBack() {
         if (detailBackRunnable != null) return            // 이미 걸려 있다 — 상세 글자가 바뀔 때마다 새로 걸지 않는다
-        // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec · docs/지금/배차망별_대기_시간.md)
+        // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec)
         val delayMs = com.onedal.app.core.engine.WaitTimes.pickerAlarmDetailMs(savedFilter())
         // 🔎 누가 열었나 — 기록만 한다 (나중에 `grep "상세 대기"` 로 «손으로 연 상세도 돌아왔나»를 본다)
         val now = android.os.SystemClock.elapsedRealtime()
@@ -280,7 +280,7 @@ class HijackService : AccessibilityService(), ScanContext {
     /**
      * ⏱️ **서버가 내려준 필터(저장본)** — 배차망별 대기 시간을 여기서 읽는다 (기사님 확정 2026-09-14).
      * 🔴 예전엔 폰 안 저장소의 `safeCancelTimeout`(설정 화면 30·40·50초)을 읽었다 — 서버가 모르는 값이었다.
-     *    원천은 이제 서버 DB 다 (docs/지금/배차망별_대기_시간.md). 못 읽으면 `FilterConfig` 기본값(서버 DB 기본값과 같다).
+     *    원천은 이제 서버 DB 다. 못 읽으면 `FilterConfig` 기본값(서버 DB 기본값과 같다).
      */
     private fun savedFilter(): com.onedal.app.models.FilterConfig {
         val json = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).getString("activeFilter", null)
@@ -366,7 +366,7 @@ class HijackService : AccessibilityService(), ScanContext {
             (getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isInteractive
 
         /**
-         * 🚦📦 **폰 상태 바가 쓸 것 둘을 꽂는다** (2026-09-02 · `docs/기획/폰_상태바.md` 2단계).
+         * 🚦📦 **폰 상태 바가 쓸 것 둘을 꽂는다** (2026-09-02).
          * 단계는 **보낼 때마다 여기서 새로 계산**한다 — 복사본을 두면 갱신을 빠뜨린 자리가
          * 옛 단계를 계속 말한다.
          */
@@ -721,7 +721,7 @@ class HijackService : AccessibilityService(), ScanContext {
          *    즉시 확정되고, 앱이 리스트로 이탈해도 서버가 안 치운다(일부러 그렇게 설계됐다 —
          *    기사님이 손으로 잡은 콜을 서버가 버리면 안 되므로). 그래서 유령이 남았다.
          *
-         * 문서(`SCREEN_STATE_MACHINE.md`)의 상태 기계가 정답을 갖고 있었다.
+         * 문서의 상태 기계가 정답을 갖고 있었다.
          *      LIST               --> DETAIL_PRE_CONFIRM : 콜 클릭
          *      DETAIL_PRE_CONFIRM --> LIST               : 취소 · 뒤로가기
          * 리셋이 필요한 건 **두 번째 전이**다. 즉 "지금 LIST" 가 아니라 **"LIST 로 돌아왔다"**.
@@ -1190,7 +1190,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     "닻(${fareNode.rect.centerX()},${fareNode.rect.centerY()}) 머리줄 Y=$listHeaderY — " +
                     "상세로 이동 · 수락은 기사님 · 상세 대기 시간 뒤 자동 복귀")
                 /**
-                 * 📎 **여기서 카드를 따로 쥐여 주지 않는다** (2026-09-14 · 버그 대장 #119).
+                 * 📎 **여기서 카드를 따로 쥐여 주지 않는다** (2026-09-14).
                  * 예전엔 `lastDetailOrder = order` 로 쥐여 줬는데, 그 길이 **알람에만** 있어서 기사님이
                  * 손으로 연 상세는 «리스트 원본이 없다»로 서버에 아무것도 안 갔다.
                  * 이제 상세 화면이 누가 열었든 `KakaoPickerParser.matchListCard` 한 곳에서 카드를 찾는다

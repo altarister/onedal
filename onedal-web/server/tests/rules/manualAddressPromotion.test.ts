@@ -3,7 +3,7 @@ import { join } from 'path';
 import { parseLocationDetails, promoteDetailAddresses } from '../../src/utils/parser';
 
 /**
- * 📍 **직접콜의 주소는 팝업 상세가 채운다 — 승격은 한 곳에서** (2026-08-30 · 버그 대장 #77)
+ * 📍 **직접콜의 주소는 팝업 상세가 채운다 — 승격은 한 곳에서** (2026-08-30)
  *
  * 알람 모드 첫 실전(7지점 문제지)에서 잡힌 직접콜이 장부에
  * `수집중(상세확인필요) → 수집중(상세확인필요)` 로 남았고, 그 주소 없는 콜이

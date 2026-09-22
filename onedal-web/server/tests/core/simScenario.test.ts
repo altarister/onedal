@@ -3,7 +3,7 @@ import type { ScenarioState, ScenarioWorld, WorldOrder } from '../../src/core/si
 import { ICHEON_ROUND_TRIP } from '../../src/core/simScenarioIcheon';
 
 /**
- * 🎬 **이천 왕복 — 서버가 사건순으로 콜을 낸다** (기사님 지시 2026-09-15 · 설계서 `docs/기획/문제지_이천왕복.md` §7).
+ * 🎬 **이천 왕복 — 서버가 사건순으로 콜을 낸다** (기사님 지시 2026-09-15).
  *
  * 기사님: *"시뮬레이터에 내기 버튼을 클릭하면 서버가 그냥 콜리스트를 … 순서대로 뿌리면 되는거 아냐?"*
  * → 시계순은 안 된다 (모의 주행 속도·정차가 매번 다르고 KEEP 마다 순서가 바뀐다). **사건순**이다.

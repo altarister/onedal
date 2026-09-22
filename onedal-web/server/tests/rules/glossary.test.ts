@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 
 /**
- * 🔴 **옛말 금지 — 용어집(docs/지금/용어집.md)이 유일한 원천이다** (기사님 2026-08-17)
+ * 🔴 **옛말 금지 — 용어집이 유일한 원천이다** (기사님 2026-08-17)
  *
  * 기사님: *"새로 정의를 해도 너는 자꾸 이전 용어를 쓰고 있고."*
  * 코드에 옛말이 살아 있으면 그걸 읽는 쪽(사람이든 Claude 든)이 옛말을 다시 배운다.
@@ -88,7 +88,7 @@ const BANNED: { name: string, pattern: RegExp, allow?: RegExp, until?: string }[
      */
     { name: '종착지 → 확정콜의 마지막 하차지', pattern: /종착지/ },
 
-    // 취소의 세 갈래 (용어집 §2-1 · 기사님 확정 2026-08-18)
+    // 취소의 세 갈래 (기사님 확정 2026-08-18)
     // ⚠️ ORDER_RELEASED 는 새 이름의 **앞부분**이라, 뒤에 _BY_ 가 오면 새말이다
     { name: 'ORDER_RELEASED → ORDER_RELEASED_BY_ME', pattern: /ORDER_RELEASED(?!_BY_)/ },
     { name: 'ORDER_CANCELED → SAFE_CANCEL', pattern: /ORDER_CANCELED/ },

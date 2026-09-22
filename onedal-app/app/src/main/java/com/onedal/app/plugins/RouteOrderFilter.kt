@@ -34,6 +34,13 @@ object RouteOrderFilter {
         if (orderKm.isEmpty()) return Result(true, "첫짐 — 순서 검사 없음")
 
         val pickupHits = orderKm.filterKeys { pickupText.contains(it, ignoreCase = true) }
+        /*
+         * 🔴 **구 단위 상차지는 막는다 — 버그가 아니라 결정이다.** 배차망은 상차지를 구·시 단위(`분당구`)로도 적는데,
+         *    구 안에는 경로의 여러 지점이 있어 «상차지가 경로의 몇 km 지점인가»에 답할 수 없다.
+         *    (하차 쪽 `region` 축이 구 별칭을 받는 것은 묻는 것이 달라서다 — «그물 안인가»는 구 단위로도 답이 하나다.)
+         *    기사님: *"인성이나 24시도 그렇게 작동하니까"* — 어디서 태울지 모르는 콜은 안 잡는 것이 안전하다.
+         *    잡았다 취소하면 배차망 취소 횟수를 쓴다.
+         */
         if (pickupHits.isEmpty()) {
             return Result(false, "경로 밖 — 상차지(${pickupText.take(20)})가 경유 목록에 없음")
         }

@@ -14,7 +14,7 @@ import { UNKNOWN_LEAVE_SEC } from '@onedal/shared';
  * ⓐ 인성 안전취소 타임아웃(detail.ts)이 `forceCancelEvaluatingOrder`(여기서 이미 셈) 뒤에 `countCancel(TIMEOUT)` 을 **또** 불렀다 —
  *    보통 콜은 **두 번** 세고, 미리보기는 캐시가 지워진 뒤라 딱지를 못 봐 **세면 안 되는데 한 번** 셌다. `order-canceled` 도 두 번 나갔다.
  * ⓑ `forceCancelEvaluatingOrder` 가 미리보기도 장부에 SAFE_CANCEL 행으로 썼다 → 관제웹 취소 수(`helpers` 의 SAFE_CANCEL 행 수)가 부풀었다.
- *    미리보기는 인성에서 아무 일도 없던 콜이다 (용어집 §9) — 장부에 들어가는 길이 이 한 줄뿐이었다.
+ *    미리보기는 인성에서 아무 일도 없던 콜이다 — 장부에 들어가는 길이 이 한 줄뿐이었다.
  * ⓒ 비상 보고(emergency.ts)도 캐시를 지운 뒤 딱지 없이 셌다 — 같은 클래스.
  * 클래스: **취소를 세는 자리·적는 자리가 경로마다 흩어졌다** (08-18 «취소 저장의 네 번째 경로»와 같은 뿌리).
  */

@@ -20,7 +20,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const [isGeocodingLoading, setIsGeocodingLoading] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  /** ⏱️ 배차망별 대기 시간 (docs/지금/배차망별_대기_시간.md) */
+  /** ⏱️ 배차망별 대기 시간 */
   const [waitTimes, setWaitTimes] = useState<WaitTimes>(DEFAULT_WAIT_TIMES);
   /** 서버에서 불러온 값 — 칸을 비우거나 0 을 넣고 저장하면 이 값으로 되돌린다 (1초 미만은 고장 · waitSecOrNull) */
   const loadedWaitTimes = useRef<WaitTimes>(DEFAULT_WAIT_TIMES);

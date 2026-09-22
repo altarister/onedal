@@ -3,7 +3,7 @@ import { callTargetOfDay, isHomeCallSince } from './callTargetDay';
 import type { CallTargetEvent } from './callTargetDay';
 
 /**
- * 🧭 **복귀 켬은 «바꾼 일»에서 계산한다** (기사님 확정 2026-09-15 · 버그 대장 #131 · `docs/지금/필터.md` «복귀 켬 — 규칙 ⑤-4 의 다섯»).
+ * 🧭 **복귀 켬은 «바꾼 일»에서 계산한다** (기사님 확정 2026-09-15).
  *
  * 짐의 수명(콜 0건이면 끝)과 방향의 수명은 다르다. 2026-09-15 02:03 이천 왕복 — B1·B3 하차로 0건이 되자 복귀가 꺼졌고,
  * 서버 재기동에는 복귀 켬 자체가 사라졌다(메모리에만 있었다).

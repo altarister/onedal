@@ -23,7 +23,7 @@ import type { HandlingMethod } from './index';
  * 실제 `local.db` 적요에 등장한 품목이 근거다:
  *   `마대 1개` · `박스 1개` · `샘플 박스` · `서류봉투` · `소형 가전` · `쇼핑백 2개`
  *
- * 🔴 점수는 **라면박스 축** — 1박스 = 1점 (기사님 확정 2026-08-17 · 용어집 §5가 원천).
+ * 🔴 점수는 **라면박스 축** — 1박스 = 1점 (기사님 확정 2026-08-17).
  *    내 1t 트럭 = 100박스 (`TRUCK_CAPACITY_SLOTS`) · 1t짐 = 파레트 2개 = 80박스.
  */
 // '가전' 은 단위가 아니라 **성질**이다 (cargoTags). 냉장고와 전기면도기가 같은 부피일 리 없다.
@@ -47,10 +47,10 @@ export const LEGACY_CARGO_UNITS = ['톤백', '쇼핑백'] as const;
 export type CargoUnit = typeof CARGO_UNITS[number] | typeof LEGACY_CARGO_UNITS[number];
 
 export const CARGO_UNIT_POINTS: Record<CargoUnit, number> = {
-    '파레트': 40,    // 박스 40개 분량 — 2개(80) + 여유 20 = 1t 만재 (용어집 §5)
+    '파레트': 40,    // 박스 40개 분량 — 2개(80) + 여유 20 = 1t 만재
     '마대': 1,       // 박스 1개 (예전 4개에서 기사님이 1로 정정)
     '라면박스': 1,   // 축의 기준 — 라면 40개들이 1박스
-    '서류봉투': 0.2,  // 무게·부피 거의 없음 (용어집 §5)
+    '서류봉투': 0.2,  // 무게·부피 거의 없음
     /**
      * `기타` 는 **부피를 모른다는 뜻**이다. 0 점을 주는 것은 "안 실었다"가 아니라
      * "환산할 수 없다"는 표시다 — `cargoPoints` 가 0 이면 적재 계산이
@@ -60,7 +60,7 @@ export const CARGO_UNIT_POINTS: Record<CargoUnit, number> = {
     '기타': 0,
     // ── 아래는 옛 데이터·적요 해석용 (선택지에는 없다) ──
     '톤백': 40,      // 박스 40개 분량 — 만재가 아니다 (예전 '만재 30점'에서 기사님이 정정)
-    '쇼핑백': 0.2,   // 쌓아올리기 어려운 백 (용어집 §5)
+    '쇼핑백': 0.2,   // 쌓아올리기 어려운 백
 };
 
 /**
@@ -119,7 +119,7 @@ export function defaultCargoByVehicle(vehicleType?: string | null):
     if (!v) return null;
     const boxes = VEHICLE_CAPACITY[v];
     if (!boxes) return null;
-    // 1t 이상은 파레트로 센다 (용어집 §5: 1t짐 = 파레트 2개 = 박스 80개)
+    // 1t 이상은 파레트로 센다
     const perPallet = CARGO_UNIT_POINTS['파레트'];
     if (boxes >= perPallet * 2) {
         // 🔴 **파레트면 지게차다** (기사님 2026-08-18): *"파레트를 사람 손으로 내리기는 너무 어려우니까."*

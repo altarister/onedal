@@ -89,7 +89,7 @@ export function goalCitiesOf(session: ReturnType<typeof getUserSession>, userId:
 }
 
 /**
- * 🏠 **복귀콜만 골라낸다 — 복귀를 켠 뒤에 잡았고 판이 집인 콜** (버그 대장 #130 · #131 · 판단은 shared `isHomeCallSince`).
+ * 🏠 **복귀콜만 골라낸다 — 복귀를 켠 뒤에 잡았고 판이 집인 콜** (판단은 shared `isHomeCallSince`).
  * 🔴 **셋이 이 함수 하나로 묻는다** — 목적지 계산(`goalCitiesOf`) · 하차 완료 자동 순환(`dispatchEngine`).
  * 🔴 **이번 운행(`deckOfCycle`)으로 세지 않는다** — 그건 진행 중인 콜이 0건이면 빈 목록이라, 콜 0건 틈에 «안 잡음»이 됐다.
  *    켠 시각은 `call_target_events` 오늘 줄에서 읽는다 — 서버를 다시 띄워도 같다.
@@ -265,8 +265,7 @@ function netKeywordsOf(
      *
      * 바로 위 `regionsTouchingNetGrouped`(=`netAreaTesterOf` = 그물과 **같은 판정**)가 이미
      * «격자 점 ∪ 동 꼭짓점»으로 걸침을 본다 — 라인 띠도 그 판정 안에 있다. 여기서 turf 버퍼로 한 번 더
-     * 더하면 **같은 질문에 답이 두 벌**이 되고, 한쪽만 고쳐져 어긋난다 (버그 대장 #159: 캡을 한쪽만 잘라
-     * 뒤쪽 동이 다시 들어왔다). `touch` 는 이제 **진행도(`orderKm`)만** 낸다.
+     * 더하면 **같은 질문에 답이 두 벌**이 되고, 한쪽만 고쳐져 어긋난다. `touch` 는 이제 **진행도(`orderKm`)만** 낸다.
      */
     for (const k of Object.keys(grouped)) grouped[k] = [...new Set(grouped[k])].sort();
     /**
@@ -364,14 +363,14 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     /* 🏠 살아 있는 목적지 전부 — 지도가 목적지마다 그물을 그린다 */
     session.activeFilter.goalCities = goalCitiesOf(session, userId);
     /**
-     * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/지금/필터.md §4).
+     * 차종별 하한 단가표는 **콜할인율에서만 파생된다**.
      *
      * 관제웹은 `callDiscountPct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
      * 만들면 한쪽만 고쳐진다. 원천은
      * `user_filters.call_discount_pct` 한 벌이고, 여기가 그것을 표로 펼치는 유일한 자리다.
      */
     /**
-     * 🔴 **방아쇠를 입력 하나로 좁히지 않는다** (버그 대장 #163).
+     * 🔴 **방아쇠를 입력 하나로 좁히지 않는다**.
      *    이 표는 **세 입력**의 파생이다 — 콜할인율 · `vehicle_rates` · `agency_fee_percent`.
      *    뒤의 둘은 설정 화면이 **DB 에 직접 쓴다** — `changes` 에 안 실린다. 그래서
      *    «무엇이 바뀌었나»로 조건을 걸면 표가 조용히 낡는다. **늘** 다시 만든다 —
@@ -779,7 +778,7 @@ function netFilterOf(session: ReturnType<typeof getUserSession>, userId: string)
 }
 
 /**
- * 🔵 **하차 목록 — 살아 있는 목적지마다 조각을 만들어 합친다** (`docs/지금/필터.md` «하차 영역»).
+ * 🔵 **하차 목록 — 살아 있는 목적지마다 조각을 만들어 합친다**.
  *
  * 목적지 상태 · 가까이 옴은 `goalZonesNow`(상차 목록과 같은 값), 조각은 shared `dropoffPartsOf`,
  * 확정콜의 마지막 하차지는 경로 순서(`planArrivalStops` — 관제웹 `routeStops` 와 같은 순서)에서 그 목적지 콜의 마지막 하차지(`lastDropOf`),
@@ -887,7 +886,7 @@ function refreshKeywordTraps(session: ReturnType<typeof getUserSession>): void {
 }
 
 /**
- * 🎯 **지금 살아 있는 목적지 · 각자 상태 · 가까이 옴 — 한 곳** (`docs/지금/필터.md` «필터 영역»).
+ * 🎯 **지금 살아 있는 목적지 · 각자 상태 · 가까이 옴 — 한 곳**.
  *    상차 목록(`rebuildPickupList`)과 하차 목록(`netOfGoals`)이 **같은 값**을 쓴다 — 관제웹 «상차» · «하차» 레이어도 같은 두 shared 함수다 (규칙 ③).
  *    반경은 `effectiveRadii` · 모양은 `quadShapeFrom`. 내 위치를 모르면 «가까이 옴»을 못 재 «멀다»로 둔다 (규칙 ④).
  */
@@ -920,7 +919,7 @@ function goalZonesNow(session: ReturnType<typeof getUserSession>, userId: string
 }
 
 /**
- * 📋 **상차 목록을 만든다** (`docs/지금/필터.md` «상차 영역»).
+ * 📋 **상차 목록을 만든다**.
  *
  * 목적지 상태는 shared `goalZonesOf`, 계산은 `geoService.pickupListFor` 한 곳 — 여기서는 세션 값을 넘기기만 한다.
  * 관제웹 «상차» 레이어가 **같은 `goalZonesOf`** 로 그린다 (규칙 ③).
@@ -1199,7 +1198,7 @@ export function updateActiveFilter(
          */
         if ('destinationCity' in changes && changes.destinationCity !== prevDestinationCity && !('radiusDistanceKm' in changes)) session.activeFilter.radiusDistanceKm = undefined;
         /**
-         * 📏 **[↻ 다시 구하기] 는 값이 같아도 한 번 내보낸다** (버그 대장 #158).
+         * 📏 **[↻ 다시 구하기] 는 값이 같아도 한 번 내보낸다**.
          *    같은 자리에서 다시 재면 **같은 거리**가 나온다 — 집 주소로 대신 재는 책상에서는 늘 그렇다.
          *    그러면 아래 방송이 «바뀐 게 없다»(`lastFilterJson`)로 걸러져, 누를 때 비운 값이 화면에
          *    되돌아오지 못한다. 눌렀다는 것 자체가 «다시 실어 보내라»는 뜻이므로 여기서 한 번 푼다.

@@ -34,7 +34,7 @@ export type OrderStatus =
     | 'ORDER_DELIVERED'            // (패널티 O) 하차 완료 (수취인 서명)
     | 'ORDER_COMPLETED'            // 정산 완료 — 지금은 아무도 안 쓴다. 정산 화면이 생기면 거기서 만든다 (하차 완료는 ORDER_DELIVERED · 루트 CLAUDE.md 「관제앱은 업무 단위다」)
     // --- [취소 및 방출 단계] ---
-    // 취소의 세 갈래 — 패널티(배차망 취소 횟수 10회)는 **안전취소에만** 붙는다 (용어집 §2-1)
+    // 취소의 세 갈래 — 패널티(배차망 취소 횟수 10회)는 **안전취소에만** 붙는다
     | 'SAFE_CANCEL'                // (패널티 O) 안전취소 — 확정 후 30초 안에 내가 취소
     | 'ORDER_RELEASED_BY_ME'       // (패널티 X) 내가통화후방출 — 내가 주선사에 전화해 취소 요청
     | 'ORDER_RELEASED_BY_OFFICE';  // (패널티 X) 일방적퀵사방출 — 사무실이 일방적으로 취소시킴
@@ -506,7 +506,7 @@ export interface SimplifiedOfficeOrder {
      * 배송거리 (상차지 → 하차지, km). 리스트 최좌측 두 숫자 중 **두 번째** 값.
      * 앱의 단가 판정(`fare ≥ deliveryDistance × ratePerKm[차종]`) 입력이며,
      * 서버는 판정 근거를 로그에 남길 때 쓴다 (실제 판정은 카카오 도로거리로 다시 잰다).
-     * 🔍 이 값이 직선거리인지 도로거리인지는 실콜 대조 대기 중 (docs/지금/필터.md §11)
+     * 🔍 이 값이 직선거리인지 도로거리인지는 실콜 대조 대기 중
      */
     deliveryDistance?: number;
     /** 🐥 가상 체험 모드로 잡은 가상 주문 (실서버 미수락) */
@@ -573,11 +573,11 @@ export interface PendingOrder extends OfficeOrder {
      *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
      */
     goalCity?: string;
-    /** 👀 미리보기 콜 — 확정 전이라 취소 카운트에 안 들어간다 (용어집 §9 · `DispatchBasicRequest.isPreview`) */
+    /** 👀 미리보기 콜 — 확정 전이라 취소 카운트에 안 들어간다 (`DispatchBasicRequest.isPreview`) */
     isPreview?: boolean;
     /**
      * ⏱️ **남은 판정 시간이 끝나는 시각** (밀리초) — 미리보기에만 싣는다. 심사석 배경이 이것으로 찬다.
-     * 🔴 이 시각이 지나도 콜은 안 사라진다 — 끄는 것은 폰의 화면 상태 하나다 (`devices.leftDetail` · 버그 대장 #160).
+     * 🔴 이 시각이 지나도 콜은 안 사라진다 — 끄는 것은 폰의 화면 상태 하나다 (`devices.leftDetail`).
      */
     judgeUntil?: number;
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
@@ -678,7 +678,7 @@ export interface MyOrder extends OfficeOrder {
     /** 🧹 취소·방출한 시각 (장부 `orders.terminatedAt` · 전수표 #65) — 하차는 `completedAt`, 취소는 이것 */
     terminatedAt?: string | null;
     /**
-     * 👀 미리보기 콜 (용어집 §9). 확정되면 `false` 로 덮여 보통 콜이 된다 —
+     * 👀 미리보기 콜. 확정되면 `false` 로 덮여 보통 콜이 된다 —
      * `PendingOrder` 와 **같은 모양이어야** 두 타입이 한 함수(`pickRouteHolder` 등)에
      * 섞여 들어갈 때 갈라지지 않는다.
      */
@@ -745,18 +745,18 @@ export interface SecuredOrder extends OfficeOrder {
     goalCity?: string;
     /**
      * 🏁 **하차한 시각** (장부 `orders.completedAt`). 없으면 아직 안 내렸거나 옛 행이다.
-     * 화면의 사이클 경계가 이걸 본다 (`deckOfCycle` — 버그 대장 #40).
+     * 화면의 사이클 경계가 이걸 본다.
      */
     completedAt?: string | null;
     /** 🧹 취소·방출한 시각 (장부 `orders.terminatedAt` · 전수표 #65) — 하차는 `completedAt`, 취소는 이것 */
     terminatedAt?: string | null;
-    /** 👀 미리보기 콜 — 확정 전이라 아직 안 잡은 콜이다 (용어집 §9) */
+    /** 👀 미리보기 콜 — 확정 전이라 아직 안 잡은 콜이다 */
     isPreview?: boolean;
     /**
      * ⏱️ **남은 판정 시간이 끝나는 시각** (밀리초) — 미리보기에만 실린다. 심사석 배경이 이것으로 찬다.
      *
      * 🔴 **이 시각이 지나도 콜은 안 사라진다.** 끄는 것은 폰의 화면 상태 하나가 정한다
-     *    (`devices.leftDetail` · 버그 대장 #160) — 기사님: *"타이머는 «남은 판정 시간»을 알려주는 기능으로만 사용된다."*
+     *    (`devices.leftDetail`) — 기사님: *"타이머는 «남은 판정 시간»을 알려주는 기능으로만 사용된다."*
      * ⏱️ 길이는 배차망별 값이다 — 인성 · 화물24시는 안전취소 시간, 픽커는 상세 대기 시간 (DB 기본 30초).
      */
     judgeUntil?: number;
@@ -825,7 +825,7 @@ export interface AutoDispatchFilter {
     excludedKeywords: string[];     // 제외 단어 배열 (예: ["착불", "수거", "까대기"])
     destinationKeywords: string[];  // (내부망) 앱 파싱용 읍/면/동 50개 키워드 배열
     /**
-     * 📋 **상차 목록** — 원달앱이 상차지를 거르는 읍·면·동 목록 (기사님 확정 2026-09-15 · `docs/지금/필터.md` «상차 목록 · 하차 목록»).
+     * 📋 **상차 목록** — 원달앱이 상차지를 거르는 읍·면·동 목록 (기사님 확정 2026-09-15 · 하차 목록»).
      *    서버가 필터 영역에서 파생한다(`filterManager.rebuildPickupList`) · 저장하지 않는다. 아직 안 만들었으면 undefined.
      */
     pickupKeywords?: string[];
@@ -951,7 +951,7 @@ export interface AutoDispatchFilter {
      */
     goalCities?: string[];
 
-    // ── 단가 판정 모델 (2026-08-13 확정 · docs/지금/필터.md) ──
+    // ── 단가 판정 모델 (2026-08-13 확정) ──
     // 셋 다 optional: 구버전 앱은 이 키들을 파싱하지 않으므로 무시된다 (호환).
     // minFare/maxFare 는 구버전 앱 호환용으로 유지 — 새 앱은 ratePerKm 이 있으면 그걸 쓴다.
     /** 차종별 하한 단가(원/km) = 실수령 시세 × (1 − 콜할인율). 판정: fare ≥ 배송거리 × ratePerKm[차종] */
@@ -1003,7 +1003,7 @@ export const APP_FILTER_KEYS = [
     'minFare', 'maxFare', 'ratePerKm',
     /* ⬇️ 평면 필터에 없다 — 조립할 때 얹는다 */
     'orderKm', 'pickerAlarmMinFare',
-    /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings (docs/지금/배차망별_대기_시간.md) */
+    /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings */
     'safeCancelSecInsung', 'safeCancelSecHwamul24', 'pickerAlarmDetailSec',
 ] as const;
 
@@ -1013,7 +1013,7 @@ export const APP_FILTER_KEYS = [
  *   DEST(노선행) ↔ HOME(복귀행) · 관내는 따로 재지 않는다 (2026-09-15 · 목적지 가까이 옴 `filterArea.withNearness`)
  *
  * 스와이프 순서가 하루의 흐름과 같다: 목적지로 가다가, 거의 도착하면 그 동네 콜을 잡고,
- * 다 내리면 집 방향으로. (docs/지금/필터.md §3)
+ * 다 내리면 집 방향으로.
  *
  * ⚠️ `DispatchPhase`(STANDBY/GATHERING/DELIVERING)와 **다른 것**이다.
  *    · `DispatchPhase` — 지금 짐이 얼마나 실렸나. **데이터에서 파생**된다 (기사님이 못 고른다)
@@ -1161,7 +1161,7 @@ export function getEffectiveDetourRadius(
     baseDetourRadiusKm: number
 ): number {
     /**
-     * 🔴 2026-08-14 — **강제 0 을 걷어냈다.** (docs/지금/필터.md §3)
+     * 🔴 2026-08-14 — **강제 0 을 걷어냈다.**
      *
      * 예전에는 `DELIVERING` 이면 무조건 0 을 돌려줬다. 국면별 설정이 없던 시절,
      * 운행 중 우회를 끊을 방법이 이것뿐이었기 때문이다.
@@ -1232,7 +1232,7 @@ export interface DispatchBasicRequest {
     listRanking?: number;
     /**
      * 👀 **미리보기 콜** — 기사님이 **확정을 누르기 전에** 팝업 3장(적요상세·출발지·도착지)을
-     *    읽어 판정만 받아 보는 콜 (기사님 확정 2026-08-22 · 용어집 §9).
+     *    읽어 판정만 받아 보는 콜 (기사님 확정 2026-08-22).
      *
      * 🔴 아직 안 잡은 콜이라 **인성에서는 아무 일도 일어나지 않았다** — 취소할 것이 없다.
      *    그래서 취소 카운트(배차망 10회 패널티)에 넣지 않는다. 확정을 누르면 딱지가 벗겨진다.
@@ -1298,7 +1298,7 @@ export const DEVICE_OFFLINE_LABEL: Record<DeviceOfflineReason, string> = {
 };
 
 /**
- * 🎛️ **기기 모드 셋 — 자동 · 알람 · 대기** (기사님 확정 2026-08-30 · [docs/지금/기기_모드.md]).
+ * 🎛️ **기기 모드 셋 — 자동 · 알람 · 대기** (기사님 확정 2026-08-30).
  *
  * | 화면 이름 | 키 | 필터 | 앱이 누르나 | 알람 |
  * |---|---|---|---|---|
@@ -1492,8 +1492,7 @@ export function isDeviceBlind(session: { blindSince?: number }, now: number = Da
 }
 
 /**
- * 🚦 **작업 단계의 이름은 여기 한 곳에서 짓는다** (기사님 확정 2026-09-02 ·
- * `docs/기획/폰_상태바.md` 0단계 ①).
+ * 🚦 **작업 단계의 이름은 여기 한 곳에서 짓는다** (기사님 확정 2026-09-02).
  *
  * 앱은 **칸과 숫자만** 보낸다. 한글을 앱에도 두면 낱말이 두 벌이 되고 한쪽만 고쳐진다.
  * ⚠️ 안 보내는 구앱은 `null` 이다 — «대기»로 지어내지 않는다 (규칙 ④).
@@ -1783,7 +1782,7 @@ export function isAlreadyLoaded(c: { status?: string | null }): boolean {
  *    마일스톤(GPS 도착). 그래서 **상차 완료를 안 누르면 이미 지나온 상차지로 되돌아가는
  *    경로**가 나왔다. 실측: 같은 콜이 버튼 전엔 경유지 5개·+20.0km·🟢56점,
  *    누른 뒤엔 3개·+0.7km·🔵80점 — **없는 우회 비용 20km**를 물고 있었다.
- *    같은 자리를 세 번 고친 뒤라, 인스턴스가 아니라 **클래스를 없앤다** (버그 대장 #24 연장).
+ *    같은 자리를 세 번 고친 뒤라, 인스턴스가 아니라 **클래스를 없앤다**.
  *
  * **GPS 도착이면 다녀온 것이다.** 도착 감지는 500m 안에 들어와야 찍히므로 "거기 갔다"는
  * 뜻이고, **가는 길**은 더 필요 없다.
@@ -1856,7 +1855,6 @@ export function deckOfCycle<T extends { status?: string | null; capturedAt?: str
 
 /**
  * 📍 **단계 사유 — 그때 무슨 일이 있었나** (기사님 확정 2026-08-19).
- * 기획: `docs/기획/도착_사유_기획.md`
  *
  * 🔴 **단계마다 관심사가 다르다.** 기사님: *"상차지 도착에서는 단위·수량·방법·보호·성질
  *    이것들이 모두 없어야 하는 거 아닌가? 상차지 도착에 관한 것만 있으면 될 것 같은데.
@@ -1989,7 +1987,7 @@ export interface OrderSyncPayload {
     /**
      * 🚫 **몇 판째인가** (망별). 한 판 = `CANCEL_BUDGET_PER_ROUND` 회.
      *
-     * 🔴 docs/지금/필터.md §6 의 *"취소는 리셋되지 않는다"* 를
+     * 🔴 *"취소는 리셋되지 않는다"* 는 원칙을
      *    지키는 자리다. 그 취지는 **총량이 사라지면 안 된다**는 것이지 "숫자가 영원히
      *    커져야 한다"가 아니다. 판수가 남으므로 총량은 `(판수-1)×10 + 카운트` 로 그대로 산다.
      */
@@ -2034,7 +2032,7 @@ export interface OrderSyncPayload {
 /**
  * 🚫 **취소 예산 한 판의 크기** (기사님 확정 2026-08-23).
  *
- * 배차망이 세는 취소 한도다 (용어집 §2-1 — 카운터에 들어가는 것은 **안전취소**뿐).
+ * 배차망이 세는 취소 한도다.
  * 🔴 예전에는 관제웹 문자열에 `/10` 으로 **박혀 있었고 서버는 한도를 아예 몰랐다.**
  *    서버가 "다 썼다"를 판정하려면 같은 값을 봐야 한다 — 두 벌이면 갈라진다.
  */
@@ -2053,7 +2051,7 @@ export interface FilterTally {
     pickup: number;
     blacklist: number;
     routeOrder: number;
-    /** 📋 상차 목록에 안 걸린 콜 — 원달앱 2.9.7 부터 (옛 앱은 안 보낸다 · docs/지금/필터.md «상차 목록 · 하차 목록») */
+    /** 📋 상차 목록에 안 걸린 콜 — 원달앱 2.9.7 부터 (옛 앱은 안 보낸다 · 하차 목록») */
     pickupList?: number;
 }
 
@@ -2111,7 +2109,7 @@ export * from './trappedRegions';
 export const MOTION_HOLD_SEC_DEFAULT = 10;
 
 /**
- * ⏱️ **배차망별 대기 시간** (기사님 확정 2026-09-14 · `docs/지금/배차망별_대기_시간.md`).
+ * ⏱️ **배차망별 대기 시간** (기사님 확정 2026-09-14).
  *
  * 원천은 DB `user_settings` 세 칸이다 — 여기는 **값이 없을 때의 기본값**(DB DEFAULT 와 같다)과
  * «그 배차망은 몇 초인가»를 가르는 한 곳이다. 서버 타이머 · 관제웹 표시가 같은 함수를 부른다.
@@ -2127,7 +2125,7 @@ export const PICKER_ALARM_DETAIL_SEC_DEFAULT = 30;
 export const SERVER_CLEANUP_EXTRA_SEC = 5;
 
 /**
- * ⏳ **«알 수 없는 화면»이 이만큼 이어지면 상세를 떠난 것으로 본다** (버그 대장 #155 실측).
+ * ⏳ **«알 수 없는 화면»이 이만큼 이어지면 상세를 떠난 것으로 본다**.
  *
  * 카드를 여는 순간 `UNKNOWN` 이 **0.05~0.18초** 끼는 일이 있다(실제 픽커 68건 중 3건). 그것을 이탈로
  * 읽으면 카드가 깜빡인다. 반대로 영영 무시하면 배차망 앱 밖으로 나갔을 때를 못 잡는다 — 그때도

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { apiBase } from './bridge';
 
 /**
- * 🚪 **시뮬 전용 문(`/api/sim/*`)을 여는 유일한 자리** (버그 대장 #161).
+ * 🚪 **시뮬 전용 문(`/api/sim/*`)을 여는 유일한 자리**.
  *
  * 서버는 이 문들을 **운영에서 닫는다** — `server/src/routes/sim.ts` 의 `isDevBuild()`.
  * 기사님 실시간 좌표를 무인증으로 여는 문이라 **일부러** 닫은 것이다. 라이브의 404 는 답이다.

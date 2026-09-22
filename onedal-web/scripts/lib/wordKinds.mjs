@@ -40,7 +40,7 @@ export function loadDict(ROOT, target) {
  * 양쪽에서 끝의 «동·읍·면·리·가·구·시·군» 과 숫자를 떼고 맞춘다.
  *
  * ⚠️ 명부에는 **법정동만** 있다 (V-World `LT_C_ADEMD_INFO`). 픽커는 행정동을 쓰므로
- *    «위례»·«해양»·«서농» 처럼 행정동만 있는 이름은 여기서 안 걸린다 — [todo.md](../../todo.md).
+ *    «위례»·«해양»·«서농» 처럼 행정동만 있는 이름은 여기서 안 걸린다.
  */
 export const bare = (s) => s.replace(/(동|읍|면|리|가|구|시|군)$/, '').replace(/\d+$/, '');
 

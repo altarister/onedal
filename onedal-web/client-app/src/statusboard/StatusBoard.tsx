@@ -301,7 +301,7 @@ function DriverLocationCard({ loc }: { loc: DriverLoc | null }) {
    ════════════════════════════════════════════════════════════════════════ */
 
 /**
- * 🎭 **모의 주행 — 스위치만 누른다** (관제웹 의뢰서 `docs/의뢰/현황판_모의주행_버튼.md`).
+ * 🎭 **모의 주행 — 스위치만 누른다**.
  *
  * 🔴 **주행 엔진은 여기 없다.** 관제웹(`useMasterGps`)이 달리고 이 칸은 **스위치만** 민다.
  * 🔴 **`available` 을 제 손으로 계산하지 않는다** — «경로가 있나»를 여기서 다시 보면
@@ -669,7 +669,7 @@ function TestOnlySection({ phase }: { phase?: string }) {
                 <div className="flex-1 min-w-[240px]"><LocationPickCard /></div>
                 <div className="flex-1 min-w-[240px]"><SimCallCard /></div>
             </div>
-            {/* 🎬 시나리오콜 — 줄이 길어 한 줄을 통째로 쓴다 (설계서 `docs/기획/문제지_이천왕복.md` §7) */}
+            {/* 🎬 시나리오콜 — 줄이 길어 한 줄을 통째로 쓴다 */}
             <div className="pt-2"><ScenarioCard scenarioKey="icheonRound" title="이천 왕복 하루" /></div>
             {/* 🎬 빨리 도는 문제 — 성공하는 콜 다섯 (기사님 2026-09-15 «이천 왕복하루 아래에») */}
             <div className="pt-2"><ScenarioCard scenarioKey="icheonFive" title="이천 성공하는 5콜" /></div>
