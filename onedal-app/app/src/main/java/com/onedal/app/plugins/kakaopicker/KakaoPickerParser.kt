@@ -228,17 +228,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             nodes.firstOrNull { it.first.contains(LIST_HEADER_WORD) }?.second
 
         /**
-         * 🔴 **이 요금 닻을 눌러도 되는가** (라이브 오배차 조사에서 신설).
+         * 🔴 **이 요금 닻을 눌러도 되는가**.
          *
-         * 09-13 새벽, 기사님이 주무시는 사이 앱이 픽커 카드를 눌러 두 건이 배차됐다.
          * 앱은 낱말을 안 보고 **«쉼표 든 숫자 + 화면 오른쪽»** 만 보고 그 **정중앙**을 찍는다
-         * (`isFareAnchor` → `performSimulatedTouch`). 그런데 **오더카드**(리스트 맨 위
-         * 제안 띠)는 **요금 숫자가 「수락」 버튼 안에 있어서**, 그 요금을 찍으면 상세로
-         * 가는 게 아니라 **그 자리에서 계약이 성립한다.**
-         *
-         * 종전 방어는 `clickSafe` 하나였고 그것은 요금 중심 **±60픽셀**(`CARD_BAND_PX`)
-         * 안의 글자만 본다. 실물에서 「수락」은 요금 **약 70픽셀 아래**라 **띠 밖이고
-         * 그대로 통과한다** — 계약이 문자열 한 개에 걸려 있었다.
+          * (`isFareAnchor` → `performSimulatedTouch`). 그런데 **오더카드**(리스트 맨 위
+          * 제안 띠)는 **요금 숫자가 「수락」 버튼 안에 있어서**, 그 요금을 찍으면 상세로
+          * 가는 게 아니라 **그 자리에서 계약이 성립한다** (기사님이 주무시는 사이 두 건이 배차된 적이 있다).
+          *
+          * `clickSafe` 는 요금 중심 **±60픽셀**(`CARD_BAND_PX`) 안의 글자만 본다. 실물에서 「수락」은
+          * 요금 **약 70픽셀 아래**라 **띠 밖이다** — 그것만으로는 계약이 문자열 한 개에 걸린다.
          *
          * 🟢 그래서 **구조로 가른다.** 「리스트 설정」 머리줄 **위면 오더카드, 아래면 리스트
          *    카드**다. 실물 덤프 8장에서 요금 닻은 전부 머리줄보다 **166픽셀 아래**였고
@@ -265,8 +263,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             fareRefreshedY != null && isListCardAnchor(fareRefreshedY, headerRefreshedY)
 
         /**
-         * 👻 이 리스트 스캔이 **상세 화면 잔상**인가 (0830 23:04 실측 — 복귀 직후 첫 스캔에
-         * 상세 글자가 남아 카드 도착지에 «픽업지 경기 성남시…»가 섞였다).
+         * 👻 이 리스트 스캔이 **상세 화면 잔상**인가 (복귀 직후 첫 스캔에
+          * 상세 글자가 남으면 카드 도착지에 «픽업지 경기 성남시…»가 섞인다).
          * 판별자는 «수락하기» — 상세에만 있는 버튼이다 (리스트·오더카드의 버튼은 «수락»,
          * 노드 단위 completeness 로 구분). 잔상이면 그 판은 통째로 버린다 — 인성 팝업
          * 잔상 방어(isPopupResidue)와 같은 계열이다.
@@ -389,12 +387,12 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /**
          * 👀 **이 상세가 리스트의 어느 카드인가 — 누가 열었든 여기 한 곳** (폰 시험).
          *
-         * 예전엔 알람이 누를 때만 카드를 쥐여 줘서, 기사님이 **손으로 연 상세**는 «리스트 원본이 없다»로
-         * 서버에 아무것도 안 갔다 (클래스 «판단이 한쪽 경로에만 있다» — #75 · #77 과 같은 뿌리).
+         * 알람이 누를 때만 카드를 쥐여 주면 기사님이 **손으로 연 상세**는 «리스트 원본이 없다»로
+          * 서버에 아무것도 안 간다 (클래스 «판단이 한쪽 경로에만 있다» — #75 · #77 과 같은 뿌리).
          *
          * 고르는 법 — **최종 수익이 같고, 카드의 픽업 구·동이 상세 픽업지 칸에 다 있는** 카드.
          *   · 🔴 요금만으로는 안 된다 — 7지점 문제지에 1만 원 카드가 넷이다
-         *   · 🔴 실물 픽커는 배송지를 원달앱이 읽는 글자에 안 올린다 (09-13 `83af36b`) — 그래서 픽업지가 먼저다
+         *   · 🔴 실물 픽커는 배송지를 원달앱이 읽는 글자에 안 올린다 — 그래서 픽업지가 먼저다
          *   · 여럿이면 배송지로 한 번 더 가르고(시뮬레이터 상세에는 있다), 그래도 못 가르면 **고르지 않는다** (규칙 ④)
          */
         fun matchListCard(detailTexts: List<String>, recent: List<SimplifiedOfficeOrder>): ListCardMatch {
@@ -707,7 +705,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 TIME_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «17:00»
                 DATE_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «9/23(수)» — 지역이 아니다
                 t in noise -> { /* 화면 메뉴 글자 — 콜 정보가 아니다, 버린다 (서버 목록 + 앱 기본값) */ }
-                // 🚫 배정 완료 토스트가 카드 띠에 섞였다 — 지역이 아니다 (09-02 실주행 가짜 콜 3건 · `AssignedToastTest`)
+                // 🚫 배정 완료 토스트가 카드 띠에 섞였다 — 지역이 아니다 (`AssignedToastTest`)
                 t.contains(KakaoPickerKeywords.ASSIGNED_TOAST_WORD) -> { }
                 // «내일 착불» 처럼 태그 여럿이 한 노드로 붙어 오는 판 — 낱낱이 전부 태그면 태그다
                 t.contains(' ') && t.split(' ').all { it in tagSet } -> tags.addAll(t.split(' '))
