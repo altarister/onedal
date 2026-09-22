@@ -45,11 +45,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
     // ── 필터 로드 ──
     // 🔴 **`ratePerKm` 를 여기서 잇는다** (기사님 확정).
-    //    예전에는 이 파서만 단가표를 **파싱하지 않아** 24시는 단가 판정이 영영 안 돌았다 —
-    //    `minFare` 하나로만 걸러 «400km 에 10만원» 이 그대로 통과했다. 주석은
-    //    "InsungParser 와 동일한 공통 로직" 이라 그 차이를 덮고 있었다.
-    //    잇는 지금 시점을 고른 이유: **24시는 아직 «준비중»(Phase 5 파서 복구 전)이라
-    //    잃을 콜이 없다.** 복구할 때 이미 맞는 상태에서 시작한다
+    //    단가표를 잇지 않으면 24시는 단가 판정이 안 돌고 `minFare` 하나로만 걸러
+    //    «400km 에 10만원» 이 그대로 통과한다.
 
     /** 단가표 파싱 — 인성(`InsungParser.parseRateMap`)과 같은 규칙. 없으면 빈 맵 → minFare 단독 폴백 */
     private fun parseRateMap(json: JSONObject, key: String): Map<String, Int> {
@@ -291,14 +288,14 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
         // ── 조건 2: 도착지 매칭 ──
         //
-        // 🔴 2026-08-12 — 예전에는 키워드가 비면 `true`(전부 통과)였다.
+        // 🔴 키워드가 비면 `false`(보류)다.
         //    도착지 조건이 없는 상태는 "아무 데나 좋다"가 아니라
         //    **"필터가 아직 안 만들어졌다"** 는 뜻이다. 서버가 경유을 못 구했거나
         //    목적지 도시가 비었을 때 그렇게 된다.
         //
         //    그대로 통과시키면 `isActive` 는 켜진 채 **도착지 제한만 사라진다.**
         //    필터가 느슨해지는 게 아니라 없어지는 것이다.
-        //    서버도 같은 방향으로 열려 있어서 두 겹이 동시에 무력화됐다.
+        //    서버도 같은 규칙으로 막는다 — 한쪽만 열어도 두 겹 중 하나가 사라진다.
         //    (서버: `callFilterBlocker` · `OrderEvaluator` 5번 항목)
         val regionMatch = if (filter.destinationKeywords.isEmpty()) {
             AppLogger.d(TAG, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
@@ -308,12 +305,10 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps)
         }
 
-        // ── 조건 3: 요금 하한선 ──
-        // ── 조건 2: 요금 하한선 + 상한선 ──
+        // ── 조건 3: 요금 하한선 + 상한선 ──
         //
-        // 🔴 2026-08-12 — 상한(maxFare)을 **서버만** 보고 있었다.
-        //    앱은 파싱만 하고 판정에 안 써서, 상한을 50만으로 잡아도 100만짜리를 잡았다.
-        //    서버가 안전취소에서 "똥콜"이라 걸러내지만 그때는 **이미 패널티 구간**이다.
+        // 🔴 상한(maxFare)도 앱이 판정한다 — 서버만 보면 상한을 50만으로 잡아도 100만짜리를 잡고,
+        //    서버가 안전취소에서 걸러낼 때는 **이미 패널티 구간**이다.
         //    안 잡는 것과 잡고 나서 버리는 것은 전혀 다르다.
         //
         // 규칙은 서버(OrderEvaluator)와 **똑같이** 맞춘다:
@@ -378,7 +373,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                     "블랙=${if(blacklistClear) "✅" else "❌"}", "LIST")
         }
 
-        // ── 조건 6: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정 2026-08-18) ──
+        // ── 조건 6: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정) ──
         // 📋 상차 목록이 오면 순서 검사를 안 한다 — 뒤쪽은 서버가 «내 위치 둘레»로 이미 뺐다
         val routeOrder = if (pickupListCheck != null) RouteOrderFilter.Result(true, "상차 목록으로 거른다 — 순서 검사 안 함")
             else RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
@@ -388,7 +383,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         if (!routeOrder.passed && order.fare > 0) {
             AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
         } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
-            // 🔎 «판단 못 해서 통과»도 남긴다 (인성 파서와 같은 줄 · 기사님 요청 2026-09-14)
+            // 🔎 «판단 못 해서 통과»도 남긴다 (인성 파서와 같은 줄 · 기사님 요청)
             AppLogger.d(TAG, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
         }
 
@@ -455,7 +450,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
      *
      * 🔴 **요금은 한 조각일 수도, 두 조각일 수도 있다** — 시뮬레이터는 «200,000» 과 «원»을
      *    따로 그린다. 한 조각만 요금으로 보던 때는 카드를 **한 장도 못 묶었다**
-     *    (폰 2026-09-14 · `콜그룹 0`). 무엇이 요금인지 가르는 규칙은
+     *    (폰 · `콜그룹 0`). 무엇이 요금인지 가르는 규칙은
      *    `Hwamul24CardGrouping` 한 곳에 있다 — 거기는 접근성 노드 없이 검사할 수 있다.
      */
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
@@ -484,8 +479,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
     /**
      * 🗳️ **판정을 안 싣는다 — 24시는 아직 축을 안 옮겼다**.
-     *    🔴 **«안 함»도 제 손으로 적는다** — 인터페이스에 기본값을 두었더니 위임 누락을
-     *       컴파일러가 못 잡아 `verdict` 가 내리 `null` 이었다 (#84 와 같은 병).
+     *    🔴 **«안 함»도 제 손으로 적는다** — 인터페이스에 기본값이 없어
+     *       위임 누락을 컴파일러가 잡는다 (#84).
      *    실으려면 `InsungParser.withVerdict` 처럼 **판정 함수가 고른 축**을 그대로 넣는다 —
      *    성적표와 같은 분기를 써야 «성적표는 요금, 화면은 지역»으로 갈라지지 않는다.
      */
