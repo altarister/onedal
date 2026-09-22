@@ -11,7 +11,7 @@ import type { SimCall } from '../nets';
 interface UseSimStreamingProps {
   config: SimGeneratorConfig;
   /**
-   * 🎨 공통 칸만 있는 콜에 **배차망 칸을 입히는 함수** (0단계 0-2 ④) — 인성 `toInsungCall` · 화물24시 `toHwamul24Call`.
+   * 🎨 공통 칸만 있는 콜에 **배차망 칸을 입히는 함수** — 인성 `toInsungCall` · 화물24시 `toHwamul24Call`.
    * 생성기는 배차망을 모르므로 부르는 쪽(DispatchPage)이 고른다.
    */
   toCall: (draft: CallDraft, opts: CallOptions) => SimCall;
@@ -26,9 +26,9 @@ interface UseSimStreamingProps {
    */
   preset?: PresetProblem[] | null;
   /**
-   * 🔁 **문제지를 다 내면 처음으로 되돌린다** (기사님 요청 2026-08-23 — v2 실주행 시험).
+   * 🔁 **문제지를 다 내면 처음으로 되돌린다** (기사님 요청 — 실주행 시험).
    *
-   * 기본값 `false` 라 **채점 모드는 그대로다** — 채점은 한 바퀴가 곧 한 판이고,
+   * 기본값 `false` 라 **채점 모드는 그대로다** — 채점은 한 바퀴가 곧 한 차례 시험이고,
    * 되돌아 흘리면 몇 번째 시도인지가 흐려진다.
    *
    * 주행 시험은 반대다. 8문제 × 45초면 6분인데 **주행은 1시간**이라, 되돌리지 않으면
@@ -38,12 +38,12 @@ interface UseSimStreamingProps {
   /**
    * 📍 **기사님 위치를 받았나** (기사님 지시) — 받기 전에는 첫 콜도 주기 콜도 안 낸다.
    * 켜지자마자 첫 콜을 내면 위치를 받기 전의 기본 자리(경기 광주시)로 상차 거리를 잰다 —
-   * «7지점 한 바퀴» 01 콜이 실제 2.2km 인데 7.2km 로 적혀 반경에서 떨어졌다 (그날 세 번).
+   * 가까운 콜이 멀게 적혀 반경에서 떨어진다.
    * 안 주면 `true` — 기다리지 않는다.
    */
   ready?: boolean;
   /**
-   * 🚚 **흘리나** — `false` 면 시드도 주기 콜도 없다 (개별콜 화면 · 기사님 2026-09-15). 안 주면 `true`.
+   * 🚚 **흘리나** — `false` 면 시드도 주기 콜도 없다 (개별콜 화면 · 기사님). 안 주면 `true`.
    * 🔴 «멈춤»(`isTimerPaused`)으로 대신하지 않는다 — 멈춤은 기사님이 누르는 버튼이고, 이것은 들어온 입구다 (규칙 ④).
    */
   enabled?: boolean;
@@ -87,7 +87,7 @@ export const useSimStreaming = ({
       const p = cfg.preset[presetIdxRef.current];
       if (!p) return null;
       presetIdxRef.current += 1;
-      // 📍 띠 문제는 «지금 어디»에서 푼다 — 출제 순간의 좌표라야 정답이 어디서든 같다 (0831)
+      // 📍 띠 문제는 «지금 어디»에서 푼다 — 출제 순간의 좌표라야 정답이 어디서든 같다
       const forced = toForcedPair(p, {
           driverLon: cfg.config.driverLon,
           driverLat: cfg.config.driverLat,
