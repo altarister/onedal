@@ -9,11 +9,11 @@ import path from 'path';
  * ── 왜 ──
  *
  * 「성질」 기준은 다 만들어져 있다 — `criteria.ts` 의 `NATURE` 는 `excludedHits` 가 차 있으면
- * 무조건 빨간불을 낸다. 그런데 **재료를 한 번도 안 채웠다** (`judgeFacts.ts` 가 `[]` 하드코딩).
+ * 무조건 빨간불을 낸다. 그러니 **재료를 채워야** 말을 한다 — `[]` 를 박으면 영영 조용하다.
  *
  * 🔴 서버는 이미 제외어를 찾고 있다 — `OrderEvaluator.runStage1ShapeFilter` 가
  *    적요(`detailMemo`)와 원문(`rawText`)까지 합쳐 훑고 «제외키워드(…) 감지»를 남긴다.
- *    다만 그 목록이 **판정으로 안 건너간다.** 무방비가 아니라 **말을 안 하는 것**이라,
+ *    그 목록이 **판정으로 안 건너가면** 무방비가 아니라 **말을 안 하는 것**이 되어,
  *    기사님이 색만 보시면 놓친다.
  *
  * 🔴 **앱 필터를 안 거치는 콜이 있다** — 카카오픽커(OCR)와 손으로 잡은 콜.
@@ -43,7 +43,7 @@ const 첫짐 = (over: Record<string, unknown> = {}) => firstLoadFacts({
 
 describe('🧪 제외어 — 서버가 찾은 것이 색에 실린다', () => {
 
-    /** 🔴 이 검사가 생긴 까닭 — 재료가 빈 채로 돌고 있었다 */
+    /** 🔴 재료가 빈 채로 돌면 안 된다 */
     it('🔴 합짐: 찾은 제외어가 판정 재료에 그대로 실린다', () => {
         expect(합짐({ excludedHits: ['착불'] }).nature!.excludedHits).toEqual(['착불']);
     });
@@ -105,7 +105,7 @@ describe('🧪 제외어 — 서버가 찾은 것이 색에 실린다', () => {
 /**
  * 🔗 **사슬의 첫 고리** — 「찾는다 → 판정 재료로 넘어간다」 중 앞쪽.
  *    위 검사들은 `judgeFacts` 안만 보므로, **형상 필터가 아예 안 모으는 것**을 못 잡는다
- *    (변이 검수에서 드러났다: `excludedHits.push` 를 지워도 초록이었다).
+ *    (`excludedHits.push` 를 지워도 위 검사들은 초록이다).
  */
 describe('🔗 형상 필터가 적요에서 제외어를 찾는다', () => {
     const { OrderEvaluator } = require('../../src/core/engine/OrderEvaluator');
