@@ -6,8 +6,8 @@ import { defaultCargoByVehicle, cargoPoints, VEHICLE_CAPACITY } from '@onedal/sh
  * 기사님: *"1톤 화물이면 **파레트**가 기본적일 거고
  * 그렇지 않다면 **라면박스 몇 개** 이렇게 표시할 수 있을 듯."*
  *
- * 서버는 이미 신고가 없으면 `VEHICLE_CAPACITY[차종]` 을 적재로 잡는다
- * (`computeLoadedPoints`). 통화 시트만 빈칸이라 **화면과 서버가 다른 값을 보고 있었다.**
+ * 서버는 신고가 없으면 `VEHICLE_CAPACITY[차종]` 을 적재로 잡는다
+ * (`computeLoadedPoints`). 통화 시트가 빈칸이면 **화면과 서버가 다른 값을 본다.**
  * 이 함수가 그 둘을 같은 값으로 맞춘다.
  */
 describe('defaultCargoByVehicle — 차종 정원을 기본 짐으로', () => {
@@ -18,7 +18,7 @@ describe('defaultCargoByVehicle — 차종 정원을 기본 짐으로', () => {
         expect(defaultCargoByVehicle('라보')).toEqual({ unit: '라면박스', quantity: 40, handling: '수작업' });
     });
 
-    /** 기사님 2026-08-18: *"파레트를 사람 손으로 내리기는 너무 어려우니까."* */
+    /** 기사님: *"파레트를 사람 손으로 내리기는 너무 어려우니까."* */
     it('🔴 1t 은 파레트 2개 + **지게차** — 파레트를 손으로 내리지 않는다', () => {
         expect(defaultCargoByVehicle('1t')).toEqual({ unit: '파레트', quantity: 2, handling: '지게차' });
     });
@@ -42,11 +42,11 @@ describe('defaultCargoByVehicle — 차종 정원을 기본 짐으로', () => {
 });
 
 /**
- * 순서: **저장값 > 적요 > 차종 기본값** — 통화 시트가 지켜야 하는 규칙.
+ * 순서: **저장값 > 적요 > 차종 기본값** — 시딩(`stepSeeder`) 한 곳이 지키는 규칙.
  * 적요는 이 콜의 실제 정보이고, 차종은 "그 차 한 대 분량"이라는 짐작이라 뒤에 온다.
  */
 describe('미리 채움의 순서 — 시딩(출생) 한 곳이 정한다', () => {
-    // 🏗️ 옛 시트(StopCallSheet)는 철거됐다. 순서 규칙은 시딩으로 옮겨졌다:
+    // 🏗️ 순서 규칙은 시딩 한 곳에 있다:
     //    실측 > 통화 계획 > **적요** > 차종 기본 — 화면은 planned_source 배지만 그린다
     const seeder = () => require('fs').readFileSync(
         require('path').join(__dirname, '../../src/services/stepSeeder.ts'), 'utf8');
