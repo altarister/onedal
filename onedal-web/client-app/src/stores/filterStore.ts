@@ -1,10 +1,8 @@
 import { create } from 'zustand';
 import type { AutoDispatchFilter } from '@onedal/shared';
 /**
- * 🥣 **국면 설정 둘을 담던 자리가 여기 있었다** (`phaseSettings`·`basePhaseSettings` ·
- *    걷어냄 2026-09-11 · 이식 C3-3b).
- *    값이 한 벌이 되며 `filter`/`baseFilter` 안에 평면 이름으로 들어갔다 —
- *    담을 그릇이 따로 필요 없다.
+ * 🥣 **국면 설정을 담는 그릇은 따로 없다** — 값이 한 벌이라
+ *    `filter`/`baseFilter` 안에 평면 이름으로 들어 있다.
  */
 import { socket } from '../lib/socket';
 import { logRoadmapEvent } from '../lib/roadmapLogger';
@@ -22,8 +20,8 @@ interface FilterState {
     baseFilter: AutoDispatchFilter | null;
 
     /**
-     * 🛣️ **무대가 하차 영역에 쓸 경로선을 가졌나** — 계산을 두 벌로 만들지 않으려고 무대가 올린다 (전수 조사 4단계).
-     *    🔄 2026-09-15 옛 «그물» 레이어를 걷으며 «그물을 라인으로 쟀나»에서 뜻을 옮겼다 — 이름은 그대로 둔다.
+     * 🛣️ **무대가 하차 영역에 쓸 경로선을 가졌나** — 계산을 두 벌로 만들지 않으려고 무대가 올린다.
+     *    🔄 이름(`netUsedLine`)은 «그물을 라인으로 쟀나»에서 왔지만 뜻은 «하차 영역에 쓸 경로선을 가졌나»다.
      *    필터 화면의 «⏳ 카카오 경로를 기다립니다» 가 이것을 본다: 노선인데 콜을 쥐었고
      *    아직 라인이 없으면(false) 마름모로 재고 있는 **이상한 상태**다 — 몰라선 안 된다.
      *    지도가 안 떠 있으면 `null`(모른다) — 그때는 문구를 안 띄운다 (규칙 ④).
@@ -55,15 +53,13 @@ export const useFilterStore = create<FilterState>((set) => ({
 /**
  * 🔴 **구독은 컴포넌트 수만큼 늘어나면 안 된다.**
  *
- * 2026-08-14 실측: 서버는 `filter-updated` 를 **1번** 보내는데 관제웹 콘솔에는 **5번** 찍혔다.
- * `useFilterConfig()` 를 부르는 컴포넌트가 5개고(`DeviceControlPanel` · `PinnedRoute` ·
- * `OrderFilterModal` · `VehicleStatusPanel` · `OrderFilterStatus`) **훅마다 `socket.on` 을
- * 걸었기 때문**이다. 달리는 동안 매초 이 일이 벌어졌다 —
- * 페이로드는 동 179개짜리라 정규화와 스토어 갱신이 초당 5벌 돌았다.
+ * `useFilterConfig()` 를 부르는 컴포넌트가 여럿이다(`DeviceControlPanel` · `PinnedRoute` ·
+ * `OrderFilterModal` · `VehicleStatusPanel` · `OrderFilterStatus`). **훅마다 `socket.on` 을
+ * 걸면**, 서버가 `filter-updated` 를 **1번** 보낼 때 관제웹에서는 컴포넌트 수만큼 돈다 —
+ * 페이로드가 동 179개짜리라 달리는 동안 정규화와 스토어 갱신이 초당 여러 벌 돈다.
  *
- * 서버 쪽에서 "바뀐 것만 보낸다"로 줄여도 **여기서 5배로 되살아난다.**
- * 그래서 구독을 스토어로 끌어올린다 — 이 파일 맨 위 주석이 원래
- * *"소켓 이벤트에서 상태를 갱신합니다"* 라고 말하고 있었다. 코드가 이제 그 말과 맞는다.
+ * 서버 쪽에서 "바뀐 것만 보낸다"로 줄여도 **여기서 다시 몇 배로 는다.**
+ * 그래서 구독은 스토어에서 한 번 건다.
  *
  * 해제하지 않는다. `socket` 은 페이지가 살아 있는 동안 하나뿐이고, 관제탑은 화면이 하나다.
  */
@@ -79,9 +75,8 @@ export function ensureFilterSocketSubscribed(): void {
     subscribed = true;
 
     /**
-     * 국면별 설정(§2-4)은 **서버가 원천이다.** 옛 서버가 안 보내 줘도 화면이 죽지 않게
-     * normalize 로 빈 곳을 기본값으로 채운다 (없는 값을 지어내는 게 아니라, 서버가
-     * 아직 그 필드를 모르는 동안 화면이 그릴 수 있게 하는 것).
+     * 필터는 **서버가 원천이다.** 받은 두 벌(`activeFilter`·`baseFilter`)을 그대로 담는다 —
+     * 여기서 빈 곳을 채우거나 고치지 않는다.
      */
     const apply = (p: FilterPayload) => {
         const st = useFilterStore.getState();
@@ -99,7 +94,7 @@ export function ensureFilterSocketSubscribed(): void {
 
     /**
      * 서버는 소켓 접속마다 `filter-init` 을 **먼저 밀어준다.** 그래서 평소엔 요청하지 않는다
-     * (요청하면 동 140개짜리 페이로드가 두 번 오간다 — 실측 37ms 안에 2회 도착한 적이 있다).
+     * (요청하면 동 140개짜리 페이로드가 두 번 오간다).
      * 다만 소켓이 이미 붙은 뒤에 이 구독이 시작되면 그 push 를 놓치므로, **비어 있을 때만** 부른다.
      */
     if (!useFilterStore.getState().filter) socket.emit('request-filter-init');
