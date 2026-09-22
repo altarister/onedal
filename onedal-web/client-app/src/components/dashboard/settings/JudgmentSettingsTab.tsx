@@ -15,14 +15,13 @@ import { useJudgmentStore, ensureJudgmentSocketSubscribed, saveJudgment } from '
  * 🔴 **칸마다 근거(`why`)를 띄운다.** 기사님: *"수정할 때마다 문서를 읽어야 할 건데..
  *    문서가 항상 최종본이 아닐 수 있고."* → 문서를 안 열어도 왜 그 값인지 보인다.
  *
- * 🔴 **💾 서버 저장 버튼이 없다.** 콜 필터는 💾 를 눌러야 DB 에 가지만 (기사님 2026-08-16),
- *    판정 기준은 바꾸면 바로 계속 적용된다 — 도로에서 데이터를 모아 조정하는 성격이라 그렇다.
+ * 🔴 **「적용」을 누르면 바뀐 값을 한 번에 서버로 보낸다** (`save-judgment`) — 칸마다 저장하지 않는다.
+ *    「되돌리기」는 편집 중인 값을 서버 값으로 되돌린다.
  */
 /**
- * 🔴 **여기 없는 묶음은 화면에 아예 안 뜬다** (코드 리뷰가 잡음).
+ * 🔴 **여기 없는 묶음은 화면에 아예 안 뜬다**.
  *    `JUDGMENT_FIELDS` 에 칸을 넣어도 이 줄에 묶음 이름이 없으면 **고칠 길이 없다** —
  *    «판정 기준 탭에서 고친다»는 주석·설명만 남고 화면에는 없는 상태가 된다.
- *    지나침(신규)과 정차·여유(그동안 안 보이고 있었다) 둘을 함께 넣는다.
  */
 const GROUP_ORDER = ['합짐', '첫짐', '모를 때', '데드라인', '지나침', '정차·여유', '가중치', '색 경계'] as const;
 const GROUP_ICON: Record<string, string> = {
@@ -59,7 +58,7 @@ export default function JudgmentSettingsTab() {
     );
 
     const apply = () => {
-        // 기사님 5번: 바꾼 값을 **한 번에** 보낸다. 칸마다 저장하지 않는다
+        // 바꾼 값을 **한 번에** 보낸다 (기사님). 칸마다 저장하지 않는다
         const next: JudgmentConfig = JSON.parse(JSON.stringify(judgment));
         for (const f of JUDGMENT_FIELDS) (next[f.path[0]] as any)[f.path[1]] = draft[f.col];
         saveJudgment(next);
