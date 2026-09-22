@@ -196,8 +196,6 @@ function connect(tok) {
     s.on('cargo-mismatch', m => st.mismatch.push(m));
     s.on('stale-orders-dropped', d => st.stale = d);
     s.on('handler-error', e => st.errors.push(e));
-    s.on('auto-arrived', () => st.autoArrived = (st.autoArrived || 0) + 1);
-    s.on('next-stop-approaching', () => st.approaching = (st.approaching || 0) + 1);
     return { s, st };
 }
 
@@ -287,35 +285,13 @@ async function run({ main, cod }) {
     let cur = await refresh(main);
 
     /**
-     * '상차지 도착'은 버튼이 아니라 **GPS 재생**으로 찍는다 (2026-08-17 도착 감지 재설계 L3).
-     * 통과(주행 속도)로는 안 찍히고, 시뮬(mock) 근접은 1회만 찍히는 것까지 실서버로 검사한다.
+     * 여섯 단계를 **기사님 버튼 길**(`report-milestone`)로 넘긴다.
+     * GPS 로 찍히는 도착(통과 속도 · 정차 · 1회 발화 · 근접 예고)은 `pnpm drive` 와 `gpsArrival.test.ts` 몫이다.
      */
-    const firstCall = st.active.find(o => o.id === main);   // 첫짐 콜
-    const gpsArrive = async () => {
-        const px = firstCall?.pickupX, py = firstCall?.pickupY;
-        if (!px || !py) { s.emit('report-milestone', { orderId: main, milestone: 'ARRIVED_PICKUP' }); return; }
-        const wait = ms => new Promise(r => setTimeout(r, ms));
-        // ① 반경 안이지만 첫 틱 — 속도를 모른다 → 발화 금지 (지어내지 않는다)
-        s.emit('dashboard-gps-update', { lat: py + 0.0018, lng: px, source: 'browser' });   // ~200m
-        await wait(300);
-        // ② 반경 안 + 주행 속도(~24km/h) — 통과다 → 발화 금지
-        s.emit('dashboard-gps-update', { lat: py + 0.00162, lng: px, source: 'browser' });  // 2m 이동/0.3s
-        await wait(700);
-        const mid = await refresh(main);
-        check('통과(주행 속도)로는 도착이 찍히지 않는다',
-            !mid.ms.some(x => x.milestone === 'ARRIVED_PICKUP'), `수신 auto-arrived ${st.autoArrived || 0}회`);
-        check('근접 예고(도착전 통화)가 왔다', (st.approaching || 0) >= 1, `${st.approaching || 0}회`);
-        // ③ 시뮬(mock) 근접 + 서 있다(stopped) — 이제 발화한다 (모의 도착은 정차 연기 틱에만 · 2026-09-15)
-        s.emit('dashboard-gps-update', { lat: py, lng: px, source: 'mock', stopped: true });
-        await wait(400);
-        // ④ 같은 자리 한 틱 더 — 재발화 금지 (한 정거장당 1회)
-        s.emit('dashboard-gps-update', { lat: py + 0.00001, lng: px, source: 'mock', stopped: true });
-    };
-
     const steps = [
         ['상차지 통화', () => s.emit('save-cargo-report', { orderId: main, stopType: 'pickup', kind: 'DECLARED', unit: '라면박스', quantity: 2, handling: '수작업' })],
         ['하차지 통화', () => s.emit('save-cargo-report', { orderId: main, stopType: 'dropoff', kind: 'DECLARED', handling: '지게차' })],
-        ['상차지 도착', gpsArrive],
+        ['상차지 도착', () => s.emit('report-milestone', { orderId: main, milestone: 'ARRIVED_PICKUP' })],
         ['상차 완료', () => s.emit('report-milestone', { orderId: main, milestone: 'PICKED_UP' })],
         ['하차지 도착', () => s.emit('report-milestone', { orderId: main, milestone: 'ARRIVED_DROPOFF' })],
         ['하차 완료', () => s.emit('report-milestone', { orderId: main, milestone: 'DELIVERED' })],
@@ -332,8 +308,6 @@ async function run({ main, cod }) {
             after === before + 1, `index ${before}→${after} · ${ms}ms`);
     }
 
-    check('GPS 도착은 1회만 발화한다 (같은 자리 재틱에 재발화 없음)',
-        (st.autoArrived || 0) <= 1, `auto-arrived ${st.autoArrived || 0}회`);
 
 
     console.log('\n═══ 멱등성 · 순서 어긋남 ═══');
@@ -457,44 +431,7 @@ async function run({ main, cod }) {
         !!st.filter?.ratePerKm && Object.keys(st.filter.ratePerKm).length > 0,
         JSON.stringify(st.filter?.ratePerKm));
 
-    /**
-     * 🧭 **궤적에 «그때 어느 콜이었나»가 붙는가** (2026-08-28 신설)
-     *
-     * 3회차 주행 뒤 라이브를 열어 보니 **궤적 1,894점 전부 `order_id` 가 비어 있었다.**
-     * 칸도 있고 주석도 있었는데 `geoService` 가 값을 안 실었다 — **조용히 끊긴 이음새**다.
-     * 단위 검사는 순수 함수(`gpsPointOf`)만 보므로, *실제 서버가 저장까지 하는지*는
-     * 여기서만 확인된다 (`audit:dead` 가 잡는 사고 클래스와 같은 뿌리).
-     *
-     * 🔴 이게 비면 *"부여받은 경로 ↔ 실제 궤적"* 대조가 불가능해진다 —
-     *    합짐을 여럿 싣고 있으면 시각만으로는 어느 콜 구간인지 못 가리기 때문이다.
-     *
-     * ⚠️ **여기(맨 끝)에 두는 이유** — 궤적은 5점 또는 **10초**마다 한 번에 쓴다
-     *    (`GPS_TRACK.FLUSH_MS`). 좌표를 보낸 직후에 세면 아직 메모리에 있어 0점이다.
-     *    그래서 «비워질 때까지» 잠깐 기다렸다가 센다.
-     */
-    {
-        const dbFile = join(SERVER, DB);
-        const countTracks = () => {
-            const c = new Database(dbFile, { readonly: true });
-            let g = { n: 0, withOrder: 0, withStop: 0 };
-            try {
-                g = c.prepare(`SELECT count(*) n,
-                                      sum(order_id IS NOT NULL) withOrder,
-                                      sum(stop_type IS NOT NULL) withStop
-                               FROM gps_tracks`).get();
-            } catch { /* 표가 없으면 아래 검사가 실패로 잡는다 */ }
-            c.close();
-            return g;
-        };
-        let g = countTracks();
-        for (let i = 0; i < 14 && !(g.n > 0); i++) { await wait(1000); g = countTracks(); }
-        check('궤적이 실제로 쌓인다 (좌표 재생이 저장까지 간다)',
-            (g.n || 0) > 0, `${g.n || 0}점`);
-        check('🔴 궤적에 그때 향하던 콜이 붙는다 (경로 대조의 열쇠)',
-            (g.withOrder || 0) > 0, `콜 붙은 점 ${g.withOrder || 0}/${g.n || 0}`);
-        check('궤적에 상차/하차 구간이 갈린다',
-            (g.withStop || 0) > 0, `구간 붙은 점 ${g.withStop || 0}/${g.n || 0}`);
-    }
+    /* 🧭 궤적(콜·구간이 붙는가)은 `pnpm drive` 가 빈 DB 에서 본다 — 여기서 세면 씨앗 DB 의 옛 궤적까지 센다 */
 
     console.log('\n═══ 전체 ═══');
     check('서버 오류(handler-error) 0건', st.errors.length === 0,
@@ -527,7 +464,9 @@ async function ledger() {
     let dev, src;
     {
         const c = new Database(dbPath, { readonly: true });
-        dev = c.prepare(`SELECT device_id FROM user_devices LIMIT 1`).get();
+        /* 🔴 우회 로그인(`/api/auth/bypass`)과 **같은 사용자**의 기기 — 기기가 둘이면 `LIMIT 1` 이 남의 기기를 집어
+              상세는 그 사람 세션으로, 결재는 로그인한 세션으로 갈라진다 */
+        dev = c.prepare(`SELECT device_id FROM user_devices WHERE user_id = (SELECT id FROM users LIMIT 1) LIMIT 1`).get();
         // 좌표가 이미 캐시된 주소라야 카카오 연산이 끝까지 간다
         src = c.prepare(`SELECT pickup, dropoff, fare, vehicleType FROM orders
                          WHERE pickup <> '' AND dropoff <> '' AND fare > 0 LIMIT 1`).get();
@@ -724,135 +663,6 @@ async function ledger() {
     }
 }
 
-/**
- * 🎓 **노하우 문제지 — 고수가 판정을 채점한다** (시간체계 16-4 · 판정색 확정안 v2)
- *
- * 실제 고수가 돈을 벌며 해낸 아침 4콜(신림 기점)을 실서버에 태우고, 판정 스냅샷
- * (`order_judgments`)이 합격선에 드는지 본다. **고수가 해낸 콜을 우리가 나쁘다고
- * 하면 우리가 틀린 것이다.**
- *
- * 못박는 것은 **합격선**(색 범위)이지 점수 숫자가 아니다 — 환산식·가중치가 진화해도
- * 고수 콜을 낙제시키지 않는 한 이 검사는 통과한다. 기준을 일부러 바꿔 합격선 자체가
- * 달라지면 16-4 문서를 기사님 확정으로 개정하고 이 표를 같이 고친다 (glossary 와 같은 관계).
- *
- * 처음 만든 날 실측: 옛 판정은 이 4콜을 **전부 🟡**로 낙제시켰다 (요율 재계산 ·
- * 절대치 감점 · 누적 우회). 셋 다 이 검사가 있었으면 리허설 전에 잡혔다.
- */
-async function gosuExam() {
-    console.log('\n═══ 🎓 노하우 문제지 — 고수 4콜 채점 (16-4) ═══');
-    const dbPath = join(SERVER, DB);
-    let dev;
-    {
-        const c = new Database(dbPath, { readonly: true });
-        dev = c.prepare(`SELECT device_id FROM user_devices LIMIT 1`).get();
-        c.close();
-    }
-    if (!dev) { check('문제지 준비 (등록 기기)', false); return; }
-
-    const tok = await token();
-    const { s, st } = connect(tok);
-    await new Promise(r => s.on('connect', r));
-    await wait(2000);
-
-    // ── 깨끗한 시작 — 장부 검사가 남긴 활성 콜(MANUAL)을 방출한다
-    for (const o of st.active) {
-        s.emit('decision', { orderId: o.id, action: 'ORDER_RELEASED_BY_ME' });
-        await wait(800);
-    }
-    await wait(1500);
-    check('문제지 시작 전 빈 차', st.active.length === 0, `활성 ${st.active.length}건`);
-
-    // ── 시작 위치 신림역 (16-4 채점 조건 — 초월읍 기점이면 13번 접근 75분으로 왜곡)
-    s.emit('dashboard-gps-update', { lat: 37.4842, lng: 126.9294, source: 'browser' });
-    await wait(1200);
-    console.log('  📍 시작 위치: 신림역 (노하우 아침의 기점)');
-
-    /** 합격선 (16-4) — 색 **범위**만 못박는다. 점수는 자유다 */
-    const EXAM = [
-        { n: 13, label: '가산동 → 진위면 3.0만 — 고수: 43분 픽업 · 사무실 통화 1건',
-          pickup: '서울 금천구 가산동', dropoff: '경기 평택시 진위면', fare: 30000,
-          passLabel: '🟢 이상', pass: v => ['보통', '꿀'].includes(v.color) },
-        /**
-         * 🔴 14번 합격선은 **하한만** 본다 (2026-08-21 실측 교훈 — 검사기 오진).
-         * 밤 교통이면 우회가 줄어 순증이 올라 🔵 70점이 됐고, "🟢~🟡" 상한에 걸려
-         * 멀쩡한 판정이 낙제했다. 16-4 의 정신은 "고수 콜을 **낮게** 보면 낙제"
-         * (자르거나 사고 취급)이지, 교통이 좋아 🔵이 되는 것은 사고가 아니다.
-         */
-        { n: 14, label: '양평동 → 안중읍 3.8만 — 고수: 40분 픽업 각오 · 통화 2건 · 배달 빠듯',
-          pickup: '서울 영등포구 양평동', dropoff: '경기 평택시 안중읍', fare: 38000,
-          memo: '평택 시내 (블라인드 — 실제는 안중읍)',
-          passLabel: '사고만 불가 + 통화 필수 딱지', pass: v => v.color !== '사고',
-          needTag: '통화 필수' },
-        { n: 15, label: '문래동 → 상갈동 3.5만 — 고수: 10시 예약을 당김',
-          pickup: '서울 영등포구 문래동', dropoff: '경기 용인시 기흥구 상갈동', fare: 35000,
-          memo: '10:00상차 예약', passLabel: '🔵', pass: v => v.color === '꿀' },
-        { n: 16, label: '가산 옆 3분 → 지곡동 3.5만 — 고수: 통화 0건, 최고의 합짐',
-          pickup: '서울 금천구 가산디지털단지', dropoff: '경기 용인시 기흥구 지곡동', fare: 35000,
-          passLabel: '🔵', pass: v => v.color === '꿀' },
-    ];
-
-    const post = (path, body) => fetch(`http://localhost:${PORT}/api/orders${path}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    }).catch(e => ({ ok: false, err: e }));
-
-    /** 판정 스냅샷이 설 때까지 (심사 = KEEP 전이므로 스냅샷만 기다리면 된다) */
-    const snapshotOf = async (id, timeoutMs = 25_000) => {
-        const deadline = Date.now() + timeoutMs;
-        while (Date.now() < deadline) {
-            const c = new Database(dbPath, { readonly: true });
-            const r = c.prepare(`SELECT color, score, detail FROM order_judgments WHERE orderId = ?`).get(id);
-            c.close();
-            if (r) return { ...r, detail: JSON.parse(r.detail) };
-            await wait(500);
-        }
-        return null;
-    };
-
-    const emoji = { '꿀': '🔵', '보통': '🟢', '똥': '🟡', '사고': '🔴' };
-    for (const t of EXAM) {
-        const id = `GOSU-${Date.now()}-${t.n}`;
-        const capturedAt = new Date().toISOString();
-        // 🔴 적요는 rawText 물품 줄에 — 서버 /detail 의 rawText 해부가 order 필드를 덮는다 (#34)
-        const rawText = [
-            '배차사 : 노하우 퀵', `요금 : ${t.fare.toLocaleString()}(신용)`, '차종 : 승용차',
-            `물품 : ${t.memo || '노하우 문제지'}`,
-            '', '[출발지상세]', '고객 : 문제지 상차지', `위치 : ${t.pickup}`, `전화1 : 010-0000-11${t.n}`,
-            '', '[도착지상세]', '고객 : 문제지 하차지', `위치 : ${t.dropoff}`, `전화1 : 010-0000-22${t.n}`,
-        ].join('\n');
-        const order = { id, pickup: t.pickup, dropoff: t.dropoff, fare: t.fare,
-                        vehicleType: '승용차', timestamp: capturedAt,
-                        itemDescription: t.memo || '노하우 문제지', rawText };
-        const base = { deviceId: dev.device_id, capturedAt, matchType: 'AUTO' };
-        await post('/confirm', { ...base, step: 'BASIC', order });
-        await wait(400);
-        await post('/detail', { ...base, step: 'DETAILED', order });
-
-        const v = await snapshotOf(id);
-        if (!v) { check(`${t.n} ${t.label}`, false, '판정 스냅샷이 서지 않았다'); continue; }
-
-        const gatesOk = (v.detail.gates || []).every(g => g.pass);
-        const tagsStr = (v.detail.tags || []).join(' · ');
-        check(`${t.n}번 합격선 ${t.passLabel}`,
-            t.pass(v) && gatesOk,
-            `${emoji[v.color] || ''} ${v.color} ${v.score}점${gatesOk ? '' : ' · 🔴 문지기 실패'} — ${t.label}`);
-        if (t.needTag) {
-            check(`${t.n}번 딱지 — ${t.needTag} (고수도 통화로 시간을 샀다)`,
-                tagsStr.includes(t.needTag), tagsStr || '딱지 없음');
-        }
-
-        // 다음 콜의 합짐 심사를 위해 KEEP (안전취소 35초 안 — 스냅샷 폴링이 그 안에 끝난다)
-        s.emit('decision', { orderId: id, action: 'ORDER_CONFIRMED' });
-        const kept = Date.now() + 8000;
-        while (Date.now() < kept && !st.active.some(o => o.id === id)) await wait(300);
-        if (!st.active.some(o => o.id === id)) {
-            check(`${t.n}번 KEEP`, false, '결재가 반영되지 않았다 — 뒤 콜 채점이 왜곡된다');
-        }
-        await wait(1500);   // KEEP 후 경로 재계산이 앉을 틈
-    }
-
-    s.close();
-}
-
 // ─────────────────────────── 진입 ───────────────────────────
 let proc;
 try {
@@ -860,7 +670,6 @@ try {
     proc = await boot();
     await run(ids);
     await ledger();
-    await gosuExam();
 } catch (e) {
     console.error('\n🔴 시나리오 실행 실패:', e.message);
     results.push({ name: '시나리오 실행', ok: false });
