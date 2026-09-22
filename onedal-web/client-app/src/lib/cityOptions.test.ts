@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { resolveCity, type CityGroup } from './cityOptions';
 
 /**
- * 🔴 2026-08-12 실제로 났던 사고를 고정한다.
+ * 🔴 **저장값이 목록 이름과 조금 달라도 화면이 그 도시를 그린다.**
  *
- * DB 에는 `파주` 가 있는데 필터 모달의 고정 목록에는 `파주시` 만 있었다.
- * `<select>` 는 값이 안 맞으면 **첫 항목**을 그린다 — 화면은 `용인시` 였고
- * 기사님은 필터가 용인인 줄 알고 계셨다. 서버는 `includes` 검색이라 파주로 잘 돌았다.
+ * DB 에 `파주` 가 있고 필터 모달의 고정 목록에는 `파주시` 만 있으면, `<select>` 는 값이 안 맞아
+ * **첫 항목**(`용인시`)을 그린다. 서버는 `includes` 검색이라 파주로 도는데 화면은 용인으로 보여,
+ * 기사님이 필터를 잘못 아시게 된다. 그래서 `resolveCity` 가 저장값을 목록 이름으로 맞춘다.
  */
 const GROUPS: CityGroup[] = [
     { sido: '서울', cities: ['서울'] },
