@@ -12,12 +12,12 @@ import org.junit.Test
 /**
  * 🧪 #79 — **콜 잡는 중에 나타난 콜은 평가 없이 영영 삼켜진다**
  *
- * 실측(7지점 5판 16:04): 05를 잡는 동안(선점 잠금 · isActive=false) 06·07이 등장
- * → `decide()` 가 첫 줄에서 돌아섬(평가 로그 0줄) → 그런데 지문은 등재
- * → 잠금이 풀려도 «이미 본 콜»로 영영 건너뜀. 알람도 기록도 없었다.
+ * 콜 하나를 잡는 동안(선점 잠금 · isActive=false) 리스트에 처음 뜬 콜은 `decide()` 가 첫 줄에서 돌아서
+ * 평가되지 않는다. 그 콜을 «이미 본 콜»로 등재하면 잠금이 풀려도 영영 건너뛰어 알람도 기록도 남지 않는다.
+ * 그래서 `CallMemory.onScanned` 는 평가가 실제로 돈 콜만 기억한다.
  *
- * 실전 손실이다: 콜 하나를 잡는 10~30초 사이에 리스트에 처음 뜬 콜을 전부 잃는다
- * (규칙 ⑤ «놓치지 않는 것» 위반). 여기의 첫 검사가 그 사고를 그대로 재현한다.
+ * 이렇게 안 하면 콜 하나를 잡는 10~30초 사이에 리스트에 처음 뜬 콜을 전부 잃는다
+ * (규칙 ⑤ «놓치지 않는 것»). 첫 검사가 그 경우를 그대로 만든다.
  */
 class CallMemoryTest {
 
@@ -39,7 +39,7 @@ class CallMemoryTest {
         orderKm = emptyMap(),
     )
 
-    /** 7지점 07번 — 터미널→신둔. 5판에서 실제로 삼켜진 콜이다 */
+    /** 07번 — 터미널→신둔. 다른 콜을 잡는 동안 리스트에 처음 뜨는 콜 */
     private fun order07() = SimplifiedOfficeOrder(
         id = "07", type = "NEW_ORDER",
         pickup = "이천터미널", dropoff = "신둔면", fare = 30000,
@@ -57,7 +57,7 @@ class CallMemoryTest {
         val tally = FilterTally()
         val o = order07()
 
-        // ── 16:04:31 — 05를 잡는 중(잠금). 07이 리스트에 처음 등장 ──
+        // ── 05를 잡는 중(잠금). 07이 리스트에 처음 등장 ──
         val seenBefore = tally.seen
         InsungParser.decide(o, lockedFilter(), tally)
         val wasEvaluated = tally.seen > seenBefore
@@ -117,11 +117,11 @@ class CallMemoryTest {
     }
 
     /**
-     * 🔴 #135 — **옛 필터로 막힌 콜이 «이미 본 콜»로 잠긴다** (이천 왕복 네 번째 바퀴 2026-09-15 · 폰 logcat).
+     * 🔴 #135 — **앞 버전 필터로 막힌 콜은 필터 버전이 바뀌면 다시 판정한다.**
      *
-     * 06:10:13 B3(사음동 → 이천터미널)를 직전에 받은 상차 목록(4곳)으로 막았다 → 같은 순간 새 목록(10~11곳)을 받았다
-     * → 06:10:48 «⏭️ [이미 본 콜] 사음동 → 중리동» — 새 목록으로 다시 판정하지 않았다.
-     * 상차 목록은 차가 0.5km 움직일 때마다 바뀌어 «가까워지면 올라온다»가 뜻인데, 한 번 막힌 콜이 영영 막힌다.
+     * 상차 목록은 차가 0.5km 움직일 때마다 바뀐다. «가까워지면 올라온다»가 그 뜻이므로, 막힌 콜을 필터 버전과
+     * 상관없이 «이미 본 콜»로 잠그면 새 목록에 든 콜(여기서는 사음동 → 중리동)이 영영 막힌다.
+     * 그래서 `CallMemory` 는 막힌 콜(blocked)만 필터 버전이 바뀔 때 비운다.
      */
     private fun b3() = SimplifiedOfficeOrder(
         id = "B3", type = "NEW_ORDER", pickup = "사음동", dropoff = "중리동", fare = 50000,
@@ -135,7 +135,7 @@ class CallMemoryTest {
         val o = b3()
         memory.onFilterVersion("v1")
 
-        // ── 06:10:13 — 옛 상차 목록(4곳 · 사음동 없음)으로 판정 → 막힘 ──
+        // ── 앞 버전 상차 목록(4곳 · 사음동 없음)으로 판정 → 막힘 ──
         val old = activeFilter().copy(pickupKeywords = listOf("신둔면", "도척면", "곤지암읍", "초월읍"))
         val tally = FilterTally()
         val passedOld = InsungParser.decide(o, old, tally)
@@ -143,7 +143,7 @@ class CallMemoryTest {
         memory.onScanned(hash(o), wasEvaluated = tally.seen > 0, passed = passedOld)
         assertTrue("같은 필터에서는 다시 안 본다", memory.alreadyEvaluated(hash(o)))
 
-        // ── 06:10:13.6 — 새 목록(사음동 듦)을 받았다 → 필터 버전이 바뀐다 ──
+        // ── 새 목록(사음동 듦)을 받았다 → 필터 버전이 바뀐다 ──
         memory.onFilterVersion("v2")
         assertFalse("막혔던 콜이 «이미 본 콜»로 잠겨 있다 — #135 그 사고다", memory.alreadyEvaluated(hash(o)))
         val fresh = old.copy(pickupKeywords = listOf("사음동", "중리동", "관고동", "신둔면"))
