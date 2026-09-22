@@ -3,24 +3,21 @@
  *
  * 사업자가 없어 실 배차망 앱을 설치할 수 없는 동안, **이것이 이 제품의 유일한 배차망**이다.
  * 앱폰(AccessibilityService)이 이 페이지를 읽고 → 필터를 걸고 → 자동 터치한다.
- * `~/reps/map/map`(지도 암기 게임)에서 배차 시뮬레이터 부분만 옮겨 왔다.
  *
- * 🔴 **배차망은 더 이상 라우트로 갈리지 않는다** (기사님 확정).
+ * 🔴 **배차망은 라우트로 갈리지 않는다 — 주소의 `?net=` 이 가른다** (기사님 확정).
  *
- * 예전에는 `/` 가 «인성이냐 화물24시냐» 고르는 분기 페이지였고 그 아래에 설정이 한 벌씩
- * 있었다. 그래서 **설정이 두 벌**이 됐고 한쪽만 자랐다 — 화물24시에는 문제지 탭도,
- * 판 점검도 없었고, `fillers` 를 안 읽어 **채움 콜이 전부 흘렀다.**
- * 문제지·주소·콜 생성은 처음부터 공용이었으니, 갈려야 했던 것은 **그리는 화면 한 장**뿐이다.
+ * 설정은 한 벌이다 — 배차망마다 설정이 한 벌씩이면 한쪽만 자라 문제지 탭·점검·`fillers`(채움 콜 수)가
+ * 한 배차망에서 빠진다. 문제지·주소·콜 생성은 공용이고, 갈리는 것은 **그리는 화면 한 장**뿐이다.
  *
  *   /                       설정 한 장 (배차망은 헤더의 스위치)
- *   /dispatch?net=insung    화면만 갈아 끼운다 (배차망 이름은 서버·원달앱과 같다 · 2026-09-14 전엔 `inseong`)
+ *   /dispatch?net=insung    화면만 갈아 끼운다 (배차망 이름은 서버·원달앱과 같다)
  *
  * ⚠️ 옛 주소(`/inseong` · `/hwamul24` · `?net=inseong`)는 **넘김으로 남긴다** — 폰·북마크·문서에 적힌
  *    주소가 조용히 죽으면 «왜 안 뜨지»로 반나절이 간다. 쿼리(`?preset=…`)도 함께 옮긴다.
  *    `?net=inseong` 은 DispatchPage 가 `nets.ts` 의 `renamedNetKey` 로 넘긴다.
  *
  * 회사를 늘리는 법: `packages/ui-simulators/<회사>/` 에 화면을 만들고
- * `packages/ui-simulators/src/nets.ts` 의 `SIM_NETS` 에 한 줄 (예전엔 `DispatchPage` 의 분기와 `SetupPage` 의 `NETS` 에 한 줄씩이었다). 앱 쪽은 이미 플러그인
+ * `packages/ui-simulators/src/nets.ts` 의 `SIM_NETS` 에 한 줄. 앱 쪽은 이미 플러그인
  * 구조(IScrapParser)라 파서만 붙이면 된다.
  */
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
@@ -45,7 +42,7 @@ export function AppRoutes() {
             {/* 옛 주소 — 설정은 한 장이므로 둘 다 루트로 보낸다 */}
             <Route path="/inseong" element={<Navigate to="/" replace />} />
             <Route path="/hwamul24" element={<Navigate to="/" replace />} />
-            {/* 옛 폴더 이름 경로는 새 배차망 이름으로 바로 간다 — `?net=inseong` 을 거쳐 두 번 넘지 않는다 (0단계 0-4) */}
+            {/* 옛 폴더 이름 경로는 새 배차망 이름으로 바로 간다 — `?net=inseong` 을 거쳐 두 번 넘지 않는다 */}
             <Route path="/inseong/dispatch" element={<LegacyDispatchRedirect net="insung" />} />
             <Route path="/hwamul24/dispatch" element={<LegacyDispatchRedirect net="hwamul24" />} />
 
