@@ -959,7 +959,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                 for (const [orderId, band] of bands) {
                     const color = callColors!.get(orderId);
                     if (!color) continue;
-                    ctx.strokeStyle = withAlpha(color, 0.55);
+                    /* 🎨 겹칠수록 진해진다 — 둘이 겹친 자리에서 두 색이 다 읽히게 0.45 로 긋는다 */
+                    ctx.strokeStyle = withAlpha(color, 0.45);
                     for (let i = band.from; i <= band.to && i < secLines.length; i++) drawPath(secLines[i], 1.25);
                 }
             } else {

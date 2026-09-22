@@ -73,12 +73,26 @@ export const MAP_THEME_COLORS = {
     },
 } as const;
 
-export const withAlpha = (rgbStr: string, alpha: number) => {
-    if (rgbStr.startsWith('rgb(')) {
-        return rgbStr.replace('rgb', 'rgba').replace(')', `, ${alpha})`);
+/**
+ * 🎨 **색에 투명도를 붙인다 — 형식이 무엇이든**.
+ *
+ * 🔴 `rgb()` 만 처리하면 `hsl()` 색은 **불투명하게 그대로** 돌아온다. 콜 색이 `hsl()` 이라
+ *    지도에서 콜 띠를 겹쳐 그려도 마지막 색 하나만 보이고 «함께 가는 구간»이 사라진다.
+ * 🔴 **이미 투명도가 있는 색은 그대로 둔다** — 두 번 씌우면 의도보다 훨씬 옅어진다.
+ * ⚠️ 모르는 형식은 그대로 돌려준다 — 색을 지어내지 않는다 (규칙 ④).
+ */
+export const withAlpha = (color: string, alpha: number) => {
+    const c = color.trim();
+    if (c.startsWith('rgba(') || c.startsWith('hsla(')) return c;
+    if (c.startsWith('rgb(')) return c.replace('rgb', 'rgba').replace(')', `, ${alpha})`);
+    /* `hsl(210 70% 55%)` · `hsl(210, 70%, 55%)` 둘 다 — 값은 그대로 두고 슬래시로 투명도만 붙인다 */
+    if (c.startsWith('hsl(')) return `hsla(${c.slice(4, -1)} / ${alpha})`;
+    const hex = /^#([0-9a-f]{6})$/i.exec(c);
+    if (hex) {
+        const n = parseInt(hex[1], 16);
+        return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
     }
-    // Fallback for solid hexes if any leak
-    return rgbStr;
+    return c;
 };
 
 export type MapTheme = keyof typeof MAP_THEME_COLORS;
