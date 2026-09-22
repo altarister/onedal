@@ -73,7 +73,7 @@ describe('OrderEvaluator', () => {
 
         await evaluator.evaluate('test-user', order, mockIo);
 
-        // 🪦 `isRejected` 는 철거됐다 — 아래 «사유 0건» 이 같은 것을 본다.
+        // ✅ 통과는 «거절 사유 0건»으로 본다 — 버리는 칸은 따로 없다.
         //    서버는 콜을 버리지 않는다 (규칙 ①). 남는 것은 **사유**뿐이다.
         expect(order.rejectionReasons.length).toBe(0); // 똥콜 사유 없음
         expect(order.approvalReasons.length).toBeGreaterThan(0); // 꿀콜 장점 기록됨
@@ -95,7 +95,7 @@ describe('OrderEvaluator', () => {
 
         await evaluator.evaluate('test-user', order, mockIo);
 
-        // 🪦 `isRejected` 대신 **사유가 쌓였는가**를 본다 (아래 두 줄이 그것이다).
+        // 🔴 걸러냈는가는 **사유가 쌓였는가**로 본다 (아래 두 줄이 그것이다).
         expect(order.rejectionReasons.length).toBeGreaterThan(0);
         // Stage 1 사유 확인
         expect(order.rejectionReasons.some(r => r.includes('첫짐 절대하한가 미달'))).toBe(true);
@@ -104,8 +104,8 @@ describe('OrderEvaluator', () => {
         expect(order.rejectionReasons.some(r => r.includes('요율 미달'))).toBe(true);
     });
 
-    /* 🔴 배차망은 차종을 줄여 적는다(«승»). 원달앱은 줄임말을 맞춰 통과시키는데 서버 판정만 글자 그대로 비교해
-       승용차 콜마다 «차종(승) 불일치»를 붙였다 (2026-09-15 이천 왕복 D1·D4) */
+    /* 🔴 배차망은 차종을 줄여 적는다(«승»). 원달앱은 줄임말을 맞춰 통과시키므로, 서버 판정도 줄임말을 맞춰 본다 —
+       글자 그대로 비교하면 승용차 콜마다 «차종(승) 불일치»가 붙는다 */
     test('줄여 적은 차종(승)도 허용 목록(승용차)과 맞춰 본다', () => {
         const session = { activeFilter: { allowedVehicleTypes: ['다마스', '승용차'], excludedKeywords: [] } };
         const reasons = [], pros = [];
