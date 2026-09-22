@@ -11,26 +11,17 @@ import { initialMotion, motionOnFix, motionOnTick } from './driveMotion';
 import { Badge } from "../ui/badge";
 
 // 이 패널은 "지금 트럭에 뭐가 실려 있나"만 그린다.
-// 예전에는 mainCall/subCalls(종료된 콜 포함)를 받아 스스로 걸렀는데, 그 필터를
-// 빠뜨려 "예약 7건 (오토바이, 오토바이, ... 라보)" 처럼 취소한 콜까지 적재 중으로
-// 표시됐다. 이제 애초에 살아 있는 콜만 받는다 — 거를 것이 없으면 잊을 수도 없다.
+// 살아 있는 콜만 받는다 — 스스로 거르면 그 필터를 빠뜨리는 순간 취소한 콜까지
+// 적재 중으로 보인다. 거를 것이 없으면 잊을 수도 없다.
 /**
- * 🚚 **로고 자리 요약** (기사님 0831) — 헤더의 1DAL 로고를 대신한다. 같은 파생
- * (isAlreadyLoaded·capacityConfidence)을 쓰는 압축판 — 파생 두 벌을 만들지 않는다.
- */
-/**
- * 🚗 **이동/정차 배지** (기사님 0831 — 지도 요약 줄로 이사). 차량 패널의 GPS 파생을
- * 그대로 쓰는 압축판 — local-gps-update 하나로 속도·시뮬 여부를 읽는다.
- */
-/**
- * 🚗 **주행/정차 뷰 신호** (v23 Ⅲ · 기사님 확정 0831) — 표시만 바꾸므로 자동이 안전.
- * 이동 20km/h↑ 10초 → drive · 5km/h↓ 10초 → idle (신호대기 한 번이 콜 확인 시간).
- * 시뮬 GPS 는 drive. 파생은 MovingBadge 와 같은 이벤트 하나다.
+ * 🚗 **주행/정차 뷰 신호** (v23 Ⅲ · 기사님 확정) — 표시만 바꾸므로 자동이 안전.
+ * 이동 20km/h↑ 유지 초 → drive · 5km/h↓ 유지 초 → idle (유지 초는 설정 · 신호대기 한 번이 콜 확인 시간).
+ * 시뮬 GPS 도 실제와 같은 잣대로 잰다. 파생은 MovingBadge 와 같은 이벤트 하나다.
  */
 export function useDriveMotion(): 'drive' | 'idle' {
     const [mode, setMode] = useState<'drive' | 'idle'>('idle');
     /**
-     * ⏱️ **«몇 초 이어져야 그렇다고 믿나» — 기사님이 정한다** (화면규칙 S16 · 2026-09-12).
+     * ⏱️ **«몇 초 이어져야 그렇다고 믿나» — 기사님이 정한다** (화면규칙 S16).
      *
      * 🔴 **읽는 곳은 여기 하나다** (규칙 ⑤-4 ⑤). 이 값이 여러 곳에 흩어지면
      *    «화면은 주행인데 배지는 정차»가 난다.
@@ -39,7 +30,7 @@ export function useDriveMotion(): 'drive' | 'idle' {
      */
     const holdMs = useSettingsStore(st => st.motionHoldSec) * 1000;
     /**
-     * 🔴 **ref 로 든다 — 클로저에 가두면 설정을 바꿔도 안 따른다** (기사님 실측 2026-09-12).
+     * 🔴 **ref 로 든다 — 클로저에 가두면 설정을 바꿔도 안 따른다** (기사님 실측).
      *    ⚠️ 의존성에 `[holdMs]` 를 넣으면 값이 바뀔 때마다 측정 상태가 초기화된다 — ref 면 재구독 없이 최신 값을 본다.
      *    ⚠️ `lint:gate` 는 `exhaustive-deps` 를 꺼 뒀으므로 **이 종류는 기계가 안 잡는다**.
      */
@@ -82,7 +73,7 @@ export function useGpsSpeed(): { speed: number | null; isMock: boolean } {
         const push = () => setView(v => (v.speed === st.speed && v.isMock === isMock) ? v : { speed: st.speed, isMock });
         const onGps = (e: Event) => {
             const loc = (e as CustomEvent<{ lat: number, lng: number, source?: string }>).detail;
-            /* 🔴 모의도 실제와 같은 잣대로 잰다 (0831 리뷰) — 출처는 표시에만 쓴다 */
+            /* 🔴 모의도 실제와 같은 잣대로 잰다 — 출처는 표시에만 쓴다 */
             isMock = loc.source === 'mock';
             st = motionOnFix(st, loc, Date.now());
             push();
@@ -95,6 +86,10 @@ export function useGpsSpeed(): { speed: number | null; isMock: boolean } {
     return view;
 }
 
+/**
+ * 🚗 **이동/정차 배지** (기사님 — 지도 요약 줄에 둔다). 차량 패널과 같은 `useGpsSpeed` 를
+ * 쓰는 압축판 — local-gps-update 하나로 속도·시뮬 여부를 읽는다.
+ */
 export function MovingBadge() {
     const { speed, isMock: gpsIsMock } = useGpsSpeed();
     const currentSpeed = speed ?? 0;
@@ -107,6 +102,10 @@ export function MovingBadge() {
     );
 }
 
+/**
+ * 🚚 **로고 자리 요약** (기사님) — 헤더의 1DAL 로고를 대신한다. 같은 파생
+ * (isAlreadyLoaded·capacityConfidence)을 쓰는 압축판 — 파생 두 벌을 만들지 않는다.
+ */
 export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] }) {
     const { filter } = useFilterConfig();
     const [dbVehicleType, setDbVehicleType] = useState<string | null>(null);
@@ -118,10 +117,10 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
     const reserved = confirmedCalls.filter(o => !isAlreadyLoaded(o));
     const loaded = confirmedCalls.filter(o => isAlreadyLoaded(o));
     /**
-     * 🧮 **괄호 목록을 뺐다** (목업 이식 2026-09-05).
+     * 🧮 **건수만 적는다 — 차종 괄호 목록을 붙이지 않는다** (목업).
      *
-     * 🔴 `예약 4건 (다마스, 다마스, 다마스, 1t)` — **차종을 콜 수만큼 늘어놓고 있었다.**
-     *    콜이 넷이면 한 줄이 넘치고, 달리면서 읽을 것은 «몇 건인가» 하나다.
+     * 🔴 `예약 4건 (다마스, 다마스, 다마스, 1t)` 처럼 차종을 콜 수만큼 늘어놓으면
+     *    콜이 넷일 때 한 줄이 넘치고, 달리면서 읽을 것은 «몇 건인가» 하나다.
      *    무엇을 싣는지는 **콜 카드의 📦 칩**이 콜마다 말한다 (규칙 ③ — 한 사실 한 곳).
      * 🟢 대신 **적재량과 확신**을 옆에 둔다 — 그게 «내 트럭 상태»의 답이다.
      */
@@ -129,7 +128,7 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
         items.length ? `${prefix} ${items.length}` : null;
     const text = [part(loaded, '상차'), part(reserved, '예약')].filter(Boolean).join(' · ') || '예약 0건';
     /**
-     * 💰 **진행 중 운임** — 지금 쥔 콜로 얼마를 버나 (기사님 확정 · 옛 화면 머리 줄에서 옮겨 왔다).
+     * 💰 **진행 중 운임** — 지금 쥔 콜로 얼마를 버나 (기사님 확정).
      *
      * 🔴 **`confirmedCalls` 로만 더한다** — 심사 중인 콜은 아직 내 것이 아니고,
      *    끝난 콜(취소·방출)은 한 푼도 못 받는다. 전체를 더하면 진행 2건인데 종료분까지
@@ -167,7 +166,7 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
 export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOrder[] }) {
     const { filter } = useFilterConfig();
 
-    /* 🚗 속도는 `useGpsSpeed` 한 곳 — 좌표가 끊기면 모름(null) → 정차로 보인다 (#132 · 이 자리가 셋째 벌이었다) */
+    /* 🚗 속도는 `useGpsSpeed` 한 곳 — 좌표가 끊기면 모름(null) → 정차로 보인다 (#132) */
     const { speed: gpsSpeed, isMock: gpsIsMock } = useGpsSpeed();
     const currentSpeed = gpsSpeed ?? 0;
 
@@ -198,16 +197,15 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
 
 
 
-    // 시뮬레이션 중에는 "달리고 있다"는 사실만 참이다 — 속도는 모른다
+    // «달리는가»는 속도가 답한다 — 시뮬도 같은 잣대(5km/h 초과면 이동 중)
     const isMoving = currentSpeed > 5;
     const totalCount = liveCalls.length;
 
     /**
      * 🔴 **상차는 추측하지 않는다**.
      *
-     * 예전에는 GPS 가 상차지 500m 안을 지나가면 자체 pickedUpSet 에 넣어
-     * "상차 1건"으로 표시했다 — 장부는 ORDER_CONFIRMED(상차 보고 없음)인데
-     * 요약만 실었다고 말하는 "한 화면 두 세상"이었다.
+     * GPS 로 상차를 짐작하면 장부는 ORDER_CONFIRMED(상차 보고 없음)인데
+     * 요약만 실었다고 말하는 "한 화면 두 세상"이 된다.
      * GPS 는 도착까지만 안다. 실었는가의 원천은 기사님의 상차 완료 보고
      * (ORDER_PICKED_UP) 하나고, 판별은 shared 의 isAlreadyLoaded 하나다.
      */
@@ -247,7 +245,7 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
                 <span className="text-sm font-black text-text-primary">{myVehicle}</span>
                 <div className="text-xs mt-0.5 flex items-center gap-1.5">
                     {renderLoadStatus()}
-                    {/* [Phase 8.4] 잔여 적재량을 얼마나 믿을 수 있는지 드러낸다.
+                    {/* 잔여 적재량을 얼마나 믿을 수 있는지 드러낸다.
                         '추정'은 차종만 보고 계산한 값이라 현장에서 안 들어갈 수 있다.
                         기사님이 그 위험을 알고 합짐을 잡아야 한다. */}
                     {liveCalls.length > 0 && filter?.capacityConfidence && (
