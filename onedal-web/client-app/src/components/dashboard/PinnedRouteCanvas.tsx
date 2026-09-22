@@ -173,7 +173,7 @@ interface Props {
      * 📋 **상차 영역 — 원달앱이 상차지를 거르는 영역**.
      *
      * 🔴 아래 `dropoffArea`(하차 영역 · 합집합)와 **다른 것**이다. 상차 영역은 **현위치 영역 전체** 아니면
-     *    **켜진 조각을 전부 겹친 것**이다 (조각은 shared `pickupPartsOf` · 설계서 ⑥).
+     *    **켜진 조각을 전부 겹친 것**이다 (조각은 shared `pickupPartsOf`).
      *    교집합은 도형을 겹쳐 칠하면 합집합으로 보이니 **잘라(clip) 가며** 좁힌 뒤 마지막에 한 번 칠한다.
      */
     pickupArea?: {
@@ -183,7 +183,7 @@ interface Props {
         line: Array<{ x: number; y: number }> | null;
         lineKm: number;
         /**
-         * 🎯 **가까이 온 목적지들의 원** (설계서 ⑥). 있으면 그 원들을 **더한 것**(∪)과 겹친다.
+         * 🎯 **가까이 온 목적지들의 원**. 있으면 그 원들을 **더한 것**(∪)과 겹친다.
          * 🔴 **`line` 과 함께 올 수 있다** — 「가까이 옴」은 라인을 끄지 않는다. 셋 다 겹친다.
          */
         goals: Array<{ at: { x: number; y: number }; km: number }>;
@@ -217,11 +217,11 @@ interface Props {
     } | null;
     children?: React.ReactNode;
     /**
-     * 🔝 **오른쪽 세로줄에 이어 붙일 버튼** — 확대(＋ − 초기화) **아래**에 같은 묶음으로 들어간다.
+     * 🔝 **오른쪽 위 줄에 이어 붙일 버튼** — 확대(＋ − 초기화) 세로 묶음의 **왼쪽**에 같은 줄로 들어간다.
      *
-     * 🔴 바깥에서 `absolute top-[104px]` 처럼 **좌표로 맞추지 않는다** (기사님 지적 — QR 이 초기화를 덮었다).
-     *    확대 버튼 수가 바뀌거나 글꼴이 달라지면 그 숫자가 바로 어긋난다. 같은 묶음에 넣으면
-     *    간격을 `space-y-2` 하나가 정하므로 갈라질 자리가 없다 (규칙 ③).
+     * 🔴 바깥에서 `absolute top-[104px]` 처럼 **좌표로 맞추지 않는다** (기사님 지적 — 좌표로 두면 QR 이 초기화를 덮는다).
+     *    확대 버튼 수가 바뀌거나 글꼴이 달라지면 그 숫자가 바로 어긋난다. 같은 줄에 넣으면
+     *    간격을 `gap-2` 하나가 정하므로 갈라질 자리가 없다 (규칙 ③).
      */
     rightButtons?: React.ReactNode;
     /**
@@ -229,7 +229,7 @@ interface Props {
      * 🔴 좌표를 안 쓴다 — `left-1/2 -translate-x-1/2` 라 폭이 바뀌어도 늘 가운데다.
      */
     centerButtons?: React.ReactNode;
-    /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (기본 h-64는 옛 화면용) */
+    /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (안 주면 높이 h-64 로 선다) */
     fill?: boolean;
     /**
      * 🗺️ **아래가 몇 px 가려졌나** — 그만큼 지도가 위로 비켜 준다. 안 넘기면 화면 전체가 지도다.
@@ -243,8 +243,8 @@ interface Props {
     /**
      * 🌈 **콜 색표를 쓰는가** (`styles/callPalette.ts`) — 기본이 «쓴다»다.
      * 색상=콜 · 채도=상차/하차 · 테두리=다녀왔나.
-     * 🔴 기본을 꺼짐으로 두지 않는다 — **안 넘기는 화면이 조용히 옛 문법**(상차 초록·하차 로즈)으로 그린다.
-     *    끄는 자리는 목업 조작판 하나뿐이다 (옛 색과 나란히 보려고 남긴다).
+     * 🔴 기본을 «쓴다»로 둔다 — 꺼짐이 기본이면 **안 넘기는 화면이 조용히 한 색 문법**(상차 초록·하차 로즈)으로 그린다.
+     *    끄는 자리는 목업 조작판 하나뿐이다 (두 색 문법을 나란히 보려고).
      */
     rainbowNodes?: boolean;
 }
@@ -294,7 +294,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
      */
     /**
      * 🧅 **보기마다 따로 기억한다** — 전체에서는 영역을 보고, 구간·현위치에서는 길만 본다.
-     *    한 벌로 두면 «현구간에서만 상차를 끄고 싶다»가 안 된다. 기본값·되살리기는 `layersByViewFrom` 한 곳 (옛 한 벌 저장본도 읽는다).
+     *    한 벌로 두면 «현구간에서만 상차를 끄고 싶다»가 안 된다. 기본값·되살리기는 `layersByViewFrom` 한 곳 (보기 구분 없이 한 벌로 저장된 값도 읽는다).
      * 📋 «상차» · «하차» — 원달앱이 상차지 · 하차지를 거르는 영역 · 🌓 «어둡게» — 배경을 눌러 색·영역이 읽히게 한다.
      */
     const [layersByView, setLayersByView] = React.useState(() => {
@@ -332,9 +332,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
      * 🎨 **레이어를 칠할 때 쓰는 가리개·테두리 캔버스 — 한 장씩 쥐고 다시 쓴다**
      *    (기사님: «상차·하차 레이어가 있으면 확실히 버벅인다»).
      *
-     * 예전엔 레이어마다 `document.createElement('canvas')` 로 화면 크기 캔버스를 새로 만들었다.
-     * 상차·하차 둘만 켜도 한 번 그릴 때마다 **전화면 캔버스 넷**이 났다 사라져, 폰에서
-     * 할당·회수 비용이 그대로 프레임에 얹혔다. 크기가 바뀔 때만 다시 잡고 평소엔 지워서 쓴다.
+     * 크기가 바뀔 때만 다시 잡고 평소엔 지워서 쓴다 — 까닭은 `makeMask` 주석.
      */
     const maskRef = useRef<HTMLCanvasElement | null>(null);
     const panRef = useRef({ x: 0, y: 0 });
@@ -619,7 +617,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
 
         /**
          * 🟢 **상차 영역 모양을 그린다 — 한 곳** · 칠하는 색 · 합성 방식은 부르는 쪽이 정한다.
-         *    «상차» 레이어가 칠하고, «하차» 레이어가 같은 모양을 **지운다**(먼 목적지는 상차 영역을 뺀다 · 필터.md «하차 영역»).
+         *    «상차» 레이어가 칠하고, «하차» 레이어가 같은 모양을 **지운다**(먼 목적지는 상차 영역을 뺀다).
          */
         const tracePickup = (c2d: CanvasRenderingContext2D, area: NonNullable<Props['pickupArea']>) => {
             const c = getScreenPt(area.me);
@@ -921,7 +919,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
          * 🌈 **구간마다 그 콜의 색으로 칠한다**.
          *    서버가 구간 경계(`sectionEnds`)와 구간 주인(`sectionStops`)을 함께 보낸다 —
          *    **둘의 길이가 같고**, 구간 i 는 «정거장 i 에 닿는 길»이다. 그래서 색은 그 정거장의 콜 색이다.
-         * 🔴 **재료가 어긋나면 한 색으로 물러난다** — 길이가 다르거나 색표가 없으면 옛 모양 그대로.
+         * 🔴 **재료가 어긋나면 한 색으로 물러난다** — 길이가 다르거나 색표가 없으면 경로 전체를 한 색으로.
          *    색이 밀려 그려지는 것보다 한 색이 낫다 (규칙 ④: 지어내지 않는다).
          * ⚠️ 미리보기(결재 전)는 **노란 점선 한 색**을 지킨다 — «아직 내 콜이 아니다»가 색의 뜻이다.
          */
@@ -1007,7 +1005,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
             const fill = rainbowNodes && p.callNo ? mapColors.textMuted : null;
             ctx.beginPath();
             ctx.arc(cx, cy, fill ? 10 : 9, 0, 2 * Math.PI);
-            ctx.fillStyle = fill ?? withAlpha('#35c3a9', 0.4);       // 초록 채움 = 다녀옴 (옛 문법)
+            ctx.fillStyle = fill ?? withAlpha('#35c3a9', 0.4);       // 초록 채움 = 다녀옴 (색표를 안 쓸 때)
             ctx.fill();
             ctx.lineWidth = fill ? 1 : 2.5;
             ctx.strokeStyle = fill
@@ -1041,7 +1039,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                 ctx.lineWidth = 2.5;
                 ctx.strokeStyle = mapColors.nodeStrokeEvaluating;
             } else if (rainbowFill) {
-                /* 🖊️ 다녀온 곳에 **동그라미를 친다** — 안 간 곳은 바탕색이라 링이 안 보인다.
+                /* 🖊️ 테두리는 `callNodeStroke` 가 정한다 — 다녀온 곳은 투명, 안 간 곳은 채움과 같은 색이라 링이 따로 안 보인다.
                    1px 로 얇게 — 목록 동그라미와 같은 두께다 */
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = callNodeStroke(!!p.visited, rainbowFill);
@@ -1336,10 +1334,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
             )}
 
             {/**
-              * 🔝 **오른쪽 위 — 윗줄은 가로, 확대 셋은 그 아래 세로** (기사님 지시).
+              * 🔝 **오른쪽 위 — 바깥 버튼(방침·QR)은 가로로, ＋ − 초기화는 그 오른쪽에 세로 한 줄로** (기사님 지시).
               *
-              * 여섯을 세로로 쌓으면 지도를 반이나 덮었고, 여섯을 가로로 늘어놓으면 왼쪽 줄과 부딪힌다.
-              * 자주 쓰는 것(방침·QR)은 윗줄에 가로로, **＋ − 초기화는 아래로 떨어뜨려 늘 보이게** 둔다.
+              * 여섯을 세로로 쌓으면 지도를 반이나 덮고, 여섯을 가로로 늘어놓으면 왼쪽 줄과 부딪힌다.
+              * 자주 쓰는 것(방침·QR)은 윗줄에 가로로, **＋ − 초기화는 따로 세로로 세워 늘 보이게** 둔다.
               * 간격은 `gap-2` 하나가 정한다 — 좌표로 맞추지 않는다 (규칙 ③).
               */}
             {/* 🔝 오른쪽 위 — 바깥 버튼(방침)과 줌 셋이 **가로로 나란히** 선다 (기사님 지시) */}
