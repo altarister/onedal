@@ -8,12 +8,12 @@ import type { NavigateFunction } from 'react-router-dom';
 import { DispatchPage } from '../src/pages/DispatchPage';
 
 /**
- * 🔙 **픽커 상세는 방문 기록에 한 칸 남는다 — 뒤로 가기가 상세만 닫는다** (카카오픽커_시뮬레이터.md §7-3 · 2단계 2-2)
+ * 🔙 **픽커 상세는 방문 기록에 한 칸 남는다 — 뒤로 가기가 상세만 닫는다**
  *
  * 원달앱은 알람으로 상세에 들어간 뒤 30초 무응답이면 «뒤로 가기»를 누른다(`HijackService` · GLOBAL_ACTION_BACK).
  * 시뮬레이터 앱은 그 뒤로 가기를 웹뷰 방문 기록으로 넘긴다(`webView.goBack()`). 상세가 React 상태뿐이면
  * 방문 기록에 없어서 **설정 화면까지 나가 버린다.**
- * 인성·화물24시는 예전 동작 그대로 둔다 (방문 기록에 안 남긴다) — 그쪽 흐름은 이번에 흔들지 않는다.
+ * 인성·화물24시는 상세를 방문 기록에 안 남긴다 (`SimNet.detailInHistory` 가 픽커만 켜져 있다) — 이 검사는 픽커 쪽만 본다.
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -63,7 +63,7 @@ afterEach(() => {
 
 describe('픽커', () => {
     it('홈 → 시작하기 → 요금을 누르면 상세 · 주소에 detail 이 붙는다', () => {
-        /* 📍 위치를 주소에 넣고 연다 — 위치를 모르면 시뮬이 첫 콜을 5초 기다린다 (firstCallWaitsLocation · 2026-09-14) */
+        /* 📍 위치를 주소에 넣고 연다 — 위치를 모르면 시뮬이 첫 콜을 5초 기다린다 (firstCallWaitsLocation) */
         mount('/dispatch?net=kakaopicker&lon=127.29444&lat=37.37669');
         act(() => { buttonByText('시작하기')!.click(); });
         expect(host!.textContent).toContain('리스트 설정');
@@ -73,7 +73,7 @@ describe('픽커', () => {
     });
 
     it('🔴 뒤로 가기 한 번이면 상세만 닫히고 리스트로 — 설정 화면으로 안 나간다', () => {
-        /* 📍 위치를 주소에 넣고 연다 — 위치를 모르면 시뮬이 첫 콜을 5초 기다린다 (firstCallWaitsLocation · 2026-09-14) */
+        /* 📍 위치를 주소에 넣고 연다 — 위치를 모르면 시뮬이 첫 콜을 5초 기다린다 (firstCallWaitsLocation) */
         mount('/dispatch?net=kakaopicker&lon=127.29444&lat=37.37669');
         act(() => { buttonByText('시작하기')!.click(); });
         pressFirstFare();
@@ -102,7 +102,7 @@ describe('픽커', () => {
     });
 
     it('상세의 «넘기기» 도 방문 기록을 한 칸 되돌린다 — 뒤로 가기를 한 번 더 누르면 그때 설정 화면', () => {
-        /* 📍 위치를 주소에 넣고 연다 — 위치를 모르면 시뮬이 첫 콜을 5초 기다린다 (firstCallWaitsLocation · 2026-09-14) */
+        /* 📍 위치를 주소에 넣고 연다 — 위치를 모르면 시뮬이 첫 콜을 5초 기다린다 (firstCallWaitsLocation) */
         mount('/dispatch?net=kakaopicker&lon=127.29444&lat=37.37669');
         act(() => { buttonByText('시작하기')!.click(); });
         pressFirstFare();
