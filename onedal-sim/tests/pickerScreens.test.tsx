@@ -7,10 +7,10 @@ import { FIXED_NOW } from './seededRandom';
 import { pickerA, pickerB, pickerC } from './fixtures';
 
 /**
- * 📋 **픽커 홈 · 리스트 글자** (카카오픽커_시뮬레이터.md §8-1 · 2단계 2-2)
+ * 📋 **픽커 홈 · 리스트 글자**
  *
  * 원달앱이 알아보는 글자(`KakaoPickerKeywords` · `KakaoPickerParser`)가 화면에 **있는가**, 글자 덩어리가 **따로** 있는가를 본다.
- * 위치(폰 픽셀)는 여기서 못 본다 — 2-3 의 `pickerDumpCheck.mjs`(신설)가 본다.
+ * 위치(폰 픽셀)는 여기서 못 본다 — `onedal-sim/scripts/pickerDumpCheck.mjs` 가 폰에서 본다.
  */
 const noop = () => {};
 const markupOf = (el: ReactElement) => renderToStaticMarkup(el);
@@ -99,8 +99,8 @@ describe('픽커 배차 화면 — 홈 → 리스트 → 상세 자리', () => {
 });
 
 /**
- * 🪟 **보이는 카드만 그린다** (2단계 2-3) — 웹뷰가 화면 밖 카드를 높이 0 으로 원달앱에 넘기던 것.
- * 폰 판 증거는 `pickerDumpCheck.mjs` ⑦⑧ 이 본다. 여기서는 범위 계산만 문다.
+ * 🪟 **보이는 카드만 그린다** — 화면 밖 카드를 그리면 웹뷰가 높이 0 글자로 원달앱에 넘기고, 원달앱은 그것을 카드 한 장으로 묶는다.
+ * 폰 시험 증거는 `pickerDumpCheck.mjs` ⑦⑧ 이 본다. 여기서는 범위 계산만 문다.
  */
 describe('visibleCardRange — 스크롤 칸 안에 온전히 보이는 카드', () => {
     it.each([
