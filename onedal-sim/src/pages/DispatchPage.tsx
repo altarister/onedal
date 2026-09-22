@@ -1,13 +1,12 @@
 /**
- * 🚚 **배차 리스트** (`/dispatch?net=insung|hwamul24|kakaopicker`) — 기사님 확정 2026-09-11 · 이름은 2026-09-14 에 서버·원달앱과 맞췄다
+ * 🚚 **배차 리스트** (`/dispatch?net=insung|hwamul24|kakaopicker`) — 기사님 확정 · 배차망 이름은 서버·원달앱과 같다
  *
  * 🔴 **갈라지는 것은 «그리는 화면» 하나뿐이다.** 앱 파서가 **화면에 적힌 글자**를 읽기
  *    때문이다 — 인성은 차종 약자(오·다·라)를 앵커로 요금을 읽고, 화물24시는
- *    «1톤/전체 · 독차» 판이다. 그 아래(문제지·주소·콜 생성·현위치·채움)는 전부 공용이다.
+ *    «1톤/전체 · 독차» 글자를 읽는다. 그 아래(문제지·주소·콜 생성·현위치·채움)는 전부 공용이다.
  *
- * 예전에는 이 페이지가 배차망마다 한 벌씩 있었고, 그래서 **한쪽만 자랐다** —
- * 화물24시 쪽은 `fillers` 를 안 읽어 **채움 콜이 전부 흘렀다.** 같은 질문에 두 답이
- * 있으면 언젠가 갈라진다 (규칙 ③).
+ * 이 페이지는 배차망마다 한 벌씩 두지 않는다 — 한 벌씩이면 **한쪽만 자라** 한 배차망만 `fillers` 를 안 읽는 식으로
+ * 갈라진다. 같은 질문에 두 답이 있으면 언젠가 갈라진다 (규칙 ③).
  */
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate, Navigate, Link } from 'react-router-dom';
@@ -23,9 +22,9 @@ import { SIM_DEFAULT_START } from './preflightRows';
 const ROUND_CURTAIN_MS = 1500;
 
 /**
- * 🔴 **배차망 이름을 모를 때의 멈춤 화면** (0단계 0-4)
+ * 🔴 **배차망 이름을 모를 때의 멈춤 화면**
  *
- * 예전엔 `?net=` 이 모르는 값이거나 아예 없으면 한 배차망 화면으로 조용히 그렸다.
+ * `?net=` 이 모르는 값이거나 아예 없으면 한 배차망 화면으로 조용히 그리지 않고 멈춘다.
  * 그 배차망인 줄 모르고 시험하면 그 시간이 통째로 헛것이다 — 아래 «문제지가 없다» 멈춤과 같은 자리다.
  */
 function UnknownNetScreen({ netKey }: { netKey: string | null }) {
@@ -90,17 +89,15 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   const fillerLimit = Number(presetParams.get('fillers') ?? '99');
 
   /**
-   * 🔴 **이름을 못 찾으면 조용히 랜덤으로 돌던 자리다** (실사고).
+   * 🔴 **문제지 이름을 못 찾으면 멈춘다** — 조용히 랜덤 콜을 흘리지 않는다.
    *
-   * 기사님: *"시뮬레이터 값이 이상한 것이 들어 있어. 분당구 출발하는 것으로 나오고 있어."*
-   * 문제지를 넷으로 쪼개며 키가 바뀌었는데(`볼첨지` → `볼첨지대전`), 옛 URL 로 열자
-   * `getPreset` 이 `null` 을 주고 **화면은 아무 말 없이 랜덤 콜을 흘렸다.**
-   * 채점 판인 줄 알고 30분을 보면 그 30분이 통째로 헛것이다 —
+   * 문제지 키가 바뀐 뒤 옛 URL 로 열면 `getPreset` 이 `null` 을 준다. 그때 랜덤 콜을 흘리면
+   * 채점 시험인 줄 알고 본 30분이 통째로 헛것이 된다 —
    * 「빈 필터는 제한 없음이 아니라 고장이다」(규칙 ④)와 같은 자리다.
    */
   const presetName = presetParams.get('preset');
   /**
-   * 📚 **이 배차망의 문제지 책에서만** 찾는다 (`nets.ts` 의 `presetBook` · 3단계 3-2) — 인성·화물24시는 원 단위 문제지,
+   * 📚 **이 배차망의 문제지 책에서만** 찾는다 (`nets.ts` 의 `presetBook`) — 인성·화물24시는 원 단위 문제지,
    * 픽커는 P 단위 문제지. 남의 책 이름이면 아래 «문제지가 없다»로 멈춘다 (요금 크기가 틀린 채점을 흘리지 않는다).
    */
   const presetMissing = !!presetName && !getPresetFrom(simNet.presetBook, presetName);
@@ -113,7 +110,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
 
   /**
    * 🔁 `?loop=1` — 문제지를 다 내면 처음으로 되돌린다 (기본값 아님).
-   * 채점은 한 바퀴가 한 판이라 되돌리면 흐려진다. 주행 시험처럼 오래 흘려야 할 때만 켠다.
+   * 채점은 한 바퀴가 한 차례라 되돌리면 흐려진다. 주행 시험처럼 오래 흘려야 할 때만 켠다.
    */
   const loop = presetParams.get('loop') === '1';
 
@@ -142,10 +139,10 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   });
 
   /**
-   * 🔙 **상세를 방문 기록에 남기는 배차망** (`SimNet.detailInHistory` · 계획서 §7-3 · 2단계 2-2).
+   * 🔙 **상세를 방문 기록에 남기는 배차망** (`SimNet.detailInHistory`).
    * 원달앱의 «뒤로 가기»(시뮬레이터 앱은 웹뷰 방문 기록으로 넘긴다)가 상세만 닫게, 상세를 열 때 `?detail=<콜 id>` 를 **한 칸 쌓는다.**
    * 닫을 때는 그 칸을 되돌리고, 주소에서 `detail` 이 사라지면(뒤로 가기) 상세를 닫는다 — 닫는 길이 둘이어도 답은 주소 하나다.
-   * 인성·화물24시는 예전 그대로다 (상태만 바꾼다).
+   * 인성·화물24시는 방문 기록에 쌓지 않고 상태만 바꾼다.
    */
   const detailId = simNet.detailInHistory ? presetParams.get('detail') : null;
 
@@ -173,7 +170,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   /**
    * 주소의 `detail` 이 **있다가 사라지면** 닫는다 — «없다»만 보면 안 된다.
    * 🔴 라우터는 주소 바꾸기를 한 박자 늦게 그린다. 그래서 «고른 콜은 들어갔는데 주소엔 아직 detail 이 없는» 한 순간이 있고,
-   *    «없다»만 보면 그 순간을 뒤로 가기로 읽어 **연 상세를 곧바로 닫는다** (2단계 2-2 검사에서 실제로 났다).
+   *    «없다»만 보면 그 순간을 뒤로 가기로 읽어 **연 상세를 곧바로 닫는다**.
    */
   const prevDetailId = useRef<string | null>(null);
   useEffect(() => {
@@ -183,7 +180,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
 
   /**
    * 콜 수락 — 인성은 «확정», 화물24시(실물)는 «배차신청» 이다.
-   * 🔴 인성 «탁송»은 수락이 아니다 (기사님 2026-09-14)
+   * 🔴 인성 «탁송»은 수락이 아니다 (기사님)
    */
   const handleAcceptCall = useCallback((call: SimCall) => {
     setStreamingCalls(prev => prev.filter(c => c.id !== call.id));
@@ -200,7 +197,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     handleCloseDetail();
   }, [setConfirmedCalls, handleCloseDetail]);
 
-  /** 🚚 배송 완료 — 잡은 콜에서 빼고 상세를 닫는다 (픽커 수락 뒤 단계 · 4단계). 하는 일은 취소와 같지만 이름을 가른다 — 로그·검사가 뜻을 읽게 */
+  /** 🚚 배송 완료 — 잡은 콜에서 빼고 상세를 닫는다 (픽커 수락 뒤 단계). 하는 일은 취소와 같지만 이름을 가른다 — 로그·검사가 뜻을 읽게 */
   const handleFinishCall = useCallback((call: SimCall) => {
     setConfirmedCalls(prev => prev.filter(c => c.id !== call.id));
     handleCloseDetail();
@@ -236,7 +233,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
    * 🔴 개별콜 화면에서만 받는다 (위 `individual`). 닫는 길을 쓰므로 그것보다 아래에 둔다.
    */
   /**
-   * 🫳 **거둔 콜을 목록에서 뺀다** — 서버가 채점을 마친 문제지 줄의 콜을 거뒀다 (실주행에서 남이 잡으면 목록에서 사라지는 것과 같다 · onedal-b5 2026-09-15).
+   * 🫳 **거둔 콜을 목록에서 뺀다** — 서버가 채점을 마친 문제지 줄의 콜을 거뒀다 (실주행에서 남이 잡으면 목록에서 사라지는 것과 같다 · onedal-b5).
    * 🔴 **목록 행만 뺀다** — 이미 잡은 콜(확정 목록)과 폰이 열어 둔 상세는 그대로 둔다. 상세를 도중에 닫으면 폰 원달앱이 멀쩡한 확정 흐름에서 튕긴다.
    */
   const removeCalls = useCallback((ids: string[]) => {
@@ -247,7 +244,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual });
 
   // 🔴 문제지 이름을 못 찾았다 — 랜덤으로 흘리지 않고 멈춘다 (위 주석 참조)
-  // 콜을 고른 상태면 상세가 먼저다 — 예전 순서(상세 → 문제지 없음 → 리스트) 그대로
+  // 콜을 고른 상태면 상세가 먼저다 — 순서는 상세 → 문제지 없음 → 리스트
   if (!selectedCall && presetMissing) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-red-50 p-6 text-center">
@@ -269,7 +266,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     );
   }
 
-  // ── 배차망 화면 — 리스트·상세·수락 뒤를 무엇으로 그릴지는 배차망이 정한다 (nets.ts · 0단계 0-2 ⑤) ──
+  // ── 배차망 화면 — 리스트·상세·수락 뒤를 무엇으로 그릴지는 배차망이 정한다 (nets.ts) ──
   const Screen = simNet.Screen;
   return (
     <>
@@ -314,7 +311,7 @@ export function DispatchPage() {
   const [searchParams] = useSearchParams();
   const netKey = searchParams.get('net');
 
-  // 🔀 바뀐 옛 이름 — 나머지 쿼리(문제지·간격)를 그대로 들고 새 이름으로 넘긴다 (0단계 0-4)
+  // 🔀 바뀐 옛 이름 — 나머지 쿼리(문제지·간격)를 그대로 들고 새 이름으로 넘긴다
   const renamed = renamedNetKey(netKey);
   if (renamed) {
     const params = new URLSearchParams(searchParams);
@@ -322,7 +319,7 @@ export function DispatchPage() {
     return <Navigate to={`/dispatch?${params.toString()}`} replace />;
   }
 
-  // 🔴 모르는 배차망이면 멈춘다 — 짐작해서 한 배차망으로 그리지 않는다 (nets.ts · 계획서 §3-3)
+  // 🔴 모르는 배차망이면 멈춘다 — 짐작해서 한 배차망으로 그리지 않는다 (nets.ts)
   const simNet = simNetOf(netKey);
   if (!simNet) return <UnknownNetScreen netKey={netKey} />;
 
