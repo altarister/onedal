@@ -29,7 +29,10 @@
 
 ## 함정
 
-- **조건부 `DROP TABLE` 마이그레이션을 새로 추가하지 않는다** (`db.ts` — 부팅 경로에서 데이터가 날아감)
+- **조건부 `DROP TABLE` 마이그레이션을 새로 추가하지 않는다** (`db.ts` — 부팅 경로에서 데이터가 날아감).
+  옛것이 둘 남아 있다 (`order_judgments` 재구성 · `orders` 상태값 변환 V7 — 지금 DB 에서는 조건이 안 맞아 안 돈다)
+
+- **타이머는 `session.activeTimers` 에 넣어 취소할 수 있게 한다** — 끄는 곳은 `clearOrderTimers` 한 곳이다 (키를 손으로 나열하면 좀비 타이머가 남는다)
 
 - **`CREATE TABLE IF NOT EXISTS` 는 기존 테이블에 컬럼을 추가하지 않는다.** 칸 추가는 `ensureColumns()` 로 한다.
   enum 성 칸에는 `CHECK` 를 걸지 않는다 — 낡은 `CHECK` 는 새 값을 조용히 거부하고 `ALTER` 로 못 고친다 (`db.ts` 머리).
