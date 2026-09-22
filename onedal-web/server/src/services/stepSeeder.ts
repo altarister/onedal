@@ -18,9 +18,8 @@
  * 그대로 예측 오차다 (todo ⑥).
  */
 import db, { dwellRatesFor } from '../db';
-// 🔴 **미리 눌러 두는 기본값은 shared 하나에서 온다**. 예전엔 여기서
-//    `['결박']`·`['정리']`·`['일반화물']` 을 **손으로 다시 적어** 두 벌이었다.
-//    같은 값이라 화면은 똑같이 나왔고, 사고는 «한쪽만 고치는 날» 났을 것이다 (규칙 ③).
+// 🔴 **미리 눌러 두는 기본값은 shared 하나에서 온다** — 여기서 손으로 다시 적으면 두 벌이 되어
+//    «한쪽만 고치는 날» 갈라진다 (규칙 ③).
 import { DEFAULT_PROTECTIONS, DEFAULT_AFTERWORKS, DEFAULT_CARGO_TAG } from '@onedal/shared';
 import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOfSteps,
          parseCargoHints, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT,
@@ -68,15 +67,14 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     routeTl?: RouteTl) {
     const cfg = judgment ?? DEFAULT_JUDGMENT;
     /**
-     * 🔴 **손으로 만들지 않는다** (리뷰에서 잡힘). 예전엔 여기서 두 칸만
-     *    떠서 만들었고, 그래서 7단계로 올린 정차 값(박스당 분·검수 분)이 **판정 경로에
-     *    안 닿았다.** 만드는 곳이 둘이면 갈라진다 (#33 클래스).
+     * 🔴 **손으로 만들지 않는다** — 여기서 칸 몇 개만 떠서 만들면 정차 값(박스당 분·검수 분)이
+     *    **판정 경로에 안 닿는다.** 만드는 곳이 둘이면 갈라진다.
      */
     const unk = derivationInputsOf(cfg, o.userId ? dwellRatesFor(o.userId) : undefined).unk;
     // ⏱️ 두 시계 (시간체계 ⑯) — 여유30·휴게30 은 폐기됐다. 지어낸 여유는 없다
 
     // ── 짐: **가장 신선한 것** — 상차 실측 > 상차 통화 계획 > **적요** > 차종 기본 (규칙 ⑤-2)
-    //    🔴 적요 파싱은 여기(출생) 한 곳이다 (기사님 기획 승인 2026-08-21).
+    //    🔴 적요 파싱은 여기(출생) 한 곳이다 (기사님 기획 승인).
     //       옛 시트는 열릴 때마다 파싱했다 — 이제 태어날 때 한 번 읽어 계획에 넣고,
     //       화면은 `planned_source` 배지(📄 적요에서 읽음 · 🚚 차종 기본값)만 그린다.
     const loaded = born.LOADED, callP = born.CALL_PICKUP, callD = born.CALL_DROPOFF;
@@ -100,7 +98,7 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     const pickupDwell = dwellMinutes(handling, points, 'pickup', unk, protections);
     const dropoffDwell = dwellMinutes(dropHandling, points, 'dropoff', unk, null, afterworks);
 
-    // ── 시각: 실측 > 굳은 약속 > 추정 의 사슬 (접근은 저장 컬럼이 아니라 뺄셈이다 — 2026-08-20)
+    // ── 시각: 실측 > 굳은 약속 > 추정 의 사슬 (접근은 저장 컬럼이 아니라 뺄셈이다 —)
     const capturedMs = Date.parse(o.capturedAt ?? new Date().toISOString());
     const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     // 🚚 실측이 없으면 배송거리로 추정 — 값이 태어나는 자리는 soloMinutesOf 하나다 (규칙 ③)
@@ -120,7 +118,7 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
         ? Math.max(0, total - solo) : null;
 
     /**
-     * 🧭 **경로가 알면 경로가 이긴다** (기사님 실측 2026-08-21 · 3콜 리허설).
+     * 🧭 **경로가 알면 경로가 이긴다** (기사님 실측 · 3콜 리허설).
      *    합짐은 kakaoSolo 가 없어 예측이 전부 null 이었는데, 경로(타임라인)는
      *    `⑴ 상차 4분`을 알고 있었다. 콜 단독 값은 경로가 모를 때의 폴백이다.
      */
@@ -132,9 +130,8 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     /**
      * ⏱️ **상차 약속** — 통화 약속 > 적요의 상차 시각 > 콜 잡은 시각 + 20분 (용어집).
      *
-     * 🔴 **여기서 손으로 다시 만들지 않는다** (0831 리뷰). 예전엔 적요 파싱과 KST 날짜
-     *    조립을 이 파일이 한 벌 더 갖고 있었고, 게다가 `max(도착 예상, 시계)` 로 눌러
-     *    **장부에 저장되는 약속**이 타임라인의 약속과 다른 시각을 말했다.
+     * 🔴 **여기서 손으로 다시 만들지 않는다** — 적요 파싱과 날짜 조립을 한 벌 더 두면
+     *    **장부에 저장되는 약속**이 타임라인의 약속과 다른 시각을 말한다.
      *    약속을 만드는 자리는 `pickupClockMsOf` 하나다 (규칙 ③).
      * 🔴 약속은 도착 예상을 따라가지 않는다 — 늦으면 상차버퍼가 음수로 드러나야 한다.
      */
@@ -219,9 +216,9 @@ function birthNext(userId: string, orderId: string, after: StepId, judgment?: Ju
 /**
  * 마감 — 그 단계의 사건이 가져온 값만 쓴다.
  *
- * 🔴 **거기까지의 미출생을 전부 낳는다** (기사님 실측 2026-08-21 · 3콜 리허설).
- *    예전엔 없는 행 하나만 낳아서, GPS 가 통화를 건너뛰면 하차지 통화가 영영
- *    미출생이었다 — 회색 모형이라 운행 중 통화를 못 했다. 빠뜨린 단계는
+ * 🔴 **거기까지의 미출생을 전부 낳는다** (기사님 실측 · 3콜 리허설).
+ *    없는 행 하나만 낳으면 GPS 가 통화를 건너뛸 때 하차지 통화가 영영 미출생이라 운행 중 통화를 못 한다.
+ *    빠뜨린 단계는
  *    PLANNED 로 태어나(안 한 건 안 한 것) 노란 막대로 보이고, 언제든 채울 수 있다.
  */
 function finalizeStep(userId: string, orderId: string, step: StepId,
@@ -250,9 +247,8 @@ function finalizeStep(userId: string, orderId: string, step: StepId,
 /**
  * 🌉 통화·현장 저장이 단계 행을 채운다. 실패해도 본 흐름을 막지 않는다 (호출부 try).
  *
- * ⚠️ 예전엔 «다리»였다 — 옛 표(`stop_cargo_reports`)와 나란히 쓰던 시절의 이름이다.
- *    **그 표는 2026-08-21 에 철거됐고 지금 이 경로가 유일한 저장 경로다** (08-29 정정).
- *    이름이 «곁다리»로 읽히면 호출부의 try 가 «실패해도 그만»으로 오해된다
+ * ⚠️ **이 경로가 유일한 저장 경로다** — 이름의 «bridge» 를 «곁다리»로 읽으면 호출부의 try 가
+ *    «실패해도 그만»으로 오해된다
  */
 export function bridgeCargoReport(userId: string, orderId: string,
     report: CargoReport, judgment?: JudgmentConfig, routeTl?: RouteTl) {
@@ -263,7 +259,7 @@ export function bridgeCargoReport(userId: string, orderId: string,
             status: report.kind === 'SKIPPED' ? 'SKIPPED' : 'DONE',
             occurred_at: now,
             source: report.kind === 'SKIPPED' ? 'SKIPPED' : 'MANUAL_WEB',
-            // 🔴 약속이 여기서 굳는다 — 스킵이어도 미리 눌린 값이 확정이다 (기사님 2026-08-19)
+            // 🔴 약속이 여기서 굳는다 — 스킵이어도 미리 눌린 값이 확정이다 (기사님)
             promised_arrival_at: report.promisedArrivalAt ?? undefined,
             promised_arrival_from_at: report.promisedArrivalFromAt ?? undefined,
             planned_unit: report.unit ?? undefined,
@@ -277,7 +273,7 @@ export function bridgeCargoReport(userId: string, orderId: string,
             onward_deadline_at: (report as any).onwardDeadlineAt ?? undefined,
         }, judgment, routeTl);
         /**
-         * ⏱️ **짐이 바뀌었으면 예측 정차도 다시 잰다** (기사님 리허설 2026-08-30).
+         * ⏱️ **짐이 바뀌었으면 예측 정차도 다시 잰다** (기사님 리허설).
          *
          * 장부에서 같은 콜의 두 행이 다른 예측을 들고 있었다:
          * ```
@@ -339,9 +335,8 @@ export function bridgeMilestone(userId: string, orderId: string, milestone: Mile
  *
  * ── 🔴 이건 **콜 하나짜리 값**이다 (A) ──
  *
- * 처음엔 콜 옵션 표(`call_options`)의 「박스당 분」을 되돌려 계산해 고쳤다 — 그건 **B**,
- * 즉 «앞으로 잡을 모든 콜»의 규칙을 바꾸는 짓이었다. 오늘 이 짐이 무거웠다는 사실이
- * 내일 남의 짐 예측까지 바꾸면 안 된다. 기사님이 A 로 확정했다.
+ * 콜 옵션 표(`call_options`)의 「박스당 분」을 고치는 것은 «앞으로 잡을 모든 콜»의 규칙(B)이다.
+ * 오늘 이 짐이 무거웠다는 사실이 내일 남의 짐 예측까지 바꾸면 안 된다 — 기사님이 A 로 확정했다.
  *
  * ── 🔴 **완료 단계에서만 연다** ──
  *
@@ -443,9 +438,7 @@ export function bridgeUndoMilestone(userId: string, orderId: string, milestone: 
  * 짐 성질·타임라인·복구)가 전부 **이 관문 하나**를 거친다.
  * KEEP 전 후보는 행이 없어 빈 기록이 나온다 — 옛 장부와 같은 동작이다.
  *
- * ⚠️ 예전 주석은 *"쓰기는 아직 양쪽(다리) — 넘어가면 옛 테이블을 손으로 철거한다"* 였는데
- *    **철거는 2026-08-21 에 이미 끝났다** (db.ts:277 · OrderRepository.ts:84).
- *    지금 이 표가 **유일한 원천**이다 — «곁다리라 실패해도 된다»로 읽히면 안 된다 (08-29 정정)
+ * ⚠️ 이 표가 **유일한 원천**이다 — «곁다리라 실패해도 된다»로 읽히면 안 된다
  */
 /** 이 마일스톤이 이미 새 장부에 찍혀 있는가 — reportMilestone 멱등의 근거 (옛 UNIQUE 대체) */
 export function milestoneAlreadyRecorded(orderId: string, milestone: string): boolean {
@@ -458,7 +451,7 @@ export function milestoneAlreadyRecorded(orderId: string, milestone: string): bo
 }
 
 /**
- * 🚚 **KEEP 전에도 이 콜의 정차 시간을 말해 준다** (기사님 지적 2026-08-29).
+ * 🚚 **KEEP 전에도 이 콜의 정차 시간을 말해 준다** (기사님 지적).
  *
  * `recordsOfSteps` 는 **안 태어난 행을 버린다** — 「저장된 게 아니다」가 맞는 원칙이다.
  * 그런데 정차 시간은 신고가 아니라 **계산 결과**다. 사슬(`computeChain`)이 차종에서
