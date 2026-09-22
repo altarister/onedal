@@ -1,5 +1,5 @@
 /**
- * 📦 **지도 실험실 → 앱 전달 아웃풋 빌더** (기사님 2026-09-07: *"DB·서버 없이 필터 로직을
+ * 📦 **지도 실험실 → 앱 전달 아웃풋 빌더** (기사님: *"DB·서버 없이 필터 로직을
  * 잘 만들어 앱에 전달할 아웃풋만 만든다"* · *"구조·요소·키만 맞으면 될 것 같아"*).
  *
  * 🔴 **키 대조는 눈이 아니라 컴파일러가 한다** — 반환 객체를
@@ -9,8 +9,8 @@
  * 읽기 전용이다: shared 의 수식(`rateFloorsFrom`)을 **읽기만** 하고, 실물 코드는 이 파일을
  * import 하지 않는다 — 실험실 수정이 실물에 영향 없음.
  *
- * 🔴 **국면(`PHASE_FIELDS`·`resolvePhaseKey`)을 더는 읽지 않는다** (기사님 확정).
- *    값이 한 벌이 되며 «어느 벌인가»가 없어졌다. 실물은 아직 다섯 벌이라 **여기서 갈린다**.
+ * 🔴 **국면(`PHASE_FIELDS`·`resolvePhaseKey`)을 읽지 않는다** (기사님 확정) —
+ *    실험실의 값은 한 벌이라 «어느 벌인가»가 없다. 실물은 아직 다섯 벌이라 **여기서 갈린다**.
  */
 import {
     rateFloorsFrom, TRUCK_CAPACITY_SLOTS,
@@ -19,11 +19,11 @@ import {
 // ⛔ 제외 판정은 **한 벌**이다 — 화면과 아웃풋이 갈리면 «화면은 뺐는데 아웃풋은 안 뺀» 사고가 난다
 import { isRegionExcluded, isWholeRegionExcluded, sggList } from '@onedal/shared';
 
-/** 실물 DTO 에 **아직 없는** 실험실 제안 칸 — 이식 때 DTO 로 올라갈 후보들 */
+/** 실물 DTO 에 **아직 없는** 실험실 제안 칸 — 실물로 옮길 때 DTO 로 올라갈 후보들 */
 export interface LabProposedFields {
     /** 지역 제외 — 실물 excludedKeywords 는 «단어»라 칸을 새로 판다 (규칙 ⑤-4 ⑤: 한 값이 두 질문 금지) */
     excludedRegions: string[];
-    /** ③ 기사님 확정 2026-09-07: 좌표까지 앱에 내려준다 — 앱이 거리식(2단계)도 스스로 잴 재료 */
+    /** ③ 기사님 확정: 좌표까지 앱에 내려준다 — 앱이 거리식(2단계)도 스스로 잴 재료 */
     destinationDongs: Array<{ name: string; region: string; lng: number; lat: number }>;
     /** 이 목록이 어느 계산에서 나왔나 — 실험실 설명용 */
     mode: string;
@@ -32,7 +32,7 @@ export interface LabProposedFields {
 export interface LabFilterInputs {
     /** 실물 요약줄의 노선/복귀 — 관내는 여기 없다 (실험실만 아래 `localMode` 로 잰다) */
     callTarget: 'DEST' | 'HOME';
-    /** 🏘️ 목업이 지금 관내 자리로 재고 있나 — 실험실 전용 (실물 필터 칸은 2026-09-15 걷었다 · 목적지 가까이 옴) */
+    /** 🏘️ 목업이 지금 관내 자리로 재고 있나 — 실험실 전용 (실물 필터에는 이 칸이 없다 · 목적지 가까이 옴) */
     localMode: boolean;
     /** 실험실 상태에서 파생: 콜 0 = STANDBY · 콜 쥠 = GATHERING · 주행 = DELIVERING */
     dispatchPhase: 'STANDBY' | 'GATHERING' | 'DELIVERING';
@@ -82,9 +82,8 @@ export function buildAppFilterOutput(i: LabFilterInputs) {
         isSharedMode: i.dispatchPhase === 'GATHERING',
         /**
          * ── 지역 축 ──
-         * 🔴 **숨김(hidden) 처리를 걷어냈다** (기사님 확정 · 값은 한 벌).
-         *    예전엔 국면별 `PHASE_FIELDS` 로 «그 국면에서 안 쓰는 칸»을 아웃풋에서 뺐다.
-         *    그런데 **지금 안 쓰는 값은 그냥 안 읽힐 뿐이다** — 빼면 받는 쪽이 «없다»와
+         * 🔴 **국면별로 «그 국면에서 안 쓰는 칸»을 아웃풋에서 빼지(hidden) 않는다** (기사님 확정 · 값은 한 벌).
+         *    **지금 안 쓰는 값은 그냥 안 읽힐 뿐이다** — 빼면 받는 쪽이 «없다»와
          *    «안 쓴다»를 구별 못 하고, 화면과 아웃풋이 다른 말을 하게 된다.
          * ⚠️ 평면(앱 피기백) 이름: lineRadiusKm↔detourRadiusKm · dropoffRadiusKm↔destinationRadiusKm · discountPct↔callDiscountPct
          */
