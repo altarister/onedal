@@ -7,7 +7,7 @@ import org.junit.Test
 /**
  * 🌐🖱️ **배차망 매핑과 «잡은 방식» — 각각 한 곳에서만 파생한다** (기사님 확정)
  *
- * · TargetApp: 라벨→코드 매핑이 네 곳에 흩어져 있던 것을 한 곳으로 (픽커_수집.md §6-전).
+ * · TargetApp: 라벨→코드 매핑은 이 한 곳에만 둔다.
  *   배차망을 더할 때 여기 한 곳만 늘린다 — 값이 갈라지면 서버가 기본값으로 받는다.
  * · capturedVia: 6하원칙의 «어떻게»(자동·알람·직접) — **원장 기록 전용**이다.
  *   보호 분기는 여전히 clickOrigin(둘)이 만든 matchType 만 본다 (#75 재발 방지).
@@ -17,7 +17,7 @@ class CapturedViaAndTargetAppTest {
     @Test
     fun `🚧 잡기 수순 능력 - 픽커는 어떤 모드여도 클릭하지 않는다 (수집·알람 전용)`() {
         // 인성 잡기 수순(상세→팝업3장→확정)이 픽커에서 돌면 엉뚱한 화면을 누른다 —
-        // 픽커는 수락한 뒤에야 주소가 나오는 딴 수순이다 (픽커_수집.md §3-확장)
+        // 픽커는 수락한 뒤에야 주소가 나오는 딴 수순이다
         assertEquals(false, TargetApp.supportsCatching(TargetApp.KAKAOPICKER))
         assertEquals(true, TargetApp.supportsCatching(TargetApp.INSUNG))
         assertEquals(true, TargetApp.supportsCatching(TargetApp.HWAMUL24))
@@ -67,8 +67,8 @@ class CapturedViaAndTargetAppTest {
 
 /**
  * 📝 **실제 픽커 앱인가 — 로그 조건 하나에만 쓴다** (기사님 확정 ㉯).
- * 배차망은 화면 글자로 정한다(`NetworkByScreenTest`). 옛 이름 `PackageToNetworkTest` 는
- * 앱 이름으로 배차망을 정하던 검사였고, 그 길을 지우며 이 검사로 바뀌었다.
+ * 배차망은 화면 글자로 정한다(`NetworkByScreenTest`). 앱 이름은 이 로그 조건에만 쓴다 —
+ * 앱 이름으로 배차망을 정하면 시뮬레이터 앱 하나가 띄우는 세 배차망 화면을 가르지 못한다.
  */
 class PickerAppLogConditionTest {
     @org.junit.Test
@@ -81,7 +81,7 @@ class PickerAppLogConditionTest {
 
     /**
      * 🚚 **시뮬레이터에서도 운행 단계를 찍는다 — 모르는 화면은 안 모은다** (기사님 지시).
-     * 시뮬레이터 앱은 설정 화면·인성·화물24시도 띄운다 — 그 글자가 «모르는 픽커 화면»으로 로그를 덮으면 09-02 사고다.
+     * 시뮬레이터 앱은 설정 화면·인성·화물24시도 띄운다 — 그 글자가 «모르는 픽커 화면»으로 로그를 덮으면 진짜 픽커 화면 기록이 묻힌다.
      */
     @org.junit.Test
     fun `로그 범위 - 실제 픽커는 둘 다 · 시뮬레이터 픽커 화면은 운행 단계만 · 그 밖은 없음`() {
@@ -91,7 +91,7 @@ class PickerAppLogConditionTest {
         assertEquals(TargetApp.PickerLog.STAGE_ONLY, TargetApp.pickerLogScope(sim, TargetApp.KAKAOPICKER))
         assertEquals(TargetApp.PickerLog.NONE, TargetApp.pickerLogScope(sim, TargetApp.INSUNG))      // 시뮬레이터 인성 화면
         assertEquals(TargetApp.PickerLog.NONE, TargetApp.pickerLogScope(sim, TargetApp.HWAMUL24))
-        assertEquals(TargetApp.PickerLog.NONE, TargetApp.pickerLogScope("com.android.systemui", TargetApp.KAKAOPICKER))   // 잠금화면 (09-02)
+        assertEquals(TargetApp.PickerLog.NONE, TargetApp.pickerLogScope("com.android.systemui", TargetApp.KAKAOPICKER))   // 잠금화면
         assertEquals(TargetApp.PickerLog.NONE, TargetApp.pickerLogScope(null, TargetApp.KAKAOPICKER))
     }
 }
