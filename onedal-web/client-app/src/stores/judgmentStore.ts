@@ -42,8 +42,8 @@ export const useJudgmentStore = create<JudgmentState>((set) => ({
 
 /**
  * ⏱️ **정차 값을 만드는 곳은 여기 하나다** (규칙 ③).
- *    화면 컴포넌트가 각자 `derivationInputsOf` 를 부르면 **콜 옵션을 빠뜨리기 쉽다** —
- *    2026-08-29 에 통화 시트가 정확히 그래서 판정과 갈렸다 (#71).
+ *    화면 컴포넌트가 각자 `derivationInputsOf` 를 부르면 **콜 옵션을 빠뜨리기 쉽고**,
+ *    빠뜨리면 통화 시트와 판정이 갈린다 (#71).
  */
 export function useDerivation() {
     const judgment = useJudgmentStore(st => st.judgment);
@@ -54,8 +54,8 @@ export function useDerivation() {
 /**
  * 🔴 **구독은 앱 전체에서 단 한 번.**
  *
- * 2026-08-14 에 `useFilterConfig` 를 부르는 컴포넌트가 5개였고 **훅마다 `socket.on` 을 걸어**
- * 서버가 1번 보낸 것을 관제웹이 **5번 처리**했다. 같은 실수를 여기서 되풀이하지 않는다.
+ * **훅마다 `socket.on` 을 걸면** 서버가 1번 보낸 것을 관제웹이 **부르는 컴포넌트 수만큼**
+ * 처리한다.
  * (`filterStore.ensureFilterSocketSubscribed` 와 같은 방식)
  */
 let subscribed = false;
@@ -74,7 +74,7 @@ export function ensureJudgmentSocketSubscribed(): void {
      *
      * 서버는 **소켓 접속 순간**에 한 번 보낸다. 그런데 이 구독은 기사님이
      * ⚙️ 설정 → 「판정 기준」 탭을 **여는 순간** 시작될 수도 있다 — 그러면 이미 지나갔고,
-     * `loaded` 가 false 라 폼이 잠긴 채로 남는다 (에 실제로 그랬다).
+     * `loaded` 가 false 라 폼이 잠긴 채로 남는다.
      *
      * 그래서 **아직 못 받았으면 달라고 한다.** 콜 필터의 `request-filter-init` 과 같은 방식이다.
      * 재접속에도 안전하다 — `connect` 마다 다시 물어본다.
