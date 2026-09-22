@@ -2,12 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { verdictOf } from './verdict';
 
 /**
- * 🎨 **색은 값으로 온다 — 문장을 뒤져서 정하지 않는다** (4단계)
+ * 🎨 **색은 값으로 온다 — 문장을 뒤져서 정하지 않는다**
  *
- * ── 무엇이 문제였나 ──
- *
- * 서버가 판정을 **문장 하나**로 만들어 보내고, 화면이 그 문장 안에 `'꿀'` 이라는
- * **글자가 들어 있는지 뒤져서** 색을 정했다.
+ * 화면은 서버가 값으로 보낸 색(`judgment.color`)을 쓴다 — 사유 문장이 `judgment.gates` 에서 오는 것과 같다.
+ * 판정 **문장** 안에 `'꿀'` 이라는 **글자가 들어 있는지 뒤져서** 색을 정하면
  *
  * ```
  * 서버:  "'꿀' 🍯 [추천] 총 87분 · 3.5만/h …"
@@ -19,14 +17,8 @@ import { verdictOf } from './verdict';
  *    걸리지도 않는다 — **화면만 조용히 틀린 색을 낸다.**
  *    색이 곧 기사님의 결정이다 (규칙 ⑤-3).
  *
- * 🔴 **어이없는 것은 서버가 색을 이미 값으로 보내고 있었다는 점이다.**
- *    화면도 그 값을 쓴다 — 사유 문장은 `judgment.gates` 에서 꺼내 쓴다.
- *    **정작 색만** 문장 뒤지기로 정했다.
- *
- * ── 어떻게 고치나 ──
- *
- * 값이 있으면 값을 쓰고, **없으면 지금처럼 글자를 찾는다.** 옛 서버·재시작 직후처럼
- * 값이 안 오는 경우가 있을 수 있어 한 번에 갈아치우지 않는다 (규칙 ②: 겹쳐 둔다).
+ * 값이 있으면 값을 쓰고, **없으면 문장에서 글자를 찾는다** — 서버 재시작 직후처럼 값이 안 오는 경우가 있어
+ * 문장 읽기를 폴백으로 겹쳐 둔다 (규칙 ②: 겹쳐 둔다).
  */
 
 const phraseOf = (s: string) => ({ kakaoTimeExt: s });
@@ -40,32 +32,32 @@ describe('🎨 색은 값에서 온다', () => {
         expect(verdictOf(valueOf_('보통') as any).color).toBe('보통');
     });
 
-    /** 🔴 이게 이 고침의 핵심 — 문장이 뭐라 하든 값이 이긴다 */
+    /** 🔴 핵심 — 문장이 뭐라 하든 값이 이긴다 */
     it('🔴 문장과 값이 다르면 **값이 이긴다**', () => {
         const mismatch = { kakaoTimeExt: "'똥' 이라고 적혀 있지만", judgment: { color: '꿀', score: 90, axes: [], gates: [], tags: [] } };
         expect(verdictOf(mismatch as any).color).toBe('꿀');
         expect(verdictOf(mismatch as any).source).toBe('값');
     });
 
-    /** 🔴 문구를 다듬으면 색이 바뀌던 그 상황 — 값이 있으면 안 흔들린다 */
+    /** 🔴 문구를 다듬어도 값이 있으면 색이 안 흔들린다 */
     it('🔴 따옴표를 빼도 색이 안 바뀐다 — 예전엔 「보통」으로 떨어졌다', () => {
         const trimmedPhrase = { kakaoTimeExt: '꿀콜입니다 총 87분', judgment: { color: '꿀', score: 83, axes: [], gates: [], tags: [] } };
         expect(verdictOf(trimmedPhrase as any).color).toBe('꿀');
     });
 
     /**
-     * 🔴 **실제로 나던 일** (코드로 확인).
+     * 🔴 **최초 심사와 재탐색은 같은 색을 다른 모양으로 적는다** (코드로 확인).
      *
      * 최초 심사는 `'꿀'`(따옴표)로 적는데, **재탐색**(맵뷰의 추천/최단시간/최단거리 버튼)은
      * 같은 색을 `🍯 (꿀)`(괄호)로 적는다 — `dispatchEngine.ts` 의 `recommend`.
-     * 문장 뒤지기는 따옴표만 찾으므로 **재탐색을 누른 순간 꿀콜이 「보통」 초록으로 떨어졌다.**
-     * 🚨 `(사고)` 도 마찬가지 — **잡으면 사고인 콜이 초록**으로 보였다.
+     * 문장 뒤지기는 따옴표만 찾으므로 값이 없으면 **재탐색을 누른 순간 꿀콜이 「보통」 초록으로 떨어진다.**
+     * 🚨 `(사고)` 도 마찬가지 — **잡으면 사고인 콜이 초록**으로 보인다.
      */
     it('🔴 재탐색이 쓰는 「🍯 (꿀)」 모양에서도 색이 안 흔들린다', () => {
         const researched = { kakaoTimeExt: '[최단시간] +3.2km, +12분 🍯 (꿀) ',
                        judgment: { color: '꿀', score: 83, axes: [], gates: [], tags: [] } };
         expect(verdictOf(researched as any).color).toBe('꿀');
-        // 값이 없던 예전에는 이 문구가 「보통」으로 떨어졌다 — 그게 이 고침의 이유다
+        // 값이 없으면 이 문구는 「보통」으로 떨어진다 — 그래서 값을 먼저 쓴다
         expect(verdictOf({ kakaoTimeExt: researched.kakaoTimeExt } as any).color).toBe('보통');
     });
 
