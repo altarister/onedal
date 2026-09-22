@@ -272,3 +272,30 @@ git diff --cached --stat    # 낯선 파일이 보이면 멈춘다
 - **남이 고치는 파일 때문이면 커밋을 멈추고 기사님께 알린다** — 그 파일은 손대지 않는다. «전부 통과해야 커밋»이 우선이다
 
 🔴 커밋을 되돌리기(`git reset`) 전에 반드시 묻는다 — 그 위에서 일하던 다른 에이전트의 이력이 흔들린다
+
+## 주석 점검 진행 중 — 끝나면 이 절을 지운다
+
+코드 주석에서 경위 · 코드와 다른 말 · 부정어를 걷어 **지금 상태와 까닭 한 줄**만 남기는 일이다 (기사님 결정).
+주석을 고치는 에이전트는 이 절을 따른다.
+
+- **단위** — 파일 하나 = 한 차례 = 커밋 하나. 커밋 제목은 `chore(주석): <파일 경로>` 로 고정한다. 이 제목이 장부다 — 표를 따로 두지 않는다.
+  고칠 것이 없던 파일도 같은 제목의 빈 커밋(`--allow-empty`)을 남긴다. 그래야 다음 파일 명령이 그 파일을 건너뛴다
+- **순서** — shared → server → onedal-app → client-app → onedal-sim → logbook · map → 검사 파일(맨 뒤). 묶음 안은 경로 이름순
+- **읽는 줄** — 아래 명령이 찾는 후보 줄(기사님 인용 · 날짜 · 지난 상태를 말하는 말 · «하지 않는다»·«말 것»). 줄마다 넷 중 하나로 판정한다
+  - 🔴 코드와 다른 말 → 코드가 지금 하는 일로 다시 쓴다
+  - 🟡 경위 → 지금 규칙과 까닭 한 줄만 남긴다. 기사님 인용이 **규칙 그 자체**(값 · 결정)면 남긴다
+  - ⚫ 부정어 — «하지 않는다»·«말 것»만 있고 무엇을 해야 하는지가 없는 문장 → «무엇을 한다»로 다시 쓴다
+  - ✅ 그대로
+- **절차** — 판정 → 고친 사본을 VS Code 디프 탭으로 연다 → 기사님 «고쳐» → 그 파일을 읽는 검사(`grep -rl <경로>`)와 `pnpm audit:docs` → 커밋
+- **게이트** — 이 절이 있는 동안은 「커밋 전 필수」의 예외다. 파일마다는 위 둘만 돌리고, 전체 게이트는 묶음이 끝날 때 한 번 돌린다 (기사님 결정)
+- **못 잡는 것** — 후보 줄에 안 걸린 주석의 «코드와 다른 말»
+- **다음 파일** — 이 명령이 낸다. 빈 줄을 내면 끝났다는 뜻이고, 그때 이 절을 지운다
+
+```bash
+W='기사님|20[0-9]{2}-[0-9]{2}-[0-9]{2}|예전|걷어|되살|없앴|지웠|신설|철거|였다|이었다|하지 않는다|말 것'
+T='\.test\.tsx?$|/tests/|/src/test/'
+for pass in code test; do for d in onedal-web/shared/src onedal-web/server onedal-app/app/src onedal-web/client-app/src onedal-sim onedal-web/logbook/src onedal-map; do
+  git ls-files "$d" | grep -E '\.(ts|tsx|kt)$' | { if [ $pass = code ]; then grep -Ev "$T"; else grep -E "$T"; fi; } | sort
+done; done | while read f; do grep -qE "$W" "$f" || continue
+  git log -1 --oneline --grep="chore(주석): $f\$" | grep -q . || { echo "$f"; break; }; done
+```
