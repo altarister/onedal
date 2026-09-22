@@ -5,8 +5,7 @@ import { buildInfoPlugin } from './buildInfoPlugin';
 /**
  * 🧪 **시뮬레이터 검사** — `pnpm test` (기사님 확정)
  *
- * 그 전까지 onedal-sim 에는 검사 실행 명령이 아예 없었다. 공통 코드에서 인성·24시를 떼어내는
- * 0단계는 «떼기 전과 후가 같은가»를 봐야 해서, 이것이 먼저다.
+ * 공통 코드와 배차망 폴더 사이로 코드를 옮기면 «옮기기 전과 후가 같은가»를 이 검사(화면 글자 스냅숏 등)가 문다.
  *
  * ⚠️ onedal-web 과 같은 vitest 이지만 **워크스페이스는 여전히 따로다** (pnpm-workspace.yaml 머리 주석).
  */
