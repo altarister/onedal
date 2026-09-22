@@ -15,7 +15,7 @@ import { join } from 'path';
 
 const BOARD = join(__dirname, '../../../client-app/src/statusboard');
 const read = (rel: string) => readFileSync(join(BOARD, rel), 'utf8');
-/** 주석을 걷어낸 **코드만** — 주석에 남은 옛 모양이 거짓 빨간불을 만들지 않게 */
+/** 주석을 걷어낸 **코드만** — 주석에 적은 예시 모양이 거짓 빨간불을 만들지 않게 */
 const codeOnly = (src: string) =>
     src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
@@ -27,8 +27,7 @@ describe('현황판 — 시뮬 전용 문(`/api/sim/*`)을 한 곳으로 지난�
 
     /**
      * 🔴 **카드가 `fetch` 로 시뮬 문을 직접 두드리지 않는다.**
-     *    두드리는 자리가 늘어나는 만큼 «ok 를 안 보는 자리»도 늘어난다 —
-     *    이번에 둘이 그렇게 생겼다.
+     *    두드리는 자리가 늘어나는 만큼 «ok 를 안 보는 자리»도 늘어난다.
      */
     it('🔴 `/sim/` 을 직접 `fetch` 하는 카드가 없다 — 전부 `simFetch` 를 지난다', () => {
         const raw: string[] = [];
@@ -58,8 +57,8 @@ describe('현황판 — 시뮬 전용 문(`/api/sim/*`)을 한 곳으로 지난�
     });
 
     /**
-     * 🔴 **닫힌 것을 알면 다시 안 묻는다** — 기사님 콘솔이 404 로 뒤덮였던 것이
-     *    5초·1.5초마다 계속 두드렸기 때문이다.
+     * 🔴 **닫힌 것을 알면 다시 안 묻는다** — 5초·1.5초마다 계속 두드리면
+     *    콘솔이 404 로 뒤덮인다.
      */
     it('🔴 문이 닫힌 것을 기억하고 그 뒤로는 묻지 않는다', () => {
         const src = codeOnly(read('simDoor.ts'));
@@ -82,7 +81,7 @@ describe('현황판 — 시뮬 전용 문(`/api/sim/*`)을 한 곳으로 지난�
 
     /**
      * 🔴 **`index !== null` 만 믿지 않는다** — `undefined !== null` 이 true 라
-     *    «줄이 있다»로 읽혀 `rows[undefined]` 로 터진 바로 그 자리다.
+     *    «줄이 있다»로 읽혀 `rows[undefined]` 로 터진다.
      */
     it('🔴 `ScenarioCard` 는 줄(`rows`)이 배열일 때만 화면을 세운다', () => {
         const src = codeOnly(read('ScenarioCard.tsx'));
