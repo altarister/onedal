@@ -43,7 +43,7 @@ export class OrderRepository {
             cachedOrder.dropoff,
             cachedOrder.fare || 0,
             cachedOrder.timestamp || new Date().toISOString(),
-            // [Phase 2] 레거시 소문자 'confirmed'로 저장되어 GET /api/orders 와
+            // 레거시 소문자 'confirmed'로 저장되어 GET /api/orders 와
             // restoreAndRecalculateSession 의 status IN ('ORDER_CONFIRMED',...) 조회에서
             // 누락되던 버그 수정. ON CONFLICT 절과도 값이 일치하게 됨.
             "ORDER_CONFIRMED",
@@ -67,10 +67,10 @@ export class OrderRepository {
              */
             (cachedOrder as any).routePolyline?.length
                 ? JSON.stringify((cachedOrder as any).routePolyline) : null,
-            /** 🎨 구간 경계도 궤적과 **함께** 남긴다 — 선만 살고 경계가 없으면 지도가 한 색이 된다 (이식 B1) */
+            /** 🎨 구간 경계도 궤적과 **함께** 남긴다 — 선만 살고 경계가 없으면 지도가 한 색이 된다 */
             (cachedOrder as any).sectionEnds?.length
                 ? JSON.stringify((cachedOrder as any).sectionEnds) : null,
-            /** 🧭 구간 주인도 함께 — 셋(궤적·경계·주인)이 갈라지면 지도가 색을 잃는다 (이식 B2) */
+            /** 🧭 구간 주인도 함께 — 셋(궤적·경계·주인)이 갈라지면 지도가 색을 잃는다 */
             (cachedOrder as any).sectionStops?.length
                 ? JSON.stringify((cachedOrder as any).sectionStops) : null,
             cachedOrder.paymentType || null,
@@ -94,8 +94,7 @@ export class OrderRepository {
     }
 
     /**
-     * 🔄 옛 장부(stop_cargo_reports · order_milestones) 함수들은 철거됐다 (기사님 확인
-     * 2026-08-21). 신고·마일스톤의 유일한 원천은 여섯 단계 행이고, 읽기는
+     * 🔄 신고·마일스톤의 유일한 원천은 여섯 단계 행이고, 읽기는
      * stepSeeder.stepRecordsOf 하나다. 정산(cod·settlement)은 orders 테이블이라 남는다.
      */
 
@@ -137,10 +136,8 @@ export class OrderRepository {
     /**
      * 🎨 **스냅샷을 판정 그대로 되살린다** — 새로 재는 것이 아니라 **그때 그 값**이다.
      *
-     * 서버가 다시 뜨면 콜을 DB 에서 다시 만드는데(`restoreAndRecalculateSession`)
-     * 판정만 안 붙이고 있었다. 그러면 화면이 **문장을 뒤져** 색을 정하는 옛 길로 떨어지고,
-     * 재탐색 문구(`🍯 (꿀)` — 괄호)를 못 잡아 **꿀콜이 「보통」 초록**으로 보였다.
-     * 🚨 `(사고)` 도 마찬가지였다 — **잡으면 사고인 콜이 초록**이었다.
+     * 서버가 다시 뜨면 콜을 DB 에서 다시 만든다(`restoreAndRecalculateSession`). 이때 판정을 안 붙이면
+     * 화면이 **문장을 뒤져** 색을 정하다 괄호 문구를 못 잡아 **꿀콜도 사고 콜도 「보통」 초록**으로 보인다.
      *
      * 색은 심사 1회 고정이다 (v2 ③④) — 되살리는 것이 그 약속을 지키는 것이다.
      */
@@ -172,7 +169,7 @@ export class OrderRepository {
      * **그 뒤에** 계산되고, 합짐이 붙을 때마다 **다시** 계산된다. 그래서 나중에 홀더가 된
      * 콜은 그 값이 **영영 장부에 안 들어갔다.**
      *
-     * 실측(어드민 2026-09-12): 사이클마다 **첫 콜만** 값이 있었다.
+     * 실측(어드민): 사이클마다 **첫 콜만** 값이 있었다.
      *
      *     0ea556  DELIVERED   routeComputedAt ✓  sectionStops ✓    ← 사이클 첫 콜
      *     78a121  DELIVERED                  ✗              ✗
