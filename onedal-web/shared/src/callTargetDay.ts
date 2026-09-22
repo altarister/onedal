@@ -3,7 +3,6 @@
  *
  * 기사님: *"방향 전환은 기사님이 정한다 — 활성 콜 수에서 파생될 수 없다"* (재확인).
  * 짐의 수명(콜 0건이면 끝)과 **방향의 수명**(복귀를 켜서 복귀콜을 집 가까이 내릴 때까지)은 다른 값이다.
- * 예전엔 복귀 켬이 메모리 필터에만 있었고 «복귀콜을 잡았나»를 이번 운행(`deckOfCycle` — 0건이면 빈 목록)으로 셌다.
  *
  * 🔴 **저장하는 것은 사건뿐이다** — 서버 `call_target_events` 표(`core/callTargetEvents.ts`). 지금 상태는 여기서 계산한다 (규칙 ③).
  */
@@ -19,7 +18,7 @@ export interface CallTargetEvent {
 
 /**
  * 지금 복귀인가 — **오늘 영업일 줄의 마지막**. 줄이 없으면 복귀 끔(지어낸 기본값이 아니라 «오늘 안 켰다»).
- * 🔴 어제 줄은 안 본다 — 자정을 넘기면 꺼진다 (오늘 필터와 같은 수명 · 기사님 확정 2026-09-15).
+ * 🔴 오늘 영업일 줄만 본다 — 자정을 넘기면 꺼진다 (오늘 필터와 같은 수명 · 기사님 확정).
  */
 export function callTargetOfDay(events: CallTargetEvent[], nowMs: number): { target: 'DEST' | 'HOME'; homeOnAt: string | null } {
     const today = businessDayKey(nowMs);
