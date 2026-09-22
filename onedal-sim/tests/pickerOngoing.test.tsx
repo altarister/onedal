@@ -11,7 +11,7 @@ import { PickerDispatchBoard } from '@altari/ui-simulators';
 import { pickerA, pickerB, pickerWalk } from './fixtures';
 
 /**
- * 🚚 **픽커 수락 뒤 단계** (카카오픽커_시뮬레이터.md §8-2 · 4단계)
+ * 🚚 **픽커 수락 뒤 단계**
  *
  * 실물 순서 (`ex_images/카카오픽커/실물_2026/` 15 · 16~17 · 21~22 · 25 · 26 · 30 · 31):
  *   수락 → «내 오더» 탭(15) → 픽업 이동(16) → 아래 창을 끌어 올리면 «밀어서 픽업 완료»(17) → 배송 중(21)
@@ -21,13 +21,13 @@ import { pickerA, pickerB, pickerWalk } from './fixtures';
  *
  * 원달앱은 이 글자로 운행 단계를 안다 (`KakaoPickerKeywords.STAGE_WORDS`) — `🚚 [운행 단계] … → …` 로그.
  * 🔴 **한 화면에 다른 단계 글자가 섞이면 원달앱이 단계를 잘못 읽는다.** 픽업 이동 화면에도 «배송 33분 남음»이 있는데
- *    «배송 시간»이 섞이면 배송 중으로 읽는다 (계획서 §8-2 «「배송」이라는 글자를 아무 데나 쓰지 않는다»).
+ *    «배송 시간»이 섞이면 배송 중으로 읽는다.
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 /**
  * 🔴 원달앱 `KakaoPickerKeywords.STAGE_WORDS` 와 **같은 글자** — 일부러 옮겨 적었다.
- * 시뮬레이터는 원달앱(Kotlin)을 가져다 쓸 수 없다. 원달앱 쪽 낱말이 바뀌면 이 표도 바꾼다 (계획서 §8-2 표가 원천).
+ * 시뮬레이터는 원달앱(Kotlin)을 가져다 쓸 수 없다. 원달앱 쪽 낱말이 바뀌면 이 표도 바꾼다.
  */
 const STAGE_WORDS: Record<string, string[]> = {
     HOME: ['시작하기'],
@@ -311,8 +311,8 @@ describe('퀵 — 도보와 다른 페이지 (실물 17-1 · 17-2)', () => {
     });
 
     /**
-     * 🔴 원달앱이 실물 17-1 에서 **실제로 읽은 글자**와 순서 — `log/1dal-주행로그-20260913/폰로그/A24_logcat_전체_1000-1210.log`
-     *    11:55:15 · 11:56:24 · 11:56:32 (`1DAL_PICKER ❓ [모르는 화면]`). 20초 동안 여러 번 읽었는데 **머리(지연 · 출발해 주세요)와 «길안내»는 한 번도 없었다.**
+     * 🔴 원달앱이 실물 17-1 에서 **실제로 읽은 글자**와 순서 — 실주행 폰 로그의
+     *    `1DAL_PICKER ❓ [모르는 화면]` 줄. 20초 동안 여러 번 읽었는데 **머리(지연 · 출발해 주세요)와 «길안내»는 한 번도 없었다.**
      *    원달앱은 접근성 트리를 읽는다 — 시뮬레이터(웹뷰)는 `aria-hidden` 안쪽을 넘기지 않고, `aria-label` 은 그 글자로 넘긴다.
      */
     it('🔴 원달앱이 읽는 글자가 실물 로그 순서와 같다 — 머리와 «길안내»는 안 읽힌다 (A24 로그 11:55:15 · 11:56:32)', () => {
@@ -503,7 +503,7 @@ describe('픽커 배차 화면 — 수락 뒤', () => {
         expect(chunk(pickerWalk.pickerTags[0])).toBe(true);    // 카드 오른쪽 위 배송 종류 딱지 (실물 «도보»)
         expect(chunk('픽업 준비 30분 남음')).toBe(true);
         expect(text()).toContain('배송지: ');
-        // 원달앱 요금 닻은 «쉼표 든 숫자»만의 글자 덩어리다 — 내 오더 목록에는 그런 덩어리가 없다
+        // 원달앱이 요금으로 알아보는 것은 «쉼표 든 숫자»만의 글자 덩어리다 — 내 오더 목록에는 그런 덩어리가 없다
         const fareLike = [...host!.querySelectorAll('div')].filter(d => d.children.length === 0 && /^\d{1,3}(,\d{3})+$/.test((d.textContent ?? '').trim()));
         expect(fareLike).toEqual([]);
         rerender(<PickerSimScreen {...props({ streamingCalls: [pickerB], confirmedCalls: [pickerA], activeTab: 'ALL' })} />);
