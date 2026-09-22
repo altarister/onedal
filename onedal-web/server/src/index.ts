@@ -41,7 +41,7 @@ import { registerSocketHandlers } from "./socket/socketHandlers";
 
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
-// [Phase 1 / 이슈 B] 필수 환경 변수 검증. 반드시 dotenv.config() 이후에 호출한다.
+// 필수 환경 변수 검증. 반드시 dotenv.config() 이후에 호출한다.
 // 없으면 여기서 부팅을 중단한다 (조용히 fallback 문자열로 동작하는 것을 막는다).
 validateEnv();
 
@@ -88,7 +88,7 @@ app.use("/api/config", configRouter); // 타겟 앱 키워드 연동
 app.use("/api/auth", authRouter); // OAuth 로그인/인증 라우터
 app.use("/api/settings", settingsRouter); // 개인화 설정 라우터
 app.use("/api/sim", simRouter); // 🧪 시뮬레이터가 «지금 어디»를 묻는 문 — 운영에서는 404
-// [2026-08-12] GET/PUT /api/filters 제거 — 관제웹·앱·운행일지 전수 grep 결과 **호출부 0건**.
+// GET/PUT /api/filters 제거 — 관제웹·앱·운행일지 전수 grep 결과 **호출부 0건**.
 //   PUT 은 소켓 `update-filter` 와 똑같이 updateActiveFilter 를 부르는 두 번째 입구였고,
 //   GET 은 필터 필드를 손으로 다시 나열해 새 필드(customCityFilters 등)가 빠진 채 굳어 있었다.
 //   입구가 둘이면 한쪽만 고쳐진다.
@@ -100,7 +100,7 @@ app.use("/api/logbook/places", logbookPlacesRouter);
 app.use("/api/logbook/gps-track", logbookGpsTrackRouter);
 
 
-// [Phase 1.5] 정의되지 않은 /api/* 요청은 여기서 404 JSON으로 끊는다.
+// 정의되지 않은 /api/* 요청은 여기서 404 JSON으로 끊는다.
 // 아래 SPA 폴백보다 반드시 먼저 등록되어야 한다.
 // 이 가드가 없으면 오타난 엔드포인트나 삭제된 라우트가 index.html(text/html, 200)을 반환해
 // 앱(Gson)이 HTML을 파싱하려다 예외를 내고, 실패 원인을 추적할 수 없게 된다.
@@ -178,7 +178,7 @@ httpServer.listen(PORT as number, "0.0.0.0", () => {
 });
 
 /**
- * 🛑 **끝내는 절차** (기사님 실측 2026-08-26)
+ * 🛑 **끝내는 절차** (기사님 실측)
  *
  * 기사님이 Ctrl+C 를 누르시자 `tsx` 가 이렇게 뱉었다:
  *
@@ -189,9 +189,7 @@ httpServer.listen(PORT as number, "0.0.0.0", () => {
  * 소켓, 붙어 있는 Socket.IO 연결, 1초 인터벌 두 개를 그대로 쥔 채 신호를 받았다.
  *
  * ── 왜 이게 중요한가 ──
- * 예전 사고는 **기사님이 껐다고 믿은 서버가 4시간 40분 더 돌며** 지워진 콜을
- * 화면에 보낸 사고다. 그때는 Ctrl+C 가 **닿지 않았고**(`a & b & c`), 이번엔 **닿았는데
- * 안 나갔다.** 뿌리는 같다 — 서버가 스스로 끝낼 줄을 몰랐다.
+ * 서버가 스스로 끝낼 줄 모르면 **기사님이 껐다고 믿은 서버가 계속 돌며** 지워진 콜을 화면에 보낸다.
  *
  * ── 순서에 이유가 있다 ──
  *   ① `io.close()`      — 관제탑을 먼저 내보낸다. 소켓이 붙어 있으면 HTTP 가 안 닫힌다
