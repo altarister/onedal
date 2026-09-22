@@ -1,11 +1,11 @@
 /**
  * 🎛️ **누르면 펼쳐지는 고르기 칸** — 목업(지도 실험실)이 기사님과 맞춰 온 부품이다.
  *
- * 🔴 **한 벌이다.** 2026-09-11 에 `MapMockup` 안에서 여기로 옮겼다 (이식 C2-2) —
+ * 🔴 **한 벌이다.** `MapMockup` 과 실물 필터(`OrderFilterModal` · `KnobGrid`)가 같이 부른다 —
  *    실물 필터의 제외 지역도 같은 손맛이어야 하고, 두 벌이면 한쪽만 고쳐진다
  *    (`JudgmentSeat` 을 목업이 **부르는** 것과 같은 이유).
  *
- * 🔴 숫자 입력칸은 폰에서 나쁘다 (기사님 2026-09-09: *"커서 확인하고 숫자 지우고 입력하고
+ * 🔴 숫자 입력칸은 폰에서 나쁘다 (기사님: *"커서 확인하고 숫자 지우고 입력하고
  *    힘들어"*). 손가락으로 눌러 고른다.
  * 🔴 **펼쳐도 아래가 안 밀린다** — 묶음 위에 겹쳐 뜬다. 아래로 밀면 폰에서 보던 자리가 사라진다.
  *    그래서 부모에 `relative` 가 있어야 한다.
@@ -37,9 +37,9 @@ export function PickLayer({ label, value, options, open, onToggle, onPick, selec
     /**
      * 🔴 **여럿 고르는 칸인가** — 켜면 고른 뒤에도 레이어가 안 닫힌다.
      *
-     * 전에는 `selected` 가 있으면 자동으로 안 닫혔다. 그래서 «어느 시·군·구를 볼까»처럼
-     * **하나만 고르는데 색은 여럿 칠하는** 칸이 눌러도 안 닫혀 «오작동»으로 보였다
-     * (기사님 2026-09-09). **색칠과 여닫이는 다른 것이다 — 갈랐다.**
+     * `selected` 는 색만 칠하고 여닫이는 이 값만 정한다. `selected` 로 여닫이를 정하면
+     * «어느 시·군·구를 볼까»처럼 **하나만 고르는데 색은 여럿 칠하는** 칸이 눌러도 안 닫혀
+     * 오작동으로 보인다.
      */
     keepOpen?: boolean;
     tone?: 'info' | 'warning' | 'danger';
@@ -48,9 +48,8 @@ export function PickLayer({ label, value, options, open, onToggle, onPick, selec
     /**
      * 🏷️ **옵션 옆에 붙일 표시** — 예: 받을 짐에서 «지금 적재로 못 받는 것»에 `✕`.
      *
-     * 🔴 **옵션 문자열 자체에 붙이면 안 된다**. 실물이 `${v} ✕` 로
-     *    넘겼더니 `selected.includes(v)` 가 꾸민 글자와 비교해 **막힌 차종은 골라도
-     *    강조가 안 켜졌다.** 원문은 그대로 두고 표시만 따로 그린다.
+     * 🔴 **옵션 문자열 자체에 붙이면 안 된다** — `${v} ✕` 처럼 붙이면 `selected.includes(v)` 가
+     *    꾸민 글자와 비교해 **막힌 차종은 골라도 강조가 안 켜진다.** 원문은 그대로 두고 표시만 따로 그린다.
      */
     mark?: Record<string, string>;
 }) {
@@ -64,8 +63,8 @@ export function PickLayer({ label, value, options, open, onToggle, onPick, selec
                 <span className="w-full truncate text-[13px] font-black text-text-primary leading-tight">{value}</span>
             </button>
             {/* 🔴 아래 레이어는 **z-30 이다** — `relative z-20` 인 제외지역 블록과 같은 층이면
-                **뒤에 오는 그쪽이 이긴다.** 2026-09-12 실측에서 「받을 짐」 레이어 안 하한표가
-                제외지역 칸에 가렸다 (콜할인율 레이어도 같은 자리다). */}
+                **뒤에 오는 그쪽이 이긴다.** 그러면 「받을 짐」 레이어 안 하한표가
+                제외지역 칸에 가린다 (콜할인율 레이어도 같은 자리다). */}
             {open && (
                 <div data-pick className="absolute left-0 right-0 top-0 z-30 rounded-xl border border-info/55 bg-surface shadow-lg p-1.5">
                     <div className="flex items-center justify-between px-0.5 pb-1">
@@ -89,7 +88,7 @@ export function PickLayer({ label, value, options, open, onToggle, onPick, selec
                     </div>
                     {foot && <div className="mt-1.5 border-t border-border-card pt-1.5">{foot}</div>}
                     {/**
-                      * ✅ **여럿 고르는 칸에는 끝내는 버튼을 둔다** (기사님 2026-09-09
+                      * ✅ **여럿 고르는 칸에는 끝내는 버튼을 둔다** (기사님:
                       * *"뭔가 선택 버튼이 필요할 것 같은데"*). 하나만 고르는 칸은 누르면 바로 닫히니
                       * 필요 없고, **여럿 고르는 칸은 «다 골랐다»를 사람이 말해야** 끝난다.
                       * 위의 «✕»는 작아서 운전 중에 못 누른다.
