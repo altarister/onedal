@@ -3,8 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 /**
  * 👣 **궤적 배선 검사** — 「좌표 알림 → 궤적」 사이를 **실제 이벤트로** 걸어 본다.
  *
- * 기사님 2026-09-12: *"궤적이 엉망이야. 카카오 궤적이 아닌 것 같아."* ·
- * *"목업에서는 이쁘게 나왔어"* · *"고치지 말고 목업에 있는 거 가져왔으면 문제 없는 거 아냐?"*
+ * 궤적은 카카오 경로 곡선을 그대로 잇는다 — 끝점만 쌓으면 도로가 아닌 직선이 그려진다.
  *
  * 🔴 **규칙 검사(`filterReview`)는 «부르는가»만 본다** — 소스에 `pushTrail(` 이 있는지.
  *    그것만으로는 **다리가 실제로 이어졌는지** 모른다 (`via` 를 안 실으면 조용히 끝점만 쌓인다).
@@ -38,7 +37,7 @@ describe('궤적 — 좌표 알림에서 구간까지', () => {
         expect(segs()[0]).toHaveLength(5);
         expect(segs()[0][0]).toMatchObject({ lng: 127.3, lat: 37.301 });
         expect(segs()[0][4]).toMatchObject({ lng: 127.3, lat: 37.305 });
-        /* ⏱️ 점마다 지난 시각을 든다 — 숨긴 콜의 자취를 시각으로 가른다 (`pastCalls.trailOfShown` · 사이클 = 하루 2026-09-15) */
+        /* ⏱️ 점마다 지난 시각을 든다 — 숨긴 콜의 자취를 시각으로 가른다 (`pastCalls.trailOfShown` · 사이클 = 하루) */
         expect(Number.isFinite(segs()[0][4].atMs)).toBe(true);
     });
 
