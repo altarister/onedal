@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { isPriorityLocked, isPriorityLockedByGoals, ROUTE_PRIORITIES, PRIORITY_SAMPLE, PRIORITY_LABEL } from './routePriority';
 
 /**
- * 🧪 **경로 방침 — 언제 잠기나** (2026-09-05)
+ * 🧪 **경로 방침 — 언제 잠기나**
  *
  * 이 규칙이 `PinnedRoute` 안에만 있어서, 목업이 같은 화면을 그리려니 **한 벌을 더
  * 적어야 했다.** 그러면 실물이 바뀔 때 목업이 조용히 옛 규칙을 그린다 (규칙 ③).
@@ -96,7 +96,7 @@ describe('🔴 합짐이 화면에 오르는 순간부터 잠긴다 (기사님 2
 });
 
 /**
- * 🆕 **R7 — 판이 바뀐 콜이 들어오면 다시 열린다** (기사님 확정 2026-09-13).
+ * 🆕 **R7 — 판이 바뀐 콜이 들어오면 다시 열린다** (기사님 확정).
  *
  * 기사님: *"**몇 개가 남아 있든 간에 목적지가 바뀐 콜이 있으면**이 맞아."*
  *

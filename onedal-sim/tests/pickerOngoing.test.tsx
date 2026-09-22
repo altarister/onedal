@@ -11,7 +11,7 @@ import { PickerDispatchBoard } from '@altari/ui-simulators';
 import { pickerA, pickerB, pickerWalk } from './fixtures';
 
 /**
- * 🚚 **픽커 수락 뒤 단계** (2026-09-14 · 카카오픽커_시뮬레이터.md §8-2 · 4단계)
+ * 🚚 **픽커 수락 뒤 단계** (카카오픽커_시뮬레이터.md §8-2 · 4단계)
  *
  * 실물 순서 (`ex_images/카카오픽커/실물_2026/` 15 · 16~17 · 21~22 · 25 · 26 · 30 · 31):
  *   수락 → «내 오더» 탭(15) → 픽업 이동(16) → 아래 창을 끌어 올리면 «밀어서 픽업 완료»(17) → 배송 중(21)

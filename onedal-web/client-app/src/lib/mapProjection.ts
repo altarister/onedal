@@ -152,7 +152,7 @@ export function panAfterZoom(screen: number, base: number, pan: number, ratio: n
 }
 
 /**
- * 🤏 **핀치 한 틱 — 두 손가락의 중간을 붙잡은 채 배율만 바꾼다** (2026-09-04 신설).
+ * 🤏 **핀치 한 틱 — 두 손가락의 중간을 붙잡은 채 배율만 바꾼다**.
  *
  * 🔴 **핀치만 이 계산을 안 하고 있었다.** 휠·버튼은 `zoomAround` 가 기준점을 잡고
  *    팬을 보정했는데, 핀치는 `zoomRef += scaleDiff` 로 **배율만** 바꿨다.

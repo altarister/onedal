@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { DWELL_TICKS, APPROACH_KM, type DriveDial } from '../hooks/simStep';
 
 /**
- * 🎭 **모의 주행 — 손으로 켜고 끈다** (기사님 확정 2026-09-12).
+ * 🎭 **모의 주행 — 손으로 켜고 끈다** (기사님 확정).
  *
  * 기사님: *"경로가 생기면 현황판도 알게 될 거고 그때 **버튼을 활성화해서 클릭**하도록
  * 하면 될 듯 싶은데?"* · *"이건 그냥 **테스트용** 모의 주행이야 —
@@ -69,7 +69,7 @@ interface MockDriveState {
  * ⚠️ **정차를 11초 아래로 줄이면 정차 규칙을 못 본다** — 그 시간은 «5km/h↓ 가 이어져야 정차»가
  *    실제로 발화할 길이를 주려는 것이다. 줄이려면 「굳는 시간」(⚙️ 설정)도 함께 줄여야 한다.
  */
-/* 🔄 «지금까지 코드에 박혀 있던 수»에서 정차만 18 → 12 로 내렸다 (2026-09-15 · `DWELL_TICKS`) */
+/* 🔄 «지금까지 코드에 박혀 있던 수»에서 정차만 18 → 12 로 내렸다 (`DWELL_TICKS`) */
 export const MOCK_DRIVE_DEFAULTS: DriveDial = { dwellSec: DWELL_TICKS, approachKm: APPROACH_KM, slowFactor: 4 };
 
 /** 💾 브라우저에 남긴다 — 판을 새로 열어도 맞춰 둔 눈금이 그대로다 */

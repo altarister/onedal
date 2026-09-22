@@ -23,7 +23,7 @@ import type { HandlingMethod } from './index';
  * 실제 `local.db` 적요에 등장한 품목이 근거다:
  *   `마대 1개` · `박스 1개` · `샘플 박스` · `서류봉투` · `소형 가전` · `쇼핑백 2개`
  *
- * 🔴 점수는 **라면박스 축** — 1박스 = 1점 (기사님 확정 2026-08-17).
+ * 🔴 점수는 **라면박스 축** — 1박스 = 1점 (기사님 확정).
  *    내 1t 트럭 = 100박스 (`TRUCK_CAPACITY_SLOTS`) · 1t짐 = 파레트 2개 = 80박스.
  */
 // '가전' 은 단위가 아니라 **성질**이다 (cargoTags). 냉장고와 전기면도기가 같은 부피일 리 없다.
@@ -103,7 +103,7 @@ export function unitPoints(unit?: string | null, quantity?: number | null): numb
 }
 
 /**
- * 🚚 **차종이 곧 기본 짐** — 통화 전 미리 눌러 둘 단위·수량 (기사님 확정 2026-08-18).
+ * 🚚 **차종이 곧 기본 짐** — 통화 전 미리 눌러 둘 단위·수량 (기사님 확정).
  *
  * 서버는 이미 신고가 없으면 `VEHICLE_CAPACITY[차종]` 을 적재로 잡는다
  * (`computeLoadedPoints` — 1t 첫짐 하나에 slotsUsed 80 이 나오던 값이 이것이다).
@@ -130,7 +130,7 @@ export function defaultCargoByVehicle(vehicleType?: string | null):
 }
 
 /**
- * 🔒 **보호 — 짐을 고정·보호하는 데 드는 시간** (기사님 확정 2026-08-18)
+ * 🔒 **보호 — 짐을 고정·보호하는 데 드는 시간** (기사님 확정)
  *
  * 방법(`HANDLING_METHODS`)과 축이 다르다. 방법은 *"짐을 손으로 내리거나 싣는 행위만"* 이고,
  * 보호는 그 뒤에 붙는 안전 조치다. 예전에는 이 둘이 섞여 있었다 —
@@ -159,7 +159,7 @@ export function protectionMinutes(list?: readonly string[] | null): number {
 }
 
 /**
- * 🧹 **후작업 — 짐을 내린 뒤에 하는 일** (기사님 확정 2026-08-18)
+ * 🧹 **후작업 — 짐을 내린 뒤에 하는 일** (기사님 확정)
  *
  * 기사님: *"검수는 하차할 때 하는 거라 하차로 옮기는 것이 맞을 듯.
  * 카테고리는 후작업 이렇게 넣고 정리 1분, 검수 60분 이렇게 추가해줘."*
@@ -183,7 +183,7 @@ export type Afterwork = keyof typeof AFTERWORK_MINUTES;
 export function afterworkMinutes(
     list?: readonly string[] | null,
     /**
-     * 🔴 판정 기준 탭에서 온 값 — 「검수 60분」이 여기로 들어온다 (2026-08-29 화면으로 올림).
+     * 🔴 판정 기준 탭에서 온 값 — 「검수 60분」이 여기로 들어온다 (화면으로 올림).
      *    안 오면 아래 상수를 쓴다 (되돌리는 길).
      */
     override?: Record<string, number>,

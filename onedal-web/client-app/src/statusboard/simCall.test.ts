@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fareOf, placeFromFound, regionOfAddress, sentNoteOf, simCallBody } from './simCall';
 
 /**
- * 🚚 **개별콜 — 현황판이 내는 콜 모양** (2026-09-15 · `simCall.ts` 머리).
+ * 🚚 **개별콜 — 현황판이 내는 콜 모양** (`simCall.ts` 머리).
  * 동 이름은 시뮬레이터 목록에 찍히고 폰 원달앱이 그 글자로 거른다 — 틀리게 뽑으면 필터 시험이 헛것이 된다.
  */
 describe('개별콜 — 주소에서 동·읍·면', () => {

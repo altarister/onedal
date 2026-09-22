@@ -3,7 +3,7 @@ import { TARGETS, apiBase, currentTargetName, isNativeApp, switchTarget } from '
 import type { ServerTarget } from '../lib/serverTarget';
 
 /**
- * 🔊 **서버 고르기 — 볼륨 업으로 연다** (기사님 확정 2026-08-25).
+ * 🔊 **서버 고르기 — 볼륨 업으로 연다** (기사님 확정).
  *
  * 기사님: *"볼륨 버튼을 클릭해서 라이브인지 로컬인지 바꿀 수 있으면 더 좋을 것 같은데."*
  *

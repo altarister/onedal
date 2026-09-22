@@ -2,7 +2,7 @@ import { getUserSession } from '../../src/state/userSessionStore';
 import { originOf, lastKnownPositionOf, DRIVER_LOCATION_STALE_MS } from '../../src/services/geoService';
 
 /**
- * 📍 **«내가 지금 어디 있나» 와 «경로를 어디서부터 짤까» 는 다른 질문이다** (2026-09-12).
+ * 📍 **«내가 지금 어디 있나» 와 «경로를 어디서부터 짤까» 는 다른 질문이다**.
  *
  * ── 왜 갈랐나 ──
  * `originOf` 하나가 **두 질문에 답하고 있었다** (규칙 ⑤-4 ⑤ — «읽는 곳이 둘이면

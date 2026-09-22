@@ -35,7 +35,7 @@ export function useGpsTelemetry(enabled = true) {
         /**
          * 🔴 직접 emit 하지 않는다 — `publishLocation` 이 유일한 송신 자리다.
          *    예전에는 여기서 바로 쐈고, `useMasterGps` 도 따로 쐈다. 같은 스토어를 읽으니
-         *    네이티브 위치가 갱신되면 **같은 좌표가 두 번** 나갔다 (2026-08-14 지도가 찾음).
+         *    네이티브 위치가 갱신되면 **같은 좌표가 두 번** 나갔다 (지도가 찾음).
          *    시뮬레이터가 도는 중이면 브리지가 알아서 막는다.
          */
         publishLocation(lat, lng, 'native', { accuracy: accuracy ?? undefined });

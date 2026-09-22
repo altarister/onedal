@@ -9,7 +9,7 @@
  * 읽기 전용이다: shared 의 수식(`rateFloorsFrom`)을 **읽기만** 하고, 실물 코드는 이 파일을
  * import 하지 않는다 — 실험실 수정이 실물에 영향 없음.
  *
- * 🔴 **국면(`PHASE_FIELDS`·`resolvePhaseKey`)을 더는 읽지 않는다** (기사님 확정 2026-09-09).
+ * 🔴 **국면(`PHASE_FIELDS`·`resolvePhaseKey`)을 더는 읽지 않는다** (기사님 확정).
  *    값이 한 벌이 되며 «어느 벌인가»가 없어졌다. 실물은 아직 다섯 벌이라 **여기서 갈린다**.
  */
 import {
@@ -47,7 +47,7 @@ export interface LabFilterInputs {
     /**
      * 📏 **라인 반경(km)** — 길 중심선에서 한쪽으로 몇 km 까지 콜을 받나.
      * 🔴 실물 평면의 `detourRadiusKm` 자리에 싣는다. 실물은 그 값을 «우회 허용»(총거리 증가분)에서
-     *    **서버가 파생**하는데, 실험실은 파생 결과를 기사님이 직접 넣는다 (기사님 지시 2026-09-09).
+     *    **서버가 파생**하는데, 실험실은 파생 결과를 기사님이 직접 넣는다 (기사님 지시).
      */
     lineRadiusKm: number;
     discountPct: number;
@@ -82,7 +82,7 @@ export function buildAppFilterOutput(i: LabFilterInputs) {
         isSharedMode: i.dispatchPhase === 'GATHERING',
         /**
          * ── 지역 축 ──
-         * 🔴 **숨김(hidden) 처리를 걷어냈다** (기사님 확정 2026-09-09 · 값은 한 벌).
+         * 🔴 **숨김(hidden) 처리를 걷어냈다** (기사님 확정 · 값은 한 벌).
          *    예전엔 국면별 `PHASE_FIELDS` 로 «그 국면에서 안 쓰는 칸»을 아웃풋에서 뺐다.
          *    그런데 **지금 안 쓰는 값은 그냥 안 읽힐 뿐이다** — 빼면 받는 쪽이 «없다»와
          *    «안 쓴다»를 구별 못 하고, 화면과 아웃풋이 다른 말을 하게 된다.

@@ -31,7 +31,7 @@ const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
 describe('모의 주행 — 서버까지 사실이 간다', () => {
 
     /**
-     * 🔄 **이 조항은 `client-app/src/lib/gpsBridge.test.ts` 로 옮겼다** (2026-09-12 셋째 판).
+     * 🔄 **이 조항은 `client-app/src/lib/gpsBridge.test.ts` 로 옮겼다** (셋째 판).
      *
      * 여기 있던 검사는 억제문을 **글자로 잘라** 물었다 —
      * `bridge.lastIndexOf('if (lastSent', i)` 로 시작을 찾는 식이다.

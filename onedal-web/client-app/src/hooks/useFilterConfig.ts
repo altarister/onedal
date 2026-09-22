@@ -9,7 +9,7 @@ import { useFilterStore, ensureFilterSocketSubscribed } from "../stores/filterSt
  *
  * 🔴 **소켓 구독은 여기에 없다.** `filterStore` 가 앱 전체에서 한 번만 건다 —
  *    이 훅은 컴포넌트 5개가 부르는데, 훅마다 `socket.on` 을 걸면 서버가 1번 보낸 것을
- *    **5번 처리한다** (2026-08-14 실측). 이유는 `stores/filterStore.ts` 에 적어 뒀다.
+ *    **5번 처리한다**. 이유는 `stores/filterStore.ts` 에 적어 뒀다.
  */
 export function useFilterConfig() {
     const { filter, baseFilter, setFilter, setBaseFilter } = useFilterStore();

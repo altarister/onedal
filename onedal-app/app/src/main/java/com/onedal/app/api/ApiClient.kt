@@ -34,7 +34,7 @@ class ApiClient(private val context: Context) {
     private val gson = Gson()
 
     /**
-     * 배차 라이프사이클 전용 (confirm/detail) — **한 줄로 세운다** (기사님 확정 2026-08-22).
+     * 배차 라이프사이클 전용 (confirm/detail) — **한 줄로 세운다** (기사님 확정).
      *
      * 🔴 서버 계약은 *"`confirm` 이 콜을 만들고 `detail` 이 승급한다"* 라 **순서가 뒤집히면
      *    안 된다.** 2스레드였을 때 둘이 동시에 출발해 실측(19:04:57)에서 `detail` 이 10ms

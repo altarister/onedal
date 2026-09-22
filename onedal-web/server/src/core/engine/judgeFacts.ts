@@ -2,7 +2,7 @@ import { cityCenter, destGainKm, destProgressRatio, haversineKm, isPickupBackwar
 import type { JudgeFacts, PhaseKey } from '@onedal/shared';
 
 /**
- * 🧾 **판정이 쓸 «사실»을 모은다** (2026-08-29 · 6단계)
+ * 🧾 **판정이 쓸 «사실»을 모은다** (6단계)
  *
  * 새 판정 함수(`judge`)는 카카오도 DB 도 모른다 — **이미 밝혀진 사실**만 받는다.
  * 그 사실을 담는 자리가 여기다. 카카오를 부르고 적재를 세는 일은 `OrderEvaluator` 가

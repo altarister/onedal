@@ -2,7 +2,7 @@ import { readdirSync, statSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🔤 **식별자는 영문만 쓴다** (기사님 확정 2026-08-30)
+ * 🔤 **식별자는 영문만 쓴다** (기사님 확정)
  *
  * 기사님: *"너는 앞으로 변수명에 영문만 사용한다라고 명시하고 기억해. 지금 다 바꿔."*
  *

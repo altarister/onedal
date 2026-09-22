@@ -3,7 +3,7 @@ import { updateActiveFilter } from '../../src/state/filterManager';
 import { StateMachine } from '../../src/core/engine/StateMachine';
 
 /**
- * 🧪 #81 — **KEEP 전이가 시 별칭을 지워, 앱 3단계 검증이 빈손이 된다** (2026-08-30)
+ * 🧪 #81 — **KEEP 전이가 시 별칭을 지워, 앱 3단계 검증이 빈손이 된다**
  *
  * 실측 (7지점 7판 · 서버 로그 그대로):
  *   16:39:01.085  경유 갱신 — 별칭 7개(이천시·이천·광주시…)를 한 벌로 채움 ✅

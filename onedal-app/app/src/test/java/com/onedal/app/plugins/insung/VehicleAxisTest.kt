@@ -54,7 +54,7 @@ class VehicleAxisTest {
         pickupDistance = 7.2, deliveryDistance = 15.5,
     )
 
-    /** 서버가 1t 차에게 실제로 내려주는 목록 (2026-08-26 07:06 서버 로그) */
+    /** 서버가 1t 차에게 실제로 내려주는 목록 (서버 로그) */
     private fun oneTonFilter() = filterAllowing("오토바이", "다마스", "라보", "승용차", "1t")
 
     @Test

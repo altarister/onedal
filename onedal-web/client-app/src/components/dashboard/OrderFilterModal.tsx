@@ -96,7 +96,7 @@ const toValues = (f: ValueForm, prev: Record<FlatValueKey, any>): Record<FlatVal
 /* 🔴 순서도 목업 그대로 — 현위 → 목적 → 라인 (`MapMockup.tsx:3229~3232`) */
 const KNOB_FIELDS: FlatValueKey[] = ['pickupRadiusKm', 'destinationRadiusKm', 'detourRadiusKm'];
 
-/** 🧰 **필터 판의 행** — 어디로 · 얼마나 넓게 · 어떤 콜 · 빼는 곳 (기사님 확정 2026-09-15) */
+/** 🧰 **필터 판의 행** — 어디로 · 얼마나 넓게 · 어떤 콜 · 빼는 곳 (기사님 확정) */
 type RowId = 'where' | 'wide' | 'call' | 'exclude';
 
 /**
@@ -250,7 +250,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const toggleVehicle = (v: string) => {
         /**
          * 🔴 **목업과 같은 뜻** (`MapMockup.tsx` `setVehicles`): «모두»에서 1t 을 누르면 **1t 만**.
-         *    처음엔 «1t 만 뺀 넷»으로 만들었었다 — 같은 손가락에 반대 결과 (2026-09-12 조사 ①-6).
+         *    처음엔 «1t 만 뺀 넷»으로 만들었었다 — 같은 손가락에 반대 결과 (조사 ①-6).
          * 다섯을 다 고른 것은 «모두»와 같은 뜻이라 빈 배열로 되돌린다.
          */
         const next = accepted.includes(v) ? accepted.filter(x => x !== v) : [...accepted, v];
@@ -424,7 +424,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         const kw = blacklist ? blacklist.split(',').map(t => t.trim()).filter(Boolean) : [];
         if (!sameList(kw, baseFilter.excludedKeywords ?? [])) return true;
         /**
-         * 📐🚚 **오늘 판 셋** (2026-09-12 조사 ①-5) — 안 보면 바꿔도 «서버와 같음»이라
+         * 📐🚚 **오늘 판 셋** (조사 ①-5) — 안 보면 바꿔도 «서버와 같음»이라
          *    거짓말하고, ↩︎ 되돌리기 버튼이 눌리지도 않는다.
          */
         if (!!filter?.radiusAuto !== !!baseFilter.radiusAuto) return true;
@@ -522,7 +522,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
          *
          * `allowedVehicleTypes` 를 **보내지 않는 이유**는 그대로다 — 허용 차종은 입력이
          * 아니라 파생값이고, 여기서 보내면 서버가 `if (!changes.allowedVehicleTypes)` 에
-         * 걸려 자기 계산을 건너뛴다 (2026-08-10 사고).
+         * 걸려 자기 계산을 건너뛴다 (사고).
          */
         updateFilter(toValues(cur, filterValuesFrom(filter as any)), saveAsDefault);
 
@@ -565,7 +565,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      *
      * ⚠️ 처음엔 서버가 낸 `allowedVehicleTypes` 에 없는 것으로 봤는데 **틀렸다**:
      *    그 목록은 이미 «고른 것 ∩ 적재»라, 기사님이 **일부러 뺀 차종**까지 ✕ 가 붙어
-     *    **나누려던 두 사실이 화면에서 다시 한 덩어리**가 됐다 (2026-09-12 실측).
+     *    **나누려던 두 사실이 화면에서 다시 한 덩어리**가 됐다.
      *    여기가 답할 질문은 «내가 안 골랐나»가 아니라 **«지금 실을 자리가 있나»** 다.
      */
     const blockedNow = VEHICLE_PICKS.filter(v => (VEHICLE_CAPACITY[v] ?? 0) > remainSlots);
@@ -626,7 +626,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
             <section className="relative max-h-[70dvh] bg-bg-base border border-border rounded-xl shadow-lg overflow-hidden flex flex-col">
 
                 {/**
-                  * 🧰 **네 행 · 모두 닫힌 채 시작 · 하나만 열림** (기사님 확정 2026-09-15 · 목업 https://claude.ai/artifact/RfDCyjwqHM2UcoNGaBTwPy).
+                  * 🧰 **네 행 · 모두 닫힌 채 시작 · 하나만 열림** (기사님 확정 · 목업 https://claude.ai/artifact/RfDCyjwqHM2UcoNGaBTwPy).
                   *
                   * 기사님: *"의도가 지도의 영역을 보면서 반경과 등을 수정하고 싶거든 — 높이 사이즈를 줄이고 모두 닫기 모드로 만든
                   * 높이만 열리도록 하고 하나만 열리게"* · *"필터 박스가 있음으로 내부박스를 따로 만들필요가 없을꺼 같아"*.
@@ -639,7 +639,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         summary={`${routeMode ? '노선' : '동선'} · ${filter.goalCity || filter.destinationCity || '—'} · 복귀 ${(filter.callTarget ?? 'DEST') === 'HOME' ? '켬' : '끔'}`}>
                         {/**
                           * 🛣️ **노선 ↔ 🔷 동선 — 지도에서 이사해 왔다**
-                          *    (기사님 지시 2026-09-11: *"노선 동선 버튼도 지도에서 필터로 이사와야해"*).
+                          *    (기사님 지시: *"노선 동선 버튼도 지도에서 필터로 이사와야해"*).
                           *    **목업이 그 자리다** — 필터 맨 위, 목적지 줄 바로 위 (`MapMockup.tsx:3171`).
                           *
                           * 🔴 «그물을 어떤 모양으로 볼까»라 **국면(어디로 가나)과 다른 축**이다.
@@ -969,7 +969,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                   * 🔴 **보내는 것은 «고른 것»뿐이다** (`acceptedVehicleTypes`).
                                   *    허용 목록(`allowedVehicleTypes`)을 손으로 보내면 서버가
                                   *    `if (!changes.allowedVehicleTypes)` 에 걸려 **제 계산을 건너뛴다**
-                                  *    (2026-08-10 사고).
+                                  *    (사고).
                                   * 🔴 **지금 적재로 막힌 차종은 이름 뒤에 «✕»를 붙여 남긴다** —
                                   *    감추지 않는다 (규칙 ⑤-2). 「왜 이 콜이 안 올라오나」가 읽혀야 한다.
                                   */}
@@ -1025,7 +1025,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                               *
                               * 🔴 **고르기 칸은 목업과 같은 부품**(`PickLayer`)이다 — 손맛이 갈리면
                               *    두 화면이 다른 물건이 된다. 도 한 층이 있는 이유는 기사님이
-                              *    서울을 빼려고 **구 25개를 하나씩** 누르고 계셨기 때문이다 (2026-09-09).
+                              *    서울을 빼려고 **구 25개를 하나씩** 누르고 계셨기 때문이다.
                               * 🔴 **💾 를 눌러야 저장 대상이 된다** — 칩 하나 잘못 눌러 그 지역이
                               *    곧장 살아나면 안 된다.
                               */}

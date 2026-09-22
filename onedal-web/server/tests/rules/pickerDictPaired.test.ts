@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🔗 **픽커 낱말 사전은 서버와 앱이 «짝» 이다** (2026-09-16 실전에서 이 구멍에 빠졌다).
+ * 🔗 **픽커 낱말 사전은 서버와 앱이 «짝» 이다** (실전에서 이 구멍에 빠졌다).
  *
  * 앱은 서버 사전(`keywords_picker.json`)을 받아 쓰되, **못 받으면 앱에 박힌 기본값**으로 돈다
  * (`KakaoPickerParser.wordsFrom(key, fallback)`). 그래서 낱말을 **한쪽에만** 넣으면:

@@ -10,7 +10,7 @@ import { FIXED_NOW } from './seededRandom';
 import { pickerA, pickerB, pickerC } from './fixtures';
 
 /**
- * 📄 **픽커 상세 (수락 전)** — 실물 캡처 05 · 06 · 07 · 실물 덤프 11 · 12 (2026-09-14 · 카카오픽커_시뮬레이터.md §8-1 · 3단계 3-1)
+ * 📄 **픽커 상세 (수락 전)** — 실물 캡처 05 · 06 · 07 · 실물 덤프 11 · 12 (카카오픽커_시뮬레이터.md §8-1 · 3단계 3-1)
  *
  * 원달앱은 «넘기기 + 수락하기» 둘이 다 보이면 수락 전 상세로 알아보고(`KakaoPickerKeywords.PICKER.detailKeywords`),
  * 상세 글자 원문을 미리보기 콜로 서버에 올린다(`sendPickerPreview`). 계약(수락하기)은 **기사님 손가락**이다.

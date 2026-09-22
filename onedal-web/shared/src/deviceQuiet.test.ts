@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { isDeviceQuiet, DEVICE_QUIET_MS } from './index';
 
 /**
- * ⏱️ **폰이 조용한가** (기사님 확정 2026-09-02 · 폰_상태바.md §2 1단계)
+ * ⏱️ **폰이 조용한가** (기사님 확정 · 폰_상태바.md §2 1단계)
  *
  * 🔴 이 판정은 **문서에 ✅ 로 적혀 있었는데 함수도 검사도 화면도 없었다**
  *    (전수 대조 2026-09-05 — 「계획을 완료로 적는」 사고의 다섯 번째).

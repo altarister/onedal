@@ -1,5 +1,5 @@
 /**
- * 🌈 **콜 색표 — 세 축을 안 겹치게 가른다** (기사님 확정 2026-09-04)
+ * 🌈 **콜 색표 — 세 축을 안 겹치게 가른다** (기사님 확정)
  *
  * 기사님: *"무지개 색으로 콜의 배경 색을 정하고
  * 채도로 상차지 하차지를 결정하자. 채도가 높으면 상차지 낮으면 하차지.
@@ -82,7 +82,7 @@ export function callNodeFill(callNo: number, stop: StopKind, theme: UiTheme): st
 }
 
 /**
- * 마커 안 번호 글자색 — **언제나 흰색** (기사님 확정 2026-09-04).
+ * 마커 안 번호 글자색 — **언제나 흰색** (기사님 확정).
  * 위 `callNodeFill` 의 어둡기가 그 전제다.
  */
 export function callNodeText(_stop: StopKind, _theme: UiTheme): string {

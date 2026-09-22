@@ -16,7 +16,7 @@ interface PolylinePoint {
 /**
  * 🔴 **시뮬레이터는 개발 빌드에만 존재한다.**
  *
- * 기사님(2026-08-14): *"나중에 실 폰에서 앱으로 진짜 GPS 가 실행될 때는 다른 것에
+ * 기사님: *"나중에 실 폰에서 앱으로 진짜 GPS 가 실행될 때는 다른 것에
  * 영향을 주면 안 된다."*
  *
  * 처음에는 *"실 GPS 가 15초 안 오면 시뮬레이터가 이어 달린다"* 로 만들었다. 테스트는
@@ -35,7 +35,7 @@ const SIMULATOR_AVAILABLE = import.meta.env.DEV;
 /**
  * 관제웹의 마스터 GPS — **실 GPS 와 시뮬레이터가 같은 통로를 쓴다.**
  *
- * 기사님(2026-08-14): *"출발을 눌렀을 때 GPS 가 활성화된 상태이면 앱의 GPS 로 작동하고,
+ * 기사님: *"출발을 눌렀을 때 GPS 가 활성화된 상태이면 앱의 GPS 로 작동하고,
  * 그렇지 않으면 시뮬레이터가 작동하도록. 둘 다 일관적으로 같은 품질의 코드를 적용 가능."*
  *
  * 그래서 **고르는 것은 좌표의 출처뿐**이다. 그 뒤(`dashboard-gps-update` → 서버의
@@ -55,7 +55,7 @@ const SIMULATOR_AVAILABLE = import.meta.env.DEV;
 export function useMasterGps(
     isDriving: boolean,
     activePolyline: PolylinePoint[] | null,
-    /** 🏁 들러야 할 정거장 — 모의 주행이 도로를 벗어나 실제 좌표를 찍게 한다 (2026-08-25) */
+    /** 🏁 들러야 할 정거장 — 모의 주행이 도로를 벗어나 실제 좌표를 찍게 한다 */
     stops?: PolylinePoint[],
 ) {
     const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number } | null>(null);

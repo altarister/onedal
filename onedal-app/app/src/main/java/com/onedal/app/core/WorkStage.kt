@@ -3,7 +3,7 @@ package com.onedal.app.core
 import com.onedal.app.core.engine.SessionManager.CollectState
 
 /**
- * 🚦 **앱이 지금 무슨 일을 하는 중인가 — 다섯 칸** (기사님 확정 2026-09-02)
+ * 🚦 **앱이 지금 무슨 일을 하는 중인가 — 다섯 칸** (기사님 확정)
  *
  * 관제웹은 여태 `isHolding` **불리언 하나**만 받았다. «콜을 처리 중»까지만 알고
  * **어디서 멈췄는지**는 몰랐다 — 팝업 2장째에서 막힌 것과 판결을 기다리는 것이

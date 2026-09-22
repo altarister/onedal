@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
 
 /**
- * 🔌 **포트는 루트 README.md 「포트」 표 한 곳이 원천이다** (기사님 지시 2026-09-14).
+ * 🔌 **포트는 루트 README.md 「포트」 표 한 곳이 원천이다** (기사님 지시).
  *
  * 기사님: *"지금 우리 프로젝트에 포트 관리하는 것이 없는 거 같은데.. 그것도 하나 필요할 꺼 같아."*
  *

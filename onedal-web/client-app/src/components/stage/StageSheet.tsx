@@ -35,7 +35,7 @@ export const SHEET_HEIGHT: Record<SheetSnap, string> = {
 };
 
 /**
- * 🗺️ **시트가 무대를 덮을 수 있는 최대** — 지도가 볼 자리를 남긴다 (기사님 확정 2026-09-05).
+ * 🗺️ **시트가 무대를 덮을 수 있는 최대** — 지도가 볼 자리를 남긴다 (기사님 확정).
  *
  * 🔴 *"판정 시트나 시트 아래 나타날 때 시트는 「나」 위치로 가기 때문에 **모두 보여야
  *    한다**"* — 판정이 보이는 것만으로 모자란다. **후보 경로를 지도에서 보는 것이
@@ -217,7 +217,7 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
                     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                 }}
                 /**
-                 * 🔴 **끄는 동안 시트를 «따라 움직이게» 하지 않는다** (2026-09-17 되돌림).
+                 * 🔴 **끄는 동안 시트를 «따라 움직이게» 하지 않는다** (되돌림).
                  *
                  * 시트는 화면 **바닥에 붙어 높이만 변하는** 구조다. 끄는 동안 `translateY` 로 위로
                  * 들어 올렸더니 **바닥과의 사이가 벌어져 아래에 지도가 드러났다** (기사님 사진).
@@ -277,7 +277,7 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
 }
 
 /**
- * 🔼 **시트 바로 위에 무엇을 놓을 때의 `bottom` 값** (2026-09-04 신설).
+ * 🔼 **시트 바로 위에 무엇을 놓을 때의 `bottom` 값**.
  *
  * 지도 아래 모서리의 «콜» 버튼들이 시트에 가려지던 것을 막는다.
  * 🔴 시트 높이를 손으로 또 적지 않는다 — `SHEET_HEIGHT` 가 바뀌면 여기도 따라온다 (규칙 ③).

@@ -1,7 +1,7 @@
 /**
- * 🌱 **여섯 단계는 순서대로 태어난다** (2026-08-20 · 출생 모델로 개정)
+ * 🌱 **여섯 단계는 순서대로 태어난다** (출생 모델로 개정)
  *
- * 처음에는 KEEP 때 여섯 행을 한 번에 만들었다. 기사님(2026-08-20):
+ * 처음에는 KEEP 때 여섯 행을 한 번에 만들었다. 기사님:
  * *"한번에 생긴다면 상차지 통화할 때 값을 바꾸면 **뒤 필드도 찾아가 수정해줘야** 하잖아.
  * 어차피 시퀀스면 순서에 왔을 때 만들고, 다음 순서로 가면 **이전 값 가지고 와서**
  * 새로 row 만들어 넣으면 DB에 라이트만 하면 되니까 훨 좋아질 거 같다."*
@@ -18,7 +18,7 @@
  * 그대로 예측 오차다 (todo ⑥).
  */
 import db, { dwellRatesFor } from '../db';
-// 🔴 **미리 눌러 두는 기본값은 shared 하나에서 온다** (2026-08-29). 예전엔 여기서
+// 🔴 **미리 눌러 두는 기본값은 shared 하나에서 온다**. 예전엔 여기서
 //    `['결박']`·`['정리']`·`['일반화물']` 을 **손으로 다시 적어** 두 벌이었다.
 //    같은 값이라 화면은 똑같이 나왔고, 사고는 «한쪽만 고치는 날» 났을 것이다 (규칙 ③).
 import { DEFAULT_PROTECTIONS, DEFAULT_AFTERWORKS, DEFAULT_CARGO_TAG } from '@onedal/shared';
@@ -68,7 +68,7 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     routeTl?: RouteTl) {
     const cfg = judgment ?? DEFAULT_JUDGMENT;
     /**
-     * 🔴 **손으로 만들지 않는다** (2026-08-29 리뷰에서 잡힘). 예전엔 여기서 두 칸만
+     * 🔴 **손으로 만들지 않는다** (리뷰에서 잡힘). 예전엔 여기서 두 칸만
      *    떠서 만들었고, 그래서 7단계로 올린 정차 값(박스당 분·검수 분)이 **판정 경로에
      *    안 닿았다.** 만드는 곳이 둘이면 갈라진다 (#33 클래스).
      */
@@ -108,7 +108,7 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     const solo = soloPair.minutes;
     const total = num(o.totalDurationMin);
     /**
-     * 🔴 **접근 주행은 «같은 출처끼리» 뺀다** (2026-08-26 자기 리뷰에서 잡음).
+     * 🔴 **접근 주행은 «같은 출처끼리» 뺀다** (자기 리뷰에서 잡음).
      *
      * 접근은 저장 컬럼이 아니라 뺄셈이다 — `카카오 전체 − 카카오 단독`.
      * 단독이 **추정**이면 카카오 전체에서 추정을 빼는 꼴이 되어 의미가 없다.
@@ -157,7 +157,7 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
         ?? (deadlineMs != null
             ? Math.max(dropoffEta ?? deadlineMs, deadlineMs)     // 바닥: 예상이 데드라인 넘으면 예상(현실)
             : null);
-    // 🔴 하차 완료도 **약속 기준** — 상차와 대칭 (2026-08-20)
+    // 🔴 하차 완료도 **약속 기준** — 상차와 대칭
     const deliveredMs = dropoffPromise != null ? dropoffPromise + dropoffDwell * 60_000 : null;
 
     const cargoCols = {
@@ -332,7 +332,7 @@ export function bridgeMilestone(userId: string, orderId: string, milestone: Mile
 }
 
 /**
- * ⏱️ **이 콜의 이 정거장에서 걸린 분을 고친다** (기사님 확정 2026-08-30).
+ * ⏱️ **이 콜의 이 정거장에서 걸린 분을 고친다** (기사님 확정).
  *
  * 기사님: *"수작업 10분을 수작업 15분으로 수정 가능하면 좋겠다 … **정차 중에 입력해야지.
  * 신호 걸릴 때나, 화주랑 통화할 당시 바로바로.**"*
@@ -385,7 +385,7 @@ export function saveStepDwell(orderId: string, step: StepId, minutes: number): b
  * 동결 규칙의 반쪽이다 — **굳은 것(DONE·SKIPPED)은 안 건드리고**, PLANNED 행의
  * `predicted_at` 과 아직 안 굳은 약속만 새 경로로 다시 쓴다. 약속은 통화로만 굳는다.
  * "행은 태어날 때와 끝날 때만 쓴다"의 예외가 아니다 — 경로 변경도 **사건**이고,
- * PLANNED 행의 예상은 애초에 흐르는 값이다 (2026-08-20 합의).
+ * PLANNED 행의 예상은 애초에 흐르는 값이다 (합의).
  */
 export function refreshPlannedSteps(userId: string, orderId: string,
     judgment?: JudgmentConfig, routeTl?: RouteTl) {
@@ -437,7 +437,7 @@ export function bridgeUndoMilestone(userId: string, orderId: string, milestone: 
 }
 
 /**
- * 🔄 **파생 치환 ② — 서버 계산의 재료를 새 장부(여섯 단계 행)에서** (2026-08-21).
+ * 🔄 **파생 치환 ② — 서버 계산의 재료를 새 장부(여섯 단계 행)에서**.
  *
  * 옛 장부(stop_cargo_reports · order_milestones)를 읽던 계산 소비처(적재·정차·
  * 짐 성질·타임라인·복구)가 전부 **이 관문 하나**를 거친다.
@@ -479,7 +479,7 @@ export function plannedDwellOf(view: StepView[]): {
     if (!p) return null;
     const n = (v: unknown) => { const x = Number(v); return Number.isFinite(x) && x > 0 ? x : null; };
     /**
-     * ⏱️ **실측이 예측을 이긴다** (기사님 확정 2026-08-30).
+     * ⏱️ **실측이 예측을 이긴다** (기사님 확정).
      *
      * 기사님: *"다 나르고 나니까 15분이 걸렸다고 알 수 있는 거야 … 누구도 거짓을
      * 말하지 않았고 **결과는 바뀐 거지**."*
@@ -517,11 +517,11 @@ export function stepRecordsOf(orderId: string): {
 
 /**
  * 화면용 — 태어난 행은 그대로, 안 태어난 단계는 **회색 예정**(파생값, 저장 안 됨).
- * 기사님(2026-08-20): *"다음에 뭐가 올지는 알아야지."*
+ * 기사님: *"다음에 뭐가 올지는 알아야지."*
  */
 export function stepsView(orderId: string, judgment?: JudgmentConfig,
     /**
-     * 🔴 **KEEP 전에는 `orders` 행이 없다** (2026-08-29). `upsertOrder` 는 KEEP 할 때
+     * 🔴 **KEEP 전에는 `orders` 행이 없다**. `upsertOrder` 는 KEEP 할 때
      *    (`handleDecision`) 돈다. 그런데 **판정은 그 전에** 난다 — 기사님이 색을 보고
      *    KEEP 을 누르니까. 그래서 DB 만 보면 판정 시점의 콜을 통째로 못 본다.
      *    그때는 **메모리의 콜 객체**를 넘긴다 — 사슬은 하나 그대로다 (규칙 ③).
@@ -540,7 +540,7 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig,
             soloMinutesOf(o as any, derivationInputsOf(judgment ?? DEFAULT_JUDGMENT).rules).minutes,
             judgment ?? DEFAULT_JUDGMENT) : null;
     // 상차 격자의 ⚠️ 기준 = **상차 시계**(무통보 한계) 그 자체 — 약속(바닥 적용값)이 아니다.
-    //    실측(2026-08-21): 약속을 기준 삼으니 경로 유무에 따라 값이 흔들렸다
+    //    실측: 약속을 기준 삼으니 경로 유무에 따라 값이 흔들렸다
     const capturedMs2 = Date.parse(o.capturedAt ?? '');
     const clockMs = Number.isFinite(capturedMs2)
         ? pickupClockMsOf(o, capturedMs2, (judgment ?? DEFAULT_JUDGMENT).unknown.pickupPromiseMin ?? 20) : null;

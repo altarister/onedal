@@ -2,7 +2,7 @@ import { resolvePhaseKey } from "@onedal/shared";
 import type { PhaseKey } from "@onedal/shared";
 
 /**
- * 🔴 국면별 필터 설정 (2026-08-14 기사님 확정)
+ * 🔴 국면별 필터 설정 (기사님 확정)
  *
  * 기사님: *"이번이 마지막 기준 설정이면 좋겠다. 또 오해가 있어서 잘못 만들지 말자."*
  *

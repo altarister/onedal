@@ -3,7 +3,7 @@ import { join } from 'path';
 import { initGeoService, getDetourRegions } from '../../src/services/geoService';
 
 /**
- * 🕳️ **"순서를 모른다"(null)가 저장에서 사라진다** (2026-08-23 실측)
+ * 🕳️ **"순서를 모른다"(null)가 저장에서 사라진다**
  *
  * 기사님: *"16개 돌았는데 아무것도 안 잡았어. 통신도 잘되고 접근성도 켜져 있다고 했어."*
  *

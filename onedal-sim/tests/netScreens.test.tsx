@@ -24,7 +24,7 @@ import { callA, callB } from './fixtures';
 import { FIXED_NOW, seededRandom } from './seededRandom';
 
 /**
- * 🧩 **배차망 화면이 예전 DispatchPage 갈래와 같은 부품을 그리나** (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계 0-2 ⑤)
+ * 🧩 **배차망 화면이 예전 DispatchPage 갈래와 같은 부품을 그리나** (카카오픽커_시뮬레이터.md 0단계 0-2 ⑤)
  *
  * ⑤ 에서 DispatchPage 의 `net` 갈래(리스트·상세·수락 뒤)를 배차망 화면(InsungSimScreen · Hwamul24SimScreen)으로 옮겼다.
  * 그 갈래가 고르던 부품을 **직접** 그린 것과, 배차망 화면이 그린 것이 **글자 하나까지 같은지** 대조한다.

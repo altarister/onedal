@@ -8,7 +8,7 @@ import type { NavigateFunction } from 'react-router-dom';
 import { DispatchPage } from '../src/pages/DispatchPage';
 
 /**
- * 🔙 **픽커 상세는 방문 기록에 한 칸 남는다 — 뒤로 가기가 상세만 닫는다** (2026-09-14 · 카카오픽커_시뮬레이터.md §7-3 · 2단계 2-2)
+ * 🔙 **픽커 상세는 방문 기록에 한 칸 남는다 — 뒤로 가기가 상세만 닫는다** (카카오픽커_시뮬레이터.md §7-3 · 2단계 2-2)
  *
  * 원달앱은 알람으로 상세에 들어간 뒤 30초 무응답이면 «뒤로 가기»를 누른다(`HijackService` · GLOBAL_ACTION_BACK).
  * 시뮬레이터 앱은 그 뒤로 가기를 웹뷰 방문 기록으로 넘긴다(`webView.goBack()`). 상세가 React 상태뿐이면

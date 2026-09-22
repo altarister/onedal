@@ -1,7 +1,7 @@
 import { dwellMinutes, protectionMinutes, PROTECTION_MINUTES, HANDLING_METHODS, defaultCargoByVehicle, DEFAULT_AFTERWORKS, afterworkMinutes } from '@onedal/shared';
 
 /**
- * 🔒 **방법과 보호는 축이 다르다** (기사님 확정 2026-08-18)
+ * 🔒 **방법과 보호는 축이 다르다** (기사님 확정)
  *
  * 기사님: *"수작업은 짐을 손으로 내리거나 싣는 행위만을 말한다고 정의하자.
  * 박스당 20초면 다마스는 30박스가 기본값이니 10분이 걸린다는 이야기가 자연스럽게 도출된다."*
@@ -78,7 +78,7 @@ describe('후작업 기본값', () => {
 
 /** 하차 방법은 상차와 같다고 본다 — 지게차로 실었으면 대개 지게차로 내린다 */
 describe('통화 시트 — 하차 방법 미리 채움', () => {
-    // 🏗️ 옛 시트(StopCallSheet)는 철거됐다 (2026-08-21) — 규칙의 거처가 옮겨졌다:
+    // 🏗️ 옛 시트(StopCallSheet)는 철거됐다 — 규칙의 거처가 옮겨졌다:
     //    하차 방법 = 상차와 같다고 본다 → 시딩(computeChain)과 타임라인(timing) 둘 다
     it('하차 방법을 상차에서 물려받는다 — 시딩과 타임라인 같은 규칙', () => {
         const seeder = require('fs').readFileSync(

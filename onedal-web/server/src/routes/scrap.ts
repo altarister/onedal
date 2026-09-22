@@ -20,7 +20,7 @@ import { PluginFactory } from "../core/plugins/PluginFactory";
  * 앱의 역주행 검사(`RouteOrderFilter.kt`)는 하차지가 이 맵에 **없으면 «순서 미상 — 통과»**다.
  * 그런데 도착지 목록(`destinationKeywords`)에는 경로 위가 아닌 동도 들어 있어서,
  * **도착지로는 통과하는데 순서는 모르는** 동으로 가는 콜이 역주행이어도 잡힌다
- * (2026-09-14 14:11 «7지점 한 바퀴» ✖06 이천터미널 → 초월읍 — 남은 경로가 이천 안이라 초월읍이 맵에 없었다).
+ * («7지점 한 바퀴» ✖06 이천터미널 → 초월읍 — 남은 경로가 이천 안이라 초월읍이 맵에 없었다).
  * 그 동 목록을 로그에 남겨, 다음 판에서 «왜 통과했나»를 로그만으로 읽게 한다.
  * ⚠️ 텔레메트리마다 불리므로 **내용이 바뀔 때만** 찍는다.
  */
@@ -106,7 +106,7 @@ router.post("/", (req, res) => {
                 (item as any).pickupDistance ?? null,
                 (item as any).tagsText ?? null,
                 /**
-                 * 📋 **리스트 화면이 주는 것을 버리지 않는다** (기사님 지시 2026-09-12).
+                 * 📋 **리스트 화면이 주는 것을 버리지 않는다** (기사님 지시).
                  *    앱은 여섯 칸을 다 읽어 올리는데 여기서 **아홉 칸을 버리고 있었다** —
                  *    그래서 검산이 차종·배송거리를 «못 잰 축»으로 적었다. 자세한 것은
                  *    `db.ts` 의 intel `vehicleType` 주석에 있다 (칸을 판 자리가 원천).
@@ -140,7 +140,7 @@ router.post("/", (req, res) => {
         if (deviceId) {
             const io = req.app.get("io");
             /**
-             * 🧬 **폰이 «들고 온» 필터 지문** (2026-09-12 · 현황판 담당 요청 ②).
+             * 🧬 **폰이 «들고 온» 필터 지문** (현황판 담당 요청 ②).
              *    아래 v2 게이트가 이 값을 **대조에만** 쓰고 버렸다 — 현황판이 폰 탭에서
              *    «메인폰은 새 필터, 서브폰은 두 판 전»을 말하려면 남아 있어야 한다.
              * 🔴 **서버가 내려보낼 값(`filterVersion`)이 아니라 «요청에 실려 온 것»이다.**
@@ -236,7 +236,7 @@ router.post("/", (req, res) => {
         const appFilter: Record<string, unknown> = {};
         for (const k of APP_FILTER_KEYS) if (src[k] !== undefined) appFilter[k] = src[k];
         /**
-         * 📐 **앱에는 «지금 실제로 쓰이는» 반경이 간다** (2026-09-12 전수 조사 ①-4).
+         * 📐 **앱에는 «지금 실제로 쓰이는» 반경이 간다** (전수 조사 ①-4).
          *    원값을 그대로 복사하니 자동 ON·배율 0.4 면 **서버 그물 6.2km · 지도 6.2km · 앱 15km**
          *    — 세 벌이었다. 앱은 `pickupRadiusKm` 으로 실제로 거른다(`Hwamul24Parser.kt`).
          *    셈은 서버·지도·필터 화면이 부르는 **그 함수**다 (규칙 ③).
@@ -249,10 +249,10 @@ router.post("/", (req, res) => {
         /* 🎯 앱은 «어디로 가나» 하나만 안다 — 복귀면 집 시가 간다 (조사 ①-1 · 파생 `goalCity`) */
         if (session.activeFilter.goalCity) appFilter.destinationCity = session.activeFilter.goalCity;
 
-        // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정 2026-08-18)
+        // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정)
         //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)
         //    🔴 키 이름은 orderKm — #78 이후 실리는 값이 «순서 전용»이라 이름을 한 벌로
-        //       맞췄다 (2026-08-30 기사님 확정 · 옛 이름 progressKm 은 트림용에만 남는다)
+        //       맞췄다 (기사님 확정 · 옛 이름 progressKm 은 트림용에만 남는다)
         appFilter.orderKm = buildAppOrderKm(session);
         logOrderKmCoverage(userId, session.activeFilter.destinationKeywords ?? [], appFilter.orderKm as Record<string, number | null>);
 
@@ -275,7 +275,7 @@ router.post("/", (req, res) => {
         }
 
         /**
-         * ⛔ **적재 만석 — 콜 잡기를 멈춘다** (기사님 확정 2026-08-19).
+         * ⛔ **적재 만석 — 콜 잡기를 멈춘다** (기사님 확정).
          * 앱은 빈 allowedVehicleTypes 를 "전체 허용"으로 읽으므로(오프라인 안전망),
          * 빈 배열을 그대로 보내면 만석인데 모든 차종을 잡으러 든다.
          * 하차로 공간이 생기면 재계산이 차종 목록을 되살려 자동 복귀한다.
@@ -327,7 +327,7 @@ router.post("/", (req, res) => {
         }
 
         /**
-         * 🧭 **피기백 규격 v2** (기사님 확정 2026-08-22 — "같은 목록을 왜 두 번 보내나").
+         * 🧭 **피기백 규격 v2** (기사님 확정 — "같은 목록을 왜 두 번 보내나").
          * 앱이 `filterVersion` 을 보내면 신프로토콜이다:
          *   ① 중복 제거 — 운행 중 orderKm 의 키 집합은 destinationKeywords 와 같다
          *      (buildAppOrderKm 이 키워드를 순회해 만든다). 신앱은 도착 목록을

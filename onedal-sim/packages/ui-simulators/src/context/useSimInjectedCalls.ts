@@ -1,5 +1,5 @@
 /**
- * 🚚 **개별콜을 받아 목록에 넣는 훅** (기사님 지시 2026-09-15 · `@altari/core-simulator` 의 `injectedCall.ts` 머리)
+ * 🚚 **개별콜을 받아 목록에 넣는 훅** (기사님 지시 · `@altari/core-simulator` 의 `injectedCall.ts` 머리)
  *
  * 서버(`GET /api/sim/calls`)에 3초마다 «마지막으로 받은 번호 뒤»를 묻고, 받은 콜을 문제지 콜과 같은 길(강제 쌍)로 만든다.
  *

@@ -40,7 +40,7 @@ export function getActiveCalls(session: { myOrders: MyOrder[] }): MyOrder[] {
  *    `pointsByOrder` 가 그 재료다. `points` 는 순서를 모를 때의 «가장 나쁜 경우»로만 쓴다.
  *
  * ⚠️ 예전 주석은 "1t 콜이면 30점"이라 적었는데 **틀렸다** — 30 은 다마스 값이고
- *    1t 는 80(정원 100 중)이다. 라면박스 축 전환(2026-08-17) 전 숫자가 남은 것이다.
+ *    1t 는 80(정원 100 중)이다. 라면박스 축 전환 전 숫자가 남은 것이다.
  *    적재 판정이 이 값을 먹으므로 숫자를 여기 다시 적지 않는다 — 원천은
  *    `VEHICLE_CAPACITY`(shared/vehicles.ts) 하나다 (규칙 ③ · 2026-08-29 정정)
  */
@@ -92,7 +92,7 @@ export function computeLoadedPoints(
 
 /**
  * 🎨 `computeAllowedDetour`(옛 합짐 판정의 "우회 허용치")는 판정색 확정안 v2 전환으로
- * 철거됐다 (2026-08-21) — 새 채점기는 버퍼 소비를 후보 포함 타임라인에서 직접 잰다.
+ * 철거됐다 — 새 채점기는 버퍼 소비를 후보 포함 타임라인에서 직접 잰다.
  * "상차 약속엔 접근만, 하차 약속엔 전부를 뺀다"는 교훈은 timing.ts 의 두 시계가 잇는다.
  */
 
@@ -123,7 +123,7 @@ export function getStopTiming(orderId: string, unk?: DwellUnknown,
     order?: unknown,
     /**
      * 🔴 **판정 기준 설정** — 안 넘기면 사슬이 기본값으로 돌아 **판정 기준 탭의
-     *    정차 값이 안 닿는다** (2026-08-29 리뷰에서 잡힘). 7단계로 올린 값이
+     *    정차 값이 안 닿는다** (리뷰에서 잡힘). 7단계로 올린 값이
      *    화면에만 먹히고 판정엔 안 먹히던 자리다.
      */
     cfg?: JudgmentConfig): StopTiming {
@@ -206,7 +206,7 @@ export function findLoadConflicts(
 }
 
 /**
- * 🔬 **계측 (2026-08-19)** — 경로 순서와 주행분이 **어디에도 안 남는다.**
+ * 🔬 **계측** — 경로 순서와 주행분이 **어디에도 안 남는다.**
  *
  * 기사님 실측: 상차 약속이 `18:51` 로 저장됐는데, 화면이 말하는 도착 예상은 `17:56`
  * 이었다. 역산하면 저장 순간의 주행은 47분, 지금은 21분이다. 어느 쪽이 47분을
@@ -250,7 +250,7 @@ function logRouteStops(
 
     const circled = ['⑴', '⑵', '⑶', '⑷', '⑸', '⑹', '⑺', '⑻', '⑼', '⑽'];
     /**
-     * 🔴 **«25분» 이 아니라 «누적 25분» 이라고 적는다** (2026-08-29).
+     * 🔴 **«25분» 이 아니라 «누적 25분» 이라고 적는다**.
      *    `sectionDriveMin` 은 정거장별 **누적** 주행분인데(kakaoService 주석), 로그가
      *    그냥 «하차 39분» 이라 적어 **그 구간이 39분 걸린다**로 읽혔다.
      *    2026-08-29 에 이걸로 «재탐색이 경로를 14분 나쁘게 만들었다»고 오진했다 —
@@ -300,7 +300,7 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
     //    예전에는 이 함수가 pendingOrdersData 만 읽었다. 그런데 당시의 `completeOrder` ·
     //    `startTwoTrack` 은 myOrders 만 갱신했다 → **관제탑에 낡은 상태가 갔다.**
     //    (하차 완료했는데 카드에 "상차 완료"로 남아 있던 원인)
-    //    ⚠️ 그 두 함수는 지금 없다 (2026-08-14 철거 · setCallTarget 이 대체). 이유는 남는다
+    //    ⚠️ 그 두 함수는 지금 없다 (철거 · setCallTarget 이 대체). 이유는 남는다
     //
     //    확정된 콜은 myOrders 가 진실이므로 나중에 덮어쓴다.
     const merged = new Map<string, any>();
@@ -310,7 +310,7 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
     const all = Array.from(merged.values());
 
     /**
-     * 🔴 **종료된 콜의 경로(routePolyline)는 보내지 않는다** (2026-08-14).
+     * 🔴 **종료된 콜의 경로(routePolyline)는 보내지 않는다**.
      *
      * 관제탑은 진행 중인 콜의 경로만 그린다(`PinnedRoute` 의 `liveRoute`). 종료된 콜의
      * 경로는 **어디에도 쓰지 않는데** 매초 실려 나갔다 — 실측에서 종료 10건이 119KB 였고
@@ -339,7 +339,7 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
     const stops = activeCalls.length
         ? planArrivalStops(activeCalls, originOf(session)) : [];
     /**
-     * 🔴 **경로는 "마지막 콜"이 아니라 "값이 있는 마지막 콜"에서 읽는다** (2026-08-19 실측).
+     * 🔴 **경로는 "마지막 콜"이 아니라 "값이 있는 마지막 콜"에서 읽는다**.
      *
      * 기록은 `pickRouteHolder` 가 KEEP **처리 중**의 activeCalls 로 고르는데, 그때는
      * 새 콜이 아직 목록에 없어 **앞 콜**에 실린다. 반면 여기는 KEEP 이 끝난 뒤라
@@ -366,7 +366,7 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
      */
     const secStops = holder?.sectionStops;
     /**
-     * 🔴 **후보를 붙인 경로를 «확정된 경로»인 척 내보내지 않는다** (2026-08-29 실측).
+     * 🔴 **후보를 붙인 경로를 «확정된 경로»인 척 내보내지 않는다**.
      *
      * 심사 중에는 경로를 **후보까지 붙여** 다시 잰다(그게 우회를 재는 방법이다).
      * 그런데 정거장 목록에는 후보가 없으므로, 그 값을 그대로 붙이면
@@ -475,20 +475,20 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
         routeStops,
         routeComputedAt,
         /**
-         * 📍 **내 위치 — 정거장 순서와 «한 벌»로 보낸다** (2026-09-12 · 기사님 확정).
+         * 📍 **내 위치 — 정거장 순서와 «한 벌»로 보낸다** (기사님 확정).
          *
          * ── 왜 여기에 얹나 ──
          * 🔴 **관제웹이 서버 위치를 받을 문이 하나도 없었다.** 소켓 이벤트 36개 중 위치를
          *    싣는 것이 없고, REST 는 개발 전용 문(`/sim/driver-location`)과 운행일지 문뿐이다.
          *    그래서 지도는 **제 손으로** 위치를 정했고(클라 GPS → 없으면 집), 서버가 아는
-         *    자리와 **17.6km 어긋난 채** 도는 판이 실제로 있었다 (2026-09-12 실측).
+         *    자리와 **17.6km 어긋난 채** 도는 판이 실제로 있었다.
          * 🔴 **새 이벤트를 내지 않는다.** `routeStops` 는 `originOf(session)` 를 기점으로 짜인다 —
          *    위치를 딴 이벤트로 보내면 «정거장은 A 시점 기점, 내 점은 B 시점»이 되어
          *    «1번 정거장이 내 뒤에 있다» 같은 화면이 난다. 같은 계산에서 나온 것은 같이 간다.
          * ⚠️ **궤적은 여기 안 싣는다** — 이 페이로드는 초당 474KB 로 무거웠던 이력이 있다
          *    (종료 콜 폴리라인을 떼어 고쳤다). 궤적은 `logbook/gps-track` 문이 이미 있다.
          *
-         * ── 🔴 위치는 여기 안 싣는다 (2026-09-12 · 되돌림) ──
+         * ── 🔴 위치는 여기 안 싣는다 (되돌림) ──
          * 처음엔 `myPosition` 도 함께 얹었다. **틀렸다** — 이 봉투는 «콜이 바뀔 때» 나가는데
          * 위치는 **1초마다** 바뀐다. 화면이 봉투 값을 따르게 하자 봉투가 올 때마다
          * **옛 좌표가 내 점을 뒤로 당겨** 모의 주행이 멈춘 것처럼 보였다 (기사님 실측).
@@ -500,7 +500,7 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
          */
         routeOrigin: originOf(session),
         /**
-         * 🧭 **경로를 든 콜의 이름** (기사님 확정 2026-08-31 · 잔상 수리).
+         * 🧭 **경로를 든 콜의 이름** (기사님 확정 · 잔상 수리).
          *    관제웹 지도·캔버스·시뮬이 각자 «마지막 폴리라인 가진 콜»을 추측하고 있었다 —
          *    판정이 세 벌이라 KEEP 직후처럼 갈리는 순간에 **직전 콜의 옛 선**을 그렸다.
          *    이미 여기서 고른 답을 이름으로 보낸다 — 추측을 없앤다 (규칙 ③).
@@ -521,7 +521,7 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
          *    대개 같은 콜이라 하나로 썼는데 **심사 중 30초만 갈린다** —
          *    그 30초가 기사님이 색을 보고 누르는 시간이다.
          *
-         * 🔴 **재기동하면 늘 이 상태가 된다** (2026-09-06 실측). `orders` 테이블에
+         * 🔴 **재기동하면 늘 이 상태가 된다**. `orders` 테이블에
          *    `sectionDriveMin` **칸이 없다** — `routePolyline` 만 저장된다. 그래서 서버를
          *    껐다 켜면 KEEP 된 콜조차 주행분을 잃고 **홀더가 통째로 빈다.**
          *    궤적은 멀쩡히 살아 있는데 화면만 직선으로 돌아간다.
@@ -558,7 +558,7 @@ export function setOrderStatus(
 }
 
 /**
- * ⛔ **만석 홀드 — 실을 수 있는 차종이 없으면 콜 잡기를 멈춘다** (기사님 확정 2026-08-19).
+ * ⛔ **만석 홀드 — 실을 수 있는 차종이 없으면 콜 잡기를 멈춘다** (기사님 확정).
  *
  * 상차 신고로 적재가 100/100 이 되면 `allowedVehicleTypes` 가 빈 배열이 되는데,
  * 앱 파서는 빈 배열을 "전체 허용"(서버 미응답 대비 오프라인 안전망)으로 읽는다 —

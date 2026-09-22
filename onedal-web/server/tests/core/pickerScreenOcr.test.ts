@@ -1,7 +1,7 @@
 import { parsePickerDetailOcr, OcrLine } from '../../src/core/plugins/kakaopicker/pickerScreenOcr';
 
 /**
- * 📷 **픽커 상세를 그림으로 읽는다 — 실측 한 판을 통째로 문다** (2026-09-13).
+ * 📷 **픽커 상세를 그림으로 읽는다 — 실측 한 판을 통째로 문다**.
  *
  * ── 문제지의 출처 ──
  * 기사님이 A24 에서 픽커 상세를 열어 두시고, 내가 `adb exec-out screencap` 으로 찍어

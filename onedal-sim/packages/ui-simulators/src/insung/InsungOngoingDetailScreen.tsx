@@ -179,7 +179,7 @@ export const InsungOngoingDetailScreen = ({ call, onClose, onCancel }: Props) =>
         >
           카드 승인
         </button>
-        {/* 🔴 «탁송»은 배송 완료가 아니다 — 실물은 다른 기능이고 기사님도 아직 모른다 (2026-09-14).
+        {/* 🔴 «탁송»은 배송 완료가 아니다 — 실물은 다른 기능이고 기사님도 아직 모른다.
             예전엔 «배송 완료»로 잡은 콜을 지웠다. 이제 잡은 콜은 위쪽 «취소»로만 빠진다 (tests/buttons.test.tsx) */}
         <button
           className="flex-1 h-12 flex items-center justify-center font-extrabold text-xl rounded-sm shadow-sm bg-[#ffb300] text-gray-800 border-2 border-orange-400 active:scale-95 transition-transform"

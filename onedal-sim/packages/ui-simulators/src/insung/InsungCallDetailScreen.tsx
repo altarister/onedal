@@ -232,7 +232,7 @@ export const InsungCallDetailScreen = ({ call, feedback, isConfirmed, onClose, o
               취소
             </button>
 
-            {/* 🔴 «탁송»은 수락이 아니다 — 실물은 다른 기능이고 기사님도 아직 모른다 (2026-09-14).
+            {/* 🔴 «탁송»은 수락이 아니다 — 실물은 다른 기능이고 기사님도 아직 모른다.
                 예전엔 확정과 똑같이 수락했다. 모르는 기능을 지어내지 않고 아무 일도 안 하게 뒀다 (tests/buttons.test.tsx) */}
             <button
               className="flex-1 h-12 flex items-center justify-center font-extrabold text-xl rounded-sm shadow-sm bg-[#ffb300] text-gray-800 border-2 border-orange-400 active:scale-95 transition-transform"

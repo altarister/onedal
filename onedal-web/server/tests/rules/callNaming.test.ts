@@ -7,7 +7,7 @@ const read = (rel: string) => readFileSync(join(SERVER, rel), "utf8");
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 /**
- * 🔴 **콜 이름은 조합해서 만든다** (기사님 확정 2026-08-16)
+ * 🔴 **콜 이름은 조합해서 만든다** (기사님 확정)
  *
  * ```
  * 타겟명  +  첫짐(생략) / 합짐N  +  (후보)  +  콜

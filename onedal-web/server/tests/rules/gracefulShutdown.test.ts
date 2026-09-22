@@ -10,7 +10,7 @@ import { join } from 'path';
  *     6:21:51 AM [tsx] Previous process hasn't exited yet. Force killing...
  *     6:21:51 AM [tsx] Previous process hasn't exited yet. Force killing...
  *
- * ⚠️ **그 메시지의 원인은 이게 아니었다** (2026-08-26 정정). 고친 뒤에도 줄 수가 그대로
+ * ⚠️ **그 메시지의 원인은 이게 아니었다**. 고친 뒤에도 줄 수가 그대로
  *    3줄이었다. `tsx` 는 **신호를 받는 그 순간** 자식의 `exitCode` 를 보므로, 서버가
  *    아무리 빨리 나가도(실측 0.23초) 그 시점엔 «아직 안 나갔다»가 참이다. 못 피한다.
  *    → 원인을 못 밝힌 채로 둔다. **무해하다** — 서버는 정리하고 나가고 잔재는 0이다.

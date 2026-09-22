@@ -4,7 +4,7 @@ import type { PreflightState, PhoneCheckRow } from '../src/pages/preflightRows';
 import { SIM_NETS } from '@altari/ui-simulators';
 
 /**
- * 🧪 **테스트 시작 전 점검 줄** (기사님 지시 2026-09-14 — «먼발치에서 근본 원인을 찾아 고친다»)
+ * 🧪 **테스트 시작 전 점검 줄** (기사님 지시 — «먼발치에서 근본 원인을 찾아 고친다»)
  *
  * 그날 콜이 안 잡힌 두 번은 조건이 틀어져 있었는데 점검은 초록이었다 — 점검이 «서버가 정한 값»만 봤다.
  *   14:41  폰이 옛 필터 · 직접 모드로 돌았다

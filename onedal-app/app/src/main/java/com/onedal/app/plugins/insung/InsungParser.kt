@@ -31,7 +31,7 @@ class InsungParser(private val context: Context) : IScrapParser {
         private const val TAG = "1DAL_PARSER"
 
         /**
-         * 🚚 **인성 화면의 차종 토큰 — 목록은 여기 하나뿐이다** (2026-08-25).
+         * 🚚 **인성 화면의 차종 토큰 — 목록은 여기 하나뿐이다**.
          *
          * 화면은 차종을 한 글자로 쓴다(오·다·라·승·1t·5t…). 앱은 이 토큰을 **닻**으로
          * 카드를 묶고, 바로 다음 노드를 요금으로 읽는다.
@@ -56,13 +56,13 @@ class InsungParser(private val context: Context) : IScrapParser {
         /**
          * 🔇 **서버 낱말 사전을 못 받았을 때의 기본 소음 낱말** — 오프라인 안전망 (onedal-app/CLAUDE.md).
          * 원천은 서버 `keywords_inseong.json` 의 `uiNoiseWords` 이고 이것은 그 일부다.
-         * 🔴 **한 벌이다** (2026-09-14 전수 조사) — 같은 함수 안에 값이 다른 사본이 셋 있었다
+         * 🔴 **한 벌이다** (전수 조사) — 같은 함수 안에 값이 다른 사본이 셋 있었다
          *    (예외 갈래만 「콜상세」가 빠져 있었다).
          */
         private val FALLBACK_NOISE_WORDS = setOf("거리", "출발지", "도착지", "차종", "요금", "설정", "콜상세")
 
         /**
-         * 📏 **같은 줄인가** — 카드를 묶는 유일한 판정 (2026-08-25 계측용으로 떼어냈다).
+         * 📏 **같은 줄인가** — 카드를 묶는 유일한 판정 (계측용으로 떼어냈다).
          *
          * 인성 리스트는 한 줄이 콜 하나다. 차종 글자를 닻으로 잡고 **세로로 겹치는**
          * 글자들을 같은 카드로 본다.
@@ -91,7 +91,7 @@ class InsungParser(private val context: Context) : IScrapParser {
          * 🚚 **차종 닻 → (차종, 요금)** — 차종 토큰을 찾고 바로 다음 숫자를 요금(만 원 단위)으로 읽는다.
          * JVM 검사(`VehicleFareAnchorTest`)가 부르려고 `parse` 에서 떼어냈다.
          *
-         * 🔴 **닻 후보가 여럿이면 숫자처럼 생긴 차종(1.4 등)은 진다** (2026-09-14 · `VehicleFareAnchorTest`).
+         * 🔴 **닻 후보가 여럿이면 숫자처럼 생긴 차종(1.4 등)은 진다** (`VehicleFareAnchorTest`).
          *    예전엔 **첫 후보**를 썼다 — 상차 거리가 1.4km 인 줄 `1.4, 15.2, …, 5t, 15.0` 에서
          *    거리 칸 «1.4» 가 차종이 되고 배송거리 15.2 가 요금(152,000원)이 됐다.
          *    - 진짜 차종 칸(5t · 다 …)이 있으면 그것을 쓴다
@@ -134,10 +134,10 @@ class InsungParser(private val context: Context) : IScrapParser {
         fun isEmptyRect(top: Int, bottom: Int): Boolean = top >= bottom
 
         /**
-         * 🏠 **주소처럼 생겼는가** (2026-08-25 신설).
+         * 🏠 **주소처럼 생겼는가**.
          *
          * 기사님이 손으로 연 상세에서 상차지가 **«다마스»**, 하차지가 **«계산서필»** 로
-         * 장부에 남았다 (2026-08-25 13:23 실측).
+         * 장부에 남았다.
          *
          * 🔴 뿌리는 *"첫 번째 유효 지역 = 상차지, 두 번째 = 하차지"* 다. 그건 **리스트에서만
          *    참인 규칙**인데, 상세 화면은 글자 배치가 달라 엉뚱한 낱말이 1·2번째로 잡혔다.
@@ -348,7 +348,7 @@ class InsungParser(private val context: Context) : IScrapParser {
 
             // ── 조건 3: 상차지 ──
             /**
-             * 📋 **상차 목록이 오면 그것으로 거른다** (2026-09-15 · 하차 목록» 2단계).
+             * 📋 **상차 목록이 오면 그것으로 거른다** (하차 목록» 2단계).
              * 서버가 «지금 내 위치 둘레»로 만든 읍·면·동 목록에 상차지가 걸리나만 본다 —
              * 상차 반경 숫자·경로 순서(`RouteOrderFilter`)는 안 쓴다 (이천 왕복 03:08:52 D3 가 순서표에 막혔다).
              * 상세(확정 전)에서는 상세 글의 «출발지 ~ 도착지» 사이로 대조한다 — 못 자르면 리스트에서 읽은 상차지로.
@@ -416,7 +416,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             val result = vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
 
             /**
-             * 👁️ **성적표를 채운다** — 첫 번째로 걸린 축에만 센다 (기사님 확정 2026-08-23).
+             * 👁️ **성적표를 채운다** — 첫 번째로 걸린 축에만 센다 (기사님 확정).
              *
              * 여러 축에 걸린 콜을 다 세면 합이 `seen` 을 넘고, *"이 축을 풀면 몇 개가
              * 들어오나"* 를 못 읽는다 — 그게 이 숫자의 쓸모다.
@@ -625,7 +625,7 @@ class InsungParser(private val context: Context) : IScrapParser {
         // 첫 번째 값 = 상차지 직선거리 / 두 번째 값 = 배송거리 (의도적으로 sort() 제외)
 
         val now = // 🔴 `'Z'` 는 **글자 Z 를 붙일 뿐**이다 — 한국 시각에 UTC 표식이 달려 서버가 9시간 밀려 읽었다
-        //    (2026-08-16 실측: "대기 572분"). `XXX` 를 쓰면 `+09:00` 이 붙는다
+        //    (실측: "대기 572분"). `XXX` 를 쓰면 `+09:00` 이 붙는다
         SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date())
         
         // 시간 포맷 (HH:mm) 추출
@@ -673,7 +673,7 @@ class InsungParser(private val context: Context) : IScrapParser {
         order.copy(verdict = judge(order, loadCurrentFilter(), tally).axis)
 
     /**
-     * 🧪 **판정 본체 — 필터를 인자로 받는다** (2026-08-25 신설).
+     * 🧪 **판정 본체 — 필터를 인자로 받는다**.
      *
      * 기사님: *"도대체 어떻게 하면 필터가 잘 작동하는지 확인할 수 있는 거야.
      * 지금 이것만 2시간 동안 하고 있어."*
@@ -728,7 +728,7 @@ class InsungParser(private val context: Context) : IScrapParser {
     // ════════════════════════════════════════════════════════════════
     
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
-        // 🔴 여기가 **승(승용차)을 빼먹고 있던 세 번째 목록**이었다 (2026-08-25).
+        // 🔴 여기가 **승(승용차)을 빼먹고 있던 세 번째 목록**이었다.
         //    카드를 묶는 자리라, 빠지면 그 콜은 로그 한 줄 없이 사라진다.
         val fareNodes = allNodes.filter { it.text.matches(VEHICLE_ONLY) }
 

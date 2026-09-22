@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { restoreWhere, RESTORABLE_STATUSES } from '@onedal/shared';
 
 /**
- * 🗓️ **자정을 넘긴 운행 — 오늘 내린 콜은 오늘 시트에 되살린다** (기사님 확정 2026-09-15 · 사이클 = 하루).
+ * 🗓️ **자정을 넘긴 운행 — 오늘 내린 콜은 오늘 시트에 되살린다** (기사님 확정 · 사이클 = 하루).
  *
  * 재부팅 복구(`restoreAndRecalculateSession`)와 새로고침 이력(`GET /orders`)은 «잡은 시각이 오늘»인 종결 콜만 살렸다.
  * 어제 잡고 오늘 하차한 콜은 재부팅 뒤 시트에서 빠졌다. 기사님: *"오늘 내린 콜만 분리해서 오늘 시트에 올린다."*

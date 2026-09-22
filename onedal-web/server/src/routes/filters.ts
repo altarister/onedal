@@ -4,7 +4,7 @@
  *    삭제는 기사님 확인 대상이라 todo 「🗑️ 삭제 대기」에 올려 두고 파일만 남겼다.
  *
  * ⚠️ 아래 주석들은 **살아 있는 API 처럼** 쓰여 있다. 파일을 직접 연 사람이
- *    반대로 읽지 않도록 이 묘비를 맨 위에 둔다 (2026-08-29).
+ *    반대로 읽지 않도록 이 묘비를 맨 위에 둔다.
  */
 import { Router } from "express";
 import { DEFAULT_DETOUR_RADIUS_KM } from "@onedal/shared";

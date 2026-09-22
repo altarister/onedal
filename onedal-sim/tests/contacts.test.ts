@@ -3,7 +3,7 @@ import { getNextDropoffDetail, getNextPickupDetail } from '@altari/ui-simulators
 import { seededRandom } from './seededRandom';
 
 /**
- * 🔒 **인성 상세 팝업의 연락처를 그대로 잠근다** (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계 0-2 ②)
+ * 🔒 **인성 상세 팝업의 연락처를 그대로 잠근다** (카카오픽커_시뮬레이터.md 0단계 0-2 ②)
  *
  * 인성 상세 화면에서 출발지·도착지를 누르면 이 함수가 연락처를 채운다. **누를 때만** 불리므로
  * 화면 글자 스냅숏(`screens.test.tsx`)은 이 동작을 못 본다 — 그래서 옮기기 전에 따로 적어 둔다.

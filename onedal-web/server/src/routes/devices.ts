@@ -14,7 +14,7 @@ const router = Router();
 const activeDevices = new Map<string, DeviceSession>();
 
 /**
- * 🎛️ **기사님이 고른 모드를 DB 에 적는다** (기사님 확정 2026-08-30).
+ * 🎛️ **기사님이 고른 모드를 DB 에 적는다** (기사님 확정).
  *
  * `activeDevices` 의 `session.mode` 는 통신 두절·오프라인 보고로 덮어써지지만,
  * 이 칸은 **"기사님의 의도"** 만 담으며 그런 사건에 흔들리지 않는다.
@@ -23,7 +23,7 @@ const activeDevices = new Map<string, DeviceSession>();
  *    로 되살릴 수 있었는데, 셋이 되면서 `isActive === false` 에서 **「대기」와 「알람」을
  *    못 가른다.** 그러면 알람이 말없이 대기로 떨어지고 **화면은 멀쩡한 채 알람만 안 울린다.**
  *
- * 🔴 **`user_id` 로 반드시 거른다** (2026-08-30 코드리뷰). `requireAuth` 는
+ * 🔴 **`user_id` 로 반드시 거른다** (코드리뷰). `requireAuth` 는
  *    *"로그인했는가"* 만 답한다 — *"이 폰이 네 것인가"* 는 안 본다. 기기 해제(DELETE)는
  *    거르는데 여기만 안 걸렀다. 구멍은 전부터 있었지만 **메모리라 재시작에 사라졌고**,
  *    DB 로 내리면서 영구화될 뻔했다.
@@ -87,7 +87,7 @@ function lookupDeviceName(deviceId: string): string | undefined {
 }
 
 /**
- * 👁️ **화면을 못 읽는 중인지 기록한다** (기사님 확정 2026-08-22 · 크리티컬).
+ * 👁️ **화면을 못 읽는 중인지 기록한다** (기사님 확정 · 크리티컬).
  *
  * 기사님: *"분명 폰 이름 1234에 파란불이 들어와 있었어."*
  *
@@ -102,7 +102,7 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
     if (isScreenOn !== undefined) session.isScreenOn = isScreenOn;
 
     /**
-     * 💤 **화면이 꺼져 있으면 노드가 0인 게 당연하다** (기사님 확정 2026-08-22).
+     * 💤 **화면이 꺼져 있으면 노드가 0인 게 당연하다** (기사님 확정).
      *
      * 그걸 "못 읽음"으로 부르면 기사님이 폰을 끌 때마다 거짓 경고가 뜬다 —
      * **당연한 것을 고장이라 하지 않는다.** 화면 꺼짐은 별도로 표시한다(💤).
@@ -134,7 +134,7 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
  * @returns 현재 기기의 관제 모드 (AUTO | MANUAL)
  */
 /**
- * 📦🚦🎛️ **폰 상태 바가 쓰는 셋** (2026-09-02).
+ * 📦🚦🎛️ **폰 상태 바가 쓰는 셋**.
  * 앱 안엔 있었는데 여태 안 올라오던 값들이다 — 서버는 **받아 적기만** 한다.
  * ⚠️ 구앱은 안 보낸다 → `undefined` 로 남고, 화면이 아무것도 안 그린다 (규칙 ④).
  */
@@ -145,7 +145,7 @@ export interface DeviceStatusExtras {
     workStageSeconds?: number;
     appliedMode?: string;
     /**
-     * 🧬 **폰이 «들고 온» 콜 필터의 지문** (2026-09-12 · 현황판 담당 요청 ②).
+     * 🧬 **폰이 «들고 온» 콜 필터의 지문** (현황판 담당 요청 ②).
      *    서버가 내려보낸 것이 아니라 **앱이 실어 보낸 것**이다 — 그래야
      *    «이 폰이 아직 옛 필터로 돌고 있다»가 드러난다 (`DeviceSession.filterVersion` 주석).
      */
@@ -178,7 +178,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     } else {
         // [Phase 1.5] OFFLINE → ONLINE 복귀 시 사용자가 지정했던 모드를 되살립니다.
         //
-        // ⚖️ 설계 결정 (2026-08-09, 승욱님 확인):
+        // ⚖️ 설계 결정 (승욱님 확인):
         // PRD §3 의 "누적 페널티 킬스위치"는 데드맨이 mode 를 MANUAL 로 강제하는 것으로
         // 구현돼 있었으나, 통신이 끊긴 폰은 어차피 콜을 잡지 못하므로 실익이 없는 반면
         // 복귀 후에도 MANUAL 에 머물러 콜 잡기가 멈추는 부작용만 컸다.
@@ -195,7 +195,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         }
 
         /**
-         * ⏱️ **덮기 전에 직전 보고 시각을 챙긴다** (기사님 확정 2026-09-02).
+         * ⏱️ **덮기 전에 직전 보고 시각을 챙긴다** (기사님 확정).
          *
          * 앱은 **화면에 일이 생기면 그때** 보내고, 아무 일도 없으면 **60초마다** 살아있다고만
          * 알린다. 그래서 «마지막 두 보고의 간격»이 곧 *"그 사이에 일이 있었나"* 다 —
@@ -270,7 +270,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     // 새 세션이든 갱신이든 **한 곳에서** 본다 — 두 갈래에 나눠 적으면 한쪽만 고쳐진다
     applyBlindSignal(session, screenNodeCount, isScreenOn);
     /**
-     * 👁️ **마지막 스캔의 필터 성적표를 그대로 얹는다** (기사님 확정 2026-08-23).
+     * 👁️ **마지막 스캔의 필터 성적표를 그대로 얹는다** (기사님 확정).
      *
      * 서버가 만드는 값이 아니라 **앱이 판정한 사실**이라 해석하지 않고 옮기기만 한다.
      * 안 온 스캔(하트비트·상세 화면)에서는 **직전 값을 지우지 않는다** — 리스트를 안 보는
@@ -292,7 +292,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         session.filterTallyAt = session.lastSeen;
 
         /**
-         * 🔔 **알람 모드 — 필터를 통과한 콜이 떴다** (기사님 확정 2026-08-30).
+         * 🔔 **알람 모드 — 필터를 통과한 콜이 떴다** (기사님 확정).
          *
          * 앱은 이 모드에서 **누르지 않는다.** 기사님이 인성 리스트에서 직접 누르므로,
          * 서버가 할 일은 *"통과한 콜이 지금 리스트에 있다"* 를 관제웹에 알리는 것뿐이다.
@@ -722,7 +722,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
         activeDevices.set(deviceId, session);
 
         /**
-         * 🔴 **`isActive` 는 «누가 누르나»가 아니라 «필터가 도는가» 다** (2026-08-30 · 모드 셋).
+         * 🔴 **`isActive` 는 «누가 누르나»가 아니라 «필터가 도는가» 다** (모드 셋).
          *
          * 값이 둘일 때는 그 둘이 같은 말이었다 — AUTO 면 필터가 돌고 앱이 누른다.
          * **알람이 생기면서 갈라진다**: 알람은 필터가 돌아야 하는데 앱은 안 누른다.
@@ -749,7 +749,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
         );
 
         /**
-         * 🔴 **의도를 세션에 먼저 적는다** (2026-08-30 코드리뷰).
+         * 🔴 **의도를 세션에 먼저 적는다** (코드리뷰).
          *
          * `updateActiveFilter` 안의 불변식이 *"선점 중인 콜 0건이면 다시 켠다"* 로
          * `isActive` 를 되켠다. 이 칸이 없으면 「대기」로 바꿔도 **곧바로 도로 켜져**

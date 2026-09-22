@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 
 /**
- * 🔐 **앱에서는 구글 웹 로그인이 안 된다 — 안드로이드 계정 선택창을 쓴다** (2026-08-23).
+ * 🔐 **앱에서는 구글 웹 로그인이 안 된다 — 안드로이드 계정 선택창을 쓴다**.
  *
  * 기사님: *"관제앱으로 할 거야. **사진도 찍어야 하고 하드웨어를 사용할 거라서.**"*
  *

@@ -21,7 +21,7 @@ import type { CargoReport } from './index';
  *
  *   건너뛰기 2종 (`pickup/SKIPPED` · `dropoff/SKIPPED`)
  *
- * 🔴 **건너뛰기도 서버에 남는다** (2026-08-12). 통화를 했든(`DECLARED`) 건너뛰기로
+ * 🔴 **건너뛰기도 서버에 남는다**. 통화를 했든(`DECLARED`) 건너뛰기로
  *    했든(`SKIPPED`) **그 단계는 지나간 것**이고, 새로고침해도 되살아나지 않는다.
  *    *"내가 확인한 건지 아닌지가 명확하게 데이터로 남아 있어야 가치를 판단할 수 있다"*
  *    (기사님 2026-08-19) — 출처 삼분(직접·자동·건너뜀)이 여기서 나왔다.
@@ -29,7 +29,7 @@ import type { CargoReport } from './index';
  * ⚠️ 예전에는 정반대였다 — *"건너뛰었다는 증거는 서버에 남길 값이 아니다"* 며 화면
  *    로컬(`skippedTo`)에 두고 `max(증거, 건너뛴 지점)` 으로 합쳤고, 새로고침하면
  *    통화 단계가 되살아났다. **그 서술이 08-12 개정 뒤로도 머리말에 남아 있었다**
- *    (2026-08-29 정정). 세 앱 중 하나가 그걸 믿고 `SKIPPED` 를 안 보내면 장부가 깨진다
+ *   . 세 앱 중 하나가 그걸 믿고 `SKIPPED` 를 안 보내면 장부가 깨진다
  */
 
 export const CALL_STEPS = [
@@ -65,7 +65,7 @@ interface MilestoneRow { milestone: string; source?: string }
 function evidenceIndex(milestones: MilestoneRow[], reports: CargoReport[]): number {
     const has = (m: string) => milestones.some(x => x.milestone === m);
     // 통화를 했든(DECLARED) 건너뛰기로 했든(SKIPPED) **그 단계는 지나간 것**이다.
-    // 건너뛰기도 서버에 남으므로 새로고침해도 되살아나지 않는다 (2026-08-12).
+    // 건너뛰기도 서버에 남으므로 새로고침해도 되살아나지 않는다.
     const called = (stop: 'pickup' | 'dropoff') =>
         reports.some(r => r.stopType === stop && (r.kind === 'DECLARED' || r.kind === 'SKIPPED'));
 
@@ -126,7 +126,7 @@ export function canRewindTo(progress: CallProgress, target: number): boolean {
     return target >= 0 && target < progress.index;
 }
 
-/** 🔴 단계 → 마일스톤 대응은 **이 한 벌**이다 — 장부 복원과 단계 표가 함께 읽는다. 사본을 만들지 않는다 (2026-09-14 사본 하나를 걷었다). */
+/** 🔴 단계 → 마일스톤 대응은 **이 한 벌**이다 — 장부 복원과 단계 표가 함께 읽는다. 사본을 만들지 않는다 (사본 하나를 걷었다). */
 export const STEP_MILESTONE: Partial<Record<CallStepId, string>> = {
     ARRIVE_PICKUP: 'ARRIVED_PICKUP',
     LOADED: 'PICKED_UP',

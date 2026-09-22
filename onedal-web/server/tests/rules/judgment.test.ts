@@ -9,7 +9,7 @@ const read = (rel: string) => readFileSync(join(SERVER, rel), "utf8");
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 /**
- * 🎨 **판정색 확정안 v2 로 전환된 뒤의 규칙 검사** (2026-08-21)
+ * 🎨 **판정색 확정안 v2 로 전환된 뒤의 규칙 검사**
  *
  * 옛 채점기(scoreMerge·scoreSolo — 절대치 문턱·요율 재계산)는 노하우 4콜 문제지
  * 낙제로 철거됐다. 채점 행동 자체는 `tests/shared/dryRunScore.test.ts` 가 지킨다.
@@ -19,7 +19,7 @@ const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
 
 describe('실측 콜 회귀 — 옛 사고가 새 채점기에서 재발하지 않는다', () => {
 
-    /** 그날 실제로 있었던 콜 (2026-08-15) — 99,000원 · 한계 우회 +6분 + 정차 25분 */
+    /** 그날 실제로 있었던 콜 — 99,000원 · 한계 우회 +6분 + 정차 25분 */
     it('🔴 99,000원 · +31분이면 「돈」이 만점이다 (옛 채점기는 마감 여유 0 으로 뭉개 똥이었다)', () => {
         const v = judge(CRITERIA, {
             money: { fare: 99_000, extraMinutes: 6 + DWELL_UNKNOWN_PICKUP_MINUTES + DWELL_UNKNOWN_DROPOFF_MINUTES , firstLoad: false },
@@ -108,7 +108,7 @@ describe('판정하는 곳은 한 곳', () => {
 });
 
 /**
- * 🔴 **서버가 미리 눌러 두고 기사님이 확정하신다** (기사님 확정 2026-08-16)
+ * 🔴 **서버가 미리 눌러 두고 기사님이 확정하신다** (기사님 확정)
  *
  * *"너가 눌러 놓은 걸 내가 확정하는 거야. 너가 눌러 논 것에서 상황이 바뀐다면 내가 바꿔서 확정할 거고."*
  *
@@ -196,13 +196,13 @@ describe('시트 상태 — 콜마다 새로 선다', () => {
     const rc4 = (rel: string) => codeOnly(readFileSync(join(CLIENT4, rel), 'utf8'));
 
     /**
-     * 🔴 **콜마다 시트를 새로 그린다** (2026-08-16 실측).
+     * 🔴 **콜마다 시트를 새로 그린다**.
      *
      * `key` 가 `shownStep.id`(= `CALL_PICKUP` 같은 **단계 이름**)뿐이라 콜이 달라도 같았다.
      * React 가 컴포넌트를 재사용해 **앞 콜의 `deadlineAt`·물량이 다음 콜 화면에 남았다** —
      * 송정동 콜 화면에 계산서필 콜의 `11:08` 이 떠 있었다.
      */
-    /** 🏗️ 옛 시트 철거(2026-08-21) 후에도 교훈은 산다 — 콜이 달라지면 시트 상태가 새로 선다 */
+    /** 🏗️ 옛 시트 철거 후에도 교훈은 산다 — 콜이 달라지면 시트 상태가 새로 선다 */
     it('🔴 시트의 key 에 콜 id 가 들어간다', () => {
         const card = rc4('components/dashboard/PinnedRouteCard.tsx');
         const at = card.indexOf('<StepSheetMock');

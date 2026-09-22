@@ -3,7 +3,7 @@ import db from "../db";
 import { CANCEL_BUDGET_PER_ROUND } from "@onedal/shared";
 
 /**
- * 🧮 **취소를 세는 자리는 여기 하나다** (2026-08-22 · 미리보기 콜과 함께 신설).
+ * 🧮 **취소를 세는 자리는 여기 하나다** (미리보기 콜과 함께 신설).
  *
  * 취소 카운트는 **배차망 10회 패널티**를 세는 값이다. 한 건도 새면 안 되고,
  * **없던 취소를 세도 안 된다.**
@@ -15,7 +15,7 @@ import { CANCEL_BUDGET_PER_ROUND } from "@onedal/shared";
  *
  * 👀 **미리보기 콜은 세지 않는다.** 기사님이 확정을 누르기 전에 판정만 받아 본 콜이라
  *    **인성에서는 아무 일도 일어나지 않았다.** 취소할 것이 없는데 우리 장부에만 쌓이면
- *    화면이 거짓말을 한다 (2026-08-22 실측: 하루에 5건이 그렇게 쌓였다).
+ *    화면이 거짓말을 한다 (실측: 하루에 5건이 그렇게 쌓였다).
  */
 export function countCancel(
     session: { pendingOrdersData: Map<string, any>; myOrders: any[]; userId?: string },
@@ -23,7 +23,7 @@ export function countCancel(
     orderId: string,
     reason: 'DECISION_CANCEL' | 'FORCE_CANCEL' | 'TIMEOUT' | string,
     /**
-     * 👀 **미리 뽑아 둔 미리보기 딱지** (2026-08-22 18:45 실측으로 추가).
+     * 👀 **미리 뽑아 둔 미리보기 딱지** (실측으로 추가).
      *
      * 🔴 `forceCancelEvaluatingOrder` 는 캐시를 **지운 뒤에** 이 함수를 부른다. 그러면
      *    세션에서 콜을 못 찾아 딱지를 영영 못 본다 — 미리보기인데 취소 카운트가 올랐다.
@@ -51,7 +51,7 @@ export function countCancel(
 }
 
 /**
- * 🚫 **한 판(10회)을 다 썼으면 알리고 새 판을 연다** (기사님 확정 2026-08-23).
+ * 🚫 **한 판(10회)을 다 썼으면 알리고 새 판을 연다** (기사님 확정).
  *
  * 기사님: *"10회가 되면 토스트 알림주고 리셋해줘."*
  *

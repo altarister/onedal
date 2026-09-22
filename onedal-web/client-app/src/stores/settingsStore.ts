@@ -4,7 +4,7 @@ import type { WaitTimes } from '@onedal/shared';
 import { apiClient } from '../api/apiClient';
 
 /**
- * ⚙️ **화면이 쓰는 설정 — 한 곳에서 읽는다** (기사님 지시 2026-09-12 · 화면규칙 S16).
+ * ⚙️ **화면이 쓰는 설정 — 한 곳에서 읽는다** (기사님 지시 · 화면규칙 S16).
  *
  * 🔴 **왜 스토어인가** — 이 값을 쓰는 곳(`useDriveMotion`)이 화면 여럿에서 불린다.
  *    각자 `/settings` 를 부르면 **같은 값을 여러 번 묻고, 저장 뒤 어떤 화면은 옛 값을

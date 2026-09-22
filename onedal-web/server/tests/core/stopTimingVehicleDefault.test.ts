@@ -63,7 +63,7 @@ afterAll(() => { db.prepare(`DELETE FROM orders WHERE id = ?`).run(ID); });
 const maybe = USER ? describe : describe.skip;   // 빈 DB 에서는 건너뛴다
 
 /**
- * 🔴 **진짜 판정 시점에는 `orders` 행조차 없다** (2026-08-29 · 첫 수정이 헛돌아서 잡음).
+ * 🔴 **진짜 판정 시점에는 `orders` 행조차 없다** (첫 수정이 헛돌아서 잡음).
  *
  * `upsertOrder` 는 **KEEP 할 때**(`handleDecision`) 돈다. 판정은 그 전이다 —
  * 기사님은 색을 보고 KEEP 을 누르니까. 그래서 DB 만 보고 고치면 **검사는 초록불인데

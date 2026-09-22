@@ -4,7 +4,7 @@ import type { InjectedCall } from '../packages/core-simulator/src/index';
 import { SIM_NET_LIST } from '../packages/ui-simulators/src/nets';
 
 /**
- * 🚚 **개별콜 — 서버가 넘긴 콜이 배차망마다 목록 콜이 되는가** (기사님 지시 2026-09-15 · `injectedCall.ts` 머리).
+ * 🚚 **개별콜 — 서버가 넘긴 콜이 배차망마다 목록 콜이 되는가** (기사님 지시 · `injectedCall.ts` 머리).
  *
  * 동 이름(`region`)은 인성 목록의 지역 칸 · 픽커 목록의 동 칸에 찍히고, 폰 원달앱이 그 글자로 거른다.
  * 요금은 보낸 그대로 가야 요금 축 시험이 성립한다.

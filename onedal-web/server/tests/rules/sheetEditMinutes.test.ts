@@ -6,7 +6,7 @@ import { saveStepDwell, DWELL_COLUMN_OF, plannedDwellOf, stepsView, birthFirstSt
 import { dwellActualOfSteps, dwellLedgerOfSteps, dwellSlipMinutes, deriveRouteTimeline, DEFAULT_JUDGMENT, derivationInputsOf } from '@onedal/shared';
 
 /**
- * ✏️ **분(分)은 «이 콜»의 값이다 — 규칙이 아니다** (기사님 확정 2026-08-30)
+ * ✏️ **분(分)은 «이 콜»의 값이다 — 규칙이 아니다** (기사님 확정)
  *
  * 기사님: *"a 가 맞아. **'예측(14분)과 실제(19분)를 둘 다 남겨'** 이것도 맞아."*
  *
@@ -144,7 +144,7 @@ describe('⏱️ 실측이 뒤 정거장을 민다 — 기사님의 「−5분�
     });
 
     /**
-     * 🔴 **기사님 리허설(2026-08-30)이 잡은 것 — 이게 진짜 위험한 경우다.**
+     * 🔴 **기사님 리허설이 잡은 것 — 이게 진짜 위험한 경우다.**
      *
      * «실제로 몇 분 걸렸나»를 아는 순간은 **상차 완료를 누르는 때**인데, 바로 그 순간
      * 상차지가 **경로에서 빠진다.** 처음 만든 계산은 «경로에 남은 정거장»만 훑었으므로

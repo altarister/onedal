@@ -2,7 +2,7 @@ import { getUserSession } from '../../src/state/userSessionStore';
 import { updateActiveFilter } from '../../src/state/filterManager';
 
 /**
- * 🧪 #80 — **콜을 보유한 채 사이클이 깨지면 콜 잡기가 영영 잠긴다** (2026-08-30)
+ * 🧪 #80 — **콜을 보유한 채 사이클이 깨지면 콜 잡기가 영영 잠긴다**
  *
  * 실측 (7지점 6판 · 서버 로그가 그대로 증거):
  *   16:22:20  보유 0건에서 강제 정리 → 불변식 발동, 콜 잡기 재개 ✅

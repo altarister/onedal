@@ -4,7 +4,7 @@ import { initGeoService, getDetourRegions } from '../../src/services/geoService'
 import { buildAppOrderKm, rememberDetourProgress } from '../../src/state/filterManager';
 
 /**
- * 🧭 **경로 순서가 지리를 뒤집는다** (2026-08-30 실폰 2회 재현)
+ * 🧭 **경로 순서가 지리를 뒤집는다** (실폰 2회 재현)
  *
  * 7지점 판(집→모다→신둔농협 · 카카오 실경로 19.2km)에서:
  *   · 03 곤지암성당→이천제일 — 신둔 «가는 길목»인데 "2.2km 후진"으로 차단 (미탐)

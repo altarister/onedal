@@ -5,7 +5,7 @@ import { judge, CRITERIA, toSnapshot, DEFAULT_JUDGMENT } from '@onedal/shared';
 import type { JudgmentConfig, JudgeFacts } from '@onedal/shared';
 
 /**
- * 🔍 **코드 리뷰가 잡은 것** (2026-08-29 · 판정 갈아타기 직후)
+ * 🔍 **코드 리뷰가 잡은 것** (판정 갈아타기 직후)
  *
  * 기사님: *"시니어 개발자라 생각하고 먼발치에서 구조·코드 퀄리티 중점으로 오류를 찾아 리뷰해."*
  * 리뷰가 11건을 냈고, 그중 **직접 확인해서 진짜인 것**만 여기 검사로 세운다.

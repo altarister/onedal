@@ -15,7 +15,7 @@ const pendingPins = new Map<string, PendingPin>();
 /**
  * 만료된 PIN을 주기적으로 정리 (메모리 누수 방지)
  *
- * 🔴 `.unref()` — **이 타이머가 서버를 붙잡지 않게 한다** (2026-08-26).
+ * 🔴 `.unref()` — **이 타이머가 서버를 붙잡지 않게 한다**.
  * Node 는 살아 있는 타이머가 하나만 있어도 안 죽는다. 기사님이 Ctrl+C 를 누르셨을 때
  * `tsx` 가 *"Previous process hasn't exited yet. Force killing..."* 를 뱉은 이유 중
  * 하나가 이것이다. unref 한 타이머는 **할 일이 남았을 때만** 붙잡는다 —

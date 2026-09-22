@@ -6,7 +6,7 @@ import { rebuildPickupList } from '../../src/state/filterManager';
 import { APP_FILTER_KEYS, callFilterBlocker } from '@onedal/shared';
 
 /**
- * 📋 **상차 목록 — 실제 지도로** (기사님 확정 2026-09-15 · 모양 검사 `shared/src/filterArea.test.ts`).
+ * 📋 **상차 목록 — 실제 지도로** (기사님 확정 · 모양 검사 `shared/src/filterArea.test.ts`).
  *
  * 살아 있는 목적지 중 하나라도 운행 뒤가 아니면 **현위치 영역 전체**, 전부 운행 뒤면 **현위치 영역 ∩ 라인 영역**.
  * 좌표는 이천 왕복 시나리오 실값(`src/core/simScenarioIcheon.ts`) · 반경은 그때 자동 반경이 준 값.
@@ -160,7 +160,7 @@ describe('상차 목록 배선', () => {
         expect(body).toMatch(/goalZonesNow\(session, userId/);
         expect(body).toMatch(/pickupListFor\(/);
         expect(body).toMatch(/refreshKeywordTraps\(session\)/);
-        /* 🔴 지도 재료(복귀 켬 · 복귀콜 쥠 · 집 · 라인)가 바뀌어도 «바뀌었다»고 알린다 — 목록만 보면 옛 재료로 그린다 (2026-09-15 15:47) */
+        /* 🔴 지도 재료(복귀 켬 · 복귀콜 쥠 · 집 · 라인)가 바뀌어도 «바뀌었다»고 알린다 — 목록만 보면 옛 재료로 그린다 */
         expect(body).toMatch(/pickupAreaKey\(/);
         expect(code('socket/socketHandlers.ts')).toMatch(/maybeRebuildPickupList\(userId, io\)/);
     });

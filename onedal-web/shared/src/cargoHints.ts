@@ -2,7 +2,7 @@
 //    index.ts 가 이 파일을 re-export 하므로, 모듈 초기화 시점에
 //    `ReferenceError: Cannot access 'CARGO_SIZES' before initialization` 로 **서버가 부팅조차 못 한다.**
 //    타입 import 는 컴파일 후 사라지므로 안전하다.
-//    (2026-08-10: tsc·jest 는 통과했는데 tsx 런타임에서만 터졌다. 스모크가 잡았다)
+//    (tsc·jest 는 통과했는데 tsx 런타임에서만 터졌다. 스모크가 잡았다)
 import type { HandlingMethod } from './index';
 import type { CargoUnit } from './cargoUnits';
 import type { CargoTag } from './cargoTags';
@@ -69,10 +69,10 @@ const TAG_WORDS: Array<[RegExp, CargoTag]> = [
 const HANDLING_WORDS: Array<[RegExp, HandlingMethod]> = [
     // 🔴 검수는 **하차의 후작업**으로 옮겼다 (기사님 2026-08-18) — 방법에서 뺐으므로 여기서도 매핑하지 않는다.
     [/지게차|호크리프트|포크리프트/, '지게차'],
-    // 🔴 호이스트·크레인은 **매핑하지 않는다** (2026-08-18). 방법 목록에서 뺐고
+    // 🔴 호이스트·크레인은 **매핑하지 않는다**. 방법 목록에서 뺐고
     //    (기사님: "해본 적이 없다"), 그렇다고 지게차로 바꿔 넣으면 없는 사실을 지어내는 것이다.
     //    적요에 이 말이 있으면 방법은 **미확인**으로 두고 통화에서 정한다 (규칙 ④).
-    // '수작업' 이라는 낱말 자체가 빠져 있었다 (2026-08-12 발견)
+    // '수작업' 이라는 낱말 자체가 빠져 있었다
     [/수작업|카트|수레|대차|손수레|하이바|직접\s*운반/, '수작업'],
 ];
 

@@ -14,7 +14,7 @@ import { parseSectionDriveMin } from '../../src/services/routeComposer';
  *     fa5de7  PICKED_UP                  ✗              ✗     ← 지금 홀더인데 비었다
  *
  * 결과: 새로고침·재기동하면 **예상 시각·상차버퍼가 폴백으로 돌고**, 주행분이 없어 홀더가
- * 비면 **지도가 직선으로 물러난다** (2026-09-06 주석이 그 증상을 이미 적어 뒀다).
+ * 비면 **지도가 직선으로 물러난다** (주석이 그 증상을 이미 적어 뒀다).
  *
  * 🔴 **`sectionDriveMin` 은 칸 자체가 없었다.** 나머지 셋(`routePolyline`·`sectionEnds`·
  *    `sectionStops`)과 **한 운명**인데 이것만 빠져 있었다.

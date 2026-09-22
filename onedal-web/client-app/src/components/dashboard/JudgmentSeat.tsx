@@ -17,7 +17,7 @@ import { useFilterConfig } from '../../hooks/useFilterConfig';
  */
 
 /**
- * 🎨 **판정색 한 벌** — 심사석과 «한 줄 심사석»이 같은 색을 쓴다 (2026-09-05).
+ * 🎨 **판정색 한 벌** — 심사석과 «한 줄 심사석»이 같은 색을 쓴다.
  *    색이 곧 기사님의 결정이라(규칙 ⑤-3), 자리마다 색이 다르면 그게 가장 큰 사고다.
  */
 export const SOAK: Record<VerdictColor, { tint: string; bar: string; text: string; glow: string; wm: string }> = {

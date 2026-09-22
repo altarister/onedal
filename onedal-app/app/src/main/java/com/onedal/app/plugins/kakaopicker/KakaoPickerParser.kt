@@ -8,7 +8,7 @@ import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
- * 🌐 카카오T픽커 리스트 파서 — **수집 전용** (기사님 확정 2026-08-30 · 픽커_수집.md).
+ * 🌐 카카오T픽커 리스트 파서 — **수집 전용** (기사님 확정 · 픽커_수집.md).
  *
  * 목적은 하나다: 리스트에 뜬 모든 콜을 읽어 서버(intel)에 표본으로 쌓는다.
  * 잡지 않는다 · 알람도 아직 없다 · 판정하지 않는다 — 그래서 `shouldClick` 은 늘 false 다.
@@ -228,7 +228,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             nodes.firstOrNull { it.first.contains(LIST_HEADER_WORD) }?.second
 
         /**
-         * 🔴 **이 요금 닻을 눌러도 되는가** (2026-09-13 · 라이브 오배차 조사에서 신설).
+         * 🔴 **이 요금 닻을 눌러도 되는가** (라이브 오배차 조사에서 신설).
          *
          * 09-13 새벽, 기사님이 주무시는 사이 앱이 픽커 카드를 눌러 두 건이 배차됐다.
          * 앱은 낱말을 안 보고 **«쉼표 든 숫자 + 화면 오른쪽»** 만 보고 그 **정중앙**을 찍는다
@@ -342,7 +342,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         }
 
         /**
-         * 🔔 **픽커 알람 판정 — 축은 셋이다** (기사님 확정 2026-08-30 · 픽커_수집.md 3단계).
+         * 🔔 **픽커 알람 판정 — 축은 셋이다** (기사님 확정 · 픽커_수집.md 3단계).
          *
          *   ① 요금 ≥ 픽커 알람 하한 (원천 DB user_settings.picker_alarm_min_fare · 기본 1만)
          *   ② 픽업거리 ≤ 상차 반경 (기존 국면 값 재사용 — 뜻이 같다)
@@ -387,7 +387,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             region.split(' ').map(::regionKey).filter { it.isNotEmpty() }
 
         /**
-         * 👀 **이 상세가 리스트의 어느 카드인가 — 누가 열었든 여기 한 곳** (2026-09-14 폰 시험).
+         * 👀 **이 상세가 리스트의 어느 카드인가 — 누가 열었든 여기 한 곳** (폰 시험).
          *
          * 예전엔 알람이 누를 때만 카드를 쥐여 줘서, 기사님이 **손으로 연 상세**는 «리스트 원본이 없다»로
          * 서버에 아무것도 안 갔다 (클래스 «판단이 한쪽 경로에만 있다» — #75 · #77 과 같은 뿌리).
@@ -429,7 +429,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         private val DETAIL_SIZE_REGEX = Regex("""물품\s*정보\s*(초소형|소형|중형|대형|특대형)""")
 
         /**
-         * 🔔 **축별 판정 결과** (2026-09-14 · 카카오픽커_시뮬레이터.md 3단계 3-2).
+         * 🔔 **축별 판정 결과** (카카오픽커_시뮬레이터.md 3단계 3-2).
          * 시뮬레이터 채점기(`onedal-sim/scripts/pickerAlarmGrade.mjs`)가 판정 순간의 필터로 정답을 다시 계산해 맞춰 본다 —
          * 어긋나면 «요금·상차·도착 중 어디서» 갈렸는지가 고칠 곳(앱 판정 vs 서버 필터)을 가른다.
          */
@@ -530,7 +530,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         }
 
         /**
-         * 🧾 **알람 필터 한 줄** — 채점기가 «그 순간 폰이 가진 필터»로 읽는 JSON (2026-09-14 · 3단계 3-2).
+         * 🧾 **알람 필터 한 줄** — 채점기가 «그 순간 폰이 가진 필터»로 읽는 JSON (3단계 3-2).
          * 서버 필터는 콜을 잡고 위치가 움직일 때마다 바뀌므로, 판정 줄과 같은 로그 파일에 **바뀔 때마다** 남긴다.
          * ⚠️ `org.json` 은 JVM 검사에서 비어 있어 Gson 으로 만든다.
          */

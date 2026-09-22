@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { buildKakaoNaviUrl, buildKakaoRouteUrl, type NaviStop } from '@onedal/shared';
 
 /**
- * 🧭 **다음 정거장 하나를 QR 로 건넨다** (기사님 확정 2026-09-04)
+ * 🧭 **다음 정거장 하나를 QR 로 건넨다** (기사님 확정)
  *
  * ── 왜 QR 인가 ──
  * 기사님이 그으신 선 셋을 **다 지키는 길이 이것뿐이다:**

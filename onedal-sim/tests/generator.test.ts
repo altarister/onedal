@@ -4,7 +4,7 @@ import { toHwamul24Call, toInsungCall } from '@altari/ui-simulators';
 import { FIXED_NOW, seededRandom } from './seededRandom';
 
 /**
- * 🎲 **콜 생성기와 배차망별 입히기 함수** (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계 0-2 ④)
+ * 🎲 **콜 생성기와 배차망별 입히기 함수** (카카오픽커_시뮬레이터.md 0단계 0-2 ④)
  *
  * 생성기(`generateBaseCall`)는 공통 칸만 만들고, 인성·화물24시가 각자 요금·차종·결제를 입힌다.
  * 가르면서 난수를 뽑는 **순서**가 바뀌어, 가르기 전 «콜 다섯 개 통째» 스냅숏은 맞을 수 없다 —

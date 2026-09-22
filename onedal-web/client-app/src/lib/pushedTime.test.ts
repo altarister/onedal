@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parseClock, pushClock, gapLabel, gapTone } from './pushedTime';
 
 /**
- * 🧪 **밀린 시각을 미리 보여 준다** (기사님 확정 2026-09-05 · «가» 안)
+ * 🧪 **밀린 시각을 미리 보여 준다** (기사님 확정 · «가» 안)
  *
  * 합짐이 앞에 끼면 뒤 정거장이 그만큼 밀린다. 그것을 **잡기 전에** 보여 줘야
  * «감수하고 KEEP» 하시는 판단이 선다.

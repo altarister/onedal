@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 🧪 #82 — **3단계 검증을 다녀온 콜이 확정을 영영 못 누른다** (2026-08-30)
+ * 🧪 #82 — **3단계 검증을 다녀온 콜이 확정을 영영 못 누른다**
  *
  * 실측 (7지점 8판 16:54): 05의 동명이동 검증이 «통과»했는데도 확정 버튼이 안 눌렸다.
  * 확정 전 화면 처리의 첫 줄 `if (isDetailScrapSent) return` 이 3단계에서 돌아온

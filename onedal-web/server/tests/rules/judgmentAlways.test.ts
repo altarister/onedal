@@ -4,7 +4,7 @@ import { judge, CRITERIA, toSnapshot, DEFAULT_JUDGMENT } from '@onedal/shared';
 import { firstLoadFacts } from '../../src/core/engine/judgeFacts';
 
 /**
- * 🎨 **판정 없이 끝나는 심사는 없다** (2026-09-14 폰 시험)
+ * 🎨 **판정 없이 끝나는 심사는 없다** (폰 시험)
  *
  * 기사님: *"판정색은 서버로그에 있어야해. 없으면 문제야."*
  *

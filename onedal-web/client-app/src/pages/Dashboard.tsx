@@ -8,7 +8,7 @@ import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import { useFilterConfig } from "../hooks/useFilterConfig";
 import { useSidePanelRoom } from "../hooks/useSidePanelRoom";
 import StageView from "../components/stage/StageView";
-/* 🔬 곁 패널 — 지울 때 이 줄과 아래 호출 한 줄만 지운다 (2026-09-11) */
+/* 🔬 곁 패널 — 지울 때 이 줄과 아래 호출 한 줄만 지운다 */
 import StatusBoard from "../statusboard/StatusBoard";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
@@ -50,7 +50,7 @@ export default function Dashboard() {
      *    한쪽이 제 상태를 들면 «필터는 동선인데 지도는 노선»이 된다 (규칙 ③).
      * 🔴 **기억하지 않는다** — 레이어(🧅)는 «보기»라 localStorage 에 남기지만 이것은
      *    **판정을 바꾸는 값**이다. 어제 상태가 오늘 되살아나면 안 된다.
-     *    기본은 «노선» (기사님 확정 2026-09-09).
+     *    기본은 «노선» (기사님 확정).
      */
     /**
      * 🛣️🔷 **노선/동선은 필터 값이다** (전수 조사 ①-9 · 2026-09-12).
@@ -97,7 +97,7 @@ export default function Dashboard() {
     }, [isFilterOpen]);
 
     /**
-     * 🎯 판정 기준을 **탭이 아니라 여기서** 구독한다 (2026-08-16).
+     * 🎯 판정 기준을 **탭이 아니라 여기서** 구독한다.
      *    탭에서만 구독하면 서버의 첫 `judgment-init` 을 놓쳐 폼이 잠긴다.
      *    구독 자체는 스토어가 한 번만 건다 — 여기서 불러도 중복되지 않는다.
      */
@@ -174,7 +174,7 @@ export default function Dashboard() {
     const [gpsNotice, setGpsNotice] = useState<string | null>(null);
     useEffect(() => {
         /**
-         * 🚚 **떠남 → 하차 완료** (기사님 확정 2026-08-25).
+         * 🚚 **떠남 → 하차 완료** (기사님 확정).
          *
          * 기사님: *"곤지암과 부발에서 멀어진 거면 하차를 했는데 버튼을 못 누른 걸로 봐야
          * 하지 않을까… 운행 중에 클릭 못 할 거라 말이지."*
@@ -187,7 +187,7 @@ export default function Dashboard() {
             setTimeout(() => setGpsNotice(null), NOTICE_MS);
         };
         /**
-         * 🚚 **지나침 — 도착·완료를 대신 찍었다** (기사님 확정 2026-09-03).
+         * 🚚 **지나침 — 도착·완료를 대신 찍었다** (기사님 확정).
          * 운전 중에는 못 누르므로 서버가 대신 찍는다. 화면은 **무엇을 했는지 알리기만** 한다 —
          * 틀렸으면 단계에서 되돌린다 (단계 표는 그 자리에서 고칠 수 있다).
          */

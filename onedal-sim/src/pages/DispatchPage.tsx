@@ -23,7 +23,7 @@ import { SIM_DEFAULT_START } from './preflightRows';
 const ROUND_CURTAIN_MS = 1500;
 
 /**
- * 🔴 **배차망 이름을 모를 때의 멈춤 화면** (2026-09-14 · 0단계 0-4)
+ * 🔴 **배차망 이름을 모를 때의 멈춤 화면** (0단계 0-4)
  *
  * 예전엔 `?net=` 이 모르는 값이거나 아예 없으면 한 배차망 화면으로 조용히 그렸다.
  * 그 배차망인 줄 모르고 시험하면 그 시간이 통째로 헛것이다 — 아래 «문제지가 없다» 멈춤과 같은 자리다.
@@ -78,7 +78,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   const [presetParams] = useSearchParams();
 
   /**
-   * 🧱 **`?fillers=N` — 시간을 만드는 채움 콜을 앞에서 N개만 쓴다** (기사님 확정 2026-08-26).
+   * 🧱 **`?fillers=N` — 시간을 만드는 채움 콜을 앞에서 N개만 쓴다** (기사님 확정).
    *
    * 모의 주행은 **40초**(15배속·25km)인데 실주행은 **40분**이다. 텀 하나로는 둘을 못 맞춘다 —
    * 텀을 1초로 내리면 첫짐·합짐을 결재할 시간이 사라진다. 그래서 **개수**를 따로 조절한다.
@@ -90,7 +90,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   const fillerLimit = Number(presetParams.get('fillers') ?? '99');
 
   /**
-   * 🔴 **이름을 못 찾으면 조용히 랜덤으로 돌던 자리다** (2026-09-06 실사고).
+   * 🔴 **이름을 못 찾으면 조용히 랜덤으로 돌던 자리다** (실사고).
    *
    * 기사님: *"시뮬레이터 값이 이상한 것이 들어 있어. 분당구 출발하는 것으로 나오고 있어."*
    * 문제지를 넷으로 쪼개며 키가 바뀌었는데(`볼첨지` → `볼첨지대전`), 옛 URL 로 열자
@@ -118,7 +118,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   const loop = presetParams.get('loop') === '1';
 
   /**
-   * 🚚 **`?calls=individual` — 개별콜 화면** (기사님 지시 2026-09-15: 메인 메뉴 «시나리오콜 · 랜덤콜 · 개별콜»).
+   * 🚚 **`?calls=individual` — 개별콜 화면** (기사님 지시: 메인 메뉴 «시나리오콜 · 랜덤콜 · 개별콜»).
    * 빈 리스트로 시작해 현황판에서 보낸 콜만 받는다. 🔴 **한 번에 한 종류만 흐른다** —
    * 개별콜 화면에는 랜덤·문제지 콜이 없고, 랜덤·문제지 화면은 현황판 콜을 안 받는다. 섞이면 폰이 무엇을 거르고 잡았는지 떼어 볼 수 없다.
    */
@@ -135,7 +135,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     initialCount: 5,
     preset,
     loop,
-    /* 📍 기사님 위치를 받은 뒤에 첫 콜 — 기본 자리로 상차 거리를 재지 않는다 (2026-09-14) */
+    /* 📍 기사님 위치를 받은 뒤에 첫 콜 — 기본 자리로 상차 거리를 재지 않는다 */
     ready: locationReady,
     /* 🚚 개별콜 화면은 흘리지 않는다 — 시드 5건도 주기 콜도 없다 */
     enabled: !individual,
@@ -231,7 +231,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   }, [handleCloseDetail, setStreamingCalls, setConfirmedCalls, setActiveTab]);
 
   /**
-   * 🚚 **개별콜 — 현황판에서 낸 콜을 이 목록에 넣는다** (기사님 지시 2026-09-15).
+   * 🚚 **개별콜 — 현황판에서 낸 콜을 이 목록에 넣는다** (기사님 지시).
    * 서버가 들고 있다가 3초마다 넘긴다. 문제지 콜과 같은 길(강제 쌍)로 이 배차망 콜을 입힌다 — 무엇으로 입힐지는 배차망이 안다.
    * 🔴 개별콜 화면에서만 받는다 (위 `individual`). 닫는 길을 쓰므로 그것보다 아래에 둔다.
    */
@@ -339,7 +339,7 @@ export function DispatchPage() {
     minFare: Number(searchParams.get('minFare') || '30000'),
     targetRegion: searchParams.get('target') || '',
     /**
-     * 🕐 콜이 뜨는 간격 — 실제 배차망처럼 **5초**(기사님 확정 2026-08-22).
+     * 🕐 콜이 뜨는 간격 — 실제 배차망처럼 **5초**(기사님 확정).
      * 설정 화면은 10초로 시작한다(앱이 콜 하나를 처리하는 데 약 12초).
      * 천천히 보고 싶으면 `?interval=20000` 처럼 직접 지정한다.
      */

@@ -7,7 +7,7 @@ import { marginalDetourMin, judge, CRITERIA, DEFAULT_JUDGMENT } from '@onedal/sh
  *    2026-08-29 에 채점기를 `judge` 로 갈아타며 그 스위트를 지웠는데,
  *    한계 비용 계산은 채점기와 **무관하게** 계속 참이라 여기로 옮겼다.
  *
- * 문제지 캘리브레이션 1차 (2026-08-21 16:12 실측): 카카오 `timeDiffMin` 은 첫짐 단독
+ * 문제지 캘리브레이션 1차: 카카오 `timeDiffMin` 은 첫짐 단독
  * 대비 **누적**이라 16번이 `+189분` 을 뒤집어썼다. 한계(294−251=43)로 재야 맞다.
  */
 describe('🧮 한계 우회', () => {

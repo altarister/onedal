@@ -18,7 +18,7 @@ import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
 import { countCancel, countKeep } from "../core/cancelCount";
 import { OrderRepository } from "../repositories/OrderRepository";
-/* 📍 서버가 다시 떠도 «내가 어디 있었나»를 잃지 않는다 (2026-09-12) */
+/* 📍 서버가 다시 떠도 «내가 어디 있었나»를 잃지 않는다 */
 import { lastTrackPointOf } from "./gpsTrackStore";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getDeviceMode } from "../routes/devices";
@@ -42,7 +42,7 @@ export const normalizePlaceName = (name?: string) => {
 
 
 /**
- * 🗺️ **경로를 홀더에 싣고 «장부에도» 되쓴다 — 둘은 한 벌이다** (2026-09-12 밤).
+ * 🗺️ **경로를 홀더에 싣고 «장부에도» 되쓴다 — 둘은 한 벌이다** (밤).
  *
  * 🔴 **여태 메모리에만 실었다.** `applyRoute`·`applySoloRoute` 는 세션의 홀더만 채우고,
  *    장부는 `insertOrder`(콜 확정 때 **한 번**)만 썼다. 경로는 그 뒤에 계산되고 합짐이
@@ -69,7 +69,7 @@ function applySoloRouteAndSave(holder: Parameters<typeof applySoloRoute>[0], r: 
 /** 기존 평가 중이던 콜을 외부에서 강제 삭제할 때 호출 */
 /**
  * @param reason 왜 정리하나 — 화면 이탈·새 콜 진입(`FORCE_CANCEL`) · 안전취소 타임아웃(`TIMEOUT`).
- *   🔴 **셈은 여기 한 번이다** (2026-09-15) — 타임아웃 경로가 이 함수 뒤에 `countCancel` 을 또 불러 보통 콜을 두 번 셌다.
+ *   🔴 **셈은 여기 한 번이다** — 타임아웃 경로가 이 함수 뒤에 `countCancel` 을 또 불러 보통 콜을 두 번 셌다.
  */
 export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: any, reason: 'FORCE_CANCEL' | 'TIMEOUT' = 'FORCE_CANCEL') {
     const session = getUserSession(userId);
@@ -91,7 +91,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     }
 
     /**
-     * 👀 **미리보기 딱지는 지우기 전에 뽑는다** (2026-08-22 18:45 실측).
+     * 👀 **미리보기 딱지는 지우기 전에 뽑는다**.
      *
      * 아래에서 `pendingOrdersData.delete` 로 캐시를 지운 뒤 `countCancel` 을 부르는데,
      * 그때는 세션에서 콜을 못 찾아 딱지를 볼 수 없다 — 미리보기인데 취소 카운트가 올랐다.
@@ -101,7 +101,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     const wasSimulated = !!(current as any)?.isSimulated;
 
     /**
-     * ↩️ **취소는 원래 경로로 되돌아가는 것이다** (기사님 확정 2026-08-23).
+     * ↩️ **취소는 원래 경로로 되돌아가는 것이다** (기사님 확정).
      *
      * 이 콜을 붙이면서 덮인 경로가 있으면 그대로 되살린다 — 카카오를 다시 부르지 않는다.
      * ⚠️ 되살리는 조건(현위치가 그대로인가)은 `restoreRouteSnapshot` 한 곳에만 있다.
@@ -124,7 +124,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
         targetDeviceId = cached.capturedDeviceId;
 
         /**
-         * 🔴 **강제 정리도 장부에 남긴다** (2026-08-18 실사고 — 송정동 → 고덕동)
+         * 🔴 **강제 정리도 장부에 남긴다** (실사고 — 송정동 → 고덕동)
          *
          * 앱이 확정 클릭 후 리스트로 이탈하자 이 함수가 콜을 지웠는데, DB 를 안 거쳐
          * **관제웹에서 "그냥 사라졌다."** 결재 취소는 저장하도록 고쳤으면서(②-2)
@@ -135,7 +135,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
          * 알려면 **한 건도 새면 안 된다**. 캐시 삭제 전에 저장한다.
          */
         /**
-         * 👀 **미리보기/가상체험은 장부에 안 쓴다** (2026-09-15) — 인성·픽커에서 아무 일도 없던 콜이다.
+         * 👀 **미리보기/가상체험은 장부에 안 쓴다** — 인성·픽커에서 아무 일도 없던 콜이다.
          *    써 두면 관제웹 취소 수(`helpers` 의 SAFE_CANCEL 행 수)가 미리보기만큼 부풀었다. 장부에 들어가는 길이 이 한 줄뿐이라 남는 행도 없다.
          */
         if (!wasPreview && !wasSimulated) try {
@@ -180,7 +180,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     const session = getUserSession(userId);
 
     /**
-     * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우고 «내 주소»로 메운다 (2026-08-31).
+     * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우고 «내 주소»로 메운다.
      *    비움 단독은 금지 — 메우는 길이 부트스트랩에만 있어 심사가 origin 없이 돌았다.
      */
 
@@ -295,7 +295,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             applySoloRouteAndSave(securedOrder, result);
 
             /**
-             * 🔴 **두 기억을 함께 갱신한다** (2026-08-17 실측 사고).
+             * 🔴 **두 기억을 함께 갱신한다** (실측 사고).
              *
              * 여기의 securedOrder 는 pendingOrdersData(심사 캐시)의 사본인데, KEEP 된 콜의
              * 진실은 myOrders(활성)다. 사본에만 새 경로를 쓰면 — 지도는 남양주 우회를
@@ -328,7 +328,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             /* 🔴 제네릭을 명시한다 — 활성 콜은 `MyOrder[]`, 심사 콜은 `PendingOrder` 라 추론에 맡기면 «둘 중 하나»가 안 된다 (`RouteHolder`) */
             const routeHolder = pickRouteHolder<RouteHolder>(existingActive, securedOrder);
             /**
-             * ↩️ **덮기 직전 모습을 한 벌 떠 둔다** (기사님 확정 2026-08-23).
+             * ↩️ **덮기 직전 모습을 한 벌 떠 둔다** (기사님 확정).
              *
              * 이 콜이 취소되면 이걸 되돌린다 — 원래 경로는 아무것도 안 바뀌었는데
              * 카카오를 다시 부르던 자리다. 심사 콜이 붙기 전 모습이라야 하므로
@@ -394,7 +394,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 }
 
 /**
- * `recalculateDetourFilter` 는 **`state/filterManager` 로 옮겼다** (2026-08-14).
+ * `recalculateDetourFilter` 는 **`state/filterManager` 로 옮겼다**.
  *
  * 국면별 설정(§2-4)이 들어오면서 경유를 다시 그려야 하는 자리가 셋으로 늘었다 —
  * 관제탑 필터 저장 · **국면별 설정 저장** · **국면 전환**. 뒤의 둘은 `filterManager` 안이라
@@ -551,7 +551,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
 
         // ✅ 콜 배정이 끝난 뒤 경유 재계산 (경로 기반 키워드 갱신)
         //    ⚠️ 예전 주석은 `mainCallState/subCalls 할당 완료 후` 였다 — 그 필드는 V2 에서
-        //       사라졌고 지금 배정은 myOrders 로 한다 (2026-08-29 정정)
+        //       사라졌고 지금 배정은 myOrders 로 한다
         if (cachedOrder && cachedOrder.routePolyline) {
             /* 🛣️ 필터 라인을 이 순간의 경로로 얼린다 — 하차·취소·재탐색으로 안 바뀐다 (기사님 2026-09-14 · 전수표 #18) */
             session.filterLine = getActivePolyline(session);
@@ -769,7 +769,7 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
          */
 
         /**
-         * 📍 **«내가 어디 있었나»도 되살린다** (2026-09-12 실측).
+         * 📍 **«내가 어디 있었나»도 되살린다**.
          *
          * ── 왜 ──
          * 세션의 `lastFix` 는 **메모리에만 산다.** 18:56 에 이천에서 주행이 끝나고
@@ -860,7 +860,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
 
         // 1. orders와 places 테이블을 조인하여 복구 대상 콜과 X, Y 좌표를 불러옵니다.
         //
-        // 🔴 상태 목록을 여기 손으로 적지 않는다 (2026-08-11).
+        // 🔴 상태 목록을 여기 손으로 적지 않는다.
         //    예전에는 5개를 나열해 뒀는데 Phase 8.3 이 만든 ORDER_PICKED_UP · ORDER_DELIVERED
         //    가 빠져서 **짐을 실은 채 새로고침하면 콜이 사라졌다.**
         //    이제 shared 의 RESTORABLE_STATUSES 한 곳에서만 정한다.
@@ -936,7 +936,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 totalDistanceKm: row.totalDistanceKm,
                 totalDurationMin: row.totalDurationMin,
                 /**
-                 * 🗺️ **장부에 남은 궤적을 그대로 되살린다** (기사님 확정 2026-08-23).
+                 * 🗺️ **장부에 남은 궤적을 그대로 되살린다** (기사님 확정).
                  * 이게 있으면 아래 카카오 복구 연산을 건너뛴다 — 한 번 잰 경로를 다시 재지 않는다.
                  * 깨진 값이면 없는 것으로 친다 (그러면 아래에서 다시 잰다 — 안전망).
                  */
@@ -963,13 +963,13 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 orderForm: row.orderForm,
                 detailMemo: row.detailMemo,
                 /**
-                 * 🚏 **도착 시각을 되살린다** (2026-08-19).
+                 * 🚏 **도착 시각을 되살린다**.
                  * 안 되살리면 재시작 직후 `hasVisitedStop` 이 false 가 되어
                  * **이미 다녀온 정거장으로 되돌아가는 경로**가 다시 그려진다.
                  */
                 ...hydrateVisitedStops(row.id),
                 /**
-                 * 🎨 **색도 되살린다** (2026-08-29). 심사 스냅샷은 DB 에 멀쩡히 있는데
+                 * 🎨 **색도 되살린다**. 심사 스냅샷은 DB 에 멀쩡히 있는데
                  *    재시작 뒤 콜에 안 붙이고 있었다. 그러면 관제웹이 **문장을 뒤져**
                  *    색을 정하는 옛 길로 떨어지고, 재탐색 문구(`🍯 (꿀)` — 괄호)를 못 잡아
                  *    **꿀콜이 「보통」 초록**으로 보였다. 🚨 `(사고)` 도 마찬가지였다.
@@ -992,7 +992,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         // 3. 첫짐 콜의 카카오 궤적 1회 복구
         if (activeMain && activeMain.pickupX && activeMain.dropoffX) {
             /**
-             * 🗺️ **장부에 궤적이 있으면 다시 재지 않는다** (기사님 확정 2026-08-23).
+             * 🗺️ **장부에 궤적이 있으면 다시 재지 않는다** (기사님 확정).
              *
              * 기사님: *"확정된 경로를 새로 받아올 필요가 없다 생각되어서 하는 질문이야."*
              *
@@ -1005,7 +1005,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             } else
             try {
                 // 🔴 복구도 마찬가지다 — 상차하고 달리다 **새로고침만 해도** 경로가 상차지로
-                //    되돌아가던 자리다 (2026-08-14).
+                //    되돌아가던 자리다.
                 const res = await calculateSoloRoute(
                     activeMain.pickupX, activeMain.pickupY!,
                     activeMain.dropoffX, activeMain.dropoffY!,
@@ -1220,7 +1220,7 @@ export async function reportMilestone(
     }
 
     const nowIso = new Date().toISOString();
-    // ① 멱등성 — 🔄 옛 테이블(order_milestones UNIQUE)은 철거됐다 (2026-08-21).
+    // ① 멱등성 — 🔄 옛 테이블(order_milestones UNIQUE)은 철거됐다.
     //    새 장부의 단계 행이 그 근거다: 행마다 UNIQUE(orderId) + occurred_at 존재 여부
     if (milestoneAlreadyRecorded(orderId, milestone)) {
         console.log(`🔁 [마일스톤] ${milestone} (${source}) 중복 — ${orderId} 는 이미 기록됨`);
@@ -1228,7 +1228,7 @@ export async function reportMilestone(
     }
 
     /**
-     * 🚏 **도착 시각을 콜 객체에도 남긴다** (2026-08-19).
+     * 🚏 **도착 시각을 콜 객체에도 남긴다**.
      *
      * 경로 조립(`planArrivalStops`·`planMergedStops`)이 "다녀왔는가"를 판단할 때
      * 매번 DB 를 뒤지지 않게, 세션 콜에 실어 둔다. `hasVisitedStop` 이 이 값을 본다.
@@ -1290,7 +1290,7 @@ export async function reportMilestone(
             if (row?.paymentType === '착불' && (!row.settlementStatus || row.settlementStatus === '미정산')) {
                 OrderRepository.setCodCollected(orderId, userId, false, row.fare ?? 0);
                 console.warn(`💵 [착불 미확인] ${orderId.slice(0, 8)} — 수령 여부를 고르지 않고 하차 완료. ${(row.fare ?? 0).toLocaleString()}원을 미수금으로 잡습니다`);
-                // 🔄 settlement-updated 는 철거 (2026-08-21) — 화면은 sync(orders 필드)로 안다
+                // 🔄 settlement-updated 는 철거 — 화면은 sync(orders 필드)로 안다
             }
         } catch (e) {
             console.error(`🚨 [착불 확인 실패]`, e);
@@ -1354,7 +1354,7 @@ export async function reportMilestone(
 }
 
 /**
- * 🔴 **`completeOrder` 를 지웠다** (2026-08-14).
+ * 🔴 **`completeOrder` 를 지웠다**.
  *
  * 닿는 길이 `dispatch-complete` 소켓 하나뿐이었는데 **그 이벤트를 쏘는 곳이 없었다** —
  * 태어날 때부터 죽어 있었다. 그런데 죽은 채로 `ORDER_COMPLETED` 라는 **두 번째 완료 이름**을
@@ -1369,7 +1369,7 @@ export async function reportMilestone(
 /**
  * **타겟 전환** — 기사님이 필터의 복귀 토글로 지금 무엇을 콜 잡기할지 고른다.
  *
- *   DEST(노선행) ↔ HOME(복귀행) · 관내는 따로 재지 않는다 (2026-09-15 · 목적지 가까이 옴 `filterArea.withNearness`)
+ *   DEST(노선행) ↔ HOME(복귀행) · 관내는 따로 재지 않는다 (목적지 가까이 옴 `filterArea.withNearness`)
  *
  * 🔴 2026-08-13 — 이 함수가 `startTwoTrack` 을 대체한다.
  *
@@ -1422,7 +1422,7 @@ export async function setCallTarget(
              * 기사님이 정한 김포시가 성남시가 됐다. 기사님 2026-09-11:
              * *"우린 집으로 갈건지 말껀지만 있어"* · *"개선되어 중복인건 그냥 삭제 할꺼야."*
              *
-             * 관내는 이제 따로 재지 않는다 (2026-09-15) — **목적지는 그대로 둔 채**
+             * 관내는 이제 따로 재지 않는다 — **목적지는 그대로 둔 채**
              * «목적지 가까이 옴»(`filterArea.withNearness`)이면 현위치 영역 · 목적지 영역 전체를 쓴다.
              * 기사님 규칙은 그대로 산다: *"관내콜은 거리로 하지 말자.
              * 그냥 상차지와 하차지가 같은 시도에 있으면."*
@@ -1438,7 +1438,7 @@ export async function setCallTarget(
                 return { success: false, phase, message: '설정에 집 주소가 없습니다' };
             }
             /**
-             * 🏠 **시는 좌표로 뽑는다** (2026-09-12). 주소 글자에서 「시」를 찾던 코드는 기사님
+             * 🏠 **시는 좌표로 뽑는다**. 주소 글자에서 「시」를 찾던 코드는 기사님
              *    실제 주소(`경기도 광주 초월 동광뷰엘`)에서 **실패해 복귀를 못 켰다.**
              *    한 곳(`filterManager.homeCityOf`)이 좌표 → 시를 낸다 — `goalCityOf` 와 같은 답이다.
              */
@@ -1454,7 +1454,7 @@ export async function setCallTarget(
          *  `customCityFilters` 가 안 채워진다 — 2026-08-12 에 실제로 그랬다)
          */
         /**
-         * 🔴 **`destinationCity` 를 안 보낸다** (2026-09-12 전수 조사 ①-1).
+         * 🔴 **`destinationCity` 를 안 보낸다** (전수 조사 ①-1).
          *    예전엔 HOME 이면 집 시로 덮어써서 돌아올 때 원래 목적지가 없었다 — 파주가 광주로 굳었다.
          *    이제 그물이 향하는 시는 `filterManager.goalCityOf` 가 `callTarget` 에서 **파생**한다.
          *    위의 `city` 는 «집 주소에서 시를 뽑을 수 있나» 확인과 로그용으로만 남는다.

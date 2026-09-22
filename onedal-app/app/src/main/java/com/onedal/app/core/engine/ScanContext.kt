@@ -8,7 +8,7 @@ import com.onedal.app.core.TelemetryManager
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
- * 🧰 **스캔 한 판이 쓰는 것들 — 배차망별 수순에게 넘겨주는 묶음** (2026-09-02 신설).
+ * 🧰 **스캔 한 판이 쓰는 것들 — 배차망별 수순에게 넘겨주는 묶음**.
  *
  * ── 왜 만들었나 ──
  * 인성 전용 수순(상세·확정·팝업 3종 · 636줄)이 지금 `HijackService` 안에 있다.

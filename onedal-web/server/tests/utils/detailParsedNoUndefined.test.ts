@@ -1,7 +1,7 @@
 import { parseDetailedRawText } from '../../src/utils/parser';
 
 /**
- * 📄 **상세 원문 파서 — 못 찾은 칸으로 아는 값을 덮지 않는다** (2026-09-14)
+ * 📄 **상세 원문 파서 — 못 찾은 칸으로 아는 값을 덮지 않는다**
  *
  * `/detail` 은 첫 보고가 남긴 기억 위에 파서 결과를 **통째로 펼친다** (`{ ...pendingOrder, ...parsedDetails }`).
  * 파서는 못 찾은 칸도 `undefined` 로 채워 돌려줘서, 첫 보고가 넣은 값이 조용히 지워졌다.

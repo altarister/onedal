@@ -14,7 +14,7 @@ export function useOrderEngine() {
     /**
      * 📒 **장부에서 되살린 콜들** — `GET /orders` 가 `orders` 테이블 행을 그대로 준다.
      *
-     * 🔴 **`SimplifiedOfficeOrder` 로 적혀 있었다** (2026-09-05 고침). 그 타입에는
+     * 🔴 **`SimplifiedOfficeOrder` 로 적혀 있었다** (고침). 그 타입에는
      *    `status` 가 없는데 `mergeOrderViews` 는 `o.status` 를 읽는다 — 그래서 부르는
      *    쪽이 `as any` 로 풀고 있었다. **선언이 실제로 오는 것과 달랐던 것**이고,
      *    `as any` 가 그 어긋남을 덮고 있었다.
@@ -41,14 +41,14 @@ export function useOrderEngine() {
     const [routeComputedAt, setRouteComputedAt] = useState<string | null>(null);
     /** 🧭 경로를 든 콜 — 서버가 고른 답. 지도·시뮬이 추측하지 않는다 (0831) */
     const [routeHolderId, setRouteHolderId] = useState<string | null>(null);
-    /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 (2026-09-06) — KEEP 전 30초의 그림을 살린다 */
+    /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 — KEEP 전 30초의 그림을 살린다 */
     const [previewRouteHolderId, setPreviewRouteHolderId] = useState<string | null>(null);
     // 🚫 취소 예산 — 한 판에서 몇 번 썼나. 서버가 장부에서 파생해 sync 에 싣는다
     const [cancelCounts, setCancelCounts] = useState<Record<string, number>>({});
     // 🚫 몇 판째인가 — 판수가 남으므로 총량은 사라지지 않는다 (필터_정의 §2 의 취지)
     const [cancelRounds, setCancelRounds] = useState<Record<string, number>>({});
     /**
-     * 🚫 **한 판을 다 쓴 순간** 서버가 보내는 알림 (기사님 확정 2026-08-23).
+     * 🚫 **한 판을 다 쓴 순간** 서버가 보내는 알림 (기사님 확정).
      * 숫자만 조용히 0으로 돌아가면 **다 썼다는 사실 자체를 놓친다.**
      */
     const [cancelBudgetToast, setCancelBudgetToast] =
@@ -83,7 +83,7 @@ export function useOrderEngine() {
             if (!order.kakaoTimeExt) return false;
             
             /**
-             * 3. 🎨 **색은 값에서 온다** (2026-08-29 · 4단계). 예전엔 여기서도 문장에
+             * 3. 🎨 **색은 값에서 온다** (4단계). 예전엔 여기서도 문장에
              *    `'똥'` 이 들어 있나 뒤졌다 — 재탐색이 쓰는 `💩` 모양은 못 잡아
              *    **똥콜에도 벨이 울렸다.** 판정은 `lib/verdict.ts` 하나가 한다 (규칙 ③).
              */
@@ -107,7 +107,7 @@ export function useOrderEngine() {
     }, []);
 
     /**
-     * 🔴 **종료된 콜은 장부(DB)에서 다시 읽는다** (2026-08-18 실측으로 발견).
+     * 🔴 **종료된 콜은 장부(DB)에서 다시 읽는다** (실측으로 발견).
      *
      * `terminatedOrders` 는 서버 **세션 메모리**에서 온다(`buildOrderSync`). 그런데 취소된 콜은
      * 캐시 정리(TTL·새 콜 진입)로 메모리에서 빠지므로, 다음 싱크에 목록에서 **통째로 사라진다** —
@@ -194,7 +194,7 @@ export function useOrderEngine() {
                 logRoadmapEvent("웹", "UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현", "관제대시보드");
             } else {
                 logRoadmapEvent("웹", "PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리", "관제대시보드");
-                /* 🔴 직접콜·미리보기에는 결재 버튼이 없다(`JudgmentSeat` 의 manual 갈래) — 로그가 «버튼 활성화»라고 적으면 없는 버튼을 믿게 된다 (2026-09-14 폰 시험) */
+                /* 🔴 직접콜·미리보기에는 결재 버튼이 없다(`JudgmentSeat` 의 manual 갈래) — 로그가 «버튼 활성화»라고 적으면 없는 버튼을 믿게 된다 (폰 시험) */
                 if (secured.isPreview || isManualLineage(secured.type)) {
                     logRoadmapEvent("웹", "예상 시간/수익률·판정 색 표시 — 직접·미리보기 콜이라 결재 버튼 없음 (결정은 배차망 앱에서)", "관제대시보드");
                 } else {
@@ -277,7 +277,7 @@ export function useOrderEngine() {
         // ⭐ 1초 하트비트 싱크: 서버의 실제 평가 오더 전체 객체 배열
         // 소켓 이벤트 누락 복구 + 웹 클라이언트 첫 접속/새로고침 시 전체 데이터 복원 기능
         const onSyncActiveOrders = (payload: OrderSyncPayload | SecuredOrder[]) => {
-            // 🔴 서버가 진행/종료를 **나눠서** 보낸다 (2026-08-10).
+            // 🔴 서버가 진행/종료를 **나눠서** 보낸다.
             //    예전에는 한 배열로 와서 받는 쪽마다 isTerminal 을 기억해야 했고,
             //    잊으면 조용히 틀렸다 (AA 적재 건수 · BB 재탐색 대상 · DD 운임 합계).
             //    이제 나뉘어 오므로 **잊을 수가 없다.**
@@ -293,7 +293,7 @@ export function useOrderEngine() {
             const serverActiveOrders = payload.active || [];
 
             /**
-             * 🔴 **여기서 비교하지 않는다** (2026-08-14).
+             * 🔴 **여기서 비교하지 않는다**.
              *
              * 예전에는 `JSON.stringify(prev) !== JSON.stringify(server)` 로 매초 비교했다.
              * 실측: active 118KB · terminated 119KB 가 1초마다 왔고, 양쪽을 문자열로 만드니

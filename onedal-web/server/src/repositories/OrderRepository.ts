@@ -61,7 +61,7 @@ export class OrderRepository {
             cachedOrder.kakaoTimeExt || null,
             (cachedOrder as any).routeComputedAt || null,   // ⚓ 타임라인 추정 약속의 기준 = 카카오호출시점
             /**
-             * 🗺️ **궤적도 함께 남긴다** (기사님 확정 2026-08-23).
+             * 🗺️ **궤적도 함께 남긴다** (기사님 확정).
              * 없으면 서버가 재시작할 때마다 카카오를 다시 부른다. 좌표 배열이라 JSON 으로 넣는다.
              * 빈 배열은 `null` 로 — "없는 것"과 "빈 것"을 섞지 않는다 (규칙 ④).
              */
@@ -124,7 +124,7 @@ export class OrderRepository {
      * "믿고 눌렀는데"가 무너진다 (기사님 확정 ④).
      */
     public static saveJudgment(orderId: string, userId: string,
-        /** 🔴 못 쟀으면 `score` 는 `null` 이다 — 0 으로 지어내지 않는다 (2026-08-29) */
+        /** 🔴 못 쟀으면 `score` 는 `null` 이다 — 0 으로 지어내지 않는다 */
         v: { color: string; score: number | null; axes: unknown; gates: unknown; tags: unknown;
              /** 🧾 기존 콜 정거장 줄 · 모르는 까닭 — 합짐 심사 때만 (전수표 4단계). 새로고침에 사라지지 않게 같이 둔다 */
              stops?: unknown; unknownWhy?: string | null; extraMin?: number | null }) {
@@ -165,7 +165,7 @@ export class OrderRepository {
     }
 
     /**
-     * 🗺️ **잰 경로를 장부에 되쓴다 — 콜을 넣을 때 한 번이 아니라 잴 때마다** (2026-09-12 밤).
+     * 🗺️ **잰 경로를 장부에 되쓴다 — 콜을 넣을 때 한 번이 아니라 잴 때마다** (밤).
      *
      * ── 무엇이 틀렸나 ──
      * 경로 칸들은 `insertOrder` 가 **콜을 확정할 때 한 번** 저장한다. 그런데 경로는
@@ -179,7 +179,7 @@ export class OrderRepository {
      *     fa5de7  PICKED_UP                  ✗              ✗     ← 지금 홀더인데 비었다
      *
      * 그 결과 새로고침·재기동하면 **예상 시각·상차버퍼가 폴백으로 돌고**, 주행분이 없어
-     * 홀더가 비면 지도가 직선으로 물러난다 (2026-09-06 주석이 그 증상을 적어 뒀다).
+     * 홀더가 비면 지도가 직선으로 물러난다 (주석이 그 증상을 적어 뒀다).
      *
      * 🔴 **넷은 한 운명이다** — 궤적(`routePolyline`)만 살아남고 나머지가 없으면 지도가
      *    색을 잃고 주행분이 남의 이름에 붙는다. 그래서 **한 번에** 쓴다.

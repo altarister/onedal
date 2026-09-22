@@ -1,7 +1,7 @@
 import { isDeliveredCall, isEvaluating } from '@onedal/shared';
 
 /**
- * 📋 **끝난 콜을 갈래로 나누는 규칙 — 한 벌** (2026-09-21)
+ * 📋 **끝난 콜을 갈래로 나누는 규칙 — 한 벌**
  *
  * 두 곳이 같은 목록을 그린다:
  *   · ☰ 서랍 `FinishedCalls` — 새 화면의 자리 (폰에서도 보인다)

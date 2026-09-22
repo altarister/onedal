@@ -7,7 +7,7 @@ const code = (rel: string) => client(rel).split('\n')
     .filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
 
 /**
- * 🛰️ **GPS 는 "도착"까지만 안다 — "상차했다"는 보고만 안다** (2026-08-19 실측)
+ * 🛰️ **GPS 는 "도착"까지만 안다 — "상차했다"는 보고만 안다**
  *
  * 상단 요약이 "상차 1건 (1t)" 라고 표시했는데, 장부(orders.status)는 두 콜 다
  * ORDER_CONFIRMED — 상차 보고를 누른 적이 없다. `VehicleStatusPanel` 이

@@ -44,7 +44,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
     }
 
     // ── 필터 로드 ──
-    // 🔴 **`ratePerKm` 를 여기서 잇는다** (기사님 확정 2026-08-29).
+    // 🔴 **`ratePerKm` 를 여기서 잇는다** (기사님 확정).
     //    예전에는 이 파서만 단가표를 **파싱하지 않아** 24시는 단가 판정이 영영 안 돌았다 —
     //    `minFare` 하나로만 걸러 «400km 에 10만원» 이 그대로 통과했다. 주석은
     //    "InsungParser 와 동일한 공통 로직" 이라 그 차이를 덮고 있었다.
@@ -228,7 +228,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         }
 
         val now = // 🔴 `'Z'` 는 **글자 Z 를 붙일 뿐**이다 — 한국 시각에 UTC 표식이 달려 서버가 9시간 밀려 읽었다
-        //    (2026-08-16 실측: "대기 572분"). `XXX` 를 쓰면 `+09:00` 이 붙는다
+        //    (실측: "대기 572분"). `XXX` 를 쓰면 `+09:00` 이 붙는다
         SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date())
 
         val isValidOrder = fare > 0 || pickup != "배차값없음" || dropoff != "배차값없음"
@@ -321,7 +321,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         val hasFareCeiling = filter.maxFare in 1..999_999
 
         /**
-         * 💰 **최저가 AND 단가 — 둘 다 넘어야 통과** (기사님 확정 2026-08-23).
+         * 💰 **최저가 AND 단가 — 둘 다 넘어야 통과** (기사님 확정).
          *
          * 두 손해가 서로 다른 축이라 한 축으로는 못 막는다:
          *   2km 에 10,000원   → 상하차 품값도 안 나온다  ← `minFare` 가 막는다
@@ -483,7 +483,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
     }
 
     /**
-     * 🗳️ **판정을 안 싣는다 — 24시는 아직 축을 안 옮겼다** (2026-09-12).
+     * 🗳️ **판정을 안 싣는다 — 24시는 아직 축을 안 옮겼다**.
      *    🔴 **«안 함»도 제 손으로 적는다** — 인터페이스에 기본값을 두었더니 위임 누락을
      *       컴파일러가 못 잡아 `verdict` 가 내리 `null` 이었다 (#84 와 같은 병).
      *    실으려면 `InsungParser.withVerdict` 처럼 **판정 함수가 고른 축**을 그대로 넣는다 —

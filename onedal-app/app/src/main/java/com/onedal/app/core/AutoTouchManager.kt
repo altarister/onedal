@@ -49,7 +49,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
         mark: Boolean = true,
     ): Boolean {
         /**
-         * 🔴 **찍기 직전에 다시 잰다** (2026-09-13 · 라이브 오배차 조사에서 신설).
+         * 🔴 **찍기 직전에 다시 잰다** (라이브 오배차 조사에서 신설).
          *
          * `AccessibilityNodeInfo` 는 **만들어질 때의 사각형을 품고 다니는 사본**이다 —
          * `getBoundsInScreen` 은 앱에 다시 묻지 않고 그 품은 값을 돌려준다. 스캔은 노드

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { sheetStatus, sheetStatusLine, textWidth, departureDue } from './sheetStatus';
 
 /**
- * 🎬 **시트 상태바 — 경우마다 그 경우의 말을 한다** (기사님 확정 2026-09-13).
+ * 🎬 **시트 상태바 — 경우마다 그 경우의 말을 한다** (기사님 확정).
  *
  * 기사님: *"시트 상태바가 너무 불친절해. 지금 상태가 달리고 있는건지 멈춘건지
  * 출발한건지 어디까지 몇km 남은건지 등등이 표시 되면 좋겠어."*

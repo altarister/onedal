@@ -114,7 +114,7 @@ function isValidKoreaCoord(x: unknown, y: unknown): boolean {
 /**
  * 🗺️ **카카오 응답에서 궤적을 뽑는다** — 구간을 이어 붙인 통짜 점열.
  *
- * 🔴 **`extractSectionLines` 한 벌에서 나온다** (2026-09-11 · 이식 B1). 예전에는 둘이
+ * 🔴 **`extractSectionLines` 한 벌에서 나온다** (이식 B1). 예전에는 둘이
  *    각자 걸었는데, 그러면 «버리는 잣대»(한반도 밖 좌표)가 한쪽만 바뀌어도 조용히 갈린다 —
  *    그리고 `sectionLinesOf` 는 **이어 붙이면 같다**는 전제 위에 서 있다. 한 번만 걷고 잇는다.
  */
@@ -133,7 +133,7 @@ function extractPolyline(routes?: any[]): Array<{ x: number; y: number }> {
 
 /**
  * 🎨 **구간마다 따로 담은 폴리라인** — `extractPolyline` 이 통째로 이은 것을 **끊어서** 준다
- *    (2026-09-11 · 이식 B1).
+ *    (이식 B1).
  *
  * 🔴 **왜 필요한가** — 지도가 «구간마다 그 콜의 색»으로 그리려면 어느 점이 어느 구간인지
  *    알아야 한다. 통짜 배열은 그 경계를 잃는다. 지도 실험실은 `/sim/chain` 이 끊어 주는
@@ -243,7 +243,7 @@ function parseKakaoErrorMsg(resultCode: number, resultMsg: string): string {
  * 단독 주행 URL 조립 — **순수 함수라 테스트할 수 있다.**
  *
  * 🔴 `skipPickup` 은 **이미 다녀온 상차지**를 위한 것이다. 거기 갔으면 상차지는 지나온 곳이라
- *    경유지에 넣으면 안 된다 — 넣으면 되돌아가는 경로가 나온다 (2026-08-14 실측).
+ *    경유지에 넣으면 안 된다 — 넣으면 되돌아가는 경로가 나온다.
  *    판단 자체는 `hasVisitedStop(c, 'pickup')` 한 곳에 있다.
  *    ⚠️ **`isAlreadyLoaded`(상차 완료 버튼)가 아니다.** 그걸 보면 버튼을 안 누른 채 달릴 때
  *    되돌아간다 — 2026-08-25 에 실제로 났다 (여주 → 성남 왕복 50km).

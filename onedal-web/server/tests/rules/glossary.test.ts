@@ -22,7 +22,7 @@ import { join } from "path";
  *   ⓐ **역사 서술** (`HISTORY_MARK`) — *"예전엔 `본콜`이라 불렀다"* 처럼 옛말임을 **설명하는**
  *      문장. 이걸 금지하면 왜 바뀌었는지를 적을 수 없다
  *   ⓑ **금지패턴 검사 자체** — 이 파일과 audit 스크립트
- * (2026-08-17 에 일반 치환이 금지패턴 검사까지 바꿔서 멀쩡한 새말을 금지시킨 사고가 있었다)
+ * (에 일반 치환이 금지패턴 검사까지 바꿔서 멀쩡한 새말을 금지시킨 사고가 있었다)
  */
 
 const ROOTS = [
@@ -88,7 +88,7 @@ const BANNED: { name: string, pattern: RegExp, allow?: RegExp, until?: string }[
      */
     { name: '종착지 → 확정콜의 마지막 하차지', pattern: /종착지/ },
 
-    // 취소의 세 갈래 (기사님 확정 2026-08-18)
+    // 취소의 세 갈래 (기사님 확정)
     // ⚠️ ORDER_RELEASED 는 새 이름의 **앞부분**이라, 뒤에 _BY_ 가 오면 새말이다
     { name: 'ORDER_RELEASED → ORDER_RELEASED_BY_ME', pattern: /ORDER_RELEASED(?!_BY_)/ },
     { name: 'ORDER_CANCELED → SAFE_CANCEL', pattern: /ORDER_CANCELED/ },

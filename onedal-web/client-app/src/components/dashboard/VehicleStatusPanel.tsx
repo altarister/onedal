@@ -53,7 +53,7 @@ export function useDriveMotion(): 'drive' | 'idle' {
             st = motionOnFix(st, loc, Date.now());
         };
         /**
-         * 📡 **판정이 바뀌면 그때의 속도와 함께 남긴다** (기사님 지시 2026-09-01).
+         * 📡 **판정이 바뀌면 그때의 속도와 함께 남긴다** (기사님 지시).
          *    «도착했는데 이동 중»을 눈이 아니라 로그로 잡기 위해서다.
          */
         const tick = setInterval(() => {
@@ -203,7 +203,7 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
     const totalCount = liveCalls.length;
 
     /**
-     * 🔴 **상차는 추측하지 않는다** (2026-08-19 실측).
+     * 🔴 **상차는 추측하지 않는다**.
      *
      * 예전에는 GPS 가 상차지 500m 안을 지나가면 자체 pickedUpSet 에 넣어
      * "상차 1건"으로 표시했다 — 장부는 ORDER_CONFIRMED(상차 보고 없음)인데

@@ -39,7 +39,7 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
     override fun alarmBandHalfPx(): Int = delegate.alarmBandHalfPx()
 
     /**
-     * 🗳️ **판정 위임** — 🔴 **이 줄이 빠져 `verdict` 가 77건 내리 `null` 이었다** (2026-09-12).
+     * 🗳️ **판정 위임** — 🔴 **이 줄이 빠져 `verdict` 가 77건 내리 `null` 이었다**.
      *
      * 인성 파서는 멀쩡히 판정하는데 위임자가 안 넘겨, 인터페이스 기본값(`= order`)이 답했다.
      * **#84 와 글자 그대로 같은 병**이라 이번에는 기본값을 지웠다 — 이제 위임을 잊으면

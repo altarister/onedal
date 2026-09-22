@@ -21,7 +21,7 @@
  *   ④ 죽은 링크        문서→문서 · 코드→문서
  *   ⑤ 손 뗀 자리       문서가 «이 파일이 한다»는 일을 그 파일이 아직 하는가
  *   ⑥ 경위 줄          CLAUDE.md · 루트 README · onedal-web/scripts 아래 .mjs 에 경위(날짜 · 지난 상태 서술 · 옛 경로)가 있나,
- *                     그 밖의 바꾼 코드 주석에는 HEAD 판보다 늘었나
+ *                     그 밖의 바꾼 코드 주석에는 HEAD 판보다 늘었나, 코드 주석에 날짜 괄호 꼬리가 있나
  *
  * ⚠️ **역사 서술은 옛말을 담는 게 당연하다** — 옛일을 적는 줄(→ · 폐기 · 그때)은 ③ 이 넘어간다.
  *
@@ -347,7 +347,31 @@ say('⑥ 경위 줄', '문서·스크립트에 경위가 있나 · 코드 주석
         console.log(`  ${C.r}⚠${C.x} ${p} ${C.d}${before.get(p).length} → ${now.length}줄${C.x}`);
         for (const l of fresh.slice(0, 3)) console.log(`      ${C.y}${l.slice(0, 110)}${C.x}`);
     }
-    if (!bad) console.log(`  ${C.g}없음 ✅${C.x} ${C.d}(문서·스크립트 ${strictFiles.length}개 · 바뀐 코드 ${changed.length}개)${C.x}`);
+    // 다) 코드 주석의 날짜 꼬리 — 있으면 빨간불 («(기사님 확정 2026-08-22)» 같은 괄호 꼬리. 서술 문장은 나) 가 본다)
+    const TAIL = /\((?:기사님 (?:지시|확정|말씀)[ ·]*)?20\d\d-\d\d-\d\d[^)]*\)|기사님\s*\(20\d\d-\d\d-\d\d[^)]*\)\s*:/;
+    const commentPart = (line) => {
+        const s = line.trim();
+        if (/^(\*|\/\*|\/\/|\{\/\*)/.test(s)) return s;
+        const i = line.indexOf(' // ');
+        if (i < 0) return '';
+        const head = line.slice(0, i);
+        return ((head.match(/['"`]/g) || []).length % 2 === 0) ? line.slice(i) : '';
+    };
+    const codeFiles = ALL.map(rel).filter(p => /\.(ts|tsx|kt)$/.test(p) && !p.includes('/dist/'));
+    let tailFiles = 0, tailLines = 0;
+    const tailShow = [];
+    for (const p of codeFiles) {
+        const n = readFileSync(join(ROOT, p), 'utf8').split('\n').filter(l => TAIL.test(commentPart(l))).length;
+        if (!n) continue;
+        tailFiles++; tailLines += n;
+        if (tailShow.length < 5) tailShow.push(`${p} ${n}줄`);
+    }
+    if (tailLines) {
+        problems++; bad++;
+        console.log(`  ${C.r}⚠${C.x} 코드 주석의 날짜 꼬리 ${C.d}${tailFiles}개 파일 · ${tailLines}줄${C.x}`);
+        for (const s of tailShow) console.log(`      ${C.y}${s}${C.x}`);
+    }
+    if (!bad) console.log(`  ${C.g}없음 ✅${C.x} ${C.d}(문서·스크립트 ${strictFiles.length}개 · 바뀐 코드 ${changed.length}개 · 코드 ${codeFiles.length}개 날짜 꼬리 0)${C.x}`);
 }
 
 // ═══════════════════════════ 결론

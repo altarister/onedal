@@ -1,5 +1,5 @@
 /**
- * /api/logbook/gps-track 라우터 — **궤적의 읽기 입구** (2026-08-28)
+ * /api/logbook/gps-track 라우터 — **궤적의 읽기 입구**
  *
  * `gps_tracks` 는 이날까지 쓰기 전용이었다 — INSERT 와 7일 정리뿐, SELECT 가 서버
  * 어디에도 없어서 «궤적에 콜이 붙는가» 확인조차 EC2 에 들어가 node -e 를 손으로 짰다.

@@ -8,7 +8,7 @@ import {
 } from '@altari/ui-simulators';
 
 /**
- * 🔒 **지금 동작을 그대로 잠근다** — 배차망별 표기 함수 (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계)
+ * 🔒 **지금 동작을 그대로 잠근다** — 배차망별 표기 함수 (카카오픽커_시뮬레이터.md 0단계)
  *
  * 이 함수들은 **한 배차망 화면만** 쓴다. 공통 코드(옛 `core-simulator/src/format.ts`)에 있던 것을 0단계 0-2 에서
  * 배차망 폴더(`insung/insungCall.ts` · `hwamul24/hwamul24Call.ts`)로 옮겼다. 옮기기 전에 적어 둔 기대값을

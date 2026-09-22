@@ -58,7 +58,7 @@ describe('OrderStatus Helpers', () => {
          *
          * 이 검사는 예전에 `ORDER_DELIVERED` 를 «진행 중»으로 기대하고 있었다 —
          * 그 시절 값이 그대로 남은 것이다. 그런데 **틀린 채로 아무도 몰랐다**:
-         * `shared/src/index.js`(2026-04-09 커밋된 8줄짜리 컴파일 산출물)가 `./index`
+         * `shared/src/index.js`(커밋된 8줄짜리 컴파일 산출물)가 `./index`
          * import 를 가로채 `isTerminal is not a function` 으로 죽어 있었고,
          * 애초에 이 검사를 **부르는 명령이 없었다**(package.json 에 test 스크립트 없음).
          *

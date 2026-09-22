@@ -115,7 +115,7 @@ describe('buildArrivalSlots — 30분 단위 도착 협상', () => {
     const NOW = new Date('2026-08-12T08:11:00+09:00').getTime();
 
     /**
-     * 🔄 **:00/:30 경계로 옮겼다가 되돌렸다** (2026-08-19, 하루 안에 두 번).
+     * 🔄 **:00/:30 경계로 옮겼다가 되돌렸다** (하루 안에 두 번).
      *    경계로 올리면 **여유가 제멋대로 변한다** — 도착 예상 17:02 면 28분,
      *    17:29 면 1분 (기사님: *"여유 시간의 디폴트 값이 막 변화하는 거잖아"*).
      *    중복 칸의 진짜 원인은 눈금이 아니라 **기준점이 열 때마다 달라진 것**이었고,
@@ -176,7 +176,7 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
     });
 
     /**
-     * ⚠️ **여기 있던 «OSRM» 검사를 지웠다** (2026-08-26).
+     * ⚠️ **여기 있던 «OSRM» 검사를 지웠다**.
      *
      * `osrmSoloDistanceKm` 은 **서버도 DB도 한 번도 채운 적이 없다.** 타입 선언과
      * `useOsrm` 분기와 관제웹 표시만 있었고, 그 분기는 **영원히 false** 였다.
@@ -201,7 +201,7 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
             { stopType: 'pickup', kind: 'DECLARED', unit: '파레트', quantity: 2, handling: '수작업' },
             { stopType: 'pickup', kind: 'ACTUAL', unit: '파레트', quantity: 2, handling: '지게차' },
         ] as any, [], NOW);
-        expect(t.pickupDwell).toBe(4);       // 지게차 파레트 2개 × 2분 (2026-08-18 새 축)
+        expect(t.pickupDwell).toBe(4);       // 지게차 파레트 2개 × 2분 (새 축)
     });
 
     it('하차 방법을 안 물었으면 상차 방법으로 본다', () => {
@@ -229,7 +229,7 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
         expect(t.pickupDeadlineAt).not.toBeNull();
         expect(t.dropoffDeadlineAt).not.toBeNull();
         expect(t.departureAt).not.toBeNull();
-        // ⏱️ 상차 약속 = 콜 잡은 시각 + 20분 (기사님 확정 2026-08-31).
+        // ⏱️ 상차 약속 = 콜 잡은 시각 + 20분 (기사님 확정).
         //    상차지까지 39분이라 20분을 못 지키지만, 약속은 그대로고 늦음은 버퍼 음수로 드러난다
         expect(new Date(t.pickupPromisedArrivalAt!).getTime() - NOW).toBe(20 * 60_000);
         expect(new Date(t.pickupDeadlineAt!).getTime() - new Date(t.pickupPromisedArrivalAt!).getTime())
@@ -245,7 +245,7 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
     /**
      * ⚠️ 기대값이 `81` → `66` 으로 바뀌었다. 차이 15분은 **상차 정차**다.
      *
-     * 기사님(2026-08-16): *"화주의 생각은 보통 **여기서 물건 실어서 몇 시에 보낼 수 있을까**야.
+     * 기사님: *"화주의 생각은 보통 **여기서 물건 실어서 몇 시에 보낼 수 있을까**야.
      * 그러니 상차 시간을 포함해야 해."* → **상차 마감은 상차지 *도착* 시각이 아니라
      * *상차 완료* 시각**이다. 그래서 출발 역산에 주행뿐 아니라 상차 정차도 뺀다.
      *
@@ -284,7 +284,7 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
 });
 
 /**
- * 영업일 경계 — 기사님 결정(2026-08-12): *"그냥 하차시간을 기준으로 24시를 기준으로."*
+ * 영업일 경계 — 기사님 결정: *"그냥 하차시간을 기준으로 24시를 기준으로."*
  *
  * ⚠️ 일과 종료(17시)와 다른 것이다.
  *    17시 = "이 시각까지 갖다 준다" (배송 마감 상한)

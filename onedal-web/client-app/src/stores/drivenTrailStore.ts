@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { pushTrail, trailFromPoints, type DrivePoint } from '../lib/driveStep';
 
 /**
- * 👣 **이번 사이클의 주행 궤적 — 표시 전용** (기사님 확정 2026-08-31).
+ * 👣 **이번 사이클의 주행 궤적 — 표시 전용** (기사님 확정).
  *
  * 파란 경로선은 «앞으로 갈 길»이라 달리면서 잘려나가고 다 돌면 0 이 된다 — 그건 맞다.
  * 하지만 화면에는 **실제로 달린 자취**가 남아야 «어떻게 돌았는지»가 보인다 (발자취
@@ -66,7 +66,7 @@ export async function restoreDrivenTrail(orderIds: string[]): Promise<void> {
     restoreTried = true;
     try {
         /**
-         * 🔴 **`apiClient` 를 모듈 최상단에서 들이지 않는다** (2026-09-13 · 제가 당했다).
+         * 🔴 **`apiClient` 를 모듈 최상단에서 들이지 않는다** (제가 당했다).
          *
          * 그 모듈은 불려 오는 순간 `window.location.origin` 을 읽는다(`serverTarget`).
          * 최상단에 두었더니 **이 스토어를 import 하는 검사 파일이 `window` 가 없는 판에서

@@ -20,7 +20,7 @@ import { STEP_MILESTONE } from './callSteps';
 /**
  * 서버 `stepsView()` 가 주는 한 단계 (관제웹 `steps-synced` 페이로드와 같다).
  *
- * 🔴 **`label`·`table` 이 빠져 있었다** (2026-09-05 고침). 서버 `stepSeeder.stepsView()`
+ * 🔴 **`label`·`table` 이 빠져 있었다** (고침). 서버 `stepSeeder.stepsView()`
  *    는 **처음부터 넷을 보내고 있었는데** 여기 선언은 둘뿐이라, 관제웹이 `any[]` 로
  *    받아 `.label` 을 읽고 있었다 — `any` 가 «타입이 실제보다 좁다»를 덮은 것이다.
  *    타입을 조이자마자 `tsc` 가 그 자리를 두 곳 짚어 줬다.
@@ -48,7 +48,7 @@ const parse = (v?: string | null): string[] | undefined => {
 };
 
 /**
- * 🔗 **단계 → 마일스톤 대응표는 `callSteps.ts` 의 `STEP_MILESTONE` 한 벌이다** (2026-09-14 전수 조사).
+ * 🔗 **단계 → 마일스톤 대응표는 `callSteps.ts` 의 `STEP_MILESTONE` 한 벌이다** (전수 조사).
  *    여기 똑같은 네 줄의 사본(`MILESTONE_OF`)이 따로 있었다 — 제품은 사본을 쓰고 원본은 검사만 썼다.
  *    한쪽만 고치면 장부 복원과 단계 표가 다른 마일스톤을 말하게 된다.
  */
@@ -63,7 +63,7 @@ export function recordsOfSteps(steps: StepViewRow[]): StepRecords {
         const r = s.row ?? {};
 
         /**
-         * 🔴 **실측은 상태와 무관하게 실측이다** (2026-08-21 scenario C 실측).
+         * 🔴 **실측은 상태와 무관하게 실측이다** (scenario C 실측).
          *    시드·복구된 콜은 완료 밀스톤 없이 실측 신고만 올 수 있다 — LOADED 행이
          *    PLANNED 인 채 actual_* 만 앉는다. 상태 가드보다 먼저 건진다. 안 그러면
          *    적재 신뢰도가 CONFIRMED 로 못 올라간다 (옛 장부는 올라갔다 — 두 목소리).
@@ -133,7 +133,7 @@ export function recordsOfSteps(steps: StepViewRow[]): StepRecords {
 /**
  * ⏱️ **그 콜의 정거장마다 «예측한 정차»와 «실제로 걸린 정차»** — 없으면 `null` (규칙 ④).
  *
- * 기사님(2026-08-30): *"다 나르고 나니까 15분이 걸렸다고 알 수 있는 거야. **누구도
+ * 기사님: *"다 나르고 나니까 15분이 걸렸다고 알 수 있는 거야. **누구도
  * 거짓을 말하지 않았고 결과는 바뀐 거지.** 우린 그걸 잘 저장할 수만 있게 만들면 돼."*
  *
  * 🔴 **읽는 규칙이 여기 하나뿐이어야 한다.** 서버 판정(`plannedDwellOf`)과 관제웹

@@ -48,7 +48,7 @@ interface SimulationContextType {
   setDriverLocation: (loc: DriverLocation) => void;
   simConfig: SimulationConfig;
   setSimConfig: (config: SimulationConfig) => void;
-  /** 📍 기사님 위치를 받았나 — 받기 전에는 첫 콜을 안 낸다 (2026-09-14) */
+  /** 📍 기사님 위치를 받았나 — 받기 전에는 첫 콜을 안 낸다 */
   locationReady: boolean;
   /** ⚠️ 끝내 위치를 못 받아 기본 자리로 시작했나 — 화면이 «거리가 틀릴 수 있음»을 띄운다 */
   locationFallback: boolean;
@@ -78,7 +78,7 @@ export const SimulationProvider = ({ children, initialDriver, initialConfig, ini
   const [locationFallback, setLocationFallback] = useState(false);
 
   /**
-   * 📍 **기사님 현위치를 따라간다 — 두 출처, 순서가 있다** (기사님 확정 2026-08-31).
+   * 📍 **기사님 현위치를 따라간다 — 두 출처, 순서가 있다** (기사님 확정).
    *
    * 콜의 «현위치 → 상차지 N KM» 과 축 문제지의 «거리 띠»가 이 좌표에서 나온다. 예전엔
    * URL 로 한 번 고른 뒤 **움직이지 않아서**, 2026-08-23 구로 필드테스트에서 33.5km 뒤

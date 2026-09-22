@@ -37,7 +37,7 @@ router.get("/", requireAuth, (req, res) => {
 
         // 오늘 날짜(자정 이후)의 복구 대상 오더를 가져옴
         //
-        // 🔴 상태를 손으로 나열하지 않는다 (2026-08-11).
+        // 🔴 상태를 손으로 나열하지 않는다.
         //    예전엔 ('ORDER_CONFIRMED','ORDER_COMPLETED') 뿐이라
         //    **상차한 콜(ORDER_PICKED_UP)과 하차한 콜(ORDER_DELIVERED)이 빠졌다.**
         //    새로고침하면 진행 중이던 콜과 완료됨 탭이 통째로 비었다.
@@ -58,7 +58,7 @@ router.get("/", requireAuth, (req, res) => {
         const rows = stmt.all(userId, ...RESTORABLE_STATUSES, ...win.params);
 
         /**
-         * 🗺️ **장부의 문자열을 좌표 배열로 되돌려 내보낸다** (2026-08-23 실측 사고).
+         * 🗺️ **장부의 문자열을 좌표 배열로 되돌려 내보낸다** (실측 사고).
          *
          * `routePolyline` 은 DB 에 JSON 문자열로 산다. 행을 `SELECT *` 로 읽어 **그대로**
          * 보냈더니 관제웹이 배열인 줄 알고 `.filter()` 를 부르다 화면이 통째로 죽었다.
@@ -74,7 +74,7 @@ router.get("/", requireAuth, (req, res) => {
                 sectionStops: parseSectionStops(r.sectionStops),
                 /**
                  * ⏱️ **구간 주행분** — 2026-09-12 밤에 칸이 생겼다. 이것이 없으면 화면이
-                 *    경로 홀더를 못 골라 **지도가 직선으로 물러난다** (2026-09-06 주석).
+                 *    경로 홀더를 못 골라 **지도가 직선으로 물러난다** (주석).
                  *    넷은 한 운명이라 **같이** 편다.
                  */
                 sectionDriveMin: parseSectionDriveMin(r.sectionDriveMin),
@@ -107,7 +107,7 @@ router.post("/confirm", (req, res) => {
         const userId = deviceRow.user_id;
 
         /**
-         * 📄 **픽커 상세 화면의 글자를 통째로 남긴다** (기사님 확정 2026-09-02).
+         * 📄 **픽커 상세 화면의 글자를 통째로 남긴다** (기사님 확정).
          *
          * 픽커 상세에는 리스트에 없는 것이 다 있다 — 배송 km · 「17:04까지 픽업」·
          * 「17:18까지 배송」· 물품 규격 · 수익 분해 · 오더번호. **어떤 칸으로 나눌지는
@@ -169,7 +169,7 @@ router.post("/confirm", (req, res) => {
             // 어느 배차망에서 온 콜인가 — 원장에 남긴다 (값 표준은 shared 한 벌 · 픽커_수집.md §6-전)
             targetApp: isTargetApp((payload as any).targetApp) ? (payload as any).targetApp : DEFAULT_TARGET_APP,
             /**
-             * 🖱️ 잡은 방식 — 6하원칙의 «어떻게» (기사님 확정 2026-08-30).
+             * 🖱️ 잡은 방식 — 6하원칙의 «어떻게» (기사님 확정).
              * 🔴 기록 전용. 직접콜 보호는 여전히 matchType 만 본다 (#75 재발 방지) —
              *    모르는 값·구앱(미전송)은 null 로 남긴다. 지어내지 않는다 (규칙 ④).
              */
@@ -205,7 +205,7 @@ router.post("/confirm", (req, res) => {
             }
 
             /**
-             * 🔴 **안전망은 조건 없이 건다** (2026-08-14).
+             * 🔴 **안전망은 조건 없이 건다**.
              *
              * 예전에는 이 타이머가 바로 위 `if (session.activeFilter.isActive)` **안에** 있었다.
              * 그런데 그 블록은 자기가 `isActive` 를 끈다 — 즉 필터가 꺼진 채로 들어온 확정은
@@ -245,7 +245,7 @@ router.post("/confirm", (req, res) => {
                 const graceTimer = setTimeout(() => {
                     session.activeTimers.delete(`presecured_${pendingOrder.id}`);
                     const cached = session.pendingOrdersData.get(pendingOrder.id);
-                    // 🔴 여기도 상태 목록을 손으로 적고 있었다 (2026-08-14). `shared` 의
+                    // 🔴 여기도 상태 목록을 손으로 적고 있었다. `shared` 의
                     //    `EVALUATING_STATUSES` 와 값이 같았지만, 한쪽만 늘어나면 갈라진다.
                     if (cached && isEvaluating(cached.status)) {
                         console.log(`💀 [서버 안전취소 타이머] ${cancelSec}초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);

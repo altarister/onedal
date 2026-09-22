@@ -1,5 +1,5 @@
 /**
- * 🔬 **곁 패널 — 기사님과 내가 «같은 것»을 보는 화면** (2026-09-11 신설).
+ * 🔬 **곁 패널 — 기사님과 내가 «같은 것»을 보는 화면**.
  *
  * 기사님: *"내가 볼때 너랑 나랑 같은걸 보고 있어야 될꺼 같단 말이지."*
  *
@@ -153,7 +153,7 @@ function Card({ title, note, children, tall, fold = true, defaultOpen = true }: 
     /**
      * 🎨 **목업의 아웃풋 칸과 같은 옷** — `rounded-xl border-border-card bg-background p-2.5`
      *    에 제목은 `text-info`. 지도 실험실 하단의 「🧭 국면 축」·「💰 돈 축」 칸이 그 모양이라,
-     *    같은 값을 두 화면에서 볼 때 **눈이 한 번 더 배울 게 없다** (기사님 지시 2026-09-11).
+     *    같은 값을 두 화면에서 볼 때 **눈이 한 번 더 배울 게 없다** (기사님 지시).
      */
     return (
         <section className="rounded-xl border border-border-card bg-background p-2.5">
@@ -235,7 +235,7 @@ interface DriverLoc {
 }
 
 /**
- * 📍 **내 위치 — 서버가 어디를 «지금 내 자리»로 알고 있나** (기사님 지시 2026-09-11).
+ * 📍 **내 위치 — 서버가 어디를 «지금 내 자리»로 알고 있나** (기사님 지시).
  *
  * 기사님: *"내 위치가 대전으로 박혀있나봐"* — PC 로 볼 때는 GPS 가 안 오는데, 그때 서버가
  * **설정의 집 주소로 조용히 대신 쓰고 있었다.** 그 사실이 **서버 로그에만** 있어서 한참을
@@ -252,7 +252,7 @@ interface DriverLoc {
  */
 function useDriverLocation(): DriverLoc | null {
     const [loc, setLoc] = useState<DriverLoc | null>(null);
-    /* 🔴 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다 (2026-09-07 이중 접두 사고) */
+    /* 🔴 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다 (이중 접두 사고) */
     useEffect(() => {
         let alive = true;
         const ask = async () => {
@@ -489,7 +489,7 @@ function LocationPickCard() {
 
     const send = (lng: number, lat: number) => {
         /**
-         * 📍 **`manual` 로 나간다** (2026-09-12 · 서버 지적으로 낱말이 열렸다).
+         * 📍 **`manual` 로 나간다** (서버 지적으로 낱말이 열렸다).
          *
          * 🔴 전에는 `'mock'` 으로 보냈다 — 낱말이 없어서였다. 그래서 궤적에서 «배속으로
          *    달린 가상 좌표»와 «손으로 찍은 자리»를 **가를 수 없었다.** 화면은 그 사실을
@@ -547,7 +547,7 @@ type PlaceSide = 'pickup' | 'dropoff';
 const PLACE_LABEL: Record<PlaceSide, string> = { pickup: '상차', dropoff: '하차' };
 
 /**
- * 🚚 **개별콜 — 시뮬레이터 목록에 콜 한 건을 낸다** (기사님 지시 2026-09-15 · `simCall.ts` 머리).
+ * 🚚 **개별콜 — 시뮬레이터 목록에 콜 한 건을 낸다** (기사님 지시 · `simCall.ts` 머리).
  *
  * 🔴 **서버가 들고 있다가 시뮬레이터가 3초마다 가져간다** — 폰 원달앱이 그 콜을 다른 콜과 똑같이 읽고·거르고·잡는다.
  *    아래 «🖐️ 콜 생성»은 서버에 바로 넣어 원달앱을 건너뛴다. 필터를 보려면 이쪽이다.
@@ -646,7 +646,7 @@ function SimCallCard() {
 }
 
 /**
- * 🧪 **테스트용 구역 — 맨 위에 따로 선다** (기사님 지시 2026-09-12).
+ * 🧪 **테스트용 구역 — 맨 위에 따로 선다** (기사님 지시).
  *    이 구역의 셋만 **서버를 바꾸고**, 아래 줄들은 읽기만 한다 (예외: «버린 콜» 칸 아래 «🖐️ 콜 생성»).
  *    어드민으로 옮기는 날 **이 구역째** 걷는다.
  */
@@ -673,7 +673,7 @@ function TestOnlySection({ phase }: { phase?: string }) {
             <div className="pt-2"><ScenarioCard scenarioKey="icheonRound" title="이천 왕복 하루" /></div>
             {/* 🎬 빨리 도는 문제 — 성공하는 콜 다섯 (기사님 2026-09-15 «이천 왕복하루 아래에») */}
             <div className="pt-2"><ScenarioCard scenarioKey="icheonFive" title="이천 성공하는 5콜" /></div>
-            {/* 🎬 실전 판정 및 버그 종합 검증 — 강남 진입과 광주 복귀 5콜 (2026-09-19) */}
+            {/* 🎬 실전 판정 및 버그 종합 검증 — 강남 진입과 광주 복귀 5콜 */}
             <div className="pt-2"><ScenarioCard scenarioKey="gangnamFive" title="강남 진입과 광주 복귀 5콜" /></div>
         </div>
     );
@@ -683,12 +683,12 @@ function TestOnlySection({ phase }: { phase?: string }) {
 interface IntelRow {
     id?: number; pickup?: string; dropoff?: string; fare?: number;
     timestamp?: string; targetApp?: string;
-    /** 🔴 서버는 **DB 칸 이름 그대로** 준다 — `deviceId` 가 아니라 `device_id` 다 (2026-09-12 실측) */
+    /** 🔴 서버는 **DB 칸 이름 그대로** 준다 — `deviceId` 가 아니라 `device_id` 다 */
     device_id?: string;
     pickupDistanceKm?: number | null;
     /**
      * ⚖️ **앱이 내린 판정** — `pass` 이거나 떨어뜨린 축, `locked`(잠겨 안 봄), `null`(구앱).
-     *    🔴 **이 한 칸이 사본을 없앴다** (2026-09-12).
+     *    🔴 **이 한 칸이 사본을 없앴다**.
      */
     verdict?: string | null;
     /** 🆕 2026-09-12 에 앱이 더 싣기 시작한 값들 — **판정에는 안 쓴다.** 눈으로 본다 */
@@ -889,7 +889,7 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
                 );
             })}
 
-            {/* 🖐️ **콜 생성 — 이 칸의 맨 아래** (기사님 지시 2026-09-13 *"오른쪽 버린콜 하단에"*).
+            {/* 🖐️ **콜 생성 — 이 칸의 맨 아래** (기사님 지시 *"오른쪽 버린콜 하단에"*).
                 🔴 값은 지어내지 않는다 — `labProblems` 의 «볼트 저녁 판», 기사님이 실제로 도신 콜이다. */}
             <div className="mt-1.5 pt-1.5 border-t border-border-card flex items-center gap-2">
                 <button type="button" onClick={() => { void makeOne(); }} disabled={making}
@@ -1017,7 +1017,7 @@ function PhoneTabs({ devices }: { devices: DeviceSession[] }) {
                             );
                         })}
                     </div>
-                    {/* 🔴 **폰 칸도 한 줄이다** — 위쪽 줄들과 같은 규칙 (기사님 지시 2026-09-12).
+                    {/* 🔴 **폰 칸도 한 줄이다** — 위쪽 줄들과 같은 규칙 (기사님 지시).
                         단으로 흘리면 폰 탭 안에서도 «칸이 자리를 옮기는» 일이 생긴다 */}
                     {d && (
                         <div className="flex-1 min-h-0 overflow-y-auto">
@@ -1041,7 +1041,7 @@ function PhoneTabs({ devices }: { devices: DeviceSession[] }) {
                                              empty="— 모른다" tone={d.appliedMode ? (isModeApplying(d) ? 'warn' : 'ok') : undefined} />
                                     </Card>
                                 </div>
-                                {/* 🗑️ **「🛰️ 보고」 칸을 걷었다** (기사님 확정 2026-09-12 정리안) —
+                                {/* 🗑️ **「🛰️ 보고」 칸을 걷었다** (기사님 확정 정리안) —
                                     배차망·상태·마지막 보고는 **왼쪽 폰 줄에 이미 뜬다**
                                     (*"1234 · 인성 · 알수 없는 화면 · 합짐 · 23:18 · ⏱️ 는 확인 되는거니까"*).
                                     남길 것 둘(보고 간격 · 앱 버전)은 아래 칸으로 옮겼다. */}
@@ -1101,7 +1101,7 @@ export default function StatusBoard({ activeRoute }: Props) {
     const [health, setHealth] = useState<Health | null>(null);
     const driverLoc = useDriverLocation();
     /**
-     * 📍 **서버가 아는 «내 자리»를 보여 준다 — 읽기만 한다** (2026-09-12).
+     * 📍 **서버가 아는 «내 자리»를 보여 준다 — 읽기만 한다**.
      *    🔴 지도·그물은 이 값을 **아직 안 쓴다** — 이으려다 모의 주행이 멈췄고, 그물 재계산
      *       위험도 걸렸다 (`useRouteDerivations` 의 🗑️ 주석). **여기서 하루 보고 나서** 잇는다.
      *    ⚠️ 구독을 여기서 건다 — 지도 쪽이 손을 뗐으므로 듣는 곳이 이 한 곳이다.
@@ -1158,7 +1158,7 @@ export default function StatusBoard({ activeRoute }: Props) {
         /* ── 🖥️ 서버 — 제 안에서 쥐고 하는 일 ── */
         {
             /**
-             * 🚨 **어긋남 — 비교를 사람이 하지 않게** (기사님 확정 2026-09-12 정리안).
+             * 🚨 **어긋남 — 비교를 사람이 하지 않게** (기사님 확정 정리안).
              *
              * 이 화면의 일은 «같은 것을 보는 것»인데, 여태 **값을 늘어놓기만** 했다.
              * 어긋났는지는 기사님이 칸 열둘을 눈으로 훑어 찾아야 했다 — 그러면 30초가 아니다.
@@ -1174,7 +1174,7 @@ export default function StatusBoard({ activeRoute }: Props) {
                 const note: { k: string; v: string }[] = [];
                 const bad: { k: string; v: string }[] = [];
                 /**
-                 * 📍 **경로 기점과 내 자리가 왜 다른가** (2026-09-12).
+                 * 📍 **경로 기점과 내 자리가 왜 다른가**.
                  *
                  * 🔴 **둘이 다른 것은 고장이 아닐 수 있다.** `originOf` 는 좌표가 5분 넘게
                  *    낡으면 **집**을 고른다 — 콜 없이 모의 주행을 돌리면 «기점은 집,
@@ -1204,7 +1204,7 @@ export default function StatusBoard({ activeRoute }: Props) {
                 if (driverLoc?.source === 'home') bad.push({ k: '내 위치', v: '집 주소로 대신 쓰는 중 — GPS 가 안 온다' });
                 if (devices.length === 0) bad.push({ k: '폰', v: '붙은 폰이 없다' });
                 /**
-                 * 🧭 **폰들이 같은 필터 판을 들고 있나** (2026-09-12 · 서버가 지문을 남기기 시작).
+                 * 🧭 **폰들이 같은 필터 판을 들고 있나** (서버가 지문을 남기기 시작).
                  *    필터는 **한 벌**인데 받는 시각은 폰마다 다르다 — 한 폰만 옛 판을 들고 돌면
                  *    그 폰은 **다른 조건으로 콜을 거른다.** 화면 어디에도 안 드러나던 자리다.
                  */
@@ -1267,7 +1267,7 @@ export default function StatusBoard({ activeRoute }: Props) {
             node: (
                 <Card title="🎛️ 필터설정값" tall note={'지금 쓰는 값\n평소와 다르면 옆에 적는다'}>
                     {/**
-                      * 🔴 **«평소값» 칸을 걷고 여기로 합쳤다** (기사님 확정 2026-09-12 정리안).
+                      * 🔴 **«평소값» 칸을 걷고 여기로 합쳤다** (기사님 확정 정리안).
                       *    전에는 오늘 값 칸과 평소값 칸을 **눈으로 비교**해야 했다 —
                       *    그러면 «오늘 뭘 바꿨나»에 아무도 못 답한다. 다른 줄만 **그 자리에서**
                       *    말하게 한다: `현위반경 10km (평소 15)`.
@@ -1297,7 +1297,7 @@ export default function StatusBoard({ activeRoute }: Props) {
             node: (
                 (() => {
                     /**
-                     * 🔴 **끝난 콜이 화면을 먹지 않게** (기사님 확정 2026-09-12 정리안).
+                     * 🔴 **끝난 콜이 화면을 먹지 않게** (기사님 확정 정리안).
                      *    실측에서 9건 중 7건이 방출·취소였다 — «지금 쥔 콜»을 보러 왔는데
                      *    **끝난 것이 자리를 다 쓰고 있었다.** 진행 중을 앞에 세우고,
                      *    끝난 것은 **개수만** 제목에 남긴다 (숨겨도 있는 줄은 알게 · 규칙 ④).
@@ -1368,7 +1368,7 @@ export default function StatusBoard({ activeRoute }: Props) {
             node: (
                 <Card title="🎛️ 지금 어떤 판인가" note={'서버 → 앱\n국면 · 적재 · 손댐'}>
                     {/**
-                      * 🔴 **「🎛️ 지금 국면」과 「🚚 적재 · 손댐」을 합쳤다** (기사님 확정 2026-09-12).
+                      * 🔴 **「🎛️ 지금 국면」과 「🚚 적재 · 손댐」을 합쳤다** (기사님 확정).
                       *    국면 칸의 `isActive`·`isSharedMode` 는 「📦 앱에 내려갈 필터」에 **또 있었다** —
                       *    같은 값을 두 자리에서 보면 언젠가 «어느 쪽이 참인가»를 묻게 된다 (규칙 ③).
                       *    남는 둘(`callTarget`·`dispatchPhase`)은 적재와 **같은 질문**에 답한다:
@@ -1410,7 +1410,7 @@ export default function StatusBoard({ activeRoute }: Props) {
         },
         {
             /**
-             * 🧾 **전문 — 이 뒤로 «화면에 없는 값»이 생기지 않게** (기사님 지시 2026-09-11).
+             * 🧾 **전문 — 이 뒤로 «화면에 없는 값»이 생기지 않게** (기사님 지시).
              *
              * 🔴 칸을 손으로 늘리는 한 **새 칸이 생길 때마다 또 빠진다.** 오늘이 그랬다.
              *    전문을 한 벌 두면 **빠질 자리가 없다** — 칸들은 «자주 보는 것»을 앞세우는 노릇만 한다.

@@ -62,7 +62,7 @@ describe('국면 전환 (CallTarget) — 콜을 건드리지 않는다', () => {
      *    관내로 가려면 «지금 어느 시인가»를 알아야 했고, 그래서 `destinationCity` 를
      *    **갈아치웠다**(김포시 → 성남시).
      * 🔴 **그 갈아치움이 문제였다.** 파생으로 두면 기사님이 정한 목적지가 저절로 바뀐다.
-     *    지금 관내는 따로 재지 않는다 (2026-09-15) — **목적지는 그대로 둔 채**
+     *    지금 관내는 따로 재지 않는다 — **목적지는 그대로 둔 채**
      *    «목적지 가까이 옴»(`filterArea.withNearness`)이 영역을 가른다. 그러니 여기서 거부할 일이 없다.
      *
      * 🔴 **«위치를 지어내지 않는다»는 그대로다** — 자리가 옮겨졌을 뿐이다.
@@ -81,7 +81,7 @@ describe('국면 전환 (CallTarget) — 콜을 건드리지 않는다', () => {
 
     it('파생값(키워드·별칭)을 직접 채우지 않는다 — filterManager 한 곳에서만 만든다', () => {
         // destinationCity/RadiusKm 같은 **입력만** 넘겨야 recalculateDerivedFields 가
-        // customCityFilters 까지 채운다 (2026-08-12 사고)
+        // customCityFilters 까지 채운다 (사고)
         expect(setCallTargetBody).not.toMatch(/destinationKeywords:/);
         expect(setCallTargetBody).not.toMatch(/customCityFilters:/);
     });

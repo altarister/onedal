@@ -23,7 +23,7 @@ interface Props {
     routeComputedAt: string | null;
     /** 🧭 경로를 든 콜 — 서버가 고른 답 (0831) */
     routeHolderId?: string | null;
-    /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 (2026-09-06) */
+    /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 */
     previewRouteHolderId?: string | null;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     /** 🪗 열린 줄 — 무대가 정한다 (여는 일과 시트 높이를 한 손이 함께 정한다) */

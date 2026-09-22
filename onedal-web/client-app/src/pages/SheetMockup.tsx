@@ -182,7 +182,7 @@ function MockHeader({ st, onCar }: { st: HeaderState; onCar: () => void }) {
 }
 
 /** 📱 폰 영역 — 스캔폰 한 대의 상태 한 줄 + 모드 셋 */
-/** 📱 폰 한 대가 들고 있는 것 — 여럿이 되니 «줄»과 «한 대»를 갈랐다 (2026-09-05) */
+/** 📱 폰 한 대가 들고 있는 것 — 여럿이 되니 «줄»과 «한 대»를 갈랐다 */
 interface DeviceOne {
     id: string; name: string; net: string | null; screen: string; seenAt: string;
     mode: string;
@@ -249,7 +249,7 @@ function caseWidth(over: Record<string, unknown>): number {
 }
 
 /**
- * 📱 **폰 한 대 = 한 줄** (기사님 확정 2026-09-05 — *"폰 하나당 한 줄씩 해줘"*)
+ * 📱 **폰 한 대 = 한 줄** (기사님 확정 — *"폰 하나당 한 줄씩 해줘"*)
  *
  * 🔴 **처음엔 가로로 흘렸다가 뒤집었다.** 폰 셋을 옆으로 이으면 ≈73칸이라 넘치는데,
  *    넘친 것을 **가로 스크롤**로 두니 *"폰 상황을 볼 수가 없다"* — 밀려난 폰은
@@ -534,7 +534,7 @@ const STEPS = [
 
 
 /**
- * 🎨 **시각이 «달라졌음»을 색으로 말한다** (2026-09-05).
+ * 🎨 **시각이 «달라졌음»을 색으로 말한다**.
  *
  * 펼친 판의 상차·하차 줄을 지우면서(타이틀과 중복) **옛 시각과 차이**가 갈 곳이 없어졌다.
  * 🔴 옛 시각은 **지나간 값**이라 안 보여도 된다. 남은 것은 «달라졌나»뿐이고
@@ -649,7 +649,7 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit, push, onM
               **전역 유틸리티(.text-[14px])를 덮지 않고** 이 자리에만 준다 (다른 화면이 조용히 바뀐다). */
         <span className="shrink-0 w-[20px] h-[20px] rounded-full grid place-items-center text-[12.5px] font-black leading-none"
             style={(() => {
-                /* 🔴 **목록 인덱스가 아니라 `callNo` 로 칠한다** (2026-09-05).
+                /* 🔴 **목록 인덱스가 아니라 `callNo` 로 칠한다**.
                    인덱스로 칠했더니 시나리오 판에서 **지도와 목록이 다른 색**이 됐다
                    (기사님: *"지금 색이 지도랑 리스트가 같지 않아"*). 지도·상태바가 쓰는
                    입력과 같아야 «같은 콜»이 눈으로 이어진다 (규칙 ③ · ⑤-3). */
@@ -870,7 +870,7 @@ export default function SheetMockup() {
      *      `modePending` 관제가 보냈고 **아직 대답을 못 들은 것**
      * 🔴 보낸 값을 미리 그리면 화면이 «벌써 됐다»고 거짓말한다.
      */
-    /** 🔴 **폰마다 하나씩** — 픽커만 대기로 두고 싶을 때가 있다 (2026-09-05) */
+    /** 🔴 **폰마다 하나씩** — 픽커만 대기로 두고 싶을 때가 있다 */
     const [deviceModes, setDeviceModes] = useState<Record<string, string>>({});
     const [modePendings, setModePendings] = useState<Record<string, string>>({});
     const [modeOpenId, setModeOpenId] = useState<string | null>(null);
@@ -918,7 +918,7 @@ export default function SheetMockup() {
      *    빈 화면에서 시작해 콜이 하나씩 붙는 것을 보는 것이 맞다.
      */
     /**
-     * 🔗 **장면을 주소로 고른다** — `?step=12` (2026-09-05).
+     * 🔗 **장면을 주소로 고른다** — `?step=12`.
      * 🔴 화면을 **찍어서 대조**하려면 손으로 조작판을 누를 수가 없다. 링크로 열리면
      *    같은 장면을 목업·실물 양쪽에서 나란히 띄울 수 있다 (이식의 유일한 판정 수단).
      * 🟢 덤: 기사님께 «12번 장면 보세요» 를 **링크로** 드릴 수 있다.
@@ -959,7 +959,7 @@ export default function SheetMockup() {
     /** 🖊️ 그리기 — 인풋 값으로 그물을 계산해 지도에 겹친다. 볼트 재생과는 배타라 그쪽을 끈다 */
     const drawNet = (p: NetParams, pair: 'yeoju' | 'gonjiam' | 'dongwon' | 'boram' | 'icheon' | 'hole' | 'detour' = netPair) => {
         setNetPair(pair); setNetParams(p);
-        // 콜을 쥔 판의 출발 꼭짓점은 현위치가 아니라 «경로의 마지막 하차지»다 (기사님 확정 2026-09-07)
+        // 콜을 쥔 판의 출발 꼭짓점은 현위치가 아니라 «경로의 마지막 하차지»다 (기사님 확정)
         const net = pair === 'hole' || pair === 'detour' ? buildFirstLegDemo(pair === 'detour')
             : buildNet(p, pair === 'gonjiam' ? GONJIAM_DROP : pair === 'dongwon' ? DONGWON_DROP : pair === 'boram' ? BORAM_DROP : pair === 'icheon' ? ICHEON_DROP : undefined);
         // 콜을 쥔 판은 잡은 콜들의 경로를 함께 그린다 — 그물이 어느 콜에서 나왔는지 보인다
@@ -982,7 +982,7 @@ export default function SheetMockup() {
      */
     const [priority, setPriority] = useState<RoutePriority>('RECOMMEND');
     /**
-     * 🪧 **판정보드를 어디에 둘까 — 두 안** (2026-09-05 · 기사님이 받으신 의견에서).
+     * 🪧 **판정보드를 어디에 둘까 — 두 안** (기사님이 받으신 의견에서).
      *
      *   ⓐ **필터 자리**(위) — 지금. 기사님 확정 0831. 늘 보이지만 엄지에서 멀다
      *   ⓑ **콜 영역**(시트 맨 아래 · 기사님 안 2026-09-05) —
@@ -993,7 +993,7 @@ export default function SheetMockup() {
      *
      * ⚠️ 한때 ⓒ(**시트 위** 붙박이)도 있었다 — 내가 먼저 만든 것이다. 기사님 안은
      *    **맨 아래**였고 그것이 옳았다: 콜 목록 바로 밑이라 KEEP 하면 **바로 위로
-     *    올라가는 것**이 보이고, 엄지에 가장 가깝다. ⓒ 는 걷어냈다 (2026-09-05).
+     *    올라가는 것**이 보이고, 엄지에 가장 가깝다. ⓒ 는 걷어냈다.
      */
     /** 🔴 **기본은 ⓑ 콜 영역**이다 (기사님 2026-09-05) — 기사님 안이 기본값이 된다 */
     const [seatPlace, setSeatPlace] = useState<'filter' | 'sheet'>('sheet');
@@ -1085,7 +1085,7 @@ export default function SheetMockup() {
     const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
     /**
      * 🔴 **여기에 `window.location.origin` 을 넣으면 안 된다** — 목업은 `localhost:3000`
-     *    이라 콘솔에 등록한 주소와 달라 카카오가 거부한다 (2026-09-04 실측).
+     *    이라 콘솔에 등록한 주소와 달라 카카오가 거부한다.
      *    **등록한 주소를 고정으로 넘긴다.**
      */
     const NAVI_ORIGIN = (import.meta.env.VITE_KAKAO_JS_ORIGIN as string | undefined)
@@ -1103,7 +1103,7 @@ export default function SheetMockup() {
         Math.min(qrPeek, Math.max(0, remaining.length - 1)) + qrSpan,
     );
     /**
-     * 🔴 **덮개가 안 뜨는 장면에도 「QR 코드」 버튼은 살아 있다** (2026-09-05 정정).
+     * 🔴 **덮개가 안 뜨는 장면에도 「QR 코드」 버튼은 살아 있다**.
      *
      * 처음엔 `step.qr` 이 없으면 담을 곳도 비워서, 「⑥ 출발 전 — 합짐 대기」에서
      * **버튼이 통째로 사라졌다.** 기사님: *"첫짐만 잡고 출발할 수 있으니까
@@ -1138,7 +1138,7 @@ export default function SheetMockup() {
     const setQrOpen = (v: boolean) => { if (!step) setQrOpenRaw(v); };
 
     /**
-     * 🖥️ **지금 화면이 어떤 상태인가 — 한 곳에서 만든다** (2026-09-05 · 규칙 ③)
+     * 🖥️ **지금 화면이 어떤 상태인가 — 한 곳에서 만든다** (규칙 ③)
      *
      * 🔴 **무엇이 엉켜 있었나** (기사님: *"뭘 고치면 뭐가 안 되고… 구조적으로 뭐가
      *    문제인지 봐 달라"*). 화면 조각들이 «심사 중인가»를 **각자 짐작**하고 있었다:
@@ -1254,7 +1254,7 @@ export default function SheetMockup() {
      *    그런 상태는 **정의상 없어야 한다** (규칙 ③ — 손잡이가 둘이면 갈라진다).
      */
     /**
-     * 🔢 **콜 번호로 목록 자리를 찾는다** (2026-09-05).
+     * 🔢 **콜 번호로 목록 자리를 찾는다**.
      *
      * 🔴 전에는 `callNo - 1` 로 뺄셈했다. 목록을 **번호순으로 정렬**해 뒀기에 맞았던 것인데,
      *    목록은 **잡은 순서**라야 한다(기사님). 정렬을 걷어내니 뺄셈이 **다른 콜을 연다** —
@@ -1337,7 +1337,7 @@ export default function SheetMockup() {
                   * 🔴 **목업용으로 다시 그리지 않고 실물 컴포넌트를 그대로 쓴다** (규칙 ③).
                   *    자료만 먹인다 — 그래야 여기서 정한 것이 실물과 안 갈라진다.
                   * 🔴 KEEP·거절을 **실제로 누르실 수 있다.** 누르면 다음 장면으로 넘어간다 —
-                  *    기사님이 *"첫짐킵을 추가해주면 좋겠어"* 하신 그 손이다 (2026-09-05).
+                  *    기사님이 *"첫짐킵을 추가해주면 좋겠어"* 하신 그 손이다.
                   */}
                 {step?.seat && seatPlace === 'filter' ? (
                     <div className="shrink-0">
@@ -1598,7 +1598,7 @@ export default function SheetMockup() {
                         bottomBox={step?.seat && seatPlace === 'sheet' ? (
                             <>
                             {/**
-                              * ⏱️ **«잡으면 이만큼 밀린다»를 한 줄로** (기사님 확정 2026-09-05).
+                              * ⏱️ **«잡으면 이만큼 밀린다»를 한 줄로** (기사님 확정).
                               * 🔴 위 목록의 시각이 왜 노랗게 바뀌었는지를 이 줄이 말한다 —
                               *    안 적으면 «시각이 저 혼자 바뀐» 것으로 읽힌다.
                               */}
@@ -1641,7 +1641,7 @@ export default function SheetMockup() {
                              * 🔴 지도 위에 같은 말을 하던 「다음 정거장 버튼」을 **여기로 합쳤다.**
                              *    같은 말을 두 곳에서 하면 갈라진다 (규칙 ③).
                              * 🔴 **기능도 함께 옮겼다** — 자리만 옮기고 일을 흘리면 손이 갈 데가
-                             *    없어진다 (2026-09-04 에 한 번 그랬다 · 095d091 로 되돌림).
+                             *    없어진다 (에 한 번 그랬다 · 095d091 로 되돌림).
                              * 🔴 «다녀온 곳»은 안 적는다 — 아코디언의 진행 점과 지도의 흰 링이
                              *    이미 말한다. 이 줄은 **지금 할 일**만 말한다.
                              * 🟢 주행 중에는 시트가 내려가 있어 이 줄이 **화면 맨 아래** — 엄지에 가깝다.
@@ -1694,7 +1694,7 @@ export default function SheetMockup() {
                               *    그 일과 맞는다 — **잡으면 어디에 끼는지가 같은 화면에서 보인다.**
                               */}
                             {/**
-                              * 🈳 **빈 상태** (기사님 확정 2026-09-05 · 관행을 따른다).
+                              * 🈳 **빈 상태** (기사님 확정 · 관행을 따른다).
                               * 🔴 시트는 콜이 없어도 올라간다 — 막아 두면 끌었는데 아무 일이
                               *    없어 고장처럼 보인다. 대신 **«아직 없다»고 말해 준다.**
                               * 🔴 «기다리는 중»이라고 적는 것이 중요하다 — 빈 화면은 «고장»과
@@ -2074,7 +2074,7 @@ export default function SheetMockup() {
                     «짧은 축이 화면을 줄이지 않는가»를 보기 좋습니다.
                 </p>
 
-                {/* ⟳ **Q8 을 판단하실 재료** — 전제 점검표 3부 (2026-09-04).
+                {/* ⟳ **Q8 을 판단하실 재료** — 전제 점검표 3부.
                     🔴 시나리오가 켜져 있으면 안 보인다 — 경로를 정하는 곳이 둘이면 갈라진다 */}
                 {!step && cost && (<>
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">⟳ 다시 물으면 어떻게 되나 <span className="text-text-muted font-bold">(Q8)</span></h2>
@@ -2264,7 +2264,7 @@ export default function SheetMockup() {
                     <b className="text-text-primary"> 테두리</b>=아직(흰색)/지나감(회색). 1번 상차지(초월읍)는 다녀와서 테두리가 회색입니다.
                 </p>
 
-                {/* 🧭 **QR 두 안** — 기사님이 눈으로 고르실 자리 (2026-09-04) */}
+                {/* 🧭 **QR 두 안** — 기사님이 눈으로 고르실 자리 */}
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">🧭 내비 QR — 두 안 비교</h2>
                 <div className="grid grid-cols-2 gap-2">
                     {([['sheet', 'ⓐ 눌러서 크게'], ['always', 'ⓑ 늘 작게 떠 있게']] as const).map(([k, t]) => (
@@ -2334,7 +2334,7 @@ export default function SheetMockup() {
                     <b className="text-text-primary"> {qrTrips}번</b> 찍습니다.
                 </p>
 
-                {/* 🪧 **판정보드 자리** — 기사님이 받으신 의견에서 (2026-09-05) */}
+                {/* 🪧 **판정보드 자리** — 기사님이 받으신 의견에서 */}
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">🪧 판정보드 자리 — 두 안 비교</h2>
                 <div className="grid grid-cols-2 gap-2">
                     {([['filter', 'ⓐ 필터 자리 — 지금 실물'], ['sheet', 'ⓑ 콜 영역 — 기사님 안']] as const).map(([k, t]) => (

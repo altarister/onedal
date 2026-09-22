@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🧰 **필터 판 — 지도를 보면서 고친다** (기사님 확정 2026-09-15 · 목업 https://claude.ai/artifact/RfDCyjwqHM2UcoNGaBTwPy).
+ * 🧰 **필터 판 — 지도를 보면서 고친다** (기사님 확정 · 목업 https://claude.ai/artifact/RfDCyjwqHM2UcoNGaBTwPy).
  *
  * 기사님: *"필터 영역이 너무 커서 한번에 저장버튼이 보이지 않아서 불편하고 필터가 덩어리 감이 없어서 보기가 어려워"* ·
  * *"의도가 지도의 영역을 보면서 반경과 등을 수정하고 싶거든 — 높이 사이즈를 줄이고 모두 닫기 모드로 … 하나만 열리게"* ·

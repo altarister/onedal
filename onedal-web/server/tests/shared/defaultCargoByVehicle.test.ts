@@ -1,9 +1,9 @@
 import { defaultCargoByVehicle, cargoPoints, VEHICLE_CAPACITY } from '@onedal/shared';
 
 /**
- * 🚚 **차종이 곧 기본 짐** — 통화 전 미리 눌러 둘 단위·수량 (기사님 확정 2026-08-18)
+ * 🚚 **차종이 곧 기본 짐** — 통화 전 미리 눌러 둘 단위·수량 (기사님 확정)
  *
- * 기사님 (2026-08-12에도 같은 말씀): *"1톤 화물이면 **파레트**가 기본적일 거고
+ * 기사님: *"1톤 화물이면 **파레트**가 기본적일 거고
  * 그렇지 않다면 **라면박스 몇 개** 이렇게 표시할 수 있을 듯."*
  *
  * 서버는 이미 신고가 없으면 `VEHICLE_CAPACITY[차종]` 을 적재로 잡는다
@@ -46,7 +46,7 @@ describe('defaultCargoByVehicle — 차종 정원을 기본 짐으로', () => {
  * 적요는 이 콜의 실제 정보이고, 차종은 "그 차 한 대 분량"이라는 짐작이라 뒤에 온다.
  */
 describe('미리 채움의 순서 — 시딩(출생) 한 곳이 정한다', () => {
-    // 🏗️ 옛 시트(StopCallSheet)는 철거됐다 (2026-08-21). 순서 규칙은 시딩으로 옮겨졌다:
+    // 🏗️ 옛 시트(StopCallSheet)는 철거됐다. 순서 규칙은 시딩으로 옮겨졌다:
     //    실측 > 통화 계획 > **적요** > 차종 기본 — 화면은 planned_source 배지만 그린다
     const seeder = () => require('fs').readFileSync(
         require('path').join(__dirname, '../../src/services/stepSeeder.ts'), 'utf8');

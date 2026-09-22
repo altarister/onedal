@@ -3,9 +3,9 @@ import { ensureBusinessDay } from '../../src/state/filterManager';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 
 /**
- * 🌅 **자정을 걸친 사이클 — 어제 하차분은 오늘 화면에 남지 않는다** (2026-08-22 실측)
+ * 🌅 **자정을 걸친 사이클 — 어제 하차분은 오늘 화면에 남지 않는다**
  *
- * `deckOfCycle` 규칙(기사님 확정 2026-08-19)은 *"진행 중이 하나라도 남으면 하차한
+ * `deckOfCycle` 규칙(기사님 확정)은 *"진행 중이 하나라도 남으면 하차한
  * 콜도 함께 보여준다"* — 6단계 채워진 모습을 보기 위한 **화면 규칙**이다. 그런데
  * 사이클이 자정을 걸치면(운행 중 2콜을 남기고 잠들면) 어제 하차한 3콜이 오늘 아침
  * "진행 중 (5)" 로 계속 보였다 — 성과 기록은 어제로 닫혔는데 화면만 어제를 산다.
@@ -23,7 +23,7 @@ import { getUserSession, clearUserSession } from '../../src/state/userSessionSto
 const U = 'midnight-cycle-test-user';
 
 /**
- * 🔴 **날짜를 박아 두지 않는다** (2026-08-23 회귀로 발견).
+ * 🔴 **날짜를 박아 두지 않는다** (회귀로 발견).
  *
  * 예전에는 `'2026-08-22'` 를 "오늘"이라 적어 뒀다. 하루가 지나자 그 콜이 진짜로
  * *"어제 하차분"* 이 되어 정리됐고, **서버는 옳게 동작하는데 검사만 빨간불**이 됐다.

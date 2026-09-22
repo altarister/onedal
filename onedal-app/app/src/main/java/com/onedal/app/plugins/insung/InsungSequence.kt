@@ -9,7 +9,7 @@ import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
- * 🔴 **인성 잡기 수순 — 여기가 그 집이다** (2026-09-02 신설 · 기획/배차망_통합.md §4).
+ * 🔴 **인성 잡기 수순 — 여기가 그 집이다** (신설 · 기획/배차망_통합.md §4).
  *
  * 인성 전용 수순(상세·확정·팝업 3종 · 약 636줄)이 오랫동안 `HijackService` 안에 있었다.
  * 배차망을 계속 붙이려면 그게 나와야 한다 — **공통 코드가 인성 화면을 알면 안 된다.**
@@ -79,7 +79,7 @@ fun ScanContext.handleDropoffPopup(rootNode: AccessibilityNodeInfo, screenTexts:
     // /detail 서버 전송 (팝업 수집 완료)
     session.lastDetailOrder?.let { order ->
         /**
-         * 👀 **미리보기는 선점을 여기서 처음 보낸다** (기사님 확정 2026-08-22).
+         * 👀 **미리보기는 선점을 여기서 처음 보낸다** (기사님 확정).
          *
          * 손으로 연 상세는 confirm 을 미뤄 두고 팝업 3장을 먼저 읽었다. 서버는 confirm
          * 으로 콜을 만들고 detail 로 승급하므로 **순서가 뒤집히면 안 된다** — 여기서
@@ -116,7 +116,7 @@ fun ScanContext.isPopupResidue(rawScreenStr: String): Boolean {
 fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOfficeOrder {
     val tempOrder = scrapParser.parse(screenTexts)
     /**
-     * 🔴 **출신은 스위치가 아니라 «누가 눌렀나» 다** (2026-08-30 · 규칙 ③).
+     * 🔴 **출신은 스위치가 아니라 «누가 눌렀나» 다** (규칙 ③).
      *
      * 예전엔 여기서 `telemetryManager.currentMode` 를 썼다. 이 길은 **손으로 확정한
      * 콜**의 길인데(앱이 잡았으면 `lastDetailOrder` 가 이미 있다) 스위치를 찍는 바람에,
@@ -128,7 +128,7 @@ fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOffic
         id = session.currentOrderId,
         type = "${session.clickOrigin}_CLICK",
         /**
-         * 🔴 **상세 화면 글자를 리스트 파서 결과 그대로 믿지 않는다** (2026-08-25 실측).
+         * 🔴 **상세 화면 글자를 리스트 파서 결과 그대로 믿지 않는다**.
          *
          * `parse()` 는 *"첫 번째 유효 지역 = 상차지, 두 번째 = 하차지"* 로 읽는데
          * 그건 **리스트에서만 참**이다. 손으로 연 상세에서는 배치가 달라
@@ -223,7 +223,7 @@ fun ScanContext.handleInsungPreConfirmExecution(
     screenTexts: List<String>,
     finalOrder: SimplifiedOfficeOrder
 ): Boolean {
-    // 1. 손으로 연 상세는 팝업 3장을 먼저 읽는다 (기사님 확정 2026-08-22)
+    // 1. 손으로 연 상세는 팝업 3장을 먼저 읽는다 (기사님 확정)
     if (!session.isAutoActive && session.collectState == SessionManager.CollectState.IDLE) {
         session.isPreview = true
         AppLogger.roadmap("👀 [미리보기] 손으로 연 상세 — 팝업 3장을 먼저 읽고 판정을 받는다", telemetryManager.currentScreenContext.name)

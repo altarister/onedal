@@ -12,7 +12,7 @@ export function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: nu
 /**
  * 정렬만 한다 — **받은 객체를 그대로 옮긴다.**
  * 🧭 제네릭인 이유: 호출부가 좌표에 이름표(orderId·stopType)를 붙여 넘기고, 그 이름표가
- *    정렬 뒤에도 살아 있어야 «구간의 주인»을 좌표 되짚기 없이 알 수 있다 (2026-08-29).
+ *    정렬 뒤에도 살아 있어야 «구간의 주인»을 좌표 되짚기 없이 알 수 있다.
  */
 export function optimizeWaypoints<T extends {x: number, y: number}>(
     startLoc: {x: number, y: number},

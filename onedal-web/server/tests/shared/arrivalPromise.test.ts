@@ -1,7 +1,7 @@
 import { deriveCallTiming, DEFAULT_DEADLINE_RULES } from '@onedal/shared';
 
 /**
- * 🕒 **약속은 도착 시각이다 — 상차 소요와 분리한다** (기사님 확정 2026-08-18)
+ * 🕒 **약속은 도착 시각이다 — 상차 소요와 분리한다** (기사님 확정)
  *
  * 실측 사고: 통화로 "40박스 수작업"을 신고하자 상차 소요가 15→30분으로 늘며
  * 완료 기준 약속이 흔들려 **갑자기 지각**이 떴다. 전화로 화주와 잡는 것은
@@ -45,7 +45,7 @@ describe('도착 약속 (promisedArrivalAt)', () => {
     });
 
     it('상차지까지 몇 분인지 몰라도 약속은 «잡은 시각 + 20분» 그대로다', () => {
-        // 30분·60분은 20분 룰을 모를 때의 가정치라 폐기 (기사님 확정 2026-08-31)
+        // 30분·60분은 20분 룰을 모를 때의 가정치라 폐기 (기사님 확정)
         const noApproach = { ...order, approachDurationMin: null, totalDistanceKm: null };
         const t = deriveCallTiming(noApproach, [], [], NOW);
         // 약속은 «도착» 시각 — 주행을 몰라도 잡은 시각 + 20분 그대로다

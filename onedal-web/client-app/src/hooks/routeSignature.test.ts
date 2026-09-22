@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { routeSignature } from './routeSignature';
 
 /**
- * 🧬 **경로가 바뀌었나 — 그 판단이 세 번 틀렸다** (2026-09-12).
+ * 🧬 **경로가 바뀌었나 — 그 판단이 세 번 틀렸다**.
  *
  * ── 왜 이 검사가 있나 ──
  * 모의 주행은 «지금 달리는 경로»의 인덱스를 들고 걷는다. 경로가 갈리면 인덱스를 다시

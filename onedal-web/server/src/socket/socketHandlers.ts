@@ -49,7 +49,7 @@ import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "..
  *
  * Socket.IO 는 리스너의 예외를 잡아주지 않는다. 그래서 DB 제약 위반 한 번에
  * `SqliteError` 가 uncaught 로 올라가 **서버 전체가 종료됐다.**
- * (2026-08-10 스모크에서 stop_cargo_reports 의 FK 위반으로 실제 발생)
+ * (스모크에서 stop_cargo_reports 의 FK 위반으로 실제 발생)
  *
  * 기사님 운행 중에 이런 일이 나면 콜 잡기가 통째로 멈춘다.
  * 한 오더의 입력이 실패하는 것과 서버가 죽는 것은 전혀 다른 무게다.
@@ -61,7 +61,7 @@ function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any)
         } catch (err: any) {
             console.error(`🚨 [소켓 핸들러 실패] ${event}:`, err?.message || err);
             /**
-             * 🔴 **왜 실패했는지 화면에 남긴다** (2026-08-18 실측).
+             * 🔴 **왜 실패했는지 화면에 남긴다**.
              *    `FOREIGN KEY constraint failed` 만 뜨자 기사님 화면엔 *"처리에 실패했습니다"* 뿐이었고,
              *    **통화로 들은 내용이 통째로 날아간 것**을 알 방법이 없었다.
              *    원문은 그대로 두고(디버깅용), 사람 말을 앞에 붙인다.
@@ -245,7 +245,7 @@ export function registerSocketHandlers(io: Server) {
         }
 
         /**
-         * 🔴 **놓친 뒤에도 받을 수 있어야 한다** (2026-08-16 실측).
+         * 🔴 **놓친 뒤에도 받을 수 있어야 한다**.
          *
          * 위 `judgment-init` 은 **접속 순간에 한 번** 나간다. 그런데 관제웹은 기사님이
          * ⚙️ 설정 → 「판정 기준」 탭을 **여는 순간** 비로소 구독한다 — 그때는 이미 지나갔다.
@@ -282,7 +282,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         /**
-         * 🎛️ **콜 옵션 저장** (2026-08-29) — 화면의 칩과 그 분(分)을 기사님이 고친다.
+         * 🎛️ **콜 옵션 저장** — 화면의 칩과 그 분(分)을 기사님이 고친다.
          *
          * 🔴 **셋을 한 번에 해야 한다.** 하나라도 빠지면 두 목소리가 난다:
          *   ① DB 를 고친다        — 다음 로그인에도 남는다
@@ -385,7 +385,7 @@ export function registerSocketHandlers(io: Server) {
 
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
         /**
-         * 🔴 **`update-my-location` 을 지웠다** (2026-08-14).
+         * 🔴 **`update-my-location` 을 지웠다**.
          *    `session.lastFix` 을 **직접** 덮어써 `processDriverMovement` 를 우회했다 —
          *    지나온 구간 제거도 도착 감지도 안 돌았을 것이다. 그런데 **쏘는 곳이 한 곳도 없었다**
          *    (git 전체 이력에서 관제웹·앱 어디에도 없다. 태어날 때부터 죽어 있었다).
@@ -393,7 +393,7 @@ export function registerSocketHandlers(io: Server) {
          */
 
         /**
- * 🧹 **«모의 주행 종료» 수신을 걷었다** (기사님 지시 2026-09-12).
+ * 🧹 **«모의 주행 종료» 수신을 걷었다** (기사님 지시).
  *
  * 기사님: *"함수가 함수를 부르는 것이 이상해. 상태가 바뀌면 거기에 따라 알아서
  * 바뀌어야 하는 거 아냐?"*
@@ -437,7 +437,7 @@ export function registerSocketHandlers(io: Server) {
                 (uid) => trimTraveled(uid, io),
                 loc.source,
                 /**
-                 * 도착 확정 → 마일스톤 자동 기록 (2026-08-17 재설계).
+                 * 도착 확정 → 마일스톤 자동 기록 (재설계).
                  * ⚠️ ~~GPS 가 기록하는 마일스톤은 ARRIVED_* 둘뿐이다 — 절대 자동으로 찍지 않는다~~
                  *    **2026-09-03 폐기** (기사님: *"이 명제는 이제 유효하지 않다 삭제하는 것이
                  *    맞아. 지나가면 실었다가 맞아."*). 지금은 «지나침 판정»이 상차·하차 완료를
@@ -475,13 +475,13 @@ export function registerSocketHandlers(io: Server) {
                     });
                 },
                 /**
-                 * 🚚 **떠남 → 하차 완료** (기사님 확정 2026-08-25).
+                 * 🚚 **떠남 → 하차 완료** (기사님 확정).
                  *
                  * 기사님: *"곤지암과 부발에서 멀어진 거면 하차를 했는데 버튼을 못 누른 걸로
                  * 봐야 하지 않을까… 운행 중에 클릭 못 할 거라 말이지."*
                  *
                  * 🔴 위 주석의 *"상차·하차 완료는 절대 자동으로 찍지 않는다"* 를 **하차에 한해**
-                 *    푼다. 근거는 «도착 + 2km 이탈» 이라는 물리적 사실이고, 실측(2026-08-25)에서
+                 *    푼다. 근거는 «도착 + 2km 이탈» 이라는 물리적 사실이고, 실측에서
                  *    GPS 도착 3건이 다 찍혔는데 손으로 눌러야 하는 네 단계가 전부 비어 있었다 —
                  *    적재가 안 풀려 다음 콜이 차종에서 막혔다.
                  *
@@ -509,7 +509,7 @@ export function registerSocketHandlers(io: Server) {
                     }
                 },
                 /**
-                 * 🚚 **지나침 → 도착·완료를 순차로** (기사님 확정 2026-09-03).
+                 * 🚚 **지나침 → 도착·완료를 순차로** (기사님 확정).
                  *
                  * 기사님: *"운전중에 그걸 누르는건 너무 위험하다. 실 업무를 진행하면 도착을
                  * 못 읽는 경우가 있을 거야 … 지나온 목적지를 벗어나면 도착과 상차완료를
@@ -526,7 +526,7 @@ export function registerSocketHandlers(io: Server) {
                     const done = stop.stopType === 'pickup' ? 'PICKED_UP' as const : 'DELIVERED' as const;
                     const label = stop.stopType === 'pickup' ? '상차지' : '하차지';
                     /**
-                     * 🔴 **하나도 안 써졌으면 알리지 않는다** (2026-09-03 코드 리뷰가 잡음).
+                     * 🔴 **하나도 안 써졌으면 알리지 않는다** (코드 리뷰가 잡음).
                      *    예전에는 성공 여부와 무관하게 «기록했습니다»를 띄웠다 — 아무것도
                      *    안 적혔는데 화면이 적혔다고 말하는 자리다 (규칙 ④).
                      */
@@ -563,7 +563,7 @@ export function registerSocketHandlers(io: Server) {
             maybeRebuildPickupList(userId, io);
 
             /**
-             * 📍 **위치만 나르는 가벼운 길** (2026-09-12 · 기사님 지시로 되돌려 다시 놓음).
+             * 📍 **위치만 나르는 가벼운 길** (기사님 지시로 되돌려 다시 놓음).
              *
              * ── 왜 따로 내나 ──
              * 처음엔 `sync-active-orders` 봉투에 얹었다. **그게 틀렸다** — 그 봉투는
@@ -682,7 +682,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         /**
-         * ⏱️ **배지로 고친 정차 분** — 이 콜, 이 정거장만 (기사님 확정 2026-08-30: A).
+         * ⏱️ **배지로 고친 정차 분** — 이 콜, 이 정거장만 (기사님 확정: A).
          *
          * 🔴 `save-cargo-report` 와 **다른 문**이다. 저건 「통화함/실측함」이라 단계를 닫는데,
          *    배지는 신호 대기 중에 툭 누르는 것이다. 같은 문으로 보내면 **안 한 통화가
@@ -707,7 +707,7 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "save-cargo-report", (data: { orderId: string } & CargoReport) => {
             const { orderId, ...report } = data;
             if (!orderId) throw new Error("orderId 누락");
-            // 🔄 옛 장부(stop_cargo_reports) 쓰기는 철거됐다 (2026-08-21) — 새 장부가 유일한 원천
+            // 🔄 옛 장부(stop_cargo_reports) 쓰기는 철거됐다 — 새 장부가 유일한 원천
             bridgeCargoReport(userId, orderId, report as CargoReport, getUserSession(userId)?.judgment, routeTlOf(userId));
             socket.emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
 
@@ -721,7 +721,7 @@ export function registerSocketHandlers(io: Server) {
             console.log(`📞 [${label} ${kindLabel}] ${report.unit || report.sizeClass || '-'} × ${report.quantity ?? '-'} · ${report.handling || '-'}`);
 
             /**
-             * 🔬 **계측 (2026-08-19)** — 약속이 **무슨 값으로** 만들어졌는지 남긴다.
+             * 🔬 **계측** — 약속이 **무슨 값으로** 만들어졌는지 남긴다.
              *
              * 기사님 실측: `17:33:31` 에 잡은 콜의 상차 약속이 `18:51` 로 저장됐다.
              * 도착 예상은 `17:56` 이었으니 여유 30분이면 `18:26` 이어야 한다.
@@ -800,7 +800,7 @@ export function registerSocketHandlers(io: Server) {
             logRoadmapEvent("서버", `[착불] ${data.received ? '현장 수령' : '미수금 등록'} ${amount}원`);
         });
 
-        // 🔄 settlement-updated·request-settlement 은 철거 (2026-08-21) — 착불 표시는 단계 행(cod_received)이, 상태는 orders 가 원천
+        // 🔄 settlement-updated·request-settlement 은 철거 — 착불 표시는 단계 행(cod_received)이, 상태는 orders 가 원천
 
         // 카드 헤더에서 약속 시각만 바꾼다. 짐 정보는 건드리지 않는다
         safeOn(socket, "set-stop-deadline", (data: { orderId: string, stopType: 'pickup' | 'dropoff', deadlineAt: string | null }) => {
@@ -861,13 +861,13 @@ export function registerSocketHandlers(io: Server) {
         });
 
         /**
-         * 🔴 **`dispatch-complete` 를 지웠다** (2026-08-14). 역시 **쏘는 곳이 없었다.**
+         * 🔴 **`dispatch-complete` 를 지웠다**. 역시 **쏘는 곳이 없었다.**
          *
          *    이 문이 부르던 `completeOrder` 는 상태를 `ORDER_COMPLETED` 로 썼는데, 살아 있는
          *    경로(마일스톤 `DELIVERED`)는 `ORDER_DELIVERED` 를 쓴다 — **같은 뜻, 이름 둘.**
          *    그 어긋남이 매출 집계를 0원으로 만들고 있었다(`statService`).
          *
-         *    `ORDER_COMPLETED` 는 **타입에 남겨 둔다** — 기사님 결정(2026-08-14)대로
+         *    `ORDER_COMPLETED` 는 **타입에 남겨 둔다** — 기사님 결정대로
          *    *관제앱은 업무 단위, 정산은 별도 페이지*이므로 **정산 완료**를 뜻하는 자리다.
          *    다만 그 페이지가 생길 때 **거기서** 만든다. `completeOrder` 는 관제앱 동작
          *    (경로 재계산·필터 브로드캐스트)을 하고 있어 정산용으로 쓸 수 없었다.
@@ -930,7 +930,7 @@ export function registerSocketHandlers(io: Server) {
             io.to(uid).emit("sync-active-orders", sync);
         }
         /**
-         * 🔴 `.unref()` — **이 1초 타이머가 서버를 붙잡지 않게 한다** (2026-08-26).
+         * 🔴 `.unref()` — **이 1초 타이머가 서버를 붙잡지 않게 한다**.
          * Node 는 살아 있는 타이머가 하나만 있어도 안 죽는다. Ctrl+C 에
          * *"Previous process hasn't exited yet. Force killing..."* 가 뜬 이유 중 하나다.
          * 서버가 도는 동안에는 평소대로 매초 돈다 — 끝낼 때만 비켜선다.

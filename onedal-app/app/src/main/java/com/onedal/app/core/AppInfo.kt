@@ -6,7 +6,7 @@ import android.os.Build
 /**
  * 앱 버전 정보를 PackageManager에서 **런타임에** 조회합니다.
  *
- * ⚠️ BuildConfig.VERSION_NAME 을 쓰면 안 되는 이유 (2026-08-09 실제 발생):
+ * ⚠️ BuildConfig.VERSION_NAME 을 쓰면 안 되는 이유 (실제 발생):
  * BuildConfig.VERSION_NAME 은 `static final String` 컴파일 타임 상수라
  * Kotlin 컴파일러가 **호출부에 값을 그대로 인라인**합니다.
  * build.gradle.kts 의 versionName 만 바꾸고 호출부 소스는 그대로 두면

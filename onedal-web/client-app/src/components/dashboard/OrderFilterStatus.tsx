@@ -14,7 +14,7 @@ import type { CallTarget } from "@onedal/shared";
  *
  * 🔴 전환은 **필터만** 바꾼다. 콜은 건드리지 않는다 (옛 투트랙이 콜을 완료 처리했다).
  *
- * ══ 🔴 드래그 전환을 걷어냈다 (2026-08-14) ══
+ * ══ 🔴 드래그 전환을 걷어냈다 ══
  * 기사님: *"드래그로 바꾸면 안 될 듯싶다. 이렇게 필터가 쉽게 바뀌면 오작동이 될
  * 가능성이 있을 것 같다. 버튼을 누르게 하고 알럿창으로 확인받는 것이 안전할 듯하다."*
  *
@@ -71,7 +71,7 @@ export default function OrderFilterStatus({ onOpenFilter }:
 
     /**
      * 🧾 **지금 원달앱에 내려간 하차 목록의 읍·면·동 수** (이식 C4-9 · 2026-09-15 개정).
-     * 🔄 C4-11b(2026-09-12)는 지도가 그린 그물 수(`netCount`)를 먼저 봐 끄는 동안 숫자도 따라 움직였다.
+     * 🔄 C4-11b는 지도가 그린 그물 수(`netCount`)를 먼저 봐 끄는 동안 숫자도 따라 움직였다.
      *    옛 «그물» 레이어를 걷어 지도는 영역 도형만 그린다 — 숫자는 서버 목록 하나다(규칙 ③).
      *    슬라이더를 끄는 동안은 멈춰 있다가 **손을 떼고** 서버가 목록을 다시 만들면 바뀐다.
      */
@@ -109,7 +109,7 @@ export default function OrderFilterStatus({ onOpenFilter }:
             <span className="shrink-0 text-[12.5px] font-black text-text-primary">{(filter.routeMode ?? true) ? '🛣️ 노선' : '🔷 동선'}</span>
             <span className="shrink-0 opacity-40">·</span>
             {/**
-              * 🔴 **«몇 개 동»은 끝까지 보인다** (2026-09-12 실측 — 「163 …」로 잘렸다).
+              * 🔴 **«몇 개 동»은 끝까지 보인다** (실측 — 「163 …」로 잘렸다).
               *    줄 전체에 `truncate` 를 걸면 **맨 뒤가 먼저 죽는다.** 자를 것은
               *    길어질 수 있는 **도시 이름** 쪽이고, 수는 필터가 지금 무엇을 담고 있나라
               *    잘리면 뜻이 사라진다.
@@ -121,7 +121,7 @@ export default function OrderFilterStatus({ onOpenFilter }:
                 <b className="min-w-0 truncate text-text-primary">{filter.goalCity || filter.destinationCity || v14.region} {km1(radii.destinationRadiusKm)}km</b>
                 <span className="shrink-0 opacity-40">·</span>
                 {/**
-                  * 🧾 **몇 개 동이 걸리나** (기사님 지시 2026-09-11 · 이식 C4-9).
+                  * 🧾 **몇 개 동이 걸리나** (기사님 지시 · 이식 C4-9).
                   *
                   * ⚠️ 여기 `📦 90/100`(적재)이 있었다 — **맨 위 헤더가 이미 말한다**
                   *    (`1t 예약 3 📦 90/100`). 한 화면에 같은 말이 두 번 있으면

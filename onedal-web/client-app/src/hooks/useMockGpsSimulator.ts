@@ -36,14 +36,14 @@ interface MockGpsSimulatorProps {
     isActive: boolean;
     routePolyline: PolylinePoint[] | null;
     /**
-     * 🏁 **들러야 할 정거장** — 상차지·하차지의 실제 좌표 (2026-08-25 신설).
+     * 🏁 **들러야 할 정거장** — 상차지·하차지의 실제 좌표.
      *
      * 폴리라인은 **도로 위**만 지난다. 그런데 물류센터는 도로에서 떨어져 있는 곳이 많다 —
      * 실측: 쿠팡 곤지암2 **601m** · 쿠팡 이천4 **525m**. 도착 감지 반경은 500m 라
      * 모의 주행은 그 하차지에 **영영 못 닿았다.**
      *
      * 그래서 «지나쳤는데 하차가 안 된 콜」이 남았고, 경로가 나중에 서쪽으로 70km
-     * 되돌아갔다 — 기사님(2026-08-25): *"경로가 이상하다.."*
+     * 되돌아갔다 — 기사님: *"경로가 이상하다.."*
      *
      * 🔴 **실제 주행은 시설 안까지 들어간다.** 모의 주행만 도로를 안 벗어났던 것이다.
      *    그러니 이건 판정을 느슨하게 푸는 게 아니라 **모의 주행을 현실에 맞추는 것**이다.
@@ -69,11 +69,11 @@ export function useMockGpsSimulator({
     const [mockLocation, setMockLocation] = useState<{
         x: number; y: number;
         via?: Array<{ x: number; y: number }>;
-        /** ⏸️ **지금 서 있나** — 정차 연기 중이면 참. 궤적이 그 사실을 남길 수 있게 (2026-09-12) */
+        /** ⏸️ **지금 서 있나** — 정차 연기 중이면 참. 궤적이 그 사실을 남길 수 있게 */
         stopped?: boolean;
     } | null>(null);
     /**
-     * 👁️ **보이는 탭에서만 달린다** (2026-08-31 실측). 숨은 탭의 setInterval 은 브라우저가
+     * 👁️ **보이는 탭에서만 달린다**. 숨은 탭의 setInterval 은 브라우저가
      * 분당 1회로 조여서 절뚝이는 좌표를 쏘고, 다른 탭의 시뮬과 섞인다 — 관제웹 두 개가
      * 붙었던 판에서 «각본이 안 돈다»의 절반이 이것이었다. 숨으면 멈추고(이어 달림은
      * ref 가 지킨다) 다시 보이면 그 자리에서 계속 간다.
@@ -144,7 +144,7 @@ export function useMockGpsSimulator({
          *    그러면 새 경로의 그 번째 점은 **전혀 다른 자리**라 화면이 순간이동한다.
          *    지금은 **참조가 다르면** 다시 잡는다. 카카오가 준 배열은 갈아탈 때마다 새 것이다.
          * 🔴 **`at`(지금 서 있는 자리)도 함께 비운다** — 안 비우면 옛 경로의 보간 좌표가
-         *    새 경로의 걸음 기점이 되어 같은 점프를 낸다 (2026-09-12 에 `at` 을 들이면서 생긴 자리).
+         *    새 경로의 걸음 기점이 되어 같은 점프를 낸다 (에 `at` 을 들이면서 생긴 자리).
          * ⚠️ `visited`(들른 정거장)는 **유지한다** — 경로가 바뀌어도 이미 들른 곳은 들른 것이다.
          */
         /**
@@ -202,7 +202,7 @@ export function useMockGpsSimulator({
         intervalRef.current = setInterval(() => {
             const path = routeRef.current;
             if (!path || path.length === 0) {
-                /* 🅿️ 선이 사라졌다(콜 0건) — 달리던 자리에서 대기하며 계속 낸다 (2026-09-15 여섯 번째 바퀴 · `mockDriveOn`) */
+                /* 🅿️ 선이 사라졌다(콜 0건) — 달리던 자리에서 대기하며 계속 낸다 (여섯 번째 바퀴 · `mockDriveOn`) */
                 if (!waitingRef.current) { waitingRef.current = true; console.log(`🅿️ [Mock GPS] 경로 없음 — 그 자리에서 대기 (새 콜로 경로가 오면 여기서 달린다)`); }
                 if (hereRef.current) setMockLocation({ x: hereRef.current.x, y: hereRef.current.y, stopped: true });
                 return;
@@ -221,7 +221,7 @@ export function useMockGpsSimulator({
             indexRef.current = simRef.current.idx;
 
             /**
-             * 🔇 **못 밟고 지나친 정거장을 말한다** (기사님 지시 2026-09-12).
+             * 🔇 **못 밟고 지나친 정거장을 말한다** (기사님 지시).
              *
              * 인덱스로는 이번 걸음에 걸렸는데 **너무 멀어** 못 선 자리다. 조용히 넘어가면
              * **콜이 안 끝나는데 화면에도 로그에도 흔적이 없다** — 「왜 도착이 안 찍히지」를
@@ -243,7 +243,7 @@ export function useMockGpsSimulator({
                 /**
                  * 🅿️ **경로 끝 — 끝내지 않고 그 자리에서 대기한다** (기사님 2026-09-15).
                  *    기사님: *"콜을 못 잡으면 그냥 그 자리에서 대기하는 거지. 복귀를 내가 누르지도 않았는데 목적지를 바꾸는 건 위반이지."*
-                 *    실 GPS 처럼 **좌표를 계속 보내며 서 있다** — 좌표가 끊기면 «주행»이 박히고(#132) 화면·서버가 다른 곳을 안다(2026-08-14).
+                 *    실 GPS 처럼 **좌표를 계속 보내며 서 있다** — 좌표가 끊기면 «주행»이 박히고(#132) 화면·서버가 다른 곳을 안다.
                  *    새 콜로 경로가 오면 위 경로 effect 가 이 자리에서 다시 달리게 한다. 하차 완료는 기사님이 누르거나 다음 콜로 떠나면 찍힌다.
                  */
                 if (!waitingRef.current) { waitingRef.current = true; console.log(`🅿️ [Mock GPS] 경로 끝 — 그 자리에서 대기 (새 콜로 경로가 오면 여기서 달린다)`); }

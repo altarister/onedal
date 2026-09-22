@@ -24,7 +24,7 @@ import { Button } from "../ui/button";
  *
  * 🔴 두 값 다 `deriveRouteTimeline` 이 만든다 (규칙 ③). 예전엔 카카오 `sectionEtas` 를
  *    그대로 옮겨 **정차를 한 번도 안 셌다** — 같은 화면의 시트와 다른 시각을 말했다
- *    (2026-08-30 기사님 질문에서 드러났다).
+ *    (기사님 질문에서 드러났다).
  */
 export interface EtaCell {
     pickupEta?: string; dropoffEta?: string;
@@ -155,7 +155,7 @@ export default function PinnedRouteCard({
     const [locked, setLocked] = useState(false);
 
     /**
-     * 🌱 **[시험] 콜을 잡는 순간 여섯 단계가 정해진다** (2026-08-20)
+     * 🌱 **[시험] 콜을 잡는 순간 여섯 단계가 정해진다**
      *
      * 기사님 구조를 **눈으로 확인**하기 위한 임시 블록이다.
      * 기존 흐름(통화 시트 · 마일스톤)은 그대로 두고, 옆에 나란히 세워 값을 견준다.
@@ -217,7 +217,7 @@ export default function PinnedRouteCard({
     }, [focused, focusStep]);
 
     /**
-     * 📡 **화면이 «지금 어느 단계»를 보여주는가 — 로그로 남긴다** (기사님 지시 2026-09-12 밤).
+     * 📡 **화면이 «지금 어느 단계»를 보여주는가 — 로그로 남긴다** (기사님 지시 밤).
      *
      * 기사님: *"순식간에 열었다 닫았다 스텝은 모두 비슷하고. 어떻게 알아 —
      * 너가 콘솔 로그를 찍으면 되지."*
@@ -308,7 +308,7 @@ export default function PinnedRouteCard({
                 <div className="px-3 pt-2.5 pb-1 flex items-center gap-x-1.5 text-[11.5px] text-text-muted tabular-nums whitespace-nowrap">
                     {accentColor && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: accentColor }} />}
                     <span className="font-black text-text-primary">{indexNum}.</span>
-                    {/* 🔄 이번 운행에서 **끝낸** 콜 — 사이클이 도는 동안 카드가 남는다 (2026-08-19).
+                    {/* 🔄 이번 운행에서 **끝낸** 콜 — 사이클이 도는 동안 카드가 남는다.
                         마지막 하차를 마치면 이 카드들이 한꺼번에 완료됨 탭으로 간다 */}
                     {isDeliveredCall(route) && (
                         <span className="px-1.5 py-0.5 rounded bg-success/15 text-success text-[11px] font-black">✅ 완료</span>
@@ -508,7 +508,7 @@ export default function PinnedRouteCard({
                 <div className={`px-4 pb-4 pt-2 text-sm border-t border-border bg-surface ${
                     isDeck ? 'flex-1 min-h-0 flex flex-col overflow-y-auto' : ''}`}>
 
-                    {/* 🕐 **안 A — 펼치면 원래 값과 지금 값을 둘 다 적는다** (기사님 확정 2026-08-30)
+                    {/* 🕐 **안 A — 펼치면 원래 값과 지금 값을 둘 다 적는다** (기사님 확정)
                         접힌 줄(덱)은 «틀어졌나»만 기호로 답하고(안 C), 몇 시였는지는 여기서 답한다.
                         통화의 대사가 이 줄에서 나온다 — *"원래 3시 15분이라 했는데 20분쯤 되겠습니다."* */}
                     {/**
@@ -522,7 +522,7 @@ export default function PinnedRouteCard({
                       *    몇 분인지는 심사 중이면 심사석 위 한 줄이 이미 말한다 (규칙 ③).
                       */}
 
-                    {/* 👀 **미리보기 콜에는 결재 버튼을 띄우지 않는다** (기사님 확정 2026-08-22).
+                    {/* 👀 **미리보기 콜에는 결재 버튼을 띄우지 않는다** (기사님 확정).
                         아직 배차망에서 안 잡은 콜이라 여기서 KEEP 을 눌러도 잡히지 않는다 —
                         결재는 **인성 앱의 확정 버튼**으로 한다. 관제웹은 판정 색만 보여준다.
                         (MANUAL 콜에 버튼을 안 띄우는 것과 같은 이유의 연장이다) */}
@@ -553,7 +553,7 @@ export default function PinnedRouteCard({
                                 {!!route.kakaoTimeExt ? (() => {
                                     /**
                                      * 판정을 **색으로** 읽는다. 기사님은 30초 안에 결정해야 하므로
-                                     * 글자를 읽기 전에 색이 먼저 말해 줘야 한다. (2026-08-13 기사님 확정)
+                                     * 글자를 읽기 전에 색이 먼저 말해 줘야 한다. (기사님 확정)
                                      *
                                      *   🔵 파랑   꿀콜        잡아라
                                      *   🟢 초록   보통        —
@@ -565,7 +565,7 @@ export default function PinnedRouteCard({
                                      *    경로도 요율도 못 구한 콜은 판단 근거 자체가 없다.
                                      */
                                     /**
-                                     * 🎨 **색은 값에서 온다 — 문장을 뒤지지 않는다** (2026-08-29 · 4단계).
+                                     * 🎨 **색은 값에서 온다 — 문장을 뒤지지 않는다** (4단계).
                                      *    예전엔 여기서 `kakaoTimeExt` 에 `'꿀'` 이 들어 있나 찾아 색을 정했다.
                                      *    문구를 다듬으면 색이 조용히 바뀌던 자리다. 판정은 `lib/verdict.ts` 하나가 한다.
                                      */
@@ -779,7 +779,7 @@ export default function PinnedRouteCard({
                                     {/* ── [Phase 8.5 · A안] 지금 할 일 하나만 ──
                                         여섯 단계를 동시에 펼치면 폰 한 화면에 안 들어간다.
                                         현재 단계의 정거장만 띄우고 나머지는 위 진행 점으로 압축한다. */}
-                                    {/* 🔴 **결재 전에는 단계 시트를 열지 않는다** (기사님 확정 2026-08-18).
+                                    {/* 🔴 **결재 전에는 단계 시트를 열지 않는다** (기사님 확정).
                                         통화 기록은 `orders(id)` 를 참조하는데(FK), 콜 행은 **KEEP 을 눌러야**
                                         처음 만들어진다 — 심사 중인 콜은 서버 메모리에만 있다. 그래서 결재 전에
                                         저장하면 `FOREIGN KEY constraint failed` 로 **통화 내용이 통째로 날아갔다**

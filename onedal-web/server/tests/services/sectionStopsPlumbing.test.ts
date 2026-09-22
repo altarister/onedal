@@ -2,7 +2,7 @@ import { composeMergedRoute, applyRoute } from '../../src/services/routeComposer
 import * as kakao from '../../src/services/kakaoService';
 
 /**
- * 🧭 **구간 주인(sectionStops)은 홀더까지 배달되어야 한다** (2026-08-21 모의주행)
+ * 🧭 **구간 주인(sectionStops)은 홀더까지 배달되어야 한다** (모의주행)
  *
  * #32 수리는 두 조각이었다 — ⓐ 경로 연산이 구간마다 주인을 남긴다,
  * ⓑ 내보낼 때 (orderId, stopType) 키로 조회한다. 그런데 ⓐ의 배선이 끊겨 있었다:
@@ -31,7 +31,7 @@ describe('경유 계획 = 도착 계획 — 같은 방문 규칙', () => {
     const { planMergedStops, planArrivalStops } = require('../../src/services/routeComposer');
 
     /**
-     * 🔴 **다녀온 하차지도 경유지에서 뺀다** (2026-08-21 실측 — #32·#35 계보의 세 번째).
+     * 🔴 **다녀온 하차지도 경유지에서 뺀다** (실측 — #32·#35 계보의 세 번째).
      * planMergedStops 는 다녀온 **상차지만** 빼고 하차지는 항상 넣었다. 하차 완료된
      * 콜(사이클까지 활성)의 하차지를 카카오 경로가 다시 방문했고, planArrivalStops(둘 다
      * 뺌)와 정거장 수가 갈라져 **주행분 전부 null** — 주행중 합짐(11) KEEP 뒤 운행

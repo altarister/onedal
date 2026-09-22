@@ -3,7 +3,7 @@ import { join } from 'path';
 import { buildArrivalSlots, slotBaseMs } from '@onedal/shared';
 
 const sheet = () => readFileSync(join(__dirname,
-    '../../../client-app/src/components/dashboard/StepSheetMock.tsx'), 'utf8');   // 🏗️ 옛 시트 철거(2026-08-21)
+    '../../../client-app/src/components/dashboard/StepSheetMock.tsx'), 'utf8');   // 🏗️ 옛 시트 철거
 
 /**
  * 🕐 **도착시간 격자 — 흔들리지 않는 기준** (기사님 실측 2026-08-19~21)
@@ -48,7 +48,7 @@ describe('칸 생성 — buildArrivalSlots (순수 함수)', () => {
 });
 
 /**
- * 🔄 **재약속 모드 — 다섯 칸이 전부 과거일 때만 지금 기준으로 다시 편다** (2026-08-22 실측)
+ * 🔄 **재약속 모드 — 다섯 칸이 전부 과거일 때만 지금 기준으로 다시 편다**
  *
  * 자정을 걸친 콜(문산읍 — 약속 22:20이 8시간 깨짐)의 격자가 22:20~00:20 전부
  * 취소선이라 **재약속을 잡을 칸이 없었다.** 통화로 확정하는 것이 이 제품의 순서인데

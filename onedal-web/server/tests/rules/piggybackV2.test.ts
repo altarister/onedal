@@ -6,7 +6,7 @@ const scrap = () => readFileSync(join(__dirname, '../../src/routes/scrap.ts'), '
     .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 /**
- * 🧭 **피기백 규격 v2** (기사님 확정 2026-08-22 — "같은 목록을 왜 두 번 보내나")
+ * 🧭 **피기백 규격 v2** (기사님 확정 — "같은 목록을 왜 두 번 보내나")
  *
  * 실측: 대기 상태 응답 4.0KB 중 destinationKeywords(1.06KB)와 orderKm(1.96KB · 옛 이름 progressKm)의
  * **키 집합이 동일**했고(buildAppOrderKm 이 키워드를 순회해 만든다), 필터가 안

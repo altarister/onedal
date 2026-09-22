@@ -8,7 +8,7 @@ import * as devices from '../../src/routes/devices';
 import { UNKNOWN_LEAVE_SEC } from '@onedal/shared';
 
 /**
- * 🧹 **심사 콜 정리는 한 곳에서 세고 한 곳에서 적는다 — 미리보기는 세지도 적지도 않는다** (2026-09-15 · 기사님 «버그부터 잡자»).
+ * 🧹 **심사 콜 정리는 한 곳에서 세고 한 곳에서 적는다 — 미리보기는 세지도 적지도 않는다** (기사님 «버그부터 잡자»).
  *
  * 미리보기 심사석을 끄는 방법을 찾다 나온 꼬임 셋 (onedal-b5 진단 · onedal-49 검토 요청):
  * ⓐ 인성 안전취소 타임아웃(detail.ts)이 `forceCancelEvaluatingOrder`(여기서 이미 셈) 뒤에 `countCancel(TIMEOUT)` 을 **또** 불렀다 —

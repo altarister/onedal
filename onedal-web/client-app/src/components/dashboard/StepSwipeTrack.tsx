@@ -34,7 +34,7 @@ export default function StepSwipeTrack({ count, shownIdx, onShow, renderPane }: 
      * 🎯 보는 장이 바뀌면 따라간다 (점을 눌렀을 때·도착이 열었을 때).
      *    이미 그 자리면 아무 일도 안 난다.
      *
-     * 🔴 **«스르륵»(`smooth`)을 버렸다** (기사님 확정 2026-09-12 밤).
+     * 🔴 **«스르륵»(`smooth`)을 버렸다** (기사님 확정 밤).
      *    애니메이션이 돌면 **중간 자리**가 생기고, 그 자리의 스크롤 이벤트가 아래
      *    `onScroll` 을 통해 **옛 번호를 부모에게 알렸다.** 부모는 그 말을 믿고 장을
      *    되돌리고, 둘이 서로를 밀며 엉뚱한 장에서 멈췄다 — 실측 254ms 안에 네 번
@@ -53,7 +53,7 @@ export default function StepSwipeTrack({ count, shownIdx, onShow, renderPane }: 
     }, [shownIdx]);
 
     /**
-     * 🔴 **낡은 값에 갇히지 않게 ref 로 든다** (2026-09-12 밤 · 관제웹 CLAUDE.md 의 그 사고).
+     * 🔴 **낡은 값에 갇히지 않게 ref 로 든다** (밤 · 관제웹 CLAUDE.md 의 그 사고).
      *
      * 아래 감시자는 딱 한 번만 붙어야 하는데(재구독하면 «열린 순간»을 놓친다) 그 안에서
      * `shownIdx` 를 그냥 읽으면 **첫 렌더 값에 갇힌다** — 열리는 순간 늘 «0번 장»으로

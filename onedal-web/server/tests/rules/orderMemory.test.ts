@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🧠 **콜 객체를 앱 payload 에서 새로 시작하지 않는다** (2026-08-18 신설)
+ * 🧠 **콜 객체를 앱 payload 에서 새로 시작하지 않는다**
  *
  * 같은 클래스의 사고가 두 번 났다 —
  *   · 2026-08-17 경로 재탐색: 심사 캐시만 고치고 활성 콜을 안 고침 (`95161b6`)

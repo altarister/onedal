@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🔄 **파생 치환 ② — 서버 계산의 재료는 새 장부 하나다** (2026-08-21)
+ * 🔄 **파생 치환 ② — 서버 계산의 재료는 새 장부 하나다**
  *
  * 적재·정차·동승·타임라인·복구가 옛 장부(stop_cargo_reports · order_milestones)를
  * 직접 읽으면, 다리(dual-write)가 한쪽을 놓치는 순간 **두 장부 두 목소리**가 된다

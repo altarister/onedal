@@ -8,7 +8,7 @@ import { useJudgmentStore } from '../stores/judgmentStore';
 import { useGpsFocusStore, ensureGpsFocusSubscribed } from '../stores/gpsFocusStore';
 import { loadScreenSettings } from '../stores/settingsStore';
 import { useDrivenTrailStore, ensureDrivenTrailSubscribed, clearDrivenTrail, restoreDrivenTrail } from '../stores/drivenTrailStore';
-/* 📍 서버가 아는 «내 자리» — 화면이 제 손으로 정하지 않는다 (2026-09-12) */
+/* 📍 서버가 아는 «내 자리» — 화면이 제 손으로 정하지 않는다 */
 /* 📍 구독은 현황판 쪽에서 건다 — 지도는 이 값을 아직 안 쓴다 (위 🗑️ 주석) */
 import { useFilterConfig } from './useFilterConfig';
 import { useMasterGps } from './useMasterGps';
@@ -29,7 +29,7 @@ import type { EtaCell } from '../components/dashboard/PinnedRouteCard';
 const mmssOf = (t: number) => (Number.isFinite(t) ? new Date(t).toTimeString().slice(3, 8) : '시각없음');
 
 /**
- * 🏭 **경로 파생 제조소** (기사님 확정 2026-08-31 · 화면개편 1단계 · v24).
+ * 🏭 **경로 파생 제조소** (기사님 확정 · 화면개편 1단계 · v24).
  *
  * PinnedRoute 안에 살던 파생 전부를 한 곳으로 — 지도·덱·카드·카운트다운·(개편 후) 시트가
  * **같은 계산 한 벌**을 먹는다 (규칙 ③ — 파생을 만들었으면 그 입력도 한 곳에서).
@@ -72,7 +72,7 @@ export function useRouteDerivations(
     const cycleDeck = useMemo(() => deckOfCycle(activeRoute || []), [activeRoute]);
 
     /**
-     * 🧭 **경로를 든 콜 — 추측하지 않는다** (기사님 확정 2026-08-31 · 잔상 수리).
+     * 🧭 **경로를 든 콜 — 추측하지 않는다** (기사님 확정 · 잔상 수리).
      *
      * 예전엔 «진행 중 콜 중 폴리라인 가진 마지막 것»으로 **추측**했다. 서버의 판정
      * (`buildOrderSync` 의 holder)과 규칙이 달라, KEEP 직후처럼 둘이 갈리는 순간에
@@ -108,12 +108,12 @@ export function useRouteDerivations(
     const isDriving = filter?.dispatchPhase === 'DELIVERING';
 
     /**
-     * 🏁 모의 주행이 들러야 할 정거장 (2026-08-25) — 폴리라인은 도로 위만 지나는데
+     * 🏁 모의 주행이 들러야 할 정거장 — 폴리라인은 도로 위만 지나는데
      * 물류센터는 떨어져 있다 (실측 곤지암 601m). 다녀온 곳은 뺀다 — 판단은 hasVisitedStop 하나.
      */
     const mockStops = useMemo(() => {
         /**
-         * 🔴 **목록에서 빼지 않고 «방문»을 표시한다** (2026-08-31 실측 — 감속 중 증발).
+         * 🔴 **목록에서 빼지 않고 «방문»을 표시한다** (실측 — 감속 중 증발).
          *    예전엔 다녀온 정거장을 목록에서 뺐는데, 시뮬이 감속하며 다가가는 사이
          *    서버 도착 감지(500m)가 먼저 찍혀 **목표가 눈앞에서 사라졌다** — 정차 연기가
          *    영영 안 밟힌 이유. 다녀온 곳을 안 가는 것은 시뮬 내부 장부(simStep.visited,
@@ -133,7 +133,7 @@ export function useRouteDerivations(
     const homeLocation = useRef<{ x: number; y: number } | null>(null);
     // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
     /**
-     * 🎭 **모의 주행이 달릴 선은 지도 선과 따로 고른다** (2026-09-15 · `mockLine.ts`) — 심사 중에는 직전 선을 지킨다.
+     * 🎭 **모의 주행이 달릴 선은 지도 선과 따로 고른다** (`mockLine.ts`) — 심사 중에는 직전 선을 지킨다.
      *    지도는 심사 중 미리보기 선을 그리지만, 모의 주행이 그 선으로 갈아타면 순간 이동해 확정 콜이 가짜로 하차 완료된다.
      */
     const evaluatingNow = liveRoute.some(r => isEvaluating(r.status));
@@ -149,7 +149,7 @@ export function useRouteDerivations(
     useEffect(() => { logStateChange("GPS 출처", gpsSource, "진행중경로"); }, [gpsSource]);
 
     /**
-     * 지도와 TSP 의 출발점 — GPS 가 안 잡히는 동안에는 설정의 '내 주소' (2026-08-12).
+     * 지도와 TSP 의 출발점 — GPS 가 안 잡히는 동안에는 설정의 '내 주소'.
      * 진짜 위치(GPS)가 언제나 이긴다. 서버도 같은 값을 쓴다 (SettingsRepository.getHomeLocation).
      */
     const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>(null);
@@ -166,7 +166,7 @@ export function useRouteDerivations(
         return () => { alive = false; };
     }, []);
     /**
-     * 🔄 **«모의 주행이 끝나면 화면도 집으로» 를 걷었다** (기사님 지시 2026-09-12).
+     * 🔄 **«모의 주행이 끝나면 화면도 집으로» 를 걷었다** (기사님 지시).
      *
      * 그 규칙은 **서버가 가상 좌표를 지웠기 때문에** 필요했다 — 화면만 이천에 남으면
      * 두 곳이 다른 말을 하니까. 🔴 **이제 서버는 지우지 않는다.** `originOf` 가 물을
@@ -178,7 +178,7 @@ export function useRouteDerivations(
     }, [currentGps]);
 
     /**
-     * 🗑️ **«서버가 아는 자리를 지도가 따른다»를 껐다** (2026-09-12 · 기사님 지시).
+     * 🗑️ **«서버가 아는 자리를 지도가 따른다»를 껐다** (기사님 지시).
      *
      * ── 무엇이 났나 ──
      * PC 지도가 집을 가리키는 것(서버와 17.6km 어긋남)을 고치려고 `myPosition` 을 따르게
@@ -206,7 +206,7 @@ export function useRouteDerivations(
     useEffect(() => { ensureGpsFocusSubscribed(); ensureDrivenTrailSubscribed(); void loadScreenSettings(); }, []);
     const gpsFocus = useGpsFocusStore(st => st.gpsFocus);
 
-    /** 👣 오늘의 주행 자취 — 하루 종일 쌓고, 덱이 비면(자정에 어제분이 빠져) 접는다 (기사님 확정 2026-09-15 · 사이클 = 하루) */
+    /** 👣 오늘의 주행 자취 — 하루 종일 쌓고, 덱이 비면(자정에 어제분이 빠져) 접는다 (기사님 확정 · 사이클 = 하루) */
     const drivenSegments = useDrivenTrailStore(st => st.segments);
     /**
      * 🔁 목업과 **같은 함수**(`pushTrail`)가 쌓기 때문에 스토어는 목업 말(`lng`·`lat`)을 쓴다.
@@ -217,7 +217,7 @@ export function useRouteDerivations(
         [drivenSegments]);
     useEffect(() => { if (cycleDeck.length === 0) clearDrivenTrail(); }, [cycleDeck.length]);
     /**
-     * 👣 **새로고침 뒤에는 장부에서 자취를 되살린다** (2026-09-12 밤).
+     * 👣 **새로고침 뒤에는 장부에서 자취를 되살린다** (밤).
      *    스토어가 메모리 전용이라 새로고침하면 0 이 된다 — 그래서 사이클을 처음 알게 된
      *    순간 한 번 물어본다. **한 번만** 읽는 것은 스토어가 지킨다.
      *    ⚠️ 덱이 비면(영업일이 바뀌면) 위 줄이 비우므로, 늦게 온 응답이 죽은 자취를 남기지 않는다.
@@ -327,7 +327,7 @@ export function useRouteDerivations(
      *    통째로 사라지니 «내가 어디를 돌았는지»를 잃었다.
      *    방문 시각(arrivedAt)순으로 ✓1 ✓2 … 를 단다. 취소·방출은 없던 일이라 안 남는다.
      *
-     * 🔴 **셈은 `visitedSequenceOf` 한 곳이다** (2026-09-12 밤 · 실측으로 옮겼다).
+     * 🔴 **셈은 `visitedSequenceOf` 한 곳이다** (밤 · 실측으로 옮겼다).
      *    여기 있던 판단이 **좌표를 요구했고**, 이력만 남아 좌표가 빈 렌더에서 목록이
      *    통째로 비어 **번호 여섯이 하나로 줄었다** (계측 `[번호]`·`[다녀옴]` 이 짚었다).
      *    번호를 세는 데 좌표는 필요 없다 — 좌표가 필요한 것은 **지도 마커**이고,
@@ -337,7 +337,7 @@ export function useRouteDerivations(
         () => visitedSequenceOf(cycleDeck, getAddressLabel), [cycleDeck]);
 
     /**
-     * 🔢 **정거장 번호 = 가는 순서다** (기사님 확정 2026-09-01).
+     * 🔢 **정거장 번호 = 가는 순서다** (기사님 확정).
      *
      * 번호가 답하는 질문은 하나다 — *"지금 몇 번째로 가는 곳인가."*
      * 그러므로 **다녀온 것 + 남은 것을 시간 순서로 이어 붙인 자리**가 곧 번호다.
@@ -408,7 +408,7 @@ export function useRouteDerivations(
      */
     const callColors = useMemo(() =>
         /**
-         * 🔴 **색표는 `callPalette` 한 벌이다** (기사님 확정 2026-09-11).
+         * 🔴 **색표는 `callPalette` 한 벌이다** (기사님 확정).
          *    예전엔 여기 7색 배열이 따로 있어서 **같은 콜이 지도에선 파랑, 목록에선 빨강**이었다.
          *    이제 마커·박스·선이 **같은 콜 번호에서 같은 색상**을 본다 («색 = 콜 번호»).
          * 🔴 **자리(i)가 아니라 «몇 번 콜인가»(callNoOf)로 칠한다** — 목록 자리로 칠하면
@@ -468,7 +468,7 @@ export function useRouteDerivations(
     }, [routeTimeline, liveRoute]);
 
     /**
-     * 🔬 **계측 — 번호가 «어느 목록»에서 왔는지 함께 찍는다** (2026-09-12).
+     * 🔬 **계측 — 번호가 «어느 목록»에서 왔는지 함께 찍는다**.
      *
      * ── 왜 ──
      * 번호는 **두 목록을 이어 붙인 것**이다 (다녀온 것 → 남은 것). 그런데 로그가
@@ -510,7 +510,7 @@ export function useRouteDerivations(
     }, [stopNoOf, cycleDeck, visitedTrail]);
 
     /**
-     * 🔬 **계측 — «다녀왔나»의 재료를 그대로 찍는다** (2026-09-12).
+     * 🔬 **계측 — «다녀왔나»의 재료를 그대로 찍는다**.
      *
      * `hasVisitedStop` 은 둘 중 하나만 참이면 참이다 — `arrivedPickupAt` **또는** 상태.
      * ✓ 가 사라지는 순간 **둘 다 거짓**이 된 것이니, 어느 쪽이 사라졌는지 봐야 한다.
@@ -573,7 +573,7 @@ export function useRouteDerivations(
     return {
         stepRecords, liveRoute, cycleDeck, activePolyline, routeHolder,
         /**
-         * 🟡 **지도가 그릴 홀더** — KEEP 된 콜이 우선, 없으면 심사 중인 콜 (2026-09-06).
+         * 🟡 **지도가 그릴 홀더** — KEEP 된 콜이 우선, 없으면 심사 중인 콜.
          * `routeHolder`(타임라인용)와 갈라 둔다: 심사 중 30초와 재기동 직후에는
          * 주행분이 없어 `routeHolder` 가 비는데, **그릴 궤적은 있다.**
          * 캔버스는 이 값으로 «미리보기(노란 점선)»인지도 판정한다.

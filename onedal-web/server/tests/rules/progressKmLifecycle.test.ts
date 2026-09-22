@@ -1,7 +1,7 @@
 import { buildAppOrderKm } from '../../src/state/filterManager';
 
 /**
- * 🧭 **progressKm 의 수명 = 진행 중 경로의 수명** (2026-08-22 실측)
+ * 🧭 **progressKm 의 수명 = 진행 중 경로의 수명**
  *
  * 앱의 순서 검사(RouteOrderFilter)는 progressKm 이 **비어 있지 않으면** 발동하고,
  * "상차지가 목록에 없으면 경로 밖 → 차단"한다. 그런데 사이클이 끝나 STANDBY 로

@@ -21,7 +21,7 @@
  *
  * ⚠️ 3번은 예전에 `mainCallState 가 해당 orderId 면 null 로 초기화` 라고 적혀 있었다.
  *    그 필드는 V2 리팩터링에서 사라졌는데 주석만 현재형으로 남아, **없는 처리를 있다고**
- *    말하고 있었다 (2026-08-29 정정). 지금 기준은 «남은 활성 콜이 있는가» 하나다.
+ *    말하고 있었다. 지금 기준은 «남은 활성 콜이 있는가» 하나다.
  */
 
 import { Router } from "express";
@@ -73,7 +73,7 @@ router.post("/", async (req, res) => {
             console.log(`   ✅ 결재 큐(pendingDecisions) 삭제 완료`);
         }
 
-        /* 👀 미리보기 딱지는 캐시를 지우기 전에 뽑는다 — 지운 뒤 세면 딱지를 못 봐 안 잡은 콜을 취소로 센다 (2026-09-15 · forceCancel 과 같은 규칙) */
+        /* 👀 미리보기 딱지는 캐시를 지우기 전에 뽑는다 — 지운 뒤 세면 딱지를 못 봐 안 잡은 콜을 취소로 센다 (forceCancel 과 같은 규칙) */
         const wasPreview = !!(session.pendingOrdersData.get(targetOrderId) as any)?.isPreview;
 
         clearOrderTimers(session, targetOrderId);
@@ -106,7 +106,7 @@ router.post("/", async (req, res) => {
             
             /**
              * 🔴 여기만 종결 상태를 **손으로 적어** 두었고 `ORDER_DELIVERED` 가 빠져 있었다
-             *    (2026-08-14). 그래서 비상 보고 때 **하차를 마친 콜을 아직 실려 있다고 셌다.**
+             *   . 그래서 비상 보고 때 **하차를 마친 콜을 아직 실려 있다고 셌다.**
              *    나머지 코드는 전부 `isTerminal()` 을 쓴다 — CLAUDE.md 가 경고한 "상태목록 N벌"의
              *    또 한 벌이었다. 목록은 `shared` 한 곳에만 둔다.
              */

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { circled, stopLabel, hhmm, cumMinutes, arrivalAt, visitOrder } from './labTime';
 
 /**
- * ⏱️ **시간·정거장 이름을 다루는 규칙 — 한 곳이다** (2026-09-09 구조 리뷰).
+ * ⏱️ **시간·정거장 이름을 다루는 규칙 — 한 곳이다** (구조 리뷰).
  *
  * 같은 누적 계산이 `MapMockup.tsx` 안에 **다섯 벌**로 흩어져 있었다(919·945·1094·1254·1404).
  * 그중 셋에서 「분끼리 빼는」 같은 버그가 났고, 한 곳만 고쳤다가 나머지를 놓쳤다.

@@ -121,7 +121,7 @@ const LAB_DEFAULTS = {
     /** 🛣️ 기본은 **노선** (기사님 2026-09-09) */
     routeMode: true,
     /**
-     * 📐 **각 110° · 마름모 반경 25km** — 기사님이 화면에서 돌려 보고 정하셨다 (2026-09-09):
+     * 📐 **각 110° · 마름모 반경 25km** — 기사님이 화면에서 돌려 보고 정하셨다:
      * *"**뒤로 많이 가는 것만 빼고 잡자** 이런 느낌으로."*
      * 110° 는 반각 55° — 옆으로는 넉넉히 열고 **등 뒤만 닫는다.** 25km 가 그 부채꼴의
      * 배부른 가운데를 잘라 축에서 멀어지는 콜을 막는다.
@@ -137,7 +137,7 @@ const LAB_DEFAULTS = {
     /** 📦 후보콜의 짐 — 볼트 표를 셀 때 쓴 «모든 콜 = 1박스» 가정 */
     candBoxes: 1,
     /**
-     * 💰 후보콜의 요금 — **늘 20만원** (기사님 확정 2026-09-10).
+     * 💰 후보콜의 요금 — **늘 20만원** (기사님 확정).
      * 지도 클릭으로 만든 콜은 가격을 알 수 없다. 지어낸 값이 콜마다 달라지면
      * «필터가 통과했나»를 보려는데 **돈이 화면을 흔든다.**
      */
@@ -145,7 +145,7 @@ const LAB_DEFAULTS = {
 };
 
 /**
- * ⛔ **제외지역 기본값 — «들어가면 못 빠져나오는 곳»** (기사님 확정 2026-09-09 · 「다 + 가」).
+ * ⛔ **제외지역 기본값 — «들어가면 못 빠져나오는 곳»** (기사님 확정 · 「다 + 가」).
  *
  * 출처는 노하우 영상 「이 선을 넘지 마세요」다.
  *
@@ -252,7 +252,7 @@ type ChainLeg = {
  * *"시군구로 표기가 되어야 할 것 같고. 선택이 어려우니 **도를 선택하고 시를 선택**하게 할까?"*).
  *
  * 🔴 예전엔 여덟 곳만 코드에 박혀 있었다 — 나머지 111개 시군구는 **아예 못 골랐다.**
- *    그게 «선택이 어렵다»의 실체였다. 시도가 동 표에 붙으며(2026-09-09) 두 걸음이 가능해졌다.
+ *    그게 «선택이 어렵다»의 실체였다. 시도가 동 표에 붙으며 두 걸음이 가능해졌다.
  * 목적지 좌표는 그 시군구의 «시내»(법정동 평균)다 — 점 하나가 아니라 도시의 가운데라야
  * 마름모의 끝 꼭짓점으로 뜻이 선다.
  */
@@ -270,7 +270,7 @@ const DEFAULT_SIDO = '경기', DEFAULT_SGG = '파주시';
  * ☎️ **통화로 정한 약속의 색** — 보라 (기사님 지정 2026-09-10).
  * 판정색 넷(파랑·초록·노랑·빨강)과 안 겹치는 유일한 색이라 **다른 층의 말**로 읽힌다.
  */
-// 🔴 `PROMISE_CALLED` 는 `styles/callPalette` 로 옮겼다 (2026-09-11) — 실물 타이틀과 한 벌이다
+// 🔴 `PROMISE_CALLED` 는 `styles/callPalette` 로 옮겼다 — 실물 타이틀과 한 벌이다
 
 
 /**
@@ -285,7 +285,7 @@ const DEFAULT_SIDO = '경기', DEFAULT_SGG = '파주시';
  */
 // 🔴 `stopBoxBg` 도 `styles/callPalette` 로 옮겼다 — 같은 이유
 
-/* 🎨 **콜 선 색은 `callPalette.callLineColor` 한 벌이다** (2026-09-14 전수 조사).
+/* 🎨 **콜 선 색은 `callPalette.callLineColor` 한 벌이다** (전수 조사).
    여기 따로 박힌 8색(`CALL_COLORS`)이 있어 실험실 선만 로즈·보라로 그렸다 — 실물 지도·목록·마커는
    `callPalette` 를 쓴다 (기사님 확정 2026-09-11 · `20de6df`). 「색 = 콜 번호」 가 목업에서만 깨져 있었다. */
 
@@ -521,7 +521,7 @@ function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMi
                         </div>
                     );
                 })).filter(Boolean)}
-                {/* 🔴 **첫짐이면 «안 밀린다»가 아니다** (2026-09-10 화면 실측) — 밀릴 콜이 없는 것이다.
+                {/* 🔴 **첫짐이면 «안 밀린다»가 아니다** (화면 실측) — 밀릴 콜이 없는 것이다.
                     초록 «안 밀린다»는 «따져 봤다»로 읽히는데, 따질 것이 없었으면 그렇게 적으면 안 된다 */}
                 {confirmedCount === 0
                     ? <div className="text-text-muted font-bold">첫짐 — 밀릴 콜이 없다</div>
@@ -580,7 +580,7 @@ const FilterFooter = memo(function FilterFooter({ out, callTarget, lineOn, route
                 <h2 className="text-[11px] font-black text-info mb-1">🧭 국면 축</h2>
                 <OutKv k="callTarget" v={`${out.callTarget} (${CALL_TARGET_LABEL[callTarget]})`} />
                 <OutKv k="dispatchPhase" v={out.dispatchPhase} />
-                {/* 🔴 국면(파생)을 뺐다 — 값이 한 벌이라 «어느 벌인가»가 없다 (2026-09-09) */}
+                {/* 🔴 국면(파생)을 뺐다 — 값이 한 벌이라 «어느 벌인가»가 없다 */}
                 <OutKv k="그물" v={lineOn ? '노선 (라인 ∪ 남은 마름모)' : routeMode ? '노선 — 경로 대기 (마름모 하나)' : '동선 (마름모 하나)'} />
                 <OutKv k="driverAction" v={out.driverAction} />
                 <OutKv k="isSharedMode" v={String(out.isSharedMode)} />
@@ -714,7 +714,7 @@ export default function MapMockup() {
      * 현위치 반경은 그물의 출발 원이면서 **상차 반경(1단계)과 ② 여유값**까지 겸한다 — 판정과 한 값.
      */
     /**
-     * 🎚️ **필터 값 — 한 벌이다** (기사님 확정 2026-09-09).
+     * 🎚️ **필터 값 — 한 벌이다** (기사님 확정).
      *
      * 기사님: *"모두 꺼내 두고 노선이면 라인값을 사용하고 동선이면 사용 안 하면 되니까."*
      *
@@ -746,18 +746,18 @@ export default function MapMockup() {
     /** 📦 쓴 박스 = 잡은 콜들의 짐 합 (위 주석 참조 — 손잡이가 아니라 파생이다) */
     const slotsUsed = useMemo(() => confirmed.reduce((a, c) => a + (c.boxes ?? 0), 0), [confirmed]);
     /**
-     * 📍 내 위치 (기사님 확정 2026-09-07 오후) — **사각형의 기점은 마지막 하차지가 아니라 현위치다.**
+     * 📍 내 위치 (기사님 확정 오후) — **사각형의 기점은 마지막 하차지가 아니라 현위치다.**
      * 하차지 기점이면 출발 전에 내 앞길(현위치~하차지 사이) 콜을 통째로 버린다 — 실측으로 잡힌 문제.
      * 국면 버튼은 «그 하차를 마치고 거기 서 있다»는 가정으로 내 위치를 옮겨 줄 뿐이고,
      * 「내 위치 찍기」로 아무 데나 옮겨 실험할 수 있다.
      */
     const [myPos, setMyPos] = useState<Pt>({ lng: NET_SRC.lng, lat: NET_SRC.lat });
     const [clickMode, setClickMode] = useState<'call' | 'me'>('call');
-    /** 🎯 목적지 — **도를 고르고 시를 고른다** (기사님 확정 2026-09-09 · 위 DEFAULT_SIDO 주석 참조) */
+    /** 🎯 목적지 — **도를 고르고 시를 고른다** (기사님 확정 · 위 DEFAULT_SIDO 주석 참조) */
     const [dstSido, setDstSido] = useState(DEFAULT_SIDO);
     const [dstSgg, setDstSgg] = useState<string>(DEFAULT_SGG);
     /**
-     * ↩️ **행선 — 목적지행 ↔ 복귀** (기사님 확정 2026-09-08). 복귀를 누르면:
+     * ↩️ **행선 — 목적지행 ↔ 복귀** (기사님 확정). 복귀를 누르면:
      *   · 방식(노선/동선)은 그 자리에서 그대로 — 노선이면 집 방향 길 찾기를 «지금» 한다
      *   · 그물 = 관내 원 ∪ 복귀 트랙, **콜 처리 중에도** 양방향 (복귀 콜을 미리 노린다)
      *   · 복귀 콜을 잡으면(homeCaught) 관내는 원 ∩ 복귀 트랙(길목 조각)만 남는다
@@ -771,10 +771,10 @@ export default function MapMockup() {
     }, [dstSgg]);
     /** 🎯 살아 있는 목적지들 — 그물·판정·화면이 전부 이 목록 하나를 읽는다 (⑮ 기준 1·2) */
     /**
-     * 🏠 **복귀콜을 잡았나** — 잡은 순간부터 복귀가 «진행»된다 (기사님 확정 2026-09-09).
+     * 🏠 **복귀콜을 잡았나** — 잡은 순간부터 복귀가 «진행»된다 (기사님 확정).
      * 판(`destName`)이 집인 콜이 하나라도 있으면 잡은 것이다.
      *
-     * 🔴 **되돌아가는 조건은 «취소» 하나다** (2026-09-09 리뷰 정정 — 주석이 코드와 다른 말을 했다):
+     * 🔴 **되돌아가는 조건은 «취소» 하나다** (리뷰 정정 — 주석이 코드와 다른 말을 했다):
      *   · 하차를 **마쳐도** 유지된다 — 끝난 콜도 `confirmed` 에 남기 때문이고, 그게 맞다.
      *     복귀는 그 판의 끝이지 콜 하나의 상태가 아니다
      *   · 복귀콜을 **취소하면** 되돌아간다 — 잡은 복귀콜이 없으니 «복귀 진행»이 아니다.
@@ -803,13 +803,13 @@ export default function MapMockup() {
      *    «무엇을 안 잡을지»는 기사님이 정하는 값이고, 아웃풋으로 앱에 내려간다.
      *    폰 화면을 생각해 **평소엔 접어 두고 펼쳐서 고른다.**
      *
-     * 💡 **기사님 아이디어 (2026-09-09 · 나중에 논의)**: 이 축이 «도착 **위치** 조건»이 될 수도 있다 —
+     * 💡 **기사님 아이디어 (나중에 논의)**: 이 축이 «도착 **위치** 조건»이 될 수도 있다 —
      *    *"아파트 상가 같은?"* 지금은 단어 하나로 «안 잡는다»만 답하는데, «어떤 자리에 내리는가»는
      *    다른 질문이다 (엘리베이터·주차·층수 …). todo 에 있다.
      */
     const [excludedWords, setExcludedWords] = useState<string[]>([...LAB_DEFAULTS.excludedWords]);
     /**
-     * 📦 **쓴 박스 — 손잡이가 아니라 파생이다** (기사님 확정 2026-09-09: *"적재는 상태값이니 필요 없고"*).
+     * 📦 **쓴 박스 — 손잡이가 아니라 파생이다** (기사님 확정: *"적재는 상태값이니 필요 없고"*).
      * 잡은 콜들의 짐을 더한다. 실물도 같은 방식이고, 그 이유가 실물 주석에 적혀 있다 —
      * *"차종으로 다시 세면 통화로 확인한 실제 짐 양이 반영되지 않아 화면과 판정이 다른 말을 한다."*
      */
@@ -860,7 +860,7 @@ export default function MapMockup() {
     /** 📋 저장된 콜 전부를 날것 그대로 — 제목을 누르면 열린다 (기사님 2026-09-09) */
     const [callsPeek, setCallsPeek] = useState(false);
     /**
-     * 📍 **정거장 상세** — 콜 리스트의 정거장을 누르면 열린다 (기사님 확정 2026-09-09).
+     * 📍 **정거장 상세** — 콜 리스트의 정거장을 누르면 열린다 (기사님 확정).
      *
      * 콜 리스트 한 줄은 **달리며 훑는 자리**라 짧아야 한다(괄호 다섯 값 그대로 둔다).
      * 라벨을 펼친 이 화면은 **서서 보는 자리** — 퀵사가 «왜 늦었어» 할 때 여는 곳이다.
@@ -885,7 +885,7 @@ export default function MapMockup() {
                 ? `길 ${d.roads.length}개: ${d.roads.map((x: { option: string; distKm: number; durMin: number }) => `${x.option} ${x.distKm}km/${x.durMin}분`).join(' · ')}`
                 : Array.isArray(d.legs)
                 // 🔴 `/sim/route` 는 legInfo 로, `/sim/chain` 은 legs 안에 값을 담는다 —
-                //    legInfo 만 읽어서 전체 경로 응답이 «구간 4: » 로 텅 비어 보였다 (2026-09-08)
+                //    legInfo 만 읽어서 전체 경로 응답이 «구간 4: » 로 텅 비어 보였다
                 ? `구간 ${d.legs.length}: ${(d.legInfo ?? d.legs).map((li: { distKm: number; durMin: number; tollWon?: number | null; failed?: boolean }) =>
                     li.failed ? '실패(직선)' : `${li.distKm}km/${li.durMin}분${li.tollWon != null ? `/톨${li.tollWon}` : ''}`).join(' · ')}`
                 : JSON.stringify(d).slice(0, 80);
@@ -965,7 +965,7 @@ export default function MapMockup() {
     /**
      * 🏘️ 관내(도착) 인지 — 목적지 원 안 + 출발지(집) 원 밖.
      * 🔴 예전엔 **운행 중 벌로 고정**했다 — 활성 벌을 읽으면 «관내 인지 → 국면 → 벌 → 관내 인지»
-     *    순환이 생겨서다. **값이 한 벌이 되며 그 순환이 사라졌다** (2026-09-09).
+     *    순환이 생겨서다. **값이 한 벌이 되며 그 순환이 사라졌다**.
      *    같이 있던 `Math.max(6, …)` 바닥값도 걷어냈다 — 근거 없는 상수였다.
      */
     const localMode = isLocalPhase({
@@ -990,7 +990,7 @@ export default function MapMockup() {
         quadRadiusKm: knobs.quadRadiusKm,
     }), [knobs]);
     /**
-     * 🧭 **노선 / 동선** (기사님 확정 2026-09-09) — 입력값은 **한 벌을 같이 쓰고**,
+     * 🧭 **노선 / 동선** (기사님 확정) — 입력값은 **한 벌을 같이 쓰고**,
      * 노선일 때만 **라인 반경**을 더 쓴다.
      *
      * | | 그물 |
@@ -1161,7 +1161,7 @@ export default function MapMockup() {
     /** 재배치 기점 — **주행 전에만** 내 위치를 본다 (주행 중엔 기점이 안 쓰이고, 보면 매 틱 다시 그린다) */
     const orderStart = departed ? null : myPos;
     /**
-     * 📍 **출발한 자리 — 주행이 시작되면 얼린다** (2026-09-09 실측으로 잡음).
+     * 📍 **출발한 자리 — 주행이 시작되면 얼린다** (실측으로 잡음).
      *
      * 🔴 «순서를 정하는 기점»과 «경로를 그리는 시작점»은 **다른 것**인데 같은 값을 썼다.
      *    정거장을 지날 때마다 통과 도장을 찍느라 `setConfirmed` 이 돌고 → `confirmed` 가
@@ -1171,7 +1171,7 @@ export default function MapMockup() {
      */
     const departPosRef = useRef<Pt>(NET_SRC);
     /**
-     * 🔴 «몇 정거장 지나왔나»는 targetSeq 로 읽으면 안 된다 (2026-09-08 실측 사고 · 규칙 ⑤-4 ⑤).
+     * 🔴 «몇 정거장 지나왔나»는 targetSeq 로 읽으면 안 된다 (실측 사고 · 규칙 ⑤-4 ⑤).
      * targetSeq 는 «주행 재개가 다음 향할 점»이고, 재개 로직이 지리적으로 가까운 정거장으로
      * 점프할 수 있다 — 그걸 방문 수로 읽자 안 지나간 정거장까지 잠겼다.
      * 방문 수는 **드라이브가 정거장에 실제로 도달한 순간에만** 여기서 센다.
@@ -1245,7 +1245,7 @@ export default function MapMockup() {
         // 지나간 정거장은 사실 — 그 순서 그대로 고정 (주행 전엔 자유 재배치)
         const visited = departed ? prevOrderRef.current.slice(0, visitedCountRef.current) : [];
         /**
-         * 🔴 **기점을 «내 위치»로 맞춘다 — 재배치가 두 벌이면 안 된다** (2026-09-09).
+         * 🔴 **기점을 «내 위치»로 맞춘다 — 재배치가 두 벌이면 안 된다**.
          *
          * 지도 순번은 집(`NET_SRC`), 예정 시각은 내 위치에서 각각 재고 있었다. 같은 화면이
          * 두 순서를 말할 수 있는 자리다. 실측으로 확인한 것:
@@ -1309,7 +1309,7 @@ export default function MapMockup() {
         if (effPath.length < 2) { setRealLegs(null); setLegFailed([]); return; }
         // ① 캐시에 있는 구간으로 **먼저** 그린다 — 화면이 비는 순간이 없다
         const cached = effPath.slice(1).map((pt, i) => legCacheRef.current.get(legKey(effPath[i].x, effPath[i].y, pt.x, pt.y)));
-        if (cached.every(c => c && !c.failed)) {   // 🔴 실패 구간은 다시 묻는다 (2026-09-08 리뷰)
+        if (cached.every(c => c && !c.failed)) {   // 🔴 실패 구간은 다시 묻는다 (리뷰)
             setRealLegs(cached.map(c => c!.line));
             setLegFailed(cached.map(c => c!.failed));
             return;                                   // ② 전부 있으면 카카오를 안 부른다
@@ -1318,7 +1318,7 @@ export default function MapMockup() {
         const missing: Array<{ i: number; a: typeof effPath[number]; b: typeof effPath[number] }> = [];
         cached.forEach((c, i) => { if (!c) missing.push({ i, a: effPath[i], b: effPath[i + 1] }); });
         const seq = ++routeFetchSeq.current;
-        // 🔴 apiBase() 가 이미 `/api` 를 포함한다 — `/api` 를 또 붙이면 404 → 직선 폴백 (2026-09-07 실측)
+        // 🔴 apiBase() 가 이미 `/api` 를 포함한다 — `/api` 를 또 붙이면 404 → 직선 폴백
         Promise.all(missing.map(m =>
             callApi(`🛣️ 경로 구간 ${m.i + 1}`, '/sim/route',
                 { points: [{ x: m.a.x, y: m.a.y }, { x: m.b.x, y: m.b.y }], priority: routeCombo.priority, avoid: routeCombo.avoid },
@@ -1398,7 +1398,7 @@ export default function MapMockup() {
     }, [drawLegs, effPath, routeChain]);
 
     /**
-     * 🛣️ **라인 — 잡은 콜들이 만든 실제 경로** (기사님 확정 2026-09-09).
+     * 🛣️ **라인 — 잡은 콜들이 만든 실제 경로** (기사님 확정).
      * 내 위치 → (재배치된 정거장들) → 마지막 하차지. 이 선 양옆 **라인 반경**이 노선의 그물이다.
      *
      * 🔴 **직선으로 지어내지 않는다** (규칙 ④). 기사님 확정 2026-09-09:
@@ -1452,7 +1452,7 @@ export default function MapMockup() {
     /** 🛣️ 노선이면서 라인이 실제로 있는가 — 화면·판정·아웃풋이 **이 하나**를 읽는다 (규칙 ③) */
     const lineOn = routeMode && !!routeLine;
     /**
-     * 🏁 **마름모가 시작하는 자리 — 마지막 하차지** (기사님 확정 2026-09-09).
+     * 🏁 **마름모가 시작하는 자리 — 마지막 하차지** (기사님 확정).
      * 라인이 여기서 끝나므로, 아직 안 정한 구간은 «여기 → 목적지»다.
      * 라인이 없으면 `null` — 그때 마름모는 내 위치에서 시작한다(동선과 같다).
      */
@@ -1529,7 +1529,7 @@ export default function MapMockup() {
     const appFilterOutput = useMemo(() => buildAppFilterOutput({
         callTarget, localMode, dispatchPhase: dispatchPhaseSim, driving,
         /**
-         * 🔴 **제외지역은 노선·동선 공통이다** (기사님 확정 2026-09-09).
+         * 🔴 **제외지역은 노선·동선 공통이다** (기사님 확정).
          *    예전엔 `routeMode ? [] : excluded` 였다 — 노선이면 «길이 곧 선별»이라 안 썼다(09-08).
          *    그런데 화면 판정(`isExcluded`)은 이미 공통으로 고쳤는데 **아웃풋만 안 고쳐서**,
          *    노선일 때 «화면에서는 빠진 동이 앱에 내려갈 목록에는 그대로» 있었다.
@@ -1542,7 +1542,7 @@ export default function MapMockup() {
         modeDesc: `🎯 ${goals.map(g => g.name).join(' ∪ ')} · ` + (lineOn ? `노선 — 잡은 콜 경로 ±${lineRadiusKm}km` : routeMode ? '노선 (경로 대기 — 마름모로 판단)' : `동선 마름모 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
     }), [callTarget, localMode, dispatchPhaseSim, driving, dst, areaNet, excluded, knobs, vehicles, excludedWords, slotsUsed, capacityConfirmed, lineOn, routeMode, lineRadiusKm, params, goals]);
     /**
-     * 🔴 **«짐을 실은 목적지» — 원천 하나** (2026-09-08 리뷰: 화면과 판정이 다른 답을 냈다).
+     * 🔴 **«짐을 실은 목적지» — 원천 하나** (리뷰: 화면과 판정이 다른 답을 냈다).
      * ∩(상차 조이기)를 거는 기준이다. 판정(judgeGoals)·그리기·판정 칩이 **모두 이걸** 읽는다 —
      * 그리기가 옛 전역 routeStarted 를 읽으면 «지도에 안 그린 자리의 콜이 통과»한다.
      */
@@ -1571,7 +1571,7 @@ export default function MapMockup() {
      * 콜을 **올릴 때 한 번만** 부른다 (심사 = 집은 뒤의 일).
      */
     /**
-     * 🧭 **전체 경로 실측 — 구간별로 그대로** (기사님 확정 2026-09-08).
+     * 🧭 **전체 경로 실측 — 구간별로 그대로** (기사님 확정).
      * 카카오가 구간마다 nkm/n분을 나눠 주므로 **합치지 않는다.** 우회는 같은 구간의
      * «전(기존 경로) vs 후(합짐 낀 경로)» 차이로 여기서 낸다:
      *   우회상차 = (합짐 낀 경로의 내위치→첫콜상차) − (기존 경로의 내위치→첫콜상차)
@@ -1580,7 +1580,7 @@ export default function MapMockup() {
     /**
      * `measuredAt` — 🔴 **이 경로를 «언제» 쟀나** (실물 `orders.routeComputedAt` 자리).
      * 구간 분은 **잰 그 순간의 내 위치**에서 나온 값이라, 예정 시각을 낼 때 «지금»에 더하면
-     * 달릴수록 예정이 함께 뒤로 밀린다 — 실측(2026-09-09): 예정 04:42 라 해 놓고 실제로는
+     * 달릴수록 예정이 함께 뒤로 밀린다 — 실측: 예정 04:42 라 해 놓고 실제로는
      * 03:53 에 닿았다. 30분 달리면 예정도 30분 밀려 있었던 것이다.
      */
     type ChainResult = { legs: ChainLeg[]; totalKm: number | null; totalMin: number | null; partial?: boolean; note?: string; measuredAt?: number; fromVisited?: number };
@@ -1660,7 +1660,7 @@ export default function MapMockup() {
             { label: `${noNew}하차`, name: `${nearestDong(d).name} 하차` },
         ];
         /**
-         * 🔴 **누적 «분»을 그대로 빼지 않는다 — 각자의 «0분»이 다른 자리다** (2026-09-09 리뷰).
+         * 🔴 **누적 «분»을 그대로 빼지 않는다 — 각자의 «0분»이 다른 자리다** (리뷰).
          * 두 경로는 잰 시각이 다르므로, 각자의 `measuredAt` 을 더해 **도착 «시각»**으로 만든 뒤 뺀다.
          */
         const impactOf = (label: string) => impactOfStop({
@@ -1718,7 +1718,7 @@ export default function MapMockup() {
                         const pr = promiseTimes({ confirmedAt: t0, chainCum, pickupDwellMin: labDwellOfBoxes(x.boxes, '상차'),
                             direct: { approachMin: pickMin, durMin: dropMin } });
                         /**
-                         * 🧾 **이 콜 자신도 «기존 콜 경유»만큼 밀린 채로 태어난다** (2026-09-09 실측에서 잡힘).
+                         * 🧾 **이 콜 자신도 «기존 콜 경유»만큼 밀린 채로 태어난다** (실측에서 잡힘).
                          *
                          * 약속은 직행(⑮) 기준인데 실제로는 이미 잡아 둔 콜들을 들렀다 간다. 그 차이가
                          * 확정 순간부터 지연으로 잡히는데, `impacts` 는 **나중에 확정된 것**만 쌓으므로
@@ -1739,7 +1739,7 @@ export default function MapMockup() {
                         const vPick = via(`${noNew}상차`, pickMin);
                         const vDrop = via(`${noNew}하차`, pickMin != null && dropMin != null ? pickMin + dropMin : null);
                         /**
-                         * ✂️ **하차 밀림은 둘로 갈라 적는다** (기사님 지시 2026-09-09).
+                         * ✂️ **하차 밀림은 둘로 갈라 적는다** (기사님 지시).
                          * «출발이 밀린 몫»과 «이 구간이 꺾인 몫»은 기사님께 다른 뜻이다 —
                          * 한 줄로 적으면 82분이 어느 쪽인지 알 수 없다. 셈은 `splitDropImpact` 가 한다.
                          */
@@ -1836,7 +1836,7 @@ export default function MapMockup() {
             .catch(err => console.warn('[취소 후 경로] 못 받았다 — 적립 못 함:', err));
     };
 
-    /** 🔴 올리기 경합 가드 — 늦게 온 옛 콜 응답이 새 콜 값을 덮어쓰면 안 된다 (2026-09-08 리뷰) */
+    /** 🔴 올리기 경합 가드 — 늦게 온 옛 콜 응답이 새 콜 값을 덮어쓰면 안 된다 (리뷰) */
     const uploadSeqRef = useRef(0);
     /**
      * 🔴 콜을 처리하면 시험 콜 상태만 지운다 — **`chainNow` 는 남긴다.**
@@ -1864,7 +1864,7 @@ export default function MapMockup() {
          */
 
         /**
-         * 🧭 **기사님 순서 ②~⑥ · ⑫~⑯** (2026-09-08):
+         * 🧭 **기사님 순서 ②~⑥ · ⑫~⑯**:
          *   ④⑫ 우리 시스템이 «최적경로»로 재배치 → ⑤⑬ 그 순서로 카카오 1회
          *   → ⑥⑭ **구간별** nkm/n분을 그대로 받는다 (합치지 않는다)
          *   기존 경로도 같은 방식으로 재서, 우회는 **같은 구간의 차이**로 낸다
@@ -1970,7 +1970,7 @@ export default function MapMockup() {
         const rows: Array<{ name: string; min: number; how: string; budget?: { limitAt: number; usedAt: number } }> = [];
 
         /**
-         * 🔴 **분끼리 빼지 않는다 — 시각끼리 뺀다** (2026-09-09에 잡은 버그).
+         * 🔴 **분끼리 빼지 않는다 — 시각끼리 뺀다** (에 잡은 버그).
          *
          * 예전엔 `지금 누적분 − 저장 누적분` 이었다. 그런데 «지금 누적»은 **지금 내 위치**에서
          * 재고 «저장 누적»은 **확정하던 그 자리**에서 잰 값이다 — 기준점이 다른 두 분을 빼면
@@ -2024,7 +2024,7 @@ export default function MapMockup() {
          * 하나라도 모르면 **거기서 멈춘다** (그 뒤는 빈칸 — 지어내지 않는다).
          */
         /**
-         * 🔴 **예정의 원천 경로 — 심사 중이면 그 경로, 아니면 «확정 순간 동결»(routeChain)** (2026-09-11).
+         * 🔴 **예정의 원천 경로 — 심사 중이면 그 경로, 아니면 «확정 순간 동결»(routeChain)**.
          * 지도 클릭으로 새 콜을 찍으면 chainNow 가 비는데, 그때 기준 시각이 «지금 시계»로
          * 떨어져 **달리는 동안 예정·±가 매분 밀렸다** (기사님: *"추가된 시간은 콜을 받을 때만
          * 변해야 하는데"* — 멈추면 안 늘어난 것이 증거). 동결 경로로 물러나면 기준이
@@ -2053,7 +2053,7 @@ export default function MapMockup() {
          *
          * 🔴 **겹치는 것을 빼고 잇는다.** 경로(`chainNow`)는 **주행 전에** 잰 것이라 지금
          * 지나온 정거장까지 그대로 품고 있다. 그냥 이어 붙이면 그 수만큼 번호가 밀린다 —
-         * 실측(2026-09-09): 방문 순서 패널은 «4 관산동 · 5 지영동», 콜 리스트 배지는
+         * 실측: 방문 순서 패널은 «4 관산동 · 5 지영동», 콜 리스트 배지는
          * «⑦관산동 · ⑧지영동». 지나온 셋을 두 번 세서 정확히 +3 이었다.
          */
         const visitedLabels = visitedNow.map(v => `${circled(v.call)}${v.kind}`);
@@ -2136,7 +2136,7 @@ export default function MapMockup() {
      *    실물의 `judge(CRITERIA, …, DEFAULT_JUDGMENT)` 가 색을 낸다 — 목업이 제 채점기를 두면
      *    실험이 거짓말이 된다 (규칙 ③).
      *
-     * 🔴 **«더 쓰는 시간»은 전체 경로의 전/후 차이다** (2026-09-09 정정). 처음엔 «이 콜 자신의
+     * 🔴 **«더 쓰는 시간»은 전체 경로의 전/후 차이다**. 처음엔 «이 콜 자신의
      *    주행»으로 근사했는데, **올릴 때 이미 «후보콜을 낀 전체 경로»를 재고 있었다** —
      *    있는 값을 안 쓰고 근사한 것이라 합짐에서 시급이 부풀었다. 셈은 `extraDriveMin` 이 한다.
      */
@@ -2180,7 +2180,7 @@ export default function MapMockup() {
             kakaoTimeExt: min != null ? `소요 ${min}분${ap != null ? ` · 상차지까지 ${ap}분` : ''}` : '',
             judgment: toSnapshot(candJudge.result),
             /**
-             * 🔴 **거절 사유는 «걸리는 것»만이다** (2026-09-10 화면 실측).
+             * 🔴 **거절 사유는 «걸리는 것»만이다** (화면 실측).
              *    전에는 점수를 못 낸 기준을 전부 담아 심사석에
              *    «❌ 지리 안 봄 (가중치 0)» 이 거절 사유로 떴다 — **안 보는 것은 거절이 아니다.**
              *    실물이 «색을 덮은 기준»으로 이미 골라 둔 `gates` 를 그대로 쓴다 (규칙 ③).
@@ -2266,7 +2266,7 @@ export default function MapMockup() {
     /**
      * 🔢 **실제로 필터에 실리는 동 수** — 그물에서 «콕 집어 뺀 읍·면·동»을 뺀 것.
      * 통째 제외(도·시군구)는 `mergeGoalNets` 가 이미 뺐고, 여기 남은 것은 지도에 ⛔ 로 그리려고
-     * 일부러 둔 것들이다. **제목은 앱에 실릴 수를 말해야 한다** (2026-09-10 실측: 352 ↔ 351).
+     * 일부러 둔 것들이다. **제목은 앱에 실릴 수를 말해야 한다** (실측: 352 ↔ 351).
      */
     const dongOut = useMemo(() => areaNet.pass.filter(p => isExcluded(p.region, p.name)).length,
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2303,7 +2303,7 @@ export default function MapMockup() {
     const retarget = () => {
         if (drivePath.length < 1) { targetIdxRef.current = 0; return; }
         /**
-         * 🔴 **주행은 되돌아가지 않는다 — «아직 안 지난 구간»에서만 고른다** (2026-09-09 실측).
+         * 🔴 **주행은 되돌아가지 않는다 — «아직 안 지난 구간»에서만 고른다**.
          *
          * 예전엔 경로 **전체**에서 가장 가까운 점을 골랐다. 수도권에서 정거장이 예닐곱이면
          * 경로가 **제 몸을 스쳐 지나가서**, 지금 자리에서 제일 가까운 점이 «이미 지나온 구간»
@@ -2522,7 +2522,7 @@ export default function MapMockup() {
                     c.ring.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? nctx.moveTo(px, py) : nctx.lineTo(px, py); });
                     nctx.closePath();
                 });
-                // 🔴 노선이면 내 위치 원도 그물의 일부다 — 상차 판정이 그 반경을 쓴다 (2026-09-08 리뷰)
+                // 🔴 노선이면 내 위치 원도 그물의 일부다 — 상차 판정이 그 반경을 쓴다 (리뷰)
                 if (isLine) {
                     const [mx, my] = S(myPos.lng, myPos.lat);
                     nctx.moveTo(mx + (params.srcDiamKm / 2) * pxPerKm, my);
@@ -2557,7 +2557,7 @@ export default function MapMockup() {
              * 노선일 때 콜을 거르는 영역이 이것이라, 장식이 아니라 **필터를 눈으로 본 것**이다.
              *
              * 🔴 중심선은 여기서 안 그린다 — 그건 아래 «콜 색 곡선»이 이미 그린다.
-             *    같은 선을 두 곳에서 그리면 한쪽만 고쳐져 어긋난다 (2026-09-07 유령 선 사고와 같은 클래스).
+             *    같은 선을 두 곳에서 그리면 한쪽만 고쳐져 어긋난다 (유령 선 사고와 같은 클래스).
              * 🔴 라인이 없으면(콜 없음 · 경로 대기 · 카카오 실패) 아무것도 안 그린다 — 그때는 마름모가 그물이다.
              */
             if (layers.net && lineOn && routeLine) {
@@ -2621,7 +2621,7 @@ export default function MapMockup() {
             }
             // 🐾 지나온 길 — 어두운 회색 실선, 경로 아래에 깔린다. 새 경로가 와도 남는다
             /**
-             * 🎨 **구간 색 = 그 구간을 «만든» 콜** (기사님 확정 2026-09-09: *"원인색, 그러니까 콜 색"*).
+             * 🎨 **구간 색 = 그 구간을 «만든» 콜** (기사님 확정: *"원인색, 그러니까 콜 색"*).
              *
              * 예전엔 «도착하는 정거장»의 색이었다. 그러면 `②상차 → ①하차` 가 **①색**으로 칠해진다 —
              * 도착지가 ①이니까. 그런데 그 구간을 만든 건 **②번 합짐**이다. 합짐이 어디를 늘렸는지가
@@ -2672,7 +2672,7 @@ export default function MapMockup() {
                 }
             }
             /**
-             * 🚗 **지나온 궤적은 경로 «위에», 더 가늘게** (기사님 확정 2026-09-09).
+             * 🚗 **지나온 궤적은 경로 «위에», 더 가늘게** (기사님 확정).
              *
              * 순서: 계획한 경로를 깔고 **실제 달린 길을 그 위에** 얹는다 — 나중에 일어난 일이 위다.
              * 토글도 갈랐다(«경로» ↔ «동선») — 계획만, 실제만, 둘 다를 따로 볼 수 있어야
@@ -2790,7 +2790,7 @@ export default function MapMockup() {
         else {
             setDrop(pt); setUploadedLeg(null); setApproachLeg(null); setApproachInfo(null); setChainNow(null); setChainBefore(null); setChainPreview(null); uploadedInfoRef.current = null; uploadSeqRef.current++;
             /**
-             * 💰 **요금·짐은 20만원·1박스로 고정한다** (기사님 확정 2026-09-10).
+             * 💰 **요금·짐은 20만원·1박스로 고정한다** (기사님 확정).
              *
              * 기사님: *"요금은 상관없고 지금은 **가는 길에 잘 잡는가, 필터가 통과할 수 있는가**
              * 그런 걸 봐야 하는 거야."* · *"넌 지역·거리·시간은 알지만 그 외 **가격·짐은 알 수가 없어.
@@ -3104,7 +3104,7 @@ export default function MapMockup() {
                         </p>
                     </div>
 
-                    {/* 🔓 **콜을 쥔 뒤에도 노선으로 갈 수 있다** (기사님 지시 2026-09-09 «노선에 락을 풀어 봐»).
+                    {/* 🔓 **콜을 쥔 뒤에도 노선으로 갈 수 있다** (기사님 지시 «노선에 락을 풀어 봐»).
                         2026-09-08 에는 잠가 뒀다 — 노선의 띠는 «내 위치 → 목적지» 직행 길 주변이라
                         **이미 잡은 콜들이 만든 실제 경로를 모른다**는 이유였다.
                         🔴 그 사실은 그대로다. 푼 이유는 다르다 — 사각형은 콜을 쥔 뒤에도 그대로 넓어서
@@ -3219,7 +3219,7 @@ export default function MapMockup() {
                     </div>
 
                     {/**
-                      * ⛔ **제외지역 — 도 · 시·군·구 · 읍·면·동** (기사님 확정 2026-09-09 · 「3단」).
+                      * ⛔ **제외지역 — 도 · 시·군·구 · 읍·면·동** (기사님 확정 · 「3단」).
                       * **노선·동선 공통**이다 («공통으로 빼»). 위의 목적지 줄과 **같은 3칸**이라 조작이 하나다.
                       *
                       * 🔴 전에는 `<select>` 팝업이었고 **지금 그물에 든 동만** 목록에 떴다 —
@@ -3349,7 +3349,7 @@ export default function MapMockup() {
                     {/* 🔴 두 층은 완전히 격리되어 각각 따로 작동한다 (규칙: 필터=집기 전 · 심사=집은 뒤).
                         기사님 2026-09-08: *"판정영역을 상하로 나눠서 상은 필터가 하는 일, 하는 심사가 하는 일"* */}
                     {/**
-                      * 🔴 **제목의 수는 «앱에 실릴 동 수»여야 한다** (2026-09-10 화면 실측).
+                      * 🔴 **제목의 수는 «앱에 실릴 동 수»여야 한다** (화면 실측).
                       *    화면은 «그물 352동»인데 아웃풋은 «dongs 351» 이었다 — 한 곳 차이의 정체는
                       *    **콕 집어 뺀 읍·면·동**(남한산성면)이다. 그물에는 남겨서 ⛔ 로 그리지만
                       *    **필터에는 안 실린다.** 제목이 그걸 안 빼면 화면이 조용히 거짓말한다.
@@ -3410,7 +3410,7 @@ export default function MapMockup() {
                                         <div className="flex gap-1 flex-wrap">
                                             <Chip ok={verdict.dropInNet} yes="하차 그물 안" no="하차 그물 밖" />
                                             <Chip ok={verdict.pickupNearMe} yes="상차 반경 안" no="상차 반경 밖" />
-                                            {/* 🔴 «모드»가 아니라 판정이 말한 «무엇으로 쟀나»(byLine)를 읽는다 (2026-09-09) */}
+                                            {/* 🔴 «모드»가 아니라 판정이 말한 «무엇으로 쟀나»(byLine)를 읽는다 */}
                                             {isLoaded(goalsVerdict?.wonGoal?.name ?? dst.name) &&
                                                 <Chip ok={verdict.pickupInNet} yes={verdict.byLine ? '상차 라인 안' : '상차 마름모 안'} no={verdict.byLine ? '상차 라인 밖' : '상차 마름모 밖(뒤)'} />}
                                         </div>
@@ -3901,7 +3901,7 @@ export default function MapMockup() {
                 <aside className="w-[400px] shrink-0 border-l border-border-card bg-surface p-3 flex flex-col gap-2 overflow-y-auto">
                     <span className="text-[12px] font-black">🎛️ 필터 옵션 <span className="text-[10px] font-bold text-text-muted">실물 요소 · 값은 목업</span></span>
 
-                    {/* 🔴 **«필터 값» 패널을 걷어냈다** (기사님 지시 2026-09-09 — 넷 다 삭제).
+                    {/* 🔴 **«필터 값» 패널을 걷어냈다** (기사님 지시 — 넷 다 삭제).
                         · 도착 목표    왼쪽 🎯 목적지의 **읽기 전용 복사본**이었다
                         · 상차 반경 · 하차지 주변   왼쪽 «현위㎞·목적㎞»와 **같은 값**(한 벌이라 같이 움직였다)
                         · 우회 허용    **어디에도 안 쓰였다** — 실물에서 «경유 반경»을 파생하는 재료인데,
@@ -3998,7 +3998,7 @@ export default function MapMockup() {
                             : (
                                 <div className="mt-1 flex flex-col gap-1">
                                     {/**
-                                      * 🔴 **실물 심사석은 «폰 한 화면 폭»으로 만든 부품이다** (2026-09-10 화면 실측).
+                                      * 🔴 **실물 심사석은 «폰 한 화면 폭»으로 만든 부품이다** (화면 실측).
                                       *    400px 사이드바에 그대로 넣었더니 **거절 사유 글이 158px 카드를 넘쳐**
                                       *    아래 시트를 덮었다. 카드 높이가 고정값이라 글이 늘어도 안 늘어난다.
                                       * 🔴 **실물을 고쳐서 맞추지 않는다** — 실물은 폰에서 옳게 서 있다.

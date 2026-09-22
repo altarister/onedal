@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 📋 **앱과 서버가 «콜 한 건»을 적는 양식은 칸 이름이 같다** (기사님 지시 2026-09-14).
+ * 📋 **앱과 서버가 «콜 한 건»을 적는 양식은 칸 이름이 같다** (기사님 지시).
  *
  * 앱이 서버로 콜을 보낼 때 쓰는 양식이 **두 장**이다 —
  *   · 앱:  `onedal-app/.../models/SharedModels.kt` 의 `SimplifiedOfficeOrder` (Kotlin)

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { orderIdOf } from './socketPayload';
 
 /**
- * 🔴 **같은 뜻인데 모양이 둘이라 한쪽을 흘렸다** (2026-08-29 주석 전수조사에서 발견)
+ * 🔴 **같은 뜻인데 모양이 둘이라 한쪽을 흘렸다** (주석 전수조사에서 발견)
  *
  * 서버는 «이 콜 끝났다»를 두 이벤트로 알리는데 **모양이 다르다** —
  * ```

@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 📷 **픽커 상세를 그림으로 읽는다 — 실측 한 판을 통째로 문다** (2026-09-13).
+ * 📷 **픽커 상세를 그림으로 읽는다 — 실측 한 판을 통째로 문다**.
  *
  * 문제지는 서버 검사 `onedal-web/server/tests/core/pickerScreenOcr.test.ts` 와 **같은 것**이다 —
  * 기사님 A24 에서 찍어 540px·JPEG60 으로 줄인 뒤 macOS Vision 이 낸 출력 그대로

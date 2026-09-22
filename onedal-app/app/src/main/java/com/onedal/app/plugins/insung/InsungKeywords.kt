@@ -20,7 +20,7 @@ object InsungKeywords {
 
     /**
      * 🖥️ **이 배차망 화면에만 있는 글자 묶음** — 스캔앱이 화면 글자로 배차망을 가를 때 쓴다
-     * (기사님 확정 2026-09-14 · `TargetApp.networksOnScreen`). 묶음 안 글자가 **전부** 보여야 이 배차망이다.
+     * (기사님 확정 · `TargetApp.networksOnScreen`). 묶음 안 글자가 **전부** 보여야 이 배차망이다.
      * 🔴 새로 적지 않는다 — 위 화면 판별 글자에서 만든다 (두 곳에 적으면 갈라진다 · 규칙 ③).
      */
     val NETWORK_MARKERS: List<List<String>> = listOf(INSUNG.listRequired, INSUNG.detailKeywords)

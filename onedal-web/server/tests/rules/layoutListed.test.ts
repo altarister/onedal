@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🗂️ **「구성」과 실제 폴더는 늘 같다** (기사님 지시 2026-09-14).
+ * 🗂️ **「구성」과 실제 폴더는 늘 같다** (기사님 지시).
  *
  * 기사님: *"문서나 폴더를 생성할 때 CLAUDE.md 구성과 다르면 사용자에게 물어봐라.
  * 이런 것도 있어야 우리 구성이 항상 코드와 같을 것 같다."*

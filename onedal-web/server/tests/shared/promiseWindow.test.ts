@@ -3,7 +3,7 @@ import { join } from 'path';
 import { deriveRouteTimeline } from '@onedal/shared';
 
 /**
- * 🕒 **약속은 구간이다** (기사님 확정 2026-08-19)
+ * 🕒 **약속은 구간이다** (기사님 확정)
  *
  * 기사님: *"딱 그 시간 도착으로 잡는다면 스케줄 잡는 것이 물리적으로 너무 어려워질
  * 수 있다. '12시부터 12시30분 사이에 갈게요' 나 '1시 전에 갈게요' 이렇게 잡는다면
@@ -33,7 +33,7 @@ const none = (_id: string) => [] as any;
 
 describe('타임라인 — 부터(하한)는 기다림으로 뒤 정거장에 전파된다', () => {
     /**
-     * 🔄 **기준을 "부터"에서 "까지"로 바꿨다** (2026-08-19 코드리뷰).
+     * 🔄 **기준을 "부터"에서 "까지"로 바꿨다** (코드리뷰).
      *
      * 처음엔 "부터"(05:00)만 기다림으로 전파했다 — 구간의 이점(여유)을 살리려는
      * 낙관이었다. 그런데 그러면 **뒤 약속을 못 지킨다**: 05:00 기준으로 하차를
@@ -84,7 +84,7 @@ describe('저장 경로 — 부터가 유실되지 않는다', () => {
     const read = (p: string) => readFileSync(join(__dirname, p), 'utf8');
 
     it('🔴 저장 경로(bridgeCargoReport → 단계 행)가 부터를 실어 나른다', () => {
-        // 🏗️ 옛 upsert(stop_cargo_reports)는 철거 (2026-08-21) — 부터의 저장 경로는 다리 하나다
+        // 🏗️ 옛 upsert(stop_cargo_reports)는 철거 — 부터의 저장 경로는 다리 하나다
         const seeder = read('../../src/services/stepSeeder.ts');
         expect(seeder).toContain('promised_arrival_from_at: report.promisedArrivalFromAt');
         const records = read('../../../shared/src/stepRecords.ts');
@@ -92,7 +92,7 @@ describe('저장 경로 — 부터가 유실되지 않는다', () => {
     });
 
     it('🔴 새 단계 시트가 부터(기간)를 저장하고, 단계 행에 칸이 있다', () => {
-        // 🏗️ 옛 시트는 철거 (2026-08-21) — 기간 저장은 StepSheetMock + 단계 행이 잇는다
+        // 🏗️ 옛 시트는 철거 — 기간 저장은 StepSheetMock + 단계 행이 잇는다
         const sheet = read('../../../client-app/src/components/dashboard/StepSheetMock.tsx');
         expect(sheet).toContain('promisedArrivalFromAt');
         const tables = read('../../../shared/src/stepTables.ts');

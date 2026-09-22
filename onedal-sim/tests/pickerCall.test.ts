@@ -6,7 +6,7 @@ import type { PickerCall } from '@altari/ui-simulators';
 import { FIXED_NOW, seededRandom } from './seededRandom';
 
 /**
- * 🧩 **픽커 콜 칸** (2026-09-14 · 카카오픽커_시뮬레이터.md §9 · 2단계 2-1)
+ * 🧩 **픽커 콜 칸** (카카오픽커_시뮬레이터.md §9 · 2단계 2-1)
  *
  * 픽커 화면이 읽을 칸을 공통 콜에 입힌다. 원달앱 픽커 파서가 기대는 글자꼴이 기준이다
  * (`KakaoPickerParser.kt` — 요금은 쉼표 든 숫자 · 물품 크기 · 태그 낱말 · 차종 축이 없다).

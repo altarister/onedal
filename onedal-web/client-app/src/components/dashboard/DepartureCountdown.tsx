@@ -41,7 +41,7 @@ export interface DepartureDue { due: string; late: boolean; tight: boolean; titl
  */
 export function useDepartureDue({ orders, records, routeStops, routeComputedAt }: Props): DepartureDue | null {
     /**
-     * 🚀 **출발했으면 사라진다** (기사님 확정 2026-08-31).
+     * 🚀 **출발했으면 사라진다** (기사님 확정).
      *    이건 «언제 나가야 하나»를 세는 자리다 — 이미 달리는 중이면 답이 끝난 질문이라
      *    «출발 시각이 지났습니다» 만 계속 붉게 남아 화면을 잡아먹는다.
      *    달리는 중의 같은 정보(도착 예상·버퍼)는 콜 카드가 이미 말한다.
@@ -63,11 +63,11 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
      * 한쪽만 고치면 카운트다운과 통화 화면이 **다른 시각**을 말한다.
      */
     // 🔴 basis: 추정 근거를 실제 계산대로 — 두 시계(⑯): 상차는 "상차 시계(잡음+잠정)",
-    //    하차는 "배달 데드라인(상차 완료+150%)". 여유30 카피는 폐기됐다 (2026-08-21)
+    //    하차는 "배달 데드라인(상차 완료+150%)". 여유30 카피는 폐기됐다
     /**
      * 🧾 `detail` — **왜 그 시각인지**. 분기마다 뺄셈이 다르므로 문구도 각자 만든다.
      *
-     * 기사님 실측(2026-08-19): *"콜 잡은 시간 17:14:44, 상차지 18:00 이면 대략 46분 후
+     * 기사님 실측: *"콜 잡은 시간 17:14:44, 상차지 18:00 이면 대략 46분 후
      * 출발이어야 하는데 30분으로 나온다. 예전 코드인 거야?"* — 30분이 맞았다
      * (18:00 − 접근 주행 15분 = 17:45). 그런데 **그 15분이 화면에 없어서** 확인할
      * 방법이 없었다. 지금 돌고 있는 타임라인 분기가 내역을 `null` 로 비워 뒀던 탓이다.
@@ -94,7 +94,7 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
     const timeline = deriveRouteTimeline(routeStops, orders, reportsOf, milestonesOf, now, routeComputedAt, rules, unk, dwellLedgerOf);
     /**
      * 🧮 **경로 최소 버퍼** (⑯-1) — 콜별이 아니라 **내 콜 전부의 최소값**이 예산이다.
-     * 기사님 실측(2026-08-20): 콜별 +60 이 아니라 +6 이 진실 — 여기(항상 떠 있는 줄)에
+     * 기사님 실측: 콜별 +60 이 아니라 +6 이 진실 — 여기(항상 떠 있는 줄)에
      * 하나만 적는다. 콜카드의 칩은 "이 콜의 약속"이고 이것은 "지금 더 실을 수 있는 시간"이다.
      */
     const minBuf = minRouteBuffer(timeline);

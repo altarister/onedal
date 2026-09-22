@@ -10,7 +10,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * 📝 **앱이 자기 로그를 파일로 남긴다** (2026-09-13 · 세 번째 요청 끝에 만들었다).
+ * 📝 **앱이 자기 로그를 파일로 남긴다** (세 번째 요청 끝에 만들었다).
  *
  * 🔴 **왜 있어야 하나 — logcat 은 우리 로그를 세 시간도 못 지킨다.**
  *    삼성은 버퍼를 5MiB 로 묶어 두고 `logd` 가 말 많은 UID 를 골라 버린다.
