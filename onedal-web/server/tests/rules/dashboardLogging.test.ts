@@ -2,13 +2,13 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🖥️ **관제웹은 자기 로그를 스스로 남긴다** (필드테스트 1회차 ④ · 2026-08-25)
+ * 🖥️ **관제웹은 자기 로그를 스스로 남긴다**
  *
  * ── 왜 ──
- * 2026-08-23 실주행 3시간 뒤, **관제웹이 그때 무엇을 하고 있었는지 알 방법이 없었다.**
- * GPS 를 언제 놓쳤는지 · 콜 카드가 떴는지 · 결재 버튼이 보였는지 전부 모른다.
- * `logRoadmapEvent` 는 `console.log` 한 줄이 전부였고, 콘솔은 주행이 끝나면 사라진다.
- * (그날은 폰 크롬으로 갔으니 `Capacitor/Console` 조차 0줄이었다)
+ * 실주행이 끝난 뒤 **관제웹이 그때 무엇을 하고 있었는지** 알아야 한다 —
+ * GPS 를 언제 놓쳤는지 · 콜 카드가 떴는지 · 결재 버튼이 보였는지.
+ * 콘솔은 주행이 끝나면 사라지고, 폰 크롬으로 가면 `Capacitor/Console` 조차 0줄이다.
+ * 그래서 로그를 서버로 보낸다.
  *
  * 기사님 기록: *"A24폰 원달앱이 없었으면 1회차는 원인 불명으로 끝났다.
  * 같은 수준이 필요하다."*
@@ -63,7 +63,7 @@ describe('관제웹 로그 — 주행이 끝나도 남는다', () => {
         expect(c).toMatch(/platform === "서버"\)\s*return/);
     });
 
-    /** 어제 문서 §4-2 가 모른다고 적어 둔 둘 — 이제 남는다 */
+    /** 주행 뒤 가장 알고 싶은 둘 — 소켓 끊김과 화면 상태 */
     it('🔴 소켓 끊김과 화면 상태를 실제로 남긴다', () => {
         expect(code(read('hooks/useOrderEngine.ts'))).toMatch(/logStateChange\("소켓"/);
         const pinned = code(read('components/dashboard/PinnedRoute.tsx')) + code(read('hooks/useRouteDerivations.ts'));
