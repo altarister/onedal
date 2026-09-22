@@ -144,16 +144,20 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
         ?? (solo != null ? departMs + solo * 60_000 : null);
     /**
      * ⏱️ **배달 데드라인 = 상차 완료 + 배송 × 150%** (기산점은 상차 완료 · ⑯ 확정).
-     *    근거: 소숙 자막 [09:08] "픽업 시간마다 도착 시간을 계산" + 콜①② 검산 —
-     *    상차 전 대기는 배달 시계를 태우지 않는다. 휴게30 은 폐기 — 하차 추정 약속은
-     *    데드라인 그 자체다 (경유버퍼 = 데드라인 − 예상이 저절로 여유를 말한다).
+     *    상차 전 대기는 배달 시계를 태우지 않는다. 하차 추정 약속은 데드라인 그 자체다
+     *    (경유버퍼 = 데드라인 − 예상이 저절로 여유를 말한다).
      *    🔴 굳은 약속(통화)은 데드라인과 무관하게 그대로 — 화주 합의가 면책.
      */
     const deadlineMs = callDeadlineMs(departMs, solo, cfg);
+    /**
+     * 🔴 **하차 약속은 도착 예상을 따라가지 않는다** (기사님 확정 · 상차와 같은 규칙).
+     *    예상이 늦다고 약속을 그 시각까지 올리면 **여유가 늘 0** 이라 늦는 것이 가려진다.
+     *    약속은 데드라인 그대로이고, 모자람은 경유버퍼 음수로 드러나 전화할 기회가 된다.
+     *    (검사: `tests/shared/timelineDeadlineCap.test.ts` · 이 파일의 «데드라인 그대로»)
+     * 🔴 통화로 굳힌 약속은 어느 쪽도 안 깎는다 — 화주 합의가 면책이다.
+     */
     const dropoffPromise = ms(callD?.status !== 'PLANNED' ? callD?.promised_arrival_at : null)
-        ?? (deadlineMs != null
-            ? Math.max(dropoffEta ?? deadlineMs, deadlineMs)     // 바닥: 예상이 데드라인 넘으면 예상(현실)
-            : null);
+        ?? deadlineMs;
     // 🔴 하차 완료도 **약속 기준** — 상차와 대칭
     const deliveredMs = dropoffPromise != null ? dropoffPromise + dropoffDwell * 60_000 : null;
 

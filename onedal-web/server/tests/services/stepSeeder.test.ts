@@ -92,6 +92,26 @@ maybe('출생 모델 — KEEP 은 첫 행만 낳는다', () => {
         expect(kst(r.promised_arrival_at)).toBe('16:29');    // 약속은 잡은 시각 + 20분 그대로
     });
 
+    /**
+     * 🔴 **하차 약속도 도착 예상을 따라가지 않는다** (기사님 확정) — 상차와 같은 규칙이다.
+     *    경로가 늦다고 약속을 그 시각까지 올리면 **여유가 늘 0** 이라 늦는 것이 가려진다.
+     *    약속은 데드라인(상차 완료 + 배송 × 마감 비율) 그대로이고, 모자람은 경유버퍼 음수로 보인다.
+     */
+    it('🔴 하차 도착 예상이 데드라인보다 늦어도 약속은 데드라인 그대로', () => {
+        putOrder();
+        birthFirstStep(USER, ORDER_ID);
+        const deadline = of('CALL_DROPOFF').row.promised_arrival_at as string;   // 상차 완료 + 배송 × 비율
+
+        putOrder();                                    // 같은 콜을 다시 태어나게 한다
+        birthFirstStep(USER, ORDER_ID);
+        const lateMs = Date.parse(deadline) + 60 * 60_000;    // 경로가 한 시간 늦다고 말한다
+        const tl = [{ orderId: ORDER_ID, stopType: 'dropoff', etaMs: lateMs }] as any;
+        bridgeCargoReport(USER, ORDER_ID, { stopType: 'pickup', kind: 'SKIPPED' } as any, undefined, tl);
+        const r = of('CALL_DROPOFF').row;                                        // 이제 태어난 행이다
+        expect(kst(r.predicted_at)).toBe(kst(new Date(lateMs).toISOString()));   // 예상은 경로 값
+        expect(r.promised_arrival_at).toBe(deadline);                            // 약속은 그대로
+    });
+
     /** ⏱️ 적요의 상차 시각이 상차 시계를 대체한다 (소숙 콜③ — 10시 예약) */
     it('🔴 적요에 상차 시각이 있으면 그게 상차 시계다', () => {
         putOrder({ detailMemo: '17:30상차 예약' });
