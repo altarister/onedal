@@ -71,9 +71,9 @@ class AlarmSignaler(private val service: AccessibilityService) {
         }
 
         /**
-         * 🥇 한 스캔에서 여러 콜이 통과하면 **요금 최고 하나만** 가리킨다 (기사님 확정 0830).
+         * 🥇 한 스캔에서 여러 콜이 통과하면 **요금 최고 하나만** 가리킨다 (기사님 확정).
          * 테두리도 상세 자동 진입도 이 하나다 — 같으면 먼저 본 콜, 빈 목록이면 -1.
-         * (실측 22:27 — 한 스캔에 3건 동시 통과. 마지막 콜이 이기던 옛 동작은 우연이었다)
+         * (한 스캔에 여러 건이 동시에 통과하는 일은 실제로 있다)
          */
         fun pickBestIndex(fares: List<Int>): Int {
             var best = -1
