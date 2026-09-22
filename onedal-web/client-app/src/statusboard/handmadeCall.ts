@@ -66,7 +66,7 @@ export interface HandmadeOrder {
  * 🧱 문제지 한 걸음 → 서버에 올릴 콜 하나.
  *
  * 🔴 `verdict` 는 **null** 이다 — 판정은 앱이 내는 값이고 여기는 앱이 아니다.
- *    화면은 «못 잼»으로 그리고 지금 필터로 다시 잰다 (규칙 ④).
+ *    화면은 «❔ 앱이 판정을 안 실었다»로 그리고, 다시 재지 않는다 (규칙 ④).
  * @param at 만든 시각 — 부르는 쪽이 준다 (검사가 시계에 기대지 않게)
  */
 export function handmadeOrderFrom(
