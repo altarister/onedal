@@ -45,7 +45,7 @@ function resultText(v: ScenarioView): string {
         '눈으로 볼 것: 내 위치 점선 원(A2) · 🎯 둘/하나(C1/C3) · 심사석 결론(B1 B3 C3) · 후보 구간 판정 색(B1)'].join('\n');
 }
 
-/** 🎬 카드 하나 = 문제 하나 — 이름표로 서버에 묻고 시작한다 (기사님 2026-09-15 «이천 왕복하루 아래에 이천 성공하는 5콜» · 2026-09-19 «강남 진입과 광주 복귀 5콜») */
+/** 🎬 카드 하나 = 문제 하나 — 이름표로 서버에 묻고 시작한다 (기사님 «이천 왕복하루 아래에 이천 성공하는 5콜») */
 export default function ScenarioCard({ scenarioKey, title }: { scenarioKey: 'icheonRound' | 'icheonFive' | 'gangnamFive'; title: string }) {
     const [view, setView] = useState<ScenarioView | null>(null);
     const [error, setError] = useState<string | null>(null);
