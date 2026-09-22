@@ -156,7 +156,7 @@ private fun ScanContext.abortPreConfirm(action: (() -> Unit)? = null) {
 }
 
 /**
- * 📸 **상세 스냅샷 검증 및 처리** (기획서 3·7단계 및 버그 대장 #119 수호).
+ * 📸 **상세 스냅샷 검증 및 처리**.
  *
  * 1. 150ms 유휴 대기(DETAIL_STABILIZE_IDLE_MS) 후 화면 멈춤 상태에서 스냅샷 캡처 및 OCR 판독.
  * 2. 알람 콜(`alarmTappedCard != null`): 리스트 기억 카드와 동 토막을 엄격 대조하여 일치 시 정상 전송, 불일치 시 이상 징후 보고 후 뒤로가기.
