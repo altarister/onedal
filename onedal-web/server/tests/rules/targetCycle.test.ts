@@ -77,7 +77,7 @@ describe('배선 구조 (L1 — 코드 모양)', () => {
     });
 
     it('🔴 복귀를 켜고 끄면 바로 하차 · 상차 목록을 다시 만든다 — 켠 시각을 적은 뒤 (#146)', () => {
-        /* 2026-09-15 15:47:09 복귀를 껐는데 목록이 서버 재시작(15:49:20)까지 옛 «이천 ∪ 광주»였다 — 지도에도 광주 원이 남았다 */
+        /* 바로 다시 만들지 않으면 복귀를 꺼도 목록이 서버 재시작까지 «이천 ∪ 광주»로 남고 지도에도 광주 원이 남는다 */
         const start = en.indexOf('export async function setCallTarget(');
         expect(start).toBeGreaterThan(-1);
         const body = en.slice(start, en.indexOf('\n}', start));
