@@ -8,13 +8,14 @@ import { InsungCallDetailScreen, InsungOngoingDetailScreen } from '@altari/ui-si
 import { callA } from './fixtures';
 
 /**
- * 👆 **인성 버튼을 눌렀을 때 무엇이 불리나** (§4)
+ * 👆 **인성 버튼을 눌렀을 때 무엇이 불리나**
  *
  * 화면 글자 스냅숏은 **글자**만 본다 — 누른 뒤 무엇이 일어나는지는 못 본다. 그래서 따로 누른다.
  *
  * 기사님: *"탁송은 아무 일도 하지 않는다. 확정이 콜을 내 것으로 확정하는 거야"* ·
  * 확정(10)이 0 이 되면 리스트로 · 확정 전 상세의 취소도 리스트로 · 탁송은 다른 기능(아직 모른다).
- * 🔴 시뮬레이터는 탁송을 확정 전에는 «수락», 확정 페이지에서는 «배송 완료(잡은 콜에서 지움)»로 지어내 쓰고 있었다.
+ * 🔴 시뮬레이터는 탁송에 아무 동작도 잇지 않는다 — «수락»이나 «배송 완료(잡은 콜에서 지움)»로 지어내면
+ * 실물에 없는 동작으로 원달앱을 시험하게 된다.
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -80,7 +81,7 @@ describe('인성 상세 (확정 전)', () => {
 describe('인성 확정 페이지', () => {
     const setup = () => {
         const onClose = vi.fn(); const onCancel = vi.fn(); const onConfirm = vi.fn();
-        // 옛 «탁송 = 배송 완료» 가 부르던 onConfirm 도 넘겨 본다 — 불리면 안 된다
+        // 탁송을 배송 완료로 이으면 불릴 onConfirm 도 넘겨 본다 — 불리면 안 된다
         const props = { call: callA, onClose, onCancel, onConfirm } as unknown as Parameters<typeof InsungOngoingDetailScreen>[0];
         const h = mount(<InsungOngoingDetailScreen {...props} />);
         return { h, onClose, onCancel, onConfirm };
