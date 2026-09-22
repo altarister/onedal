@@ -9,22 +9,13 @@ import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
- * 🔴 **인성 잡기 수순 — 여기가 그 집이다** (신설 · 기획/배차망_통합.md §4).
+ * 🔴 **인성 잡기 수순 — 여기가 그 집이다**.
  *
- * 인성 전용 수순(상세·확정·팝업 3종 · 약 636줄)이 오랫동안 `HijackService` 안에 있었다.
- * 배차망을 계속 붙이려면 그게 나와야 한다 — **공통 코드가 인성 화면을 알면 안 된다.**
+ * 인성 전용 수순(상세·확정·팝업 3종)을 여기 둔다 — **공통 코드가 인성 화면을 알면 안 된다.**
  *
- * ── 어떻게 옮기나 ──
- * `ScanContext` 의 **확장 함수**로 둔다. 그러면 본문의 `session`·`collectMachine`·
- * `currentTargetApp` 이 **수신자에서 그대로 풀려서**, 본문을 한 줄도 안 고치고 옮겨진다.
- * 부르는 쪽도 `handleMemoPopup(rootNode, texts)` 그대로다 (`HijackService` 가 `ScanContext`
- * 를 구현하므로 자기 자신이 수신자다).
- *
- * ── 지금 여기 있는 것 ──
- * 팝업 하나만 먼저 옮겼다. **묶음(`ScanContext`)이 실제로 도는지 증명하려는 것**이고,
- * 나머지(상세·확정·팝업 둘·약 630줄)는 이 증명이 게이트를 통과한 뒤에 따라온다.
- *
- * 🔴 **본문은 옮기기 전과 한 글자도 다르지 않다.** 다른 것은 «어디에 사는가»뿐이다.
+ * `ScanContext` 의 **확장 함수**로 둔다. 본문의 `session`·`collectMachine`·`currentTargetApp` 이
+ * **수신자에서 그대로 풀리고**, 부르는 쪽도 `handleMemoPopup(rootNode, texts)` 그대로다
+ * (`HijackService` 가 `ScanContext` 를 구현하므로 자기 자신이 수신자다).
  */
 
 /** 로그 태그 — `HijackService` 가 쓰던 것과 같은 값이라 로그가 갈라지지 않는다 */
@@ -118,11 +109,9 @@ fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOffic
     /**
      * 🔴 **출신은 스위치가 아니라 «누가 눌렀나» 다** (규칙 ③).
      *
-     * 예전엔 여기서 `telemetryManager.currentMode` 를 썼다. 이 길은 **손으로 확정한
-     * 콜**의 길인데(앱이 잡았으면 `lastDetailOrder` 가 이미 있다) 스위치를 찍는 바람에,
-     * 자동 스위치인 채 손으로 확정하면 `"AUTO_CLICK"` 이 됐다 —
-     * 서버의 직접콜 보호가 안 걸려 **리스트 복귀 때 기사님의 콜이 강제 취소**됐다.
-     * 알람 모드에서는 서버가 모르는 `"ALARM_CLICK"` 까지 태어났다.
+     * 이 길은 **손으로 확정한 콜**의 길이다(앱이 잡았으면 `lastDetailOrder` 가 이미 있다).
+     * 스위치(`telemetryManager.currentMode`)를 찍으면 자동 스위치인 채 손으로 확정한 콜이 `"AUTO_CLICK"` 이 되어
+     * 서버의 직접콜 보호가 안 걸리고 **리스트 복귀 때 기사님의 콜이 강제 취소**된다.
      */
     return SimplifiedOfficeOrder(
         id = session.currentOrderId,
@@ -160,7 +149,7 @@ fun ScanContext.handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTex
 
     /**
      * 👀 **미리보기로 보다가 확정을 눌렀다 — 딱지를 벗고 서버에 알린다**
-     * (기사님 실측 2026-08-22 18:57).
+     * (기사님 실측 18:57).
      *
      * 기사님: *"관제엡의 노랑색을 보고 확정을 눌렀어. 그런데 관제엡은 내가 생각한 것과
      * 다르게 움직이고 있어. 싱크가 전혀 안 되는 것 같아."*
