@@ -3,17 +3,12 @@ import { join } from 'path';
 import { initGeoService, getDetourRegions } from '../../src/services/geoService';
 
 /**
- * 🕳️ **"순서를 모른다"(null)가 저장에서 사라진다**
+ * 🕳️ **"순서를 모른다"(null)가 저장에서 사라지지 않게 한다**
  *
- * 기사님: *"16개 돌았는데 아무것도 안 잡았어. 통신도 잘되고 접근성도 켜져 있다고 했어."*
+ * 서버가 null 을 담아 보내도(예: `progressKm 435 · 분당구 = null`) 앱이 저장하며 null 키를 잃으면
+ * 앱이 든 목록이 줄어든다 (435개 → 407개, 차이 28개 = 구 단독형 개수). 그러면 콜을 하나도 못 잡는다.
  *
- * 서버는 04:42:56 에 이미 **435개**를 만들어 보내고 있었는데, 앱은 6분 뒤까지
- * **407개**를 들고 있었다. 차이 **28개 = 구 단독형 개수**와 정확히 같다.
- *
- * 서버가 실제로 보낸 것(curl 로 확인):
- *     destinationKeywords 0 · progressKm 435 · 분당구 = null
- *
- * 🔴 뿌리는 앱의 **저장 왕복**이다:
+ * 🔴 null 을 잃는 곳은 앱의 **저장 왕복**이다:
  *
  *     val filterJson = gson.toJson(scrapRes.dispatchEngineArgs)   // ← Gson 은 null 을 버린다
  *     prefs.edit().putString("activeFilter", filterJson)
@@ -27,9 +22,9 @@ import { initGeoService, getDetourRegions } from '../../src/services/geoService'
  *        키가 있고 값이 null  →  "순서 미상 — 통과"     ← 서버의 의도
  *        키가 아예 없음       →  "경로 밖 — 차단"       ← 저장 후 실제 동작
  *
- *    *"진행도를 모르는 동은 남긴다"* 는 트림 규칙 ①이 **저장 계층에서 조용히 깨져 있었다.**
+ *    *"진행도를 모르는 동은 남긴다"* 는 트림 규칙 ①이 **저장 계층에서 조용히 깨진다.**
  *
- * 고침: **서버가 보낸 JSON을 그대로 보관한다.** 왕복 자체를 없앤다 (규칙 ③).
+ * 규칙: **서버가 보낸 JSON을 그대로 보관한다.** 왕복 자체를 두지 않는다 (규칙 ③).
  */
 
 const APP = join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app');
