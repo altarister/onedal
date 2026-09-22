@@ -15,7 +15,7 @@ import { dbQueue } from "../utils/dbQueue";
 import { PluginFactory } from "../core/plugins/PluginFactory";
 
 /**
- * 🧭 **경로 순서 맵이 도착지를 얼마나 덮나 — 바뀔 때만 한 줄** (기사님 요청 2026-09-14 «콘솔로그에 넣어서 너도 확인할 수 있도록»).
+ * 🧭 **경로 순서 맵이 도착지를 얼마나 덮나 — 바뀔 때만 한 줄** (기사님 요청 «콘솔로그에 넣어서 너도 확인할 수 있도록»).
  *
  * 앱의 역주행 검사(`RouteOrderFilter.kt`)는 하차지가 이 맵에 **없으면 «순서 미상 — 통과»**다.
  * 그런데 도착지 목록(`destinationKeywords`)에는 경로 위가 아닌 동도 들어 있어서,
@@ -41,9 +41,8 @@ const router = Router();
 // 🧭 피기백 v2 로 말하는 기기 — 최초 감지 로그를 1회만 찍기 위한 표식 (메모리)
 const v2Devices = new Set<string>();
 
-// 🛰️ 같은 기기 이름이 서로 다른 곳(IP)에서 동시에 말하는지 감지 (2026-08-22 실측:
-// 구버전 리허설 스크립트와 실폰이 같은 deviceId 로 겹치자, 폰이 잡은 심사 콜을
-// 스크립트의 "리스트 화면" 보고가 2초 만에 강제 취소시켰다 — 4콜 연쇄)
+// 🛰️ 같은 기기 이름이 서로 다른 곳(IP)에서 동시에 말하는지 감지 — 겹치면 한쪽의 "리스트 화면" 보고가
+// 다른 쪽이 잡은 심사 콜을 강제 취소시킨다
 const senderTrace = new Map<string, { ip: string; at: number; warnedAt: number }>();
 
 // POST: 탈락 콜 빅데이터 수신 (오답노트용) 및 하트비트
@@ -122,7 +121,7 @@ router.post("/", (req, res) => {
                 (item as any).pickupY ?? null,
                 (item as any).dropoffX ?? null,
                 (item as any).dropoffY ?? null,
-                /* 🗳️ 앱이 낸 판정 — 화면이 다시 재지 않게 (현황판 의뢰 2026-09-12) */
+                /* 🗳️ 앱이 낸 판정 — 화면이 다시 재지 않게 */
                 (item as any).verdict ?? null
             );
         });
@@ -169,7 +168,7 @@ router.post("/", (req, res) => {
             const evaluatingOrderId = session.deviceEvaluatingMap.get(deviceId);
             if (evaluatingOrderId) {
                 const io = req.app.get("io");
-                // [Phase 1 / 이슈 C-2] io.emit 은 접속한 모든 유저에게 방송된다.
+                // io.emit 은 접속한 모든 유저에게 방송된다.
                 // 다른 기사의 orderId 가 남의 화면으로 새어나가므로 유저 룸으로 한정한다.
                 io.to(userId).emit("telemetry-ping", { orderId: evaluatingOrderId });
             }
@@ -214,31 +213,28 @@ router.post("/", (req, res) => {
         /**
          * 앱폰의 GPS 는 관제웹이 마스터이므로 여기서 Trim 연산을 하지 않는다.
          *
-         * 🔴 예전에는 `(session as any).appLocation` 에 담아 뒀다 — *"나중에 관제웹 GPS와
-         *    비교하려고"*. 그런데 **읽는 곳이 한 군데도 없었고** 선언에도 없는 필드였다.
-         *    `pnpm audit:dead` 가 잡았다. 쓰기만 하는 저장은 죽은 코드다 — 지웠다.
-         *    정말 교차 검증이 필요해지면 그때 **읽는 쪽과 함께** 만든다.
+         * 🔴 앱 위치를 세션에 저장하지 않는다 — 읽는 곳이 없으면 쓰기만 하는 죽은 코드다.
+         *    교차 검증이 필요해지면 그때 **읽는 쪽과 함께** 만든다.
          */
 
         /**
-         * 📦 **앱이 읽는 키만 골라 싣는다** (이식 C5 · 2026-09-11 · 명세 §5).
+         * 📦 **앱이 읽는 키만 골라 싣는다**.
          *    표는 `shared` 의 `APP_FILTER_KEYS` 하나다.
          *
-         * 🔴 **예전엔 «떼는 키»를 손으로 나열했다.** 그러면 새 칸이 생길 때마다 그 목록에
-         *    넣어야 하고, **안 넣으면 조용히 앱으로 간다** — 2026-09-11 하루에만 마름모 셋과
-         *    제외 지역을 그렇게 손으로 넣었다. 골라 싣는 쪽은 **기본이 «안 간다»** 라 안전하다.
+         * 🔴 «떼는 키»를 손으로 나열하면 새 칸이 생길 때마다 그 목록에 넣어야 하고, **안 넣으면 조용히 앱으로 간다.**
+         *    골라 싣는 쪽은 **기본이 «안 간다»** 라 안전하다.
          *
          * 여기서 안 실리는 값(`destinationGroups`·마름모·제외 지역·국면 축 …)은
          * **관제웹이 소켓(`filter-updated`)으로 따로 받는다.** 하트비트에 실으면 낭비다 —
-         * 2026-08-22 에 `destinationGroups` 하나가 응답의 27%(약 3.6KB)였다.
+         * 예: `destinationGroups` 하나가 응답의 27%(약 3.6KB)다.
          */
         const src = session.activeFilter as unknown as Record<string, unknown>;
         const appFilter: Record<string, unknown> = {};
         for (const k of APP_FILTER_KEYS) if (src[k] !== undefined) appFilter[k] = src[k];
         /**
          * 📐 **앱에는 «지금 실제로 쓰이는» 반경이 간다** (전수 조사 ①-4).
-         *    원값을 그대로 복사하니 자동 ON·배율 0.4 면 **서버 그물 6.2km · 지도 6.2km · 앱 15km**
-         *    — 세 벌이었다. 앱은 `pickupRadiusKm` 으로 실제로 거른다(`Hwamul24Parser.kt`).
+         *    원값을 그대로 복사하면 자동 ON·배율 0.4 일 때 **서버·지도는 6.2km, 앱은 15km** 로 갈라진다.
+         *    앱은 `pickupRadiusKm` 으로 실제로 거른다(`Hwamul24Parser.kt`).
          *    셈은 서버·지도·필터 화면이 부르는 **그 함수**다 (규칙 ③).
          */
         {
@@ -265,7 +261,7 @@ router.post("/", (req, res) => {
         // ⏱️ 배차망별 대기 시간 — 원천은 DB(user_settings), 원달앱은 받아 쓴다
         Object.assign(appFilter, readWaitTimes(userId));
 
-        // [Phase 6] 부트스트랩이 끝나기 전에는 콜 잡기를 시키지 않는다.
+        // 부트스트랩이 끝나기 전에는 콜 잡기를 시키지 않는다.
         // 이 구간(1~3초)의 activeFilter 는 아직 경유도 적재 차종도 반영되지 않은 미완성 상태라,
         // 그대로 내보내면 경로를 벗어난 콜을 잡을 수 있다.
         // 잘못된 필터로 잡는 것보다 잠깐 멈추는 편이 안전하다.
@@ -293,10 +289,10 @@ router.post("/", (req, res) => {
         }
 
         /**
-         * 🔴 2026-08-12 — **관제탑이 한 번도 안 붙은 세션은 콜 잡기시키지 않는다.**
+         * 🔴 **관제탑이 한 번도 안 붙은 세션은 콜 잡기시키지 않는다.**
          *
          * 기사님: *"출근 전 앱을 먼저 연다면 기본값의 필터값이 가서
-         * 잘못된 콜을 잡을 가능성이 있군."* — 실제로 그랬다.
+         * 잘못된 콜을 잡을 가능성이 있군."*
          *
          * `bootstrapUserSession` 은 **관제웹 소켓 접속에만** 걸린다. 앱이 먼저 켜지면
          * 세션이 DB 기본값으로 만들어지고, `is_active` 가 1 이면 그대로 콜 잡기가 시작된다.
@@ -397,13 +393,10 @@ router.post("/", (req, res) => {
     }
 });
 
-// [Phase 1 / 이슈 C-1] GET /api/scrap 제거
+// GET /api/scrap 제거
 //
-// 무인증 + WHERE user_id 없이 intel 테이블 500건을 그대로 반환하고 있었다.
-// 2026-08-09 프로덕션 실측: 토큰 없이 HTTP 200 으로 콜 327건(68KB)이 응답됐고
-// pickup / dropoff / fare / user_id / device_id 가 모두 포함되어 있었다.
-// 지금은 사용자가 1명이라 노출 범위가 좁지만, 기사가 늘면 전원 데이터가 나간다.
-// client-app · logbook 전수 grep 결과 소비처 0건임을 확인하고 삭제했다.
+// 무인증 + WHERE user_id 없이 intel 을 그대로 내주는 문은 두지 않는다 — 기사가 늘면 전원의
+// pickup / dropoff / fare 가 토큰 없이 나간다. 읽는 곳도 없다.
 
 export default router;
 
