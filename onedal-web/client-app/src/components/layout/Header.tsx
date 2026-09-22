@@ -18,12 +18,12 @@ export default function Header({ isConnected, liveCalls, onMenu }: {
     onMenu?: () => void;
 }) {
     /**
-     * 🕐 **서버 시계다 — 폰 시계가 아니다** (기사님 2026-09-05:
+     * 🕐 **서버 시계다 — 폰 시계가 아니다** (기사님:
      *    *"폰 시계가 아니고 서버 시계로 만들어야 해.. 그래야 서버 시간으로 우리가 계산하지."*)
      *
-     * 🔴 여기는 **서버 연결 점 바로 옆**이라 «서버가 말한 시각»으로 읽힌다. 그런데
-     *    `new Date()` 였다 — 상차 마감·안전취소 30초는 서버 시각으로 재는데
-     *    폰 시계가 틀어져 있으면 화면과 판정이 갈라지고 **아무 신호가 없었다.**
+     * 🔴 여기는 **서버 연결 점 바로 옆**이라 «서버가 말한 시각»으로 읽힌다. 상차 마감·안전취소 30초는
+     *    서버 시각으로 재므로, 폰 시계(`new Date()`)를 쓰면 폰 시계가 틀어졌을 때
+     *    화면과 판정이 **아무 신호 없이** 갈라진다.
      */
     const clock = useServerClock();
     const [tick, setTick] = useState(() => Date.now());
@@ -37,7 +37,7 @@ export default function Header({ isConnected, liveCalls, onMenu }: {
     }, []);
 
     /**
-     * [Phase 8.5] 헤더 높이를 `--header-h` 로 내보낸다.
+     * 헤더 높이를 `--header-h` 로 내보낸다.
      *
      * 헤더가 `sticky top-0` 이라, 아래에 또 sticky 를 붙이면 **헤더 밑으로 파묻힌다.**
      * 콜 탭 바가 `top: var(--header-h)` 로 걸리려면 실제 높이가 필요하다.
@@ -68,8 +68,8 @@ export default function Header({ isConnected, liveCalls, onMenu }: {
                                 <span className="text-xl leading-none">☰</span>
                             </button>
                         )}
-                        {/* 🚚 로고 자리 = 내 차 상황 (기사님 0831: "영역을 아끼자").
-                            🔴 테마 전환은 **서랍 발**로 옮겼다 — 여기 두면 운행 중 오탭으로 화면이 뒤집힌다.
+                        {/* 🚚 로고 자리 = 내 차 상황 (기사님: "영역을 아끼자").
+                            🔴 테마 전환은 **서랍 발**에 둔다 — 여기 두면 운행 중 오탭으로 화면이 뒤집힌다.
                             liveCalls 없는 화면(로그인 등)은 1DAL 그대로 */}
                         <div className="text-left">
                             {liveCalls ? <VehicleLogoSummary liveCalls={liveCalls} /> : (
