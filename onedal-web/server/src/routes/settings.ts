@@ -47,8 +47,7 @@ router.get("/", requireAuth, (req, res) => {
             defaultPriority: row.default_priority,
             avoidToll: !!row.avoid_toll,
             homeAddress: row.home_address || '',
-            // [2026-08-12] 좌표도 함께 내린다 — GPS 가 없을 때 관제웹 지도·TSP 의 출발점으로 쓴다.
-            // 예전에는 관제웹이 좌표를 코드에 박아 두고 있었다 (주석엔 "판교"라 적혀 있었는데 실은 집 주소였다)
+            // 좌표도 함께 내린다 — GPS 가 없을 때 관제웹 지도·TSP 의 출발점으로 쓴다.
             homeX: row.home_x || null,
             homeY: row.home_y || null,
             alarmVolume: row.alarm_volume ?? 50,
@@ -96,7 +95,7 @@ router.put("/", requireAuth, async (req, res) => {
         const userId = req.user!.id;
         const payload = req.body;
 
-        // 🪦 car_type 은 죽은 두 벌이라 DROP 됐다 — 차종의 원천은 vehicle_type 하나 (전수조사 2026-08-21)
+        // 🪦 car_type 은 죽은 두 벌이라 DROP 됐다 — 차종의 원천은 vehicle_type 하나 (전수조사)
         const updateStmt = db.prepare(`
             UPDATE user_settings
             SET vehicle_type = COALESCE(@vehicleType, vehicle_type),
@@ -188,17 +187,9 @@ router.put("/", requireAuth, async (req, res) => {
         // 클라이언트(내 차 패널 등)가 실시간으로 갱신될 수 있도록 소켓 이벤트 발송
         req.app.get("io").to(userId).emit("settings-updated", payload);
 
-        // 🔴 [2026-08-10 전수조사] 예전에는 DB 만 쓰고 끝났다.
-
-        // 세션의 userVehicleType 은 로그인 시 한 번만 읽으므로, 차종을 바꿔도
-
-        // **필터는 옛 차종으로 계산**하고 있었다. 반면 카카오 경로는
-
-        // SettingsRepository 가 DB 를 매번 읽어 **새 차종**을 썼다 —
-
-        // 같은 순간에 두 값이 달랐던 것이다.
-
-        // 그리고 관제탑은 `settings-updated` 를 듣고 있는데 **아무도 보내지 않았다.**
+        // 🔴 DB 만 쓰고 끝내지 않는다 — 세션의 userVehicleType 은 로그인 때 한 번만 읽으므로, 여기서 바꾸지 않으면
+        //    필터는 옛 차종으로, 카카오 경로는 새 차종으로 계산해 같은 순간에 두 값이 달라진다.
+        //    관제탑에는 `settings-updated` 로 알린다.
 
         const io = req.app.get("io");
         if (payload.vehicleType) {
@@ -231,15 +222,10 @@ router.put("/", requireAuth, async (req, res) => {
 /**
  * 도착 목표로 **고를 수 있는 시/군 목록**.
  *
- * 🔴 2026-08-12 — 이 API 가 없어서 두 화면이 각자 다른 방식으로 도시를 받고 있었다.
- *    · 설정 > 요금 : 자유 입력 → `파주` 가 저장됨
- *    · 필터 모달   : 손으로 적은 7개 목록 → `파주시` 만 있음
- *    저장값이 목록에 없으니 브라우저가 조용히 **첫 항목(용인시)** 을 보여줬고,
- *    기사님은 필터가 용인인 줄 알고 계셨다. 서버는 `includes` 검색이라 파주로 잘 돌고 있었다.
+ * 🔴 **화면들이 같은 목록을 쓴다** — 목록의 출처는 지도 데이터 하나뿐이다. 화면마다 따로 받으면
+ *    저장값(`파주`)이 목록(`파주시`)에 없어 `<select>` 가 조용히 첫 항목을 보여준다.
  *
- *    → 두 화면이 **같은 목록**을 쓰게 한다. 목록의 출처는 지도 데이터 하나뿐이다.
- *
- * ⚠️ 지금 지도 데이터는 **수도권(서울·인천·경기)** 만 있다. 그 밖은 아직 고를 수 없다 —
+ * ⚠️ 지금 지도 데이터는 **수도권 · 충청권**(서울·인천·경기·대전·세종·충북·충남)만 있다. 그 밖은 고를 수 없다 —
  *    없는 지역을 목록에 넣으면 0개짜리 필터가 되어 콜 잡기가 조용히 멈춘다.
  */
 router.get("/cities", requireAuth, (_req, res) => {
