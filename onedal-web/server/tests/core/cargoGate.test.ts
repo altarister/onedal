@@ -5,18 +5,18 @@ import { cargoMismatchRatio, unitPoints, peakLoadPoints } from '@onedal/shared';
 import type { CargoReport, MyOrder } from '@onedal/shared';
 
 /**
- * 🔴 2026-08-11 — 단위 체계를 `sizeClass`(소·중·대) → `unit`(파레트·라면박스…) 로 옮길 때
- *    계산 함수(`cargoPoints`)는 고쳤는데 **그 입구의 관문 두 개를 안 고쳤다.**
+ * 🔴 **화면은 짐을 `unit`(파레트·라면박스…)으로만 보낸다** — 그러니 입구의 관문 두 개도
+ *    필드(`sizeClass`)가 아니라 점수로 건다. `sizeClass` 로 걸면
  *
  *        computeLoadedPoints : if (chosen?.sizeClass)        → 항상 false
  *        cargoMismatchRatio  : if (!declared?.sizeClass ...) → 항상 null
  *
- *    화면은 `unit` 만 보내므로 두 관문 모두 영원히 닫혀 있었다. 결과는
- *      · 신고한 짐 양을 무시하고 늘 차종 추정 → 합짐 2건이면 [오토바이]만 남음
- *      · 불일치 경고가 **한 번도 뜬 적이 없음** (2.5배여도 조용)
+ *    두 관문이 늘 닫혀
+ *      · 신고한 짐 양을 무시하고 늘 차종 추정 → 합짐 2건이면 [오토바이]만 남고
+ *      · 불일치 경고가 **한 번도 안 뜬다** (2.5배여도 조용)
  *
- *    기존 테스트가 전부 `sizeClass` 로만 쓰여 있어 이 구멍을 못 잡았다.
- *    **실제로 화면이 보내는 모양**(unit)으로 다시 건다.
+ *    `sizeClass` 로만 쓴 검사는 이 구멍을 못 잡는다.
+ *    그래서 **실제로 화면이 보내는 모양**(unit)으로 건다.
  */
 const call = (id: string, vehicleType = '1t'): MyOrder =>
     ({ id, vehicleType, status: 'ORDER_CONFIRMED' }) as MyOrder;
