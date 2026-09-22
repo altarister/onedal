@@ -8,6 +8,7 @@ import sidoDataRaw from '../../mapData/sidoData.json';
 import { getDistanceKm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
+import { offsetScreenPath } from '../../lib/parallelPath';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
     TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
@@ -897,7 +898,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
          *    벗어나면 흰 선이 파란 길 밖으로 나간다 — 그게 이탈이다.
          * 🔴 순서가 뜻이다 — 계획이 **아래**, 실제가 **위**. 실제가 계획을 덮는다.
          */
-        const drawPath = (pts: Array<{ x: number; y: number }>, widthScale: number, dash?: number[]) => {
+        const drawPath = (pts: Array<{ x: number; y: number }>, widthScale: number, dash?: number[],
+            /** 🌈 진행 방향의 직각으로 몇 픽셀 밀어 그린다 — 콜 띠를 나란히 둘 때 (`offsetScreenPath`) */
+            offsetPx = 0) => {
             if (pts.length < 2) return;
             ctx.save();
             ctx.beginPath();
@@ -905,9 +908,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             if (dash) ctx.setLineDash(dash);
-            pts.forEach((p, i) => {
-                const { cx, cy } = getScreenPt(p);
-                if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+            const screen = offsetScreenPath(pts.map(getScreenPt), offsetPx);
+            screen.forEach((p, i) => {
+                if (i === 0) ctx.moveTo(p.cx, p.cy); else ctx.lineTo(p.cx, p.cy);
             });
             ctx.stroke();
             ctx.restore();
@@ -953,16 +956,21 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                  * 🔴 **바닥 한 줄을 먼저 긋는다** — 띠가 없는 구간(다 내린 뒤 집으로 가는 길 등)이
                  *    비어 보이면 경로가 끊긴 것으로 읽힌다.
                  */
-                ctx.strokeStyle = withAlpha(mapColors.routeLine, 0.35);
-                drawPath(validPolyline, 1);
-                const bands = callBandsOf(secStops!);
-                for (const [orderId, band] of bands) {
+                ctx.strokeStyle = withAlpha(mapColors.routeLine, 0.5);
+                drawPath(validPolyline, 0.9);
+                /**
+                 * 🎨 **색은 진하게, 선은 얇게, 자리는 나란히** (기사님 지시 — 투명도로 섞으니 흐려서 안 읽힌다).
+                 *    콜마다 진행 방향의 직각으로 조금씩 밀어 그린다. 함께 가는 구간은 두 줄로 보인다.
+                 */
+                const bands = [...callBandsOf(secStops!)];
+                const gapPx = 2.2;
+                bands.forEach(([orderId, band], bi) => {
                     const color = callColors!.get(orderId);
-                    if (!color) continue;
-                    /* 🎨 겹칠수록 진해진다 — 둘이 겹친 자리에서 두 색이 다 읽히게 0.45 로 긋는다 */
-                    ctx.strokeStyle = withAlpha(color, 0.45);
-                    for (let i = band.from; i <= band.to && i < secLines.length; i++) drawPath(secLines[i], 1.25);
-                }
+                    if (!color) return;
+                    const shift = (bi - (bands.length - 1) / 2) * gapPx;
+                    ctx.strokeStyle = color;
+                    for (let i = band.from; i <= band.to && i < secLines.length; i++) drawPath(secLines[i], 0.8, undefined, shift);
+                });
             } else {
                 ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
                 // 노란 점선 = 아직 결재 전
