@@ -31,11 +31,10 @@ export class PlaceRepository {
     }
 
     /**
-     * [Phase 8.4] 이 장소에서 겪은 일을 누적한다.
+     * 이 장소에서 겪은 일을 누적한다.
      *
      * 신고와 실측이 크게 어긋난 곳은 다음에도 그럴 확률이 높다.
-     * `blacklistMemo` 컬럼은 예전부터 있었지만 쓰는 코드가 없었다 —
-     * 여기가 그 컬럼의 첫 사용처다. 다음에 같은 곳을 잡을 때 미리 보여준다.
+     * `blacklistMemo` 에 적어 두고, 다음에 같은 곳을 잡을 때 미리 보여준다.
      */
     public static appendPlaceMemo(placeId: number, line: string) {
         db.prepare(`
