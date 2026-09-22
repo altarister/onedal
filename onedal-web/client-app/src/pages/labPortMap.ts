@@ -1,5 +1,5 @@
 /**
- * 🚚 **실험실 → 실물 이식 대응표** (기사님 2026-09-09: *"중간중간 이동을 위한 점검을
+ * 🚚 **실험실 → 실물 이식 대응표** (기사님: *"중간중간 이동을 위한 점검을
  * 하는 것이 맞을 것 같다"*).
  *
  * 🔴 **이 파일이 대조표의 원천이다 — 문서가 아니라 코드다.**
@@ -12,14 +12,14 @@
 
 /**
  * 🪜 **정거장 한 곳의 계획과 실측** — 실물의 `step_*` 여섯 표와 **같은 모양**이다.
- * 계획과 실측이 같은 자리에 있어야 조인 없이 오차를 잰다 — 실물이 옛 장부를 버리고
- * 이 모양으로 간 이유다.
+ * 계획과 실측이 같은 자리에 있어야 조인 없이 오차를 잰다 — 실물도
+ * 그래서 이 모양이다.
  */
 /** 밀림 한 줄 — 실물 `step_arrive_*.system_reasons` 로 갈 모양 */
 // ⏱️ 약속의 두 계수는 **실물 기본값을 그대로 읽는다** — 여기 숫자를 또 적지 않는다 (규칙 ③)
 import { DEFAULT_DEADLINE_RULES, type StopImpact } from '@onedal/shared';
 
-// 🔴 `StopImpact` 는 `@onedal/shared` 로 옮겼다 (이식 A3) — 아래에서 다시 내보낸다
+// 🔴 `StopImpact` 는 `@onedal/shared` 에 있다 — 아래에서 다시 내보낸다
 
 export type StopStep = {
     /** 「몇 시까지 갈게요」 — 확정한 순간 못 박고 다시는 안 바꾼다 */
@@ -59,7 +59,7 @@ export const STOP_STEP_TO_REAL: Record<keyof StopStep, { tables: string[]; col: 
     predictedAt: { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: 'predicted_at' },
     occurredAt:  { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: 'occurred_at' },
     source:      { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: 'source' },
-    /** ⚠️ **실물에 아직 칸이 없다** — 이식 때 `step_arrive_*` 에 한 칸을 더한다 (기사님 2026-09-10) */
+    /** ⚠️ **실물에 아직 칸이 없다** — 이식 때 `step_arrive_*` 에 한 칸을 더한다 (기사님) */
     promiseBy:   { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: null },
     /**
      * 🆕 실물에 **아직 없는 칸**이다 (`null`). 이식 때 `system_reasons TEXT` 로 판다.
@@ -83,11 +83,11 @@ export const LAB_CALL_TO_ORDERS: Record<string, string | null> = {
     drop:        null,
     approachKm:  null,                  // 🆕 내 위치 → 상차 (실물에 없다)
     approachMin: null,                  // 🆕
-    destName:    null,                  // 🆕 잡을 당시의 목적지(판)
+    destName:    null,                  // 🆕 잡을 당시의 목적지
     optionUsed:  null,                  // 🆕 카카오 어느 옵션으로 쟀나
     /**
-     * 🧹 **취소·방출로 끝난 시각** — 실물 `orders.terminatedAt` (전수표 #65).
-     * 실물의 `completedAt` 은 하차 완료에만 들어가고 취소면 NULL 로 지워서 칸을 따로 팠다.
+     * 🧹 **취소·방출로 끝난 시각** — 실물 `orders.terminatedAt`.
+     * 실물의 `completedAt` 은 하차 완료에만 들어가고 취소면 NULL 이라 칸을 따로 둔다.
      */
     terminatedAt: 'terminatedAt',
 };
@@ -97,9 +97,9 @@ export const LAB_CALL_TO_ORDERS: Record<string, string | null> = {
  *
  * 기사님: *"이 콜의 어디를 경유해 왔을지 모르잖아. 빙 둘러 온 거면 그 값은 잘못된 값이야."*
  *
- * 🔴 **`chainCum`(병합 경로 누적)은 일부러 안 쓴다.** 받아만 두고 버린다 — 예전에 그걸로
- * 약속을 잡았다가, 경유가 약속에 이미 섞여 「다른 콜로 영향받는 시간 = 예정 − 약속」이
- * 거의 0 으로 나왔다. **진짜 영향이 약속에 흡수돼 숨는다.**
+ * 🔴 **`chainCum`(병합 경로 누적)은 일부러 안 쓴다.** 받아만 두고 버린다 — 그걸로
+ * 약속을 잡으면 경유가 약속에 이미 섞여 「다른 콜로 영향받는 시간 = 예정 − 약속」이
+ * 거의 0 으로 나온다. **진짜 영향이 약속에 흡수돼 숨는다.**
  *
  * 직행값의 원천은 ⑮ 호출(내 위치 → 상차 → 하차)이다. 아직 안 왔으면 **약속은 없다** —
  * 병합 값으로 대신 채우지 않는다 (규칙 ④).
@@ -114,7 +114,7 @@ export function promiseTimes(opts: {
     /** ⑮ 직행 실측 — 내 위치 → 상차 → 하차 */
     direct: { approachMin: number | null; durMin: number | null };
     /**
-     * 🧳 **상차에 머무는 분** (기사님 2026-09-09 «정차를 넣어줘»).
+     * 🧳 **상차에 머무는 분** (기사님 «정차를 넣어줘»).
      * 하차 약속은 «상차에 닿아서 → **짐을 싣고** → 달려서» 닿는 시각이다.
      * 🔴 **상차 약속에는 안 더한다** — 그건 도착 시각이라 짐 싣기 전이다.
      */
@@ -124,12 +124,11 @@ export function promiseTimes(opts: {
     /**
      * ⏱️ **상차 약속 = 콜 잡은 시각 + 20분** (기사님 확정).
      *
-     * 🔴 전에는 «잡은 시각 + **접근 실측**»이었다 — 즉 **약속을 예상에 맞춰** 세웠다.
-     *    그러면 ± 가 늘 0에 가깝고, **«20분 안에 못 갔다»가 화면에 안 나온다.**
+     * 🔴 «잡은 시각 + **접근 실측**»으로 세우면 **약속을 예상에 맞추는** 셈이라
+     *    ± 가 늘 0에 가깝고, **«20분 안에 못 갔다»가 화면에 안 나온다.**
      *    기사님: *"상차는 콜 받고 20분이 넘어 상차지에 가면 문제다. 근데 **이걸로는 20분이
      *    넘었는지 아닌지 모른다**는 것이다. 얼마나 늦는지는 내가 알아야 할 것 같아."*
-     *    실측(볼트 저녁 판): 불로동은 직행 19분인데 앞 둘을 들르느라 42분 — **22분 초과**다.
-     *    옛 식은 그걸 «+23»(우리 약속 대비)이라고만 말해 20분 규칙과 무관했다.
+     *    예: 직행 19분인 상차지를 앞 둘을 들르느라 42분에 닿으면 **22분 초과**다.
      * ⚠️ **20분은 가장 약한 폴백이다** (용어집 「상차버퍼」):
      *    **통화 약속 > 적요 상차 시각 > 잡은 시각 + 20분.**
      *    실험실은 적요가 없어 20분으로 서지만, 앞의 둘이 들어오면 그것이 이긴다.
@@ -139,15 +138,14 @@ export function promiseTimes(opts: {
     const pickupAt = direct.approachMin == null ? null
         : confirmedAt + DEFAULT_DEADLINE_RULES.pickupPromiseMinutes * 60000;
     /**
-     * 🚚 **하차 약속 = 상차 완료 + 배송 주행 × 150%** (용어집 「데드라인」 · 업계 관행).
+     * 🚚 **하차 약속 = 상차 약속 + 싣는 분 + 배송 주행 × 150%** (용어집 「데드라인」 · 업계 관행).
      *
-     * 🔴 전에는 **100%** 였다 — 관행이 봐주는 **여유 50%가 통째로 빠져** 모든 하차가 늦어 보였다.
-     *    실측(볼트 저녁 판): 가산동 +29 → **+8** · 원삼면 +44 → **+1** · 안양동 +7 → **−17**(여유).
-     * 🔴 이것은 «관행 상한»이 아니라 **고객과의 약속**이다 (기사님 정정 2026-09-10:
+     * 🔴 **100%** 로 잡으면 관행이 봐주는 **여유 50%가 통째로 빠져** 모든 하차가 늦어 보인다.
+     * 🔴 이것은 «관행 상한»이 아니라 **고객과의 약속**이다 (기사님 정정:
      *    *"내가 그때까지 가져다 주겠다는 약속인 거지. 사용자도 퀵사에 그렇게 안내받을 거야 —
      *    **지금 전달해 주시면 150% 안에 가져다 드릴게요**. 그러니 고객과의 약속이 맞아"*).
-     * 🔴 기산점이 **상차 완료**라 상차가 늦으면 이 약속도 **같이 밀린다.** 그래서 상차 지연이
-     *    하차 ± 에 **두 번 세어지지 않는다** — 상차 지연은 상차 ± 가, 배송 우회는 하차 ± 가 답한다.
+     * 🔴 기산점이 **상차 약속**(잡은 시각 + 20분)이라, 실제 상차가 늦어도 이 약속은 밀리지 않는다 —
+     *    상차 지연은 상차 ± 와 하차 ± 에 함께 보인다.
      */
     const dropoffAt = pickupAt == null || direct.durMin == null ? null
         : pickupAt + (pickupDwellMin + Math.round(direct.durMin * (DEFAULT_DEADLINE_RULES.deadlineRatioPct ?? 150) / 100)) * 60000;
@@ -155,8 +153,7 @@ export function promiseTimes(opts: {
 }
 
 /**
- * 🔴 **밀림 계산(`impactOfStop`·`splitDropImpact`)은 `@onedal/shared` 로 옮겼다**
- *    (이식 A3).
+ * 🔴 **밀림 계산(`impactOfStop`·`splitDropImpact`)은 `@onedal/shared` 에 있다.**
  *    **실물이 원천이고 실험실이 그것을 부른다** — 여기서는 다시 내보내기만 한다.
  *    계산이 한 벌이라야 화면과 서버가 두 말을 하지 않는다 (규칙 ③).
  */
