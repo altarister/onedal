@@ -177,7 +177,7 @@ class MainViewModel {
 
     /**
      * ⏱️ **대기 시간은 폰에서 고르지 않는다** (기사님 확정).
-     * 예전 «30·40·50초» 고르기는 폰 안에만 저장돼 서버가 몰랐다. 원천은 서버 DB 이고, 여기는 받은 값을 글로 보여 준다.
+     * 폰에서 고르면 폰 안에만 저장돼 서버가 모른다. 원천은 서버 DB 이고, 여기는 받은 값을 글로 보여 준다.
      */
     private fun waitTimesLabelOf(json: String?): String {
         val f = try {
