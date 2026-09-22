@@ -1,33 +1,29 @@
 /**
- * 🌱 **단계 시트 — DB 값으로 그리는, 기존 시트와 같은 옷**
+ * 🌱 **단계 시트 — DB 값으로 그린다**
  *
- * 처음엔 목업이었다 (기사님: *"작동하지 않아도 되니까 디자인이 같도록"*).
- * 이제 한 단계씩 **기능을 이식**한다 (기사님: *"지금부터 한 스텝씩 기능을 이식해줘"*).
+ * 단계 하나마다 시트 하나를 그리고, `orderId` 가 있고 태어난 행이면 버튼이 실제로 저장한다.
  *
- * 🚚 **이식 진행표**
- *   ① 상차지 통화 — ✅ 살아 있다 (기사님 확인 2026-08-21)
- *   ② 하차지 통화 — ✅ 같은 `LiveCall` — 방법·후작업·격자만 다르다
- *   ③⑤ 상·하차지 도착 — ✅ 사유 칩 + [건너뛰기][도착]. 이미 도착했으면 [도착 취소]
- *      🔴 `predictedAt` 은 **저장된 행의 값**을 싣는다 — 옛 시트의 `Date.now()+주행`
- *         (버튼 누른 시각 기준·여덟 번째 자리)이 새 경로에서는 태어날 수 없다
- *   ④⑥ 상차 완료 · 하차 완료 — ✅ 실측 짐(`ACTUAL`) + 완료/취소/건너뛰기 + 💾 실측 다시 저장 + 착불
+ * 🚚 **단계별로 하는 일**
+ *   ① 상차지 통화 — `LiveCall`
+ *   ② 하차지 통화 — 같은 `LiveCall` — 방법·후작업·격자만 다르다
+ *   ③⑤ 상·하차지 도착 — 사유 칩 + [건너뛰기][도착]. 이미 도착했으면 [도착 취소]
+ *      🔴 `predictedAt` 은 **저장된 행의 값**을 싣는다 — 버튼 누른 시각 + 주행으로 만들면
+ *         누를 때마다 예측이 달라진다
+ *   ④⑥ 상차 완료 · 하차 완료 — 실측 짐(`ACTUAL`) + 완료/취소/건너뛰기 + 💾 실측 다시 저장 + 착불
  *
- * 🧭 **기획 반영** (기사님 승인 2026-08-21 — "장점은 살리고 단점은 죽인다"):
- *   · 헤더(장소·주소·📞)와 검산 문장 — 살림. 값은 저장·타임라인에서만 (계산은 죽임)
- *   · 적요 힌트·차종 기본값 배너 — **출생으로 옮김.** 화면은 `planned_source` 배지만 그린다
+ * 🧭 **화면 원칙** (기사님 승인 — "장점은 살리고 단점은 죽인다"):
+ *   · 헤더(장소·주소·📞)와 검산 문장을 그린다. 값은 저장·타임라인에서만 온다
+ *   · 적요 힌트·차종 기본값은 행이 태어날 때 정한다. 화면은 `planned_source` 배지만 그린다
  *   · 지나간 격자 칸 — 흐리게 + 선택 불가 (못 지킬 약속을 권하지 않는다)
- *   · 죽임: `_diag` 계측(잴 병이 없다) · `canRewindTo` 제한(막대 자유 이동이 대체) ·
- *     onward 입력 UI(옛 화면도 2026-08-18 에 뺐다 — 데이터 통로만 남긴다)
+ *   · 단계 이동은 막대로 자유롭게 한다. onward 는 입력 UI 없이 데이터 통로만 둔다
  *
- *   저장은 전부 기존과 **같은 문**(`save-cargo-report`·`report-milestone`·`undo-milestone`)으로
- *   나간다. 옛 테이블과 단계 행(다리)이 같이 갱신되므로 위의 옛 시트와 갈라질 수 없다.
+ *   저장은 다른 화면과 **같은 문**(`save-cargo-report`·`report-milestone`·`undo-milestone`)으로
+ *   나간다 — 문이 갈리면 화면끼리 값이 갈라진다.
  *
- * 🔴 이식된 단계도 **계산은 하지 않는다** — 격자의 밑값(도착 예상)은 저장된 행에서 온다.
- *    여기서 시각을 만들면 일곱 번째 갈라짐이 된다 (규칙 ③).
- * 🔴 **약속 규칙은 옛 시트 그대로다**: 손대지 않은 추천값은 약속으로 저장하지 않는다
+ * 🔴 시트는 **계산을 하지 않는다** — 격자의 밑값(도착 예상)은 저장된 행에서 온다.
+ *    여기서 시각을 만들면 서버와 다른 시각이 하나 더 생긴다 (규칙 ③).
+ * 🔴 **약속 규칙**: 손대지 않은 추천값은 약속으로 저장하지 않는다
  *    (기사님: *"난 그런 결정을 내릴 권한이 없어"* — 확정 약속은 화주와 합의한 시각뿐).
- *
- * 스타일 출처: `StopCallSheet.tsx` 의 `chip()`·`Row`·격자·주 버튼 줄 — 클래스를 그대로 옮겼다.
  */
 import { useDerivation } from '../../stores/judgmentStore';
 import { useState, useEffect } from 'react';
@@ -55,7 +51,7 @@ const hhmm = (v?: string | null) => v ? new Date(v).toLocaleTimeString('ko-KR',
     { hour: '2-digit', minute: '2-digit', hour12: false }) : null;
 const parse = (v?: string | null): string[] => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } };
 
-/* ── StopCallSheet 에서 그대로 옮긴 옷들 ── */
+/* ── 시트 공용 옷들 ── */
 const chip = (active: boolean) =>
     `px-2.5 py-2 rounded-md text-[13px] font-bold border transition-colors ${
         active ? 'bg-info text-white border-info'
@@ -85,14 +81,14 @@ function Row({ title, children }: { title: string; children: React.ReactNode }) 
     );
 }
 
-/** 모양만일 땐 span, 이식됐으면 button — 같은 옷을 입는다 */
+/** 모양만일 땐 span, 누를 수 있으면 button — 같은 옷을 입는다 */
 function Chip({ cls, onTap, children }: { cls: string; onTap?: () => void; children: React.ReactNode }) {
     return onTap
         ? <button type="button" className={cls} onClick={onTap}>{children}</button>
         : <span className={cls}>{children}</span>;
 }
 
-/** 짐 폼 값 한 벌 — 이식된 단계는 이걸 상태로 든다 */
+/** 짐 폼 값 한 벌 — 살아 있는 단계는 이걸 상태로 든다 */
 export interface CargoState {
     unit: string | null; qty: number | null; handling: string | null;
     protections: string[]; afterworks: string[]; tags: string[];
@@ -114,8 +110,8 @@ const toggle = (list: string[], v: string) =>
  * 🔴 **화면의 분(分)은 판정과 같은 값이어야 한다** (기사님 지적).
  *
  * 이 시트는 갈래마다 분을 적는다 — `수작업 10분` · `결박 4분` · `검수 60분`.
- * 그 값이 **판정 기준 탭에서 온다.** 예전엔 옛 상수로 그려서, 기사님이 탭에서
- * 「수작업 박스당」을 고치면 **판정만 바뀌고 화면은 그대로**였다 (두 목소리 · #33 클래스).
+ * 그 값이 **판정 기준 탭에서 온다.** 상수로 그리면 기사님이 탭에서
+ * 「수작업 박스당」을 고쳐도 **판정만 바뀌고 화면은 그대로**다.
  */
 
 /**
@@ -128,14 +124,14 @@ const toggle = (list: string[], v: string) =>
  *    배지는 «몇 분 걸렸나». 누르면 ± 로 바뀌고, 손을 떼면 저장한다.
  *
  * 🔴 **적히는 곳은 이 콜의 단계 행 하나다** (기사님 확정: A).
- *    하루 전엔 콜 옵션 표(모든 콜의 규칙)를 고쳤다 — 그건 B 였고 뒤집었다.
+ *    콜 옵션 표(모든 콜의 규칙)는 고치지 않는다.
  *    그래서 배지는 **완료 단계에서만** 열린다 (`actualDwell` 을 받은 폼).
  */
 function MinuteBadge({ minutes, unit, onEdit }: { minutes: number; unit?: string; onEdit?: (v: number) => void }) {
     const [open, setOpen] = useState(false);
     /**
-     * 🔴 **± 를 누를 때마다 저장하지 않는다** (자기 리뷰 2026-08-30).
-     *    리허설 로그에 **1.7초 동안 7번** 저장됐다(5→6→7→8→9→14→19). 누를 때마다
+     * 🔴 **± 는 손을 뗄 때(✓) 한 번만 저장한다**.
+     *    누를 때마다 저장하면
      *    DB 쓰기 + `steps-synced` 브로드캐스트 왕복이라, 되돌아온 값이 손가락을 앞질러
      *    숫자가 튈 수도 있다. **손을 뗄 때(✓) 한 번만** 보낸다.
      */
@@ -155,17 +151,16 @@ function MinuteBadge({ minutes, unit, onEdit }: { minutes: number; unit?: string
     const stepBy = draft < 5 ? 0.5 : 5;
     const close = (save: boolean) => { setOpen(false); if (save && draft !== minutes) onEdit(draft); };
     /**
-     * 🔴 **버튼이 움직이면 운전 중에 못 누른다** (기사님 실측 2026-08-30).
+     * 🔴 **버튼이 움직이면 운전 중에 못 누른다** (기사님 실측).
      *
      * 기사님: *"+ 버튼을 누르면 **선택된 값이 안 보이면서** 영역이 들쑥날쑥해져서
      * + 버튼을 누르기 어렵다."*
      *
-     * 원인이 둘이었다:
-     *   ① 고친 값을 `text-info`(파랑)로 칠했는데 **칩이 선택되면 배경도 `bg-info`** 다
-     *      — 파랑 위에 파랑이라 글자가 사라졌다
-     *   ② `7분 → 12분` 처럼 자릿수가 바뀌면 폭이 변해 **± 버튼이 옆으로 밀렸다**
+     * 그래서 둘을 지킨다:
+     *   ① 고친 값은 배경과 무관한 **테두리**로 표시한다 — 칩이 선택되면 배경이 `bg-info` 라
+     *      파랑 글자로 칠하면 사라진다
+     *   ② 숫자 칸 폭을 **고정**한다 — `7분 → 12분` 처럼 자릿수가 바뀌면 ± 버튼이 옆으로 밀린다
      *
-     * → 색은 배경과 무관한 것으로 바꾸고(테두리), 숫자 칸 폭을 **고정**한다.
      *   버튼도 키운다 — 이건 신호 대기 중에 누르는 것이다.
      */
     return (
@@ -204,10 +199,10 @@ function CargoForm({ r, pickup, live, on, actualDwell }: {
      *
      * 기사님: *"다 나르고 나니까 **15분이 걸렸다**고 알 수 있는 거야."*
      *
-     * ── 🔴 하루 만에 B → A 로 뒤집었다 ──
+     * ── 🔴 콜 옵션 표는 고치지 않는다 ──
      *
-     * 처음엔 이 배지가 콜 옵션 표의 「박스당 분」을 **되돌려 계산해** 고쳤다. 그건
-     * **앞으로 잡을 모든 콜**의 규칙을 바꾸는 짓이다 — 오늘 이 짐이 무거웠다는 사실이
+     * 배지가 콜 옵션 표의 「박스당 분」을 **되돌려 계산해** 고치면
+     * **앞으로 잡을 모든 콜**의 규칙이 바뀐다 — 오늘 이 짐이 무거웠다는 사실이
      * 내일 남의 짐 예측까지 바꾸면 안 된다.
      *
      * ── 무엇을 저장하나 ──
@@ -329,8 +324,8 @@ function CargoForm({ r, pickup, live, on, actualDwell }: {
 }
 
 /**
- * 격자 선택 규칙 — `StopCallSheet.extendRange` 를 그대로 옮겼다.
- * 어떤 탭도 선택을 통째로 날리지 않는다 (기사님 실측 2026-08-19).
+ * 격자 선택 규칙.
+ * 어떤 탭도 선택을 통째로 날리지 않는다 (기사님 실측).
  */
 function extendRange(from: string | undefined, until: string, tapped: string):
     { from: string | undefined; until: string } {
@@ -344,10 +339,10 @@ interface SlotPick { until?: string; from?: string; touched: boolean }
 
 /**
  * 도착시간 격자 — 밑값(도착 예상)은 **저장된 행**에서 온다. 계산하지 않는다.
- * `pick`/`onPick` 이 오면 이식된 것 — 옛 시트의 탭 규칙 그대로 움직인다.
+ * `pick`/`onPick` 이 오면 누를 수 있다 — 위 격자 선택 규칙대로 움직인다.
  *
  * 🔄 예외 하나 — **다섯 칸이 전부 과거가 된 격자**(약속이 깨진 채 자정을 넘긴 콜)만
- *    지금+남은 주행으로 다시 편다 (shared `slotBaseMs` — 재약속 모드 · 2026-08-22).
+ *    지금+남은 주행으로 다시 편다 (shared `slotBaseMs` — 재약속 모드).
  *    살아 있는 격자는 그대로다 — 분 틱에 흔들리지 않는다.
  */
 function SlotGrid({ r, pick, onPick, stopKind, driveMin }: {
@@ -368,16 +363,16 @@ function SlotGrid({ r, pick, onPick, stopKind, driveMin }: {
     const baseMs = onPick ? slotBaseMs(predicted, Date.now(), driveMin) : Date.parse(predicted);
     const repromise = baseMs !== Date.parse(predicted);   // 죽은 격자를 지금 기준으로 다시 폈다
     const slots = Array.from({ length: 5 }, (_, i) => new Date(baseMs + i * 30 * 60_000).toISOString());
-    // 이식 전(모양만)이거나 아직 안 누른 상태 — 저장된 약속과 가장 가까운 칸에 불
+    // 모양만이거나 아직 안 누른 상태 — 저장된 약속과 가장 가까운 칸에 불
     const nearest = (iso: string | null) => iso == null ? undefined
         : slots.reduce((best, s) => Math.abs(Date.parse(s) - Date.parse(iso)) < Math.abs(Date.parse(best) - Date.parse(iso)) ? s : best, slots[0]);
     const until = pick?.touched ? pick.until : (pick?.until ?? nearest(storedPromise));
-    /* 🔴 저장된 **"부터"도 읽는다** (기사님 실측 2026-08-21) — 기간(04:16~05:16)으로 저장했는데
-       격자가 "까지"만 그려서 기간이 사라진 것처럼 보였다. 저장은 되고 있었다 — 표시가 문제였다 */
+    /* 🔴 저장된 **"부터"도 읽는다** — "까지"만 그리면 기간(04:16~05:16)으로 저장한 약속이
+       사라진 것처럼 보인다 */
     const from = pick?.touched ? pick.from : nearest(storedFrom);
 
     const tap = onPick ? (iso: string) => {
-        // 옛 시트의 규칙 그대로 — 양 끝을 다시 누르면 그 끝만 푼다
+        // 양 끝을 다시 누르면 그 끝만 푼다
         if (until === iso && !from) { onPick({ until: undefined, from: undefined, touched: true }); return; }
         if (from === iso) { onPick({ until, from: undefined, touched: true }); return; }
         if (until === iso && from) { onPick({ until: from, from: undefined, touched: true }); return; }
@@ -529,7 +524,7 @@ const arriveBtn = 'flex-1 py-2.5 rounded-md bg-warning text-white text-[13px] fo
 const doneBtn = 'flex-1 py-2.5 rounded-md bg-success text-white text-[13px] font-black';
 
 /**
- * 🚚 이식 ①②: 통화 두 단계 — 행 값으로 시작해, 저장은 옛 시트와 같은 문으로.
+ * 🚚 ①②: 통화 두 단계 — 행 값으로 시작해, 저장은 다른 화면과 같은 문으로.
  * 상차는 짐 폼 전부, 하차는 방법·후작업만 (짐은 상차에서 정해진다 — 테이블에 칸도 없다).
  */
 function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrevMs, segmentDriveMinutes }: {
@@ -560,7 +555,7 @@ function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrev
                 tags: pickup && cargo.tags.length ? cargo.tags : undefined,
                 protections: pickup && cargo.protections.length ? cargo.protections : undefined,
                 afterworks: !pickup && cargo.afterworks.length ? cargo.afterworks : undefined,
-                // 🔴 손댄 것만 약속으로 — 안 누른 추천값은 싣지 않는다 (옛 시트의 규칙 그대로)
+                // 🔴 손댄 것만 약속으로 — 안 누른 추천값은 싣지 않는다
                 promisedArrivalAt: pick.touched ? pick.until : undefined,
                 promisedArrivalFromAt: pick.touched ? pick.from : undefined,
                 memo: memo || undefined,
@@ -592,7 +587,7 @@ function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrev
 }
 
 /**
- * 🚚 이식 ③⑤: 도착 두 단계 — 사유 칩 + [건너뛰기][📍 도착] / 이미 도착이면 [도착 취소].
+ * 🚚 ③⑤: 도착 두 단계 — 사유 칩 + [건너뛰기][📍 도착] / 이미 도착이면 [도착 취소].
  * 🔴 `predictedAt` 은 저장된 행의 값을 싣는다 — 버튼 누른 시각으로 예측을 만들지 않는다.
  */
 function LiveArrive({ orderId, r, step }: { orderId: string; r: Record<string, any>; step: string }) {
@@ -643,9 +638,9 @@ function LiveArrive({ orderId, r, step }: { orderId: string; r: Record<string, a
 }
 
 /**
- * 🚚 이식 ④⑥: 완료 두 단계 — 실측 짐을 적고, 완료가 곧 다음 단계다.
- * 옛 시트와 같은 순서로 나간다: `save('ACTUAL')` → `report-milestone`.
- * 실측 폼은 **실측이 있으면 실측, 없으면 계획을 복사**해서 시작한다 (옛 loadInto 그대로).
+ * 🚚 ④⑥: 완료 두 단계 — 실측 짐을 적고, 완료가 곧 다음 단계다.
+ * 이 순서로 나간다: `save('ACTUAL')` → `report-milestone`.
+ * 실측 폼은 **실측이 있으면 실측, 없으면 계획을 복사**해서 시작한다.
  */
 function LiveDone({ orderId, r, step, codAmount }: {
     orderId: string; r: Record<string, any>; step: string; codAmount?: number | null;
@@ -692,7 +687,7 @@ function LiveDone({ orderId, r, step, codAmount }: {
         }
     };
 
-    // ⚠️ 통화 대비 실측 배수 — 옛 시트의 경고 그대로 (계획과 실측이 한 행에 있어 조인이 없다)
+    // ⚠️ 통화 대비 실측 배수 경고 (계획과 실측이 한 행에 있어 조인이 없다)
     const dPts = unitPoints(r.planned_unit, r.planned_quantity);
     const aPts = unitPoints(cargo.unit, cargo.qty);
     const mismatch = pickup && dPts > 0 && aPts > 0 && Math.abs(aPts / dPts - 1) >= 0.01 ? aPts / dPts : null;
@@ -744,7 +739,7 @@ function LiveDone({ orderId, r, step, codAmount }: {
             )}
 
             <div className="flex gap-1.5">
-                {/* ⏭️ 기록 없이 다음으로 — 하차 완료는 콜의 끝이라 건너뛸 수 없다 (옛 규칙 그대로) */}
+                {/* ⏭️ 기록 없이 다음으로 — 하차 완료는 콜의 끝이라 건너뛸 수 없다 */}
                 {pickup && !done && (
                     <button type="button" title="기록 없이 다음 단계로"
                         onClick={() => socket.emit('report-milestone', { orderId, milestone: 'PICKED_UP', source: 'SKIPPED' })}
@@ -765,7 +760,7 @@ function LiveDone({ orderId, r, step, codAmount }: {
                     {done ? `✓ ${pickup ? '상차' : '하차'}완료 ${hhmm(r.occurred_at)} · 취소`
                           : `${pickup ? '📦 상차 완료' : '🏁 하차 완료'}${reasons.length ? ` (문제 ${reasons.length}건)` : ''}`}
                 </button>
-                {/* 상차 취소는 완료 전에만 — 방출로 처리된다 (옛 시트와 같은 문·같은 동작) */}
+                {/* 상차 취소는 완료 전에만 — 방출로 처리된다 */}
                 {pickup && !done && (
                     <button type="button"
                         onClick={() => socket.emit('cancel-at-stop', { orderId, stopType: 'pickup', reason: '현장 상차 불가' })}
@@ -798,19 +793,18 @@ function MemoRow({ r }: { r: Record<string, any> }) {
 /**
  * 단계 하나 = 시트 하나. `stepsView()` 의 항목을 그대로 받는다.
  * 안 태어난 단계(born=false)는 통째로 흐리게 — 회색 예정.
- * `orderId` 가 있고 태어난 행이면 **이식된 단계는 진짜로 움직인다.**
+ * `orderId` 가 있고 태어난 행이면 **버튼이 진짜로 저장한다.**
  */
 /** 헤더에 그릴 장소 — 카드가 경로에서 꺼내 준다 (행에는 없는 값) */
 export interface StepPlace { name?: string; address?: string; phone?: string }
 
 /**
- * 🎛️ **모양만이던 버튼을 목업에서만 누를 수 있게 한다** (기사님 2026-09-05).
+ * 🎛️ **모양만이던 버튼을 목업에서만 누를 수 있게 한다** (기사님).
  *
- * 🔴 이 시트는 `orderId` 가 없으면 «아직 이식 안 된 자리»로 보고 버튼을 `<span>` 으로
- *    그렸다. 그런데 목업은 **저장을 내보내면 안 되므로** `orderId` 를 안 준다 —
- *    그래서 **눌러도 아무 일이 없었다.** 「끌었는데 아무 일이 없는」 손잡이와 같은 병이다.
+ * 🔴 이 시트는 `orderId` 가 없으면 버튼을 `<span>` 으로 그린다. 목업은 **저장을 내보내면
+ *    안 되므로** `orderId` 를 안 준다 — `onMock` 이 없으면 눌러도 아무 일이 없다.
  *
- * 🔴 **실물은 한 줄도 안 바뀐다** — `onMock` 을 안 주면 예전 그대로 `<span>` 이다.
+ * 🔴 **실물은 `onMock` 을 안 준다** — 그러면 버튼은 `<span>` 이다.
  *    목업만 이 문을 열어 «눌러 보는» 자리를 얻는다.
  */
 function MockBtn({ cls, label, onMock, children }: {
@@ -830,7 +824,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
     place?: StepPlace;
     /** 하차 문장의 앞 정거장 이름 · 상차 정차(분) — 타임라인·상차 행에서 온다 */
     prevName?: string | null; leadMinutes?: number | null;
-    /** 🚚 타임라인이 만든 값 — 시트는 그리기만 한다 (의 그 원칙) */
+    /** 🚚 타임라인이 만든 값 — 시트는 그리기만 한다 */
     departPrevMs?: number | null; segmentDriveMinutes?: number | null;
 }) {
     const { step, row: r } = view;
@@ -839,7 +833,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
     const isArrive = step === 'ARRIVE_PICKUP' || step === 'ARRIVE_DROPOFF';
     const isDone = step === 'LOADED' || step === 'DELIVERED';
     const pickup = step === 'CALL_PICKUP' || step === 'ARRIVE_PICKUP' || step === 'LOADED';
-    const liveNow = born && !!orderId;   // 🚚 이식 완료 — 태어난 행은 전부 살아 있다
+    const liveNow = born && !!orderId;   // 🚚 태어난 행은 전부 살아 있다
 
     return (
         <div className={`flex flex-col gap-2 rounded-lg border border-border-card bg-surface-alt/20 p-2.5 ${born ? '' : 'opacity-45'}`}>
@@ -866,7 +860,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
                         : <><b className="text-text-primary">🚚 차종 기본값</b> — {r.planned_unit ? `${r.planned_unit} ${r.planned_quantity ?? ''}` : ''} 분량으로 눌러 뒀습니다. 통화로 확인하고 고치세요</>}
                 </div>
             )}
-            {/* 통화 단계 — 이식됐으면 진짜, 아니면 모양만 */}
+            {/* 통화 단계 — 살아 있으면 진짜, 아니면 모양만 */}
             {isCall && (liveNow
                 ? <LiveCall orderId={orderId!} r={r} pickup={pickup} place={place}
                     prevName={prevName} leadMinutes={leadMinutes}
@@ -883,7 +877,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
                 </>
             ))}
 
-            {/* 도착 단계 — 이식됐으면 진짜, 아니면 모양만 */}
+            {/* 도착 단계 — 살아 있으면 진짜, 아니면 모양만 */}
             {isArrive && liveNow && <LiveArrive orderId={orderId!} r={r} step={step} />}
             {isArrive && !liveNow && (
                 <>
@@ -902,7 +896,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
                 </>
             )}
 
-            {/* 완료 단계 — 이식됐으면 진짜 */}
+            {/* 완료 단계 — 살아 있으면 진짜 */}
             {isDone && liveNow && <LiveDone orderId={orderId!} r={r} step={step} codAmount={codAmount} />}
 
             {/* 상차 완료 — 모양만 (안 태어난 예정) */}
