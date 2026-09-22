@@ -36,7 +36,7 @@ export interface InjectedBatch {
     /** 회차 — 서버가 이전 콜을 리셋할 때마다 오른다 (시나리오 다시 시작) */
     round: number;
     calls: InjectedCall[];
-    /** 🫳 이번 회차에서 거둔 번호 전부(누적) — 채점이 끝난 문제지 줄의 콜 · «다른 기사가 가져갔다». 옛 서버면 칸이 없다 */
+    /** 🫳 이번 회차에서 거둔 번호 전부(누적) — 채점이 끝난 문제지 줄의 콜 · «다른 기사가 가져갔다». 칸이 없으면 빈 목록으로 본다 */
     withdrawn: number[];
 }
 
@@ -69,13 +69,13 @@ export function toInjectedForced(c: InjectedCall): ForcedPair {
  * 받은 묶음 → 이번에 낼 콜 · 다음에 물을 자리 · 목록을 비우나.
  *
  *   · 처음 묻는다(`cursor` 가 null) → 콜은 안 내고 지금 번호·회차만 기억한다 — 열기 전에 낸 콜을 다시 내지 않고,
- *     🔴 목록도 안 비운다 (화면을 열 때마다 비우면 안 된다 · onedal-49 2026-09-15)
+ *     🔴 목록도 안 비운다 (화면을 열 때마다 비우면 안 된다 · onedal-49)
  *   · 서버 번호가 내 번호보다 작다 → 서버를 다시 띄웠다. 다음 물음에서 처음부터 받는다 — 회차도 달라졌으면 **비우고** 받는다
  *   · 회차가 바뀌었다 → 이전 콜을 리셋했다(시나리오 다시 시작). **목록을 비우고** 내 번호 뒤의 콜을 낸다
  *   · 그 밖 → 내 번호 뒤의 콜을 번호 순서대로
  */
 export function takeInjected(cursor: InjectedCursor | null, batch: InjectedBatch): { cursor: InjectedCursor; calls: InjectedCall[]; clear: boolean; withdrawn: number[] } {
-    /* 🫳 거둔 번호는 그대로 넘긴다 — 목록 행과 짝짓는 것은 받은 콜을 기억하는 훅이다. 옛 서버면 칸이 없다 */
+    /* 🫳 거둔 번호는 그대로 넘긴다 — 목록 행과 짝짓는 것은 받은 콜을 기억하는 훅이다. 칸이 없으면 빈 목록으로 본다 */
     const withdrawn = Array.isArray(batch.withdrawn) ? batch.withdrawn : [];
     if (cursor === null) return { cursor: { seq: batch.lastSeq, round: batch.round }, calls: [], clear: false, withdrawn };
     const clear = batch.round !== cursor.round;
