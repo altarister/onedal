@@ -37,17 +37,15 @@ router.get("/", requireAuth, (req, res) => {
 
         // 오늘 날짜(자정 이후)의 복구 대상 오더를 가져옴
         //
-        // 🔴 상태를 손으로 나열하지 않는다.
-        //    예전엔 ('ORDER_CONFIRMED','ORDER_COMPLETED') 뿐이라
-        //    **상차한 콜(ORDER_PICKED_UP)과 하차한 콜(ORDER_DELIVERED)이 빠졌다.**
-        //    새로고침하면 진행 중이던 콜과 완료됨 탭이 통째로 비었다.
+        // 🔴 상태를 손으로 나열하지 않는다 — 나열하면 상차한 콜·하차한 콜을 빠뜨려
+        //    새로고침하면 진행 중이던 콜과 완료됨 탭이 비어 버린다.
         // [임시 · Phase 7 도입 시 삭제] 미완료 콜은 날짜 무관(3일 상한).
         // 복구 쿼리(restoreAndRecalculateSession)와 **같은 창**을 써야 한다 —
         // 어긋나면 소켓에는 있는데 HTTP 에는 없는 콜이 생겨 새로고침마다 깜빡인다.
         const { todayStartIso, unfinishedSinceIso } = restoreWindow(Date.now());
 
         const statusPlaceholders = RESTORABLE_STATUSES.map(() => '?').join(', ');
-        /* 🗓️ 창은 shared `restoreWhere` 한 벌 — 재부팅 복구와 같다 · «오늘 하차»도 (자정 넘긴 운행 · 2026-09-15) */
+        /* 🗓️ 창은 shared `restoreWhere` 한 벌 — 재부팅 복구와 같다 · «오늘 하차»도 (자정 넘긴 운행) */
         const win = restoreWhere(Date.now());
         const stmt = db.prepare(
             `SELECT * FROM orders
@@ -68,12 +66,12 @@ router.get("/", requireAuth, (req, res) => {
             orders: (rows as any[]).map(r => ({
                 ...r,
                 routePolyline: parsePolyline(r.routePolyline),
-                /** 🎨 구간 경계도 함께 편다 — 궤적과 같은 운명이라야 지도가 색을 잃지 않는다 (이식 B1) */
+                /** 🎨 구간 경계도 함께 편다 — 궤적과 같은 운명이라야 지도가 색을 잃지 않는다 */
                 sectionEnds: parseSectionEnds(r.sectionEnds),
-                /** 🧭 구간 주인도 함께 편다 — 셋이 같이 살아야 지도가 색을 낸다 (이식 B2) */
+                /** 🧭 구간 주인도 함께 편다 — 셋이 같이 살아야 지도가 색을 낸다 */
                 sectionStops: parseSectionStops(r.sectionStops),
                 /**
-                 * ⏱️ **구간 주행분** — 2026-09-12 밤에 칸이 생겼다. 이것이 없으면 화면이
+                 * ⏱️ **구간 주행분** — 이것이 없으면 화면이
                  *    경로 홀더를 못 골라 **지도가 직선으로 물러난다** (주석).
                  *    넷은 한 운명이라 **같이** 편다.
                  */
@@ -207,16 +205,14 @@ router.post("/confirm", (req, res) => {
             /**
              * 🔴 **안전망은 조건 없이 건다**.
              *
-             * 예전에는 이 타이머가 바로 위 `if (session.activeFilter.isActive)` **안에** 있었다.
-             * 그런데 그 블록은 자기가 `isActive` 를 끈다 — 즉 필터가 꺼진 채로 들어온 확정은
-             * **안전망이 아예 안 걸렸다.** 앱이 리스트로 빠져나가면 관제탑 카드가 영원히 남고
-             * `isActive` 도 꺼진 채라 콜 잡기가 통째로 멈춘다.
-             * MANUAL 콜(기사님이 손으로 잡는 것)은 필터와 무관하게 들어오므로 특히 그랬다.
+             * 바로 위 `if (session.activeFilter.isActive)` 블록은 자기가 `isActive` 를 끈다 — 그 안에 두면
+             * 필터가 꺼진 채 들어온 확정(특히 MANUAL 콜)에는 안전망이 안 걸려, 앱이 리스트로 빠져나가면
+             * 관제탑 카드가 영원히 남고 콜 잡기가 통째로 멈춘다.
              *
              * 안전망이 **조건부면 안전망이 아니다.**
              *
              * ⚠️ 타이머는 **ID 를 저장해 취소 가능하게** 한다 (CLAUDE.md 규칙 ② 좀비 타이머).
-             *    예전에는 저장하지 않아, 콜이 정상 처리된 뒤에도 30초 뒤 깨어나 사고를 쳤다.
+             *    저장하지 않으면 콜이 정상 처리된 뒤에도 30초 뒤 깨어나 사고를 친다.
              */
             /**
              * ⏱️ **몇 초인가는 그 콜 배차망의 값이다** (DB).
