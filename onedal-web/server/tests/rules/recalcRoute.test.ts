@@ -17,8 +17,8 @@ describe('경로 재탐색 — 두 기억 동시 갱신', () => {
 
     it('🔴 단독 재계산이 myOrders 쌍둥이에도 경로를 쓴다', () => {
         const solo = fn.slice(0, fn.indexOf('} else {'));
-        /* 🔄 2026-09-12 밤 — 싣는 일과 **장부에 적는 일**을 한 이름으로 묶으며 개명했다
-             (`applySoloRouteAndSave` · `routeSaved.test.ts`). 두 곳에 쓰는 규칙은 그대로다 */
+        /* 🔄 싣는 일과 **장부에 적는 일**은 한 이름(`applySoloRouteAndSave` · `routeSaved.test.ts`)이 한다.
+             두 곳에 쓰는 규칙은 여기서 본다 */
         expect(solo).toMatch(/applySoloRouteAndSave\(securedOrder, result\)/);
         expect(solo).toMatch(/myOrders\.find\(c => c\.id === orderId\)/);
         expect(solo).toMatch(/applySoloRouteAndSave\(activeTwin as any, result\)/);
