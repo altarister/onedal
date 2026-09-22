@@ -1025,6 +1025,11 @@ export default function PinnedRouteCard({
                                             </div>
                                         </div>
                                     </details>
+                    {/* [Phase 8.5] 방출 · 사무실 취소는 **접어 둔다**.
+                        기사님: "특수한 상황에 클릭해야 할 듯."
+                        주 버튼(도착·완료)과 같은 자리에 두면 잘못 눌러 콜을 잃는다.
+                        ⚠️ decision 은 서버에서 멱등이 아니므로 누른 즉시 잠근다 —
+                           processingId 는 1초 동기화마다 풀려 방어가 되지 않는다. */}
                     {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (
                         <details className="mt-3 group" onClick={(e) => e.stopPropagation()}>
                             <summary className="list-none cursor-pointer text-[11px] font-bold text-text-muted py-1.5 select-none">
@@ -1211,23 +1216,6 @@ export default function PinnedRouteCard({
                         })()}
                     </div>
 
-                    {/* [Phase 8.5] 방출 · 사무실 취소는 **접어 둔다**.
-                        기사님: "특수한 상황에 클릭해야 할 듯."
-                        주 버튼(도착·완료)과 같은 자리에 두면 잘못 눌러 콜을 잃는다.
-                        ⚠️ decision 은 서버에서 멱등이 아니므로 누른 즉시 잠근다 —
-                           processingId 는 1초 동기화마다 풀려 방어가 되지 않는다. */}
-                    {/**
-                      * 🚫 **「이 콜 처리」(방출 · 사무실 취소)를 잠시 내렸다** (기사님 2026-09-05).
-                      *
-                      * 기사님: *"취소를 주석 처리하고 콜의 내용 부분 요소를 목업과 똑같이
-                      * 만들어 주고 하단 스텝도 똑같이 스타일을 적용해 주면 될 것 같아."*
-                      *
-                      * 🔴 **지운 것이 아니다** — 조건만 껐다. 카드는 «위 덩어리 + 스텝» 둘로
-                      *    서야 하는데 스텝 **아래에** 이 서랍이 붙어 카드가 길어졌고,
-                      *    그래서 **스크롤이 두 겹**(본문 + 스텝)으로 보였다.
-                      * ⚠️ **되돌릴 자리다** — 사무실 취소는 기사님이 실제로 쓰시는 길이다
-                      *    (규칙 ① — 콜의 주인은 기사님이다). 자리를 정하면 `false` 를 지운다.
-                      */}
                 </div>
             )}
         </div>

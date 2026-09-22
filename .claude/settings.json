@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/plan-first.mjs\"",
+            "timeout": 10,
+            "statusMessage": "계획 우선 훅 — 이번 차례에 «계획:» 줄이 있나 본다"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -42,13 +42,14 @@ logs/server-YYYY-MM-DD-4012.log   다른 포트(검사·재현용)
 ## 함정
 
 - **조건부 `DROP TABLE` 마이그레이션을 새로 추가하지 않는다** (`db.ts` — 부팅 경로에서 데이터가 날아감).
-  옛것이 둘 남아 있다 (`order_judgments` 재구성 · `orders` 상태값 변환 V7 — 지금 DB 에서는 조건이 안 맞아 안 돈다)
+  부팅할 때 표를 만지는 옛 코드는 하나 남아 있다. `order_judgments` 를 다시 만드는 코드다. 행을 먼저 복사하고 나서 표를 바꾸므로 데이터는 잃지 않는다.
+  `dropStaleCheck()` 도 같은 방식이지만 지금은 아무 데서도 부르지 않는다. V7 은 표를 지우지 않고 `orders` 의 상태값만 `UPDATE` 로 바꾼다.
+  둘 다 지금 DB 에서는 조건이 맞지 않아 실제로 돌지 않는다
 
 - **타이머는 `session.activeTimers` 에 넣어 취소할 수 있게 한다** — 끄는 곳은 `clearOrderTimers` 한 곳이다 (키를 손으로 나열하면 좀비 타이머가 남는다)
 
 - **`CREATE TABLE IF NOT EXISTS` 는 기존 테이블에 컬럼을 추가하지 않는다.** 칸 추가는 `ensureColumns()` 로 한다.
   enum 성 칸에는 `CHECK` 를 걸지 않는다 — 낡은 `CHECK` 는 새 값을 조용히 거부하고 `ALTER` 로 못 고친다 (`db.ts` 머리).
-  (`dropStaleCheck()` 는 남아 있지만 지금 부르는 곳이 없다)
   ⚠️ `tsc`·`jest` 는 통과하고 **런타임에서만** `no such column` 으로 터진다 —
   빈 DB 가 아니라 **기존 DB 사본**으로 부팅해 봐야 드러난다
 

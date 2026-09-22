@@ -1,7 +1,14 @@
 /**
  * 📖 **장부 보기** — 지금 콜이 실제로 어떻게 저장돼 있는지 한 화면에.
+ * 누가: `pnpm db ledger` 가 부른다
+ * 언제: 화면이 말하는 것과 장부에 남은 것이 같은지 볼 때
+ * 어디서: cd onedal-web && pnpm db ledger [건수]
+ * 무엇을: 콜별 단계와 출처(직접 · 자동 · 건너뜀)를 보여 준다
+ * 왜: 화면은 메모리에서, 장부는 DB 에서 오므로 둘이 갈라진다
+ * (잡는 것 · 못 잡는 것 · 검수는 onedal-web/CLAUDE.md 스크립트 표)
  *
- * 기사님(2026-08-19): *"장부에 남았는지 내가 어떻게 알지?"*
+ *
+ * 기사님: *"장부에 남았는지 내가 어떻게 알지?"*
  *
  * 그동안 저장 결과를 확인하려면 매번 물어봐야 했다. 화면은 메모리를 보여주고
  * 장부는 DB 에 있어서, 둘이 갈라진 사고가 여러 번 났다.
@@ -24,7 +31,7 @@ const LIMIT = parseInt(process.argv[2], 10) || 10;
 const hhmm = (iso) => iso ? new Date(iso).toLocaleTimeString('ko-KR',
     { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
 
-/** 출처가 곧 신뢰도다 (2026-08-19) — 직접 · 자동 · 건너뜀 */
+/** 출처가 곧 신뢰도다 — 직접 · 자동 · 건너뜀 */
 const SOURCE_MARK = {
     MANUAL_WEB: '✍️ 직접',
     APP_BUTTON: '✍️ 직접(앱)',
@@ -57,7 +64,7 @@ for (const o of orders.reverse()) {
     console.log(`${short(o.pickup)} → ${short(o.dropoff)}  ·  ${(o.fare || 0).toLocaleString()}원 ${o.vehicleType || ''}`);
     console.log(`  상태 ${o.status}   잡은 시각 ${hhmm(o.capturedAt)}   ${o.id.slice(-14)}`);
 
-    // ── 단계 기록 — 🔄 새 장부(여섯 단계 행)에서 읽는다 (옛 테이블 철거 2026-08-21) ──
+    // ── 단계 기록 — 장부의 여섯 단계 행에서 읽는다 ──
     const STEP_ROWS = [
         ['step_arrive_pickup', 'ARRIVED_PICKUP'], ['step_loaded', 'PICKED_UP'],
         ['step_arrive_dropoff', 'ARRIVED_DROPOFF'], ['step_delivered', 'DELIVERED'],
@@ -73,7 +80,7 @@ for (const o of orders.reverse()) {
             const err = m.predictedAt
                 ? ` (예상 ${hhmm(m.predictedAt)} 대비 ${Math.round((Date.parse(m.occurredAt) - Date.parse(m.predictedAt)) / 60000)}분)`
                 : '';
-            // 📍 도착 사유 — 겪은 일이 여기 남는다 (2026-08-19)
+            // 📍 도착 사유 — 겪은 일이 여기 남는다
             const why = m.reasons ? `  ⚠️ ${JSON.parse(m.reasons).join(' · ')}` : '';
             console.log(`     ${hhmm(m.occurredAt)}  ${(STEP_LABEL[m.milestone] || m.milestone).padEnd(12)} ${SOURCE_MARK[m.source] || m.source}${err}${why}`);
         }

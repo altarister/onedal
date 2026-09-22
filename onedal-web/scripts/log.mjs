@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 /**
- * 📜 **서버 로그 읽기 — 부팅 · 수상한 줄 · 콜별 흐름 · 장부 대조** (기사님 지시 2026-09-14).
+ * 📜 **서버 로그 읽기 — 부팅 · 수상한 줄 · 콜별 흐름 · 장부 대조** (기사님 지시).
+ * 누가: 에이전트 · 기사님
+ * 언제: 서버 로그를 분석할 때
+ * 어디서: cd onedal-web && pnpm log [call <id 앞부분>]
+ * 무엇을: 부팅 · 소켓 · 수상한 줄 · 콜별 흐름 · 장부 대조를 읽는다
+ * 왜: grep 을 손으로 짜면 같은 함정에 여러 번 빠진다
+ * (잡는 것 · 못 잡는 것 · 검수는 onedal-web/CLAUDE.md 스크립트 표)
+ *
  *
  * 기사님: *"로그 분석해봐줘 … 나중에 로그 분석하는 스킬이나 스크립트 만들어도 좋겠다."*
  *
@@ -13,7 +20,7 @@
  * 쓰기:
  *   pnpm log                           오늘(포트 4000) 요약 — 부팅 · 소켓 · 수상한 줄 · 콜별 장부 대조
  *   pnpm log call <콜 id 앞부분>        그 콜의 흐름 — ☁️ 서버 줄 / 🖥️ 관제웹 줄, 같은 줄은 접는다
- *   옵션  --date 2026-09-13 · --port 4012 · --file <경로> · --since 04:20 · --until 05:00
+ *   옵션  --date YYYY-MM-DD · --port 4012 · --file <경로> · --since 04:20 · --until 05:00
  *         --db <server/ 기준 DB 파일 이름>  — 다른 DB 와 대조한다 (예: 사본으로 검수할 때)
  *
  * ⚠️ **읽기만 한다.** 장부 대조는 «포트 4000 로그 ↔ server/local.db» 일 때만 한다
@@ -107,7 +114,7 @@ if (opt.db || (port === '4000' && !opt.file)) {
 const orderOf = (u) => db?.prepare('SELECT status FROM orders WHERE id = ?').get(u) ?? null;
 /**
  * 단계 행 — 🔴 **행이 있다 ≠ 끝났다.** 출생은 `PLANNED`(시각 없음)으로 태어나고, 일어나면 `occurred_at` 이 찬다.
- *    처음엔 행 수를 «단계 6/6»으로 세서 상차만 한 콜을 «다 끝났다»로 읽었다 (2026-09-14).
+ *    처음엔 행 수를 «단계 6/6»으로 세서 상차만 한 콜을 «다 끝났다»로 읽었다.
  */
 const stepsOf = (u) => Object.fromEntries(Object.entries(STEP_TABLE).map(([label, t]) =>
     [label, db?.prepare(`SELECT status, occurred_at, source FROM ${t} WHERE orderId = ?`).get(u) ?? null]));

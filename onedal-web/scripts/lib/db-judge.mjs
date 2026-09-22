@@ -1,5 +1,12 @@
 /**
  * 📖 **판정 전수 보기** — DB 에 쌓인 실전 판정 스냅샷을 한눈에 대조·분석.
+ * 누가: `pnpm db judge` 가 부른다
+ * 언제: 판정 결과를 전수로 볼 때
+ * 어디서: cd onedal-web && pnpm db judge [건수]
+ * 무엇을: DB 의 판정 스냅샷을 한눈에 대조한다
+ * 왜: 판정 색이 왜 그렇게 나왔는지는 숫자로 봐야 한다
+ * (잡는 것 · 못 잡는 것 · 검수는 onedal-web/CLAUDE.md 스크립트 표)
+ *
  *
  *   cd onedal-web && pnpm db judge           최근 15건
  *   cd onedal-web && pnpm db judge 50        최근 50건
