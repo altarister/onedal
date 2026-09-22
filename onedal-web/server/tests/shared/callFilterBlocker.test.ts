@@ -1,12 +1,12 @@
 import { callFilterBlocker, type AutoDispatchFilter } from '@onedal/shared';
 
 /**
- * 🔴 2026-08-12 — **빈 필터가 "제한 없음"으로 읽히던 것을 막는다.**
+ * 🔴 **빈 필터를 "제한 없음"으로 읽지 않는다 — 콜 잡기를 멈춘다.**
  *
  * 앱(`InsungParser.kt` · `Hwamul24Parser.kt`)과 서버(`OrderEvaluator`)가
- * 둘 다 "도착지 키워드가 없으면 통과" 였다. 두 겹이 같은 방향으로 열려 있어서
+ * 둘 다 "도착지 키워드가 없으면 통과" 로 읽으면 두 겹이 같은 방향으로 열린다 —
  * 경유 계산이 실패하거나 목적지가 비면 `isActive` 는 켜진 채
- * **도착지 제한만 사라졌다.** 필터가 느슨해지는 게 아니라 없어지는 것이다.
+ * **도착지 제한만 사라진다.** 필터가 느슨해지는 게 아니라 없어지는 것이다.
  */
 const base: AutoDispatchFilter = {
     allowedVehicleTypes: [],
