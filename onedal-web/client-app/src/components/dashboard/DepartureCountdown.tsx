@@ -20,8 +20,8 @@ import { departureDue } from '../../lib/sheetStatus';
  * 그 남은 시간이 곧 **대기 예산**이다 — 우회에 쓰는 시간과 목적이 다르다.
  * 우회 예산은 "돌아가도 되는 시간"이고, 대기 예산은 **"여기 서서 더 좋은 콜을 기다리는 시간"** 이다.
  *
- * ⚠️ 마감을 아직 통화로 안 정했으면 기사님의 두 원칙으로 **추정**한다
- *    (일과 17시 · 이동 제외 2시간). 추정이라는 것을 숨기지 않는다.
+ * ⚠️ 약속을 아직 통화로 안 정했으면 판정 기준 탭의 시간 칸으로 **추정**한다
+ *    (상차 = 잡은 시각 + 상차 약속 분 · 하차 = 상차 완료 + 배송 주행 × 데드라인 %). 추정이라는 것을 숨기지 않는다.
  */
 interface Props {
     orders: SecuredOrder[];
@@ -35,7 +35,7 @@ interface Props {
 export interface DepartureDue { due: string; late: boolean; tight: boolean; title: string }
 
 /**
- * 🚩 **상자를 걷고 시트 상태바 한 조각으로** (기사님 2026-09-15 · 여섯 번째 바퀴).
+ * 🚩 **상자가 아니라 시트 상태바 한 조각으로** (기사님).
  *    *"~ 출발 시각이 지났습니다 이 영역이 너무 두꺼워서 컨텐츠를 모두 가린다. 박스는 지우고 내용은 시트 현황 바에 넣어줘 (몇분 지각 / 몇시 출발)"*
  *    🔴 계산은 그대로 여기 한 곳이다 — 말만 `sheetStatus.departureDue` 가 짓는다. 근거(주행·정차·약속·버퍼)는 버리지 않고 `title` 에 싣는다 (규칙 ④).
  */
@@ -58,31 +58,28 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
     /**
      * 아직 상차하지 않은 콜 중 **가장 먼저 나가야 하는** 것.
      *
-     * 시간 파생은 `deriveCallTiming` 한 곳에서만 한다 — 예전에는 여기서
-     * `PinnedRouteCard` 와 같은 계산(단독 구간 선택·접근 거리·상차 정차)을 복제했다.
-     * 한쪽만 고치면 카운트다운과 통화 화면이 **다른 시각**을 말한다.
+     * 시간 파생은 `deriveCallTiming` 한 곳에서만 한다 — 여기서 같은 계산(단독 구간 선택·
+     * 접근 거리·상차 정차)을 따로 두면, 한쪽만 고칠 때 카운트다운과 통화 화면이 **다른 시각**을 말한다.
      */
     // 🔴 basis: 추정 근거를 실제 계산대로 — 두 시계(⑯): 상차는 "상차 시계(잡음+잠정)",
-    //    하차는 "배달 데드라인(상차 완료+150%)". 여유30 카피는 폐기됐다
+    //    하차는 "배달 데드라인(상차 완료+150%)"
     /**
      * 🧾 `detail` — **왜 그 시각인지**. 분기마다 뺄셈이 다르므로 문구도 각자 만든다.
      *
-     * 기사님 실측: *"콜 잡은 시간 17:14:44, 상차지 18:00 이면 대략 46분 후
-     * 출발이어야 하는데 30분으로 나온다. 예전 코드인 거야?"* — 30분이 맞았다
-     * (18:00 − 접근 주행 15분 = 17:45). 그런데 **그 15분이 화면에 없어서** 확인할
-     * 방법이 없었다. 지금 돌고 있는 타임라인 분기가 내역을 `null` 로 비워 뒀던 탓이다.
+     * 주행·앞 정차 분을 함께 적는다 — 예: 상차 18:00 − 접근 주행 15분 = 17:45 출발.
+     * **그 15분이 화면에 없으면** 기사님이 시각을 검산할 방법이 없다.
      */
     let soonest: { at: string; estimated: boolean;
                    detail: string | null; waitMin: number | null;
                    boundBy: string | null; basis: string } | null = null;
 
     /**
-     * 🧭 **경로 타임라인이 원천이다** (기사님 2026-08-19): *"어떤 콜이건 가장 빨리
+     * 🧭 **경로 타임라인이 원천이다** (기사님): *"어떤 콜이건 가장 빨리
      * 출발해야 하는 것 기준으로 노출되어야 한다."*
      *
-     * 🔴 예전에는 콜별 deriveCallTiming 의 departureAt 만 모았는데, 합짐은 단독
-     *    주행값이 없어 departureAt 이 null → **후보에서 조용히 빠졌다.** 첫짐 혼자
-     *    남아 1:20:57 이 떴다. 타임라인은 경로 위에서 누적하므로 합짐도 들어온다.
+     * 🔴 콜별 deriveCallTiming 의 departureAt 만 모으면, 합짐은 단독 주행값이 없어
+     *    departureAt 이 null → **후보에서 조용히 빠지고** 첫짐 혼자 남는다.
+     *    타임라인은 경로 위에서 누적하므로 합짐도 들어온다.
      *    하차 약속도 출발을 묶는다 — 상차만 보지 않는다.
      */
     const reportsOf = (id: string) => (records.get(id) ?? EMPTY_RECORDS).reports;
@@ -94,7 +91,7 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
     const timeline = deriveRouteTimeline(routeStops, orders, reportsOf, milestonesOf, now, routeComputedAt, rules, unk, dwellLedgerOf);
     /**
      * 🧮 **경로 최소 버퍼** (⑯-1) — 콜별이 아니라 **내 콜 전부의 최소값**이 예산이다.
-     * 기사님 실측: 콜별 +60 이 아니라 +6 이 진실 — 여기(항상 떠 있는 줄)에
+     * 콜별로 +60 이어도 경로 최소가 +6 이면 +6 이 실을 수 있는 시간이다 — 여기(항상 떠 있는 줄)에
      * 하나만 적는다. 콜카드의 칩은 "이 콜의 약속"이고 이것은 "지금 더 실을 수 있는 시간"이다.
      */
     const minBuf = minRouteBuffer(timeline);
@@ -116,7 +113,7 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
         };
     }
 
-    // 폴백 — 경로 순서가 아직 없다 (옛 서버 · 연산 전/실패). 콜별 파생으로라도 센다
+    // 폴백 — 경로 순서가 아직 없다 (서버가 안 보냄 · 연산 전/실패). 콜별 파생으로라도 센다
     if (!soonest) for (const o of orders) {
         const r = records.get(o.id) ?? EMPTY_RECORDS;
         // 이미 상차했으면 출발을 기다릴 이유가 없다 (그 콜은 우회 예산 쪽이다)
@@ -127,7 +124,7 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
         if (!soonest || new Date(t.departureAt).getTime() < new Date((soonest as any).at).getTime()) {
             // 🔴 내역을 함께 담는다 — 기사님이 **왜 그 시각인지** 알아야 판단하실 수 있다
             soonest = { at: t.departureAt, estimated: t.deadlineEstimated,
-                        // 폴백은 옛 규칙(마감 = 실어 보내는 시각)이라 상차 정차까지 뺀다
+                        // 폴백은 마감을 실어 보내는 시각으로 보므로 상차 정차까지 뺀다
                         detail: t.approachMinutes != null
                             ? `주행 ${t.approachMinutes}, 상차 ${t.pickupDwell}` : null,
                         waitMin: t.waitMinutes,
