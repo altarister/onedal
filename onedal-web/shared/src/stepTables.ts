@@ -20,11 +20,9 @@
  *    ```
  *    이름이 같다고 같은 값이 아니다. 그래서 컬럼마다 **그 단계에서의 뜻**을 옆에 적는다.
  *
- * 🔴 **지금 장부의 유일한 원천이다.** 옛 표(`stop_cargo_reports`·`order_milestones`)는
- *    2026-08-21 에 철거됐고, 판정·화면·복구가 전부 이 여섯을 읽는다
+ * 🔴 **지금 장부의 유일한 원천이다** — 판정·화면·복구가 전부 이 여섯을 읽는다
  *    (`stepSeeder` · `helpers` · `OrderEvaluator` · `filterManager` · `socketHandlers`).
- *    ⚠️ 예전 주석은 *"아직 아무도 안 읽는다 — 모양을 보고 합칠지 정한다"* 였다.
- *       그 말을 믿고 이 표를 함부로 바꾸면 세 앱이 동시에 흔들린다
+ *    이 표를 바꾸면 세 앱이 동시에 흔들린다
  */
 
 import type { CallStepId } from './callSteps';
@@ -89,7 +87,7 @@ const CALL_DROPOFF: StepTable = {
         ['promisedArrivalAt',     'promised_arrival_at',      'TEXT', '🔴 **하차 약속** — 상차 통화에서 들은 값(`onward`)이 여기 미리 채워진다'],
         ['promisedArrivalFromAt', 'promised_arrival_from_at', 'TEXT', '구간 약속의 **"부터"**'],
 
-        // 🔴 **짐의 단위·수량은 여기 없다** (기사님 2026-08-20: *"파레트 수량은 빼야 한다"*).
+        // 🔴 **짐의 단위·수량은 여기 없다** (기사님: *"파레트 수량은 빼야 한다"*).
         //    짐은 상차에서 정해지고 하차는 그것을 **내릴 뿐**이다. 복사해 두면 두 벌이 되어
         //    상차에서 라면박스로 고쳤을 때 하차만 파레트로 남는다 (규칙 ③).
         //    필요하면 `step_loaded` 의 실측을, 없으면 `step_call_pickup` 의 계획을 읽는다.
@@ -205,9 +203,7 @@ export const STEP_TABLES: readonly StepTable[] = [
 ];
 
 /**
- * 🪦 `stepTableOf(step)` 은 2026-08-29 에 지웠다 — 부르는 곳이 0 이었고,
- *    필요하면 `STEP_TABLES.find(t => t.step === step)` 한 줄이면 된다.
- *    (같은 날 캔 여덟 중 **유일하게 진짜 죽어 있던 것** — 나머지는 «이어야 할 것»이었다)
+ * 단계로 표를 찾을 때는 `STEP_TABLES.find(t => t.step === step)` 한 줄을 쓴다.
  */
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
