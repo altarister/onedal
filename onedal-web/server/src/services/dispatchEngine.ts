@@ -12,7 +12,10 @@ import { rememberOrder } from "../state/orderMemory";
 import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, homeCallsOf } from "../state/filterManager";
 import { recordCallTarget } from "../core/callTargetEvents";
 import { getActivePolyline, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
-import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline, type RouteHolder } from "./routeComposer";
+import { composeMergedRoute, type PromiseOrderOpts, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline, type RouteHolder } from "./routeComposer";
+import { firmPromiseMsOf } from "./stepSeeder";
+import { DEFAULT_JUDGMENT } from "@onedal/shared";
+import type { JudgmentConfig } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
@@ -172,6 +175,24 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
 }
 
 /** 취소/방출 등 메모리 변동 발생 시, 오더가 남아있다면 카카오 경로를 백그라운드에서 재탐색하여 폴리라인 및 소요시간을 복원합니다. */
+/**
+ * ⏱️ **경로 순서에 넘길 «굳은 약속» 재료** (기사님 확정: *"전화한 후 한 약속은 지킨다"*).
+ *
+ * 통화로 닫힌 약속만 넘긴다(`firmPromiseMsOf`). 넘기면 `planMergedStops` 가 남은 정거장 순서를 펴서
+ * **약속을 가장 덜 넘기는 순서**를 고르고, 없으면 지금처럼 «지나가는 길목부터»다.
+ * 속도·정차는 판정 기준의 값을 그대로 쓴다 — 순서를 고르는 눈금을 따로 만들지 않는다 (규칙 ③).
+ */
+function promiseOrderOpts(session: { judgment?: JudgmentConfig }): PromiseOrderOpts {
+    const j = session.judgment ?? DEFAULT_JUDGMENT;
+    return {
+        nowMs: Date.now(),
+        promiseAt: (orderId: string, stopType: 'pickup' | 'dropoff') => firmPromiseMsOf(orderId, stopType),
+        speedKmh: j.speed?.midKmh,
+        dwellMin: (s: 'pickup' | 'dropoff') =>
+            s === 'pickup' ? j.unknown.pickupDwellMin : j.unknown.dropoffDwellMin,
+    };
+}
+
 export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     const session = getUserSession(userId);
 
@@ -223,6 +244,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
                 origin: originOf(session),
                 priority: routingOptions.defaultPriority,
                 carType: routingOptions.carType,
+                promiseOpts: promiseOrderOpts(session),
             });
             if (!result) return;
 
@@ -316,6 +338,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
                 origin: originOf(session),
                 priority: priority || routingOptions.defaultPriority,
                 carType: routingOptions.carType,
+                promiseOpts: promiseOrderOpts(session),
             });
             if (!result) return { success: false, msg: "좌표가 있는 활성 콜이 없음" };
 
@@ -508,6 +531,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                                 origin: originOf(session),
                                 priority: routingOptions.defaultPriority,
                                 carType: routingOptions.carType,
+                                promiseOpts: promiseOrderOpts(session),
                             });
                             if (calcResult) {
                                 applyRouteAndSave(pickRouteHolder(activeCalls, activeMain), calcResult.merged);
@@ -1015,6 +1039,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                     origin: originOf(session),
                     priority: routingOptions.defaultPriority,
                     carType: routingOptions.carType,
+                    promiseOpts: promiseOrderOpts(session),
                 });
                 // myOrders 에는 종료된 콜도 함께 로드되므로 반드시 활성 콜 기준으로 잡아야 한다.
                 if (calcResult) applyRouteAndSave(pickRouteHolder(activeCalls, activeMain), calcResult.merged);

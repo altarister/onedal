@@ -252,6 +252,8 @@ export interface ComposeMergedRouteParams {
     origin?: Coord | null;
     priority: string;
     carType: any;
+    /** ⏱️ 굳은 약속 — 주면 약속이 정거장 순서를 정한다 (`orderByPromise`) */
+    promiseOpts?: PromiseOrderOpts | null;
 }
 
 /**
@@ -384,9 +386,9 @@ function rememberBase(key: string | null, origin: Coord | null | undefined, base
 export function clearBaseRouteCache(): void { baseRouteCache.length = 0; }
 
 export async function composeMergedRoute(params: ComposeMergedRouteParams) {
-    const { calls, extra, origin, priority, carType } = params;
+    const { calls, extra, origin, priority, carType, promiseOpts } = params;
 
-    const plan = planMergedStops(calls, extra, origin);
+    const plan = planMergedStops(calls, extra, origin, promiseOpts);
     if (!plan) return null;
 
     /**
@@ -403,7 +405,8 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     if (plan.skippedPickups > 0) {
         console.log(`🛣️ [경로] 이미 상차한 콜 ${plan.skippedPickups}건의 상차지를 경유지에서 제외 (다녀온 곳을 다시 가지 않는다)`);
     }
-    const basePlan = planMergedStops(calls, null, origin);
+    /* 🧮 견주는 쪽도 **같은 잣대**로 짠다 — 한쪽만 약속을 보면 우회 비용이 그 차이만큼 거짓이 된다 */
+    const basePlan = planMergedStops(calls, null, origin, promiseOpts);
 
     // 🗄️ 같은 질문·같은 자리면 base 를 다시 묻지 않는다 (C단계)
     const bKey = baseCacheKey(basePlan, priority, carType);
@@ -501,6 +504,67 @@ function logOrderDecision(line: string): void {
     if (line === lastOrderTrace) return;
     lastOrderTrace = line;
     console.log(`🧭 [순서 판단] ${line}`);
+}
+
+/**
+ * ⏱️ **굳은 약속이 있으면 그 약속이 순서를 정한다** (기사님 확정: *"전화한 후 한 약속은 지킨다"*).
+ *
+ * 남은 정거장 순서를 **모두 펴서** 각 순서의 도착 예상을 내고, 굳은 약속을 넘긴 분의 합이 가장 작은
+ * 순서를 고른다. 같으면 총주행이 짧은 쪽이다. 굳은 약속이 하나도 없으면 부르지 않는다 —
+ * 그때는 «지나가는 길목부터»가 답이다.
+ *
+ * 🔴 **다 지킬 수 없으면 가장 덜 늦는 순서를 고른다** — 그래야 화면이 «누구에게 전화해야 하는가»를 말할 수 있다.
+ * 🔴 같은 콜 안에서만 상차가 하차보다 먼저다 (제 짐을 싣기 전에 못 내린다).
+ * ⚠️ 직선거리와 평균 속도로 잰다 — 순서를 고르는 데 쓰는 값이고, 분은 카카오가 다시 준다.
+ * ⚠️ 정거장이 많으면(`PROMISE_ORDER_MAX_STOPS` 초과) 펴지 않는다 — 안전취소 시계 안에 답해야 한다.
+ */
+const PROMISE_ORDER_MAX_STOPS = 8;
+
+export interface PromiseOrderOpts {
+    /** 기준 시각 — 여기서부터 주행·정차를 더해 도착 예상을 만든다 */
+    nowMs: number;
+    /** 굳은 약속 시각 (ms) — 없으면 null */
+    promiseAt: (orderId: string, stopType: 'pickup' | 'dropoff') => number | null;
+    /** 직선거리를 분으로 바꾸는 평균 속도 (기본 46km/h — 판정 기준의 중거리 속도) */
+    speedKmh?: number;
+    /** 정거장에서 머무는 분 (기본 상차 15 · 하차 10 — 판정 기준의 미확인 정차) */
+    dwellMin?: (stopType: 'pickup' | 'dropoff') => number;
+}
+
+function orderByPromise<T extends Coord & { orderId: string; stopType: 'pickup' | 'dropoff' }>(
+    startLoc: Coord, pickups: T[], dropoffs: T[], opts: PromiseOrderOpts,
+): T[] | null {
+    const pool = [...pickups, ...dropoffs];
+    if (pool.length === 0 || pool.length > PROMISE_ORDER_MAX_STOPS) return null;
+    if (!pool.some(st => opts.promiseAt(st.orderId, st.stopType) != null)) return null;
+
+    const speed = opts.speedKmh ?? 46;
+    const dwell = opts.dwellMin ?? ((s: 'pickup' | 'dropoff') => (s === 'pickup' ? 15 : 10));
+    const notLoaded = new Set(pickups.map(p => p.orderId));
+
+    let best: { order: T[]; late: number; km: number } | null = null;
+    const walk = (left: T[], taken: T[], loaded: Set<string>, at: Coord, tMs: number, km: number, late: number) => {
+        if (best && late > best.late) return;                 // 이미 진 가지는 더 안 판다
+        if (left.length === 0) {
+            if (!best || late < best.late || (late === best.late && km < best.km)) best = { order: taken, late, km };
+            return;
+        }
+        for (let i = 0; i < left.length; i++) {
+            const st = left[i];
+            if (st.stopType === 'dropoff' && notLoaded.has(st.orderId) && !loaded.has(st.orderId)) continue;
+            const d = haversineKm(at.y, at.x, st.y, st.x);
+            const arrive = tMs + (d / speed) * 3600_000;
+            const promise = opts.promiseAt(st.orderId, st.stopType);
+            const lateMin = promise != null ? Math.max(0, Math.round((arrive - promise) / 60_000)) : 0;
+            const nextLoaded = st.stopType === 'pickup' ? new Set([...loaded, st.orderId]) : loaded;
+            walk(
+                [...left.slice(0, i), ...left.slice(i + 1)], [...taken, st], nextLoaded,
+                st, arrive + dwell(st.stopType) * 60_000, km + d, late + lateMin,
+            );
+        }
+    };
+    walk(pool, [], new Set(), startLoc, opts.nowMs, 0, 0);
+    return best ? (best as { order: T[] }).order : null;
 }
 
 function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' | 'dropoff' }>(
@@ -691,6 +755,8 @@ export function planMergedStops(
     extra: RouteHolder | null | undefined,
     /** 📍 어디서 출발하나 — «지금 기점»(`originOf`)이 들어온다. 반환의 `from` 과 다른 것이다 */
     from: Coord | null | undefined,
+    /** ⏱️ 굳은 약속 — 주면 약속이 순서를 정한다 (`orderByPromise`). 안 주면 «지나가는 길목부터» */
+    promiseOpts?: PromiseOrderOpts | null,
 ): {
     origin: { pickup: Coord; dropoff: Coord };
     mergedDest: Coord;
@@ -795,7 +861,12 @@ export function planMergedStops(
      *    편드는 재료를 여기서 새로 만들지 않는다 — 만들면 또 두 벌이 된다 (규칙 ③).
      */
     const previousOrder = [...calls].reverse().find(c => c.sectionStops?.length)?.sectionStops ?? null;
-    const ordered = orderByNearest(startLoc, allPickups, allDropoffs, previousOrder);
+    /**
+     * ⏱️ **굳은 약속이 있으면 약속이 순서를 정한다** — 없으면 «지나가는 길목부터»가 그대로 답이다.
+     *    약속을 지키는 순서가 아예 없으면 가장 덜 늦는 순서가 오고, 늦는 분은 판정이 화면에 적는다.
+     */
+    const ordered = (promiseOpts ? orderByPromise(startLoc, allPickups, allDropoffs, promiseOpts) : null)
+        ?? orderByNearest(startLoc, allPickups, allDropoffs, previousOrder);
     const mergedDest = ordered.pop()!;
     const waypoints = ordered;
     /**

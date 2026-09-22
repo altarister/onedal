@@ -195,6 +195,22 @@ function insertStep(userId: string, orderId: string, step: StepId, want: Record<
     ).run(orderId, userId, ...cols.map(c => row[c]), now);
 }
 
+/**
+ * ☎️ **통화로 굳힌 약속 (ms)** — 없으면 null.
+ *
+ * 🔴 «굳은 약속»은 **통화·스킵으로 닫힌 행**의 값이다 (`status !== 'PLANNED'`).
+ *    아직 예정인 행의 값은 시트가 미리 눌러 둔 추정이라 약속이 아니다 — 그걸 약속으로 세면
+ *    아무 콜에나 약속이 있는 셈이 되어 경로 순서가 추정에 끌려간다.
+ * 쓰는 곳: 경로 순서(`planMergedStops` 의 약속 잣대) · 시딩의 사슬.
+ */
+export function firmPromiseMsOf(orderId: string, stopType: 'pickup' | 'dropoff'): number | null {
+    const step: StepId = stopType === 'pickup' ? 'CALL_PICKUP' : 'CALL_DROPOFF';
+    const row = bornRows(orderId)[step];
+    if (!row || row.status === 'PLANNED' || !row.promised_arrival_at) return null;
+    const ms = Date.parse(row.promised_arrival_at);
+    return Number.isFinite(ms) ? ms : null;
+}
+
 /** KEEP 의 일: 첫 행(상차지 통화)만 태어난다 */
 export function birthFirstStep(userId: string, orderId: string, judgment?: JudgmentConfig, routeTl?: RouteTl) {
     const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;

@@ -8,7 +8,7 @@ import type { JudgmentSnapshot } from '@onedal/shared';
 import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, trappedOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
-import { stepRecordsOf, dwellLedgerFor } from "../../services/stepSeeder";
+import { stepRecordsOf, dwellLedgerFor, firmPromiseMsOf } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
 import { goalCityOf } from "../../state/filterManager";
 import { findLoadConflicts, totalDetourCost } from "../helpers";
@@ -284,6 +284,14 @@ export class OrderEvaluator {
                             origin: originOf(session),
                             priority: routingOptions.defaultPriority,
                             carType: routingOptions.carType,
+                            /* ⏱️ 판정도 **잡은 뒤와 같은 순서**로 잰다 — 다르면 화면이 말한 늦음과 실제 경로가 갈린다 */
+                            promiseOpts: {
+                                nowMs: Date.now(),
+                                promiseAt: (orderId, stopType) => firmPromiseMsOf(orderId, stopType),
+                                speedKmh: judgmentCfg.speed?.midKmh,
+                                dwellMin: (s: 'pickup' | 'dropoff') => s === 'pickup'
+                                    ? judgmentCfg.unknown.pickupDwellMin : judgmentCfg.unknown.dropoffDwellMin,
+                            },
                         });
                         if (!result) {
                             // 좌표가 하나도 없다 — 기존 실패 처리로 떨어뜨린다
