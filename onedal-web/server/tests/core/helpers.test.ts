@@ -1,10 +1,10 @@
 import { buildOrderSync, getActiveCalls, setOrderStatus } from '../../src/core/helpers';
 
 /**
- * [2026-08-10] 관제탑 페이로드는 **진행/종료를 나눠서** 보낸다.
+ * 관제탑 페이로드는 **진행/종료를 나눠서** 보낸다.
  *
- * 한 배열로 보내던 시절, 받는 쪽마다 isTerminal 을 기억해야 했고 잊으면 조용히 틀렸다.
- * 하루에 세 번 났다 — AA(적재 7건) · BB(취소한 콜 재탐색) · DD(취소분까지 운임 합산).
+ * 한 배열로 보내면 받는 쪽마다 isTerminal 을 기억해야 하고, 잊으면 조용히 틀린다
+ * (종료 콜까지 적재로 세기 · 취소한 콜 재탐색 · 취소분까지 운임 합산).
  * "기억해야 하는 규칙"을 "고를 수 없는 구조"로 바꾼 것이 이 함수다.
  */
 function makeSession(statuses: string[]) {
@@ -47,12 +47,11 @@ describe('buildOrderSync — 진행/종료 분리', () => {
     });
 
     it('빈 세션도 안전하다', () => {
-        // 0831 — 경로 홀더 이름이 봉투에 들어왔다 (빈 세션이면 null · 잔상 수리)
+        // 경로 홀더 이름도 봉투에 싣는다 (빈 세션이면 null)
         /**
-         * 🧭 **2026-09-12 — 경로 기점 한 칸이 늘었다.** 관제웹이 서버 위치를 받을 문이 하나도
-         *    없어서 지도가 제 손으로 위치를 정했고, 서버가 아는 자리와 17.6km 어긋난 판이
-         *    있었다. 정거장 순서를 짠 그 기점과 **한 벌**로 보낸다 (`helpers.ts` 주석 참조).
-         *    빈 세션이면 좌표를 받은 적이 없으니 **둘 다 null** 이다 — 지어내지 않는다 (규칙 ④).
+         * 🧭 **경로 기점(`routeOrigin`)도 정거장 순서와 한 벌로 보낸다** (`helpers.ts` 주석 참조).
+         *    지도가 제 손으로 위치를 정하면 서버가 아는 자리와 어긋난다 — 정거장 순서를 짠 그 기점을 같이 보낸다.
+         *    빈 세션이면 좌표를 받은 적이 없으니 **홀더·기점 둘 다 null** 이다 — 지어내지 않는다 (규칙 ④).
          */
         expect(buildOrderSync(makeSession([]))).toEqual({ active: [], terminated: [], routeStops: [], routeComputedAt: null, routeHolderId: null,
             previewRouteHolderId: null, cancelCounts: {}, cancelRounds: {},
@@ -62,8 +61,8 @@ describe('buildOrderSync — 진행/종료 분리', () => {
 
 describe('🔴 setOrderStatus — 두 메모리를 함께 갱신한다', () => {
     // 세션은 같은 콜을 myOrders 와 pendingOrdersData 두 곳에 들고 있다.
-    // completeOrder / startTwoTrack 이 myOrders 만 갱신해서, 판정은 종료됐는데
-    // 관제탑에는 낡은 상태가 갔다 — "하차 완료했는데 카드에 상차 완료로 남아 있음".
+    // 한쪽만 바꾸면 판정은 종료됐는데 관제탑에는 낡은 상태가 간다 —
+    // "하차 완료했는데 카드에 상차 완료로 남아 있음". 그래서 setOrderStatus 가 둘을 함께 바꾼다.
     function dualSession() {
         const o: any = { id: 'x', status: 'ORDER_PICKED_UP' };
         // 같은 콜이지만 **다른 객체**인 경우가 실제로 있다 (복구 경로 등)
@@ -88,7 +87,7 @@ describe('🔴 setOrderStatus — 두 메모리를 함께 갱신한다', () => {
 
     it('🔴 한쪽만 낡아 있어도 myOrders 가 이긴다 (판정과 화면이 갈라지지 않는다)', () => {
         const s = dualSession();
-        s.myOrders[0].status = 'ORDER_DELIVERED';   // 옛 코드처럼 한쪽만 바꿔 본다
+        s.myOrders[0].status = 'ORDER_DELIVERED';   // setOrderStatus 를 거치지 않고 한쪽만 바꿔 본다
         const { active, terminated } = buildOrderSync(s as any);
         expect(active).toHaveLength(0);
         expect(terminated[0].status).toBe('ORDER_DELIVERED');
