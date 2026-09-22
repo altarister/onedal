@@ -7,7 +7,8 @@
  * 왜 «직전» 말씀까지 보나: 같은 메시지에 글과 도구 호출이 함께 있으면 Claude Code 가 그 글을
  *   기록 파일에 «생각 요약(thinking)»으로 바꿔 적을 때가 있어, 이번 차례의 글만 보면 놓친다.
  *   글만 있는 메시지는 온전히 적히므로 «계획(글만) → 기사님 답 → 도구» 흐름은 늘 잡힌다.
- *   ⚠️ 남는 구멍: 지난 차례에 계획을 썼으면 이번 차례는 계획 없이도 통과한다.
+ *   직전 차례의 계획은 기사님의 마지막 말씀이 **짧을 때**(«가»·«계속»·«고쳐» — SHORT_REPLY 자 이하)만 인정한다.
+ *   긴 새 지시에는 이번 차례의 «계획:»이 있어야 한다.
  * 왜 프로그램으로 막나: CLAUDE.md 의 글은 제가 «일의 종류»를 정하는 첫 순간에 읽히지 않는다.
  * 안 막는 것: 하위 에이전트(agent_id 가 있음) — 계획은 주 세션이 쓴다.
  */
@@ -58,11 +59,20 @@ for (const line of lines) {
     if (isRealUserMessage(rec)) userIdx.push(recs.length - 1);
 }
 
-// 직전 사용자 메시지(뒤에서 둘째) 이후 — 없으면 처음부터
-const from = userIdx.length >= 2 ? userIdx[userIdx.length - 2] + 1 : 0;
+/** 사용자 메시지의 글 — 도구 결과·IDE 알림 태그는 뺀다 */
+function userText(rec) {
+    const c = rec.message?.content;
+    const raw = typeof c === 'string' ? c : Array.isArray(c) ? c.filter(b => b?.type === 'text').map(b => b.text).join('\n') : '';
+    return raw.replace(/<[a-z_]+>[\s\S]*?<\/[a-z_]+>/g, '').trim();
+}
+const SHORT_REPLY = 20;
+const last = userIdx[userIdx.length - 1];
+const shortReply = last != null && userText(recs[last]).length <= SHORT_REPLY;
+// 짧은 답이면 직전 차례(뒤에서 둘째 사용자 메시지 이후)까지, 아니면 이번 차례만 — 사용자 메시지가 없으면 처음부터
+const from = last == null ? 0 : (shortReply && userIdx.length >= 2 ? userIdx[userIdx.length - 2] : last) + 1;
 const planned = recs.slice(from).some(rec => assistantTexts(rec).some(t => PLAN_LINE.test(t)));
 
 if (!planned) {
-    block('🔴 계획 우선 훅: 이번 차례에도 직전 차례에도 «계획:» 줄이 없다 — 도구를 부르기 전에 «계획:» 으로 시작하는 줄에 무엇을·어떻게·왜, 그리고 «무엇이 참이면 끝인가»를 먼저 쓴다. (물으신 것이면 답부터 하고 도구는 안 쓴다)');
+    block(`🔴 계획 우선 훅: ${shortReply ? '이번 차례에도 직전 차례에도' : '이번 차례에'} «계획:» 줄이 없다 — 도구를 부르기 전에 «계획:» 으로 시작하는 줄에 무엇을·어떻게·왜, 그리고 «무엇이 참이면 끝인가»를 먼저 쓴다. (물으신 것이면 답부터 하고 도구는 안 쓴다)`);
 }
 process.exit(0);
