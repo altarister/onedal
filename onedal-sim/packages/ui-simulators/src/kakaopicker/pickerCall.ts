@@ -1,10 +1,10 @@
 /**
- * 🚚 **카카오T픽커 화면만 쓰는 것** — 콜 칸 · 지역 줄임 표기 (카카오픽커_시뮬레이터.md §9 · 2단계 2-1)
+ * 🚚 **카카오T픽커 화면만 쓰는 것** — 콜 칸 · 지역 줄임 표기
  *
  * 인성·화물24시는 «원·차종»으로 콜을 말하고, 픽커는 «P·물품 크기·태그»로 말한다. 그래서 요금 식도 칸도 따로다.
  * 🔴 기준은 원달앱 픽커 파서(`onedal-app/.../kakaopicker/KakaoPickerParser.kt`)가 **이미 찾고 있는 글자꼴**이다 —
- *    시뮬레이터가 파서에 맞춰 주면 파서를 시험하지 못한다. 실물 캡처(`ex_images/카카오픽커/실물_2026/` 02 · 07)와 실물 화면 덤프
- *    (`log/카카오픽커/화면덤프/09_리스트_퀵7건.xml`)에서 뽑았다.
+ *    시뮬레이터가 파서에 맞춰 주면 파서를 시험하지 못한다. 실물 캡처(`ex_images/카카오픽커/실물_2026/` 02 · 07)와
+ *    실물 화면 덤프 09 에서 뽑는다.
  */
 import type { BaseCall } from '@altari/core-simulator';
 import type { CallDraft, CallOptions, RandomSource } from '@altari/core-simulator';
@@ -29,7 +29,7 @@ export type PickerCall = BaseCall & {
 };
 
 /**
- * 🗺️ **픽커 지역 줄임 표기** (§9-2 · 실물 02 · 덤프 09) — 구가 있으면 구에서 «구»를, 없으면 시에서 «시/군»을 떼고, 동에서 «동»을 뗀다.
+ * 🗺️ **픽커 지역 줄임 표기** (실물 02 · 덤프 09) — 구가 있으면 구에서 «구»를, 없으면 시에서 «시/군»을 떼고, 동에서 «동»을 뗀다.
  *
  *   경기 성남시 분당구 … · 서현1동  →  분당 / 서현1
  *   서울 강남구 …        · 삼성2동  →  강남 / 삼성2
@@ -80,24 +80,24 @@ const WALK_SHARE_OF_10 = 4;
 /** 물품 크기 — 실물 리스트는 «소형»이 대부분이다 (덤프 09: 7건 중 6건) */
 const ITEM_SIZE_POOL: PickerCall['itemSize'][] = ['소형', '소형', '소형', '소형', '초소형', '중형', '대형'];
 
-/** 단거리 태그를 붙이는 배송 거리 (km) — 실물 02 의 단거리 콜은 2천~5천 P 대였다. 지금은 눈대중 경계다 */
+/** 단거리 태그를 붙이는 배송 거리 (km) — 실물 02 의 단거리 콜은 2천~5천 P 대다. 경계 km 는 눈대중이다 */
 const SHORT_DISTANCE_KM = 8;
 
 /**
  * 💰 배송비 식 — 실물 02·덤프 09 의 요금 폭(2,350 ~ 16,870 P)에 들게 맞춘 **시뮬레이터 값**이다.
- * ⚠️ 픽커의 실제 요금 규칙은 모른다 (6단계 «픽커 요금 규칙»에서 다룬다). 10 P 단위로 내린다.
+ * ⚠️ 픽커의 실제 요금 규칙은 모른다 — 실물 폭에 드는 것만 맞춘다. 10 P 단위로 내린다.
  */
 const FEE_BASE = 2000;
 const FEE_PER_KM = 550;
 const FEE_RANDOM_EXTRA = 800;
 
 /**
- * 🎨 **픽커 칸을 입힌다** (2단계 2-1) — 공통 칸만 있는 콜에 물품 크기 · 태그 · 준비 시간 · 예약 · 배송비 · 프로모션 · 오더번호.
+ * 🎨 **픽커 칸을 입힌다** — 공통 칸만 있는 콜에 물품 크기 · 태그 · 준비 시간 · 예약 · 배송비 · 프로모션 · 오더번호.
  *
  * - 공통 칸은 한 칸도 안 바꾼다 (`tests/pickerCall.test.ts`)
  * - `opts.minFare` 는 **안 쓴다** — 설정 화면의 최소 요금(1만~10만 원)은 인성·화물24시 원 단위라 P 에 맞지 않는다
  * - 🔴 문제지의 정해진 요금(`opts.forced.fare`)은 배송비로 그대로 쓰고 프로모션은 0 — 픽커 문제지(`pickerPresets.ts` · P 단위)만 온다.
- *   인성·화물24시 문제지(원 단위)는 픽커의 문제지 책에 없어서 배차 화면이 «문제지가 없다»로 멈춘다 (§9-3 · 3단계 3-2)
+ *   인성·화물24시 문제지(원 단위)는 픽커의 문제지 책에 없어서 배차 화면이 «문제지가 없다»로 멈춘다 (`nets.ts` 의 `presetBook`)
  */
 export function toPickerCall(draft: CallDraft, opts: CallOptions, rng: RandomSource = Math.random): PickerCall {
     const pick = pickWith(rng);
@@ -105,8 +105,8 @@ export function toPickerCall(draft: CallDraft, opts: CallOptions, rng: RandomSou
     const isShort = draft.distanceKm < SHORT_DISTANCE_KM;
     const prepMinutes = rng() < 0.3 ? null : 1 + Math.floor(rng() * 40);
     /**
-     * 예약 — 문제지가 정했으면(`netFields.reservedAt` · 3단계 3-2) 그것, 문제지 콜이면 **섞지 않는다**, 랜덤 콜이면 10%.
-     * 🔴 랜덤 콜의 난수 뽑는 순서는 예전 그대로 둔다 — 같은 씨앗이면 같은 콜 (`tests/pickerCall.test.ts`).
+     * 예약 — 문제지가 정했으면(`netFields.reservedAt`) 그것, 문제지 콜이면 **섞지 않는다**, 랜덤 콜이면 10%.
+     * 🔴 랜덤 콜의 난수 뽑는 순서를 지킨다 — 같은 씨앗이면 같은 콜이어야 한다 (`tests/pickerCall.test.ts`).
      */
     const forcedReservedAt = opts.forced?.netFields?.reservedAt;
     const reservedAt = opts.forced
