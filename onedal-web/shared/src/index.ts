@@ -1687,6 +1687,7 @@ export interface DeviceSession {
 
 
 export * from './callBands';
+export * from './routeReuse';
 export * from './vehicles';
 export * from './regionMatch';
 export * from './pricing';

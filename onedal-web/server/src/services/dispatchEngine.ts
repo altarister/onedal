@@ -12,9 +12,9 @@ import { rememberOrder } from "../state/orderMemory";
 import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, homeCallsOf } from "../state/filterManager";
 import { recordCallTarget } from "../core/callTargetEvents";
 import { getActivePolyline, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
-import { composeMergedRoute, type PromiseOrderOpts, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline, type RouteHolder } from "./routeComposer";
+import { composeMergedRoute, planArrivalStops, type PromiseOrderOpts, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline, type RouteHolder } from "./routeComposer";
 import { firmPromiseMsOf } from "./stepSeeder";
-import { DEFAULT_JUDGMENT } from "@onedal/shared";
+import { DEFAULT_JUDGMENT, routeNeedsRecompute } from "@onedal/shared";
 import type { JudgmentConfig } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -191,6 +191,28 @@ function promiseOrderOpts(session: { judgment?: JudgmentConfig }): PromiseOrderO
         dwellMin: (s: 'pickup' | 'dropoff') =>
             s === 'pickup' ? j.unknown.pickupDwellMin : j.unknown.dropoffDwellMin,
     };
+}
+
+/**
+ * 🗺️ **정거장이 그대로면 카카오를 다시 부르지 않는다** (기사님 확정).
+ *
+ * 1·2·3·4 로 가는 중에 1 에 도착해도 2·3·4 구간은 받아 둔 값 그대로다. 그래서 도착·상차 완료·
+ * 하차 통화·하차 완료·되돌리기에서는 다시 부를 것이 없다 — 지나온 정거장만 빠진다.
+ * 다시 부르는 때는 **정거장이 늘거나 · 예정에 없이 빠지거나 · 순서가 바뀔 때**다 (`routeNeedsRecompute`).
+ *
+ * ⚠️ 받아 둔 분은 부른 그 시각의 길 상태다 — 낡는 것은 재탐색 버튼이 갱신한다.
+ */
+export async function recalcRouteIfStopsChanged(userId: string, io: any, why: string) {
+    const session = getUserSession(userId);
+    const calls = getActiveCalls(session);
+    const sent = [...calls].reverse().find(c => (c as any).sectionStops?.length)?.sectionStops ?? null;
+    const remaining = planArrivalStops(calls as any, originOf(session))
+        .map(st => ({ orderId: st.orderId, stopType: st.stopType }));
+    if (!routeNeedsRecompute(sent, remaining)) {
+        console.log(`🗺️ [경로 유지] ${why} — 남은 정거장 ${remaining.length}곳이 그대로라 카카오를 다시 부르지 않습니다`);
+        return;
+    }
+    await recalculateActiveKakaoRoute(userId, io);
 }
 
 export async function recalculateActiveKakaoRoute(userId: string, io: any) {
@@ -721,7 +743,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             console.log(`🔄 [State Machine] ${transition.reason}`);
         }
 
-        await recalculateActiveKakaoRoute(userId, io);
+        await recalcRouteIfStopsChanged(userId, io, '콜 정리');
     }
 
     /**
@@ -1158,7 +1180,7 @@ export async function undoMilestone(userId: string, orderId: string, milestone: 
     logRoadmapEvent("서버", `[마일스톤 취소] ${MILESTONE_LABEL[milestone]}`);
 
     // 되돌린 것도 저장이다 — 같은 규칙으로 전파한다
-    await recalculateActiveKakaoRoute(userId, io);
+    await recalcRouteIfStopsChanged(userId, io, `단계 되돌리기(${MILESTONE_LABEL[milestone]})`);
     updateActiveFilter(userId, {}, io);
     if (io) {
         io.to(userId).emit("sync-active-orders", buildOrderSync(session));
@@ -1289,7 +1311,7 @@ export async function reportMilestone(
         }
 
         const remaining = getActiveCalls(session);
-        await recalculateActiveKakaoRoute(userId, io);
+        await recalcRouteIfStopsChanged(userId, io, '하차 완료');
         console.log(`🚚 [적재 회복] 하차 완료 → 남은 활성 콜 ${remaining.length}건 기준으로 필터 재계산`);
 
         /**

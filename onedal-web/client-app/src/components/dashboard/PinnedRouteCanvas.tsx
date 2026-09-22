@@ -9,6 +9,7 @@ import { getDistanceKm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { offsetScreenPath } from '../../lib/parallelPath';
+import { bandStrokeOf } from '../../lib/bandStroke';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
     TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
@@ -973,13 +974,13 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                 const drawOrder = bands
                     .map((b, i) => ({ b, i }))
                     .sort((p, q) => Number(p.b[0] === nextOrderId) - Number(q.b[0] === nextOrderId));
-                const gapPx = 3;
                 for (const { b: [orderId, band], i: bi } of drawOrder) {
                     const color = callColors!.get(orderId);
                     if (!color) continue;
-                    const shift = (bi - (bands.length - 1) / 2) * gapPx;
+                    /* 🌈 콜이 늘면 두께·간격이 함께 준다 — 전체 폭이 넘치면 굵은 띠 하나로 뭉쳐 보인다 */
+                    const { widthScale, shiftPx } = bandStrokeOf(bands.length, bi);
                     ctx.strokeStyle = color;
-                    for (let i = band.from; i <= band.to && i < secLines.length; i++) drawPath(secLines[i], 0.9, undefined, shift);
+                    for (let i = band.from; i <= band.to && i < secLines.length; i++) drawPath(secLines[i], widthScale, undefined, shiftPx);
                 }
             } else {
                 ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
