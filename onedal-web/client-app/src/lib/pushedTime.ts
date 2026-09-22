@@ -3,8 +3,7 @@
  *
  * ── 왜 «미리» 인가 ──
  * 기사님이 *"심사 중에 미리 — 「잡으면 이렇게 밀린다」"* 를 고르셨다.
- * 🔴 **«감수하고 KEEP» 하시는 판단의 재료**이기 때문이다. 잡고 나서 알면 늦다 —
- *    시나리오 원문도 *"이걸 고려해서 서버는 판정을 해"* 였다.
+ * 🔴 **«감수하고 KEEP» 하시는 판단의 재료**이기 때문이다. 잡고 나서 알면 늦다.
  *
  * ── 무엇을 답하나 ──
  * «17:54 였는데 34분 밀리면 몇 시인가» 하나뿐이다. 화면이 그 둘을 나란히 적는다:
@@ -25,7 +24,7 @@ export function parseClock(text: string): number | null {
 
 /**
  * ⏱️ 시각을 그만큼 민다. **«~» 같은 표시는 그대로 살린다.**
- * 못 읽으면 원문 그대로 돌려준다 — 화면이 빈칸이 되느니 옛 값이 낫다.
+ * 못 읽으면 원문 그대로 돌려준다 — 화면이 빈칸이 되느니 원래 값이 낫다.
  */
 export function pushClock(text: string, minutes: number): string {
     const at = parseClock(text);
@@ -45,7 +44,7 @@ export function gapLabel(minutes: number): string {
 
 /**
  * 🎨 **밀리는 것은 나쁜 일이다 — 색을 가른다.**
- * 🔴 예전에는 차이를 늘 초록으로 적었다. 「+34분」이 초록이면 **좋은 일로 읽힌다.**
+ * 🔴 밀리면 나쁜 색, 당겨지면 좋은 색이다 — 「+34분」이 초록이면 **좋은 일로 읽힌다.**
  */
 export function gapTone(minutes: number): 'good' | 'bad' | 'none' {
     if (minutes === 0) return 'none';
