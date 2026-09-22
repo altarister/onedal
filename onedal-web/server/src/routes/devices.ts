@@ -650,7 +650,7 @@ router.post("/:deviceId/offline", (req, res) => {
             session.offlineReason = isDeviceOfflineReason(reason) ? reason : undefined;
             const why = session.offlineReason ? DEVICE_OFFLINE_LABEL[session.offlineReason] : "까닭 모름";
             console.log(`📵 [즉각 오프라인 마킹] 기기(${deviceId})가 자체 보고를 통해 오프라인 전환 완료 — ${why}`);
-            /* 🛟 끊긴 폰은 «목록으로 돌아왔다»를 못 보낸다 — 열어 둔 미리보기를 지금 치운다 (#155 · 보고 없이 끊기면 orders.ts 의 시간 타이머가 치운다) */
+            /* 🛟 끊긴 폰은 «목록으로 돌아왔다»를 못 보낸다 — 열어 둔 미리보기를 지금 치운다 (#155 · 보고 없이 끊기면 생존신고 감시가 치운다) */
             cleanPreviewOfDevice(userOfDevice(deviceId), deviceId, req.app.get("io"), "폰 끊김");
         }
         res.json({ success: true });
