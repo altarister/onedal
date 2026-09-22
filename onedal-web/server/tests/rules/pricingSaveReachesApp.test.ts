@@ -87,7 +87,7 @@ maybe('💰 요율표 저장이 앱이 받는 단가까지 닿는다', () => {
 
         callPricingSave({ vehicleRates: 새표, agencyFeePercent: 수수료 });
 
-        expect(ratesInDb()['1t']).toBe(2000);                       // DB 는 바뀐다 (여기까진 늘 통과했다)
+        expect(ratesInDb()['1t']).toBe(2000);                       // DB 는 바뀐다 (세션까지 안 닿아도 여기까지는 통과한다)
 
         // 콜할인율은 건드리지 않았으니 그대로 쓴다 — 바뀐 것은 요율뿐이다
         const 할인율 = getUserSession(USER).activeFilter.callDiscountPct ?? 10;
