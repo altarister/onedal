@@ -6,9 +6,8 @@ const o = (id: string, status: string, extra: Partial<SecuredOrder> = {}) =>
     ({ id, status, pickup: '판교', dropoff: '탄현', fare: 10000, ...extra }) as SecuredOrder;
 
 /**
- * 🔴 2026-08-11 — 이 병합이 `Dashboard.tsx` 안에 인라인으로 있었고
- *    이력 필터가 `isTerminal(s) || s === 'ORDER_CONFIRMED'` 라
- *    **ORDER_PICKED_UP 을 버렸다.** 상차한 콜이 화면에서 사라진 원인 중 하나다.
+ * 🔴 이력 필터가 종료·확정만 남기면(`isTerminal(s) || s === 'ORDER_CONFIRMED'`)
+ *    **ORDER_PICKED_UP 을 버려** 상차한 콜이 화면에서 사라진다. 진행 중 상태도 살린다.
  *
  *    서버 복구 쿼리를 고쳐도 여기서 다시 걸러내면 "고쳤는데 안 된다"가 된다.
  *    서버 테스트로는 안 잡히는 자리라 별도로 건다.
@@ -49,8 +48,8 @@ describe('mergeOrderViews — 관제웹이 보는 콜 목록', () => {
     });
 
     it('⚠️ 키가 undefined 로 **들어 있으면** 덮어쓴다 — 스프레드의 성질', () => {
-        // 고칠 대상이 아니라 기록이다. 예전 인라인 코드도 똑같이 동작했고,
-        // 직렬화를 거치면 이 모양은 오지 않는다. 나중에 "왜 지워졌지"를 막으려 남긴다.
+        // 고칠 대상이 아니라 스프레드의 성질을 적어 둔 것이다. 직렬화를 거치면 이 모양은
+        // 오지 않는다. 필드가 비었을 때 «왜 지워졌지»를 여기서 찾게 남긴다.
         const merged = mergeOrderViews(
             [o('a', 'ORDER_CONFIRMED', { detailMemo: '지하 2층' })],
             [], [{ ...o('a', 'ORDER_PICKED_UP'), detailMemo: undefined }]);
