@@ -24,11 +24,12 @@ import { callA, callB } from './fixtures';
 import { FIXED_NOW, seededRandom } from './seededRandom';
 
 /**
- * 🧩 **배차망 화면이 예전 DispatchPage 갈래와 같은 부품을 그리나** (카카오픽커_시뮬레이터.md 0단계 0-2 ⑤)
+ * 🧩 **배차망 화면이 리스트·상세·수락 뒤마다 맞는 부품을 그리나**
  *
- * ⑤ 에서 DispatchPage 의 `net` 갈래(리스트·상세·수락 뒤)를 배차망 화면(InsungSimScreen · Hwamul24SimScreen)으로 옮겼다.
- * 그 갈래가 고르던 부품을 **직접** 그린 것과, 배차망 화면이 그린 것이 **글자 하나까지 같은지** 대조한다.
- * (배차 화면의 첫 그림은 `dispatchPage.test.tsx` 가 옮기기 전에 뜬 스냅숏으로 따로 문다)
+ * 배차망 화면(InsungSimScreen · Hwamul24SimScreen)은 콜 상태를 보고 리스트·상세·수락 뒤 부품 가운데 하나를 고른다.
+ * 그 부품을 **직접** 그린 것과, 배차망 화면이 그린 것이 **글자 하나까지 같은지** 대조한다 —
+ * 다르면 배차망 화면이 다른 부품을 골랐거나 부품에 값을 빠뜨린 것이다.
+ * (배차 화면 전체의 그림은 `dispatchPage.test.tsx` 의 스냅숏이 따로 문다)
  */
 const noop = () => {};
 /** 같은 난수로 그린다 — 화물24시 화면은 잔액·ID 에 Math.random 을 쓴다 */
