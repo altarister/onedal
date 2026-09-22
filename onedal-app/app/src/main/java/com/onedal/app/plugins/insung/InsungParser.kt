@@ -36,11 +36,9 @@ class InsungParser(private val context: Context) : IScrapParser {
          * 화면은 차종을 한 글자로 쓴다(오·다·라·승·1t·5t…). 앱은 이 토큰을 **닻**으로
          * 카드를 묶고, 바로 다음 노드를 요금으로 읽는다.
          *
-         * 🔴 예전엔 이 목록이 **세 벌**이었다 — 요금 앵커링 · 뭉친 텍스트 폴백 ·
-         *    `groupListNodes`. 앞의 둘에만 «승」을 넣고 세 번째를 놓쳐서, 승용차 콜은
-         *    **카드 그룹이 아예 안 만들어졌다.** 그룹이 없으면 파싱 루프를 안 타므로
-         *    «요금 못 읽음»도 «이미 본 콜»도 안 찍힌다 — 화면엔 떠 있는데 앱에서는
-         *    **아무 일도 없는 것처럼 보인다.** 그 침묵 때문에 시험 세 판을 버렸다.
+         * 🔴 목록이 여러 벌이면 한 곳만 고쳐진다 — 카드를 묶는 목록(`groupListNodes`)에서 차종이
+         *    빠지면 그 차종 콜은 **카드 그룹이 아예 안 만들어져** «요금 못 읽음»도 «이미 본 콜»도
+         *    안 찍힌다 — 화면엔 떠 있는데 앱에서는 **아무 일도 없는 것처럼 보인다.**
          *
          * 목록을 늘릴 일이 있으면 **여기만** 고친다 (규칙 ③ — 경유 4벌·상태목록 3벌과
          * 같은 클래스다).
@@ -67,9 +65,8 @@ class InsungParser(private val context: Context) : IScrapParser {
          * 인성 리스트는 한 줄이 콜 하나다. 차종 글자를 닻으로 잡고 **세로로 겹치는**
          * 글자들을 같은 카드로 본다.
          *
-         * 🔴 **2026-08-23 실주행에서 `💸 [요금 못 읽음]` 이 12,467회 났고 뒤가 공백이었다.**
-         *    카드가 묶이긴 했는데 **같은 줄 글자가 0개**였다는 뜻이다 (스캔당 약 30개,
-         *    같은 시간에 제대로 묶인 것은 18개뿐).
+         * 🔴 **실주행에서 `💸 [요금 못 읽음]` 이 뒤가 공백인 채로 무더기로 난다** (한 번에 12,467회) —
+         *    카드가 묶이긴 했는데 **같은 줄 글자가 0개**라는 뜻이다.
          *
          * ⚠️ 겹침은 **열린 구간**으로 잰다. 그래서 높이가 0인 사각형(`top == bottom`)은
          *    자기 자신과도 안 겹친다 — 스크롤 밖 노드처럼 bounds 가 `(0,0,0,0)` 으로
@@ -92,17 +89,17 @@ class InsungParser(private val context: Context) : IScrapParser {
          * JVM 검사(`VehicleFareAnchorTest`)가 부르려고 `parse` 에서 떼어냈다.
          *
          * 🔴 **닻 후보가 여럿이면 숫자처럼 생긴 차종(1.4 등)은 진다** (`VehicleFareAnchorTest`).
-         *    예전엔 **첫 후보**를 썼다 — 상차 거리가 1.4km 인 줄 `1.4, 15.2, …, 5t, 15.0` 에서
-         *    거리 칸 «1.4» 가 차종이 되고 배송거리 15.2 가 요금(152,000원)이 됐다.
+         *    첫 후보를 쓰면 상차 거리가 1.4km 인 줄 `1.4, 15.2, …, 5t, 15.0` 에서
+         *    거리 칸 «1.4» 가 차종이 되고 배송거리 15.2 가 요금(152,000원)이 된다.
          *    - 진짜 차종 칸(5t · 다 …)이 있으면 그것을 쓴다
          *    - 후보가 전부 숫자처럼 생겼으면 **마지막** 것을 쓴다 — 차종·요금 칸은 줄의 오른쪽 끝이다
-         *    - 후보가 하나면 예전과 같다 (상세 화면의 요금 대조가 기대는 동작)
+         *    - 후보가 하나면 그것을 쓴다 (상세 화면의 요금 대조가 기대는 동작)
          */
         internal fun readVehicleAndFare(texts: List<String>): Pair<String?, Int> {
             data class Anchor(val vehicle: String, val fare: Int)
 
             val anchors = mutableListOf<Anchor>()
-            // 요금을 못 찾은 차종 토큰 — 후보가 하나도 없을 때 예전처럼 차종만이라도 남긴다
+            // 요금을 못 찾은 차종 토큰 — 후보가 하나도 없을 때 차종만이라도 남긴다
             var lastVehicleWithoutFare: String? = null
 
             for (i in texts.indices) {
@@ -181,15 +178,14 @@ class InsungParser(private val context: Context) : IScrapParser {
         }
 
         /**
-         * 🚚 **차종을 «담고 있나»가 아니라 «같은가»로 본다** (기사님 실측 2026-08-26).
+         * 🚚 **차종을 «담고 있나»가 아니라 «같은가»로 본다** (기사님 실측).
          *
-         * 예전엔 이랬다:
+         * «담고 있나»로 보면 이렇게 된다:
          * ```
          * "1t" -> normParsed.contains("1") || normParsed.contains("t") || normParsed.contains("톤")
          * ```
-         * 허용에 `1t` 가 있으면 **`t` 가 든 차종이 전부 통과**했다 — 5t·2.5t·11t·25t 까지.
-         * 2026-08-26 실측에서 막아야 할 **5t 콜을 잡았고**, 그 한 건이 적재를 채워
-         * 뒤에 온 콜이 전부 «자리 없음»으로 떨어졌다. **첫짐조차 못 잡았다.**
+         * 허용에 `1t` 가 있으면 **`t` 가 든 차종이 전부 통과**한다 — 5t·2.5t·11t·25t 까지.
+         * 막아야 할 5t 콜 한 건이 적재를 채우면 뒤에 온 콜이 전부 «자리 없음»으로 떨어진다.
          *
          * ⚠️ 규칙 ⑤(*"앱은 느슨하게 올린다"*)와 어긋나지 않는다 — **느슨한 것과 틀린 것은
          *    다르다.** 못 싣는 차종은 애매한 콜이 아니라 **불가능한 콜**이다.
@@ -218,7 +214,7 @@ class InsungParser(private val context: Context) : IScrapParser {
         }
 
         /**
-         * 🗳️ **판정 결과 — «통과했나»와 «어느 축에서 걸렸나»** (현황판 의뢰 2026-09-12).
+         * 🗳️ **판정 결과 — «통과했나»와 «어느 축에서 걸렸나»**.
          *
          * 현황판: *"그 판정이 **앱 로직의 사본**이라는 것입니다. `InsungParser.decide()` 의
          * 여섯 축을 제가 TS 로 옮겨 적었습니다 … 오늘 실제로 갈라진 것도 찾았습니다"* —
@@ -286,11 +282,11 @@ class InsungParser(private val context: Context) : IScrapParser {
                 matchResult
             } else {
                 // [1차 리스트 필터] 기존 구조 유지 (dropoff만 검사, rawText는 출발지도 포함되므로 사용 금지)
-                // 🔴 2026-08-12 — 예전에는 키워드가 비면 `true`(전부 통과)였다.
+                // 🔴 키워드가 비면 `false`(보류)다.
                 //    도착지 조건이 없는 상태는 "아무 데나 좋다"가 아니라
                 //    **"필터가 아직 안 만들어졌다"** 는 뜻이다 (경유 실패 · 목적지 미설정).
                 //    통과시키면 isActive 는 켜진 채 도착지 제한만 사라진다.
-                //    서버도 같은 방향으로 열려 있어 두 겹이 동시에 무력화됐다.
+                //    서버도 같은 규칙으로 막는다 — 한쪽만 열어도 두 겹 중 하나가 사라진다.
                 val matchResult = if (filter.destinationKeywords.isEmpty()) {
                     AppLogger.d(TAG, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
                     false
@@ -304,9 +300,8 @@ class InsungParser(private val context: Context) : IScrapParser {
 
             // ── 조건 2: 요금 하한선 + 상한선 ──
             //
-            // 🔴 2026-08-12 — 상한(maxFare)을 **서버만** 보고 있었다.
-            //    앱은 파싱만 하고 판정에 안 써서, 상한을 50만으로 잡아도 100만짜리를 잡았다.
-            //    서버가 안전취소에서 "똥콜"이라 걸러내지만 그때는 **이미 패널티 구간**이다.
+            // 🔴 상한(maxFare)도 앱이 판정한다 — 서버만 보면 상한을 50만으로 잡아도 100만짜리를 잡고,
+            //    서버가 안전취소에서 걸러낼 때는 **이미 패널티 구간**이다.
             //    안 잡는 것과 잡고 나서 버리는 것은 전혀 다르다.
             //
             // 규칙은 서버(OrderEvaluator)와 **똑같이** 맞춘다:
@@ -314,7 +309,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             val hasFareCeiling = filter.maxFare in 1..999_999
 
             /**
-             * 🔴 2026-08-13 — **단가 판정**
+             * 🔴 **단가 판정**
              *
              * 기사님: *"합짐은 경로 중 우회되는 짧은 구간이 들어올 수 있다.
              * 그래서 여기는 단가가 들어가야 할 것 같은데."*
@@ -328,7 +323,7 @@ class InsungParser(private val context: Context) : IScrapParser {
              * 서버가 콜할인율를 이미 반영한 단가표를 피기백으로 내려 준다 — 앱은 곱셈만 한다.
              *
              * **폴백은 한 갈래 — 셋 중 하나라도 없으면 기존 `minFare` 판정으로 되돌아간다.**
-             *   단가표가 없거나(구서버·미응답) · 차종을 못 읽었거나 · 배송거리를 못 읽은 경우.
+             *   단가표가 없거나(서버 미응답) · 차종을 못 읽었거나 · 배송거리를 못 읽은 경우.
              *   통과시켜 버리지 않는 이유는, 그러면 리스트 전체가 들어와 안전취소가 밀리기 때문이다.
              *   `minFare` 는 최소한의 문턱으로 남기고 정확한 판정은 서버가 한다.
              *
@@ -398,7 +393,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                             "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
             }
 
-            // ── 조건 5: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정 2026-08-18) ──
+            // ── 조건 5: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정) ──
             //    합짐·운행중에만 값이 내려온다(첫짐은 빈 맵 → 검사 없음). 국면 분기는 앱에 두지 않는다.
             // 📋 상차 목록이 오면 순서 검사를 안 한다 — 뒤쪽은 서버가 «내 위치 둘레»로 이미 뺐다
             val routeOrder = if (pickupListCheck != null) RouteOrderFilter.Result(true, "상차 목록으로 거른다 — 순서 검사 안 함")
@@ -409,7 +404,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             if (!routeOrder.passed && order.fare > 0) {
                 AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
             } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
-                // 🔎 «판단 못 해서 통과»도 남긴다 (기사님 요청 2026-09-14) — 14:11 역주행 콜이 줄 하나 없이 통과했다
+                // 🔎 «판단 못 해서 통과»도 남긴다 (기사님 요청) — 14:11 역주행 콜이 줄 하나 없이 통과했다
                 AppLogger.d(TAG, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
             }
 
@@ -651,7 +646,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             vehicleType = vehicleType,
             rawText = rawJoined,
             pickupDistance = distances.getOrNull(0),
-            // 🔴 2026-08-13 — 두 번째 값(배송거리)을 **버리지 않고 보존**한다.
+            // 🔴 두 번째 값(배송거리)을 **보존**한다.
             //    단가 판정(fare ≥ 배송거리 × 단가)의 입력이다. 없으면 null →
             //    판정을 건너뛰고 통과시킨다 (앱은 일단 잡아와라, 서버가 정확히 잰다).
             deliveryDistance = distances.getOrNull(1)
@@ -666,7 +661,7 @@ class InsungParser(private val context: Context) : IScrapParser {
         decide(order, loadCurrentFilter(), tally)
 
     /**
-     * 🗳️ **판정을 콜에 실어 돌려준다** (현황판 의뢰 2026-09-12).
+     * 🗳️ **판정을 콜에 실어 돌려준다**.
      *    스크랩이 서버로 올릴 때 이 값이 함께 가고, 현황판이 **제 손으로 다시 재지 않는다.**
      */
     override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder =
@@ -678,17 +673,15 @@ class InsungParser(private val context: Context) : IScrapParser {
      * 기사님: *"도대체 어떻게 하면 필터가 잘 작동하는지 확인할 수 있는 거야.
      * 지금 이것만 2시간 동안 하고 있어."*
      *
-     * 예전엔 `shouldClick` 이 안에서 `loadCurrentFilter()`(안드로이드 prefs)를 읽어서,
-     * **판정 하나를 확인하려면 폰 한 판(3분)을 돌려야 했다.** 그 3분 안에 서로 무관한
-     * 실패 지점이 여섯 개 있었다 — 지문 캐시 · 앱 바이너리 버전 · 차종 파싱 ·
-     * 앱이 확정 중이라 리스트 못 봄 · 필터 값 바꿔 첫짐 탈락 · 손으로 잡을 때 주소 깨짐.
-     * 2026-08-25 에 그 여섯을 하나씩 다 밟았고, **정작 필터 판정은 한 번도 못 봤다.**
+     * prefs 를 판정 안에서 읽으면 **판정 하나를 확인하려고 폰 시험(3분)을 돌려야** 하고, 그 3분 안에
+     * 서로 무관한 실패 지점(지문 캐시 · 앱 바이너리 버전 · 차종 파싱 · 확정 중이라 리스트 못 봄 ·
+     * 필터 값 바꿔 첫짐 탈락 · 손으로 잡을 때 주소 깨짐)이 여섯이라 정작 필터 판정을 못 본다.
      *
      * 판정은 원래 **(콜, 필터) → 통과/차단** 인 순수 계산이다. prefs 읽기만 밖으로 빼면
      * JVM 테스트에서 3초에 채점할 수 있다 (`app/src/test` · `filterVerdict` 문제지).
      *
-     * ⚠️ **동작은 한 줄도 바뀌지 않는다.** `shouldClick` 은 필터를 읽어 이걸 부를 뿐이다.
-     *    폰 주행은 이제 «필터가 맞나」가 아니라 **«GPS·경로·화면이 맞나」** 를 볼 때 쓴다.
+     * ⚠️ `shouldClick` 은 필터를 읽어 이걸 부를 뿐이다.
+     *    폰 주행은 «필터가 맞나」가 아니라 **«GPS·경로·화면이 맞나」** 를 볼 때 쓴다.
      */
 
     /**
@@ -728,8 +721,7 @@ class InsungParser(private val context: Context) : IScrapParser {
     // ════════════════════════════════════════════════════════════════
     
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
-        // 🔴 여기가 **승(승용차)을 빼먹고 있던 세 번째 목록**이었다.
-        //    카드를 묶는 자리라, 빠지면 그 콜은 로그 한 줄 없이 사라진다.
+        // 🔴 카드를 묶는 자리라, 차종이 빠지면 그 콜은 로그 한 줄 없이 사라진다 — 목록은 위 한 벌을 쓴다.
         val fareNodes = allNodes.filter { it.text.matches(VEHICLE_ONLY) }
 
         return fareNodes.map { fareNode ->
