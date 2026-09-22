@@ -95,9 +95,9 @@ describe('개별콜 — 회차 (시나리오를 다시 시작하면 이전 콜�
 });
 
 /**
- * 🫳 **채점이 끝난 줄의 콜은 거둔다 — «다른 기사가 가져갔다»** (일곱 번째 바퀴 · onedal-49 합의 · 시뮬 쪽은 onedal-49).
- *    12:06 막힘으로 채점된 B2 콜이 시뮬레이터 목록에 남아, 12:09 복귀를 켜자 폰이 다시 판정해 잡았다 → 적재가 차 C3 가 차종으로 막혔다.
- *    실주행에서 콜은 누가 잡으면 목록에서 사라진다 — 시험 도구만 영원히 두고 있었다.
+ * 🫳 **채점이 끝난 줄의 콜은 거둔다 — «다른 기사가 가져갔다»**.
+ *    실주행에서 콜은 누가 잡으면 목록에서 사라진다. 시험 도구가 막힘으로 채점된 콜을 목록에 남겨 두면,
+ *    나중에 복귀를 켰을 때 폰이 다시 판정해 잡고 → 적재가 차 다음 콜이 차종으로 막힌다.
  */
 describe('개별콜 — 거두기', () => {
     it('🔴 거둔 콜은 목록에서 빠지고 답의 withdrawn 에 실린다 (after 와 무관)', () => {
@@ -154,7 +154,7 @@ describe('🔴 세 곳이 같은 말을 한다 — 현황판 · 서버 · 시뮬
     });
 
     it('답 칸 — 번호 · 회차 · 콜 (서버 답 ↔ 시뮬레이터가 받는 묶음)', () => {
-        expect(fieldsOf(server, 'SimCallBatch')).toEqual(['calls', 'lastSeq', 'round', 'withdrawn']);   // 🫳 거둔 번호 (시뮬 짝은 onedal-49)
+        expect(fieldsOf(server, 'SimCallBatch')).toEqual(['calls', 'lastSeq', 'round', 'withdrawn']);   // 🫳 거둔 번호
         expect(fieldsOf(sim, 'InjectedBatch')).toEqual(fieldsOf(server, 'SimCallBatch'));
     });
 
