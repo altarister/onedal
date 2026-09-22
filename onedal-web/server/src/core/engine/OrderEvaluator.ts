@@ -466,8 +466,8 @@ export class OrderEvaluator {
                 } else {
                     /**
                      * 🔴 **좌표가 없는 것은 `후보콜` 자신이다**.
-                     *    방금 앱이 집어 온 **후보콜의 주소를 카카오가 못 찾은 것**이다 — «본콜»이라 적으면
-                     *    기사님이 *"내가 KEEP 한 첫 콜에 문제가 있나?"* 로 읽으신다 (본콜은 금지어다).
+                     *    방금 앱이 집어 온 **후보콜의 주소를 카카오가 못 찾은 것**이다 — 첫짐 콜 이야기로 적으면
+                     *    기사님이 *"내가 KEEP 한 첫 콜에 문제가 있나?"* 로 읽으신다.
                      */
                     const who = callName({ target: session.activeFilter.callTarget,
                                            index: getActiveCalls(session).length, candidate: true });
