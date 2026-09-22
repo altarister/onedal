@@ -1686,6 +1686,7 @@ export interface DeviceSession {
 }
 
 
+export * from './callBands';
 export * from './vehicles';
 export * from './regionMatch';
 export * from './pricing';

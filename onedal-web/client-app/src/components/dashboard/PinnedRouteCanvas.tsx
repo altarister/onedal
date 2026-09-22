@@ -1,4 +1,4 @@
-import { sectionLinesOf, aheadOf } from '@onedal/shared';
+import { sectionLinesOf, aheadOf, callBandsOf } from '@onedal/shared';
 import { SOAK } from './JudgmentSeat';
 import { logStateChange } from '../../lib/roadmapLogger';
 import React, { useRef, useCallback, useEffect } from 'react';
@@ -943,10 +943,25 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                     drawPath(line, mine ? 1.6 : 1, mine ? undefined : [10, 8]);
                 });
             } else if (canPaintPerSection) {
-                secLines.forEach((line, i) => {
-                    ctx.strokeStyle = callColors!.get(secStops![i].orderId) ?? mapColors.routeLine;
-                    drawPath(line, 1);
-                });
+                /**
+                 * 🌈 **콜마다 «내 짐이 차에 있는 동안»을 자기 색 띠로 겹쳐 그린다** (기사님 확정).
+                 *
+                 * 구간 하나를 한 콜에만 칠하면 «이 길은 A 만 간다»로 읽힌다 — 그동안 B 도 차에 실려 있다.
+                 * 그래서 콜마다 실으러 가는 구간부터 내리는 구간까지를 **반투명**으로 긋는다.
+                 * 겹친 구간은 두 색이 함께 보여 «둘을 같이 싣고 간다»가 그대로 읽힌다 (`callBandsOf`).
+                 *
+                 * 🔴 **바닥 한 줄을 먼저 긋는다** — 띠가 없는 구간(다 내린 뒤 집으로 가는 길 등)이
+                 *    비어 보이면 경로가 끊긴 것으로 읽힌다.
+                 */
+                ctx.strokeStyle = withAlpha(mapColors.routeLine, 0.35);
+                drawPath(validPolyline, 1);
+                const bands = callBandsOf(secStops!);
+                for (const [orderId, band] of bands) {
+                    const color = callColors!.get(orderId);
+                    if (!color) continue;
+                    ctx.strokeStyle = withAlpha(color, 0.55);
+                    for (let i = band.from; i <= band.to && i < secLines.length; i++) drawPath(secLines[i], 1.25);
+                }
             } else {
                 ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
                 // 노란 점선 = 아직 결재 전
