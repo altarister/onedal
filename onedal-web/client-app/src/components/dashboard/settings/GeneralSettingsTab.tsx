@@ -78,7 +78,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
         safeCancelSecHwamul24: waitSecOrNull(waitTimes.safeCancelSecHwamul24) ?? prev.safeCancelSecHwamul24,
         pickerAlarmDetailSec: waitSecOrNull(waitTimes.pickerAlarmDetailSec) ?? prev.pickerAlarmDetailSec,
       };
-      // 노선·반경은 여기서 보내지 않는다 — 편집 자리는 🔍 필터 국면 탭 하나 (④ 철거)
+      // 노선·반경은 여기서 보내지 않는다 — 편집 자리는 🔍 필터 국면 탭 하나다 (두 화면에서 고치면 값이 두 벌로 갈라진다)
       await apiClient.put('/settings', {
         vehicleType, defaultPriority, homeAddress,
         homeX: homeCoords?.x, homeY: homeCoords?.y,
