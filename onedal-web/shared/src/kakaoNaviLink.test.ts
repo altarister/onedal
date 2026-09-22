@@ -13,7 +13,7 @@ import { buildKakaoNaviUrl, type NaviStop } from './index';
  */
 const KEY = 'testkey0000000000000000000000000';
 const ORG = 'https://1dal.altari.com';
-/** 09-03 실제 정거장 — geocode_cache 실측값 */
+/** 실제 정거장 — geocode_cache 실측값 */
 const chowol: NaviStop = { name: '초월읍', x: 127.298238, y: 37.374409 };
 const yeosu:  NaviStop = { name: '여수동', x: 127.122541, y: 37.422620 };
 
@@ -99,11 +99,11 @@ describe('🧭 카카오내비 링크', () => {
 });
 
 /**
- * 🔴 **`via` 를 넘겼는데 안 받는 일이 실제로 났다**.
+ * 🔴 **`via` 를 넘기면 URL 에 실제로 실려야 한다.**
  *
- * 목업이 `{...qrArgs}` 로 펼쳐 넘겼는데 받는 쪽 `Props` 에 `via` 가 없었다.
- * **펼침 연산자는 남는 칸을 타입 검사가 안 잡는다** — 컴파일은 통과하고
- * **경유지만 조용히 사라졌을** 것이다. `via_list` 를 틀린 이름으로 보낸 것과 같은 병이다.
+ * `{...qrArgs}` 처럼 펼쳐 넘길 때 받는 쪽 `Props` 에 `via` 가 없으면
+ * **펼침 연산자는 남는 칸을 타입 검사가 안 잡아** 컴파일은 통과하고
+ * **경유지만 조용히 사라진다.** `via_list` 를 틀린 이름으로 보낸 것과 같은 병이다.
  */
 describe('🧭 경유지를 넘기면 실제로 실린다 — 조용히 사라지지 않는다', () => {
     const yeosu2: NaviStop = { name: '여수동', x: 127.122541, y: 37.422620 };
