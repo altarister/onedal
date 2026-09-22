@@ -103,18 +103,14 @@ export const IN_PROGRESS_STATUSES: readonly OrderStatus[] =
     RESTORABLE_STATUSES.filter(s => !TERMINAL_STATUSES.includes(s));
 
 /**
- * [임시 · Phase 7(영업일) 도입 시 삭제] 미완료 콜을 며칠까지 되살릴 것인가.
+ * 🗓️ **미완료 콜은 영업일 며칠 전까지 되살리나** (기사님 확정: 어제 영업일부터).
  *
- * 기사님 결정: **3일.**
- *
- * 복구 쿼리가 `timestamp >= 오늘 자정` 이라 **전날 상차한 콜이 사라졌다.**
- * 전날 상차해서 다음날 배송하는 운행이 통째로 깨진다.
- * 영업일 경계를 제대로 정하는 건 Phase 7 의 일이고 시각 표준 통일(7.5)이 선행이라,
- * 그때까지 **미완료 콜만** 날짜 무관으로 되살린다. 종결 콜은 지금처럼 오늘 것만.
- *
- * 무기한으로 두면 몇 달 전 미완료 콜이 되살아나므로 상한을 둔다.
+ * `timestamp >= 오늘 자정` 만 쓰면 **전날 상차한 콜이 사라져** 전날 상차·다음날 배송 운행이 깨진다.
+ * 그래서 미완료 콜만 영업일 경계(자정 · `businessDayKey`) 기준으로 하루 더 거슬러 살린다.
+ * 🔴 «지금부터 몇 시간»이 아니라 **날짜**로 자른다 — 자정을 넘겨 일해도 어제 잡은 콜이 그대로 산다.
+ * 종결 콜은 오늘 것만이다.
  */
-export const UNFINISHED_RESTORE_DAYS = 3;
+export const UNFINISHED_RESTORE_BUSINESS_DAYS = 1;
 
 /**
  * 복구 시간 창 두 개. 서버의 두 쿼리가 같은 값을 쓰도록 여기서만 만든다.
@@ -125,7 +121,7 @@ export const UNFINISHED_RESTORE_DAYS = 3;
 /**
  * 🗓️ **복구 창의 조건 한 벌** — 재부팅 복구(`restoreAndRecalculateSession`)와 새로고침 이력(`GET /orders`)이 같이 쓴다.
  *    어긋나면 소켓에는 있는데 HTTP 에는 없는 콜이 생겨 새로고침마다 깜빡인다 (규칙 ③).
- *    · 오늘 잡은 콜 · 3일 안의 미완료 콜 · **오늘 하차한 콜** — 자정을 넘긴 운행에서 어제 잡고 오늘 내린 콜을 오늘 시트에 올린다
+ *    · 오늘 잡은 콜 · 어제 영업일부터의 미완료 콜 · **오늘 하차한 콜** — 자정을 넘긴 운행에서 어제 잡고 오늘 내린 콜을 오늘 시트에 올린다
  *      (기사님 확정 *"오늘 내린 콜만 분리해서 오늘 시트에 올린다"*).
  *    `sql` 은 `orders` 의 칸 이름(`timestamp`·`status`·`completedAt`)을 쓴다 — 별칭이 있으면 `prefix` 로 붙인다.
  */
@@ -143,7 +139,8 @@ export function restoreWindow(nowMs: number): { todayStartIso: string; unfinishe
     todayStart.setHours(0, 0, 0, 0);
     return {
         todayStartIso: todayStart.toISOString(),
-        unfinishedSinceIso: new Date(nowMs - UNFINISHED_RESTORE_DAYS * 86_400_000).toISOString(),
+        unfinishedSinceIso: new Date(
+            todayStart.getTime() - UNFINISHED_RESTORE_BUSINESS_DAYS * 86_400_000).toISOString(),
     };
 }
 

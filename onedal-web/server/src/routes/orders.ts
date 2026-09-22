@@ -39,7 +39,7 @@ router.get("/", requireAuth, (req, res) => {
         //
         // 🔴 상태를 손으로 나열하지 않는다 — 나열하면 상차한 콜·하차한 콜을 빠뜨려
         //    새로고침하면 진행 중이던 콜과 완료됨 탭이 비어 버린다.
-        // [임시 · Phase 7 도입 시 삭제] 미완료 콜은 날짜 무관(3일 상한).
+        // 🗓️ 미완료 콜은 영업일(자정) 기준으로 어제부터 살린다 — 전날 상차·다음날 배송 운행이 깨지지 않게.
         // 복구 쿼리(restoreAndRecalculateSession)와 **같은 창**을 써야 한다 —
         // 어긋나면 소켓에는 있는데 HTTP 에는 없는 콜이 생겨 새로고침마다 깜빡인다.
         const { todayStartIso, unfinishedSinceIso } = restoreWindow(Date.now());

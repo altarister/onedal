@@ -1,7 +1,7 @@
 import {
     ALL_ORDER_STATUSES, EVALUATING_STATUSES, TERMINAL_STATUSES, RESTORABLE_STATUSES,
     isEvaluating, isTerminal,
-    IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, restoreWindow,
+    IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, restoreWindow,
 } from '@onedal/shared';
 
 /**
@@ -86,13 +86,17 @@ describe('복구 시간 창', () => {
         expect(yesterday >= w.unfinishedSinceIso).toBe(true);      // 미완료 창에는 들어온다
     });
 
-    it('상한(3일)을 넘긴 콜은 어느 창에도 안 들어온다 — 그래서 경고를 띄운다', () => {
+    it('창을 넘긴 콜은 어느 창에도 안 들어온다 — 그래서 경고를 띄운다', () => {
         const w = restoreWindow(NOW);
-        const old = new Date(NOW - (UNFINISHED_RESTORE_DAYS + 1) * 86_400_000).toISOString();
+        const old = new Date(NOW - 3 * 86_400_000).toISOString();     // 그제보다 앞
         expect(old >= w.unfinishedSinceIso).toBe(false);
     });
 
-    it('상한은 정확히 3일이다 (기사님 결정 2026-08-11)', () => {
-        expect(UNFINISHED_RESTORE_DAYS).toBe(3);
+    /** 🔴 창은 «지금부터 몇 시간»이 아니라 **영업일(자정) 날짜**로 자른다 (기사님 확정) */
+    it('미완료 창의 시작은 어제 영업일의 자정이다', () => {
+        const w = restoreWindow(NOW);
+        const today = new Date(w.todayStartIso).getTime();
+        expect(new Date(w.unfinishedSinceIso).getTime())
+            .toBe(today - UNFINISHED_RESTORE_BUSINESS_DAYS * 86_400_000);
     });
 });

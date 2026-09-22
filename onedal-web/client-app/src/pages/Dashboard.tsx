@@ -113,7 +113,7 @@ export default function Dashboard() {
         const t = setTimeout(() => setRestoredInfo(null), NOTICE_MS);
         return () => clearTimeout(t);
     }, [restoredInfo]);
-    // [T5] 3일이 지나 복구에서 빠진 미완료 콜 — **조용히 사라지게 두지 않는다**
+    // 🗓️ 어제 영업일보다 오래돼 복구에서 빠진 미완료 콜 — **조용히 사라지게 두지 않는다**
     const [staleDropped, setStaleDropped] = useState<{
         count: number; days: number;
         orders: { id: string; status: string; pickup: string; dropoff: string; daysAgo: number }[];
@@ -382,7 +382,7 @@ export default function Dashboard() {
                         <span className="text-lg leading-none mt-0.5">⏳</span>
                         <div className="flex-1 min-w-0 text-sm">
                             <p className="font-bold text-text-primary">
-                                {staleDropped.days}일이 지난 미완료 콜 {staleDropped.count}건이 화면에서 빠졌습니다
+                                어제 영업일보다 오래된 미완료 콜 {staleDropped.count}건이 화면에서 빠졌습니다
                             </p>
                             <p className="text-text-muted text-xs mt-0.5">
                                 끝내지 않은 콜이 남아 있다면 사무실에 확인해 주세요. 적재·합짐 계산에는 반영되지 않습니다.

@@ -1,6 +1,6 @@
 import { restoreWhere, decideTargetAfterDelivery, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
-         RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
+         RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
          CALL_TARGET_LABEL, isEvaluating } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
@@ -846,10 +846,10 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         //    손으로 적으면 새 상태(ORDER_PICKED_UP · ORDER_DELIVERED 같은 것)가 빠져
         //    **짐을 실은 채 새로고침하면 콜이 사라진다.** shared 의 RESTORABLE_STATUSES 한 곳에서만 정한다.
         //
-        // [임시 · Phase 7 도입 시 삭제] 미완료 콜은 날짜 무관(3일 상한)으로 되살린다.
+        // 🗓️ 미완료 콜은 영업일(자정) 기준으로 **어제부터** 되살린다.
         //    `timestamp >= 오늘 자정` 만 쓰면 **전날 상차한 콜이 사라져서**
         //    전날 상차 → 다음날 배송하는 운행이 통째로 깨진다.
-        //    종결 콜은 지금처럼 오늘 것만 — 목록이 무한정 길어질 이유가 없다.
+        //    종결 콜은 오늘 것만 — 목록이 무한정 길어질 이유가 없다.
         const statusPlaceholders = RESTORABLE_STATUSES.map(() => '?').join(', ');
         const progressPlaceholders = IN_PROGRESS_STATUSES.map(() => '?').join(', ');
         /* 🗓️ 창은 shared `restoreWhere` 한 벌 — «오늘 하차»도 살린다 (자정 넘긴 운행) */
@@ -880,12 +880,12 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             const daysAgo = (t: string) =>
                 Math.floor((Date.now() - new Date(t).getTime()) / 86_400_000);
             console.warn(
-                `⚠️ [복구 제외] ${UNFINISHED_RESTORE_DAYS}일이 지난 미완료 콜 ${dropped.length}건이 화면에서 빠집니다:\n` +
+                `⚠️ [복구 제외] 어제 영업일보다 오래된 미완료 콜 ${dropped.length}건이 화면에서 빠집니다:\n` +
                 dropped.map(o => `   · ${o.id.slice(0, 8)} ${o.status} ${o.pickup}→${o.dropoff} (${daysAgo(o.timestamp)}일 전)`).join('\n')
             );
             io?.to(userId).emit("stale-orders-dropped", {
                 count: dropped.length,
-                days: UNFINISHED_RESTORE_DAYS,
+                days: UNFINISHED_RESTORE_BUSINESS_DAYS,
                 orders: dropped.map(o => ({
                     id: o.id, status: o.status, pickup: o.pickup, dropoff: o.dropoff,
                     daysAgo: daysAgo(o.timestamp),
