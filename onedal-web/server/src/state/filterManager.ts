@@ -104,7 +104,7 @@ export function homeCallsOf<T extends { status?: string; capturedAt?: string; go
 }
 
 /**
- * 📏 **자동 반경이 쓸 «잰 거리»를 들고 있게 한다 — 한 곳** (필터.md §10-1 ③ «하루에 한 번 잰다» · #149).
+ * 📏 **자동 반경이 쓸 «잰 거리»를 들고 있게 한다 — 한 곳** (#149).
  *    들고 있으면 그대로, 비어 있으면 «내 위치 → 목적지»로 재서 싣는다(`radiusDistanceKm`).
  *    🔴 상차 목록(`rebuildPickupList`)과 하차 목록(`netKeywordsOf`)이 **반경을 쓰기 전에** 부른다 —
  *    한쪽만 재면 서버를 다시 켠 직후 먼저 만든 목록이 안 줄인 원래 반경으로 만들어진다.
@@ -145,7 +145,7 @@ function netKeywordsOf(
     userId: string,
     city: string,
     radiusKm: number,
-    /** 그 목적지의 조각 — 라인(확정콜의 마지막 하차지까지 자른 것) · 확정콜의 마지막 하차지 · 현위치 원을 넣나 · 🎯 가까이 옴 (shared `dropoffPartsOf` · 필터.md «하차 영역») */
+    /** 그 목적지의 조각 — 라인(확정콜의 마지막 하차지까지 자른 것) · 확정콜의 마지막 하차지 · 현위치 원을 넣나 · 🎯 가까이 옴 (shared `dropoffPartsOf`) */
     part: { line: Array<[number, number]> | null; lastDrop: { x: number; y: number } | null; withMe: boolean; nearGoal: boolean },
 ): { flat: string[]; grouped: Record<string, string[]>; byNet: boolean; pruned: number; progressKm: Record<string, number>;
     /** 🎯 목적지 원 반경(km) — `dstDiamKm / 2` · 가까이 온 목적지의 하차 목록이 쓰는 그 원이다. */
@@ -169,9 +169,9 @@ function netKeywordsOf(
 
     const quad = quadShapeFrom(session.activeFilter as any);
     /**
-     * 📐 **반경 자동 맞춤** — 목적지와의 거리에 따라 반경이 자동으로 바뀐다 · 자동/수동 (필터.md §10-1).
+     * 📐 **반경 자동 맞춤** — 목적지와의 거리에 따라 반경이 자동으로 바뀐다 · 자동/수동.
      *
-     * 🔴 **거리는 하루에 한 번 잰다** (필터.md §10-1 ③ · #117) — 들고 있으면 그것을 쓰고, 비어 있을 때만
+     * 🔴 **거리는 하루에 한 번 잰다** (#117) — 들고 있으면 그것을 쓰고, 비어 있을 때만
      *    «내 위치 → 목적지»로 잰다(`holdRadiusDistance`). 합짐마다 «마지막 하차지 → 목적지»로 다시 재면
      *    목적지 앞에서 원이 거의 0 이 되어 관내콜도 가는 길의 좋은 콜도 못 받는다.
      *    비우는 곳: 다시 구하기(`null`) · 목적지 변경(`updateActiveFilter`) · 영업일 전환(`resetToBaseFilter`).
@@ -201,7 +201,7 @@ function netKeywordsOf(
      *    🔴 기사님이 정한 원값(`pickupRadiusKm` 등)은 **안 건드린다** (규칙 ④).
      */
     /**
-     * 🎯 **목적지 가까이 옴 → 그 목적지 원에 걸친 동 전체** (필터.md «하차 영역»).
+     * 🎯 **목적지 가까이 옴 → 그 목적지 원에 걸친 동 전체**.
      *    관내를 따로 재지 않는다 — «가까이 옴»(`withNearness`)이 갈랐다. 상차 목록 동도 안 뺀다 (`mergeDropoffGroups`).
      *    걸침은 상차 목록과 같은 식이다 (`geoService.regionsTouchingAreaGrouped` — 격자 점 ∪ 동 꼭짓점).
      */
@@ -227,7 +227,7 @@ function netKeywordsOf(
         lastDrop,
         params,
         anchor: me ? { name: '내 위치', lng: me.x, lat: me.y } : { name: '내 위치', lng: goal.lng, lat: goal.lat },
-        /* 🧩 **현위치 영역은 조각이 넣으라 할 때만** — 콜 없음 · 경로 생김(운행 전)이면 넣고 운행 뒤면 뺀다 (shared `dropoffPartsOf` · 필터.md «하차 영역») */
+        /* 🧩 **현위치 영역은 조각이 넣으라 할 때만** — 콜 없음 · 경로 생김(운행 전)이면 넣고 운행 뒤면 뺀다 (shared `dropoffPartsOf`) */
         me: part.withMe && me ? { name: '내 위치', lng: me.x, lat: me.y } : null,
     };
     const net = netForGoal(goal, netOpts);
@@ -240,7 +240,7 @@ function netKeywordsOf(
         (grouped[region] ??= []).push(d.name);
     }
     /**
-     * 🔵 **원 · 마름모 가장자리에 걸친 동도 넣는다** — 영역에 걸치면 들어간다 (필터.md «하차 영역»).
+     * 🔵 **원 · 마름모 가장자리에 걸친 동도 넣는다** — 영역에 걸치면 들어간다.
      *    그물은 동을 중심점 하나로 담아, 넓은 읍 · 면은 가장자리에 걸쳐도 빠진다. 판정은 그물과 같은 `netAreaTesterOf` · 걸침은 상차 목록과 같은 식.
      */
     const edge = regionsTouchingNetGrouped({ goal, ...netOpts });
@@ -630,7 +630,7 @@ export function buildAppOrderKm(
         /* 🔴 **목록에 든 동은 다 싣는다. 경로 위가 아니면 `null`(순서 미상 → 통과).**
          *    필터는 그렇게 세밀할 수 없다 — 올리고, 판정에서 나쁜 점수를 받으면 기사님이 고르지 않는다 (규칙 ⑤).
          *    경로 밖 동을 빼서 «경로 밖 — 차단»으로 만들지 않는다 — 목적지 영역 안의 좋은 콜까지 막힌다.
-         *    뒤로 가는 상차는 필터 영역이 뺀다(필터.md §5 «필터 영역»). */
+         *    뒤로 가는 상차는 필터 영역이 뺀다. */
         const v = order[dong];
         // 유한하지 않은 값이 섞여 들면 «순서 미상 — 통과» — 느슨한 쪽이 안전하다 (규칙 ⑤)
         out[dong] = Number.isFinite(v) ? (v as number) : null;
@@ -800,7 +800,7 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
     const pickupGroups = session.activeFilter.pickupGroups ?? {};
     let byNet = zones.length > 0, pruned = 0;
     for (const z of zones) {
-        /* 🔴 마름모 시작점은 «그 목적지의 마지막 하차지를 아는가»로 정한다 — 「가까이 옴」은 여기 안 든다 (설계서 ⑥) */
+        /* 🔴 마름모 시작점은 «그 목적지의 마지막 하차지를 아는가»로 정한다 — 「가까이 옴」은 여기 안 든다 */
         const lastDrop = !z.hasCalls ? null
             : lastDropOf({ isHome: z.isHome, homeOn, homeCity, stops, calls: activeCalls });
         /**
@@ -822,7 +822,7 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
         });
         parts.push({ nearGoal: !!z.nearGoal, grouped: kept.grouped, progressKm: kept.progressKm });
         const names = [...new Set(Object.values(kept.grouped).flat())];
-        /* 🔎 켜진 조각을 그대로 적는다 — 조합을 이름 하나로 뭉치지 않는다 (설계서 ⑥-5) */
+        /* 🔎 켜진 조각을 그대로 적는다 — 조합을 이름 하나로 뭉치지 않는다 */
         const pieces = [
             shape.line && '라인',
             shape.quadFrom === 'lastDrop' ? '마름모(확정콜의 마지막 하차지)' : '마름모(현위치)',
@@ -844,7 +844,7 @@ function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, 
 export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): void {
     const session = getUserSession(userId);
     const startedAt = Date.now();
-    /* 📋 **상차 목록을 먼저** — 하차 목록이 먼 목적지에서 상차 목록 동을 뺀다 (`mergeDropoffGroups` · 필터.md «하차 영역»).
+    /* 📋 **상차 목록을 먼저** — 하차 목록이 먼 목적지에서 상차 목록 동을 뺀다 (`mergeDropoffGroups`).
        경로 · 출발 · 복귀가 바뀌는 길이 여기로 모인다. 방송은 아래 `updateActiveFilter` 가 한 번에 한다.
        🔴 손으로 고친 필터여도 상차 목록은 만든다 — 하차 목록만 기사님 것이다 (#146 과 같은 모양) */
     const pickupChanged = pickupBuilt || rebuildPickupList(session, userId);
@@ -870,14 +870,14 @@ export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): 
     console.log(`🕸️ [필터 목록] 목적지 ${kept.goals.join(' ∪ ')} · ${kept.line ? '라인(얼린 경로)' : '경로 없음'} · `
         + `${kept.byNet ? '그물' : '도시 둘레(물러섬)'} → ${kept.flat.length}개`
         + (kept.pruned > 0 ? ` (제외로 ${kept.pruned}개 뺌)` : ''));
-    /* 🔎 목적지마다 조각 · 뺀 수 — 지도 «하차» 레이어와 원달앱 목록이 맞는지 로그로 대조한다 (필터.md «하차 영역» · `pnpm log`) */
+    /* 🔎 목적지마다 조각 · 뺀 수 — 지도 «하차» 레이어와 원달앱 목록이 맞는지 로그로 대조한다 (`pnpm log`) */
     console.log(`🔵 [하차 목록] ${kept.details.join(' | ') || '목적지 없음'} → 상차 목록 ${(session.activeFilter.pickupKeywords ?? []).length}곳 · 하차 ${kept.flat.length}곳 · ${Date.now() - startedAt}ms`);
 }
 
 /**
  * 🗺️ **키워드 트랩 — 한 곳.**
  *    "남동"→"인천 남동구" 같은 부분 문자열 오탐을 막는다. 원천은 전국 지명 사전(geoService)이고, 앱·서버 매칭(anyRegionHit)이 이 트랩으로 거른다.
- *    📋 **상차 목록 ∪ 하차 목록으로 한 벌** — 막는 낱말이 늘 뿐이라 통과를 넓히지 않는다 (필터.md «상차 목록»).
+ *    📋 **상차 목록 ∪ 하차 목록으로 한 벌** — 막는 낱말이 늘 뿐이라 통과를 넓히지 않는다.
  *    🔴 목록을 바꾸는 두 길(`updateActiveFilter` · `rebuildPickupList`)이 **이 함수 하나**를 부른다 — 계산이 두 벌이면 한쪽 목록을 빠뜨린다.
  */
 function refreshKeywordTraps(session: ReturnType<typeof getUserSession>): void {
@@ -912,7 +912,7 @@ function goalZonesNow(session: ReturnType<typeof getUserSession>, userId: string
         me: { x: me.x, y: me.y },
         destinationRadiusKm: eff.destinationRadiusKm,
     }) : base;
-    /* 🔴 «출발했나»는 목적지마다가 아니라 **하나**다 — 조각이 이 값을 직접 본다 (설계서 ⑥) */
+    /* 🔴 «출발했나»는 목적지마다가 아니라 **하나**다 — 조각이 이 값을 직접 본다 */
     /* ⏭️ `homeCaught` 는 아직 관제웹·소켓 규격이 읽는다 — 목적지 계산에는 안 쓴다 (걷어내기는 다음 걸음) */
     const homeCaught = homeOn && homeCallsOf(session, userId, session.myOrders).length > 0;
     return { zones, homeOn, homeCity, homeCaught, departed: !!session.departedAt };
@@ -936,7 +936,7 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const eff = effectiveRadii(f);
     const line = f.routeMode === false ? null : filterLineOf(session);
     const { zones, homeOn, homeCity, homeCaught, departed } = goalZonesNow(session, userId, me);
-    /* 🟢 조각이 **사실**을 직접 본다 — 목적지 목록을 뒤져 «내가 달리나»를 묻지 않는다 (설계서 ⑥) */
+    /* 🟢 조각이 **사실**을 직접 본다 — 목적지 목록을 뒤져 «내가 달리나»를 묻지 않는다 */
     const parts = pickupPartsOf({
         departed,
         hasLine: !!line && line.length >= 2,
@@ -961,7 +961,7 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     const nearChanged = session.pickupNearKey !== nearGoalKey;
     session.pickupNearKey = nearGoalKey;
     const changed = !prev || prev.join(',') !== list.join(',') || prevArea !== pickupAreaKey(f.pickupArea) || nearChanged;
-    /* 🔎 켜진 조각을 그대로 적는다 — 조합을 이름 하나로 뭉치면 새 조합이 «없음»으로 찍힌다 (설계서 ⑥-5) */
+    /* 🔎 켜진 조각을 그대로 적는다 — 조합을 이름 하나로 뭉치면 새 조합이 «없음»으로 찍힌다 */
     const shown = ['내 위치', parts.line && '라인(현위치부터)', parts.goalCities.length ? `목적지 원(${parts.goalCities.join('·')})` : '']
         .filter(Boolean).join(' ∩ ');
     if (changed) console.log(`📋 [상차 목록] ${zones.map(z => `${z.city}:${goalStateLabel(z.hasCalls, departed)}${z.nearGoal ? '·가까이' : ''}`).join(' · ') || '목적지 없음'} → `
@@ -974,7 +974,7 @@ export function maybeRebuildPickupList(userId: string, io?: any): void {
     const session = getUserSession(userId);
     const me = originOf(session as Parameters<typeof originOf>[0]);
     if (!pickupListNeedsRebuild(session.pickupListAt, me ? { x: me.x, y: me.y } : null)) return;
-    /* 🔵 상차 목록 · 지도 재료 · 가까이 옴이 바뀌면 **하차 목록도** — 먼 목적지는 상차 목록 동을 빼기 때문이다 (필터.md «하차 영역») */
+    /* 🔵 상차 목록 · 지도 재료 · 가까이 옴이 바뀌면 **하차 목록도** — 먼 목적지는 상차 목록 동을 빼기 때문이다 */
     if (rebuildPickupList(session, userId)) rebuildNetFilter(userId, io, true);
 }
 
@@ -1192,7 +1192,7 @@ export function updateActiveFilter(
         // 일반 변경: activeFilter에 직접 덮어쓰기
         session.activeFilter = { ...session.activeFilter, ...changes };
         /**
-         * 📏 **기사님이 목적지를 바꾸면 자동 반경 거리를 비운다** (필터.md §10-1 ③) — 다른 목적지의 거리를 쓰지 않는다.
+         * 📏 **기사님이 목적지를 바꾸면 자동 반경 거리를 비운다** — 다른 목적지의 거리를 쓰지 않는다.
          * 🔴 **값이 실제로 바뀔 때만** — 필터 화면의 저장은 목적지를 늘 같이 보낸다. 그걸로 비우면 달리는 중에 다시 재진다.
          * ⚠️ 복귀로 «그물이 보는 목적지»가 집이 되는 것(`callTarget`)은 여기를 안 지난다 — 기사님 결정으로 그대로 둔다.
          */
@@ -1302,7 +1302,7 @@ export function updateActiveFilter(
     broadcastFilter(userId, session, io);
 
     /**
-     * 🧩 **출발하면 목록을 다시 만든다** — 내 영역 중 마름모 밖이 빠진다 (필터.md §5 «필터 영역»).
+     * 🧩 **출발하면 목록을 다시 만든다** — 내 영역 중 마름모 밖이 빠진다.
      *    지나온 곳 빼기는 진행도 있는 동만 빼서 이 일을 못 한다.
      *    ⚠️ 끝에서 한 번 — `rebuildNetFilter` 가 부르는 이 함수는 `driverAction` 을 안 실어 여기로 다시 안 온다.
      */
