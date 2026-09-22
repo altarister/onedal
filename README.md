@@ -79,6 +79,9 @@
 > `jest` 결과는 `Test Suites:` 의 `passed` 와 `total` 이 같은지까지 본다 — 컴파일이 안 되는 검사 파일은 «실패»가 아니라 «없는 것»이 된다
 > ([onedal-web/CLAUDE.md](onedal-web/CLAUDE.md) «jest 는 Test Suites 줄까지 본다»)
 
+> 🔴 **수락 뒤 픽커 화면 캡처는 담지 않는다** — 남의 집 주소·동호수·전화번호·문 앞 사진이 가려지지 않았고, git 이력에 들어가면 지워도 남는다.
+> `.gitignore` 가 `ex_images/카카오픽커/실물_2026/` 을 막는다 (수락 전 상세 화면은 된다)
+
 > 🔴 **버그는 순서를 뒤집어 고친다** (기사님 지시) — 진단 → 잡았을 검사를 먼저 만들어
 > **빨간불 확인** → 수정 → 초록불. 빨간불이 안 뜨면 진단이 틀린 것이다. 같은
 > **클래스**가 두 번 나오면 그 클래스를 없앤다 —
@@ -125,7 +128,7 @@
 | 단계 → 마일스톤 | 🟡 `onedal-web/shared/src/callSteps.ts` 한 곳 |
 | 콜 색 | 🟡 `onedal-web/client-app/src/styles/callPalette.ts` 한 곳 |
 | 시간 계산 | 🟡 `onedal-web/shared/src/timing.ts` 한 곳 |
-| 콜 필터의 지역 목록 계산 | 🟡 `pnpm net:compare` (경유는 아직 두 벌) |
+| 콜 필터의 지역 목록 계산 | 🟡 `pnpm net:compare` (그물 계산이 두 벌 — 지도 `callNet` ↔ 서버 turf) |
 | `baseFilter` ↔ `activeFilter` | 🟡 `onedal-web/server/CLAUDE.md` |
 | `destinationKeywords` · `customCityFilters` | ✅ `keepKeepsAliases` — 경유 한 벌은 `filterManager` 한 곳이 조립한다 (`onedal-web/server/CLAUDE.md`) |
 | 서버 낱말 사전 `onedal-web/server/config/keywords_*.json` | 🟡 앱 `FALLBACK_NOISE_WORDS` (일부러 일부만) |
@@ -139,7 +142,7 @@
 용어의 원천은 `onedal-web/server/tests/rules/glossary.test.ts` 다 — 금지어와 바꿀 말이 거기 있고, 코드와 `CLAUDE.md`(`pnpm audit:docs` ③)에서 막는다.
 
 > 🔴 **콜 필터와 판정 기준은 따로 돈다.** 콜 필터는 앱이 콜을 **집기 전**에 거르고,
-> 판정 기준은 서버가 **집은 뒤** 색을 정한다. 판정 기준은 앱에 내려가지 않는다. «오늘만» 버튼은 콜 필터에만 있다.
+> 판정 기준은 서버가 **집은 뒤** 색을 정한다. 판정 기준은 앱에 내려가지 않는다. «오늘만»은 콜 필터에만 있는 개념이다 — 버튼이 아니라, 필터 창에서 손댄 값이 메모리에만 남는 것.
 
 ## 이 문서 · 코드 주석에 무엇을 적나 — 「지금 지켜야 할 것」을 한 곳에만
 
@@ -152,6 +155,7 @@
 - 🔴 **숫자를 적지 않는다 — 세는 명령을 적는다** (예: `ls onedal-web/server/tests/rules/ | wc -l`). 적어 둔 건수·기본값은 반드시 낡는다
 - **«왜»는 걷어내지 않는다** — 이유가 없으면 규칙이 귀찮은 관습으로 읽혀 넘기게 된다.
   가르는 기준은 하나: **그 착각에 지금도 빠지는가.** 빠지면 한 줄로 남기고, 이미 없어진 상태면 걷어낸다
+- 🔴 **코드와 다른 문서를 근거로 일하지 않고, 코드에 없는 것을 «완료»로 쓰지 않는다** — `pnpm audit:docs` 는 없는 파일·식별자·링크를 잡지만 문장이 틀린 것은 못 잡는다
 - 검사 파일 머리는 «무엇을 막나» 두세 줄
 - 걷을 때: 그 파일을 읽는 검사를 `grep -rl <경로>` 로 모아 돌린다 ·
   주석까지 든 원문을 위치·길이로 자르는 검사를 만나면 주석을 걷어낸 원문(`codeOnly`)으로 바꾼다
