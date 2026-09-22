@@ -7,22 +7,16 @@ import org.junit.Test
 /**
  * 🔴 **콜의 출신은 스위치가 아니라 «누가 눌렀나» 다** (규칙 ③)
  *
- * 이 검사가 잡는 실사고 (코드리뷰에서 발견):
+ * 출신(`type` 앞머리 · 콜 id 접두사)은 `SessionManager.clickOrigin` **한 곳**에서만 파생한다 —
+ * `session.isAutoActive`(누가 눌렀나)로 정하고, 기기 모드 스위치(`telemetryManager.currentMode`)는 쓰지 않는다.
  *
- * `type` 을 정하는 판단이 **두 벌**이었다 —
- *   · `handleDetailScreen` 갈래 : `session.isAutoActive` (누가 눌렀나) ✅
- *   · `buildOrderFromScreen`    : `telemetryManager.currentMode` (스위치) ❌
- *
- * 그래서 **자동 스위치인 채 손으로 확정**하면 `"AUTO_CLICK"` 이 찍혔다.
- * 서버는 `type.startsWith("MANUAL")` 로 직접콜을 보호하는데(`devices.ts`),
- * 그 딱지가 안 붙으니 **리스트로 돌아오는 순간 서버가 그 콜을 강제 취소**한다 —
- * *"콜의 주인은 기사님이다"*(규칙 ①)가 깨지는 자리다.
- *
- * 🔴 기기 모드가 셋이 되면서(자동·알람·대기) 이 결함이 커졌다 —
- *    알람 모드에서는 `"ALARM_CLICK"` 이라는 **서버가 모르는 딱지**가 태어난다.
- *    알람은 *"내가 직접 누른다"* 가 약속인데 잡는 족족 취소되는 것이다.
- *
- * → 출신은 `SessionManager.clickOrigin` **한 곳**에서만 파생한다.
+ * 스위치로 정하면 두 곳이 깨진다:
+ *   · **자동 스위치인 채 손으로 확정**한 콜에 `"AUTO_CLICK"` 이 찍힌다.
+ *     서버는 `type.startsWith("MANUAL")` 로 직접콜을 보호하므로(`devices.ts`),
+ *     **리스트로 돌아오는 순간 서버가 그 콜을 강제 취소**한다 —
+ *     *"콜의 주인은 기사님이다"*(규칙 ①)가 깨지는 자리다.
+ *   · 알람 모드에서는 `"ALARM_CLICK"` 이라는 **서버가 모르는 딱지**가 생긴다.
+ *     알람은 *"내가 직접 누른다"* 가 약속인데 잡는 족족 취소된다.
  */
 class ClickOriginTest {
 
@@ -42,7 +36,7 @@ class ClickOriginTest {
 
     /**
      * 🔴 **모드 이름이 출신에 새어 나오면 안 된다.** 값이 늘 때마다
-     *    서버가 모르는 딱지가 태어난다 (`"ALARM_CLICK"` 이 그렇게 났다).
+     *    서버가 모르는 딱지가 생긴다 (알람 모드면 `"ALARM_CLICK"`).
      */
     @Test
     fun `출신은 두 값뿐이다 — 기기 모드 이름이 섞이지 않는다`() {
@@ -57,8 +51,8 @@ class ClickOriginTest {
     }
 
     /**
-     * 🔴 콜 id 접두사도 같은 원천을 쓴다. 예전엔 `ensureOrderId(currentMode)` 라
-     *    알람 모드에서 `"ALARM-1234…"` 라는 id 가 만들어졌다.
+     * 🔴 콜 id 접두사도 같은 원천(`clickOrigin`)을 쓴다. 기기 모드로 만들면
+     *    알람 모드에서 `"ALARM-1234…"` 처럼 서버가 모르는 id 가 생긴다.
      */
     @Test
     fun `콜 id 접두사도 출신을 따른다`() {
