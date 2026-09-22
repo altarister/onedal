@@ -14,33 +14,27 @@ beforeAll(() => { initGeoService(); });
  * 까지 콜로 잡아줘 이렇게 이야기 한것 같은데.. 그것이 아니였어?"*
  * + *"가남→세종대왕면 , 가남→점동면 둘다 콜이 올라와야 한다고 난 보는데."*
  *
- * ── 실측 (35 ·:45, 상차·차종·요금이 똑같은 대비쌍) ──
- *     ⑧ 가남 → 세종대왕면  도착지(14중 세종대왕면)=✅  → 잡힘
- *     ⑨ 가남 → 점동면      도착지(14중 점동면)=❌     → **못 잡음**
- *   둘 다 여주시인데 갈렸다. 앱은 «시 별칭 **과** 동 목록» 을 둘 다 보는데,
- *   합짐·주행중의 동 목록이 **경로 경유으로 통째로 덮어써져** 여주 전역이 사라진다.
- *
- * 🔴 **뿌리**: 콜을 하나 잡는 순간 `syncDetourFilter` 가 경유 지명을
- *    `destinationKeywords` 에 밀어 넣고, `recalculateDerivedFields` 의
- *    도시 기반 재계산은 `else if` 라 **다시는 돌지 않는다.**
+ * ── 까닭 (상차·차종·요금이 똑같은 대비쌍) ──
+ *     ⑧ 가남 → 세종대왕면  도착지(경유 안)  → 잡힌다
+ *     ⑨ 가남 → 점동면      도착지(경유 밖)  → 도착목표를 안 합치면 **못 잡는다**
+ *   둘 다 여주시다. 앱은 «시 별칭 **과** 동 목록» 을 둘 다 보는데, 콜을 하나 잡으면
+ *   합짐·주행중의 동 목록이 **경로 경유로 통째로 덮여** 여주 전역이 사라진다.
  *
  *        첫짐    destinationKeywords = 여주 32개   ← 도착목표에서 파생
  *          ↓ KEEP
- *        합짐    destinationKeywords = 경유 104개  ← 덮어쓴다
+ *        합짐    destinationKeywords = 경유 104개  ← 도착목표를 안 합치면 이렇게 덮인다
  *
- *    화면에는 «여주시」가 그대로 남아 있는데 판정에서만 사라진다 (규칙 ⑤-4 ④ — 화면이
+ *    화면에는 «여주시»가 그대로 남아 있는데 판정에서만 사라진다 (규칙 ⑤-4 ④ — 화면이
  *    조용히 거짓말한다).
  *
- * ── 고침의 모양 ──
- *   `destinationKeywords` = **경유 ∪ 도착목표(첫짐에서 상속)**
- *   도착목표는 저장하지 않는다 — 노선의 목적지는 도중에 안 바뀌므로 첫짐에서 파생한다 (규칙 ③).
+ * ── 규칙 ──
+ *   `destinationKeywords` = **경유 ∪ 도착목표**
+ *   도착목표는 따로 저장하지 않고 `goalCityOf` 한 곳에서 파생한다 (규칙 ③).
  *
- * 🔴 **그런데 상차지 축이 뚫리면 안 된다.** `buildAppOrderKm` 은 `destinationKeywords`
- *    를 그대로 훑으며 경유에 없는 동까지 `null` 로 내보낸다. 그러면 앱의
- *    `RouteOrderFilter` 가 «상차지 순서 미상 — 통과» 로 흘려보내, **점동면에서 싣는
- *    콜이 통과한다** — 2026-08-18 파주 사고(78km 뒤로 돌아가 싣기)와 같은 형태다.
- *
- *    도착목표는 **하차지만** 연다. 상차지는 끝까지 경로 위여야 한다.
+ * 🔴 **상차지 축** — `buildAppOrderKm` 은 `destinationKeywords` 를 훑으며 경로 위 동은 진행도를,
+ *    경로 밖 동(도착목표에서 들어온 동 포함)은 `null`(순서 미상 → 통과)로 내보낸다.
+ *    필터는 방향을 안 본다(기사님 결정) — 키를 빼서 «경로 밖 — 차단»으로 만들면 목적지 영역 안의
+ *    좋은 콜까지 막힌다. 뒤로 가는 상차는 필터 영역이 뺀다.
  */
 
 const USER = 'test-dest-survives';
@@ -48,7 +42,7 @@ const USER = 'test-dest-survives';
 /** 합짐 국면 세션 — 경유은 경로 위 4개, 도착목표는 여주시 */
 function session(over: { keywords?: string[] } = {}) {
     const s = getUserSession(USER);
-    /* 🔄 2026-09-11 — 값이 한 벌이라 평면에 바로 둔다 (이식 C3-3b) */
+    /* 값이 한 벌이라 평면(activeFilter)에 바로 둔다 */
     s.activeFilter.destinationCity = '여주시';
     s.activeFilter.destinationRadiusKm = 5;
     s.activeFilter.dispatchPhase = 'GATHERING';
@@ -87,18 +81,14 @@ describe('도착 목표가 국면을 넘어 살아남는다', () => {
     });
 
     /**
-     * 🔴 **도착 목표는 «지금 쓰는 값»에서 읽는다 — 국면 설정을 직접 뒤지지 않는다**
-     *    (기사님 실측 2026-08-25 18:58).
+     * 🔴 **도착 목표는 «지금 쓰는 값»에서 읽는다 — 국면 설정을 직접 뒤지지 않는다** (기사님 실측).
      *
-     * 기사님: *"지금 복귀콜을 잡고 있는거 아니었어? 화면이 거짓인거야?"*
+     * 국면 설정(`phaseSettings.first`)을 직접 읽으면, 화면과 서버는 **복귀행 · 목적 광주시** 라고
+     * 말하는데 판정은 **파주**를 본다. 그러면 광주로 내리는 콜(곤지암읍·경안동)이 전부 «도착지 밖»으로 떨어진다.
      *
-     * 화면과 서버는 **복귀행 · 목적 광주시** 라고 정확히 말하고 있었다. 그런데 판정은
-     * **파주**를 보고 있었다 — 상속이 `phaseSettings.first` 를 직접 읽었기 때문이다.
-     * 그래서 광주로 내리는 콜(곤지암읍·경안동)이 전부 «도착지 밖»으로 떨어졌다.
-     *
-     *     화면·서버 타겟   복귀행 · 광주시
-     *     앱이 받은 필터   destinationCity=광주시
-     *     상속이 읽은 것   phaseSettings.first.destinationCity = 파주시   ← 🔴
+     *     화면·서버 타겟         복귀행 · 광주시
+     *     앱이 받은 필터         destinationCity=광주시
+     *     국면 설정을 직접 읽으면 phaseSettings.first.destinationCity = 파주시   ← 🔴
      *
      * ── 구조 ──
      *   ① 국면 설정(phaseSettings)  →  ② 평면 필터(activeFilter)  →  ③ 파생 목록
@@ -107,11 +97,9 @@ describe('도착 목표가 국면을 넘어 살아남는다', () => {
      *   ①과 ② 사이에 **국면 전환·`override`·`auto` 파생**이 있다. ③을 만들면서 ①을
      *   직접 읽으면 그 변환이 통째로 무시된다.
      *
-     * 🔴 **파생은 바로 윗단만 본다.** 두 단계를 건너뛰지 않는다.
-     *    ①을 다시 해석하는 것은 `applyPhaseToFilter` 를 **두 번째로 구현하는 것**이고,
-     *    이 레포가 반복해 당한 «같은 규칙 두 벌»이다.
-     *
-     * ⚠️ 이 검사는 한때 `phaseSettings.first` 를 **강제하고 있었다** — 틀린 것을 지켰다.
+     * 🔴 **파생은 바로 윗단만 본다.** 두 단계를 건너뛰면
+     *    ①을 다시 해석하게 되고, 그것은 `applyPhaseToFilter` 를 **두 번째로 구현하는 것**이라
+     *    «같은 규칙 두 벌»이 된다.
      */
     it('🔴 도착목표는 activeFilter 에서 읽는다 (국면 설정을 직접 뒤지지 않는다)', () => {
         // 🔴 주석을 통째로 걷어낸다 — 줄머리만 보면 블록 주석 **안쪽**이 남아
@@ -126,10 +114,9 @@ describe('도착 목표가 국면을 넘어 살아남는다', () => {
         const fn = fm.slice(from, end === -1 ? undefined : end);
         expect(fn).toMatch(/unionRegions\(/);
         /**
-         * 🔄 2026-09-12 개정 — 이제 `activeFilter.destinationCity` 를 **직접** 읽지 않고
-         *    `goalCityOf(session, userId)` 를 읽는다. 그 함수가 «activeFilter 의 목적지 +
-         *    복귀면 집 시» 를 **한 곳에서** 낸다 (전수 조사 ①-1 — 복귀를 켤 때 목적지를
-         *    덮어쓰던 것을 파생으로 바꿨다). 규칙의 뜻은 그대로다: **국면 설정을 직접 뒤지지
+         * `activeFilter.destinationCity` 를 **직접** 읽지 않고 `goalCityOf(session, userId)` 를 읽는다.
+         *    그 함수가 «activeFilter 의 목적지 + 복귀면 집 시» 를 **한 곳에서** 낸다 — 복귀를 켤 때
+         *    목적지를 덮어쓰면 복귀를 끄고 돌아올 때 원래 목적지가 없다. **국면 설정을 직접 뒤지지
          *    않고 바로 윗단(activeFilter 파생) 하나만 본다.**
          */
         expect(fn).toMatch(/goalCityOf\(session, userId\)/);
@@ -138,11 +125,11 @@ describe('도착 목표가 국면을 넘어 살아남는다', () => {
         // 국면 설정을 직접 읽으면 타겟(노선·관내·복귀)이 바뀌어도 안 따라간다
         expect(fn).not.toMatch(/phaseSettings/);
 
-        // 조립하는 곳이 둘이면 한쪽만 고쳐진다 («경유 4벌» — 12:35:50 에 131→27 로 되돌아갔다)
+        // 조립하는 곳이 둘이면 한쪽만 고쳐져, 한쪽이 만든 경유 목록을 다른 쪽이 덮어 되돌린다
         const de = strip('../../src/services/dispatchEngine.ts');
         const sync = de.slice(de.indexOf('export const syncDetourFilter'));
         expect(sync).not.toMatch(/getDetourRegions\(/);
-        // 🔄 2026-09-14 (전수표 1단계) — 조립은 그물 한 곳(rebuildNetFilter)이다
+        // 조립은 한 곳(rebuildNetFilter)이다
         expect(sync).toMatch(/rebuildNetFilter\(/);
     });
 
@@ -173,8 +160,8 @@ describe('도착 목표가 국면을 넘어 살아남는다', () => {
         expect(progress).toHaveProperty('산북면');
         expect(progress['산북면']).toBeNull();
 
-        // 🔄 2026-09-14 개정 (기사님 결정 — 필터는 방향을 안 본다): 도착목표로 들어온 동도 **null 로 나간다** — 순서 미상 → 통과.
-        //    옛 규칙(키 자체를 빼서 «경로 밖 — 차단»)이 «7지점» 05 사음동(목적지 영역 안)을 막았다. 뒤로 가는 상차는 필터 영역이 뺀다.
+        // (기사님 결정 — 필터는 방향을 안 본다) 도착목표로 들어온 동도 **null 로 나간다** — 순서 미상 → 통과.
+        //    키를 빼서 «경로 밖 — 차단»으로 만들면 목적지 영역 안의 상차지까지 막힌다. 뒤로 가는 상차는 필터 영역이 뺀다.
         expect(progress).toHaveProperty('점동면');
         expect(progress['점동면']).toBeNull();
         expect(progress['세종대왕면']).toBeNull();
