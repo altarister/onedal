@@ -14,7 +14,7 @@ export default function DrivingLogPage() {
         </button>
       </header>
 
-      {/* 📊 설정과 성과 — "이 설정이 얼마를 벌었나" (필터 정의 4장 · 기사님 확정: 운행일지에) */}
+      {/* 📊 설정과 성과 — "이 설정이 얼마를 벌었나" (기사님 확정: 운행일지에) */}
       <FilterDayBoard />
 
       <div className="bg-surface border border-border-card rounded-lg p-6 shadow-sm">
