@@ -2,10 +2,10 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 /**
- * 🧭 **복귀 켬과 콜의 판이 콜 0건 틈 · 서버 재기동을 지난다** (기사님 확정).
+ * 🧭 **복귀 켬과 콜마다 적힌 목적지(`goalCity`)가 콜 0건 틈 · 서버 재기동을 지난다** (기사님 확정).
  *
- * 클래스: **기사님이 켠 값을 잠깐 빈 계산값이 지운다** — 복귀 켬(콜 0건 → 자동 순환 · 재기동 → 메모리 새로 채움)과
- * 모의 주행 켬(경로 0점 → «켤 수 없음» → running 까지 끔)이 같은 모양이었다.
+ * 막는 모양: **기사님이 켠 값을 잠깐 빈 계산값이 지운다** — 복귀 켬(콜 0건 → 자동 순환 · 재기동 → 메모리 새로 채움)과
+ * 모의 주행 켬(경로 0점 → «켤 수 없음» → running 까지 끔)이 같은 모양이다.
  * 판단은 순수 함수(`shared/src/callTargetDay.ts` · `phases.ts`)가 하고, 여기서는 **저장·되살림 배선**을 잠근다.
  */
 const ROOT = join(__dirname, "../..");
@@ -44,7 +44,7 @@ describe('복귀 켬 — 바꾼 일을 적고 오늘 줄에서 되살린다', ()
         expect(calls).toMatch(/callTargetToday\(userId/);
         expect(calls).toMatch(/isHomeCallSince\(/);
         expect(calls).not.toMatch(/deckOfCycle/);
-        /* 🔄 2026-09-15 — 살아 있는 목적지는 새 규칙 한 곳(`goalZonesNow`)이 정하고 «복귀콜을 잡았나»도 거기서 센다 */
+        /* 살아 있는 목적지는 한 곳(`goalZonesNow`)이 정하고 «복귀콜을 잡았나»도 거기서 센다 */
         expect(bodyOf(fm, 'function goalZonesNow(')).toMatch(/homeCallsOf\(session, userId, session\.myOrders\)/);
         expect(bodyOf(fm, 'export function goalCitiesOf(')).toMatch(/goalZonesNow\(session, userId/);
     });
