@@ -5,7 +5,7 @@ import { callNow } from '../../lib/phoneCall';
 import type { SecuredOrder } from '@onedal/shared';
 
 /**
- * [Phase 8.4] 신고 불일치 경고 — 경고에서 **행동까지** 이어진다.
+ * 신고 불일치 경고 — 경고에서 **행동까지** 이어진다.
  *
  * 기사님: *"거짓된 통화로 확인되면 퀵사무실과 통화하여 이 콜의 수행 여부를
  * 결정할 수 있어야 함."*
