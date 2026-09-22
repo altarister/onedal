@@ -136,8 +136,8 @@ export const Hwamul24DispatchBoard = ({
         </div>
         <div className="flex items-center gap-2">
           {/* 🔴 «자동새로고침» 이다 — 원달앱이 «화물정보» + «자동새로고침» 둘로 화물24시 리스트를 알아본다
-              (Hwamul24Keywords · 실물 캡처 ex_images/화물24시/17·36). 한 글자가 빠져 «자동새로침»이던 탓에
-              시뮬레이터 리스트가 원달앱에게 화물24시로 안 읽혔다 (2026-09-14) */}
+              (Hwamul24Keywords · 실물 캡처 ex_images/화물24시/17·36). 한 글자만 빠져도
+              시뮬레이터 리스트가 원달앱에게 화물24시로 안 읽힌다 */}
           <span className="text-white text-[12px] font-medium">자동새로고침</span>
           <div className={`w-10 h-5 rounded-full flex items-center px-0.5 cursor-pointer transition-colors ${!isTimerPaused ? 'bg-[#4caf50]' : 'bg-gray-500'}`} onClick={onToggleTimer}>
             <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${!isTimerPaused ? 'translate-x-5' : 'translate-x-0'}`} />
