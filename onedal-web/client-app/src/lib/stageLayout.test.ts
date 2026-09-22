@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { occludedPx, STAGE_MAX_OCCLUDE_RATIO, STAGE_MAX_OCCLUDE_CSS } from './stageLayout';
 
 /**
- * 🧪 **무대의 셈이 한 곳에 있다** (부품 결합을 끊으며 생겼다)
+ * 🧪 **무대의 셈이 한 곳에 있다**
  *
- * 🔴 전에는 **지도가 시트를 직접 import** 했다 — 목업 전수조사에서 나온 유일한
- *    부품→부품 참조다. 지도가 알아야 할 것은 «시트»가 아니라 «**아래가 몇 px
+ * 🔴 **지도는 시트를 import 하지 않는다** — 부품이 부품을 직접 부르면 한쪽을 고칠 때
+ *    다른 쪽이 함께 흔들린다. 지도가 알아야 할 것은 «시트»가 아니라 «**아래가 몇 px
  *    가려졌나**» 하나다. 값과 셈을 여기 두고 시트도 지도도 **각자 여기를 본다.**
  */
 describe('가려진 높이', () => {
