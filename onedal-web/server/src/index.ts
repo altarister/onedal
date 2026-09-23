@@ -62,10 +62,20 @@ app.set("io", io);
 app.use(cors());
 app.use(express.json());
 
+/**
+ * 🔇 **자주 두드리는 문은 로그에 안 적는다** — 한 줄이 너무 잦아 나머지 줄을 덮는다.
+ *
+ * 화면이 1~1.5초마다 묻는 문들이다 — 생존신고(`scrap`·`devices`) · 시뮬 문(`sim`) ·
+ * 기동 확인(`health`) · 관제웹이 올리는 자기 로그(`logs`).
+ *
+ * 🔴 이 목록은 **새 문을 만들 때 지나치기 쉽다** — 새 문이 1초 주기로 두드리면 여기 더한다.
+ *    요청을 죽이는 것이 아니라 로그만 아낀다.
+ */
+const LOG_MUTED_PATHS = ['/api/scrap', '/api/devices', '/api/sim', '/api/health', '/api/logs'];
+
 // 글로벌 HTTP 로깅 미들웨어
 app.use((req, res, next) => {
-    // 1초 주기로 발생하는 스크랩/디바이스 통계 제외하여 스팸 방지
-    if (!req.url.includes('/api/scrap') && !req.url.includes('/api/devices')) {
+    if (!LOG_MUTED_PATHS.some(p => req.url.startsWith(p))) {
         console.log(`📡 [HTTP 수신] ${req.method} ${req.url} - IP: ${req.ip}`);
     }
     next();
