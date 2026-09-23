@@ -740,12 +740,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                 ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
                 ctx.fillStyle = fill; ctx.fill();
             };
-            for (const p of dongDots.dropoff) dot(p, 'rgba(2,132,199,.85)');
-            for (const p of dongDots.pickup) dot(p, 'rgba(22,163,74,.9)');
+            for (const p of dongDots.dropoff) dot(p, 'rgba(2,132,199,.42)');
+            for (const p of dongDots.pickup) dot(p, 'rgba(22,163,74,.45)');
             /* 🟣 **둘 다는 보라** — 하차와 같은 파랑으로 찍으면 «이 동이 상차로도 등록됐나»를
                화면에서 못 가린다 (기사님 지적). 🔴 청록·노랑은 안 된다 — 지도가 이미 쓴다
                (자취 `#35c3a9` · 목적지 마커 주황). 보라만 남은 자리다 */
-            for (const p of dongDots.both) dot(p, 'rgba(192,132,252,.95)');
+            for (const p of dongDots.both) dot(p, 'rgba(192,132,252,.5)');
         }
 
         /* 🎯 목적지 마커 — 살아 있는 목적지마다 */
