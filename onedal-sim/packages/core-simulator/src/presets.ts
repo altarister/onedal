@@ -602,7 +602,7 @@ export const PRESETS: Record<string, PresetProblem[]> = {
             label: '③ 오송 정중리 → 인천 논현동 · 38,500',
             pickup: '청주 오송읍 상차지', dropoff: '인천 논현동 하차지',
             pickupFallback: CJ_OSONG, dropoffFallback: IC_NONHYEON,
-            /* 🏍️ 오토바이 — 짐칸이 거의 찬 뒤에도 받을 수 있는 콜이 하나는 있어야 한다 (기사님 확정 2026-09-24).
+            /* 🏍️ 오토바이 — 짐칸이 거의 찬 뒤에도 받을 수 있는 콜이 하나는 있어야 한다 (기사님 확정).
                다마스이던 때는 실측에서 「차종(다마스) 불일치」로 막혔다 (그때 96칸 사용 중) */
             fare: 38500, vehicleType: '오토바이',
             why: '🚚 북상 길목의 오송 — 세 콜이 **같은 상차지**에서 갈린다',
@@ -625,7 +625,7 @@ export const PRESETS: Record<string, PresetProblem[]> = {
             label: '⑥ 천안 성거읍 → 인천 경서동 · 46,200',
             pickup: '천안 성거읍 물류', dropoff: '인천 경서동 하차지',
             pickupFallback: CA_SEONGGEO, dropoffFallback: IC_GYEONGSEO,
-            /* 🏍️ 오토바이 — ③과 같은 까닭이다 (기사님 확정 2026-09-24).
+            /* 🏍️ 오토바이 — ③과 같은 까닭이다 (기사님 확정).
                다마스이던 때는 짐칸이 차서 앱이 서버에 올리지도 않았다 (그날 96칸 사용 중) */
             fare: 46200, vehicleType: '오토바이',
             why: '🚚 ①을 내린 자리에서 바로 실었다 — 하차지가 다음 상차지가 되는 흐름',

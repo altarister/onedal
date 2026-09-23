@@ -632,7 +632,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         목적지는 지금 자동 ({tab === 'home' && homeAddress ? homeAddress : PHASE_AUTO_SOURCE[tab]})
                                     </p>
                                 )}
-                                {/* 🛣️🔷 노선·동선 · 🎯 시·도 · 시·군·구 — 한 줄 3등분 (기사님 확정 2026-09-23).
+                                {/* 🛣️🔷 노선·동선 · 🎯 시·도 · 시·군·구 — 한 줄 3등분 (기사님 확정).
                                     시·도에는 도(경기)와 특별시 · 광역시(서울 · 인천 · 대전)가 함께 선다.
                                     복귀 토글은 저장 줄에 있다 */}
                                 <div className="relative grid grid-cols-3 gap-1">
