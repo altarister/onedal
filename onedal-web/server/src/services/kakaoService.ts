@@ -83,6 +83,11 @@ export interface RouteResult {
     sectionDriveMin?: Array<number | null>; // 정거장별 누적 주행(분) — 상대값이라 낡지 않는다. 현위치 미상이면 null
     /** 🎨 **구간이 끝나는 자리** — `polyline` 안의 누적 끝 인덱스. 선을 복제하지 않는다 */
     sectionEnds?: number[];
+    /**
+     * 🛣️ **이 경로의 통행료(원)** — 카카오 `summary.fare.toll`.
+     *    🔴 **안 오면 `null`** — 0 과 다르다. 0 은 «톨비 없는 길»이고 `null` 은 «못 받았다»이다 (규칙 ④).
+     */
+    tollKrw?: number | null;
 }
 
 export interface DetourResult {
@@ -90,6 +95,20 @@ export interface DetourResult {
     merged: RouteResult;
     timeDiffMin: number;
     distDiffKm: string;
+    /**
+     * 🛣️ **이 콜을 붙여서 **더 내는** 통행료(원)** — 두 경로의 차이다 (`distDiffKm`·`timeDiffMin` 과 같은 규약).
+     *    🔴 한쪽이라도 톨비를 못 받았으면 `null` — 한쪽만 0 으로 치면 차이가 거짓이 된다.
+     */
+    tollDiffKrw: number | null;
+}
+
+/**
+ * 🛣️ **카카오 응답에서 통행료를 꺼낸다 — 한 곳**.
+ *    칸이 없거나 숫자가 아니면 `null` 이다. 지어내지 않는다 (규칙 ④).
+ */
+function tollOf(summary: any): number | null {
+    const v = summary?.fare?.toll;
+    return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
 // ━━━━━━━━━━ [헬퍼 함수] ━━━━━━━━━━
@@ -313,7 +332,8 @@ export async function calculateSoloRoute(
         polyline: extractPolyline(data?.routes),
         sectionEnds: sectionEndsOf(extractSectionLines(data?.routes)),
         sectionEtas: calculateEtas(sections, !driverLoc), // 정거장 수에 맞춘 도착 예정 시각
-        sectionDriveMin: calculateDriveMinutes(sections, !driverLoc)
+        sectionDriveMin: calculateDriveMinutes(sections, !driverLoc),
+        tollKrw: tollOf(summary)
     };
 }
 
@@ -460,17 +480,25 @@ export async function calculateDetourRoute(
             approachDuration: baseApproachDuration, approachDistance: baseApproachDistance, 
             raw: baseSummary, polyline: extractPolyline(baseData?.routes), sectionEnds: sectionEndsOf(extractSectionLines(baseData?.routes)),
             sectionEtas: calculateEtas(baseData?.routes?.[0]?.sections, !driverLoc),
-            sectionDriveMin: calculateDriveMinutes(baseData?.routes?.[0]?.sections, !driverLoc)
+            sectionDriveMin: calculateDriveMinutes(baseData?.routes?.[0]?.sections, !driverLoc),
+            tollKrw: tollOf(baseSummary)
         },
         merged: { 
             duration: mergedDuration, distance: mergedDistance, 
             approachDuration: mergedApproachDuration, approachDistance: mergedApproachDistance, 
             raw: mergedSummary, polyline: extractPolyline(mergedData?.routes), sectionEnds: sectionEndsOf(extractSectionLines(mergedData?.routes)),
             sectionEtas: calculateEtas(mergedData?.routes?.[0]?.sections, !driverLoc),
-            sectionDriveMin: calculateDriveMinutes(mergedData?.routes?.[0]?.sections, !driverLoc)
+            sectionDriveMin: calculateDriveMinutes(mergedData?.routes?.[0]?.sections, !driverLoc),
+            tollKrw: tollOf(mergedSummary)
         },
         timeDiffMin: Math.round((mergedDuration - baseDuration) / 60),
-        distDiffKm: ((mergedDistance - baseDistance) / 1000).toFixed(1)
+        distDiffKm: ((mergedDistance - baseDistance) / 1000).toFixed(1),
+        /* 🛣️ 되쓴 base 는 제 톨비를 그대로 들고 있다 — 한쪽이라도 모르면 차이도 모른다 */
+        tollDiffKrw: (() => {
+            const b = (cachedBase ?? { tollKrw: tollOf(baseSummary) }).tollKrw;
+            const m = tollOf(mergedSummary);
+            return b == null || m == null ? null : m - b;
+        })()
     };
 }
 

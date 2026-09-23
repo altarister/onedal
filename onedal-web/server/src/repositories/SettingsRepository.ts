@@ -1,5 +1,5 @@
 import db from "../db";
-import { PricingConfig, mapVehicleToKakaoCarType } from "@onedal/shared";
+import { PricingConfig, mapVehicleToKakaoCarType, fuelCostPerKm } from "@onedal/shared";
 
 export class SettingsRepository {
     /**
@@ -41,6 +41,16 @@ export class SettingsRepository {
 
         if (!row?.home_x || !row?.home_y) return null;
         return { x: row.home_x, y: row.home_y, address: row.home_address || '내 주소' };
+    }
+
+    /**
+     * ⛽ **1km 달리는 기름값(원)** — 기사님 설정(`fuel_price` ÷ `fuel_efficiency`)에서 나온다.
+     *    🔴 나눗셈은 shared `fuelCostPerKm` 한 곳이다 (규칙 ③). 여기서는 두 값을 꺼내 넘기기만 한다.
+     *    🔴 설정이 비거나 0 이면 `null` — 판정이 그때는 기름값을 안 뺀다 (규칙 ④).
+     */
+    public static getFuelCostPerKm(userId: string): number | null {
+        const row = db.prepare("SELECT fuel_price, fuel_efficiency FROM user_settings WHERE user_id = ?").get(userId) as any;
+        return fuelCostPerKm(row?.fuel_price, row?.fuel_efficiency);
     }
 
     public static getKakaoRoutingOptions(userId: string) {

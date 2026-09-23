@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { judge, CRITERIA, DEFAULT_JUDGMENT, JUDGMENT_FIELDS, judgmentDefaults } from "@onedal/shared";
 import type { JudgeFacts, JudgmentConfig } from "@onedal/shared";
 
@@ -198,5 +200,38 @@ describe('⛽🛣️ 순이익 — 기름값·톨비를 요금에서 뺀다', ()
         const why = judge(CRITERIA, 합짐(50_000), cfg()).criteria.find(c => c.key === 'money')!.outcome as { why: string };
         expect(why.why).not.toContain('기름');
         expect(why.why).not.toContain('톨비');
+    });
+});
+
+/**
+ * 🔗 **이음새 — 서버가 나가는 돈을 실제로 넘기는가**
+ *
+ * 위 검사들은 「돈」 기준이 **받으면** 어떻게 재는지만 본다. 서버가 안 넘기면 그 검사는
+ * 전부 초록인데 화면은 그대로다 — 기름값 설정이 DB 에 있으면서 아무도 안 읽던 자리가 그랬다.
+ */
+describe('🔗 연결 — 서버가 기름값·통행료를 판정에 넘긴다', () => {
+    const src = (rel: string) => readFileSync(join(__dirname, '../../src', rel), 'utf8');
+
+    it('🔴 설정에서 km당 기름값을 읽는 길이 있다', () => {
+        expect(src('repositories/SettingsRepository.ts')).toContain('getFuelCostPerKm');
+    });
+
+    it('🔴 나눗셈은 shared 한 곳이다 — 저장소가 제 손으로 나누지 않는다 (규칙 ③)', () => {
+        const repo = src('repositories/SettingsRepository.ts');
+        expect(repo).toContain('fuelCostPerKm(');
+        expect(repo).not.toMatch(/fuel_price\s*\/\s*/);
+    });
+
+    it('🔴 카카오에서 통행료를 꺼내 두 경로의 차이를 낸다', () => {
+        const kakao = src('services/kakaoService.ts');
+        expect(kakao).toContain('fare?.toll');
+        expect(kakao).toContain('tollDiffKrw');
+    });
+
+    it('🔴 심사가 세 값을 판정에 넘긴다 — 첫짐도 합짐도', () => {
+        const ev = src('core/engine/OrderEvaluator.ts');
+        expect(ev).toContain('getFuelCostPerKm');
+        expect(ev).toContain('tollDiffKrw');       // 합짐 — 늘어나는 통행료
+        expect(ev).toMatch(/extraKm:/);
     });
 });

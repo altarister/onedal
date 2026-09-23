@@ -57,6 +57,10 @@ export function firstLoadFacts(input: {
     totalMinutes: number | null;
     /** 미리보기 콜의 평소 하한가. 필터콜은 넘기지 않는다 (규칙 ⑤-1) */
     minAcceptableKrw?: number | null;
+    /** ⛽🛣️ 나가는 돈 — 「돈」이 요금에서 뺀다. 모르면 `null` (규칙 ④ · shared `MoneyFacts`) */
+    extraKm?: number | null;
+    fuelCostPerKm?: number | null;
+    tollKrw?: number | null;
     /**
      * 🧭 **목적지 전진율** −1~1 — 「지리」 기준이 배수로 바꾼다. 못 쟀으면 `null` 과 까닭.
      *    잰 곳은 `destProgressOf` 하나다 (여기서 다시 재지 않는다 · 규칙 ③).
@@ -74,7 +78,14 @@ export function firstLoadFacts(input: {
     tags: string[];
 }): JudgeFacts {
     return {
-        money: { fare: input.fare, extraMinutes: input.totalMinutes, minAcceptableKrw: input.minAcceptableKrw ?? null, firstLoad: true },
+        money: {
+            fare: input.fare, extraMinutes: input.totalMinutes,
+            minAcceptableKrw: input.minAcceptableKrw ?? null, firstLoad: true,
+            /* ⛽🛣️ 첫짐의 «더 쓰는 거리»는 이 콜의 전체 주행이다 — 빈 차라 뺄 기준 경로가 없다 */
+            extraKm: input.extraKm ?? null,
+            fuelCostPerKm: input.fuelCostPerKm ?? null,
+            tollKrw: input.tollKrw ?? null,
+        },
         promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
         space: { freePct: null, hasLoad: false },
         nature: { conflicts: [], excludedHits: input.excludedHits, hasLoad: false },
@@ -154,6 +165,13 @@ export function mergeFacts(input: {
     fare: number;
     /** 붙여서 **늘어나는** 시간(한계 주행 + 늘어난 정차). 모르면 null */
     extraMinutes: number | null;
+    /**
+     * ⛽🛣️ **붙여서 늘어나는 거리·통행료와 km당 기름값** — 「돈」이 요금에서 뺀다.
+     *    시간과 **같은 규약**이다: 합짐은 «늘어나는 것»만 센다. 모르면 `null` (규칙 ④).
+     */
+    extraKm?: number | null;
+    fuelCostPerKm?: number | null;
+    tollKrw?: number | null;
     /** 붙인 뒤 남는 가장 빠듯한 여유(분). 잴 약속이 없으면 null */
     bufferAfterMin: number | null;
     /** 실었을 때 남는 자리(%). 못 세면 null. 🔴 음수를 0 으로 자르지 않는다 — 자르면 부족이 안 보인다 */
@@ -178,7 +196,12 @@ export function mergeFacts(input: {
     tags: string[];
 }): JudgeFacts {
     return {
-        money: { fare: input.fare, extraMinutes: input.extraMinutes, firstLoad: false },
+        money: {
+            fare: input.fare, extraMinutes: input.extraMinutes, firstLoad: false,
+            extraKm: input.extraKm ?? null,
+            fuelCostPerKm: input.fuelCostPerKm ?? null,
+            tollKrw: input.tollKrw ?? null,
+        },
         promise: { hasExistingCalls: true, lateStops: input.lateStops, bufferAfterMin: input.bufferAfterMin },
         space: { freePct: input.freePct, hasLoad: true, confidence: input.confidence ?? null },
         nature: { conflicts: input.conflicts, excludedHits: input.excludedHits, hasLoad: true },
