@@ -879,6 +879,8 @@ export default function StageView(props: Props) {
                                 onClick={() => {
                                     /* 🎬 상태바가 가리키는 콜을 연다 — 도착 곁이면 그 콜 (#143) */
                                     if (!barFocus) return;
+                                    /* 🚧 손으로 한 일이므로 규칙에 «탭»으로 먹인다 — 규칙이 물러나라면(판정 중 등) 높이를 안 건드린다 */
+                                    if (!feed({ type: 'tap' }).snap) return;
                                     const i = deckList.findIndex(o => o.id === barFocus.orderId);
                                     const mv = sheetTransition('full',
                                         { openIdx: i, callCount: deckList.length, preferIdx: i });

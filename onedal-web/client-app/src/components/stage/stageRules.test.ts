@@ -372,3 +372,82 @@ describe('🔍 필터 열림 우선순위 — 판정(1순위) > 필터(2순위) 
         expect(r.reason).toBe('정차');
     });
 });
+
+/**
+ * 🚧 **사건은 일하기 전에 주변을 살핀다** (기사님 · 실주행에서 잡힘).
+ *
+ * ── 왜 ──
+ *
+ * 기사님: *"문제의 본질은 우선순위를 안 보는 것들이 남아 있다는 거야.. 그것들이 자기가 작동하려 할 때
+ * 주변 상황을 살피고 우선순위 높은 것이 있으면 우선순위에 밀려 자기의 일을 하지 말아야 하는 거 아냐?"*
+ *
+ * 실주행에서 판정이 뜬 **1초 뒤**에 「출발」이 시트를 맨 아래로 내려, 결재 버튼이 **17.5초** 가려졌다.
+ * 기사님은 시간 막대가 반쯤 지난 뒤에야 KEEP 을 누르셨다. 표(`SIGNAL_RULES`)에는 판정이 1순위로
+ * 제대로 있었는데, 「출발」이 **표를 안 거치고** 자기 높이를 바로 정했다.
+ *
+ * 🔴 **표의 앞 세 줄만이 «화면을 붙잡는 것»이다** — 판정(1) · 필터 열림(2) · 손 유예(3).
+ *    4순위 아래(주행 · 마중 · 정차 · 콜 없음)는 «달리 보여드릴 게 없을 때의 기본»이라
+ *    사건이 이기는 것이 맞다 — 사건은 «방금 일어난 일»이고 그쪽은 «지금 상태»다.
+ */
+describe('🚧 사건은 일하기 전에 주변을 살핀다', () => {
+
+    /** 🔴 이 검사가 생긴 까닭 — 판정 1초 뒤의 「출발」이 결재 버튼을 17.5초 가렸다 */
+    it('🔴 판정 중에는 「출발」이 밀린다 — 결재 버튼이 사라지지 않는다', () => {
+        const r = stageStep(initialStageMemory(), sig({ judging: true, snap: 'list' }), { type: 'depart' });
+        expect(r.snap).toBeNull();
+        expect(r.deferred).toBe(true);
+    });
+
+    it('🔴 판정 중에는 「도착」이 밀리고, 그 정거장을 담아 둔다 — 밀려도 잊지 않는다', () => {
+        const r = stageStep(initialStageMemory(), sig({ judging: true, snap: 'list' }),
+            { type: 'arrive', orderId: 'c05bf06b', stopType: 'pickup' });
+        expect(r.snap).toBeNull();
+        expect(r.deferred).toBe(true);
+        expect(r.mem.pendingArrival).toBe('c05bf06b:pickup');
+    });
+
+    it('🔴 판정 중에는 「KEEP」도 밀린다', () => {
+        expect(stageStep(initialStageMemory(), sig({ judging: true, snap: 'list' }), { type: 'keep' }).snap).toBeNull();
+    });
+
+    it('🔴 필터를 보고 계실 때도 「도착」이 밀리고 담긴다 — 보시던 것을 안 덮는다', () => {
+        const r = stageStep(initialStageMemory(), sig({ filterOpen: true }),
+            { type: 'arrive', orderId: 'c05bf06b', stopType: 'dropoff' });
+        expect(r.snap).toBeNull();
+        expect(r.mem.pendingArrival).toBe('c05bf06b:dropoff');
+    });
+
+    /** 🏁 붙잡은 것이 풀리면 담아 둔 도착을 다시 묻는다 — «아직 그 정거장 곁이면» 올라간다 */
+    it('판정이 끝나면 담아 둔 도착이 다시 올라온다 — 아직 그 정거장 곁이면', () => {
+        const held = stageStep(initialStageMemory(), sig({ judging: true, snap: 'list' }),
+            { type: 'arrive', orderId: 'c05bf06b', stopType: 'pickup' });
+        const r = tick(held.mem, sig({ judging: false, hereStops: ['c05bf06b:pickup'] }));
+        expect(r.snap).toBe('full');
+        expect(r.reason).toBe('도착(유예 뒤)');
+    });
+
+    it('판정이 끝나도 그 정거장을 떠났으면 조용히 잊는다', () => {
+        const held = stageStep(initialStageMemory(), sig({ judging: true, snap: 'list' }),
+            { type: 'arrive', orderId: 'c05bf06b', stopType: 'pickup' });
+        const r = tick(held.mem, sig({ judging: false, hereStops: [] }));
+        expect(r.mem.pendingArrival).toBeNull();
+        expect(r.reason).not.toBe('도착(유예 뒤)');
+    });
+
+    /**
+     * 🟢 **4순위 아래는 사건이 이긴다** — 주행은 «달리 보여드릴 게 없을 때의 기본»이다.
+     *    여기까지 밀리면 KEEP 직후 바로 통화(S5)와 도착 마중(S7)이 주행 중에 사라진다.
+     */
+    it('주행 중에는 「KEEP」·「도착」·「출발」이 안 밀린다 — 4순위 아래는 사건이 이긴다', () => {
+        const drive = sig({ drive: 'drive' });
+        expect(stageStep(initialStageMemory(), drive, { type: 'keep' }).snap).toBe('full');
+        expect(stageStep(initialStageMemory(), drive, { type: 'arrive', orderId: 'a', stopType: 'pickup' }).snap).toBe('full');
+        expect(stageStep(initialStageMemory(), drive, { type: 'depart' }).snap).toBe('peek');
+    });
+
+    /** 👑 판정을 만드는 사건 자신은 판정에 안 밀린다 — 손 유예보다도 먼저다 */
+    it('「판정」 사건은 판정·손 유예 어느 것에도 안 밀린다', () => {
+        const held: StageMemory = { ...initialStageMemory(), userHoldUntil: T0 + USER_HOLD_MS };
+        expect(stageStep(held, sig({ judging: true, snap: 'peek' }), { type: 'judge' }).snap).toBe('list');
+    });
+});

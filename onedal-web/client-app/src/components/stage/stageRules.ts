@@ -205,15 +205,65 @@ const out = (mem: StageMemory, snap: Snap | null, reason: string, deferred = fal
     ({ mem, snap, reason, deferred });
 
 /**
+ * 🚧 **표의 앞 세 줄만이 «화면을 붙잡는 것»이다** — 판정(1) · 필터 열림(2) · 손 유예(3).
+ *
+ * 🔴 4순위 아래(주행 · 마중 · 정차 · 콜 없음)는 **«달리 보여드릴 게 없을 때의 기본»** 이라
+ *    사건이 이기는 것이 맞다 — 사건은 «방금 일어난 일»이고 그쪽은 «지금 상태»다.
+ *    여기까지 밀리면 KEEP 직후 바로 통화(S5)와 도착 마중(S7)이 주행 중에 사라진다.
+ */
+const HOLDING_RANKS = 3;
+
+/** 🚧 지금 화면을 붙잡고 있는 것의 순위 — 아무것도 안 붙잡고 있으면 `Infinity` */
+function holdingRank(sig: StageSignals, mem: StageMemory): number {
+    const i = SIGNAL_RULES.findIndex(r => r.match(sig, mem));
+    return i >= 0 && i < HOLDING_RANKS ? i + 1 : Infinity;
+}
+
+/**
+ * 🎫 **사건이 자기 순위를 말한다** — 숫자는 위 표(`SIGNAL_RULES`)의 **같은 줄 번호**다.
+ *    `judge` 는 판정을 만드는 사건이라 판정(1)에 안 밀리고, 손이 만드는 `drag`·`tap` 은 손 유예(3)와 같은 줄이다.
+ *    `signal` 은 표를 직접 거치므로 이 문을 안 지난다.
+ */
+const EVENTS: Record<StageEvent['type'], { rank: number; label: string }> = {
+    judge:     { rank: 1,        label: '판정' },
+    drag:      { rank: 3,        label: '손' },
+    tap:       { rank: 3,        label: '탭' },
+    keep:      { rank: 4,        label: 'KEEP' },
+    keepReady: { rank: 4,        label: 'KEEP 콜 들어옴' },
+    arrive:    { rank: 4,        label: '도착' },
+    depart:    { rank: 4,        label: '출발' },
+    /* 🚪 «통화 완료»·«저장»은 시트 안에서 **손이 누르는** 버튼이라 손 유예(3)와 같은 줄이다 —
+          4 로 두면 방금 누르신 버튼이 30초 유예에 밀려 무시된다 (v23 Ⅳ · S14) */
+    done:      { rank: 3,        label: '완료' },
+    signal:    { rank: Infinity, label: '신호' },
+};
+
+/** 🏁 도착이 가리킨 정거장 — 밀려도 **이것만은** 담아 둔다 (`orderId:pickup|dropoff`) */
+const arrivalKeyOf = (ev: StageEvent): string | null =>
+    ev.type === 'arrive' && ev.orderId && ev.stopType ? `${ev.orderId}:${ev.stopType}` : null;
+
+/**
  * 🎬 **한 걸음** — 지금 신호와 기억, 그리고 방금 일어난 일로 다음 높이를 정한다.
  * 순서가 곧 우선순위다. 위에서 걸리면 아래는 안 본다.
  */
 export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): StageResult {
-    // ── 손이 이긴다. 만진 뒤 30초는 주행·정차·KEEP·도착이 못 바꾼다 (판정·필터 열림은 예외 — 위 표)
-    const holding = sig.nowMs < mem.userHoldUntil;
-
-    /* 🪧 판정 중에는 손이 높이를 못 바꾼다 — 화면도 딤드로 막는다 · 잘못 눌러 결재를 놓치지 않게 (기사님 · #144) */
-    if (sig.judging && (ev.type === 'drag' || ev.type === 'tap')) return out(mem, null, '판정 중 손 막힘');
+    /**
+     * 🚧 **사건은 일하기 전에 주변을 살핀다** (기사님).
+     *
+     * 기사님: *"그것들이 자기가 작동하려 할 때 주변 상황을 살피고 우선순위 높은 것이 있으면
+     * 우선순위에 밀려 자기의 일을 하지 말아야 하는 거 아냐?"*
+     *
+     * 🔴 **이 문이 없으면 사건마다 조건을 따로 적게 되고, 하나를 빠뜨리면 조용히 샌다** —
+     *    실주행에서 판정 1초 뒤의 「출발」이 결재 버튼을 **17.5초** 가렸다. 표에는 판정이
+     *    1순위로 제대로 있었는데 「출발」이 표를 안 거치고 자기 높이를 바로 정했다.
+     * 🏁 **밀려도 잊지 않는다** — 도착은 담아 두고, 붙잡은 것이 풀리면 «아직 그 정거장 곁인가»를 다시 묻는다.
+     *    나머지는 담을 것이 없다 — 붙잡은 것이 풀리면 `signal` 이 와서 표가 제자리를 찾는다.
+     */
+    const hold = holdingRank(sig, mem);
+    if (ev.type !== 'signal' && hold < EVENTS[ev.type].rank) {
+        return out({ ...mem, pendingArrival: arrivalKeyOf(ev) ?? mem.pendingArrival ?? null },
+            null, `${EVENTS[ev.type].label}(${SIGNAL_RULES[hold - 1].name}에 밀림)`, true);
+    }
 
     switch (ev.type) {
         case 'judge':
@@ -222,7 +272,6 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
 
         case 'keepReady':
             /* 🕰️ KEEP 사건 때 목록에 없던 콜이 들어왔다 — KEEP 과 같은 자리 (정차면 올라와 열리고 · 주행이면 다음 신호에 내려간다) */
-            if (holding) return out(mem, null, 'KEEP 콜 들어옴(손 유예 중)', true);
             return out({ ...mem, autoRaised: true }, 'full', 'KEEP 콜 들어옴');
 
         case 'drag':
@@ -238,14 +287,10 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
             return out({ ...mem, autoRaised: false, userHoldUntil: sig.nowMs + USER_HOLD_MS }, 'full', '탭');
 
         case 'keep':
-            if (holding) return out(mem, null, 'KEEP(손 유예 중)', true);
             // 킵 직후 바로 통화 — 정차 전환이 끌어내리지 못하게 «자동 올림»으로 표시 (S5)
             return out({ ...mem, autoRaised: true }, 'full', 'KEEP');
 
         case 'arrive':
-            /* 🏁 미루되 잊지 않는다 — 유예가 끝나면 «아직 곁이면» 도착으로 다시 올린다. 더 새 도착이 오면 그것 하나만 */
-            if (holding) return out({ ...mem, pendingArrival: ev.orderId && ev.stopType ? `${ev.orderId}:${ev.stopType}` : mem.pendingArrival ?? null },
-                null, '도착(손 유예 중)', true);
             // 신고하는 동안 정차 전환이 못 끌어내린다 — 달리기 시작하면 내려간다 (S7)
             return out({ ...mem, autoRaised: true, pendingArrival: null }, 'full', '도착');
 
@@ -258,14 +303,13 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
             return out({ ...mem, autoRaised: false, pendingArrival: null }, 'list', '완료');   // 일을 마쳤다 — 미룬 도착도 끝
 
         case 'depart':
-            if (holding) return out(mem, null, '출발(손 유예 중)', true);
             // 달릴 참이다 — 마중은 끝난다. 주행 감지(10초)를 기다리면 그 사이 지도를 가린다
             return out({ ...mem, autoRaised: false }, 'peek', '출발');
 
         case 'signal':
         default: {
-            /* 🏁 유예가 끝났다 — 미룬 도착이 있고 **아직 그 정거장 곁이면** 도착으로 올린다. 떠났으면 조용히 잊는다 (한 번만 묻는다) */
-            if (!holding && mem.pendingArrival) {
+            /* 🏁 붙잡은 것이 풀렸다 — 미룬 도착이 있고 **아직 그 정거장 곁이면** 도착으로 올린다. 떠났으면 조용히 잊는다 (한 번만 묻는다) */
+            if (hold === Infinity && mem.pendingArrival) {
                 const key = mem.pendingArrival;
                 mem = { ...mem, pendingArrival: null };
                 if (sig.hereStops?.includes(key)) return out({ ...mem, autoRaised: true }, 'full', '도착(유예 뒤)');
