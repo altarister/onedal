@@ -228,7 +228,7 @@ export default function OrderFilterModal({ isOpen, onClose,
      */
     const radiusAuto = !!filter?.radiusAuto;
     /**
-     * 🔒 **기준 반경이면 반경은 기준거리 하나가 정한다** (기사님 확정:
+     * 🌫️ **기준 반경이면 반경은 기준거리 하나가 정한다 — 그 칸들은 흐리게 둔다** (기사님 확정:
      *    *"기준 반경이면 기준거리만 변경하면 되는거잖아 나머지는 딤드 하고"*).
      *
      * 🔴 **두 주인이 한 값을 잡으면 손과 화면이 싸운다.** 자동일 때 칸은 «줄인 값»을 보여 주는데
@@ -236,8 +236,9 @@ export default function OrderFilterModal({ isOpen, onClose,
      *    눈금 반올림 때문에 되레 뒤로 간 것처럼 보였다.
      *    기사님 실측: *"라인반경을 키웠어 … 근데 키우면 줄어들고 그랬어"* — 그 사이 원값이
      *    25 에서 최댓값 40 까지 1초에 1씩 쌓였다.
-     * 🔴 **감추지 않고 흐리게 + 잠근다** — 값은 보이되 못 만진다 (기사님 *"모두 꺼내 두고"*).
-     * ⚠️ **각도 둘은 안 잠근다** — 방향 허용폭이라 거리와 무관하다 (`autoRadii` 도 안 건드린다).
+     * 🔴 **감추지 않고 흐리게만 둔다** (기사님 *"모두 꺼내 두고"* · *"딤드만 하면 되는거 아니였어?"*)
+     *    — 잠그지 않는다. 자동일 때 만질 일이 없다는 표시면 족하다.
+     * ⚠️ **각도 둘은 안 흐린다** — 방향 허용폭이라 거리와 무관하다 (`autoRadii` 도 안 건드린다).
      */
     const radiusLocked = radiusAuto;
     /** 🔴 **지금 실제로 쓰이는 반경** — 무대 지도가 부르는 **그 함수**다 (규칙 ③) */
@@ -755,8 +756,6 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         min: 0, max: 100, step: 5,
                                         /* 🔴 지금 안 쓰이는 칸은 감추지 않고 흐리게 (수동이면 배율이 안 돈다) */
                                         dim: !radiusAuto,
-                                        /* 🔒 수동이면 반경 넷을 직접 만지신다 — 이 값은 안 돈다 */
-                                        locked: !radiusAuto,
                                         set: (v: number) => previewFilter({ radiusBaseKm: v }),
                                         onPreview: (v: number) => previewFilter({ radiusBaseKm: v }),
                                         /* 🔴 뗄 때 서버로 — ⚙️ 설정과 같은 통로다 */
@@ -803,8 +802,6 @@ export default function OrderFilterModal({ isOpen, onClose,
                                             min: f.min,
                                             max: f.max,
                                             step: f.step,
-                                            /* 🔒 마름모반경도 자동이 함께 줄인다 — 기준 반경이면 못 만진다. 각도 둘은 거리와 무관해 안 잠근다 */
-                                            locked: isRadius && radiusLocked,
                                             /**
                                              * 🔴 **끌면 지도가 따라오고, 뗄 때 서버로** — 반경 셋과 같은 규칙 (전수 조사 ①-2).
                                              *    `quadDirty` 는 💾(DB) 용으로 그대로 든다.
@@ -862,9 +859,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         max: f.max,
                                         step: f.step,
                                         /* 🔴 **감추지 않고 흐리게** — 지금 안 쓰이는 칸만 (자동이라고 흐리지 않는다 · 기사님) */
-                                        dim: !inUse(path),
-                                        /* 🔒 기준 반경이면 기준거리 하나가 정한다 — 여기서는 못 만진다 */
-                                        locked: radiusLocked,
+                                        dim: !inUse(path) || radiusLocked,
                                         /**
                                          * 🎚️ **자동이어도 민다** (기사님: *"오토이면 왜 딤드여야 하는거지? 그냥 풀어줘도 되는거잖아"* · 안 2).
                                          *    칸은 줄인 값을 보여 주고, 움직인 만큼 **원래 값**에 더한다 — 자동은 그대로 켜져 있다.

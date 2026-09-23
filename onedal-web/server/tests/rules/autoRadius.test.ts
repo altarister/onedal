@@ -126,31 +126,18 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
      *    손으로 다시 재면 목적지 앞에서 반경이 쪼그라들어 관내콜을 못 잡는다 (기사님 지적).
      */
     /**
-     * 🔒 **기준 반경이면 기준거리 하나가 반경을 정한다** (기사님 확정:
-     *    *"기준 반경이면 기준거리만 변경하면 되는거잖아 나머지는 딤드 하고"*)
+     * 🌫️ **기준 반경이면 반경 칸을 흐리게 둔다** (기사님 확정:
+     *    *"기준 반경이면 기준거리만 변경하면 되는거잖아 나머지는 딤드 하고"* ·
+     *    *"아까 거기서 딤드만 하면 되는거 아니였어?"*)
      *
-     * 그전에는 자동일 때도 반경 슬라이더가 열려, 칸은 «줄인 값»을 보여 주는데 미는 것은
-     * «원값»이었다. 배율 0.26 이면 1 밀어도 화면은 0.26 만 움직이고 눈금 반올림 때문에
-     * 되레 뒤로 간 것처럼 보였다 — 기사님: *"라인반경을 키웠어 … 근데 키우면 줄어들고 그랬어"*.
-     * 그 사이 원값이 25 에서 최댓값 40 까지 1초에 1씩 쌓였다.
-     *
-     * 🔴 **감추지 않고 흐리게 + 잠근다** — 값은 보이되 못 만진다 (기사님 «모두 꺼내 두고»).
+     * 🔴 **잠그지 않는다** — 흐린 것으로 «지금은 기준거리가 이것을 정한다»가 읽히면 족하다.
+     *    감추지도 않는다 (기사님 «모두 꺼내 두고»).
      */
-    it('🔴 자동이면 반경 칸이 잠기고 기준거리만 열린다 — 수동이면 반대', () => {
+    it('🔴 자동이면 반경 칸이 흐려진다 — 수동이면 기준거리가 흐려진다', () => {
         const code = codeOnly(modal);
-        /* 반경 셋과 마름모반경은 자동일 때 잠긴다 */
         expect(code).toMatch(/const radiusLocked = radiusAuto;/);
-        expect(code).toMatch(/locked: radiusLocked,/);
-        expect(code).toMatch(/locked: isRadius && radiusLocked,/);
-        /* 기준거리는 그 반대다 */
-        expect(code).toMatch(/locked: !radiusAuto,/);
-    });
-
-    it('🔴 잠긴 칸은 눌러도 안 열린다 — 흐리게만 하면 손과 화면이 또 싸운다', () => {
-        const knob = codeOnly(readClient('components/ui/KnobGrid.tsx'));
-        expect(knob).toMatch(/if \(!k\.locked\) onOpen\(/);
-        /* 감추지 않는다 — 흐리게 둘 뿐이다 */
-        expect(knob).toMatch(/k\.dim \|\| k\.locked \? 'opacity-50'/);
+        expect(code).toMatch(/dim: !inUse\(path\) \|\| radiusLocked,/);
+        expect(code).toMatch(/dim: !radiusAuto,/);
     });
 
     it('🔴 잰 거리와 다시 재기 버튼이 화면에 없다', () => {
