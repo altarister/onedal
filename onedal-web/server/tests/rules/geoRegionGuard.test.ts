@@ -75,6 +75,16 @@ describe('🏙️ 고를 수 있는 시·도 · 시·군·구는 지도가 답�
         expect(geo).toMatch(/\[sido, \.\.\.cities\]/);
     });
 
+    it('🔴 지역 이름을 두 칸에서 읽는다 — 한 칸만 보면 562개 동이 통째로 빠진다', () => {
+        /* intel 이 없는 동이 562개 있다(세종 · 충북 · 충남 · 화성시 동탄구 · 인천 옹진군) —
+           폴리곤은 멀쩡한데 목록에서만 빠져 그 지역을 목적지로 고를 수 없었다 (2026-09-23) */
+        expect(geo).toMatch(/props\?\.intel\?\.parentName \|\| props\?\.SIG_KOR_NM/);
+    });
+
+    it('🔴 줄 세우는 기준은 화면에 보이는 이름이다 — «인천 강화군»과 «옹진군»이 섞여 있다', () => {
+        expect(geo).toMatch(/bare\(a\)\.localeCompare\(bare\(b\), 'ko'\)/);
+    });
+
     it('🔴 화면 라벨이 칸의 내용과 같다 — 도만 있는 칸이 아니다', () => {
         const modal = codeOnly(readFileSync(
             join(__dirname, '../../../client-app/src/components/dashboard/OrderFilterModal.tsx'), 'utf8'));

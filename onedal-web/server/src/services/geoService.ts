@@ -1750,7 +1750,11 @@ export function getSelectableCities(): { sido: string; cities: string[] }[] {
 
     const bySido = new Map<string, Set<string>>();
     for (const f of mergedMapFeatureCollection.features) {
-        const parent = (f.properties as any)?.intel?.parentName as string | undefined;
+        /* 🔴 이름은 **두 칸에서** 읽는다 — `intel` 이 없는 동이 562개 있고(세종 · 충북 · 충남 ·
+           화성시 동탄구) 폴리곤은 멀쩡히 있다. 한 칸만 보면 그 지역을 통째로 못 고른다.
+           지도의 다른 곳(`getCityRegionsWithRadius`)이 이미 같은 폴백을 쓴다 */
+        const props = f.properties as any;
+        const parent = (props?.intel?.parentName || props?.SIG_KOR_NM) as string | undefined;
         if (!parent) continue;
 
         const head = parent.split(' ')[0];
@@ -1769,7 +1773,11 @@ export function getSelectableCities(): { sido: string; cities: string[] }[] {
         .sort((a, b) => a.localeCompare(b, 'ko'))
         .sort((a, b) => Number(isProvince(a)) - Number(isProvince(b)))
         .map(sido => {
-            const cities = Array.from(bySido.get(sido)!).sort((a, b) => a.localeCompare(b, 'ko'));
+            /* 🔴 줄 세우는 기준은 **화면에 보이는 이름**이다 — 지도 표기가 갈려
+               «인천 강화군»과 «옹진군»이 섞여 있어, 적힌 그대로 세우면 옹진군만 딴 자리에 선다 */
+            const bare = (v: string) => v.startsWith(`${sido} `) ? v.slice(sido.length + 1) : v;
+            const cities = Array.from(bySido.get(sido)!)
+                .sort((a, b) => bare(a).localeCompare(bare(b), 'ko'));
             return { sido, cities: isProvince(sido) ? cities : [sido, ...cities] };
         });
 }
