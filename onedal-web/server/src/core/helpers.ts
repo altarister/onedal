@@ -523,7 +523,7 @@ export function setOrderStatus(
  *
  * 목록이 아예 없는 것(옛 필터·미계산)과 비어 있는 것은 다르다 — 없으면 홀드하지 않는다.
  */
-export function capacityFullHold(filter: { dispatchPhase?: string; allowedVehicleTypes?: string[] }): boolean {
+export function capacityFullHold(filter: { allowedVehicleTypes?: string[] }): boolean {
     return Array.isArray(filter.allowedVehicleTypes) && filter.allowedVehicleTypes.length === 0;
 }
 

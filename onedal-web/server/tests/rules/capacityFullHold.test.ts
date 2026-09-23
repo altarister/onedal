@@ -16,22 +16,29 @@ import { capacityFullHold } from '../../src/core/helpers';
  *   "제한 없음"이 아니라 "고장"이다 — 규칙 ④). 하차로 공간이 생기면
  *   재계산이 차종 목록을 되살리므로 자동 복귀한다. 직접콜(MANUAL)은 필터를
  *   타지 않으므로 기사님이 잡는 것은 막히지 않는다.
+ *
+ * 🔴 **묻는 것이 하나다 — 차종 목록뿐이다.** 국면 이름을 함께 받으면 «어느 국면에서는 안 멈춘다»는
+ *    칸이 생기는데, 만석은 국면과 상관없이 만석이다. 받을 수 없으면 가를 수도 없다.
  */
 describe('capacityFullHold — 실을 수 있는 차종이 없으면 멈춘다', () => {
-    it('🔴 합짐 중 허용 차종이 비면 홀드', () => {
-        expect(capacityFullHold({ dispatchPhase: 'GATHERING', allowedVehicleTypes: [] })).toBe(true);
+    it('🔴 허용 차종이 비면 홀드', () => {
+        expect(capacityFullHold({ allowedVehicleTypes: [] })).toBe(true);
     });
 
     it('차종이 남아 있으면 정상', () => {
-        expect(capacityFullHold({ dispatchPhase: 'GATHERING', allowedVehicleTypes: ['오토바이', '승용차'] })).toBe(false);
-    });
-
-    it('첫짐(STANDBY)에서 비어 있어도 홀드 — 빈 필터는 고장이다, 열어 두지 않는다', () => {
-        expect(capacityFullHold({ dispatchPhase: 'STANDBY', allowedVehicleTypes: [] })).toBe(true);
+        expect(capacityFullHold({ allowedVehicleTypes: ['오토바이', '승용차'] })).toBe(false);
     });
 
     it('목록 자체가 없으면(옛 필터) 홀드하지 않는다 — 없음과 빈 것은 다르다', () => {
-        expect(capacityFullHold({ dispatchPhase: 'GATHERING' })).toBe(false);
+        expect(capacityFullHold({})).toBe(false);
+    });
+
+    /** 🔴 국면 이름으로 가르지 않는다 — 시그니처에 없어야 못 가른다 */
+    it('🔴 국면 칸을 받지 않는다 — 차종 목록만 본다', () => {
+        const src = readFileSync(join(__dirname, '../../src/core/helpers.ts'), 'utf8');
+        const at = src.indexOf('export function capacityFullHold');
+        expect(at).toBeGreaterThan(-1);
+        expect(src.slice(at, src.indexOf('):', at))).not.toContain('dispatchPhase');
     });
 });
 
