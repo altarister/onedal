@@ -10,6 +10,18 @@ import { updateActiveFilter } from "../state/filterManager";
 
 const router = Router();
 
+/**
+ * ⏳ **목록으로 나갔을 때 잡은 콜을 죽이기 전에 기다리는 시간** (기사님 · 실주행 04:31).
+ *
+ * 한 상차지에서 콜을 잇따라 잡을 때 앱은 «상세 → 목록 → 다음 상세»로 오간다. 그 목록 화면을
+ * «버렸다»로 읽으면 방금 잡은 콜이 죽고 취소 카운트까지 깎인다 — 오송읍 셋 중 하나가 그렇게 갔다.
+ *
+ * 🔴 **다음 콜을 잡는 데 걸리는 시간보다 길고, 안전취소(30초)보다는 훨씬 짧아야 한다.**
+ *    실측에서 앱은 오송읍 셋을 **0.1초 안에** 잇따라 잡았다. 3초면 넉넉하고, 정말 버리신
+ *    콜이 3초 늦게 정리되는 것은 안전취소 시간 안이라 손해가 없다.
+ */
+const LIST_EXIT_GRACE_MS = 3_000;
+
 // 메모리 내부 세션 저장소 (앱폰 -> 서버 핑 유지용)
 const activeDevices = new Map<string, DeviceSession>();
 
@@ -396,10 +408,40 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             const isPreviewStuck = !!(stuckOrder as any)?.isPreview;
             if (stuckOrder && (isPreviewStuck || !stuckOrder.type?.startsWith("MANUAL")) && !(stuckOrder as any).detailSeen) {
                 console.log(`👀 [목록 보고 · 안 치움] ${stuckOrderId} — 이 콜의 상세를 아직 못 봤다 (옛 화면 보고일 수 있다 · 미리보기면 시간·끊김 안전장치가 치운다)`);
-            } else if (stuckOrder && (isPreviewStuck || !stuckOrder.type?.startsWith("MANUAL"))) {
-                console.log(`🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함!` +
-                    (isPreviewStuck ? ' 👀 미리보기 콜을 즉시 정리합니다 (안 잡은 콜).' : ' 대기 중이던 AUTO 롱폴링 파이프 강제 파괴.'));
+            } else if (stuckOrder && isPreviewStuck) {
+                /* 👀 미리보기는 안 잡은 콜이라 바로 치운다 — 기다릴 것이 없다 */
+                console.log(`🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! 👀 미리보기 콜을 즉시 정리합니다 (안 잡은 콜).`);
                 forceCancelEvaluatingOrder(userId, stuckOrderId, io);
+            } else if (stuckOrder && !stuckOrder.type?.startsWith("MANUAL")) {
+                /**
+                 * 🔴 **잡은 콜은 목록으로 갔다고 바로 죽이지 않는다** (기사님 · 실주행 04:31).
+                 *
+                 * 오송읍에서 콜 셋이 나가던 날, 앱이 하나를 잡고 **다음 콜을 잡으러 목록으로 돌아가자**
+                 * 서버가 이것을 «버렸다»로 읽고 강제 취소했다 — 취소 카운트까지 +1 됐다.
+                 * 목록으로 돌아간 같은 행동이 «안 잡겠다»와 «다음 것도 잡겠다» 두 뜻을 갖는다.
+                 *
+                 * 🔴 **가르는 사실은 «곧 새 콜을 잡았나» 하나다.** 그래서 잠깐 기다렸다가,
+                 *    그 사이 이 기기가 다른 콜로 옮겨 갔으면 이 콜은 손대지 않는다.
+                 *    기다리는 동안 기사님이 결재하시면 그 길이 먼저 치운다.
+                 * 🔴 타이머는 `session.activeTimers` 에 담는다 — 손으로 나열하면 좀비가 남는다.
+                 */
+                const key = `listExit_${stuckOrderId}`;
+                if (!userSession.activeTimers.has(key)) {
+                    console.log(`🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! ` +
+                        `⏳ ${LIST_EXIT_GRACE_MS / 1000}초 기다립니다 — 그 사이 다음 콜을 잡으면 안 치웁니다.`);
+                    const t = setTimeout(() => {
+                        userSession.activeTimers.delete(key);
+                        /* 🎫 아직도 이 콜이 «지금 심사 중»이면 정말 버린 것이다 */
+                        if (userSession.deviceEvaluatingMap.get(deviceId) !== stuckOrderId) {
+                            console.log(`   ✅ [이탈 유예] ${stuckOrderId} — 그 사이 다음 콜로 옮겨 갔습니다. 안 치웁니다.`);
+                            return;
+                        }
+                        if (!userSession.pendingOrdersData.has(stuckOrderId)) return;   // 이미 다른 길이 치웠다
+                        console.log(`   🧹 [이탈 유예 끝] ${stuckOrderId} — 새 콜이 안 왔습니다. 대기 중이던 AUTO 롱폴링 파이프 강제 파괴.`);
+                        forceCancelEvaluatingOrder(userId, stuckOrderId, io);
+                    }, LIST_EXIT_GRACE_MS);
+                    userSession.activeTimers.set(key, t);
+                }
             }
         }
     }

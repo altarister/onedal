@@ -86,6 +86,17 @@ describe('🧹 목록으로 돌아왔을 때만 치운다', () => {
         return s;
     };
 
+    /** 🤝 **잡은 콜** — 미리보기가 아니다. 상세까지 봤다(`detailSeen`) */
+    const secured = (phone: string, id: string) => {
+        const s = getUserSession(ADMIN);
+        s.pendingOrdersData.set(id, {
+            id, status: 'ORDER_SECURED_EVALUATING', capturedDeviceId: phone, capturedAt: new Date().toISOString(),
+            pickup: '오송읍', dropoff: '논현동', fare: 38500, isPreview: false, detailSeen: true,
+        } as any);
+        s.deviceEvaluatingMap.set(phone, id);
+        return s;
+    };
+
     const touch = (phone: string, ...screens: string[]) =>
         screens.forEach(sc => devices.touchDeviceSession(phone, ADMIN, 0, sc as any, io));
 
@@ -109,6 +120,21 @@ describe('🧹 목록으로 돌아왔을 때만 치운다', () => {
         const s = preview('phone-seen', 'pv-seen');
         touch('phone-seen', 'UNKNOWN', 'DETAIL_PRE_CONFIRM', 'LIST');
         expect(s.pendingOrdersData.has('pv-seen')).toBe(false);
+    });
+
+    /**
+     * 🔴 **한 상차지에서 콜을 잇따라 잡을 때는 «버린 것»이 아니다** (기사님 · 실주행 04:31).
+     *
+     * 오송읍에서 콜 셋이 나가던 날, 앱이 하나를 잡고 **다음 콜을 잡으러 목록으로 돌아가자**
+     * 서버가 「화면 이탈」로 보고 방금 잡은 콜을 강제 취소했다 — 취소 카운트까지 +1 됐다.
+     * 목록으로 돌아간 같은 행동이 «안 잡겠다»와 «다음 것도 잡겠다» 두 뜻을 갖는다.
+     * 가르는 사실은 **곧 새 선점이 뒤따르는가** 하나다.
+     */
+    it('🔴 목록으로 갔지만 곧 다음 콜을 잡으면 앞 콜을 안 죽인다 — 오송읍 셋', () => {
+        touch('phone-next-call', 'DETAIL_PRE_CONFIRM');
+        const s = secured('phone-next-call', 'ord-first');
+        touch('phone-next-call', 'LIST');                 // 다음 콜을 잡으러 목록으로
+        expect(s.pendingOrdersData.has('ord-first')).toBe(true);
     });
 
     /** 실제 픽커 — 상세를 열고 1.4초 만에 목록으로 나간 경우 */
