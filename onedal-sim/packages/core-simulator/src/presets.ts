@@ -604,21 +604,21 @@ export const PRESETS: Record<string, PresetProblem[]> = {
      */
     '볼트오전': [
         {
-            label: '① 대전 갈마동 → 천안 성거읍 · 50,050 (09:00 이전)',
+            label: '① 대전 갈마동 → 천안 성거읍 · 50,050',
             pickup: '대전 갈마동 상차지', dropoff: '천안 성거읍 물류',
             pickupFallback: DJ_GALMA, dropoffFallback: CA_SEONGGEO,
             fare: 50050, vehicleType: '오토바이',
             why: '🚚 그날의 첫짐. 하차 주변이 넉넉해야 천안 성거읍이 그물에 든다',
         },
         {
-            label: '② 대전 문지로 188 → 오산 황새로 211 · 38,500 (09:36)',
+            label: '② 대전 문지로 188 → 오산 황새로 211 · 38,500',
             pickup: '대전 문지동 상차지', dropoff: '오산 가수동 하차지',
             pickupFallback: DJ_MUNJI, dropoffFallback: OSAN_GASU,
             fare: 38500, vehicleType: '오토바이',
             why: '🚚 첫짐을 잡은 자리 근처에서 하나 더 — 합짐 1',
         },
         {
-            label: '③ 오송 정중리 → 인천 논현동 · 38,500 (09:48)',
+            label: '③ 오송 정중리 → 인천 논현동 · 38,500',
             pickup: '청주 오송읍 상차지', dropoff: '인천 논현동 하차지',
             pickupFallback: CJ_OSONG, dropoffFallback: IC_NONHYEON,
             /* 🏍️ 오토바이 — 짐칸이 거의 찬 뒤에도 받을 수 있는 콜이 하나는 있어야 한다 (기사님 확정 2026-09-24).
@@ -627,7 +627,7 @@ export const PRESETS: Record<string, PresetProblem[]> = {
             why: '🚚 북상 길목의 오송 — 세 콜이 **같은 상차지**에서 갈린다',
         },
         {
-            label: '④ 오송 정중리 → 안산 성곡동 · 38,500 (09:54)',
+            label: '④ 오송 정중리 → 안산 성곡동 · 38,500',
             pickup: '청주 오송읍 상차지', dropoff: '안산 성곡동 하차지',
             pickupFallback: CJ_OSONG, dropoffFallback: AS_SEONGGOK,
             fare: 38500, vehicleType: '오토바이',
@@ -639,7 +639,7 @@ export const PRESETS: Record<string, PresetProblem[]> = {
          *    어떻게 보는지가 이 문제지의 값어치다.
          */
         {
-            label: '⑤ 대전 → 인천 송도 · 80,000 (10:01 · 그날 최고 단가 · 볼트는 취소)',
+            label: '⑤ 대전 → 인천 송도 · 80,000',
             pickup: '대전 갈마동 상차지', dropoff: '인천 송도동 하차지',
             pickupFallback: DJ_GALMA, dropoffFallback: IC_SONGDO,
             fare: 80000, vehicleType: '오토바이',
@@ -651,17 +651,17 @@ export const PRESETS: Record<string, PresetProblem[]> = {
              * 🔴 **상차지는 문서가 «대전 구체 미상»이라 갈마동으로 대신한다** — 지어내지 않는다.
              *    시험하려는 것은 «등 뒤»라는 관계이고 그 관계는 갈마동으로도 그대로 선다.
              */
-            why: '🧪 상차지가 **등 뒤**다 — 오송으로 북상하는 중에 대전으로 되돌아가야 한다 (실측에서 취소로 끝난 콜)',
+            why: '🧪 **10:01** — 상차지가 **등 뒤**다 — 오송으로 북상하는 중에 대전으로 되돌아가야 한다 (실측에서 취소로 끝난 콜)',
         },
         {
-            label: '⑥ 오송 정중리 → 분당 삼평동 · 60,000 (10:08)',
+            label: '⑥ 오송 정중리 → 분당 삼평동 · 60,000',
             pickup: '청주 오송읍 상차지', dropoff: '분당 삼평동 하차지',
             pickupFallback: CJ_OSONG, dropoffFallback: BD_SAMPYEONG,
             fare: 60000, vehicleType: '오토바이',
             why: '🚚 오송 셋째. 그날 최고 단가(6만)이고 하차지가 다음 상차지가 된다',
         },
         {
-            label: '⑦ 천안 성거읍 → 인천 경서동 · 46,200 (10:30 이전)',
+            label: '⑦ 천안 성거읍 → 인천 경서동 · 46,200',
             pickup: '천안 성거읍 물류', dropoff: '인천 경서동 하차지',
             pickupFallback: CA_SEONGGEO, dropoffFallback: IC_GYEONGSEO,
             /* 🏍️ 오토바이 — ③과 같은 까닭이다 (기사님 확정 2026-09-24).
@@ -670,14 +670,14 @@ export const PRESETS: Record<string, PresetProblem[]> = {
             why: '🚚 ①을 내린 자리에서 바로 실었다 — 하차지가 다음 상차지가 되는 흐름',
         },
         {
-            label: '⑧ 판교 → 인천 송도 · 34,650 (13:05)',
+            label: '⑧ 판교 → 인천 송도 · 34,650',
             pickup: '판교 소프트웨어드림센터', dropoff: '인천 송도동 하차지',
             pickupFallback: PANGYO_SW, dropoffFallback: IC_SONGDO,
             fare: 34650, vehicleType: '오토바이',
             why: '🚚 **일곱째다** — 자막은 «여섯 개»라 했지만 ⑤를 분당에 내리는 중에 하나 더 잡았다 (13:05 잡고 13:30 상차)',
         },
         {
-            label: '⑨ 서울 성수동2가 → 인천 송도동 · 42,300 (13:11 · 볼트는 눌렀다 포기)',
+            label: '⑨ 서울 성수동2가 → 인천 송도동 · 42,300',
             pickup: '성수동2가 상차지', dropoff: '인천 송도동 하차지',
             pickupFallback: SEOUL_SEONGSU, dropoffFallback: IC_SONGDO,
             fare: 42300, vehicleType: '오토바이',
@@ -686,10 +686,10 @@ export const PRESETS: Record<string, PresetProblem[]> = {
              *    ⓐ **다음 날 09시 픽업**이다 ⓑ 박스 10개 ⓒ 적요 «하차는 기사님 혼자서»
              *    ⓓ 성수동은 김포 가는 길이 아니다. 하차지는 ⑦과 같은 송도다.
              */
-            why: '🧪 하차지는 좋은데(송도 = ⑦과 같다) **다음 날 09시 픽업 · 박스 10개 · 혼자 하차** — 볼트가 스스로 버렸다',
+            why: '🧪 **13:11** — 하차지는 좋은데(송도 = ⑧과 같다) **다음 날 09시 픽업 · 박스 10개 · 혼자 하차** — 볼트가 스스로 버렸다',
         },
         {
-            label: '⑩ 서울 문정동 → 서울 신도림동 · 30,800 (13:15 · 볼트는 열어만 봄)',
+            label: '⑩ 서울 문정동 → 서울 신도림동 · 30,800',
             pickup: '문정동 상차지', dropoff: '신도림동 하차지',
             pickupFallback: SEOUL_MUNJEONG, dropoffFallback: SINDORIM,
             fare: 30800, vehicleType: '오토바이',
@@ -698,7 +698,7 @@ export const PRESETS: Record<string, PresetProblem[]> = {
              *    그런데 적요가 «5박스 / **3층까지 하차요**» — 30,800 에 계단 노동이 크다.
              *    결과는 자막에 없다.
              */
-            why: '🧪 길은 맞는데(성남→송도 사이) **5박스를 3층까지 계단으로** — 단가 대비 노동이 크다',
+            why: '🧪 **13:15** — 길은 맞는데(성남→송도 사이) **5박스를 3층까지 계단으로** — 단가 대비 노동이 크다',
         },
     ],
 
