@@ -67,20 +67,25 @@ export type KnobDef = {
     dim?: boolean;
 };
 
-export function KnobGrid({ knobs, open, onOpen, cols = 3 }: {
+export function KnobGrid({ knobs, open, onOpen, cols = 3, inline = false }: {
     knobs: KnobDef[];
     open: string | null;
     onOpen: (k: string | null) => void;
     cols?: number;
+    /**
+     * 🔴 **부모 격자 안에 그대로 선다** — 제 격자도, 제 `relative` 도 만들지 않는다.
+     *
+     * 기준거리 칸처럼 **다른 부품과 한 줄에 서는** 경우에 쓴다. 래퍼를 만들면 레이어가
+     * 그 래퍼(1/3 칸) 폭으로 떠서 **좁아 못 끈다** — 레이어는 줄 전체를 써야 한다.
+     * 이때 부모가 `relative` 여야 한다.
+     */
+    inline?: boolean;
 }) {
     const cur = knobs.find(k => k.key === open) ?? null;
     useCloseOnOutside(!!cur, useCallback(() => onOpen(null), [onOpen]));
     /* 🔴 소수 칸(0.5km)이 `4.6 + 0.5 = 5.1000000001` 로 번지지 않게 둘째 자리에서 자른다 */
     const clamp = (k: KnobDef, v: number) => Math.round(Math.min(k.max, Math.max(k.min ?? 0, v)) * 100) / 100;
-    return (
-        <div className="relative">
-            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-                {knobs.map(k => (
+    const cells = knobs.map(k => (
                     /**
                      * 🎚️ **칸은 값을 보여 주고 누르면 열린다 — 그뿐이다**
                      *    (기사님 2026-09-23: *"각 인풋에 값을 변경하는것이 2개씩이 들어가 오작동을 한다."*).
@@ -98,11 +103,10 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3 }: {
                             {k.value}<span className="text-[9.5px] font-bold text-text-muted">{k.unit}</span>
                         </span>
                     </button>
-                ))}
-            </div>
-            {/* 🔴 아래 레이어는 **z-30** — `PickLayer` 와 같은 층이다. 제외지역 블록이
-                `relative z-20` 이라 같은 층이면 뒤에 오는 그쪽이 이긴다 */}
-            {cur && (
+    ));
+    /* 🔴 아래 레이어는 **z-30** — `PickLayer` 와 같은 층이다. 제외지역 블록이
+       `relative z-20` 이라 같은 층이면 뒤에 오는 그쪽이 이긴다 */
+    const layer = cur && (
                 <div data-pick className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5
                                 rounded-xl border border-info/55 bg-surface shadow-lg px-1.5 py-2">
                     <button type="button" onClick={() => onOpen(null)}
@@ -123,7 +127,14 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3 }: {
                         {cur.value}<span className="text-[9px] font-bold">{cur.unit}</span>
                     </span>
                 </div>
-            )}
+    );
+    if (inline) return <>{cells}{layer}</>;
+    return (
+        <div className="relative">
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+                {cells}
+            </div>
+            {layer}
         </div>
     );
 }

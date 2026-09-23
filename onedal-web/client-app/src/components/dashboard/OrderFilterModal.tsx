@@ -700,58 +700,74 @@ export default function OrderFilterModal({ isOpen, onClose,
                         summary={`${radiusAuto
                             ? [shownRadii.pickupRadiusKm, shownRadii.destinationRadiusKm, shownRadii.detourRadiusKm].map(n => Math.round(n * 10) / 10).join(' · ')
                             : [cur.pickupRadiusKm, cur.destinationRadiusKm, cur.detourRadiusKm].join(' · ')}km · ${radiusAuto ? '기준' : '수동'}`}>
-                            {/* 📐 기준/수동 · 정한 거리 · 다시 구하기 — 한 줄 (목업 · 기사님 «공간낭비») */}
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="flex shrink-0 rounded-lg border border-border-card overflow-hidden">
+                            {/**
+                              * 📐 **기준/수동 · 기준거리 · 잰 거리 — 한 줄 3등분**
+                              *    (기사님 2026-09-23: *"여기가 2줄이 되었는데 그럴필요가 없다 …
+                              *    input에 100과 버튼의 100km 가중복이라 그것도 버튼에서 뺄수 있다."*)
+                              *
+                              * 🔴 **버튼은 값을 말하지 않는다** — 바로 옆 칸이 같은 값을 말한다.
+                              * 🔴 **두 숫자는 다른 것이다.** 기준거리는 «이 거리에서 배율 1.0» 인 기사님의 잣대이고,
+                              *    잰 거리는 «지금 내 위치 → 목적지» 인 서버의 실측이다. 배율은 둘을 나눈 값이다.
+                              */}
+                            <div className="relative grid grid-cols-3 gap-1">
+                                <div className="flex rounded-lg border border-border-card overflow-hidden">
                                     {([true, false] as const).map(on => (
                                         <button key={String(on)} type="button"
                                             onClick={() => updateFilter({ radiusAuto: on })}
-                                            className={`px-2.5 py-0.5 text-[11px] font-bold ${
+                                            className={`flex-1 px-1 py-1 text-[11px] font-bold ${
                                                 radiusAuto === on ? 'bg-info/15 border-info/55 text-info font-black' : 'text-text-muted'}`}>
-                                            {on ? `${filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT}km 기준 반경` : '수동'}
+                                            {on ? '기준 반경' : '수동'}
                                         </button>
                                     ))}
                                 </div>
-                                {radiusAuto && (
-                                    <div className="flex min-w-0 items-center gap-1.5 text-[10.5px] font-bold text-text-muted">
-                                        <span className="truncate tabular-nums">
-                                            {Number.isFinite(filter?.radiusDistanceKm as number)
-                                                ? `${Math.round((filter!.radiusDistanceKm as number) * 10) / 10}km · ×${
-                                                    Math.round(radiusScaleOf(filter?.radiusDistanceKm, filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) * 100) / 100}`
-                                                : '거리 못 잼'}
-                                        </span>
-                                        <button type="button" onClick={() => updateFilter({ radiusDistanceKm: null })}
-                                            title="지금 위치에서 목적지까지 다시 잽니다"
-                                            className="shrink-0 rounded-md border border-border-card px-1.5 py-0.5 text-info">
-                                            ↻ 다시 구하기
-                                        </button>
-                                    </div>
-                                )}
+                                {/**
+                                  * 📏 **기준거리 — 여기서 바로 바꾼다** (기사님 2026-09-23:
+                                  *    *"40km 반경을 쉽게 바꿔야 할꺼 같아 … 지금은 사용자 설정에 40을
+                                  *    바꿔야 하는 불편한 점이 있다."*).
+                                  *
+                                  * 🔴 **같은 값을 보는 창이 둘일 뿐이다** — ⚙️ 설정의 칸도 그대로 둔다.
+                                  *    저장 자리는 `user_filters.radius_base_km` 하나다 (규칙 ③).
+                                  * 🔴 이 거리에서 **배율 1.0** 이다 — 목적지가 이보다 가까우면 반경이 줄고,
+                                  *    멀면 원값 그대로다. 그래서 아래 반경 셋이 이 값을 따라 함께 움직인다.
+                                  * 🔴 `inline` — 슬라이더 레이어가 **줄 전체 폭**으로 떠야 한다. 제 래퍼를
+                                  *    만들면 1/3 칸 폭이 되어 폰에서 못 끈다.
+                                  */}
+                                <KnobGrid open={openKnob} onOpen={setOpenKnob} inline
+                                    knobs={[{
+                                        key: 'radiusBaseKm',
+                                        label: '📏 기준거리',
+                                        unit: 'km',
+                                        value: filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
+                                        min: 0, max: 100, step: 5,
+                                        /* 🔴 지금 안 쓰이는 칸은 감추지 않고 흐리게 (수동이면 배율이 안 돈다) */
+                                        dim: !radiusAuto,
+                                        set: (v: number) => previewFilter({ radiusBaseKm: v }),
+                                        onPreview: (v: number) => previewFilter({ radiusBaseKm: v }),
+                                        /* 🔴 뗄 때 서버로 — ⚙️ 설정과 같은 통로다 */
+                                        onCommit: (v: number) => updateFilter({ radiusBaseKm: v }),
+                                    }]} />
+                                {/**
+                                  * ↻ **잰 거리 — 누르면 다시 잰다**.
+                                  *
+                                  * 🔴 **기준거리를 바꾸는 것으로 대신할 수 없다** — 이 숫자는 서버가 «내 위치 →
+                                  *    목적지»를 실제로 잰 값이고, **한 번 재면 붙잡아 둔다**(`heldRadiusDistanceKm`).
+                                  *    자동 반경이 그날 첫짐에 한 번만 줄고 위치가 바뀐다고 다시 줄지 않게 하려는
+                                  *    기사님 규칙이라, 다시 재는 길은 이 버튼 하나다.
+                                  */}
+                                <button type="button" onClick={() => updateFilter({ radiusDistanceKm: null })}
+                                    title="지금 위치에서 목적지까지 다시 잽니다"
+                                    className={`flex flex-col items-stretch gap-0 px-1 py-1 rounded-lg border text-left ${
+                                        radiusAuto ? 'border-border-card bg-background hover:border-border-hover' : 'border-border-card bg-background opacity-50'}`}>
+                                    <span className="px-0.5 text-[9.5px] font-bold text-text-muted leading-tight">잰 거리 ↻</span>
+                                    <span className="w-full text-center text-[13px] font-black text-text-primary tabular-nums leading-tight whitespace-nowrap">
+                                        {Number.isFinite(filter?.radiusDistanceKm as number)
+                                            ? <>{Math.round((filter!.radiusDistanceKm as number) * 10) / 10}
+                                                <span className="text-[9.5px] font-bold text-text-muted">km ×{
+                                                    Math.round(radiusScaleOf(filter?.radiusDistanceKm, filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) * 100) / 100}</span></>
+                                            : <span className="text-[10.5px] text-text-muted">거리 못 잼</span>}
+                                    </span>
+                                </button>
                             </div>
-                            {/**
-                              * 📏 **기준거리 — 여기서 바로 바꾼다** (기사님 2026-09-23:
-                              *    *"40km 반경을 쉽게 바꿔야 할꺼 같아 … 지금은 사용자 설정에 40을
-                              *    바꿔야 하는 불편한 점이 있다."*).
-                              *
-                              * 🔴 **같은 값을 보는 창이 둘일 뿐이다** — ⚙️ 설정의 칸도 그대로 둔다.
-                              *    저장 자리는 `user_filters.radius_base_km` 하나다 (규칙 ③).
-                              * 🔴 이 거리에서 **배율 1.0** 이다 — 목적지가 이보다 가까우면 반경이 줄고,
-                              *    멀면 원값 그대로다. 그래서 아래 반경 셋이 이 값을 따라 함께 움직인다.
-                              */}
-                            <KnobGrid open={openKnob} onOpen={setOpenKnob} cols={1}
-                                knobs={[{
-                                    key: 'radiusBaseKm',
-                                    label: '📏 기준거리 — 여기서 배율 1.0',
-                                    unit: 'km',
-                                    value: filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
-                                    min: 0, max: 100, step: 5,
-                                    /* 🔴 지금 안 쓰이는 칸은 감추지 않고 흐리게 (수동이면 배율이 안 돈다) */
-                                    dim: !radiusAuto,
-                                    set: (v: number) => previewFilter({ radiusBaseKm: v }),
-                                    onPreview: (v: number) => previewFilter({ radiusBaseKm: v }),
-                                    /* 🔴 뗄 때 서버로 — ⚙️ 설정과 같은 통로다 */
-                                    onCommit: (v: number) => updateFilter({ radiusBaseKm: v }),
-                                }]} />
                             {/* 📐 **마름모의 모양 — 국면과 무관한 한 벌이다** (제외 단어와 같은 이유).
                                 라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
                             {/* 🔴 **테두리 박스를 두르지 않는다** — 목업은 3칸 격자가 죽 이어진다.

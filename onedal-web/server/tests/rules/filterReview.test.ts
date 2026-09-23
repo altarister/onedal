@@ -134,9 +134,11 @@ describe('1단계 · 기준 거리 칸 (조사 ①-7 · 기사님: "7번 칸을 
      *    나머지가 흐려지는» 규칙이 생긴다.
      * 🔴 **저장 자리는 하나다** (`user_filters.radius_base_km`) — 보는 창이 둘일 뿐이다.
      */
-    it('🔴 기준거리를 필터에서 바로 바꾼다 — 자동 버튼은 그 값을 말한다', () => {
-        expect(modal).toMatch(/km 기준 반경/);
+    it('🔴 기준거리를 필터에서 바로 바꾼다 — 값을 말하는 곳은 그 칸 하나다', () => {
         expect(modal).toMatch(/key: 'radiusBaseKm'/);
+        /* 🔴 자동 버튼은 값을 되뇌지 않는다 — 바로 옆 칸이 같은 값을 말한다 (기사님 «중복이라 뺄수 있다») */
+        expect(modal).not.toMatch(/km 기준 반경/);
+        expect(modal).toMatch(/'기준 반경' : '수동'/);
         /* 🔴 반경 셋 그리드와는 다른 칸이다 — 한 `KnobGrid` 안에 넣지 않는다 */
         expect(modal).not.toMatch(/KNOB_FIELDS[\s\S]{0,600}radiusBaseKm/);
     });
