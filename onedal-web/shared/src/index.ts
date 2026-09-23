@@ -789,6 +789,12 @@ export interface AutoDispatchFilter {
     capacityConfidence?: CapacityConfidence;
     allowedVehicleTypes: string[];   // 허용 차종 배열 (예: ["1t","다마스"]) — 빈 배열이면 모든 차종 허용
     isActive: boolean;              // 필터링(매크로) 활성화 여부
+    /**
+     * 🔒 **지금 이 폰이 심사 중인 콜이 있나** — 앱이 «잠김»의 까닭을 가르는 사실.
+     *    저장하지 않는다 — 서버가 조립할 때 `deviceEvaluatingMap` 에서 파생시켜 싣는다 (`scrap.ts`).
+     *    앱은 이것이 참이면 **판정은 하고 클릭만 미룬다** — `isActive=false`(만석)와 다르다.
+     */
+    evaluatingNow?: boolean;
     isSharedMode: boolean;          // 첫짐/합짐 분기 (true면 합짐 경유, false면 첫짐 수동)
     driverAction: DriverAction;     // [V2] 기사 행동 상태 (WAITING, DRIVING, LOADING, UNLOADING, RESTING)
     dispatchPhase: DispatchPhase;   // [V2] 콜 잡기 전략 단계 (STANDBY, GATHERING, DELIVERING) — 파생값
@@ -980,6 +986,14 @@ export const APP_FILTER_KEYS = [
     'orderKm', 'pickerAlarmMinFare',
     /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings */
     'safeCancelSecInsung', 'safeCancelSecHwamul24', 'pickerAlarmDetailSec',
+    /**
+     * 🔒 **지금 심사 중인 콜이 있나** — «잠김»의 까닭을 가르는 사실 (기사님 · 실주행 오송읍).
+     *
+     * `isActive=false` 는 **만석**이라는 뜻으로 이미 확정돼 있다(`capacityFullHold`).
+     * 선점 중에도 그것을 끄면 앱은 둘을 구별 못 해, 목록에 콜이 보여도 판정조차 안 한다 —
+     * 오송읍 셋을 잡는 데 3분 25초가 걸렸다. 이 칸이 있으면 앱은 **판정은 하고 클릭만 미룬다.**
+     */
+    'evaluatingNow',
 ] as const;
 
 /**

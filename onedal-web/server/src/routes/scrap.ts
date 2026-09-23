@@ -245,6 +245,17 @@ router.post("/", (req, res) => {
         /* 🎯 앱은 «어디로 가나» 하나만 안다 — 복귀면 집 시가 간다 (조사 ①-1 · 파생 `goalCity`) */
         if (session.activeFilter.goalCity) appFilter.destinationCity = session.activeFilter.goalCity;
 
+        /**
+         * 🔒 **지금 이 폰이 심사 중인 콜이 있나** — «잠김»의 까닭을 가른다 (기사님 · 실주행 오송읍).
+         *
+         * 🔴 `isActive=false` 는 **만석**이라는 뜻이다(`capacityFullHold` · 기사님 «1톤 두 개는 사고»).
+         *    선점 중에도 그것을 끄면 앱은 둘을 구별 못 해, 목록에 콜이 보여도 **판정조차 안 한다** —
+         *    오송읍 셋을 잡는 데 3분 25초가 걸렸다(04:58 · 「🔒 평가 보류」가 10초마다).
+         *    이 칸이 있으면 앱은 **판정은 해 두고 클릭만 미뤄**, 앞 콜이 결재되는 즉시 다음을 잡는다.
+         * 🔴 저장하지 않는다 — 심사 중인 콜을 쥔 `deviceEvaluatingMap` 에서 파생시킨다 (규칙 ③).
+         */
+        appFilter.evaluatingNow = !!session.deviceEvaluatingMap.get(deviceId);
+
         // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정)
         //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)
         //    🔴 키 이름은 orderKm — #78 이후 실리는 값이 «순서 전용»이라 이름을 한 벌로
