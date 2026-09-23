@@ -29,7 +29,7 @@ export function useCloseOnOutside(open: boolean, close: () => void) {
     }, [open, close]);
 }
 
-export function PickLayer({ label, value, options, open, onToggle, onPick, selected, keepOpen, tone, foot, mark }: {
+export function PickLayer({ label, value, options, open, onToggle, onPick, selected, keepOpen, tone, foot, mark, optionLabel }: {
     label: string; value: string; options: string[];
     open: boolean; onToggle: () => void; onPick: (v: string) => void;
     /** 지금 켜져 있는 것들 — **색만** 칠한다 */
@@ -52,6 +52,14 @@ export function PickLayer({ label, value, options, open, onToggle, onPick, selec
      *    꾸민 글자와 비교해 **막힌 차종은 골라도 강조가 안 켜진다.** 원문은 그대로 두고 표시만 따로 그린다.
      */
     mark?: Record<string, string>;
+    /**
+     * 🏷️ **보이는 이름만 바꾼다** — 값은 그대로다 (예: 목적지 시·군·구는 이미 고른
+     *    시·도 이름을 떼고 «강남구»로 보인다. 저장·검색은 «서울 강남구» 그대로다).
+     *
+     * 🔴 **`options` 를 꾸며서 넘기면 안 된다** — 그러면 고른 값이 꾸민 글자로 저장되어
+     *    콜 검색이 지도에서 그 이름을 못 찾는다. `mark` 와 같은 까닭이다.
+     */
+    optionLabel?: (v: string) => string;
 }) {
     useCloseOnOutside(open, onToggle);
     return (
@@ -81,7 +89,7 @@ export function PickLayer({ label, value, options, open, onToggle, onPick, selec
                                             : tone === 'danger' ? 'bg-danger/15 border-danger/55 text-danger'
                                                 : 'bg-info/15 border-info/55 text-info')
                                         : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
-                                    {v}{mark?.[v] && <span className="ml-0.5 opacity-70">{mark[v]}</span>}
+                                    {optionLabel ? optionLabel(v) : v}{mark?.[v] && <span className="ml-0.5 opacity-70">{mark[v]}</span>}
                                 </button>
                             );
                         })}

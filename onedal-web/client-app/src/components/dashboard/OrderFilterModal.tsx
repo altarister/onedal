@@ -313,6 +313,14 @@ export default function OrderFilterModal({ isOpen, onClose,
      *    **저장된 목적지가 화면에서 사라진 것처럼 보인다.**
      */
     const [dstSido, setDstSido] = useState<string>('');
+    /**
+     * 🏷️ 시·군·구 칸에 **보이는 이름** — 이미 고른 시·도 이름을 뗀다. 값은 건드리지 않는다.
+     * 시 전체(값이 시·도 이름과 같은 것)는 떼면 빈칸이 되므로 «전체» 로 부른다 (기사님 확정).
+     */
+    const shortCity = (v: string) =>
+        v === dstSido ? '전체'
+            : v.startsWith(`${dstSido} `) ? v.slice(dstSido.length + 1)
+                : v;
     useEffect(() => {
         if (!cityGroups.length) return;
         const owner = cityGroups.find(g => g.cities.includes(cur.destinationCity));
@@ -636,13 +644,21 @@ export default function OrderFilterModal({ isOpen, onClose,
                                                안 그러면 «경기 + 김포시» 같은 짝이 화면에 남는다 */
                                             pickField('destinationCity', citiesOf(v)[0] ?? '');
                                         }} />
+                                    {/**
+                                      * 🏷️ **이미 고른 시·도 이름은 떼고 보인다** (기사님: *"서울을 누르고
+                                      *    들어오면 모든 버튼 라벨에 서울이 붙는다 — 중복이다"*).
+                                      *    왼쪽 칸이 «서울»을 이미 말하고 있다.
+                                      * 🔴 **값은 그대로 «서울 강남구» 다** — 지도가 그 이름으로 동을 찾는다.
+                                      *    「중구」는 서울에도 대전에도 있어 홀로 쓰면 어느 쪽인지 모른다.
+                                      */}
                                     <PickLayer label="시·군·구"
                                         value={cur.destinationCity
                                             ? (knownCities.includes(cur.destinationCity)
-                                                ? cur.destinationCity
+                                                ? shortCity(cur.destinationCity)
                                                 : `⚠️ ${cur.destinationCity} (목록에 없음)`)
                                             : '— 선택 —'}
                                         options={citiesOf(dstSido)}
+                                        optionLabel={shortCity}
                                         open={openKnob === 'dstCity'}
                                         onToggle={() => setOpenKnob(o => o === 'dstCity' ? null : 'dstCity')}
                                         onPick={(v) => pickField('destinationCity', v)} />

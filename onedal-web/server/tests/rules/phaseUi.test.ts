@@ -378,6 +378,27 @@ describe('목적지 — 도 · 시 2단 (C4-2)', () => {
         expect(modal).toMatch(/knownCities\.includes/);
     });
 
+    /**
+     * 🏷️ **보이는 이름만 짧게, 값은 그대로** (기사님 2026-09-23:
+     *    *"서울을 누르고 들어오면 서울 강남구 … 등 모든 버튼 라벨에 서울이 붙는다. 중복이다.
+     *    벨류는 유지 하고 라벨에 서울은 모두 빼도 될듯"*).
+     *
+     * 🔴 목록(`options`)을 꾸며서 넘기면 **고른 값이 꾸민 글자로 저장되어** 지도가 그 이름을
+     *    못 찾는다 — 「강남구」 홀로는 서울인지 대전인지도 모른다. 그래서 `optionLabel` 로
+     *    **그리는 글자만** 바꾼다.
+     */
+    it('🔴 시·군·구는 이미 고른 시·도 이름을 떼고 보인다 — 값은 건드리지 않는다', () => {
+        expect(modal).toMatch(/optionLabel=\{shortCity\}/);
+        /* 목록 자체를 꾸미지 않는다 */
+        expect(modal).toMatch(/options=\{citiesOf\(dstSido\)\}/);
+        /* 고른 값은 그대로 저장된다 */
+        expect(modal).toMatch(/onPick=\{\(v\) => pickField\('destinationCity', v\)\}/);
+    });
+
+    it('🔴 시 전체는 «전체» 로 부른다 — 시·도 이름을 떼면 빈칸이 된다', () => {
+        expect(modal).toMatch(/v === dstSido \? '전체'/);
+    });
+
     /** 🔴 도를 옮기면 시도 그 도의 것으로 따라간다 — 안 그러면 «경기 + 김포시»가 남는다 */
     it('🔴 도를 바꾸면 시가 그 도의 것으로 따라간다', () => {
         const dst = modal.slice(modal.indexOf('🎯 시·도'), modal.indexOf('🎯 시·도') + 2000);
