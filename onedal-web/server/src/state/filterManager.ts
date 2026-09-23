@@ -174,7 +174,8 @@ function netKeywordsOf(
      * 🔴 **거리는 하루에 한 번 잰다** (#117) — 들고 있으면 그것을 쓰고, 비어 있을 때만
      *    «내 위치 → 목적지»로 잰다(`holdRadiusDistance`). 합짐마다 «마지막 하차지 → 목적지»로 다시 재면
      *    목적지 앞에서 원이 거의 0 이 되어 관내콜도 가는 길의 좋은 콜도 못 받는다.
-     *    비우는 곳: 다시 구하기(`null`) · 목적지 변경(`updateActiveFilter`) · 영업일 전환(`resetToBaseFilter`).
+     *    비우는 곳: 목적지 변경(`updateActiveFilter`) · 영업일 전환(`resetToBaseFilter`).
+     *    🔴 **손으로 다시 재는 길은 두지 않는다** — 목적지 앞에서 다시 재면 원이 거의 0 이 된다 (기사님 지적).
      * 🔴 **계산은 `shared` 한 곳이다** — 관제웹 지도(`StageView` «상차» · «하차» 레이어 · `effectiveRadii`)가 **같은 함수**를 부른다.
      *    두 벌이면 «지도는 든다는데 판정은 탈락»이 된다 (규칙 ③).
      * ⚠️ **수동이면 손대지 않는다.** 그리고 거리를 못 재면 자동도 **받은 값 그대로** 둔다
@@ -1189,8 +1190,6 @@ export function updateActiveFilter(
             excludedRegions: session.activeFilter.excludedRegions,
         };
         const prevDestinationCity = session.activeFilter.destinationCity;
-        /* 📏 [↻ 잰 거리] 가 «넓히기만» 하려면 비우기 전 값을 알아야 한다 (아래) */
-        const heldDistanceKm = session.activeFilter.radiusDistanceKm;
         // 일반 변경: activeFilter에 직접 덮어쓰기
         session.activeFilter = { ...session.activeFilter, ...changes };
         /**
@@ -1200,31 +1199,11 @@ export function updateActiveFilter(
          */
         if ('destinationCity' in changes && changes.destinationCity !== prevDestinationCity && !('radiusDistanceKm' in changes)) session.activeFilter.radiusDistanceKm = undefined;
         /**
-         * 📏 **[↻ 다시 구하기] 는 값이 같아도 한 번 내보낸다**.
-         *    같은 자리에서 다시 재면 **같은 거리**가 나온다 — 집 주소로 대신 재는 책상에서는 늘 그렇다.
-         *    그러면 아래 방송이 «바뀐 게 없다»(`lastFilterJson`)로 걸러져, 누를 때 비운 값이 화면에
-         *    되돌아오지 못한다. 눌렀다는 것 자체가 «다시 실어 보내라»는 뜻이므로 여기서 한 번 푼다.
+         * 📏 **잰 거리가 바뀌면 값이 같아 보여도 한 번 내보낸다**.
+         *    아래 방송은 «바뀐 게 없다»(`lastFilterJson`)로 거르는데, 잰 거리는 반경 넷을
+         *    한꺼번에 움직이므로 걸러지면 화면과 서버가 다른 반경을 말한다.
          */
         if ('radiusDistanceKm' in changes) session.lastFilterJson = null;
-        /**
-         * 📏 **[↻ 잰 거리] 는 다시 재되 «넓히기만» 한다** (기사님 확정 2026-09-23:
-         *    *"가까워 질수록 범위가 축소되기 때문에 도착해서는 관내근거리 콜을 할수 없다."*).
-         *
-         * 🔴 목적지 앞에서 다시 재면 거리가 거의 0 이 되어 반경 넷이 함께 쪼그라든다 —
-         *    관내콜도 가는 길의 좋은 콜도 못 받는다. 그래서 **멀어졌으면 반영하고, 가까워졌으면 그대로 둔다.**
-         *    «자동 반경은 그날 첫짐에 한 번 줄고 위치가 바뀐다고 다시 줄지 않는다»를 이 버튼에도 그대로 건다.
-         * 🔴 재는 셈은 `holdRadiusDistance` 한 곳이다 — 여기서 따로 재지 않는다 (규칙 ③).
-         */
-        if ('radiusDistanceKm' in changes && changes.radiusDistanceKm == null) {
-            session.activeFilter.radiusDistanceKm = undefined;   // 비워야 다시 잰다
-            const now = holdRadiusDistance(session, goalCityOf(session, userId),
-                originOf(session as Parameters<typeof originOf>[0]));
-            if (Number.isFinite(heldDistanceKm as number) && Number.isFinite(now as number)
-                && (now as number) < (heldDistanceKm as number)) {
-                session.activeFilter.radiusDistanceKm = heldDistanceKm;
-                console.log(`📏 [잰 거리] ${(now as number).toFixed(1)}km 로 가까워졌지만 ${(heldDistanceKm as number).toFixed(1)}km 를 그대로 둔다 — 넓히기만 한다`);
-            }
-        }
         // 파생 데이터 재계산
         recalculateDerivedFields(session, changes, userId);
         refreshDetourIfNeeded(session, userId, before);

@@ -6,7 +6,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
-         resolvePhaseKey, effectiveRadii, radiusScaleOf,
+         resolvePhaseKey, effectiveRadii,
          VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
 import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
@@ -701,15 +701,16 @@ export default function OrderFilterModal({ isOpen, onClose,
                             ? [shownRadii.pickupRadiusKm, shownRadii.destinationRadiusKm, shownRadii.detourRadiusKm].map(n => Math.round(n * 10) / 10).join(' · ')
                             : [cur.pickupRadiusKm, cur.destinationRadiusKm, cur.detourRadiusKm].join(' · ')}km · ${radiusAuto ? '기준' : '수동'}`}>
                             {/**
-                              * 📐 **기준/수동 · 기준거리 · 잰 거리 — 한 줄 3등분**
+                              * 📐 **기준/수동 · 기준거리 — 한 줄**
                               *    (기사님 2026-09-23: *"여기가 2줄이 되었는데 그럴필요가 없다 …
                               *    input에 100과 버튼의 100km 가중복이라 그것도 버튼에서 뺄수 있다."*)
                               *
                               * 🔴 **버튼은 값을 말하지 않는다** — 바로 옆 칸이 같은 값을 말한다.
-                              * 🔴 **두 숫자는 다른 것이다.** 기준거리는 «이 거리에서 배율 1.0» 인 기사님의 잣대이고,
-                              *    잰 거리는 «지금 내 위치 → 목적지» 인 서버의 실측이다. 배율은 둘을 나눈 값이다.
+                              * 🔴 **잰 거리는 화면에 적지 않는다** (기사님 2026-09-23 *"젠거리가 왜 필요한지
+                              *    모르겠다"*) — 반경 칸이 이미 **줄어든 값**을 보여 주므로, «왜 줄었나»를
+                              *    한 번 더 적는 자리였다. 서버는 그대로 잰다 (배율을 만드는 재료다).
                               */}
-                            <div className="relative grid grid-cols-3 gap-1">
+                            <div className="relative grid grid-cols-2 gap-1">
                                 <div className="flex rounded-lg border border-border-card overflow-hidden">
                                     {([true, false] as const).map(on => (
                                         <button key={String(on)} type="button"
@@ -746,29 +747,6 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         /* 🔴 뗄 때 서버로 — ⚙️ 설정과 같은 통로다 */
                                         onCommit: (v: number) => updateFilter({ radiusBaseKm: v }),
                                     }]} />
-                                {/**
-                                  * ↻ **잰 거리 — 누르면 다시 잰다. 다만 «넓히기만» 한다**
-                                  *    (기사님 확정 2026-09-23: *"가까워 질수록 범위가 축소되기 때문에
-                                  *    도착해서는 관내근거리 콜을 할수 없다."*).
-                                  *
-                                  * 🔴 **기준거리를 바꾸는 것으로 대신할 수 없다** — 이 숫자는 서버가 «내 위치 →
-                                  *    목적지»를 실제로 잰 값이고, **한 번 재면 붙잡아 둔다**(`heldRadiusDistanceKm`).
-                                  * 🔴 **멀어졌으면 반영하고 가까워졌으면 그대로 둔다** — 판단은 서버
-                                  *    `updateActiveFilter` 한 곳이다. 목적지 앞에서 줄면 관내콜을 못 잡는다.
-                                  */}
-                                <button type="button" onClick={() => updateFilter({ radiusDistanceKm: null })}
-                                    title="지금 위치에서 다시 잽니다 — 멀어졌으면 넓히고, 가까워졌으면 그대로 둡니다"
-                                    className={`flex flex-col items-stretch gap-0 px-1 py-1 rounded-lg border text-left ${
-                                        radiusAuto ? 'border-border-card bg-background hover:border-border-hover' : 'border-border-card bg-background opacity-50'}`}>
-                                    <span className="px-0.5 text-[9.5px] font-bold text-text-muted leading-tight">잰 거리 ↻</span>
-                                    <span className="w-full text-center text-[13px] font-black text-text-primary tabular-nums leading-tight whitespace-nowrap">
-                                        {Number.isFinite(filter?.radiusDistanceKm as number)
-                                            ? <>{Math.round((filter!.radiusDistanceKm as number) * 10) / 10}
-                                                <span className="text-[9.5px] font-bold text-text-muted">km ×{
-                                                    Math.round(radiusScaleOf(filter?.radiusDistanceKm, filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) * 100) / 100}</span></>
-                                            : <span className="text-[10.5px] text-text-muted">거리 못 잼</span>}
-                                    </span>
-                                </button>
                             </div>
                             {/* 📐 **마름모의 모양 — 국면과 무관한 한 벌이다** (제외 단어와 같은 이유).
                                 라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
