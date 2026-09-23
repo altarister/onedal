@@ -136,7 +136,7 @@ export const FILTER_FIELDS: readonly FilterField<FlatValueKey>[] = [
       label: '목적지', unit: '', min: 0, max: 0, int: false,
       why: '짐이 많은 지역을 향한다 (정의서 1장②). 합짐·복귀에서는 서버가 경로·집 주소로 채운다' },
     { col: 'pickup_radius_km', path: 'pickupRadiusKm',
-      label: '현위반경', unit: 'km', min: 0, max: 100, int: false, step: 1,
+      label: '현위반경', unit: 'km', min: 1, max: 40, int: false, step: 1,
       why: '내 위치에서 상차지까지. ⚠️ 축 개편 예정 — 도달 시간(분)에서 파생 (확정안 구현 4)' },
     /**
      * 📏 **라인반경** — 길 중심선에서 **한쪽으로** 몇 km 까지 콜을 받나
@@ -146,10 +146,10 @@ export const FILTER_FIELDS: readonly FilterField<FlatValueKey>[] = [
      *    한 이름으로 부르면 조용히 섞인다.
      */
     { col: 'detour_radius_km', path: 'detourRadiusKm',
-      label: '라인반경', unit: 'km', min: 0, max: 50, int: false, step: 1,
+      label: '라인반경', unit: 'km', min: 1, max: 40, int: false, step: 1,
       why: '길 중심선에서 한쪽으로 몇 km 까지 콜을 받나 — 노선일 때만 쓰인다 (동선이면 마름모가 판단)' },
     { col: 'destination_radius_km', path: 'destinationRadiusKm',
-      label: '목적반경', unit: 'km', min: 0, max: 100, int: false, step: 1,
+      label: '목적반경', unit: 'km', min: 1, max: 40, int: false, step: 1,
       why: '도착 지점 주변 탐색 반경' },
     { col: 'call_discount_pct', path: 'callDiscountPct',
       label: '콜할인율', unit: '%', min: 0, max: 100, int: true, step: 10,
@@ -341,13 +341,13 @@ export const QUAD_SHAPE_KEYS: QuadShapeKey[] = ['srcAngleDeg', 'dstAngleDeg', 'q
  */
 export const QUAD_FIELDS: readonly FilterField<QuadShapeKey>[] = [
     { col: 'src_angle_deg', path: 'srcAngleDeg',
-      label: '출발각', unit: '°', min: 0, max: 360, int: true, step: 10,
+      label: '출발각', unit: '°', min: 10, max: 360, int: true, step: 10,
       why: '내 자리에서 얼마나 돌아가도 되나. 넓히면 뒤쪽 콜까지 들어온다 — 지도의 마름모가 그만큼 벌어진다' },
     { col: 'dst_angle_deg', path: 'dstAngleDeg',
-      label: '목적각', unit: '°', min: 0, max: 360, int: true, step: 10,
+      label: '목적각', unit: '°', min: 10, max: 360, int: true, step: 10,
       why: '목적지 둘레를 얼마나 넓게 볼까. 좁히면 «정확히 그쪽»만 남는다' },
     { col: 'quad_radius_km', path: 'quadRadiusKm',
-      label: '마름모반경', unit: 'km', min: 0, max: 200, int: false, step: 1,
+      label: '마름모반경', unit: 'km', min: 1, max: 100, int: false, step: 1,
       why: '내 위치→목적지 직선에서 좌우로 몇 km 까지. 각도가 좁아도 이만큼은 담는다' },
 ] as const;
 

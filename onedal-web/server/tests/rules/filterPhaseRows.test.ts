@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { FILTER_FIELDS, filterValuesFrom, DEFAULT_FILTER_VALUES, reachRadiusKm } from '@onedal/shared';
+import { FILTER_FIELDS, QUAD_FIELDS, filterValuesFrom, DEFAULT_FILTER_VALUES, reachRadiusKm } from '@onedal/shared';
 
 /**
  * 🎛️ **값 다섯의 그릇** — 컬럼·폼·기본값의 원천은 `FILTER_FIELDS` 표 하나다.
@@ -52,10 +52,30 @@ describe('FILTER_FIELDS — 표 하나가 컬럼·폼을 다 만든다', () => {
         expect(filterValuesFrom(blankRow)).toEqual(DEFAULT_FILTER_VALUES);
         // 칸이 아예 없는 행(옛 스키마)도 같다
         expect(filterValuesFrom({ user_id: 'x' }).pickupRadiusKm).toBe(DEFAULT_FILTER_VALUES.pickupRadiusKm);
-        // 🔴 진짜 0 은 여전히 0 이다 (라인반경 0 = "가는 길 위의 콜만")
-        expect(filterValuesFrom({ detour_radius_km: 0 }).detourRadiusKm).toBe(0);
+        /* 🔴 진짜 0 은 «없다»가 아니다 — 표의 하한(1)으로 잘릴 뿐, 기본값(6)으로 돌아가지 않는다.
+           기사님이 반경 범위를 1~40 으로 정하시기 전에는 0 이 그대로 살아 «가는 길 위의 콜만»이었다 */
+        expect(filterValuesFrom({ detour_radius_km: 0 }).detourRadiusKm).toBe(1);
         // 빈 글자도 «없다» 로 읽는다
         expect(filterValuesFrom({ destination_city: '' }).destinationCity).toBe(DEFAULT_FILTER_VALUES.destinationCity);
+    });
+
+    /**
+     * 📏 **슬라이더 눈금은 기사님이 정하신다** (2026-09-23: *"기준거리 0~100 / 각 10~360 /
+     *    반경: 1~40"* · 마름모반경만 뒤에 *"100으로 하는것이 좋겠다"*).
+     *
+     * 🔴 표가 화면의 눈금이자 값을 자르는 자다 — 한 곳에서만 정한다 (규칙 ③).
+     */
+    it('🔴 반경 셋은 1~40 · 각 둘은 10~360 · 마름모반경은 1~100', () => {
+        const range = (label: string) => {
+            const f = [...FILTER_FIELDS, ...QUAD_FIELDS].find(x => x.label === label)!;
+            return `${f.label} ${f.min}~${f.max}`;
+        };
+        expect(range('현위반경')).toBe('현위반경 1~40');
+        expect(range('목적반경')).toBe('목적반경 1~40');
+        expect(range('라인반경')).toBe('라인반경 1~40');
+        expect(range('출발각')).toBe('출발각 10~360');
+        expect(range('목적각')).toBe('목적각 10~360');
+        expect(range('마름모반경')).toBe('마름모반경 1~100');
     });
 
     /** 🔴 평면 이름으로도, DB 컬럼 이름으로도 읽는다 — 두 그릇을 오가야 해서 */

@@ -735,7 +735,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                     label: '📏 기준거리 — 여기서 배율 1.0',
                                     unit: 'km',
                                     value: filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
-                                    min: 10, max: 100, step: 5,
+                                    min: 0, max: 100, step: 5,
                                     /* 🔴 지금 안 쓰이는 칸은 감추지 않고 흐리게 (수동이면 배율이 안 돈다) */
                                     dim: !radiusAuto,
                                     set: (v: number) => previewFilter({ radiusBaseKm: v }),
