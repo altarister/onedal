@@ -747,15 +747,17 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         onCommit: (v: number) => updateFilter({ radiusBaseKm: v }),
                                     }]} />
                                 {/**
-                                  * ↻ **잰 거리 — 누르면 다시 잰다**.
+                                  * ↻ **잰 거리 — 누르면 다시 잰다. 다만 «넓히기만» 한다**
+                                  *    (기사님 확정 2026-09-23: *"가까워 질수록 범위가 축소되기 때문에
+                                  *    도착해서는 관내근거리 콜을 할수 없다."*).
                                   *
                                   * 🔴 **기준거리를 바꾸는 것으로 대신할 수 없다** — 이 숫자는 서버가 «내 위치 →
                                   *    목적지»를 실제로 잰 값이고, **한 번 재면 붙잡아 둔다**(`heldRadiusDistanceKm`).
-                                  *    자동 반경이 그날 첫짐에 한 번만 줄고 위치가 바뀐다고 다시 줄지 않게 하려는
-                                  *    기사님 규칙이라, 다시 재는 길은 이 버튼 하나다.
+                                  * 🔴 **멀어졌으면 반영하고 가까워졌으면 그대로 둔다** — 판단은 서버
+                                  *    `updateActiveFilter` 한 곳이다. 목적지 앞에서 줄면 관내콜을 못 잡는다.
                                   */}
                                 <button type="button" onClick={() => updateFilter({ radiusDistanceKm: null })}
-                                    title="지금 위치에서 목적지까지 다시 잽니다"
+                                    title="지금 위치에서 다시 잽니다 — 멀어졌으면 넓히고, 가까워졌으면 그대로 둡니다"
                                     className={`flex flex-col items-stretch gap-0 px-1 py-1 rounded-lg border text-left ${
                                         radiusAuto ? 'border-border-card bg-background hover:border-border-hover' : 'border-border-card bg-background opacity-50'}`}>
                                     <span className="px-0.5 text-[9.5px] font-bold text-text-muted leading-tight">잰 거리 ↻</span>

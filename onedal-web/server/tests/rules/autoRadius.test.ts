@@ -121,8 +121,26 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
         /* 🔴 한 줄 3등분에 서면서 이름이 「잰 거리 ↻」 로 줄었다 — 누르면 다시 잰다 (기사님 2026-09-23).
            기준거리를 바꾸는 것으로 대신할 수 없다: 이쪽은 서버가 «내 위치 → 목적지»를 실제로 잰 값이다 */
         expect(modal).toMatch(/잰 거리 ↻/);
-        expect(modal).toMatch(/지금 위치에서 목적지까지 다시 잽니다/);
+        expect(modal).toMatch(/멀어졌으면 넓히고, 가까워졌으면 그대로 둡니다/);
         expect(codeOnly(modal)).toMatch(/radiusDistanceKm:\s*null/);
+    });
+
+    /**
+     * 📏 **다시 재기는 «넓히기만» 한다** (기사님 확정 2026-09-23:
+     *    *"가까워 질수록 범위가 축소되기 때문에 도착해서는 관내근거리 콜을 할수 없다."*)
+     *
+     * 🔴 목적지 앞에서 다시 재면 거리가 거의 0 이 되어 반경 넷이 함께 쪼그라든다.
+     *    «자동 반경은 그날 첫짐에 한 번 줄고 위치가 바뀐다고 다시 줄지 않는다»를 이 버튼에도 건다.
+     */
+    it('🔴 눌러도 반경이 줄지 않는다 — 가까워졌으면 붙잡은 거리를 그대로 둔다', () => {
+        const fm = codeOnly(read('state/filterManager.ts'));
+        const i = fm.indexOf("'radiusDistanceKm' in changes && changes.radiusDistanceKm == null");
+        expect(i).toBeGreaterThan(-1);
+        const body = fm.slice(i, i + 700);
+        /* 붙잡은 값과 새로 잰 값을 견주고, 새 값이 작으면 되돌린다 */
+        expect(body).toMatch(/holdRadiusDistance\(/);
+        expect(body).toMatch(/< \(heldDistanceKm as number\)/);
+        expect(body).toMatch(/radiusDistanceKm = heldDistanceKm/);
     });
 
     /**
