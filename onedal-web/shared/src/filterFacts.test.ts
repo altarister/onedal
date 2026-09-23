@@ -35,15 +35,17 @@ describe('🧱 상차 조각 — 목적지 개수에 흔들리지 않는다', ()
         expect(pickupPartsOf({ departed: true, hasLine: false, nearGoalCities: [] }).line).toBe(false);
     });
 
-    it('🔴 가까이 온 목적지가 둘이면 원 둘을 다 준다 — 부르는 쪽이 더한다(∪)', () => {
+    it('🔴 가까이 온 목적지가 둘이어도 상차 조각은 같다 — 목적지 원을 상차에 안 건다', () => {
         const bothNear = [{ ...seoul, nearGoal: true }, { ...home, nearGoal: true }];
-        expect(pickupPartsOf({ departed: true, hasLine: true, nearGoalCities: nearGoalCitiesOf(bothNear) }).goalCities)
-            .toEqual(['서울', '광주시']);
+        expect(nearGoalCitiesOf(bothNear)).toEqual(['서울', '광주시']);
+        expect(pickupPartsOf({ departed: true, hasLine: true, nearGoalCities: nearGoalCitiesOf(bothNear) }))
+            .toEqual({ line: false, goalCities: [] });
     });
 
-    it('🔴 「가까이 옴」이 라인을 끄지 않는다 — 목적지 원을 더할 뿐이다', () => {
+    /** 🔴 실주행에서 잡혔다 — 세 조각 교집합이 목적지 앞에서 13곳 → 3곳으로 조였다 */
+    it('🔴 「가까이 옴」이면 라인을 끈다 — 넓혀야 할 때는 조각을 걷는다', () => {
         const r = pickupPartsOf({ departed: true, hasLine: true, nearGoalCities: ['서울'] });
-        expect(r).toEqual({ line: true, goalCities: ['서울'] });
+        expect(r).toEqual({ line: false, goalCities: [] });
     });
 });
 

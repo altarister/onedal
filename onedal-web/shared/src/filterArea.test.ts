@@ -87,12 +87,14 @@ describe('🎯 목적지 가까이 옴 — 현위치가 목적지 영역 안인�
 
     /**
      * 🔴 **「가까이 옴」은 더하기만 한다** (기사님 확정) — 상차에 목적지 원을 더할 뿐,
-     *    라인도 마름모도 끄지 않는다. 목적지에 닿아 콜을 다 내리면 경로가 없어져 라인이 저절로 사라진다.
+     *    **상차는 조각을 걷어 현위치 원만** 남기고, **하차의 라인·마름모는 그대로** 둔다.
+     *    그래야 그 원 안이 상차·하차 둘 다인 곳(지도의 보라색 점)이 된다 (기사님 확정).
      */
-    it('🔴 가까이 와도 라인을 끄지 않는다 — 목적지 원을 더할 뿐이다', () => {
+    /** 🔴 **넓혀야 할 때는 조각을 걷는다** — 조각은 전부 교집합이라 더하면 되레 좁아진다 (실주행에서 13곳→3곳) */
+    it('🔴 가까이 오면 상차는 현위치 원 하나다 — 라인도 목적지 원도 안 건다', () => {
         const nearZone = [{ city: '이천시', isHome: false, hasCalls: true, nearGoal: true }];
         expect(pickupPartsOf({ departed: true, hasLine: true, nearGoalCities: nearGoalCitiesOf(nearZone) }))
-            .toEqual({ line: true, goalCities: ['이천시'] });
+            .toEqual({ line: false, goalCities: [] });
     });
     it('🔴 가까이 와도 하차 재료는 그대로다 — 라인이 있으면 라인 ∪ 마름모(마지막 하차지)', () => {
         expect(dropoffPartsOf(true)).toEqual({ line: true, quadFrom: 'lastDrop' });
