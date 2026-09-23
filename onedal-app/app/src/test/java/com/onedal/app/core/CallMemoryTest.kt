@@ -182,4 +182,35 @@ class CallMemoryTest {
         assertFalse(memory.alreadyEvaluated(1))
         assertTrue(memory.markReportedOnce(1))
     }
+
+    /**
+     * 🔴 **서버가 안 잡은 콜은 «눌렀다» 기억에서 뺀다** (기사님 · 실주행 05:24~06:02 시흥동).
+     *
+     * 앱이 클릭한 콜은 `markEvaluated` 로 «눌렀다»(`acted`)에 들어간다 — 반송돼도 또 누르지 않으려는
+     * 지뢰 탐지기다. 그런데 그 그릇은 **필터 버전이 바뀌어도 안 비워진다.**
+     *
+     * ── 실측 ──
+     * 시흥동 → 송도동(34,650원)을 앱이 05:24 에 눌렀고, 그 콜은 잡히지 않은 채 끝났다.
+     * 그 뒤 기사님이 대전에서 인천까지 올라오시는 내내 — 필터가 **93번** 바뀌는 동안 —
+     * 앱은 그 콜을 한 번도 다시 판정하지 않았다. 성남을 지날 때 잡았어야 할 콜을 그대로 지나쳤다.
+     *
+     * 🔴 «또 누르지 않는다»는 **그 콜이 살아 있는 동안**만 맞다. 결재가 취소로 끝났으면
+     *    그 콜은 다시 판정받을 자격이 있다 — 길이 바뀌면 답도 바뀐다.
+     */
+    @Test
+    fun `🔴 취소로 끝난 콜은 눌렀다 기억에서 빠진다 - 길이 바뀌면 다시 본다`() {
+        val m = CallMemory()
+        m.markEvaluated(777)
+        assertTrue("누른 직후에는 기억한다", m.alreadyEvaluated(777))
+        m.forgetActed(777)
+        assertFalse("취소로 끝났으면 다시 본다", m.alreadyEvaluated(777))
+    }
+
+    /** 🔴 KEEP 으로 끝난 콜은 그대로 기억한다 — 잡은 콜을 또 누르면 안 된다 */
+    @Test
+    fun `KEEP 으로 끝난 콜은 그대로 기억한다`() {
+        val m = CallMemory()
+        m.markEvaluated(888)
+        assertTrue(m.alreadyEvaluated(888))
+    }
 }
