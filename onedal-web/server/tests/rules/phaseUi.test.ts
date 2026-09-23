@@ -1033,6 +1033,20 @@ describe('국면 전환 — 입구는 하나, 확인창을 거친다', () => {
      * 다른 입구가 확인 절차를 우회할 일이 없다 (아래 «쏘는 곳이 한 곳뿐»).
      * 🔴 막는 것은 **전환이 `onClose()` 를 불러 저장 안 한 값을 버리는 것**이다.
      */
+    /**
+     * 🏠 **복귀는 색만이 아니라 글자로도 말한다** (기사님 2026-09-23:
+     *    *"여기서 복귀 켬 하면 색만 변하는데 복귀 첫짐 탐색중 으로 텍스트도 같이 바꿔줘"*).
+     *
+     * 🔴 운전 중에는 먼발치에서 1~2초에 읽혀야 한다 — 주황색 하나로는 «복귀 중인가»를 못 읽는다.
+     */
+    it('🔴 복귀면 상태 줄에 «복귀» 가 붙는다 — 색만 바뀌지 않는다', () => {
+        expect(status).toMatch(/phase === 'HOME' \? '복귀 ' : ''/);
+        /* 🔴 하차 대기에는 안 붙는다 — 지금 하는 일이지 어디로 가는 길인가가 아니다 */
+        const i = status.indexOf("'하차 대기'");
+        expect(i).toBeGreaterThan(-1);
+        expect(status.slice(i, i + 40)).not.toMatch(/복귀/);
+    });
+
     it('🔴 국면 전환은 확인창 없이 바로 쏜다 (기사님 2026-09-15)', () => {
         const go = modal.slice(modal.indexOf('const goPhase'), modal.indexOf('const goPhase') + 900);
         expect(go).not.toMatch(/confirm\(/);

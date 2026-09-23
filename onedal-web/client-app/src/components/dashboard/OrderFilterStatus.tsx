@@ -58,15 +58,22 @@ export default function OrderFilterStatus({ onOpenFilter }:
 
     const phase: CallTarget = filter.callTarget ?? 'DEST';
 
-    // [V2] DispatchPhase 기반 상태 라벨 — 국면(CallTarget)과 다른 축이다
+    /**
+     * [V2] 지금 무엇을 찾고 있나 — **무엇을**(짐의 차례)과 **어디로**(방향)를 한 줄에 적는다.
+     *
+     * 🔴 **복귀면 글자로도 말한다** (기사님 2026-09-23: *"여기서 복귀 켬 하면 색만 변하는데
+     *    복귀 첫짐 탐색중 으로 텍스트도 같이 바꿔줘"*). 주황색 하나로는 먼발치에서 못 읽는다.
+     * 🔴 **하차 대기에는 안 붙인다** — 그건 지금 하는 일이지 어디로 가는 길인가가 아니다.
+     */
     let label = '직접 모드';   // 자동 탐색이 꺼져 있고 기사님이 직접 잡는다
     if (filter.isActive) {
         const dPhase = filter.dispatchPhase || 'STANDBY';
         const action = filter.driverAction || 'WAITING';
         if (action === 'UNLOADING') label = '하차 대기';
-        else if (dPhase === 'GATHERING') label = '합짐 탐색중';
-        else if (dPhase === 'DELIVERING') label = '경로상 탐색중';
-        else label = '첫짐 탐색중';
+        else {
+            const what = dPhase === 'GATHERING' ? '합짐' : dPhase === 'DELIVERING' ? '경로상' : '첫짐';
+            label = `${phase === 'HOME' ? '복귀 ' : ''}${what} 탐색중`;
+        }
     }
 
     /**
