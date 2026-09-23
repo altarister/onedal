@@ -97,6 +97,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
                 isActive = json.optBoolean("isActive", false),   // 키가 없으면 멈춘다 (안전 방향)
+                /* 🔒 선점 중 — 판정은 하고 클릭만 미룬다. 키가 없으면 false (옛 서버는 안 보낸다) */
+                evaluatingNow = json.optBoolean("evaluatingNow", false),
                 isSharedMode = json.optBoolean("isSharedMode", false),
                 pickupRadiusKm = json.optDouble("pickupRadiusKm", 10.0),
                 minFare = json.optInt("minFare", 30000),         // 서버 기본값과 동일

@@ -160,6 +160,41 @@ class FilterVerdictTest {
         )
         assertEquals(true, InsungParser.decide(승용차콜, filter))
     }
+
+    /**
+     * 🔒 **«선점 중»은 «만석»과 다르다 — 판정까지는 돈다** (기사님 · 실주행 04:58 오송읍).
+     *
+     * 앱은 판정 첫 줄에서 `isActive` 하나만 보고 돌아선다. 그런데 서버는 그 스위치를 두 뜻으로 끈다 —
+     * **만석**(실을 차종 없음 · 하차해야 풀림)과 **선점 중**(한 콜을 심사 중 · 몇 초면 풀림)이다.
+     *
+     * 그 바람에 오송읍에서 콜 넷이 목록에 보이는데도 10초마다 이렇게만 찍혔다:
+     *   🔒 [평가 보류] 오송읍 → 성곡동 39000원 — 필터 잠김(선점 중·대기)
+     * 셋을 잡는 데 **3분 25초**. 실제 배차망이면 그 사이 다 뺏긴다.
+     *
+     * 🔴 **판정과 클릭은 다른 일이다.** 선점 중이어도 판정은 해 둬야 앞 콜이 결재되는 즉시 다음을 잡는다.
+     *    클릭을 미루는 것은 `HijackService` 가 한다 — 여기서는 «판정이 돈다»만 본다.
+     * 🔴 만석(`isActive=false`)은 그대로 막는다 — 기사님 «1톤 두 개는 사고».
+     */
+    @Test
+    fun `선점 중이어도 판정은 돈다 — 잠긴 것은 만석뿐이다`() {
+        val order = SimplifiedOfficeOrder(
+            id = "t-eval", pickup = "오송읍", dropoff = "성곡동",
+            fare = 39000, vehicleType = "오토바이", type = "AUTO", timestamp = "2026-09-24T04:58:00+09:00",
+        )
+        /* 콜 잡기는 켜져 있고, 지금 다른 콜을 심사 중이다 */
+        val f = driveFilter().copy(isActive = true, evaluatingNow = true)
+        org.junit.Assert.assertNotEquals("locked", InsungParser.judge(order, f).axis)
+    }
+
+    @Test
+    fun `만석이면 지금처럼 잠긴다`() {
+        val order = SimplifiedOfficeOrder(
+            id = "t-full", pickup = "오송읍", dropoff = "성곡동",
+            fare = 39000, vehicleType = "오토바이", type = "AUTO", timestamp = "2026-09-24T04:58:00+09:00",
+        )
+        val f = driveFilter().copy(isActive = false)
+        assertEquals("locked", InsungParser.judge(order, f).axis)
+    }
 }
 
 /**
@@ -189,4 +224,5 @@ class AddressShapeTest {
             org.junit.Assert.assertTrue(ok, InsungParser.looksLikeAddress(ok))
         }
     }
+
 }

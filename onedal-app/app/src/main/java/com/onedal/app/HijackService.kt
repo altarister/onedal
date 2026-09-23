@@ -1044,6 +1044,21 @@ class HijackService : AccessibilityService(), ScanContext {
             // 🌟 [AUTO / SIMULATION 실행] 콜 잡기 중이지 않고 AUTO 또는 SIMULATION 모드일 때만 실제 클릭 동작 수행
             if (!session.isAutoActive && (telemetryManager.currentMode == "AUTO" || telemetryManager.currentMode == "SIMULATION")
                 && TargetApp.supportsCatching(currentTargetApp)) {
+                /**
+                 * 🔒 **서버가 앞 콜을 심사 중이면 클릭만 미룬다** (기사님 · 실주행 오송읍).
+                 *
+                 * 🔴 **판정은 이미 끝났다** — 위에서 돌았고 지문도 아직 안 찍었다. 여기서 누르지만 않으면
+                 *    앞 콜이 결재되는 즉시 다음 스캔에서 **바로** 잡는다.
+                 * 🔴 예전에는 서버가 이때 `isActive` 를 꺼서 **판정조차 안 돌았다** — 목록에 콜 넷이
+                 *    보이는데 10초마다 「🔒 평가 보류」만 찍혔고, 오송읍 셋을 잡는 데 3분 25초가 걸렸다.
+                 * 🔴 `session.isAutoActive`(내가 지금 잡는 중)와 다르다 — 이것은 **서버가 아는 사실**이라,
+                 *    폰이 상세를 떠난 뒤 서버가 아직 결재를 기다리는 사이에도 참이다.
+                 */
+                if (isTarget && savedFilter().evaluatingNow) {
+                    AppLogger.d(TAG, "⏳ [클릭 미룸] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
+                        "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 다음 스캔에서 바로 잡습니다")
+                    continue
+                }
                 if (isTarget) {
                     AppLogger.roadmap("🎯 [Current Page: LIST] 1차 필터 통과 → AUTO 타겟 발견, 강제 터치 진행", telemetryManager.currentScreenContext.name)
                     AppLogger.d(TAG, "💥 [AUTO] 꿀콜 조건 통과! 대상 콜 강제 터치 진행!")
