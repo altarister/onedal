@@ -585,56 +585,56 @@ export const PRESETS: Record<string, PresetProblem[]> = {
      */
     '볼트오전': [
         {
-            label: '① 대전 갈마동 → 천안 성거읍 · 200,000 (실측 50,050)',
+            label: '① 대전 갈마동 → 천안 성거읍 · 50,050',
             pickup: '대전 갈마동 상차지', dropoff: '천안 성거읍 물류',
             pickupFallback: DJ_GALMA, dropoffFallback: CA_SEONGGEO,
-            fare: 200000, vehicleType: '다마스',
+            fare: 50050, vehicleType: '오토바이',
             why: '🚚 그날의 첫짐. 하차 주변이 넉넉해야 천안 성거읍이 그물에 든다',
         },
         {
-            label: '② 대전 문지로 188 → 오산 황새로 211 · 200,000 (실측 38,500)',
+            label: '② 대전 문지로 188 → 오산 황새로 211 · 38,500',
             pickup: '대전 문지동 상차지', dropoff: '오산 가수동 하차지',
             pickupFallback: DJ_MUNJI, dropoffFallback: OSAN_GASU,
-            fare: 200000, vehicleType: '다마스',
+            fare: 38500, vehicleType: '오토바이',
             why: '🚚 첫짐을 잡은 자리 근처에서 하나 더 — 합짐 1',
         },
         {
-            label: '③ 오송 정중리 → 인천 논현동 · 200,000 (실측 38,500)',
+            label: '③ 오송 정중리 → 인천 논현동 · 38,500',
             pickup: '청주 오송읍 상차지', dropoff: '인천 논현동 하차지',
             pickupFallback: CJ_OSONG, dropoffFallback: IC_NONHYEON,
             /* 🏍️ 오토바이 — 짐칸이 거의 찬 뒤에도 받을 수 있는 콜이 하나는 있어야 한다 (기사님 확정 2026-09-24).
                다마스이던 때는 실측에서 「차종(다마스) 불일치」로 막혔다 (그때 96칸 사용 중) */
-            fare: 200000, vehicleType: '오토바이',
+            fare: 38500, vehicleType: '오토바이',
             why: '🚚 북상 길목의 오송 — 세 콜이 **같은 상차지**에서 갈린다',
         },
         {
-            label: '④ 오송 정중리 → 안산 성곡동 · 200,000 (실측 38,500)',
+            label: '④ 오송 정중리 → 안산 성곡동 · 38,500',
             pickup: '청주 오송읍 상차지', dropoff: '안산 성곡동 하차지',
             pickupFallback: CJ_OSONG, dropoffFallback: AS_SEONGGOK,
-            fare: 200000, vehicleType: '다마스',
+            fare: 38500, vehicleType: '오토바이',
             why: '🚚 같은 오송에서 다른 곳으로 — 0km 구간이 생기는 판',
         },
         {
-            label: '⑤ 오송 정중리 → 분당 삼평동 · 200,000 (실측 60,000)',
+            label: '⑤ 오송 정중리 → 분당 삼평동 · 60,000',
             pickup: '청주 오송읍 상차지', dropoff: '분당 삼평동 하차지',
             pickupFallback: CJ_OSONG, dropoffFallback: BD_SAMPYEONG,
-            fare: 200000, vehicleType: '다마스',
+            fare: 60000, vehicleType: '오토바이',
             why: '🚚 오송 셋째. 그날 최고 단가(6만)이고 하차지가 다음 상차지가 된다',
         },
         {
-            label: '⑥ 천안 성거읍 → 인천 경서동 · 200,000 (실측 46,200)',
+            label: '⑥ 천안 성거읍 → 인천 경서동 · 46,200',
             pickup: '천안 성거읍 물류', dropoff: '인천 경서동 하차지',
             pickupFallback: CA_SEONGGEO, dropoffFallback: IC_GYEONGSEO,
             /* 🏍️ 오토바이 — ③과 같은 까닭이다 (기사님 확정 2026-09-24).
                다마스이던 때는 짐칸이 차서 앱이 서버에 올리지도 않았다 (그날 96칸 사용 중) */
-            fare: 200000, vehicleType: '오토바이',
+            fare: 46200, vehicleType: '오토바이',
             why: '🚚 ①을 내린 자리에서 바로 실었다 — 하차지가 다음 상차지가 되는 흐름',
         },
         {
-            label: '⑦ 판교 → 인천 송도 · 200,000 (실측 34,650)',
+            label: '⑦ 판교 → 인천 송도 · 34,650',
             pickup: '판교 소프트웨어드림센터', dropoff: '인천 송도동 하차지',
             pickupFallback: PANGYO_SW, dropoffFallback: IC_SONGDO,
-            fare: 200000, vehicleType: '다마스',
+            fare: 34650, vehicleType: '오토바이',
             why: '🚚 **일곱째다** — 자막은 «여섯 개»라 했지만 ⑤를 분당에 내리는 중에 하나 더 잡았다 (13:05 잡고 13:30 상차)',
         },
     ],
