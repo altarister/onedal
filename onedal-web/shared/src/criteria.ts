@@ -243,8 +243,14 @@ export const LABOR = defineCriterion<LaborFacts>({
 export interface DriveFacts {
     /** 이 콜 때문에 더 달리는 거리(km) — 「돈」이 받는 값과 **같은 것**이다 */
     extraKm: number | null;
-    /** 이 콜 때문에 더 쓰는 시간(분) — 「돈」이 받는 값과 **같은 것**이다 */
-    extraMinutes: number | null;
+    /**
+     * 🚚 **더 달리는 «주행» 분** — 상·하차 정차는 **빼고**.
+     *
+     * 🔴 「돈」이 받는 `extraMinutes` 와 **다른 값**이다 (규칙 ⑤-4 ⑤).
+     *    저쪽은 «이 콜에 더 쓰는 시간»이라 정차가 들어야 맞고, 여기는 «길이 고된가»라 정차가 들면 안 된다.
+     *    섞으면 «+2.6km · +30분(정차 25분 포함)» 이 **5km/h** 로 읽혀 멀쩡한 고속 콜까지 0 점이 된다 (실측).
+     */
+    driveMinutes: number | null;
 }
 
 /**
@@ -261,12 +267,12 @@ export const DRIVE = defineCriterion<DriveFacts>({
     key: 'drive', name: '운전', asks: '이 길이 고속인가 시내인가',
     weightKey: 'drive',
     measure(f, cfg) {
-        if (!f || f.extraKm == null || f.extraMinutes == null) return nothing('주행을 안 받았습니다');
-        if (f.extraMinutes <= 0) return nothing('더 달리지 않습니다 — 길목');
+        if (!f || f.extraKm == null || f.driveMinutes == null) return nothing('주행을 안 받았습니다');
+        if (f.driveMinutes <= 0) return nothing('더 달리지 않습니다 — 길목');
         /* 🔴 뒤로 가서 거리가 줄어든 합짐은 «길이 고된가»를 물을 대상이 아니다 — 그건 「돈」이 센다 */
         if (f.extraKm <= 0) return nothing('더 달리지 않습니다');
 
-        const kmh = (f.extraKm / f.extraMinutes) * 60;
+        const kmh = (f.extraKm / f.driveMinutes) * 60;
         const { shortKmh, midKmh, longKmh } = cfg.speed;
         const score = kmh <= shortKmh ? 0
             : kmh <= midKmh ? 50 * ((kmh - shortKmh) / Math.max(1, midKmh - shortKmh))

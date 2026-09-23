@@ -272,8 +272,8 @@ describe('💪 노동강도 — 팔다리를 얼마나 쓰나', () => {
     });
 
     it('🔴 운전은 안 본다 — 그건 「운전」이 따로 묻는다', () => {
-        const 느린길 = judge(CRITERIA, { ...합짐(30_000), labor: { handMinutes: 10, protectionMinutes: 4 }, drive: { extraKm: 10, extraMinutes: 60 } }, 켬());
-        const 빠른길 = judge(CRITERIA, { ...합짐(30_000), labor: { handMinutes: 10, protectionMinutes: 4 }, drive: { extraKm: 70, extraMinutes: 60 } }, 켬());
+        const 느린길 = judge(CRITERIA, { ...합짐(30_000), labor: { handMinutes: 10, protectionMinutes: 4 }, drive: { extraKm: 10, driveMinutes: 60 } }, 켬());
+        const 빠른길 = judge(CRITERIA, { ...합짐(30_000), labor: { handMinutes: 10, protectionMinutes: 4 }, drive: { extraKm: 70, driveMinutes: 60 } }, 켬());
         const 점수 = (v: typeof 느린길) => (v.criteria.find(c => c.key === 'labor')!.outcome as { score: number }).score;
         expect(점수(느린길)).toBe(점수(빠른길));
     });
@@ -294,30 +294,48 @@ describe('🚚 운전 — 평균 속도가 말한다', () => {
     });
     const 운전 = (km: number | null, min: number | null) => judge(CRITERIA, {
         ...합짐(30_000),
-        drive: { extraKm: km, extraMinutes: min },
+        drive: { extraKm: km, driveMinutes: min },
     }, 켬()).criteria.find(c => c.key === 'drive')!.outcome;
 
     it('🔴 고속으로 달리면 시내보다 높다', () => {
         expect((운전(70, 60) as { score: number }).score).toBeGreaterThan((운전(20, 60) as { score: number }).score);
     });
 
+    /**
+     * 🔴 **이 검사가 생긴 까닭 — 실제 주행에서 잡혔다** (2026-09-23 로컬 한 바퀴).
+     *    「돈」이 받는 «더 쓰는 분»에는 상·하차 정차가 들어 있다. 그 값을 그대로 쓰니
+     *    «+2.6km · 30분(정차 25분 포함)» 이 **5km/h** 로 읽혀 멀쩡한 콜이 전부 0 점이 됐다.
+     *    분모는 **주행 분**이어야 한다.
+     */
+    it('🔴 정차가 길어져도 속도가 안 변한다 — 분모는 주행 분이다', () => {
+        const 주행5분 = 운전(2.6, 5) as { score: number; why: string };
+        expect(주행5분.why).toContain('31km/h');     // 2.6km ÷ 5분 = 31km/h · 30분으로 나누면 5km/h 였다
+        expect(주행5분.score).toBeGreaterThan(0);
+    });
+
     it('🔴 거리를 모르면 잴 게 없다 — 색을 🔴 로 만들지 않는다', () => {
         expect(운전(null, 60).kind).toBe('nothing');
-        expect(judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: null, extraMinutes: 60 } }, 켬()).color).not.toBe('사고');
+        expect(judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: null, driveMinutes: 60 } }, 켬()).color).not.toBe('사고');
     });
 
     it('🔴 상하차는 안 본다 — 그건 「노동강도」가 따로 묻는다', () => {
-        const 가벼움 = judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: 70, extraMinutes: 60 }, labor: { handMinutes: 2, protectionMinutes: 0 } }, 켬());
-        const 무거움 = judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: 70, extraMinutes: 60 }, labor: { handMinutes: 60, protectionMinutes: 4 } }, 켬());
+        const 가벼움 = judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: 70, driveMinutes: 60 }, labor: { handMinutes: 2, protectionMinutes: 0 } }, 켬());
+        const 무거움 = judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: 70, driveMinutes: 60 }, labor: { handMinutes: 60, protectionMinutes: 4 } }, 켬());
         const 점수 = (v: typeof 가벼움) => (v.criteria.find(c => c.key === 'drive')!.outcome as { score: number }).score;
         expect(점수(가벼움)).toBe(점수(무거움));
     });
 
     it('🔴 가중치 0 이면 안 본다', () => {
         const cfg0: JudgmentConfig = { ...DEFAULT_JUDGMENT, weights: { ...DEFAULT_JUDGMENT.weights, drive: 0 } };
-        const 있음 = judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: 70, extraMinutes: 60 } }, cfg0);
+        const 있음 = judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: 70, driveMinutes: 60 } }, cfg0);
         const 없음 = judge(CRITERIA, 합짐(30_000), cfg0);
         expect(있음.score).toBe(없음.score);
+    });
+
+    it('🔴 서버가 「돈」과 다른 값을 넘긴다 — 정차를 더한 분을 여기 쓰지 않는다', () => {
+        const ev = readFileSync(join(__dirname, '../../src/core/engine/OrderEvaluator.ts'), 'utf8');
+        expect(ev).toMatch(/driveMinutes: marginal,/);              // 합짐 — 카카오 주행 delta 그대로
+        expect(ev).not.toMatch(/driveMinutes: marginal \+ cost\.dwell/);
     });
 });
 

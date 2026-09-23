@@ -249,6 +249,11 @@ export class OrderEvaluator {
                             handMinutes: firstStop.handMinutes,
                             protectionMinutes: firstStop.protectionMin,
                             /**
+                             * 🚚 **정차를 뺀 주행 분** — 첫짐은 «상차지까지 + 배송»이다.
+                             *    🔴 「돈」의 `totalMinutes` 와 다른 값이다 — 저쪽에는 상하차 정차가 들어 있다.
+                             */
+                            driveMinutes: (securedOrder.approachDurationMin ?? 0) + (securedOrder.kakaoSoloDurationMin ?? 0) || null,
+                            /**
                              * 🔙 **등 뒤 상차** — 첫짐에는 한계 우회가 없어 되돌아가는 거리를
                              *    「돈」이 못 센다. 그물이 쓰는 식과 한 벌이다 (`isPickupBackward`).
                              */
@@ -480,6 +485,12 @@ export class OrderEvaluator {
                                  */
                                 handMinutes: cost.handMinutes,
                                 protectionMinutes: cost.protectionMin,
+                                /**
+                                 * 🚚 **정차를 뺀 주행 분** — 카카오가 준 **주행 delta 그대로**(`marginal`).
+                                 *    🔴 「돈」은 여기에 정차(`cost.dwell`)를 더해 쓴다 — 묻는 것이 달라 값도 다르다.
+                                 *    섞으면 «+2.6km · 30분» 이 5km/h 로 읽혀 멀쩡한 콜이 0 점이 됐다 (실측).
+                                 */
+                                driveMinutes: marginal,
                                 bufferAfterMin: bufAfter?.minutes ?? null,
                                 /**
                                  * 📦 **음수를 0 으로 자르지 않는다.** 자르면 «자리 부족»이 «여유 0%»로 보여
