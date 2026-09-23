@@ -821,6 +821,25 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
             session.lastFixAt = lastPt.atMs;
             session.lastFixIsMock = lastPt.source === 'mock';
             session.lastFixSource = (lastPt.source as 'gps' | 'mock' | 'manual') ?? 'gps';
+            /**
+             * 🎭 **모의 좌표면 «임자»도 그 시각으로 함께 되살린다** (기사님 확정 2026-09-23).
+             *
+             * 🔴 **안 되살리면 «내가 어디 있나»가 한 순간에 두 답을 낸다.** `originOf` ③ 은
+             *    모의 좌표를 «콜을 쥐었거나 모의 주행이 돌 때만» 믿는데, 그 «돌고 있나»가
+             *    메모리에만 사는 `mockGpsOwner` 다. 서버가 다시 뜨면 그 칸만 비어,
+             *    **같은 좌표를 복구해 놓고 첫 목록은 집 주소로 만든다.**
+             *    실측(2026-09-23 22:55:14): 부트스트랩이 집 기준 상차 10곳·하차 26곳을
+             *    «확정 필터»로 관제웹에 보낸 19ms 뒤, 모의 GPS 가 들어오자 이천 기준
+             *    9곳·19곳으로 다시 만들었다. 관제웹은 둘을 겹쳐 받아 **영역은 집 둘레,
+             *    점은 이천**이 되었다 — 기사님: *"녹색원이 저리 작은데 이천시 근처에
+             *    보라 점이 찍힌다는것이 틀린거지."*
+             * 🔴 **시각은 지어내지 않는다** — 그 점을 받은 시각(`atMs`)을 그대로 쓴다.
+             *    그래서 5초 넘게 묵은 점이면 `mockRunning` 이 여전히 거짓이고 집 주소로 간다
+             *    («멈춘 뒤 남은 모의 좌표»를 믿지 않는 원래 방어는 그대로다).
+             */
+            if (lastPt.source === 'mock') {
+                session.mockGpsOwner = { socketId: '복구', at: lastPt.atMs, warned: false };
+            }
             console.log(`📍 [위치 복구] ${new Date(lastPt.atMs).toLocaleTimeString('ko-KR')} 의 마지막 점 — `
                 + `${lastPt.x.toFixed(5)}, ${lastPt.y.toFixed(5)} (출처 ${lastPt.source})`);
         }
