@@ -260,7 +260,7 @@ export interface UserSession {
      * 📋 **상차 목록을 마지막으로 만든 자리** (하차 목록») — 여기서 0.5km 넘게 움직이면 다시 만든다.
      *    목록 자체는 `activeFilter.pickupKeywords` 에 산다. 저장이 아니라 «언제 다시 만들까»의 기준점이다.
      */
-    pickupListAt: { x: number; y: number } | null;
+    pickupListAt: { x: number; y: number; at?: number } | null;
     /** 🎯 상차 목록을 만들 때 본 «목적지마다 가까이 옴» — 바뀌면 하차 목록도 다시 만든다 (`filterManager.rebuildPickupList`) */
     pickupNearKey: string | null;
     /**

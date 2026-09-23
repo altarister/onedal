@@ -30,9 +30,33 @@ export function pickupAreaKey(a: { homeCity: string | null; homeOn: boolean; hom
     return a ? JSON.stringify([a.homeCity, a.homeOn, a.homeCaught, a.hasLine]) : '';
 }
 
-/** 다시 만들까 — 처음이면 만든다 · 위치를 모르면 안 만든다 · 0.5km 넘게 움직였으면 */
-export function pickupListNeedsRebuild(last: { x: number; y: number } | null, here: { x: number; y: number } | null, km = PICKUP_LIST_MOVE_KM): boolean {
+/**
+ * ⏱️ **아무리 멀리 뛰어도 이 간격보다 자주는 안 만든다** (기사님 · 실주행 06:14).
+ *
+ * 목록을 만드는 셈은 한 번에 0.7~1.5초가 든다. 서버는 한 줄로 돌아 그동안 **모든 요청이 밀린다.**
+ * 모의 주행은 한 걸음이 300m 라 두 걸음이면 0.5km 를 넘겨 2.2초마다 돌았고, 그 바람에
+ * 결재가 앱에 닿는 데 54초 · 앱 클릭에서 선점까지 7초 · 선점에서 판정까지 20.5초가 걸렸다.
+ *
+ * 🔴 **실주행은 이 간격에 안 걸린다** — 60km/h 면 5초에 83m 라 0.5km 게이트가 먼저 막는다.
+ *    GPS 가 튈 때만 걸리고, 그때는 막는 것이 맞다.
+ */
+export const PICKUP_LIST_MIN_GAP_MS = 5_000;
+
+/**
+ * 다시 만들까 — 처음이면 만든다 · 위치를 모르면 안 만든다 · 0.5km 넘게 움직였으면.
+ * 🔴 **간격이 먼저다** — 멀리 뛰었어도 `gapMs` 안이면 안 만든다 (위 상수).
+ * @param nowMs 지금 · @param lastAtMs 마지막으로 만든 때 (없으면 0 — 처음이라 간격을 안 본다)
+ */
+export function pickupListNeedsRebuild(
+    last: { x: number; y: number } | null,
+    here: { x: number; y: number } | null,
+    km = PICKUP_LIST_MOVE_KM,
+    nowMs = 0,
+    gapMs = 0,
+    lastAtMs = 0,
+): boolean {
     if (!here) return false;
-    if (!last) return true;
+    if (!last) return true;                                  // 처음이면 간격과 무관하게 만든다
+    if (gapMs > 0 && nowMs - lastAtMs < gapMs) return false;  // ⏱️ 너무 자주는 안 만든다
     return haversineKm({ lng: last.x, lat: last.y }, { lng: here.x, lat: here.y }) > km;
 }

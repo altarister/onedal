@@ -21,7 +21,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, nearGoalCitiesOf, goalStateLabel, pickupPartsOf, pickupAreaKey, dropoffPartsOf, lastDropOf, lineUntil, lineFromPoint, mergeDropoffGroups, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
-         EVALUATING_STATUSES, effectiveRadii, pickupListNeedsRebuild, peakLoadPoints } from "@onedal/shared";
+         EVALUATING_STATUSES, effectiveRadii, pickupListNeedsRebuild, PICKUP_LIST_MOVE_KM, PICKUP_LIST_MIN_GAP_MS, peakLoadPoints } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -959,7 +959,7 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
         : pickupListFor({ me: { x: me.x, y: me.y }, radii: eff, line, parts });
     const prev = f.pickupKeywords;
     const prevArea = pickupAreaKey(f.pickupArea);
-    session.pickupListAt = { x: me.x, y: me.y };
+    session.pickupListAt = { x: me.x, y: me.y, at: Date.now() };   // ⏱️ 언제 만들었나 — 최소 간격이 읽는다
     f.pickupKeywords = list;
     f.pickupGroups = grouped;
     /* 🗺️ 관제웹 «상차» · «하차» 레이어가 **같은 `goalZonesOf`** 를 부를 재료를 싣는다 (집 · 복귀 · 복귀콜 쥠) */
@@ -983,7 +983,9 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
 export function maybeRebuildPickupList(userId: string, io?: any): void {
     const session = getUserSession(userId);
     const me = originOf(session as Parameters<typeof originOf>[0]);
-    if (!pickupListNeedsRebuild(session.pickupListAt, me ? { x: me.x, y: me.y } : null)) return;
+    /* ⏱️ 멀리 뛰었어도 최소 간격 안이면 안 만든다 — 서버가 한 줄로 돌아 그동안 결재·선점이 밀린다 */
+    if (!pickupListNeedsRebuild(session.pickupListAt, me ? { x: me.x, y: me.y } : null,
+        PICKUP_LIST_MOVE_KM, Date.now(), PICKUP_LIST_MIN_GAP_MS, session.pickupListAt?.at ?? 0)) return;
     /* 🔵 상차 목록 · 지도 재료 · 가까이 옴이 바뀌면 **하차 목록도** — 먼 목적지는 상차 목록 동을 빼기 때문이다 */
     if (rebuildPickupList(session, userId)) rebuildNetFilter(userId, io, true);
 }

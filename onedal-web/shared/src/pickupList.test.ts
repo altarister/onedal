@@ -35,3 +35,37 @@ describe('이름 · 다시 만드는 때', () => {
         expect(pickupListNeedsRebuild(here, { x: 127.3, y: 37.3 + 0.6 * LAT_PER_KM })).toBe(true);
     });
 });
+
+/**
+ * ⏱️ **아무리 멀리 뛰어도 너무 자주는 안 만든다** (기사님 · 실주행 06:14).
+ *
+ * 목록을 다시 만드는 셈은 한 번에 0.7~1.5초가 든다. 서버는 한 줄로 돌아 그동안 **모든 요청이 밀린다.**
+ *
+ * ── 실측 ──
+ * 모의 주행은 한 걸음이 300m 라 **두 걸음이면 0.5km** 를 넘겨, 2.2초마다 목록이 통째로 다시 만들어졌다.
+ * 그 바람에 결재가 앱에 닿는 데 **54초**, 앱 클릭에서 서버 선점까지 **7초**, 선점에서 판정까지
+ * **20.5초**가 걸렸다 — 안전취소 30초 중 20초를 판정이 썼다.
+ *
+ * 🔴 **실주행은 이 간격에 안 걸린다** — 60km/h 면 5초에 83m 라 0.5km 게이트가 먼저 막는다.
+ *    GPS 가 튈 때만 걸리고, 그때는 막는 것이 맞다.
+ */
+describe('⏱️ 목록 재계산 최소 간격', () => {
+    const at = { x: 127.0, y: 37.0 };
+    const far = { x: 127.1, y: 37.0 };          // 8km 넘게 떨어진 곳
+
+    it('🔴 간격이 안 지났으면 멀리 뛰었어도 안 만든다', () => {
+        expect(pickupListNeedsRebuild(at, far, PICKUP_LIST_MOVE_KM, 1_000, 5_000)).toBe(false);
+    });
+
+    it('간격이 지났고 멀리 움직였으면 만든다', () => {
+        expect(pickupListNeedsRebuild(at, far, PICKUP_LIST_MOVE_KM, 6_000, 5_000)).toBe(true);
+    });
+
+    it('간격이 지나도 안 움직였으면 안 만든다 — 거리 조건은 그대로다', () => {
+        expect(pickupListNeedsRebuild(at, at, PICKUP_LIST_MOVE_KM, 60_000, 5_000)).toBe(false);
+    });
+
+    it('처음이면 간격과 무관하게 만든다 — 만들 것이 아직 없다', () => {
+        expect(pickupListNeedsRebuild(null, far, PICKUP_LIST_MOVE_KM, 0, 5_000)).toBe(true);
+    });
+});
