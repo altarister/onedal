@@ -196,11 +196,20 @@ router.post("/confirm", (req, res) => {
             logRoadmapEvent("서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");
             logRoadmapEvent("서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
 
-            if (session.activeFilter.isActive) {
-                updateActiveFilter(userId, { isActive: false }, io);
-                console.log(`📤 [Socket 푸시] filter-updated (isActive: false)`);
-                logRoadmapEvent("서버", "폰의 isHolding=true 기간 동안 다른 콜을 물지 않도록 필터 비활성 정보 전달");
-            }
+            /**
+             * 🔒 **선점 중이라고 콜 잡기를 끄지 않는다** (기사님 · 실주행 04:58 오송읍).
+             *
+             * 예전에는 여기서 `isActive: false` 를 보냈다. 그런데 앱은 판정 첫 줄에서 그 값만 보고
+             * 돌아서므로(`InsungParser.judge` 조건 0), **목록에 콜이 보여도 판정조차 안 했다** —
+             * 10초마다 「🔒 평가 보류」만 찍혔고 오송읍 셋을 잡는 데 3분 25초가 걸렸다.
+             *
+             * 🔴 **`isActive=false` 는 「만석」이라는 뜻으로 이미 확정돼 있다** (`scrap.ts` 의
+             *    `capacityFullHold` · 기사님 «1톤 두 개는 사고»). 한 신호에 뜻이 둘이면 앱이 못 가른다.
+             *    만석은 그 자리에서 그대로 끈다 — 여기서 빼도 그 규칙은 안 깨진다.
+             * 🔴 선점 중이라는 사실은 `evaluatingNow` 로 간다 (`scrap.ts` 가 조립할 때 싣는다).
+             *    앱은 그것을 보고 **판정은 하고 클릭만 미룬다** — 앞 콜이 결재되면 다음 스캔에서 바로 잡는다.
+             */
+            logRoadmapEvent("서버", "선점 중이라는 사실을 evaluatingNow 로 앱에 알린다 (콜 잡기는 안 끈다)");
 
             /**
              * 🔴 **안전망은 조건 없이 건다**.

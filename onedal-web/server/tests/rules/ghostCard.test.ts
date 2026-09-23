@@ -68,14 +68,20 @@ describe('가확정 콜의 안전망', () => {
 
     const orders = codeOnly(read('routes/orders.ts'));
 
-    it('🔴 30초 타이머가 isActive 블록 밖에 있다', () => {
-        const gate = orders.indexOf('if (session.activeFilter.isActive)');
-        const timer = orders.indexOf('presecured_');
-        expect(gate).toBeGreaterThan(-1);
-        expect(timer).toBeGreaterThan(gate);
-        // 게이트 블록이 타이머보다 먼저 닫힌다 = 타이머는 밖에 있다
-        const between = orders.slice(gate, timer);
-        expect(between).toMatch(/\n            \}/);
+    /**
+     * 🔴 **재는 법이 바뀌었다 — 지키는 것은 그대로다.**
+     *
+     * 예전에는 «타이머가 `if (session.activeFilter.isActive)` 블록 **밖**에 있나»를 글자로 쟀다.
+     * 그 블록이 선점 때 콜 잡기를 껐기 때문이다. 그런데 그 끄는 일 자체를 걷었다 —
+     * `isActive=false` 는 「만석」이라는 뜻인데 「선점 중」까지 실으면 앱이 둘을 못 가려,
+     * 목록에 콜이 보여도 판정조차 안 했다 (오송읍 셋에 3분 25초).
+     *
+     * 블록이 사라졌으니 «밖에 있나»는 잴 수 없다. 대신 **더 센 것**을 잰다 —
+     * 그 조건문이 아예 없다. 조건이 없으면 안전망은 늘 걸린다.
+     */
+    it('🔴 30초 타이머를 막는 조건문이 없다 — 안전망이 조건부면 안전망이 아니다', () => {
+        expect(orders).not.toContain('if (session.activeFilter.isActive)');
+        expect(orders.indexOf('presecured_')).toBeGreaterThan(-1);
     });
 
     it('🔴 타이머 ID 를 저장한다 — 취소할 수 없는 타이머는 좀비가 된다', () => {
