@@ -124,6 +124,7 @@
 | 앱이 올리는 콜 칸 | ✅ `intelColumns` |
 | 앱 콜 양식 칸 이름 | ✅ `appOrderShape` |
 | 콜 상태 목록 | ✅ `orderStatus` |
+| 타이머 키 접두사 | ✅ `timerKeysCleared` — 거는 접두사가 `clearOrderTimers` 목록에 다 있나 |
 | 식별자 이름 | ✅ `identifierAscii` |
 | 단계 → 마일스톤 | 🟡 `onedal-web/shared/src/callSteps.ts` 한 곳 |
 | 콜 색 | 🟡 `onedal-web/client-app/src/styles/callPalette.ts` 한 곳 |

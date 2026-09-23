@@ -515,7 +515,7 @@ export function clearUserSession(userId: string): void {
  * 새 타이머를 만들면 **키를 여기에만 더한다.**
  */
 export function clearOrderTimers(session: { activeTimers: Map<string, any> }, orderId: string): void {
-    for (const prefix of ['warn_', 'timeout_', 'presecured_']) {
+    for (const prefix of ['warn_', 'timeout_', 'presecured_', 'listExit_']) {
         const t = session.activeTimers.get(`${prefix}${orderId}`);
         if (t) clearTimeout(t);
         session.activeTimers.delete(`${prefix}${orderId}`);
