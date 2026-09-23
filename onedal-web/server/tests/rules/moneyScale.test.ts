@@ -245,33 +245,79 @@ describe('🔗 연결 — 서버가 기름값·통행료를 판정에 넘긴다'
  * - 가중치가 없어 **기사님이 못 끄는 것** — 0 으로 두면 아예 안 본다
  * - 새 문턱을 **또 만드는 것** — 편함은 배송 속도 셋, 콜 대기는 상차 약속 분을 그대로 눈금으로 쓴다
  */
-describe('🛣️ 편함 — 평균 속도가 말한다', () => {
-    /* 🔴 「돈」은 켜 둔다 — 전부 끄면 점수를 낼 기준이 없어 «잴 수 없음»(🔴)이 된다. 실제 운행에서는 돈이 늘 점수를 낸다 */
-    const 켬 = (over: Partial<JudgmentConfig['weights']> = {}): JudgmentConfig => ({
+describe('💪 노동강도 — 팔다리를 얼마나 쓰나', () => {
+    /* 🔴 「돈」은 켜 둔다 — 전부 끄면 점수를 낼 기준이 없어 «잴 수 없음»(🔴)이 된다 */
+    const 켬 = (): JudgmentConfig => ({
         ...DEFAULT_JUDGMENT,
-        weights: { ...DEFAULT_JUDGMENT.weights, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, wait: 0, ...over },
+        weights: { ...DEFAULT_JUDGMENT.weights, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, drive: 0, wait: 0, calls: 0 },
     });
-    const 편함 = (km: number, min: number) => judge(CRITERIA, {
+    const 노동 = (hand: number | null, guard: number | null = null) => judge(CRITERIA, {
         ...합짐(30_000),
-        comfort: { extraKm: km, extraMinutes: min },
-    }, 켬()).score;
+        labor: { handMinutes: hand, protectionMinutes: guard },
+    }, 켬()).criteria.find(c => c.key === 'labor')!.outcome;
+
+    /** 🔴 이 검사가 생긴 까닭 — 기사님: *"까대기, 파레트, 짐의 상하차 방법과 량, 결박도 표현되어 들어가야"* */
+    it('🔴 까대기가 파레트보다 낮다 — 같은 80박스라도 손으로 들면 27분, 지게차면 4분', () => {
+        const 까대기 = 노동(27 * 2) as { score: number };   // 상·하차 두 번
+        const 파레트 = 노동(4 * 2) as { score: number };
+        expect(파레트.score).toBeGreaterThan(까대기.score);
+    });
+
+    it('🔴 결박이 붙으면 낮아진다', () => {
+        expect((노동(10, 4) as { score: number }).score).toBeLessThan((노동(10, 0) as { score: number }).score);
+    });
+
+    it('🔴 짐을 모르면 잴 게 없다 — 통화 전에는 안 깎는다 (규칙 ⑤-2)', () => {
+        expect(노동(null, null).kind).toBe('nothing');
+    });
+
+    it('🔴 운전은 안 본다 — 그건 「운전」이 따로 묻는다', () => {
+        const 느린길 = judge(CRITERIA, { ...합짐(30_000), labor: { handMinutes: 10, protectionMinutes: 4 }, drive: { extraKm: 10, extraMinutes: 60 } }, 켬());
+        const 빠른길 = judge(CRITERIA, { ...합짐(30_000), labor: { handMinutes: 10, protectionMinutes: 4 }, drive: { extraKm: 70, extraMinutes: 60 } }, 켬());
+        const 점수 = (v: typeof 느린길) => (v.criteria.find(c => c.key === 'labor')!.outcome as { score: number }).score;
+        expect(점수(느린길)).toBe(점수(빠른길));
+    });
+
+    it('🔴 눈금이 상차 미확인 일반값을 따라 움직인다 — 새 문턱을 안 만들었다', () => {
+        const 길게: JudgmentConfig = { ...켬(), unknown: { ...켬().unknown, pickupDwellMin: 60 } };
+        const a = judge(CRITERIA, { ...합짐(30_000), labor: { handMinutes: 30, protectionMinutes: null } }, 켬());
+        const b = judge(CRITERIA, { ...합짐(30_000), labor: { handMinutes: 30, protectionMinutes: null } }, 길게);
+        const 점수 = (v: typeof a) => (v.criteria.find(c => c.key === 'labor')!.outcome as { score: number }).score;
+        expect(점수(b)).toBeGreaterThan(점수(a));
+    });
+});
+
+describe('🚚 운전 — 평균 속도가 말한다', () => {
+    const 켬 = (): JudgmentConfig => ({
+        ...DEFAULT_JUDGMENT,
+        weights: { ...DEFAULT_JUDGMENT.weights, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, labor: 0, wait: 0, calls: 0 },
+    });
+    const 운전 = (km: number | null, min: number | null) => judge(CRITERIA, {
+        ...합짐(30_000),
+        drive: { extraKm: km, extraMinutes: min },
+    }, 켬()).criteria.find(c => c.key === 'drive')!.outcome;
 
     it('🔴 고속으로 달리면 시내보다 높다', () => {
-        expect(편함(70, 60)!).toBeGreaterThan(편함(20, 60)!);   // 70km/h vs 20km/h
+        expect((운전(70, 60) as { score: number }).score).toBeGreaterThan((운전(20, 60) as { score: number }).score);
     });
 
     it('🔴 거리를 모르면 잴 게 없다 — 색을 🔴 로 만들지 않는다', () => {
-        const v = judge(CRITERIA, { ...합짐(30_000), comfort: { extraKm: null, extraMinutes: 60 } }, 켬());
-        expect(v.criteria.find(c => c.key === 'comfort')!.outcome.kind).toBe('nothing');
-        expect(v.color).not.toBe('사고');
+        expect(운전(null, 60).kind).toBe('nothing');
+        expect(judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: null, extraMinutes: 60 } }, 켬()).color).not.toBe('사고');
     });
 
-    it('🔴 가중치가 0 이면 안 본다', () => {
-        const 끔 = judge(CRITERIA, { ...합짐(30_000), comfort: { extraKm: 70, extraMinutes: 60 } },
-            { ...DEFAULT_JUDGMENT, weights: { ...DEFAULT_JUDGMENT.weights, comfort: 0 } });
-        const 켬2 = judge(CRITERIA, 합짐(30_000),
-            { ...DEFAULT_JUDGMENT, weights: { ...DEFAULT_JUDGMENT.weights, comfort: 0 } });
-        expect(끔.score).toBe(켬2.score);
+    it('🔴 상하차는 안 본다 — 그건 「노동강도」가 따로 묻는다', () => {
+        const 가벼움 = judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: 70, extraMinutes: 60 }, labor: { handMinutes: 2, protectionMinutes: 0 } }, 켬());
+        const 무거움 = judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: 70, extraMinutes: 60 }, labor: { handMinutes: 60, protectionMinutes: 4 } }, 켬());
+        const 점수 = (v: typeof 가벼움) => (v.criteria.find(c => c.key === 'drive')!.outcome as { score: number }).score;
+        expect(점수(가벼움)).toBe(점수(무거움));
+    });
+
+    it('🔴 가중치 0 이면 안 본다', () => {
+        const cfg0: JudgmentConfig = { ...DEFAULT_JUDGMENT, weights: { ...DEFAULT_JUDGMENT.weights, drive: 0 } };
+        const 있음 = judge(CRITERIA, { ...합짐(30_000), drive: { extraKm: 70, extraMinutes: 60 } }, cfg0);
+        const 없음 = judge(CRITERIA, 합짐(30_000), cfg0);
+        expect(있음.score).toBe(없음.score);
     });
 });
 
@@ -279,7 +325,7 @@ describe('⏳ 콜 대기 — 이 콜이 시간을 얼마나 남겨 주나', () =
     /* ⏳ 여기는 콜 대기 눈금만 본다 — 돈까지 켜면 평균에 섞여 «몇 콜치»를 못 본다 */
     const 켬 = (): JudgmentConfig => ({
         ...DEFAULT_JUDGMENT,
-        weights: { ...DEFAULT_JUDGMENT.weights, revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, comfort: 0 },
+        weights: { ...DEFAULT_JUDGMENT.weights, revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, labor: 0, drive: 0 },
     });
     const 대기 = (toPickup: number | null, delivery: number | null) => judge(CRITERIA, {
         ...합짐(30_000),
@@ -336,18 +382,25 @@ describe('⏳ 콜 대기 — 이 콜이 시간을 얼마나 남겨 주나', () =
 });
 
 describe('🔗 연결 — 서버가 두 축의 사실을 채운다', () => {
-    it('🔴 첫짐도 합짐도 편함·콜 대기를 넘긴다', () => {
+    it('🔴 첫짐도 합짐도 노동강도·운전·콜 대기를 넘긴다', () => {
         const jf = readFileSync(join(__dirname, '../../src/core/engine/judgeFacts.ts'), 'utf8');
-        expect(jf).toContain('comfort:');
+        expect(jf).toContain('labor:');
+        expect(jf).toContain('drive:');
         expect(jf).toContain('wait:');
     });
 
-    it('🔴 가중치 칸 둘이 판정 기준 탭에 있다 — 기사님이 못 고치는 값을 만들지 않는다', () => {
+    it('🔴 손으로 드는 분의 셈이 한 곳이다 — 심사가 박스를 다시 세지 않는다 (규칙 ③)', () => {
+        const ev = readFileSync(join(__dirname, '../../src/core/engine/OrderEvaluator.ts'), 'utf8');
+        expect(ev).toContain('handMinutes');
+        expect(ev).not.toContain('DWELL_PER_POINT');
+    });
+
+    it('🔴 가중치 칸이 판정 기준 탭에 있다 — 기사님이 못 고치는 값을 만들지 않는다', () => {
         const cols = JUDGMENT_FIELDS.map(f => f.col);
-        expect(cols).toContain('weight_comfort');
-        expect(cols).toContain('weight_wait');
-        expect(judgmentDefaults()['weight_comfort']).toBe(1);
-        expect(judgmentDefaults()['weight_wait']).toBe(1);
+        for (const c of ['weight_labor', 'weight_drive', 'weight_wait', 'weight_calls']) {
+            expect(cols).toContain(c);
+            expect(judgmentDefaults()[c]).toBe(1);
+        }
     });
 });
 
@@ -363,7 +416,7 @@ describe('☎️ 전화할 곳 — 시간이 아니라 손을 센다', () => {
     /* ☎️ 이 눈금만 본다 — 돈까지 켜면 평균에 섞여 곳 수의 차이를 못 본다 */
     const 켬 = (): JudgmentConfig => ({
         ...DEFAULT_JUDGMENT,
-        weights: { ...DEFAULT_JUDGMENT.weights, revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, comfort: 0, wait: 0 },
+        weights: { ...DEFAULT_JUDGMENT.weights, revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, labor: 0, drive: 0, wait: 0 },
     });
     const 전화 = (n: number | null) => judge(CRITERIA, {
         ...합짐(30_000),

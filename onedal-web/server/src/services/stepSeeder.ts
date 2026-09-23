@@ -486,6 +486,8 @@ export function milestoneAlreadyRecorded(orderId: string, milestone: string): bo
 export function plannedDwellOf(view: StepView[]): {
     pickupDwell: number; dropoffDwell: number;
     pickupHandling: string | null; dropoffHandling: string | null;
+    /** 💪 「노동강도」가 쓸 재료 — 통화 전에도 차종에서 뽑아 둔 값이 여기 있다 */
+    unit: string | null; quantity: number | null; protections: string[] | null;
 } | null {
     const row = (step: StepId) => view.find(v => v.step === step)?.row as any;
     const p = row('CALL_PICKUP'), d = row('CALL_DROPOFF');
@@ -504,10 +506,16 @@ export function plannedDwellOf(view: StepView[]): {
     const pd = n(row('LOADED')?.actual_dwell_min)    ?? n(p.planned_dwell_min);
     const dd = n(row('DELIVERED')?.actual_dwell_min) ?? n(d?.planned_dwell_min);
     if (pd == null || dd == null) return null;
+    /* 🪢 보호는 쉼표로 이어 저장한다 — 없으면 `null` («안 묶는다»와 «모른다»는 다르다) */
+    const prot = typeof p.planned_protections === 'string' && p.planned_protections.trim()
+        ? p.planned_protections.split(',').map((x: string) => x.trim()).filter(Boolean) : null;
     return {
         pickupDwell: pd, dropoffDwell: dd,
         pickupHandling: p.planned_handling ?? null,
         dropoffHandling: d?.planned_handling ?? p.planned_handling ?? null,
+        unit: p.planned_unit ?? null,
+        quantity: n(p.planned_quantity),
+        protections: prot,
     };
 }
 

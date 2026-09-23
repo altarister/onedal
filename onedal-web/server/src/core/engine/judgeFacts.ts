@@ -64,6 +64,9 @@ export function firstLoadFacts(input: {
     /** ⏳ 이 콜이 만드는 여유의 재료 — 타임라인이 이미 쟀다 (shared `WaitFacts`) */
     toPickupMinutes?: number | null;
     deliveryMinutes?: number | null;
+    /** 💪 팔다리를 쓰는 재료 — 셈은 `timing.handMinutesOf` · `protectionMinutes` 한 곳이다 (shared `LaborFacts`) */
+    handMinutes?: number | null;
+    protectionMinutes?: number | null;
     /**
      * 🧭 **목적지 전진율** −1~1 — 「지리」 기준이 배수로 바꾼다. 못 쟀으면 `null` 과 까닭.
      *    잰 곳은 `destProgressOf` 하나다 (여기서 다시 재지 않는다 · 규칙 ③).
@@ -89,8 +92,9 @@ export function firstLoadFacts(input: {
             fuelCostPerKm: input.fuelCostPerKm ?? null,
             tollKrw: input.tollKrw ?? null,
         },
-        /* 🛣️ 편함은 빈 차에도 잰다 — 이 콜로 달리는 길이 고속인가 시내인가는 짐과 무관하다 */
-        comfort: { extraKm: input.extraKm ?? null, extraMinutes: input.totalMinutes },
+        /* 💪🚚 빈 차에도 잰다 — 팔다리도 길도 짐이 실려 있는지와 무관하다 */
+        labor: { handMinutes: input.handMinutes ?? null, protectionMinutes: input.protectionMinutes ?? null },
+        drive: { extraKm: input.extraKm ?? null, extraMinutes: input.totalMinutes },
         /* ⏳ 빈 차도 잰다 — «이 콜이 시간을 얼마나 남겨 주나»는 짐이 있든 없든 같은 질문이다 */
         wait: { toPickupMinutes: input.toPickupMinutes ?? null, deliveryMinutes: input.deliveryMinutes ?? null },
         /* ☎️ 빈 차는 흔들 남이 없다 */
@@ -184,6 +188,9 @@ export function mergeFacts(input: {
     /** ⏳ 이 콜이 만드는 여유의 재료 — 타임라인이 이미 쟀다 (shared `WaitFacts`) */
     toPickupMinutes?: number | null;
     deliveryMinutes?: number | null;
+    /** 💪 팔다리를 쓰는 재료 — 셈은 `timing.handMinutesOf` · `protectionMinutes` 한 곳이다 (shared `LaborFacts`) */
+    handMinutes?: number | null;
+    protectionMinutes?: number | null;
     /** ☎️ 전화해 약속을 미뤄야 할 기존 콜 정거장 수 — 세는 곳은 부르는 쪽 하나다 (shared `CallsFacts`) */
     callsToMake?: number | null;
     /** 붙인 뒤 남는 가장 빠듯한 여유(분). 잴 약속이 없으면 null */
@@ -216,8 +223,9 @@ export function mergeFacts(input: {
             fuelCostPerKm: input.fuelCostPerKm ?? null,
             tollKrw: input.tollKrw ?? null,
         },
-        /* 🛣️⏳ 「돈」·「약속」이 받는 값과 **같은 것**을 넘긴다 — 여기서 다시 재지 않는다 (규칙 ③) */
-        comfort: { extraKm: input.extraKm ?? null, extraMinutes: input.extraMinutes },
+        /* 💪🚚⏳ 「돈」·「약속」이 받는 값과 **같은 것**을 넘긴다 — 여기서 다시 재지 않는다 (규칙 ③) */
+        labor: { handMinutes: input.handMinutes ?? null, protectionMinutes: input.protectionMinutes ?? null },
+        drive: { extraKm: input.extraKm ?? null, extraMinutes: input.extraMinutes },
         wait: { toPickupMinutes: input.toPickupMinutes ?? null, deliveryMinutes: input.deliveryMinutes ?? null },
         calls: { count: input.callsToMake ?? null, hasExistingCalls: true },
         promise: { hasExistingCalls: true, lateStops: input.lateStops, bufferAfterMin: input.bufferAfterMin },

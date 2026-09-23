@@ -11,7 +11,7 @@ import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf, dwellLedgerFor, firmPromiseMsOf } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
 import { goalCityOf } from "../../state/filterManager";
-import { findLoadConflicts, totalDetourCost } from "../helpers";
+import { findLoadConflicts, totalDetourCost, getStopTiming } from "../helpers";
 import { haversineKm, originOf } from "../../services/geoService";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
@@ -223,6 +223,11 @@ export class OrderEvaluator {
                             goalCity: goalCityOf(session, userId),
                             destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
                         });
+                        /**
+                         * 💪 **이 콜의 상·하차 정거장 타이밍** — 손으로 드는 분과 묶는 분이 함께 온다.
+                         *    🔴 합짐이 `totalDetourCost` 로 거치는 그 함수와 **같은 자리**다 (규칙 ③).
+                         */
+                        const firstStop = getStopTiming(securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
                         const dry: ReturnType<typeof toSnapshot> & { extraMin?: number | null } = toSnapshot(judge(CRITERIA, firstLoadFacts({
                             fare: securedOrder.fare, totalMinutes: total,
                             minAcceptableKrw: rateShort ? previewRate!.minAcceptable : null,
@@ -240,6 +245,9 @@ export class OrderEvaluator {
                              */
                             toPickupMinutes: securedOrder.approachDurationMin ?? null,
                             deliveryMinutes: securedOrder.kakaoSoloDurationMin ?? null,
+                            /* 💪 빈 차에도 짐은 있다 — 이 콜의 상·하차에 팔다리를 얼마나 쓰나 */
+                            handMinutes: firstStop.handMinutes,
+                            protectionMinutes: firstStop.protectionMin,
                             /**
                              * 🔙 **등 뒤 상차** — 첫짐에는 한계 우회가 없어 되돌아가는 거리를
                              *    「돈」이 못 센다. 그물이 쓰는 식과 한 벌이다 (`isPickupBackward`).
@@ -466,6 +474,12 @@ export class OrderEvaluator {
                                 deliveryMinutes: soloMinutesOf(securedOrder as any, derivation.rules).minutes,
                                 /* ☎️ 세는 곳은 위 한 곳이다 — 판정은 숫자만 받는다 (규칙 ③) */
                                 callsToMake,
+                                /**
+                                 * 💪 **팔다리를 쓰는 분** — `totalDetourCost` 가 이미 거친 정거장 타이밍에서 그대로 온다.
+                                 *    🔴 여기서 박스를 다시 세지 않는다 (규칙 ③). 짐을 모르면 `null` 이라 「노동강도」가 «잴 게 없다»로 받는다.
+                                 */
+                                handMinutes: cost.handMinutes,
+                                protectionMinutes: cost.protectionMin,
                                 bufferAfterMin: bufAfter?.minutes ?? null,
                                 /**
                                  * 📦 **음수를 0 으로 자르지 않는다.** 자르면 «자리 부족»이 «여유 0%»로 보여

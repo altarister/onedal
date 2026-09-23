@@ -102,6 +102,35 @@ export function dwellMinutes(
     return Math.round(base + points * (perBoxMin ?? DWELL_PER_POINT[handling] ?? 1) + extra);
 }
 
+/**
+ * 💪 **손으로 드는 분만** — 「노동강도」가 쓰는 값 (기사님 확정).
+ *
+ * `dwellMinutes` 는 «이 정거장에 몇 분 서 있나»를 낸다 — 찾기·대기·보호·후작업이 다 든다.
+ * 이 함수는 그중 **팔다리를 쓰는 몫**만 뗀다:
+ * ```
+ * 손으로 드는 분 = 박스 수 × 박스당 분(지게차 3초 · 수작업 20초)
+ * ```
+ *
+ * 🔴 **계수를 새로 두지 않는다** — `dwellMinutes` 와 **같은 값**을 같은 순서로 고른다
+ *    (판정 기준 탭 값이 있으면 그것, 없으면 옛 상수). 두 곳이 다른 계수를 쓰면
+ *    화면의 «27분»과 판정의 «27분»이 갈린다 (규칙 ③).
+ * 🔴 **방법이나 수량을 모르면 `null`** — 0 이 아니다. 0 은 «지게차라 안 든다»이고
+ *    `null` 은 «통화 전이라 모른다»이다. 판정은 `null` 을 «잴 게 없다»로 받는다 (규칙 ④ · ⑤-2).
+ * 🔴 **보호는 안 든다** — 방법과 축이 다르다 (기사님 확정). 부르는 쪽이 `protectionMinutes` 로 따로 잰다.
+ */
+export function handMinutesOf(
+    handling?: string | null,
+    points = 0,
+    unk?: DwellUnknown,
+): number | null {
+    if (!handling || DWELL_BASE[handling] == null) return null;
+    if (!(points > 0)) return null;
+    const perBoxMin = handling === '지게차' ? unk?.perBoxMin?.forkliftMin
+                 : handling === '수작업' ? unk?.perBoxMin?.manualMin
+                 : undefined;
+    return points * (perBoxMin ?? DWELL_PER_POINT[handling] ?? 1);
+}
+
 export interface StopTiming {
     /** 상차 정차 시간(분) */
     pickupDwell: number;
@@ -111,6 +140,13 @@ export interface StopTiming {
     totalDwell: number;
     /** 방법을 몰라 기본값으로 때운 정거장이 있는가 */
     hasUnknown: boolean;
+    /**
+     * 💪 **상·하차에서 손으로 드는 분의 합** — 「노동강도」가 쓴다 (`handMinutesOf`).
+     *    🔴 방법이나 수량을 모르면 `null` — 0 이 아니다. 0 은 «지게차라 안 든다»이다.
+     */
+    handMinutes: number | null;
+    /** 🪢 묶고 푸는 분 — 결박 등 (`protectionMinutes`). 모르면 `null` */
+    protectionMin: number | null;
 }
 
 /**
@@ -125,11 +161,21 @@ export function computeStopTiming(
     const points = unitPoints(pickup?.unit, pickup?.quantity);
     const pickupDwell = dwellMinutes(pickup?.handling, points, 'pickup', unk, pickup?.protections);
     const dropoffDwell = dwellMinutes(dropoff?.handling ?? pickup?.handling, points, 'dropoff', unk, null, dropoff?.afterworks);
+    /**
+     * 💪 **손으로 드는 분은 상·하차 두 번이다** — 같은 짐을 싣고 또 내린다.
+     *    한쪽 방법만 알면 그쪽만 센다 (모르는 쪽을 지어내지 않는다 · 규칙 ④).
+     */
+    const handPick = handMinutesOf(pickup?.handling, points, unk);
+    const handDrop = handMinutesOf(dropoff?.handling ?? pickup?.handling, points, unk);
+    const handMinutes = handPick == null && handDrop == null ? null : (handPick ?? 0) + (handDrop ?? 0);
     return {
         pickupDwell,
         dropoffDwell,
         totalDwell: pickupDwell + dropoffDwell,
         hasUnknown: !pickup?.handling || !(dropoff?.handling ?? pickup?.handling),
+        handMinutes,
+        /* 🪢 보호를 안 넘겼으면 `null` — «안 묶는다»(0)와 «모른다»는 다르다 */
+        protectionMin: pickup?.protections ? protectionMinutes(pickup.protections) : null,
     };
 }
 

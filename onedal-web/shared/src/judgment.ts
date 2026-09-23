@@ -100,12 +100,18 @@ export interface JudgmentConfig {
         /** 🧪 **같이 못 실음** — 함께 실으면 안 되는 성질인가 (적재는 «공간», 이것은 «성질») */
         cargoCompat: number;
         /**
-         * 🛣️ **운전 편함** — 이 콜로 달리는 길이 고속인가 시내인가 (기사님: *"고속도로 가니 편하고 빨라"*).
+         * 💪 **노동강도** — 이 콜에 팔다리를 얼마나 쓰나 (까대기·파레트·결박).
+         *    손으로 드는 분과 묶는 분을 본다. 「돈」이 그 분을 시급의 분모로 쓰는 것과 **묻는 것이 다르다** —
+         *    같은 27분이라도 저쪽은 «시간», 이쪽은 «노동»이다. 0 이면 안 본다.
+         */
+        labor: number;
+        /**
+         * 🚚 **운전** — 이 콜로 달리는 길이 고속인가 시내인가 (기사님: *"고속도로 가니 편하고 빨라"*).
          *    평균 속도를 아래 `speed` 눈금에 대어 잰다 — 새 문턱을 만들지 않는다.
-         *    편하면 몸이 덜 상해 **뒤에 더 일할 수 있다.** 그래서 «돈»이 아니라 제 축이다.
+         *    🔴 **노동강도와 따로 둔다** (기사님 확정) — 팔다리를 쓰는 것과 길이 고된 것은 다른 일이다.
          *    0 이면 안 본다.
          */
-        comfort: number;
+        drive: number;
         /**
          * ⏳ **콜 대기** — 이 콜을 하고도 콜을 더 기다릴 수 있나 (기사님: *"콜 대기 많이 할 수 있어"*).
          *    남는 여유를 **상차 약속** 단위로 잰다 — 새 문턱을 만들지 않는다.
@@ -216,7 +222,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupPromiseMin: 20 },
     pass: { nearM: 300, awayM: 400 },
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
-    weights: { revenueDetour: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 1, comfort: 1, wait: 1, calls: 1 },
+    weights: { revenueDetour: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 1, labor: 1, drive: 1, wait: 1, calls: 1 },
     target: { hourlyKrw: 30_000, honeyHourlyKrw: 50_000, soloHourlyKrw: 25_000 },
     destBonus: { max: 2.0, min: 0.5, trappedMult: 0.6, awayFreeKm: 30, awayHardKm: 150 },
     deadline: { ratioPct: 150 },
@@ -301,9 +307,12 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'weight_cargo_compat', path: ['weights', 'cargoCompat'], group: '가중치',
       label: '같이 못 실음', unit: '배', min: 0, max: 10, int: false,
       why: '함께 실어도 되는 **성질**인가 (위험물+식료품 등). 적재(공간)와 다르다. 0 이면 검사를 끈다' },
-    { col: 'weight_comfort', path: ['weights', 'comfort'], group: '가중치',
-      label: '운전 편함', unit: '배', min: 0, max: 10, int: false,
-      why: '이 콜로 달리는 길이 고속인가 시내인가 — 평균 속도를 «모를 때» 무리의 배송 속도 셋에 대어 잰다. 편하면 몸이 덜 상해 뒤에 더 일할 수 있다. 0 이면 안 본다' },
+    { col: 'weight_labor', path: ['weights', 'labor'], group: '가중치',
+      label: '노동강도', unit: '배', min: 0, max: 10, int: false,
+      why: '이 콜에 팔다리를 얼마나 쓰나 — 손으로 드는 분(까대기는 박스당 20초 · 지게차는 3초)과 묶는 분(결박 4분 등)을 본다. 같은 27분이라도 「우회 시급」에게는 시간이고 여기서는 노동이다. 통화 전에는 짐을 몰라 안 본다. 0 이면 안 본다' },
+    { col: 'weight_drive', path: ['weights', 'drive'], group: '가중치',
+      label: '운전', unit: '배', min: 0, max: 10, int: false,
+      why: '이 콜로 달리는 길이 고속인가 시내인가 — 평균 속도를 «모를 때» 무리의 배송 속도 셋에 대어 잰다. 노동강도와 따로 둔 값이다: 팔다리를 쓰는 것과 길이 고된 것은 다른 일이다. 0 이면 안 본다' },
     { col: 'weight_wait', path: ['weights', 'wait'], group: '가중치',
       label: '콜 대기', unit: '배', min: 0, max: 10, int: false,
       why: '이 콜을 하고도 콜을 더 기다릴 수 있나 — 남는 여유를 «데드라인» 무리의 상차 약속 분으로 나눠 «몇 콜치»로 잰다. 「기존 콜 약속 보존」이 «늦나»를 묻는 것과 다른 질문이다. 0 이면 안 본다' },

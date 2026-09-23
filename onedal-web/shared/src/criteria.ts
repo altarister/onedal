@@ -176,10 +176,71 @@ export const MONEY = defineCriterion<MoneyFacts>({
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🛣️ 편함 — 이 길이 고속인가 시내인가
+// 💪 노동강도 — 이 콜에 팔다리를 얼마나 쓰나
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export interface ComfortFacts {
+export interface LaborFacts {
+    /**
+     * 💪 **손으로 하는 분** — 상·하차를 **직접 드는** 시간만.
+     *    지게차면 거의 0(박스당 3초), 수작업(까대기)이면 박스당 20초씩 쌓인다.
+     *    셈은 `timing.handMinutesOf` 한 곳이다 — 여기서 박스를 다시 세지 않는다 (규칙 ③).
+     *    🔴 통화 전이라 짐을 모르면 `null` — 그때는 **잴 게 없다** (규칙 ⑤-2).
+     */
+    handMinutes: number | null;
+    /**
+     * 🪢 **묶고 푸는 분** — 결박 4 · 그물망 1 · 호루 3 · 탑박스 1 (`PROTECTION_MINUTES`).
+     *    🔴 방법과 축이 다르다 (기사님 확정): 방법은 «짐을 드는 행위», 보호는 «안전 조치».
+     */
+    protectionMinutes: number | null;
+}
+
+/**
+ * 💪 **이 콜에 팔다리를 얼마나 쓰나** (기사님 확정)
+ *
+ * 기사님: *"까대기, 파레트, 짐의 상하차 방법과 량, 결박도 표현되어 들어가야 할 것 같다."*
+ *
+ * 🔴 **시간과 몸은 다르다.** 같은 80박스라도 —
+ * ```
+ * 지게차  80 × 3초  =  4분   앉아서 기다린다
+ * 수작업  80 × 20초 = 27분   여든 개를 손으로 나른다
+ * ```
+ *    「돈」은 그 분을 **시급의 분모**로 쓴다. 이 기준은 그중 **손으로 하는 몫만** 본다 —
+ *    같은 27분이라도 「돈」에게는 «시간»이고 여기서는 «노동»이라 묻는 것이 다르다 (규칙 ⑤-4 ⑤).
+ *
+ * 🔴 **운전은 안 본다** — 그건 「운전」이 따로 묻는다 (기사님: *"노동강도, 운전 이렇게 2개로
+ *    의미가 다른 것 같기도 하고 분리하는 것이 지금 보니 맞는 거 같다"*).
+ *    팔다리를 쓰는 것과 길이 고된 것은 다른 일이고, 무게도 따로 정하셔야 한다.
+ *
+ * 🔴 **새 문턱을 만들지 않는다** — 박스당 분과 보호 분이 전부 기사님이 확정하신 값이고,
+ *    «얼마면 고된가»의 한계는 이미 있는 **상차 미확인 일반값**(찾기+상차+결박)의 두 배로 둔다.
+ *
+ * 🔴 **모르면 잴 게 없다** (규칙 ⑤-2) — 통화 전에는 짐을 모른다. 색을 🔴 로 만들지 않는다.
+ */
+export const LABOR = defineCriterion<LaborFacts>({
+    key: 'labor', name: '노동강도', asks: '이 콜에 팔다리를 얼마나 쓰나',
+    weightKey: 'labor',
+    measure(f, cfg) {
+        if (!f) return nothing('짐을 안 받았습니다');
+        if (f.handMinutes == null && f.protectionMinutes == null) return nothing('짐 미확인 — 통화로 정해집니다');
+
+        const hand = f.handMinutes ?? 0, guard = f.protectionMinutes ?? 0;
+        const bodyMin = hand + guard;
+        /**
+         * 💪 **한계는 «흔한 상차 두 번치»** — 상차 미확인 일반값(찾기+상차+결박)의 두 배.
+         *    그만큼 손으로 들면 0 점이다. 🔴 새 칸이 아니라 이미 있는 값을 눈금으로 쓴다.
+         */
+        const heavyAt = Math.max(1, cfg.unknown.pickupDwellMin) * 2;
+        const score = Math.max(0, 100 - (bodyMin / heavyAt) * 100);
+        const why = `손 ${Math.round(hand)}분` + (guard ? ` · 묶기 ${Math.round(guard)}분` : '');
+        return scored(score, why, false, bodyMin);
+    },
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🚚 운전 — 이 길이 고속인가 시내인가
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export interface DriveFacts {
     /** 이 콜 때문에 더 달리는 거리(km) — 「돈」이 받는 값과 **같은 것**이다 */
     extraKm: number | null;
     /** 이 콜 때문에 더 쓰는 시간(분) — 「돈」이 받는 값과 **같은 것**이다 */
@@ -187,38 +248,26 @@ export interface ComfortFacts {
 }
 
 /**
- * 🛣️ **운전이 편한가 — 평균 속도가 말한다** (기사님: *"고속도로 가니 편하고 빨라"*)
+ * 🚚 **길이 고된가 — 평균 속도가 말한다** (기사님: *"고속도로 가니 편하고 빨라"*)
  *
- * 편함은 **돈이 아니다.** 고속도로는 톨비를 더 내므로 「돈」에서는 깎인다.
- * 그런데 몸이 덜 상해 **뒤에 더 일할 수 있다** — 그것이 이 축이 재는 값어치다.
- * 두 힘이 한 콜에 반대로 걸리는 것이 맞다. 무게는 기사님이 가중치로 정하신다.
- *
- * ```
- * 평균 속도 = 더 달리는 거리 ÷ 더 쓰는 시간
- * ```
- *
+ * 🔴 **분이 아니라 속도로 본다** — 분은 「돈」이 시급의 분모로 이미 쓴다.
+ *    같은 60분이라도 고속으로 70km 를 가는 것과 시내에서 20km 를 기는 것은 몸이 다르다.
+ * 🔴 **상하차는 안 본다** — 그건 「노동강도」가 따로 묻는다.
  * 🔴 **새 문턱을 만들지 않는다** — 판정 기준 탭의 배송 속도 셋(시내·국도·고속)을 그대로 눈금으로 쓴다.
- *    그 값은 카카오 실측에서 나왔고, 기사님이 한 곳에서 고치시면 여기도 같이 움직인다 (규칙 ③).
- * 🔴 **둘 중 하나라도 모르면 「잴 수 없다」가 아니라 「잴 게 없다」다** — 거리를 못 받은 것은
- *    재료가 깨진 것이 아니라 **아직 안 실어 준 것**이라, 색을 🔴 로 만들면 안 된다 (규칙 ⑤-2).
- * 🔴 **시간이 0 이하면 잴 게 없다** — 길목 콜은 더 달리지 않으니 «편함»을 물을 대상이 없다.
+ *    그 값은 카카오 실측에서 나왔고 기사님이 한 곳에서 고치시면 여기도 같이 움직인다 (규칙 ③).
+ * 🔴 **둘 중 하나라도 모르면 「잴 게 없다」** — 재료가 깨진 것이 아니라 아직 안 실어 준 것이다 (규칙 ⑤-2).
  */
-export const COMFORT = defineCriterion<ComfortFacts>({
-    key: 'comfort', name: '편함', asks: '이 길이 고속인가 시내인가',
-    weightKey: 'comfort',
+export const DRIVE = defineCriterion<DriveFacts>({
+    key: 'drive', name: '운전', asks: '이 길이 고속인가 시내인가',
+    weightKey: 'drive',
     measure(f, cfg) {
         if (!f || f.extraKm == null || f.extraMinutes == null) return nothing('주행을 안 받았습니다');
         if (f.extraMinutes <= 0) return nothing('더 달리지 않습니다 — 길목');
-        /* 🔴 뒤로 가서 거리가 줄어든 합짐은 «편함»을 물을 대상이 아니다 — 그건 「돈」이 센다 */
+        /* 🔴 뒤로 가서 거리가 줄어든 합짐은 «길이 고된가»를 물을 대상이 아니다 — 그건 「돈」이 센다 */
         if (f.extraKm <= 0) return nothing('더 달리지 않습니다');
 
         const kmh = (f.extraKm / f.extraMinutes) * 60;
         const { shortKmh, midKmh, longKmh } = cfg.speed;
-        /**
-         * 🔴 **눈금 셋을 꺾은선으로 잇는다** — 시내 0점 · 국도 50점 · 고속 100점.
-         *    세 값이 순서대로가 아니면(기사님이 이상하게 넣으셨으면) 비율이 뒤집히므로
-         *    `Math.max` 로 분모를 지킨다. 값을 지어내지는 않는다.
-         */
         const score = kmh <= shortKmh ? 0
             : kmh <= midKmh ? 50 * ((kmh - shortKmh) / Math.max(1, midKmh - shortKmh))
             : kmh <= longKmh ? 50 + 50 * ((kmh - midKmh) / Math.max(1, longKmh - midKmh))
@@ -628,12 +677,13 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
  * 🔴 **판정 기준의 목록은 여기 하나다.** 더하거나 빼려면 이 배열만 고친다.
  *    순서가 곧 **화면에 보이는 순서**다.
  */
-export const CRITERIA: Array<Criterion<any>> = [MONEY, COMFORT, WAIT, CALLS, PROMISE, SPACE, NATURE, GEOGRAPHY];
+export const CRITERIA: Array<Criterion<any>> = [MONEY, LABOR, DRIVE, WAIT, CALLS, PROMISE, SPACE, NATURE, GEOGRAPHY];
 
 /** 사실 꾸러미 — 칸 이름이 기준의 `key` 와 같다. 각 기준은 **자기 칸만** 본다 */
 export type JudgeFacts = {
     money?: MoneyFacts;
-    comfort?: ComfortFacts;
+    labor?: LaborFacts;
+    drive?: DriveFacts;
     wait?: WaitFacts;
     calls?: CallsFacts;
     promise?: PromiseFacts;

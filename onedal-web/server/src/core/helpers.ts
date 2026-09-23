@@ -3,7 +3,8 @@
  */
 import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          findTagConflicts,
-         computeStopTiming, recordsOfSteps } from '@onedal/shared';
+         computeStopTiming, recordsOfSteps,
+         unitPoints, handMinutesOf, protectionMinutes } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming, JudgmentConfig } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
 import { originOf } from '../services/geoService';
@@ -125,17 +126,28 @@ export function getStopTiming(orderId: string, unk?: DwellUnknown,
         // ⚠️ **차종조차 못 읽은 콜은 여전히 모른다** (규칙 ④ — 없는 숫자를 지어내지 않는다).
         //    그때만 아래 일반값 경로로 내려가서, 호출자가 넘긴 `unk` 를 존중한다.
         if (plan?.pickupHandling) {
+            /**
+             * 💪 **정차 분은 사슬이 낸 값을 그대로, 손으로 드는 분은 여기서 뗀다.**
+             *    셈은 shared `handMinutesOf` 한 곳이다 — 계수를 여기서 다시 적지 않는다 (규칙 ③).
+             *    단위·수량을 못 읽은 콜이면 `null` 이 되어 「노동강도」가 «잴 게 없다»로 받는다.
+             */
+            const points = unitPoints(plan.unit, plan.quantity);
+            const hp = handMinutesOf(plan.pickupHandling, points, unk);
+            const hd = handMinutesOf(plan.dropoffHandling ?? plan.pickupHandling, points, unk);
             return {
                 pickupDwell: plan.pickupDwell,
                 dropoffDwell: plan.dropoffDwell,
                 totalDwell: plan.pickupDwell + plan.dropoffDwell,
                 hasUnknown: !plan.dropoffHandling,
+                handMinutes: hp == null && hd == null ? null : (hp ?? 0) + (hd ?? 0),
+                protectionMin: plan.protections ? protectionMinutes(plan.protections) : null,
             };
         }
     }
 
     return computeStopTiming(
-        pick ? { handling: pick.handling, unit: pick.unit, quantity: pick.quantity } : undefined,
+        pick ? { handling: pick.handling, unit: pick.unit, quantity: pick.quantity,
+                 protections: (pick as any).protections ?? null } : undefined,
         drop ? { handling: drop.handling } : undefined,
         unk,
     );
@@ -154,6 +166,10 @@ export function totalDetourCost(driveDiffMin: number, incomingOrderId: string, u
     /** 판정 기준 설정 — 정차 값이 여기서 사슬까지 간다 */
     cfg?: JudgmentConfig): {
     total: number; drive: number; dwell: number; hasUnknown: boolean;
+    /** 💪 그중 **팔다리를 쓰는 몫** — 「노동강도」가 쓴다. 짐을 모르면 `null` */
+    handMinutes: number | null;
+    /** 🪢 묶고 푸는 분 — 모르면 `null` */
+    protectionMin: number | null;
 } {
     const t = getStopTiming(incomingOrderId, unk, order, cfg);
     return {
@@ -161,6 +177,9 @@ export function totalDetourCost(driveDiffMin: number, incomingOrderId: string, u
         drive: driveDiffMin,
         dwell: t.totalDwell,
         hasUnknown: t.hasUnknown,
+        /* 💪 같은 정거장 타이밍에서 그대로 옮긴다 — 다시 세지 않는다 (규칙 ③) */
+        handMinutes: t.handMinutes,
+        protectionMin: t.protectionMin,
     };
 }
 

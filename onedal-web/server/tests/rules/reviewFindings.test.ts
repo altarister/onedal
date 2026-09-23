@@ -32,7 +32,8 @@ maybe('① 🔴 점수를 못 내도 판정 저장이 터지지 않는다', () =
      */
     it('가중치를 다 끄면 점수가 null 인데, 저장이 터지지 않는다', () => {
         const v = judge(CRITERIA, { money: { fare: 50_000, extraMinutes: 30 , firstLoad: false } }, cfg({
-            weights: { revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0 },
+            /* 🔴 손으로 나열하지 않는다 — 기준이 늘 때마다 깨지면 이 검사가 잡으려던 것과 다른 일을 한다 */
+            weights: Object.fromEntries(Object.keys(DEFAULT_JUDGMENT.weights).map(k => [k, 0])) as JudgmentConfig['weights'],
         }));
         expect(v.score).toBeNull();
         db.prepare(`DELETE FROM order_judgments WHERE orderId = ?`).run(ID);
