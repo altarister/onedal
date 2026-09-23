@@ -117,37 +117,30 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
      *    토글 셋째 칸으로 넣으면 «재설정 모드»에 들어가 있는 것처럼 읽힌다.
      *    누르면 들고 있던 거리를 비운다(`radiusDistanceKm: null`) — 서버가 지금 위치로 다시 잰다.
      */
-    /**
-     * 📏 **잰 거리는 화면에 적지 않는다** (기사님: *"젠거리가 왜 필요한지 모르겠다"*)
-     *
-     * 반경 칸이 이미 **줄어든 값**을 보여 준다 — 「잰 거리 18.2km ×0.36」 은 «왜 줄었나»를
-     * 한 번 더 적는 자리였다. 서버는 그대로 잰다 (배율을 만드는 재료다).
-     * 🔴 **다시 재는 길도 화면에 두지 않는다** — 목적지를 바꾸거나 하루가 바뀔 때 다시 잰다.
-     *    손으로 다시 재면 목적지 앞에서 반경이 쪼그라들어 관내콜을 못 잡는다 (기사님 지적).
-     */
-    /**
-     * 🌫️ **기준 반경이면 반경 칸을 흐리게 둔다** (기사님 확정:
-     *    *"기준 반경이면 기준거리만 변경하면 되는거잖아 나머지는 딤드 하고"* ·
-     *    *"아까 거기서 딤드만 하면 되는거 아니였어?"*)
-     *
-     * 🔴 **잠그지 않는다** — 흐린 것으로 «지금은 기준거리가 이것을 정한다»가 읽히면 족하다.
-     *    감추지도 않는다 (기사님 «모두 꺼내 두고»).
-     */
-    it('🔴 자동이면 반경 칸이 흐려진다 — 수동이면 기준거리가 흐려진다', () => {
-        const code = codeOnly(modal);
-        expect(code).toMatch(/const radiusLocked = radiusAuto;/);
-        expect(code).toMatch(/dim: !inUse\(path\) \|\| radiusLocked,/);
-        expect(code).toMatch(/dim: !radiusAuto,/);
+    it('🔴 «무엇으로 정했나»를 말하는 칸이 있고, 눌러 다시 잰다', () => {
+        /* 🔴 한 줄 3등분에 서면서 이름이 「잰 거리 ↻」 로 줄었다 — 누르면 다시 잰다 (기사님 2026-09-23).
+           기준거리를 바꾸는 것으로 대신할 수 없다: 이쪽은 서버가 «내 위치 → 목적지»를 실제로 잰 값이다 */
+        expect(modal).toMatch(/잰 거리 ↻/);
+        expect(modal).toMatch(/멀어졌으면 넓히고, 가까워졌으면 그대로 둡니다/);
+        expect(codeOnly(modal)).toMatch(/radiusDistanceKm:\s*null/);
     });
 
-    it('🔴 잰 거리와 다시 재기 버튼이 화면에 없다', () => {
-        /* 🔴 **코드만 본다** — 주석은 «왜 뺐나»를 적어 두는 자리다 */
-        const code = codeOnly(modal);
-        expect(code).not.toMatch(/잰 거리/);
-        expect(code).not.toMatch(/다시 구하기/);
-        expect(code).not.toMatch(/radiusDistanceKm:\s*null/);
-        /* 🔴 반경 칸은 여전히 줄인 값을 보여 준다 — 그게 «지금 도는 값»이다 */
-        expect(code).toMatch(/shownRadii/);
+    /**
+     * 📏 **다시 재기는 «넓히기만» 한다** (기사님 확정 2026-09-23:
+     *    *"가까워 질수록 범위가 축소되기 때문에 도착해서는 관내근거리 콜을 할수 없다."*)
+     *
+     * 🔴 목적지 앞에서 다시 재면 거리가 거의 0 이 되어 반경 넷이 함께 쪼그라든다.
+     *    «자동 반경은 그날 첫짐에 한 번 줄고 위치가 바뀐다고 다시 줄지 않는다»를 이 버튼에도 건다.
+     */
+    it('🔴 눌러도 반경이 줄지 않는다 — 가까워졌으면 붙잡은 거리를 그대로 둔다', () => {
+        const fm = codeOnly(read('state/filterManager.ts'));
+        const i = fm.indexOf("'radiusDistanceKm' in changes && changes.radiusDistanceKm == null");
+        expect(i).toBeGreaterThan(-1);
+        const body = fm.slice(i, i + 700);
+        /* 붙잡은 값과 새로 잰 값을 견주고, 새 값이 작으면 되돌린다 */
+        expect(body).toMatch(/holdRadiusDistance\(/);
+        expect(body).toMatch(/< \(heldDistanceKm as number\)/);
+        expect(body).toMatch(/radiusDistanceKm = heldDistanceKm/);
     });
 
     /**

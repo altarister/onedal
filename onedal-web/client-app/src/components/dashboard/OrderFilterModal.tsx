@@ -6,7 +6,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
-         resolvePhaseKey, effectiveRadii,
+         resolvePhaseKey, effectiveRadii, radiusScaleOf,
          VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
 import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
@@ -227,20 +227,6 @@ export default function OrderFilterModal({ isOpen, onClose,
      *    끄는 동안에도 지도가 따라온다. 못 받았으면 손대지 않는다 (규칙 ④).
      */
     const radiusAuto = !!filter?.radiusAuto;
-    /**
-     * 🌫️ **기준 반경이면 반경은 기준거리 하나가 정한다 — 그 칸들은 흐리게 둔다** (기사님 확정:
-     *    *"기준 반경이면 기준거리만 변경하면 되는거잖아 나머지는 딤드 하고"*).
-     *
-     * 🔴 **두 주인이 한 값을 잡으면 손과 화면이 싸운다.** 자동일 때 칸은 «줄인 값»을 보여 주는데
-     *    슬라이더로 미는 것은 «원값»이었다 — 배율이 0.26 이면 1 밀어도 화면은 0.26 만 움직이고,
-     *    눈금 반올림 때문에 되레 뒤로 간 것처럼 보였다.
-     *    기사님 실측: *"라인반경을 키웠어 … 근데 키우면 줄어들고 그랬어"* — 그 사이 원값이
-     *    25 에서 최댓값 40 까지 1초에 1씩 쌓였다.
-     * 🔴 **감추지 않고 흐리게만 둔다** (기사님 *"모두 꺼내 두고"* · *"딤드만 하면 되는거 아니였어?"*)
-     *    — 잠그지 않는다. 자동일 때 만질 일이 없다는 표시면 족하다.
-     * ⚠️ **각도 둘은 안 흐린다** — 방향 허용폭이라 거리와 무관하다 (`autoRadii` 도 안 건드린다).
-     */
-    const radiusLocked = radiusAuto;
     /** 🔴 **지금 실제로 쓰이는 반경** — 무대 지도가 부르는 **그 함수**다 (규칙 ③) */
     const shownRadii = effectiveRadii(filter);
 
@@ -646,13 +632,13 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         목적지는 지금 자동 ({tab === 'home' && homeAddress ? homeAddress : PHASE_AUTO_SOURCE[tab]})
                                     </p>
                                 )}
-                                {/* 🛣️🔷 노선·동선 · 🎯 시·도 · 시·군·구 — 한 줄 3등분 (기사님 확정).
+                                {/* 🛣️🔷 노선·동선 · 🎯 시·도 · 시·군·구 — 한 줄 3등분 (기사님 확정 2026-09-23).
                                     시·도에는 도(경기)와 특별시 · 광역시(서울 · 인천 · 대전)가 함께 선다.
                                     복귀 토글은 저장 줄에 있다 */}
                                 <div className="relative grid grid-cols-3 gap-1">
                                     {/**
                                       * 🛣️ **노선 ↔ 🔷 동선 — 버튼 하나를 눌러 뒤집는다**
-                                      *    (기사님: *"노선, 동선 버튼은 토글버튼으로 치환이
+                                      *    (기사님 2026-09-23: *"노선, 동선 버튼은 토글버튼으로 치환이
                                       *    가능하겠다 … 노선/동선, 시도, 시군구 이렇게 한줄로 3등분해서 보여줘"*).
                                       *
                                       * 🔴 «그물을 어떤 모양으로 볼까»라 **국면(어디로 가나)과 다른 축**이다.
@@ -715,16 +701,15 @@ export default function OrderFilterModal({ isOpen, onClose,
                             ? [shownRadii.pickupRadiusKm, shownRadii.destinationRadiusKm, shownRadii.detourRadiusKm].map(n => Math.round(n * 10) / 10).join(' · ')
                             : [cur.pickupRadiusKm, cur.destinationRadiusKm, cur.detourRadiusKm].join(' · ')}km · ${radiusAuto ? '기준' : '수동'}`}>
                             {/**
-                              * 📐 **기준/수동 · 기준거리 — 한 줄**
-                              *    (기사님: *"여기가 2줄이 되었는데 그럴필요가 없다 …
+                              * 📐 **기준/수동 · 기준거리 · 잰 거리 — 한 줄 3등분**
+                              *    (기사님 2026-09-23: *"여기가 2줄이 되었는데 그럴필요가 없다 …
                               *    input에 100과 버튼의 100km 가중복이라 그것도 버튼에서 뺄수 있다."*)
                               *
                               * 🔴 **버튼은 값을 말하지 않는다** — 바로 옆 칸이 같은 값을 말한다.
-                              * 🔴 **잰 거리는 화면에 적지 않는다** (기사님 *"젠거리가 왜 필요한지
-                              *    모르겠다"*) — 반경 칸이 이미 **줄어든 값**을 보여 주므로, «왜 줄었나»를
-                              *    한 번 더 적는 자리였다. 서버는 그대로 잰다 (배율을 만드는 재료다).
+                              * 🔴 **두 숫자는 다른 것이다.** 기준거리는 «이 거리에서 배율 1.0» 인 기사님의 잣대이고,
+                              *    잰 거리는 «지금 내 위치 → 목적지» 인 서버의 실측이다. 배율은 둘을 나눈 값이다.
                               */}
-                            <div className="relative grid grid-cols-2 gap-1">
+                            <div className="relative grid grid-cols-3 gap-1">
                                 <div className="flex rounded-lg border border-border-card overflow-hidden">
                                     {([true, false] as const).map(on => (
                                         <button key={String(on)} type="button"
@@ -736,7 +721,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                     ))}
                                 </div>
                                 {/**
-                                  * 📏 **기준거리 — 여기서 바로 바꾼다** (기사님:
+                                  * 📏 **기준거리 — 여기서 바로 바꾼다** (기사님 2026-09-23:
                                   *    *"40km 반경을 쉽게 바꿔야 할꺼 같아 … 지금은 사용자 설정에 40을
                                   *    바꿔야 하는 불편한 점이 있다."*).
                                   *
@@ -761,6 +746,29 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         /* 🔴 뗄 때 서버로 — ⚙️ 설정과 같은 통로다 */
                                         onCommit: (v: number) => updateFilter({ radiusBaseKm: v }),
                                     }]} />
+                                {/**
+                                  * ↻ **잰 거리 — 누르면 다시 잰다. 다만 «넓히기만» 한다**
+                                  *    (기사님 확정 2026-09-23: *"가까워 질수록 범위가 축소되기 때문에
+                                  *    도착해서는 관내근거리 콜을 할수 없다."*).
+                                  *
+                                  * 🔴 **기준거리를 바꾸는 것으로 대신할 수 없다** — 이 숫자는 서버가 «내 위치 →
+                                  *    목적지»를 실제로 잰 값이고, **한 번 재면 붙잡아 둔다**(`heldRadiusDistanceKm`).
+                                  * 🔴 **멀어졌으면 반영하고 가까워졌으면 그대로 둔다** — 판단은 서버
+                                  *    `updateActiveFilter` 한 곳이다. 목적지 앞에서 줄면 관내콜을 못 잡는다.
+                                  */}
+                                <button type="button" onClick={() => updateFilter({ radiusDistanceKm: null })}
+                                    title="지금 위치에서 다시 잽니다 — 멀어졌으면 넓히고, 가까워졌으면 그대로 둡니다"
+                                    className={`flex flex-col items-stretch gap-0 px-1 py-1 rounded-lg border text-left ${
+                                        radiusAuto ? 'border-border-card bg-background hover:border-border-hover' : 'border-border-card bg-background opacity-50'}`}>
+                                    <span className="px-0.5 text-[9.5px] font-bold text-text-muted leading-tight">잰 거리 ↻</span>
+                                    <span className="w-full text-center text-[13px] font-black text-text-primary tabular-nums leading-tight whitespace-nowrap">
+                                        {Number.isFinite(filter?.radiusDistanceKm as number)
+                                            ? <>{Math.round((filter!.radiusDistanceKm as number) * 10) / 10}
+                                                <span className="text-[9.5px] font-bold text-text-muted">km ×{
+                                                    Math.round(radiusScaleOf(filter?.radiusDistanceKm, filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) * 100) / 100}</span></>
+                                            : <span className="text-[10.5px] text-text-muted">거리 못 잼</span>}
+                                    </span>
+                                </button>
                             </div>
                             {/* 📐 **마름모의 모양 — 국면과 무관한 한 벌이다** (제외 단어와 같은 이유).
                                 라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
@@ -859,7 +867,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         max: f.max,
                                         step: f.step,
                                         /* 🔴 **감추지 않고 흐리게** — 지금 안 쓰이는 칸만 (자동이라고 흐리지 않는다 · 기사님) */
-                                        dim: !inUse(path) || radiusLocked,
+                                        dim: !inUse(path),
                                         /**
                                          * 🎚️ **자동이어도 민다** (기사님: *"오토이면 왜 딤드여야 하는거지? 그냥 풀어줘도 되는거잖아"* · 안 2).
                                          *    칸은 줄인 값을 보여 주고, 움직인 만큼 **원래 값**에 더한다 — 자동은 그대로 켜져 있다.
@@ -1006,7 +1014,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                             <div className="relative z-20 space-y-1.5">
                                 <div className="relative grid grid-cols-3 gap-1">
                                     {/**
-                                      * ⛔ **세 칸이 「어디로」와 같은 형식이다** (기사님:
+                                      * ⛔ **세 칸이 「어디로」와 같은 형식이다** (기사님 2026-09-23:
                                       *    *"필터의 빼는 곳도 같은 ui형식을 넣으면 좋겠다. 지금은 경기 통째로 ..
                                       *    이런 버튼이 불필요하게 있는것 같아."*).
                                       *
