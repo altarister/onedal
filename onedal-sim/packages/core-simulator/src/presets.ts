@@ -625,7 +625,9 @@ export const PRESETS: Record<string, PresetProblem[]> = {
             label: '⑥ 천안 성거읍 → 인천 경서동 · 200,000 (실측 46,200)',
             pickup: '천안 성거읍 물류', dropoff: '인천 경서동 하차지',
             pickupFallback: CA_SEONGGEO, dropoffFallback: IC_GYEONGSEO,
-            fare: 200000, vehicleType: '다마스',
+            /* 🏍️ 오토바이 — ③과 같은 까닭이다 (기사님 확정 2026-09-24).
+               다마스이던 때는 짐칸이 차서 앱이 서버에 올리지도 않았다 (그날 96칸 사용 중) */
+            fare: 200000, vehicleType: '오토바이',
             why: '🚚 ①을 내린 자리에서 바로 실었다 — 하차지가 다음 상차지가 되는 흐름',
         },
         {
