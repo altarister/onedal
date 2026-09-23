@@ -65,6 +65,15 @@ export type KnobDef = {
     onPreview?: (v: number) => void;
     /** 지금 안 쓰이는 칸 — 감추지 않고 흐리게 둔다 (감추면 화면이 조용히 거짓말한다) */
     dim?: boolean;
+    /**
+     * 🔒 **지금은 이 값을 손으로 못 만진다** — 눌러도 레이어가 안 열린다.
+     *
+     * 🔴 **감추지 않는다** (기사님 *"모두 꺼내 두고"*) — 값은 그대로 보이고 흐릴 뿐이다.
+     * 🔴 «흐리다»(`dim`)와 다른 질문이다: 흐린 것은 «지금 안 쓰인다», 잠긴 것은
+     *    «다른 값이 이것을 정한다»다. 기준 반경일 때 반경 넷이 그렇다 — 기준거리 하나가 정한다.
+     *    두 주인이 한 값을 잡으면 손과 화면이 싸운다 (기사님 실측 *"키우면 줄어들고 그랬어"*).
+     */
+    locked?: boolean;
 };
 
 export function KnobGrid({ knobs, open, onOpen, cols = 3, inline = false }: {
@@ -94,10 +103,13 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3, inline = false }: {
                      *    어느 것이 듣는지 모르고, 레이어가 칸들을 덮는 동안 칸의 ± 는 눌리지도 않는다.
                      *    조절은 **레이어 한 곳**에서 한다 — 거기에 ± 와 끌기가 다 있다.
                      */
-                    <button key={k.key} type="button" data-pick title="눌러서 조절하기"
-                        onClick={() => onOpen(open === k.key ? null : k.key)}
-                        className={`flex flex-col items-stretch gap-0 px-1 py-1 rounded-lg border text-left ${k.dim ? 'opacity-50' : ''} ${
-                            open === k.key ? 'border-info/55 bg-info/10' : 'border-border-card bg-background hover:border-border-hover'}`}>
+                    <button key={k.key} type="button" data-pick
+                        title={k.locked ? '지금은 다른 값이 이것을 정합니다' : '눌러서 조절하기'}
+                        onClick={() => { if (!k.locked) onOpen(open === k.key ? null : k.key); }}
+                        className={`flex flex-col items-stretch gap-0 px-1 py-1 rounded-lg border text-left ${
+                            k.dim || k.locked ? 'opacity-50' : ''} ${
+                            open === k.key ? 'border-info/55 bg-info/10' : 'border-border-card bg-background'} ${
+                            k.locked ? 'cursor-default' : 'hover:border-border-hover'}`}>
                         <span className="px-0.5 text-[9.5px] font-bold text-text-muted leading-tight">{k.label}</span>
                         <span className="w-full text-center text-[14px] font-black text-text-primary tabular-nums leading-tight whitespace-nowrap">
                             {k.value}<span className="text-[9.5px] font-bold text-text-muted">{k.unit}</span>

@@ -270,7 +270,8 @@ describe('마름모 칸 — 숫자판이 아니라 슬라이더 레이어 (C4-1)
      */
     it('🔴 지금 안 쓰이는 칸은 감추지 않고 흐리게 둔다 (dim)', () => {
         expect(modal).toMatch(/dim:/);
-        expect(knob).toMatch(/k\.dim \? 'opacity-50'/);
+        /* 🔒 잠긴 칸(기준 반경일 때의 반경 넷)도 같은 자리에서 함께 흐려진다 — 감추지는 않는다 */
+        expect(knob).toMatch(/k\.dim \|\| k\.locked \? 'opacity-50'/);
     });
 
     /**
