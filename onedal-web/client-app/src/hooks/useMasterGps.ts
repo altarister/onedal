@@ -86,8 +86,20 @@ export function useMasterGps(
             if (!p) return;
             // S23 실기기 본체는 자체 네이티브 GPS가 있으므로 서버 에코를 무시 (중복 방지)
             if (nativeLat !== null && nativeLng !== null) return;
-            // 서버가 보낸 좌표가 실기기 GPS(gps)인 경우에만 PC 화면의 좌표로 채택
-            if (p.source === 'gps') {
+            /**
+             * 📍 **실기기 GPS 와 «손으로 정한 자리»를 채택한다** (기사님 2026-09-23).
+             *
+             * 🔴 **`manual` 을 빼면 화면이 두 자리를 말한다** — 기사님이 현황판에서 현위치를
+             *    바꾸시면 서버는 그 자리로 상차·하차 목록을 다시 만드는데(점이 옮겨감),
+             *    지도는 이 조건에 걸려 옛 자리에 원과 현위치를 그린다. 실측: 대전 복합터미널로
+             *    바꾸셨을 때 **점만 대전, 원과 현위치는 옛 자리**로 남았다.
+             *    기사님: *"서버랑 웹이랑 폰이 싱크가 맞아야 해 그치?"*
+             * 🔴 **`mock` 은 여기서 안 받는다** — 모의 주행은 화면이 제 시뮬레이터로 달린다.
+             *    서버 에코까지 받으면 한 걸음 뒤처진 좌표가 내 점을 뒤로 당긴다
+             *    (`driverPositionStore` 주석의 «묵은 좌표가 내 점을 뒤로 당겨 모의 주행이 멈춘다»).
+             * 🔴 **1초마다 오는 값이 아니다** — 손으로 정할 때만 한 번이라 영역 재계산이 안 는다.
+             */
+            if (p.source === 'gps' || p.source === 'manual') {
                 lastRealFixAt.current = Date.now();
                 setSource('real');
                 setCurrentGps({ lat: p.y, lng: p.x });
