@@ -849,13 +849,23 @@ export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): 
        경로 · 출발 · 복귀가 바뀌는 길이 여기로 모인다. 방송은 아래 `updateActiveFilter` 가 한 번에 한다.
        🔴 손으로 고친 필터여도 상차 목록은 만든다 — 하차 목록만 기사님 것이다 (#146 과 같은 모양) */
     const pickupChanged = pickupBuilt || rebuildPickupList(session, userId);
-    /* 🔒 기사님이 손으로 고친 합짐 목록은 덮지 않는다 — 사이클이 끝나면 풀린다 */
-    if (session.activeFilter.userOverrides && getActiveCalls(session).length > 0) {
-        console.log(`🔒 [경유 고정] 기사님이 손으로 고친 필터라 자동 갱신을 건너뜁니다 ` +
-            `(키워드 ${(session.activeFilter.destinationKeywords || []).length}개 유지)`);
-        if (pickupChanged) broadcastFilter(userId, session, io);   // 상차 목록은 바뀌었다 — 그것은 알린다
-        return;
-    }
+    /**
+     * 🔓 **«손으로 고쳤다»고 목록을 얼리지 않는다** (기사님 실측 2026-09-23).
+     *
+     * 그전에는 `userOverrides && 콜 있음` 이면 하차 목록 갱신을 통째로 건너뛰었다.
+     * 그런데 그 깃발을 켜는 것은 **「빼는 곳」과 「제외 단어」를 저장할 때뿐**이다.
+     *
+     * 🔴 **빼신 곳은 얼리지 않아도 지켜진다** — 목록을 만드는 `netForGoalPart` 가
+     *    `excludedRegions` 를 매번 읽어 거른다(`pruneExcludedRegions` · 규칙 ③).
+     *    그러니 이 잠금은 **지키는 것 없이 멈추기만** 했다.
+     *
+     * ── 실측 (2026-09-23 23:51 ~ 00:26) ──
+     * 기사님이 「빼는 곳」에서 «서울 전체»를 누르시자 깃발이 켜졌다. 서울은 제대로 빠졌지만
+     * 그 순간부터 하차 목록이 **913곳에 얼어붙었다.** 그 뒤 목적지를 김포로 바꾸시고 경로가
+     * 달라져도 안 따라와, 이천 시절 동(가남읍·음성읍)이 라인반경 한참 밖에 남았다.
+     * 상차 목록은 이 잠금을 안 받아 계속 갱신되니 **상차와 하차가 다른 시점을 보았다.**
+     * 기사님: *"서울은 내가 넣은것이 맞는데 내 의도와 완전 다르게 작동한거 아냐 버그지."*
+     */
     const kept = netFilterOf(session, userId);
     if (!kept) {
         updateActiveFilter(userId, { destinationKeywords: [], destinationGroups: {} }, io);

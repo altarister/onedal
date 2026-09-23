@@ -182,12 +182,23 @@ describe('상차 목록 배선', () => {
         expect(geo).toMatch(/rebuildPickupList\(session, userId\)[\s\S]*netOfGoals\(/);
         expect(geo).not.toMatch(/getCityRegionsWithRadius\(/);
     });
-    it('🔴 손으로 고친 필터여도 상차 목록은 새로 만든다', () => {
+    /**
+     * 🔓 **손으로 고친 필터여도 두 목록이 다 새로 만들어진다** (기사님 실측 2026-09-23).
+     *
+     * 그전에는 `userOverrides && 콜 있음` 이면 **하차 목록만** 건너뛰어, 기사님이
+     * «서울 전체»를 빼신 순간 하차가 913곳에 얼어붙고 상차만 계속 갱신됐다 —
+     * 둘이 다른 시점을 보았다. 빼신 곳은 `pruneExcludedRegions` 가 매번 걸러 주므로
+     * 얼릴 까닭이 없었다.
+     */
+    it('🔴 손으로 고친 필터여도 상차·하차 목록을 다 새로 만든다', () => {
         const fm = code('state/filterManager.ts');
         const r = fm.slice(fm.indexOf('export function rebuildNetFilter('));
         const body = r.slice(0, r.indexOf('\n}'));
+        /* 상차를 먼저 만든다 — 하차가 그 목록을 재료로 쓴다 */
         expect(body.indexOf('rebuildPickupList(session, userId)')).toBeGreaterThan(-1);
-        expect(body.indexOf('rebuildPickupList(session, userId)')).toBeLessThan(body.indexOf('userOverrides'));
+        expect(body.indexOf('rebuildPickupList(session, userId)')).toBeLessThan(body.indexOf('netFilterOf(session, userId)'));
+        /* 🔴 중간에 돌아서는 잠금이 없다 */
+        expect(body).not.toMatch(/userOverrides/);
     });
     it('🔴 하차 목록은 동선이면 라인이 없다고 본다 · 상차 목록은 시 · 군 · 구로 묶어 뺀다', () => {
         const fm = code('state/filterManager.ts');
