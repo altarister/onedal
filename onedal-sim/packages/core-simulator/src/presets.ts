@@ -631,7 +631,7 @@ export const PRESETS: Record<string, PresetProblem[]> = {
             why: '🚚 ①을 내린 자리에서 바로 실었다 — 하차지가 다음 상차지가 되는 흐름',
         },
         {
-            label: '⑦ 판교 → 인천 송도 · 34,650',
+            label: '⑦ 성남 시흥동 → 인천 송도 · 34,650',
             pickup: '판교 소프트웨어드림센터', dropoff: '인천 송도동 하차지',
             pickupFallback: PANGYO_SW, dropoffFallback: IC_SONGDO,
             fare: 34650, vehicleType: '오토바이',
