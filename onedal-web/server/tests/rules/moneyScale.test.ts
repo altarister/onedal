@@ -235,3 +235,118 @@ describe('🔗 연결 — 서버가 기름값·통행료를 판정에 넘긴다'
         expect(ev).toMatch(/extraKm:/);
     });
 });
+
+/**
+ * 🛣️⏳ **편함과 콜 대기 — «뒤에 더 할 수 있나»를 두 질문으로 나눠 잰다** (기사님 확정)
+ *
+ * 무엇을 막나
+ * - 두 축을 **한 칸에 담는 것** — 「약속」의 여유 눈금은 30분에서 천장을 친다. «늦나»와 «얼마나 남나»는 다른 질문이라
+ *   한 칸에 담으면 뒤의 것이 죽는다 (규칙 ⑤-4 ⑤)
+ * - 가중치가 없어 **기사님이 못 끄는 것** — 0 으로 두면 아예 안 본다
+ * - 새 문턱을 **또 만드는 것** — 편함은 배송 속도 셋, 콜 대기는 상차 약속 분을 그대로 눈금으로 쓴다
+ */
+describe('🛣️ 편함 — 평균 속도가 말한다', () => {
+    /* 🔴 「돈」은 켜 둔다 — 전부 끄면 점수를 낼 기준이 없어 «잴 수 없음»(🔴)이 된다. 실제 운행에서는 돈이 늘 점수를 낸다 */
+    const 켬 = (over: Partial<JudgmentConfig['weights']> = {}): JudgmentConfig => ({
+        ...DEFAULT_JUDGMENT,
+        weights: { ...DEFAULT_JUDGMENT.weights, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, wait: 0, ...over },
+    });
+    const 편함 = (km: number, min: number) => judge(CRITERIA, {
+        ...합짐(30_000),
+        comfort: { extraKm: km, extraMinutes: min },
+    }, 켬()).score;
+
+    it('🔴 고속으로 달리면 시내보다 높다', () => {
+        expect(편함(70, 60)!).toBeGreaterThan(편함(20, 60)!);   // 70km/h vs 20km/h
+    });
+
+    it('🔴 거리를 모르면 잴 게 없다 — 색을 🔴 로 만들지 않는다', () => {
+        const v = judge(CRITERIA, { ...합짐(30_000), comfort: { extraKm: null, extraMinutes: 60 } }, 켬());
+        expect(v.criteria.find(c => c.key === 'comfort')!.outcome.kind).toBe('nothing');
+        expect(v.color).not.toBe('사고');
+    });
+
+    it('🔴 가중치가 0 이면 안 본다', () => {
+        const 끔 = judge(CRITERIA, { ...합짐(30_000), comfort: { extraKm: 70, extraMinutes: 60 } },
+            { ...DEFAULT_JUDGMENT, weights: { ...DEFAULT_JUDGMENT.weights, comfort: 0 } });
+        const 켬2 = judge(CRITERIA, 합짐(30_000),
+            { ...DEFAULT_JUDGMENT, weights: { ...DEFAULT_JUDGMENT.weights, comfort: 0 } });
+        expect(끔.score).toBe(켬2.score);
+    });
+});
+
+describe('⏳ 콜 대기 — 이 콜이 시간을 얼마나 남겨 주나', () => {
+    /* ⏳ 여기는 콜 대기 눈금만 본다 — 돈까지 켜면 평균에 섞여 «몇 콜치»를 못 본다 */
+    const 켬 = (): JudgmentConfig => ({
+        ...DEFAULT_JUDGMENT,
+        weights: { ...DEFAULT_JUDGMENT.weights, revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, comfort: 0 },
+    });
+    const 대기 = (toPickup: number | null, delivery: number | null) => judge(CRITERIA, {
+        ...합짐(30_000),
+        wait: { toPickupMinutes: toPickup, deliveryMinutes: delivery },
+    }, 켬()).score;
+
+    /** 🔴 이 검사가 생긴 까닭 — 기사님: *"5분 걸리는 상차지와 20분 걸리는 상차지는 엄연히 달리 점수를 줘야"* */
+    it('🔴 가까운 상차지가 먼 상차지보다 높다 — 같은 20분 약속이라도 다르다', () => {
+        expect(대기(5, 0)!).toBeGreaterThan(대기(20, 0)!);
+    });
+
+    /** 🔴 기사님: *"배달거리는 길면 길수록 여유시간이 150%이니 많아져"* */
+    it('🔴 배송이 길수록 높다 — 마감 150% 의 여분이 쌓인다', () => {
+        expect(대기(10, 120)!).toBeGreaterThan(대기(10, 40)!);
+    });
+
+    it('상차 약속(20분)에 딱 맞춰 도착하고 배송이 없으면 0점 — 남는 것이 없다', () => {
+        expect(대기(20, 0)).toBe(0);
+    });
+
+    it('상차 여유 20분이면 한 콜치 50점 · 40분이면 두 콜치 100점', () => {
+        expect(대기(0, 0)).toBe(50);            // 상차 여유 20분 = 한 콜치
+        expect(대기(0, 40)).toBe(100);          // 상차 20 + 배송 40×50% = 20 → 40분 = 두 콜치
+    });
+
+    it('🔴 상차에 늦어도 배송 여유를 지우지 않는다 — 늦는 것은 「약속」의 몫이다', () => {
+        expect(대기(50, 200)!).toBeGreaterThan(0);
+    });
+
+    it('🔴 둘 다 모르면 잴 게 없다 — 색을 🔴 로 만들지 않는다', () => {
+        const v = judge(CRITERIA, { ...합짐(30_000), wait: { toPickupMinutes: null, deliveryMinutes: null } },
+            { ...DEFAULT_JUDGMENT });
+        expect(v.criteria.find(c => c.key === 'wait')!.outcome.kind).toBe('nothing');
+        expect(v.color).not.toBe('사고');
+    });
+
+    it('🔴 한쪽만 알아도 잰다 — 모르는 쪽을 0 으로 치지 않는다', () => {
+        expect(대기(5, null)).not.toBeNull();
+        expect(대기(null, 120)).not.toBeNull();
+    });
+
+    it('🔴 눈금이 상차 약속을 따라 움직인다 — 새 문턱을 안 만들었다', () => {
+        const 짧게: JudgmentConfig = { ...켬(), unknown: { ...켬().unknown, pickupPromiseMin: 10 } };
+        const v = judge(CRITERIA, { ...합짐(30_000), wait: { toPickupMinutes: 0, deliveryMinutes: 0 } }, 짧게);
+        expect(v.score).toBe(50);   // 10분 단위면 상차 여유 10분은 한 콜치
+    });
+
+    it('🔴 마감 비율을 따라 움직인다 — 150% 를 내리면 배송 여유가 준다', () => {
+        const 낮게: JudgmentConfig = { ...켬(), deadline: { ratioPct: 110 } };
+        const 높게 = judge(CRITERIA, { ...합짐(30_000), wait: { toPickupMinutes: 20, deliveryMinutes: 100 } }, 켬()).score;
+        const 낮은 = judge(CRITERIA, { ...합짐(30_000), wait: { toPickupMinutes: 20, deliveryMinutes: 100 } }, 낮게).score;
+        expect(높게!).toBeGreaterThan(낮은!);
+    });
+});
+
+describe('🔗 연결 — 서버가 두 축의 사실을 채운다', () => {
+    it('🔴 첫짐도 합짐도 편함·콜 대기를 넘긴다', () => {
+        const jf = readFileSync(join(__dirname, '../../src/core/engine/judgeFacts.ts'), 'utf8');
+        expect(jf).toContain('comfort:');
+        expect(jf).toContain('wait:');
+    });
+
+    it('🔴 가중치 칸 둘이 판정 기준 탭에 있다 — 기사님이 못 고치는 값을 만들지 않는다', () => {
+        const cols = JUDGMENT_FIELDS.map(f => f.col);
+        expect(cols).toContain('weight_comfort');
+        expect(cols).toContain('weight_wait');
+        expect(judgmentDefaults()['weight_comfort']).toBe(1);
+        expect(judgmentDefaults()['weight_wait']).toBe(1);
+    });
+});

@@ -61,6 +61,9 @@ export function firstLoadFacts(input: {
     extraKm?: number | null;
     fuelCostPerKm?: number | null;
     tollKrw?: number | null;
+    /** ⏳ 이 콜이 만드는 여유의 재료 — 타임라인이 이미 쟀다 (shared `WaitFacts`) */
+    toPickupMinutes?: number | null;
+    deliveryMinutes?: number | null;
     /**
      * 🧭 **목적지 전진율** −1~1 — 「지리」 기준이 배수로 바꾼다. 못 쟀으면 `null` 과 까닭.
      *    잰 곳은 `destProgressOf` 하나다 (여기서 다시 재지 않는다 · 규칙 ③).
@@ -86,6 +89,10 @@ export function firstLoadFacts(input: {
             fuelCostPerKm: input.fuelCostPerKm ?? null,
             tollKrw: input.tollKrw ?? null,
         },
+        /* 🛣️ 편함은 빈 차에도 잰다 — 이 콜로 달리는 길이 고속인가 시내인가는 짐과 무관하다 */
+        comfort: { extraKm: input.extraKm ?? null, extraMinutes: input.totalMinutes },
+        /* ⏳ 빈 차도 잰다 — «이 콜이 시간을 얼마나 남겨 주나»는 짐이 있든 없든 같은 질문이다 */
+        wait: { toPickupMinutes: input.toPickupMinutes ?? null, deliveryMinutes: input.deliveryMinutes ?? null },
         promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
         space: { freePct: null, hasLoad: false },
         nature: { conflicts: [], excludedHits: input.excludedHits, hasLoad: false },
@@ -172,6 +179,9 @@ export function mergeFacts(input: {
     extraKm?: number | null;
     fuelCostPerKm?: number | null;
     tollKrw?: number | null;
+    /** ⏳ 이 콜이 만드는 여유의 재료 — 타임라인이 이미 쟀다 (shared `WaitFacts`) */
+    toPickupMinutes?: number | null;
+    deliveryMinutes?: number | null;
     /** 붙인 뒤 남는 가장 빠듯한 여유(분). 잴 약속이 없으면 null */
     bufferAfterMin: number | null;
     /** 실었을 때 남는 자리(%). 못 세면 null. 🔴 음수를 0 으로 자르지 않는다 — 자르면 부족이 안 보인다 */
@@ -202,6 +212,9 @@ export function mergeFacts(input: {
             fuelCostPerKm: input.fuelCostPerKm ?? null,
             tollKrw: input.tollKrw ?? null,
         },
+        /* 🛣️⏳ 「돈」·「약속」이 받는 값과 **같은 것**을 넘긴다 — 여기서 다시 재지 않는다 (규칙 ③) */
+        comfort: { extraKm: input.extraKm ?? null, extraMinutes: input.extraMinutes },
+        wait: { toPickupMinutes: input.toPickupMinutes ?? null, deliveryMinutes: input.deliveryMinutes ?? null },
         promise: { hasExistingCalls: true, lateStops: input.lateStops, bufferAfterMin: input.bufferAfterMin },
         space: { freePct: input.freePct, hasLoad: true, confidence: input.confidence ?? null },
         nature: { conflicts: input.conflicts, excludedHits: input.excludedHits, hasLoad: true },

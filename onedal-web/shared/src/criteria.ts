@@ -176,6 +176,125 @@ export const MONEY = defineCriterion<MoneyFacts>({
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🛣️ 편함 — 이 길이 고속인가 시내인가
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export interface ComfortFacts {
+    /** 이 콜 때문에 더 달리는 거리(km) — 「돈」이 받는 값과 **같은 것**이다 */
+    extraKm: number | null;
+    /** 이 콜 때문에 더 쓰는 시간(분) — 「돈」이 받는 값과 **같은 것**이다 */
+    extraMinutes: number | null;
+}
+
+/**
+ * 🛣️ **운전이 편한가 — 평균 속도가 말한다** (기사님: *"고속도로 가니 편하고 빨라"*)
+ *
+ * 편함은 **돈이 아니다.** 고속도로는 톨비를 더 내므로 「돈」에서는 깎인다.
+ * 그런데 몸이 덜 상해 **뒤에 더 일할 수 있다** — 그것이 이 축이 재는 값어치다.
+ * 두 힘이 한 콜에 반대로 걸리는 것이 맞다. 무게는 기사님이 가중치로 정하신다.
+ *
+ * ```
+ * 평균 속도 = 더 달리는 거리 ÷ 더 쓰는 시간
+ * ```
+ *
+ * 🔴 **새 문턱을 만들지 않는다** — 판정 기준 탭의 배송 속도 셋(시내·국도·고속)을 그대로 눈금으로 쓴다.
+ *    그 값은 카카오 실측에서 나왔고, 기사님이 한 곳에서 고치시면 여기도 같이 움직인다 (규칙 ③).
+ * 🔴 **둘 중 하나라도 모르면 「잴 수 없다」가 아니라 「잴 게 없다」다** — 거리를 못 받은 것은
+ *    재료가 깨진 것이 아니라 **아직 안 실어 준 것**이라, 색을 🔴 로 만들면 안 된다 (규칙 ⑤-2).
+ * 🔴 **시간이 0 이하면 잴 게 없다** — 길목 콜은 더 달리지 않으니 «편함»을 물을 대상이 없다.
+ */
+export const COMFORT = defineCriterion<ComfortFacts>({
+    key: 'comfort', name: '편함', asks: '이 길이 고속인가 시내인가',
+    weightKey: 'comfort',
+    measure(f, cfg) {
+        if (!f || f.extraKm == null || f.extraMinutes == null) return nothing('주행을 안 받았습니다');
+        if (f.extraMinutes <= 0) return nothing('더 달리지 않습니다 — 길목');
+        /* 🔴 뒤로 가서 거리가 줄어든 합짐은 «편함»을 물을 대상이 아니다 — 그건 「돈」이 센다 */
+        if (f.extraKm <= 0) return nothing('더 달리지 않습니다');
+
+        const kmh = (f.extraKm / f.extraMinutes) * 60;
+        const { shortKmh, midKmh, longKmh } = cfg.speed;
+        /**
+         * 🔴 **눈금 셋을 꺾은선으로 잇는다** — 시내 0점 · 국도 50점 · 고속 100점.
+         *    세 값이 순서대로가 아니면(기사님이 이상하게 넣으셨으면) 비율이 뒤집히므로
+         *    `Math.max` 로 분모를 지킨다. 값을 지어내지는 않는다.
+         */
+        const score = kmh <= shortKmh ? 0
+            : kmh <= midKmh ? 50 * ((kmh - shortKmh) / Math.max(1, midKmh - shortKmh))
+            : kmh <= longKmh ? 50 + 50 * ((kmh - midKmh) / Math.max(1, longKmh - midKmh))
+            : 100;
+        const how = kmh <= shortKmh ? '시내' : kmh <= midKmh ? '시내·국도' : kmh <= longKmh ? '국도' : '고속';
+        return scored(score, `${Math.round(kmh)}km/h — ${how}`, false, kmh);
+    },
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ⏳ 콜 대기 — 이 콜을 하고도 콜을 더 기다릴 수 있나
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export interface WaitFacts {
+    /**
+     * 🚚 **상차지까지 가는 분** — 지금 자리에서 그 상차지에 닿는 데 걸리는 시간.
+     *    타임라인이 이미 쟀다 (`approachMinutes`). 모르면 `null`.
+     */
+    toPickupMinutes: number | null;
+    /**
+     * 📦 **배송 주행 분** — 상차지에서 하차지까지 혼자 갈 때 걸리는 시간 (`soloMinutes`).
+     *    모르면 `null`.
+     */
+    deliveryMinutes: number | null;
+}
+
+/**
+ * ⏳ **이 콜이 나에게 여유를 얼마나 만들어 주나** (기사님 확정)
+ *
+ * 기사님: *"상차까지 시간이 20분인데 여기서 5분 걸리는 상차지와 20분 걸리는 상차지는 엄연히 달리 점수를 줘야 하고.
+ * 배달거리는 길면 길수록 여유시간이 150%이니 많아져 다음 콜을 잡을 때도 여유스러울 수 있다."*
+ *
+ * ```
+ * 상차 여유 = 상차 약속 분 − 상차지까지 가는 분     (20분 약속에 5분이면 15분이 남는다)
+ * 배송 여유 = 배송 주행 분 × (마감 비율 − 100)%     (150% 면 주행의 절반이 남는다)
+ * 점수      = (상차 여유 + 배송 여유) ÷ 상차 약속 × 50   (한 콜치 50점 · 두 콜치 100점)
+ * ```
+ *
+ * 🔴 **「약속」과 묻는 것이 다르다.** 「약속」은 *«이미 잡은 콜에 늦나»* 를 묻고 여유 30분에서 천장을 친다 —
+ *    그게 맞다, 늦지만 않으면 되니까. 이쪽은 *«이 콜이 시간을 얼마나 남겨 주나»* 를 물어 **천장이 없다**.
+ *    그래서 기존 콜의 남은 여유(`minRouteBuffer`)를 여기서 또 보지 않는다 (규칙 ③).
+ *
+ * 🔴 **새 문턱을 만들지 않는다** — 눈금의 단위는 판정 기준 탭의 **상차 약속**이다.
+ *    콜을 하나 더 잡으려면 적어도 그 상차지까지 가야 하고 그 시간이 곧 상차 약속이라서다.
+ *    마감 비율도 같은 탭의 값이다 — 기사님이 고치시면 여기도 같이 움직인다.
+ *
+ * 🔴 **상차 여유가 음수여도 배송 여유를 지우지 않는다** — 상차에 늦는 것을 말하는 일은 「약속」의 몫이고,
+ *    여기서 또 깎으면 같은 사실을 두 번 센다. 다만 합이 음수면 0 점이다.
+ * 🔴 **둘 중 하나만 알아도 잰다** — 모르는 쪽은 0 으로 두지 않고 **빼고** 센다 (규칙 ⑤-2).
+ *    둘 다 모르면 「잴 게 없다」 — 색을 🔴 로 만들지 않는다.
+ */
+export const WAIT = defineCriterion<WaitFacts>({
+    key: 'wait', name: '콜 대기', asks: '이 콜이 시간을 얼마나 남겨 주나',
+    weightKey: 'wait',
+    measure(f, cfg) {
+        if (!f) return nothing('주행을 안 받았습니다');
+        if (f.toPickupMinutes == null && f.deliveryMinutes == null) return nothing('주행을 못 쟀습니다');
+
+        const promiseMin = Math.max(1, cfg.unknown.pickupPromiseMin);
+        const extraPct = Math.max(0, (cfg.deadline.ratioPct - 100) / 100);
+
+        const pickupSlack = f.toPickupMinutes == null ? null : promiseMin - f.toPickupMinutes;
+        const deliverySlack = f.deliveryMinutes == null ? null : f.deliveryMinutes * extraPct;
+        const slack = (pickupSlack ?? 0) + (deliverySlack ?? 0);
+
+        const calls = slack / promiseMin;
+        const score = Math.max(0, Math.min(100, calls * 50));
+        const part = [
+            pickupSlack == null ? '상차 모름' : `상차 ${pickupSlack >= 0 ? '+' : ''}${Math.round(pickupSlack)}분`,
+            deliverySlack == null ? '배송 모름' : `배송 +${Math.round(deliverySlack)}분`,
+        ].join(' · ');
+        return scored(score, `${part} = ${Math.round(slack)}분 · 약 ${calls.toFixed(1)}콜치 (상차 약속 ${promiseMin}분 기준)`, false, calls);
+    },
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ⏰ 약속 — 이미 잡은 콜에 늦지 않나
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -449,11 +568,13 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
  * 🔴 **판정 기준의 목록은 여기 하나다.** 더하거나 빼려면 이 배열만 고친다.
  *    순서가 곧 **화면에 보이는 순서**다.
  */
-export const CRITERIA: Array<Criterion<any>> = [MONEY, PROMISE, SPACE, NATURE, GEOGRAPHY];
+export const CRITERIA: Array<Criterion<any>> = [MONEY, COMFORT, WAIT, PROMISE, SPACE, NATURE, GEOGRAPHY];
 
 /** 사실 꾸러미 — 칸 이름이 기준의 `key` 와 같다. 각 기준은 **자기 칸만** 본다 */
 export type JudgeFacts = {
     money?: MoneyFacts;
+    comfort?: ComfortFacts;
+    wait?: WaitFacts;
     promise?: PromiseFacts;
     space?: SpaceFacts;
     nature?: NatureFacts;

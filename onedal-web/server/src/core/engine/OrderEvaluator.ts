@@ -235,6 +235,12 @@ export class OrderEvaluator {
                             fuelCostPerKm: SettingsRepository.getFuelCostPerKm(userId),
                             tollKrw: result.tollKrw ?? null,
                             /**
+                             * ⏳ **이 콜이 만드는 여유** — 상차 약속에서 상차지까지 가는 시간을 빼고,
+                             *    배송 주행의 마감 여분(150% 의 50%)을 더한다. 셈은 shared 「콜 대기」 한 곳이다 (규칙 ③).
+                             */
+                            toPickupMinutes: securedOrder.approachDurationMin ?? null,
+                            deliveryMinutes: securedOrder.kakaoSoloDurationMin ?? null,
+                            /**
                              * 🔙 **등 뒤 상차** — 첫짐에는 한계 우회가 없어 되돌아가는 거리를
                              *    「돈」이 못 센다. 그물이 쓰는 식과 한 벌이다 (`isPickupBackward`).
                              */
@@ -440,6 +446,14 @@ export class OrderEvaluator {
                                 extraKm: Number.isFinite(distDiff) ? distDiff : null,
                                 fuelCostPerKm: SettingsRepository.getFuelCostPerKm(userId),
                                 tollKrw: result.tollDiffKrw ?? null,
+                                /**
+                                 * ⏳ **이 콜이 만드는 여유** — 상차지까지 가는 시간은 타임라인이 낸
+                                 *    **후보 상차 도착 예정**에서 지금을 뺀 값이다 (현위치부터 앞 정거장을 다 더한 시각).
+                                 *    🔴 여기서 다시 재지 않는다 (규칙 ③) · 못 쟀으면 `null` 이라 그 항목만 빠진다.
+                                 */
+                                toPickupMinutes: candPickup?.etaMs != null
+                                    ? Math.round((candPickup.etaMs - Date.now()) / 60_000) : null,
+                                deliveryMinutes: soloMinutesOf(securedOrder as any, derivation.rules).minutes,
                                 bufferAfterMin: bufAfter?.minutes ?? null,
                                 /**
                                  * 📦 **음수를 0 으로 자르지 않는다.** 자르면 «자리 부족»이 «여유 0%»로 보여
@@ -527,9 +541,11 @@ export class OrderEvaluator {
             const why = reasons.length ? reasons.join(' · ') : timeExt;
             const dry = toSnapshot(judge(CRITERIA, firstLoadFacts({
                 fare: securedOrder.fare, totalMinutes: null, excludedHits,
-                /* ⛽ 거리를 모르는 자리다 — 기름값이 있어도 «거리 모름»이라 안 뺀다 (규칙 ④) */
+                /* ⛽⏳ 거리·시간을 모르는 자리다 — 없으면 그 항목만 빠진다 (규칙 ④) */
                 extraKm: securedOrder.kakaoSoloDistanceKm ?? null,
                 fuelCostPerKm: SettingsRepository.getFuelCostPerKm(userId),
+                toPickupMinutes: securedOrder.approachDurationMin ?? null,
+                deliveryMinutes: securedOrder.kakaoSoloDurationMin ?? null,
                 /**
                  * 🧭 **시간을 못 재도 방향은 잰다** — 좌표만 있으면 전진율과 «멀어진 km» 가 나온다.
                  *    까닭이 빠지면 화면이 «재료가 없다» 로 읽는다.

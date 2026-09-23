@@ -100,6 +100,20 @@ export interface JudgmentConfig {
         /** 🧪 **같이 못 실음** — 함께 실으면 안 되는 성질인가 (적재는 «공간», 이것은 «성질») */
         cargoCompat: number;
         /**
+         * 🛣️ **운전 편함** — 이 콜로 달리는 길이 고속인가 시내인가 (기사님: *"고속도로 가니 편하고 빨라"*).
+         *    평균 속도를 아래 `speed` 눈금에 대어 잰다 — 새 문턱을 만들지 않는다.
+         *    편하면 몸이 덜 상해 **뒤에 더 일할 수 있다.** 그래서 «돈»이 아니라 제 축이다.
+         *    0 이면 안 본다.
+         */
+        comfort: number;
+        /**
+         * ⏳ **콜 대기** — 이 콜을 하고도 콜을 더 기다릴 수 있나 (기사님: *"콜 대기 많이 할 수 있어"*).
+         *    남는 여유를 **상차 약속** 단위로 잰다 — 새 문턱을 만들지 않는다.
+         *    「약속」이 *«늦나»* 를 묻는 것과 달리 이쪽은 *«얼마나 남나»* 를 물어 천장이 없다.
+         *    0 이면 안 본다.
+         */
+        wait: number;
+        /**
          * 🧭 **지리** — 가는 길 위에 있나. **기본 0 (안 봄)** — 기사님과 확정.
          *
          * 합짐의 지리는 「돈」(우회 시급)이 이미 세고, 첫짐의 지리는 앱이 집기 전에
@@ -195,7 +209,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupPromiseMin: 20 },
     pass: { nearM: 300, awayM: 400 },
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
-    weights: { revenueDetour: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 1 },
+    weights: { revenueDetour: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 1, comfort: 1, wait: 1 },
     target: { hourlyKrw: 30_000, honeyHourlyKrw: 50_000, soloHourlyKrw: 25_000 },
     destBonus: { max: 2.0, min: 0.5, trappedMult: 0.6, awayFreeKm: 30, awayHardKm: 150 },
     deadline: { ratioPct: 150 },
@@ -280,6 +294,12 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'weight_cargo_compat', path: ['weights', 'cargoCompat'], group: '가중치',
       label: '같이 못 실음', unit: '배', min: 0, max: 10, int: false,
       why: '함께 실어도 되는 **성질**인가 (위험물+식료품 등). 적재(공간)와 다르다. 0 이면 검사를 끈다' },
+    { col: 'weight_comfort', path: ['weights', 'comfort'], group: '가중치',
+      label: '운전 편함', unit: '배', min: 0, max: 10, int: false,
+      why: '이 콜로 달리는 길이 고속인가 시내인가 — 평균 속도를 «모를 때» 무리의 배송 속도 셋에 대어 잰다. 편하면 몸이 덜 상해 뒤에 더 일할 수 있다. 0 이면 안 본다' },
+    { col: 'weight_wait', path: ['weights', 'wait'], group: '가중치',
+      label: '콜 대기', unit: '배', min: 0, max: 10, int: false,
+      why: '이 콜을 하고도 콜을 더 기다릴 수 있나 — 남는 여유를 «데드라인» 무리의 상차 약속 분으로 나눠 «몇 콜치»로 잰다. 「기존 콜 약속 보존」이 «늦나»를 묻는 것과 다른 질문이다. 0 이면 안 본다' },
     { col: 'weight_geography', path: ['weights', 'geography'], group: '가중치',
       label: '지리 (첫짐 전진 배수)', unit: '켜기/끄기', min: 0, max: 10, int: false,
       why: '**0 이면 배수를 안 붙인다 — 크기는 뜻이 없다** (배수는 평균의 한 항이 아니라 총점에 곱하는 값이라서). 배수의 크기는 위 «첫짐» 무리의 두 칸이 정한다. 합짐에는 안 붙는다 — 그쪽 지리는 우회 시급이 이미 센다' },

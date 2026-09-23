@@ -77,9 +77,11 @@ describe('① 기준은 자기 몫의 사실만 본다', () => {
 
 describe('② 기준을 빼도 나머지가 그대로 돈다', () => {
     it('🔴 「돈」을 목록에서 빼도 엔진은 그대로다', () => {
-        const 넷 = CRITERIA.filter(c => c.key !== 'money');
-        const v = judge(넷, 좋은합짐(), cfg());
-        expect(v.criteria.map(c => c.key)).toEqual(['promise', 'space', 'nature', 'geography']);
+        /* 🔴 목록을 손으로 적지 않는다 — 기준이 늘 때마다 깨지면 이 검사가 잡으려던 것과 다른 일을 한다 */
+        const 나머지 = CRITERIA.filter(c => c.key !== 'money');
+        const v = judge(나머지, 좋은합짐(), cfg());
+        expect(v.criteria.map(c => c.key)).toEqual(나머지.map(c => c.key));
+        expect(v.criteria.map(c => c.key)).not.toContain('money');
         expect(v.score).not.toBeNull();
     });
 
@@ -113,7 +115,7 @@ describe('③ 기준을 더해도 엔진을 안 고친다', () => {
         const v = judge([...CRITERIA, 새기준], f, cfg());
         const 줄 = v.criteria.find(c => c.key === 'brandNew')!;
         expect(줄.outcome).toMatchObject({ kind: 'scored', score: 0 });
-        expect(v.criteria).toHaveLength(6);
+        expect(v.criteria).toHaveLength(CRITERIA.length + 1);   // 목록 + 새 기준 하나
     });
 
     it('새 기준이 평균을 실제로 움직인다', () => {
