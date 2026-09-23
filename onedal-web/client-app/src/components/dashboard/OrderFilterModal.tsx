@@ -623,9 +623,10 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         목적지는 지금 자동 ({tab === 'home' && homeAddress ? homeAddress : PHASE_AUTO_SOURCE[tab]})
                                     </p>
                                 )}
-                                {/* 🎯 도 · 시·군·구 두 칸 — 복귀 토글은 저장 줄에 있다 */}
+                                {/* 🎯 시·도 · 시·군·구 두 칸 — 복귀 토글은 저장 줄에 있다.
+                                    시·도에는 도(경기)와 특별시 · 광역시(서울 · 인천 · 대전)가 함께 선다 */}
                                 <div className="relative grid grid-cols-2 gap-1">
-                                    <PickLayer label="🎯 도" value={dstSido || '— 선택 —'}
+                                    <PickLayer label="🎯 시·도" value={dstSido || '— 선택 —'}
                                         options={cityGroups.map(g => g.sido)}
                                         open={openKnob === 'dstSido'}
                                         onToggle={() => setOpenKnob(o => o === 'dstSido' ? null : 'dstSido')}

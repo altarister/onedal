@@ -3114,7 +3114,7 @@ export default function MapMockup() {
                       * 복귀는 «어디를 향하나»라는 같은 질문의 다른 답이라 같은 줄에 둔다.
                       */}
                     <div className="relative grid grid-cols-3 gap-1">
-                        <PickLayer label="🎯 도" value={dstSido} options={sidoList()}
+                        <PickLayer label="🎯 시·도" value={dstSido} options={sidoList()}
                             open={openKnob === 'dstSido'} onToggle={() => setOpenKnob(o => o === 'dstSido' ? null : 'dstSido')}
                             onPick={v => { freezeView(); setDstSido(v); setDstSgg(sggList(v)[0]); }} />
                         <PickLayer label="시·군·구" value={dstSgg} options={sggList(dstSido)}

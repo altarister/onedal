@@ -3,7 +3,7 @@ import path from 'path';
 import { getActiveCalls } from '../core/helpers';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
-import { DEFAULT_JUDGMENT, isPickupListName, cityCenter, distToLineKm, aheadOf, isAheadOf, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
+import { DEFAULT_JUDGMENT, isPickupListName, cityCenter, sidoOf, sggList, distToLineKm, aheadOf, isAheadOf, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
 import type { GoalZone, NetPoint, NetParams } from '@onedal/shared';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
@@ -1731,12 +1731,19 @@ export function trapsForKeywords(keywords: string[]): Record<string, string[]> {
  *
  * ══ 어떤 단위로 묶는가 ══
  *
- * 지도 데이터의 `parentName` 은 표기가 세 갈래다.
- *   `서울 강남구` · `인천 중구` · `파주시` · `수원시 권선구`
- * 기사님이 고르는 단위는 **시**다. 그래서
- *   서울·인천 → 광역시 하나로 (`서울` 이면 25개 구 전부)
- *   경기       → 시/군 단위로 (`수원시` 면 4개 구 전부)
- * 이렇게 묶으면 `getCityRegionsWithRadius` 의 `includes` 검색과 그대로 맞물린다.
+ * 지도 데이터의 `parentName` 은 표기가 두 갈래다.
+ *   `서울 강남구` · `인천 중구` · `대전 유성구`   — 특별시 · 광역시는 **구**까지 적혀 있다
+ *   `파주시` · `수원시 권선구`                     — 도의 시 · 군
+ *
+ * 🔴 **시·도는 손으로 적지 않는다** — 동 사전(`sidoOf`)이 답한다. «서울·인천만 광역시»로
+ *    적어 두면 대전이 경기도의 시처럼 줄에 선다 (2026-09-23 기사님 지적).
+ *
+ * 특별시 · 광역시는 **구를 펼치고 맨 앞에 시 전체**를 둔다 (`서울` · `서울 강남구` · …).
+ * 기사님이 강남구만 노리실 수도, 서울 전체로 두실 수도 있어야 한다.
+ * 도는 시 · 군까지만 낸다 (`수원시` 면 그 안 4개 구 전부).
+ *
+ * 값은 지도의 `parentName` 그대로다 — `cityCenter` 가 «서울»은 접두로 모아 평균을 내고
+ * «서울 강남구»는 정확히 하나를 찾는다. 「중구」처럼 두 시에 다 있는 이름은 홀로 쓰지 않는다.
  */
 export function getSelectableCities(): { sido: string; cities: string[] }[] {
     if (!mergedMapFeatureCollection?.features) return [];
@@ -1747,20 +1754,29 @@ export function getSelectableCities(): { sido: string; cities: string[] }[] {
         if (!parent) continue;
 
         const head = parent.split(' ')[0];
-        // 광역시는 그 자체가 하나의 선택지다 (구까지 나누면 25개가 쏟아진다)
-        const isMetro = head === '서울' || head === '인천';
-        const sido = isMetro ? head : '경기';
-        const city = isMetro ? head : head;   // 경기는 head 가 이미 시/군 이름이다
+        const sido = sidoOf(parent);
+        if (!sido) continue;   // 사전이 모르는 이름은 지어내지 않는다 (규칙 ④)
 
         if (!bySido.has(sido)) bySido.set(sido, new Set());
-        bySido.get(sido)!.add(city);
+        /* 특별시 · 광역시는 첫 낱말이 곧 시·도 이름이다 — 그 아래를 구로 고른다.
+           도는 첫 낱말이 이미 시 · 군 이름이라 거기서 멈춘다 */
+        bySido.get(sido)!.add(head === sido ? parent : head);
     }
 
-    // 광역시 먼저, 그 다음 경기 (가나다순)
-    const order = ['서울', '인천', '경기'];
-    return order
-        .filter(s => bySido.has(s))
-        .map(sido => ({ sido, cities: Array.from(bySido.get(sido)!).sort((a, b) => a.localeCompare(b, 'ko')) }));
+    /* 🏙️ 특별시 · 광역시 먼저, 그 다음 도 — 각각 가나다순.
+       시 전체(`서울`)를 구들보다 앞에 세운다 */
+    return Array.from(bySido.keys())
+        .sort((a, b) => a.localeCompare(b, 'ko'))
+        .sort((a, b) => Number(isProvince(a)) - Number(isProvince(b)))
+        .map(sido => {
+            const cities = Array.from(bySido.get(sido)!).sort((a, b) => a.localeCompare(b, 'ko'));
+            return { sido, cities: isProvince(sido) ? cities : [sido, ...cities] };
+        });
+}
+
+/** 도인가 — 그 시·도 이름이 시·군·구 목록에 그대로 나오지 않으면 도다 (`경기` · `충남`) */
+function isProvince(sido: string): boolean {
+    return !sggList(sido).some(sgg => sgg.split(' ')[0] === sido);
 }
 
 /**

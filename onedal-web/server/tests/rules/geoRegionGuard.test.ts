@@ -51,3 +51,34 @@ describe('🗺️ 기대지역은 지도가 답한다', () => {
         expect(kakao()).toMatch(/continue;/);
     });
 });
+
+/**
+ * 🏙️ **필터 「어디로」의 두 칸 — 시·도 · 시·군·구**
+ *
+ * 기사님 지적 (2026-09-23): *"필터 어디로 도로 표시 하고 있는데 의미가 도 + 특·광·특별자치시
+ * 여야 할꺼 같고, 특·광·특별자치시를 선택하면 시 군 구에 구가 표현 되어야 할꺼 같아."*
+ *
+ * 그전에는 «서울·인천만 광역시»를 코드에 적어 두어 **대전이 경기도의 시처럼 줄에 섰고**,
+ * 서울을 골라도 시·군·구 칸에 `서울` 하나뿐이라 **구를 고를 수 없었다.**
+ */
+describe('🏙️ 고를 수 있는 시·도 · 시·군·구는 지도가 답한다', () => {
+    const geo = codeOnly(readFileSync(join(__dirname, '../../src/services/geoService.ts'), 'utf8'));
+
+    it('🔴 «어느 것이 광역시인가»를 손으로 적지 않는다 — 동 사전(sidoOf)이 답한다', () => {
+        expect(geo).not.toMatch(/head === '서울'/);
+        expect(geo).not.toMatch(/isMetro/);
+        expect(geo).toMatch(/sidoOf\(parent\)/);
+    });
+
+    it('🔴 특별시 · 광역시는 구를 펼치고 맨 앞에 시 전체를 둔다', () => {
+        /* 시 전체를 빼면 서울 25개 구 중 하나만 고르게 되어 나머지 24개 구 콜이 통째로 막힌다 */
+        expect(geo).toMatch(/\[sido, \.\.\.cities\]/);
+    });
+
+    it('🔴 화면 라벨이 칸의 내용과 같다 — 도만 있는 칸이 아니다', () => {
+        const modal = codeOnly(readFileSync(
+            join(__dirname, '../../../client-app/src/components/dashboard/OrderFilterModal.tsx'), 'utf8'));
+        expect(modal).toMatch(/<PickLayer label="🎯 시·도"/);
+        expect(modal).not.toMatch(/<PickLayer label="🎯 도"/);
+    });
+});

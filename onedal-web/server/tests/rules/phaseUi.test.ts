@@ -349,7 +349,7 @@ describe('목적지 — 도 · 시 2단 (C4-2)', () => {
 
     it('🔴 <select> 가 사라졌다 — 목업과 같은 고르기 칸을 쓴다', () => {
         expect(modal).not.toMatch(/<select/);
-        expect(modal).toMatch(/<PickLayer label="🎯 도"/);
+        expect(modal).toMatch(/<PickLayer label="🎯 시·도"/);
     });
 
     /**
@@ -362,7 +362,7 @@ describe('목적지 — 도 · 시 2단 (C4-2)', () => {
      *    **첫 항목(용인시)** 을 그려 기사님이 필터를 용인으로 잘못 아신다.
      */
     it('🔴 도·시 목록은 cityGroups 에서 온다 (지도 데이터가 아니다)', () => {
-        const dst = modal.slice(modal.indexOf('🎯 도'), modal.indexOf('🎯 도') + 2000);
+        const dst = modal.slice(modal.indexOf('🎯 시·도'), modal.indexOf('🎯 시·도') + 2000);
         expect(dst).toMatch(/cityGroups/);
         expect(dst).not.toMatch(/sidoList\(\)/);
         expect(dst).not.toMatch(/sggList\(/);
@@ -380,7 +380,7 @@ describe('목적지 — 도 · 시 2단 (C4-2)', () => {
 
     /** 🔴 도를 옮기면 시도 그 도의 것으로 따라간다 — 안 그러면 «경기 + 김포시»가 남는다 */
     it('🔴 도를 바꾸면 시가 그 도의 것으로 따라간다', () => {
-        const dst = modal.slice(modal.indexOf('🎯 도'), modal.indexOf('🎯 도') + 2000);
+        const dst = modal.slice(modal.indexOf('🎯 시·도'), modal.indexOf('🎯 시·도') + 2000);
         expect(dst).toMatch(/citiesOf\(/);
     });
 });
@@ -898,7 +898,7 @@ describe('필터 디자인 — 목업 순서 (C4-6)', () => {
         const 국면 = at(/const homeOn = /);
         const 저장줄 = at(/data-save-bar/);
         const 노선동선 = at(/🛣️ 노선/);
-        const 목적지 = at(/<PickLayer label="🎯 도"/);
+        const 목적지 = at(/<PickLayer label="🎯 시·도"/);
         /* 🔴 `QUAD_FIELDS.map` 은 폼 초기화에도 나온다 — **그리는 쪽**을 집는다 */
         const 그물 = at(/knobs=\{QUAD_FIELDS\.map/);
         const 반경 = at(/KNOB_FIELDS\.map/);
