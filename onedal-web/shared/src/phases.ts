@@ -413,39 +413,3 @@ export function filterValuesFrom(src: Record<string, unknown> | null | undefined
     return out;
 }
 
-/** 복귀 전환을 생략하는 집 반경 */
-export const HOME_RADIUS_KM = 5;
-
-/**
- * 🧭 **타겟 자동 순환 — 하차를 마칠 때마다 묻는다** — 타겟은 사이클이 끝나면 저절로 넘어간다.
- *
- *   노선(DEST) 콜을 다 내렸다 → 복귀(HOME) 제안     단, 마지막 하차지가 집 반경 안이면 유지 (복귀 무의미)
- *   복귀(HOME) → 노선(DEST)                          🔴 **마지막 복귀콜을 집 가까이(`HOME_RADIUS_KM`) 내렸을 때만**
- *
- * 🔴 **쥔 콜 0건으로 복귀를 끄지 않는다** — 복귀를 켜고 목적지 콜만 내려놓은 것(27)도,
- *    복귀콜 3개 중 첫 콜을 가는 길 중간에 내린 것도 복귀가 끝난 게 아니다. 방향은 기사님이 켠 값이다.
- * 🔴 **하차 완료로 끝난 것에만** 발동한다 — 취소·방출은 없던 일이다 (호출부가 DELIVERED 처리부에 있다).
- * 🔴 집까지의 거리를 모르면(null) 전환하지 않는다 — 지어내지 않는다 (규칙 ④).
- * 자동은 **제안**이다 — 기사님 토글이 언제나 이긴다.
- */
-export function decideTargetAfterDelivery(input: {
-    /** 지금 타겟 */
-    current: string | undefined;
-    /** 이번 하차 뒤 진행 중인 콜 수 */
-    remainingCount: number;
-    /** 이번 하차지 → 집 거리 (모르면 null) */
-    distToHomeKm: number | null;
-    /** 방금 내린 콜이 복귀콜인가 (`isHomeCallSince`) */
-    deliveredHomeCall: boolean;
-    /** 진행 중인 복귀콜 수 */
-    homeCallsInProgress: number;
-}): 'DEST' | 'HOME' | null {
-    const cur = input.current ?? 'DEST';
-    const dist = input.distToHomeKm;
-    if (cur === 'HOME') {
-        if (!input.deliveredHomeCall || input.homeCallsInProgress > 0) return null;
-        return dist !== null && dist <= HOME_RADIUS_KM ? 'DEST' : null;   // 집에 왔다 — 다음 왕복
-    }
-    if (input.remainingCount > 0 || dist === null) return null;
-    return dist <= HOME_RADIUS_KM ? null : 'HOME';          // 이미 집 근처면 복귀 제안이 무의미하다
-}

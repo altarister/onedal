@@ -343,7 +343,6 @@ describe('마름모 칸 — 숫자판이 아니라 슬라이더 레이어 (C4-1)
  *    기사님: *"복귀도 목적지와 같은 뎁스니까 목적지 옆에 있는 것이 맞을 것 같아."*
  *    목업의 복귀 토글(`homeOn`)은 **목적지를 하나 더 얹는 것**이라 되돌리기가 공짜다.
  *    실물의 복귀는 **`callTarget` 전환**이고, 입구는 저장 줄의 «↩️ 복귀» 버튼 하나다.
- *    귀가콜 오더 생성(집까지 가는 **가상 오더를 만든다**)은 다른 일이라 토글로 켰다 끌 것이 아니다.
  *    이 비대칭은 결정이다 — «목업에 있으니 넣자»로 지우지 않는다.
  */
 describe('목적지 — 도 · 시 2단 (C4-2)', () => {
@@ -1063,9 +1062,13 @@ describe('국면 전환 — 입구는 하나, 확인창을 거친다', () => {
         expect(dash2).not.toMatch(/filterCompact/);
     });
 
-    it('귀가콜은 전환이 아니라 오더 생성이라 팝업에 남는다', () => {
-        // 뺄 거면 다른 입구를 먼저 만들어야 한다 — 지금은 여기가 유일하다
-        expect(modal).toMatch(/create-home-return/);
+    it('🔴 집으로 가는 콜을 서버가 지어내는 입구가 없다 — 배차망에서 뜨는 진짜 콜을 잡는다', () => {
+        /* 복귀는 목적지 한 칸이 느는 것일 뿐이다 (기사님 확정) —
+           목적지행 첫콜을 잡는 것과 다르지 않으니 운임 0원 가상 오더를 만들 자리가 없다 */
+        expect(modal).not.toMatch(/create-home-return/);
+        expect(modal).not.toMatch(/귀가콜/);
+        expect(engine).not.toMatch(/createHomeReturn/);
+        expect(handlers).not.toMatch(/home-return/);
     });
 });
 

@@ -13,7 +13,7 @@ import { PlaceRepository } from "../repositories/PlaceRepository";
 import { lastKnownPositionOf, MOCK_GPS_OWNER_QUIET_MS } from "../services/geoService";
 import { getUserSession, getAllActiveUserIds, UserSession } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
-import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
+import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
 import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
 import type { RouteTl } from "../services/stepSeeder";
 
@@ -867,16 +867,6 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "set-call-target", async (data: { phase: CallTarget }) => {
             const result = await setCallTarget(userId, data?.phase ?? 'DEST', io, 'driver');
             socket.emit("call-target-ack", result);
-        });
-
-        // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 경유 자동 세팅
-        safeOn(socket, "create-home-return", async (data?: { detourRadiusKm?: number, destinationRadiusKm?: number }) => {
-            const result = await createHomeReturn(userId, io, data);
-            if (result.success) {
-                socket.emit("home-return-ack", { success: true, orderId: result.orderId });
-            } else {
-                socket.emit("home-return-error", { message: result.message });
-            }
         });
 
         socket.on("disconnect", () => {

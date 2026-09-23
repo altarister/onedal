@@ -1,4 +1,4 @@
-import { restoreWhere, decideTargetAfterDelivery, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
+import { restoreWhere, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
@@ -1315,36 +1315,6 @@ export async function reportMilestone(
         await recalcRouteIfStopsChanged(userId, io, '하차 완료');
         console.log(`🚚 [적재 회복] 하차 완료 → 남은 활성 콜 ${remaining.length}건 기준으로 필터 재계산`);
 
-        /**
-         * 🧭 타겟 자동 순환
-         *
-         * 🔴 **여기(DELIVERED 처리부)에 있는 이유**: "하차 완료로 끝난 사이클"에만 발동해야
-         *    하는데, STANDBY 복귀 불변식은 취소·방출로 0건이 된 경우도 지나간다 — 거기서는
-         *    끝난 건지 무산된 건지 모른다. 마일스톤이 원인을 아는 유일한 자리가 여기다.
-         *
-         * 자동은 **제안**이다 — setCallTarget 한 길로만 가고(파생 한 곳), 스와이프가 언제나 이긴다.
-         */
-        {
-            const home = SettingsRepository.getHomeLocation(userId);
-            const distToHome = (home && order.dropoffX != null && order.dropoffY != null)
-                ? haversineKm(order.dropoffY, order.dropoffX, home.y, home.x)
-                : null;
-            /* 🔴 «쥔 콜 0건»으로 감싸지 않는다 — 복귀 끝은 0건이 아니라 «마지막 복귀콜을 집 가까이 내림»으로 안다 (#131) */
-            const next = decideTargetAfterDelivery({
-                current: session.activeFilter.callTarget,
-                remainingCount: remaining.length,
-                distToHomeKm: distToHome,
-                deliveredHomeCall: homeCallsOf(session, userId, [order as any]).length > 0,
-                homeCallsInProgress: homeCallsOf(session, userId, remaining).length,
-            });
-            if (next && next !== session.activeFilter.callTarget) {
-                const from = session.activeFilter.callTarget ?? 'DEST';
-                console.log(`🧭 [타겟 자동 순환] ${from} → ${next} (집까지 ${distToHome === null ? '모름' : distToHome.toFixed(1) + 'km'} · 남은 콜 ${remaining.length}건)`);
-                await setCallTarget(userId, next, io, 'auto');
-                console.log(`📤 [Socket 푸시] target-auto-switched (${from} → ${next})`);
-                io.to(userId).emit("target-auto-switched", { from, to: next });
-            }
-        }
     }
 
     /**
@@ -1488,78 +1458,3 @@ export async function setCallTarget(
     }
 }
 
-/**
- * 귀가콜 생성: 현재 위치 → 집 주소로 가상 오더 생성 + 경유 자동 세팅
- */
-export async function createHomeReturn(
-    userId: string, 
-    io: any, 
-    options?: { detourRadiusKm?: number; destinationRadiusKm?: number }
-): Promise<{ success: boolean; orderId?: string; message?: string }> {
-    try {
-        const session = getUserSession(userId);
-        const settings = db.prepare("SELECT home_address, home_x, home_y, vehicle_type FROM user_settings WHERE user_id = ?").get(userId) as any;
-
-        if (!settings || !settings.home_address) {
-            return { success: false, message: "집 주소가 설정되지 않았습니다. 설정에서 먼저 등록해주세요." };
-        }
-        if (!settings.home_x || !settings.home_y) {
-            return { success: false, message: "집 주소의 좌표가 없습니다. 설정에서 📍위치 확인 후 다시 저장해주세요." };
-        }
-
-        const currentLoc = originOf(session);
-        const pickupX = currentLoc?.x || settings.home_x;
-        const pickupY = currentLoc?.y || settings.home_y;
-
-        const homeOrder = {
-            id: `home-${Date.now()}`,
-            type: 'MANUAL' as const,
-            pickup: '현재 위치',
-            dropoff: settings.home_address,
-            fare: 0,
-            pickupX, pickupY,
-            dropoffX: settings.home_x,
-            dropoffY: settings.home_y,
-            status: 'ORDER_CONFIRMED' as const,
-            capturedDeviceId: 'control-tower',
-            capturedAt: new Date().toISOString(),
-            timestamp: new Date().toISOString(),
-            vehicleType: settings.vehicle_type || '1t',
-            receiptStatus: '귀가',
-            itemDescription: '귀가 운행',
-            tripType: '편도',
-            orderForm: '보통',
-            paymentType: '선불' as const,
-            billingType: '무과세' as const,
-            companyName: '자가 운행',
-            dispatcherName: '관제탑 (자동생성)',
-            isMock: false,
-            isShared: false,
-            commissionRate: '0%',
-            tollFare: '0',
-        };
-
-        session.myOrders.push(homeOrder as any);
-        await evaluateNewOrder(userId, homeOrder as any, io);
-        // 🏠 귀가콜은 기사님이 직접 생성한 확정 콜이므로, 평가 후 AWAITING_DECISION으로 바뀐 상태를 ORDER_CONFIRMED로 즉시 복원
-        homeOrder.status = 'ORDER_CONFIRMED';
-
-        const targetDetour = options?.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM;
-        updateActiveFilter(userId, {
-            dispatchPhase: 'GATHERING',
-            isSharedMode: true,
-            isActive: true,
-            detourRadiusKm: targetDetour,
-        }, io);
-        session.filterLine = getActivePolyline(session);   // 🛣️ 귀가콜도 확정 — 라인을 얼린다
-        syncDetourFilter(userId, io);
-
-        console.log(`🏠 [귀가콜] 가상 오더 생성 완료: ${settings.home_address}`);
-        io.to(userId).emit("order-confirmed", homeOrder.id);
-
-        return { success: true, orderId: homeOrder.id };
-    } catch (e: any) {
-        console.error("🏠 [귀가콜] 에러:", e);
-        return { success: false, message: e.message || "귀가콜 생성 실패" };
-    }
-}

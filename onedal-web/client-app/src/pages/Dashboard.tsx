@@ -1,4 +1,3 @@
-import { isTerminal } from "@onedal/shared";
 import { mergeOrderViews } from "../lib/orderMerge";
 import Header from "../components/layout/Header";
 import Drawer from "../components/layout/Drawer";
@@ -148,12 +147,6 @@ export default function Dashboard() {
     //    상태 목록을 여기 손으로 적으면 ORDER_PICKED_UP 같은 상태가 빠져 상차한 콜이 화면에서 사라진다.
     const activeRoute = mergeOrderViews(orders, terminatedOrders, liveCalls);
     /* 🪧 심사 중인 콜은 무대(`StageView`)가 파생 훅에서 직접 고른다 (`d.judging`) */
-    // 취소·방출·완료된 귀가콜은 "진행 중"이 아니다.
-    // 걸러내지 않으면 한 번 귀가콜을 만들었다 취소한 뒤로 다시 만들 수 없게 된다.
-    const hasHomeReturnActive = activeRoute.some(
-        o => !isTerminal(o.status) && (o.receiptStatus === '귀가' || o.id?.startsWith('home-'))
-    );
-
 
     /**
      * 📢 **서버가 «대신 한 일»만 잠깐 알린다.**
@@ -185,13 +178,6 @@ export default function Dashboard() {
             setGpsNotice(`🚚 ${data.message}`);
             setTimeout(() => setGpsNotice(null), NOTICE_MS);
         };
-        // 타겟 자동 순환 — 미리 눌러 둔 것이니 스와이프로 언제든 뒤집을 수 있다
-        const onTargetSwitched = (d: { from: string, to: string }) => {
-            setGpsNotice(d.to === 'HOME'
-                ? '🏠 복귀행으로 바꿔 뒀습니다 — 시간이 남으면 관내로 스와이프'
-                : '🎯 집에 도착했습니다 — 노선행으로 돌아갑니다');
-            setTimeout(() => setGpsNotice(null), NOTICE_MS);
-        };
         /**
          * 🔔 **새 콜이 뜨면 보이는 탭으로 데려온다** (기사님 실측).
          *
@@ -212,12 +198,10 @@ export default function Dashboard() {
 
         socket.on("auto-delivered", onAutoDelivered);
         socket.on("auto-passed", onAutoPassed);
-        socket.on("target-auto-switched", onTargetSwitched);
         socket.on("order-evaluating", onNewCall);
         return () => {
             socket.off("auto-delivered", onAutoDelivered);
             socket.off("auto-passed", onAutoPassed);
-            socket.off("target-auto-switched", onTargetSwitched);
             socket.off("order-evaluating", onNewCall);
         };
     }, []);
@@ -329,7 +313,6 @@ export default function Dashboard() {
                         <OrderFilterModal
                             isOpen={isFilterOpen}
                             onClose={() => setIsFilterOpen(false)}
-                            hasHomeReturnActive={hasHomeReturnActive}
                             routeMode={routeMode}
                             setRouteMode={setRouteMode}
                         />

@@ -115,7 +115,6 @@ function FilterRow({ id, title, summary, open, onToggle, danger = false, childre
 interface OrderFilterModalProps {
     isOpen: boolean;
     onClose: () => void;
-    hasHomeReturnActive?: boolean;
     /**
      * 🛣️ **노선 ↔ 🔷 동선** (기사님 지시: *"노선 동선 버튼도 지도에서 필터로
      *    이사와야해"* — **목업이 그 자리다**, `MapMockup.tsx:3171`).
@@ -125,7 +124,7 @@ interface OrderFilterModalProps {
     setRouteMode: (v: boolean) => void;
 }
 
-export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false,
+export default function OrderFilterModal({ isOpen, onClose,
                                            routeMode, setRouteMode }: OrderFilterModalProps) {
     const { filter, baseFilter, updateFilter, previewFilter } = useFilterConfig();
     /** 🛣️ 무대가 «라인으로 쟀나» — ⏳ 경로 대기 문구가 본다 (store · 모르면 null) */
@@ -356,9 +355,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         }
     }, [isOpen]);   // eslint-disable-line react-hooks/exhaustive-deps -- 열릴 때 한 번 (위 ⚠️)
 
-    // 귀가콜 로딩 상태
-    const [homeReturnLoading, setHomeReturnLoading] = useState(false);
-
     /** 복귀 국면의 «목적지는 지금 자동» 줄이 보여 주는 집 주소 — 원천은 ⚙️ 설정이다. 여기서는 읽기만 한다 */
     const [homeAddress, setHomeAddress] = useState<string>("");
     useEffect(() => {
@@ -421,24 +417,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
             routeMode: baseFilter.routeMode ?? true,   // 🛣️🔷 (조사 ①-9)
         });
     };
-
-    // 귀가콜 소켓 이벤트 리스너
-    useEffect(() => {
-        const onAck = () => {
-            setHomeReturnLoading(false);
-            onClose();
-        };
-        const onError = (data: { message: string }) => {
-            setHomeReturnLoading(false);
-            alert(data.message);
-        };
-        socket.on("home-return-ack", onAck);
-        socket.on("home-return-error", onError);
-        return () => {
-            socket.off("home-return-ack", onAck);
-            socket.off("home-return-error", onError);
-        };
-    }, [onClose]);
 
     if (!isOpen) return null;
 
@@ -677,25 +655,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                       */}
                                 </div>
                             </div>
-
-                        {/* 🏠 귀가콜은 전환이 아니라 오더 생성이다 — 복귀일 때 «어디로» 안에 둔다 (유일한 입구) */}
-                        {tab === 'home' && (
-                                <Button
-                                    onClick={() => {
-                                        logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭 (복귀 국면 값으로)");
-                                        setHomeReturnLoading(true);
-                                        const home = toValues(cur, filterValuesFrom(filter as any));
-                                        socket.emit("create-home-return", {
-                                            detourRadiusKm: home.detourRadiusKm,
-                                            destinationRadiusKm: home.destinationRadiusKm
-                                        });
-                                    }}
-                                    disabled={homeReturnLoading || hasHomeReturnActive}
-                                    className={`w-full h-10 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px] ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                    {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가콜 만들기'}
-                                </Button>
-                        )}
                     </FilterRow>
 
                     <FilterRow id="wide" title="📐 얼마나 넓게" open={openRow === 'wide'} onToggle={toggleRow}
