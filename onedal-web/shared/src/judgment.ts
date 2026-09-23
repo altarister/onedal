@@ -114,6 +114,13 @@ export interface JudgmentConfig {
          */
         wait: number;
         /**
+         * ☎️ **전화할 곳** — 이 콜을 받으면 기존 콜 몇 곳에 전화해 약속을 미뤄야 하나
+         *    (기사님: *"이 콜을 받을 때 다른 콜에 주는 영향도 같이 넣어주면 좋을 것 같은데"*).
+         *    시간이 아니라 **손**을 센다 — 운전 중에는 전화를 못 거시니 잡기 전에 알아야 한다.
+         *    문턱은 아래 `slack` 의 지연 눈금을 그대로 쓴다. 0 이면 안 본다.
+         */
+        calls: number;
+        /**
          * 🧭 **지리** — 가는 길 위에 있나. **기본 0 (안 봄)** — 기사님과 확정.
          *
          * 합짐의 지리는 「돈」(우회 시급)이 이미 세고, 첫짐의 지리는 앱이 집기 전에
@@ -209,7 +216,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupPromiseMin: 20 },
     pass: { nearM: 300, awayM: 400 },
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
-    weights: { revenueDetour: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 1, comfort: 1, wait: 1 },
+    weights: { revenueDetour: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 1, comfort: 1, wait: 1, calls: 1 },
     target: { hourlyKrw: 30_000, honeyHourlyKrw: 50_000, soloHourlyKrw: 25_000 },
     destBonus: { max: 2.0, min: 0.5, trappedMult: 0.6, awayFreeKm: 30, awayHardKm: 150 },
     deadline: { ratioPct: 150 },
@@ -300,6 +307,9 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'weight_wait', path: ['weights', 'wait'], group: '가중치',
       label: '콜 대기', unit: '배', min: 0, max: 10, int: false,
       why: '이 콜을 하고도 콜을 더 기다릴 수 있나 — 남는 여유를 «데드라인» 무리의 상차 약속 분으로 나눠 «몇 콜치»로 잰다. 「기존 콜 약속 보존」이 «늦나»를 묻는 것과 다른 질문이다. 0 이면 안 본다' },
+    { col: 'weight_calls', path: ['weights', 'calls'], group: '가중치',
+      label: '전화할 곳', unit: '배', min: 0, max: 10, int: false,
+      why: '이 콜을 받으면 기존 콜 몇 곳에 전화해 약속을 미뤄야 하나 — 시간이 아니라 손을 센다. 문턱은 아래 «정차·여유» 무리의 지연 눈금 셋을 그대로 쓴다. 정차 중에 콜을 모으면 밀림이 자연스러우니 세면 낮춘다. 0 이면 안 본다' },
     { col: 'weight_geography', path: ['weights', 'geography'], group: '가중치',
       label: '지리 (첫짐 전진 배수)', unit: '켜기/끄기', min: 0, max: 10, int: false,
       why: '**0 이면 배수를 안 붙인다 — 크기는 뜻이 없다** (배수는 평균의 한 항이 아니라 총점에 곱하는 값이라서). 배수의 크기는 위 «첫짐» 무리의 두 칸이 정한다. 합짐에는 안 붙는다 — 그쪽 지리는 우회 시급이 이미 센다' },

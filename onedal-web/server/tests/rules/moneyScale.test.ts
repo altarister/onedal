@@ -350,3 +350,76 @@ describe('🔗 연결 — 서버가 두 축의 사실을 채운다', () => {
         expect(judgmentDefaults()['weight_wait']).toBe(1);
     });
 });
+
+/**
+ * ☎️ **전화할 곳 — 이 콜이 남의 약속을 몇 곳 흔드나** (기사님 확정)
+ *
+ * 무엇을 막나
+ * - 전화를 **세 번** 걸어야 하는 콜과 **한 번도** 안 걸어도 되는 콜이 같은 색으로 뜨는 것
+ * - 1분 밀림마다 세어 화면이 시끄러워지는 것 — 기사님: *"정차 중에 3~4콜을 모으려면 몇 분씩은 밀린다"*
+ * - 다녀온 정거장을 세는 것 — 지나간 곳에는 전화할 일이 없다
+ */
+describe('☎️ 전화할 곳 — 시간이 아니라 손을 센다', () => {
+    /* ☎️ 이 눈금만 본다 — 돈까지 켜면 평균에 섞여 곳 수의 차이를 못 본다 */
+    const 켬 = (): JudgmentConfig => ({
+        ...DEFAULT_JUDGMENT,
+        weights: { ...DEFAULT_JUDGMENT.weights, revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, comfort: 0, wait: 0 },
+    });
+    const 전화 = (n: number | null) => judge(CRITERIA, {
+        ...합짐(30_000),
+        calls: { count: n, hasExistingCalls: true },
+    }, 켬()).score;
+
+    it('🔴 흔들 곳이 없으면 만점', () => {
+        expect(전화(0)).toBe(100);
+    });
+
+    /** 🔴 이 검사가 생긴 까닭 — 지금은 셋을 흔드는 콜과 안 흔드는 콜이 같은 색이다 */
+    it('🔴 곳이 늘수록 낮아진다', () => {
+        expect(전화(1)!).toBeGreaterThan(전화(2)!);
+        expect(전화(2)!).toBeGreaterThan(전화(3)!);
+    });
+
+    it('한 곳은 «거의 문제없음» — 크게 안 깎는다', () => {
+        expect(전화(1)!).toBeGreaterThanOrEqual(80);
+    });
+
+    it('🔴 못 셌으면 잴 게 없다 — 0 곳과 다르다', () => {
+        const v = judge(CRITERIA, { ...합짐(30_000), calls: { count: null, hasExistingCalls: true } }, 켬());
+        expect(v.criteria.find(c => c.key === 'calls')!.outcome.kind).toBe('nothing');
+    });
+
+    it('🔴 빈 차는 잴 게 없다 — 흔들 남이 없다', () => {
+        const v = judge(CRITERIA, { ...첫짐(50_000, 60), calls: { count: null, hasExistingCalls: false } }, 켬());
+        expect(v.criteria.find(c => c.key === 'calls')!.outcome.kind).toBe('nothing');
+    });
+
+    it('🔴 색을 안 덮는다 — 전화는 걸면 되는 일이다. 약속이 깨지는 것은 「약속」이 말한다', () => {
+        const v = judge(CRITERIA, { ...합짐(30_000), calls: { count: 9, hasExistingCalls: true } }, 켬());
+        expect(v.criteria.find(c => c.key === 'calls')!.outcome).not.toHaveProperty('hardFail', true);
+    });
+
+    it('🔴 눈금이 「약속」의 지연 값을 따라 움직인다 — 새 문턱을 안 만들었다', () => {
+        const 넓게: JudgmentConfig = { ...켬(), slack: { ...켬().slack, lateZeroMin: 120 } };
+        const 좁게 = judge(CRITERIA, { ...합짐(30_000), calls: { count: 5, hasExistingCalls: true } }, 켬()).score;
+        const 넓은 = judge(CRITERIA, { ...합짐(30_000), calls: { count: 5, hasExistingCalls: true } }, 넓게).score;
+        expect(넓은!).toBeGreaterThan(좁게!);
+    });
+});
+
+describe('🔗 연결 — 서버가 전화할 곳을 센다', () => {
+    const ev = () => readFileSync(join(__dirname, '../../src/core/engine/OrderEvaluator.ts'), 'utf8');
+
+    it('🔴 세는 규칙 셋이 서버에 있다 — 기존 콜만 · 안 다녀온 곳만 · 설정 분 이상', () => {
+        const src = ev();
+        expect(src).toContain('callsToMake');
+        expect(src).toMatch(/existing\.filter/);
+        expect(src).toContain('!e.arrived');
+        expect(src).toContain('lateSoftMin');
+    });
+
+    it('🔴 가중치 칸이 판정 기준 탭에 있다', () => {
+        expect(JUDGMENT_FIELDS.map(f => f.col)).toContain('weight_calls');
+        expect(judgmentDefaults()['weight_calls']).toBe(1);
+    });
+});

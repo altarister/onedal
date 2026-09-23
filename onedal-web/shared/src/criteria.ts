@@ -295,6 +295,66 @@ export const WAIT = defineCriterion<WaitFacts>({
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ☎️ 전화할 곳 — 이 콜을 받으면 남의 약속을 몇 곳 흔드나
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export interface CallsFacts {
+    /**
+     * ☎️ **이 콜을 받으면 전화를 걸어야 할 기존 콜 정거장 수**.
+     *    세는 규칙(아직 안 다녀왔고 · 설정 분 이상 늦는)은 **부르는 쪽**이 안다 — 여기서 다시 세지 않는다 (규칙 ③).
+     *    🔴 못 셌으면 `null`. 0 과 다르다 — 0 은 «흔들 곳이 없다»이고 `null` 은 «경로를 못 받았다»이다.
+     */
+    count: number | null;
+    /** 이미 잡아 둔 콜이 있는가 — 없으면 흔들 남이 없어 **잴 게 없다** */
+    hasExistingCalls: boolean;
+}
+
+/**
+ * ☎️ **이 콜을 받으면 전화기를 몇 번 드셔야 하나** (기사님 확정)
+ *
+ * 기사님: *"이 콜을 받을 때 다른 콜에 주는 영향도 같이 넣어주면 좋을 것 같은데."*
+ *
+ * 🔴 **시간이 아니라 «손»을 센다.** 시간 축은 이미 둘이다 —
+ *    「약속」이 *«굳힌 약속을 깨나»*, 「콜 대기」가 *«나에게 남겨 주나»* 를 묻는다.
+ *    이 기준은 *«남에게 손이 얼마나 가나»* 를 물어 **셋이 대칭**이 된다.
+ *    🔴 운전 중에는 전화를 못 거신다 — 그래서 **잡기 전에** 알아야 하는 사실이다 (규칙 ⑤-3).
+ *
+ * 🔴 **새 문턱을 만들지 않는다** — 곳 수를 「약속」이 쓰는 지연 눈금 셋에 그대로 댄다.
+ *    한 곳이면 «거의 문제없음» 점수, 늘수록 «주의»를 거쳐 0 점으로 간다.
+ *    기사님이 그 눈금을 고치시면 여기도 같이 움직인다 (규칙 ③).
+ *
+ * 🔴 **색을 덮지 않는다** — 전화는 걸면 되는 일이다. 약속이 실제로 깨지는 것은 「약속」이 🔴 로 말한다.
+ */
+export const CALLS = defineCriterion<CallsFacts>({
+    key: 'calls', name: '전화할 곳', asks: '남의 약속을 몇 곳 흔드나',
+    weightKey: 'calls',
+    measure(f, cfg) {
+        if (!f) return nothing('경로를 안 받았습니다');
+        if (!f.hasExistingCalls) return nothing('빈 차입니다 — 흔들 콜이 없습니다');
+        if (f.count == null) return nothing('경로를 못 받았습니다');
+        if (f.count <= 0) return scored(100, '없음 — 남을 안 건드립니다');
+
+        /**
+         * 🔴 **곳 수를 「약속」의 지연 눈금에 댄다** — 그 눈금은 «몇 분»이지만 **꺾이는 세 자리**가
+         *    «괜찮다 → 주의 → 한계»를 뜻한다. 곳 수도 같은 뜻의 세 자리가 필요하고,
+         *    문턱을 또 만들면 기사님이 고칠 칸이 늘기만 한다 (규칙 ⑤-4).
+         *    한 곳이 «거의 문제없음» 점수(90), 「주의」 눈금만큼이면 60, 「0점」 눈금만큼이면 0.
+         */
+        const { lateSoftMin, lateWarnMin, lateZeroMin } = cfg.slack;
+        const softScore = 90, warnScore = 60;
+        const n = f.count;
+        const warnAt = Math.max(2, Math.round(lateWarnMin / Math.max(1, lateSoftMin)));
+        const zeroAt = Math.max(warnAt + 1, Math.round(lateZeroMin / Math.max(1, lateSoftMin)));
+        const span = (lo: number, hi: number) => Math.max(1, hi - lo);
+        const score = n >= zeroAt ? 0
+            : n <= 1 ? softScore
+            : n <= warnAt ? softScore - (softScore - warnScore) * ((n - 1) / span(1, warnAt))
+            : warnScore * (1 - (n - warnAt) / span(warnAt, zeroAt));
+        return scored(score, `${n}곳에 전화해 약속을 미뤄야 합니다`, false, n);
+    },
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ⏰ 약속 — 이미 잡은 콜에 늦지 않나
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -568,13 +628,14 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
  * 🔴 **판정 기준의 목록은 여기 하나다.** 더하거나 빼려면 이 배열만 고친다.
  *    순서가 곧 **화면에 보이는 순서**다.
  */
-export const CRITERIA: Array<Criterion<any>> = [MONEY, COMFORT, WAIT, PROMISE, SPACE, NATURE, GEOGRAPHY];
+export const CRITERIA: Array<Criterion<any>> = [MONEY, COMFORT, WAIT, CALLS, PROMISE, SPACE, NATURE, GEOGRAPHY];
 
 /** 사실 꾸러미 — 칸 이름이 기준의 `key` 와 같다. 각 기준은 **자기 칸만** 본다 */
 export type JudgeFacts = {
     money?: MoneyFacts;
     comfort?: ComfortFacts;
     wait?: WaitFacts;
+    calls?: CallsFacts;
     promise?: PromiseFacts;
     space?: SpaceFacts;
     nature?: NatureFacts;

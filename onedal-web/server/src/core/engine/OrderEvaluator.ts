@@ -361,6 +361,16 @@ export class OrderEvaluator {
                             };
                             // ⏰ 깨지는 약속 — 짓는 곳은 `lateStopsOf` 하나다 (규칙 ③)
                             const lateStops = lateStopsOf(late as never, nameOf);
+                            /**
+                             * ☎️ **전화해 약속을 미뤄야 할 기존 콜 정거장** (기사님 확정).
+                             *
+                             * 세는 규칙 셋 — **아직 안 다녀왔고** · **설정 분 이상** 늦는 곳.
+                             * 🔴 1분 밀림마다 세지 않는다 — 기사님: *"정차 중에 3~4콜을 모으려면 몇 분씩은 밀린다."*
+                             *    그 «몇 분»이 판정 기준 탭의 «지연 — 거의 문제없음» 이다. 새 문턱을 안 만든다.
+                             * 🔴 `existing` 은 **후보를 뺀 기존 콜**만이다 — 내 콜에 내가 전화하지 않는다.
+                             */
+                            const callsToMake = existing.filter(e =>
+                                !e.arrived && e.lateMinutes >= (judgmentCfg.slack?.lateSoftMin ?? 5)).length;
 
                             const bufAfter = minRouteBuffer(existing);
 
@@ -454,6 +464,8 @@ export class OrderEvaluator {
                                 toPickupMinutes: candPickup?.etaMs != null
                                     ? Math.round((candPickup.etaMs - Date.now()) / 60_000) : null,
                                 deliveryMinutes: soloMinutesOf(securedOrder as any, derivation.rules).minutes,
+                                /* ☎️ 세는 곳은 위 한 곳이다 — 판정은 숫자만 받는다 (규칙 ③) */
+                                callsToMake,
                                 bufferAfterMin: bufAfter?.minutes ?? null,
                                 /**
                                  * 📦 **음수를 0 으로 자르지 않는다.** 자르면 «자리 부족»이 «여유 0%»로 보여

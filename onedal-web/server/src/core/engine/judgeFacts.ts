@@ -93,6 +93,8 @@ export function firstLoadFacts(input: {
         comfort: { extraKm: input.extraKm ?? null, extraMinutes: input.totalMinutes },
         /* ⏳ 빈 차도 잰다 — «이 콜이 시간을 얼마나 남겨 주나»는 짐이 있든 없든 같은 질문이다 */
         wait: { toPickupMinutes: input.toPickupMinutes ?? null, deliveryMinutes: input.deliveryMinutes ?? null },
+        /* ☎️ 빈 차는 흔들 남이 없다 */
+        calls: { count: null, hasExistingCalls: false },
         promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
         space: { freePct: null, hasLoad: false },
         nature: { conflicts: [], excludedHits: input.excludedHits, hasLoad: false },
@@ -182,6 +184,8 @@ export function mergeFacts(input: {
     /** ⏳ 이 콜이 만드는 여유의 재료 — 타임라인이 이미 쟀다 (shared `WaitFacts`) */
     toPickupMinutes?: number | null;
     deliveryMinutes?: number | null;
+    /** ☎️ 전화해 약속을 미뤄야 할 기존 콜 정거장 수 — 세는 곳은 부르는 쪽 하나다 (shared `CallsFacts`) */
+    callsToMake?: number | null;
     /** 붙인 뒤 남는 가장 빠듯한 여유(분). 잴 약속이 없으면 null */
     bufferAfterMin: number | null;
     /** 실었을 때 남는 자리(%). 못 세면 null. 🔴 음수를 0 으로 자르지 않는다 — 자르면 부족이 안 보인다 */
@@ -215,6 +219,7 @@ export function mergeFacts(input: {
         /* 🛣️⏳ 「돈」·「약속」이 받는 값과 **같은 것**을 넘긴다 — 여기서 다시 재지 않는다 (규칙 ③) */
         comfort: { extraKm: input.extraKm ?? null, extraMinutes: input.extraMinutes },
         wait: { toPickupMinutes: input.toPickupMinutes ?? null, deliveryMinutes: input.deliveryMinutes ?? null },
+        calls: { count: input.callsToMake ?? null, hasExistingCalls: true },
         promise: { hasExistingCalls: true, lateStops: input.lateStops, bufferAfterMin: input.bufferAfterMin },
         space: { freePct: input.freePct, hasLoad: true, confidence: input.confidence ?? null },
         nature: { conflicts: input.conflicts, excludedHits: input.excludedHits, hasLoad: true },
