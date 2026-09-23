@@ -1426,7 +1426,8 @@ describe('노선 ↔ 동선 — 고른 것과 실제를 가른다 (이식)', () 
      *    **기사님이 고르는 값이지 파생이 아니다.** 지도는 받아서 그리기만 한다.
      */
     it('🔴 기사님이 고르는 손잡이가 있다 (파생이 아니다)', () => {
-        expect(modal).toMatch(/setRouteMode\(on\)/);
+        /* 🔴 버튼 하나를 눌러 뒤집는다 — 시·도 · 시·군·구와 한 줄 3등분에 선다 (기사님 2026-09-23) */
+        expect(modal).toMatch(/setRouteMode\(!routeMode\)/);
         expect(modal).toMatch(/동선/);
         expect(modal).toMatch(/노선/);
         // 지도는 받아서 **그리기만** 한다

@@ -24,11 +24,15 @@ describe('🧰 필터 판 — 네 행 · 하나만 열림 · 저장 줄 고정',
         for (const id of ['where', 'wide', 'call', 'exclude']) expect(code).toMatch(new RegExp(`id="${id}"`));
     });
 
-    it('🔴 노선·동선은 «어디로» 행 안에 있다', () => {
+    it('🔴 노선·동선은 «어디로» 행 안, 시·도 · 시·군·구와 한 줄에 있다', () => {
         const where = code.indexOf('id="where"'), wide = code.indexOf('id="wide"');
-        const tabs = code.indexOf("'🛣️ 노선'");
-        expect(tabs).toBeGreaterThan(where);
-        expect(tabs).toBeLessThan(wide);
+        const toggle = code.indexOf("'🛣️ 노선'");
+        expect(toggle).toBeGreaterThan(where);
+        expect(toggle).toBeLessThan(wide);
+        /* 🔴 셋이 한 격자다 — 따로 놓으면 폰에서 한 줄이 더 먹힌다 (기사님 «공간낭비») */
+        const grid = code.lastIndexOf('grid-cols-3', toggle);
+        expect(grid).toBeGreaterThan(where);
+        expect(code.slice(grid, code.indexOf('id="wide"'))).toMatch(/🎯 시·도[\s\S]*시·군·구/);
     });
 
     it('🔴 저장 줄은 스크롤 밖 바닥에 따로 있다', () => {

@@ -593,18 +593,6 @@ export default function OrderFilterModal({ isOpen, onClose,
                           *    노선이면 경로 양옆(라인반경), 동선이면 내 위치 → 목적지 마름모.
                           * ⚠️ 상태는 부모가 쥔다 — 지도와 **같은 값**을 봐야 한다 (규칙 ③).
                           */}
-                        <div className="grid grid-cols-2 gap-1 relative z-10">
-                            {([[true, '🛣️ 노선', '지금 경로 양옆으로 본다'],
-                               [false, '🔷 동선', '내 위치 → 목적지 마름모로 본다']] as const).map(([on, label, hint]) => (
-                                <button key={label} type="button" onClick={() => setRouteMode(on)} title={hint}
-                                    className={`py-1.5 rounded-lg border text-[12px] font-black transition-all ${routeMode === on
-                                        ? (on ? 'border-warning/55 bg-warning/15 text-warning' : 'border-info/55 bg-info/15 text-info')
-                                        : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-
                         {/**
                           * ⏳ **이상한 상태 하나만 적는다** (목업 `MapMockup.tsx:3187` · 기사님
                           *    *"«콜을 잡으면 그 경로가 라인이 됩니다» 이것도 필요 없어"*): 늘 참인 말은 안 적는다.
@@ -644,9 +632,30 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         목적지는 지금 자동 ({tab === 'home' && homeAddress ? homeAddress : PHASE_AUTO_SOURCE[tab]})
                                     </p>
                                 )}
-                                {/* 🎯 시·도 · 시·군·구 두 칸 — 복귀 토글은 저장 줄에 있다.
-                                    시·도에는 도(경기)와 특별시 · 광역시(서울 · 인천 · 대전)가 함께 선다 */}
-                                <div className="relative grid grid-cols-2 gap-1">
+                                {/* 🛣️🔷 노선·동선 · 🎯 시·도 · 시·군·구 — 한 줄 3등분 (기사님 확정 2026-09-23).
+                                    시·도에는 도(경기)와 특별시 · 광역시(서울 · 인천 · 대전)가 함께 선다.
+                                    복귀 토글은 저장 줄에 있다 */}
+                                <div className="relative grid grid-cols-3 gap-1">
+                                    {/**
+                                      * 🛣️ **노선 ↔ 🔷 동선 — 버튼 하나를 눌러 뒤집는다**
+                                      *    (기사님 2026-09-23: *"노선, 동선 버튼은 토글버튼으로 치환이
+                                      *    가능하겠다 … 노선/동선, 시도, 시군구 이렇게 한줄로 3등분해서 보여줘"*).
+                                      *
+                                      * 🔴 «그물을 어떤 모양으로 볼까»라 **국면(어디로 가나)과 다른 축**이다.
+                                      *    노선이면 경로 양옆(라인반경), 동선이면 내 위치 → 목적지 마름모.
+                                      * 🔴 모양은 옆의 고르기 칸과 같다 — 한 줄에 서므로 라벨·값 자리가 어긋나면 안 된다.
+                                      * ⚠️ 상태는 부모가 쥔다 — 지도와 **같은 값**을 봐야 한다 (규칙 ③).
+                                      */}
+                                    <button type="button" onClick={() => setRouteMode(!routeMode)}
+                                        title={routeMode ? '지금 경로 양옆으로 본다 — 누르면 동선' : '내 위치 → 목적지 마름모로 본다 — 누르면 노선'}
+                                        className={`flex flex-col items-start gap-0 px-1.5 py-1 rounded-lg border text-left min-w-0 transition-all ${
+                                            routeMode ? 'border-warning/55 bg-warning/15' : 'border-info/55 bg-info/15'}`}>
+                                        <span className="text-[9.5px] font-bold text-text-muted leading-tight">어떻게 보나</span>
+                                        <span className={`w-full truncate text-[13px] font-black leading-tight ${
+                                            routeMode ? 'text-warning' : 'text-info'}`}>
+                                            {routeMode ? '🛣️ 노선' : '🔷 동선'}
+                                        </span>
+                                    </button>
                                     <PickLayer label="🎯 시·도" value={dstSido || '— 선택 —'}
                                         options={cityGroups.map(g => g.sido)}
                                         open={openKnob === 'dstSido'}
