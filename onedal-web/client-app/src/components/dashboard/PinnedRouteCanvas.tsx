@@ -1005,7 +1005,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
             .filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
         if (layers.cand && candidateHolder && candLine.length > 1) {   // 🧅 «후보» 레이어
             /**
-             * 🔴 **처음부터 끝까지 한 줄로 긋는다** (기사님 확정 2026-09-24:
+             * 🔴 **처음부터 끝까지 한 줄로 긋는다** (기사님 확정:
              *    *"추가 되는경로는 새로 다 그려야 한 라인으로 가는거지.. 이미지처럼 몸이
              *    분리되 가는거 아니잖아."*).
              *

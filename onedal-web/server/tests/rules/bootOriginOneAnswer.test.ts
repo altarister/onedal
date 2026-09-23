@@ -1,10 +1,9 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { getUserSession } from '../../src/state/userSessionStore';
 import { originOf, MOCK_GPS_OWNER_QUIET_MS } from '../../src/services/geoService';
 
 /**
- * 📍 **서버가 다시 떠도 «내가 어디 있나»는 한 답이다** (기사님 실측 2026-09-23)
+ * 📍 **서버가 다시 떠도 «내가 어디 있나»는 한 답이다** (기사님 실측)
  *
  * ── 실측 ──
  * 부팅 직후 로그가 19밀리초 사이에 두 답을 냈다:
@@ -29,19 +28,26 @@ import { originOf, MOCK_GPS_OWNER_QUIET_MS } from '../../src/services/geoService
 const USER = 'test-boot-origin';
 const 이천 = { x: 127.383826605868, y: 37.2929022381899 };
 
+/**
+ * 🔴 **세션을 여기서 만든다 — `getUserSession` 을 안 쓴다.**
+ *    그것은 사용자마다 하나뿐인 진짜 세션이라, 다른 검사가 같은 자리를 건드리면
+ *    혼자 돌 때는 초록이고 전부 돌 때만 빨간불이 난다. `originOf` 는 넘긴 값만 보는
+ *    순수 함수이므로 필요한 칸만 세워 준다.
+ */
 function session(over: { fixAt: number; ownerAt: number | null }) {
-    const s = getUserSession(USER);
-    s.lastFix = { ...이천 };
-    s.lastFixAt = over.fixAt;
-    s.lastFixIsMock = true;
-    s.lastFixSource = 'mock';
-    s.activeFilter.dispatchPhase = 'STANDBY';   // 빈 차 — ③ 이 걸리는 자리
-    s.mockGpsOwner = over.ownerAt === null ? null : { socketId: '복구', at: over.ownerAt, warned: false };
-    return s;
+    return {
+        userId: USER,
+        lastFix: { ...이천 },
+        lastFixAt: over.fixAt,
+        lastFixIsMock: true,
+        lastFixSource: 'mock' as const,
+        activeFilter: { dispatchPhase: 'STANDBY' },   // 빈 차 — ③ 이 걸리는 자리
+        mockGpsOwner: over.ownerAt === null ? null : { at: over.ownerAt },
+    };
 }
 
 describe('📍 부팅 직후에도 기점은 한 답이다', () => {
-    const now = Date.parse('2026-09-23T13:55:14.360Z');
+    const now = Date.parse('2026-09-23T13:55:14.360Z');   // 실측 로그의 그 시각
     const 방금 = now - 2_000;   // 2초 전에 받은 점
 
     it('🔴 임자가 비면 같은 좌표인데도 집 주소로 간다 — 이것이 그날의 두 답이었다', () => {

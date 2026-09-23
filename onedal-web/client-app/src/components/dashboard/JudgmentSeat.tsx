@@ -176,7 +176,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                 <div className="relative z-10 tabular-nums cursor-pointer" style={{ padding: '8px 16px 12px 21px' }}
                      onClick={() => {
                          /* 🧾 **어느 버튼에서 온 결재인지 남긴다** — 서버 로그에는 «[Socket] 취소 전달» 한 줄만 남아
-                            «누가 눌렀나»를 못 가렸다 (2026-09-23 · 누른 적 없는 취소가 «수동»으로 기록된 건). */
+                            «누가 눌렀나»를 못 가렸다 (누른 적 없는 취소가 «수동»으로 기록된 건). */
                          if (route.isPreview) { logRoadmapEvent("웹", "심사석 — 미리보기 카드를 눌러 치움", "관제대시보드"); onDecision?.(route.id, 'SAFE_CANCEL'); }
                          else if (judged) setOpen(o => !o);
                      }}>

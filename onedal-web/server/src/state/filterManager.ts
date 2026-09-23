@@ -850,7 +850,7 @@ export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): 
        🔴 손으로 고친 필터여도 상차 목록은 만든다 — 하차 목록만 기사님 것이다 (#146 과 같은 모양) */
     const pickupChanged = pickupBuilt || rebuildPickupList(session, userId);
     /**
-     * 🔓 **«손으로 고쳤다»고 목록을 얼리지 않는다** (기사님 실측 2026-09-23).
+     * 🔓 **«손으로 고쳤다»고 목록을 얼리지 않는다** (기사님 실측).
      *
      * 그전에는 `userOverrides && 콜 있음` 이면 하차 목록 갱신을 통째로 건너뛰었다.
      * 그런데 그 깃발을 켜는 것은 **「빼는 곳」과 「제외 단어」를 저장할 때뿐**이다.
@@ -859,7 +859,7 @@ export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): 
      *    `excludedRegions` 를 매번 읽어 거른다(`pruneExcludedRegions` · 규칙 ③).
      *    그러니 이 잠금은 **지키는 것 없이 멈추기만** 했다.
      *
-     * ── 실측 (2026-09-23 23:51 ~ 00:26) ──
+     * ── 실측 ──
      * 기사님이 「빼는 곳」에서 «서울 전체»를 누르시자 깃발이 켜졌다. 서울은 제대로 빠졌지만
      * 그 순간부터 하차 목록이 **913곳에 얼어붙었다.** 그 뒤 목적지를 김포로 바꾸시고 경로가
      * 달라져도 안 따라와, 이천 시절 동(가남읍·음성읍)이 라인반경 한참 밖에 남았다.

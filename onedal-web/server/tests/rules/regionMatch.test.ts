@@ -58,6 +58,26 @@ describe('배선 — 서버·앱이 같은 규칙을 쓴다', () => {
         expect(upd.slice(0, upd.indexOf('\n}'))).toMatch(/refreshKeywordTraps\(session\)/);
     });
 
+    /**
+     * 🔴 **앞에 글자가 붙어도 다른 곳이다** (기사님 실측)
+     *
+     * 「빼는 곳」에 서울 전체를 넣어 두었는데 **문정동 → 신도림동** 콜이 올라왔다.
+     * 하차 목록에 서울은 한 곳도 없었고, 대신 **「도림동」**이 들어 있었다 —
+     * 「신도림동」 안에 그 글자가 그대로 있어 통과한 것이다.
+     *
+     * 지금 규칙은 **키워드 뒤**만 본다(「남동」+「구」). 앞은 안 봐서 한 글자 붙은 동 이름이
+     * 전부 샌다 — 신도림동/도림동 · 신대방동/대방동 · 상도동/도동 …
+     */
+    it('🔴 앞에 한글이 붙으면 다른 곳이다 — 신도림동은 도림동이 아니다', () => {
+        expect(regionKeywordHit('서울 구로구 신도림동', '도림동')).toBe(false);
+        expect(regionKeywordHit('서울 영등포구 도림동', '도림동')).toBe(true);
+        /* 🔴 앞이 공백·번지·도로명이면 그대로 통과한다 — 미탐이 오탐보다 아프다 (규칙 ⑤) */
+        expect(regionKeywordHit('도림동 123-4', '도림동')).toBe(true);
+        expect(regionKeywordHit('(도림동)', '도림동')).toBe(true);
+        /* 숫자가 붙은 법정동은 제 이름이다 — 성수동2가에서 「성수동」은 맞다 */
+        expect(regionKeywordHit('서울 성동구 성수동2가', '성수동')).toBe(true);
+    });
+
     it('🔴 앱 미러(RegionMatch.kt)가 있고 두 파서가 그것으로 매칭한다', () => {
         const base = '../../../../onedal-app/app/src/main/java/com/onedal/app/plugins';
         expect(read(`${base}/RegionMatch.kt`)).toMatch(/regionMatch\.ts 의 \*\*미러\*\*/);

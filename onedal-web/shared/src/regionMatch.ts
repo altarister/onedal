@@ -9,6 +9,7 @@
  *   - 키워드가 텍스트에 있어도, **이어지는 글자를 붙인 것이 사전에 있는 다른
  *     지명(트랩)** 이면 그 자리는 다른 곳이다 — "남동"+"구"="남동구"(트랩) ✗
  *   - 트랩 사전이 비어도 **구·시·군이 바로 이어지면** 마찬가지다 (문법적 안전망)
+ *   - **앞에 한글이 붙어도** 다른 곳이다 — "신도림동" 안의 "도림동" ✗
  *   - 같은 텍스트의 다른 자리는 따로 다시 본다 — "남동구청에서 남동 방면" ✓
  *
  * 🔴 미탐이 오탐보다 아프다 (규칙 ⑤ — 앱의 목적은 놓치지 않는 것).
@@ -26,7 +27,18 @@ export function regionKeywordHit(text: string, keyword: string, traps?: string[]
     let i = text.indexOf(keyword);
     while (i !== -1) {
         const rest = text.slice(i + keyword.length);
-        const trapped = tails.some(tail => rest.startsWith(tail)) || /^[구시군]/.test(rest);
+        /**
+         * 🔴 **앞 글자가 한글이면 다른 지명의 일부다** (기사님 확정).
+         *    실사고: 서울 전체를 빼 두었는데 «문정동 → 신도림동» 콜이 올라왔다. 하차 목록에
+         *    서울은 없고 **「도림동」**이 있었는데, 「신도림동」 안에 그 글자가 그대로 있어
+         *    통과했다. 뒤만 보면 한 글자 붙은 동 이름이 전부 샌다 —
+         *    신도림동/도림동 · 신대방동/대방동 · 상도동/도동.
+         * 🔴 **한글만 막는다** — 공백·번지·괄호·도로명이 앞에 오는 정상 표기는 그대로
+         *    통과한다 (규칙 ⑤ — 미탐이 오탐보다 아프다).
+         */
+        const before = i > 0 ? text[i - 1] : '';
+        const glued = /[가-힣]/.test(before);
+        const trapped = glued || tails.some(tail => rest.startsWith(tail)) || /^[구시군]/.test(rest);
         if (!trapped) return true;
         i = text.indexOf(keyword, i + 1);
     }
