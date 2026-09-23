@@ -12,6 +12,7 @@ import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
+import { ALL_KEY, excludedSggsOf, excludedDongsOf, toggleSggAll, toggleSggOne, toggleDongAll, toggleDongOne } from "../../lib/excludePick";
 
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -181,6 +182,18 @@ export default function OrderFilterModal({ isOpen, onClose,
         updateFilter({ excludedRegions: exDraft, userOverrides: true });
     };
     const toggleEx = (key: string) => { setExDraft(x => x.includes(key) ? x.filter(k => k !== key) : [...x, key]); setExDirty(true); };
+    /**
+     * 🚫 **빼는 곳을 고르는 셈은 `excludePick` 하나가 한다** — 화면은 그 답만 그린다.
+     *    「전체」가 켜지면 아래가 전부 켜져 보이고, 하나를 끄면 「전체」가 풀리며 나머지가 남는다
+     *    (기사님 확정 · 렌더 없이 `excludePick.test.ts` 가 지킨다).
+     */
+    const exSggs = () => sggList(exSido);
+    const pickExSggAll = () => { setExDraft(x => toggleSggAll(x, exSido, exSggs())); setExDirty(true); };
+    const pickExSggOne = (g: string) => { setExDraft(x => toggleSggOne(x, exSido, exSggs(), g)); setExDirty(true); };
+    const pickExDongAll = () => { if (exSgg) { setExDraft(x => toggleDongAll(x, exSido, exSggs(), exSgg, dongList(exSgg))); setExDirty(true); } };
+    const pickExDongOne = (d: string) => { if (exSgg) { setExDraft(x => toggleDongOne(x, exSido, exSggs(), exSgg, dongList(exSgg), d)); setExDirty(true); } };
+    /** ⛔ 「빼는 곳」 칸에 **보이는 이름** — 목적지 칸과 같은 규칙이다 (값은 그대로) */
+    const shortEx = (v: string) => v.startsWith(`${exSido} `) ? v.slice(exSido.length + 1) : v;
     const fillQuad = (src: unknown) => setQuadForm(Object.fromEntries(
         QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(src as any)[f.path])])));
 
@@ -949,32 +962,52 @@ export default function OrderFilterModal({ isOpen, onClose,
                                 «여기서부터는 빼는 것»이 선 하나로 충분히 갈린다 */}
                             <div className="relative z-20 space-y-1.5">
                                 <div className="relative grid grid-cols-3 gap-1">
-                                    <PickLayer label="⛔ 제외 도" options={sidoList()} tone="danger"
-                                        value={`${exSido}${exDraft.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
+                                    {/**
+                                      * ⛔ **세 칸이 「어디로」와 같은 형식이다** (기사님 2026-09-23:
+                                      *    *"필터의 빼는 곳도 같은 ui형식을 넣으면 좋겠다. 지금은 경기 통째로 ..
+                                      *    이런 버튼이 불필요하게 있는것 같아."*).
+                                      *
+                                      * 🔴 **「전체」는 목록 맨 앞 항목이다 — 목록 밖 버튼이 아니다.** 뜻은 두 칸에서 같다:
+                                      *    «바로 위 칸에서 고른 것 전부».
+                                      * 🔴 **빼기는 여럿을 고른다** (`keepOpen`) — 한 곳만 고르는 목적지와 거기가 다르다.
+                                      * 🔴 켜짐 판단과 «전체가 풀리는» 셈은 `excludePick` 하나가 한다. 화면은 그리기만 한다.
+                                      */}
+                                    <PickLayer label="⛔ 시·도" options={sidoList()} tone="danger"
+                                        value={exSido}
                                         selected={sidoList().filter(v => exDraft.includes(`S|${v}`))}
                                         open={openKnob === 'exSido'} onToggle={() => setOpenKnob(o => o === 'exSido' ? null : 'exSido')}
-                                        onPick={v => { setExSido(v); setExSgg(null); }}
-                                        foot={
-                                            <button type="button" onClick={() => toggleEx(`S|${exSido}`)}
-                                                className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${exDraft.includes(`S|${exSido}`)
-                                                    ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border-card bg-background text-text-muted hover:border-danger'}`}>
-                                                ◼ {exSido} 통째로 제외 {exDraft.includes(`S|${exSido}`) ? '⛔ 켬' : '끔'}
-                                            </button>} />
-                                    <PickLayer label="시·군·구 ⛔ 통째" keepOpen tone="danger" options={sggList(exSido)}
-                                        value={(() => { const n = sggList(exSido).filter(g => exDraft.includes(`R|${g}`)).length; return n ? `${n}곳 제외` : (exSgg ?? '고르기'); })()}
-                                        selected={sggList(exSido).filter(g => exDraft.includes(`R|${g}`))}
-                                        open={openKnob === 'exSgg'} onToggle={() => setOpenKnob(o => o === 'exSgg' ? null : 'exSgg')}
-                                        onPick={v => { setExSgg(v); toggleEx(`R|${v}`); }}
-                                        foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
-                                            누르면 <b className="text-danger">그 시·군·구가 통째로</b> 빠집니다 · 다시 누르면 되살아납니다 ·
-                                            마지막에 누른 곳이 <b>읍·면·동 칸</b>의 대상이 됩니다
-                                        </span>} />
-                                    <PickLayer label="읍·면·동" keepOpen tone="danger" options={exSgg ? dongList(exSgg) : []}
-                                        value={exSgg ? (() => { const n = dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
-                                        selected={exSgg ? dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)) : []}
-                                        open={openKnob === 'exDong'} onToggle={() => setOpenKnob(o => o === 'exDong' ? null : 'exDong')}
-                                        onPick={v => { if (exSgg) toggleEx(`D|${exSgg}|${v}`); }}
-                                        foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
+                                        onPick={v => { setExSido(v); setExSgg(null); }} />
+                                    {(() => {
+                                        const all = sggList(exSido);
+                                        const off = excludedSggsOf(exDraft, exSido, all);
+                                        return (
+                                            <PickLayer label="시·군·구" keepOpen tone="danger"
+                                                options={[ALL_KEY, ...all]}
+                                                optionLabel={v => v === ALL_KEY ? '전체' : shortEx(v)}
+                                                value={off.length ? (off.length === all.length ? '전체 제외' : `${off.length}곳 제외`) : (exSgg ? shortEx(exSgg) : '고르기')}
+                                                selected={off.length === all.length && all.length > 0 ? [ALL_KEY, ...off] : off}
+                                                open={openKnob === 'exSgg'} onToggle={() => setOpenKnob(o => o === 'exSgg' ? null : 'exSgg')}
+                                                onPick={v => { if (v === ALL_KEY) pickExSggAll(); else { setExSgg(v); pickExSggOne(v); } }}
+                                                foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
+                                                    누르면 <b className="text-danger">그 시·군·구가 통째로</b> 빠집니다 · 다시 누르면 되살아납니다 ·
+                                                    마지막에 누른 곳이 <b>읍·면·동 칸</b>의 대상이 됩니다
+                                                </span>} />
+                                        );
+                                    })()}
+                                    {(() => {
+                                        const dongs = exSgg ? dongList(exSgg) : [];
+                                        const off = exSgg ? excludedDongsOf(exDraft, exSido, exSgg, dongs) : [];
+                                        return (
+                                            <PickLayer label="읍·면·동" keepOpen tone="danger"
+                                                options={exSgg ? [ALL_KEY, ...dongs] : []}
+                                                optionLabel={v => v === ALL_KEY ? '전체' : v}
+                                                value={!exSgg ? '—' : off.length ? (off.length === dongs.length ? '전체 제외' : `${off.length}개 제외`) : '전부 봄'}
+                                                selected={off.length === dongs.length && dongs.length > 0 ? [ALL_KEY, ...off] : off}
+                                                open={openKnob === 'exDong'} onToggle={() => setOpenKnob(o => o === 'exDong' ? null : 'exDong')}
+                                                onPick={v => { if (v === ALL_KEY) pickExDongAll(); else pickExDongOne(v); }}
+                                                foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
+                                        );
+                                    })()}
                                 </div>
                                 {/**
                                   * 🔴 «지금 무엇이 빠져 있나»는 **늘 보인다** — 레이어를 열어야 알면 화면이 조용히 거짓말한다.

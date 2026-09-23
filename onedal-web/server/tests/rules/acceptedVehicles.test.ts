@@ -116,8 +116,8 @@ describe('받을 짐 — 고른 것과 막힌 것 (C4-6b)', () => {
         expect(pick).toMatch(/z-30/);
         expect(knob).toMatch(/z-30/);
         /* 제외지역 블록이 그보다 낮아야 한다 */
-        /* 제외지역 블록의 첫 칸(«⛔ 제외 도» 고르기)으로 블록 자리를 잡는다 */
-        const i = modal.indexOf('<PickLayer label="⛔ 제외 도"');
+        /* 제외지역 블록의 첫 칸(«⛔ 시·도» 고르기)으로 블록 자리를 잡는다 */
+        const i = modal.indexOf('<PickLayer label="⛔ 시·도"');
         expect(i).toBeGreaterThan(-1);
         expect(modal.slice(Math.max(0, i - 400), i)).not.toMatch(/z-3\d/);
     });

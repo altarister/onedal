@@ -3218,7 +3218,7 @@ export default function MapMockup() {
                               * 도 칸은 **고르기**가 본업이라(도를 옮겨 다니는 일이 잦다) 누르면 그냥 옮겨 가고,
                               * 통째 제외는 **아래 따로 난 버튼**이다. 실수로 경기도가 통째로 빠지면 안 된다.
                               */}
-                            <PickLayer label="⛔ 제외 도" options={sidoList()}
+                            <PickLayer label="⛔ 시·도" options={sidoList()}
                                 value={`${exSido}${exDraft.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
                                 tone="danger" selected={sidoList().filter(v => exDraft.includes(`S|${v}`))}
                                 open={openKnob === 'exSido'} onToggle={() => setOpenKnob(o => o === 'exSido' ? null : 'exSido')}

@@ -345,6 +345,32 @@ describe('마름모 칸 — 숫자판이 아니라 슬라이더 레이어 (C4-1)
  *    실물의 복귀는 **`callTarget` 전환**이고, 입구는 저장 줄의 «↩️ 복귀» 버튼 하나다.
  *    이 비대칭은 결정이다 — «목업에 있으니 넣자»로 지우지 않는다.
  */
+/**
+ * 🚫 **빼는 곳도 「어디로」와 같은 형식이다** (기사님 2026-09-23:
+ *    *"지금 어디로의 ui 가 좋은것 같다. 필터의 빼는 곳도 같은 ui형식을 넣으면 좋겠다.
+ *    지금은 경기 통째로 .. 이런 버튼이 불필요하게 있는것 같아."*)
+ */
+describe('🚫 빼는 곳 — 「어디로」와 한 형식', () => {
+
+    it('🔴 «통째로 제외» 버튼이 없다 — 「전체」는 목록 맨 앞 항목이다', () => {
+        expect(modal).not.toMatch(/통째로 제외/);
+        expect(modal).toMatch(/optionLabel=\{v => v === ALL_KEY \? '전체'/);
+    });
+
+    it('🔴 켜짐 판단을 화면이 직접 하지 않는다 — excludePick 하나가 센다', () => {
+        /* 화면이 키를 직접 뒤지면 «전체가 풀리는» 규칙이 화면마다 갈라진다 */
+        expect(modal).toMatch(/excludedSggsOf\(exDraft, exSido/);
+        expect(modal).toMatch(/excludedDongsOf\(exDraft, exSido/);
+        expect(modal).not.toMatch(/exDraft\.includes\(`R\|/);
+        expect(modal).not.toMatch(/exDraft\.includes\(`D\|/);
+    });
+
+    it('🔴 빼기는 여럿을 고른다 — 시·군·구 · 읍·면·동 칸이 열린 채 남는다', () => {
+        const ex = modal.slice(modal.indexOf('⛔ 시·도'));
+        expect(ex.match(/keepOpen/g)?.length).toBeGreaterThanOrEqual(2);
+    });
+});
+
 describe('목적지 — 도 · 시 2단 (C4-2)', () => {
 
     it('🔴 <select> 가 사라졌다 — 목업과 같은 고르기 칸을 쓴다', () => {
@@ -924,7 +950,7 @@ describe('필터 디자인 — 목업 순서 (C4-6)', () => {
         const 그물 = at(/knobs=\{QUAD_FIELDS\.map/);
         const 반경 = at(/KNOB_FIELDS\.map/);
         const 값 = at(/<PickLayer label="💰 콜할인율"/);
-        const 제외지역 = at(/<PickLayer label="⛔ 제외 도"/);
+        const 제외지역 = at(/<PickLayer label="⛔ 시·도"/);
         for (const [name, v] of Object.entries({ 국면, 저장줄, 노선동선, 목적지, 그물, 반경, 값, 제외지역 })) {
             expect(`${name}: ${v >= 0 ? '있다' : '없다'}`).toBe(`${name}: 있다`);
         }
