@@ -22,8 +22,6 @@
 
 일이 두 줄에 걸치면 두 줄을 다 읽는다. 코드를 고치고 검사까지 하는 일이 그렇다.
 
-🔴 README 에 «주석 점검 진행 중» 절이 있으면, 주석을 고치는 일은 그 절(순서 · 판정 넷 · 다음 파일 명령)을 따른다.
-
 앱 안에서만 참인 규칙은 그 폴더의 CLAUDE.md 에 있다 — [onedal-app](onedal-app/CLAUDE.md) · [server](onedal-web/server/CLAUDE.md) ·
 [client-app](onedal-web/client-app/CLAUDE.md) · [shared](onedal-web/shared/CLAUDE.md) · [onedal-web](onedal-web/CLAUDE.md)(검증 스크립트).
 `onedal-sim` · `onedal-map` 은 그 폴더의 README 가 안내다.
