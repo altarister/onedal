@@ -203,14 +203,21 @@ export function mapTileTone(dim: number): { alpha: number; filter: string | null
     return { alpha: dim, filter: 'grayscale(1.000) brightness(1.060) contrast(0.720)' };
 }
 
+/**
+ * 🧅 레이어 이름과 «어느 보기에서 기본으로 켜나».
+ *
+ * 🔴 **`cand`(후보)는 «경로»와 따로 둔다** (기사님 확정 2026-09-24) — 후보는 확정 경로 위에
+ *    온전한 한 줄로 겹쳐 그리므로, 끄고 켜며 «가고 있는 길»과 «붙이면 갈 길»을 견주셔야 한다.
+ *    세 보기 다 기본 켬 — 후보는 결재를 기다리는 동안만 있다.
+ */
 /** 🧅 레이어 이름과 «어느 보기에서 기본으로 켜나» — 여기 없는 이름은 저장본에 있어도 켜지지 않는다 (`layersByViewFrom` 이 이 목록만 읽는다) */
 export const LAYER_DEFAULTS_BY_VIEW: Record<MapViewMode, Record<string, boolean>> = {
     /* 전체 — 다 켠다. 넓게 보며 영역과 색을 함께 읽는 자리다 */
-    all: { base: true, dim: true, border: true, pickup: true, dropoff: true, dots: true, route: true, trail: true },
+    all: { base: true, dim: true, border: true, pickup: true, dropoff: true, dots: true, route: true, cand: true, trail: true },
     /* 구간 — 지금 가는 길만. 영역이 깔리면 그 길이 안 보이고, 어둡게까지 걷어 도로를 제 색으로 본다 */
-    leg: { base: true, dim: false, border: true, pickup: false, dropoff: false, dots: true, route: true, trail: true },
+    leg: { base: true, dim: false, border: true, pickup: false, dropoff: false, dots: true, route: true, cand: true, trail: true },
     /* 현위치 — 골목 배율이라 점까지 걷는다 */
-    follow: { base: true, dim: false, border: true, pickup: false, dropoff: false, dots: false, route: true, trail: true },
+    follow: { base: true, dim: false, border: true, pickup: false, dropoff: false, dots: false, route: true, cand: true, trail: true },
 };
 
 export type LayersByView = Record<MapViewMode, Record<string, boolean>>;

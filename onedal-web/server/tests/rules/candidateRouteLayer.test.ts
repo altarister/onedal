@@ -51,4 +51,35 @@ describe('🟡 후보 경로는 별도 레이어다', () => {
         expect(canvas).toMatch(/setLineDash|\[10, 8\]/);
         expect(canvas).toMatch(/#e6b422/);
     });
+
+    /**
+     * 🔴 **후보는 처음부터 끝까지 한 줄이다** (기사님 확정 2026-09-24:
+     *    *"추가 되는경로는 새로 다 그려야 한 라인으로 가는거지.. 이미지처럼 몸이 분리되 가는거 아니잖아."*)
+     *
+     * 그전에는 **그 후보가 늘린 구간만** 굵게 긋고 나머지는 가는 노란 점선이었다. 점선이
+     * 확정 경로 밑에 깔려 안 보이니 늘어난 구간만 동떨어져 **한 줄이 끊긴 것**처럼 보였다 —
+     * 실측에서 오송~성거읍 사이가 두 갈래로 갈라져 보였다.
+     */
+    it('🔴 후보를 구간으로 쪼개 그리지 않는다 — 한 줄로 긋는다', () => {
+        const i = canvas.indexOf('layers.cand && candidateHolder');
+        expect(i).toBeGreaterThan(-1);
+        const body = canvas.slice(i, i + 700);
+        expect(body).toMatch(/drawPath\(candLine/);
+        /* 구간 쪼개기(sectionLinesOf)와 «내 구간만» 판단을 이 블록에서 안 쓴다 */
+        expect(body).not.toMatch(/sectionLinesOf/);
+        expect(body).not.toMatch(/candidateHolder\.id/);
+    });
+
+    /**
+     * 🧅 **후보는 «경로»와 다른 레이어다** (같은 날 확정 — *"레이어 버튼에는 분리되어 있지 않은데?"*)
+     *    확정 경로 위에 한 줄로 겹쳐 그리므로, 견주시려면 걷을 수 있어야 한다.
+     */
+    it('🔴 «후보» 레이어가 따로 있다 — 버튼에도 있고 보기별 기본값에도 있다', () => {
+        expect(canvas).toMatch(/\['cand', '후보'\]/);
+        expect(canvas).toMatch(/layers\.cand &&/);
+        const proj = readFileSync(join(__dirname, '../../../client-app/src/lib/mapProjection.ts'), 'utf8');
+        for (const view of ['all', 'leg', 'follow']) {
+            expect(proj).toMatch(new RegExp(`${view}: \\{[^}]*cand: true`));
+        }
+    });
 });

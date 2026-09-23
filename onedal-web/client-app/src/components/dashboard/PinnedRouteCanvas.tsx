@@ -1003,22 +1003,21 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
          */
         const candLine = (candidateHolder?.routePolyline ?? [])
             .filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
-        if (layers.route && candidateHolder && candLine.length > 1) {   // 🧅 «경로» 레이어 위
-            const cStops = candidateHolder.sectionStops;
-            const cLines = sectionLinesOf(candLine, candidateHolder.sectionEnds);
-            const cOk = !!cStops && cLines.length > 1 && cLines.length === cStops.length
-                && candLine.length === (candidateHolder.routePolyline?.length ?? 0);
-            const cColor = candidateHolder.judgment?.color ? SOAK[candidateHolder.judgment.color].bar : '#e6b422';
-            if (cOk) {
-                cLines.forEach((line, i) => {
-                    const mine = cStops![i].orderId === candidateHolder.id;
-                    ctx.strokeStyle = mine ? cColor : '#e6b422';
-                    drawPath(line, mine ? 1.6 : 1, mine ? undefined : [10, 8]);
-                });
-            } else {
-                ctx.strokeStyle = '#e6b422';
-                drawPath(candLine, 1, [10, 8]);
-            }
+        if (layers.cand && candidateHolder && candLine.length > 1) {   // 🧅 «후보» 레이어
+            /**
+             * 🔴 **처음부터 끝까지 한 줄로 긋는다** (기사님 확정 2026-09-24:
+             *    *"추가 되는경로는 새로 다 그려야 한 라인으로 가는거지.. 이미지처럼 몸이
+             *    분리되 가는거 아니잖아."*).
+             *
+             *    그전에는 **그 후보가 늘린 구간만** 굵게 긋고 나머지는 가는 노란 점선이었다.
+             *    점선이 확정 경로 밑에 깔려 안 보이니, 늘어난 구간만 동떨어져 **한 줄이 끊긴 것**
+             *    처럼 보였다 — 실측에서 오송~성거읍 사이가 두 갈래로 갈라져 보였다.
+             * 🔴 **색은 판정 색, 판정 전이면 노란 점선** — «아직 내 콜이 아니다»는 점선이 지킨다.
+             * 🧅 **끄고 켜는 것은 «후보» 레이어** — 확정 경로를 덮으므로 견주려면 걷을 수 있어야 한다.
+             */
+            const cColor = candidateHolder.judgment?.color ? SOAK[candidateHolder.judgment.color].bar : null;
+            ctx.strokeStyle = cColor ?? '#e6b422';
+            drawPath(candLine, cColor ? 1.6 : 1, cColor ? undefined : [10, 8]);
         }
 
         // ② 위 — 내가 «실제로 간 길». 얇고 밝다. 파란 길 밖으로 나가면 그게 이탈이다
@@ -1343,7 +1342,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                         </button>
                         {layersOpen && (
                             <div className="absolute top-full left-0 mt-2 flex flex-col gap-1 z-10">
-                                {([['base', '배경'], ['dim', '어둡게'], ['border', '경계'], ['pickup', '상차'], ['dropoff', '하차'], ['dots', '동 점'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
+                                {([['base', '배경'], ['dim', '어둡게'], ['border', '경계'], ['pickup', '상차'], ['dropoff', '하차'], ['dots', '동 점'], ['route', '경로'], ['cand', '후보'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
                                     <button
                                         key={k}
                                         onClick={() => toggleLayer(k)}
