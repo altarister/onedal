@@ -12,6 +12,9 @@
  *
  * 🔴 숫자 입력칸은 폰에서 나쁘다 — *"커서 확인하고 숫자 지우고 입력하고 힘들어."*
  *    **손가락으로 끌어 크게 옮기고, ± 로 한 칸씩 다듬는다.** 숫자판을 안 띄운다.
+ * 🔴 **조절하는 자리는 레이어 하나다** (기사님 2026-09-23 *"각 인풋에 값을 변경하는것이
+ *    2개씩이 들어가 오작동을 한다"*). 칸은 값을 보여 주고 누르면 열릴 뿐이다 —
+ *    칸에도 ± 를 두면 같은 일을 하는 장치가 둘이 되고, 레이어가 칸을 덮는 동안 그것은 눌리지도 않는다.
  * 🔴 **펼쳐도 아래가 안 밀린다** — 묶음 위에 겹쳐 뜬다. 아래로 밀면 폰에서 보던 자리가 사라진다.
  * 🔴 레이어는 **셀이 아니라 묶음 전체 폭**을 쓴다 — 셀(1/3) 안에 슬라이더를 넣으면 좁아서 못 끈다.
  *
@@ -72,39 +75,30 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3 }: {
 }) {
     const cur = knobs.find(k => k.key === open) ?? null;
     useCloseOnOutside(!!cur, useCallback(() => onOpen(null), [onOpen]));
-    const clamp = (k: KnobDef, v: number) => Math.min(k.max, Math.max(k.min ?? 0, v));
+    /* 🔴 소수 칸(0.5km)이 `4.6 + 0.5 = 5.1000000001` 로 번지지 않게 둘째 자리에서 자른다 */
+    const clamp = (k: KnobDef, v: number) => Math.round(Math.min(k.max, Math.max(k.min ?? 0, v)) * 100) / 100;
     return (
         <div className="relative">
             <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-                {knobs.map(k => {
+                {knobs.map(k => (
                     /**
-                     * 🎚️ **칸 안에서 − / + 로 한 칸씩** (기사님: *"칸을 누르면 올라가기만하거든 내리는것도 필요해"*).
-                     *    지도를 보면서 반경을 조이고 푼다 — 레이어의 ± 와 같은 일이라 **누르는 즉시** 보낸다.
-                     *    크게 옮길 때는 값을 눌러 슬라이더 레이어를 연다 (끄는 것과 다듬는 것 둘 다 —).
-                     * 🔴 소수 칸(0.5km)이 `4.6 + 0.5 = 5.1000000001` 로 번지지 않게 둘째 자리에서 자른다.
+                     * 🎚️ **칸은 값을 보여 주고 누르면 열린다 — 그뿐이다**
+                     *    (기사님 2026-09-23: *"각 인풋에 값을 변경하는것이 2개씩이 들어가 오작동을 한다."*).
+                     *
+                     * 🔴 **칸 안에 ± 를 두지 않는다.** 같은 일을 하는 장치가 칸과 레이어에 둘이면
+                     *    어느 것이 듣는지 모르고, 레이어가 칸들을 덮는 동안 칸의 ± 는 눌리지도 않는다.
+                     *    조절은 **레이어 한 곳**에서 한다 — 거기에 ± 와 끌기가 다 있다.
                      */
-                    const bump = (dir: 1 | -1) => {
-                        const v = clamp(k, Math.round((k.value + dir * (k.step ?? 1)) * 100) / 100);
-                        k.set(v); k.onCommit?.(v);
-                    };
-                    return (
-                        <div key={k.key} data-pick
-                            className={`flex flex-col items-stretch gap-0 px-1 py-0.5 rounded-lg border ${k.dim ? 'opacity-50' : ''} ${
-                                open === k.key ? 'border-info/55 bg-info/10' : 'border-border-card bg-background'}`}>
-                            <span className="px-0.5 text-[9.5px] font-bold text-text-muted leading-tight">{k.label}</span>
-                            <div className="grid grid-cols-[20px_minmax(0,1fr)_20px] items-center gap-0.5">
-                                <button type="button" aria-label={`${k.label} 줄이기`} disabled={k.value <= (k.min ?? 0)} onClick={() => bump(-1)}
-                                    className="h-5 rounded-md border border-border-hover bg-surface-alt/40 text-[13px] font-black leading-none disabled:opacity-30">−</button>
-                                <button type="button" title="눌러서 끌어 옮기기" onClick={() => onOpen(open === k.key ? null : k.key)}
-                                    className="min-w-0 text-center text-[13px] font-black text-text-primary tabular-nums leading-tight whitespace-nowrap">
-                                    {k.value}<span className="text-[9.5px] font-bold text-text-muted">{k.unit}</span>
-                                </button>
-                                <button type="button" aria-label={`${k.label} 늘리기`} disabled={k.value >= k.max} onClick={() => bump(1)}
-                                    className="h-5 rounded-md border border-border-hover bg-surface-alt/40 text-[13px] font-black leading-none disabled:opacity-30">+</button>
-                            </div>
-                        </div>
-                    );
-                })}
+                    <button key={k.key} type="button" data-pick title="눌러서 조절하기"
+                        onClick={() => onOpen(open === k.key ? null : k.key)}
+                        className={`flex flex-col items-stretch gap-0 px-1 py-1 rounded-lg border text-left ${k.dim ? 'opacity-50' : ''} ${
+                            open === k.key ? 'border-info/55 bg-info/10' : 'border-border-card bg-background hover:border-border-hover'}`}>
+                        <span className="px-0.5 text-[9.5px] font-bold text-text-muted leading-tight">{k.label}</span>
+                        <span className="w-full text-center text-[14px] font-black text-text-primary tabular-nums leading-tight whitespace-nowrap">
+                            {k.value}<span className="text-[9.5px] font-bold text-text-muted">{k.unit}</span>
+                        </span>
+                    </button>
+                ))}
             </div>
             {/* 🔴 아래 레이어는 **z-30** — `PickLayer` 와 같은 층이다. 제외지역 블록이
                 `relative z-20` 이라 같은 층이면 뒤에 오는 그쪽이 이긴다 */}

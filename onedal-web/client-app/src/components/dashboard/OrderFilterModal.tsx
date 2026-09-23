@@ -719,6 +719,30 @@ export default function OrderFilterModal({ isOpen, onClose,
                                     </div>
                                 )}
                             </div>
+                            {/**
+                              * 📏 **기준거리 — 여기서 바로 바꾼다** (기사님 2026-09-23:
+                              *    *"40km 반경을 쉽게 바꿔야 할꺼 같아 … 지금은 사용자 설정에 40을
+                              *    바꿔야 하는 불편한 점이 있다."*).
+                              *
+                              * 🔴 **같은 값을 보는 창이 둘일 뿐이다** — ⚙️ 설정의 칸도 그대로 둔다.
+                              *    저장 자리는 `user_filters.radius_base_km` 하나다 (규칙 ③).
+                              * 🔴 이 거리에서 **배율 1.0** 이다 — 목적지가 이보다 가까우면 반경이 줄고,
+                              *    멀면 원값 그대로다. 그래서 아래 반경 셋이 이 값을 따라 함께 움직인다.
+                              */}
+                            <KnobGrid open={openKnob} onOpen={setOpenKnob} cols={1}
+                                knobs={[{
+                                    key: 'radiusBaseKm',
+                                    label: '📏 기준거리 — 여기서 배율 1.0',
+                                    unit: 'km',
+                                    value: filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
+                                    min: 10, max: 100, step: 5,
+                                    /* 🔴 지금 안 쓰이는 칸은 감추지 않고 흐리게 (수동이면 배율이 안 돈다) */
+                                    dim: !radiusAuto,
+                                    set: (v: number) => previewFilter({ radiusBaseKm: v }),
+                                    onPreview: (v: number) => previewFilter({ radiusBaseKm: v }),
+                                    /* 🔴 뗄 때 서버로 — ⚙️ 설정과 같은 통로다 */
+                                    onCommit: (v: number) => updateFilter({ radiusBaseKm: v }),
+                                }]} />
                             {/* 📐 **마름모의 모양 — 국면과 무관한 한 벌이다** (제외 단어와 같은 이유).
                                 라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
                             {/* 🔴 **테두리 박스를 두르지 않는다** — 목업은 3칸 격자가 죽 이어진다.

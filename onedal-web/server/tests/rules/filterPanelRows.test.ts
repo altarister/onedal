@@ -53,12 +53,26 @@ describe('🧰 필터 판 — 네 행 · 하나만 열림 · 저장 줄 고정',
     });
 });
 
-describe('🎚️ KnobGrid — 칸 안에서 − / + 로 올리고 내린다', () => {
+/**
+ * 🎚️ **조절하는 자리는 레이어 하나다** (기사님 2026-09-23:
+ *    *"각 인풋에 값을 변경하는것이 2개씩이 들어가 오작동을 한다."*)
+ *
+ * 그전에는 칸 안에도 ± 가 있고 레이어 안에도 ± 와 슬라이더가 있었다. 같은 일을 하는 장치가
+ * 둘이면 어느 것이 듣는지 모르고, 레이어가 칸들을 덮는 동안 칸의 ± 는 눌리지도 않는다.
+ */
+describe('🎚️ KnobGrid — 칸은 보여 주고, 조절은 레이어에서', () => {
     const knob = codeOnly(read('components/ui/KnobGrid.tsx'));
 
-    it('🔴 칸마다 줄이기·늘리기가 있다 — 값을 누르면 슬라이더 레이어', () => {
-        expect(knob).toMatch(/\$\{k\.label\} 줄이기/);
-        expect(knob).toMatch(/\$\{k\.label\} 늘리기/);
+    it('🔴 칸 안에 ± 가 없다 — 누르면 레이어가 열릴 뿐이다', () => {
+        expect(knob).not.toMatch(/\$\{k\.label\} 줄이기/);
+        expect(knob).not.toMatch(/\$\{k\.label\} 늘리기/);
+    });
+
+    it('🔴 레이어에 끄는 것과 다듬는 것이 다 있다', () => {
         expect(knob).toMatch(/type="range"/);
+        expect(knob).toMatch(/cur\.value - \(cur\.step \?\? 1\)/);
+        expect(knob).toMatch(/cur\.value \+ \(cur\.step \?\? 1\)/);
+        /* 숫자판을 띄우지 않는다 (폰에서 커서 맞추기가 어렵다) */
+        expect(knob).not.toMatch(/type="number"/);
     });
 });
