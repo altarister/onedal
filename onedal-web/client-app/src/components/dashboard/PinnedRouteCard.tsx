@@ -345,6 +345,7 @@ export default function PinnedRouteCard({
                                     type="button"
                                     onClick={(e) => {
                                         e.stopPropagation();
+                                        logRoadmapEvent("웹", "체험 콜 종료 버튼 클릭");
                                         onDecision(route.id, 'SAFE_CANCEL');
                                     }}
                                     className="ml-1 text-[10px] text-danger hover:underline font-bold"
@@ -431,6 +432,7 @@ export default function PinnedRouteCard({
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    logRoadmapEvent("웹", "체험 콜 종료 버튼 클릭");
                                     onDecision(route.id, 'SAFE_CANCEL');
                                 }}
                                 className="ml-1 text-[10px] text-danger hover:underline font-bold"
@@ -1022,6 +1024,7 @@ export default function PinnedRouteCard({
                                     disabled={locked}
                                     onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
+                                        logRoadmapEvent("웹", "콜 카드 — 내가 방출 버튼 클릭");
                                         setLocked(true); setProcessingId(route.id);
                                         onDecision?.(route.id, 'ORDER_RELEASED_BY_ME');
                                     }}
@@ -1034,6 +1037,7 @@ export default function PinnedRouteCard({
                                     disabled={locked}
                                     onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
+                                        logRoadmapEvent("웹", "콜 카드 — 사무실 방출 버튼 클릭");
                                         setLocked(true); setProcessingId(route.id);
                                         onDecision?.(route.id, 'ORDER_RELEASED_BY_OFFICE');
                                     }}

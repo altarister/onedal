@@ -6,6 +6,7 @@ import { verdictOf, type VerdictColor } from '../../lib/verdict';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { seatConclusion } from '../../lib/seatConclusion';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
+import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 /**
  * 🪧 **심사석** — 평가·미리보기 콜이 필터 자리를 빌려 쓰는 카드 (기사님 확정 · 와이어프레임 v13).
@@ -173,7 +174,12 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                 {header}
                 {/* 👀 미리보기는 **누르면 치운다** — 배차망엔 아무 일도 안 생기고(안 잡은 콜) 취소 한도도 안 깎인다. 펼치기는 안 쓴다 (운전 중 두 손짓은 못 기억한다) */}
                 <div className="relative z-10 tabular-nums cursor-pointer" style={{ padding: '8px 16px 12px 21px' }}
-                     onClick={() => route.isPreview ? onDecision?.(route.id, 'SAFE_CANCEL') : judged && setOpen(o => !o)}>
+                     onClick={() => {
+                         /* 🧾 **어느 버튼에서 온 결재인지 남긴다** — 서버 로그에는 «[Socket] 취소 전달» 한 줄만 남아
+                            «누가 눌렀나»를 못 가렸다 (2026-09-23 · 누른 적 없는 취소가 «수동»으로 기록된 건). */
+                         if (route.isPreview) { logRoadmapEvent("웹", "심사석 — 미리보기 카드를 눌러 치움", "관제대시보드"); onDecision?.(route.id, 'SAFE_CANCEL'); }
+                         else if (judged) setOpen(o => !o);
+                     }}>
                     {judged ? (<>
                         {/* v13 .core .l1 — 27px */}
                         <div style={{ fontSize: 27, fontWeight: 900, letterSpacing: '-.5px', lineHeight: 1.15 }}>
@@ -239,7 +245,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
             {header}
             <div className="flex relative z-10" style={{ gap: 9, padding: '8px 13px 13px', flex: 1, minHeight: 0 }}>
                 <button disabled={!judged || busy}
-                    onClick={() => { setProcessingId?.(route.id); onDecision?.(route.id, 'SAFE_CANCEL'); }}
+                    onClick={() => { logRoadmapEvent("웹", "심사석 — 거절(왼쪽) 버튼 클릭", "관제대시보드"); setProcessingId?.(route.id); onDecision?.(route.id, 'SAFE_CANCEL'); }}
                     className="text-left disabled:opacity-40 overflow-hidden"
                     style={{ flex: 35, borderRadius: 11, padding: '8px 12px', fontSize: 13.5, fontWeight: 700, lineHeight: 1.7,
                              background: 'linear-gradient(180deg,#3a1518,#2c1013)', color: '#e79aa2', border: '1px solid rgba(224,85,99,.35)' }}>
@@ -247,7 +253,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     {judged ? ([conclusion?.kind === 'unknown' ? '❓ 기존 콜 도착 모름' : null, ...negatives.map(r => `❌ ${r}`)].filter(Boolean).join('\n') || '거절') : '❌ —'}
                 </button>
                 <button disabled={!judged || busy}
-                    onClick={() => { setProcessingId?.(route.id); onDecision?.(route.id, 'ORDER_CONFIRMED'); }}
+                    onClick={() => { logRoadmapEvent("웹", "심사석 — KEEP(오른쪽) 버튼 클릭", "관제대시보드"); setProcessingId?.(route.id); onDecision?.(route.id, 'ORDER_CONFIRMED'); }}
                     className="text-left relative overflow-hidden tabular-nums disabled:opacity-60"
                     style={judged
                         ? { flex: 65, borderRadius: 11, padding: '8px 12px', background: `linear-gradient(180deg, ${c!.bar}, ${c!.bar}cc)`, color: '#181818', boxShadow: `0 0 24px ${c!.glow}, inset 0 1px 0 rgba(255,255,255,.35)` }
