@@ -140,6 +140,21 @@ export function resetSimCalls(q: SimCallQueue): number {
     return q.round;
 }
 
+/**
+ * 🧹 **회차만 올린다 — 들고 있던 콜은 그대로 둔다** (기사님 · 실주행 시험).
+ *
+ * 원달앱은 한 번 본 콜을 기억해 다시 판정하지 않는다(`CallMemory`). 그 기억을 비우는 길은
+ * **회차가 바뀌는 것** 하나인데, 회차를 올리는 자리가 `resetSimCalls` 뿐이라 비우려면
+ * **들고 있던 콜까지 사라졌다** — 도는 중에는 쓸 수 없었다.
+ *
+ * 🔴 **시뮬레이터는 안 건드린다** — 배차망 흉내이므로 서버와 말을 섞지 않는 것이 맞다(기사님).
+ *    누르는 자리는 관제웹이고, 앱은 다음 `/api/scrap` 응답에서 바뀐 번호를 보고 스스로 비운다.
+ */
+export function bumpCallMemoryRound(q: SimCallQueue): number {
+    q.round += 1;
+    return q.round;
+}
+
 /** 🫳 콜 하나를 거둔다 — 들고 있던 목록에서 빼고 «거둔 번호»에 적는다 (두 번 거둬도 한 번) */
 export function withdrawSimCall(q: SimCallQueue, seq: number): void {
     q.calls = q.calls.filter(c => c.seq !== seq);

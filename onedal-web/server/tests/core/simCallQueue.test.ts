@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-    SIM_CALL_KEEP, createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter, withdrawSimCall,
+    SIM_CALL_KEEP, bumpCallMemoryRound, createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter, withdrawSimCall,
 } from '../../src/core/simCallQueue';
 import type { SimCallInput } from '../../src/core/simCallQueue';
 
@@ -82,6 +82,29 @@ describe('개별콜 — 회차 (시나리오를 다시 시작하면 이전 콜�
         expect(q.round).toBe(1);
         expect(q.calls).toEqual([]);
         expect(pushSimCall(q, call(), 3).seq).toBe(3);
+    });
+
+    /**
+     * 🧹 **회차만 올린다 — 들고 있던 콜은 그대로** (기사님 · 실주행 시험).
+     *
+     * 원달앱은 한 번 본 콜을 기억해 다시 판정하지 않는다(`CallMemory`). 그 기억을 비우는 길은
+     * **회차가 바뀌는 것** 하나다. 그런데 회차를 올리는 자리가 `resetSimCalls` 뿐이라,
+     * 비우려면 **들고 있던 콜까지 사라진다** — 기사님이 도시는 중에는 쓸 수 없다.
+     *
+     * 오늘 시험에서 회차가 한 번도 안 올랐고(시뮬레이터가 서버의 시나리오 길을 안 지난다),
+     * 앱은 새벽부터 같은 기억을 들고 있었다 — 시흥동 한 콜만 **1,249번** 넘겼다.
+     *
+     * 🔴 **시뮬레이터는 안 건드린다** — 배차망 흉내이므로 서버와 말을 섞지 않는 것이 맞다(기사님).
+     *    비우는 것은 **관제웹에서 기사님이** 누른다.
+     */
+    it('🔴 회차만 올리면 들고 있던 콜은 남는다 — 도는 중에도 기억만 비운다', () => {
+        const q = createSimCallQueue();
+        pushSimCall(q, call(), 1);
+        pushSimCall(q, call(), 2);
+        const before = q.calls.length;
+        expect(bumpCallMemoryRound(q)).toBe(1);
+        expect(q.round).toBe(1);
+        expect(q.calls.length).toBe(before);      // 콜은 그대로
     });
 
     it('답에 회차가 실린다 — 시뮬레이터가 목록을 비울 때를 안다', () => {

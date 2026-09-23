@@ -11,7 +11,7 @@ import { getUserDevicesSnapshot } from "./devices";
 import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
 import { BOOTED_AT } from "./health";
 import { calculateSoloRoute } from "../services/kakaoService";
-import { createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter, withdrawSimCall } from "../core/simCallQueue";
+import { bumpCallMemoryRound, createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter, withdrawSimCall } from "../core/simCallQueue";
 import { seqsToWithdraw, startScenario, stepScenario, skipScenarioRow } from "../core/simScenario";
 import type { ScenarioState, ScenarioWorld, WorldOrder, WorldIntel, ScenarioRow } from "../core/simScenario";
 import { ICHEON_ROUND_TRIP, ICHEON_FIVE_OK } from "../core/simScenarioIcheon";
@@ -403,6 +403,24 @@ router.get("/scenario", (req, res) => {
             ...(st ? st.rows[i] : { mark: 'wait', note: '' }),
         })),
     });
+});
+
+/**
+ * 🧹 **원달앱의 «본 콜» 기억을 비운다** — 회차만 올린다 (기사님 · 실주행 시험).
+ *
+ * 앱은 한 번 본 콜을 다시 판정하지 않는다(`CallMemory`). 비우는 길은 회차가 바뀌는 것 하나인데,
+ * 회차를 올리는 자리가 시나리오 시작뿐이라 **시뮬레이터가 그 길을 안 지나면 영영 안 비워졌다** —
+ * 오늘 시험에서 시흥동 한 콜만 1,249번 넘겼다.
+ *
+ * 🔴 **시뮬레이터는 안 부른다** — 배차망 흉내이므로 서버와 말을 섞지 않는 것이 맞다(기사님).
+ *    누르는 자리는 관제웹이고, 앱은 다음 `/api/scrap` 응답의 바뀐 번호를 보고 스스로 비운다.
+ * 🔴 **들고 있던 콜은 안 지운다** — 도는 중에도 쓸 수 있어야 한다 (`bumpCallMemoryRound`).
+ */
+router.post("/call-memory/round", (_req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+    const round = bumpCallMemoryRound(simCalls);
+    console.log(`🧹 [본 콜 기억] 회차를 ${round} 로 올렸습니다 — 폰이 다음 응답에서 기억을 비웁니다 (들고 있던 콜 ${simCalls.calls.length}건은 그대로)`);
+    return res.json({ ok: true, round });
 });
 
 router.post("/scenario/start", (req, res) => {
