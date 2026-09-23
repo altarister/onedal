@@ -40,6 +40,21 @@ export interface MoneyFacts {
     /** 이 콜에 걸린 평소 하한가(원). 없으면 안 본다 */
     minAcceptableKrw?: number | null;
     /**
+     * ⛽ **이 콜 때문에 더 달리는 거리(km)** — 합짐이면 «붙여서 늘어나는 거리», 첫짐이면 «이 콜의 전체 거리».
+     *    🔴 모르면 `null` — 그때는 기름값을 안 뺀다 (지어내지 않는다 · 규칙 ④).
+     */
+    extraKm?: number | null;
+    /**
+     * ⛽ **1km 달리는 기름값(원)** — 기사님 설정에서 나온다 (`fuelCost.fuelCostPerKm` 한 곳).
+     *    🔴 여기서 다시 나누지 않는다 (규칙 ③). 설정이 비면 `null` 로 온다.
+     */
+    fuelCostPerKm?: number | null;
+    /**
+     * 🛣️ **이 콜 때문에 더 내는 톨비(원)** — 카카오가 경로마다 준다 (`summary.fare.toll` 의 차이).
+     *    🔴 모르면 `null`. 0 과 다르다 — 0 은 «톨비가 없는 길»이고 `null` 은 «못 받았다»이다.
+     */
+    tollKrw?: number | null;
+    /**
      * **빈 차에 처음 싣는 콜인가.** 눈금을 고르는 데만 쓴다 — 첫짐은 `soloHourlyKrw` 하나로,
      * 합짐은 두 점 꺾은선(`hourlyKrw` 50점 · `honeyHourlyKrw` 100점)으로 잰다.
      *
@@ -69,11 +84,36 @@ export const MONEY = defineCriterion<MoneyFacts>({
         // 우회가 없는 길목 콜 — 운임이 통째로 이득이다
         if (f.extraMinutes <= 0) return scored(100, `우회 ${f.extraMinutes}분 — 길목`);
 
-        const hourly = (f.fare / f.extraMinutes) * 60;
+        /**
+         * ⛽🛣️ **나가는 돈을 빼고 잰다 — 시급의 분자는 «순이익»이다** (기사님 확정).
+         *
+         * ```
+         * 순이익 = 요금 − 늘어나는 거리 × km당 기름값 − 늘어나는 톨비
+         * ```
+         *
+         * 🔴 **못 잰 비용은 0 으로 치지 않고 그 항목만 뺀다** (규칙 ④ · ⑤-2) —
+         *    0 으로 치면 «기름이 안 든다»가 되어 먼 콜이 공짜로 보인다. 못 쟀으면 그 항목 없이
+         *    지금까지 하던 대로 요금 그대로 잰다. 화면은 딱지로 «미확인»을 말한다.
+         * 🔴 **곱셈·나눗셈을 여기서 만들지 않는다** — km당 기름값은 `fuelCost` 한 곳에서 온다 (규칙 ③).
+         * 🔴 **순이익이 음수여도 0 으로 자르지 않는다** — 아래 눈금이 0점으로 받는다.
+         *    자르면 «10만원 손해»와 «본전»이 같아진다.
+         */
         const toManwon = (n: number) => (n / 10_000).toFixed(1);
+        const fuelKrw = f.extraKm != null && f.fuelCostPerKm != null
+            ? Math.round(f.extraKm * f.fuelCostPerKm) : null;
+        const netFare = f.fare - (fuelKrw ?? 0) - (f.tollKrw ?? 0);
+        /* 🧾 뺀 것을 화면이 말한다 — 숫자만 내려가고 까닭이 없으면 기사님이 «왜 깎였나»를 못 보신다 */
+        const costNote = [
+            fuelKrw ? `기름 ${fuelKrw > 0 ? '−' : '+'}${toManwon(Math.abs(fuelKrw))}만` : '',
+            f.tollKrw ? `톨비 ${f.tollKrw > 0 ? '−' : '+'}${toManwon(Math.abs(f.tollKrw))}만` : '',
+        ].filter(Boolean).join(' · ');
+
+        const hourly = (netFare / f.extraMinutes) * 60;
         const T = cfg.target.hourlyKrw, H = cfg.target.honeyHourlyKrw, S = cfg.target.soloHourlyKrw;
         const scaleNote = f.firstLoad ? `첫짐 기준 ${toManwon(S)}만` : `보통 ${toManwon(T)}만 · 꿀 ${toManwon(H)}만`;
-        const why = `${toManwon(f.fare)}만 ÷ ${f.extraMinutes}분 = ${toManwon(hourly)}만/h (${scaleNote})`;
+        /* 🧾 뺀 것이 있으면 «요금 − 비용»을 그대로 보인다 — 없으면 지금까지와 같은 문장이다 */
+        const fareText = costNote ? `${toManwon(f.fare)}만(${costNote})` : `${toManwon(f.fare)}만`;
+        const why = `${fareText} ÷ ${f.extraMinutes}분 = ${toManwon(hourly)}만/h (${scaleNote})`;
 
         /**
          * 🔴 **눈금이 국면마다 다르다** (기사님 확정).

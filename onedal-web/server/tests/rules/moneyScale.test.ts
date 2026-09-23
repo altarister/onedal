@@ -118,3 +118,85 @@ describe('💰 눈금의 두 끝은 판정 기준 탭에 있다 (규칙 ⑤-4 �
         expect(`${f.label} ${f.why}`).toMatch(/50점|보통/);
     });
 });
+
+/**
+ * ⛽🛣️ **시급의 분자는 «순이익»이다** (기사님 확정)
+ *
+ * 무엇을 막나
+ * - 나가는 돈을 **안 보는 것** — 요금만 보면 90km 를 더 달려 톨비까지 내는 콜이 가까운 콜과 같은 점수를 받는다
+ * - 못 잰 비용을 **0 으로 치는 것** — «기름이 안 든다»가 되어 먼 콜이 공짜로 보인다 (규칙 ④)
+ * - 비용을 **안 넘겼는데 점수가 달라지는 것** — 서버가 값을 못 실어도 지금까지와 같이 돌아야 한다
+ */
+describe('⛽🛣️ 순이익 — 기름값·톨비를 요금에서 뺀다', () => {
+
+    /** 🔴 이 검사가 있어야 «서버가 아직 안 잇는 동안» 점수가 안 바뀐 것을 안다 */
+    it('🔴 비용을 안 넘기면 점수가 지금과 똑같다', () => {
+        const 요금만 = 합짐(30_000);
+        const 칸은있고값은없음: JudgeFacts = {
+            ...요금만,
+            money: { ...요금만.money!, extraKm: null, fuelCostPerKm: null, tollKrw: null },
+        };
+        expect(점수(칸은있고값은없음)).toBe(점수(요금만));
+    });
+
+    it('기름값을 빼면 점수가 내려간다 — 3만원 60분에 74km × 160원', () => {
+        const 요금만 = 합짐(30_000);
+        const 기름뺌: JudgeFacts = {
+            ...요금만,
+            money: { ...요금만.money!, extraKm: 74, fuelCostPerKm: 160 },
+        };
+        expect(점수(기름뺌)!).toBeLessThan(점수(요금만)!);
+    });
+
+    it('톨비를 빼면 점수가 내려간다', () => {
+        const 요금만 = 합짐(30_000);
+        const 톨비뺌: JudgeFacts = { ...요금만, money: { ...요금만.money!, tollKrw: 7_000 } };
+        expect(점수(톨비뺌)!).toBeLessThan(점수(요금만)!);
+    });
+
+    /** 🔴 «거리를 모른다»와 «0km»는 다르다 — 앞의 것은 안 빼고, 뒤의 것은 0원을 뺀다 */
+    it('🔴 거리를 모르면 기름값을 안 뺀다 — km당 값만 있어도 그대로', () => {
+        const 요금만 = 합짐(30_000);
+        const 거리모름: JudgeFacts = {
+            ...요금만,
+            money: { ...요금만.money!, extraKm: null, fuelCostPerKm: 160 },
+        };
+        expect(점수(거리모름)).toBe(점수(요금만));
+    });
+
+    it('🔴 km당 기름값을 모르면 안 뺀다 — 거리만 있어도 그대로', () => {
+        const 요금만 = 합짐(30_000);
+        const 단가모름: JudgeFacts = {
+            ...요금만,
+            money: { ...요금만.money!, extraKm: 74, fuelCostPerKm: null },
+        };
+        expect(점수(단가모름)).toBe(점수(요금만));
+    });
+
+    /** 🔴 합짐은 경로가 짧아질 수도 있다 — 그때는 기름을 덜 쓴 것이 사실이다 */
+    it('거리가 음수면 기름값이 되레 더해진다', () => {
+        const 요금만 = 합짐(30_000);
+        const 짧아짐: JudgeFacts = {
+            ...요금만,
+            money: { ...요금만.money!, extraKm: -10, fuelCostPerKm: 160 },
+        };
+        expect(점수(짧아짐)!).toBeGreaterThanOrEqual(점수(요금만)!);
+    });
+
+    it('🧾 무엇을 뺐는지 화면 문장에 적힌다 — 숫자만 내려가면 까닭을 모른다', () => {
+        const 요금만 = 합짐(50_000);
+        const 뺌: JudgeFacts = {
+            ...요금만,
+            money: { ...요금만.money!, extraKm: 74, fuelCostPerKm: 160, tollKrw: 7_000 },
+        };
+        const why = judge(CRITERIA, 뺌, cfg()).criteria.find(c => c.key === 'money')!.outcome as { why: string };
+        expect(why.why).toContain('기름');
+        expect(why.why).toContain('톨비');
+    });
+
+    it('🧾 안 뺐으면 그 말이 안 적힌다 — 없는 비용을 화면이 말하지 않는다', () => {
+        const why = judge(CRITERIA, 합짐(50_000), cfg()).criteria.find(c => c.key === 'money')!.outcome as { why: string };
+        expect(why.why).not.toContain('기름');
+        expect(why.why).not.toContain('톨비');
+    });
+});
