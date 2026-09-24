@@ -53,11 +53,18 @@ describe('⏰ 약속 지연 — 몇 분인지 화면이 말한다', () => {
     });
 
     /** 🔴 색은 그대로다 — 이 검사는 «말»만 본다 (기사님 확정) */
-    it('🔴 깨진 약속은 여전히 사고다 — 분이 작아도 봐주지 않는다', () => {
-        for (const mins of [1, 12, 60]) {
-            const v = toSnapshot(judge(CRITERIA, 합짐({ lateStops: [늦음('합짐1콜 하차 약속', mins)] }), cfg));
-            expect(v.color).toBe('사고');
-        }
+    /**
+     * 🔴 **흔들림 안이면 봐준다 — 밖이면 사고다** (기사님 확정).
+     *    *"전화를 하였어도 10분 정도 늦어 질수 있는거고"* — 1분 늦어 🔴 이던 과함을 걷어냈다.
+     */
+    it('🔴 굳힌 약속은 흔들림 밖이면 사고, 안이면 아니다', () => {
+        const 안 = DEFAULT_JUDGMENT.slack.slipCalledMin - 1;
+        const 밖 = DEFAULT_JUDGMENT.slack.slipCalledMin + 1;
+        const 본다 = (m: number) => toSnapshot(judge(CRITERIA,
+            합짐({ lateStops: [{ ...늦음('합짐1콜 하차 약속', m), firm: true }] }), cfg)).color;
+        expect(본다(안)).not.toBe('사고');
+        expect(본다(밖)).toBe('사고');
+        expect(본다(60)).toBe('사고');
     });
 
     it('늦는 약속이 없으면 그대로 점수다 — 이 판이 멀쩡한 콜을 안 건드린다', () => {

@@ -30,8 +30,9 @@ const 덮은기준 = (f: JudgeFacts) => judge(CRITERIA, f, cfg).criteria
 describe('🚫 색을 덮는 것은 약속·성질 둘이다 (공간은 아직 아니다)', () => {
 
     it('🔴 통화로 굳힌 약속이 깨지면 덮는다', () => {
+        /* 🔴 «굳힌 약속이 흔들림 밖» 일 때다 — 몇 분이든 무조건이 아니다 (기사님 확정) */
         const f = 합짐({ promise: { hasExistingCalls: true, bufferAfterMin: 60,
-            lateStops: [{ label: '노선콜 하차 약속', lateMinutes: 12 }] } });
+            lateStops: [{ label: '노선콜 하차 약속', lateMinutes: 30, firm: true }] } });
         expect(덮은기준(f)).toEqual(['promise']);
         expect(judge(CRITERIA, f, cfg).color).toBe('사고');
     });
@@ -62,8 +63,9 @@ describe('🚫 색을 덮는 것은 약속·성질 둘이다 (공간은 아직 �
     });
 
     it('🔴 빠듯한 여유(음수)도 색을 안 덮는다 — 그건 임시 계산이다', () => {
-        const f = 합짐({ promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: -103 } });
-        expect(덮은기준(f)).toEqual([]);
+        /* 🔴 전화 안 한 곳은 흔들림을 크게 넘어야 덮는다 — 조금 빠듯한 것은 🟡(전화) 다 */
+        const 조금 = -(DEFAULT_JUDGMENT.slack.slipUncalledMin + 5);
+        expect(덮은기준(합짐({ promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 조금 } }))).toEqual([]);
     });
 });
 

@@ -29,55 +29,34 @@ const 약속점수 = (f: JudgeFacts, c: JudgmentConfig) => {
     return o.kind === 'scored' ? o.score : null;
 };
 
-describe('⏰ 여유 곡선 — 두 끝이 판정 기준 탭에서 온다', () => {
+describe('⏰ 약속 — 색을 가르고 점수는 안 깎는다', () => {
     /**
-     * 🔴 «여유 0분» 점수는 «지연 5분»(90점)보다 높아야 한다 — 낮으면 **늦는 콜이 딱 맞춘
-     *    콜보다 좋아진다**. 곡선은 `latePromiseSlope.test.ts`.
+     * 🔴 **약속은 «내가 무엇을 해야 하나»를 말한다** (기사님 확정).
+     *    *"약속으로 색을 판단하고 점수로 금액을 판단한다"* — 늦는다고 «얼마짜리인가»가
+     *    달라지지 않는다. 흔들림 곡선은 `latePromiseSlope.test.ts` 가 문다.
      */
-    it('기본값 — 30분 만점 · 0분 95점 · 지연 세 자리', () => {
+    it('기본값 — 흔들림 통화한 곳 10분 · 전화 안 한 곳 20분', () => {
         expect(DEFAULT_JUDGMENT.slack).toEqual({
             fullMin: 30, zeroScore: 95, lateSoftMin: 5, lateWarnMin: 15, lateZeroMin: 30,
-            /* ⏰ 약속이 흔들리는 폭 — 통화한 곳 · 전화 안 한 곳 (기사님 «전화를 하였어도 10분…») */
             slipCalledMin: 10, slipUncalledMin: 20,
         });
-        expect(약속점수(합짐(30), DEFAULT_JUDGMENT)).toBe(100);
-        expect(약속점수(합짐(0), DEFAULT_JUDGMENT)).toBe(95);
-        expect(약속점수(합짐(15), DEFAULT_JUDGMENT)).toBe(98);      // 딱 가운데
     });
 
-    it('🔴 만점 기준을 낮추면 빠듯한 합짐도 만점을 받는다 (공격적)', () => {
-        const c = cfg({ slack: { ...DEFAULT_JUDGMENT.slack, fullMin: 20 } });
-        expect(약속점수(합짐(20), c)).toBe(100);                    // 기본값이면 98점
-        expect(약속점수(합짐(20), DEFAULT_JUDGMENT)).toBe(98);
+    it('🔴 여유가 넉넉하든 빠듯하든 점수는 안 깎인다', () => {
+        for (const m of [30, 15, 0, -5, -15, -60, -300]) {
+            expect(약속점수(합짐(m), DEFAULT_JUDGMENT)).toBe(100);
+        }
     });
 
-    it('🔴 0분 점수를 낮추면 여유 없는 콜이 확 깎인다 (보수적)', () => {
-        const c = cfg({ slack: { ...DEFAULT_JUDGMENT.slack, zeroScore: 10 } });
-        expect(약속점수(합짐(0), c)).toBe(10);
-        expect(약속점수(합짐(0), DEFAULT_JUDGMENT)).toBe(95);
-    });
-
-    /**
-     * 🔴 **음수 여유를 한 번에 0 으로 떨어뜨리지 않는다** — 그러면 몇 분 밀리는 콜을 다 버린다.
-     *    정차 중에 3~4콜을 모으려면 몇 분씩은 밀린다. 곡선은 `latePromiseSlope.test.ts` 가 문다.
-     */
-    it('음수 여유는 밀린 만큼만 깎인다 — 한 번에 0 이 아니다', () => {
-        expect(약속점수(합짐(-5), DEFAULT_JUDGMENT)).toBe(90);
-        expect(약속점수(합짐(-15), DEFAULT_JUDGMENT)).toBe(60);
-        /* 🔴 한계(30분)에서 0 이 아니다 — 그 뒤가 갈리게 작은 값으로 끝나고 0 에 수렴한다.
-              색은 그대로 «똥» 이다 (보통 경계 한참 아래) */
-        const 한계 = 약속점수(합짐(-30), DEFAULT_JUDGMENT)!;
-        expect(한계).toBeLessThan(DEFAULT_JUDGMENT.color.normalMin);
-        expect(한계).toBeGreaterThan(0);
-        expect(약속점수(합짐(-300), DEFAULT_JUDGMENT)!).toBeLessThan(한계);
+    /** 🔴 기사님이 흔들림을 넓히면 같은 콜의 **색**이 달라진다 — 코드에 안 박혀 있다 */
+    it('🔴 흔들림을 넓히면 같은 콜이 «그냥 잡는다»가 된다', () => {
+        const 넓게 = cfg({ slack: { ...DEFAULT_JUDGMENT.slack, slipUncalledMin: 120 } });
+        const 색 = (c: JudgmentConfig) => judge(CRITERIA, 합짐(-60), c).color;
+        expect(색(DEFAULT_JUDGMENT)).toBe('똥');      // 🟡 전화해서 미룬다
+        expect(색(넓게)).not.toBe('똥');
     });
 });
 
-/**
- * 🎛️ **정차 값은 «콜 옵션 표»에서 온다**.
- *    그 셋은 «어떻게 잴 것인가»가 아니라 **화면의 칩에 붙는 숫자**이고, 그 표에 칸이 있다.
- *    판정 기준 탭에 또 두면 같은 값이 두 그릇에 산다 (규칙 ③).
- */
 describe('📦 박스당 정차 시간 — 콜 옵션 표에서 온다', () => {
     /** 표를 손으로 고쳐 «바꾸면 정말 바뀌는가»를 본다 */
     const 표 = (over: (o: any) => void = () => {}) => {

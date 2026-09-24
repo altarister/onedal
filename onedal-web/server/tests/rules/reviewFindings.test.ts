@@ -128,8 +128,12 @@ describe('④ 「약속」이 깨진 이유에 «0분 늦음» 을 붙이지 않
             nature: { conflicts: [], excludedHits: [], hasLoad: true },
         } as any, DEFAULT_JUDGMENT);
         const o = v.criteria.find(c => c.key === 'promise')!.outcome as any;
-        expect(o.why).toBe('첫짐 하차 약속이 12분 깨집니다');
+        /* 🔴 지키는 것은 그대로다 — 자리표시자 0 을 넣지 않는다. 대신 못 쟀다고 적는다 */
+        expect(o.why).toContain('첫짐 하차 약속이 12분 깨집니다');
         expect(o.why).not.toContain('0분 늦음');
+        expect(o.why).toContain('못 쟀습니다');
+        /* 🔴 모른다고 봐주지 않는다 — 늦는다는 사실은 아니까 적어도 전화는 해야 한다 (🟡) */
+        expect(o.needsCall).toBe(true);
     });
 
     it('분을 알면 적는다', () => {

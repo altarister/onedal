@@ -1,4 +1,4 @@
-import { defineCriterion, scored, multiplied, asCeiling, nothing, unmeasurable } from './judge';
+import { defineCriterion, scored, multiplied, asCeiling, needsCall, nothing, unmeasurable } from './judge';
 import type { Criterion } from './judge';
 
 /**
@@ -452,7 +452,11 @@ export interface PromiseFacts {
      * 🔴 `lateMinutes` 는 **모를 수 있다** — 옛 조건은 «몇 분 늦는지»를 문장으로만
      *    들고 있다. 모르면 `null` 이고, 그때는 «N분 늦음» 을 **안 적는다** (규칙 ④).
      */
-    lateStops: Array<{ label: string; lateMinutes: number | null }>;
+    lateStops: Array<{
+        label: string; lateMinutes: number | null;
+        /** ☎️ **전화로 굳힌 약속인가** — 굳힌 것은 흔들림이 작다 (`firmPromiseMsOf`) */
+        firm?: boolean;
+    }>;
     /** 붙인 뒤 남는 **가장 빠듯한** 여유(분). 음수면 이미 빠듯하다 */
     bufferAfterMin: number | null;
 }
@@ -464,64 +468,82 @@ export interface PromiseFacts {
  * 곡선은 옛 채점기 그대로다 (30분 이상 100 · 0분 40 · 음수 0) — 구조만 옮기고
  * **값은 안 바꾼다.** 같이 움직이면 «구조 때문인지 값 때문인지» 못 가린다.
  */
+/**
+ * ⏰ **전화로 될 일이 아닌 크기 — 흔들림의 몇 배** (기사님 확정 «셋째 길 — 둘 다»).
+ *
+ * 전화 안 한 약속이 이만큼 밀리면 «전화해서 미룬다»가 아니라 «다른 걸 취소할까»가 된다.
+ * 🔴 전화로 굳힌 약속에는 안 쓴다 — 그쪽은 흔들림 밖이면 바로 🔴 다 (한 번 한 약속은 무겁다).
+ * 🔴 분은 설정(`slack`), 배수는 코드 — 「돈」의 우회 감쇠와 같은 모양이다.
+ */
+const HARD_SLIP_TIMES = 3;
+
 export const PROMISE = defineCriterion<PromiseFacts>({
     key: 'promise', name: '약속', asks: '이미 잡은 콜에 늦지 않나',
     weightKey: 'promiseGuard',
     measure(f, cfg) {
         if (!f || !Array.isArray(f.lateStops)) return unmeasurable('경로 타임라인을 못 받았습니다');
         if (!f.hasExistingCalls) return nothing('잡아 둔 콜이 없습니다');
+        /**
+         * ⏰ **약속은 콜을 잡는 순간 이미 있다 — 통화는 흔들림을 줄인다** (기사님 확정).
+         *
+         * 기사님: *"처음부터 우리는 약속이 있는 것과 같아. 확정을 하지 않은 약속"* ·
+         *         *"전화를 하였어도 10분 정도 늦어 질수 있는거고 전화를 하지 않았으면 20분정도"*
+         *
+         * 🔴 **색은 «내가 무엇을 해야 하나»다** — 점수를 깎지 않는다.
+         *      흔들림 안        그냥 잡으면 된다
+         *      흔들림 밖        🟡 전화해서 미룬다
+         *      전화한 곳이 흔들림 밖 · 전화 안 한 곳이 흔들림의 몇 배 밖  →  🔴 못 잡는다
+         * 🔴 **한 콜에 약속이 둘이다** (상차 · 하차). 가장 무거운 것이 색을 정한다.
+         */
         if (f.lateStops.length) {
-            const whyText = f.lateStops.map(s => s.lateMinutes == null ? s.label : `${s.label} ${s.lateMinutes}분 늦음`).join(' · ');
-            return scored(0, whyText, true);          // 🔴 이건 «잡으면 사고»다
+            const { slipCalledMin, slipUncalledMin } = cfg.slack;
+            const hardAt = slipUncalledMin * HARD_SLIP_TIMES;
+            let worst: 'none' | 'call' | 'hard' = 'none';
+            const parts: string[] = [];
+            for (const s of f.lateStops) {
+                const slip = s.firm ? slipCalledMin : slipUncalledMin;
+                /**
+                 * 🔴 **몇 분인지 모르면 흔들림 안이라고 치지 않는다** (규칙 ④).
+                 *    `?? 0` 으로 읽으면 «모른다»가 «안 늦는다»가 되어 조용히 봐주게 된다.
+                 *    늦는다는 사실은 아는 것이므로 **적어도 전화는 해야 한다** — 🟡 로 둔다.
+                 */
+                if (s.lateMinutes == null) {
+                    if (worst === 'none') worst = 'call';
+                    parts.push(`${s.label}(${s.firm ? '전화함' : '전화 안 함'} · 몇 분인지 못 쟀습니다)`);
+                    continue;
+                }
+                const late = s.lateMinutes;
+                const how = s.firm
+                    ? (late > slip ? 'hard' : 'none')
+                    : (late > hardAt ? 'hard' : late > slip ? 'call' : 'none');
+                if (how === 'hard') worst = 'hard';
+                else if (how === 'call' && worst === 'none') worst = 'call';
+                parts.push(`${s.label} ${late}분 늦음(${s.firm ? '전화함' : '전화 안 함'} · 흔들림 ${slip}분)`);
+            }
+            const whyText = parts.join(' · ');
+            if (worst === 'hard') return scored(100, whyText, true);    // 🔴 색만 덮는다 — 점수는 «얼마짜리인가» 그대로
+            if (worst === 'call') return needsCall(scored(100, whyText));  // 🟡 전화하면 된다
+            return scored(100, `${whyText} — 흔들림 안입니다`);           // 그냥 잡는다
         }
         if (f.bufferAfterMin == null) return unmeasurable('남는 여유를 못 쟀습니다');
         /**
-         * 🔴 **곡선의 두 끝이 판정 기준 탭에서 온다** (화면으로 올림).
-         *    코드에 박으면 기사님이 못 고치신다.
+         * ⏰ **여기는 아직 전화를 안 한 약속이다** (기사님 확정).
+         *
+         * 흔들림 안이면 있을 수 있는 일이고, 밖이면 전화해서 미루고, 몇 배 밖이면
+         * 전화로 될 일이 아니다.
+         * 🔴 **점수는 안 깎는다** — 색이 할 일을 점수가 대신하면 «얼마짜리인가»가 사라진다.
+         *    기사님: *"노랑바탕에 90점을 보면 전화해서 시간을 미뤄야 겠다 이렇게 판단할꺼 같거든."*
+         * 🔴 흔들림은 판정 기준 탭에서 온다 (`slipUncalledMin`) — 코드에 박으면 못 고치신다.
          */
-        const { fullMin, zeroScore, lateSoftMin, lateWarnMin, lateZeroMin } = cfg.slack;
+        const { slipUncalledMin } = cfg.slack;
         const a = f.bufferAfterMin;
-        if (a >= fullMin) return asCeiling(scored(100, `최소 +${a}분`));
-        if (a >= 0) return asCeiling(scored(zeroScore + ((100 - zeroScore) / fullMin) * a, `최소 +${a}분`));
-
-        /**
-         * ⏰ **통화 전 임시 지연은 분만큼만 깎는다** (기사님 확정).
-         *    🔴 한 번에 0 으로 떨어뜨리면 몇 분 밀리는 콜을 다 버린다 —
-         *    정차 중에 3~4콜을 모으려면 몇 분씩은 밀린다.
-         *
-         * 🔴 **분은 설정, 계수는 코드** — 우회 감쇠(`decayOf`)와 같은 모양이다.
-         * 🔴 통화로 굳힌 약속(`lateStops`)이 깨지는 것은 위에서 이미 빨간불이다. 여긴 그 전 단계다.
-         */
-        const softScore = 90, warnScore = 60;
-        /**
-         * 🔴 **한계에서 0 이 아니라 이 점수다 — 그 뒤로 0 에 수렴한다** (기사님 확정).
-         *
-         * 0 한 값으로 끝내면 **31분과 283분이 같은 점수**가 되어, 판정 균형이 없앤 «뭉침»이
-         * 이 구간에 다시 생긴다. 31분은 전화 한 통으로 미룰 수 있고 283분은 못 미룬다.
-         * 🔴 **색은 안 바뀐다** — 보통 경계(40)의 한참 아래라 한계 밖은 어떤 경우에도 🟡 다.
-         * 🔴 분은 설정(`slack`), 계수는 코드 — 「돈」의 우회 감쇠(`decayOf`)와 같은 모양이다.
-         */
-        const endScore = 10;
-        const late = -a;
-        /**
-         * 🔴 **🔴 로 덮지 않는다** — 이건 서버가 지레짐작한 시간이다 (`hardFailIsConfirmed`).
-         *    덮는 것은 **통화로 굳힌 약속**뿐이다.
-         *
-         * 🔴 **대신 이 점수가 총점의 천장이다** (`asCeiling` · 기사님 확정).
-         *    🔴 **«0 점이면 색이 똥이다»에 기대면 안 된다** — 기준이 아홉이라 한 축이 0 점이어도
-         *    나머지가 끌어올린다(「110분 지연 — 한계 밖(0점)」인 합짐이 🔵 꿀 71점).
-         *    천장이면 «약속보다 좋은 콜은 없다»가 되어 0 점이 곧 🟡 다.
-         * 🔴 **«추정»이라 적는다** — 굳힌 약속과 글자가 같으면 기사님이 «서버 짐작»임을 못 가리신다.
-         */
-        if (late >= lateZeroMin) return asCeiling(scored(endScore * (lateZeroMin / late), `${late}분 추정 지연 — 한계(${lateZeroMin}분) 밖`));
-        const span = (lo: number, hi: number) => Math.max(1, hi - lo);
-        const s = late <= lateSoftMin
-            ? zeroScore - (zeroScore - softScore) * (late / Math.max(1, lateSoftMin))
-            : late <= lateWarnMin
-                ? softScore - (softScore - warnScore) * ((late - lateSoftMin) / span(lateSoftMin, lateWarnMin))
-                /* 🔴 한계에서 `endScore` 로 끝난다 — 0 으로 끝내면 한계를 넘는 순간 거꾸로 뛴다 */
-                : endScore + (warnScore - endScore) * (1 - (late - lateWarnMin) / span(lateWarnMin, lateZeroMin));
-        return asCeiling(scored(s, `${late}분 추정 지연`));
+        if (a >= 0) return scored(100, `최소 +${a}분`);
+        const slipped = -a;
+        if (slipped > slipUncalledMin * HARD_SLIP_TIMES)
+            return scored(100, `${slipped}분 늦음(전화 안 함 · 흔들림 ${slipUncalledMin}분의 ${HARD_SLIP_TIMES}배 밖)`, true);
+        if (slipped > slipUncalledMin)
+            return needsCall(scored(100, `${slipped}분 늦음(전화 안 함 · 흔들림 ${slipUncalledMin}분 밖)`));
+        return scored(100, `${slipped}분 늦음 — 흔들림(${slipUncalledMin}분) 안입니다`);
     },
 });
 

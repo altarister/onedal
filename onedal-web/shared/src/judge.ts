@@ -49,7 +49,14 @@ export type Outcome =
      */
     | { kind: 'scored'; score: number; why: string; hardFail?: boolean; value?: number; multiplier?: number;
         /** 🔴 **이 점수가 총점의 천장이다** — 다른 축이 아무리 좋아도 이보다 좋을 수 없다 */
-        capsTotal?: boolean }
+        capsTotal?: boolean;
+        /**
+         * 🟡 **손이 하나 더 든다 — 전화해서 미루면 잡을 수 있다** (기사님 확정).
+         *
+         * `hardFail`(🔴 — 지금 그대로는 못 잡는다)과 **다른 일**이다.
+         * 색은 «내가 무엇을 해야 하나»를 말하고, 점수는 «얼마짜리인가»를 말한다.
+         */
+        needsCall?: boolean }
     /** 잴 **대상**이 없다 — 첫짐엔 지킬 약속이 없고, 빈 차엔 자리 문제가 없다 */
     | { kind: 'nothing'; why: string }
     /** 잴 **재료**가 없다 — 카카오가 터졌다, 주소를 못 찾았다 */
@@ -73,6 +80,15 @@ export const multiplied = (multiplier: number, score: number, why: string): Outc
  */
 export const asCeiling = (o: Outcome): Outcome =>
     o.kind === 'scored' ? { ...o, capsTotal: true } : o;
+/**
+ * 🟡 **이 콜은 전화 한 통이 더 든다** (기사님 확정).
+ *
+ * 기사님: *"노랑바탕에 90점을 보면 전화해서 시간을 미뤄야 겠다 이렇게 판단할꺼 같거든."*
+ * 🔴 점수를 건드리지 않는다 — 색만 🟡 로 만든다. «얼마짜리인가»는 그대로 보여야
+ *    기사님이 «전화를 걸 값어치가 있나»를 판단하신다.
+ */
+export const needsCall = (o: Outcome): Outcome =>
+    o.kind === 'scored' ? { ...o, needsCall: true } : o;
 export const nothing = (why: string): Outcome => ({ kind: 'nothing', why });
 export const unmeasurable = (why: string): Outcome => ({ kind: 'unmeasurable', why });
 
@@ -197,9 +213,26 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
      *    잴 재료가 하나라도 없거나, 잰 기준이 하나도 없으면 🔴 다.
      *    «못 쟀다»는 «나쁘다»가 아니다 — 딱지가 그 말을 한다.
      */
+    /**
+     * 🎨 **색은 «내가 무엇을 해야 하나», 점수는 «얼마짜리인가»** (기사님 확정).
+     *
+     * 기사님: *"약속으로 색을 판단하고 점수로 금액을 판단한다"* ·
+     *         *"색에 여러가지 것들이 섞여있어서 내가 판단하기 어려운거 같아"*
+     *
+     * 🔴 **행동이 먼저고 점수는 그다음이다.**
+     *      🔴  지금 그대로는 못 잡는다 — 뭔가를 포기해야 한다 (`hardFail` · 잴 수 없음)
+     *      🟡  손이 하나 더 든다 — 전화해서 미룬다 (`needsCall`)
+     *      🟢🔵 그냥 잡으면 된다 — 그 안에서 점수가 가른다
+     *
+     * 🔴 **점수는 색에 안 끌려간다.** 🔴 옆에 90점이 그대로 보여야
+     *    기사님이 *"좋은 콜이니 다른 걸 취소할까"* 를 판단하신다.
+     * 🔴 여기서도 기준을 알아보지 않는다 — 기준이 스스로 «무엇을 해야 하나»를 말한다.
+     */
     const hardFailed = counted.some(r => (r.outcome as { hardFail?: boolean }).hardFail);
+    const callNeeded = counted.some(r => (r.outcome as { needsCall?: boolean }).needsCall);
     const color: Color =
         hardFailed || cannot.length > 0 || score == null ? '사고'
+        : callNeeded ? '똥'
         : score >= cfg.color.honeyMin ? '꿀'
         : score >= cfg.color.normalMin ? '보통' : '똥';
 

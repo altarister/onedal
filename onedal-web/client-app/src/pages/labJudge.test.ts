@@ -91,12 +91,28 @@ describe('🎨 실험실 사실 → 실물 엔진이 색을 낸다', () => {
         expect(rich.score!).toBeGreaterThan(poor.score!);
     });
 
-    it('🔴 약속을 깨는 콜은 잡으면 사고다 — 점수와 무관하게 빨간불', () => {
+    /**
+     * 🎨 **색은 «내가 무엇을 해야 하나»다** (기사님 확정).
+     *    실험실 사실에는 «전화로 굳혔나»(`firm`)가 없어 **전화 안 한 약속**으로 다룬다 —
+     *    흔들림(20분) 밖이면 🟡(전화해서 미룬다), 몇 배 밖이면 🔴 다.
+     * 🔴 **점수는 안 깎인다** — 50만원짜리는 🟡 여도 50만원짜리다.
+     */
+    it('🔴 약속이 흔들림 밖이면 🟡 — 점수는 그대로 높다', () => {
         const facts = buildLabFacts({
             ...base, fare: 500_000, hasExistingCalls: true,
             stops: [{ label: '①하차', promisedAt: at(60), etaAt: at(90) }],
         });
         expect(facts.promise?.lateStops).toEqual([{ label: '①하차', lateMinutes: 30 }]);
+        expect(colorOf(facts)).toBe('똥');                 // 🟡 전화해서 미룬다
+        expect(judge(CRITERIA, facts, DEFAULT_JUDGMENT).score!)
+            .toBeGreaterThan(DEFAULT_JUDGMENT.color.honeyMin);
+    });
+
+    it('🔴 흔들림을 크게 넘으면 🔴 — 전화로 될 일이 아니다', () => {
+        const facts = buildLabFacts({
+            ...base, fare: 500_000, hasExistingCalls: true,
+            stops: [{ label: '①하차', promisedAt: at(60), etaAt: at(240) }],
+        });
         expect(colorOf(facts)).toBe('사고');
     });
 

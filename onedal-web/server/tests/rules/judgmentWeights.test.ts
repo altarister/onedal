@@ -32,7 +32,7 @@ const cfg = (over: Partial<JudgmentConfig['weights']>): JudgmentConfig => ({
 const 우회좋고_약속깨짐: JudgeFacts = {
     money: { fare: 50_000, extraMinutes: 8 , firstLoad: false },      // 5만 ÷ 8분 = 37.5만/h → 만점
     promise: { hasExistingCalls: true, bufferAfterMin: 30,
-               lateStops: [{ label: '첫짐 하차 약속이 12분 깨집니다', lateMinutes: null }] },
+               lateStops: [{ label: '첫짐 하차 약속', lateMinutes: 30, firm: true }] },
     space: { freePct: 100, hasLoad: true },        // 적재도 만점
     nature: { conflicts: [], excludedHits: [], hasLoad: true },
 };
@@ -49,10 +49,11 @@ describe('판정 기준 다섯 — 가중치로 켜고 끈다', () => {
             .toEqual([...CRITERIA.map(c => c.weightKey)].sort());
     });
 
+    /** 🔴 약속은 색으로 말한다 — 점수는 «얼마짜리인가» 그대로다 (기사님 확정) */
     it('🔴 약속 보존을 켜 두면 — 다른 축이 만점이어도 색은 «사고»', () => {
         const v = judge(CRITERIA, 우회좋고_약속깨짐, cfg({}));
         expect(v.color).toBe('사고');
-        expect((v.criteria.find(a => a.key === 'promise')!.outcome as any).score).toBe(0);
+        expect((v.criteria.find(a => a.key === 'promise')!.outcome as any).hardFail).toBe(true);
     });
 
     it('🔴 약속 보존을 끄면(0) — 축에서도 빠지고 색을 덮지도 않는다', () => {

@@ -147,17 +147,24 @@ describe('④ 세 대답이 갈린다', () => {
         expect(v.notes.join(' ')).toContain('돈');
     });
 
-    it('🔴 약속이 깨지면 점수와 무관하게 «잡으면 사고»', () => {
+    /**
+     * 🔴 **약속은 색으로 말하고 점수는 안 깎는다** (기사님 확정).
+     *    전화로 굳힌 약속이 **흔들림 밖**으로 깨지면 🔴 다 — 몇 분이든 무조건은 아니다.
+     */
+    it('🔴 굳힌 약속이 흔들림 밖이면 «잡으면 사고» — 점수는 그대로', () => {
         const f = 좋은합짐();
-        f.promise!.lateStops = [{ label: '노선콜 하차', lateMinutes: 7 }];
+        const 밖 = DEFAULT_JUDGMENT.slack.slipCalledMin + 5;
+        f.promise!.lateStops = [{ label: '노선콜 하차 약속', lateMinutes: 밖, firm: true }];
         const v = judge(CRITERIA, f, cfg());
         expect(v.color).toBe('사고');
         expect(v.criteria.find(c => c.key === 'promise')!.outcome).toMatchObject({ hardFail: true });
+        /* 🔴 «빨강바탕에 90점» — 점수는 «얼마짜리인가» 그대로여야 판단 재료가 된다 */
+        expect(v.score!).toBeGreaterThan(DEFAULT_JUDGMENT.color.honeyMin);
     });
 
     it('그 「사고」도 가중치 0 이면 안 덮는다 (경로만 보는 시험)', () => {
         const f = 좋은합짐();
-        f.promise!.lateStops = [{ label: '노선콜 하차', lateMinutes: 7 }];
+        f.promise!.lateStops = [{ label: '노선콜 하차 약속', lateMinutes: 60, firm: true }];
         expect(judge(CRITERIA, f, cfg({ promiseGuard: 0 })).color).not.toBe('사고');
     });
 });
