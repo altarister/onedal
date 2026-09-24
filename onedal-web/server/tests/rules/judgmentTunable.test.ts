@@ -37,6 +37,8 @@ describe('⏰ 여유 곡선 — 두 끝이 판정 기준 탭에서 온다', () =
     it('기본값 — 30분 만점 · 0분 95점 · 지연 세 자리', () => {
         expect(DEFAULT_JUDGMENT.slack).toEqual({
             fullMin: 30, zeroScore: 95, lateSoftMin: 5, lateWarnMin: 15, lateZeroMin: 30,
+            /* ⏰ 약속이 흔들리는 폭 — 통화한 곳 · 전화 안 한 곳 (기사님 «전화를 하였어도 10분…») */
+            slipCalledMin: 10, slipUncalledMin: 20,
         });
         expect(약속점수(합짐(30), DEFAULT_JUDGMENT)).toBe(100);
         expect(약속점수(합짐(0), DEFAULT_JUDGMENT)).toBe(95);

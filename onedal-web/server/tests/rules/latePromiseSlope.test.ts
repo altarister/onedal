@@ -1,4 +1,6 @@
-import { CRITERIA, DEFAULT_JUDGMENT } from '@onedal/shared';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { CRITERIA, DEFAULT_JUDGMENT, JUDGMENT_FIELDS, judgmentDefaults } from '@onedal/shared';
 import type { JudgmentConfig, PromiseFacts } from '@onedal/shared';
 
 /**
@@ -149,6 +151,33 @@ describe('⏰ 임시 지연 — 분만큼만 깎는다', () => {
             const out = 여유(m);
             if (out.kind === 'scored') expect(out.capsTotal).toBe(true);
         }
+    });
+
+    /**
+     * ⏰ **약속 흔들림 두 칸 — 1단계는 «칸만 만든다»** (기사님 확정 · 단계별 진행)
+     *
+     * 기사님: *"처음부터 우리는 약속이 있는 것과 같아. 확정을 하지 않은 약속"* ·
+     * *"콜 하나당 약속은 2개"* (상차지로 가는 약속 · 하차지로 가는 약속).
+     *
+     * 🔴 **1단계의 끝은 «판정이 하나도 안 바뀐다»** 이다. 칸을 만들고 화면에 올리기만 한다 —
+     *    읽는 것은 2단계다. 한 번에 다 바꾸면 «칸 때문인지 셈 때문인지» 못 가린다.
+     */
+    it('🔴 약속 흔들림 두 칸이 판정 기준 탭에 있다 (기사님이 고치신다)', () => {
+        const cols = JUDGMENT_FIELDS.map(f => f.col);
+        for (const c of ['slack_slip_called_min', 'slack_slip_uncalled_min']) {
+            expect(cols).toContain(c);
+            expect(judgmentDefaults()[c]).toBeGreaterThan(0);
+        }
+    });
+
+    it('🔴 통화한 곳의 흔들림이 더 작다 — 통화는 폭을 줄이는 일이다', () => {
+        expect(DEFAULT_JUDGMENT.slack.slipCalledMin).toBeLessThan(DEFAULT_JUDGMENT.slack.slipUncalledMin);
+    });
+
+    /** 🔴 **1단계에서는 아직 아무도 안 읽는다** — 읽기 시작하면 이 검사가 빨간불로 알린다 */
+    it('🔴 1단계: 판정은 아직 이 값을 안 읽는다', () => {
+        const src = readFileSync(join(__dirname, '../../../shared/src/criteria.ts'), 'utf8');
+        expect(src).not.toMatch(/slipCalledMin|slipUncalledMin/);
     });
 
     /** 🔴 «서버 짐작»임을 기사님이 아시게 — 굳힌 약속과 글자가 같으면 못 가리신다 */

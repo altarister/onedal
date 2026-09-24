@@ -199,6 +199,19 @@ export interface JudgmentConfig {
          * 🔴 **색은 안 덮는다** — 지레짐작한 시간으로 🔴 를 내지 않는다 (`hardFailIsConfirmed`).
          */
         lateSoftMin: number; lateWarnMin: number; lateZeroMin: number;
+        /**
+         * ⏰ **약속이 흔들리는 폭** (기사님 확정).
+         *
+         * 기사님: *"처음부터 우리는 약속이 있는 것과 같아. 확정을 하지 않은 약속"* ·
+         * *"전화를 하였어도 10분 정도 늦어질 수 있는 거고 전화를 하지 않았으면 20분 정도"*
+         *
+         * 🔴 **콜을 잡는 순간 약속은 이미 있다.** 통화는 약속을 만드는 것이 아니라 **흔들림을 줄인다.**
+         *    그래서 «모름 ↔ 앎» 이 아니라 **«흔들림이 큰 앎 ↔ 작은 앎»** 이다.
+         * 🔴 **콜 하나에 약속이 둘이다** — 상차지로 가는 약속, 하차지로 가는 약속.
+         *    통화도 정거장마다 따로다(`CALL_PICKUP` · `CALL_DROPOFF`)라 흔들림도 따로 고른다.
+         * 🔴 상차용·하차용으로 또 가르지 않는다 — 갈리는 것은 «통화했나»이지 «상차냐 하차냐»가 아니다.
+         */
+        slipCalledMin: number; slipUncalledMin: number;
     };
     /**
      * 🛣️ **긴 우회는 «가는 길»이 아니다 — 시급이 좋아도 값을 깎는다** (기사님 확정).
@@ -230,7 +243,8 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     // 🔴 여유 곡선은 «어떻게 잴 것인가» 라 여기 산다. 정차 값(박스당 분·검수 분)은
     //    **화면의 칩에 붙는 숫자**라 콜 옵션 표로 옮겼다 (규칙 ③) —
     //    같은 값을 두 그릇에 담지 않는다.
-    slack: { fullMin: 30, zeroScore: 95, lateSoftMin: 5, lateWarnMin: 15, lateZeroMin: 30 },
+    slack: { fullMin: 30, zeroScore: 95, lateSoftMin: 5, lateWarnMin: 15, lateZeroMin: 30,
+             slipCalledMin: 10, slipUncalledMin: 20 },
     detour: { freeMin: 90, cautionMin: 120, hardMin: 180 },
 };
 
@@ -337,6 +351,12 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'slack_late_zero_min', path: ['slack', 'lateZeroMin'], group: '정차·여유',
       label: '지연 — 0점', unit: '분', min: 5, max: 240, int: true,
       why: '이만큼 밀리면 「약속」이 0점이다(색은 대개 똥). 🔴 **색을 덮지는 않는다** — 통화 전 지연은 서버가 지레짐작한 시간이라 그것으로 🔴 를 내지 않는다. 굳힌 약속이 깨지는 것은 이 칸과 무관하게 늘 빨간불이다' },
+    { col: 'slack_slip_called_min', path: ['slack', 'slipCalledMin'], group: '정차·여유',
+      label: '약속 흔들림 — 통화한 곳', unit: '분', min: 0, max: 120, int: true,
+      why: '상차지·하차지에 **전화를 한** 약속은 이만큼까지 밀려도 «있을 수 있는 일»로 본다. 기사님: *"전화를 하였어도 10분 정도 늦어질 수 있다"*. 🔴 **약속이 없어지는 것이 아니라 흔들리는 폭이다** — 콜을 잡는 순간 약속은 이미 있고, 통화는 그 폭을 줄인다. 아래 «전화 안 한 곳»보다 작아야 한다' },
+    { col: 'slack_slip_uncalled_min', path: ['slack', 'slipUncalledMin'], group: '정차·여유',
+      label: '약속 흔들림 — 전화 안 한 곳', unit: '분', min: 0, max: 240, int: true,
+      why: '아직 **전화를 안 한** 약속의 흔들림. 기사님: *"전화를 하지 않았으면 20분 정도"*. 🔴 이 폭을 한참 넘는 지연은 «짐작»이 아니라 **확실히 늦는 것**이다 — 그 말을 색이 해야 한다' },
     { col: 'detour_free_min', path: ['detour', 'freeMin'], group: '합짐',
       label: '우회 무감점 한계', unit: '분', min: 10, max: 240, int: true,
       why: '여기까지는 «가는 길에 붙이는 덤»이라 시급 그대로 본다. 수도권에서 1.5시간 합짐은 일상이라 90분으로 두었다(실측 117건 중 60~90분이 24건). 올리면 긴 우회도 너그럽게 받는다' },
