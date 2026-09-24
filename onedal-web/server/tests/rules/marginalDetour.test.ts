@@ -77,4 +77,19 @@ describe('우회 계산 — 낡은 저장값을 기준으로 쓰지 않는다', 
     it('🔴 base 를 기존 콜 전부로 만들어 카카오에 넘긴다', () => {
         expect(code('src/services/routeComposer.ts')).toMatch(/planMergedStops\(\s*calls,\s*null/);
     });
+
+    /**
+     * 🔴 **base 캐시의 «같은 자리인가»는 위도·경도 순서로 잰다** (코드리뷰 09-17 C-6).
+     *
+     * `geoService.haversineKm(lat1, lng1, lat2, lng2)` 인데 이 자리만 `(x, y, …)` — x 는 경도다 —
+     * 로 넘겨 위도 자리에 경도가 들어갔다. 실측: 북쪽 200m 가 121m 로, 동쪽 4.4km 가 5.6km 로 읽혀
+     * «200m 안이면 되쓴다»가 남북으로는 330m 밖 base 를 되쓰고 동서로는 160m 만 벗어나도 못 되썼다.
+     * 같은 파일의 다른 자리(경로 순서 · 지나온 구간)는 전부 `(y, x)` 로 맞게 부른다.
+     */
+    it('🔴 base 캐시 거리는 (y, x) — 위도 자리에 경도를 넣지 않는다', () => {
+        const src = code('src/services/routeComposer.ts');
+        expect(src).toMatch(/haversineKm\(origin\.y, origin\.x, e\.origin\.y, e\.origin\.x\)/);
+        expect(src).toMatch(/haversineKm\(origin\.y, origin\.x, hit\.origin\.y, hit\.origin\.x\)/);
+        expect(src).not.toMatch(/haversineKm\(origin\.x, origin\.y/);
+    });
 });

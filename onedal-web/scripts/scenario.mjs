@@ -560,8 +560,14 @@ async function ledger() {
      */
     const ext = row.kakaoTimeExt || '';
     const mScore = /· (\d+)점/.exec(ext);
-    const mColor = /'(꿀|보통|똥)'/.exec(ext);
-    if (mScore && mColor) {
+    const mColor = /'(꿀|보통|똥|사고)'/.exec(ext);
+    if (mScore && mColor && mColor[1] === '사고') {
+        /* 🔴 «사고»는 점수와 무관한 색이다 — 잡으면 안 되는 사실(등 뒤 상차 · 굳힌 약속 깨짐 · 잴 수 없음)이
+           점수를 덮은 것이라 «점수면 이 색» 대조가 성립하지 않는다. 씨앗 DB 의 목적지·위치에 따라
+           첫 콜이 사고가 될 수 있다 (목적지 김포 · 집 주소에서 대전 콜 = 등 뒤 상차). 문구가 색과 점수를
+           함께 적었는지만 본다 */
+        check('첫짐 문구에 색과 점수가 함께 적힌다', true, `사고 — ${mScore[1]}점 (사고는 점수와 무관한 색)`);
+    } else if (mScore && mColor) {
         const c = new Database(dbPath, { readonly: true });
         const j = c.prepare(`SELECT color_honey_min AS honey, color_normal_min AS normal
                              FROM user_judgment WHERE user_id = ?`).get(row.userId) || {};

@@ -17,7 +17,7 @@
 | `onedal-sim/`               | 배차망 시뮬레이터 — 앱폰이 읽을 가짜 배차망 화면               | Vite 7, React 19                                |
 | `onedal-map/`               | 지도 공장 — 콜 필터 그물이 쓰는 읍면동 폴리곤을 만든다         | Node · Python 스크립트                          |
 
-앱이 아닌 자리: `ex_images/` 실물 캡처 · `.claude/skills/` 프로젝트 스킬 · `.claude/hooks/` Claude Code 훅 — 계획 우선(`plan-first.mjs`, 등록은 `.claude/settings.json`)
+앱이 아닌 자리: `ex_images/` 실물 캡처 · `reviews/` 코드리뷰 보고서 · `.claude/skills/` 프로젝트 스킬 · `.claude/hooks/` Claude Code 훅 — 계획 우선(`plan-first.mjs`, 등록은 `.claude/settings.json`)
 
 통신: 앱 → 서버는 REST(`POST /api/scrap`), 서버 → 앱은 **응답 꼬리에 명령을 싣는 피기백**.
 서버 ↔ 관제탑만 Socket.IO. (모바일 웹소켓 끊김을 피하려는 의도된 설계)

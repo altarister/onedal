@@ -376,11 +376,13 @@ function baseCacheKey(
 /** 이 자리·이 질문으로 이미 잰 base 가 있나 */
 function reusableBase(key: string | null, origin: Coord | null | undefined): any | null {
     if (!key || !origin) return null;   // 기점을 모르면 «200m 안»을 잴 수 없다 — 되쓰지 않는다
+    /* 🔴 `haversineKm(lat, lng, lat, lng)` — x 는 경도라 (y, x) 순서다. (x, y) 로 넘기면 북쪽 200m 가 121m 로 읽혀
+       330m 밖 base 를 되썼다 (코드리뷰 C-6 · 같은 파일의 다른 자리는 전부 (y, x)) */
     const hit = baseRouteCache.find(e =>
-        e.key === key && haversineKm(origin.x, origin.y, e.origin.x, e.origin.y) <= BASE_CACHE_RADIUS_KM);
+        e.key === key && haversineKm(origin.y, origin.x, e.origin.y, e.origin.x) <= BASE_CACHE_RADIUS_KM);
     if (!hit) return null;
     const ageSec = Math.round((Date.now() - hit.at) / 1000);
-    const movedM = Math.round(haversineKm(origin.x, origin.y, hit.origin.x, hit.origin.y) * 1000);
+    const movedM = Math.round(haversineKm(origin.y, origin.x, hit.origin.y, hit.origin.x) * 1000);
     console.log(`🗄️ [base 되씀] ${ageSec}초 전에 잰 값 · 기점 ${movedM}m 이동 · 카카오 호출 1회 아낌`);
     return hit.base;
 }

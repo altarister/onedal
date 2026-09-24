@@ -35,7 +35,8 @@ const WEB = join(fileURLToPath(import.meta.url), '../..');
 const ROOT = join(WEB, '..');
 const C = { r: '\x1b[31m', g: '\x1b[32m', y: '\x1b[33m', d: '\x1b[2m', b: '\x1b[1m', x: '\x1b[0m' };
 
-const SKIP = new Set(['node_modules', '.git', 'dist', 'build', 'log', '.gradle', 'ex_images']);
+/* `reviews/` 는 보고서 보관함이다 — 그때의 글이라 없어진 파일·식별자를 그대로 담고 있고, 살아 있는 문서처럼 고치지 않는다 */
+const SKIP = new Set(['node_modules', '.git', 'dist', 'build', 'log', '.gradle', 'ex_images', 'reviews']);
 const walk = (dir, out = []) => {
     for (const e of readdirSync(dir)) {
         if (SKIP.has(e)) continue;
