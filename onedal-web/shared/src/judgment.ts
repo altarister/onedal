@@ -368,8 +368,8 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
       label: '멀어짐 한계', unit: 'km', min: 20, max: 500, int: true,
       why: '이만큼 멀어지면 배수가 바닥(«목적지 전진 배수 (최소)»)이다. 수도권을 벗어나는 거리로 두었다 — 그만큼 멀어지면 돌아오는 데만 두 시간이 넘어 오전이 1콜로 끝난다 (노하우 25행)' },
     { col: 'solo_hourly_krw', path: ['target', 'soloHourlyKrw'], group: '첫짐',
-      label: '첫짐 기준 시급 (100점)', unit: '원/h', min: 10000, max: 300000, int: true,
-      why: '빈 차에 처음 싣는 콜이 이만큼이면 100점. 합짐 보통보다 **낮게** 둔다 — 빈 차는 안 잡으면 0원이라 같은 눈금이면 길가에 묶인다. 업계 기준값 · 실측 전 임시값' },
+      label: '첫짐 기준 시급 (🔵 꿀 경계)', unit: '원/h', min: 10000, max: 300000, int: true,
+      why: '빈 차에 처음 싣는 콜이 이만큼이면 **🔵 꿀 경계**에 선다. 그 위는 «꿀 시급»까지 펴서 갈리고, 그 아래는 완만히 내려가 기준선의 절반쯤이면 🟢 보통이다 — 빈 차는 안 잡으면 0원이라 조금이라도 버는 것의 값어치가 크다. 합짐 보통보다 **낮게** 둔다. 업계 기준값 · 실측 전 임시값' },
 
     { col: 'deadline_ratio_pct', path: ['deadline', 'ratioPct'], group: '데드라인',
       label: '데드라인 배율', unit: '%', min: 100, max: 300, int: true,

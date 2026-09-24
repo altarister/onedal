@@ -39,6 +39,12 @@ const 합짐 = (progressRatio: number | null): JudgeFacts => ({
 });
 
 const 본다 = (f: JudgeFacts, c: JudgmentConfig = cfg()) => judge(CRITERIA, f, c);
+/**
+ * 💰 **그 콜의 돈 점수** — 여기 검사들이 재는 것은 **배수**지 눈금이 아니다.
+ *    숫자를 박으면 「돈」 눈금을 고칠 때마다 이 파일이 깨진다 (규칙 ③ · 숫자 대신 세는 법).
+ */
+const 돈점 = (f: JudgeFacts, c: JudgmentConfig = cfg()) =>
+    (본다(f, c).criteria.find(x => x.key === 'money')!.outcome as { score: number }).score;
 const 지리줄 = (f: JudgeFacts, c: JudgmentConfig = cfg()) => 본다(f, c).criteria.find(x => x.key === 'geography')!;
 
 describe('🧭 첫짐 — 목적지로 전진하면 점수가 곱으로 커진다', () => {
@@ -63,14 +69,14 @@ describe('🧭 첫짐 — 목적지로 전진하면 점수가 곱으로 커진�
         expect(v.color).toBe('똥');
     });
 
-    it('🔴 완전히 반대 방향이면 배수가 하한에서 멈춘다 (×0.5 → 22점)', () => {
-        expect(본다(첫짐(-1)).score).toBe(22);
+    it('🔴 완전히 반대 방향이면 배수가 하한에서 멈춘다', () => {
+        expect(본다(첫짐(-1)).score).toBe(Math.round(돈점(첫짐(-1)) * DEFAULT_JUDGMENT.destBonus.min));
     });
 
     /* 🔴 옆으로 가는 첫짐은 두 끝의 한가운데다 — 곧장(×1.0)과 뒤로(×0.5) 사이 */
     it('전진율 0(수직)이면 배수가 두 끝의 한가운데다', () => {
         const { max, min } = DEFAULT_JUDGMENT.destBonus;
-        expect(본다(첫짐(0)).score).toBe(Math.round(44 * (min + (max - min) / 2)));
+        expect(본다(첫짐(0)).score).toBe(Math.round(돈점(첫짐(0)) * (min + (max - min) / 2)));
     });
 
     /**
@@ -99,16 +105,18 @@ describe('🧭 첫짐 — 목적지로 전진하면 점수가 곱으로 커진�
         expect(본다(실제(0), c).color).toBe('보통');
     });
 
-    it('🔴 100점을 넘지 않는다 — 시급 3만짜리 첫짐에 배수를 걸어도', () => {
-        expect(본다(첫짐(1, 30_000)).score).toBe(100);
+    it('🔴 100점을 넘지 않는다 — 배수를 걸어도', () => {
+        expect(본다(첫짐(1, 30_000)).score!).toBeLessThanOrEqual(100);
+        expect(본다(첫짐(1, 300_000)).score!).toBeLessThanOrEqual(100);
     });
 });
 
 describe('🧭 못 쟀으면 배수 1.0 이다 — 불리하게 밀지 않는다 (규칙 ⑤-2)', () => {
 
     it('🔴 목적지를 안 정하셨으면 배수 1.0 이고 색이 🔴 가 되지 않는다', () => {
-        const v = 본다(첫짐(null, 12_000, '목적지 미설정'));
-        expect(v.score).toBe(44);
+        const f = 첫짐(null, 12_000, '목적지 미설정');
+        const v = 본다(f);
+        expect(v.score).toBe(돈점(f));
         expect(v.color).toBe('보통');
     });
 
@@ -152,8 +160,8 @@ describe('🧭 합짐에는 배수를 붙이지 않는다 — 우회 시급이 �
 describe('🧭 배수는 평균에 안 섞인다 — 총점에 곱한다', () => {
 
     it('🔴 지리를 끄면(가중치 0) 배수가 안 붙는다', () => {
-        const c = { ...cfg(), weights: { ...cfg().weights, geography: 0 } };
-        expect(본다(첫짐(0.95), c).score).toBe(44);
+        const c: JudgmentConfig = { ...cfg(), weights: { ...cfg().weights, geography: 0 } };
+        expect(본다(첫짐(0.95), c).score).toBe(돈점(첫짐(0.95), c));
     });
 
     it('🔴 지리가 평균의 한 항이 되면 안 된다 — 되면 요금 0원이 절반 점수를 받는다', () => {

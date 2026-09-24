@@ -90,7 +90,8 @@ describe('🧭 판정까지 이어진다', () => {
 
     it('🔴 못 쟀으면 돈 점수 그대로이고 색이 🔴 가 아니다', () => {
         const 모름 = 색({ ratio: null, unknownWhy: '목적지 미설정', awayKm: null });
-        expect(모름.score).toBe(44);
+        /* 🔴 못 쟀으면 배수 1.0 이라 **돈 점수 그대로**다 — 숫자를 박지 않는다 */
+        expect(모름.score).toBe((모름.criteria.find(c => c.key === 'money')!.outcome as { score: number }).score);
         expect(모름.color).toBe('보통');
         expect(모름.criteria.find(c => c.key === 'geography')!.outcome.why).toContain('목적지 미설정');
     });

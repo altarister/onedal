@@ -75,7 +75,10 @@ describe('🛣️ 우회 시간 — 길수록 값을 깎는다', () => {
     });
 
     it('🔴 첫짐에는 안 깎는다 — 빈 차는 «우회»가 아니라 그 콜 자체의 시간이다', () => {
-        expect(score(150_000, 235, true)).toBe(100);
+        /* 🔴 숫자가 아니라 «합짐이면 깎이는 것이 첫짐이면 안 깎인다»를 잰다 (눈금이 바뀌어도 참) */
+        expect(score(150_000, 235, true)).toBeGreaterThan(score(150_000, 235, false));
+        const out = MONEY.measure({ fare: 150_000, extraMinutes: 235, firstLoad: true } as MoneyFacts as never, cfg);
+        expect((out as { why: string }).why).not.toContain('우회');
     });
 
     /** 세 자리를 기사님이 판정 기준 탭에서 움직인다 (규칙 ⑤-4) */
