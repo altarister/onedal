@@ -201,10 +201,10 @@ const IC_GYEONGSEO: MockEntry = {
     region: '경서동', addressDetail: '인천 서해구 경서동',
     lon: 126.651880, lat: 37.557424,
 };
-const IC_SONGDO: MockEntry = {
-    customerName: '인천 송도동 하차지', contactName: '담당', phone1: '010-0000-0215',
-    region: '송도동', addressDetail: '인천 연수구 송도동',
-    lon: 126.631121, lat: 37.390040,
+const GP_JANGGI: MockEntry = {
+    customerName: '고구려짬뽕10101 김포한강신도시점', contactName: '담당', phone1: '010-0000-0215',
+    region: '장기동', addressDetail: '경기 김포시 장기동 김포한강4로212번길 74 고구려짬뽕10101 김포한강신도시점',
+    lon: 126.661857, lat: 37.652150,
 };
 const SINDORIM: MockEntry = {
     customerName: '신도림동 하차지', contactName: '담당', phone1: '010-0000-0216',
@@ -266,10 +266,10 @@ const BD_SAMPYEONG: MockEntry = {
     region: '삼평동', addressDetail: '경기 성남시 분당구 삼평동',
     lon: 127.11115, lat: 37.39593,
 };
-const PANGYO_GEUMTO: MockEntry = {
-    customerName: '뚜레쥬르 판교위든타워점', contactName: '담당', phone1: '010-0000-0402',
-    region: '금토동', addressDetail: '경기 성남시 수정구 금토동 금토로80번길 56 뚜레쥬르 판교위든타워점',
-    lon: 127.090615, lat: 37.407568,
+const PANGYO_SW: MockEntry = {
+    customerName: '판교 소프트웨어드림센터', contactName: '담당', phone1: '010-0000-0402',
+    region: '시흥동', addressDetail: '경기 성남시 수정구 시흥동 창업로40번길 20 소프트웨어드림센터',
+    lon: 127.09471, lat: 37.41297,
 };
 const GP_YANGCHON: MockEntry = {
     customerName: '김포 양촌읍 상차지', contactName: '담당', phone1: '010-0000-0403',
@@ -636,9 +636,9 @@ export const PRESETS: Record<string, PresetProblem[]> = {
             why: '🚚 ①을 내린 자리에서 바로 실었다 — 하차지가 다음 상차지가 되는 흐름',
         },
         {
-            label: '⑦ 성남 금토동 → 인천 송도 · 34,650',
+            label: '⑦ 성남 시흥동 → 김포 장기동 · 34,650',
             pickup: '판교 소프트웨어드림센터', dropoff: '인천 송도동 하차지',
-            pickupFallback: PANGYO_GEUMTO, dropoffFallback: IC_SONGDO,
+            pickupFallback: PANGYO_SW, dropoffFallback: GP_JANGGI,
             fare: 34650, vehicleType: '오토바이',
             why: '🚚 **일곱째다** — 자막은 «여섯 개»라 했지만 ⑤를 분당에 내리는 중에 하나 더 잡았다 (13:05 잡고 13:30 상차)',
         },
