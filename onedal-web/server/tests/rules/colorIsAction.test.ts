@@ -93,3 +93,44 @@ describe('🎨 색은 행동을 말한다 — 1단계: 점수는 그대로', () 
         expect(v.color).not.toBe('사고');
     });
 });
+
+/**
+ * 🎯 **축은 자기 자리 하나에서만 일한다** (기사님 배분)
+ *
+ * 기사님: *"점수 : 돈 · 노동강도 · 운전 · 콜 대기 · 지리. / 노란색: 약속 · 전화할 곳 /
+ *          빨강: 약속 · 공간 · 성질"*
+ *
+ * 🔴 **같은 사실을 두 자리에서 보지 않는다** (규칙 ③). 자리가 넉넉하다고 점수를 올려 받으면
+ *    «얼마짜리인가»에 «자리가 있나»가 섞인다 — 그러면 돈이 나쁜 콜도 점수가 높아진다.
+ */
+describe('🎯 점수는 다섯 축 — 색을 만드는 축은 점수에 안 섞인다', () => {
+
+    const 역할 = (key: string) => CRITERIA.find(c => c.key === key)!.role ?? 'score';
+
+    it('🔴 점수를 만드는 축 — 돈 · 노동강도 · 운전 · 콜 대기', () => {
+        for (const k of ['money', 'labor', 'drive', 'wait']) expect(역할(k)).toBe('score');
+    });
+
+    it('🔴 지리는 점수에 곱한다 (등 뒤 상차도 점수로 내려간다)', () => {
+        expect(역할('geography')).toBe('multiplier');
+    });
+
+    it('🔴 색을 만드는 축은 평균에 안 섞인다 — 약속 · 전화할 곳 · 공간 · 성질', () => {
+        for (const k of ['promise', 'calls', 'space', 'nature']) expect(역할(k)).toBe('gate');
+    });
+
+    /** 🔴 자리가 넉넉하든 빠듯하든 «얼마짜리인가»는 같다 */
+    it('🔴 공간이 점수를 안 움직인다', () => {
+        const 넉넉 = { ...합짐(60), space: { freePct: 95, hasLoad: true } } as JudgeFacts;
+        const 빠듯 = { ...합짐(60), space: { freePct: 10, hasLoad: true } } as JudgeFacts;
+        expect(본다(넉넉).score).toBe(본다(빠듯).score);
+    });
+
+    /** 🔴 전화할 곳은 «할 일»이지 «값어치»가 아니다 */
+    it('🔴 전화할 곳이 점수를 안 움직인다 — 대신 🟡 를 만든다', () => {
+        const 없음 = { ...합짐(60), calls: { count: 0, hasExistingCalls: true } } as JudgeFacts;
+        const 셋 = { ...합짐(60), calls: { count: 3, hasExistingCalls: true } } as JudgeFacts;
+        expect(본다(셋).score).toBe(본다(없음).score);
+        expect(본다(셋).color).toBe('똥');          // 🟡 전화해야 한다
+    });
+});

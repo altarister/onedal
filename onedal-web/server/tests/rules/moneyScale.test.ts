@@ -456,51 +456,55 @@ describe('🔗 연결 — 서버가 두 축의 사실을 채운다', () => {
  * - 1분 밀림마다 세어 화면이 시끄러워지는 것 — 기사님: *"정차 중에 3~4콜을 모으려면 몇 분씩은 밀린다"*
  * - 다녀온 정거장을 세는 것 — 지나간 곳에는 전화할 일이 없다
  */
-describe('☎️ 전화할 곳 — 시간이 아니라 손을 센다', () => {
-    /* ☎️ 이 눈금만 본다 — 돈까지 켜면 평균에 섞여 곳 수의 차이를 못 본다 */
-    const 켬 = (): JudgmentConfig => ({
-        ...DEFAULT_JUDGMENT,
-        weights: { ...DEFAULT_JUDGMENT.weights, revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0, labor: 0, drive: 0, wait: 0 },
-    });
+describe('☎️ 전화할 곳 — 점수가 아니라 «할 일»이다', () => {
+    /**
+     * ☎️ **이 축이 재는 것은 «남의 약속을 몇 곳 흔드나» — 곧 전화할 곳 수다** (기사님 배분).
+     *
+     * 기사님: *"노란색: 약속 · 전화할 곳"* — «얼마짜리인가»가 아니라 **할 일**이므로
+     * 점수가 아니라 색으로 말한다. 흔들 곳이 있으면 🟡(전화해서 미룬다) 다.
+     * 🔴 운전 중에는 전화를 못 거신다 — 그래서 **잡기 전에** 알아야 한다 (규칙 ⑤-3).
+     */
     const 전화 = (n: number | null) => judge(CRITERIA, {
         ...합짐(30_000),
         calls: { count: n, hasExistingCalls: true },
-    }, 켬()).score;
+    }, DEFAULT_JUDGMENT);
+    const 줄 = (n: number | null) => 전화(n).criteria.find(c => c.key === 'calls')!.outcome as any;
 
-    it('🔴 흔들 곳이 없으면 만점', () => {
-        expect(전화(0)).toBe(100);
+    it('🔴 흔들 곳이 없으면 그냥 잡는다', () => {
+        expect(줄(0).needsCall).toBeFalsy();
+        expect(전화(0).color).not.toBe('똥');
     });
 
-    /** 🔴 이 검사가 생긴 까닭 — 지금은 셋을 흔드는 콜과 안 흔드는 콜이 같은 색이다 */
-    it('🔴 곳이 늘수록 낮아진다', () => {
-        expect(전화(1)!).toBeGreaterThan(전화(2)!);
-        expect(전화(2)!).toBeGreaterThan(전화(3)!);
+    it('🔴 흔들 곳이 있으면 🟡 — 전화해서 미룬다', () => {
+        expect(줄(1).needsCall).toBe(true);
+        expect(전화(1).color).toBe('똥');
     });
 
-    it('한 곳은 «거의 문제없음» — 크게 안 깎는다', () => {
-        expect(전화(1)!).toBeGreaterThanOrEqual(80);
+    /** 🔴 곳이 몇이든 «얼마짜리인가»는 같다 — 점수에 안 섞인다 */
+    it('🔴 곳 수가 점수를 안 움직인다', () => {
+        expect(전화(1).score).toBe(전화(0).score);
+        expect(전화(9).score).toBe(전화(0).score);
+    });
+
+    /** 🔴 몇 곳인지는 화면이 말해야 한다 — 기사님이 전화기를 몇 번 드실지 아셔야 한다 */
+    it('🔴 몇 곳인지 이유에 적힌다', () => {
+        expect(줄(3).why).toMatch(/3곳/);
+        expect(줄(3).value).toBe(3);
     });
 
     it('🔴 못 셌으면 잴 게 없다 — 0 곳과 다르다', () => {
-        const v = judge(CRITERIA, { ...합짐(30_000), calls: { count: null, hasExistingCalls: true } }, 켬());
+        const v = judge(CRITERIA, { ...합짐(30_000), calls: { count: null, hasExistingCalls: true } }, DEFAULT_JUDGMENT);
         expect(v.criteria.find(c => c.key === 'calls')!.outcome.kind).toBe('nothing');
     });
 
     it('🔴 빈 차는 잴 게 없다 — 흔들 남이 없다', () => {
-        const v = judge(CRITERIA, { ...첫짐(50_000, 60), calls: { count: null, hasExistingCalls: false } }, 켬());
+        const v = judge(CRITERIA, { ...첫짐(50_000, 60), calls: { count: null, hasExistingCalls: false } }, DEFAULT_JUDGMENT);
         expect(v.criteria.find(c => c.key === 'calls')!.outcome.kind).toBe('nothing');
     });
 
-    it('🔴 색을 안 덮는다 — 전화는 걸면 되는 일이다. 약속이 깨지는 것은 「약속」이 말한다', () => {
-        const v = judge(CRITERIA, { ...합짐(30_000), calls: { count: 9, hasExistingCalls: true } }, 켬());
-        expect(v.criteria.find(c => c.key === 'calls')!.outcome).not.toHaveProperty('hardFail', true);
-    });
-
-    it('🔴 눈금이 「약속」의 지연 값을 따라 움직인다 — 새 문턱을 안 만들었다', () => {
-        const 넓게: JudgmentConfig = { ...켬(), slack: { ...켬().slack, lateZeroMin: 120 } };
-        const 좁게 = judge(CRITERIA, { ...합짐(30_000), calls: { count: 5, hasExistingCalls: true } }, 켬()).score;
-        const 넓은 = judge(CRITERIA, { ...합짐(30_000), calls: { count: 5, hasExistingCalls: true } }, 넓게).score;
-        expect(넓은!).toBeGreaterThan(좁게!);
+    /** 🔴 🔴 는 아니다 — 전화는 걸면 되는 일이다. 약속이 정말 깨지는 것은 「약속」이 말한다 */
+    it('🔴 아무리 많아도 🔴 는 아니다', () => {
+        expect(줄(9).hardFail).toBeFalsy();
     });
 });
 

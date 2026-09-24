@@ -413,30 +413,20 @@ export interface CallsFacts {
  */
 export const CALLS = defineCriterion<CallsFacts>({
     key: 'calls', name: '전화할 곳', asks: '남의 약속을 몇 곳 흔드나',
-    weightKey: 'calls',
-    measure(f, cfg) {
+    weightKey: 'calls', role: 'gate',
+    measure(f) {
         if (!f) return nothing('경로를 안 받았습니다');
         if (!f.hasExistingCalls) return nothing('빈 차입니다 — 흔들 콜이 없습니다');
         if (f.count == null) return nothing('경로를 못 받았습니다');
         if (f.count <= 0) return scored(100, '없음 — 남을 안 건드립니다');
-
         /**
-         * 🔴 **곳 수를 「약속」의 지연 눈금에 댄다** — 그 눈금은 «몇 분»이지만 **꺾이는 세 자리**가
-         *    «괜찮다 → 주의 → 한계»를 뜻한다. 곳 수도 같은 뜻의 세 자리가 필요하고,
-         *    문턱을 또 만들면 기사님이 고칠 칸이 늘기만 한다 (규칙 ⑤-4).
-         *    한 곳이 «거의 문제없음» 점수(90), 「주의」 눈금만큼이면 60, 「0점」 눈금만큼이면 0.
+         * 🟡 **흔들 곳이 있으면 전화가 든다** (기사님 배분: «노란색: 약속 · 전화할 곳»).
+         *
+         * 🔴 이 축이 재는 것은 «남의 약속을 몇 곳 흔드나» — 곧 **전화할 곳 수**다.
+         *    «얼마짜리인가»가 아니라 **할 일**이므로 점수가 아니라 색으로 말한다.
+         * 🔴 운전 중에는 전화를 못 거신다 — 그래서 **잡기 전에** 알아야 한다 (규칙 ⑤-3).
          */
-        const { lateSoftMin, lateWarnMin, lateZeroMin } = cfg.slack;
-        const softScore = 90, warnScore = 60;
-        const n = f.count;
-        const warnAt = Math.max(2, Math.round(lateWarnMin / Math.max(1, lateSoftMin)));
-        const zeroAt = Math.max(warnAt + 1, Math.round(lateZeroMin / Math.max(1, lateSoftMin)));
-        const span = (lo: number, hi: number) => Math.max(1, hi - lo);
-        const score = n >= zeroAt ? 0
-            : n <= 1 ? softScore
-            : n <= warnAt ? softScore - (softScore - warnScore) * ((n - 1) / span(1, warnAt))
-            : warnScore * (1 - (n - warnAt) / span(warnAt, zeroAt));
-        return scored(score, `${n}곳에 전화해 약속을 미뤄야 합니다`, false, n);
+        return needsCall(scored(100, `${f.count}곳에 전화해 약속을 미뤄야 합니다`, false, f.count));
     },
 });
 
@@ -479,7 +469,7 @@ const HARD_SLIP_TIMES = 3;
 
 export const PROMISE = defineCriterion<PromiseFacts>({
     key: 'promise', name: '약속', asks: '이미 잡은 콜에 늦지 않나',
-    weightKey: 'promiseGuard',
+    weightKey: 'promiseGuard', role: 'gate',
     measure(f, cfg) {
         if (!f || !Array.isArray(f.lateStops)) return unmeasurable('경로 타임라인을 못 받았습니다');
         if (!f.hasExistingCalls) return nothing('잡아 둔 콜이 없습니다');
@@ -587,7 +577,7 @@ export interface SpaceFacts {
  */
 export const SPACE = defineCriterion<SpaceFacts>({
     key: 'space', name: '공간', asks: '실을 자리 있나',
-    weightKey: 'slots',
+    weightKey: 'slots', role: 'gate',
     measure(f) {
         if (!f) return unmeasurable('적재 상태를 못 받았습니다');
         if (!f.hasLoad) return nothing('빈 차입니다');

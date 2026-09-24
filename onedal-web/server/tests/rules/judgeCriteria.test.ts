@@ -26,6 +26,10 @@ const cfg = (over: Partial<JudgmentConfig['weights']> = {}): JudgmentConfig => (
 /** 다 좋은 합짐 하나 — 기준마다 재료가 다 있다 */
 const 좋은합짐 = (): JudgeFacts => ({
     money: { fare: 50_000, extraMinutes: 30 , firstLoad: false },                    // 10만/h → 만점권
+    /* 🔴 점수를 만드는 축을 다 싣는다 — 돈 하나만 실으면 «돈을 뺐을 때» 점수가 통째로 사라진다 */
+    labor: { handMinutes: 1, protectionMinutes: 0 },
+    drive: { extraKm: 30, driveMinutes: 30 },
+    wait: { toPickupMinutes: 10, deliveryMinutes: 30 },
     promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 30 },
     space: { freePct: 70, hasLoad: true },
     nature: { conflicts: [], excludedHits: [], hasLoad: true },
@@ -93,9 +97,10 @@ describe('② 기준을 빼도 나머지가 그대로 돈다', () => {
     });
 
     it('전부 끄면 색을 지어내지 않는다', () => {
-        const v = judge(CRITERIA, 좋은합짐(), cfg({
-            revenueDetour: 0, slots: 0, promiseGuard: 0, cargoCompat: 0, geography: 0,
-        }));
+        /* 🔴 손으로 나열하지 않는다 — 기준이 늘면 이 검사가 잡으려던 것과 다른 일을 한다 */
+        const v = judge(CRITERIA, 좋은합짐(), cfg(
+            Object.fromEntries(Object.keys(DEFAULT_JUDGMENT.weights).map(k => [k, 0])) as any,
+        ));
         expect(v.score).toBeNull();
         expect(v.color).toBe('사고');
         expect(v.notes.join(' ')).toContain('잴 수 없음');
@@ -210,9 +215,13 @@ describe('🧪 1층 문지기(gate) — 점수 가중평균에 섞이지 않고 
         // 성질 줄은 통과(scored)이지만 role: 'gate'이므로 총점에 +25점을 거저 얹지 않는다
         const 성질줄 = v.criteria.find(c => c.key === 'nature')!;
         expect(성질줄.outcome.kind).toBe('scored');
-        // 돈만 켰을 때와 총점이 왜곡 없이 직결되는지 확인
-        const 돈만켠것 = judge(CRITERIA, 기본합짐, cfg({ slots: 0, promiseGuard: 0, cargoCompat: 1 }));
-        expect(돈만켠것.score).toBe((기본합짐.money!.fare / 기본합짐.money!.extraMinutes!) * 60 >= 50_000 ? 100 : 50);
+        /**
+         * 🔴 **성질을 켜도 총점이 안 움직인다** — `gate` 는 점수 평균에 안 섞인다.
+         *    (기사님 배분: 성질은 🔴 만 만들고 «얼마짜리인가»에는 안 든다)
+         */
+        const 성질끔 = judge(CRITERIA, 기본합짐, cfg({ cargoCompat: 0 }));
+        const 성질켬 = judge(CRITERIA, 기본합짐, cfg({ cargoCompat: 1 }));
+        expect(성질켬.score).toBe(성질끔.score);
     });
 
     it('🔴 성질(nature)에 충돌이나 제외 키워드가 걸리면 즉시 🔴 사고로 차단한다', () => {
@@ -299,10 +308,14 @@ describe('💰 돈이 총점의 천장이다 — 다른 축은 깎기만 한다'
     });
 
     it('🔴 다른 축이 나쁘면 돈보다 더 내려간다 — 천장이지 바닥이 아니다', () => {
+        /* 🔴 «나쁜 축»은 **점수를 만드는 축**이어야 한다 — 공간·약속은 색만 만든다 (기사님 배분) */
         const 나쁜합짐: JudgeFacts = {
             money: { fare: 60_000, extraMinutes: 60, firstLoad: false },   // 6만/h → 돈 만점
-            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 1 },
-            space: { freePct: 5, hasLoad: true },
+            labor: { handMinutes: 40, protectionMinutes: 5 },              // 손으로 45분 — 고되다
+            drive: { extraKm: 10, driveMinutes: 60 },                      // 10km/h — 시내
+            wait: { toPickupMinutes: 20, deliveryMinutes: 5 },             // 남겨 주는 것이 거의 없다
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 60 },
+            space: { freePct: 70, hasLoad: true },
             nature: { conflicts: [], excludedHits: [], hasLoad: true },
             geography: { firstLoad: false, progressRatio: null },
         };
