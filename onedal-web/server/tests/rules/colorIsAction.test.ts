@@ -32,7 +32,7 @@ const cfg = (over: Partial<JudgmentConfig> = {}): JudgmentConfig => ({ ...DEFAUL
 const 합짐 = (bufferAfterMin: number, lateStops: any[] = []): JudgeFacts => ({
     money: { fare: 46_000, extraMinutes: 44, firstLoad: false, extraKm: 28.5 },
     labor: { handMinutes: 1, protectionMinutes: 0 },
-    drive: { extraKm: 28.5, driveMinutes: 39 },
+    drive: { driveKm: 28.5, driveMinutes: 39 },
     wait: { toPickupMinutes: 20, deliveryMinutes: 48 },
     calls: { count: 0, hasExistingCalls: true },
     promise: { hasExistingCalls: true, lateStops, bufferAfterMin },
@@ -120,7 +120,7 @@ describe('🟡 노란색은 «전화하면 잡는다» 하나만 뜻한다', () 
     const 싼합짐: JudgeFacts = {
         money: { fare: 30_000, extraMinutes: 76, firstLoad: false, extraKm: 48.5 },
         labor: { handMinutes: 1, protectionMinutes: 0 },
-        drive: { extraKm: 48.5, driveMinutes: 71 },
+        drive: { driveKm: 48.5, driveMinutes: 71 },
         wait: { toPickupMinutes: -13, deliveryMinutes: 48 },
         calls: { count: 0, hasExistingCalls: true },
         promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 18 },

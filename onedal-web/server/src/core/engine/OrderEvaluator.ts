@@ -486,11 +486,19 @@ export class OrderEvaluator {
                                 handMinutes: cost.handMinutes,
                                 protectionMinutes: cost.protectionMin,
                                 /**
-                                 * 🚚 **정차를 뺀 주행 분** — 카카오가 준 **주행 delta 그대로**(`marginal`).
-                                 *    🔴 「돈」은 여기에 정차(`cost.dwell`)를 더해 쓴다 — 묻는 것이 달라 값도 다르다.
-                                 *    섞으면 «+2.6km · 30분» 이 5km/h 로 읽혀 멀쩡한 콜이 0 점이 됐다 (실측).
+                                 * 🚚 **이 콜을 잡으면 달리게 되는 길 전체** — 카카오가 준 병합 경로 그대로.
+                                 *    같은 값으로 `:534` 가 `totalDistanceKm`·`totalDurationMin` 을 저장한다.
+                                 *
+                                 * 🔴 **늘어난 것(`marginal`·`distDiff`)을 넘기지 않는다.** 합짐은 길에서
+                                 *    빠져나갔다 되돌아오므로 늘어난 거리는 조금인데 늘어난 시간은 많다 —
+                                 *    76km·110분(41km/h)을 달리는 콜이 «+26km ÷ +50분 = 31km/h» 로 읽혀
+                                 *    14점이 됐다 (실측 06:24). 늘어난 것은 「돈」이 기름값·시급으로 쓴다.
+                                 * 🔴 **그 콜의 «상차→하차» 구간으로는 못 잰다** — 그 실측은 KEEP 뒤에 재고
+                                 *    (`measureSoloDelivery`) 판정은 잡기 전이라, 판정 시점엔 거리를 속도 눈금으로
+                                 *    나눠 만든 추정이 온다. 그걸 되읽으면 눈금값이 그대로 나온다 (실측 31건 중 26건).
                                  */
-                                driveMinutes: marginal,
+                                driveKm: result.merged.distance / 1000,
+                                driveMinutes: Math.round(result.merged.duration / 60),
                                 bufferAfterMin: bufAfter?.minutes ?? null,
                                 /**
                                  * 📦 **음수를 0 으로 자르지 않는다.** 자르면 «자리 부족»이 «여유 0%»로 보여

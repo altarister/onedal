@@ -263,10 +263,19 @@ export const LABOR = defineCriterion<LaborFacts>({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export interface DriveFacts {
-    /** 이 콜 때문에 더 달리는 거리(km) — 「돈」이 받는 값과 **같은 것**이다 */
-    extraKm: number | null;
     /**
-     * 🚚 **더 달리는 «주행» 분** — 상·하차 정차는 **빼고**.
+     * 🚚 **이 콜을 잡으면 달리게 되는 길 전체의 거리(km)** — 카카오가 준 병합 경로 그대로.
+     *
+     * 🔴 「돈」이 받는 `extraKm` 와 **다른 값**이다 — 저쪽은 «늘어난 것»이라 기름값의 밑이 되고,
+     *    여기는 «내가 달릴 길»이라 전체여야 한다.
+     * 🔴 **늘어난 것끼리 나누지 않는다** — 합짐은 길에서 빠져나갔다 되돌아오므로 늘어난 거리는
+     *    조금인데 늘어난 시간은 많다(신호·회전·진출입). 그래서 늘어난 것끼리만 나누면
+     *    **실제보다 항상 느리게** 나온다 — 76km·110분(41km/h)을 달리는 콜이 «+26km ÷ +50분 = 31km/h»
+     *    로 읽혀 14점이 됐다 (실측 06:24).
+     */
+    driveKm: number | null;
+    /**
+     * 🚚 **그 길 전체의 «주행» 분** — 상·하차 정차는 **빼고**.
      *
      * 🔴 「돈」이 받는 `extraMinutes` 와 **다른 값**이다 (규칙 ⑤-4 ⑤).
      *    저쪽은 «이 콜에 더 쓰는 시간»이라 정차가 들어야 맞고, 여기는 «길이 고된가»라 정차가 들면 안 된다.
@@ -289,12 +298,12 @@ export const DRIVE = defineCriterion<DriveFacts>({
     key: 'drive', name: '운전', asks: '이 길이 고속인가 시내인가',
     weightKey: 'drive',
     measure(f, cfg) {
-        if (!f || f.extraKm == null || f.driveMinutes == null) return nothing('주행을 안 받았습니다');
+        if (!f || f.driveKm == null || f.driveMinutes == null) return nothing('주행을 안 받았습니다');
         if (f.driveMinutes <= 0) return nothing('더 달리지 않습니다 — 길목');
-        /* 🔴 뒤로 가서 거리가 줄어든 합짐은 «길이 고된가»를 물을 대상이 아니다 — 그건 「돈」이 센다 */
-        if (f.extraKm <= 0) return nothing('더 달리지 않습니다');
+        /* 🔴 달릴 길이 없으면 «길이 고된가»를 물을 대상이 아니다 — 길목에 선 콜이 그렇다 */
+        if (f.driveKm <= 0) return nothing('더 달리지 않습니다');
 
-        const kmh = (f.extraKm / f.driveMinutes) * 60;
+        const kmh = (f.driveKm / f.driveMinutes) * 60;
         const { shortKmh, midKmh, longKmh } = cfg.speed;
         const score = kmh <= shortKmh ? 0
             : kmh <= midKmh ? 50 * ((kmh - shortKmh) / Math.max(1, midKmh - shortKmh))

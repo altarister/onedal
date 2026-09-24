@@ -63,7 +63,7 @@ describe('DB 값이 실제로 색을 바꾼다', () => {
         money: { fare: 99_000, extraMinutes: 31 , firstLoad: false },
         /* 🔴 점수를 만드는 축을 다 싣는다 — 돈 하나만 실으면 «색 경계»를 제대로 못 잰다 */
         labor: { handMinutes: 1, protectionMinutes: 0 },
-        drive: { extraKm: 40, driveMinutes: 31 },
+        drive: { driveKm: 40, driveMinutes: 31 },
         wait: { toPickupMinutes: 10, deliveryMinutes: 40 },
         promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 20 },
         space: { freePct: 60, hasLoad: true },

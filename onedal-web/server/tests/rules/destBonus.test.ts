@@ -101,7 +101,7 @@ describe('🧭 첫짐 — 목적지로 전진하면 점수가 곱으로 커진�
     it('🔴 실제 첫짐(운전·콜 대기 포함)은 방향만 달라도 색이 갈린다', () => {
         const 실제 = (p: number): JudgeFacts => ({
             ...첫짐(p, 30_000),
-            drive: { extraKm: 100, driveMinutes: 120 },
+            drive: { driveKm: 100, driveMinutes: 120 },
             wait: { toPickupMinutes: 10, deliveryMinutes: 120 },
         });
         const c: JudgmentConfig = { ...DEFAULT_JUDGMENT,

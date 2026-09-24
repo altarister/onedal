@@ -28,7 +28,7 @@ const 좋은합짐 = (): JudgeFacts => ({
     money: { fare: 50_000, extraMinutes: 30 , firstLoad: false },                    // 10만/h → 만점권
     /* 🔴 점수를 만드는 축을 다 싣는다 — 돈 하나만 실으면 «돈을 뺐을 때» 점수가 통째로 사라진다 */
     labor: { handMinutes: 1, protectionMinutes: 0 },
-    drive: { extraKm: 30, driveMinutes: 30 },
+    drive: { driveKm: 30, driveMinutes: 30 },
     wait: { toPickupMinutes: 10, deliveryMinutes: 30 },
     promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 30 },
     space: { freePct: 70, hasLoad: true },
@@ -284,7 +284,7 @@ describe('💰 돈이 총점의 천장이다 — 다른 축은 깎기만 한다'
     it('🔴 다른 축이 다 만점이어도 총점이 돈을 못 넘는다 (합짐)', () => {
         const 싼합짐: JudgeFacts = {
             money: { fare: 30_000, extraMinutes: 60, firstLoad: false },   // 3만/h
-            drive: { extraKm: 60, driveMinutes: 60 },
+            drive: { driveKm: 60, driveMinutes: 60 },
             wait: { toPickupMinutes: 10, deliveryMinutes: 60 },
             calls: { count: 0, hasExistingCalls: true },
             promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 60 },
@@ -300,7 +300,7 @@ describe('💰 돈이 총점의 천장이다 — 다른 축은 깎기만 한다'
     it('🔴 첫짐도 같다 — 국면으로 가르지 않는다', () => {
         const 싼첫짐: JudgeFacts = {
             money: { fare: 21_000, extraMinutes: 60, firstLoad: true },    // 2.1만/h
-            drive: { extraKm: 100, driveMinutes: 120 },
+            drive: { driveKm: 100, driveMinutes: 120 },
             wait: { toPickupMinutes: 10, deliveryMinutes: 120 },
             calls: { count: null, hasExistingCalls: false },
             promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
@@ -317,7 +317,7 @@ describe('💰 돈이 총점의 천장이다 — 다른 축은 깎기만 한다'
         const 나쁜합짐: JudgeFacts = {
             money: { fare: 60_000, extraMinutes: 60, firstLoad: false },   // 6만/h → 돈 만점
             labor: { handMinutes: 40, protectionMinutes: 5 },              // 손으로 45분 — 고되다
-            drive: { extraKm: 10, driveMinutes: 60 },                      // 10km/h — 시내
+            drive: { driveKm: 10, driveMinutes: 60 },                      // 10km/h — 시내
             wait: { toPickupMinutes: 20, deliveryMinutes: 5 },             // 남겨 주는 것이 거의 없다
             promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 60 },
             space: { freePct: 70, hasLoad: true },
