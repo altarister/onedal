@@ -198,19 +198,42 @@ class CallMemoryTest {
      *    그 콜은 다시 판정받을 자격이 있다 — 길이 바뀌면 답도 바뀐다.
      */
     @Test
-    fun `🔴 취소로 끝난 콜은 눌렀다 기억에서 빠진다 - 길이 바뀌면 다시 본다`() {
+    fun `🔴 취소로 끝난 콜은 «막았다» 로 내려간다 - 길이 바뀌면 다시 본다`() {
         val m = CallMemory()
+        m.onFilterVersion("v1")
         m.markEvaluated(777)
         assertTrue("누른 직후에는 기억한다", m.alreadyEvaluated(777))
-        m.forgetActed(777)
-        assertFalse("취소로 끝났으면 다시 본다", m.alreadyEvaluated(777))
+        m.demoteActed(777)
+        assertTrue("취소해도 같은 필터로는 또 안 누른다", m.alreadyEvaluated(777))
+        m.onFilterVersion("v2")
+        assertFalse("길이 바뀌면 다시 본다", m.alreadyEvaluated(777))
     }
 
-    /** 🔴 KEEP 으로 끝난 콜은 그대로 기억한다 — 잡은 콜을 또 누르면 안 된다 */
+    /**
+     * 🔴 **취소한 콜을 같은 필터로 또 누르면 고리가 된다** (라이브 전 점검에서 잡힘)
+     *
+     * 「눌렀다」에서 **빼면** 다음 스캔에서 같은 필터로 또 통과해 또 누른다 — 그 콜이 배차망
+     * 목록에 남아 있는 한 끝이 없다. 시뮬레이터는 취소한 콜을 목록에서 지우므로 안 드러난다.
+     * 인성·화물24시는 그 콜이 그대로 남는다.
+     */
     @Test
-    fun `KEEP 으로 끝난 콜은 그대로 기억한다`() {
+    fun `🔴 취소한 콜을 같은 필터로 다시 누르지 않는다 - 무한 고리 방지`() {
         val m = CallMemory()
+        m.onFilterVersion("v1")
+        repeat(3) {
+            m.markEvaluated(555)
+            m.demoteActed(555)
+            assertTrue("취소를 되풀이해도 같은 필터로는 안 본다", m.alreadyEvaluated(555))
+        }
+    }
+
+    /** 🔴 KEEP 으로 끝난 콜은 필터가 바뀌어도 그대로 기억한다 — 잡은 콜을 또 누르면 안 된다 */
+    @Test
+    fun `KEEP 으로 끝난 콜은 필터가 바뀌어도 기억한다`() {
+        val m = CallMemory()
+        m.onFilterVersion("v1")
         m.markEvaluated(888)
-        assertTrue(m.alreadyEvaluated(888))
+        m.onFilterVersion("v2")
+        assertTrue("잡은 콜은 필터가 바뀌어도 안 누른다", m.alreadyEvaluated(888))
     }
 }

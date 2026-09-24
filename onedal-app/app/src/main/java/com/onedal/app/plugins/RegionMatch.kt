@@ -10,7 +10,7 @@ package com.onedal.app.plugins
  *   · 키워드가 텍스트에 있어도, 이어지는 글자를 붙인 것이 트랩(서버가 전국 지명
  *     사전에서 계산해 keywordTraps 로 내려줌)이면 그 자리는 다른 곳이다
  *   · 트랩이 없어도 구·시·군이 바로 이어지면 마찬가지다 (문법적 안전망)
- *   · **앞에 한글이 붙어도** 다른 곳이다 — "신도림동" 안의 "도림동"
+ *   · **앞에 붙은 것이 사전에 있는 더 긴 지명이면** 다른 곳이다 — "신도림동" 안의 "도림동"
  *   · 같은 텍스트의 다른 자리는 따로 다시 본다 — "남동구청에서 남동 방면" 은 일치
  *
  * 🔴 미탐이 오탐보다 아프다 (규칙 ⑤ — 앱의 목적은 놓치지 않는 것).
@@ -25,12 +25,18 @@ object RegionMatch {
         if (keyword.isEmpty()) return false
         val tails = traps.filter { it.length > keyword.length && it.startsWith(keyword) }
             .map { it.substring(keyword.length) }
+        /* 🔴 앞에 붙는 것도 사전에서 본다 — "도림동" 앞의 "신"(="신도림동") */
+        val heads = traps.filter { it.length > keyword.length && it.endsWith(keyword) }
+            .map { it.substring(0, it.length - keyword.length) }
         var i = text.indexOf(keyword)
         while (i != -1) {
             val rest = text.substring(i + keyword.length)
-            /* 🔴 앞 글자가 한글이면 다른 지명의 일부다 — "신도림동" 안의 "도림동"
+            /* 🔴 앞에 붙은 것이 사전에 있는 더 긴 지명이면 다른 곳이다 — "신도림동" 안의 "도림동".
+               🔴 글자 종류로 가르지 않는다 — "앞이 한글이면 막는다" 로 재면 칸 사이 공백이 사라진 채
+                  올라온 정상 주소가 전부 막힌다("인천남동구논현동" 의 "논현동").
                (서버 regionMatch.ts 와 한 벌) */
-            val glued = i > 0 && text[i - 1] in '가'..'힣'
+            val before = text.substring(0, i)
+            val glued = heads.any { before.endsWith(it) }
             val trapped = glued || tails.any { rest.startsWith(it) } ||
                 (rest.isNotEmpty() && rest[0] in ADMIN_SUFFIX)
             if (!trapped) return true

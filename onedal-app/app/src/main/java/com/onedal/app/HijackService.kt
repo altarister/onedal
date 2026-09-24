@@ -1464,23 +1464,24 @@ class HijackService : AccessibilityService(), ScanContext {
         if (!session.isAutoActive) return // AUTO 모드가 아니면 스킵
 
         /**
-         * 🧹 **취소로 끝났으면 «눌렀다» 기억에서 뺀다** (기사님 · 실주행 시흥동).
+         * 🧹 **취소로 끝났으면 «눌렀다» 에서 «막았다» 로 내린다** (기사님 · 실주행 시흥동).
          *
          * 클릭 직전에 `markEvaluated` 로 지문을 선등재한다 — 반송돼도 또 누르지 않으려는 지뢰 탐지기다.
          * 그런데 그 뜻은 **그 콜이 살아 있는 동안**만 맞다. 취소로 끝난 콜은 다시 판정받을 자격이 있다 —
          * 길이 바뀌면 답도 바뀐다.
          *
-         * 🔴 안 빼면 **필터가 아무리 바뀌어도 영영 안 본다** — 「막았다」만 버전으로 비워지기 때문이다.
+         * 🔴 안 내리면 **필터가 아무리 바뀌어도 영영 안 본다** — 「막았다」만 버전으로 비워지기 때문이다.
          *    시흥동 → 송도동(34,650원)이 그렇게 갔다: 한 번 누른 뒤 대전에서 인천까지 오는 내내
          *    필터가 93번 바뀌었는데도 다시 판정하지 않아 성남을 그대로 지나쳤다.
-         * 🔴 **KEEP 은 안 뺀다** — 잡은 콜을 또 누르면 사고다.
+         * 🔴 **기억에서 아예 빼지 않는다** — 빼면 같은 필터로 또 통과해 또 누른다 (`CallMemory.demoteActed`).
+         * 🔴 **KEEP 은 안 내린다** — 잡은 콜을 또 누르면 사고다.
          * 🔴 지문은 스캔 때와 **같은 셈**이어야 한다 (상차 + 하차 + 요금 · `orderHash`).
          */
         if (decision != "KEEP") {
             session.lastDetailOrder?.let { o ->
                 val hash = (o.pickup + o.dropoff + o.fare.toString()).hashCode()
-                callMemory.forgetActed(hash)
-                AppLogger.d(TAG, "🧹 [기억에서 뺌] ${o.pickup.take(14)} → ${o.dropoff.take(14)} ${o.fare}원 " +
+                callMemory.demoteActed(hash)
+                AppLogger.d(TAG, "🧹 [막았다로 내림] ${o.pickup.take(14)} → ${o.dropoff.take(14)} ${o.fare}원 " +
                     "— 취소로 끝났으니 길이 바뀌면 다시 본다 (지문 $hash)")
             }
         }
