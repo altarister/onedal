@@ -481,8 +481,8 @@ export const PROMISE = defineCriterion<PromiseFacts>({
          */
         const { fullMin, zeroScore, lateSoftMin, lateWarnMin, lateZeroMin } = cfg.slack;
         const a = f.bufferAfterMin;
-        if (a >= fullMin) return scored(100, `최소 +${a}분`);
-        if (a >= 0) return scored(zeroScore + ((100 - zeroScore) / fullMin) * a, `최소 +${a}분`);
+        if (a >= fullMin) return asCeiling(scored(100, `최소 +${a}분`));
+        if (a >= 0) return asCeiling(scored(zeroScore + ((100 - zeroScore) / fullMin) * a, `최소 +${a}분`));
 
         /**
          * ⏰ **통화 전 임시 지연은 분만큼만 깎는다** (기사님 확정).
@@ -495,17 +495,23 @@ export const PROMISE = defineCriterion<PromiseFacts>({
         const softScore = 90, warnScore = 60;
         const late = -a;
         /**
-         * 🔴 **색을 덮지 않는다** — 이건 서버가 지레짐작한 시간이다 (`hardFailIsConfirmed`).
-         *    0 점이면 색이 «똥» 이라 충분히 말린다. 덮는 것은 **통화로 굳힌 약속**뿐이다.
+         * 🔴 **🔴 로 덮지 않는다** — 이건 서버가 지레짐작한 시간이다 (`hardFailIsConfirmed`).
+         *    덮는 것은 **통화로 굳힌 약속**뿐이다.
+         *
+         * 🔴 **대신 이 점수가 총점의 천장이다** (`asCeiling` · 기사님 확정).
+         *    🔴 **«0 점이면 색이 똥이다»에 기대면 안 된다** — 기준이 아홉이라 한 축이 0 점이어도
+         *    나머지가 끌어올린다(「110분 지연 — 한계 밖(0점)」인 합짐이 🔵 꿀 71점).
+         *    천장이면 «약속보다 좋은 콜은 없다»가 되어 0 점이 곧 🟡 다.
+         * 🔴 **«추정»이라 적는다** — 굳힌 약속과 글자가 같으면 기사님이 «서버 짐작»임을 못 가리신다.
          */
-        if (late >= lateZeroMin) return scored(0, `${late}분 지연 — 한계(${lateZeroMin}분) 밖`);
+        if (late >= lateZeroMin) return asCeiling(scored(0, `${late}분 추정 지연 — 한계(${lateZeroMin}분) 밖`));
         const span = (lo: number, hi: number) => Math.max(1, hi - lo);
         const s = late <= lateSoftMin
             ? zeroScore - (zeroScore - softScore) * (late / Math.max(1, lateSoftMin))
             : late <= lateWarnMin
                 ? softScore - (softScore - warnScore) * ((late - lateSoftMin) / span(lateSoftMin, lateWarnMin))
                 : warnScore * (1 - (late - lateWarnMin) / span(lateWarnMin, lateZeroMin));
-        return scored(s, `${late}분 지연`);
+        return asCeiling(scored(s, `${late}분 추정 지연`));
     },
 });
 
