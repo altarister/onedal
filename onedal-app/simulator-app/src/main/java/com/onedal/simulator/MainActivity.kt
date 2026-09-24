@@ -8,7 +8,9 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.text.InputType
 import android.view.KeyEvent
+import android.view.ViewGroup
 import android.webkit.GeolocationPermissions
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -59,39 +61,8 @@ class MainActivity : Activity() {
 
         webView = findViewById(R.id.webView)
 
-        webView.apply {
-            // JavaScript 활성화 (시뮬레이터 동작에 필수)
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-
-            // 모바일 브라우저처럼 표시 (상단/하단 메뉴가 잘리지 않도록)
-            settings.loadWithOverviewMode = false
-            settings.useWideViewPort = false
-
-            // 접근성 노드 노출을 위한 설정
-            settings.setSupportZoom(false)
-            settings.textZoom = 100
-
-            // 모바일 User-Agent 강제 (데스크탑 모드 방지)
-            settings.userAgentString = settings.userAgentString.replace("; wv", "")
-
-            /**
-             * 📍 **웹뷰가 위치를 물으면 허락한다**.
-             * 시뮬 문제지가 «현위치 → 상차지» 거리를 여기서 잰다. 이 폰이 곧 기사님이므로
-             * 되물을 것이 없다 — 대신 안드로이드 권한이 없으면 아래에서 한 번 요청한다.
-             */
-            settings.setGeolocationEnabled(true)
-
-            // 외부 브라우저로 이탈 방지
-            webViewClient = WebViewClient()
-            webChromeClient = object : WebChromeClient() {
-                override fun onGeolocationPermissionsShowPrompt(
-                    origin: String?, callback: GeolocationPermissions.Callback?,
-                ) { callback?.invoke(origin, true, false) }
-            }
-
-            loadUrl(currentUrl())
-        }
+        setUpWebView(webView)
+        webView.loadUrl(currentUrl())
 
         applySystemBarInsets()
 
@@ -99,6 +70,83 @@ class MainActivity : Activity() {
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1001)
+        }
+    }
+
+    /**
+     * ⚙️ **웹뷰 설정은 한 곳이다** (규칙 ③).
+     *    처음 만들 때와 **렌더러가 죽어 다시 만들 때** 같은 함수를 부른다 —
+     *    두 벌로 두면 한쪽만 고쳐져, 되살아난 화면이 원달앱에 다르게 읽힌다.
+     */
+    private fun setUpWebView(wv: WebView) {
+        wv.settings.javaScriptEnabled = true          // 시뮬레이터 동작에 필수
+        wv.settings.domStorageEnabled = true
+
+        // 모바일 브라우저처럼 표시 (상단/하단 메뉴가 잘리지 않도록)
+        wv.settings.loadWithOverviewMode = false
+        wv.settings.useWideViewPort = false
+
+        // 접근성 노드 노출을 위한 설정
+        wv.settings.setSupportZoom(false)
+        wv.settings.textZoom = 100
+
+        // 모바일 User-Agent 강제 (데스크탑 모드 방지)
+        wv.settings.userAgentString = wv.settings.userAgentString.replace("; wv", "")
+
+        /**
+         * 📍 **웹뷰가 위치를 물으면 허락한다**.
+         * 시뮬 문제지가 «현위치 → 상차지» 거리를 여기서 잰다. 이 폰이 곧 기사님이므로
+         * 되물을 것이 없다 — 대신 안드로이드 권한이 없으면 onCreate 에서 한 번 요청한다.
+         */
+        wv.settings.setGeolocationEnabled(true)
+
+        // 외부 브라우저로 이탈 방지 · 렌더러가 죽으면 되살린다
+        wv.webViewClient = reviveOnRendererDeath()
+        wv.webChromeClient = object : WebChromeClient() {
+            override fun onGeolocationPermissionsShowPrompt(
+                origin: String?, callback: GeolocationPermissions.Callback?,
+            ) { callback?.invoke(origin, true, false) }
+        }
+    }
+
+    /**
+     * 🧟 **웹뷰 렌더러가 죽으면 되살린다 — 안 그러면 앱이 통째로 죽는다** (기사님 실측)
+     *
+     * 안드로이드는 웹뷰의 렌더러(별도 프로세스)가 죽었을 때 `onRenderProcessGone` 이
+     * **`false` 를 돌려주면 앱 프로세스를 죽인다.** 기본 `WebViewClient` 가 바로 그 `false` 다.
+     * 렌더러는 메모리가 빠듯하면 시스템이 걷어 가므로(로그캣 «Killing …:sandboxed_process0»),
+     * 이 앱은 **아무 잘못 없이** 사라진다.
+     *
+     * 🔴 기사님 눈에는 «브라우저가 죽었다»로 보이고, 원달앱이 읽을 화면이 사라져
+     *    **콜 목록이 0항목**이 된다. 실주행 한 바퀴를 세 번 끊어 먹은 자리다.
+     *
+     * 🔴 **죽은 웹뷰는 다시 못 쓴다** — 같은 자리에 새 웹뷰를 끼우고 보던 주소를 다시 연다.
+     *    `destroy()` 를 먼저 불러 옛 것을 확실히 놓는다.
+     * 🔴 **화면 구조는 그대로다** — 부모의 같은 자리·같은 레이아웃 인자로 갈아 끼운다.
+     *    원달앱이 이 화면을 접근성 트리로 읽으므로 노드가 늘면 안 된다.
+     */
+    private fun reviveOnRendererDeath() = object : WebViewClient() {
+        override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+            val dead = view ?: return true
+            val url = currentUrl()
+            val parent = dead.parent as? ViewGroup
+            val at = parent?.indexOfChild(dead) ?: -1
+            val params = dead.layoutParams
+            val padL = dead.paddingLeft; val padT = dead.paddingTop
+            val padR = dead.paddingRight; val padB = dead.paddingBottom
+            parent?.removeView(dead)
+            dead.destroy()
+
+            val fresh = WebView(this@MainActivity).apply {
+                id = R.id.webView
+                setPadding(padL, padT, padR, padB)
+            }
+            if (params != null) parent?.addView(fresh, at, params) else parent?.addView(fresh, at)
+            webView = fresh
+            setUpWebView(fresh)
+            fresh.loadUrl(url)
+            Toast.makeText(this@MainActivity, "화면이 꺼져 다시 열었습니다", Toast.LENGTH_SHORT).show()
+            return true      // 🔴 true 여야 안드로이드가 이 앱을 안 죽인다
         }
     }
 
