@@ -190,6 +190,14 @@ export interface UserSession {
      */
     arrivalHeld: Map<string, number | null>;
     arrivalNoticed: Set<string>;
+    /**
+     * 🧮 **이미 센 콜** — `orderId:cancel` · `orderId:keep` 꼴 (`core/cancelCount.ts`).
+     *
+     * 콜이 끝나는 길이 여럿이라 **같은 콜을 두 길이 각각 셌다** (실주행: 서버 안전취소 타이머가
+     * 세고, 3초 뒤 앱이 그 취소를 비상 보고로 올려 또 셌다). 조건을 더하는 방식으로는 또 샌다 —
+     * 세는 자리가 스스로 «이미 셌나»를 알아야 부르는 곳이 늘어도 안전하다.
+     */
+    countedOnce: Set<string>;
 
     /**
      * 🚚 **떠남 감시** — 하차지에 도착한 뒤 «멀어졌는지»를 보려고 그 좌표를 들고 있는다
@@ -348,6 +356,7 @@ function createDefaultSession(userId: string): UserSession {
         passWatch: new Map(),
         arrivalHeld: new Map(),
         arrivalNoticed: new Set(),
+        countedOnce: new Set(),
     };
 }
 

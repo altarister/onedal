@@ -15,8 +15,40 @@ import { CANCEL_BUDGET_PER_ROUND } from "@onedal/shared";
  *    **인성에서는 아무 일도 일어나지 않았다.** 취소할 것이 없는데 우리 장부에만 쌓이면
  *    화면이 거짓말을 한다.
  */
+/**
+ * 🧮 **이 콜을 이미 셌나 — 셌으면 조용히 돌아선다** (기사님 · 실주행에서 잡힘)
+ *
+ * 콜이 끝나는 길은 여럿이다 (`forceCancelEvaluatingOrder` · `handleDecision` · 앱 비상 보고).
+ * 실측: 서버 안전취소 타이머가 세고, **3초 뒤 앱이 그 취소를 비상 보고로 올려 또 셌다.**
+ *
+ * 🔴 **두 번째다.** `dispatchEngine` 머리에 «셈은 여기 한 번이다 — 타임아웃 경로가 또 불러
+ *    보통 콜을 두 번 셌다» 고 적혀 있다. 한 경로를 막았더니 다른 경로로 났다.
+ *    **조건을 더하는 방식으로는 또 샌다** — 세는 자리가 스스로 알아야 한다.
+ *
+ * 🔴 **취소와 수락은 서로를 막지 않는다** — 한 콜이 수락됐다가 취소될 수 있다. 그래서 갈래를 함께 적는다.
+ * 🔴 **미리보기 판단보다 먼저 온다** — 미리보기는 애초에 안 세므로 그릇에 담을 것도 없다…가 아니다:
+ *    담아 두면 «미리보기였다가 확정된 콜»이 영영 안 세진다. 그래서 **세는 것이 확정된 뒤**가 아니라
+ *    **이 함수에 들어온 순간** 담는다 — 같은 콜에 같은 갈래로 두 번 들어오는 것만 막으면 된다.
+ */
+function countedAlready(
+    session: { countedOnce?: Set<string> },
+    orderId: string,
+    kind: 'cancel' | 'keep',
+    reason?: string,
+): boolean {
+    const key = `${orderId}:${kind}`;
+    if (!session.countedOnce) return false;          // 옛 세션 모양 — 막지 않는다 (규칙 ④)
+    if (session.countedOnce.has(key)) {
+        console.log(`   🧮 [이미 셌다] ${orderId} — ${kind === 'cancel' ? '취소' : '수락'}를 다른 길이 이미 셌습니다`
+            + (reason ? ` (이번 reason: ${reason})` : '') + '. 두 번 세지 않습니다');
+        return true;
+    }
+    session.countedOnce.add(key);
+    return false;
+}
+
 export function countCancel(
-    session: { pendingOrdersData: Map<string, any>; myOrders: any[]; userId?: string },
+    session: { pendingOrdersData: Map<string, any>; myOrders: any[]; userId?: string; countedOnce?: Set<string> },
     deviceId: string | undefined,
     orderId: string,
     reason: 'DECISION_CANCEL' | 'FORCE_CANCEL' | 'TIMEOUT' | string,
@@ -32,6 +64,7 @@ export function countCancel(
     io?: any,
 ): void {
     if (!deviceId) return;
+    if (countedAlready(session, orderId, 'cancel', reason)) return;
 
     const order = session.pendingOrdersData.get(orderId)
         ?? session.myOrders.find(o => o.id === orderId);
@@ -116,12 +149,13 @@ function checkBudgetRound(
  *    취소를 안 세는 이유와 같다.
  */
 export function countKeep(
-    session: { pendingOrdersData: Map<string, any>; myOrders: any[] },
+    session: { pendingOrdersData: Map<string, any>; myOrders: any[]; countedOnce?: Set<string> },
     deviceId: string | undefined,
     orderId: string,
     isPreviewHint?: boolean,
 ): void {
     if (!deviceId) return;
+    if (countedAlready(session, orderId, 'keep')) return;
 
     const order = session.pendingOrdersData.get(orderId)
         ?? session.myOrders.find(o => o.id === orderId);

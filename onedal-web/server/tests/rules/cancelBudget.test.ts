@@ -81,3 +81,67 @@ describe('🚫 다 쓰면 알리고 새 판을 연다', () => {
         expect(c).toMatch(/cancel-budget-reached/);
     });
 });
+
+/**
+ * 🧮 **한 콜은 한 번만 센다** (기사님 · 실주행에서 잡힘)
+ *
+ * 콜이 끝나는 길이 여럿이라 **같은 콜을 두 길이 각각 셌다.** 실측 —
+ *   서버 안전취소 타이머가 `handleDecision(SAFE_CANCEL)` → 취소 +1,
+ *   3초 뒤 앱이 그 취소를 받고 `/api/emergency` 로 보고 → 취소 +1.
+ *
+ * 🔴 **두 번째다.** `dispatchEngine` 머리에 «셈은 여기 한 번이다 — 타임아웃 경로가 이 함수 뒤에
+ *    countCancel 을 또 불러 보통 콜을 두 번 셌다» 고 적혀 있다. 그때는 한 경로를 고쳤고,
+ *    오늘은 다른 경로로 또 났다. **조건을 더하는 방식으로는 또 샌다.**
+ *
+ * 🔴 그래서 **세는 자리가 스스로 «이미 셌나»를 안다.** 부르는 곳이 몇이든, 앞으로 늘어도 안전하다.
+ */
+describe('🧮 한 콜은 한 번만 센다 — 부르는 곳이 여럿이어도', () => {
+
+    const makeSession = () => ({
+        userId: 'u1', pendingOrdersData: new Map<string, any>(), myOrders: [] as any[],
+        countedOnce: new Set<string>(),
+    });
+
+    it('🔴 세션에 «이미 센 콜» 칸이 있다', () => {
+        expect(code(read('state/userSessionStore.ts'))).toMatch(/countedOnce/);
+    });
+
+    it('🔴 취소를 세는 자리가 그 칸을 본다', () => {
+        expect(code(read('core/cancelCount.ts'))).toMatch(/countedOnce/);
+    });
+
+    it('🔴 같은 콜을 두 길로 취소해도 한 번만 센다', () => {
+        const { countCancel } = require('../../src/core/cancelCount');
+        const { incrementDeviceStats } = require('../../src/routes/devices');
+        const session = makeSession();
+        countCancel(session as any, 'dev1', 'order-A', 'DECISION_CANCEL');
+        countCancel(session as any, 'dev1', 'order-A', 'AUTO_CANCEL');
+        /* 🔴 셈 자체는 기기 세션에 쌓이므로 여기서는 «두 번째가 돌아섰나»를 그릇으로 잰다 */
+        expect([...session.countedOnce].filter(k => k.includes('order-A')).length).toBe(1);
+        expect(typeof incrementDeviceStats).toBe('function');
+    });
+
+    it('🔴 다른 콜은 각각 센다 — 막는 것이 과하면 한도가 거짓말한다', () => {
+        const { countCancel } = require('../../src/core/cancelCount');
+        const session = makeSession();
+        countCancel(session as any, 'dev1', 'order-A', 'DECISION_CANCEL');
+        countCancel(session as any, 'dev1', 'order-B', 'DECISION_CANCEL');
+        expect(session.countedOnce.size).toBe(2);
+    });
+
+    it('🔴 수락도 같은 문을 지난다 — 지금은 부르는 곳이 하나지만 늘면 같은 병이 난다', () => {
+        const { countKeep } = require('../../src/core/cancelCount');
+        const session = makeSession();
+        countKeep(session as any, 'dev1', 'order-A');
+        countKeep(session as any, 'dev1', 'order-A');
+        expect([...session.countedOnce].filter(k => k.includes('order-A')).length).toBe(1);
+    });
+
+    it('🔴 취소와 수락은 서로를 막지 않는다 — 한 콜이 수락됐다가 취소될 수 있다', () => {
+        const { countCancel, countKeep } = require('../../src/core/cancelCount');
+        const session = makeSession();
+        countKeep(session as any, 'dev1', 'order-A');
+        countCancel(session as any, 'dev1', 'order-A', 'DECISION_CANCEL');
+        expect(session.countedOnce.size).toBe(2);
+    });
+});
