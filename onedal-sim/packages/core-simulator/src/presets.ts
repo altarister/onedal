@@ -267,9 +267,9 @@ const BD_SAMPYEONG: MockEntry = {
     lon: 127.11115, lat: 37.39593,
 };
 const PANGYO_SW: MockEntry = {
-    customerName: '판교 소프트웨어드림센터', contactName: '담당', phone1: '010-0000-0402',
-    region: '시흥동', addressDetail: '경기 성남시 수정구 시흥동 창업로40번길 20 소프트웨어드림센터',
-    lon: 127.09471, lat: 37.41297,
+    customerName: '판교글로벌비즈니스센터', contactName: '담당', phone1: '010-0000-0402',
+    region: '시흥동', addressDetail: '경기 성남시 수정구 시흥동 창업로 43 판교글로벌비즈니스센터',
+    lon: 127.096047, lat: 37.411602,
 };
 const GP_YANGCHON: MockEntry = {
     customerName: '김포 양촌읍 상차지', contactName: '담당', phone1: '010-0000-0403',
