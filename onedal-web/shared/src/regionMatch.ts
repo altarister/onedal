@@ -24,20 +24,28 @@ export function regionKeywordHit(text: string, keyword: string, traps?: string[]
     const tails = (traps ?? [])
         .filter(t => t.length > keyword.length && t.startsWith(keyword))
         .map(t => t.slice(keyword.length));
+    /* 🔴 앞에 붙는 것도 사전에서 본다 — 「도림동」 앞의 「신」(=「신도림동」) */
+    const heads = (traps ?? [])
+        .filter(t => t.length > keyword.length && t.endsWith(keyword))
+        .map(t => t.slice(0, t.length - keyword.length));
     let i = text.indexOf(keyword);
     while (i !== -1) {
         const rest = text.slice(i + keyword.length);
         /**
-         * 🔴 **앞 글자가 한글이면 다른 지명의 일부다** (기사님 확정).
+         * 🔴 **앞에 붙은 것이 사전에 있는 더 긴 지명이면 다른 곳이다** (기사님 확정).
          *    실사고: 서울 전체를 빼 두었는데 «문정동 → 신도림동» 콜이 올라왔다. 하차 목록에
          *    서울은 없고 **「도림동」**이 있었는데, 「신도림동」 안에 그 글자가 그대로 있어
          *    통과했다. 뒤만 보면 한 글자 붙은 동 이름이 전부 샌다 —
          *    신도림동/도림동 · 신대방동/대방동 · 상도동/도동.
-         * 🔴 **한글만 막는다** — 공백·번지·괄호·도로명이 앞에 오는 정상 표기는 그대로
-         *    통과한다 (규칙 ⑤ — 미탐이 오탐보다 아프다).
+         * 🔴 **가르는 것은 사전이지 글자 종류가 아니다.** 「앞이 한글이면 막는다」로 재면
+         *    칸 사이 공백이 사라진 채 올라온 정상 주소가 전부 막힌다 — 「인천남동구논현동」의
+         *    「논현동」(앞이 '구')처럼. 이 함수는 **좋은 콜을 통과시키는** 자리가 쓴다
+         *    (규칙 ⑤ — 미탐이 오탐보다 아프다).
+         *    「앞이 시·군·구·읍·면이면 통과」로 재도 안 된다 — 「면목동」의 「목동」과
+         *    「읍내동」의 「내동」이 그리로 샌다.
          */
-        const before = i > 0 ? text[i - 1] : '';
-        const glued = /[가-힣]/.test(before);
+        const before = text.slice(0, i);
+        const glued = heads.some(h => before.endsWith(h));
         const trapped = glued || tails.some(tail => rest.startsWith(tail)) || /^[구시군]/.test(rest);
         if (!trapped) return true;
         i = text.indexOf(keyword, i + 1);

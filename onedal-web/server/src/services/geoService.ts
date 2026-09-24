@@ -1703,7 +1703,12 @@ function allAdminNames(): Set<string> {
         const parent = props.intel?.parentName || props.SIG_KOR_NM;
         if (parent) for (const tok of String(parent).split(' ')) if (tok) s.add(tok);
     }
-    adminNameSet = s;
+    /**
+     * 🔴 **빈 사전은 «답»이 아니다 — 캐시하지 않는다** (규칙 ④).
+     *    지도가 아직 안 올라왔거나 로드가 실패했을 뿐이다. 빈 것을 굳히면 그 서버가 사는 내내
+     *    트랩이 비고, 앱이 **앞에 붙는 지명을 못 봐** 「신도림동」이 「도림동」으로 통과한다.
+     */
+    if (s.size) adminNameSet = s;
     return s;
 }
 
@@ -1714,7 +1719,9 @@ export function trapsForKeywords(keywords: string[]): Record<string, string[]> {
     for (const k of keywords) {
         if (!k) continue;
         const traps: string[] = [];
-        for (const n of names) if (n !== k && n.startsWith(k)) traps.push(n);
+        /* 🔴 앞뒤 둘 다 담는다 — 뒤는 「남동」→「남동구」, 앞은 「도림동」→「신도림동」.
+              앞을 안 담으면 앱이 앞을 못 봐 「신도림동」이 「도림동」으로 통과한다 */
+        for (const n of names) if (n !== k && (n.startsWith(k) || n.endsWith(k))) traps.push(n);
         if (traps.length) out[k] = traps;
     }
     return out;
