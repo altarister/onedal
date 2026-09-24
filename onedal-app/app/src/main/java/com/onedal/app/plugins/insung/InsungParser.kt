@@ -130,6 +130,34 @@ class InsungParser(private val context: Context) : IScrapParser {
         /** 사각형이 자리를 안 차지한다 — 스크롤 밖 노드의 표식일 수 있다 (계측용) */
         fun isEmptyRect(top: Int, bottom: Int): Boolean = top >= bottom
 
+        /** 노드 하나가 통째로 「차종+요금」일 때 — 「라2.2」. 앞뒤에 딴 글자가 붙으면 아니다 */
+        private val VEHICLE_FARE_ONLY = Regex("^($VEHICLE_TOKENS)\\s*\\d+(?:\\.\\d+)?$")
+
+        /**
+         * 🧲 **카드를 묶는 닻을 고른다** — `(글자, 위, 아래)` 목록에서 닻이 될 칸의 자리(index).
+         *
+         * 닻은 «이 줄이 한 카드다»를 알리는 기준이자 **실제로 누르는 자리**(`performSimulatedTouch`)다.
+         *
+         * 🔴 **차종 칸이 먼저다** — 지금 잘 묶이는 카드는 한 톨도 안 바뀐다(누르는 자리가 그대로).
+         * 🔴 **그 줄에 차종 칸이 하나도 없을 때만** 「라2.2」처럼 붙은 칸을 닻으로 쓴다.
+         *    웹뷰 화면은 칸 사이 공백이 사라진 채 한 덩어리로 올라오는데(앱 CLAUDE.md), 그때 닻이
+         *    안 잡혀 **그 콜이 로그 한 줄 없이 사라졌다** (코드리뷰 Part 1 C-3). 요금을 읽는 쪽은
+         *    이미 같은 규칙으로 붙은 글자를 푼다(`readVehicleAndFare`) — 한 벌로 맞춘다.
+         * 🔴 붙은 칸이 한 줄에 여럿이면 **맨 앞 하나만** — 같은 카드를 두 번 세지 않는다.
+         */
+        fun cardAnchorIndices(cells: List<Triple<String, Int, Int>>): List<Int> {
+            val pure = cells.indices.filter { cells[it].first.matches(VEHICLE_ONLY) }
+            val chosen = pure.toMutableList()
+            for (i in cells.indices) {
+                if (i in pure) continue
+                if (!VEHICLE_FARE_ONLY.matches(cells[i].first)) continue
+                val (_, top, bottom) = cells[i]
+                val taken = chosen.any { sameRow(cells[it].second, cells[it].third, top, bottom) }
+                if (!taken) chosen += i
+            }
+            return chosen.sorted()
+        }
+
         /**
          * 🏠 **주소처럼 생겼는가**.
          *
@@ -724,7 +752,9 @@ class InsungParser(private val context: Context) : IScrapParser {
     
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         // 🔴 카드를 묶는 자리라, 차종이 빠지면 그 콜은 로그 한 줄 없이 사라진다 — 목록은 위 한 벌을 쓴다.
-        val fareNodes = allNodes.filter { it.text.matches(VEHICLE_ONLY) }
+        //    누구를 닻으로 삼는지는 `cardAnchorIndices` 한 곳이 정한다 (붙어 온 「라2.2」 포함).
+        val fareNodes = cardAnchorIndices(allNodes.map { Triple(it.text, it.rect.top, it.rect.bottom) })
+            .map { allNodes[it] }
 
         return fareNodes.map { fareNode ->
             val rowNodes = allNodes.filter {

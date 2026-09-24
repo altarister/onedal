@@ -1,5 +1,6 @@
 package com.onedal.app.plugins.insung
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -67,5 +68,61 @@ class RowGroupingTest {
         assertTrue(InsungParser.isEmptyRect(500, 500))
         assertTrue("뒤집힌 것도 빈 것으로 본다", InsungParser.isEmptyRect(200, 100))
         assertFalse(InsungParser.isEmptyRect(100, 148))
+    }
+
+    // ── 🧲 카드를 묶는 닻 (18번 1.1.10 · 코드리뷰 Part 1 C-3) ──
+    // 닻은 «이 줄이 한 카드다»를 알리는 기준 글자이자 **실제로 누르는 자리**(performSimulatedTouch)다.
+    // 화면이 「라2.2」처럼 차종과 요금을 붙여 보내면 닻이 안 잡혀 그 카드가 통째로 사라졌다.
+
+    /** (글자, 위, 아래) — 화면에서 읽은 칸 하나 */
+    private fun cell(text: String, top: Int, bottom: Int) = Triple(text, top, bottom)
+
+    @Test
+    fun `정상 카드의 닻은 차종 칸 하나다 - 누르는 자리가 안 바뀐다`() {
+        val cells = listOf(
+            cell("6.8", 100, 148), cell("경기 광명시", 100, 148),
+            cell("라", 100, 148), cell("2.2", 100, 148), cell("출발지", 100, 148),
+        )
+        assertEquals(listOf(2), InsungParser.cardAnchorIndices(cells))
+    }
+
+    @Test
+    fun `🔴 붙어서 올라온 카드도 묶인다 - 라2_2`() {
+        val cells = listOf(
+            cell("6.8", 100, 148), cell("경기 광명시", 100, 148),
+            cell("라2.2", 100, 148), cell("출발지", 100, 148),
+        )
+        assertEquals("붙은 칸이 닻이 되어야 한다", listOf(2), InsungParser.cardAnchorIndices(cells))
+    }
+
+    @Test
+    fun `🔴 한 줄에 차종 칸이 있으면 붙은 칸은 닻이 아니다 - 누르는 자리를 안 바꾼다`() {
+        val cells = listOf(
+            cell("라2.2", 100, 148),   // 어쩌다 둘 다 있으면
+            cell("라", 100, 148),      // 차종 칸이 이긴다
+        )
+        assertEquals(listOf(1), InsungParser.cardAnchorIndices(cells))
+    }
+
+    @Test
+    fun `붙은 칸이 한 줄에 둘이면 하나만 닻이다`() {
+        val cells = listOf(cell("라2.2", 100, 148), cell("오3.0", 100, 148))
+        assertEquals(listOf(0), InsungParser.cardAnchorIndices(cells))
+    }
+
+    @Test
+    fun `줄이 다르면 각자 닻이 된다`() {
+        val cells = listOf(cell("라2.2", 100, 148), cell("오3.0", 200, 248))
+        assertEquals(listOf(0, 1), InsungParser.cardAnchorIndices(cells))
+    }
+
+    @Test
+    fun `주소·시각처럼 생긴 글자는 닻이 아니다`() {
+        val cells = listOf(
+            cell("6.8경기 광명시", 100, 148),   // 웹뷰가 붙여 보낸 거리+지명
+            cell("오전 10시", 100, 148),
+            cell("도착지상세논현동", 100, 148),
+        )
+        assertEquals(emptyList<Int>(), InsungParser.cardAnchorIndices(cells))
     }
 }
