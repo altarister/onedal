@@ -73,11 +73,19 @@ describe('🧭 판정까지 이어진다', () => {
         fare: 12_000, totalMinutes: 65, progress, excludedHits: [], pickupBackward: null, trapped: null, tags: [],
     }), { ...DEFAULT_JUDGMENT, weights: { ...DEFAULT_JUDGMENT.weights, geography: 1 } });
 
-    it('🔴 전진하는 첫짐이 꿀로 올라간다 — 돈만 보면 44점(보통)이다', () => {
+    /**
+     * 🔴 **전진하면 옆으로 가는 콜보다 낫다 — 다만 꿀은 시급이 정한다.**
+     *    이 콜은 1.2만원 ÷ 65분 = 시급 1.1만/h 라 첫짐 기준(2.5만)의 절반이 안 된다.
+     *    배수가 1 을 넘으면 이런 콜이 꿀이 되고, 그 배수가 100점 천장을 뚫어
+     *    시급 2.1만과 4.0만까지 같은 🔵 100점으로 뭉갠다 (`destBonus.test.ts`).
+     *    🔴 그래도 **똥으로 떨어뜨리지 않는다** — 목적지로 곧장 가는 것은 값어치가 맞다.
+     */
+    it('🔴 전진하는 첫짐은 똥이 아니다 — 옆으로 가는 콜보다 높다', () => {
         const 전진 = 색(destProgressOf({ me: { x: 복정동.lng, y: 복정동.lat },
             dropoff: { x: 대치4동.lng, y: 대치4동.lat }, goalCity: '서울 강남구' }));
-        expect(전진.score!).toBeGreaterThan(44);
-        expect(전진.color).toBe('꿀');
+        const 옆으로 = 색({ ratio: 0, unknownWhy: null, awayKm: null });
+        expect(전진.color).toBe('보통');
+        expect(전진.score!).toBeGreaterThan(옆으로.score!);
     });
 
     it('🔴 못 쟀으면 돈 점수 그대로이고 색이 🔴 가 아니다', () => {

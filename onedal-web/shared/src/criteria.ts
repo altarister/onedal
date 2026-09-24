@@ -650,7 +650,16 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
             return multiplied(1, 50, `${f.unknownWhy ?? '전진율을 못 쟀습니다'} — 배수 ×1.0`);
         }
         const p = Math.max(-1, Math.min(1, f.progressRatio));
-        const bonus = Math.max(min, Math.min(max, 1 + (max - 1) * p));
+        /**
+         * 🔴 **두 끝 사이를 고르게 나눈다 — 곧장이 `max`, 뒤로가 `min`, 옆으로가 한가운데.**
+         *
+         * 🔴 **배수가 1 을 넘으면 안 된다.** 넘으면 **100점 천장을 뚫어** 시급 2.1만(기준 미달)과
+         *    4.0만이 둘 다 🔵 100점이 된다 — 평균이 85 든 100 이든 두 배를 곱하면 똑같이 잘려
+         *    기사님이 고르실 수가 없다.
+         * 🔴 **배수는 «깎기»다.** 곧장 가는 것은 상이 아니라 기본이고, 벗어나는 것이 값을 깎는다.
+         *    그래야 평균의 차이가 총점까지 살아남는다.
+         */
+        const bonus = min + (max - min) * (p + 1) / 2;
         const sign = p >= 0 ? '+' : '';
         /**
          * 🏔️ **갇힘 지역은 한 번 더 깎는다** — 들어가면 빈 차로 나온다 (노하우 148행).

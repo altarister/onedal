@@ -386,6 +386,31 @@ db.exec(`
 ensureColumns('user_judgment', JUDGMENT_COLS);
 
 /**
+ * 🧳 **이미 있는 행의 값을 옮기는 자리 — `PRAGMA user_version` 으로 한 번만 돈다** (기사님 지시)
+ *
+ * `DEFAULT` 를 바꿔도 **이미 값이 든 행은 안 바뀐다.** 계산하는 식이 함께 바뀌는 고침에서는
+ * 옛 값이 남으면 새 식에 얹혀 **고치기 전보다 나빠진다.**
+ *
+ * 🔴 **한 번만 돈다.** 조건(`WHERE`)으로만 막으면 기사님이 나중에 그 값을 일부러 되돌리셨을 때
+ *    서버가 다시 내려 버린다 — 기사님 설정을 서버가 덮는 셈이다.
+ * 🔴 **옛 기본값과 정확히 같은 행만** 옮긴다. 손으로 다른 값을 넣어 두셨으면 그대로 둔다.
+ * 🔴 새 마이그레이션을 더할 때는 **번호를 하나 올리고 그 번호의 블록만** 더한다. 옛 블록은 안 고친다.
+ */
+const DB_VERSION = 1;
+try {
+    const at = db.pragma('user_version', { simple: true }) as number;
+    if (at < 1) {
+        /* 1 — 목적지 전진 배수의 두 끝을 «깎기»로 바꾼다 (곧장 ×2.0 → ×1.0).
+              옛 배수는 100점 천장을 뚫어 시급 2.1만과 4.0만을 같은 🔵 100점으로 뭉갰다. */
+        const moved = db.prepare('UPDATE user_judgment SET dest_bonus_max = 1.0 WHERE dest_bonus_max = 2.0').run();
+        if (moved.changes > 0) console.log(`🛠️ [DB v1] 목적지 전진 배수 ${moved.changes}건을 2.0 → 1.0 으로 옮겼습니다 (옛 기본값인 행만)`);
+    }
+    if (at < DB_VERSION) db.pragma(`user_version = ${DB_VERSION}`);
+} catch (e) {
+    console.error('🛠️ [DB 버전] 마이그레이션 실패:', e);
+}
+
+/**
  * 🥣 **국면별 행 표(`user_filter_phases`)는 만들지 않는다** — 값이 한 벌이라 저장할 때마다 같은 값을
  * 여러 번 쓰는 일만 남는다 (기사님: *"개선되어 중복인건 그냥 삭제 할꺼야."*).
  *

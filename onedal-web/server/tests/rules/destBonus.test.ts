@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { judge, CRITERIA, DEFAULT_JUDGMENT, JUDGMENT_FIELDS, judgmentDefaults, toSnapshot } from "@onedal/shared";
 import type { JudgeFacts, JudgmentConfig } from "@onedal/shared";
 import { mergeFacts } from "../../src/core/engine/judgeFacts";
@@ -41,10 +43,18 @@ const 지리줄 = (f: JudgeFacts, c: JudgmentConfig = cfg()) => 본다(f, c).cri
 
 describe('🧭 첫짐 — 목적지로 전진하면 점수가 곱으로 커진다', () => {
 
-    it('🔴 04:54 복정동 콜이 꿀이 된다 — 돈 44점 × 배수 1.95 = 86점', () => {
+    /**
+     * 🔴 **방향이 좋아도 시급이 낮으면 꿀이 아니다** (기사님 확정 · 판정 균형).
+     *
+     * 이 콜은 1.2만원 ÷ 65분 = **시급 1.1만/h** 다 — 첫짐 기준(2.5만)의 절반이 안 된다.
+     * 🔴 배수가 1 을 넘으면 이런 콜이 🔵 가 되고, 그 배수가 **100점 천장을 뚫어** 시급 2.1만과
+     *    4.0만까지 같은 🔵 100점으로 뭉갠다.
+     * 🔴 그렇다고 **똥으로 떨어뜨리지도 않는다** — 목적지로 곧장 가는 것은 값어치가 맞다.
+     */
+    it('🔴 04:54 복정동 콜은 똥이 아니다 — 방향이 좋아 보통에 선다', () => {
         const v = 본다(첫짐(0.95));
-        expect(v.score).toBe(86);
-        expect(v.color).toBe('꿀');
+        expect(v.color).toBe('보통');
+        expect(v.score).toBeGreaterThan(DEFAULT_JUDGMENT.color.normalMin);
     });
 
     it('🔴 요금 0원은 목적지 방향이 완벽해도 0점이다 — 곱셈이라서', () => {
@@ -57,8 +67,36 @@ describe('🧭 첫짐 — 목적지로 전진하면 점수가 곱으로 커진�
         expect(본다(첫짐(-1)).score).toBe(22);
     });
 
-    it('전진율 0(수직)이면 배수가 1.0 — 점수가 돈 그대로다', () => {
-        expect(본다(첫짐(0)).score).toBe(44);
+    /* 🔴 옆으로 가는 첫짐은 두 끝의 한가운데다 — 곧장(×1.0)과 뒤로(×0.5) 사이 */
+    it('전진율 0(수직)이면 배수가 두 끝의 한가운데다', () => {
+        const { max, min } = DEFAULT_JUDGMENT.destBonus;
+        expect(본다(첫짐(0)).score).toBe(Math.round(44 * (min + (max - min) / 2)));
+    });
+
+    /**
+     * 🔴 **방향이 다르면 점수가 갈려야 한다** — 이것이 이 기준이 있는 까닭이다.
+     *    배수가 1 을 넘던 때는 곧장(×2.0)도 옆으로(×1.0)도 100점 천장에서 잘려 **같은 점수**였다.
+     */
+    it('🔴 같은 콜이 방향만 다르면 점수가 갈린다', () => {
+        const 곧장 = 본다(첫짐(1, 30_000)), 옆으로 = 본다(첫짐(0, 30_000));
+        expect(곧장.score).toBeGreaterThan(옆으로.score!);
+    });
+
+    /**
+     * 🔴 **실제 콜처럼 축이 섞이면 색까지 갈린다.**
+     *    돈만 있는 콜은 돈이 100점 천장이라 색이 안 갈린다 — 그건 「돈」 눈금의 몫이고
+     *    이 기준이 할 일이 아니다. 운전·콜 대기가 함께 오는 실제 첫짐으로 잰다.
+     */
+    it('🔴 실제 첫짐(운전·콜 대기 포함)은 방향만 달라도 색이 갈린다', () => {
+        const 실제 = (p: number): JudgeFacts => ({
+            ...첫짐(p, 30_000),
+            drive: { extraKm: 100, driveMinutes: 120 },
+            wait: { toPickupMinutes: 10, deliveryMinutes: 120 },
+        });
+        const c: JudgmentConfig = { ...DEFAULT_JUDGMENT,
+            weights: { ...DEFAULT_JUDGMENT.weights, slots: 0, promiseGuard: 0, cargoCompat: 0 } };
+        expect(본다(실제(1), c).color).toBe('꿀');
+        expect(본다(실제(0), c).color).toBe('보통');
     });
 
     it('🔴 100점을 넘지 않는다 — 시급 3만짜리 첫짐에 배수를 걸어도', () => {
@@ -133,15 +171,37 @@ describe('🧭 배수의 두 끝은 판정 기준 탭에 있다 (규칙 ⑤-4 �
         }
     });
 
-    it('🔴 기본값은 설계서 §6 그대로다 — 최대 2.0 · 최소 0.5', () => {
+    it('🔴 기본값 — 최대 1.0 · 최소 0.5', () => {
         expect(DEFAULT_JUDGMENT.destBonus).toEqual({
-            max: 2.0, min: 0.5, trappedMult: 0.6, awayFreeKm: 30, awayHardKm: 150,
+            max: 1.0, min: 0.5, trappedMult: 0.6, awayFreeKm: 30, awayHardKm: 150,
         });
     });
 
+    /**
+     * 🔴 **배수가 1 을 넘지 않는다** — 넘으면 100점 천장에서 뭉친다.
+     *    시급 2.1만(기준 미달)과 4.0만이 둘 다 🔵 100점이던 자리다. 배수는 «깎기»만 한다.
+     */
+    it('🔴 기본값에서 어떤 전진율도 배수가 1 을 안 넘는다', () => {
+        const { max, min } = DEFAULT_JUDGMENT.destBonus;
+        expect(max).toBeLessThanOrEqual(1);
+        expect(min).toBeLessThanOrEqual(max);
+    });
+
+    /**
+     * 🧳 **기존 DB 행도 옮긴다** — 기본값만 바꾸면 이미 2.0 이 든 행은 그대로다.
+     *    그대로 두면 새 식에서 옆으로 가는 콜이 ×1.25 가 되어 **지금보다 나빠진다**.
+     *    🔴 `PRAGMA user_version` 으로 **한 번만** 돈다 (기사님 지시) — 나중에 기사님이
+     *       일부러 2.0 으로 올리셔도 다시 안 내린다.
+     */
+    it('🔴 옛 기본값을 옮기는 마이그레이션이 user_version 으로 한 번만 돈다', () => {
+        const db = readFileSync(join(__dirname, '../../src/db.ts'), 'utf8');
+        expect(db).toMatch(/user_version/);
+        expect(db).toMatch(/UPDATE user_judgment SET dest_bonus_max/);
+    });
+
     it('🔴 기사님이 최대를 내리면 배수가 따라 내려간다', () => {
-        // 최대 1.5 → 전진율 0.95 에서 배수 1.475 → 44 × 1.475 = 65
-        expect(본다(첫짐(0.95), cfg({ max: 1.5 })).score).toBe(65);
+        const low = 본다(첫짐(0.95), cfg({ max: 0.8 })).score!;
+        expect(low).toBeLessThan(본다(첫짐(0.95)).score!);
     });
 
     it('🔴 지리 가중치의 기본이 켜져 있다 — 전진율이 그 «잴 값»이다', () => {
