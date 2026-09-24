@@ -1,4 +1,4 @@
-import { judge, CRITERIA, DEFAULT_JUDGMENT } from '@onedal/shared';
+import { judge, CRITERIA, DEFAULT_JUDGMENT, JUDGMENT_FIELDS } from '@onedal/shared';
 import type { JudgeFacts, JudgmentConfig } from '@onedal/shared';
 
 /**
@@ -91,6 +91,73 @@ describe('🎨 색은 행동을 말한다 — 1단계: 점수는 그대로', () 
     it('🔴 굳힌 약속이 흔들림 안(3분)이면 🔴 가 아니다', () => {
         const v = 본다(합짐(60, [{ label: '노선합짐1콜 하차 약속', lateMinutes: 3, firm: true }]));
         expect(v.color).not.toBe('사고');
+    });
+});
+
+/**
+ * 🟡 **노란색은 한 가지만 뜻한다 — «전화하면 잡을 수 있다»** (기사님 확정)
+ *
+ * 기사님: *"노랑바탕에 90점을 보면 전화해서 시간을 미뤄야 겠다 이렇게 판단할꺼 같거든.
+ *          노랑바탕에 40점을보면 그냥 잡지말자 할꺼고"*
+ *
+ * ── 왜 ──
+ * 실측 주행에서 🟡 셋이 떴는데 까닭이 둘로 갈렸다:
+ *
+ *   🟡 39점 — 약속 **최소 +18분 여유** · 전화할 곳 없음  ← 전화할 것이 없는데 노란색
+ *   🟡 60점 — 약속 33분 늦음(전화 안 함)                 ← 전화해야 하는 노란색
+ *   🟡 62점 — 약속 41분 늦음(전화 안 함)                 ← 전화해야 하는 노란색
+ *
+ * 첫째 것은 전화기를 들 데가 없다. 같은 색인데 손이 다르니 **딱지를 읽어야 갈렸다**.
+ * 점수가 낮은 것은 점수 39 가 이미 말한다.
+ */
+describe('🟡 노란색은 «전화하면 잡는다» 하나만 뜻한다', () => {
+
+    /**
+     * 실측 콜 — 우회 76분 · 48.5km 합짐에 약속 여유 +18분. 실주행에서 🟡 **39점**으로 떴다.
+     * 🔴 요금은 3.0만이다 — 실측 로그의 3.9만은 기름·톨비를 뺀 **뒤** 2.5만/h 였고,
+     *    여기 `fare` 는 그 공제 전 값이라 같은 39점을 내는 자리가 3.0만이다.
+     */
+    const 싼합짐: JudgeFacts = {
+        money: { fare: 30_000, extraMinutes: 76, firstLoad: false, extraKm: 48.5 },
+        labor: { handMinutes: 1, protectionMinutes: 0 },
+        drive: { extraKm: 48.5, driveMinutes: 71 },
+        wait: { toPickupMinutes: -13, deliveryMinutes: 48 },
+        calls: { count: 0, hasExistingCalls: true },
+        promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 18 },
+        space: { freePct: 99, hasLoad: true },
+        nature: { conflicts: [], excludedHits: [], hasLoad: true },
+        geography: { firstLoad: false, progressRatio: null },
+    } as JudgeFacts;
+
+    it('🔴 전화할 곳이 없고 약속이 여유면 점수가 낮아도 🟡 이 아니다', () => {
+        const v = judge(CRITERIA, 싼합짐, cfg());
+        expect(v.score!).toBeLessThan(DEFAULT_JUDGMENT.color.normalMin);   // 40 밑
+        expect(v.color).toBe('보통');                                       // 🟢 — 그냥 잡으면 된다
+    });
+
+    /**
+     * 🔴 **점수를 얼마로 낮춰도 색은 안 내려간다** — 색과 점수가 완전히 갈라졌다는 뜻이다.
+     *    숫자 하나가 아니라 «내려가지 않는다»를 재므로 눈금이 바뀌어도 참이다.
+     */
+    it('🔴 돈이 아무리 나빠도 🟡 을 만들지 않는다', () => {
+        for (const fare of [20_000, 10_000, 1_000]) {
+            const v = judge(CRITERIA, { ...싼합짐, money: { ...싼합짐.money!, fare } } as JudgeFacts, cfg());
+            expect(v.color).toBe('보통');
+        }
+    });
+
+    /** 🔴 거꾸로 — 전화할 곳이 생기면 점수가 높아도 🟡 이다 (이게 🟡 의 유일한 뜻이다) */
+    it('🔴 🟡 이 뜨는 길은 전화할 곳과 약속 흔들림 둘뿐이다', () => {
+        const 전화셋 = judge(CRITERIA, { ...싼합짐, calls: { count: 3, hasExistingCalls: true } } as JudgeFacts, cfg());
+        const 약속늦음 = judge(CRITERIA, { ...싼합짐, promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: -33 } } as JudgeFacts, cfg());
+        expect(전화셋.color).toBe('똥');
+        expect(약속늦음.color).toBe('똥');
+    });
+
+    /** 🔴 설정 표에 🟢 경계 칸이 없다 — 색을 안 만드는 값은 고칠 칸도 없다 */
+    it('🔴 판정 기준 탭에 「🟢 보통」 칸이 없다', () => {
+        expect(JUDGMENT_FIELDS.map(f => f.col)).not.toContain('color_normal_min');
+        expect(JUDGMENT_FIELDS.map(f => f.col)).toContain('color_honey_min');
     });
 });
 

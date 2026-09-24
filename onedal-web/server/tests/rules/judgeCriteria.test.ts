@@ -259,7 +259,12 @@ describe('📊 실전 콜 순위 검증 — 고수익 콜이 저수익 콜을 �
         expect(v고.score!).toBe(73);
         expect(v고.color).toBe('꿀');
         expect(v저.score!).toBe(27);
-        expect(v저.color).toBe('똥');
+        /**
+         * 🔴 **27점짜리도 색은 🟢 다** — 전화할 곳도, 못 지킬 약속도 없으니 «그냥 잡으면 된다».
+         *    🟡 은 «전화하면 잡을 수 있다» 하나만 뜻한다 (`colorIsAction.test.ts`).
+         *    이 검사가 지키는 것은 **순위**다 — 색이 아니라 아래 줄이 그 일을 한다.
+         */
+        expect(v저.color).toBe('보통');
         expect(v고.score!).toBeGreaterThan(v저.score!);
     });
 });

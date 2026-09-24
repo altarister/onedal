@@ -226,6 +226,10 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
      *
      * 🔴 **점수는 색에 안 끌려간다.** 🔴 옆에 90점이 그대로 보여야
      *    기사님이 *"좋은 콜이니 다른 걸 취소할까"* 를 판단하신다.
+     * 🔴 **점수가 낮아도 🟡 을 만들지 않는다** — 🟡 은 «전화하면 잡을 수 있다» 하나만 뜻한다.
+     *    돈이 나쁜 콜을 🟡 로 만들면 기사님이 노란색을 보고 «전화해야 하나 그냥 버려야 하나»를
+     *    다시 딱지에서 찾으셔야 한다 (실측: 약속 여유 +18분인 39점 콜이 🟡 로 떴다).
+     *    점수 39 가 «잡지 마라»를 이미 말한다 — 기사님 *"노랑바탕에 40점을보면 그냥 잡지말자 할꺼고"*.
      * 🔴 여기서도 기준을 알아보지 않는다 — 기준이 스스로 «무엇을 해야 하나»를 말한다.
      */
     const hardFailed = counted.some(r => (r.outcome as { hardFail?: boolean }).hardFail);
@@ -233,8 +237,7 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
     const color: Color =
         hardFailed || cannot.length > 0 || score == null ? '사고'
         : callNeeded ? '똥'
-        : score >= cfg.color.honeyMin ? '꿀'
-        : score >= cfg.color.normalMin ? '보통' : '똥';
+        : score >= cfg.color.honeyMin ? '꿀' : '보통';
 
     const notes = [...(facts.notes ?? [])];
     /* 🧾 천장에 눌렸으면 그 말을 화면에 적는다 — 점수가 조용히 내려가면 «왜 보통이지»를 못 푸신다 */

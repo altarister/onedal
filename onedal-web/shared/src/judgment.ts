@@ -397,9 +397,13 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'color_honey_min', path: ['color', 'honeyMin'], group: '색 경계',
       label: '🔵 꿀', unit: '점 이상', min: 0, max: 100, int: true,
       why: '총점이 이 점수 이상이면 파란색' },
-    { col: 'color_normal_min', path: ['color', 'normalMin'], group: '색 경계',
-      label: '🟢 보통', unit: '점 이상', min: 0, max: 100, int: true,
-      why: '그 미만은 🟡 — 파란색·녹색이면 기사님이 바로 잡으신다' },
+    /**
+     * 🔴 **🟢 보통 경계(`color.normalMin`)는 여기 없다** — 색을 만들지 않으므로 고칠 칸도 없다.
+     *    🟡 은 «전화하면 잡을 수 있다» 하나만 뜻하고(`judge.ts` 의 색 결정),
+     *    돈이 나쁜 콜은 🟢 에 낮은 점수로 보인다. 점수가 «잡지 마라»를 말한다.
+     *    타입과 기본값은 남아 있다 — 되돌리려면 이 자리에 한 줄을 다시 넣으면
+     *    `ensureColumns` 가 부팅 때 컬럼까지 다시 만든다.
+     */
 ] as const;
 
 /** 표의 기본값을 DB 컬럼 이름으로 뽑는다 (`CREATE TABLE` 의 `DEFAULT` 와 시드가 이걸 쓴다) */

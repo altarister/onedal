@@ -63,10 +63,15 @@ describe('🧭 첫짐 — 목적지로 전진하면 점수가 곱으로 커진�
         expect(v.score).toBeGreaterThan(DEFAULT_JUDGMENT.color.normalMin);
     });
 
+    /**
+     * 🔴 **색은 0점을 보고 내려가지 않는다** — 🟡 은 «전화하면 잡을 수 있다» 하나만 뜻하고
+     *    요금 0원 콜은 전화할 곳이 없다 (`colorIsAction.test.ts` 의 「노란색은 한 가지만」).
+     *    «잡지 마라»를 말하는 것은 점수 0 이다.
+     */
     it('🔴 요금 0원은 목적지 방향이 완벽해도 0점이다 — 곱셈이라서', () => {
         const v = 본다(첫짐(0.95, 0));
         expect(v.score).toBe(0);
-        expect(v.color).toBe('똥');
+        expect(v.color).toBe('보통');
     });
 
     it('🔴 완전히 반대 방향이면 배수가 하한에서 멈춘다', () => {
