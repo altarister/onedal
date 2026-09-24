@@ -51,8 +51,29 @@ describe('⏰ 임시 지연 — 분만큼만 깎는다', () => {
         expect(점수(-15)).toBe(60);
     });
 
-    it('🔴 지연 30분을 넘으면 0점이다', () => {
-        expect(점수(-31)).toBe(0);
+    /**
+     * 🔴 **한계를 넘어도 0 으로 멈추지 않는다 — 계속 내려가되 0 에 수렴한다** (기사님 확정).
+     *
+     * 0 한 값으로 끝내면 **31분과 283분이 같은 점수**가 된다. 오늘 고친 「뭉치는 문제」가
+     * 그 구간에 다시 생기는 것이다. 31분은 전화 한 통으로 미룰 수 있고 283분은 못 미룬다 —
+     * 화면이 그 차이를 보여야 기사님이 고르실 수 있다.
+     * 🔴 색은 안 바뀐다 — 한계 밖은 어떤 경우에도 «보통 경계»(40) 한참 아래다.
+     */
+    it('🔴 한계를 넘으면 늦을수록 계속 낮아진다 — 0 한 값으로 뭉치지 않는다', () => {
+        const 넘김 = [31, 44, 110, 283].map(m => 점수(-m)!);
+        for (let i = 1; i < 넘김.length; i++) expect(넘김[i]).toBeLessThan(넘김[i - 1]);
+        expect(넘김[0]).toBeLessThan(DEFAULT_JUDGMENT.color.normalMin);   // 그래도 «똥» 이다
+        expect(넘김[넘김.length - 1]).toBeGreaterThan(0);                  // 0 에 닿지는 않는다
+    });
+
+    /** 🔴 한계 앞뒤가 이어져야 한다 — 끊기면 «29분보다 31분이 좋다» 가 된다 */
+    it('🔴 어디서도 뒤집히지 않는다 — 늦을수록 낮다 (0~300분 전수)', () => {
+        let prev = Infinity;
+        for (let m = 0; m <= 300; m++) {
+            const v = 점수(-m)!;
+            expect(v).toBeLessThanOrEqual(prev + 0.5);   // 반올림 오차만 허용
+            prev = v;
+        }
     });
 
     /** 🔴 지레짐작한 시간으로 색을 덮지 않는다 — 덮는 것은 굳힌 약속뿐이다 */
@@ -98,8 +119,7 @@ describe('⏰ 임시 지연 — 분만큼만 깎는다', () => {
         const 너그럽게: JudgmentConfig = {
             ...cfg, slack: { ...cfg.slack, lateSoftMin: 20, lateWarnMin: 40, lateZeroMin: 90 },
         };
-        expect(점수(-31)).toBe(0);
-        expect(점수(-31, 너그럽게)).toBeGreaterThan(0);
+        expect(점수(-31, 너그럽게)).toBeGreaterThan(점수(-31)!);
     });
 
     it('왜 깎였는지 이유에 분이 남는다', () => {

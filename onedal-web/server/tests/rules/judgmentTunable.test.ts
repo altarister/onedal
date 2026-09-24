@@ -62,7 +62,12 @@ describe('⏰ 여유 곡선 — 두 끝이 판정 기준 탭에서 온다', () =
     it('음수 여유는 밀린 만큼만 깎인다 — 한 번에 0 이 아니다', () => {
         expect(약속점수(합짐(-5), DEFAULT_JUDGMENT)).toBe(90);
         expect(약속점수(합짐(-15), DEFAULT_JUDGMENT)).toBe(60);
-        expect(약속점수(합짐(-30), DEFAULT_JUDGMENT)).toBe(0);
+        /* 🔴 한계(30분)에서 0 이 아니다 — 그 뒤가 갈리게 작은 값으로 끝나고 0 에 수렴한다.
+              색은 그대로 «똥» 이다 (보통 경계 한참 아래) */
+        const 한계 = 약속점수(합짐(-30), DEFAULT_JUDGMENT)!;
+        expect(한계).toBeLessThan(DEFAULT_JUDGMENT.color.normalMin);
+        expect(한계).toBeGreaterThan(0);
+        expect(약속점수(합짐(-300), DEFAULT_JUDGMENT)!).toBeLessThan(한계);
     });
 });
 

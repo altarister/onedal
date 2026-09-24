@@ -493,6 +493,15 @@ export const PROMISE = defineCriterion<PromiseFacts>({
          * 🔴 통화로 굳힌 약속(`lateStops`)이 깨지는 것은 위에서 이미 빨간불이다. 여긴 그 전 단계다.
          */
         const softScore = 90, warnScore = 60;
+        /**
+         * 🔴 **한계에서 0 이 아니라 이 점수다 — 그 뒤로 0 에 수렴한다** (기사님 확정).
+         *
+         * 0 한 값으로 끝내면 **31분과 283분이 같은 점수**가 되어, 판정 균형이 없앤 «뭉침»이
+         * 이 구간에 다시 생긴다. 31분은 전화 한 통으로 미룰 수 있고 283분은 못 미룬다.
+         * 🔴 **색은 안 바뀐다** — 보통 경계(40)의 한참 아래라 한계 밖은 어떤 경우에도 🟡 다.
+         * 🔴 분은 설정(`slack`), 계수는 코드 — 「돈」의 우회 감쇠(`decayOf`)와 같은 모양이다.
+         */
+        const endScore = 10;
         const late = -a;
         /**
          * 🔴 **🔴 로 덮지 않는다** — 이건 서버가 지레짐작한 시간이다 (`hardFailIsConfirmed`).
@@ -504,13 +513,14 @@ export const PROMISE = defineCriterion<PromiseFacts>({
          *    천장이면 «약속보다 좋은 콜은 없다»가 되어 0 점이 곧 🟡 다.
          * 🔴 **«추정»이라 적는다** — 굳힌 약속과 글자가 같으면 기사님이 «서버 짐작»임을 못 가리신다.
          */
-        if (late >= lateZeroMin) return asCeiling(scored(0, `${late}분 추정 지연 — 한계(${lateZeroMin}분) 밖`));
+        if (late >= lateZeroMin) return asCeiling(scored(endScore * (lateZeroMin / late), `${late}분 추정 지연 — 한계(${lateZeroMin}분) 밖`));
         const span = (lo: number, hi: number) => Math.max(1, hi - lo);
         const s = late <= lateSoftMin
             ? zeroScore - (zeroScore - softScore) * (late / Math.max(1, lateSoftMin))
             : late <= lateWarnMin
                 ? softScore - (softScore - warnScore) * ((late - lateSoftMin) / span(lateSoftMin, lateWarnMin))
-                : warnScore * (1 - (late - lateWarnMin) / span(lateWarnMin, lateZeroMin));
+                /* 🔴 한계에서 `endScore` 로 끝난다 — 0 으로 끝내면 한계를 넘는 순간 거꾸로 뛴다 */
+                : endScore + (warnScore - endScore) * (1 - (late - lateWarnMin) / span(lateWarnMin, lateZeroMin));
         return asCeiling(scored(s, `${late}분 추정 지연`));
     },
 });
