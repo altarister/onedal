@@ -1,4 +1,4 @@
-import { defineCriterion, scored, multiplied, nothing, unmeasurable } from './judge';
+import { defineCriterion, scored, multiplied, asCeiling, nothing, unmeasurable } from './judge';
 import type { Criterion } from './judge';
 
 /**
@@ -181,10 +181,19 @@ export const MONEY = defineCriterion<MoneyFacts>({
          */
         const capped = Math.min(100, base);
 
+        /**
+         * 🔴 **돈이 총점의 천장이다** (기사님 확정 · 판정 균형 3단계).
+         *
+         * 축이 아홉인데 대부분이 만점이라 **돈이 낮아도 평균이 높았다** — 시급 3만짜리 합짐이
+         * 🔵 85, 시급 2.1만(기준 미달) 첫짐이 🔵 78 이었다. 나머지 축은 **깎기만** 한다.
+         * 🔴 국면으로 가르지 않는다 — 첫짐도 합짐도 같다. 눈금이 이미 국면을 가른다
+         *    (같은 «꿀 경계 70점»이 첫짐은 2.5만/h · 합짐은 3.8만/h 다).
+         * 🔴 천장이지 바닥이 아니다 — 다른 축이 나쁘면 이보다 더 내려간다.
+         */
         if (f.minAcceptableKrw && f.fare < f.minAcceptableKrw) {
-            return scored(capped * decay * 0.6, `${why}${decayNote} · 평소 하한(${toManwon(f.minAcceptableKrw)}만) 미달`, false, hourly / 10_000);
+            return asCeiling(scored(capped * decay * 0.6, `${why}${decayNote} · 평소 하한(${toManwon(f.minAcceptableKrw)}만) 미달`, false, hourly / 10_000));
         }
-        return scored(capped * decay, `${why}${decayNote}`, false, hourly / 10_000);
+        return asCeiling(scored(capped * decay, `${why}${decayNote}`, false, hourly / 10_000));
     },
 });
 
@@ -353,7 +362,16 @@ export const WAIT = defineCriterion<WaitFacts>({
         const slack = (pickupSlack ?? 0) + (deliverySlack ?? 0);
 
         const calls = slack / promiseMin;
-        const score = Math.max(0, Math.min(100, calls * 50));
+        /**
+         * 🔴 **100 에 닿지 않는다** (기사님 확정 · 판정 균형 3단계).
+         *
+         * 한 콜치에서 천장을 치던 때는 배송 40분만 넘으면 거의 모든 콜이 100점이었다 —
+         * 만점인 축은 콜을 갈라 주지 못하고 평균만 끌어올린다. 배송 60분과 240분이
+         * 같은 🔵 80 이던 자리다.
+         * 🔴 한 콜치 50 · 두 콜치 67 · 세 콜치 75 · 여덟 콜치 89 — **길수록 계속 오르되 닿지 않는다.**
+         *    새 문턱을 만들지 않는다: 눈금의 단위는 그대로 «상차 약속 한 콜치»다.
+         */
+        const score = Math.max(0, 100 * (1 - 1 / (1 + Math.max(0, calls))));
         const part = [
             pickupSlack == null ? '상차 모름' : `상차 ${pickupSlack >= 0 ? '+' : ''}${Math.round(pickupSlack)}분`,
             deliverySlack == null ? '배송 모름' : `배송 +${Math.round(deliverySlack)}분`,

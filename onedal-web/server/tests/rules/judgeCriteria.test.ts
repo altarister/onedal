@@ -248,6 +248,105 @@ describe('📊 실전 콜 순위 검증 — 고수익 콜이 저수익 콜을 �
     });
 });
 
+/**
+ * 💰 **총점은 돈 점수를 못 넘는다** (기사님 확정 · 판정 균형 3단계)
+ *
+ * 축이 아홉인데 대부분이 만점이라 **돈이 낮아도 평균이 높았다** —
+ * 시급 3만짜리 합짐이 🔵 85, 시급 2.1만(기준 미달) 첫짐이 🔵 78 이었다.
+ * 다른 축은 **돈에서 깎기만** 한다. 돈보다 좋은 콜은 없다.
+ */
+describe('💰 돈이 총점의 천장이다 — 다른 축은 깎기만 한다', () => {
+
+    const 돈점 = (v: ReturnType<typeof judge>) =>
+        (v.criteria.find(c => c.key === 'money')!.outcome as { score: number }).score;
+
+    it('🔴 다른 축이 다 만점이어도 총점이 돈을 못 넘는다 (합짐)', () => {
+        const 싼합짐: JudgeFacts = {
+            money: { fare: 30_000, extraMinutes: 60, firstLoad: false },   // 3만/h
+            drive: { extraKm: 60, driveMinutes: 60 },
+            wait: { toPickupMinutes: 10, deliveryMinutes: 60 },
+            calls: { count: 0, hasExistingCalls: true },
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 60 },
+            space: { freePct: 60, hasLoad: true },
+            nature: { conflicts: [], excludedHits: [], hasLoad: true },
+            geography: { firstLoad: false, progressRatio: null },
+        };
+        const v = judge(CRITERIA, 싼합짐, cfg());
+        expect(v.score).toBe(돈점(v));
+        expect(v.color).toBe('보통');
+    });
+
+    it('🔴 첫짐도 같다 — 국면으로 가르지 않는다', () => {
+        const 싼첫짐: JudgeFacts = {
+            money: { fare: 21_000, extraMinutes: 60, firstLoad: true },    // 2.1만/h
+            drive: { extraKm: 100, driveMinutes: 120 },
+            wait: { toPickupMinutes: 10, deliveryMinutes: 120 },
+            calls: { count: null, hasExistingCalls: false },
+            promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
+            space: { freePct: null, hasLoad: false },
+            nature: { conflicts: [], excludedHits: [], hasLoad: false },
+            geography: { firstLoad: true, progressRatio: 1 },
+        };
+        const v = judge(CRITERIA, 싼첫짐, cfg());
+        expect(v.score).toBe(돈점(v));
+    });
+
+    it('🔴 다른 축이 나쁘면 돈보다 더 내려간다 — 천장이지 바닥이 아니다', () => {
+        const 나쁜합짐: JudgeFacts = {
+            money: { fare: 60_000, extraMinutes: 60, firstLoad: false },   // 6만/h → 돈 만점
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 1 },
+            space: { freePct: 5, hasLoad: true },
+            nature: { conflicts: [], excludedHits: [], hasLoad: true },
+            geography: { firstLoad: false, progressRatio: null },
+        };
+        const v = judge(CRITERIA, 나쁜합짐, cfg());
+        expect(v.score!).toBeLessThan(돈점(v));
+    });
+
+    it('🔴 천장에 걸리면 화면에 까닭이 적힌다 — 조용히 안 내려간다', () => {
+        const 싼합짐: JudgeFacts = {
+            money: { fare: 30_000, extraMinutes: 60, firstLoad: false },
+            wait: { toPickupMinutes: 10, deliveryMinutes: 60 },
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 60 },
+            space: { freePct: 60, hasLoad: true },
+            nature: { conflicts: [], excludedHits: [], hasLoad: true },
+            geography: { firstLoad: false, progressRatio: null },
+        };
+        expect(judge(CRITERIA, 싼합짐, cfg()).notes.join(' ')).toContain('돈');
+    });
+});
+
+/**
+ * ⏳ **콜 대기는 천장에 닿지 않는다** (기사님 확정 · 판정 균형 3단계)
+ *
+ * 배송 40분만 넘으면 100점이라 거의 모든 콜이 만점이었다 — 만점인 축은 갈라 주지 못하고
+ * 평균만 끌어올린다. 배송 60분과 240분이 같은 🔵 80 이던 자리다.
+ */
+describe('⏳ 콜 대기 — 길수록 계속 오르고 100 에 안 닿는다', () => {
+
+    const 대기점 = (deliveryMinutes: number) => {
+        const v = judge(CRITERIA, {
+            money: { fare: 30_000, extraMinutes: 60, firstLoad: false },
+            wait: { toPickupMinutes: 10, deliveryMinutes },
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 60 },
+            space: { freePct: 60, hasLoad: true },
+            nature: { conflicts: [], excludedHits: [], hasLoad: true },
+            geography: { firstLoad: false, progressRatio: null },
+        }, cfg());
+        return (v.criteria.find(c => c.key === 'wait')!.outcome as { score: number }).score;
+    };
+
+    it('🔴 배송이 길수록 계속 오른다 — 어느 자리에서도 뭉치지 않는다', () => {
+        const 값 = [20, 60, 120, 240, 480].map(대기점);
+        for (let i = 1; i < 값.length; i++) expect(값[i]).toBeGreaterThan(값[i - 1]);
+    });
+
+    /* 🔴 하루를 통째로 쓰는 배송(8시간)에서도 안 닿는다 — 닿는 순간 그 위가 다시 뭉친다 */
+    it('🔴 하루치 배송(480분)에서도 100 에 안 닿는다', () => {
+        expect(대기점(480)).toBeLessThan(100);
+    });
+});
+
 describe('설명 한 줄', () => {
     it('점수·기준·딱지를 한 줄로 적는다', () => {
         const v = judge(CRITERIA, { ...좋은합짐(), notes: ['배송주행 추정(일반값)'] }, cfg());

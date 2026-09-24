@@ -47,7 +47,9 @@ export type Outcome =
      * 쟀다. `hardFail` 이면 점수와 무관하게 «잡으면 사고» — 가중치가 0 이면 이것도 안 본다.
      * `multiplier` 는 **배수 기준**(`role: 'multiplier'`)만 싣는다 — 평균에 안 들고 총점에 곱한다.
      */
-    | { kind: 'scored'; score: number; why: string; hardFail?: boolean; value?: number; multiplier?: number }
+    | { kind: 'scored'; score: number; why: string; hardFail?: boolean; value?: number; multiplier?: number;
+        /** 🔴 **이 점수가 총점의 천장이다** — 다른 축이 아무리 좋아도 이보다 좋을 수 없다 */
+        capsTotal?: boolean }
     /** 잴 **대상**이 없다 — 첫짐엔 지킬 약속이 없고, 빈 차엔 자리 문제가 없다 */
     | { kind: 'nothing'; why: string }
     /** 잴 **재료**가 없다 — 카카오가 터졌다, 주소를 못 찾았다 */
@@ -62,6 +64,15 @@ export const scored = (score: number, why: string, hardFail = false, value?: num
  */
 export const multiplied = (multiplier: number, score: number, why: string): Outcome =>
     ({ kind: 'scored', score: Math.max(0, Math.min(100, Math.round(score))), why, multiplier });
+/**
+ * 🔴 **이 기준의 점수를 총점의 천장으로 삼는다** (기사님 확정).
+ *
+ * 축이 아홉인데 대부분이 만점이라 **한 축이 낮아도 평균이 높았다** — 시급 3만짜리 합짐이
+ * 🔵 85, 시급 2.1만(기준 미달) 첫짐이 🔵 78 이었다. 천장을 두면 나머지 축은 **깎기만** 한다.
+ * 🔴 천장이지 바닥이 아니다 — 다른 축이 나쁘면 이보다 더 내려간다.
+ */
+export const asCeiling = (o: Outcome): Outcome =>
+    o.kind === 'scored' ? { ...o, capsTotal: true } : o;
 export const nothing = (why: string): Outcome => ({ kind: 'nothing', why });
 export const unmeasurable = (why: string): Outcome => ({ kind: 'unmeasurable', why });
 
@@ -166,10 +177,20 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
 
     const totalW = averaged.reduce((a, r) => a + r.weight, 0);
     const mult = multipliers.reduce((a, r) => a * ((r.outcome as { multiplier?: number }).multiplier ?? 1), 1);
-    const score = totalW > 0
+    /**
+     * 🔴 **천장을 말한 기준이 있으면 총점이 그 위로 못 간다** (기사님 확정).
+     *    여럿이면 가장 낮은 것이 이긴다. 🔴 **여기서 어느 기준인지 알아보지 않는다** — 기준이
+     *    스스로 «내가 천장이다»라고 말한다(`asCeiling`). 그래야 기준을 더하고 빼도 엔진이 그대로다.
+     */
+    const ceilings = counted
+        .filter(r => (r.outcome as { capsTotal?: boolean }).capsTotal)
+        .map(r => (r.outcome as { score: number }).score);
+    const ceiling = ceilings.length ? Math.min(...ceilings) : 100;
+    const raw = totalW > 0
         ? Math.max(0, Math.min(100, Math.round(averaged.reduce((a, r) =>
             a + (r.outcome as { score: number }).score * r.weight, 0) / totalW * mult)))
         : null;
+    const score = raw == null ? null : Math.min(raw, ceiling);
 
     /**
      * 🔴 **못 쟀으면 색을 지어내지 않는다** (규칙 ⑤ · 3단계에서 정한 것 그대로).
@@ -183,6 +204,12 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
         : score >= cfg.color.normalMin ? '보통' : '똥';
 
     const notes = [...(facts.notes ?? [])];
+    /* 🧾 천장에 눌렸으면 그 말을 화면에 적는다 — 점수가 조용히 내려가면 «왜 보통이지»를 못 푸신다 */
+    if (raw != null && score != null && raw > score) {
+        const capper = counted.find(r => (r.outcome as { capsTotal?: boolean }).capsTotal
+            && (r.outcome as { score: number }).score === ceiling);
+        notes.push(`${capper?.name ?? '천장'}이 ${ceiling}점이라 총점을 ${raw} → ${score} 로 눌렀습니다 (다른 기준은 깎기만 합니다)`);
+    }
     if (score == null) notes.push('잴 수 없음 — 재료가 없어 점수를 못 냅니다');
     else for (const r of cannot) notes.push(`잴 수 없음 — ${r.name}: ${r.outcome.why}`);
 
