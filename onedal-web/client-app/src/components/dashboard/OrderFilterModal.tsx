@@ -229,6 +229,23 @@ export default function OrderFilterModal({ isOpen, onClose,
     const radiusAuto = !!filter?.radiusAuto;
     /** 🔴 **지금 실제로 쓰이는 반경** — 무대 지도가 부르는 **그 함수**다 (규칙 ③) */
     const shownRadii = effectiveRadii(filter);
+    /**
+     * 📏 **배율이 왜 이 값인지 한 줄로 말한다** (기사님 실측 02:32 — «기준거리 변경 또 작동 안 함»).
+     *
+     * 기준거리는 «줄이기 시작하는 문턱»이다 — 잰 거리(내 위치 → 목적지)가 그보다 **멀면 배율 1.0** 이라
+     * 기준거리를 아무리 밀어도 반경 넷이 그대로다. 잰 거리 60.6km 앞에서 25 → 40 을 밀어도 안 움직였고,
+     * 화면이 아무 말도 안 해 «안 먹는다»로 보였다. 규칙은 그대로, **까닭만 보인다** — 숫자는 전부
+     * 이미 있는 값(`radiusDistanceKm` · `radiusBaseKm` · `radiusScaleOf`)에서 온다.
+     */
+    const radiusScaleNote = (() => {
+        const d = filter?.radiusDistanceKm;
+        const b = filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT;
+        if (!Number.isFinite(d as number)) return '거리를 못 재서 배율 ×1.0 — 반경은 원값 그대로입니다';
+        const dKm = Math.round((d as number) * 10) / 10;
+        const s = radiusScaleOf(d, b);
+        if (s >= 1) return `목적지가 ${dKm}km 라 기준거리 ${b}km 로는 안 줄어듭니다 — ${dKm}km 위로 올려야 줄어듭니다`;
+        return `목적지(${dKm}km)가 기준거리 ${b}km 보다 가까워 반경 넷을 ×${Math.round(s * 100) / 100} 로 줄였습니다`;
+    })();
 
     /**
      * 🚚 **기사님이 «받겠다»고 고른 차종**.
@@ -770,6 +787,10 @@ export default function OrderFilterModal({ isOpen, onClose,
                                     </span>
                                 </button>
                             </div>
+                            {/* 📏 배율의 까닭 — 기준 반경일 때만. 수동이면 배율이 안 돌아 할 말이 없다 (`radiusScaleNote`) */}
+                            {radiusAuto && radiusScaleNote && (
+                                <p className="px-0.5 text-[10.5px] text-text-muted leading-tight">{radiusScaleNote}</p>
+                            )}
                             {/* 📐 **마름모의 모양 — 국면과 무관한 한 벌이다** (제외 단어와 같은 이유).
                                 라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
                             {/* 🔴 **테두리 박스를 두르지 않는다** — 목업은 3칸 격자가 죽 이어진다.

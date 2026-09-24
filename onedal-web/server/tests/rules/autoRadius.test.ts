@@ -222,4 +222,28 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
         expect(body).toMatch(/set: \(v: number\) => setField\(path, String\(toRaw\(v\)\)\)/);
         expect(body).toMatch(/onCommit: \(v: number\) => pickField\(path, String\(toRaw\(v\)\)\)/);
     });
+
+    /**
+     * 🔴 **배율이 1.0 인 까닭을 화면이 말한다** (기사님 실측 02:32 — «기준거리 변경 또 작동 안 함»).
+     *
+     * 기준거리는 «줄이기 시작하는 문턱»이다 — 잰 거리(내 위치 → 목적지)가 그보다 멀면 배율이 1.0 이라
+     * 기준거리를 아무리 밀어도 반경 넷이 그대로다. 잰 거리 60.6km 앞에서 25 → 40 을 밀어도 안 움직였고,
+     * 화면이 아무 말도 안 해 «안 먹는다»로 보였다. 규칙은 그대로 두고 **까닭을 한 줄로 보인다**.
+     * 세 경우 — 거리 못 잼 · 잰 거리 ≥ 기준거리(안 줄어듦 + 몇 km 위로 올려야 하나) · 잰 거리 < 기준거리(×배율).
+     */
+    it('🔴 배율이 1.0 인 까닭을 화면이 말한다 — 기준거리를 밀어도 반경이 안 움직이는 때', () => {
+        const i = modal.indexOf("title=\"📐 얼마나 넓게\"");
+        expect(i).toBeGreaterThan(-1);
+        /* 정의는 배율 값(`shownRadii`) 옆 — 제목보다 위다. 세 문장 다 거기서 만든다 */
+        const def = modal.indexOf('const radiusScaleNote = ');
+        expect(def).toBeGreaterThan(-1);
+        const defBody = modal.slice(def, def + 1200);
+        expect(defBody).toMatch(/radiusScaleOf\(d, b\)/);
+        expect(defBody).toMatch(/안 줄어듭니다/);
+        expect(defBody).toMatch(/위로 올려야 줄어듭니다/);
+        expect(defBody).toMatch(/거리를 못 재서/);
+        /* 보이는 자리는 «얼마나 넓게» 안 — 수동이면 배율이 안 돌므로 안내문도 없다 */
+        const body = modal.slice(i, i + 9000);
+        expect(body).toMatch(/\{radiusAuto && radiusScaleNote/);
+    });
 });
