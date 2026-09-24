@@ -1507,11 +1507,16 @@ class HijackService : AccessibilityService(), ScanContext {
                 AppLogger.e(TAG, "❌ 대상 버튼($targetBtnStr)을 찾을 수 없음.")
                 sendEmergencyReport(EmergencyReason.BUTTON_NOT_FOUND, "판결 $decision 의 대상 $targetBtnStr 버튼 누락")
             }
+            /**
+             * 🛡️ **세션은 버튼을 누른 뒤에 비운다** (18번 1.1.9 · 코드리뷰 C-2).
+             *    500ms 콜백 밖에서 즉시 비우면 ① 버튼을 못 찾았을 때 위 비상 보고의 콜 id 가 이미 비어
+             *    `unknown` 으로 나가고 ② 그 500ms 동안 «잡는 중이 아님»이라 다음 스캔이 끼어들며
+             *    ③ 서버는 버튼이 눌리기도 전에 «리스트로 돌아왔다»(홀드 해제)를 받는다.
+             *    눌렀든 못 찾았든 여기 한 곳이다 — 검사: `DecisionExecutionTest`.
+             */
+            resetSessionState()
             rootNode.recycle()
         }, 500)
-
-        // 세션 리셋
-        resetSessionState()
     }
 
     private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "") {
