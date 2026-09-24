@@ -462,6 +462,11 @@ export class OrderEvaluator {
                                 fare: securedOrder.fare,
                                 extraMinutes: marginal + cost.dwell,
                                 /**
+                                 * 📦 **위 분 안에 든 상하차 정차** — 「돈」이 **우회 감쇠에서만** 뺀다.
+                                 *    시급의 분모에서는 안 뺀다 (상하차에도 시간을 실제로 쓴다).
+                                 */
+                                dwellMinutes: cost.dwell,
+                                /**
                                  * ⛽🛣️ **늘어나는 것만 센다** — 시간(`marginal`)과 **같은 규약**이다.
                                  *    거리는 카카오가 준 두 경로의 차이(`distDiff`), 통행료도 같은 자리에서 온 차이다.
                                  *    🔴 한쪽이라도 톨비를 못 받았으면 `null` 로 와서 안 뺀다 (규칙 ④).

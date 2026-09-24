@@ -55,6 +55,15 @@ export interface MoneyFacts {
      */
     tollKrw?: number | null;
     /**
+     * 📦 **`extraMinutes` 안에 든 상하차 정차(분)** — **우회 감쇠에서 빼는 데만** 쓴다.
+     *
+     * 🔴 시급의 분모에서는 빼지 않는다 — 상하차에도 시간을 실제로 쓰니 «얼마 버나»에는 들어야 맞다.
+     *    여기서 빼는 것은 «이게 가는 길에 붙이는 것인가»를 묻는 쪽이다. 정차는 길을 벗어나는 일이
+     *    아니고, 팔다리로 쓰는 시간은 「노동강도」가 따로 본다 (규칙 ③ · 같은 사실을 두 번 세지 않는다).
+     * 🔴 안 실어 주면 지금까지처럼 정차가 든 채로 돈다 (되돌리는 길).
+     */
+    dwellMinutes?: number | null;
+    /**
      * **빈 차에 처음 싣는 콜인가.** 눈금을 고르는 데만 쓴다 — 첫짐은 `soloHourlyKrw` 하나로,
      * 합짐은 두 점 꺾은선(`hourlyKrw` 50점 · `honeyHourlyKrw` 100점)으로 잰다.
      *
@@ -173,8 +182,19 @@ export const MONEY = defineCriterion<MoneyFacts>({
             if (mins <= hardMin) return caution - (caution - dungCut) * ((mins - cautionMin) / Math.max(1, hardMin - cautionMin));
             return dungCut * (hardMin / mins);        // 넘을수록 계속 무거워진다
         };
-        const decay = f.firstLoad ? 1 : decayOf(f.extraMinutes);
-        const decayNote = decay < 1 ? ` · 우회 ${f.extraMinutes}분이라 값 ${Math.round(decay * 100)}%` : '';
+        /**
+         * 🛣️ **감쇠가 보는 것은 «길을 벗어나는 분»이다** — 상하차 정차는 빼고 본다 (기사님 확정).
+         *
+         * 기사님: *"갈마에서 상차하고 성거읍 가는 길에 근처 문지동에서 상차 하나만 하면 되는거라.
+         * 우회 비용과 시간이 얼마 되지 않아"* — 그런데 서버는 그 콜을 «우회 101분»으로 봤다.
+         * 101분은 문지동 들르는 22분 + 배송 48분 + 상하차 31분이었다.
+         *
+         * 🔴 **시급의 분모(`extraMinutes`)는 그대로 둔다** — 상하차에도 시간을 실제로 쓰니
+         *    «얼마 버나»에는 들어야 맞다. 빼는 것은 «이게 가는 길에 붙이는 것인가» 쪽뿐이다.
+         */
+        const offRoute = Math.max(0, f.extraMinutes - (f.dwellMinutes ?? 0));
+        const decay = f.firstLoad ? 1 : decayOf(offRoute);
+        const decayNote = decay < 1 ? ` · 우회 ${offRoute}분이라 값 ${Math.round(decay * 100)}%` : '';
         /**
          * 🔴 **100 으로 먼저 맞춘 뒤 깎는다.** 시급 10만/h 면 `base` 가 225 까지 올라가는데,
          *    거기에 절반을 곱해도 112 라 깎인 티가 안 난다 — 만점 위의 «여분»이 감쇠를 삼킨다.
