@@ -266,10 +266,10 @@ const BD_SAMPYEONG: MockEntry = {
     region: '삼평동', addressDetail: '경기 성남시 분당구 삼평동',
     lon: 127.11115, lat: 37.39593,
 };
-const PANGYO_SW: MockEntry = {
-    customerName: '판교글로벌비즈니스센터', contactName: '담당', phone1: '010-0000-0402',
-    region: '시흥동', addressDetail: '경기 성남시 수정구 시흥동 창업로 43 판교글로벌비즈니스센터',
-    lon: 127.096047, lat: 37.411602,
+const PANGYO_GEUMTO: MockEntry = {
+    customerName: '뚜레쥬르 판교위든타워점', contactName: '담당', phone1: '010-0000-0402',
+    region: '금토동', addressDetail: '경기 성남시 수정구 금토동 금토로80번길 56 뚜레쥬르 판교위든타워점',
+    lon: 127.090615, lat: 37.407568,
 };
 const GP_YANGCHON: MockEntry = {
     customerName: '김포 양촌읍 상차지', contactName: '담당', phone1: '010-0000-0403',
@@ -636,9 +636,9 @@ export const PRESETS: Record<string, PresetProblem[]> = {
             why: '🚚 ①을 내린 자리에서 바로 실었다 — 하차지가 다음 상차지가 되는 흐름',
         },
         {
-            label: '⑦ 성남 시흥동 → 인천 송도 · 34,650',
+            label: '⑦ 성남 금토동 → 인천 송도 · 34,650',
             pickup: '판교 소프트웨어드림센터', dropoff: '인천 송도동 하차지',
-            pickupFallback: PANGYO_SW, dropoffFallback: IC_SONGDO,
+            pickupFallback: PANGYO_GEUMTO, dropoffFallback: IC_SONGDO,
             fare: 34650, vehicleType: '오토바이',
             why: '🚚 **일곱째다** — 자막은 «여섯 개»라 했지만 ⑤를 분당에 내리는 중에 하나 더 잡았다 (13:05 잡고 13:30 상차)',
         },
