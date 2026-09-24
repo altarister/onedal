@@ -139,4 +139,52 @@ class TapShiftTest {
     fun `봐주는 여유는 0 보다 크다 - 조금 늦었다고 알람을 죽이지 않는다`() {
         assertTrue(TapShift.LATE_TOL_MS > 0)
     }
+
+    // ── 🖐️ 사람처럼 흔들기 (18번 1.1.1 · 1.1.2 · 1.1.11) ──
+    // 같은 버튼을 매번 같은 픽셀에 같은 20ms 로 누르는 것이 «기계식 패턴»이다.
+    // 시간은 40~90ms 종 모양, 자리는 버튼 안에서 ±8/±6px. 난수원은 씨앗을 고정해 검사한다.
+
+    @Test
+    fun `🔴 누르는 시간은 40~90ms 안이고 한 값에 몰리지 않는다`() {
+        val r = kotlin.random.Random(7)
+        val seen = HashSet<Long>()
+        repeat(1000) {
+            val ms = TapShift.holdMs(r)
+            assertTrue("$ms ms 는 아래 한계 밖", ms >= TapShift.HOLD_MIN_MS)
+            assertTrue("$ms ms 는 위 한계 밖", ms <= TapShift.HOLD_MAX_MS)
+            seen += ms
+        }
+        assertTrue("서로 다른 값이 ${seen.size}가지뿐 — 기계식이다", seen.size > 10)
+    }
+
+    @Test
+    fun `🔴 자리 흔들림은 버튼 안이고 0 만 나오지 않는다`() {
+        val r = kotlin.random.Random(7)
+        var moved = 0
+        repeat(1000) {
+            val (dx, dy) = TapShift.jitter(200, 60, r)
+            assertTrue("dx=$dx", kotlin.math.abs(dx) <= TapShift.JITTER_X_PX)
+            assertTrue("dy=$dy", kotlin.math.abs(dy) <= TapShift.JITTER_Y_PX)
+            if (dx != 0 || dy != 0) moved++
+        }
+        assertTrue("1000번 중 움직인 것이 $moved 번뿐", moved > 500)
+    }
+
+    @Test
+    fun `작은 버튼에서는 흔들림도 작아진다 - 폭 6분의 1 · 높이 4분의 1`() {
+        val r = kotlin.random.Random(7)
+        repeat(1000) {
+            val (dx, dy) = TapShift.jitter(30, 12, r)
+            assertTrue("dx=$dx", kotlin.math.abs(dx) <= 5)
+            assertTrue("dy=$dy", kotlin.math.abs(dy) <= 3)
+        }
+        val (zx, zy) = TapShift.jitter(0, 0, r)
+        assertEquals(0, zx); assertEquals(0, zy)
+    }
+
+    @Test
+    fun `자리 대조는 흔들림과 무관하다 - 중심값끼리 본다`() {
+        assertTrue(TapShift.sameSpot(100, 200, 100 + TapShift.JITTER_X_PX, 200 + TapShift.JITTER_Y_PX))
+        assertFalse(TapShift.sameSpot(100, 200, 100 + TapShift.MOVE_TOL_PX + 1, 200))
+    }
 }

@@ -16,9 +16,10 @@ class AutoTouchManager(private val service: AccessibilityService) {
         private const val TAG = "1DAL_TOUCH"
         /** 카드 줄을 찾을 때 조상을 몇 번까지 타고 올라가나 */
         private const val ROW_HOPS = 6
-        /** ⏱️ 손가락을 대고 있는 시간 — 팝업을 여섯 번 여닫는 길에서 건당 30ms 가 쌓인다 */
-        private const val TAP_HOLD_MS = 20L
     }
+
+    /** 🖐️ 흔들기 난수원 — 시간·자리를 매번 다르게 (`TapShift.holdMs` · `jitter`). 씨앗은 검사가 아니라 실행마다 다르다 */
+    private val random = kotlin.random.Random(System.nanoTime())
 
     /** ⏳ 미뤄 둔 찍기를 건 시각(부팅 기준) · 0 이면 없음 — 겹쳐 예약하지 않으려고 둔다 */
     private var pendingTapAtMs = 0L
@@ -106,7 +107,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
          */
         if (delayMs <= 0L) {
             AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\"")
-            val fired = fireTap(x, y)
+            val fired = fireTap(x, y, rect)
             /**
              * 👁️ **누른 다음에 점을 찍는다** (기사님 지시) — 누르기가 먼저라 동작이 안 늦는다.
              * 점은 «다음에 깨어날 때» 지워지므로(`TapMarker`), 폰이 멈춰 있던 만큼만 남는다.
@@ -151,7 +152,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
             if (shouldMark) tapMarker.hide()
             if (TapShift.sameSpot(x.toInt(), y.toInt(), newX, newY)) {
                 AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) — ${delayMs}ms 미룬 뒤 자리 그대로")
-                fireTap(x, y)
+                fireTap(x, y, again)
             } else {
                 AppLogger.w(TAG, "🛑 [찍기 취소] 미룬 ${delayMs}ms 사이에 자리가 움직였다 " +
                     "(잰 자리 X:${x.toInt()},Y:${y.toInt()} → 지금 X:$newX,Y:$newY) · 손대지 않는다")
@@ -193,19 +194,28 @@ class AutoTouchManager(private val service: AccessibilityService) {
     }
 
     /** 실제 제스처 주입 — 미루든 안 미루든 마지막 한 걸음은 여기 하나다 */
-    private fun fireTap(x: Float, y: Float): Boolean {
-        val clickPath = Path().apply { moveTo(x, y) }
-        // ⏱️ 누르고 있는 시간 — 짧을수록 다음 걸음이 빨리 온다. 팝업을 여섯 번 여닫는 길에서
-        //    건당 30ms 가 쌓인다 (기사님 지시 «1초 안에 다 볼 수 있게»).
-        //    🔴 더 줄이지 않는다 — 너무 짧으면 앱이 탭으로 안 친다
-        val clickStroke = GestureDescription.StrokeDescription(clickPath, 0, TAP_HOLD_MS)
+    private fun fireTap(x: Float, y: Float, bounds: Rect): Boolean {
+        /**
+         * 🖐️ **사람처럼 흔든다** (18번 1.1.1 · 1.1.2 · 1.1.11 — 리뷰 13번 «기계식 패턴»).
+         *    자리는 버튼 안에서 ±8/±6px, 누르는 시간은 40~90ms 종 모양. 셈은 `TapShift` 한 곳이다.
+         *    🔴 흔들림은 여기서만 더한다 — 위의 «잰 자리 = 누를 자리» 대조(`sameSpot`)는 중심값끼리 본다.
+         *    🔴 `MIN_X` 는 그대로 — 흔들어도 화면 왼쪽 끝 안쪽이다.
+         *    ⏱️ 팝업을 여섯 번 여닫는 길에서 건당 약 45ms 가 더 쌓인다(한 바퀴 +0.3초) — 기사님 «1초 안에»는 지킨다.
+         *       더 줄이지 않는다 — 너무 짧으면 앱이 탭으로 안 친다.
+         */
+        val (dx, dy) = TapShift.jitter(bounds.width(), bounds.height(), random)
+        val tx = maxOf(TapShift.MIN_X.toFloat(), x + dx)
+        val ty = y + dy
+        val holdMs = TapShift.holdMs(random)
+        val clickPath = Path().apply { moveTo(tx, ty) }
+        val clickStroke = GestureDescription.StrokeDescription(clickPath, 0, holdMs)
         val gesture = GestureDescription.Builder().addStroke(clickStroke).build()
 
         val dispatched = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 super.onCompleted(gestureDescription)
-                AppLogger.d(TAG, "✅ [가로채기 성공!] 화면 좌표 (X:$x, Y:$y) 터치 완료!")
-                AppLogger.roadmap("버튼 터치 완료 (가로채기 성공) X:$x, Y:$y", "")
+                AppLogger.d(TAG, "✅ [가로채기 성공!] 화면 좌표 (X:$x, Y:$y → 찍음 X:$tx, Y:$ty · ${holdMs}ms) 터치 완료!")
+                AppLogger.roadmap("버튼 터치 완료 (가로채기 성공) X:$tx, Y:$ty · ${holdMs}ms", "")
             }
             override fun onCancelled(gestureDescription: GestureDescription?) {
                 super.onCancelled(gestureDescription)

@@ -94,4 +94,39 @@ object TapShift {
         if (newX == null || newY == null) return false
         return kotlin.math.abs(newX - oldX) <= MOVE_TOL_PX && kotlin.math.abs(newY - oldY) <= MOVE_TOL_PX
     }
+
+    // ── 🖐️ 사람처럼 흔들기 (18번 1.1.1 · 1.1.2 · 1.1.11) ──
+    // 같은 버튼을 매번 같은 픽셀에 같은 20ms 로 누르는 것이 «기계식 패턴»이다(리뷰 13번).
+    // 값 넷은 설정이 아니라 코드 상수다 — 우회 감쇠의 «분은 설정, 계수는 코드»와 같은 결.
+    // 🔴 흔들림은 마지막 한 걸음(fireTap)에서만 더한다 — «잰 자리 = 누를 자리» 대조(sameSpot)는 중심값끼리 본다.
+
+    /** 누르고 있는 시간의 아래·위 (ms). 너무 짧으면 앱이 탭으로 안 치고, 길수록 팝업 한 바퀴가 느려진다 */
+    const val HOLD_MIN_MS = 40L
+    const val HOLD_MAX_MS = 90L
+    /** 자리 흔들기 한계 (px) — 버튼 밖으로는 절대 안 나간다 (폭/6 · 높이/4 와 작은 쪽) */
+    const val JITTER_X_PX = 8
+    const val JITTER_Y_PX = 6
+
+    /** 종 모양(정규분포)으로 뽑아 양끝을 자른다 — 평균은 가운데 65ms */
+    fun holdMs(random: kotlin.random.Random): Long {
+        val mid = (HOLD_MIN_MS + HOLD_MAX_MS) / 2.0
+        val sd = (HOLD_MAX_MS - HOLD_MIN_MS) / 4.0
+        return (gaussian(random) * sd + mid).toLong().coerceIn(HOLD_MIN_MS, HOLD_MAX_MS)
+    }
+
+    /** 흔들 (dx, dy) — 사각형이 작으면 그만큼 줄인다. 0 이하면 안 흔든다 */
+    fun jitter(width: Int, height: Int, random: kotlin.random.Random): Pair<Int, Int> {
+        val mx = minOf(JITTER_X_PX, width / 6)
+        val my = minOf(JITTER_Y_PX, height / 4)
+        val dx = if (mx <= 0) 0 else (gaussian(random) * mx / 2).toInt().coerceIn(-mx, mx)
+        val dy = if (my <= 0) 0 else (gaussian(random) * my / 2).toInt().coerceIn(-my, my)
+        return dx to dy
+    }
+
+    /** 표준정규 한 개 (박스–뮬러) — 난수원을 받아 검사에서 씨앗을 고정한다 */
+    private fun gaussian(random: kotlin.random.Random): Double {
+        val u1 = random.nextDouble().coerceAtLeast(1e-12)
+        val u2 = random.nextDouble()
+        return kotlin.math.sqrt(-2.0 * kotlin.math.ln(u1)) * kotlin.math.cos(2.0 * Math.PI * u2)
+    }
 }
