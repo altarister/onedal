@@ -179,12 +179,14 @@ export const MONEY = defineCriterion<MoneyFacts>({
          */
         const decayOf = (mins: number): number => {
             const { freeMin, cautionMin, hardMin } = cfg.detour;
-            const dungCut = 0.39;                // 만점 콜도 40점 아래로 — 색은 안 바꾼다, 숫자로만 말한다
+            /* 🔴 **한계(`hardMin`)에서의 값** — «최대 감쇠»가 아니다. 그 너머는 아래 줄에서 계속 내려간다.
+               만점 콜도 39점까지 누르지만 **색은 안 바꾼다** — 「보통」은 꿀 아래 전부다 (판정 1단계). */
+            const hardMinFactor = 0.39;
             if (mins <= freeMin) return 1;
             const caution = 0.75;               // 주의 한계에서 3/4 — 대박 콜은 🔵 를 지킨다
             if (mins <= cautionMin) return 1 - (1 - caution) * ((mins - freeMin) / Math.max(1, cautionMin - freeMin));
-            if (mins <= hardMin) return caution - (caution - dungCut) * ((mins - cautionMin) / Math.max(1, hardMin - cautionMin));
-            return dungCut * (hardMin / mins);        // 넘을수록 계속 무거워진다
+            if (mins <= hardMin) return caution - (caution - hardMinFactor) * ((mins - cautionMin) / Math.max(1, hardMin - cautionMin));
+            return hardMinFactor * (hardMin / mins);  // 넘을수록 계속 무거워진다
         };
         /**
          * 🛣️ **감쇠가 보는 것은 «길을 벗어나는 분»이다** (기사님 확정).
