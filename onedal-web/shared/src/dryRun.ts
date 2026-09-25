@@ -72,42 +72,54 @@ export function marginalDetourMin(
  *    아무도 모르는» 일이 실제로 일어났고, 딱지의 분을 역산해서야 알아냈다. 부르는 쪽이 그
  *    까닭을 한 줄 찍는다.
  *
- * @returns `minutes` — 벗어나는 분. `null` 이면 「돈」에 안 넘겨 옛 셈으로 돈다.
+ * @returns `offRouteMinutes` — 벗어나는 분. `null` 이면 「돈」에 안 넘겨 옛 셈으로 돈다.
  *          `why` — `null` 일 때의 까닭 (로그용, 화면에는 안 쓴다)
- *          `tailFrom` — **꼬리가 시작되는 정거장** (마지막 직전). 「지리」가 합짐의 방향을 잴 때
- *          그 자리를 기점으로 쓴다 — «잡아 둔 콜을 다 내린 곳»이 바로 거기다.
- *          🔴 그 판단을 부르는 쪽에서 다시 하지 않게 여기서 함께 돌려준다 (규칙 ③) —
- *          «마지막이 후보 하차인가»를 두 곳에서 물으면 한쪽만 고쳐져 어긋난다.
+ *          `tailFrom` — **후보 하차 바로 앞 정거장**. 「지리」가 합짐의 방향을 잴 때 그 자리를
+ *          기점으로 쓴다 — «잡아 둔 콜을 다 내린 곳»이 바로 거기다.
+ *          🔴 한 셈이 두 값을 낸다 (규칙 ③) — 쪼개면 «후보 하차가 어디인가»를 두 곳에서 묻게 되고
+ *          한쪽만 고쳐져 어긋난다. 그래서 이름도 «꼬리를 가른다»로 둔다.
  */
-export function offRouteMinutesOf(
+export function tailSplitOf(
     stops: ReadonlyArray<{ orderId: string; stopType: 'pickup' | 'dropoff'; driveMinutes: number | null }>,
     candidateId: string,
     marginalMin: number,
 ): {
-    minutes: number | null;
+    offRouteMinutes: number | null;
     why: string | null;
     tailFrom: { orderId: string; stopType: 'pickup' | 'dropoff' } | null;
 } {
-    if (stops.length < 2) return { minutes: null, why: `정거장이 ${stops.length}곳뿐이다`, tailFrom: null };
+    /**
+     * 🧭 **기점은 «후보 하차 바로 앞 정거장»이다 — 언제나.**
+     *    후보 하차가 마지막이면 그것이 곧 꼬리의 시작이고, 중간이면 그 앞 정거장이
+     *    «이 배송이 어느 쪽으로 가나»의 정직한 답이다. 첫 정거장이면 앞이 없어 `null`.
+     *    🔴 «경로 전체의 마지막 하차»로 폴백하지 않는다 — 후보 하차가 중간일 때 그 값은
+     *       후보를 내린 **뒤에** 가는 곳이라, 거기서 재면 뒤에서 앞을 보는 셈이 된다.
+     */
+    const di = stops.findIndex(s => s.orderId === candidateId && s.stopType === 'dropoff');
+    const tailFrom = di > 0
+        ? { orderId: stops[di - 1].orderId, stopType: stops[di - 1].stopType }
+        : null;
+
+    if (stops.length < 2) return { offRouteMinutes: null, why: `정거장이 ${stops.length}곳뿐이다`, tailFrom };
     const last = stops[stops.length - 1];
     const prev = stops[stops.length - 2];
+    /* 후보 하차가 마지막이 아니면 뺄 꼬리가 없다 — `marginal` 을 그대로 본다 */
+    if (last.orderId !== candidateId || last.stopType !== 'dropoff') {
+        return { offRouteMinutes: Math.max(0, marginalMin), why: null, tailFrom };
+    }
     if (last.driveMinutes == null || prev.driveMinutes == null) {
-        return { minutes: null, why: '마지막 두 정거장의 누적 주행분이 없다 (기점을 몰랐다)', tailFrom: null };
+        return { offRouteMinutes: null, why: '마지막 두 정거장의 누적 주행분이 없다 (기점을 몰랐다)', tailFrom };
     }
     /* 🔴 누적이 거꾸로면 정거장과 주행분이 엇갈린 것이다 — 틀린 꼬리를 빼지 않는다 */
     if (prev.driveMinutes > last.driveMinutes) {
-        return { minutes: null, why: `누적이 거꾸로다 (${prev.driveMinutes}분 → ${last.driveMinutes}분)`, tailFrom: null };
-    }
-    /* 후보 하차가 마지막이 아니면 뺄 꼬리가 없다 — `marginal` 을 그대로 보고, 기점도 없다 */
-    if (last.orderId !== candidateId || last.stopType !== 'dropoff') {
-        return { minutes: Math.max(0, marginalMin), why: null, tailFrom: null };
+        return {
+            offRouteMinutes: null,
+            why: `누적이 거꾸로다 (${prev.driveMinutes}분 → ${last.driveMinutes}분)`,
+            tailFrom,
+        };
     }
     const tail = last.driveMinutes - prev.driveMinutes;
-    return {
-        minutes: Math.max(0, marginalMin - tail),
-        why: null,
-        tailFrom: { orderId: prev.orderId, stopType: prev.stopType },
-    };
+    return { offRouteMinutes: Math.max(0, marginalMin - tail), why: null, tailFrom };
 }
 
 /** 로그 한 줄 — `🧪 [dryRun] 🟢 64점 (우회 시급 2.6만/h · 버퍼 최소 +18분) · 딱지: 통화 필수` */

@@ -1,7 +1,7 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
-         deriveRouteTimeline, minRouteBuffer, marginalDetourMin, offRouteMinutesOf,
+         deriveRouteTimeline, minRouteBuffer, marginalDetourMin, tailSplitOf,
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
-         soloMinutesOf, derivationInputsOf, nearestDong, lastDropOf } from "@onedal/shared";
+         soloMinutesOf, derivationInputsOf, nearestDong } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
@@ -413,7 +413,7 @@ export class OrderEvaluator {
                             /**
                              * 🛣️ **«길을 벗어나는 분» — 「돈」의 우회 감쇠가 이것만 본다** (기사님 확정).
                              *
-                             * 셈은 `offRouteMinutesOf` 한 곳이다 (규칙 ③) — 왜 꼬리만 빼는지, 자리가
+                             * 셈은 `tailSplitOf` 한 곳이다 (규칙 ③) — 왜 꼬리만 빼는지, 자리가
                              * 엇갈리면 어떻게 옛 셈으로 떨어지는지 거기 다 적혀 있다.
                              * 카카오를 한 번도 더 부르지 않는다 — 구간 누적은 병합 경로를 부를 때 함께 받았다.
                              *
@@ -426,15 +426,15 @@ export class OrderEvaluator {
                              *    그것은 운행 동작이 바뀌어 기사님 승인이 필요하다 (`detourDecay.test.ts` 가
                              *    지금 뚫린 자리를 그대로 잠가 두고 있다).
                              */
-                            const offRoute = offRouteMinutesOf(stopsAfter, securedOrder.id, marginal);
-                            const offRouteMinutes = offRoute.minutes;
+                            const tailSplit = tailSplitOf(stopsAfter, securedOrder.id, marginal);
+                            const offRouteMinutes = tailSplit.offRouteMinutes;
                             /**
                              * 🔴 **못 쟀으면 그 까닭을 남긴다** — 이 값이 조용히 `null` 이던 동안
                              *    «승인받은 꼬리 빼기가 한 번도 안 도는데 아무도 모르는» 일이 실제로
                              *    일어났고, 딱지의 분을 역산해서야 알아냈다 (실측 판정 다섯 건).
                              */
-                            if (offRoute.why) {
-                                console.log(`   🛣️ [꼬리 못 잼] 늘어난 주행(${marginal}분)을 그대로 봅니다 — ${offRoute.why}`);
+                            if (tailSplit.why) {
+                                console.log(`   🛣️ [꼬리 못 잼] 늘어난 주행(${marginal}분)을 그대로 봅니다 — ${tailSplit.why}`);
                             } else if (offRouteMinutes != null && offRouteMinutes !== marginal) {
                                 console.log(`   🛣️ [벗어난 분] ${marginal}분 → ${offRouteMinutes}분 (꼬리 배송 ${marginal - offRouteMinutes}분을 뺐습니다)`);
                             }
@@ -553,7 +553,7 @@ export class OrderEvaluator {
                                  * 🧭 **합짐도 방향을 본다 — 기점은 «잡아 둔 콜을 다 내린 곳»이다** (기사님 확정).
                                  *
                                  * 후보 하차지가 목적지 쪽인가 반대쪽인가를 배수로 본다. 「돈」의 우회 감쇠가
-                                 * «길을 벗어나는 분»만 보게 되면서(`offRouteMinutesOf`) 배송 방향을 아무도
+                                 * «길을 벗어나는 분»만 보게 되면서(`tailSplitOf`) 배송 방향을 아무도
                                  * 안 보게 됐다 — 목적지 쪽 220분과 반대쪽 220분이 같은 🔵 71 이었다.
                                  *
                                  * 🔴 **현위치로 재지 않는다** — 후보 하차지는 잡아 둔 콜을 다 내린 **다음**에
@@ -565,17 +565,28 @@ export class OrderEvaluator {
                                  *    아프다 (기사님 «나»). 짧은 이동 가드는 `destProgressOf` 안에 있다.
                                  */
                                 progress: (() => {
-                                    const from = offRoute.tailFrom
-                                        ? coordOf(offRoute.tailFrom.orderId, offRoute.tailFrom.stopType)
-                                        : lastDropOf({
-                                            isHome: false, homeOn: false, homeCity: null,
-                                            stops: stopsAfter, calls: activeCalls as any,
-                                        });
-                                    return from ? destProgressOf({
+                                    const from = tailSplit.tailFrom
+                                        ? coordOf(tailSplit.tailFrom.orderId, tailSplit.tailFrom.stopType)
+                                        : null;
+                                    if (!from) {
+                                        console.log(`   🧭 [합짐 지리] 안 잼 — 후보 하차 앞 정거장의 좌표가 없습니다`);
+                                        return undefined;
+                                    }
+                                    const p = destProgressOf({
                                         me: from,
                                         dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
                                         goalCity: goalCityOf(session, userId),
-                                    }) : undefined;
+                                    });
+                                    /**
+                                     * 🔴 **돌았는지 한 줄로 남긴다** — 오늘 꼬리 빼기가 한 나절 조용히 안 돌았고
+                                     *    딱지의 분을 역산해서야 알아냈다. 그 일을 되풀이하지 않는다.
+                                     */
+                                    const fromPlace = placeOf(tailSplit.tailFrom!.orderId, tailSplit.tailFrom!.stopType);
+                                    console.log(p.ratio == null
+                                        ? `   🧭 [합짐 지리] 안 잼 — ${p.unknownWhy} (기점 ${fromPlace ?? "?"})`
+                                        : `   🧭 [합짐 지리] 기점 ${fromPlace ?? "?"} → 전진율 ${p.ratio >= 0 ? '+' : ''}${p.ratio.toFixed(2)}`
+                                          + `${p.awayKm ? ` · ${Math.round(p.awayKm)}km 멀어짐` : ''}`);
+                                    return p;
                                 })(),
                                 /**
                                  * 🏔️ **갇힘은 합짐에도 본다** — 하차 좌표만 보는 판단이라 첫짐·합짐과 무관하고

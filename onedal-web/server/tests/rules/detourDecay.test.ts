@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { CRITERIA, DEFAULT_JUDGMENT, offRouteMinutesOf } from '@onedal/shared';
+import { CRITERIA, DEFAULT_JUDGMENT, tailSplitOf } from '@onedal/shared';
 import type { JudgmentConfig, MoneyFacts } from '@onedal/shared';
 
 /**
@@ -222,7 +222,7 @@ describe('🛣️ 우회 감쇠 — 배송과 상하차는 «우회»가 아니�
      */
     describe('🔴 경로 숫자로 — 서버가 쓰는 그 함수를 부른다', () => {
         /**
-         * 🔴 **산수를 여기서 흉내 내지 않는다** — `offRouteMinutesOf` 는 서버가 실제로 부르는
+         * 🔴 **산수를 여기서 흉내 내지 않는다** — `tailSplitOf` 는 서버가 실제로 부르는
          *    함수다(`OrderEvaluator`). 두 벌이면 «검사는 맞는데 화면은 틀린» 자리가 생긴다 (규칙 ③).
          *    여기서는 구간 거리를 정거장 배열로 옮겨 그 함수에 그대로 먹인다.
          */
@@ -237,11 +237,11 @@ describe('🛣️ 우회 감쇠 — 배송과 상하차는 «우회»가 아니�
         };
         const 벗어남 = (구간: number[], 정거장: string[], 기존: number) => {
             const { stops, 총 } = 경로(구간, 정거장);
-            return offRouteMinutesOf(stops, '후보', 총 - 기존).minutes;
+            return tailSplitOf(stops, "후보", 총 - 기존).offRouteMinutes;
         };
         /** 못 쟀을 때의 까닭 — 서버가 이 문장을 로그에 찍는다 */
-        const 까닭 = (stops: Parameters<typeof offRouteMinutesOf>[0], marginal: number) =>
-            offRouteMinutesOf(stops, '후보', marginal).why;
+        const 까닭 = (stops: Parameters<typeof tailSplitOf>[0], marginal: number) =>
+            tailSplitOf(stops, '후보', marginal).why;
         /** ❌ 잘못된 식(«후보 상차 이후 주행»을 뺌) — 얼마나 어긋나는지 견주려고만 쓴다 */
         const 상차이후식 = (구간: number[], 정거장: string[], 기존: number) => {
             const { stops, 총 } = 경로(구간, 정거장);
@@ -291,33 +291,33 @@ describe('🛣️ 우회 감쇠 — 배송과 상하차는 «우회»가 아니�
          *    그래서 총주행을 아예 안 받고 **배열 안에서** 맞물림을 본다.
          */
         it('🔴 총주행을 인자로 받지 않는다 — 별개 가정을 깔지 않는다', () => {
-            expect(offRouteMinutesOf.length).toBe(3);
+            expect(tailSplitOf.length).toBe(3);
         });
 
         it('🔴 누적이 거꾸로면 null 이다 — 주행분이 남의 이름에 붙은 것이다 (#60)', () => {
             const { stops } = 경로([10, 5, 25, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차']);
             const 거꾸로 = [...stops];
             거꾸로[거꾸로.length - 1] = { ...거꾸로[거꾸로.length - 1], driveMinutes: 30 };   // 40 → 30
-            expect(offRouteMinutesOf(거꾸로, '후보', 20).minutes).toBeNull();
+            expect(tailSplitOf(거꾸로, "후보", 20).offRouteMinutes).toBeNull();
             expect(까닭(거꾸로, 20)).toContain('거꾸로');
         });
 
         it('🔴 주행분을 못 받으면 null 이다 — 지어내지 않는다', () => {
             const { stops } = 경로([10, 5, 25, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차']);
             const 빈것 = stops.map(s => ({ ...s, driveMinutes: null }));
-            expect(offRouteMinutesOf(빈것, '후보', 20).minutes).toBeNull();
+            expect(tailSplitOf(빈것, "후보", 20).offRouteMinutes).toBeNull();
             expect(까닭(빈것, 20)).toContain('기점');
         });
 
         it('정거장이 둘도 안 되면 null 이다', () => {
-            expect(offRouteMinutesOf([], '후보', 20).minutes).toBeNull();
+            expect(tailSplitOf([], "후보", 20).offRouteMinutes).toBeNull();
             expect(까닭([], 20)).toContain('정거장');
         });
 
         /** 🔴 **쟀으면 까닭이 없다** — 까닭이 있으면 서버가 «못 잼» 로그를 찍는다 */
         it('🔴 제대로 쟀으면 까닭이 null 이다', () => {
             const { stops, 총 } = 경로([10, 5, 25, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차']);
-            expect(offRouteMinutesOf(stops, '후보', 총 - 40).why).toBeNull();
+            expect(tailSplitOf(stops, '후보', 총 - 40).why).toBeNull();
         });
     });
 });
@@ -334,10 +334,10 @@ describe('🛣️ 서버가 재는 자리 — 카카오를 더 부르지 않는�
      * 🔴 **서버가 `shared` 의 그 함수를 부른다 — 산수를 제 안에 두지 않는다** (규칙 ③).
      *    두 벌이면 «검사는 맞는데 화면은 틀린» 자리가 생긴다.
      */
-    it('🔴 offRouteMinutesOf 를 불러서 «벗어난 분»을 낸다', () => {
+    it('🔴 tailSplitOf 를 불러서 «벗어난 분»을 낸다', () => {
         const s = src();
-        expect(s).toMatch(/offRoute\s*=\s*offRouteMinutesOf\(stopsAfter,\s*securedOrder\.id,\s*marginal\)/);
-        expect(s).toMatch(/offRouteMinutes\s*=\s*offRoute\.minutes/);
+        expect(s).toMatch(/tailSplit\s*=\s*tailSplitOf\(stopsAfter,\s*securedOrder\.id,\s*marginal\)/);
+        expect(s).toMatch(/offRouteMinutes\s*=\s*tailSplit\.offRouteMinutes/);
     });
 
     /** 🔴 서버 안에서 꼬리를 다시 세지 않는다 — 셈이 두 벌이 되면 갈라진다 */
@@ -363,7 +363,7 @@ describe('🛣️ 서버가 재는 자리 — 카카오를 더 부르지 않는�
      */
     it('🔴 못 쟀으면 그 까닭을 로그로 남긴다', () => {
         const s = src();
-        expect(s).toMatch(/offRoute\.why/);
+        expect(s).toMatch(/tailSplit\.why/);
         expect(s).toMatch(/꼬리 못 잼/);
     });
 

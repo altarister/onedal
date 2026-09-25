@@ -735,7 +735,7 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
          * 🧭 **합짐도 방향을 본다** (기사님 확정 · 2026-09-25 이전에는 안 봤다).
          *
          * 옛 까닭은 «합짐의 방향은 「돈」의 한계 우회가 이미 센다» 였다. 그 전제가 깨졌다 —
-         * 「돈」의 우회 감쇠가 «길을 벗어나는 분»만 보게 되면서(`offRouteMinutesOf`) **배송이
+         * 「돈」의 우회 감쇠가 «길을 벗어나는 분»만 보게 되면서(`tailSplitOf`) **배송이
          * 어느 쪽으로 220분 가든 「돈」은 모른다.** 그러면 합짐의 방향을 보는 축이 하나도 없다:
          *   오송읍 상차(가는 길) → 아주 먼 하차(배송 220분) · 요금 15만 → 시급 3.8만/h → 🔵 71
          *   목적지 쪽이든 반대쪽이든 **같은 점수**였다.
@@ -756,10 +756,15 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
         }
 
         const { max, min } = cfg.destBonus;
-        if (f.progressRatio == null) {
-            return multiplied(1, 50, `${f.unknownWhy ?? '전진율을 못 쟀습니다'} — 배수 ×1.0`);
-        }
-        const p = Math.max(-1, Math.min(1, f.progressRatio));
+        /**
+         * 🔴 **전진율을 못 쟀어도 여기서 돌아서지 않는다** — 돌아서면 아래 「갇힘」·「멀어짐」에
+         *    닿지 못해 **「전진율을 못 쟀으면 갇힘도 안 본다」**가 된다. 그 둘은 다른 사실이다:
+         *    갇힘은 하차 좌표만 보고 방향과 무관하다. 한쪽이 없다고 다른 쪽을 끄면,
+         *    강화·연천으로 2km 들어가는 관내 첫짐이 ×0.6 을 잃는다 (그 콜이 바로 위험한 콜이다).
+         *    그래서 **방향 몫만 1 로 두고 흘려보낸다.**
+         */
+        const p = f.progressRatio == null ? 0 : Math.max(-1, Math.min(1, f.progressRatio));
+        const unknownRatio = f.progressRatio == null;
         /**
          * 🔴 **두 끝 사이를 고르게 나눈다 — 곧장이 `max`, 뒤로가 `min`, 옆으로가 한가운데.**
          *
@@ -769,7 +774,8 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
          * 🔴 **배수는 «깎기»다.** 곧장 가는 것은 상이 아니라 기본이고, 벗어나는 것이 값을 깎는다.
          *    그래야 평균의 차이가 총점까지 살아남는다.
          */
-        const bonus = min + (max - min) * (p + 1) / 2;
+        /* 🔴 못 쟀으면 방향 몫은 1 — 깎지 않는다. 갇힘·멀어짐은 아래에서 그대로 본다 */
+        const bonus = unknownRatio ? 1 : min + (max - min) * (p + 1) / 2;
         const sign = p >= 0 ? '+' : '';
         /**
          * 🏔️ **갇힘 지역은 한 번 더 깎는다** — 들어가면 빈 차로 나온다 (노하우 148행).
@@ -788,11 +794,14 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
             : away >= awayHardKm ? min
             : 1 - (1 - min) * ((away - awayFreeKm) / Math.max(1, awayHardKm - awayFreeKm));
         const mult = bonus * trapMult * awayMult;
-        const why = `전진율 ${sign}${p.toFixed(2)} → 배수 ×${bonus.toFixed(2)}`
+        const why = (unknownRatio
+            ? `${f.unknownWhy ?? '전진율을 못 쟀습니다'} — 방향 배수 ×1.0`
+            : `전진율 ${sign}${p.toFixed(2)} → 배수 ×${bonus.toFixed(2)}`)
             + (f.trapped === true ? ` · 🏔️ 못 빠져나오는 곳 ×${trapMult}` : '')
             + (awayMult < 1 ? ` · 🛫 ${Math.round(away)}km 멀어짐 ×${awayMult.toFixed(2)}` : '');
         // 화면 눈금은 −1~1 을 0~100 으로 펴 놓은 것이다 (색을 정하는 것은 배수다)
-        return multiplied(mult, (p + 1) / 2 * 100 * trapMult * awayMult, why);
+        //   🔴 못 쟀으면 «한가운데(50)»에서 시작한다 — 0 으로 두면 «최악»으로 읽힌다 (규칙 ④)
+        return multiplied(mult, (unknownRatio ? 50 : (p + 1) / 2 * 100) * trapMult * awayMult, why);
     },
 });
 
