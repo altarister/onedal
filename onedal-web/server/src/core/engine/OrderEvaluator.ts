@@ -199,12 +199,34 @@ export class OrderEvaluator {
                          * 🔴 **색만 낮추고 점수는 그대로 둔다.** 시급 축은 사실이고 하한 미달도
                          *    사실이다. 딱지로 이유를 함께 적으므로 숫자가 거짓말하지 않는다 (규칙 ④).
                          */
-                        const previewRate = (securedOrder as any).isPreview
+                        /**
+                         * 💸 **표시는 시세로, 점수는 할인율 반영본으로** (기사님 확정).
+                         *
+                         * 기사님이 `call_discount_pct` 를 **100** 으로 두고 계신다 — 유튜버 영상으로
+                         * 문제지를 만드시는데 요금이 낮아 필터를 못 지나가서 문을 열어 두신 것이고,
+                         * *"그것과 상관없이 점수를 나에게 보여주면 될 거라 생각했어"* 하셨다.
+                         *
+                         * 그 전제는 맞다 — 점수 축(`criteria.ts`)은 할인율을 아예 안 본다. 그런데
+                         * **보여 주는 것**이 같이 꺼졌다: 하한이 `요금 × (1 − 할인율/100)` 이라 0원이 되고,
+                         * 「요율 미달」이 영영 안 뜬다. 그러면 첫짐하차 1km 옆에 내리는 1만원짜리가
+                         * «더 드는 시간 2분 · 시급 30만/h · 🔵» 로 보인다 — 실제로는 그 짐을 26km 싣고
+                         * 간 일이고, 그걸 말해 줄 유일한 자리가 이 딱지다.
+                         *
+                         * 🔴 **점수에 들어가는 값은 그대로 둔다** — 아래 `minAcceptableKrw` 는 「돈」의
+                         *    감점 입력이다. 여기에 시세를 넣으면 점수가 바뀐다 (기사님은 «표시만»을 고르셨다).
+                         *    그래서 값이 둘이고 이름으로 갈라 둔다.
+                         */
+                        const rateForScore = (securedOrder as any).isPreview
                             ? this.loadPricing(securedOrder, userId, session.activeFilter.callDiscountPct) : null;
-                        const rateShort = !!previewRate && securedOrder.fare > 0
-                            && securedOrder.fare < previewRate.minAcceptable;
-                        if (rateShort) {
-                            tags.push(`요율 미달 — 평소 하한 ${previewRate!.minAcceptable.toLocaleString()}원`);
+                        /* 💸 화면에 쓸 하한 — 할인율 0 으로 다시 재서 «시세»를 본다 */
+                        const rateForDisplay = (securedOrder as any).isPreview
+                            ? this.loadPricing(securedOrder, userId, 0) : null;
+                        const rateShort = !!rateForScore && securedOrder.fare > 0
+                            && securedOrder.fare < rateForScore.minAcceptable;
+                        if (rateForDisplay && securedOrder.fare > 0
+                            && securedOrder.fare < rateForDisplay.minAcceptable) {
+                            tags.push(`요율 미달 — 시세 하한 ${rateForDisplay.minAcceptable.toLocaleString()}원 · `
+                                + `실제 ${securedOrder.fare.toLocaleString()}원 (할인율은 안 봄)`);
                         }
 
                         /**
@@ -230,7 +252,7 @@ export class OrderEvaluator {
                         const firstStop = getStopTiming(securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
                         const dry: ReturnType<typeof toSnapshot> & { extraMin?: number | null } = toSnapshot(judge(CRITERIA, firstLoadFacts({
                             fare: securedOrder.fare, totalMinutes: total,
-                            minAcceptableKrw: rateShort ? previewRate!.minAcceptable : null,
+                            minAcceptableKrw: rateShort ? rateForScore!.minAcceptable : null,
                             progress,
                             /**
                              * ⛽🛣️ **나가는 돈** — 첫짐은 «이 콜의 전체 주행»이 곧 더 쓰는 거리다 (빈 차라 뺄 기준이 없다).
@@ -273,7 +295,7 @@ export class OrderEvaluator {
                         dry.extraMin = total;
                         if (rateShort && (dry.color === '꿀' || dry.color === '보통')) {
                             console.log(`   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
-                                `실제 ${securedOrder.fare.toLocaleString()}원 < 하한 ${previewRate!.minAcceptable.toLocaleString()}원)`);
+                                `실제 ${securedOrder.fare.toLocaleString()}원 < 하한 ${rateForScore!.minAcceptable.toLocaleString()}원)`);
                             dry.color = '똥';
                         }
                         console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
@@ -868,21 +890,39 @@ export class OrderEvaluator {
         }
     }
 
+    /**
+     * 💸 **요율을 «시세»로 재서 화면에 말해 준다** (기사님 확정).
+     *
+     * 🔴 **할인율을 안 본다.** 기사님이 `call_discount_pct` 를 100 으로 두고 계신데 — 유튜버
+     *    영상으로 문제지를 만드시느라 문을 열어 두신 것이다 — 그러면 하한이
+     *    `요금 × (1 − 할인율/100)` 로 0원이 되어 「요율 미달」이 영영 안 뜬다. 그 줄이 꺼지면
+     *    첫짐하차 1km 옆에 내리는 1만원짜리가 «시급 30만/h · 🔵» 로만 보인다 (실제로는 그 짐을
+     *    26km 싣고 간 일이다).
+     *
+     * 🔴 **점수는 한 자리도 안 바뀐다** — 여기서 담는 것은 `reasons`·`pros` 이고 그 둘은
+     *    `rejectionReasons`·`approvalReasons` 로 **화면·로그에만** 간다 (확인함).
+     *    색과 점수는 `judge()` 가 따로 정한다. 「돈」의 감점 입력(`minAcceptableKrw`)은
+     *    미리보기 쪽에 있고 거기는 할인율 반영본을 그대로 쓴다.
+     *
+     * ⚠️ 인자 `callDiscountPct` 는 남겨 둔다 — 부르는 쪽의 규약이고, 되돌리려면 아래 0 을
+     *    그것으로 바꾸면 된다.
+     */
     private runStage3Pricing(order: SecuredOrder | PendingOrder, userId: string, callDiscountPct: number | undefined, reasons: string[], pros: string[]) {
-        const p = this.loadPricing(order, userId, callDiscountPct);
+        void callDiscountPct;
+        const p = this.loadPricing(order, userId, 0);
         if (p) {
             {
                 const adjusted = { adjustedFairPrice: p.fairPrice, adjustedMinAcceptable: p.minAcceptable };
 
                 if (order.fare < adjusted.adjustedMinAcceptable) {
                     const diff = order.fare - adjusted.adjustedMinAcceptable;
-                    reasons.push(`요율 미달 (적정: ${adjusted.adjustedFairPrice.toLocaleString()}원, 하한: ${adjusted.adjustedMinAcceptable.toLocaleString()}원, 실제: ${order.fare.toLocaleString()}원, ${diff.toLocaleString()}원)`);
-                    console.log(`   - 💸 [요율 판정] 똥콜 — 실제 ${order.fare.toLocaleString()}원 < 하한 ${adjusted.adjustedMinAcceptable.toLocaleString()}원`);
+                    reasons.push(`요율 미달 — 시세 하한 ${adjusted.adjustedMinAcceptable.toLocaleString()}원 · 실제 ${order.fare.toLocaleString()}원 (${diff.toLocaleString()}원 · 적정 ${adjusted.adjustedFairPrice.toLocaleString()}원 · 할인율은 안 봄)`);
+                    console.log(`   - 💸 [요율 판정] 시세 미달 — 실제 ${order.fare.toLocaleString()}원 < 시세 하한 ${adjusted.adjustedMinAcceptable.toLocaleString()}원`);
                 } else if (order.fare >= adjusted.adjustedFairPrice) {
-                    pros.push(`꿀콜 🍯 (적정 ${adjusted.adjustedFairPrice.toLocaleString()}원 이상)`);
-                    console.log(`   - 🍯 [요율 판정] 꿀콜 — 실제 ${order.fare.toLocaleString()}원 ≥ 적정 ${adjusted.adjustedFairPrice.toLocaleString()}원`);
+                    pros.push(`꿀콜 🍯 (시세 적정 ${adjusted.adjustedFairPrice.toLocaleString()}원 이상)`);
+                    console.log(`   - 🍯 [요율 판정] 꿀콜 — 실제 ${order.fare.toLocaleString()}원 ≥ 시세 적정 ${adjusted.adjustedFairPrice.toLocaleString()}원`);
                 } else {
-                    console.log(`   - ✅ [요율 판정] 적정 범위 — 실제 ${order.fare.toLocaleString()}원 (하한 ${adjusted.adjustedMinAcceptable.toLocaleString()} ~ 적정 ${adjusted.adjustedFairPrice.toLocaleString()})`);
+                    console.log(`   - ✅ [요율 판정] 시세 적정 범위 — 실제 ${order.fare.toLocaleString()}원 (하한 ${adjusted.adjustedMinAcceptable.toLocaleString()} ~ 적정 ${adjusted.adjustedFairPrice.toLocaleString()})`);
                 }
             }
         }

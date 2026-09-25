@@ -732,7 +732,7 @@ export const GEOGRAPHY = defineCriterion<GeographyFacts>({
     measure(f, cfg) {
         if (!f) return nothing('전진율을 안 받았습니다');
         /**
-         * 🧭 **합짐도 방향을 본다** (기사님 확정 · 2026-09-25 이전에는 안 봤다).
+         * 🧭 **합짐도 방향을 본다** (기사님 확정).
          *
          * 옛 까닭은 «합짐의 방향은 「돈」의 한계 우회가 이미 센다» 였다. 그 전제가 깨졌다 —
          * 「돈」의 우회 감쇠가 «길을 벗어나는 분»만 보게 되면서(`tailSplitOf`) **배송이
