@@ -1,5 +1,5 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
-         deriveRouteTimeline, minRouteBuffer, marginalDetourMin,
+         deriveRouteTimeline, minRouteBuffer, marginalDetourMin, offRouteMinutesOf,
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
@@ -413,37 +413,9 @@ export class OrderEvaluator {
                             /**
                              * 🛣️ **«길을 벗어나는 분» — 「돈」의 우회 감쇠가 이것만 본다** (기사님 확정).
                              *
-                             * 기사님이 직선 예로 못을 박으셨다 — 현위치 10 · 첫짐상차 5 · 합짐상차 25 ·
-                             * 첫짐하차 20 · 합짐하차 로 모두 직선상에 놓이면 되돌아가는 일이 없으니
-                             * **우회는 0** 이다. 그런데 `marginal`(늘어난 주행 20)은 전부
-                             * «첫짐하차 → 합짐하차» 배송이라, 그것을 「우회」라 부르면 가는 길에 하나
-                             * 끼우는 합짐이 «하루를 거는 콜»로 오해받는다 (실측 07:20 · 값이 83%까지 깎였다).
-                             *
-                             *     길을 벗어나는 분 = marginal − 꼬리 배송
-                             *     꼬리 배송 = 후보 하차가 경로의 **마지막**일 때, 직전 정거장에서 거기까지
-                             *
-                             * 기사님 예: marginal 20 − 꼬리 20 = **0**.
-                             *
-                             * 🔴 **«후보 상차 이후 주행»을 빼면 안 된다** — 그 구간에는 기존 콜의 하차도 들어
-                             *    있어서 식이 `후보상차누적 − 기존경로` 로 약분되고, 거의 모든 합짐이 0 이 되어
-                             *    감쇠가 통째로 꺼진다. 검산: 합짐 상차가 옆으로 30분 빠져 왕복 60분을 버리는
-                             *    경로(누적 10·40·95·115 · 기존 40)에서 그 식은 0 을 내고, 이 식은 55 를 낸다.
-                             * 🔴 **이것은 항등식이 아니라 «마지막 배송을 뺀 나머지»다.** `marginal` 을
-                             *    «상차 삽입 + 하차 삽입» 으로 정확히 가를 수 있는 것은 기존 콜의 방문 순서가
-                             *    안 바뀔 때뿐이다. 경로 짜기가 기존 하차 순서를 다시 매기면 그 차이가 잔차에
-                             *    섞이는데, 순서가 좋아져 짧아지면 덜 깎고(안전) 나빠지면 더 깎으며 그것은
-                             *    실제로 더 든 시간이다 — 그래서 «벗어난 비용»으로 쓸 만하다.
-                             * 🔴 **카카오를 한 번도 더 부르지 않는다** — 구간 누적(`sectionDriveMin`)은
-                             *    병합 경로를 부를 때 이미 함께 받았다 (위 `stopsAfter`). 그 배열은 현위치를
-                             *    모르면 전부 `null` 이라(`calculateDriveMinutes`) `last − prev` 는 늘 같은
-                             *    기준의 두 누적이고, `null` 이면 아래에서 옛 셈으로 안전하게 떨어진다.
-                             * 🔴 **후보 하차가 경로 중간이면 꼬리가 0 이다** — 예: `[기존상차, 후보상차,
-                             *    후보하차, 기존하차]` 처럼 후보를 먼저 내리는 순서. 그때 «하차를 끼워 늘어난
-                             *    것»은 base 경로를 또 물어야 알 수 있어, 지금까지처럼 `marginal` 을 그대로 본다.
-                             *    중간 하차는 «가는 길»이라 삽입 비용이 작아 과대평가도 작다 — 근사 오차가
-                             *    작은 자리에만 근사를 쓰는 셈이다.
-                             *    🔴 `cum[i] − cum[i−1]`(직전 → 후보 하차)을 빼는 것으로 바꾸지 않는다 —
-                             *    하차가 길 위에 딱 있을 때 삽입 비용보다 훨씬 커서 과소평가가 된다.
+                             * 셈은 `offRouteMinutesOf` 한 곳이다 (규칙 ③) — 왜 꼬리만 빼는지, 자리가
+                             * 엇갈리면 어떻게 옛 셈으로 떨어지는지 거기 다 적혀 있다.
+                             * 카카오를 한 번도 더 부르지 않는다 — 구간 누적은 병합 경로를 부를 때 함께 받았다.
                              *
                              * 🔴 **남은 구멍 — 긴 배송이 꼬리면 감쇠가 꺼진다.** 꼬리는 «후보 자신의 배송»이라
                              *    배송이 길수록 더 많이 빼게 된다. 오송읍 상차(가는 길 · 삽입 15분) → 아주 먼
@@ -453,19 +425,10 @@ export class OrderEvaluator {
                              *    막는 길은 「지리」를 합짐에도 켜서 후보 하차의 전진을 배수로 보는 것이고,
                              *    그것은 운행 동작이 바뀌어 기사님 승인이 필요하다 (`detourDecay.test.ts` 가
                              *    지금 뚫린 자리를 그대로 잠가 두고 있다).
-                             * 🔴 **못 찾으면 안 넘긴다** — 그러면 「돈」이 `extraMinutes` 를 그대로 보고
-                             *    지금까지처럼 돈다 (되돌리는 길 · 규칙 ⑤-2).
                              */
-                            const tailDriveMin = (() => {
-                                if (stopsAfter.length < 2) return null;
-                                const last = stopsAfter[stopsAfter.length - 1];
-                                const prev = stopsAfter[stopsAfter.length - 2];
-                                if (last.orderId !== securedOrder.id || last.stopType !== 'dropoff') return 0;
-                                return last.driveMinutes != null && prev.driveMinutes != null
-                                    ? Math.max(0, last.driveMinutes - prev.driveMinutes) : null;
-                            })();
-                            const offRouteMinutes = tailDriveMin != null
-                                ? Math.max(0, marginal - tailDriveMin) : null;
+                            const offRouteMinutes = offRouteMinutesOf(
+                                stopsAfter, securedOrder.id, marginal,
+                                Math.round(result.merged.duration / 60));
                             /**
                              * 📞 **상차 약속을 못 지키면 통화가 필요하다** — 그 약속은 타임라인이
                              *    이미 만들어 놨다(`promisedUntil`: 통화 > 적요 > 잡은 시각 + 20분).

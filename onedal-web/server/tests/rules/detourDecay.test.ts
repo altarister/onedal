@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { CRITERIA, DEFAULT_JUDGMENT } from '@onedal/shared';
+import { CRITERIA, DEFAULT_JUDGMENT, offRouteMinutesOf } from '@onedal/shared';
 import type { JudgmentConfig, MoneyFacts } from '@onedal/shared';
 
 /**
@@ -220,49 +220,81 @@ describe('🛣️ 우회 감쇠 — 배송과 상하차는 «우회»가 아니�
      * 버리는 경로에서도 0 을 낸다 — 감쇠가 통째로 꺼진다. 꼬리 식은 그것을 잡는다.
      * 여기서는 두 식을 나란히 돌려 **꼬리 식만 맞는 답을 내는지** 본다.
      */
-    describe('🔴 경로 숫자로 두 식을 견준다', () => {
-        /** 구간 거리 → 정거장별 누적 */
-        const 누적of = (구간: number[]) => 구간.reduce<number[]>((a, v, i) => [...a, (a[i - 1] ?? 0) + v], []);
-
-        const 두식 = (구간: number[], 정거장: string[], 기존: number) => {
-            const 누적 = 누적of(구간);
-            const 총 = 누적[누적.length - 1];
-            const marginal = 총 - 기존;
-            const pi = 정거장.indexOf('합짐상차');
-            const 상차이후식 = Math.max(0, marginal - (총 - 누적[pi]));
-            const 끝이합짐하차 = 정거장[정거장.length - 1] === '합짐하차';
-            const 꼬리 = 끝이합짐하차 ? 누적[누적.length - 1] - 누적[누적.length - 2] : 0;
-            return { 상차이후식, 꼬리식: Math.max(0, marginal - 꼬리) };
+    describe('🔴 경로 숫자로 — 서버가 쓰는 그 함수를 부른다', () => {
+        /**
+         * 🔴 **산수를 여기서 흉내 내지 않는다** — `offRouteMinutesOf` 는 서버가 실제로 부르는
+         *    함수다(`OrderEvaluator`). 두 벌이면 «검사는 맞는데 화면은 틀린» 자리가 생긴다 (규칙 ③).
+         *    여기서는 구간 거리를 정거장 배열로 옮겨 그 함수에 그대로 먹인다.
+         */
+        const 경로 = (구간: number[], 정거장: string[]) => {
+            const 누적 = 구간.reduce<number[]>((a, v, i) => [...a, (a[i - 1] ?? 0) + v], []);
+            const stops = 정거장.map((n, i) => ({
+                orderId: n.startsWith('합짐') ? '후보' : '기존',
+                stopType: (n.endsWith('상차') ? 'pickup' : 'dropoff') as 'pickup' | 'dropoff',
+                driveMinutes: 누적[i],
+            }));
+            return { stops, 총: 누적[누적.length - 1] };
+        };
+        const 벗어남 = (구간: number[], 정거장: string[], 기존: number) => {
+            const { stops, 총 } = 경로(구간, 정거장);
+            return offRouteMinutesOf(stops, '후보', 총 - 기존, 총);
+        };
+        /** ❌ 잘못된 식(«후보 상차 이후 주행»을 뺌) — 얼마나 어긋나는지 견주려고만 쓴다 */
+        const 상차이후식 = (구간: number[], 정거장: string[], 기존: number) => {
+            const { stops, 총 } = 경로(구간, 정거장);
+            const pi = stops.findIndex(s => s.orderId === '후보' && s.stopType === 'pickup');
+            return Math.max(0, (총 - 기존) - (총 - stops[pi].driveMinutes!));
         };
 
-        it('🔴 기사님 직선 예 — 두 식 다 0 이다', () => {
-            const r = 두식([10, 5, 25, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차'], 40);
-            expect(r.꼬리식).toBe(0);
-            expect(r.상차이후식).toBe(0);
+        /** 🔴 기사님 직선 예 — 되돌아가는 일이 없으니 0 이다 */
+        it('🔴 기사님 직선 예 — 벗어남이 0 이다', () => {
+            expect(벗어남([10, 5, 25, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차'], 40)).toBe(0);
         });
 
-        it('🔴 합짐 상차가 옆으로 빠져 왕복 60분을 버리면 — 꼬리 식만 그 몫을 남긴다', () => {
-            const r = 두식([10, 30, 55, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차'], 40);
-            expect(r.꼬리식).toBe(55);                  // 벗어난 몫이 그대로 남는다
-            expect(r.상차이후식).toBe(0);               // ❌ 약분되어 0 — 감쇠가 꺼진다
+        it('🔴 합짐 상차가 옆으로 빠져 왕복 60분을 버리면 — 그 몫이 남는다', () => {
+            const 구간 = [10, 30, 55, 20], 정거장 = ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차'];
+            expect(벗어남(구간, 정거장, 40)).toBe(55);
+            expect(상차이후식(구간, 정거장, 40)).toBe(0);      // ❌ 약분되어 0 — 감쇠가 꺼진다
         });
 
         /**
          * 🔴 **벗어난 몫이 무감점을 넘으면 깎인다** — 위 55분은 무감점(기본 90 · 기사님 60) 안이라
          *    깎이지 않는 것이 맞다. 더 크게 빠지는 경로로 «깎이는 것»까지 잠근다.
          */
-        it('🔴 더 크게 빠지면 꼬리 식이 값을 깎는다', () => {
-            const r = 두식([10, 70, 130, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차'], 40);
-            expect(r.꼬리식).toBe(170);
-            expect(r.꼬리식).toBeGreaterThan(freeMin);
-            /* ❌ 상차이후식은 40 — 0 은 아니지만 벗어난 몫을 네 배 넘게 깎아 먹는다 */
-            expect(r.상차이후식).toBeLessThan(r.꼬리식);
-            expect(점수(r.꼬리식 + 20, r.꼬리식)).toBeLessThan(점수(r.꼬리식 + 20, 0));
+        it('🔴 더 크게 빠지면 값을 깎는다', () => {
+            const 구간 = [10, 70, 130, 20], 정거장 = ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차'];
+            const off = 벗어남(구간, 정거장, 40)!;
+            expect(off).toBe(170);
+            expect(off).toBeGreaterThan(freeMin);
+            /* ❌ 잘못된 식은 40 — 0 은 아니지만 벗어난 몫을 네 배 넘게 깎아 먹는다 */
+            expect(상차이후식(구간, 정거장, 40)).toBeLessThan(off);
+            expect(점수(off + 20, off)).toBeLessThan(점수(off + 20, 0));
         });
 
         it('후보 하차가 경로 중간이면 꼬리가 없어 옛 셈으로 돈다 — 안전한 쪽', () => {
-            const r = 두식([10, 5, 20, 25], ['첫짐상차', '합짐상차', '합짐하차', '첫짐하차'], 40);
-            expect(r.꼬리식).toBe(20);                  // marginal 그대로
+            expect(벗어남([10, 5, 20, 25], ['첫짐상차', '합짐상차', '합짐하차', '첫짐하차'], 40)).toBe(20);
+        });
+
+        /**
+         * 🔴 **자리 맞물림이 깨지면 `null` 이다 — 틀린 꼬리를 빼지 않는다.**
+         *    규약은 «`driveMinutes[i]` = 그 정거장에 도착한 누적»이라 마지막 원소가 곧 총주행이다.
+         *    그 등식이 깨졌다면 정거장과 주행분이 엇갈린 것이다 (`helpers.ts` 의
+         *    «주행분이 남의 이름에 붙는다 · #60»). `null` 이면 「돈」이 옛 셈으로 돈다.
+         */
+        it('🔴 마지막 누적이 총주행과 다르면 null 이다', () => {
+            const { stops } = 경로([10, 5, 25, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차']);
+            expect(offRouteMinutesOf(stops, '후보', 20, 60)).toBe(0);      // 맞물림 — 잰다
+            expect(offRouteMinutesOf(stops, '후보', 20, 95)).toBeNull();   // 어긋남 — 옛 셈으로
+        });
+
+        it('🔴 주행분을 못 받으면 null 이다 — 지어내지 않는다', () => {
+            const { stops } = 경로([10, 5, 25, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차']);
+            const 빈것 = stops.map(s => ({ ...s, driveMinutes: null }));
+            expect(offRouteMinutesOf(빈것, '후보', 20, 60)).toBeNull();
+        });
+
+        it('정거장이 둘도 안 되면 null 이다', () => {
+            expect(offRouteMinutesOf([], '후보', 20, 60)).toBeNull();
         });
     });
 });
@@ -275,11 +307,19 @@ describe('🛣️ 서버가 재는 자리 — 카카오를 더 부르지 않는�
     const src = () => readFileSync(
         join(__dirname, '../../src/core/engine/OrderEvaluator.ts'), 'utf-8');
 
-    it('🔴 꼬리 배송(마지막 구간)을 빼서 «벗어난 분»을 낸다', () => {
+    /**
+     * 🔴 **서버가 `shared` 의 그 함수를 부른다 — 산수를 제 안에 두지 않는다** (규칙 ③).
+     *    두 벌이면 «검사는 맞는데 화면은 틀린» 자리가 생긴다.
+     */
+    it('🔴 offRouteMinutesOf 를 불러서 «벗어난 분»을 낸다', () => {
         const s = src();
-        expect(s).toMatch(/tailDriveMin/);
-        expect(s).toMatch(/offRouteMinutes\s*=\s*tailDriveMin\s*!=\s*null/);
-        expect(s).toMatch(/marginal\s*-\s*tailDriveMin/);
+        expect(s).toMatch(/offRouteMinutes\s*=\s*offRouteMinutesOf\(/);
+        expect(s).toMatch(/stopsAfter,\s*securedOrder\.id,\s*marginal/);
+    });
+
+    /** 🔴 서버 안에서 꼬리를 다시 세지 않는다 — 셈이 두 벌이 되면 갈라진다 */
+    it('🔴 서버가 꼬리를 스스로 계산하지 않는다', () => {
+        expect(src()).not.toMatch(/last\.driveMinutes\s*-\s*prev\.driveMinutes/);
     });
 
     /**
@@ -294,20 +334,15 @@ describe('🛣️ 서버가 재는 자리 — 카카오를 더 부르지 않는�
         expect(s).not.toMatch(/offRouteMinutes\s*=\s*candPickupDrive/);
     });
 
-    it('🔴 못 찾으면 안 넘긴다 — 옛 셈으로 돌아간다', () => {
-        expect(src()).toMatch(/tailDriveMin\s*!=\s*null\s*\?[\s\S]{0,120}:\s*null/);
-    });
-
-    /** 🔴 꼬리는 후보 하차가 **마지막**일 때만 있다 — 중간이면 0 이라 지금처럼 돈다 */
-    it('🔴 후보 하차가 마지막인지 확인하고 뺀다', () => {
-        const s = src();
-        expect(s).toMatch(/last\.orderId\s*!==\s*securedOrder\.id\s*\|\|\s*last\.stopType\s*!==\s*'dropoff'/);
+    /** 🔴 총주행을 함께 넘긴다 — 그 값으로 자리 맞물림을 확인해 어긋나면 옛 셈으로 떨어진다 */
+    it('🔴 총주행을 함께 넘겨 맞물림을 확인하게 한다', () => {
+        expect(src()).toMatch(/Math\.round\(result\.merged\.duration\s*\/\s*60\)\)/);
     });
 
     /** 🔴 구간 누적은 병합 경로를 부를 때 **이미 함께 받은** 값이다 — 새 호출이 아니다 */
     it('🔴 단독 배송을 다시 재려고 카카오를 부르지 않는다', () => {
         const s = src();
-        const 자리 = s.slice(s.indexOf('const tailDriveMin'), s.indexOf('offRouteMinutes,'));
+        const 자리 = s.slice(s.indexOf('const offRouteMinutes'), s.indexOf('offRouteMinutes,'));
         expect(자리).not.toMatch(/await\s+(calculateSoloRoute|measureSoloDelivery|composeMergedRoute)/);
     });
 });
