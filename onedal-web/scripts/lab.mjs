@@ -196,6 +196,61 @@ try {
     const uniq = [...new Set(extras ?? [])];
     ok('화면의 «더 쓰는 시간»이 모두 같은 수다 (판정·시트·심사석)',
         (extras?.length ?? 0) === 0 || uniq.length === 1, `${extras?.length ?? 0}곳 · ${JSON.stringify(uniq)}`);
+    /**
+     * 🔴 **카드가 글자를 감추지 않는가** (실측으로 당한 자리)
+     *
+     * 화면에는 `overflow-hidden` + 고정 높이 카드가 여럿이다. 글이 한 줄 늘면
+     * **맨 아래가 조용히 잘린다** — 글자는 DOM 에 있으니 위 «두 자리가 같은 말을 하는가»
+     * 검사는 전부 초록이고, 눈으로 찍어 봐야만 드러난다.
+     *
+     * 🔴 `transform: scale()` 은 레이아웃 픽셀을 안 바꾼다 — 실험실이 실물 심사석을
+     *    0.66 으로 줄여 넣지만 `scrollHeight`·`clientHeight` 는 변형 전 값이라 그대로 견준다.
+     */
+    const clipped = await js(`(()=>{const bad=[];
+        for (const el of document.querySelectorAll('*')) {
+            /* 🔴 실험실이 «일부러» 줄여 자르는 **그 래퍼만** 뺀다 — 실물 폰에서는 안 일어난다.
+               🔴 자식까지 빼면(closest) 그 안의 **실물 카드 잘림**도 함께 안 보인다 */
+            if (el.hasAttribute('data-lab-scaled')) continue;
+            const s = getComputedStyle(el);
+            if (s.overflow !== 'hidden' && s.overflowY !== 'hidden') continue;
+            const r = el.getBoundingClientRect();
+            /* 🔴 **«카드»만 본다** — 지도·목록 같은 큰 영역은 원래 안쪽이 넘치는 것이 정상이다 */
+            if (r.height < 20 || r.height > 400) continue;
+            /* 🔴 **자식이 바닥 밖으로 나갔나** — \`scrollHeight\` 로는 flex 눌림을 못 본다.
+               카드가 \`flex flex-col\` 이면 안쪽이 눌려 scrollHeight 가 안 늘고 글자만 밖으로 나간다 */
+            let over = 0, saw = '';
+            for (const ch of el.querySelectorAll('*')) {
+                const cr = ch.getBoundingClientRect();
+                if (cr.height <= 0 || !(ch.textContent||'').trim()) continue;
+                /* 🔴 **흐름 밖 장식은 뺀다** — 워터마크(점수)는 \`bottom: -34\` 로 **일부러** 걸친다 */
+                if (getComputedStyle(ch).position === 'absolute') continue;
+                const d = cr.bottom - r.bottom;
+                if (d > over) { over = d; saw = (ch.innerText||'').replace(/\\s+/g,' ').trim().slice(0,30); }
+            }
+            if (over > 1) bad.push({ over: Math.round(over), saw: saw + ' [' + Math.round(over) + 'px 밖]' });
+        }
+        return bad.sort((a,b)=>b.over-a.over).slice(0,8)})()`);
+    /**
+     * 🔴 **카드가 글자를 감추는가** — \`overflow-hidden\` 카드 안에서 **자식이 바닥 밖으로 나간** 픽셀을 센다.
+     *
+     * 🔴 **\`scrollHeight\` 로는 못 잡는다** — 카드가 \`flex flex-col\` 이면 안쪽 칸이 눌려
+     *    scrollHeight 가 안 늘고 글자만 밖으로 밀린다. 실측으로 확인했다(줄 하나 더하기 변이가 안 물렸다).
+     * 🔴 **곳의 수가 아니라 픽셀을 센다** — 줄을 더해도 곳은 안 늘고 그 곳이 더 넘칠 뿐이다.
+     *
+     * ── 이미 감추고 있는 몫 ──
+     * 이번에 만든 것이 아니다. 원본(\`HEAD\`)으로 되돌려 돌려도 같다. 고치면 폰 한 화면에 들어가는
+     * 콜 수가 바뀌므로 **기사님께 따로 여쭐 일**이라 지금은 세어 두고, **여기서 늘면 빨간불**로 잡는다.
+     * 글이 한 줄 늘어 카드가 넘쳐도 다른 검사는 전부 초록이다(글자는 DOM 에 있다) —
+     * 찍어서 눈으로 볼 때까지 아무도 모른다. 실제로 그렇게 당했다.
+     */
+    /* 🔴 **이미 감추고 있는 몫** — 실측 6px (심사석 둘째 줄의 끝자락). 원본(`HEAD`)으로 되돌려 돌려도 같아
+          이번에 만든 것이 아니다. 고치면 폰 한 화면의 콜 수가 바뀌므로 기사님께 따로 여쭐 일이라 세어 둔다 */
+    const KNOWN_OVER = 6;
+    const over = (clipped ?? []).reduce((a, c) => a + c.over, 0);
+    ok('🔴 카드가 글자를 지금보다 더 감추지 않는다',
+        over <= KNOWN_OVER,
+        `감춘 ${over}px (알고 있는 ${KNOWN_OVER}px)${over > KNOWN_OVER ? ' — ' + JSON.stringify((clipped ?? []).map(c => c.saw)) : ''}`);
+
     await shot('4-심사');
 
     await press(/콜 확정|탈락이지만 확정/); await sleep(2500);

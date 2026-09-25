@@ -83,6 +83,89 @@ describe('🔴 두 가지 빨강을 가른다 — 딱지가 가른다 (3단계�
     });
 });
 
+/**
+ * 🎬 **화면이 «지금 할 일»을 글로 적는다** (판정 4단계)
+ *
+ * ── 왜 생겼나 ──
+ * 그 문장은 **이미 만들어져 있었는데 화면에 안 닿고 있었다.** 심사석(`JudgmentSeat.tsx`)이
+ * 시급을 못 쟀을 때만 `reason` 을 그려서, 시급이 있는 🔴 콜은 「잡지 마세요」가 사라졌다.
+ * 새 문구를 만드는 것이 아니라 **있는 것을 잇는 일**이다.
+ *
+ * ── 두 화면이 다른 말을 한다 ──
+ * `action` 은 심사석(**잡기 전**), `reason` 은 잡은 뒤 카드(`PinnedRouteCard`)의 큰 글자다.
+ * 🔴 는 두 화면에서 뜻이 같아(누르지 마세요 / 취소하세요) 한 상수를 나눠 쓰고,
+ * 🟡 는 갈라야 한다 — 이미 잡은 콜에 「전화하면 **잡습니다**」는 틀린 말이다.
+ *
+ * 🔴 **🔵🟢 에는 없다** — 색이 이미 «그냥 잡는다»를 말했다. 글로 반복하면 정보가 0 이다.
+ * 🔴 **첫짐 🟡 은 없다** — 「전화할 곳」·「약속」 두 축이 `hasExistingCalls` 로 먼저 막히고
+ *    (`criteria.ts` 491·547줄), `nothing` 은 색 계산(`counted`)에 안 들어간다.
+ *    그래서 이 줄이 첫짐에서 값을 내는 것은 **🔴** 일 때다 (등 뒤 상차 · 제외 키워드).
+ *    첫짐에는 넷째 줄(`seatConclusion`)이 없어 이 줄이 **유일한 행동 문장**이다.
+ */
+describe('🎬 지금 할 일 — action', () => {
+    it('🔴 문지기가 막았으면 「잡지 마세요」', () => {
+        const v = verdictOf(valueOf_('사고', { gates: [{ key: 'g', name: '약속 보존', pass: false, why: '7분 깨집니다' }] }) as any);
+        expect(v.action).toContain('잡지 마세요');
+    });
+
+    /** 🔴 까닭은 셋째 줄(`rejectionReasons`)이 이미 적는다 — 행동 줄은 행동만 */
+    it('🔴 행동에는 까닭을 안 적는다', () => {
+        const v = verdictOf(valueOf_('사고', { gates: [{ key: 'g', name: '약속 보존', pass: false, why: '7분 깨집니다' }] }) as any);
+        expect(v.action).not.toContain('7분');
+        expect(v.reason).toContain('7분');
+    });
+
+    /**
+     * 🔴 **🔴 은 한 낱말을 둘이 나눠 쓴다** — 두 화면에서 뜻이 같다.
+     *    따로 적으면 한쪽만 고쳐진다 (규칙 ③).
+     */
+    it('🔴 사고의 행동 문구가 까닭 문구의 앞머리와 같다', () => {
+        const v = verdictOf(valueOf_('사고', { gates: [{ key: 'g', name: '약속 보존', pass: false, why: '7분' }] }) as any);
+        expect(v.reason.startsWith(v.action!)).toBe(true);
+    });
+
+    it('🔴 노란색은 「전화하면 잡습니다」 — 옛말 「별로입니다」가 아니다', () => {
+        const v = verdictOf(valueOf_('똥') as any);
+        expect(v.action).toContain('전화하면 잡습니다');
+        expect(v.action).not.toContain('별로');
+        expect(v.reason).not.toContain('별로');
+    });
+
+    /**
+     * 🔴 **🟡 은 두 화면이 다른 말을 한다** — 잡은 뒤 카드에 「잡습니다」는 틀린 말이다.
+     *    둘 다 ☎️ 로 시작해 한쪽만 엉뚱하게 고쳐지는 것은 여전히 잡는다.
+     */
+    it('🔴 노란색의 잡은 뒤 문구는 「잡습니다」라 하지 않는다', () => {
+        const v = verdictOf(valueOf_('똥') as any);
+        expect(v.reason).not.toBe(v.action);
+        expect(v.reason).not.toContain('잡습니다');
+        expect(v.reason.startsWith('☎️')).toBe(true);
+        expect(v.action!.startsWith('☎️')).toBe(true);
+    });
+
+    /** 🔴 대상을 두 곳에서 적지 않는다 — 어디에 거는 전화인지는 넷째 줄이 말한다 */
+    it('🔴 행동에 전화 대상을 적지 않는다', () => {
+        const v = verdictOf(valueOf_('똥') as any);
+        expect(v.action).not.toMatch(/상차|하차|화주|기사/);
+    });
+
+    /** 🔴 색이 이미 한 말을 글로 반복하지 않는다 */
+    it('🔴 꿀·보통에는 할 일이 없다', () => {
+        expect(verdictOf(valueOf_('꿀') as any).action).toBeUndefined();
+        expect(verdictOf(valueOf_('보통') as any).action).toBeUndefined();
+    });
+
+    /** 🔴 모르는 것에 행동을 지어내지 않는다 (규칙 ④) */
+    it('🔴 판단 불가에는 할 일이 없다 — 무엇을 해야 하는지 우리가 모른다', () => {
+        const v = verdictOf(valueOf_('사고', { tags: ['잴 수 없음 — 재료가 없어 점수를 못 냅니다'] }) as any);
+        expect(v.action).toBeUndefined();
+    });
+
+    it('판정 전에는 할 일도 없다', () => {
+        expect(verdictOf({}).action).toBeUndefined();
+    });
+});
+
 describe('값이 없으면 예전처럼 문장을 뒤진다 (겹쳐 둔다 · 규칙 ②)', () => {
     it("'꿀' · '똥' · '사고' 를 그대로 읽는다", () => {
         expect(verdictOf(phraseOf("'꿀' 총 87분") as any).color).toBe('꿀');

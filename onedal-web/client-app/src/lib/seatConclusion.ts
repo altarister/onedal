@@ -32,7 +32,13 @@ export function seatConclusion(j: Pick<JudgmentSnapshot, 'stops' | 'unknownWhy'>
     if (judged.length === 0) return null;
     const worst = judged.reduce((w, s) => ((s.lateMin as number) > (w.lateMin as number) ? s : w));
     return (worst.lateMin as number) > 0
-        /* ☎️ 가장 늦는 정거장이 곧 «전화할 곳»이다 — 동 이름이 있으면 함께 (목업 시트 심사 카드) */
-        ? { kind: 'late', text: `⚠️ ${worst.name}${worst.place ? ` (${worst.place})` : ''}가 ${worst.lateMin}분 늦어진다 · ☎️ 전화`, worst }
+        /**
+         * ⚠️ **이 줄은 «대상과 까닭»만 말한다** — 어디가 얼마나 늦나. 동 이름이 있으면 함께.
+         *    🔴 **«전화하라»는 여기서 적지 않는다** — 그 행동은 시급 바로 아래 줄(`lib/verdict.ts` 의
+         *       `action`)이 말한다. 🟡 는 «잡아 둔 콜이 있다»가 전제라 두 줄이 **늘 함께** 뜨는데
+         *       (`lateMin` 과 「약속」 축의 `bufferAfterMin` 이 같은 배열에서 나온다),
+         *       둘이 같은 말을 하면 1~2초에 읽는 화면에서 그게 곧 노이즈다.
+         */
+        ? { kind: 'late', text: `⚠️ ${worst.name}${worst.place ? ` (${worst.place})` : ''}가 ${worst.lateMin}분 늦어진다`, worst }
         : { kind: 'ok', text: '✅ 기존 콜은 안 밀린다', worst: null };
 }

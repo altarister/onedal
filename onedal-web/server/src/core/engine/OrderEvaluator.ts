@@ -530,6 +530,12 @@ export class OrderEvaluator {
                                 stopType: e.stopType,
                                 promisedAt: e.promisedUntil,
                                 etaAt: e.etaMs != null ? new Date(e.etaMs).toISOString() : null,
+                                /**
+                                 * 🔴 **이 값은 「약속」 축의 `bufferAfterMin` 과 부호만 다른 같은 값이다** —
+                                 *    둘 다 같은 `existing` 배열에서 나온다 (위 `minRouteBuffer(existing)`).
+                                 *    한쪽만 고치면 심사석의 셋째 줄(걸리는 것)과 넷째 줄(대상과 까닭)이
+                                 *    다른 말을 한다. 화면 대조는 `pnpm lab` 이 한다.
+                                 */
                                 lateMin: e.etaMs != null && e.promisedUntil ? Math.round((e.etaMs - Date.parse(e.promisedUntil)) / 60_000) : null,
                                 confirmed: e.promiseConfirmed,
                                 arrived: e.arrived,

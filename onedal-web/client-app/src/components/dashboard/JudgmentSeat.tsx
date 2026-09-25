@@ -108,6 +108,14 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const conclusion = seatConclusion(route.judgment);
     const conclusionClass = conclusion?.kind === 'unknown' ? 'text-danger' : conclusion?.kind === 'late' ? 'text-warning' : 'text-success';
     /**
+     * 🎬 **지금 할 일 + 그 대상** — 한 줄에 담는다 (카드가 158px 고정이라 줄을 못 늘린다).
+     *    늦는 곳이 있으면 그 «어디가 얼마나»를 뒤에 붙인다 — ⚠️ 는 떼고 온다(이모지 둘은 많다).
+     *    🔴 행동이 없으면 `null` — 그때는 결론 줄이 그대로 그 자리를 쓴다.
+     */
+    const actionLine = v.action
+        ? `${v.action}${conclusion?.kind === 'late' ? ` · ${conclusion.text.replace(/^⚠️\s*/, '')}` : ''}`
+        : null;
+    /**
      * ⏱️ **더 쓰는 시간** — 판정이 시급의 분모로 쓴 분 (목업 시트 심사 카드).
      *    합짐만 적는다 — 둘째 줄의 «+km, +분»은 주행 증가분뿐이라, 정차까지 더한 «시급의 분»은 따로 말해야 한다.
      */
@@ -191,7 +199,20 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                         <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 4, color: negatives.length ? c!.text : 'var(--color-text-muted)' }}>
                             {negatives.length ? negatives.join(' · ') : '걸리는 것 없음'} · 근거 {open ? '▴' : '▾'}
                         </div>
-                        {conclusion && (
+                        {/**
+                          * 🎬 **이 자리는 «행동이 있으면 행동»이 차지한다** (판정 4단계 · `lib/verdict.ts` 의 `action`).
+                          *
+                          * 🔴 **줄을 늘리지 않는다** — 이 카드는 158px 고정(`overflow-hidden`)이라
+                          *    여섯째 줄을 만들면 **맨 아래가 조용히 잘린다**. 실측으로 확인했다 —
+                          *    게이트도 `pnpm lab` 도 초록인데 화면에서만 사라졌다.
+                          * 🔴 **행동이 앞이다** — 이 줄에는 `truncate` 가 걸려 좁은 폰에서 뒤가 잘린다.
+                          *    순서가 반대면 제일 중요한 것이 먼저 사라진다.
+                          * 🔴 **한 줄 규칙** — 행동이 있으면 «행동 · 대상», 없으면 결론 그대로
+                          *    («❓ 모른다» / «✅ 안 밀린다»). 우선순위 표를 만들지 않는다.
+                          */}
+                        {actionLine ? (
+                            <div className="truncate" style={{ fontSize: 12.5, fontWeight: 800, marginTop: 3, color: c?.text ?? 'var(--color-text-primary)' }}>{actionLine}</div>
+                        ) : conclusion && (
                             <div className={`truncate ${conclusionClass}`} style={{ fontSize: 12.5, fontWeight: 800, marginTop: 3 }}>{conclusion.text}</div>
                         )}
                         {open && positives.length > 0 && (

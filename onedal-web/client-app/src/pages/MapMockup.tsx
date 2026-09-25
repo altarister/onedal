@@ -3984,13 +3984,15 @@ export default function MapMockup() {
                                       *    글자·여백·워터마크가 **같은 비율로** 줄어 «실물 모양»이 유지된다.
                                       */}
                                     <span className="text-[9.5px] font-black text-text-muted">① 직접·알람 — 물든 판 (보기만)</span>
-                                    <div className="overflow-hidden" style={{ height: 158 * 0.66 }}>
+                                    {/* 🔴 `data-lab-scaled` — 여기서 자르는 것은 **일부러**다(560px 부품을 0.66 으로 줄여 넣는다).
+                                        `pnpm lab` 의 «카드가 글자를 감추지 않는다» 검사가 이 표시를 보고 건너뛴다 — 실물 폰에서는 안 일어난다 */}
+                                    <div className="overflow-hidden" data-lab-scaled style={{ height: 158 * 0.66 }}>
                                         <div style={{ width: 560, transform: 'scale(0.66)', transformOrigin: 'top left' }}>
                                             <JudgmentSeat route={{ ...seatOrder, isPreview: true }} confirmedActive={confirmed.length} inset="0" />
                                         </div>
                                     </div>
                                     <span className="text-[9.5px] font-black text-text-muted">② 자동콜 — 아래 전체가 버튼 35:65</span>
-                                    <div className="overflow-hidden" style={{ height: 158 * 0.66 }}>
+                                    <div className="overflow-hidden" data-lab-scaled style={{ height: 158 * 0.66 }}>
                                         <div style={{ width: 560, transform: 'scale(0.66)', transformOrigin: 'top left' }}>
                                             <JudgmentSeat route={seatOrder} confirmedActive={confirmed.length} inset="0" />
                                         </div>

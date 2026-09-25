@@ -43,13 +43,23 @@ describe('🧾 심사석 결론', () => {
         expect(seatConclusion({ unknownWhy: null, stops: [stop({ lateMin: null, etaAt: null }), stop({ lateMin: -8 })] })?.kind).toBe('unknown');
     });
 
-    it('🔴 늦으면 전화할 곳을 말한다 — 가장 늦는 정거장의 동 이름과 ☎️ (전수표 #42)', () => {
+    /**
+     * 🔴 **«전화할 곳»은 동 이름이다** (전수표 #42) — 어디에 거는 전화인지가 이 줄의 일이다.
+     *
+     * 🔴 **«☎️ 전화»라는 글자는 이 줄에 없다** — 그 **행동**은 시급 바로 아래 줄
+     *    (`lib/verdict.ts` 의 `action` — 「☎️ 전화하면 잡습니다」)이 더 큰 글자로 말한다.
+     *    🟡 는 «잡아 둔 콜이 있다»가 전제라 두 줄이 **늘 함께** 뜬다 — `lateMin` 과 「약속」 축의
+     *    `bufferAfterMin` 이 같은 배열에서 나오기 때문이다 (`OrderEvaluator.ts`).
+     *    둘이 같은 말을 하면 1~2초에 읽는 화면에서 그게 곧 노이즈다.
+     *    #42 가 정한 «어디에»와 «얼마나»는 그대로 지켜진다 — 아래 둘이 그것을 잠근다.
+     */
+    it('🔴 늦으면 전화할 곳을 말한다 — 가장 늦는 정거장의 동 이름 (전수표 #42)', () => {
         const c = seatConclusion({ unknownWhy: null, stops: [
             stop({ name: '노선첫짐 하차', place: '중리동', lateMin: 12 }),
             stop({ name: '노선합짐1 상차', place: '곤지암읍', stopType: 'pickup', lateMin: 3 }),
         ] });
         expect(c?.text).toMatch(/중리동/);
-        expect(c?.text).toMatch(/☎️/);
+        expect(c?.text).toMatch(/12분/);              // 얼마나 늦나
         expect(c?.worst?.place).toBe('중리동');
     });
 
