@@ -237,8 +237,11 @@ describe('🛣️ 우회 감쇠 — 배송과 상하차는 «우회»가 아니�
         };
         const 벗어남 = (구간: number[], 정거장: string[], 기존: number) => {
             const { stops, 총 } = 경로(구간, 정거장);
-            return offRouteMinutesOf(stops, '후보', 총 - 기존, 총);
+            return offRouteMinutesOf(stops, '후보', 총 - 기존).minutes;
         };
+        /** 못 쟀을 때의 까닭 — 서버가 이 문장을 로그에 찍는다 */
+        const 까닭 = (stops: Parameters<typeof offRouteMinutesOf>[0], marginal: number) =>
+            offRouteMinutesOf(stops, '후보', marginal).why;
         /** ❌ 잘못된 식(«후보 상차 이후 주행»을 뺌) — 얼마나 어긋나는지 견주려고만 쓴다 */
         const 상차이후식 = (구간: number[], 정거장: string[], 기존: number) => {
             const { stops, 총 } = 경로(구간, 정거장);
@@ -281,20 +284,40 @@ describe('🛣️ 우회 감쇠 — 배송과 상하차는 «우회»가 아니�
          *    그 등식이 깨졌다면 정거장과 주행분이 엇갈린 것이다 (`helpers.ts` 의
          *    «주행분이 남의 이름에 붙는다 · #60»). `null` 이면 「돈」이 옛 셈으로 돈다.
          */
-        it('🔴 마지막 누적이 총주행과 다르면 null 이다', () => {
+        /**
+         * 🔴 **«마지막 누적 = 총주행» 으로 확인하지 않는다.** 그 식은 «카카오의 summary.duration 과
+         *    Σ sections[].duration 이 같다»는 별개 가정을 하나 더 깔고, 그것이 어긋나면 배열이
+         *    멀쩡해도 꼬리가 영영 안 돈다 — 실측 판정 다섯 건에서 한 번도 값을 못 냈다.
+         *    그래서 총주행을 아예 안 받고 **배열 안에서** 맞물림을 본다.
+         */
+        it('🔴 총주행을 인자로 받지 않는다 — 별개 가정을 깔지 않는다', () => {
+            expect(offRouteMinutesOf.length).toBe(3);
+        });
+
+        it('🔴 누적이 거꾸로면 null 이다 — 주행분이 남의 이름에 붙은 것이다 (#60)', () => {
             const { stops } = 경로([10, 5, 25, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차']);
-            expect(offRouteMinutesOf(stops, '후보', 20, 60)).toBe(0);      // 맞물림 — 잰다
-            expect(offRouteMinutesOf(stops, '후보', 20, 95)).toBeNull();   // 어긋남 — 옛 셈으로
+            const 거꾸로 = [...stops];
+            거꾸로[거꾸로.length - 1] = { ...거꾸로[거꾸로.length - 1], driveMinutes: 30 };   // 40 → 30
+            expect(offRouteMinutesOf(거꾸로, '후보', 20).minutes).toBeNull();
+            expect(까닭(거꾸로, 20)).toContain('거꾸로');
         });
 
         it('🔴 주행분을 못 받으면 null 이다 — 지어내지 않는다', () => {
             const { stops } = 경로([10, 5, 25, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차']);
             const 빈것 = stops.map(s => ({ ...s, driveMinutes: null }));
-            expect(offRouteMinutesOf(빈것, '후보', 20, 60)).toBeNull();
+            expect(offRouteMinutesOf(빈것, '후보', 20).minutes).toBeNull();
+            expect(까닭(빈것, 20)).toContain('기점');
         });
 
         it('정거장이 둘도 안 되면 null 이다', () => {
-            expect(offRouteMinutesOf([], '후보', 20, 60)).toBeNull();
+            expect(offRouteMinutesOf([], '후보', 20).minutes).toBeNull();
+            expect(까닭([], 20)).toContain('정거장');
+        });
+
+        /** 🔴 **쟀으면 까닭이 없다** — 까닭이 있으면 서버가 «못 잼» 로그를 찍는다 */
+        it('🔴 제대로 쟀으면 까닭이 null 이다', () => {
+            const { stops, 총 } = 경로([10, 5, 25, 20], ['첫짐상차', '합짐상차', '첫짐하차', '합짐하차']);
+            expect(offRouteMinutesOf(stops, '후보', 총 - 40).why).toBeNull();
         });
     });
 });
@@ -313,8 +336,8 @@ describe('🛣️ 서버가 재는 자리 — 카카오를 더 부르지 않는�
      */
     it('🔴 offRouteMinutesOf 를 불러서 «벗어난 분»을 낸다', () => {
         const s = src();
-        expect(s).toMatch(/offRouteMinutes\s*=\s*offRouteMinutesOf\(/);
-        expect(s).toMatch(/stopsAfter,\s*securedOrder\.id,\s*marginal/);
+        expect(s).toMatch(/offRoute\s*=\s*offRouteMinutesOf\(stopsAfter,\s*securedOrder\.id,\s*marginal\)/);
+        expect(s).toMatch(/offRouteMinutes\s*=\s*offRoute\.minutes/);
     });
 
     /** 🔴 서버 안에서 꼬리를 다시 세지 않는다 — 셈이 두 벌이 되면 갈라진다 */
@@ -334,9 +357,19 @@ describe('🛣️ 서버가 재는 자리 — 카카오를 더 부르지 않는�
         expect(s).not.toMatch(/offRouteMinutes\s*=\s*candPickupDrive/);
     });
 
-    /** 🔴 총주행을 함께 넘긴다 — 그 값으로 자리 맞물림을 확인해 어긋나면 옛 셈으로 떨어진다 */
-    it('🔴 총주행을 함께 넘겨 맞물림을 확인하게 한다', () => {
-        expect(src()).toMatch(/Math\.round\(result\.merged\.duration\s*\/\s*60\)\)/);
+    /**
+     * 🔴 **못 쟀으면 까닭을 로그에 찍는다** — 이 값이 조용히 null 이던 동안 승인받은 꼬리 빼기가
+     *    한 번도 안 도는데 아무도 몰랐다 (실측 판정 다섯 건 · 딱지의 분을 역산해서야 알아냈다).
+     */
+    it('🔴 못 쟀으면 그 까닭을 로그로 남긴다', () => {
+        const s = src();
+        expect(s).toMatch(/offRoute\.why/);
+        expect(s).toMatch(/꼬리 못 잼/);
+    });
+
+    /** 🔴 쟀으면 얼마를 뺐는지도 남긴다 — 다음 주행에서 «돌았나»를 한 줄로 안다 */
+    it('🔴 꼬리를 뺐으면 그 분을 로그로 남긴다', () => {
+        expect(src()).toMatch(/벗어난 분/);
     });
 
     /** 🔴 구간 누적은 병합 경로를 부를 때 **이미 함께 받은** 값이다 — 새 호출이 아니다 */

@@ -60,29 +60,42 @@ export function marginalDetourMin(
  *    삽입»으로 정확히 가를 수 있는 것은 기존 콜의 방문 순서가 안 바뀔 때뿐이다. 순서가 좋아져
  *    짧아지면 덜 깎고(안전), 나빠지면 더 깎는데 그것은 실제로 더 든 시간이다.
  *
- * 🔴 **자리 맞물림이 깨지면 `null` 을 돌려준다** — 규약은 «`driveMinutes[i]` = 그 정거장에
- *    **도착한** 누적»이라 **마지막 원소가 곧 총주행**이다. 그 등식이 깨졌다면 정거장과 주행분이
- *    엇갈린 것이니(`helpers.ts` 의 «주행분이 남의 이름에 붙는다 · #60»), **틀린 꼬리를 빼는 대신
- *    옛 셈으로 떨어진다.** 실경로로 확인하기 전까지 가장 값싼 보험이다 (규칙 ⑤-2).
+ * 🔴 **자리 맞물림은 배열 안에서 스스로 확인한다.** 막으려는 것은 «주행분이 남의 이름에
+ *    붙는 것»이다 (`helpers.ts` 의 #60 — 한 번 일어난 적이 있다). 그것은 배열 자체로 드러난다:
+ *      · `prev`·`last` 둘 다 값이 있나
+ *      · **누적이 단조증가인가** (`prev <= last`) ← 엇갈림이 여기서 드러난다
+ *    🔴 «마지막 누적 = 총주행» 으로 확인하지 않는다 — 그러면 «카카오의 `summary.duration` 과
+ *       `Σ sections[].duration` 이 같다»는 **별개의 가정**을 하나 더 깔게 되고, 그것이 어긋나면
+ *       배열이 멀쩡해도 꼬리가 영영 안 돈다 (실측 — 판정 다섯 건에서 한 번도 값을 못 냈다).
  *
- * @returns 벗어나는 분, 또는 `null`(못 쟀다 — 부르는 쪽이 「돈」에 안 넘겨 옛 셈으로 돈다)
+ * 🔴 **못 잴 때는 까닭을 함께 돌려준다.** 이 함수가 조용히 `null` 만 주던 동안 «값을 못 내고도
+ *    아무도 모르는» 일이 실제로 일어났고, 딱지의 분을 역산해서야 알아냈다. 부르는 쪽이 그
+ *    까닭을 한 줄 찍는다.
+ *
+ * @returns `minutes` — 벗어나는 분. `null` 이면 「돈」에 안 넘겨 옛 셈으로 돈다.
+ *          `why` — `null` 일 때의 까닭 (로그용, 화면에는 안 쓴다)
  */
 export function offRouteMinutesOf(
     stops: ReadonlyArray<{ orderId: string; stopType: 'pickup' | 'dropoff'; driveMinutes: number | null }>,
     candidateId: string,
     marginalMin: number,
-    mergedTotalMin: number,
-): number | null {
-    if (stops.length < 2) return null;
+): { minutes: number | null; why: string | null } {
+    if (stops.length < 2) return { minutes: null, why: `정거장이 ${stops.length}곳뿐이다` };
     const last = stops[stops.length - 1];
     const prev = stops[stops.length - 2];
-    if (last.driveMinutes == null || prev.driveMinutes == null) return null;
-    /* 🔴 마지막 누적이 총주행과 다르면 정거장과 주행분이 엇갈린 것이다 — 옛 셈으로 */
-    if (Math.abs(last.driveMinutes - mergedTotalMin) > 1) return null;
+    if (last.driveMinutes == null || prev.driveMinutes == null) {
+        return { minutes: null, why: '마지막 두 정거장의 누적 주행분이 없다 (기점을 몰랐다)' };
+    }
+    /* 🔴 누적이 거꾸로면 정거장과 주행분이 엇갈린 것이다 — 틀린 꼬리를 빼지 않는다 */
+    if (prev.driveMinutes > last.driveMinutes) {
+        return { minutes: null, why: `누적이 거꾸로다 (${prev.driveMinutes}분 → ${last.driveMinutes}분)` };
+    }
     /* 후보 하차가 마지막이 아니면 뺄 꼬리가 없다 — `marginal` 을 그대로 본다 */
-    if (last.orderId !== candidateId || last.stopType !== 'dropoff') return Math.max(0, marginalMin);
-    const tail = Math.max(0, last.driveMinutes - prev.driveMinutes);
-    return Math.max(0, marginalMin - tail);
+    if (last.orderId !== candidateId || last.stopType !== 'dropoff') {
+        return { minutes: Math.max(0, marginalMin), why: null };
+    }
+    const tail = last.driveMinutes - prev.driveMinutes;
+    return { minutes: Math.max(0, marginalMin - tail), why: null };
 }
 
 /** 로그 한 줄 — `🧪 [dryRun] 🟢 64점 (우회 시급 2.6만/h · 버퍼 최소 +18분) · 딱지: 통화 필수` */

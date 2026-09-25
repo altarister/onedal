@@ -426,9 +426,18 @@ export class OrderEvaluator {
                              *    그것은 운행 동작이 바뀌어 기사님 승인이 필요하다 (`detourDecay.test.ts` 가
                              *    지금 뚫린 자리를 그대로 잠가 두고 있다).
                              */
-                            const offRouteMinutes = offRouteMinutesOf(
-                                stopsAfter, securedOrder.id, marginal,
-                                Math.round(result.merged.duration / 60));
+                            const offRoute = offRouteMinutesOf(stopsAfter, securedOrder.id, marginal);
+                            const offRouteMinutes = offRoute.minutes;
+                            /**
+                             * 🔴 **못 쟀으면 그 까닭을 남긴다** — 이 값이 조용히 `null` 이던 동안
+                             *    «승인받은 꼬리 빼기가 한 번도 안 도는데 아무도 모르는» 일이 실제로
+                             *    일어났고, 딱지의 분을 역산해서야 알아냈다 (실측 판정 다섯 건).
+                             */
+                            if (offRoute.why) {
+                                console.log(`   🛣️ [꼬리 못 잼] 늘어난 주행(${marginal}분)을 그대로 봅니다 — ${offRoute.why}`);
+                            } else if (offRouteMinutes != null && offRouteMinutes !== marginal) {
+                                console.log(`   🛣️ [벗어난 분] ${marginal}분 → ${offRouteMinutes}분 (꼬리 배송 ${marginal - offRouteMinutes}분을 뺐습니다)`);
+                            }
                             /**
                              * 📞 **상차 약속을 못 지키면 통화가 필요하다** — 그 약속은 타임라인이
                              *    이미 만들어 놨다(`promisedUntil`: 통화 > 적요 > 잡은 시각 + 20분).
