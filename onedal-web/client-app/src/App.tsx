@@ -7,7 +7,7 @@ import MapMockup from "./pages/MapMockup";
 import DrawerMockup from "./pages/DrawerMockup";
 import Settlement from "./pages/Settlement";
 import Login from "./pages/Login";
-import { logRoadmapEvent } from "./lib/roadmapLogger";
+import { logRoadmapEvent, startMemoryWatch } from "./lib/roadmapLogger";
 import { useAuth } from "./contexts/AuthContext";
 import { useNativeLocation } from "./hooks/useNativeLocation";
 import { useGpsTelemetry } from "./hooks/useGpsTelemetry";
@@ -83,6 +83,12 @@ function AppLayout() {
 
   useEffect(() => {
     logRoadmapEvent("웹", "1DAL 웹(관제웹) 로그인됨");
+    /**
+     * 🧠 **메모리를 30초마다 남긴다** — 관제웹이 크롬 「Aw, Snap!」으로 죽을 때
+     *    «쌓이다 죽었나, 갑자기 죽었나»를 가르는 유일한 흔적이다. 로그 버퍼가 2초에 한 번
+     *    모아 보내므로 죽기 직전 줄은 사라진다 (`roadmapLogger.startMemoryWatch`).
+     */
+    startMemoryWatch();
   }, []);
 
   return (

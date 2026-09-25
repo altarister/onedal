@@ -120,6 +120,47 @@ export function logRoadmapEvent(platform: "서버" | "웹" | "앱", message: str
 }
 
 /**
+ * 🧠 **관제웹이 쓰는 메모리를 주기적으로 남긴다** (기사님 확정)
+ *
+ * ── 왜 ──
+ * 관제웹이 크롬 「Aw, Snap!」(렌더러 사망)으로 죽는 일이 반복되는데, **죽은 까닭을 못 가린다.**
+ * 위 버퍼가 2초에 한 번 모아 보내므로 **죽기 직전 1~2초의 로그는 보내지 못하고 사라지고**,
+ * 렌더러가 죽으면 콘솔도 함께 사라진다 (실측 14:00:12 — 마지막 줄이 「경로 끝 대기」였고
+ * 그 처리 자체는 깨끗했다).
+ *
+ * 그래서 **죽는 순간이 아니라 죽기까지의 흐름**을 남긴다. 다음에 죽으면 이 줄들로 갈린다:
+ *   · 숫자가 계단처럼 올라가다 끊겼다 → 무언가 쌓인다 (어느 화면에서 오르는지도 보인다)
+ *   · 평평하다가 갑자기 끊겼다 → 쌓이는 것이 아니라 한 번에 터진 것 (큰 배열·렌더 폭주)
+ *
+ * 🔴 **크롬 전용이다** — `performance.memory` 는 표준이 아니라 다른 브라우저에 없다.
+ *    없으면 **조용히 아무것도 안 한다** (지어내지 않는다 · 규칙 ④).
+ * 🔴 **한 번만 걸린다** — 두 번 부르면 타이머가 겹쳐 로그가 두 배로 쌓인다.
+ * ⚠️ 30초에 한 줄이라 서버 로그가 한 시간에 120줄 늘어난다. 까닭을 찾으면 뺀다.
+ */
+const MEMORY_TICK_MS = 30_000;
+let memoryTimer: ReturnType<typeof setInterval> | null = null;
+
+export function startMemoryWatch(): void {
+    if (memoryTimer) return;
+    const mem = () => (performance as unknown as {
+        memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };
+    }).memory;
+    if (!mem()) return;                     // 크롬이 아니다 — 조용히 물러난다
+
+    const record = () => {
+        const m = mem();
+        if (!m) return;
+        const MB = (b: number) => Math.round(b / 1024 / 1024);
+        const pct = Math.round((m.usedJSHeapSize / m.jsHeapSizeLimit) * 100);
+        logRoadmapEvent('웹',
+            `🧠 [메모리] 쓰는 중 ${MB(m.usedJSHeapSize)}MB / 잡아 둔 ${MB(m.totalJSHeapSize)}MB · `
+            + `한계 ${MB(m.jsHeapSizeLimit)}MB (${pct}%)`);
+    };
+    record();                                // 첫 줄은 바로 — 30초를 못 버티고 죽을 수도 있다
+    memoryTimer = setInterval(record, MEMORY_TICK_MS);
+}
+
+/**
  * 📡 **상태가 바뀔 때만 남긴다** — 매초 찍으면 로그가 묻힌다.
  *
  * 관제앱 웹뷰는 초당 여러 번 다시 그린다 — 그리는 횟수를 다 남기면 정작 사건이 안 보인다.
