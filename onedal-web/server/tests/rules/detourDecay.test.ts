@@ -39,9 +39,40 @@ const 시급6만 = (mins: number) => score(60_000 * (mins / 60), mins);
 
 describe('🛣️ 우회 시간 — 길수록 값을 깎는다', () => {
 
-    /** 🔴 이 검사가 생긴 까닭 */
+    /**
+     * 🔴 이 검사가 생긴 까닭
+     *
+     * ⚠️ **이 줄은 `offRouteMinutes` 를 안 넘겨 «옛 길»을 잰다** — 실제 서버 경로에서는 그 값이
+     *    넘어오므로, 지금 뚫린 자리는 바로 아래 검사가 잠근다.
+     */
     it('🔴 우회 235분 15만원은 똥이다 — 그건 가는 길이 아니라 하루를 거는 일이다', () => {
         expect(score(150_000, 235)).toBeLessThan(40);      // color.normalMin
+    });
+
+    /**
+     * 🔴🔴 **지금 뚫린 자리 — 긴 배송이 꼬리면 감쇠가 꺼진다.**
+     *
+     * 꼬리 배송을 빼는 식(`OrderEvaluator`)에서 꼬리는 «후보 자신의 배송 구간»이라,
+     * **배송이 길수록 더 많이 빼게 된다.**
+     *
+     *   오송읍 상차(가는 길 · 삽입 15분) → 아주 먼 하차(배송 220분) · 요금 15만
+     *   marginal 235 · 꼬리 220 · 벗어남 15 → 감쇠 없음 → 시급 3.8만/h → 🔵 71
+     *   (같은 콜이 꼬리를 빼기 전에는 벗어남 235 · 감쇠 30% → 🟡 21 이었다)
+     *
+     * 🔴 **합짐에는 「지리」가 안 붙는다**(「합짐입니다 — 지리는 「돈」이 셉니다»). 꼬리를 빼면서
+     *    뭉툭하게나마 «먼 데로 끌려간다»를 잡던 것이 사라져, **합짐의 방향을 보는 축이 하나도 없다.**
+     *
+     * 막는 길은 「지리」를 합짐에도 켜서 후보 하차의 전진을 배수로 보는 것이고(`destProgressOf` 가
+     * 이미 있다), 그것은 운행 동작이 바뀌어 기사님 승인이 필요하다. 그때까지 이 검사는
+     * **지금 실제로 일어나는 일을 그대로 잠가** 둔다 — 고치면 이 검사가 빨간불로 알려 준다.
+     */
+    it('⚠️ 긴 배송이 꼬리면 감쇠가 안 걸린다 — 승인을 기다리는 구멍이다', () => {
+        const 꼬리빼기전 = MONEY.measure(
+            { fare: 150_000, extraMinutes: 235, firstLoad: false } as MoneyFacts as never, cfg) as { score: number };
+        const 꼬리뺀뒤 = MONEY.measure(
+            { fare: 150_000, extraMinutes: 235, offRouteMinutes: 15, firstLoad: false } as MoneyFacts as never, cfg) as { score: number };
+        expect(꼬리빼기전.score).toBeLessThan(DEFAULT_JUDGMENT.color.normalMin);        // 🟡 — 깎였다
+        expect(꼬리뺀뒤.score).toBeGreaterThan(DEFAULT_JUDGMENT.color.honeyMin);       // 🔵 — 안 깎인다
     });
 
     /** 🔴 수도권에서 1.5시간 합짐은 일상이다 — 실측 117건 중 60~90분이 24건 */
