@@ -172,13 +172,14 @@ export const MONEY = defineCriterion<MoneyFacts>({
          *    묻는다. 눈금을 올리면 짧은 콜까지 함께 깎인다.
          * 🔴 **기회비용(요금 − 보통시급×시간)으로 빼지 않는다** — 눈금을 평행이동할 뿐이라
          *    순위가 그대로이고, 보통 시급 콜이 0점이 된다 (기존 눈금이 이미 그 몫을 담고 있다).
-         * 🔴 **버리지 않는다** (규칙 ①) — 색으로만 말한다.
+         * 🔴 **버리지 않는다** (규칙 ①) — **점수로만** 말한다. 색은 «무엇을 해야 하나»이고
+         *    「보통」은 꿀 아래 전부라, 이 감쇠가 21점까지 눌러도 색은 안 바뀐다 (판정 1단계).
          *
          * 첫짐에는 안 붙인다 — 빈 차에 처음 싣는 시간은 «우회»가 아니라 그 콜 자체다.
          */
         const decayOf = (mins: number): number => {
             const { freeMin, cautionMin, hardMin } = cfg.detour;
-            const dungCut = 0.39;                // 만점 콜도 40점 아래로 (color.normalMin)
+            const dungCut = 0.39;                // 만점 콜도 40점 아래로 — 색은 안 바꾼다, 숫자로만 말한다
             if (mins <= freeMin) return 1;
             const caution = 0.75;               // 주의 한계에서 3/4 — 대박 콜은 🔵 를 지킨다
             if (mins <= cautionMin) return 1 - (1 - caution) * ((mins - freeMin) / Math.max(1, cautionMin - freeMin));

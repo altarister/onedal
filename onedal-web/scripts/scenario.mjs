@@ -552,8 +552,10 @@ async function ledger() {
     /**
      * ② **색과 점수가 서로 맞는가.**
      *
-     * 카드의 색은 점수에서 나온다. 둘이 어긋나면 **화면이 자기모순**이고,
-     * 기사님은 색을 보고 1~2초에 누르시므로 그게 곧 오결재가 된다.
+     * 🔴 **색은 «무엇을 해야 하나»를 말하고 점수는 «얼마짜리인가»를 말한다** (판정 1단계 · 기사님 확정).
+     *    그래서 점수로 맞힐 수 있는 것은 **꿀·보통 경계 하나**다 — 「똥」은 «전화하면 잡는다»(`needsCall`),
+     *    「사고」는 «못 잡는다» 이고 둘 다 점수와 무관하다.
+     *    어긋나면 **화면이 자기모순**이고, 기사님은 색을 보고 1~2초에 누르시므로 그게 곧 오결재가 된다.
      *
      * ⚠️ 판정의 축(운행시간 · 단가)으로 점수를 재현하는 검사는 축이 바뀌면 없어진 칸을 읽어 터진다.
      *    그래서 축이 바뀌어도 참인 것만 본다 — 점수와 색의 관계는 축과 무관하다.
@@ -561,22 +563,23 @@ async function ledger() {
     const ext = row.kakaoTimeExt || '';
     const mScore = /· (\d+)점/.exec(ext);
     const mColor = /'(꿀|보통|똥|사고)'/.exec(ext);
-    if (mScore && mColor && mColor[1] === '사고') {
-        /* 🔴 «사고»는 점수와 무관한 색이다 — 잡으면 안 되는 사실(등 뒤 상차 · 굳힌 약속 깨짐 · 잴 수 없음)이
-           점수를 덮은 것이라 «점수면 이 색» 대조가 성립하지 않는다. 씨앗 DB 의 목적지·위치에 따라
-           첫 콜이 사고가 될 수 있다 (목적지 김포 · 집 주소에서 대전 콜 = 등 뒤 상차). 문구가 색과 점수를
-           함께 적었는지만 본다 */
-        check('첫짐 문구에 색과 점수가 함께 적힌다', true, `사고 — ${mScore[1]}점 (사고는 점수와 무관한 색)`);
+    if (mScore && mColor && (mColor[1] === '사고' || mColor[1] === '똥')) {
+        /* 🔴 «사고»와 «똥»은 점수와 무관한 색이다 — 「사고」는 잡으면 안 되는 사실(등 뒤 상차 · 굳힌 약속
+           깨짐 · 잴 수 없음)이고 「똥」은 «전화하면 잡는다»(`needsCall`)다. 둘 다 점수를 덮은 것이라
+           «점수면 이 색» 대조가 성립하지 않는다. 씨앗 DB 의 목적지·위치에 따라 첫 콜이 그 둘이 될 수 있다
+           (목적지 김포 · 집 주소에서 대전 콜 = 등 뒤 상차). 문구가 색과 점수를 함께 적었는지만 본다 */
+        check('첫짐 문구에 색과 점수가 함께 적힌다', true, `${mColor[1]} — ${mScore[1]}점 (점수와 무관한 색)`);
     } else if (mScore && mColor) {
         const c = new Database(dbPath, { readonly: true });
-        const j = c.prepare(`SELECT color_honey_min AS honey, color_normal_min AS normal
+        const j = c.prepare(`SELECT color_honey_min AS honey
                              FROM user_judgment WHERE user_id = ?`).get(row.userId) || {};
         c.close();
-        const honey = j.honey ?? 70, normal = j.normal ?? 40;
+        const honey = j.honey ?? 70;
         const score = Number(mScore[1]);
-        const expect = score >= honey ? '꿀' : score >= normal ? '보통' : '똥';
+        /* 🔴 경계는 하나다 — 「보통」은 꿀 아래 전부다 (`color_normal_min` 은 색을 만들지 않는다) */
+        const expect = score >= honey ? '꿀' : '보통';
         check('색과 점수가 서로 맞는다', expect === mColor[1],
-            `${score}점이면 '${expect}' 인데 문구는 '${mColor[1]}' (경계 꿀${honey}·보통${normal})`);
+            `${score}점이면 '${expect}' 인데 문구는 '${mColor[1]}' (경계 꿀${honey})`);
     } else {
         check('첫짐 문구에 색과 점수가 함께 적힌다', false, `문구: "${ext}"`);
     }
