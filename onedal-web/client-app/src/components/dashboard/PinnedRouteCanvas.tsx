@@ -271,6 +271,12 @@ function mapBtn(active: boolean, extra = ''): string {
     ].join(' ');
 }
 
+/**
+ * 🔢 **이 화면에 지도가 몇 벌 생겼나** — 위 `mapNo` 가 로그에 붙이는 번호의 원천.
+ *    모듈 하나에 카운터 하나라, 탭을 새로 고치면 1 부터 다시 센다.
+ */
+let canvasCount = 0;
+
 export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candidateHolder, myLocation, myLocationStale, children, rightButtons, centerButtons, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
@@ -309,10 +315,15 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
      * 🔎 **지도가 실제로 그리는 상차 · 하차 모양 — 바뀔 때만 한 줄**.
      *    관제웹 콘솔은 서버 로그로 넘어간다(`roadmapLogger` · `[🖥️콘솔]`) — 서버 `🔵 [하차 목록]` · `📋 [상차 목록]` 줄과 나란히 대조한다.
      *    🔴 좌표는 안 싣는다 — 내 위치가 매초 바뀌어 줄이 매초 찍힌다. 모양 · 반지름 · 조각 수 · 레이어 켬만.
+     *
+     * 🔴 **거리는 정수 km 다** — `toFixed(1)` 이던 자리다. 그 한 자리가 «좌표를 안 싣는다»를
+     *    스스로 깨고 있었다: 100m 마다 문장이 달라져 주행 중 매초 찍혔고, 하루에 945줄이 쌓였다
+     *    (실측 — 한 초에 아홉 줄까지 갔다). 자동 반경은 그날 첫짐에 한 번 정해지고 위치가 바뀐다고
+     *    다시 줄지 않으니, 이 값을 100m 단위로 볼 까닭도 없다.
      */
     const areaSummary = [
         `상차 ${pickupArea
-            ? `${['원', pickupArea.line && '라인(현위치부터)', pickupArea.goals.length ? `목적지원×${pickupArea.goals.length}` : ''].filter(Boolean).join('∩')} ${pickupArea.meKm.toFixed(1)}km`
+            ? `${['원', pickupArea.line && '라인(현위치부터)', pickupArea.goals.length ? `목적지원×${pickupArea.goals.length}` : ''].filter(Boolean).join('∩')} ${Math.round(pickupArea.meKm)}km`
             : '없음'}`,
         `하차 ${dropoffArea
             ? `먼 원 ${dropoffArea.circles.length} · 가까이 원 ${dropoffArea.nearCircles.length} · 마름모 ${dropoffArea.quads.length} · 띠 ${dropoffArea.lines.length}${pickupArea ? ' · 상차 영역 지움' : ''}`
@@ -320,9 +331,19 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
         `점 ${dongDots ? `상차 ${dongDots.pickup.length + dongDots.both.length} · 하차 ${dongDots.dropoff.length + dongDots.both.length}${dongDots.missing ? ` · 좌표 모름 ${dongDots.missing}` : ''}` : '없음'}`,
         `레이어 상차 ${layers.pickup ? '켬' : '끔'} · 하차 ${layers.dropoff ? '켬' : '끔'} · 동 점 ${layers.dots ? '켬' : '끔'}`,
     ].join(' | ');
+    /**
+     * 🔢 **이 지도가 몇 번째로 생긴 것인가** — 로그에 붙여 «두 벌인가, 한 벌이 두 번 도는가»를 가른다.
+     *
+     * 같은 문장이 정확히 두 번씩 찍히는 것을 실측했는데(02:42 — 값마다 2줄), 로그만으로는
+     * 까닭을 못 갈랐다: 관제웹 로그의 기기 이름이 둘 다 «관제웹»이라 **탭이 두 개 열린 것**인지
+     * **한 벌이 두 번 도는 것**인지 구별이 안 된다. 번호가 붙으면 다음 주행에서 갈린다 —
+     * `#1` 과 `#2` 가 나란히 나오면 지도가 두 벌이고(캔버스도 두 벌이라 메모리가 두 배),
+     * `#1` 만 두 번 나오면 그리는 횟수가 두 번이다.
+     */
+    const [mapNo] = React.useState(() => ++canvasCount);
     React.useEffect(() => {
-        console.log(`🗺️ [지도 영역] ${areaSummary}`);
-    }, [areaSummary]);
+        console.log(`🗺️ [지도 영역 #${mapNo}] ${areaSummary}`);
+    }, [areaSummary, mapNo]);
     /* 🧅 지금 보기의 레이어 하나만 바꾼다 — 다른 보기는 그대로다 (`setLayerInView`). 저장은 보기별 한 벌을 통째로 */
     const toggleLayer = (k: string) => setLayersByView(prev => {
         const next = setLayerInView(prev, viewMode, k, !prev[viewMode][k]);
