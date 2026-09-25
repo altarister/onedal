@@ -62,9 +62,23 @@ describe('🧭 못 쟀으면 까닭을 적는다 — 지어내지 않는다', ()
         expect(r.unknownWhy).toContain('목적지 반경');
     });
 
-    it('상차지와 하차지가 같은 자리일 때', () => {
-        expect(destProgressOf({ ...기본, me: { x: 대치4동.lng, y: 대치4동.lat } }).unknownWhy)
-            .toBe('상차지와 하차지가 같은 자리입니다');
+    /**
+     * 🔴 **조금만 움직이는 콜은 방향을 안 본다** (기사님 확정 «나»).
+     *    전진율의 분모가 «움직인 거리»라 짧으면 ±1 을 널뜬다 — 관내 2km 배송이 방향만 살짝
+     *    틀어져도 배수 ×0.50 으로 점수가 반토막이 된다. 같은 자리(0km)도 이 갈래로 떨어진다.
+     *    🔴 새 값을 만들지 않고 목적지 도착 반경(`DEST_ARRIVED_RADIUS_KM`)을 그대로 쓴다.
+     */
+    it('조금만 움직이면 안 잰다 — 같은 자리도 이 갈래다', () => {
+        const 같은자리 = destProgressOf({ ...기본, me: { x: 대치4동.lng, y: 대치4동.lat } });
+        expect(같은자리.ratio).toBeNull();
+        expect(같은자리.unknownWhy).toContain('안 움직입니다');
+    });
+
+    it('🔴 도착 반경만큼도 안 움직이면 방향을 안 본다', () => {
+        /* 대치4동에서 2km — 3km 문턱 안이라 방향을 논하지 않는다 */
+        const 가까이 = { x: 대치4동.lng + 0.02, y: 대치4동.lat };
+        expect(destProgressOf({ ...기본, dropoff: 가까이, me: { x: 대치4동.lng, y: 대치4동.lat } }).ratio)
+            .toBeNull();
     });
 });
 

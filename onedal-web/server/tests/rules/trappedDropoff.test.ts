@@ -71,10 +71,18 @@ describe('🏔️ 갇힘 지역 — 첫짐의 탈출력', () => {
         expect(배수({ trapped: null })).toBe(배수({ trapped: false }));
     });
 
-    /** 🔴 합짐은 이 배수를 안 본다 — 한계 우회가 이미 센다 (규칙 ③) */
-    it('🔴 합짐의 지리는 그대로 «잴 게 없다» 다', () => {
-        const out = GEOGRAPHY.measure({ firstLoad: false, progressRatio: null, trapped: true } as never, cfg);
-        expect(out.kind).toBe('nothing');
+    /**
+     * 🔴 **합짐도 갇힘을 본다** (기사님 확정 «나»). 옛 규칙은 «한계 우회가 이미 센다» 였는데,
+     *    「돈」이 «길을 벗어나는 분»만 보게 되면서 갇힘도 방향도 안 보게 됐다. 갇힘을 보는
+     *    다른 축이 없으니 합짐에도 붙인다 — 빼면 「합짐일 때는 갇힘을 안 본다」는 칸이 생긴다.
+     */
+    it('🔴 합짐도 갇힘 배수를 받는다', () => {
+        const 갇힘 = GEOGRAPHY.measure({ firstLoad: false, progressRatio: 0.9, trapped: true } as never, cfg);
+        const 안갇힘 = GEOGRAPHY.measure({ firstLoad: false, progressRatio: 0.9, trapped: false } as never, cfg);
+        expect(갇힘.kind).toBe('scored');
+        if (갇힘.kind === 'scored' && 안갇힘.kind === 'scored') {
+            expect(갇힘.multiplier!).toBeLessThan(안갇힘.multiplier!);
+        }
     });
 
     it('🔴 버리지 않는다 — 색으로만 말한다 (규칙 ①)', () => {

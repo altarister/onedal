@@ -184,13 +184,19 @@ describe('🧭 지리는 첫짐의 배수다 — 평균에 섞이지 않는다',
         expect(DEFAULT_JUDGMENT.weights.geography).toBeGreaterThan(0);
     });
 
-    it('🔴 합짐에서는 «잴 게 없다» — 그쪽 지리는 「돈」(우회 시급)이 이미 센다', () => {
-        const 지리줄 = judge(CRITERIA, 좋은합짐(), cfg()).criteria.find(c => c.key === 'geography')!;
+    /**
+     * 🔴 **합짐도 방향을 본다** (기사님 확정 «나»). 옛 규칙은 «그쪽 지리는 「돈」이 센다» 였는데,
+     *    「돈」이 «길을 벗어나는 분»만 보게 되면서 배송 방향을 아무도 안 보게 됐다.
+     *    🔴 전진율을 **안 넘기면** 배수 1.0 이라 색을 안 덮는다 — 그것도 아래에서 잠근다.
+     */
+    it('🔴 합짐도 지리가 점수를 낸다 — 전진율을 실어 주면', () => {
+        const f = { ...좋은합짐(), geography: { firstLoad: false, progressRatio: 0.9, unknownWhy: null } } as JudgeFacts;
+        const 지리줄 = judge(CRITERIA, f, cfg()).criteria.find(c => c.key === 'geography')!;
         expect(지리줄.name).toBe('지리');
-        expect(지리줄.outcome.kind).toBe('nothing');
+        expect(지리줄.outcome.kind).toBe('scored');
     });
 
-    it('🔴 그래서 합짐 총점에는 지리가 안 섞인다 — 켜도 꺼도 같은 점수', () => {
+    it('🔴 전진율을 안 넘긴 합짐은 켜도 꺼도 같은 점수다 — 배수 1.0', () => {
         expect(judge(CRITERIA, 좋은합짐(), cfg({ geography: 1 })).score)
             .toBe(judge(CRITERIA, 좋은합짐(), cfg({ geography: 0 })).score);
     });

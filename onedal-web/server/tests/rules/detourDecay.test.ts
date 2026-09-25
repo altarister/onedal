@@ -50,29 +50,29 @@ describe('🛣️ 우회 시간 — 길수록 값을 깎는다', () => {
     });
 
     /**
-     * 🔴🔴 **지금 뚫린 자리 — 긴 배송이 꼬리면 감쇠가 꺼진다.**
+     * 🔴 **뚫렸던 자리 — 「지리」가 막았다** (기사님 확정 «나»).
      *
-     * 꼬리 배송을 빼는 식(`OrderEvaluator`)에서 꼬리는 «후보 자신의 배송 구간»이라,
-     * **배송이 길수록 더 많이 빼게 된다.**
-     *
+     * 꼬리 배송을 빼는 식에서 꼬리는 «후보 자신의 배송 구간»이라 **배송이 길수록 더 많이 뺀다**:
      *   오송읍 상차(가는 길 · 삽입 15분) → 아주 먼 하차(배송 220분) · 요금 15만
      *   marginal 235 · 꼬리 220 · 벗어남 15 → 감쇠 없음 → 시급 3.8만/h → 🔵 71
-     *   (같은 콜이 꼬리를 빼기 전에는 벗어남 235 · 감쇠 30% → 🟡 21 이었다)
+     * 그래서 **목적지 쪽 220분과 반대쪽 220분이 같은 점수**였다 — 「돈」은 방향을 모른다.
      *
-     * 🔴 **합짐에는 「지리」가 안 붙는다**(「합짐입니다 — 지리는 「돈」이 셉니다»). 꼬리를 빼면서
-     *    뭉툭하게나마 «먼 데로 끌려간다»를 잡던 것이 사라져, **합짐의 방향을 보는 축이 하나도 없다.**
+     * 이제 「지리」가 합짐에도 붙어 방향을 배수로 본다 (`destBonus.test.ts` 의 「합짐도 방향을
+     * 본다」). 실측 검산 — 돈 71 · 배수 max 1.0 · min 0.5 · 기사님 DB(무감점 60):
+     *   목적지 쪽 +1 → ×1.00 → 71 🔵     (가는 길의 긴 배송은 그대로 통과한다)
+     *   옆으로   0 → ×0.75 → 63 🟢
+     *   반대쪽  −1 → ×0.50 → 42 🟢     (먼 데로 끌려가는 합짐만 내려온다)
      *
-     * 막는 길은 「지리」를 합짐에도 켜서 후보 하차의 전진을 배수로 보는 것이고(`destProgressOf` 가
-     * 이미 있다), 그것은 운행 동작이 바뀌어 기사님 승인이 필요하다. 그때까지 이 검사는
-     * **지금 실제로 일어나는 일을 그대로 잠가** 둔다 — 고치면 이 검사가 빨간불로 알려 준다.
+     * 🔴 아래 두 줄은 **「돈」만 놓고 보면 여전히 안 깎인다**는 사실을 잠근다 — 그것이
+     *    「지리」가 필요한 까닭이고, 이 검사가 빨간불이 되면 「돈」이 방향을 다시 세는 것이다.
      */
-    it('⚠️ 긴 배송이 꼬리면 감쇠가 안 걸린다 — 승인을 기다리는 구멍이다', () => {
+    it('🔴 「돈」만으로는 긴 배송이 꼬리면 안 깎인다 — 그래서 「지리」가 방향을 본다', () => {
         const 꼬리빼기전 = MONEY.measure(
             { fare: 150_000, extraMinutes: 235, firstLoad: false } as MoneyFacts as never, cfg) as { score: number };
         const 꼬리뺀뒤 = MONEY.measure(
             { fare: 150_000, extraMinutes: 235, offRouteMinutes: 15, firstLoad: false } as MoneyFacts as never, cfg) as { score: number };
-        expect(꼬리빼기전.score).toBeLessThan(DEFAULT_JUDGMENT.color.normalMin);        // 🟡 — 깎였다
-        expect(꼬리뺀뒤.score).toBeGreaterThan(DEFAULT_JUDGMENT.color.honeyMin);       // 🔵 — 안 깎인다
+        expect(꼬리빼기전.score).toBeLessThan(DEFAULT_JUDGMENT.color.normalMin);
+        expect(꼬리뺀뒤.score).toBeGreaterThan(DEFAULT_JUDGMENT.color.honeyMin);
     });
 
     /** 🔴 수도권에서 1.5시간 합짐은 일상이다 — 실측 117건 중 60~90분이 24건 */

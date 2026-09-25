@@ -137,28 +137,65 @@ describe('🧭 못 쟀으면 배수 1.0 이다 — 불리하게 밀지 않는다
     });
 });
 
-describe('🧭 합짐에는 배수를 붙이지 않는다 — 우회 시급이 이미 센다', () => {
+/**
+ * 🧭 **합짐도 방향을 본다** (기사님 확정 · 2026-09-25 이전에는 안 봤다)
+ *
+ * 옛 규칙은 «합짐에는 배수를 붙이지 않는다 — 우회 시급이 이미 센다» 였다.
+ * 🔴 **그 전제가 깨졌다** — 「돈」의 우회 감쇠가 «길을 벗어나는 분»만 보게 되면서
+ *    (`offRouteMinutesOf` · 꼬리 배송을 뺀다) 배송이 어느 쪽으로 가든 「돈」은 모른다:
+ *
+ *    오송읍 상차(가는 길) → 아주 먼 하차(배송 220분) · 요금 15만 → 시급 3.8만/h
+ *    목적지 쪽이든 반대쪽이든 **같은 🔵 71** 이었다 — 방향을 보는 축이 하나도 없었다.
+ *
+ * 🔴 **기점이 콜마다 다르다** — 축은 하나이고 기점은 «그 콜이 시작되는 자리»다:
+ *    빈 차면 지금 서 있는 곳, 합짐이면 잡아 둔 콜을 다 내린 곳(꼬리의 시작).
+ *    재는 곳은 서버 하나다 (`destProgressOf`).
+ */
+describe('🧭 합짐도 방향을 본다 — 기점은 잡아 둔 콜을 다 내린 곳', () => {
 
-    it('🔴 합짐의 지리는 «잴 게 없다»다 (전진율을 실어 줘도)', () => {
-        expect(지리줄(합짐(0.95)).outcome.kind).toBe('nothing');
+    it('🔴 전진율을 실어 주면 합짐도 배수가 붙는다', () => {
+        expect(지리줄(합짐(0.95)).outcome.kind).toBe('scored');
+    });
+
+    /** 🔴 방향이 다르면 점수가 갈린다 — 이것이 이 기준을 켠 까닭이다 */
+    it('🔴 목적지 쪽 합짐과 반대쪽 합짐의 점수가 갈린다', () => {
+        expect(본다(합짐(1)).score!).toBeGreaterThan(본다(합짐(-1)).score!);
     });
 
     /**
-     * 🔴 **까닭이 화면에 거짓말을 하면 안 된다** — 합짐인데 «전진율을 안 받았습니다» 라고 적히면
-     *    기사님이 «재료가 빠졌나»로 읽는다. 합짐은 원래 안 재는 것이다 — 우회 시급이 이미 센다.
+     * 🔴 **못 쟀으면 배수 ×1.0 이고 색이 🔴 가 되지 않는다.** 합짐에서는 목적지 미설정·좌표
+     *    미확인이 첫짐보다 훨씬 흔하다 — `unmeasurable` 로 새면 목적지 없는 날 **모든 합짐이
+     *    사고색**이 된다.
      */
-    it('🔴 합짐이면 «합짐이라 안 잰다»고 적는다 — 사실을 채우는 쪽이 국면을 실어 준다', () => {
+    it('🔴 전진율을 안 넘기면 배수 1.0 이고 🔴 가 아니다', () => {
         const f = mergeFacts({
             fare: 30_000, extraMinutes: 60, bufferAfterMin: 60, freePct: 100,
             conflicts: [], excludedHits: [], lateStops: [], phase: 'merge' as const, tags: [],
         });
-        const 줄 = judge(CRITERIA, f, cfg()).criteria.find(c => c.key === 'geography')!;
-        expect(줄.outcome.why).toContain('합짐');
-        expect(줄.outcome.why).not.toContain('안 받았');
+        const v = judge(CRITERIA, f, cfg());
+        expect(v.color).not.toBe('사고');
+        expect(지리줄(f as never).outcome.kind).toBe('scored');
+        expect(judge(CRITERIA, f, cfg()).criteria.find(c => c.key === 'geography')!.outcome.why)
+            .toContain('배수 ×1.0');
     });
 
-    it('🔴 그래서 합짐 점수는 돈 그대로다 — 3만/h → 50점', () => {
-        expect(본다(합짐(0.95)).score).toBe(50);
+    /** 🔴 등 뒤 상차는 합짐에 안 싣는다 — 「돈」의 «벗어나는 분»이 그대로 센다 (규칙 ③) */
+    it('🔴 합짐 사실에는 등 뒤 상차가 없다', () => {
+        const f = mergeFacts({
+            fare: 30_000, extraMinutes: 60, bufferAfterMin: 60, freePct: 100,
+            conflicts: [], excludedHits: [], lateStops: [], phase: 'merge' as const, tags: [],
+        });
+        expect(f.geography!.pickupBackward ?? null).toBeNull();
+    });
+
+    /** 🔴 갇힘은 합짐에도 본다 — 다른 축은 갇힘을 아무도 안 본다 */
+    it('🔴 합짐 사실에 갇힘 칸이 실린다', () => {
+        const f = mergeFacts({
+            fare: 30_000, extraMinutes: 60, bufferAfterMin: 60, freePct: 100,
+            trapped: true,
+            conflicts: [], excludedHits: [], lateStops: [], phase: 'merge' as const, tags: [],
+        });
+        expect(f.geography!.trapped).toBe(true);
     });
 });
 

@@ -1,7 +1,7 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
          deriveRouteTimeline, minRouteBuffer, marginalDetourMin, offRouteMinutesOf,
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
-         soloMinutesOf, derivationInputsOf, nearestDong } from "@onedal/shared";
+         soloMinutesOf, derivationInputsOf, nearestDong, lastDropOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
@@ -464,12 +464,23 @@ export class OrderEvaluator {
                              * 🔴 **모르면 모른다고 적는다** — 정거장 순서를 못 받으면 `late` 가 비어 위 관문이 «통과»가 된다.
                              *    모르는 것이 «약속 보존»으로 읽히면 안 된다. 점수는 안 건드리고 딱지만 붙인다 (규칙 ⑤-2).
                              */
-                            /* ☎️ 정거장의 동 이름 — 늦으면 «전화할 곳»이다 (전수표 #42). 좌표를 모르면 null (지어내지 않는다) */
-                            const placeOf = (orderId: string, stopType: 'pickup' | 'dropoff') => {
+                            /**
+                             * 📍 **정거장의 좌표 — 콜 번호와 상차/하차로 찾는다.**
+                             *    정거장 목록(`stopsAfter`)은 «어느 콜의 어느 쪽인가»만 들고 있어, 좌표는
+                             *    여기서 꺼낸다. 🔴 **이 한 곳에서만 꺼낸다** (규칙 ③) — 동 이름도 방향도
+                             *    같은 좌표를 쓴다. 두 벌이면 «화면은 이 동인데 방향은 저 동으로 잰» 일이 난다.
+                             *    좌표를 모르면 `null` — 부르는 쪽이 그때 안 넘긴다 (지어내지 않는다).
+                             */
+                            const coordOf = (orderId: string, stopType: 'pickup' | 'dropoff') => {
                                 const o = activeCalls.find(c => c.id === orderId) as any;
                                 const x = stopType === 'pickup' ? o?.pickupX : o?.dropoffX;
                                 const y = stopType === 'pickup' ? o?.pickupY : o?.dropoffY;
-                                return Number.isFinite(x) && Number.isFinite(y) ? nearestDong({ lng: x, lat: y }).name : null;
+                                return Number.isFinite(x) && Number.isFinite(y) ? { x: x as number, y: y as number } : null;
+                            };
+                            /* ☎️ 정거장의 동 이름 — 늦으면 «전화할 곳»이다 (전수표 #42). 좌표를 모르면 null */
+                            const placeOf = (orderId: string, stopType: 'pickup' | 'dropoff') => {
+                                const c = coordOf(orderId, stopType);
+                                return c ? nearestDong({ lng: c.x, lat: c.y }).name : null;
                             };
                             const stopsView = existing.map(e => ({
                                 name: `${nameOf(e.orderId)} ${e.stopType === 'pickup' ? '상차' : '하차'}`,
@@ -538,6 +549,40 @@ export class OrderEvaluator {
                                 /** 📦 그 적재량을 어떻게 알았나 — 확정값일 때만 색을 덮는다 */
                                 confidence: session.activeFilter.capacityConfidence ?? null,
                                 conflicts, excludedHits, lateStops,
+                                /**
+                                 * 🧭 **합짐도 방향을 본다 — 기점은 «잡아 둔 콜을 다 내린 곳»이다** (기사님 확정).
+                                 *
+                                 * 후보 하차지가 목적지 쪽인가 반대쪽인가를 배수로 본다. 「돈」의 우회 감쇠가
+                                 * «길을 벗어나는 분»만 보게 되면서(`offRouteMinutesOf`) 배송 방향을 아무도
+                                 * 안 보게 됐다 — 목적지 쪽 220분과 반대쪽 220분이 같은 🔵 71 이었다.
+                                 *
+                                 * 🔴 **현위치로 재지 않는다** — 후보 하차지는 잡아 둔 콜을 다 내린 **다음**에
+                                 *    가는 곳이라, 현위치에서 재면 이미 잡은 콜의 방향이 섞인다. 그 자리는
+                                 *    꼬리의 시작(마지막 직전 정거장)이고, 좌표는 `coordOf` 한 곳에서 꺼낸다.
+                                 * 🔴 **좌표를 못 구하면 안 넘긴다** — 배수 ×1.0 으로 조용히 떨어진다 (규칙 ⑤-2).
+                                 * 🔴 **목적지 반경을 안 넘긴다** — 첫짐은 3km 안이면 방향을 안 보지만(도착했으니
+                                 *    전진할 것이 없다), 합짐은 «다 와 가는데 반대편으로 끌려가는» 자리가 제일
+                                 *    아프다 (기사님 «나»). 짧은 이동 가드는 `destProgressOf` 안에 있다.
+                                 */
+                                progress: (() => {
+                                    const from = offRoute.tailFrom
+                                        ? coordOf(offRoute.tailFrom.orderId, offRoute.tailFrom.stopType)
+                                        : lastDropOf({
+                                            isHome: false, homeOn: false, homeCity: null,
+                                            stops: stopsAfter, calls: activeCalls as any,
+                                        });
+                                    return from ? destProgressOf({
+                                        me: from,
+                                        dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
+                                        goalCity: goalCityOf(session, userId),
+                                    }) : undefined;
+                                })(),
+                                /**
+                                 * 🏔️ **갇힘은 합짐에도 본다** — 하차 좌표만 보는 판단이라 첫짐·합짐과 무관하고
+                                 *    (`isTrappedRegion`), 다른 축은 갇힘을 아무도 안 본다. 빼면 「합짐일 때는
+                                 *    갇힘을 안 본다」는 칸이 새로 생긴다.
+                                 */
+                                trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
                                 // 🏗️ 정차 중(모으는 중) ↔ 주행 중 — 가르는 곳은 `resolvePhaseKey` 하나다
                                 phase: resolvePhaseKey(session.activeFilter.callTarget, session.activeFilter.dispatchPhase),
                                 tags,

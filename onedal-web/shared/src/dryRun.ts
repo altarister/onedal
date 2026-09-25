@@ -74,28 +74,40 @@ export function marginalDetourMin(
  *
  * @returns `minutes` — 벗어나는 분. `null` 이면 「돈」에 안 넘겨 옛 셈으로 돈다.
  *          `why` — `null` 일 때의 까닭 (로그용, 화면에는 안 쓴다)
+ *          `tailFrom` — **꼬리가 시작되는 정거장** (마지막 직전). 「지리」가 합짐의 방향을 잴 때
+ *          그 자리를 기점으로 쓴다 — «잡아 둔 콜을 다 내린 곳»이 바로 거기다.
+ *          🔴 그 판단을 부르는 쪽에서 다시 하지 않게 여기서 함께 돌려준다 (규칙 ③) —
+ *          «마지막이 후보 하차인가»를 두 곳에서 물으면 한쪽만 고쳐져 어긋난다.
  */
 export function offRouteMinutesOf(
     stops: ReadonlyArray<{ orderId: string; stopType: 'pickup' | 'dropoff'; driveMinutes: number | null }>,
     candidateId: string,
     marginalMin: number,
-): { minutes: number | null; why: string | null } {
-    if (stops.length < 2) return { minutes: null, why: `정거장이 ${stops.length}곳뿐이다` };
+): {
+    minutes: number | null;
+    why: string | null;
+    tailFrom: { orderId: string; stopType: 'pickup' | 'dropoff' } | null;
+} {
+    if (stops.length < 2) return { minutes: null, why: `정거장이 ${stops.length}곳뿐이다`, tailFrom: null };
     const last = stops[stops.length - 1];
     const prev = stops[stops.length - 2];
     if (last.driveMinutes == null || prev.driveMinutes == null) {
-        return { minutes: null, why: '마지막 두 정거장의 누적 주행분이 없다 (기점을 몰랐다)' };
+        return { minutes: null, why: '마지막 두 정거장의 누적 주행분이 없다 (기점을 몰랐다)', tailFrom: null };
     }
     /* 🔴 누적이 거꾸로면 정거장과 주행분이 엇갈린 것이다 — 틀린 꼬리를 빼지 않는다 */
     if (prev.driveMinutes > last.driveMinutes) {
-        return { minutes: null, why: `누적이 거꾸로다 (${prev.driveMinutes}분 → ${last.driveMinutes}분)` };
+        return { minutes: null, why: `누적이 거꾸로다 (${prev.driveMinutes}분 → ${last.driveMinutes}분)`, tailFrom: null };
     }
-    /* 후보 하차가 마지막이 아니면 뺄 꼬리가 없다 — `marginal` 을 그대로 본다 */
+    /* 후보 하차가 마지막이 아니면 뺄 꼬리가 없다 — `marginal` 을 그대로 보고, 기점도 없다 */
     if (last.orderId !== candidateId || last.stopType !== 'dropoff') {
-        return { minutes: Math.max(0, marginalMin), why: null };
+        return { minutes: Math.max(0, marginalMin), why: null, tailFrom: null };
     }
     const tail = last.driveMinutes - prev.driveMinutes;
-    return { minutes: Math.max(0, marginalMin - tail), why: null };
+    return {
+        minutes: Math.max(0, marginalMin - tail),
+        why: null,
+        tailFrom: { orderId: prev.orderId, stopType: prev.stopType },
+    };
 }
 
 /** 로그 한 줄 — `🧪 [dryRun] 🟢 64점 (우회 시급 2.6만/h · 버퍼 최소 +18분) · 딱지: 통화 필수` */

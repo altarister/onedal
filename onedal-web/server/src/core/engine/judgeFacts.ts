@@ -162,6 +162,21 @@ export function destProgressOf(input: {
     if (radiusKm > 0 && haversineKm(me, goal) <= radiusKm) return no(`목적지 반경 ${radiusKm}km 안입니다`);
 
     const drop = { lng: input.dropoff.x, lat: input.dropoff.y };
+    /**
+     * 🔴 **조금만 움직이는 콜은 방향을 안 본다** (기사님 확정).
+     *
+     * 전진율의 분모는 «움직인 거리»(`destProgressRatio` 의 `moveKm`)다. 그래서 **짧으면
+     * ±1 사이를 널뛴다** — 관내 2km 배송이 방향만 살짝 틀어져도 전진율 −1 → 배수 ×0.50 →
+     * 점수가 반토막이 된다. 가는 길에 하나 끼우는 합짐에서 그 «짧은 이동»이 가장 흔하다.
+     *
+     * 🔴 **새 값을 만들지 않는다** — 목적지 도착 반경(`DEST_ARRIVED_RADIUS_KM`)을
+     *    «이만큼 안 움직이면 방향이 없다»로 그대로 쓴다. 첫짐은 상차→하차라 보통 이보다 길어
+     *    이 문제가 안 보였지만, 관내 초단거리 첫짐에도 같은 수학이 걸리므로 **함께** 적용한다.
+     */
+    const moveKm = haversineKm(me, drop);
+    if (moveKm < DEST_ARRIVED_RADIUS_KM) {
+        return no(`${moveKm.toFixed(1)}km 밖에 안 움직입니다 — 방향을 논할 거리가 아닙니다`);
+    }
     const ratio = destProgressRatio(me, drop, goal);
     // 🛫 나누기 **전의** 값 — 전진율은 이걸 움직인 거리로 나눠 «얼마나»를 잃는다 (규칙 ③)
     const awayKm = -destGainKm(me, drop, goal);
@@ -216,6 +231,14 @@ export function mergeFacts(input: {
      *    안 실어 주면 「돈」이 `extraMinutes` 를 그대로 본다 (되돌리는 길).
      */
     offRouteMinutes?: number | null;
+    /**
+     * 🧭 **후보 하차지의 전진율** — 「지리」가 배수로 바꾼다. 기점은 «잡아 둔 콜을 다 내린 곳»이다.
+     *    잰 곳은 `destProgressOf` 하나다 (여기서 다시 재지 않는다 · 규칙 ③).
+     *    안 실어 주면 배수 ×1.0 — 깎지 않는다 (규칙 ⑤-2).
+     */
+    progress?: { ratio: number | null; unknownWhy: string | null; awayKm?: number | null };
+    /** 🏔️ 하차지가 «못 빠져나오는 곳»인가 — 잰 곳은 `isTrappedRegion` 하나다. 못 쟀으면 `null` */
+    trapped?: boolean | null;
     /** ☎️ 전화해 약속을 미뤄야 할 기존 콜 정거장 수 — 세는 곳은 부르는 쪽 하나다 (shared `CallsFacts`) */
     callsToMake?: number | null;
     /** 붙인 뒤 남는 가장 빠듯한 여유(분). 잴 약속이 없으면 null */
@@ -259,11 +282,22 @@ export function mergeFacts(input: {
         space: { freePct: input.freePct, hasLoad: true, confidence: input.confidence ?? null },
         nature: { conflicts: input.conflicts, excludedHits: input.excludedHits, hasLoad: true },
         /**
-         * 🧭 **국면을 실어 준다 — 배수는 안 붙지만 까닭은 사실대로 적혀야 한다.**
-         *    안 실으면 「지리」가 «전진율을 안 받았습니다» 라고 적어, 합짐인데 «재료가 빠졌나»로 읽힌다.
-         *    합짐의 지리는 원래 안 재는 것이다 — 우회 시급이 이미 센다.
+         * 🧭 **합짐도 방향을 본다** (기사님 확정). 전에는 `progressRatio: null` 로 아예 안 봤고,
+         *    까닭은 «합짐의 방향은 「돈」의 한계 우회가 센다» 였다. **그 전제가 깨졌다** — 「돈」이
+         *    «길을 벗어나는 분»만 보게 되면서(`offRouteMinutesOf`) 배송이 목적지 쪽으로 220분 가든
+         *    반대쪽으로 220분 가든 모른다. 그러면 합짐의 방향을 보는 축이 하나도 없다.
+         *
+         * 🔴 **등 뒤 상차는 안 싣는다** — 합짐의 상차지에 들르는 비용은 「돈」의 «벗어나는 분»이
+         *    그대로 센다 (같은 사실을 두 번 세지 않는다 · 규칙 ③).
+         * 🔴 **못 쟀으면 배수 ×1.0** — 목적지를 안 정하셨거나 좌표를 못 구한 것뿐이다 (규칙 ⑤-2).
          */
-        geography: { firstLoad: false, progressRatio: null },
+        geography: {
+            firstLoad: false,
+            progressRatio: input.progress?.ratio ?? null,
+            unknownWhy: input.progress?.unknownWhy ?? '전진율을 안 넘겼습니다',
+            awayKm: input.progress?.awayKm ?? null,
+            trapped: input.trapped ?? null,
+        },
         // 🏗️ 잰 쪽이 «어느 국면으로 쟀는지» 말한다 — 이름은 `PHASE_LABEL` 이 원천이다
         notes: [PHASE_LABEL[input.phase], ...input.tags],
     };

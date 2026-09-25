@@ -85,9 +85,17 @@ describe('🛫 첫짐 — 멀어진 거리를 본다', () => {
         expect(out.why).toMatch(/멀어/);
     });
 
-    it('🔴 합짐은 안 본다 — 한계 우회가 이미 센다 (규칙 ③)', () => {
-        const out = GEOGRAPHY.measure({ firstLoad: false, progressRatio: null, awayKm: 300 } as never, cfg);
-        expect(out.kind).toBe('nothing');
+    /**
+     * 🔴 **합짐도 본다** (기사님 확정 «나»). 「돈」이 «길을 벗어나는 분»만 보게 되면서
+     *    배송이 어느 쪽으로 가든 모르게 됐다 — 방향을 보는 축이 하나도 없었다.
+     */
+    it('🔴 합짐도 멀어진 거리를 본다', () => {
+        const 멀리 = GEOGRAPHY.measure({ firstLoad: false, progressRatio: -1, awayKm: 300 } as never, cfg);
+        const 가까이 = GEOGRAPHY.measure({ firstLoad: false, progressRatio: -1, awayKm: 0 } as never, cfg);
+        expect(멀리.kind).toBe('scored');
+        if (멀리.kind === 'scored' && 가까이.kind === 'scored') {
+            expect(멀리.multiplier!).toBeLessThan(가까이.multiplier!);
+        }
     });
 
     /** 두 자리를 기사님이 판정 기준 탭에서 움직인다 (규칙 ⑤-4) */
