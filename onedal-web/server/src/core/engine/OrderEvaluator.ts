@@ -32,11 +32,27 @@ import { promoteDetailAddresses } from "../../utils/parser";
  * 「잴 게 없음」·「잴 수 없음」도 그대로 보인다. 그게 기사님이 말씀하신 «조건 전수»다.
  * 🔴 못 쟀으면 **«0점»이라 쓰지 않는다** — 0 은 «나쁘다»로 읽힌다.
  */
+/**
+ * 💸 **원을 만원으로** — 기사님이 1~2초에 읽으시는 줄에 쓴다.
+ *    「돈」 축의 같은 이름 함수와 한 모양이다 (`criteria.ts` — 소수 한 자리).
+ */
+const toManwon = (n: number) => (n / 10_000).toFixed(1);
+
 function verdictLine(v: JudgmentSnapshot): string {
     const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';
     const brokenGates = v.gates.filter(g => !g.pass).map(g => g.why ?? g.name);
-    const head = brokenGates.length ? `${emoji} 잡으면 사고 — ${brokenGates.join(' · ')}`
-        : v.score == null ? `${emoji} 잴 수 없음` : `${emoji} ${v.score}점`;
+    /**
+     * 🔴 **🔴 에도 점수를 함께 적는다** (기사님 확정 모델).
+     *
+     * 기사님: *"빨강바탕에 90점을 보면 좋은 콜이나 다른걸 취소할까? 이렇게 판단할꺼 같고"*
+     * 그런데 이 줄은 「잡으면 사고」만 쓰고 점수를 빼고 있었다 — 로그만 보면 «사고로 막힌 것»과
+     * «점수가 나쁜 것»을 가를 수 없고, **그 둘은 고치는 방향이 반대다.**
+     * 색은 «무엇을 해야 하나», 점수는 «얼마짜리인가»라 둘 다 있어야 한 줄이 말이 된다.
+     */
+    const scoreText = v.score == null ? '잴 수 없음' : `${v.score}점`;
+    const head = brokenGates.length
+        ? `${emoji} ${scoreText} · 잡으면 사고 — ${brokenGates.join(' · ')}`
+        : `${emoji} ${scoreText}`;
     const axisText = v.axes.map(a => `${a.name} ${a.raw}${a.raw.startsWith('—') || a.raw.startsWith('⚠️') ? '' : `(${a.score})`}`).join(' · ');
     const tagText = v.tags.length ? ` · 딱지: ${v.tags.join(' · ')}` : '';
     return `${head}${axisText ? ` — ${axisText}` : ''}${tagText}`;
@@ -607,7 +623,10 @@ export class OrderEvaluator {
                                     console.log(p.ratio == null
                                         ? `   🧭 [합짐 지리] 안 잼 — ${p.unknownWhy} (기점 ${fromPlace ?? "?"})`
                                         : `   🧭 [합짐 지리] 기점 ${fromPlace ?? "?"} → 전진율 ${p.ratio >= 0 ? '+' : ''}${p.ratio.toFixed(2)}`
-                                          + `${p.awayKm ? ` · ${Math.round(p.awayKm)}km 멀어짐` : ''}`);
+                                          /* 🔴 멀어질 때만 적는다 — 음수는 «가까워짐»이라 «-34km 멀어짐»으로
+                                             거꾸로 읽혔다. 가까워지는 콜의 km 는 점수에 아무 일도 안 한다
+                                             (`awayMult` 는 멀어질 때만 1 아래로 내려간다) */
+                                          + `${p.awayKm != null && p.awayKm > 0 ? ` · ${Math.round(p.awayKm)}km 멀어짐` : ''}`);
                                     return p;
                                 })(),
                                 /**
@@ -916,10 +935,17 @@ export class OrderEvaluator {
 
                 if (order.fare < adjusted.adjustedMinAcceptable) {
                     const diff = order.fare - adjusted.adjustedMinAcceptable;
-                    reasons.push(`요율 미달 — 시세 하한 ${adjusted.adjustedMinAcceptable.toLocaleString()}원 · 실제 ${order.fare.toLocaleString()}원 (${diff.toLocaleString()}원 · 적정 ${adjusted.adjustedFairPrice.toLocaleString()}원 · 할인율은 안 봄)`);
+                    /**
+                     * 💸 **한 줄을 짧게 — 기사님이 1~2초에 읽으신다.**
+                     *    🔴 «하한»과 «적정»을 갈라 적지 않는다: 할인율 0 으로 재면 `keep = 1` 이라
+                     *       **둘이 구조적으로 늘 같다**(실측 63,140원 = 63,140원). 같은 숫자를 두 번
+                     *       보이면 기사님이 «무엇이 다른가»를 한 번 더 읽으셔야 한다.
+                     *    🔴 «시세»라는 낱말은 남긴다 — 그 한 낱말이 «할인율은 안 봤다»를 대신한다.
+                     */
+                    reasons.push(`요율 미달 — 시세 ${toManwon(adjusted.adjustedMinAcceptable)}만 · 실제 ${toManwon(order.fare)}만 (${diff < 0 ? '−' : '+'}${toManwon(Math.abs(diff))}만)`);
                     console.log(`   - 💸 [요율 판정] 시세 미달 — 실제 ${order.fare.toLocaleString()}원 < 시세 하한 ${adjusted.adjustedMinAcceptable.toLocaleString()}원`);
                 } else if (order.fare >= adjusted.adjustedFairPrice) {
-                    pros.push(`꿀콜 🍯 (시세 적정 ${adjusted.adjustedFairPrice.toLocaleString()}원 이상)`);
+                    pros.push(`꿀콜 🍯 (시세 ${toManwon(adjusted.adjustedFairPrice)}만 이상)`);
                     console.log(`   - 🍯 [요율 판정] 꿀콜 — 실제 ${order.fare.toLocaleString()}원 ≥ 시세 적정 ${adjusted.adjustedFairPrice.toLocaleString()}원`);
                 } else {
                     console.log(`   - ✅ [요율 판정] 시세 적정 범위 — 실제 ${order.fare.toLocaleString()}원 (하한 ${adjusted.adjustedMinAcceptable.toLocaleString()} ~ 적정 ${adjusted.adjustedFairPrice.toLocaleString()})`);

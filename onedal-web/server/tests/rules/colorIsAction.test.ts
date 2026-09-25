@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { judge, CRITERIA, DEFAULT_JUDGMENT, JUDGMENT_FIELDS } from '@onedal/shared';
 import type { JudgeFacts, JudgmentConfig } from '@onedal/shared';
 
@@ -199,5 +201,32 @@ describe('🎯 점수는 다섯 축 — 색을 만드는 축은 점수에 안 �
         const 셋 = { ...합짐(60), calls: { count: 3, hasExistingCalls: true } } as JudgeFacts;
         expect(본다(셋).score).toBe(본다(없음).score);
         expect(본다(셋).color).toBe('똥');          // 🟡 전화해야 한다
+    });
+});
+
+/**
+ * 🖨️ **로그 한 줄이 색과 점수를 함께 말한다** (기사님 확정 모델)
+ *
+ * 기사님: *"빨강바탕에 90점을 보면 좋은 콜이나 다른걸 취소할까? 이렇게 판단할꺼 같고"*
+ *
+ * ── 왜 ──
+ * `verdictLine` 이 🔴 일 때 「잡으면 사고」만 쓰고 **점수를 빼고** 있었다. 그러면 로그만 보고는
+ * «사고로 막힌 것»과 «점수가 나쁜 것»을 가를 수 없는데, **그 둘은 고치는 방향이 반대다.**
+ * 실측에서 🔴 68점·🔴 100점 콜의 점수가 로그에 한 번도 안 남아, 딱지를 역산해야 알 수 있었다.
+ */
+describe('🖨️ 판정 로그 — 🔴 에도 점수가 적힌다', () => {
+    const src = () => readFileSync(join(__dirname, '../../src/core/engine/OrderEvaluator.ts'), 'utf-8');
+
+    it('🔴 문지기가 막아도 점수를 함께 적는다', () => {
+        const fn = src().slice(src().indexOf('function verdictLine'), src().indexOf('export class OrderEvaluator'));
+        /* 점수 글자를 한 번 만들어 두 갈래가 함께 쓴다 — 한쪽만 고쳐져 어긋나지 않게 */
+        expect(fn).toMatch(/scoreText/);
+        expect(fn).toMatch(/\$\{scoreText\}\s*·\s*잡으면 사고/);
+    });
+
+    it('🔴 점수를 못 냈으면 «잴 수 없음»이라 적는다 — 0 점이라 쓰지 않는다', () => {
+        const fn = src().slice(src().indexOf('function verdictLine'), src().indexOf('export class OrderEvaluator'));
+        expect(fn).toMatch(/v\.score == null \? '잴 수 없음'/);
+        expect(fn).not.toMatch(/v\.score \?\? 0/);
     });
 });
