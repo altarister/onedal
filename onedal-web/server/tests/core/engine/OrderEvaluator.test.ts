@@ -100,8 +100,12 @@ describe('OrderEvaluator', () => {
         // Stage 1 사유 확인
         expect(order.rejectionReasons.some(r => r.includes('첫짐 절대하한가 미달'))).toBe(true);
         expect(order.rejectionReasons.some(r => r.includes('제외키워드(착불)'))).toBe(true);
-        // Stage 3 사유 확인
-        expect(order.rejectionReasons.some(r => r.includes('요율 미달'))).toBe(true);
+        /**
+         * Stage 3 사유 확인 — 문구가 「요율 N만 모자람 — 시세 …」다.
+         * 🔴 «모자람»만 본다: 앞의 숫자는 시세표가 바뀌면 함께 움직이고, 뒤의 «시세»는
+         *    할인율을 안 본다는 표시다. 글자를 통째로 박으면 문구를 다듬을 때마다 깨진다.
+         */
+        expect(order.rejectionReasons.some(r => r.includes('요율') && r.includes('모자람'))).toBe(true);
     });
 
     /* 🔴 배차망은 차종을 줄여 적는다(«승»). 원달앱은 줄임말을 맞춰 통과시키므로, 서버 판정도 줄임말을 맞춰 본다 —

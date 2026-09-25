@@ -241,8 +241,12 @@ export class OrderEvaluator {
                             && securedOrder.fare < rateForScore.minAcceptable;
                         if (rateForDisplay && securedOrder.fare > 0
                             && securedOrder.fare < rateForDisplay.minAcceptable) {
-                            tags.push(`요율 미달 — 시세 하한 ${rateForDisplay.minAcceptable.toLocaleString()}원 · `
-                                + `실제 ${securedOrder.fare.toLocaleString()}원 (할인율은 안 봄)`);
+                            /**
+                             * 💸 **«얼마나 모자라나»를 앞에 둔다** — 기사님이 1~2초에 읽으시는 것은
+                             *    두 절대값이 아니라 차이다. 거절 사유 줄과 한 모양으로 맞춘다.
+                             */
+                            tags.push(`요율 ${toManwon(rateForDisplay.minAcceptable - securedOrder.fare)}만 모자람`
+                                + ` — 시세 ${toManwon(rateForDisplay.minAcceptable)}만 · 실제 ${toManwon(securedOrder.fare)}만`);
                         }
 
                         /**
@@ -942,7 +946,7 @@ export class OrderEvaluator {
                      *       보이면 기사님이 «무엇이 다른가»를 한 번 더 읽으셔야 한다.
                      *    🔴 «시세»라는 낱말은 남긴다 — 그 한 낱말이 «할인율은 안 봤다»를 대신한다.
                      */
-                    reasons.push(`요율 미달 — 시세 ${toManwon(adjusted.adjustedMinAcceptable)}만 · 실제 ${toManwon(order.fare)}만 (${diff < 0 ? '−' : '+'}${toManwon(Math.abs(diff))}만)`);
+                    reasons.push(`요율 ${toManwon(Math.abs(diff))}만 모자람 — 시세 ${toManwon(adjusted.adjustedMinAcceptable)}만 · 실제 ${toManwon(order.fare)}만`);
                     console.log(`   - 💸 [요율 판정] 시세 미달 — 실제 ${order.fare.toLocaleString()}원 < 시세 하한 ${adjusted.adjustedMinAcceptable.toLocaleString()}원`);
                 } else if (order.fare >= adjusted.adjustedFairPrice) {
                     pros.push(`꿀콜 🍯 (시세 ${toManwon(adjusted.adjustedFairPrice)}만 이상)`);
