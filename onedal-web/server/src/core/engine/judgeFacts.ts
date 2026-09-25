@@ -211,10 +211,11 @@ export function mergeFacts(input: {
      */
     driveKm?: number | null;
     /**
-     * 📦 **`extraMinutes` 안에 든 상하차 정차(분)** — 「돈」이 **우회 감쇠에서만** 뺀다.
-     *    시급의 분모에서는 안 뺀다 (상하차에도 시간을 실제로 쓴다).
+     * 🛣️ **이 콜 때문에 «길을 벗어나는» 분** — 「돈」의 우회 감쇠만 본다.
+     *    잰 곳은 병합 경로 구간을 손에 든 `OrderEvaluator` 하나다 (규칙 ③).
+     *    안 실어 주면 「돈」이 `extraMinutes` 를 그대로 본다 (되돌리는 길).
      */
-    dwellMinutes?: number | null;
+    offRouteMinutes?: number | null;
     /** ☎️ 전화해 약속을 미뤄야 할 기존 콜 정거장 수 — 세는 곳은 부르는 쪽 하나다 (shared `CallsFacts`) */
     callsToMake?: number | null;
     /** 붙인 뒤 남는 가장 빠듯한 여유(분). 잴 약속이 없으면 null */
@@ -246,8 +247,8 @@ export function mergeFacts(input: {
             extraKm: input.extraKm ?? null,
             fuelCostPerKm: input.fuelCostPerKm ?? null,
             tollKrw: input.tollKrw ?? null,
-            /* 📦 우회 감쇠에서만 빼는 정차 — 시급의 분모는 위 `extraMinutes` 그대로다 */
-            dwellMinutes: input.dwellMinutes ?? null,
+            /* 🛣️ 우회 감쇠만 보는 «길을 벗어나는 분» — 시급의 분모는 위 `extraMinutes` 그대로다 */
+            offRouteMinutes: input.offRouteMinutes ?? null,
         },
         /* 💪🚚⏳ 「돈」·「약속」이 받는 값과 **같은 것**을 넘긴다 — 여기서 다시 재지 않는다 (규칙 ③) */
         labor: { handMinutes: input.handMinutes ?? null, protectionMinutes: input.protectionMinutes ?? null },

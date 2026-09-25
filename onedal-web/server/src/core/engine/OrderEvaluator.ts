@@ -411,6 +411,45 @@ export class OrderEvaluator {
                             const tags = [`우회 ${marginal > 0 ? '+' : ''}${marginal}분 · ${marginalKm > 0 ? '+' : ''}${marginalKm}km`];
                             const candPickup = tlAfter.find(e => e.orderId === securedOrder.id && e.stopType === 'pickup');
                             /**
+                             * 🛣️ **«길을 벗어나는 분» — 「돈」의 우회 감쇠가 이것만 본다** (기사님 확정).
+                             *
+                             * 기사님이 직선 예로 못을 박으셨다 — 현위치 10 · 첫짐상차 5 · 합짐상차 25 ·
+                             * 첫짐하차 20 · 합짐하차 로 모두 직선상에 놓이면 되돌아가는 일이 없으니
+                             * **우회는 0** 이다. 그런데 `marginal`(늘어난 주행 20)은 전부
+                             * «첫짐하차 → 합짐하차» 배송이라, 그것을 「우회」라 부르면 가는 길에 하나
+                             * 끼우는 합짐이 «하루를 거는 콜»로 오해받는다 (실측 07:20 · 값이 83%까지 깎였다).
+                             *
+                             *     길을 벗어나는 분 = marginal − 꼬리 배송
+                             *     꼬리 배송 = 후보 하차가 경로의 **마지막**일 때, 직전 정거장에서 거기까지
+                             *
+                             * 기사님 예: marginal 20 − 꼬리 20 = **0**.
+                             *
+                             * 🔴 **«후보 상차 이후 주행»을 빼면 안 된다** — 그 구간에는 기존 콜의 하차도 들어
+                             *    있어서 식이 `후보상차누적 − 기존경로` 로 약분되고, 거의 모든 합짐이 0 이 되어
+                             *    감쇠가 통째로 꺼진다. 검산: 합짐 상차가 옆으로 30분 빠져 왕복 60분을 버리는
+                             *    경로(누적 10·40·95·115 · 기존 40)에서 그 식은 0 을 내고, 이 식은 55 를 낸다.
+                             * 🔴 **꼬리만 빼는 것이 정확한 까닭** — `marginal` 은 «상차를 끼워 늘어난 것» +
+                             *    «하차를 끼워 늘어난 것»이다. 후보 하차가 마지막이면 뒤 항이 곧 꼬리라,
+                             *    빼면 앞 항 하나가 남는다 — 그것이 «그 상차지에 들르려고 벗어난 비용»이다.
+                             * 🔴 **카카오를 한 번도 더 부르지 않는다** — 구간 누적(`sectionDriveMin`)은
+                             *    병합 경로를 부를 때 이미 함께 받았다 (위 `stopsAfter`).
+                             * 🔴 **후보 하차가 경로 중간이면 꼬리가 0 이다** — 그때 «하차를 끼워 늘어난 것»은
+                             *    base 경로를 또 물어야 알 수 있어, 지금까지처럼 `marginal` 을 그대로 본다.
+                             *    덜 정확하지만 감쇠가 꺼지지는 않는 쪽이다.
+                             * 🔴 **못 찾으면 안 넘긴다** — 그러면 「돈」이 `extraMinutes` 를 그대로 보고
+                             *    지금까지처럼 돈다 (되돌리는 길 · 규칙 ⑤-2).
+                             */
+                            const tailDriveMin = (() => {
+                                if (stopsAfter.length < 2) return null;
+                                const last = stopsAfter[stopsAfter.length - 1];
+                                const prev = stopsAfter[stopsAfter.length - 2];
+                                if (last.orderId !== securedOrder.id || last.stopType !== 'dropoff') return 0;
+                                return last.driveMinutes != null && prev.driveMinutes != null
+                                    ? Math.max(0, last.driveMinutes - prev.driveMinutes) : null;
+                            })();
+                            const offRouteMinutes = tailDriveMin != null
+                                ? Math.max(0, marginal - tailDriveMin) : null;
+                            /**
                              * 📞 **상차 약속을 못 지키면 통화가 필요하다** — 그 약속은 타임라인이
                              *    이미 만들어 놨다(`promisedUntil`: 통화 > 적요 > 잡은 시각 + 20분).
                              * 🔴 여기서 `지금 + 설정분` 으로 다시 만들지 않는다 — 기준이 «지금»이 되고
@@ -461,11 +500,8 @@ export class OrderEvaluator {
                             const dry: ReturnType<typeof toSnapshot> & { stops?: typeof stopsView; unknownWhy?: string | null; extraMin?: number | null } = toSnapshot(judge(CRITERIA, mergeFacts({
                                 fare: securedOrder.fare,
                                 extraMinutes: marginal + cost.dwell,
-                                /**
-                                 * 📦 **위 분 안에 든 상하차 정차** — 「돈」이 **우회 감쇠에서만** 뺀다.
-                                 *    시급의 분모에서는 안 뺀다 (상하차에도 시간을 실제로 쓴다).
-                                 */
-                                dwellMinutes: cost.dwell,
+                                /* 🛣️ 길을 벗어나는 분 — 「돈」의 우회 감쇠만 본다 (잰 곳은 위 한 곳이다) */
+                                offRouteMinutes,
                                 /**
                                  * ⛽🛣️ **늘어나는 것만 센다** — 시간(`marginal`)과 **같은 규약**이다.
                                  *    거리는 카카오가 준 두 경로의 차이(`distDiff`), 통행료도 같은 자리에서 온 차이다.
