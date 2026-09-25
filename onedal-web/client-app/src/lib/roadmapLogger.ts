@@ -221,8 +221,15 @@ export function installConsoleCapture(): void {
                         : (() => { try { return JSON.stringify(a); } catch { return String(a); } })()
                 ).join(' ');
                 if (!text) return;
-                if (text.startsWith('[ROADMAP ')) return;   // ① 이미 버퍼에 있다
-                if (text.startsWith('🖥️ [로그')) return;     // ② 실패가 실패를 부른다
+                /**
+                 * 🔴 **포맷 지시자를 떼고 본다** — React 는 개발 모드에서 StrictMode 의 두 번째
+                 *    렌더 로그를 흐리게 보이려고 `console.log('%s', …)`·`'%c…'` 로 **다시** 찍는다.
+                 *    그 `%s` 가 앞에 붙으면 아래 ①②의 `startsWith` 가 통과해 **같은 줄이 두 번**
+                 *    올라갔다 (실측 50건 — `%s [ROADMAP …]`). 접두사를 떼고 견준다.
+                 */
+                const bare = text.replace(/^(%[sco]\s*)+/, '');
+                if (bare.startsWith('[ROADMAP ')) return;   // ① 이미 버퍼에 있다
+                if (bare.startsWith('🖥️ [로그')) return;     // ② 실패가 실패를 부른다
 
                 const now = Date.now();
                 if (now - secStamp >= 1000) {               // ③ 초당 상한
