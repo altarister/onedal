@@ -4,16 +4,15 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords, safeCancelSecOf } from "@onedal/shared";
 import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
-import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
+import { getAddressLabel, telHref } from "../../lib/routeUtils";
 import { callNow } from "../../lib/phoneCall";
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 
 
-import { Badge } from "../ui/badge";
 import StepSheetMock from './StepSheetMock';
 import StepSwipeTrack from './StepSwipeTrack';
 import type { CallRecords } from "../../hooks/records";
-import { MILESTONE_LABEL, timingError, buildArrivalSlots,
+import { MILESTONE_LABEL, timingError,
          deriveCallTiming } from "@onedal/shared";
 import { useJudgmentStore } from "../../stores/judgmentStore";
 import type { RouteTimelineEntry, RouteStopInfo, CallTiming } from "@onedal/shared";
@@ -43,7 +42,6 @@ export interface EtaCell {
 interface Props {
     route: SecuredOrder;
     isExpanded: boolean;
-    onToggle: (id: string) => void;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     processingId: string | null;
     setProcessingId: (id: string | null) => void;
@@ -62,7 +60,6 @@ interface Props {
      * `deck` — 진행 중 탭의 스와이프 덱. **폰 한 화면**이 목표라 헤더를 경로 한 줄로 줄인다.
      * `list` — 완료됨·취소/방출·전체. 조회용이라 포착시각·방문순서·ETA 를 그대로 둔다.
      */
-    variant?: 'deck' | 'list';
     /**
      * 🎬 **시트 상태바가 이 콜의 어느 단계를 가리키나** (기사님 · #143) — 무대의 `barFocusOf` 가 정한다.
      *    `null`·없음이면 장부의 현재 단계(`stepCurIdx`). 카드는 도착 사건을 따로 듣지 않는다.
@@ -75,7 +72,6 @@ interface Props {
 export default function PinnedRouteCard({
     route,
     isExpanded,
-    onToggle,
     onDecision,
     processingId,
     setProcessingId,
@@ -85,11 +81,9 @@ export default function PinnedRouteCard({
     accentColor,
     records,
     timeline,
-    variant = 'list',
     focusStep = null,
     focused = false,
 }: Props) {
-    const isDeck = variant === 'deck';
     /**
      * 👀 **미리보기에게 "결재 대기"는 판정 완료다** (기사님 실측).
      *
@@ -260,12 +254,6 @@ export default function PinnedRouteCard({
         };
     }, [route.id, route.status]);
 
-    const pLabel = visitOrder?.pickupIdx || '?';
-    const dLabel = visitOrder?.dropoffIdx || '?';
-
-    const minuteDiff = getMinuteDiff(etas?.pickupEta, etas?.dropoffEta);
-    const separatorText = minuteDiff !== null ? `-${minuteDiff}분-` : '-';
-
     /**
      * 시간 파생은 **여기 한 번**뿐이다 (`deriveCallTiming`).
      *
@@ -281,7 +269,7 @@ export default function PinnedRouteCard({
     return (
         /* 📏 **무대에서는 카드가 무대가 준 높이만큼 선다** — 그래야 위 덩어리는
            고정되고 아래 단계만 스크롤한다. 조회용 화면(`list`)은 내용만큼 자란다. */
-        <div className={`flex flex-col relative overflow-hidden transition-all duration-300 ${isDeck ? 'flex-1 min-h-0' : ''} ${evaluating ? 'bg-warning/10' : 'hover:bg-surface-hover/50'} border-b border-border-card ${isTerminal(route.status) ? 'opacity-50 grayscale' : ''}`}>
+        <div className={`flex flex-col relative overflow-hidden transition-all duration-300 flex-1 min-h-0 ${evaluating ? 'bg-warning/10' : 'hover:bg-surface-hover/50'} border-b border-border-card ${isTerminal(route.status) ? 'opacity-50 grayscale' : ''}`}>
             {(route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-warning/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
             )}
@@ -291,7 +279,7 @@ export default function PinnedRouteCard({
                    기사님: *"UI 영역을 아껴 써야 한다."*
                    → 여기엔 몇 번째 콜 · 언제 잡았나 · 차종 · 수수료 · 예약 · 판정 색 · 돈을 적는다. */}
             {/* 🔤 목업과 같은 크기 — 머리 줄 11.5 · 칩 11 */}
-            {isDeck && (
+            {(
                 /* 🔤 **한 줄로 선다** (기사님: *"두 줄로 되어서 자리를 너무 많이
                     차지하고 있어"*). 간격을 6px 로 좁히고 줄바꿈을 막는다 — 넘치면 요금이
                    아니라 **가운데가** 줄어야 한다 (요금·번호는 흘깃 보는 값이다) */
@@ -376,104 +364,7 @@ export default function PinnedRouteCard({
                 </div>
             )}
 
-            {/* 1-b. 리스트 헤더 (조회용 — 정보를 줄이지 않는다) */}
-            {!isDeck && (
-            <div
-                onClick={() => !evaluating && onToggle(route.id)}
-                className={`px-4 py-3 flex justify-between items-center w-full text-sm tracking-tight ${!evaluating ? 'cursor-pointer group hover:bg-surface-hover/30' : ''}`}
-            >
-                <div className="flex items-center gap-1 truncate flex-1">
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 rounded font-bold mr-1 text-text-muted border-border bg-surface-alt">
-                        {route.capturedAt
-                            ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
-                            : '-'}
-                    </Badge>
-                    {/* 🧹 취소·방출한 시각 (전수표 #65) — 안전취소는 배차망 취소 횟수에 들어가 «언제»가 필요하다 */}
-                    {route.terminatedAt && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 rounded font-bold mr-1 text-danger border-danger/40 bg-danger/10">
-                            취소 {new Date(route.terminatedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                        </Badge>
-                    )}
-                    <span className={`${evaluating ? 'text-warning' : 'text-success'} flex-shrink-0 flex items-center font-bold`}>
-                        {pLabel}. {getAddressLabel(route.pickup)}{etas?.pickupEta && <span className="text-success/80 ml-0.5 font-normal">({etas.pickupEta})</span>}
-                        <DeadlineChip orderId={route.id} stopType="pickup" eta={etas?.pickupEta}
-                            deadlineAt={(() => { const r = cargoReports.find(x => x.stopType === 'pickup' && (x.promisedArrivalAt || x.deadlineAt)); return r?.promisedArrivalAt ?? r?.deadlineAt; })()} />
-                    </span>
-                    <span className="text-text-muted text-[10px] flex-shrink-0 mx-0.5 tracking-tighter">{separatorText}</span>
-                    <span className={`${evaluating ? 'text-warning' : 'text-danger'} flex-shrink-0 font-bold`}>
-                        {dLabel}. {getAddressLabel(route.dropoff)}{etas?.dropoffEta && <span className="text-danger/80 ml-0.5 font-normal">({etas.dropoffEta})</span>}
-                        <DeadlineChip orderId={route.id} stopType="dropoff" eta={etas?.dropoffEta}
-                            deadlineAt={(() => { const r = cargoReports.find(x => x.stopType === 'dropoff' && (x.promisedArrivalAt || x.deadlineAt)); return r?.promisedArrivalAt ?? r?.deadlineAt; })()} />
-                    </span>
-                    <span className="ml-3 font-medium text-[10px] truncate mt-0.5 flex items-center gap-1 flex-[2]">
-                        <span>{route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
-                        <span className="text-text-muted">,</span>
-                        <span>{evaluating ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '거리미상'}</span>
-                        <span className="text-text-muted">,</span>
-                        <span>{route.vehicleType?.substring(0, 1) || '차'}</span>
-                    </span>
-                </div>
-
-                {evaluating && (
-                    <Badge className={`text-[10px] font-black px-1.5 py-0 animate-pulse flex-shrink-0 ml-2 rounded ${route.status === 'ORDER_PRE_SECURED' ? 'bg-danger/20 text-danger hover:bg-danger/20' : 'bg-warning/20 text-warning hover:bg-warning/20'}`}>평가중</Badge>
-                )}
-                {/* 👀 **미리보기 콜** — 기사님이 확정을 누르기 전에 판정만 받아 보는 콜.
-                    아직 안 잡은 콜이므로 "이건 아직 내 것이 아니다"가 한눈에 보여야 한다.
-                    확정을 누르면 앱이 딱지 없이 다시 보내므로 이 배지가 사라진다. */}
-                {route.isPreview && !isTerminal(route.status) && (
-                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-warning/10 border-warning/30 text-warning flex-shrink-0 ml-2 shadow-sm rounded">👀 아직 안 잡음</Badge>
-                )}
-                {/* 🐥 **가상 체험 모드 콜** — 실서버에 안 잡고 가상으로 합짐 테스트 중인 콜 */}
-                {route.isSimulated && !isTerminal(route.status) && (
-                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-amber-400/15 border-amber-400/40 text-amber-400 flex-shrink-0 ml-2 shadow-sm rounded flex items-center gap-1">
-                        <span>🐥 체험 운행 중</span>
-                        {onDecision && (
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    logRoadmapEvent("웹", "체험 콜 종료 버튼 클릭");
-                                    onDecision(route.id, 'SAFE_CANCEL');
-                                }}
-                                className="ml-1 text-[10px] text-danger hover:underline font-bold"
-                                title="가상 체험 콜 종료"
-                            >
-                                [종료]
-                            </button>
-                        )}
-                    </Badge>
-                )}
-                {/* 🧭 어떻게 잡았나(capturedVia) — 알람 듣고 잡은 콜과 손으로 잡은 콜을 가른다.
-                    둘 다 matchType 은 MANUAL 이라 이 배지가 유일한 구분이다 (6하원칙의 «어떻게»). */}
-                {/* type 은 확정 전 «MANUAL_CLICK» → 승격 후 «MANUAL» 로 갈린다 — 둘 다 직접 갈래다.
-                    === 'MANUAL' 만 보면 확정 직후(동기화 전)의 카드에서 배지가 빠진다. */}
-                {!evaluating && isManualLineage(route.type) && route.status !== 'ORDER_COMPLETED' && (
-                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-info/10 border-info/30 text-info flex-shrink-0 ml-2 shadow-sm rounded">
-                        {route.capturedVia === 'ALARM' ? '🔔 알람콜' : '직접콜'}
-                    </Badge>
-                )}
-                {/* 확정과 종료 사이의 진행 단계를 배지로 드러낸다 —
-                    없으면 "지금 상차했나 아직인가"를 화면에서 알 수 없다. */}
-                {route.status === 'ORDER_PICKED_UP' && (
-                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-info/10 border-info/30 text-info flex-shrink-0 ml-2 shadow-sm rounded">📦 상차 완료</Badge>
-                )}
-                {route.status === 'ORDER_DELIVERED' && (
-                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-success/10 border-success/30 text-success flex-shrink-0 ml-2 shadow-sm rounded">🏁 하차 완료</Badge>
-                )}
-                {route.status === 'ORDER_COMPLETED' && (
-                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-text-muted/10 border-text-muted/30 text-text-muted flex-shrink-0 ml-2 shadow-sm rounded">운행 완료</Badge>
-                )}
-                {['ORDER_RELEASED_BY_ME'].includes(route.status || '') && (
-                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-warning/10 border-warning/30 text-warning flex-shrink-0 ml-2 shadow-sm rounded">방출됨</Badge>
-                )}
-                {['SAFE_CANCEL'].includes(route.status || '') && (
-                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-danger/10 border-danger/30 text-danger flex-shrink-0 ml-2 shadow-sm rounded">거절됨</Badge>
-                )}
-                {['ORDER_RELEASED_BY_OFFICE'].includes(route.status || '') && (
-                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-danger/10 border-danger/30 text-danger flex-shrink-0 ml-2 shadow-sm rounded">사무실 취소</Badge>
-                )}
-            </div>
-            )}
+            
 
             {/* 2. 카드 콘텐츠 */}
             {isExpanded && (
@@ -495,7 +386,7 @@ export default function PinnedRouteCard({
                  *    **장 안에서** 스크롤한다 — 스텝은 최소 220px 을 지킨다.
                  */
                 <div className={`px-4 pb-4 pt-2 text-sm border-t border-border bg-surface ${
-                    isDeck ? 'flex-1 min-h-0 flex flex-col overflow-y-auto' : ''}`}>
+                    'flex-1 min-h-0 flex flex-col overflow-y-auto'}`}>
 
                     {/* 🕐 **펼친 자리는 원래 시각을 따로 적지 않는다** — 접힌 줄(덱)은 «틀어졌나»만 기호로 답하고(안 C),
                         몇 분 밀렸는지는 위 덩어리의 상·하차 줄(`StopDetailBlock`)이 답한다.
@@ -731,7 +622,7 @@ export default function PinnedRouteCard({
                         없어 **내용대로 끝없이 자란다**. 그러면 본문이 넘쳐
                         «콜 컨텐츠 전체»가 스크롤된다 — 기사님이 «스텝만 스크롤»이라 하신 것과 다르다. */}
                     <div className={`flex flex-col gap-2 text-[13px] leading-tight mt-3 ${
-                        isDeck ? 'flex-1 min-h-0' : ''}`}>
+                        'flex-1 min-h-0'}`}>
                         {(() => {
                             /* 🏗️ pDetail/dDetail/phonesOf 는 새 단계 화면이 자기 자리에서 꺼낸다 */
 
@@ -797,7 +688,7 @@ export default function PinnedRouteCard({
                                     /* 📏 이 상자는 «위 덩어리 + 스텝»을 함께 담는다 —
                                        **최소 높이는 스텝 것**이라 여기 두면 위 덩어리가 그 몫을 먹는다 */
                                     <div onClick={e => e.stopPropagation()}
-                                         className={isDeck ? 'flex-1 min-h-0 flex flex-col' : ''}>
+                                         className="flex-1 min-h-0 flex flex-col">
                                         {/* 💰 **예산 줄** (기사님 모델) — `여유 = 약속 − 지금 예상`.
                                             약속은 통화로만 굳고, 합짐이 붙으면 예상만 민다. 그래서 이 뺄셈이
                                             곧 **"합짐에 쓸 수 있는 시간"**이다. 우회가 이 안에 들어와야 잡는 콜.
@@ -1054,7 +945,7 @@ export default function PinnedRouteCard({
                                         {/* 📏 사슬 — 여기가 auto 면 아래 트랙이 내용대로 자란다 */}
                                         {/* 📏 **여기가 스텝 영역이다** — 남는 자리를 먹되 **220px 은 지킨다**
                                             (목업). 자리가 모자라면 위 덩어리가 스크롤하고, 스텝은 제 몫을 지킨다 */}
-                                        <div className={`mt-1 mb-2 ${isDeck ? 'flex-1 min-h-[220px] flex flex-col' : ''}`}>
+                                        <div className={`mt-1 mb-2 flex-1 min-h-[220px] flex flex-col`}>
                                             {/* KEEP 이 만든다 (기사님) — 여기는 보기만. 이 기능 전에 잡은 콜은 행이 없다 */}
                                             {!seededSteps && (
                                                 <div className="text-[10px] text-text-muted">아직 없습니다 — KEEP 하면 만들어집니다</div>
@@ -1089,7 +980,7 @@ export default function PinnedRouteCard({
                                                         planned_quantity: x.row.planned_quantity ?? cargo.planned_quantity } };
                                                 };
                                                 return (
-                                                    <div className={`mt-1 ${isDeck ? 'flex-1 min-h-0 flex flex-col' : ''}`}
+                                                    <div className={`mt-1 flex-1 min-h-0 flex flex-col`}
                                                          onClick={e => e.stopPropagation()}>
                                                         {/**
                                                           * 🌱 **머리 — 단계명 · 가운데 점 · n/6**.
@@ -1309,50 +1200,5 @@ function StopDetailBlock({ route, timeline, visitOrder, timing, etas }: {
                 );
             })}
         </div>
-    );
-}
-
-function DeadlineChip({ orderId, stopType, eta, deadlineAt }: {
-    orderId: string; stopType: 'pickup' | 'dropoff'; eta?: string; deadlineAt?: string;
-}) {
-    const [open, setOpen] = useState(false);
-    const late = (() => {
-        if (!eta || !deadlineAt) return false;
-        const d = new Date(deadlineAt);
-        const [h, m] = eta.split(':').map(Number);
-        const etaMs = new Date(d); etaMs.setHours(h, m, 0, 0);
-        return etaMs.getTime() > d.getTime();
-    })();
-
-    const label = deadlineAt
-        ? `${new Date(deadlineAt).getHours()}시`
-        : '약속?';
-
-    return (
-        <span className="relative inline-flex" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setOpen(v => !v)}
-                className={`ml-0.5 px-1 rounded text-[10px] font-bold border ${
-                    !deadlineAt ? 'border-dashed border-border text-text-muted/70'
-                    : late ? 'border-danger/50 bg-danger/15 text-danger'
-                    : 'border-success/40 bg-success/12 text-success'
-                }`}>
-                {late ? '⚠️ ' : ''}{label}
-            </button>
-            {open && (
-                <span className="absolute z-20 top-6 left-0 flex gap-1 bg-surface-alt border border-border rounded-md p-1 shadow-lg">
-                    {buildArrivalSlots(Date.now(), 0, 6).map(sl => (
-                        <button key={sl.iso}
-                            onClick={() => { socket.emit('set-stop-deadline', { orderId, stopType, deadlineAt: sl.iso }); setOpen(false); }}
-                            className="px-1.5 py-1 rounded text-[11px] font-bold text-text-primary hover:bg-info hover:text-white">
-                            {sl.label}
-                        </button>
-                    ))}
-                    <button onClick={() => { socket.emit('set-stop-deadline', { orderId, stopType, deadlineAt: null }); setOpen(false); }}
-                        className="px-1.5 py-1 rounded text-[11px] font-bold text-text-muted hover:bg-danger hover:text-white">
-                        해제
-                    </button>
-                </span>
-            )}
-        </span>
     );
 }

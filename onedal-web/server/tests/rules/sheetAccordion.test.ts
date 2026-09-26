@@ -39,8 +39,15 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
         expect(route()).toMatch(/\{cycleDeck\.length > 0 && \(/);
     });
 
-    it('시트의 덱은 아코디언이다', () => {
-        expect(route()).toMatch(/<CallDeck\s+accordion\b/);
+    /**
+     * 🔴 **덱은 아코디언 하나다** — 옛 판은 `accordion` 깃발로 스와이프 갈래와 갈렸고,
+     *    이 검사는 «시트는 참으로 부른다»를 쟀다. 그 갈래를 부르는 곳이 없어져 **깃발째 걷었다**.
+     *    이제 잴 것은 «갈래가 되살아나지 않는다»다 — 깃발이 돌아오면 여기서 걸린다.
+     */
+    it('시트의 덱은 아코디언 하나다 — 갈래를 가르는 깃발이 없다', () => {
+        expect(route()).toMatch(/<CallDeck\b/);
+        expect(route()).not.toMatch(/<CallDeck[\s\S]{0,400}accordion/);
+        expect(deck()).not.toMatch(/accordion\?: boolean/);
     });
 
     it('헤더는 «내용 사이사이»에 끼워 그린다 — 내용이 자기 헤더 바로 밑에 온다', () => {
@@ -58,7 +65,8 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
         expect(d).not.toMatch(/position: 'sticky', top: i \* ROW_H/);
         expect(d).not.toMatch(/position: 'sticky', bottom:/);
         // 높이만 고정한다 — 접힘/펼침에 줄 높이가 안 흔들리게
-        expect(d).toMatch(/accordion \? \{ height: ROW_H \}/);
+        /* 🔴 깃발을 걷은 뒤로는 **늘** 고정이다 — 삼항이 아니라 한 값이다 */
+        expect(d).toMatch(/const stick: React\.CSSProperties = \{ height: ROW_H \}/);
     });
 
     it('층 높이의 원천은 한 곳이다 (규칙 ③) — ROW_H', () => {
@@ -81,19 +89,19 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
         expect(deck()).not.toMatch(/orders\[cur\] \? renderCard/);
     });
 
-    it('아코디언에서 가로 스크롤 기계는 코드로 잠긴다 — trackRef 가 우연히 null 인 것에 기대지 않는다', () => {
-        expect(deck()).toMatch(/scrollToIndex = \(i: number, smooth = true\) => \{\s*\n\s*if \(accordion\) return;/);
-        expect(deck()).toMatch(/onScroll = \(\) => \{\s*\n\s*if \(accordion\) return;/);
+    /**
+     * 🔴 **가로 스크롤 기계가 아예 없다** — 옛 판은 «`if (accordion) return;` 으로 코드에서 잠근다»를
+     *    쟀다. 스와이프 갈래를 통째로 걷어 그 기계 자체가 사라졌으니 **더 센 보장**이다.
+     *    (되돌릴 길은 `git show e8316245` · 그 갈래를 지운 커밋)
+     */
+    it('가로 스크롤 기계가 아예 없다 — 잠그는 것보다 센 보장이다', () => {
+        expect(deck()).not.toMatch(/scrollToIndex/);
+        expect(deck()).not.toMatch(/onScroll/);
+        expect(deck()).not.toMatch(/snap-x|snap-center/);
     });
 
-    it('줄 그리는 코드는 두 모드가 한 벌을 쓴다 (규칙 ③) — rowOf 하나', () => {
-        const d = deck();
-        // 줄을 만드는 함수는 하나로 정의되고, 두 모드가 그것을 부른다
-        expect(d.match(/const rowOf = /g) ?? []).toHaveLength(1);
-        expect(d.match(/aria-current/g) ?? []).toHaveLength(1);
-        expect(d).toMatch(/orders\.map\(\(o, i\) => rowOf\(o, i\)\)/);   // 스와이프
-        expect(d).toMatch(/\{rowOf\(o, i\)\}/);                            // 아코디언
-    });
+    /* 🔴 **«두 모드가 한 벌을 쓴다» 검사는 걷었다** — 모드가 하나가 되어 두 벌로 갈릴 자리가
+          **구조적으로** 없어졌다. 검사보다 센 보장이라 검사 대신 구조가 지킨다. */
 });
 
 /**

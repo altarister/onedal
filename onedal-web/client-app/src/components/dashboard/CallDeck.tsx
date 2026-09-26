@@ -1,13 +1,12 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
-import { deriveCallStep, CALL_STEPS, deriveCallTiming, derivationInputsOf, isEvaluating } from '@onedal/shared';
+import { deriveCallTiming, derivationInputsOf } from '@onedal/shared';
 import type { RouteTimelineEntry } from '@onedal/shared';
-import { pickAutoFocus, scrollSettle } from '../../lib/deckFocus';
+import { pickAutoFocus } from '../../lib/deckFocus';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
-import { MAP_THEME_COLORS } from '../../styles/themes';
 /* 🌈 지도와 **같은 색표**를 읽는다 — 두 벌이면 지도와 목록이 다른 말을 한다 (규칙 ③) */
-import { callNodeFill, callNodeStroke, callNodeText, stopBoxBg, callTextColor, PROMISE_CALLED } from '../../styles/callPalette';
+import { stopBoxBg, callTextColor, PROMISE_CALLED } from '../../styles/callPalette';
 import type { CallRecords } from '../../hooks/records';
 import { EMPTY_RECORDS } from '../../hooks/records';
 import { useJudgmentStore } from '../../stores/judgmentStore';
@@ -69,20 +68,6 @@ interface Props {
     openIdx?: number | null;
     onOpenIdx?: (i: number) => void;
     /**
-     * 🪗 **아코디언 모드** (기사님 확정 실주행 뒤 · S23 캡처와 함께):
-     * *"시트에 콜리스트 3개 아래로 관련된 스텝이 보이고 있는데.. 그러니까 뭘 보고 있는지
-     * 어려워. 아코디언으로 만들고, 아코디언 헤더는 무조건 화면에 노출하고,
-     * 컨텐츠 영역에 스크롤할 수 있게 하는 것이 어떨까?"*
-     *
-     * · 요약 줄(콜 한 줄)이 **헤더**다 — 시트가 100% 고정이라 접혀도 늘 보인다
-     * · 가로 스와이프 트랙 대신 **고른 콜 하나**를 세로로 그린다 — 스크롤이 콜 경계를
-     *   안 넘으니 «지금 뭘 보고 있는지»가 안 헷갈린다
-     * · 줄 그리는 코드는 두 모드가 **한 벌**을 쓴다 (규칙 ③ — 갈라지면 다른 말을 한다)
-     *
-     * 🔴 부르는 곳은 시트 하나이고 늘 `accordion` 이다 — 스와이프 갈래는 쓰는 곳이 없다 (todo).
-     */
-    accordion?: boolean;
-    /**
      * 🙈 **숨길 콜** — 배열에서 **빼지 않고** 이 집합으로 가린다 (기사님 지시).
      *
      * 🔴 아코디언은 **목록 자리(`openIdx`)로 열린다.** 배열을 걸러내면 그 자리가 다른 콜을
@@ -95,8 +80,7 @@ interface Props {
     hiddenIds?: ReadonlySet<string>;
 }
 
-export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion, callNoOf, openIdx, onOpenIdx, fit, hiddenIds }: Props) {
-    const trackRef = useRef<HTMLDivElement>(null);
+export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, callNoOf, openIdx, onOpenIdx, fit, hiddenIds }: Props) {
     /**
      * 🎯 **목적지(`goalCity`)가 둘 이상 섞였을 때만 하차지 옆에 목적지를 붙인다** (목업 콜 카드 «🎯 목적지»).
      *    복귀 대기에서 목적지 콜과 복귀콜이 섞이면 «어느 콜이 집으로 가는 콜인가»가 보여야 한다.
@@ -120,79 +104,17 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
     /** 🪗 **전부 닫힘** — 「나」의 정의다. 타이틀만 보이고 카드는 하나도 안 열린다 */
     const noneOpen = cur < 0;
 
-    /**
-     * 프로그램이 스크롤을 미는 중인 목표 인덱스.
-     *
-     * 🔴 이게 없으면 **요약 줄을 누를 때 하이라이트가 왔다갔다** 한다 (기사님: *"이전으로 왔다갔다"*).
-     *    줄을 누르면 `setCurId(목표)` 로 하이라이트가 먼저 옮겨가는데,
-     *    이어지는 부드러운 스크롤 **도중에** `onScroll` 이 계속 발동한다.
-     *    애니메이션 초반의 `scrollLeft` 는 아직 출발지 쪽이라
-     *    `Math.round(scrollLeft / width)` 가 **이전 인덱스**를 내놓고,
-     *    그 값으로 `curId` 를 되돌린다.
-     *
-     *    미는 동안에는 위치를 갱신하지 않고, 목표에 닿으면 잠금을 푼다.
-     */
-    const pendingIdx = useRef<number | null>(null);
-    const pendingTimer = useRef<number | null>(null);
-
-    const releasePending = () => {
-        pendingIdx.current = null;
-        if (pendingTimer.current !== null) {
-            clearTimeout(pendingTimer.current);
-            pendingTimer.current = null;
-        }
-    };
-    useEffect(() => releasePending, []);
-
-    const scrollToIndex = (i: number, smooth = true) => {
-        if (accordion) return;   // 🪗 아코디언엔 가로 트랙이 없다 — 불변식을 주석이 아니라 코드로 못박는다
-        const el = trackRef.current;
-        if (!el || !el.clientWidth) return;
-        const already = Math.round(el.scrollLeft / el.clientWidth) === i;
-        el.scrollTo({ left: i * el.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
-
-        // 즉시 이동이거나 이미 그 자리면 잠글 이유가 없다 (잠그면 풀 계기가 없다)
-        if (!smooth || already) { releasePending(); return; }
-
-        pendingIdx.current = i;
-        if (pendingTimer.current !== null) clearTimeout(pendingTimer.current);
-        // 애니메이션이 목표에 딱 안 떨어질 수 있다. 잠금이 영원히 남아 스와이프가
-        // 먹통이 되는 일이 없도록 반드시 풀어 준다
-        pendingTimer.current = window.setTimeout(releasePending, 900);
-    };
-
+    
     /** 명시적 이동 — 요약 줄 클릭이 쓴다. 사용자의 스와이프는 절대 여기 안 온다 */
     const goTo = (i: number) => {
         /* 🪗 **«전부 닫힘»(-1)을 막지 않는다** — 0 으로 끌어올리면 같은 줄을 다시 눌러도
            안 닫히고, 손으로 「나」(타이틀만)로 돌아갈 길이 없어진다 (기사님) */
         const next = i < 0 ? -1 : Math.min(orders.length - 1, i);
         if (controlled && onOpenIdx) { onOpenIdx(next); return; }
-        scrollToIndex(next);
         setCurId(orders[next]?.id ?? null);
     };
 
-    /**
-     * 스와이프하면 **어느 카드를 보고 있는지만** 갱신한다. 스크롤은 건드리지 않는다.
-     *
-     * 🔴 이 값을 보고 스크롤을 거는 effect 를 두지 않는다 — 손가락이 미는 중에 코드가
-     *    같은 축을 잡아채면 관성과 스냅이 죽는다 (기사님: *"스와이프 오작동한다"*).
-     *    **스크롤을 옮기는 것은 명시적 이동과 목록 변경뿐이다.**
-     */
-    const onScroll = () => {
-        if (accordion) return;
-        const el = trackRef.current;
-        if (!el || !el.clientWidth) return;
-        const i = Math.round(el.scrollLeft / el.clientWidth);
-
-        // 프로그램이 미는 중이면 하이라이트를 흔들지 않는다 — 도착했을 때만 잠금을 푼다
-        const verdict = scrollSettle(pendingIdx.current, i);
-        if (verdict === 'arrived') { releasePending(); return; }
-        if (verdict === 'ignore') return;
-
-        const id = orders[i]?.id;
-        if (id && id !== curId) setCurId(id);
-    };
-
+    
     /**
      * 목록 자체가 바뀌었을 때만 위치를 다시 맞춘다 (콜이 끝나 빠지는 경우 등).
      *
@@ -211,12 +133,6 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
             // 보던 콜이 끝났다 — 가장 최근 콜로 (뒤에 붙으므로 마지막이 최신이다)
             const last = orders.length - 1;
             setCurId(orders[last].id);
-            scrollToIndex(last, false);
-        } else {
-            // 위치가 달라졌을 때만 따라 옮긴다. 같으면 손대지 않는다
-            const el = trackRef.current;
-            const at = el && el.clientWidth ? Math.round(el.scrollLeft / el.clientWidth) : i;
-            if (at !== i) scrollToIndex(i, false);
         }
     }, [idsKey, orders, curId]);
 
@@ -239,7 +155,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
     useEffect(() => {
         if (!gpsFocus) return;
         const i = orders.findIndex(o => o.id === gpsFocus.orderId);
-        if (i >= 0) { setCurId(gpsFocus.orderId); scrollToIndex(i); }
+        if (i >= 0) setCurId(gpsFocus.orderId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gpsFocus?.tick]);
 
@@ -249,9 +165,8 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
         seenIds.current ??= new Set();
         orders.forEach(o => seenIds.current!.add(o.id));
         if (!target) return;
-        // `idx` 를 보고 스크롤하는 effect 가 없으므로 스크롤도 여기서 직접 옮긴다
         const i = orders.findIndex(o => o.id === target);
-        if (i >= 0) { setCurId(target); scrollToIndex(i); }
+        if (i >= 0) setCurId(target);
     }, [orders]);
 
     if (orders.length === 0) return null;
@@ -269,7 +184,6 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
      *
      * 🔴 **`'옛줄'` 갈래는 목업에 없어도 남겨 둔다** — 이 글자 하나를 바꾸면 통째로 돌아온다.
      */
-    const TITLE_STYLE = '격자' as '격자' | '옛줄';
 
     /**
      * 콜 한 줄(요약 줄)을 만든다 — **두 모드가 이 함수 하나를 쓴다.**
@@ -282,7 +196,6 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
     const rowOf = (o: SecuredOrder, i: number) => {
 
             const r = records.get(o.id) ?? EMPTY_RECORDS;
-            const p = deriveCallStep(r.milestones, r.reports);
             const vo = visitOrderMap.get(o.id);
             // 타임라인에 있으면 그것이 약속이다. 없으면(경로 밖 — 심사 중 후보 등)
             // 콜별 파생으로 폴백 — 시각이 아예 사라지는 것보다는 혼자 간 값이 낫다
@@ -300,10 +213,6 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
             const promiseOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.promisedUntil
                 ?? (stop === 'pickup' ? fallbackOf()?.pickupPromisedArrivalAt : fallbackOf()?.dropoffPromisedArrivalAt)
                 ?? null;
-            /** ⚠️ 못 지키는 약속 — 경로가 바뀌었거나 앞 약속이 늦춰진 것 */
-            const lateOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.lateMinutes ?? 0;
-            /** ⏱️ 앞 정거장 실측이 밀어낸 분 — 「+5분」 (경로 밖 후보는 0) */
-            const shiftOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.dwellShiftMinutes ?? 0;
             const confirmed = (stop: 'pickup' | 'dropoff') => tle(stop)?.promiseConfirmed
                 ?? r.reports.some(rep =>
                     rep.stopType === stop && rep.kind === 'DECLARED' && rep.promisedArrivalAt);
@@ -317,7 +226,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
              *
              *    🟢 높이를 고정해야 접힘/펼침에 줄 높이가 안 흔들린다.
              */
-            const stick: React.CSSProperties | undefined = accordion ? { height: ROW_H } : undefined;
+            const stick: React.CSSProperties = { height: ROW_H };
             return (
                 <button
                     key={o.id}
@@ -338,13 +247,10 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                      *    띠는 2px 한 변이다.
                      */
                     className={`w-full flex items-center px-1.5 rounded-md text-left transition-colors border-l-2 ${
-                        accordion ? 'shrink-0' : 'py-1.5'
-                    } ${
-                        isCur ? (accordion ? 'bg-info/20 border-info' : 'bg-info/10 border-info')
-                              : (accordion ? 'bg-surface border-transparent' : 'bg-surface-alt/30 border-transparent')
+                        isCur ? 'bg-info/20 border-info' : 'bg-surface border-transparent'
                     }`}
                 >
-                    {TITLE_STYLE === '격자' && <>
+                    <>
                     {/**
                       * 🧮 **격자 — 칸마다 뜻이 정해져 자리가 곧 이름이다** (기사님: *"그냥 목업처럼 해"*).
                       *    규약은 `timeDisplay.test.ts` 머리에 있고 그 검사가 문다.
@@ -431,38 +337,8 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                       * 🟢 6단계는 **펼친 카드 안에도 그대로 있다** (`PinnedRouteCard` 스텝 목록) —
                       *    사라진 정보가 아니라 **자리를 옮긴 것**이다.
                       */}
-                    </>}
-                    {/* 🪧 **기호 줄** — `TITLE_STYLE` 을 `'옛줄'` 로 바꾸면 이것이 그려진다.
-                        기호(▲▼)로 «틀어졌나»만 말하고, 오른쪽에 6단계 점이 붙는다. */}
-                    {TITLE_STYLE === '옛줄' && <>
-                        <span className={`w-3 text-[13.5px] font-black shrink-0 tabular-nums ${
-                            isCur ? 'text-info' : 'text-text-muted'
-                        }`}>{i + 1}</span>
-                        <span className="text-[13.5px] font-bold text-text-primary truncate min-w-0 flex-1">
-                            <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
-                                callNo={callNoOf?.(o.id)} visited={confirmed('pickup')}
-                                time={promiseOf('pickup')} confirmed={confirmed('pickup')}
-                                late={lateOf('pickup')} shift={shiftOf('pickup')}
-                                name={getAddressLabel(o.pickup)} />
-                            <span className="text-text-muted font-normal mx-1">→</span>
-                            <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
-                                callNo={callNoOf?.(o.id)} visited={confirmed('dropoff')}
-                                time={promiseOf('dropoff')} confirmed={confirmed('dropoff')}
-                                late={lateOf('dropoff')} shift={shiftOf('dropoff')}
-                                name={getAddressLabel(o.dropoff)} />
-                        </span>
-                        <span className="flex gap-[2px] shrink-0" aria-hidden>
-                            {CALL_STEPS.map((st, k) => (
-                                <span key={st.id} className={`block h-[5px] w-[7px] rounded-full ${
-                                    k === p.index ? 'bg-info'
-                                    : p.done[k] ? 'bg-success'
-                                    : k < p.index ? 'bg-success/35'
-                                    : st.optional ? 'ring-1 ring-inset ring-border'
-                                    : 'bg-surface-hover'
-                                }`} />
-                            ))}
-                        </span>
-                    </>}
+                    </>
+                    
                 </button>
             );
     };
@@ -474,7 +350,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
               감싸개가 auto 로 서면 안쪽 `flex-1` 이 기댈 곳이 없어 내용대로 자란다 —
               그러면 콜 줄이 위로 밀려 나간다. 사슬은 **한 칸도 끊기면 안 된다.**
            ⚠️ 아코디언이 아닐 때(스와이프)는 그대로 auto 다 — 거기는 문서 스크롤이 정상이다. */
-        <div className={`flex flex-col ${accordion ? 'flex-1 min-h-0' : ''}`}>
+        <div className="flex flex-col flex-1 min-h-0">
             {/* ══ 콜 요약 줄 — **스와이프하지 않아도 보인다** ══
                 기사님: *"2개 있다면 각각 어디까지 진행되고 있는지 모두 스와이핑해야만 보인다.
                 그건 문제가 있다. 스와이프 영역 위에 콜마다의 진행 상황이 노출되어야
@@ -486,15 +362,14 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                 🔴 **1건부터 나타난다.** 기사님: *"콜이 들어오면 디폴트로 표시되어야 할 것 같다."*
                 영역이 생겼다 없어지면 화면이 튀고, 무엇보다 **첫 콜에서도 지금 뭘 해야 하는지**를
                 같은 자리에서 봐야 한다. **1건이든 2건이든 줄의 생김새는 같다.** */}
-            {accordion ? (
-                /* 🪗 **아코디언** — 줄 · 그 콜의 내용 · 줄 · … 로 **끼워** 그린다.
-                   내용이 자기 헤더 바로 밑에 오므로 «이건 누구 것인가»가 안 생긴다.
-                   (기사님 확정: *"아코디언 헤더는 무조건 화면에 노출하고
-                    컨텐츠 영역에 스크롤할 수 있게"*) */
-                /**
-                 * 🪗 **그릇은 시트 높이를 그대로 쓰고 넘치지 않는다** (기사님 확정).
-                 *    넘치면 시트가 통째로 길어져 **헤더도, 맨 아래 판정석도 화면 밖으로 나간다.**
-                 */
+                {/**
+                  * 🪗 **아코디언** — 줄 · 그 콜의 내용 · 줄 · … 로 **끼워** 그린다.
+                  *    내용이 자기 헤더 바로 밑에 오므로 «이건 누구 것인가»가 안 생긴다.
+                  *    (기사님 확정: *"아코디언 헤더는 무조건 화면에 노출하고
+                  *     컨텐츠 영역에 스크롤할 수 있게"*)
+                  * 🪗 **그릇은 시트 높이를 그대로 쓰고 넘치지 않는다** (기사님 확정).
+                  *    넘치면 시트가 통째로 길어져 **헤더도, 맨 아래 판정석도 화면 밖으로 나간다.**
+                  */}
                 <div className={`flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden min-h-0 ${fit ? "" : "flex-1"}`}>
                     {orders.map((o, i) => {
                         const open = !noneOpen && i === cur;
@@ -519,131 +394,9 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                         );
                     })}
                 </div>
-            ) : (
-                <>
-                    {/* ══ 콜 요약 줄 — **스와이프하지 않아도 보인다** ══
-                        기사님: *"2개 있다면 각각 어디까지 진행되고 있는지 모두 스와이핑해야만
-                        보인다. 그건 문제가 있다."* — 그래서 줄을 덱 **위**에 모아 둔다. */}
-                    <div className="flex flex-col gap-1 px-3 pt-2 pb-1">
-                        {orders.map((o, i) => rowOf(o, i))}
-                    </div>
-                    <div
-                        ref={trackRef}
-                        onScroll={onScroll}
-                        /* 손가락이 닿는 순간 프로그램 이동을 포기한다.
-                           안 그러면 애니메이션이 끝날 때까지(최대 0.9초) 스와이프가 먹힌다 —
-                           손이 항상 코드보다 우선이다 */
-                        onPointerDown={releasePending}
-                        onTouchStart={releasePending}
-                        className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                        /* 🔴 scrollBehavior:'smooth' 를 CSS 로 걸면 `behavior:'auto'` 가 무시되어
-                           위치 복구까지 애니메이션이 되고, 스와이프 중이면 그게 손가락과 부딪힌다. */
-                        style={{ overscrollBehaviorX: 'contain' }}
-                    >
-                        {orders.map(o => (
-                            <div key={o.id} className="shrink-0 w-full snap-center">
-                                {renderCard(o)}
-                            </div>
-                        ))}
-                    </div>
-                </>
-            )}
-
             {/* 하단 페이저 점은 두지 않는다 — 위 요약 줄이 위치(번호·테두리)와 진행을 함께 보여주므로
                 같은 정보를 두 번 그리면 세로만 잡아먹는다. 폰 한 화면이 목표다. */}
         </div>
     );
 }
 
-/**
- * `⑶ 03:45` — 이 정거장을 **몇 번째로, 몇 시까지 가기로 했는가**.
- *
- * 번호는 **지도 핀과 같은 색표**(`callPalette`)로 칠한다 (기사님) — 색상=콜 번호 · 밝기=상차/하차 ·
- * 테두리=다녀왔나. 심사 중이거나 콜 번호를 모르면 `MAP_THEME_COLORS` 의 중립색을 쓴다.
- * 색을 여기서 따로 정하면 지도와 요약 줄이 다른 말을 하게 된다 (규칙 ③).
- *
- * 시각은 약속이다. 통화로 확정한 약속은 그대로, **통화 전 추정에는 `~` 를 붙인다** —
- * 표시 없이 값만 쓰면 규칙 ④(지어내지 않는다) 위반이다.
- * 번호도 시각도 없으면 아무것도 그리지 않는다 (`(3 --:--)` 를 만들지 않는다).
- */
-function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0, shift = 0, callNo, visited }: {
-    at?: number; time?: string | null; confirmed?: boolean;
-    /**
-     * 🌈 **몇 번 콜인가** — 동그라미 색이 이걸로 정해진다 (`callPalette` 색표).
-     * 🔴 정거장 번호(`at`)와 **다른 값**이다. 목록 자리로 칠하면 심사 중인 콜이 앞에
-     *    있을 때 **지도와 색이 어긋난다** (덱은 심사 콜을 뺀다).
-     */
-    callNo?: number | null;
-    /** 👣 다녀왔나 — 테두리가 투명해진다 (`callNodeStroke`) */
-    visited?: boolean;
-    kind: 'pickup' | 'dropoff'; evaluating?: boolean; name: string; late?: number;
-    /**
-     * ⏱️ **앞 정거장이 예측과 달라 이 시각이 밀린 분** — 접힌 줄에서는 **기호로만** 말한다.
-     *
-     * 기사님 확정 (안 C):
-     * 달리면서 필요한 답은 **«틀어졌나» 하나**다. 몇 분인지는 통화하려고 카드를 펼칠 때
-     * 필요하고, 거기서는 `3:15 → 3:20 (+5)` 로 전부 적는다 (안 A).
-     *
-     * 🔴 **색을 쓰지 않는다.** 지도가 이미 상차=초록·하차=빨강을 쓰고 판정이 🔵🟢🟡🔴 을
-     *    쓴다 — 여기에 초록·빨강을 더하면 **무엇의 색인지 헷갈린다** (규칙 ⑤-3).
-     * 🔴 `0` 이면 안 그린다 — 예측대로 가고 있다는 뜻이라 적을 말이 없다.
-     */
-    shift?: number;
-}) {
-    const { theme } = useTheme();
-    const c = MAP_THEME_COLORS[theme];
-    return (
-        <span className="inline-flex items-center gap-1 align-middle">
-            {!!at && (
-                <span
-                    className="inline-flex items-center justify-center w-[20px] h-[20px] rounded-full text-[12.5px] font-black leading-none shrink-0"
-                    style={{
-                        ...(evaluating || !callNo ? {
-                            /* 🔴 번호를 모르면 **색을 지어내지 않는다** (규칙 ④) — 옛 초록으로
-                               칠하면 «1번 콜»로 읽힌다. 중립으로 둔다 */
-                            backgroundColor: evaluating ? c.nodeEvaluating : c.nodeStrokeRegular,
-                            border: `1.5px solid ${evaluating ? c.nodeStrokeEvaluating : c.nodeStrokeRegular}`,
-                            color: c.textBody,
-                        } : (() => {
-                            /* 🌈 **지도와 같은 색표** (`callPalette`) — 색상=콜 · 밝기=상차/하차 ·
-                               테두리=다녀왔나. 그래야 «저 동그라미가 목록의 몇 번 줄인가»가 이어진다
-                               (기사님: *"지도 아이콘 색과 콜 리스트가 괴리가 크다"*) */
-                            const fill = callNodeFill(callNo, kind, theme);
-                            return {
-                                backgroundColor: fill,
-                                border: `1.5px solid ${callNodeStroke(!!visited, fill)}`,
-                                color: callNodeText(kind, theme),
-                            };
-                        })()),
-                    }}
-                >{at}</span>
-            )}
-            {/**
-              * 📐 **열을 고정한다** (기사님: *"일단 라인에 맞춰야 할 것 같아"*).
-              *    지명이 내용만큼 늘어나면 **줄마다 시각의 자리가 달라져**, 달리면서 훑을 때
-              *    눈이 매번 다시 찾는다. 폭을 고정하면 세 줄이 **한 표**처럼 읽힌다.
-              * 🔴 **잘릴 것은 지명이다** — 못 읽어도 «어느 줄»은 번호·색이 답한다.
-              *    시각을 자르면 답이 없다.
-              */}
-            <span className="w-[4em] shrink-0 truncate">{name}</span>
-            {/**
-              * 📐 **시각 칸은 비어도 자리를 지킨다.** 그게 열을 만드는 값이다 —
-              *    시각 없는 콜에서 칸이 사라지면 **아래 줄이 통째로 당겨진다.**
-              * ⚠️ `min-w` 다 — 지각·밀림이 붙는 드문 줄만 넓어지고 평소 줄은 다 같다.
-              */}
-            <span className={`min-w-[3.5em] shrink-0 text-[12px] font-bold tabular-nums text-right ${
-                late > 0 ? 'text-danger' : 'text-text-muted'
-            }`}>
-                {time ? (confirmed ? hhmm(time) : `~${hhmm(time)}`) : ''}
-                {/* ⚠️ 못 지키는 약속 — 색만으로는 이유를 모르니 분을 적는다 */}
-                {late > 0 && <span className="ml-0.5">⚠️{late}분</span>}
-                {shift !== 0 && (
-                    <span className="ml-0.5 opacity-80"
-                          title={`앞 정거장이 예측과 달라 ${Math.abs(shift)}분 ${shift > 0 ? '밀렸습니다' : '당겨졌습니다'} — 몇 분인지는 카드를 펼치면 나옵니다`}>
-                        {shift > 0 ? '▲' : '▼'}
-                    </span>
-                )}
-            </span>
-        </span>
-    );
-}

@@ -81,7 +81,6 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
 
             {cycleDeck.length > 0 && (
                 <CallDeck
-                    accordion
                     callNoOf={callNoOf}
                     openIdx={openIdx} onOpenIdx={onOpenIdx} fit={fit}
                     hiddenIds={hiddenIds}
@@ -101,9 +100,6 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                         <PinnedRouteCard
                             route={route}
                             isExpanded
-                            /* 🪗 펼침은 아코디언(`openIdx`)이 맡는다 — 카드는 늘 펼친 채(`isExpanded`)라
-                               카드 머리 누름으로 여닫지 않는다 */
-                            onToggle={() => {}}
                             onDecision={onDecision}
                             processingId={processingId}
                             setProcessingId={setProcessingId}
@@ -115,7 +111,6 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                             timeline={routeTimeline}
                             routeStops={routeStops}
                             routeComputedAt={routeComputedAt}
-                            variant="deck"
                             focusStep={focus && focus.orderId === route.id ? focus.step : null}
                             /* 🎬 이 카드가 지금 상태바의 콜인가 — 끌어올리는 순간 참이 되어 손으로 넘긴 단계를 지운다 (#145) */
                             focused={!!focus && focus.orderId === route.id}

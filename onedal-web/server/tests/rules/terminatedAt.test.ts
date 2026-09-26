@@ -26,7 +26,13 @@ describe('🧹 취소·방출 시각', () => {
         expect(fn).toMatch(/COALESCE\(terminatedAt/);
         expect(fn).toMatch(/SAFE_CANCEL/);
     });
-    it('🔴 관제웹 조회 목록이 취소 시각을 보인다', () => {
-        expect(code('../client-app/src/components/dashboard/PinnedRouteCard.tsx')).toMatch(/route\.terminatedAt/);
+    /**
+     * 🔴 **그리는 자리를 읽는다** — 조회 목록은 서랍(`Drawer`)이다.
+     *    옛 판은 `PinnedRouteCard` 의 «리스트 헤더»를 읽었는데, 그 머리줄은 덱 전용 헤더가
+     *    생긴 뒤로 한 번도 안 그려졌고(`variant='list'` 를 주는 곳이 없어졌다) 이제 걷었다.
+     *    조회 탭이 서랍으로 옮겨 갈 때 검사가 안 따라왔던 것이다.
+     */
+    it('🔴 관제웹 조회 목록(서랍)이 취소 시각을 보인다', () => {
+        expect(code('../client-app/src/components/layout/Drawer.tsx')).toMatch(/terminatedAt/);
     });
 });
