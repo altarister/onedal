@@ -740,19 +740,34 @@ describe('8단계 · 궤적이 카카오 길을 따라간다 (기사님 "궤적�
 /**
  * 🪧 **시트 콜 줄 — 목업과 «껍데기까지» 한 벌이다** (기사님 실측)
  *
- * 🔴 **격자 칸은 한 벌이다** — 같은 `gridTemplateColumns`, 같은 `callPalette`.
+ * 🔴 **칸 폭은 한 벌이다** — 같은 다섯 칸(`15px · 지명 · 41px · 28px · 41px`), 같은 `callPalette`.
  *    **바깥**도 같아야 한다: `px-2.5` + `gap-1.5` + 테두리를 두르면 한 줄에서 **16px** 을 더 먹어
  *    400px 폰에서 지명이 두 자 일찍 잘린다. 값이 없을 때 칸을 비우면 색 띠만 남아 «잘렸다»로 읽힌다.
+ *
+ * 🔴 **바깥 감싸개는 둘이 다를 수 있다** (기사님 확정 · 화면 디자인) — 실물은 상차·하차를
+ *    **묶음 둘**로 감싸 배경과 둥근 모서리를 묶음마다 한 번씩 주고(`1fr 10px 1fr` 안에 다섯 칸씩),
+ *    목업은 열한 칸 한 줄을 그대로 쓴다. 기사님이 보시는 것이 실물이라 거기부터 고쳤다.
+ *    🟢 실험실이 재는 것은 «화면 두 자리가 같은 말을 하는가»(숫자·글자)이지 픽셀이 아니다 —
+ *       칸 폭이 같으니 거기서 재던 것(줄 맞음 · 글자 잘림)은 그대로 쓸 수 있다.
  */
 describe('시트 콜 줄 — 목업과 껍데기까지 같다', () => {
     const deck = codeOnly(readClient('components/dashboard/CallDeck.tsx'));
     const mock = codeOnly(readClient('pages/MapMockup.tsx'));
 
-    it('🔴 격자 폭이 한 벌이다 — 실물과 목업이 같은 칸을 쓴다', () => {
-        const cols = /gridTemplateColumns: '15px minmax\(0,1fr\) 41px 28px 41px 10px 15px minmax\(0,1fr\) 41px 28px 41px'/;
+    it('🔴 칸 폭이 한 벌이다 — 실물과 목업이 같은 다섯 칸을 쓴다', () => {
+        /**
+         * 🔴 **감싸개가 아니라 칸 폭을 잰다** — 그것이 갈라지면 두 화면의 세로줄이 어긋난다.
+         * 🔴 **실물의 두 묶음도 칸 폭이 같아야 한다** — 다르면 상차·하차의 세로줄이 어긋난다.
+         *    지금은 `['pickup','dropoff'].map` **한 곳**에서 나와 저절로 지켜진다
+         *    (소스에 한 번 · 화면에 두 번). 풀어서 따로 적게 되면 **그때 개수를 세는 검사를 둔다.**
+         */
+        const cols = /15px minmax\(0,1fr\) 41px 28px 41px/;
         expect(deck).toMatch(cols);
         expect(mock).toMatch(cols);
     });
+
+    /* 🔜 실물만 먼저 바꿨다 — 잊지 않게 `todo` 로 둔다 (`naviGpsOff.test.ts` 관례) */
+    it.todo('🔜 목업(MapMockup)도 시트 줄을 상차·하차 두 묶음으로 나눈다 — 실물만 먼저 바꿨다');
 
     it('🔴 바깥 여백이 목업과 같다 — 테두리로 좌우를 먹지 않는다', () => {
         const i = deck.indexOf('const rowOf');

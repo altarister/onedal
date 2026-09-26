@@ -355,8 +355,19 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                       *    (*"22:14에 도착해야 하는데 +24가 걸려서 22:37에 도착 예정"*).
                       * 🔴 **화살표(→)는 쓰지 않는다** — 10px 틈이 그 일을 한다. 글자는 칸을 먹는다.
                       */}
+                    {/**
+                      * 🔴 **상차 묶음 · 하차 묶음이 제 껍데기를 가진다** (기사님 확정 · 화면 디자인).
+                      *
+                      * 옛 판은 **열한 칸이 한 격자의 형제**라, 배경과 둥근 모서리를 칸마다 다섯 번씩
+                      * 발라 «한 덩어리»를 흉내 냈다(`rounded-l-md` … `rounded-r-md`).
+                      * 이제 묶음마다 `<span>` 하나가 배경과 모서리를 **한 번씩** 든다.
+                      *
+                      * 🔴 **세로줄은 그대로다** — 안쪽 칸이 고정 픽셀(15·41·28·41)이고 늘어나는 것은
+                      *    지명의 `1fr` 하나뿐이다. 바깥 두 칸이 `1fr` 로 같은 폭이니 콜이 넷이어도
+                      *    약속은 약속끼리, 예상은 예상끼리 선다.
+                      */}
                     <span className="grid items-center flex-1 min-w-0 text-[11.5px] font-black tabular-nums"
-                        style={{ gridTemplateColumns: '15px minmax(0,1fr) 41px 28px 41px 10px 15px minmax(0,1fr) 41px 28px 41px' }}>
+                        style={{ gridTemplateColumns: 'minmax(0,1fr) 10px minmax(0,1fr)' }}>
                         {(['pickup', 'dropoff'] as const).map(stop => {
                             const tl = tle(stop);
                             const seq = stop === 'pickup' ? vo?.pickupIdx : vo?.dropoffIdx;
@@ -374,18 +385,20 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                             return (
                                 <Fragment key={stop}>
                                     {stop === 'dropoff' && <span />}
-                                    <span className={`rounded-l-md pl-1 py-0.5 text-[12px] ${gone ? 'text-text-muted' : ''}`}
-                                        style={{ background: box, ...(gone ? null : { color: callTextColor(no, stop, theme) }) }}>
+                                    {/* 📦🏁 **묶음 하나** — 배경과 둥근 모서리를 여기서 한 번만 든다 */}
+                                    <span className="grid items-center min-w-0 rounded-md overflow-hidden"
+                                        style={{ background: box, gridTemplateColumns: '15px minmax(0,1fr) 41px 28px 41px' }}>
+                                    <span className={`pl-1 py-0.5 text-[12px] ${gone ? 'text-text-muted' : ''}`}
+                                        style={gone ? undefined : { color: callTextColor(no, stop, theme) }}>
                                         {seq ?? '?'}
                                     </span>
-                                    <span className={`truncate px-1 py-0.5 ${gone ? 'text-text-muted' : 'text-text-primary'}`}
-                                        style={{ background: box }}>
+                                    <span className={`truncate px-1 py-0.5 ${gone ? 'text-text-muted' : 'text-text-primary'}`}>
                                         {getAddressLabel(stop === 'pickup' ? o.pickup : o.dropoff)}
                                         {stop === 'dropoff' && showBoard && o.goalCity && <span className="ml-1 text-[9.5px] font-bold text-info">🎯{o.goalCity}</span>}
                                     </span>
                                     {/* ☎️ 통화로 정한 약속은 **보라** — 글자를 더하면 격자가 깨진다 (폭 0인 신호) */}
                                     <span className="text-right px-1 py-0.5"
-                                        style={{ background: box, color: confirmed(stop) ? PROMISE_CALLED : 'var(--color-text-muted)' }}>
+                                        style={{ color: confirmed(stop) ? PROMISE_CALLED : 'var(--color-text-muted)' }}>
                                         {/**
                                           * 🔴 **없으면 «--:--» 다 — 빈칸으로 두지 않는다** (기사님:
                                           *    *"값이 없을 때 **잘려 보일 때**가 있어"*).
@@ -397,13 +410,12 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                                         {promised ? hhmm(promised) : '--:--'}
                                     </span>
                                     {/* ± — **늦음만 노랑**이다. 초록·빨강은 판정 색과 겨루므로 안 쓴다 (§4) */}
-                                    <span className={`text-right px-1 py-0.5 ${diff != null && diff > 0 && !gone ? 'text-warning' : 'text-text-muted'}`}
-                                        style={{ background: box }}>
+                                    <span className={`text-right px-1 py-0.5 ${diff != null && diff > 0 && !gone ? 'text-warning' : 'text-text-muted'}`}>
                                         {diff == null ? '' : diff > 0 ? `+${diff}` : `${diff}`}
                                     </span>
-                                    <span className={`text-right rounded-r-md pr-1 py-0.5 ${gone ? 'text-text-muted' : ''}`}
-                                        style={{ background: box }}>
+                                    <span className={`text-right pr-1 py-0.5 ${gone ? 'text-text-muted' : ''}`}>
                                         {real != null ? hhmm(new Date(real).toISOString()) : '--:--'}
+                                    </span>
                                     </span>
                                 </Fragment>
                             );
