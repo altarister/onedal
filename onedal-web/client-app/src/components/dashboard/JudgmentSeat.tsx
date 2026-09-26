@@ -33,7 +33,10 @@ const TARGET_NAME: Record<CallTarget, string> = { DEST: '노선', HOME: '복귀'
 
 const cleanRoute = (t?: string) => (t ?? '')
     .replace(/'(꿀|똥|콜|보통|사고)'/g, '').replace(/\[(추천|최단거리|최단시간)\]/g, '')
-    .replace(/[🚙💩🍯]/g, '').replace(/\s{2,}/g, ' ').trim();
+    /* 🔴 **점수를 뺀다** — 워터마크가 이미 크게 말한다 (기사님 확정 · 화면 디자인).
+       같은 숫자가 한 카드에 두 번 있으면 그만큼 다른 것이 늦게 읽힌다 */
+    .replace(/\s*·?\s*\d+점/g, '')
+    .replace(/[🚙💩🍯]/g, '').replace(/\s{2,}/g, ' ').replace(/^[·\s]+|[·\s]+$/g, '').trim();
 
 /** v13 둘째 줄 리듬 «11.5km · 15분 (상차 10분)» — 못 읽으면 서버 원문 그대로 (지어내지 않는다) */
 function routeLine(distanceKm: number | undefined, ext: string): string {
@@ -122,9 +125,35 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const extraLine = confirmedActive > 0 && route.judgment?.extraMin != null
         ? <span style={{ opacity: .75 }}> · 더 쓰는 {route.judgment.extraMin}분</span> : null;
 
-    /* ── v13 .row: 42px · 0 16px · gap 10 · 14px ── */
+    /**
+     * ⏳ **시간이 흐르는 것은 «판 배경»이 말한다** — 두 갈래가 한 벌을 쓴다 (기사님 확정 · 화면 디자인).
+     *
+     * 오른쪽 끝에 붙어 **왼쪽으로** 덮어 온다. 남은 밝은 폭이 곧 남은 시간이다.
+     * 🔴 `width` 가 아니라 `transform` 으로 늘린다 — 폭을 재우면 글자 배치를 매 프레임 다시 계산해 눈에 띄게 튄다.
+     * 🔴 **경계선을 긋지 않는다** — 지나가는 선이 눈을 끌어 금액·판정 색보다 먼저 읽힌다 (규칙 ⑤-3).
+     * 🔴 **머리줄·본문·버튼이 모두 이 위다** — 글자를 가리지 않는다. 버튼 사이 틈과 여백으로 지나간다.
+     *
+     * 두 시계를 한 자리에서 그린다 — 미리보기는 «판정 보류», 잡은 콜은 «안전취소».
+     * 둘은 같이 오지 않는다 (미리보기는 안 잡은 콜이다).
+     */
+    const drainSec = route.isPreview ? previewHoldSec : (judged ? cancelSec : null);
+    const drainDelay = route.isPreview ? previewElapsedSec : 0;
+    const drain = drainSec != null && (
+        <div className="absolute inset-0 z-0 pointer-events-none"
+             style={{ background: 'linear-gradient(270deg, rgba(0,0,0,.72), rgba(0,0,0,.30))', transformOrigin: 'right center',
+                      animation: `seat-drain-x ${drainSec}s linear forwards`, animationDelay: `-${drainDelay.toFixed(1)}s` }} />
+    );
+
+    /**
+     * ── 머리줄 — **두 갈래가 한 벌을 쓴다** (기사님 확정 · 화면 디자인) ──
+     *
+     * 🔴 **아래 선과 위아래 여백을 걷는다** — 내용과 글자 크기는 그대로다.
+     *    그 선 아래가 곧 본문이라 «위는 설명, 아래는 누를 것»을 버튼의 테두리와 둥근 모서리가 이미 가른다.
+     *    걷은 15px 은 본문 높이로 간다 (115 → 131px).
+     */
     const header = (
-        <div className="flex items-center relative z-10" style={{ gap: 10, padding: '0 16px', minHeight: 42, fontSize: 14, borderBottom: '1px solid var(--color-border-card)' }}>
+        /* 🔴 **머리줄 글자도 판정 색이다** (기사님 확정 · 화면 디자인) — 상차→하차만 흐린 색으로 둔다 */
+        <div className="flex items-center relative z-10" style={{ gap: 10, padding: '7px 14px 1px', fontSize: 14, color: c ? c.text : undefined }}>
             {manual && <span style={{ borderRadius: 7, padding: '3px 10px', fontSize: 12, fontWeight: 800, background: 'rgba(79,141,249,.14)', color: '#9db9ff', border: '1px solid rgba(79,141,249,.35)' }}>
                 {route.capturedVia === 'ALARM' ? '🔔' : '✋'}</span>}
             {route.isSimulated && <span style={{ borderRadius: 7, padding: '3px 8px', fontSize: 11, fontWeight: 900, background: 'rgba(56,189,248,.18)', color: '#38bdf8', border: '1px solid rgba(56,189,248,.4)' }}>
@@ -162,14 +191,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     if (manual) {
         return (
             <div className="relative overflow-hidden flex flex-col" style={{ margin: inset ?? '8px 12px', borderRadius: 14, border: `1px solid ${c ? `${c.bar}73` : '#2a3450'}`, background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)', height: open ? 'auto' : 158, minHeight: 158 }}>
-                {/**
-                  * ⏳ 미리보기 장막 — 남은 판정 시간만큼 배경이 **오른쪽에서 왼쪽으로** 차오른다. 다 차도 카드는 남는다 — 치우는 것은 폰의 상세 화면 이탈이다.
-                  * 🔴 `width` 가 아니라 `transform` 으로 늘린다 — 폭을 재우면 글자 배치를 매 프레임 다시 계산해 눈에 띄게 튄다.
-                  * 🔴 **경계선을 긋지 않는다** — 지나가는 선이 눈을 끌어 금액·판정 색보다 먼저 읽힌다 (규칙 ⑤-3).
-                  */}
-                {route.isPreview && <div className="absolute inset-0 z-0 pointer-events-none"
-                     style={{ background: 'linear-gradient(270deg, rgba(0,0,0,.45), rgba(0,0,0,.10))', transformOrigin: 'right center',
-                              animation: `seat-drain-x ${previewHoldSec}s linear forwards`, animationDelay: `-${previewElapsedSec.toFixed(1)}s` }} />}
+                {drain}
                 {judged && <div className="absolute inset-0 z-0" style={{ background: `linear-gradient(165deg, ${c!.tint} 0%, rgba(0,0,0,0) 45%, transparent 100%)` }} />}
                 <div className="absolute left-0 top-0 bottom-0 z-10" style={{ width: 5, background: c ? `linear-gradient(180deg, ${c.bar}, ${c.bar}59)` : '#3a4358', boxShadow: c ? `2px 0 14px ${c.glow}` : undefined }} />
                 {/* v13 .wm — 158px · right 2 · bottom -34 */}
@@ -181,7 +203,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                 </div>
                 {header}
                 {/* 👀 미리보기는 **누르면 치운다** — 배차망엔 아무 일도 안 생기고(안 잡은 콜) 취소 한도도 안 깎인다. 펼치기는 안 쓴다 (운전 중 두 손짓은 못 기억한다) */}
-                <div className="relative z-10 tabular-nums cursor-pointer" style={{ padding: '8px 16px 12px 21px' }}
+                <div className="relative z-10 tabular-nums cursor-pointer" style={{ padding: '5px 16px 11px 21px' }}
                      onClick={() => {
                          /* 🧾 **어느 버튼에서 온 결재인지 남긴다** — 서버 로그에는 «[Socket] 취소 전달» 한 줄만 남아
                             «누가 눌렀나»를 못 가렸다 (누른 적 없는 취소가 «수동»으로 기록된 건). */
@@ -189,14 +211,13 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                          else if (judged) setOpen(o => !o);
                      }}>
                     {judged ? (<>
-                        {/* v13 .core .l1 — 27px */}
-                        <div style={{ fontSize: 27, fontWeight: 900, letterSpacing: '-.5px', lineHeight: 1.15 }}>
-                            {hourly != null ? <>{hourly.toFixed(1)}만<span style={{ fontSize: 14, color: 'var(--color-text-muted)', fontWeight: 700 }}>/h</span></> : <span style={{ fontSize: 15 }}>{v.reason}</span>}
+                        {/* 🔴 **글 판과 버튼 판이 같은 치수를 쓴다** (기사님 확정 · 화면 디자인) — 시급 26 · 경로 13.5 · 행동 15 */}
+                        <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-.5px', lineHeight: 1.15 }}>
+                            {hourly != null ? <>{hourly.toFixed(1)}만<span style={{ fontSize: 13, color: 'var(--color-text-muted)', fontWeight: 700 }}>/h</span></> : <span style={{ fontSize: 15 }}>{v.reason}</span>}
                         </div>
-                        {/* v13 .l2 — 14.5px */}
-                        <div className="truncate" style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '-.2px', marginTop: 5 }}>{routeLine(route.distanceKm, routeText) || '경로 계산됨'}{extraLine}</div>
-                        {/* v13 .l3 — 12.5px · 걸리는 것만 */}
-                        <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 4, color: negatives.length ? c!.text : 'var(--color-text-muted)' }}>
+                        <div className="truncate" style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: '-.2px', marginTop: 2 }}>{routeLine(route.distanceKm, routeText) || '경로 계산됨'}{extraLine}</div>
+                        {/* 걸리는 것만 — 버튼 판의 같은 줄과 한 치수다 */}
+                        <div className="truncate" style={{ fontSize: 12, fontWeight: 700, opacity: .8, marginTop: 1, color: negatives.length ? c!.text : 'var(--color-text-muted)' }}>
                             {negatives.length ? negatives.join(' · ') : '걸리는 것 없음'} · 근거 {open ? '▴' : '▾'}
                         </div>
                         {/**
@@ -211,7 +232,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                           *    («❓ 모른다» / «✅ 안 밀린다»). 우선순위 표를 만들지 않는다.
                           */}
                         {actionLine ? (
-                            <div className="truncate" style={{ fontSize: 12.5, fontWeight: 800, marginTop: 3, color: c?.text ?? 'var(--color-text-primary)' }}>{actionLine}</div>
+                            <div className="truncate" style={{ fontSize: 15, fontWeight: 900, marginTop: 3, color: c?.text ?? 'var(--color-text-primary)' }}>{actionLine}</div>
                         ) : conclusion && (
                             <div className={`truncate ${conclusionClass}`} style={{ fontSize: 12.5, fontWeight: 800, marginTop: 3 }}>{conclusion.text}</div>
                         )}
@@ -254,7 +275,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                         </div>
                     )}
                 </div>
-                {/* ⏳ 배경이 차오르는 문법 — 오른쪽 끝에 붙어 왼쪽으로 늘어난다 (자동콜 카드의 `seat-drain` 과 이름을 가른다: 그쪽은 폭을 잰다) */}
+                {/* ⏳ 배경이 차오르는 문법 — 오른쪽 끝에 붙어 왼쪽으로 늘어난다 (두 갈래가 이 한 벌을 쓴다) */}
                 <style>{`@keyframes seat-drain-x { from { transform: scaleX(0) } to { transform: scaleX(1) } }`}</style>
             </div>
         );
@@ -262,33 +283,48 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
 
     // ── 자동콜: 아래 전체가 버튼 35:65 — v13 .btns ──
     return (
-        <div className="relative overflow-hidden flex flex-col" style={{ margin: inset ?? '8px 12px', borderRadius: 14, border: '1px solid rgba(79,141,249,.35)', background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)', height: 158 }}>
+        /* 🔴 **테두리도 판정 색이다** — 글 판과 한 벌 (기사님 확정 · 화면 디자인).
+              옛 판은 고정 파랑이라 🟢 콜이 파란 테두리로 보였다 */
+        <div className="relative overflow-hidden flex flex-col" style={{ margin: inset ?? '8px 12px', borderRadius: 14, border: `1px solid ${c ? `${c.bar}73` : '#2a3450'}`, background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)', height: 158 }}>
+            {judged && <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: `linear-gradient(165deg, ${c!.tint} 0%, rgba(0,0,0,0) 45%, transparent 100%)` }} />}
+            {drain}
+            <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-none" style={{ width: 5, background: c ? `linear-gradient(180deg, ${c.bar}, ${c.bar}59)` : '#3a4358', boxShadow: c ? `2px 0 14px ${c.glow}` : undefined }} />
             {header}
-            <div className="flex relative z-10" style={{ gap: 9, padding: '8px 13px 13px', flex: 1, minHeight: 0 }}>
+            <div className="flex relative z-10" style={{ gap: 9, padding: '5px 13px 11px', flex: 1, minHeight: 0 }}>
                 <button disabled={!judged || busy}
                     onClick={() => { logRoadmapEvent("웹", "심사석 — 거절(왼쪽) 버튼 클릭", "관제대시보드"); setProcessingId?.(route.id); onDecision?.(route.id, 'SAFE_CANCEL'); }}
                     className="text-left disabled:opacity-40 overflow-hidden"
+                    /**
+                     * 🔴 **거절 버튼도 판정 색이다** (기사님 확정 · 화면 디자인).
+                     *    옛 판은 늘 빨강이라 🟡 콜에서도 빨간 칸이었다 — 색이 그 콜의 뜻과 달랐다.
+                     *    🔴 **걸리는 것이 없으면 흐린 회색** — 누를 일이 없는 버튼이 눈을 끌면 안 된다.
+                     */
                     style={{ flex: 35, borderRadius: 11, padding: '8px 12px', fontSize: 13.5, fontWeight: 700, lineHeight: 1.7,
-                             background: 'linear-gradient(180deg,#3a1518,#2c1013)', color: '#e79aa2', border: '1px solid rgba(224,85,99,.35)' }}>
+                             ...(negatives.length && c
+                                 ? { background: `linear-gradient(180deg, ${c.bar}2e, ${c.bar}17)`, color: c.text, border: `1px solid ${c.bar}59` }
+                                 : { background: 'linear-gradient(180deg,#232c42,#1b2234)', color: 'var(--color-text-muted)', border: '1px solid #2a3450', opacity: .5 }) }}>
                     {/* ❓ 기존 콜 도착을 모르면 거절 쪽 맨 위에 — 모르는 것이 «걸리는 것 없음»으로 읽히지 않게 */}
                     {judged ? ([conclusion?.kind === 'unknown' ? '❓ 기존 콜 도착 모름' : null, ...negatives.map(r => `❌ ${r}`)].filter(Boolean).join('\n') || '거절') : '❌ —'}
                 </button>
                 <button disabled={!judged || busy}
                     onClick={() => { logRoadmapEvent("웹", "심사석 — KEEP(오른쪽) 버튼 클릭", "관제대시보드"); setProcessingId?.(route.id); onDecision?.(route.id, 'ORDER_CONFIRMED'); }}
                     className="text-left relative overflow-hidden tabular-nums disabled:opacity-60"
+                    /**
+                     * 🔴 **흰 글자 · 어둡게 물든 바탕** (기사님 확정 · 화면 디자인).
+                     *    옛 판은 «밝은 바탕 + 검정 글자»라 왼쪽 거절 버튼(짙은 바탕 + 연한 글자)과 결이 달랐다.
+                     *    색은 **테두리 · 워터마크 · 「지금 할 일」 글자색** 셋이 말한다 — 눌러야 할 쪽이 더 밝고 넓다.
+                     */
                     style={judged
-                        ? { flex: 65, borderRadius: 11, padding: '8px 12px', background: `linear-gradient(180deg, ${c!.bar}, ${c!.bar}cc)`, color: '#181818', boxShadow: `0 0 24px ${c!.glow}, inset 0 1px 0 rgba(255,255,255,.35)` }
+                        ? { flex: 65, borderRadius: 11, padding: '8px 12px', background: `linear-gradient(180deg, ${c!.bar}6b, ${c!.bar}33)`, color: 'var(--color-text-primary)', border: `1px solid ${c!.bar}8c`, boxShadow: `0 0 24px ${c!.glow}` }
                         : { flex: 65, borderRadius: 11, padding: '8px 12px', background: 'linear-gradient(180deg,#232c42,#1b2234)', color: 'var(--color-text-muted)', border: '1px solid #1c2436' }}>
                     {/* v13 .bwm — 124px · right 0 · bottom -26 */}
                     <div className="absolute z-0 font-black leading-none select-none tabular-nums"
                          /* 🔴 **-25px** (기사님). 숫자가 서로 겹칠 만큼 뭉쳐야
                             «읽는 값»이 아니라 «바탕»으로 물러난다 — 앞의 시급이 먼저 읽힌다 */
-                         style={{ right: 0, bottom: -26, fontSize: 124, letterSpacing: '-25px', color: judged ? 'rgba(0,0,0,.18)' : 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)' }}>
+                         style={{ right: 0, bottom: -26, fontSize: 124, letterSpacing: '-25px', color: judged ? 'rgba(255,255,255,.10)' : 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)' }}>
                         {judged ? score ?? '' : '?'}
                     </div>
-                    {/* ⏳ 안전취소 장막 — 그 배차망의 안전취소 시간만큼 차오르면 자동취소 · 픽커는 안전취소가 없어 안 건다 */}
-                    {judged && cancelSec != null && <div className="absolute top-0 right-0 bottom-0 z-1"
-                         style={{ background: 'linear-gradient(90deg, rgba(0,0,0,.15), rgba(0,0,0,.5))', borderLeft: '2px solid rgba(0,0,0,.5)', animation: `seat-drain ${cancelSec}s linear forwards` }} />}
+                    {/* ⏳ 안전취소는 **판 배경**이 말한다 (위 `drain`) — 버튼 안에 따로 두지 않는다 */}
                     <div className="relative z-2" style={{ lineHeight: 1.5 }}>
                         {judged ? (<>
                             {/* v13 .g1 22px / .g2 13.5 / .g3 12 */}
@@ -296,12 +332,21 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                                 {hourly != null ? <>{hourly.toFixed(1)}만<span style={{ fontSize: 13, fontWeight: 800, opacity: .75 }}>/h</span></> : `${score ?? ''}점`}
                             </div>
                             <div className="truncate" style={{ fontSize: 13.5, fontWeight: 800, marginTop: 2 }}>{routeLine(route.distanceKm, routeText)}{extraLine}</div>
-                            <div className="truncate" style={{ fontSize: 12, fontWeight: 700, opacity: .8, marginTop: 1 }}>{positives.length ? positives.join(' · ') : '걸리는 것 없음'}</div>
+                            {/**
+                              * 🎬 **이 자리는 «행동이 있으면 행동»이 차지한다** (판정 4단계 · `lib/verdict.ts` 의 `action`).
+                              *    🔴 **줄을 늘리지 않는다** — 이 버튼도 고정 높이 안이라 한 줄을 더하면 잘린다.
+                              *    🔴 **색 이름으로 가르지 않는다** — «있으면 그린다» 뿐이다.
+                              *       🔵🟢 에는 `action` 이 없어 지금처럼 좋은 점이 보인다.
+                              */}
+                            {actionLine
+                                ? <div className="truncate" style={{ fontSize: 13.5, fontWeight: 900, marginTop: 2, color: c?.text ?? 'var(--color-text-primary)' }}>{actionLine}</div>
+                                : <div className="truncate" style={{ fontSize: 12, fontWeight: 700, opacity: .8, marginTop: 1 }}>{positives.length ? positives.join(' · ') : '걸리는 것 없음'}</div>}
                         </>) : <span style={{ fontSize: 14, fontWeight: 900 }}>좌표 분석 중…</span>}
                     </div>
                 </button>
             </div>
-            <style>{`@keyframes seat-drain { from { width: 0 } to { width: 100% } }`}</style>
+            {/* ⏳ 배경이 차오르는 문법은 한 벌이다 — `seat-drain-x` (위 `drain`). 폭을 재는 옛 `seat-drain` 은 걷었다 */}
+            <style>{`@keyframes seat-drain-x { from { transform: scaleX(0) } to { transform: scaleX(1) } }`}</style>
         </div>
     );
 }

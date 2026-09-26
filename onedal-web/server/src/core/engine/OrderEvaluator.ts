@@ -322,8 +322,17 @@ export class OrderEvaluator {
                         // 🧪 도달 반경 dryRun (구현 4 계측) — 거르지 않는다, 설정 반경과 견주기만
                         console.log(`   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupPromiseMin}분 ` +
                             `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupPromiseMin)}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
-                        (dry.color === '똥' || dry.color === '사고' ? reasons : pros)
-                            .push(`총점 ${dry.score}점 — ${dry.axes.map(a => `${a.name} ${a.raw}`).join(' · ')}`);
+                        /**
+                         * 🔴 **축 아홉을 사유 문자열에 싣지 않는다** (기사님 확정 · 화면 디자인).
+                         *
+                         * 여기서 「총점 N점 — 돈 … · 노동강도 … · 지리 …」를 한 문자열로 만들어
+                         * `rejectionReasons`(🟡🔴) 또는 `approvalReasons`(🔵🟢)에 넣고 있었다.
+                         * 그런데 **같은 축이 `dry.axes` 로 이미 간다** — 화면의 「근거 ▾」 접이가 그걸 그린다.
+                         *
+                         * 🔴 그 칸은 기사님이 **1~2초에 읽는 자리**다. 판정 설명 전체가 거기 들어가니
+                         *    심사석 카드(158px 고정 · `overflow-hidden`)에서 **넘쳐 잘렸다** — 실측으로
+                         *    「(보통 3.0만 · 꿀」에서 끊긴 화면을 봤다. 걸리는 것만 남긴다.
+                         */
 
                         // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
                         OrderRepository.saveJudgment(securedOrder.id, userId, dry);
@@ -660,8 +669,17 @@ export class OrderEvaluator {
 
                             const failedGates = dry.gates.filter(g => !g.pass);
                             if (failedGates.length) reasons.push(...failedGates.map(g => g.why ?? g.name));
-                            (dry.color === '똥' || dry.color === '사고' ? reasons : pros)
-                                .push(`총점 ${dry.score}점 — ${dry.axes.map(a => `${a.name} ${a.raw}`).join(' · ')}`);
+                            /**
+                             * 🔴 **축 아홉을 사유 문자열에 싣지 않는다** (기사님 확정 · 화면 디자인).
+                             *
+                             * 여기서 「총점 N점 — 돈 … · 노동강도 … · 지리 …」를 한 문자열로 만들어
+                             * `rejectionReasons`(🟡🔴) 또는 `approvalReasons`(🔵🟢)에 넣고 있었다.
+                             * 그런데 **같은 축이 `dry.axes` 로 이미 간다** — 화면의 「근거 ▾」 접이가 그걸 그린다.
+                             *
+                             * 🔴 그 칸은 기사님이 **1~2초에 읽는 자리**다. 판정 설명 전체가 거기 들어가니
+                             *    심사석 카드(158px 고정 · `overflow-hidden`)에서 **넘쳐 잘렸다** — 실측으로
+                             *    「(보통 3.0만 · 꿀」에서 끊긴 화면을 봤다. 걸리는 것만 남긴다.
+                             */
 
                             // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
                             OrderRepository.saveJudgment(securedOrder.id, userId, dry);
