@@ -30,11 +30,13 @@ class FingerprintOnePlaceTest {
     }
 
     @Test
-    fun `결재 뒤 내리기는 누를 때 쥔 카드로 지문을 뜬다 - 사진 글자로 덮인 콜은 보지 않는다`() {
-        val body = codeOnly("src/main/java/com/onedal/app/HijackService.kt")
-            .substringAfter("private fun executeDecisionImmediately(").substringBefore("\n    private fun ")
-        assertTrue("누를 때 쥔 카드로 내리지 않는다", body.contains("session.alarmTappedCard?.let"))
-        assertFalse("상세 글자로 덮일 수 있는 콜(lastDetailOrder)로 지문을 뜬다", body.contains("lastDetailOrder"))
-        assertEquals("내리기가 한 곳이어야 한다", 1, Regex("""demoteActed\(""").findAll(body).count())
+    fun `내리기는 누를 때 쥔 목록 줄로 지문을 뜬다 - 사진 글자로 덮인 콜은 보지 않는다`() {
+        val src = codeOnly("src/main/java/com/onedal/app/HijackService.kt")
+        val demote = src.substringAfter("override fun demoteTappedCall(").substringBefore("\n    }")
+        assertTrue("누를 때 쥔 줄로 내리지 않는다", demote.contains("session.alarmTappedCard?.let"))
+        assertFalse("상세 글자로 덮일 수 있는 콜(lastDetailOrder)로 지문을 뜬다", demote.contains("lastDetailOrder"))
+        assertEquals("내리기(demoteActed)는 이 함수 한 곳이어야 한다", 1, Regex("""demoteActed\(""").findAll(src).count())
+        val decision = src.substringAfter("private fun executeDecisionImmediately(").substringBefore("\n    private fun ")
+        assertTrue("결재 뒤 내리기가 이 함수를 부르지 않는다", decision.contains("demoteTappedCall("))
     }
 }

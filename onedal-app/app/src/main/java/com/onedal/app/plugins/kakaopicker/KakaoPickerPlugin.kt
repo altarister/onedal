@@ -151,4 +151,8 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
             context.reportPickerAccepted(rawScreenStr)
         }
     }
+
+    /** 📋 퀵만 하차지가 있어야 한다 — 도보는 원래 하차지가 없고, 종류를 모르면 막지 않는다 (`quickDropoffUnread`) */
+    override fun allowsEmptyDropoff(order: com.onedal.app.models.SimplifiedOfficeOrder): Boolean =
+        !KakaoPickerParser.quickDropoffUnread(order.tagsText, "")
 }

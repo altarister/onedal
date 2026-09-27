@@ -95,6 +95,20 @@ fun ScanContext.handlePreConfirmScreen(
         return
     }
 
+    // 📋 요건 대조 한 번 — 채운 값으로 (배차망_모드표.md). 못 채웠으면 서버에 보내지 않고 버린다
+    if (!OrderRequirement.meets(finalOrder, plugin.allowsEmptyDropoff(finalOrder))) {
+        apiClient.sendAnomalyReport(
+            targetApp = currentTargetApp,
+            screenName = telemetryManager.currentScreenContext.name,
+            failureReason = "REQUIREMENT_UNMET",
+            listOrderInfo = mapOf("fare" to finalOrder.fare, "pickup" to finalOrder.pickup, "dropoff" to finalOrder.dropoff),
+            detailParsedText = rawScreenStr.take(500),
+            ocrResult = null,
+        )
+        dropUnfilledCall("요건 미달 ${finalOrder.pickup.take(14)} → ${finalOrder.dropoff.take(14)} ${finalOrder.fare}원")
+        return
+    }
+
     AppLogger.roadmap("상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인", telemetryManager.currentScreenContext.name)
 
     val isTarget = scrapParser.shouldClick(finalOrder) && plugin.passesDetailFilter(this, finalOrder)
@@ -155,6 +169,24 @@ fun ScanContext.handlePreConfirmScreen(
                 touchManager.performBack()
             }
         }
+    }
+}
+
+/**
+ * 🧾 **값을 못 채운 콜을 버린다** (기사님 확정 — 값이 모두 있는 콜을 버리는 것은 기사님만, 못 채운 콜은 앱이 버린다).
+ * 서버에 보내지 않는다 — 서버가 판단할 수 없다. 이상 징후 보고는 부르는 쪽이 이미 남겼다(유일한 흔적).
+ * · 앱이 연 콜: «막았다»로 내리고(필터가 바뀌면 다시 본다) **곧바로 목록으로** — 상세에 머물면 기사님이 수락하셔도 앱이 알아보지 못한다.
+ *   🔴 내리기가 목록으로 돌아가기보다 **앞**이다 — 처리를 비우면 누를 때 쥔 줄이 지워진다(`UnfilledCallDropTest`).
+ * · 기사님이 연 상세: 앱이 뒤로 가지 않는다. 이 상세에서 다시 보내지 않게만 한다.
+ */
+fun ScanContext.dropUnfilledCall(reason: String) {
+    AppLogger.w(TAG, "🧾 [값 못 채움] $reason — 서버에 보내지 않고 버린다")
+    if (session.openedByApp) {
+        demoteTappedCall(reason)
+        abortPreConfirm()
+    } else {
+        session.isVerifyingSnapshot = false
+        session.isDetailScrapSent = true
     }
 }
 
@@ -223,6 +255,19 @@ private fun ScanContext.handlePreConfirmSnapshot(
                             AppLogger.w(TAG, "📸 [스냅샷 성공 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
                             return@post
                         }
+                        // 📋 요건 대조 한 번 — 사진으로 채운 값으로
+                        if (!OrderRequirement.meets(verifiedOrder, plugin.allowsEmptyDropoff(verifiedOrder))) {
+                            apiClient.sendAnomalyReport(
+                                targetApp = currentTargetApp,
+                                screenName = telemetryManager.currentScreenContext.name,
+                                failureReason = "REQUIREMENT_UNMET",
+                                listOrderInfo = mapOf("fare" to verifiedOrder.fare, "pickup" to verifiedOrder.pickup, "dropoff" to verifiedOrder.dropoff),
+                                detailParsedText = rawScreenStr.take(500),
+                                ocrResult = null,
+                            )
+                            dropUnfilledCall("사진으로 채운 값이 요건 미달")
+                            return@post
+                        }
                         ensureSessionId()
                         val orderWithId = verifiedOrder.copy(
                             id = session.currentOrderId.ifEmpty { verifiedOrder.id }
@@ -254,7 +299,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
         },
         onParseFailed = { reason, lines ->
             mainHandler.post {
-                AppLogger.w(TAG, "⚠️ [스냅샷 판독 실패] $reason -> 카드 정보로 폴백 선행 전송하고 이상 징후 보고")
+                AppLogger.w(TAG, "⚠️ [스냅샷 판독 실패] $reason -> 이상 징후 보고 뒤 버린다(요건 못 채움)")
                 apiClient.sendAnomalyReport(
                     targetApp = currentTargetApp,
                     screenName = telemetryManager.currentScreenContext.name,
@@ -272,56 +317,15 @@ private fun ScanContext.handlePreConfirmSnapshot(
                     )
                 )
 
-                // 콜 증발 방지: 탭 카드가 있으면 카드 정보로 폴백
-                val fallbackOrder = tappedCard ?: matchedListCard
-                if (fallbackOrder != null) {
-                    session.isVerifyingSnapshot = false
-                    if (session.isDetailScrapSent) return@post
-                    if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
-                        AppLogger.w(TAG, "📸 [스냅샷 폴백 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
-                        return@post
-                    }
-                    ensureSessionId()
-                    val orderWithId = fallbackOrder.copy(
-                        id = session.currentOrderId.ifEmpty { fallbackOrder.id },
-                        rawText = rawScreenStr
-                    )
-                    session.setOrderId(orderWithId.id)
-                    session.lastDetailOrder = orderWithId
-                    session.isPreview = true
-                    session.accumulatedDetailText = rawScreenStr
-                    sendConfirmOnce(orderWithId, rawScreenStr)
-                    sendDetail(orderWithId)
-                } else {
-                    abortPreConfirm()
-                }
+                // 📋 사진으로 요건을 못 채웠다 — 목록 줄 값으로 대신 보내지 않고 버린다 (서버가 판단할 수 없다)
+                dropUnfilledCall("사진 판독 실패 — $reason")
             }
         },
         onError = { error ->
             mainHandler.post {
                 AppLogger.e(TAG, "❌ [스냅샷 에러] $error")
-                val fallbackOrder = tappedCard ?: matchedListCard
-                if (fallbackOrder != null) {
-                    session.isVerifyingSnapshot = false
-                    if (session.isDetailScrapSent) return@post
-                    if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
-                        AppLogger.w(TAG, "📸 [스냅샷 폴백 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
-                        return@post
-                    }
-                    ensureSessionId()
-                    val orderWithId = fallbackOrder.copy(
-                        id = session.currentOrderId.ifEmpty { fallbackOrder.id },
-                        rawText = rawScreenStr
-                    )
-                    session.setOrderId(orderWithId.id)
-                    session.lastDetailOrder = orderWithId
-                    session.isPreview = true
-                    session.accumulatedDetailText = rawScreenStr
-                    sendConfirmOnce(orderWithId, rawScreenStr)
-                    sendDetail(orderWithId)
-                } else {
-                    abortPreConfirm()
-                }
+                // 📋 사진을 못 찍거나 못 읽었다 — 요건을 못 채운 것이다. 목록 줄 값으로 대신 보내지 않고 버린다
+                dropUnfilledCall("사진 에러 — $error")
             }
         }
     )

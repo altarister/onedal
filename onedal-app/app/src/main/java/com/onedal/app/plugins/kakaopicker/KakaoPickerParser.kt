@@ -473,8 +473,6 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val fareOk = order.fare >= minFare
             val pickupOk = order.pickupDistance == null || order.pickupDistance <= pickupRadiusKm
             val destOk = when {
-                // ⏸️ 퀵인데 하차지가 안 읽혔다 — 화면이 덜 올라온 것이라 이번 판은 미룬다 (`quickDropoffUnread`)
-                quickDropoffUnread(order.tagsText, order.dropoff) -> false
                 destKeywords.isEmpty() || order.dropoff.isBlank() -> true
                 else -> com.onedal.app.plugins.RegionMatch.anyHit(order.dropoff, destKeywords, keywordTraps) ||
                     dongTokenMatch(order.dropoff, destKeywords + cityAliases)

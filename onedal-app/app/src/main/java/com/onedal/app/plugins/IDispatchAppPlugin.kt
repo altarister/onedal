@@ -58,6 +58,12 @@ interface IDispatchAppPlugin {
     fun isTargetPackage(pkg: String): Boolean = packageKeywords.any { pkg.contains(it, ignoreCase = true) }
 
     /**
+     * 📋 **이 콜 종류는 하차가 없어도 요건을 갖춘 것인가** — 요건 한 줄(`OrderRequirement`)에서 배차망마다 다른 단 하나.
+     * 기본은 «아니다». 픽커: 도보(와 종류를 모르는 줄)는 원래 하차지가 없다.
+     */
+    fun allowsEmptyDropoff(order: SimplifiedOfficeOrder): Boolean = false
+
+    /**
      * 🔎 **2차 필터에 더하는 배차망 규칙** — 공통 `shouldClick` 과 함께 본다. 기본은 «통과».
      * 인성: 주의 동네(같은 이름 다른 동)면 채운 글자에 시·군이 있어야 통과.
      */

@@ -96,6 +96,9 @@ interface ScanContext {
     /** ⏱️ 이 배차망은 누가 열었든 상세에서 돌아오는가 — 상세 대기 시간 값이 있는 배차망(픽커) */
     fun returnsFromDetailWhoeverOpened(): Boolean
 
+    /** 🧹 앱이 누른 콜을 «눌렀다»에서 «막았다»로 내린다 — 누를 때 쥔 목록 줄로 지문을 뜬다. 처리 비우기 **앞**에 부른다 */
+    fun demoteTappedCall(reason: String)
+
     /** 📱 운행 기록을 켠다 — 공통 기록기 (배차망 칸이 «수락했다»를 알아볼 때 부른다) */
     fun startAppTrace(reason: String)
 }

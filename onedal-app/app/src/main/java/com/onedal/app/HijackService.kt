@@ -236,6 +236,23 @@ class HijackService : AccessibilityService(), ScanContext {
 
     override fun startAppTrace(reason: String) = startPickerTrace(reason)
 
+    /**
+     * 🧹 **«눌렀다» 에서 «막았다» 로 내린다** — 취소로 끝났거나 값을 못 채워 버린 콜은 다시 판정받을 자격이 있다.
+     * 기억에서 아예 빼지는 않는다 — 빼면 같은 필터로 또 통과해 또 누른다(`CallMemory.demoteActed`).
+     * 🔴 지문은 **누를 때 쥔 목록 줄**(`alarmTappedCard`)로 뜬다 — 기억에 넣은 줄과 같은 블록에서 같은 콜로 세워진다.
+     *    처리를 비우면(`resetSessionState`) 그 줄이 지워지므로 반드시 비우기 앞에 부른다. 줄이 없으면 앱이 안 누른 콜이라 내릴 것이 없다.
+     */
+    override fun demoteTappedCall(reason: String) {
+        session.alarmTappedCard?.let { card ->
+            val hash = CallMemory.fingerprintOf(card)
+            if (callMemory.demoteActed(hash)) {
+                AppLogger.d(TAG, "🧹 [막았다로 내림] ${card.pickup.take(14)} → ${card.dropoff.take(14)} ${card.fare}원 — $reason · 길이 바뀌면 다시 본다 (지문 $hash)")
+            } else {
+                AppLogger.w(TAG, "🧹 [못 내림] ${card.pickup.take(14)} → ${card.dropoff.take(14)} ${card.fare}원 — $reason · «눌렀다» 기억에 이 지문이 없다 (지문 $hash)")
+            }
+        }
+    }
+
     override fun scheduleDetailBack() {
         if (detailBackRunnable != null) return            // 이미 걸려 있다 — 상세 글자가 바뀔 때마다 새로 걸지 않는다
         // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec)
@@ -859,6 +876,8 @@ class HijackService : AccessibilityService(), ScanContext {
 
         /** 그룹은 나왔는데 요금을 못 읽어 버려진 수 — 아래 진단이 읽는다 */
         var fareFail = 0
+        /** 📋 요건(상차·하차)을 다 못 읽은 줄 — 그 스캔에서 뺐다 (`OrderRequirement`) */
+        var unreadRow = 0
 
         /**
          * 👁️ **이번 스캔의 필터 성적표** (기사님 확정).
@@ -933,6 +952,15 @@ class HijackService : AccessibilityService(), ScanContext {
                 continue
             }
 
+            /**
+             * 📋 **줄을 다 읽었나** — 상차·하차를 못 읽은 줄은 같은 콜인지 알아볼 수 없다(기사님 «같은 콜인지는 모든 값이 들어 있을 때»).
+             * 그 스캔에서 통째로 뺀다 — 지문·기억·서버 보고·알람·누르기 전부 안 한다. 다음 스캔에 읽히면 그때 본다.
+             */
+            if (!com.onedal.app.core.engine.OrderRequirement.meets(order,
+                    com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).allowsEmptyDropoff(order))) {
+                unreadRow++
+                continue
+            }
             val orderHash = CallMemory.fingerprintOf(order)
             scanHashes[orderHash] = fareNode.rect   // 🔔 이미 본 콜도 «아직 화면에 있다 + 지금 여기 있다»는 사실은 남긴다
             /**
@@ -1035,7 +1063,7 @@ class HijackService : AccessibilityService(), ScanContext {
             val rect = if (emptyCard > 0) " · 빈카드 $emptyCard(닻 rect 0: $emptyRectAnchor)" else ""
             val sample = if (emptySamples.isNotEmpty()) " ⤷ ${emptySamples.joinToString(" · ")}" else ""
             AppLogger.w(TAG, "👁️ [리스트 스캔] 텍스트노드 ${allNodes.size} · 콜그룹 ${groupedNodes.size} · " +
-                "통과 $picked · 요금실패 $fareFail$rect — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}$sample")
+                "통과 $picked · 요금실패 $fareFail · 덜 읽힘 $unreadRow$rect — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}$sample")
         }
         /**
          * 🚪 **목록에서 누르는 곳은 여기 한 곳** (기사님 확정 · 배차망_모드표.md 순서 ⑦).
@@ -1344,18 +1372,7 @@ class HijackService : AccessibilityService(), ScanContext {
          *    상세 처리의 콜(`lastDetailOrder`)은 픽커에서 사진 글자로 덮여 지문이 달라진다. 카드가 없으면 앱이 안 누른 콜이라
          *    기억에도 없어 내릴 것이 없다.
          */
-        if (decision != "KEEP") {
-            session.alarmTappedCard?.let { card ->
-                val hash = CallMemory.fingerprintOf(card)
-                if (callMemory.demoteActed(hash)) {
-                    AppLogger.d(TAG, "🧹 [막았다로 내림] ${card.pickup.take(14)} → ${card.dropoff.take(14)} ${card.fare}원 " +
-                        "— 취소로 끝났으니 길이 바뀌면 다시 본다 (지문 $hash)")
-                } else {
-                    AppLogger.w(TAG, "🧹 [못 내림] ${card.pickup.take(14)} → ${card.dropoff.take(14)} ${card.fare}원 " +
-                        "— «눌렀다» 기억에 이 지문이 없다 (지문 $hash)")
-                }
-            }
-        }
+        if (decision != "KEEP") demoteTappedCall("결재 $decision")
 
         /**
          * ↩️ **앱이 열었지만 계약하지 않는 콜(알람 등)** — 기사님 결정 (배차망_모드표.md 순서 ⑩).
