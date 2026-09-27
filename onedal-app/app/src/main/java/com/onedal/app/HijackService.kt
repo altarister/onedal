@@ -1071,24 +1071,32 @@ class HijackService : AccessibilityService(), ScanContext {
                         "모드 $currentMode — ${if (currentMode == "AUTO") "앱이 채우고 확정" else "판정만 받고 확정·수락은 기사님"} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
                     AppLogger.d(TAG, "💥 [$currentMode] 꿀콜 조건 통과! 요금 최고 콜 터치 진행!")
                     alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용
-                    /**
-                     * 📝 **누르기 직전에 이 콜을 기억에 넣는다** — 앱이 들어간 콜만 기억한다(기사님 확정).
-                     * 누르면 화면이 상세로 넘어가, 넣지 않으면 목록으로 돌아오자마자 처음 보는 콜로 또 눌린다.
-                     * 🔴 «눌렀다»는 필터 버전이 바뀌어도 안 지워진다 (`CallMemory.markEvaluated`).
-                     */
-                    callMemory.markEvaluated(orderHash)
-                    touchManager.performSimulatedTouch(fareNode.node, tapRowLeft = tap.rowLeft, delayMs = tap.delayMs)
-                    session.openedByApp = true // 콜 잡기 시작!
-                    session.contractedByApp = currentMode == "AUTO" // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳
-                    session.setOrderId(order.id)
-                    session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
-                    /**
-                     * 🎯 **찍는 그 카드를 쥐여 둔다** — 앱이 직접 누르고 들어가는 판이라 어느 콜인지 이미 안다.
-                     * 픽커 사진 읽기가 이 카드와 엄격히 대조한다 (`detailOpener` 가 «알람이 연 상세»로 가른다).
-                     */
-                    session.alarmTappedCard = order
-                    session.alarmTappedAtMs = alarmTapAtMs
-                    // 📊 서버 보고는 루프에서 이미 했다 (`markReportedOnce`) — 여기서 다시 보내지 않는다
+                    val fired = touchManager.performSimulatedTouch(fareNode.node, tapRowLeft = tap.rowLeft, delayMs = tap.delayMs)
+                    if (!fired) {
+                        // 🛑 누르기가 실패했다(노드가 사라짐 · 좌표를 못 구함) — 세션을 세우지도, 기억에 넣지도 않는다.
+                        //    세우면 화면은 목록 그대로라 «목록으로 돌아왔다» 리셋이 안 오고 다음 스캔부터 아무 콜도 못 누른다
+                        AppLogger.w("1DAL_ALARM", "🛑 [진입 실패] ${order.fare}원 — 누르기가 안 됐다. 이번 스캔은 손대지 않고 다음 스캔에 다시 본다")
+                    }
+                    if (fired) {
+                        /**
+                         * 📝 **누른 콜을 기억에 넣는다** — 앱이 들어간 콜만 기억한다(기사님 확정).
+                         * 누르기는 이 자리에서 바로 끝나고(동기), 목록 이벤트는 같은 줄 뒤에 오므로 그 사이에 끼지 않는다.
+                         * 넣지 않으면 목록으로 돌아오자마자 처음 보는 콜로 또 눌린다.
+                         * 🔴 «눌렀다»는 필터 버전이 바뀌어도 안 지워진다 (`CallMemory.markEvaluated`).
+                         */
+                        callMemory.markEvaluated(orderHash)
+                        session.openedByApp = true // 콜 잡기 시작!
+                        session.contractedByApp = currentMode == "AUTO" // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳
+                        session.setOrderId(order.id)
+                        session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
+                        /**
+                         * 🎯 **찍는 그 카드를 쥐여 둔다** — 앱이 직접 누르고 들어가는 판이라 어느 콜인지 이미 안다.
+                         * 픽커 사진 읽기가 이 카드와 엄격히 대조한다 (`detailOpener` 가 «알람이 연 상세»로 가른다).
+                         */
+                        session.alarmTappedCard = order
+                        session.alarmTappedAtMs = alarmTapAtMs
+                        // 📊 서버 보고는 루프에서 이미 했다 (`markReportedOnce`) — 여기서 다시 보내지 않는다
+                    }
                 }
             }
         }
@@ -1123,8 +1131,8 @@ class HijackService : AccessibilityService(), ScanContext {
     /**
      * 📤 **1차 선점을 보낸다 — 한 콜에 한 번만.**
      *
-     * 두 곳에서 부른다. 필터콜은 상세 진입 즉시(선점), **미리보기 콜은 팝업 3장을 읽은 뒤**
-     * `/detail` 직전에. 같은 요청을 두 벌로 적으면 한쪽만 고쳐져 갈라지므로 여기 하나만 둔다.
+     * 상세 처리의 공통 순서에서 부른다 — 인성은 팝업 3장으로 채운 뒤, 2차 필터를 지나고 나서(배차망_모드표.md 순서 ⑥).
+     * 같은 요청을 두 벌로 적으면 한쪽만 고쳐져 갈라지므로 여기 하나만 둔다.
      *
      * 🔴 `isDetailScrapSent` 가 중복 전송을 막는다 — 미리보기 상세 수집이 끝나 상세 화면으로
      *    돌아왔을 때 이 함수가 다시 불리지 않게 하는 자물쇠이기도 하다.

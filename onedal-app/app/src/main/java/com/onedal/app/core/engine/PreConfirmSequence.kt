@@ -19,8 +19,9 @@ private const val TAG = "1DAL_PRE_CONFIRM"
  * 3. 2차 필터(적요/상세) 적합 여부 판정
  * 4. [적합 시]
  *    - 선점 보고 (sendConfirmOnce)
- *    - 잡기 지원 배차망: 확정/주의동/팝업 수순(plugin.executePreConfirmSpecial) 위임
- *    - 잡기 미지원 배차망: 미리보기 등록, 상세 보고(sendDetail), 자동 복귀 타이머(scheduleDetailBack) 가동
+ *    - 채우기(plugin.executePreConfirmSpecial — 인성 팝업 3장)가 끝난 뒤 2차 필터를 지난 콜만
+ *    - 앱이 계약하는 콜(자동 · 수락 칸 있음): 확정 클릭 → 성공하면 상세 보고
+ *    - 그 밖: 미리보기로 상세 보고. 돌아오는 타이머(scheduleDetailBack)는 상세에 들어올 때 이미 걸었다
  * 5. [부적합 시]
  *    - 2차 필터 탈락 즉시 회피 기동 (취소 버튼 클릭 또는 뒤로 가기 후 세션 초기화)
  */
