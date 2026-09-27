@@ -59,17 +59,18 @@ describe('«어떻게 잡았나» — 기록 전용 칸', () => {
         expect(isCapturedVia('ALARM_CLICK')).toBe(false);   // 알람 클릭 딱지는 capturedVia 값이 아니다
     });
 
-    it('🚧 잡기 수순의 입구마다 잡기 차단 검사가 있다 — 수순 없는 배차망은 클릭 못 한다', () => {
+    it('🔴 목록 처리는 배차망 이름으로 가르지 않는다 — 다른 것은 플러그인 인자다', () => {
         /**
-         * 인성 전용 구간: 인성 잡기 수순(리스트 자동클릭 ·
-         * 확정 전/후 화면 · 팝업 3종)의 입구는 supportsCatching 잡기 차단 검사를 지나야 한다.
-         * 이 검사가 하나라도 빠지면 픽커 화면에서 인성 수순이 돌아 엉뚱한 걸 누른다.
-         * 이 표시가 곧 «잡기 시작하는 날» 인성 수순을 떼어낼 자리다.
+         * 모든 배차망은 같은 순서로 돈다(배차망_모드표.md). 목록에서 누를지·어디를 누를지·잔상인지는
+         * 플러그인 인자(`planListTap` · `isDetailResidue`)가 답하고, 목록 처리는 «잡기 수순이 있나»로 가르지 않는다.
          */
         const hijack = readFileSync(join(__dirname,
             '../../../../onedal-app/app/src/main/java/com/onedal/app/HijackService.kt'), 'utf8');
-        const gates = hijack.match(/TargetApp\.supportsCatching\(currentTargetApp\)/g) ?? [];
-        expect(gates.length).toBeGreaterThanOrEqual(6);
+        const code = hijack.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        const list = code.split('private fun handleListScreen')[1]?.split('\n    private fun ')[0] ?? '';
+        expect(list.length).toBeGreaterThan(0);
+        expect(list).not.toMatch(/supportsCatching/);
+        expect(list).toMatch(/planListTap\(/);
     });
 
     it('🔴 보호 분기는 capturedVia 를 읽지 않는다 — #75 재발 방지', () => {

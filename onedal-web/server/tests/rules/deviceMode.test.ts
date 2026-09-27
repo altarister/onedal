@@ -187,21 +187,28 @@ describe('🔴 대기로 두면 필터가 정말로 꺼진다', () => {
     });
 });
 
-describe('🎛️ 앱은 AUTO 일 때만 누른다', () => {
+describe('🎛️ 앱은 직접 모드에서 누르지 않는다', () => {
     const scan = () => {
         const s = codeOnly(app('HijackService.kt'));
         return s.split('private fun handleListScreen')[1]?.split('\n    private fun ')[0] ?? '';
     };
 
     /**
-     * 🔴 알람·직접에서 앱이 누르면 **기사님이 안 잡기로 한 콜이 잡힌다.**
-     *    터치는 `currentMode == "AUTO"`(와 `"SIMULATION"`) 문 안에서만 일어난다 — 그 문이 넓어지지 않는지 잠근다.
+     * 🔴 목록에서 누르는 모드는 자동·체험·알람뿐이다(배차망_모드표.md) — 직접 모드와 모르는 값에서 앱이 누르면
+     *    기사님이 안 고른 콜이 열린다. 누르는 곳은 한 곳이고, 그 앞 문이 이 세 모드만 연다.
+     *    계약 버튼(확정)은 자동에서만 — `contractedByApp = currentMode == "AUTO"`.
      */
-    it('🔴 터치는 currentMode == "AUTO" 문 안에서만 일어난다', () => {
+    it('🔴 터치는 자동·체험·알람 문 안에서만 일어난다 — 직접은 누르지 않는다', () => {
         const fn = scan();
-        expect(fn).toContain('performSimulatedTouch');
+        expect(fn.match(/performSimulatedTouch\(/g)?.length).toBe(1);
+        const gate = fn.match(/val tapsFromList = ([^\n]+)/)?.[1] ?? '';
+        expect(gate).toMatch(/currentMode == "AUTO"/);
+        expect(gate).toMatch(/currentMode == "SIMULATION"/);
+        expect(gate).toMatch(/currentMode == "ALARM"/);
+        expect(gate).not.toMatch(/MANUAL/);
         const beforeTouch = fn.split('performSimulatedTouch')[0] ?? '';
-        expect(beforeTouch).toMatch(/currentMode == "AUTO"/);
+        expect(beforeTouch).toMatch(/if \(tapsFromList/);
+        expect(fn).toMatch(/contractedByApp = currentMode == "AUTO"/);
     });
 
     /**
@@ -309,13 +316,13 @@ describe('🔔 2단계 — 스캐너 폰이 스스로 알린다 (기사님 확�
     it('🔴 알람은 ALARM 모드 + 필터 통과에서만 난다 (자동·대기는 조용하다)', () => {
         const s = codeOnly(app('HijackService.kt'));
         const scan = s.split('private fun handleListScreen')[1]?.split('\n    private fun ')[0] ?? '';
-        // 통과 콜을 모았다가(alarmHits) 루프 뒤에 요금 최고 하나만 울린다.
-        // 불변식 — «모으는 곳»이 ALARM+통과 조건 아래여야 하고, fire 는 그 그릇에서만 나온다
+        // 통과 콜을 모았다가(alarmHits) 루프 뒤에 요금 최고 하나를 고른다 — 소리는 ALARM 일 때만.
+        // 불변식 — «모으는 곳»은 통과 조건 아래, fire 는 ALARM 문 안이고 고른 그릇에서만 나온다
         const addLine = scan.split('alarmHits.add')[0].slice(-400);
-        expect(addLine).toMatch(/currentMode == "ALARM"/);
         expect(addLine).toMatch(/isTarget/);
-        const fireLine = scan.split('alarmSignaler.fire')[0].slice(-400);
-        expect(fireLine).toMatch(/pickBestIndex|alarmHits/);
+        const beforeFire = scan.split('alarmSignaler.fire')[0];
+        expect(beforeFire.slice(-200)).toMatch(/currentMode == "ALARM"/);
+        expect(beforeFire).toMatch(/pickBestIndex/);
     });
 
     /**

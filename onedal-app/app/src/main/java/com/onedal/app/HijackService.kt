@@ -894,9 +894,8 @@ class HijackService : AccessibilityService(), ScanContext {
         // 🎛️ 이 배차망에서 실제로 도는 모드 (자동인데 픽커면 알람) — 검사(deviceMode · appSafeDefaults)가 이 이름의 글자를 읽는다
         val currentMode = effectiveMode
         // 👻 상세→리스트 복귀 직후 잔상 방어 (0830 23:04 실측) — 상세 글자가 남은 판은 버린다.
-        //    다음 스캔(1초 안)은 깨끗하다. 인성 팝업 잔상 방어와 같은 계열, 픽커(잡기 수순 없음)만.
-        if (!TargetApp.supportsCatching(currentTargetApp)
-            && com.onedal.app.plugins.kakaopicker.KakaoPickerParser.isDetailResidue(screenTexts)) {
+        //    다음 스캔(1초 안)은 깨끗하다. 무엇이 잔상인가는 배차망 파서가 답한다(기본 «아니다»).
+        if (scrapParser.isDetailResidue(screenTexts)) {
             AppLogger.d(TAG, "👻 [상세 잔상] 리스트 스캔에 상세 글자 잔류 — 이 판은 버린다")
             return
         }
@@ -943,7 +942,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val emptySamples = mutableListOf<String>()
         /** 🔔 이번 스캔에 보인 콜 지문 → 요금 닻 위치 — 알람 테두리가 «아직 있나·어디로 갔나»를 이걸로 안다 (#83-③) */
         val scanHashes = mutableMapOf<Int, android.graphics.Rect>()
-        /** 🔔 이번 스캔의 알람 통과 콜들 — 루프 뒤에 요금 최고 하나만 울린다 (기사님 확정 0830) */
+        /** 🎯 이번 스캔의 통과 콜들 — 루프 뒤에 요금 최고 하나만 누른다 (기사님 확정 · 모든 모드 같은 규칙) */
         val alarmHits = mutableListOf<Triple<SimplifiedOfficeOrder, ScreenTextNode, Int>>()
 
         /**
@@ -1037,66 +1036,11 @@ class HijackService : AccessibilityService(), ScanContext {
             val judged = scrapParser.withVerdict(order)
 
             /**
-             * 🔔 **알람 모드 — 앱은 수락을 안 누르고, 그 콜을 가리킨다** (기사님 확정 · 2단계).
-             *
-             * 소리 두 번 + 강한 진동 + 통과한 콜 줄에 테두리. 수락은 기사님이다.
-             * 이미 본 콜은 위의 지문 검사(`continue`)가 걸러 주므로 **콜당 한 번만** 운다 —
-             * 서버 알람(관제웹 소리)과 같은 원리다. 여기서는 모으기만 하고, 루프 뒤에서
-             * **요금 최고 하나만** 울린다 (동시 통과 3건 실측 — 마지막 콜이 이기던 것은 우연).
+             * 🎯 **통과 콜은 모으기만 한다 — 누르는 것은 루프 뒤 한 곳** (기사님 확정 · 배차망_모드표.md).
+             * 자동·체험·알람 모두 «목록을 끝까지 보고 요금 최고 하나»를 누른다. 요금이 같으면 먼저 읽힌 콜이다.
              */
-            if (!session.openedByApp && (currentMode == "ALARM" || (currentMode == "SIMULATION" && !TargetApp.supportsCatching(currentTargetApp))) && isTarget) {
+            if (isTarget) {
                 alarmHits.add(Triple(order, fareNode, orderHash))
-            }
-
-            // 🌟 [AUTO / SIMULATION 실행] 콜 잡기 중이지 않고 AUTO 또는 SIMULATION 모드일 때만 실제 클릭 동작 수행
-            if (!session.openedByApp && (currentMode == "AUTO" || currentMode == "SIMULATION")
-                && TargetApp.supportsCatching(currentTargetApp)) {
-                /**
-                 * 🔒 **서버가 앞 콜을 심사 중이면 클릭만 미룬다** (기사님 · 실주행 오송읍).
-                 *
-                 * 🔴 **판정은 이미 끝났다** — 위에서 돌았고 지문도 아직 안 찍었다. 여기서 누르지만 않으면
-                 *    앞 콜이 결재되는 즉시 다음 스캔에서 **바로** 잡는다.
-                 * 🔴 예전에는 서버가 이때 `isActive` 를 꺼서 **판정조차 안 돌았다** — 목록에 콜 넷이
-                 *    보이는데 10초마다 「🔒 평가 보류」만 찍혔고, 오송읍 셋을 잡는 데 3분 25초가 걸렸다.
-                 * 🔴 `session.openedByApp`(내가 지금 잡는 중)와 다르다 — 이것은 **서버가 아는 사실**이라,
-                 *    폰이 상세를 떠난 뒤 서버가 아직 결재를 기다리는 사이에도 참이다.
-                 */
-                if (isTarget && savedFilter().evaluatingNow) {
-                    AppLogger.d(TAG, "⏳ [클릭 미룸] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
-                        "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 다음 스캔에서 바로 잡습니다")
-                    continue
-                }
-                if (isTarget) {
-                    AppLogger.roadmap("🎯 [Current Page: LIST] 1차 필터 통과 → AUTO 타겟 발견, 강제 터치 진행", telemetryManager.currentScreenContext.name)
-                    AppLogger.d(TAG, "💥 [AUTO] 꿀콜 조건 통과! 대상 콜 강제 터치 진행!")
-                    
-                    // 🚀 [지뢰 탐지기] 2차 똥콜 판명 후 리스트로 튕겨나왔을 때 또 누르는 것을 방지하기 위해 터치 직전에 지문 선(先)등재!
-                    AppLogger.d(TAG, "📝 [AUTO] 2차 검증 반송(취소)에 대비해 해당 콜 지문 선(先)기록 완료 (해시: $orderHash)")
-                    callMemory.markEvaluated(orderHash)
-                    
-                    val appLabel = keywords.appLabel
-                    AppLogger.roadmap("리스트에서 바뀐 text 감지 후 text 추출", telemetryManager.currentScreenContext.name)
-                    touchManager.performSimulatedTouch(fareNode.node)
-                    AppLogger.roadmap("[$appLabel] 선택된 콜 정보 전달 (꿀콜 클릭!)", telemetryManager.currentScreenContext.name)
-                    
-                    session.openedByApp = true // 콜 잡기 시작!
-                    session.contractedByApp = currentMode == "AUTO" // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳
-                    session.setOrderId(order.id)
-                    session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
-
-                    /**
-                     * 📊 **잡은 콜도 수집에 센다** (기사님 확정).
-                     *
-                     * 여기서 바로 `break` 하면 아래의 `enqueue` 에 못 닿아, 관제웹의 `수집:N` 이 **탈락한 콜만** 센 숫자가 된다.
-                     *
-                     * 기사님: *"실전에서는 리스트에 몇 개가 뜨는지 모르니까,
-                     * 필터가 잘 돌고 있는지 알 수가 없어 답답하다."*
-                     * **본 콜을 다 세야** 그 숫자가 "필터가 도는가"의 답이 된다.
-                     */
-                    telemetryManager.enqueue(judged)
-                    recentListOrders.add(judged)
-                    break // 첫 번째 발각콜 클릭 후 이 루프는 종료 (관제 보고 생략)
-                }
             }
 
             // 4) 신규 콜 → 서버에 텔레메트리 보고 — **보고는 콜당 한 번** (평가와 딴 그릇 · #79)
@@ -1110,8 +1054,12 @@ class HijackService : AccessibilityService(), ScanContext {
              * 나타난 콜을 영영 삼키지 않는다. 로그를 남기는 이유는
              * 이렇다: 침묵하면 «필터가 막았나/잠겼나/못 읽었나»를 가릴 수 없다.
              */
-            // #135 — 통과면 «통과했다»(필터가 바뀌어도 다시 안 봄), 막혔으면 «막았다»(필터 버전이 바뀌면 다시 판정)
-            callMemory.onScanned(orderHash, wasEvaluated, passed = isTarget)
+            /**
+             * #135 — 막혔으면 «막았다»(필터 버전이 바뀌면 다시 판정).
+             * 🔴 **통과한 콜은 여기서 기억하지 않는다** — 앱이 누른 콜만 루프 뒤에서 «눌렀다»로 기억한다(기사님 확정).
+             *    여기서 «통과했다»로 넣으면 이번 스캔에 안 누른 둘째·셋째 좋은 콜이 다음 스캔에 «이미 본 콜»로 영영 건너뛰어진다.
+             */
+            if (!isTarget) callMemory.onScanned(orderHash, wasEvaluated, passed = false)
             if (!wasEvaluated) {
                 AppLogger.d(TAG, "🔒 [평가 보류] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
                     "${order.fare}원 — 필터 잠김(선점 중·대기), 다음 스캔에서 다시 본다")
@@ -1148,95 +1096,58 @@ class HijackService : AccessibilityService(), ScanContext {
                 "통과 $picked · 요금실패 $fareFail$rect — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}$sample")
         }
         /**
-         * 🔔 알람 — 통과 콜 중 **요금 최고 하나만** 울리고 가리킨다 (기사님 확정 0830).
-         * 잡기 수순 없는 배차망(픽커)은 **상세까지 이동**해 준다 — 기사님은 읽고 수락만.
-         * 수락(계약) 클릭은 여전히 없다: 상세 화면 처리는 잡기 차단 검사가 건너뛴다.
+         * 🚪 **목록에서 누르는 곳은 여기 한 곳** (기사님 확정 · 배차망_모드표.md 순서 ⑦).
+         *
+         * 자동·체험·알람이면 통과 콜 가운데 **요금 최고 하나**를 눌러 상세로 들어간다 — 배차망을 가리지 않는다.
+         * 직접 모드와 모르는 모드 값은 누르지 않는다(모르면 잡지 않는다 · 규칙 ④).
+         * 앱이 계약 버튼을 누르는 것은 자동뿐이다(`contractedByApp`) — 체험·알람은 판정만 받고 확정·수락은 기사님.
          */
+        val tapsFromList = currentMode == "AUTO" || currentMode == "SIMULATION" || currentMode == "ALARM"
         val bestIdx = AlarmSignaler.pickBestIndex(alarmHits.map { it.first.fare })
-        if (bestIdx >= 0) {
+        if (tapsFromList && !session.openedByApp && bestIdx >= 0) {
             val (order, fareNode, orderHash) = alarmHits[bestIdx]
-            // 🔔 테두리는 «기사님이 직접 그 줄을 눌러야 하는» 배차망에만 — 픽커는 앱이 상세까지 들어간다
-            alarmSignaler.fire(
-                fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash,
-                withBorder = TargetApp.supportsCatching(currentTargetApp),
-                withSound = currentMode == "ALARM",   // 🔇 체험은 자동과 똑같이 소리를 내지 않는다 (기사님 확정)
-            )
             /**
-             * 🔴 **머리줄 위의 요금은 오더카드다 — 누르면 그 자리에서 계약이다**.
-             *
-             * `clickSafe` 는 요금 중심 **±60픽셀** 안의 글자만 보는데, 오더카드의 「수락」은 요금 **약 70픽셀 아래**라
-             * **띠 밖이다**(기사님이 주무시는 사이 두 건이 배차된 적이 있다). 그래서 **「리스트 설정」 머리줄보다
-             * 아래인가**를 함께 본다 (`isListCardAnchor`).
-             * 머리줄을 못 읽은 판은 **손대지 않는다** (규칙 ④ — 모르면 고장으로 친다).
+             * 🔒 **서버가 앞 콜을 심사 중이면 이번 스캔은 누르지 않는다** (기사님 · 실주행 오송읍 · 한 번에 하나만 평가).
+             * 판정은 이미 끝났고 기억에도 안 넣었으니, 앞 콜이 결재되는 즉시 다음 스캔에서 **바로** 누른다.
              */
-            val listHeaderY = KakaoPickerParser.listHeaderCenterY(
-                allNodes.map { it.text to it.rect.centerY() }
-            )
-            val onListCard = KakaoPickerParser.isListCardAnchor(fareNode.rect.centerY(), listHeaderY)
-            val cardKind = if (onListCard) "리스트카드" else "오더카드/미상"
-            if (!TargetApp.supportsCatching(currentTargetApp)
-                && com.onedal.app.plugins.kakaopicker.KakaoPickerParser.clickSafe(order.rawText)
-                && onListCard) {
-                AppLogger.i("1DAL_ALARM", "🚪 [알람 상세] ${order.fare}원 [$cardKind] " +
-                    "(${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
-                    "닻(${fareNode.rect.centerX()},${fareNode.rect.centerY()}) 머리줄 Y=$listHeaderY — " +
-                    "상세로 이동 · 수락은 기사님 · 상세 대기 시간 뒤 자동 복귀")
-                /**
-                 * 📎 **여기서 카드를 따로 쥐여 주지 않는다**.
-                 * 여기서 `lastDetailOrder = order` 로 쥐여 주면 그 길이 **알람에만** 있어, 기사님이
-                 * 손으로 연 상세는 «리스트 원본이 없다»로 서버에 아무것도 안 간다.
-                 * 그래서 상세 화면이 누가 열었든 `KakaoPickerParser.matchListCard` 한 곳에서 카드를 찾는다
-                 * (이 카드도 방금 `recentListOrders` 에 들어갔다).
-                 */
-                /**
-                 * 🔴 **찍기 직전에 머리줄 아래인가를 한 번 더** (#111 틈 ① · `KakaoPickerParser.stillListCardAtTap`).
-                 * 위 판단은 스캔 때 잰 좌표다 — 누르기 바로 전에 요금 칸과 «리스트 설정» 칸을 둘 다 다시 읽는다.
-                 */
-                val headerNode = allNodes.firstOrNull { KakaoPickerParser.isListHeaderText(it.text) }?.node
-                val refreshedY = { n: android.view.accessibility.AccessibilityNodeInfo? ->
-                    n?.takeIf { it.refresh() }?.let { val r = android.graphics.Rect(); it.getBoundsInScreen(r); r.centerY() }
+            if (savedFilter().evaluatingNow) {
+                AppLogger.d(TAG, "⏳ [클릭 미룸] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
+                    "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 다음 스캔에서 바로 누릅니다")
+            } else {
+                // 🔔 알람이면 소리·진동 — 테두리는 그리지 않는다(앱이 상세까지 들어가 가리킬 줄이 없다 · 기사님 결정 «모든 배차망이 똑같이»)
+                if (currentMode == "ALARM") {
+                    alarmSignaler.fire(
+                        fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash,
+                        withBorder = false,
+                        withSound = true,
+                    )
                 }
-                val fareY = refreshedY(fareNode.node)
-                val headerY = refreshedY(headerNode)
-                if (KakaoPickerParser.stillListCardAtTap(fareY, headerY)) {
-                    alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽: 알람» 기록용
+                // 👆 누르기 전 안전 확인과 누를 자리는 배차망이 정한다 (픽커: 오더카드를 피한다)
+                val tap = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).planListTap(allNodes, order, fareNode)
+                if (tap != null) {
+                    AppLogger.i("1DAL_ALARM", "🚪 [상세 진입] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
+                        "모드 $currentMode — ${if (currentMode == "AUTO") "앱이 채우고 확정" else "판정만 받고 확정·수락은 기사님"} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
+                    AppLogger.d(TAG, "💥 [$currentMode] 꿀콜 조건 통과! 요금 최고 콜 터치 진행!")
+                    alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용
                     /**
-                     * 🎯 **찍는 그 카드를 쥐여 둔다 — 상세에서 다시 찾지 않는다** (기사님 지시).
-                     * 앱이 직접 누르고 들어가는 판이라 어느 콜인지 이미 안다. 상세 글자로 되찾다가
-                     * 길 이름(«태전동로») ↔ 동 이름(«태전») 차이로 «맞는 카드 없음»을 내던 자리다.
-                     */
-                    session.alarmTappedCard = order
-                    session.alarmTappedAtMs = alarmTapAtMs
-                    /**
-                     * 📝 **누르기 직전에 이 콜을 기억에 넣는다** (인성 AUTO 와 같은 방어).
-                     *
-                     * 여기서 누르면 화면이 상세로 넘어가 **스캔 루프의 끝(`onScanned`)까지 못 간다** —
-                     * 그러면 이 콜은 기억에 안 남고, 목록으로 돌아오자마자 **처음 보는 콜**로 또 눌린다.
-                     * 그러면 «30초 상세 → 0.1초 목록 → 또 상세»가 끝없이 돈다.
+                     * 📝 **누르기 직전에 이 콜을 기억에 넣는다** — 앱이 들어간 콜만 기억한다(기사님 확정).
+                     * 누르면 화면이 상세로 넘어가, 넣지 않으면 목록으로 돌아오자마자 처음 보는 콜로 또 눌린다.
                      * 🔴 «눌렀다»는 필터 버전이 바뀌어도 안 지워진다 (`CallMemory.markEvaluated`).
                      */
                     callMemory.markEvaluated(orderHash)
-                    // 👈 요금 자리(오른쪽 아래)는 상세의 «수락하기»와 같은 자리다 — 같은 줄 왼쪽을 찍는다 (`TapShift`)
-                    // ⏳ 자국을 1초 보여 주고, 그 줄의 **왼쪽 끝**을 찍는다 — «수락하기»(오른쪽 아래)에서 가장 먼 자리다
-                    touchManager.performSimulatedTouch(
-                        fareNode.node,
-                        tapRowLeft = true,
-                        delayMs = com.onedal.app.core.TapShift.PREVIEW_MS,
-                    )
-                } else {
-                    AppLogger.w("1DAL_ALARM", "🛑 [알람 상세 보류] ${order.fare}원 — 찍기 직전 다시 재니 머리줄 아래가 아니다 " +
-                        "(요금 Y=$fareY · 머리줄 Y=$headerY · 스캔 때 요금 Y=${fareNode.rect.centerY()} 머리줄 Y=$listHeaderY) · 손대지 않는다")
+                    touchManager.performSimulatedTouch(fareNode.node, tapRowLeft = tap.rowLeft, delayMs = tap.delayMs)
+                    session.openedByApp = true // 콜 잡기 시작!
+                    session.contractedByApp = currentMode == "AUTO" // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳
+                    session.setOrderId(order.id)
+                    session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
+                    /**
+                     * 🎯 **찍는 그 카드를 쥐여 둔다** — 앱이 직접 누르고 들어가는 판이라 어느 콜인지 이미 안다.
+                     * 픽커 사진 읽기가 이 카드와 엄격히 대조한다 (`detailOpener` 가 «알람이 연 상세»로 가른다).
+                     */
+                    session.alarmTappedCard = order
+                    session.alarmTappedAtMs = alarmTapAtMs
+                    // 📊 서버 보고는 루프에서 이미 했다 (`markReportedOnce`) — 여기서 다시 보내지 않는다
                 }
-                // ⏱️ 타이머는 여기서 걸지 않는다 — 상세 화면 처리 한 곳에서 누가 열었든 건다 (#124)
-            } else if (!TargetApp.supportsCatching(currentTargetApp)) {
-                /**
-                 * 🔴 **안 누른 것도 남긴다.** 조용히 건너뛰면 다음 조사에서 또 «왜 안 눌렀나»를
-                 *    못 본다 — 로그의 침묵이 조사를 가장 늦춘다.
-                 */
-                val why = if (!onListCard) "머리줄 아래가 아니다 (오더카드이거나 머리줄을 못 읽었다)"
-                          else "카드에 「수락」이 보인다"
-                AppLogger.w("1DAL_ALARM", "🛑 [알람 상세 보류] ${order.fare}원 [$cardKind] " +
-                    "닻(${fareNode.rect.centerX()},${fareNode.rect.centerY()}) 머리줄 Y=$listHeaderY — $why · 손대지 않는다")
             }
         }
         // 🔔 알람 테두리 — 가리키던 콜이 이번 스캔에 없으면 걷는다 (잡혔거나 남이 가져감 · §6-③)

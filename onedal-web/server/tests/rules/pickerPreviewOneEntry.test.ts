@@ -26,13 +26,13 @@ const pickerParser = codeOnly(read(join(APP, 'plugins/kakaopicker/KakaoPickerPar
 
 describe('픽커 상세 — 카드 찾기는 한 곳 (#119)', () => {
 
-    it('🔴 알람 경로가 카드를 따로 쥐여 주지 않는다 — 그 한쪽 길 때문에 손으로 연 상세만 빠졌다', () => {
-        const i = hijack.indexOf('🚪 [알람 상세]');
-        // 알람이 카드를 누르는 갈래 — 다음 `} else if` 앞까지를 본다 (#124)
-        const j = hijack.indexOf('} else if', i);
+    it('🔴 목록에서 누른 뒤 세션을 세우는 곳은 한 곳 — 모드마다 따로 쥐여 주는 길이 없다', () => {
+        // 한쪽 길(알람)에만 카드를 쥐여 주면 다른 길로 연 상세가 빠진다 — 누르는 곳이 하나면 그 병이 없다
+        const list = hijack.split('private fun handleListScreen')[1]?.split('\n    private fun ')[0] ?? '';
+        const i = list.indexOf('🚪 [상세 진입]');
         expect(i).toBeGreaterThan(-1);
-        expect(j).toBeGreaterThan(i);
-        expect(hijack.slice(i, j)).not.toMatch(/lastDetailOrder\s*=/);
+        expect(list.match(/session\.lastDetailOrder\s*=/g)?.length).toBe(1);
+        expect(list.indexOf('session.lastDetailOrder')).toBeGreaterThan(i);
     });
 
     it('🔴 미리보기는 리스트 카드를 찾는 함수 하나를 거친다', () => {

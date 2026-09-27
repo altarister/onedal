@@ -26,6 +26,9 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 // Context 는 알람 조건(프리퍼런스의 피기백 필터)을 읽을 때만 쓴다 — 유닛 테스트는 null (그때 decide 를 직접 부른다)
 class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
+    override fun isDetailResidue(texts: List<String>): Boolean = Companion.isDetailResidue(texts)
+
+
     companion object {
         /** 픽커 요금은 «2,529» 꼴 (원 표기 없음 · 쉼표 필수 — 실측 전 카드 일치) */
         private val FARE_REGEX = Regex("""^\d{1,3}(,\d{3})+$""")

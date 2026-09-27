@@ -65,4 +65,10 @@ interface IScrapParser {
      *    이 인터페이스에 메서드를 더할 때도 기본값 없이 더해 위임 누락을 **컴파일러가** 잡게 한다.
      */
     fun alarmBandHalfPx(): Int
+
+    /**
+     * 👻 **상세 글자가 남은 목록 화면인가** — 상세 → 목록 복귀 직후 잔상 판은 버린다. 기본은 «아니다».
+     * 픽커만 덮어쓴다 (상세 글자 «수락하기»가 목록 스캔에 남는다).
+     */
+    fun isDetailResidue(texts: List<String>): Boolean = false
 }

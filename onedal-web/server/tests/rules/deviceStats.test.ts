@@ -57,8 +57,8 @@ describe('📊 수집 — 잡은 콜도 센다', () => {
     };
 
     /**
-     * 🔴 잡은 콜은 `break` 로 루프를 나가므로 아래의 `enqueue` 에 못 닿는다.
-     *    **나가기 전에** 세야 한다.
+     * 🔴 목록 루프는 끝까지 돈다 — 모든 콜을 루프 안 한 곳(`markReportedOnce`)에서 올리고,
+     *    앱이 누르는 것은 루프 **뒤** 한 곳이다(배차망_모드표.md). 누른 콜도 이미 올라가 있다.
      */
     /**
      * ⚠️ **변수 이름을 물지 않는다** — 올리는 값의 이름(`order` · `judged`)은 바뀔 수 있어,
@@ -67,15 +67,15 @@ describe('📊 수집 — 잡은 콜도 센다', () => {
      */
     const ENQUEUE = /telemetryManager\.enqueue\(/g;
 
-    it('🔴 AUTO 로 잡은 콜도 텔레메트리에 실린다 (break 전에 센다)', () => {
+    it('🔴 앱이 누른 콜도 텔레메트리에 실린다 (누르기 전에 루프에서 이미 올린다)', () => {
         const fn = scan();
-        const beforeBreak = fn.split('break')[0] ?? '';
-        expect(beforeBreak).toMatch(ENQUEUE);
+        const beforeTouch = fn.split('performSimulatedTouch')[0] ?? '';
+        expect(beforeTouch).toMatch(ENQUEUE);
     });
 
-    it('🔴 그래도 두 번 세지 않는다 (잡은 콜은 아래에서 또 담기지 않는다)', () => {
+    it('🔴 그래도 두 번 세지 않는다 (누른 뒤에 다시 올리지 않는다)', () => {
         const hits = (scan().match(ENQUEUE) ?? []).length;
-        expect(hits).toBe(2);   // 잡은 갈래 1 + 탈락 갈래 1 — 갈래가 갈리므로 한 콜은 한 번만
+        expect(hits).toBe(1);   // 루프 안 한 곳뿐 — 누르는 곳에서는 올리지 않는다
     });
 
     it('🔴 올리는 것은 **판정을 실은 콜**이다 — 화면이 다시 재지 않게 (현황판 의뢰)', () => {

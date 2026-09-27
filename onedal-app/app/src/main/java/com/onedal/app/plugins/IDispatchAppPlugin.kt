@@ -13,6 +13,13 @@ import com.onedal.app.models.SimplifiedOfficeOrder
  * 배차망별 고유 로직(키워드, 파서, 대기시간, 스냅샷 OCR 유무, 특수 실행 수순)을
  * 플러그인 내부로 캡슐화하여 코어 엔진의 if문을 소멸시킨다.
  */
+/**
+ * 👆 **목록에서 콜을 누를 자리** — `planListTap` 의 답. `null` 이면 누르지 않는다.
+ * @param rowLeft 요금 칸이 아니라 그 줄의 왼쪽 끝을 누른다 (`TapShift`)
+ * @param delayMs 자국을 보여 준 뒤 누르기까지 기다리는 시간
+ */
+data class ListTap(val rowLeft: Boolean, val delayMs: Long)
+
 interface IDispatchAppPlugin {
     val code: String                  // "kakaopicker", "insung", "hwamul24"
     val label: String                 // "픽커", "인성콜", "24시"
@@ -50,6 +57,16 @@ interface IDispatchAppPlugin {
      * 인성: 주의 동네(같은 이름 다른 동)면 채운 글자에 시·군이 있어야 통과.
      */
     fun passesDetailFilter(context: ScanContext, order: SimplifiedOfficeOrder): Boolean = true
+
+    /**
+     * 👆 **목록에서 이 콜을 눌러도 되나, 어디를 누르나** — 누르기 전 안전 확인 (배차망_모드표.md «누를 수 있는 카드의 조건»).
+     * 기본: 요금 칸을 바로 누른다. 픽커: 계약 버튼이 한 번에 눌릴 수 있는 카드(오더카드)를 피한다.
+     */
+    fun planListTap(
+        allNodes: List<com.onedal.app.core.ScreenTextNode>,
+        order: SimplifiedOfficeOrder,
+        fareNode: com.onedal.app.core.ScreenTextNode,
+    ): ListTap? = ListTap(rowLeft = false, delayMs = 0L)
 
     /** 상세 진입 시 배차망 고유 특수 실행 (인성의 팝업 3장 채우기 등). 채우는 중이면 true 반환 */
     fun executePreConfirmSpecial(

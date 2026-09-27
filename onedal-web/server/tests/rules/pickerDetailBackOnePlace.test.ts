@@ -31,8 +31,8 @@ describe('픽커 상세 대기 타이머 — 한 곳 (#124)', () => {
     it('🔴 거는 곳은 상세 화면 처리 한 곳 — 알람이 카드를 누르는 자리에는 없다', () => {
         // 부르는 곳만 센다 — 함수 정의 줄(`fun scheduleDetailBack()`)은 빼고
         expect(countOf(/(?<!fun ScanContext\.|override fun |fun )\bscheduleDetailBack\(\)/g)).toBe(1);
-        const alarm = hijack.indexOf('🚪 [알람 상세]');
-        const alarmBlock = hijack.slice(alarm, hijack.indexOf('} else if', alarm));
+        const alarm = hijack.indexOf('🚪 [상세 진입]');
+        const alarmBlock = hijack.slice(alarm, hijack.indexOf('alarmSignaler.onScan(', alarm));
         expect(alarm).toBeGreaterThan(-1);
         expect(alarmBlock).not.toMatch(/DetailBack\(\)/);
         expect(sequence).toMatch(/handlePreConfirmScreen[\s\S]*?scheduleDetailBack\(\)/);

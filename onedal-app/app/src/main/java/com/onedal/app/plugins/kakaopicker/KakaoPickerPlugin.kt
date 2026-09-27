@@ -43,4 +43,40 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
         defaultContext: com.onedal.app.models.ScreenContext
     ): com.onedal.app.models.ScreenContext =
         KakaoPickerKeywords.pickerScreenContextOf(text) ?: defaultContext
+
+    /**
+     * 👆 **픽커 목록에서 누르기 전 안전 확인** — 머리줄 위의 요금은 오더카드다, 누르면 그 자리에서 계약이다.
+     *
+     * `clickSafe` 는 요금 중심 **±60픽셀** 안의 글자만 보는데, 오더카드의 「수락」은 요금 **약 70픽셀 아래**라
+     * 띠 밖이다. 그래서 **「리스트 설정」 머리줄보다 아래인가**를 함께 보고(`isListCardAnchor`),
+     * 머리줄을 못 읽은 판은 손대지 않는다(규칙 ④). 누르기 바로 전에 요금 칸과 머리줄을 **다시 잰다**
+     * (`stillListCardAtTap`). 요금 자리(오른쪽 아래)는 상세의 «수락하기»와 같은 자리라 **줄 왼쪽 끝**을
+     * 자국 1초 뒤에 누른다(`TapShift`). 안 누른 것도 까닭을 남긴다 — 로그의 침묵이 조사를 가장 늦춘다.
+     */
+    override fun planListTap(
+        allNodes: List<com.onedal.app.core.ScreenTextNode>,
+        order: com.onedal.app.models.SimplifiedOfficeOrder,
+        fareNode: com.onedal.app.core.ScreenTextNode,
+    ): com.onedal.app.plugins.ListTap? {
+        val listHeaderY = KakaoPickerParser.listHeaderCenterY(allNodes.map { it.text to it.rect.centerY() })
+        val onListCard = KakaoPickerParser.isListCardAnchor(fareNode.rect.centerY(), listHeaderY)
+        val anchor = "닻(${fareNode.rect.centerX()},${fareNode.rect.centerY()}) 머리줄 Y=$listHeaderY"
+        if (!onListCard || !KakaoPickerParser.clickSafe(order.rawText)) {
+            val why = if (!onListCard) "머리줄 아래가 아니다 (오더카드이거나 머리줄을 못 읽었다)" else "카드에 「수락」이 보인다"
+            com.onedal.app.core.AppLogger.w("1DAL_ALARM", "🛑 [상세 진입 보류] ${order.fare}원 $anchor — $why · 손대지 않는다")
+            return null
+        }
+        val headerNode = allNodes.firstOrNull { KakaoPickerParser.isListHeaderText(it.text) }?.node
+        val refreshedY = { n: android.view.accessibility.AccessibilityNodeInfo? ->
+            n?.takeIf { it.refresh() }?.let { val r = android.graphics.Rect(); it.getBoundsInScreen(r); r.centerY() }
+        }
+        val fareY = refreshedY(fareNode.node)
+        val headerY = refreshedY(headerNode)
+        if (!KakaoPickerParser.stillListCardAtTap(fareY, headerY)) {
+            com.onedal.app.core.AppLogger.w("1DAL_ALARM", "🛑 [상세 진입 보류] ${order.fare}원 — 찍기 직전 다시 재니 머리줄 아래가 아니다 " +
+                "(요금 Y=$fareY · 머리줄 Y=$headerY · 스캔 때 $anchor) · 손대지 않는다")
+            return null
+        }
+        return com.onedal.app.plugins.ListTap(rowLeft = true, delayMs = com.onedal.app.core.TapShift.PREVIEW_MS)
+    }
 }
