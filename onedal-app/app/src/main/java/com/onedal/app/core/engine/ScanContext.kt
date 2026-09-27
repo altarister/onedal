@@ -94,4 +94,10 @@ interface ScanContext {
 
     /** ⏱️ 상세 화면 진입 시 설정된 대기 시간 후 자동으로 리스트로 복귀하는 타이머를 작동 */
     fun scheduleDetailBack()
+
+    /** ⏱️ 이 배차망은 누가 열었든 상세에서 돌아오는가 — 상세 대기 시간 값이 있는 배차망(픽커) */
+    fun returnsFromDetailWhoeverOpened(): Boolean
+
+    /** 📱 운행 기록을 켠다 — 공통 기록기 (배차망 칸이 «수락했다»를 알아볼 때 부른다) */
+    fun startAppTrace(reason: String)
 }

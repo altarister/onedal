@@ -353,7 +353,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 픽커엔 배송거리가 없어 단가식이 불가능하고(§2), 차종·경로 순서 축도 없다.
          * 픽업거리·도착지를 **모르면 막지 않는다** (규칙 ⑤ — 모르는 값으로 거르지 않는다).
          * 예약·내일 콜도 울린다 (기사님 확정 08-30 — 미리 확보할 가치가 있다).
-         * 🔴 이 판정은 «알람을 울릴까»만 정한다 — 클릭은 supportsCatching 이 원천 차단한다.
+         * 🔴 이 판정은 «상세로 들어가 판정을 받을까»만 정한다 — 계약 버튼은 누르지 않는다(`KakaoPickerPlugin.acceptButtons = null`).
          */
         /**
          * 🗺️ 픽커 줄임 표기 ↔ 도착목표 정규화 대조 (0830 실사고 — 성남행 전부 탈락).
@@ -834,9 +834,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
     /**
      * 🔔 알람 판정 위임 — 조건은 피기백 필터(원천 DB)에서 읽는다.
-     * true 면 소리·진동·테두리 + **상세까지 이동** (기사님 확정 0830 — 요금 최고 콜 하나,
-     * 30초 무응답 시 자동 복귀). **수락(계약) 클릭은 없다** — 상세 화면의 잡기 수순은
-     * supportsCatching=false 가 입구에서 차단한다. 지문 기억 덕에 콜당 한 번이다 (#79 배선).
+     * true 면 앱이 **상세까지 들어가** 판정을 받는다(요금 최고 콜 하나 · 알람이면 소리·진동 · 돌아오는 시간 뒤 자동 복귀).
+     * **수락(계약) 클릭은 없다** — 픽커에는 자동 모드도 수락 칸도 없다(`KakaoPickerPlugin`). 앱이 들어간 콜은 기억해 콜당 한 번이다.
      */
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
         val c = alarmConfig()

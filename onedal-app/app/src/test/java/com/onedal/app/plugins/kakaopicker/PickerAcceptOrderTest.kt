@@ -29,26 +29,32 @@ class PickerAcceptOrderTest {
         .replace(Regex("/\\*[\\s\\S]*?\\*/"), "").replace(Regex("//.*"), "")
 
     private val hijack by lazy { codeOnly("src/main/java/com/onedal/app/HijackService.kt") }
+    private val pickerPlugin by lazy { codeOnly("src/main/java/com/onedal/app/plugins/kakaopicker/KakaoPickerPlugin.kt") }
 
     // ── 순서 ──────────────────────────────────────────
 
     @Test
-    fun `수락 인지가 화면 보고보다 앞에 있다`() {
+    fun `수락 인지(배차망 칸)가 화면 보고보다 앞에 있다`() {
         val report = hijack.indexOf("updateScreenContext(detected)")
-        val accept = hijack.indexOf("reportPickerAccepted(")
+        val accept = hijack.indexOf(".onScreenChanged(")
         assertTrue("`updateScreenContext(detected)` 를 못 찾았다", report > 0)
-        assertTrue("`reportPickerAccepted` 를 못 찾았다", accept > 0)
+        assertTrue("배차망 칸 `onScreenChanged` 를 부르는 곳을 못 찾았다", accept > 0)
         assertTrue(
-            "수락 신고가 화면 보고보다 뒤에 있다 — 서버가 «상세 이탈»로 먼저 치운다 (2026-09-19 체험)",
+            "수락 신고가 화면 보고보다 뒤에 있다 — 서버가 «상세 이탈»로 먼저 치운다",
             accept < report,
         )
     }
 
     @Test
-    fun `늦은 수락 확인도 화면 보고보다 앞에 있다`() {
-        val report = hijack.indexOf("updateScreenContext(detected)")
-        val late = hijack.lastIndexOf("reportPickerAccepted(")
-        assertTrue("수락 신고 자리가 둘 다 화면 보고 앞이어야 한다", late < report)
+    fun `수락 신고 둘은 픽커 칸 안에 있고 상세를 떠난 뒤 인지가 늦은 수락 확인보다 앞이다`() {
+        val body = pickerPlugin.substringAfter("override fun onScreenChanged(")
+        val first = body.indexOf("reportPickerAccepted(")
+        val late = body.indexOf("shouldCheckLateAcceptance(")
+        val second = body.lastIndexOf("reportPickerAccepted(")
+        assertTrue("상세를 떠난 뒤 인지의 수락 신고가 없다", first > 0)
+        assertTrue("늦은 수락 확인이 없다", late > first)
+        assertTrue("늦은 수락 확인의 수락 신고가 없다", second > late)
+        assertTrue("HijackService 가 수락 신고를 직접 부르면 안 된다 — 칸 한 곳", !hijack.contains("reportPickerAccepted("))
     }
 
     // ── 글자 ──────────────────────────────────────────

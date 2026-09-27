@@ -15,7 +15,7 @@ import com.onedal.app.plugins.IDispatchAppPlugin
  * 📦 **인성데이타 플러그인 구현체**
  *
  * 인성 배차망의 고유 동작을 캡슐화한다:
- * - 잡기 수순(자동 배차 시도) 지원 (`supportsCatching = true`)
+ * - 자동 모드에서 앱이 확정을 누른다 (`acceptButtons` = 확정 버튼 글자)
  * - OCR 대신 접근성 텍스트 트리 직접 수집 (`ocrParser = null`)
  * - 안전취소 시간: `filter.safeCancelSecInsung * 1000L`
  * - 상세 진입 시 인성 고유 특수 실행: 팝업 3장 수집 및 동명이동 검증 (`handleInsungPreConfirmExecution`)
@@ -33,7 +33,8 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
 
     override val availableModes: Set<String> = TargetApp.ALL_MODES
 
-    override val supportsCatching: Boolean = true
+    override val acceptButtons: List<String>?
+        get() = keywords.confirmKeywords
 
     override val ocrParser: ScreenOcrParser<*>? = null
 

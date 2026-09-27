@@ -46,7 +46,7 @@ fun ScanContext.handlePreConfirmScreen(
 
     // ⏱️ 누가 열었든(알람·손) · 어느 모드든 — 상세 대기 시간 뒤 리스트로 돌아온다 (#124 · 기사님 확정)
     //    앱이 열었지만 계약하지 않는 콜(체험)도 — 결재가 안 오면 여기서 돌아온다
-    if (!plugin.supportsCatching || (session.openedByApp && !session.contractedByApp)) {
+    if (returnsFromDetailWhoeverOpened() || (session.openedByApp && !session.contractedByApp)) {
         scheduleDetailBack()
     }
 
@@ -99,8 +99,11 @@ fun ScanContext.handlePreConfirmScreen(
     val isTarget = scrapParser.shouldClick(finalOrder) && plugin.passesDetailFilter(this, finalOrder)
 
     if (!session.openedByApp || isTarget) {
+        // ✍️ 앱이 계약 버튼을 누르는 콜 — 자동 모드이고 이 배차망에 수락 칸이 있을 때만 (수락 칸이 비었는지 읽는 곳은 여기 한 곳)
+        val acceptButtons = plugin.acceptButtons
+        val appContracts = session.contractedByApp && acceptButtons != null
         // 👀 계약하지 않는 콜은 미리보기 — 선점 보고 **전에** 켠다. 서버는 이 표시가 있어야 심사한다
-        if (!session.contractedByApp) session.isPreview = true
+        if (!appContracts) session.isPreview = true
         sendConfirmOnce(finalOrder, rawScreenStr)
 
         // 수동 클릭이지만 스위치가 AUTO면, 서버가 결재를 보낼 수 있으므로 임시 고속 폴링(1초) 활성화
@@ -113,14 +116,14 @@ fun ScanContext.handlePreConfirmScreen(
             }, 10000)
         }
 
-        if (session.contractedByApp) {
+        if (appContracts && acceptButtons != null) {
             /**
              * ✍️ **앱이 계약하는 콜 — 확정을 누르고, 누르기에 성공한 뒤에 상세 보고** (안전취소 시간이 계약 뒤부터 흐른다).
              * 누르기에 실패하면 상세 보고를 보내지 않는다 — 보내면 서버는 앱이 계약한 줄 알고 안전취소가 «취소»를 찾는다.
              */
             AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 클릭 (채운 뒤)")
             AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
-            if (clickFirstMatchingButton(rootNode, keywords.confirmKeywords)) {
+            if (clickFirstMatchingButton(rootNode, acceptButtons)) {
                 AppLogger.roadmap("[${keywords.appLabel}] 콜 확정 완료", telemetryManager.currentScreenContext.name)
                 sendDetail(finalOrder)
             } else {

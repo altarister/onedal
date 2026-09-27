@@ -34,8 +34,13 @@ interface IDispatchAppPlugin {
      */
     val availableModes: Set<String>
 
-    /** 잡기 수순(자동 클릭 및 계약 체결)을 지원하는 배차망인가 */
-    val supportsCatching: Boolean
+    /**
+     * ✍️ **수락 칸 — 앱이 누를 계약 버튼 글자** (배차망_모드표.md 순서 ⑦). `null` 이면 앱이 누를 계약 버튼이 없다.
+     * 화면 판별 글자(`keywords.confirmKeywords`)와 따로 둔다 — 같은 글자를 판별에도 누르기에도 쓰면,
+     * 판별용 낱말이 곧 누를 버튼이 된다(픽커는 판별 낱말이 «수락하기»다).
+     * 🔴 비었는지 읽는 곳은 상세 처리의 확정 자리 한 곳뿐이다.
+     */
+    val acceptButtons: List<String>?
 
     /** 스냅샷 OCR 검증기 (null이면 기존 텍스트 기반 파싱 유지) */
     val ocrParser: ScreenOcrParser<*>?
@@ -67,6 +72,19 @@ interface IDispatchAppPlugin {
         order: SimplifiedOfficeOrder,
         fareNode: com.onedal.app.core.ScreenTextNode,
     ): ListTap? = ListTap(rowLeft = false, delayMs = 0L)
+
+    /**
+     * 🔄 **화면이 바뀔 때 배차망이 할 일** — 기본은 없음. 픽커: 기사님이 «수락하기»를 누르셨는지 알아본다.
+     * 🔴 화면 이름을 서버에 보내기(`updateScreenContext`) **전에** 불린다 — 뒤집히면 서버가 수락 전에 미리보기를 치운다.
+     */
+    fun onScreenChanged(
+        context: ScanContext,
+        previous: com.onedal.app.models.ScreenContext,
+        detected: com.onedal.app.models.ScreenContext,
+        screenTexts: List<String>,
+        rawScreenStr: String,
+        packageName: String?,
+    ) {}
 
     /** 상세 진입 시 배차망 고유 특수 실행 (인성의 팝업 3장 채우기 등). 채우는 중이면 true 반환 */
     fun executePreConfirmSpecial(

@@ -6,9 +6,9 @@ import com.onedal.app.core.engine.ScanContext
 /**
  * 🌐 **픽커 수순 — 여기가 그 집이다**.
  *
- * 🔴 **픽커에는 «잡기» 수순이 없다.** 「수락하기」를 누르는 순간 계약이 성립하고
- * 되돌릴 창이 없다(버튼 취소 없음 · 전화만 · 하루 5번). 그래서 앱은 **읽고 알릴 뿐**이고,
- * 계약은 기사님 손가락으로만 이루어진다 (`TargetApp.supportsCatching = false`).
+ * 🔴 **픽커에서 앱은 계약 버튼을 누르지 않는다.** 「수락하기」를 누르는 순간 계약이 성립하고
+ * 되돌릴 창이 없다(버튼 취소 없음 · 전화만 · 하루 5번). 계약은 기사님 손가락으로만 이루어진다
+ * (`KakaoPickerPlugin` — 자동 모드 없음 · 수락 칸 `acceptButtons = null`).
  *
  * 상세 화면(DETAIL_PRE_CONFIRM)의 진입, 검증, 2차 필터 탈락 시 회피 기동은
  * **공통 관문(`com.onedal.app.core.engine.PreConfirmSequence.kt`)** 에서 전 배차망 공통으로 통솔한다.

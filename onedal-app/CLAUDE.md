@@ -1,7 +1,7 @@
 # onedal-app — 안드로이드 스캐너
 
 배차앱 화면을 읽고(AccessibilityService) 조건에 맞는 콜을 자동 터치한다.
-자동 터치는 인성·화물24시만 한다. 픽커는 터치하지 않고, 읽어서 알리기만 한다(`KakaoPickerPlugin` 의 `supportsCatching = false`).
+앱은 자동·체험·알람에서 목록의 콜을 눌러 상세로 들어간다. 계약 버튼(확정)을 누르는 것은 인성·화물24시의 자동 모드뿐이고, 픽커에는 자동 모드도 수락 칸도 없다(`KakaoPickerPlugin` 의 `availableModes` · `acceptButtons = null`). 모드·배차망별 동작은 루트 [배차망_모드표.md](../배차망_모드표.md) 가 기준이다.
 루트 [CLAUDE.md](../CLAUDE.md) 가 먼저다 — **명령·커밋 게이트·경계를 넘는 규칙은 루트 [README.md](../README.md) 에 있다.**
 여기에는 **이 앱 안에서만 참인 것**만 둔다.
 

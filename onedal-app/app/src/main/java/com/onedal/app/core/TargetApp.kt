@@ -100,27 +100,4 @@ object TargetApp {
         packageName == SIMULATOR_PACKAGE && currentTarget == KAKAOPICKER -> PickerLog.STAGE_ONLY
         else -> PickerLog.NONE
     }
-
-    /**
-     * 🚧 **이 배차망에 «잡기 시퀀스»가 있는가** (기사님 확정).
-     *
-     * 잡는 수순은 배차망마다 완전히 다르다 — 인성은 상세→팝업3장→확정, 픽커는
-     * 수락한 **뒤에야** 주소가 나온다. 지금 공용 코드의 수순은 인성 모양이라,
-     * 수순이 없는 배차망에서 돌면 엉뚱한 화면을 누른다.
-     *
-     * `false` 면 앱은 **인성 잡기 수순을 타지 않는다** — 인성 전용 화면(확정 후·팝업 3종)
-     * 처리와 AUTO 모드의 리스트 자동 클릭을 건너뛴다.
-     *
-     * 🔴 **«아무것도 안 누른다»는 뜻이 아니다** (기사님 교정).
-     *    *"알람일 때 «수락하기» 버튼만 클릭하지 못하는 것이고, 나머지는 계약과 관련
-     *    없으므로 어떤 것도 클릭 가능하다."* — 실제로 **알람일 때는 그 콜의 상세까지
-     *    들어간다**(`scheduleDetailBack` — 누가 열었든 상세 대기 시간 뒤 돌아온다). 막아야 하는 단 하나는 **계약 버튼**이고,
-     *    그건 이 함수가 아니라 `KakaoPickerParser.clickSafe`(«수락» 글자가 보이면 손대지
-     *    않는다)가 막는다. 픽커는 되돌릴 창이 없어서(전화만·하루 5번) 계약이 곧 확정이다.
-     *
-     * 이 함수를 읽는 자리들이 곧 «인성 전용 구간»이다 (🚧 주석) —
-     * 픽커로 잡기를 시작하는 날, 그 표시를 따라 인성 수순을 떼어낸다.
-     */
-    fun supportsCatching(code: String): Boolean =
-        com.onedal.app.plugins.DispatchPluginRegistry.get(code).supportsCatching
 }

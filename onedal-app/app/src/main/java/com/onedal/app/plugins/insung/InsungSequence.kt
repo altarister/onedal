@@ -2,7 +2,6 @@ package com.onedal.app.plugins.insung
 
 import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.core.AppLogger
-import com.onedal.app.core.TargetApp
 import com.onedal.app.core.engine.CautionDongVerifier
 import com.onedal.app.core.engine.ScanContext
 import com.onedal.app.core.engine.SessionManager
@@ -23,20 +22,14 @@ private const val TAG = "1DAL_MVP"
 
 /** 적요 팝업 — 인성에만 있는 화면이다 */
 fun ScanContext.handleMemoPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-    // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
-    if (!TargetApp.supportsCatching(currentTargetApp)) return
     collectMachine.handleMemoPopup(rootNode, session, screenTexts)
 }
 
 fun ScanContext.handlePickupPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-    // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
-    if (!TargetApp.supportsCatching(currentTargetApp)) return
     collectMachine.handlePickupPopup(rootNode, session, screenTexts)
 }
 
 fun ScanContext.handleDropoffPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-    // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
-    if (!TargetApp.supportsCatching(currentTargetApp)) return
 
     // 도착지 텍스트까지 모으면 채우기 끝 — 보내지 않는다. 팝업이 닫혀 상세로 돌아오면 공통 순서가 보낸다
     // (2차 필터 → 선점 보고 → 확정 또는 미리보기 · 배차망_모드표.md 순서 ⑤~⑦)
@@ -105,10 +98,6 @@ fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOffic
 }
 
 fun ScanContext.handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) {
-    // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
-    // 🚧 인성 전용 구간 — 픽커의 «수락됨» 판정은 여기가 아니라 화면 판별 직후에 있다
-    //    (실물 덤프상 픽커 상세 낱말은 전부 «수락 전» 표식이라 분류로는 못 잡는다)
-    if (!TargetApp.supportsCatching(currentTargetApp)) return
     // 잔상 방어
     if (isPopupResidue(rawScreenStr)) return
 

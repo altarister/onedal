@@ -14,13 +14,21 @@ import org.junit.Test
  */
 class CapturedViaAndTargetAppTest {
 
+    /**
+     * ✍️ **픽커에서 앱이 «수락하기»를 누르는 길이 두 겹으로 막혀 있다** (기사님 확정 · 배차망_모드표.md).
+     * ① 자동 모드가 없다(자동이 오면 알람으로) ② 수락 칸이 비어 있다(누를 계약 버튼 글자가 없다).
+     * 픽커의 화면 판별 낱말(`confirmKeywords`)은 «수락하기»라, 수락 칸이 그것을 쓰면 곧 계약 버튼이 된다.
+     */
     @Test
-    fun `🚧 잡기 수순 능력 - 픽커는 어떤 모드여도 클릭하지 않는다 (수집·알람 전용)`() {
-        // 인성 잡기 수순(상세→팝업3장→확정)이 픽커에서 돌면 엉뚱한 화면을 누른다 —
-        // 픽커는 수락한 뒤에야 주소가 나오는 딴 수순이다
-        assertEquals(false, TargetApp.supportsCatching(TargetApp.KAKAOPICKER))
-        assertEquals(true, TargetApp.supportsCatching(TargetApp.INSUNG))
-        assertEquals(true, TargetApp.supportsCatching(TargetApp.HWAMUL24))
+    fun `픽커는 자동 모드도 수락 칸도 없다 - 인성·화물24시는 둘 다 있다`() {
+        val picker = com.onedal.app.plugins.DispatchPluginRegistry.get(TargetApp.KAKAOPICKER)
+        assertEquals(null, picker.acceptButtons)
+        assertEquals(false, "AUTO" in picker.availableModes)
+        for (code in listOf(TargetApp.INSUNG, TargetApp.HWAMUL24)) {
+            val p = com.onedal.app.plugins.DispatchPluginRegistry.get(code)
+            assertEquals(true, !p.acceptButtons.isNullOrEmpty())
+            assertEquals(true, "AUTO" in p.availableModes)
+        }
     }
 
     /**

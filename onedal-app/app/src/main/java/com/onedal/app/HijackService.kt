@@ -232,6 +232,11 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     private var lastPickerStage: com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.Stage? = null
 
+    override fun returnsFromDetailWhoeverOpened(): Boolean =
+        com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).getDetailBackTimeoutMs(savedFilter()) != null
+
+    override fun startAppTrace(reason: String) = startPickerTrace(reason)
+
     override fun scheduleDetailBack() {
         if (detailBackRunnable != null) return            // 이미 걸려 있다 — 상세 글자가 바뀔 때마다 새로 걸지 않는다
         // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec)
@@ -620,71 +625,11 @@ class HijackService : AccessibilityService(), ScanContext {
         val previous = telemetryManager.currentScreenContext
 
         /**
-         * ✅ **픽커에서 기사님이 「수락하기」를 누르셨나** — 화면 분류가 아니라 **직접 확인**한다
-         * (실사고 수리 · 기사님 지시 *"페이지를 정확히 인지하는 것이 중요하겠다"*).
-         *
-         * 🔴 **왜 화면 분류에 얹지 않는가** — 실물 덤프 12종을 훑어 보니 픽커 상세를 가르는
-         *    낱말은 「넘기기」·「수락하기」 **둘뿐**인데, 그 둘 다 **수락 «전»의 표식**이다.
-         *    수락하면 사라지므로, 수락 후 화면은 분류로는 «상세»가 아니게 된다.
-         *    그래서 «상세인데 수락하기가 없으면 수락됨»으로 갈랐다가 사고가 났다 —
-         *    리스트에 상세 잔상 한 줄(「픽업지 …」)이 남은 판을 «수락됨»으로 읽어
-         *    **아무도 안 누른 콜이 잡은 콜로 승격**됐다 (08:37:17 · 관제웹 유령 콜).
-         *
-         * → 인성이 쓰는 방어 넷을 그대로 옮긴다:
-         *   ① 수락 후에만 있는 낱말이 **실제로 보여야** 한다 (`isAcceptedScreen` — 있음을 본다)
-         *   ② **잔상이면 그 판을 통째로 버린다** (`isDetailResidue` — 인성 팝업 잔상 방어와 같은 계열)
-         *   ③ **직전 화면이 «수락 전 상세»였을 때만** — 한 프레임으로 정하지 않는다
-         *   ④ 미리보기를 올린 적이 있어야 한다 (`reportPickerAccepted` 안에서 본다)
+         * 🔄 **화면이 바뀔 때 배차망이 할 일** — 픽커: 기사님이 «수락하기»를 누르셨는지 알아본다(`KakaoPickerPlugin.onScreenChanged`).
+         * 🔴 아래 화면 이름 보고보다 **반드시 먼저** 부른다.
          */
-        /**
-         * 📡 **막히면 «어디서» 막혔는지 말한다** (새벽).
-         *
-         * 🔴 조건이 넷인데 **조용히 빠졌다.** 승격이 안 되면 로그가 한 줄도 안 남아,
-         *    «수락했는데 콜이 안 잡혔다»가 되면 넷 중 무엇이 걸렸는지 알 방법이 없다.
-         *    그날 판을 한 번 더 돌려야 하는데 픽커는 **하루 5번**뿐이다 — 되돌릴 창이
-         *    없는 판에서 «한 번 더 해 보자»는 비싼 말이다.
-         * ⚠️ 조건이 **다 맞을 때는 안 찍는다** — 그때는 `reportPickerAccepted` 가 제 말을 한다.
-         *    직전이 상세가 아닌 경우도 안 찍는다 (화면이 바뀔 때마다 울린다).
-         */
-        if (!TargetApp.supportsCatching(currentTargetApp) && previous == ScreenContext.DETAIL_PRE_CONFIRM) {
-            val residue = com.onedal.app.plugins.kakaopicker.KakaoPickerParser.isDetailResidue(screenTexts)
-            val returnedToList = detected == ScreenContext.LIST || detected == ScreenContext.LIST_COMPLETED
-            // ↩️ 리스트로 돌아온 것은 수락이 아니다 — 세션이 이미 비워져 승격 확인이 엉뚱한 까닭을 적었다 (`KakaoPickerKeywords.afterDetail`)
-            // 🔴 상세 글자만 바뀐 «상세 → 상세»는 떠난 것이 아니다 — 아무것도 적지 않는다 (18:28:33 폰 시험)
-            val stillOnDetail = detected == ScreenContext.DETAIL_PRE_CONFIRM
-            when (com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.afterDetail(returnedToList, residue, stillOnDetail)) {
-                com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.AfterDetail.STILL_ON_DETAIL -> { }
-                com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.AfterDetail.RETURNED_TO_LIST ->
-                    AppLogger.i("1DAL_PICKER", com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.RETURNED_TO_LIST_LOG)
-                com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.AfterDetail.RESIDUE ->
-                    AppLogger.i("1DAL_PICKER", "↩️ [승격 보류] 상세 글자가 남은 화면이다 — 이 화면은 버린다")
-                com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED -> {
-                    // 📱 실물 픽커면 운행 기록을 켠다 — 미리보기를 안 보낸 콜(손으로 연 상세)도 켠다
-                    val live = TargetApp.pickerLogScope(rootNode.packageName?.toString(), currentTargetApp) == TargetApp.PickerLog.STAGE_AND_UNKNOWN
-                    if (com.onedal.app.plugins.kakaopicker.PickerTrace.shouldStart(live, com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED, acceptedScreen = false)) {
-                        startPickerTrace("상세를 떠나 목록이 아닌 화면으로 갔다 — 수락으로 본다")
-                    }
-                    reportPickerAccepted(rawScreenStr)
-                }
-            }
-        }
-
-
-        /**
-         * ⏳ **늦은 수락 확인** — 퀵은 수락 → 내 오더 → 카드 → 흰 페이지라 상세 바로 뒤에는 수락 표식이 없다
-         * (`KakaoPickerKeywords.shouldCheckLateAcceptance`).
-         * 미리보기 딱지가 남은 채(리스트를 거치지 않음) 수락 뒤 화면이 보이면 그때 승격을 확인한다.
-         */
-        if (!TargetApp.supportsCatching(currentTargetApp) &&
-            com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.shouldCheckLateAcceptance(
-                previousWasDetail = previous == ScreenContext.DETAIL_PRE_CONFIRM,
-                isPreview = session.isPreview,
-                hasDetailOrder = session.lastDetailOrder != null,
-                rawText = rawScreenStr,
-            )) {
-            AppLogger.i("1DAL_PICKER", "⏳ [늦은 수락 확인] 상세 바로 뒤는 아니지만 미리보기 딱지가 남은 채 수락 뒤 화면(${detected.name})이 보인다")
-            reportPickerAccepted(rawScreenStr)
-        }
+        com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp)
+            .onScreenChanged(this, previous, detected, screenTexts, rawScreenStr, rootNode.packageName?.toString())
 
         /**
          * 📡 **화면 이름은 뜻을 정한 뒤에 알린다** (체험 · 로그 분석).
@@ -1312,7 +1257,7 @@ class HijackService : AccessibilityService(), ScanContext {
      * 🔴 **치환은 배차망 폴더 안에서 한다** — 여기는 «부르기»만 한다. 페이지 이름(`Stage`)은
      *    픽커 폴더 밖으로 안 나오고, 나오는 것은 공통 화면 값 하나뿐이다.
      *
-     * ⚠️ 인성·24시는 이 줄을 안 지난다 — `supportsCatching` 이 참이라 낱말 판별만 쓴다.
+     * ⚠️ 인성·24시는 덧씌우지 않는다 — 플러그인 기본(`resolveScreenContext`)이 낱말 판별을 그대로 돌려준다.
      */
     private fun detectScreenContext(text: String, pkg: String? = null): ScreenContext {
         val byKeywords = screenDetector.detect(text, keywords)

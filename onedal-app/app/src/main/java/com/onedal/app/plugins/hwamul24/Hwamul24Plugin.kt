@@ -12,7 +12,7 @@ import com.onedal.app.plugins.IDispatchAppPlugin
  * 📦 **화물24시 플러그인 구현체**
  *
  * 화물24시 배차망의 고유 동작을 캡슐화한다:
- * - 잡기 수순(자동 배차 시도) 지원 (`supportsCatching = true`)
+ * - 자동 모드에서 앱이 확정을 누른다 (`acceptButtons` = 확정 버튼 글자)
  * - OCR 대신 접근성 텍스트 트리 직접 수집 (`ocrParser = null`)
  * - 안전취소 시간: `filter.safeCancelSecHwamul24 * 1000L`
  * - 패키지 키워드: logione, carrier
@@ -30,7 +30,8 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
 
     override val availableModes: Set<String> = TargetApp.ALL_MODES
 
-    override val supportsCatching: Boolean = true
+    override val acceptButtons: List<String>?
+        get() = keywords.confirmKeywords
 
     override val ocrParser: ScreenOcrParser<*>? = null
 

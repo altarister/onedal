@@ -79,7 +79,7 @@ class SessionManager {
     var lastDetailOrder: SimplifiedOfficeOrder? = null
 
     /**
-     * 🎯 **알람이 방금 찍은 리스트 카드** — 그 상세가 어느 콜인지 **이미 아는 답**이다 (기사님 지시).
+     * 🎯 **앱이 방금 찍은 리스트 카드** — 그 상세가 어느 콜인지 **이미 아는 답**이다 (기사님 지시).
      *
      * 앱이 직접 그 줄을 찍고 들어간 상세는 대조하지 않는다 — 상세 글자로 되찾으면
      * 길 이름(«태전동로») ↔ 동 이름(«태전») 차이로 못 맞추는 판이 있다.
@@ -88,7 +88,7 @@ class SessionManager {
     var alarmTappedCard: SimplifiedOfficeOrder? = null
 
     /**
-     * 알람이 그 카드를 찍은 시각(부팅 기준). `KakaoPickerKeywords.detailOpener` 로 «알람이 연 상세인가»를 가린다.
+     * 앱이 그 카드를 찍은 시각(부팅 기준). `KakaoPickerKeywords.detailOpener` 로 «알람이 연 상세인가»를 가린다.
      * ⚠️ `HijackService.alarmTapAtMs` 와 **일부러 따로 둔다** — 그쪽은 `[상세 대기]` 로그의 «연 쪽»을
      *    찍고 바로 0 으로 비우고, 이쪽은 미리보기가 카드를 되찾을 때까지 남아 있어야 한다.
      */

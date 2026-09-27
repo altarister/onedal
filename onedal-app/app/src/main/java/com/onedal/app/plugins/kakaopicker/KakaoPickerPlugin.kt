@@ -1,5 +1,6 @@
 package com.onedal.app.plugins.kakaopicker
 
+import com.onedal.app.core.engine.ScanContext
 import android.content.Context
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.ScreenKeywords
@@ -12,7 +13,7 @@ import com.onedal.app.plugins.IDispatchAppPlugin
  * 📦 **카카오 T 픽커 플러그인 구현체**
  *
  * 카카오픽커 배차망의 고유 동작을 캡슐화한다:
- * - 수집·알람 전용 (잡기 수순 미지원: `supportsCatching = false`)
+ * - 자동 모드도 수락 칸도 없다 — 앱이 «수락하기»를 누르는 길이 없다 (`availableModes` · `acceptButtons = null`)
  * - 텍스트 트리에 배송지 주소가 없으므로 상단 스냅샷 OCR 파서(`PickerDetailOcrParser`) 탑재
  * - 수락 시 즉시 계약이 체결되므로 안전취소가 없음 (`getSafeCancelMs = null`)
  * - 상세 머묾 타이머: `filter.pickerAlarmDetailSec * 1000L`
@@ -29,7 +30,13 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
     /** 🎛️ 픽커에는 자동 모드가 없다 — 수락이 곧 계약이고 되돌릴 수 없어 앱이 수락하기를 누르지 않는다 (기사님 확정) */
     override val availableModes: Set<String> = TargetApp.ALL_MODES - "AUTO"
 
-    override val supportsCatching: Boolean = false
+    /**
+     * ✍️ **픽커에는 앱이 누를 계약 버튼이 없다** (기사님 확정).
+     * 수락이 곧 계약이고 되돌릴 창이 없다(전화만 · 하루 5번). 기사님 교정: *"«수락하기» 버튼만 클릭하지 못하는 것이고,
+     * 나머지는 계약과 관련 없으므로 어떤 것도 클릭 가능하다."* — 그래서 앱은 목록 카드를 눌러 상세까지 들어가지만,
+     * 계약 버튼은 누르지 않는다. 목록에서 오더카드를 피하는 것은 `planListTap`(«수락» 글자가 보이면 손대지 않는다)이다.
+     */
+    override val acceptButtons: List<String>? = null
 
     override val ocrParser: ScreenOcrParser<*> = PickerDetailOcrParser()
 
@@ -78,5 +85,59 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
             return null
         }
         return com.onedal.app.plugins.ListTap(rowLeft = true, delayMs = com.onedal.app.core.TapShift.PREVIEW_MS)
+    }
+
+    /**
+     * ✅ **기사님이 «수락하기»를 누르셨나** — 화면 분류가 아니라 **직접 확인**한다
+     * (실사고 수리 · 기사님 지시 *"페이지를 정확히 인지하는 것이 중요하겠다"*).
+     *
+     * 🔴 **왜 화면 분류에 얹지 않는가** — 픽커 상세를 가르는 낱말은 «넘기기»·«수락하기» 둘뿐인데 둘 다 **수락 «전»의 표식**이다.
+     *    «상세인데 수락하기가 없으면 수락됨»으로 갈랐다가, 목록에 상세 잔상 한 줄이 남은 판을 «수락됨»으로 읽어
+     *    **아무도 안 누른 콜이 잡은 콜로 승격**됐다.
+     *
+     * 방어 넷: ① 수락 뒤에만 있는 낱말이 실제로 보여야 한다 ② 잔상이면 그 판을 버린다 ③ 직전 화면이 «수락 전 상세»였을 때만
+     * ④ 미리보기를 올린 적이 있어야 한다(`reportPickerAccepted` 안). 막히면 «어디서» 막혔는지 로그로 말한다 — 픽커는 하루 5번뿐이다.
+     * 🔴 차례: 상세를 떠난 뒤 인지 → 늦은 수락 확인. 둘 다 화면 이름 보고보다 앞이다(`PickerAcceptOrderTest`).
+     */
+    override fun onScreenChanged(
+        context: ScanContext,
+        previous: com.onedal.app.models.ScreenContext,
+        detected: com.onedal.app.models.ScreenContext,
+        screenTexts: List<String>,
+        rawScreenStr: String,
+        packageName: String?,
+    ) {
+        val detail = com.onedal.app.models.ScreenContext.DETAIL_PRE_CONFIRM
+        if (previous == detail) {
+            val residue = context.scrapParser.isDetailResidue(screenTexts)
+            val returnedToList = detected == com.onedal.app.models.ScreenContext.LIST || detected == com.onedal.app.models.ScreenContext.LIST_COMPLETED
+            // 🔴 상세 글자만 바뀐 «상세 → 상세»는 떠난 것이 아니다 — 아무것도 적지 않는다
+            val stillOnDetail = detected == detail
+            when (KakaoPickerKeywords.afterDetail(returnedToList, residue, stillOnDetail)) {
+                KakaoPickerKeywords.AfterDetail.STILL_ON_DETAIL -> { }
+                KakaoPickerKeywords.AfterDetail.RETURNED_TO_LIST ->
+                    com.onedal.app.core.AppLogger.i("1DAL_PICKER", KakaoPickerKeywords.RETURNED_TO_LIST_LOG)
+                KakaoPickerKeywords.AfterDetail.RESIDUE ->
+                    com.onedal.app.core.AppLogger.i("1DAL_PICKER", "↩️ [승격 보류] 상세 글자가 남은 화면이다 — 이 화면은 버린다")
+                KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED -> {
+                    // 📱 실물 픽커면 운행 기록을 켠다 — 미리보기를 안 보낸 콜(손으로 연 상세)도 켠다
+                    val live = TargetApp.pickerLogScope(packageName, context.currentTargetApp) == TargetApp.PickerLog.STAGE_AND_UNKNOWN
+                    if (PickerTrace.shouldStart(live, KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED, acceptedScreen = false)) {
+                        context.startAppTrace("상세를 떠나 목록이 아닌 화면으로 갔다 — 수락으로 본다")
+                    }
+                    context.reportPickerAccepted(rawScreenStr)
+                }
+            }
+        }
+        // ⏳ 늦은 수락 확인 — 퀵은 수락 → 내 오더 → 카드 → 흰 페이지라 상세 바로 뒤에는 수락 표식이 없다
+        if (KakaoPickerKeywords.shouldCheckLateAcceptance(
+                previousWasDetail = previous == detail,
+                isPreview = context.session.isPreview,
+                hasDetailOrder = context.session.lastDetailOrder != null,
+                rawText = rawScreenStr,
+            )) {
+            com.onedal.app.core.AppLogger.i("1DAL_PICKER", "⏳ [늦은 수락 확인] 상세 바로 뒤는 아니지만 미리보기 딱지가 남은 채 수락 뒤 화면(${detected.name})이 보인다")
+            context.reportPickerAccepted(rawScreenStr)
+        }
     }
 }
