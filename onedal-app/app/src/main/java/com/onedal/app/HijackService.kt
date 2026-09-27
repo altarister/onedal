@@ -933,7 +933,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 continue
             }
 
-            val orderHash = (order.pickup + order.dropoff + order.fare.toString()).hashCode()
+            val orderHash = CallMemory.fingerprintOf(order)
             scanHashes[orderHash] = fareNode.rect   // 🔔 이미 본 콜도 «아직 화면에 있다 + 지금 여기 있다»는 사실은 남긴다
             /**
              * ⏭️ **건너뛰었다는 사실을 남긴다**.
@@ -1333,6 +1333,31 @@ class HijackService : AccessibilityService(), ScanContext {
         }
 
         /**
+         * 🧹 **취소로 끝났으면 «눌렀다» 에서 «막았다» 로 내린다** (기사님 · 실주행 시흥동) — 내리는 곳은 여기 한 곳.
+         *
+         * 앱은 콜을 누를 때 지문을 «눌렀다»로 기억한다 — 반송돼도 또 누르지 않으려는 것이다. 그런데 그 뜻은
+         * **그 콜이 살아 있는 동안**만 맞다. 취소로 끝난 콜은 다시 판정받을 자격이 있다 — 길이 바뀌면 답도 바뀐다.
+         * 🔴 안 내리면 필터가 아무리 바뀌어도 영영 안 본다 — 한 번 누른 뒤 필터가 93번 바뀌었는데도 다시 판정하지 않아
+         *    좋은 콜을 그대로 지나친 적이 있다. 기억에서 아예 빼지는 않는다(`CallMemory.demoteActed`).
+         * 🔴 **KEEP 은 안 내린다** — 잡은 콜을 또 누르면 사고다. 판결을 아는 곳이 여기라 조건을 여기 둔다.
+         * 🔴 지문은 **누를 때 쥔 카드**(`alarmTappedCard`)로 뜬다 — 기억에 넣은 줄과 같은 블록에서 같은 콜로 세워진다.
+         *    상세 처리의 콜(`lastDetailOrder`)은 픽커에서 사진 글자로 덮여 지문이 달라진다. 카드가 없으면 앱이 안 누른 콜이라
+         *    기억에도 없어 내릴 것이 없다.
+         */
+        if (decision != "KEEP") {
+            session.alarmTappedCard?.let { card ->
+                val hash = CallMemory.fingerprintOf(card)
+                if (callMemory.demoteActed(hash)) {
+                    AppLogger.d(TAG, "🧹 [막았다로 내림] ${card.pickup.take(14)} → ${card.dropoff.take(14)} ${card.fare}원 " +
+                        "— 취소로 끝났으니 길이 바뀌면 다시 본다 (지문 $hash)")
+                } else {
+                    AppLogger.w(TAG, "🧹 [못 내림] ${card.pickup.take(14)} → ${card.dropoff.take(14)} ${card.fare}원 " +
+                        "— «눌렀다» 기억에 이 지문이 없다 (지문 $hash)")
+                }
+            }
+        }
+
+        /**
          * ↩️ **앱이 열었지만 계약하지 않는 콜(알람 등)** — 기사님 결정 (배차망_모드표.md 순서 ⑩).
          * CANCEL 이면 바로 목록으로 돌아온다 — 나쁜 콜 상세에 머물면 운전 중인 기사님이 목록을 못 본다.
          * KEEP 이면 돌아오는 타이머를 그대로 둔다 — 남은 시간 동안 기사님이 판정을 보고 확정·수락하신다.
@@ -1340,10 +1365,6 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         if (!session.contractedByApp) {
             if (session.openedByApp && decision == "CANCEL") {
-                session.lastDetailOrder?.let { o ->
-                    val hash = (o.pickup + o.dropoff + o.fare.toString()).hashCode()
-                    callMemory.demoteActed(hash)   // 취소로 끝난 콜은 길이 바뀌면 다시 본다 (아래 계약 콜과 같은 규칙)
-                }
                 AppLogger.i("1DAL_PICKER", "↩️ [결재 CANCEL] 앱이 연 콜 — 바로 목록으로 돌아온다")
                 mainHandler.postDelayed({
                     if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
@@ -1353,29 +1374,6 @@ class HijackService : AccessibilityService(), ScanContext {
                 }, 300)
             }
             return // 앱이 계약하지 않은 콜은 버튼을 누르지 않는다
-        }
-
-        /**
-         * 🧹 **취소로 끝났으면 «눌렀다» 에서 «막았다» 로 내린다** (기사님 · 실주행 시흥동).
-         *
-         * 클릭 직전에 `markEvaluated` 로 지문을 선등재한다 — 반송돼도 또 누르지 않으려는 지뢰 탐지기다.
-         * 그런데 그 뜻은 **그 콜이 살아 있는 동안**만 맞다. 취소로 끝난 콜은 다시 판정받을 자격이 있다 —
-         * 길이 바뀌면 답도 바뀐다.
-         *
-         * 🔴 안 내리면 **필터가 아무리 바뀌어도 영영 안 본다** — 「막았다」만 버전으로 비워지기 때문이다.
-         *    시흥동 → 송도동(34,650원)이 그렇게 갔다: 한 번 누른 뒤 대전에서 인천까지 오는 내내
-         *    필터가 93번 바뀌었는데도 다시 판정하지 않아 성남을 그대로 지나쳤다.
-         * 🔴 **기억에서 아예 빼지 않는다** — 빼면 같은 필터로 또 통과해 또 누른다 (`CallMemory.demoteActed`).
-         * 🔴 **KEEP 은 안 내린다** — 잡은 콜을 또 누르면 사고다.
-         * 🔴 지문은 스캔 때와 **같은 셈**이어야 한다 (상차 + 하차 + 요금 · `orderHash`).
-         */
-        if (decision != "KEEP") {
-            session.lastDetailOrder?.let { o ->
-                val hash = (o.pickup + o.dropoff + o.fare.toString()).hashCode()
-                callMemory.demoteActed(hash)
-                AppLogger.d(TAG, "🧹 [막았다로 내림] ${o.pickup.take(14)} → ${o.dropoff.take(14)} ${o.fare}원 " +
-                    "— 취소로 끝났으니 길이 바뀌면 다시 본다 (지문 $hash)")
-            }
         }
 
         val targetBtnStr = if (decision == "KEEP") "닫기" else "취소"

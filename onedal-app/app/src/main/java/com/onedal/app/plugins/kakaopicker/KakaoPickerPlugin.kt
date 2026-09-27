@@ -66,7 +66,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
 
     private fun logHeldOnce(order: com.onedal.app.models.SimplifiedOfficeOrder, line: String) {
         if (heldLogged.size > 500) heldLogged.clear()
-        if (heldLogged.add((order.pickup + order.dropoff + order.fare.toString()).hashCode())) {
+        if (heldLogged.add(com.onedal.app.core.CallMemory.fingerprintOf(order))) {
             com.onedal.app.core.AppLogger.w("1DAL_ALARM", line)
         }
     }

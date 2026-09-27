@@ -23,6 +23,16 @@ class CallMemory(
     private val maxSize: Int = 100,
     private val keepCount: Int = 50,
 ) {
+    companion object {
+        /**
+         * 🧮 **콜 지문 — 상차 + 하차 + 요금. 지문 식은 여기 한 곳이다** (`FingerprintOnePlaceTest`).
+         * 🔴 **목록에서 읽은 콜만 넘긴다.** 상세 글자로 덮인 콜(픽커는 사진을 읽으면 주소가 길어진다)을 넘기면
+         *    목록에서 기억한 지문과 달라져, 기억을 내리거나 찾는 일이 헛돈다.
+         */
+        fun fingerprintOf(order: com.onedal.app.models.SimplifiedOfficeOrder): Int =
+            (order.pickup + order.dropoff + order.fare.toString()).hashCode()
+    }
+
     /** ①-가 막았다 — 이 필터 버전으로 판정해 통과 못 했다. 필터 버전이 바뀌면 비운다 (#135) */
     private val blocked = LinkedHashSet<Int>()
     /** ①-나 눌렀다·통과했다 — 필터가 바뀌어도 다시 안 본다 (클릭 선등재 · 통과 판정) */
@@ -101,8 +111,10 @@ class CallMemory(
      *    안 드러나지만, 인성·화물24시는 그 콜이 그대로 남는다.
      * 🔴 **KEEP 으로 끝난 콜은 안 내린다** — 잡은 콜을 또 누르면 사고다.
      */
-    fun demoteActed(hash: Int) {
-        if (acted.remove(hash)) { blocked += hash; trim(blocked) }
+    fun demoteActed(hash: Int): Boolean {
+        if (!acted.remove(hash)) return false
+        blocked += hash; trim(blocked)
+        return true
     }
 
     /**
