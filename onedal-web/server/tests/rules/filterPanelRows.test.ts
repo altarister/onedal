@@ -96,7 +96,7 @@ describe('💰 어떤 콜 · 🚫 빼는 곳 — 칸 배치', () => {
     const exRow = code.slice(code.indexOf('id="exclude"'), code.indexOf('data-save-bar'));
 
     it('🔴 «어떤 콜»은 최소 금액 · 콜할인율 · 받을 짐 세 칸이다', () => {
-        const a = callRow.indexOf('label="💵 최소 금액"');
+        const a = callRow.indexOf("label: '💵 최소 금액'");
         const b = callRow.indexOf('label="💰 콜할인율"');
         const c = callRow.indexOf('label="🚚 받을 짐"');
         expect(a).toBeGreaterThan(-1);
@@ -109,7 +109,16 @@ describe('💰 어떤 콜 · 🚫 빼는 곳 — 칸 배치', () => {
         expect(exRow).toMatch(/label="🚫 제외 단어"/);
     });
 
-    it('🔴 최소 금액은 고르는 즉시 메모리로 · 💾 가 DB 로 · ↩︎ 가 되돌리고 · «서버와 다름»이 센다', () => {
+    it('🔴 최소 금액은 위 칸들과 같은 끄는 막대다 — 0 ~ 10만 원 · 1,000원 단위', () => {
+        const knob = callRow.slice(callRow.lastIndexOf('<KnobGrid', callRow.indexOf("label: '💵 최소 금액'")),
+                                   callRow.indexOf('label="💰 콜할인율"'));
+        expect(knob).toMatch(/<KnobGrid[^>]*inline/);                       // 레이어가 줄 전체 폭
+        expect(knob).toMatch(/value: minFare \/ 10000/);                    // 막대 값은 만 원
+        expect(knob).toMatch(/min: 0, max: 10, step: 0\.1/);                // 0 ~ 10만 · 0.1만 = 1,000원
+        expect(knob).toMatch(/onCommit: \(v: number\) => updateFilter\(\{ minFare: Math\.round\(v \* 10\) \* 1000/);
+    });
+
+    it('🔴 최소 금액은 뗄 때 메모리로 · 💾 가 DB 로 · ↩︎ 가 되돌리고 · «서버와 다름»이 센다', () => {
         expect(callRow).toMatch(/updateFilter\(\{ minFare/);
         const body = (name: string) => code.slice(code.indexOf(name), code.indexOf(name) + 2600);
         expect(body('const handleSaveToServer')).toMatch(/minFare: filter\?\.minFare/);

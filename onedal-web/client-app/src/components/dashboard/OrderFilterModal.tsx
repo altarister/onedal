@@ -32,13 +32,7 @@ const CALL_DISCOUNT_STEPS = [
     { value: 100, label: '전부' },
 ] as const;
 
-/**
- * 💵 **최소 금액 단계** — 이 금액 밑의 콜은 받지 않는다. 배차망 셋이 한 값을 쓴다 (기사님 확정).
- *    `0` 은 «없음»(금액을 안 본다). 목록에 없는 금액은 레이어 안 입력칸에 넣는다.
- */
-const MIN_FARE_STEPS = [0, 3000, 5000, 10000, 20000, 30000] as const;
-
-/** 💵 금액을 칸에 들어갈 짧은 글자로 — 0 은 «없음», 만 원부터 «1.5만», 그 밑은 «5천» */
+/** 💵 금액을 «어떤 콜» 요약 글자에 들어갈 짧은 글자로 — 0 은 «없음», 만 원부터 «1.5만», 그 밑은 «5천» */
 const shortWon = (won: number): string =>
     won <= 0 ? '없음'
     : won >= 10000 ? `${won / 10000}만`
@@ -561,16 +555,6 @@ export default function OrderFilterModal({ isOpen, onClose,
 
     /** 💵 최소 금액 — `user_filters.min_fare` 한 칸 (배차망 셋이 같이 쓴다) */
     const minFare = filter.minFare ?? 0;
-    /**
-     * 💵 입력칸은 **손을 뗄 때**(blur·Enter) 보낸다 — 글자마다 보내면 «5»«50»«500» 이 차례로 앱에 내려간다.
-     * 🔴 숫자가 없으면(빈 칸) 보내지 않는다 — 빈 칸을 0(«없음»)으로 읽으면 모든 콜이 열린다.
-     */
-    const commitMinFare = (text: string) => {
-        const digits = text.replace(/[^0-9]/g, '');
-        if (!digits) return;
-        const won = parseInt(digits, 10);
-        if (won !== minFare) updateFilter({ minFare: won });
-    };
 
     /**
      * 🚫 **저장은 쉼표 문자열 하나, 화면은 말 목록**.
@@ -952,26 +936,23 @@ export default function OrderFilterModal({ isOpen, onClose,
                                 {/**
                                   * 💵 **최소 금액 — `user_filters.min_fare` 한 칸, 배차망 셋이 같이 쓴다** (기사님:
                                   *    *"배차망 모두 통일해서 가는것이 맞을꺼 같다"*).
-                                  *    자주 쓰는 금액은 눌러서, 나머지는 레이어 안 입력칸에.
+                                  * 🎚️ **위 칸들과 같은 끄는 막대 — 0 ~ 10만 원, 1,000원 단위** (기사님:
+                                  *    *"버튼으로 하지 말고 위 처럼 프로그래스바로 … 0~10 만원까지 1000원 단위로"*).
+                                  *    막대 값은 **만 원**이다(0.1 = 1,000원) — 칸에 «3만»처럼 짧게 선다. 서버로는 원으로 보낸다.
+                                  * 🔴 `inline` — 레이어가 **줄 전체 폭**으로 떠야 폰에서 끈다 (기준거리 칸과 같다).
+                                  * 🔴 끄는 동안은 화면만(`previewFilter`), **뗄 때** 서버로(`updateFilter`).
                                   */}
-                                <PickLayer label="💵 최소 금액"
-                                    value={shortWon(minFare)}
-                                    options={MIN_FARE_STEPS.map(shortWon)}
-                                    open={openKnob === 'minFare'}
-                                    onToggle={() => setOpenKnob(o => o === 'minFare' ? null : 'minFare')}
-                                    onPick={(v) => {
-                                        const won = MIN_FARE_STEPS.find(w => shortWon(w) === v);
-                                        if (won !== undefined) updateFilter({ minFare: won });
-                                    }}
-                                    foot={
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-[9.5px] font-bold text-text-muted">이 금액 밑의 콜은 받지 않습니다 · 목록에 없는 금액은 여기에 (원)</span>
-                                            <Input type="text" inputMode="numeric" key={minFare} defaultValue={minFare ? String(minFare) : ''}
-                                                onBlur={e => commitMinFare(e.currentTarget.value)}
-                                                onKeyDown={e => { if (e.key === 'Enter') commitMinFare(e.currentTarget.value); }}
-                                                placeholder="예: 7000"
-                                                className="h-8 bg-surface-alt/50 border-border text-[12px] text-text-primary font-bold tabular-nums" />
-                                        </div>} />
+                                <KnobGrid open={openKnob} onOpen={setOpenKnob} inline
+                                    knobs={[{
+                                        key: 'minFare',
+                                        label: '💵 최소 금액',
+                                        unit: '만',
+                                        value: minFare / 10000,
+                                        min: 0, max: 10, step: 0.1,
+                                        set: (v: number) => previewFilter({ minFare: Math.round(v * 10) * 1000 }),
+                                        onPreview: (v: number) => previewFilter({ minFare: Math.round(v * 10) * 1000 }),
+                                        onCommit: (v: number) => updateFilter({ minFare: Math.round(v * 10) * 1000 }),
+                                    }]} />
                                 <PickLayer label="💰 콜할인율"
                                     value={callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`}
                                     options={CALL_DISCOUNT_STEPS.map(st => st.label)}
