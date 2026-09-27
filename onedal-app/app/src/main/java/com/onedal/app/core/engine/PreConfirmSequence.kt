@@ -35,8 +35,8 @@ fun ScanContext.handlePreConfirmScreen(
         return
     }
 
-    // 이미 전송/결정함 — 단, 3단계에서 돌아와 확정/취소를 마저 눌러야 하면 계속 간다 (#82)
-    if (PreConfirmGate.shouldSkip(session.isDetailScrapSent, session.cautionAction)) return
+    // 이미 선점 보고를 했다 — 이 화면에서 할 일이 끝났다
+    if (PreConfirmGate.shouldSkip(session.isDetailScrapSent)) return
 
     ensureSessionId()
 
@@ -89,16 +89,18 @@ fun ScanContext.handlePreConfirmScreen(
 
     session.lastDetailOrder = finalOrder // 상세 수집/승격용 최종 갱신
 
-    // 잡기 수순이 있는 배차망(인성)의 확정 전 팝업 수순 및 3단계 동명이동 처리 위임
+    // 채우기 — 인성은 팝업 3장을 다 읽을 때까지 여기서 돌아간다 (배차망_모드표.md 순서 ③)
     if (plugin.executePreConfirmSpecial(this, rootNode, screenTexts, finalOrder)) {
         return
     }
 
     AppLogger.roadmap("상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인", telemetryManager.currentScreenContext.name)
 
-    val isTarget = scrapParser.shouldClick(finalOrder)
+    val isTarget = scrapParser.shouldClick(finalOrder) && plugin.passesDetailFilter(this, finalOrder)
 
     if (!session.openedByApp || isTarget) {
+        // 👀 계약하지 않는 콜은 미리보기 — 선점 보고 **전에** 켠다. 서버는 이 표시가 있어야 심사한다
+        if (!session.contractedByApp) session.isPreview = true
         sendConfirmOnce(finalOrder, rawScreenStr)
 
         // 수동 클릭이지만 스위치가 AUTO면, 서버가 결재를 보낼 수 있으므로 임시 고속 폴링(1초) 활성화
@@ -111,20 +113,31 @@ fun ScanContext.handlePreConfirmScreen(
             }, 10000)
         }
 
-        if (plugin.supportsCatching) {
-            // 앱이 계약하는 콜만 확정 버튼 클릭
-            if (session.contractedByApp) {
-                AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 즉시 클릭 (배차 시도)")
-                AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
+        if (session.contractedByApp) {
+            /**
+             * ✍️ **앱이 계약하는 콜 — 확정을 누르고, 누르기에 성공한 뒤에 상세 보고** (안전취소 시간이 계약 뒤부터 흐른다).
+             * 누르기에 실패하면 상세 보고를 보내지 않는다 — 보내면 서버는 앱이 계약한 줄 알고 안전취소가 «취소»를 찾는다.
+             */
+            AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 클릭 (채운 뒤)")
+            AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
+            if (clickFirstMatchingButton(rootNode, keywords.confirmKeywords)) {
                 AppLogger.roadmap("[${keywords.appLabel}] 콜 확정 완료", telemetryManager.currentScreenContext.name)
-                clickFirstMatchingButton(rootNode, keywords.confirmKeywords)
+                sendDetail(finalOrder)
+            } else {
+                AppLogger.w(TAG, "🛑 [확정 실패] 확정 버튼을 못 눌렀다 — 상세 보고를 보내지 않고 빠져나온다")
+                apiClient.sendAnomalyReport(
+                    targetApp = currentTargetApp,
+                    screenName = telemetryManager.currentScreenContext.name,
+                    failureReason = "CONFIRM_BUTTON_NOT_FOUND",
+                    listOrderInfo = mapOf("fare" to finalOrder.fare, "pickup" to finalOrder.pickup, "dropoff" to finalOrder.dropoff),
+                    detailParsedText = rawScreenStr.take(500),
+                    ocrResult = null,
+                )
+                abortPreConfirm()
             }
         } else {
-            // 잡기 수순이 없는 배차망(카카오 픽커 등): 기사님 손으로 직접 수락 대기 (미리보기 모드)
-            session.isPreview = true
-            session.accumulatedDetailText = rawScreenStr
+            // 👀 계약하지 않는 콜(기사님이 연 상세 · 체험 · 알람) — 채운 글자 그대로 상세 보고, 판정을 기다린다
             sendDetail(finalOrder)
-            AppLogger.i("1DAL_PICKER", "📄 [상세 실물] ${screenTexts.joinToString(" | ").take(500)}")
         }
     } else {
         // [AUTO 모드이면서 2차 필터 실패] -> 공통 즉시 취소/뒤로가기 회피 기동

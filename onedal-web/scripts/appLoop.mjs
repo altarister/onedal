@@ -90,6 +90,7 @@ const STEPS = [
     { name: '1차 필터 통과 → 자동 터치',   re: /\[AUTO\] 꿀콜 조건 통과/ },
     { name: '웹페이지 터치 성공',          re: /\[가로채기 성공!\]/ },
     { name: '상세 화면 진입',              re: /화면: DETAIL_PRE_CONFIRM/ },
+    { name: '팝업 3장으로 채우기',         re: /\[채우기\] 팝업 3장/ },
     {
         name: 'AUTO 로 보고 (MANUAL 로 안 무너짐)',
         re: /post \/confirm request.*모드: AUTO.*매크로클릭: true/,

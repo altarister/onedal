@@ -75,6 +75,6 @@ describe('🔚 세션은 콜이 끝날 때만 지운다', () => {
         // 여섯째 자리: 배차망 자동 전환(applyTargetApp) — 다른 배차망으로 갈아타는 순간
         // 일곱째 자리: 체험(SIMULATION) 뒤로가기 복귀 시 세션 리셋
         const hits = src().match(/(?<!fun )resetSessionState\(\)/g) ?? [];
-        expect(hits.length).toBe(7);
+        expect(hits.length).toBe(6);
     });
 });

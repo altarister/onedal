@@ -94,8 +94,8 @@ class SessionManager {
      */
     var alarmTappedAtMs: Long = 0L
 
-    /** 동명이동 3단계 검증 상태 (null=일반, VERIFY/ACCEPT/CANCEL) */
-    var cautionAction: String? = null
+    /** 📏 인성 팝업 3장 채우기를 시작한 시각(부팅 기준) — 채우기에 걸린 시간을 로그로 남긴다 */
+    var fillStartedAtMs: Long = 0L
 
     /**
      * 👀 **미리보기 콜** — 기사님이 확정을 누르기 전에 팝업 3장을 읽어 판정만 받아 보는 중
@@ -157,7 +157,7 @@ class SessionManager {
         openedByApp = false
         contractedByApp = false
         isWaitingForDecision = false
-        cautionAction = null
+        fillStartedAtMs = 0L
         isPreview = false
         isVerifyingSnapshot = false
         onReset?.invoke()

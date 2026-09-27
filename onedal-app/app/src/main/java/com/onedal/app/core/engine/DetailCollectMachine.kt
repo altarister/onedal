@@ -7,9 +7,9 @@ import com.onedal.app.core.AutoTouchManager
 /**
  * 상세 수집 상태 머신
  *
- * 확정 화면(DETAIL_CONFIRMED)에 진입한 뒤,
+ * 인성 상세(확정 전)에서 — 드물게는 기사님이 먼저 확정을 누른 확정 화면에서 —
  * 적요상세 → 출발지 → 도착지 팝업을 자동으로 순서대로 열고 닫으며
- * 텍스트를 수집하는 상태 머신입니다.
+ * 텍스트를 수집하는 상태 머신입니다 (배차망_모드표.md 순서 ③ 채우기).
  *
  * 흐름: IDLE → WAITING_FOR_MEMO → WAITING_FOR_PICKUP → WAITING_FOR_DROPOFF → DONE
  *

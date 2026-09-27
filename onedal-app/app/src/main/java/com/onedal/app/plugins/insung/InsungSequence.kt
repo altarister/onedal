@@ -37,48 +37,13 @@ fun ScanContext.handlePickupPopup(rootNode: AccessibilityNodeInfo, screenTexts: 
 fun ScanContext.handleDropoffPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
     // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
     if (!TargetApp.supportsCatching(currentTargetApp)) return
-    val multilineScreenStr = screenTexts.joinToString("\n")
 
-    // ═══════════════════════════════════════════════════════════
-    // 🚨 [확정 전 3단계 검증] 도착지 팝업에서 상위 지역 대조
-    // ═══════════════════════════════════════════════════════════
-    if (session.cautionAction == "VERIFY") {
-        if (!multilineScreenStr.contains("전화1")) {
-            AppLogger.d(TAG, "거짓 이벤트 무시: 아직 도착지 팝업 데이터 로딩 안됨")
-            return
-        }
-        AppLogger.w(TAG, "⚠️ [3단계 검증] 확정 전 도착지 팝업에서 상위 지역 대조 시작!")
-        val cityFilters = cautionVerifier.loadCityFilters()
-        val isCityMatch = cautionVerifier.verifyCityMatch(multilineScreenStr, cityFilters)
-
-        if (isCityMatch) {
-            AppLogger.d(TAG, "✅ [3단계 통과] 진짜 우리 동네 확인!")
-            session.cautionAction = "ACCEPT"
-        } else {
-            AppLogger.w(TAG, "❌ [3단계 적발] 동명이동!")
-            session.cautionAction = "CANCEL"
-        }
-        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
-        return  // 서버 전송 안 함. 상세 화면 복귀 대기.
-    }
-    // ═══════════════════════════════════════════════════════════
-
-    // 상세 수집 모드: 도착지 텍스트 수집 → /detail 전송
+    // 도착지 텍스트까지 모으면 채우기 끝 — 보내지 않는다. 팝업이 닫혀 상세로 돌아오면 공통 순서가 보낸다
+    // (2차 필터 → 선점 보고 → 확정 또는 미리보기 · 배차망_모드표.md 순서 ⑤~⑦)
     val collectDone = collectMachine.handleDropoffPopup(rootNode, session, screenTexts)
     if (!collectDone) return
-
-    // /detail 서버 전송 (팝업 수집 완료)
-    session.lastDetailOrder?.let { order ->
-        /**
-         * 👀 **미리보기는 선점을 여기서 처음 보낸다** (기사님 확정).
-         *
-         * 손으로 연 상세는 confirm 을 미뤄 두고 팝업 3장을 먼저 읽었다. 서버는 confirm
-         * 으로 콜을 만들고 detail 로 승급하므로 **순서가 뒤집히면 안 된다** — 여기서
-         * 먼저 보낸다. 이미 보냈으면(`isDetailScrapSent`) 아무 일도 하지 않는다.
-         */
-        sendConfirmOnce(order, session.accumulatedDetailText)
-        sendDetail(order)
-    }
+    val tookMs = android.os.SystemClock.elapsedRealtime() - session.fillStartedAtMs
+    AppLogger.i(TAG, "📏 [채우기] 팝업 3장 ${tookMs}ms — 상세로 돌아오면 보낸다 (다음 상세 통과를 기다린다)")
 }
 
 /**
@@ -174,111 +139,67 @@ fun ScanContext.handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTex
         return
     }
 
-    // 확정 화면에 처음 진입했을 때 상세 수집 시작! (적요상세 → 출발지 → 도착지 순서)
-    if (session.collectState == SessionManager.CollectState.IDLE) {
-        AppLogger.roadmap("🔒 [Current Page: DETAIL_CONFIRMED] 진입, isHolding=true 설정", telemetryManager.currentScreenContext.name)
-        AppLogger.roadmap("🏄‍♂️ 상세 수집 가동 (State Machine: IDLE → 팝업버튼 트리거 대기)", telemetryManager.currentScreenContext.name)
-        ensureSessionId()
-        
-        if (session.lastDetailOrder == null) {
-            session.lastDetailOrder = buildOrderFromScreen(screenTexts)
+    // 이미 보고한 콜(앱이 채우고 확정한 콜) — 확정 화면에서 할 일이 없다
+    if (session.isDetailScrapSent) return
+
+    /**
+     * 🏄 **드문 경우 — 채우기가 끝나기 전에 기사님이 확정을 눌렀다.** 여기서 마저 채우고 상세 보고만 한다.
+     * 선점 보고는 하지 않는다(확정은 같은 콜의 상태가 바뀐 것 — 서버 `evolveOrder` 가 상세 보고로 콜을 만든다).
+     * 보낸 뒤 «보고했다»를 직접 켠다 — 상세 보고는 그 표시를 켜지 않아, 안 켜면 확정 화면을 읽을 때마다 다시 보낸다.
+     */
+    when (session.collectState) {
+        SessionManager.CollectState.IDLE -> {
+            ensureSessionId()
+            if (session.lastDetailOrder == null) session.lastDetailOrder = buildOrderFromScreen(screenTexts)
+            session.fillStartedAtMs = android.os.SystemClock.elapsedRealtime()
+            collectMachine.startCollect(rootNode, session, screenTexts)
         }
-
-        /**
-         * 👀 확정을 눌렀으니 **미리보기가 아니다.** 여기서 딱지를 벗는다.
-         *    손으로 연 상세에서 미리보기로 판정을 받아 본 뒤 확정을 누른 경우가 이 길이다.
-         *    🔴 딱지는 **벗겨지기만 한다** — 잡은 콜을 안 잡은 것으로 되돌리면 취소
-         *    카운트가 새고, 그건 배차망 10회 패널티와 어긋난다.
-         */
-        session.isPreview = false
-
-        collectMachine.startCollect(rootNode, session, screenTexts)
-    }
-    // 상세 수집 중: 팝업이 닫혀 확정 화면으로 돌아왔다 — 다음 팝업을 연다
-    else {
-        advanceCollect(rootNode)
+        SessionManager.CollectState.DONE -> {
+            session.lastDetailOrder?.let { order -> sendDetail(order) }
+            session.isDetailScrapSent = true
+        }
+        else -> advanceCollect(rootNode)
     }
 }
 
 /**
- * 🔒 **인성 전용 확정 전 수순 집행부**
+ * 🔒 **인성 채우기 — 누가 열었든 · 어느 모드든 팝업 3장으로 채운 뒤에 공통 순서로 넘긴다** (기사님 확정).
  *
- * 상세 공통 관문(`handlePreConfirmScreen`)에서 호출되며,
- * 인성 고유의 팝업 3장 수집(손으로 연 상세) 및 동명이동 검증(3단계 팝업)을 집행한다.
- * @return true 이면 팝업/확정 클릭 등 인성 전용 분기가 처리되었으므로 공통 2차 필터 판정 및 확정 과정을 건너뛴다.
+ * 인성은 목록에 전체 주소가 없어서 상세의 팝업 3장(적요 → 출발지 → 도착지)으로 콜 값을 채운다.
+ * 다 채우면 `false` 를 돌려 공통 순서(2차 필터 → 선점 보고 → 확정 또는 미리보기)가 이어받는다.
+ * 주의 동네(같은 이름 다른 동)는 따로 둘 단계가 아니다 — 도착지 팝업에 시·군이 있고, 판정은 2차 필터에서 한다
+ * (`InsungPlugin.passesDetailFilter`).
+ *
+ * @return true 이면 채우는 중이라 공통 순서를 건너뛴다
  */
 fun ScanContext.handleInsungPreConfirmExecution(
     rootNode: AccessibilityNodeInfo,
     screenTexts: List<String>,
-    finalOrder: SimplifiedOfficeOrder
-): Boolean {
-    // 1. 손으로 연 상세는 팝업 3장을 먼저 읽는다 (기사님 확정)
-    if (!session.contractedByApp && session.collectState == SessionManager.CollectState.IDLE) {
-        session.isPreview = true
-        AppLogger.roadmap("👀 [미리보기] 손으로 연 상세 — 팝업 3장을 먼저 읽고 판정을 받는다", telemetryManager.currentScreenContext.name)
+): Boolean = when (session.collectState) {
+    SessionManager.CollectState.IDLE -> {
+        session.fillStartedAtMs = android.os.SystemClock.elapsedRealtime()
+        AppLogger.roadmap("🏄 [채우기] 팝업 3장을 먼저 읽는다 — 채운 뒤에 보고·확정", telemetryManager.currentScreenContext.name)
         collectMachine.startCollect(rootNode, session, screenTexts)
-        return true   // confirm 은 상세 수집이 끝난 뒤에 detail 과 함께 나간다
+        true
     }
-
-    // 상세 수집 중 팝업이 닫혀 상세로 돌아온 경우 — 다음 팝업을 연다
-    if (session.isPreview && session.collectState != SessionManager.CollectState.DONE) {
+    SessionManager.CollectState.DONE -> false
+    else -> {
+        // 팝업이 닫혀 상세로 돌아왔다 — 다음 팝업을 연다
         advanceCollect(rootNode)
-        return true
+        true
     }
-
-    // 2. 3단계 팝업에서 돌아온 경우 (동명이동 검증 결론 집행 · #82)
-    if (session.contractedByApp) {
-        when (session.cautionAction) {
-            "ACCEPT" -> {
-                session.cautionAction = null
-                AppLogger.d(TAG, "✅ [3단계 통과] 진짜 우리 동네! 확정 클릭!")
-                AppLogger.roadmap("상세페이지에서 확정 버튼 클릭 (동명이동 3단계 검증 통과)", telemetryManager.currentScreenContext.name)
-                AppLogger.roadmap("[${keywords.appLabel}] 콜 확정 완료", telemetryManager.currentScreenContext.name)
-                clickFirstMatchingButton(rootNode, keywords.confirmKeywords)
-                return true
-            }
-            "CANCEL" -> {
-                session.cautionAction = null
-                AppLogger.w(TAG, "❌ [3단계 적발] 동명이동! 패널티 없이 취소!")
-                AppLogger.roadmap("상세페이지에서 '${keywords.cancelKeyword}' 클릭 (동명이동 3단계 적발)", telemetryManager.currentScreenContext.name)
-                if (!touchManager.findAndClickByText(rootNode, keywords.cancelKeyword, isStartsWith = true)) {
-                    touchManager.performBack()
-                }
-                AppLogger.roadmap("리스트 페이지 진입 (동명이동 회피 성공)", telemetryManager.currentScreenContext.name)
-                resetSessionState()
-                return true
-            }
-        }
-    }
-
-    // 3. AUTO 모드 최초 진입 시 도착지가 동명이동 주의 동네인지 확인
-    if (session.contractedByApp) {
-        val dropoffWords = finalOrder.dropoff.split("\\s+".toRegex())
-        val isCautionDong = CautionDongVerifier.CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
-
-        if (isCautionDong) {
-            // [2단계] 화면에 상위 지역이 이미 보이는지 확인
-            val cityFilters = cautionVerifier.loadCityFilters()
-            val screenStr = screenTexts.joinToString(" ")
-            val hasCityOnScreen = cityFilters.any { screenStr.contains(it, ignoreCase = true) }
-
-            if (hasCityOnScreen) {
-                // 2단계 통과! 화면에 상위 지역이 이미 적혀있음 → 즉시 확정
-                AppLogger.d(TAG, "✅ [2단계 통과] 화면에서 상위 지역 확인! 즉시 확정!")
-                AppLogger.roadmap("상세페이지에서 확정 버튼 클릭 (동명이동 2단계 통과)", telemetryManager.currentScreenContext.name)
-                AppLogger.roadmap("[${keywords.appLabel}] 콜 확정 완료", telemetryManager.currentScreenContext.name)
-                clickFirstMatchingButton(rootNode, keywords.confirmKeywords)
-                return true
-            } else {
-                // 2단계 보류 → 3단계(팝업) 돌입!
-                AppLogger.w(TAG, "⚠️ [3단계 돌입] 화면에 상위 지역 없음! 도착지 팝업 호출!")
-                session.cautionAction = "VERIFY"
-                touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true)
-                return true
-            }
-        }
-    }
-
-    return false
 }
 
+/**
+ * 🏘️ **주의 동네 판정** — 도착지가 주의 동네(같은 이름 다른 동)면 채운 글자(상세 화면 + 팝업 3장)에
+ * 시·군 필터가 있어야 통과한다. 단어 일치로 가른다 — 부분 일치면 «중동»이 «신중동»에 걸린다.
+ * 시·군 필터가 비어 있으면 주의 동네 콜은 떨어진다.
+ */
+fun ScanContext.passesCautionDong(order: SimplifiedOfficeOrder): Boolean {
+    val dropoffWords = order.dropoff.split("\\s+".toRegex())
+    val isCautionDong = CautionDongVerifier.CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
+    if (!isCautionDong) return true
+    val ok = cautionVerifier.verifyCityMatch(session.accumulatedDetailText, cautionVerifier.loadCityFilters())
+    AppLogger.i(TAG, "🏘️ [주의 동네] ${order.dropoff.take(20)} — ${if (ok) "시·군 확인, 통과" else "시·군 없음, 탈락"}")
+    return ok
+}

@@ -45,7 +45,13 @@ interface IDispatchAppPlugin {
     /** 패키지명이 해당 배차망에 속하는지 검사 */
     fun isTargetPackage(pkg: String): Boolean = packageKeywords.any { pkg.contains(it, ignoreCase = true) }
 
-    /** 상세 진입 시 배차망 고유 특수 실행 (인성의 3단계 팝업 수집 등). 처리 완료 시 true 반환 */
+    /**
+     * 🔎 **2차 필터에 더하는 배차망 규칙** — 공통 `shouldClick` 과 함께 본다. 기본은 «통과».
+     * 인성: 주의 동네(같은 이름 다른 동)면 채운 글자에 시·군이 있어야 통과.
+     */
+    fun passesDetailFilter(context: ScanContext, order: SimplifiedOfficeOrder): Boolean = true
+
+    /** 상세 진입 시 배차망 고유 특수 실행 (인성의 팝업 3장 채우기 등). 채우는 중이면 true 반환 */
     fun executePreConfirmSpecial(
         context: ScanContext,
         rootNode: android.view.accessibility.AccessibilityNodeInfo,

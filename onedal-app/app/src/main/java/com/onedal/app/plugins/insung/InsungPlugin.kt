@@ -46,6 +46,9 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
         screenTexts: List<String>,
         order: SimplifiedOfficeOrder
     ): Boolean {
-        return context.handleInsungPreConfirmExecution(rootNode, screenTexts, order)
+        return context.handleInsungPreConfirmExecution(rootNode, screenTexts)
     }
+
+    override fun passesDetailFilter(context: ScanContext, order: SimplifiedOfficeOrder): Boolean =
+        context.passesCautionDong(order)
 }
