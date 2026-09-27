@@ -62,6 +62,9 @@ interface ScanContext {
     /** 지금 보고 있는 배차망 코드 (`insung`·`hwamul24`·`kakaopicker`) */
     val currentTargetApp: String
 
+    /** 🎛️ 이 배차망에서 실제로 도는 모드 — 관제웹이 보낸 모드를 배차망에 맞춰 매번 계산한다 (`TargetApp.effectiveMode`) */
+    val effectiveMode: String
+
     /** 📷 화면 판독기 (온디바이스 OCR 스냅샷 검증) */
     val screenReader: com.onedal.app.core.ScreenReader
 

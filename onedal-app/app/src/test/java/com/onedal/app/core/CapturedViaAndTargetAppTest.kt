@@ -23,6 +23,22 @@ class CapturedViaAndTargetAppTest {
         assertEquals(true, TargetApp.supportsCatching(TargetApp.HWAMUL24))
     }
 
+    /**
+     * 🎛️ **픽커에는 자동 모드가 없다 — 자동이 오면 알람과 똑같이** (기사님 확정 · 배차망_모드표.md).
+     * 이 줄이 «앱이 픽커 수락하기를 누르지 않는다»의 지킴이다: 픽커에서 실제 모드가 자동이 되면
+     * 앱이 계약 버튼을 누르는 길(`contractedByApp`)이 열린다.
+     */
+    @Test
+    fun `실제 모드 - 픽커 자동은 알람, 그 밖은 그대로, 모르는 값도 그대로`() {
+        assertEquals("ALARM", TargetApp.effectiveMode("AUTO", TargetApp.KAKAOPICKER))
+        assertEquals("SIMULATION", TargetApp.effectiveMode("SIMULATION", TargetApp.KAKAOPICKER))
+        assertEquals("MANUAL", TargetApp.effectiveMode("MANUAL", TargetApp.KAKAOPICKER))
+        assertEquals("AUTO", TargetApp.effectiveMode("AUTO", TargetApp.INSUNG))
+        assertEquals("AUTO", TargetApp.effectiveMode("AUTO", TargetApp.HWAMUL24))
+        // 모르는 값은 알람으로 바꾸지 않는다 — 모르면 잡지 않는다 (README 규칙 ④)
+        assertEquals("", TargetApp.effectiveMode("", TargetApp.KAKAOPICKER))
+    }
+
     @Test
     fun `라벨 매핑 - 인성콜·24시·픽커, 모르는 라벨은 인성`() {
         assertEquals("insung", TargetApp.codeOf("인성콜"))

@@ -138,6 +138,9 @@ class HijackService : AccessibilityService(), ScanContext {
     private val callMemory = CallMemory(MAX_ORDER_HASH_CACHE, ORDER_HASH_KEEP_COUNT)
     override var currentTargetApp = "insung"
 
+    override val effectiveMode: String
+        get() = TargetApp.effectiveMode(telemetryManager.currentMode, currentTargetApp)
+
     /**
      * 🎯 배차망 적용 — 부팅(마지막으로 알아낸 배차망)과 화면을 따른 자동 전환이 **같은 길**을 탄다.
      * 파서·키워드·코드가 한 번에 갈아타고, 전환이면 지문·세션도 새로 시작한다
@@ -153,6 +156,8 @@ class HijackService : AccessibilityService(), ScanContext {
             resetSessionState()
         }
         AppLogger.i(TAG, "🎯 타겟 앱 ${if (isSwitch) "자동 전환" else "설정"} 완료: ${plugin.label}")
+        // 🖼️ 배차망이 바뀌면 실제 모드도 바뀔 수 있다 (자동인데 픽커 → 알람) — 테두리를 다시 칠한다
+        if (isSwitch) modeFrame.show(effectiveMode)
     }
 
     /**
@@ -430,8 +435,8 @@ class HijackService : AccessibilityService(), ScanContext {
         }
 
         /* 🖼️ 모드 테두리 — 붙자마자 지금 모드로 두르고, 서버에서 모드를 받을 때마다 색을 맞춘다. 서비스가 내려가면 걷는다(onDestroy) */
-        telemetryManager.modeCallback = { mode -> modeFrame.show(mode) }
-        telemetryManager.currentMode.let { mode -> modeFrame.show(mode) }
+        telemetryManager.modeCallback = { _ -> modeFrame.show(effectiveMode) }   // 관제웹이 보낸 값이 아니라 이 배차망에서 도는 모드로
+        modeFrame.show(effectiveMode)
 
         // 화면 켜짐/꺼짐 이벤트 수신 등록
         val filter = IntentFilter().apply {
@@ -762,7 +767,7 @@ class HijackService : AccessibilityService(), ScanContext {
         }
 
         AppLogger.d(TAG, "-------------------------------")
-        AppLogger.roadmap("📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}", telemetryManager.currentScreenContext.name)
+        AppLogger.roadmap("📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}→$effectiveMode", telemetryManager.currentScreenContext.name)
 
         // 🔔 리스트를 떠났다 — 남의 화면 위에 알람 테두리를 남기지 않는다 (§6-③)
         if (detected != ScreenContext.LIST) alarmSignaler.onLeaveList()
@@ -886,6 +891,8 @@ class HijackService : AccessibilityService(), ScanContext {
      */
 
     private fun handleListScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
+        // 🎛️ 이 배차망에서 실제로 도는 모드 (자동인데 픽커면 알람) — 검사(deviceMode · appSafeDefaults)가 이 이름의 글자를 읽는다
+        val currentMode = effectiveMode
         // 👻 상세→리스트 복귀 직후 잔상 방어 (0830 23:04 실측) — 상세 글자가 남은 판은 버린다.
         //    다음 스캔(1초 안)은 깨끗하다. 인성 팝업 잔상 방어와 같은 계열, 픽커(잡기 수순 없음)만.
         if (!TargetApp.supportsCatching(currentTargetApp)
@@ -1037,12 +1044,12 @@ class HijackService : AccessibilityService(), ScanContext {
              * 서버 알람(관제웹 소리)과 같은 원리다. 여기서는 모으기만 하고, 루프 뒤에서
              * **요금 최고 하나만** 울린다 (동시 통과 3건 실측 — 마지막 콜이 이기던 것은 우연).
              */
-            if (!session.openedByApp && (telemetryManager.currentMode == "ALARM" || (telemetryManager.currentMode == "SIMULATION" && !TargetApp.supportsCatching(currentTargetApp))) && isTarget) {
+            if (!session.openedByApp && (currentMode == "ALARM" || (currentMode == "SIMULATION" && !TargetApp.supportsCatching(currentTargetApp))) && isTarget) {
                 alarmHits.add(Triple(order, fareNode, orderHash))
             }
 
             // 🌟 [AUTO / SIMULATION 실행] 콜 잡기 중이지 않고 AUTO 또는 SIMULATION 모드일 때만 실제 클릭 동작 수행
-            if (!session.openedByApp && (telemetryManager.currentMode == "AUTO" || telemetryManager.currentMode == "SIMULATION")
+            if (!session.openedByApp && (currentMode == "AUTO" || currentMode == "SIMULATION")
                 && TargetApp.supportsCatching(currentTargetApp)) {
                 /**
                  * 🔒 **서버가 앞 콜을 심사 중이면 클릭만 미룬다** (기사님 · 실주행 오송읍).
@@ -1073,7 +1080,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     AppLogger.roadmap("[$appLabel] 선택된 콜 정보 전달 (꿀콜 클릭!)", telemetryManager.currentScreenContext.name)
                     
                     session.openedByApp = true // 콜 잡기 시작!
-                    session.contractedByApp = telemetryManager.currentMode == "AUTO" // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳
+                    session.contractedByApp = currentMode == "AUTO" // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳
                     session.setOrderId(order.id)
                     session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
 
@@ -1152,6 +1159,7 @@ class HijackService : AccessibilityService(), ScanContext {
             alarmSignaler.fire(
                 fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash,
                 withBorder = TargetApp.supportsCatching(currentTargetApp),
+                withSound = currentMode == "ALARM",   // 🔇 체험은 자동과 똑같이 소리를 내지 않는다 (기사님 확정)
             )
             /**
              * 🔴 **머리줄 위의 요금은 오더카드다 — 누르면 그 자리에서 계약이다**.
@@ -1282,7 +1290,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 matchType = actualMatchType,
                 targetApp = currentTargetApp,
                 // 잡은 방식(자동·알람·직접) — 원장 기록 전용, 파생은 SessionManager 한 곳 (#75)
-                capturedVia = session.capturedVia(telemetryManager.currentMode),
+                capturedVia = session.capturedVia(effectiveMode),
                 isPreview = session.isPreview,
             )
         )
@@ -1450,7 +1458,7 @@ class HijackService : AccessibilityService(), ScanContext {
         cancelDetailBack()     // ⏱️ 픽커 상세 대기 타이머 해제
 
         // 🐥 [가상 체험 모드] 판결이 KEEP/CANCEL이어도 실제 수락/취소 버튼을 누르지 않고 안전하게 뒤로가기(Back) 집행!
-        val isSimulated = decision == "SIMULATED_KEEP" || decision == "SIMULATED_CANCEL" || telemetryManager.currentMode == "SIMULATION"
+        val isSimulated = decision == "SIMULATED_KEEP" || decision == "SIMULATED_CANCEL" || effectiveMode == "SIMULATION"
         if (isSimulated) {
             AppLogger.roadmap("🐥 [체험 모드] 관제탑 판결 $decision 수신 → 안전한 뒤로가기(Back) 집행", telemetryManager.currentScreenContext.name)
             AppLogger.d(TAG, "🐥 [체험] 실서버 버튼을 누르지 않고 GLOBAL_ACTION_BACK 실행")
@@ -1497,7 +1505,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 resetSessionState()
                 return@postDelayed
             }
-            if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = telemetryManager.currentMode)) {
+            if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = effectiveMode)) {
                 if (decision == "KEEP") {
                     AppLogger.roadmap("✅ 판결 KEEP 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 합짐 콜 잡기 루프 회귀", telemetryManager.currentScreenContext.name)
                 } else {

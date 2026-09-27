@@ -31,6 +31,8 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
         InsungParser(context ?: throw IllegalStateException("InsungParser requires non-null Context"))
     }
 
+    override val availableModes: Set<String> = TargetApp.ALL_MODES
+
     override val supportsCatching: Boolean = true
 
     override val ocrParser: ScreenOcrParser<*>? = null

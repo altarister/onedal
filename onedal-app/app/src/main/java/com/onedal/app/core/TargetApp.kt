@@ -13,6 +13,20 @@ object TargetApp {
     const val HWAMUL24 = "hwamul24"
     const val KAKAOPICKER = "kakaopicker"
 
+    /** 🎛️ 모드 이름 한 벌 — 관제웹이 보내는 값. 배차망마다 쓸 수 있는 모드는 여기서 파생한다 (`availableModes`) */
+    val ALL_MODES: Set<String> = setOf("AUTO", "MANUAL", "SIMULATION", "ALARM")
+
+    /**
+     * 🎛️ **이 배차망에서 실제로 도는 모드** — 저장하지 않고 매번 계산한다 (기사님 확정 · README 규칙 ③).
+     *
+     * 모드는 서버 응답 때, 배차망은 화면 글자로 **다른 때에** 바뀐다. 한 번 바꿔 저장하면 화면이 픽커로 넘어갈 때 다시 돌지 않는다.
+     * 🔴 바꾸는 것은 «자동인데 그 배차망에 자동이 없다» 하나뿐이다 → 알람과 똑같이 (기사님 결정).
+     *    모르는 값은 그대로 둔다 — 모르면 잡지 않는다(README 규칙 ④). 알람으로 바꾸면 앱이 상세에 들어가 소리를 낸다.
+     */
+    fun effectiveMode(requested: String, code: String): String =
+        if (requested == "AUTO" && "AUTO" !in com.onedal.app.plugins.DispatchPluginRegistry.get(code).availableModes) "ALARM"
+        else requested
+
     /** 실제 카카오T픽커 앱의 이름 (0830 실측) — 배차망을 정하는 데는 쓰지 않는다 (`isKakaoPickerApp`) */
     private const val KAKAOPICKER_PACKAGE = "com.kakaomobility.flexer"
 

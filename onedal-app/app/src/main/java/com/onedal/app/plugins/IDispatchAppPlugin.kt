@@ -21,6 +21,12 @@ interface IDispatchAppPlugin {
     val networkMarkers: List<List<String>> // 배차망 고유 화면 식별 마커 목록
     val parser: IScrapParser          // 리스트/상세 텍스트 파서
 
+    /**
+     * 🎛️ **이 배차망에서 쓸 수 있는 모드** (기사님 확정 · 배차망_모드표.md).
+     * 한 벌(`TargetApp.ALL_MODES`)에서 파생한다 — 모드 이름을 플러그인마다 따로 적지 않는다.
+     */
+    val availableModes: Set<String>
+
     /** 잡기 수순(자동 클릭 및 계약 체결)을 지원하는 배차망인가 */
     val supportsCatching: Boolean
 

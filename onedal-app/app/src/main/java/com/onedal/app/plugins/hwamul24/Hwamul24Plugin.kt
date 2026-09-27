@@ -28,6 +28,8 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
         Hwamul24Parser(context ?: throw IllegalStateException("Hwamul24Parser requires non-null Context"))
     }
 
+    override val availableModes: Set<String> = TargetApp.ALL_MODES
+
     override val supportsCatching: Boolean = true
 
     override val ocrParser: ScreenOcrParser<*>? = null
