@@ -1316,7 +1316,8 @@ class HijackService : AccessibilityService(), ScanContext {
     /** 서버 판결(KEEP/CANCEL) 결과 행동을 실제 화면 액션으로 쏨 */
     private fun executeDecisionImmediately(decision: String) {
         cancelSafeCancelTimer() // 타이머 해제
-        cancelDetailBack()     // ⏱️ 픽커 상세 대기 타이머 해제
+        // ⏱️ 기사님이 손으로 연 상세 — 결재가 오면 머문다(판정을 보고 기사님이 누르신다). 앱이 연 콜은 아래에서 정한다
+        if (!session.openedByApp) cancelDetailBack()
 
         // 🐥 [가상 체험 모드] 판결이 KEEP/CANCEL이어도 실제 수락/취소 버튼을 누르지 않고 안전하게 뒤로가기(Back) 집행!
         val isSimulated = decision == "SIMULATED_KEEP" || decision == "SIMULATED_CANCEL" || effectiveMode == "SIMULATION"
@@ -1331,7 +1332,28 @@ class HijackService : AccessibilityService(), ScanContext {
             return
         }
 
-        if (!session.contractedByApp) return // 앱이 계약하지 않은 콜은 버튼을 누르지 않는다
+        /**
+         * ↩️ **앱이 열었지만 계약하지 않는 콜(알람 등)** — 기사님 결정 (배차망_모드표.md 순서 ⑩).
+         * CANCEL 이면 바로 목록으로 돌아온다 — 나쁜 콜 상세에 머물면 운전 중인 기사님이 목록을 못 본다.
+         * KEEP 이면 돌아오는 타이머를 그대로 둔다 — 남은 시간 동안 기사님이 판정을 보고 확정·수락하신다.
+         * 🔴 기사님이 손으로 연 상세(`openedByApp` 거짓)는 CANCEL 이 와도 뒤로 가지 않는다 — 기사님이 안 누른 방향이다.
+         */
+        if (!session.contractedByApp) {
+            if (session.openedByApp && decision == "CANCEL") {
+                session.lastDetailOrder?.let { o ->
+                    val hash = (o.pickup + o.dropoff + o.fare.toString()).hashCode()
+                    callMemory.demoteActed(hash)   // 취소로 끝난 콜은 길이 바뀌면 다시 본다 (아래 계약 콜과 같은 규칙)
+                }
+                AppLogger.i("1DAL_PICKER", "↩️ [결재 CANCEL] 앱이 연 콜 — 바로 목록으로 돌아온다")
+                mainHandler.postDelayed({
+                    if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
+                        touchManager.performBack("결재 CANCEL")
+                    }
+                    resetSessionState()
+                }, 300)
+            }
+            return // 앱이 계약하지 않은 콜은 버튼을 누르지 않는다
+        }
 
         /**
          * 🧹 **취소로 끝났으면 «눌렀다» 에서 «막았다» 로 내린다** (기사님 · 실주행 시흥동).

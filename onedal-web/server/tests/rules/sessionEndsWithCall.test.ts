@@ -19,7 +19,7 @@ import { join } from 'path';
  * 🔴 **클래스: 콜의 생애를 화면 이벤트로 끝낸다.**
  *
  * `resetSessionState()` 를 부르는 자리는 전부 *"이 콜은 끝났다"* 여야 한다
- * (복귀 · 동명이동 실패 · 2차 필터 실패 · 판결 집행 ×2 · 배차망 자동 전환 · 체험 뒤로가기 복귀).
+ * (복귀 · 2차 필터 실패 · 판결 집행 ×2 · 배차망 자동 전환 · 체험 뒤로가기 복귀 · 알람 결재 CANCEL 복귀).
  * *"지금 리스트를 보고 있다"* 로 지우는 자리가 하나라도 있으면 나머지를 덮는다.
  * 복귀는 «지금 LIST 냐»가 아니라 «LIST 로 돌아왔느냐»(`isListScreen && !wasListScreen`)로 판정한다.
  * 그래서 인스턴스가 아니라 **리스트 핸들러에서 지우는 자리 자체를 없앤다**.
@@ -72,9 +72,9 @@ describe('🔚 세션은 콜이 끝날 때만 지운다', () => {
      */
     it('🔴 세션을 지우는 자리는 콜이 끝나는 일곱 곳뿐이다', () => {
         // 선언(`private fun resetSessionState()`)은 호출이 아니다 — 빼고 센다
-        // 여섯째 자리: 배차망 자동 전환(applyTargetApp) — 다른 배차망으로 갈아타는 순간
-        // 일곱째 자리: 체험(SIMULATION) 뒤로가기 복귀 시 세션 리셋
+        // 배차망 자동 전환(applyTargetApp) — 다른 배차망으로 갈아타는 순간
+        // 체험(SIMULATION) 뒤로가기 복귀 · 알람에서 앱이 연 콜이 결재 CANCEL 을 받아 목록으로 돌아올 때
         const hits = src().match(/(?<!fun )resetSessionState\(\)/g) ?? [];
-        expect(hits.length).toBe(6);
+        expect(hits.length).toBe(7);
     });
 });
