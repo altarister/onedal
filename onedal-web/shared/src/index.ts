@@ -937,7 +937,7 @@ export interface AutoDispatchFilter {
 
     // ── 단가 판정 모델 ──
     // 셋 다 optional: 구버전 앱은 이 키들을 파싱하지 않으므로 무시된다 (호환).
-    // minFare/maxFare 는 구버전 앱 호환용으로 유지 — 새 앱은 ratePerKm 이 있으면 그걸 쓴다.
+    // minFare(최소 금액)는 🔍 필터에서 고친다 — 앱은 ratePerKm 을 못 쓸 때(배송거리를 모를 때) 그것으로 거른다. maxFare 는 보류 칸.
     /** 차종별 하한 단가(원/km) = 실수령 시세 × (1 − 콜할인율). 판정: fare ≥ 배송거리 × ratePerKm[차종] */
     ratePerKm?: Record<string, number>;
     /** 콜할인율 — 시세 대비 허용 할인 %. 100 = "전부"(금액 무관) */

@@ -315,7 +315,7 @@ import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, 
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율은 user_filters 의 평면 칸에 산다.
-// min_fare·max_fare 는 보류 칸이다 (앱 피기백)
+// min_fare 는 최소 금액 — 🔍 필터 «어떤 콜»에서 고친다 · max_fare 는 보류 칸이다 (앱 피기백)
 /**
  * 📐 마름모 셋도 같은 행에 산다.
  *    컬럼 목록은 `QUAD_FIELDS` 표에서 뽑는다 (손으로 나열하지 않는다 — 규칙 ③).

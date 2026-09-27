@@ -11,7 +11,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 // 노선·반경·할인율은 여기 없다 — 그 값들의 기본값은 shared `DEFAULT_FILTER_VALUES` 하나다
 // (같은 값의 두 번째 기본값을 두지 않는다)
 const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
-    minFare: 30000,           // 하한가 3만 원 (보류 칸 — 앱 피기백, 확정안 ①-삭제 #3)
+    minFare: 30000,           // 최소 금액 3만 원 — 🔍 필터 «어떤 콜»에서 고친다
     maxFare: 1000000,         // 상한가 100만 원
     isActive: false,
     isSharedMode: false,
@@ -420,7 +420,7 @@ export function getUserSession(userId: string): UserSession {
                 // Restore saved filter into baseFilter — 국면 파생 조각 + user_filters 잔여 칸
                 session.baseFilter = {
                     ...firstPatch,
-                    minFare: filterRow.min_fare,   // 보류 칸 — 앱 피기백 (확정안 ①-삭제 #3, 화물24 단가식 뒤 강등)
+                    minFare: filterRow.min_fare,   // 최소 금액 — 🔍 필터 «어떤 콜»에서 고친다
                     maxFare: filterRow.max_fare,
                     excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
                     isActive: Boolean(filterRow.is_active),

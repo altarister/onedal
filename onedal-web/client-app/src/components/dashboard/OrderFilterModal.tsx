@@ -33,6 +33,19 @@ const CALL_DISCOUNT_STEPS = [
 ] as const;
 
 /**
+ * 💵 **최소 금액 단계** — 이 금액 밑의 콜은 받지 않는다. 배차망 셋이 한 값을 쓴다 (기사님 확정).
+ *    `0` 은 «없음»(금액을 안 본다). 목록에 없는 금액은 레이어 안 입력칸에 넣는다.
+ */
+const MIN_FARE_STEPS = [0, 3000, 5000, 10000, 20000, 30000] as const;
+
+/** 💵 금액을 칸에 들어갈 짧은 글자로 — 0 은 «없음», 만 원부터 «1.5만», 그 밑은 «5천» */
+const shortWon = (won: number): string =>
+    won <= 0 ? '없음'
+    : won >= 10000 ? `${won / 10000}만`
+    : won % 1000 === 0 ? `${won / 1000}천`
+    : `${won.toLocaleString()}원`;
+
+/**
  * 🚫 **자주 쓰는 제외 단어** — 목업 목록 그대로 (`MapMockup.tsx:3272`).
  *    🔴 **이것이 전부는 아니다** — 기사님이 아무 말이나 넣으실 수 있게 레이어 안에
  *    자유 입력칸을 함께 둔다 (목록만 남기면 기능이 준다).
@@ -425,9 +438,10 @@ export default function OrderFilterModal({ isOpen, onClose,
         if ((filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) !== (baseFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT)) return true;
         if (!sameList(filter?.acceptedVehicleTypes ?? [], baseFilter.acceptedVehicleTypes ?? [])) return true;
         if ((filter?.routeMode ?? true) !== (baseFilter.routeMode ?? true)) return true;   // 🛣️🔷 (조사 ①-9)
+        if ((filter?.minFare ?? 0) !== (baseFilter.minFare ?? 0)) return true;             // 💵
         return false;
     }, [baseFilter, cur, quadForm, exDraft, blacklist,
-        filter?.radiusAuto, filter?.radiusBaseKm, filter?.acceptedVehicleTypes, filter?.routeMode]);
+        filter?.radiusAuto, filter?.radiusBaseKm, filter?.acceptedVehicleTypes, filter?.routeMode, filter?.minFare]);
 
     /**
      * ↩︎ **되돌리기 — 서버에 저장된 값으로**.
@@ -453,6 +467,7 @@ export default function OrderFilterModal({ isOpen, onClose,
             radiusBaseKm: baseFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
             acceptedVehicleTypes: baseFilter.acceptedVehicleTypes ?? [],
             routeMode: baseFilter.routeMode ?? true,   // 🛣️🔷 (조사 ①-9)
+            minFare: baseFilter.minFare ?? 0,          // 💵
         });
     };
 
@@ -510,8 +525,8 @@ export default function OrderFilterModal({ isOpen, onClose,
         }
 
         /**
-         * 📐🚚 **오늘 값 셋은 이미 메모리에 있다 — 여기서는 DB 까지 보낸다** (조사 ①-5).
-         *    이 셋은 만지는 즉시 `saveAsDefault` 없이 `updateFilter(…)` 로 간다.
+         * 📐🚚💵 **오늘 값들은 이미 메모리에 있다 — 여기서는 DB 까지 보낸다** (조사 ①-5).
+         *    이 값들은 만지는 즉시 `saveAsDefault` 없이 `updateFilter(…)` 로 간다.
          *    💾 가 안 실으면 서버 `baseFilter` 에 닿지 않아 자정에 풀린다.
          */
         updateFilter({
@@ -519,6 +534,7 @@ export default function OrderFilterModal({ isOpen, onClose,
             radiusBaseKm: filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
             acceptedVehicleTypes: filter?.acceptedVehicleTypes ?? [],
             routeMode: filter?.routeMode ?? true,   // 🛣️🔷 필터 값이다 (조사 ①-9)
+            minFare: filter?.minFare ?? 0,          // 💵 user_filters.min_fare
         }, saveAsDefault);
 
         onClose();
@@ -542,6 +558,19 @@ export default function OrderFilterModal({ isOpen, onClose,
 
     /** 콜할인율(단가 할인율) — 값은 한 벌이다 */
     const callDiscount = parseFloat(cur.callDiscountPct);
+
+    /** 💵 최소 금액 — `user_filters.min_fare` 한 칸 (배차망 셋이 같이 쓴다) */
+    const minFare = filter.minFare ?? 0;
+    /**
+     * 💵 입력칸은 **손을 뗄 때**(blur·Enter) 보낸다 — 글자마다 보내면 «5»«50»«500» 이 차례로 앱에 내려간다.
+     * 🔴 숫자가 없으면(빈 칸) 보내지 않는다 — 빈 칸을 0(«없음»)으로 읽으면 모든 콜이 열린다.
+     */
+    const commitMinFare = (text: string) => {
+        const digits = text.replace(/[^0-9]/g, '');
+        if (!digits) return;
+        const won = parseInt(digits, 10);
+        if (won !== minFare) updateFilter({ minFare: won });
+    };
 
     /**
      * 🚫 **저장은 쉼표 문자열 하나, 화면은 말 목록**.
@@ -903,7 +932,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                     </FilterRow>
 
                     <FilterRow id="call" title="💰 어떤 콜" open={openRow === 'call'} onToggle={toggleRow}
-                        summary={`${callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`} · ${accepted.length ? accepted.map(v => VEHICLE_SHORT[v] ?? v).join('·') : '모두'} · 제외 단어 ${blacklistWords.length ? `${blacklistWords.length}개` : '없음'}`}>
+                        summary={`최소 ${shortWon(minFare)} · ${callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`} · ${accepted.length ? accepted.map(v => VEHICLE_SHORT[v] ?? v).join('·') : '모두'}`}>
                             {/**
                               * 💰🚫 **값 둘도 같은 고르기 칸으로** (기사님:
                               *    *"[콜할인율] 이 부분도 디자인에 맞춰 이쁘게 바꿔줘"*).
@@ -914,9 +943,35 @@ export default function OrderFilterModal({ isOpen, onClose,
                               *    기사님: *"읽을 수 있게 통로를 열어 줘야지"* — 없애지 않고 접어 둔다.
                               *
                               * ✅ **«🚚 받을 짐»도 이 줄에 있다**.
+                              *
+                              * 💵 **이 줄은 «받을 콜의 조건»만 둔다 — 최소 금액 · 콜할인율 · 받을 짐** (기사님 확정).
+                              *    «빼는 조건»(제외 단어)은 «🚫 빼는 곳» 줄에 있다.
                               */}
 
                             <div className="relative grid grid-cols-3 gap-1">
+                                {/**
+                                  * 💵 **최소 금액 — `user_filters.min_fare` 한 칸, 배차망 셋이 같이 쓴다** (기사님:
+                                  *    *"배차망 모두 통일해서 가는것이 맞을꺼 같다"*).
+                                  *    자주 쓰는 금액은 눌러서, 나머지는 레이어 안 입력칸에.
+                                  */}
+                                <PickLayer label="💵 최소 금액"
+                                    value={shortWon(minFare)}
+                                    options={MIN_FARE_STEPS.map(shortWon)}
+                                    open={openKnob === 'minFare'}
+                                    onToggle={() => setOpenKnob(o => o === 'minFare' ? null : 'minFare')}
+                                    onPick={(v) => {
+                                        const won = MIN_FARE_STEPS.find(w => shortWon(w) === v);
+                                        if (won !== undefined) updateFilter({ minFare: won });
+                                    }}
+                                    foot={
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[9.5px] font-bold text-text-muted">이 금액 밑의 콜은 받지 않습니다 · 목록에 없는 금액은 여기에 (원)</span>
+                                            <Input type="text" inputMode="numeric" key={minFare} defaultValue={minFare ? String(minFare) : ''}
+                                                onBlur={e => commitMinFare(e.currentTarget.value)}
+                                                onKeyDown={e => { if (e.key === 'Enter') commitMinFare(e.currentTarget.value); }}
+                                                placeholder="예: 7000"
+                                                className="h-8 bg-surface-alt/50 border-border text-[12px] text-text-primary font-bold tabular-nums" />
+                                        </div>} />
                                 <PickLayer label="💰 콜할인율"
                                     value={callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`}
                                     options={CALL_DISCOUNT_STEPS.map(st => st.label)}
@@ -954,18 +1009,10 @@ export default function OrderFilterModal({ isOpen, onClose,
                                             })}
                                         </div>} />
                                 {/**
-                                  * 🚫 **제외 단어 — 자주 쓰는 것은 눌러서, 나머지는 손으로**.
-                                  *
-                                  * 🔴 **목업처럼 1칸으로 접되 자유 입력칸을 둔다.** 목업의 여섯은
-                                  *    목업이라 고정이고, 실물은 기사님이 **아무 단어나** 넣으실 수 있어야 한다 —
-                                  *    목록만 남기면 기능이 준다. 그래서 레이어 «안»에 입력칸을 그대로 둔다.
-                                  * 🔴 기사님: *"제외 단어는 입력이 필요하다. 펼치면 내용을 볼 수 있다."*
-                                  */}
-                                {/**
                                   * 🚚 **받을 짐 — 목업 그대로** (`MapMockup.tsx:3214`).
                                   *
                                   * 기사님: *"**디자인도 보여주고 목업에 코드도 다 있는데.**"*
-                                  * 목업은 **콜할인율·받을 짐·제외 단어 3칸**이고 값은 `1t·다` 로 짧다.
+                                  * 이 줄은 **최소 금액·콜할인율·받을 짐 3칸**이고 값은 `1t·다` 로 짧다.
                                   *
                                   * 🔴 **보내는 것은 «고른 것»뿐이다** (`acceptedVehicleTypes`).
                                   *    허용 목록(`allowedVehicleTypes`)을 손으로 보내면 서버가
@@ -998,28 +1045,12 @@ export default function OrderFilterModal({ isOpen, onClose,
                                                 </div>
                                             ))}
                                         </div>} />
-                                <PickLayer label="🚫 제외 단어" tone="warning" keepOpen
-                                    value={blacklistWords.length ? `${blacklistWords.length}개` : '없음'}
-                                    options={COMMON_EXCLUDED_WORDS}
-                                    selected={blacklistWords}
-                                    open={openKnob === 'words'}
-                                    onToggle={() => setOpenKnob(o => o === 'words' ? null : 'words')}
-                                    onPick={(v) => setBlacklistWords(
-                                        blacklistWords.includes(v) ? blacklistWords.filter(w => w !== v) : [...blacklistWords, v])}
-                                    foot={
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-[9.5px] font-bold text-text-muted">목록에 없는 말은 여기에 — 쉼표로 나눕니다</span>
-                                            <Input type="text" value={blacklist} onChange={handleBlacklistChange}
-                                                onBlur={commitBlacklist} onKeyDown={e => { if (e.key === 'Enter') commitBlacklist(); }}
-                                                placeholder="착불, 수거"
-                                                className="h-8 bg-surface-alt/50 border-border text-[12px] text-text-primary font-bold" />
-                                        </div>} />
                             </div>
 
                     </FilterRow>
 
                     <FilterRow id="exclude" title="🚫 빼는 곳" danger open={openRow === 'exclude'} onToggle={toggleRow}
-                        summary={`${exDraft.length ? `${exDraft.length}곳 · ${exDraft.map(excludedLabel).join(', ')}` : '없음'}${exApplied ? '' : ' · 저장 전'}`}>
+                        summary={`${exDraft.length ? `${exDraft.length}곳 · ${exDraft.map(excludedLabel).join(', ')}` : '없음'}${exApplied ? '' : ' · 저장 전'} · 제외 단어 ${blacklistWords.length ? `${blacklistWords.length}개` : '없음'}`}>
                             {/**
                               * 🚫 **제외 지역 — 국면과 무관한 한 벌이다**.
                               *    *"거긴 안 간다"* 는 그 지역이지 그 국면의 사정이 아니다.
@@ -1138,6 +1169,33 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                            {/**
+                              * 🚫 **제외 단어 — 자주 쓰는 것은 눌러서, 나머지는 손으로**. «빼는 조건»이라 이 줄에 산다 (기사님 확정).
+                              *
+                              * 🔴 **1칸으로 접되 자유 입력칸을 둔다.** 목업의 여섯은
+                              *    목업이라 고정이고, 실물은 기사님이 **아무 단어나** 넣으실 수 있어야 한다 —
+                              *    목록만 남기면 기능이 준다. 그래서 레이어 «안»에 입력칸을 그대로 둔다.
+                              * 🔴 기사님: *"제외 단어는 입력이 필요하다. 펼치면 내용을 볼 수 있다."*
+                              * 🔴 제외 지역과 달리 💾 를 따로 안 누른다 — 누르는 즉시 메모리로 간다.
+                              */}
+                            <div className="relative grid grid-cols-3 gap-1 mt-1.5">
+                                <PickLayer label="🚫 제외 단어" tone="warning" keepOpen
+                                    value={blacklistWords.length ? `${blacklistWords.length}개` : '없음'}
+                                    options={COMMON_EXCLUDED_WORDS}
+                                    selected={blacklistWords}
+                                    open={openKnob === 'words'}
+                                    onToggle={() => setOpenKnob(o => o === 'words' ? null : 'words')}
+                                    onPick={(v) => setBlacklistWords(
+                                        blacklistWords.includes(v) ? blacklistWords.filter(w => w !== v) : [...blacklistWords, v])}
+                                    foot={
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[9.5px] font-bold text-text-muted">목록에 없는 말은 여기에 — 쉼표로 나눕니다</span>
+                                            <Input type="text" value={blacklist} onChange={handleBlacklistChange}
+                                                onBlur={commitBlacklist} onKeyDown={e => { if (e.key === 'Enter') commitBlacklist(); }}
+                                                placeholder="착불, 수거"
+                                                className="h-8 bg-surface-alt/50 border-border text-[12px] text-text-primary font-bold" />
+                                        </div>} />
                             </div>
 
                     </FilterRow>

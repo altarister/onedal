@@ -304,7 +304,7 @@ router.get("/pricing", requireAuth, (req, res) => {
         getUserSession(userId);
 
         // ④ 철거 — 콜할인율·반경은 🔍 필터(user_filters)가 원천이라 여기 없다.
-        //    남는 것: 금액 축의 원천(단가표·수수료)과 블랙리스트, 보류 칸(min/max_fare)
+        //    남는 것: 금액 축의 원천(단가표·수수료)과 블랙리스트, 최소 금액(min_fare — 편집은 🔍 필터)·보류 칸(max_fare)
         const row = db.prepare(
             "SELECT vehicle_rates, agency_fee_percent, excluded_keywords, min_fare, max_fare FROM user_filters WHERE user_id = ?"
         ).get(userId) as any;

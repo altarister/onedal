@@ -80,3 +80,40 @@ describe('🎚️ KnobGrid — 칸은 보여 주고, 조절은 레이어에서',
         expect(knob).not.toMatch(/type="number"/);
     });
 });
+
+/**
+ * 💰 **어떤 콜 = 최소 금액 · 콜할인율 · 받을 짐 / 🚫 빼는 곳 = 제외 지역 · 제외 단어** (기사님 확정:
+ *    *"필터 - 어떤콜 - 최소금액, 할인율, 받을짐 이렇게 하고 제외단어는 빼는곳으로"* ·
+ *    *"배차망 모두 통일해서 가는것이 맞을꺼 같다"*).
+ *
+ * 최소 금액은 `user_filters.min_fare` 한 칸이다 — 필터 창이 고치는 자리도 여기 하나다.
+ * 🔴 «오늘 값»이라 만지는 즉시 메모리로 가고, 💾 가 DB 까지 싣고, ↩︎ 가 되돌리고, «서버와 다름»이 센다 —
+ *    넷 중 하나라도 빠지면 자정에 풀리거나 화면이 «서버와 같음»이라 거짓말한다.
+ */
+describe('💰 어떤 콜 · 🚫 빼는 곳 — 칸 배치', () => {
+    const code = codeOnly(read('components/dashboard/OrderFilterModal.tsx'));
+    const callRow = code.slice(code.indexOf('id="call"'), code.indexOf('id="exclude"'));
+    const exRow = code.slice(code.indexOf('id="exclude"'), code.indexOf('data-save-bar'));
+
+    it('🔴 «어떤 콜»은 최소 금액 · 콜할인율 · 받을 짐 세 칸이다', () => {
+        const a = callRow.indexOf('label="💵 최소 금액"');
+        const b = callRow.indexOf('label="💰 콜할인율"');
+        const c = callRow.indexOf('label="🚚 받을 짐"');
+        expect(a).toBeGreaterThan(-1);
+        expect(b).toBeGreaterThan(a);
+        expect(c).toBeGreaterThan(b);
+        expect(callRow).not.toMatch(/label="🚫 제외 단어"/);
+    });
+
+    it('🔴 제외 단어는 «빼는 곳» 안에 있다', () => {
+        expect(exRow).toMatch(/label="🚫 제외 단어"/);
+    });
+
+    it('🔴 최소 금액은 고르는 즉시 메모리로 · 💾 가 DB 로 · ↩︎ 가 되돌리고 · «서버와 다름»이 센다', () => {
+        expect(callRow).toMatch(/updateFilter\(\{ minFare/);
+        const body = (name: string) => code.slice(code.indexOf(name), code.indexOf(name) + 2600);
+        expect(body('const handleSaveToServer')).toMatch(/minFare: filter\?\.minFare/);
+        expect(body('const handleRevert')).toMatch(/minFare: baseFilter\.minFare/);
+        expect(body('const unsaved')).toMatch(/filter\?\.minFare/);
+    });
+});

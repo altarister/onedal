@@ -902,7 +902,7 @@ describe('필터 디자인 — 목업 순서 (C4-6)', () => {
          *    화면 전체를 훑으면 하한표를 통째로 지워도 초록불이다 (변이로 확인했다).
          */
         const dial = modal.slice(modal.indexOf('<PickLayer label="💰 콜할인율"'),
-                                 modal.indexOf('<PickLayer label="🚫 제외 단어"'));
+                                 modal.indexOf('<PickLayer label="🚚 받을 짐"'));
         expect(dial).toMatch(/RATE_TABLE_ORDER\.map/);
         expect(dial).toMatch(/FLOOR_TITLE\[tab\]/);
         expect(dial).toMatch(/foot=\{/);
@@ -921,7 +921,7 @@ describe('필터 디자인 — 목업 순서 (C4-6)', () => {
          *    화면 전체를 훑으면 입력칸을 떼어 내도 초록불이다 (변이로 확인했다).
          */
         const words = modal.slice(modal.indexOf('<PickLayer label="🚫 제외 단어"'),
-                                  modal.indexOf('제외 지역 — 탭 위다'));
+                                  modal.indexOf('data-save-bar'));
         expect(words).toMatch(/onChange=\{handleBlacklistChange\}/);   // 손으로 치는 길
         expect(words).toMatch(/COMMON_EXCLUDED_WORDS/);                 // 자주 쓰는 것은 눌러서
         // 저장 그릇은 여전히 하나 — 목록은 거기서 파생된다

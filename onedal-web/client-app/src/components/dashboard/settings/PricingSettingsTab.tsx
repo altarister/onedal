@@ -15,8 +15,7 @@ interface Props {
  * 🔴 이 탭에 두지 않는 것:
  *   · 노선 값(도착 시/군·도착 반경·상차 반경·우회 허용) — 편집 자리는 🔍 필터 하나다.
  *     같은 값을 두 화면에서 고치면 값이 두 벌로 갈라진다.
- *   · 절대 하한가·상한가 — 하한 금액은 입력받지 않고 단가표 × 콜할인율에서 파생한다.
- *     ⚠️ 앱에 보내는 minFare 키는 남아 있다 — 화물24 파서는 단가표가 없으면 그것으로 거른다.
+ *   · 최소 금액(`min_fare`) — 편집 자리는 🔍 필터 «어떤 콜» 하나다. 상한가(`max_fare`)는 보류 칸이다.
  *   · 평면 콜할인율 — `user_filters.call_discount_pct` 한 벌이 원천이고, 🔍 필터에서 고친다.
  */
 export default function PricingSettingsTab({ onClose }: Props) {

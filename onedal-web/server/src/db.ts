@@ -206,7 +206,7 @@ const QUAD_COLS: Record<string, string> = Object.fromEntries(
 
 // 🎛️ 값 다섯(목적지·현위반경·라인반경·목적반경·콜할인율)은 **여기 한 행**에 산다.
 //    값이 한 벌이라 국면마다 행을 두지 않는다.
-// min_fare·max_fare 는 보류 칸 — 앱 피기백 (확정안 ①-삭제 #3, 화물24 단가식 뒤 강등)
+// min_fare 는 최소 금액 — 🔍 필터 «어떤 콜»에서 고친다 (배차망 셋이 한 값) · max_fare 는 보류 칸 (앱 피기백)
 db.exec(`
     CREATE TABLE IF NOT EXISTS user_filters (
         user_id TEXT PRIMARY KEY,
