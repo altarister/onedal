@@ -35,7 +35,7 @@ class CapturedViaAndTargetAppTest {
     @Test
     fun `매크로가 눌렀으면 어떤 모드든 자동이다`() {
         val s = SessionManager()
-        s.isAutoActive = true
+        s.contractedByApp = true
         assertEquals("AUTO", s.capturedVia("AUTO"))
         assertEquals("AUTO", s.capturedVia("ALARM"))   // 알람 모드여도 누른 건 매크로다
     }
@@ -43,14 +43,14 @@ class CapturedViaAndTargetAppTest {
     @Test
     fun `알람 모드에서 기사님이 누르면 알람이다 - 일지가 알람의 성과를 세는 칸`() {
         val s = SessionManager()
-        s.isAutoActive = false
+        s.contractedByApp = false
         assertEquals("ALARM", s.capturedVia("ALARM"))
     }
 
     @Test
     fun `그 외 기사님 클릭은 직접이다`() {
         val s = SessionManager()
-        s.isAutoActive = false
+        s.contractedByApp = false
         assertEquals("MANUAL", s.capturedVia("MANUAL"))
         assertEquals("MANUAL", s.capturedVia("AUTO"))   // 자동 스위치인 채 손으로 눌러도 직접 (#75)
     }
@@ -58,7 +58,7 @@ class CapturedViaAndTargetAppTest {
     @Test
     fun `기록이 보호를 바꾸지 않는다 - 알람 클릭의 출신은 여전히 직접(MANUAL)이다`() {
         val s = SessionManager()
-        s.isAutoActive = false
+        s.contractedByApp = false
         // capturedVia 가 ALARM 이어도 서버 보호가 보는 출신은 MANUAL — #75 의 경계 그대로
         assertEquals("MANUAL", s.clickOrigin)
         assertEquals("ALARM", s.capturedVia("ALARM"))

@@ -230,7 +230,7 @@ class HijackService : AccessibilityService(), ScanContext {
     override fun scheduleDetailBack() {
         if (detailBackRunnable != null) return            // 이미 걸려 있다 — 상세 글자가 바뀔 때마다 새로 걸지 않는다
         // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec)
-        val delayMs = com.onedal.app.core.engine.WaitTimes.pickerAlarmDetailMs(savedFilter())
+        val delayMs = com.onedal.app.core.engine.WaitTimes.detailBackMs(savedFilter(), currentTargetApp)
         // 🔎 누가 열었나 — 기록만 한다 (나중에 `grep "상세 대기"` 로 «손으로 연 상세도 돌아왔나»를 본다)
         val now = android.os.SystemClock.elapsedRealtime()
         val opener = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.detailOpener(alarmTapAtMs, now)
@@ -242,9 +242,9 @@ class HijackService : AccessibilityService(), ScanContext {
         val r = Runnable {
             detailBackRunnable = null
             telemetryManager.isWaitingDecision = false
-            // 아직 확정 전 상세에 있고, 잡기 수순이 없는 배차망(픽커)일 때만 나온다 — 모드는 가리지 않는다
+            // 아직 확정 전 상세에 있고, 앱이 계약하지 않는 콜일 때만 나온다 — 모드·배차망은 가리지 않는다
             if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
-                && !TargetApp.supportsCatching(currentTargetApp)) {
+                && !session.contractedByApp) {
                 AppLogger.i("1DAL_PICKER", "↩️ [상세 대기] ${delayMs / 1000}초 무응답 — 리스트로 자동 복귀 · 연 쪽: $opener")
                 // 🔴 뒤로 가기도 `touchManager` 한 곳으로 — 거기서 자국을 남긴다 (배차망을 가리지 않는다)
                 touchManager.performBack("${delayMs / 1000}초 무응답")
@@ -367,7 +367,7 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager.appVersion = com.onedal.app.core.AppInfo.versionLabel(this)
         telemetryManager.workStageProvider = {
             WorkStage.of(
-                isAutoActive = session.isAutoActive,
+                openedByApp = session.openedByApp,
                 isWaitingForDecision = session.isWaitingForDecision,
                 safeCancelRemainSec = safeCancelTimer.remainSec,
                 collectState = session.collectState,
@@ -696,10 +696,10 @@ class HijackService : AccessibilityService(), ScanContext {
          * 수동/자동 복귀 감지: 기사님이 닫기·취소·뒤로가기로 리스트에 돌아오면 락을 푼다.
          *
          * 🔴 **"지금 화면이 LIST 냐"** 만 보면, 자동 터치 **직후**(상세가 아직 안 그려져 화면이 여전히 LIST)에도
-         *    걸려 `resetSessionState()` 가 `isAutoActive` 를 꺼 버린다 — 0.3초 사이의 실측:
-         *      .397  💥 [AUTO] 꿀콜 조건 통과! 강제 터치 진행!     ← isAutoActive = true
+         *    걸려 `resetSessionState()` 가 `openedByApp` 을 꺼 버린다 — 0.3초 사이의 실측:
+         *      .397  💥 [AUTO] 꿀콜 조건 통과! 강제 터치 진행!     ← openedByApp = true
          *      .704  [복귀 감지] LIST 화면으로 이탈 감지됨          ← 아직 LIST · 오탐
-         *      .705  🔄 세션 상태 완전 초기화                      ← isAutoActive = false
+         *      .705  🔄 세션 상태 완전 초기화                      ← openedByApp = false
          *      19.06 모드: MANUAL (매크로클릭: false)              ← AUTO 인데 MANUAL 로 보고
          * 
          *    그 한 글자가 서버의 배차 흐름을 통째로 바꾼다. MANUAL 은 안전취소 없이 즉시 확정되고,
@@ -717,7 +717,7 @@ class HijackService : AccessibilityService(), ScanContext {
          * 🔴 **리셋은 여기 한 곳에서만** 한다 (`sessionEndsWithCall.test.ts`). 리스트 핸들러가 조건 없이 리셋을
          *    부르면 이 판정이 무의미해지고, 앱이 자기가 터치한 콜을 «손으로 연 상세»로 읽어 확정을 안 누른다.
          *
-         * ⚠️ 조건(`hasActiveSession()`)을 걸지 않는다. 그건 `isAutoActive`·`isWaitingForDecision`·
+         * ⚠️ 조건(`hasActiveSession()`)을 걸지 않는다. 그건 `openedByApp`·`isWaitingForDecision`·
          *    `currentOrderId` 만 보므로 `collectState`·`isPreview` 가 더럽게 남으면 그냥
          *    통과한다. **복귀는 그 자체로 콜의 끝**이니 조건 없이 지우는 것이 맞다.
          */
@@ -1037,12 +1037,12 @@ class HijackService : AccessibilityService(), ScanContext {
              * 서버 알람(관제웹 소리)과 같은 원리다. 여기서는 모으기만 하고, 루프 뒤에서
              * **요금 최고 하나만** 울린다 (동시 통과 3건 실측 — 마지막 콜이 이기던 것은 우연).
              */
-            if (!session.isAutoActive && (telemetryManager.currentMode == "ALARM" || (telemetryManager.currentMode == "SIMULATION" && !TargetApp.supportsCatching(currentTargetApp))) && isTarget) {
+            if (!session.openedByApp && (telemetryManager.currentMode == "ALARM" || (telemetryManager.currentMode == "SIMULATION" && !TargetApp.supportsCatching(currentTargetApp))) && isTarget) {
                 alarmHits.add(Triple(order, fareNode, orderHash))
             }
 
             // 🌟 [AUTO / SIMULATION 실행] 콜 잡기 중이지 않고 AUTO 또는 SIMULATION 모드일 때만 실제 클릭 동작 수행
-            if (!session.isAutoActive && (telemetryManager.currentMode == "AUTO" || telemetryManager.currentMode == "SIMULATION")
+            if (!session.openedByApp && (telemetryManager.currentMode == "AUTO" || telemetryManager.currentMode == "SIMULATION")
                 && TargetApp.supportsCatching(currentTargetApp)) {
                 /**
                  * 🔒 **서버가 앞 콜을 심사 중이면 클릭만 미룬다** (기사님 · 실주행 오송읍).
@@ -1051,7 +1051,7 @@ class HijackService : AccessibilityService(), ScanContext {
                  *    앞 콜이 결재되는 즉시 다음 스캔에서 **바로** 잡는다.
                  * 🔴 예전에는 서버가 이때 `isActive` 를 꺼서 **판정조차 안 돌았다** — 목록에 콜 넷이
                  *    보이는데 10초마다 「🔒 평가 보류」만 찍혔고, 오송읍 셋을 잡는 데 3분 25초가 걸렸다.
-                 * 🔴 `session.isAutoActive`(내가 지금 잡는 중)와 다르다 — 이것은 **서버가 아는 사실**이라,
+                 * 🔴 `session.openedByApp`(내가 지금 잡는 중)와 다르다 — 이것은 **서버가 아는 사실**이라,
                  *    폰이 상세를 떠난 뒤 서버가 아직 결재를 기다리는 사이에도 참이다.
                  */
                 if (isTarget && savedFilter().evaluatingNow) {
@@ -1072,7 +1072,8 @@ class HijackService : AccessibilityService(), ScanContext {
                     touchManager.performSimulatedTouch(fareNode.node)
                     AppLogger.roadmap("[$appLabel] 선택된 콜 정보 전달 (꿀콜 클릭!)", telemetryManager.currentScreenContext.name)
                     
-                    session.isAutoActive = true // 콜 잡기 시작!
+                    session.openedByApp = true // 콜 잡기 시작!
+                    session.contractedByApp = telemetryManager.currentMode == "AUTO" // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳
                     session.setOrderId(order.id)
                     session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
 
@@ -1270,8 +1271,8 @@ class HijackService : AccessibilityService(), ScanContext {
     override fun sendConfirmOnce(order: SimplifiedOfficeOrder, rawScreenStr: String) {
         if (session.isDetailScrapSent) return
 
-        // ✅ [Phase 2] 매크로가 실제로 클릭한 경우만 AUTO, 나머지는 전부 MANUAL
-        val actualMatchType = if (session.isAutoActive) "AUTO" else "MANUAL"
+        // ✅ 앱이 계약 버튼을 누르는 콜만 AUTO, 나머지는 전부 MANUAL
+        val actualMatchType = session.clickOrigin
         apiClient.sendConfirm(
             DispatchBasicRequest(
                 step = "BASIC",
@@ -1285,7 +1286,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 isPreview = session.isPreview,
             )
         )
-        AppLogger.d(TAG, "📤 [post /confirm request] 서버 전송 내용 -> 모드: $actualMatchType (스위치: ${telemetryManager.currentMode}, 매크로클릭: ${session.isAutoActive}, 미리보기: ${session.isPreview}) | 텍스트: ${rawScreenStr.take(150)}...")
+        AppLogger.d(TAG, "📤 [post /confirm request] 서버 전송 내용 -> 모드: $actualMatchType (스위치: ${telemetryManager.currentMode}, 매크로클릭: ${session.contractedByApp}, 미리보기: ${session.isPreview}) | 텍스트: ${rawScreenStr.take(150)}...")
         session.isDetailScrapSent = true
         telemetryManager.isHolding = true  // [Page/Hold 분리] 확정 클릭 → 콜 처리 중
         telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 상태 알림
@@ -1327,7 +1328,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     rawText = session.accumulatedDetailText
                 ),
                 capturedAt = order.timestamp,
-                matchType = if (session.isAutoActive) "AUTO" else "MANUAL",
+                matchType = session.clickOrigin,
                 targetApp = currentTargetApp,
                 isPreview = session.isPreview,
             )
@@ -1335,7 +1336,7 @@ class HijackService : AccessibilityService(), ScanContext {
             // 서버 응답("KEEP", "CANCEL") 대기를 위한 안전취소 타이머 가동
             startSafeCancelTimer()
 
-            val actualMatchType = if (session.isAutoActive) "AUTO" else "MANUAL"
+            val actualMatchType = session.clickOrigin
             val previewStr = session.accumulatedDetailText.replace("\n", " ").take(150)
             AppLogger.d(TAG, "🌐 [post /detail request] $actualMatchType 모드 판결 요청 텍스트: $previewStr...")
 
@@ -1461,7 +1462,7 @@ class HijackService : AccessibilityService(), ScanContext {
             return
         }
 
-        if (!session.isAutoActive) return // AUTO 모드가 아니면 스킵
+        if (!session.contractedByApp) return // 앱이 계약하지 않은 콜은 버튼을 누르지 않는다
 
         /**
          * 🧹 **취소로 끝났으면 «눌렀다» 에서 «막았다» 로 내린다** (기사님 · 실주행 시흥동).

@@ -6,9 +6,9 @@ import { join } from 'path';
  *
  * 자동 터치 직후 화면이 상세로 바뀌기 전에 LIST 이벤트가 한 번 더 오면:
  *
- *     .707  [인성콜] 꿀콜 클릭!            ← isAutoActive = true
+ *     .707  [인성콜] 꿀콜 클릭!            ← openedByApp = true
  *     .825  📡 화면: LIST                  ← 화면이 아직 안 바뀜 (118ms)
- *     .826  🔄 세션 상태 완전 초기화        ← isAutoActive = false 💥
+ *     .826  🔄 세션 상태 완전 초기화        ← openedByApp = false 💥
  *    1.026  📡 화면: DETAIL_PRE_CONFIRM
  *    1.049  👀 [미리보기] 손으로 연 상세    ← AUTO 인데 "손으로 연 것"으로 오판
  *

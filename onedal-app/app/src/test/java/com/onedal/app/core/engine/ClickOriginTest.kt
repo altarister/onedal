@@ -8,7 +8,7 @@ import org.junit.Test
  * 🔴 **콜의 출신은 스위치가 아니라 «누가 눌렀나» 다** (규칙 ③)
  *
  * 출신(`type` 앞머리 · 콜 id 접두사)은 `SessionManager.clickOrigin` **한 곳**에서만 파생한다 —
- * `session.isAutoActive`(누가 눌렀나)로 정하고, 기기 모드 스위치(`telemetryManager.currentMode`)는 쓰지 않는다.
+ * `session.contractedByApp`(앱이 계약 버튼을 누르나)로 정하고, 기기 모드 스위치(`telemetryManager.currentMode`)는 쓰지 않는다.
  *
  * 스위치로 정하면 두 곳이 깨진다:
  *   · **자동 스위치인 채 손으로 확정**한 콜에 `"AUTO_CLICK"` 이 찍힌다.
@@ -23,14 +23,14 @@ class ClickOriginTest {
     @Test
     fun `매크로가 눌렀으면 AUTO 다`() {
         val s = SessionManager()
-        s.isAutoActive = true
+        s.contractedByApp = true
         assertEquals("AUTO", s.clickOrigin)
     }
 
     @Test
     fun `매크로가 안 눌렀으면 MANUAL 이다 — 직접콜`() {
         val s = SessionManager()
-        s.isAutoActive = false
+        s.contractedByApp = false
         assertEquals("MANUAL", s.clickOrigin)
     }
 
@@ -42,7 +42,7 @@ class ClickOriginTest {
     fun `출신은 두 값뿐이다 — 기기 모드 이름이 섞이지 않는다`() {
         val s = SessionManager()
         for (auto in listOf(true, false)) {
-            s.isAutoActive = auto
+            s.contractedByApp = auto
             assertTrue(
                 "출신은 AUTO·MANUAL 뿐이어야 한다 (실제: ${s.clickOrigin})",
                 s.clickOrigin == "AUTO" || s.clickOrigin == "MANUAL"
@@ -57,7 +57,7 @@ class ClickOriginTest {
     @Test
     fun `콜 id 접두사도 출신을 따른다`() {
         val s = SessionManager()
-        s.isAutoActive = false
+        s.contractedByApp = false
         s.ensureOrderId()
         assertTrue("id 가 MANUAL- 로 시작해야 한다 (실제: ${s.currentOrderId})",
             s.currentOrderId.startsWith("MANUAL-"))
@@ -67,7 +67,7 @@ class ClickOriginTest {
     fun `이미 id 가 있으면 덮어쓰지 않는다`() {
         val s = SessionManager()
         s.setOrderId("인성-9999")
-        s.isAutoActive = true
+        s.contractedByApp = true
         s.ensureOrderId()
         assertEquals("인성-9999", s.currentOrderId)
     }

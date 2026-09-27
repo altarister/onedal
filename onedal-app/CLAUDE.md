@@ -19,7 +19,7 @@
 - **안전취소 타이머(README 규칙 ②)는 앱이 스스로 돈다** — 서버·네트워크가 전부 죽어도 기사님을 보호하는 유일한 수단이라
   서버에 맡기지 않는다. 배차망별 시간은 `WaitTimes.safeCancelMs` 가 준다
 
-- **`matchType` 은 실제 클릭 주체를 반영한다** — UI 스위치가 아니라 `session.isAutoActive`.
+- **`matchType` 은 «누가 계약했나»를 반영한다** — UI 스위치가 아니라 `session.contractedByApp`(앱이 계약 버튼을 누르는 콜). 앱이 목록에서 눌러 연 것은 `session.openedByApp` 으로 따로 둔다.
   이 값 하나가 서버의 배차 흐름 전체(즉결 확정 vs 안전취소)를 가른다.
   🔴 화면 복귀 판정은 **"지금 LIST 냐"가 아니라 "LIST 로 돌아왔느냐"** 여야 한다 (직전 화면을 본다) —
   자동 터치 직후 `LIST` 오탐으로 세션이 리셋되면 AUTO 가 MANUAL 로 보고된다

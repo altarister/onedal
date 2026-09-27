@@ -213,7 +213,7 @@ fun ScanContext.handleInsungPreConfirmExecution(
     finalOrder: SimplifiedOfficeOrder
 ): Boolean {
     // 1. 손으로 연 상세는 팝업 3장을 먼저 읽는다 (기사님 확정)
-    if (!session.isAutoActive && session.collectState == SessionManager.CollectState.IDLE) {
+    if (!session.contractedByApp && session.collectState == SessionManager.CollectState.IDLE) {
         session.isPreview = true
         AppLogger.roadmap("👀 [미리보기] 손으로 연 상세 — 팝업 3장을 먼저 읽고 판정을 받는다", telemetryManager.currentScreenContext.name)
         collectMachine.startCollect(rootNode, session, screenTexts)
@@ -227,7 +227,7 @@ fun ScanContext.handleInsungPreConfirmExecution(
     }
 
     // 2. 3단계 팝업에서 돌아온 경우 (동명이동 검증 결론 집행 · #82)
-    if (session.isAutoActive) {
+    if (session.contractedByApp) {
         when (session.cautionAction) {
             "ACCEPT" -> {
                 session.cautionAction = null
@@ -252,7 +252,7 @@ fun ScanContext.handleInsungPreConfirmExecution(
     }
 
     // 3. AUTO 모드 최초 진입 시 도착지가 동명이동 주의 동네인지 확인
-    if (session.isAutoActive) {
+    if (session.contractedByApp) {
         val dropoffWords = finalOrder.dropoff.split("\\s+".toRegex())
         val isCautionDong = CautionDongVerifier.CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
 

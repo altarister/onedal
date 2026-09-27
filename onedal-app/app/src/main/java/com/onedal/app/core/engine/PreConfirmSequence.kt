@@ -45,7 +45,8 @@ fun ScanContext.handlePreConfirmScreen(
     AppLogger.roadmap("[Current Page: DETAIL_PRE_CONFIRM] 진입 완료 (${plugin.label})", telemetryManager.currentScreenContext.name)
 
     // ⏱️ 누가 열었든(알람·손) · 어느 모드든 — 상세 대기 시간 뒤 리스트로 돌아온다 (#124 · 기사님 확정)
-    if (!plugin.supportsCatching) {
+    //    앱이 열었지만 계약하지 않는 콜(체험)도 — 결재가 안 오면 여기서 돌아온다
+    if (!plugin.supportsCatching || (session.openedByApp && !session.contractedByApp)) {
         scheduleDetailBack()
     }
 
@@ -58,10 +59,10 @@ fun ScanContext.handlePreConfirmScreen(
     // 최근 LIST 화면에서 파싱된 원본 오더와 대조 매칭 (전표오염 회피)
     val matchedOrder = scrapParser.matchDetailOrder(screenTexts, recentListOrders)
 
-    val finalOrder = if (session.isAutoActive && session.lastDetailOrder != null) {
-        // AUTO 모드는 이미 클릭 시점에 order를 가지고 있음
+    val finalOrder = if (session.openedByApp && session.lastDetailOrder != null) {
+        // 앱이 눌러 연 상세는 이미 클릭 시점에 order를 가지고 있음 — 종류는 «누가 계약했나»에서 (`clickOrigin`)
         session.lastDetailOrder!!.copy(
-            type = "AUTO_CLICK",
+            type = "${session.clickOrigin}_CLICK",
             rawText = rawScreenStr
         )
     } else if (matchedOrder != null) {
@@ -97,11 +98,11 @@ fun ScanContext.handlePreConfirmScreen(
 
     val isTarget = scrapParser.shouldClick(finalOrder)
 
-    if (!session.isAutoActive || isTarget) {
+    if (!session.openedByApp || isTarget) {
         sendConfirmOnce(finalOrder, rawScreenStr)
 
         // 수동 클릭이지만 스위치가 AUTO면, 서버가 결재를 보낼 수 있으므로 임시 고속 폴링(1초) 활성화
-        if (!session.isAutoActive && telemetryManager.currentMode == "AUTO") {
+        if (!session.contractedByApp && telemetryManager.currentMode == "AUTO") {
             AppLogger.d(TAG, "⚡ [Phase 2] 수동 클릭 + AUTO 스위치 감지. 임시 고속 폴링 10초 활성화")
             telemetryManager.isWaitingDecision = true
             mainHandler.postDelayed({
@@ -111,8 +112,8 @@ fun ScanContext.handlePreConfirmScreen(
         }
 
         if (plugin.supportsCatching) {
-            // AUTO 모드 확정 버튼 클릭
-            if (session.isAutoActive) {
+            // 앱이 계약하는 콜만 확정 버튼 클릭
+            if (session.contractedByApp) {
                 AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 즉시 클릭 (배차 시도)")
                 AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
                 AppLogger.roadmap("[${keywords.appLabel}] 콜 확정 완료", telemetryManager.currentScreenContext.name)

@@ -138,7 +138,7 @@ describe('배차망별 대기 시간 — ⑤ 읽는 곳에 30초가 박혀 있�
         expect(hijack).not.toMatch(/getLong\("safeCancelTimeout"/);
         expect(hijack).not.toMatch(/postDelayed\(r,\s*30_000L\)/);
         expect(hijack).toMatch(/WaitTimes\.safeCancelMs\(/);
-        expect(hijack).toMatch(/WaitTimes\.pickerAlarmDetailMs\(/);
+        expect(hijack).toMatch(/WaitTimes\.detailBackMs\(/);
 
         expect(codeOnly(read(join(APP, 'ui/SettingsScreen.kt')))).not.toMatch(/30000L to "30초"/);
         expect(codeOnly(read(join(APP, 'ui/MainViewModel.kt')))).not.toMatch(/saveSafeCancelTimeout/);

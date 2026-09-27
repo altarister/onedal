@@ -21,6 +21,15 @@ object WaitTimes {
     fun safeCancelMs(filter: FilterConfig, targetApp: String): Long? =
         DispatchPluginRegistry.get(targetApp).getSafeCancelMs(filter)
 
+    /**
+     * ↩️ **상세에서 목록으로 돌아오는 시간** — 지금 배차망의 상세 대기 시간, 없으면 안전취소 시간 (기사님 확정).
+     * 픽커는 안전취소가 없어 상세 대기 시간으로 채운다. 안전취소 시간이 두 질문의 답이 되는 것은 기사님 확정이다(배차망_모드표.md).
+     */
+    fun detailBackMs(filter: FilterConfig, targetApp: String): Long {
+        val plugin = DispatchPluginRegistry.get(targetApp)
+        return plugin.getDetailBackTimeoutMs(filter) ?: plugin.getSafeCancelMs(filter) ?: pickerAlarmDetailMs(filter)
+    }
+
     /** 픽커 상세를(누가 열었든) 이 시간 뒤 닫고 리스트로 돌아간다 */
     fun pickerAlarmDetailMs(filter: FilterConfig): Long =
         DispatchPluginRegistry.get(TargetApp.KAKAOPICKER).getDetailBackTimeoutMs(filter)

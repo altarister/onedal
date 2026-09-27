@@ -20,8 +20,18 @@ class SessionManager {
     var currentOrderId: String = ""
         private set
 
-    /** AUTO 매크로가 클릭해서 시작된 세션인지 여부 */
-    var isAutoActive: Boolean = false
+    /**
+     * 🖐️ **앱이 목록에서 콜을 눌러 이 상세를 열었다** — 모드를 가리지 않는다 (배차망_모드표.md 순서 ⑦).
+     * «지금 잡는 중이라 새 콜을 누르지 않는다» · «목록에서 쥔 콜을 쓴다» · «2차 필터 탈락이면 앱이 빠져나온다»가 이 값을 읽는다.
+     */
+    var openedByApp: Boolean = false
+
+    /**
+     * ✍️ **앱이 이 콜의 계약 버튼(확정)을 누른다** — 서버에 «누가 계약했나»를 알리는 원천.
+     * 세우는 곳은 목록 클릭 한 줄이다. 체험·알람에서 앱이 연 콜은 계약하지 않으므로 거짓이다.
+     * 안전취소 · 결재 뒤 버튼 · 서버의 기사님 콜 보호가 이 값을 읽는다.
+     */
+    var contractedByApp: Boolean = false
 
     /**
      * 🔴 **콜의 출신 — «누가 눌렀나» 를 파생하는 유일한 자리** (규칙 ③).
@@ -35,7 +45,7 @@ class SessionManager {
      *    **여기서 파생하면 모드 값이 몇 개로 늘든 출신은 늘 둘이다.**
      */
     val clickOrigin: String
-        get() = if (isAutoActive) "AUTO" else "MANUAL"
+        get() = if (contractedByApp) "AUTO" else "MANUAL"
 
     /**
      * 🖱️ **잡은 방식 — 6하원칙의 «어떻게», 기록 전용** (기사님 확정).
@@ -48,7 +58,7 @@ class SessionManager {
      *    기록 칸이 다시 밟으면 안 된다. 파생은 여기 한 곳뿐이다.
      */
     fun capturedVia(currentMode: String): String = when {
-        isAutoActive -> "AUTO"
+        contractedByApp -> "AUTO"
         currentMode == "ALARM" -> "ALARM"
         else -> "MANUAL"
     }
@@ -94,7 +104,7 @@ class SessionManager {
      * 🔴 아직 안 잡은 콜이라 **인성에는 아무 일도 일어나지 않았다.** 서버는 이 표시를 보고
      *    취소 카운트(배차망 10회 패널티)에서 뺀다. 확정 화면에 들어가면 딱지를 벗는다.
      *
-     * ⚠️ 손으로 연 상세(`isAutoActive == false`)에서만 켜진다. 앱이 자동으로 연 상세는
+     * ⚠️ 앱이 계약하지 않는 상세(`contractedByApp == false`)에서만 켜진다. 앱이 계약하는 상세는
      *    선점이 생명이라 팝업을 먼저 열지 않는다.
      */
     var isPreview: Boolean = false
@@ -144,7 +154,8 @@ class SessionManager {
         alarmTappedCard = null
         alarmTappedAtMs = 0L
         currentOrderId = ""
-        isAutoActive = false
+        openedByApp = false
+        contractedByApp = false
         isWaitingForDecision = false
         cautionAction = null
         isPreview = false
@@ -158,6 +169,6 @@ class SessionManager {
      * 현재 활성 세션이 있는지 여부
      */
     fun hasActiveSession(): Boolean {
-        return isAutoActive || isWaitingForDecision || currentOrderId.isNotEmpty()
+        return openedByApp || isWaitingForDecision || currentOrderId.isNotEmpty()
     }
 }

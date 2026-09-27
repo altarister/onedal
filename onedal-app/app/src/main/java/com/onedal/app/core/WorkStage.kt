@@ -31,7 +31,7 @@ object WorkStage {
      *    기사님께 쓸모 있는 것은 **남은 초**다 — 그 안에 무르지 않으면 계약이다.
      */
     fun of(
-        isAutoActive: Boolean,
+        openedByApp: Boolean,
         isWaitingForDecision: Boolean,
         safeCancelRemainSec: Int?,
         collectState: CollectState,
@@ -42,7 +42,7 @@ object WorkStage {
         collectState == CollectState.WAITING_FOR_PICKUP_POPUP -> Stage(POPUP, step = 1)
         collectState == CollectState.WAITING_FOR_DROPOFF_POPUP -> Stage(POPUP, step = 2)
         collectState == CollectState.WAITING_FOR_MEMO_POPUP -> Stage(POPUP, step = 3)
-        isDetailScrapSent || isAutoActive -> Stage(DETAIL)
+        isDetailScrapSent || openedByApp -> Stage(DETAIL)
         else -> Stage(IDLE)
     }
 }

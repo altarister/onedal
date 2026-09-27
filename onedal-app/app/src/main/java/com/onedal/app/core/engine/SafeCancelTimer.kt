@@ -43,7 +43,7 @@ class SafeCancelTimer {
      * @param onTimeout 타임아웃 시 호출될 콜백
      */
     fun start(timeoutMs: Long, session: SessionManager, onTimeout: () -> Unit) {
-        if (!session.isAutoActive) return // MANUAL이면 서버가 취소권한 없음
+        if (!session.contractedByApp) return // 앱이 계약하지 않은 콜은 서버가 취소권한 없음
 
         cancel(session)
         session.isWaitingForDecision = true

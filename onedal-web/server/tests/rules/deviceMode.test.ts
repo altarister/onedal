@@ -242,7 +242,7 @@ describe('🔴 모드 이름이 «콜의 출신»으로 새어 나가지 않는�
     it('🔴 출신을 파생하는 자리가 하나다 (clickOrigin)', () => {
         const s = codeOnly(app('core/engine/SessionManager.kt'));
         expect(s).toMatch(/val clickOrigin/);
-        expect(s).toMatch(/if \(isAutoActive\) "AUTO" else "MANUAL"/);
+        expect(s).toMatch(/if \(contractedByApp\) "AUTO" else "MANUAL"/);
         // id 접두사도 같은 원천 — 모드를 인자로 받지 않는다
         expect(s).toMatch(/fun ensureOrderId\(\)/);
         expect(s).toMatch(/\$clickOrigin-\$\{System\.currentTimeMillis\(\)\}/);

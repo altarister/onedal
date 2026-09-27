@@ -232,11 +232,10 @@ describe('💸 미리보기 — 필터 밖이라 단가를 다시 본다 (A안)'
 /**
  * 🔴 **손으로 연 상세는 팝업 3장을 읽은 뒤에 올라간다.**
  *
- * 갈림은 `session.isAutoActive` 하나다 — 이 값은 앱이 `performSimulatedTouch` 를
- * 실행한 직후에만 켜지므로 **"방금 내가 눌렀나"** 를 정확히 뜻한다 (앱 CLAUDE.md 규칙).
+ * 갈림은 `session.contractedByApp` 하나다 — 앱이 이 콜의 계약 버튼(확정)을 누르는가.
+ * 계약하지 않는 상세(기사님이 연 상세 · 체험)는 팝업 3장을 먼저 읽는다.
  *
- * ⚠️ 앱이 연 상세(필터콜)는 **건드리지 않는다.** 거기서 팝업을 먼저 열면 선점 클릭이 늦어져
- *    선점을 놓친다 — 잡기 전에는 미리 계산하지 않는다.
+ * ⚠️ 앱이 계약하는 상세(자동)는 **건드리지 않는다.** 거기서 팝업을 먼저 열면 선점 클릭이 늦어진다.
  */
 describe('🏄 상세 수집 — 손으로 연 상세는 읽고 나서 올린다', () => {
     it('🔴 확정 전 상세에서도 상세 수집을 시작한다', () => {
@@ -246,11 +245,11 @@ describe('🏄 상세 수집 — 손으로 연 상세는 읽고 나서 올린다
         expect(fn).toMatch(/startCollect|surfPreConfirm/);
     });
 
-    it('🔴 필터콜(앱이 누른 것)은 지금 그대로 — 광클을 늦추지 않는다', () => {
+    it('🔴 앱이 계약하는 콜은 지금 그대로 — 선점을 늦추지 않는다', () => {
         const src = code(app('HijackService.kt'));
         const fn = sliceFn(src, 'handlePreConfirmScreen') + '\n' + sliceFn(src, 'handleInsungPreConfirmExecution');
-        // 상세 수집은 isAutoActive == false 인 갈래에서만 걸린다
-        expect(fn).toMatch(/!session\.isAutoActive/);
+        // 상세 수집은 contractedByApp == false 인 갈래에서만 걸린다
+        expect(fn).toMatch(/!session\.contractedByApp/);
     });
 
     it('🔴 미리보기로 올린다는 표시를 실어 보낸다', () => {
