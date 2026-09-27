@@ -53,8 +53,6 @@ interface ScanContext {
     /** 지연 실행 (자동 복귀 타이머 등) */
     val mainHandler: Handler
 
-    /** 동명이동 검증 (같은 동 이름이 여러 시에 있는 문제) */
-    val cautionVerifier: CautionDongVerifier
 
     /** 화면 판별 (지금은 인성 모양이다 — 배차망이 자기 판별을 갖는 날 여기가 바뀐다) */
     val screenDetector: ScreenDetector

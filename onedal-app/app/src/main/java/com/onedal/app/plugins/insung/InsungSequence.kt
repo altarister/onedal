@@ -2,7 +2,6 @@ package com.onedal.app.plugins.insung
 
 import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.core.AppLogger
-import com.onedal.app.core.engine.CautionDongVerifier
 import com.onedal.app.core.engine.ScanContext
 import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.models.SimplifiedOfficeOrder
@@ -22,18 +21,18 @@ private const val TAG = "1DAL_MVP"
 
 /** 적요 팝업 — 인성에만 있는 화면이다 */
 fun ScanContext.handleMemoPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-    collectMachine.handleMemoPopup(rootNode, session, screenTexts)
+    collectMachine.handleMemoPopup(rootNode, session, screenTexts, InsungKeywords.POPUP_FILL)
 }
 
 fun ScanContext.handlePickupPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-    collectMachine.handlePickupPopup(rootNode, session, screenTexts)
+    collectMachine.handlePickupPopup(rootNode, session, screenTexts, InsungKeywords.POPUP_FILL)
 }
 
 fun ScanContext.handleDropoffPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
 
     // 도착지 텍스트까지 모으면 채우기 끝 — 보내지 않는다. 팝업이 닫혀 상세로 돌아오면 공통 순서가 보낸다
     // (2차 필터 → 선점 보고 → 확정 또는 미리보기 · 배차망_모드표.md 순서 ⑤~⑦)
-    val collectDone = collectMachine.handleDropoffPopup(rootNode, session, screenTexts)
+    val collectDone = collectMachine.handleDropoffPopup(rootNode, session, screenTexts, InsungKeywords.POPUP_FILL)
     if (!collectDone) return
     val tookMs = android.os.SystemClock.elapsedRealtime() - session.fillStartedAtMs
     AppLogger.i(TAG, "📏 [채우기] 팝업 3장 ${tookMs}ms — 상세로 돌아오면 보낸다 (다음 상세 통과를 기다린다)")
@@ -48,8 +47,8 @@ fun ScanContext.handleDropoffPopup(rootNode: AccessibilityNodeInfo, screenTexts:
  */
 fun ScanContext.advanceCollect(rootNode: AccessibilityNodeInfo) {
     when (session.collectState) {
-        SessionManager.CollectState.WAITING_FOR_PICKUP_POPUP -> collectMachine.clickPickup(rootNode)
-        SessionManager.CollectState.WAITING_FOR_DROPOFF_POPUP -> collectMachine.clickDropoff(rootNode)
+        SessionManager.CollectState.WAITING_FOR_PICKUP_POPUP -> collectMachine.clickPickup(rootNode, InsungKeywords.POPUP_FILL)
+        SessionManager.CollectState.WAITING_FOR_DROPOFF_POPUP -> collectMachine.clickDropoff(rootNode, InsungKeywords.POPUP_FILL)
         else -> {}   // IDLE·WAITING_FOR_MEMO·DONE — 여기서 할 일이 없다
     }
 }
@@ -141,7 +140,7 @@ fun ScanContext.handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTex
             ensureSessionId()
             if (session.lastDetailOrder == null) session.lastDetailOrder = buildOrderFromScreen(screenTexts)
             session.fillStartedAtMs = android.os.SystemClock.elapsedRealtime()
-            collectMachine.startCollect(rootNode, session, screenTexts)
+            collectMachine.startCollect(rootNode, session, screenTexts, InsungKeywords.POPUP_FILL)
         }
         SessionManager.CollectState.DONE -> {
             session.lastDetailOrder?.let { order -> sendDetail(order) }
@@ -168,7 +167,7 @@ fun ScanContext.handleInsungPreConfirmExecution(
     SessionManager.CollectState.IDLE -> {
         session.fillStartedAtMs = android.os.SystemClock.elapsedRealtime()
         AppLogger.roadmap("🏄 [채우기] 팝업 3장을 먼저 읽는다 — 채운 뒤에 보고·확정", telemetryManager.currentScreenContext.name)
-        collectMachine.startCollect(rootNode, session, screenTexts)
+        collectMachine.startCollect(rootNode, session, screenTexts, InsungKeywords.POPUP_FILL)
         true
     }
     SessionManager.CollectState.DONE -> false
@@ -184,7 +183,7 @@ fun ScanContext.handleInsungPreConfirmExecution(
  * 시·군 필터가 있어야 통과한다. 단어 일치로 가른다 — 부분 일치면 «중동»이 «신중동»에 걸린다.
  * 시·군 필터가 비어 있으면 주의 동네 콜은 떨어진다.
  */
-fun ScanContext.passesCautionDong(order: SimplifiedOfficeOrder): Boolean {
+fun ScanContext.passesCautionDong(order: SimplifiedOfficeOrder, cautionVerifier: CautionDongVerifier): Boolean {
     val dropoffWords = order.dropoff.split("\\s+".toRegex())
     val isCautionDong = CautionDongVerifier.CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
     if (!isCautionDong) return true

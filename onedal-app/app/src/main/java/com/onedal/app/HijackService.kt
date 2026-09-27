@@ -35,7 +35,6 @@ import com.onedal.app.core.engine.ScanContext
 import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.core.engine.DetailCollectMachine
 import com.onedal.app.core.engine.SafeCancelTimer
-import com.onedal.app.core.engine.CautionDongVerifier
 import com.onedal.app.core.TelemetryManager
 import com.onedal.app.models.DetailedOfficeOrder
 import com.onedal.app.models.DispatchBasicRequest
@@ -281,7 +280,6 @@ class HijackService : AccessibilityService(), ScanContext {
     // ── AUTO 모드 타이머 ──
     override val mainHandler = Handler(Looper.getMainLooper())
     private val safeCancelTimer = SafeCancelTimer()
-    override lateinit var cautionVerifier: CautionDongVerifier
 
     /**
      * ⏱️ **서버가 내려준 필터(저장본)** — 배차망별 대기 시간을 여기서 읽는다 (기사님 확정).
@@ -357,7 +355,6 @@ class HijackService : AccessibilityService(), ScanContext {
 
         touchManager = AutoTouchManager(this)
         collectMachine = DetailCollectMachine(touchManager)
-        cautionVerifier = CautionDongVerifier(this)
         screenReader = com.onedal.app.core.ScreenReader(this)
         screenReader.warmUp()   // 📷 첫 인식이 느리다 — 붙을 때 모델을 올려 둔다
         live = this

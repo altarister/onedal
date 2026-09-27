@@ -50,6 +50,11 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
         return context.handleInsungPreConfirmExecution(rootNode, screenTexts)
     }
 
+    /** 🏘️ 주의 동네 판정기 — 인성 플러그인이 들고 있다 (공통 코드는 이 판정기를 모른다) */
+    private val cautionVerifier by lazy {
+        CautionDongVerifier(context ?: throw IllegalStateException("CautionDongVerifier requires non-null Context"))
+    }
+
     override fun passesDetailFilter(context: ScanContext, order: SimplifiedOfficeOrder): Boolean =
-        context.passesCautionDong(order)
+        context.passesCautionDong(order, cautionVerifier)
 }

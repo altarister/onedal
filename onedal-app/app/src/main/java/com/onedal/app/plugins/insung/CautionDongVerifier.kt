@@ -1,9 +1,7 @@
-package com.onedal.app.core.engine
+package com.onedal.app.plugins.insung
 
 import android.content.Context
-import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.core.AppLogger
-import com.onedal.app.core.AutoTouchManager
 import org.json.JSONObject
 
 /**
