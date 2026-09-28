@@ -29,6 +29,8 @@ class AutoTouchManager(private val service: AccessibilityService) {
 
     /** 👆 진행 중인 누르기 하나 (🔗 «쏜 뒤» 잠금 · «쏘기 전»은 `pendingTapAtMs`) — 규칙은 `TapInFlight` 한 곳 */
     private var inFlight: TapInFlight.Record? = null
+    /** 먹혔다고 판정한 마지막 누르기 — 잔상 착각을 막으려고 누른 뒤 잠깐 더 같은 누름을 막는다 (`TapInFlight.blocks`) */
+    private var lastTaken: TapInFlight.Record? = null
     private var tapSeq = 0L
     /** 시스템이 무시했을 때 한 번 더 부를 길 — 저장한 좌표가 아니라 같은 함수를 다시 부른다(버튼은 다시 찾고, 자리는 다시 잰다) */
     private var inFlightRefire: (() -> Unit)? = null
@@ -47,7 +49,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
         val rec = inFlight
         val now = android.os.SystemClock.elapsedRealtime()
         when (TapInFlight.judge(rec, screen, textChanged, now)) {
-            TapInFlight.Verdict.TAKEN -> { failStreak.remove(rec!!.key); inFlight = null; inFlightRefire = null }
+            TapInFlight.Verdict.TAKEN -> { failStreak.remove(rec!!.key); lastTaken = rec; inFlight = null; inFlightRefire = null }
             TapInFlight.Verdict.NOT_TAKEN -> fail(rec!!, "화면 그대로", now)
             TapInFlight.Verdict.EXPIRED -> fail(rec!!, "끝남 알림 없이 ${TapInFlight.SETTLE_MAX_MS}ms", now)
             TapInFlight.Verdict.NONE -> Unit
@@ -67,7 +69,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
 
     /** 같은 무엇 · 같은 화면 종류가 진행 중이면 true (보내지 않는다) */
     private fun blockedInFlight(key: String): Boolean {
-        val blocked = TapInFlight.blocks(inFlight, key, screenNow, android.os.SystemClock.elapsedRealtime())
+        val blocked = TapInFlight.blocks(inFlight, lastTaken, key, screenNow, android.os.SystemClock.elapsedRealtime())
         if (blocked) AppLogger.w(TAG, "🔁 [같은 누름 진행 중] «${key.take(20)}» · $screenNow — 다시 보내지 않는다")
         return blocked
     }

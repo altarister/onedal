@@ -39,9 +39,15 @@ object TapInFlight {
     /** 안 먹힘 보고 — 무엇 · 누를 때 화면 종류 · 기다린 ms · 까닭 · 같은 무엇의 연속 실패 횟수 */
     data class Failure(val key: String, val screen: ScreenContext, val waitedMs: Long, val reason: String, val streak: Int)
 
-    /** 같은 무엇 · 같은 화면 종류의 누르기가 아직 진행 중인가 — 그러면 보내지 않는다 */
-    fun blocks(rec: Record?, key: String, screen: ScreenContext, nowMs: Long): Boolean =
-        rec != null && rec.key == key && rec.screen == screen && nowMs - rec.firedAtMs < SETTLE_MAX_MS
+    /**
+     * 같은 무엇 · 같은 화면 종류의 누르기가 아직 진행 중인가 — 그러면 보내지 않는다.
+     * `lastTaken` = 먹혔다고 판정한 마지막 누르기. 판정 뒤에도 **누른 지 `SETTLE_MIN_MS` 안에는** 같은 무엇 · 같은 화면 종류를 막는다 —
+     * 팝업이 닫히는 순간 방금 닫은 팝업의 잔상이 잠깐 다른 종류로 읽혀 «먹혔다»로 착각할 수 있다(09-29 02:08:24 «도착지» 두 번).
+     * 먹혔다면 화면이 이미 넘어갔으니 같은 화면에서 같은 무엇을 1초 안에 다시 누를 일은 없다. 다른 화면 종류(팝업마다 «닫기»)는 막지 않는다.
+     */
+    fun blocks(rec: Record?, lastTaken: Record?, key: String, screen: ScreenContext, nowMs: Long): Boolean =
+        (rec != null && rec.key == key && rec.screen == screen && nowMs - rec.firedAtMs < SETTLE_MAX_MS) ||
+            (lastTaken != null && lastTaken.key == key && lastTaken.screen == screen && nowMs - lastTaken.firedAtMs < SETTLE_MIN_MS)
 
     /** 화면 알림마다 — `textChanged` 는 화면 글자(지문)가 바뀌었나 */
     fun judge(rec: Record?, screen: ScreenContext, textChanged: Boolean, nowMs: Long): Verdict = when {

@@ -21,13 +21,26 @@ class TapInFlightTest {
         Record(seq, key, screen, at, completed, refired)
 
     @Test fun `오늘 사고 - 같은 무엇 같은 화면 47ms 뒤 둘째는 보내지 않는다`() =
-        assertTrue(TapInFlight.blocks(rec(), "출발지", detail, 1_047L))
+        assertTrue(TapInFlight.blocks(rec(), null, "출발지", detail, 1_047L))
 
     @Test fun `닫기 뒤 출발지 - 다른 무엇은 막지 않는다 (팝업 순회)`() =
-        assertFalse(TapInFlight.blocks(rec(key = "닫기", screen = ScreenContext.POPUP_MEMO), "출발지", detail, 1_200L))
+        assertFalse(TapInFlight.blocks(rec(key = "닫기", screen = ScreenContext.POPUP_MEMO), null, "출발지", detail, 1_200L))
 
     @Test fun `같은 목록 줄 두 번 - 콜 지문이 같으면 둘째를 보내지 않는다`() =
-        assertTrue(TapInFlight.blocks(rec(key = "call:123", screen = ScreenContext.LIST), "call:123", ScreenContext.LIST, 1_500L))
+        assertTrue(TapInFlight.blocks(rec(key = "call:123", screen = ScreenContext.LIST), null, "call:123", ScreenContext.LIST, 1_500L))
+
+    /**
+     * 문제지: 09-29 02:08:24 둘째 판 — .119 «도착지»(상세) → .131 방금 닫은 출발지 팝업의 잔상(종류 POPUP_PICKUP)을 «먹혔다»로 읽어 기록을 비움
+     * → .148 «도착지»를 또 보냈다. 먹혔다고 본 뒤에도 누른 지 1초 안에는 같은 무엇 · 같은 화면 종류를 막는다.
+     */
+    @Test fun `잔상을 먹혔다로 읽어도 1초 안에는 같은 무엇 같은 화면을 막는다`() =
+        assertTrue(TapInFlight.blocks(null, rec(key = "도착지", at = 119L), "도착지", detail, 148L))
+
+    @Test fun `정상 연속은 막지 않는다 - 적요 팝업 닫기 뒤 1초 안 출발지 팝업 닫기`() =
+        assertFalse(TapInFlight.blocks(null, rec(key = "닫기", screen = ScreenContext.POPUP_MEMO), "닫기", ScreenContext.POPUP_PICKUP, 1_500L))
+
+    @Test fun `1초가 지나면 먹힌 누르기는 더 막지 않는다`() =
+        assertFalse(TapInFlight.blocks(null, rec(key = "도착지"), "도착지", detail, 1_000L + TapInFlight.SETTLE_MIN_MS))
 
     @Test fun `화면 종류가 바뀌면 먹혔다`() =
         assertEquals(Verdict.TAKEN, TapInFlight.judge(rec(), popup, textChanged = true, nowMs = 1_300L))
@@ -47,7 +60,7 @@ class TapInFlightTest {
 
     @Test fun `끝났다는 알림이 사라져도 5초 뒤엔 스스로 푼다`() {
         assertEquals(Verdict.EXPIRED, TapInFlight.judge(rec(), detail, textChanged = false, nowMs = 1_000L + TapInFlight.SETTLE_MAX_MS))
-        assertFalse(TapInFlight.blocks(rec(), "출발지", detail, 1_000L + TapInFlight.SETTLE_MAX_MS))
+        assertFalse(TapInFlight.blocks(rec(), null, "출발지", detail, 1_000L + TapInFlight.SETTLE_MAX_MS))
     }
 
     @Test fun `시스템이 무시하면 한 번만 다시 누른다`() {
