@@ -51,7 +51,6 @@ router.get("/", requireAuth, (req, res) => {
             homeX: row.home_x || null,
             homeY: row.home_y || null,
             alarmVolume: row.alarm_volume ?? 50,
-            pickerAlarmMinFare: row.picker_alarm_min_fare ?? 10000,
             /* ⏱️ «주행·정차»로 굳는 초 — 모의 주행에서는 줄여 쓴다 (화면규칙 S16) */
             motionHoldSec: row.motion_hold_sec ?? 10,
             /* ⏱️ 배차망별 대기 시간 — 인성·화물24시 안전취소 · 픽커 상세 */
@@ -107,7 +106,6 @@ router.put("/", requireAuth, async (req, res) => {
                 avoid_toll = COALESCE(@avoidToll, avoid_toll),
                 alarm_volume = COALESCE(@alarmVolume, alarm_volume),
                 motion_hold_sec = COALESCE(@motionHoldSec, motion_hold_sec),
-                picker_alarm_min_fare = COALESCE(@pickerAlarmMinFare, picker_alarm_min_fare),
                 safe_cancel_sec_insung = COALESCE(@safeCancelSecInsung, safe_cancel_sec_insung),
                 safe_cancel_sec_hwamul24 = COALESCE(@safeCancelSecHwamul24, safe_cancel_sec_hwamul24),
                 picker_alarm_detail_sec = COALESCE(@pickerAlarmDetailSec, picker_alarm_detail_sec)
@@ -124,7 +122,6 @@ router.put("/", requireAuth, async (req, res) => {
             defaultPriority: payload.defaultPriority ?? null,
             avoidToll: payload.avoidToll !== undefined ? (payload.avoidToll ? 1 : 0) : null,
             alarmVolume: payload.alarmVolume ?? null,
-            pickerAlarmMinFare: payload.pickerAlarmMinFare ?? null,
             motionHoldSec: payload.motionHoldSec ?? null,
             safeCancelSecInsung: waitSecOrNull(payload.safeCancelSecInsung),
             safeCancelSecHwamul24: waitSecOrNull(payload.safeCancelSecHwamul24),
@@ -145,7 +142,6 @@ router.put("/", requireAuth, async (req, res) => {
                 alarmVolume: payload.alarmVolume ?? null,
                 motionHoldSec: payload.motionHoldSec ?? null,
                 // 🔴 UPDATE 문이 부르는 이름은 전부 실어야 한다 — 빠지면 설정 행이 없던 계정의 첫 저장이 통째로 실패한다
-                pickerAlarmMinFare: payload.pickerAlarmMinFare ?? null,
                 safeCancelSecInsung: waitSecOrNull(payload.safeCancelSecInsung),
                 safeCancelSecHwamul24: waitSecOrNull(payload.safeCancelSecHwamul24),
                 pickerAlarmDetailSec: waitSecOrNull(payload.pickerAlarmDetailSec)

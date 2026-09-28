@@ -1321,7 +1321,7 @@ export default function StatusBoard({ activeRoute }: Props) {
                       title={`📦 앱에 내려갈 필터 — ${APP_FILTER_KEYS.length}개`}
                       note={'서버 → 앱\n폰마다 같은 한 벌 (shared APP_FILTER_KEYS)'}>
                     {/* 🔴 키 목록을 여기 또 적지 않는다 — 표가 유일한 원천이다 (규칙 ③).
-                        `orderKm`·`pickerAlarmMinFare` 는 서버가 조립할 때 얹으므로 여긴 «숨김» 이다. */}
+                        `orderKm` 은 서버가 조립할 때 얹으므로 여긴 «숨김» 이다. */}
                     {APP_FILTER_KEYS.map(k => (
                         <Row key={k} k={k} v={(filter as Record<string, unknown> | null)?.[k]} empty="— 숨김" />
                     ))}

@@ -21,7 +21,7 @@ import java.util.Locale
 /**
  * 대시보드 탭 화면
  *
- * 스크롤 없이 한 화면에서 접근성 상태, 실시간 필터(픽커 알람 하한 요금 포함),
+ * 스크롤 없이 한 화면에서 접근성 상태, 실시간 필터(최소 금액 포함),
  * 서버 통계/제어 상태를 확인하고, 상세 API 원시 로그는 필요 시 펼쳐볼 수 있습니다.
  */
 @Composable
@@ -87,7 +87,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // ⭐ 픽커 알람 요금 하한 하이라이트 박스 (콜할인율 연동)
+                // ⭐ 최소 금액 하이라이트 박스 (관제웹 필터 막대 · 세 배차망 공통)
                 Surface(
                     color = Color(0xFFFFF3E0),
                     shape = RoundedCornerShape(8.dp),

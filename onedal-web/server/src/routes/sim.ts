@@ -255,11 +255,11 @@ router.get("/preflight", (_req, res) => {
          */
         phones: getUserDevicesSnapshot(userId).map(d => phoneCheckOf(d, sentFilterVersionOf(d.deviceId), Date.now())),
         /**
-         * 🔔 알람 요금 하한 (DB `user_settings.picker_alarm_min_fare`) — 앱이 피기백 `pickerAlarmMinFare` 로 받는 값과 같은 원천(`routes/scrap.ts`).
-         * 시뮬레이터 픽커 문제지 1·2 가 이 경계(9,900 / 10,000)를 시험한다 (카카오픽커_시뮬레이터.md §9-3 · 3단계 3-2).
+         * 💵 최소 금액 (DB `user_filters.min_fare` · 관제웹 필터 막대) — 원달앱이 피기백 `minFare` 로 받아 세 배차망 목록에 같은 식으로 건다.
+         * 요금 경계를 시험하는 문제지가 이 값을 요구한다. 0 이면 끈 것이다.
          * ⚠️ 이름에 배차망을 안 넣는다 — 시뮬레이터 설정 화면은 배차망 이름을 모른다 (`onedal-sim/tests/boundaries.test.ts` 규칙 ④).
          */
-        alarmMinFare: (db.prepare("SELECT picker_alarm_min_fare FROM user_settings WHERE user_id = ?").get(userId) as { picker_alarm_min_fare?: number } | undefined)?.picker_alarm_min_fare ?? null,
+        minFare: f?.minFare ?? null,
         destinationDongCount: f?.destinationKeywords?.length ?? 0,
         isSharedMode: !!f?.isSharedMode,
         dispatchPhase: f?.dispatchPhase ?? null,

@@ -459,7 +459,7 @@ function PresetDetail({ desc, requires }: { desc: string; requires?: PresetRequi
   if (requires?.homeAddress) setup.push(['내 주소', requires.homeAddress]);
   if (requires?.firstLoadOnly) setup.push(['판', '첫짐 · 활성 콜 0건']);
   if (requires?.mapSido?.length) setup.push(['지도', `시도 ${requires.mapSido.join('·')} 포함`]);
-  if (requires?.alarmMinFare != null) setup.push(['알람 하한', `${requires.alarmMinFare.toLocaleString('ko-KR')}`]);
+  if (requires?.minFare != null) setup.push(['최소 금액', `${requires.minFare.toLocaleString('ko-KR')}`]);
 
   return (
     <div className="text-[11px] leading-relaxed text-slate-400 flex flex-col gap-2">

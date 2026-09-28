@@ -960,16 +960,15 @@ export interface AutoDispatchFilter {
 /**
  * 📦 **앱이 필터에서 읽는 키 — 유일한 원천**.
  *
- * 서버는 하트비트 응답에 **이 열다섯만** 싣는다 (`routes/scrap.ts`).
+ * 서버는 하트비트 응답에 **이 표의 키만** 싣는다 (`routes/scrap.ts`).
  *
  * 🔴 **골라 싣는다, 떼어내지 않는다.** «떼는 키»를 나열하면 **새 칸이 생길 때마다 그 목록에 넣어야 하고,
  *    안 넣으면 조용히 앱으로 간다.**
  *    골라 싣는 쪽은 **기본이 «안 간다»** 라 안전하다.
  *
- * ⚠️ **`orderKm`·`pickerAlarmMinFare` 는 `AutoDispatchFilter` 에 없다** — 조립할 때 얹는다
- *    (경로 순서 맵 · 픽커 알람 하한). 그래서 이 표는 «앱이 읽는 키»이지
+ * ⚠️ **`orderKm` 은 `AutoDispatchFilter` 에 없다** — 조립할 때 얹는다
+ *    (경로 순서 맵). 그래서 이 표는 «앱이 읽는 키»이지
  *    «평면 필터의 부분집합»이 아니다.
- *    ⚠️ `pickerAlarmMinFare` 는 지금 원달앱이 읽지 않는다 — 픽커도 `minFare`(최소 금액 · 세 배차망 공통)로 거른다.
  *
  * 🔴 **표 ↔ 앱(Kotlin)이 어긋나면 `appFilterKeys.test.ts` 가 잡는다.** 앱이 읽는데
  *    서버가 안 보내면 **조용한 고장**이고(빈 값으로 거른다), 서버가 보내는데 앱이 안 읽으면
@@ -984,7 +983,7 @@ export const APP_FILTER_KEYS = [
     'excludedKeywords', 'allowedVehicleTypes',
     'minFare', 'maxFare', 'ratePerKm',
     /* ⬇️ 평면 필터에 없다 — 조립할 때 얹는다 */
-    'orderKm', 'pickerAlarmMinFare',
+    'orderKm',
     /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings */
     'safeCancelSecInsung', 'safeCancelSecHwamul24', 'pickerAlarmDetailSec',
     /**

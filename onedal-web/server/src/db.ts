@@ -154,10 +154,7 @@ db.exec(`
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
 `);
-// 🔔 픽커 알람 요금 하한 (기사님 확정 · 픽커_수집.md 3단계).
-//    인성 min_fare 를 재사용하지 않는다 — 그건 인성 폴백 판정의 값이라 한 값에 두 역할이 된다 (⑤-4 ⑤).
-//    픽커는 배송거리가 없어 단가식이 불가능한 판이라 «하한 입력 안 함» 원칙의 전제 밖이다.
-ensureColumns('user_settings', { picker_alarm_min_fare: 'INTEGER DEFAULT 10000',
+ensureColumns('user_settings', {
     /**
      * ⏱️ **«주행·정차»로 굳는 데 걸리는 초** (기사님 지시 · 화면규칙 S16).
      *

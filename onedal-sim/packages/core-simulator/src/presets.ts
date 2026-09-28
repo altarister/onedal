@@ -921,7 +921,7 @@ export interface PresetRequires {
     /** 첫짐만 채점하는 문제지인가 — 콜을 하나라도 잡으면 합짐 규칙으로 넘어가 정답이 달라진다 */
     firstLoadOnly?: boolean;
     /** 지도에 이 시도 코드가 있어야 한다 (30 대전 · 43 충북 …) */ mapSido?: string[];
-    /** 알람 요금 하한 — 요금 경계를 시험하는 문제지 (서버 필터·설정 점검 `alarmMinFare` · 관제웹 설정) */ alarmMinFare?: number;
+    /** 최소 금액 — 요금 경계를 시험하는 문제지 (서버 필터·설정 점검 `minFare` · 관제웹 필터 막대) */ minFare?: number;
 }
 
 /** 문제지 이름 → 요구 상태. 없는 문제지는 «아무 상태에서나 돈다»는 뜻이다 */

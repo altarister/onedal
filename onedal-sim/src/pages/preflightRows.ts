@@ -38,8 +38,8 @@ export interface PreflightState {
   activeCalls: number;
   bootedAt: string | null;
   map?: { features?: number; sido?: string[] };
-  /** 알람 요금 하한 (서버 `alarmMinFare` · 관제웹 설정) */
-  alarmMinFare?: number | null;
+  /** 최소 금액 (서버 `minFare` · 관제웹 필터 막대) */
+  minFare?: number | null;
   /** 📱 폰마다 실제로 쓰는 모드·필터·연락 — 서버가 안 실으면 폰 줄을 안 그린다 */
   phones?: PhoneCheckRow[];
   /** 📐 폰에 실제로 가는 상차 반경 — 자동이면 줄어든 값 */
@@ -109,9 +109,9 @@ export function preflightRows(
       got: `${now.isSharedMode ? '합짐' : '첫짐'} · ${now.activeCalls}건`,
       ok: !now.isSharedMode && now.activeCalls === 0,
     });
-    if (req.alarmMinFare != null) rows.push({
-      what: '알람 하한', want: req.alarmMinFare.toLocaleString('ko-KR'), got: now.alarmMinFare == null ? '(없음)' : now.alarmMinFare.toLocaleString('ko-KR'),
-      ok: now.alarmMinFare === req.alarmMinFare,
+    if (req.minFare != null) rows.push({
+      what: '최소 금액', want: req.minFare.toLocaleString('ko-KR'), got: now.minFare == null ? '(없음)' : now.minFare.toLocaleString('ko-KR'),
+      ok: now.minFare === req.minFare,
     });
     if (req.mapSido?.length) {
       const have: string[] = now.map?.sido ?? [];
