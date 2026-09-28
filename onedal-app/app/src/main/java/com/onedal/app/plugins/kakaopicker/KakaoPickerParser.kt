@@ -475,7 +475,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val fareOk = FareFloor.passes(order.fare, minFare)
             val pickupOk = order.pickupDistance == null || order.pickupDistance <= pickupRadiusKm
             val destOk = when {
-                destKeywords.isEmpty() || order.dropoff.isBlank() -> true
+                destKeywords.isEmpty() -> true      // 도착 목표가 없다(관내·목표 미설정) — 제한 없음
+                // 하차를 아직 모른다(도보 목록) — 판정을 채운 뒤로 미룬다: 상세 사진으로 채운 하차로 `passesFilterAfterFill` 이 다시 본다
+                order.dropoff.isBlank() -> true
                 else -> com.onedal.app.plugins.RegionMatch.anyHit(order.dropoff, destKeywords, keywordTraps) ||
                     dongTokenMatch(order.dropoff, destKeywords + cityAliases)
             }
@@ -568,9 +570,11 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             ?: return AlarmConfig()
         return try {
             val json = JSONObject(prefs.getString("activeFilter", null) ?: return AlarmConfig())
-            val keywords = json.optJSONArray("destinationKeywords")?.let { arr ->
-                (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }
-            } ?: emptyList()
+            // 🧭 도착 목록 = 키워드 ∪ 경유 순서 목록 키 — 운행 중 서버는 도착 동을 orderKm 으로 옮겨 보낸다 (세 배차망 같은 규칙)
+            val keywords = com.onedal.app.plugins.DestinationList.of(
+                json.optJSONArray("destinationKeywords")?.let { arr -> (0 until arr.length()).map { arr.getString(it) } } ?: emptyList(),
+                json.optJSONObject("orderKm")?.keys()?.asSequence()?.toList() ?: emptyList(),
+            )
             val traps = json.optJSONObject("keywordTraps")?.let { obj ->
                 obj.keys().asSequence().associateWith { k ->
                     val arr = obj.optJSONArray(k)

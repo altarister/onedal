@@ -5,6 +5,7 @@ import com.onedal.app.core.AppLogger
 import com.onedal.app.plugins.RouteOrderFilter
 import com.onedal.app.plugins.PickupListFilter
 import com.onedal.app.plugins.RegionMatch
+import com.onedal.app.plugins.DestinationList
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.engine.FareFloor
 import com.onedal.app.plugins.insung.InsungParser
@@ -107,7 +108,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 destinationCity = json.optString("destinationCity", ""),
                 destinationRadiusKm = json.optDouble("destinationRadiusKm", 10.0),
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
-                destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
+                destinationKeywords = DestinationList.of(parseJsonArray(json, "destinationKeywords"), progress.keys),
                 // 📋 칸이 없으면 null(옛 서버 → 옛 판정) · 있으면 빈 목록이어도 목록 (빈 목록 = 고장 → 막음) — 인성 파서와 같다
                 pickupKeywords = if (json.has("pickupKeywords")) parseJsonArray(json, "pickupKeywords") else null,
                 customCityFilters = parseJsonArray(json, "customCityFilters"),

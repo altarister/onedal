@@ -4,6 +4,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.ScreenReader
 import com.onedal.app.models.ScreenContext
+import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.DispatchPluginRegistry
 import com.onedal.app.plugins.IDispatchAppPlugin
 import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
@@ -111,7 +112,7 @@ fun ScanContext.handlePreConfirmScreen(
 
     AppLogger.roadmap("상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인", telemetryManager.currentScreenContext.name)
 
-    val isTarget = scrapParser.shouldClick(finalOrder) && plugin.passesDetailFilter(this, finalOrder)
+    val isTarget = passesFilterAfterFill(plugin, finalOrder)
 
     if (!session.openedByApp || isTarget) {
         // ✍️ 앱이 계약 버튼을 누르는 콜 — 자동 모드이고 이 배차망에 수락 칸이 있을 때만 (수락 칸이 비었는지 읽는 곳은 여기 한 곳)
@@ -268,6 +269,13 @@ private fun ScanContext.handlePreConfirmSnapshot(
                             dropUnfilledCall("사진으로 채운 값이 요건 미달")
                             return@post
                         }
+                        // 🔎 채운 뒤 필터 한 번 — 글자 길과 같은 함수 (앱이 연 콜만 거른다 · 기사님이 연 상세는 그대로 보낸다)
+                        if (session.openedByApp && !passesFilterAfterFill(plugin, verifiedOrder)) {
+                            AppLogger.w(TAG, "🔎 [채운 뒤 탈락] ${verifiedOrder.pickup.take(14)} → ${verifiedOrder.dropoff.take(14)} ${verifiedOrder.fare}원 — 서버에 보내지 않고 목록으로")
+                            session.isDetailScrapSent = true
+                            abortPreConfirm()
+                            return@post
+                        }
                         ensureSessionId()
                         val orderWithId = verifiedOrder.copy(
                             id = session.currentOrderId.ifEmpty { verifiedOrder.id }
@@ -331,3 +339,9 @@ private fun ScanContext.handlePreConfirmSnapshot(
     )
 }
 
+/**
+ * 🔎 **채운 뒤 필터 한 번 — 글자 길(인성·화물24시)과 사진 길(픽커)이 같은 함수** (기사님 «같은 순서»).
+ * 목록에서 모르던 값(하차 등)을 채운 뒤 같은 필터를 다시 건다. 성적표는 목록에서 이미 셌으므로 다시 세지 않는다(tally 없음).
+ */
+fun ScanContext.passesFilterAfterFill(plugin: IDispatchAppPlugin, order: SimplifiedOfficeOrder): Boolean =
+    scrapParser.shouldClick(order) && plugin.passesDetailFilter(this, order)
