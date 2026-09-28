@@ -5,6 +5,7 @@ import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.graphics.Rect
 import com.onedal.app.core.AppLogger
+import com.onedal.app.models.ScreenContext
 import android.view.accessibility.AccessibilityNodeInfo
 
 /**
@@ -16,13 +17,60 @@ class AutoTouchManager(private val service: AccessibilityService) {
         private const val TAG = "1DAL_TOUCH"
         /** 카드 줄을 찾을 때 조상을 몇 번까지 타고 올라가나 */
         private const val ROW_HOPS = 6
+        /** 뒤로 가기의 «무엇» */
+        private const val BACK_KEY = "뒤로"
     }
 
     /** 🖐️ 흔들기 난수원 — 시간·자리를 매번 다르게 (`TapShift.holdMs` · `jitter`). 씨앗은 검사가 아니라 실행마다 다르다 */
     private val random = kotlin.random.Random(System.nanoTime())
 
-    /** ⏳ 미뤄 둔 찍기를 건 시각(부팅 기준) · 0 이면 없음 — 겹쳐 예약하지 않으려고 둔다 */
+    /** ⏳ 미뤄 둔 찍기를 건 시각(부팅 기준) · 0 이면 없음 — 겹쳐 예약하지 않으려고 둔다 (🔗 «쏘기 전» 잠금 · «쏜 뒤»는 `inFlight`) */
     private var pendingTapAtMs = 0L
+
+    /** 👆 진행 중인 누르기 하나 (🔗 «쏜 뒤» 잠금 · «쏘기 전»은 `pendingTapAtMs`) — 규칙은 `TapInFlight` 한 곳 */
+    private var inFlight: TapInFlight.Record? = null
+    private var tapSeq = 0L
+    /** 시스템이 무시했을 때 한 번 더 부를 길 — 저장한 좌표가 아니라 같은 함수를 다시 부른다(버튼은 다시 찾고, 자리는 다시 잰다) */
+    private var inFlightRefire: (() -> Unit)? = null
+    /** 지금 화면 종류 — 화면 알림마다 `onScreen` 이 적는다 */
+    private var screenNow: ScreenContext = ScreenContext.UNKNOWN
+    /** 같은 무엇이 연달아 안 먹힌 횟수 — 보고에 싣는다(다시 누르기 상한을 정할 실측 재료) */
+    private val failStreak = HashMap<String, Int>()
+    /** «누르기 안 먹힘»을 서버 이상 징후로 올리는 길 — 서비스가 잇는다 */
+    var onTapFailed: ((TapInFlight.Failure) -> Unit)? = null
+
+    /**
+     * 📡 **화면 알림마다 — 누른 것이 먹혔나 판정한다** (`TapInFlight.judge`). 화면 처리보다 먼저 불러야 같은 알림에서 누르는 쪽이 새 판정을 본다.
+     * @param textChanged 화면 글자(지문)가 바뀌었나 — 그대로인 알림도 부른다(그래야 «화면 그대로»를 본다)
+     */
+    fun onScreen(screen: ScreenContext, textChanged: Boolean) {
+        val rec = inFlight
+        val now = android.os.SystemClock.elapsedRealtime()
+        when (TapInFlight.judge(rec, screen, textChanged, now)) {
+            TapInFlight.Verdict.TAKEN -> { failStreak.remove(rec!!.key); inFlight = null; inFlightRefire = null }
+            TapInFlight.Verdict.NOT_TAKEN -> fail(rec!!, "화면 그대로", now)
+            TapInFlight.Verdict.EXPIRED -> fail(rec!!, "끝남 알림 없이 ${TapInFlight.SETTLE_MAX_MS}ms", now)
+            TapInFlight.Verdict.NONE -> Unit
+        }
+        screenNow = screen
+    }
+
+    private fun fail(rec: TapInFlight.Record, reason: String, now: Long) {
+        val streak = (failStreak[rec.key] ?: 0) + 1
+        failStreak[rec.key] = streak
+        val waited = now - rec.firedAtMs
+        AppLogger.e(TAG, "⌛ [누르기 안 먹힘] «${rec.key.take(20)}» · ${rec.screen} · ${waited}ms · 까닭: $reason · 연속 $streak")
+        onTapFailed?.invoke(TapInFlight.Failure(rec.key, rec.screen, waited, reason, streak))
+        inFlight = null
+        inFlightRefire = null
+    }
+
+    /** 같은 무엇 · 같은 화면 종류가 진행 중이면 true (보내지 않는다) */
+    private fun blockedInFlight(key: String): Boolean {
+        val blocked = TapInFlight.blocks(inFlight, key, screenNow, android.os.SystemClock.elapsedRealtime())
+        if (blocked) AppLogger.w(TAG, "🔁 [같은 누름 진행 중] «${key.take(20)}» · $screenNow — 다시 보내지 않는다")
+        return blocked
+    }
 
     /** 👁️ 찍은 자리를 눈으로 보이게 하는 자국 — 기사님이 «어디에 무엇이 눌렸나»를 그 자리에서 본다 */
     private val tapMarker by lazy { TapMarker(service) }
@@ -48,7 +96,16 @@ class AutoTouchManager(private val service: AccessibilityService) {
         tapRowLeft: Boolean = false,
         delayMs: Long = 0L,
         mark: Boolean = true,
+        /** 무엇을 눌렀나 — 같은 누름을 가리는 열쇠. 목록 줄은 콜 지문(`call:…`), 버튼은 글자. 없으면 노드 글자 */
+        tapKey: String? = null,
+        /** 시스템이 무시해 한 번 더 누르는 길인가 — 이때는 같은 누름 잠금을 보지 않는다 */
+        isRefire: Boolean = false,
+        /** 다시 누를 길 — 없으면 이 함수를 같은 노드로 한 번 더 (자리는 처음에 다시 잰다) */
+        refire: (() -> Unit)? = null,
     ): Boolean {
+        val key = tapKey ?: node.text?.toString() ?: node.contentDescription?.toString() ?: "?"
+        if (!isRefire && blockedInFlight(key)) return false
+        val redo: () -> Unit = refire ?: { performSimulatedTouch(node, leftShiftPx, tapRowLeft, 0L, false, key, isRefire = true) }
         /**
          * 🔴 **찍기 직전에 다시 잰다**.
          *
@@ -107,7 +164,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
          */
         if (delayMs <= 0L) {
             AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\"")
-            val fired = fireTap(x, y, rect)
+            val fired = fireTap(x, y, rect, key, isRefire, redo)
             /**
              * 👁️ **누른 다음에 점을 찍는다** (기사님 지시) — 누르기가 먼저라 동작이 안 늦는다.
              * 점은 «다음에 깨어날 때» 지워지므로(`TapMarker`), 폰이 멈춰 있던 만큼만 남는다.
@@ -152,7 +209,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
             if (shouldMark) tapMarker.hide()
             if (TapShift.sameSpot(x.toInt(), y.toInt(), newX, newY)) {
                 AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) — ${delayMs}ms 미룬 뒤 자리 그대로")
-                fireTap(x, y, again)
+                fireTap(x, y, again, key, isRefire, redo)
             } else {
                 AppLogger.w(TAG, "🛑 [찍기 취소] 미룬 ${delayMs}ms 사이에 자리가 움직였다 " +
                     "(잰 자리 X:${x.toInt()},Y:${y.toInt()} → 지금 X:$newX,Y:$newY) · 손대지 않는다")
@@ -194,7 +251,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
     }
 
     /** 실제 제스처 주입 — 미루든 안 미루든 마지막 한 걸음은 여기 하나다 */
-    private fun fireTap(x: Float, y: Float, bounds: Rect): Boolean {
+    private fun fireTap(x: Float, y: Float, bounds: Rect, key: String, isRefire: Boolean, refire: () -> Unit): Boolean {
         /**
          * 🖐️ **사람처럼 흔든다** (18번 1.1.1 · 1.1.2 · 1.1.11 — 리뷰 13번 «기계식 패턴»).
          *    자리는 버튼 안에서 ±8/±6px, 누르는 시간은 40~90ms 종 모양. 셈은 `TapShift` 한 곳이다.
@@ -211,15 +268,32 @@ class AutoTouchManager(private val service: AccessibilityService) {
         val clickStroke = GestureDescription.StrokeDescription(clickPath, 0, holdMs)
         val gesture = GestureDescription.Builder().addStroke(clickStroke).build()
 
+        // 👆 쏘는 순간 기록한다 — 미뤘다 쏘는 목록 줄도 여기서 같은 감지에 든다. 알림은 이 기록(seq)에 묶는다
+        val seq = ++tapSeq
+        inFlight = TapInFlight.Record(seq, key, screenNow, android.os.SystemClock.elapsedRealtime(), refired = isRefire)
+        inFlightRefire = refire
         val dispatched = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 super.onCompleted(gestureDescription)
                 AppLogger.d(TAG, "✅ [가로채기 성공!] 화면 좌표 (X:$x, Y:$y → 찍음 X:$tx, Y:$ty · ${holdMs}ms) 터치 완료!")
                 AppLogger.roadmap("버튼 터치 완료 (가로채기 성공) X:$tx, Y:$ty · ${holdMs}ms", "")
+                inFlight?.takeIf { it.seq == seq }?.let { inFlight = it.copy(completed = true) }
             }
             override fun onCancelled(gestureDescription: GestureDescription?) {
                 super.onCancelled(gestureDescription)
                 AppLogger.e(TAG, "❌ [터치 실패] 시스템에 의해 무시됨")
+                val cur = inFlight
+                when {
+                    TapInFlight.shouldRefire(cur, seq, screenNow) -> {
+                        AppLogger.w(TAG, "🔁 [다시 누름] «${key.take(20)}» — 시스템이 무시했다. 한 번만 다시")
+                        val redo = inFlightRefire
+                        inFlight = null; inFlightRefire = null
+                        redo?.invoke()
+                    }
+                    cur != null && cur.seq == seq && cur.refired -> fail(cur, "시스템이 두 번 무시", android.os.SystemClock.elapsedRealtime())
+                    cur != null && cur.seq == seq -> { inFlight = null; inFlightRefire = null }   // 화면이 넘어간 뒤 온 무시 — 그 자리는 다른 화면이다
+                    else -> AppLogger.d(TAG, "↪️ [늦은 무시 알림] «${key.take(20)}» — 이미 다른 누르기로 바뀌었다. 다시 누르지 않는다")
+                }
             }
         }, null)
 
@@ -244,6 +318,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
         isStartsWith: Boolean = false,
         mark: Boolean = true,
         currentMode: String? = null,
+        isRefire: Boolean = false,
     ): Boolean {
         // 🛑 [체험 모드 하드락] 체험 모드일 때는 수락/확정 관련 텍스트 터치를 물리적으로 100% 원천 차단!
         if (currentMode == "SIMULATION" && (targetText.contains("수락") || targetText.contains("확정") || targetText == "닫기")) {
@@ -254,7 +329,9 @@ class AutoTouchManager(private val service: AccessibilityService) {
         val targetNode = findNodeByText(rootNode, targetText, isStartsWith)
         if (targetNode != null) {
             AppLogger.roadmap("'$targetText' 버튼 인식 ➡️ 클릭 시도", "")
-            val result = performSimulatedTouch(targetNode, mark = mark)
+            // 다시 누를 때는 버튼을 지금 화면에서 다시 찾는다
+            val refind = { service.rootInActiveWindow?.let { findAndClickByText(it, targetText, isStartsWith, false, currentMode, isRefire = true) }; Unit }
+            val result = performSimulatedTouch(targetNode, mark = mark, tapKey = targetText, isRefire = isRefire, refire = refind)
             targetNode.recycle()
             return result
         }
@@ -295,6 +372,8 @@ class AutoTouchManager(private val service: AccessibilityService) {
      * 시스템 [뒤로 가기] 버튼 기능을 수행합니다.
      */
     fun performBack(why: String? = null): Boolean {
+        // 👆 뒤로 가기도 같은 규칙 — 같은 화면에서 두 번 뒤로 가면 배차망 앱 밖으로 나간다
+        if (blockedInFlight(BACK_KEY)) return false
         /**
          * 👁️ **뒤로 가기에도 자국을 남긴다** (기사님 지시 — 앱이 한 짓은 배차망을 가리지 않고 다 보여야 한다).
          * 찍는 좌표가 없는 길이라 **화면 아래 가운데**에 띄운다.
@@ -310,6 +389,11 @@ class AutoTouchManager(private val service: AccessibilityService) {
         }
 
         val dispatched = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+        // 전역 동작은 «끝났다» 알림이 없다 — 보내는 순간 끝난 것으로 적는다
+        if (dispatched) {
+            inFlight = TapInFlight.Record(++tapSeq, BACK_KEY, screenNow, android.os.SystemClock.elapsedRealtime(), completed = true)
+            inFlightRefire = null
+        }
         if (dispatched) {
             AppLogger.d(TAG, "🔙 [백버튼 전송] 글로벌 액션 수행 완료")
         } else {

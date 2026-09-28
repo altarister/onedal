@@ -371,6 +371,14 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager = TelemetryManager(apiClient, this)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
 
         touchManager = AutoTouchManager(this)
+        // 👆 «누르기 안 먹힘»은 이상 징후로 — 어느 배차망 · 어느 화면이든 같은 한 줄 (`TapInFlight`)
+        touchManager.onTapFailed = { f ->
+            apiClient.sendAnomalyReport(
+                targetApp = currentTargetApp,
+                screenName = f.screen.name,
+                failureReason = "TAP_FAILED: ${f.key.take(30)} · ${f.reason} · ${f.waitedMs}ms · 연속 ${f.streak}",
+            )
+        }
         collectMachine = DetailCollectMachine(touchManager)
         screenReader = com.onedal.app.core.ScreenReader(this)
         screenReader.warmUp()   // 📷 첫 인식이 느리다 — 붙을 때 모델을 올려 둔다
@@ -600,7 +608,10 @@ class HijackService : AccessibilityService(), ScanContext {
         val screenTexts = mutableListOf<String>()
         gatherNodeTexts(rootNode, screenTexts)
         val fingerprint = screenTexts.sorted().hashCode()
-        if (fingerprint == lastScreenFingerprint) { rootNode.recycle(); return }
+        if (fingerprint == lastScreenFingerprint) {
+            touchManager.onScreen(telemetryManager.currentScreenContext, textChanged = false)   // 👆 화면 그대로 — 누른 것이 안 먹혔나 본다
+            rootNode.recycle(); return
+        }
         lastScreenFingerprint = fingerprint
 
         val rawScreenStr = screenTexts.joinToString(" ")
@@ -610,6 +621,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
         // 화면 종류 판별 및 서버(텔레메트리) 즉각 동기화
         val detected = detectScreenContext(rawScreenStr, rootNode.packageName?.toString())
+        touchManager.onScreen(detected, textChanged = true)   // 👆 화면 처리보다 먼저 — 누른 것이 먹혔나 (종류가 바뀌었나)
         if (detected == ScreenContext.UNKNOWN) {
             AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자): ${rawScreenStr.take(300)}")
             /**
@@ -1099,7 +1111,8 @@ class HijackService : AccessibilityService(), ScanContext {
                         "모드 $currentMode — ${if (currentMode == "AUTO") "앱이 채우고 확정" else "판정만 받고 확정·수락은 기사님"} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
                     AppLogger.d(TAG, "💥 [$currentMode] 꿀콜 조건 통과! 요금 최고 콜 터치 진행!")
                     alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용
-                    val fired = touchManager.performSimulatedTouch(fareNode.node, tapRowLeft = tap.rowLeft, delayMs = tap.delayMs)
+                    val fired = touchManager.performSimulatedTouch(fareNode.node, tapRowLeft = tap.rowLeft, delayMs = tap.delayMs,
+                        tapKey = "call:${CallMemory.fingerprintOf(order)}")   // 👆 같은 콜을 진행 중에 또 누르지 않는다 — 열쇠는 콜 지문
                     if (!fired) {
                         // 🛑 누르기가 실패했다(노드가 사라짐 · 좌표를 못 구함) — 세션을 세우지도, 기억에 넣지도 않는다.
                         //    세우면 화면은 목록 그대로라 «목록으로 돌아왔다» 리셋이 안 오고 다음 스캔부터 아무 콜도 못 누른다
