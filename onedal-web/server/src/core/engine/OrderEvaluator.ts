@@ -519,7 +519,13 @@ export class OrderEvaluator {
                              *    좌표를 모르면 `null` — 부르는 쪽이 그때 안 넘긴다 (지어내지 않는다).
                              */
                             const coordOf = (orderId: string, stopType: 'pickup' | 'dropoff') => {
-                                const o = activeCalls.find(c => c.id === orderId) as any;
+                                /**
+                                 * 🧭 심사 중인 후보도 본다 — 노선 합짐의 보통 경우(후보가 꼬리에 붙음)
+                                 *    기점이 후보 자신의 상차라, 잡은 콜만 보면 방향·약속이 조용히 빠진다.
+                                 *    후보 좌표는 심사 첫머리 지오코딩이 이미 채웠다 (`detourAnchorCoord` 검사).
+                                 */
+                                const o = (orderId === securedOrder.id ? securedOrder
+                                    : activeCalls.find(c => c.id === orderId)) as any;
                                 const x = stopType === 'pickup' ? o?.pickupX : o?.dropoffX;
                                 const y = stopType === 'pickup' ? o?.pickupY : o?.dropoffY;
                                 return Number.isFinite(x) && Number.isFinite(y) ? { x: x as number, y: y as number } : null;
