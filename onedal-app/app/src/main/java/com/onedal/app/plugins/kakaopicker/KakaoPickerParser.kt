@@ -353,7 +353,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          *      노선 국면이면 그 방향만, 도착목표가 비면 제한 없음. RegionMatch 는 인성과 같은 규약)
          *
          * 픽커엔 배송거리가 없어 단가식이 불가능하고(§2), 차종·경로 순서 축도 없다.
-         * 픽업거리·도착지를 **모르면 막지 않는다** (규칙 ⑤ — 모르는 값으로 거르지 않는다).
+         * 픽업거리는 목록 완독 칸이라 모르면 그 스캔에서 빠진다(`OrderRequirement.listComplete`). 도착지를 모르면(도보 목록) 판정을 채운 뒤로 미룬다.
          * 예약·내일 콜도 울린다 (기사님 확정 08-30 — 미리 확보할 가치가 있다).
          * 🔴 이 판정은 «상세로 들어가 판정을 받을까»만 정한다 — 계약 버튼은 누르지 않는다(`KakaoPickerPlugin.acceptButtons = null`).
          */
@@ -473,7 +473,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             cityAliases: List<String> = emptyList(),
         ): AlarmAxes {
             val fareOk = FareFloor.passes(order.fare, minFare)
-            val pickupOk = order.pickupDistance == null || order.pickupDistance <= pickupRadiusKm
+            // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 통과시키지 않는다
+            val pickupOk = order.pickupDistance != null && order.pickupDistance <= pickupRadiusKm
             val destOk = when {
                 destKeywords.isEmpty() -> true      // 도착 목표가 없다(관내·목표 미설정) — 제한 없음
                 // 하차를 아직 모른다(도보 목록) — 판정을 채운 뒤로 미룬다: 상세 사진으로 채운 하차로 `passesFilterAfterFill` 이 다시 본다

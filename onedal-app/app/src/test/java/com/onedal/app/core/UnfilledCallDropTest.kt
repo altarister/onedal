@@ -26,7 +26,7 @@ class UnfilledCallDropTest {
 
     @Test
     fun `목록 줄은 요건을 본 뒤에 지문을 뜬다`() {
-        val check = list.indexOf("OrderRequirement.meets(")
+        val check = list.indexOf("OrderRequirement.listComplete(")   // 목록 완독 = 요건 + 상차지거리
         val print = list.indexOf("CallMemory.fingerprintOf(order)")
         assertTrue("목록 줄의 요건 확인이 없다", check > 0)
         assertTrue("지문을 요건 확인보다 먼저 뜬다", print > check)

@@ -953,10 +953,10 @@ class HijackService : AccessibilityService(), ScanContext {
             }
 
             /**
-             * 📋 **줄을 다 읽었나** — 상차·하차를 못 읽은 줄은 같은 콜인지 알아볼 수 없다(기사님 «같은 콜인지는 모든 값이 들어 있을 때»).
+             * 📋 **줄을 다 읽었나** — 상차·하차·요금·상차지거리를 못 읽은 줄은 같은 콜인지·반경 안인지 알 수 없다(기사님 «같은 콜인지는 모든 값이 들어 있을 때»).
              * 그 스캔에서 통째로 뺀다 — 지문·기억·서버 보고·알람·누르기 전부 안 한다. 다음 스캔에 읽히면 그때 본다.
              */
-            if (!com.onedal.app.core.engine.OrderRequirement.meets(order,
+            if (!com.onedal.app.core.engine.OrderRequirement.listComplete(order,
                     com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).allowsEmptyDropoff(order))) {
                 unreadRow++
                 continue

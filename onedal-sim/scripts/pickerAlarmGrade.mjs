@@ -59,7 +59,7 @@ function dongTokenMatch(dropoff, keys) {
 /** `KakaoPickerParser.decideAxes` */
 function decideAxes({ fare, pickupKm, dropoff }, f) {
     const fareOk = fare >= f.minFare;
-    const pickupOk = pickupKm == null || pickupKm <= f.pickupRadiusKm;
+    const pickupOk = pickupKm != null && pickupKm <= f.pickupRadiusKm;   // 상차지거리는 목록 완독 칸 — 모르면 통과 아님
     const keys = f.destKeywords ?? [];
     const destOk = keys.length === 0 || dropoff === '' ||
         keys.some(k => regionHit(dropoff, k, (f.keywordTraps ?? {})[k] ?? [])) ||

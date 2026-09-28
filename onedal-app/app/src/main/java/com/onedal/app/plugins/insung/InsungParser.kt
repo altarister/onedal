@@ -382,12 +382,11 @@ class InsungParser(private val context: Context) : IScrapParser {
             // 합짐 모드(isSharedMode)에서는 상차지 반경 제한을 무시합니다 — 상차 목록이 오면 반경은 아예 안 본다.
             val distanceMatch = if (pickupListCheck != null) {
                 true
-            } else if (order.pickupDistance == null) {
-                true
             } else if (filter.isSharedMode) {
                 true // 합짐 모드: 상차 반경 무시 (경유 필터가 대신 판단)
             } else {
-                order.pickupDistance <= filter.pickupRadiusKm
+                // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 여기까지 오지 않는다
+                order.pickupDistance != null && order.pickupDistance <= filter.pickupRadiusKm
             }
 
             // ── 조건 4: 블랙리스트 제외 ──

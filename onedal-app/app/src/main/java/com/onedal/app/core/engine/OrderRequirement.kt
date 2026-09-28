@@ -16,5 +16,13 @@ object OrderRequirement {
     fun meets(order: SimplifiedOfficeOrder, allowsEmptyDropoff: Boolean): Boolean =
         order.fare > 0 && filled(order.pickup) && (allowsEmptyDropoff || filled(order.dropoff))
 
+    /**
+     * 📋 **목록 완독** — 요건에 **상차지거리**를 더한다(기사님 «상차지 거리를 찾는 건 공통»). 목록 줄에만 쓴다.
+     * 거르는 게 아니라 **미루는 것**이다 — 덜 읽힌 줄은 그 스캔만 빼고 다음 스캔에 다시 본다.
+     * 상세에서는 거리를 요구하지 않는다(손으로 연 상세·사진으로 만든 콜에는 거리가 없다) — 상세는 `meets`.
+     */
+    fun listComplete(order: SimplifiedOfficeOrder, allowsEmptyDropoff: Boolean): Boolean =
+        meets(order, allowsEmptyDropoff) && order.pickupDistance != null
+
     private fun filled(value: String): Boolean = value.isNotBlank() && value != MISSING
 }

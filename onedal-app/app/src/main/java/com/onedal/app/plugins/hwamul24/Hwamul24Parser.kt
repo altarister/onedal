@@ -328,6 +328,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
          *
          * 🔴 **그런데 이 파서는 아직 `deliveryDistance`(배송거리)를 안 읽는다.**
          *    24시 카드에 그 숫자가 있는지부터 확인해야 한다(Phase 5 파서 복구 과제).
+         *    기사님 확정: «24시 목록엔 상차지거리만 있다» — 배송거리는 실물 화면이 생기면 다시 본다.
          *    없으면 `useRateModel` 이 false 라 **지금은 `minFare` 단독으로만 돈다** —
          *    안전망을 빼지 않으려는 폴백이다 (규칙 ②). 배송거리를 읽게 되는 순간
          *    이 판정이 **저절로 켜진다.**
@@ -347,12 +348,11 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         val pickupListMatch = pickupListCheck?.passed ?: true
         val distanceMatch = if (pickupListCheck != null) {
             true
-        } else if (order.pickupDistance == null) {
-            true
         } else if (filter.isSharedMode) {
             true
         } else {
-            order.pickupDistance <= filter.pickupRadiusKm
+            // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 여기까지 오지 않는다
+            order.pickupDistance != null && order.pickupDistance <= filter.pickupRadiusKm
         }
 
         // ── 조건 5: 블랙리스트 제외 (화물24시 핵심: 적요가 rawText에 포함!) ──

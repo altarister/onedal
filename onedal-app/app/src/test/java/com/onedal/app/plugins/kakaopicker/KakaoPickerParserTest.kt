@@ -166,9 +166,9 @@ class KakaoPickerParserTest {
     }
 
     @Test
-    fun `알람 판정 - 픽업거리를 모르면 막지 않는다 (규칙 5)`() {
+    fun `알람 판정 - 픽업거리를 모르면 통과시키지 않는다 (목록 완독 칸 · 그 스캔에서 빠진다)`() {
         val o = parser.parse(listOf("퀵", "소형", "분당", "12,000", "분당", "야탑1", "이매1"))   // km 노드 없음
-        assertTrue(KakaoPickerParser.decide(o, 10000, 10.0))
+        assertFalse(KakaoPickerParser.decide(o, 10000, 10.0))
     }
 
     @Test
