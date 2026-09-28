@@ -38,6 +38,7 @@
 | `pnpm reach` | 쌓인 표본(`reach_samples`)으로 도달 계수(직선 km → 카카오 분) 역산 · **`pnpm reach sweep`** 은 기준점 쌍을 카카오로 재 표본을 쌓는다 | 필터에 자동 반영 안 된다 (계수 확정은 기사님) · `sweep` 은 돌린 시각의 교통이다 | 역산은 돈다 · `sweep` 은 미실행 — 카카오 API 비용 |
 | `pnpm route:order` | 「상차 먼저」 vs 「지나가는 길목부터」(지금 규칙) 순서 비교 | 직선거리다 — 카카오 실주행과 다르다 | 돈다 |
 | `pnpm net:compare` | 그물 두 벌(지도 `callNet` ↔ 서버 turf)의 통과 동 목록 차이 | 두 계산은 같은 질문이 아니다 — 차이의 크기일 뿐 · 판정이 없다 | 돈다 |
+| `pnpm gen:regions` | 서버 지도 산출물(`shared/src/dongCentroids.ts`)에서 원달앱 전체 주소 명부(`RegionRegister.kt`)를 뽑는다 — 지도를 다시 만들어 dongCentroids 를 다시 뽑은 뒤 돌린다. 원달앱 명부를 손으로 적으면 서버 지도와 갈라진다 | 판정이 없다 — 뽑는 도구 · dongCentroids 자체는 다시 뽑지 않는다 | 도구 아님 — 짝은 원달앱 `AddressFormTest` 의 «명부는 서버 지도 산출물과 같다»가 문다 |
 
 🔧 **도구를 손볼 때**
 - `lint:gate` 규칙은 **하나씩 캐서** 늘린다 — 한꺼번에 켜면 늘 빨간불이라 아무도 안 본다
