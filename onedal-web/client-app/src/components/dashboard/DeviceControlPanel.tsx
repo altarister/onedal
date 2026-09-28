@@ -82,7 +82,7 @@ function DeviceRow({
     /**
      * 🎛️ **버튼은 이 배차망에서 도는 모드를 크게** (기사님 «가»). 픽커는 자동이 없어 자동 명령이 알람으로 돈다 —
      *    명령만 보이면 기사님이 앱이 잡는 줄 알고 기다리다 콜을 놓친다. 색도 폰 테두리와 같다.
-     *    다르면 버튼 안 둘째 줄에 명령을 작게. 고르기 목록·«적용중»은 명령 그대로다(기사님이 내리는 것).
+     *    버튼은 한 줄이다(기사님 «2줄은 영역을 잡아먹는다») — 명령은 설명(title)에만. 고르기 목록·«적용중»은 명령 그대로다(기사님이 내리는 것).
      */
     const running = (runningModeOf(device) ?? device.mode) as DeviceModeType;
     const runningDiffers = running !== device.mode;
@@ -293,17 +293,14 @@ function DeviceRow({
                            진단에 필요한 값이라 **버리지 않고** 손댈 때 보이게 둔다 */
                         title={applying
                             ? `적용중${lastHeardSec != null ? ` · 마지막 통신 ${lastHeardSec}초 전` : ''}`
-                            : '모드를 바꾸려면 누릅니다'}
+                            : runningDiffers
+                                ? `명령: ${DEVICE_MODE_LABEL[device.mode]} · 이 배차망에서는 ${DEVICE_MODE_LABEL[running]}으로 돈다`
+                                : '모드를 바꾸려면 누릅니다'}
                         onClick={() => setModeOpen(v => !v)}
                         className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border transition-opacity ${
                             applying ? 'opacity-40' : ''
                         } ${MODE_TONE[running] ?? MODE_TONE[device.mode]}`}>
                         {DEVICE_MODE_LABEL[running] ?? DEVICE_MODE_LABEL[device.mode]}
-                        {runningDiffers && (
-                            <span className="block text-[9px] leading-none font-bold opacity-80 whitespace-nowrap">
-                                명령: {DEVICE_MODE_LABEL[device.mode]}
-                            </span>
-                        )}
                     </button>
                     {applying && (
                         <span className="absolute inset-0 grid place-items-center pointer-events-none">

@@ -408,9 +408,11 @@ describe('🎛️ 도는 모드 — 원달앱이 계산해 보내고 관제웹�
         expect(dev).toMatch(/runningModeOf\(session\)\s*===\s*"ALARM"\s*&&\s*filterTally\.passed/);
     });
 
-    it('관제웹 폰 카드는 도는 모드의 글자·색을 크게, 다르면 명령을 작게 보인다', () => {
+    it('관제웹 폰 카드는 도는 모드의 글자·색을 한 줄로, 명령은 설명(title)에만 (기사님 «한 줄로»)', () => {
         const c = codeOnly(web('components/dashboard/DeviceControlPanel.tsx'));
         expect(c).toMatch(/runningModeOf\(device\)/);
-        expect(c).toMatch(/명령: /);
+        expect(c).toMatch(/MODE_TONE\[running\]/);
+        expect(c).toMatch(/`명령: /);
+        expect(c).not.toMatch(/<span className="block[^"]*">\s*명령:/);
     });
 });
