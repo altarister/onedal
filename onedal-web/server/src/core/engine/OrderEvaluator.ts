@@ -94,7 +94,6 @@ export class OrderEvaluator {
         try {
             const hasApiKey = !!process.env.KAKAO_REST_API_KEY;
             if (hasApiKey) {
-                logRoadmapEvent("서버", "🛡️ 주소 3중 폴백 (괄호제거 ➡️ 주소검색 ➡️ 키워드 ➡️ 절사) 연산");
 
                 // 지오코딩 (상차지 + 하차지 병렬 실행)
                 const needPickup = !securedOrder.pickupX || !securedOrder.pickupY;
@@ -772,7 +771,6 @@ export class OrderEvaluator {
             (securedOrder as any).judgment = dry;
         }
 
-        logRoadmapEvent("서버", "경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산");
         securedOrder.kakaoTimeExt = timeExt;
 
         // Stage 3. 요율 판정 — 콜할인율은 activeFilter.callDiscountPct 한 벌 (원천: user_filters)
@@ -800,9 +798,7 @@ export class OrderEvaluator {
             io.to(userId).emit("order-evaluated", securedOrder);
 
             if (timeExt.includes("실패")) {
-                logRoadmapEvent("서버", "관제탑에게 카카오 에러 상태(order-evaluated error) 정보 전달");
             } else {
-                logRoadmapEvent("서버", "관제탑에게 최종 판독된 오더 정보(order-evaluated) 전달");
             }
         }
     }

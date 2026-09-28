@@ -157,7 +157,6 @@ router.post("/", (req, res) => {
             });
         }
 
-        // logRoadmapEvent("서버", "관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달");
         const session = getUserSession(userId);
 
         // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.

@@ -448,7 +448,6 @@ export async function calculateDetourRoute(
             console.log(`🛡️ [서버] 카카오 API 에러 감지: 초당 호출 제한(Rate Limit) 임박 여부 모니터링 중...`);
             throw new Error(`카카오합짐에러: ${msg}`);
         }
-        console.log(`✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)`);
     }
     
     const mergedSummary = mergedData.routes[0]?.summary;

@@ -153,7 +153,6 @@ router.post("/confirm", (req, res) => {
             }
         }
 
-        console.log(`🛡️ [서버] /orders/confirm 수신 시: 다른 기기가 이미 잡았는지 스레드 락(Lock) 점검 완료. 진입 허용.`);
         if (payload.order.id && payload.order.id !== "unknown") {
             session.deviceEvaluatingMap.set(payload.deviceId, payload.order.id);
         }
@@ -185,7 +184,6 @@ router.post("/confirm", (req, res) => {
         } as PendingOrder;
 
         if (pendingOrder.id && pendingOrder.id !== "unknown") {
-            logRoadmapEvent("서버", "콜의 가확정 상태를 메모리에 캐싱 연산");
             rememberOrder(session, pendingOrder);
         }
 
@@ -255,7 +253,6 @@ router.post("/confirm", (req, res) => {
                     }
                 }, cancelSec * 1000);
                 session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
-                logRoadmapEvent("서버", `안전취소 ${cancelSec}초 카운트다운 타이머 감시 연산 (취소 가능하게 등록)`);
             } else {
                 console.log(`👀 [픽커] ${pendingOrder.id} — 안전취소가 없는 배차망이라 서버 타이머를 걸지 않는다 (규칙 ①)`);
             }

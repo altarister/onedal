@@ -56,7 +56,6 @@ router.post("/", async (req, res) => {
             isSimulated: deviceMode === 'SIMULATION',
         });
 
-        logRoadmapEvent("서버", "상하차지 주소 및 적요 텍스트 정제 연산");
         const rawText = pendingOrder.rawText;
         if (rawText) {
             // [Dumb Client / Smart Server]
@@ -143,7 +142,6 @@ router.post("/", async (req, res) => {
         if (io) {
             console.log(`📤 [Socket 푸시] order-detail-received (${pendingOrder.id}) - 상태 승급: ${pendingOrder.status}`);
             io.to(userId).emit("order-detail-received", pendingOrder);
-            logRoadmapEvent("서버", "관제탑에게 정제된 상세 텍스트(order-detail-received) 정보 전달");
         }
 
         logRoadmapEvent("서버", "앱폰에게 디테일 데이터 정상 수신 완료 응답 전달");
@@ -300,7 +298,7 @@ router.post("/", async (req, res) => {
         const warningTimer = setTimeout(() => {
             if (session.pendingDecisions.has(payload.order.id)) {
                 if (io) {
-                    logRoadmapEvent("서버", "관제탑에게 지연 위급 상황(safecancel-warning) 정보 전달");
+                    console.warn(`⚠️ [안전취소 임박] ${payload.order.id} — ${cancelSec}초가 되도록 판정이 없다. 관제웹에 위급 알림`);
                     io.to(userId).emit("safecancel-warning", {
                         orderId: payload.order.id,
                         deviceId: payload.deviceId,

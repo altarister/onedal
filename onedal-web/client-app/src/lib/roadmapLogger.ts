@@ -152,8 +152,10 @@ export function startMemoryWatch(): void {
         if (!m) return;
         const MB = (b: number) => Math.round(b / 1024 / 1024);
         const pct = Math.round((m.usedJSHeapSize / m.jsHeapSizeLimit) * 100);
+        // ⚠️ 는 한계의 8할부터 — 서버 중계 유지 목록(RELAY_KEEP)이 경고 무늬만 실어, 평소 줄은 브라우저에만 남는다
+        const mark = pct >= 80 ? '⚠️ ' : '';
         logRoadmapEvent('웹',
-            `🧠 [메모리] 쓰는 중 ${MB(m.usedJSHeapSize)}MB / 잡아 둔 ${MB(m.totalJSHeapSize)}MB · `
+            `${mark}🧠 [메모리] 쓰는 중 ${MB(m.usedJSHeapSize)}MB / 잡아 둔 ${MB(m.totalJSHeapSize)}MB · `
             + `한계 ${MB(m.jsHeapSizeLimit)}MB (${pct}%)`);
     };
     record();                                // 첫 줄은 바로 — 30초를 못 버티고 죽을 수도 있다

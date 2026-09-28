@@ -1,0 +1,47 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+/**
+ * 🧹 **서버 로그의 나레이션을 걷고, 관제웹 중계는 유지 목록만** (기사님 «가» · reviews/22 ①-2)
+ *
+ * ── 왜 ──
+ *
+ * 코드 흐름 나레이션(«…연산»·«관제탑에게 … 전달»)은 사실이 아니라 코드가 무엇을 하는지의
+ * 중계라, 판정·수상한 줄이 그 사이에 묻힌다. 관제웹 브라우저 디버그(그리기·GPS·지도)가
+ * 서버 파일의 1/3을 덮었다 — 남길 것은 경고·에러와 «기사님 손»(버튼·국면·필터), 콜 수신,
+ * 다녀옴·주행판정뿐이다. 브라우저 콘솔 자체는 그대로다 — 줄이는 것은 서버 파일로 올라가는 중계다.
+ */
+
+const src = (p: string) => readFileSync(join(__dirname, '../../src', p), 'utf8');
+
+describe('🧹 서버 나레이션 — 걷었다', () => {
+    const gone: Array<[string, string]> = [
+        ['core/engine/OrderEvaluator.ts', '연산");'],
+        ['core/engine/OrderEvaluator.ts', '관제탑에게'],
+        ['routes/detail.ts', '정제 연산'],
+        ['routes/detail.ts', '관제탑에게'],
+        ['routes/orders.ts', '캐싱 연산'],
+        ['routes/orders.ts', '타이머 감시 연산'],
+        ['routes/orders.ts', '스레드 락(Lock) 점검 완료'],
+        ['routes/scrap.ts', '관제탑에게'],
+        ['services/kakaoService.ts', '폴리라인 길이 예상'],
+    ];
+    it.each(gone)('%s 에 «%s» 나레이션이 없다', (file, phrase) => {
+        expect(src(file)).not.toContain(phrase);
+    });
+
+    it('안전취소 임박은 나레이션이 아니라 경고 사실 줄이다', () => {
+        expect(src('routes/detail.ts')).toContain('안전취소 임박');
+    });
+});
+
+describe('🧹 관제웹 → 서버 중계 — 유지 목록만 싣는다', () => {
+    const logs = src('routes/logs.ts');
+    it('유지 목록(RELAY_KEEP)이 있다', () => {
+        expect(logs).toContain('RELAY_KEEP');
+    });
+    it.each(['심사석', '국면', '필터', '웹 수신', '다녀옴', '주행판정'])(
+        '유지 목록에 «%s» 이 든다', (word) => {
+            expect(logs).toContain(word);
+        });
+});

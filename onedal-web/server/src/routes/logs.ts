@@ -41,8 +41,17 @@ interface ClientLogLine {
     msg?: string;
 }
 
-/** 받는 모양은 관제웹 · 원달앱이 같다 — 출처 머리와 한 줄 길이만 다르다 */
-function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLen: number) {
+/**
+ * 🧹 **관제웹 줄 가운데 서버 파일에 실을 것** (기사님 «가» · reviews/22 ①-2).
+ * 브라우저 콘솔에는 전부 남는다 — 여기서 거르는 것은 **서버 파일로 올라오는 중계**다.
+ * 남기는 것: 경고·에러 · 기사님 손(심사석 버튼 · 국면 전환 · 필터·반경 변경) · 콜 수신([웹 수신]) ·
+ * [다녀옴] · [주행판정]. 그리기·GPS·지도·시트 나레이션은 서버 파일을 덮어 «수상한 줄»을 묻는다.
+ * 🧠 메모리는 관제웹이 임계를 넘을 때 ⚠️ 를 붙여 보내므로 경고 무늬로 걸린다.
+ */
+const RELAY_KEEP = /⚠️|❌|🚨|💥|🔴|WARN|ERROR|Error|Geolocation|심사석|국면|필터 변경|반경|\[웹 수신\]|다녀옴|주행판정/;
+
+/** 받는 모양은 관제웹 · 원달앱이 같다 — 출처 머리와 한 줄 길이만 다르다. `keep` 이 있으면 그 무늬만 싣는다 */
+function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLen: number, keep?: RegExp) {
     return (req: Request, res: Response) => {
         const body = req.body as { deviceId?: string; lines?: ClientLogLine[] };
         const lines = Array.isArray(body?.lines) ? body.lines : [];
@@ -58,6 +67,7 @@ function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLe
             const at = typeof l?.at === "string" ? l.at.slice(0, 12) : "--:--:--.---";
             const msg = String(l?.msg ?? "").replace(/[\r\n]+/g, " ").slice(0, maxLen);
             if (!msg) continue;
+            if (keep && !keep.test(msg)) continue;   // 🧹 유지 목록 밖 — 브라우저 콘솔에만 남는다
             // 서버 자기 줄과 섞이지 않게 출처를 앞에 박는다
             console.log(`${head(who)} ${at} ${msg}`);
         }
@@ -67,7 +77,7 @@ function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLe
     };
 }
 
-router.post("/", logLinesRoute(who => `🖥️ [관제웹 ${who}]`, "관제웹", MAX_LEN));
+router.post("/", logLinesRoute(who => `🖥️ [관제웹 ${who}]`, "관제웹", MAX_LEN, RELAY_KEEP));
 router.post("/app", logLinesRoute(who => `📱 [원달앱 ${who}]`, "원달앱", MAX_APP_LEN));
 
 export default router;
