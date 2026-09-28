@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, TARGET_APP_LABEL } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
@@ -348,12 +348,12 @@ function DeviceRow({
                 </div>
             )}
 
-            {/* 🔔 알람 — «지금 인성 리스트에서 직접 누르십시오» */}
+            {/* 🔔 알람 — 배차망 이름은 그 폰이 보는 배차망. 원달앱이 상세까지 열고, 확정·수락은 기사님 */}
             {filterAlarm && (
                 <div className="mx-1 mt-1 rounded border border-info/40 bg-info/15 px-2 py-1.5 flex items-center gap-2 animate-pulse">
                     <span className="text-base leading-none">🔔</span>
                     <span className="text-info font-black text-[13px] tracking-tight">
-                        필터 통과 {filterAlarm.passed}건 — 인성 리스트에서 직접 누르십시오
+                        {device.targetApp ? `${TARGET_APP_LABEL[device.targetApp]} ` : ''}필터 통과 {filterAlarm.passed}건 — 상세에서 확정·수락은 기사님이 누르십시오
                     </span>
                     <span className="ml-auto text-[10px] text-info/70 font-bold tabular-nums shrink-0">
                         본 {filterAlarm.seen}
