@@ -37,6 +37,9 @@ class HeldManualCallTest {
     fun `픽커 수락 감지도 보고 보류 콜을 받아들인다`() {
         val c = codeOnly("$root/plugins/kakaopicker/KakaoPickerSequence.kt").substringAfter("fun ScanContext.reportPickerAccepted(")
         assertTrue(c.contains("session.heldUnfilled"))
+        // 상세 바로 뒤를 놓친 «늦은 수락 확인»도 보류 콜을 본다 (퀵: 수락 → 내 오더 → 흰 페이지)
+        val late = codeOnly("$root/plugins/kakaopicker/KakaoPickerPlugin.kt").substringAfter("shouldCheckLateAcceptance(").substringBefore(")")
+        assertTrue("늦은 수락 확인이 보고 보류 콜을 안 본다", late.contains("session.heldUnfilled"))
     }
 
     @Test

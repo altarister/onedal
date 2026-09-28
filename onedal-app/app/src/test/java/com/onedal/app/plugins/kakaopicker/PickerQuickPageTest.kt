@@ -87,15 +87,15 @@ class PickerQuickPageTest {
      */
     @Test
     fun `늦은 수락 확인 - 미리보기 딱지가 남은 채 수락 뒤 화면이 보이면 확인한다`() {
-        assertTrue(k.shouldCheckLateAcceptance(previousWasDetail = false, isPreview = true, hasDetailOrder = true, rawText = realDepartTop))
-        assertTrue(k.shouldCheckLateAcceptance(previousWasDetail = false, isPreview = true, hasDetailOrder = true, rawText = pickupGoing))
+        assertTrue(k.shouldCheckLateAcceptance(previousWasDetail = false, hasOpenDetailCall = true, hasDetailOrder = true, rawText = realDepartTop))
+        assertTrue(k.shouldCheckLateAcceptance(previousWasDetail = false, hasOpenDetailCall = true, hasDetailOrder = true, rawText = pickupGoing))
         assertTrue("도보 수락 뒤 화면도", k.shouldCheckLateAcceptance(false, true, true, "배송 물품 가지러 왔습니다 도움이 필요하신가요? 밀어서 픽업 완료"))
     }
 
     @Test
     fun `늦은 수락 확인 - 상세 바로 뒤 · 딱지 없음 · 콜 없음 · 수락 표식 없는 화면이면 안 한다`() {
-        assertFalse("상세 바로 뒤는 원래 길이 한다", k.shouldCheckLateAcceptance(previousWasDetail = true, isPreview = true, hasDetailOrder = true, rawText = realDepartTop))
-        assertFalse("딱지가 없다 — 이미 올렸거나 리스트로 돌아갔다", k.shouldCheckLateAcceptance(false, isPreview = false, hasDetailOrder = true, rawText = realDepartTop))
+        assertFalse("상세 바로 뒤는 원래 길이 한다", k.shouldCheckLateAcceptance(previousWasDetail = true, hasOpenDetailCall = true, hasDetailOrder = true, rawText = realDepartTop))
+        assertFalse("딱지가 없다 — 이미 올렸거나 리스트로 돌아갔다", k.shouldCheckLateAcceptance(false, hasOpenDetailCall = false, hasDetailOrder = true, rawText = realDepartTop))
         assertFalse("올릴 콜이 없다", k.shouldCheckLateAcceptance(false, true, hasDetailOrder = false, rawText = realDepartTop))
         val emptyMyOrderTab = "퀵 최대 합짐 개수 6건 진행 중인 오더가 없어요 한차배송 신청내역 보기 서포트모드 카드설정 수요지도 목록 지도 알림 신규 내 오더"
         assertFalse("오더가 없는 내 오더 탭은 수락 증거가 아니다", k.shouldCheckLateAcceptance(false, true, true, emptyMyOrderTab))

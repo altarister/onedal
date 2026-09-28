@@ -143,11 +143,11 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
         // ⏳ 늦은 수락 확인 — 퀵은 수락 → 내 오더 → 카드 → 흰 페이지라 상세 바로 뒤에는 수락 표식이 없다
         if (KakaoPickerKeywords.shouldCheckLateAcceptance(
                 previousWasDetail = previous == detail,
-                isPreview = context.session.isPreview,
+                hasOpenDetailCall = context.session.isPreview || context.session.heldUnfilled,   // 미리보기 또는 보고 보류
                 hasDetailOrder = context.session.lastDetailOrder != null,
                 rawText = rawScreenStr,
             )) {
-            com.onedal.app.core.AppLogger.i("1DAL_PICKER", "⏳ [늦은 수락 확인] 상세 바로 뒤는 아니지만 미리보기 딱지가 남은 채 수락 뒤 화면(${detected.name})이 보인다")
+            com.onedal.app.core.AppLogger.i("1DAL_PICKER", "⏳ [늦은 수락 확인] 상세 바로 뒤는 아니지만 정리되지 않은 상세 콜(미리보기·보고 보류)이 남은 채 수락 뒤 화면(${detected.name})이 보인다")
             context.reportPickerAccepted(rawScreenStr)
         }
     }

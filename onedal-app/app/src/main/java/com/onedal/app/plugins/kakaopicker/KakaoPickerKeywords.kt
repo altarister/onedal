@@ -227,12 +227,13 @@ object KakaoPickerKeywords {
      *
      * 퀵은 수락하면 «내 오더»로 가고 카드를 눌러야 흰 페이지(수락 표식)가 보인다. 상세 바로 뒤(내 오더)에는 표식이 없어
      * 승격이 보류되고, 흰 페이지는 «직전이 상세»가 아니다 — 이 확인이 없으면 수락이 **한 건도 서버에 안 올라간다**.
-     * 🔴 미리보기 딱지(`isPreview`)는 넘기기 · 뒤로 · 자동 복귀로 **리스트에 가면 비워진다** — 딱지가 남아 있다는 것은
+     * 🔴 `hasOpenDetailCall` = 아직 정리되지 않은 상세 콜이 있다 — 미리보기 딱지(`isPreview`) 또는 보고 보류(`heldUnfilled` · 손으로 열었고 전체 주소를 못 채운 콜).
+     *    둘 다 넘기기 · 뒤로 · 자동 복귀로 **리스트에 가면 비워진다** — 남아 있다는 것은
      *    상세를 떠난 뒤 리스트를 거치지 않았다는 뜻이다. 거기에 수락 뒤 표식이 **실제로 보여야** 한다 (없음이 아니라 있음).
      * 상세 바로 뒤는 원래 길(`afterDetail` → `reportPickerAccepted`)이 한다 — 두 번 부르지 않는다.
      */
-    fun shouldCheckLateAcceptance(previousWasDetail: Boolean, isPreview: Boolean, hasDetailOrder: Boolean, rawText: String?): Boolean =
-        !previousWasDetail && isPreview && hasDetailOrder && isAcceptedEvidence(rawText)
+    fun shouldCheckLateAcceptance(previousWasDetail: Boolean, hasOpenDetailCall: Boolean, hasDetailOrder: Boolean, rawText: String?): Boolean =
+        !previousWasDetail && hasOpenDetailCall && hasDetailOrder && isAcceptedEvidence(rawText)
 
     /**
      * 📝 **승격할 때 서버로 보낼 상세 글자 — 상세에서 모은 것이 이긴다** (체험 · 로그 분석).
