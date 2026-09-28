@@ -168,7 +168,6 @@ class SessionManager {
         isPreview = false
         isVerifyingSnapshot = false
         onReset?.invoke()
-        AppLogger.roadmap("🔄 세션 및 콜 잡기 상태 완전 초기화 (새로운 타겟 대기)", "SESSION")
         AppLogger.i(TAG, "🔄 세션 상태 완전 초기화")
     }
 

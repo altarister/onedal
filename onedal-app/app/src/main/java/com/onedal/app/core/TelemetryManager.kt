@@ -334,7 +334,6 @@ class TelemetryManager(
             onModeReceived = { mode ->
                 currentMode = mode
                 modeCallback?.invoke(mode)
-                AppLogger.d(TAG, "📥 [서버 수신] $triggerStr 완료 (수신된 모드: $mode)")
             },
             onDecisionReceived = decisionCallback,
             onCallMemoryRound = callMemoryRoundCallback

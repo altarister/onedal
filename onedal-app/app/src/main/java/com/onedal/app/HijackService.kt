@@ -737,7 +737,6 @@ class HijackService : AccessibilityService(), ScanContext {
             return
         }
 
-        AppLogger.d(TAG, "-------------------------------")
         AppLogger.roadmap("📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}→$effectiveMode", telemetryManager.currentScreenContext.name)
 
         // 🔔 리스트를 떠났다 — 남의 화면 위에 알람 테두리를 남기지 않는다 (§6-③)

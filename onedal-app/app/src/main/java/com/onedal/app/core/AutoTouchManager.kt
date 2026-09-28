@@ -278,7 +278,6 @@ class AutoTouchManager(private val service: AccessibilityService) {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 super.onCompleted(gestureDescription)
                 AppLogger.d(TAG, "✅ [가로채기 성공!] 화면 좌표 (X:$x, Y:$y → 찍음 X:$tx, Y:$ty · ${holdMs}ms) 터치 완료!")
-                AppLogger.roadmap("버튼 터치 완료 (가로채기 성공) X:$tx, Y:$ty · ${holdMs}ms", "")
                 inFlight?.takeIf { it.seq == seq }?.let { inFlight = it.copy(completed = true) }
             }
             override fun onCancelled(gestureDescription: GestureDescription?) {
