@@ -17,6 +17,13 @@ object OrderRequirement {
         order.fare > 0 && filled(order.pickup) && (allowsEmptyDropoff || filled(order.dropoff))
 
     /**
+     * 🏠 **상세의 필수 요소 — 세 배차망 같다** (기사님 «상세에 들어간 뒤엔 모든 주소를 다 가지고 있어야 한다 · 배차망에 따라 달라질 수 없다»)
+     * 요금 · 상차 **전체 주소** · 하차 **전체 주소**(도보도). 전체 주소 판정은 `AddressForm` 한 곳 — 모자라면 서버에 보내지 않고 버린다.
+     */
+    fun meetsDetail(order: SimplifiedOfficeOrder): Boolean =
+        order.fare > 0 && AddressForm.isFull(order.pickup) && AddressForm.isFull(order.dropoff)
+
+    /**
      * 📋 **목록 완독** — 요건에 **상차지거리**를 더한다(기사님 «상차지 거리를 찾는 건 공통»). 목록 줄에만 쓴다.
      * 거르는 게 아니라 **미루는 것**이다 — 덜 읽힌 줄은 그 스캔만 빼고 다음 스캔에 다시 본다.
      * 상세에서는 거리를 요구하지 않는다(손으로 연 상세·사진으로 만든 콜에는 거리가 없다) — 상세는 `meets`.

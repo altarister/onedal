@@ -22,7 +22,6 @@ import { applySoloRoute, composeMergedRoute } from "../../services/routeComposer
 import { IAppPlugin } from "../plugins/IAppPlugin";
 import { PluginFactory } from "../plugins/PluginFactory";
 import { getActiveCalls } from "../helpers";
-import { promoteDetailAddresses } from "../../utils/parser";
 
 
 /**
@@ -84,10 +83,7 @@ export class OrderEvaluator {
         console.log(`\n======================================================`);
         console.log(`[서버-사이드 카카오 연산] 🚀 ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
 
-        // 1. 주소 승격·정규화 — 승격 판단은 promoteDetailAddresses 한 곳이다.
-        //    detail 수신 때 이미 한 번 승격되지만, 직접 이 심사로 들어오는 옛 경로를 위해
-        //    같은 함수를 한 번 더 태운다 (멱등 — 두 벌 코드가 아니라 같은 문이다)
-        promoteDetailAddresses(securedOrder);
+        // 1. 주소 정규화 — 상차·하차는 원달앱이 올린 전체 주소 그대로다(서버는 팝업에서 주소를 꺼내지 않는다)
         securedOrder.pickup = this.plugin.normalizeAddress(securedOrder.pickup);
         securedOrder.dropoff = this.plugin.normalizeAddress(securedOrder.dropoff);
 

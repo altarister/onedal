@@ -109,6 +109,12 @@ class SessionManager {
      */
     var isPreview: Boolean = false
 
+    /**
+     * ✋ **보고 보류** — 기사님이 손으로 연 콜인데 전체 주소를 못 채워 서버에 보내지 않았다(기사님 «가»).
+     * 기사님이 확정(픽커는 수락)하시면 그건 기사님이 잡은 콜이라, 확정 화면·수락 감지가 이 표시를 보고 짧은 주소로라도 상세 보고한다.
+     */
+    var heldUnfilled: Boolean = false
+
     /** 📸 픽커 상세 화면 스냅샷 OCR 판독 진행 중 여부 (중복 트리거 및 0.33초 제한 방어) */
     var isVerifyingSnapshot: Boolean = false
 
@@ -148,6 +154,7 @@ class SessionManager {
      */
     fun reset(onReset: (() -> Unit)? = null) {
         isDetailScrapSent = false
+        heldUnfilled = false
         collectState = CollectState.IDLE
         accumulatedDetailText = ""
         lastDetailOrder = null

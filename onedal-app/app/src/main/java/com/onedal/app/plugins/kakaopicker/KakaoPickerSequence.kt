@@ -40,7 +40,8 @@ fun ScanContext.reportPickerAccepted(rawScreenStr: String) {
      *       픽커는 **하루 5번**이라 판을 한 번 더 돌리는 값이 비싸다.
      *    ⚠️ 이 함수는 화면이 바뀔 때만 불리므로 로그가 밀리지 않는다.
      */
-    if (!session.isPreview) {
+    // ✋ 보고 보류 콜(손으로 열었고 전체 주소를 못 채움)도 기사님이 수락하셨으면 잡은 콜로 올린다 (기사님 «가»)
+    if (!session.isPreview && !session.heldUnfilled) {
         // ⚠️ 리스트로 돌아온 경우는 여기 안 온다 (`KakaoPickerKeywords.afterDetail`) — 세션이 비워진 뒤라 까닭을 틀리게 적었다
         AppLogger.d("1DAL_PICKER", "↩️ [승격 안 함] 미리보기 딱지가 없다 — " +
             (if (session.lastDetailOrder == null) "미리보기를 못 보냈다 (상세에서 리스트 카드를 못 찾았다 — `👀 [미리보기 보류]` 줄에 까닭)" else "이미 올린 콜이다"))
@@ -57,6 +58,7 @@ fun ScanContext.reportPickerAccepted(rawScreenStr: String) {
     }
     val order = session.lastDetailOrder ?: return
     session.isPreview = false
+    session.heldUnfilled = false
     /**
      * 📝 **상세에서 모은 글자를 덮지 않는다** — 고르는 일은 `detailTextForAccept` 한 곳이다.
      *    수락 뒤 화면에 주소 전문이 있는 판(퀵 흰 페이지)도 있지만, 「내 오더」 탭에는 줄임 이름뿐이다.

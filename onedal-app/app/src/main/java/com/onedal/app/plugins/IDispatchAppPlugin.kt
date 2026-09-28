@@ -70,6 +70,12 @@ interface IDispatchAppPlugin {
     fun passesDetailFilter(context: ScanContext, order: SimplifiedOfficeOrder): Boolean = true
 
     /**
+     * 🏠 **채운 값을 콜에 싣는다** — 채우기(`executePreConfirmSpecial`)가 끝난 뒤 한 번. 기본은 그대로.
+     * 인성은 팝업 «위치»에서 전체 주소를 꺼내 상차·하차 칸에 넣는다(서버가 꺼내지 않는다 — 기사님 «상세 데이터엔 전체 주소»).
+     */
+    fun fillDetail(context: ScanContext, order: SimplifiedOfficeOrder): SimplifiedOfficeOrder = order
+
+    /**
      * 👆 **목록에서 이 콜을 눌러도 되나, 어디를 누르나** — 누르기 전 안전 확인 (배차망_모드표.md «누를 수 있는 카드의 조건»).
      * 기본: 요금 칸을 바로 누른다. 픽커: 계약 버튼이 한 번에 눌릴 수 있는 카드(오더카드)를 피한다.
      */

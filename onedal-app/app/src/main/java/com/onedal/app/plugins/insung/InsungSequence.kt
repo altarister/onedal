@@ -127,6 +127,14 @@ fun ScanContext.handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTex
         return
     }
 
+    // ✋ 보고 보류 콜(손으로 열었고 전체 주소를 못 채움) — 기사님이 확정하셨다. 기사님이 잡은 콜이라 짧은 주소로라도 상세 보고한다 (기사님 «가»)
+    if (session.heldUnfilled) {
+        session.heldUnfilled = false
+        AppLogger.w("1DAL_INSUNG", "✋ [보고 보류 → 확정] 전체 주소를 못 채운 콜을 기사님이 확정하셨다 — 그대로 상세 보고")
+        session.lastDetailOrder?.let { order -> sendDetail(order) }
+        return
+    }
+
     // 이미 보고한 콜(앱이 채우고 확정한 콜) — 확정 화면에서 할 일이 없다
     if (session.isDetailScrapSent) return
 

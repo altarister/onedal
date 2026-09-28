@@ -52,11 +52,8 @@ fun ScanContext.handlePreConfirmScreen(
         scheduleDetailBack()
     }
 
-    // 📸 [스냅샷 OCR 분기] 플러그인에 ocrParser가 등록된 배차망(픽커 등)은 스냅샷 OCR로 판독한다
-    if (plugin.ocrParser != null) {
-        handlePreConfirmSnapshot(plugin, rootNode, screenTexts, rawScreenStr)
-        return
-    }
+    // 📸 사진 판독이 도는 중이면 기다린다 — 사진은 따로 돌고, 같은 상세가 다시 들어와도 두 번 찍지 않는다
+    if (session.isVerifyingSnapshot) return
 
     // 최근 LIST 화면에서 파싱된 원본 오더와 대조 매칭 (전표오염 회피)
     val matchedOrder = scrapParser.matchDetailOrder(screenTexts, recentListOrders)
@@ -96,23 +93,36 @@ fun ScanContext.handlePreConfirmScreen(
         return
     }
 
-    // 📋 요건 대조 한 번 — 채운 값으로 (배차망_모드표.md). 못 채웠으면 서버에 보내지 않고 버린다
-    if (!OrderRequirement.meets(finalOrder, plugin.allowsEmptyDropoff(finalOrder))) {
+    // 🏠 채운 값을 콜에 싣는다 — 인성은 팝업 «위치»를 전체 주소로 (서버가 꺼내지 않는다)
+    val order = plugin.fillDetail(this, finalOrder)
+    session.lastDetailOrder = order
+
+    // 📸 그래도 필수 요소(전체 주소·요금)가 모자라면 사진 — 사진 판독기가 있는 배차망만. 배차망 이름이 아니라 «모자란가»가 방아쇠다
+    if (!OrderRequirement.meetsDetail(order) && plugin.ocrParser != null) {
+        handlePreConfirmSnapshot(plugin, rootNode, screenTexts, rawScreenStr)
+        return
+    }
+
+    // 📋 필수 요소 최종 대조 — 세 배차망 같다. 못 채웠으면 서버에 보내지 않고 버린다
+    if (!OrderRequirement.meetsDetail(order)) {
         apiClient.sendAnomalyReport(
             targetApp = currentTargetApp,
             screenName = telemetryManager.currentScreenContext.name,
             failureReason = "REQUIREMENT_UNMET",
-            listOrderInfo = mapOf("fare" to finalOrder.fare, "pickup" to finalOrder.pickup, "dropoff" to finalOrder.dropoff),
+            listOrderInfo = mapOf("fare" to order.fare, "pickup" to order.pickup, "dropoff" to order.dropoff),
             detailParsedText = rawScreenStr.take(500),
             ocrResult = null,
         )
-        dropUnfilledCall("요건 미달 ${finalOrder.pickup.take(14)} → ${finalOrder.dropoff.take(14)} ${finalOrder.fare}원")
+        dropUnfilledCall("요건 미달 ${order.pickup.take(14)} → ${order.dropoff.take(14)} ${order.fare}원")
         return
     }
 
+    // 🎯 «누른 그 콜인가» — 세 배차망 같은 검증
+    if (dropIfNotTappedCall(order, rawScreenStr)) return
+
     AppLogger.roadmap("상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인", telemetryManager.currentScreenContext.name)
 
-    val isTarget = passesFilterAfterFill(plugin, finalOrder)
+    val isTarget = passesFilterAfterFill(plugin, order)
 
     if (!session.openedByApp || isTarget) {
         // ✍️ 앱이 계약 버튼을 누르는 콜 — 자동 모드이고 이 배차망에 수락 칸이 있을 때만 (수락 칸이 비었는지 읽는 곳은 여기 한 곳)
@@ -120,7 +130,7 @@ fun ScanContext.handlePreConfirmScreen(
         val appContracts = session.contractedByApp && acceptButtons != null
         // 👀 계약하지 않는 콜은 미리보기 — 선점 보고 **전에** 켠다. 서버는 이 표시가 있어야 심사한다
         if (!appContracts) session.isPreview = true
-        sendConfirmOnce(finalOrder, rawScreenStr)
+        sendConfirmOnce(order, rawScreenStr)
 
         // 수동 클릭이지만 스위치가 AUTO면, 서버가 결재를 보낼 수 있으므로 임시 고속 폴링(1초) 활성화
         if (!session.contractedByApp && effectiveMode == "AUTO") {
@@ -141,14 +151,14 @@ fun ScanContext.handlePreConfirmScreen(
             AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
             if (clickFirstMatchingButton(rootNode, acceptButtons)) {
                 AppLogger.roadmap("[${keywords.appLabel}] 콜 확정 완료", telemetryManager.currentScreenContext.name)
-                sendDetail(finalOrder)
+                sendDetail(order)
             } else {
                 AppLogger.w(TAG, "🛑 [확정 실패] 확정 버튼을 못 눌렀다 — 상세 보고를 보내지 않고 빠져나온다")
                 apiClient.sendAnomalyReport(
                     targetApp = currentTargetApp,
                     screenName = telemetryManager.currentScreenContext.name,
                     failureReason = "CONFIRM_BUTTON_NOT_FOUND",
-                    listOrderInfo = mapOf("fare" to finalOrder.fare, "pickup" to finalOrder.pickup, "dropoff" to finalOrder.dropoff),
+                    listOrderInfo = mapOf("fare" to order.fare, "pickup" to order.pickup, "dropoff" to order.dropoff),
                     detailParsedText = rawScreenStr.take(500),
                     ocrResult = null,
                 )
@@ -156,7 +166,7 @@ fun ScanContext.handlePreConfirmScreen(
             }
         } else {
             // 👀 계약하지 않는 콜(기사님이 연 상세 · 체험 · 알람) — 채운 글자 그대로 상세 보고, 판정을 기다린다
-            sendDetail(finalOrder)
+            sendDetail(order)
         }
     } else {
         // [AUTO 모드이면서 2차 필터 실패] -> 공통 즉시 취소/뒤로가기 회피 기동
@@ -186,8 +196,10 @@ fun ScanContext.dropUnfilledCall(reason: String) {
         demoteTappedCall(reason)
         abortPreConfirm()
     } else {
+        // ✋ 기사님이 손으로 연 콜 — 버리지 않고 보류한다. 기사님이 확정(픽커는 수락)하시면 그때 보고한다 (기사님 «가»)
         session.isVerifyingSnapshot = false
         session.isDetailScrapSent = true
+        session.heldUnfilled = true
     }
 }
 
@@ -230,7 +242,9 @@ private fun ScanContext.handlePreConfirmSnapshot(
         session.alarmTappedAtMs,
         android.os.SystemClock.elapsedRealtime()
     )
-    val tappedCard = session.alarmTappedCard?.takeIf { opener == KakaoPickerKeywords.OPENER_ALARM }
+    // «앱이 눌렀나»는 한 사실로 읽는다 — `dropIfNotTappedCall` 과 같은 `openedByApp` (시간 창 `opener` 는 로그용)
+    val tappedCard = session.alarmTappedCard?.takeIf { session.openedByApp }
+    AppLogger.d(TAG, "📸 [사진 판독 시작] 연 쪽: ${if (session.openedByApp) "앱" else "손"} · 누른 뒤 시간 창: $opener")
     val matchedListCard = scrapParser.matchDetailOrder(screenTexts, recentListOrders)
 
     val pickerParser = plugin.ocrParser as? com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser
@@ -256,8 +270,8 @@ private fun ScanContext.handlePreConfirmSnapshot(
                             AppLogger.w(TAG, "📸 [스냅샷 성공 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
                             return@post
                         }
-                        // 📋 요건 대조 한 번 — 사진으로 채운 값으로
-                        if (!OrderRequirement.meets(verifiedOrder, plugin.allowsEmptyDropoff(verifiedOrder))) {
+                        // 📋 필수 요소 최종 대조 — 사진으로 채운 값으로 (세 배차망 같다)
+                        if (!OrderRequirement.meetsDetail(verifiedOrder)) {
                             apiClient.sendAnomalyReport(
                                 targetApp = currentTargetApp,
                                 screenName = telemetryManager.currentScreenContext.name,
@@ -269,7 +283,9 @@ private fun ScanContext.handlePreConfirmSnapshot(
                             dropUnfilledCall("사진으로 채운 값이 요건 미달")
                             return@post
                         }
-                        // 🔎 채운 뒤 필터 한 번 — 글자 길과 같은 함수 (앱이 연 콜만 거른다 · 기사님이 연 상세는 그대로 보낸다)
+                        // 🎯 «누른 그 콜인가» — 세 배차망 같은 검증
+                        if (dropIfNotTappedCall(verifiedOrder, rawScreenStr)) return@post
+                        // 🔎 채운 뒤 필터 한 번 — 같은 함수 (앱이 연 콜만 거른다 · 기사님이 연 상세는 그대로 보낸다)
                         if (session.openedByApp && !passesFilterAfterFill(plugin, verifiedOrder)) {
                             AppLogger.w(TAG, "🔎 [채운 뒤 탈락] ${verifiedOrder.pickup.take(14)} → ${verifiedOrder.dropoff.take(14)} ${verifiedOrder.fare}원 — 서버에 보내지 않고 목록으로")
                             session.isDetailScrapSent = true
@@ -288,19 +304,6 @@ private fun ScanContext.handlePreConfirmSnapshot(
                         AppLogger.roadmap("📸 [스냅샷 통과] 픽커 상세 검증 완료: ${orderWithId.pickup} → ${orderWithId.dropoff}", telemetryManager.currentScreenContext.name)
                         sendConfirmOnce(orderWithId, rawScreenStr)
                         sendDetail(orderWithId)
-                    }
-                    is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Mismatch -> {
-                        val reason = verifyResult.reason
-                        AppLogger.w(TAG, "🚨 [스냅샷 불일치] $reason -> 리스트로 안전 복귀 회피 기동")
-                        apiClient.sendAnomalyReport(
-                            targetApp = currentTargetApp,
-                            screenName = telemetryManager.currentScreenContext.name,
-                            failureReason = "SNAPSHOT_MISMATCH: $reason",
-                            listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
-                            detailParsedText = rawScreenStr.take(500),
-                            ocrResult = mapOf("pickup" to detail.pickup.admin, "dropoff" to detail.dropoff.admin, "straightKm" to detail.dropoff.straightKm)
-                        )
-                        abortPreConfirm()
                     }
                 }
             }
@@ -340,7 +343,29 @@ private fun ScanContext.handlePreConfirmSnapshot(
 }
 
 /**
- * 🔎 **채운 뒤 필터 한 번 — 글자 길(인성·화물24시)과 사진 길(픽커)이 같은 함수** (기사님 «같은 순서»).
+ * 🎯 **«누른 그 콜인가» — 어긋나면 버린다** (공통 · `TappedCall`). 앱이 누른 줄이 있을 때만 — 손으로 연 상세는 검증할 것이 없다.
+ * 어긋나면 이상 징후(DETAIL_MISMATCH)를 남기고, 그 콜을 «막았다»로 내리고 목록으로. 돌려주는 값: 버렸나.
+ */
+fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: String): Boolean {
+    val tapped = session.alarmTappedCard?.takeIf { session.openedByApp } ?: return false
+    val reason = TappedCall.mismatch(tapped, order) ?: return false
+    AppLogger.w(TAG, "🎯 [누른 콜 아님] $reason — 서버에 보내지 않고 목록으로")
+    apiClient.sendAnomalyReport(
+        targetApp = currentTargetApp,
+        screenName = telemetryManager.currentScreenContext.name,
+        failureReason = "DETAIL_MISMATCH: $reason",
+        listOrderInfo = mapOf("fare" to tapped.fare, "pickup" to tapped.pickup, "dropoff" to tapped.dropoff),
+        detailParsedText = rawScreenStr.take(500),
+        ocrResult = null,
+    )
+    session.isDetailScrapSent = true
+    demoteTappedCall(reason)
+    abortPreConfirm()
+    return true
+}
+
+/**
+ * 🔎 **채운 뒤 필터 한 번 — 읽기 → 채우기 → 모자라면 사진 뒤, 어느 배차망이든 같은 함수** (기사님 «같은 순서»).
  * 목록에서 모르던 값(하차 등)을 채운 뒤 같은 필터를 다시 건다. 성적표는 목록에서 이미 셌으므로 다시 세지 않는다(tally 없음).
  */
 fun ScanContext.passesFilterAfterFill(plugin: IDispatchAppPlugin, order: SimplifiedOfficeOrder): Boolean =

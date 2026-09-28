@@ -5,10 +5,9 @@
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
 import { isTerminal, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
-import { parseLocationDetails, promoteDetailAddresses, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
+import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
-import { pickerDetailAddresses } from "../core/plugins/kakaopicker/pickerDetailText";
 import { getUserSession } from "../state/userSessionStore";
 import { evolveOrder, rememberOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
@@ -69,23 +68,10 @@ router.post("/", async (req, res) => {
             pendingOrder.dropoffDetails = parseLocationDetails(rawText, "[도착지상세]");
 
             /**
-             * 📍 **픽커 상세 — 전체 주소를 인성 팝업 «위치»와 같은 칸에 담는다**.
-             * 리스트 줄임 이름(«광주 초월읍»)으로는 서버의 지역 불일치 방어가 광주광역시로 보고 버렸다.
-             * 아래 `promoteDetailAddresses` 한 곳이 인성과 똑같이 콜 주소로 올린다. 못 찾은 쪽은 리스트 이름 그대로 (규칙 ④).
+             * 🏠 **상차·하차는 원달앱이 올린 전체 주소 그대로다** (기사님 «상세 데이터엔 짧은 주소가 아니고 전체 주소»).
+             * 서버는 팝업 원문에서 주소를 꺼내 콜 주소로 올리지 않는다 — 원달앱이 채우고(인성 팝업 «위치» · 픽커 사진 + 건물명),
+             * 못 채운 콜은 원달앱이 버린다. 위 `parseLocationDetails` 는 연락처·고객 이름을 꺼내는 데 쓴다.
              */
-            if ((payload as any).targetApp === 'kakaopicker' || (pendingOrder as any).targetApp === 'kakaopicker') {
-                const addr = pickerDetailAddresses(rawText);
-                if (addr.pickup) pendingOrder.pickupDetails = [{ addressDetail: addr.pickup }];
-                if (addr.dropoff) pendingOrder.dropoffDetails = [{ addressDetail: addr.dropoff }];
-            }
-
-            /**
-             * 📍 **주소 승격은 분기 «앞» 여기 한 번이다**.
-             *
-             * 필터콜·직접콜·미리보기가 **같은 문**으로 받는다 — 심사 안에만 두면 직접콜(즉시 KEEP)·«수집중» 콜이
-             * 주소 없이 장부에 남아 경로·progressKm 를 오염시킨다.
-             */
-            promoteDetailAddresses(pendingOrder);
 
             if (!pendingOrder.fare || pendingOrder.fare <= 0) {
                 pendingOrder.fare = parseMockupFare(rawText) || 0;

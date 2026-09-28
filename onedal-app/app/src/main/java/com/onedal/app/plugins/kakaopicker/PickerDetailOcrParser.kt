@@ -10,27 +10,16 @@ import com.onedal.app.models.SimplifiedOfficeOrder
  *
  * - 자르기(crop): 상단 40% 지도 영역을 잘라내고 하단 60% 상세 전표 영역만 추출
  * - 줄 나누기(parse): PickerScreenOcr.parseDetail 로 픽업지/배송지/물품정보 추출
- * - 검증/조립(verify): 알람 콜 동 토막 대조(matchDong) 및 수동 콜 요금 복원(#119 수호) 오더 조립
+ * - 조립(verify): 사진 주소(행정동 + 건물명)를 콜에 싣고, 수동 콜은 요금을 복원한다(#119 수호). «누른 그 콜인가»는 공통 `TappedCall`
  */
 class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
 
     companion object {
         /**
-         * 🎯 카드 주소와 OCR 행정동 대조: 마지막 토막(동/읍/면)이 반드시 행정동에 포함되어야 한다.
-         * (예: "분당 야탑3" → "야탑3"이 "경기 성남시 분당구 야탑3동"에 포함됨)
-         * 앞선 구 이름("분당")만으로 이웃 동("이매1동")이 오판 통과되는 것을 방어한다.
+         * 🏠 **서버에 올릴 전체 주소 = 행정동 주소 + 건물명** — 서버가 건물명을 따로 꺼내지 않는다(원달앱이 상세 데이터에 전체 주소를 싣는다).
+         * 건물명이 있으면 지오코딩이 동 중심이 아니라 그 건물로 간다. 없으면 행정동 주소만.
          */
-        fun matchDong(cardText: String, adminText: String): Boolean {
-            val tokens = cardText.split(' ', '·').map { it.trim() }.filter { it.length >= 2 }
-            if (tokens.isEmpty()) return true
-            val lastToken = tokens.last()
-            val cleanDong = lastToken.removeSuffix("동").removeSuffix("읍").removeSuffix("면").removeSuffix("리")
-            return if (cleanDong.length >= 2) {
-                adminText.contains(cleanDong, ignoreCase = true)
-            } else {
-                adminText.contains(lastToken, ignoreCase = true)
-            }
-        }
+        fun fullAddress(stop: PickerStopFromImage): String = listOfNotNull(stop.admin, stop.place).joinToString(" ")
 
         /**
          * 💰 화면 텍스트에서 요금(예: "9,693P", "9693P", "15,000원") 추출
@@ -59,12 +48,11 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
 
     sealed class VerifyResult {
         data class Success(val order: SimplifiedOfficeOrder, val detail: PickerDetailFromImage) : VerifyResult()
-        data class Mismatch(val reason: String, val detail: PickerDetailFromImage) : VerifyResult()
     }
 
     /**
      * 🎯 OCR 판독 결과와 리스트 카드를 대조하여 검증된 오더를 조립한다.
-     * - 알람 콜(`alarmTappedCard != null`): 동 토막 엄격 대조 일치 시 성공, 불일치 시 Mismatch
+     * - 알람 콜(`alarmTappedCard != null`): 누른 줄에 사진 주소를 싣는다 — «누른 그 콜인가»는 공통 검증(`TappedCall`)이 본다
      * - 수동 콜(`alarmTappedCard == null`): 리스트 매칭 카드로 요금을 복원하고 OCR 결과로 오더 조립 (#119 수호)
      */
     fun verify(
@@ -75,21 +63,13 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
         rawScreenStr: String
     ): VerifyResult {
         if (alarmTappedCard != null) {
-            val pickupMatch = matchDong(alarmTappedCard.pickup, parsed.pickup.admin)
-            val dropoffMatch = matchDong(alarmTappedCard.dropoff, parsed.dropoff.admin)
-
-            return if (pickupMatch && dropoffMatch) {
-                val verifiedOrder = alarmTappedCard.copy(
-                    pickup = parsed.pickup.admin,
-                    dropoff = parsed.dropoff.admin,
-                    rawText = rawScreenStr,
-                    itemSize = parsed.itemSize ?: alarmTappedCard.itemSize
-                )
-                VerifyResult.Success(verifiedOrder, parsed)
-            } else {
-                val reason = "주소 불일치 (기억: ${alarmTappedCard.pickup}→${alarmTappedCard.dropoff} / OCR: ${parsed.pickup.admin}→${parsed.dropoff.admin})"
-                VerifyResult.Mismatch(reason, parsed)
-            }
+            val verifiedOrder = alarmTappedCard.copy(
+                pickup = fullAddress(parsed.pickup),
+                dropoff = fullAddress(parsed.dropoff),
+                rawText = rawScreenStr,
+                itemSize = parsed.itemSize ?: alarmTappedCard.itemSize
+            )
+            return VerifyResult.Success(verifiedOrder, parsed)
         } else {
             val baseOrder = matchedListOrder
             val resolvedFare = baseOrder?.fare?.takeIf { it > 0 } ?: extractFareFromTexts(screenTexts)
@@ -101,8 +81,8 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
             val manualOrder = baseOrder?.copy(
                 id = baseOrder.id.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
                 type = "MANUAL_CLICK",
-                pickup = parsed.pickup.admin,
-                dropoff = parsed.dropoff.admin,
+                pickup = fullAddress(parsed.pickup),
+                dropoff = fullAddress(parsed.dropoff),
                 fare = resolvedFare,
                 timestamp = now,
                 rawText = rawScreenStr,
@@ -112,8 +92,8 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
             ) ?: SimplifiedOfficeOrder(
                 id = "MANUAL-${System.currentTimeMillis()}",
                 type = "MANUAL_CLICK",
-                pickup = parsed.pickup.admin,
-                dropoff = parsed.dropoff.admin,
+                pickup = fullAddress(parsed.pickup),
+                dropoff = fullAddress(parsed.dropoff),
                 fare = resolvedFare,
                 timestamp = now,
                 rawText = rawScreenStr,

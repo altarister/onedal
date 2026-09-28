@@ -188,14 +188,14 @@ class PickerScreenOcrTest {
     @Test
     fun `동 대조는 마지막 토막(동)을 엄격 검증하여 같은 구 이웃 동 오판을 막는다`() {
         // 정상 일치
-        assertTrue(PickerDetailOcrParser.matchDong("분당 야탑3", "경기 성남시 분당구 야탑3동"))
-        assertTrue(PickerDetailOcrParser.matchDong("광주 광남1", "경기 광주시 광남1동"))
-        assertTrue(PickerDetailOcrParser.matchDong("성남 상대원", "경기 성남시 중원구 상대원동"))
-        assertTrue(PickerDetailOcrParser.matchDong("강남 역삼동", "서울 강남구 역삼2동"))
+        assertTrue(com.onedal.app.core.engine.TappedCall.dongMatch("분당 야탑3", "경기 성남시 분당구 야탑3동"))
+        assertTrue(com.onedal.app.core.engine.TappedCall.dongMatch("광주 광남1", "경기 광주시 광남1동"))
+        assertTrue(com.onedal.app.core.engine.TappedCall.dongMatch("성남 상대원", "경기 성남시 중원구 상대원동"))
+        assertTrue(com.onedal.app.core.engine.TappedCall.dongMatch("강남 역삼동", "서울 강남구 역삼2동"))
 
         // 같은 구 내의 다른 동 끼어들기 방어 (분당 야탑3 vs 분당구 이매1동) -> 실패해야 정상!
-        assertFalse(PickerDetailOcrParser.matchDong("분당 야탑3", "경기 성남시 분당구 이매1동"))
-        assertFalse(PickerDetailOcrParser.matchDong("강남 역삼동", "서울 강남구 논현동"))
+        assertFalse(com.onedal.app.core.engine.TappedCall.dongMatch("분당 야탑3", "경기 성남시 분당구 이매1동"))
+        assertFalse(com.onedal.app.core.engine.TappedCall.dongMatch("강남 역삼동", "서울 강남구 논현동"))
     }
 
     @Test

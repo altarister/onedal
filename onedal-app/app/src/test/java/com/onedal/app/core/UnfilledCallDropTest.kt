@@ -34,7 +34,7 @@ class UnfilledCallDropTest {
 
     @Test
     fun `상세는 요건을 보고, 못 채우면 목록 줄 값으로 대신 보내지 않는다`() {
-        assertTrue("상세의 요건 확인이 없다", seq.contains("OrderRequirement.meets("))
+        assertTrue("상세의 요건 확인이 없다", seq.contains("OrderRequirement.meetsDetail("))   // 상세 필수 요소 = 전체 주소 · 요금
         assertFalse("사진을 못 읽었는데 목록 줄 값으로 대신 보낸다", seq.contains("tappedCard ?: matchedListCard"))
     }
 
