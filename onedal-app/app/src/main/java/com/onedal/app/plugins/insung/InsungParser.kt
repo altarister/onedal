@@ -6,6 +6,7 @@ import com.onedal.app.plugins.RouteOrderFilter
 import com.onedal.app.plugins.PickupListFilter
 import com.onedal.app.plugins.RegionMatch
 import com.onedal.app.core.IScrapParser
+import com.onedal.app.core.engine.FareFloor
 import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.core.ScreenTextNode
 import com.google.gson.Gson
@@ -346,28 +347,22 @@ class InsungParser(private val context: Context) : IScrapParser {
              * 분당→영등포 30km 짜리와 광주→파주 100km 짜리에 같은 2만원을 걸면
              * 한쪽은 똥콜이 통과하고 한쪽은 꿀콜이 걸러진다.
              *
-             *   통과 = 요금 ≥ 배송거리 × 단가(차종)
+             *   통과 = 요금 ≥ 최소 금액 **그리고** 요금 ≥ 배송거리 × 단가(차종)
+             *
+             * 💵 **최소 금액은 세 배차망 공통 한 식**(`FareFloor`) — 단가가 서도 함께 본다 (기사님 «가»).
+             *   단가로는 통과인 짧은 콜도 막대 아래면 떨어진다. 막대 0 이 «끔»이다. 화물24시와 같은 식이다.
              *
              * 서버가 콜할인율를 이미 반영한 단가표를 피기백으로 내려 준다 — 앱은 곱셈만 한다.
-             *
-             * **폴백은 한 갈래 — 셋 중 하나라도 없으면 기존 `minFare` 판정으로 되돌아간다.**
-             *   단가표가 없거나(서버 미응답) · 차종을 못 읽었거나 · 배송거리를 못 읽은 경우.
-             *   통과시켜 버리지 않는 이유는, 그러면 리스트 전체가 들어와 안전취소가 밀리기 때문이다.
-             *   `minFare` 는 최소한의 문턱으로 남기고 정확한 판정은 서버가 한다.
+             * 단가표가 없거나(서버 미응답) · 차종을 못 읽었거나 · 배송거리를 못 읽으면 단가 조건만 빠지고 최소 금액은 남는다.
              *
              * 콜할인율가 "전부"면 서버가 단가를 0 으로 내려 보낸다 → `fare >= 거리 × 0` 은 항상 참.
-             * 즉 "금액 무관 통과"가 별도 분기 없이 같은 식으로 표현된다.
              */
             val rateFloor = order.vehicleType?.let { vt -> resolveRate(filter.ratePerKm, vt) }
             val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && order.deliveryDistance != null
 
-            val fareMatch = if (useRateModel) {
-                order.fare >= order.deliveryDistance!! * rateFloor!! &&
-                    (!hasFareCeiling || order.fare <= filter.maxFare)
-            } else {
-                order.fare >= filter.minFare &&
-                    (!hasFareCeiling || order.fare <= filter.maxFare)
-            }
+            val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
+                (!useRateModel || order.fare >= order.deliveryDistance!! * rateFloor!!) &&
+                (!hasFareCeiling || order.fare <= filter.maxFare)
 
             // ── 조건 3: 상차지 ──
             /**

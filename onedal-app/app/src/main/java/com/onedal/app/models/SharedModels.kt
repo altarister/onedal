@@ -369,8 +369,6 @@ data class FilterConfig(
     val pickupRadiusKm: Double = 10.0,
     /** 서버 기본값과 동일. 0 으로 두면 하한이 사라져 아무 콜이나 잡는다 */
     val minFare: Int = 30000,
-    /** 🔔 픽커 알람 요금 하한 — 원천 DB(user_settings.picker_alarm_min_fare) → 피기백 */
-    val pickerAlarmMinFare: Int = 10000,
     /**
      * ⏱️ **배차망별 대기 시간 (초)** — 원천 DB(user_settings) → 피기백 (기사님 확정).
      * 인성·화물24시는 안전취소 시간, 픽커는 확정 전 상세를(누가 열었든) 띄워 두는 시간이다 — 읽는 곳은 `WaitTimes` 한 곳.

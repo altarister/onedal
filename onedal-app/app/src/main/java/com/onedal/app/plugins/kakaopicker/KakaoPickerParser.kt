@@ -3,7 +3,9 @@ package com.onedal.app.plugins.kakaopicker
 import android.content.Context
 import org.json.JSONObject
 import com.onedal.app.core.IScrapParser
+import com.onedal.app.core.engine.FareFloor
 import com.onedal.app.core.ScreenTextNode
+import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 
@@ -345,7 +347,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /**
          * 🔔 **픽커 알람 판정 — 축은 셋이다** (기사님 확정 · 픽커_수집.md 3단계).
          *
-         *   ① 요금 ≥ 픽커 알람 하한 (원천 DB user_settings.picker_alarm_min_fare · 기본 1만)
+         *   ① 요금 ≥ 최소 금액 (관제웹 필터 막대 · 세 배차망 공통 한 식 `FareFloor` · 0 이면 끔)
          *   ② 픽업거리 ≤ 상차 반경 (기존 국면 값 재사용 — 뜻이 같다)
          *   ③ 도착 구·동 ↔ 국면의 도착목표 (destinationKeywords·keywordTraps 재사용 —
          *      노선 국면이면 그 방향만, 도착목표가 비면 제한 없음. RegionMatch 는 인성과 같은 규약)
@@ -470,7 +472,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             keywordTraps: Map<String, List<String>> = emptyMap(),
             cityAliases: List<String> = emptyList(),
         ): AlarmAxes {
-            val fareOk = order.fare >= minFare
+            val fareOk = FareFloor.passes(order.fare, minFare)
             val pickupOk = order.pickupDistance == null || order.pickupDistance <= pickupRadiusKm
             val destOk = when {
                 destKeywords.isEmpty() || order.dropoff.isBlank() -> true
@@ -547,16 +549,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "cityAliases" to cityAliases,
         ))
 
-        /** 픽커 알람 기본 요금 하한 (원) — 걷기/소액 초단거리 콜 차단 안전망 */
-        const val DEFAULT_ALARM_MIN_FARE = 10000
-
         /** 마지막으로 남긴 알람 필터 — 같으면 다시 안 적는다 (판정은 스캔마다 돈다 · 로그가 그 줄로 덮이지 않게) */
         @Volatile private var lastAlarmFilterJson: String? = null
     }
 
     /** 알람 조건 묶음 — 피기백 필터에서 읽는다. 기본값은 서버 미응답 시 안전망 */
     private data class AlarmConfig(
-        val minFare: Int = DEFAULT_ALARM_MIN_FARE,
+        val minFare: Int = FilterConfig().minFare,   // 서버 미응답 안전망 — 인성·화물24시와 같은 기본값
         val pickupRadiusKm: Double = 10.0,   // 🔴 소수로 받는다 — 자동 반경이면 서버가 4.55 처럼 보낸다
         val destKeywords: List<String> = emptyList(),   // 비면 도착지 제한 없음 (관내·구서버)
         val keywordTraps: Map<String, List<String>> = emptyMap(),
@@ -583,19 +582,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }
             } ?: emptyList()
 
-            // 🔔 알람 요금 하한: 서버 명시값 우선 → ratePerKm 기반 산출 → 기본값 10,000원
-            val derivedMinFare = when {
-                json.has("pickerAlarmMinFare") -> json.optInt("pickerAlarmMinFare", DEFAULT_ALARM_MIN_FARE)
-                json.has("ratePerKm") -> {
-                    val rateObj = json.optJSONObject("ratePerKm")
-                    val rate = rateObj?.optInt(KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE, 0) ?: 0
-                    if (rate > 0) rate * 5 else DEFAULT_ALARM_MIN_FARE
-                }
-                else -> DEFAULT_ALARM_MIN_FARE
-            }
-
             AlarmConfig(
-                minFare = derivedMinFare,
+                minFare = json.optInt("minFare", FilterConfig().minFare),   // 💵 최소 금액 — 인성·화물24시와 같은 칸
                 pickupRadiusKm = json.optDouble("pickupRadiusKm", 10.0),
                 destKeywords = keywords,
                 keywordTraps = traps,

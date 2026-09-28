@@ -830,17 +830,13 @@ export class OrderEvaluator {
          * 픽커 콜은 5,544원이 정상 범위인데 **인성 하한 20,000원**에 걸려 전부 «똥콜»로
          * 나왔다(08:37 실측). 요금 체계가 아예 다른 판을 한 잣대로 잰 것이다.
          *
-         * 픽커의 하한은 **앱이 이미 걸렀다** — 알람이 `pickerAlarmMinFare`(기사님 설정)
-         * 로 거른 콜만 상세로 올라온다. 규칙 ⑤-1: *"돈은 앱이 이미 걸렀다 — 서버가
+         * 픽커의 하한은 **앱이 이미 걸렀다** — 원달앱이 최소 금액(관제웹 필터 막대 · 세 배차망 공통)
+         * 으로 거른 콜만 상세로 올라온다. 규칙 ⑤-1: *"돈은 앱이 이미 걸렀다 — 서버가
          * 다시 세지 않는다."* 그래서 픽커는 이 검사를 **건너뛴다.**
-         *
-         * ⚠️ 값을 따로 두고 싶어지면 그때 ⑤-4 다섯(스키마·값·시점·화면·읽는 곳)을 채운다.
-         *    지금 `pickerAlarmMinFare` 를 여기서 재활용하지 않는 이유는, 그 값이 답하는
-         *    질문은 «울릴까»이고 여기 질문은 «색을 뭘로»라서다 (규칙 ⑤-4 ⑤ 한 값 두 역할 금지).
          */
         const skipFareFloor = this.targetApp === 'kakaopicker';
         if (skipFareFloor && order.fare && order.fare > 0) {
-            pros.push(`요금은 앱이 이미 걸렀다 (픽커 알람 하한)`);
+            pros.push(`요금은 앱이 이미 걸렀다 (최소 금액)`);
         }
         if (!skipFareFloor && filter.dispatchPhase === 'STANDBY' && filter.minFare > 0 && order.fare && order.fare > 0) {
             if (order.fare < filter.minFare) {

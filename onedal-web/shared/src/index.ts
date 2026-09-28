@@ -969,6 +969,7 @@ export interface AutoDispatchFilter {
  * ⚠️ **`orderKm`·`pickerAlarmMinFare` 는 `AutoDispatchFilter` 에 없다** — 조립할 때 얹는다
  *    (경로 순서 맵 · 픽커 알람 하한). 그래서 이 표는 «앱이 읽는 키»이지
  *    «평면 필터의 부분집합»이 아니다.
+ *    ⚠️ `pickerAlarmMinFare` 는 지금 원달앱이 읽지 않는다 — 픽커도 `minFare`(최소 금액 · 세 배차망 공통)로 거른다.
  *
  * 🔴 **표 ↔ 앱(Kotlin)이 어긋나면 `appFilterKeys.test.ts` 가 잡는다.** 앱이 읽는데
  *    서버가 안 보내면 **조용한 고장**이고(빈 값으로 거른다), 서버가 보내는데 앱이 안 읽으면

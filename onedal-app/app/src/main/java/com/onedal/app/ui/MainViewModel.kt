@@ -93,7 +93,7 @@ class MainViewModel {
 
     data class ParsedFilter(
         val allowedVehicles: String = "전체 허용",
-        val pickerAlarmMinFare: Int = 10000,
+        val minFare: Int = com.onedal.app.models.FilterConfig().minFare,   // 💵 최소 금액 — 세 배차망 공통
         val pickupRadiusKm: Double = 0.0,
         val destinationCity: String = "미설정",
         val destKeywordsCount: Int = 0,
@@ -114,7 +114,7 @@ class MainViewModel {
             val exclArr = json.optJSONArray("excludedKeywords")
             ParsedFilter(
                 allowedVehicles = vehicleStr,
-                pickerAlarmMinFare = json.optInt("pickerAlarmMinFare", 10000),
+                minFare = json.optInt("minFare", com.onedal.app.models.FilterConfig().minFare),
                 pickupRadiusKm = json.optDouble("pickupRadiusKm", 0.0),
                 destinationCity = json.optString("destinationCity", "미설정"),
                 destKeywordsCount = destArr?.length() ?: 0,
@@ -137,11 +137,11 @@ class MainViewModel {
             val vehicleStr = if (vehicleArr != null && vehicleArr.length() > 0) {
                 (0 until vehicleArr.length()).map { vehicleArr.getString(it) }.joinToString(", ")
             } else "전체 허용"
-            val pickerFare = json.optInt("pickerAlarmMinFare", 10000)
-            val formatFare = java.text.NumberFormat.getNumberInstance(Locale.KOREA).format(pickerFare)
+            val minFare = json.optInt("minFare", com.onedal.app.models.FilterConfig().minFare)
+            val formatFare = java.text.NumberFormat.getNumberInstance(Locale.KOREA).format(minFare)
 
             "allowedVehicleTypes: $vehicleStr\n" +
-            "pickerAlarmMinFare: ${formatFare}원 (콜할인율 연동)\n" +
+            "minFare: ${formatFare}원 (최소 금액 · 세 배차망 공통)\n" +
             "pickupRadiusKm: ${json.optString("pickupRadiusKm", "0")}km\n" +
             "destinationCity: ${json.optString("destinationCity", "미설정")}\n" +
             "destinationKeywords: ${json.optString("destinationKeywords", "없음")}\n" +

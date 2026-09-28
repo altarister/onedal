@@ -103,7 +103,7 @@ fun NetworksScreen(viewModel: MainViewModel) {
                     label = "카카오픽커",
                     badge = "🔔 알람전용",
                     color = Color(0xFFF57F17),
-                    desc = "1차 하한 ${NumberFormat.getNumberInstance(Locale.KOREA).format(filter.pickerAlarmMinFare)}원 · 2차 상단OCR · 상세복귀 ${filterConfig?.pickerAlarmDetailSec ?: 30}초"
+                    desc = "최소 금액 ${NumberFormat.getNumberInstance(Locale.KOREA).format(filter.minFare)}원 · 2차 상단OCR · 상세복귀 ${filterConfig?.pickerAlarmDetailSec ?: 30}초"
                 )
             }
         }
@@ -260,7 +260,7 @@ private fun KakaoPickerDetailCard(
     parsedFilter: MainViewModel.ParsedFilter
 ) {
     val numberFormat = remember { NumberFormat.getNumberInstance(Locale.KOREA) }
-    val formattedAlarmFare = numberFormat.format(parsedFilter.pickerAlarmMinFare)
+    val formattedAlarmFare = numberFormat.format(parsedFilter.minFare)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -312,7 +312,7 @@ private fun KakaoPickerDetailCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "• 1단계 (목록 수집): 요금 ≥ ${formattedAlarmFare}원 (콜할인율 연동 자동 하한)\n" +
+                        text = "• 1단계 (목록 수집): 요금 ≥ ${formattedAlarmFare}원 (최소 금액 · 관제웹 필터 막대)\n" +
                                "  → 걷기/소액 초단거리 똥콜 1차 원천 차단\n" +
                                "• 2단계 (상세 확인): 상단 스냅샷 OCR 배송거리 판정\n" +
                                "  → 요금 ≥ OCR 배송거리(km) × 단가표 기준 충족 시 알람",

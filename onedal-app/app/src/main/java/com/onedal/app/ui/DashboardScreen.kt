@@ -102,22 +102,22 @@ fun DashboardScreen(viewModel: MainViewModel) {
                     ) {
                         Column {
                             Text(
-                                text = "🔔 픽커 알람 요금 하한",
+                                text = "💵 최소 금액",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color(0xFFE65100),
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "콜할인율 연동 자동 계산",
+                                text = "관제웹 필터 막대 · 세 배차망 공통",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                 color = Color(0xFF8D6E63)
                             )
                         }
                         Text(
-                            text = if (filter.pickerAlarmMinFare == 0) "0원 (전부 허용)"
-                                   else "${NumberFormat.getNumberInstance(Locale.KOREA).format(filter.pickerAlarmMinFare)}원",
+                            text = if (filter.minFare == 0) "0원 (끔)"
+                                   else "${NumberFormat.getNumberInstance(Locale.KOREA).format(filter.minFare)}원",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
-                            color = if (filter.pickerAlarmMinFare == 0) Color(0xFF2E7D32) else Color(0xFFD84315)
+                            color = if (filter.minFare == 0) Color(0xFF2E7D32) else Color(0xFFD84315)
                         )
                     }
                 }

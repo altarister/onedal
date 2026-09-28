@@ -6,6 +6,7 @@ import com.onedal.app.plugins.RouteOrderFilter
 import com.onedal.app.plugins.PickupListFilter
 import com.onedal.app.plugins.RegionMatch
 import com.onedal.app.core.IScrapParser
+import com.onedal.app.core.engine.FareFloor
 import com.onedal.app.plugins.insung.InsungParser
 import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.core.ScreenTextNode
@@ -333,7 +334,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         // 단가 조회는 인성과 **같은 함수**를 쓴다 — 차종 별칭 규칙이 두 벌이 되면 망마다 값이 갈린다
         val rateFloor = order.vehicleType?.let { vt -> InsungParser.resolveRate(filter.ratePerKm, vt) }
         val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && order.deliveryDistance != null
-        val fareMatch = order.fare >= filter.minFare &&
+        val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
                         (!useRateModel || order.fare >= order.deliveryDistance!! * rateFloor!!) &&
                         (!hasFareCeiling || order.fare <= filter.maxFare)
 
