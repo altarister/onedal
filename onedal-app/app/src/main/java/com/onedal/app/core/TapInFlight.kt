@@ -17,6 +17,13 @@ object TapInFlight {
     /** «끝났다» 알림(onCompleted)은 2~4초 늦게 온다(09-13 실측 · AutoTouchManager 주석) — 알림이 사라져도 이만큼 뒤엔 스스로 푼다 */
     const val SETTLE_MAX_MS = 5_000L
 
+    /**
+     * 누른 뒤 이만큼은 «화면 그대로»를 판정하지 않는다 — 누른 앱이 화면을 바꿀 시간(화면 읽기 한 바퀴쯤).
+     * 뒤로 가기는 «끝났다» 알림이 없어 누르는 순간 끝남으로 적고, 화면이 움직이는 0.3~0.5초 사이에도 같은 글자 알림이
+     * 온다(09-29 로그 · 같은 상세 알림이 14ms 간격). 그 알림을 실패로 읽으면 또 눌러 막으려던 두 번 누르기가 난다.
+     */
+    const val SETTLE_MIN_MS = 1_000L
+
     data class Record(
         val seq: Long,
         val key: String,
@@ -41,7 +48,7 @@ object TapInFlight {
         rec == null -> Verdict.NONE
         screen != rec.screen -> Verdict.TAKEN
         nowMs - rec.firedAtMs >= SETTLE_MAX_MS -> Verdict.EXPIRED
-        !textChanged && rec.completed -> Verdict.NOT_TAKEN
+        !textChanged && rec.completed && nowMs - rec.firedAtMs >= SETTLE_MIN_MS -> Verdict.NOT_TAKEN
         else -> Verdict.NONE
     }
 

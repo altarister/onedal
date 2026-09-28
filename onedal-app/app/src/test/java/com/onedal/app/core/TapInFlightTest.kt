@@ -38,6 +38,10 @@ class TapInFlightTest {
     @Test fun `끝났다는 알림 전에는 같은 화면이 와도 판정하지 않는다 (47ms 이중 알림을 실패로 읽지 않는다)`() =
         assertEquals(Verdict.NONE, TapInFlight.judge(rec(), detail, textChanged = false, nowMs = 1_047L))
 
+    /** 뒤로 가기는 누르는 순간 «끝남»이다 — 화면이 움직이는 0.3~0.5초 사이 같은 글자 알림을 실패로 읽으면 또 누른다 */
+    @Test fun `끝났다 직후 같은 글자 알림은 아직 판정하지 않는다 (누른 앱이 화면을 바꿀 시간)`() =
+        assertEquals(Verdict.NONE, TapInFlight.judge(rec(completed = true), detail, textChanged = false, nowMs = 1_000L + 300L))
+
     @Test fun `끝났는데 종류도 글자도 그대로면 안 먹혔다`() =
         assertEquals(Verdict.NOT_TAKEN, TapInFlight.judge(rec(completed = true), detail, textChanged = false, nowMs = 3_500L))
 
