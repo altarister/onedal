@@ -270,11 +270,11 @@ describe('🔔 알람이 관제웹까지 가는 길', () => {
      * 🟢 **앱을 안 고쳐도 된다** — 필터 성적표(`passed`)가 이미 서버로 온다.
      *    앱은 이미 본 콜을 지문으로 건너뛰므로 `passed` 는 **새로 본** 통과 콜만 센다.
      */
-    it('🔴 서버가 ALARM 모드에서만 알람을 쏜다', () => {
+    it('🔴 서버가 도는 모드가 ALARM 일 때만 알람을 쏜다 (픽커의 자동 명령은 알람으로 돈다)', () => {
         const c = codeOnly(srv('routes/devices.ts'));
         expect(c).toMatch(/filter-pass-alarm/);
         const block = c.split('filter-pass-alarm')[0].slice(-400);
-        expect(block).toMatch(/mode === "ALARM"/);
+        expect(block).toMatch(/runningModeOf\(session\) === "ALARM"/);
         expect(block).toMatch(/passed > 0/);
     });
 
@@ -383,5 +383,34 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
         expect(c).toMatch(/MANUAL:\s*'[^']*\bsurface-alt\b/);
         expect((c.match(/MODE_TONE\[/g) ?? []).length).toBeGreaterThanOrEqual(2);
         expect(c).not.toMatch(/mode === 'AUTO' \? 'bg-success/);
+    });
+});
+
+/**
+ * 🎛️ **폰 카드는 «이 배차망에서 도는 모드»를 보인다** (기사님 «가» · 소리도 «가»).
+ *
+ * 픽커에는 자동이 없어 원달앱이 자동 명령을 알람으로 돌린다(`TargetApp.effectiveMode` · 플러그인 `availableModes`).
+ * 관제웹이 명령(«자동»)만 보이면 기사님은 앱이 잡는 줄 알고 기다리다 콜을 놓친다.
+ * 원달앱이 도는 모드를 실어 보내고, 관제웹 카드와 알람 소리가 그 값을 본다. «명령이 닿았나»(`appliedMode`)는 그대로 명령이다.
+ */
+describe('🎛️ 도는 모드 — 원달앱이 계산해 보내고 관제웹이 보인다', () => {
+    it('원달앱은 폰 테두리와 같은 함수로 도는 모드를 계산해 보낸다', () => {
+        const c = codeOnly(app('core/TelemetryManager.kt'));
+        expect(c).toMatch(/effectiveMode\s*=\s*TargetApp\.effectiveMode\(currentMode,\s*appCode\)/);
+        expect(c).toMatch(/appliedMode\s*=\s*currentMode/);   // 명령이 닿았나는 명령 그대로
+    });
+
+    it('서버는 받아 두고, 관제웹 알람 소리는 도는 모드로 정한다', () => {
+        const scrap = codeOnly(srv('routes/scrap.ts'));
+        expect(scrap).toMatch(/effectiveMode:\s*\(req\.body as any\)\.effectiveMode/);
+        const dev = codeOnly(srv('routes/devices.ts'));
+        expect(dev).toMatch(/session\.effectiveMode\s*=\s*extras\.effectiveMode/);
+        expect(dev).toMatch(/runningModeOf\(session\)\s*===\s*"ALARM"\s*&&\s*filterTally\.passed/);
+    });
+
+    it('관제웹 폰 카드는 도는 모드의 글자·색을 크게, 다르면 명령을 작게 보인다', () => {
+        const c = codeOnly(web('components/dashboard/DeviceControlPanel.tsx'));
+        expect(c).toMatch(/runningModeOf\(device\)/);
+        expect(c).toMatch(/명령: /);
     });
 });

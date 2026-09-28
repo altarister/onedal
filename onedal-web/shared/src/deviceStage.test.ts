@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { workStageLabel, isModeApplying } from './index';
+import { workStageLabel, isModeApplying, runningModeOf } from './index';
 
 /**
  * 🚦 **관제웹이 폰의 «지금 하는 일»과 «모드가 닿았나»를 읽는 자리**
@@ -43,5 +43,18 @@ describe('🎛️ 모드가 폰에 닿았나', () => {
 
     it('대답을 안 싣는 구앱은 «적용중»이라 하지 않는다 — 모름을 «안 됐다»로 읽지 않는다', () => {
         expect(isModeApplying({ mode: 'ALARM' })).toBe(false);
+    });
+});
+
+/**
+ * 🎛️ **도는 모드 — 원달앱이 대답한 값, 없으면 명령** (기사님 «가»).
+ * 픽커는 자동이 없어 원달앱이 알람으로 돈다. 옛 원달앱은 이 칸을 안 싣는다 — 그때는 명령 그대로 보인다.
+ */
+describe('🎛️ 이 배차망에서 도는 모드', () => {
+    it('원달앱이 대답한 도는 모드가 명령보다 먼저다', () => {
+        expect(runningModeOf({ mode: 'AUTO', effectiveMode: 'ALARM' })).toBe('ALARM');
+    });
+    it('옛 원달앱(칸 없음)은 명령 그대로', () => {
+        expect(runningModeOf({ mode: 'AUTO' })).toBe('AUTO');
     });
 });

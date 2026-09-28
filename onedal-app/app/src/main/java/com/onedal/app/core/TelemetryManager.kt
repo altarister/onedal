@@ -297,6 +297,7 @@ class TelemetryManager(
             workStageStep = stage?.step,
             workStageSeconds = stage?.seconds,
             appliedMode = currentMode,
+            effectiveMode = TargetApp.effectiveMode(currentMode, appCode),
             // 🧭 [피기백 v2] 들고 있는 필터 버전 — 같으면 서버가 본문을 생략한다.
             // ⚠️ null 이면 Gson 이 필드를 통째로 빼서 서버가 구앱으로 오인한다 —
             //    아직 버전이 없으면 빈 문자열("전체 주세요")을 보낸다

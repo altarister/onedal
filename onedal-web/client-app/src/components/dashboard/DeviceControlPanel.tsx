@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
@@ -79,6 +79,13 @@ function DeviceRow({
      *    홈에 있는 폰은 실제로 나중에 반영되므로 그건 거짓말이 된다 (**사실만** 적는다).
      */
     const applying = isModeApplying(device);
+    /**
+     * 🎛️ **버튼은 이 배차망에서 도는 모드를 크게** (기사님 «가»). 픽커는 자동이 없어 자동 명령이 알람으로 돈다 —
+     *    명령만 보이면 기사님이 앱이 잡는 줄 알고 기다리다 콜을 놓친다. 색도 폰 테두리와 같다.
+     *    다르면 버튼 안 둘째 줄에 명령을 작게. 고르기 목록·«적용중»은 명령 그대로다(기사님이 내리는 것).
+     */
+    const running = (runningModeOf(device) ?? device.mode) as DeviceModeType;
+    const runningDiffers = running !== device.mode;
     const [applyingSince, setApplyingSince] = useState<number | null>(null);
     /** 🎛️ 모드 고르는 레이어가 열렸나 — **폰마다 하나씩**이라 여기(줄 안)에 산다 */
     const [modeOpen, setModeOpen] = useState(false);
@@ -290,8 +297,13 @@ function DeviceRow({
                         onClick={() => setModeOpen(v => !v)}
                         className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border transition-opacity ${
                             applying ? 'opacity-40' : ''
-                        } ${MODE_TONE[device.mode]}`}>
-                        {DEVICE_MODE_LABEL[device.mode]}
+                        } ${MODE_TONE[running] ?? MODE_TONE[device.mode]}`}>
+                        {DEVICE_MODE_LABEL[running] ?? DEVICE_MODE_LABEL[device.mode]}
+                        {runningDiffers && (
+                            <span className="block text-[9px] leading-none font-bold opacity-80 whitespace-nowrap">
+                                명령: {DEVICE_MODE_LABEL[device.mode]}
+                            </span>
+                        )}
                     </button>
                     {applying && (
                         <span className="absolute inset-0 grid place-items-center pointer-events-none">

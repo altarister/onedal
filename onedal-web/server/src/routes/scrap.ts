@@ -152,6 +152,7 @@ router.post("/", (req, res) => {
                 workStageStep: (req.body as any).workStageStep,
                 workStageSeconds: (req.body as any).workStageSeconds,
                 appliedMode: (req.body as any).appliedMode,
+                effectiveMode: (req.body as any).effectiveMode,
                 filterVersion: appFilterVersion,
             });
         }

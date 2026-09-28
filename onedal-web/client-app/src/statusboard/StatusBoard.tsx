@@ -1015,6 +1015,8 @@ function PhoneTabs({ devices }: { devices: DeviceSession[] }) {
                                         <Row k="그 지문을 본 때" v={clockOf(d.filterVersionAt)} empty="— 없다" />
                                         <Row k="모드 (관제)" v={d.mode ? (DEVICE_MODE_LABEL[d.mode as DeviceModeType] ?? d.mode) : undefined} />
                                         <Row k="모드 (폰 대답)" v={d.appliedMode} empty="— 구앱은 대답 안 함" />
+                                        <Row k="모드 (실제 도는)" v={d.effectiveMode ? (DEVICE_MODE_LABEL[d.effectiveMode as DeviceModeType] ?? d.effectiveMode) : undefined}
+                                             empty="— 구앱은 안 싣는다" tone={d.effectiveMode && d.effectiveMode !== d.mode ? 'warn' : undefined} />
                                         <Row k="닿았나" v={d.appliedMode ? (isModeApplying(d) ? '아직 — 가는 중' : '닿았다') : undefined}
                                              empty="— 모른다" tone={d.appliedMode ? (isModeApplying(d) ? 'warn' : 'ok') : undefined} />
                                     </Card>

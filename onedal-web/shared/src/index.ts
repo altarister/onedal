@@ -1485,6 +1485,14 @@ export function isModeApplying(d: { mode?: string; appliedMode?: string }): bool
     return d.mode !== d.appliedMode;
 }
 
+/**
+ * 🎛️ **이 배차망에서 도는 모드** — 원달앱이 대답한 값, 없으면(옛 원달앱) 명령 그대로.
+ * 관제웹 폰 카드와 알람 소리가 이것을 본다. «명령이 닿았나»(`isModeApplying`)는 명령끼리 대조한다.
+ */
+export function runningModeOf(d: { mode?: string; effectiveMode?: string }): string | undefined {
+    return d.effectiveMode || d.mode;
+}
+
 export function isListScreen(screenContext?: string | null): boolean {
     return !!screenContext && (LIST_SCREENS as string[]).includes(screenContext);
 }
@@ -1697,6 +1705,11 @@ export interface DeviceSession {
      * ⚠️ 안 싣는 구앱은 `undefined` — 그걸 «적용 안 됨»으로 읽지 않는다 (규칙 ④).
      */
     appliedMode?: string;
+    /**
+     * 🎛️ **이 배차망에서 실제로 도는 모드** — 원달앱이 플러그인 `availableModes` 로 계산해 대답한다.
+     * 픽커는 자동이 없어 자동 명령이 알람으로 돈다. 읽을 때는 `runningModeOf` 를 거친다(옛 원달앱은 안 싣는다).
+     */
+    effectiveMode?: string;
 }
 
 

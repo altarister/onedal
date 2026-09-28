@@ -243,6 +243,11 @@ data class ScrapPayload(
      */
     val appliedMode: String? = null,
     /**
+     * 🎛️ **이 배차망에서 실제로 도는 모드** — 폰 테두리 색과 같은 계산(`TargetApp.effectiveMode`).
+     * 픽커는 자동이 없어 자동 명령이 알람으로 돈다. 명령과 다르면 관제웹 폰 카드가 둘 다 보인다.
+     */
+    val effectiveMode: String? = null,
+    /**
      * 👁️ **마지막 리스트 화면에서 읽은 텍스트 노드 수** (크리티컬).
      *
      * 🔴 `data` 가 0건인 것만으로는 **리스트가 빈 것**과 **못 읽는 것**을 못 가른다.

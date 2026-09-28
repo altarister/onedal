@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
 import { generatePin, consumePin } from "../state/pairingStore";
@@ -154,6 +154,8 @@ export interface DeviceStatusExtras {
     workStageStep?: number;
     workStageSeconds?: number;
     appliedMode?: string;
+    /** 🎛️ 이 배차망에서 실제로 도는 모드 — 원달앱이 플러그인 `availableModes` 로 계산한다 (`DeviceSession.effectiveMode`) */
+    effectiveMode?: string;
     /**
      * 🧬 **폰이 «들고 온» 콜 필터의 지문** (현황판 담당 요청 ②).
      *    서버가 내려보낸 것이 아니라 **앱이 실어 보낸 것**이다 — 그래야
@@ -268,6 +270,20 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     }
     if (extras?.appliedMode) session.appliedMode = extras.appliedMode;
     /**
+     * 🎛️ **도는 모드가 명령과 갈리는 순간 · 다시 같아지는 순간만 한 줄** (하트비트마다 찍으면 로그가 덮인다).
+     * 픽커는 자동이 없어 자동 명령이 알람으로 돈다 — 언제 시작해 언제 끝났는지가 남아야 한다.
+     */
+    if (extras?.effectiveMode) {
+        const wasSplit = !!session.effectiveMode && session.effectiveMode !== session.mode;
+        session.effectiveMode = extras.effectiveMode;
+        const isSplit = session.effectiveMode !== session.mode;
+        if (isSplit !== wasSplit) {
+            console.log(isSplit
+                ? `🎛️ [모드] ${session.deviceName || deviceId} 명령 ${session.mode} → ${session.targetApp ?? '?'} 에서 ${session.effectiveMode} 로 돈다`
+                : `🎛️ [모드 복귀] ${session.deviceName || deviceId} 명령 ${session.mode} 그대로 돈다`);
+        }
+    }
+    /**
      * 🧬 **지문은 «받은 그 순간»과 함께 남긴다** (현황판 담당 요청 ②).
      * ⚠️ 구앱은 안 보낸다 — 그때는 **건드리지 않는다**. 옛 지문이라도 «마지막으로 안 것»이
      *    남아 있어야 화면이 «구앱이라 모른다»와 «두 판 전이다»를 가른다 (규칙 ④).
@@ -314,7 +330,8 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
          * 🔴 **여기 안에서만 본다.** `filterTally` 가 함께 온 보고, 즉 «방금 리스트를 훑었다»
          *    일 때만 참이다. 밖으로 빼면 하트비트마다 옛 숫자로 다시 울린다.
          */
-        if (session.mode === "ALARM" && filterTally.passed > 0 && io) {
+        // 🎛️ 명령이 아니라 **도는 모드**로 — 픽커는 자동 명령이 알람으로 돌아 폰이 울린다, 관제웹도 함께 (기사님 «가»)
+        if (runningModeOf(session) === "ALARM" && filterTally.passed > 0 && io) {
             io.to(userId).emit("filter-pass-alarm", {
                 deviceId,
                 deviceName: session.deviceName,
