@@ -1,6 +1,7 @@
 import { incrementDeviceStats } from "../routes/devices";
 import db from "../db";
 import { CANCEL_BUDGET_PER_ROUND } from "@onedal/shared";
+import { slog } from "../utils/fileLogger";
 
 /**
  * 🧮 **취소를 세는 자리는 여기 하나다**.
@@ -39,7 +40,7 @@ function countedAlready(
     const key = `${orderId}:${kind}`;
     if (!session.countedOnce) return false;          // 옛 세션 모양 — 막지 않는다 (규칙 ④)
     if (session.countedOnce.has(key)) {
-        console.log(`   🧮 [이미 셌다] ${orderId} — ${kind === 'cancel' ? '취소' : '수락'}를 다른 길이 이미 셌습니다`
+        slog('콜단계', `   🧮 [이미 셌다] ${orderId} — ${kind === 'cancel' ? '취소' : '수락'}를 다른 길이 이미 셌습니다`
             + (reason ? ` (이번 reason: ${reason})` : '') + '. 두 번 세지 않습니다');
         return true;
     }
@@ -70,12 +71,12 @@ export function countCancel(
         ?? session.myOrders.find(o => o.id === orderId);
 
     if (isPreviewHint || order?.isPreview || order?.isSimulated) {
-        console.log(`   👀 [미리보기/체험] ${orderId} — 확정 전이거나 가상 체험 콜이라 실제 배차망 취소가 없다. 카운트에 넣지 않는다 (reason: ${reason})`);
+        slog('콜단계', `   👀 [미리보기/체험] ${orderId} — 확정 전이거나 가상 체험 콜이라 실제 배차망 취소가 없다. 카운트에 넣지 않는다 (reason: ${reason})`);
         return;
     }
 
     incrementDeviceStats(deviceId, "canceled");
-    console.log(`   📈 기기(${deviceId}) 취소 카운트 +1 반영 (reason: ${reason})`);
+    slog('콜단계', `   📈 기기(${deviceId}) 취소 카운트 +1 반영 (reason: ${reason})`);
 
     // 한 판을 다 썼는지는 **세는 자리에서** 본다 — 호출부 넷이 각자 보면 갈라진다
     checkBudgetRound(session, (order as any)?.targetApp ?? 'insung', io);
@@ -161,10 +162,10 @@ export function countKeep(
         ?? session.myOrders.find(o => o.id === orderId);
 
     if (isPreviewHint || order?.isPreview || order?.isSimulated) {
-        console.log(`   👀 [미리보기/체험] ${orderId} — 확정 전이거나 가상 체험 콜이라 실제 배차망 수락이 아니다. 수락에 넣지 않는다`);
+        slog('콜단계', `   👀 [미리보기/체험] ${orderId} — 확정 전이거나 가상 체험 콜이라 실제 배차망 수락이 아니다. 수락에 넣지 않는다`);
         return;
     }
 
     incrementDeviceStats(deviceId, "grabbed");
-    console.log(`   📈 기기(${deviceId}) 수락 카운트 +1 반영`);
+    slog('콜단계', `   📈 기기(${deviceId}) 수락 카운트 +1 반영`);
 }

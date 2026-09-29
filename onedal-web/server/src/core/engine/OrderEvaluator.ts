@@ -22,6 +22,7 @@ import { applySoloRoute, composeMergedRoute } from "../../services/routeComposer
 import { IAppPlugin } from "../plugins/IAppPlugin";
 import { PluginFactory } from "../plugins/PluginFactory";
 import { getActiveCalls } from "../helpers";
+import { slog } from "../../utils/fileLogger";
 
 
 /**
@@ -80,8 +81,8 @@ export class OrderEvaluator {
         const pros: string[] = [];
         let timeExt = "카카오 연산 실패";
 
-        console.log(`\n======================================================`);
-        console.log(`[서버-사이드 카카오 연산] 🚀 ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
+        slog('판정', `\n======================================================`);
+        slog('판정', `[서버-사이드 카카오 연산] 🚀 ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
 
         // 1. 주소 정규화 — 상차·하차는 원달앱이 올린 전체 주소 그대로다(서버는 팝업에서 주소를 꺼내지 않는다)
         securedOrder.pickup = this.plugin.normalizeAddress(securedOrder.pickup);
@@ -105,14 +106,14 @@ export class OrderEvaluator {
                 ]);
 
                 if (needPickup) {
-                    console.log(`🌍 [Geocoding] 상차지 변환: '${securedOrder.pickup}' -> ${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
+                    slog('판정', `🌍 [Geocoding] 상차지 변환: '${securedOrder.pickup}' -> ${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
                     if (pCoord) {
                         securedOrder.pickupX = pCoord.x;
                         securedOrder.pickupY = pCoord.y;
                     }
                 }
                 if (needDropoff) {
-                    console.log(`🌍 [Geocoding] 하차지 변환: '${securedOrder.dropoff}' -> ${dCoord ? `X:${dCoord.x}, Y:${dCoord.y}` : '실패(null)'}`);
+                    slog('판정', `🌍 [Geocoding] 하차지 변환: '${securedOrder.dropoff}' -> ${dCoord ? `X:${dCoord.x}, Y:${dCoord.y}` : '실패(null)'}`);
                     if (dCoord) {
                         securedOrder.dropoffX = dCoord.x;
                         securedOrder.dropoffY = dCoord.y;
@@ -155,7 +156,7 @@ export class OrderEvaluator {
                             const lineKm = haversineKm(me.y, me.x,
                                 securedOrder.pickupY, securedOrder.pickupX);
                             if (lineKm > 0.3) {
-                                console.log(
+                                slog('판정',
                                     `   - 🧪 [도달 계수 수집] 직선 ${lineKm.toFixed(1)}km → 카카오 ${securedOrder.approachDurationMin}분 ` +
                                     `(계수 ${(securedOrder.approachDurationMin / lineKm).toFixed(2)}분/km · 잠정 ${REACH_COEF_MIN_PER_KM_TEMP})`);
                                 try {
@@ -309,13 +310,13 @@ export class OrderEvaluator {
                         /* ⏱️ 더 쓰는 시간 = 시급의 분모 그대로 — 첫짐은 이 콜 전체 (전수표 #42) */
                         dry.extraMin = total;
                         if (rateShort && (dry.color === '꿀' || dry.color === '보통')) {
-                            console.log(`   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
+                            slog('판정', `   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
                                 `실제 ${securedOrder.fare.toLocaleString()}원 < 하한 ${rateForScore!.minAcceptable.toLocaleString()}원)`);
                             dry.color = '똥';
                         }
-                        console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
+                        slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
                         // 🧪 도달 반경 dryRun (구현 4 계측) — 거르지 않는다, 설정 반경과 견주기만
-                        console.log(`   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupPromiseMin}분 ` +
+                        slog('판정', `   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupPromiseMin}분 ` +
                             `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupPromiseMin)}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
                         /**
                          * 🔴 **축 아홉을 사유 문자열에 싣지 않는다** (기사님 확정 · 화면 디자인).
@@ -338,7 +339,7 @@ export class OrderEvaluator {
                             + (securedOrder.approachDurationMin ? ` (상차지까지 ${securedOrder.approachDurationMin}분)` : '')
                             + ` '${dry.color}' · ${dry.score}점`;
 
-                        console.log(`   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
+                        slog('판정', `   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
                     } else {
                         /**
                          * 합짐(Detour) 연산 — **경유지 조립은 `routeComposer` 한 곳에만 있다.**
@@ -480,9 +481,9 @@ export class OrderEvaluator {
                              *    일어났고, 딱지의 분을 역산해서야 알아냈다 (실측 판정 다섯 건).
                              */
                             if (tailSplit.why) {
-                                console.log(`   🛣️ [꼬리 못 잼] 늘어난 주행(${marginal}분)을 그대로 봅니다 — ${tailSplit.why}`);
+                                slog('판정', `   🛣️ [꼬리 못 잼] 늘어난 주행(${marginal}분)을 그대로 봅니다 — ${tailSplit.why}`);
                             } else if (offRouteMinutes != null && offRouteMinutes !== marginal) {
-                                console.log(`   🛣️ [벗어난 분] ${marginal}분 → ${offRouteMinutes}분 (꼬리 배송 ${marginal - offRouteMinutes}분을 뺐습니다)`);
+                                slog('판정', `   🛣️ [벗어난 분] ${marginal}분 → ${offRouteMinutes}분 (꼬리 배송 ${marginal - offRouteMinutes}분을 뺐습니다)`);
                             }
                             /**
                              * 📞 **상차 약속을 못 지키면 통화가 필요하다** — 그 약속은 타임라인이
@@ -628,7 +629,7 @@ export class OrderEvaluator {
                                         ? coordOf(tailSplit.tailFrom.orderId, tailSplit.tailFrom.stopType)
                                         : null;
                                     if (!from) {
-                                        console.log(`   🧭 [합짐 지리] 안 잼 — 후보 하차 앞 정거장의 좌표가 없습니다`);
+                                        slog('판정', `   🧭 [합짐 지리] 안 잼 — 후보 하차 앞 정거장의 좌표가 없습니다`);
                                         return undefined;
                                     }
                                     const p = destProgressOf({
@@ -641,7 +642,7 @@ export class OrderEvaluator {
                                      *    딱지의 분을 역산해서야 알아냈다. 그 일을 되풀이하지 않는다.
                                      */
                                     const fromPlace = placeOf(tailSplit.tailFrom!.orderId, tailSplit.tailFrom!.stopType);
-                                    console.log(p.ratio == null
+                                    slog('판정', p.ratio == null
                                         ? `   🧭 [합짐 지리] 안 잼 — ${p.unknownWhy} (기점 ${fromPlace ?? "?"})`
                                         : `   🧭 [합짐 지리] 기점 ${fromPlace ?? "?"} → 전진율 ${p.ratio >= 0 ? '+' : ''}${p.ratio.toFixed(2)}`
                                           /* 🔴 멀어질 때만 적는다 — 음수는 «가까워짐»이라 «-34km 멀어짐»으로
@@ -664,9 +665,9 @@ export class OrderEvaluator {
                             dry.unknownWhy = unknownWhy;
                             /* ⏱️ 더 쓰는 시간 = 시급의 분모 그대로 — 합짐은 전체 경로가 늘어나는 만큼 + 정차 (전수표 #42) */
                             dry.extraMin = marginal + cost.dwell;
-                            console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
+                            slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
                             // 🧪 도달 반경 dryRun (구현 4 계측) — 앞 일이 많을수록 버퍼가 줄어 반경이 준다 (16-3)
-                            if (bufAfter) console.log(`   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +
+                            if (bufAfter) slog('판정', `   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +
                                 `≈ ${reachRadiusKm(Math.max(0, bufAfter.minutes))}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정)`);
 
                             const failedGates = dry.gates.filter(g => !g.pass);
@@ -700,7 +701,7 @@ export class OrderEvaluator {
                         securedOrder.totalDurationMin = Math.round(result.merged.duration / 60);
                         securedOrder.sectionEtas = result.merged.sectionEtas;
                         
-                        console.log(`   - 🗺️ 궤적 길이 (Detour): ${securedOrder.routePolyline?.length || '없음'}`);
+                        slog('판정', `   - 🗺️ 궤적 길이 (Detour): ${securedOrder.routePolyline?.length || '없음'}`);
                     }
                 } else {
                     /**
@@ -713,11 +714,11 @@ export class OrderEvaluator {
                     const missing = !securedOrder.pickupX ? '상차지' : '하차지';
                     const addr = (!securedOrder.pickupX ? securedOrder.pickup : securedOrder.dropoff) || '';
                     reasons.push(`${who}의 ${missing} 주소를 찾지 못했습니다`);
-                    console.log(`   - ❌ ${who}: ${missing} 좌표 변환 실패 — '${addr}'`);
+                    slog('경고', `   - ❌ ${who}: ${missing} 좌표 변환 실패 — '${addr}'`);
                 }
             } else {
                 reasons.push(`API KEY 부재`);
-                console.log(`   - ❌ KAKAO_REST_API_KEY 서버 환경 변수 누락`);
+                slog('경고', `   - ❌ KAKAO_REST_API_KEY 서버 환경 변수 누락`);
             }
         } catch (error: any) {
             console.error("서버-사이드 카카오 연산 에러:", error);
@@ -725,7 +726,7 @@ export class OrderEvaluator {
             timeExt = `카카오 연산 실패: ${errMsg}`;
             reasons.push(`카카오 연산 실패(${errMsg})`);
         }
-        console.log(`======================================================\n`);
+        slog('판정', `======================================================\n`);
 
         /**
          * 🎨 **판정 없이 끝나지 않는다** (폰 시험).
@@ -767,7 +768,7 @@ export class OrderEvaluator {
                 trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
                 tags: [`판정 불가 — ${why}`],
             }), judgmentCfg));
-            console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
+            slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
             OrderRepository.saveJudgment(securedOrder.id, userId, dry);
             (securedOrder as any).judgment = dry;
         }
@@ -784,18 +785,18 @@ export class OrderEvaluator {
         //    사유만 표시하고 판단은 기사님이 한다.
 
         if (reasons.length > 0) {
-            console.log(`   - 💩 [종합 평가] 똥콜 판정 (${reasons.length}건): ${reasons.join(' | ')}`);
+            slog('판정', `   - 💩 [종합 평가] 똥콜 판정 (${reasons.length}건): ${reasons.join(' | ')}`);
         } else {
-            console.log(`   - ✅ [종합 평가] 필터/경로 모두 통과`);
+            slog('판정', `   - ✅ [종합 평가] 필터/경로 모두 통과`);
         }
         if (pros.length > 0) {
-            console.log(`   - 👍 [장점 수집] (${pros.length}건): ${pros.join(' | ')}`);
+            slog('판정', `   - 👍 [장점 수집] (${pros.length}건): ${pros.join(' | ')}`);
         }
 
         securedOrder.status = 'ORDER_AWAITING_DECISION';
 
         if (io) {
-            console.log(`📤 [Socket 푸시] order-evaluated (${securedOrder.id}) - 상태 승급: ORDER_AWAITING_DECISION`);
+            slog('판정', `📤 [Socket 푸시] order-evaluated (${securedOrder.id}) - 상태 승급: ORDER_AWAITING_DECISION`);
             io.to(userId).emit("order-evaluated", securedOrder);
 
             if (timeExt.includes("실패")) {
@@ -840,7 +841,7 @@ export class OrderEvaluator {
         if (!skipFareFloor && filter.dispatchPhase === 'STANDBY' && filter.minFare > 0 && order.fare && order.fare > 0) {
             if (order.fare < filter.minFare) {
                 reasons.push(`첫짐 절대하한가 미달 (${filter.minFare.toLocaleString()}원)`);
-                console.log(`   - 💸 [첫짐 하한가] 똥콜 — 실제 ${order.fare.toLocaleString()}원 < 절대하한 ${filter.minFare.toLocaleString()}원`);
+                slog('판정', `   - 💸 [첫짐 하한가] 똥콜 — 실제 ${order.fare.toLocaleString()}원 < 절대하한 ${filter.minFare.toLocaleString()}원`);
             } else {
                 pros.push(`첫짐 절대하한가 통과`);
             }
@@ -894,7 +895,7 @@ export class OrderEvaluator {
             }
         }
 
-        console.log(`   - 🔍 [Stage 1] 형상 필터 검증 완료: ${reasons.length === 0 ? '✅ 통과' : `❌ ${reasons.join(', ')}`}`);
+        slog('판정', `   - 🔍 [Stage 1] 형상 필터 검증 완료: ${reasons.length === 0 ? '✅ 통과' : `❌ ${reasons.join(', ')}`}`);
         return { excludedHits };
     }
 
@@ -966,12 +967,12 @@ export class OrderEvaluator {
                      *    🔴 «시세»라는 낱말은 남긴다 — 그 한 낱말이 «할인율은 안 봤다»를 대신한다.
                      */
                     reasons.push(`요율 ${toManwon(Math.abs(diff))}만 모자람 — 시세 ${toManwon(adjusted.adjustedMinAcceptable)}만 · 실제 ${toManwon(order.fare)}만`);
-                    console.log(`   - 💸 [요율 판정] 시세 미달 — 실제 ${order.fare.toLocaleString()}원 < 시세 하한 ${adjusted.adjustedMinAcceptable.toLocaleString()}원`);
+                    slog('판정', `   - 💸 [요율 판정] 시세 미달 — 실제 ${order.fare.toLocaleString()}원 < 시세 하한 ${adjusted.adjustedMinAcceptable.toLocaleString()}원`);
                 } else if (order.fare >= adjusted.adjustedFairPrice) {
                     pros.push(`꿀콜 🍯 (시세 ${toManwon(adjusted.adjustedFairPrice)}만 이상)`);
-                    console.log(`   - 🍯 [요율 판정] 꿀콜 — 실제 ${order.fare.toLocaleString()}원 ≥ 시세 적정 ${adjusted.adjustedFairPrice.toLocaleString()}원`);
+                    slog('판정', `   - 🍯 [요율 판정] 꿀콜 — 실제 ${order.fare.toLocaleString()}원 ≥ 시세 적정 ${adjusted.adjustedFairPrice.toLocaleString()}원`);
                 } else {
-                    console.log(`   - ✅ [요율 판정] 시세 적정 범위 — 실제 ${order.fare.toLocaleString()}원 (하한 ${adjusted.adjustedMinAcceptable.toLocaleString()} ~ 적정 ${adjusted.adjustedFairPrice.toLocaleString()})`);
+                    slog('판정', `   - ✅ [요율 판정] 시세 적정 범위 — 실제 ${order.fare.toLocaleString()}원 (하한 ${adjusted.adjustedMinAcceptable.toLocaleString()} ~ 적정 ${adjusted.adjustedFairPrice.toLocaleString()})`);
                 }
             }
         }

@@ -312,6 +312,7 @@ export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { planArrivalStops } from '../services/routeComposer';
 import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, regionsTouchingNetGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
+import { slog } from "../utils/fileLogger";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율은 user_filters 의 평면 칸에 산다.
@@ -347,7 +348,7 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
      */
     const af = session.activeFilter as any;
     const changed = Object.keys(changes).map(k => `${k}=${JSON.stringify(af[k])}`).join(' · ') || '(바뀐 칸 없음)';
-    logRoadmapEvent(
+    logRoadmapEvent('필터',
         "서버",
         `[FilterManager] 필터 변경 (${actionType}) — ${changed} · 지문 ${filterVersionOf(session.activeFilter)}`
     );
@@ -440,7 +441,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         /* 🎯 목적지는 «파생»이다 — HOME 이면 집 시 */
         const city = goalCityOf(session, userId);
         const radius = session.activeFilter.destinationRadiusKm || 0;
-        console.log(`🗺️ [FilterManager] 지리 재계산 (city=${city}, radius=${radius}km)`);
+        slog('필터', `🗺️ [FilterManager] 지리 재계산 (city=${city}, radius=${radius}km)`);
         /**
          * 🕸️ **그물이 목록을 만든다** — 화면이 그리는 그 계산이다. 살아 있는 목적지마다 (복귀 대기면 목적지 ∪ 집).
          *    제외 지역은 `netKeywordsOf` 안에서 `pruneExcludedRegions` 한 곳이 뺀다 (규칙 ③).
@@ -461,7 +462,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         const aliases = new Set<string>();
         for (const parent of Object.keys(grouped)) for (const a of cityAliases(parent)) aliases.add(a);
         const customCityFilters = [...aliases];
-        console.log(`🕸️ [FilterManager] ${byNet ? '그물' : '도시 둘레(물러섬)'} → 지역 ${flat.length}개`
+        slog('필터', `🕸️ [FilterManager] ${byNet ? '그물' : '도시 둘레(물러섬)'} → 지역 ${flat.length}개`
             + (pruned > 0 ? ` (제외로 ${pruned}개 뺌)` : ''));
         session.activeFilter.destinationKeywords = flat;
         session.activeFilter.destinationGroups = grouped;
@@ -544,7 +545,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
                 Math.round(peak * 10) / 10
             );
             if (peak !== points) {
-                console.log(`   - 📦 [적재] 함께 실리는 최대 ${peak}박스 (잡은 콜 합 ${points}박스 — 경로에서 자리가 ${points - peak}박스 돌아온다)`);
+                slog('필터', `   - 📦 [적재] 함께 실리는 최대 ${peak}박스 (잡은 콜 합 ${points}박스 — 경로에서 자리가 ${points - peak}박스 돌아온다)`);
             }
         }
     }
@@ -696,7 +697,7 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
     session.activeFilter.destinationGroups = grouped;
     session.activeFilter.customCityFilters = Array.from(aliases);
 
-    console.log(`🔄 [지나온 구간] ${at.toFixed(1)}km 지점 — 동 ${before.length} → ${kept.size}개 ` +
+    slog('필터', `🔄 [지나온 구간] ${at.toFixed(1)}km 지점 — 동 ${before.length} → ${kept.size}개 ` +
         `(뺀 ${before.length - kept.size}개)`);
     return true;
 }
@@ -737,7 +738,7 @@ function refreshDetourIfNeeded(
     session.activeFilter.destinationKeywords = kept.flat;
     session.activeFilter.destinationGroups = kept.grouped;
     session.activeFilter.customCityFilters = kept.aliases;
-    console.log(`🛣️ [경유 갱신] 라인 ${cRadius}km · 하차 ${dRadius}km → `
+    slog('필터', `🛣️ [경유 갱신] 라인 ${cRadius}km · 하차 ${dRadius}km → `
         + `${kept.byNet ? '그물' : '도시 둘레(물러섬)'} 지역 ${kept.flat.length}개`
         + (kept.pruned > 0 ? ` (제외로 ${kept.pruned}개 뺌)` : ''));
 }
@@ -874,11 +875,11 @@ export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): 
         destinationGroups: kept.grouped,
         customCityFilters: kept.aliases,
     }, io);
-    console.log(`🕸️ [필터 목록] 목적지 ${kept.goals.join(' ∪ ')} · ${kept.line ? '라인(얼린 경로)' : '경로 없음'} · `
+    slog('필터', `🕸️ [필터 목록] 목적지 ${kept.goals.join(' ∪ ')} · ${kept.line ? '라인(얼린 경로)' : '경로 없음'} · `
         + `${kept.byNet ? '그물' : '도시 둘레(물러섬)'} → ${kept.flat.length}개`
         + (kept.pruned > 0 ? ` (제외로 ${kept.pruned}개 뺌)` : ''));
     /* 🔎 목적지마다 조각 · 뺀 수 — 지도 «하차» 레이어와 원달앱 목록이 맞는지 로그로 대조한다 (`pnpm log`) */
-    console.log(`🔵 [하차 목록] ${kept.details.join(' | ') || '목적지 없음'} → 상차 목록 ${(session.activeFilter.pickupKeywords ?? []).length}곳 · 하차 ${kept.flat.length}곳 · ${Date.now() - startedAt}ms`);
+    slog('필터', `🔵 [하차 목록] ${kept.details.join(' | ') || '목적지 없음'} → 상차 목록 ${(session.activeFilter.pickupKeywords ?? []).length}곳 · 하차 ${kept.flat.length}곳 · ${Date.now() - startedAt}ms`);
 }
 
 /**
@@ -971,7 +972,7 @@ export function rebuildPickupList(session: ReturnType<typeof getUserSession>, us
     /* 🔎 켜진 조각을 그대로 적는다 — 조합을 이름 하나로 뭉치면 새 조합이 «없음»으로 찍힌다 */
     const shown = ['내 위치', parts.line && '라인(현위치부터)', parts.goalCities.length ? `목적지 원(${parts.goalCities.join('·')})` : '']
         .filter(Boolean).join(' ∩ ');
-    if (changed) console.log(`📋 [상차 목록] ${zones.map(z => `${z.city}:${goalStateLabel(z.hasCalls, departed)}${z.nearGoal ? '·가까이' : ''}`).join(' · ') || '목적지 없음'} → `
+    if (changed) slog('필터', `📋 [상차 목록] ${zones.map(z => `${z.city}:${goalStateLabel(z.hasCalls, departed)}${z.nearGoal ? '·가까이' : ''}`).join(' · ') || '목적지 없음'} → `
         + `${shown} · 내 위치 ${eff.pickupRadiusKm.toFixed(1)}km${me.isFallback ? '(집 주소로 대신)' : ''} → ${list.length}곳`);
     return changed;
 }
@@ -1112,7 +1113,7 @@ export function saveBaseFilter(
         console.error(`[FilterManager] DB 저장 에러 (userId: ${userId}):`, e);
     }
 
-    logRoadmapEvent(
+    logRoadmapEvent('필터',
         "서버",
         `[FilterManager] 영구 설정(baseFilter) DB 저장 완료\n` +
         ` - 변경된 값: ${JSON.stringify(changes)}\n` +
@@ -1184,7 +1185,7 @@ export function updateActiveFilter(
         session.passWatch.clear();
         session.arrivalHeld.clear();
         recalculateDerivedFields(session, {}, userId);
-        console.log(`[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +
+        slog('필터', `[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +
             `(오늘 필터 유지 — 도착 ${session.activeFilter.destinationCity}, 최저 ${session.activeFilter.minFare}원)`);
     } else {
         /**
@@ -1231,7 +1232,7 @@ export function updateActiveFilter(
             if (Number.isFinite(heldDistanceKm as number) && Number.isFinite(now as number)
                 && (now as number) < (heldDistanceKm as number)) {
                 session.activeFilter.radiusDistanceKm = heldDistanceKm;
-                console.log(`📏 [잰 거리] ${(now as number).toFixed(1)}km 로 가까워졌지만 ${(heldDistanceKm as number).toFixed(1)}km 를 그대로 둔다 — 넓히기만 한다`);
+                slog('필터', `📏 [잰 거리] ${(now as number).toFixed(1)}km 로 가까워졌지만 ${(heldDistanceKm as number).toFixed(1)}km 를 그대로 둔다 — 넓히기만 한다`);
             }
         }
         // 파생 데이터 재계산
@@ -1258,7 +1259,7 @@ export function updateActiveFilter(
      *    화면이 사실과 다르게 말하고 다음 콜 잡기가 '하차 중'으로 시작한다.
      */
     if (activeCount === 0 && session.activeFilter.driverAction !== 'WAITING') {
-        console.log(`🔗 [불변식] driverAction ${session.activeFilter.driverAction} → WAITING (활성 콜 0건)`);
+        slog('필터', `🔗 [불변식] driverAction ${session.activeFilter.driverAction} → WAITING (활성 콜 0건)`);
         session.activeFilter.driverAction = 'WAITING';
     }
 
@@ -1271,7 +1272,7 @@ export function updateActiveFilter(
     if (changes.driverAction === 'DRIVING' && !session.departedAt) {
         session.departedAt = Date.now();
         justDeparted = true;
-        console.log(`🚀 [출발] 이제 모으지 않고 갑니다 — 운행 중 유지 (정류장에서 안 풀림)`);
+        slog('필터', `🚀 [출발] 이제 모으지 않고 갑니다 — 운행 중 유지 (정류장에서 안 풀림)`);
     }
     // 실은 짐이 없으면 출발했을 리도 없다
     if (activeCount === 0 && session.departedAt) {
@@ -1286,7 +1287,7 @@ export function updateActiveFilter(
 
     const derivedPhase = deriveDispatchPhase(activeCount, !!session.departedAt);
     if (session.activeFilter.dispatchPhase !== derivedPhase) {
-        console.log(`🔗 [불변식] dispatchPhase ${session.activeFilter.dispatchPhase} → ${derivedPhase} (활성 콜 ${activeCount}건)`);
+        slog('필터', `🔗 [불변식] dispatchPhase ${session.activeFilter.dispatchPhase} → ${derivedPhase} (활성 콜 ${activeCount}건)`);
         session.activeFilter.dispatchPhase = derivedPhase;
     }
 
@@ -1318,13 +1319,13 @@ export function updateActiveFilter(
         .filter((o: any) => (EVALUATING_STATUSES as readonly string[]).includes(o.status));
     if (!session.activeFilter.isActive && evaluating.length === 0
         && session.filterEnabledByMode !== false) {
-        console.log(`🔗 [불변식] isActive false → true (선점 중인 콜 0건 — 콜 잡기를 다시 켠다)`);
+        slog('필터', `🔗 [불변식] isActive false → true (선점 중인 콜 0건 — 콜 잡기를 다시 켠다)`);
         session.activeFilter.isActive = true;
     }
 
     const derivedShared = derivedPhase !== 'STANDBY';
     if (session.activeFilter.isSharedMode !== derivedShared) {
-        console.log(`🔗 [불변식] isSharedMode ${session.activeFilter.isSharedMode} → ${derivedShared} (dispatchPhase=${derivedPhase})`);
+        slog('필터', `🔗 [불변식] isSharedMode ${session.activeFilter.isSharedMode} → ${derivedShared} (dispatchPhase=${derivedPhase})`);
         session.activeFilter.isSharedMode = derivedShared;
     }
 
@@ -1385,7 +1386,7 @@ export function recordDayResult(userId: string, day: string, settingsSnapshot: u
                 VALUES (?, ?, ?, ?, ?, ?, ?)`)
       .run(userId, day, JSON.stringify(settingsSnapshot ?? {}),
            done.revenue, done.calls, JSON.stringify(cancels), JSON.stringify(colors));
-    console.log(`📊 [성과 기록] ${day} — 매출 ${done.revenue.toLocaleString()}원 · 완료 ${done.calls}콜 · ` +
+    slog('콜단계', `📊 [성과 기록] ${day} — 매출 ${done.revenue.toLocaleString()}원 · 완료 ${done.calls}콜 · ` +
         `취소 ${JSON.stringify(cancels)} · 색 ${JSON.stringify(colors)}`);
 }
 
@@ -1440,7 +1441,7 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
         if (gone.length) {
             session.myOrders = session.myOrders.filter(o => !gone.includes(o));
             for (const o of gone) session.pendingOrdersData.delete(o.id);
-            console.log(`🌅 [영업일 전환] 어제 하차 완료 ${gone.length}건을 화면 사이클에서 정리 (장부·매출은 그대로)`);
+            slog('필터', `🌅 [영업일 전환] 어제 하차 완료 ${gone.length}건을 화면 사이클에서 정리 (장부·매출은 그대로)`);
             if (io) io.to(userId).emit("sync-active-orders", buildOrderSync(session));
         }
     } catch (e) { console.error('🌅 [영업일 전환] 하차분 정리 실패 (전환은 계속):', (e as Error).message); }
@@ -1451,9 +1452,9 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
     /* 값은 한 벌이라 위의 `resetToBaseFilter` 한 번이 오늘값을 다 되돌린다 */
     session.departedAt = null;   // 어제 출발한 것이 오늘 되살아나지 않는다
 
-    console.log(`🌅 [영업일 전환] ${yesterday} → ${today} · 오늘 필터를 기본 설정으로 되돌립니다 ` +
+    slog('필터', `🌅 [영업일 전환] ${yesterday} → ${today} · 오늘 필터를 기본 설정으로 되돌립니다 ` +
         `(도착 ${session.baseFilter.destinationCity})`);
-    logRoadmapEvent("서버", `[영업일 전환] ${yesterday} → ${today} — activeFilter 를 baseFilter 로 리셋`);
+    logRoadmapEvent('필터', "서버", `[영업일 전환] ${yesterday} → ${today} — activeFilter 를 baseFilter 로 리셋`);
 
     // 파생 재계산 + 관제탑 전파
     updateActiveFilter(userId, {}, io);

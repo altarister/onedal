@@ -13,6 +13,7 @@ import { callMemoryRoundForPhone } from "./sim";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
 import { PluginFactory } from "../core/plugins/PluginFactory";
+import { slog } from "../utils/fileLogger";
 
 /**
  * 🧭 **경로 순서 맵이 도착지를 얼마나 덮나 — 바뀔 때만 한 줄** (기사님 요청 «콘솔로그에 넣어서 너도 확인할 수 있도록»).
@@ -32,7 +33,7 @@ function logOrderKmCoverage(userId: string, keywords: string[], orderKm: Record<
     if (lastOrderKmSig.get(userId) === sig) return;
     lastOrderKmSig.set(userId, sig);
     const sample = unknown.slice(0, 12).join('·') + (unknown.length > 12 ? ` 외 ${unknown.length - 12}` : '');
-    console.log(`🧭 [경로 순서 맵] 도착지 ${keywords.length}곳 중 순서 아는 곳 ${keywords.length - unknown.length}곳 · ` +
+    slog('필터', `🧭 [경로 순서 맵] 도착지 ${keywords.length}곳 중 순서 아는 곳 ${keywords.length - unknown.length}곳 · ` +
         `모르는 곳 ${unknown.length}곳 — 모르는 곳으로 가는 콜은 앱이 역주행을 못 가린다` +
         (unknown.length ? ` (${sample})` : ''));
 }
@@ -130,7 +131,7 @@ router.post("/", (req, res) => {
         const countStmt = db.prepare("SELECT COUNT(*) as count FROM intel");
         const totalScrap = (countStmt.get() as { count: number })?.count || 0;
 
-        logRoadmapEvent("서버", ` [/api/scrap 수신] User: ${userId} (${deviceId}) | ${data.length}항목 적재 중${screenContext ? ` [화면: ${screenContext}]` : ''}`);
+        logRoadmapEvent('통신', "서버", ` [/api/scrap 수신] User: ${userId} (${deviceId}) | ${data.length}항목 적재 중${screenContext ? ` [화면: ${screenContext}]` : ''}`);
         // console.log(`🛡️ [서버] /api/scrap 수신 직후: 서버단 2차 해시 검증 및 무효 콜 필터링 통과 완료`);
         // logRoadmapEvent("서버", "앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음");
 
@@ -191,7 +192,7 @@ router.post("/", (req, res) => {
                     if (v === ackDecisionId) session.deviceEvaluatingMap.delete(k);
                 });
 
-                console.log(`🧹 [Piggyback V2] 기사님 폰에서 ${ackDecisionId} 판결 수신 확인(ACK)! 안전하게 큐에서 삭제합니다.`);
+                slog('결재', `🧹 [Piggyback V2] 기사님 폰에서 ${ackDecisionId} 판결 수신 확인(ACK)! 안전하게 큐에서 삭제합니다.`);
             }
 
             // 현재 이 기사님이 확정(Confirm)을 누르고 결재를 기다리는 콜이 있는지 찾습니다.
@@ -205,7 +206,7 @@ router.post("/", (req, res) => {
                         orderId: evaluatingOrderId,
                         action: decisionData.action // "KEEP" or "CANCEL"
                     };
-                    console.log(`📦 [Piggyback V2] 텔레메트리 편에 결재(${decisionData.action})를 태워 보냅니다! (orderId: ${evaluatingOrderId})`);
+                    slog('결재', `📦 [Piggyback V2] 텔레메트리 편에 결재(${decisionData.action})를 태워 보냅니다! (orderId: ${evaluatingOrderId})`);
                 }
             }
         }
@@ -272,7 +273,7 @@ router.post("/", (req, res) => {
         // 잘못된 필터로 잡는 것보다 잠깐 멈추는 편이 안전하다.
         if (session.isBootstrapping) {
             appFilter.isActive = false;
-            console.log(`⏳ [부트스트랩 중] ${deviceId} 에게 isActive=false 로 응답 (필터 준비 중)`);
+            slog('필터', `⏳ [부트스트랩 중] ${deviceId} 에게 isActive=false 로 응답 (필터 준비 중)`);
         }
 
         /**
@@ -286,11 +287,11 @@ router.post("/", (req, res) => {
             appFilter.isActive = false;
             if (!session.capacityHoldNotified) {
                 session.capacityHoldNotified = true;
-                console.log(`⛔ [적재 만석] ${deviceId} 에게 isActive=false 로 응답 (실을 수 있는 차종 없음 — 하차하면 재개)`);
+                slog('필터', `⛔ [적재 만석] ${deviceId} 에게 isActive=false 로 응답 (실을 수 있는 차종 없음 — 하차하면 재개)`);
             }
         } else if (session.capacityHoldNotified) {
             session.capacityHoldNotified = false;
-            console.log(`✅ [적재 만석 해제] 콜 잡기 재개 (허용 차종: ${(session.activeFilter.allowedVehicleTypes ?? []).join(', ')})`);
+            slog('필터', `✅ [적재 만석 해제] 콜 잡기 재개 (허용 차종: ${(session.activeFilter.allowedVehicleTypes ?? []).join(', ')})`);
         }
 
         /**
@@ -310,7 +311,7 @@ router.post("/", (req, res) => {
          */
         if (!session.isRestored) {
             appFilter.isActive = false;
-            console.log(`🚦 [콜 잡기 대기] ${deviceId} — 관제탑이 아직 접속하지 않았습니다. ` +
+            slog('필터', `🚦 [콜 잡기 대기] ${deviceId} — 관제탑이 아직 접속하지 않았습니다. ` +
                 `오늘 필터가 확정되기 전에는 콜을 잡지 않습니다 (관제웹을 열어 주세요)`);
         }
 
@@ -324,7 +325,7 @@ router.post("/", (req, res) => {
         const blocker = callFilterBlocker(session.activeFilter);
         if (blocker) {
             appFilter.isActive = false;
-            console.log(`🚦 [콜 잡기 보류] ${deviceId} — ${blocker}`);
+            slog('필터', `🚦 [콜 잡기 보류] ${deviceId} — ${blocker}`);
         }
 
         /**
@@ -344,7 +345,7 @@ router.post("/", (req, res) => {
         // 기기당 최초 1회만 — 새 APK 가 실제로 v2 로 말하기 시작했는지 서버 로그에서 보인다
         if (speaksV2 && deviceId && !v2Devices.has(deviceId)) {
             v2Devices.add(deviceId);
-            console.log(`🧭 [피기백 v2] ${deviceId} — 신프로토콜 감지 (버전 게이트·중복 제거 작동)`);
+            slog('통신', `🧭 [피기백 v2] ${deviceId} — 신프로토콜 감지 (버전 게이트·중복 제거 작동)`);
         }
 
         // 🛰️ 이중 발신 감지 — 같은 기기 이름이 15초 안에 다른 IP 에서도 말하면 경고 (분당 1회)

@@ -86,13 +86,13 @@ export function initFileLogger(): void {
             }
             /**
              * 🏷️ 시각 다음 첫 토막은 태그다 (reviews/22 2단계) — `slog` 로 찍은 줄은 «#태그»를 이미
-             *    이고 있고, 그 밖의 줄은 파일에서 `#없음` 을 인다. 터미널 출력은 원문 그대로다.
+             *    이고 있고, 태그 없는 경고·오류 줄은 `#경고`, 그 밖의 줄은 `#없음` 을 인다. 터미널 출력은 원문 그대로다.
              *    옛 날짜 파일(태그 없는 꼴)은 `pnpm log` 가 그대로 읽는다 — 태그는 있으면 쓰는 토막이다.
              */
             const body = args.map(a =>
                 typeof a === 'string' ? a : (() => { try { return JSON.stringify(a); } catch { return String(a); } })()
             ).join(' ');
-            const tagged = body.startsWith('#') ? body : `#${NO_TAG} ${body}`;
+            const tagged = body.startsWith('#') ? body : `#${level === '   ' ? NO_TAG : '경고'} ${body}`;
             const line = `${stamp()} ${level} ${tagged}\n`;
             const clean = stripAnsi(line);
             written += clean.length;
@@ -119,8 +119,10 @@ export function initFileLogger(): void {
  * 🏷️ **태그 로거** — 호출부가 «#태그» 글자를 직접 쓰지 않는다 (reviews/22 2단계).
  * 터미널·파일이 같은 «#태그 …» 한 꼴이고, 태그 목록은 shared `LOG_TAGS` 한 곳이다.
  */
-export function slog(tag: LogTag, msg: string): void {
+export function slog(tag: LogTag, ...args: unknown[]): void {
     // 목록 밖 값(런타임 undefined 등)이 오면 «#undefined» 를 이지 않게 #없음 으로 떨어뜨린다
     const t = (LOG_TAGS as readonly string[]).includes(tag) ? tag : NO_TAG;
-    console.log(`#${t} ${msg}`);
+    const [first, ...rest] = args;
+    if (typeof first === 'string') console.log(`#${t} ${first}`, ...rest);
+    else console.log(`#${t}`, ...args);
 }

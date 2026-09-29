@@ -9,6 +9,7 @@ import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { getUserSession, clearUserSession } from "../state/userSessionStore";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
+import { slog } from "../utils/fileLogger";
 
 const router = Router();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -27,7 +28,7 @@ router.post("/google", async (req, res) => {
     }
 
     try {
-        logRoadmapEvent("서버", "관제탑으로 부터 구글 로그인 토큰 검증 요청 받음");
+        logRoadmapEvent('통신', "서버", "관제탑으로 부터 구글 로그인 토큰 검증 요청 받음");
         // 1. Google OAuth2 서버에서 토큰 진위 확인 및 유저 정보 추출
         const ticket = await client.verifyIdToken({
             idToken: credential,
@@ -42,7 +43,7 @@ router.post("/google", async (req, res) => {
         const avatar = payload.picture || "";
 
         // 2. DB에 존재하는 유저인지 확인
-        logRoadmapEvent("서버", "email 바탕으로 접속 유저 정보 DB 조회/생성 연산");
+        logRoadmapEvent('통신', "서버", "email 바탕으로 접속 유저 정보 DB 조회/생성 연산");
         let userRow = db.prepare("SELECT * FROM users WHERE google_id = ?").get(googleId) as any;
 
         if (!userRow) {
@@ -59,9 +60,9 @@ router.post("/google", async (req, res) => {
             db.prepare(`INSERT INTO user_settings (user_id) VALUES (?)`).run(newId);
             db.prepare(`INSERT INTO user_filters (user_id) VALUES (?)`).run(newId);
             
-            console.log(`✨ [AUTH] 신규 회원가입 처리: ${name} (${email})`);
+            slog('통신', `✨ [AUTH] 신규 회원가입 처리: ${name} (${email})`);
         } else {
-            console.log(`🔓 [AUTH] 기존 회원 로그인: ${name} (${email})`);
+            slog('통신', `🔓 [AUTH] 기존 회원 로그인: ${name} (${email})`);
         }
 
         /**
@@ -98,7 +99,7 @@ router.post("/google", async (req, res) => {
         `).run(userRow.id, hashedRefreshToken, userAgent || req.headers['user-agent'] || "Unknown", expiresAt);
 
         // 5. 클라이언트에 Access/Refresh Token 및 유저 프로필 응답
-        logRoadmapEvent("서버", "관제탑에게 인증 JWT Token 발급 및 정보 전달");
+        logRoadmapEvent('통신', "서버", "관제탑에게 인증 JWT Token 발급 및 정보 전달");
         return res.json({
             accessToken,
             refreshToken,
@@ -191,7 +192,7 @@ router.post("/logout", requireAuth, (req, res) => {
         for (const t of userTokens) {
             if (bcrypt.compareSync(refreshToken, t.refresh_token)) {
                 db.prepare(`DELETE FROM user_tokens WHERE id = ?`).run(t.id);
-                console.log(`🚪 [AUTH] 기기 로그아웃 처리 완료 (User: ${userId})`);
+                slog('통신', `🚪 [AUTH] 기기 로그아웃 처리 완료 (User: ${userId})`);
                 // [신규] 완전히 로그아웃 처리되었으므로 메모리 세션도 함께 파기하여 다음 로그인 시 DB에서 프레시하게 불러오도록 함
                 clearUserSession(userId);
                 break;
@@ -243,7 +244,7 @@ router.post("/bypass", async (req, res) => {
     }
 
     try {
-        logRoadmapEvent("서버", "관제탑 개발자 로컬 우회 로그인 요청 받음");
+        logRoadmapEvent('통신', "서버", "관제탑 개발자 로컬 우회 로그인 요청 받음");
         /**
          * 🔬 **실측 전용 계정**.
          *
@@ -278,7 +279,7 @@ router.post("/bypass", async (req, res) => {
                 db.prepare(`INSERT INTO user_filters (user_id, destination_city) VALUES (?, ?)`)
                     .run(probeId, '성남시');
                 userRow = db.prepare("SELECT * FROM users WHERE id = ?").get(probeId);
-                console.log(`🔬 [실측 계정 생성] ${PROBE_EMAIL} — 기사님 계정과 분리된 판입니다`);
+                slog('통신', `🔬 [실측 계정 생성] ${PROBE_EMAIL} — 기사님 계정과 분리된 판입니다`);
             }
         } else {
             // DB에 있는 첫 번째 유저를 무조건 가져옴 (개발자 테스트용)
@@ -287,7 +288,7 @@ router.post("/bypass", async (req, res) => {
         
         // 유저가 한 명도 없다면, 개발/테스트용 임시 계정을 강제 생성합니다.
         if (!userRow) {
-            console.log("⚠️ DB에 유저가 없어 임시 개발자 계정을 생성합니다.");
+            slog('경고', "⚠️ DB에 유저가 없어 임시 개발자 계정을 생성합니다.");
             const newId = uuidv4();
             db.prepare(`
                 INSERT INTO users (id, google_id, email, name, avatar, role)
@@ -322,7 +323,7 @@ router.post("/bypass", async (req, res) => {
             VALUES (?, ?, ?, ?)
         `).run(userRow.id, hashedRefreshToken, "Bypass-Agent", expiresAt);
 
-        console.log(`🔓 [AUTH] 로컬 우회 로그인: ${userRow.name} (${userRow.email})`);
+        slog('통신', `🔓 [AUTH] 로컬 우회 로그인: ${userRow.name} (${userRow.email})`);
         
         return res.json({
             accessToken,

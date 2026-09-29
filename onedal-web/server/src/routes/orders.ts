@@ -26,6 +26,7 @@ import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
+import { slog } from "../utils/fileLogger";
 
 const router = Router();
 
@@ -132,13 +133,13 @@ router.post("/confirm", (req, res) => {
                 (payload.order as any).tagsText ?? null,
                 payload.order.rawText,
             );
-            console.log(`📄 [픽커 상세 보관] ${payload.order.fare ?? 0}원 · ${payload.order.rawText.length}자 — 칸 나누기는 실물 캡처 뒤에`);
+            slog('화면', `📄 [픽커 상세 보관] ${payload.order.fare ?? 0}원 · ${payload.order.rawText.length}자 — 칸 나누기는 실물 캡처 뒤에`);
         }
 
         const io = req.app.get("io");
 
         // 즉시 응답 (앱은 멈추지 않고 상세 페이지 긁으러 진입해야 함)
-        logRoadmapEvent("서버", "앱폰에게 상세 정보 스크래핑을 즉시 진행하라고 응답 전달");
+        logRoadmapEvent('통신', "서버", "앱폰에게 상세 정보 스크래핑을 즉시 진행하라고 응답 전달");
         res.json({ success: true, message: "1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요." });
         const session = getUserSession(userId);
 
@@ -148,7 +149,7 @@ router.post("/confirm", (req, res) => {
             const prevDecision = session.pendingDecisions.get(previousEvaluatingId);
             // 이미 KEEP 결재가 내려진 콜은 새 콜 진입 시에도 삭제하지 않음 (다중 배차 유지)
             if (!prevDecision || prevDecision.action !== 'KEEP') {
-                console.log(`🧹 [자동 정리] 새 콜 진입 감지! 기존 평가 중이던 콜(${previousEvaluatingId}) 백그라운드 강제 취소`);
+                slog('콜단계', `🧹 [자동 정리] 새 콜 진입 감지! 기존 평가 중이던 콜(${previousEvaluatingId}) 백그라운드 강제 취소`);
                 forceCancelEvaluatingOrder(userId, previousEvaluatingId, io);
             }
         }
@@ -188,11 +189,11 @@ router.post("/confirm", (req, res) => {
         }
 
         if (io) {
-            console.log(`📤 [Socket 푸시] order-evaluating (${pendingOrder.id}) - 상태: ${pendingOrder.status}`);
+            slog('통신', `📤 [Socket 푸시] order-evaluating (${pendingOrder.id}) - 상태: ${pendingOrder.status}`);
             io.to(userId).emit("order-evaluating", pendingOrder);
-            console.log(`⏱️ [1차 선점 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${payload.deviceId})`);
-            logRoadmapEvent("서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");
-            logRoadmapEvent("서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
+            slog('콜단계', `⏱️ [1차 선점 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${payload.deviceId})`);
+            logRoadmapEvent('콜단계', "서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");
+            logRoadmapEvent('콜단계', "서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
 
             /**
              * 🔒 **선점 중이라고 콜 잡기를 끄지 않는다** (기사님 · 실주행 04:58 오송읍).
@@ -207,7 +208,7 @@ router.post("/confirm", (req, res) => {
              * 🔴 선점 중이라는 사실은 `evaluatingNow` 로 간다 (`scrap.ts` 가 조립할 때 싣는다).
              *    앱은 그것을 보고 **판정은 하고 클릭만 미룬다** — 앞 콜이 결재되면 다음 스캔에서 바로 잡는다.
              */
-            logRoadmapEvent("서버", "선점 중이라는 사실을 evaluatingNow 로 앱에 알린다 (콜 잡기는 안 끈다)");
+            logRoadmapEvent('콜단계', "서버", "선점 중이라는 사실을 evaluatingNow 로 앱에 알린다 (콜 잡기는 안 끈다)");
 
             /**
              * 🔴 **안전망은 조건 없이 건다** — 조건부면 안전망이 아니다.
@@ -240,7 +241,7 @@ router.post("/confirm", (req, res) => {
             if ((pendingOrder as any).isPreview) {
                 const holdSec = cancelSec ?? readWaitTimes(userId).pickerAlarmDetailSec;
                 pendingOrder.judgeUntil = Date.now() + holdSec * 1000;
-                console.log(`👀 [미리보기] ${pendingOrder.id} — 남은 판정 시간 ${holdSec}초 (표시용 · 끄는 것은 폰 화면이 정한다)`);
+                slog('콜단계', `👀 [미리보기] ${pendingOrder.id} — 남은 판정 시간 ${holdSec}초 (표시용 · 끄는 것은 폰 화면이 정한다)`);
             } else if (cancelSec != null) {
                 const graceTimer = setTimeout(() => {
                     session.activeTimers.delete(`presecured_${pendingOrder.id}`);
@@ -248,13 +249,13 @@ router.post("/confirm", (req, res) => {
                     // 🔴 여기도 상태 목록을 손으로 적고 있었다. `shared` 의
                     //    `EVALUATING_STATUSES` 와 값이 같았지만, 한쪽만 늘어나면 갈라진다.
                     if (cached && isEvaluating(cached.status)) {
-                        console.log(`💀 [서버 안전취소 타이머] ${cancelSec}초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
+                        slog('콜단계', `💀 [서버 안전취소 타이머] ${cancelSec}초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
                         handleDecision(userId, pendingOrder.id, "SAFE_CANCEL", io);
                     }
                 }, cancelSec * 1000);
                 session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
             } else {
-                console.log(`👀 [픽커] ${pendingOrder.id} — 안전취소가 없는 배차망이라 서버 타이머를 걸지 않는다 (규칙 ①)`);
+                slog('콜단계', `👀 [픽커] ${pendingOrder.id} — 안전취소가 없는 배차망이라 서버 타이머를 걸지 않는다 (규칙 ①)`);
             }
         }
     } catch (error) {
@@ -271,7 +272,7 @@ router.post("/decision", async (req, res) => {
         }
 
         const io = req.app.get("io");
-        console.log(`⚖️ [REST Decision 수신] ID: ${payload.orderId}, Action: ${payload.action} (앱에서 직통)`);
+        slog('결재', `⚖️ [REST Decision 수신] ID: ${payload.orderId}, Action: ${payload.action} (앱에서 직통)`);
 
         // [하드 락] 미등록 기기 차단
         if (!payload.deviceId) {

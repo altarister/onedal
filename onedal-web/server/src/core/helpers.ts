@@ -12,6 +12,7 @@ import db from '../db';
 import { planArrivalStops } from '../services/routeComposer';
 import type { RouteSnapshot } from '../services/routeComposer';
 import { stepsView, stepRecordsOf, plannedDwellOf } from '../services/stepSeeder';
+import { slog } from '../utils/fileLogger';
 
 /**
  * 종료되지 않은(활성) 콜만 필터링합니다.
@@ -262,7 +263,7 @@ function logRouteStops(
     const pending = pendingInRoute.length
         ? ` ⚠️ 후보 포함 경로(${pendingInRoute.map(id => id.slice(-6)).join(' · ')}) → 주행분 안 씀`
         : '';
-    console.log(`🧭 [경로 순서] 카카오호출시점 ${kakaoCalledAt} · 홀더 ${holderId?.slice(-6) ?? '없음'} · ${body}${mismatch}${pending}`);
+    slog('판정', `🧭 [경로 순서] 카카오호출시점 ${kakaoCalledAt} · 홀더 ${holderId?.slice(-6) ?? '없음'} · ${body}${mismatch}${pending}`);
 }
 
 /**

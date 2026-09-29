@@ -40,6 +40,7 @@ function routeTlOf(userId: string): RouteTl | undefined {
 }
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, trimTraveled, maybeRebuildPickupList } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "../services/geoService";
+import { slog } from "../utils/fileLogger";
 
 
 
@@ -83,7 +84,7 @@ export function registerSocketHandlers(io: Server) {
                     || socket.handshake.headers?.authorization?.split(' ')[1];
         
         if (!token) {
-            console.log("❌ [Socket] 인증 토큰 누락 접속 거부");
+            slog('경고', "❌ [Socket] 인증 토큰 누락 접속 거부");
             return next(new Error('인증 토큰 없음'));
         }
         
@@ -100,14 +101,14 @@ export function registerSocketHandlers(io: Server) {
              * 판단은 `authMiddleware.isKnownUser` 하나뿐이다 — 여기서 따로 조회하지 않는다 (규칙 ③).
              */
             if (!isKnownUser(decoded?.id)) {
-                console.log(`❌ [Socket] 이 서버에 없는 유저의 토큰 — ${decoded?.id} (${decoded?.email})`);
+                slog('경고', `❌ [Socket] 이 서버에 없는 유저의 토큰 — ${decoded?.id} (${decoded?.email})`);
                 return next(new Error('이 서버에 등록되지 않은 계정'));
             }
 
             socket.data.user = decoded; // { id, email, name, role }
             next();
         } catch (err) {
-            console.log("❌ [Socket] 토큰 검증 실패:", err);
+            slog('경고', "❌ [Socket] 토큰 검증 실패:", err);
             next(new Error('토큰 만료 또는 위조'));
         }
     });
@@ -155,7 +156,7 @@ export function registerSocketHandlers(io: Server) {
         // 필터는 부트스트랩이 끝난 뒤 **완성본으로 한 번만** 보낸다.
         if (!session.isRestored) {
             // 첫 접속: 부트스트랩이 완료 시점에 filter-init 을 룸으로 emit 한다
-            logRoadmapEvent("서버", "관제탑 소켓 접속 — 부트스트랩 시작 (필터는 확정 후 1회 전송)");
+            logRoadmapEvent('통신', "서버", "관제탑 소켓 접속 — 부트스트랩 시작 (필터는 확정 후 1회 전송)");
             bootstrapUserSession(userId, io);
         } else {
             // 이미 부트스트랩이 끝난 세션(단순 새로고침·재연결)은 현재 확정 필터를 즉시 전달
@@ -163,7 +164,7 @@ export function registerSocketHandlers(io: Server) {
                 activeFilter: session.activeFilter,
                 baseFilter: session.baseFilter,
             });
-            logRoadmapEvent("서버", `관제탑에게 확정 필터(filter-init) 전달 — minFare=${session.activeFilter.minFare}`);
+            logRoadmapEvent('필터', "서버", `관제탑에게 확정 필터(filter-init) 전달 — minFare=${session.activeFilter.minFare}`);
         }
 
         socket.emit("judgment-init", session.judgment);
@@ -182,7 +183,7 @@ export function registerSocketHandlers(io: Server) {
                           '웹 브라우저';
         const deviceInfo = parseFriendlyDeviceInfo(rawDevice);
 
-        console.log(`🔌 [소켓 연결] 유저 접속: ${socket.data.user.name} (${userId}) | 세션: ${clientSessionId.slice(0, 15)} | 기기: ${deviceInfo}`);
+        slog('통신', `🔌 [소켓 연결] 유저 접속: ${socket.data.user.name} (${userId}) | 세션: ${clientSessionId.slice(0, 15)} | 기기: ${deviceInfo}`);
 
         const session = getUserSession(userId);
         const currentActive = session.activeWebSession;
@@ -201,7 +202,7 @@ export function registerSocketHandlers(io: Server) {
 
         // 🛡️ 세션 충돌 검사: 기존 세션이 살아있고, 브라우저 세션 ID가 다른 경우 (다른 기기 / 새 창)
         if (currentActive && currentSocket && currentSocket.id !== socket.id && currentActive.clientSessionId !== clientSessionId) {
-            console.log(`⚠️ [세션 충돌 감지] 유저(${userId}) 기존 세션(${currentActive.deviceInfo}) 활성 중 ➡️ 새 세션(${deviceInfo}) 대기`);
+            slog('통신', `⚠️ [세션 충돌 감지] 유저(${userId}) 기존 세션(${currentActive.deviceInfo}) 활성 중 ➡️ 새 세션(${deviceInfo}) 대기`);
             
             socket.emit("session-conflict", {
                 existingDeviceInfo: currentActive.deviceInfo || "다른 기기",
@@ -210,7 +211,7 @@ export function registerSocketHandlers(io: Server) {
 
 
             socket.on("takeover-session", () => {
-                console.log(`🔄 [세션 인계 승인] 유저(${userId}) 새 기기(${deviceInfo})로 관제탑 세션 인계`);
+                slog('통신', `🔄 [세션 인계 승인] 유저(${userId}) 새 기기(${deviceInfo})로 관제탑 세션 인계`);
                 const oldSock = io.sockets.sockets.get(session.activeWebSession?.socketId || '');
                 if (oldSock) {
                     io.to(oldSock.id).emit("session-superseded", {
@@ -230,7 +231,7 @@ export function registerSocketHandlers(io: Server) {
             });
 
             socket.on("cancel-takeover", () => {
-                console.log(`🚫 [세션 인계 취소] 유저(${userId}) 새 기기(${deviceInfo}) 접속 취소`);
+                slog('통신', `🚫 [세션 인계 취소] 유저(${userId}) 새 기기(${deviceInfo}) 접속 취소`);
                 socket.disconnect(true);
             });
         } else {
@@ -275,7 +276,7 @@ export function registerSocketHandlers(io: Server) {
             })();
 
             session.judgment = safe;   // 그릇이 하나다 — "오늘만" 이 없다
-            console.log(`🎯 [판정 기준 저장] ${cols.length}개 값 · 🔵 ${safe.color.honeyMin}점 · 🟢 ${safe.color.normalMin}점`);
+            slog('필터', `🎯 [판정 기준 저장] ${cols.length}개 값 · 🔵 ${safe.color.honeyMin}점 · 🟢 ${safe.color.normalMin}점`);
             io.to(userId).emit("judgment-updated", safe);
         });
 
@@ -304,28 +305,28 @@ export function registerSocketHandlers(io: Server) {
             forgetCallOptions(userId);                       // ② 서버 판정이 새 값을 쓰게
             const session = getUserSession(userId);
             session.callOptions = loadCallOptions(userId);   // ③ 세션도 새 값으로
-            console.log(`🎛️ [콜 옵션 저장] ${edited.length}개 · 정차 값을 다시 읽었습니다`);
+            slog('필터', `🎛️ [콜 옵션 저장] ${edited.length}개 · 정차 값을 다시 읽었습니다`);
             io.to(userId).emit("call-options-init", session.callOptions);
         });
 
         socket.on("request-filter-init", () => {
-            console.log(`📡 [웹 수신] request-filter-init (초기 필터 동기화 요청) - userId: ${userId}`);
+            slog('통신', `📡 [웹 수신] request-filter-init (초기 필터 동기화 요청) - userId: ${userId}`);
             const session = getUserSession(userId);
             // 아직 확정 전이면 응답하지 않는다. 부트스트랩이 끝나면서 filter-init 이 나간다.
             if (session.isBootstrapping) {
-                console.log(`⏳ [부트스트랩 중] filter-init 응답 보류 — 확정 후 자동 전송됩니다`);
+                slog('통신', `⏳ [부트스트랩 중] filter-init 응답 보류 — 확정 후 자동 전송됩니다`);
                 return;
             }
             socket.emit("filter-init", { 
                 activeFilter: session.activeFilter,
                 baseFilter: session.baseFilter,
             });
-            logRoadmapEvent("서버", `관제탑 요청으로 필터(filter-init) 정보 재전달\n - activeFilter(현재 콜 필터): minFare=${session.activeFilter.minFare}\n - baseFilter(기본설정): minFare=${session.baseFilter.minFare}`);
+            logRoadmapEvent('필터', "서버", `관제탑 요청으로 필터(filter-init) 정보 재전달\n - activeFilter(현재 콜 필터): minFare=${session.activeFilter.minFare}\n - baseFilter(기본설정): minFare=${session.baseFilter.minFare}`);
         });
 
         // 프론트에서 필터 변경 시
         safeOn(socket, "update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
-            logRoadmapEvent("서버", `관제탑으로 부터 필터 변경(update-filter) 요청 받음. 수신 데이터: ${JSON.stringify(newFilter)}`);
+            logRoadmapEvent('필터', "서버", `관제탑으로 부터 필터 변경(update-filter) 요청 받음. 수신 데이터: ${JSON.stringify(newFilter)}`);
             
 
             /**
@@ -356,10 +357,10 @@ export function registerSocketHandlers(io: Server) {
             const { saveAsDefault, ...filterChanges } = newFilter as Partial<AutoDispatchFilter> & { saveAsDefault?: boolean };
 
             if (saveAsDefault) {
-                logRoadmapEvent("서버", "관제탑이 '앞으로 계속' 로 저장 요청 — baseFilter(평소 설정)까지 갱신");
+                logRoadmapEvent('필터', "서버", "관제탑이 '앞으로 계속' 로 저장 요청 — baseFilter(평소 설정)까지 갱신");
                 saveBaseFilter(userId, filterChanges, io);
             } else {
-                logRoadmapEvent("서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (오늘만 — DB 저장 안함)");
+                logRoadmapEvent('필터', "서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (오늘만 — DB 저장 안함)");
             }
             updateActiveFilter(userId, filterChanges, io);
         });
@@ -440,7 +441,7 @@ export function registerSocketHandlers(io: Server) {
                             console.error(`🌉 [단계 다리 실패] ${stop.orderId.slice(-6)}:`, (e as Error).message);
                         }
                         // auto-arrived — 죽은 문이던 것을 이 기능으로 살렸다 (관제웹이 원래 듣고 있었다)
-                        console.log(`📤 [Socket 푸시] auto-arrived (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
+                        slog('통신', `📤 [Socket 푸시] auto-arrived (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
                         io.to(uid).emit("auto-arrived", {
                             orderId: stop.orderId,
                             stopType: stop.stopType,
@@ -450,7 +451,7 @@ export function registerSocketHandlers(io: Server) {
                 },
                 // 근접 예고 — 도착전 통화 시점
                 (uid, stop, distKm) => {
-                    console.log(`📤 [Socket 푸시] next-stop-approaching (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
+                    slog('통신', `📤 [Socket 푸시] next-stop-approaching (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
                     io.to(uid).emit("next-stop-approaching", {
                         orderId: stop.orderId,
                         stopType: stop.stopType,
@@ -479,7 +480,7 @@ export function registerSocketHandlers(io: Server) {
                         } catch (e) {
                             console.error(`🌉 [단계 다리 실패] ${orderId.slice(-6)}:`, (e as Error).message);
                         }
-                        console.log(`📤 [Socket 푸시] auto-delivered (${orderId.slice(0, 8)})`);
+                        slog('통신', `📤 [Socket 푸시] auto-delivered (${orderId.slice(0, 8)})`);
                         io.to(uid).emit("auto-delivered", {
                             orderId,
                             message: `하차지를 ${GPS_ARRIVAL.DEPARTED_KM}km 벗어나 하차 완료로 기록했습니다 (GPS)`,
@@ -520,11 +521,11 @@ export function registerSocketHandlers(io: Server) {
                         }
                     }
                     if (!wrote) {
-                        console.log(`↩️ [지나침 무시] ${stop.orderId.slice(0, 8)} — 이미 찍혔거나 없는 콜입니다`);
+                        slog('콜단계', `↩️ [지나침 무시] ${stop.orderId.slice(0, 8)} — 이미 찍혔거나 없는 콜입니다`);
                         return;
                     }
                     io.to(uid).emit("steps-synced", { orderId: stop.orderId, steps: stepsView(stop.orderId, getUserSession(uid)?.judgment) });
-                    console.log(`📤 [Socket 푸시] auto-passed (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
+                    slog('통신', `📤 [Socket 푸시] auto-passed (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
                     io.to(uid).emit("auto-passed", {
                         orderId: stop.orderId,
                         stopType: stop.stopType,
@@ -560,7 +561,7 @@ export function registerSocketHandlers(io: Server) {
 
         // 배차 심사 수락/거절
         safeOn(socket, "decision", async ({ orderId, action }: { orderId: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE' }) => {
-            console.log(`⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Status Action: ${action}`);
+            slog('결재', `⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Status Action: ${action}`);
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
             /**
@@ -620,7 +621,7 @@ export function registerSocketHandlers(io: Server) {
              *    관제웹이 보낸 출처를 그대로 적되, 없으면 직접 누른 것으로 본다.
              */
             const source: MilestoneSource = data.source === 'SKIPPED' ? 'SKIPPED' : 'MANUAL_WEB';
-            logRoadmapEvent("서버", `관제탑으로부터 ${data.milestone} 보고 수신${source === 'SKIPPED' ? ' (건너뜀)' : ''}`);
+            logRoadmapEvent('콜단계', "서버", `관제탑으로부터 ${data.milestone} 보고 수신${source === 'SKIPPED' ? ' (건너뜀)' : ''}`);
             const result = await reportMilestone(userId, data.orderId, data.milestone, source, io, data.occurredAt, data.predictedAt, data.reasons);
             // 🌉 다리 — 단계 행 마감 + 다음 출생
             try {
@@ -693,7 +694,7 @@ export function registerSocketHandlers(io: Server) {
             const label = report.stopType === 'pickup' ? '상차지' : '하차지';
             const kindLabel = report.kind === 'DECLARED' ? '통화 신고' : '현장 실측';
             // 화면이 보내는 것은 `unit` 이다 — `sizeClass` 는 옛 필드라 폴백으로만 본다
-            console.log(`📞 [${label} ${kindLabel}] ${report.unit || report.sizeClass || '-'} × ${report.quantity ?? '-'} · ${report.handling || '-'}`);
+            slog('콜단계', `📞 [${label} ${kindLabel}] ${report.unit || report.sizeClass || '-'} × ${report.quantity ?? '-'} · ${report.handling || '-'}`);
 
             /**
              * 🔬 **계측** — 약속이 **무슨 값으로** 만들어졌는지 남긴다.
@@ -725,7 +726,7 @@ export function registerSocketHandlers(io: Server) {
                     diag?.suggestedAt ? `추천 ${hhmm(diag.suggestedAt)}` : null,
                     diag?.touched != null ? (diag.touched ? '기사님이 누름' : '자동 추천 그대로') : null,
                 ].filter(Boolean);
-                console.log(`   🔬 [약속 계측] ${parts.join(' · ')}`);
+                slog('판정', `   🔬 [약속 계측] ${parts.join(' · ')}`);
             }
 
             // 신고와 실측이 크게 어긋나면 그대로 진행하면 안 된다.
@@ -784,8 +785,8 @@ export function registerSocketHandlers(io: Server) {
             } catch (e) {
                 console.error(`🌉 [단계 다리 실패] ${data.orderId.slice(-6)}:`, (e as Error).message);
             }
-            console.log(`💵 [착불 ${data.received ? '수령' : '미수'}] ${data.orderId.slice(0, 8)} ${amount.toLocaleString()}원`);
-            logRoadmapEvent("서버", `[착불] ${data.received ? '현장 수령' : '미수금 등록'} ${amount}원`);
+            slog('콜단계', `💵 [착불 ${data.received ? '수령' : '미수'}] ${data.orderId.slice(0, 8)} ${amount.toLocaleString()}원`);
+            logRoadmapEvent('콜단계', "서버", `[착불] ${data.received ? '현장 수령' : '미수금 등록'} ${amount}원`);
         });
 
         // 착불 표시는 단계 행(cod_received)이, 상태는 orders 가 원천이다
@@ -798,7 +799,7 @@ export function registerSocketHandlers(io: Server) {
             db.prepare(`UPDATE ${table} SET promised_arrival_at = ? WHERE orderId = ?`)
               .run(data.deadlineAt, data.orderId);
             const label = data.stopType === 'pickup' ? '상차' : '하차';
-            console.log(`🕒 [${label} 약속 시각] ${data.orderId.slice(0, 8)} → ${data.deadlineAt?.slice(11, 16) ?? '해제'}`);
+            slog('콜단계', `🕒 [${label} 약속 시각] ${data.orderId.slice(0, 8)} → ${data.deadlineAt?.slice(11, 16) ?? '해제'}`);
             socket.emit("steps-synced", { orderId: data.orderId, steps: stepsView(data.orderId, getUserSession(userId)?.judgment) });
         });
 
@@ -821,8 +822,8 @@ export function registerSocketHandlers(io: Server) {
             const placeId = PlaceRepository.findPlaceIdByStop(data.orderId, data.stopType);
             if (placeId) PlaceRepository.appendPlaceMemo(placeId, line);
 
-            console.log(`⚖️ [불일치 판단] ${data.orderId.slice(0, 8)} ${data.stopType} — ${line}`);
-            logRoadmapEvent("서버", `신고 불일치 판단: ${verdict} (${data.ratio.toFixed(1)}배)`);
+            slog('콜단계', `⚖️ [불일치 판단] ${data.orderId.slice(0, 8)} ${data.stopType} — ${line}`);
+            logRoadmapEvent('콜단계', "서버", `신고 불일치 판단: ${verdict} (${data.ratio.toFixed(1)}배)`);
 
             if (data.action === 'RELEASE') {
                 await handleDecision(userId, data.orderId, 'ORDER_RELEASED_BY_ME', io);
@@ -843,8 +844,8 @@ export function registerSocketHandlers(io: Server) {
             const placeId = PlaceRepository.findPlaceIdByStop(data.orderId, data.stopType);
             if (placeId) PlaceRepository.appendPlaceMemo(placeId, line);
 
-            console.log(`✕ [현장 취소] ${data.orderId.slice(0, 8)} ${data.stopType} — ${line}`);
-            logRoadmapEvent("서버", `현장에서 상차 취소 (${data.reason || '사유 미기재'})`);
+            slog('콜단계', `✕ [현장 취소] ${data.orderId.slice(0, 8)} ${data.stopType} — ${line}`);
+            logRoadmapEvent('콜단계', "서버", `현장에서 상차 취소 (${data.reason || '사유 미기재'})`);
             await handleDecision(userId, data.orderId, 'ORDER_RELEASED_BY_ME', io);
         });
 
@@ -870,7 +871,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         socket.on("disconnect", () => {
-            console.log(`❌ [소켓 해제] 클라이언트 종료: ${socket.id}`);
+            slog('통신', `❌ [소켓 해제] 클라이언트 종료: ${socket.id}`);
             if (session.activeWebSession?.socketId === socket.id) {
                 session.activeWebSession = null;
             }
@@ -898,7 +899,7 @@ export function registerSocketHandlers(io: Server) {
             const json = JSON.stringify(sync);
             if (json === session.lastOrderSyncJson) continue;   // 아무것도 안 바뀌었다
             session.lastOrderSyncJson = json;
-            console.log(`📤 [Socket 푸시] sync-active-orders (복구)`);
+            slog('통신', `📤 [Socket 푸시] sync-active-orders (복구)`);
             io.to(uid).emit("sync-active-orders", sync);
         }
         /**

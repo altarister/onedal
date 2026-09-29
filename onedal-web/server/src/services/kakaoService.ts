@@ -22,6 +22,7 @@ function getHeaders() {
 
 // ━━━━━━━━━━ [2단계 캐시: L1(인메모리) + L2(SQLite)] ━━━━━━━━━━
 import db from "../db";
+import { slog } from "../utils/fileLogger";
 
 // L1: 인메모리 캐시 (서버 세션 내 초고속 조회)
 const MAX_L1_CACHE_SIZE = 5000;
@@ -140,12 +141,12 @@ function isValidKoreaCoord(x: unknown, y: unknown): boolean {
 function extractPolyline(routes?: any[]): Array<{ x: number; y: number }> {
     const sections = routes?.[0]?.sections;
     if (!Array.isArray(sections)) {
-        console.log(`🗺️ [extractPolyline] routes/sections 배열이 없습니다. 카카오가 넘겨준 원본 배열:`, JSON.stringify(routes));
+        slog('경고', `🗺️ [extractPolyline] routes/sections 배열이 없습니다. 카카오가 넘겨준 원본 배열:`, JSON.stringify(routes));
         return [];
     }
     const lines = extractSectionLines(routes);
     const polyline = lines.flat();
-    console.log(`🗺️ [extractPolyline] 구간 ${lines.length} · 총 ${polyline.length}점`);
+    slog('판정', `🗺️ [extractPolyline] 구간 ${lines.length} · 총 ${polyline.length}점`);
     return polyline;
 }
 
@@ -292,7 +293,7 @@ export async function calculateSoloRoute(
 ): Promise<RouteResult> {
     const url = buildSoloRouteUrl(pickupX, pickupY, dropoffX, dropoffY, driverLoc, priority, carType, skipPickup, avoid);
     
-    console.log(`[Kakao Nav API (Solo)] 호출 URL: ${url}`);
+    slog('판정', `[Kakao Nav API (Solo)] 호출 URL: ${url}`);
     
     const res = await fetch(url, { headers: getHeaders() });
     const data = await res.json();
@@ -305,7 +306,7 @@ export async function calculateSoloRoute(
     if (data.routes[0].result_code !== 0) {
         const msg = parseKakaoErrorMsg(data.routes[0].result_code, data.routes[0].result_msg);
         console.error(`❌ [Kakao API Error (Solo)] 에러 코드 ${data.routes[0].result_code}: ${msg}`);
-        console.log(`🛡️ [서버] 카카오 API 에러 감지: 초당 호출 제한(Rate Limit) 임박 여부 모니터링 중...`);
+        slog('경고', `🛡️ [서버] 카카오 API 에러 감지: 초당 호출 제한(Rate Limit) 임박 여부 모니터링 중...`);
         throw new Error(`카카오에러: ${msg}`);
     }
     
@@ -424,7 +425,7 @@ export async function calculateDetourRoute(
     };
     
     // 🧹 요청 사실 한 줄 — 좌표·경유 수면 되짚기에 족하다 (reviews/22 ①-3 «계산당 한 줄»)
-    console.log(`🚙 [카카오 합짐 경로] 경유 ${wpArray.length}곳 · ${mergedOriginX},${mergedOriginY} → ${mergedDestX},${mergedDestY}`);
+    slog('판정', `🚙 [카카오 합짐 경로] 경유 ${wpArray.length}곳 · ${mergedOriginX},${mergedOriginY} → ${mergedDestX},${mergedDestY}`);
     
     const mergedRes = await fetch(KAKAO_WAYPOINTS_URL, { 
         method: "POST",
@@ -443,7 +444,7 @@ export async function calculateDetourRoute(
         if (mergedData.routes[0].result_code !== 0) {
             const msg = parseKakaoErrorMsg(mergedData.routes[0].result_code, mergedData.routes[0].result_msg);
             console.error(`❌ [Kakao API Error (Detour)] 에러 코드 ${mergedData.routes[0].result_code}: ${msg}`);
-            console.log(`🛡️ [서버] 카카오 API 에러 감지: 초당 호출 제한(Rate Limit) 임박 여부 모니터링 중...`);
+            slog('경고', `🛡️ [서버] 카카오 API 에러 감지: 초당 호출 제한(Rate Limit) 임박 여부 모니터링 중...`);
             throw new Error(`카카오합짐에러: ${msg}`);
         }
     }
@@ -515,7 +516,7 @@ export async function geocodeAddress(query: string): Promise<{x: number, y: numb
         // ━━━ [P0] 캐시 히트 체크 ━━━
         const cached = geoCacheGet(cleanQuery);
         if (cached) {
-            console.log(`🗺️ [GeoCache HIT] '${cleanQuery}' → X:${cached.x}, Y:${cached.y} (API 호출 스킵)`);
+            slog('판정', `🗺️ [GeoCache HIT] '${cleanQuery}' → X:${cached.x}, Y:${cached.y} (API 호출 스킵)`);
             return cached;
         }
 
@@ -611,18 +612,18 @@ export async function geocodeAddress(query: string): Promise<{x: number, y: numb
 
                 // 카카오에서 반환된 주소/도로명주소의 시/도가 기대하는 시/도(expectedRegion)와 다른 경우 예외처리 방어 로직 (예: 경기 -> 전남 광주 오인 방지)
                 if (addrRegion !== expectedRegion && roadRegion !== expectedRegion) {
-                    console.log(`[GeoResolver] 지역 불일치 방어: 쿼리 '${query}', 결과 '${res!.doc.address_name}' -> 스킵 (기대지역: ${expectedRegion})`);
+                    slog('판정', `[GeoResolver] 지역 불일치 방어: 쿼리 '${query}', 결과 '${res!.doc.address_name}' -> 스킵 (기대지역: ${expectedRegion})`);
                     continue; // 다음 우선순위 결과 시도
                 }
             }
             // ━━━ 캐시에 저장 (L1 + L2) ━━━
             geoCacheSet(cleanQuery, res!.result);
-            console.log(`🗺️ [GeoCache SET] '${cleanQuery}' → X:${res!.result.x}, Y:${res!.result.y} (L1: ${geoL1.size}개)`);
+            slog('판정', `🗺️ [GeoCache SET] '${cleanQuery}' → X:${res!.result.x}, Y:${res!.result.y} (L1: ${geoL1.size}개)`);
             return res!.result;
         }
 
         // 모든 시도 실패
-        console.log(`[GeoResolver] 카카오 좌표 변환 최종 실패: 원본=${query}`);
+        slog('경고', `[GeoResolver] 카카오 좌표 변환 최종 실패: 원본=${query}`);
         return null;
     } catch (e) {
         console.error("카카오 지오코딩 에러:", e);

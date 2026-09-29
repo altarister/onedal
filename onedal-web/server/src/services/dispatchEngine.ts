@@ -34,6 +34,7 @@ import { getActiveCalls, buildOrderSync, setOrderStatus, filterVersionOf } from 
 /** 🧹 sync 푸시 «로그»는 내용이 바뀔 때만 — 푸시 자체는 늘 나간다 (reviews/22 ①-3 · 한 판 1,023줄이 같은 내용이었다) */
 const lastSyncLogSig = new Map<string, string>();
 import { stepRecordsOf, stepsView, bridgeUndoMilestone, milestoneAlreadyRecorded } from "./stepSeeder";
+import { slog } from "../utils/fileLogger";
 
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
@@ -91,7 +92,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
      */
     const current = session.pendingOrdersData.get(orderId) ?? session.myOrders.find(o => o.id === orderId);
     if (current && !isEvaluating(current.status)) {
-        console.log(`🛡️ [강제 정리 차단] ${orderId} 는 심사 중이 아니라 ${current.status} — 건드리지 않는다 (규칙 ①)`);
+        slog('결재', `🛡️ [강제 정리 차단] ${orderId} 는 심사 중이 아니라 ${current.status} — 건드리지 않는다 (규칙 ①)`);
         return;
     }
 
@@ -117,7 +118,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
         const holder = session.myOrders.find(o => o.id === snap.orderId);
         if (holder) {
             const ok = restoreRouteSnapshot(holder, snap, originOf(session));
-            console.log(ok
+            slog('판정', ok
                 ? `↩️ [경로 복원] ${snap.orderId} — 덮이기 전 궤적(${snap.routePolyline?.length ?? 0}점)을 되살렸습니다 (카카오 호출 없음)`
                 : `↩️ [경로 복원 안 함] ${snap.orderId} — 현위치가 달라져 다시 재야 합니다`);
         }
@@ -147,7 +148,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
             OrderRepository.upsertOrder(cached as any, userId, isShared, isExpress);
             const terminatedAt = OrderRepository.updateOrderStatus(orderId, userId, 'SAFE_CANCEL');
             if (terminatedAt) (cached as any).terminatedAt = terminatedAt;   // 🧹 화면으로 가는 메모리 콜에도 (전수표 #65)
-            console.log(`✅ [상태 동기화] ${orderId} - 강제 정리도 장부에 기록 (상태: SAFE_CANCEL)`);
+            slog('콜단계', `✅ [상태 동기화] ${orderId} - 강제 정리도 장부에 기록 (상태: SAFE_CANCEL)`);
         } catch (e) {
             console.error("강제 정리 DB 기록 에러:", e);
         }
@@ -163,7 +164,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
         if (v === orderId) session.deviceEvaluatingMap.delete(k);
     });
     if (io) {
-        console.log(`📤 [Socket 푸시] order-canceled (${orderId}) to ${userId}`);
+        slog('통신', `📤 [Socket 푸시] order-canceled (${orderId}) to ${userId}`);
         io.to(userId).emit("order-canceled", { id: orderId, status: 'SAFE_CANCEL' });
     }
 
@@ -213,7 +214,7 @@ export async function recalcRouteIfStopsChanged(userId: string, io: any, why: st
     const remaining = planArrivalStops(calls as any, originOf(session), promiseOrderOpts(session))
         .map(st => ({ orderId: st.orderId, stopType: st.stopType }));
     if (!routeNeedsRecompute(sent, remaining)) {
-        console.log(`🗺️ [경로 유지] ${why} — 남은 정거장 ${remaining.length}곳이 그대로라 카카오를 다시 부르지 않습니다`);
+        slog('판정', `🗺️ [경로 유지] ${why} — 남은 정거장 ${remaining.length}곳이 그대로라 카카오를 다시 부르지 않습니다`);
         return;
     }
     await recalculateActiveKakaoRoute(userId, io);
@@ -261,7 +262,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
             applySoloRouteAndSave(activeMain, res);
 
             if (res.approachDistance && res.approachDuration) {
-                console.log(`🗺️ [사후 재계산 - 첫짐] 현위치 접근: ${res.approachDistance}m (${res.approachDuration}초) / 총 이동: ${res.distance}m`);
+                slog('판정', `🗺️ [사후 재계산 - 첫짐] 현위치 접근: ${res.approachDistance}m (${res.approachDuration}초) / 총 이동: ${res.distance}m`);
             }
         } else {
             // 다중 오더 라우팅 (TSP) — 조립 규약은 routeComposer 한 곳에만 있다
@@ -277,12 +278,12 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
             applyRouteAndSave(pickRouteHolder(activeCalls, activeMain), result.merged);
 
             if (result.merged.approachDistance && result.merged.approachDuration) {
-                console.log(`🗺️ [사후 재계산 - 합짐] 현위치 접근: ${result.merged.approachDistance}m (${result.merged.approachDuration}초) / 총 이동: ${result.merged.distance}m`);
+                slog('판정', `🗺️ [사후 재계산 - 합짐] 현위치 접근: ${result.merged.approachDistance}m (${result.merged.approachDuration}초) / 총 이동: ${result.merged.distance}m`);
             }
         }
-        console.log(`🗺️ [사후 재계산 완료] 취소 반영 후 경로/소요시간 갱신 완료.`);
+        slog('판정', `🗺️ [사후 재계산 완료] 취소 반영 후 경로/소요시간 갱신 완료.`);
     } catch (error) {
-        console.log(`⚠️ [사후 재계산 실패] 경로 연산 중 예외 발생:`, error);
+        slog('경고', `⚠️ [사후 재계산 실패] 경로 연산 중 예외 발생:`, error);
     }
 
     // [핵심 보강] 갱신된 새 폴리라인을 바탕으로 타겟팅 키워드(경유) 다시 추출!
@@ -294,7 +295,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
         const sig = filterVersionOf(sync);
         if (lastSyncLogSig.get(userId) !== sig) {
             lastSyncLogSig.set(userId, sig);
-            console.log(`📤 [Socket 푸시] sync-active-orders (활성 ${getActiveCalls(session).length}건 · 지문 ${sig})`);
+            slog('통신', `📤 [Socket 푸시] sync-active-orders (활성 ${getActiveCalls(session).length}건 · 지문 ${sig})`);
         }
         io.to(userId).emit("sync-active-orders", sync);
     }
@@ -302,7 +303,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
 
 /** 카카오 경로 재탐색 핸들러 */
 export async function recalculateKakaoRoute(userId: string, orderId: string, priority: string, io: any) {
-    logRoadmapEvent("서버", "관제탑으로 부터 경로 재탐색(recalculate-route) 요청 받음");
+    logRoadmapEvent('판정', "서버", "관제탑으로 부터 경로 재탐색(recalculate-route) 요청 받음");
     const session = getUserSession(userId);
     const securedOrder = session.pendingOrdersData.get(orderId);
     if (!securedOrder) {
@@ -405,7 +406,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
                             : stored?.color === '보통' ? "🚙 (양호)"
                             : stored?.color === '똥' ? "💩"
                             : stored?.color === '사고' ? "🚨 (사고)" : "";
-            if (stored) console.log(`   - 🎨 [재탐색] 색은 심사 스냅샷 고정 — ${stored.color} ${stored.score}점`);
+            if (stored) slog('판정', `   - 🎨 [재탐색] 색은 심사 스냅샷 고정 — ${stored.color} ${stored.score}점`);
 
             let paramLabel = "추천";
             if (priority === "TIME") paramLabel = "최단시간";
@@ -414,7 +415,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             timeExt = `[${paramLabel}] ${signDist}${result.distDiffKm}km, ${signTime}${result.timeDiffMin}분 ${recommend}`;
         }
 
-        logRoadmapEvent("서버", "재탐색 결과로 폴리라인 및 소요시간 갱신 연산");
+        logRoadmapEvent('판정', "서버", "재탐색 결과로 폴리라인 및 소요시간 갱신 연산");
         securedOrder.kakaoTimeExt = timeExt;
         const twin = session.myOrders.find(c => c.id === securedOrder.id);
         if (twin && (twin as any) !== (securedOrder as any)) twin.kakaoTimeExt = timeExt;   // 주기 sync 가 옛 문구로 되돌리지 않게
@@ -425,7 +426,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             syncDetourFilter(userId, io);
         }
 
-        logRoadmapEvent("서버", "관제탑에게 재산출된 노선(order-evaluated) 정보 전달");
+        logRoadmapEvent('판정', "서버", "관제탑에게 재산출된 노선(order-evaluated) 정보 전달");
         io.to(userId).emit("order-evaluated", securedOrder);
         // 병합 궤적을 다른 콜에 실었다면 그쪽도 즉시 알려야 지도가 1초(sync 주기)를 기다리지 않는다
         if (mergedRouteHolder && mergedRouteHolder.id !== securedOrder.id) {
@@ -486,14 +487,14 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
     if (session.pendingDecisions.has(orderId)) {
         const decisionData = session.pendingDecisions.get(orderId)!;
         decisionData.action = piggybackAction;
-        if (isKeep) logRoadmapEvent("서버", `앱폰에게 Action=${piggybackAction} 최종 판결 Piggyback 등록`);
-        else logRoadmapEvent("서버", "앱폰에게 Action=Cancel 최종 판결 Piggyback 등록");
-        console.log(`📦 [Piggyback V2] 관제탑 판결(${piggybackAction})을 큐에 기록. 다음 텔레메트리에 태워 보냅니다. (orderId: ${orderId})`);
+        if (isKeep) logRoadmapEvent('결재', "서버", `앱폰에게 Action=${piggybackAction} 최종 판결 Piggyback 등록`);
+        else logRoadmapEvent('결재', "서버", "앱폰에게 Action=Cancel 최종 판결 Piggyback 등록");
+        slog('결재', `📦 [Piggyback V2] 관제탑 판결(${piggybackAction})을 큐에 기록. 다음 텔레메트리에 태워 보냅니다. (orderId: ${orderId})`);
     } else {
         // pendingDecisions에 없는 경우 (이미 타임아웃으로 삭제되었거나, MANUAL 건)
-        if (isKeep) logRoadmapEvent("서버", `앱폰에게 Action=${piggybackAction} 최종 판결 응답 전달 (즉시)`);
-        else logRoadmapEvent("서버", "앱폰에게 Action=Cancel 최종 판결 응답 전달 (즉시)");
-        console.log(`⚠️ [Piggyback V2] pendingDecisions에 ${orderId}가 없습니다. (MANUAL 건이거나 이미 타임아웃 처리됨)`);
+        if (isKeep) logRoadmapEvent('결재', "서버", `앱폰에게 Action=${piggybackAction} 최종 판결 응답 전달 (즉시)`);
+        else logRoadmapEvent('결재', "서버", "앱폰에게 Action=Cancel 최종 판결 응답 전달 (즉시)");
+        slog('경고', `⚠️ [Piggyback V2] pendingDecisions에 ${orderId}가 없습니다. (MANUAL 건이거나 이미 타임아웃 처리됨)`);
     }
 
     // [Piggyback V2] deviceEvaluatingMap은 여기서 절대 삭제하지 않습니다!
@@ -504,7 +505,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
     // 삭제됨: 중복된 !isKeep 로직은 하단의 else 블록으로 통합되었습니다.
 
     if (isKeep) {
-        logRoadmapEvent("서버", `관제탑으로 부터 Keep 결재 요청 받음${isSimulatedMode ? ' [가상 체험 모드]' : ''}`);
+        logRoadmapEvent('결재', "서버", `관제탑으로 부터 Keep 결재 요청 받음${isSimulatedMode ? ' [가상 체험 모드]' : ''}`);
         const cachedOrder = session.pendingOrdersData.get(orderId);
 
         if (!cachedOrder) return { success: false, action: status };
@@ -542,7 +543,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
              */
             confirmedOrder.goalCity = goalCityOf(session, userId) || undefined;
             (cachedOrder as any).goalCity = confirmedOrder.goalCity;
-            if (confirmedOrder.goalCity) console.log(`🎯 [목표] ${orderId.slice(0, 8)} → ${confirmedOrder.goalCity}`);
+            if (confirmedOrder.goalCity) slog('결재', `🎯 [목표] ${orderId.slice(0, 8)} → ${confirmedOrder.goalCity}`);
             session.myOrders.push(confirmedOrder);
             
             try {
@@ -603,7 +604,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             /* 🛣️ 필터 라인을 이 순간의 경로로 얼린다 — 하차·취소·재탐색으로 안 바뀐다 (기사님 · 전수표 #18) */
             session.filterLine = getActivePolyline(session);
             syncDetourFilter(userId, io);
-            console.log(`🗺️ [경유 갱신] KEEP 후 destinationKeywords ${session.activeFilter.destinationKeywords.length}개로 재계산 완료`);
+            slog('필터', `🗺️ [경유 갱신] KEEP 후 destinationKeywords ${session.activeFilter.destinationKeywords.length}개로 재계산 완료`);
         }
         /**
          * ↩️ **KEEP 했으면 되돌릴 일이 없다** — 보관본을 버린다.
@@ -663,15 +664,15 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                     );
                 }
 
-                console.log(`💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);
+                slog('결재', `💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);
             } else {
-                console.log(`🐥 [가상 체험 콜] ${cachedOrder.id} - DB 저장 건너뜀 (메모리 세션에서만 합짐 시뮬레이션 가동)`);
+                slog('결재', `🐥 [가상 체험 콜] ${cachedOrder.id} - DB 저장 건너뜀 (메모리 세션에서만 합짐 시뮬레이션 가동)`);
             }
         } catch (dbErr) {
             console.error("DB 저장 에러:", dbErr);
         }
 
-        logRoadmapEvent("서버", "관제탑에게 확정되었음(order-confirmed) 정보 전달");
+        logRoadmapEvent('결재', "서버", "관제탑에게 확정되었음(order-confirmed) 정보 전달");
         io.to(userId).emit("order-confirmed", orderId);
 
 
@@ -685,7 +686,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         // 방금 push한 confirmedOrder 포함, 현재 적재 중인 활성 콜 전부
         const loadedVehicles = getActiveCalls(session).map(c => c.vehicleType || myVehicle);
         const sharedVehicleTypes = getRemainingCapacityTypes(myVehicle, loadedVehicles);
-        console.log(`🚚 [적재 용량] 내 차: ${myVehicle} | 실은 짐: [${loadedVehicles.join(', ')}] → 추가 가능 차종: [${sharedVehicleTypes.join(', ')}]`);
+        slog('필터', `🚚 [적재 용량] 내 차: ${myVehicle} | 실은 짐: [${loadedVehicles.join(', ')}] → 추가 가능 차종: [${sharedVehicleTypes.join(', ')}]`);
 
         // [자체 리뷰 C] 차종을 인식하지 못하면 보수적으로 "내 차를 가득 채운 것"으로 계산한다.
         // 안전한 방향이지만 그만큼 합짐 콜 잡기 범위가 좁아지므로, 조용히 넘어가면 안 된다.
@@ -699,12 +700,12 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         const transition = StateMachine.advanceOnKeep(session, sharedVehicleTypes);
         if (transition.changed && transition.newFilter) {
             updateActiveFilter(userId, transition.newFilter, io);
-            console.log(`🔄 [State Machine] ${transition.reason}`);
+            slog('콜단계', `🔄 [State Machine] ${transition.reason}`);
         }
-        logRoadmapEvent("서버", "새로 부여된 합짐 필터(isSharedMode)값 메모리 세션 갱신");
-        logRoadmapEvent("서버", "앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달");
+        logRoadmapEvent('필터', "서버", "새로 부여된 합짐 필터(isSharedMode)값 메모리 세션 갱신");
+        logRoadmapEvent('필터', "서버", "앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달");
     } else {
-        logRoadmapEvent("서버", `관제탑으로 부터 수동 취소/방출(${status}) 요청 받음`);
+        logRoadmapEvent('결재', "서버", `관제탑으로 부터 수동 취소/방출(${status}) 요청 받음`);
         
         // 메모리에서 완전히 지우지 않고 상태값만 갱신하여 프론트엔드 취소/방출 탭에 보존
         // (두 메모리를 함께 갱신 — 여기는 원래 둘 다 쓰고 있었지만 규약으로 통일한다)
@@ -721,7 +722,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                 OrderRepository.upsertOrder(cachedForLedger as any, userId, isShared, isExpress);
                 const terminatedAt = OrderRepository.updateOrderStatus(orderId, userId, status);
                 if (terminatedAt) (cachedForLedger as any).terminatedAt = terminatedAt;   // 🧹 화면으로 가는 메모리 콜에도 (전수표 #65)
-                console.log(`✅ [상태 동기화] ${orderId} - DB 업데이트 완료 (상태: ${status})`);
+                slog('콜단계', `✅ [상태 동기화] ${orderId} - DB 업데이트 완료 (상태: ${status})`);
             } catch (e) {
                 console.error("DB 업데이트 에러:", e);
             }
@@ -730,11 +731,11 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         if (!isSimulatedOrder) {
             countCancel(session, targetDeviceId, orderId, 'DECISION_CANCEL', undefined, io);
         } else {
-            console.log(`🐥 [가상 체험 콜 종료] ${orderId} - 패널티 카운트 없이 안전하게 세션 정리 완료`);
+            slog('콜단계', `🐥 [가상 체험 콜 종료] ${orderId} - 패널티 카운트 없이 안전하게 세션 정리 완료`);
         }
 
         if (io) {
-            logRoadmapEvent("서버", "관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달");
+            logRoadmapEvent('콜단계', "서버", "관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달");
             io.to(userId).emit("order-canceled", { id: orderId, status, isManual: true });
         }
 
@@ -744,10 +745,10 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         if (transition.changed && transition.newFilter) {
             if (io) {
                 updateActiveFilter(userId, transition.newFilter, io);
-                logRoadmapEvent("서버", transition.reason || "상태 변경");
-                logRoadmapEvent("서버", "앱폰 및 관제탑에게 탐색 재개(filter-updated) 정보 전달");
+                logRoadmapEvent('콜단계', "서버", transition.reason || "상태 변경");
+                logRoadmapEvent('필터', "서버", "앱폰 및 관제탑에게 탐색 재개(filter-updated) 정보 전달");
             }
-            console.log(`🔄 [State Machine] ${transition.reason}`);
+            slog('콜단계', `🔄 [State Machine] ${transition.reason}`);
         }
 
         await recalcRouteIfStopsChanged(userId, io, '콜 정리');
@@ -757,7 +758,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
      * ⚠️ 여기서는 아무것도 지우지 않는다. KEEP 은 오히려 승격본을 캐시에 **덮어써 남긴다**(위 `set` — 롤백 방지).
      * 로그는 하는 일만 말한다 — «삭제»라고 쓰면 좀비 잠금 진단이 늦어진다.
      */
-    console.log(`🛡️ [서버] 결재 처리 완료 (${orderId} · ${status}) — 심사 캐시는 KEEP 승격본으로 유지된다`);
+    slog('결재', `🛡️ [서버] 결재 처리 완료 (${orderId} · ${status}) — 심사 캐시는 KEEP 승격본으로 유지된다`);
     return { success: true, action: status };
 }
 
@@ -790,7 +791,7 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
 
     session.isBootstrapping = true;                  // 이 순간부터 앱폰은 isActive=false 를 받는다
     const t0 = Date.now();
-    logRoadmapEvent("서버", "[Bootstrap] 시작 — 필터 확정 전까지 앱폰 콜 잡기 일시 정지");
+    logRoadmapEvent('부팅', "서버", "[Bootstrap] 시작 — 필터 확정 전까지 앱폰 콜 잡기 일시 정지");
 
     try {
         /**
@@ -846,7 +847,7 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
             if (lastPt.source === 'mock') {
                 session.mockGpsOwner = { socketId: '복구', at: lastPt.atMs, warned: false };
             }
-            console.log(`📍 [위치 복구] ${new Date(lastPt.atMs).toLocaleTimeString('ko-KR')} 의 마지막 점 — `
+            slog('부팅', `📍 [위치 복구] ${new Date(lastPt.atMs).toLocaleTimeString('ko-KR')} 의 마지막 점 — `
                 + `${lastPt.x.toFixed(5)}, ${lastPt.y.toFixed(5)} (출처 ${lastPt.source})`);
         }
 
@@ -860,9 +861,9 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
     }
 
     const f = session.activeFilter;
-    console.log(`✅ [Bootstrap 완료] ${Date.now() - t0}ms | phase=${f.dispatchPhase} 합짐=${f.isSharedMode} ` +
+    slog('부팅', `✅ [Bootstrap 완료] ${Date.now() - t0}ms | phase=${f.dispatchPhase} 합짐=${f.isSharedMode} ` +
         `차종=${(f.allowedVehicleTypes || []).length}종 키워드=${(f.destinationKeywords || []).length}개`);
-    logRoadmapEvent("서버", `[Bootstrap] 완료 (${Date.now() - t0}ms) — 관제탑에 확정 필터 1회 전송, 앱폰 콜 잡기 재개`);
+    logRoadmapEvent('부팅', "서버", `[Bootstrap] 완료 (${Date.now() - t0}ms) — 관제탑에 확정 필터 1회 전송, 앱폰 콜 잡기 재개`);
 
     if (io) {
         io.to(userId).emit("filter-init", {
@@ -967,7 +968,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
 
         if (rows.length === 0) return;
 
-        logRoadmapEvent("서버", `♻️ [복구] 서버 재시작 — DB 의 콜 ${rows.length}개 궤적을 되살린다`);
+        logRoadmapEvent('부팅', "서버", `♻️ [복구] 서버 재시작 — DB 의 콜 ${rows.length}개 궤적을 되살린다`);
 
         // 2. session 메모리 재구성
         for (const row of rows) {
@@ -1052,7 +1053,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
              *    안전망은 빼지 않는다 (규칙 ②).
              */
             if (activeMain.routePolyline?.length) {
-                console.log(`🗺️ [복구 - 궤적 재사용] ${activeMain.id} — 장부의 ${activeMain.routePolyline.length}점을 그대로 씁니다 (카카오 호출 없음)`);
+                slog('부팅', `🗺️ [복구 - 궤적 재사용] ${activeMain.id} — 장부의 ${activeMain.routePolyline.length}점을 그대로 씁니다 (카카오 호출 없음)`);
             } else
             try {
                 // 🔴 복구도 마찬가지다 — 상차하고 달리다 **새로고침만 해도** 경로가 상차지로
@@ -1071,7 +1072,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 applySoloRouteAndSave(activeMain, res);   // sectionEtas 도 여기서 함께 기록된다
 
                 if (res.approachDuration) {
-                    console.log(`🗺️ [복구 - 접근 구간] ${originOf(session)?.isFallback ? '임시 출발지' : '현위치'} → 상차지 ` +
+                    slog('부팅', `🗺️ [복구 - 접근 구간] ${originOf(session)?.isFallback ? '임시 출발지' : '현위치'} → 상차지 ` +
                         `${toKm(res.approachDistance || 0)}km / ${toMin(res.approachDuration)}분`);
                 }
             } catch(e) {
@@ -1096,7 +1097,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             }
         }
 
-        logRoadmapEvent("서버", `♻️ [복구] DB 의 콜·궤적을 세션에 되살렸다 — 관제웹에 sync 전송`);
+        logRoadmapEvent('부팅', "서버", `♻️ [복구] DB 의 콜·궤적을 세션에 되살렸다 — 관제웹에 sync 전송`);
 
         // 5. [이슈 W] 복구된 데이터로부터 배차 상태를 다시 "파생"시킨다.
         //
@@ -1130,9 +1131,9 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             // 여기서 또 계산하면 같은 지리 연산을 두 번 돌린다.
 
             const f = session.activeFilter;
-            console.log(`🔄 [상태 복구] 진행 중 ${restoredActive.length}건 → phase=${phase}, 합짐=ON, ` +
+            slog('부팅', `🔄 [상태 복구] 진행 중 ${restoredActive.length}건 → phase=${phase}, 합짐=ON, ` +
                 `추가 가능 차종=[${(f.allowedVehicleTypes || []).join(', ')}], 경유 키워드=${(f.destinationKeywords || []).length}개`);
-            logRoadmapEvent("서버", `[Session DB Load] 진행 중 ${restoredActive.length}건 기준으로 배차 상태 재구성 (${phase}/합짐)`);
+            logRoadmapEvent('부팅', "서버", `[Session DB Load] 진행 중 ${restoredActive.length}건 기준으로 배차 상태 재구성 (${phase}/합짐)`);
 
             // 관제탑에 복구 사실을 알린다.
             // 이미 배달했는데 완료 처리를 안 한 건이 있으면 서버는 계속 "적재 중"으로 믿고
@@ -1152,7 +1153,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             const sig = filterVersionOf(sync);
             if (lastSyncLogSig.get(userId) !== sig) {
                 lastSyncLogSig.set(userId, sig);
-                console.log(`📤 [Socket 푸시] sync-active-orders (활성 ${getActiveCalls(session).length}건 · 지문 ${sig})`);
+                slog('통신', `📤 [Socket 푸시] sync-active-orders (활성 ${getActiveCalls(session).length}건 · 지문 ${sig})`);
             }
             io.to(userId).emit("sync-active-orders", sync);
         }
@@ -1207,8 +1208,8 @@ export async function undoMilestone(userId: string, orderId: string, milestone: 
         console.error('🚨 [마일스톤 취소] DB 갱신 실패:', e);
     }
 
-    console.log(`↩️ [마일스톤 취소] ${MILESTONE_LABEL[milestone]} 삭제 → 남은 기록 기준 ${status}`);
-    logRoadmapEvent("서버", `[마일스톤 취소] ${MILESTONE_LABEL[milestone]}`);
+    slog('콜단계', `↩️ [마일스톤 취소] ${MILESTONE_LABEL[milestone]} 삭제 → 남은 기록 기준 ${status}`);
+    logRoadmapEvent('콜단계', "서버", `[마일스톤 취소] ${MILESTONE_LABEL[milestone]}`);
 
     // 되돌린 것도 저장이다 — 같은 규칙으로 전파한다
     await recalcRouteIfStopsChanged(userId, io, `단계 되돌리기(${MILESTONE_LABEL[milestone]})`);
@@ -1261,14 +1262,14 @@ export async function reportMilestone(
         // 앞은 정상(버튼 두 번 누름), 뒤는 뭔가 어긋났다는 신호이므로 구분해서 돌려준다.
         const already = !!MILESTONE_TO_STATUS[milestone] && order.status === MILESTONE_TO_STATUS[milestone];
         const reason = already ? "ALREADY_REPORTED" : "OUT_OF_ORDER";
-        console.log(`↩️ [마일스톤] ${milestone} 무시 (${reason}) — 현재 상태 ${order.status}`);
+        slog('콜단계', `↩️ [마일스톤] ${milestone} 무시 (${reason}) — 현재 상태 ${order.status}`);
         return { success: true, duplicated: true, reason, status: order.status };
     }
 
     const nowIso = new Date().toISOString();
     // ① 멱등성 — 장부의 단계 행이 그 근거다: 행마다 UNIQUE(orderId) + occurred_at 존재 여부
     if (milestoneAlreadyRecorded(orderId, milestone)) {
-        console.log(`🔁 [마일스톤] ${milestone} (${source}) 중복 — ${orderId} 는 이미 기록됨`);
+        slog('콜단계', `🔁 [마일스톤] ${milestone} (${source}) 중복 — ${orderId} 는 이미 기록됨`);
         return { success: true, duplicated: true, status: order.status };
     }
 
@@ -1318,8 +1319,8 @@ export async function reportMilestone(
     // 예상과 실제의 오차를 남긴다. 쌓이면 상하차 소요 계수와 카카오 ETA 를 교정할 수 있다
     const err = timingError(predictedAt, occurredAt || nowIso);
     const errText = err === null ? '' : ` | 예상 대비 ${err > 0 ? `+${err}분 지연` : err < 0 ? `${-err}분 빠름` : '정시'}`;
-    console.log(`📦 [${MILESTONE_LABEL[milestone]}] ${orderId.slice(0, 8)} (${source})${nextStatus ? ` → ${nextStatus}` : ''}${errText}`);
-    logRoadmapEvent("서버", `[마일스톤] ${MILESTONE_LABEL[milestone]} 수신 (${source})${errText}`);
+    slog('콜단계', `📦 [${MILESTONE_LABEL[milestone]}] ${orderId.slice(0, 8)} (${source})${nextStatus ? ` → ${nextStatus}` : ''}${errText}`);
+    logRoadmapEvent('콜단계', "서버", `[마일스톤] ${MILESTONE_LABEL[milestone]} 수신 (${source})${errText}`);
 
     // ④ 하차하면 그 짐은 더 이상 실려 있지 않다. 경로·잔여 용량·경유를 다시 계산한다.
     //    (recalculateActiveKakaoRoute 는 활성 콜이 0건이면 경유도 첫짐 모드로 되돌린다)
@@ -1343,7 +1344,7 @@ export async function reportMilestone(
 
         const remaining = getActiveCalls(session);
         await recalcRouteIfStopsChanged(userId, io, '하차 완료');
-        console.log(`🚚 [적재 회복] 하차 완료 → 남은 활성 콜 ${remaining.length}건 기준으로 필터 재계산`);
+        slog('필터', `🚚 [적재 회복] 하차 완료 → 남은 활성 콜 ${remaining.length}건 기준으로 필터 재계산`);
 
     }
 
@@ -1399,7 +1400,7 @@ export async function setCallTarget(
 ): Promise<{ success: boolean; phase: CallTarget; city?: string; message?: string }> {
     try {
         const session = getUserSession(userId);
-        console.log(`🧭 [국면 전환] ${session.activeFilter.callTarget ?? 'DEST'} → ${phase} (userId: ${userId})`);
+        slog('필터', `🧭 [국면 전환] ${session.activeFilter.callTarget ?? 'DEST'} → ${phase} (userId: ${userId})`);
 
         /**
          * 국면마다 **"어디로 가는 콜을 찾는가"만** 다르다.
@@ -1477,7 +1478,7 @@ export async function setCallTarget(
          */
         rebuildNetFilter(userId, io);
 
-        console.log(`🧭 [국면 전환] 완료 → ${CALL_TARGET_LABEL[phase]} · 목적 ${city} ` +
+        slog('필터', `🧭 [국면 전환] 완료 → ${CALL_TARGET_LABEL[phase]} · 목적 ${city} ` +
             `(반경 ${session.activeFilter.destinationRadiusKm}km — 국면 설정에서) · ` +
             `콜 ${getActiveCalls(session).length}건 그대로`);
 

@@ -1,6 +1,7 @@
 import { restoreWindow } from '@onedal/shared';
 import db from '../db';
 import { haversineKm } from './geoService';
+import { slog } from '../utils/fileLogger';
 
 /**
  * 🛰️ **주행 궤적 저장** (기사님 확정)
@@ -166,7 +167,7 @@ export function flushGpsBuffer(): void {
             }
         })();
     } catch (e) {
-        console.log(`⚠️ [궤적 저장 실패] ${batch.length}점을 버립니다 —`, (e as Error)?.message);
+        slog('경고', `⚠️ [궤적 저장 실패] ${batch.length}점을 버립니다 —`, (e as Error)?.message);
     }
 }
 

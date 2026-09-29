@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { slog } from "./utils/fileLogger";
 
 interface GeoFeature {
     properties: {
@@ -25,7 +26,7 @@ function loadGeoData(): GeoJSON {
     const filePath = path.join(__dirname, "..", "mapData", "merged_map.geojson");
     const raw = fs.readFileSync(filePath, "utf-8");
     geoData = JSON.parse(raw) as GeoJSON;
-    console.log(`🗺️ [GeoResolver] ${geoData.features.length}개 읍면동 데이터 로드 완료`);
+    slog('부팅', `🗺️ [GeoResolver] ${geoData.features.length}개 읍면동 데이터 로드 완료`);
     return geoData;
 }
 
@@ -47,7 +48,7 @@ export function getRegionsByCity(cityName: string): string[] {
     // 중복 제거 후 정렬
     const unique = [...new Set(regions)].sort();
     
-    console.log(`🗺️ [GeoResolver] "${cityName}" → ${unique.length}개 읍면동 조회됨`);
+    slog('필터', `🗺️ [GeoResolver] "${cityName}" → ${unique.length}개 읍면동 조회됨`);
     return unique;
 }
 

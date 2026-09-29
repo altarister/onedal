@@ -3,6 +3,7 @@ import { requireAuth } from '../middlewares/authMiddleware';
 import { mapVehicleToKakaoCarType } from '@onedal/shared';
 import { compareDirections } from '../services/kakaoService';
 import db from '../db';
+import { slog } from '../utils/fileLogger';
 
 const router = Router();
 
@@ -26,15 +27,15 @@ router.post('/directions/compare', requireAuth, async (req: Request, res: Respon
     try {
         const { origin, destination, waypoints } = req.body as CompareRequest;
 
-        console.log(`\n======================================================`);
-        console.log(`[KAKAO API] 🚀 새로운 동선 계산 요청 수신`);
-        console.log(`   - 기존 경로: [${origin.name}] ➡️ [${destination.name}]`);
+        slog('판정', `\n======================================================`);
+        slog('판정', `[KAKAO API] 🚀 새로운 동선 계산 요청 수신`);
+        slog('판정', `   - 기존 경로: [${origin.name}] ➡️ [${destination.name}]`);
         if (waypoints && waypoints.length > 0) {
-            console.log(`   - 추가 경유: [${waypoints.map(w => w.name).join(' ➡️ ')}]`);
+            slog('판정', `   - 추가 경유: [${waypoints.map(w => w.name).join(' ➡️ ')}]`);
         } else {
-            console.log(`   - 추가 경유: 없음 (단독 배차 검수)`);
+            slog('판정', `   - 추가 경유: 없음 (단독 배차 검수)`);
         }
-        console.log(`------------------------------------------------------`);
+        slog('판정', `------------------------------------------------------`);
 
         // 유저 차종 매핑
         let mappedCarType = 1;
@@ -48,14 +49,14 @@ router.post('/directions/compare', requireAuth, async (req: Request, res: Respon
         // [P1] kakaoService의 공용 함수에 위임 (기존 자체 fetch/headers/URL 구성 로직 전면 삭제)
         const result = await compareDirections(origin, destination, waypoints || [], mappedCarType);
 
-        console.log(`[KAKAO API] 🟢 연산 완료!`);
-        console.log(`   - 🧭 단독 기준 소요시간: ${Math.round(result.base.duration / 60)}분 (${(result.base.distance / 1000).toFixed(1)}km)`);
+        slog('판정', `[KAKAO API] 🟢 연산 완료!`);
+        slog('판정', `   - 🧭 단독 기준 소요시간: ${Math.round(result.base.duration / 60)}분 (${(result.base.distance / 1000).toFixed(1)}km)`);
         if (waypoints && waypoints.length > 0) {
-            console.log(`   - 🗺️ 합짐 경유 소요시간: ${Math.round(result.merged.duration / 60)}분 (${(result.merged.distance / 1000).toFixed(1)}km)`);
+            slog('판정', `   - 🗺️ 합짐 경유 소요시간: ${Math.round(result.merged.duration / 60)}분 (${(result.merged.distance / 1000).toFixed(1)}km)`);
             const extMin = Math.round(result.diff.timeExtSeconds / 60);
-            console.log(`   - ⚠️ 시간 패널티: ${extMin > 0 ? '+' : ''}${extMin}분 추가 소요`);
+            slog('판정', `   - ⚠️ 시간 패널티: ${extMin > 0 ? '+' : ''}${extMin}분 추가 소요`);
         }
-        console.log(`======================================================\n`);
+        slog('판정', `======================================================\n`);
 
         res.json(result);
 

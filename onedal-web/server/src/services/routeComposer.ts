@@ -3,6 +3,7 @@ import { isAlreadyLoaded, hasVisitedStop } from "@onedal/shared";
 import { haversineKm } from "./geoService";
 import { calculateDetourRoute, calculateSoloRoute } from "./kakaoService";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
+import { slog } from "../utils/fileLogger";
 
 /**
  * 합짐 경로를 만드는 공통 규약.
@@ -328,7 +329,7 @@ export async function measureSoloDelivery(
         const km = toKm(r.distance);
         const minutes = toMin(r.duration);
         if (!(minutes > 0)) return null;   // 0 분짜리 배송은 없다 — 지어내지 않는다 (규칙 ④)
-        console.log(`🚚 [단독 배송 실측] ${call.id.slice(-6)} · 상차지 → 하차지 ${km}km · ${minutes}분 (하차 마감의 근거)`);
+        slog('판정', `🚚 [단독 배송 실측] ${call.id.slice(-6)} · 상차지 → 하차지 ${km}km · ${minutes}분 (하차 마감의 근거)`);
         return { km, minutes };
     } catch (e) {
         // 못 쟀으면 추정이 그대로 일한다 — 없는 숫자를 지어내지 않는다 (규칙 ④)
@@ -383,7 +384,7 @@ function reusableBase(key: string | null, origin: Coord | null | undefined): any
     if (!hit) return null;
     const ageSec = Math.round((Date.now() - hit.at) / 1000);
     const movedM = Math.round(haversineKm(origin.y, origin.x, hit.origin.y, hit.origin.x) * 1000);
-    console.log(`🗄️ [base 되씀] ${ageSec}초 전에 잰 값 · 기점 ${movedM}m 이동 · 카카오 호출 1회 아낌`);
+    slog('판정', `🗄️ [base 되씀] ${ageSec}초 전에 잰 값 · 기점 ${movedM}m 이동 · 카카오 호출 1회 아낌`);
     return hit.base;
 }
 
@@ -416,7 +417,7 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
      * `timeDiffMin` 이 그대로 정확한 한계 비용이 된다. 호출 수는 그대로다.
      */
     if (plan.skippedPickups > 0) {
-        console.log(`🛣️ [경로] 이미 상차한 콜 ${plan.skippedPickups}건의 상차지를 경유지에서 제외 (다녀온 곳을 다시 가지 않는다)`);
+        slog('판정', `🛣️ [경로] 이미 상차한 콜 ${plan.skippedPickups}건의 상차지를 경유지에서 제외 (다녀온 곳을 다시 가지 않는다)`);
     }
     /* 🧮 견주는 쪽도 **같은 잣대**로 짠다 — 한쪽만 약속을 보면 우회 비용이 그 차이만큼 거짓이 된다 */
     const basePlan = planMergedStops(calls, null, origin, promiseOpts);
@@ -518,7 +519,7 @@ function logOrderDecision(line: string): void {
     const gist = line.replace(/[0-9.]+/g, '');
     if (gist === lastOrderTrace) return;
     lastOrderTrace = gist;
-    console.log(`🧭 [순서 판단] ${line}`);
+    slog('판정', `🧭 [순서 판단] ${line}`);
 }
 
 /**

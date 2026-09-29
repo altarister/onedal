@@ -1,3 +1,4 @@
+import { slog } from '../utils/fileLogger';
 /**
  * pairingStore.ts — 6자리 PIN 기반 기기 페어링 임시 저장소
  * 
@@ -54,7 +55,7 @@ export function generatePin(userId: string): { pin: string; expiresIn: number } 
         expiresAt: Date.now() + TTL_MS,
     });
 
-    console.log(`🔑 [PIN 발급] User: ${userId} → PIN: ${pin} (3분간 유효)`);
+    slog('통신', `🔑 [PIN 발급] User: ${userId} → PIN: ${pin} (3분간 유효)`);
     return { pin, expiresIn: 180 };
 }
 
@@ -77,7 +78,7 @@ export function consumePin(pin: string): string | null {
         return null; // 만료된 PIN
     }
 
-    console.log(`✅ [PIN 소비] PIN: ${pin} → User: ${entry.userId} (페어링 성공)`);
+    slog('통신', `✅ [PIN 소비] PIN: ${pin} → User: ${entry.userId} (페어링 성공)`);
     return entry.userId;
 }
 

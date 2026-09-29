@@ -9,6 +9,7 @@ import { saveBaseFilter } from "../state/filterManager";
 import { getUserSession } from "../state/userSessionStore";
 import { recalculateDetourFilter } from "../services/dispatchEngine";
 import { getCityRegionsWithRadius, getSelectableCities } from "../services/geoService";
+import { slog } from "../utils/fileLogger";
 
 const router = Router();
 
@@ -80,7 +81,7 @@ router.get("/geocode", requireAuth, async (req, res) => {
             return;
         }
 
-        console.log(`📍 [주소 검증] ${address} → (${coords.x}, ${coords.y})`);
+        slog('필터', `📍 [주소 검증] ${address} → (${coords.x}, ${coords.y})`);
         res.json({ x: coords.x, y: coords.y, address: address.trim() });
     } catch (e) {
         console.error("주소 검증 에러:", e);
@@ -154,7 +155,7 @@ router.put("/", requireAuth, async (req, res) => {
             if (payload.homeX && payload.homeY && payload.homeX !== 0 && payload.homeY !== 0) {
                 db.prepare(`UPDATE user_settings SET home_address = ?, home_x = ?, home_y = ? WHERE user_id = ?`)
                     .run(payload.homeAddress, payload.homeX, payload.homeY, userId);
-                console.log(`🏠 [집 주소 저장] ${payload.homeAddress} → (${payload.homeX}, ${payload.homeY}) [미리검증 좌표 사용]`);
+                slog('필터', `🏠 [집 주소 저장] ${payload.homeAddress} → (${payload.homeX}, ${payload.homeY}) [미리검증 좌표 사용]`);
             } else {
                 // 하위 호환: 좌표 없이 주소만 온 경우 서버에서 지오코딩 시도
                 try {
@@ -162,7 +163,7 @@ router.put("/", requireAuth, async (req, res) => {
                     if (coords?.x && coords?.y) {
                         db.prepare(`UPDATE user_settings SET home_address = ?, home_x = ?, home_y = ? WHERE user_id = ?`)
                             .run(payload.homeAddress, coords.x, coords.y, userId);
-                        console.log(`🏠 [집 주소 저장] ${payload.homeAddress} → (${coords.x}, ${coords.y}) [서버 지오코딩]`);
+                        slog('필터', `🏠 [집 주소 저장] ${payload.homeAddress} → (${coords.x}, ${coords.y}) [서버 지오코딩]`);
                     } else {
                         console.error("🏠 집 주소 지오코딩 실패: 좌표를 찾을 수 없음");
                         // 좌표 변환 실패 시 주소만이라도 저장 (기존 좌표 유지)
@@ -193,7 +194,7 @@ router.put("/", requireAuth, async (req, res) => {
 
             if (session.userVehicleType !== payload.vehicleType) {
 
-                console.log(`🚚 [설정 변경] 차종 ${session.userVehicleType} → ${payload.vehicleType} — 필터 재파생`);
+                slog('필터', `🚚 [설정 변경] 차종 ${session.userVehicleType} → ${payload.vehicleType} — 필터 재파생`);
 
                 session.userVehicleType = payload.vehicleType;
 
@@ -369,7 +370,7 @@ router.put("/pricing", requireAuth, (req, res) => {
             updateActiveFilter(userId, {}, io);
         }
 
-        console.log(`💰 [요율 설정 저장] userId: ${userId}, 수수료: ${agencyFeePercent}%`);
+        slog('필터', `💰 [요율 설정 저장] userId: ${userId}, 수수료: ${agencyFeePercent}%`);
         res.json({ success: true });
     } catch (e) {
         console.error("Pricing PUT 에러:", e);

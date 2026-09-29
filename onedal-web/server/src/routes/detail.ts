@@ -13,6 +13,7 @@ import { evolveOrder, rememberOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getDeviceMode } from "./devices";
 import db from "../db";
+import { slog } from "../utils/fileLogger";
 
 const router = Router();
 
@@ -24,7 +25,7 @@ router.post("/", async (req, res) => {
             return res.status(400).json({ error: "step=DETAILED 전용" });
         }
 
-        logRoadmapEvent("서버", "앱폰으로 부터 상세 수집이 완료된 '2차 오더 상세' 요청 받음");
+        logRoadmapEvent('통신', "서버", "앱폰으로 부터 상세 수집이 완료된 '2차 오더 상세' 요청 받음");
 
         // [하드 락] 미등록 기기 차단
         if (!payload.deviceId) {
@@ -113,7 +114,7 @@ router.post("/", async (req, res) => {
         if (existingMatch) matchedId = existingMatch.id;
 
         if (matchedId) {
-            console.log(`🔄 [동기화] 기존 확정 콜(ID: ${matchedId})의 재열람 인지. 진짜 ID 반환.`);
+            slog('콜단계', `🔄 [동기화] 기존 확정 콜(ID: ${matchedId})의 재열람 인지. 진짜 ID 반환.`);
             return res.json({ deviceId: 'server', action: 'ACK', orderId: matchedId });
         }
 
@@ -125,7 +126,7 @@ router.post("/", async (req, res) => {
         const activeStatuses: OrderStatus[] = ['ORDER_SECURED_EVALUATING', 'ORDER_AWAITING_DECISION'];
         const targetOrder = session.pendingOrdersData.get(payload.order.id);
         if (targetOrder && activeStatuses.includes(targetOrder.status) && targetOrder.capturedDeviceId !== payload.deviceId) {
-            console.log(`🔒 [Lock] ${targetOrder.capturedDeviceId} 기기가 이미 이 콜(${payload.order.id})을 평가중. 요청 기기: ${payload.deviceId}`);
+            slog('콜단계', `🔒 [Lock] ${targetOrder.capturedDeviceId} 기기가 이미 이 콜(${payload.order.id})을 평가중. 요청 기기: ${payload.deviceId}`);
             if (io) io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'SAFE_CANCEL' });
             return res.json({ deviceId: 'server', action: 'CANCEL' });
         }
@@ -140,11 +141,11 @@ router.post("/", async (req, res) => {
         }
 
         if (io) {
-            console.log(`📤 [Socket 푸시] order-detail-received (${pendingOrder.id}) - 상태 승급: ${pendingOrder.status}`);
+            slog('통신', `📤 [Socket 푸시] order-detail-received (${pendingOrder.id}) - 상태 승급: ${pendingOrder.status}`);
             io.to(userId).emit("order-detail-received", pendingOrder);
         }
 
-        logRoadmapEvent("서버", "앱폰에게 디테일 데이터 정상 수신 완료 응답 전달");
+        logRoadmapEvent('통신', "서버", "앱폰에게 디테일 데이터 정상 수신 완료 응답 전달");
 
         /**
          * [Two-Track] 누가 골랐는가 — 앱의 `matchType` 이 진실 공급원이다.
@@ -178,10 +179,10 @@ router.post("/", async (req, res) => {
 
         if (isSimulated) {
             pendingOrder.type = 'SIMULATION';
-            console.log(`🐥 [SIMULATION] 가상 체험 콜 평가 진입 (id=${pendingOrder.id}, deviceMode=${deviceMode})`);
+            slog('판정', `🐥 [SIMULATION] 가상 체험 콜 평가 진입 (id=${pendingOrder.id}, deviceMode=${deviceMode})`);
         } else if (isManual) {
             pendingOrder.type = 'MANUAL';  // 프론트엔드 배지 표시를 위해 명시적 설정
-            console.log(`✋ [Two-Track MANUAL] 기사님 직접 터치 콜. 즉시 KEEP 처리. (type=${pendingOrder.type}, matchType=${payload.matchType})`);
+            slog('결재', `✋ [Two-Track MANUAL] 기사님 직접 터치 콜. 즉시 KEEP 처리. (type=${pendingOrder.type}, matchType=${payload.matchType})`);
 
             /**
              * 🔴 [P3] **서버가 못 읽은 것을 숨기지 않는다.**
@@ -246,7 +247,7 @@ router.post("/", async (req, res) => {
              */
             const alreadyJudged = !!(pendingOrder as any).judgment;
             if (alreadyJudged) {
-                console.log(`   👀 [미리보기 → 확정] ${pendingOrder.id} — 판정은 이미 있다(심사 1회). 다시 계산하지 않고 확정만 한다`);
+                slog('결재', `   👀 [미리보기 → 확정] ${pendingOrder.id} — 판정은 이미 있다(심사 1회). 다시 계산하지 않고 확정만 한다`);
                 handleDecision(userId, pendingOrder.id, "ORDER_CONFIRMED", io);
                 return;
             }
@@ -317,7 +318,7 @@ router.post("/", async (req, res) => {
                 // ✅ [Phase 1 방어] KEEP 결재가 이미 내려진 콜은 절대 취소하지 않는다
                 if (decision.action === 'KEEP') {
                     session.pendingDecisions.delete(payload.order.id);
-                    console.log(`🛡️ [Phase 1 방어] 콜(${payload.order.id})은 KEEP 결재 완료 상태. 앱 ACK 미수신이지만 콜 유지.`);
+                    slog('결재', `🛡️ [Phase 1 방어] 콜(${payload.order.id})은 KEEP 결재 완료 상태. 앱 ACK 미수신이지만 콜 유지.`);
                     return; // 취소하지 않고 리턴
                 }
 

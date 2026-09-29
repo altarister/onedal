@@ -16,6 +16,7 @@ import { seqsToWithdraw, startScenario, stepScenario, skipScenarioRow } from "..
 import type { ScenarioState, ScenarioWorld, WorldOrder, WorldIntel, ScenarioRow } from "../core/simScenario";
 import { ICHEON_ROUND_TRIP, ICHEON_FIVE_OK } from "../core/simScenarioIcheon";
 import { GANGNAM_FIVE_OK } from "../core/simScenarioGangnam";
+import { slog } from "../utils/fileLogger";
 
 const router = Router();
 
@@ -187,7 +188,7 @@ router.post("/calls", (req, res) => {
     if (!read.ok) return res.status(400).json({ ok: false, error: read.error });
     const now = Date.now();
     const queued = pushSimCall(simCalls, read.call, now);
-    console.log(`🚚 [개별콜] #${queued.seq} 받음 — ${queued.pickup.region} → ${queued.dropoff.region} · ${queued.fare}`);
+    slog('통신', `🚚 [개별콜] #${queued.seq} 받음 — ${queued.pickup.region} → ${queued.dropoff.region} · ${queued.fare}`);
     return res.json({
         ok: true,
         seq: queued.seq,
@@ -338,28 +339,28 @@ function tickScenario() {
     if (!scenario.state) {
         if (phoneRoundSent !== scenario.round) return;
         scenario.state = startScenario(scenarioDef, now);
-        console.log(`🎬 [시나리오] 폰이 회차 ${scenario.round} 을 받았다 — 첫 줄을 낸다`);
+        slog('통신', `🎬 [시나리오] 폰이 회차 ${scenario.round} 을 받았다 — 첫 줄을 낸다`);
     }
     const before = scenario.state;
     const r = stepScenario(scenarioDef, before, scenarioWorld(scenario.userId, now));
     if (r.send) {
         const q = pushSimCall(simCalls, r.send, now);
         r.state.rows[r.state.index] = { ...r.state.rows[r.state.index], seq: q.seq };   // 🫳 줄 ↔ 콜 번호 — 줄이 끝나면 거둔다
-        console.log(`🎬 [시나리오] ${scenarioDef[r.state.index].id} 냄 #${q.seq} — ${r.send.pickup.region} → ${r.send.dropoff.region} · ${r.send.fare} · ${r.send.vehicleType ?? ''}`);
+        slog('통신', `🎬 [시나리오] ${scenarioDef[r.state.index].id} 냄 #${q.seq} — ${r.send.pickup.region} → ${r.send.dropoff.region} · ${r.send.fare} · ${r.send.vehicleType ?? ''}`);
     }
     /* 🫳 끝난 줄의 콜은 거둔다 — «다른 기사가 가져갔다» (필터가 바뀐 뒤 잡혀 다음 줄을 오염시키지 않게 · 일곱 번째 바퀴 B2 → C3) */
     for (const seq of seqsToWithdraw(r.state.rows, simCalls.withdrawn)) {
         withdrawSimCall(simCalls, seq);
-        console.log(`🫳 [시나리오] #${seq} 거둠 — 채점이 끝난 줄의 콜`);
+        slog('통신', `🫳 [시나리오] #${seq} 거둠 — 채점이 끝난 줄의 콜`);
     }
     r.state.rows.forEach((row, i) => {
         const was = before.rows[i];
-        if (row.mark !== was.mark || row.note !== was.note) console.log(`🎬 [시나리오] ${row.id} ${row.mark} — ${row.note}`);
+        if (row.mark !== was.mark || row.note !== was.note) slog('통신', `🎬 [시나리오] ${row.id} ${row.mark} — ${row.note}`);
     });
     scenario.state = r.state;
     if (r.state.finished) {
         clearInterval(scenario.timer);
-        console.log(`🎬 [시나리오] 끝 — ${r.state.rows.map(x => `${x.id} ${x.mark}`).join(' · ')}`);
+        slog('통신', `🎬 [시나리오] 끝 — ${r.state.rows.map(x => `${x.id} ${x.mark}`).join(' · ')}`);
     }
 }
 
@@ -419,7 +420,7 @@ router.get("/scenario", (req, res) => {
 router.post("/call-memory/round", (_req, res) => {
     if (!isDevBuild()) return res.status(404).json({ error: "not found" });
     const round = bumpCallMemoryRound(simCalls);
-    console.log(`🧹 [본 콜 기억] 회차를 ${round} 로 올렸습니다 — 폰이 다음 응답에서 기억을 비웁니다 (들고 있던 콜 ${simCalls.calls.length}건은 그대로)`);
+    slog('통신', `🧹 [본 콜 기억] 회차를 ${round} 로 올렸습니다 — 폰이 다음 응답에서 기억을 비웁니다 (들고 있던 콜 ${simCalls.calls.length}건은 그대로)`);
     return res.json({ ok: true, round });
 });
 
@@ -437,7 +438,7 @@ router.post("/scenario/start", (req, res) => {
     const key = scenarioKeyOf(req.body?.key);
     scenario = { key, userId: userIds[0], round, state: null, timer: setInterval(tickScenario, SCENARIO_TICK_MS) };
     scenario.timer.unref?.();
-    console.log(`🎬 [시나리오] 시작 — ${SCENARIOS[key].name} (${SCENARIOS[key].rows.length}줄) · 이전 콜 리셋 회차 ${round} · 폰이 받기를 기다린다`);
+    slog('통신', `🎬 [시나리오] 시작 — ${SCENARIOS[key].name} (${SCENARIOS[key].rows.length}줄) · 이전 콜 리셋 회차 ${round} · 폰이 받기를 기다린다`);
     tickScenario();
     return res.json({ ok: true });
 });
@@ -449,7 +450,7 @@ router.post("/scenario/skip", (_req, res) => {
     const scenarioDef = SCENARIOS[scenario.key].rows;
     const id = scenarioDef[scenario.state.index]?.id;
     scenario.state = skipScenarioRow(scenarioDef, scenario.state, Date.now());
-    console.log(`🎬 [시나리오] ${id} 건너뜀`);
+    slog('통신', `🎬 [시나리오] ${id} 건너뜀`);
     tickScenario();
     return res.json({ ok: true });
 });
@@ -457,7 +458,7 @@ router.post("/scenario/skip", (_req, res) => {
 router.post("/scenario/stop", (_req, res) => {
     if (!isDevBuild()) return res.status(404).json({ error: "not found" });
     stopScenario();
-    console.log(`🎬 [시나리오] 멈춤`);
+    slog('통신', `🎬 [시나리오] 멈춤`);
     return res.json({ ok: true });
 });
 

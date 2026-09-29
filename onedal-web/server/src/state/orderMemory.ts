@@ -1,5 +1,6 @@
 import { PendingOrder, isTerminal } from "@onedal/shared";
 import { UserSession } from "./userSessionStore";
+import { slog } from "../utils/fileLogger";
 
 /**
  * 🧠 **같은 콜의 새 표현을 만들 때는 앞의 기억에서 시작한다.**
@@ -41,7 +42,7 @@ export function rememberOrder(session: UserSession, order: PendingOrder | { id: 
     const id = order.id;
     const prev = session.pendingOrdersData.get(id) ?? session.myOrders.find(o => o.id === id);
     if (prev && isTerminal(prev.status) && !isTerminal(order.status)) {
-        console.log(`🚪 [되살리기 막음] ${id} 는 ${prev.status} 로 끝난 콜이다 — ${order.status} 로 덮지 않는다`);
+        slog('콜단계', `🚪 [되살리기 막음] ${id} 는 ${prev.status} 로 끝난 콜이다 — ${order.status} 로 덮지 않는다`);
         return false;
     }
     session.pendingOrdersData.set(id, order as PendingOrder);

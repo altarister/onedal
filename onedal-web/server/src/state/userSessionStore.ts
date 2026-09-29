@@ -6,6 +6,7 @@ import db, { seedCallOptions, loadCallOptions } from "../db";
 import { callTargetToday } from "../core/callTargetEvents";
 import type { CallOption } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
+import { slog } from "../utils/fileLogger";
 
 // ━━━ 서비스 권장 기본값 (신규 가입자용) ━━━
 // 노선·반경·할인율은 여기 없다 — 그 값들의 기본값은 shared `DEFAULT_FILTER_VALUES` 하나다
@@ -476,7 +477,7 @@ export function getUserSession(userId: string): UserSession {
                 session.activeFilter.destinationGroups = {};
                 session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(userVehicleType);
 
-                logRoadmapEvent("서버", `[Session DB Load] 유저 ${userId} 복구된 원본 필터(Raw DB): \n` + JSON.stringify(filterRow, null, 2));
+                logRoadmapEvent('부팅', "서버", `[Session DB Load] 유저 ${userId} 복구된 원본 필터(Raw DB): \n` + JSON.stringify(filterRow, null, 2));
             } else {
                 // 신규 유저: 서비스 권장 기본값 + 국면 표 기본값(첫짐 파생)으로 초기화
                 session.baseFilter = {
@@ -498,7 +499,7 @@ export function getUserSession(userId: string): UserSession {
                     INSERT OR IGNORE INTO user_filters (user_id, min_fare, max_fare) VALUES (?, ?, ?)
                 `).run(userId, 30000, 1000000);
 
-                console.log(`[Session] 유저 ${userId} 최초 필터 생성됨 (차종: ${userVehicleType}, 서비스 권장 기본값 적용)`);
+                slog('필터', `[Session] 유저 ${userId} 최초 필터 생성됨 (차종: ${userVehicleType}, 서비스 권장 기본값 적용)`);
             }
         } catch (e) {
             console.error(`[Session] 유저 ${userId} 필터 Lazy Load 중 오류:`, e);
@@ -517,7 +518,7 @@ export function getAllActiveUserIds(): string[] {
 export function clearUserSession(userId: string): void {
     if (sessions.has(userId)) {
         sessions.delete(userId);
-        console.log(`🧹 [Session] 유저 ${userId} 메모리 세션 완전 파기 완료`);
+        slog('부팅', `🧹 [Session] 유저 ${userId} 메모리 세션 완전 파기 완료`);
     }
 }
 

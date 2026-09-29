@@ -38,8 +38,9 @@ import { validateEnv } from "./config/env";
 import { initGeoService } from "./services/geoService";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
 import { registerSocketHandlers } from "./socket/socketHandlers";
+import { slog } from "./utils/fileLogger";
 
-dotenv.config({ path: path.join(__dirname, "../.env") });
+dotenv.config({ path: path.join(__dirname, "../.env"), quiet: true });   // 라이브러리 광고 줄은 태그 없이 #없음 을 남긴다 — 확인 줄은 validateEnv 가 찍는다
 
 // 필수 환경 변수 검증. 반드시 dotenv.config() 이후에 호출한다.
 // 없으면 여기서 부팅을 중단한다 (조용히 fallback 문자열로 동작하는 것을 막는다).
@@ -76,7 +77,7 @@ const LOG_MUTED_PATHS = ['/api/scrap', '/api/devices', '/api/sim', '/api/health'
 // 글로벌 HTTP 로깅 미들웨어 — 🧹 GET(상태 조회 폴링)은 찍지 않는다. 쓰기와 오류만 흔적이 필요하다 (reviews/22 ①-3)
 app.use((req, res, next) => {
     if (req.method !== 'GET' && !LOG_MUTED_PATHS.some(p => req.url.startsWith(p))) {
-        console.log(`📡 [HTTP 수신] ${req.method} ${req.url} - IP: ${req.ip}`);
+        slog('통신', `📡 [HTTP 수신] ${req.method} ${req.url} - IP: ${req.ip}`);
     }
     next();
 });
@@ -143,20 +144,20 @@ registerSocketHandlers(io);
 const REHEARSAL_HOST = 'rehearsal.';
 const simBuildPath = path.join(__dirname, '../../../onedal-sim/dist');
 if (fs.existsSync(simBuildPath)) {
-    console.log(`🎯 리허설 배차망을 서빙합니다: ${simBuildPath} (host: ${REHEARSAL_HOST}*)`);
+    slog('부팅', `🎯 리허설 배차망을 서빙합니다: ${simBuildPath} (host: ${REHEARSAL_HOST}*)`);
     const simStatic = express.static(simBuildPath);
     app.use((req, res, next) => {
         if (!req.hostname?.startsWith(REHEARSAL_HOST)) return next();
         simStatic(req, res, () => res.sendFile(path.join(simBuildPath, 'index.html')));
     });
 } else {
-    console.log(`⚠️ 리허설 배차망 빌드(${simBuildPath})가 없어 건너뜁니다 — onedal-sim 을 빌드하면 켜집니다.`);
+    slog('부팅', `⚠️ 리허설 배차망 빌드(${simBuildPath})가 없어 건너뜁니다 — onedal-sim 을 빌드하면 켜집니다.`);
 }
 
 // React 프론트엔드 정적 파일 서빙 (프로덕션 배포용)
 const clientBuildPath = path.join(__dirname, '../../client-app/dist');
 if (fs.existsSync(clientBuildPath)) {
-    console.log(`✅ 프론트엔드 빌드 폴더를 서빙합니다: ${clientBuildPath}`);
+    slog('부팅', `✅ 프론트엔드 빌드 폴더를 서빙합니다: ${clientBuildPath}`);
     app.use(express.static(clientBuildPath));
 
     // API가 아닌 모든 요청은 React의 index.html을 응답 (SPA 라우팅 지원)
@@ -164,7 +165,7 @@ if (fs.existsSync(clientBuildPath)) {
         res.sendFile(path.join(clientBuildPath, 'index.html'));
     });
 } else {
-    console.log(`⚠️ 프론트엔드 빌드 폴더(${clientBuildPath})가 없으므로 정적 서빙을 건너뜁니다 (로컬 개발 환경).`);
+    slog('부팅', `⚠️ 프론트엔드 빌드 폴더(${clientBuildPath})가 없으므로 정적 서빙을 건너뜁니다 (로컬 개발 환경).`);
 }
 
 const PORT = process.env.PORT || 4000;
@@ -177,14 +178,14 @@ httpServer.listen(PORT as number, "0.0.0.0", () => {
      */
     {
         const n = pruneGpsTracks();
-        if (n > 0) console.log(`🛰️ [궤적 정리] ${GPS_TRACK.KEEP_DAYS}일 지난 좌표 ${n.toLocaleString()}점 삭제`);
+        if (n > 0) slog('부팅', `🛰️ [궤적 정리] ${GPS_TRACK.KEEP_DAYS}일 지난 좌표 ${n.toLocaleString()}점 삭제`);
     }
     logServerIdentity();
     // hydrateSessionsFromDB(); // 서버 기동 시 일괄 복구 로직 폐기 완료 (userSessionStore에서 Lazy Load로 대체)
-    logRoadmapEvent("서버", "서버 기동 및 디폴트 필터 셋업 (대기 모드)");
-    console.log(`\n🚀 1DAL 서버 (Express + Socket.io) 시작됨`);
-    console.log(`📡 서버 포트: ${PORT}`);
-    console.log(`🌐 대시보드는 http://localhost:3000 에서 확인하세요\n`);
+    logRoadmapEvent('부팅', "서버", "서버 기동 및 디폴트 필터 셋업 (대기 모드)");
+    slog('부팅', `\n🚀 1DAL 서버 (Express + Socket.io) 시작됨`);
+    slog('부팅', `📡 서버 포트: ${PORT}`);
+    slog('부팅', `🌐 대시보드는 http://localhost:3000 에서 확인하세요\n`);
 });
 
 /**
@@ -218,13 +219,13 @@ let shuttingDown = false;
 function shutdown(signal: string) {
     if (shuttingDown) return;           // 두 번 눌러도 절차는 한 번뿐
     shuttingDown = true;
-    console.log(`\n🛑 [종료] ${signal} 수신 — 관제탑을 내보내고 서버를 닫습니다`);
+    slog('부팅', `\n🛑 [종료] ${signal} 수신 — 관제탑을 내보내고 서버를 닫습니다`);
     // 🛰️ 아직 디스크로 안 간 궤적을 먼저 쓴다 — 안 그러면 마지막 구간이 통째로 사라진다
     flushGpsBuffer();
 
     // 못 나가는 연결이 하나라도 있으면 여기서 끝낸다 (tsx 가 강제로 죽이기 전에)
     const giveUp = setTimeout(() => {
-        console.log(`🛑 [종료] 3초가 지나 스스로 끊습니다 (안 놓아준 연결이 있습니다)`);
+        slog('부팅', `🛑 [종료] 3초가 지나 스스로 끊습니다 (안 놓아준 연결이 있습니다)`);
         process.exit(0);
     }, 3000);
     giveUp.unref();
@@ -233,7 +234,7 @@ function shutdown(signal: string) {
         httpServer.closeAllConnections?.();      // keep-alive 가 붙잡는다
         httpServer.close(() => {
             try { db.close(); } catch { /* 이미 닫혔으면 그만이다 */ }
-            console.log(`🛑 [종료] 정리 완료 — 안녕히 가세요`);
+            slog('부팅', `🛑 [종료] 정리 완료 — 안녕히 가세요`);
             clearTimeout(giveUp);
             process.exit(0);
         });

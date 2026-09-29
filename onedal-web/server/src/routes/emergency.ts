@@ -29,6 +29,7 @@ import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter } from "../state/filterManager";
 import db from "../db";
 import { countCancel } from "../core/cancelCount";
+import { slog } from "../utils/fileLogger";
 
 const router = Router();
 
@@ -37,12 +38,12 @@ router.post("/", async (req, res) => {
         const report = req.body as EmergencyReport;
         const { deviceId, orderId, reason, screenContext, screenText, timestamp } = report;
 
-        console.log(`\n🚨🚨🚨 [EMERGENCY] 비상 보고 수신 🚨🚨🚨`);
-        console.log(`   기기: ${deviceId}`);
-        console.log(`   오더: ${orderId}`);
-        console.log(`   사유: ${reason}`);
-        console.log(`   화면: ${screenContext}`);
-        console.log(`   텍스트: ${screenText?.substring(0, 100)}...`);
+        slog('경고', `\n🚨🚨🚨 [EMERGENCY] 비상 보고 수신 🚨🚨🚨`);
+        slog('경고', `   기기: ${deviceId}`);
+        slog('경고', `   오더: ${orderId}`);
+        slog('경고', `   사유: ${reason}`);
+        slog('경고', `   화면: ${screenContext}`);
+        slog('경고', `   텍스트: ${screenText?.substring(0, 100)}...`);
 
         let userId = "ADMIN_USER";
         if (deviceId) {
@@ -58,7 +59,7 @@ router.post("/", async (req, res) => {
             for (const [id, order] of session.pendingOrdersData.entries()) {
                 if (order.capturedDeviceId === deviceId) {
                     targetOrderId = id;
-                    console.log(`   🔍 잃어버린 orderId 역추적 성공: ${targetOrderId}`);
+                    slog('경고', `   🔍 잃어버린 orderId 역추적 성공: ${targetOrderId}`);
                     break;
                 }
             }
@@ -68,20 +69,20 @@ router.post("/", async (req, res) => {
 
         if (session.pendingDecisions.has(targetOrderId)) {
             session.pendingDecisions.delete(targetOrderId);
-            console.log(`   ✅ 결재 큐(pendingDecisions) 삭제 완료`);
+            slog('경고', `   ✅ 결재 큐(pendingDecisions) 삭제 완료`);
         }
 
         /* 👀 미리보기 딱지는 캐시를 지우기 전에 뽑는다 — 지운 뒤 세면 딱지를 못 봐 안 잡은 콜을 취소로 센다 (forceCancel 과 같은 규칙) */
         const wasPreview = !!(session.pendingOrdersData.get(targetOrderId) as any)?.isPreview;
 
         clearOrderTimers(session, targetOrderId);
-        console.log(`   ✅ 롱폴링 대응 안전취소 타이머 무음 해제 완료`);
+        slog('경고', `   ✅ 롱폴링 대응 안전취소 타이머 무음 해제 완료`);
 
         if (session.pendingOrdersData.has(targetOrderId)) {
             session.pendingOrdersData.delete(targetOrderId);
-            console.log(`   ✅ 오더 캐시 삭제 완료`);
+            slog('경고', `   ✅ 오더 캐시 삭제 완료`);
         } else {
-            console.log(`   ⚠️ 오더 캐시에 삭제할 내용이 없음 (${targetOrderId})`);
+            slog('경고', `   ⚠️ 오더 캐시에 삭제할 내용이 없음 (${targetOrderId})`);
         }
 
         // deviceEvaluatingMap 정리 (다음 콜 진입 시 기존 오더ID가 남아 꼬이는 것을 방지)
@@ -109,11 +110,11 @@ router.post("/", async (req, res) => {
             const activeCalls = session.myOrders.filter(c => !isTerminal(c.status));
             if (activeCalls.length === 0) {
                 updateActiveFilter(userId, { isSharedMode: false, isActive: true, driverAction: 'WAITING', dispatchPhase: 'STANDBY' }, io);
-                console.log(`   ✅ 잡아 둔 콜 없음 → 필터 '첫짐' 복원 완료`);
+                slog('경고', `   ✅ 잡아 둔 콜 없음 → 필터 '첫짐' 복원 완료`);
             } else {
                 const { recalculateActiveKakaoRoute } = await import("../services/dispatchEngine");
                 await recalculateActiveKakaoRoute(userId, io);
-                console.log(`   ✅ 남은 활성 콜 경로 재계산 완료`);
+                slog('경고', `   ✅ 남은 활성 콜 경로 재계산 완료`);
             }
         }
 
@@ -126,15 +127,15 @@ router.post("/", async (req, res) => {
                 screenText: screenText?.substring(0, 300),
                 timestamp: timestamp || new Date().toISOString(),
             });
-            console.log(`   ✅ 관제탑 emergency-alert emit 완료`);
+            slog('경고', `   ✅ 관제탑 emergency-alert emit 완료`);
         }
 
         if (io) {
-            console.log(`📤 [Socket 푸시] order-canceled (${targetOrderId})`);
+            slog('경고', `📤 [Socket 푸시] order-canceled (${targetOrderId})`);
             io.to(userId).emit("order-canceled", { id: targetOrderId, status: 'ORDER_RELEASED_BY_OFFICE' });
         }
 
-        console.log(`🚨🚨🚨 [EMERGENCY] 처리 완료 🚨🚨🚨\n`);
+        slog('경고', `🚨🚨🚨 [EMERGENCY] 처리 완료 🚨🚨🚨\n`);
 
         res.json({
             success: true,

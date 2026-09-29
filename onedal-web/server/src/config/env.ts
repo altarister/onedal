@@ -1,3 +1,4 @@
+import { slog } from '../utils/fileLogger';
 /**
  * 필수 환경 변수 검증 (Phase 1 / 이슈 B)
  *
@@ -37,7 +38,7 @@ export function validateEnv(): void {
         console.warn(`⚠️ [환경변수] ${weak.join(", ")} 미설정 — 관련 기능이 동작하지 않습니다.`);
     }
 
-    console.log(`🔐 [환경변수] 필수 ${REQUIRED_ENV.length}개 확인 완료`);
+    slog('부팅', `🔐 [환경변수] 필수 ${REQUIRED_ENV.length}개 확인 완료`);
 }
 
 /**

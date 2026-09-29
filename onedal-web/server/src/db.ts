@@ -3,6 +3,7 @@ import { dwellRatesOf, JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, b
          STEP_TABLES, FILTER_FIELDS, QUAD_FIELDS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
+import { slog } from "./utils/fileLogger";
 
 // .env 또는 서버 환경에서 주입된 DB_FILE 환경 변수 사용 (기본값: local.db)
 const dbFileName = process.env.DB_FILE || "local.db";
@@ -11,7 +12,7 @@ const db = new Database(dbPath);
 
 db.pragma("journal_mode = WAL");
 
-console.log(`📂 SQLite DB 준비 완료: ${dbPath}`);
+slog('부팅', `📂 SQLite DB 준비 완료: ${dbPath}`);
 
 // ═══════════════════════════════════════════════════════════════
 // 스키마 진화 — CREATE TABLE IF NOT EXISTS 의 함정
@@ -33,7 +34,7 @@ function ensureColumns(table: string, columns: Record<string, string>) {
     for (const [col, type] of Object.entries(columns)) {
         if (have.has(col)) continue;
         db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
-        console.log(`🔧 [스키마] ${table}.${col} 컬럼 추가`);
+        slog('부팅', `🔧 [스키마] ${table}.${col} 컬럼 추가`);
     }
 }
 
@@ -58,7 +59,7 @@ function dropStaleCheck(table: string, createSql: string, indexSql: string[]) {
     })();
 
     const after = (db.prepare(`SELECT COUNT(*) c FROM ${table}`).get() as any).c;
-    console.log(`🔧 [스키마] ${table} CHECK 제약 제거 (${before}건 → ${after}건 보존)`);
+    slog('부팅', `🔧 [스키마] ${table} CHECK 제약 제거 (${before}건 → ${after}건 보존)`);
 }
 
 
@@ -400,7 +401,7 @@ try {
         /* 1 — 목적지 전진 배수의 두 끝을 «깎기»로 바꾼다 (곧장 ×2.0 → ×1.0).
               옛 배수는 100점 천장을 뚫어 시급 2.1만과 4.0만을 같은 🔵 100점으로 뭉갰다. */
         const moved = db.prepare('UPDATE user_judgment SET dest_bonus_max = 1.0 WHERE dest_bonus_max = 2.0').run();
-        if (moved.changes > 0) console.log(`🛠️ [DB v1] 목적지 전진 배수 ${moved.changes}건을 2.0 → 1.0 으로 옮겼습니다 (옛 기본값인 행만)`);
+        if (moved.changes > 0) slog('부팅', `🛠️ [DB v1] 목적지 전진 배수 ${moved.changes}건을 2.0 → 1.0 으로 옮겼습니다 (옛 기본값인 행만)`);
     }
     if (at < DB_VERSION) db.pragma(`user_version = ${DB_VERSION}`);
 } catch (e) {
@@ -500,7 +501,7 @@ function relaxScoreNotNull() {
         db.exec(`ALTER TABLE order_judgments__new RENAME TO order_judgments`);
     })();
     const after = (db.prepare(`SELECT COUNT(*) c FROM order_judgments`).get() as any).c;
-    console.log(`🔧 [스키마] order_judgments.score 를 «못 쟀으면 null» 로 (${before}건 → ${after}건 보존)`);
+    slog('부팅', `🔧 [스키마] order_judgments.score 를 «못 쟀으면 null» 로 (${before}건 → ${after}건 보존)`);
 }
 relaxScoreNotNull();
 
@@ -741,7 +742,7 @@ try {
             UPDATE orders SET status = 'ORDER_PRE_SECURED'         WHERE status IN ('pending', 'evaluating_basic');
             UPDATE orders SET status = 'ORDER_SECURED_EVALUATING'  WHERE status = 'evaluating_detailed';
         `);
-        console.log(`🛠️ [DB Migration V7] 레거시 status 값 ${legacyCheck.cnt}건을 ORDER_XXX 규격으로 일괄 변환 완료`);
+        slog('부팅', `🛠️ [DB Migration V7] 레거시 status 값 ${legacyCheck.cnt}건을 ORDER_XXX 규격으로 일괄 변환 완료`);
     }
 } catch (e) {
     // 마이그레이션 실패 시 무시 (테이블이 아직 없는 경우 등)

@@ -25,6 +25,7 @@ import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOf
          parseCargoHints, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT,
          soloMinutesOf, derivationInputsOf, dwellLedgerOfSteps } from '@onedal/shared';
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
+import { slog } from '../utils/fileLogger';
 
 /** 🧭 경로가 아는 시각 — `deriveRouteTimeline` 의 결과를 그대로 받는다 (파생 한 곳 · 규칙 ③) */
 export type RouteTl = Pick<RouteTimelineEntry, 'orderId' | 'stopType' | 'etaMs'>[];
@@ -218,7 +219,7 @@ export function birthFirstStep(userId: string, orderId: string, judgment?: Judgm
     const born = bornRows(orderId);
     if (born.CALL_PICKUP) return;                        // 이미 태어났다 (재KEEP 등)
     insertStep(userId, orderId, 'CALL_PICKUP', computeChain(o, born, judgment, routeTl).CALL_PICKUP);
-    console.log(`🌱 [출생] ${orderId.slice(-6)} · 상차지 통화 — KEEP`);
+    slog('콜단계', `🌱 [출생] ${orderId.slice(-6)} · 상차지 통화 — KEEP`);
 }
 
 /** 앞이 끝났으니 다음 하나를 낳는다. 이미 있으면 아무것도 안 한다 */
@@ -230,7 +231,7 @@ function birthNext(userId: string, orderId: string, after: StepId, judgment?: Ju
     const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
     if (!o) return;
     insertStep(userId, orderId, next, computeChain(o, born, judgment, routeTl)[next]);
-    console.log(`🌱 [출생] ${orderId.slice(-6)} · ${tableOf(next).label} ← ${tableOf(after).label} 끝`);
+    slog('콜단계', `🌱 [출생] ${orderId.slice(-6)} · ${tableOf(next).label} ← ${tableOf(after).label} 끝`);
 }
 
 /**
@@ -251,7 +252,7 @@ function finalizeStep(userId: string, orderId: string, step: StepId,
             if (born[st]) continue;
             insertStep(userId, orderId, st, computeChain(o, born, judgment, routeTl)[st]);
             born = bornRows(orderId);   // 앞 출생이 뒤 출생의 물려받기에 보이도록
-            console.log(`🌱 [출생] ${orderId.slice(-6)} · ${tableOf(st).label} — 지나친 단계 채움`);
+            slog('콜단계', `🌱 [출생] ${orderId.slice(-6)} · ${tableOf(st).label} — 지나친 단계 채움`);
         }
     }
     const t = tableOf(step);
@@ -390,7 +391,7 @@ export function saveStepDwell(orderId: string, step: StepId, minutes: number): b
     const t = tableOf(step);
     const r = db.prepare(`UPDATE ${t.table} SET ${col} = ?, recorded_at = ? WHERE orderId = ?`)
                 .run(Math.round(minutes * 100) / 100, new Date().toISOString(), orderId);
-    if (r.changes) console.log(`⏱️ [정차 실측] ${orderId.slice(-6)} · ${t.label} — ${minutes}분`);
+    if (r.changes) slog('콜단계', `⏱️ [정차 실측] ${orderId.slice(-6)} · ${t.label} — ${minutes}분`);
     return r.changes > 0;
 }
 
@@ -448,7 +449,7 @@ export function bridgeUndoMilestone(userId: string, orderId: string, milestone: 
     const t = tableOf(step as StepId);
     db.prepare(`UPDATE ${t.table} SET status = 'PLANNED', occurred_at = NULL, source = NULL,
                 reasons = NULL WHERE orderId = ?`).run(orderId);
-    console.log(`🌱 [되돌림] ${orderId.slice(-6)} · ${t.label} → PLANNED`);
+    slog('콜단계', `🌱 [되돌림] ${orderId.slice(-6)} · ${t.label} → PLANNED`);
 }
 
 /**

@@ -7,6 +7,7 @@ import { requireAuth } from "../middlewares/authMiddleware";
 import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { updateActiveFilter } from "../state/filterManager";
+import { slog } from "../utils/fileLogger";
 
 const router = Router();
 
@@ -127,7 +128,7 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
 
     if (screenNodeCount > 0) {
         if (session.blindSince) {
-            console.log(`👁️ [화면 복구] ${session.deviceId} — 다시 읽고 있습니다 (노드 ${screenNodeCount}개)`);
+            slog('화면', `👁️ [화면 복구] ${session.deviceId} — 다시 읽고 있습니다 (노드 ${screenNodeCount}개)`);
         }
         session.blindSince = undefined;
         return;
@@ -201,7 +202,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         if (session.status === "OFFLINE") {
             const restored = resolveDefaultMode(deviceId, userId);
             if (session.mode !== restored) {
-                console.log(`🔄 [모드 복원] 기기(${deviceId}) 온라인 복귀 → ${session.mode} → ${restored}`);
+                slog('통신', `🔄 [모드 복원] 기기(${deviceId}) 온라인 복귀 → ${session.mode} → ${restored}`);
             }
             session.mode = restored;
         }
@@ -239,7 +240,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                 // 픽커로 바꾼 첫 보고가 인성 이름표로 찍힌다 («읽지 않고 단언한다» 와 같은 결)
                 const net = targetApp ?? session!.targetApp;
                 const name = (c?: ScreenContextType) => screenLabelOf(net, c)?.label ?? c ?? '모름';
-                console.log(`🖥️ [화면 바뀜] ${session.deviceName || deviceId} · ` +
+                slog('화면', `🖥️ [화면 바뀜] ${session.deviceName || deviceId} · ` +
                     `${name(session.screenContext)} → ${name(screenContext)} · 직전 보고와 ${gap}`);
             }
             session.screenContext = screenContext;
@@ -278,7 +279,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         session.effectiveMode = extras.effectiveMode;
         const isSplit = session.effectiveMode !== session.mode;
         if (isSplit !== wasSplit) {
-            console.log(isSplit
+            slog('통신', isSplit
                 ? `🎛️ [모드] ${session.deviceName || deviceId} 명령 ${session.mode} → ${session.targetApp ?? '?'} 에서 ${session.effectiveMode} 로 돈다`
                 : `🎛️ [모드 복귀] ${session.deviceName || deviceId} 명령 ${session.mode} 그대로 돈다`);
         }
@@ -339,7 +340,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                 seen: filterTally.seen,
                 at: session.lastSeen,
             });
-            console.log(`🔔 [알람] ${deviceId} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건. 기사님이 직접 누르십니다`);
+            slog('필터', `🔔 [알람] ${deviceId} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건. 기사님이 직접 누르십니다`);
         }
     }
     activeDevices.set(deviceId, session);
@@ -392,9 +393,9 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         if (stuck?.isPreview) {
             /* 🔴 상세를 아직 못 봤으면 «열리는 중»이다 — 치우지 않는다 (#154) */
             if (!stuck.detailSeen) {
-                console.log(`👀 [상세 못 봄 · 안 치움] ${stuckOrderId} — 카드가 아직 열리는 중이다 (화면: ${screenContext ?? '모름'})`);
+                slog('화면', `👀 [상세 못 봄 · 안 치움] ${stuckOrderId} — 카드가 아직 열리는 중이다 (화면: ${screenContext ?? '모름'})`);
             } else if (leftDetail(session)) {
-                console.log(`👀 [상세 이탈] 기기(${deviceId})가 상세를 떠났다 (화면: ${screenNowOf(session) ?? '끊김'}) — 미리보기를 치운다`);
+                slog('화면', `👀 [상세 이탈] 기기(${deviceId})가 상세를 떠났다 (화면: ${screenNowOf(session) ?? '끊김'}) — 미리보기를 치운다`);
                 forceCancelEvaluatingOrder(userId, stuckOrderId!, io);
             }
         }
@@ -424,10 +425,10 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
              */
             const isPreviewStuck = !!(stuckOrder as any)?.isPreview;
             if (stuckOrder && (isPreviewStuck || !stuckOrder.type?.startsWith("MANUAL")) && !(stuckOrder as any).detailSeen) {
-                console.log(`👀 [목록 보고 · 안 치움] ${stuckOrderId} — 이 콜의 상세를 아직 못 봤다 (옛 화면 보고일 수 있다 · 미리보기면 시간·끊김 안전장치가 치운다)`);
+                slog('화면', `👀 [목록 보고 · 안 치움] ${stuckOrderId} — 이 콜의 상세를 아직 못 봤다 (옛 화면 보고일 수 있다 · 미리보기면 시간·끊김 안전장치가 치운다)`);
             } else if (stuckOrder && isPreviewStuck) {
                 /* 👀 미리보기는 안 잡은 콜이라 바로 치운다 — 기다릴 것이 없다 */
-                console.log(`🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! 👀 미리보기 콜을 즉시 정리합니다 (안 잡은 콜).`);
+                slog('화면', `🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! 👀 미리보기 콜을 즉시 정리합니다 (안 잡은 콜).`);
                 forceCancelEvaluatingOrder(userId, stuckOrderId, io);
             } else if (stuckOrder && !stuckOrder.type?.startsWith("MANUAL")) {
                 /**
@@ -444,17 +445,17 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                  */
                 const key = `listExit_${stuckOrderId}`;
                 if (!userSession.activeTimers.has(key)) {
-                    console.log(`🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! ` +
+                    slog('화면', `🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! ` +
                         `⏳ ${LIST_EXIT_GRACE_MS / 1000}초 기다립니다 — 그 사이 다음 콜을 잡으면 안 치웁니다.`);
                     const t = setTimeout(() => {
                         userSession.activeTimers.delete(key);
                         /* 🎫 아직도 이 콜이 «지금 심사 중»이면 정말 버린 것이다 */
                         if (userSession.deviceEvaluatingMap.get(deviceId) !== stuckOrderId) {
-                            console.log(`   ✅ [이탈 유예] ${stuckOrderId} — 그 사이 다음 콜로 옮겨 갔습니다. 안 치웁니다.`);
+                            slog('화면', `   ✅ [이탈 유예] ${stuckOrderId} — 그 사이 다음 콜로 옮겨 갔습니다. 안 치웁니다.`);
                             return;
                         }
                         if (!userSession.pendingOrdersData.has(stuckOrderId)) return;   // 이미 다른 길이 치웠다
-                        console.log(`   🧹 [이탈 유예 끝] ${stuckOrderId} — 새 콜이 안 왔습니다. 대기 중이던 AUTO 롱폴링 파이프 강제 파괴.`);
+                        slog('화면', `   🧹 [이탈 유예 끝] ${stuckOrderId} — 새 콜이 안 왔습니다. 대기 중이던 AUTO 롱폴링 파이프 강제 파괴.`);
                         forceCancelEvaluatingOrder(userId, stuckOrderId, io);
                     }, LIST_EXIT_GRACE_MS);
                     userSession.activeTimers.set(key, t);
@@ -519,7 +520,7 @@ export function cleanPreviewOfDevice(userId: string, deviceId: string, io: any, 
     const id = userSession.deviceEvaluatingMap.get(deviceId);
     const o = id ? userSession.pendingOrdersData.get(id) as any : null;
     if (!id || !o?.isPreview) return false;
-    console.log(`🛟 [미리보기 정리 · ${why}] ${id} — 기기(${deviceId})가 보고를 못 보내 서버가 치운다`);
+    slog('콜단계', `🛟 [미리보기 정리 · ${why}] ${id} — 기기(${deviceId})가 보고를 못 보내 서버가 치운다`);
     forceCancelEvaluatingOrder(userId, id, io, 'TIMEOUT');
     return true;
 }
@@ -565,7 +566,7 @@ router.post("/pair", (req, res) => {
             return res.status(400).json({ error: "pin과 deviceId는 필수입니다." });
         }
 
-        logRoadmapEvent("서버", "앱폰으로 부터 6자리 PIN 인증 요청 받음 및 deviceId 발급 연산");
+        logRoadmapEvent('통신', "서버", "앱폰으로 부터 6자리 PIN 인증 요청 받음 및 deviceId 발급 연산");
         // 1. PIN 유효성 검증 및 소비
         const userId = consumePin(pin);
         if (!userId) {
@@ -587,9 +588,9 @@ router.post("/pair", (req, res) => {
             db.prepare("INSERT INTO user_devices (user_id, device_id, device_name) VALUES (?, ?, ?)").run(userId, deviceId, deviceName || null);
         }
         
-        logRoadmapEvent("서버", "승인된 디바이스 정보 DB 저장");
+        logRoadmapEvent('통신', "서버", "승인된 디바이스 정보 DB 저장");
 
-        console.log(`📱 [기기 페어링 완료] User: ${userId} ← Device: ${deviceId} (${deviceName || "이름없음"})`);
+        slog('통신', `📱 [기기 페어링 완료] User: ${userId} ← Device: ${deviceId} (${deviceName || "이름없음"})`);
 
         // 4. 기존 메모리 세션이 있으면 deviceName을 즉시 갱신
         const existingSession = activeDevices.get(deviceId);
@@ -648,7 +649,7 @@ router.delete("/:deviceId", requireAuth, (req, res) => {
         // 메모리에서도 제거 (모드는 지워진 행과 함께 사라진다 — 따로 지울 것이 없다)
         activeDevices.delete(deviceId);
 
-        console.log(`🗑️ [기기 해제] User: ${userId} → Device: ${deviceId} 연동 해제 완료`);
+        slog('통신', `🗑️ [기기 해제] User: ${userId} → Device: ${deviceId} 연동 해제 완료`);
         res.json({ success: true });
     } catch (error) {
         console.error("기기 해제 에러:", error);
@@ -708,7 +709,7 @@ router.post("/:deviceId/offline", (req, res) => {
             const reason = (req.body as any)?.reason;
             session.offlineReason = isDeviceOfflineReason(reason) ? reason : undefined;
             const why = session.offlineReason ? DEVICE_OFFLINE_LABEL[session.offlineReason] : "까닭 모름";
-            console.log(`📵 [즉각 오프라인 마킹] 기기(${deviceId})가 자체 보고를 통해 오프라인 전환 완료 — ${why}`);
+            slog('통신', `📵 [즉각 오프라인 마킹] 기기(${deviceId})가 자체 보고를 통해 오프라인 전환 완료 — ${why}`);
             /* 🛟 끊긴 폰은 «목록으로 돌아왔다»를 못 보낸다 — 열어 둔 미리보기를 지금 치운다 (#155 · 보고 없이 끊기면 생존신고 감시가 치운다) */
             cleanPreviewOfDevice(userOfDevice(deviceId), deviceId, req.app.get("io"), "폰 끊김");
         }
@@ -770,7 +771,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
                 stats: { polled: 0, grabbed: 0, canceled: 0 }
             };
             activeDevices.set(deviceId, session);
-            console.log(`⚙️ [모드 선제 적용] 메모리 미등록 기기 세션 생성 후 모드 설정: ${deviceId} → ${mode}`);
+            slog('통신', `⚙️ [모드 선제 적용] 메모리 미등록 기기 세션 생성 후 모드 설정: ${deviceId} → ${mode}`);
         }
 
         session.mode = mode;
@@ -811,7 +812,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
          */
         getUserSession(userId).filterEnabledByMode = hasFilteringDevice;
         updateActiveFilter(userId, { isActive: hasFilteringDevice }, io);
-        console.log(`⚙️ [모드 전환] 기기(${deviceId}) → ${mode} | 유저(${userId}) 필터 도는 기기 존재: ${hasFilteringDevice} → filter.isActive → ${hasFilteringDevice}`);
+        slog('통신', `⚙️ [모드 전환] 기기(${deviceId}) → ${mode} | 유저(${userId}) 필터 도는 기기 존재: ${hasFilteringDevice} → filter.isActive → ${hasFilteringDevice}`);
 
         res.json({ success: true, mode });
     } catch (error) {

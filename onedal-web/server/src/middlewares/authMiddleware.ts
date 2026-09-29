@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { jwtSecret } from "../config/env";
 import db from "../db";
+import { slog } from "../utils/fileLogger";
 
 
 
@@ -59,7 +60,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 
         // 🔴 서명이 맞아도 이 서버의 유저가 아니면 들이지 않는다 (남의 서버가 발급한 토큰)
         if (!isKnownUser(decoded.id)) {
-            console.log(`❌ [AuthMiddleware] 이 서버에 없는 유저의 토큰 — ${decoded.id} (${decoded.email})`);
+            slog('경고', `❌ [AuthMiddleware] 이 서버에 없는 유저의 토큰 — ${decoded.id} (${decoded.email})`);
             res.status(401).json({ error: "이 서버에 등록되지 않은 계정입니다. 다시 로그인해 주세요." });
             return;
         }
@@ -68,9 +69,9 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
         next();
     } catch (err: any) {
         if (err.name === 'TokenExpiredError') {
-            console.log("❌ [AuthMiddleware] 토큰 만료됨 (재발급 필요)");
+            slog('경고', "❌ [AuthMiddleware] 토큰 만료됨 (재발급 필요)");
         } else {
-            console.log("❌ [AuthMiddleware] 토큰 검증 실패:", err.message || err);
+            slog('경고', "❌ [AuthMiddleware] 토큰 검증 실패:", err.message || err);
         }
         // 만료되었거나 서명이 일치하지 않는 경우
         res.status(401).json({ error: "유효하지 않거나 만료된 토큰입니다." });

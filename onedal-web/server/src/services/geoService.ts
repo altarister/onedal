@@ -35,6 +35,7 @@ const turf = {
     featureCollection, lineString, nearestPointOnLine, point, simplify, union,
 };
 import type { FeatureCollection, Polygon, MultiPolygon, Feature } from 'geojson';
+import { slog } from '../utils/fileLogger';
 
 let mergedMapFeatureCollection: FeatureCollection<Polygon | MultiPolygon> & { features: Array<Feature<Polygon | MultiPolygon> & { bbox?: number[] }> } | null = null;
 
@@ -66,7 +67,7 @@ export function initGeoService() {
             mergedMapFeatureCollection = parsed;
             adminNameSet = null;   // 지도가 다시 로드되면 지명 사전도 다시 만든다
             districtNameCount = null;   // 구 이름 유일성도 같은 이유로 다시 센다
-            console.log(`🗺️ [GeoService] 전국 자치구/읍면동 폴리곤 로드 성공 (총 ${parsed.features?.length || 0}개 방어구역)`);
+            slog('부팅', `🗺️ [GeoService] 전국 자치구/읍면동 폴리곤 로드 성공 (총 ${parsed.features?.length || 0}개 방어구역)`);
         } else {
             console.warn(`🗺️ [GeoService] merged_map.geojson 형식이 올바른 FeatureCollection이 아닙니다.`);
         }
@@ -1285,26 +1286,26 @@ export function processDriverMovement(
         jumped = teleported || tooFast;
 
         if (teleported || tooFast) {
-            console.log(`🚨 [위치 점프] ${movedKm.toFixed(1)}km 를 ${elapsedS.toFixed(1)}초에 ` +
+            slog('위치', `🚨 [위치 점프] ${movedKm.toFixed(1)}km 를 ${elapsedS.toFixed(1)}초에 ` +
                 `(${Math.round(kmh)}km/h · 출처 ${src}) — ${prev.x.toFixed(4)},${prev.y.toFixed(4)} → ` +
                 `${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)}`);
         } else if (movedKm >= GPS_LOG_MIN_KM) {
             if (session.stoppedSinceMs) {
                 const stoppedMin = Math.round((Date.now() - session.stoppedSinceMs) / 60_000);
-                console.log(`▶️ [정차 끝] ${stoppedMin}분 서 있다 다시 이동 · 출처 ${src}`);
+                slog('위치', `▶️ [정차 끝] ${stoppedMin}분 서 있다 다시 이동 · 출처 ${src}`);
                 session.stoppedSinceMs = null;
             }
             // 🧹 이동 로그는 30초에 한 줄 — 궤적은 DB 가 들고 있다 (reviews/22 ①-3)
             if (!session.lastMoveLogAt || Date.now() - session.lastMoveLogAt >= 30_000) {
                 session.lastMoveLogAt = Date.now();
-                console.log(`📍 [위치] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} ` +
+                slog('위치', `📍 [위치] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} ` +
                     `· ${(movedKm * 1000).toFixed(0)}m 이동 · ${Math.round(kmh)}km/h · 출처 ${src}`);
             }
         } else if (stopped) {
             /* ⏸️ 서 있는 «사실»은 남긴다 — 매초가 아니라 시작·끝 두 줄로. 좌표가 오는지는 `lastFixAt` 이 답한다 */
             if (!session.stoppedSinceMs) {
                 session.stoppedSinceMs = Date.now();
-                console.log(`⏸️ [정차 시작] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} · 출처 ${src}`);
+                slog('위치', `⏸️ [정차 시작] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} · 출처 ${src}`);
             }
         }
     }
@@ -1552,7 +1553,7 @@ function watchArrival(
             const away = haversineKm(gps.y, gps.x, w.y, w.x);
             if (away >= GPS_ARRIVAL.DEPARTED_KM) {
                 session.departWatch.delete(key);
-                console.log(`🚚 [떠남 감지] 하차지에서 ${away.toFixed(1)}km 멀어졌습니다 — ` +
+                slog('콜단계', `🚚 [떠남 감지] 하차지에서 ${away.toFixed(1)}km 멀어졌습니다 — ` +
                     `내리고 간 것으로 봅니다 (${w.orderId.slice(0, 8)})`);
                 onDeparted(userId, w.orderId);
             }
@@ -1573,7 +1574,7 @@ function watchArrival(
             if (t.entered && !w.entered) { w.entered = true; }
             if (t.passed) {
                 session.passWatch.delete(k);
-                console.log(`🚚 [지나침] ${w.stopType === 'pickup' ? '상차지' : '하차지'}에서 ` +
+                slog('콜단계', `🚚 [지나침] ${w.stopType === 'pickup' ? '상차지' : '하차지'}에서 ` +
                     `${(away * 1000).toFixed(0)}m 멀어졌습니다 — 도착·완료를 순차로 찍습니다 (${w.orderId.slice(0, 8)})`);
                 onPassed(userId, { orderId: w.orderId, stopType: w.stopType, x: w.x, y: w.y } as ArrivalStop);
             }
@@ -1597,7 +1598,7 @@ function watchArrival(
         const nDist = haversineKm(gps.y, gps.x, next.y, next.x);
         if (nDist < GPS_ARRIVAL.NOTICE_KM && !session.arrivalNoticed.has(nKey)) {
             session.arrivalNoticed.add(nKey);
-            console.log(`📣 [근접 예고] 다음 정거장(${next.stopType === 'pickup' ? '상차지' : '하차지'}) ` +
+            slog('콜단계', `📣 [근접 예고] 다음 정거장(${next.stopType === 'pickup' ? '상차지' : '하차지'}) ` +
                 `${nDist.toFixed(1)}km 앞 — 도착전 통화 시점`);
             onApproaching?.(userId, next, nDist);
         }
@@ -1629,7 +1630,7 @@ function watchArrival(
         if (evaluatePassTick(distKm, pass.nearM / 1000, pass.awayM / 1000, false).entered
             && !session.passWatch.has(key)) {
             session.passWatch.set(key, { orderId: st.orderId, stopType: st.stopType, x: st.x, y: st.y, entered: true });
-            console.log(`👣 [지나침 감시 시작] ${label} ${(distKm * 1000).toFixed(0)}m — ` +
+            slog('콜단계', `👣 [지나침 감시 시작] ${label} ${(distKm * 1000).toFixed(0)}m — ` +
                 `${pass.awayM}m 벗어나면 도착·완료를 찍습니다 (${st.orderId.slice(0, 8)})`);
         }
 
@@ -1640,7 +1641,7 @@ function watchArrival(
 
         session.arrivalFired.add(key);      // 🔴 한 번 찍으면 이 정거장은 끝 — 4연발의 해답
         session.arrivalHeld.delete(key);    //    찍힌 뒤에는 «서 있던 시간»을 들고 있을 이유가 없다
-        console.log(`🏁 [도착 감지] ${label} ${GPS_ARRIVAL.RADIUS_KM * 1000}m 이내 (출처 ${src}) — 1회 발화`);
+        slog('콜단계', `🏁 [도착 감지] ${label} ${GPS_ARRIVAL.RADIUS_KM * 1000}m 이내 (출처 ${src}) — 1회 발화`);
 
         if (st.stopType === 'dropoff') {
             applyFilterCb(userId, {
