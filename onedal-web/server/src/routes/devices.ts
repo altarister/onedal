@@ -79,10 +79,8 @@ export function getDeviceMode(deviceId: string, userId?: string): DeviceModeType
 /**
  * 데드맨 스위치 감지 주기.
  *
- * 70초 → 150초로 상향.
- * 앱 하트비트가 60초 주기(TelemetryManager.HEARTBEAT_INTERVAL_MS)인데 70초는 여유가 10초뿐이라,
- * 터널·기지국 전환 등으로 전송이 1회만 실패해도(다음 전송까지 120초) 데드맨이 오작동했습니다.
- * 하트비트 주기를 줄이면 /api/scrap 트래픽이 배로 늘어나므로, 대신 판정 여유를 늘렸습니다.
+ * 앱 하트비트는 목록 화면 15초 · 그 밖 60초(TelemetryManager.heartbeatIntervalMs) — 이 판정은 가장 긴 60초 기준이다.
+ * 터널·기지국 전환 등으로 전송이 1회 실패해도(다음 전송까지 120초) 끊김으로 잘못 보지 않게 150초를 둔다.
  */
 const DEADMAN_TIMEOUT_MS = 150000;
 
