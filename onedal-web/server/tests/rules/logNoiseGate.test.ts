@@ -85,4 +85,8 @@ describe('🧮 스크랩 응답의 누적 수 — 빈 보고는 표를 다시 �
         const s = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
         expect(s).toMatch(/if \(data\.length > 0 \|\| intelCountCache === null\) \{\s*intelCountCache = \(db\.prepare\("SELECT COUNT\(\*\) as count FROM intel"\)/);
     });
+    it('콜이 실린 보고 뒤 다음 보고가 한 번 더 센다 — 비동기 큐가 넣은 행까지', () => {
+        const s = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
+        expect(s).toContain('if (data.length > 0) intelCountCache = null;');
+    });
 });

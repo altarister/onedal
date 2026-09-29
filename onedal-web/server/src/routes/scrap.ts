@@ -139,6 +139,8 @@ router.post("/", (req, res) => {
             intelCountCache = (db.prepare("SELECT COUNT(*) as count FROM intel").get() as { count: number })?.count || 0;
         }
         const totalScrap = intelCountCache;
+        // 방금 넣은 행은 큐가 아직 안 썼을 수 있다 — 다음 보고가 한 번 더 세어 맞춘다
+        if (data.length > 0) intelCountCache = null;
 
         if (data.length > 0) logRoadmapEvent('통신', "서버", ` [/api/scrap 수신] User: ${userId} (${deviceId}) | ${data.length}항목 적재 중${screenContext ? ` [화면: ${screenContext}]` : ''}`);
         // console.log(`🛡️ [서버] /api/scrap 수신 직후: 서버단 2차 해시 검증 및 무효 콜 필터링 통과 완료`);
