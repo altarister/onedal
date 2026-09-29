@@ -73,9 +73,9 @@ app.use(express.json());
  */
 const LOG_MUTED_PATHS = ['/api/scrap', '/api/devices', '/api/sim', '/api/health', '/api/logs'];
 
-// 글로벌 HTTP 로깅 미들웨어
+// 글로벌 HTTP 로깅 미들웨어 — 🧹 GET(상태 조회 폴링)은 찍지 않는다. 쓰기와 오류만 흔적이 필요하다 (reviews/22 ①-3)
 app.use((req, res, next) => {
-    if (!LOG_MUTED_PATHS.some(p => req.url.startsWith(p))) {
+    if (req.method !== 'GET' && !LOG_MUTED_PATHS.some(p => req.url.startsWith(p))) {
         console.log(`📡 [HTTP 수신] ${req.method} ${req.url} - IP: ${req.ip}`);
     }
     next();

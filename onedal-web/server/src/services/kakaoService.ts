@@ -145,8 +145,7 @@ function extractPolyline(routes?: any[]): Array<{ x: number; y: number }> {
     }
     const lines = extractSectionLines(routes);
     const polyline = lines.flat();
-    console.log(`🗺️ [extractPolyline] 섹션(구간) 수: ${lines.length} · 구간별 점 ${JSON.stringify(lines.map(l => l.length))}`
-        + ` · 총 ${polyline.length}점`);
+    console.log(`🗺️ [extractPolyline] 구간 ${lines.length} · 총 ${polyline.length}점`);
     return polyline;
 }
 
@@ -424,9 +423,8 @@ export async function calculateDetourRoute(
         car_type: carType
     };
     
-    console.log(`\n🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)`);
-    console.log(`   - Origin: ${mergedOriginX},${mergedOriginY} / Dest: ${mergedDestX},${mergedDestY}`);
-    console.log(`   - Waypoints Count: ${wpArray.length}`);
+    // 🧹 요청 사실 한 줄 — 좌표·경유 수면 되짚기에 족하다 (reviews/22 ①-3 «계산당 한 줄»)
+    console.log(`🚙 [카카오 합짐 경로] 경유 ${wpArray.length}곳 · ${mergedOriginX},${mergedOriginY} → ${mergedDestX},${mergedDestY}`);
     
     const mergedRes = await fetch(KAKAO_WAYPOINTS_URL, { 
         method: "POST",
