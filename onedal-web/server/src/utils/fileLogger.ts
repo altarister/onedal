@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { NO_TAG, type LogTag } from '@onedal/shared';
 
 /**
  * 서버 로그를 **파일에도** 남긴다.
@@ -83,9 +84,16 @@ export function initFileLogger(): void {
                 }
                 return;
             }
-            const line = `${stamp()} ${level} ` + args.map(a =>
+            /**
+             * 🏷️ 시각 다음 첫 토막은 태그다 (reviews/22 2단계) — `slog` 로 찍은 줄은 «#태그»를 이미
+             *    이고 있고, 그 밖의 줄은 파일에서 `#없음` 을 인다. 터미널 출력은 원문 그대로다.
+             *    옛 날짜 파일(태그 없는 꼴)은 `pnpm log` 가 그대로 읽는다 — 태그는 있으면 쓰는 토막이다.
+             */
+            const body = args.map(a =>
                 typeof a === 'string' ? a : (() => { try { return JSON.stringify(a); } catch { return String(a); } })()
-            ).join(' ') + '\n';
+            ).join(' ');
+            const tagged = body.startsWith('#') ? body : `#${NO_TAG} ${body}`;
+            const line = `${stamp()} ${level} ${tagged}\n`;
             const clean = stripAnsi(line);
             written += clean.length;
             stream.write(clean);
@@ -100,9 +108,17 @@ export function initFileLogger(): void {
         console.warn = (...a: unknown[]) => { origWarn(...a); write('WRN', a); };
         console.error = (...a: unknown[]) => { origError(...a); write('ERR', a); };
 
-        origLog(`📝 [로그 파일] ${path.relative(process.cwd(), file)} 에 함께 기록합니다 (${KEEP_DAYS}일 보관)`);
+        origLog(`#부팅 📝 [로그 파일] ${path.relative(process.cwd(), file)} 에 함께 기록합니다 (${KEEP_DAYS}일 보관)`);
     } catch (e) {
         // 로그를 못 남기는 것이 서버를 멈출 이유는 아니다
         console.error('📝 [로그 파일] 초기화 실패 — 터미널 출력만 남습니다:', e);
     }
+}
+
+/**
+ * 🏷️ **태그 로거** — 호출부가 «#태그» 글자를 직접 쓰지 않는다 (reviews/22 2단계).
+ * 터미널·파일이 같은 «#태그 …» 한 꼴이고, 태그 목록은 shared `LOG_TAGS` 한 곳이다.
+ */
+export function slog(tag: LogTag, msg: string): void {
+    console.log(`#${tag} ${msg}`);
 }

@@ -2129,3 +2129,4 @@ export function safeCancelSecOf(w: WaitTimes, targetApp: string | null | undefin
     if (app === 'kakaopicker') return null;
     return app === 'hwamul24' ? w.safeCancelSecHwamul24 : w.safeCancelSecInsung;
 }
+export * from './logTags';

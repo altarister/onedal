@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { execSync } from "child_process";
+import { slog } from "../utils/fileLogger";
 import { requireAuth } from "../middlewares/authMiddleware";
 
 const router = Router();
@@ -34,7 +35,7 @@ const GIT_INFO = (() => {
 
 /** 기동 로그에 찍어 터미널에서도 바로 보이게 한다 */
 export function logServerIdentity() {
-    console.log(`🧾 [BUILD] commit ${GIT_INFO.commit} (${GIT_INFO.branch}) · 부팅 ${BOOTED_AT.toLocaleString("ko-KR")}`);
+    slog('부팅', `🧾 [BUILD] commit ${GIT_INFO.commit} (${GIT_INFO.branch}) · 부팅 ${BOOTED_AT.toLocaleString("ko-KR")}`);
 }
 
 function uptime() {
