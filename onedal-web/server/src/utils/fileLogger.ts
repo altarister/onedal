@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { NO_TAG, type LogTag } from '@onedal/shared';
+import { LOG_TAGS, NO_TAG, type LogTag } from '@onedal/shared';
 
 /**
  * 서버 로그를 **파일에도** 남긴다.
@@ -120,5 +120,7 @@ export function initFileLogger(): void {
  * 터미널·파일이 같은 «#태그 …» 한 꼴이고, 태그 목록은 shared `LOG_TAGS` 한 곳이다.
  */
 export function slog(tag: LogTag, msg: string): void {
-    console.log(`#${tag} ${msg}`);
+    // 목록 밖 값(런타임 undefined 등)이 오면 «#undefined» 를 이지 않게 #없음 으로 떨어뜨린다
+    const t = (LOG_TAGS as readonly string[]).includes(tag) ? tag : NO_TAG;
+    console.log(`#${t} ${msg}`);
 }

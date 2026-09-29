@@ -54,12 +54,17 @@ const file = opt.file ?? join(SERVER, 'logs', `server-${opt.date ?? todayKst}${p
 if (!existsSync(file)) { console.error(`🔴 로그 파일이 없습니다: ${file}`); process.exit(1); }
 
 // ── 줄 읽기 ──────────────────────────────────────────────────────
-/** `fileLogger.ts` 의 모양: `HH:MM:SS.mmm LVL 메시지` — 시각 없는 줄은 앞 줄에 딸린 것(JSON 등)이다 */
+/** `fileLogger.ts` 의 모양: `HH:MM:SS.mmm LVL #태그 메시지` — 태그는 떼어 `tag` 에 담는다(옛 파일은 태그가 없어 null). 시각 없는 줄은 앞 줄에 딸린 것(JSON 등)이다 */
 const STAMP = /^(\d{2}:\d{2}:\d{2}\.\d{3}) (   |WRN|ERR) (.*)$/;
+const TAG = /^#(\S+) /;
 const entries = [];
 for (const line of readFileSync(file, 'utf8').split('\n')) {
     const m = STAMP.exec(line);
-    if (m) entries.push({ t: m[1], lvl: m[2].trim(), msg: m[3] });
+    if (!m) continue;
+    let msg = m[3], tag = null;
+    const tm = TAG.exec(msg);
+    if (tm) { tag = tm[1]; msg = msg.slice(tm[0].length); }   // startsWith 판정들이 태그에 안 막히게
+    entries.push({ t: m[1], lvl: m[2].trim(), tag, msg });
 }
 const inRange = (e) => (!opt.since || e.t >= opt.since) && (!opt.until || e.t.slice(0, opt.until.length) <= opt.until);
 const shown = entries.filter(inRange);

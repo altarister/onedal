@@ -24,4 +24,15 @@ describe('🏷️ 로그 태그 목록', () => {
         expect(logger).toContain('NO_TAG');
         expect(NO_TAG).toBe('없음');
     });
+
+    it('slog 는 목록 밖 태그를 #없음 으로 떨어뜨린다 — «#undefined» 줄이 안 생긴다', () => {
+        const logger = readFileSync(join(__dirname, '../../src/utils/fileLogger.ts'), 'utf8');
+        expect(logger).toMatch(/LOG_TAGS as readonly string\[\]\)\.includes\(tag\) \? tag : NO_TAG/);
+    });
+
+    it('pnpm log 는 태그를 떼고 본문을 판단한다 — startsWith 판정이 태그에 막히지 않는다', () => {
+        const parser = readFileSync(join(__dirname, '../../../scripts/log.mjs'), 'utf8');
+        expect(parser).toContain('const TAG = /^#(\\S+) /;');
+        expect(parser).toContain('msg = msg.slice(tm[0].length)');
+    });
 });
