@@ -47,6 +47,9 @@ const v2Devices = new Set<string>();
 const senderTrace = new Map<string, { ip: string; at: number; warnedAt: number }>();
 
 // POST: 탈락 콜 빅데이터 수신 (오답노트용) 및 하트비트
+/** 🧮 intel 누적 수 — 서버 하나에 표 하나라 모듈에 하나 */
+let intelCountCache: number | null = null;
+
 router.post("/", (req, res) => {
     try {
         const { data, deviceId, screenContext, isHolding, lat, lng, ackDecisionId } = req.body as {
@@ -127,9 +130,15 @@ router.post("/", (req, res) => {
             );
         });
 
-        // 비동기 큐이므로 정확한 즉시 개수 파악은 어렵지만 대략적으로 제공
-        const countStmt = db.prepare("SELECT COUNT(*) as count FROM intel");
-        const totalScrap = (countStmt.get() as { count: number })?.count || 0;
+        /**
+         * 비동기 큐이므로 정확한 즉시 개수 파악은 어렵지만 대략적으로 제공.
+         * 🧮 표 전체를 세는 일이라 intel 이 쌓일수록 느려진다 — 행이 느는 것은 콜이 실린 보고뿐이므로
+         *    그때(와 서버가 뜬 뒤 첫 요청)만 다시 세고, 빈 보고는 마지막 값을 싣는다.
+         */
+        if (data.length > 0 || intelCountCache === null) {
+            intelCountCache = (db.prepare("SELECT COUNT(*) as count FROM intel").get() as { count: number })?.count || 0;
+        }
+        const totalScrap = intelCountCache;
 
         if (data.length > 0) logRoadmapEvent('통신', "서버", ` [/api/scrap 수신] User: ${userId} (${deviceId}) | ${data.length}항목 적재 중${screenContext ? ` [화면: ${screenContext}]` : ''}`);
         // console.log(`🛡️ [서버] /api/scrap 수신 직후: 서버단 2차 해시 검증 및 무효 콜 필터링 통과 완료`);

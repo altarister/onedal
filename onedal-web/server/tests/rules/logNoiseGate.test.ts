@@ -79,3 +79,10 @@ describe('🧹 필터 변경 줄 — 필터가 실제로 바뀐 때만', () => {
         expect(s).toContain('if (lastFilterLogSig.get(session) === sig) return;');
     });
 });
+
+describe('🧮 스크랩 응답의 누적 수 — 빈 보고는 표를 다시 세지 않는다', () => {
+    it('intel 에 쓴 보고(또는 첫 요청)만 COUNT 를 부른다', () => {
+        const s = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
+        expect(s).toMatch(/if \(data\.length > 0 \|\| intelCountCache === null\) \{\s*intelCountCache = \(db\.prepare\("SELECT COUNT\(\*\) as count FROM intel"\)/);
+    });
+});
