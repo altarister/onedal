@@ -2,6 +2,7 @@ package com.onedal.app.core.engine
 
 import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.core.AppLogger
+import com.onedal.app.core.LogTag
 import com.onedal.app.core.AutoTouchManager
 
 /**
@@ -56,14 +57,14 @@ class DetailCollectMachine(
     ) {
         session.accumulatedDetailText = screenTexts.joinToString("\n") + "\n"
 
-        AppLogger.d(TAG, "🏄‍♂️ [자동 상세 수집] 상세 화면 진입 확인! ${fill.memoButton} 팝업 호출 시도")
+        AppLogger.d(TAG, LogTag.CALL_STAGE, "🏄‍♂️ [자동 상세 수집] 상세 화면 진입 확인! ${fill.memoButton} 팝업 호출 시도")
         if (touchManager.findAndClickByText(rootNode, fill.memoButton, isStartsWith = true, mark = false)) {
-            AppLogger.roadmap("상세 화면에서 '${fill.memoButton}' 추출 후 클릭", "DETAIL_PRE_CONFIRM")
-            AppLogger.i(TAG, "📋 [SEQ 81] ${fill.memoButton} 버튼 클릭 → 적요 정보 요청")
+            AppLogger.roadmap(LogTag.CALL_STAGE, "상세 화면에서 '${fill.memoButton}' 추출 후 클릭", "DETAIL_PRE_CONFIRM")
+            AppLogger.i(TAG, LogTag.CALL_STAGE, "📋 [SEQ 81] ${fill.memoButton} 버튼 클릭 → 적요 정보 요청")
             session.collectState = SessionManager.CollectState.WAITING_FOR_MEMO_POPUP
         } else if (clickAny(rootNode, fill.pickupButtons)) {
             AppLogger.w(TAG, "⚠️ 적요상세 버튼을 찾을 수 없습니다. 곧바로 출발지 상세 수집으로 넘어갑니다.")
-            AppLogger.i(TAG, "📋 [SEQ 82] 출발지/상차 클릭 → 출발지 정보 요청")
+            AppLogger.i(TAG, LogTag.CALL_STAGE, "📋 [SEQ 82] 출발지/상차 클릭 → 출발지 정보 요청")
             session.collectState = SessionManager.CollectState.WAITING_FOR_PICKUP_POPUP
         } else {
             AppLogger.w(TAG, "⚠️ [상세 수집 대기] 팝업 호출 버튼(적요상세/출발지)을 찾지 못했습니다. (대기)")
@@ -78,8 +79,8 @@ class DetailCollectMachine(
         texts.any { touchManager.findAndClickByText(rootNode, it, isStartsWith = true, mark = false) }
 
     fun clickPickup(rootNode: AccessibilityNodeInfo, fill: PopupFill) {
-        AppLogger.d(TAG, "🏄‍♂️ [자동 상세 수집] 적요 정보 확인 완료. 출발지 정보 확인을 위해 자동 클릭 시도")
-        AppLogger.roadmap("확정페이지에서 '출발지' 추출 후 클릭", "DETAIL_CONFIRMED")
+        AppLogger.d(TAG, LogTag.CALL_STAGE, "🏄‍♂️ [자동 상세 수집] 적요 정보 확인 완료. 출발지 정보 확인을 위해 자동 클릭 시도")
+        AppLogger.roadmap(LogTag.CALL_STAGE, "확정페이지에서 '출발지' 추출 후 클릭", "DETAIL_CONFIRMED")
         if (clickAny(rootNode, fill.pickupButtons)) {
             // 클릭 성공
         } else {
@@ -91,8 +92,8 @@ class DetailCollectMachine(
      * 확정 화면에서 도착지 팝업 호출 (출발지 팝업 닫힌 후)
      */
     fun clickDropoff(rootNode: AccessibilityNodeInfo, fill: PopupFill) {
-        AppLogger.d(TAG, "🏄‍♂️ [자동 상세 수집] 출발지 확인 완료. 도착지 정보 확인을 위해 자동 클릭 시도")
-        AppLogger.roadmap("확정페이지에서 '도착지' 추출 후 클릭", "DETAIL_CONFIRMED")
+        AppLogger.d(TAG, LogTag.CALL_STAGE, "🏄‍♂️ [자동 상세 수집] 출발지 확인 완료. 도착지 정보 확인을 위해 자동 클릭 시도")
+        AppLogger.roadmap(LogTag.CALL_STAGE, "확정페이지에서 '도착지' 추출 후 클릭", "DETAIL_CONFIRMED")
         if (clickAny(rootNode, fill.dropoffButtons)) {
             // 클릭 성공
         } else {
@@ -116,15 +117,15 @@ class DetailCollectMachine(
 
         val multilineScreenStr = screenTexts.joinToString("\n")
         if (fill.memoReady.none { multilineScreenStr.contains(it) }) {
-            AppLogger.d(TAG, "거짓 이벤트 무시: 아직 적요상세 팝업 데이터 로딩 안됨")
+            AppLogger.d(TAG, LogTag.CALL_STAGE, "거짓 이벤트 무시: 아직 적요상세 팝업 데이터 로딩 안됨")
             return false
         }
 
         session.accumulatedDetailText += "[적요상세/정보]\n$multilineScreenStr\n"
-        AppLogger.d(TAG, "📝 적요 스크래핑 성공! 닫기 버튼 누름")
-        AppLogger.i(TAG, "📋 [SEQ 81-82] 적요상세 추출 완료 → 닫기")
-        AppLogger.roadmap("[Current Page: POPUP_MEMO] 진입 완료 (${fill.memoReady} 텍스트 매칭 확인)", "POPUP_MEMO")
-        AppLogger.roadmap("적요 데이터 추출 및 메모리에 누적 저장", "POPUP_MEMO")
+        AppLogger.d(TAG, LogTag.CALL_STAGE, "📝 적요 스크래핑 성공! 닫기 버튼 누름")
+        AppLogger.i(TAG, LogTag.CALL_STAGE, "📋 [SEQ 81-82] 적요상세 추출 완료 → 닫기")
+        AppLogger.roadmap(LogTag.CALL_STAGE, "[Current Page: POPUP_MEMO] 진입 완료 (${fill.memoReady} 텍스트 매칭 확인)", "POPUP_MEMO")
+        AppLogger.roadmap(LogTag.CALL_STAGE, "적요 데이터 추출 및 메모리에 누적 저장", "POPUP_MEMO")
         touchManager.findAndClickByText(rootNode, fill.closeButton, isStartsWith = true, mark = false)
         session.collectState = SessionManager.CollectState.WAITING_FOR_PICKUP_POPUP
         return true
@@ -144,14 +145,14 @@ class DetailCollectMachine(
 
         val multilineScreenStr = screenTexts.joinToString("\n")
         if (fill.pickupReady.none { multilineScreenStr.contains(it) }) {
-            AppLogger.d(TAG, "거짓 이벤트 무시: 아직 출발지 팝업 데이터 로딩 안됨")
+            AppLogger.d(TAG, LogTag.CALL_STAGE, "거짓 이벤트 무시: 아직 출발지 팝업 데이터 로딩 안됨")
             return false
         }
 
         session.accumulatedDetailText += "[출발지상세]\n$multilineScreenStr\n"
-        AppLogger.d(TAG, "📝 출발지 스크래핑 성공! 닫기 버튼 누름")
-        AppLogger.roadmap("[Current Page: POPUP_PICKUP] 진입 완료 (${fill.pickupReady} 텍스트 매칭 확인)", "POPUP_PICKUP")
-        AppLogger.roadmap("출발지 데이터 추출 및 메모리에 누적 저장", "POPUP_PICKUP")
+        AppLogger.d(TAG, LogTag.CALL_STAGE, "📝 출발지 스크래핑 성공! 닫기 버튼 누름")
+        AppLogger.roadmap(LogTag.CALL_STAGE, "[Current Page: POPUP_PICKUP] 진입 완료 (${fill.pickupReady} 텍스트 매칭 확인)", "POPUP_PICKUP")
+        AppLogger.roadmap(LogTag.CALL_STAGE, "출발지 데이터 추출 및 메모리에 누적 저장", "POPUP_PICKUP")
         touchManager.findAndClickByText(rootNode, fill.closeButton, isStartsWith = true, mark = false)
         session.collectState = SessionManager.CollectState.WAITING_FOR_DROPOFF_POPUP
         return true
@@ -173,17 +174,17 @@ class DetailCollectMachine(
 
         val multilineScreenStr = screenTexts.joinToString("\n")
         if (fill.dropoffReady.none { multilineScreenStr.contains(it) }) {
-            AppLogger.d(TAG, "거짓 이벤트 무시: 아직 도착지 팝업 데이터 로딩 안됨")
+            AppLogger.d(TAG, LogTag.CALL_STAGE, "거짓 이벤트 무시: 아직 도착지 팝업 데이터 로딩 안됨")
             return false
         }
 
         session.accumulatedDetailText += "[도착지상세]\n$multilineScreenStr\n"
-        AppLogger.d(TAG, "📝 도착지 스크래핑 성공! 닫기 누름 및 전체 내용 /detail 로 발송")
-        AppLogger.roadmap("[Current Page: POPUP_DROPOFF] 진입 완료 (${fill.dropoffReady} 텍스트 매칭 확인)", "POPUP_DROPOFF")
-        AppLogger.roadmap("도착지 데이터 추출 및 메모리에 누적 저장", "POPUP_DROPOFF")
+        AppLogger.d(TAG, LogTag.CALL_STAGE, "📝 도착지 스크래핑 성공! 닫기 누름 및 전체 내용 /detail 로 발송")
+        AppLogger.roadmap(LogTag.CALL_STAGE, "[Current Page: POPUP_DROPOFF] 진입 완료 (${fill.dropoffReady} 텍스트 매칭 확인)", "POPUP_DROPOFF")
+        AppLogger.roadmap(LogTag.CALL_STAGE, "도착지 데이터 추출 및 메모리에 누적 저장", "POPUP_DROPOFF")
         touchManager.findAndClickByText(rootNode, fill.closeButton, isStartsWith = true, mark = false)
         session.collectState = SessionManager.CollectState.DONE
-        AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 상세 수집 종료 (State Machine: DONE)", "DETAIL_CONFIRMED")
+        AppLogger.roadmap(LogTag.CALL_STAGE, "[Current Page: DETAIL_CONFIRMED] 상세 수집 종료 (State Machine: DONE)", "DETAIL_CONFIRMED")
         return true  // 호출자에게 /detail 전송 신호
     }
 }

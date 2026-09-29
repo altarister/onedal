@@ -724,7 +724,7 @@ class HijackService : AccessibilityService(), ScanContext {
             // 👁️ 리셋한 뒤에 «못 본 시간»을 남긴다 — 리셋이 먼저다 (콜의 끝이 우선)
             if (listBlindSinceMs > 0L) {
                 val blindSec = (System.currentTimeMillis() - listBlindSinceMs) / 1000.0
-                AppLogger.roadmap(
+                AppLogger.roadmap(LogTag.SCREEN,
                     "👁️ [리스트 못 봄] ${"%.1f".format(blindSec)}초 동안 상세에 있었습니다 — " +
                     "그사이 뜬 콜은 **평가되지 않았습니다** (놓친 것이지 거른 것이 아닙니다)",
                     "LIST"
@@ -928,7 +928,7 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         val filterVersionNow = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).getString("filterVersion", null)
         if (callMemory.onFilterVersion(filterVersionNow)) {
-            AppLogger.d(TAG, "🔄 [필터 바뀜] 버전 $filterVersionNow — 막았던 콜을 새 필터로 다시 판정한다")
+            AppLogger.d(TAG, LogTag.FILTER, "🔄 [필터 바뀜] 버전 $filterVersionNow — 막았던 콜을 새 필터로 다시 판정한다")
         }
 
         // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
@@ -991,7 +991,7 @@ class HijackService : AccessibilityService(), ScanContext {
             if (callMemory.alreadyEvaluated(orderHash)) {
                 seenSkipped++
                 // 🔕 콜마다 첫 한 번만 (차종만 바꾼 문제지 진단용) — 스캔마다 되풀이하지 않는다
-                if (LogOnce.changed("seen:$orderHash", "seen")) AppLogger.d(TAG, "⏭️ [이미 본 콜] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
+                if (LogOnce.changed("seen:$orderHash", "seen")) AppLogger.d(TAG, LogTag.FILTER, "⏭️ [이미 본 콜] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
                     "${order.fare}원 (지문 $orderHash · 기억 ${callMemory.evaluatedCount}개)")
                 continue
             }
@@ -1089,7 +1089,7 @@ class HijackService : AccessibilityService(), ScanContext {
          * 직접 모드와 모르는 모드 값은 누르지 않는다(모르면 잡지 않는다 · 규칙 ④).
          * 앱이 계약 버튼을 누르는 것은 자동뿐이다(`contractedByApp`) — 체험·알람은 판정만 받고 확정·수락은 기사님.
          */
-        if (LogOnce.changed("seenCount", "$seenSkipped") && seenSkipped > 0) AppLogger.d(TAG, "⏭️ [이미 본 콜] 이 스캔 ${seenSkipped}개 건너뜀")
+        if (LogOnce.changed("seenCount", "$seenSkipped") && seenSkipped > 0) AppLogger.d(TAG, LogTag.FILTER, "⏭️ [이미 본 콜] 이 스캔 ${seenSkipped}개 건너뜀")
         val tapsFromList = currentMode == "AUTO" || currentMode == "SIMULATION" || currentMode == "ALARM"
         val bestIdx = AlarmSignaler.pickBestIndex(alarmHits.map { it.first.fare })
         if (tapsFromList && !session.openedByApp && bestIdx >= 0) {

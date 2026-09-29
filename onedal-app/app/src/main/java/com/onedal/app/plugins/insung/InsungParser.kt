@@ -303,13 +303,13 @@ class InsungParser(private val context: Context) : IScrapParser {
                     !hasCityAlias && hasDongMatch -> {       // 🤔 동은 있지만 시/도가 생략됨
                         // → 인성앱이 상위 지역을 표시하지 않은 것으로 추정
                         // → 1차 필터 결과를 신뢰하고, 동명이동은 CautionDongVerifier(3단계 팝업)에 위임
-                        AppLogger.d(TAG, "🤔 [2차 스마트 유추] 시/도 생략 감지 → 동 이름(${order.dropoff}) 1차 매칭 신뢰, 동명이동은 3단계 팝업에 위임")
+                        AppLogger.d(TAG, LogTag.FILTER, "🤔 [2차 스마트 유추] 시/도 생략 감지 → 동 이름(${order.dropoff}) 1차 매칭 신뢰, 동명이동은 3단계 팝업에 위임")
                         true
                     }
                     else -> false                            // ❌ 시/도도 동도 없음
                 }
 
-                if (order.fare > 0) AppLogger.d(TAG, "🔍 [2차 상세 필터] 시/도=$hasCityAlias, 동=$hasDongMatch, 최종결과=$matchResult | 대상문자열: ${pureDropoffText.replace('\n', ' ').take(50)}")
+                if (order.fare > 0) AppLogger.d(TAG, LogTag.FILTER, "🔍 [2차 상세 필터] 시/도=$hasCityAlias, 동=$hasDongMatch, 최종결과=$matchResult | 대상문자열: ${pureDropoffText.replace('\n', ' ').take(50)}")
                 matchResult
             } else {
                 // [1차 리스트 필터] 기존 구조 유지 (dropoff만 검사, rawText는 출발지도 포함되므로 사용 금지)

@@ -33,7 +33,7 @@ class LogOnceTest {
 
     @Test fun `되풀이 줄은 LogOnce 를 거친다 - 이미 본 콜 · 화면 변경 · 목록 필터 판정`() {
         val svc = codeOnly("$root/HijackService.kt")
-        assertTrue(Regex("""LogOnce\.changed\([^)]*\)\)\s*AppLogger\.d\(TAG,\s*"⏭️ \[이미 본 콜\]""").containsMatchIn(svc))
+        assertTrue(Regex("""LogOnce\.changed\([^)]*\)\)\s*AppLogger\.d\(TAG,\s*(LogTag\.\w+,\s*)?"⏭️ \[이미 본 콜\]""").containsMatchIn(svc))
         assertTrue(Regex("""LogOnce\.changed\("screen"""").containsMatchIn(svc))
         assertTrue(codeOnly("$root/plugins/insung/InsungParser.kt").contains("LogOnce.changed("))
         assertTrue(codeOnly("$root/plugins/hwamul24/Hwamul24Parser.kt").contains("LogOnce.changed("))
