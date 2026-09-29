@@ -11,7 +11,7 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.models.ScreenContext
 
 /**
- * 이벤트 기반 즉각 스크랩 전송 및 **60초** 주기 생존신고(Heartbeat) 관리.
+ * 이벤트 기반 즉각 스크랩 전송 및 주기 생존신고(Heartbeat — 목록 화면 15초 · 그 밖 60초 · 결재 대기 1초) 관리.
  * (판결 대기 중에는 1초 — `FAST_POLLING_MS`. 값의 원천은 아래 상수다)
  */
 class TelemetryManager(
@@ -22,20 +22,25 @@ class TelemetryManager(
     companion object {
         private const val TAG = "1DAL_TELEMETRY"
         /**
-         * 💓 **빈 통신 주기 — 60초는 실주행 기준이다** (기사님 확정).
+         * 💓 **빈 통신 주기 — 목록 화면 15초 · 그 밖 60초 · 결재 대기 1초** (`heartbeatIntervalMs` 한 곳).
          *
-         * 콜이 없어 조용할 때만 이 주기가 쓰인다. 서버의 새 상차·하차 목록도 이때 함께 받는다.
-         * 실주행 60km/h 면 60초에 1km — 목록은 0.5km 마다 바뀌니 한두 번 늦는 정도다.
-         *
-         * 🔴 **시뮬에서 느려 보이는 것은 시뮬 탓이다.** 모의 주행은 60초에 **18km** 를 간다
-         *    (한 걸음 300m × 1초). 그 사이 목록이 열 번쯤 바뀌는데 앱은 옛것을 들고 있어,
-         *    콜이 목록에 들어와 있어도 최대 1분을 못 본다 — 성거읍 콜이 30초를 기다렸다.
-         * 🔴 **이 값을 줄이지 않는다.** 실주행에서는 충분하고, 줄이면 통신·배터리만 는다.
-         *    시뮬에서 늦어 보이면 **모의 GPS 속도를 먼저 의심한다.**
+         * 콜이 없어 조용할 때만 이 주기가 쓰인다. 서버의 새 상차·하차 목록과 **기사님이 바꾼 필터**도 이때 함께 받는다.
+         * - **목록 화면 15초** — 차가 서 있고 콜이 적어 목록이 멈추면, 기사님이 바꾼 필터가 60초까지 늦었다(09-30 실물 픽커 79초).
+         *   달리는 중엔 목록이 자주 바뀌어(60km/h 면 0.5km 마다) 이 간격에 기대지 않는다.
+         * - **그 밖 60초** — 시뮬에서 늦어 보이면 **모의 GPS 속도를 먼저 의심한다**(모의 주행은 60초에 18km).
+         * - 폰이 잠들면 예약 자체가 밀린다(🐢 발사 지연) — 간격을 줄여도 잠든 동안의 전달은 보장하지 않는다.
          */
-        private const val HEARTBEAT_INTERVAL_MS = 60000L // 60초 (빈 통신)
+        private const val HEARTBEAT_INTERVAL_MS = 60000L // 60초 (빈 통신 · 목록 밖)
+        private const val LIST_IDLE_INTERVAL_MS = 15_000L // 15초 (목록 화면에서 빈 통신)
         private const val FAST_POLLING_MS = 1000L // 1.0초 (관제탑 결재 대기 시 короткий 폴링)
         private const val DEBOUNCE_MS = 300L // 콜 수집 후 모아쏘기 위한 디바운스 대기시간
+
+        /** ⏱️ 다음 빈 통신까지 — 결재 대기 1초 · 목록 화면 15초 · 그 밖 60초 */
+        fun heartbeatIntervalMs(waitingDecision: Boolean, screen: ScreenContext): Long = when {
+            waitingDecision -> FAST_POLLING_MS
+            screen == ScreenContext.LIST -> LIST_IDLE_INTERVAL_MS
+            else -> HEARTBEAT_INTERVAL_MS
+        }
     }
 
     private val scrapBuffer = mutableListOf<SimplifiedOfficeOrder>()
@@ -335,14 +340,14 @@ class TelemetryManager(
             onCallMemoryRound = callMemoryRoundCallback
         )
 
-        // 통신을 방금 했으므로, 다음 하트비트 시점을 한 주기(60초) 뒤로 연기함
+        // 통신을 방금 했으므로, 다음 하트비트 시점을 한 주기 뒤로 연기함 (목록 15초 · 그 밖 60초)
         resetHeartbeatTimer()
     }
 
     private fun resetHeartbeatTimer() {
         handler.removeCallbacks(heartbeatRunnable)
         if (isRunning) {
-            val interval = if (isWaitingDecision) FAST_POLLING_MS else HEARTBEAT_INTERVAL_MS
+            val interval = heartbeatIntervalMs(isWaitingDecision, currentScreenContext)
             handler.postDelayed(heartbeatRunnable, interval)
         }
     }
