@@ -82,7 +82,7 @@ function AppLayout() {
   useGpsTelemetry(!naviOnly && !naviDevice);
 
   useEffect(() => {
-    logRoadmapEvent("웹", "1DAL 웹(관제웹) 로그인됨");
+    logRoadmapEvent("통신", "웹", "1DAL 웹(관제웹) 로그인됨");
     /**
      * 🧠 **메모리를 30초마다 남긴다** — 관제웹이 크롬 「Aw, Snap!」으로 죽을 때
      *    «쌓이다 죽었나, 갑자기 죽었나»를 가르는 유일한 흔적이다. 로그 버퍼가 2초에 한 번

@@ -84,11 +84,11 @@ export function ensureFilterSocketSubscribed(): void {
     };
 
     socket.on('filter-init', (p: FilterPayload) => {
-        logRoadmapEvent('웹', '서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음');
+        logRoadmapEvent("필터", '웹', '서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음');
         apply(p);
     });
     socket.on('filter-updated', (p: FilterPayload) => {
-        logRoadmapEvent('웹', '서버로 부터 filter-updated 소켓 이벤트 받음');
+        logRoadmapEvent("필터", '웹', '서버로 부터 filter-updated 소켓 이벤트 받음');
         apply(p);
     });
 

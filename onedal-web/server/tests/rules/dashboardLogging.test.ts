@@ -65,10 +65,10 @@ describe('관제웹 로그 — 주행이 끝나도 남는다', () => {
 
     /** 주행 뒤 가장 알고 싶은 둘 — 소켓 끊김과 화면 상태 */
     it('🔴 소켓 끊김과 화면 상태를 실제로 남긴다', () => {
-        expect(code(read('hooks/useOrderEngine.ts'))).toMatch(/logStateChange\("소켓"/);
+        expect(code(read('hooks/useOrderEngine.ts'))).toMatch(/logStateChange\("통신", "소켓"/);
         const pinned = code(read('components/dashboard/PinnedRoute.tsx')) + code(read('hooks/useRouteDerivations.ts'));
-        expect(pinned).toMatch(/logStateChange\("국면"/);
-        expect(pinned).toMatch(/logStateChange\("GPS 출처"/);
+        expect(pinned).toMatch(/logStateChange\("필터", "국면"/);
+        expect(pinned).toMatch(/logStateChange\("위치", "GPS 출처"/);
     });
 
     it('로그 때문에 화면이 멈추지 않는다 — 서버는 즉시 응답한다', () => {

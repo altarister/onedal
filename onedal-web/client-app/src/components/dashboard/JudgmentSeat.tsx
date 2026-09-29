@@ -207,7 +207,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                      onClick={() => {
                          /* 🧾 **어느 버튼에서 온 결재인지 남긴다** — 서버 로그에는 «[Socket] 취소 전달» 한 줄만 남아
                             «누가 눌렀나»를 못 가렸다 (누른 적 없는 취소가 «수동»으로 기록된 건). */
-                         if (route.isPreview) { logRoadmapEvent("웹", "심사석 — 미리보기 카드를 눌러 치움", "관제대시보드"); onDecision?.(route.id, 'SAFE_CANCEL'); }
+                         if (route.isPreview) { logRoadmapEvent("결재", "웹", "심사석 — 미리보기 카드를 눌러 치움", "관제대시보드"); onDecision?.(route.id, 'SAFE_CANCEL'); }
                          else if (judged) setOpen(o => !o);
                      }}>
                     {judged ? (<>
@@ -292,7 +292,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
             {header}
             <div className="flex relative z-10" style={{ gap: 9, padding: '5px 13px 11px', flex: 1, minHeight: 0 }}>
                 <button disabled={!judged || busy}
-                    onClick={() => { logRoadmapEvent("웹", "심사석 — 거절(왼쪽) 버튼 클릭", "관제대시보드"); setProcessingId?.(route.id); onDecision?.(route.id, 'SAFE_CANCEL'); }}
+                    onClick={() => { logRoadmapEvent("결재", "웹", "심사석 — 거절(왼쪽) 버튼 클릭", "관제대시보드"); setProcessingId?.(route.id); onDecision?.(route.id, 'SAFE_CANCEL'); }}
                     className="text-left disabled:opacity-40 overflow-hidden"
                     /**
                      * 🔴 **거절 버튼도 판정 색이다** (기사님 확정 · 화면 디자인).
@@ -307,7 +307,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     {judged ? ([conclusion?.kind === 'unknown' ? '❓ 기존 콜 도착 모름' : null, ...negatives.map(r => `❌ ${r}`)].filter(Boolean).join('\n') || '거절') : '❌ —'}
                 </button>
                 <button disabled={!judged || busy}
-                    onClick={() => { logRoadmapEvent("웹", "심사석 — KEEP(오른쪽) 버튼 클릭", "관제대시보드"); setProcessingId?.(route.id); onDecision?.(route.id, 'ORDER_CONFIRMED'); }}
+                    onClick={() => { logRoadmapEvent("결재", "웹", "심사석 — KEEP(오른쪽) 버튼 클릭", "관제대시보드"); setProcessingId?.(route.id); onDecision?.(route.id, 'ORDER_CONFIRMED'); }}
                     className="text-left relative overflow-hidden tabular-nums disabled:opacity-60"
                     /**
                      * 🔴 **흰 글자 · 어둡게 물든 바탕** (기사님 확정 · 화면 디자인).

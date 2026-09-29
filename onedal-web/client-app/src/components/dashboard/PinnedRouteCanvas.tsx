@@ -427,7 +427,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
          * ⚠️ `logStateChange` 는 값이 바뀔 때만 찍는다 — 손짓마다 다시 그려도 로그가 안 밀린다.
          * ⚠️ 계측이다. 원인이 확정되면 지우거나 정식 로그로 승격한다.
          */
-        logStateChange("경로그림",
+        logStateChange("화면", "경로그림",
             `레이어 ${layers.route ? '켜짐' : '꺼짐'}` +
             ` · 카카오 ${currentPolyline.length}점(성한 것 ${validPolyline.length})` +
             ` · 자취 ${drivenSegs.length}구간` +

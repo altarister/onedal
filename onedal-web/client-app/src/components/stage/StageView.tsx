@@ -333,7 +333,7 @@ export default function StageView(props: Props) {
         }, ev);
         mem.current = r.mem;
         if (r.snap) {
-            logStateChange("시트", `${r.snap}·${r.reason}`, "무대");
+            logStateChange("화면", "시트", `${r.snap}·${r.reason}`, "무대");
             /**
              * 🔴 **자동 전환도 «높이 규칙»(`sheetTransition`) 한 곳을 거친다** — `setSnap` 만 하면
              *    KEEP·도착으로 「다」에 올라가도 아코디언이 안 열려 **빈 시트가 지도를 덮는다**
@@ -370,7 +370,7 @@ export default function StageView(props: Props) {
             if (mv.openIdx !== openIdx) {
                 const who = mv.openIdx >= 0 ? (deckList[mv.openIdx]?.dropoff ?? '?') : '없음';
                 const miss = eventId && want < 0 ? ` 🔴 가리킨 콜이 덱에 없다(${eventId.slice(-6)})` : '';
-                logStateChange("시트연콜", `${mv.openIdx} ${who}${miss}`, "무대");
+                logStateChange("화면", "시트연콜", `${mv.openIdx} ${who}${miss}`, "무대");
             }
         }
         /**
@@ -400,7 +400,7 @@ export default function StageView(props: Props) {
         return () => { setNetUsedLine(null); };
     }, [lineReady, setNetUsedLine]);
 
-    useEffect(() => { logStateChange("주행신호", drive, "무대"); }, [drive]);
+    useEffect(() => { logStateChange("위치", "주행신호", drive, "무대"); }, [drive]);
     useEffect(() => () => { if (holdTimer.current) clearTimeout(holdTimer.current); }, []);
 
     /* 🪧 새 판정이 뜨면 손 유예보다 먼저 — 규칙에 judge 로 넣는다 (#144) */
@@ -519,7 +519,7 @@ export default function StageView(props: Props) {
     useEffect(() => {
         if (drive !== 'drive') return;
         if (phase !== 'GATHERING' || !hasRoute) return;
-        logRoadmapEvent("웹", "무대 주행 감지 → 🚀 출발 (운행 중 국면)");
+        logRoadmapEvent("필터", "웹", "무대 주행 감지 → 🚀 출발 (운행 중 국면)");
         updateFilter({ driverAction: 'DRIVING' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [drive, phase, hasRoute]);
@@ -797,7 +797,7 @@ export default function StageView(props: Props) {
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                logRoadmapEvent("웹", "무대 지도 🚀 지금 출발 클릭 → 운행 중 국면");
+                                logRoadmapEvent("결재", "웹", "무대 지도 🚀 지금 출발 클릭 → 운행 중 국면");
                                 updateFilter({ driverAction: 'DRIVING' });
                                 /**
                                  * 🚀 **출발을 누르면 시트가 내려간다** (기사님 수순).

@@ -20,6 +20,11 @@
  * 쓰기:
  *   pnpm log                           오늘(포트 4000) 요약 — 부팅 · 소켓 · 수상한 줄 · 콜별 장부 대조
  *   pnpm log call <콜 id 앞부분>        그 콜의 흐름 — ☁️ 서버 줄 / 🖥️ 관제웹 줄, 같은 줄은 접는다
+ *   pnpm log --tag 결재                 그 태그의 줄만 시각 순으로 (요약 대신) — 여러 번 주면 합친다(--tag 경고 --tag 부팅)
+ *   pnpm log call <id> --tag 누름       그 콜의 줄 중 그 태그만
+ *   태그 열 개는 shared `LOG_TAGS` 에서 읽는다. 요약 끝의 «태그별 줄 수»가 `#없음`(태그 없이 찍힌 줄) 수를 센다 — 목표 0
+ *   ⚠️ 태그는 줄이 **무엇을 바꾸나**로 붙는다 — «🚚 [적재 회복] 하차 완료 → …»·«🌅 [영업일 전환] 어제 하차 완료 …»는
+ *      필터를 바꾸는 줄이라 `#필터` 다. 하차 완료 자체는 `#콜단계`(«📦 [하차 완료]»·«🌱 [출생]»)로 찾는다
  *   옵션  --date YYYY-MM-DD · --port 4012 · --file <경로> · --since 04:20 · --until 05:00
  *         --db <server/ 기준 DB 파일 이름>  — 다른 DB 와 대조한다 (예: 사본으로 검수할 때)
  *
@@ -39,14 +44,30 @@ const SERVER = join(WEB, 'server');
 const argv = process.argv.slice(2);
 const opt = {};
 const pos = [];
+const tags = [];
 for (let i = 0; i < argv.length; i++) {
-    if (argv[i].startsWith('--')) { opt[argv[i].slice(2)] = argv[i + 1]; i++; } else pos.push(argv[i]);
+    if (argv[i] === '--tag') { tags.push(argv[i + 1]); i++; }
+    else if (argv[i].startsWith('--')) { opt[argv[i].slice(2)] = argv[i + 1]; i++; } else pos.push(argv[i]);
 }
 const [mode, callArg] = pos;
 if (mode && mode !== 'call') {
-    console.error(`🔴 모르는 보기: ${mode}\n   pnpm log  ·  pnpm log call <콜 id 앞부분>`);
+    console.error(`🔴 모르는 보기: ${mode}\n   pnpm log  ·  pnpm log call <콜 id 앞부분>  ·  pnpm log --tag <태그>`);
     process.exit(1);
 }
+
+/** 태그 목록은 shared 한 곳 — 여기서 손으로 다시 적지 않는다 (TS 파일이라 배열 글자만 읽는다) */
+const LOG_TAGS = (() => {
+    const src = readFileSync(join(WEB, 'shared', 'src', 'logTags.ts'), 'utf8');
+    const body = /LOG_TAGS = \[([\s\S]*?)\] as const/.exec(src)?.[1] ?? '';
+    return [...body.matchAll(/'([^']+)'/g)].map(m => m[1]);
+})();
+const NO_TAG = '없음';
+const unknownTags = tags.filter(t => t !== NO_TAG && !LOG_TAGS.includes(t));
+if (tags.includes(undefined) || unknownTags.length) {
+    console.error(`🔴 모르는 태그: ${unknownTags.join(' · ') || '(비었음)'}\n   태그: ${[...LOG_TAGS, NO_TAG].join(' · ')}`);
+    process.exit(1);
+}
+const tagOk = (e) => tags.length === 0 || tags.includes(e.tag);
 
 const todayKst = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 const port = String(opt.port ?? '4000');
@@ -102,6 +123,8 @@ const short = (u) => u.slice(0, 8);
 /** 장부 시각(ISO · UTC)을 로그와 같은 한국 시각으로 */
 const kst = (iso) => { const t = Date.parse(iso ?? ''); return Number.isNaN(t) ? '시각 없음' : new Date(t + 9 * 3600e3).toISOString().slice(11, 19); };
 const cut = (s, n = 150) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+/** 태그 칸 — 옛 파일(태그 없는 꼴)은 빈칸. 태그 낱말 길이가 달라 폭을 맞춘다 */
+const tagCol = (e) => (e.tag ? `#${e.tag}` : '').padEnd(4, '　');
 
 // ── 장부 (포트 4000 일 때만) ──────────────────────────────────────
 const STEP_TABLE = {
@@ -147,7 +170,7 @@ if (mode === 'call') {
     console.log('');
     let prev = null;
     for (const e of shown) {
-        if (isNoise(e) || !idsOf(e.msg).has(u)) continue;
+        if (isNoise(e) || !tagOk(e) || !idsOf(e.msg).has(u)) continue;
         const shape = shapeOf(e.msg);
         if (prev && prev.shape === shape) { prev.n++; prev.last = e.t; continue; }
         if (prev) flush(prev);
@@ -157,8 +180,29 @@ if (mode === 'call') {
     function flush(p) {
         const who = isWeb(p.e) ? '🖥️' : '☁️';
         const fold = p.n > 1 ? ` ×${p.n} (~${p.last.slice(0, 8)})` : '';
-        console.log(`${p.e.t.slice(0, 8)} ${who} ${p.e.lvl.padEnd(3)} ${cut(p.e.msg)}${fold}`);
+        console.log(`${p.e.t.slice(0, 8)} ${who} ${p.e.lvl.padEnd(3)} ${tagCol(p.e)} ${cut(p.e.msg)}${fold}`);
     }
+    process.exit(0);
+}
+
+// ═══ pnpm log --tag <태그> ══════════════════════════════════════════
+if (tags.length) {
+    const range = opt.since || opt.until ? ` · ${opt.since ?? '처음'}~${opt.until ?? '끝'}` : '';
+    const hits = shown.filter(e => !isNoise(e) && tagOk(e));
+    console.log(`\n📜 ${basename(file)} · #${tags.join(' #')}  (${hits.length}줄${range} · 같은 모양이 잇달면 접는다)\n`);
+    let prev = null;
+    const flush = (p) => {
+        const fold = p.n > 1 ? ` ×${p.n} (~${p.last.slice(0, 8)})` : '';
+        console.log(`${p.e.t.slice(0, 8)} ${isWeb(p.e) ? '🖥️' : '☁️'} ${p.e.lvl.padEnd(3)} ${tagCol(p.e)} ${cut(p.e.msg)}${fold}`);
+    };
+    for (const e of hits) {
+        const shape = e.tag + shapeOf(e.msg);
+        if (prev && prev.shape === shape) { prev.n++; prev.last = e.t; continue; }
+        if (prev) flush(prev);
+        prev = { e, shape, n: 1, last: e.t };
+    }
+    if (prev) flush(prev);
+    console.log('');
     process.exit(0);
 }
 
@@ -214,5 +258,18 @@ for (const [u, c] of [...calls].sort((a, b) => a[1].first.localeCompare(b[1].fir
     }
     console.log(`   ${short(u)}  ${c.first.slice(0, 8)}~${c.last.slice(0, 8)}  ☁️${c.server} 🖥️${c.web}  ${ledger}`);
 }
+const byTag = new Map([...LOG_TAGS, NO_TAG].map(t => [t, 0]));
+let untagged = 0, noTagWeb = 0;
+for (const e of shown) {
+    if (e.tag == null) { untagged++; continue; }
+    byTag.set(e.tag, (byTag.get(e.tag) ?? 0) + 1);
+    if (e.tag === NO_TAG && isWeb(e)) noTagWeb++;
+}
+console.log(`\n🏷️ 태그별 줄 수  (pnpm log --tag <태그> 로 그 줄만 본다)`);
+console.log('   ' + [...byTag].filter(([t]) => t !== NO_TAG).map(([t, n]) => `#${t} ${n}`).join(' · '));
+const noTag = byTag.get(NO_TAG) ?? 0;
+console.log(`   #없음 ${noTag}${noTag ? ` (관제웹 중계 ${noTagWeb} · 그 밖 ${noTag - noTagWeb})` : ''} — 목표 0`
+    + (untagged ? ` · 태그 칸이 없는 옛 꼴 ${untagged}줄` : ''));
+
 console.log(`\n   한 콜의 흐름: pnpm log call <id 앞부분>${opt.date ? ` --date ${opt.date}` : ''}${port !== '4000' ? ` --port ${port}` : ''}\n`);
 if (lost) { console.error(`🔴 장부 대조: ${lost}건이 로그와 장부가 다릅니다`); process.exit(1); }

@@ -1,5 +1,7 @@
 package com.onedal.app.plugins.kakaopicker
 
+import com.onedal.app.core.LogTag
+
 /**
  * 📱 **실물 픽커 운행 기록** — 수락부터 «오더 목록 보기»(최대 5시간)까지 화면 글자 전문과 누른 버튼을 모아 서버로 올린다
  * (서버 `POST /api/logs/app` · 서버 로그 파일에 `📱 [원달앱 …]` 줄).
@@ -69,7 +71,7 @@ class PickerTrace(
         if (isActive(now)) return false
         startedAt = now
         lastScreen = null
-        push(Line(now, "▶️ [기록 시작] $reason"))
+        push(Line(now, "#${LogTag.CALL_STAGE.word} ▶️ [기록 시작] $reason"))
         return true
     }
 
@@ -79,7 +81,7 @@ class PickerTrace(
         val s = startedAt ?: return false
         if (now - s <= maxMs) return true
         startedAt = null
-        push(Line(now, "⏹️ [기록 끝] ${maxMs / 3_600_000}시간이 지났다"))
+        push(Line(now, "#${LogTag.CALL_STAGE.word} ⏹️ [기록 끝] ${maxMs / 3_600_000}시간이 지났다"))
         return false
     }
 
@@ -89,7 +91,7 @@ class PickerTrace(
         if (!isActive(now) || text == lastScreen) return null
         lastScreen = text
         val msg = "🧾 [화면 $context] (${text.length}자) $text"
-        push(Line(now, msg))
+        push(Line(now, "#${LogTag.SCREEN.word} $msg"))
         return msg
     }
 
@@ -101,9 +103,9 @@ class PickerTrace(
     fun onClick(now: Long, label: String?, app: String = ""): String {
         val l = label?.trim()?.takeIf { it.isNotEmpty() }
         val msg = "👆 [누름${if (app.isNotEmpty()) " $app" else ""}] «${l ?: NO_LABEL}»"
-        push(Line(now, msg))
+        push(Line(now, "#${LogTag.TAP.word} $msg"))
         if (l == END_BUTTON && isActive(now)) {
-            push(Line(now, "⏹️ [기록 끝] «$END_BUTTON»을 눌렀다"))
+            push(Line(now, "#${LogTag.CALL_STAGE.word} ⏹️ [기록 끝] «$END_BUTTON»을 눌렀다"))
             startedAt = null
         }
         return msg
@@ -117,7 +119,7 @@ class PickerTrace(
     fun drain(max: Int): List<Line> {
         val out = mutableListOf<Line>()
         if (dropped > 0) {
-            out += Line(queue.firstOrNull()?.atMs ?: 0L, "⚠️ [대기열 넘침] 오래된 ${dropped}줄을 버렸다")
+            out += Line(queue.firstOrNull()?.atMs ?: 0L, "#${LogTag.WARN.word} ⚠️ [대기열 넘침] 오래된 ${dropped}줄을 버렸다")
             dropped = 0
         }
         while (out.size < max && queue.isNotEmpty()) out += queue.removeFirst()

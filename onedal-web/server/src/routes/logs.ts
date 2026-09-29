@@ -1,5 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
+import { LOG_TAGS, type LogTag } from "@onedal/shared";
+import { slog } from "../utils/fileLogger";
 
 /**
  * 🖥️ **관제웹이 스스로 남기는 로그를 받는다** (필드테스트 1회차 ④)
@@ -50,6 +52,16 @@ interface ClientLogLine {
  */
 const RELAY_KEEP = /⚠️|❌|🚨|💥|🔴|WARN|ERROR|Error|Geolocation|심사석|국면|필터 변경|반경|\[웹 수신\]|다녀옴|주행판정/;
 
+/**
+ * 🏷️ 보낸 쪽이 줄 맨 앞에 «#태그 » 를 싣고 온다(관제웹 `logRoadmapEvent` · 원달앱 `PickerTrace`) —
+ * 떼어 서버 파일의 태그 칸으로 올린다. 목록 밖이거나 없으면 null 이고, 그 줄은 파일에 `#없음` 으로 남는다.
+ */
+function splitTag(msg: string): { tag: LogTag | null; body: string } {
+    const m = /^#(\S+) /.exec(msg);
+    if (m && (LOG_TAGS as readonly string[]).includes(m[1])) return { tag: m[1] as LogTag, body: msg.slice(m[0].length) };
+    return { tag: null, body: msg };
+}
+
 /** 받는 모양은 관제웹 · 원달앱이 같다 — 출처 머리와 한 줄 길이만 다르다. `keep` 이 있으면 그 무늬만 싣는다 */
 function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLen: number, keep?: RegExp) {
     return (req: Request, res: Response) => {
@@ -65,11 +77,13 @@ function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLe
 
         for (const l of shown) {
             const at = typeof l?.at === "string" ? l.at.slice(0, 12) : "--:--:--.---";
-            const msg = String(l?.msg ?? "").replace(/[\r\n]+/g, " ").slice(0, maxLen);
+            const { tag, body: msg } = splitTag(String(l?.msg ?? "").replace(/[\r\n]+/g, " ").slice(0, maxLen));
             if (!msg) continue;
             if (keep && !keep.test(msg)) continue;   // 🧹 유지 목록 밖 — 브라우저 콘솔에만 남는다
             // 서버 자기 줄과 섞이지 않게 출처를 앞에 박는다
-            console.log(`${head(who)} ${at} ${msg}`);
+            const line = `${head(who)} ${at} ${msg}`;
+            if (tag) slog(tag, line);
+            else console.log(line);
         }
         if (lines.length > MAX_LINES) {
             console.warn(`${head(who)} ⚠️ ${lines.length - MAX_LINES}줄을 잘랐습니다 (한 번에 ${MAX_LINES}줄까지)`);

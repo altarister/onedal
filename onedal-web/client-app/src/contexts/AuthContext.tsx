@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const loginWithGoogle = async (credential: string) => {
         try {
-            logRoadmapEvent("웹", "서버에게 구글 인증(id_token) 정보 전달");
+            logRoadmapEvent("통신", "웹", "서버에게 구글 인증(id_token) 정보 전달");
             const { data } = await apiClient.post("/auth/google", { credential });
             localStorage.setItem("access_token", data.accessToken);
             localStorage.setItem("refresh_token", data.refreshToken);
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const loginBypass = async () => {
         try {
-            logRoadmapEvent("웹", "우회 로그인(Bypass) 요청 전달");
+            logRoadmapEvent("통신", "웹", "우회 로그인(Bypass) 요청 전달");
             const { data } = await apiClient.post("/auth/bypass");
             localStorage.setItem("access_token", data.accessToken);
             localStorage.setItem("refresh_token", data.refreshToken);

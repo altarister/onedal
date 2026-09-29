@@ -47,7 +47,7 @@ export default function Login() {
   const handleNativeLogin = async () => {
     setNativeBusy(true);
     try {
-      logRoadmapEvent("웹", "앱에서 네이티브 구글 로그인 시작");
+      logRoadmapEvent("통신", "웹", "앱에서 네이티브 구글 로그인 시작");
       const idToken = await nativeGoogleIdToken();
       await loginWithGoogle(idToken);
       navigate(from);
@@ -65,7 +65,7 @@ export default function Login() {
 
   const handleSuccess = async (credentialResponse: any) => {
     if (credentialResponse.credential) {
-      logRoadmapEvent("웹", "유저가 구글 로그인 버튼 클릭 ");
+      logRoadmapEvent("통신", "웹", "유저가 구글 로그인 버튼 클릭 ");
       try {
         await loginWithGoogle(credentialResponse.credential);
         navigate(from);

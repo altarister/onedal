@@ -15,6 +15,7 @@
  *    로그 때문에 관제웹이 느려지면 그게 더 큰 사고다 (기사님: *"관제앱이 너무 느림"*).
  */
 
+import type { LogTag } from '@onedal/shared';
 import { apiBase } from './serverTarget';
 
 interface Line { at: string; msg: string }
@@ -51,7 +52,7 @@ async function flush(): Promise<void> {
 
     const lines = BUFFER.splice(0, BUFFER.length);
     if (dropped > 0) {
-        lines.unshift({ at: lines[0]?.at ?? '', msg: `⚠️ 버퍼가 차서 ${dropped}줄을 버렸습니다` });
+        lines.unshift({ at: lines[0]?.at ?? '', msg: `#경고 ⚠️ 버퍼가 차서 ${dropped}줄을 버렸습니다` });
         dropped = 0;
     }
     try {
@@ -93,7 +94,8 @@ function schedule(delayMs: number = FLUSH_MS): void {
     timer = setTimeout(() => { void flush(); }, delayMs);
 }
 
-export function logRoadmapEvent(platform: "서버" | "웹" | "앱", message: string, page: string = "") {
+/** 🏷️ 첫 인자가 태그(shared `LOG_TAGS`) — 서버로 올리는 줄 맨 앞에 «#태그» 로 실어, 서버 파일의 태그 칸이 된다 */
+export function logRoadmapEvent(tag: LogTag, platform: "서버" | "웹" | "앱", message: string, page: string = "") {
   const now = new Date();
   const ts = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
   let emoji = "";
@@ -113,7 +115,7 @@ export function logRoadmapEvent(platform: "서버" | "웹" | "앱", message: str
    */
   if (platform === "서버") return;
 
-  BUFFER.push({ at: ts, msg: line });
+  BUFFER.push({ at: ts, msg: `#${tag} ${line}` });
   while (BUFFER.length > MAX_BUFFER) { BUFFER.shift(); dropped++; }
   if (BUFFER.length >= FLUSH_LINES) void flush();
   else schedule();
@@ -154,7 +156,7 @@ export function startMemoryWatch(): void {
         const pct = Math.round((m.usedJSHeapSize / m.jsHeapSizeLimit) * 100);
         // ⚠️ 는 한계의 8할부터 — 서버 중계 유지 목록(RELAY_KEEP)이 경고 무늬만 실어, 평소 줄은 브라우저에만 남는다
         const mark = pct >= 80 ? '⚠️ ' : '';
-        logRoadmapEvent('웹',
+        logRoadmapEvent(pct >= 80 ? '경고' : '화면', '웹',
             `${mark}🧠 [메모리] 쓰는 중 ${MB(m.usedJSHeapSize)}MB / 잡아 둔 ${MB(m.totalJSHeapSize)}MB · `
             + `한계 ${MB(m.jsHeapSizeLimit)}MB (${pct}%)`);
     };
@@ -170,11 +172,11 @@ export function startMemoryWatch(): void {
  * 이걸로 남는다.
  */
 const lastState = new Map<string, string>();
-export function logStateChange(key: string, value: string, page: string = ""): void {
+export function logStateChange(tag: LogTag, key: string, value: string, page: string = ""): void {
     if (lastState.get(key) === value) return;
     const before = lastState.get(key);
     lastState.set(key, value);
-    logRoadmapEvent("웹", `📡 [${key}] ${before === undefined ? value : `${before} → ${value}`}`, page);
+    logRoadmapEvent(tag, "웹", `📡 [${key}] ${before === undefined ? value : `${before} → ${value}`}`, page);
 }
 
 /** 탭을 닫거나 화면이 가려지면 남은 것을 밀어 넣는다 — 주행 끝의 마지막 줄이 가장 아쉽다 */

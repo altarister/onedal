@@ -44,7 +44,7 @@ export function useFilterConfig() {
         if (saveAsDefault && baseFilter) {
             setBaseFilter({ ...baseFilter, ...newFilter });
         }
-        logRoadmapEvent("웹", `서버에게 update-filter 전달 (${saveAsDefault ? '서버 저장' : '메모리만'})`);
+        logRoadmapEvent("필터", "웹", `서버에게 update-filter 전달 (${saveAsDefault ? '서버 저장' : '메모리만'})`);
         socket.emit("update-filter", saveAsDefault ? { ...newFilter, saveAsDefault: true } : newFilter);
     };
 

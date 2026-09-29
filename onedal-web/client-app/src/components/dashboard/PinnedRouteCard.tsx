@@ -224,7 +224,7 @@ export default function PinnedRouteCard({
     useEffect(() => {
         const sv = seededSteps?.[shownStepIdx];
         const by = stepNav != null ? navByRef.current : focusStepIdx >= 0 ? '상태바가 연 것' : '현재 단계';
-        logStateChange(`스텝 ${route.id.slice(0, 8)}`, sv ? `${shownStepIdx} ${sv.step} · ${by}` : '없음', '무대');
+        logStateChange("화면", `스텝 ${route.id.slice(0, 8)}`, sv ? `${shownStepIdx} ${sv.step} · ${by}` : '없음', '무대');
     }, [shownStepIdx, stepNav, focusStepIdx, seededSteps, route.id]);
 
     /* 🏗️ 현재 단계는 stepCurIdx(단계 행의 status)가 정한다 */
@@ -333,7 +333,7 @@ export default function PinnedRouteCard({
                                     type="button"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        logRoadmapEvent("웹", "체험 콜 종료 버튼 클릭");
+                                        logRoadmapEvent("결재", "웹", "체험 콜 종료 버튼 클릭");
                                         onDecision(route.id, 'SAFE_CANCEL');
                                     }}
                                     className="ml-1 text-[10px] text-danger hover:underline font-bold"
@@ -419,7 +419,7 @@ export default function PinnedRouteCard({
                                 <Button 
                                     variant="destructive"
                                     disabled={processingId === route.id} 
-                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'SAFE_CANCEL'); }} 
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("결재", "웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("결재", "웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'SAFE_CANCEL'); }} 
                                     className={`flex-1 h-auto py-2.5 flex-col items-center justify-center overflow-hidden px-1 ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                     <span className="text-base font-black tracking-tight">{processingId === route.id ? '처리 중...' : '거절 (취소)'}</span>
@@ -469,7 +469,7 @@ export default function PinnedRouteCard({
                                     return (
                                         <Button 
                                             disabled={processingId === route.id} 
-                                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("웹", `PinnedRoute에서 KEEP(${btnTitle}) 버튼 클릭`); logRoadmapEvent("웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'ORDER_CONFIRMED'); }} 
+                                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("결재", "웹", `PinnedRoute에서 KEEP(${btnTitle}) 버튼 클릭`); logRoadmapEvent("결재", "웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'ORDER_CONFIRMED'); }} 
                                             className={`flex-[2] h-auto py-2.5 text-white flex-col items-center justify-center transition-all ${btnBg} ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : ''} overflow-hidden px-1`}
                                         >
                                             {/* 판정을 먼저 — 색과 같은 말을 글로도 한 번 더 */}
@@ -915,7 +915,7 @@ export default function PinnedRouteCard({
                                     disabled={locked}
                                     onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
-                                        logRoadmapEvent("웹", "콜 카드 — 내가 방출 버튼 클릭");
+                                        logRoadmapEvent("결재", "웹", "콜 카드 — 내가 방출 버튼 클릭");
                                         setLocked(true); setProcessingId(route.id);
                                         onDecision?.(route.id, 'ORDER_RELEASED_BY_ME');
                                     }}
@@ -928,7 +928,7 @@ export default function PinnedRouteCard({
                                     disabled={locked}
                                     onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
-                                        logRoadmapEvent("웹", "콜 카드 — 사무실 방출 버튼 클릭");
+                                        logRoadmapEvent("결재", "웹", "콜 카드 — 사무실 방출 버튼 클릭");
                                         setLocked(true); setProcessingId(route.id);
                                         onDecision?.(route.id, 'ORDER_RELEASED_BY_OFFICE');
                                     }}

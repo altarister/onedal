@@ -59,5 +59,5 @@ export function mountAutoKeepBadge(): void {
 
 /** 결재 한 번 — 무엇을 왜 눌렀는지 로그에 남긴다 (서버 파일까지 간다) */
 export function logAutoKeep(orderId: string, action: AutoKeepAction, why: string): void {
-    logRoadmapEvent('웹', `🤖 [자동 결재] ${action} — ${why} (${orderId.slice(-8)})`, '관제대시보드');
+    logRoadmapEvent("결재", '웹', `🤖 [자동 결재] ${action} — ${why} (${orderId.slice(-8)})`, '관제대시보드');
 }

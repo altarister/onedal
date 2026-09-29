@@ -7,7 +7,7 @@ import { join, relative } from 'path';
  * 일반 줄은 `slog(태그, …)` 로 찍는다 — `console.log` 를 직접 부르면 파일에 `#없음` 이 붙는다.
  * 경고·오류 줄(`console.warn/error`)은 로거가 `#경고` 를 붙이므로 그대로 둔다.
  * 로거 자신(`fileLogger` · `roadmapLogger`)만 `console.log` 를 부른다.
- * 관제웹이 보낸 줄을 받아 적는 `routes/logs.ts` 는 관제웹이 태그를 실어 보낼 때까지 `#없음` 이다 (3단계 몫).
+ * 관제웹·원달앱이 보낸 줄을 받아 적는 `routes/logs.ts` 는 줄 앞머리의 «#태그» 를 떼어 쓰고, 태그가 없으면 그대로(`#없음`) 찍는다.
  */
 
 const SRC = join(__dirname, '../../src');
@@ -35,6 +35,15 @@ describe('🏷️ 로그 호출 자리', () => {
     it('경고·오류 줄은 로거가 #경고 를 붙인다', () => {
         const logger = readFileSync(join(SRC, 'utils/fileLogger.ts'), 'utf8');
         expect(logger).toMatch(/level === '   ' \? NO_TAG : '경고'/);
+    });
+
+    it('중계 줄은 보낸 쪽이 실어 온 «#태그» 를 떼어 서버 태그로 올린다', () => {
+        const relay = readFileSync(join(SRC, 'routes/logs.ts'), 'utf8');
+        expect(relay).toContain('if (tag) slog(tag, line);');
+        const web = readFileSync(join(__dirname, '../../../client-app/src/lib/roadmapLogger.ts'), 'utf8');
+        expect(web).toMatch(/msg: `#\$\{tag\} \$\{line\}`/);
+        const app = readFileSync(join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app/plugins/kakaopicker/PickerTrace.kt'), 'utf8');
+        expect(app.match(/push\(Line\(now, "#\$\{LogTag\./g)?.length).toBe(5);
     });
 
     it('로드맵 줄도 태그를 받는다 — 첫 인자가 태그', () => {

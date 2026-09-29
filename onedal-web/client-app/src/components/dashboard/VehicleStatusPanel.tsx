@@ -50,7 +50,7 @@ export function useDriveMotion(): 'drive' | 'idle' {
         const tick = setInterval(() => {
             const next = motionOnTick(st, Date.now(), holdRef.current);
             if (next.mode !== st.mode) {
-                logStateChange("주행판정", `${next.mode} ${next.speed === null ? '속도 모름(좌표 끊김)' : `${Math.round(next.speed)}km/h`}`, "차량");
+                logStateChange("위치", "주행판정", `${next.mode} ${next.speed === null ? '속도 모름(좌표 끊김)' : `${Math.round(next.speed)}km/h`}`, "차량");
                 setMode(next.mode);
             }
             st = next;

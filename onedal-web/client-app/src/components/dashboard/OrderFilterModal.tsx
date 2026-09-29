@@ -280,7 +280,7 @@ export default function OrderFilterModal({ isOpen, onClose,
     const goPhase = (next: CallTarget) => {
         const now: CallTarget = filter?.callTarget ?? 'DEST';
         if (next === now) return;
-        logRoadmapEvent("웹", `국면 전환 버튼 (${now} → ${next})`);
+        logRoadmapEvent("결재", "웹", `국면 전환 버튼 (${now} → ${next})`);
         socket.emit("set-call-target", { phase: next });
     };
 
@@ -488,7 +488,7 @@ export default function OrderFilterModal({ isOpen, onClose,
      *    확인창을 안 띄운다: 되돌릴 길(`↩︎ 되돌리기`)이 **옆 칸에** 있다.
      */
     const handleSaveToServer = () => {
-        logRoadmapEvent("웹", `필터 서버 저장 — ${unsaved ? '값 변경 있음' : '값 변경 없음'}`);
+        logRoadmapEvent("필터", "웹", `필터 서버 저장 — ${unsaved ? '값 변경 있음' : '값 변경 없음'}`);
         const saveAsDefault = true;
 
         /**

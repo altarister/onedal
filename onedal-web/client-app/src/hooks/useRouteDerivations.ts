@@ -141,9 +141,9 @@ export function useRouteDerivations(
     const { currentGps, gpsSource } = useMasterGps(isDriving, mockPolyline, mockStops);
 
     // 📡 화면이 무엇을 그리고 있었나 — 바뀔 때만 남긴다 (관제앱 웹뷰 초당 5.5회 재그림)
-    useEffect(() => { logStateChange("국면", filter?.dispatchPhase ?? "없음", "진행중경로"); }, [filter?.dispatchPhase]);
-    useEffect(() => { logStateChange("진행중 콜", `${liveRoute.length}건`, "진행중경로"); }, [liveRoute.length]);
-    useEffect(() => { logStateChange("GPS 출처", gpsSource, "진행중경로"); }, [gpsSource]);
+    useEffect(() => { logStateChange("필터", "국면", filter?.dispatchPhase ?? "없음", "진행중경로"); }, [filter?.dispatchPhase]);
+    useEffect(() => { logStateChange("콜단계", "진행중 콜", `${liveRoute.length}건`, "진행중경로"); }, [liveRoute.length]);
+    useEffect(() => { logStateChange("위치", "GPS 출처", gpsSource, "진행중경로"); }, [gpsSource]);
 
     /**
      * 지도와 TSP 의 출발점 — GPS 가 안 잡히는 동안에는 설정의 '내 주소'.
@@ -449,10 +449,10 @@ export function useRouteDerivations(
      */
     useEffect(() => {
         const b = minRouteBuffer(routeTimeline);
-        if (!b) { logStateChange("여유", "없음", "진행중경로"); return; }
+        if (!b) { logStateChange("판정", "여유", "없음", "진행중경로"); return; }
         const o = liveRoute.find(r => r.id === b.orderId);
         const name = o ? getAddressLabel(b.stopType === 'pickup' ? o.pickup : o.dropoff) : b.orderId.slice(-6);
-        logStateChange("여유",
+        logStateChange("판정", "여유",
             `${b.minutes >= 0 ? '+' : ''}${b.minutes}분 · ${name} ${b.stopType === 'pickup' ? '상차' : '하차'}` +
             `${b.firm ? ' (확정)' : ' (추정)'}`, "진행중경로");
     }, [routeTimeline, liveRoute]);
@@ -490,7 +490,7 @@ export function useRouteDerivations(
             const o = cycleDeck.find(r => r.id === id);
             return o ? `${getAddressLabel(kind === 'pickup' ? o.pickup : o.dropoff)}${kind === 'pickup' ? '상' : '하'}` : id.slice(-6);
         };
-        logStateChange("번호",
+        logStateChange("화면", "번호",
             [...stopNoOf.entries()].sort((a, b) => a[1] - b[1]).map(([k, n]) => {
                 if (!visitedAt.has(k)) return `${n}${nameOf(k)}`;
                 const at = visitedAt.get(k);
@@ -533,7 +533,7 @@ export function useRouteDerivations(
         const kind = routeHolder ? '확정' : previewHolder ? '미리보기' : '없음';
         const pts = drawHolder?.routePolyline?.length ?? 0;
         const trailPts = drivenTrail.reduce((n, seg) => n + seg.length, 0);
-        logStateChange("경로재료",
+        logStateChange("화면", "경로재료",
             `홀더 ${kind}${drawHolder ? ` ${drawHolder.id.slice(-6)}` : ''}` +
             ` · 카카오 ${pts}점 · 자취 ${drivenTrail.length}구간 ${trailPts}점` +
             ` · 진행중 ${liveRoute.length}건`,
@@ -542,7 +542,7 @@ export function useRouteDerivations(
 
     useEffect(() => {
         if (cycleDeck.length === 0) return;
-        logStateChange("다녀옴",
+        logStateChange("콜단계", "다녀옴",
             cycleDeck.map(r =>
                 `${r.id.slice(-6)} ${(r.status ?? '없음').replace('ORDER_', '')} ` +
                 `상${r.arrivedPickupAt ? mmssOf(Date.parse(r.arrivedPickupAt)) : '—'} ` +
