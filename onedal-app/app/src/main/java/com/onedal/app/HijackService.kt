@@ -373,6 +373,22 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager = TelemetryManager(apiClient, this)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
 
         touchManager = AutoTouchManager(this)
+        /**
+         * 🔄 **새 필터가 닿으면 지금 목록을 곧바로 다시 판정한다** (실물 픽커 09-30 02:52 — 목록 글자가 그대로라 옛 필터로 막힌 콜이 안 울렸다).
+         * 목록일 때만 — 상세·팝업에서는 목록으로 돌아오는 순간 목록 스캔 첫머리(`onFilterVersion`)가 받는다(채우기 단계를 다시 밟지 않는다).
+         * 쓰는 손이 한 곳인 `currentScreenContext` 를 읽는다.
+         */
+        apiClient.onFilterChanged = { v ->
+            mainHandler.post {
+                if (telemetryManager.currentScreenContext == ScreenContext.LIST) {
+                    AppLogger.i(TAG, LogTag.FILTER, "🔄 [필터 도착] 버전 $v — 지금 화면을 다시 판정한다")
+                    lastScreenFingerprint = 0
+                    scanScreen()
+                } else {
+                    AppLogger.i(TAG, LogTag.FILTER, "🔄 [필터 도착] 버전 $v — 목록으로 돌아오면 판정한다 (지금 ${telemetryManager.currentScreenContext})")
+                }
+            }
+        }
         // 👆 «누르기 안 먹힘»은 이상 징후로 — 어느 배차망 · 어느 화면이든 같은 한 줄 (`TapInFlight`)
         touchManager.onTapFailed = { f ->
             apiClient.sendAnomalyReport(
@@ -592,6 +608,14 @@ class HijackService : AccessibilityService(), ScanContext {
         val watched = event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
                 event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
         if (!watched) return
+        scanScreen()
+    }
+
+    /**
+     * 📡 **화면 한 번 읽기 — 입구는 여기 하나** (접근성 알림 · «필터 도착»이 같은 길).
+     * 화면 글자(지문)가 바로 전과 같으면 스캔을 건너뛴다 — 필터 도착은 지문을 비우고 불러 같은 글자라도 다시 판정한다.
+     */
+    private fun scanScreen() {
 
         /**
          * ⏱️ **창이 바뀌면 한 번으로 안 믿는다** (기사님 실측:

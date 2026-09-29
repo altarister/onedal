@@ -229,6 +229,9 @@ class ApiClient(private val context: Context) {
      * @param onDecisionReceived 서버가 결정(KEEP/CANCEL)을 Piggyback으로 보냈을 때 콜백
      * @param onCallMemoryRound 서버가 시뮬레이터 회차를 실어 보냈을 때 콜백 (본 콜 기억 비우기)
      */
+    /** 🔄 새 필터 버전이 닿았을 때 — 서비스가 잇는다(지금 목록을 다시 판정). 보고 쓰레드에서 불린다 */
+    var onFilterChanged: ((String) -> Unit)? = null
+
     fun sendScrapTelemetry(
         payload: ScrapPayload, 
         onModeReceived: (String) -> Unit,
@@ -296,7 +299,11 @@ class ApiClient(private val context: Context) {
                         prefs.edit().putString("activeFilter", filterJson).apply()
                         // 🧭 [피기백 v2] 필터와 함께 온 버전을 저장 — 다음 텔레메트리에 실어 보내면
                         //    서버가 같을 때 본문을 생략한다. 응답에 필터가 없으면(버전 일치) 저장본 유지
-                        prefs.edit().putString("filterVersion", scrapRes.filterVersion ?: "").apply()
+                        val prevFilterVersion = prefs.getString("filterVersion", null)
+                        val newFilterVersion = scrapRes.filterVersion ?: ""
+                        prefs.edit().putString("filterVersion", newFilterVersion).apply()
+                        // 🔄 새 필터가 닿았다 — 지금 목록을 곧바로 다시 판정하게 알린다. 막 켜져 이전 버전이 없으면 안 부른다(첫 스캔이 어차피 돈다)
+                        if (!prevFilterVersion.isNullOrEmpty() && newFilterVersion != prevFilterVersion) onFilterChanged?.invoke(newFilterVersion)
 
                         // 서버가 이제 Array로 내려주므로 Gson 파싱(역직렬화) 시 에러(IllegalStateException)가 전혀 발생하지 않음
                         val updatedFilter = gson.fromJson(filterJson, FilterConfig::class.java)
