@@ -630,6 +630,37 @@ function SimCallCard() {
 }
 
 /**
+ * 🧹 **본 콜 기억 비우기** — 서버가 회차를 올리면 폰이 다음 보고에서 «이미 본 콜» 기억을 비운다.
+ *    시나리오 «▶ 시작»은 스스로 회차를 올리므로, 이 버튼은 **시나리오 없이 판을 다시 시작할 때** 쓴다.
+ *    누르지 않으면 폰이 앞 판 콜을 «이미 본 콜»로 삼킨다. 시뮬레이터는 건드리지 않는다.
+ */
+function CallMemoryButton() {
+    const [busy, setBusy] = useState(false);
+    const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+    const clear = async () => {
+        setBusy(true);
+        try {
+            const r = await simAsk<{ ok?: boolean; round?: number }>('/call-memory/round', { method: 'POST' });
+            setNote(r.ok && r.data.ok
+                ? { ok: true, text: `회차 ${r.data.round} — 폰이 다음 보고에서 비웁니다` }
+                : { ok: false, text: r.ok ? '서버가 안 받았다' : r.why });
+        } finally {
+            setBusy(false);
+        }
+    };
+    return (
+        <span className="ml-auto flex items-baseline gap-1.5">
+            {note && <span className={`text-[9.5px] font-bold ${note.ok ? 'text-text-muted' : 'text-warning'}`}>{note.text}</span>}
+            <button type="button" disabled={busy} onClick={() => void clear()}
+                title="시뮬 문제지로 판을 다시 시작하기 전에 — 폰이 앞 판 콜을 ‹이미 본 콜›로 삼키지 않게"
+                className="px-2 py-0.5 rounded-md border border-border-card text-[10px] font-black text-text-muted hover:text-text-primary">
+                🧹 본 콜 기억 비우기
+            </button>
+        </span>
+    );
+}
+
+/**
  * 🧪 **테스트용 구역 — 맨 위에 따로 선다** (기사님 지시).
  *    이 구역의 셋만 **서버를 바꾸고**, 아래 줄들은 읽기만 한다 (예외: «버린 콜» 칸 아래 «🖐️ 콜 생성»).
  *    어드민으로 옮기는 날 **이 구역째** 걷는다.
@@ -647,6 +678,7 @@ function TestOnlySection({ phase }: { phase?: string }) {
             <div className="flex items-baseline gap-2 px-1 pb-1">
                 <h2 className="text-[11px] font-black text-warning">🧪 테스트용</h2>
                 <span className="text-[9px] text-text-muted">서버를 바꾼다 · 어드민에는 안 간다</span>
+                <CallMemoryButton />
             </div>
             <div className="flex flex-wrap items-start gap-2">
                 <div className="flex-1 min-w-[240px]"><MockDriveCard phase={phase} /></div>
