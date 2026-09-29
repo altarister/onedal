@@ -142,14 +142,14 @@ class TelemetryManager(
         if (isRunning) return
         isRunning = true
         resetHeartbeatTimer()
-        AppLogger.i(TAG, "Telemetry Loop Started (Event-driven + 60s Keep-alive)")
+        AppLogger.i(TAG, LogTag.BOOT, "Telemetry Loop Started (Event-driven + 60s Keep-alive)")
     }
 
     fun stop() {
         isRunning = false
         handler.removeCallbacks(heartbeatRunnable)
         handler.removeCallbacks(eventFlushRunnable)
-        AppLogger.i(TAG, "Telemetry Loop Stopped")
+        AppLogger.i(TAG, LogTag.BOOT, "Telemetry Loop Stopped")
     }
 
     /**

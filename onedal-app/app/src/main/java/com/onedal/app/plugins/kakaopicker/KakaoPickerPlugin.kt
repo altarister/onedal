@@ -1,6 +1,7 @@
 package com.onedal.app.plugins.kakaopicker
 
 import com.onedal.app.core.engine.ScanContext
+import com.onedal.app.core.LogTag
 import android.content.Context
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.ScreenKeywords
@@ -127,9 +128,9 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
             when (KakaoPickerKeywords.afterDetail(returnedToList, residue, stillOnDetail)) {
                 KakaoPickerKeywords.AfterDetail.STILL_ON_DETAIL -> { }
                 KakaoPickerKeywords.AfterDetail.RETURNED_TO_LIST ->
-                    com.onedal.app.core.AppLogger.i("1DAL_PICKER", KakaoPickerKeywords.RETURNED_TO_LIST_LOG)
+                    com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN, KakaoPickerKeywords.RETURNED_TO_LIST_LOG)
                 KakaoPickerKeywords.AfterDetail.RESIDUE ->
-                    com.onedal.app.core.AppLogger.i("1DAL_PICKER", "↩️ [승격 보류] 상세 글자가 남은 화면이다 — 이 화면은 버린다")
+                    com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.CALL_STAGE, "↩️ [승격 보류] 상세 글자가 남은 화면이다 — 이 화면은 버린다")
                 KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED -> {
                     // 📱 실물 픽커면 운행 기록을 켠다 — 미리보기를 안 보낸 콜(손으로 연 상세)도 켠다
                     val live = TargetApp.pickerLogScope(packageName, context.currentTargetApp) == TargetApp.PickerLog.STAGE_AND_UNKNOWN
@@ -147,7 +148,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
                 hasDetailOrder = context.session.lastDetailOrder != null,
                 rawText = rawScreenStr,
             )) {
-            com.onedal.app.core.AppLogger.i("1DAL_PICKER", "⏳ [늦은 수락 확인] 상세 바로 뒤는 아니지만 정리되지 않은 상세 콜(미리보기·보고 보류)이 남은 채 수락 뒤 화면(${detected.name})이 보인다")
+            com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.CALL_STAGE, "⏳ [늦은 수락 확인] 상세 바로 뒤는 아니지만 정리되지 않은 상세 콜(미리보기·보고 보류)이 남은 채 수락 뒤 화면(${detected.name})이 보인다")
             context.reportPickerAccepted(rawScreenStr)
         }
     }

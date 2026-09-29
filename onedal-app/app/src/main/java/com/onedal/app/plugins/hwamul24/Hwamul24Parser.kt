@@ -235,7 +235,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
         val isValidOrder = fare > 0 || pickup != "배차값없음" || dropoff != "배차값없음"
         if (isValidOrder) {
-            AppLogger.d(TAG, "📦 [24시 파싱] 상차=$pickup, 하차=$dropoff, 요금=$fare, " +
+            AppLogger.d(TAG, LogTag.FILTER, "📦 [24시 파싱] 상차=$pickup, 하차=$dropoff, 요금=$fare, " +
                     "차종=$vehicleType, 거리=${pickupDistance}km, 적요=${detailMemo?.take(30)}")
         }
 
@@ -303,7 +303,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         //    서버도 같은 규칙으로 막는다 — 한쪽만 열어도 두 겹 중 하나가 사라진다.
         //    (서버: `callFilterBlocker` · `OrderEvaluator` 5번 항목)
         val regionMatch = if (filter.destinationKeywords.isEmpty()) {
-            AppLogger.d(TAG, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
+            AppLogger.d(TAG, LogTag.FILTER, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
             false
         } else {
             // 🗺️ RegionMatch(④) — "남동"⊂"인천 남동구" 부분 문자열 오탐을 트랩으로 거른다
@@ -387,10 +387,10 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             AppLogger.d(TAG, LogTag.FILTER, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
         }
         if (!routeOrder.passed && order.fare > 0) {
-            AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
+            AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
         } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
             // 🔎 «판단 못 해서 통과»도 남긴다 (인성 파서와 같은 줄 · 기사님 요청)
-            AppLogger.d(TAG, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
+            AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
         }
 
         val result = vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed

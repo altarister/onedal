@@ -172,7 +172,7 @@ class ApiClient(private val context: Context) {
                     if (code == 200) {
                         prefs.edit().putString("api_confirm_res", body).apply()
                         AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /confirm response / $code] $body")
-                        AppLogger.roadmap("[HTTP 폴링] 응답 /orders/confirm")
+                        AppLogger.roadmap(LogTag.DECISION, "[HTTP 폴링] 응답 /orders/confirm")
                     } else {
                         AppLogger.e(TAG, LogTag.NETWORK, "❌ [post /confirm response / $code] $body")
                     }
@@ -353,7 +353,7 @@ class ApiClient(private val context: Context) {
                 }
             } catch (e: Exception) {
                 val elapsedMs = System.currentTimeMillis() - startMs
-                AppLogger.roadmap(
+                AppLogger.roadmap(LogTag.NETWORK,
                     "[HTTP 실패] POST /scrap (${elapsedMs}ms) 사유: ${e.javaClass.simpleName} - ${e.message}",
                     "NETWORK"
                 )
@@ -460,7 +460,7 @@ class ApiClient(private val context: Context) {
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("targetAppKeywords", body).apply()
-                    AppLogger.d(TAG, "🎯 [$targetApp] 키워드 사전 다운로드 성공: $body")
+                    AppLogger.d(TAG, LogTag.BOOT, "🎯 [$targetApp] 키워드 사전 다운로드 성공: $body")
                 } else {
                     AppLogger.e(TAG, "🎯 키워드 서버 에러 응답: $code")
                 }
@@ -558,7 +558,7 @@ class ApiClient(private val context: Context) {
                 }
 
                 val code = conn.responseCode
-                AppLogger.d(TAG, "🔌 [오프라인 통보] 전송 완료 (코드: $code)")
+                AppLogger.d(TAG, LogTag.NETWORK, "🔌 [오프라인 통보] 전송 완료 (코드: $code)")
             } catch (e: Exception) {
                 // 이 상황에선 에러 로깅 외에는 할 수 있는 게 없음
                 AppLogger.e(TAG, "🔌 [오프라인 통보 실패] ${e.message}")

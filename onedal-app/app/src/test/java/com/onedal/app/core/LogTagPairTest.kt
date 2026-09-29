@@ -32,4 +32,21 @@ class LogTagPairTest {
         assertEquals("#경고 무엇", AppLogger.fileLine("E", null, "무엇"))
         assertEquals("#결재 무엇", AppLogger.fileLine("W", LogTag.DECISION, "무엇"))
     }
+
+    /**
+     * 🔕 **태그 없는 줄이 조용히 늘지 않는다** — 원달앱의 d · i · roadmap 호출은 모두 태그를 인다(계획서 «#없음 목표 0»).
+     * W · E 는 로거가 «#경고»를 붙여 대상이 아니다. 서버 쪽 짝은 `logTagsCallSites`.
+     */
+    @Test fun `원달앱의 d · i · roadmap 호출은 모두 태그를 인다`() {
+        val untagged = File("src/main/java/com/onedal/app").walkTopDown()
+            .filter { it.extension == "kt" && it.name != "AppLogger.kt" }
+            .flatMap { f ->
+                val code = f.readText().replace(Regex("/\\*[\\s\\S]*?\\*/"), "").replace(Regex("//.*"), "")
+                // 🔴 되짚기 막음 — 쉼표 «뒤» 빈칸까지 부정 탐색 안에 넣는다(아니면 빈칸 0개로 되짚어 태그 붙은 줄도 센다)
+                val di = Regex("""AppLogger\.(d|i)\(\s*("[^"]*"|TAG)\s*,(?!\s*(com\.onedal\.app\.core\.)?LogTag\.)""").findAll(code)
+                val rm = Regex("""AppLogger\.roadmap\((?!\s*(com\.onedal\.app\.core\.)?LogTag\.)""").findAll(code)
+                (di + rm).map { "${f.name}: ${it.value.take(40)}" }
+            }.toList()
+        assertEquals("태그 없는 로그 호출 ${untagged.size}곳:\n${untagged.joinToString("\n")}", 0, untagged.size)
+    }
 }

@@ -119,13 +119,13 @@ class AlarmSignaler(private val service: AccessibilityService) {
             vibrateStrong()
         }
         if (!withBorder) {
-            AppLogger.i("1DAL_ALARM", "🔔 [알람] 소리 2 · 진동 — 테두리 없음 (앱이 상세까지 들어간다)")
+            AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [알람] 소리 2 · 진동 — 테두리 없음 (앱이 상세까지 들어간다)")
             return
         }
         val (top, bottom) = borderSpan(anchorRect.top, anchorRect.bottom, bandHalfPx)
         activeBandHalfPx = bandHalfPx
         showBorder(top, bottom, orderHash)
-        AppLogger.i("1DAL_ALARM", "🔔 [알람] 통과 콜 카드에 테두리 ($top~$bottom) · 소리 2 · 진동")
+        AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [알람] 통과 콜 카드에 테두리 ($top~$bottom) · 소리 2 · 진동")
     }
 
     /**
@@ -229,7 +229,7 @@ class AlarmSignaler(private val service: AccessibilityService) {
         borderView?.let {
             try { wm.removeView(it) } catch (_: Exception) {}
         }
-        if (borderView != null && why != null) AppLogger.d("1DAL_ALARM", "🔇 [테두리 걷음] $why")
+        if (borderView != null && why != null) AppLogger.d("1DAL_ALARM", LogTag.CALL_STAGE, "🔇 [테두리 걷음] $why")
         borderView = null
         borderLp = null
         activeHash = null

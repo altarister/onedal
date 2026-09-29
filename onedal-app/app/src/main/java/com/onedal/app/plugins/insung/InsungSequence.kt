@@ -36,7 +36,7 @@ fun ScanContext.handleDropoffPopup(rootNode: AccessibilityNodeInfo, screenTexts:
     val collectDone = collectMachine.handleDropoffPopup(rootNode, session, screenTexts, InsungKeywords.POPUP_FILL)
     if (!collectDone) return
     val tookMs = android.os.SystemClock.elapsedRealtime() - session.fillStartedAtMs
-    AppLogger.i(TAG, "📏 [채우기] 팝업 3장 ${tookMs}ms — 상세로 돌아오면 보낸다 (다음 상세 통과를 기다린다)")
+    AppLogger.i(TAG, LogTag.CALL_STAGE, "📏 [채우기] 팝업 3장 ${tookMs}ms — 상세로 돌아오면 보낸다 (다음 상세 통과를 기다린다)")
 }
 
 /**
@@ -57,7 +57,7 @@ fun ScanContext.advanceCollect(rootNode: AccessibilityNodeInfo) {
 /** 팝업 잔상이 화면에 남아있는지 검사 */
 fun ScanContext.isPopupResidue(rawScreenStr: String): Boolean {
     val resid = screenDetector.isPopupResidue(rawScreenStr)
-    if (resid) AppLogger.roadmap("✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
+    if (resid) AppLogger.roadmap(LogTag.SCREEN, "✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
     return resid
 }
 
@@ -122,7 +122,7 @@ fun ScanContext.handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTex
      */
     if (session.isPreview) {
         session.isPreview = false
-        AppLogger.roadmap("👀 [미리보기 → 확정] 기사님이 확정을 눌렀다 — 딱지를 벗고 서버에 알린다 (상세만)",
+        AppLogger.roadmap(LogTag.CALL_STAGE, "👀 [미리보기 → 확정] 기사님이 확정을 눌렀다 — 딱지를 벗고 서버에 알린다 (상세만)",
             telemetryManager.currentScreenContext.name)
         session.lastDetailOrder?.let { order -> sendDetail(order) }
         return
@@ -175,7 +175,7 @@ fun ScanContext.handleInsungPreConfirmExecution(
 ): Boolean = when (session.collectState) {
     SessionManager.CollectState.IDLE -> {
         session.fillStartedAtMs = android.os.SystemClock.elapsedRealtime()
-        AppLogger.roadmap("🏄 [채우기] 팝업 3장을 먼저 읽는다 — 채운 뒤에 보고·확정", telemetryManager.currentScreenContext.name)
+        AppLogger.roadmap(LogTag.CALL_STAGE, "🏄 [채우기] 팝업 3장을 먼저 읽는다 — 채운 뒤에 보고·확정", telemetryManager.currentScreenContext.name)
         collectMachine.startCollect(rootNode, session, screenTexts, InsungKeywords.POPUP_FILL)
         true
     }
@@ -197,6 +197,6 @@ fun ScanContext.passesCautionDong(order: SimplifiedOfficeOrder, cautionVerifier:
     val isCautionDong = CautionDongVerifier.CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
     if (!isCautionDong) return true
     val ok = cautionVerifier.verifyCityMatch(session.accumulatedDetailText, cautionVerifier.loadCityFilters())
-    AppLogger.i(TAG, "🏘️ [주의 동네] ${order.dropoff.take(20)} — ${if (ok) "시·군 확인, 통과" else "시·군 없음, 탈락"}")
+    AppLogger.i(TAG, LogTag.FILTER, "🏘️ [주의 동네] ${order.dropoff.take(20)} — ${if (ok) "시·군 확인, 통과" else "시·군 없음, 탈락"}")
     return ok
 }

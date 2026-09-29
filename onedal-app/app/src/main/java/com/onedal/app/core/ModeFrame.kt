@@ -88,7 +88,7 @@ class ModeFrame(private val service: AccessibilityService) {
                     return@post
                 }
             }
-            AppLogger.i("1DAL_FRAME", "🖼️ [모드 테두리] ${shownMode ?: "없음"} → $mode")
+            AppLogger.i("1DAL_FRAME", LogTag.SCREEN, "🖼️ [모드 테두리] ${shownMode ?: "없음"} → $mode")
             shownMode = mode
         }
     }

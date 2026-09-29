@@ -34,7 +34,7 @@ fun ScanContext.handlePreConfirmScreen(
 ) {
     // 잔상 방어: 팝업이 아직 닫히지 않았으면 무시
     if (screenDetector.isPopupResidue(rawScreenStr)) {
-        AppLogger.roadmap("✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
+        AppLogger.roadmap(LogTag.SCREEN, "✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
         return
     }
 
@@ -123,7 +123,7 @@ fun ScanContext.handlePreConfirmScreen(
     // 🎯 «누른 그 콜인가» — 세 배차망 같은 검증
     if (dropIfNotTappedCall(order, rawScreenStr)) return
 
-    AppLogger.roadmap("상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인", telemetryManager.currentScreenContext.name)
+    AppLogger.roadmap(LogTag.FILTER, "상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인", telemetryManager.currentScreenContext.name)
 
     val isTarget = passesFilterAfterFill(plugin, order)
 
@@ -137,11 +137,11 @@ fun ScanContext.handlePreConfirmScreen(
 
         // 수동 클릭이지만 스위치가 AUTO면, 서버가 결재를 보낼 수 있으므로 임시 고속 폴링(1초) 활성화
         if (!session.contractedByApp && effectiveMode == "AUTO") {
-            AppLogger.d(TAG, "⚡ [Phase 2] 수동 클릭 + AUTO 스위치 감지. 임시 고속 폴링 10초 활성화")
+            AppLogger.d(TAG, LogTag.NETWORK, "⚡ [Phase 2] 수동 클릭 + AUTO 스위치 감지. 임시 고속 폴링 10초 활성화")
             telemetryManager.isWaitingDecision = true
             mainHandler.postDelayed({
                 telemetryManager.isWaitingDecision = false
-                AppLogger.d(TAG, "⚡ [Phase 2] 임시 고속 폴링 10초 만료. 해제.")
+                AppLogger.d(TAG, LogTag.NETWORK, "⚡ [Phase 2] 임시 고속 폴링 10초 만료. 해제.")
             }, 10000)
         }
 
@@ -151,9 +151,9 @@ fun ScanContext.handlePreConfirmScreen(
              * 누르기에 실패하면 상세 보고를 보내지 않는다 — 보내면 서버는 앱이 계약한 줄 알고 안전취소가 «취소»를 찾는다.
              */
             AppLogger.d(TAG, LogTag.TAP, "🚀 [AUTO] 확정 버튼 클릭 (채운 뒤)")
-            AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
+            AppLogger.roadmap(LogTag.TAP, "상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
             if (clickFirstMatchingButton(rootNode, acceptButtons)) {
-                AppLogger.roadmap("[${keywords.appLabel}] 콜 확정 완료", telemetryManager.currentScreenContext.name)
+                AppLogger.roadmap(LogTag.CALL_STAGE, "[${keywords.appLabel}] 콜 확정 완료", telemetryManager.currentScreenContext.name)
                 sendDetail(order)
             } else {
                 AppLogger.w(TAG, "🛑 [확정 실패] 확정 버튼을 못 눌렀다 — 상세 보고를 보내지 않고 빠져나온다")
@@ -175,9 +175,9 @@ fun ScanContext.handlePreConfirmScreen(
         // [AUTO 모드이면서 2차 필터 실패] -> 공통 즉시 취소/뒤로가기 회피 기동
         session.isDetailScrapSent = true // 다음 사이클 스킵을 위해 마킹
         val cancelBtnForReject = keywords.cancelKeyword
-        AppLogger.d(TAG, "⚠️ [2차 필터 실패] 상세 정보를 확인한 결과 똥콜(블랙리스트 등)로 판명됨. '$cancelBtnForReject' 회피 기동!")
+        AppLogger.d(TAG, LogTag.FILTER, "⚠️ [2차 필터 실패] 상세 정보를 확인한 결과 똥콜(블랙리스트 등)로 판명됨. '$cancelBtnForReject' 회피 기동!")
 
-        AppLogger.roadmap("상세페이지에서 '$cancelBtnForReject' 추출 후 클릭", telemetryManager.currentScreenContext.name)
+        AppLogger.roadmap(LogTag.TAP, "상세페이지에서 '$cancelBtnForReject' 추출 후 클릭", telemetryManager.currentScreenContext.name)
         abortPreConfirm {
             if (!touchManager.findAndClickByText(rootNode, cancelBtnForReject, isStartsWith = true)) {
                 touchManager.performBack()
@@ -215,9 +215,9 @@ private fun ScanContext.abortPreConfirm(action: (() -> Unit)? = null) {
     if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
         action?.invoke() ?: touchManager.performBack()
     } else {
-        AppLogger.i(TAG, "🚪 [회피 복귀 생략] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
+        AppLogger.i(TAG, LogTag.SCREEN, "🚪 [회피 복귀 생략] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
     }
-    AppLogger.roadmap("리스트 페이지 진입 (회피 복귀)", telemetryManager.currentScreenContext.name)
+    AppLogger.roadmap(LogTag.SCREEN, "리스트 페이지 진입 (회피 복귀)", telemetryManager.currentScreenContext.name)
     resetSessionState()
 }
 
@@ -236,7 +236,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
     rawScreenStr: String
 ) {
     if (session.isVerifyingSnapshot) {
-        AppLogger.d(TAG, "📸 [스냅샷 중복 진입 방어] 이미 OCR 판독 진행 중")
+        AppLogger.d(TAG, LogTag.CALL_STAGE, "📸 [스냅샷 중복 진입 방어] 이미 OCR 판독 진행 중")
         return
     }
     session.isVerifyingSnapshot = true
@@ -247,7 +247,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
     )
     // «앱이 눌렀나»는 한 사실로 읽는다 — `dropIfNotTappedCall` 과 같은 `openedByApp` (시간 창 `opener` 는 로그용)
     val tappedCard = session.alarmTappedCard?.takeIf { session.openedByApp }
-    AppLogger.d(TAG, "📸 [사진 판독 시작] 연 쪽: ${if (session.openedByApp) "앱" else "손"} · 누른 뒤 시간 창: $opener")
+    AppLogger.d(TAG, LogTag.CALL_STAGE, "📸 [사진 판독 시작] 연 쪽: ${if (session.openedByApp) "앱" else "손"} · 누른 뒤 시간 창: $opener")
     val matchedListCard = scrapParser.matchDetailOrder(screenTexts, recentListOrders)
 
     val pickerParser = plugin.ocrParser as? com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser
@@ -304,7 +304,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                         session.isPreview = true
                         session.accumulatedDetailText = rawScreenStr
 
-                        AppLogger.roadmap("📸 [스냅샷 통과] 픽커 상세 검증 완료: ${orderWithId.pickup} → ${orderWithId.dropoff}", telemetryManager.currentScreenContext.name)
+                        AppLogger.roadmap(LogTag.CALL_STAGE, "📸 [스냅샷 통과] 픽커 상세 검증 완료: ${orderWithId.pickup} → ${orderWithId.dropoff}", telemetryManager.currentScreenContext.name)
                         sendConfirmOnce(orderWithId, rawScreenStr)
                         sendDetail(orderWithId)
                     }

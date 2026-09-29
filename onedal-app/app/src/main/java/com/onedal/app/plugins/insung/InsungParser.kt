@@ -319,7 +319,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 //    통과시키면 isActive 는 켜진 채 도착지 제한만 사라진다.
                 //    서버도 같은 규칙으로 막는다 — 한쪽만 열어도 두 겹 중 하나가 사라진다.
                 val matchResult = if (filter.destinationKeywords.isEmpty()) {
-                    AppLogger.d(TAG, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
+                    AppLogger.d(TAG, LogTag.FILTER, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
                     false
                 } else {
                     // 🗺️ RegionMatch(④) — 부분 문자열 오탐을 트랩으로 거른다
@@ -427,10 +427,10 @@ class InsungParser(private val context: Context) : IScrapParser {
                 AppLogger.d(TAG, LogTag.FILTER, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
             }
             if (!routeOrder.passed && order.fare > 0) {
-                AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
+                AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
             } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
                 // 🔎 «판단 못 해서 통과»도 남긴다 (기사님 요청) — 14:11 역주행 콜이 줄 하나 없이 통과했다
-                AppLogger.d(TAG, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
+                AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
             }
 
             val result = vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed

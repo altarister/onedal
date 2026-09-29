@@ -647,7 +647,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 출발·도착이 뒤섞여 **같은 콜이 다른 콜로 보인다**. 다음 읽기에는 깨끗하게 들어온다.
          */
         if (detailLeaked(allNodes.map { it.text }, detailOnlyWords())) {
-            com.onedal.app.core.AppLogger.d("1DAL_PICKER",
+            com.onedal.app.core.AppLogger.d("1DAL_PICKER", LogTag.SCREEN,
                 "🩹 [겹친 화면] 목록에 상세 글자가 섞였다 — 이 판은 건너뛴다 (다음 읽기에 다시 본다)")
             return emptyList()
         }

@@ -54,7 +54,7 @@ class ScreenReader(private val service: AccessibilityService) {
         val t0 = SystemClock.elapsedRealtime()
         val blank = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).apply { eraseColor(0xFFFFFFFF.toInt()) }
         recognizer.process(InputImage.fromBitmap(blank, 0))
-            .addOnSuccessListener(executor) { AppLogger.i(TAG, "🔥 예열 완료 ${SystemClock.elapsedRealtime() - t0}ms") }
+            .addOnSuccessListener(executor) { AppLogger.i(TAG, LogTag.BOOT, "🔥 예열 완료 ${SystemClock.elapsedRealtime() - t0}ms") }
             .addOnFailureListener(executor) { AppLogger.e(TAG, "예열 실패", it) }
     }
 
@@ -143,7 +143,7 @@ class ScreenReader(private val service: AccessibilityService) {
                         val totalMs = SystemClock.elapsedRealtime() - t0
 
                         AppLogger.i(
-                            TAG,
+                            TAG, LogTag.CALL_STAGE,
                             "⏱️ [스냅샷 실측] 찍기 ${captureMs}ms · 변환 ${convertMs}ms · OCR ${ocrMs}ms · 파싱 ${parseMs}ms → 총 ${totalMs}ms (${lines.size}줄)"
                         )
 
@@ -157,7 +157,7 @@ class ScreenReader(private val service: AccessibilityService) {
                             onParseFailed("머리 둘(픽업/배송) 누락", lines)
                             return@addOnSuccessListener
                         }
-                        AppLogger.i(TAG, "📸 [스냅샷] 사진 " + (shot ?: "저장 실패"))
+                        AppLogger.i(TAG, LogTag.CALL_STAGE, "📸 [스냅샷] 사진 " + (shot ?: "저장 실패"))
 
                         onSuccess(parsed, lines)
                     }
@@ -198,7 +198,7 @@ class ScreenReader(private val service: AccessibilityService) {
                 val sw = hw.copy(Bitmap.Config.ARGB_8888, false)
                 hw.recycle()
                 val tConverted = SystemClock.elapsedRealtime()
-                AppLogger.i(TAG, "📸 찍기 ${tCaptured - t0}ms · 변환 ${tConverted - tCaptured}ms · 원본 ${sw.width}x${sw.height}")
+                AppLogger.i(TAG, LogTag.CALL_STAGE, "📸 찍기 ${tCaptured - t0}ms · 변환 ${tConverted - tCaptured}ms · 원본 ${sw.width}x${sw.height}")
 
                 val results = ArrayList<Result>()
                 runOne("전체", sw, 0, parser, tCaptured - t0, tConverted - tCaptured) { r1 ->
@@ -242,8 +242,8 @@ class ScreenReader(private val service: AccessibilityService) {
                 val parseMs = SystemClock.elapsedRealtime() - tParse
                 val summary = parsed?.toString() ?: "${lines.size}줄 추출"
                 scaled.recycle()
-                AppLogger.i(TAG, "🔤 [$label] 인식 ${ocrMs}ms · ${lines.size}줄 · 나누기 ${parseMs}ms → $summary")
-                lines.forEach { AppLogger.d(TAG, "   y=${it.y} ${it.text}") }
+                AppLogger.i(TAG, LogTag.CALL_STAGE, "🔤 [$label] 인식 ${ocrMs}ms · ${lines.size}줄 · 나누기 ${parseMs}ms → $summary")
+                lines.forEach { AppLogger.d(TAG, LogTag.CALL_STAGE, "   y=${it.y} ${it.text}") }
                 done(Result(label, StageMs(captureMs, convertMs, ocrMs, parseMs), lines, summary))
             }
             .addOnFailureListener(executor) { e ->

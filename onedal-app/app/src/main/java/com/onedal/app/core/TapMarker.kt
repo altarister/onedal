@@ -114,7 +114,7 @@ class TapMarker(private val service: AccessibilityService) {
                 handler.removeCallbacks(hideRunnable)
                 handler.post(hideRunnable)
                 // 🔎 «안 떴다»와 «떴는데 못 봤다»를 로그로 가른다 — 둘의 고칠 곳이 다르다
-                AppLogger.i("1DAL_TOUCH", "👁️ [클릭 자국] ($centerX,$centerY) «$label»")
+                AppLogger.i("1DAL_TOUCH", LogTag.TAP, "👁️ [클릭 자국] ($centerX,$centerY) «$label»")
                 /**
                  * 📐 **그리자고 한 자리와 실제로 그려진 자리를 함께 남긴다** (기사님 지시 — 점이 어긋난다).
                  * 창 좌표는 시스템이 조정할 수 있다 — 어긋나면 이 두 값이 달라진다.
@@ -126,7 +126,7 @@ class TapMarker(private val service: AccessibilityService) {
                     val drawnX = at[0] + centerX          // 창 안에서 원은 centerX 자리에 그린다
                     val drawnY = at[1] + view.height / 2  // 창 한가운데에 그린다
                     val gap = if (drawnX == centerX && drawnY == centerY) "맞다" else "어긋났다"
-                    AppLogger.i("1DAL_TOUCH", "📐 [자국 자리] 그리려던 ($centerX,$centerY) → 실제 ($drawnX,$drawnY) · $gap " +
+                    AppLogger.i("1DAL_TOUCH", LogTag.TAP, "📐 [자국 자리] 그리려던 ($centerX,$centerY) → 실제 ($drawnX,$drawnY) · $gap " +
                         "(창 왼위 ${at[0]},${at[1]} · 창 높이 ${view.height})")
                 }
             } catch (e: Exception) {

@@ -44,7 +44,7 @@ fun ScanContext.reportPickerAccepted(rawScreenStr: String) {
     // ✋ 보고 보류 콜(손으로 열었고 전체 주소를 못 채움)도 기사님이 수락하셨으면 잡은 콜로 올린다 (기사님 «가»)
     if (!session.isPreview && !session.heldUnfilled) {
         // ⚠️ 리스트로 돌아온 경우는 여기 안 온다 (`KakaoPickerKeywords.afterDetail`) — 세션이 비워진 뒤라 까닭을 틀리게 적었다
-        AppLogger.d("1DAL_PICKER", "↩️ [승격 안 함] 미리보기 딱지가 없다 — " +
+        AppLogger.d("1DAL_PICKER", LogTag.CALL_STAGE, "↩️ [승격 안 함] 미리보기 딱지가 없다 — " +
             (if (session.lastDetailOrder == null) "미리보기를 못 보냈다 (상세에서 리스트 카드를 못 찾았다 — `👀 [미리보기 보류]` 줄에 까닭)" else "이미 올린 콜이다"))
         return
     }
@@ -54,7 +54,7 @@ fun ScanContext.reportPickerAccepted(rawScreenStr: String) {
      * 사라졌고, 화면 분류가 그걸 «확정»으로 읽어 **안 누른 콜이 잡은 콜로 승격**됐다.
      */
     if (!KakaoPickerKeywords.isAcceptedEvidence(rawScreenStr)) {   // 운행 화면 또는 오더가 든 «내 오더» 탭
-        AppLogger.d("1DAL_PICKER", "↩️ [승격 보류] 수락 후 표식이 없다 — 화면 넘어가는 중으로 본다")
+        AppLogger.d("1DAL_PICKER", LogTag.CALL_STAGE, "↩️ [승격 보류] 수락 후 표식이 없다 — 화면 넘어가는 중으로 본다")
         return
     }
     val order = session.lastDetailOrder ?: return
@@ -67,7 +67,7 @@ fun ScanContext.reportPickerAccepted(rawScreenStr: String) {
     session.accumulatedDetailText =
         KakaoPickerKeywords.detailTextForAccept(session.accumulatedDetailText, rawScreenStr)
     AppLogger.i("1DAL_PICKER", LogTag.CALL_STAGE, "✅ [수락 확인] 기사님이 「수락하기」를 누르셨다 — 잡은 콜로 올린다")
-    AppLogger.roadmap("👀 [미리보기 → 확정] 픽커 수락 화면 감지 — 딱지를 벗고 서버에 알린다",
+    AppLogger.roadmap(LogTag.CALL_STAGE, "👀 [미리보기 → 확정] 픽커 수락 화면 감지 — 딱지를 벗고 서버에 알린다",
         telemetryManager.currentScreenContext.name)
     sendDetail(order)
 }
