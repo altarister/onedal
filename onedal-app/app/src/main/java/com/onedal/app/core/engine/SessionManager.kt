@@ -1,6 +1,7 @@
 package com.onedal.app.core.engine
 
 import com.onedal.app.core.AppLogger
+import com.onedal.app.core.LogTag
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
@@ -168,7 +169,7 @@ class SessionManager {
         isPreview = false
         isVerifyingSnapshot = false
         onReset?.invoke()
-        AppLogger.i(TAG, "🔄 세션 상태 완전 초기화")
+        AppLogger.i(TAG, LogTag.CALL_STAGE, "🔄 세션 상태 완전 초기화")
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.onedal.app.plugins.insung
 
 import android.content.Context
+import com.onedal.app.core.LogTag
 import com.onedal.app.core.AppLogger
 import com.onedal.app.plugins.RouteOrderFilter
 import com.onedal.app.plugins.PickupListFilter
@@ -324,7 +325,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                     // 🗺️ RegionMatch(④) — 부분 문자열 오탐을 트랩으로 거른다
                     RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps)
                 }
-                if (!isDetailPreConfirmStage && order.fare > 0 && com.onedal.app.core.LogOnce.changed("list1:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$matchResult")) AppLogger.d(TAG, "🔍 [1차 리스트 필터] 도착지=${order.dropoff}, 결과=$matchResult")
+                if (!isDetailPreConfirmStage && order.fare > 0 && com.onedal.app.core.LogOnce.changed("list1:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$matchResult")) AppLogger.d(TAG, LogTag.FILTER, "🔍 [1차 리스트 필터] 도착지=${order.dropoff}, 결과=$matchResult")
                 matchResult
             }
 
@@ -404,7 +405,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear$isDetailPreConfirmStage")) {
                 val screenCtxLog = if (isDetailPreConfirmStage) "DETAIL" else "LIST"
             
-                AppLogger.roadmap("🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
+                AppLogger.roadmap(LogTag.FILTER, "🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
                             "도착지(${filter.destinationKeywords.size}중 ${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
                             (if (useRateModel)
                                 "요금/단가(${order.deliveryDistance}km × ${rateFloor}원 = ${((order.deliveryDistance ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "
@@ -423,7 +424,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             val routeOrder = if (pickupListCheck != null) RouteOrderFilter.Result(true, "상차 목록으로 거른다 — 순서 검사 안 함")
                 else RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
             if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0 && com.onedal.app.core.LogOnce.changed("pick:"+"${order.pickup}|${order.dropoff}|${order.fare}", pickupListCheck.reason)) {
-                AppLogger.d(TAG, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
+                AppLogger.d(TAG, LogTag.FILTER, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
             }
             if (!routeOrder.passed && order.fare > 0) {
                 AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")

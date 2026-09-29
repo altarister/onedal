@@ -1,6 +1,7 @@
 package com.onedal.app
 
 import android.accessibilityservice.AccessibilityService
+import com.onedal.app.core.LogTag
 import android.graphics.Rect
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.LogOnce
@@ -361,7 +362,7 @@ class HijackService : AccessibilityService(), ScanContext {
          *    자리: `/sdcard/Android/data/com.onedal.app/files/logs/1dal-YYYY-MM-DD.log`
          */
         AppLogger.attachFile(this)
-        AppLogger.i(TAG, "📝 [로그 파일] 여기에 쌓는다 — ${AppLogger.filePath ?: "열지 못했다"}")
+        AppLogger.i(TAG, LogTag.BOOT, "📝 [로그 파일] 여기에 쌓는다 — ${AppLogger.filePath ?: "열지 못했다"}")
 
         com.onedal.app.plugins.DispatchPluginRegistry.init(this)
         val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
@@ -448,7 +449,7 @@ class HijackService : AccessibilityService(), ScanContext {
             if (receivedOrderId.isNotEmpty() && receivedOrderId != session.currentOrderId) {
                 AppLogger.e(TAG, "👻 [Ghost Defense 발동!] 수신된 ID($receivedOrderId)가 현재 폰에 열려있는 오더 ID($session.currentOrderId)와 다릅니다! 과거 허깨비 응답을 폐기합니다.")
             } else {
-                AppLogger.w(TAG, "🛡️ [정상 결재 수신] ID 일치($receivedOrderId). 즉각 폐기/유지 액션을 집행합니다. (Action: $action)")
+                AppLogger.w(TAG, LogTag.DECISION, "🛡️ [정상 결재 수신] ID 일치($receivedOrderId). 즉각 폐기/유지 액션을 집행합니다. (Action: $action)")
                 executeDecisionImmediately(action)
             }
         }
@@ -473,12 +474,12 @@ class HijackService : AccessibilityService(), ScanContext {
         }
         registerReceiver(screenOffReceiver, filter)
 
-        AppLogger.roadmap("🟢 1DAL 서비스 가동 완료 (접근성 권한 승인, Telemetry·GPS 엔진 가동)", "STARTUP")
+        AppLogger.roadmap(LogTag.BOOT, "🟢 1DAL 서비스 가동 완료 (접근성 권한 승인, Telemetry·GPS 엔진 가동)", "STARTUP")
         AppLogger.i(TAG, "✅ 1DAL Service Connected!")
         // 어떤 빌드가 실제로 돌고 있는지 로그로 못박아 둔다 (설치 버전 혼동 방지)
         AppLogger.i(TAG, "  📦 BUILD      ${com.onedal.app.core.AppInfo.versionLabel(this)}")
         AppLogger.i(TAG, "  📡 ApiClient  (기기ID: ${apiClient.getDeviceId()})")
-        AppLogger.i(TAG, "  📤 Telemetry  (생존신고 시작)")
+        AppLogger.i(TAG, LogTag.BOOT, "  📤 Telemetry  (생존신고 시작)")
         AppLogger.i(TAG, "  🔍 Parser     (${scrapParser.currentParserName()})")
         AppLogger.i(TAG, "  👆 Touch      (준비 완료)")
         /**
@@ -497,7 +498,7 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager.stop()
         cancelSafeCancelTimer()
         apiClient.sendOffline("ACCESSIBILITY_OFF") // 접근성 권한 해제 시 오프라인 통보 — 사유 명시
-        AppLogger.roadmap("⚠️ 1DAL 서비스 일시 중지 (접근성 권한 해제)", "INTERRUPT")
+        AppLogger.roadmap(LogTag.BOOT, "⚠️ 1DAL 서비스 일시 중지 (접근성 권한 해제)", "INTERRUPT")
         AppLogger.w(TAG, "⚠️ 1DAL Service Interrupted! (접근성 권한 일시 중지)")
     }
 
@@ -522,8 +523,8 @@ class HijackService : AccessibilityService(), ScanContext {
         AppLogger.w(TAG, "📵 [오프라인 통보] 까닭: $reason")
         apiClient.sendOffline(reason) // 앱 종료 시 오프라인 통보 — 까닭을 함께
         apiClient.shutdown()
-        AppLogger.roadmap("🛑 1DAL 서비스 완전 종료 (앱 파괴)", "SHUTDOWN")
-        AppLogger.w(TAG, "🛑 1DAL Service Destroyed! (완전 종료)")
+        AppLogger.roadmap(LogTag.BOOT, "🛑 1DAL 서비스 완전 종료 (앱 파괴)", "SHUTDOWN")
+        AppLogger.w(TAG, LogTag.BOOT, "🛑 1DAL Service Destroyed! (완전 종료)")
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -718,7 +719,7 @@ class HijackService : AccessibilityService(), ScanContext {
             listBlindSinceMs = System.currentTimeMillis()
         }
         if (isListScreen && !wasListScreen) {
-            AppLogger.d(TAG, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
+            AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
             resetSessionState()
             // 👁️ 리셋한 뒤에 «못 본 시간»을 남긴다 — 리셋이 먼저다 (콜의 끝이 우선)
             if (listBlindSinceMs > 0L) {
@@ -739,7 +740,7 @@ class HijackService : AccessibilityService(), ScanContext {
         }
 
         // 🔕 화면 «종류»가 바뀔 때만 — 글자만 바뀐 알림(1초마다)은 되풀이하지 않는다. 목록으로 바뀔 때도 찍힌다(appLoop.mjs 가 읽는다)
-        if (LogOnce.changed("screen", detected.value)) AppLogger.roadmap("📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}→$effectiveMode", telemetryManager.currentScreenContext.name)
+        if (LogOnce.changed("screen", detected.value)) AppLogger.roadmap(LogTag.SCREEN, "📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}→$effectiveMode", telemetryManager.currentScreenContext.name)
 
         // 🔔 리스트를 떠났다 — 남의 화면 위에 알람 테두리를 남기지 않는다 (§6-③)
         if (detected != ScreenContext.LIST) alarmSignaler.onLeaveList()
@@ -1112,7 +1113,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 // 👆 누르기 전 안전 확인과 누를 자리는 배차망이 정한다 (픽커: 오더카드를 피한다)
                 val tap = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).planListTap(allNodes, order, fareNode)
                 if (tap != null) {
-                    AppLogger.i("1DAL_ALARM", "🚪 [상세 진입] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
+                    AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🚪 [상세 진입] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
                         "모드 $currentMode — ${if (currentMode == "AUTO") "앱이 채우고 확정" else "판정만 받고 확정·수락은 기사님"} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
                     AppLogger.d(TAG, "💥 [$currentMode] 꿀콜 조건 통과! 요금 최고 콜 터치 진행!")
                     alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용
@@ -1121,7 +1122,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     if (!fired) {
                         // 🛑 누르기가 실패했다(노드가 사라짐 · 좌표를 못 구함) — 세션을 세우지도, 기억에 넣지도 않는다.
                         //    세우면 화면은 목록 그대로라 «목록으로 돌아왔다» 리셋이 안 오고 다음 스캔부터 아무 콜도 못 누른다
-                        AppLogger.w("1DAL_ALARM", "🛑 [진입 실패] ${order.fare}원 — 누르기가 안 됐다. 이번 스캔은 손대지 않고 다음 스캔에 다시 본다")
+                        AppLogger.w("1DAL_ALARM", LogTag.TAP, "🛑 [진입 실패] ${order.fare}원 — 누르기가 안 됐다. 이번 스캔은 손대지 않고 다음 스캔에 다시 본다")
                     }
                     if (fired) {
                         /**
@@ -1201,7 +1202,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 isPreview = session.isPreview,
             )
         )
-        AppLogger.d(TAG, "📤 [post /confirm request] 서버 전송 내용 -> 모드: $actualMatchType (스위치: ${telemetryManager.currentMode}, 매크로클릭: ${session.contractedByApp}, 미리보기: ${session.isPreview}) | 텍스트: ${rawScreenStr.take(150)}...")
+        AppLogger.d(TAG, LogTag.NETWORK, "📤 [post /confirm request] 서버 전송 내용 -> 모드: $actualMatchType (스위치: ${telemetryManager.currentMode}, 매크로클릭: ${session.contractedByApp}, 미리보기: ${session.isPreview}) | 텍스트: ${rawScreenStr.take(150)}...")
         session.isDetailScrapSent = true
         telemetryManager.isHolding = true  // [Page/Hold 분리] 확정 클릭 → 콜 처리 중
         telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 상태 알림
@@ -1253,7 +1254,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
             val actualMatchType = session.clickOrigin
             val previewStr = session.accumulatedDetailText.replace("\n", " ").take(150)
-            AppLogger.d(TAG, "🌐 [post /detail request] $actualMatchType 모드 판결 요청 텍스트: $previewStr...")
+            AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /detail request] $actualMatchType 모드 판결 요청 텍스트: $previewStr...")
 
             // Option B (Piggyback V2): sendDetail은 202 응답만 확인하고 곧바로 리턴됨.
             // 실제 판결은 Telemetry 1.0초 폴링을 통해 decisionCallback으로 들어오게 됨.

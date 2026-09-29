@@ -1,6 +1,7 @@
 package com.onedal.app.core.engine
 
 import android.view.accessibility.AccessibilityNodeInfo
+import com.onedal.app.core.LogTag
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.ScreenReader
 import com.onedal.app.models.ScreenContext
@@ -46,7 +47,7 @@ fun ScanContext.handlePreConfirmScreen(
 
     // 🔕 같은 콜의 상세 진입은 한 번 (화면 알림마다 되풀이하지 않는다)
     if (com.onedal.app.core.LogOnce.changed("detailEnter", session.currentOrderId))
-        AppLogger.roadmap("[Current Page: DETAIL_PRE_CONFIRM] 진입 완료 (${plugin.label})", telemetryManager.currentScreenContext.name)
+        AppLogger.roadmap(LogTag.SCREEN, "[Current Page: DETAIL_PRE_CONFIRM] 진입 완료 (${plugin.label})", telemetryManager.currentScreenContext.name)
 
     // ⏱️ 누가 열었든(알람·손) · 어느 모드든 — 상세 대기 시간 뒤 리스트로 돌아온다 (#124 · 기사님 확정)
     //    앱이 열었지만 계약하지 않는 콜(체험)도 — 결재가 안 오면 여기서 돌아온다
@@ -149,7 +150,7 @@ fun ScanContext.handlePreConfirmScreen(
              * ✍️ **앱이 계약하는 콜 — 확정을 누르고, 누르기에 성공한 뒤에 상세 보고** (안전취소 시간이 계약 뒤부터 흐른다).
              * 누르기에 실패하면 상세 보고를 보내지 않는다 — 보내면 서버는 앱이 계약한 줄 알고 안전취소가 «취소»를 찾는다.
              */
-            AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 클릭 (채운 뒤)")
+            AppLogger.d(TAG, LogTag.TAP, "🚀 [AUTO] 확정 버튼 클릭 (채운 뒤)")
             AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
             if (clickFirstMatchingButton(rootNode, acceptButtons)) {
                 AppLogger.roadmap("[${keywords.appLabel}] 콜 확정 완료", telemetryManager.currentScreenContext.name)
@@ -193,7 +194,7 @@ fun ScanContext.handlePreConfirmScreen(
  * · 기사님이 연 상세: 앱이 뒤로 가지 않는다. 이 상세에서 다시 보내지 않게만 한다.
  */
 fun ScanContext.dropUnfilledCall(reason: String) {
-    AppLogger.w(TAG, "🧾 [값 못 채움] $reason — 서버에 보내지 않고 버린다")
+    AppLogger.w(TAG, LogTag.CALL_STAGE, "🧾 [값 못 채움] $reason — 서버에 보내지 않고 버린다")
     if (session.openedByApp) {
         demoteTappedCall(reason)
         abortPreConfirm()
@@ -289,7 +290,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                         if (dropIfNotTappedCall(verifiedOrder, rawScreenStr)) return@post
                         // 🔎 채운 뒤 필터 한 번 — 같은 함수 (앱이 연 콜만 거른다 · 기사님이 연 상세는 그대로 보낸다)
                         if (session.openedByApp && !passesFilterAfterFill(plugin, verifiedOrder)) {
-                            AppLogger.w(TAG, "🔎 [채운 뒤 탈락] ${verifiedOrder.pickup.take(14)} → ${verifiedOrder.dropoff.take(14)} ${verifiedOrder.fare}원 — 서버에 보내지 않고 목록으로")
+                            AppLogger.w(TAG, LogTag.CALL_STAGE, "🔎 [채운 뒤 탈락] ${verifiedOrder.pickup.take(14)} → ${verifiedOrder.dropoff.take(14)} ${verifiedOrder.fare}원 — 서버에 보내지 않고 목록으로")
                             session.isDetailScrapSent = true
                             abortPreConfirm()
                             return@post
@@ -351,7 +352,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
 fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: String): Boolean {
     val tapped = session.alarmTappedCard?.takeIf { session.openedByApp } ?: return false
     val reason = TappedCall.mismatch(tapped, order) ?: return false
-    AppLogger.w(TAG, "🎯 [누른 콜 아님] $reason — 서버에 보내지 않고 목록으로")
+    AppLogger.w(TAG, LogTag.CALL_STAGE, "🎯 [누른 콜 아님] $reason — 서버에 보내지 않고 목록으로")
     apiClient.sendAnomalyReport(
         targetApp = currentTargetApp,
         screenName = telemetryManager.currentScreenContext.name,

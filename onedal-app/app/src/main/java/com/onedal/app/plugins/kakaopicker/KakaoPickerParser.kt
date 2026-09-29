@@ -1,6 +1,7 @@
 package com.onedal.app.plugins.kakaopicker
 
 import android.content.Context
+import com.onedal.app.core.LogTag
 import org.json.JSONObject
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.engine.FareFloor
@@ -834,14 +835,14 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         val filterJson = alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases)
         if (filterJson != lastAlarmFilterJson) {
             lastAlarmFilterJson = filterJson
-            com.onedal.app.core.AppLogger.i("1DAL_PICKER", "🧾 [알람 필터] $filterJson")
+            com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.FILTER, "🧾 [알람 필터] $filterJson")
         }
         val pass = decide(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, tally)
         val a = decideAxes(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases)
         val mark = { ok: Boolean -> if (ok) "✅" else "❌" }
         // 👁️ 축별 판정을 한 줄 남긴다 — «왜 안 울었나»를 로그로 답하기 위해 (첫 실검증 때 수집 데이터로 역추적했다)
         //    🔴 채점기(`pickerAlarmGrade.mjs`)가 이 줄의 모양을 읽는다 — 바꾸면 그 정규식도 같이 바꾼다
-        com.onedal.app.core.AppLogger.d("1DAL_PICKER",
+        com.onedal.app.core.AppLogger.d("1DAL_PICKER", com.onedal.app.core.LogTag.FILTER,
             "🔔 [알람 판정] ${order.fare}원·픽업 ${order.pickupDistance ?: "?"}km·도착 ${order.dropoff.ifEmpty { "?" }} — " +
             "하한 ${c.minFare}·반경 ${c.pickupRadiusKm}km·도착목표 ${c.destKeywords.size}개 → ${if (pass) "통과" else "탈락"}" +
             " · 축 요금${mark(a.fare)} 상차${mark(a.pickup)} 도착${mark(a.destination)}")

@@ -1,6 +1,7 @@
 package com.onedal.app.plugins.kakaopicker
 
 import com.onedal.app.core.AppLogger
+import com.onedal.app.core.LogTag
 import com.onedal.app.core.engine.ScanContext
 
 /**
@@ -65,7 +66,7 @@ fun ScanContext.reportPickerAccepted(rawScreenStr: String) {
      */
     session.accumulatedDetailText =
         KakaoPickerKeywords.detailTextForAccept(session.accumulatedDetailText, rawScreenStr)
-    AppLogger.i("1DAL_PICKER", "✅ [수락 확인] 기사님이 「수락하기」를 누르셨다 — 잡은 콜로 올린다")
+    AppLogger.i("1DAL_PICKER", LogTag.CALL_STAGE, "✅ [수락 확인] 기사님이 「수락하기」를 누르셨다 — 잡은 콜로 올린다")
     AppLogger.roadmap("👀 [미리보기 → 확정] 픽커 수락 화면 감지 — 딱지를 벗고 서버에 알린다",
         telemetryManager.currentScreenContext.name)
     sendDetail(order)

@@ -1,6 +1,7 @@
 package com.onedal.app.api
 
 import android.content.Context
+import com.onedal.app.core.LogTag
 import android.os.Build
 import com.onedal.app.core.AppLogger
 import com.google.gson.Gson
@@ -109,7 +110,7 @@ class ApiClient(private val context: Context) {
             val startMs = System.currentTimeMillis()
             var conn: java.net.HttpURLConnection? = null
             try {
-                if (!quiet) AppLogger.roadmap("[HTTP 전송] POST $apiName 시작 (시도 $attempt/$maxRetries)", "NETWORK")
+                if (!quiet) AppLogger.roadmap(LogTag.NETWORK, "[HTTP 전송] POST $apiName 시작 (시도 $attempt/$maxRetries)", "NETWORK")
 
                 conn = java.net.URL(targetUrl).openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "POST"
@@ -131,7 +132,7 @@ class ApiClient(private val context: Context) {
                 }
 
                 val elapsedMs = System.currentTimeMillis() - startMs
-                if (!quiet) AppLogger.roadmap(
+                if (!quiet) AppLogger.roadmap(LogTag.NETWORK,
                     "[HTTP 응답] POST $apiName 완료 (${elapsedMs}ms, HTTP $code, 시도 $attempt/$maxRetries)",
                     "NETWORK"
                 )
@@ -139,7 +140,7 @@ class ApiClient(private val context: Context) {
 
             } catch (e: Exception) {
                 val elapsedMs = System.currentTimeMillis() - startMs
-                AppLogger.roadmap(
+                AppLogger.roadmap(LogTag.NETWORK,
                     "[HTTP 실패] POST $apiName (${elapsedMs}ms, 시도 $attempt/$maxRetries) " +
                             "사유: ${e.javaClass.simpleName} - ${e.message}",
                     "NETWORK"
@@ -170,16 +171,16 @@ class ApiClient(private val context: Context) {
                     val (code, body) = result
                     if (code == 200) {
                         prefs.edit().putString("api_confirm_res", body).apply()
-                        AppLogger.d(TAG, "🌐 [post /confirm response / $code] $body")
+                        AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /confirm response / $code] $body")
                         AppLogger.roadmap("[HTTP 폴링] 응답 /orders/confirm")
                     } else {
-                        AppLogger.e(TAG, "❌ [post /confirm response / $code] $body")
+                        AppLogger.e(TAG, LogTag.NETWORK, "❌ [post /confirm response / $code] $body")
                     }
                 } else {
-                    AppLogger.e(TAG, "❌ [Confirm 전송 실패] 재시도 포함 모든 시도 실패")
+                    AppLogger.e(TAG, LogTag.NETWORK, "❌ [Confirm 전송 실패] 재시도 포함 모든 시도 실패")
                 }
             } catch (e: Exception) {
-                AppLogger.e(TAG, "❌ [Confirm 전송 실패] ${e.message}")
+                AppLogger.e(TAG, LogTag.NETWORK, "❌ [Confirm 전송 실패] ${e.message}")
             }
         }
     }
@@ -202,20 +203,20 @@ class ApiClient(private val context: Context) {
                     val (code, body) = result
                     if (code == 200 || code == 202) {
                         prefs.edit().putString("api_detail_res", body).apply()
-                        AppLogger.d(TAG, "🌐 [post /detail response / $code] 즉결 접수 완료. Piggyback 대기 시작.")
+                        AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /detail response / $code] 즉결 접수 완료. Piggyback 대기 시작.")
                         // 성공적으로 큐에 등록되었으므로 여기서 판단 콜백을 부르지 않고, 
                         // 이후 Telemetry(Scrap) 폴링이 결재를 물어올 때까지 기다립니다.
                     } else {
-                        AppLogger.e(TAG, "❌ [post /detail response / $code] $body")
+                        AppLogger.e(TAG, LogTag.NETWORK, "❌ [post /detail response / $code] $body")
                         // 타임아웃 등의 이유로 실패 시 CANCEL로 간주하여 뱉기
                         onDecisionReceived(payload.order.id, "CANCEL")
                     }
                 } else {
-                    AppLogger.e(TAG, "❌ [Detail 전송 실패] 재시도 포함 모든 시도 실패")
+                    AppLogger.e(TAG, LogTag.NETWORK, "❌ [Detail 전송 실패] 재시도 포함 모든 시도 실패")
                     onDecisionReceived(payload.order.id, "CANCEL")
                 }
             } catch (e: Exception) {
-                AppLogger.e(TAG, "❌ [Detail 전송 실패] ${e.message}")
+                AppLogger.e(TAG, LogTag.NETWORK, "❌ [Detail 전송 실패] ${e.message}")
                 onDecisionReceived(payload.order.id, "CANCEL")
             }
         }
@@ -253,7 +254,7 @@ class ApiClient(private val context: Context) {
 
                 if (result == null) {
                     val elapsedMs = System.currentTimeMillis() - startMs
-                    AppLogger.roadmap("[HTTP 실패] POST /scrap (${elapsedMs}ms) 재시도 포함 모든 시도 실패", "NETWORK")
+                    AppLogger.roadmap(LogTag.NETWORK, "[HTTP 실패] POST /scrap (${elapsedMs}ms) 재시도 포함 모든 시도 실패", "NETWORK")
                     AppLogger.e(TAG, "📡 [텔레메트리 통신 실패] 재시도 포함 모든 시도 실패")
                     return@submit
                 }
@@ -265,7 +266,7 @@ class ApiClient(private val context: Context) {
                     
                     val screenName = payload.screenContext ?: "UNKNOWN"
                     // 📤 보고 한 번 = 한 줄 (보내기·응답·건수·걸린 시간)
-                    AppLogger.d(TAG, "📤 [scrap] 화면 $screenName · 콜 ${payload.data.size}건 · ${System.currentTimeMillis() - startMs}ms")
+                    AppLogger.d(TAG, LogTag.NETWORK, "📤 [scrap] 화면 $screenName · 콜 ${payload.data.size}건 · ${System.currentTimeMillis() - startMs}ms")
                     
                     if (scrapRes.dispatchEngineArgs != null) {
                         /**
@@ -308,7 +309,7 @@ class ApiClient(private val context: Context) {
                         if (prevFilterJson != filterJson) {
                             // 🔕 필터가 실제로 바뀐 순간만 요약 한 줄 (응답마다 되풀이하지 않는다)
                             AppLogger.d(
-                                TAG,
+                                TAG, LogTag.FILTER,
                                 "📋 [필터 동기화] 차종 ${updatedFilter.allowedVehicleTypes.size}종 " +
                                         "| 키워드 ${updatedFilter.destinationKeywords.size}개 " +
                                         "| isActive=${updatedFilter.isActive} " +
@@ -332,7 +333,7 @@ class ApiClient(private val context: Context) {
 
                     // Piggyback 판결(Decision) 분실 방지 (수신 처리)
                     if (scrapRes.decision != null) {
-                        AppLogger.w(TAG, "⚡ [Piggyback Decision 수신] orderId: ${scrapRes.decision.orderId}, action: ${scrapRes.decision.action}")
+                        AppLogger.w(TAG, LogTag.DECISION, "⚡ [Piggyback Decision 수신] orderId: ${scrapRes.decision.orderId}, action: ${scrapRes.decision.action}")
                         // 수신 확인증(ACK) 준비 (다음 번 텔레메트리 때 서버로 전송됨)
                         prefs.edit().putString("pendingAckDecisionId", scrapRes.decision.orderId).apply()
                         // 콜백 호출

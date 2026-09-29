@@ -1,6 +1,7 @@
 package com.onedal.app.plugins.insung
 
 import android.view.accessibility.AccessibilityNodeInfo
+import com.onedal.app.core.LogTag
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.engine.ScanContext
 import com.onedal.app.core.engine.SessionManager
@@ -130,7 +131,7 @@ fun ScanContext.handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTex
     // ✋ 보고 보류 콜(손으로 열었고 전체 주소를 못 채움) — 기사님이 확정하셨다. 기사님이 잡은 콜이라 짧은 주소로라도 상세 보고한다 (기사님 «가»)
     if (session.heldUnfilled) {
         session.heldUnfilled = false
-        AppLogger.w("1DAL_INSUNG", "✋ [보고 보류 → 확정] 전체 주소를 못 채운 콜을 기사님이 확정하셨다 — 그대로 상세 보고")
+        AppLogger.w("1DAL_INSUNG", LogTag.CALL_STAGE, "✋ [보고 보류 → 확정] 전체 주소를 못 채운 콜을 기사님이 확정하셨다 — 그대로 상세 보고")
         session.lastDetailOrder?.let { order -> sendDetail(order) }
         return
     }
