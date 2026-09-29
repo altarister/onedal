@@ -14,7 +14,7 @@
 import { isHomeCallSince } from "@onedal/shared";
 import { callTargetToday } from "../core/callTargetEvents";
 import db from "../db";
-import { getActiveCalls, computeLoadedPoints, buildOrderSync } from "../core/helpers";
+import { getActiveCalls, computeLoadedPoints, buildOrderSync, filterVersionOf } from "../core/helpers";
 import { stepRecordsOf } from "../services/stepSeeder";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
@@ -341,18 +341,15 @@ const stmtInsertFilter = db.prepare(`
 
 // ━━━ 내부 유틸: activeFilter 로그 출력 ━━━
 function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType: string, changes: Partial<AutoDispatchFilter>) {
-    let schemaLogStr = "{\n";
-    for (const key of Object.keys(session.activeFilter)) {
-        const val = (session.activeFilter as any)[key];
-        schemaLogStr += `  "${key}": ${JSON.stringify(val)},\n`;
-    }
-    schemaLogStr += "}";
-
+    /**
+     * 🧹 전문을 다시 찍지 않는다 — 한 판에 300번 바뀌면 전문 30줄이 9,000줄을 만든다 (reviews/22 ①-3).
+     *    바뀐 칸의 반영 후 값과 전체 지문만 남긴다 — 전체가 궁금하면 같은 지문의 피기백(`filterVersionOf`)이 답한다.
+     */
+    const af = session.activeFilter as any;
+    const changed = Object.keys(changes).map(k => `${k}=${JSON.stringify(af[k])}`).join(' · ') || '(바뀐 칸 없음)';
     logRoadmapEvent(
-        "서버", 
-        `[FilterManager] 필터 변경 발생! (${actionType})\n` +
-        ` - 변경 요청된 값: ${JSON.stringify(changes)}\n` +
-        ` - 반영 후 최종 동작 필터(activeFilter):\n${schemaLogStr}`
+        "서버",
+        `[FilterManager] 필터 변경 (${actionType}) — ${changed} · 지문 ${filterVersionOf(session.activeFilter)}`
     );
 }
 
@@ -443,7 +440,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         /* 🎯 목적지는 «파생»이다 — HOME 이면 집 시 */
         const city = goalCityOf(session, userId);
         const radius = session.activeFilter.destinationRadiusKm || 0;
-        console.log(`🗺️ [FilterManager] 지리 연산 트리거 (city=${city}, radius=${radius}km)`);
+        console.log(`🗺️ [FilterManager] 지리 재계산 (city=${city}, radius=${radius}km)`);
         /**
          * 🕸️ **그물이 목록을 만든다** — 화면이 그리는 그 계산이다. 살아 있는 목적지마다 (복귀 대기면 목적지 ∪ 집).
          *    제외 지역은 `netKeywordsOf` 안에서 `pruneExcludedRegions` 한 곳이 뺀다 (규칙 ③).

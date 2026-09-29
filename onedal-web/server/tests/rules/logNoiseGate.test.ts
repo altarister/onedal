@@ -25,6 +25,12 @@ describe('🧹 서버 나레이션 — 걷었다', () => {
         ['routes/orders.ts', '스레드 락(Lock) 점검 완료'],
         ['routes/scrap.ts', '관제탑에게'],
         ['services/kakaoService.ts', '폴리라인 길이 예상'],
+        ['services/dispatchEngine.ts', '생성 연산'],
+        ['services/dispatchEngine.ts', '복구 연산 시작'],
+        ['services/dispatchEngine.ts', '복구 연산 완료'],
+        ['state/filterManager.ts', '연산 트리거'],
+        ['state/filterManager.ts', '반영 후 최종 동작 필터'],
+        ['services/geoService.ts', '· 같은 자리 ·'],
     ];
     it.each(gone)('%s 에 «%s» 나레이션이 없다', (file, phrase) => {
         expect(src(file)).not.toContain(phrase);
@@ -32,6 +38,15 @@ describe('🧹 서버 나레이션 — 걷었다', () => {
 
     it('안전취소 임박은 나레이션이 아니라 경고 사실 줄이다', () => {
         expect(src('routes/detail.ts')).toContain('안전취소 임박');
+    });
+
+    it('정차는 매초가 아니라 시작·끝 두 줄이다', () => {
+        expect(src('services/geoService.ts')).toContain('정차 시작');
+        expect(src('services/geoService.ts')).toContain('정차 끝');
+    });
+
+    it('필터 변경은 전문이 아니라 바뀐 칸 + 지문이다', () => {
+        expect(src('state/filterManager.ts')).toContain('filterVersionOf(session.activeFilter)');
     });
 });
 

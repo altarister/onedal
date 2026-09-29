@@ -1289,11 +1289,23 @@ export function processDriverMovement(
                 `(${Math.round(kmh)}km/h · 출처 ${src}) — ${prev.x.toFixed(4)},${prev.y.toFixed(4)} → ` +
                 `${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)}`);
         } else if (movedKm >= GPS_LOG_MIN_KM) {
-            console.log(`📍 [위치] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} ` +
-                `· ${(movedKm * 1000).toFixed(0)}m 이동 · ${Math.round(kmh)}km/h · 출처 ${src}`);
+            if (session.stoppedSinceMs) {
+                const stoppedMin = Math.round((Date.now() - session.stoppedSinceMs) / 60_000);
+                console.log(`▶️ [정차 끝] ${stoppedMin}분 서 있다 다시 이동 · 출처 ${src}`);
+                session.stoppedSinceMs = null;
+            }
+            // 🧹 이동 로그는 30초에 한 줄 — 궤적은 DB 가 들고 있다 (reviews/22 ①-3)
+            if (!session.lastMoveLogAt || Date.now() - session.lastMoveLogAt >= 30_000) {
+                session.lastMoveLogAt = Date.now();
+                console.log(`📍 [위치] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} ` +
+                    `· ${(movedKm * 1000).toFixed(0)}m 이동 · ${Math.round(kmh)}km/h · 출처 ${src}`);
+            }
         } else if (stopped) {
-            /* ⏸️ 서 있는 것도 «사실»이라 남긴다 — 안 찍으면 «좌표가 왔는지»를 되짚을 수 없다 */
-            console.log(`⏸️ [정차] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} · 같은 자리 · 출처 ${src}`);
+            /* ⏸️ 서 있는 «사실»은 남긴다 — 매초가 아니라 시작·끝 두 줄로. 좌표가 오는지는 `lastFixAt` 이 답한다 */
+            if (!session.stoppedSinceMs) {
+                session.stoppedSinceMs = Date.now();
+                console.log(`⏸️ [정차 시작] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} · 출처 ${src}`);
+            }
         }
     }
     /**

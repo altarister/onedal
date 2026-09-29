@@ -119,6 +119,10 @@ export interface UserSession {
      * 🔴 **낡음은 저장하는 상태가 아니라 시각 차이에서 파생된다** (규칙 ③) — `originOf` 가 잰다.
      */
     lastFixAt: number | null;
+    /** ⏸️ 정차가 시작된 시각 (epoch ms) — 정차 로그를 «시작·끝» 두 줄로 접는 재료. 움직이면 null */
+    stoppedSinceMs: number | null;
+    /** 📍 마지막 «[위치]» 로그 시각 (epoch ms) — 이동 로그 30초 요약용. 궤적 자체는 DB 가 든다 */
+    lastMoveLogAt: number | null;
     userVehicleType: string; // user_settings의 내 차종 (동적 허용 차종 생성용)
     isRestored: boolean;     // [방안 1] 서버 재시작 복구 로직 1회 실행 여부 플래그
     /**
@@ -334,6 +338,8 @@ function createDefaultSession(userId: string): UserSession {
         lastFixSource: undefined,
         mockGpsOwner: null,
         lastFixAt: null,
+        stoppedSinceMs: null,
+        lastMoveLogAt: null,
         userVehicleType: '1t',
         capacityConfidence: 'ESTIMATED',
         businessDay: businessDayKey(Date.now()),

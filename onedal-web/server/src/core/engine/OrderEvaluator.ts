@@ -529,7 +529,8 @@ export class OrderEvaluator {
                                 const y = stopType === 'pickup' ? o?.pickupY : o?.dropoffY;
                                 return Number.isFinite(x) && Number.isFinite(y) ? { x: x as number, y: y as number } : null;
                             };
-                            /* ☎️ 정거장의 동 이름 — 늦으면 «전화할 곳»이다 (전수표 #42). 좌표를 모르면 null */
+                            /* ☎️ 정거장의 동 이름 — 늦으면 «전화할 곳»이다 (전수표 #42). 좌표를 모르면 null.
+                             *    ⚠️ 동 이름은 중심점 «최근접»이라 경계 근처에선 한 동 어긋날 수 있다 — 표시 전용, 판정은 좌표로 잰다 */
                             const placeOf = (orderId: string, stopType: 'pickup' | 'dropoff') => {
                                 const c = coordOf(orderId, stopType);
                                 return c ? nearestDong({ lng: c.x, lat: c.y }).name : null;

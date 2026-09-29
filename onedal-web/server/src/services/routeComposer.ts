@@ -514,8 +514,10 @@ const STOP_ORDER_TIE_KM = 0.5;
  */
 let lastOrderTrace = '';
 function logOrderDecision(line: string): void {
-    if (line === lastOrderTrace) return;
-    lastOrderTrace = line;
+    // 🧹 거리 숫자는 매 틱 달라 «바뀔 때만»을 무력화한다 — 판단의 골자(숫자 뺀 문구)로 비교한다 (reviews/22 ①-3)
+    const gist = line.replace(/[0-9.]+/g, '');
+    if (gist === lastOrderTrace) return;
+    lastOrderTrace = gist;
     console.log(`🧭 [순서 판단] ${line}`);
 }
 

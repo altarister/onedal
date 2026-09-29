@@ -29,7 +29,10 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
-import { getActiveCalls, buildOrderSync, setOrderStatus } from "../core/helpers";
+import { getActiveCalls, buildOrderSync, setOrderStatus, filterVersionOf } from "../core/helpers";
+
+/** 🧹 sync 푸시 «로그»는 내용이 바뀔 때만 — 푸시 자체는 늘 나간다 (reviews/22 ①-3 · 한 판 1,023줄이 같은 내용이었다) */
+const lastSyncLogSig = new Map<string, string>();
 import { stepRecordsOf, stepsView, bridgeUndoMilestone, milestoneAlreadyRecorded } from "./stepSeeder";
 
 /**
@@ -287,8 +290,13 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
 
     if (io) {
         const payload = Array.from(session.pendingOrdersData.values());
-        console.log(`📤 [Socket 푸시] sync-active-orders (활성 ${getActiveCalls(session).length}건)`);
-        io.to(userId).emit("sync-active-orders", buildOrderSync(session));
+        const sync = buildOrderSync(session);
+        const sig = filterVersionOf(sync);
+        if (lastSyncLogSig.get(userId) !== sig) {
+            lastSyncLogSig.set(userId, sig);
+            console.log(`📤 [Socket 푸시] sync-active-orders (활성 ${getActiveCalls(session).length}건 · 지문 ${sig})`);
+        }
+        io.to(userId).emit("sync-active-orders", sync);
     }
 }
 
@@ -524,8 +532,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         const isAlreadyIncluded = session.myOrders.some(c => c.id === orderId);
 
         if (!isAlreadyIncluded) {
-            logRoadmapEvent("서버", "해당 콜을 '내 퀵(myOrders)' 배열에 추가 및 병합 궤적 생성 연산");
-            /**
+                /**
              * 🎯 **목표값 — 이 콜을 잡던 순간의 필터값** (기사님 확정).
              *
              * 🔴 **하차지 좌표로 «어느 목적지 쪽인가»를 가르지 않는다.** 기사님이 그 필터값으로 콜을 보고 잡으신 것이니
@@ -667,7 +674,6 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         logRoadmapEvent("서버", "관제탑에게 확정되었음(order-confirmed) 정보 전달");
         io.to(userId).emit("order-confirmed", orderId);
 
-        logRoadmapEvent("서버", "합짐을 위한 반경/목적지 추천 키워드로 다이나믹 필터 생성 연산");
 
         // ━━━ 3단계 State Machine 적용 ━━━
         // 합짐 차종: [내 차 용량 − 확정된 콜 전부의 용량]으로 남은 적재 가능 차종을 추론한다.
@@ -961,7 +967,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
 
         if (rows.length === 0) return;
 
-        logRoadmapEvent("서버", `[Session DB Load] 서버 재시작으로 인한 궤적(Polyline) 복구 연산 시작. 대상 콜: ${rows.length}개`);
+        logRoadmapEvent("서버", `♻️ [복구] 서버 재시작 — DB 의 콜 ${rows.length}개 궤적을 되살린다`);
 
         // 2. session 메모리 재구성
         for (const row of rows) {
@@ -1090,7 +1096,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             }
         }
 
-        logRoadmapEvent("서버", `[Session DB Load] 궤적 복구 연산 완료. 클라이언트로 sync-active-orders 강제 전송`);
+        logRoadmapEvent("서버", `♻️ [복구] DB 의 콜·궤적을 세션에 되살렸다 — 관제웹에 sync 전송`);
 
         // 5. [이슈 W] 복구된 데이터로부터 배차 상태를 다시 "파생"시킨다.
         //
@@ -1142,8 +1148,13 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
 
         // 6. 프론트엔드로 복구된 궤적 즉시 전송
         if (io) {
-            console.log(`📤 [Socket 푸시] sync-active-orders (활성 ${getActiveCalls(session).length}건)`);
-            io.to(userId).emit("sync-active-orders", buildOrderSync(session));
+            const sync = buildOrderSync(session);
+            const sig = filterVersionOf(sync);
+            if (lastSyncLogSig.get(userId) !== sig) {
+                lastSyncLogSig.set(userId, sig);
+                console.log(`📤 [Socket 푸시] sync-active-orders (활성 ${getActiveCalls(session).length}건 · 지문 ${sig})`);
+            }
+            io.to(userId).emit("sync-active-orders", sync);
         }
 
     } catch (err) {
