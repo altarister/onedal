@@ -341,7 +341,13 @@ const stmtInsertFilter = db.prepare(`
 `);
 
 // ━━━ 내부 유틸: activeFilter 로그 출력 ━━━
+/** 🧹 세션마다 마지막으로 적은 필터 지문 — 같은 값을 다시 넣은 호출(한 판에 약 1/4)은 적지 않는다 */
+const lastFilterLogSig = new WeakMap<object, string>();
+
 function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType: string, changes: Partial<AutoDispatchFilter>) {
+    const sig = filterVersionOf(session.activeFilter);
+    if (lastFilterLogSig.get(session) === sig) return;
+    lastFilterLogSig.set(session, sig);
     /**
      * 🧹 전문을 다시 찍지 않는다 — 한 판에 300번 바뀌면 전문 30줄이 9,000줄을 만든다 (reviews/22 ①-3).
      *    바뀐 칸의 반영 후 값과 전체 지문만 남긴다 — 전체가 궁금하면 같은 지문의 피기백(`filterVersionOf`)이 답한다.
@@ -350,7 +356,7 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
     const changed = Object.keys(changes).map(k => `${k}=${JSON.stringify(af[k])}`).join(' · ') || '(바뀐 칸 없음)';
     logRoadmapEvent('필터',
         "서버",
-        `[FilterManager] 필터 변경 (${actionType}) — ${changed} · 지문 ${filterVersionOf(session.activeFilter)}`
+        `[FilterManager] 필터 변경 (${actionType}) — ${changed} · 지문 ${sig}`
     );
 }
 

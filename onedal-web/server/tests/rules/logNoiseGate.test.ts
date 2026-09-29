@@ -72,3 +72,10 @@ describe('🧹 한 판 400줄 — 되풀이 줄은 바뀔 때만', () => {
         expect(src('routes/scrap.ts')).toContain("if (data.length > 0) logRoadmapEvent('통신', \"서버\", ` [/api/scrap 수신]");
     });
 });
+
+describe('🧹 필터 변경 줄 — 필터가 실제로 바뀐 때만', () => {
+    it('지문이 앞서 적은 것과 같으면 다시 적지 않는다', () => {
+        const s = readFileSync(join(__dirname, '../../src/state/filterManager.ts'), 'utf8');
+        expect(s).toContain('if (lastFilterLogSig.get(session) === sig) return;');
+    });
+});
