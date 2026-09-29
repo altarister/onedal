@@ -2,6 +2,8 @@ package com.onedal.app.plugins.kakaopicker
 
 import android.content.Context
 import com.onedal.app.core.LogTag
+import com.onedal.app.core.LogOnce
+import com.onedal.app.core.ScreenReadingOrder
 import org.json.JSONObject
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.engine.FareFloor
@@ -320,7 +322,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             nodes: List<Triple<String, Int, Int>>,
             tabWords: Set<String> = BOTTOM_TAB_WORDS,
             adWords: Set<String> = AD_START_WORDS,
-        ): List<Pair<Int, List<String>>> {
+        ): List<Pair<Int, List<String>>> =
+            groupIndicesByFare(nodes, tabWords, adWords).map { (a, idx) -> Pair(a, idx.map { nodes[it].first }) }
+
+        /** `groupByFare` 와 같은 셈 — 글자 대신 자리번호를 돌려준다 (조립 로그가 그 글자의 top 을 찾으려고) */
+        fun groupIndicesByFare(
+            nodes: List<Triple<String, Int, Int>>,
+            tabWords: Set<String> = BOTTOM_TAB_WORDS,
+            adWords: Set<String> = AD_START_WORDS,
+        ): List<Pair<Int, List<Int>>> {
             /**
              * 📢 **광고 줄부터 아래는 뺀다** (기사님 지시 — «이 일거리 어떤가요부터는 광고, 거기는 볼 거 없어»).
              * 실측: 광고는 홈 화면에만 붙고, 광고 아래에 요금이 또 나온 판은 0개다.
@@ -337,12 +347,12 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             if (anchors.isEmpty()) return emptyList()
             val anchorCenters = anchors.map { it.value.second }
             // 🧲 각 글자를 가장 가까운 요금 하나에만 배정 — 두 카드에 겹쳐 들어가는 것을 막는다 (#86)
-            val cardTexts = List(anchors.size) { mutableListOf<String>() }
-            for ((_, n) in body) {
+            val cardIdx = List(anchors.size) { mutableListOf<Int>() }
+            for ((k, n) in body) {
                 val i = nearestAnchorIndex(anchorCenters, n.second)
-                if (i >= 0) cardTexts[i].add(n.first)
+                if (i >= 0) cardIdx[i].add(k)
             }
-            return anchors.mapIndexed { i, a -> Pair(a.index, cardTexts[i] as List<String>) }
+            return anchors.mapIndexed { i, a -> Pair(a.index, cardIdx[i] as List<Int>) }
         }
 
         /**
@@ -653,13 +663,21 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         }
 
         // 🖼️ 나누는 셈은 순수 함수 `groupByFare` 에 있다 — 실물 좌표로 통째로 검사하려고 떼어 놨다
-        val sorted = allNodes.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
-        return groupByFare(
+        val sorted = ScreenReadingOrder.sort(allNodes, { it.rect.top }, { it.rect.bottom }, { it.rect.left })
+        val groups = groupIndicesByFare(
             sorted.map { Triple(it.text, (it.rect.top + it.rect.bottom) / 2, (it.rect.left + it.rect.right) / 2) },
             bottomTabWords(),
             adStartWords(),
-        ).map { (i, texts) -> Pair(sorted[i], texts) }
+        )
+        val cards = groups.map { (i, idx) -> Pair(sorted[i], idx.map { sorted[it].text }) }
+        cardTops = groups.indices.associate { g ->
+            cards[g].second to groups[g].second.joinToString(" ") { "${sorted[it].text}@${sorted[it].rect.top}" }
+        }
+        return cards
     }
+
+    /** 📐 이번 읽기의 카드별 «글자@top» — 4토막 조립 로그가 읽는다 (다음 읽기에서 새로 채운다) */
+    private var cardTops: Map<List<String>, String> = emptyMap()
 
     override fun parse(texts: List<String>): SimplifiedOfficeOrder {
         // 🗂️ 낱말은 배차망 사전에서 온다 — 서버가 내려준 것 + 앱 기본값 (못 받아도 최소한은 돈다)
@@ -770,6 +788,12 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                     pickup = "${bodyLocations[0]} ${bodyLocations[1]}"
                     val dropDong = bodyLocations.drop(2).firstOrNull { isDongLike(it) } ?: bodyLocations[2]
                     dropoff = "$destTag $dropDong"
+                    // 📐 순서가 틀렸을 때 추정이 아니라 실측으로 보게 — 카드당 한 번 (ScreenReadingOrder)
+                    cardTops[texts]?.let { tops ->
+                        if (LogOnce.changed("picker-4piece:${texts.joinToString(" ")}", tops))
+                            com.onedal.app.core.AppLogger.d("1DAL_PICKER", LogTag.SCREEN,
+                                "📐 [4토막 조립] $tops → 출발 $pickup · 도착 $dropoff")
+                    }
                 }
             }
         } else {

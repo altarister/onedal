@@ -460,8 +460,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
      *    `Hwamul24CardGrouping` 한 곳에 있다 — 거기는 접근성 노드 없이 검사할 수 있다.
      */
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
-        // Y축(top)을 최우선으로, X축(left)을 차순위로 정렬
-        val sortedNodes = allNodes.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
+        // 세로로 겹치면 같은 줄, 줄 안은 왼쪽부터 — top 한 값의 1px 어긋남에 좌우가 뒤집히지 않게 (공통 한 벌)
+        val sortedNodes = com.onedal.app.core.ScreenReadingOrder.sort(allNodes, { it.rect.top }, { it.rect.bottom }, { it.rect.left })
         val allCells = sortedNodes.map {
             Hwamul24CardGrouping.Cell(it.text, it.rect.top, it.rect.left)
         }
