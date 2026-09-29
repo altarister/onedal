@@ -101,13 +101,15 @@ class ApiClient(private val context: Context) {
         jsonBody: String,
         apiName: String,
         timeoutMs: Int = 10000,
-        maxRetries: Int = 2
+        maxRetries: Int = 2,
+        /** 1초마다 되풀이되는 보고(scrap)는 시작·완료 줄을 찍지 않는다 — 실패 줄은 그대로 남는다 (reviews/22) */
+        quiet: Boolean = false,
     ): Pair<Int, String>? {
         for (attempt in 1..maxRetries) {
             val startMs = System.currentTimeMillis()
             var conn: java.net.HttpURLConnection? = null
             try {
-                AppLogger.roadmap("[HTTP 전송] POST $apiName 시작 (시도 $attempt/$maxRetries)", "NETWORK")
+                if (!quiet) AppLogger.roadmap("[HTTP 전송] POST $apiName 시작 (시도 $attempt/$maxRetries)", "NETWORK")
 
                 conn = java.net.URL(targetUrl).openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "POST"
@@ -129,7 +131,7 @@ class ApiClient(private val context: Context) {
                 }
 
                 val elapsedMs = System.currentTimeMillis() - startMs
-                AppLogger.roadmap(
+                if (!quiet) AppLogger.roadmap(
                     "[HTTP 응답] POST $apiName 완료 (${elapsedMs}ms, HTTP $code, 시도 $attempt/$maxRetries)",
                     "NETWORK"
                 )
@@ -247,7 +249,7 @@ class ApiClient(private val context: Context) {
                 // 기존에는 confirm/detail/emergency만 재시도가 있고 scrap은 맨 요청이라,
                 // 터널·기지국 전환으로 1회만 실패해도 다음 하트비트까지 120초 공백이 생겨
                 // 서버 데드맨이 오작동(기기를 죽은 것으로 판정)하는 원인이 되었습니다.
-                val result = executeWithRetry(targetUrl, jsonBody, "/scrap", timeoutMs = 5000)
+                val result = executeWithRetry(targetUrl, jsonBody, "/scrap", timeoutMs = 5000, quiet = true)
 
                 if (result == null) {
                     val elapsedMs = System.currentTimeMillis() - startMs
@@ -262,7 +264,8 @@ class ApiClient(private val context: Context) {
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
                     
                     val screenName = payload.screenContext ?: "UNKNOWN"
-                    AppLogger.roadmap("[post /api/scrap response] deviceId: ${payload.deviceId}, (건수: ${payload.data.size})", screenName)
+                    // 📤 보고 한 번 = 한 줄 (보내기·응답·건수·걸린 시간)
+                    AppLogger.d(TAG, "📤 [scrap] 화면 $screenName · 콜 ${payload.data.size}건 · ${System.currentTimeMillis() - startMs}ms")
                     
                     if (scrapRes.dispatchEngineArgs != null) {
                         /**
@@ -301,16 +304,17 @@ class ApiClient(private val context: Context) {
                         // 기존에는 필터 전체 스키마(키워드 400여 개 포함, ~10KB)를 매 응답마다 d 레벨로 찍었다.
                         // 안전취소 대기 중엔 1초 폴링이라 초당 10KB가 쌓여 logcat 버퍼 한계에 걸려
                         // 문자열이 잘리고, 정작 봐야 할 로그가 묻혔다.
-                        // → 평소에는 요약 한 줄, 필터가 실제로 바뀐 순간에만 전체를 v 레벨로 남긴다.
-                        AppLogger.d(
-                            TAG,
-                            "📋 [필터 동기화] 차종 ${updatedFilter.allowedVehicleTypes.size}종 " +
-                                    "| 키워드 ${updatedFilter.destinationKeywords.size}개 " +
-                                    "| isActive=${updatedFilter.isActive} " +
-                                    "| ${if (updatedFilter.isSharedMode) "합짐" else "첫짐"} " +
-                                    "| minFare=${updatedFilter.minFare}"
-                        )
+                        // → 필터가 실제로 바뀐 순간에만 요약 한 줄 + 전체(v 레벨)를 남긴다.
                         if (prevFilterJson != filterJson) {
+                            // 🔕 필터가 실제로 바뀐 순간만 요약 한 줄 (응답마다 되풀이하지 않는다)
+                            AppLogger.d(
+                                TAG,
+                                "📋 [필터 동기화] 차종 ${updatedFilter.allowedVehicleTypes.size}종 " +
+                                        "| 키워드 ${updatedFilter.destinationKeywords.size}개 " +
+                                        "| isActive=${updatedFilter.isActive} " +
+                                        "| ${if (updatedFilter.isSharedMode) "합짐" else "첫짐"} " +
+                                        "| minFare=${updatedFilter.minFare}"
+                            )
                             AppLogger.v(TAG, "📋 [필터 변경 감지] 전체 스키마:\n$updatedFilter")
                         }
                         }

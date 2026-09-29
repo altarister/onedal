@@ -366,7 +366,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
         // ── 로그 출력 ──
         val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
-        if (isValidOrder) {
+        // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다 · reviews/22)
+        if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear")) {
             AppLogger.roadmap("🔍 [24시 필터] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
                     "도착지(${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
                     "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
@@ -381,7 +382,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         // 📋 상차 목록이 오면 순서 검사를 안 한다 — 뒤쪽은 서버가 «내 위치 둘레»로 이미 뺐다
         val routeOrder = if (pickupListCheck != null) RouteOrderFilter.Result(true, "상차 목록으로 거른다 — 순서 검사 안 함")
             else RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
-        if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0) {
+        if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0 && com.onedal.app.core.LogOnce.changed("pick:"+"${order.pickup}|${order.dropoff}|${order.fare}", pickupListCheck.reason)) {
             AppLogger.d(TAG, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
         }
         if (!routeOrder.passed && order.fare > 0) {

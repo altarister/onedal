@@ -320,10 +320,6 @@ class TelemetryManager(
         // 🐢 깨어난 뒤 여기까지(위치 조회·페이로드 만들기) 걸린 시간 — 이게 크면 «안에서» 걸린 것이다
         val prepMs = android.os.SystemClock.elapsedRealtime() - wokeAt
         if (prepMs >= 1_000) AppLogger.w(TAG, "🐢 [발사 준비 지연] 깨어난 뒤 ${prepMs}ms — 늦은 것은 «flush 안»이다")
-        val triggerStr = if (isHeartbeat) "⏱️ 타이머 생존신고" else "👀 화면 변경 감지"
-        // [앱폰] /api/scrap 전송 직전: 중복 해시값(출발지+도착지+요금) 검사 및 디바운스(300ms) 완료 로그
-        AppLogger.i(TAG, "🛡️ 파싱된 콜 객체의 (출발지+도착지+요금) 해시값 검사 및 디바운스(300ms) 완료. /api/scrap 전송 직전!")
-        AppLogger.roadmap("[post /api/scrap request] $triggerStr 발송  deviceId: ${payload.deviceId}, (건수: ${snapshot.size})", currentScreenContext.name)
         
         // 페이로드 상세는 AppLogger.v (Verbose) 레벨로 확인 가능 (SHOW_VERBOSE_LOGS=true 시)
         AppLogger.v(TAG, "📦 [전송 페이로드] deviceId=${payload.deviceId}, screen=${payload.screenContext}, holding=${payload.isHolding}, 콜=${snapshot.size}건")

@@ -3,6 +3,7 @@ package com.onedal.app
 import android.accessibilityservice.AccessibilityService
 import android.graphics.Rect
 import com.onedal.app.core.AppLogger
+import com.onedal.app.core.LogOnce
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.api.ApiClient
@@ -737,7 +738,8 @@ class HijackService : AccessibilityService(), ScanContext {
             return
         }
 
-        AppLogger.roadmap("📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}→$effectiveMode", telemetryManager.currentScreenContext.name)
+        // 🔕 화면 «종류»가 바뀔 때만 — 글자만 바뀐 알림(1초마다)은 되풀이하지 않는다. 목록으로 바뀔 때도 찍힌다(appLoop.mjs 가 읽는다)
+        if (LogOnce.changed("screen", detected.value)) AppLogger.roadmap("📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}→$effectiveMode", telemetryManager.currentScreenContext.name)
 
         // 🔔 리스트를 떠났다 — 남의 화면 위에 알람 테두리를 남기지 않는다 (§6-③)
         if (detected != ScreenContext.LIST) alarmSignaler.onLeaveList()
@@ -889,6 +891,7 @@ class HijackService : AccessibilityService(), ScanContext {
         var fareFail = 0
         /** 📋 요건(상차·하차)을 다 못 읽은 줄 — 그 스캔에서 뺐다 (`OrderRequirement`) */
         var unreadRow = 0
+        var seenSkipped = 0   // ⏭️ 이 스캔에서 건너뛴 이미 본 콜 수 — 요약 한 줄(바뀔 때만)
 
         /**
          * 👁️ **이번 스캔의 필터 성적표** (기사님 확정).
@@ -985,7 +988,9 @@ class HijackService : AccessibilityService(), ScanContext {
              * (캐시는 접근성 토글로 서비스가 새로 만들어져야 비워진다 — 앱을 밀어내도 안 된다)
              */
             if (callMemory.alreadyEvaluated(orderHash)) {
-                AppLogger.d(TAG, "⏭️ [이미 본 콜] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
+                seenSkipped++
+                // 🔕 콜마다 첫 한 번만 (차종만 바꾼 문제지 진단용) — 스캔마다 되풀이하지 않는다
+                if (LogOnce.changed("seen:$orderHash", "seen")) AppLogger.d(TAG, "⏭️ [이미 본 콜] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
                     "${order.fare}원 (지문 $orderHash · 기억 ${callMemory.evaluatedCount}개)")
                 continue
             }
@@ -1083,6 +1088,7 @@ class HijackService : AccessibilityService(), ScanContext {
          * 직접 모드와 모르는 모드 값은 누르지 않는다(모르면 잡지 않는다 · 규칙 ④).
          * 앱이 계약 버튼을 누르는 것은 자동뿐이다(`contractedByApp`) — 체험·알람은 판정만 받고 확정·수락은 기사님.
          */
+        if (LogOnce.changed("seenCount", "$seenSkipped") && seenSkipped > 0) AppLogger.d(TAG, "⏭️ [이미 본 콜] 이 스캔 ${seenSkipped}개 건너뜀")
         val tapsFromList = currentMode == "AUTO" || currentMode == "SIMULATION" || currentMode == "ALARM"
         val bestIdx = AlarmSignaler.pickBestIndex(alarmHits.map { it.first.fare })
         if (tapsFromList && !session.openedByApp && bestIdx >= 0) {
@@ -1462,7 +1468,6 @@ class HijackService : AccessibilityService(), ScanContext {
         session.reset {
             cancelSafeCancelTimer()
             telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 콜 잡기 모드
-            AppLogger.i(TAG, "🛡️ [앱폰] 콜 잡기 복귀 직후: 앱 메모리 상의 scrapBuffer 배열을 비우고 강제 플러시(Flush)하여 잔상 데이터를 제거함")
             telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 해제 알림
         }
     }

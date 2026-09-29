@@ -44,7 +44,9 @@ fun ScanContext.handlePreConfirmScreen(
 
     val plugin = DispatchPluginRegistry.get(currentTargetApp)
 
-    AppLogger.roadmap("[Current Page: DETAIL_PRE_CONFIRM] 진입 완료 (${plugin.label})", telemetryManager.currentScreenContext.name)
+    // 🔕 같은 콜의 상세 진입은 한 번 (화면 알림마다 되풀이하지 않는다)
+    if (com.onedal.app.core.LogOnce.changed("detailEnter", session.currentOrderId))
+        AppLogger.roadmap("[Current Page: DETAIL_PRE_CONFIRM] 진입 완료 (${plugin.label})", telemetryManager.currentScreenContext.name)
 
     // ⏱️ 누가 열었든(알람·손) · 어느 모드든 — 상세 대기 시간 뒤 리스트로 돌아온다 (#124 · 기사님 확정)
     //    앱이 열었지만 계약하지 않는 콜(체험)도 — 결재가 안 오면 여기서 돌아온다

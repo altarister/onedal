@@ -78,7 +78,6 @@ class DetailCollectMachine(
         texts.any { touchManager.findAndClickByText(rootNode, it, isStartsWith = true, mark = false) }
 
     fun clickPickup(rootNode: AccessibilityNodeInfo, fill: PopupFill) {
-        AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 확정페이지 복귀 확인 (잔상 회피 완료)", "DETAIL_CONFIRMED")
         AppLogger.d(TAG, "🏄‍♂️ [자동 상세 수집] 적요 정보 확인 완료. 출발지 정보 확인을 위해 자동 클릭 시도")
         AppLogger.roadmap("확정페이지에서 '출발지' 추출 후 클릭", "DETAIL_CONFIRMED")
         if (clickAny(rootNode, fill.pickupButtons)) {
@@ -92,7 +91,6 @@ class DetailCollectMachine(
      * 확정 화면에서 도착지 팝업 호출 (출발지 팝업 닫힌 후)
      */
     fun clickDropoff(rootNode: AccessibilityNodeInfo, fill: PopupFill) {
-        AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 확정페이지 복귀 확인 (잔상 회피 완료)", "DETAIL_CONFIRMED")
         AppLogger.d(TAG, "🏄‍♂️ [자동 상세 수집] 출발지 확인 완료. 도착지 정보 확인을 위해 자동 클릭 시도")
         AppLogger.roadmap("확정페이지에서 '도착지' 추출 후 클릭", "DETAIL_CONFIRMED")
         if (clickAny(rootNode, fill.dropoffButtons)) {
