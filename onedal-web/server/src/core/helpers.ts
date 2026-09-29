@@ -263,7 +263,9 @@ function logRouteStops(
     const pending = pendingInRoute.length
         ? ` ⚠️ 후보 포함 경로(${pendingInRoute.map(id => id.slice(-6)).join(' · ')}) → 주행분 안 씀`
         : '';
-    slog('판정', `🧭 [경로 순서] 카카오호출시점 ${kakaoCalledAt} · 홀더 ${holderId?.slice(-6) ?? '없음'} · ${body}${mismatch}${pending}`);
+    const line = `🧭 [경로 순서] 카카오호출시점 ${kakaoCalledAt} · 홀더 ${holderId?.slice(-6) ?? '없음'} · ${body}${mismatch}${pending}`;
+    if (mismatch) console.warn(line);
+    else slog('판정', line);
 }
 
 /**

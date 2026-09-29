@@ -12,7 +12,10 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { lastKnownPositionOf, MOCK_GPS_OWNER_QUIET_MS } from "../services/geoService";
 import { getUserSession, getAllActiveUserIds, UserSession } from "../state/userSessionStore";
-import { buildOrderSync } from "../core/helpers";
+import { buildOrderSync, getActiveCalls } from "../core/helpers";
+
+/** 🧹 복구 보내기 줄을 마지막으로 적었을 때의 콜·상태 — 기사님마다 따로 */
+const lastRecoverLogSig = new Map<string, string>();
 import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
 import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
 import type { RouteTl } from "../services/stepSeeder";
@@ -899,7 +902,13 @@ export function registerSocketHandlers(io: Server) {
             const json = JSON.stringify(sync);
             if (json === session.lastOrderSyncJson) continue;   // 아무것도 안 바뀌었다
             session.lastOrderSyncJson = json;
-            slog('통신', `📤 [Socket 푸시] sync-active-orders (복구)`);
+            // 🧹 내용은 1~2초마다 바뀐다(주행 시각 등) — 줄은 콜·상태가 바뀔 때만 적고, 보내기는 늘 한다
+            const calls = getActiveCalls(session);
+            const callsSig = calls.map(c => `${c.id.slice(0, 8)}:${c.status}`).join(',');
+            if (lastRecoverLogSig.get(uid) !== callsSig) {
+                lastRecoverLogSig.set(uid, callsSig);
+                slog('통신', `📤 [Socket 푸시] sync-active-orders (복구 · 활성 ${calls.length}건 ${callsSig || '없음'})`);
+            }
             io.to(uid).emit("sync-active-orders", sync);
         }
         /**

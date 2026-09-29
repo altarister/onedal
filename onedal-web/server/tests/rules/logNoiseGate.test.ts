@@ -60,3 +60,15 @@ describe('🧹 관제웹 → 서버 중계 — 유지 목록만 싣는다', () =
             expect(logs).toContain(word);
         });
 });
+
+describe('🧹 한 판 400줄 — 되풀이 줄은 바뀔 때만', () => {
+    const src = (p: string) => readFileSync(join(__dirname, '../../src', p), 'utf8');
+    it('관제웹 복구 보내기 줄은 콜·상태가 바뀔 때만 적는다 (보내기는 그대로)', () => {
+        const s = src('socket/socketHandlers.ts');
+        expect(s).toContain('lastRecoverLogSig.get(uid) !== callsSig');
+        expect(s).toContain('io.to(uid).emit("sync-active-orders", sync);');
+    });
+    it('콜이 없는 스크랩 보고는 적지 않는다', () => {
+        expect(src('routes/scrap.ts')).toContain("if (data.length > 0) logRoadmapEvent('통신', \"서버\", ` [/api/scrap 수신]");
+    });
+});

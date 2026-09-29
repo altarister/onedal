@@ -46,6 +46,16 @@ describe('🏷️ 로그 호출 자리', () => {
         expect(app.match(/push\(Line\(now, "#\$\{LogTag\./g)?.length).toBe(5);
     });
 
+    it('관제웹 콘솔의 경고·오류 줄은 #경고 를 싣고 온다', () => {
+        const web = readFileSync(join(__dirname, '../../../client-app/src/lib/roadmapLogger.ts'), 'utf8');
+        expect(web).toContain("push(`${tag}${text}`, level === 'log' ? null : '경고');");
+    });
+
+    it('«경로 순서» 줄은 길이 어긋남이 있으면 경고 줄이다', () => {
+        const helpers = readFileSync(join(SRC, 'core/helpers.ts'), 'utf8');
+        expect(helpers).toMatch(/if \(mismatch\) console\.warn\(line\);\s*else slog\('판정', line\);/);
+    });
+
     it('로드맵 줄도 태그를 받는다 — 첫 인자가 태그', () => {
         const roadmap = readFileSync(join(SRC, 'utils/roadmapLogger.ts'), 'utf8');
         expect(roadmap).toMatch(/export function logRoadmapEvent\(tag: LogTag,/);

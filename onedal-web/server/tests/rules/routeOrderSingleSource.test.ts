@@ -92,12 +92,15 @@ describe('계측 로그 — 값이 안 바뀌면 다시 안 찍는다', () => {
 
     /** 찍힌 `🧭 [경로 순서]` 줄만 모은다 */
     const linesWhile = (fn: () => void): string[] => {
+        // 길이가 어긋난 줄은 경고 줄로 나간다 — 둘 다 모은다
         const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
         try {
             fn();
-            return spy.mock.calls.map(c => String(c[0])).filter(l => l.includes('[경로 순서]'));
+            return [...spy.mock.calls, ...warn.mock.calls].map(c => String(c[0])).filter(l => l.includes('[경로 순서]'));
         } finally {
             spy.mockRestore();
+            warn.mockRestore();
         }
     };
 

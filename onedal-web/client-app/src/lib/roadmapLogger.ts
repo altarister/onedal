@@ -238,7 +238,7 @@ export function installConsoleCapture(): void {
                 const now = Date.now();
                 if (now - secStamp >= 1000) {               // ③ 초당 상한
                     if (overflow > 0) {
-                        push(`⚠️ [콘솔 넘침] ${overflow}줄을 못 실었습니다 (초당 ${PER_SEC_CAP}줄까지)`);
+                        push(`⚠️ [콘솔 넘침] ${overflow}줄을 못 실었습니다 (초당 ${PER_SEC_CAP}줄까지)`, '경고');
                         overflow = 0;
                     }
                     secStamp = now; secBucket = 0;
@@ -247,18 +247,18 @@ export function installConsoleCapture(): void {
                 secBucket++;
 
                 const tag = level === 'log' ? '' : `[${level.toUpperCase()}] `;
-                push(`${tag}${text}`);
+                push(`${tag}${text}`, level === 'log' ? null : '경고');
             } catch { /* 로그가 화면을 죽이지 않는다 */ }
         };
     };
     (['log', 'warn', 'error'] as const).forEach(wrap);
 }
 
-/** 버퍼에 한 줄 — 시각은 여기서 찍는다 */
-function push(msg: string): void {
+/** 버퍼에 한 줄 — 시각은 여기서 찍는다. 콘솔 줄은 내용을 모르니 태그는 경고·오류 단계에만 싣는다 (없으면 서버 파일에 `#없음`) */
+function push(msg: string, logTag: LogTag | null): void {
     const now = new Date();
     const ts = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
-    BUFFER.push({ at: ts, msg: `[🖥️콘솔] ${msg}`.slice(0, 500) });
+    BUFFER.push({ at: ts, msg: `${logTag ? `#${logTag} ` : ''}[🖥️콘솔] ${msg}`.slice(0, 500) });
     while (BUFFER.length > MAX_BUFFER) { BUFFER.shift(); dropped++; }
     if (BUFFER.length >= FLUSH_LINES) void flush();
     else schedule();
