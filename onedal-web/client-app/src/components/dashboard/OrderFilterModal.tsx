@@ -8,7 +8,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
          sidoList, sggList, dongList, excludedLabel,
          resolvePhaseKey, effectiveRadii, radiusScaleOf,
          VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
-import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
+import type { PhaseKey, FlatValueKey, CallTarget, ReservationMode } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
@@ -96,6 +96,11 @@ const toValues = (f: ValueForm, prev: Record<FlatValueKey, any>): Record<FlatVal
  */
 /* 🔴 순서도 목업 그대로 — 현위 → 목적 → 라인 (`MapMockup.tsx:3229~3232`) */
 const KNOB_FIELDS: FlatValueKey[] = ['pickupRadiusKm', 'destinationRadiusKm', 'detourRadiusKm'];
+
+/** 📅 예약콜 세 값 — 기사님 말로 (reviews/23 B-4) */
+const RESERVATION_PICKS: ReadonlyArray<[ReservationMode, string]> = [
+    ['today', '오늘 콜만'], ['tomorrowToo', '내일 콜도'], ['tomorrowOnly', '내일 콜만'],
+];
 
 /** 🧰 **필터의 행** — 어디로 · 얼마나 넓게 · 어떤 콜 · 빼는 곳 (기사님 확정) */
 type RowId = 'where' | 'wide' | 'call' | 'exclude';
@@ -433,9 +438,10 @@ export default function OrderFilterModal({ isOpen, onClose,
         if (!sameList(filter?.acceptedVehicleTypes ?? [], baseFilter.acceptedVehicleTypes ?? [])) return true;
         if ((filter?.routeMode ?? true) !== (baseFilter.routeMode ?? true)) return true;   // 🛣️🔷 (조사 ①-9)
         if ((filter?.minFare ?? 0) !== (baseFilter.minFare ?? 0)) return true;             // 💵
+        if ((filter?.reservationMode ?? 'today') !== (baseFilter.reservationMode ?? 'today')) return true;   // 📅
         return false;
     }, [baseFilter, cur, quadForm, exDraft, blacklist,
-        filter?.radiusAuto, filter?.radiusBaseKm, filter?.acceptedVehicleTypes, filter?.routeMode, filter?.minFare]);
+        filter?.radiusAuto, filter?.radiusBaseKm, filter?.acceptedVehicleTypes, filter?.routeMode, filter?.minFare, filter?.reservationMode]);
 
     /**
      * ↩︎ **되돌리기 — 서버에 저장된 값으로**.
@@ -462,6 +468,7 @@ export default function OrderFilterModal({ isOpen, onClose,
             acceptedVehicleTypes: baseFilter.acceptedVehicleTypes ?? [],
             routeMode: baseFilter.routeMode ?? true,   // 🛣️🔷 (조사 ①-9)
             minFare: baseFilter.minFare ?? 0,          // 💵
+            reservationMode: baseFilter.reservationMode ?? 'today',   // 📅
         });
     };
 
@@ -529,6 +536,7 @@ export default function OrderFilterModal({ isOpen, onClose,
             acceptedVehicleTypes: filter?.acceptedVehicleTypes ?? [],
             routeMode: filter?.routeMode ?? true,   // 🛣️🔷 필터 값이다 (조사 ①-9)
             minFare: filter?.minFare ?? 0,          // 💵 user_filters.min_fare
+            reservationMode: filter?.reservationMode ?? 'today',   // 📅 user_filters.reservation_mode
         }, saveAsDefault);
 
         onClose();
@@ -1028,8 +1036,24 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         </div>} />
                             </div>
 
-                            {/* 📅 예약콜 — 지금은 «오늘 콜만» 하나라 고르는 손잡이 없이 안내만 (reviews/23 · 내일 콜 받기는 예약 보관이 선 뒤) */}
-                            <div className="pt-1.5 text-[10.5px] text-text-muted">📅 예약콜 — 오늘 콜만 <span className="opacity-70">(내일 콜 받기는 예약 보관이 생긴 뒤 열린다)</span></div>
+                            {/**
+                              * 📅 **예약콜 — 세 값 가운데 하나** (reviews/23 B-4 · 기사님 «가»). 기본은 «오늘 콜만».
+                              *    읽는 곳은 원달앱 1차 필터 하나다 — 서버는 이 값으로 거르지 않는다. 받은 내일 콜은 예약 보관에 들고 오늘 목록과 안 섞인다.
+                              *    만지는 즉시 오늘 값으로 가고(받을 짐과 같은 길), 💾 가 평소 설정까지 싣는다.
+                              */}
+                            <div className="pt-1.5 flex items-center gap-1">
+                                <span className="text-[10.5px] text-text-muted shrink-0">📅 예약콜</span>
+                                {RESERVATION_PICKS.map(([v, label]) => {
+                                    const on = (filter?.reservationMode ?? 'today') === v;
+                                    return (
+                                        <button key={v} type="button" onClick={() => updateFilter({ reservationMode: v })}
+                                            className={`px-2 py-0.5 rounded-md border text-[10.5px] font-black ${on
+                                                ? 'border-info/50 bg-info/15 text-info' : 'border-border-card text-text-muted'}`}>
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                     </FilterRow>
 
                     <FilterRow id="exclude" title="🚫 빼는 곳" danger open={openRow === 'exclude'} onToggle={toggleRow}

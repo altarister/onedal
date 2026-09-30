@@ -30,9 +30,18 @@ describe('📅 예약콜 필터 칸', () => {
         expect(s).toMatch(/reservationMode\?: ReservationMode;/);
     });
 
-    it('관제웹 «어떤 콜» 칸은 안내 한 줄만 — 고르는 손잡이는 없다', () => {
+    it('관제웹 «어떤 콜» 칸에서 세 값을 고른다 — 예약 보관이 섰으니 연다 (reviews/23 B-4)', () => {
         const modal = read(join(__dirname, '../../../client-app/src/components/dashboard/OrderFilterModal.tsx'));
-        expect(modal).toContain('📅 예약콜 — 오늘 콜만');
+        expect(modal).toContain("RESERVATION_PICKS");
+        for (const v of ["'today'", "'tomorrowToo'", "'tomorrowOnly'"]) expect(modal).toContain(v);
+        expect(modal).toContain('updateFilter({ reservationMode: v })');
+    });
+
+    it('🔴 «오늘 값» 네 자리가 예약콜을 안다 — 저장 안 함 판단 · 되돌리기 · 💾 저장 (하나라도 빠지면 거짓말하거나 자정에 풀린다)', () => {
+        const modal = read(join(__dirname, '../../../client-app/src/components/dashboard/OrderFilterModal.tsx'));
+        expect(modal).toContain("if ((filter?.reservationMode ?? 'today') !== (baseFilter.reservationMode ?? 'today')) return true;");
+        expect(modal).toContain("reservationMode: baseFilter.reservationMode ?? 'today',");
+        expect(modal).toContain("reservationMode: filter?.reservationMode ?? 'today',");
     });
 });
 
