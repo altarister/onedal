@@ -298,7 +298,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /** 📜 스크롤 알림을 모아 목록을 한 번 읽는다 */
     private val scrollGate = com.onedal.app.core.ScrollGate()
-    private val scrollScan = Runnable { scrollGate.onScanned(); scanScreen() }
+    private val scrollScan = Runnable { scrollGate.onScanned(); listScanTimer.scrollRead(); scanScreen() }
 
     /** 🚦 «내용 바뀜»을 모아 읽는다 — 첫 알림 즉시 · 250ms 안은 한 번 (`ContentGate`) */
     private val contentGate = com.onedal.app.core.ContentGate()
@@ -306,6 +306,25 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /** ⏱️ 상세 대기 중 화면 읽기 시간 요약 (1초마다 한 줄) */
     private val detailScanTimer = com.onedal.app.core.ScanTimer()
+    /** 👁️ 목록 화면 읽기 요약 — 알림·읽기가 있던 1초에만 한 줄 (스크롤 뒤 4초 동안 로그 0줄이라 원인을 못 가렸다 · 실물 09-30 16:18) */
+    private val listScanTimer = com.onedal.app.core.ScanTimer()
+
+    /** 요약을 셀 곳과 그 줄 이름표 — 목록·상세 둘만 센다 (로그 이름표에만 쓴다) */
+    private fun scanTimerOf(ctx: ScreenContext): Pair<com.onedal.app.core.ScanTimer, String>? = when (ctx) {
+        ScreenContext.LIST -> listScanTimer to "⏱️ [목록 화면 읽기]"
+        ScreenContext.DETAIL_PRE_CONFIRM -> detailScanTimer to "⏱️ [상세 중 화면 읽기]"
+        else -> null
+    }
+
+    /** 👁️ 상세에서 목록으로 돌아온 5초 — 요약을 1초마다 빠짐없이(0번이어도) · 그 구간이 «스크롤 뒤 상세»가 안 되던 자리다 */
+    private var listWatchTicks = 0
+    private val listWatch = object : Runnable {
+        override fun run() {
+            listScanTimer.tick(android.os.SystemClock.elapsedRealtime(), force = true)
+                ?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏱️ [목록 화면 읽기] (복귀 ${6 - listWatchTicks}초) $it") }
+            if (--listWatchTicks > 0) mainHandler.postDelayed(this, 1000)
+        }
+    }
 
     // ── AUTO 모드 타이머 ──
     override val mainHandler = Handler(Looper.getMainLooper())
@@ -632,8 +651,10 @@ class HijackService : AccessibilityService(), ScanContext {
         val eventPkg = event.packageName?.toString()
         val isOwnApp = eventPkg == packageName
         // ⏱️ 상세 대기 중 알림 출처를 센다 — 1초 요약에 «어디서 몇 번» (`ScanTimer`)
-        if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM)
-            detailScanTimer.countEvent("${eventPkg?.substringAfterLast('.') ?: "?"}/${com.onedal.app.core.ScanTimer.typeWord(event.eventType)}")
+        scanTimerOf(telemetryManager.currentScreenContext)?.let { (timer, label) ->
+            timer.countEvent("${eventPkg?.substringAfterLast('.') ?: "?"}/${com.onedal.app.core.ScanTimer.typeWord(event.eventType)}",
+                android.os.SystemClock.elapsedRealtime())?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
+        }
         // 🚦 스크롤은 목록일 때만 모아서(`ScrollGate`) · 내용 바뀜은 250ms 모아서(`ContentGate`) · 창 바뀜은 바로
         val now = android.os.SystemClock.elapsedRealtime()
         when (com.onedal.app.core.EventRoute.of(event.eventType, isOwnApp, telemetryManager.currentScreenContext == ScreenContext.LIST)) {
@@ -698,18 +719,24 @@ class HijackService : AccessibilityService(), ScanContext {
          * 그려질 시간을 주고 몇 박자 뒤 다시 본다. 헛읽기가 늘어도 **지문이 막아** 전송은
          * 안 는다. 재확인은 **읽기만** 한다 — 터치하면 «LIST 오탐 → 세션 리셋»이 난다.
          */
-        val rootNode = rootInActiveWindow ?: return
+        val rootNode = rootInActiveWindow ?: run {
+            // 👁️ 화면을 못 얻었다 — 로그 없이 돌아가던 길을 요약에 센다
+            scanTimerOf(telemetryManager.currentScreenContext)?.let { (timer, label) ->
+                timer.noRoot(android.os.SystemClock.elapsedRealtime())?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
+            }
+            return
+        }
 
         // 핑거프린트 비교 → 화면 변경 없으면 스킵
         val screenTexts = mutableListOf<String>()
         val gatherStartMs = android.os.SystemClock.elapsedRealtime()
         gatherNodeTexts(rootNode, screenTexts)
         val fingerprint = screenTexts.sorted().hashCode()
-        // ⏱️ 상세 대기 중 화면 읽기가 main 을 얼마나 쓰나 — 1초마다 요약 한 줄(이벤트마다 줄은 남기지 않는다 · 상세 속도)
-        if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
+        // ⏱️ 화면 읽기가 main 을 얼마나 쓰나 · 같은 글자로 건너뛰었나 — 목록·상세 1초마다 요약 한 줄(이벤트마다 줄은 남기지 않는다)
+        scanTimerOf(telemetryManager.currentScreenContext)?.let { (timer, label) ->
             val nowMs = android.os.SystemClock.elapsedRealtime()
-            detailScanTimer.record(nowMs - gatherStartMs, fingerprint == lastScreenFingerprint, nowMs)
-                ?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏱️ [상세 중 화면 읽기] $it") }
+            timer.record(nowMs - gatherStartMs, fingerprint == lastScreenFingerprint, nowMs)
+                ?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
         }
         if (fingerprint == lastScreenFingerprint) {
             touchManager.onScreen(telemetryManager.currentScreenContext, textChanged = false)   // 👆 화면 그대로 — 누른 것이 안 먹혔나 본다
@@ -826,6 +853,10 @@ class HijackService : AccessibilityService(), ScanContext {
         if (isListScreen && !wasListScreen) {
             AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
             resetSessionState()
+            // 👁️ 돌아온 5초는 목록 요약을 1초마다 빠짐없이 (`listWatch`)
+            mainHandler.removeCallbacks(listWatch)
+            listWatchTicks = 5
+            mainHandler.postDelayed(listWatch, 1000)
             // 👁️ 리셋한 뒤에 «못 본 시간»을 남긴다 — 리셋이 먼저다 (콜의 끝이 우선)
             if (listBlindSinceMs > 0L) {
                 val blindSec = (System.currentTimeMillis() - listBlindSinceMs) / 1000.0
