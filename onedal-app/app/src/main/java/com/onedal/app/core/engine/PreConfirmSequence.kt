@@ -250,10 +250,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
     }
     session.isVerifyingSnapshot = true
 
-    val opener = KakaoPickerKeywords.detailOpener(
-        session.alarmTappedAtMs,
-        android.os.SystemClock.elapsedRealtime()
-    )
+    val opener = settleOpener()
     // «앱이 눌렀나»는 한 사실로 읽는다 — `dropIfNotTappedCall` 과 같은 `openedByApp` (시간 창 `opener` 는 로그용)
     val tappedCard = session.alarmTappedCard?.takeIf { session.openedByApp }
     AppLogger.d(TAG, LogTag.CALL_STAGE, "📸 [사진 판독 시작] 연 쪽: ${if (session.openedByApp) "앱" else "손"} · 누른 뒤 시간 창: $opener")
@@ -278,10 +275,14 @@ private fun ScanContext.handlePreConfirmSnapshot(
                 clock.mark("대기")
                 try {
                 val verifyResult = pickerParser.verify(detail, tappedCard, matchedListCard, screenTexts, rawScreenStr, recentListOrders)
+                // 🎯 누른 줄과 달라 손 상세로 돌렸으면(`DetailOwner.KEEP_AS_HAND`) 누른 줄 값을 버리고 손 상세 길로 다시 대조한다
+                fun asHand(): SimplifiedOfficeOrder = when (val r = pickerParser.verify(detail, null, matchedListCard, screenTexts, rawScreenStr, recentListOrders)) {
+                    is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Success -> r.order
+                }
                 clock.mark("대조")
                 when (verifyResult) {
                     is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Success -> {
-                        val verifiedOrder = verifyResult.order
+                        var verifiedOrder = verifyResult.order
                         session.isVerifyingSnapshot = false
                         if (session.isDetailScrapSent) return@post
                         if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
@@ -311,6 +312,14 @@ private fun ScanContext.handlePreConfirmSnapshot(
                         val notTapped = dropIfNotTappedCall(verifiedOrder, rawScreenStr)
                         clock.mark("누른 콜")
                         if (notTapped) return@post
+                        if (tappedCard != null && !session.openedByApp) {
+                            verifiedOrder = asHand()
+                            val stillMissing = OrderRequirement.missingDetail(verifiedOrder)
+                            if (stillMissing.isNotEmpty()) {
+                                dropUnfilledCall("손 상세로 다시 대조 — 요건 미달 ${stillMissing.joinToString(" · ")}")
+                                return@post
+                            }
+                        }
                         // 🔎 채운 뒤 필터 한 번 — 같은 함수 (앱이 연 콜만 거른다 · 기사님이 연 상세는 그대로 보낸다)
                         val filteredOut = session.openedByApp && !passesFilterAfterFill(verifiedOrder)
                         clock.mark("필터")
@@ -379,9 +388,25 @@ private fun ScanContext.handlePreConfirmSnapshot(
  * 어긋나면 이상 징후(DETAIL_MISMATCH)를 남기고, 그 콜을 «막았다»로 내리고 목록으로. 돌려주는 값: 버렸나.
  */
 fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: String): Boolean {
+    settleOpener()
     val tapped = session.alarmTappedCard?.takeIf { session.openedByApp } ?: return false
     val reason = TappedCall.mismatch(tapped, order) ?: return false
-    AppLogger.w(TAG, LogTag.CALL_STAGE, "🎯 [누른 콜 아님] $reason — 서버에 보내지 않고 목록으로")
+    if (DetailOwner.onMismatch(session.contractedByApp) == DetailOwner.OnMismatch.KEEP_AS_HAND) {
+        // 👆 앱이 판정만 할 상세 — 닫으면 기사님 손과 부딪힌다. 손 상세로 보고 판정만 보낸다(이상 징후는 남긴다)
+        AppLogger.w(TAG, LogTag.CALL_STAGE, "🎯 [누른 콜 아님] $reason — 판정만 할 상세라 닫지 않는다 · 손 상세로 판정만")
+        apiClient.sendAnomalyReport(
+            targetApp = currentTargetApp,
+            screenName = telemetryManager.currentScreenContext.name,
+            failureReason = "DETAIL_MISMATCH: $reason · 손 상세로 봄",
+            listOrderInfo = mapOf("fare" to tapped.fare, "pickup" to tapped.pickup, "dropoff" to tapped.dropoff),
+            detailParsedText = rawScreenStr.take(500),
+            ocrResult = null,
+        )
+        demoteTappedCall(reason)
+        releaseAppOpened("누른 콜 아님 — $reason")
+        return false
+    }
+    AppLogger.w(TAG, LogTag.CALL_STAGE, "🎯 [누른 콜 아님] $reason — 계약할 상세라 서버에 보내지 않고 목록으로")
     apiClient.sendAnomalyReport(
         targetApp = currentTargetApp,
         screenName = telemetryManager.currentScreenContext.name,
@@ -394,6 +419,25 @@ fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: 
     demoteTappedCall(reason)
     abortPreConfirm()
     return true
+}
+
+/**
+ * 👆 **연 쪽을 한 곳으로** — 판정만 할 상세에서 앱이 누른 지 시간 창 밖에 열렸으면 손 상세로 본다(`DetailOwner.releaseToHand`).
+ * 사진 판독과 «누른 그 콜인가»가 같은 사실을 읽게 한다. 돌려주는 값: 시간 창의 연 쪽(로그용).
+ */
+fun ScanContext.settleOpener(): String {
+    val opener = KakaoPickerKeywords.detailOpener(session.alarmTappedAtMs, android.os.SystemClock.elapsedRealtime())
+    if (DetailOwner.releaseToHand(session.openedByApp, session.contractedByApp, opener))
+        releaseAppOpened("앱이 누른 지 ${KakaoPickerKeywords.ALARM_OPEN_WINDOW_MS / 1000}초 밖에 열린 상세")
+    return opener
+}
+
+/** 👆 «앱이 연 콜»을 풀어 손 상세로 — 앱이 누른 줄과 대조하지 않는다 */
+fun ScanContext.releaseAppOpened(reason: String) {
+    AppLogger.i(TAG, LogTag.CALL_STAGE, "👆 [손 상세로 봄] $reason — 앱이 누른 줄(${session.alarmTappedCard?.let { "${it.pickup}→${it.dropoff} ${it.fare}원" } ?: "없음"})과 대조하지 않는다")
+    session.openedByApp = false
+    session.alarmTappedCard = null
+    session.alarmTappedAtMs = 0L
 }
 
 /**

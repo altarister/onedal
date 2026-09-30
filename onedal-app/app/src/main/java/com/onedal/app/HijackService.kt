@@ -473,6 +473,15 @@ class HijackService : AccessibilityService(), ScanContext {
                 screenName = f.screen.name,
                 failureReason = "TAP_FAILED: ${f.key.take(30)} · ${f.reason} · ${f.waitedMs}ms · 연속 ${f.streak}",
             )
+            // 👆 안 먹힌 누르기가 세운 «앱이 연 콜»을 되돌린다 — 목록 그대로라 목록 리셋이 안 온다 (`DetailOwner.releaseOnTapFailed`)
+            mainHandler.post {
+                val tappedKey = session.alarmTappedCard?.let { "call:${CallMemory.fingerprintOf(it)}" }
+                if (com.onedal.app.core.engine.DetailOwner.releaseOnTapFailed(session.openedByApp, f.key, tappedKey, f.screen == ScreenContext.LIST)) {
+                    AppLogger.i(TAG, LogTag.TAP, "👆 [앱이 연 콜 되돌림] 누르기 안 먹힘 — 목록 그대로라 «앱이 연 콜» 기억을 지운다 · ${f.key}")
+                    demoteTappedCall("누르기 안 먹힘")
+                    resetSessionState()
+                }
+            }
         }
         collectMachine = DetailCollectMachine(touchManager)
         screenReader = com.onedal.app.core.ScreenReader(this)

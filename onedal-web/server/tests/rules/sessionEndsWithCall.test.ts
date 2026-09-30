@@ -70,11 +70,12 @@ describe('🔚 세션은 콜이 끝날 때만 지운다', () => {
      * 🔴 남은 자리는 **전부 콜의 끝**이어야 한다. 새 자리가 늘면 이 숫자가 흔들리고,
      *    그때 "이것도 콜의 끝인가"를 다시 묻게 된다.
      */
-    it('🔴 세션을 지우는 자리는 콜이 끝나는 일곱 곳뿐이다', () => {
+    it('🔴 세션을 지우는 자리는 콜이 끝나는 여덟 곳뿐이다', () => {
         // 선언(`private fun resetSessionState()`)은 호출이 아니다 — 빼고 센다
         // 배차망 자동 전환(applyTargetApp) — 다른 배차망으로 갈아타는 순간
         // 체험(SIMULATION) 뒤로가기 복귀 · 알람에서 앱이 연 콜이 결재 CANCEL 을 받아 목록으로 돌아올 때
+        // 앱이 누른 목록 줄이 안 먹혔을 때(화면 그대로 · 목록 리셋이 안 온다 — `DetailOwner.releaseOnTapFailed`)
         const hits = src().match(/(?<!fun )resetSessionState\(\)/g) ?? [];
-        expect(hits.length).toBe(7);
+        expect(hits.length).toBe(8);
     });
 });

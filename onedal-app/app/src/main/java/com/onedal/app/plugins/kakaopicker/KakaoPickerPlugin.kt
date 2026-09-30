@@ -79,8 +79,14 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
     /** 🧹 픽커 상세 글은 «픽업지» 노드부터 — 목록 잔상을 뗀다 */
     override fun detailTextsOf(texts: List<String>): List<String> = KakaoPickerParser.detailTextsOf(texts)
 
-    override fun listHeaderVisible(allNodes: List<com.onedal.app.core.ScreenTextNode>): Boolean =
-        KakaoPickerParser.listHeaderVisibleOf(allNodes.map { it.text })
+    override fun listHeaderVisible(allNodes: List<com.onedal.app.core.ScreenTextNode>): Boolean {
+        // 📏 아래 탭 줄 위끝 — 맨 아래 줄 누르기가 안 먹힌 자리(Y=2102 · 라이브 09-30 22:56 · 23:01)를 가를 재료. 바뀔 때만 한 줄
+        allNodes.filter { it.text.trim() == "신규" || it.text.trim() == "내 오더" }.minOfOrNull { it.rect.top }?.let { y ->
+            if (com.onedal.app.core.LogOnce.changed("tab-bar-top", "$y"))
+                com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "📏 [아래 탭 줄] 위끝 Y=$y (신규·내 오더)")
+        }
+        return KakaoPickerParser.listHeaderVisibleOf(allNodes.map { it.text })
+    }
 
     override fun planListTap(
         allNodes: List<com.onedal.app.core.ScreenTextNode>,
