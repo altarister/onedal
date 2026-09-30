@@ -15,6 +15,11 @@ class Hwamul24ReservationTest {
     private val card = listOf("경기 시흥 정왕동", "당상", "지", "15Km", "06:32", "지", "경기 안산 상록구 장상동",
         "당착", "2.5톤/윙", "당일상 당착 공파렛 50p / 10시전하차", "독차", "인수증", "50,000원")
 
+    @Test fun `화물 글 09시 이후 상차 - 오후에 봐도 오늘 콜`() {
+        val three = LocalDateTime.of(2026, 9, 30, 15, 0)
+        assertEquals(0, Hwamul24Parser.reservationOf(listOf("공파렛,09시 이후 상차"), null, three, memo = "공파렛,09시 이후 상차").day)
+    }
+
     @Test fun `당상 배지는 오늘 상차`() {
         assertEquals(Reservation(true, 0, null), Hwamul24Parser.reservationOf(card, null, now))
     }

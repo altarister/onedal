@@ -26,6 +26,8 @@ data class Reservation(val marked: Boolean, val day: Int?, val at: String?) {
  * 🔴 **상차 쪽 글자만 넘긴다** — 하차 쪽 시각(인성 «낼8/중구봉래동»)은 도착 약속이지 상차 날이 아니다.
  *    원문 전체를 넘기지 않는다 — «보낼»의 «낼»처럼 말 속의 글자가 걸린다.
  * 🔴 «N:NN까지»(픽커 오늘 콜의 마감)는 예약이 아니다.
+ * 🕘 시각 뒤 «이후·부터»(시작 시각 · «09시 이후 상차»)는 약속 시각이 아니라 «그때부터 실을 수 있다»다 — 날 낱말이 없으면 오늘.
+ *    그 밖의 날 없는 시각은 기사님 결정 그대로 — 지금보다 이르면 내일.
  */
 object ReservationText {
 
@@ -37,6 +39,7 @@ object ReservationText {
     private val CLOCK = Regex("""(\d{1,2}):(\d{2})(?!\s*까지)""")
     private val HOUR = Regex("""(오전|오후|저녁|밤|낮|새벽)?\s*(\d{1,2})시\s*(반|(\d{1,2})분?)?""")
     /** «낼8» — 인성이 «시»를 빼고 적는 꼴 */
+    private val START_FORM = Regex("""\d{1,2}(?:시(?:\s*\d{1,2}분?|반)?|:\d{2})\s*(?:이후|부터)""")
     private val BARE_HOUR_AFTER_TOMORROW = Regex("""낼\s*(\d{1,2})(?![\d시:])""")
 
     fun read(text: String?, now: LocalDateTime, bareLaterTimeIsToday: Boolean): Reservation {
@@ -53,6 +56,7 @@ object ReservationText {
         val time = timeOf(t)
         val day = explicitDay ?: time?.let { at ->
             when {
+                START_FORM.containsMatchIn(t) -> 0
                 at < now.toLocalTime() -> 1
                 bareLaterTimeIsToday -> 0
                 else -> null

@@ -79,6 +79,7 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
         parsed.unreadLines.forEach { ScreenWords.add(it, WordKind.UNKNOWN, photoSample, page = com.onedal.app.core.Page.DETAIL) }   // 📸 찍은 화면(상세)으로 — 판독이 끝날 때 화면이 바뀌어 있어도
         if (alarmTappedCard != null) {
             val verifiedOrder = alarmTappedCard.copy(
+                fare = detailFare(alarmTappedCard.fare, parsed.finalIncome) ?: alarmTappedCard.fare,
                 pickup = fullAddress(parsed.pickup),
                 dropoff = fullAddress(parsed.dropoff),
                 rawText = rawScreenStr,
@@ -93,8 +94,8 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
                 "🧾 [손 상세 대조] 목록: ${if (matchedListOrder != null) "찾음" else "못 찾음"} · 사진: " +
                     KakaoPickerParser.photoMatchReport(parsed.pickup, parsed.dropoff, recent) +
                     " · 사진 최종 수익 ${parsed.finalIncome ?: "없음"}")
-            // 요금: 목록 줄 → 사진의 «최종 수익»(같은 높이 줄) → 상세 글자 (손으로 연 상세는 목록 줄이 없을 수 있다)
-            val resolvedFare = baseOrder?.fare?.takeIf { it > 0 } ?: parsed.finalIncome ?: extractFareFromTexts(screenTexts)
+            // 요금: 사진의 «최종 수익» → 목록 줄 → 상세 글자 (`detailFare` · 손으로 연 상세는 목록 줄이 없을 수 있다)
+            val resolvedFare = detailFare(baseOrder?.fare, parsed.finalIncome) ?: extractFareFromTexts(screenTexts)
 
             val now = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
@@ -125,6 +126,20 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
             )
             return VerifyResult.Success(manualOrder.withReservation(detailReservation(parsed)), parsed)
         }
+    }
+
+    /**
+     * 💰 **판정 요금 — 사진의 «최종 수익»이 있으면 그것, 없으면 목록 줄 요금** (기사님 «가» · `PickerFinalFareTest`).
+     * 픽커는 시간이 지나며 요금을 올려 목록 줄 요금과 다를 수 있다 — 두 값이 다르면 한 줄. 목록 줄(본 콜 기억 지문)은 바꾸지 않는다.
+     * 알람 필터(목록 단계)는 목록 요금 그대로, 채운 뒤 필터·서버 판정은 이 값.
+     */
+    private fun detailFare(listFare: Int?, finalIncome: Int?): Int? {
+        val list = listFare?.takeIf { it > 0 }
+        val fin = finalIncome?.takeIf { it > 0 } ?: return list
+        if (list != null && list != fin && com.onedal.app.core.LogOnce.changed("detail-fare:$list", "$fin"))
+            com.onedal.app.core.AppLogger.i("1DAL_PRE_CONFIRM", com.onedal.app.core.LogTag.CALL_STAGE,
+                "💰 [요금] 목록 ${"%,d".format(list)} → 최종 수익 ${"%,d".format(fin)}")
+        return fin
     }
 
     /**

@@ -43,6 +43,15 @@ class ReservationTextTest {
         assertEquals(Reservation(true, 1, "18:30"), read("예약 18:30", now = LocalDateTime.of(2026, 9, 30, 19, 0)))
     }
 
+    /** 🕘 시작 시각 꼴 — «그때부터 실을 수 있다»는 약속 시각이 아니다 (기사님 «가» · 교차 리뷰 ①) */
+    @Test fun `시각 뒤 이후 부터 - 날 낱말이 없으면 오늘 · 있으면 그 날`() {
+        val three = LocalDateTime.of(2026, 9, 30, 15, 0)
+        assertEquals(0, read("09시 이후 상차", now = three).day)
+        assertEquals(1, read("내일 9시 이후", now = three).day)
+        assertEquals(1, read("09:30", now = three).day)
+        assertEquals(0, read("12시부터 12시30분 사이", now = three).day)
+    }
+
     @Test fun `오전 오후 저녁 낮`() {
         assertEquals(Reservation(true, 0, "19:00"), read("저녁7시", bareLaterIsToday = true))
         assertEquals(Reservation(true, 0, "12:00"), read("낮12시", now = LocalDateTime.of(2026, 9, 30, 10, 0), bareLaterIsToday = true))
