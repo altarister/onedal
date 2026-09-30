@@ -297,6 +297,10 @@ class HijackService : AccessibilityService(), ScanContext {
     override lateinit var collectMachine: DetailCollectMachine
     override val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
 
+    /** 📜 스크롤 알림을 모아 목록을 한 번 읽는다 */
+    private val scrollGate = com.onedal.app.core.ScrollGate()
+    private val scrollScan = Runnable { scrollGate.onScanned(); scanScreen() }
+
     /** ⏱️ 상세 대기 중 화면 읽기 시간 요약 (1초마다 한 줄) */
     private val detailScanTimer = com.onedal.app.core.ScanTimer()
 
@@ -457,14 +461,18 @@ class HijackService : AccessibilityService(), ScanContext {
          * **안 본 화면은 «리스트»가 아니라 «모름»** 이다. 지금은 읽어서 답하고,
          * 아직 화면이 없으면(`null`) 그때만 «모름»이라 한다 (규칙 ③ — 파생).
          */
+        var firstPkg: String? = null
         val firstScreen = rootInActiveWindow?.let { node ->
             val texts = mutableListOf<String>()
             gatherNodeTexts(node, texts)
             val pkg = node.packageName?.toString()
+            firstPkg = pkg
             node.recycle()
             detectScreenContext(texts.joinToString(" "), pkg)
         } ?: ScreenContext.UNKNOWN
         AppLogger.i(TAG, LogTag.BOOT, "🖥️ 붙는 순간 화면: $firstScreen")
+        // 📱 새로 깔거나 접근성을 다시 켜면 목록에서 바로 붙는다 — 그 화면이 실물 배차망 목록이면 운행 기록을 켠다
+        if (TargetApp.startsTraceOnAttach(firstPkg, isList = firstScreen == ScreenContext.LIST)) startPickerTrace("붙는 순간 화면이 실물 배차망 목록")
         updateScreenContext(firstScreen)
 
         // [Piggyback V2] 서버(관제탑) 결재 수신 콜백 연결 및 고스트 응답 방어(Ghost Defense)
@@ -612,6 +620,16 @@ class HijackService : AccessibilityService(), ScanContext {
             return
         }
 
+        // 📜 스크롤 — 픽커 목록은 스크롤만으로 «내용 바뀜»을 안 낸다. 목록 화면일 때만 모아서 한 번 읽는다(`ScrollGate`)
+        //    상세 대기 중에는 화면이 목록이 아니라 이 길로 목록을 읽지 않는다
+        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+            if (telemetryManager.currentScreenContext == ScreenContext.LIST) {
+                val now = android.os.SystemClock.elapsedRealtime()
+                mainHandler.removeCallbacks(scrollScan)
+                mainHandler.postDelayed(scrollScan, (scrollGate.onScroll(now) - now).coerceAtLeast(0))
+            }
+            return
+        }
         // 🏁 토스트는 알림 이벤트로 온다 — «방금 배정된 오더입니다»(다른 기사가 먼저)만 본다
         if (event?.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
             onNotificationEvent(event)

@@ -87,6 +87,9 @@ object TargetApp {
     fun isKakaoPickerApp(packageName: String?): Boolean = packageName == KAKAOPICKER_PACKAGE
 
     /** 🏁 «먼저 가져감» 토스트를 믿는 앱 — 실제 픽커 · 시뮬레이터 앱. 그 밖 앱의 알림은 글자를 남기지 않는다(개인정보) */
+    /** 📱 붙는 순간 화면이 **실물 배차망 목록**이면 운행 기록을 켠다 — 앱을 새로 깔면 목록에서 바로 붙어 «홈에서 목록으로» 조건이 영영 안 온다(09-30 14:13) */
+    fun startsTraceOnAttach(pkg: String?, isList: Boolean): Boolean = isList && sourceOf(pkg) == "real"
+
     fun isPickerToastSource(pkg: String?): Boolean = pkg == KAKAOPICKER_PACKAGE || pkg == SIMULATOR_PACKAGE
 
     /** 📝 픽커 로그를 어디까지 남기나 — `pickerLogScope` 의 답 */
