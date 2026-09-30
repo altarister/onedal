@@ -18,16 +18,16 @@ import type { JudgeFacts, PhaseKey } from '@onedal/shared';
 /**
  * 🔙 **등 뒤 상차인가** — 목적지까지 «상차 : 현위치» 를 견준다 (여유 = 상차 반경).
  *    식은 그물과 한 벌이다 (`isPickupBackward`) — 여기서 새로 만들지 않는다 (규칙 ③).
- *    셋 중 하나라도 없으면 `null` — 목적지를 안 정하셨으면 잴 수가 없다 (규칙 ④).
+ *    넷 중 하나라도 없으면 `null` — 목적지를 안 정하셨으면 잴 수가 없다 (규칙 ④). 반경이 없으면(내일 콜의 기본 반경이 빔) 여유를 모른다.
  */
 export function pickupBackwardOf(input: {
     me: { x: number; y: number } | null;
     pickup: { x?: number | null; y?: number | null };
     goalCity: string;
     /** 여유 — 옆 동네 픽업과 GPS 흔들림을 살린다 (그물이 쓰는 값 그대로) */
-    pickupRadiusKm: number;
+    pickupRadiusKm: number | null;
 }): boolean | null {
-    if (!input.me || !input.goalCity) return null;
+    if (!input.me || !input.goalCity || input.pickupRadiusKm == null) return null;
     if (input.pickup.x == null || input.pickup.y == null) return null;
 
     let goal: { lng: number; lat: number };

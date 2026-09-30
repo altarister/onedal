@@ -64,7 +64,7 @@ function verdictLine(v: JudgmentSnapshot): string {
  * 판정 입력 — 기점 · 잡은 콜 · 목적지. 판정(`evaluate`)과 1차 신호 미리 출발(`prefetch`)이 같은 한 벌을 쓴다.
  * 세션을 읽기만 한다 — 부를 때마다 그때 값을 읽는다.
  */
-function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string }) {
+export function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string }) {
     /**
      * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (reviews/23 B-3 · 기사님 결정 3 «가»).
      *    ① 접근 구간은 지금 자리가 아니라 **집**에서 잰다 — 그날은 집에서 출발한다. 집이 비면 기점이 없다 → 그 축은 «잴 게 없음».
@@ -79,8 +79,20 @@ function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSe
      *    오늘만 바꾼 목적지로 내일 콜을 매기면 색이 틀린다. 비면 방향은 «목적지 미설정»(깎지 않는다 · 빨강 아님).
      */
     const goalNow = () => reservedLater ? (session.baseFilter.destinationCity ?? '') : goalCityOf(session, userId);
-    return { reservedLater, originNow, activeCallsNow, goalNow };
+    /**
+     * 🔙 등 뒤 상차의 여유(상차 반경) — 내일 콜은 **내일의 반경**(기본 설정 값). 오늘 자동 반경으로 줄인 값으로 재면 내일 콜을 등 뒤로 깎는다.
+     *    기본 값이 비면 오늘 반경으로 물러서지 않고 «모름»(null) — 깎지 않는다.
+     */
+    const pickupRadiusNow = (): number | null => reservedLater ? (session.baseFilter.pickupRadiusKm ?? null) : session.activeFilter.pickupRadiusKm;
+    return { reservedLater, originNow, activeCallsNow, goalNow, pickupRadiusNow };
 }
+
+/**
+ * 📞 **첫짐 상차가 무통보 약속(잡은 뒤 N분)을 넘나** — 오늘 잡아 곧 가는 콜의 약속이다.
+ *    내일 콜은 집에서 잰 접근 분이라 오늘 약속과 견줄 것이 아니다 — 딱지를 안 붙인다.
+ */
+export const firstLoadNeedsCall = (approachMin: number | null | undefined, promiseMin: number, reservedLater: boolean): boolean =>
+    !reservedLater && approachMin != null && approachMin > promiseMin;
 
 /** 단독 길찾기 인자 — 판정과 미리 출발이 같은 URL 을 만들게(같은 질문이어야 미리 출발한 답을 받아 쓴다) */
 function soloRouteArgsOf(userId: string, originNow: () => { x: number; y: number } | null | undefined, p: { x: number; y: number }, d: { x: number; y: number }) {
@@ -143,12 +155,12 @@ export class OrderEvaluator {
          *    두 사실만 본다: map 의 그 객체가 이 객체인가 · 아직 심사 중인가. 아니면 저장도 알림도 안 한다.
          */
         const alive = () => session.pendingOrdersData.get(securedOrder.id) === securedOrder && isEvaluating(securedOrder.status);
-        const { reservedLater, originNow, activeCallsNow, goalNow } = evaluationInputsOf(userId, session, securedOrder);
+        const { reservedLater, originNow, activeCallsNow, goalNow, pickupRadiusNow } = evaluationInputsOf(userId, session, securedOrder);
         /**
          * 📸 **판정 재료는 시작 때 한 번 뜬다** — 기점 · 잡은 콜 · 목적지 · 오늘 필터(얕은 사본: 칸을 그 자리에서 고치는 쪽이 있어 참조는 사진이 아니다).
          *    카카오를 기다리는 사이 GPS · 필터 변경 · KEEP 이 끼어들어도 한 판정이 옛 값/새 값을 섞지 않는다.
          */
-        const snap = { origin: originNow(), activeCalls: activeCallsNow(), goal: goalNow(), filter: { ...session.activeFilter } };
+        const snap = { origin: originNow(), activeCalls: activeCallsNow(), goal: goalNow(), pickupRadiusKm: pickupRadiusNow(), filter: { ...session.activeFilter } };
         // 📍 낡은 현위치로 우회 비용을 재면 색이 틀린다 (규칙 ⑤-3) — 비우면 내 주소로 메운다.
         //    비움만 부르면 origin 없는 카카오 호출이 되어 합짐이 전부 🔴 로 나온다 (0831 실측)
         // 판정 기준 — 원천은 DB(세션에 로그인 때 실림). 없으면(검사·초기화 전) 기본표로 폴백
@@ -262,8 +274,7 @@ export class OrderEvaluator {
                         const total = securedOrder.totalDurationMin != null
                             ? securedOrder.totalDurationMin + dwell.dwell : null;
                         const tags: string[] = [];
-                        if (securedOrder.approachDurationMin != null
-                            && securedOrder.approachDurationMin > judgmentCfg.unknown.pickupPromiseMin)
+                        if (firstLoadNeedsCall(securedOrder.approachDurationMin, judgmentCfg.unknown.pickupPromiseMin, reservedLater))
                             tags.push('통화 필수 — 무통보 상차 한계 밖');
                         if (dwell.hasUnknown) tags.push('정차 미확인(일반값)');
 
@@ -371,7 +382,7 @@ export class OrderEvaluator {
                                 me: snap.origin,
                                 pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
                                 goalCity: snap.goal,
-                                pickupRadiusKm: snap.filter.pickupRadiusKm,
+                                pickupRadiusKm: snap.pickupRadiusKm,
                             }),
                             // 🏔️ 들어가면 빈 차로 나오는 곳 — 요금으로는 안 보인다 (노하우 148행)
                             trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
@@ -836,7 +847,7 @@ export class OrderEvaluator {
                     me: snap.origin,
                     pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
                     goalCity: snap.goal,
-                    pickupRadiusKm: snap.filter.pickupRadiusKm,
+                    pickupRadiusKm: snap.pickupRadiusKm,
                 }),
                 trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
                 tags: [`판정 불가 — ${why}`],
