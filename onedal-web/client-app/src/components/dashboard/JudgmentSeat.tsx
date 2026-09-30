@@ -10,6 +10,7 @@ import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { seatConclusion } from '../../lib/seatConclusion';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
+import { twinFareNoteOf } from '../../lib/twinFare';
 
 /**
  * 🪧 **심사석** — 평가·미리보기 콜이 필터 자리를 빌려 쓰는 카드 (기사님 확정 · 와이어프레임 v13).
@@ -143,6 +144,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const judged = !!v.color;
     const c = v.color ? SOAK[v.color] : null;
     const hourly = route.judgment?.axes?.find(a => a.key === 'money')?.value;
+    const twin = twinFareNoteOf(route.tagsText);
     const score = route.judgment?.score;
     const routeText = cleanRoute(route.kakaoTimeExt);
     const negatives = route.rejectionReasons ?? [];
@@ -244,6 +246,16 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                   * ⚠️ 판정 **전**에는 적는다 — 그건 색이 아직 없어서 아무도 말해 주지 않는다.
                   */}
                 {!judged && <span className="animate-pulse" style={{ color: 'var(--color-text-muted)', fontSize: 13, fontWeight: 800 }}>판정 중…</span>}
+                {/**
+                  * 💰 **쌍둥이 콜은 요금이 추정이다** (기사님 «가») — 같은 경로 콜 둘 중 어느 것인지 몰라 낮은 요금으로 판정 받았다.
+                  *    요금 바로 왼쪽 작은 두 줄 — 먼발치에서 «이 요금은 확정이 아니다»가 보이게. 요금 줄 높이 안에 든다(판정석 높이 그대로).
+                  */}
+                {twin && (
+                    <span className="flex flex-col items-end leading-none tabular-nums" style={{ color: 'var(--color-warning)', fontSize: 9.5, fontWeight: 800, gap: 2 }}>
+                        <span>추정 · 둘 중 낮은 값</span>
+                        <span>{twin.fares}</span>
+                    </span>
+                )}
                 <span className="tabular-nums" style={{ fontSize: 19, fontWeight: 900 }}>
                     {route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만원` : '금액미상'}
                 </span>
