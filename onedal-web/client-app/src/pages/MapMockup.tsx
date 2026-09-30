@@ -31,7 +31,7 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
 import { callNodeFill, callNodeText, stopBoxBg, callTextColor, callLineColor, PROMISE_CALLED } from '../styles/callPalette';
 import { useTheme } from '@onedal/ui/theme';
 import type { SecuredOrder } from '@onedal/shared';
-import { COLOR_DOT } from '@onedal/shared';
+import { COLOR_DOT, manwonText, wonText } from '@onedal/shared';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
 import { buildLabFacts, extraDriveMin } from './labJudge';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
@@ -485,7 +485,7 @@ function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMi
                     {confirmedCount === 0 ? '노선 후보콜' : `노선 합짐${confirmedCount} 후보콜`}
                 </span>
                 <span className="min-w-0 truncate text-text-muted font-bold text-[11px]">{seat.pickup} → {seat.dropoff}</span>
-                <span className="ml-auto shrink-0 font-black text-[15px] tabular-nums">{(seat.fare / 10000).toFixed(1)}만</span>
+                <span className="ml-auto shrink-0 font-black text-[15px] tabular-nums">{manwonText(seat.fare)}</span>
             </div>
             {/* 시급 — 기사님이 가장 먼저 읽는 숫자 */}
             <div className="relative px-2 text-[19px] font-black tabular-nums leading-tight">
@@ -3464,7 +3464,7 @@ export default function MapMockup() {
                                         {' · '}<b className="text-text-primary">{routeMode ? '노선' : '동선'}</b>
                                         {uploadedInfoRef.current?.distKm != null && <>
                                             {' · 이 콜만 '}<b className="text-text-primary">{uploadedInfoRef.current.distKm}km · {uploadedInfoRef.current.durMin ?? '?'}분</b>
-                                            {uploadedInfoRef.current.tollWon != null && ` · 톨 ${uploadedInfoRef.current.tollWon.toLocaleString()}원`}
+                                            {uploadedInfoRef.current.tollWon != null && ` · 톨 ${wonText(uploadedInfoRef.current.tollWon)}`}
                                         </>}
                                     </div>
                                     {/* 🔴 «목적지까지 3거리»와 «전진/역주행»은 여기 안 적는다 — 바로 위 ① 콜 필터가
@@ -3784,7 +3784,7 @@ export default function MapMockup() {
                                                     {c.approachKm != null && <>상차지까지 <b className="text-info">{c.approachKm}km · {c.approachMin ?? '--'}분</b> · 배송 </>}
                                                     {c.routeComputedAt == null ? '⏳ 실측 중…'
                                                         : c.distKm == null ? '❌ 못 쟀다 (도로 탐색 불가) — 통화로 확인'
-                                                        : <>{c.distKm}km · {c.durMin}분 · 톨 {(c.tollWon ?? 0).toLocaleString()}원 <span className="font-normal">· 카카오 {c.optionUsed ?? '추천'}</span></>}
+                                                        : <>{c.distKm}km · {c.durMin}분 · 톨 {wonText(c.tollWon ?? 0)} <span className="font-normal">· 카카오 {c.optionUsed ?? '추천'}</span></>}
                                                 </span>
                                             </li>
                                         );

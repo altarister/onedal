@@ -7,7 +7,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
          resolvePhaseKey, effectiveRadii, radiusScaleOf,
-         VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
+         VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT, wonText } from "@onedal/shared";
 import { radiusScaleNoteOf } from '../../lib/radiusNote';
 import type { PhaseKey, FlatValueKey, CallTarget, ReservationMode } from "@onedal/shared";
 import { socket } from "../../lib/socket";
@@ -38,7 +38,7 @@ const shortWon = (won: number): string =>
     won <= 0 ? '없음'
     : won >= 10000 ? `${won / 10000}만`
     : won % 1000 === 0 ? `${won / 1000}천`
-    : `${won.toLocaleString()}원`;
+    : wonText(won);
 
 /**
  * 🚫 **자주 쓰는 제외 단어** — 목업 목록 그대로 (`MapMockup.tsx:3272`).
@@ -982,7 +982,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                                         <span className="font-mono font-black text-success whitespace-nowrap">
                                                             {!fits ? <span className="text-text-muted font-normal">용량 부족</span>
                                                              : callDiscount >= 100 ? '전부'
-                                                             : <>≥ {floor.toLocaleString()}원/km
+                                                             : <>≥ {wonText(floor)}/km
                                                                  <span className="text-text-muted/60 font-normal ml-1.5">{exampleKm}km면 {(floor * exampleKm).toLocaleString()}</span>
                                                                </>}
                                                         </span>

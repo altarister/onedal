@@ -38,7 +38,7 @@ import {
     dwellMinutes, unitPoints, slotBaseMs,
 } from '@onedal/shared';
 import type { CargoUnit } from '@onedal/shared';
-import { hhmmText } from "@onedal/shared";
+import { hhmmText, wonText } from "@onedal/shared";
 
 /** 서버 `stepsView()` 가 주는 한 단계 */
 export interface StepViewLike {
@@ -723,7 +723,7 @@ function LiveDone({ orderId, r, step, codAmount }: {
             {!pickup && codAmount != null && codAmount > 0 && (
                 <div className="rounded-md border border-warning/45 bg-warning/10 px-2.5 py-2">
                     <div className="text-[12px] font-black text-warning">
-                        💵 착불 {codAmount.toLocaleString()}원 — 지금 받으세요
+                        💵 착불 {wonText(codAmount)} — 지금 받으세요
                     </div>
                     <div className="flex gap-2 mt-2">
                         <button type="button" onClick={() => socket.emit('cod-collected', { orderId, received: true })}

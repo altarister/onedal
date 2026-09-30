@@ -1,3 +1,4 @@
+import { manwonText } from '@onedal/shared';
 import { useState } from 'react';
 import { useTheme } from '@onedal/ui/theme';
 
@@ -59,7 +60,6 @@ const LIVE = [
     { id: 'q', name: '곤지암 합짐2콜', fare: '2.8만', at: '15:10', tone: 'text-success' },
 ];
 
-const won = (n: number) => `${(n / 10000).toFixed(1)}만`;
 
 export default function DrawerMockup() {
     const { theme, toggleTheme, setTheme } = useTheme();
@@ -198,7 +198,7 @@ export default function DrawerMockup() {
                                             {TABS.find(t => t.key === c.kind)!.mark} {c.pickup} → {c.dropoff}
                                         </span>
                                         <span className="text-[12px] font-bold tabular-nums text-text-muted shrink-0">
-                                            {won(c.fare)}
+                                            {manwonText(c.fare)}
                                         </span>
                                     </div>
                                     <div className="flex items-baseline justify-between gap-2 mt-0.5">

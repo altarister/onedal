@@ -3,7 +3,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { socket } from "../../lib/socket";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
-import { CAPACITY_CONFIDENCE_LABEL, isAlreadyLoaded, isEvaluating, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
+import { CAPACITY_CONFIDENCE_LABEL, isAlreadyLoaded, isEvaluating, TRUCK_CAPACITY_SLOTS, manwonText } from '@onedal/shared';
 import { apiClient } from "../../api/apiClient";
 import { logStateChange } from '../../lib/roadmapLogger';
 import { initialMotion, motionOnFix, motionOnTick } from './driveMotion';
@@ -150,7 +150,7 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
             {/* 💰 진행 중 운임 — 콜이 없으면 안 그린다 (0원을 지어내지 않는다 · 규칙 ④) */}
             {fareSum > 0 && (
                 <span className="shrink-0 text-[12px] font-black tabular-nums text-text-primary">
-                    {(fareSum / 10000).toFixed(1)}만
+                    {manwonText(fareSum)}
                 </span>
             )}
             {liveCalls.length > 0 && filter?.capacityConfidence && (

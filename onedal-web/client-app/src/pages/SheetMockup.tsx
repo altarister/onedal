@@ -10,7 +10,7 @@ import { sheetStatus, sheetStatusLine, textWidth } from '../lib/sheetStatus';
 import StepSheetMock from '../components/dashboard/StepSheetMock';
 import { pushClock, gapTone } from '../lib/pushedTime';
 import { MOCK_PLANS, CONE_DEMO, QUAD_DEMO, QUAD_SIHEUNG, QUAD_LEG2, BOLT_STEPS, BOLT_STEPS_30, RING_DEMO, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
-import { COLOR_DOT, buildNet, buildFirstLegDemo, WAIT_PRESET, GONJIAM_DROP, GONJIAM_CALL_PATH, DONGWON_DROP, DONGWON_CALL_PATH, BORAM_DROP, BORAM_CALL_PATH, ICHEON_DROP, ICHEON_CALL_PATH, type NetParams, type NetResult } from '@onedal/shared';
+import { COLOR_DOT, wonText, buildNet, buildFirstLegDemo, WAIT_PRESET, GONJIAM_DROP, GONJIAM_CALL_PATH, DONGWON_DROP, DONGWON_CALL_PATH, BORAM_DROP, BORAM_CALL_PATH, ICHEON_DROP, ICHEON_CALL_PATH, type NetParams, type NetResult } from '@onedal/shared';
 import { SCENARIO, SEAT_CALLS } from './scenario';
 import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
 import JudgmentSeat from '../components/dashboard/JudgmentSeat';
@@ -1423,7 +1423,7 @@ export default function SheetMockup() {
                                                 onClick={() => {
                                                     setPriority(b.key);
                                                     const v = PRIORITY_SAMPLE[b.key];
-                                                    setLog(`🛣️ 「${b.long}」 으로 다시 받았습니다 — ${v.km}km / ${v.min}분 / 통행료 ${v.toll.toLocaleString()}원. `
+                                                    setLog(`🛣️ 「${b.long}」 으로 다시 받았습니다 — ${v.km}km / ${v.min}분 / 통행료 ${wonText(v.toll)}. `
                                                         + (b.key === 'TIME'
                                                             ? '🔴 이 구간에서는 추천과 값이 같습니다 — 09-03 여덟 구간 중 일곱이 그랬습니다 (경로.md §2-2).'
                                                             : b.key === 'DISTANCE'

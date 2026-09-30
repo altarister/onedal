@@ -1,4 +1,4 @@
-import { businessDayKey, isEvaluating, isTerminal, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO } from '@onedal/shared';
+import { businessDayKey, isEvaluating, isTerminal, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO, manwonText } from '@onedal/shared';
 
 /**
  * 📊 **아침 카드 — 오늘 이 시간엔 어디 → 어디가 많다** (reviews/25 4단계 · 기사님 결정 3 · 1f).
@@ -22,7 +22,6 @@ const weekdayOfDay = (day: string) => {
     return WEEKDAY_KO[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 };
 const resolved = (s: string) => s !== SIGUNGU_AMBIGUOUS && s !== SIGUNGU_UNKNOWN;
-const man = (won: number) => `${(won / 10000).toFixed(1)}만`;
 
 export function morningCardOf(reply: FlowsReply, nowMs: number): { lines: string[]; tail: string; sampleDays: number; flows: number } {
     const now = new Date(nowMs);
@@ -50,7 +49,7 @@ export function morningCardOf(reply: FlowsReply, nowMs: number): { lines: string
     const top = [...flows.values()].sort((a, b) => b.calls - a.calls).slice(0, TOP);
     const head = `📊 ${weekday}요일 ${h}~${h + WINDOW_HOURS}시 · 최근 4주${sampleDays <= 2 ? ` (표본 ${sampleDays}일)` : ''}`;
     const lines = [head, ...(top.length
-        ? top.map(f => `${f.from} → ${f.to} · 주마다 ${(f.calls / sampleDays).toFixed(1)}건${f.fareCalls ? ` · 평균 ${man(f.fareSum / f.fareCalls)}` : ''}`)
+        ? top.map(f => `${f.from} → ${f.to} · 주마다 ${(f.calls / sampleDays).toFixed(1)}건${f.fareCalls ? ` · 평균 ${manwonText(f.fareSum / f.fareCalls)}` : ''}`)
         : ['이 시간대에 본 콜이 없다'])];
     const tail = `내 폰이 본 목록 기준${hidden ? ` · 동네 못 가림 ${Math.round(hidden / total * 100)}%` : ''}`;
     return { lines, tail, sampleDays, flows: top.length };

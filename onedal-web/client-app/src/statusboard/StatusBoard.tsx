@@ -26,7 +26,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { APP_FILTER_KEYS, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabel, isModeApplying,
-         DEVICE_MODE_LABEL, deviceLabel, clockText } from '@onedal/shared';
+         DEVICE_MODE_LABEL, deviceLabel, clockText, wonText } from '@onedal/shared';
 import type { SecuredOrder, DeviceSession, DeviceModeType } from '@onedal/shared';
 import { SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind } from '@onedal/shared';
 /* 🌉 관제웹 안쪽은 **다리 하나**로만 본다 — 옮길 때 `bridge.ts` 만 새로 쓰면 된다 */
@@ -869,7 +869,7 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
             if (!r.ok) { setMadeNote(`— 서버가 안 받았다 (HTTP ${r.status})`); return; }
 
             setSeq(n => n + 1);
-            setMadeNote(`✅ ${order.pickup} → ${order.dropoff} · ${order.fare.toLocaleString()}원`);
+            setMadeNote(`✅ ${order.pickup} → ${order.dropoff} · ${wonText(order.fare)}`);
             setTick(n => n + 1);
         } catch {
             setMadeNote('— 서버에 못 닿았다');

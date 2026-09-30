@@ -1,5 +1,5 @@
 import { getAddressLabel } from './routeUtils';
-import { clockText } from "@onedal/shared";
+import { clockText, manwonText } from '@onedal/shared';
 
 /**
  * ⚪ **평가 자리의 «판정 못 함»** (기사님 «가» · onedal-1f) — 손으로 연 상세를 앱이 못 읽어 콜을 버렸을 때 서버가 보낸 한 줄.
@@ -15,7 +15,7 @@ export function unreadableAfter(_state: Unreadable | null, ev: UnreadableEvent):
 /** 두 줄 — «⚪ 판정 못 함 — 요금을 못 읽음» · «19:46:24 · 광남2동 · 1.1만» (받은 시각: 늦게 닿은 옛 보고를 알아보게) */
 export function unreadableLine(u: Unreadable): { head: string; sub: string } {
     const at = clockText(u.at) ?? '--:--:--';   // 🕐 한 모양은 shared
-    const parts = [at, u.pickup ? getAddressLabel(u.pickup) : '상차 모름', u.fare ? `${(u.fare / 10000).toFixed(1)}만` : null];
+    const parts = [at, u.pickup ? getAddressLabel(u.pickup) : '상차 모름', u.fare ? manwonText(u.fare) : null];
     return { head: `⚪ 판정 못 함 — ${u.reason}`, sub: parts.filter(Boolean).join(' · ') };
 }
 

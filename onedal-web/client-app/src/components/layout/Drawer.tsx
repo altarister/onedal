@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { deckOfCycle, type SecuredOrder } from '@onedal/shared';
+import { deckOfCycle, type SecuredOrder, manwonText } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { reservedLineOf } from '../../lib/reservedLine';
@@ -46,7 +46,7 @@ type Props = {
 type FinishedTab = Exclude<CallView, 'ACTIVE' | 'ALL'>;
 
 const won = (n?: number | null) =>
-    n == null ? '—' : `${(n / 10000).toFixed(1)}만`;
+    manwonText(n) ?? '—';
 
 /**
  * 끝난 시각 — **하차는 `completedAt`, 취소·방출은 `terminatedAt`** 이다 (서버가 나눠 적는다).

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { SecuredOrder } from "@onedal/shared";
 import { apiClient } from "../api/apiClient";
-import { hhmmText } from "@onedal/shared";
+import { hhmmText, wonText } from '@onedal/shared';
 
 export default function Settlement() {
     const [orders, setOrders] = useState<SecuredOrder[]>([]);
@@ -67,7 +67,7 @@ export default function Settlement() {
                                         {isConfirmed ? "확정" : "대기"}
                                     </div>
                                     <div className="text-lg font-black text-text-primary mt-1">
-                                        {order.fare.toLocaleString()}원
+                                        {wonText(order.fare)}
                                     </div>
                                 </div>
                             </div>

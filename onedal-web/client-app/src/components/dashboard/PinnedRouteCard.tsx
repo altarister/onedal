@@ -1,4 +1,4 @@
-import { verdictOf } from '@onedal/shared';
+import { verdictOf, manwonText, wonText } from '@onedal/shared';
 import { BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -359,7 +359,7 @@ export default function PinnedRouteCard({
                     })()}
                     {/* 💰 돈은 이 줄 맨 오른쪽 (기사님) */}
                     <span className="ml-auto text-[17px] font-black text-text-primary tabular-nums">
-                        {route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만원` : '금액미상'}
+                        {route.fare > 0 ? `${manwonText(route.fare)}원` : '금액미상'}
                     </span>
                 </div>
             )}
@@ -649,7 +649,7 @@ export default function PinnedRouteCard({
                                         <div className="flex items-center gap-2 bg-warning/12 border border-warning/40 rounded-md px-2 py-2">
                                             <span>💵</span>
                                             <span className="text-[12px] font-bold text-warning">
-                                                착불 — 하차 시 <b>{route.fare?.toLocaleString()}원</b> 직접 수령
+                                                착불 — 하차 시 <b>{wonText(route.fare)}</b> 직접 수령
                                             </span>
                                         </div>
                                     )}
@@ -828,7 +828,7 @@ export default function PinnedRouteCard({
                                         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted px-0.5 mt-1 mb-2">
                                             <span>단독 {soloKm ? `${Number(soloKm).toFixed(1)}km / ${soloMin || 0}분` : '연산 중'}</span>
                                             <span>·</span>
-                                            <span>{route.fare?.toLocaleString()}원{route.paymentType ? `(${route.paymentType})` : ''}</span>
+                                            <span>{wonText(route.fare)}{route.paymentType ? `(${route.paymentType})` : ''}</span>
                                             {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
                                             {route.scheduleText && <><span>·</span><span className="text-warning font-bold">🕒 {route.scheduleText}</span></>}
                                         </div>
