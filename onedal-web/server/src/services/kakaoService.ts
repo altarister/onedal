@@ -14,6 +14,30 @@ const KAKAO_NAV_URL = "https://apis-navi.kakaomobility.com/v1/directions";
 const KAKAO_WAYPOINTS_URL = "https://apis-navi.kakaomobility.com/v1/waypoints/directions";
 const KAKAO_LOCAL_URL = "https://dapi.kakao.com/v2/local/search";
 
+/**
+ * ⏱️ **카카오 한 호출의 제한 시간** — 없으면 카카오가 멈출 때 판정이 오지 않아 앱이 먼저 안전취소한다.
+ * 길찾기 5초: 로컬 0.58~0.79초 · 실서버 로그 1.97·2.3초의 약 2배. 합짐 최악(좌표 3 + base 5 + 합짐 5 = 13초)도
+ * 안전취소 30초 안이라 기사님이 판정을 볼 시간이 남는다. 좌표 질의 3초: 두 주소 합이 1.19초였다.
+ */
+const KAKAO_ROUTE_TIMEOUT_MS = 5000;
+const KAKAO_LOCAL_TIMEOUT_MS = 3000;
+
+/**
+ * 카카오를 부르고 JSON 을 받는다 — 제한 시간(`AbortSignal.timeout`)과 HTTP 상태를 본다.
+ * 시간 초과는 «응답 없음(N초)», 상태 오류(429 한도 초과 · 5xx)는 «HTTP N» 으로 던진다 — 판정의 실패 갈래가 원인을 그대로 적는다.
+ */
+export async function kakaoJson(url: string, init: RequestInit, timeoutMs: number, label: string): Promise<any> {
+    let res: Response;
+    try {
+        res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+    } catch (e: any) {
+        if (e?.name === 'TimeoutError' || e?.name === 'AbortError') throw new Error(`카카오 ${label} 응답 없음(${timeoutMs / 1000}초)`);
+        throw e;
+    }
+    if (!res.ok) throw new Error(`카카오 ${label} HTTP ${res.status}`);
+    return res.json();
+}
+
 function getHeaders() {
     // process.env는 함수 호출 시점에 읽어야 dotenv 로딩 순서에 영향 받지 않음
     const apiKey = process.env.KAKAO_REST_API_KEY || "";
@@ -295,8 +319,7 @@ export async function calculateSoloRoute(
     
     slog('판정', `[Kakao Nav API (Solo)] 호출 URL: ${url}`);
     
-    const res = await fetch(url, { headers: getHeaders() });
-    const data = await res.json();
+    const data = await kakaoJson(url, { headers: getHeaders() }, KAKAO_ROUTE_TIMEOUT_MS, '길찾기');
     if (!data.routes || data.routes.length === 0) {
         console.error(`❌ [Kakao API Error (Solo)] 경로 탐색 실패:`, JSON.stringify(data));
         throw new Error(`경로 탐색 실패: ${data.msg || "routes 배열 없음"}`);
@@ -306,7 +329,7 @@ export async function calculateSoloRoute(
     if (data.routes[0].result_code !== 0) {
         const msg = parseKakaoErrorMsg(data.routes[0].result_code, data.routes[0].result_msg);
         console.error(`❌ [Kakao API Error (Solo)] 에러 코드 ${data.routes[0].result_code}: ${msg}`);
-        slog('경고', `🛡️ [서버] 카카오 API 에러 감지: 초당 호출 제한(Rate Limit) 임박 여부 모니터링 중...`);
+        slog('경고', `🛡️ [서버] 카카오 길찾기 오류 코드 ${data.routes[0].result_code}`);
         throw new Error(`카카오에러: ${msg}`);
     }
     
@@ -397,7 +420,12 @@ export async function calculateDetourRoute(
     if (baseWaypoints) {
         baseUrl += `&waypoints=${baseWaypoints}`;
     }
-    const baseData = cachedBase ? null : await (await fetch(baseUrl, { headers })).json();
+    const baseData = cachedBase ? null : await kakaoJson(baseUrl, { headers }, KAKAO_ROUTE_TIMEOUT_MS, '합짐 비교 경로');
+    /* 🧮 base 가 비면 0 으로 넘기지 않는다 — 늘어난 분이 합짐 전체가 되어 좋은 합짐이 «똥»으로 보이고, 그 0 이 캐시돼 뒤 후보까지 번진다 */
+    if (baseData && (!baseData.routes?.length || baseData.routes[0].result_code !== 0)) {
+        const r0 = baseData.routes?.[0];
+        throw new Error(`합짐 비교 경로 탐색 실패: ${r0 ? parseKakaoErrorMsg(r0.result_code, r0.result_msg) : (baseData.msg || "routes 배열 없음")}`);
+    }
     const baseSummary = baseData?.routes?.[0]?.summary;
 
     // 2. 합짐(경유) 연산 (다중 경유지 POST API 사용 - 최대 30개 지원)
@@ -427,15 +455,14 @@ export async function calculateDetourRoute(
     // 🧹 요청 사실 한 줄 — 좌표·경유 수면 되짚기에 족하다 (reviews/22 ①-3 «계산당 한 줄»)
     slog('판정', `🚙 [카카오 합짐 경로] 경유 ${wpArray.length}곳 · ${mergedOriginX},${mergedOriginY} → ${mergedDestX},${mergedDestY}`);
     
-    const mergedRes = await fetch(KAKAO_WAYPOINTS_URL, { 
+    const mergedData = await kakaoJson(KAKAO_WAYPOINTS_URL, {
         method: "POST",
         headers: {
             ...headers,
             "Content-Type": "application/json"
         },
         body: JSON.stringify(requestBody)
-    });
-    const mergedData = await mergedRes.json();
+    }, KAKAO_ROUTE_TIMEOUT_MS, '합짐 경로');
     
     if (!mergedData.routes || mergedData.routes.length === 0) {
         console.error(`❌ [Kakao API Error (Detour)] 우회 경로 탐색 실패. 응답 코드=${mergedData.msg || '알수없음'}, 상세:`, JSON.stringify(mergedData));
@@ -444,7 +471,7 @@ export async function calculateDetourRoute(
         if (mergedData.routes[0].result_code !== 0) {
             const msg = parseKakaoErrorMsg(mergedData.routes[0].result_code, mergedData.routes[0].result_msg);
             console.error(`❌ [Kakao API Error (Detour)] 에러 코드 ${mergedData.routes[0].result_code}: ${msg}`);
-            slog('경고', `🛡️ [서버] 카카오 API 에러 감지: 초당 호출 제한(Rate Limit) 임박 여부 모니터링 중...`);
+            slog('경고', `🛡️ [서버] 카카오 합짐 경로 오류 코드 ${mergedData.routes[0].result_code}`);
             throw new Error(`카카오합짐에러: ${msg}`);
         }
     }
@@ -569,8 +596,7 @@ export async function geocodeAddress(query: string): Promise<{x: number, y: numb
         const headers = getHeaders();
         const promises = fallbackQueries.map((fq, index) => {
             const url = `${KAKAO_LOCAL_URL}/${fq.type}.json?query=${encodeURIComponent(fq.text)}`;
-            return fetch(url, { headers })
-                .then(res => res.json())
+            return kakaoJson(url, { headers }, KAKAO_LOCAL_TIMEOUT_MS, '좌표')
                 .then(data => {
                     if (data.documents && data.documents.length > 0) {
                         return { 
@@ -645,16 +671,14 @@ export async function compareDirections(
     
     // 1. 단독 주행 (목적지 다이렉트)
     const baseUrl = `${KAKAO_NAV_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}&priority=RECOMMEND&car_type=${carType}`;
-    const baseRes = await fetch(baseUrl, { method: "GET", headers });
-    const baseData = await baseRes.json();
+    const baseData = await kakaoJson(baseUrl, { method: "GET", headers }, KAKAO_ROUTE_TIMEOUT_MS, '길찾기');
 
     // 2. 합짐 주행 (경유지 포함)
     const waypointsQuery = waypoints && waypoints.length > 0
         ? `&waypoints=${waypoints.map(wp => `${wp.x},${wp.y}`).join('|')}`
         : '';
     const mergedUrl = `${KAKAO_NAV_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}${waypointsQuery}&priority=RECOMMEND&car_type=${carType}`;
-    const mergedRes = await fetch(mergedUrl, { method: "GET", headers });
-    const mergedData = await mergedRes.json();
+    const mergedData = await kakaoJson(mergedUrl, { method: "GET", headers }, KAKAO_ROUTE_TIMEOUT_MS, '길찾기');
 
     if (!baseData.routes || baseData.routes.length === 0 || !mergedData.routes || mergedData.routes.length === 0) {
         throw new Error(`Kakao API: 경로 탐색 결과가 없습니다.`);

@@ -2,7 +2,7 @@ import { businessDayKey, restoreWhere, mapVehicleToKakaoCarType, getRemainingCap
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
-         CALL_TARGET_LABEL, isEvaluating } from "@onedal/shared";
+         CALL_TARGET_LABEL, isEvaluating, isTerminal } from "@onedal/shared";
 import { reservedForOf, isLaterThan, isHeldReserved, takeReserved } from "./reservedOrders";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
@@ -481,6 +481,11 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         || (targetDeviceId ? getDeviceMode(targetDeviceId, userId) === 'SIMULATION' : false);
 
     const isKeep = status === 'ORDER_CONFIRMED';
+    /* 🚪 끝난 콜(안전취소 · 방출)에는 KEEP 을 싣지 않는다 — 앱은 이미 취소했는데 서버만 «잡음»이 되면 유령 콜이 적재·경유를 좁힌다 */
+    if (isKeep && cachedPending && isTerminal(cachedPending.status)) {
+        slog('결재', `🚪 [KEEP 막음] ${orderId} 는 ${cachedPending.status} 로 끝난 콜이다 — 앱에 KEEP 을 싣지 않는다`);
+        return { success: false, action: status };
+    }
     const piggybackAction = isKeep ? (isSimulatedMode ? 'SIMULATED_KEEP' : 'KEEP') : 'CANCEL';
 
     // [Option B] Piggyback 결재 기록: pendingDecisions에 action을 기록하면

@@ -1,7 +1,7 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
          deriveRouteTimeline, minRouteBuffer, marginalDetourMin, tailSplitOf,
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
-         soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey } from "@onedal/shared";
+         soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
@@ -74,6 +74,13 @@ export class OrderEvaluator {
      */
     public async evaluate(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any): Promise<void> {
         const session = getUserSession(userId);
+        const t0 = Date.now();
+        let geoMs = 0, routeMs = 0, merged = false;
+        /**
+         * 🪦 **아직 이 콜의 판정인가** — 카카오를 기다리는 사이 안전취소(같은 객체의 status)나 새 판정(map 이 다른 객체)이 끼어든다.
+         *    두 사실만 본다: map 의 그 객체가 이 객체인가 · 아직 심사 중인가. 아니면 저장도 알림도 안 한다.
+         */
+        const alive = () => session.pendingOrdersData.get(securedOrder.id) === securedOrder && isEvaluating(securedOrder.status);
         /**
          * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (reviews/23 B-3 · 기사님 결정 3 «가»).
          *    ① 접근 구간은 지금 자리가 아니라 **집**에서 잰다 — 그날은 집에서 출발한다. 집이 비면 기점이 없다 → 그 축은 «잴 게 없음».
@@ -115,10 +122,12 @@ export class OrderEvaluator {
                 const needPickup = !securedOrder.pickupX || !securedOrder.pickupY;
                 const needDropoff = !securedOrder.dropoffX || !securedOrder.dropoffY;
 
+                const geoT0 = Date.now();
                 const [pCoord, dCoord] = await Promise.all([
                     needPickup ? geocodeAddress(securedOrder.pickup) : Promise.resolve(null),
                     needDropoff ? geocodeAddress(securedOrder.dropoff) : Promise.resolve(null),
                 ]);
+                geoMs = Date.now() - geoT0;
 
                 if (needPickup) {
                     slog('판정', `🌍 [Geocoding] 상차지 변환: '${securedOrder.pickup}' -> ${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
@@ -147,6 +156,7 @@ export class OrderEvaluator {
 
                     if (!isSharedEvaluate) {
                         // 단독 오더 연산
+                        const routeT0 = Date.now();
                         const result = await calculateSoloRoute(
                             securedOrder.pickupX!, securedOrder.pickupY!,
                             securedOrder.dropoffX!, securedOrder.dropoffY!,
@@ -154,6 +164,7 @@ export class OrderEvaluator {
                             routingOptions.defaultPriority,
                             routingOptions.carType
                         );
+                        routeMs = Date.now() - routeT0;
 
                         // 🔴 필드를 손으로 채우지 않는다 — routeComposer 의 규약을 안 타면
                         //    **접근 구간(현위치 → 상차지)이 통째로 버려진다.** 콜을 잡는 주 경로라 특히 그렇다.
@@ -346,7 +357,7 @@ export class OrderEvaluator {
                          */
 
                         // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
-                        OrderRepository.saveJudgment(securedOrder.id, userId, dry);
+                        if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, dry);
                         (securedOrder as any).judgment = dry;
 
                         // 관제웹 카드가 이 문자열의 '꿀'/'똥'/'사고' 표식으로 색을 정한다 (합짐 timeExt 와 같은 규약)
@@ -366,6 +377,8 @@ export class OrderEvaluator {
                          *    `extra` 가 정확히 이 자리를 위한 파라미터다 —
                          *    *"후보 콜은 아직 안 실었으므로 상차지를 남긴다."*
                          */
+                        merged = true;
+                        const routeT0 = Date.now();
                         const result = await composeMergedRoute({
                             calls: activeCalls,
                             extra: securedOrder,
@@ -381,6 +394,7 @@ export class OrderEvaluator {
                                     ? judgmentCfg.unknown.pickupDwellMin : judgmentCfg.unknown.dropoffDwellMin,
                             },
                         });
+                        routeMs = Date.now() - routeT0;
                         if (!result) {
                             // 좌표가 하나도 없다 — 기존 실패 처리로 떨어뜨린다
                             throw new Error("합짐 경로 조립 실패: 유효한 좌표가 없습니다");
@@ -700,7 +714,7 @@ export class OrderEvaluator {
                              */
 
                             // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
-                            OrderRepository.saveJudgment(securedOrder.id, userId, dry);
+                            if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, dry);
                             (securedOrder as any).judgment = dry;
                             recommend = `'${dry.color}'`;
 
@@ -784,7 +798,7 @@ export class OrderEvaluator {
                 tags: [`판정 불가 — ${why}`],
             }), judgmentCfg));
             slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
-            OrderRepository.saveJudgment(securedOrder.id, userId, dry);
+            if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, dry);
             (securedOrder as any).judgment = dry;
         }
 
@@ -808,7 +822,13 @@ export class OrderEvaluator {
             slog('판정', `   - 👍 [장점 수집] (${pros.length}건): ${pros.join(' | ')}`);
         }
 
+        const timing = `좌표 ${geoMs}ms · 길찾기 ${routeMs}ms · 합 ${Date.now() - t0}ms · ${merged ? '합짐' : '단독'}`;
+        if (!alive()) {
+            slog('판정', `🪦 [판정 버림] ${securedOrder.id.slice(-6)} — 판정 도중 끝났거나 다른 판정으로 바뀐 콜 (${securedOrder.status}) · 저장·알림 안 함 · ${timing}`);
+            return;
+        }
         securedOrder.status = 'ORDER_AWAITING_DECISION';
+        slog('판정', `⏱️ [판정 시간] ${securedOrder.id.slice(-6)} · ${timing}`);
 
         if (io) {
             slog('판정', `📤 [Socket 푸시] order-evaluated (${securedOrder.id}) - 상태 승급: ORDER_AWAITING_DECISION`);

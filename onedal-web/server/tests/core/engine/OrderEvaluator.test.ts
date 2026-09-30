@@ -70,6 +70,9 @@ describe('OrderEvaluator', () => {
         };
 
         process.env.KAKAO_REST_API_KEY = "test-key"; // API Key 우회
+        // 실제 흐름처럼 상세 보고 문(detail.ts)이 심사 중으로 세션에 올린 콜을 판정한다 — 아니면 판정 끝 확인(alive)이 버린다
+        order.status = 'ORDER_SECURED_EVALUATING';
+        userSessionStore.getUserSession().pendingOrdersData.set(order.id, order);
 
         await evaluator.evaluate('test-user', order, mockIo);
 
