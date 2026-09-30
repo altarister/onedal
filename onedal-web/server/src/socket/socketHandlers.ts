@@ -794,18 +794,6 @@ export function registerSocketHandlers(io: Server) {
 
         // 착불 표시는 단계 행(cod_received)이, 상태는 orders 가 원천이다
 
-        // 카드 헤더에서 약속 시각만 바꾼다. 짐 정보는 건드리지 않는다
-        safeOn(socket, "set-stop-deadline", (data: { orderId: string, stopType: 'pickup' | 'dropoff', deadlineAt: string | null }) => {
-            if (!data.orderId) throw new Error("orderId 누락");
-            // 새 장부의 통화 행 약속만 고친다 (짐 정보 불변)
-            const table = data.stopType === 'pickup' ? 'step_call_pickup' : 'step_call_dropoff';
-            db.prepare(`UPDATE ${table} SET promised_arrival_at = ? WHERE orderId = ?`)
-              .run(data.deadlineAt, data.orderId);
-            const label = data.stopType === 'pickup' ? '상차' : '하차';
-            slog('콜단계', `🕒 [${label} 약속 시각] ${data.orderId.slice(0, 8)} → ${data.deadlineAt?.slice(11, 16) ?? '해제'}`);
-            socket.emit("steps-synced", { orderId: data.orderId, steps: stepsView(data.orderId, getUserSession(userId)?.judgment) });
-        });
-
         /**
          * 신고 불일치를 어떻게 할지 결정.
          *
