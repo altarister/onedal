@@ -94,6 +94,8 @@ class SessionManager {
      *    찍고 바로 0 으로 비우고, 이쪽은 미리보기가 카드를 되찾을 때까지 남아 있어야 한다.
      */
     var alarmTappedAtMs: Long = 0L
+    /** 🏁 그 콜을 누르기로 정한 목록 읽기의 시각(부팅 기준) — «발견→누름 ms» (먼저 가져감 한 줄) */
+    var alarmFoundAtMs: Long = 0L
 
     /** 📏 인성 팝업 3장 채우기를 시작한 시각(부팅 기준) — 채우기에 걸린 시간을 로그로 남긴다 */
     var fillStartedAtMs: Long = 0L
@@ -161,6 +163,7 @@ class SessionManager {
         lastDetailOrder = null
         alarmTappedCard = null
         alarmTappedAtMs = 0L
+        alarmFoundAtMs = 0L
         currentOrderId = ""
         openedByApp = false
         contractedByApp = false

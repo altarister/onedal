@@ -612,10 +612,44 @@ class HijackService : AccessibilityService(), ScanContext {
             return
         }
 
+        // 🏁 토스트는 알림 이벤트로 온다 — «방금 배정된 오더입니다»(다른 기사가 먼저)만 본다
+        if (event?.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
+            onNotificationEvent(event)
+            return
+        }
         val watched = event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
                 event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
         if (!watched) return
         scanScreen()
+    }
+
+    /**
+     * 🏁 **다른 기사가 먼저 가져갔다** (실물 09-30 13:08:45 · 발견→누름 141ms 인데도 빼앗겼다).
+     * 픽커·시뮬 앱의 «배정» 토스트만 본다 — 다른 앱 알림은 글자를 남기지 않는다(개인정보).
+     * 누르는 중이면 «누르기 안 먹힘» 대신 여기서 끝낸다(누르기 실패 수에 안 센다). 빼앗긴 콜을 셀 수 있게 한 줄 + 이상 징후 CALL_TAKEN.
+     */
+    private fun onNotificationEvent(event: AccessibilityEvent) {
+        if (!TargetApp.isPickerToastSource(event.packageName?.toString())) return
+        val text = event.text.joinToString(" ")
+        if (!com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.isTakenToast(text)) return
+        val rec = touchManager.resolveTakenByOther()
+        val card = session.alarmTappedCard
+        val foundToTap = if (session.alarmFoundAtMs > 0 && session.alarmTappedAtMs >= session.alarmFoundAtMs)
+            "${session.alarmTappedAtMs - session.alarmFoundAtMs}ms" else "모름"
+        val firstSeen = card?.let { c ->
+            val fp = CallMemory.fingerprintOf(c)
+            recentListOrders.firstOrNull { CallMemory.fingerprintOf(it) == fp }?.timestamp
+        } ?: "모름"
+        val what = card?.let { "${it.fare}원 ${it.pickup}→${it.dropoff}" } ?: "누른 줄 모름"
+        AppLogger.w(TAG, LogTag.TAP, "🏁 [먼저 가져감] 다른 기사가 먼저 — $what · 발견→누름 $foundToTap · 목록에 처음 보인 때 $firstSeen · 누르는 중 ${if (rec != null) "이었다" else "아니었다"}")
+        apiClient.sendAnomalyReport(
+            targetApp = currentTargetApp,
+            screenName = telemetryManager.currentScreenContext.name,
+            failureReason = "CALL_TAKEN: 발견→누름 $foundToTap · 처음 보인 때 $firstSeen",
+            listOrderInfo = card?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
+            detailParsedText = text.take(200),
+            ocrResult = null,
+        )
     }
 
     /**
@@ -906,6 +940,7 @@ class HijackService : AccessibilityService(), ScanContext {
      */
 
     private fun handleListScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
+        val listReadAtMs = android.os.SystemClock.elapsedRealtime()   // 🏁 «발견→누름»의 발견
         // 🎛️ 이 배차망에서 실제로 도는 모드 (자동인데 픽커면 알람) — 검사(deviceMode · appSafeDefaults)가 이 이름의 글자를 읽는다
         val currentMode = effectiveMode
         // 👻 상세→리스트 복귀 직후 잔상 방어 (0830 23:04 실측) — 상세 글자가 남은 판은 버린다.
@@ -1188,6 +1223,7 @@ class HijackService : AccessibilityService(), ScanContext {
                          */
                         session.alarmTappedCard = order
                         session.alarmTappedAtMs = alarmTapAtMs
+                        session.alarmFoundAtMs = listReadAtMs
                         // 📊 서버 보고는 루프에서 이미 했다 (`markReportedOnce`) — 여기서 다시 보내지 않는다
                     }
                 }

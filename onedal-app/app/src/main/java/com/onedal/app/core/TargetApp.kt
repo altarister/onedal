@@ -86,6 +86,9 @@ object TargetApp {
      */
     fun isKakaoPickerApp(packageName: String?): Boolean = packageName == KAKAOPICKER_PACKAGE
 
+    /** 🏁 «먼저 가져감» 토스트를 믿는 앱 — 실제 픽커 · 시뮬레이터 앱. 그 밖 앱의 알림은 글자를 남기지 않는다(개인정보) */
+    fun isPickerToastSource(pkg: String?): Boolean = pkg == KAKAOPICKER_PACKAGE || pkg == SIMULATOR_PACKAGE
+
     /** 📝 픽커 로그를 어디까지 남기나 — `pickerLogScope` 의 답 */
     enum class PickerLog {
         /** 안 남긴다 */

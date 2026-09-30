@@ -57,6 +57,18 @@ class AutoTouchManager(private val service: AccessibilityService) {
         screenNow = screen
     }
 
+    /**
+     * 🏁 **다른 기사가 먼저 가져갔다** — 누르는 중이던 것을 «누르기 안 먹힘»이 아니라 끝난 것으로 내린다(누르기 실패 수에 안 센다).
+     * 돌려주는 값: 누르는 중이던 것(없으면 null).
+     */
+    fun resolveTakenByOther(): TapInFlight.Record? {
+        val rec = inFlight ?: return null
+        failStreak.remove(rec.key)
+        inFlight = null
+        inFlightRefire = null
+        return rec
+    }
+
     private fun fail(rec: TapInFlight.Record, reason: String, now: Long) {
         val streak = (failStreak[rec.key] ?: 0) + 1
         failStreak[rec.key] = streak

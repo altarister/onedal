@@ -327,6 +327,14 @@ object KakaoPickerKeywords {
     /** 🚫 배정 완료 토스트의 글자 — 화면 판별(에러)과 파서(지역에서 뺀다)가 **이 한 곳**을 본다 (규칙 ③) */
     const val ASSIGNED_TOAST_WORD = "이미 배정이 완료된"
 
+    /**
+     * 🏁 **다른 기사가 먼저 가져갔다는 토스트** — «방금 배정된 오더입니다»(실물 09-30 13:08:45) · «이미 배정이 완료된 …».
+     * 토스트는 화면 글자가 아니라 알림 이벤트로 온다(`HijackService` · 접근성 설정 typeNotificationStateChanged).
+     */
+    private val TAKEN_TOAST_WORDS = listOf("방금 배정된 오더", ASSIGNED_TOAST_WORD)
+
+    fun isTakenToast(text: String): Boolean = TAKEN_TOAST_WORDS.any { text.contains(it) }
+
     val PICKER = ScreenKeywords(
         // 리스트: 상단 고정 헤더 «리스트 설정»이 이 화면에만 있다 (덤프 04~10 · 0830 전부)
         listRequired = listOf("리스트 설정"),
