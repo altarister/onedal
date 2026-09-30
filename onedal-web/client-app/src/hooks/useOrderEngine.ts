@@ -1,5 +1,6 @@
 import { verdictOf } from '../lib/verdict';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { unreadableAfter, type Unreadable } from '../lib/unreadable';
 import { setRouteOrigin } from '../stores/driverPositionStore';
 import { socket } from "../lib/socket";
 import { apiBase } from "../lib/serverTarget";   // 🎯 주소를 정하는 곳은 하나다 (규칙 ③)
@@ -34,6 +35,8 @@ export function useOrderEngine() {
      * 관제탑의 완료/취소 탭 표시용 — 적재·경로 계산에는 절대 쓰지 않는다.
      */
     const [terminatedOrders, setTerminatedOrders] = useState<SecuredOrder[]>([]);
+    /** ⚪ 손으로 연 상세를 앱이 못 읽음 — 평가 자리의 «판정 못 함» 한 줄 (`lib/unreadable`) */
+    const [unreadable, setUnreadable] = useState<Unreadable | null>(null);
     /** 📅 예약 보관 — 내일 이후 콜. 오늘 목록과 안 섞는다 — 서랍 «예약» 칸만 그린다 (reviews/23 B-4) */
     const [reservedOrders, setReservedOrders] = useState<SecuredOrder[]>([]);
     /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의) */
@@ -151,6 +154,7 @@ export function useOrderEngine() {
         };
         // 1단계: 1차 선점 수신 (BASIC) — 닫기/취소 버튼 노출
         const onOrderEvaluating = (secured: SecuredOrder) => {
+            setUnreadable(prev => unreadableAfter(prev, { type: 'evaluating' }));
             logRoadmapEvent("콜단계", "웹", `🟢 [웹 수신] order-evaluating | ID: ${secured.id} | 기기: ${secured.capturedDeviceId} | ${secured.dropoff}`, "관제대시보드");
             logRoadmapEvent("화면", "웹", `확정페이지 진입 (선점 수신으로 상세 모드 구동)`, "관제대시보드");
             logRoadmapEvent("화면", "웹", "PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리", "관제대시보드");
@@ -341,6 +345,13 @@ export function useOrderEngine() {
             setCancelBudgetToast(p);
         };
         socket.on("cancel-budget-reached", onCancelBudgetReached);
+        const onUnreadable = (body: Unreadable) => {
+            logRoadmapEvent("판정", "웹", `⚪ [웹 수신] detail-unreadable | ${body.reason} | ${body.pickup ?? '상차 모름'}`, "관제대시보드");
+            setUnreadable(prev => unreadableAfter(prev, { type: 'unreadable', body }));
+        };
+        const onUnreadableClear = () => setUnreadable(prev => unreadableAfter(prev, { type: 'clear' }));
+        socket.on("detail-unreadable", onUnreadable);
+        socket.on("detail-unreadable-clear", onUnreadableClear);
 
         return () => {
             socket.off("connect", onConnect);
@@ -355,6 +366,8 @@ export function useOrderEngine() {
             socket.off("order-confirmed", onTerminalReload);
             socket.off("sync-active-orders", onSyncActiveOrders);
             socket.off("cancel-budget-reached", onCancelBudgetReached);
+            socket.off("detail-unreadable", onUnreadable);
+            socket.off("detail-unreadable-clear", onUnreadableClear);
         };
     }, []);
 
@@ -386,5 +399,6 @@ export function useOrderEngine() {
         reservedOrders,
         handleDecision,
         handleRecalculate,
+        unreadable,
     };
 }

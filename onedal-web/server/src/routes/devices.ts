@@ -242,6 +242,8 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                 const name = (c?: ScreenContextType) => screenLabelOf(net, c)?.label ?? c ?? '모름';
                 slog('화면', `🖥️ [화면 바뀜] ${session.deviceName || deviceId} · ` +
                     `${name(session.screenContext)} → ${name(screenContext)} · 직전 보고와 ${gap}`);
+                /* ⚪ 상세에서 나가면 평가 자리의 «판정 못 함»을 지운다 — 들어올 때 지우면 먼저 닿은 요건 미달 보고를 곧바로 지운다(다른 길이라 순서가 없다) */
+                if (isDetailScreen(session.screenContext) && !isDetailScreen(screenContext)) io?.to(userId).emit('detail-unreadable-clear');
             }
             session.screenContext = screenContext;
         }
@@ -470,7 +472,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
 };
 
 /** 이 기기의 사용자 — `user_devices` 에 없으면 `ADMIN_USER` (목록 복귀 정리와 같은 규칙) */
-function userOfDevice(deviceId: string): string {
+export function userOfDevice(deviceId: string): string {
     const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
     return row?.user_id ?? "ADMIN_USER";
 }

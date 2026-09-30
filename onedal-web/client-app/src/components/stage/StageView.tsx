@@ -16,6 +16,7 @@ import { barFocusOf, type BarFocus } from './barFocus';
 import { sheetStatus } from '../../lib/sheetStatus';
 import { reservedShortOf } from '../../lib/reservedLine';
 import { approxShortOf } from '../../lib/approxAddress';
+import type { Unreadable } from '../../lib/unreadable';
 import { remainOnRouteKm } from '../../lib/remainOnRoute';
 import { trailOfShown, hiddenPastIds } from '../../lib/pastCalls';
 import { deckOrder } from '../../lib/deckFocus';
@@ -46,7 +47,7 @@ import { socket } from '../../lib/socket';
 /* 🗺️ 지도 아래 두 귀퉁이 — 규칙과 이름은 한 곳에서 온다 (규칙 ③) */
 import { ROUTE_PRIORITIES, isPriorityLocked } from '../../lib/routePriority';
 import NaviQr from '../dashboard/NaviQr';
-import JudgmentSeat from '../dashboard/JudgmentSeat';
+import JudgmentSeat, { UnreadableSeat } from '../dashboard/JudgmentSeat';
 
 /**
  * 🎭 **무대 — 지도 배경 + 3단 시트.** 관제 화면(`/`)이 그리는 유일한 화면이다.
@@ -56,6 +57,8 @@ import JudgmentSeat from '../dashboard/JudgmentSeat';
  */
 interface Props {
     activeRoute: SecuredOrder[];
+    /** ⚪ 손으로 연 상세를 앱이 못 읽음 — 판정 중인 콜이 없을 때 평가 자리에 한 줄 */
+    unreadable?: Unreadable | null;
     routeStops: RouteStopInfo[];
     routeComputedAt: string | null;
     /** 🧭 경로를 든 콜 — 서버가 고른 답 */
@@ -959,7 +962,7 @@ export default function StageView(props: Props) {
                                 processingId={seatProcessingId}
                                 setProcessingId={setSeatProcessingId}
                             />
-                        ) : undefined}>
+                        ) : props.unreadable ? <UnreadableSeat u={props.unreadable} /> : undefined}>
                 <PinnedRouteBody {...props} d={derived}
                     /* 🙈 지나간 콜 — 배열에서 빼지 않고 가린다 (`lib/pastCalls` 머리 참조).
                        열어 둔 콜은 끝났어도 안 가린다 — 손이 고른 것이 규칙보다 세다 */

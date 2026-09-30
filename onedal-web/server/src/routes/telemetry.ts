@@ -1,6 +1,9 @@
 import { Router } from "express";
 import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
+import { isDetailScreen } from "@onedal/shared";
+import { userOfDevice } from "./devices";
+import { slog } from "../utils/fileLogger";
 
 const router = Router();
 
@@ -23,6 +26,17 @@ export interface AnomalyPayload {
         extractedDropoff?: string | null;
         [key: string]: any;
     } | null;
+}
+
+/**
+ * ⚪ **«판정 못 함»의 까닭 — 기사님 말로** (기사님 «가» · onedal-1f). 요건 미달(`REQUIREMENT_UNMET: …`)이 아니면 null.
+ *    코드 글자는 화면에 내지 않는다.
+ */
+export function unreadableReasonOf(failureReason: string): string | null {
+    const m = /^REQUIREMENT_UNMET:\s*(.*)$/.exec(failureReason);
+    if (!m) return null;
+    const fare = m[1].includes('요금'), addr = m[1].includes('주소');
+    return fare && addr ? '요금·주소를 못 읽음' : fare ? '요금을 못 읽음' : addr ? '주소를 못 읽음' : '상세를 못 읽음';
 }
 
 /**
@@ -74,6 +88,21 @@ router.post("/anomalies", (req, res) => {
             detailParsedText || null,
             ocrResultJson
         );
+
+        /**
+         * ⚪ **상세 화면에서 온 요건 미달이면 평가 자리로** — 앱은 이 콜을 버렸다(판정이 안 온다).
+         *    가르는 것은 개별 사실 둘: 보고가 상세 화면에서 왔나(`isDetailScreen`) · 요건 미달인가. 목록 스캔의 요건 미달은 안 띄운다.
+         *    지우는 것은 폰이 상세에서 나갈 때(`devices.ts` 화면 바뀜) · 진짜 판정이 올 때(관제웹).
+         */
+        const reason = unreadableReasonOf(failureReason);
+        const io = req.app?.get("io");
+        if (reason && isDetailScreen(screenName) && io) {
+            const userId = userOfDevice(deviceId);
+            io.to(userId).emit("detail-unreadable", {
+                reason, pickup: listOrderInfo?.pickup ?? null, fare: listOrderInfo?.fare ?? null, at: new Date().toISOString(),
+            });
+            slog('화면', `⚪ [판정 못 함] ${reason} · ${listOrderInfo?.pickup ?? '상차 모름'} — 평가 자리에 띄움`);
+        }
 
         res.json({
             success: true,

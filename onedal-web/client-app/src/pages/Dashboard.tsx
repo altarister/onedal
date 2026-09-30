@@ -137,6 +137,7 @@ export default function Dashboard() {
         previewRouteHolderId,
         cancelCounts,
         cancelRounds,
+        unreadable,
     } = useOrderEngine();
     // 📊 아침 카드는 오늘 잡은 콜 0건 · 진행 중 콜 0건일 때만 — 예약 보관 콜(내일)은 안 센다 · 밤샘 운행 중 자정에 안 뜬다
     const keptToday = keptTodayCount([...orders, ...terminatedOrders], Date.now());
@@ -430,6 +431,7 @@ export default function Dashboard() {
                         activeRoute={activeRoute}
                         onDecision={handleDecision}
                         onRecalculate={handleRecalculate}
+                        unreadable={unreadable}
                     />
                 </ErrorBoundary>
             </div>

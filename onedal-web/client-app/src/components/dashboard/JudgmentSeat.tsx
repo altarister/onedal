@@ -5,6 +5,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { verdictOf, type VerdictColor } from '../../lib/verdict';
 import { reservedBadgeOf } from '../../lib/reservedLine';
 import { approxBadgeOf } from '../../lib/approxAddress';
+import { unreadableLine, type Unreadable } from '../../lib/unreadable';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { seatConclusion } from '../../lib/seatConclusion';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -372,6 +373,23 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
             </div>
             {/* ⏳ 배경이 차오르는 문법은 한 벌이다 — `seat-drain-x` (위 `drain`). 폭을 재는 옛 `seat-drain` 은 걷었다 */}
             <style>{`@keyframes seat-drain-x { from { transform: scaleX(0) } to { transform: scaleX(1) } }`}</style>
+        </div>
+    );
+}
+
+/**
+ * ⚪ **판정 못 함** (기사님 «가» · onedal-1f) — 손으로 연 상세를 앱이 못 읽어 콜을 버렸다. 판정이 늦는 게 아니라 **안 온다**.
+ *    판정 중인 콜이 없을 때만 평가 자리에 선다. 버튼은 없다(잡은 콜이 아니다). 둘째 줄의 받은 시각으로 옛 보고를 알아본다.
+ */
+export function UnreadableSeat({ u, inset }: { u: Unreadable; inset?: string }) {
+    const line = unreadableLine(u);
+    return (
+        <div className="relative overflow-hidden" style={{ margin: inset ?? '8px 12px', borderRadius: 14, border: '1px solid #2a3450', background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+            <div className="absolute left-0 top-0 bottom-0" style={{ width: 5, background: '#3a4358' }} />
+            <div style={{ padding: '10px 14px 11px 19px' }}>
+                <div className="truncate" style={{ fontSize: 15, fontWeight: 900, color: 'var(--color-text-primary)' }}>{line.head}</div>
+                <div className="truncate tabular-nums" style={{ marginTop: 3, fontSize: 12.5, fontWeight: 700, color: 'var(--color-text-muted)' }}>{line.sub}</div>
+            </div>
         </div>
     );
 }
