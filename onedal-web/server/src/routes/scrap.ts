@@ -2,7 +2,7 @@ import { Router } from "express";
 import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS, effectiveRadii } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
-import { capacityFullHold, filterVersionOf } from "../core/helpers";
+import { capacityFullHold, filterVersionOf, reportSourceOf } from "../core/helpers";
 import { rememberSentFilterVersion } from "../core/phoneCheck";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
@@ -69,7 +69,7 @@ router.post("/", (req, res) => {
         }
         /** 🏷️ 실물 앱인가 시뮬레이터인가 — 보고 한 칸(한 보고 = 한 화면). 모르는 값·옛 앱은 null (규칙 ④) */
         const body = req.body as { source?: unknown; screenWords?: Parameters<typeof noteScreenWords>[2] };
-        const source = body.source === 'real' || body.source === 'sim' ? body.source : null;
+        const source = reportSourceOf(body.source);
 
         // 1. 기기 등록 여부 검증 (하드 락: 미등록 기기는 즉시 차단)
         if (!deviceId) {

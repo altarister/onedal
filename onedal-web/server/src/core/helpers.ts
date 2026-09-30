@@ -570,3 +570,11 @@ export function filterVersionOf(filter: unknown): string {
     for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
     return (h >>> 0).toString(36);
 }
+
+/**
+ * 🏷️ **보고 출처 — 실물 앱(real)인가 시뮬레이터(sim)인가** (reviews/23·25). 목록 보고(`scrap`)와 픽커 상세 보관(`orders`)이 함께 쓴다.
+ *    🔴 둘 말고는 null — 모르는 값·옛 앱(칸 없음)을 지어내지 않는다(규칙 ④). 통계는 real 만 센다.
+ */
+export function reportSourceOf(v: unknown): 'real' | 'sim' | null {
+    return v === 'real' || v === 'sim' ? v : null;
+}

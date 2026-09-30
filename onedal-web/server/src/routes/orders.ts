@@ -27,6 +27,7 @@ import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
 import { slog } from "../utils/fileLogger";
+import { reportSourceOf } from "../core/helpers";
 
 const router = Router();
 
@@ -118,8 +119,8 @@ router.post("/confirm", (req, res) => {
          */
         if ((payload as any).targetApp === 'kakaopicker' && payload.order?.rawText) {
             dbQueue.runAsync(
-                "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText, rawDetailText) " +
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText, rawDetailText, reserved, reservedDay, reservedAt, source) " +
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 userId === "ADMIN_USER" ? null : userId,
                 payload.deviceId,
                 "PICKER_DETAIL",          // 리스트 훑기(INTEL_BULK)와 갈라 둔다
@@ -132,6 +133,11 @@ router.post("/confirm", (req, res) => {
                 (payload.order as any).pickupDistance ?? null,
                 (payload.order as any).tagsText ?? null,
                 payload.order.rawText,
+                /* 📅🏷️ 같은 콜의 목록 줄(INTEL_BULK)과 같은 칸 — 상세 행만 빠지면 통계가 «모름»에 쌓인다 (reviews/23·25) */
+                typeof (payload.order as any).reserved === 'boolean' ? ((payload.order as any).reserved ? 1 : 0) : null,
+                (payload.order as any).reservedDay ?? null,
+                (payload.order as any).reservedAt ?? null,
+                reportSourceOf((payload as any).source),
             );
             slog('화면', `📄 [픽커 상세 보관] ${payload.order.fare ?? 0}원 · ${payload.order.rawText.length}자 — 칸 나누기는 실물 캡처 뒤에`);
         }
