@@ -8,6 +8,7 @@ import { buildOrderSync } from '../../src/core/helpers';
 import { businessDayKey, pickupClockMsOf } from '@onedal/shared';
 import { isHeldReserved } from '../../src/services/reservedOrders';
 import ordersRouter from '../../src/routes/orders';
+import { birthFirstStep } from '../../src/services/stepSeeder';
 
 /**
  * 📅 **예약 보관 — 내일 콜은 오늘 하루에 넣지 않는다** (reviews/23 B-1·B-2 · 기사님 «가 가 가»).
@@ -136,6 +137,29 @@ describe('📅 상차 시계 — 예약 날·시각으로 날짜를 만든다 (B
     });
     it('예약이 없으면 지금처럼 — 잡은 시각 + 잠정', () => {
         expect(pickupClockMsOf({} as any, captured, 20)).toBe(captured + 20 * 60_000);
+    });
+    it('🔴 날만 알고 시각을 모르는 예약(«내상»·«낼»)은 모름(null) — 오늘 시각으로 떨어지지 않는다', () => {
+        expect(pickupClockMsOf({ reservedDay: 1 } as any, captured, 20)).toBeNull();
+    });
+    it('🔴 날만 아는 예약에 적요 시각을 붙이지 않는다 — 적요는 상차·하차를 안 가른다(«10시전하차»)', () => {
+        expect(pickupClockMsOf({ reservedDay: 1, itemDescription: '14시 상차' } as any, captured, 20)).toBeNull();
+    });
+    it('예약 시각이 적요 시각을 이긴다', () => {
+        const d = new Date(captured); d.setDate(d.getDate() + 1); d.setHours(9, 30, 0, 0);
+        expect(pickupClockMsOf({ reservedDay: 1, reservedAt: '09:30', itemDescription: '14시 상차' } as any, captured, 20)).toBe(d.getTime());
+    });
+    it('오늘 콜(날 0 · 시각 없음 · 적요 없음)은 지금처럼 잡은 시각 + 잠정', () => {
+        expect(pickupClockMsOf({ reservedDay: 0 } as any, captured, 20)).toBe(captured + 20 * 60_000);
+    });
+    it('🔴 날만 아는 내일 콜을 KEEP 하면 상차지 통화 행의 약속 칸이 빈 채 태어난다 — 통화로 넣으신다', () => {
+        const id = `${U}-seed-dayonly`;
+        db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, reserved, reservedDay, reserved_for, itemDescription)
+            VALUES (?, 'NEW_ORDER', 'ORDER_CONFIRMED', ?, ?, ?, '상', '하', 10000, 'insung', 1, 1, ?, '14시 상차')`)
+            .run(id, U, todayAt(15), todayAt(15), keyAfter(1));
+        birthFirstStep(U, id);
+        const row = db.prepare(`SELECT promised_arrival_at FROM step_call_pickup WHERE orderId = ?`).get(id) as any;
+        expect(row).toBeTruthy();
+        expect(row.promised_arrival_at).toBeNull();
     });
 });
 

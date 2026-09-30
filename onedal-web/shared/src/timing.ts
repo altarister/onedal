@@ -700,7 +700,7 @@ export function derivationInputsOf(cfg: {
 export function pickupClockMsOf(
     order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo' | 'reservedDay' | 'reservedAt'>,
     capturedMs: number, offsetMinutes: number,
-): number {
+): number | null {
     /**
      * 📅 **예약이 먼저다** (reviews/23 B-2) — «잡은 날 + reservedDay 일»의 reservedAt 시각.
      *    오늘 안의 «예약 18:30»(0일)도 여기서 맞는다. 적요 시각은 날을 모르니 예약이 없을 때만 쓴다.
@@ -711,6 +711,13 @@ export function pickupClockMsOf(
         const t = Date.parse(`${day}T${at[1].padStart(2, '0')}:${at[2]}:00+09:00`);
         if (Number.isFinite(t) && t >= capturedMs) return t;   // 과거 시각이면 무시 (적요 시각과 같은 규칙)
     }
+    /**
+     * 📅 **날만 알고 시각을 모르는 예약(«내상»·«낼»)은 모름** — 기본 시각을 지어내지 않는다(규칙 ④).
+     *    앱이 상차 쪽 글자에서 시각을 찾아 reservedAt 을 채운다 — 못 찾았으면 상차 시각이 없다는 뜻이다.
+     *    적요 시각도 붙이지 않는다 — 적요는 상차·하차를 안 가른다(«10시전하차»가 내일 상차 10:00 이 된다).
+     *    약속은 기사님이 상차지 통화로 넣으신다.
+     */
+    if ((order.reservedDay ?? 0) >= 1) return null;
     const hint = parseCargoHints(order.itemDescription, order.detailMemo).promisedAt;
     if (hint) {
         const kstDay = new Date(capturedMs + 9 * 3600_000).toISOString().slice(0, 10);
@@ -869,10 +876,12 @@ export function deriveCallTiming(
          *    늦는 것도 가려진다. `deriveRouteTimeline` 과 같은 식이어야 심사 카드와 덱이 같은 숫자를 말한다.
          * 🔴 «마감»은 실어 **보내는** 시각이라 약속에 상차 정차를 더한다 — 두 갈래 모두.
          */
-        pickupPromisedArrivalAt = new Date(
-            pickupClockMsOf(order, capturedMs, rules.pickupPromiseMinutes ?? 20)).toISOString();
-        pickupDeadlineAt = addMin(pickupPromisedArrivalAt, pickupDwell);
-        deadlineEstimated = true;
+        const clockMs = pickupClockMsOf(order, capturedMs, rules.pickupPromiseMinutes ?? 20);
+        if (clockMs != null) {   // 날만 아는 예약은 모름 — 마감도 «추정»도 안 켠다
+            pickupPromisedArrivalAt = new Date(clockMs).toISOString();
+            pickupDeadlineAt = addMin(pickupPromisedArrivalAt, pickupDwell);
+            deadlineEstimated = true;
+        }
     }
     if (!dropoffDeadlineAt) {
         dropoffDeadlineAt = dropoffDeadlineFromPickup(

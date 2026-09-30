@@ -138,18 +138,18 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
      */
     const pickupClockMs = pickupClockMsOf(o, capturedMs, cfg.unknown.pickupPromiseMin ?? 20);
     const pickupPromise = ms(callP?.status !== 'PLANNED' ? callP?.promised_arrival_at : null)
-        ?? pickupClockMs;
-    const departMs = ms(born.LOADED?.occurred_at) ?? pickupPromise + pickupDwell * 60_000;
+        ?? pickupClockMs;   // 날만 아는 예약이면 null — 약속 칸이 빈 채 태어나 상차지 통화로 채운다
+    const departMs = ms(born.LOADED?.occurred_at) ?? (pickupPromise != null ? pickupPromise + pickupDwell * 60_000 : null);
     const dropoffEta = ms(born.ARRIVE_DROPOFF?.occurred_at)
         ?? tlEta('dropoff')
-        ?? (solo != null ? departMs + solo * 60_000 : null);
+        ?? (solo != null && departMs != null ? departMs + solo * 60_000 : null);
     /**
      * ⏱️ **배달 데드라인 = 상차 완료 + 배송 × 150%** (기산점은 상차 완료 · ⑯ 확정).
      *    상차 전 대기는 배달 시계를 태우지 않는다. 하차 추정 약속은 데드라인 그 자체다
      *    (경유버퍼 = 데드라인 − 예상이 저절로 여유를 말한다).
      *    🔴 굳은 약속(통화)은 데드라인과 무관하게 그대로 — 화주 합의가 면책.
      */
-    const deadlineMs = callDeadlineMs(departMs, solo, cfg);
+    const deadlineMs = departMs != null ? callDeadlineMs(departMs, solo, cfg) : null;
     /**
      * 🔴 **하차 약속은 도착 예상을 따라가지 않는다** (기사님 확정 · 상차와 같은 규칙).
      *    예상이 늦다고 약속을 그 시각까지 올리면 **여유가 늘 0** 이라 늦는 것이 가려진다.
