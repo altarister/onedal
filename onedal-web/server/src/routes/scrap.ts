@@ -15,6 +15,7 @@ import { dbQueue } from "../utils/dbQueue";
 import { PluginFactory } from "../core/plugins/PluginFactory";
 import { slog } from "../utils/fileLogger";
 import { noteScreenWords } from "../services/screenWords";
+import { recalcRouteIfStopsChanged } from "../services/dispatchEngine";
 
 /**
  * 🧭 **경로 순서 맵이 도착지를 얼마나 덮나 — 바뀔 때만 한 줄** (기사님 요청 «콘솔로그에 넣어서 너도 확인할 수 있도록»).
@@ -184,7 +185,8 @@ router.post("/", (req, res) => {
 
         // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.
         // 관제탑보다 앱이 먼저 켜질 수 있으므로 여기에도 둔다 (같은 함수라 두 번 돌아도 무해하다).
-        ensureBusinessDay(userId, req.app.get("io"));
+        /* 📅 날이 바뀌며 예약 콜이 오늘 콜이 됐을 수 있다 — 정거장이 바뀌었으면 경로를 다시 잰다 (reviews/23 B-1) */
+        if (ensureBusinessDay(userId, req.app.get("io"))) void recalcRouteIfStopsChanged(userId, req.app.get("io"), '영업일 전환');
 
         // 3.2. [Telemetry Ping] 프론트엔드의 타임아웃 진행바를 위한 실시간 핑 발송
         if (deviceId) {

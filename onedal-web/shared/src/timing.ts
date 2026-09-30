@@ -564,6 +564,9 @@ export interface TimingOrderFields {
     capturedAt?: string;
     /** ⏱️ 적요 — 상차 시계("HH:MM상차")를 여기서 읽는다 (두 시계 · ⑯) */
     itemDescription?: string;
+    /** 📅 예약 날(0 오늘 · 1 내일 · N)·시각 «HH:MM» — 있으면 상차 시계가 이것으로 날짜를 만든다 (reviews/23 B-2) */
+    reservedDay?: number | null;
+    reservedAt?: string | null;
     detailMemo?: string;
     approachDurationMin?: number;
     totalDistanceKm?: number;
@@ -695,9 +698,19 @@ export function derivationInputsOf(cfg: {
  * 통화로 굳힌 약속은 호출부(declared)가 이긴다. 파생 한 곳 — 시딩과 타임라인이 같이 쓴다.
  */
 export function pickupClockMsOf(
-    order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo'>,
+    order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo' | 'reservedDay' | 'reservedAt'>,
     capturedMs: number, offsetMinutes: number,
 ): number {
+    /**
+     * 📅 **예약이 먼저다** (reviews/23 B-2) — «잡은 날 + reservedDay 일»의 reservedAt 시각.
+     *    오늘 안의 «예약 18:30»(0일)도 여기서 맞는다. 적요 시각은 날을 모르니 예약이 없을 때만 쓴다.
+     */
+    const at = /^(\d{1,2}):(\d{2})$/.exec(order.reservedAt ?? '');
+    if (at && order.reservedDay != null && order.reservedDay >= 0) {
+        const day = new Date(capturedMs + 9 * 3600_000 + order.reservedDay * 86_400_000).toISOString().slice(0, 10);
+        const t = Date.parse(`${day}T${at[1].padStart(2, '0')}:${at[2]}:00+09:00`);
+        if (Number.isFinite(t) && t >= capturedMs) return t;   // 과거 시각이면 무시 (적요 시각과 같은 규칙)
+    }
     const hint = parseCargoHints(order.itemDescription, order.detailMemo).promisedAt;
     if (hint) {
         const kstDay = new Date(capturedMs + 9 * 3600_000).toISOString().slice(0, 10);

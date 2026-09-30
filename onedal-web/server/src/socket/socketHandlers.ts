@@ -148,7 +148,8 @@ export function registerSocketHandlers(io: Server) {
 
         // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.
         // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 경유를 만든다
-        ensureBusinessDay(userId, io);
+        /* 📅 날이 바뀌며 예약 콜이 오늘 콜이 됐을 수 있다 — 정거장이 바뀌었으면 경로를 다시 잰다 (reviews/23 B-1) */
+        if (ensureBusinessDay(userId, io)) void recalcRouteIfStopsChanged(userId, io, '영업일 전환');
         if (role === "ADMIN") {
             socket.join("admin_room");
         }

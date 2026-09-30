@@ -53,7 +53,7 @@ describe('buildOrderSync — 진행/종료 분리', () => {
          *    지도가 제 손으로 위치를 정하면 서버가 아는 자리와 어긋난다 — 정거장 순서를 짠 그 기점을 같이 보낸다.
          *    빈 세션이면 좌표를 받은 적이 없으니 **홀더·기점 둘 다 null** 이다 — 지어내지 않는다 (규칙 ④).
          */
-        expect(buildOrderSync(makeSession([]))).toEqual({ active: [], terminated: [], routeStops: [], routeComputedAt: null, routeHolderId: null,
+        expect(buildOrderSync(makeSession([]))).toEqual({ active: [], terminated: [], reserved: [], routeStops: [], routeComputedAt: null, routeHolderId: null,
             previewRouteHolderId: null, cancelCounts: {}, cancelRounds: {},
             routeOrigin: null });
     });

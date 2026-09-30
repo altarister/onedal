@@ -1,8 +1,9 @@
-import { restoreWhere, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
+import { businessDayKey, restoreWhere, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
          CALL_TARGET_LABEL, isEvaluating } from "@onedal/shared";
+import { reservedForOf, isLaterThan, takeReserved } from "./reservedOrders";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
@@ -529,6 +530,84 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
 
         // ⭐ 핵심 수정: 승격된 객체를 하트비트 메모리맵에 덮어씌워서 롤백 현상 방지
         rememberOrder(session, confirmedOrder as any);
+        /**
+         * 💾 **장부에 적는다** (status: confirmed · places/orderStops · v5 스키마) — 진행 중 KEEP 과 예약 보관 KEEP 이 함께 쓴다.
+         * `isShared` 는 부르는 쪽이 정한다 — 예약 콜은 오늘 실린 짐과 합짐이 아니다.
+         */
+        const saveConfirmedToLedger = (isShared: 0 | 1) => {
+            try {
+                // [이슈 R] isShared는 "필터가 합짐 모드였는가"가 아니라
+                // "이 콜을 잡을 때 이미 실린 짐이 있었는가"로 판정한다.
+                //
+                // session.activeFilter.isSharedMode 를 쓰지 않는다 — 필터 상태는 서버 재시작 등으로
+                // 실제와 어긋날 수 있어(이슈 W) 명백한 합짐 콜이 isShared=0 으로 기록된다.
+                //
+                // 이 시점에는 confirmedOrder가 이미 myOrders에 push된 뒤이므로,
+                // 활성 콜이 2건 이상이면 앞선 짐이 있었다는 뜻 = 합짐이다.
+                // isExpress: 파서가 추출한 orderForm이 "급송"이면 true
+                const isExpress = (cachedOrder.orderForm === '급송') ? 1 : 0;
+
+                if (!confirmedOrder.isSimulated) {
+                    // 1. orders 등록 (v5 전체 컬럼)
+                    OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
+
+                    // 2. places UPSERT 및 orderStops 추가 (상차지)
+                    const pickupName = normalizePlaceName(cachedOrder.pickupDetails?.[0]?.customerName || "배차값없음");
+                    const pickupAddress = cachedOrder.pickupDetails?.[0]?.addressDetail || cachedOrder.pickup;
+                    const pickupRegion = cachedOrder.pickupDetails?.[0]?.region || cachedOrder.pickup.split(' ').slice(0, 2).join(' ') || "배차값없음";
+                
+                    const pPlaceId = PlaceRepository.upsertPlace(
+                        pickupAddress, pickupName, pickupRegion,
+                        cachedOrder.pickupX || null, cachedOrder.pickupY || null,
+                        cachedOrder.pickupDetails?.[0]?.phone1 || null
+                    );
+                    if (pPlaceId) {
+                        OrderRepository.insertOrderStop(
+                            cachedOrder.id, pPlaceId, 'pickup', pickupName, cachedOrder.pickupDetails?.[0]?.phone1 || null
+                        );
+                    }
+
+                    // 3. places UPSERT 및 orderStops 추가 (하차지)
+                    const dropoffName = normalizePlaceName(cachedOrder.dropoffDetails?.[0]?.customerName || "배차값없음");
+                    const dropoffAddress = cachedOrder.dropoffDetails?.[0]?.addressDetail || cachedOrder.dropoff;
+                    const dropoffRegion = cachedOrder.dropoffDetails?.[0]?.region || cachedOrder.dropoff.split(' ').slice(0, 2).join(' ') || "배차값없음";
+                
+                    const dPlaceId = PlaceRepository.upsertPlace(
+                        dropoffAddress, dropoffName, dropoffRegion,
+                        cachedOrder.dropoffX || null, cachedOrder.dropoffY || null,
+                        cachedOrder.dropoffDetails?.[0]?.phone1 || null
+                    );
+                    if (dPlaceId) {
+                        OrderRepository.insertOrderStop(
+                            cachedOrder.id, dPlaceId, 'dropoff', dropoffName, cachedOrder.dropoffDetails?.[0]?.phone1 || null
+                        );
+                    }
+
+                    slog('결재', `💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);
+                } else {
+                    slog('결재', `🐥 [가상 체험 콜] ${cachedOrder.id} - DB 저장 건너뜀 (메모리 세션에서만 합짐 시뮬레이션 가동)`);
+                }
+            } catch (dbErr) {
+                console.error("DB 저장 에러:", dbErr);
+            }
+        };
+
+        /**
+         * 📅 **내일 이후 콜은 예약 보관으로** (reviews/23 B-1) — 오늘 하루(진행 중 콜 · 경로 · 적재 · 국면 · 경유)를 안 건드린다.
+         *    이 콜 하나의 사실(보관 날이 오늘 뒤)로 가른다. 장부에는 적고(재시작에도 되살린다), 관제웹에는 알린다.
+         *    단계 행(상차지 통화)은 KEEP 받은 쪽(`socketHandlers` 결재)이 여느 콜처럼 낳는다 — 약속은 예약 날·시각이다.
+         */
+        const reservedFor = reservedForOf(confirmedOrder);
+        if (isLaterThan(reservedFor, businessDayKey(Date.now()))) {
+            confirmedOrder.reservedFor = reservedFor!;
+            (cachedOrder as any).reservedFor = reservedFor;
+            if (!session.reservedOrders.some(c => c.id === orderId)) session.reservedOrders.push(confirmedOrder);
+            saveConfirmedToLedger(0);
+            slog('결재', `📅 [예약 보관] ${orderId.slice(0, 8)} → ${reservedFor} ${(cachedOrder as any).reservedAt ?? ''} — 오늘 하루에 안 넣는다`);
+            io.to(userId).emit("order-confirmed", orderId);
+            return { success: true, action: status };
+        }
+
 
         const isAlreadyIncluded = session.myOrders.some(c => c.id === orderId);
 
@@ -615,62 +694,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         }
 
         // DB에 영구 저장 (status: confirmed) 및 places/orderStops 기록 (v5 스키마)
-        try {
-            // [이슈 R] isShared는 "필터가 합짐 모드였는가"가 아니라
-            // "이 콜을 잡을 때 이미 실린 짐이 있었는가"로 판정한다.
-            //
-            // session.activeFilter.isSharedMode 를 쓰지 않는다 — 필터 상태는 서버 재시작 등으로
-            // 실제와 어긋날 수 있어(이슈 W) 명백한 합짐 콜이 isShared=0 으로 기록된다.
-            //
-            // 이 시점에는 confirmedOrder가 이미 myOrders에 push된 뒤이므로,
-            // 활성 콜이 2건 이상이면 앞선 짐이 있었다는 뜻 = 합짐이다.
-            const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
-            // isExpress: 파서가 추출한 orderForm이 "급송"이면 true
-            const isExpress = (cachedOrder.orderForm === '급송') ? 1 : 0;
-
-            if (!confirmedOrder.isSimulated) {
-                // 1. orders 등록 (v5 전체 컬럼)
-                OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
-
-                // 2. places UPSERT 및 orderStops 추가 (상차지)
-                const pickupName = normalizePlaceName(cachedOrder.pickupDetails?.[0]?.customerName || "배차값없음");
-                const pickupAddress = cachedOrder.pickupDetails?.[0]?.addressDetail || cachedOrder.pickup;
-                const pickupRegion = cachedOrder.pickupDetails?.[0]?.region || cachedOrder.pickup.split(' ').slice(0, 2).join(' ') || "배차값없음";
-                
-                const pPlaceId = PlaceRepository.upsertPlace(
-                    pickupAddress, pickupName, pickupRegion,
-                    cachedOrder.pickupX || null, cachedOrder.pickupY || null,
-                    cachedOrder.pickupDetails?.[0]?.phone1 || null
-                );
-                if (pPlaceId) {
-                    OrderRepository.insertOrderStop(
-                        cachedOrder.id, pPlaceId, 'pickup', pickupName, cachedOrder.pickupDetails?.[0]?.phone1 || null
-                    );
-                }
-
-                // 3. places UPSERT 및 orderStops 추가 (하차지)
-                const dropoffName = normalizePlaceName(cachedOrder.dropoffDetails?.[0]?.customerName || "배차값없음");
-                const dropoffAddress = cachedOrder.dropoffDetails?.[0]?.addressDetail || cachedOrder.dropoff;
-                const dropoffRegion = cachedOrder.dropoffDetails?.[0]?.region || cachedOrder.dropoff.split(' ').slice(0, 2).join(' ') || "배차값없음";
-                
-                const dPlaceId = PlaceRepository.upsertPlace(
-                    dropoffAddress, dropoffName, dropoffRegion,
-                    cachedOrder.dropoffX || null, cachedOrder.dropoffY || null,
-                    cachedOrder.dropoffDetails?.[0]?.phone1 || null
-                );
-                if (dPlaceId) {
-                    OrderRepository.insertOrderStop(
-                        cachedOrder.id, dPlaceId, 'dropoff', dropoffName, cachedOrder.dropoffDetails?.[0]?.phone1 || null
-                    );
-                }
-
-                slog('결재', `💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);
-            } else {
-                slog('결재', `🐥 [가상 체험 콜] ${cachedOrder.id} - DB 저장 건너뜀 (메모리 세션에서만 합짐 시뮬레이션 가동)`);
-            }
-        } catch (dbErr) {
-            console.error("DB 저장 에러:", dbErr);
-        }
+        saveConfirmedToLedger(getActiveCalls(session).length > 1 ? 1 : 0);
 
         logRoadmapEvent('결재', "서버", "관제탑에게 확정되었음(order-confirmed) 정보 전달");
         io.to(userId).emit("order-confirmed", orderId);
@@ -707,12 +731,18 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
     } else {
         logRoadmapEvent('결재', "서버", `관제탑으로 부터 수동 취소/방출(${status}) 요청 받음`);
         
+        /**
+         * 📅 **버리는 문** — 예약 보관의 콜이면 보관에서 꺼낸다 (reviews/23 B-1). 안 꺼내면 버린 콜이
+         *    다음 영업일에 진행 중 첫짐으로 올라온다. 꺼낸 콜은 장부 갱신에 쓴다(메모리 두 곳엔 없을 수 있다).
+         */
+        const takenReserved = takeReserved(session, orderId);
+
         // 메모리에서 완전히 지우지 않고 상태값만 갱신하여 프론트엔드 취소/방출 탭에 보존
         // (두 메모리를 함께 갱신 — 여기는 원래 둘 다 쓰고 있었지만 규약으로 통일한다)
         setOrderStatus(session, orderId, status);
 
         const cachedForLedger = session.myOrders.find(c => c.id === orderId)
-            ?? session.pendingOrdersData.get(orderId);
+            ?? session.pendingOrdersData.get(orderId) ?? takenReserved;
         const isSimulatedOrder = (cachedForLedger as any)?.isSimulated;
 
         if (cachedForLedger && !isSimulatedOrder) {
@@ -983,6 +1013,11 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 capturedAt: row.capturedAt,
                 /** 🎯 판 — 안 읽으면 재기동 뒤 전부 하차지 시로 조용히 물러난다 (#131) */
                 goalCity: row.goalCity ?? undefined,
+                /** 📅 예약 — 안 읽으면 재기동 뒤 예약 콜이 오늘 첫짐이 되고 상차 약속이 오늘로 돌아간다 (reviews/23 B-1) */
+                reserved: row.reserved == null ? undefined : !!row.reserved,
+                reservedDay: row.reservedDay ?? undefined,
+                reservedAt: row.reservedAt ?? undefined,
+                reservedFor: row.reserved_for ?? undefined,
                 capturedDeviceId: row.capturedDeviceId,
                 vehicleType: row.vehicleType,
                 distanceKm: row.distanceKm,
@@ -1033,7 +1068,13 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         }
 
         const allLoaded = Array.from(session.pendingOrdersData.values()) as MyOrder[];
-        session.myOrders = allLoaded;
+        /**
+         * 📅 **보관 날이 오늘 뒤인 콜은 예약 보관으로** (reviews/23 B-1) — 영업일 전환과 같은 가름.
+         *    새 날에 서버가 뜨면 세션이 오늘로 태어나 영업일 전환이 안 돈다 — 그래서 여기서도 가른다.
+         */
+        const today = businessDayKey(Date.now());
+        session.reservedOrders = allLoaded.filter(o => isLaterThan(o.reservedFor, today));
+        session.myOrders = allLoaded.filter(o => !isLaterThan(o.reservedFor, today));
 
         // 카카오 궤적 복원 연산 시에는 진행 중인(취소/방출/완료가 아닌) 콜만 필터링하여 사용
         const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);

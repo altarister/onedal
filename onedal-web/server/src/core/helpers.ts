@@ -279,6 +279,8 @@ function logRouteStops(
  * ⚠️ 페이로드를 만드는 곳은 **여기 하나뿐**이어야 한다.
  */
 export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; pendingOrdersData: Map<string, any>;
+                                          /** 📅 예약 보관 — 오늘 목록에서 빼고 따로 싣는다 (reviews/23 B-1) */
+                                          reservedOrders?: MyOrder[];
                                           /* 📍 기점을 «고르는» 데 드는 것들 — 저장된 «지금 위치»가 아니다 (originOf) */
                                           lastFix: { x: number; y: number } | null;
                                           lastFixAt: number | null;
@@ -298,6 +300,9 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
     const merged = new Map<string, any>();
     for (const o of session.pendingOrdersData.values()) merged.set(o.id, o);
     for (const o of session.myOrders) merged.set(o.id, o);
+    /* 📅 예약 콜은 KEEP 때 심사 캐시에도 남는다(되돌림 막기) — 오늘 목록에서는 빼고 `reserved` 로 따로 싣는다 */
+    const reservedIds = new Set((session.reservedOrders ?? []).map(o => o.id));
+    for (const id of reservedIds) merged.delete(id);
 
     const all = Array.from(merged.values());
 
@@ -457,6 +462,8 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
     return {
         active: all.filter(o => !isTerminal(o.status)),
         terminated: all.filter(o => isTerminal(o.status)).map(stripPolyline),
+        /** 📅 예약 보관 — 관제웹 «📅 예약» 칸의 재료. 오늘 경로를 안 그리니 궤적은 뗀다 */
+        reserved: (session.reservedOrders ?? []).map(stripPolyline),
         routeStops,
         routeComputedAt,
         /**

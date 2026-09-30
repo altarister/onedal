@@ -313,6 +313,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { planArrivalStops } from '../services/routeComposer';
 import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, regionsTouchingNetGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
 import { slog } from "../utils/fileLogger";
+import { promoteDueReserved } from "../services/reservedOrders";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율은 user_filters 의 평면 칸에 산다.
@@ -1453,6 +1454,13 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
             if (io) io.to(userId).emit("sync-active-orders", buildOrderSync(session));
         }
     } catch (e) { console.error('🌅 [영업일 전환] 하차분 정리 실패 (전환은 계속):', (e as Error).message); }
+
+    /**
+     * 📅 **그날이 된 예약 콜을 진행 중으로** (reviews/23 B-1 · 나오는 문). 경로는 이 함수를 부른 쪽이
+     *    `recalcRouteIfStopsChanged` 로 다시 잰다 — 여기서 배차 엔진을 부르면 가져오기가 돈다.
+     */
+    const promoted = promoteDueReserved(session, today);
+    if (promoted) slog('콜단계', `📅 [예약 → 오늘] 예약 보관 ${promoted}건이 오늘 콜이 됐다 — 진행 중 콜로 옮긴다`);
 
     // 되돌리는 규칙은 shared 한 곳에만 있다 (세션 생성 때도 같은 규칙을 쓴다)
     session.activeFilter = resetToBaseFilter(session.baseFilter);

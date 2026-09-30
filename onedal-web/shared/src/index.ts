@@ -660,6 +660,11 @@ export interface MyOrder extends OfficeOrder {
      *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
      */
     goalCity?: string;
+    /**
+     * 📅 **예약 보관 날 `YYYY-MM-DD`** — 잡은 날 + `reservedDay` (reviews/23 B-1). 오늘보다 뒤면 이 콜은 진행 중 콜이 아니라
+     *    세션의 예약 보관(`reservedOrders`)에 있다. 장부 자리는 `orders.reserved_for`. 오늘 콜이면 비어 있다.
+     */
+    reservedFor?: string;
     /** 🏁 하차한 시각 (장부 `orders.completedAt`) — 화면의 사이클 경계가 본다 (#40) */
     completedAt?: string | null;
     /** 🧹 취소·방출한 시각 (장부 `orders.terminatedAt` · 전수표 #65) — 하차는 `completedAt`, 취소는 이것 */
@@ -1957,6 +1962,11 @@ export interface OrderSyncPayload {
      *    🔴 이 봉투를 1초마다 보내는 길은 막혀 있다 — **초당 474KB 사고 자리**다.
      * ⚠️ 옛 서버는 안 싣는다 — `undefined` 면 화면이 «모른다»로 그린다.
      */
+    /**
+     * 📅 **예약 보관 — 내일 이후 콜** (reviews/23 B-1). 오늘 목록(`active`)에는 없다 — 관제웹 «📅 예약» 칸만 그린다.
+     * ⚠️ 옛 서버는 안 싣는다.
+     */
+    reserved?: SecuredOrder[];
     routeOrigin?: RouteOriginDto | null;
     /**
      * 🚫 취소 카운터 — **한 판(10회)에서 몇 번 썼나** (기사님 개정).

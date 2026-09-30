@@ -27,7 +27,7 @@ describe('📅 예약 셋', () => {
 
     it('장부가 적고, 재확정 때 빈 값이 기존 값을 안 지운다', () => {
         const repo = read(join(SRC, 'repositories/OrderRepository.ts'));
-        expect(repo).toMatch(/goalCity, reserved, reservedDay, reservedAt\s*\)/);
+        expect(repo).toMatch(/goalCity, reserved, reservedDay, reservedAt[,\s)]/);
         expect(repo).toContain('reserved = COALESCE(excluded.reserved, reserved)');
         expect(repo).toContain('reservedDay = COALESCE(excluded.reservedDay, reservedDay)');
         expect(repo).toContain('(cachedOrder as any).reservedDay ?? null');

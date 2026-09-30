@@ -44,6 +44,8 @@ export interface UserSession {
     /** ⛔ 만석 홀드를 이미 알렸는가 — 5초 하트비트마다 같은 로그가 쌓이지 않게 (상태 전환 시에만 찍는다) */
     capacityHoldNotified?: boolean;
     myOrders: MyOrder[];                    // [계층 2-B] 확정된 내 퀵 배열 (단일 배열, 상태 필터링으로 관리)
+    /** 📅 예약 보관 — KEEP 했지만 내일 이후 콜. 진행 중 콜이 아니다 (`services/reservedOrders.ts`) */
+    reservedOrders: MyOrder[];
     // [Option B] 응답 객체 대신 판결(Decision) 데이터를 저장하는 큐 형식으로 변경
     pendingDecisions: Map<string, { action: "KEEP" | "CANCEL" | "SIMULATED_KEEP" | null; evaluatedAt: number }>;
     // [Option B] 비상벨(emergency) 시 취소할 수 있도록 안전취소 타이머 저장
@@ -325,6 +327,7 @@ function createDefaultSession(userId: string): UserSession {
         activeWebSession: null,
         lastTrackPoint: null,
         myOrders: [],
+        reservedOrders: [],
         pendingDecisions: new Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>(),
         activeTimers: new Map<string, NodeJS.Timeout>(),
         pendingOrdersData: new Map<string, PendingOrder>(),

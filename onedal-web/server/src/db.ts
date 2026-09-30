@@ -617,6 +617,8 @@ ensureColumns('orders', { goalCity: 'TEXT' });
  *    `reserved`(1 예약 표시 있음 · 0 없음 · NULL 모름) — «표시 없음»과 «예약인데 날 모름»은 둘 다 `reservedDay` 가 NULL 이라 이 칸이 가른다.
  */
 ensureColumns('orders', { reserved: 'INTEGER', reservedDay: 'INTEGER', reservedAt: 'TEXT' });
+/** 📅 **예약 보관 날 `YYYY-MM-DD`** — 오늘 뒤면 이 콜은 진행 중이 아니라 예약 보관이다. 서버가 다시 떠도 보관을 되살린다 (reviews/23 B-1 · `services/reservedOrders.ts`) */
+ensureColumns('orders', { reserved_for: 'TEXT' });
 
 // 어느 배차망에서 온 콜인가 (insung/hwamul24/kakaopicker) — 배차망별 콜 검색·분석의 근거 (기사님)
 ensureColumns('orders', { targetApp: 'TEXT',
