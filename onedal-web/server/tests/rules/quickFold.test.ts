@@ -86,3 +86,18 @@ describe('⏩ 막대 끝 → 접힘 차이 로그', () => {
         log.mockRestore();
     });
 });
+
+describe('⏩ 폰에 처음 알림 로그', () => {
+    it('🔴 콜마다 처음 한 번만 «⏩ [빨리 접기] 폰에 처음 알림 … 남은 N초»', async () => {
+        const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const s = getUserSession(U);
+        s.pendingOrdersData.set('qf-g', { id: 'qf-g', status: 'ORDER_AWAITING_DECISION', isPreview: true, foldAfterSec: 10, judgeUntil: Date.now() + 9_000 });
+        s.deviceEvaluatingMap.set(DEV, 'qf-g');
+        await report(); await report();
+        const lines = log.mock.calls.map(c => c.join(' ')).filter(l => l.includes('폰에 처음 알림'));
+        expect(lines).toHaveLength(1);
+        expect(lines[0]).toMatch(/남은 \d+(\.\d)?초/);
+        s.deviceEvaluatingMap.delete(DEV); s.pendingOrdersData.delete('qf-g');
+        log.mockRestore();
+    });
+});

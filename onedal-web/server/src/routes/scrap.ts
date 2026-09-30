@@ -48,6 +48,8 @@ const v2Devices = new Set<string>();
 // 🛰️ 같은 기기 이름이 서로 다른 곳(IP)에서 동시에 말하는지 감지 — 겹치면 한쪽의 "리스트 화면" 보고가
 // 다른 쪽이 잡은 심사 콜을 강제 취소시킨다
 const senderTrace = new Map<string, { ip: string; at: number; warnedAt: number }>();
+/** ⏩ foldAfter 를 폰에 처음 실어 보낸 콜 — 처음 알림 로그를 한 번만 남긴다(최근 500) */
+const foldNotified = new Set<string>();
 
 // POST: 탈락 콜 빅데이터 수신 (오답노트용) 및 하트비트
 /** 🧮 intel 누적 수 — 서버 하나에 표 하나라 모듈에 하나 */
@@ -416,6 +418,12 @@ router.post("/", (req, res) => {
         const foldAfter = foldOrder?.foldAfterSec != null && foldOrder.judgeUntil != null
             ? { orderId: foldOrder.id, remainSec: Math.max(0, Math.round((foldOrder.judgeUntil - Date.now()) / 100) / 10) }
             : undefined;
+        /* ⏩ 이 콜의 foldAfter 를 폰에 처음 실어 보낸 때 한 줄 — «판정 뒤 첫 응답부터 갔나»를 로그로 가른다(폰의 빈 보고는 로그에 안 남아서) */
+        if (foldAfter && !foldNotified.has(foldAfter.orderId)) {
+            foldNotified.add(foldAfter.orderId);
+            if (foldNotified.size > 500) foldNotified.delete(foldNotified.values().next().value as string);
+            slog('판정', `⏩ [빨리 접기] 폰에 처음 알림 ${foldAfter.orderId.slice(-6)} — 남은 ${foldAfter.remainSec}초`);
+        }
 
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
         const callMemoryRound = callMemoryRoundOf(session.businessDay, simRoundForPhone());
