@@ -127,7 +127,10 @@ class SessionManager {
         WAITING_FOR_MEMO_POPUP,
         WAITING_FOR_PICKUP_POPUP,
         WAITING_FOR_DROPOFF_POPUP,
-        DONE
+        DONE;
+
+        /** 팝업을 열거나 닫고 다음 화면을 기다린다 — 화면 알림을 모으지 않는다(`ContentGate`) */
+        val awaitsPopup: Boolean get() = this == WAITING_FOR_MEMO_POPUP || this == WAITING_FOR_PICKUP_POPUP || this == WAITING_FOR_DROPOFF_POPUP
     }
 
     /**

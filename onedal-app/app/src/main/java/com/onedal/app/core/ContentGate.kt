@@ -16,7 +16,9 @@ class ContentGate(private val windowMs: Long = WINDOW_MS) {
     private var lastScanAtMs = Long.MIN_VALUE / 2
     private var trailingDueMs: Long? = null
 
-    fun onEvent(nowMs: Long): Long? {
+    /** @param appWaiting 앱이 누른 뒤 새 화면을 기다린다 · 채우기가 팝업을 기다린다 — 창을 두지 않고 곧바로 읽는다(인성 팝업 순서 · `ReadSpeedTest`) */
+    fun onEvent(nowMs: Long, appWaiting: Boolean = false): Long? {
+        if (appWaiting) return 0
         if (trailingDueMs != null) return null
         if (nowMs - lastScanAtMs >= windowMs) return 0
         val due = lastScanAtMs + windowMs

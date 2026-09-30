@@ -830,8 +830,8 @@ class HijackService : AccessibilityService(), ScanContext {
             }
             com.onedal.app.core.EventRoute.Route.SCAN ->
                 if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) { contentGate.onScanned(now); scanScreen() }
-                else when (val wait = contentGate.onEvent(now)) {
-                    0L -> { contentGate.onScanned(now); scanScreen() }
+                else when (val wait = contentGate.onEvent(now, appWaiting = touchManager.awaitingScreen || session.collectState.awaitsPopup)) {
+                    0L -> { mainHandler.removeCallbacks(contentScan); contentGate.onScanned(now); scanScreen() }
                     null -> Unit
                     else -> mainHandler.postDelayed(contentScan, wait)
                 }
@@ -873,6 +873,10 @@ class HijackService : AccessibilityService(), ScanContext {
     /** 🌳 이번 읽기에서 훑은 노드 — 🔴 이번 읽기 안에서만 쓰고 끝나면 비운다(다음 읽기가 옛 노드를 잡지 않게 · `scanScreen`) */
     private val scanNodes = mutableListOf<com.onedal.app.core.RawNode>()
     private var scanWalkMs = 0L
+    /** ⏱️ 이번 읽기의 화면별 처리 ms · 노드 수 · 마지막으로 캐시를 비운 때 — «읽기 나눔» 계측 (인성 팝업 느림 가리기) */
+    private var scanHandleMs = 0L
+    private var scanNodeCount = 0
+    private var lastCacheClearAtMs = 0L
     /** 🧪 이번 읽기의 지문 글자 · 받는 방식 · 알림 뒤 첫 읽기인가 (`WalkProbe`) */
     private var scanTexts: List<String> = emptyList()
     private var scanWay = com.onedal.app.core.WalkProbe.Way.PLAIN
@@ -902,6 +906,9 @@ class HijackService : AccessibilityService(), ScanContext {
         val startMs = android.os.SystemClock.elapsedRealtime()
         scanGathered = false
         scanWalkMs = 0L
+        scanHandleMs = 0L
+        scanNodeCount = 0
+        val waiting = touchManager.awaitingScreen || session.collectState.awaitsPopup
         scanNodes.clear()
         scanMoving = com.onedal.app.core.AlarmHold.isMoving(recentContentEvents.toList(), startMs)
         val afterEvent = eventSinceRead
@@ -917,6 +924,11 @@ class HijackService : AccessibilityService(), ScanContext {
                 way = scanWay.word.takeIf { ctx == ScreenContext.LIST }, afterEvent = afterEvent, quietRead = quietReading)
                 ?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
         }
+        // ⏱️ 상세·팝업 읽기 중 앱이 기다리던 읽기와 화면이 바뀐 읽기만 — 어디서 느린가(훑기·처리·캐시)를 가린다
+        val ctxNow = telemetryManager.currentScreenContext
+        if (!scanSameText && (ctx != ScreenContext.LIST || ctxNow != ctx) && (waiting || ctxNow != ctx))
+            AppLogger.d(TAG, LogTag.SCREEN, "⏱️ [읽기 나눔] ${ctx.name}→${ctxNow.name} · 전체 ${nowMs - startMs}ms · 훑기 ${scanWalkMs}ms · 처리 ${scanHandleMs}ms · 노드 $scanNodeCount" +
+                " · 캐시 비운 지 ${if (lastCacheClearAtMs > 0L) "${nowMs - lastCacheClearAtMs}ms" else "없음"} · 앱 기다림 ${if (waiting) "예" else "아니오"}")
     }
 
     /**
@@ -924,7 +936,7 @@ class HijackService : AccessibilityService(), ScanContext {
      * 같은 글자면 지문에서 멈춰 서버로 안 간다. 글자가 달라졌으면 새로 보인 줄 앞 세 개(가림)를 한 줄.
      */
     private fun quietRead(why: String) {
-        if (android.os.Build.VERSION.SDK_INT >= com.onedal.app.core.WalkProbe.PREFETCH_MIN_SDK) clearCache()
+        if (android.os.Build.VERSION.SDK_INT >= com.onedal.app.core.WalkProbe.PREFETCH_MIN_SDK) { clearCache(); lastCacheClearAtMs = android.os.SystemClock.elapsedRealtime() }
         val before = scanTexts
         quietReading = true
         try { scanScreen() } finally { quietReading = false }
@@ -984,6 +996,7 @@ class HijackService : AccessibilityService(), ScanContext {
         screenTexts.addAll(com.onedal.app.core.NodeText.textsOf(scanNodes))
         scanTexts = screenTexts.toList()
         scanWalkMs = android.os.SystemClock.elapsedRealtime() - walkStartMs
+        scanNodeCount = scanNodes.size
         val fingerprint = screenTexts.sorted().hashCode()
         // ⏱️ 요약은 바깥(`scanScreen`)이 읽기 전체로 싣는다
         scanGathered = true
@@ -1229,6 +1242,7 @@ class HijackService : AccessibilityService(), ScanContext {
         if (detected == ScreenContext.LIST) lastPickerStage = null   // 리스트로 나오면 초기화
 
         // 화면별 핸들러 라우팅
+        val handleStartMs = android.os.SystemClock.elapsedRealtime()
         when (detected) {
             ScreenContext.LIST -> handleListScreen(rootNode, screenTexts)
             ScreenContext.DETAIL_PRE_CONFIRM -> {
@@ -1242,6 +1256,7 @@ class HijackService : AccessibilityService(), ScanContext {
             ScreenContext.POPUP_DROPOFF -> handleDropoffPopup(rootNode, screenTexts)
             else -> {} // UNKNOWN, POPUP_ERROR 등은 현재 별도 처리 없음
         }
+        scanHandleMs = android.os.SystemClock.elapsedRealtime() - handleStartMs
 
         rootNode.recycle()
     }
@@ -1998,6 +2013,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 return@schedule
             }
             if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = effectiveMode)) {
+                touchManager.noteAppLeft()   // 🚪 판결 버튼으로 떠난 목록 복귀는 기사님 손이 아니다
                 if (decision == "KEEP") {
                     AppLogger.roadmap(LogTag.DECISION, "✅ 판결 KEEP 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 합짐 콜 잡기 루프 회귀", telemetryManager.currentScreenContext.name)
                 } else {

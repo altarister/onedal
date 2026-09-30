@@ -28,6 +28,8 @@ class AutoTouchManager(private val service: AccessibilityService) {
     private var pendingTapAtMs = 0L
     /** 👆 미뤄 둔 누름이 걸려 있나 — 이때는 캐시를 비우는 계측(`WalkProbe`)을 하지 않는다 */
     val tapPending: Boolean get() = pendingTapAtMs > 0L
+    /** 👆 앱이 누르려 하거나 누른 뒤 아직 새 화면을 못 알아봤다 — 화면 알림을 모으지 않고 곧바로 읽는다(`ContentGate`) */
+    val awaitingScreen: Boolean get() = pendingTapAtMs > 0L || inFlight != null
 
     /** 👆 진행 중인 누르기 하나 (🔗 «쏜 뒤» 잠금 · «쏘기 전»은 `pendingTapAtMs`) — 규칙은 `TapInFlight` 한 곳 */
     private var inFlight: TapInFlight.Record? = null
@@ -39,6 +41,9 @@ class AutoTouchManager(private val service: AccessibilityService) {
         private set
     var lastAppBackAtMs = 0L
         private set
+
+    /** 🚪 앱이 버튼(판결 «닫기»·«취소»)으로 상세를 떠났다 — 뒤로 가기와 같이 적어 목록 복귀를 손으로 세지 않는다(`HandFirst.APP_BACK_ECHO_MS`) */
+    fun noteAppLeft() { lastAppBackAtMs = android.os.SystemClock.elapsedRealtime() }
     /** 시스템이 무시했을 때 한 번 더 부를 길 — 저장한 좌표가 아니라 같은 함수를 다시 부른다(버튼은 다시 찾고, 자리는 다시 잰다) */
     private var inFlightRefire: (() -> Unit)? = null
     /** 지금 화면 종류 — 화면 알림마다 `onScreen` 이 적는다 */
