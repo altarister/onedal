@@ -874,6 +874,12 @@ export interface AutoDispatchFilter {
      * ⚠️ 앱에는 안 내려간다 — 앱은 그물의 결과(동 목록)만 본다.
      */
     routeMode?: boolean;
+    /**
+     * 📅 **예약콜 축** — 내일 이후 예약 콜을 받나 (reviews/23 · 기사님 결정 기본 «오늘 콜만»).
+     *    읽는 곳은 원달앱 1차 필터 하나다 — 서버는 이 값으로 거르지 않는다. DB 자리는 `user_filters.reservation_mode`.
+     * ⚠️ 지금은 `today` 하나만 쓴다 — 내일 콜을 담을 그릇(예약 보관)이 서기 전에는 나머지 둘을 고를 수 없다.
+     */
+    reservationMode?: ReservationMode;
     radiusAuto?: boolean;
     /** 기준 거리 km — «지금 값이 몇 km 갈 때 맞춘 것인가». 근거는 `RADIUS_BASE_KM_DEFAULT` */
     radiusBaseKm?: number;
@@ -956,6 +962,9 @@ export interface AutoDispatchFilter {
      */
     keywordTraps?: Record<string, string[]>;
 }
+
+/** 📅 예약콜 축의 값 셋 — `today` 오늘 콜만 · `tomorrowToo` 내일 콜도 · `tomorrowOnly` 내일 콜만 */
+export type ReservationMode = 'today' | 'tomorrowToo' | 'tomorrowOnly';
 
 /**
  * 📦 **앱이 필터에서 읽는 키 — 유일한 원천**.

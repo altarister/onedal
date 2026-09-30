@@ -332,7 +332,8 @@ const stmtUpdateFilter = db.prepare(`
         ${QUAD_COLS.map(c => `${c} = ?`).join(', ')},
         ${VALUE_COLS.map(c => `${c} = ?`).join(', ')},
         radius_auto = ?, radius_base_km = ?, accepted_vehicle_types = ?,
-        route_mode = ?
+        route_mode = ?,
+        reservation_mode = ?
     WHERE user_id = ?
 `);
 
@@ -1113,6 +1114,7 @@ export function saveBaseFilter(
             Number.isFinite(b.radiusBaseKm as number) ? b.radiusBaseKm : null,
             JSON.stringify(b.acceptedVehicleTypes || []),
             b.routeMode === false ? 0 : 1,   // 🛣️🔷 기본은 노선
+            b.reservationMode ?? 'today',
             userId
         );
     } catch (e) {

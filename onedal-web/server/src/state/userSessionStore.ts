@@ -452,6 +452,8 @@ export function getUserSession(userId: string): UserSession {
                     acceptedVehicleTypes: safeJsonArray(filterRow.accepted_vehicle_types),
                     /* 🛣️🔷 NULL(옛 행)은 노선 — 기본이 노선이다 (조사 ①-9) */
                     routeMode: filterRow.route_mode == null ? true : Boolean(filterRow.route_mode),
+                    /* 📅 NULL(옛 행)은 오늘 콜만 — 기본값과 같다 */
+                    reservationMode: filterRow.reservation_mode ?? 'today',
                 } as AutoDispatchFilter;
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)

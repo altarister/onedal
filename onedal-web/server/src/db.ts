@@ -239,6 +239,8 @@ const FILTER_VALUE_COLS: Record<string, string> = Object.fromEntries(
 const RADIUS_AUTO_COLS: Record<string, string> = {
     /* 🛣️🔷 노선(1)/동선(0) — 필터 값이다. 관제웹 useState 였던 것을 올렸다 (전수 조사 ①-9) */
     route_mode: 'INTEGER DEFAULT 1',
+    /* 📅 예약콜 축 — today(오늘 콜만) · tomorrowToo · tomorrowOnly. 읽는 곳은 원달앱 1차 필터 하나 (reviews/23) */
+    reservation_mode: "TEXT DEFAULT 'today'",
     radius_auto: 'INTEGER DEFAULT 0',
     radius_base_km: `REAL DEFAULT ${RADIUS_BASE_KM_DEFAULT}`,
 };

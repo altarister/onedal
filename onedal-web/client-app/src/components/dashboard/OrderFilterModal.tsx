@@ -1028,6 +1028,8 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         </div>} />
                             </div>
 
+                            {/* 📅 예약콜 — 지금은 «오늘 콜만» 하나라 고르는 손잡이 없이 안내만 (reviews/23 · 내일 콜 받기는 예약 보관이 선 뒤) */}
+                            <div className="pt-1.5 text-[10.5px] text-text-muted">📅 예약콜 — 오늘 콜만 <span className="opacity-70">(내일 콜 받기는 예약 보관이 생긴 뒤 열린다)</span></div>
                     </FilterRow>
 
                     <FilterRow id="exclude" title="🚫 빼는 곳" danger open={openRow === 'exclude'} onToggle={toggleRow}
