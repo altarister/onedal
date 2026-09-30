@@ -1639,7 +1639,8 @@ class HijackService : AccessibilityService(), ScanContext {
         // 🚨 자기 자신의 앱(오버레이 UI) 텍스트 수집 원천 차단
         if (node.packageName?.toString() == "com.onedal.app") return
 
-        val text = com.onedal.app.core.NodeText.clean(node.text) ?: com.onedal.app.core.NodeText.clean(node.contentDescription)
+        // text 가 있으면(빈 글자라도) text 만 — content-desc 는 text 가 없는 노드에서만 (좌표 노드 수를 늘리지 않는다)
+        val text = com.onedal.app.core.NodeText.clean(node.text ?: node.contentDescription)
         if (!text.isNullOrEmpty()) {
             val rect = Rect()
             node.getBoundsInScreen(rect)
