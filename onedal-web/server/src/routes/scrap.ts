@@ -375,11 +375,13 @@ router.post("/", (req, res) => {
             slog('통신', `🧭 [피기백 v2] ${deviceId} — 신프로토콜 감지 (버전 게이트·중복 제거 작동)`);
         }
 
-        // 🛰️ 이중 발신 감지 — 같은 기기 이름이 15초 안에 다른 IP 에서도 말하면 경고 (분당 1회)
+        // 🛰️ 이중 발신 감지 — 같은 기기 이름이 15초 안에 다른 IP 에서도 말하면 경고 (분당 1회 · 경고 전용 — 다른 일은 이 값을 안 본다)
+        //    IP 는 폰의 실제 IP — 실서버는 클라우드플레어를 거쳐 req.ip 가 중계 에지라, 에지가 바뀌면 폰 한 대로도 경고가 났다.
+        //    ⚠️ 리허설 스크립트와 실폰이 같은 집 인터넷이면 실제 IP 도 같아 진짜 이중 발신을 못 잡는다(잡으려면 앱이 기동 번호를 보내야 한다).
         if (deviceId) {
             const now = Date.now();
             const prev = senderTrace.get(deviceId);
-            const ip = req.ip ?? '?';
+            const ip = req.get?.('cf-connecting-ip') ?? req.ip ?? '?';
             if (prev && prev.ip !== ip && now - prev.at < 15_000 && now - prev.warnedAt > 60_000) {
                 prev.warnedAt = now;
                 console.warn(`🛰️⚠️ [이중 발신] ${deviceId} 가 두 곳에서 동시에 신호 중 — ${prev.ip} ↔ ${ip}. ` +
