@@ -579,7 +579,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                     const pickupAddress = cachedOrder.pickupDetails?.[0]?.addressDetail || cachedOrder.pickup;
                     const pickupRegion = cachedOrder.pickupDetails?.[0]?.region || cachedOrder.pickup.split(' ').slice(0, 2).join(' ') || "배차값없음";
                 
-                    const pPlaceId = PlaceRepository.upsertPlace(
+                    const pPlaceId = PlaceRepository.upsertPlace(userId,
                         pickupAddress, pickupName, pickupRegion,
                         cachedOrder.pickupX || null, cachedOrder.pickupY || null,
                         cachedOrder.pickupDetails?.[0]?.phone1 || null
@@ -595,7 +595,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                     const dropoffAddress = cachedOrder.dropoffDetails?.[0]?.addressDetail || cachedOrder.dropoff;
                     const dropoffRegion = cachedOrder.dropoffDetails?.[0]?.region || cachedOrder.dropoff.split(' ').slice(0, 2).join(' ') || "배차값없음";
                 
-                    const dPlaceId = PlaceRepository.upsertPlace(
+                    const dPlaceId = PlaceRepository.upsertPlace(userId,
                         dropoffAddress, dropoffName, dropoffRegion,
                         cachedOrder.dropoffX || null, cachedOrder.dropoffY || null,
                         cachedOrder.dropoffDetails?.[0]?.phone1 || null

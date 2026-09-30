@@ -3,9 +3,7 @@
  *
  * 운행일지(logbook) 화면이 쓰는 집계.
  *
- * 🔴 **`orders` 를 읽는 집계는 userId 로 가르지만, `places` 집계는 못 가른다** —
- *    그 표에 `user_id` 칸 자체가 없다 (`db.ts` 의 places CREATE 참조).
- *    그래서 `getPlaceInsights`(단골 상하차지 · 블랙리스트)는 **기사 전원의 장소가 섞인다.**
+ * 🏪 **거래처 집계는 기사별 칸(`user_places`)으로 가른다** — `places` 는 공용 칸(주소 · 상호)만 둔다(reviews/29 1단계 C).
  *
  * ⚠️ 지금은 기사님 혼자 쓰므로 실제 해는 없지만, 기사가 둘이 되는 순간 남의 거래처와
  *    블랙리스트가 그대로 보인다 — 그때 고칠 자리를 여기 적어 둔다.
@@ -114,21 +112,21 @@ export interface PlaceInsights {
     blacklisted: BlacklistedPlace[];
 }
 
-export function getPlaceInsights(limit: number = 5): PlaceInsights {
+export function getPlaceInsights(userId: string, limit: number = 5): PlaceInsights {
     const hotspots = db.prepare(`
-        SELECT id, addressDetail, customerName, region, visitCount, lastVisitedAt
-        FROM places
-        WHERE visitCount > 0
-        ORDER BY visitCount DESC
+        SELECT p.id, p.addressDetail, p.customerName, p.region, u.visitCount, u.lastVisitedAt
+        FROM user_places u JOIN places p ON p.id = u.place_id
+        WHERE u.user_id = ? AND u.visitCount > 0
+        ORDER BY u.visitCount DESC
         LIMIT ?
-    `).all(limit) as HotspotPlace[];
+    `).all(userId, limit) as HotspotPlace[];
 
     const blacklisted = db.prepare(`
-        SELECT id, addressDetail, customerName, rating, blacklistMemo
-        FROM places
-        WHERE rating <= 2.0
-        ORDER BY rating ASC
-    `).all() as BlacklistedPlace[];
+        SELECT p.id, p.addressDetail, p.customerName, u.rating, u.blacklistMemo
+        FROM user_places u JOIN places p ON p.id = u.place_id
+        WHERE u.user_id = ? AND u.rating <= 2.0
+        ORDER BY u.rating ASC
+    `).all(userId) as BlacklistedPlace[];
 
     return { hotspots, blacklisted };
 }

@@ -993,5 +993,55 @@ db.exec(`
     )
 `);
 
+/**
+ * 🏪 **`user_places` — 거래처의 개인 칸은 기사별로** (README ⑤-4 다섯 · reviews/29 1단계 C · 기사님 «가»)
+ *    ① 스키마: 새 표 · `(user_id, place_id)` 한 줄. `places` 는 공용 칸(주소 · 좌표 · 지역 · 상호)만 계속 쓴다 — 표를 다시 만들지 않는다
+ *       (places 는 UNIQUE(addressDetail, customerName) 이고 orderStops 가 places.id 를 가리켜, 기사 칸을 더해도 두 기사의 같은 거래처가 한 줄로 합쳐졌다).
+ *    ② 값: 옛 places 의 개인 칸 그대로(rating 기본 3.0). 부팅 때 이 표가 비었으면 옛 줄을 관리자(기사님) 앞으로 한 번 옮긴다(`seedUserPlaces`).
+ *    ③ 시점: 콜을 잡을 때 방문 수·전화(`PlaceRepository.upsertPlace`) · 신고와 실측이 어긋날 때 블랙리스트 메모(`appendPlaceMemo`)를 쓰고, 운행일지 «자주 가는 곳»에서 읽는다.
+ *    ④ 화면: 운행일지 거래처 · 블랙리스트 — 지금 그대로(자기 것만 보인다).
+ *    ⑤ 읽는 곳: `statService.getPlaceInsights(userId)` 하나.
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS user_places (
+        user_id         TEXT NOT NULL,
+        place_id        INTEGER NOT NULL REFERENCES places(id),
+        rating          REAL DEFAULT 3.0,
+        blacklistMemo   TEXT,
+        visitCount      INTEGER DEFAULT 0,
+        lastVisitedAt   TEXT,
+        contactName     TEXT,
+        phone1          TEXT,
+        phone2          TEXT,
+        PRIMARY KEY (user_id, place_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_places_user ON user_places(user_id);
+`);
+
+/** 🏪 옛 places 의 개인 칸을 한 기사 앞으로 옮긴다 — 이미 있는 줄은 두 번 넣지 않는다 */
+export function seedUserPlaces(ownerId: string): number {
+    return db.prepare(`
+        INSERT OR IGNORE INTO user_places (user_id, place_id, rating, blacklistMemo, visitCount, lastVisitedAt, contactName, phone1, phone2)
+        SELECT ?, id, rating, blacklistMemo, visitCount, lastVisitedAt, contactName, phone1, phone2 FROM places
+    `).run(ownerId).changes;
+}
+
+/**
+ * 🏪 부팅 때 한 번 — user_places 가 비었고 places 에 줄이 있으면 관리자(기사님) 앞으로 옮긴다.
+ *    관리자 계정과 «콜이 가장 많은 기사»가 다르면 누구 것인지 확실하지 않으니 옮기지 않고 한 줄 남긴다(onedal-1f).
+ */
+(() => {
+    const has = (db.prepare(`SELECT COUNT(*) AS n FROM user_places`).get() as { n: number }).n;
+    const olds = (db.prepare(`SELECT COUNT(*) AS n FROM places`).get() as { n: number }).n;
+    if (has > 0 || olds === 0) return;
+    const admin = db.prepare(`SELECT id FROM users WHERE role = 'ADMIN' ORDER BY created_at LIMIT 1`).get() as { id: string } | undefined;
+    const top = db.prepare(`SELECT userId FROM orders WHERE userId IS NOT NULL GROUP BY userId ORDER BY COUNT(*) DESC LIMIT 1`).get() as { userId: string } | undefined;
+    if (!admin || (top && top.userId !== admin.id)) {
+        slog('부팅', `⚠️ [거래처 옮기기] 멈춤 — 관리자 ${admin?.id ?? '없음'} · 콜이 가장 많은 기사 ${top?.userId ?? '없음'} 가 달라 누구 것인지 확실하지 않다 · 옛 거래처 ${olds}곳은 places 에 그대로`);
+        return;
+    }
+    slog('부팅', `🏪 [거래처 옮기기] 옛 거래처 ${seedUserPlaces(admin.id)}곳의 개인 칸(별점 · 메모 · 방문 수 · 연락처)을 ${admin.id} 앞으로`);
+})();
+
 export default db;
 

@@ -826,7 +826,7 @@ export function registerSocketHandlers(io: Server) {
             const line = `${when} 신고 불일치 ${data.ratio.toFixed(1)}배 → ${verdict}`;
 
             const placeId = PlaceRepository.findPlaceIdByStop(data.orderId, data.stopType);
-            if (placeId) PlaceRepository.appendPlaceMemo(placeId, line);
+            if (placeId) PlaceRepository.appendPlaceMemo(userId, placeId, line);
 
             slog('콜단계', `⚖️ [불일치 판단] ${data.orderId.slice(0, 8)} ${data.stopType} — ${line}`);
             logRoadmapEvent('콜단계', "서버", `신고 불일치 판단: ${verdict} (${data.ratio.toFixed(1)}배)`);
@@ -848,7 +848,7 @@ export function registerSocketHandlers(io: Server) {
             const when = businessDayKey(Date.now());   // 한국 영업일 — toISOString 은 UTC 날
             const line = `${when} 현장 취소${data.reason ? ` — ${data.reason}` : ''}`;
             const placeId = PlaceRepository.findPlaceIdByStop(data.orderId, data.stopType);
-            if (placeId) PlaceRepository.appendPlaceMemo(placeId, line);
+            if (placeId) PlaceRepository.appendPlaceMemo(userId, placeId, line);
 
             slog('콜단계', `✕ [현장 취소] ${data.orderId.slice(0, 8)} ${data.stopType} — ${line}`);
             logRoadmapEvent('콜단계', "서버", `현장에서 상차 취소 (${data.reason || '사유 미기재'})`);

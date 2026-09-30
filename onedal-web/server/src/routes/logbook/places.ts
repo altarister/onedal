@@ -30,7 +30,7 @@ const router = Router();
 router.get("/hotspots", requireAuth, (req, res) => {
     try {
         const limit = parseInt(req.query.limit as string) || 5;
-        const insights = getPlaceInsights(limit);
+        const insights = getPlaceInsights(req.user!.id, limit);   // 🏪 자기 거래처만
         res.json(insights);
     } catch (error) {
         console.error("❌ [Logbook Places] hotspots 조회 실패:", error);
