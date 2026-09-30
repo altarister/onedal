@@ -16,7 +16,7 @@ import { barFocusOf, type BarFocus } from './barFocus';
 import { sheetStatus } from '../../lib/sheetStatus';
 import { reservedShortOf } from '../../lib/reservedLine';
 import { approxShortOf } from '../../lib/approxAddress';
-import type { Unreadable } from '../../lib/unreadable';
+import { seatOccupied, seatKeyOf, type Unreadable } from '../../lib/unreadable';
 import { remainOnRouteKm } from '../../lib/remainOnRoute';
 import { trailOfShown, hiddenPastIds } from '../../lib/pastCalls';
 import { deckOrder } from '../../lib/deckFocus';
@@ -307,6 +307,8 @@ export default function StageView(props: Props) {
     const drive = useDriveMotion();
     const mem = useRef(initialStageMemory());
     const judging = derived.judging;
+    /** 🪧 평가 자리가 차 있나 — 판정 중 콜 또는 ⚪(손 상세를 못 읽음). 시트 규칙은 둘을 같은 길로 다룬다 */
+    const seatBusy = seatOccupied(judging, props.unreadable);
     /**
      * 🙈 **덱에 실제로 그려지는 목록** — 숨길 id 를 고르는 자리와 «몇 번째가 열렸나»가
      *    **같은 배열**을 봐야 한다 (규칙 ③). `PinnedRoute` 가 넘기는 것과 글자까지 같다.
@@ -327,12 +329,12 @@ export default function StageView(props: Props) {
     const feed = (ev: StageEvent) => {
         const now = Date.now();
         const r = stageStep(mem.current, {
-            nowMs: now, calls: liveRoute.length, judging: !!judging, drive,
+            nowMs: now, calls: liveRoute.length, judging: seatBusy, drive,
             filterOpen: Boolean(isFilterOpen),
             /* 📍 곁(100m)의 다녀온 정거장 — 유예 중 미룬 도착을 다시 물을 때 «아직 곁인가» (stageRules) */
             hereStops: hereStopsOf(derived.visitedTrail, myLocation),
             /* 🪜 「나」에 보일 콜 줄이 없나 — 콜 없음 · 지난 콜 숨김으로 전부 가림 · 판정 중이면 판정석이 있어 안 빈다 (#147) */
-            listEmpty: !judging && deckList.every(o => hidePast && isDeliveredCall(o)),
+            listEmpty: !seatBusy && deckList.every(o => hidePast && isDeliveredCall(o)),
             /* 🪧 심사가 뜰 때 «올릴까»는 지금 높이에 달렸다 (`snapOnJudging`) */
             snap,
         }, ev);
@@ -408,15 +410,22 @@ export default function StageView(props: Props) {
     useEffect(() => { logStateChange("위치", "주행신호", drive, "무대"); }, [drive]);
     useEffect(() => () => { if (holdTimer.current) clearTimeout(holdTimer.current); }, []);
 
-    /* 🪧 새 판정이 뜨면 손 유예보다 먼저 — 규칙에 judge 로 넣는다 (#144) */
-    const judgingId = judging ? judging.id : null;
-    useEffect(() => { if (judgingId) feed({ type: 'judge' });
+    /* 🪧 새 판정(또는 ⚪)이 뜨면 손 유예보다 먼저 — 규칙에 judge 로 넣는다 (#144) */
+    const seatKey = seatKeyOf(judging ? judging.id : null, props.unreadable);
+    useEffect(() => { if (seatKey) feed({ type: 'judge' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [judgingId]);
+    }, [seatKey]);
 
     useEffect(() => { feed({ type: 'signal' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [drive, judging ? judging.id : null, liveRoute.length, ruleTick, isFilterOpen]);
+    }, [drive, seatKey, liveRoute.length, ruleTick, isFilterOpen]);
+
+    /* ⚪ 평가 자리 로그 — ⚪ 가 바뀔 때 무엇이 자리를 차지했고 시트가 어디였나 (기사님 창에서 안 보인 까닭을 가른다) */
+    const unreadableAt = props.unreadable?.at ?? null;
+    useEffect(() => {
+        if (!unreadableAt) return;
+        logRoadmapEvent("화면", "웹", `⚪ [평가 자리] 판정 중 콜 ${judging ? judging.id.slice(-6) : '없음'} · 시트(올리기 전) ${snap}`, "무대");
+    }, [unreadableAt]);
 
     /**
      * 📞 S5 — KEEP 직후: 시트 전체 + 그 콜 포커스 (킵 직후 바로 통화 원칙).

@@ -24,3 +24,16 @@ export function unreadableLine(u: Unreadable): { head: string; sub: string } {
 export function visibleIn(rect: { top: number; bottom: number; height: number }, viewportH: number): boolean {
     return rect.height > 0 && rect.bottom > 0 && rect.top < viewportH;
 }
+
+/**
+ * 🪧 **평가 자리가 차 있나** — 판정 중 콜이 있거나 ⚪ 가 떠 있다. 시트 규칙(`stageStep` 의 `judging` 신호)이 이것을 받는다 —
+ *    ⚪ 는 손으로 상세를 연 순간의 판정 결과라 진짜 판정과 같은 길로 시트를 올리고 내린다(같은 순서, 다른 것은 인자).
+ */
+export function seatOccupied(judging: { id: string } | null | undefined, unreadable: Unreadable | null | undefined): boolean {
+    return !!judging || !!unreadable;
+}
+
+/** 🔑 평가 자리의 열쇠 — 바뀔 때마다 시트 규칙에 `judge` 한 번. 판정 중 콜이 먼저, 없으면 ⚪ 의 받은 시각 */
+export function seatKeyOf(judgingId: string | null, unreadable: Unreadable | null | undefined): string | null {
+    return judgingId ?? (unreadable ? `unreadable:${unreadable.at}` : null);
+}
