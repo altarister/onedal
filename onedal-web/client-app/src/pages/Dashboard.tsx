@@ -311,15 +311,16 @@ export default function Dashboard() {
                       * 🪗 **필터 — 요약줄 바로 아래, 제자리에서 열린다**.
                       *    팝업이 아니라 **형제**라 덮지 않는다. 층은 둘(한 줄 → 열림)이다 — 기사님:
                       *    *"열려 있을 때 또 팝업이 뜬다. 그 UI 가 별로다."*
-                      * 🔴 닫혀 있으면 **만들지 않는다** — 훅과 구독이 도는 것을 막는다
-                      *    (`OrderFilterModal` 안의 `if (!isOpen) return null`).
+                      * 🔴 닫혀 있으면 **만들지 않는다** — 훅과 구독이 도는 것을 막는다. 버리는 때는 `Collapse` 가 정한다
+                      *    (닫히는 200ms 동안 들고 있다가 버린다).
                       */}
-                    {/* 🪗 **펴질 때도 밀려 내려온다** (기사님: *"뿅 하고 나타나서 지도가 확 찌그러진다"*).
-                        닫혀 있는 동안에는 `Collapse` 가 자식을 안 그려, 훅·구독이 도는 것을 막는
-                        `if (!isOpen) return null` 의 뜻이 그대로 지켜진다 (`ui/collapse` 주석). */}
+                    {/* 🪗 **펴질 때도 밀려 내려오고, 닫힐 때도 접히며 올라간다** (기사님: *"뿅 하고 나타나서 지도가 확 찌그러진다"* ·
+                        *"열 때와 닫을 때 애니메이션이 다르다"*). 🔴 안에서는 **늘 열림**으로 넘긴다 — `isFilterOpen` 을 넘기면 닫는 순간
+                        필터가 스스로 사라져 `Collapse` 가 200ms 동안 빈 상자를 접는다(닫을 때만 «뿅»). 닫힌 뒤에는 `Collapse` 가
+                        자식을 버려 훅·구독이 멈추고, 다시 열면 새로 만들어 «열릴 때 한 번» 효과가 다시 돈다 (`ui/collapse` 주석). */}
                     <Collapse open={isFilterOpen}>
                         <OrderFilterModal
-                            isOpen={isFilterOpen}
+                            isOpen
                             onClose={() => setIsFilterOpen(false)}
                             routeMode={routeMode}
                             setRouteMode={setRouteMode}
