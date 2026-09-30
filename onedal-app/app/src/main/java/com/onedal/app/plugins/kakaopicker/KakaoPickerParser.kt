@@ -262,6 +262,41 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun isListCardAnchor(fareCenterY: Int, listHeaderCenterY: Int?): Boolean =
             listHeaderCenterY != null && fareCenterY > listHeaderCenterY
 
+        /** 🟩 오더카드 버튼 꼴 — «15,785 P» · «15,785P» (버튼 글자가 바뀌어도 포인트 꼴은 남는다 · 1f) */
+        private val OFFER_POINT_BUTTON = Regex("""^\d{1,3}(?:,\d{3})+\s*P$""")
+        fun isOfferPointButton(text: String): Boolean = OFFER_POINT_BUTTON.matches(text.trim())
+
+        /** 👆 내려간 목록 맨 위에 붙는 띠 — «퀵 오더카드 대기 중.»(실물 13-2). «대기 중»은 지금 오더카드가 없다는 픽커의 말이다 */
+        private const val OFFER_BAND_WORD = "오더카드"
+        private const val OFFER_WAITING_WORD = "대기 중"
+        /** 화면 맨 아래 탭 줄 — 떠 있는 알약(서포트모드·카드설정·수요지도)은 x≈270~840 이라 줄 왼쪽 끝과 안 겹친다 */
+        private val TAB_BAR_WORDS = setOf("신규", "내 오더")
+        /** 띠 아래끝 · 탭 줄 위끝에서 이만큼 떨어진 줄만 누른다 (폰 픽셀) */
+        const val SCROLLED_GAP_PX = 40
+
+        /** 오더카드 대기 띠의 아래끝 — 없으면 null. @param nodes (글자, top, bottom) */
+        fun waitingBandBottom(nodes: List<Triple<String, Int, Int>>): Int? =
+            nodes.filter { it.first.contains(OFFER_BAND_WORD) }.maxOfOrNull { it.third }
+
+        /**
+         * 👆 **내려간 목록(머리줄 없음)에서 이 줄을 눌러도 되나 — 막는 까닭 글, 괜찮으면 null** (`PickerScrolledTapTest` · 기사님 «가»).
+         * 머리줄이 없으면 오더카드를 자리로 못 가른다(#111). 대신 셋을 본다:
+         * ① «수락»·«수락하기»·오더카드 버튼 꼴(«숫자 P»)이 하나도 없다 ② 맨 위 띠가 «오더카드 … 대기 중»이고 줄이 그 아래 ③ 줄이 아래 탭 줄 위.
+         * @param nodes (글자, top, bottom) · @param fareY 요금 중심 Y(누르는 Y)
+         */
+        fun scrolledRowTapBlock(nodes: List<Triple<String, Int, Int>>, fareY: Int): String? {
+            nodes.map { it.first.trim() }.firstOrNull { it == OFFER_ACCEPT_WORD || it.contains("수락하기") || isOfferPointButton(it) }
+                ?.let { return "오더카드 꼴이 보인다(«$it»)" }
+            val band = nodes.filter { it.first.contains(OFFER_BAND_WORD) }
+            if (band.isEmpty()) return "오더카드 대기 띠가 안 보인다"
+            band.firstOrNull { !it.first.contains(OFFER_WAITING_WORD) }?.let { return "띠 글이 대기 중이 아니다(«${it.first.trim()}»)" }
+            val bandBottom = band.maxOf { it.third }
+            if (fareY <= bandBottom + SCROLLED_GAP_PX) return "띠 바로 아래(요금 Y=$fareY · 띠 아래끝 $bandBottom)"
+            val tabTop = nodes.filter { it.first.trim() in TAB_BAR_WORDS }.minOfOrNull { it.second } ?: return "아래 탭 줄을 못 찾았다"
+            if (fareY >= tabTop - SCROLLED_GAP_PX) return "아래 탭 줄에 걸림(요금 Y=$fareY · 탭 위끝 $tabTop)"
+            return null
+        }
+
         /** 📜 목록 머리줄(«리스트 설정»)이 이 판에 있나 — 목록이 내려가면 없다 (`listHeaderVisible`) */
         fun listHeaderVisibleOf(texts: List<String>): Boolean = texts.any { it.contains(LIST_HEADER_WORD) }
 

@@ -1239,7 +1239,7 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager.listHeaderHidden = headerVisible?.let { !it }
         if (headerVisible != null && com.onedal.app.core.LogOnce.changed("list-header", "$headerVisible"))
             AppLogger.i(TAG, LogTag.SCREEN, if (headerVisible) "📜 [목록 맨 위] 머리줄 보임 — 목록 줄을 누를 수 있다"
-                else "📜 [목록 내려감] 머리줄 안 보임 — 앱은 오더카드와 목록 줄을 못 가려 누르지 않는다 (맨 위로 올리거나 직접 여십시오)")
+                else "📜 [목록 내려감] 머리줄 안 보임 — 앱은 «오더카드 대기 중» 띠 아래 줄만 누른다 (오더카드 꼴이 보이면 안 누른다)")
         val groupedNodes = scrapParser.groupListNodes(allNodes)
         if (scrapParser.lastFrameDiscarded) {
             discardStreak++
