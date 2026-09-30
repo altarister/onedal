@@ -49,14 +49,27 @@ const ms = (v?: string | null) => v ? Date.parse(v) : null;
 const j = (v: unknown) => v == null ? null : JSON.stringify(v);
 const parse = (v?: string | null) => { try { return v ? JSON.parse(v) : null; } catch { return null; } };
 
-function bornRows(orderId: string): Partial<Record<StepId, any>> {
+/**
+ * ⚙️ 단계 표 여섯을 읽는 문장 — DB 객체마다 한 번만 준비해 쥔다(부를 때마다 준비하면 약속 순서 계산이 수만 번 연다).
+ * 어느 DB 로 만든 문장인지를 키로 쥐어, DB 가 바뀌면(검사마다 새 DB · 사본 부팅) 그 DB 로 다시 만든다.
+ */
+const bornStatements = new WeakMap<object, Array<{ step: StepId; stmt: { get: (orderId: string) => unknown } }>>();
+
+export function bornRowsIn(conn: { prepare: (sql: string) => { get: (...a: any[]) => unknown } }, orderId: string): Partial<Record<StepId, any>> {
+    let stmts = bornStatements.get(conn);
+    if (!stmts) {
+        stmts = STEP_TABLES.map(t => ({ step: t.step as StepId, stmt: conn.prepare(`SELECT * FROM ${t.table} WHERE orderId = ?`) }));
+        bornStatements.set(conn, stmts);
+    }
     const out: Partial<Record<StepId, any>> = {};
-    for (const t of STEP_TABLES) {
-        const r = db.prepare(`SELECT * FROM ${t.table} WHERE orderId = ?`).get(orderId);
-        if (r) out[t.step as StepId] = r;
+    for (const { step, stmt } of stmts) {
+        const r = stmt.get(orderId);
+        if (r) out[step] = r;
     }
     return out;
 }
+
+const bornRows = (orderId: string) => bornRowsIn(db, orderId);
 
 /**
  * 🧮 지금 아는 것 전부로 사슬을 한 번 계산한다.

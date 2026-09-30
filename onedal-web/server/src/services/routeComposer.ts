@@ -552,7 +552,9 @@ function orderByPromise<T extends Coord & { orderId: string; stopType: 'pickup' 
 ): T[] | null {
     const pool = [...pickups, ...dropoffs];
     if (pool.length === 0 || pool.length > PROMISE_ORDER_MAX_STOPS) return null;
-    if (!pool.some(st => opts.promiseAt(st.orderId, st.stopType) != null)) return null;
+    /* ⚙️ 약속은 정거장마다 한 번만 읽는다 — 순서 계산은 동기라 그사이 바뀌지 않는다 (마디마다 읽으면 단계 표를 수천 번 연다) */
+    const promiseOf = new Map(pool.map(st => [`${st.orderId}|${st.stopType}`, opts.promiseAt(st.orderId, st.stopType)]));
+    if (![...promiseOf.values()].some(v => v != null)) return null;
 
     const speed = opts.speedKmh ?? 46;
     const dwell = opts.dwellMin ?? ((s: 'pickup' | 'dropoff') => (s === 'pickup' ? 15 : 10));
@@ -570,7 +572,7 @@ function orderByPromise<T extends Coord & { orderId: string; stopType: 'pickup' 
             if (st.stopType === 'dropoff' && notLoaded.has(st.orderId) && !loaded.has(st.orderId)) continue;
             const d = haversineKm(at.y, at.x, st.y, st.x);
             const arrive = tMs + (d / speed) * 3600_000;
-            const promise = opts.promiseAt(st.orderId, st.stopType);
+            const promise = promiseOf.get(`${st.orderId}|${st.stopType}`) ?? null;
             const lateMin = promise != null ? Math.max(0, Math.round((arrive - promise) / 60_000)) : 0;
             const nextLoaded = st.stopType === 'pickup' ? new Set([...loaded, st.orderId]) : loaded;
             walk(
