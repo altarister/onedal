@@ -148,4 +148,33 @@ if (unknown.length === 0) {
     console.log('        (픽커는 `pickerDictPaired.test.ts` 가 그 짝을 문다)');
 }
 
+// ── ⑥ 폰이 모은 화면 낱말 (screen_words) ────────────────────────────────────
+/**
+ * 📰 위 ①~⑤ 는 장부 원문(목록)에서 서버가 다시 가른 것이다. 여기는 **원달앱이 자른 그대로** 페이지 넷에서 모은 것 —
+ *    잡음으로 뺀 글자까지 보인다(원문 분석으로는 «뺀 것»이 안 보인다). 표가 없으면(옛 DB) 한 줄만.
+ */
+console.log('\n⑥ 폰이 모은 화면 낱말 — 원달앱이 자른 그대로 · 페이지 넷 (screen_words)');
+const hasScreenWords = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'screen_words'`).get();
+if (!hasScreenWords) {
+    console.log('     표 없음 — 서버가 screen_words 를 만들기 전 DB 다');
+} else {
+    const KIND_VIEW = [
+        ['noise', '✂️ 잡음으로 뺀 글자 (많은 순)', 'seen_count DESC'],
+        ['unknown', '❓ 정의에 없는 글자 (처음 본 순)', 'first_seen DESC'],
+        ['extra', '➕ 칸을 채우고 남은 토막 (처음 본 순)', 'first_seen DESC'],
+    ];
+    const day = (iso) => (iso ? new Date(Date.parse(iso) + 9 * 3600e3).toISOString().slice(5, 16).replace('T', ' ') : '?');
+    let any = false;
+    for (const [kind, title, order] of KIND_VIEW) {
+        const rows6 = db.prepare(`SELECT page, word, first_seen, last_seen, seen_count, sample FROM screen_words
+            WHERE target_app = ? AND kind = ? ORDER BY ${order} LIMIT 30`).all(target, kind);
+        if (!rows6.length) continue;
+        any = true;
+        console.log(`\n     ${title}`);
+        for (const r of rows6)
+            console.log(`       ${String(r.seen_count).padStart(5)}  ${r.word.padEnd(12)} ${r.page.padEnd(8)} ${day(r.first_seen)}~${day(r.last_seen)}  예: ${(r.sample || '').slice(0, 48)}`);
+    }
+    if (!any) console.log('     아직 없다 — 원달앱이 screenWords 를 싣기 전이거나 이 배차망 보고가 없다');
+}
+
 db.close();
