@@ -18,6 +18,7 @@ import path from "path";
 import fs from "fs";
 import db from "./db";   // 🛑 종료 절차에서 닫는다 (아래 shutdown)
 import { pruneGpsTracks, flushGpsBuffer, GPS_TRACK } from "./services/gpsTrackStore";
+import { startStatsRollup } from "./services/callFlowStats";
 
 import ordersRouter from "./routes/orders";
 import detailRouter from "./routes/detail";
@@ -177,6 +178,8 @@ const PORT = process.env.PORT || 4000;
 
 httpServer.listen(PORT as number, "0.0.0.0", () => {
     initGeoService();
+    /* 📊 콜 흐름 통계 — 뜰 때 한 번(부팅을 안 붙잡는다) + 1시간마다 «어제까지 안 묶은 날» (reviews/25 3단계) */
+    startStatsRollup();
     /**
      * 🛰️ 궤적 보관 정리 — **부팅 때 한 번.** 8일째 부팅하면 1일차가 지워진다.
      *    서버 로그가 3일치만 두는 것과 같은 규칙이다 (기사님 확정).

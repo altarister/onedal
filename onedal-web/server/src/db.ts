@@ -923,6 +923,45 @@ db.exec(`CREATE INDEX IF NOT EXISTS idx_telemetry_anomalies_target ON telemetry_
  *    배차망 · 페이지 · 낱말 · 갈래마다 한 줄 — 원문을 날마다 쌓지 않아 크기가 안 는다(수천 줄).
  *    `sample` 은 처음 본 줄 원문 200자 — 낱말만으로는 뜻을 못 가린다.
  */
+/**
+ * 📊 **콜 흐름 통계** (reviews/25 3단계 · `services/callFlowStats.ts`).
+ *    `stats_flows` — 영업일(KST) × 시 × 배차망 × 출발·도착 시군구(«모호»·«모름» 포함) × 차종 × 기사 한 줄.
+ *    기사별 줄(user_id = 기사 · drivers 1)은 90일 뒤 기사 칸을 뺀 합친 줄(user_id '' · drivers = 서로 다른 기사 수)로 다시 묶인다.
+ *    `stats_rollup_days` — 그날 묶었나 표지 + 가려진 비율 재료(resolved_calls / calls). 원문(intel)은 이번에 안 지운다.
+ *    CHECK 없음 — enum 성 칸에 CHECK 를 걸지 않는다(이 파일 머리).
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS stats_flows (
+        day            TEXT NOT NULL,
+        hour           INTEGER NOT NULL,
+        target_app     TEXT NOT NULL,
+        from_sigungu   TEXT NOT NULL,
+        to_sigungu     TEXT NOT NULL,
+        vehicle_type   TEXT NOT NULL DEFAULT '',
+        user_id        TEXT NOT NULL DEFAULT '',
+        drivers        INTEGER NOT NULL DEFAULT 1,
+        calls          INTEGER NOT NULL DEFAULT 0,
+        fare_first_sum INTEGER NOT NULL DEFAULT 0,
+        fare_last_sum  INTEGER NOT NULL DEFAULT 0,
+        fare_min       INTEGER,
+        fare_max       INTEGER,
+        km_sum         REAL NOT NULL DEFAULT 0,
+        reserved_calls INTEGER NOT NULL DEFAULT 0,
+        passed_calls   INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, hour, target_app, from_sigungu, to_sigungu, vehicle_type, user_id)
+    )
+`);
+db.exec(`
+    CREATE TABLE IF NOT EXISTS stats_rollup_days (
+        day            TEXT PRIMARY KEY,
+        done_at        TEXT NOT NULL,
+        real_rows      INTEGER NOT NULL DEFAULT 0,
+        calls          INTEGER NOT NULL DEFAULT 0,
+        resolved_calls INTEGER NOT NULL DEFAULT 0,
+        merged_at      TEXT
+    )
+`);
+
 db.exec(`
     CREATE TABLE IF NOT EXISTS screen_words (
         target_app  TEXT NOT NULL,
