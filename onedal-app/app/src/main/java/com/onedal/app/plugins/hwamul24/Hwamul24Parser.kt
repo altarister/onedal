@@ -41,8 +41,182 @@ import java.util.UUID
  */
 class Hwamul24Parser(private val context: Context) : IScrapParser {
 
+    /** 🗳️ 판정 — 눌러도 되나 · 걸린 축 한 낱말(통과면 «pass») */
+    data class Verdict(val passed: Boolean, val axis: String)
+
     companion object {
         private const val TAG = "1DAL_PARSER_24H"
+
+        /**
+         * 🧪 **판정 본체 — 필터를 인자로 받는다** (인성 `judge` 와 같은 모양).
+         * 누름(`shouldClick`)과 장부의 까닭(`withVerdict`)이 **같은 분기**를 쓴다 — 따로 세면 «누름은 요금, 장부는 지역»으로 갈라진다.
+         */
+        fun judge(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Verdict {
+
+            // ── 조건 0: 전체 필터 활성화 여부 ──
+            if (!filter.isActive) {
+                /* 🔴 «잠겨서 안 본 것»은 «걸러진 것»이 아니다 — 성적표에 안 센다 (인성과 같은 말) */
+                return Verdict(false, "locked")
+            }
+
+            val rawText = order.rawText ?: ""
+
+            // 📅 예약 — 인성 파서와 같은 자리 (목록에서는 확실한 다른 날만 · 날 모름은 채운 뒤 필터)
+            val reservationOk = com.onedal.app.core.engine.ReservationGate.passesList(order, filter.reservationMode)
+
+            // ── 조건 1: 차종 매칭 (빈 배열이면 전체 허용) ──
+            val vehicleMatch = if (filter.allowedVehicleTypes.isEmpty()) {
+                true
+            } else {
+                order.vehicleType != null && filter.allowedVehicleTypes.any { allowed ->
+                    val normAllowed = allowed.lowercase(Locale.getDefault())
+                    val normParsed = order.vehicleType.lowercase(Locale.getDefault())
+                    // 화물24시는 "2.5톤/윙" 형태이므로 톤수 포함 검사
+                    normParsed.contains(normAllowed) || normAllowed.contains(normParsed) ||
+                    // 크로스 매칭: 서버 "1t" ↔ 파싱 "1톤"
+                    (normAllowed == "1t" && normParsed.contains("1톤")) ||
+                    (normAllowed == "2.5t" && normParsed.contains("2.5톤")) ||
+                    (normAllowed == "3.5t" && normParsed.contains("3.5톤")) ||
+                    (normAllowed == "5t" && normParsed.contains("5톤"))
+                }
+            }
+
+            // ── 조건 2: 도착지 매칭 ──
+            //
+            // 🔴 키워드가 비면 `false`(보류)다.
+            //    도착지 조건이 없는 상태는 "아무 데나 좋다"가 아니라
+            //    **"필터가 아직 안 만들어졌다"** 는 뜻이다. 서버가 경유을 못 구했거나
+            //    목적지 도시가 비었을 때 그렇게 된다.
+            //
+            //    그대로 통과시키면 `isActive` 는 켜진 채 **도착지 제한만 사라진다.**
+            //    필터가 느슨해지는 게 아니라 없어지는 것이다.
+            //    서버도 같은 규칙으로 막는다 — 한쪽만 열어도 두 겹 중 하나가 사라진다.
+            //    (서버: `callFilterBlocker` · `OrderEvaluator` 5번 항목)
+            val regionMatch = if (filter.destinationKeywords.isEmpty()) {
+                AppLogger.d(TAG, LogTag.FILTER, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
+                false
+            } else {
+                // 🗺️ RegionMatch(④) — "남동"⊂"인천 남동구" 부분 문자열 오탐을 트랩으로 거른다
+                RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps)
+            }
+
+            // ── 조건 3: 요금 하한선 + 상한선 ──
+            //
+            // 🔴 상한(maxFare)도 앱이 판정한다 — 서버만 보면 상한을 50만으로 잡아도 100만짜리를 잡고,
+            //    서버가 안전취소에서 걸러낼 때는 **이미 패널티 구간**이다.
+            //    안 잡는 것과 잡고 나서 버리는 것은 전혀 다르다.
+            //
+            // 규칙은 서버(OrderEvaluator)와 **똑같이** 맞춘다:
+            //   0 < maxFare < 1,000,000 일 때만 적용한다. 100만은 "상한 없음"의 뜻이다.
+            val hasFareCeiling = filter.maxFare in 1..999_999
+
+            /**
+             * 💰 **최저가 AND 단가 — 둘 다 넘어야 통과** (기사님 확정).
+             *
+             * 두 손해가 서로 다른 축이라 한 축으로는 못 막는다:
+             *   2km 에 10,000원   → 상하차 품값도 안 나온다  ← `minFare` 가 막는다
+             *   400km 에 100,000원 → 단가가 안 나온다        ← `ratePerKm` 가 막는다
+             *
+             * 🔴 **그런데 이 파서는 아직 `deliveryDistance`(배송거리)를 안 읽는다.**
+             *    24시 카드에 그 숫자가 있는지부터 확인해야 한다(Phase 5 파서 복구 과제).
+             *    기사님 확정: «24시 목록엔 상차지거리만 있다» — 배송거리는 실물 화면이 생기면 다시 본다.
+             *    없으면 `useRateModel` 이 false 라 **지금은 `minFare` 단독으로만 돈다** —
+             *    안전망을 빼지 않으려는 폴백이다 (규칙 ②). 배송거리를 읽게 되는 순간
+             *    이 판정이 **저절로 켜진다.**
+             */
+            // 단가 조회는 인성과 **같은 함수**를 쓴다 — 차종 별칭 규칙이 두 벌이 되면 망마다 값이 갈린다
+            val rateFloor = order.vehicleType?.let { vt -> InsungParser.resolveRate(filter.ratePerKm, vt) }
+            val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && order.deliveryDistance != null
+            val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
+                            (!useRateModel || order.fare >= order.deliveryDistance!! * rateFloor!!) &&
+                            (!hasFareCeiling || order.fare <= filter.maxFare)
+
+            // ── 조건 4: 상차지 ──
+            // 📋 상차 목록이 오면 그것으로 거른다 — 인성 파서와 같은 규칙 (`PickupListFilter` · 하차 목록»).
+            //    화물24시 상차지 글자(`cleanRegion`)에 동이 실리는지는 실물 캡처로 확인할 것 (규격 표 ⬜)
+            //    🔴 칸이 안 오면(옛 서버) 아래 옛 판정 — 3단계(옛 칸 걷는 날)에 함께 지운다
+            val pickupListCheck = filter.pickupKeywords?.let { PickupListFilter.check(order.pickup, it, filter.keywordTraps) }
+            val pickupListMatch = pickupListCheck?.passed ?: true
+            val distanceMatch = if (pickupListCheck != null) {
+                true
+            } else if (filter.isSharedMode) {
+                true
+            } else {
+                // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 여기까지 오지 않는다
+                order.pickupDistance != null && order.pickupDistance <= filter.pickupRadiusKm
+            }
+
+            // ── 조건 5: 블랙리스트 제외 (화물24시 핵심: 적요가 rawText에 포함!) ──
+            val blacklistClear = if (filter.excludedKeywords.isEmpty()) {
+                true
+            } else {
+                filter.excludedKeywords.none { banned ->
+                    rawText.contains(banned, ignoreCase = true)
+                }
+            }
+
+            // ── 로그 출력 ──
+            val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
+            // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다 · reviews/22)
+            if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear")) {
+                AppLogger.roadmap(LogTag.FILTER, "🔍 [24시 필터] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
+                        "도착지(${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
+                        "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
+                        (if (pickupListCheck != null)
+                            "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${order.pickup})=${if(pickupListMatch) "✅" else "❌"} "
+                         else
+                            "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "배차값없음"})=${if(distanceMatch) "✅" else "❌"} ") +
+                        "블랙=${if(blacklistClear) "✅" else "❌"}", "LIST")
+            }
+
+            // ── 조건 6: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정) ──
+            // 📋 상차 목록이 오면 순서 검사를 안 한다 — 뒤쪽은 서버가 «내 위치 둘레»로 이미 뺐다
+            val routeOrder = if (pickupListCheck != null) RouteOrderFilter.Result(true, "상차 목록으로 거른다 — 순서 검사 안 함")
+                else RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
+            if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0 && com.onedal.app.core.LogOnce.changed("pick:"+"${order.pickup}|${order.dropoff}|${order.fare}", pickupListCheck.reason)) {
+                AppLogger.d(TAG, LogTag.FILTER, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
+            }
+            if (!routeOrder.passed && order.fare > 0) {
+                AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
+            } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
+                // 🔎 «판단 못 해서 통과»도 남긴다 (인성 파서와 같은 줄 · 기사님 요청)
+                AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
+            }
+
+            val result = reservationOk && vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
+
+            /**
+             * 👁️ **성적표를 채운다** — 인성 파서와 **같은 규칙**이다 (첫 축에만 센다).
+             *    한쪽만 고치면 두 배차망의 숫자가 다른 뜻을 갖게 된다.
+             */
+            val axis = when {
+                result           -> "pass"
+                !reservationOk   -> "reservation"
+                !vehicleMatch    -> "vehicle"
+                !regionMatch     -> "region"
+                !fareMatch       -> "fare"
+                !pickupListMatch -> "pickupList"
+                !distanceMatch   -> "pickup"
+                !blacklistClear  -> "blacklist"
+                else             -> "routeOrder"
+            }
+            tally?.let { t ->
+                t.seen++
+                when (axis) {
+                    "pass"        -> t.passed++
+                    "reservation" -> t.reservation++
+                    "vehicle"     -> t.vehicle++
+                    "region"      -> t.region++
+                    "fare"        -> t.fare++
+                    "pickupList"  -> t.pickupList++
+                    "pickup"      -> t.pickup++
+                    "blacklist"   -> t.blacklist++
+                    else          -> t.routeOrder++
+                }
+            }
+
+            return Verdict(result, axis)
+        }
 
         /** 📅 상차 날 배지(당일 상차 · 내일 상차) · 하차 날 배지(당일 도착 · 내일 도착) — 실물 목록 «[당상] … [당착]» */
         private val PICKUP_DAY_BADGES = setOf("당상", "내상")
@@ -293,161 +467,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
      * 화물24시에서는 리스트 단계에서 적요까지 파싱 가능하므로,
      * 블랙리스트(수작업 등) 필터도 1차에서 완벽히 걸러냅니다.
      */
-    override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
-        val filter = loadCurrentFilter()
-
-        // ── 조건 0: 전체 필터 활성화 여부 ──
-        if (!filter.isActive) {
-            return false
-        }
-
-        val rawText = order.rawText ?: ""
-
-        // 📅 예약 — 인성 파서와 같은 자리 (목록에서는 확실한 다른 날만 · 날 모름은 채운 뒤 필터)
-        val reservationOk = com.onedal.app.core.engine.ReservationGate.passesList(order, filter.reservationMode)
-
-        // ── 조건 1: 차종 매칭 (빈 배열이면 전체 허용) ──
-        val vehicleMatch = if (filter.allowedVehicleTypes.isEmpty()) {
-            true
-        } else {
-            order.vehicleType != null && filter.allowedVehicleTypes.any { allowed ->
-                val normAllowed = allowed.lowercase(Locale.getDefault())
-                val normParsed = order.vehicleType.lowercase(Locale.getDefault())
-                // 화물24시는 "2.5톤/윙" 형태이므로 톤수 포함 검사
-                normParsed.contains(normAllowed) || normAllowed.contains(normParsed) ||
-                // 크로스 매칭: 서버 "1t" ↔ 파싱 "1톤"
-                (normAllowed == "1t" && normParsed.contains("1톤")) ||
-                (normAllowed == "2.5t" && normParsed.contains("2.5톤")) ||
-                (normAllowed == "3.5t" && normParsed.contains("3.5톤")) ||
-                (normAllowed == "5t" && normParsed.contains("5톤"))
-            }
-        }
-
-        // ── 조건 2: 도착지 매칭 ──
-        //
-        // 🔴 키워드가 비면 `false`(보류)다.
-        //    도착지 조건이 없는 상태는 "아무 데나 좋다"가 아니라
-        //    **"필터가 아직 안 만들어졌다"** 는 뜻이다. 서버가 경유을 못 구했거나
-        //    목적지 도시가 비었을 때 그렇게 된다.
-        //
-        //    그대로 통과시키면 `isActive` 는 켜진 채 **도착지 제한만 사라진다.**
-        //    필터가 느슨해지는 게 아니라 없어지는 것이다.
-        //    서버도 같은 규칙으로 막는다 — 한쪽만 열어도 두 겹 중 하나가 사라진다.
-        //    (서버: `callFilterBlocker` · `OrderEvaluator` 5번 항목)
-        val regionMatch = if (filter.destinationKeywords.isEmpty()) {
-            AppLogger.d(TAG, LogTag.FILTER, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
-            false
-        } else {
-            // 🗺️ RegionMatch(④) — "남동"⊂"인천 남동구" 부분 문자열 오탐을 트랩으로 거른다
-            RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps)
-        }
-
-        // ── 조건 3: 요금 하한선 + 상한선 ──
-        //
-        // 🔴 상한(maxFare)도 앱이 판정한다 — 서버만 보면 상한을 50만으로 잡아도 100만짜리를 잡고,
-        //    서버가 안전취소에서 걸러낼 때는 **이미 패널티 구간**이다.
-        //    안 잡는 것과 잡고 나서 버리는 것은 전혀 다르다.
-        //
-        // 규칙은 서버(OrderEvaluator)와 **똑같이** 맞춘다:
-        //   0 < maxFare < 1,000,000 일 때만 적용한다. 100만은 "상한 없음"의 뜻이다.
-        val hasFareCeiling = filter.maxFare in 1..999_999
-
-        /**
-         * 💰 **최저가 AND 단가 — 둘 다 넘어야 통과** (기사님 확정).
-         *
-         * 두 손해가 서로 다른 축이라 한 축으로는 못 막는다:
-         *   2km 에 10,000원   → 상하차 품값도 안 나온다  ← `minFare` 가 막는다
-         *   400km 에 100,000원 → 단가가 안 나온다        ← `ratePerKm` 가 막는다
-         *
-         * 🔴 **그런데 이 파서는 아직 `deliveryDistance`(배송거리)를 안 읽는다.**
-         *    24시 카드에 그 숫자가 있는지부터 확인해야 한다(Phase 5 파서 복구 과제).
-         *    기사님 확정: «24시 목록엔 상차지거리만 있다» — 배송거리는 실물 화면이 생기면 다시 본다.
-         *    없으면 `useRateModel` 이 false 라 **지금은 `minFare` 단독으로만 돈다** —
-         *    안전망을 빼지 않으려는 폴백이다 (규칙 ②). 배송거리를 읽게 되는 순간
-         *    이 판정이 **저절로 켜진다.**
-         */
-        // 단가 조회는 인성과 **같은 함수**를 쓴다 — 차종 별칭 규칙이 두 벌이 되면 망마다 값이 갈린다
-        val rateFloor = order.vehicleType?.let { vt -> InsungParser.resolveRate(filter.ratePerKm, vt) }
-        val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && order.deliveryDistance != null
-        val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
-                        (!useRateModel || order.fare >= order.deliveryDistance!! * rateFloor!!) &&
-                        (!hasFareCeiling || order.fare <= filter.maxFare)
-
-        // ── 조건 4: 상차지 ──
-        // 📋 상차 목록이 오면 그것으로 거른다 — 인성 파서와 같은 규칙 (`PickupListFilter` · 하차 목록»).
-        //    화물24시 상차지 글자(`cleanRegion`)에 동이 실리는지는 실물 캡처로 확인할 것 (규격 표 ⬜)
-        //    🔴 칸이 안 오면(옛 서버) 아래 옛 판정 — 3단계(옛 칸 걷는 날)에 함께 지운다
-        val pickupListCheck = filter.pickupKeywords?.let { PickupListFilter.check(order.pickup, it, filter.keywordTraps) }
-        val pickupListMatch = pickupListCheck?.passed ?: true
-        val distanceMatch = if (pickupListCheck != null) {
-            true
-        } else if (filter.isSharedMode) {
-            true
-        } else {
-            // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 여기까지 오지 않는다
-            order.pickupDistance != null && order.pickupDistance <= filter.pickupRadiusKm
-        }
-
-        // ── 조건 5: 블랙리스트 제외 (화물24시 핵심: 적요가 rawText에 포함!) ──
-        val blacklistClear = if (filter.excludedKeywords.isEmpty()) {
-            true
-        } else {
-            filter.excludedKeywords.none { banned ->
-                rawText.contains(banned, ignoreCase = true)
-            }
-        }
-
-        // ── 로그 출력 ──
-        val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
-        // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다 · reviews/22)
-        if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear")) {
-            AppLogger.roadmap(LogTag.FILTER, "🔍 [24시 필터] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
-                    "도착지(${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
-                    "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
-                    (if (pickupListCheck != null)
-                        "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${order.pickup})=${if(pickupListMatch) "✅" else "❌"} "
-                     else
-                        "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "배차값없음"})=${if(distanceMatch) "✅" else "❌"} ") +
-                    "블랙=${if(blacklistClear) "✅" else "❌"}", "LIST")
-        }
-
-        // ── 조건 6: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정) ──
-        // 📋 상차 목록이 오면 순서 검사를 안 한다 — 뒤쪽은 서버가 «내 위치 둘레»로 이미 뺐다
-        val routeOrder = if (pickupListCheck != null) RouteOrderFilter.Result(true, "상차 목록으로 거른다 — 순서 검사 안 함")
-            else RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
-        if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0 && com.onedal.app.core.LogOnce.changed("pick:"+"${order.pickup}|${order.dropoff}|${order.fare}", pickupListCheck.reason)) {
-            AppLogger.d(TAG, LogTag.FILTER, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
-        }
-        if (!routeOrder.passed && order.fare > 0) {
-            AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
-        } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
-            // 🔎 «판단 못 해서 통과»도 남긴다 (인성 파서와 같은 줄 · 기사님 요청)
-            AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
-        }
-
-        val result = reservationOk && vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
-
-        /**
-         * 👁️ **성적표를 채운다** — 인성 파서와 **같은 규칙**이다 (첫 축에만 센다).
-         *    한쪽만 고치면 두 배차망의 숫자가 다른 뜻을 갖게 된다.
-         */
-        tally?.let { t ->
-            t.seen++
-            when {
-                result           -> t.passed++
-                !reservationOk   -> t.reservation++
-                !vehicleMatch    -> t.vehicle++
-                !regionMatch     -> t.region++
-                !fareMatch       -> t.fare++
-                !pickupListMatch -> t.pickupList++
-                !distanceMatch   -> t.pickup++
-                !blacklistClear  -> t.blacklist++
-                else             -> t.routeOrder++
-            }
-        }
-
-        return result
-    }
+    override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean =
+        judge(order, loadCurrentFilter(), tally).passed
 
     // ════════════════════════════════════════════════════════════════
     //  parsePickupDistance(): 화물24시 거리 패턴 파싱
@@ -525,7 +546,9 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
      */
     override fun reservationMode(): String? = loadCurrentFilter().reservationMode
 
-    override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder = order
+    /** 🗳️ 떨어진 까닭을 콜에 싣는다 — 누름과 같은 판정 (막은 내일 콜이 장부에 «reservation» 으로 남는다) */
+    override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder =
+        order.copy(verdict = judge(order, loadCurrentFilter(), tally).axis)
 
     override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
         val tempOrder = parse(screenTexts)
