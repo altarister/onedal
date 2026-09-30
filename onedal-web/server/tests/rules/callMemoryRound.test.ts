@@ -23,6 +23,10 @@ describe('🧹 본 콜 기억 비우기 번호', () => {
         expect(callMemoryRoundOf(now, 0)).toBe(callMemoryRoundOf(now, null));
     });
 
+    it('🔴 어제 회차 1 과 오늘(서버 재시작 뒤) 회차 0 이 같은 번호가 아니다 — 개발 폰도 날이 바뀌면 비운다', () => {
+        expect(callMemoryRoundOf(at(2026, 10, 6, 9), 0)).not.toBe(callMemoryRoundOf(at(2026, 10, 5, 9), 1));
+    });
+
     it('원달앱 칸(Int)에 들어가는 정수다', () => {
         const n = callMemoryRoundOf(at(2026, 10, 5, 9), 5);
         expect(Number.isInteger(n)).toBe(true);
