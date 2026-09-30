@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { getUserSession } from '../../src/state/userSessionStore';
+import { getUserSession, clearOrderTimers } from '../../src/state/userSessionStore';
 import { forceCancelEvaluatingOrder } from '../../src/services/dispatchEngine';
 import { initGeoService } from '../../src/services/geoService';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
@@ -22,7 +22,18 @@ const USER = 'test-preview-cleanup';
 const io = { to: () => ({ emit: jest.fn() }) } as any;
 
 beforeAll(() => { initGeoService(); });
-afterEach(() => jest.restoreAllMocks());
+/**
+ * ⏳ **목록 복귀가 건 «이탈 유예» 타이머는 검사마다 끝에 치운다** — 안 치우면 검사가 끝난 뒤 타이머가 돌아
+ *    «Cannot log after tests are done»과 없는 콜의 장부 쓰기(FK 오류)를 남긴다. 치우는 길은 서버의 `clearOrderTimers` 하나다.
+ */
+afterEach(() => {
+    jest.restoreAllMocks();
+    for (const u of [USER, 'ADMIN_USER']) {
+        const s = getUserSession(u);
+        for (const key of [...s.activeTimers.keys()])
+            if (key.startsWith('listExit_')) clearOrderTimers(s, key.slice('listExit_'.length));
+    }
+});
 
 function evaluating(id: string, preview: boolean) {
     const s = getUserSession(USER);
