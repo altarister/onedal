@@ -67,6 +67,14 @@ const STOP = '🔴 잡지 마세요';
 const CALL_BEFORE = '☎️ 전화하면 잡습니다';
 const CALL_AFTER = '☎️ 전화해서 약속을 미루세요';
 
+/**
+ * 🔔 **벨을 울릴까** — 서버가 판정 때 정한 bell 한 칸(점수 ≥ 벨 점수 · 기사님 «가»). 색으로 다시 가르지 않는다.
+ *    없으면(옛 판정) 안 울린다.
+ */
+export function bellOf(order: Judged): boolean {
+    return (order.judgment as { bell?: boolean } | null | undefined)?.bell === true;
+}
+
 export function verdictOf(order: Judged): Verdict {
     const j = order.judgment;
 

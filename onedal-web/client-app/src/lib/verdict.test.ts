@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { verdictOf } from './verdict';
+import { verdictOf, bellOf } from './verdict';
 
 /**
  * 🎨 **색은 값으로 온다 — 문장을 뒤져서 정하지 않는다**
@@ -182,5 +182,15 @@ describe('값이 없으면 예전처럼 문장을 뒤진다 (겹쳐 둔다 · �
 
     it('아직 연산 전이면 색을 만들지 않는다', () => {
         expect(verdictOf({} as any).color).toBe(null);
+    });
+});
+
+/** 🔔 **벨은 판정 결과의 bell 한 칸** — 관제웹은 색으로 다시 가르지 않는다 (기사님 «가») */
+describe('🔔 bellOf', () => {
+    it('🔴 bell 이 참일 때만 · 없으면(옛 판정) 안 울림', () => {
+        expect(bellOf({ judgment: { color: '똥', score: 60, bell: true } } as any)).toBe(true);
+        expect(bellOf({ judgment: { color: '보통', score: 30, bell: false } } as any)).toBe(false);
+        expect(bellOf({ judgment: { color: '꿀', score: 80 } } as any)).toBe(false);
+        expect(bellOf({} as any)).toBe(false);
     });
 });

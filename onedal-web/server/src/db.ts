@@ -370,6 +370,13 @@ db.exec(`
  *
  * 🔴 **컬럼 목록의 원천은 `shared` 의 `JUDGMENT_FIELDS` 표 하나다.**
  *    표에 한 줄을 더하면 컬럼도 폼도 기본값도 따라온다 — 여기 손으로 적지 않는다.
+ *
+ * 🔔 **`bell_score_min` — 벨 점수** (README ⑤-4 다섯 · 기사님 «색 말고 점수가 50점 이상이면»)
+ *    ① 스키마: 이 표 `bell_score_min INTEGER DEFAULT 50` — 칸이 없는 DB 는 아래 `ensureColumns` 가 DEFAULT 로 붙인다(옮길 옛 값 없음).
+ *    ② 값: 50 — 기사님 말씀. 꿀 경계(`color_honey_min` 70)보다 낮다.
+ *    ③ 시점: 판정할 때마다 세션의 판정 기준(로그인·저장 때 이 표에서 실림)에서 읽는다 · 기사님이 판정 기준 탭에서 저장할 때 쓴다.
+ *    ④ 화면: ⚙️ 설정 → 판정 기준 탭 «🔔 알림» 묶음의 «🔔 벨 · 점 이상» 칸 — 고칠 수 있다.
+ *    ⑤ 읽는 곳: 하나 — 서버 `judge()` 가 «이 콜에 벨을 울릴까»(점수 ≥ 벨 점수)를 판정 결과 `bell` 에 싣고, 관제웹 벨(`useOrderEngine` · `bellOf`)은 그 한 칸만 읽는다. 색 경계와는 다른 질문이라 칸을 나눴다.
  */
 const JUDGMENT_COLS: Record<string, string> = Object.fromEntries(
     JUDGMENT_FIELDS.map(f => [f.col, `${f.int ? 'INTEGER' : 'REAL'} DEFAULT ${judgmentDefaults()[f.col]}`])

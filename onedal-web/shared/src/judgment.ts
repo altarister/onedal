@@ -180,6 +180,8 @@ export interface JudgmentConfig {
     deadline: { ratioPct: number };
     /** 총점이 몇 점 이상이면 무슨 색인가 */
     color: { honeyMin: number; normalMin: number };
+    /** 🔔 벨 — 판정 점수가 이 점수 이상이면 관제웹이 벨을 울린다. 색과 따로다(🟡 라도 넘으면 울림 · 점수 없음은 안 울림) */
+    bell: { scoreMin: number };
     /**
      * ⏰ **여유 곡선** — 「약속」 기준이 여유(분)를 점수로 바꾸는 모양 (화면으로 올림).
      *
@@ -240,6 +242,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     destBonus: { max: 1.0, min: 0.5, trappedMult: 0.6, awayFreeKm: 30, awayHardKm: 150 },
     deadline: { ratioPct: 150 },
     color: { honeyMin: 70, normalMin: 40 },
+    bell: { scoreMin: 50 },
     // 🔴 여유 곡선은 «어떻게 잴 것인가» 라 여기 산다. 정차 값(박스당 분·검수 분)은
     //    **화면의 칩에 붙는 숫자**라 콜 옵션 표로 옮겼다 (규칙 ③) —
     //    같은 값을 두 그릇에 담지 않는다.
@@ -265,7 +268,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
 export interface JudgmentField {
     /** DB 컬럼 이름 = 폼의 키 */ col: string;
     /** `JudgmentConfig` 안의 자리 */ path: [keyof JudgmentConfig, string];
-    group: '합짐' | '첫짐' | '모를 때' | '가중치' | '색 경계' | '데드라인' | '정차·여유' | '지나침';
+    group: '합짐' | '첫짐' | '모를 때' | '가중치' | '색 경계' | '데드라인' | '정차·여유' | '지나침' | '알림';
     label: string;
     unit: string;
     min: number;
@@ -397,6 +400,9 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'color_honey_min', path: ['color', 'honeyMin'], group: '색 경계',
       label: '🔵 꿀', unit: '점 이상', min: 0, max: 100, int: true,
       why: '총점이 이 점수 이상이면 파란색' },
+    { col: 'bell_score_min', path: ['bell', 'scoreMin'], group: '알림',
+      label: '🔔 벨', unit: '점 이상', min: 0, max: 100, int: true,
+      why: '판정 점수가 이 점수 이상이면 관제웹이 벨을 울린다 — 색과 따로(🟡 라도 넘으면 울림 · 점수 없음은 안 울림). 기사님: «색 말고 점수가 50점 이상이면»' },
     /**
      * 🔴 **🟢 보통 경계(`color.normalMin`)는 여기 없다** — 색을 만들지 않으므로 고칠 칸도 없다.
      *    🟡 은 «전화하면 잡을 수 있다» 하나만 뜻하고(`judge.ts` 의 색 결정),

@@ -23,10 +23,10 @@ import { useJudgmentStore, ensureJudgmentSocketSubscribed, saveJudgment } from '
  *    `JUDGMENT_FIELDS` 에 칸을 넣어도 이 줄에 묶음 이름이 없으면 **고칠 길이 없다** —
  *    «판정 기준 탭에서 고친다»는 주석·설명만 남고 화면에는 없는 상태가 된다.
  */
-const GROUP_ORDER = ['합짐', '첫짐', '모를 때', '데드라인', '지나침', '정차·여유', '가중치', '색 경계'] as const;
+const GROUP_ORDER = ['합짐', '첫짐', '모를 때', '데드라인', '지나침', '정차·여유', '가중치', '색 경계', '알림'] as const;
 const GROUP_ICON: Record<string, string> = {
     '합짐': '📦', '첫짐': '🚚', '모를 때': '🔧', '데드라인': '⏱️', '지나침': '👣',
-    '정차·여유': '🅿️', '가중치': '⚖️', '색 경계': '🎨',
+    '정차·여유': '🅿️', '가중치': '⚖️', '색 경계': '🎨', '알림': '🔔',
 };
 const GROUP_HINT: Record<string, string> = {
     '합짐': '경로에 콜을 더할 때 — **우회 시급**(요금 ÷ 더 쓰는 시간)으로 색을 낸다. 아래 두 시급이 눈금의 두 끝이다',
@@ -35,6 +35,7 @@ const GROUP_HINT: Record<string, string> = {
     '데드라인': '콜마다 자동으로 서는 배달 상한 — 통화 전 추정을 이 안으로 깎는다. 통화로 합의하면 데드라인이 미뤄진다',
     '가중치': '0 이면 색에 반영하지 않는다 (표시는 계속한다)',
     '색 경계': '총점이 몇 점 이상이면 무슨 색인가',
+    '알림': '소리는 색과 따로 — 판정 점수가 이 점수 이상이면 벨을 울린다',
 };
 
 const readField = (cfg: JudgmentConfig, f: JudgmentField): number =>

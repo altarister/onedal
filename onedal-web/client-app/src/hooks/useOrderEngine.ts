@@ -1,4 +1,4 @@
-import { verdictOf } from '../lib/verdict';
+import { bellOf } from '../lib/verdict';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { unreadableAfter, type Unreadable } from '../lib/unreadable';
 import { reportWebCode } from '../lib/webCodeVersion';
@@ -85,14 +85,10 @@ export function useOrderEngine() {
             if (!order.kakaoTimeExt) return false;
             
             /**
-             * 3. 🎨 **색은 값에서 온다**. 문장에 `'똥'` 이 들어 있나 뒤지면
-             *    재탐색이 쓰는 `💩` 모양은 못 잡아 **똥콜에도 벨이 울린다.** 판정은 `lib/verdict.ts` 하나가 한다 (규칙 ③).
+             * 3. 🔔 **벨은 색이 아니라 점수로** (기사님 «가» — «색 말고 점수가 50점 이상이면»).
+             *    서버가 판정 때 정한 bell(점수 ≥ 판정 기준 «🔔 벨») 한 칸만 읽는다 — 여기서 문턱을 다시 셈하지 않는다 (규칙 ③).
              */
-            const color = verdictOf(order).color;
-            if (color === '똥' || color === '사고') return false;
-
-            // 4. 연산 완료 + 보통/꿀콜이면 true (벨 울림)
-            return true;
+            return bellOf(order);
         });
 
         if (hasGoodCall) {

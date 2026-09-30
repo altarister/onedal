@@ -148,6 +148,8 @@ export interface Judgment {
     criteria: JudgedCriterion[];
     /** 색을 안 건드리는 것들 — «평소보다 큰 요금입니다» 같은 것 */
     notes: string[];
+    /** 🔔 벨을 울릴까 — 점수 ≥ 벨 점수(`cfg.bell.scoreMin`). 색과 따로다. 점수 없음이면 false */
+    bell: boolean;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -249,7 +251,9 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
     if (score == null) notes.push('잴 수 없음 — 재료가 없어 점수를 못 냅니다');
     else for (const r of cannot) notes.push(`잴 수 없음 — ${r.name}: ${r.outcome.why}`);
 
-    return { color, score, criteria: rows, notes };
+    /* 🔔 벨은 색이 아니라 점수로 (기사님 «가») — 관제웹은 이 한 칸만 읽는다 */
+    const bell = score != null && score >= (cfg.bell.scoreMin);
+    return { color, score, criteria: rows, notes, bell };
 }
 
 
@@ -269,6 +273,7 @@ export function toSnapshot(v: Judgment) {
     return {
         color: v.color,
         score: v.score,
+        bell: v.bell,
         axes: v.criteria.map(c => ({
             key: c.key, name: c.name,
             // 🔴 못 잰 기준은 **null** 이다 — 위 주석대로. `?? 0` 이었을 때
