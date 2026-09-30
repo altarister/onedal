@@ -16,9 +16,9 @@ export class OrderRepository {
                 -- [2026-08-10] 앱은 예전부터 보내고 DB에도 컬럼이 있는데 이 목록에만 빠져 있어
                 -- 16건 전부 저장되지 않고 있었다. scheduleText 는 "낼09시/급송" 같은
                 -- 예약 표기의 원문이라, 이게 없으면 시간창 경로 최적화의 입력 자체가 없다.
-                scheduleText, postTime, targetApp, capturedVia, goalCity
+                scheduleText, postTime, targetApp, capturedVia, goalCity, reserved, reservedDay, reservedAt
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET 
                 status = 'ORDER_CONFIRMED', 
                 userId = excluded.userId, 
@@ -30,6 +30,9 @@ export class OrderRepository {
                 capturedVia = COALESCE(excluded.capturedVia, capturedVia),
                 -- 🎯 판 — KEEP 순간 적힌다. 판 없이 다시 저장돼도 지우지 않는다 (#131)
                 goalCity = COALESCE(excluded.goalCity, goalCity),
+                reserved = COALESCE(excluded.reserved, reserved),
+                reservedDay = COALESCE(excluded.reservedDay, reservedDay),
+                reservedAt = COALESCE(excluded.reservedAt, reservedAt),
                 -- 🗺️ 재확정 때 궤적이 비어 오면 기존 것을 지우지 않는다 (위 규약과 같다)
                 routePolyline = COALESCE(excluded.routePolyline, routePolyline),
                 sectionEnds  = COALESCE(excluded.sectionEnds, sectionEnds),
@@ -89,7 +92,10 @@ export class OrderRepository {
             cachedOrder.postTime || null,
             (cachedOrder as any).targetApp || null,
             (cachedOrder as any).capturedVia || null,
-            (cachedOrder as any).goalCity ?? null
+            (cachedOrder as any).goalCity ?? null,
+            typeof (cachedOrder as any).reserved === 'boolean' ? ((cachedOrder as any).reserved ? 1 : 0) : null,
+            (cachedOrder as any).reservedDay ?? null,
+            (cachedOrder as any).reservedAt ?? null
         );
     }
 

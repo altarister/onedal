@@ -610,6 +610,11 @@ ensureColumns('orders', { terminatedAt: 'TEXT' });
  * KEEP 순간 그때의 필터값(`goalCityOf`)을 적는다. 메모리에만 두면 재기동할 때 마지막 KEEP 콜의 목표값을 잃는다.
  */
 ensureColumns('orders', { goalCity: 'TEXT' });
+/**
+ * 📅 **예약 셋** — 앱이 읽어 싣는 값을 적는다(reviews/23). 판정·경로·약속에는 아직 안 쓴다.
+ *    `reserved`(1 예약 표시 있음 · 0 없음 · NULL 모름) — «표시 없음»과 «예약인데 날 모름»은 둘 다 `reservedDay` 가 NULL 이라 이 칸이 가른다.
+ */
+ensureColumns('orders', { reserved: 'INTEGER', reservedDay: 'INTEGER', reservedAt: 'TEXT' });
 
 // 어느 배차망에서 온 콜인가 (insung/hwamul24/kakaopicker) — 배차망별 콜 검색·분석의 근거 (기사님)
 ensureColumns('orders', { targetApp: 'TEXT',
@@ -765,6 +770,8 @@ db.exec(`
 `);
 // 기존 DB 에는 CREATE 가 안 도니 여기서 붙인다 — **CREATE 뒤여야 한다** (위 [3] 끝 주석 참조)
 ensureColumns('intel', { targetApp: 'TEXT',
+    /** 📅 예약 표시(1·0·NULL)·날(0 오늘 · 1 내일 · N · NULL)·시각 «HH:MM» — 앱이 읽어 싣는다 (reviews/23 · orders 칸 주석) */
+    reserved: 'INTEGER', reservedDay: 'INTEGER', reservedAt: 'TEXT',
     // 🌐 픽커 수집 필드 셋 (기사님 확정 · 픽커_수집.md §5-①) — 인성 콜은 null
     itemSize: 'TEXT', pickupDistanceKm: 'REAL', tagsText: 'TEXT',
     /**
