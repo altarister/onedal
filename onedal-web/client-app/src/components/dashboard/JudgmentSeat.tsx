@@ -30,24 +30,50 @@ export const SOAK: Record<VerdictColor, { tint: string; bar: string; text: strin
     '사고': { tint: 'rgba(224,85,99,.30)',  bar: '#e05563', text: '#f09aa4', glow: 'rgba(224,85,99,.45)',  wm: 'rgba(224,85,99,.15)' },
 };
 // 테마를 따른다 — 다크 고정색은 라이트 테마에서 이질적이다 (기사님)
-/**
- * ⏳ **배경 막대의 움직임 — 줄임 꼴 `animation` 하나에 음수 지연까지 싣는다.**
- *    `animationDelay` 를 따로 두면, 판정이 와서 길이가 바뀔 때 줄임 꼴을 다시 쓰며 지연이 0 으로 풀린다
- *    (React 경고 «style property during rerender») — «흐른 만큼 미리 차 있게»가 깨져 막대가 처음부터 다시 줄어든다.
- */
-export function drainStyleOf(sec: number, elapsedSec: number): { animation: string } {
-    return { animation: `seat-drain-x ${sec}s linear -${elapsedSec.toFixed(1)}s forwards` };
-}
+
 
 /**
- * ⏳ **미리보기 막대의 길이와 흐른 초** — 길이 = 끝(judgeUntil) − 잡은 때, 흐른 초 = 지금 − 잡은 때. 끝을 모르면 기본 초.
- *    판정이 끝을 당기면(빨리 접기) 둘을 함께 다시 재야 막대가 judgeUntil 에 정확히 0 이 된다.
+ * ⏳ **배경 막대의 두 걸음 — transform + transition** (기사님 «판정 영역의 애니메이션도 같이 작동해야 해»).
+ *    걸음 1: 지금 있어야 할 자리로 — 처음 그릴 때는 곧바로(흐른 만큼에서 시작 · 새로고침해도 처음부터 다시 차지 않음),
+ *            끝이 바뀌면(빨리 접기가 judgeUntil 을 당김) 0.3초에 부드럽게 옮긴다 — 뛰지 않는다.
+ *    걸음 2: 끝 시각까지 곧게 가득 찬다. 끝에 닿았거나 지났으면 가득 찬 채 머문다(다시 줄거나 깜빡이지 않음).
+ *    CSS 키프레임은 길이가 바뀔 때 이어 갈 수 없어(새 애니메이션으로 갈아 끼움) transition 으로 짠다.
  */
-export function previewDrainOf(judgeUntil: number | undefined, capturedAtMs: number, nowMs: number, fallbackSec: number): { sec: number; elapsed: number } {
-    return {
-        sec: judgeUntil ? Math.max(1, (judgeUntil - capturedAtMs) / 1000) : fallbackSec,
-        elapsed: Math.max(0, (nowMs - capturedAtMs) / 1000),
-    };
+export function drainPlanOf(startMs: number, endMs: number, nowMs: number, moved: boolean): {
+    first: { scale: number; transition: string; ms: number }; second: { scale: number; transition: string };
+} {
+    const span = Math.max(1, endMs - startMs);
+    const fracAt = (t: number) => Math.min(1, Math.max(0, (t - startMs) / span));
+    const secs = (ms: number) => `${Math.round(ms / 100) / 10}s`;
+    if (nowMs >= endMs) return { first: { scale: 1, transition: 'none', ms: 0 }, second: { scale: 1, transition: 'none' } };
+    if (!moved) return { first: { scale: fracAt(nowMs), transition: 'none', ms: 0 }, second: { scale: 1, transition: `transform ${secs(endMs - nowMs)} linear` } };
+    const at = Math.min(endMs, nowMs + 300);
+    return { first: { scale: fracAt(at), transition: 'transform 0.3s ease-out', ms: 300 }, second: { scale: 1, transition: `transform ${secs(endMs - at)} linear` } };
+}
+
+/** ⏳ 배경 막대 — 시작·끝 시각이 바뀔 때마다 두 걸음(`drainPlanOf`)을 DOM 에 직접 건다(리액트가 매 프레임 다시 그리지 않게) */
+function DrainOverlay({ startMs, endMs }: { startMs: number; endMs: number }) {
+    const ref = useRef<HTMLDivElement>(null);
+    const drawn = useRef(false);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const plan = drainPlanOf(startMs, endMs, Date.now(), drawn.current);
+        drawn.current = true;
+        el.style.transition = plan.first.transition;
+        el.style.transform = `scaleX(${plan.first.scale})`;
+        const go = () => { el.style.transition = plan.second.transition; el.style.transform = `scaleX(${plan.second.scale})`; };
+        let raf2 = 0;
+        let t: ReturnType<typeof setTimeout> | undefined;
+        /* 걸음 1이 칠해진 뒤에 걸음 2 — 같은 프레임에 걸면 브라우저가 걸음 1을 건너뛴다 */
+        const raf1 = requestAnimationFrame(() => {
+            if (plan.first.ms > 0) t = setTimeout(go, plan.first.ms);
+            else raf2 = requestAnimationFrame(go);
+        });
+        return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); if (t) clearTimeout(t); };
+    }, [startMs, endMs]);
+    return <div ref={ref} className="absolute inset-0 z-0 pointer-events-none"
+                style={{ background: 'linear-gradient(270deg, rgba(0,0,0,.72), rgba(0,0,0,.30))', transformOrigin: 'right center', transform: 'scaleX(0)' }} />;
 }
 
 /** 판정석 카드 높이 — 알림 줄(예약 · 주소 대략)이 있으면 그 줄만큼 더한다 */
@@ -114,13 +140,6 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
      * 🔴 **이 배경이 다 차도 카드는 안 사라진다** — 끄는 것은 폰의 화면 상태 하나다.
      */
     const pickerHoldSec = useSettingsStore(st => st.pickerAlarmDetailSec);
-    /* ⏩ 끝(judgeUntil)이 당겨지면(빨리 접기) 길이와 흐른 초를 함께 다시 잰다 — 흐른 만큼에서 이어 줄고 judgeUntil 에 0 · 0 이 된 뒤에는 그대로 머문다(forwards) */
-    const { sec: previewHoldSec, elapsed: previewElapsedSec } = useMemo(
-        () => route.isPreview && route.capturedAt
-            ? previewDrainOf(route.judgeUntil, Date.parse(route.capturedAt), Date.now(), pickerHoldSec + SERVER_CLEANUP_EXTRA_SEC)
-            : { sec: pickerHoldSec + SERVER_CLEANUP_EXTRA_SEC, elapsed: 0 },
-        [route.isPreview, route.capturedAt, route.judgeUntil, pickerHoldSec],
-    );
     const judged = !!v.color;
     const c = v.color ? SOAK[v.color] : null;
     const hourly = route.judgment?.axes?.find(a => a.key === 'money')?.value;
@@ -162,13 +181,14 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
      * 두 시계를 한 자리에서 그린다 — 미리보기는 «판정 보류», 잡은 콜은 «안전취소».
      * 둘은 같이 오지 않는다 (미리보기는 안 잡은 콜이다).
      */
-    const drainSec = route.isPreview ? previewHoldSec : (judged ? cancelSec : null);
-    const drainDelay = route.isPreview ? previewElapsedSec : 0;
-    const drain = drainSec != null && (
-        <div className="absolute inset-0 z-0 pointer-events-none"
-             style={{ background: 'linear-gradient(270deg, rgba(0,0,0,.72), rgba(0,0,0,.30))', transformOrigin: 'right center',
-                      ...drainStyleOf(drainSec, drainDelay) }} />
-    );
+    /* 미리보기: 잡은 때 → judgeUntil(빨리 접기면 판정 끝 + 10초로 당겨짐 · 모르면 기본 초) · 잡은 콜: 판정이 온 때 → 안전취소 초 */
+    const capturedAtMs = route.capturedAt ? Date.parse(route.capturedAt) : NaN;
+    const judgedAtMs = useMemo(() => (judged ? Date.now() : null), [judged, route.id]);
+    const drainWindow = route.isPreview && Number.isFinite(capturedAtMs)
+        ? { start: capturedAtMs, end: route.judgeUntil ?? capturedAtMs + (pickerHoldSec + SERVER_CLEANUP_EXTRA_SEC) * 1000 }
+        : !route.isPreview && judgedAtMs != null && cancelSec != null
+            ? { start: judgedAtMs, end: judgedAtMs + cancelSec * 1000 } : null;
+    const drain = drainWindow && <DrainOverlay startMs={drainWindow.start} endMs={drainWindow.end} />;
 
     /**
      * ── 머리줄 — **두 갈래가 한 벌을 쓴다** (기사님 확정 · 화면 디자인) ──
@@ -321,7 +341,6 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     )}
                 </div>
                 {/* ⏳ 배경이 차오르는 문법 — 오른쪽 끝에 붙어 왼쪽으로 늘어난다 (두 갈래가 이 한 벌을 쓴다) */}
-                <style>{`@keyframes seat-drain-x { from { transform: scaleX(0) } to { transform: scaleX(1) } }`}</style>
             </div>
         );
     }
@@ -391,8 +410,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     </div>
                 </button>
             </div>
-            {/* ⏳ 배경이 차오르는 문법은 한 벌이다 — `seat-drain-x` (위 `drain`). 폭을 재는 옛 `seat-drain` 은 걷었다 */}
-            <style>{`@keyframes seat-drain-x { from { transform: scaleX(0) } to { transform: scaleX(1) } }`}</style>
+            {/* ⏳ 배경이 차오르는 문법은 한 벌이다 — `DrainOverlay`(transform + transition · 위 `drain`) */}
         </div>
     );
 }

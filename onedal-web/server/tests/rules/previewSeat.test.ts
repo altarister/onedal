@@ -19,9 +19,9 @@ describe('👀 미리보기 심사석', () => {
 
     it('🔴 콜이 생긴 시각부터 흐른 만큼 배경이 차 있다 — 새로고침해도 처음부터 다시 차오르지 않는다', () => {
         expect(src).toMatch(/capturedAt/);
-        /* 음수 지연은 줄임 꼴 animation 안에 실린다(drainStyleOf) — 따로 animationDelay 를 두면 판정이 올 때 풀린다 */
-        expect(src).toMatch(/drainStyleOf\(drainSec, drainDelay\)/);
-        expect(src).toMatch(/linear -\$\{elapsedSec/);
+        /* 막대는 잡은 때(capturedAt)부터 판정 끝(judgeUntil)까지 — 두 걸음(drainPlanOf)이 흐른 만큼에서 시작한다 */
+        expect(src).toMatch(/start: capturedAtMs, end: route\.judgeUntil/);
+        expect(src).toMatch(/drainPlanOf\(startMs, endMs, Date\.now\(\), drawn\.current\)/);
     });
 
     it('🔴 누르면 치운다 — 미리보기에만 있는 길이다', () => {
