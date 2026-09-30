@@ -83,7 +83,6 @@ class HijackService : AccessibilityService(), ScanContext {
         /** 📋 상세가 목록의 어느 줄인가를 찾으려고 들고 있는 최근 목록 콜 — 넘치면 뒤쪽만 남긴다 (같은 콜 기억 크기와 다른 것) */
         private const val RECENT_LIST_ORDERS_MAX = 100
         private const val RECENT_LIST_ORDERS_KEEP = 50
-        private const val MAX_TEXT_NODE_HEIGHT_PX = 400
         internal const val FARE_RANGE_MIN = 10.0
         internal const val FARE_RANGE_MAX = 9999.0
 
@@ -706,6 +705,9 @@ class HijackService : AccessibilityService(), ScanContext {
     /** ⏱️ 이번 읽기에서 화면을 얻어 글자를 모았나 · 지난번과 같은 글자였나 — `scanScreen` 이 요약에 싣는다 */
     private var scanGathered = false
     private var scanSameText = false
+    /** 🌳 이번 읽기에서 훑은 노드 — 🔴 이번 읽기 안에서만 쓰고 끝나면 비운다(다음 읽기가 옛 노드를 잡지 않게 · `scanScreen`) */
+    private val scanNodes = mutableListOf<com.onedal.app.core.RawNode>()
+    private var scanWalkMs = 0L
 
     /**
      * 📡 **화면 한 번 읽기 — 입구는 여기 하나** (접근성 알림 · «필터 도착»이 같은 길).
@@ -716,11 +718,13 @@ class HijackService : AccessibilityService(), ScanContext {
         val ctx = telemetryManager.currentScreenContext
         val startMs = android.os.SystemClock.elapsedRealtime()
         scanGathered = false
-        scanScreenBody()
+        scanWalkMs = 0L
+        scanNodes.clear()
+        try { scanScreenBody() } finally { scanNodes.clear() }
         if (!scanGathered) return
         val nowMs = android.os.SystemClock.elapsedRealtime()
         scanTimerOf(ctx)?.let { (timer, label) ->
-            timer.record(nowMs - startMs, scanSameText, nowMs)?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
+            timer.record(nowMs - startMs, scanSameText, nowMs, walkMs = scanWalkMs)?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
         }
     }
 
@@ -747,7 +751,10 @@ class HijackService : AccessibilityService(), ScanContext {
 
         // 핑거프린트 비교 → 화면 변경 없으면 스킵
         val screenTexts = mutableListOf<String>()
-        gatherNodeTexts(rootNode, screenTexts)
+        val walkStartMs = android.os.SystemClock.elapsedRealtime()
+        collectNodes(rootNode, scanNodes)
+        screenTexts.addAll(com.onedal.app.core.NodeText.textsOf(scanNodes))
+        scanWalkMs = android.os.SystemClock.elapsedRealtime() - walkStartMs
         val fingerprint = screenTexts.sorted().hashCode()
         // ⏱️ 요약은 바깥(`scanScreen`)이 읽기 전체로 싣는다
         scanGathered = true
@@ -1033,8 +1040,8 @@ class HijackService : AccessibilityService(), ScanContext {
          * 🔴 세션을 지우는 자리는 전부 *"이 콜은 끝났다"* 여야 한다 — 복귀 · 동명이동 실패 ·
          *    2차 필터 실패 · 판결 집행. **"지금 무슨 화면이냐"는 콜의 끝이 아니다.**
          */
-        val allNodes = mutableListOf<ScreenTextNode>()
-        extractAllTextNodes(rootNode, allNodes)
+        // 🌳 이번 읽기에서 한 번 훑은 노드로 — 다시 훑지 않는다 (`collectNodes`)
+        val allNodes = com.onedal.app.core.NodeText.textNodesOf(scanNodes).map { (t, n) -> ScreenTextNode(t, n.node!!, n.rect!!) }.toMutableList()
 
         // 앱별 앵커 노드 감지 및 텍스트 그룹화 로직을 파서(ScrapParser)로 위임
         // 📜 목록 머리줄이 보이나 — 사실 한 칸(보고·로그). 바뀔 때만 한 줄
@@ -1677,20 +1684,21 @@ class HijackService : AccessibilityService(), ScanContext {
         for (i in 0 until node.childCount) gatherNodeTexts(node.getChild(i), out)
     }
 
-    /** 파싱용 좌표 포함 수집 (거대 컨테이너 제외) */
-    private fun extractAllTextNodes(node: AccessibilityNodeInfo?, out: MutableList<ScreenTextNode>) {
+    /**
+     * 🌳 **화면 나무 한 번 훑기** — 지문 글자(`NodeText.textsOf`)와 목록 좌표 노드(`NodeText.textNodesOf`)를 이 한 벌에서 만든다.
+     * 두 번 훑으면 노드마다 접근성 통신(getChild)이 두 배다(목록 한 번 300~500ms · 실물 09-30 18:36). 우리 앱 노드는 건너뛴다.
+     */
+    private fun collectNodes(node: AccessibilityNodeInfo?, out: MutableList<com.onedal.app.core.RawNode>) {
         if (node == null) return
-        // 🚨 자기 자신의 앱(오버레이 UI) 텍스트 수집 원천 차단
         if (node.packageName?.toString() == "com.onedal.app") return
-
-        // text 가 있으면(빈 글자라도) text 만 — content-desc 는 text 가 없는 노드에서만 (좌표 노드 수를 늘리지 않는다)
-        val text = com.onedal.app.core.NodeText.clean(node.text ?: node.contentDescription)
-        if (!text.isNullOrEmpty()) {
+        val text = node.text
+        val desc = node.contentDescription
+        if (!text.isNullOrBlank() || !desc.isNullOrBlank()) {
             val rect = Rect()
             node.getBoundsInScreen(rect)
-            if (rect.height() < MAX_TEXT_NODE_HEIGHT_PX && rect.width() > 0) out.add(ScreenTextNode(text, node, rect))
+            out.add(com.onedal.app.core.RawNode(text, desc, rect.left, rect.top, rect.right, rect.bottom, node, rect))
         }
-        for (i in 0 until node.childCount) extractAllTextNodes(node.getChild(i), out)
+        for (i in 0 until node.childCount) collectNodes(node.getChild(i), out)
     }
 }
 

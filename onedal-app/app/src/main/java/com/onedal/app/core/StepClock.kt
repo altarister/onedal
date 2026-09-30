@@ -37,6 +37,8 @@ class ScanTimer(private val windowMs: Long = 1000) {
     private var same = 0
     private var total = 0L
     private var max = 0L
+    /** 🌳 나무 훑기에 든 시간 합 — «합 − 훑기 합» = 조립·필터·보고 */
+    private var walkTotal = 0L
     /** 👁️ 읽으려 했는데 화면을 못 얻었다(`rootInActiveWindow` 없음) — 로그 없이 돌아가던 길 */
     private var noRoot = 0
     /** 📜 스크롤이 건 목록 읽기가 돈 횟수 (`ScrollGate`) */
@@ -58,8 +60,9 @@ class ScanTimer(private val windowMs: Long = 1000) {
     /** 스크롤이 건 읽기가 돌았다 — 다음 요약 줄에 */
     fun scrollRead() { scrollReads++ }
 
-    fun record(ms: Long, sameScreen: Boolean, nowMs: Long): String? {
+    fun record(ms: Long, sameScreen: Boolean, nowMs: Long, walkMs: Long = 0): String? {
         open(nowMs)
+        walkTotal += walkMs
         count++
         if (sameScreen) same++
         total += ms
@@ -82,11 +85,12 @@ class ScanTimer(private val windowMs: Long = 1000) {
         val line = if (empty && !force) null else buildString {
             append("${nowMs - windowStart}ms 동안 ${count}번(같은 글자 ${same})")
             if (count > 0) append(" · 평균 ${total / count}ms · 최대 ${max}ms · 합 ${total}ms")
+            if (walkTotal > 0) append(" · 훑기 합 ${walkTotal}ms")
             if (noRoot > 0) append(" · 화면 못 얻음 $noRoot")
             if (scrollReads > 0) append(" · 스크롤 읽기 $scrollReads")
             if (sources.isNotEmpty()) append(" · 알림 " + sources.entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" })
         }
-        windowStart = nowMs; count = 0; same = 0; total = 0; max = 0; noRoot = 0; scrollReads = 0; sources.clear()
+        windowStart = nowMs; count = 0; same = 0; total = 0; max = 0; walkTotal = 0; noRoot = 0; scrollReads = 0; sources.clear()
         return line
     }
 }
