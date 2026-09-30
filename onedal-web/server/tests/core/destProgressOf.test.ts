@@ -132,7 +132,8 @@ describe('🧭 첫짐 심사가 전진율을 싣는다 (배선)', () => {
     it('🔴 세 점을 지금 쓰는 자리에서 가져온다 — 따로 계산하지 않는다 (규칙 ③)', () => {
         /* 기점은 originNow() 한 곳 — 오늘 콜은 originOf(session), 내일 콜은 집 (reviews/23 B-3 · reservedJudgment 검사) */
         expect(ev).toMatch(/me:\s*originNow\(\)/);
-        expect(ev).toMatch(/goalCity:\s*goalCityOf\(session, userId\)/);
+        /* 목적지는 goalNow() 한 곳 — 오늘 콜은 goalCityOf, 내일 콜은 기본 설정 목적지 (reviews/23 B-3) */
+        expect(ev).toMatch(/goalCity:\s*goalNow\(\)/);
         expect(ev).toMatch(/dropoff:\s*\{\s*x:\s*securedOrder\.dropoffX,\s*y:\s*securedOrder\.dropoffY\s*\}/);
     });
 });

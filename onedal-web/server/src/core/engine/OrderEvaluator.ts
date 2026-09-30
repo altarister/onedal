@@ -83,6 +83,11 @@ export class OrderEvaluator {
         const reservedLater = isLaterThan(reservedForOf(securedOrder), businessDayKey(Date.now()));
         const originNow = () => reservedLater ? homeOriginOf(userId) : originOf(session);
         const activeCallsNow = () => reservedLater ? [] : getActiveCalls(session);
+        /**
+         * 🧭 방향 축의 목적지 — 내일 콜은 **내일의 목적지**(자정에 활성 필터가 되돌아가는 기본 설정 값)로 매긴다.
+         *    오늘만 바꾼 목적지로 내일 콜을 매기면 색이 틀린다. 비면 방향은 «목적지 미설정»(깎지 않는다 · 빨강 아님).
+         */
+        const goalNow = () => reservedLater ? (session.baseFilter.destinationCity ?? '') : goalCityOf(session, userId);
         // 📍 낡은 현위치로 우회 비용을 재면 색이 틀린다 (규칙 ⑤-3) — 비우면 내 주소로 메운다.
         //    비움만 부르면 origin 없는 카카오 호출이 되어 합짐이 전부 🔴 로 나온다 (0831 실측)
         // 판정 기준 — 원천은 DB(세션에 로그인 때 실림). 없으면(검사·초기화 전) 기본표로 폴백
@@ -268,7 +273,7 @@ export class OrderEvaluator {
                         const progress = destProgressOf({
                             me: originNow(),
                             dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
-                            goalCity: goalCityOf(session, userId),
+                            goalCity: goalNow(),
                             destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
                         });
                         /**
@@ -308,7 +313,7 @@ export class OrderEvaluator {
                             pickupBackward: pickupBackwardOf({
                                 me: originNow(),
                                 pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
-                                goalCity: goalCityOf(session, userId),
+                                goalCity: goalNow(),
                                 pickupRadiusKm: session.activeFilter.pickupRadiusKm,
                             }),
                             // 🏔️ 들어가면 빈 차로 나오는 곳 — 요금으로는 안 보인다 (노하우 148행)
@@ -645,7 +650,7 @@ export class OrderEvaluator {
                                     const p = destProgressOf({
                                         me: from,
                                         dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
-                                        goalCity: goalCityOf(session, userId),
+                                        goalCity: goalNow(),
                                     });
                                     /**
                                      * 🔴 **돌았는지 한 줄로 남긴다** — 오늘 꼬리 빼기가 한 나절 조용히 안 돌았고
@@ -766,13 +771,13 @@ export class OrderEvaluator {
                 progress: destProgressOf({
                     me: originNow(),
                     dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
-                    goalCity: goalCityOf(session, userId),
+                    goalCity: goalNow(),
                     destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
                 }),
                 pickupBackward: pickupBackwardOf({
                     me: originNow(),
                     pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
-                    goalCity: goalCityOf(session, userId),
+                    goalCity: goalNow(),
                     pickupRadiusKm: session.activeFilter.pickupRadiusKm,
                 }),
                 trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),

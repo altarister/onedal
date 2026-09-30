@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import db from '../../src/db';
 import { homeOriginOf } from '../../src/services/geoService';
+import { destProgressOf } from '../../src/core/engine/judgeFacts';
 
 /**
  * 📅⚖️ **내일 콜 판정 — 그날 첫 콜로 가정한다** (reviews/23 B-3 · 기사님 결정 3 «가»).
@@ -48,5 +49,18 @@ describe('🏠 집 기점 — homeOriginOf', () => {
         db.prepare(`INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)`).run(U);
         db.prepare(`UPDATE user_settings SET home_address = '경기 광주시 초월읍', home_x = 127.29, home_y = 37.37 WHERE user_id = ?`).run(U);
         expect(homeOriginOf(U)).toEqual({ x: 127.29, y: 37.37, source: 'home', isFallback: true });
+    });
+});
+
+describe('🧭 방향 축의 목적지 — 내일 콜은 내일의 목적지(기본 설정)로', () => {
+    it('goalNow() 하나 — 내일 콜이면 baseFilter 목적지, 아니면 지금처럼 goalCityOf', () => {
+        expect(evaluator).toMatch(/const goalNow = \(\) => reservedLater \? \(session\.baseFilter\.destinationCity \?\? ''\) : goalCityOf\(session, userId\);/);
+        expect(evaluator.match(/goalCityOf\(session, userId\)/g)?.length).toBe(1);
+    });
+
+    it('🔴 기본 설정 목적지가 비면 방향은 «모름»이다 — 깎지 않는다(빨강 아님)', () => {
+        const r = destProgressOf({ me: { x: 127.29, y: 37.37 }, dropoff: { x: 127.43, y: 37.28 }, goalCity: '' });
+        expect(r.ratio).toBeNull();
+        expect(r.unknownWhy).toBe('목적지 미설정');
     });
 });
