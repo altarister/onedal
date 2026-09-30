@@ -14,6 +14,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
 import { PluginFactory } from "../core/plugins/PluginFactory";
 import { slog } from "../utils/fileLogger";
+import { noteScreenWords, type ScreenWordsReport } from "../services/screenWords";
 
 /**
  * 🧭 **경로 순서 맵이 도착지를 얼마나 덮나 — 바뀔 때만 한 줄** (기사님 요청 «콘솔로그에 넣어서 너도 확인할 수 있도록»).
@@ -66,7 +67,7 @@ router.post("/", (req, res) => {
             return res.status(400).json({ error: "data 배열이 필요합니다" });
         }
         /** 🏷️ 실물 앱인가 시뮬레이터인가 — 보고 한 칸(한 보고 = 한 화면). 모르는 값·옛 앱은 null (규칙 ④) */
-        const body = req.body as { source?: unknown };
+        const body = req.body as { source?: unknown; screenWords?: ScreenWordsReport };
         const source = body.source === 'real' || body.source === 'sim' ? body.source : null;
 
         // 1. 기기 등록 여부 검증 (하드 락: 미등록 기기는 즉시 차단)
@@ -93,6 +94,8 @@ router.post("/", (req, res) => {
         const targetApp = isTargetApp((req.body as any).targetApp)
             ? (req.body as any).targetApp as TargetAppType : DEFAULT_TARGET_APP;
         const plugin = PluginFactory.getPlugin(targetApp);
+        /* 📰 화면에서 정의에 없거나 잡음으로 뺀 글자 — 모아 센다 (reviews/24 · 없는 보고는 지나간다) */
+        if (body.screenWords) noteScreenWords(userId, targetApp, body.screenWords, req.app.get("io"));
 
         // logRoadmapEvent("서버", "방대한 스크랩 배열값을 intel 테이블 DB 저장");
         // 2. 비동기 Write Queue를 통해 밀려들어오는 데이터를 오류 없이 INSERT

@@ -916,5 +916,24 @@ db.exec(`
 `);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_telemetry_anomalies_target ON telemetry_anomalies(target_app, created_at)`);
 
+/**
+ * 📰 **화면 낱말 표 — 정의에 없는 글자 · 잡음으로 뺀 글자** (reviews/24 · `services/screenWords.ts`).
+ *    배차망 · 페이지 · 낱말 · 갈래마다 한 줄 — 원문을 날마다 쌓지 않아 크기가 안 는다(수천 줄).
+ *    `sample` 은 처음 본 줄 원문 200자 — 낱말만으로는 뜻을 못 가린다.
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS screen_words (
+        target_app  TEXT NOT NULL,
+        page        TEXT NOT NULL,
+        word        TEXT NOT NULL,
+        kind        TEXT NOT NULL,
+        first_seen  TEXT NOT NULL,
+        last_seen   TEXT NOT NULL,
+        seen_count  INTEGER NOT NULL DEFAULT 0,
+        sample      TEXT,
+        PRIMARY KEY (target_app, page, word, kind)
+    )
+`);
+
 export default db;
 
