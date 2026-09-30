@@ -270,8 +270,14 @@ private fun ScanContext.handlePreConfirmSnapshot(
         delayMs = ScreenReader.DETAIL_STABILIZE_IDLE_MS,
         parser = pickerParser,
         onSuccess = { detail, lines ->
+            // ⏱️ 걸어 둔 때 — main 줄 서기가 얼마나 막혔나(«대기»)를 잰다 (상세 속도 · 라이브 09-30 12:57 1.3초 빈 시간)
+            val postedAt = android.os.SystemClock.elapsedRealtime()
             mainHandler.post {
+                val clock = com.onedal.app.core.StepClock(postedAt) { android.os.SystemClock.elapsedRealtime() }
+                clock.mark("대기")
+                try {
                 val verifyResult = pickerParser.verify(detail, tappedCard, matchedListCard, screenTexts, rawScreenStr)
+                clock.mark("대조")
                 when (verifyResult) {
                     is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Success -> {
                         val verifiedOrder = verifyResult.order
@@ -282,7 +288,9 @@ private fun ScanContext.handlePreConfirmSnapshot(
                             return@post
                         }
                         // 📋 필수 요소 최종 대조 — 사진으로 채운 값으로 (세 배차망 같다)
-                        if (!OrderRequirement.meetsDetail(verifiedOrder)) {
+                        val meets = OrderRequirement.meetsDetail(verifiedOrder)
+                        clock.mark("요건")
+                        if (!meets) {
                             apiClient.sendAnomalyReport(
                                 targetApp = currentTargetApp,
                                 screenName = telemetryManager.currentScreenContext.name,
@@ -295,9 +303,13 @@ private fun ScanContext.handlePreConfirmSnapshot(
                             return@post
                         }
                         // 🎯 «누른 그 콜인가» — 세 배차망 같은 검증
-                        if (dropIfNotTappedCall(verifiedOrder, rawScreenStr)) return@post
+                        val notTapped = dropIfNotTappedCall(verifiedOrder, rawScreenStr)
+                        clock.mark("누른 콜")
+                        if (notTapped) return@post
                         // 🔎 채운 뒤 필터 한 번 — 같은 함수 (앱이 연 콜만 거른다 · 기사님이 연 상세는 그대로 보낸다)
-                        if (session.openedByApp && !passesFilterAfterFill(plugin, verifiedOrder)) {
+                        val filteredOut = session.openedByApp && !passesFilterAfterFill(plugin, verifiedOrder)
+                        clock.mark("필터")
+                        if (filteredOut) {
                             AppLogger.w(TAG, LogTag.CALL_STAGE, "🔎 [채운 뒤 탈락] ${verifiedOrder.pickup.take(14)} → ${verifiedOrder.dropoff.take(14)} ${verifiedOrder.fare}원 — 서버에 보내지 않고 목록으로")
                             session.isDetailScrapSent = true
                             abortPreConfirm()
@@ -316,6 +328,10 @@ private fun ScanContext.handlePreConfirmSnapshot(
                         sendConfirmOnce(orderWithId, rawScreenStr)
                         sendDetail(orderWithId)
                     }
+                }
+                } finally {
+                    // ⏱️ 상세 진입마다 한 줄(사건) — 빠져나간 자리까지의 단계만 찍힌다
+                    AppLogger.d(TAG, LogTag.CALL_STAGE, "⏱️ [상세 뒤 시간] ${clock.line()}")
                 }
             }
         },

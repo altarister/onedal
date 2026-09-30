@@ -58,4 +58,12 @@ class AddressFormTest {
         val expect = rows.groupBy({ it.groupValues[2] }, { it.groupValues[1] }).mapValues { it.value.toSet() }
         assertEquals("원달앱 명부가 서버 지도와 다르다 — cd onedal-web && pnpm gen:regions", expect, RegionRegister.bySgg)
     }
+
+    /** 🗂️ 기본 명부는 한 번 합쳐 두고 다시 쓴다 — 두 번 불러도 같은 답 (상세 속도 · 동작 같음) */
+    @Test fun `기본 명부로 두 번 불러도 같은 결과`() {
+        val full = "경기 성남시 중원구 도촌동"
+        assertEquals(AddressForm.isFull(full), AddressForm.isFull(full))
+        assertTrue(AddressForm.isFull(full))
+        assertEquals(AddressForm.isFull("중원 도촌"), AddressForm.isFull("중원 도촌"))
+    }
 }

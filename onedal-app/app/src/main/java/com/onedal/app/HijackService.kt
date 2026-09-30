@@ -297,6 +297,9 @@ class HijackService : AccessibilityService(), ScanContext {
     override lateinit var collectMachine: DetailCollectMachine
     override val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
 
+    /** ⏱️ 상세 대기 중 화면 읽기 시간 요약 (1초마다 한 줄) */
+    private val detailScanTimer = com.onedal.app.core.ScanTimer()
+
     // ── AUTO 모드 타이머 ──
     override val mainHandler = Handler(Looper.getMainLooper())
     private val safeCancelTimer = SafeCancelTimer()
@@ -636,8 +639,15 @@ class HijackService : AccessibilityService(), ScanContext {
 
         // 핑거프린트 비교 → 화면 변경 없으면 스킵
         val screenTexts = mutableListOf<String>()
+        val gatherStartMs = android.os.SystemClock.elapsedRealtime()
         gatherNodeTexts(rootNode, screenTexts)
         val fingerprint = screenTexts.sorted().hashCode()
+        // ⏱️ 상세 대기 중 화면 읽기가 main 을 얼마나 쓰나 — 1초마다 요약 한 줄(이벤트마다 줄은 남기지 않는다 · 상세 속도)
+        if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
+            val nowMs = android.os.SystemClock.elapsedRealtime()
+            detailScanTimer.record(nowMs - gatherStartMs, fingerprint == lastScreenFingerprint, nowMs)
+                ?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏱️ [상세 중 화면 읽기] $it") }
+        }
         if (fingerprint == lastScreenFingerprint) {
             touchManager.onScreen(telemetryManager.currentScreenContext, textChanged = false)   // 👆 화면 그대로 — 누른 것이 안 먹혔나 본다
             rootNode.recycle(); return

@@ -22,10 +22,14 @@ object AddressForm {
     private val ROAD = Regex("""\S+(로|길)\s*\d""")
     private val DIGITS = Regex("""\d""")
 
+    /** 🗂️ 명부 + «구 없는 시» — 부를 때마다 다시 합치지 않는다(상세 한 번에 여러 번 불린다 · 명부는 굳힌 상수) */
+    private val defaultMerged: Map<String, Set<String>> by lazy { RegionRegister.bySgg + citiesWithoutGu(RegionRegister.bySgg) }
+
     fun isFull(text: String, register: Map<String, Set<String>> = RegionRegister.bySgg): Boolean {
         val tokens = text.trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }.map { SIDO_SHORT[it] ?: it }
         if (tokens.isEmpty()) return false
-        for ((sgg, dongs) in register + citiesWithoutGu(register)) {
+        val merged = if (register === RegionRegister.bySgg) defaultMerged else register + citiesWithoutGu(register)
+        for ((sgg, dongs) in merged) {
             val key = sgg.split(' ')
             val at = indexOfRun(tokens, key)
             if (at < 0) continue
