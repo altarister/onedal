@@ -1,5 +1,5 @@
 import callSoundPath from '../assets/sound/call.mp3';
-import beepSoundPath from '../assets/sound/99C850485CDEB1111A.mp3';
+import beepSoundPath from '../assets/sound/beep.mp3';
 import emergencySoundPath from '../assets/sound/emergency.mp3';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
