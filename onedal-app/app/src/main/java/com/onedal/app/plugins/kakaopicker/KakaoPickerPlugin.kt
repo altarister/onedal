@@ -163,10 +163,17 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
     private val tabWords = setOf("신규", "내 오더")
     /** 📏 탭 막대 위끝 — 막대(«신규»를 품은 화면 폭 가로 조상)를 찾으면 그 위끝, 못 찾으면 글자 위끝 − 80 (`TapShift.barTopOf`) */
     private fun tabTopOf(allNodes: List<com.onedal.app.core.ScreenTextNode>): Int? {
+        // ♻️ 같은 읽기의 노드 목록이면 한 번 잰 값 — 누르기 계획 한 번에 세 번까지 불러 parent 를 8번씩 걸었다
+        if (allNodes === lastTabNodes) return lastTabTop
         val tab = allNodes.filter { it.text.trim() in tabWords }
-        val textTop = tab.minOfOrNull { it.rect.top } ?: return null
-        return barTopFrom(tab) ?: com.onedal.app.core.TapShift.tabTopFallback(textTop)
+        val textTop = tab.minOfOrNull { it.rect.top }
+        val top = if (textTop == null) null else barTopFrom(tab) ?: com.onedal.app.core.TapShift.tabTopFallback(textTop)
+        lastTabNodes = allNodes
+        lastTabTop = top
+        return top
     }
+    private var lastTabNodes: List<com.onedal.app.core.ScreenTextNode>? = null
+    private var lastTabTop: Int? = null
 
     private fun barTopFrom(tab: List<com.onedal.app.core.ScreenTextNode>): Int? {
         val screenWidth = android.content.res.Resources.getSystem().displayMetrics.widthPixels

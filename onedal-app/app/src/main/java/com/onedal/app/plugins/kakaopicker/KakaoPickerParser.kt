@@ -931,16 +931,20 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         val dongSigungu: Map<String, List<String>> = emptyMap(),   // 🏘️ 이름이 겹치는 도착 동 → 뜻하는 시군구 꼴 (`destinationDongSigungu`)
     )
 
+    /** ♻️ 같은 필터 원문은 한 번만 푼다 — 목록 줄마다 2~4번 부른다(`LastParse`) */
+    private val configCache = com.onedal.app.core.LastParse(::alarmConfigOf)
+    private val valuesKeyCache = com.onedal.app.core.LastParse(::alarmValuesKeyOf)
+
     /** 피기백 필터에서 알람 조건을 읽는다 — 못 읽으면 기본값 (서버 미응답 안전망) */
     private fun alarmConfig(): AlarmConfig {
         val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
             ?: return AlarmConfig()
-        return alarmConfigOf(prefs.getString("activeFilter", null) ?: return AlarmConfig())
+        return configCache.of(prefs.getString("activeFilter", null) ?: return AlarmConfig())
     }
 
     /** 🔄 알람 판정이 읽는 값의 지문 (`alarmValuesKeyOf`) — 필터 원문이 없으면 null(버전 글자로 가른다) */
     override fun judgmentValuesKey(): String? = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-        ?.getString("activeFilter", null)?.let { alarmValuesKeyOf(it) }
+        ?.getString("activeFilter", null)?.let { valuesKeyCache.of(it) }
 
     /**
      * 🧹 **버릴 화면 메뉴 글자 — 서버에서 받는다** (기사님 지시).
