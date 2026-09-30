@@ -85,7 +85,9 @@ function decideAxes({ fare, pickupKm, dropoff, reserved = false, day = null }, f
     const fareOk = fare >= f.minFare;
     /* 📅 `pickupRadiusFor` — 내일 이후 예약 콜은 줄이지 않은 기본 반경(칸 없으면 지금 반경) */
     const radius = reserved && day != null && day >= 1 ? (f.reservedPickupRadiusKm ?? f.pickupRadiusKm) : f.pickupRadiusKm;
-    const pickupOk = pickupKm != null && pickupKm <= radius;   // 상차지거리는 목록 완독 칸 — 모르면 통과 아님
+    // 📅 내일 이후 예약 콜에 집 둘레 동 목록(reservedPickupKeywords)이 있으면 앱은 상차 글로 가른다 — 판정 줄에 상차 글이 없어 채점기는 다시 셀 수 없다(null = 앱 값을 따른다)
+    const pickupByList = reserved && day != null && day >= 1 && Array.isArray(f.reservedPickupKeywords);
+    const pickupOk = pickupByList ? null : pickupKm != null && pickupKm <= radius;   // 상차지거리는 목록 완독 칸 — 모르면 통과 아님
     const keys = f.destKeywords ?? [];
     const destOk = keys.length === 0 || dropoff === '' ||
         /* 🏘️ 이름이 같은 다른 지역 동 — 폰 로그의 필터 줄이 dongSigungu 를 실어야 채점에 든다(04 · 없으면 칸 없이 = 지금과 같음) */
@@ -125,6 +127,10 @@ for (const line of readFileSync(path, 'utf8').split('\n')) {
     if (!filter) { noFilter++; continue; }
     const call = { fare: Number(fare), pickupKm: km === '?' ? null : Number(km), dropoff: dropoffRaw === '?' ? '' : dropoffRaw, ...reservationFromWord(resWord) };
     const want = decideAxes(call, filter);
+    if (want.pickup === null) {   // 집 둘레 동 목록으로 가른 상차 — 앱 값을 따른다
+        want.pickup = aPickup ? aPickup === '✅' : true;
+        want.pass = want.reservation && want.fare && want.pickup && want.destination;
+    }
     const app = { pass: verdict === '통과', fare: aFare ? aFare === '✅' : null, pickup: aPickup ? aPickup === '✅' : null, destination: aDest ? aDest === '✅' : null };
     const resSame = aRes == null || (aRes === '✅') === want.reservation;
     const axesSame = app.fare === null || (app.fare === want.fare && app.pickup === want.pickup && app.destination === want.destination && resSame);
