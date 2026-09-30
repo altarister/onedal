@@ -26,6 +26,16 @@ import java.util.concurrent.Executors
  * - emergencyExecutor (전용 1스레드): emergency — 어떤 상황에서도 즉시 실행
  * - telemetryExecutor (1스레드): scrap + keywords + pair + offline — 텔레메트리/설정
  */
+/**
+ * 📤 **scrap 보고 한 줄** — 콜이 있으면 늘, «콜 0건»은 화면이 바뀔 때만 (`LogOnceTest`).
+ * 상세 대기 중에는 1초마다 «콜 0건» 보고가 가서 하루 2,440줄이 됐다(09-30). 콜이 있던 뒤의 0건은 다시 한 번 찍는다(목록이 비었다는 사실).
+ */
+internal fun scrapLogLine(screenName: String, count: Int, ms: Long): String? {
+    val line = "📤 [scrap] 화면 $screenName · 콜 ${count}건 · ${ms}ms"
+    if (count > 0) { com.onedal.app.core.LogOnce.changed("scrap-empty", ""); return line }
+    return if (com.onedal.app.core.LogOnce.changed("scrap-empty", screenName)) line else null
+}
+
 class ApiClient(private val context: Context) {
 
     companion object {
@@ -268,8 +278,8 @@ class ApiClient(private val context: Context) {
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
                     
                     val screenName = payload.screenContext ?: "UNKNOWN"
-                    // 📤 보고 한 번 = 한 줄 (보내기·응답·건수·걸린 시간)
-                    AppLogger.d(TAG, LogTag.NETWORK, "📤 [scrap] 화면 $screenName · 콜 ${payload.data.size}건 · ${System.currentTimeMillis() - startMs}ms")
+                    // 📤 보고 한 번 = 한 줄 (보내기·응답·건수·걸린 시간) — «콜 0건»은 화면이 바뀔 때만 (`scrapLogLine`)
+                    scrapLogLine(screenName, payload.data.size, System.currentTimeMillis() - startMs)?.let { AppLogger.d(TAG, LogTag.NETWORK, it) }
                     
                     if (scrapRes.dispatchEngineArgs != null) {
                         /**

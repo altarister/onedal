@@ -907,9 +907,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                     pickup = "${bodyLocations[0]} ${bodyLocations[1]}"
                     val dropDong = bodyLocations.drop(2).firstOrNull { isDongLike(it) } ?: bodyLocations[2]
                     dropoff = "$destTag $dropDong"
-                    // 📐 순서가 틀렸을 때 추정이 아니라 실측으로 보게 — 카드당 한 번 (ScreenReadingOrder)
+                    // 📐 순서가 틀렸을 때 추정이 아니라 실측으로 보게 — 조립 결과가 바뀔 때만(카드 자리만 바뀐 스크롤은 안 찍는다 · ScreenReadingOrder)
                     cardTops[texts]?.let { tops ->
-                        if (LogOnce.changed("picker-4piece:${texts.joinToString(" ")}", tops))
+                        if (LogOnce.changed("picker-4piece:${texts.joinToString(" ")}", "$pickup|$dropoff"))
                             com.onedal.app.core.AppLogger.d("1DAL_PICKER", LogTag.SCREEN,
                                 "📐 [4토막 조립] $tops → 출발 $pickup · 도착 $dropoff")
                     }

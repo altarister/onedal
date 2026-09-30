@@ -1,5 +1,6 @@
 package com.onedal.app.core
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -37,5 +38,21 @@ class LogOnceTest {
         assertTrue(Regex("""LogOnce\.changed\("screen"""").containsMatchIn(svc))
         assertTrue(codeOnly("$root/plugins/insung/InsungParser.kt").contains("LogOnce.changed("))
         assertTrue(codeOnly("$root/plugins/hwamul24/Hwamul24Parser.kt").contains("LogOnce.changed("))
+    }
+
+    /** 📤 «콜 0건» 보고는 화면이 바뀔 때만 한 줄 — 상세 대기 중 매초 «콜 0건»이 찍혀 하루 2,440줄이었다(09-30) */
+    @Test fun `scrap 줄 - 콜이 있으면 늘 · 0건은 화면이 바뀔 때만`() {
+        LogOnce.changed("scrap-empty", "")   // 다른 검사의 기억을 비운다
+        assertEquals("📤 [scrap] 화면 DETAIL_PRE_CONFIRM · 콜 0건 · 30ms", com.onedal.app.api.scrapLogLine("DETAIL_PRE_CONFIRM", 0, 30))
+        assertEquals(null, com.onedal.app.api.scrapLogLine("DETAIL_PRE_CONFIRM", 0, 12))
+        assertEquals("📤 [scrap] 화면 LIST · 콜 3건 · 20ms", com.onedal.app.api.scrapLogLine("LIST", 3, 20))
+        assertEquals("📤 [scrap] 화면 LIST · 콜 2건 · 21ms", com.onedal.app.api.scrapLogLine("LIST", 2, 21))
+        assertEquals("📤 [scrap] 화면 LIST · 콜 0건 · 9ms", com.onedal.app.api.scrapLogLine("LIST", 0, 9))
+    }
+
+    /** 📐 4토막 줄은 카드 자리(top)가 아니라 조립 결과가 바뀔 때만 — 스크롤만 해도 같은 카드가 다시 찍혀 하루 1,654줄이었다(09-30) */
+    @Test fun `4토막 줄은 조립 결과가 바뀔 때만`() {
+        val picker = codeOnly("$root/plugins/kakaopicker/KakaoPickerParser.kt")
+        assertTrue(picker.contains("""LogOnce.changed("picker-4piece:${'$'}{texts.joinToString(" ")}", "${'$'}pickup|${'$'}dropoff")"""))
     }
 }
