@@ -30,6 +30,15 @@ export const SOAK: Record<VerdictColor, { tint: string; bar: string; text: strin
     '사고': { tint: 'rgba(224,85,99,.30)',  bar: '#e05563', text: '#f09aa4', glow: 'rgba(224,85,99,.45)',  wm: 'rgba(224,85,99,.15)' },
 };
 // 테마를 따른다 — 다크 고정색은 라이트 테마에서 이질적이다 (기사님)
+/**
+ * ⏳ **배경 막대의 움직임 — 줄임 꼴 `animation` 하나에 음수 지연까지 싣는다.**
+ *    `animationDelay` 를 따로 두면, 판정이 와서 길이가 바뀔 때 줄임 꼴을 다시 쓰며 지연이 0 으로 풀린다
+ *    (React 경고 «style property during rerender») — «흐른 만큼 미리 차 있게»가 깨져 막대가 처음부터 다시 줄어든다.
+ */
+export function drainStyleOf(sec: number, elapsedSec: number): { animation: string } {
+    return { animation: `seat-drain-x ${sec}s linear -${elapsedSec.toFixed(1)}s forwards` };
+}
+
 /** 판정석 카드 높이 — 알림 줄(예약 · 주소 대략)이 있으면 그 줄만큼 더한다 */
 const SEAT_H = 158;
 const NOTICE_ROW_H = 26;
@@ -147,7 +156,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const drain = drainSec != null && (
         <div className="absolute inset-0 z-0 pointer-events-none"
              style={{ background: 'linear-gradient(270deg, rgba(0,0,0,.72), rgba(0,0,0,.30))', transformOrigin: 'right center',
-                      animation: `seat-drain-x ${drainSec}s linear forwards`, animationDelay: `-${drainDelay.toFixed(1)}s` }} />
+                      ...drainStyleOf(drainSec, drainDelay) }} />
     );
 
     /**
