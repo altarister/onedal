@@ -28,11 +28,8 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
          * 💰 화면 텍스트에서 요금(예: "9,693P", "9693P", "15,000원") 추출
          */
         fun extractFareFromTexts(texts: List<String>): Int {
-            // «최종 수익 11,249» — 원·P 가 안 붙는다 (실물 09-30 12:54 · 이상 기록 id 34 · 목록 대조와 같은 규칙)
-            for (text in texts) {
-                val v = KakaoPickerParser.DETAIL_FARE_REGEX.find(text)?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull()
-                if (v != null && v > 0) return v
-            }
+            // «최종 수익» — 숫자가 옆 노드로 따로 온다(실물 덤프 13:40) · 규칙은 `PickerFinalIncome` 한 벌
+            PickerFinalIncome.of(texts)?.let { return it }
             val fareRe = Regex("([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{3,})\\s*(?:P|p|원)")
             for (text in texts) {
                 val match = fareRe.find(text)
@@ -91,6 +88,11 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
         } else {
             // 🧾 상세 글자로 못 가르면 사진의 상차·하차·픽업 km 로 한 번 더 — 꼭 한 줄일 때만 (`photoMatchCard`)
             val baseOrder = matchedListOrder ?: KakaoPickerParser.photoMatchCard(parsed.pickup, parsed.dropoff, recent)
+            // 🧾 손으로 연 상세의 대조 — 요금이 비는 까닭을 로그로 가른다 (실물 09-30 13:25 #42·#45)
+            com.onedal.app.core.AppLogger.d("1DAL_PRE_CONFIRM", com.onedal.app.core.LogTag.CALL_STAGE,
+                "🧾 [손 상세 대조] 목록: ${if (matchedListOrder != null) "찾음" else "못 찾음"} · 사진: " +
+                    KakaoPickerParser.photoMatchReport(parsed.pickup, parsed.dropoff, recent) +
+                    " · 사진 최종 수익 ${parsed.finalIncome ?: "없음"}")
             // 요금: 목록 줄 → 사진의 «최종 수익»(같은 높이 줄) → 상세 글자 (손으로 연 상세는 목록 줄이 없을 수 있다)
             val resolvedFare = baseOrder?.fare?.takeIf { it > 0 } ?: parsed.finalIncome ?: extractFareFromTexts(screenTexts)
 

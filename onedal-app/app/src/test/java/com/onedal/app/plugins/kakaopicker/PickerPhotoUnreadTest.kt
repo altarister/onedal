@@ -23,7 +23,8 @@ class PickerPhotoUnreadTest {
         )
         val parsed = PickerScreenOcr.parseDetail(lines)!!
         assertEquals("경기 광주시 경안동", parsed.pickup.admin)
-        assertEquals(listOf("퀵", "반나절", "예약", "물품 정보", "유의사항", "바로 배송가주실 분만 잡아주세요", "넘기기", "수락하기"),
+        // 제목 줄(물품 정보·유의사항)은 정의된 칸이라 안 남는다 (`PickerScreenOcr.SECTION_TITLES`)
+        assertEquals(listOf("퀵", "반나절", "예약", "바로 배송가주실 분만 잡아주세요", "넘기기", "수락하기"),
             parsed.unreadLines)
     }
 }

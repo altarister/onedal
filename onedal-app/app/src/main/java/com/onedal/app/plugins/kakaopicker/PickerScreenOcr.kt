@@ -61,7 +61,17 @@ object PickerScreenOcr {
      * 🔴 **숫자와 km 사이 오독 한 글자는 봐준다** — 실물 «픽업 14.7가km»(09-30 12:52 · 이상 기록 id 33)로 머리를 못 찾아 콜을 놓쳤다.
      *    한 글자(숫자·빈칸 아닌 것)까지만 — 더 느슨하면 지도 라벨이 걸린다.
      */
-    private val HEAD_RE = Regex("(?:^|\\s)(픽업|배송)\\s*([0-9]+(?:\\.[0-9]+)?)\\s*[^\\s\\d]?\\s*km")
+    private val HEAD_RE = Regex("(?:^|\\s)(\\S?업|배송)\\s*([0-9]+(?:\\.[0-9]+)?)\\s*[^\\s\\d]?\\s*km")
+
+    /** 머리 낱말 → 픽업/배송 — «업» 앞 한 글자 오독(«찍업» · 실물 09-30 13:23 #41)은 픽업이다. 뒤에 숫자·km 가 붙을 때만 머리다(HEAD_RE) */
+    private fun headSide(word: String): String = if (word.endsWith("업")) "픽업" else "배송"
+
+    /**
+     * 📑 **상세의 제목 줄 — 장소(건물 이름)가 아니다** (실물 09-30 13:25 #44 하차 «…논현2동 물품 정보»).
+     * 하차 덩어리는 화면 끝까지라, 건물 줄이 없으면 제목이 건물 자리에 들어갔다.
+     */
+    private val SECTION_TITLES = listOf("물품 정보", "유의사항", "최종 수익", "배송비", "프로모션", "픽업 장소")
+    private fun isSectionTitle(text: String) = SECTION_TITLES.any { text.startsWith(it) }
 
     /** `내일 15:00` · `오늘 9:20` · `15:00` */
     private val TIME_RE = Regex("^(오늘|내일|모레)?\\s*([0-9]{1,2}:[0-9]{2})$")
@@ -104,7 +114,7 @@ object PickerScreenOcr {
      * 머리(«픽업|배송» 바로 뒤) 숫자 토막 안의 O/o → 0 · l/I → 1 만 바꾼다 — 건물 이름 같은 다른 글자는 그대로.
      * HEAD_RE 에 글자를 늘리지 않고 숫자를 바로잡는 한 곳이다.
      */
-    private val HEAD_NUMBER = Regex("""(픽업|배송)(\s*)([0-9OoIl]+(?:\.[0-9OoIl]+)?)""")
+    private val HEAD_NUMBER = Regex("""(\S?업|배송)(\s*)([0-9OoIl]+(?:\.[0-9OoIl]+)?)""")
 
     fun normalizeHeadDigits(text: String): String = HEAD_NUMBER.replace(text) { m ->
         val num = m.groupValues[3]
@@ -112,21 +122,11 @@ object PickerScreenOcr {
         else m.groupValues[1] + m.groupValues[2] + num.replace('O', '0').replace('o', '0').replace('I', '1').replace('l', '1')
     }
 
-    /** 💰 사진의 «최종 수익»과 같은 높이의 숫자 줄 — 글자와 숫자가 다른 줄로 갈라져 온다(y448 «최종 수익» · y447 «11,796») */
-    private val INCOME_LABEL = "최종 수익"
-    private val INCOME_NUMBER = Regex("""^([0-9]{1,3}(?:,[0-9]{3})+)\s*P?$""")
-    private const val SAME_ROW_PX = 12
-
-    private fun finalIncomeOf(sorted: List<OcrLine>): Int? {
-        val label = sorted.firstOrNull { it.text.contains(INCOME_LABEL) } ?: return null
-        // 같은 줄에 붙어 온 꼴(«최종 수익 11,796»)도 받는다
-        Regex("""최종 수익\s*([0-9]{1,3}(?:,[0-9]{3})+)""").find(label.text)?.let { return it.groupValues[1].replace(",", "").toIntOrNull() }
-        return sorted.filter { kotlin.math.abs(it.y - label.y) <= SAME_ROW_PX }
-            .firstNotNullOfOrNull { INCOME_NUMBER.find(it.text.trim())?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull() }
-    }
+    /** 💰 사진의 «최종 수익» — y 차례로 읽어 `PickerFinalIncome` 한 규칙(숫자 줄이 글자 줄 바로 위·아래로 갈라져 온다) */
+    private fun finalIncomeOf(sorted: List<OcrLine>): Int? = PickerFinalIncome.of(sorted.map { it.text })
 
     fun missingHeads(lines: List<OcrLine>): List<String> {
-        val found = lines.mapNotNull { HEAD_RE.find(normalizeHeadDigits(stripBullet(it.text)))?.groupValues?.get(1) }.toSet()
+        val found = lines.mapNotNull { HEAD_RE.find(normalizeHeadDigits(stripBullet(it.text)))?.groupValues?.get(1)?.let(::headSide) }.toSet()
         return listOf("픽업", "배송").filter { it !in found }
     }
 
@@ -146,8 +146,9 @@ object PickerScreenOcr {
         for (l in sorted) {
             val m = HEAD_RE.find(l.text) ?: continue
             val km = m.groupValues[2].toDoubleOrNull() ?: continue
-            if (m.groupValues[1] == "픽업" && pickupHead == null) pickupHead = Head(l.y, km)
-            if (m.groupValues[1] == "배송" && dropoffHead == null) dropoffHead = Head(l.y, km)
+            val side = headSide(m.groupValues[1])
+            if (side == "픽업" && pickupHead == null) pickupHead = Head(l.y, km)
+            if (side == "배송" && dropoffHead == null) dropoffHead = Head(l.y, km)
         }
         if (pickupHead == null || dropoffHead == null) return null
 
@@ -164,7 +165,8 @@ object PickerScreenOcr {
         // ⑤ 칸에 안 넣은 줄 — 버리지 않고 돌려준다(유의사항 · 꼬리표 · 버튼 …). 픽커가 상세를 바꾸면 여기서 먼저 보인다
         val used = setOfNotNull(pickup.admin, pickup.place, dropoff.admin, dropoff.place, itemSize)
         val unreadLines = sorted.map { it.text }.filter {
-            it !in used && !HEAD_RE.containsMatchIn(it) && timeOf(it) == null && !CLOCK_START.containsMatchIn(it) && !it.contains("픽업예약")
+            it !in used && !HEAD_RE.containsMatchIn(it) && timeOf(it) == null && !CLOCK_START.containsMatchIn(it) && !it.contains("픽업예약") &&
+                !isSectionTitle(it)
         }
 
         return PickerDetailFromImage(pickup, dropoff, itemSize, reserved, unreadLines, finalIncomeOf(sorted))
@@ -175,12 +177,15 @@ object PickerScreenOcr {
         val upper = if (nextHeadY == Int.MAX_VALUE) Int.MAX_VALUE else nextHeadY - SLACK
         val block = sorted.filter { it.y >= head.y - SLACK && it.y < upper }
 
-        val admin = block.firstOrNull { isAdminLine(it.text) }?.text ?: return null
+        val adminLine = block.firstOrNull { isAdminLine(it.text) }?.text ?: return null
+        // 머리가 행정동 줄에 붙어 오면(«…상대원1동 찍업 12.7km») 주소는 머리 앞까지
+        val admin = HEAD_RE.find(adminLine)?.let { adminLine.substring(0, it.range.first).trim() } ?: adminLine
         val at = block.firstNotNullOfOrNull { timeOf(it.text) }
 
         // 건물명 — 머리·행정동·시각을 뺀 나머지 첫 줄
         val place = block.firstOrNull {
-            it.text != admin && !HEAD_RE.containsMatchIn(it.text) && timeOf(it.text) == null && !CLOCK_START.containsMatchIn(it.text)
+            it.text != adminLine && !HEAD_RE.containsMatchIn(it.text) && timeOf(it.text) == null && !CLOCK_START.containsMatchIn(it.text) &&
+                !isSectionTitle(it.text) && !SIZE_RE.containsMatchIn(it.text)
         }?.text
 
         return PickerStopFromImage(admin = admin, place = place, straightKm = head.km, at = at)

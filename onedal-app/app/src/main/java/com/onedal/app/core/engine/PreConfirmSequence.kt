@@ -298,7 +298,11 @@ private fun ScanContext.handlePreConfirmSnapshot(
                                 failureReason = "REQUIREMENT_UNMET: ${missing.joinToString(" · ")}",
                                 listOrderInfo = mapOf("fare" to verifiedOrder.fare, "pickup" to verifiedOrder.pickup, "dropoff" to verifiedOrder.dropoff),
                                 detailParsedText = rawScreenStr.take(500),
-                                ocrResult = null,
+                                // 📸 사진 줄을 싣는다 — «무엇을 읽었길래 모자랐나»를 가른다 (판독 실패와 같은 모양)
+                                ocrResult = mapOf(
+                                    "linesCount" to lines.size,
+                                    "lines" to lines.take(60).map { mapOf("y" to it.y, "text" to it.text) },
+                                ),
                             )
                             dropUnfilledCall("사진으로 채운 값이 요건 미달 — ${missing.joinToString(" · ")}")
                             return@post
