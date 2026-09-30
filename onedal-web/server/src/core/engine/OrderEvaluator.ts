@@ -967,9 +967,10 @@ export class OrderEvaluator {
             }
         }
 
-        // 4) 제외 키워드 검사 (플러그인 커스텀 룰 혼합)
+        // 4) 제외 키워드 검사 (플러그인 커스텀 룰 혼합) — 콜 한 벌의 글에서만 찾는다: 주소 · 적요 · 물품 · 화면 글 가운데 콜 부분(`callTextOf`)
         const excludedHits: string[] = [];
-        const rawText = `${order.pickup} ${order.dropoff} ${order.detailMemo || ''} ${(order as any).rawText || ''}`;
+        const rawText = [order.pickup, order.dropoff, order.detailMemo, order.itemDescription,
+            this.plugin.callTextOf((order as any).rawText || '')].filter(Boolean).join(' ');
         if (filter.excludedKeywords && filter.excludedKeywords.length > 0) {
             for (const kw of filter.excludedKeywords) {
                 if (kw && rawText.includes(kw)) {
