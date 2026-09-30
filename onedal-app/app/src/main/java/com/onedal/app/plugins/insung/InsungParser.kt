@@ -300,33 +300,16 @@ class InsungParser(private val context: Context) : IScrapParser {
             // ── 조건 1: 도착지 매칭 (2단계 필터링 + 스마트 유추 로직) ──
             val isDetailPreConfirmStage = order.type.endsWith("_CLICK", ignoreCase = true)
 
-            val regionMatch = if (isDetailPreConfirmStage && filter.customCityFilters.isNotEmpty()) {
-                val dropoffIdx = rawText.indexOf("도착지상세").takeIf { it != -1 } 
+            val regionMatch = if (isDetailPreConfirmStage) {
+                val dropoffIdx = rawText.indexOf("도착지상세").takeIf { it != -1 }
                                  ?: rawText.indexOf("도착지")
                 val pureDropoffText = if (dropoffIdx != -1) rawText.substring(dropoffIdx) else rawText
 
-                // [1단계] 상위 지역(시/구) 검사: 도착지 텍스트에 우리 지역 이름이 있는가?
-                val hasCityAlias = filter.customCityFilters.any { alias -> 
-                    pureDropoffText.contains(alias, ignoreCase = true) 
-                }
+                // 🗺️ 동 이름 대조 한 번(RegionMatch) — «남동»⊂«인천 남동구» 트랩 · 이름이 같은 다른 지역 동(앞에 다른 시·군·구)을 거른다.
+                //    시·군·구가 안 보이면 동 이름으로 통과한다 (목록 페이지에서 상세 주소가 안 보이면 통과와 같은 규칙)
+                val matchResult = RegionMatch.anyHit(pureDropoffText, filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
 
-                // [2단계] 동/읍/면 검사: 도착지 텍스트에 우리 키워드(동 이름)가 있는가?
-                // 🗺️ RegionMatch(④) — "남동"⊂"인천 남동구" 부분 문자열 오탐을 트랩으로 거른다
-                val hasDongMatch = RegionMatch.anyHit(pureDropoffText, filter.destinationKeywords, filter.keywordTraps)
-
-                val matchResult = when {
-                    hasCityAlias && hasDongMatch -> true    // ✅ 시/도 + 동 모두 확인 → 꿀콜
-                    hasCityAlias && !hasDongMatch -> false   // ❌ 시/도는 맞지만 동이 없음
-                    !hasCityAlias && hasDongMatch -> {       // 🤔 동은 있지만 시/도가 생략됨
-                        // → 인성앱이 상위 지역을 표시하지 않은 것으로 추정
-                        // → 1차 필터 결과를 신뢰하고, 동명이동은 CautionDongVerifier(3단계 팝업)에 위임
-                        AppLogger.d(TAG, LogTag.FILTER, "🤔 [2차 스마트 유추] 시/도 생략 감지 → 동 이름(${order.dropoff}) 1차 매칭 신뢰, 동명이동은 3단계 팝업에 위임")
-                        true
-                    }
-                    else -> false                            // ❌ 시/도도 동도 없음
-                }
-
-                if (order.fare > 0) AppLogger.d(TAG, LogTag.FILTER, "🔍 [2차 상세 필터] 시/도=$hasCityAlias, 동=$hasDongMatch, 최종결과=$matchResult | 대상문자열: ${pureDropoffText.replace('\n', ' ').take(50)}")
+                if (order.fare > 0) AppLogger.d(TAG, LogTag.FILTER, "🔍 [2차 상세 필터] 동=$matchResult | 대상문자열: ${pureDropoffText.replace('\n', ' ').take(50)}")
                 matchResult
             } else {
                 // [1차 리스트 필터] 기존 구조 유지 (dropoff만 검사, rawText는 출발지도 포함되므로 사용 금지)
@@ -340,7 +323,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                     false
                 } else {
                     // 🗺️ RegionMatch(④) — 부분 문자열 오탐을 트랩으로 거른다
-                    RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps)
+                    RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
                 }
                 if (!isDetailPreConfirmStage && order.fare > 0 && com.onedal.app.core.LogOnce.changed("list1:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$matchResult")) AppLogger.d(TAG, LogTag.FILTER, "🔍 [1차 리스트 필터] 도착지=${order.dropoff}, 결과=$matchResult")
                 matchResult
@@ -595,7 +578,8 @@ class InsungParser(private val context: Context) : IScrapParser {
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
                 ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
                 orderKm = progress,
-                keywordTraps = traps
+                keywordTraps = traps,
+                destinationDongSigungu = parseTrapsMap(json, "destinationDongSigungu"),
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")

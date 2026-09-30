@@ -442,6 +442,11 @@ data class FilterConfig(
      * 부분 문자열 오탐 방지(RegionMatch ④). 비어 있으면(구서버) 문법 안전망만 돈다.
      */
     val keywordTraps: Map<String, List<String>> = emptyMap(),
+    /**
+     * 🏘️ 이름이 둘 이상 시군구에 있는 도착 동 → 오늘 목록이 뜻하는 시군구 꼴(«고덕동» → «서울 강동구·강동구·강동» …).
+     * 동 바로 앞에 다른 시군구가 보이면 거른다(`RegionMatch`). 비어 있으면(옛 서버) 이 확인을 안 한다.
+     */
+    val destinationDongSigungu: Map<String, List<String>> = emptyMap(),
 )
 
 // ────────────────────────────────────────────────

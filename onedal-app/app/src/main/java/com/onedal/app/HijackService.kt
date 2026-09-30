@@ -87,7 +87,6 @@ class HijackService : AccessibilityService(), ScanContext {
         internal const val FARE_RANGE_MIN = 10.0
         internal const val FARE_RANGE_MAX = 9999.0
 
-        // 🚨 [동명이동 방어] CAUTION_DONGS는 CautionDongVerifier.CAUTION_DONGS로 이동
 
         /** 📷 살아 있는 서비스 — 설정 화면의 «화면 찍어 읽기» 시험 버튼이 부른다. 붙으면 채우고 내려가면 비운다 */
         @Volatile var live: HijackService? = null

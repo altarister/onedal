@@ -76,12 +76,6 @@ interface IDispatchAppPlugin {
     fun allowsEmptyDropoff(order: SimplifiedOfficeOrder): Boolean = false
 
     /**
-     * 🔎 **2차 필터에 더하는 배차망 규칙** — 공통 `shouldClick` 과 함께 본다. 기본은 «통과».
-     * 인성: 주의 동네(같은 이름 다른 동)면 채운 글자에 시·군이 있어야 통과.
-     */
-    fun passesDetailFilter(context: ScanContext, order: SimplifiedOfficeOrder): Boolean = true
-
-    /**
      * 🏠 **채운 값을 콜에 싣는다** — 채우기(`executePreConfirmSpecial`)가 끝난 뒤 한 번. 기본은 그대로.
      * 인성은 팝업 «위치»에서 전체 주소를 꺼내 상차·하차 칸에 넣는다(서버가 꺼내지 않는다 — 기사님 «상세 데이터엔 전체 주소»).
      */

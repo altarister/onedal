@@ -164,8 +164,8 @@ fun ScanContext.handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTex
  *
  * 인성은 목록에 전체 주소가 없어서 상세의 팝업 3장(적요 → 출발지 → 도착지)으로 콜 값을 채운다.
  * 다 채우면 `false` 를 돌려 공통 순서(2차 필터 → 선점 보고 → 확정 또는 미리보기)가 이어받는다.
- * 주의 동네(같은 이름 다른 동)는 따로 둘 단계가 아니다 — 도착지 팝업에 시·군이 있고, 판정은 2차 필터에서 한다
- * (`InsungPlugin.passesDetailFilter`).
+ * 이름이 같은 다른 지역 동은 따로 둘 단계가 아니다 — 도착지 팝업에 시·군·구가 있고, 판정은 2차 필터의 동 이름 대조
+ * (`RegionMatch` · 동 바로 앞의 다른 시·군·구)에서 한다.
  *
  * @return true 이면 채우는 중이라 공통 순서를 건너뛴다
  */
@@ -185,18 +185,4 @@ fun ScanContext.handleInsungPreConfirmExecution(
         advanceCollect(rootNode)
         true
     }
-}
-
-/**
- * 🏘️ **주의 동네 판정** — 도착지가 주의 동네(같은 이름 다른 동)면 채운 글자(상세 화면 + 팝업 3장)에
- * 시·군 필터가 있어야 통과한다. 단어 일치로 가른다 — 부분 일치면 «중동»이 «신중동»에 걸린다.
- * 시·군 필터가 비어 있으면 주의 동네 콜은 떨어진다.
- */
-fun ScanContext.passesCautionDong(order: SimplifiedOfficeOrder, cautionVerifier: CautionDongVerifier): Boolean {
-    val dropoffWords = order.dropoff.split("\\s+".toRegex())
-    val isCautionDong = CautionDongVerifier.CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
-    if (!isCautionDong) return true
-    val ok = cautionVerifier.verifyCityMatch(session.accumulatedDetailText, cautionVerifier.loadCityFilters())
-    AppLogger.i(TAG, LogTag.FILTER, "🏘️ [주의 동네] ${order.dropoff.take(20)} — ${if (ok) "시·군 확인, 통과" else "시·군 없음, 탈락"}")
-    return ok
 }

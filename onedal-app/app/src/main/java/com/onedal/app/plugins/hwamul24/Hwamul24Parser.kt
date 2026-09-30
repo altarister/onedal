@@ -97,7 +97,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 false
             } else {
                 // 🗺️ RegionMatch(④) — "남동"⊂"인천 남동구" 부분 문자열 오탐을 트랩으로 거른다
-                RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps)
+                RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
             }
 
             // ── 조건 3: 요금 하한선 + 상한선 ──
@@ -313,7 +313,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
                 ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
                 orderKm = progress,
-                keywordTraps = traps
+                keywordTraps = traps,
+                destinationDongSigungu = parseTrapsMap(json, "destinationDongSigungu"),
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")

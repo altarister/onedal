@@ -126,7 +126,7 @@ fun ScanContext.handlePreConfirmScreen(
 
     AppLogger.roadmap(LogTag.FILTER, "상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인", telemetryManager.currentScreenContext.name)
 
-    val isTarget = passesFilterAfterFill(plugin, order)
+    val isTarget = passesFilterAfterFill(order)
 
     if (!session.openedByApp || isTarget) {
         // ✍️ 앱이 계약 버튼을 누르는 콜 — 자동 모드이고 이 배차망에 수락 칸이 있을 때만 (수락 칸이 비었는지 읽는 곳은 여기 한 곳)
@@ -312,7 +312,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                         clock.mark("누른 콜")
                         if (notTapped) return@post
                         // 🔎 채운 뒤 필터 한 번 — 같은 함수 (앱이 연 콜만 거른다 · 기사님이 연 상세는 그대로 보낸다)
-                        val filteredOut = session.openedByApp && !passesFilterAfterFill(plugin, verifiedOrder)
+                        val filteredOut = session.openedByApp && !passesFilterAfterFill(verifiedOrder)
                         clock.mark("필터")
                         if (filteredOut) {
                             AppLogger.w(TAG, LogTag.CALL_STAGE, "🔎 [채운 뒤 탈락] ${verifiedOrder.pickup.take(14)} → ${verifiedOrder.dropoff.take(14)} ${verifiedOrder.fare}원 — 서버에 보내지 않고 목록으로")
@@ -400,7 +400,7 @@ fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: 
  * 🔎 **채운 뒤 필터 한 번 — 읽기 → 채우기 → 모자라면 사진 뒤, 어느 배차망이든 같은 함수** (기사님 «같은 순서»).
  * 목록에서 모르던 값(하차 등)을 채운 뒤 같은 필터를 다시 건다. 성적표는 목록에서 이미 셌으므로 다시 세지 않는다(tally 없음).
  */
-fun ScanContext.passesFilterAfterFill(plugin: IDispatchAppPlugin, order: SimplifiedOfficeOrder): Boolean {
+fun ScanContext.passesFilterAfterFill(order: SimplifiedOfficeOrder): Boolean {
     /**
      * 📅 **예약 — 채운 뒤에는 날 모름도 막는다** (`ReservationGate.passesAfterFill`).
      * 목록은 확실한 다른 날만 막고 날 모름을 들였다 — 상세에서 채워도 날을 모르면 여기서 막는다(«내일 걸 오늘 잡으면 사고다»).
@@ -408,7 +408,7 @@ fun ScanContext.passesFilterAfterFill(plugin: IDispatchAppPlugin, order: Simplif
     val reservationOk = ReservationGate.passesAfterFill(order, scrapParser.reservationMode())
     if (!reservationOk && com.onedal.app.core.LogOnce.changed("reservation-after-fill:${order.id}", "${order.reserved}${order.reservedDay}"))
         AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 막음] 채운 뒤 — $currentTargetApp · 예약 ${ReservationGate.wordOf(order)} ${order.reservedAt ?: ""} · ${order.pickup}→${order.dropoff}")
-    return reservationOk && scrapParser.shouldClick(order) && plugin.passesDetailFilter(this, order)
+    return reservationOk && scrapParser.shouldClick(order)
 }
 
 /**

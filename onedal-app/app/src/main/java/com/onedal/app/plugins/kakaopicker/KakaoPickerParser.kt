@@ -413,10 +413,24 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun normalizeRegion(s: String): String =
             s.removeSuffix("동").removeSuffix("구").trimEnd { it.isDigit() }
 
-        private fun dongTokenMatch(dropoff: String, keys: List<String>): Boolean {
-            val normKeys = keys.map(::normalizeRegion).filter { it.length >= 2 }.toSet()
-            return dropoff.split(' ').map { normalizeRegion(it.trim()) }
-                .any { it.length >= 2 && it in normKeys }
+        /** 🗺️ 도착 축 — 전체 이름 대조(`RegionMatch`) 또는 줄임 토막 대조. 두 길 모두 «이름이 같은 다른 지역 동»을 거른다 (`RegionMatchTableTest`) */
+        fun destinationOk(dropoff: String, destKeywords: List<String>, keywordTraps: Map<String, List<String>>,
+                          cityAliases: List<String>, dongSigungu: Map<String, List<String>>): Boolean =
+            com.onedal.app.plugins.RegionMatch.anyHit(dropoff, destKeywords, keywordTraps, dongSigungu) ||
+                dongTokenMatch(dropoff, destKeywords + cityAliases, dongSigungu)
+
+        /**
+         * 줄임 토막(«평택 고덕»의 «고덕»)이 키워드(«고덕동»)와 맞으면 바로 앞 토막을 `RegionMatch` 의 같은 판단으로 본다 —
+         * 앞에 다른 시·군·구(«평택»)가 보이면 그 토막은 다른 곳이다. 자르기만 여기서, 판단은 RegionMatch 한 곳.
+         */
+        private fun dongTokenMatch(dropoff: String, keys: List<String>, dongSigungu: Map<String, List<String>> = emptyMap()): Boolean {
+            val byNorm = keys.groupBy(::normalizeRegion).filterKeys { it.length >= 2 }
+            val tokens = dropoff.split(' ')
+            return tokens.indices.any { i ->
+                val originals = byNorm[normalizeRegion(tokens[i].trim())] ?: return@any false
+                val before = tokens.take(i).joinToString(" ")
+                originals.any { k -> !com.onedal.app.plugins.RegionMatch.otherSigunguBefore(before, dongSigungu[k]) }
+            }
         }
 
         /** 👀 상세 화면 ↔ 리스트 카드 대조 결과 — 못 고르면 `card = null` 과 그 까닭 (#119) */
@@ -547,6 +561,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             keywordTraps: Map<String, List<String>> = emptyMap(),
             cityAliases: List<String> = emptyList(),
             reservationMode: String? = null,
+            dongSigungu: Map<String, List<String>> = emptyMap(),
         ): AlarmAxes {
             // 📅 목록에서는 확실한 다른 날만 막는다 — 날 모름은 상세 사진(«내일 14:00 픽업예약»)이 가른다
             val reservationOk = com.onedal.app.core.engine.ReservationGate.passesList(order, reservationMode)
@@ -557,8 +572,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 destKeywords.isEmpty() -> true      // 도착 목표가 없다(관내·목표 미설정) — 제한 없음
                 // 하차를 아직 모른다(도보 목록) — 판정을 채운 뒤로 미룬다: 상세 사진으로 채운 하차로 `passesFilterAfterFill` 이 다시 본다
                 order.dropoff.isBlank() -> true
-                else -> com.onedal.app.plugins.RegionMatch.anyHit(order.dropoff, destKeywords, keywordTraps) ||
-                    dongTokenMatch(order.dropoff, destKeywords + cityAliases)
+                else -> destinationOk(order.dropoff, destKeywords, keywordTraps, cityAliases, dongSigungu)
             }
             return AlarmAxes(fareOk, pickupOk, destOk, reservationOk)
         }
@@ -580,8 +594,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             keywordTraps: Map<String, List<String>> = emptyMap(),
             cityAliases: List<String> = emptyList(),
             reservationMode: String? = null,
+            dongSigungu: Map<String, List<String>> = emptyMap(),
         ): String? {
-            val a = decideAxes(order, minFare, pickupRadiusKm, destKeywords, keywordTraps, cityAliases, reservationMode)
+            val a = decideAxes(order, minFare, pickupRadiusKm, destKeywords, keywordTraps, cityAliases, reservationMode, dongSigungu)
             return when {
                 a.pass -> null          // 통과 — 빈 칸이 «통과» 라는 뜻이다
                 !a.reservation -> "reservation"
@@ -600,8 +615,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             cityAliases: List<String> = emptyList(),
             tally: FilterTally? = null,
             reservationMode: String? = null,
+            dongSigungu: Map<String, List<String>> = emptyMap(),
         ): Boolean {
-            val a = decideAxes(order, minFare, pickupRadiusKm, destKeywords, keywordTraps, cityAliases, reservationMode)
+            val a = decideAxes(order, minFare, pickupRadiusKm, destKeywords, keywordTraps, cityAliases, reservationMode, dongSigungu)
             tally?.let { t ->
                 t.seen++
                 when {
@@ -627,6 +643,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             keywordTraps: Map<String, List<String>>,
             cityAliases: List<String>,
             reservationMode: String? = null,
+            dongSigungu: Map<String, List<String>> = emptyMap(),
         ): String = com.google.gson.Gson().toJson(linkedMapOf(
             "minFare" to minFare,
             "pickupRadiusKm" to pickupRadiusKm,
@@ -634,6 +651,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "keywordTraps" to keywordTraps,
             "cityAliases" to cityAliases,
             "reservationMode" to com.onedal.app.core.engine.ReservationGate.modeOf(reservationMode),
+            "dongSigungu" to dongSigungu,
         ))
 
         /** 마지막으로 남긴 알람 필터 — 같으면 다시 안 적는다 (판정은 스캔마다 돈다 · 로그가 그 줄로 덮이지 않게) */
@@ -648,6 +666,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         val keywordTraps: Map<String, List<String>> = emptyMap(),
         val cityAliases: List<String> = emptyList(),    // 시 별칭(customCityFilters) — «수정»처럼 구만 남는 카드용
         val reservationMode: String? = null,            // 📅 없으면 오늘 콜만 (`ReservationGate.modeOf`)
+        val dongSigungu: Map<String, List<String>> = emptyMap(),   // 🏘️ 이름이 겹치는 도착 동 → 뜻하는 시군구 꼴 (`destinationDongSigungu`)
     )
 
     /** 피기백 필터에서 알람 조건을 읽는다 — 못 읽으면 기본값 (서버 미응답 안전망) */
@@ -661,13 +680,14 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 json.optJSONArray("destinationKeywords")?.let { arr -> (0 until arr.length()).map { arr.getString(it) } } ?: emptyList(),
                 json.optJSONObject("orderKm")?.keys()?.asSequence()?.toList() ?: emptyList(),
             )
-            val traps = json.optJSONObject("keywordTraps")?.let { obj ->
+            fun listMap(key: String): Map<String, List<String>> = json.optJSONObject(key)?.let { obj ->
                 obj.keys().asSequence().associateWith { k ->
                     val arr = obj.optJSONArray(k)
                     if (arr == null) emptyList()
                     else (0 until arr.length()).map { arr.getString(it) }
                 }
             } ?: emptyMap()
+            val traps = listMap("keywordTraps")
             val aliases = json.optJSONArray("customCityFilters")?.let { arr ->
                 (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }
             } ?: emptyList()
@@ -679,6 +699,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 keywordTraps = traps,
                 cityAliases = aliases,
                 reservationMode = json.optString("reservationMode").ifEmpty { null },
+                dongSigungu = listMap("destinationDongSigungu"),
             )
         } catch (e: Exception) {
             AlarmConfig()
@@ -950,13 +971,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
         val c = alarmConfig()
         // 🧾 판정에 쓴 필터가 바뀌었으면 먼저 한 줄 — 채점기가 이 판정의 정답을 이 필터로 다시 계산한다 (3단계 3-2)
-        val filterJson = alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode)
+        val filterJson = alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu)
         if (filterJson != lastAlarmFilterJson) {
             lastAlarmFilterJson = filterJson
             com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.FILTER, "🧾 [알람 필터] $filterJson")
         }
-        val pass = decide(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, tally, c.reservationMode)
-        val a = decideAxes(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode)
+        val pass = decide(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, tally, c.reservationMode, c.dongSigungu)
+        val a = decideAxes(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu)
         val mark = { ok: Boolean -> if (ok) "✅" else "❌" }
         // 👁️ 축별 판정을 한 줄 남긴다 — «왜 안 울었나»를 로그로 답하기 위해 (첫 실검증 때 수집 데이터로 역추적했다)
         //    🔴 채점기(`pickerAlarmGrade.mjs`)가 이 줄의 모양을 읽는다 — 바꾸면 그 정규식도 같이 바꾼다
@@ -986,7 +1007,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder {
         val c = alarmConfig()
         return order.copy(
-            verdict = verdictAxisOf(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode),
+            verdict = verdictAxisOf(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu),
         )
     }
 
