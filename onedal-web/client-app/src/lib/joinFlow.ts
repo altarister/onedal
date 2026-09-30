@@ -5,6 +5,8 @@
  *    🔴 서버 문(`/api/join`)은 `api/join.ts` 가 부른다 — 여기서는 서버를 모른다.
  */
 
+import type { TargetAppType } from '@onedal/shared';
+
 export const JOIN_STEPS = ['agree', 'info', 'done'] as const;
 export type JoinStep = typeof JOIN_STEPS[number];
 
@@ -31,13 +33,11 @@ export const AGREEMENT_ITEMS: readonly AgreementItem[] = [
     { key: 'networkRisk', label: '배차망 계정 제재 위험 — 최종 책임은 본인', required: true },
 ];
 
-export const NETWORK_OPTIONS = ['인성', '화물24시', '카카오 픽커'] as const;
-export const VEHICLE_OPTIONS = ['다마스', '라보', '1t', '1t 짐', '승용차'] as const;
-
+/** 차종 · 배차망 목록은 shared 의 것(`VEHICLE_PICKS` · `TARGET_APPS` + `TARGET_APP_LABEL`)을 쓴다 — 판정 · 필터의 차종과 갈라지지 않게. 저장은 키, 보이는 글은 이름표 */
 export interface JoinInfo {
     vehicle: string;
     phone: string;
-    networks: string[];
+    networks: TargetAppType[];
     region: string;
     youtubeChannel: string;
 }
@@ -79,6 +79,6 @@ export function stepFromQuery<T extends string>(steps: readonly T[], raw: string
     return (steps as readonly string[]).includes(raw ?? '') ? (raw as T) : steps[0];
 }
 
-export function toggleNetwork(networks: string[], name: string): string[] {
-    return networks.includes(name) ? networks.filter(n => n !== name) : [...networks, name];
+export function toggleNetwork(networks: TargetAppType[], key: TargetAppType): TargetAppType[] {
+    return networks.includes(key) ? networks.filter(n => n !== key) : [...networks, key];
 }

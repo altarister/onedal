@@ -6,8 +6,9 @@ import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { useAuth } from '../contexts/AuthContext';
 import { submitJoin } from '../api/join';
+import { TARGET_APPS, TARGET_APP_LABEL, VEHICLE_PICKS } from '@onedal/shared';
 import {
-    AGREEMENT_ITEMS, EMPTY_INFO, JOIN_STEPS, NETWORK_OPTIONS, VEHICLE_OPTIONS,
+    AGREEMENT_ITEMS, EMPTY_INFO, JOIN_STEPS,
     canProceed, nextOf, prevOf, stepFromQuery, toggleNetwork,
     type JoinState, type JoinStep,
 } from '../lib/joinFlow';
@@ -28,7 +29,7 @@ const CONTENT_LINK: Record<string, string> = { terms: '/terms', privacy: '/priva
 /** `?example=1` — 예시 자료로 채워 «실제로 돌면 이렇게 보인다»를 보인다 (목업 · 사진용) */
 const EXAMPLE_STATE: JoinState = {
     agreed: Object.fromEntries(AGREEMENT_ITEMS.map(i => [i.key, true])),
-    info: { vehicle: '1t', phone: '010-1234-5678', networks: ['인성', '카카오 픽커'], region: '광주 · 이천 · 여주', youtubeChannel: '화물기사 2호' },
+    info: { vehicle: '1t', phone: '010-1234-5678', networks: ['insung', 'kakaopicker'], region: '광주 · 이천 · 여주', youtubeChannel: '화물기사 2호' },
 };
 
 function loadDraft(example: boolean): JoinState {
@@ -104,7 +105,7 @@ export default function Join() {
                         <Select value={state.info.vehicle} onValueChange={v => setInfo({ vehicle: v })}>
                             <SelectTrigger className="w-full"><SelectValue placeholder="차종을 고르세요" /></SelectTrigger>
                             <SelectContent>
-                                {VEHICLE_OPTIONS.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                {VEHICLE_PICKS.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </Field>
@@ -113,11 +114,11 @@ export default function Join() {
                     </Field>
                     <Field label="쓰는 배차망 (여러 개 가능)">
                         <div className="flex flex-wrap gap-2">
-                            {NETWORK_OPTIONS.map(n => {
+                            {TARGET_APPS.map(n => {
                                 const on = state.info.networks.includes(n);
                                 return (
                                     <Button key={n} type="button" size="sm" variant={on ? 'default' : 'outline'} onClick={() => setInfo({ networks: toggleNetwork(state.info.networks, n) })}>
-                                        {on ? '✓ ' : ''}{n}
+                                        {on ? '✓ ' : ''}{TARGET_APP_LABEL[n]}
                                     </Button>
                                 );
                             })}
@@ -137,7 +138,7 @@ export default function Join() {
                     <dl className="grid grid-cols-[6rem_1fr] gap-y-2 text-sm">
                         <dt className="text-text-muted">차종</dt><dd className="font-semibold">{state.info.vehicle || '—'}</dd>
                         <dt className="text-text-muted">연락처</dt><dd className="font-semibold">{state.info.phone || '—'}</dd>
-                        <dt className="text-text-muted">배차망</dt><dd className="font-semibold">{state.info.networks.join(' · ') || '—'}</dd>
+                        <dt className="text-text-muted">배차망</dt><dd className="font-semibold">{state.info.networks.map(n => TARGET_APP_LABEL[n]).join(' · ') || '—'}</dd>
                         <dt className="text-text-muted">활동 지역</dt><dd className="font-semibold">{state.info.region || '—'}</dd>
                         <dt className="text-text-muted">유튜브</dt><dd className="font-semibold">{state.info.youtubeChannel || '(비움)'}</dd>
                     </dl>

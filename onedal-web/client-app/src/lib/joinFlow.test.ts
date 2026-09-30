@@ -18,7 +18,7 @@ describe('가입 단계 흐름', () => {
     });
 
     it('가입 정보는 차종 · 연락처 · 배차망 · 지역이 있어야 하고 유튜브 채널명은 비어도 된다', () => {
-        const full = { vehicle: '1t', phone: '010-0000-0000', networks: ['인성'], region: '광주 · 이천', youtubeChannel: '' };
+        const full = { vehicle: '1t', phone: '010-0000-0000', networks: ['insung' as const], region: '광주 · 이천', youtubeChannel: '' };
         expect(infoComplete(full)).toBe(true);
         expect(infoComplete({ ...full, vehicle: '' })).toBe(false);
         expect(infoComplete({ ...full, phone: ' ' })).toBe(false);
@@ -43,8 +43,8 @@ describe('가입 단계 흐름', () => {
     });
 
     it('배차망은 여러 개 고를 수 있고 다시 누르면 빠진다', () => {
-        expect(toggleNetwork([], '인성')).toEqual(['인성']);
-        expect(toggleNetwork(['인성'], '화물24시')).toEqual(['인성', '화물24시']);
-        expect(toggleNetwork(['인성', '화물24시'], '인성')).toEqual(['화물24시']);
+        expect(toggleNetwork([], 'insung')).toEqual(['insung']);
+        expect(toggleNetwork(['insung'], 'hwamul24')).toEqual(['insung', 'hwamul24']);
+        expect(toggleNetwork(['insung', 'hwamul24'], 'insung')).toEqual(['hwamul24']);
     });
 });

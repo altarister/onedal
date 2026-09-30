@@ -10,10 +10,10 @@ import { ContentSlot, JoinShell, SectionCard } from './JoinSteps';
 
 const STEP_LABELS: Record<AppStep, string> = { download: '앱 받기', install: '설치', pair: '폰 연결' };
 
-/** 예시 — 실제 값은 운영센터 «앱 배포»에서 올린 것을 서버가 준다 */
+/** 예시 — 실제 값은 운영센터 «앱 배포»에서 올린 것을 서버가 준다. 기사 폰은 두 대다 — 앱마다 어느 폰인지 적는다 */
 const APPS = [
-    { id: 'scanner', name: '원달앱', what: '배차망 화면을 읽고 알림을 울리는 앱 (인성 · 화물24시 · 픽커)', version: '2.9.12', size: '18 MB' },
-    { id: 'dashboard', name: '관제앱', what: '콜 결재(KEEP/CANCEL) · 위치 · 판정 화면', version: '1.0', size: '24 MB' },
+    { id: 'scanner', name: '원달앱', phone: '배차망 폰', what: '배차망 앱(인성 · 화물24시 · 픽커)이 깔린 폰에 — 화면을 읽고 알림을 울린다', version: '2.9.12', size: '18 MB' },
+    { id: 'dashboard', name: '관제앱', phone: '운전석 폰', what: '거치대의 폰에 — 콜 결재(KEEP/CANCEL) · 위치 · 판정 화면', version: '1.0', size: '24 MB' },
 ];
 
 const INSTALL_STEPS = [
@@ -30,13 +30,14 @@ export default function JoinApps() {
     const go = (s: AppStep | null) => { if (s) setParams({ step: s }); };
 
     return (
-        <JoinShell title="앱 받기 · 설치 · 연결" subtitle="폰 한 대에 두 앱을 깝니다" steps={APP_STEPS} step={step} labels={STEP_LABELS}>
+        <JoinShell title="앱 받기 · 설치 · 연결" subtitle="배차망 폰에는 원달앱, 운전석 폰에는 관제앱" steps={APP_STEPS} step={step} labels={STEP_LABELS}>
             {step === 'download' && (
                 <>
                     {APPS.map(a => (
                         <SectionCard key={a.id}>
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
+                                    <div className="text-xs font-bold text-info mb-0.5">📱 {a.phone}</div>
                                     <div className="font-black text-base">{a.name} <span className="text-xs text-text-muted font-normal">v{a.version} · {a.size}</span></div>
                                     <p className="text-sm text-text-muted mt-1">{a.what}</p>
                                 </div>
@@ -44,7 +45,7 @@ export default function JoinApps() {
                             </div>
                         </SectionCard>
                     ))}
-                    <p className="text-xs text-text-muted">받은 파일은 폰의 «다운로드» 폴더에 있습니다. 둘 다 받은 뒤 «다음»을 누르세요.</p>
+                    <p className="text-xs text-text-muted">각 폰에서 이 주소를 열어 그 폰의 앱만 받습니다. 받은 파일은 «다운로드» 폴더에 있습니다.</p>
                 </>
             )}
 

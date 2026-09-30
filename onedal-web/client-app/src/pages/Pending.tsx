@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
+import { TARGET_APP_LABEL } from '@onedal/shared';
 import { EMPTY_INFO, type JoinInfo } from '../lib/joinFlow';
 import { JoinShell, SectionCard } from './JoinSteps';
 
@@ -9,7 +10,7 @@ import { JoinShell, SectionCard } from './JoinSteps';
  */
 
 /** 예시 자료 — 신청 내용이 이 브라우저에 없을 때 보이는 모양 */
-const EXAMPLE: JoinInfo = { vehicle: '1t', phone: '010-****-1234', networks: ['인성', '카카오 픽커'], region: '광주 · 이천', youtubeChannel: '' };
+const EXAMPLE: JoinInfo = { vehicle: '1t', phone: '010-****-1234', networks: ['insung', 'kakaopicker'], region: '광주 · 이천', youtubeChannel: '' };
 
 function loadInfo(): JoinInfo {
     try {
@@ -34,7 +35,7 @@ export default function Pending() {
                 <dl className="grid grid-cols-[6rem_1fr] gap-y-2 text-sm">
                     <dt className="text-text-muted">차종</dt><dd className="font-semibold">{info.vehicle}</dd>
                     <dt className="text-text-muted">연락처</dt><dd className="font-semibold">{info.phone}</dd>
-                    <dt className="text-text-muted">배차망</dt><dd className="font-semibold">{info.networks.join(' · ')}</dd>
+                    <dt className="text-text-muted">배차망</dt><dd className="font-semibold">{info.networks.map(n => TARGET_APP_LABEL[n]).join(' · ')}</dd>
                     <dt className="text-text-muted">활동 지역</dt><dd className="font-semibold">{info.region}</dd>
                 </dl>
                 <Button asChild variant="outline" size="sm"><Link to="/join?step=info">가입 정보 고치기</Link></Button>
