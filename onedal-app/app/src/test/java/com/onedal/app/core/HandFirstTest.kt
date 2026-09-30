@@ -47,4 +47,19 @@ class HandFirstTest {
         assertTrue(block.indexOf("alarmSignaler.fire(") < block.indexOf("if (!handHeld) {"))
         assertTrue(src.contains("누를 콜은 늘 방금 읽은 화면에서 고른다 — 담아 두지 않는다"))
     }
+
+    /** 🔁 뜻을 나눈다 — 앱 뒤로 가기 메아리(뒤로 → 목록 실측 0.7~0.9초)는 손 먼저 3초가 아니라 전용 2초 */
+    @Test fun `뒤로 가기 메아리 2초는 손 먼저 3초와 따로다`() {
+        assertEquals(2_000L, HandFirst.APP_BACK_ECHO_MS)
+        val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
+        assertTrue(src.contains("touchManager.lastAppBackAtMs > com.onedal.app.core.HandFirst.APP_BACK_ECHO_MS"))
+    }
+
+    /** 👆 잠금 창을 정하기 전에 센다 — 앱이 누른 뒤 1초 안에 손 흔적이 오면 ms (onedal-1f «나») */
+    @Test fun `앱 누름 뒤 1초 안의 손을 ms 로 센다`() {
+        assertEquals(400L, HandFirst.afterAppTapMs(nowMs = 5_400, lastAppTapAtMs = 5_000))
+        assertNull(HandFirst.afterAppTapMs(nowMs = 6_200, lastAppTapAtMs = 5_000))
+        assertNull("앱이 쏜 적 없음", HandFirst.afterAppTapMs(nowMs = 6_200, lastAppTapAtMs = 0))
+        assertTrue(File("src/main/java/com/onedal/app/HijackService.kt").readText().contains("👆 [앱 누름 뒤 손]"))
+    }
 }

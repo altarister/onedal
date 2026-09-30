@@ -242,7 +242,12 @@ class HijackService : AccessibilityService(), ScanContext {
     private val handQuietRead = Runnable { reservedRead("손 멈춤") }
 
     private fun onHand(why: String) {
-        handFirst.onHand(android.os.SystemClock.elapsedRealtime())
+        val now = android.os.SystemClock.elapsedRealtime()
+        // 👆 앱이 누른 뒤 1초 안의 손 — 잠금 창을 정하기 전에 센다(부딪힘이 실제로 있나)
+        com.onedal.app.core.HandFirst.afterAppTapMs(now, touchManager.lastAppTapAtMs)?.let {
+            AppLogger.i(TAG, LogTag.TAP, "👆 [앱 누름 뒤 손] ${it}ms · $why")
+        }
+        handFirst.onHand(now)
         lastHandWhy = why
         mainHandler.removeCallbacks(handQuietRead)
         mainHandler.postDelayed(handQuietRead, com.onedal.app.core.HandFirst.QUIET_MS + 50)
@@ -290,12 +295,12 @@ class HijackService : AccessibilityService(), ScanContext {
         detailBackArmedAtMs = now
         detailBackDeadlineMs = now + delayMs
         detailFoldOrderId = null
-        telemetryManager.isWaitingDecision = true          // ⏱️ [1초 고속 무전] 상세에 머무는 동안 서버 판결(유지/취소)을 1초마다 물어본다
+        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, true)          // ⏱️ [1초 고속 무전] 상세에 머무는 동안 서버 판결(유지/취소)을 1초마다 물어본다
         AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 (1초 주기 판결 수신 가동) · 연 쪽: $opener")
         val r = Runnable {
             detailBackRunnable = null
             detailBackDeadlineMs = null
-            telemetryManager.isWaitingDecision = false
+            telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, false)
             // ⏩ 판정 뒤 접기로 당긴 마감이면 — 뒤로 가기 직전 아직 그 콜인지 다시 본다(기사님이 이미 나가셨거나 다른 콜이면 안 누른다)
             if (detailFoldOrderId?.let { it != session.currentOrderId } == true) {
                 AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏹️ [상세 대기] 접을 콜($detailFoldOrderId)이 지금 콜이 아니다 — 뒤로 가지 않는다")
@@ -350,7 +355,7 @@ class HijackService : AccessibilityService(), ScanContext {
         detailBackRunnable = null
         detailBackDeadlineMs = null
         detailFoldOrderId = null
-        telemetryManager.isWaitingDecision = false         // ⏱️ 상세 대기 해제 시 1초 무전 종료
+        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, false)         // ⏱️ 상세 대기 해제 시 1초 무전 종료
     }
     override lateinit var collectMachine: DetailCollectMachine
     override val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
@@ -1036,7 +1041,7 @@ class HijackService : AccessibilityService(), ScanContext {
             resetSessionState()
             // 📏 앱이 뒤로 간 복귀면 목록 확인까지 ms — 목록 보고는 화면이 바뀐 순간 곧바로 나간다(`updateScreenContext`)
             // ✋ 앱이 뒤로 가기를 안 보냈는데 목록으로 왔다 — 기사님 손(넘기기·뒤로)
-            if (android.os.SystemClock.elapsedRealtime() - touchManager.lastAppBackAtMs > com.onedal.app.core.HandFirst.QUIET_MS) onHand("상세 → 목록")
+            if (android.os.SystemClock.elapsedRealtime() - touchManager.lastAppBackAtMs > com.onedal.app.core.HandFirst.APP_BACK_ECHO_MS) onHand("상세 → 목록")
             if (lastBackAtMs > 0L) {
                 AppLogger.i(TAG, LogTag.SCREEN, "↩️ [목록 확인] 뒤로 간 뒤 ${android.os.SystemClock.elapsedRealtime() - lastBackAtMs}ms — 목록 보고 곧바로 보냄")
                 lastBackAtMs = 0L
@@ -1770,7 +1775,7 @@ class HijackService : AccessibilityService(), ScanContext {
     private fun startSafeCancelTimer() {
         // ⏱️ 그 배차망의 안전취소 시간 (서버 DB) — 픽커는 안전취소가 없어 타이머를 걸지 않는다
         val timeoutMs = com.onedal.app.core.engine.WaitTimes.safeCancelMs(savedFilter(), currentTargetApp) ?: return
-        telemetryManager.isWaitingDecision = true  // [Piggyback V2] 1.0초 단위 강제 무전 타격 시작!
+        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)  // [Piggyback V2] 1.0초 단위 강제 무전 타격 시작!
         safeCancelTimer.start(timeoutMs, session) {
             sendEmergencyReport(EmergencyReason.AUTO_CANCEL, "안전취소 응답 없음 강제취소")
             executeDecisionImmediately("CANCEL")
@@ -1779,7 +1784,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     private fun cancelSafeCancelTimer() {
         safeCancelTimer.cancel(session)
-        telemetryManager.isWaitingDecision = false // [Piggyback V2] 짧은 무전 해제
+        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, false) // [Piggyback V2] 짧은 무전 해제
     }
 
     /** 서버 판결(KEEP/CANCEL) 결과 행동을 실제 화면 액션으로 쏨 */

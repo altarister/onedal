@@ -13,6 +13,14 @@ class HandFirst(private val quietMs: Long = QUIET_MS) {
         const val QUIET_MS = 3_000L
         /** 앱이 쏜 터치가 누름 알림으로 되돌아오는 시간 — 이 안의 누름 알림은 손이 아니다 */
         const val OWN_TAP_ECHO_MS = 700L
+        /** 앱이 뒤로 가기를 보낸 뒤 목록이 뜨기까지 — 이 안의 상세→목록은 손이 아니다 (실측 0.7~0.9초 · 손 먼저 3초와 뜻이 다르다) */
+        const val APP_BACK_ECHO_MS = 2_000L
+        /** 앱 누름 뒤 이 안의 손 흔적을 센다 — 잠금 창을 정하는 재료 */
+        const val AFTER_APP_TAP_MS = 1_000L
+
+        /** 앱이 누른 뒤 [AFTER_APP_TAP_MS] 안이면 그 ms, 아니면 null */
+        fun afterAppTapMs(nowMs: Long, lastAppTapAtMs: Long): Long? =
+            (nowMs - lastAppTapAtMs).takeIf { lastAppTapAtMs > 0L && it in 0L..AFTER_APP_TAP_MS }
 
         fun isClickHand(clickAtMs: Long, lastAppTapAtMs: Long): Boolean =
             lastAppTapAtMs <= 0L || clickAtMs - lastAppTapAtMs !in 0L..OWN_TAP_ECHO_MS

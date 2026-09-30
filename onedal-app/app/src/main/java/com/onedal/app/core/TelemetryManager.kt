@@ -110,12 +110,10 @@ class TelemetryManager(
     var isScreenOn: Boolean = true
 
     // [Piggyback V2] 관제탑 결재 대기 여부 (1.0초 단위 Short Polling 발동 조건)
-    var isWaitingDecision: Boolean = false
-        set(value) {
-            val changed = field != value
-            field = value
-            if (changed) resetHeartbeatTimer()
-        }
+    //    켠 쪽마다 한 칸 — 끄는 쪽은 자기 몫만 끈다 (`PollOwners`)
+    private val fastPoll = PollOwners()
+    val isWaitingDecision: Boolean get() = fastPoll.any
+    fun setFastPoll(owner: String, on: Boolean) { if (fastPoll.set(owner, on)) resetHeartbeatTimer() }
 
     // [Piggyback V2] 결재 수신 콜백
     var decisionCallback: ((String, String) -> Unit)? = null
