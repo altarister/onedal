@@ -544,6 +544,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 else byPickup.filter { c -> cardKeys(c.dropoff).let { k -> k.isNotEmpty() && k.all { it in dropoffPart } } }
             // 🧾 여럿이어도 같은 콜이 요금만 오른 것이면 마지막에 본 줄 (`ListSightings`)
             val sameCall = if (picked.size == 1) null else com.onedal.app.core.ListSightings.latestOfSameCall(picked.ifEmpty { byPickup })
+                // 🍷 최종 수익을 못 읽었으면 쌍둥이 콜(함께 뜬 · 모두 같고 요금만 다름)의 낮은 요금 줄
+                ?: if (detailFare == null) com.onedal.app.core.ListSightings.lowestOfTwins(picked.ifEmpty { byPickup })?.first else null
             return when {
                 picked.size == 1 -> ListCardMatch(picked[0], "$how 이 맞는 카드 하나")
                 sameCall != null -> ListCardMatch(sameCall, "$how 이 맞는 줄이 같은 콜의 요금만 다른 것 — 마지막에 본 ${sameCall.fare}원")
@@ -558,15 +560,28 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 상세 글자에는 하차가 없어 한 매장 오더 여럿(올리브영)을 못 갈랐다 — 사진에는 상차·하차 행정동과 픽업 km 가 있다.
          * 고르는 법 — 카드 상차 토막 ⊂ 사진 상차 · 카드 하차 토막 ⊂ 사진 하차 · 픽업 km 차 0.3 이하. 🔴 **꼭 한 줄일 때만** — 아니면 null(추측하지 않는다).
          */
-        fun photoMatchCard(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? =
-            photoMatchSteps(pickup, dropoff, recent).last().let { it.singleOrNull() ?: com.onedal.app.core.ListSightings.latestOfSameCall(it) }
+        /** @param fareUnread 상세에서 최종 수익을 못 읽었다 — 그때만 쌍둥이 콜의 낮은 요금 줄을 고른다(`ListSightings.lowestOfTwins`) */
+        fun photoMatchCard(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>, fareUnread: Boolean = false): SimplifiedOfficeOrder? =
+            photoMatchSteps(pickup, dropoff, recent).last().let {
+                it.singleOrNull() ?: com.onedal.app.core.ListSightings.latestOfSameCall(it)
+                    ?: if (fareUnread) com.onedal.app.core.ListSightings.lowestOfTwins(it)?.first else null
+            }
+
+        /** 🍷 사진 대조가 쌍둥이 콜 길로 골랐으면 그 요금들(높은 순) — 꼬리 글용 */
+        fun photoTwinFares(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>): List<Int>? =
+            photoMatchSteps(pickup, dropoff, recent).last().takeIf { it.size > 1 && com.onedal.app.core.ListSightings.latestOfSameCall(it) == null }
+                ?.let { com.onedal.app.core.ListSightings.lowestOfTwins(it)?.second }
 
         /** 🧾 진단 한 줄 — 사진 대조가 어느 단계에서 줄었나 (`[손 상세 대조]`) */
-        fun photoMatchReport(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>): String {
+        fun photoMatchReport(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>, fareUnread: Boolean = false): String {
             val s = photoMatchSteps(pickup, dropoff, recent)
             val same = if (s[3].size > 1) com.onedal.app.core.ListSightings.latestOfSameCall(s[3]) else null
+            val twin = if (s[3].size > 1 && same == null && fareUnread) com.onedal.app.core.ListSightings.lowestOfTwins(s[3]) else null
             return "최근 목록 ${recent.size}줄 · 상차 맞음 ${s[0].size} · 하차 맞음 ${s[1].size} · km 맞음 ${s[2].size} · 다른 콜 ${s[3].size}" +
-                (same?.let { " · 같은 콜이 요금만 올랐다(${s[3].joinToString(" → ") { c -> "${c.fare}" }}) — 마지막에 본 ${it.fare}원" } ?: "")
+                (same?.let { " · 같은 콜이 요금만 올랐다(${s[3].joinToString(" → ") { c -> "${c.fare}" }}) — 마지막에 본 ${it.fare}원" } ?: "") +
+                (twin?.let { " · 같은 경로 요금 둘 — 낮은 ${"%,d".format(it.first.fare)}" } ?: "") +
+                // 🔎 km 까지 맞은 후보가 여럿이면 무엇이었는지(목록 줄임 이름 · 요금) — 못 고른 까닭을 로그로 가른다
+                (if (s[2].size > 1) " · 후보 " + s[2].joinToString(" · ") { c -> "${"%,d".format(c.fare)}(${c.pickup}→${c.dropoff} ${c.pickupDistance}km)" } else "")
         }
 
         /** 상차 → 하차 → km → 같은 콜 하나로 — 단계마다 남은 줄 (대조와 진단이 같은 단계를 쓴다) */

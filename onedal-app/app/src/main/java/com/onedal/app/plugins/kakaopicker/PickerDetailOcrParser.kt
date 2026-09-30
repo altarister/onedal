@@ -88,11 +88,16 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
             return VerifyResult.Success(verifiedOrder, parsed)
         } else {
             // 🧾 상세 글자로 못 가르면 사진의 상차·하차·픽업 km 로 한 번 더 — 꼭 한 줄일 때만 (`photoMatchCard`)
-            val baseOrder = matchedListOrder ?: KakaoPickerParser.photoMatchCard(parsed.pickup, parsed.dropoff, recent)
+            val fareUnread = parsed.finalIncome == null
+            val baseOrder = matchedListOrder ?: KakaoPickerParser.photoMatchCard(parsed.pickup, parsed.dropoff, recent, fareUnread)
+            // 🍷 쌍둥이 콜의 낮은 요금으로 골랐으면 꼬리 글(이미 있는 tagsText 칸 · 서버 판정 규칙은 이 칸을 안 읽는다)
+            val twinNote = if (fareUnread && matchedListOrder == null) KakaoPickerParser.photoTwinFares(parsed.pickup, parsed.dropoff, recent)
+                ?.takeIf { baseOrder != null && it.last() == baseOrder.fare }
+                ?.let { fares -> "요금 둘 중 낮은 값 · ${fares.joinToString(" / ") { "%,d".format(it) }}" } else null
             // 🧾 손으로 연 상세의 대조 — 요금이 비는 까닭을 로그로 가른다 (실물 09-30 13:25 #42·#45)
             com.onedal.app.core.AppLogger.d("1DAL_PRE_CONFIRM", com.onedal.app.core.LogTag.CALL_STAGE,
                 "🧾 [손 상세 대조] 목록: ${if (matchedListOrder != null) "찾음" else "못 찾음"} · 사진: " +
-                    KakaoPickerParser.photoMatchReport(parsed.pickup, parsed.dropoff, recent) +
+                    KakaoPickerParser.photoMatchReport(parsed.pickup, parsed.dropoff, recent, fareUnread) +
                     " · 사진 최종 수익 ${parsed.finalIncome ?: "없음"}")
             // 요금: 사진의 «최종 수익» → 목록 줄 → 상세 글자 (`detailFare` · 손으로 연 상세는 목록 줄이 없을 수 있다)
             val resolvedFare = detailFare(baseOrder?.fare, parsed.finalIncome) ?: extractFareFromTexts(screenTexts)
@@ -111,7 +116,8 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
                 rawText = rawScreenStr,
                 itemSize = parsed.itemSize ?: baseOrder.itemSize,
                 vehicleType = KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE,
-                tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ")
+                tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ") +
+                    (twinNote?.let { " · $it" } ?: "")
             ) ?: SimplifiedOfficeOrder(
                 id = "MANUAL-${System.currentTimeMillis()}",
                 type = "MANUAL_CLICK",
@@ -122,7 +128,8 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
                 rawText = rawScreenStr,
                 itemSize = parsed.itemSize,
                 vehicleType = KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE,
-                tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ")
+                tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ") +
+                    (twinNote?.let { " · $it" } ?: "")
             )
             return VerifyResult.Success(manualOrder.withReservation(detailReservation(parsed)), parsed)
         }
