@@ -28,29 +28,32 @@ const SAMPLE_MAX_LEN = 200;
 export const QUIET_MS = 24 * 3600_000;
 const FLUSH_MS = 60_000;
 
-/** 앱이 싣는 모양 — 공통 칸 이름이 shared 에 서면 그리로 옮긴다 */
-export interface ScreenWordsReport { page?: unknown; noise?: unknown; unknown?: unknown; extra?: unknown; sample?: unknown }
+/**
+ * 앱이 싣는 모양 — `{ page, words: [{ word, kind, sample }] }`. 한 보고는 한 화면이라 page 는 한 번,
+ * 예 한 줄은 **낱말마다** 따로 — 보고당 한 줄이면 그 보고의 새 낱말이 전부 같은 예를 갖는다. 공통 칸 이름이 shared 에 서면 그리로 옮긴다.
+ */
+export interface ScreenWordsReport { page?: unknown; words?: unknown }
+type CleanWord = { kind: WordKind; word: string; sample: string | null };
 
-/** 보고 한 벌을 다듬는다 — 모르는 페이지면 null (지어낸 페이지로 표를 채우지 않는다 · 규칙 ④) */
-export function wordsOf(report: ScreenWordsReport): { page: ScreenPage; words: Array<{ kind: WordKind; word: string }>; sample: string | null } | null {
+/** 보고 한 벌을 다듬는다 — 모르는 페이지면 null (지어낸 페이지로 표를 채우지 않는다 · 규칙 ④) · 모르는 갈래의 낱말은 뺀다 */
+export function wordsOf(report: ScreenWordsReport): { page: ScreenPage; words: CleanWord[] } | null {
     const page = report?.page;
     if (typeof page !== 'string' || !(SCREEN_PAGES as readonly string[]).includes(page)) return null;
     const seen = new Set<string>();
-    const words: Array<{ kind: WordKind; word: string }> = [];
-    for (const kind of WORD_KINDS) {
-        const list = Array.isArray(report[kind]) ? report[kind] as unknown[] : [];
-        for (const raw of list) {
-            if (typeof raw !== 'string') continue;
-            const word = raw.trim();
-            if (!word || word.length > WORD_MAX_LEN || seen.has(`${kind}|${word}`)) continue;
-            seen.add(`${kind}|${word}`);
-            words.push({ kind, word });
-            if (words.length >= WORDS_PER_REPORT) break;
-        }
+    const words: CleanWord[] = [];
+    for (const raw of Array.isArray(report.words) ? report.words as unknown[] : []) {
+        const w = raw as { word?: unknown; kind?: unknown; sample?: unknown } | null;
+        if (!w || typeof w.word !== 'string' || typeof w.kind !== 'string') continue;
+        if (!(WORD_KINDS as readonly string[]).includes(w.kind)) continue;
+        const word = w.word.trim();
+        const key = `${w.kind}|${word}`;
+        if (!word || word.length > WORD_MAX_LEN || seen.has(key)) continue;
+        seen.add(key);
+        const sample = typeof w.sample === 'string' && w.sample.trim() ? w.sample.slice(0, SAMPLE_MAX_LEN) : null;
+        words.push({ kind: w.kind as WordKind, word, sample });
         if (words.length >= WORDS_PER_REPORT) break;
     }
-    const sample = typeof report.sample === 'string' && report.sample.trim() ? report.sample.slice(0, SAMPLE_MAX_LEN) : null;
-    return { page: page as ScreenPage, words, sample };
+    return { page: page as ScreenPage, words };
 }
 
 /** 🤫 이 짝이 아직 조용한 첫 하루인가 — 짝의 가장 이른 첫 봄(ms)이 없으면(처음 온 짝) 조용하다 */
@@ -106,7 +109,7 @@ export function noteScreenWords(userId: string, targetApp: string, report: Scree
         const quiet = isQuietPeriod(earliest, nowMs);
         if (quiet) quietPairs.set(pk, { app: targetApp, page: r.page, earliest });
 
-        for (const { kind, word } of r.words) {
+        for (const { kind, word, sample } of r.words) {
             const wk = wordKey(targetApp, r.page, kind, word);
             if (set.has(wk)) {
                 const p = pending.get(wk) ?? { app: targetApp, page: r.page, kind, word, n: 0, last: now };
@@ -115,11 +118,11 @@ export function noteScreenWords(userId: string, targetApp: string, report: Scree
                 continue;
             }
             set.add(wk);
-            stmtInsert.run(targetApp, r.page, word, kind, now, now, r.sample);
+            stmtInsert.run(targetApp, r.page, word, kind, now, now, sample);
             if (quiet) continue;
             console.warn(`📰 [새 글자] ${targetApp} ${r.page} ‹${word}› 처음 봄 (${KIND_LABEL[kind]})`
-                + (r.sample ? ` — 예: ${r.sample.slice(0, 60)}` : ''));
-            io?.to(userId).emit('screen-word-new', { targetApp, page: r.page, word, kind, firstSeen: now, sample: r.sample });
+                + (sample ? ` — 예: ${sample.slice(0, 60)}` : ''));
+            io?.to(userId).emit('screen-word-new', { targetApp, page: r.page, word, kind, firstSeen: now, sample });
         }
     } catch (e) {
         console.error('📰 [새 글자] 기록 실패 (보고는 계속):', (e as Error).message);

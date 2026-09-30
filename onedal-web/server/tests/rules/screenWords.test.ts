@@ -5,7 +5,7 @@ import { isQuietPeriod, wordsOf, QUIET_MS } from '../../src/services/screenWords
 /**
  * 📰 **모르는 글자는 버리지 않고 모은다** (reviews/24 2-서버 · 기사님 «정의되지 않았다고 버리지 말고 모아라»).
  *
- * 앱이 보고 본문 한 칸 `screenWords`(페이지 · 갈래 셋 noise/unknown/extra · 예 한 줄)를 싣는다.
+ * 앱이 보고 본문 한 칸 `screenWords: { page, words: [{ word, kind, sample }] }` 를 싣는다 — 갈래는 noise/unknown/extra, 예는 낱말마다.
  * 서버는 배차망 · 페이지 · 낱말 · 갈래마다 처음 · 마지막 · 횟수를 센다 — 자르는 손은 앱 하나다.
  * 처음 보는 낱말은 `📰 [새 글자]` 경고와 관제웹 한 줄 — 배차망 앱이 바뀐 첫 신호다.
  * 🔴 조용한 첫 하루: 한 배차망·페이지 짝의 첫 보고부터 24시간은 모으기만 한다(첫날 홍수 막기).
@@ -39,25 +39,33 @@ describe('📰 낱말 표', () => {
 });
 
 describe('📰 보고 한 벌 다듬기 — wordsOf', () => {
-    it('갈래 셋(잡음 · 정의에 없음 · 남는 토막)을 함께 낸다 · 같은 낱말은 한 번', () => {
-        const r = wordsOf({ page: 'list', noise: ['신규'], unknown: ['당상', '당상', '내착'], extra: ['(수)'], sample: '당상 12:30 광주 → 이천' });
+    const w = (word: unknown, kind: unknown, sample?: unknown) => ({ word, kind, sample });
+
+    it('낱말마다 갈래와 예 한 줄을 낸다 · 같은 갈래의 같은 낱말은 한 번', () => {
+        const r = wordsOf({ page: 'list', words: [
+            w('신규', 'noise', '신규 콜 목록'), w('당상', 'unknown', '당상 12:30 광주 → 이천'),
+            w('당상', 'unknown', '다른 줄'), w('(수)', 'extra', '9/30(수)'),
+        ] });
         expect(r?.page).toBe('list');
-        expect(r?.words).toEqual([{ kind: 'noise', word: '신규' }, { kind: 'unknown', word: '당상' }, { kind: 'unknown', word: '내착' }, { kind: 'extra', word: '(수)' }]);
-        expect(r?.sample).toBe('당상 12:30 광주 → 이천');
+        expect(r?.words).toEqual([
+            { kind: 'noise', word: '신규', sample: '신규 콜 목록' },
+            { kind: 'unknown', word: '당상', sample: '당상 12:30 광주 → 이천' },
+            { kind: 'extra', word: '(수)', sample: '9/30(수)' },
+        ]);
     });
 
-    it('🔴 모르는 페이지는 버린다 — 표를 지어낸 페이지로 채우지 않는다', () => {
-        expect(wordsOf({ page: 'home', unknown: ['가'] })).toBeNull();
-        expect(wordsOf({ unknown: ['가'] })).toBeNull();
+    it('🔴 모르는 페이지는 통째로, 모르는 갈래의 낱말은 하나씩 버린다 — 지어내지 않는다', () => {
+        expect(wordsOf({ page: 'home', words: [w('가', 'unknown')] })).toBeNull();
+        expect(wordsOf({ words: [w('가', 'unknown')] })).toBeNull();
+        expect(wordsOf({ page: 'detail', words: [w('가', 'dropped'), w('나', 'unknown')] })?.words.map(x => x.word)).toEqual(['나']);
     });
 
     it('글자가 아니거나 비었거나 40자를 넘는 낱말은 뺀다 · 한 보고 200개까지 · 예는 200자까지', () => {
-        const long = 'ㄱ'.repeat(41);
-        const many = Array.from({ length: 300 }, (_, i) => `낱${i}`);
-        const r = wordsOf({ page: 'detail', unknown: [1, '', '  ', long, ...many], sample: 'ㄴ'.repeat(500) });
+        const many = Array.from({ length: 300 }, (_, i) => w(`낱${i}`, 'unknown', 'ㄴ'.repeat(500)));
+        const r = wordsOf({ page: 'detail', words: [w(1, 'unknown'), w('', 'unknown'), w('  ', 'unknown'), w('ㄱ'.repeat(41), 'unknown'), null, ...many] });
         expect(r?.words.length).toBe(200);
-        expect(r?.words.every(w => w.word.length <= 40 && w.word.trim() === w.word)).toBe(true);
-        expect(r?.sample?.length).toBe(200);
+        expect(r?.words.every(x => x.word.length <= 40 && x.word.trim() === x.word)).toBe(true);
+        expect(r?.words[0].sample?.length).toBe(200);
     });
 });
 
