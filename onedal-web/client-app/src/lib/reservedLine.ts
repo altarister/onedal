@@ -1,8 +1,6 @@
-import { reservedForOf, type SecuredOrder } from '@onedal/shared';
+import { reservedForOf, WEEKDAY_KO, type SecuredOrder } from '@onedal/shared';
 import { getAddressLabel } from './routeUtils';
 import { verdictOf, VERDICT_DOT } from './verdict';
-
-const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 
 const partsOf = (reservedFor: string | null | undefined) => {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(reservedFor ?? '');
@@ -12,7 +10,7 @@ const partsOf = (reservedFor: string | null | undefined) => {
 /** 📅 보관 날 글자 «10/3(토)» — 서랍 줄과 판정석 알약이 같이 쓴다. 요일은 보관 날 기준. 모르면 «—» */
 export function reservedDayLabel(reservedFor: string | null | undefined): string {
     const p = partsOf(reservedFor);
-    return p ? `${p.mo}/${p.d}(${WEEKDAY[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()]})` : '—';
+    return p ? `${p.mo}/${p.d}(${WEEKDAY_KO[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()]})` : '—';
 }
 
 type ReservedFields = { reservedFor?: string | null; reservedDay?: number | null; reservedAt?: string | null; capturedAt?: string };

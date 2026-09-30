@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import db from "../db";
-import { businessDayKey, sigunguOfShort, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN } from "@onedal/shared";
+import { businessDayKey, sigunguOfShort, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 
 /**
@@ -199,7 +199,6 @@ export function startStatsRollup(): void {
 /** 묶는 기준 — 표는 날짜 그대로 두고 읽을 때 계산한다(요일 · 시 · 달 · 계절 · 날 · 요일×시 — 아침 카드) */
 export type FlowGroupBy = 'weekday' | 'hour' | 'month' | 'season' | 'day' | 'weekdayHour';
 export const FLOW_GROUP_BYS: readonly FlowGroupBy[] = ['weekday', 'hour', 'month', 'season', 'day', 'weekdayHour'];
-const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const SEASON_OF_MONTH = ['겨울', '겨울', '봄', '봄', '봄', '여름', '여름', '여름', '가을', '가을', '가을', '겨울'];
 
 interface FlowRow {
@@ -212,7 +211,7 @@ const groupOf = (r: FlowRow, by: FlowGroupBy): string => {
     if (by === 'month') return `${m}월`;
     if (by === 'season') return SEASON_OF_MONTH[m - 1];
     if (by === 'day') return r.day;
-    const weekday = WEEKDAY[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+    const weekday = WEEKDAY_KO[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
     return by === 'weekdayHour' ? `${weekday} ${r.hour}시` : weekday;
 };
 /** 평균은 요금을 아는 콜(fareCalls)로만 나눈다 — 하나도 모르면 null */

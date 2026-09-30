@@ -324,6 +324,9 @@ export function describeSlack(slack: number | null): { text: string; level: 'non
  *
  * 로컬 날짜 문자열(`YYYY-MM-DD`)로 다룬다. 시각 비교보다 날짜 비교가 실수할 자리가 적다.
  */
+/** 요일 글자 — `Date#getDay()`·`getUTCDay()` 차례(일요일 0). 서버 흐름 통계 · 관제웹 아침 카드 · 예약 날 글자가 같이 쓴다 */
+export const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'] as const;
+
 export function businessDayKey(ms: number): string {
     const d = new Date(ms);
     const p = (n: number) => String(n).padStart(2, '0');

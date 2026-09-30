@@ -1,4 +1,4 @@
-import { businessDayKey, isEvaluating, isTerminal, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN } from '@onedal/shared';
+import { businessDayKey, isEvaluating, isTerminal, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO } from '@onedal/shared';
 
 /**
  * 📊 **아침 카드 — 오늘 이 시간엔 어디 → 어디가 많다** (reviews/25 4단계 · 기사님 결정 3 · 1f).
@@ -9,7 +9,6 @@ import { businessDayKey, isEvaluating, isTerminal, SIGUNGU_AMBIGUOUS, SIGUNGU_UN
  * 🔴 «내 폰이 본 목록 기준» — 통계는 기사님 폰이 목록을 훑은 자리 둘레의 콜뿐이다(전국 흐름이 아니다).
  */
 
-const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const WINDOW_HOURS = 3;
 const TOP = 2;
 
@@ -20,14 +19,14 @@ export interface FlowsReply { days: string[]; cells: ViewerCell[] }
 
 const weekdayOfDay = (day: string) => {
     const [y, m, d] = day.split('-').map(Number);
-    return WEEKDAY[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+    return WEEKDAY_KO[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 };
 const resolved = (s: string) => s !== SIGUNGU_AMBIGUOUS && s !== SIGUNGU_UNKNOWN;
 const man = (won: number) => `${(won / 10000).toFixed(1)}만`;
 
 export function morningCardOf(reply: FlowsReply, nowMs: number): { lines: string[]; tail: string; sampleDays: number; flows: number } {
     const now = new Date(nowMs);
-    const weekday = WEEKDAY[now.getDay()];
+    const weekday = WEEKDAY_KO[now.getDay()];
     const h = now.getHours();
     const sampleDays = reply.days.filter(d => weekdayOfDay(d) === weekday).length;
     if (sampleDays === 0) return { lines: ['📊 아직 쌓인 날이 없다 — 내일 아침부터'], tail: '내 폰이 본 목록 기준', sampleDays, flows: 0 };
