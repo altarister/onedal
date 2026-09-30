@@ -91,7 +91,8 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
         } else {
             // 🧾 상세 글자로 못 가르면 사진의 상차·하차·픽업 km 로 한 번 더 — 꼭 한 줄일 때만 (`photoMatchCard`)
             val baseOrder = matchedListOrder ?: KakaoPickerParser.photoMatchCard(parsed.pickup, parsed.dropoff, recent)
-            val resolvedFare = baseOrder?.fare?.takeIf { it > 0 } ?: extractFareFromTexts(screenTexts)
+            // 요금: 목록 줄 → 사진의 «최종 수익»(같은 높이 줄) → 상세 글자 (손으로 연 상세는 목록 줄이 없을 수 있다)
+            val resolvedFare = baseOrder?.fare?.takeIf { it > 0 } ?: parsed.finalIncome ?: extractFareFromTexts(screenTexts)
 
             val now = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
                 timeZone = java.util.TimeZone.getTimeZone("UTC")

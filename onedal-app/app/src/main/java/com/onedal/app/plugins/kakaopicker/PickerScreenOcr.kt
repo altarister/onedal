@@ -41,6 +41,7 @@ data class PickerDetailFromImage(
     /** 🔴 예약 콜인가 — 「내일 15:00 픽업예약」 줄이 있으면 참. 시각을 모르면 시급도 상차버퍼도 틀린다 */
     val reserved: Boolean,
     val unreadLines: List<String> = emptyList(),
+    val finalIncome: Int? = null,
 )
 
 object PickerScreenOcr {
@@ -98,8 +99,34 @@ object PickerScreenOcr {
      * 📸 **머리가 없는 쪽** — 판독 실패 까닭을 «픽업 머리 없음»처럼 이름으로 (`PickerDetailOcrParser.failureReason`).
      * 머리 둘이 다 있는데 실패했으면 빈 목록 — 행정동 줄을 못 찾은 것이다.
      */
+    /**
+     * 🔢 **머리 km 숫자 안에서만 오독 글자를 숫자로** — 실물 «배송 19.Okm»(09-30 13:14:38 · 이상 기록 id 38 · 0 → 영문 O).
+     * 머리(«픽업|배송» 바로 뒤) 숫자 토막 안의 O/o → 0 · l/I → 1 만 바꾼다 — 건물 이름 같은 다른 글자는 그대로.
+     * HEAD_RE 에 글자를 늘리지 않고 숫자를 바로잡는 한 곳이다.
+     */
+    private val HEAD_NUMBER = Regex("""(픽업|배송)(\s*)([0-9OoIl]+(?:\.[0-9OoIl]+)?)""")
+
+    fun normalizeHeadDigits(text: String): String = HEAD_NUMBER.replace(text) { m ->
+        val num = m.groupValues[3]
+        if (num.none { it.isDigit() }) m.value
+        else m.groupValues[1] + m.groupValues[2] + num.replace('O', '0').replace('o', '0').replace('I', '1').replace('l', '1')
+    }
+
+    /** 💰 사진의 «최종 수익»과 같은 높이의 숫자 줄 — 글자와 숫자가 다른 줄로 갈라져 온다(y448 «최종 수익» · y447 «11,796») */
+    private val INCOME_LABEL = "최종 수익"
+    private val INCOME_NUMBER = Regex("""^([0-9]{1,3}(?:,[0-9]{3})+)\s*P?$""")
+    private const val SAME_ROW_PX = 12
+
+    private fun finalIncomeOf(sorted: List<OcrLine>): Int? {
+        val label = sorted.firstOrNull { it.text.contains(INCOME_LABEL) } ?: return null
+        // 같은 줄에 붙어 온 꼴(«최종 수익 11,796»)도 받는다
+        Regex("""최종 수익\s*([0-9]{1,3}(?:,[0-9]{3})+)""").find(label.text)?.let { return it.groupValues[1].replace(",", "").toIntOrNull() }
+        return sorted.filter { kotlin.math.abs(it.y - label.y) <= SAME_ROW_PX }
+            .firstNotNullOfOrNull { INCOME_NUMBER.find(it.text.trim())?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull() }
+    }
+
     fun missingHeads(lines: List<OcrLine>): List<String> {
-        val found = lines.mapNotNull { HEAD_RE.find(stripBullet(it.text))?.groupValues?.get(1) }.toSet()
+        val found = lines.mapNotNull { HEAD_RE.find(normalizeHeadDigits(stripBullet(it.text)))?.groupValues?.get(1) }.toSet()
         return listOf("픽업", "배송").filter { it !in found }
     }
 
@@ -109,7 +136,7 @@ object PickerScreenOcr {
      */
     fun parseDetail(lines: List<OcrLine>): PickerDetailFromImage? {
         val sorted = lines
-            .map { OcrLine(it.y, stripBullet(it.text)) }
+            .map { OcrLine(it.y, normalizeHeadDigits(stripBullet(it.text))) }
             .filter { it.text.isNotEmpty() }
             .sortedBy { it.y }
 
@@ -140,7 +167,7 @@ object PickerScreenOcr {
             it !in used && !HEAD_RE.containsMatchIn(it) && timeOf(it) == null && !CLOCK_START.containsMatchIn(it) && !it.contains("픽업예약")
         }
 
-        return PickerDetailFromImage(pickup, dropoff, itemSize, reserved, unreadLines)
+        return PickerDetailFromImage(pickup, dropoff, itemSize, reserved, unreadLines, finalIncomeOf(sorted))
     }
 
     /** 한 덩어리(머리 − 여유 ~ 다음 머리 − 여유)에서 행정동·건물명·시각을 뽑는다 */
