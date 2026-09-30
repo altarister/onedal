@@ -16,6 +16,12 @@ interface IScrapParser {
     fun parse(texts: List<String>): SimplifiedOfficeOrder
 
     /**
+     * 🔄 이 배차망 판정이 읽는 필터 값의 지문 — 같으면 버전 글자가 바뀌어도 막은 기억을 안 비운다 (`CallMemory.onFilter`).
+     * null 이면 버전 글자로 가른다(인성·24 — 판정이 필터 원문 거의 전부를 읽는다).
+     */
+    fun judgmentValuesKey(): String? = null
+
+    /**
      * 파싱된 오더가 필터 조건을 모두 만족하는지 판정.
      *
      * 👁️ `tally` 를 주면 **축별 탈락 수를 채워 준다** (기사님 확정).

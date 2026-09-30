@@ -82,21 +82,33 @@ class CallMemory private constructor(
     /** 마지막으로 본 필터 버전 — null 이면 아직 못 받았다 */
     private var lastFilterVersion: String? = null
 
+    /** 🔄 필터가 닿았을 때 — 처음·같은 버전(NONE) · 버전 글자만 바뀜(VERSION_ONLY) · 판정 값이 바뀜(VALUES) */
+    enum class FilterChange { NONE, VERSION_ONLY, VALUES }
+
+    private var lastValuesKey: String? = null
+
+    /** 판정 값 지문 없이 버전 글자로만 가른다 — [onFilter] 의 겉 */
+    fun onFilterVersion(version: String?): Boolean = onFilter(version, null) == FilterChange.VALUES
+
     /**
      * 🔄 **필터 버전이 바뀌면 «막았다» 기억만 비운다** (#135).
      *
-     * 버전은 서버가 필터 **내용**으로 만든다(`filterVersionOf`) — 내용이 같으면 안 바뀌어 헛 재판정이 없다.
+     * 버전은 서버가 필터 **원문**으로 만든다 — 이 배차망 판정이 안 읽는 칸만 달라도 바뀐다.
+     * 그래서 판정이 읽는 값의 지문([valuesKey])이 같으면 안 비운다: 서버가 목록·상세 응답에 버전 둘을 번갈아 보내
+     * 알람 모드가 이미 연 콜을 30초마다 다시 열었다(라이브 09-30 21:36:04). 지문이 없으면(인성·24) 버전 글자로 가른다.
      * 🔴 **처음 받은 버전은 기억만 한다** — 서비스가 막 켜졌을 때 비울 기억이 없다.
      * 🔴 «눌렀다·통과했다»·«보고했다»는 안 비운다 — 반송된 콜을 또 누르거나 알람이 다시 울리면 안 된다.
-     * @return 비웠으면 true
      */
-    fun onFilterVersion(version: String?): Boolean {
-        if (version.isNullOrEmpty()) return false
+    fun onFilter(version: String?, valuesKey: String?): FilterChange {
+        if (version.isNullOrEmpty()) return FilterChange.NONE
         val prev = lastFilterVersion
+        val prevKey = lastValuesKey
         lastFilterVersion = version
-        if (prev == null || prev == version) return false
+        lastValuesKey = valuesKey
+        if (prev == null || prev == version) return FilterChange.NONE
+        if (valuesKey != null && valuesKey == prevKey) return FilterChange.VERSION_ONLY
         blocked.clear()
-        return true
+        return FilterChange.VALUES
     }
 
     /** ① 이 콜은 평가를 마쳤는가 — 맞으면 스캔 루프가 건너뛴다 */

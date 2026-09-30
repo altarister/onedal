@@ -136,6 +136,9 @@ class HijackService : AccessibilityService(), ScanContext {
     override lateinit var keywords: ScreenKeywords
     override val screenDetector = ScreenDetector()
     private var lastScreenFingerprint = 0
+    /** 🔄 마지막으로 본 필터 버전 · 이미 적은 «버전만 바뀜» 쌍 (목록 스캔 첫머리) */
+    private var seenFilterVersion: String? = null
+    private val versionOnlyPairs = mutableSetOf<String>()
     // 👁️ «본 콜» 장부 — «평가했다»와 «보고했다»를 딴 그릇으로 (#79 · CallMemory 주석 참고)
     private val callMemory = CallMemory()   // 크기는 CallMemory.kt 한 곳
     override var currentTargetApp = "insung"
@@ -1194,8 +1197,16 @@ class HijackService : AccessibilityService(), ScanContext {
          * «가까워지면 올라온다»가 선다. 누른 콜·통과한 콜·보고한 콜은 그대로다 (`CallMemory` 머리).
          */
         val filterVersionNow = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).getString("filterVersion", null)
-        if (callMemory.onFilterVersion(filterVersionNow)) {
-            AppLogger.d(TAG, LogTag.FILTER, "🔄 [필터 바뀜] 버전 $filterVersionNow — 막았던 콜을 새 필터로 다시 판정한다")
+        val prevFilterVersion = seenFilterVersion
+        if (!filterVersionNow.isNullOrEmpty()) seenFilterVersion = filterVersionNow
+        when (callMemory.onFilter(filterVersionNow, scrapParser.judgmentValuesKey())) {
+            com.onedal.app.core.CallMemory.FilterChange.VALUES ->
+                AppLogger.d(TAG, LogTag.FILTER, "🔄 [필터 바뀜] 버전 $filterVersionNow — 막았던 콜을 새 필터로 다시 판정한다")
+            // 🧾 판정이 읽는 값은 그대로 — 막은 기억을 지킨다(이미 연 콜을 다시 열지 않게). 같은 쌍은 한 번만
+            com.onedal.app.core.CallMemory.FilterChange.VERSION_ONLY ->
+                if (versionOnlyPairs.add("$prevFilterVersion→$filterVersionNow"))
+                    AppLogger.i(TAG, LogTag.FILTER, "🧾 [필터 버전만 바뀜] $prevFilterVersion → $filterVersionNow · 값 같음 — 다시 판정 안 함")
+            com.onedal.app.core.CallMemory.FilterChange.NONE -> Unit
         }
 
         // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
@@ -1393,7 +1404,10 @@ class HijackService : AccessibilityService(), ScanContext {
              * 🔒 **서버가 앞 콜을 심사 중이면 이번 스캔은 누르지 않는다** (기사님 · 실주행 오송읍 · 한 번에 하나만 평가).
              * 판정은 이미 끝났고 기억에도 안 넣었으니, 앞 콜이 결재되는 즉시 다음 스캔에서 **바로** 누른다.
              */
-            if (savedFilter().evaluatingNow) {
+            val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+            val evaluatingTop = if (prefs.contains(com.onedal.app.core.EvaluatingNow.PREF_KEY))
+                prefs.getBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, false) else null
+            if (com.onedal.app.core.EvaluatingNow.of(evaluatingTop, savedFilter().evaluatingNow)) {
                 AppLogger.d(TAG, LogTag.TAP, "⏳ [클릭 미룸] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
                     "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 다음 스캔에서 바로 누릅니다")
             } else {

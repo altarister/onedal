@@ -276,6 +276,13 @@ class ApiClient(private val context: Context) {
                 if (code == 200) {
                     prefs.edit().putString("api_scrap_res", body).apply()
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
+                    // 🔒 «앞 콜 심사 중» 맨 위 칸 — 본문이 생략된 응답에도 온다. 없으면 지워 필터 안 값으로 (`EvaluatingNow`)
+                    com.onedal.app.core.EvaluatingNow.topOf(body).let { top ->
+                        prefs.edit().apply {
+                            if (top == null) remove(com.onedal.app.core.EvaluatingNow.PREF_KEY)
+                            else putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, top)
+                        }.apply()
+                    }
                     
                     val screenName = payload.screenContext ?: "UNKNOWN"
                     // 📤 보고 한 번 = 한 줄 (보내기·응답·건수·걸린 시간) — «콜 0건»은 화면이 바뀔 때만 (`scrapLogLine`)

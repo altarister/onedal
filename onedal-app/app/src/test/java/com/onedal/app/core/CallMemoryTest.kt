@@ -262,4 +262,29 @@ class CallMemoryTest {
         assertTrue(ctors.joinToString { it.parameterTypes.joinToString(prefix = "(", postfix = ")") { t -> t.simpleName } },
             ctors.all { it.parameterCount == 0 })
     }
+
+    /**
+     * 🔄 **버전 글자만 바뀌고 판정 값이 같으면 막은 기억을 지킨다** (라이브 09-30 21:36:04 · 1f «가»).
+     * 서버가 목록 응답엔 num45a, 상세 응답엔 kxy685 를 번갈아 보내 30초마다 막은 기억이 비었고,
+     * 알람 모드가 이미 연 콜 넷을 돌아가며 다시 열었다. 값이 실제로 바뀌면 지금처럼 다시 판정한다.
+     */
+    @Test
+    fun `버전 글자만 바뀌면 막은 기억 유지 - 값이 바뀌면 다시 판정`() {
+        val m = CallMemory()
+        m.onFilter("num45a", "minFare=6000")
+        m.onScanned(3, wasEvaluated = true, passed = false)
+        assertEquals(CallMemory.FilterChange.VERSION_ONLY, m.onFilter("kxy685", "minFare=6000"))
+        assertTrue("값이 같으면 막은 콜을 다시 안 본다", m.alreadyEvaluated(3))
+        assertEquals(CallMemory.FilterChange.VALUES, m.onFilter("num45a", "minFare=7000"))
+        assertFalse("값이 바뀌면 막은 콜을 새 필터로 다시 본다", m.alreadyEvaluated(3))
+    }
+
+    @Test
+    fun `판정 값 지문이 없는 배차망은 버전 글자로 가른다`() {
+        val m = CallMemory()
+        m.onFilter("v1", null)
+        m.onScanned(3, wasEvaluated = true, passed = false)
+        assertEquals(CallMemory.FilterChange.VALUES, m.onFilter("v2", null))
+        assertFalse(m.alreadyEvaluated(3))
+    }
 }

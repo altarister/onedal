@@ -778,6 +778,45 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "dongSigungu" to dongSigungu,
         ))
 
+        /** 피기백 필터 원문 → 알람 조건. 못 읽으면 기본값 (서버 미응답 안전망) */
+        private fun alarmConfigOf(raw: String): AlarmConfig {
+            return try {
+                // Gson 으로 읽는다 — 단위 검사에서도 실물로 돈다(org.json 은 검사에서 빈 껍데기)
+                val json = com.google.gson.JsonParser.parseString(raw).asJsonObject
+                fun value(key: String) = json.get(key)?.takeIf { !it.isJsonNull }
+                fun strings(e: com.google.gson.JsonElement?): List<String> =
+                    e?.takeIf { it.isJsonArray }?.asJsonArray?.mapNotNull { it.takeIf { v -> !v.isJsonNull }?.asString } ?: emptyList()
+                fun obj(key: String) = value(key)?.takeIf { it.isJsonObject }?.asJsonObject
+                // 🧭 도착 목록 = 키워드 ∪ 경유 순서 목록 키 — 운행 중 서버는 도착 동을 orderKm 으로 옮겨 보낸다 (세 배차망 같은 규칙)
+                val keywords = com.onedal.app.plugins.DestinationList.of(
+                    strings(value("destinationKeywords")),
+                    obj("orderKm")?.keySet()?.toList() ?: emptyList(),
+                )
+                fun listMap(key: String): Map<String, List<String>> =
+                    obj(key)?.entrySet()?.associate { (k, v) -> k to strings(v) } ?: emptyMap()
+
+                AlarmConfig(
+                    minFare = value("minFare")?.asInt ?: FilterConfig().minFare,   // 💵 최소 금액 — 인성·화물24시와 같은 칸
+                    pickupRadiusKm = value("pickupRadiusKm")?.asDouble ?: 10.0,
+                    destKeywords = keywords,
+                    keywordTraps = listMap("keywordTraps"),
+                    cityAliases = strings(value("customCityFilters")).filter { it.isNotEmpty() },
+                    reservationMode = value("reservationMode")?.asString?.ifEmpty { null },
+                    dongSigungu = listMap("destinationDongSigungu"),
+                )
+            } catch (e: Exception) {
+                AlarmConfig()
+            }
+        }
+
+        /**
+         * 🔄 **알람 판정이 읽는 필터 값의 지문** (`PickerFilterValuesKeyTest`) — 요금·반경·도착 목록·예약 … 을 `alarmFilterJson` 한 줄로.
+         * 경유 순서 목록의 km 수처럼 알람이 안 읽는 칸만 바뀌면 같다 — 그때는 막은 기억을 비우지 않는다.
+         */
+        fun alarmValuesKeyOf(activeFilter: String): String = alarmConfigOf(activeFilter).let { c ->
+            alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu)
+        }
+
         /** 마지막으로 남긴 알람 필터 — 같으면 다시 안 적는다 (판정은 스캔마다 돈다 · 로그가 그 줄로 덮이지 않게) */
         @Volatile private var lastAlarmFilterJson: String? = null
     }
@@ -797,38 +836,12 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     private fun alarmConfig(): AlarmConfig {
         val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
             ?: return AlarmConfig()
-        return try {
-            val json = JSONObject(prefs.getString("activeFilter", null) ?: return AlarmConfig())
-            // 🧭 도착 목록 = 키워드 ∪ 경유 순서 목록 키 — 운행 중 서버는 도착 동을 orderKm 으로 옮겨 보낸다 (세 배차망 같은 규칙)
-            val keywords = com.onedal.app.plugins.DestinationList.of(
-                json.optJSONArray("destinationKeywords")?.let { arr -> (0 until arr.length()).map { arr.getString(it) } } ?: emptyList(),
-                json.optJSONObject("orderKm")?.keys()?.asSequence()?.toList() ?: emptyList(),
-            )
-            fun listMap(key: String): Map<String, List<String>> = json.optJSONObject(key)?.let { obj ->
-                obj.keys().asSequence().associateWith { k ->
-                    val arr = obj.optJSONArray(k)
-                    if (arr == null) emptyList()
-                    else (0 until arr.length()).map { arr.getString(it) }
-                }
-            } ?: emptyMap()
-            val traps = listMap("keywordTraps")
-            val aliases = json.optJSONArray("customCityFilters")?.let { arr ->
-                (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }
-            } ?: emptyList()
-
-            AlarmConfig(
-                minFare = json.optInt("minFare", FilterConfig().minFare),   // 💵 최소 금액 — 인성·화물24시와 같은 칸
-                pickupRadiusKm = json.optDouble("pickupRadiusKm", 10.0),
-                destKeywords = keywords,
-                keywordTraps = traps,
-                cityAliases = aliases,
-                reservationMode = json.optString("reservationMode").ifEmpty { null },
-                dongSigungu = listMap("destinationDongSigungu"),
-            )
-        } catch (e: Exception) {
-            AlarmConfig()
-        }
+        return alarmConfigOf(prefs.getString("activeFilter", null) ?: return AlarmConfig())
     }
+
+    /** 🔄 알람 판정이 읽는 값의 지문 (`alarmValuesKeyOf`) — 필터 원문이 없으면 null(버전 글자로 가른다) */
+    override fun judgmentValuesKey(): String? = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        ?.getString("activeFilter", null)?.let { alarmValuesKeyOf(it) }
 
     /**
      * 🧹 **버릴 화면 메뉴 글자 — 서버에서 받는다** (기사님 지시).

@@ -79,6 +79,6 @@ class FareFloorTest {
         val app = File("src/main/java/com/onedal/app").walkTopDown().filter { it.extension == "kt" }
             .filter { codeOnly(it.path).contains("pickerAlarmMinFare") }.map { it.name }.toList()
         assertEquals("원달앱이 아직 픽커 알람 하한을 읽는다: $app", emptyList<String>(), app)
-        assertTrue(codeOnly("$plugins/kakaopicker/KakaoPickerParser.kt").contains("optInt(\"minFare\""))
+        assertTrue(codeOnly("$plugins/kakaopicker/KakaoPickerParser.kt").contains("value(\"minFare\")"))
     }
 }
