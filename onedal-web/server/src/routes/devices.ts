@@ -402,6 +402,11 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                 slog('화면', `👀 [상세 못 봄 · 안 치움] ${stuckOrderId} — 카드가 아직 열리는 중이다 (화면: ${screenContext ?? '모름'})`);
             } else if (leftDetail(session)) {
                 slog('화면', `👀 [상세 이탈] 기기(${deviceId})가 상세를 떠났다 (화면: ${screenNowOf(session) ?? '끊김'}) — 미리보기를 치운다`);
+                /* ⏩ 빨리 접기 콜이면 막대 끝(judgeUntil)과 실제 접힘의 차이를 한 줄로 — 폰이 한 손이라 1~2초 늦을 수 있다 */
+                if (stuck.foldAfterSec != null && stuck.judgeUntil != null) {
+                    const gap = Date.now() - stuck.judgeUntil;
+                    slog('화면', `⏱️ [빨리 접기] 막대 끝 → 접힘 ${gap >= 0 ? '+' : ''}${gap} ms`);
+                }
                 forceCancelEvaluatingOrder(userId, stuckOrderId!, io);
             }
         }

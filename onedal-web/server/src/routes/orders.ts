@@ -187,6 +187,8 @@ router.post("/confirm", (req, res) => {
              *    모르는 값·구앱(미전송)은 null 로 남긴다. 지어내지 않는다 (규칙 ④).
              */
             capturedVia: isCapturedVia((payload as any).capturedVia) ? (payload as any).capturedVia : null,
+            /* ⏩ 앱이 알람 모드로 목록에서 눌러 연 상세인가 — 빨리 접기 대상(판단용 · capturedVia 는 기록 전용이라 따로) · 모르면 없음 */
+            ...(typeof (payload as any).openedByApp === 'boolean' ? { openedByApp: (payload as any).openedByApp } : {}),
             /**
              * 👀 **미리보기 콜** — 확정 전에 팝업 3장을 읽어 판정만 받아 보는 콜.
              *

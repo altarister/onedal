@@ -39,6 +39,17 @@ export function drainStyleOf(sec: number, elapsedSec: number): { animation: stri
     return { animation: `seat-drain-x ${sec}s linear -${elapsedSec.toFixed(1)}s forwards` };
 }
 
+/**
+ * ⏳ **미리보기 막대의 길이와 흐른 초** — 길이 = 끝(judgeUntil) − 잡은 때, 흐른 초 = 지금 − 잡은 때. 끝을 모르면 기본 초.
+ *    판정이 끝을 당기면(빨리 접기) 둘을 함께 다시 재야 막대가 judgeUntil 에 정확히 0 이 된다.
+ */
+export function previewDrainOf(judgeUntil: number | undefined, capturedAtMs: number, nowMs: number, fallbackSec: number): { sec: number; elapsed: number } {
+    return {
+        sec: judgeUntil ? Math.max(1, (judgeUntil - capturedAtMs) / 1000) : fallbackSec,
+        elapsed: Math.max(0, (nowMs - capturedAtMs) / 1000),
+    };
+}
+
 /** 판정석 카드 높이 — 알림 줄(예약 · 주소 대략)이 있으면 그 줄만큼 더한다 */
 const SEAT_H = 158;
 const NOTICE_ROW_H = 26;
@@ -103,12 +114,12 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
      * 🔴 **이 배경이 다 차도 카드는 안 사라진다** — 끄는 것은 폰의 화면 상태 하나다.
      */
     const pickerHoldSec = useSettingsStore(st => st.pickerAlarmDetailSec);
-    const previewHoldSec = route.judgeUntil && route.capturedAt
-        ? Math.max(1, (route.judgeUntil - Date.parse(route.capturedAt)) / 1000)
-        : pickerHoldSec + SERVER_CLEANUP_EXTRA_SEC;
-    const previewElapsedSec = useMemo(
-        () => (route.isPreview && route.capturedAt ? Math.max(0, (Date.now() - Date.parse(route.capturedAt)) / 1000) : 0),
-        [route.isPreview, route.capturedAt],
+    /* ⏩ 끝(judgeUntil)이 당겨지면(빨리 접기) 길이와 흐른 초를 함께 다시 잰다 — 흐른 만큼에서 이어 줄고 judgeUntil 에 0 · 0 이 된 뒤에는 그대로 머문다(forwards) */
+    const { sec: previewHoldSec, elapsed: previewElapsedSec } = useMemo(
+        () => route.isPreview && route.capturedAt
+            ? previewDrainOf(route.judgeUntil, Date.parse(route.capturedAt), Date.now(), pickerHoldSec + SERVER_CLEANUP_EXTRA_SEC)
+            : { sec: pickerHoldSec + SERVER_CLEANUP_EXTRA_SEC, elapsed: 0 },
+        [route.isPreview, route.capturedAt, route.judgeUntil, pickerHoldSec],
     );
     const judged = !!v.color;
     const c = v.color ? SOAK[v.color] : null;

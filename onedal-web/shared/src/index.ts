@@ -560,7 +560,17 @@ export interface ApproxAddress {
     dropoffApprox?: string | null;
 }
 
-export interface PendingOrder extends OfficeOrder, ApproxAddress {
+/**
+ * ⏩ **빨리 접기 재료** — 서버가 심사 콜에 싣는다(DB 칸 아님).
+ *    `openedByApp`: 이 상세를 앱이 알람 모드로 목록에서 눌러 열었나(/confirm · 모르면 없음 · 기록 칸 capturedVia 와 따로).
+ *    `foldAfterSec`: 판정 끝에 정한 빨리 접기 초(`quickFoldSecOf`) — 있으면 judgeUntil 이 판정 끝 + 그 초로 당겨진다.
+ */
+export interface QuickFoldFields {
+    openedByApp?: boolean;
+    foldAfterSec?: number | null;
+}
+
+export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldFields {
     status: OrderStatus;                  // ORDER_PRE_SECURED | ORDER_SECURED_EVALUATING | ORDER_AWAITING_DECISION
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
@@ -733,7 +743,7 @@ export interface MyOrder extends OfficeOrder {
 
 // [통합] SecuredOrder — PendingOrder와 MyOrder를 모두 아우르는 통합 인터페이스
 // 프론트엔드(useOrderEngine, PinnedRouteCard)에서 심사 중 + 확정된 오더를 하나의 배열로 관리
-export interface SecuredOrder extends OfficeOrder, ApproxAddress {
+export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldFields {
     status: OrderStatus;                  // 단일 통합 라이프사이클 상태
     capturedDeviceId: string;
     capturedAt: string;

@@ -268,6 +268,18 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
  *    그게 «전수»다. 점수 대신 이유가 적힌다.
  * 🔴 **점수는 못 쟀으면 `null` 이다.** 0 으로 바꾸지 않는다 (0 은 «나쁘다»로 읽힌다).
  */
+/**
+ * ⏩ **빨리 접기 — 판정이 나온 때부터 몇 초** (기사님 «붉은색과 50점 이하는 … 10초 정도면 … 빨리 접어서 다른 콜을 보게»).
+ *    대상은 앱이 알람 모드로 연 상세(`openedByApp`)뿐이다 — 손으로 연 상세는 그대로. 조건은 점수 없음(🔴) 또는 벨 점수 미만(bell=false).
+ *    코드 상수다(설정값·저장 칸 아님) · 기준선은 벨 점수 그대로. 접는 것은 폰이다 — 폰이 이 초 뒤 목록으로 돌아가면
+ *    서버·관제웹은 지금처럼 «상세 이탈» 하나로 끈다(미리보기를 시간으로 끄지 않는다는 기사님 결정 그대로).
+ */
+export const QUICK_FOLD_SEC = 10;
+export function quickFoldSecOf(judgment: { score: number | null; bell?: boolean } | null | undefined, openedByApp: boolean | undefined): number | null {
+    if (openedByApp !== true || !judgment) return null;
+    return judgment.score == null || judgment.bell !== true ? QUICK_FOLD_SEC : null;
+}
+
 export function toSnapshot(v: Judgment) {
     const scoreOf = (o: Outcome) => (o.kind === 'scored' ? o.score : null);
     return {

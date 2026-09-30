@@ -410,6 +410,13 @@ router.post("/", (req, res) => {
             if (req.body.filterVersion === filterVersion) responseFilter = undefined;   // 안 바뀜 — 본문 생략
         }
 
+        /* ⏩ 빨리 접기 — 이 기기의 심사 중 콜에 foldAfterSec 이 있으면 남은 초(서버 시계). 폰은 받은 뒤 그 초에 목록으로 돌아간다 · 판정 시각은 안 보낸다(폰 시계와 섞지 않게) */
+        const foldOrderId = deviceId ? session.deviceEvaluatingMap.get(deviceId) : undefined;
+        const foldOrder = foldOrderId ? session.pendingOrdersData.get(foldOrderId) : undefined;
+        const foldAfter = foldOrder?.foldAfterSec != null && foldOrder.judgeUntil != null
+            ? { orderId: foldOrder.id, remainSec: Math.max(0, Math.round((foldOrder.judgeUntil - Date.now()) / 100) / 10) }
+            : undefined;
+
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
         const callMemoryRound = callMemoryRoundOf(session.businessDay, simRoundForPhone());
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
@@ -427,6 +434,7 @@ router.post("/", (req, res) => {
             ...(filterVersion !== undefined ? { filterVersion } : {}),
             /* 🔒 심사 중인가 — 판이 같아 필터 본문을 생략할 때도 간다. 앱은 맨 위를 먼저 읽는다(없으면 필터 안 값) */
             evaluatingNow: appFilter.evaluatingNow,
+            ...(foldAfter ? { foldAfter } : {}),
             ...(responseFilter !== undefined ? { dispatchEngineArgs: responseFilter } : {}),
             decision: piggybackDecision
         });
