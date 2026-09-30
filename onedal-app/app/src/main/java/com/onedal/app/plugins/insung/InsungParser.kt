@@ -754,6 +754,9 @@ class InsungParser(private val context: Context) : IScrapParser {
     //  groupListNodes(): 인성콜 Row 기반 노드 그룹화
     // ════════════════════════════════════════════════════════════════
     
+    /** 📐 이 배차망은 겹친 틀을 따로 가르지 않는다 */
+    override val lastFrameDiscarded: Boolean = false
+
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         // 🔴 카드를 묶는 자리라, 차종이 빠지면 그 콜은 로그 한 줄 없이 사라진다 — 목록은 위 한 벌을 쓴다.
         //    누구를 닻으로 삼는지는 `cardAnchorIndices` 한 곳이 정한다 (붙어 온 「라2.2」 포함).

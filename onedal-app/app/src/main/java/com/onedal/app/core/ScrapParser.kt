@@ -37,6 +37,8 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
         return delegate.groupListNodes(allNodes)
     }
 
+    override val lastFrameDiscarded: Boolean get() = delegate.lastFrameDiscarded
+
     // 🔴 위임을 빠뜨리면 컴파일이 안 된다 — 인터페이스에 기본값이 없다 (#84 · IScrapParser 주석 참조)
     override fun alarmBandHalfPx(): Int = delegate.alarmBandHalfPx()
 

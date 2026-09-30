@@ -514,6 +514,9 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
      *    (폰 · `콜그룹 0`). 무엇이 요금인지 가르는 규칙은
      *    `Hwamul24CardGrouping` 한 곳에 있다 — 거기는 접근성 노드 없이 검사할 수 있다.
      */
+    /** 📐 이 배차망은 겹친 틀을 따로 가르지 않는다 */
+    override val lastFrameDiscarded: Boolean = false
+
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         // 세로로 겹치면 같은 줄, 줄 안은 왼쪽부터 — top 한 값의 1px 어긋남에 좌우가 뒤집히지 않게 (공통 한 벌)
         val sortedNodes = com.onedal.app.core.ScreenReadingOrder.sort(allNodes, { it.rect.top }, { it.rect.bottom }, { it.rect.left })

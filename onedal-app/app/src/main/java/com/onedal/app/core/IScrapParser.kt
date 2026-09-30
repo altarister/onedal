@@ -61,6 +61,9 @@ interface IScrapParser {
      */
     fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>>
 
+    /** 📐 바로 앞 groupListNodes 가 틀을 버렸나(목록이 움직이는 중간 틀 등) — 버렸으면 곧 다시 읽는다(`ListWatch`) */
+    val lastFrameDiscarded: Boolean
+
     /**
      * 🔔 알람 테두리가 요금 닻 중심에서 위아래로 몇 px 을 더 둘러야 **카드 전체**인가.
      * 0 이면 닻 줄만 두른다 (인성 — 요금 줄이 곧 카드 한 줄). 픽커는 요금이 태그줄과

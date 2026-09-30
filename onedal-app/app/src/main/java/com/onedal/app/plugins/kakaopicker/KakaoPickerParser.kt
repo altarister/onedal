@@ -318,6 +318,31 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          */
         private const val DETAIL_FIRST_WORD = "픽업지"
 
+        private val FARE_SHAPE = Regex("""^[\d,]{3,}$""")
+        private val KM_SHAPE = Regex("""^\d+(\.\d+)?km$""")
+        /** 같은 칸 — 중심 y 차가 이보다 작고 x 차가 [SAME_SLOT_X_PX] 보다 작으면 한 자리에 겹친 것이다(카드 간격은 163~185px) */
+        private const val SAME_SLOT_Y_PX = 20
+        private const val SAME_SLOT_X_PX = 40
+
+        /**
+         * 📐 **겹친 틀인가** — 목록이 움직이는(다시 정렬되는) 중간 틀은 두 카드의 글자가 한 칸에 겹친다(`PickerOverlapFrameTest`).
+         * 서로 다른 요금 꼴 둘이 같은 칸 · 또는 서로 다른 거리 꼴(«N.Nkm» 노드 전체) 둘이 같은 칸이면 까닭 글, 아니면 null.
+         * 실물 09-30 19:46:00 — «14,168»·«13,783»이 똑같은 칸(878,823,1052,889) · «19.9km·19.8km·15.9km»가 한 줄 한 칸.
+         * @param nodes (글자, 중심Y, 중심X)
+         */
+        fun overlappedFrame(nodes: List<Triple<String, Int, Int>>): String? {
+            fun stacked(shape: Regex, word: String): String? {
+                val xs = nodes.filter { shape.matches(it.first.trim()) }
+                for (i in xs.indices) for (j in i + 1 until xs.size) {
+                    val a = xs[i]; val b = xs[j]
+                    if (a.first != b.first && kotlin.math.abs(a.second - b.second) < SAME_SLOT_Y_PX && kotlin.math.abs(a.third - b.third) < SAME_SLOT_X_PX)
+                        return "$word ${a.first} · ${b.first} 가 같은 칸(${a.third},${a.second})"
+                }
+                return null
+            }
+            return stacked(FARE_SHAPE, "요금") ?: stacked(KM_SHAPE, "거리")
+        }
+
         fun detailTextsOf(texts: List<String>): List<String> {
             val i = texts.indexOfFirst { it.startsWith(DETAIL_FIRST_WORD) }
             return if (i <= 0) texts else texts.drop(i)
@@ -779,7 +804,11 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     /** 📢 광고가 시작하는 글자 — 이 줄부터 아래는 콜이 아니다 */
     private fun adStartWords(): Set<String> = wordsFrom("adStartWords", AD_START_WORDS)
 
+    override var lastFrameDiscarded: Boolean = false
+        private set
+
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
+        lastFrameDiscarded = false
         /**
          * 🩹 **두 화면이 겹쳐 읽힌 판은 통째로 건너뛴다** (`detailLeaked`).
          * 상세에서 목록으로 넘어오는 찰나에 상세 글자가 섞여 들어오면, 그 판으로 만든 카드는
@@ -791,8 +820,14 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             return emptyList()
         }
 
-        // 🟩 오더카드가 보이면 한 줄(바뀔 때만) — 2단계 근거 · 기록만
         val triples = allNodes.map { Triple(it.text, (it.rect.top + it.rect.bottom) / 2, (it.rect.left + it.rect.right) / 2) }
+        // 📐 목록이 움직이는 중간 틀 — 두 카드 글자가 한 칸에 겹친다. 목록으로 믿지 않고 버린다(곧 다시 읽는다 · `ListWatch`)
+        overlappedFrame(triples)?.let { why ->
+            com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "📐 [겹친 틀 버림] $why — 이 틀은 목록으로 안 쓰고 곧 다시 읽는다")
+            lastFrameDiscarded = true
+            return emptyList()
+        }
+        // 🟩 오더카드가 보이면 한 줄(바뀔 때만) — 2단계 근거 · 기록만
         offerCardRecord(triples, listHeaderCenterY(triples.map { it.first to it.second }))?.let { line ->
             if (com.onedal.app.core.LogOnce.changed("offer-card", line.substringBefore(" · 띠 노드")))
                 com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "🟩 [오더카드 보임] $line")

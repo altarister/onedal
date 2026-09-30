@@ -386,6 +386,9 @@ class HijackService : AccessibilityService(), ScanContext {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        // 📜 조용한 목록 다시 읽기 — 1초마다 살핀다(`ListWatch`)
+        mainHandler.removeCallbacks(listWatchdog)
+        mainHandler.postDelayed(listWatchdog, 1000)
 
         /**
          * 📝 **가장 먼저 로그 파일을 연다** — 이 아래에서 무슨 일이 나든 남게 한다.
@@ -557,6 +560,9 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     override fun onDestroy() {
+        // 📜 조용한 목록 다시 읽기 감시를 뗀다 — 서비스가 내려간 뒤 옛 서비스가 읽지 않게
+        mainHandler.removeCallbacks(listWatchdog)
+        mainHandler.removeCallbacks(afterDiscardRead)
         super.onDestroy()
         live = null
         if (::screenReader.isInitialized) screenReader.close()
@@ -718,7 +724,10 @@ class HijackService : AccessibilityService(), ScanContext {
     /** 배차망 앱(우리 앱 아님)의 마지막 알림 시각 · 그 뒤 아직 안 읽었나 · 마지막 캐시 확인 시각 */
     private var lastTargetEventMs = 0L
     private var eventSinceRead = false
-    private var lastCacheProbeMs = Long.MIN_VALUE / 2
+    /** 📜 조용한 목록 다시 읽기 — 마지막 읽기 시각 · 이번 읽기가 조용한 다시 읽기인가 · 겹친 틀 연달아 버린 수 (`ListWatch`) */
+    private var lastReadMs = 0L
+    private var quietReading = false
+    private var discardStreak = 0
 
     /**
      * 📡 **화면 한 번 읽기 — 입구는 여기 하나** (접근성 알림 · «필터 도착»이 같은 길).
@@ -738,36 +747,42 @@ class HijackService : AccessibilityService(), ScanContext {
         try { scanScreenBody() } finally { scanNodes.clear() }
         if (!scanGathered) return
         val nowMs = android.os.SystemClock.elapsedRealtime()
+        lastReadMs = nowMs
         scanTimerOf(ctx)?.let { (timer, label) ->
             timer.record(nowMs - startMs, scanSameText, nowMs, walkMs = scanWalkMs,
-                way = scanWay.word.takeIf { ctx == ScreenContext.LIST }, afterEvent = afterEvent)?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
+                way = scanWay.word.takeIf { ctx == ScreenContext.LIST }, afterEvent = afterEvent, quietRead = quietReading)
+                ?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
         }
-        probeStaleCache(ctx, nowMs)
     }
 
     /**
-     * 🧪 **캐시가 낡았나** — 픽커가 알림을 안 내면 서비스 캐시가 안 버려져 옛 나무를 돌려줄 수 있다(16:18 · 18:45 스크롤 뒤).
-     * 알림 없이 5초 넘은 목록 읽기에서 30초에 한 번까지만 캐시를 비우고 다시 훑어 글자가 달라지는지 한 줄 (`WalkProbe`).
-     * 재기만 한다 — 달라져도 이 자리에서 판정하지 않는다(다음 읽기가 새 나무를 읽는다).
+     * 📜 **조용한 목록 다시 읽기** — 캐시를 비우고 한 번 읽는다(`ListWatch`). 알림이 없으면 캐시가 안 버려져 다시 읽어도 옛 틀이 돌아오기 때문이다.
+     * 같은 글자면 지문에서 멈춰 서버로 안 간다. 글자가 달라졌으면 새로 보인 줄 앞 세 개(가림)를 한 줄.
      */
-    private fun probeStaleCache(ctx: ScreenContext, nowMs: Long) {
-        if (!com.onedal.app.core.WalkProbe.shouldProbeCache(android.os.Build.VERSION.SDK_INT, nowMs, lastTargetEventMs, lastCacheProbeMs,
-                isListScreen = ctx == ScreenContext.LIST, busy = touchManager.tapPending || session.isDetailScrapSent)) return
-        if (android.os.Build.VERSION.SDK_INT < com.onedal.app.core.WalkProbe.PREFETCH_MIN_SDK) return
-        lastCacheProbeMs = nowMs
+    private fun quietRead(why: String) {
+        if (android.os.Build.VERSION.SDK_INT >= com.onedal.app.core.WalkProbe.PREFETCH_MIN_SDK) clearCache()
         val before = scanTexts
-        clearCache()
-        val root = rootInActiveWindow ?: return
-        val fresh = mutableListOf<com.onedal.app.core.RawNode>()
-        collectNodes(root, fresh)
-        val after = com.onedal.app.core.NodeText.textsOf(fresh)
-        root.recycle()
-        val quietSec = (nowMs - lastTargetEventMs) / 1000
-        val changed = after.sorted() != before.sorted()
-        AppLogger.i(TAG, LogTag.SCREEN, "🧪 [캐시 낡음] 알림 없이 ${quietSec}초 · 비우고 읽으니 글자가 " +
-            if (changed) "달라졌다 — 새로 보인 줄: ${com.onedal.app.core.WalkProbe.newLines(before, after).joinToString(" · ") { com.onedal.app.core.ScreenWords.mask(it) }}"
-            else "같다")
+        quietReading = true
+        try { scanScreen() } finally { quietReading = false }
+        if (scanGathered && !scanSameText)
+            AppLogger.i(TAG, LogTag.SCREEN, "📜 [조용한 목록 다시 읽기] $why · 글자가 달라졌다 — 새로 보인 줄: " +
+                com.onedal.app.core.WalkProbe.newLines(before, scanTexts).joinToString(" · ") { com.onedal.app.core.ScreenWords.mask(it) })
     }
+
+    /** 📜 1초마다 — 목록에서 읽기도 배차망 알림도 5초 넘게 없으면 조용한 다시 읽기 (`ListWatch.shouldRead`) */
+    private val listWatchdog = object : Runnable {
+        override fun run() {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (com.onedal.app.core.ListWatch.shouldRead(now, lastReadMs, lastTargetEventMs,
+                    isListScreen = telemetryManager.currentScreenContext == ScreenContext.LIST,
+                    busy = touchManager.tapPending || session.isDetailScrapSent))
+                quietRead("알림 없이 ${(now - maxOf(lastReadMs, lastTargetEventMs)) / 1000}초")
+            mainHandler.postDelayed(this, 1000)
+        }
+    }
+
+    /** 📐 겹친 틀을 버렸으면 곧 한 번 더 (`ListWatch.afterDiscard`) */
+    private val afterDiscardRead = Runnable { quietRead("겹친 틀 버린 뒤") }
 
     private fun scanScreenBody() {
 
@@ -1102,6 +1117,11 @@ class HijackService : AccessibilityService(), ScanContext {
             AppLogger.i(TAG, LogTag.SCREEN, if (headerVisible) "📜 [목록 맨 위] 머리줄 보임 — 목록 줄을 누를 수 있다"
                 else "📜 [목록 내려감] 머리줄 안 보임 — 앱은 오더카드와 목록 줄을 못 가려 누르지 않는다 (맨 위로 올리거나 직접 여십시오)")
         val groupedNodes = scrapParser.groupListNodes(allNodes)
+        if (scrapParser.lastFrameDiscarded) {
+            discardStreak++
+            mainHandler.removeCallbacks(afterDiscardRead)
+            com.onedal.app.core.ListWatch.afterDiscard(discardStreak)?.let { mainHandler.postDelayed(afterDiscardRead, it) }
+        } else discardStreak = 0
 
         /** 그룹은 나왔는데 요금을 못 읽어 버려진 수 — 아래 진단이 읽는다 */
         var fareFail = 0

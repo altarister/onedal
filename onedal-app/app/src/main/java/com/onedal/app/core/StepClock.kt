@@ -42,6 +42,9 @@ class ScanTimer(private val windowMs: Long = 1000) {
     /** 🧪 방식별 훑기 «ms 합 · 번» — 모든 읽기 · 알림 뒤 첫 읽기(캐시가 버려진 뒤) (`WalkProbe`) */
     private val walkByWay = linkedMapOf<String, LongArray>()
     private val freshWalkByWay = linkedMapOf<String, LongArray>()
+    /** 📜 조용한 목록 다시 읽기(캐시 비우고) 횟수 · 훑기 ms 합 (`ListWatch`) */
+    private var quietReads = 0
+    private var quietWalk = 0L
     /** 👁️ 읽으려 했는데 화면을 못 얻었다(`rootInActiveWindow` 없음) — 로그 없이 돌아가던 길 */
     private var noRoot = 0
     /** 📜 스크롤이 건 목록 읽기가 돈 횟수 (`ScrollGate`) */
@@ -63,9 +66,11 @@ class ScanTimer(private val windowMs: Long = 1000) {
     /** 스크롤이 건 읽기가 돌았다 — 다음 요약 줄에 */
     fun scrollRead() { scrollReads++ }
 
-    fun record(ms: Long, sameScreen: Boolean, nowMs: Long, walkMs: Long = 0, way: String? = null, afterEvent: Boolean = false): String? {
+    fun record(ms: Long, sameScreen: Boolean, nowMs: Long, walkMs: Long = 0, way: String? = null, afterEvent: Boolean = false,
+               quietRead: Boolean = false): String? {
         open(nowMs)
         walkTotal += walkMs
+        if (quietRead) { quietReads++; quietWalk += walkMs }
         if (way != null) {
             walkByWay.getOrPut(way) { LongArray(2) }.let { it[0] += walkMs; it[1]++ }
             if (afterEvent) freshWalkByWay.getOrPut(way) { LongArray(2) }.let { it[0] += walkMs; it[1]++ }
@@ -96,11 +101,12 @@ class ScanTimer(private val windowMs: Long = 1000) {
             fun ways(m: Map<String, LongArray>) = listOf("기본", "미리 받기").mapNotNull { w -> m[w]?.let { "$w ${it[0]}ms/${it[1]}번" } }.joinToString(" · ")
             if (walkByWay.isNotEmpty()) append(" · 훑기 ${ways(walkByWay)}")
             if (freshWalkByWay.isNotEmpty()) append(" · 알림 뒤 첫 훑기 ${ways(freshWalkByWay)}")
+            if (quietReads > 0) append(" · 조용한 다시 읽기 ${quietReads}번(훑기 ${quietWalk}ms)")
             if (noRoot > 0) append(" · 화면 못 얻음 $noRoot")
             if (scrollReads > 0) append(" · 스크롤 읽기 $scrollReads")
             if (sources.isNotEmpty()) append(" · 알림 " + sources.entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" })
         }
-        windowStart = nowMs; count = 0; same = 0; total = 0; max = 0; walkTotal = 0; walkByWay.clear(); freshWalkByWay.clear(); noRoot = 0; scrollReads = 0; sources.clear()
+        windowStart = nowMs; count = 0; same = 0; total = 0; max = 0; walkTotal = 0; walkByWay.clear(); freshWalkByWay.clear(); quietReads = 0; quietWalk = 0; noRoot = 0; scrollReads = 0; sources.clear()
         return line
     }
 }
