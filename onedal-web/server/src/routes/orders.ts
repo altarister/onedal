@@ -17,7 +17,7 @@ import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/
 import { businessDayKey, restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
-import { getUserSession } from "../state/userSessionStore";
+import { getUserSession, dropOrderTimer } from "../state/userSessionStore";
 import { rememberOrder } from "../state/orderMemory";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
@@ -267,6 +267,8 @@ router.post("/confirm", (req, res) => {
                         handleDecision(userId, pendingOrder.id, "SAFE_CANCEL", io);
                     }
                 }, cancelSec * 1000);
+                /* 같은 콜의 앞 핸들은 먼저 끈다 — /confirm 재시도가 겹쳐 넣으면 좀비 타이머가 남는다 */
+                dropOrderTimer(session, `presecured_${pendingOrder.id}`);
                 session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
             } else {
                 slog('콜단계', `👀 [픽커] ${pendingOrder.id} — 안전취소가 없는 배차망이라 서버 타이머를 걸지 않는다 (규칙 ①)`);

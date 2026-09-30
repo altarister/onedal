@@ -4,11 +4,11 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
-import { isTerminal, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
 import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
-import { getUserSession } from "../state/userSessionStore";
+import { getUserSession, dropOrderTimer } from "../state/userSessionStore";
 import { evolveOrder, rememberOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getDeviceMode } from "./devices";
@@ -44,6 +44,21 @@ router.post("/", async (req, res) => {
             : payload.order.id;
 
         payload.order.id = realOrderId;
+
+        /**
+         * 🔁 **재시도면 같은 판정을 기다린다** — 앱은 응답을 잃으면 /detail 을 다시 보낸다(최대 2회).
+         *    같은 기기 · 같은 콜 · 아직 심사 중이고 큐에 있음 · 미리보기 표시가 같고 직접 갈래가 아님 → 첫 응답과 같은 202 만.
+         *    판정을 또 돌리면 카카오가 두 배고, 카드가 다시 «심사 중»으로 어두워지고, 타이머가 겹친다.
+         *    미리보기 → 확정(미리보기 표시가 달라짐 · 직접 갈래)은 여기 안 걸려 지금 길 그대로.
+         */
+        const prevSame = session.pendingOrdersData.get(realOrderId);
+        const manualRequest = (payload.order.type ?? '').includes('MANUAL') || payload.matchType === 'MANUAL';
+        if (prevSame && prevSame.capturedDeviceId === payload.deviceId && isEvaluating(prevSame.status)
+            && session.pendingDecisions.has(realOrderId)
+            && !!(prevSame as any).isPreview === !!(payload as any).isPreview && !manualRequest) {
+            slog('콜단계', `🔁 [재시도] ${realOrderId} — 같은 상세 보고가 다시 왔다 · 같은 판정을 기다린다`);
+            return res.status(202).json({ message: "Accepted. Piggyback evaluation pending" });
+        }
 
         // 🧠 앞의 기억(`/orders/confirm` 이 남긴 것)에서 시작한다 — 날 payload 로 시작하지 않는다.
         //    payload 에 없는 키(예: `targetApp`)가 여기서 증발하던 자리다.
@@ -339,7 +354,9 @@ router.post("/", async (req, res) => {
             }
         }, (cancelSec + SERVER_CLEANUP_EXTRA_SEC) * 1000);
 
-        // 비상 시 취소를 위해 타이머들 등록
+        // 비상 시 취소를 위해 타이머들 등록 — 같은 키의 앞 핸들은 먼저 끈다 (dropOrderTimer)
+        dropOrderTimer(session, `warn_${payload.order.id}`);
+        dropOrderTimer(session, `timeout_${payload.order.id}`);
         session.activeTimers.set(`warn_${payload.order.id}`, warningTimer);
         session.activeTimers.set(`timeout_${payload.order.id}`, timeoutTimer);
 

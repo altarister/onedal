@@ -3,6 +3,7 @@ import db from '../../src/db';
 import detailRouter from '../../src/routes/detail';
 import scrapRouter from '../../src/routes/scrap';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
+import * as dispatchEngine from '../../src/services/dispatchEngine';
 
 /**
  * 📱 **폰의 «심사 중» 표시는 풀려야 한다 · /confirm 이 빠져도 KEEP 이 폰에 실린다** (서버 병목 4·5 · onedal-1f «가»).
@@ -13,7 +14,8 @@ import { getUserSession, clearUserSession } from '../../src/state/userSessionSto
  */
 const U = 'test-device-release';
 const DEV = 'dev-release-1';
-const io = { to: () => ({ emit: () => {} }) };
+const emitted: string[] = [];
+const io = { to: () => ({ emit: (ev: string) => { emitted.push(ev); } }) };
 const app = { get: (k: string) => (k === 'io' ? io : undefined) };
 const handlerOf = (router: any) => {
     const layer = router.stack.find((l: any) => l.route?.path === '/' && l.route.methods.post);
@@ -83,5 +85,30 @@ describe('📱 ⑤ /confirm 없이 /detail 만 와도', () => {
         session.deviceEvaluatingMap.set(DEV, 'rel-other');
         await detail('rel-d');
         expect(session.deviceEvaluatingMap.get(DEV)).toBe('rel-other');
+    });
+});
+
+describe('🔁 ⑰ /detail 재시도 — 같은 판정을 기다린다', () => {
+    it('🔴 같은 /detail 이 두 번 오면 판정은 한 번 · 두 번째도 202', async () => {
+        const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder');
+        getUserSession(U).deviceEvaluatingMap.set(DEV, 'rel-e');
+        const first = await detail('rel-e');
+        const second = await detail('rel-e');
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(second).toEqual(first);
+        spy.mockRestore();
+    });
+
+    it('🔴 같은 콜의 타이머를 다시 넣으면 앞 핸들을 끈다 — 안전취소 경고는 한 번', async () => {
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+        const session = getUserSession(U);
+        session.deviceEvaluatingMap.set(DEV, 'rel-f');
+        await detail('rel-f');
+        session.pendingOrdersData.get('rel-f').isPreview = true;     // 재시도 조건을 비켜 다시 타이머를 넣는 다른 길
+        await detail('rel-f');
+        emitted.length = 0;
+        jest.advanceTimersByTime(31_000);
+        expect(emitted.filter(e => e === 'safecancel-warning').length).toBe(1);
+        jest.useRealTimers();
     });
 });

@@ -535,6 +535,13 @@ export function clearUserSession(userId: string): void {
  *
  * 새 타이머를 만들면 **키를 여기에만 더한다.**
  */
+/** 콜 타이머 하나를 끈다 — 같은 키로 다시 넣기 직전에 부른다(재시도가 겹쳐 넣으면 좀비 타이머가 가짜 «30초 안전취소!»를 띄운다) */
+export function dropOrderTimer(session: { activeTimers: Map<string, any> }, key: string): void {
+    const old = session.activeTimers.get(key);
+    if (old) clearTimeout(old);
+    session.activeTimers.delete(key);
+}
+
 export function clearOrderTimers(session: { activeTimers: Map<string, any> }, orderId: string): void {
     for (const prefix of ['warn_', 'timeout_', 'presecured_', 'listExit_']) {
         const t = session.activeTimers.get(`${prefix}${orderId}`);
