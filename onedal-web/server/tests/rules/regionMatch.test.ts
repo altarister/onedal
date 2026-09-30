@@ -129,4 +129,12 @@ describe('배선 — 서버·앱이 같은 규칙을 쓴다', () => {
         expect(read(`${base}/insung/InsungParser.kt`).match(/RegionMatch\.anyHit\(/g)!.length).toBeGreaterThanOrEqual(2);
         expect(read(`${base}/hwamul24/Hwamul24Parser.kt`)).toMatch(/RegionMatch\.anyHit\(/);
     });
+
+    it('🔴 🏘️ 이름이 같은 다른 지역 동 — 앱 미러가 서버 shared 와 같은 이름·인자를 갖는다 (문제지 regionMatchCases.json)', () => {
+        const kt = read('../../../../onedal-app/app/src/main/java/com/onedal/app/plugins/RegionMatch.kt');
+        expect(kt).toMatch(/fun sigunguHintBefore\(before: String\): String\?/);          // shared sigungu.ts sigunguHintBefore
+        expect(kt).toMatch(/fun otherSigunguBefore\(before: String, sigunguForms: List<String>\?\): Boolean/);   // hit · 픽커 dongTokenMatch 가 함께 부름
+        expect(kt).toMatch(/fun hit\(text: String, keyword: String, traps: List<String>, sigunguForms: List<String>\? = null\)/);
+        expect(kt).toMatch(/fun anyHit\(text: String, keywords: List<String>, traps: Map<String, List<String>>, dongSigungu: Map<String, List<String>> = emptyMap\(\)\)/);
+    });
 });

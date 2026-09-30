@@ -1003,6 +1003,8 @@ export const APP_FILTER_KEYS = [
     'isActive', 'isSharedMode',
     'pickupRadiusKm', 'destinationCity', 'destinationRadiusKm',
     'destinationKeywords', 'customCityFilters', 'keywordTraps',
+    /* 🏘️ 이름이 같은 다른 지역 동 — 그 동이 뜻하는 시군구 꼴 (regionMatch · filterManager refreshDongSigungu) */
+    'destinationDongSigungu',
     /* 📋 상차 목록 — 1단계는 옛 칸(pickupRadiusKm · orderKm)과 함께 간다 */
     'pickupKeywords',
     'excludedKeywords', 'allowedVehicleTypes',
