@@ -1031,7 +1031,11 @@ class HijackService : AccessibilityService(), ScanContext {
         // 화면별 핸들러 라우팅
         when (detected) {
             ScreenContext.LIST -> handleListScreen(rootNode, screenTexts)
-            ScreenContext.DETAIL_PRE_CONFIRM -> handlePreConfirmScreen(rootNode, screenTexts, rawScreenStr)
+            ScreenContext.DETAIL_PRE_CONFIRM -> {
+                // 🧹 상세 처리·서버 글은 배차망이 뗀 글로(픽커: «픽업지» 앞 목록 잔상) — 판별·모은 글자는 원래 글
+                val detailTexts = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).detailTextsOf(screenTexts)
+                handlePreConfirmScreen(rootNode, detailTexts, detailTexts.joinToString(" "))
+            }
             ScreenContext.DETAIL_CONFIRMED -> handleConfirmedScreen(rootNode, screenTexts, rawScreenStr)
             ScreenContext.POPUP_MEMO -> handleMemoPopup(rootNode, screenTexts)
             ScreenContext.POPUP_PICKUP -> handlePickupPopup(rootNode, screenTexts)

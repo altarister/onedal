@@ -82,6 +82,12 @@ interface IDispatchAppPlugin {
     fun fillDetail(context: ScanContext, order: SimplifiedOfficeOrder): SimplifiedOfficeOrder = order
 
     /**
+     * 🧹 **상세 처리에 쓸 글** — 목록 잔상 떼기 등 배차망마다 다른 것은 여기 인자로. 기본은 그대로.
+     * 서버로 가는 글 · 목록 줄 대조 · 누른 콜 대조가 이 글을 쓴다. 화면 판별과 모은 글자는 원래 글이다.
+     */
+    fun detailTextsOf(texts: List<String>): List<String> = texts
+
+    /**
      * 👆 **목록에서 이 콜을 눌러도 되나, 어디를 누르나** — 누르기 전 안전 확인 (배차망_모드표.md «누를 수 있는 카드의 조건»).
      * 기본: 요금 칸을 바로 누른다. 픽커: 계약 버튼이 한 번에 눌릴 수 있는 카드(오더카드)를 피한다.
      */

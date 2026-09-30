@@ -76,6 +76,9 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
     }
 
     /** 📜 픽커 목록 머리줄이 보이나 — «리스트 설정» */
+    /** 🧹 픽커 상세 글은 «픽업지» 노드부터 — 목록 잔상을 뗀다 */
+    override fun detailTextsOf(texts: List<String>): List<String> = KakaoPickerParser.detailTextsOf(texts)
+
     override fun listHeaderVisible(allNodes: List<com.onedal.app.core.ScreenTextNode>): Boolean =
         KakaoPickerParser.listHeaderVisibleOf(allNodes.map { it.text })
 

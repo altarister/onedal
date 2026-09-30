@@ -311,6 +311,18 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          */
         private val LIST_ONLY_WORDS = listOf("리스트 설정", "이런 일거리 어떤가요", "오더카드 대기 중")
 
+        /**
+         * 🧹 **상세 글은 «픽업지» 노드부터** (`PickerDetailTextTest`) — 상세 시트가 목록 위로 올라오는 첫 틀에는 목록 글자가 남는다.
+         * 그 글이 서버로 가 «오더카드 대기 중»의 «대기»가 제외 키워드에 걸렸다(라이브 09-30 19:28:59 거짓 빨강) · 목록 줄 대조에도 잔상 지명이 섞였다.
+         * 깨끗한 상세 틀은 늘 «픽업지 …» 노드로 시작한다(상단 배지는 노드로 안 온다). «픽업지» 노드가 없는 상세(도보 등)는 그대로.
+         */
+        private const val DETAIL_FIRST_WORD = "픽업지"
+
+        fun detailTextsOf(texts: List<String>): List<String> {
+            val i = texts.indexOfFirst { it.startsWith(DETAIL_FIRST_WORD) }
+            return if (i <= 0) texts else texts.drop(i)
+        }
+
         fun isListResidue(texts: List<String>): Boolean =
             texts.any { t -> LIST_ONLY_WORDS.any { t.contains(it) } }
 
