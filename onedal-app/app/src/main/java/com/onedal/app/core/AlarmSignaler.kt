@@ -48,7 +48,7 @@ import com.onedal.app.core.AppLogger
  *    `VIBRATE` 권한(설치 시 자동 승인)이 매니페스트에 있어야 한다 — 없으면
  *    `SecurityException` 이 조용히 삼켜져 **소리만 나고 진동이 없는** 반쪽이 된다.
  */
-class AlarmSignaler(private val service: AccessibilityService) {
+class AlarmSignaler(private val service: AccessibilityService, private val waitBook: WaitBook) {
 
 
     companion object {
@@ -82,7 +82,8 @@ class AlarmSignaler(private val service: AccessibilityService) {
         }
     }
 
-    private val handler = Handler(Looper.getMainLooper())
+    private var beepNo = 0L
+    private val HIDE = "알람 테두리 숨기기"
     private val wm get() = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
     private var borderView: View? = null
@@ -145,10 +146,12 @@ class AlarmSignaler(private val service: AccessibilityService) {
         try {
             val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
             tone.startTone(ToneGenerator.TONE_PROP_BEEP, BEEP_MS)
-            handler.postDelayed({
+            // ⏳ 부를 때마다 번호 — 알람 둘이 빨리 겹쳐도 앞 소리의 «풀기»를 지우지 않게(같은 이름이면 장부가 앞 것을 끈다)
+            val no = ++beepNo
+            waitBook.schedule("삑 둘째 #$beepNo", WaitBook.SERVICE, BEEP_GAP_MS) {
                 tone.startTone(ToneGenerator.TONE_PROP_BEEP, BEEP_MS)
-                handler.postDelayed({ tone.release() }, 500)
-            }, BEEP_GAP_MS)
+                waitBook.schedule("소리 풀기 #$no", WaitBook.SERVICE, 500) { tone.release() }
+            }
         } catch (e: Exception) {
             AppLogger.w("1DAL_ALARM", "🔇 소리 실패: ${e.message}")
         }
@@ -205,15 +208,14 @@ class AlarmSignaler(private val service: AccessibilityService) {
             borderView = view
             borderLp = lp
             activeHash = orderHash
-            handler.removeCallbacks(hideRunnable)
-            handler.postDelayed(hideRunnable, HOLD_MS)
+            waitBook.schedule(HIDE, WaitBook.SERVICE, HOLD_MS) { hideRunnable.run() }
         } catch (e: Exception) {
             AppLogger.w("1DAL_ALARM", "🖼️ 테두리 실패: ${e.message}")
         }
     }
 
     private fun hide(why: String?) {
-        handler.removeCallbacks(hideRunnable)
+        waitBook.cancel(HIDE)
         borderView?.let {
             try { wm.removeView(it) } catch (_: Exception) {}
         }

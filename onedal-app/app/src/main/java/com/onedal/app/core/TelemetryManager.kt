@@ -16,7 +16,9 @@ import com.onedal.app.models.ScreenContext
  */
 class TelemetryManager(
     private val apiClient: ApiClient,
-    private val context: Context? = null  // [GPS 텔레메트리] 위치 조회용
+    private val context: Context? = null,  // [GPS 텔레메트리] 위치 조회용
+    /** ⏳ 서비스의 기다림 장부 하나 — 보고 모으기 · 하트비트를 «걸린 기다림»에 같이 보인다 */
+    private val waitBook: WaitBook,
 ) {
 
     companion object {
@@ -58,12 +60,13 @@ class TelemetryManager(
     private var flushRequestedDelayMs = 0L
 
     private fun scheduleFlush(delayMs: Long) {
-        handler.removeCallbacks(eventFlushRunnable)
         flushScheduledAt = android.os.SystemClock.elapsedRealtime()
         flushRequestedDelayMs = delayMs
-        handler.postDelayed(eventFlushRunnable, delayMs)
+        waitBook.schedule(FLUSH, WaitBook.SERVICE, delayMs) { eventFlushRunnable.run() }
     }
-    private val handler = Handler(Looper.getMainLooper())
+    /** ⏳ 장부 이름 — «하트비트»는 늘 걸려 있다(`WaitBook.STEADY`) */
+    private val HEARTBEAT = "하트비트"
+    private val FLUSH = "보고 모으기"
     private var isRunning = false
 
     // [Safety Mode V3] 현재 화면 상태 (HijackService에서 상태 전이 시 업데이트)
@@ -161,8 +164,8 @@ class TelemetryManager(
 
     fun stop() {
         isRunning = false
-        handler.removeCallbacks(heartbeatRunnable)
-        handler.removeCallbacks(eventFlushRunnable)
+        waitBook.cancel(HEARTBEAT)
+        waitBook.cancel(FLUSH)
         AppLogger.i(TAG, LogTag.BOOT, "Telemetry Loop Stopped")
     }
 
@@ -200,7 +203,7 @@ class TelemetryManager(
     fun forceFlushEvent() {
         if (!isRunning) return
         // 예약해 둔 것이 있으면 거둔다 — 두 번 보내지 않게
-        handler.removeCallbacks(eventFlushRunnable)
+        waitBook.cancel(FLUSH)
         flushScheduledAt = 0L
         flush(isHeartbeat = false)
     }
@@ -208,8 +211,7 @@ class TelemetryManager(
     // [추가] 폰 화면이 켜졌을 때 즉각 생존(ONLINE) 신고를 쏘기 위한 함수
     fun forceHeartbeat() {
         if (!isRunning) return
-        handler.removeCallbacks(heartbeatRunnable)
-        handler.post(heartbeatRunnable)
+        waitBook.schedule(HEARTBEAT, WaitBook.SERVICE, 0) { heartbeatRunnable.run() }
     }
 
     /**
@@ -365,10 +367,10 @@ class TelemetryManager(
     }
 
     private fun resetHeartbeatTimer() {
-        handler.removeCallbacks(heartbeatRunnable)
+        waitBook.cancel(HEARTBEAT)
         if (isRunning) {
             val interval = heartbeatIntervalMs(isWaitingDecision, currentScreenContext, apiClient.isUnlinked())
-            handler.postDelayed(heartbeatRunnable, interval)
+            waitBook.schedule(HEARTBEAT, WaitBook.SERVICE, interval) { heartbeatRunnable.run() }
         }
     }
 }

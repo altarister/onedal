@@ -31,8 +31,10 @@ class FrameResetTest {
 
     @Test fun `목록을 떠나면 걸어 둔 다시 읽기 둘을 거둔다`() {
         val leave = src.substringAfter("if (!isListScreen && wasListScreen) {").substringBefore("\n        }")
-        assertTrue(leave.contains("removeCallbacks(heldAlarmRecheck)"))
-        assertTrue(leave.contains("removeCallbacks(afterDiscardRead)"))
+        // 둘 다 목록 몫(WaitBook.LIST)으로 걸고 — 떠날 때 목록 몫을 한꺼번에 거둔다
+        assertTrue(leave.contains("waitBook.cancelOwner(com.onedal.app.core.WaitBook.LIST)"))
+        assertTrue(src.contains("waitBook.schedule(\"미룬 알람 다시 보기\", com.onedal.app.core.WaitBook.LIST"))
+        assertTrue(src.contains("waitBook.schedule(\"겹친 틀 뒤 읽기\", com.onedal.app.core.WaitBook.LIST"))
     }
 
     @Test fun `알림 시각은 배차망 앱 것만 센다`() {

@@ -102,7 +102,7 @@ class HijackService : AccessibilityService(), ScanContext {
      * 버튼을 누른 뒤 픽커 상세로 넘어갈 시간을 준다.
      */
     fun benchScreenRead(delayMs: Long) {
-        mainHandler.postDelayed({
+        waitBook.schedule("사진 읽기 시험", com.onedal.app.core.WaitBook.SERVICE, delayMs) {
             val parser = com.onedal.app.plugins.DispatchPluginRegistry.get(com.onedal.app.core.TargetApp.KAKAOPICKER).ocrParser
             screenReader.bench(
                 parser = parser,
@@ -118,7 +118,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     android.widget.Toast.makeText(this, "📷 실패: $msg", android.widget.Toast.LENGTH_LONG).show()
                 },
             )
-        }, delayMs)
+        }
     }
 
     // ── 4대 엔진 ──
@@ -216,7 +216,7 @@ class HijackService : AccessibilityService(), ScanContext {
     override val session = SessionManager()
 
     /** 🔔 알람 모드의 폰 쪽 신호 — 소리·진동·테두리 */
-    private val alarmSignaler by lazy { AlarmSignaler(this) }
+    private val alarmSignaler by lazy { AlarmSignaler(this, waitBook) }
     /** 🖼️ 접근성이 켜져 있는 동안 화면 전체를 모드 색으로 두른다 — 녹색 알람 · 파랑 자동 · 주황 직접 */
     private val modeFrame by lazy { com.onedal.app.core.ModeFrame(this) }
 
@@ -422,7 +422,7 @@ class HijackService : AccessibilityService(), ScanContext {
         override fun run() {
             listScanTimer.tick(android.os.SystemClock.elapsedRealtime(), force = true)
                 ?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏱️ [목록 화면 읽기] (복귀 ${6 - listWatchTicks}초) $it") }
-            if (--listWatchTicks > 0) mainHandler.postDelayed(this, 1000)
+            if (--listWatchTicks > 0) waitBook.schedule("목록 요약", com.onedal.app.core.WaitBook.SERVICE, 1000) { run() }
         }
     }
 
@@ -444,9 +444,9 @@ class HijackService : AccessibilityService(), ScanContext {
     /** ⏳ 상세↔목록이 바뀔 때 지금 걸린 기다림 한 줄 */
     private fun logPendingWaits(where: String) {
         val p = waitBook.pending()
-        if (p.isNotEmpty()) AppLogger.d(TAG, LogTag.SCREEN, "⏳ [걸린 기다림] $where — " + p.joinToString(" · ") { "${it.name}(${it.owner} · ${it.remainMs}ms)" })
+        com.onedal.app.core.WaitBook.pendingLine(p)?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏳ [걸린 기다림] $where — $it") }
     }
-    private val safeCancelTimer = SafeCancelTimer()
+    private val safeCancelTimer by lazy { SafeCancelTimer(waitBook) }
 
     /**
      * ⏱️ **서버가 내려준 필터(저장본)** — 배차망별 대기 시간을 여기서 읽는다 (기사님 확정).
@@ -504,8 +504,7 @@ class HijackService : AccessibilityService(), ScanContext {
     override fun onServiceConnected() {
         super.onServiceConnected()
         // 📜 조용한 목록 다시 읽기 — 1초마다 살핀다(`ListWatch`)
-        mainHandler.removeCallbacks(listWatchdog)
-        mainHandler.postDelayed(listWatchdog, 1000)
+        waitBook.schedule("목록 감시", com.onedal.app.core.WaitBook.SERVICE, 1000) { listWatchdog.run() }
 
         /**
          * 📝 **가장 먼저 로그 파일을 연다** — 이 아래에서 무슨 일이 나든 남게 한다.
@@ -524,9 +523,9 @@ class HijackService : AccessibilityService(), ScanContext {
         applyTargetApp(targetApp)
 
         apiClient = ApiClient(this)
-        telemetryManager = TelemetryManager(apiClient, this)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
+        telemetryManager = TelemetryManager(apiClient, this, waitBook)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
 
-        touchManager = AutoTouchManager(this)
+        touchManager = AutoTouchManager(this, waitBook)
         /**
          * 🔄 **새 필터가 닿으면 지금 목록을 곧바로 다시 판정한다** (실물 픽커 09-30 02:52 — 목록 글자가 그대로라 옛 필터로 막힌 콜이 안 울렸다).
          * 목록일 때만 — 상세·팝업에서는 목록으로 돌아오는 순간 목록 스캔 첫머리(`onFilterVersion`)가 받는다(채우기 단계를 다시 밟지 않는다).
@@ -698,10 +697,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     override fun onDestroy() {
         // 📜 조용한 목록 다시 읽기 감시를 뗀다 — 서비스가 내려간 뒤 옛 서비스가 읽지 않게
-        mainHandler.removeCallbacks(listWatchdog)
-        mainHandler.removeCallbacks(afterDiscardRead)
-        mainHandler.removeCallbacks(heldAlarmRecheck)
-        waitBook.cancelAll()
+        waitBook.cancelAll()   // 목록 감시 · 겹친 틀 뒤 · 미룬 알람까지 장부 하나로 거둔다
         super.onDestroy()
         live = null
         if (::screenReader.isInitialized) screenReader.close()
@@ -826,16 +822,15 @@ class HijackService : AccessibilityService(), ScanContext {
                 // ✋ 앱은 스크롤하지 않는다 — 스크롤 알림은 기사님 손이다 · 알림이 실제로 난 시각으로(메인 줄에 밀려 늦게 올 수 있다)
                 onHand("스크롤", HandFirst.eventElapsedMs(now, android.os.SystemClock.uptimeMillis(), event.eventTime))
                 touchedAtMs = now   // ✋ 목록을 만진다 — 10초 동안 조용한 다시 읽기를 촘촘히
-                mainHandler.removeCallbacks(scrollScan)
-                mainHandler.postDelayed(scrollScan, (scrollGate.onScroll(now) - now).coerceAtLeast(0))
+                waitBook.schedule("스크롤 읽기", com.onedal.app.core.WaitBook.SERVICE, (scrollGate.onScroll(now) - now).coerceAtLeast(0)) { scrollScan.run() }
             }
             com.onedal.app.core.EventRoute.Route.SCAN -> {
                 if (unreadEventAtMs == 0L) unreadEventAtMs = HandFirst.eventElapsedMs(now, android.os.SystemClock.uptimeMillis(), event.eventTime)
                 if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) { contentGate.onScanned(now); scanScreen() }
                 else when (val wait = contentGate.onEvent(now, appWaiting = touchManager.awaitingScreen || session.collectState.awaitsPopup)) {
-                    0L -> { mainHandler.removeCallbacks(contentScan); contentGate.onScanned(now); scanScreen() }
+                    0L -> { waitBook.cancel("내용 바뀜 읽기"); contentGate.onScanned(now); scanScreen() }
                     null -> Unit
-                    else -> mainHandler.postDelayed(contentScan, wait)
+                    else -> waitBook.schedule("내용 바뀜 읽기", com.onedal.app.core.WaitBook.SERVICE, wait) { contentScan.run() }
                 }
             }
         }
@@ -963,7 +958,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     isListScreen = telemetryManager.currentScreenContext == ScreenContext.LIST,
                     busy = touchManager.tapPending || session.isDetailScrapSent, touchedAtMs = touchedAtMs))
                 quietRead(com.onedal.app.core.ListWatch.quietWord(now, lastReadMs, lastTargetEventMs))
-            mainHandler.postDelayed(this, 1000)
+            waitBook.schedule("목록 감시", com.onedal.app.core.WaitBook.SERVICE, 1000) { run() }
         }
     }
 
@@ -1129,10 +1124,8 @@ class HijackService : AccessibilityService(), ScanContext {
         if (!isListScreen && wasListScreen) {
             listBlindSinceMs = System.currentTimeMillis()
             alarmHold.clear()   // ⏳ 목록을 떠났다 — 미룬 알람을 버린다
-            mainHandler.removeCallbacks(heldAlarmRecheck)
-            waitBook.cancelOwner(com.onedal.app.core.WaitBook.LIST)
+            waitBook.cancelOwner(com.onedal.app.core.WaitBook.LIST)   // 미룬 알람 다시 보기 · 겹친 틀 뒤 읽기도 여기서 거둔다
             logPendingWaits("목록 → ${detected.name}")
-            mainHandler.removeCallbacks(afterDiscardRead)
         }
         if (isListScreen && !wasListScreen) {
             AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
@@ -1147,9 +1140,8 @@ class HijackService : AccessibilityService(), ScanContext {
             }
             touchedAtMs = android.os.SystemClock.elapsedRealtime()   // ✋ 상세→목록 복귀 — 10초 동안 조용한 다시 읽기를 촘촘히
             // 👁️ 돌아온 5초는 목록 요약을 1초마다 빠짐없이 (`listWatch`)
-            mainHandler.removeCallbacks(listWatch)
             listWatchTicks = 5
-            mainHandler.postDelayed(listWatch, 1000)
+            waitBook.schedule("목록 요약", com.onedal.app.core.WaitBook.SERVICE, 1000) { listWatch.run() }
             // 👁️ 리셋한 뒤에 «못 본 시간»을 남긴다 — 리셋이 먼저다 (콜의 끝이 우선)
             if (listBlindSinceMs > 0L) {
                 val blindSec = (System.currentTimeMillis() - listBlindSinceMs) / 1000.0
@@ -1338,8 +1330,8 @@ class HijackService : AccessibilityService(), ScanContext {
             discardStreak++
             lastScreenFingerprint = 0   // 다시 읽은 글자가 버린 틀과 같아도 목록을 다시 본다 (라이브 09-30 20:47:00 · 33.1초 멈춤)
             touchedAtMs = android.os.SystemClock.elapsedRealtime()   // ✋ 목록이 움직였다 — 10초 동안 촘촘히
-            mainHandler.removeCallbacks(afterDiscardRead)
-            com.onedal.app.core.ListWatch.afterDiscard(discardStreak)?.let { mainHandler.postDelayed(afterDiscardRead, it) }
+            waitBook.cancel("겹친 틀 뒤 읽기")
+            com.onedal.app.core.ListWatch.afterDiscard(discardStreak)?.let { waitBook.schedule("겹친 틀 뒤 읽기", com.onedal.app.core.WaitBook.LIST, it) { afterDiscardRead.run() } }
                 ?: if (discardStreak == com.onedal.app.core.ListWatch.DISCARD_STREAK_MAX)
                     AppLogger.i(TAG, LogTag.SCREEN, "📐 섞인 틀 연속 ${discardStreak}번 — 곧 다시 읽기를 멈추고 5초 주기로") else Unit
         } else discardStreak = 0
@@ -1619,8 +1611,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     if (!handHeld) openBlocked = com.onedal.app.core.OpenBlocked.ALARM_HELD
                     lastScreenFingerprint = 0   // 확인 읽기의 글자가 같아도 목록을 다시 봐야 미룬 알람이 울린다
                     AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "⏳ [알람 미룸] 목록이 움직이는 중(내용 바뀜 ${recentContentEvents.size}개/300ms) — 다음 읽기에서 같은 조립이면 울린다 · $label")
-                    mainHandler.removeCallbacks(heldAlarmRecheck)
-                    mainHandler.postDelayed(heldAlarmRecheck, com.onedal.app.core.AlarmHold.RECHECK_MS)
+                    waitBook.schedule("미룬 알람 다시 보기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.AlarmHold.RECHECK_MS) { heldAlarmRecheck.run() }
                 }
                 com.onedal.app.core.AlarmHold.Kind.FIRE -> {
                     d.heldMs?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [미룬 알람 울림] +${it}ms · $label") }

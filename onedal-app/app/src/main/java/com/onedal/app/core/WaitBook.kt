@@ -21,6 +21,16 @@ class WaitBook(private val poster: Poster, private val clock: () -> Long) {
         /** 판결 버튼 — 인성·24 에서 앱이 계약한 콜의 «취소» 누름이 곧 계약 취소라, 그 사이 콜이 끝나도 거두지 않는다 */
         const val DECISION = "판결"
         const val SERVICE = "서비스"
+        /** 늘 걸려 있는 것 — «걸린 기다림» 줄을 길게 만들지 않게 끝에 수로만 */
+        val STEADY = setOf("목록 감시", "하트비트")
+
+        /** «걸린 기다림» 한 줄 — 늘 도는 것은 «+늘 도는 N» · 걸린 것이 없으면 null */
+        fun pendingLine(p: List<Pending>): String? {
+            if (p.isEmpty()) return null
+            val (steady, rest) = p.partition { it.name in STEADY }
+            return (rest.map { "${it.name}(${it.owner} · ${it.remainMs}ms)" } + listOfNotNull(if (steady.isEmpty()) null else "+늘 도는 ${steady.size}"))
+                .joinToString(" · ")
+        }
     }
 
     data class Pending(val name: String, val owner: String, val remainMs: Long)

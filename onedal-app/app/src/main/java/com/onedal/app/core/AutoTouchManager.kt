@@ -11,7 +11,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 /**
  * 시스템 레벨 스크린 터치 및 제스처 동작 전담 매니저
  */
-class AutoTouchManager(private val service: AccessibilityService) {
+class AutoTouchManager(private val service: AccessibilityService, private val waitBook: WaitBook) {
 
     companion object {
         private const val TAG = "1DAL_TOUCH"
@@ -102,7 +102,6 @@ class AutoTouchManager(private val service: AccessibilityService) {
     private val tapMarker by lazy { TapMarker(service) }
 
     /** ⏳ 자국을 먼저 보여 주고 미뤘다 찍을 때 쓴다 */
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
     /**
      * 특정 UI 노드의 Bounds(좌표 영역)를 계산하여 터치합니다.
@@ -213,7 +212,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
          *    되돌아오는 값은 «발사됐다»가 아니라 «예약했다»는 뜻이다 — 지금 이 길은 반환값을 안 쓴다.
          */
         AppLogger.i(TAG, LogTag.TAP, "⏳ [찍기 미룸] ${delayMs}ms 뒤 (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\" — 자국을 먼저 보여 준다")
-        handler.postDelayed({
+        waitBook.schedule("미뤄 찍기", WaitBook.SERVICE, delayMs) run@{
             // 🐢 깨어난 순간을 **가장 먼저** 잰다 — 아래 한 줄이라도 지나면 재는 뜻이 없다
             val elapsed = if (pendingTapAtMs > 0L) android.os.SystemClock.elapsedRealtime() - pendingTapAtMs else delayMs
             pendingTapAtMs = 0L        // 🔓 찍든 못 찍든 여기서 잠금을 푼다 — 다음 알람이 걸릴 수 있게
@@ -227,7 +226,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
             if (TapShift.wokeTooLate(delayMs, elapsed)) {
                 AppLogger.w(TAG, LogTag.TAP, "🐢 [찍기 취소] ${delayMs}ms 뒤로 잡았는데 ${elapsed}ms 만에 깨어났다 — " +
                     "그사이 목록이 바뀌었을 수 있다 · 손대지 않는다 (다음 판에 다시)")
-                return@postDelayed
+                return@run
             }
             val again = Rect()
             val alive = node.refresh().also { if (it) node.getBoundsInScreen(again) }
@@ -242,7 +241,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
                 AppLogger.w(TAG, LogTag.TAP, "🛑 [찍기 취소] 미룬 ${delayMs}ms 사이에 자리가 움직였다 " +
                     "(잰 자리 X:${x.toInt()},Y:${y.toInt()} → 지금 X:$newX,Y:$newY) · 손대지 않는다")
             }
-        }, delayMs)
+        }
         return true
     }
 

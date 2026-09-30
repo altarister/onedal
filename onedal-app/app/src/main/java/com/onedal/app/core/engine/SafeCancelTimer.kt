@@ -1,8 +1,6 @@
 package com.onedal.app.core.engine
 
-import android.os.Handler
 import com.onedal.app.core.LogTag
-import android.os.Looper
 import com.onedal.app.core.AppLogger
 
 /**
@@ -11,13 +9,14 @@ import com.onedal.app.core.AppLogger
  * 서버로 /detail 전송 후 판결(KEEP/CANCEL) 응답이 일정 시간 내에
  * 오지 않으면 기사님을 보호하기 위해 자동으로 취소를 집행합니다.
  */
-class SafeCancelTimer {
+/** @param waitBook 서비스의 기다림 장부 — 🔴 판결 몫(DECISION): 콜이 끝나도(세션 몫 거두기) 안 지운다. 기사님 보호 타이머라 끄는 곳은 [cancel] 뿐 */
+class SafeCancelTimer(private val waitBook: com.onedal.app.core.WaitBook) {
 
     companion object {
         private const val TAG = "1DAL_DEATHVALLEY"
+        private const val NAME = "안전취소"
     }
 
-    private val handler = Handler(Looper.getMainLooper())
     private var runnable: Runnable? = null
 
     /**
@@ -59,14 +58,15 @@ class SafeCancelTimer {
                 onTimeout()
             }
         }
-        handler.postDelayed(runnable!!, timeoutMs)
+        val r = runnable!!
+        waitBook.schedule(NAME, com.onedal.app.core.WaitBook.DECISION, timeoutMs) { r.run() }
     }
 
     /**
      * 타이머를 취소합니다.
      */
     fun cancel(session: SessionManager) {
-        runnable?.let { handler.removeCallbacks(it) }
+        waitBook.cancel(NAME)
         runnable = null
         deadlineAt = 0L
         session.isWaitingForDecision = false

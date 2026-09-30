@@ -47,14 +47,33 @@ class WaitBookTest {
     private val root = "src/main/java/com/onedal/app"
     private fun count(file: String) = Regex("""postDelayed\(|\.schedule\(\{""").findAll(File("$root/$file").readText()).count()
 
-    @Test fun `기다림을 직접 거는 줄은 아직 안 옮긴 자리뿐`() {
-        // 옮길 때마다 이 수가 준다 — 새 줄이 생기거나 옮긴 자리가 되살아나면 빨간불 (WaitBook.schedule 로 건다)
+    @Test fun `기다림을 직접 거는 줄은 장부 창구와 사진 스레드 둘뿐`() {
+        // 🔴 0 이 아닌 까닭 — HijackService 1 은 장부 자신의 창구(Poster) · ScreenReader 1 은 메인이 아니라 사진 읽기 스레드에서 돈다
+        //    (장부로 옮기면 사진 처리가 메인 스레드로 넘어와 같은 ms 에 다른 스레드에서 일한다)
         val left = mapOf(
-            "HijackService.kt" to 10,        // 창구(Poster) 1 · 시험 버튼 · 목록 요약 2 · 목록 감시 2 · 스크롤 · 내용 · 겹친 틀 뒤 · 미룬 알람
-            "core/TelemetryManager.kt" to 2, "core/AutoTouchManager.kt" to 1, "core/engine/SafeCancelTimer.kt" to 1,
-            "core/AlarmSignaler.kt" to 3, "core/ScreenReader.kt" to 1, "core/engine/PreConfirmSequence.kt" to 0,
+            "HijackService.kt" to 1,
+            "core/TelemetryManager.kt" to 0, "core/AutoTouchManager.kt" to 0, "core/engine/SafeCancelTimer.kt" to 0,
+            "core/AlarmSignaler.kt" to 0, "core/ScreenReader.kt" to 1, "core/engine/PreConfirmSequence.kt" to 0,
         )
         left.forEach { (f, n) -> assertEquals(f, n, count(f)) }
+    }
+
+    @Test fun `안전취소는 판결 몫 - 세션이 끝나도 장부가 지우지 않는다 · 네 부품이 장부 하나를 받는다`() {
+        assertTrue(File("$root/core/engine/SafeCancelTimer.kt").readText().contains("WaitBook.DECISION"))
+        val alarm = File("$root/core/AlarmSignaler.kt").readText()
+        assertTrue("알람 소리 이름에 번호 — 겹친 알람이 앞 소리 풀기를 지우지 않게", alarm.contains("#\$beepNo"))
+        val svc = File("$root/HijackService.kt").readText()
+        listOf("TelemetryManager(apiClient, this, waitBook)", "AutoTouchManager(this, waitBook)", "SafeCancelTimer(waitBook)", "AlarmSignaler(this, waitBook)")
+            .forEach { assertTrue(it, svc.contains(it)) }
+    }
+
+    @Test fun `걸린 기다림 한 줄 - 늘 도는 것은 끝에 수로만`() {
+        val line = WaitBook.pendingLine(listOf(
+            WaitBook.Pending("하트비트", WaitBook.SERVICE, 12_000), WaitBook.Pending("목록 감시", WaitBook.SERVICE, 300),
+            WaitBook.Pending("겹친 틀 뒤 읽기", WaitBook.LIST, 150)))
+        assertEquals("겹친 틀 뒤 읽기(목록 · 150ms) · +늘 도는 2", line)
+        assertEquals(null, WaitBook.pendingLine(emptyList()))
+        assertEquals("+늘 도는 1", WaitBook.pendingLine(listOf(WaitBook.Pending("하트비트", WaitBook.SERVICE, 1))))
     }
 
     @Test fun `판결 버튼은 판결 몫 · 세션이 끝나면 세션 몫을 거두고 손 클릭 AUTO 1초 보고를 끈다`() {
