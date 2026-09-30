@@ -1,7 +1,7 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
          deriveRouteTimeline, minRouteBuffer, marginalDetourMin, tailSplitOf,
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
-         soloMinutesOf, derivationInputsOf, nearestDong } from "@onedal/shared";
+         soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
@@ -12,7 +12,7 @@ import { stepRecordsOf, dwellLedgerFor, firmPromiseMsOf } from "../../services/s
 import { getUserSession } from "../../state/userSessionStore";
 import { goalCityOf } from "../../state/filterManager";
 import { findLoadConflicts, totalDetourCost, getStopTiming } from "../helpers";
-import { haversineKm, originOf } from "../../services/geoService";
+import { haversineKm, originOf, homeOriginOf } from "../../services/geoService";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
@@ -22,6 +22,7 @@ import { applySoloRoute, composeMergedRoute } from "../../services/routeComposer
 import { IAppPlugin } from "../plugins/IAppPlugin";
 import { PluginFactory } from "../plugins/PluginFactory";
 import { getActiveCalls } from "../helpers";
+import { reservedForOf, isLaterThan } from "../../services/reservedOrders";
 import { slog } from "../../utils/fileLogger";
 
 
@@ -73,6 +74,15 @@ export class OrderEvaluator {
      */
     public async evaluate(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any): Promise<void> {
         const session = getUserSession(userId);
+        /**
+         * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (reviews/23 B-3 · 기사님 결정 3 «가»).
+         *    ① 접근 구간은 지금 자리가 아니라 **집**에서 잰다 — 그날은 집에서 출발한다. 집이 비면 기점이 없다 → 그 축은 «잴 게 없음».
+         *    ② **합칠 상대가 없다** — 오늘 실린 짐과 합짐이 아니다(첫짐 단독).
+         *    가르는 것은 이 콜 하나의 사실(보관 날이 오늘 뒤)이다. 오늘 콜은 지금처럼 부를 때마다 그때 자리를 읽는다.
+         */
+        const reservedLater = isLaterThan(reservedForOf(securedOrder), businessDayKey(Date.now()));
+        const originNow = () => reservedLater ? homeOriginOf(userId) : originOf(session);
+        const activeCallsNow = () => reservedLater ? [] : getActiveCalls(session);
         // 📍 낡은 현위치로 우회 비용을 재면 색이 틀린다 (규칙 ⑤-3) — 비우면 내 주소로 메운다.
         //    비움만 부르면 origin 없는 카카오 호출이 되어 합짐이 전부 🔴 로 나온다 (0831 실측)
         // 판정 기준 — 원천은 DB(세션에 로그인 때 실림). 없으면(검사·초기화 전) 기본표로 폴백
@@ -124,7 +134,7 @@ export class OrderEvaluator {
                 // ⚠️ 두 쪽 모두 X 로 본다 — 아래 else 의 진단문이 X 로 «어느 쪽이 없나»를 가른다
                 if (securedOrder.pickupX && securedOrder.dropoffX) {
                     const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
-                    const activeCalls = getActiveCalls(session);
+                    const activeCalls = activeCallsNow();
                     const activeMain = activeCalls[0];
                     const activeSubs = activeCalls.slice(1);
                     
@@ -135,7 +145,7 @@ export class OrderEvaluator {
                         const result = await calculateSoloRoute(
                             securedOrder.pickupX!, securedOrder.pickupY!,
                             securedOrder.dropoffX!, securedOrder.dropoffY!,
-                            originOf(session),
+                            originNow(),
                             routingOptions.defaultPriority,
                             routingOptions.carType
                         );
@@ -150,7 +160,7 @@ export class OrderEvaluator {
                          * 심사마다 (직선거리, 카카오 접근 분) 쌍을 `reach_samples` 장부에
                          * 남긴다 — 로그는 3일 순환이라 표본이 증발한다. 역산은 `pnpm reach`.
                          */
-                        const me = originOf(session);
+                        const me = originNow();
                         if (me && securedOrder.pickupX && securedOrder.pickupY
                             && securedOrder.approachDurationMin != null) {
                             const lineKm = haversineKm(me.y, me.x,
@@ -256,7 +266,7 @@ export class OrderEvaluator {
                          *    강남으로 올라가는 콜인데 🟡 로 떨어졌다. 셈은 `destProgressOf` 한 곳에 있다.
                          */
                         const progress = destProgressOf({
-                            me: originOf(session),
+                            me: originNow(),
                             dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
                             goalCity: goalCityOf(session, userId),
                             destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
@@ -296,7 +306,7 @@ export class OrderEvaluator {
                              *    「돈」이 못 센다. 그물이 쓰는 식과 한 벌이다 (`isPickupBackward`).
                              */
                             pickupBackward: pickupBackwardOf({
-                                me: originOf(session),
+                                me: originNow(),
                                 pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
                                 goalCity: goalCityOf(session, userId),
                                 pickupRadiusKm: session.activeFilter.pickupRadiusKm,
@@ -354,7 +364,7 @@ export class OrderEvaluator {
                         const result = await composeMergedRoute({
                             calls: activeCalls,
                             extra: securedOrder,
-                            origin: originOf(session),
+                            origin: originNow(),
                             priority: routingOptions.defaultPriority,
                             carType: routingOptions.carType,
                             /* ⏱️ 판정도 **잡은 뒤와 같은 순서**로 잰다 — 다르면 화면이 말한 늦음과 실제 경로가 갈린다 */
@@ -710,7 +720,7 @@ export class OrderEvaluator {
                      *    기사님이 *"내가 KEEP 한 첫 콜에 문제가 있나?"* 로 읽으신다.
                      */
                     const who = callName({ target: session.activeFilter.callTarget,
-                                           index: getActiveCalls(session).length, candidate: true });
+                                           index: activeCallsNow().length, candidate: true });
                     const missing = !securedOrder.pickupX ? '상차지' : '하차지';
                     const addr = (!securedOrder.pickupX ? securedOrder.pickup : securedOrder.dropoff) || '';
                     reasons.push(`${who}의 ${missing} 주소를 찾지 못했습니다`);
@@ -754,13 +764,13 @@ export class OrderEvaluator {
                  *    까닭이 빠지면 화면이 «재료가 없다» 로 읽는다.
                  */
                 progress: destProgressOf({
-                    me: originOf(session),
+                    me: originNow(),
                     dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
                     goalCity: goalCityOf(session, userId),
                     destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
                 }),
                 pickupBackward: pickupBackwardOf({
-                    me: originOf(session),
+                    me: originNow(),
                     pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
                     goalCity: goalCityOf(session, userId),
                     pickupRadiusKm: session.activeFilter.pickupRadiusKm,

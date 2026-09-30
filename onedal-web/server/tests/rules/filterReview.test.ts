@@ -658,9 +658,12 @@ describe('8단계 · 상차지까지도 모의 주행으로 간다 (현황판 �
         const body = geo.slice(i, geo.indexOf('\n}', i));
         expect(body).toMatch(/GATHERING/);
         expect(body).toMatch(/DELIVERING/);
-        /* 빈 차(STANDBY)에서 남은 가짜 좌표 대신 집 주소가 기점이다 */
-        expect(body).toMatch(/getHomeLocation/);
-        expect(body).toMatch(/isFallback: true/);
+        /* 빈 차(STANDBY)에서 남은 가짜 좌표 대신 집 주소가 기점이다 — 집을 읽는 자리는 homeOriginOf 한 곳(내일 콜 판정도 쓴다) */
+        expect(body).toMatch(/return homeOriginOf\(session\.userId\)/);
+        const h = geo.indexOf('export function homeOriginOf');
+        const home = geo.slice(h, geo.indexOf('\n}', h));
+        expect(home).toMatch(/getHomeLocation/);
+        expect(home).toMatch(/isFallback: true/);
     });
 });
 

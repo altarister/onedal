@@ -1103,8 +1103,16 @@ export function originOf(
         return { x: fix.x, y: fix.y, source: session.lastFixSource ?? 'gps', isFallback: false };
     }
 
-    const home = SettingsRepository.getHomeLocation(session.userId);
-    if (!home) return null;   // 🔴 지어내지 않는다 — 없으면 없다고 답한다 (규칙 ④)
+    return homeOriginOf(session.userId);
+}
+
+/**
+ * 🏠 **집을 기점으로** — 설정의 집 좌표. 비었으면 null (🔴 지어내지 않는다 — 없으면 없다고 답한다 · 규칙 ④).
+ *    `originOf` 가 지금 자리를 못 믿을 때 물러서는 곳이고, 내일 콜 판정이 «그날은 집에서 출발한다»로 쓰는 곳이다(reviews/23 B-3).
+ */
+export function homeOriginOf(userId: string): DriverOrigin | null {
+    const home = SettingsRepository.getHomeLocation(userId);
+    if (!home) return null;
     return { x: home.x, y: home.y, source: 'home', isFallback: true };
 }
 

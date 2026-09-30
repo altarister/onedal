@@ -71,9 +71,12 @@ describe('① 내 위치의 출처를 그대로 남긴다 (현황판 ①)', () =
         const i = geo.indexOf('export function originOf');
         expect(i).toBeGreaterThan(-1);
         const body = geo.slice(i, geo.indexOf('\n}', i));
-        /* 고르는 자리에서 «집이면 그렇게 말한다» — 추정으로 쟀다는 것을 숨기지 않는다 */
-        expect(body).toMatch(/source: 'home'/);
-        expect(body).toMatch(/isFallback: true/);
+        /* 고르는 자리에서 «집이면 그렇게 말한다» — 추정으로 쟀다는 것을 숨기지 않는다 (집을 읽는 곳은 homeOriginOf 하나) */
+        expect(body).toMatch(/return homeOriginOf\(session\.userId\)/);
+        const h = geo.indexOf('export function homeOriginOf');
+        const home = geo.slice(h, geo.indexOf('\n}', h));
+        expect(home).toMatch(/source: 'home'/);
+        expect(home).toMatch(/isFallback: true/);
     });
 });
 
