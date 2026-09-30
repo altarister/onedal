@@ -206,6 +206,14 @@ if (typeof document !== 'undefined') {
  *   ③ **초당 상한**을 둔다. 실수로 루프에서 찍는 코드가 들어와도 파일을 못 채운다.
  *      넘친 줄은 세어서 «몇 줄 넘쳤다»로 한 줄 남긴다 (조용히 버리지 않는다)
  */
+/**
+ * 🔁 **logRoadmapEvent 의 콘솔 사본인가** — 앞머리(120자) 어디든 «[ROADMAP 시:분»이 있으면 사본이다.
+ *    개발 모드가 두 번째 줄을 서식 지시자·스타일과 함께 다시 찍어, 접두사만 떼는 검사로는 모양에 따라 샜다.
+ */
+export function isRoadmapEcho(text: string): boolean {
+    return /\[ROADMAP \d{2}:\d{2}/.test(text.slice(0, 120));
+}
+
 const PER_SEC_CAP = 30;
 let secBucket = 0;
 let secStamp = 0;
@@ -232,7 +240,7 @@ export function installConsoleCapture(): void {
                  *    올라갔다 (실측 50건 — `%s [ROADMAP …]`). 접두사를 떼고 견준다.
                  */
                 const bare = text.replace(/^(%[sco]\s*)+/, '');
-                if (bare.startsWith('[ROADMAP ')) return;   // ① 이미 버퍼에 있다
+                if (isRoadmapEcho(text)) return;             // ① 이미 버퍼에 있다 (서식·스타일이 앞에 붙어도)
                 if (bare.startsWith('🖥️ [로그')) return;     // ② 실패가 실패를 부른다
 
                 const now = Date.now();
