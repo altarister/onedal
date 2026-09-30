@@ -17,8 +17,24 @@ object DetailFold {
         openedByApp: Boolean,
         onPreConfirmDetail: Boolean,
     ): Long? {
-        if (currentDeadlineMs == null || !sameOrder || !openedByApp || !onPreConfirmDetail) return null
-        val deadline = receivedAtMs + maxOf(0, remainSec) * 1000L
-        return deadline.takeIf { it < currentDeadlineMs }
+        if (whyNot(currentDeadlineMs, receivedAtMs, remainSec, sameOrder, openedByApp, onPreConfirmDetail) != null) return null
+        return receivedAtMs + maxOf(0, remainSec) * 1000L
+    }
+
+    /** 당기지 않는 까닭 — 당기면 null (로그 «⏩ [foldAfter 받음]») */
+    fun whyNot(
+        currentDeadlineMs: Long?,
+        receivedAtMs: Long,
+        remainSec: Int,
+        sameOrder: Boolean,
+        openedByApp: Boolean,
+        onPreConfirmDetail: Boolean,
+    ): String? = when {
+        currentDeadlineMs == null -> "상세 대기 타이머 없음"
+        !sameOrder -> "다른 콜"
+        !openedByApp -> "손 상세"
+        !onPreConfirmDetail -> "확정 전 상세 아님"
+        receivedAtMs + maxOf(0, remainSec) * 1000L >= currentDeadlineMs -> "원래 마감이 더 이름"
+        else -> null
     }
 }

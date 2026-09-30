@@ -310,11 +310,17 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /** ⏩ 판정 뒤 접기 — 걸린 상세 대기의 마감을 서버가 준 남은 초로 당긴다(더 이를 때만) · 조건은 `DetailFold` */
     private fun onFoldAfter(orderId: String, remainSec: Int) {
-        val r = detailBackRunnable ?: return
         val now = android.os.SystemClock.elapsedRealtime()
+        val sameOrder = orderId == session.currentOrderId
+        val onDetail = telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
+        val why = com.onedal.app.core.engine.DetailFold.whyNot(detailBackDeadlineMs, now, remainSec, sameOrder, session.openedByApp, onDetail)
+        // 🔎 받은 때와 까닭 — 콜마다 까닭이 바뀔 때만 한 줄 (서버 «⏩ [빨리 접기] 폰에 처음 알림»과 맞댄다)
+        if (LogOnce.changed("fold-after:$orderId", why ?: "당김"))
+            AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏩ [foldAfter 받음] 콜 $orderId · 남은 ${remainSec}초 · ${why?.let { "무시 — $it" } ?: "당김"} (지금 콜 ${session.currentOrderId.ifEmpty { "없음" }})")
+        if (why != null) return
+        val r = detailBackRunnable ?: return
         val deadline = com.onedal.app.core.engine.DetailFold.newDeadlineMs(detailBackDeadlineMs, now, remainSec,
-            sameOrder = orderId == session.currentOrderId, openedByApp = session.openedByApp,
-            onPreConfirmDetail = telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) ?: return
+            sameOrder = sameOrder, openedByApp = session.openedByApp, onPreConfirmDetail = onDetail) ?: return
         val leftSec = ((detailBackDeadlineMs ?: now) - now) / 1000
         mainHandler.removeCallbacks(r)
         mainHandler.postDelayed(r, deadline - now)

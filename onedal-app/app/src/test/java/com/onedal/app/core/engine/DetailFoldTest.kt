@@ -45,4 +45,15 @@ class DetailFoldTest {
         assertTrue(src.contains("↩️ [목록 확인] 뒤로 간 뒤"))
         assertTrue(src.contains("if (folded) \"서버 판정 뒤 접기\" else"))
     }
+
+    /** 🔎 ab 부탁 — 서버는 판정 뒤 첫 응답부터 약 10초를 실었는데 앱은 «0초»로 처음 줄였다. 받은 때와 무시한 까닭을 남긴다 */
+    @Test fun `무시하는 까닭을 말한다`() {
+        assertEquals("상세 대기 타이머 없음", DetailFold.whyNot(null, now, 10, true, true, true))
+        assertEquals("다른 콜", DetailFold.whyNot(thirty, now, 10, false, true, true))
+        assertEquals("손 상세", DetailFold.whyNot(thirty, now, 10, true, false, true))
+        assertEquals("확정 전 상세 아님", DetailFold.whyNot(thirty, now, 10, true, true, false))
+        assertEquals("원래 마감이 더 이름", DetailFold.whyNot(now + 5_000L, now, 10, true, true, true))
+        assertNull(DetailFold.whyNot(thirty, now, 10, true, true, true))
+        assertTrue(File("src/main/java/com/onedal/app/HijackService.kt").readText().contains("⏩ [foldAfter 받음]"))
+    }
 }
