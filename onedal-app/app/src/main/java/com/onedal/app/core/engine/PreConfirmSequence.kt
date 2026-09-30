@@ -130,7 +130,15 @@ fun ScanContext.handlePreConfirmScreen(
     if (!session.openedByApp || isTarget) {
         // ✍️ 앱이 계약 버튼을 누르는 콜 — 자동 모드이고 이 배차망에 수락 칸이 있을 때만 (수락 칸이 비었는지 읽는 곳은 여기 한 곳)
         val acceptButtons = plugin.acceptButtons
-        val appContracts = session.contractedByApp && acceptButtons != null
+        /**
+         * 📅 **확정 직전 상세 값으로 한 번 더** — 목록이 오늘이라 앱이 계약하려던 콜도 상세가 내일이면 기사님께 넘긴다.
+         * «앱이 계약한다»를 내려 둬야 결재가 와도 앱이 닫기·취소를 누르지 않고, 안전취소도 돌지 않는다.
+         */
+        if (session.contractedByApp && !ReservationGate.isToday(order)) {
+            session.contractedByApp = false
+            AppLogger.i(TAG, LogTag.DECISION, "📅 [확정 안 누름] 상세가 오늘 콜이 아니다 — 예약 ${ReservationGate.wordOf(order)} ${order.reservedAt ?: ""} · 미리보기로 올리고 기사님이 확정")
+        }
+        val appContracts = appPressesAccept(session.contractedByApp, acceptButtons, order)
         // 👀 계약하지 않는 콜은 미리보기 — 선점 보고 **전에** 켠다. 서버는 이 표시가 있어야 심사한다
         if (!appContracts) session.isPreview = true
         sendConfirmOnce(order, rawScreenStr)
@@ -381,3 +389,10 @@ fun ScanContext.passesFilterAfterFill(plugin: IDispatchAppPlugin, order: Simplif
         AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 막음] 채운 뒤 — $currentTargetApp · 예약 ${ReservationGate.wordOf(order)} ${order.reservedAt ?: ""} · ${order.pickup}→${order.dropoff}")
     return reservationOk && scrapParser.shouldClick(order) && plugin.passesDetailFilter(this, order)
 }
+
+/**
+ * ✍️ **앱이 확정을 누르나** — 앱이 계약하는 콜(자동 모드) · 수락 칸이 있는 배차망 · **오늘 콜** (`AppPressesAcceptTest`).
+ * 📅 내일 콜·날 모름은 자동이어도 누르지 않는다 — 미리보기로 올리고 기사님이 확정한다 (기사님 «가»).
+ */
+fun appPressesAccept(contractedByApp: Boolean, acceptButtons: List<String>?, order: SimplifiedOfficeOrder): Boolean =
+    contractedByApp && acceptButtons != null && ReservationGate.isToday(order)

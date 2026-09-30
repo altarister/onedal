@@ -997,6 +997,8 @@ export const APP_FILTER_KEYS = [
     'pickupKeywords',
     'excludedKeywords', 'allowedVehicleTypes',
     'minFare', 'maxFare', 'ratePerKm',
+    /* 📅 예약콜 축 — 원달앱 1차 필터가 읽는다 (reviews/23 · 서버는 이 값으로 거르지 않는다) */
+    'reservationMode',
     /* ⬇️ 평면 필터에 없다 — 조립할 때 얹는다 */
     'orderKm',
     /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings */

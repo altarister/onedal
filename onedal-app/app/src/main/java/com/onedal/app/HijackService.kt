@@ -1161,7 +1161,8 @@ class HijackService : AccessibilityService(), ScanContext {
                          */
                         callMemory.markEvaluated(orderHash)
                         session.openedByApp = true // 콜 잡기 시작!
-                        session.contractedByApp = currentMode == "AUTO" // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳
+                        // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳 · 📅 내일 콜은 자동이어도 기사님이 확정 (상세에서 한 번 더: `appPressesAccept`)
+                        session.contractedByApp = currentMode == "AUTO" && com.onedal.app.core.engine.ReservationGate.isToday(order)
                         session.setOrderId(order.id)
                         session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
                         /**
