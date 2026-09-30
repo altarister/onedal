@@ -143,6 +143,8 @@ describe('⚠️ 안전취소 경고 문구의 초는 그 배차망의 DB 값이
         const warn = payloads.find(p => p.ev === 'safecancel-warning');
         expect(warn?.body?.message).toContain('45초');
         expect(warn?.body?.message).not.toContain('30초');
+        expect(warn?.body?.message).not.toContain('⚠️');   // 그림은 관제웹 경고 줄이 붙인다 — 두 번 찍히지 않게
+
         jest.useRealTimers();
     });
 });

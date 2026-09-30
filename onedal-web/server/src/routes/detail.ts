@@ -332,7 +332,7 @@ router.post("/", async (req, res) => {
                         deviceId: payload.deviceId,
                         pickup: pendingOrder.pickup,
                         dropoff: pendingOrder.dropoff,
-                        message: `⚠️ ${cancelSec}초 안전취소!`,
+                        message: `${cancelSec}초 안전취소!`,   // ⚠️ 는 관제웹 경고 줄이 붙인다
                         timestamp: new Date().toISOString(),
                     });
                 }
