@@ -360,7 +360,8 @@ export async function measureSoloDelivery(
  *    (세션을 섞는 것이 아니라 «같은 질문»을 두 번 안 하는 것이다)
  */
 const BASE_CACHE_RADIUS_KM = 0.2;
-const BASE_CACHE_MAX = 8;
+/** 64칸 — 키에 기점·정거장·옵션이 다 들어 있어 기사끼리 섞이지 않는다 · 8칸이면 합짐 기사 8명을 넘으면 서로 밀어냈다. 잰 값: 여주→이천→강남(909점) 한 칸 JSON 42KB · 64칸 메모리 약 5MB */
+const BASE_CACHE_MAX = 64;
 type BaseCacheEntry = { key: string; origin: Coord; at: number; base: any };
 const baseRouteCache: BaseCacheEntry[] = [];
 
@@ -436,6 +437,8 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
         carType,
         basePlan ? { waypoints: basePlan.waypoints, dest: basePlan.mergedDest } : null,
         cachedBase,
+        /* 🧮 후보 없이 부르면(KEEP · 복구 · 취소 뒤 재계산) 두 계획의 정거장이 같다 — base 를 따로 안 잰다 (받는 쪽은 merged 만) */
+        !extra,
     );
     if (!cachedBase) rememberBase(bKey, origin, result?.base);
     /**

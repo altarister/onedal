@@ -469,6 +469,11 @@ export async function calculateDetourRoute(
      *    여기서 또 판정하면 규약이 두 벌이 된다 — 이 레포가 반복해 당한 형태다 (규칙 ③).
      */
     cachedBase?: RouteResult | null,
+    /**
+     * 🧮 **base 가 곧 merged 다** — 후보 없이 부를 때(KEEP · 복구 · 취소 뒤 재계산) 두 계획의 정거장이 같다.
+     *    base 를 따로 안 묻고 merged 를 base 로 되쓴다(우회 비용 0). 받는 쪽은 merged 만 쓴다(routeComposer).
+     */
+    baseIsMerged = false,
 ): Promise<DetourResult> {
     const headers = getHeaders();
 
@@ -505,13 +510,10 @@ export async function calculateDetourRoute(
     if (baseWaypoints) {
         baseUrl += `&waypoints=${baseWaypoints}`;
     }
-    const baseData = cachedBase ? null : await kakaoJsonHedged(baseUrl, { headers }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '합짐 비교 경로');
-    /* 🧮 base 가 비면 0 으로 넘기지 않는다 — 늘어난 분이 합짐 전체가 되어 좋은 합짐이 «똥»으로 보이고, 그 0 이 캐시돼 뒤 후보까지 번진다 */
-    if (baseData && (!baseData.routes?.length || baseData.routes[0].result_code !== 0)) {
-        const r0 = baseData.routes?.[0];
-        throw new Error(`합짐 비교 경로 탐색 실패: ${r0 ? parseKakaoErrorMsg(r0.result_code, r0.result_msg) : (baseData.msg || "routes 배열 없음")}`);
-    }
-    const baseSummary = baseData?.routes?.[0]?.summary;
+    /* ⚡ base 는 띄워만 두고 merged 와 함께 기다린다 — 차례로 부르면 합짐 판정·KEEP 마다 카카오 한 번 길이가 더 든다 */
+    const basePending: Promise<any> = (cachedBase || baseIsMerged) ? Promise.resolve(null)
+        : kakaoJsonHedged(baseUrl, { headers }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '합짐 비교 경로');
+    basePending.catch(() => { /* merged 가 먼저 실패해도 처리되지 않은 거절로 남지 않게 — 원인은 아래 Promise.all 이 던진다 */ });
 
     // 2. 합짐(경유) 연산 (다중 경유지 POST API 사용 - 최대 30개 지원)
     // 스마트 정렬 시 driverLoc는 무조건 Origin으로 취급
@@ -540,14 +542,19 @@ export async function calculateDetourRoute(
     // 🧹 요청 사실 한 줄 — 좌표·경유 수면 되짚기에 족하다 (reviews/22 ①-3 «계산당 한 줄»)
     slog('판정', `🚙 [카카오 합짐 경로] 경유 ${wpArray.length}곳 · ${mergedOriginX},${mergedOriginY} → ${mergedDestX},${mergedDestY}`);
     
-    const mergedData = await kakaoJsonHedged(KAKAO_WAYPOINTS_URL, {
+    const [baseFetched, mergedData] = await Promise.all([basePending, kakaoJsonHedged(KAKAO_WAYPOINTS_URL, {
         method: "POST",
         headers: {
             ...headers,
             "Content-Type": "application/json"
         },
         body: JSON.stringify(requestBody)
-    }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '합짐 경로');
+    }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '합짐 경로')]);
+    /* 🧮 base 가 비면 0 으로 넘기지 않는다 — 늘어난 분이 합짐 전체가 되어 좋은 합짐이 «똥»으로 보이고, 그 0 이 캐시돼 뒤 후보까지 번진다 */
+    if (baseFetched && (!baseFetched.routes?.length || baseFetched.routes[0].result_code !== 0)) {
+        const r0 = baseFetched.routes?.[0];
+        throw new Error(`합짐 비교 경로 탐색 실패: ${r0 ? parseKakaoErrorMsg(r0.result_code, r0.result_msg) : (baseFetched.msg || "routes 배열 없음")}`);
+    }
     
     if (!mergedData.routes || mergedData.routes.length === 0) {
         console.error(`❌ [Kakao API Error (Detour)] 우회 경로 탐색 실패. 응답 코드=${mergedData.msg || '알수없음'}, 상세:`, JSON.stringify(mergedData));
@@ -562,6 +569,8 @@ export async function calculateDetourRoute(
     }
     
     const mergedSummary = mergedData.routes[0]?.summary;
+    const baseData = baseIsMerged ? mergedData : baseFetched;
+    const baseSummary = baseData?.routes?.[0]?.summary;
 
     // 🗄️ 되쓴 base 가 있으면 우회 비용(timeDiffMin)도 그 값에서 나와야 한다
     const baseDuration = cachedBase ? cachedBase.duration : (baseSummary?.duration || 0);
