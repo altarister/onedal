@@ -36,4 +36,21 @@ class ReadSpeedTest {
         assertTrue(svc.contains("⏱️ [읽기 나눔]"))
         assertTrue(svc.contains("캐시 비운 지"))
     }
+
+    @Test fun `구간 시계 - 표시마다 앞 표시부터의 ms 를 이름별로 더한다`() {
+        val r = ReadSplit()
+        r.start(100L); r.mark("훑기", 130L); r.mark("판별", 180L); r.mark("훑기", 185L)
+        assertEquals("훑기 35 · 판별 50", r.line())
+        r.start(200L)
+        assertEquals("", r.line())
+    }
+
+    @Test fun `읽기 나눔 - 알림에서 읽기까지 · 화면 바뀜 구간 · 상세 대조와 채우기`() {
+        assertTrue(svc.contains("알림→읽기"))
+        assertTrue(svc.contains("readSplit.line()"))
+        for (m in listOf("\"판별\"", "\"모은 글자\"", "\"화면 바꿈 보고\"", "\"화면별 처리\""))
+            assertTrue(m, svc.contains("markRead($m)"))
+        val pre = File("src/main/java/com/onedal/app/core/engine/PreConfirmSequence.kt").readText()
+        assertTrue(pre.contains("markRead(\"상세 대조\")") && pre.contains("markRead(\"채우기\")"))
+    }
 }

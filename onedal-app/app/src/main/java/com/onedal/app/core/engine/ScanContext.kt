@@ -104,4 +104,7 @@ interface ScanContext {
 
     /** 📱 운행 기록을 켠다 — 공통 기록기 (배차망 칸이 «수락했다»를 알아볼 때 부른다) */
     fun startAppTrace(reason: String)
+
+    /** ⏱️ 읽기 나눔 — 이 읽기에서 방금 끝난 구간의 이름(`ReadSplit`) */
+    fun markRead(name: String) {}
 }

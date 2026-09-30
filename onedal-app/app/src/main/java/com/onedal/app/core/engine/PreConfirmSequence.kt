@@ -59,7 +59,9 @@ fun ScanContext.handlePreConfirmScreen(
     if (session.isVerifyingSnapshot) return
 
     // 최근 LIST 화면에서 파싱된 원본 오더와 대조 매칭 (전표오염 회피)
+    markRead("상세 앞")
     val matchedOrder = scrapParser.matchDetailOrder(screenTexts, recentListOrders)
+    markRead("상세 대조")
 
     val finalOrder = if (session.openedByApp && session.lastDetailOrder != null) {
         // 앱이 눌러 연 상세는 이미 클릭 시점에 order를 가지고 있음 — 종류는 «누가 계약했나»에서 (`clickOrigin`)
@@ -92,7 +94,9 @@ fun ScanContext.handlePreConfirmScreen(
     session.lastDetailOrder = finalOrder // 상세 수집/승격용 최종 갱신
 
     // 채우기 — 인성은 팝업 3장을 다 읽을 때까지 여기서 돌아간다 (배차망_모드표.md 순서 ③)
-    if (plugin.executePreConfirmSpecial(this, rootNode, screenTexts, finalOrder)) {
+    val filling = plugin.executePreConfirmSpecial(this, rootNode, screenTexts, finalOrder)
+    markRead("채우기")
+    if (filling) {
         return
     }
 

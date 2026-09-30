@@ -295,6 +295,7 @@ class HijackService : AccessibilityService(), ScanContext {
         com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).getDetailBackTimeoutMs(savedFilter()) != null
 
     override fun startAppTrace(reason: String) = startPickerTrace(reason)
+    override fun markRead(name: String) = readSplit.mark(name, android.os.SystemClock.elapsedRealtime())
 
     /**
      * 🧹 **«눌렀다» 에서 «막았다» 로 내린다** — 취소로 끝났거나 값을 못 채워 버린 콜은 다시 판정받을 자격이 있다.
@@ -828,13 +829,15 @@ class HijackService : AccessibilityService(), ScanContext {
                 mainHandler.removeCallbacks(scrollScan)
                 mainHandler.postDelayed(scrollScan, (scrollGate.onScroll(now) - now).coerceAtLeast(0))
             }
-            com.onedal.app.core.EventRoute.Route.SCAN ->
+            com.onedal.app.core.EventRoute.Route.SCAN -> {
+                if (unreadEventAtMs == 0L) unreadEventAtMs = HandFirst.eventElapsedMs(now, android.os.SystemClock.uptimeMillis(), event.eventTime)
                 if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) { contentGate.onScanned(now); scanScreen() }
                 else when (val wait = contentGate.onEvent(now, appWaiting = touchManager.awaitingScreen || session.collectState.awaitsPopup)) {
                     0L -> { mainHandler.removeCallbacks(contentScan); contentGate.onScanned(now); scanScreen() }
                     null -> Unit
                     else -> mainHandler.postDelayed(contentScan, wait)
                 }
+            }
         }
     }
 
@@ -877,6 +880,9 @@ class HijackService : AccessibilityService(), ScanContext {
     private var scanHandleMs = 0L
     private var scanNodeCount = 0
     private var lastCacheClearAtMs = 0L
+    private val readSplit = com.onedal.app.core.ReadSplit()
+    /** ⏱️ 아직 안 읽은 첫 배차망 알림이 실제로 난 때(부팅 기준) · 0 이면 없음 — «알림→읽기»(메인 줄에서 밀린 몫) */
+    private var unreadEventAtMs = 0L
     /** 🧪 이번 읽기의 지문 글자 · 받는 방식 · 알림 뒤 첫 읽기인가 (`WalkProbe`) */
     private var scanTexts: List<String> = emptyList()
     private var scanWay = com.onedal.app.core.WalkProbe.Way.PLAIN
@@ -909,6 +915,9 @@ class HijackService : AccessibilityService(), ScanContext {
         scanHandleMs = 0L
         scanNodeCount = 0
         val waiting = touchManager.awaitingScreen || session.collectState.awaitsPopup
+        val eventLagMs = if (unreadEventAtMs > 0L) startMs - unreadEventAtMs else null
+        unreadEventAtMs = 0L
+        readSplit.start(startMs)
         scanNodes.clear()
         scanMoving = com.onedal.app.core.AlarmHold.isMoving(recentContentEvents.toList(), startMs)
         val afterEvent = eventSinceRead
@@ -928,7 +937,8 @@ class HijackService : AccessibilityService(), ScanContext {
         val ctxNow = telemetryManager.currentScreenContext
         if (!scanSameText && (ctx != ScreenContext.LIST || ctxNow != ctx) && (waiting || ctxNow != ctx))
             AppLogger.d(TAG, LogTag.SCREEN, "⏱️ [읽기 나눔] ${ctx.name}→${ctxNow.name} · 전체 ${nowMs - startMs}ms · 훑기 ${scanWalkMs}ms · 처리 ${scanHandleMs}ms · 노드 $scanNodeCount" +
-                " · 캐시 비운 지 ${if (lastCacheClearAtMs > 0L) "${nowMs - lastCacheClearAtMs}ms" else "없음"} · 앱 기다림 ${if (waiting) "예" else "아니오"}")
+                " · 캐시 비운 지 ${if (lastCacheClearAtMs > 0L) "${nowMs - lastCacheClearAtMs}ms" else "없음"} · 앱 기다림 ${if (waiting) "예" else "아니오"}" +
+                " · 알림→읽기 ${eventLagMs?.let { "${it}ms" } ?: "없음"} · 나눔 ${readSplit.line()}")
     }
 
     /**
@@ -997,6 +1007,7 @@ class HijackService : AccessibilityService(), ScanContext {
         scanTexts = screenTexts.toList()
         scanWalkMs = android.os.SystemClock.elapsedRealtime() - walkStartMs
         scanNodeCount = scanNodes.size
+        markRead("훑기")
         val fingerprint = screenTexts.sorted().hashCode()
         // ⏱️ 요약은 바깥(`scanScreen`)이 읽기 전체로 싣는다
         scanGathered = true
@@ -1013,11 +1024,14 @@ class HijackService : AccessibilityService(), ScanContext {
         if (screenDetector.isLoading(rawScreenStr, keywords)) { rootNode.recycle(); return }
 
         // 화면 종류 판별 및 서버(텔레메트리) 즉각 동기화
+        markRead("지문·로딩")
         telemetryManager.screenPackage = rootNode.packageName?.toString()   // 🏷️ 보고의 실물/시뮬 — 판별과 같은 화면
         val detected = detectScreenContext(rawScreenStr, rootNode.packageName?.toString())
+        markRead("판별")
         // 📰 이 화면에서 뺀 글자는 이 페이지 몫 — 목록 글자가 섞인 판(상세 시트가 올라오는 찰나)은 통째로 모으지 않는다
         com.onedal.app.core.ScreenWords.onScreen(com.onedal.app.core.pageOf(detected),
             if (scrapParser.isListResidue(screenTexts)) emptyList() else screenTexts, rawScreenStr)
+        markRead("모은 글자")
         touchManager.onScreen(detected, textChanged = true)   // 👆 화면 처리보다 먼저 — 누른 것이 먹혔나 (종류가 바뀌었나)
         if (detected == ScreenContext.UNKNOWN) {
             AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자): ${rawScreenStr.take(300)}")
@@ -1063,7 +1077,9 @@ class HijackService : AccessibilityService(), ScanContext {
          *    서버 규칙은 «**수락 안 한** 미리보기만 치운다»라 — 수락 사실이 먼저 닿기만 하면 안 치운다.
          *    검사: `PickerAcceptOrderTest` 「수락 인지가 화면 보고보다 앞에 있다」
          */
+        markRead("배차망 화면 바뀜")
         updateScreenContext(detected)
+        markRead("화면 바꿈 보고")
 
         /**
          * 수동/자동 복귀 감지: 기사님이 닫기·취소·뒤로가기로 리스트에 돌아오면 락을 푼다.
@@ -1242,6 +1258,7 @@ class HijackService : AccessibilityService(), ScanContext {
         if (detected == ScreenContext.LIST) lastPickerStage = null   // 리스트로 나오면 초기화
 
         // 화면별 핸들러 라우팅
+        markRead("바뀜 뒤 처리")
         val handleStartMs = android.os.SystemClock.elapsedRealtime()
         when (detected) {
             ScreenContext.LIST -> handleListScreen(rootNode, screenTexts)
@@ -1257,6 +1274,7 @@ class HijackService : AccessibilityService(), ScanContext {
             else -> {} // UNKNOWN, POPUP_ERROR 등은 현재 별도 처리 없음
         }
         scanHandleMs = android.os.SystemClock.elapsedRealtime() - handleStartMs
+        markRead("화면별 처리")
 
         rootNode.recycle()
     }
