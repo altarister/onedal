@@ -21,6 +21,9 @@ interface IScrapParser {
      */
     fun judgmentValuesKey(): String? = null
 
+    /** 🔁 오늘 상차 반경(km) — 막았던 콜이 가까워지면 다시 판정하는 기준(`CallMemory.releaseIfCloser`). 상차 축을 «pickup» 으로 싣는 파서만 준다 */
+    fun todayPickupRadiusKm(): Double? = null
+
     /**
      * 파싱된 오더가 필터 조건을 모두 만족하는지 판정.
      *

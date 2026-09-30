@@ -48,6 +48,8 @@ class CallMemory private constructor(
 
     /** ①-가 막았다 — 이 필터 버전으로 판정해 통과 못 했다. 필터 버전이 바뀌면 비운다 (#135) */
     private val blocked = LinkedHashSet<Int>()
+    /** ①-가 옆 칸 — 상차 축으로 막을 때의 픽업 km (메모리만 · DB 칸 아님). 가까워지면 [releaseIfCloser] 가 푼다 */
+    private val blockedKm = HashMap<Int, Double>()
     /** ①-나 눌렀다·통과했다 — 필터가 바뀌어도 다시 안 본다 (클릭 선등재 · 통과 판정) */
     private val acted = LinkedHashSet<Int>()
     /** ② 보고했다 */
@@ -57,7 +59,7 @@ class CallMemory private constructor(
     val evaluatedCount: Int get() = blocked.size + acted.size
 
     /** 🔄 배차망 전환 — 남의 배차망 지문이 남으면 «이미 본 콜»로 삼킨다 (0831) */
-    fun clear() { blocked.clear(); acted.clear(); reported.clear() }
+    fun clear() { blocked.clear(); blockedKm.clear(); acted.clear(); reported.clear() }
 
     /** 서버가 마지막으로 알려 준 회차 — null 이면 아직 못 받았다 */
     private var lastRound: Int? = null
@@ -107,7 +109,7 @@ class CallMemory private constructor(
         lastValuesKey = valuesKey
         if (prev == null || prev == version) return FilterChange.NONE
         if (valuesKey != null && valuesKey == prevKey) return FilterChange.VERSION_ONLY
-        blocked.clear()
+        blocked.clear(); blockedKm.clear()
         return FilterChange.VALUES
     }
 
@@ -142,7 +144,7 @@ class CallMemory private constructor(
      * «막았다»는 필터 값이 바뀔 때만 풀려, 기사님 손가락 때문에 무시된 좋은 콜을 그때까지 건너뛰었다.
      * 누르기는 일어나지 않았으니 다음 읽기에서 처음처럼 판정·선택된다. 연속 둘째 실패는 부르는 쪽이 [demoteActed] 로 내린다.
      */
-    fun forgetActed(hash: Int) { acted.remove(hash); blocked.remove(hash) }
+    fun forgetActed(hash: Int) { acted.remove(hash); blocked.remove(hash); blockedKm.remove(hash) }
 
     fun demoteActed(hash: Int): Boolean {
         if (!acted.remove(hash)) return false
@@ -163,6 +165,27 @@ class CallMemory private constructor(
         //    기억에 남기지 않아, 잠금이 풀리는 다음 스캔에서 처음처럼 평가된다 (#79)
         if (!wasEvaluated) return
         if (passed) { acted += hash; trim(acted) } else { blocked += hash; trim(blocked) }
+    }
+
+    /** 상차 축으로 막았다 — 그때 픽업 km 를 적는다. 막은 기억에 없는 콜은 안 적는다 */
+    fun rememberBlockedKm(hash: Int, km: Double) {
+        if (hash in blocked) blockedKm[hash] = km
+        if (blockedKm.size > maxSize) blockedKm.keys.retainAll(blocked)
+    }
+
+    /**
+     * 🔁 **반경 밖이라 막았던 콜이 가까워져 반경 안으로 들어오면 푼다** (기사님 «가»).
+     * «막았다»는 필터 값이 바뀔 때만 풀려, 12km 에서 막힌 콜이 6km 까지 와도 다시 안 봤다(좋은 콜을 놓침).
+     * 그때 km > 반경 ≥ 지금 km 이면 막은 기억에서 빼 다음 판정이 처음처럼 돈다.
+     * 🔴 내일 이후 콜은 부르는 쪽이 빼고 부른다 — 집 기준 목록으로 가르므로 폰 km 와 무관하다.
+     * @return 풀었으면 그때 km, 아니면 null
+     */
+    fun releaseIfCloser(hash: Int, nowKm: Double?, radiusKm: Double?): Double? {
+        if (nowKm == null || radiusKm == null || radiusKm <= 0.0) return null
+        val was = blockedKm[hash] ?: return null
+        if (was <= radiusKm || nowKm > radiusKm || hash !in blocked) return null
+        blocked.remove(hash); blockedKm.remove(hash)
+        return was
     }
 
     /** ② 보고는 콜당 한 번 — 처음이면 true (호출자가 그때만 enqueue 한다) */

@@ -1276,6 +1276,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
     override fun reservationMode(): String? = alarmConfig().reservationMode
 
+    override fun todayPickupRadiusKm(): Double? = alarmConfig().pickupRadiusKm
+
     override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
         return matchListCard(screenTexts, recentOrders).card
     }

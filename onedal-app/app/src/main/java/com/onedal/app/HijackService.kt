@@ -1427,6 +1427,16 @@ class HijackService : AccessibilityService(), ScanContext {
              * 차종만 바꾼 문제지를 다시 흘리면 조용히 건너뛰어 **서버를 고쳤는지조차 확인 못 한다.**
              * (캐시는 접근성 토글로 서비스가 새로 만들어져야 비워진다 — 앱을 밀어내도 안 된다)
              */
+            /**
+             * 🔁 **가까워진 콜은 다시 판정한다** (기사님 «가») — 반경 밖이라 막았던 콜이 오늘 반경 안으로 들어오면 막은 기억을 푼다.
+             * 소리는 울림 함 규칙(같은 길 한 번)대로다. 내일 이후 콜은 집 기준 목록으로 가르므로 폰 km 로 풀지 않는다.
+             */
+            if ((order.reservedDay ?: 0) < 1) {
+                val scanRadiusKm = scrapParser.todayPickupRadiusKm()
+                callMemory.releaseIfCloser(orderHash, order.pickupDistance, scanRadiusKm)?.let { was ->
+                    AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔁 [가까워져 다시 판정] ${order.pickup}→${order.dropoff} · $was → ${order.pickupDistance}km (반경 ${scanRadiusKm}km)")
+                }
+            }
             if (callMemory.alreadyEvaluated(orderHash)) {
                 seenSkipped++
                 // 🔕 콜마다 첫 한 번만 (차종만 바꾼 문제지 진단용) — 스캔마다 되풀이하지 않는다
@@ -1495,6 +1505,8 @@ class HijackService : AccessibilityService(), ScanContext {
              *    여기서 «통과했다»로 넣으면 이번 스캔에 안 누른 둘째·셋째 좋은 콜이 다음 스캔에 «이미 본 콜»로 영영 건너뛰어진다.
              */
             if (!isTarget) callMemory.onScanned(orderHash, wasEvaluated, passed = false)
+            // 🔁 상차 축으로 막았으면 그때 km 를 적는다 — 가까워지면 위에서 푼다
+            if (!isTarget && wasEvaluated) order.pickupDistance?.let { km -> if (judged.verdict == "pickup") callMemory.rememberBlockedKm(orderHash, km) }
             if (!wasEvaluated) {
                 AppLogger.d(TAG, LogTag.FILTER, "🔒 [평가 보류] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
                     "${order.fare}원 — 필터 잠김(선점 중·대기), 다음 스캔에서 다시 본다")

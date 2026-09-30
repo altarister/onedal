@@ -53,4 +53,5 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
 
     /** 🔄 판정 값 지문 — 넘기지 않으면 늘 null 이라 버전 글자로만 갈라 막은 기억이 비었다 (`ScrapParserForwardsAllTest`) */
     override fun judgmentValuesKey(): String? = delegate.judgmentValuesKey()
+    override fun todayPickupRadiusKm(): Double? = delegate.todayPickupRadiusKm()
 }
