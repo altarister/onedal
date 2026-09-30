@@ -78,6 +78,8 @@ export function loadRegions(ROOT) {
  *    (그래서 `pickerDictPaired` 의 짝 검사 목록에도 넣지 않는다).
  */
 export const isPlace = (w) => /점$|[\[\]]|-|로\d+번길$|아파트$|빌라$|타워$|센터$/.test(w) || w.length >= 6;   // 원달앱 짝 `ScreenWords.PLACE`
+/** 도로명 토막(«회안대로» · «고불로») — 주소의 절반이다. 🔴 지명 명부가 먼저(«종로»·«을지로»는 지역) · 원달앱 `ScreenWords.ROAD` 와 같은 규칙 */
+export const isRoad = (w) => /^[가-힣][가-힣0-9]+(대로|로|길)$/.test(w);
 
 /**
  * 🔢 **글자가 아니라 «값»인 것** — 요금·거리·시각·남은 시간·예약 날짜·전화.
@@ -100,6 +102,7 @@ export const VALUE_SHAPES = [
     { re: /^[\d,]+ ?P$/, label: '<포인트>' },
     { re: /^\d+개$/, label: '<개수>' },
     { re: /^\d+(동|호)$/, label: '<동호수>' },
+    { re: /^\d+동\s?\d+호$/, label: '<동호수>' },
 ];
 export const isValueShape = (t) => VALUE_SHAPES.some(({ re }) => re.test(t));
 

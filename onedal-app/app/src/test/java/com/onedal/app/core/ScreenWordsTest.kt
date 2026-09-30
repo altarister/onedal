@@ -116,6 +116,25 @@ class ScreenWordsTest {
         assertEquals(listOf("unknown" to "물품 정보"), r.words.map { it.kind to it.word })
     }
 
+    /** 🔒 수락 뒤 화면(실물 캡처 21·22·23 · 09-02) — 붙여 쓴 동·호와 도로명이 가려지지 않았다 */
+    @Test fun `붙여 쓴 동호수와 도로명을 가린다 - 수락 뒤 화면 캡처 글자`() {
+        assertEquals("<지역> <가게·건물> <동호수>", ScreenWords.mask("쌍용 스윗닷홈아파트 304동1002호"))
+        assertEquals("<지역> <도로명> <가게·건물>", ScreenWords.mask("경기 광주시 회안대로 350-23"))
+        assertEquals("<지역> <도로명> <가게·건물>", ScreenWords.mask("경기 광주시 고불로 43-1"))
+    }
+
+    @Test fun `지명 명부가 먼저 - 종로 을지로 세종로는 도로명이 아니라 지역`() {
+        assertEquals("<지역>", ScreenWords.mask("종로"))
+        assertEquals("<지역>", ScreenWords.mask("을지로"))
+        assertEquals("<지역>", ScreenWords.mask("세종로"))
+    }
+
+    @Test fun `도로명 모양은 서버 도구 isRoad 와 같은 규칙`() {
+        val src = File("../../onedal-web/scripts/lib/wordKinds.mjs").readText()
+        val js = Regex("""export const isRoad = \(w\) => /(.+)/\.test\(w\)""").find(src)!!.groupValues[1]
+        assertEquals(js, ScreenWords.ROAD.pattern)
+    }
+
     @Test fun `화면 종류는 네 페이지 가운데 하나로 - 모르는 화면은 안 모은다`() {
         assertEquals(Page.LIST, pageOf(com.onedal.app.models.ScreenContext.LIST))
         assertEquals(Page.DETAIL, pageOf(com.onedal.app.models.ScreenContext.POPUP_MEMO))

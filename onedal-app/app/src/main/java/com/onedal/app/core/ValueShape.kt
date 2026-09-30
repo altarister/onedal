@@ -21,6 +21,7 @@ object ValueShape {
         Regex("""^[\d,]+ ?P$""") to "<포인트>",              // 픽커 «29,491 P» · «2387P»
         Regex("""^\d+개$""") to "<개수>",                    // «대박스 1개»
         Regex("""^\d+(동|호)$""") to "<동호수>",              // 건물 동·호 — 고객 주소다
+        Regex("""^\d+동\s?\d+호$""") to "<동호수>",          // 붙여 쓴 «304동1002호» (수락 뒤 화면)
     )
 
     fun normalize(token: String): String =

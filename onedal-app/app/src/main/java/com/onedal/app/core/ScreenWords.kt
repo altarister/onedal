@@ -50,6 +50,8 @@ object ScreenWords {
 
     /** 가게·건물 모양 — 서버 도구 `wordKinds.mjs` 의 `isPlace` 와 같은 규칙 (`ScreenWordsTest` 가 문다) */
     val PLACE = Regex("""점$|[\[\]]|-|로\d+번길$|아파트$|빌라$|타워$|센터$""")
+    /** 도로명 토막 — «회안대로» · «고불로» (수락 뒤 화면 주소). 🔴 지명 명부를 먼저 본다 — «종로»·«을지로»는 지역. 서버 도구 `isRoad` 와 같은 규칙 */
+    val ROAD = Regex("""^[가-힣][가-힣0-9]+(대로|로|길)$""")
     private const val PLACE_MIN_LEN = 6
     private const val SENTENCE_MIN_LEN = 20
     private val KEY_COLON = Regex("""(?<!\d):|:(?!\d)""")
@@ -124,6 +126,7 @@ object ScreenWords {
             val m = when {
                 shaped != t -> shaped
                 isRegion(t) -> REGION
+                ROAD.matches(t) -> "<도로명>"
                 PLACE.containsMatchIn(t) -> "<가게·건물>"
                 else -> t
             }
@@ -151,6 +154,7 @@ object ScreenWords {
         if (shaped != t) return if (kind == WordKind.UNKNOWN) null else shaped
         if (kind != WordKind.NOISE) {
             if (isRegion(t)) return "<지역>"
+            if (ROAD.matches(t)) return "<도로명>"
             // 띄어 쓴 긴 글은 적요·유의사항 같은 문장 — 콜마다 다르다. 띄어 쓴 짧은 말(«한차배송 신청내역 보기»)은 화면 이름이라 그대로 둔다
             if (' ' in t && t.length > SENTENCE_MIN_LEN) return "<문장>"
             if (PLACE.containsMatchIn(t) || (t.length >= PLACE_MIN_LEN && ' ' !in t)) return "<가게·건물>"
