@@ -19,3 +19,8 @@ export function unreadableLine(u: Unreadable): { head: string; sub: string } {
     const parts = [at, u.pickup ? getAddressLabel(u.pickup) : '상차 모름', u.fare ? `${(u.fare / 10000).toFixed(1)}만` : null];
     return { head: `⚪ 판정 못 함 — ${u.reason}`, sub: parts.filter(Boolean).join(' · ') };
 }
+
+/** 👁️ 요소가 창 안에 보이는가 — 높이가 있고 창의 위아래 안에 걸치면 예. 접힌 시트 아래 · 스크롤 밖이면 아니오 */
+export function visibleIn(rect: { top: number; bottom: number; height: number }, viewportH: number): boolean {
+    return rect.height > 0 && rect.bottom > 0 && rect.top < viewportH;
+}

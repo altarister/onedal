@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SecuredOrder, CallTarget } from '@onedal/shared';
 import { isManualLineage, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from '@onedal/shared';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { verdictOf, type VerdictColor } from '../../lib/verdict';
 import { reservedBadgeOf } from '../../lib/reservedLine';
 import { approxBadgeOf } from '../../lib/approxAddress';
-import { unreadableLine, type Unreadable } from '../../lib/unreadable';
+import { unreadableLine, visibleIn, type Unreadable } from '../../lib/unreadable';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { seatConclusion } from '../../lib/seatConclusion';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -383,8 +383,25 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
  */
 export function UnreadableSeat({ u, inset }: { u: Unreadable; inset?: string }) {
     const line = unreadableLine(u);
+    const ref = useRef<HTMLDivElement>(null);
+    /**
+     * 👁️ **정말 보였나를 로그로** (기사님 «못 봤다, 확실하지 않다» · onedal-1f) — 붙을 때·내용이 바뀔 때 한 줄, 사라질 때 한 줄.
+     *    시트가 올라오는 움직임이 끝난 뒤(0.6초) 요소 자리를 창 높이와 견준다 — 접힌 시트 아래 · 스크롤 밖이면 «아니오».
+     */
+    useEffect(() => {
+        const shownAt = Date.now();
+        const t = setTimeout(() => {
+            const el = ref.current;
+            const seen = !!el && visibleIn(el.getBoundingClientRect(), window.innerHeight);
+            logRoadmapEvent('화면', '웹', `⚪ [화면에 그림] ${u.reason} · ${u.pickup ?? '상차 모름'} · 보이는가: ${seen ? '예' : '아니오'}`, '관제대시보드');
+        }, 600);
+        return () => {
+            clearTimeout(t);
+            logRoadmapEvent('화면', '웹', `⚪ [지움] ${((Date.now() - shownAt) / 1000).toFixed(1)}초 떠 있었음 · ${u.reason}`, '관제대시보드');
+        };
+    }, [u.at, u.reason, u.pickup]);
     return (
-        <div className="relative overflow-hidden" style={{ margin: inset ?? '8px 12px', borderRadius: 14, border: '1px solid #2a3450', background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+        <div ref={ref} className="relative overflow-hidden" style={{ margin: inset ?? '8px 12px', borderRadius: 14, border: '1px solid #2a3450', background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)' }}>
             <div className="absolute left-0 top-0 bottom-0" style={{ width: 5, background: '#3a4358' }} />
             <div style={{ padding: '10px 14px 11px 19px' }}>
                 <div className="truncate" style={{ fontSize: 15, fontWeight: 900, color: 'var(--color-text-primary)' }}>{line.head}</div>
