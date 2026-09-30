@@ -75,6 +75,10 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
         }
     }
 
+    /** 📜 픽커 목록 머리줄이 보이나 — «리스트 설정» */
+    override fun listHeaderVisible(allNodes: List<com.onedal.app.core.ScreenTextNode>): Boolean =
+        KakaoPickerParser.listHeaderVisibleOf(allNodes.map { it.text })
+
     override fun planListTap(
         allNodes: List<com.onedal.app.core.ScreenTextNode>,
         order: com.onedal.app.models.SimplifiedOfficeOrder,

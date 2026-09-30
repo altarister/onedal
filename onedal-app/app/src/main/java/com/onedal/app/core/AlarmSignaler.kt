@@ -59,8 +59,12 @@ class AlarmSignaler(private val service: AccessibilityService) {
         private val sounded = mutableSetOf<Int>()
         /** 처음 보는 지문이면 true (그리고 기억한다) */
         fun firstTime(orderHash: Int): Boolean = sounded.add(orderHash)
-        /** 이번 스캔 목록에 있는 지문만 남긴다 */
-        fun keepOnly(seen: Set<Int>) { sounded.retainAll(seen) }
+        /**
+         * 이번 스캔 목록에 있는 지문만 남긴다.
+         * 🔴 카드를 한 장도 못 읽은 틀(겹친 화면 등)은 «콜이 사라졌다»는 사실이 아니다 — 비우지 않는다
+         *    (비웠더니 같은 콜이 15초마다 다시 울렸다 · 실물 09-30 13:41).
+         */
+        fun keepOnly(seen: Set<Int>) { if (seen.isNotEmpty()) sounded.retainAll(seen) }
     }
 
     private val soundMemory = SoundMemory()
@@ -114,12 +118,14 @@ class AlarmSignaler(private val service: AccessibilityService) {
      * @param withSound 소리·진동을 낼까 — 알람 모드에서만 (체험은 자동과 똑같이 조용하다)
      */
     fun fire(anchorRect: Rect, bandHalfPx: Int, orderHash: Int, withBorder: Boolean, withSound: Boolean) {
-        if (withSound && soundMemory.firstTime(orderHash)) {
+        val sounded = withSound && soundMemory.firstTime(orderHash)
+        if (sounded) {
             beepTwice()
             vibrateStrong()
         }
         if (!withBorder) {
-            AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [알람] 소리 2 · 진동 — 테두리 없음 (앱이 상세까지 들어간다)")
+            // 🔕 실제로 울렸을 때만 한 줄 — 울리지 않았는데 «소리 2»를 찍어 15초마다 우는 것처럼 보였다
+            if (sounded) AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [알람] 소리 2 · 진동 — 테두리 없음 (앱이 상세까지 들어간다)")
             return
         }
         val (top, bottom) = borderSpan(anchorRect.top, anchorRect.bottom, bandHalfPx)

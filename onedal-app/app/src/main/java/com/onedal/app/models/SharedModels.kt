@@ -255,6 +255,11 @@ data class ScrapPayload(
     val appliedMode: String? = null,
     /** 🏷️ 이 보고를 만든 화면이 실물 배차망 앱인가(real) 시뮬인가(sim) — `TargetApp.sourceOf`. 모르면 안 싣는다 */
     val source: String? = null,
+    /**
+     * 📜 **목록 머리줄이 안 보인다** — 픽커 목록이 내려가 앱이 오더카드와 목록 줄을 못 가른다(누르지 않는다).
+     * 관제웹 띠가 «목록이 내려가 앱이 못 엽니다 — 맨 위로 올리거나 직접 여십시오»로 말한다. 목록 보고에만 · 모르면 안 싣는다
+     */
+    val listHeaderHidden: Boolean? = null,
     /** 📰 칸에 안 들어간 글자 — 한 화면 몫 (`ScreenWords` · reviews/24). 모은 것이 없으면 안 싣는다 */
     val screenWords: com.onedal.app.core.ScreenWordsReport? = null,
     /**

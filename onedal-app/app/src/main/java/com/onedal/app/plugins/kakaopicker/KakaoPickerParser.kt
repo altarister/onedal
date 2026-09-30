@@ -262,6 +262,28 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun isListCardAnchor(fareCenterY: Int, listHeaderCenterY: Int?): Boolean =
             listHeaderCenterY != null && fareCenterY > listHeaderCenterY
 
+        /** 📜 목록 머리줄(«리스트 설정»)이 이 판에 있나 — 목록이 내려가면 없다 (`listHeaderVisible`) */
+        fun listHeaderVisibleOf(texts: List<String>): Boolean = texts.any { it.contains(LIST_HEADER_WORD) }
+
+        /** 오더카드의 계약 버튼 글자 — 정확히 이 글자인 노드 */
+        private const val OFFER_ACCEPT_WORD = "수락"
+        /** 오더카드 띠 — 수락 노드 위아래 이만큼 안의 노드를 한 띠로 본다 */
+        private const val OFFER_BAND_PX = 90
+
+        /**
+         * 🟩 **오더카드가 뜬 순간을 기록만 한다** (2단계 «내려간 목록에서도 누르기»의 근거 · uiautomator 없이 앱 자신이).
+         * 이 한 줄로 셋을 본다 — ① «수락»이 노드 하나로 오나 ② 머리줄 위(스크롤 안)인가 붙박이인가 ③ 머리줄이 안 보일 때도 보이나.
+         * 🔴 누르지도 스크롤하지도 않는다. 띠 글자는 값·지명·가게를 이름표로 바꿔 남긴다(`ScreenWords.maskForLog` · 개인정보).
+         * @param nodes (글자, 중심Y, 중심X)
+         */
+        fun offerCardRecord(nodes: List<Triple<String, Int, Int>>, headerY: Int?): String? {
+            val accept = nodes.firstOrNull { it.first.trim() == OFFER_ACCEPT_WORD } ?: return null
+            val band = nodes.filter { kotlin.math.abs(it.second - accept.second) <= OFFER_BAND_PX && it !== accept }
+                .joinToString(" │ ") { com.onedal.app.core.ScreenWords.maskForLog(it.first) }
+            val header = headerY?.let { "머리줄 Y=$it (${if (accept.second < it) "위" else "아래"})" } ?: "머리줄 안 보임"
+            return "수락 노드 (${accept.third},${accept.second}) · $header · 띠 노드: $band"
+        }
+
         /** «리스트 설정» 머리줄 칸인가 — 찍기 직전 그 칸을 다시 읽을 때 쓴다 */
         fun isListHeaderText(text: String): Boolean = text.contains(LIST_HEADER_WORD)
 
@@ -715,6 +737,12 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             return emptyList()
         }
 
+        // 🟩 오더카드가 보이면 한 줄(바뀔 때만) — 2단계 근거 · 기록만
+        val triples = allNodes.map { Triple(it.text, (it.rect.top + it.rect.bottom) / 2, (it.rect.left + it.rect.right) / 2) }
+        offerCardRecord(triples, listHeaderCenterY(triples.map { it.first to it.second }))?.let { line ->
+            if (com.onedal.app.core.LogOnce.changed("offer-card", line.substringBefore(" · 띠 노드")))
+                com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "🟩 [오더카드 보임] $line")
+        }
         // 🖼️ 나누는 셈은 순수 함수 `groupByFare` 에 있다 — 실물 좌표로 통째로 검사하려고 떼어 놨다
         val sorted = ScreenReadingOrder.sort(allNodes, { it.rect.top }, { it.rect.bottom }, { it.rect.left })
         val groups = groupIndicesByFare(

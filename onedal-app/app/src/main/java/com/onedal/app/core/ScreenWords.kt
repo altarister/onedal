@@ -102,6 +102,20 @@ object ScreenWords {
         words[key] = ScreenWord(w, kind.word, sample?.take(SAMPLE_MAX))
     }
 
+    /**
+     * 🔒 **로그에 남길 글자 — 토막마다 값·지명·가게를 이름표로** (오더카드 기록 · 개인정보).
+     * «경기 성남시 중원구 금광1동» → «<지역> <지역> <지역> <지역>» · «010-1234-5678» → «<전화>» · 요금 → «<숫자>».
+     */
+    fun maskForLog(raw: String): String = raw.trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }.joinToString(" ") { t ->
+        val shaped = ValueShape.normalize(t)
+        when {
+            shaped != t -> shaped
+            isRegion(t) -> "<지역>"
+            PLACE.containsMatchIn(t) -> "<가게·건물>"
+            else -> t.take(WORD_MAX)
+        }
+    }
+
     /** 한 보고 몫(먼저 모은 페이지 하나)을 꺼낸다 — 다른 페이지 것은 다음 보고로. 모은 것이 없으면 null (보고에 안 싣는다) */
     @Synchronized fun drain(): ScreenWordsReport? {
         flushRaw()

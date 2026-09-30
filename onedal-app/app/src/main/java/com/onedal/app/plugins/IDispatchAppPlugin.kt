@@ -48,6 +48,12 @@ interface IDispatchAppPlugin {
      */
     val pages: com.onedal.app.core.PageSpecs
 
+    /**
+     * 📜 **목록 머리줄이 화면에 보이나** — 목록이 내려가면 앱은 오더카드와 목록 줄을 못 가른다(픽커 «리스트 설정»).
+     * 화면 종류 이름을 늘리지 않고 이 사실 하나를 보고·로그에 싣는다. 모르는 배차망은 null(모름) — 인성·24시.
+     */
+    fun listHeaderVisible(allNodes: List<com.onedal.app.core.ScreenTextNode>): Boolean? = null
+
     /** 스냅샷 OCR 검증기 (null이면 기존 텍스트 기반 파싱 유지) */
     val ocrParser: ScreenOcrParser<*>?
 

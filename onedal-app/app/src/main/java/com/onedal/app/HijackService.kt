@@ -963,6 +963,12 @@ class HijackService : AccessibilityService(), ScanContext {
         extractAllTextNodes(rootNode, allNodes)
 
         // 앱별 앵커 노드 감지 및 텍스트 그룹화 로직을 파서(ScrapParser)로 위임
+        // 📜 목록 머리줄이 보이나 — 사실 한 칸(보고·로그). 바뀔 때만 한 줄
+        val headerVisible = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).listHeaderVisible(allNodes)
+        telemetryManager.listHeaderHidden = headerVisible?.let { !it }
+        if (headerVisible != null && com.onedal.app.core.LogOnce.changed("list-header", "$headerVisible"))
+            AppLogger.i(TAG, LogTag.SCREEN, if (headerVisible) "📜 [목록 맨 위] 머리줄 보임 — 목록 줄을 누를 수 있다"
+                else "📜 [목록 내려감] 머리줄 안 보임 — 앱은 오더카드와 목록 줄을 못 가려 누르지 않는다 (맨 위로 올리거나 직접 여십시오)")
         val groupedNodes = scrapParser.groupListNodes(allNodes)
 
         /** 그룹은 나왔는데 요금을 못 읽어 버려진 수 — 아래 진단이 읽는다 */
