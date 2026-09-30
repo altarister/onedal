@@ -977,7 +977,9 @@ class PickerLocationParsingEdgeCaseTest {
         // 서울 필터 대조: 통과해야 함!
         val seoulKeywords = listOf("서울", "강남", "서초", "송파", "영등포")
         assertTrue("강남 도착은 서울 필터를 통과해야 한다",
-            KakaoPickerParser.decide(o, minFare = 10000, pickupRadiusKm = 10.0, destKeywords = seoulKeywords))
+            KakaoPickerParser.decide(o, minFare = 10000, pickupRadiusKm = 10.0, destKeywords = seoulKeywords,
+            // 🕘 «예약 HH:MM»은 그 시각이 지나면 내일 콜이 된다(기사님 결정) — 이 검사는 도착 축을 본다: 벽시계와 무관하게 «내일도»로
+            reservationMode = "tomorrowToo"))
     }
 
     @Test
@@ -1003,7 +1005,9 @@ class PickerLocationParsingEdgeCaseTest {
 
         // 서초(서울) 필터 통과
         val seoulKeywords = listOf("서울", "서초", "방배동")
-        assertTrue(KakaoPickerParser.decide(o, minFare = 10000, pickupRadiusKm = 15.0, destKeywords = seoulKeywords))
+        assertTrue(KakaoPickerParser.decide(o, minFare = 10000, pickupRadiusKm = 15.0, destKeywords = seoulKeywords,
+            // 🕘 «예약 HH:MM»은 그 시각이 지나면 내일 콜이 된다(기사님 결정) — 이 검사는 도착 축을 본다: 벽시계와 무관하게 «내일도»로
+            reservationMode = "tomorrowToo"))
     }
 
     @Test

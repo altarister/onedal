@@ -177,7 +177,10 @@ object PickerScreenOcr {
 
     /** 한 덩어리(머리 − 여유 ~ 다음 머리 − 여유)에서 행정동·건물명·시각을 뽑는다 */
     private fun readStop(sorted: List<OcrLine>, head: Head, nextHeadY: Int): PickerStopFromImage? {
-        val upper = if (nextHeadY == Int.MAX_VALUE) Int.MAX_VALUE else nextHeadY - SLACK
+        // 정류장 칸의 아래 끝 — 다음 머리 또는 첫 제목 줄(«물품 정보» 등). 그 아래 요금·유의사항 글은 정류장이 아니다
+        //   (건물 없는 하차에 «12,628 P»가 건물로 들어갔다 · 실물 09-30 16:11 · `PickerStopPlaceTest`)
+        val sectionY = sorted.firstOrNull { it.y > head.y && isSectionTitle(it.text) }?.y ?: Int.MAX_VALUE
+        val upper = minOf(if (nextHeadY == Int.MAX_VALUE) Int.MAX_VALUE else nextHeadY - SLACK, sectionY)
         val block = sorted.filter { it.y >= head.y - SLACK && it.y < upper }
 
         val adminLine = block.firstOrNull { isAdminLine(it.text) }?.text ?: return null
@@ -188,7 +191,8 @@ object PickerScreenOcr {
         // 건물명 — 머리·행정동·시각을 뺀 나머지 첫 줄
         val place = block.firstOrNull {
             it.text != adminLine && !HEAD_RE.containsMatchIn(it.text) && timeOf(it.text) == null && !CLOCK_START.containsMatchIn(it.text) &&
-                !isSectionTitle(it.text) && !SIZE_RE.containsMatchIn(it.text)
+                !isSectionTitle(it.text) && !SIZE_RE.containsMatchIn(it.text) &&
+                com.onedal.app.core.ValueShape.normalize(it.text.trim()) == it.text.trim()   // 값 꼴(요금·포인트·숫자)은 장소가 아니다
         }?.text
 
         return PickerStopFromImage(admin = admin, place = place, straightKm = head.km, at = at)
