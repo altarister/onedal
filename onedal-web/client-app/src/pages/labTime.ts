@@ -1,3 +1,4 @@
+import { hhmmText } from "@onedal/shared";
 /**
  * ⏱️ **시간과 정거장 이름 — 한 곳에서 만든다** (구조 리뷰).
  *
@@ -25,8 +26,7 @@ export const circled = (n: number) => n <= 20 ? String.fromCharCode(0x2460 + n -
 export const stopLabel = (callNo: number, kind: '상차' | '하차') => `${circled(callNo)}${kind}`;
 
 /** 시각을 «시:분»으로. 없으면 `--:--` — 0 이나 지금 시각으로 대신 채우지 않는다 (규칙 ④) */
-export const hhmm = (t: number | null | undefined) =>
-    t == null ? '--:--' : new Date(t).toTimeString().slice(0, 5);
+export const hhmm = (t: number | null | undefined) => hhmmText(t) ?? '--:--';   // 🕐 한 모양은 shared
 
 /**
  * 구간을 순서대로 걸으며 **정거장까지의 누적 분**을 낸다.

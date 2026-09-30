@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { SecuredOrder } from "@onedal/shared";
 import { apiClient } from "../api/apiClient";
+import { hhmmText } from "@onedal/shared";
 
 export default function Settlement() {
     const [orders, setOrders] = useState<SecuredOrder[]>([]);
@@ -44,8 +45,7 @@ export default function Settlement() {
             ) : (
                 <div className="space-y-3">
                     {[...orders].reverse().map((order) => {
-                        const date = new Date(order.timestamp);
-                        const timeStr = `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+                        const timeStr = hhmmText(order.timestamp) ?? '';   // 🕐 한 모양은 shared
                         const isConfirmed = order.status === "ORDER_CONFIRMED";
 
                         return (

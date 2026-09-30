@@ -44,13 +44,6 @@ export function telHref(phone?: string | null): string | undefined {
     return digits ? `tel:${digits}` : undefined;
 }
 
-/** 시:분 (24시간) — 이 포맷을 만드는 곳은 여기 하나다 */
-export function hhmm(iso?: string | null): string {
-    if (!iso) return '';
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
 /**
  * ✂️ **시트 상태바에 넣을 만큼만 자른 지명** (기사님 확정).
  *

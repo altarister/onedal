@@ -37,6 +37,7 @@ import { getActiveCalls, buildOrderSync, setOrderStatus, filterVersionOf } from 
 const lastSyncLogSig = new Map<string, string>();
 import { stepRecordsOf, stepsView, bridgeUndoMilestone, milestoneAlreadyRecorded } from "./stepSeeder";
 import { slog } from "../utils/fileLogger";
+import { clockText } from "@onedal/shared";
 
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
@@ -912,7 +913,7 @@ async function bootstrapOnce(userId: string, io: any): Promise<void> {
             if (lastPt.source === 'mock') {
                 session.mockGpsOwner = { socketId: '복구', at: lastPt.atMs, warned: false };
             }
-            slog('부팅', `📍 [위치 복구] ${new Date(lastPt.atMs).toLocaleTimeString('ko-KR')} 의 마지막 점 — `
+            slog('부팅', `📍 [위치 복구] ${clockText(lastPt.atMs)} 의 마지막 점 — `
                 + `${lastPt.x.toFixed(5)}, ${lastPt.y.toFixed(5)} (출처 ${lastPt.source})`);
         }
 

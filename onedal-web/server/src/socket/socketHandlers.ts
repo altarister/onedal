@@ -47,6 +47,7 @@ import { slog } from "../utils/fileLogger";
 import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";
 import { logContext, whoLabel } from "../utils/logContext";
+import { clockText } from "@onedal/shared";
 
 
 
@@ -737,8 +738,7 @@ export function registerSocketHandlers(io: Server) {
             const diag = (data as any)._diag;
             const promise = (report as any).promisedArrivalAt ?? report.deadlineAt;
             if (promise || diag) {
-                const hhmm = (iso?: string) => iso
-                    ? new Date(iso).toLocaleTimeString('ko-KR', { hour12: false }) : '-';
+                const hhmm = (iso?: string) => clockText(iso) ?? '-';   // 🕐 한 모양은 shared (옛 «14시 5분 3초»)
                 const parts = [
                     `약속 ${hhmm(promise)}`,
                     diag ? `시트가 쓴 값 → 주행 ${diag.driveMinutes ?? '모름'} + 선행 ${diag.leadMinutes ?? '-'}` : null,

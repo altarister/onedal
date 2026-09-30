@@ -97,6 +97,7 @@ import { hedgeBudget } from "./kakaoHedgeBudget";
 export { hedgeBudget };
 import { slog } from "../utils/fileLogger";
 import { armWait, cancelWait, globalWaits } from "../state/waits";
+import { hhmmText } from "@onedal/shared";
 
 // L1: 인메모리 캐시 (서버 세션 내 초고속 조회)
 const MAX_L1_CACHE_SIZE = 5000;
@@ -306,13 +307,13 @@ function calculateEtas(sections: any[], startsAtFirstStop: boolean): string[] {
     const now = new Date();
 
     // 현위치를 몰라 상차지에서 바로 출발하는 경우 → 상차지 도착 = 지금
-    if (startsAtFirstStop) etas.push(now.toTimeString().substring(0, 5));
+    if (startsAtFirstStop) etas.push(hhmmText(now) ?? '');
 
     let cumulativeSec = 0;
     for (const section of sections) {
         cumulativeSec += section.duration || 0;
         const targetTime = new Date(now.getTime() + cumulativeSec * 1000);
-        etas.push(targetTime.toTimeString().substring(0, 5));
+        etas.push(hhmmText(targetTime) ?? '');
     }
     return etas;
 }

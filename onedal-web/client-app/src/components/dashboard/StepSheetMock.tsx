@@ -38,6 +38,7 @@ import {
     dwellMinutes, unitPoints, slotBaseMs,
 } from '@onedal/shared';
 import type { CargoUnit } from '@onedal/shared';
+import { hhmmText } from "@onedal/shared";
 
 /** 서버 `stepsView()` 가 주는 한 단계 */
 export interface StepViewLike {
@@ -47,8 +48,7 @@ export interface StepViewLike {
     row: Record<string, any>;
 }
 
-const hhmm = (v?: string | null) => v ? new Date(v).toLocaleTimeString('ko-KR',
-    { hour: '2-digit', minute: '2-digit', hour12: false }) : null;
+const hhmm = (v?: string | null) => hhmmText(v);   // 🕐 한 모양은 shared
 const parse = (v?: string | null): string[] => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } };
 
 /* ── 시트 공용 옷들 ── */

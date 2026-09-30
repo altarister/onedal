@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, TARGET_APP_LABEL, deviceLabel } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, TARGET_APP_LABEL, deviceLabel, clockText } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "../../hooks/useSystemAlerts";
 import { handBandOf } from "../../lib/handBand";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { summarizeTally } from "../../lib/filterTally";
-import { formatClock } from "../../lib/clock";
 import type { AutoDispatchFilter } from "@onedal/shared";
 
 
@@ -162,7 +161,7 @@ function DeviceRow({
     const criticalAlerts = deviceAlerts.filter(a => a.reason !== 'AUTO_CANCEL' && a.reason !== 'BUTTON_NOT_FOUND');
 
     /** 🕐 **마지막 보고 시각** — 하트비트를 포함한 *"이 폰이 살아 있다"* */
-    const lastSeenAt = formatClock(device.lastSeen);
+    const lastSeenAt = clockText(device.lastSeen);
 
     /**
      * 👁️ **지금 훑고 있는 것만 그린다** (기사님 확정).

@@ -10,6 +10,7 @@ import { unitPoints } from './cargoUnits';
 import { protectionMinutes, afterworkMinutes } from './cargoUnits';
 import type { CargoReport } from './index';
 import { parseCargoHints } from './cargoHints';
+import { hhmmText } from './format';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 상하차 소요 시간 (dwell time)
@@ -236,7 +237,7 @@ export function buildArrivalSlots(nowMs: number, minMinutes: number, count = 5, 
         t.setSeconds(0, 0);
         slots.push({
             iso: t.toISOString(),
-            label: `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`,
+            label: hhmmText(t) ?? '',   // 🕐 한국 시각 · 한 모양은 format.ts
             minutesFromNow: Math.round((t.getTime() - nowMs) / 60000),
         });
     }

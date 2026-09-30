@@ -1,4 +1,5 @@
 import { logRoadmapEvent } from './roadmapLogger';
+import { clockText } from "@onedal/shared";
 
 /**
  * 🖥️ **관제웹 코드 판** (기사님 «새로고침을 나에게 묻지 말고 너가 코드로 확인해» · onedal-1f «가»).
@@ -10,7 +11,7 @@ import { logRoadmapEvent } from './roadmapLogger';
 declare const __WEB_COMMIT__: string;
 
 type Hot = { at: Date; files: string[] };
-const hhmmss = (d: Date) => [d.getHours(), d.getMinutes(), d.getSeconds()].map(n => String(n).padStart(2, '0')).join(':');
+const hhmmss = (d: Date) => clockText(d) ?? '--:--:--';   // 🕐 한 모양은 shared
 
 export function codeVersionLine(v: { commit: string; loadedAt: Date; lastHot: Hot | null }): string {
     const hot = v.lastHot ? `${hhmmss(v.lastHot.at)} ${v.lastHot.files.join(', ')}` : '없음';

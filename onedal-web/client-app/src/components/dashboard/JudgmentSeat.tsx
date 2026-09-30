@@ -6,11 +6,14 @@ import { verdictOf, type VerdictColor } from '../../lib/verdict';
 import { reservedBadgeOf } from '../../lib/reservedLine';
 import { approxBadgeOf } from '../../lib/approxAddress';
 import { unreadableLine, visibleIn, type Unreadable } from '../../lib/unreadable';
-import { getAddressLabel, hhmm } from '../../lib/routeUtils';
+import { getAddressLabel } from '../../lib/routeUtils';
+import { hhmmText } from '@onedal/shared';
 import { seatConclusion } from '../../lib/seatConclusion';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { twinFareNoteOf } from '../../lib/twinFare';
+/** 🕐 시:분 — 빈 값은 빈 글자(옛 hhmm 그대로) · 한 모양은 shared hhmmText */
+const hhmm = (at?: string | null) => hhmmText(at) ?? '';
 
 /**
  * 🪧 **심사석** — 평가·미리보기 콜이 필터 자리를 빌려 쓰는 카드 (기사님 확정 · 와이어프레임 v13).

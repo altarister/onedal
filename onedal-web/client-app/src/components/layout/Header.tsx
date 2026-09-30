@@ -5,7 +5,7 @@ import { VehicleLogoSummary } from "../dashboard/VehicleStatusPanel";
 import type { SecuredOrder } from "@onedal/shared";
 import { useServerClock } from "../../hooks/useServerClock";
 import { serverNow, isSynced, isDrifting } from "../../lib/serverClock";
-import { formatClock } from "../../lib/clock";
+import { clockText } from "@onedal/shared";
 import { useSoundManager } from "../../hooks/useSoundManager";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
@@ -113,8 +113,8 @@ export default function Header({ isConnected, liveCalls, onMenu, reservedCount }
                                       title={`폰 시계가 서버와 ${Math.round((clock?.offsetMs ?? 0) / 1000)}초 어긋나 있습니다`}>⚠️</span>
                             )}
                             <span className="text-xs font-mono font-bold text-text-muted tracking-wide">
-                                {/* ⚠️ 포맷은 `lib/clock` 하나에 있다 — 여기서 또 만들면 같은 화면에 두 모양이 뜬다 */}
-                                {isConnected ? formatClock(serverNow(clock, tick)) : "☁️ 서버 끊김"}
+                                {/* ⚠️ 포맷은 shared `clockText` 하나에 있다 — 여기서 또 만들면 같은 화면에 두 모양이 뜬다 */}
+                                {isConnected ? clockText(serverNow(clock, tick)) : "☁️ 서버 끊김"}
                             </span>
                         </div>
 

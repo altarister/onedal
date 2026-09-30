@@ -8,6 +8,7 @@ import { EMPTY_RECORDS } from '../../hooks/records';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { useJudgmentStore } from '../../stores/judgmentStore';
 import { departureDue } from '../../lib/sheetStatus';
+import { hhmmText } from "@onedal/shared";
 
 /**
  * **최소 출발 시각까지 남은 시간**을 센다.
@@ -109,7 +110,7 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
             waitMin: minutesUntil(new Date(binding.departByMs!).toISOString(), now),
             basis: binding.stopType === 'pickup' ? `상차 약속(잡은 시각 + ${rules.pickupPromiseMinutes}분)` : `배달 데드라인(상차 완료+${rules.deadlineRatioPct}%)`,
             // 시각을 같이 적는다 — 상차지가 둘 다 "경안동"이면 이름만으로는 어느 약속인지 모른다
-            boundBy: o ? `${getAddressLabel(binding.stopType === 'pickup' ? o.pickup : o.dropoff)} ${binding.stopType === 'pickup' ? '상차' : '하차'} ${binding.promisedUntil ? new Date(binding.promisedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}`.trim() : null,
+            boundBy: o ? `${getAddressLabel(binding.stopType === 'pickup' ? o.pickup : o.dropoff)} ${binding.stopType === 'pickup' ? '상차' : '하차'} ${hhmmText(binding.promisedUntil) ?? ''}`.trim() : null,
         };
     }
 
@@ -137,7 +138,7 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
     const left = minutesUntil(soonest.at, now)!;
     const late = left < 0;
     const tight = !late && left < 15;
-    const atHhmm = new Date(soonest.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const atHhmm = hhmmText(soonest.at) ?? '';
     const title = [
         `${formatCountdown(soonest.at, now)} ${late ? '출발 시각이 지났습니다' : '뒤에는 출발해야 합니다'}`,
         soonest.boundBy ? `${soonest.boundBy} 약속 기준` : '',

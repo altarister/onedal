@@ -17,6 +17,7 @@ import { MILESTONE_LABEL, timingError,
 import { useJudgmentStore } from "../../stores/judgmentStore";
 import type { RouteTimelineEntry, RouteStopInfo, CallTiming } from "@onedal/shared";
 import { Button } from "../ui/button";
+import { clockText, hhmmText } from "@onedal/shared";
 
 /**
  * 🕐 **칩 한 칸이 아는 것** — 도착 예상과, 앞 정거장 실측이 밀어낸 분.
@@ -109,7 +110,7 @@ export default function PinnedRouteCard({
      */
     const ledgerTimeOf = (stop: 'pickup' | 'dropoff') => {
         const t = stopTimeOfRecords(records.reports, records.milestones, stop);
-        return t ? new Date(t.ms).toTimeString().substring(0, 5) : undefined;
+        return t ? hhmmText(t.ms) ?? undefined : undefined;
     };
     const fromRoute = etaMap.get(route.id);
     const etas = {
@@ -294,9 +295,7 @@ export default function PinnedRouteCard({
                     {/* 🕐 라벨 없이 시각만 적는다 — 시각 하나면 «언제 잡았나»로 읽힌다 */}
                     <span>
                         <b className="text-text-primary font-bold">
-                            {route.capturedAt
-                                ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
-                                : '-'}
+                            {clockText(route.capturedAt) ?? '-'}
                         </b>
                     </span>
                     {/**
@@ -753,7 +752,7 @@ export default function PinnedRouteCard({
                                                         const dl = seededSteps.find(x => x.step === 'CALL_DROPOFF')?.row?.deadline_at;
                                                         return dl ? (
                                                             <span className="px-1.5 py-0.5 rounded bg-surface-hover text-text-muted font-bold tabular-nums text-[10px]">
-                                                                데드라인 {new Date(dl).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                                데드라인 {hhmmText(dl)}
                                                             </span>
                                                         ) : null;
                                                     })()}
@@ -809,8 +808,7 @@ export default function PinnedRouteCard({
                                                 <span className="text-text-muted">·</span>
                                                 <span className="text-text-muted">하차 마감</span>
                                                 <span className="text-danger tabular-nums">
-                                                    {new Date(timing.dropoffDeadlineAt).toLocaleTimeString('ko-KR',
-                                                        { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                    {hhmmText(timing.dropoffDeadlineAt)}
                                                 </span>
                                             </>
                                         )}
@@ -1018,7 +1016,7 @@ export default function PinnedRouteCard({
                                                             }`}>{statusLabel}</span>
                                                             {r.occurred_at && (
                                                                 <span className="text-[10px] text-text-muted tabular-nums">
-                                                                    {new Date(r.occurred_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                                    {hhmmText(r.occurred_at)}
                                                                 </span>
                                                             )}
                                                             {stepNav !== null && stepNav !== stepCurIdx && (
@@ -1128,8 +1126,7 @@ function StopDetailBlock({ route, timeline, visitOrder, timing, etas }: {
             arrived: timing.arrivedDropoff, promised: timing.dropoffPromisedArrivalAt, eta: etas.dropoffEta },
     ]);
     /** 약속 시각(ISO 문자열) → `05:08`. 없으면 `--:--` (지어내지 않는다) */
-    const clockOf = (v: string | null | undefined) =>
-        v == null ? '--:--' : new Date(v).toTimeString().slice(0, 5);
+    const clockOf = (v: string | null | undefined) => hhmmText(v) ?? '--:--';   // 🕐 한 모양은 shared
 
     return (
         <div className="flex flex-col gap-0.5 text-[11px] tabular-nums mb-2 px-0.5">
@@ -1153,7 +1150,7 @@ function StopDetailBlock({ route, timeline, visitOrder, timing, etas }: {
                  *    (`etaMap` → 장부 폴백). 둘이 다른 값을 말하면 화면이 두 말을 한다 (규칙 ③).
                  */
                 const real = r.arrived ? null
-                    : tl?.etaMs != null ? new Date(tl.etaMs).toTimeString().slice(0, 5)
+                    : tl?.etaMs != null ? hhmmText(tl.etaMs)
                         : r.eta ?? null;
                 return (
                     <div key={r.stopType} className="flex flex-col">

@@ -5,6 +5,7 @@ import { getAddressLabel } from '../../lib/routeUtils';
 import { reservedLineOf } from '../../lib/reservedLine';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { callsInView, countsByView, FINISHED_TABS, type CallView } from '../../lib/finishedCalls';
+import { hhmmText } from "@onedal/shared";
 
 /**
  * ☰ **왼쪽 서랍 — 끝난 콜이 사는 자리** (기사님 확정)
@@ -56,10 +57,7 @@ const won = (n?: number | null) =>
 const clockOf = (c: SecuredOrder): string => {
     const raw = c.completedAt ?? c.terminatedAt;
     if (!raw) return '—';
-    const d = new Date(raw);
-    return Number.isNaN(d.getTime())
-        ? '—'
-        : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return hhmmText(raw) ?? '—';   // 🕐 한 모양은 shared
 };
 
 /** 왜 끝났나 — 한 마디. 상태값을 그대로 보이면 기사님이 읽을 말이 아니다 */

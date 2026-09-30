@@ -13,6 +13,7 @@ import { planArrivalStops } from '../services/routeComposer';
 import type { RouteSnapshot } from '../services/routeComposer';
 import { stepsView, stepRecordsOf, plannedDwellOf } from '../services/stepSeeder';
 import { slog } from '../utils/fileLogger';
+import { clockText } from "@onedal/shared";
 
 /**
  * 종료되지 않은(활성) 콜만 필터링합니다.
@@ -254,9 +255,7 @@ function logRouteStops(
     const body = routeStops.map((st, i) =>
         `${circled[i] ?? `(${i + 1})`} ${st.orderId.slice(-6)} ${st.stopType === 'pickup' ? '상차' : '하차'} ` +
         `${st.driveMinutes != null ? `누적 ${st.driveMinutes}분` : '주행모름'}`).join(' ');
-    const kakaoCalledAt = routeComputedAt
-        ? new Date(routeComputedAt).toLocaleTimeString('ko-KR', { hour12: false })
-        : '없음';
+    const kakaoCalledAt = clockText(routeComputedAt) ?? '없음';   // 🕐 한 모양은 shared (옛 «14시 5분 3초»)
     // 어긋나면 주행분이 전부 null 로 나간다 — 그 사실 자체가 원인일 수 있으므로 함께 적는다
     const mismatch = aligned ? '' : ` ⚠️ 길이 어긋남(주행분 ${minsLen} ≠ 정거장 ${routeStops.length}) → 전부 null`;
     // 후보가 섞였으면 «왜 주행분이 없는가»를 함께 적는다 — 없는 것보다 이유가 중요하다

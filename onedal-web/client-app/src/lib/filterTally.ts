@@ -1,5 +1,5 @@
 import type { FilterTally } from "@onedal/shared";
-import { formatClock } from "./clock";
+import { clockText } from "@onedal/shared";
 
 /**
  * 👁️ **방금 스캔에서 무엇이 걸렀나** — 앱이 매 스캔마다 채워 보내는 성적표를 화면 문구로 바꾼다.
@@ -24,7 +24,7 @@ export interface TallySummary {
     at: string | null;
 }
 
-/** 시각 포맷은 `lib/clock.ts` 한 곳에서만 만든다 — 왜 절대시각인지도 거기 적혀 있다 */
+/** 시각 포맷은 shared `format.ts`(clockText) 한 곳에서만 만든다 — 왜 절대시각인지도 거기 적혀 있다 */
 
 /** 화면 이름 ↔ 축. 동점이면 이 순서가 유지된다 (정렬이 흔들려 화면이 깜빡이지 않게) */
 const AXES: Array<[string, keyof FilterTally]> = [
@@ -51,5 +51,5 @@ export function summarizeTally(tally?: FilterTally | null, at?: number | null): 
         .filter(([, n]) => n > 0)
         .sort((a, b) => b[1] - a[1]);
 
-    return { seen: tally.seen, passed: tally.passed, rejects, at: formatClock(at) };
+    return { seen: tally.seen, passed: tally.passed, rejects, at: clockText(at) };
 }

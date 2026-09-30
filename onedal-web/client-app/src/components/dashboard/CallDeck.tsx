@@ -3,13 +3,16 @@ import type { SecuredOrder } from '@onedal/shared';
 import { deriveCallTiming, derivationInputsOf } from '@onedal/shared';
 import type { RouteTimelineEntry } from '@onedal/shared';
 import { pickAutoFocus } from '../../lib/deckFocus';
-import { getAddressLabel, hhmm } from '../../lib/routeUtils';
+import { getAddressLabel } from '../../lib/routeUtils';
+import { hhmmText } from '@onedal/shared';
 import { useTheme } from '../../contexts/ThemeContext';
 /* 🌈 지도와 **같은 색표**를 읽는다 — 두 벌이면 지도와 목록이 다른 말을 한다 (규칙 ③) */
 import { stopBoxBg, callTextColor, PROMISE_CALLED } from '../../styles/callPalette';
 import type { CallRecords } from '../../hooks/records';
 import { EMPTY_RECORDS } from '../../hooks/records';
 import { useJudgmentStore } from '../../stores/judgmentStore';
+/** 🕐 시:분 — 빈 값은 빈 글자(옛 hhmm 그대로) · 한 모양은 shared hhmmText */
+const hhmm = (at?: string | null) => hhmmText(at) ?? '';
 
 /**
  * 진행 중인 콜 덱 — **모드가 둘**이고, 각각 기사님 결정이다.

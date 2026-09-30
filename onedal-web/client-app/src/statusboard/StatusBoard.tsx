@@ -26,7 +26,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { APP_FILTER_KEYS, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabel, isModeApplying,
-         DEVICE_MODE_LABEL, deviceLabel } from '@onedal/shared';
+         DEVICE_MODE_LABEL, deviceLabel, clockText } from '@onedal/shared';
 import type { SecuredOrder, DeviceSession, DeviceModeType } from '@onedal/shared';
 import { SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind } from '@onedal/shared';
 /* 🌉 관제웹 안쪽은 **다리 하나**로만 본다 — 옮길 때 `bridge.ts` 만 새로 쓰면 된다 */
@@ -176,7 +176,7 @@ function haversineKmOf(a: { x: number; y: number }, b: { x: number; y: number })
 
 /** 🕐 시각을 사람이 읽는 모양으로 — **표시**일 뿐 값을 만드는 것이 아니다 */
 function clockOf(ms?: number): string | undefined {
-    return ms ? new Date(ms).toLocaleTimeString('ko-KR', { hour12: false }) : undefined;
+    return clockText(ms) ?? undefined;   // 🕐 «14시 5분 3초» 가 나오던 자리 — 한 모양은 shared
 }
 
 /**

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 /* 🚪 시뮬 전용 문은 문지기 하나로만 연다 — 라이브에서는 닫혀 있다 (`simDoor.ts`) */
 import { simAsk } from './simDoor';
 import { VERDICT_AXIS_LABEL } from './callVerdict';
+import { clockText } from "@onedal/shared";
 
 /**
  * 🎬 **시나리오콜 카드 — «이천 왕복 하루»** (기사님 지시).
@@ -35,7 +36,7 @@ const axisLabel = (v?: string | null) => (v ? (VERDICT_AXIS_LABEL[v] ?? v) : '')
 
 /** 🧾 «결과 복사» 글 — 기사님이 채팅에 붙이면 서버 로그와 대조한다 */
 function resultText(v: ScenarioView): string {
-    const at = v.startedAt ? new Date(v.startedAt).toLocaleTimeString('ko-KR', { hour12: false }) : '—';
+    const at = clockText(v.startedAt) ?? '—';   // 🕐 «14시 5분 3초» 가 나오던 자리
     const lines = v.rows.map(r => {
         const checks = r.checks?.length ? ` (${r.checks.map(c => `${c.label} ${c.ok ? '✅' : '🔴'}`).join(' · ')})` : '';
         const verdict = r.kind === 'block' && r.verdict ? ` [폰: ${axisLabel(r.verdict)} · 막을 축: ${axisLabel(r.blockBy)}]` : '';

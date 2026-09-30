@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { socket } from "../../lib/socket";
+import { clockText } from "@onedal/shared";
 
 interface SessionConflictData {
   existingDeviceInfo: string;
@@ -69,8 +70,7 @@ export function SessionGuard() {
 
   const formatTime = (ts?: number) => {
     if (!ts) return "";
-    const d = new Date(ts);
-    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+    return clockText(ts) ?? "";   // 🕐 한 모양은 shared
   };
 
   // 1. 기존 기기가 다른 기기에 의해 종료되었을 때 (Full Overlay)

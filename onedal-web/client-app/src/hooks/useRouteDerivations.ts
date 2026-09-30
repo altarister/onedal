@@ -20,6 +20,7 @@ import { logStateChange } from '../lib/roadmapLogger';
 import { visitedSequenceOf } from '../lib/visitedSequence';
 import type { RoutePoint } from '../components/dashboard/PinnedRouteCanvas';
 import type { EtaCell } from '../components/dashboard/PinnedRouteCard';
+import { hhmmText } from "@onedal/shared";
 
 /**
  * 🕐 **계측 로그용 «분:초»** — 한 번 시험이 몇 분이라 시각까지 안 적어도 궤적과 맞댈 수 있다.
@@ -303,7 +304,7 @@ export function useRouteDerivations(
         const m = new Map<string, EtaCell>();
         for (const e of routeTimeline) {
             if (e.etaMs == null) continue;          // 주행을 모르면 안 적는다 (규칙 ④)
-            const hhmm = new Date(e.etaMs).toTimeString().substring(0, 5);
+            const hhmm = hhmmText(e.etaMs) ?? '--:--';   // 🕐 한 모양은 shared
             const cur = m.get(e.orderId) ?? {};
             m.set(e.orderId, e.stopType === 'pickup'
                 ? { ...cur, pickupEta: hhmm, pickupShift: e.dwellShiftMinutes }
