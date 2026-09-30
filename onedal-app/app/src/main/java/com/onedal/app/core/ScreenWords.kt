@@ -99,8 +99,12 @@ object ScreenWords {
         texts.forEach { add(it, WordKind.UNKNOWN, pendingSample) }
     }
 
-    @Synchronized fun add(raw: String, kind: WordKind, sample: String? = null) {
-        val p = current ?: return
+    /**
+     * @param page 이 글자를 읽은 페이지 — 주면 지금 화면 대신 그 페이지에 넣는다.
+     *   사진 판독은 찍고 약 0.5초 뒤 끝나서, 그 사이 수락·뒤로로 지금 화면이 바뀌어 있을 수 있다(`PickerDetailOcrParser`)
+     */
+    @Synchronized fun add(raw: String, kind: WordKind, sample: String? = null, page: Page? = null) {
+        val p = page ?: current ?: return
         val w = wordOf(raw, kind) ?: return
         val words = byPage.getOrPut(p) { LinkedHashMap() }
         val key = "${kind.word}|$w"

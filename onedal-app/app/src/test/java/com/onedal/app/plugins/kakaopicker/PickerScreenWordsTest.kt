@@ -3,6 +3,7 @@ package com.onedal.app.plugins.kakaopicker
 import com.onedal.app.core.Page
 import com.onedal.app.core.ScreenWords
 import org.junit.After
+import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -11,7 +12,9 @@ import org.junit.Test
  * 배차망이 목록을 바꾸면 이 표에 먼저 드러난다 (reviews/24).
  */
 class PickerScreenWordsTest {
-    @After fun clear() { ScreenWords.onScreen(null); ScreenWords.drain() }
+    /** 🧹 다른 검사(사진 판독 등)가 페이지를 정해 넣고 남긴 낱말까지 — 모든 페이지를 비운다 */
+    @Before fun clearBefore() { ScreenWords.onScreen(null); while (ScreenWords.drain() != null) Unit }
+    @After fun clear() { ScreenWords.onScreen(null); while (ScreenWords.drain() != null) Unit }
 
     @Test fun `잡음과 남는 토막이 모이고 쓴 칸은 안 모인다`() {
         ScreenWords.onScreen(Page.LIST)

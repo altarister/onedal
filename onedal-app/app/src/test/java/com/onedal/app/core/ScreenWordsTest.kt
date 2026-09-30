@@ -1,6 +1,7 @@
 package com.onedal.app.core
 
 import org.junit.After
+import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -11,7 +12,9 @@ import java.io.File
  * 홍수는 가름으로 막는다 — 값은 이름표(«<시각>»), «키 : 값»은 키만, 지명은 «<지역>», 가게·건물 모양은 «<가게·건물>».
  */
 class ScreenWordsTest {
-    @After fun clear() { ScreenWords.onScreen(null); ScreenWords.drain() }
+    /** 🧹 다른 검사(사진 판독 등)가 페이지를 정해 넣고 남긴 낱말까지 — 모든 페이지를 비운다 */
+    @Before fun clearBefore() { ScreenWords.onScreen(null); while (ScreenWords.drain() != null) Unit }
+    @After fun clear() { ScreenWords.onScreen(null); while (ScreenWords.drain() != null) Unit }
 
     private fun words() = ScreenWords.drain()?.words?.map { it.kind to it.word }
 
@@ -102,6 +105,15 @@ class ScreenWordsTest {
         ScreenWords.onScreen(Page.DETAIL)
         ScreenWords.add("퀵 비즈 O", WordKind.UNKNOWN, "퀵 비즈 O 105동 18,140 경기 성남시 분당구 이매2동 01012345678 010-1234-5678 넘기기 수락하기")
         assertEquals("퀵 비즈 O <동호수> <숫자> <지역> <전화> <전화> 넘기기 수락하기", ScreenWords.drain()!!.words[0].sample)
+    }
+
+    /** 📸 사진 판독은 찍고 약 0.5초 뒤 끝난다 — 그 사이 수락·뒤로로 화면이 바뀌어도 상세 글자는 상세 낱말이다 (교차 리뷰) */
+    @Test fun `페이지를 주면 지금 화면이 아니라 그 페이지에 넣는다`() {
+        ScreenWords.onScreen(Page.LIST)
+        ScreenWords.add("물품 정보", WordKind.UNKNOWN, page = Page.DETAIL)
+        val r = ScreenWords.drain()!!
+        assertEquals("detail", r.page)
+        assertEquals(listOf("unknown" to "물품 정보"), r.words.map { it.kind to it.word })
     }
 
     @Test fun `화면 종류는 네 페이지 가운데 하나로 - 모르는 화면은 안 모은다`() {
