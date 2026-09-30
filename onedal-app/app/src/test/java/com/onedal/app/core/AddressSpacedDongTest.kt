@@ -2,6 +2,7 @@ package com.onedal.app.core
 
 import com.onedal.app.core.engine.AddressForm
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -18,5 +19,17 @@ class AddressSpacedDongTest {
         assertEquals("서울 중구 을지로3가", AddressForm.joinSpacedUnit("서울 중구 을지로 3가"))
         assertEquals("배송 4.5km", AddressForm.joinSpacedUnit("배송 4.5km"))
         assertEquals("101동 1203호", AddressForm.joinSpacedUnit("101동 1203호"))
+    }
+
+    /**
+     * 🏢 **아파트 동 번호는 붙이지 않는다** (교차 리뷰 · onedal-ab · onedal-1f «가»).
+     * 붙이는 것은 앞 토막이 명부의 읍면동(«죽전»+동 · «을지로»)이고 숫자가 1~2자리일 때뿐 —
+     * «푸르지오 2동»을 붙이면 행정동 없는 주소가 «전체 주소»로 통과했다.
+     */
+    @Test fun `아파트 동 번호는 안 붙인다 · 행정동 없는 주소는 전체가 아니다`() {
+        assertEquals("경기 용인시 수지구 푸르지오 2동", AddressForm.joinSpacedUnit("경기 용인시 수지구 푸르지오 2동"))
+        assertFalse(AddressForm.isFull("경기 용인시 수지구 푸르지오 2동"))
+        assertEquals("수지구 푸르지오 101동", AddressForm.joinSpacedUnit("수지구 푸르지오 101동"))
+        assertEquals("죽전 101동", AddressForm.joinSpacedUnit("죽전 101동"))
     }
 }

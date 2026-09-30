@@ -27,14 +27,22 @@ object AddressForm {
     /** 🗂️ 명부 + «구 없는 시» — 부를 때마다 다시 합치지 않는다(상세 한 번에 여러 번 불린다 · 명부는 굳힌 상수) */
     private val defaultMerged: Map<String, Set<String>> by lazy { RegionRegister.bySgg + citiesWithoutGu(RegionRegister.bySgg) }
 
-    /** «죽전 1동» → «죽전1동» · «을지로 3가» → «을지로3가» — 사진 판독이 동 이름과 번호 사이를 띄운다 */
-    private val SPACED_UNIT = Regex("""(?<=^|\s)([가-힣]+)\s+(\d+(?:동|가))(?=\s|$)""")
+    /**
+     * «죽전 1동» → «죽전1동» · «을지로 3가» → «을지로3가» — 사진 판독이 동 이름과 번호 사이를 띄운다.
+     * 🏢 앞 토막이 명부의 읍면동이고(«죽전»+동 · «을지로») 번호가 1~2자리일 때만 — «푸르지오 2동»(아파트 동)을 붙이면 행정동 없는 주소가 전체로 통과했다.
+     */
+    private val SPACED_UNIT = Regex("""(?<=^|\s)([가-힣]+)\s+(\d{1,2}(?:동|가))(?=\s|$)""")
+    /** 명부의 읍면동 이름 전부 — 번호 없는 이름이다(«죽전동» · «을지로») */
+    private val registeredDongs: Set<String> by lazy { RegionRegister.bySgg.values.flatten().toSet() }
 
     /**
      * 🏘️ **띄어 읽힌 동 번호를 붙인다** (`AddressSpacedDongTest` · 라이브 10-01 00:32:02 «경기 용인시 수지구 죽전 1동 순창떡»이 «하차 주소 짧음»).
      * 요건 검사 · 사진 행정동 · 목록 줄 대조 열쇠가 같이 쓴다.
      */
-    fun joinSpacedUnit(text: String): String = SPACED_UNIT.replace(text) { "${it.groupValues[1]}${it.groupValues[2]}" }
+    fun joinSpacedUnit(text: String): String = SPACED_UNIT.replace(text) {
+        val base = it.groupValues[1]
+        if ("${base}동" in registeredDongs || base in registeredDongs) "$base${it.groupValues[2]}" else it.value
+    }
 
     fun isFull(text: String, register: Map<String, Set<String>> = RegionRegister.bySgg): Boolean {
         val tokens = joinSpacedUnit(text).trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }.map { SIDO_SHORT[it] ?: it }
