@@ -42,6 +42,12 @@ interface IDispatchAppPlugin {
      */
     val acceptButtons: List<String>?
 
+    /**
+     * 📄 **페이지 정의 — 목록 · 상세 · 확정 · 내 오더의 칸이 화면 어디에 어떤 글자로 오나** (reviews/24).
+     * 기본 구현을 두지 않는다 — 배차망마다 제 손으로 적는다. 칸 이름은 공통(`PageField`).
+     */
+    val pages: com.onedal.app.core.PageSpecs
+
     /** 스냅샷 OCR 검증기 (null이면 기존 텍스트 기반 파싱 유지) */
     val ocrParser: ScreenOcrParser<*>?
 

@@ -37,6 +37,9 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
      * 나머지는 계약과 관련 없으므로 어떤 것도 클릭 가능하다."* — 그래서 앱은 목록 카드를 눌러 상세까지 들어가지만,
      * 계약 버튼은 누르지 않는다. 목록에서 오더카드를 피하는 것은 `planListTap`(«수락» 글자가 보이면 손대지 않는다)이다.
      */
+    /** 📄 페이지 정의 — `KakaoPickerPages` (reviews/24) */
+    override val pages get() = KakaoPickerPages.pages
+
     override val acceptButtons: List<String>? = null
 
     override val ocrParser: ScreenOcrParser<*> = PickerDetailOcrParser()

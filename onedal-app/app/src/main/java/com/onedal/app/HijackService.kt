@@ -363,6 +363,9 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         AppLogger.attachFile(this)
         AppLogger.i(TAG, LogTag.BOOT, "📝 [로그 파일] 여기에 쌓는다 — ${AppLogger.filePath ?: "열지 못했다"}")
+        // 📄 배차망 페이지 정의 — «모름» 칸이 실물 확인 목록 · «버림»·«안 읽음» 칸이 다음에 읽을 재료 (reviews/24)
+        for (p in com.onedal.app.plugins.DispatchPluginRegistry.all())
+            AppLogger.i(TAG, LogTag.BOOT, "📄 [페이지 정의] ${com.onedal.app.core.PageSpecSummary.line(p.label, p.pages)}")
 
         com.onedal.app.plugins.DispatchPluginRegistry.init(this)
         val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
