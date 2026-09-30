@@ -279,6 +279,8 @@ export interface UserSession {
     pickupListAt: { x: number; y: number; at?: number } | null;
     /** 🎯 상차 목록을 만들 때 본 «목적지마다 가까이 옴» — 바뀌면 하차 목록도 다시 만든다 (`filterManager.rebuildPickupList`) */
     pickupNearKey: string | null;
+    /** 📅 내일 콜 상차 목록 한 벌 — 집 둘레 기본 상차 반경 안의 동 · 열쇠(집 x,y | 반경)가 같으면 다시 안 센다 (`filterManager.ensureReservedPickupList`) */
+    reservedPickup: { key: string; keywords: string[]; groups: Record<string, string[]> } | null;
     /**
      * 🛣️ **경로 위에 있는 동 목록** — 상차지 판정의 원천.
      *
@@ -354,6 +356,7 @@ function createDefaultSession(userId: string): UserSession {
         detourOrderKm: null,
         pickupListAt: null,
         pickupNearKey: null,
+        reservedPickup: null,
         detourFlat: null,
         filterLine: null,
         routeSnapshot: null,

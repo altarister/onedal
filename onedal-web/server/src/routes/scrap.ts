@@ -7,7 +7,7 @@ import { rememberSentFilterVersion } from "../core/phoneCheck";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
 import { cancelOrderWaits } from "../state/waits";
-import { ensureBusinessDay, buildAppOrderKm } from "../state/filterManager";
+import { ensureBusinessDay, buildAppOrderKm, ensureReservedPickupList } from "../state/filterManager";
 
 import { touchDeviceSession } from "./devices";
 import { simRoundForPhone } from "./sim";
@@ -280,6 +280,12 @@ router.post("/", (req, res) => {
             /* 📅 내일 콜은 줄이지 않은 기본 상차 반경 — 서버 판정과 같은 함수 · 비면 칸이 없다(앱은 pickupRadiusKm) */
             const reservedR = reservedPickupRadiusKmOf(session.baseFilter);
             if (reservedR != null) appFilter.reservedPickupRadiusKm = reservedR;
+            /* 📅 내일 콜 상차 목록 — 집 둘레 같은 반경 안의 동(판정과 같은 집 · 반경) · 집이 없으면 칸이 없다(앱은 옛 길) */
+            const reservedList = ensureReservedPickupList(session, userId);
+            if (reservedList) {
+                appFilter.reservedPickupKeywords = reservedList.keywords;
+                appFilter.reservedPickupGroups = reservedList.groups;
+            }
         }
         /* 🎯 앱은 «어디로 가나» 하나만 안다 — 복귀면 집 시가 간다 (조사 ①-1 · 파생 `goalCity`) */
         if (session.activeFilter.goalCity) appFilter.destinationCity = session.activeFilter.goalCity;

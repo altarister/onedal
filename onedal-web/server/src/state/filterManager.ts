@@ -11,7 +11,7 @@
  * - activeFilter는 직접 수정하고 직접 읽는 1등 시민(first-class citizen)입니다.
  */
 
-import { isHomeCallSince, SAME_NAME_DONGS } from "@onedal/shared";
+import { isHomeCallSince, SAME_NAME_DONGS, reservedPickupRadiusKmOf } from "@onedal/shared";
 import { callTargetToday } from "../core/callTargetEvents";
 import db from "../db";
 import { getActiveCalls, computeLoadedPoints, buildOrderSync, filterVersionOf } from "../core/helpers";
@@ -311,7 +311,7 @@ export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
 
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { planArrivalStops } from '../services/routeComposer';
-import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, regionsTouchingNetGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
+import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, regionsTouchingNetGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf, homeOriginOf } from "../services/geoService";
 import { slog } from "../utils/fileLogger";
 import { promoteDueReserved } from "../services/reservedOrders";
 
@@ -969,6 +969,29 @@ function goalZonesNow(session: ReturnType<typeof getUserSession>, userId: string
  * 반경은 앱·지도·그물이 쓰는 그 함수(`effectiveRadii`)에서 — 자동이면 줄인 값. «복귀콜을 잡았나»는 `homeCallsOf` 한 곳.
  * @returns 목록이 바뀌었나 (부르는 쪽이 관제웹에 알릴지 정한다)
  */
+/**
+ * 📅 **내일 콜 상차 목록** (기사님 «내일콜 가») — 집 둘레 기본 상차 반경 안의 동.
+ *    서버 판정이 내일 콜을 재는 그 두 값(집 `homeOriginOf` · 기본 반경 `reservedPickupRadiusKmOf`)으로 오늘 상차 목록과 같은 함수를 부른다.
+ *    원달앱은 집까지 거리를 모르니 이 목록으로 내일 이후 예약 콜의 상차지를 거른다(앱 필터 reservedPickupKeywords · reservedPickupGroups).
+ *    집 · 반경이 바뀔 때만 다시 센다 — 영업일 · 자동 반경 · 차 위치와 무관하다. 집이나 기본 반경이 없으면 null(칸을 안 싣는다).
+ */
+export function ensureReservedPickupList(session: ReturnType<typeof getUserSession>, userId: string): { keywords: string[]; groups: Record<string, string[]> } | null {
+    const home = homeOriginOf(userId);
+    const radiusKm = reservedPickupRadiusKmOf(session.baseFilter);
+    if (!home || radiusKm == null) { session.reservedPickup = null; return null; }
+    const key = `${home.x.toFixed(5)},${home.y.toFixed(5)}|${radiusKm}`;
+    if (session.reservedPickup?.key === key) return session.reservedPickup;
+    const { list, grouped } = pickupListFor({
+        me: { x: home.x, y: home.y },
+        radii: { pickupRadiusKm: radiusKm, detourRadiusKm: 0 },
+        line: null,
+        parts: { line: false, goalCities: [] },
+    });
+    session.reservedPickup = { key, keywords: list, groups: grouped };
+    slog('필터', `📋 [내일 상차 목록] 집 ${SettingsRepository.getHomeLocation(userId)?.address ?? '?'} · 반경 ${radiusKm}km → ${list.length}곳`);
+    return session.reservedPickup;
+}
+
 export function rebuildPickupList(session: ReturnType<typeof getUserSession>, userId: string): boolean {
     const me = originOf(session as Parameters<typeof originOf>[0]);
     if (!me) return false;
