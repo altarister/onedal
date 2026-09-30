@@ -49,7 +49,7 @@ describe('OrderEvaluator', () => {
         });
 
         // KakaoService 모킹 (지오코딩 & 경로 연산 성공 가정)
-        kakaoService.geocodeAddress.mockResolvedValue({ x: 127.1, y: 37.1 });
+        kakaoService.geocodeCallAddress.mockResolvedValue({ x: 127.1, y: 37.1, approxArea: null });
         kakaoService.calculateSoloRoute.mockResolvedValue({
             distance: 10000, // 10km
             duration: 1200,  // 20분

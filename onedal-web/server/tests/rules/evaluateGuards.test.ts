@@ -36,7 +36,7 @@ describe('🪦 판정 끝 — 아직 이 객체 · 심사 중일 때만 저장·
         SettingsRepository.getKakaoRoutingOptions.mockReturnValue({ carType: 1, defaultPriority: 'RECOMMEND', vehicleType: '1t' });
         /* 좌표 찾기가 끝나기 전에 끼어들 틈을 연다 */
         pending = [];
-        kakaoService.geocodeAddress.mockImplementation(() => new Promise(r => { pending.push(r); }));
+        kakaoService.geocodeCallAddress.mockImplementation(() => new Promise(r => { pending.push(r); }));
         kakaoService.calculateSoloRoute.mockResolvedValue({ distance: 10000, duration: 1200, polyline: [], approachDistance: 1000, approachDuration: 120 });
         process.env.KAKAO_REST_API_KEY = 'test-key';
     });
@@ -111,7 +111,7 @@ describe('📸 판정 재료 한 번 뜨기', () => {
         SettingsRepository.loadPricingConfig.mockReturnValue({ vehicleRates: { '1t': 1000 }, agencyFeePercent: 20, maxDiscountPercent: 10 });
         SettingsRepository.getKakaoRoutingOptions.mockReturnValue({ carType: 1, defaultPriority: 'RECOMMEND', vehicleType: '1t' });
         pending = [];
-        kakaoService.geocodeAddress.mockImplementation(() => new Promise(r => { pending.push(r); }));
+        kakaoService.geocodeCallAddress.mockImplementation(() => new Promise(r => { pending.push(r); }));
         kakaoService.calculateSoloRoute.mockResolvedValue({ distance: 10000, duration: 1200, polyline: [], approachDistance: 1000, approachDuration: 120 });
         jest.spyOn(OrderRepository, 'saveJudgment').mockImplementation(() => {});
         process.env.KAKAO_REST_API_KEY = 'test-key';

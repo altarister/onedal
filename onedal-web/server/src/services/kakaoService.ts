@@ -800,6 +800,35 @@ async function geocodeOnce(query: string): Promise<{x: number, y: number} | null
 }
 
 /**
+ * 📍 **물러설 곳 — 읍·면·동·리·가로 끝나는 마지막 낱말까지** (기사님 «가» · onedal-1f).
+ *    «경기 이천시 마장면 강동케이앤드에스» → «경기 이천시 마장면». 첫 낱말(시·도)은 보지 않는다. 없거나 원래 글과 같으면 null.
+ */
+export function areaPrefixOf(query: string): string | null {
+    const words = cleanQueryOf(query).split(' ');
+    for (let i = words.length - 1; i >= 1; i--) {
+        if (/[읍면동리가]$/.test(words[i])) return i === words.length - 1 ? null : words.slice(0, i + 1).join(' ');
+    }
+    return null;
+}
+
+/**
+ * 📍 **콜 판정용 좌표** — 주소를 못 찾으면 읍·면·동 중심으로 물러서고 «대략»(`approxArea`)을 붙인다 (기사님 «가» · onedal-1f).
+ * 🔴 콜 판정만 쓴다 — 집 주소 좌표(`geocodeAddress` · 설정)는 물러서지 않는다. 집이 «면 중심»으로 조용히 저장되면 안 된다.
+ * 🔴 원래 주소 글자로는 캐시에 아무것도 안 남긴다 — 캐시에 드는 것은 읍면동 글자의 질의뿐(같은 회사가 나중에 카카오에 오르면 제 좌표를 받는다).
+ *    기대 시·도 방어는 읍면동 질의에도 그대로 걸린다. 카카오 전면 오류는 물러서지 않고 던진다(`geocodeAddress`).
+ */
+export async function geocodeCallAddress(query: string): Promise<{ x: number; y: number; approxArea: string | null } | null> {
+    const exact = await geocodeAddress(query);
+    if (exact) return { ...exact, approxArea: null };
+    const area = query ? areaPrefixOf(query) : null;
+    if (!area) return null;
+    const center = await geocodeAddress(area);
+    if (!center) return null;
+    slog('판정', `📍 [좌표 대략] ${query} → ${area} 중심`);
+    return { ...center, approxArea: area };
+}
+
+/**
  * 단순 경로 비교 (프론트엔드 REST 프록시용)
  * 기존 kakao.ts의 중복 로직을 이 함수로 통합
  */

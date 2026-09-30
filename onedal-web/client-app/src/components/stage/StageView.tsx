@@ -15,6 +15,7 @@ import { barFocusOf, type BarFocus } from './barFocus';
 /* 🎬 상태바 문구는 여기 한 곳이 정한다 — 화면은 그리기만 한다 (규칙 ③) */
 import { sheetStatus } from '../../lib/sheetStatus';
 import { reservedShortOf } from '../../lib/reservedLine';
+import { approxShortOf } from '../../lib/approxAddress';
 import { remainOnRouteKm } from '../../lib/remainOnRoute';
 import { trailOfShown, hiddenPastIds } from '../../lib/pastCalls';
 import { deckOrder } from '../../lib/deckFocus';
@@ -638,6 +639,7 @@ export default function StageView(props: Props) {
         doneToday: cycleDeck.filter(isDeliveredCall).length,
         judging: !!judging,
         judgingReservedDay: judging ? reservedShortOf(judging) : null,
+        judgingApprox: judging ? approxShortOf(judging) : null,
         moving: drive === 'drive',
         next: next ? {
             visitNo: next.visitNo, name: next.name,
@@ -893,6 +895,8 @@ export default function StageView(props: Props) {
                                 <span className="shrink-0">{bar.mark}</span>
                                 {/* 📅 판정 중인 콜이 예약 콜이면 보관 날 — 줄지 않는다(shrink-0) · 넘치면 옆 글자가 먼저 줄어든다 */}
                                 {bar.reservedDay && <span className="shrink-0 font-black text-info">📅 {bar.reservedDay}</span>}
+                                {/* 📍 판정 중인 콜의 주소가 대략이면 — 예약 날과 같은 규칙(줄지 않고 옆 글자가 먼저 줄어든다) */}
+                                {bar.approx && <span className="shrink-0 font-black text-warning">{bar.approx}</span>}
                                 {bar.notice ? (
                                     <span className="min-w-0 truncate text-text-muted font-semibold">· {bar.notice}</span>
                                 ) : null}
@@ -907,7 +911,7 @@ export default function StageView(props: Props) {
                                             } : { background: 'var(--color-info)', color: '#fff' }}>
                                             {bar.no}
                                         </span>
-                                        <span className={bar.reservedDay ? 'min-w-0 truncate' : 'shrink-0'}>{bar.name}</span>
+                                        <span className={bar.reservedDay || bar.approx ? 'min-w-0 truncate' : 'shrink-0'}>{bar.name}</span>
                                         {bar.lead && <span className="shrink-0 text-text-muted font-semibold">{bar.lead}</span>}
                                         <span className="ml-auto shrink-0 text-text-muted font-semibold truncate">{bar.tail}</span>
                                     </>

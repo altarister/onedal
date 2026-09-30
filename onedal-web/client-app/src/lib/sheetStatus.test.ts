@@ -220,3 +220,13 @@ describe('📅 상태바 — 판정 중 예약 콜', () => {
         expect(sheetStatus({ judging: true, judgingReservedDay: null }).reservedDay).toBeNull();
     });
 });
+
+/** 📍 **판정 중인 콜의 주소가 대략이면 «📍 대략»** (onedal-1f · 기사님 «가») — 판정 중일 때만 */
+describe('📍 상태바 — 판정 중 주소 대략', () => {
+    it('🔴 판정 중 · 대략 → approx 가 실린다', () => {
+        expect(sheetStatus({ judging: true, judgingApprox: '📍 대략' }).approx).toBe('📍 대략');
+    });
+    it('판정 중이 아니면 없다', () => {
+        expect(sheetStatus({ judging: false, judgingApprox: '📍 대략' }).approx).toBeNull();
+    });
+});

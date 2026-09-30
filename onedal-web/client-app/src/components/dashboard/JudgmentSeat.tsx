@@ -4,6 +4,7 @@ import { isManualLineage, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from '@one
 import { useSettingsStore } from '../../stores/settingsStore';
 import { verdictOf, type VerdictColor } from '../../lib/verdict';
 import { reservedBadgeOf } from '../../lib/reservedLine';
+import { approxBadgeOf } from '../../lib/approxAddress';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { seatConclusion } from '../../lib/seatConclusion';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -28,9 +29,9 @@ export const SOAK: Record<VerdictColor, { tint: string; bar: string; text: strin
     '사고': { tint: 'rgba(224,85,99,.30)',  bar: '#e05563', text: '#f09aa4', glow: 'rgba(224,85,99,.45)',  wm: 'rgba(224,85,99,.15)' },
 };
 // 테마를 따른다 — 다크 고정색은 라이트 테마에서 이질적이다 (기사님)
-/** 판정석 카드 높이 — 예약 콜이면 알약 줄만큼 더한다 */
+/** 판정석 카드 높이 — 알림 줄(예약 · 주소 대략)이 있으면 그 줄만큼 더한다 */
 const SEAT_H = 158;
-const RESERVED_ROW_H = 26;
+const NOTICE_ROW_H = 26;
 const CARD_BG = 'linear-gradient(180deg, var(--color-surface-alt), var(--color-surface))';
 /** 호칭의 타겟명 — 용어집 조합 규칙. 🔴 관내는 파생이라 여기 없다 */
 const TARGET_NAME: Record<CallTarget, string> = { DEST: '노선', HOME: '복귀' };
@@ -156,17 +157,21 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
      *    걷은 15px 은 본문 높이로 간다 (115 → 131px).
      */
     /**
-     * 📅 **예약 콜이면 보관 날·시각 한 줄** (onedal-1f · 기사님 «가») — 손으로 연 예약 콜을 오늘 콜로 보고 수락하지 않게.
-     *    머리줄은 폰 폭에서 이미 꽉 찬다(번호 · 이름 · 상차→하차 · 금액) — 알약은 **머리줄 바로 아래 제 줄**에 둔다.
-     *    그 줄만큼 카드가 커진다(`RESERVED_ROW_H`) — 본문·버튼이 밀려 잘리지 않게. 시트는 카드 높이를 스스로 잰다.
-     *    오늘 콜에는 줄도 높이도 없다.
+     * 🪧 **알림 줄 — 머리줄 바로 아래 제 줄** (onedal-1f · 기사님 «가»). 머리줄은 폰 폭에서 이미 꽉 찬다(번호 · 이름 · 상차→하차 · 금액).
+     *    📅 예약 콜이면 보관 날·시각 — 손으로 연 예약 콜을 오늘 콜로 보고 수락하지 않게. 줄지 않는다.
+     *    📍 주소를 못 찾아 읍·면·동 중심으로 판정했으면 어느 쪽이 대략인지 — 통화로 확인하실 자리. 넘치면 이쪽이 먼저 줄어든다.
+     *    그 줄만큼 카드가 커진다(`NOTICE_ROW_H`) — 본문·버튼이 밀려 잘리지 않게. 시트는 카드 높이를 스스로 잰다.
+     *    둘 다 없으면 줄도 높이도 없다.
      */
     const reservedBadge = reservedBadgeOf(route);
-    const seatH = SEAT_H + (reservedBadge ? RESERVED_ROW_H : 0);
-    const reservedRow = reservedBadge && (
-        <div className="flex items-center relative z-10" style={{ height: RESERVED_ROW_H, padding: '0 14px' }}>
-            <span className="whitespace-nowrap" style={{ borderRadius: 7, padding: '2px 9px', fontSize: 13, fontWeight: 900, background: 'rgba(56,189,248,.16)', color: 'var(--color-info)', border: '1px solid rgba(56,189,248,.45)' }}>
-                {reservedBadge}</span>
+    const approxBadge = approxBadgeOf(route);
+    const seatH = SEAT_H + (reservedBadge || approxBadge ? NOTICE_ROW_H : 0);
+    const noticeRow = (reservedBadge || approxBadge) && (
+        <div className="flex items-center relative z-10" style={{ height: NOTICE_ROW_H, padding: '0 14px', gap: 6 }}>
+            {reservedBadge && <span className="shrink-0 whitespace-nowrap" style={{ borderRadius: 7, padding: '2px 9px', fontSize: 13, fontWeight: 900, background: 'rgba(56,189,248,.16)', color: 'var(--color-info)', border: '1px solid rgba(56,189,248,.45)' }}>
+                {reservedBadge}</span>}
+            {approxBadge && <span className="min-w-0 truncate" style={{ borderRadius: 7, padding: '2px 9px', fontSize: 13, fontWeight: 900, background: 'rgba(245,158,11,.14)', color: 'var(--color-warning)', border: '1px solid rgba(245,158,11,.45)' }}>
+                {approxBadge}</span>}
         </div>
     );
     const header = (
@@ -220,7 +225,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     {judged ? score ?? '' : '?'}
                 </div>
                 {header}
-                {reservedRow}
+                {noticeRow}
                 {/* 👀 미리보기는 **누르면 치운다** — 배차망엔 아무 일도 안 생기고(안 잡은 콜) 취소 한도도 안 깎인다. 펼치기는 안 쓴다 (운전 중 두 손짓은 못 기억한다) */}
                 <div className="relative z-10 tabular-nums cursor-pointer" style={{ padding: '5px 16px 11px 21px' }}
                      onClick={() => {
@@ -309,7 +314,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
             {drain}
             <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-none" style={{ width: 5, background: c ? `linear-gradient(180deg, ${c.bar}, ${c.bar}59)` : '#3a4358', boxShadow: c ? `2px 0 14px ${c.glow}` : undefined }} />
             {header}
-            {reservedRow}
+            {noticeRow}
             <div className="flex relative z-10" style={{ gap: 9, padding: '5px 13px 11px', flex: 1, minHeight: 0 }}>
                 <button disabled={!judged || busy}
                     onClick={() => { logRoadmapEvent("결재", "웹", "심사석 — 거절(왼쪽) 버튼 클릭", "관제대시보드"); setProcessingId?.(route.id); onDecision?.(route.id, 'SAFE_CANCEL'); }}

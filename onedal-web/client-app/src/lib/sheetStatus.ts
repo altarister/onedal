@@ -69,6 +69,8 @@ export interface SheetStatusInput {
     judging?: boolean;
     /** 📅 판정 중인 콜이 예약 콜이면 보관 날 짧은 꼴 «10/3» (`reservedShortOf`) — 오늘 콜이면 null */
     judgingReservedDay?: string | null;
+    /** 📍 판정 중인 콜의 주소가 읍면동 중심(대략)이면 «📍 대략» (`approxShortOf`) — 정확하면 null */
+    judgingApprox?: string | null;
     /** 달리는 중인가 (아니면 서 있다) */
     moving?: boolean;
     /** 다음 정거장 — 없으면 갈 곳이 없는 것이다 */
@@ -126,6 +128,8 @@ export interface SheetStatus {
      *    판정 중이 아니거나 오늘 콜이면 null. 줄이 넘치면 이 글자보다 다른 글자가 먼저 줄어든다(화면).
      */
     reservedDay: string | null;
+    /** 📍 판정 중인 콜의 주소 대략 «📍 대략» — 판정 중일 때만. 넘치면 다른 글자가 먼저 줄어든다(화면) */
+    approx: string | null;
 }
 
 const none = { mark: '', state: '', no: null, callNo: null, stopKind: null, name: '', lead: '', tail: '', notice: null } as const;
@@ -135,7 +139,9 @@ const kindOf = (stop?: '상차' | '하차'): 'pickup' | 'dropoff' | null =>
     stop === '상차' ? 'pickup' : stop === '하차' ? 'dropoff' : null;
 
 export function sheetStatus(i: SheetStatusInput): SheetStatus {
-    return { ...sheetStatusCase(i), due: i.due ?? null, reservedDay: i.judging ? (i.judgingReservedDay ?? null) : null };
+    return { ...sheetStatusCase(i), due: i.due ?? null,
+             reservedDay: i.judging ? (i.judgingReservedDay ?? null) : null,
+             approx: i.judging ? (i.judgingApprox ?? null) : null };
 }
 
 /**
@@ -146,7 +152,7 @@ export function departureDue(leftMin: number, atHhmm: string): string {
     return leftMin < 0 ? `${-leftMin}분 지각` : `${atHhmm} 출발`;
 }
 
-function sheetStatusCase(i: SheetStatusInput): Omit<SheetStatus, 'due' | 'reservedDay'> {
+function sheetStatusCase(i: SheetStatusInput): Omit<SheetStatus, 'due' | 'reservedDay' | 'approx'> {
     /**
      * ✅ **도착 — 가장 구체적인 사실이 이긴다.** 콜이 하나도 안 남았어도(마지막 하차)
      *    «대기»보다 «도착»이 먼저다. 떠나면 저절로 «대기»로 넘어간다.
