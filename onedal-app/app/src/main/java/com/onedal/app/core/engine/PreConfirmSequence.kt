@@ -371,5 +371,13 @@ fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: 
  * 🔎 **채운 뒤 필터 한 번 — 읽기 → 채우기 → 모자라면 사진 뒤, 어느 배차망이든 같은 함수** (기사님 «같은 순서»).
  * 목록에서 모르던 값(하차 등)을 채운 뒤 같은 필터를 다시 건다. 성적표는 목록에서 이미 셌으므로 다시 세지 않는다(tally 없음).
  */
-fun ScanContext.passesFilterAfterFill(plugin: IDispatchAppPlugin, order: SimplifiedOfficeOrder): Boolean =
-    scrapParser.shouldClick(order) && plugin.passesDetailFilter(this, order)
+fun ScanContext.passesFilterAfterFill(plugin: IDispatchAppPlugin, order: SimplifiedOfficeOrder): Boolean {
+    /**
+     * 📅 **예약 — 채운 뒤에는 날 모름도 막는다** (`ReservationGate.passesAfterFill`).
+     * 목록은 확실한 다른 날만 막고 날 모름을 들였다 — 상세에서 채워도 날을 모르면 여기서 막는다(«내일 걸 오늘 잡으면 사고다»).
+     */
+    val reservationOk = ReservationGate.passesAfterFill(order, scrapParser.reservationMode())
+    if (!reservationOk && com.onedal.app.core.LogOnce.changed("reservation-after-fill:${order.id}", "${order.reserved}${order.reservedDay}"))
+        AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 막음] 채운 뒤 — $currentTargetApp · 예약 ${ReservationGate.wordOf(order)} ${order.reservedAt ?: ""} · ${order.pickup}→${order.dropoff}")
+    return reservationOk && scrapParser.shouldClick(order) && plugin.passesDetailFilter(this, order)
+}

@@ -283,6 +283,9 @@ class InsungParser(private val context: Context) : IScrapParser {
 
             val rawText = order.rawText ?: ""
 
+            // 📅 예약 — 목록에서는 확실한 다른 날만 막는다(날 모름은 상세에서 채운 뒤 `passesFilterAfterFill`)
+            val reservationOk = com.onedal.app.core.engine.ReservationGate.passesList(order, filter.reservationMode)
+
             // ── 조건 1: 차종 매칭 (빈 배열이면 전체 허용) ──
             val vehicleMatch = if (filter.allowedVehicleTypes.isEmpty()) {
                 true
@@ -414,7 +417,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             // ── 로그 출력 (디버깅용) ──
             val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
             // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다 · reviews/22)
-            if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear$isDetailPreConfirmStage")) {
+            if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear$isDetailPreConfirmStage")) {
                 val screenCtxLog = if (isDetailPreConfirmStage) "DETAIL" else "LIST"
             
                 AppLogger.roadmap(LogTag.FILTER, "🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
@@ -445,7 +448,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
             }
 
-            val result = vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
+            val result = reservationOk && vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
 
             /**
              * 👁️ **성적표를 채운다** — 첫 번째로 걸린 축에만 센다 (기사님 확정).
@@ -460,6 +463,7 @@ class InsungParser(private val context: Context) : IScrapParser {
              */
             val axis = when {
                 result           -> "pass"
+                !reservationOk   -> "reservation"
                 !vehicleMatch    -> "vehicle"
                 !regionMatch     -> "region"
                 !fareMatch       -> "fare"
@@ -478,6 +482,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                     "fare"       -> t.fare++
                     "pickup"     -> t.pickup++
                     "pickupList" -> t.pickupList++
+                    "reservation" -> t.reservation++
                     "blacklist"  -> t.blacklist++
                     else         -> t.routeOrder++
                 }
@@ -572,6 +577,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
                 isActive = json.optBoolean("isActive", false),   // 키가 없으면 멈춘다 (안전 방향)
+                reservationMode = json.optString("reservationMode").ifEmpty { null },   // 📅 없으면 오늘 콜만 (`ReservationGate.modeOf`)
                 /* 🔒 선점 중 — 판정은 하고 클릭만 미룬다. 키가 없으면 false (옛 서버는 안 보낸다) */
                 evaluatingNow = json.optBoolean("evaluatingNow", false),
                 isSharedMode = json.optBoolean("isSharedMode", false),
@@ -703,6 +709,8 @@ class InsungParser(private val context: Context) : IScrapParser {
      * 🗳️ **판정을 콜에 실어 돌려준다**.
      *    스크랩이 서버로 올릴 때 이 값이 함께 가고, 현황판이 **제 손으로 다시 재지 않는다.**
      */
+    override fun reservationMode(): String? = loadCurrentFilter().reservationMode
+
     override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder =
         order.copy(verdict = judge(order, loadCurrentFilter(), tally).axis)
 

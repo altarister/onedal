@@ -316,6 +316,8 @@ data class FilterTally(
     var routeOrder: Int = 0,
     /** 📋 상차 목록에 안 걸린 콜 — 서버가 상차 목록을 보낼 때만 센다 (그때는 pickup·routeOrder 를 안 센다) */
     var pickupList: Int = 0,
+    /** 📅 예약 필터에 막힌 콜 — 오늘 콜만일 때 확실한 내일 콜 (`ReservationGate`) */
+    var reservation: Int = 0,
 )
 
 // 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)
@@ -376,6 +378,8 @@ data class FilterConfig(
      * 키가 없으면 false — 옛 서버는 이 칸을 안 보내고, 그때는 지금처럼 돈다.
      */
     val evaluatingNow: Boolean = false,
+    /** 📅 예약콜 필터 — today · tomorrowToo · tomorrowOnly. 없으면 오늘 콜만(`ReservationGate.modeOf`) */
+    val reservationMode: String? = null,
     val isSharedMode: Boolean = false,
     // ── 이하 기본값은 서버 미응답 시 최후 안전망 (서버 기본값과 같은 값으로 맞춘다) ──
     /**

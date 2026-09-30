@@ -98,7 +98,8 @@ class KakaoPickerParserTest {
         val aliases = listOf("성남", "수정구", "분당구", "중원구")
         // «분당 수내3» — 수내동인데 부분 문자열로는 «수내동»과 안 만난다 → 정규화 대조로 통과해야 한다
         val sungnam = parser.parse(listOf("퀵", "승", "예약", "내일", "강남", "16,478", "15.1km", "분당", "수내3", "수내3"))
-        assertTrue(KakaoPickerParser.decide(sungnam, 10000, 20.0, seongnamDongs, emptyMap(), aliases))
+        // 📅 이 실물 카드는 «예약 내일»이다 — 도착 대조를 보려는 칸이라 «내일 콜도»로 본다 (예약 축은 `ReservationGateTest`)
+        assertTrue(KakaoPickerParser.decide(sungnam, 10000, 20.0, seongnamDongs, emptyMap(), aliases, reservationMode = "tomorrowToo"))
         // 도착이 구 이름뿐인 카드(«수정») — 시 별칭 «수정구»로 통과해야 한다
         val guOnly = parser.parse(listOf("퀵", "소형", "수정", "12,000", "16.3km", "수정", "위례", "수정"))
         assertTrue(KakaoPickerParser.decide(guOnly, 10000, 20.0, seongnamDongs, emptyMap(), aliases))

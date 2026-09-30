@@ -39,6 +39,12 @@ interface IScrapParser {
     fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally? = null): SimplifiedOfficeOrder
 
     /**
+     * 📅 **서버 필터의 예약콜 값** — 채운 뒤 필터(`passesFilterAfterFill`)가 읽는다. 없으면 null(= 오늘 콜만).
+     * 🔴 기본 구현을 두지 않는다 — `withVerdict` 와 같은 까닭(위임자가 안 넘기면 조용히 null 이 된다).
+     */
+    fun reservationMode(): String?
+
+    /**
      * rawText에서 상차지 직선거리(숫자)만 파싱합니다.
      */
     fun parsePickupDistance(rawText: String): Double?

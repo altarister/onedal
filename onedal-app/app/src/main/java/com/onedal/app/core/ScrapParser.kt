@@ -45,4 +45,6 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
      */
     override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder =
         delegate.withVerdict(order, tally)
+
+    override fun reservationMode(): String? = delegate.reservationMode()
 }

@@ -12,7 +12,7 @@
  *
  * 읽는 줄 (원달앱 `KakaoPickerParser.shouldClick`):
  *   🧾 [알람 필터] {"minFare":…,"pickupRadiusKm":…,"destKeywords":[…],"keywordTraps":{…},"cityAliases":[…]}   ← 필터가 바뀔 때만
- *   🔔 [알람 판정] 3000원·픽업 4.2km·도착 이천 창전 — 하한 …·반경 …km·도착목표 N개 → 통과 · 축 요금✅ 상차✅ 도착✅
+ *   🔔 [알람 판정] 3000원·픽업 4.2km·도착 이천 창전·예약 없음 — 하한 …·반경 …km·도착목표 N개 → 통과 · 축 요금✅ 상차✅ 도착✅ 예약✅
  *
  * 결과가 어긋나면 고칠 곳이 갈린다:
  *   - 채점기 축 ≠ 앱 축 → **원달앱 판정**이 필터를 잘못 적용했다 (앱을 고친다)
@@ -56,15 +56,33 @@ function dongTokenMatch(dropoff, keys) {
     return dropoff.split(' ').map(t => normalizeRegion(t.trim())).some(t => t.length >= 2 && normKeys.has(t));
 }
 
+/** `ReservationGate.passesList` — 목록에서는 확실한 다른 날만 막는다 (날 모름 = day null) */
+function reservationPassesList(day, reserved, mode) {
+    if (mode === 'tomorrowToo') return day == null || day <= 1;
+    if (mode === 'tomorrowOnly') return (reserved && day == null) || day === 1;
+    return day == null || day <= 0;
+}
+
+/** `ReservationGate.wordOf` 의 낱말 → { reserved, day } */
+function reservationFromWord(w) {
+    if (w == null || w === '없음') return { reserved: false, day: null };
+    if (w === '날 모름') return { reserved: true, day: null };
+    if (w === '오늘') return { reserved: true, day: 0 };
+    if (w === '내일') return { reserved: true, day: 1 };
+    const n = /^(\d+)일 뒤$/.exec(w);
+    return { reserved: true, day: n ? Number(n[1]) : null };
+}
+
 /** `KakaoPickerParser.decideAxes` */
-function decideAxes({ fare, pickupKm, dropoff }, f) {
+function decideAxes({ fare, pickupKm, dropoff, reserved = false, day = null }, f) {
+    const reservationOk = reservationPassesList(day, reserved, f.reservationMode ?? 'today');
     const fareOk = fare >= f.minFare;
     const pickupOk = pickupKm != null && pickupKm <= f.pickupRadiusKm;   // 상차지거리는 목록 완독 칸 — 모르면 통과 아님
     const keys = f.destKeywords ?? [];
     const destOk = keys.length === 0 || dropoff === '' ||
         keys.some(k => regionHit(dropoff, k, (f.keywordTraps ?? {})[k] ?? [])) ||
         dongTokenMatch(dropoff, [...keys, ...(f.cityAliases ?? [])]);
-    return { fare: fareOk, pickup: pickupOk, destination: destOk, pass: fareOk && pickupOk && destOk };
+    return { fare: fareOk, pickup: pickupOk, destination: destOk, reservation: reservationOk, pass: reservationOk && fareOk && pickupOk && destOk };
 }
 
 // ── 로그 ──
@@ -78,7 +96,7 @@ function logFromPhone() {
     return out;
 }
 
-const DECISION = /(\d\d:\d\d:\d\d)\.\d+ .*🔔 \[알람 판정\] (\d+)원·픽업 ([\d.]+|\?)km·도착 (.*?) — .*→ (통과|탈락)(?: · 축 요금(✅|❌) 상차(✅|❌) 도착(✅|❌))?/;
+const DECISION = /(\d\d:\d\d:\d\d)\.\d+ .*🔔 \[알람 판정\] (\d+)원·픽업 ([\d.]+|\?)km·도착 (.*?)(?:·예약 (없음|날 모름|오늘|내일|\d+일 뒤))? — .*→ (통과|탈락)(?: · 축 요금(✅|❌) 상차(✅|❌) 도착(✅|❌)(?: 예약(✅|❌))?)?/;
 const FILTER = /(\d\d:\d\d:\d\d)\.\d+ .*🧾 \[알람 필터\] (\{.*\})\s*$/;
 const mark = b => (b ? '✅' : '❌');
 
@@ -93,13 +111,14 @@ for (const line of readFileSync(path, 'utf8').split('\n')) {
     if (fm) { try { filter = JSON.parse(fm[2]); } catch { /* 깨진 줄은 건너뛴다 */ } continue; }
     const dm = DECISION.exec(line);
     if (!dm) continue;
-    const [, at, fare, km, dropoffRaw, verdict, aFare, aPickup, aDest] = dm;
+    const [, at, fare, km, dropoffRaw, resWord, verdict, aFare, aPickup, aDest, aRes] = dm;
     if (since && at < since) continue;
     if (!filter) { noFilter++; continue; }
-    const call = { fare: Number(fare), pickupKm: km === '?' ? null : Number(km), dropoff: dropoffRaw === '?' ? '' : dropoffRaw };
+    const call = { fare: Number(fare), pickupKm: km === '?' ? null : Number(km), dropoff: dropoffRaw === '?' ? '' : dropoffRaw, ...reservationFromWord(resWord) };
     const want = decideAxes(call, filter);
     const app = { pass: verdict === '통과', fare: aFare ? aFare === '✅' : null, pickup: aPickup ? aPickup === '✅' : null, destination: aDest ? aDest === '✅' : null };
-    const axesSame = app.fare === null || (app.fare === want.fare && app.pickup === want.pickup && app.destination === want.destination);
+    const resSame = aRes == null || (aRes === '✅') === want.reservation;
+    const axesSame = app.fare === null || (app.fare === want.fare && app.pickup === want.pickup && app.destination === want.destination && resSame);
     rows.push({ at, call, want, app, ok: want.pass === app.pass && axesSame });
 }
 

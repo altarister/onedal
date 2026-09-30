@@ -121,6 +121,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
                 isActive = json.optBoolean("isActive", false),   // 키가 없으면 멈춘다 (안전 방향)
+                reservationMode = json.optString("reservationMode").ifEmpty { null },   // 📅 없으면 오늘 콜만 (`ReservationGate.modeOf`)
                 /* 🔒 선점 중 — 판정은 하고 클릭만 미룬다. 키가 없으면 false (옛 서버는 안 보낸다) */
                 evaluatingNow = json.optBoolean("evaluatingNow", false),
                 isSharedMode = json.optBoolean("isSharedMode", false),
@@ -296,6 +297,9 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
         val rawText = order.rawText ?: ""
 
+        // 📅 예약 — 인성 파서와 같은 자리 (목록에서는 확실한 다른 날만 · 날 모름은 채운 뒤 필터)
+        val reservationOk = com.onedal.app.core.engine.ReservationGate.passesList(order, filter.reservationMode)
+
         // ── 조건 1: 차종 매칭 (빈 배열이면 전체 허용) ──
         val vehicleMatch = if (filter.allowedVehicleTypes.isEmpty()) {
             true
@@ -390,7 +394,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         // ── 로그 출력 ──
         val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
         // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다 · reviews/22)
-        if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear")) {
+        if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear")) {
             AppLogger.roadmap(LogTag.FILTER, "🔍 [24시 필터] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
                     "도착지(${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
                     "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
@@ -415,7 +419,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
         }
 
-        val result = vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
+        val result = reservationOk && vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
 
         /**
          * 👁️ **성적표를 채운다** — 인성 파서와 **같은 규칙**이다 (첫 축에만 센다).
@@ -425,6 +429,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             t.seen++
             when {
                 result           -> t.passed++
+                !reservationOk   -> t.reservation++
                 !vehicleMatch    -> t.vehicle++
                 !regionMatch     -> t.region++
                 !fareMatch       -> t.fare++
@@ -512,6 +517,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
      *    실으려면 `InsungParser.withVerdict` 처럼 **판정 함수가 고른 축**을 그대로 넣는다 —
      *    성적표와 같은 분기를 써야 «성적표는 요금, 화면은 지역»으로 갈라지지 않는다.
      */
+    override fun reservationMode(): String? = loadCurrentFilter().reservationMode
+
     override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder = order
 
     override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
