@@ -55,7 +55,7 @@ describe('📊 하루 묶기 · 90일 합치기', () => {
     const OLD = '2020-01-01';
     const U1 = 'test-stats-u1', U2 = 'test-stats-u2';
     const iso = (day: string, h: number, m = 0) => new Date(Date.parse(`${day}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00+09:00`)).toISOString();
-    const ins = db.prepare(`INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, vehicleType, deliveryDistanceKm, verdict, reserved, source)
+    const ins = db.prepare(`INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, vehicleType, deliveryDistanceKm, verdict, reservedDay, source)
         VALUES (?, 'd', 'INTEL_BULK', ?, ?, ?, ?, 'kakaopicker', '다마스', ?, ?, ?, ?)`);
     const cleanup = () => {
         db.prepare(`DELETE FROM intel WHERE user_id IN (?, ?)`).run(U1, U2);
@@ -83,7 +83,7 @@ describe('📊 하루 묶기 · 90일 합치기', () => {
         expect(total).toBe(2);
         const ten = rows.find(r => r.hour === 10);
         expect(ten).toMatchObject({ user_id: U1, from_sigungu: '광주시', to_sigungu: '서울 용산구', calls: 1,
-            fare_first_sum: 9693, fare_last_sum: 11393, reserved_calls: 1, passed_calls: 1, drivers: 1 });
+            fare_calls: 1, fare_first_sum: 9693, fare_last_sum: 11393, km_calls: 1, km_sum: 12.3, reserved_calls: 1, passed_calls: 1, drivers: 1 });
         expect(rows.find(r => r.hour === 11)?.from_sigungu).toBe('모호');
         const mark = db.prepare(`SELECT * FROM stats_rollup_days WHERE day = ?`).get(DAY) as any;
         expect(mark).toMatchObject({ real_rows: 3, calls: 2, resolved_calls: 1 });
@@ -100,7 +100,7 @@ describe('📊 하루 묶기 · 90일 합치기', () => {
         mergeOldDays(Date.parse('2020-06-01T12:00:00+09:00'));
         const rows = db.prepare(`SELECT * FROM stats_flows WHERE day = ?`).all(OLD) as any[];
         expect(rows).toHaveLength(1);
-        expect(rows[0]).toMatchObject({ user_id: '', drivers: 2, calls: 2 });
+        expect(rows[0]).toMatchObject({ user_id: '', drivers: 2, calls: 2, fare_calls: 2, fare_first_sum: 18500, km_calls: 0 });
         expect((db.prepare(`SELECT merged_at FROM stats_rollup_days WHERE day = ?`).get(OLD) as any).merged_at).toBeTruthy();
     });
 });

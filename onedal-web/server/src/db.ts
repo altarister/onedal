@@ -933,6 +933,9 @@ db.exec(`CREATE INDEX IF NOT EXISTS idx_telemetry_anomalies_target ON telemetry_
  *    `stats_flows` — 영업일(KST) × 시 × 배차망 × 출발·도착 시군구(«모호»·«모름» 포함) × 차종 × 기사 한 줄.
  *    기사별 줄(user_id = 기사 · drivers 1)은 90일 뒤 기사 칸을 뺀 합친 줄(user_id '' · drivers = 서로 다른 기사 수)로 다시 묶인다.
  *    `stats_rollup_days` — 그날 묶었나 표지 + 가려진 비율 재료(resolved_calls / calls). 원문(intel)은 이번에 안 지운다.
+ *    요금·km 합과 최소·최대는 아는 값만 — 모르는 콜(요금 0·km 없음)은 `calls` 에만 든다. 평균의 나눗수는 `fare_calls` · `km_calls`.
+ *    예약은 날(reservedDay)이 1 이상인 콜만 `reserved_calls` 에 든다.
+ *    두 칸이 없는 옛 모양 표는 칸을 덧대지 않는다 — 묶기·읽기만 멈추고(`statsTableCurrent`) 표를 지운 뒤 원문에서 다시 묶는다.
  *    CHECK 없음 — enum 성 칸에 CHECK 를 걸지 않는다(이 파일 머리).
  */
 db.exec(`
@@ -946,10 +949,12 @@ db.exec(`
         user_id        TEXT NOT NULL DEFAULT '',
         drivers        INTEGER NOT NULL DEFAULT 1,
         calls          INTEGER NOT NULL DEFAULT 0,
+        fare_calls     INTEGER NOT NULL,
         fare_first_sum INTEGER NOT NULL DEFAULT 0,
         fare_last_sum  INTEGER NOT NULL DEFAULT 0,
         fare_min       INTEGER,
         fare_max       INTEGER,
+        km_calls       INTEGER NOT NULL,
         km_sum         REAL NOT NULL DEFAULT 0,
         reserved_calls INTEGER NOT NULL DEFAULT 0,
         passed_calls   INTEGER NOT NULL DEFAULT 0,

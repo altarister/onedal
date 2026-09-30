@@ -13,7 +13,8 @@ const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const WINDOW_HOURS = 3;
 const TOP = 2;
 
-interface Sum { calls: number; fareFirstAvg: number }
+/** 평균은 요금을 아는 콜(fareCalls)의 평균 — 하나도 모르면 null (서버 `sumOf`) */
+interface Sum { calls: number; fareCalls: number; fareFirstAvg: number | null }
 interface ViewerCell { group: string; from: string; to: string; mine: Sum | null; all: (Sum & { drivers: number }) | null }
 export interface FlowsReply { days: string[]; cells: ViewerCell[] }
 
@@ -32,7 +33,7 @@ export function morningCardOf(reply: FlowsReply, nowMs: number): { lines: string
     if (sampleDays === 0) return { lines: ['📊 아직 쌓인 날이 없다 — 내일 아침부터'], tail: '내 폰이 본 목록 기준', sampleDays, flows: 0 };
 
     const window = new Set(Array.from({ length: WINDOW_HOURS }, (_, i) => `${weekday} ${h + i}시`));
-    const flows = new Map<string, { from: string; to: string; calls: number; fareSum: number }>();
+    const flows = new Map<string, { from: string; to: string; calls: number; fareCalls: number; fareSum: number }>();
     let total = 0, hidden = 0;
     for (const c of reply.cells) {
         if (!window.has(c.group)) continue;
@@ -42,15 +43,15 @@ export function morningCardOf(reply: FlowsReply, nowMs: number): { lines: string
         total += s.calls;
         if (!resolved(c.from) || !resolved(c.to)) { hidden += s.calls; continue; }
         const key = `${c.from}→${c.to}`;
-        const f = flows.get(key) ?? { from: c.from, to: c.to, calls: 0, fareSum: 0 };
+        const f = flows.get(key) ?? { from: c.from, to: c.to, calls: 0, fareCalls: 0, fareSum: 0 };
         f.calls += s.calls;
-        f.fareSum += s.fareFirstAvg * s.calls;
+        if (s.fareFirstAvg != null) { f.fareCalls += s.fareCalls; f.fareSum += s.fareFirstAvg * s.fareCalls; }
         flows.set(key, f);
     }
     const top = [...flows.values()].sort((a, b) => b.calls - a.calls).slice(0, TOP);
     const head = `📊 ${weekday}요일 ${h}~${h + WINDOW_HOURS}시 · 최근 4주${sampleDays <= 2 ? ` (표본 ${sampleDays}일)` : ''}`;
     const lines = [head, ...(top.length
-        ? top.map(f => `${f.from} → ${f.to} · 주마다 ${(f.calls / sampleDays).toFixed(1)}건 · 평균 ${man(f.fareSum / f.calls)}`)
+        ? top.map(f => `${f.from} → ${f.to} · 주마다 ${(f.calls / sampleDays).toFixed(1)}건${f.fareCalls ? ` · 평균 ${man(f.fareSum / f.fareCalls)}` : ''}`)
         : ['이 시간대에 본 콜이 없다'])];
     const tail = `내 폰이 본 목록 기준${hidden ? ` · 동네 못 가림 ${Math.round(hidden / total * 100)}%` : ''}`;
     return { lines, tail, sampleDays, flows: top.length };

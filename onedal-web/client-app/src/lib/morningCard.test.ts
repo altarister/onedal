@@ -8,8 +8,8 @@ import { morningCardOf, keptTodayCount, runningCount } from './morningCard';
  */
 // 2026-10-05 월요일 09:10 (로컬 = KST)
 const NOW = new Date(2026, 9, 5, 9, 10).getTime();
-const cell = (group: string, from: string, to: string, calls: number, fare = 11000) =>
-    ({ group, targetApp: 'kakaopicker', from, to, mine: { calls, fareFirstAvg: fare, fareLastAvg: fare }, all: null, fewOthers: false });
+const cell = (group: string, from: string, to: string, calls: number, fare: number | null = 11000, fareCalls = calls) =>
+    ({ group, targetApp: 'kakaopicker', from, to, mine: { calls, fareCalls, fareFirstAvg: fare, fareLastAvg: fare }, all: null, fewOthers: false });
 
 describe('📊 아침 카드', () => {
     it('같은 요일 · 3시간 창의 흐름 둘 · 주마다 N건', () => {
@@ -49,9 +49,22 @@ describe('📊 아침 카드', () => {
     });
 
     it('남이 3명 이상 섞인 칸은 합계(all)를 쓴다 — 내 값보다 넓다', () => {
-        const c = { ...cell('월 9시', '광주시', '서울 용산구', 1), all: { calls: 9, drivers: 4, fareFirstAvg: 12000, fareLastAvg: 12000 } };
+        const c = { ...cell('월 9시', '광주시', '서울 용산구', 1), all: { calls: 9, fareCalls: 9, drivers: 4, fareFirstAvg: 12000, fareLastAvg: 12000 } };
         const card = morningCardOf({ days: ['2026-09-28'], cells: [c] }, NOW);
         expect(card.lines[1]).toBe('광주시 → 서울 용산구 · 주마다 9.0건 · 평균 1.2만');
+    });
+
+    it('🔴 평균 요금은 요금을 아는 콜로만 가중한다 — 모르는 콜이 평균을 낮추지 않는다', () => {
+        const card = morningCardOf({ days: ['2026-09-28'], cells: [
+            cell('월 9시', '광주시', '서울 용산구', 5, 20000, 1),      // 5콜 가운데 요금 아는 1콜 · 2만
+            cell('월 10시', '광주시', '서울 용산구', 1, 10000, 1),
+        ] }, NOW);
+        expect(card.lines[1]).toBe('광주시 → 서울 용산구 · 주마다 6.0건 · 평균 1.5만');
+    });
+
+    it('🔴 요금을 아는 콜이 하나도 없으면 평균을 적지 않는다', () => {
+        const card = morningCardOf({ days: ['2026-09-28'], cells: [cell('월 9시', '광주시', '서울 용산구', 3, null, 0)] }, NOW);
+        expect(card.lines[1]).toBe('광주시 → 서울 용산구 · 주마다 3.0건');
     });
 });
 
