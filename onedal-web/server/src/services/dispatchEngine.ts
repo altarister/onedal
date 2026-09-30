@@ -534,6 +534,23 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
          * 💾 **장부에 적는다** (status: confirmed · places/orderStops · v5 스키마) — 진행 중 KEEP 과 예약 보관 KEEP 이 함께 쓴다.
          * `isShared` 는 부르는 쪽이 정한다 — 예약 콜은 오늘 실린 짐과 합짐이 아니다.
          */
+        /**
+         * 🚚 **이 콜의 단독 배송(상차지 → 하차지)을 재어 승격본 · 캐시본 둘 다에 적는다** — 오늘 KEEP 과 예약 보관 KEEP 이 함께 쓴다.
+         *    하차 약속(상차 약속 + 배송 × 150%)의 재료다. 오늘 경로·적재와 무관한 **이 콜 자체**의 값이다.
+         */
+        const measureSoloInto = async (routingOptions: ReturnType<typeof SettingsRepository.getKakaoRoutingOptions>) => {
+            const solo = await measureSoloDelivery(confirmedOrder as any, {
+                priority: routingOptions.defaultPriority,
+                carType: routingOptions.carType,
+            });
+            if (solo) {
+                for (const o of [confirmedOrder, cachedOrder] as any[]) {
+                    o.kakaoSoloDistanceKm = solo.km;
+                    o.kakaoSoloDurationMin = solo.minutes;
+                }
+            }
+        };
+
         const saveConfirmedToLedger = (isShared: 0 | 1) => {
             try {
                 // [이슈 R] isShared는 "필터가 합짐 모드였는가"가 아니라
@@ -602,6 +619,12 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             confirmedOrder.reservedFor = reservedFor!;
             (cachedOrder as any).reservedFor = reservedFor;
             if (!session.reservedOrders.some(c => c.id === orderId)) session.reservedOrders.push(confirmedOrder);
+            /* 🚚 오늘 하루는 안 건드려도 이 콜의 단독 배송은 잰다 — 없으면 하차 약속이 비거나 추정으로 선다 (장부에 적기 전에) */
+            try {
+                if (process.env.KAKAO_REST_API_KEY) await measureSoloInto(SettingsRepository.getKakaoRoutingOptions(userId));
+            } catch (e) {
+                console.error('🚚 [예약 콜 단독 배송 재기 실패]', e);
+            }
             saveConfirmedToLedger(0);
             slog('결재', `📅 [예약 보관] ${orderId.slice(0, 8)} → ${reservedFor} ${(cachedOrder as any).reservedAt ?? ''} — 오늘 하루에 안 넣는다`);
             io.to(userId).emit("order-confirmed", orderId);
@@ -661,16 +684,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                          * 🔴 승격본(`confirmedOrder`·myOrders)과 캐시본(`cachedOrder`·아래 DB 기록)이
                          *    **다른 객체**라 둘 다 적는다. 한쪽만 적으면 화면과 장부가 갈린다.
                          */
-                        const solo = await measureSoloDelivery(confirmedOrder as any, {
-                            priority: routingOptions.defaultPriority,
-                            carType: routingOptions.carType,
-                        });
-                        if (solo) {
-                            for (const o of [confirmedOrder, cachedOrder] as any[]) {
-                                o.kakaoSoloDistanceKm = solo.km;
-                                o.kakaoSoloDurationMin = solo.minutes;
-                            }
-                        }
+                        await measureSoloInto(routingOptions);
                     }
                 }
             } catch (e) {
