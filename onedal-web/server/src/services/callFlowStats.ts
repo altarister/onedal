@@ -174,3 +174,89 @@ export function startStatsRollup(): void {
     setImmediate(run);
     setInterval(run, 3_600_000).unref();
 }
+
+// ━━━ 읽기 — 관제웹·뉴스레터 문 / 어드민 문 (routes/stats.ts) ━━━
+
+/** 묶는 기준 — 표는 날짜 그대로 두고 읽을 때 계산한다(요일 · 시 · 달 · 계절 · 날) */
+export type FlowGroupBy = 'weekday' | 'hour' | 'month' | 'season' | 'day';
+export const FLOW_GROUP_BYS: readonly FlowGroupBy[] = ['weekday', 'hour', 'month', 'season', 'day'];
+const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
+const SEASON_OF_MONTH = ['겨울', '겨울', '봄', '봄', '봄', '여름', '여름', '여름', '가을', '가을', '가을', '겨울'];
+
+interface FlowRow {
+    day: string; hour: number; target_app: string; from_sigungu: string; to_sigungu: string; user_id: string;
+    drivers: number; calls: number; fare_first_sum: number; fare_last_sum: number;
+}
+const groupOf = (r: FlowRow, by: FlowGroupBy): string => {
+    const [y, m, d] = r.day.split('-').map(Number);
+    if (by === 'hour') return `${r.hour}시`;
+    if (by === 'month') return `${m}월`;
+    if (by === 'season') return SEASON_OF_MONTH[m - 1];
+    if (by === 'day') return r.day;
+    return WEEKDAY[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+};
+type Sum = { calls: number; fareFirstAvg: number; fareLastAvg: number };
+const sumOf = (rows: FlowRow[]): Sum | null => {
+    const calls = rows.reduce((s, r) => s + r.calls, 0);
+    if (!calls) return null;
+    return {
+        calls,
+        fareFirstAvg: Math.round(rows.reduce((s, r) => s + r.fare_first_sum, 0) / calls),
+        fareLastAvg: Math.round(rows.reduce((s, r) => s + r.fare_last_sum, 0) / calls),
+    };
+};
+
+/** 남의 기사가 이만큼 섞여야 칸 합계를 보인다 (기사님 결정 4 — 한 사람을 알아볼 수 없게) */
+const OTHERS_MIN = 3;
+
+/**
+ * 관제웹·뉴스레터 문 — **내 줄은 그대로**, 남의 줄이 섞인 칸은 서로 다른 남의 기사 3명 이상일 때만 합친 값.
+ * 🔴 남이 2명 이하면 칸 합계를 주지 않는다 — «합계 − 내 값»으로 남의 값이 역산된다.
+ * 🔴 합친 줄(90일 뒤 · 기사 칸 없음)에는 내가 섞였을 수 있다 — drivers − 1 만 남으로 친다(적게 쳐서 가리는 쪽으로).
+ * ⚠️ 합친 줄의 내 몫은 알 수 없다 — 90일 지난 날의 «내 값»은 비고, 남이 3명 이상일 때 합계로만 보인다.
+ * 기사 id 는 응답에 넣지 않는다.
+ */
+export function flowsForViewer(rows: FlowRow[], me: string, by: FlowGroupBy) {
+    const cells = new Map<string, { group: string; targetApp: string; from: string; to: string; rows: FlowRow[] }>();
+    for (const r of rows) {
+        const group = groupOf(r, by);
+        const key = [group, r.target_app, r.from_sigungu, r.to_sigungu].join('|');
+        const cell = cells.get(key) ?? { group, targetApp: r.target_app, from: r.from_sigungu, to: r.to_sigungu, rows: [] };
+        cell.rows.push(r);
+        cells.set(key, cell);
+    }
+    return [...cells.values()].map(c => {
+        const mineRows = c.rows.filter(r => r.user_id === me);
+        const others = c.rows.filter(r => r.user_id !== me);
+        const otherIds = new Set(others.filter(r => r.user_id !== '').map(r => r.user_id));
+        const othersDrivers = otherIds.size + others.filter(r => r.user_id === '').reduce((s, r) => s + Math.max(0, r.drivers - 1), 0);
+        const showAll = othersDrivers >= OTHERS_MIN;
+        const all = showAll ? sumOf(c.rows) : null;
+        return {
+            group: c.group, targetApp: c.targetApp, from: c.from, to: c.to,
+            mine: sumOf(mineRows),
+            all: all ? { ...all, drivers: otherIds.size + (mineRows.length ? 1 : 0) + others.filter(r => r.user_id === '').reduce((s, r) => s + r.drivers, 0) } : null,
+            /** 남이 섞였지만 3명이 안 돼 합계를 가렸다 — 화면은 «표본 적음» */
+            fewOthers: others.length > 0 && !showAll,
+        };
+    });
+}
+
+/** 어드민 문 — 기사 칸을 준다(인증 + 관리자만) */
+export function flowsForAdmin(rows: FlowRow[], by: FlowGroupBy) {
+    const cells = new Map<string, { group: string; targetApp: string; from: string; to: string; userId: string; drivers: number; rows: FlowRow[] }>();
+    for (const r of rows) {
+        const group = groupOf(r, by);
+        const key = [group, r.target_app, r.from_sigungu, r.to_sigungu, r.user_id].join('|');
+        const cell = cells.get(key) ?? { group, targetApp: r.target_app, from: r.from_sigungu, to: r.to_sigungu, userId: r.user_id, drivers: 0, rows: [] };
+        cell.rows.push(r);
+        cell.drivers = Math.max(cell.drivers, r.drivers);
+        cells.set(key, cell);
+    }
+    return [...cells.values()].map(({ rows: rs, ...c }) => ({ ...c, ...sumOf(rs) }));
+}
+
+/** 기간의 줄 — 두 문이 같은 줄을 읽는다(읽는 곳 한 곳) */
+export function flowRowsBetween(from: string, to: string): FlowRow[] {
+    return db.prepare(`SELECT * FROM stats_flows WHERE day >= ? AND day <= ? ORDER BY day, hour`).all(from, to) as FlowRow[];
+}

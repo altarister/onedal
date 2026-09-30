@@ -38,6 +38,7 @@ import healthRouter, { logServerIdentity } from "./routes/health";
 import simRouter from "./routes/sim";   // 🧪 배차망 시뮬레이터 전용 (개발 빌드에서만 답한다)
 import logsRouter from "./routes/logs";
 import screenWordsRouter from "./routes/screenWords";
+import statsRouter from "./routes/stats";
 import { validateEnv } from "./config/env";
 
 import { initGeoService } from "./services/geoService";
@@ -93,6 +94,7 @@ app.use("/api/health", healthRouter);
 // 🖥️ 관제웹이 스스로 남기는 로그 — 인증을 걸지 않는다 (로그인 전 화면도 남겨야 한다)
 app.use("/api/logs", logsRouter);
 app.use("/api/screen-words", screenWordsRouter);   // 📰 현황판 «새 글자» — 읽기만
+app.use("/api/stats", statsRouter);   // 📊 콜 흐름 통계 — 읽기만 (관제웹·뉴스레터 / 어드민)
 
 app.use("/api/orders", ordersRouter);
 app.use("/api/orders/detail", detailRouter);
