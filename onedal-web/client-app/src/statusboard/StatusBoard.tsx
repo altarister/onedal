@@ -26,7 +26,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { APP_FILTER_KEYS, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabel, isModeApplying,
-         DEVICE_MODE_LABEL } from '@onedal/shared';
+         DEVICE_MODE_LABEL, deviceLabel } from '@onedal/shared';
 import type { SecuredOrder, DeviceSession, DeviceModeType } from '@onedal/shared';
 import { SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind } from '@onedal/shared';
 /* 🌉 관제웹 안쪽은 **다리 하나**로만 본다 — 옮길 때 `bridge.ts` 만 새로 쓰면 된다 */
@@ -1061,7 +1061,7 @@ function PhoneTabs({ devices }: { devices: DeviceSession[] }) {
                                     className={`px-2 py-1 rounded-md border text-[11px] font-black ${on
                                         ? 'border-info/40 bg-info/15 text-info'
                                         : off ? 'border-danger/40 text-danger' : 'border-border-card text-text-muted'}`}>
-                                    {x.deviceName || x.deviceId.slice(-4)}
+                                    {deviceLabel(x)}
                                 </button>
                             );
                         })}
@@ -1262,7 +1262,7 @@ export default function StatusBoard({ activeRoute }: Props) {
                     bad.push({ k: '필터 판', v: `폰마다 다르다 (${versions.size}종) — 한 폰이 옛 판으로 거른다` });
                 }
                 devices.forEach(d => {
-                    const name = d.deviceName || d.deviceId.slice(-4);
+                    const name = deviceLabel(d);
                     if (d.status === 'OFFLINE') bad.push({ k: `폰 ${name}`, v: '오프라인' });
                     else {
                         const quiet = Math.round((Date.now() - d.lastSeen) / 1000);

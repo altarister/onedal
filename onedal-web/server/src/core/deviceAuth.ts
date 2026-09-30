@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
-import { DEVICE_LINK_ERRORS, DEVICE_TOKEN_HEADER } from "@onedal/shared";
+import { DEVICE_LINK_ERRORS, DEVICE_TOKEN_HEADER, deviceLabel } from "@onedal/shared";
 import db from "../db";
 import { slog } from "../utils/fileLogger";
 import { enterLogWho } from "../utils/logContext";
@@ -32,6 +32,14 @@ export function deviceTokenOf(req: { headers?: Record<string, unknown> }): strin
 }
 
 const toldNoToken = new Set<string>();
+const toldTokenOk = new Set<string>();
+
+/** 📱 서버 로그에 쓰는 폰 이름 — DB 의 이름 · 없으면 «이름 없는 폰·뒤 4자» (shared deviceLabel · reviews/29 1단계 K) */
+export function deviceLabelOf(deviceId: string | null | undefined): string {
+    if (!deviceId) return '폰 모름';
+    const row = db.prepare("SELECT device_name FROM user_devices WHERE device_id = ?").get(deviceId) as { device_name?: string | null } | undefined;
+    return deviceLabel({ deviceName: row?.device_name, deviceId });
+}
 const toldNotPaired = new Set<string>();
 
 export function authDevice(deviceId: string | null | undefined, token: string | undefined): DeviceAuth {
@@ -48,6 +56,8 @@ export function authDevice(deviceId: string | null | undefined, token: string | 
             slog('통신', `🚫 [폰 토큰 틀림] ${deviceId} — 거절 (${DEVICE_LINK_ERRORS.TOKEN_INVALID})`);
             return { ok: false, status: 401, error: DEVICE_LINK_ERRORS.TOKEN_INVALID };
         }
+        /* 🔑 토큰이 실렸고 맞았다 — 서버가 뜬 뒤 폰마다 한 번. 강제로 바꾸기 전 «두 폰 모두 이 줄»이 기준이다(onedal-1f) */
+        if (!toldTokenOk.has(deviceId)) { toldTokenOk.add(deviceId); slog('통신', `🔑 [토큰 확인됨] ${deviceLabelOf(deviceId)} — 서버가 뜬 뒤 처음`); }
     } else if (!toldNoToken.has(deviceId)) {
         toldNoToken.add(deviceId);
         slog('통신', `🔑 [토큰 없는 폰] ${deviceId} — ${row.token_hash ? '토큰을 안 실음(옛 앱)' : '토큰을 받은 적 없음(재연결 전)'} · 이번 단계는 통과`);

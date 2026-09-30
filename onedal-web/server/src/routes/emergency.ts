@@ -31,7 +31,7 @@ import { updateActiveFilter } from "../state/filterManager";
 import db from "../db";
 import { countCancel } from "../core/cancelCount";
 import { slog } from "../utils/fileLogger";
-import { authDevice, deviceTokenOf } from "../core/deviceAuth";
+import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 
 const router = Router();
 
@@ -41,7 +41,7 @@ router.post("/", async (req, res) => {
         const { deviceId, orderId, reason, screenContext, screenText, timestamp } = report;
 
         slog('경고', `\n🚨🚨🚨 [EMERGENCY] 비상 보고 수신 🚨🚨🚨`);
-        slog('경고', `   기기: ${deviceId}`);
+        slog('경고', `   기기: ${deviceLabelOf(deviceId)}`);
         slog('경고', `   오더: ${orderId}`);
         slog('경고', `   사유: ${reason}`);
         slog('경고', `   화면: ${screenContext}`);

@@ -3,6 +3,7 @@ import { apiClient } from "../../../api/apiClient";
 import { socket } from "../../../lib/socket";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import { deviceLabel } from "@onedal/shared";
 
 interface RegisteredDevice {
   device_id: string;
@@ -180,8 +181,8 @@ export default function DeviceSettingsTab({ onClose }: Props) {
                       </div>
                     ) : (
                       <>
-                        <span className="text-xs font-bold truncate text-text-primary">{device.device_name || device.device_id.slice(0, 12) + "…"}</span>
-                        <span className="text-[9.5px] text-text-muted font-mono truncate">{device.device_id.slice(0, 16)}…</span>
+                        <span className="text-xs font-bold truncate text-text-primary">{deviceLabel({ deviceName: device.device_name, deviceId: device.device_id })}</span>
+                        <span className="text-[9.5px] text-text-muted font-mono truncate">…{device.device_id.slice(-4)}</span>
                       </>
                     )}
                   </div>

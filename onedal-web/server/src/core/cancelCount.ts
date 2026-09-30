@@ -2,6 +2,7 @@ import { incrementDeviceStats } from "../routes/devices";
 import db from "../db";
 import { CANCEL_BUDGET_PER_ROUND } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
+import { deviceLabelOf } from "./deviceAuth";
 
 /**
  * 🧮 **취소를 세는 자리는 여기 하나다**.
@@ -76,7 +77,7 @@ export function countCancel(
     }
 
     incrementDeviceStats(deviceId, "canceled");
-    slog('콜단계', `   📈 기기(${deviceId}) 취소 카운트 +1 반영 (reason: ${reason})`);
+    slog('콜단계', `   📈 기기(${deviceLabelOf(deviceId)}) 취소 카운트 +1 반영 (reason: ${reason})`);
 
     // 한 판을 다 썼는지는 **세는 자리에서** 본다 — 호출부 넷이 각자 보면 갈라진다
     checkBudgetRound(session, (order as any)?.targetApp ?? 'insung', io);
@@ -167,5 +168,5 @@ export function countKeep(
     }
 
     incrementDeviceStats(deviceId, "grabbed");
-    slog('콜단계', `   📈 기기(${deviceId}) 수락 카운트 +1 반영`);
+    slog('콜단계', `   📈 기기(${deviceLabelOf(deviceId)}) 수락 카운트 +1 반영`);
 }

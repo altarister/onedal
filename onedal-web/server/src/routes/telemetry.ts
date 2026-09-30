@@ -4,7 +4,7 @@ import { requireAuth } from "../middlewares/authMiddleware";
 import { isDetailScreen, isListScreen } from "@onedal/shared";
 import { deviceScreenOf } from "./devices";
 import { slog } from "../utils/fileLogger";
-import { authDevice, deviceTokenOf } from "../core/deviceAuth";
+import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 
 const router = Router();
 
@@ -72,7 +72,7 @@ router.post("/anomalies", (req, res) => {
         const listOrderJson = listOrderInfo ? JSON.stringify(listOrderInfo) : null;
         const ocrResultJson = ocrResult ? JSON.stringify(ocrResult) : null;
 
-        console.warn(`🚨 [이상 징후 수신] ${deviceId} · ${targetApp} (${screenName || "-"}) : ${failureReason}`);
+        console.warn(`🚨 [이상 징후 수신] ${deviceLabelOf(deviceId)} · ${targetApp} (${screenName || "-"}) : ${failureReason}`);
 
         const stmt = db.prepare(`
             INSERT INTO telemetry_anomalies (

@@ -17,7 +17,7 @@ import db from "../db";
 import { slog } from "../utils/fileLogger";
 import { releaseEvaluatingDevices } from "../core/helpers";
 import { ownedByOther } from "../core/orderOwner";
-import { authDevice, deviceTokenOf } from "../core/deviceAuth";
+import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 
 const router = Router();
 
@@ -151,7 +151,7 @@ router.post("/", async (req, res) => {
         const activeStatuses: OrderStatus[] = ['ORDER_SECURED_EVALUATING', 'ORDER_AWAITING_DECISION'];
         const targetOrder = session.pendingOrdersData.get(payload.order.id);
         if (targetOrder && activeStatuses.includes(targetOrder.status) && targetOrder.capturedDeviceId !== payload.deviceId) {
-            slog('콜단계', `🔒 [Lock] ${targetOrder.capturedDeviceId} 기기가 이미 이 콜(${payload.order.id})을 평가중. 요청 기기: ${payload.deviceId}`);
+            slog('콜단계', `🔒 [Lock] ${targetOrder.capturedDeviceId} 기기가 이미 이 콜(${payload.order.id})을 평가중. 요청 기기: ${deviceLabelOf(payload.deviceId)}`);
             if (io) io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'SAFE_CANCEL' });
             return res.json({ deviceId: 'server', action: 'CANCEL' });
         }

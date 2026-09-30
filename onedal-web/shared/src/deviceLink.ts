@@ -20,3 +20,12 @@ export const DEVICE_LINK_ERRORS = {
     PIN_INVALID: 'PIN_INVALID',
     ACCOUNT_BLOCKED: 'ACCOUNT_BLOCKED',
 } as const;
+
+/**
+ * 📱 **폰 표시 이름 — 한 곳** (reviews/29 1단계 K) — 이름(user_devices.device_name)이 있으면 이름, 없으면 «이름 없는 폰·id 뒤 4자».
+ *    폰 id 는 긴 난수(d-UUID)라 조각으로는 어느 폰인지 못 읽는다. 서버 로그 · 관제웹 · 운영센터가 같은 함수를 쓴다.
+ */
+export function deviceLabel(d: { deviceName?: string | null; deviceId: string }): string {
+    const name = d.deviceName?.trim();
+    return name || `이름 없는 폰·${d.deviceId.slice(-4)}`;
+}

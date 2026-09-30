@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, TARGET_APP_LABEL } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, TARGET_APP_LABEL, deviceLabel } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "../../hooks/useSystemAlerts";
 import { handBandOf } from "../../lib/handBand";
@@ -196,7 +196,7 @@ function DeviceRow({
                         className={`font-black text-[14px] px-1.5 rounded truncate shrink-0 ${
                             isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'
                         } ${more ? 'underline underline-offset-2' : ''}`}>
-                        {device.deviceName || device.deviceId.slice(0, 8)}
+                        {deviceLabel(device)}
                     </button>
                     {/* 🌐 배차망 + 화면 + 화면 꺼짐을 한 배지로 — «인성 콜리스트» · «💤 화면 꺼짐».
                         화면이 꺼진 폰의 화면명은 «아까 그것»이라 함께 그리지 않는다 (포함 관계 · 규칙 ⑤-4 ④). */}

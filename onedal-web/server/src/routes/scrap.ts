@@ -18,7 +18,7 @@ import { PluginFactory } from "../core/plugins/PluginFactory";
 import { slog } from "../utils/fileLogger";
 import { noteScreenWords } from "../services/screenWords";
 import { recalcRouteIfStopsChanged } from "../services/dispatchEngine";
-import { authDevice, deviceTokenOf } from "../core/deviceAuth";
+import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 
 /**
  * 🧭 **경로 순서 맵이 도착지를 얼마나 덮나 — 바뀔 때만 한 줄** (기사님 요청 «콘솔로그에 넣어서 너도 확인할 수 있도록»).
@@ -150,7 +150,7 @@ router.post("/", (req, res) => {
         }
         const totalScrap = intelCountCache;
 
-        if (data.length > 0) logRoadmapEvent('통신', "서버", ` [/api/scrap 수신] User: ${userId} (${deviceId}) | ${data.length}항목 적재 중${screenContext ? ` [화면: ${screenContext}]` : ''}`);
+        if (data.length > 0) logRoadmapEvent('통신', "서버", ` [/api/scrap 수신] User: ${userId} (${deviceLabelOf(deviceId)}) | ${data.length}항목 적재 중${screenContext ? ` [화면: ${screenContext}]` : ''}`);
         // console.log(`🛡️ [서버] /api/scrap 수신 직후: 서버단 2차 해시 검증 및 무효 콜 필터링 통과 완료`);
         // logRoadmapEvent("서버", "앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음");
 
@@ -305,7 +305,7 @@ router.post("/", (req, res) => {
         // 잘못된 필터로 잡는 것보다 잠깐 멈추는 편이 안전하다.
         if (session.isBootstrapping) {
             appFilter.isActive = false;
-            slog('필터', `⏳ [부트스트랩 중] ${deviceId} 에게 isActive=false 로 응답 (필터 준비 중)`);
+            slog('필터', `⏳ [부트스트랩 중] ${deviceLabelOf(deviceId)} 에게 isActive=false 로 응답 (필터 준비 중)`);
         }
 
         /**
@@ -319,7 +319,7 @@ router.post("/", (req, res) => {
             appFilter.isActive = false;
             if (!session.capacityHoldNotified) {
                 session.capacityHoldNotified = true;
-                slog('필터', `⛔ [적재 만석] ${deviceId} 에게 isActive=false 로 응답 (실을 수 있는 차종 없음 — 하차하면 재개)`);
+                slog('필터', `⛔ [적재 만석] ${deviceLabelOf(deviceId)} 에게 isActive=false 로 응답 (실을 수 있는 차종 없음 — 하차하면 재개)`);
             }
         } else if (session.capacityHoldNotified) {
             session.capacityHoldNotified = false;
@@ -343,7 +343,7 @@ router.post("/", (req, res) => {
          */
         if (!session.isRestored) {
             appFilter.isActive = false;
-            slog('필터', `🚦 [콜 잡기 대기] ${deviceId} — 관제탑이 아직 접속하지 않았습니다. ` +
+            slog('필터', `🚦 [콜 잡기 대기] ${deviceLabelOf(deviceId)} — 관제탑이 아직 접속하지 않았습니다. ` +
                 `오늘 필터가 확정되기 전에는 콜을 잡지 않습니다 (관제웹을 열어 주세요)`);
         }
 
@@ -357,7 +357,7 @@ router.post("/", (req, res) => {
         const blocker = callFilterBlocker(session.activeFilter);
         if (blocker) {
             appFilter.isActive = false;
-            slog('필터', `🚦 [콜 잡기 보류] ${deviceId} — ${blocker}`);
+            slog('필터', `🚦 [콜 잡기 보류] ${deviceLabelOf(deviceId)} — ${blocker}`);
         }
 
         /**
@@ -377,7 +377,7 @@ router.post("/", (req, res) => {
         // 기기당 최초 1회만 — 새 APK 가 실제로 v2 로 말하기 시작했는지 서버 로그에서 보인다
         if (speaksV2 && deviceId && !v2Devices.has(deviceId)) {
             v2Devices.add(deviceId);
-            slog('통신', `🧭 [피기백 v2] ${deviceId} — 신프로토콜 감지 (버전 게이트·중복 제거 작동)`);
+            slog('통신', `🧭 [피기백 v2] ${deviceLabelOf(deviceId)} — 신프로토콜 감지 (버전 게이트·중복 제거 작동)`);
         }
 
         // 🛰️ 이중 발신 감지 — 같은 기기 이름이 15초 안에 다른 IP 에서도 말하면 경고 (분당 1회 · 경고 전용 — 다른 일은 이 값을 안 본다)
@@ -389,7 +389,7 @@ router.post("/", (req, res) => {
             const ip = req.get?.('cf-connecting-ip') ?? req.ip ?? '?';
             if (prev && prev.ip !== ip && now - prev.at < 15_000 && now - prev.warnedAt > 60_000) {
                 prev.warnedAt = now;
-                console.warn(`🛰️⚠️ [이중 발신] ${deviceId} 가 두 곳에서 동시에 신호 중 — ${prev.ip} ↔ ${ip}. ` +
+                console.warn(`🛰️⚠️ [이중 발신] ${deviceLabelOf(deviceId)} 가 두 곳에서 동시에 신호 중 — ${prev.ip} ↔ ${ip}. ` +
                     `리허설 스크립트와 실폰이 같이 켜져 있으면 화면 이탈 감지가 심사 콜을 강제 취소합니다 — 하나만 켜세요`);
             }
             senderTrace.set(deviceId, { ip, at: now, warnedAt: prev?.warnedAt ?? 0 });

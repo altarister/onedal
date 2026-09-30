@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { LOG_TAGS, type LogTag } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
-import { authDevice, deviceTokenOf } from "../core/deviceAuth";
+import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 
 /**
  * 🖥️ **관제웹이 스스로 남기는 로그를 받는다** (필드테스트 1회차 ④)
@@ -78,7 +78,8 @@ function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLe
         res.json({ ok: true, received: Math.min(lines.length, MAX_LINES) });
 
         if (lines.length === 0) return;
-        const who = String(body?.deviceId ?? fallbackWho).slice(0, 24);
+        /* 📱 원달앱 줄은 폰 표시 이름으로 — id 는 긴 난수라 못 읽는다 (reviews/29 1단계 K) */
+        const who = fromDevice && body?.deviceId ? deviceLabelOf(body.deviceId) : String(body?.deviceId ?? fallbackWho).slice(0, 24);
         const shown = lines.slice(0, MAX_LINES);
 
         for (const l of shown) {

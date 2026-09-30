@@ -32,7 +32,7 @@ import { dbQueue } from "../utils/dbQueue";
 import { slog } from "../utils/fileLogger";
 import { reportSourceOf } from "../core/helpers";
 import { ownsOrder, ownedByOther } from "../core/orderOwner";
-import { authDevice, deviceTokenOf } from "../core/deviceAuth";
+import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 
 const router = Router();
 
@@ -211,7 +211,7 @@ router.post("/confirm", (req, res) => {
         if (io) {
             slog('통신', `📤 [Socket 푸시] order-evaluating (${pendingOrder.id}) - 상태: ${pendingOrder.status}`);
             io.to(userId).emit("order-evaluating", pendingOrder);
-            slog('콜단계', `⏱️ [1차 선점 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${payload.deviceId})`);
+            slog('콜단계', `⏱️ [1차 선점 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${deviceLabelOf(payload.deviceId)})`);
             logRoadmapEvent('콜단계', "서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");
             logRoadmapEvent('콜단계', "서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
 
