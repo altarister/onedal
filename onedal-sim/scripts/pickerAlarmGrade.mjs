@@ -83,7 +83,9 @@ function reservationFromWord(w) {
 function decideAxes({ fare, pickupKm, dropoff, reserved = false, day = null }, f) {
     const reservationOk = reservationPassesList(day, reserved, f.reservationMode ?? 'today');
     const fareOk = fare >= f.minFare;
-    const pickupOk = pickupKm != null && pickupKm <= f.pickupRadiusKm;   // 상차지거리는 목록 완독 칸 — 모르면 통과 아님
+    /* 📅 `pickupRadiusFor` — 내일 이후 예약 콜은 줄이지 않은 기본 반경(칸 없으면 지금 반경) */
+    const radius = reserved && day != null && day >= 1 ? (f.reservedPickupRadiusKm ?? f.pickupRadiusKm) : f.pickupRadiusKm;
+    const pickupOk = pickupKm != null && pickupKm <= radius;   // 상차지거리는 목록 완독 칸 — 모르면 통과 아님
     const keys = f.destKeywords ?? [];
     const destOk = keys.length === 0 || dropoff === '' ||
         /* 🏘️ 이름이 같은 다른 지역 동 — 폰 로그의 필터 줄이 dongSigungu 를 실어야 채점에 든다(04 · 없으면 칸 없이 = 지금과 같음) */

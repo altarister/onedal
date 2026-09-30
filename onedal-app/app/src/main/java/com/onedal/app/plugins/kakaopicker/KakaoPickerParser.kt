@@ -676,6 +676,24 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             return tags.contains(QUICK_TAG) && dropoff.isBlank()
         }
 
+        /**
+         * 📅 **이 콜을 거를 상차 반경** (기사님 «가» · `PickerReservedRadiusTest`) — 예약 날이 내일 이후면 줄이지 않은 기본 반경
+         * (`reservedPickupRadiusKm` · 서버가 싣는다), 오늘 콜·날 모르는 예약은 지금 반경. 칸이 없으면(옛 서버) 지금 반경.
+         * 자동 반경은 지금 자리에서 줄인 값이라 내일 콜에는 맞지 않다 — 내일은 그 자리에서 출발하지 않는다.
+         */
+        fun pickupRadiusFor(order: SimplifiedOfficeOrder, pickupRadiusKm: Double, reservedPickupRadiusKm: Double?): Double =
+            if (laterDay(order)) reservedPickupRadiusKm ?: pickupRadiusKm else pickupRadiusKm
+
+        private fun laterDay(order: SimplifiedOfficeOrder) = order.reserved == true && (order.reservedDay ?: 0) >= 1
+
+        /** 📅 상차에서 떨어진 까닭 — «상차 20.0km > 내일 콜 반경 25km» (판정 줄 끝) */
+        fun pickupMissWord(order: SimplifiedOfficeOrder, pickupRadiusKm: Double, reservedPickupRadiusKm: Double?): String {
+            val day = order.reservedDay ?: 0
+            val kind = when { !laterDay(order) -> "오늘 콜"; day == 1 -> "내일 콜"; else -> "${day}일 뒤 콜" }
+            val r = "%.2f".format(java.util.Locale.US, pickupRadiusFor(order, pickupRadiusKm, reservedPickupRadiusKm)).trimEnd('0').trimEnd('.')
+            return "상차 ${order.pickupDistance ?: "?"}km > $kind 반경 ${r}km"
+        }
+
         /** 🔴 계산은 여기 한 벌이다 — `decide` 는 이것의 `pass` 를 돌려준다 (채점기의 사본은 «일부러 두 벌» · 그 파일 머리 주석) */
         fun decideAxes(
             order: SimplifiedOfficeOrder,
@@ -686,12 +704,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             cityAliases: List<String> = emptyList(),
             reservationMode: String? = null,
             dongSigungu: Map<String, List<String>> = emptyMap(),
+            reservedPickupRadiusKm: Double? = null,
         ): AlarmAxes {
             // 📅 목록에서는 확실한 다른 날만 막는다 — 날 모름은 상세 사진(«내일 14:00 픽업예약»)이 가른다
             val reservationOk = com.onedal.app.core.engine.ReservationGate.passesList(order, reservationMode)
             val fareOk = FareFloor.passes(order.fare, minFare)
             // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 통과시키지 않는다
-            val pickupOk = order.pickupDistance != null && order.pickupDistance <= pickupRadiusKm
+            val pickupOk = order.pickupDistance != null && order.pickupDistance <= pickupRadiusFor(order, pickupRadiusKm, reservedPickupRadiusKm)
             val destOk = when {
                 destKeywords.isEmpty() -> true      // 도착 목표가 없다(관내·목표 미설정) — 제한 없음
                 // 하차를 아직 모른다(도보 목록) — 판정을 채운 뒤로 미룬다: 상세 사진으로 채운 하차로 `passesFilterAfterFill` 이 다시 본다
@@ -719,8 +738,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             cityAliases: List<String> = emptyList(),
             reservationMode: String? = null,
             dongSigungu: Map<String, List<String>> = emptyMap(),
+            reservedPickupRadiusKm: Double? = null,
         ): String? {
-            val a = decideAxes(order, minFare, pickupRadiusKm, destKeywords, keywordTraps, cityAliases, reservationMode, dongSigungu)
+            val a = decideAxes(order, minFare, pickupRadiusKm, destKeywords, keywordTraps, cityAliases, reservationMode, dongSigungu, reservedPickupRadiusKm)
             return when {
                 a.pass -> null          // 통과 — 빈 칸이 «통과» 라는 뜻이다
                 !a.reservation -> "reservation"
@@ -740,8 +760,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             tally: FilterTally? = null,
             reservationMode: String? = null,
             dongSigungu: Map<String, List<String>> = emptyMap(),
+            reservedPickupRadiusKm: Double? = null,
         ): Boolean {
-            val a = decideAxes(order, minFare, pickupRadiusKm, destKeywords, keywordTraps, cityAliases, reservationMode, dongSigungu)
+            val a = decideAxes(order, minFare, pickupRadiusKm, destKeywords, keywordTraps, cityAliases, reservationMode, dongSigungu, reservedPickupRadiusKm)
             tally?.let { t ->
                 t.seen++
                 when {
@@ -768,6 +789,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             cityAliases: List<String>,
             reservationMode: String? = null,
             dongSigungu: Map<String, List<String>> = emptyMap(),
+            reservedPickupRadiusKm: Double? = null,
         ): String = com.google.gson.Gson().toJson(linkedMapOf(
             "minFare" to minFare,
             "pickupRadiusKm" to pickupRadiusKm,
@@ -776,6 +798,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "cityAliases" to cityAliases,
             "reservationMode" to com.onedal.app.core.engine.ReservationGate.modeOf(reservationMode),
             "dongSigungu" to dongSigungu,
+            "reservedPickupRadiusKm" to reservedPickupRadiusKm,   // 없으면 Gson 이 칸을 뺀다 — 옛 채점 줄과 같다
         ))
 
         /** 피기백 필터 원문 → 알람 조건. 못 읽으면 기본값 (서버 미응답 안전망) */
@@ -803,6 +826,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                     cityAliases = strings(value("customCityFilters")).filter { it.isNotEmpty() },
                     reservationMode = value("reservationMode")?.asString?.ifEmpty { null },
                     dongSigungu = listMap("destinationDongSigungu"),
+                    reservedPickupRadiusKm = value("reservedPickupRadiusKm")?.asDouble,
                 )
             } catch (e: Exception) {
                 AlarmConfig()
@@ -814,7 +838,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 경유 순서 목록의 km 수처럼 알람이 안 읽는 칸만 바뀌면 같다 — 그때는 막은 기억을 비우지 않는다.
          */
         fun alarmValuesKeyOf(activeFilter: String): String = alarmConfigOf(activeFilter).let { c ->
-            alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu)
+            alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu, c.reservedPickupRadiusKm)
         }
 
         /** 마지막으로 남긴 알람 필터 — 같으면 다시 안 적는다 (판정은 스캔마다 돈다 · 로그가 그 줄로 덮이지 않게) */
@@ -829,6 +853,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         val keywordTraps: Map<String, List<String>> = emptyMap(),
         val cityAliases: List<String> = emptyList(),    // 시 별칭(customCityFilters) — «수정»처럼 구만 남는 카드용
         val reservationMode: String? = null,            // 📅 없으면 오늘 콜만 (`ReservationGate.modeOf`)
+        val reservedPickupRadiusKm: Double? = null,   // 📅 내일 이후 예약 콜의 상차 반경 — 없으면 pickupRadiusKm (`pickupRadiusFor`)
         val dongSigungu: Map<String, List<String>> = emptyMap(),   // 🏘️ 이름이 겹치는 도착 동 → 뜻하는 시군구 꼴 (`destinationDongSigungu`)
     )
 
@@ -1134,13 +1159,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
         val c = alarmConfig()
         // 🧾 판정에 쓴 필터가 바뀌었으면 먼저 한 줄 — 채점기가 이 판정의 정답을 이 필터로 다시 계산한다 (3단계 3-2)
-        val filterJson = alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu)
+        val filterJson = alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu, c.reservedPickupRadiusKm)
         if (filterJson != lastAlarmFilterJson) {
             lastAlarmFilterJson = filterJson
             com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.FILTER, "🧾 [알람 필터] $filterJson")
         }
-        val pass = decide(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, tally, c.reservationMode, c.dongSigungu)
-        val a = decideAxes(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu)
+        val pass = decide(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, tally, c.reservationMode, c.dongSigungu, c.reservedPickupRadiusKm)
+        val a = decideAxes(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu, c.reservedPickupRadiusKm)
         val mark = { ok: Boolean -> if (ok) "✅" else "❌" }
         // 👁️ 축별 판정을 한 줄 남긴다 — «왜 안 울었나»를 로그로 답하기 위해 (첫 실검증 때 수집 데이터로 역추적했다)
         //    🔴 채점기(`pickerAlarmGrade.mjs`)가 이 줄의 모양을 읽는다 — 바꾸면 그 정규식도 같이 바꾼다
@@ -1149,7 +1174,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         com.onedal.app.core.AppLogger.d("1DAL_PICKER", com.onedal.app.core.LogTag.FILTER,
             "🔔 [알람 판정] ${order.fare}원·픽업 ${order.pickupDistance ?: "?"}km·도착 ${order.dropoff.ifEmpty { "?" }}·예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(order)} — " +
             "하한 ${c.minFare}·반경 ${c.pickupRadiusKm}km·도착목표 ${c.destKeywords.size}개 → ${if (pass) "통과" else "탈락"}" +
-            " · 축 요금${mark(a.fare)} 상차${mark(a.pickup)} 도착${mark(a.destination)} 예약${mark(a.reservation)}")
+            " · 축 요금${mark(a.fare)} 상차${mark(a.pickup)} 도착${mark(a.destination)} 예약${mark(a.reservation)}" +
+            (if (!a.pickup) " · ${pickupMissWord(order, c.pickupRadiusKm, c.reservedPickupRadiusKm)}" else ""))
         return pass
     }
 
@@ -1170,7 +1196,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder {
         val c = alarmConfig()
         return order.copy(
-            verdict = verdictAxisOf(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu),
+            verdict = verdictAxisOf(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu, c.reservedPickupRadiusKm),
         )
     }
 
