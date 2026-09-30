@@ -926,6 +926,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         val mark = { ok: Boolean -> if (ok) "✅" else "❌" }
         // 👁️ 축별 판정을 한 줄 남긴다 — «왜 안 울었나»를 로그로 답하기 위해 (첫 실검증 때 수집 데이터로 역추적했다)
         //    🔴 채점기(`pickerAlarmGrade.mjs`)가 이 줄의 모양을 읽는다 — 바꾸면 그 정규식도 같이 바꾼다
+        //    🔕 같은 콜 · 같은 결과 · 같은 필터면 한 번만 — 누르지 못한 콜이 목록이 바뀔 때마다(≈15초) 같은 줄을 되풀이했다 (09-30 13:41)
+        if (com.onedal.app.core.LogOnce.changed("alarm-judge:${com.onedal.app.core.CallMemory.fingerprintOf(order)}", "$pass|$a|${filterJson.hashCode()}"))
         com.onedal.app.core.AppLogger.d("1DAL_PICKER", com.onedal.app.core.LogTag.FILTER,
             "🔔 [알람 판정] ${order.fare}원·픽업 ${order.pickupDistance ?: "?"}km·도착 ${order.dropoff.ifEmpty { "?" }}·예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(order)} — " +
             "하한 ${c.minFare}·반경 ${c.pickupRadiusKm}km·도착목표 ${c.destKeywords.size}개 → ${if (pass) "통과" else "탈락"}" +
