@@ -86,6 +86,7 @@ export const isPlace = (w) => /점$|[\[\]]|-|로\d+번길$|아파트$|빌라$|�
  *    한 줄에 `{ re: /…/, label: '<…>' }` 하나 — 짝 검사가 이 모양을 읽는다.
  */
 export const VALUE_SHAPES = [
+    { re: /^01\d{8,9}$/, label: '<전화>' },
     { re: /^[\d,.]+$/, label: '<숫자>' },
     { re: /^\d+(\.\d+)?(km|m)$/, label: '<거리>' },
     { re: /^\d{1,2}:\d{2}$/, label: '<시각>' },
@@ -96,6 +97,9 @@ export const VALUE_SHAPES = [
     { re: /^0\d{1,2}-\d{3,4}-\d{4}$/, label: '<전화>' },
     { re: /^\d+(\.\d+)?만\s?원$/, label: '<금액>' },
     { re: /^[\d,]+원$/, label: '<금액>' },
+    { re: /^[\d,]+ ?P$/, label: '<포인트>' },
+    { re: /^\d+개$/, label: '<개수>' },
+    { re: /^\d+(동|호)$/, label: '<동호수>' },
 ];
 export const isValueShape = (t) => VALUE_SHAPES.some(({ re }) => re.test(t));
 

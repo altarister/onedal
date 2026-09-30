@@ -273,13 +273,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /**
          * 🟩 **오더카드가 뜬 순간을 기록만 한다** (2단계 «내려간 목록에서도 누르기»의 근거 · uiautomator 없이 앱 자신이).
          * 이 한 줄로 셋을 본다 — ① «수락»이 노드 하나로 오나 ② 머리줄 위(스크롤 안)인가 붙박이인가 ③ 머리줄이 안 보일 때도 보이나.
-         * 🔴 누르지도 스크롤하지도 않는다. 띠 글자는 값·지명·가게를 이름표로 바꿔 남긴다(`ScreenWords.maskForLog` · 개인정보).
+         * 🔴 누르지도 스크롤하지도 않는다. 띠 글자는 값·지명·가게를 이름표로 바꿔 남긴다(`ScreenWords.mask` · 개인정보).
          * @param nodes (글자, 중심Y, 중심X)
          */
         fun offerCardRecord(nodes: List<Triple<String, Int, Int>>, headerY: Int?): String? {
             val accept = nodes.firstOrNull { it.first.trim() == OFFER_ACCEPT_WORD } ?: return null
             val band = nodes.filter { kotlin.math.abs(it.second - accept.second) <= OFFER_BAND_PX && it !== accept }
-                .joinToString(" │ ") { com.onedal.app.core.ScreenWords.maskForLog(it.first) }
+                .joinToString(" │ ") { com.onedal.app.core.ScreenWords.mask(it.first) }
             val header = headerY?.let { "머리줄 Y=$it (${if (accept.second < it) "위" else "아래"})" } ?: "머리줄 안 보임"
             return "수락 노드 (${accept.third},${accept.second}) · $header · 띠 노드: $band"
         }

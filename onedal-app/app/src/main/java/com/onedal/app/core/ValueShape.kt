@@ -7,6 +7,7 @@ package com.onedal.app.core
  */
 object ValueShape {
     val SHAPES: List<Pair<Regex, String>> = listOf(
+        Regex("""^01\d{8,9}$""") to "<전화>",                // 하이픈 없는 휴대폰 — «<숫자>»보다 앞이어야 한다
         Regex("""^[\d,.]+$""") to "<숫자>",
         Regex("""^\d+(\.\d+)?(km|m)$""") to "<거리>",
         Regex("""^\d{1,2}:\d{2}$""") to "<시각>",
@@ -17,6 +18,9 @@ object ValueShape {
         Regex("""^0\d{1,2}-\d{3,4}-\d{4}$""") to "<전화>",
         Regex("""^\d+(\.\d+)?만\s?원$""") to "<금액>",
         Regex("""^[\d,]+원$""") to "<금액>",
+        Regex("""^[\d,]+ ?P$""") to "<포인트>",              // 픽커 «29,491 P» · «2387P»
+        Regex("""^\d+개$""") to "<개수>",                    // «대박스 1개»
+        Regex("""^\d+(동|호)$""") to "<동호수>",              // 건물 동·호 — 고객 주소다
     )
 
     fun normalize(token: String): String =

@@ -87,6 +87,23 @@ class ScreenWordsTest {
         assertEquals(listOf("noise" to "리스트 설정"), words())
     }
 
+    /** 🔒 실물 서버 낱말 표(09-30)에 쌓인 줄 — 주소 통째 · 건물 동 번호 · 포인트 · 개수가 콜마다 새 낱말이었다 */
+    @Test fun `여러 토막 글자도 토막마다 가린다 - 실물 낱말 표의 줄`() {
+        ScreenWords.onScreen(Page.DETAIL)
+        ScreenWords.add("픽업지 경기 성남시 분당구 이매2동", WordKind.UNKNOWN)
+        ScreenWords.add("105동", WordKind.UNKNOWN)
+        ScreenWords.add("29,491 P", WordKind.UNKNOWN)
+        ScreenWords.add("대박스 1개", WordKind.UNKNOWN)
+        ScreenWords.add("준비 14분 남음", WordKind.UNKNOWN)
+        assertEquals(listOf("unknown" to "픽업지 <지역>", "unknown" to "대박스 <개수>", "unknown" to "준비 <남은 시간> 남음"), words())
+    }
+
+    @Test fun `예시 줄도 가린다 - 주소 동호수 전화 요금`() {
+        ScreenWords.onScreen(Page.DETAIL)
+        ScreenWords.add("퀵 비즈 O", WordKind.UNKNOWN, "퀵 비즈 O 105동 18,140 경기 성남시 분당구 이매2동 01012345678 010-1234-5678 넘기기 수락하기")
+        assertEquals("퀵 비즈 O <동호수> <숫자> <지역> <전화> <전화> 넘기기 수락하기", ScreenWords.drain()!!.words[0].sample)
+    }
+
     @Test fun `화면 종류는 네 페이지 가운데 하나로 - 모르는 화면은 안 모은다`() {
         assertEquals(Page.LIST, pageOf(com.onedal.app.models.ScreenContext.LIST))
         assertEquals(Page.DETAIL, pageOf(com.onedal.app.models.ScreenContext.POPUP_MEMO))

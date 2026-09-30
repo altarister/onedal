@@ -32,6 +32,12 @@ class ValueShapePairTest {
         assertEquals("<전화>", ValueShape.normalize("010-1234-5678"))
         assertEquals("<금액>", ValueShape.normalize("11만원"))
         assertEquals("<금액>", ValueShape.normalize("16,093원"))
+        assertEquals("<포인트>", ValueShape.normalize("2387P"))
+        assertEquals("<포인트>", ValueShape.normalize("29,491 P"))
+        assertEquals("<개수>", ValueShape.normalize("1개"))
+        assertEquals("<동호수>", ValueShape.normalize("105동"))
+        assertEquals("<동호수>", ValueShape.normalize("1203호"))
+        assertEquals("<전화>", ValueShape.normalize("01012345678"))
     }
 
     @Test fun `글자는 그대로다`() {

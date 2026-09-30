@@ -35,7 +35,9 @@ data class ScreenWordsReport(val page: String, val words: List<ScreenWord>)
  * 보고를 만들 때(`TelemetryManager`) 한 화면 몫을 꺼내 싣는다. 서버가 배차망 · 페이지 · 낱말별로 처음·마지막·횟수를 센다.
  *
  * 🔴 **홍수를 막는 가름** — 콜마다 다른 글자가 낱말 표를 불리지 않게:
- * - 값(요금·거리·시각·날짜·전화)은 이름표로(`ValueShape`). 못 알아본 글자 중 값은 싣지 않는다 — 값 칸은 정의돼 있다
+ * - 값(요금·거리·시각·날짜·전화·포인트·개수·동호수)은 이름표로(`ValueShape`). 못 알아본 글자 중 값은 싣지 않는다 — 값 칸은 정의돼 있다
+ * - 여러 토막 글자와 예시 줄은 토막마다 가린다(`mask`) — «픽업지 경기 성남시 분당구 이매2동» → «픽업지 <지역>» (개인정보 · 새 낱말 홍수)
+ *   ⚠️ 한계: 사람 이름은 모양으로 못 가린다
  * - «키 : 값» 줄은 키만 — 이름·주소 같은 값은 콜마다 다르다
  * - 지명 명부에 있는 토막 → «<지역>» · 가게·건물 모양 → «<가게·건물>» · 띄어 쓴 긴 글 → «<문장>» (잡음 낱말은 그대로 — 목록이 정해져 있다)
  * - 한 보고 200개 · 낱말 40자 · 예시 줄 200자 (서버 한도와 같다)
@@ -62,8 +64,12 @@ object ScreenWords {
         for ((sgg, dongs) in com.onedal.app.core.engine.RegionRegister.bySgg) {
             (sgg.split(" ") + dongs).forEach { out.add(it); out.add(bare(it)) }
         }
+        out.addAll(PROVINCES)
         out
     }
+
+    /** 도 이름 — 명부 키는 도 아래를 «성남시 분당구»로 적어 도가 없다(광역시 «서울»은 키에 있다) */
+    private val PROVINCES = setOf("경기", "강원", "충북", "충남", "세종")
 
     private fun bare(w: String) = w.replace(Regex("""\d+"""), "").replace(Regex("""(동|읍|면|시|구|군)$"""), "")
 
@@ -99,22 +105,30 @@ object ScreenWords {
         val words = byPage.getOrPut(p) { LinkedHashMap() }
         val key = "${kind.word}|$w"
         if (key in words || words.size >= MAX_WORDS) return
-        words[key] = ScreenWord(w, kind.word, sample?.take(SAMPLE_MAX))
+        words[key] = ScreenWord(w, kind.word, sample?.let(::mask)?.take(SAMPLE_MAX))
     }
 
     /**
-     * 🔒 **로그에 남길 글자 — 토막마다 값·지명·가게를 이름표로** (오더카드 기록 · 개인정보).
-     * «경기 성남시 중원구 금광1동» → «<지역> <지역> <지역> <지역>» · «010-1234-5678» → «<전화>» · 요금 → «<숫자>».
+     * 🔒 **토막마다 값·지명·가게를 이름표로 — 한 벌** (예시 줄 · 여러 토막 낱말 · 오더카드 로그 · 개인정보).
+     * «경기 성남시 중원구 금광1동» → «<지역>»(이어진 지역은 하나로) · «010-1234-5678»·«01012345678» → «<전화>» · «105동» → «<동호수>» · 요금 → «<숫자>».
+     * ⚠️ 사람 이름은 모양으로 못 가린다.
      */
-    fun maskForLog(raw: String): String = raw.trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }.joinToString(" ") { t ->
-        val shaped = ValueShape.normalize(t)
-        when {
-            shaped != t -> shaped
-            isRegion(t) -> "<지역>"
-            PLACE.containsMatchIn(t) -> "<가게·건물>"
-            else -> t.take(WORD_MAX)
+    fun mask(raw: String): String {
+        val out = ArrayList<String>()
+        for (t in raw.trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }) {
+            val shaped = ValueShape.normalize(t)
+            val m = when {
+                shaped != t -> shaped
+                isRegion(t) -> REGION
+                PLACE.containsMatchIn(t) -> "<가게·건물>"
+                else -> t
+            }
+            if (m == REGION && out.lastOrNull() == REGION) continue
+            out.add(m)
         }
+        return out.joinToString(" ")
     }
+    private const val REGION = "<지역>"
 
     /** 한 보고 몫(먼저 모은 페이지 하나)을 꺼낸다 — 다른 페이지 것은 다음 보고로. 모은 것이 없으면 null (보고에 안 싣는다) */
     @Synchronized fun drain(): ScreenWordsReport? {
@@ -136,6 +150,8 @@ object ScreenWords {
             // 띄어 쓴 긴 글은 적요·유의사항 같은 문장 — 콜마다 다르다. 띄어 쓴 짧은 말(«한차배송 신청내역 보기»)은 화면 이름이라 그대로 둔다
             if (' ' in t && t.length > SENTENCE_MIN_LEN) return "<문장>"
             if (PLACE.containsMatchIn(t) || (t.length >= PLACE_MIN_LEN && ' ' !in t)) return "<가게·건물>"
+            // 🔒 짧은 여러 토막 글자 — 토막마다 가린다(«대박스 1개» → «대박스 <개수>» · «픽업지 경기 … 이매2동» → «픽업지 <지역>»)
+            if (' ' in t) return mask(t).take(WORD_MAX)
         }
         return t.take(WORD_MAX)
     }

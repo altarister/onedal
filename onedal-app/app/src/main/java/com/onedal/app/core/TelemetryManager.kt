@@ -43,7 +43,8 @@ class TelemetryManager(
         }
     }
 
-    private val scrapBuffer = mutableListOf<SimplifiedOfficeOrder>()
+    /** 🏷️ 보낼 목록 줄 + 담을 때의 출처 (`ScrapBuffer`) */
+    private val scrapBuffer = ScrapBuffer()
 
     /**
      * 🐢 **«예약한 발사가 제때 깨어났나»를 재는 자리** (기사님 실측).
@@ -168,10 +169,13 @@ class TelemetryManager(
      * 수집 시점에 즉각 발송되도록 타이머 조작
      */
     fun enqueue(order: SimplifiedOfficeOrder) {
-        synchronized(scrapBuffer) {
-            scrapBuffer.add(order)
+        // 🏷️ 출처는 담을 때 — 지금 읽는 화면 앱. 버퍼 출처와 다르면 버퍼를 먼저 보내고 담는다(한 보고 안에 출처가 안 섞인다)
+        val source = TargetApp.sourceOf(screenPackage)
+        if (!scrapBuffer.add(order, source)) {
+            flush(isHeartbeat = false)
+            scrapBuffer.add(order, source)
         }
-        
+
         // 데이터가 들어오면 300ms 뒤에 한꺼번에 쏘도록 디바운스 세팅
         scheduleFlush(DEBOUNCE_MS)
     }
@@ -256,11 +260,7 @@ class TelemetryManager(
             }
         }
         flushScheduledAt = 0L
-        val snapshot: List<SimplifiedOfficeOrder>
-        synchronized(scrapBuffer) {
-            snapshot = scrapBuffer.toList()
-            scrapBuffer.clear()
-        }
+        val (snapshot, rowsSource) = scrapBuffer.drain()
 
         // [GPS 텔레메트리] 마지막 알려진 위치 조회 (앱폰 = 차량 거치대, GPS = 차량 위치)
         //
@@ -306,7 +306,8 @@ class TelemetryManager(
             lat = lat,                                   // [GPS 텔레메트리] 앱폰 위도
             lng = lng,                                   // [GPS 텔레메트리] 앱폰 경도
             targetApp = appCode,
-            source = TargetApp.sourceOf(screenPackage),
+            // 🏷️ 줄이 있으면 담을 때의 출처 · 줄이 없으면(화면 바뀐 보고만) 지금 화면 앱
+            source = if (snapshot.isNotEmpty()) rowsSource else TargetApp.sourceOf(screenPackage),
             listHeaderHidden = listHeaderHidden.takeIf { currentScreenContext == com.onedal.app.models.ScreenContext.LIST },
             screenWords = screenWords,
             // 📦🚦🎛️ 폰 상태 바가 쓸 셋 — 앱 안엔 있었는데 여태 안 보내던 것들
