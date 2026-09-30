@@ -1,4 +1,4 @@
-import { businessDayKey, parseCapturedAt } from "@onedal/shared";
+import { businessDayKey } from "@onedal/shared";
 import type { MyOrder } from "@onedal/shared";
 
 /**
@@ -12,15 +12,13 @@ import type { MyOrder } from "@onedal/shared";
  */
 
 /**
- * 이 콜의 보관 날 `YYYY-MM-DD` — 목록 읽은 날 + `reservedDay` 일. 오늘 콜(0 · 없음)이면 null.
- * 날의 기준은 앱이 날수를 센 순간(`timestamp`)이다 — 목록 읽기와 상세 수신 사이에 자정이 끼면 잡은 날로는 모레가 된다.
- * 없거나 못 읽으면 잡은 시각(`capturedAt`). 앱 시각의 옛 형식(한국 시각에 `Z`)은 `parseCapturedAt` 이 바로잡는다.
+ * 이 콜의 보관 날 `YYYY-MM-DD` — 잡은 날 + `reservedDay` 일. 오늘 콜(0 · 없음)이면 null.
  * 날 경계는 `businessDayKey`(영업일 전환과 같은 자정) 하나로 잰다.
  */
 export function reservedForOf(order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string }): string | null {
     const days = order.reservedDay;
     if (days == null || !(days >= 1)) return null;
-    const base = parseCapturedAt(order.timestamp, Date.now()) ?? Date.parse(order.capturedAt ?? '');
+    const base = Date.parse(order.capturedAt ?? order.timestamp ?? '');
     if (!Number.isFinite(base)) return null;
     const d = new Date(base);
     d.setDate(d.getDate() + days);
