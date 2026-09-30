@@ -13,7 +13,7 @@ import { rememberOrder } from "../state/orderMemory";
 import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, homeCallsOf } from "../state/filterManager";
 import { recordCallTarget } from "../core/callTargetEvents";
 import { getActivePolyline, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
-import { composeMergedRoute, planArrivalStops, type PromiseOrderOpts, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline, type RouteHolder } from "./routeComposer";
+import { composeMergedRoute, planMergedStops, parseSectionEnds, parseSectionStops, planArrivalStops, type PromiseOrderOpts, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline, type RouteHolder } from "./routeComposer";
 import { firmPromiseMsOf } from "./stepSeeder";
 import { DEFAULT_JUDGMENT, routeNeedsRecompute } from "@onedal/shared";
 import type { JudgmentConfig } from "@onedal/shared";
@@ -834,7 +834,22 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
  *   ⑤ 경유 도출    폴리라인 기준(활성 콜 있음) 또는 destinationCity 기준(없음)
  *   ⑥ 필터 확정    activeFilter 완성 → 관제탑 filter-init 1회 + 앱폰 콜 잡기 재개
  */
-export async function bootstrapUserSession(userId: string, io: any): Promise<void> {
+/**
+ * ⏳ **되살리기는 기사마다 한 번 · 도는 중에 부른 쪽은 끝날 때까지 기다린다** — 관제웹 접속과 /detail(재시작 직후 판정 전)이 겹쳐도
+ *    두 번 돌지 않고, /detail 은 되살린 잡은 콜로 판정한다.
+ */
+const bootstrapRuns = new Map<string, Promise<void>>();
+
+export function bootstrapUserSession(userId: string, io: any): Promise<void> {
+    const running = bootstrapRuns.get(userId);
+    if (running) return running;
+    if (getUserSession(userId).isRestored) return Promise.resolve();
+    const run = bootstrapOnce(userId, io).finally(() => bootstrapRuns.delete(userId));
+    bootstrapRuns.set(userId, run);
+    return run;
+}
+
+async function bootstrapOnce(userId: string, io: any): Promise<void> {
     const session = getUserSession(userId);          // ① (지리 연산 없이 baseFilter 만)
     if (session.isRestored || session.isBootstrapping) return;
 
@@ -1048,6 +1063,9 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                  * 깨진 값이면 없는 것으로 친다 (그러면 아래에서 다시 잰다 — 안전망).
                  */
                 routePolyline: parsePolyline(row.routePolyline),
+                /* 🎨 구간 경계·주인도 함께 편다 — 관제웹 콜 목록(GET /orders)과 같이 셋이 같이 살아야 지도가 색을 내고, 합짐 경로 재사용이 남은 정거장과 견줄 수 있다 */
+                sectionEnds: parseSectionEnds(row.sectionEnds),
+                sectionStops: parseSectionStops(row.sectionStops),
                 kakaoSoloDistanceKm: row.kakaoSoloDistanceKm,
                 kakaoSoloDurationMin: row.kakaoSoloDurationMin,
                 kakaoTimeExt: row.kakaoTimeExt,
@@ -1141,7 +1159,17 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         }
 
         // 4. 합짐(서브콜) 카카오 궤적 1회 복구
-        if (activeSubs.length > 0 && activeMain) {
+        //    🗺️ 장부의 합짐 경로가 지금 남은 정거장과 같으면 다시 재지 않는다 — 되살리기가 재시작 직후 판정 길에 들어오니 짧아야 한다
+        const mergedHolder = activeMain ? pickRouteHolder(activeCalls, activeMain) : null;
+        const plannedNow = activeSubs.length > 0 ? planMergedStops(activeCalls, null, originOf(session), promiseOrderOpts(session)) : null;
+        const stopKey = (s: { orderId: string; stopType: string }) => `${s.orderId}|${s.stopType}`;
+        const wantStops = new Set((plannedNow?.orderedStops ?? []).map(stopKey));
+        const haveStops = new Set((mergedHolder?.sectionStops ?? []).map(stopKey));
+        const savedMergedFits = !!mergedHolder?.routePolyline?.length && wantStops.size > 0
+            && wantStops.size === haveStops.size && [...wantStops].every(k => haveStops.has(k));
+        if (activeSubs.length > 0 && activeMain && savedMergedFits) {
+            slog('부팅', `🗺️ [복구 - 합짐 궤적 재사용] ${mergedHolder!.id} — 장부 경로의 정거장 ${wantStops.size}곳이 지금과 같다 (카카오 호출 없음)`);
+        } else if (activeSubs.length > 0 && activeMain) {
             try {
                 const calcResult = await composeMergedRoute({
                     calls: activeCalls,

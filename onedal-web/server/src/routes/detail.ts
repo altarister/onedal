@@ -10,7 +10,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession, dropOrderTimer } from "../state/userSessionStore";
 import { evolveOrder, rememberOrder } from "../state/orderMemory";
-import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
+import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder, bootstrapUserSession } from "../services/dispatchEngine";
 import { getDeviceMode } from "./devices";
 import db from "../db";
 import { slog } from "../utils/fileLogger";
@@ -38,6 +38,12 @@ router.post("/", async (req, res) => {
         }
         const userId = deviceRow.user_id;
         const session = getUserSession(userId);
+        /* ⏳ 재시작 직후 관제웹이 붙기 전이면 판정 전에 그 기사의 진행 중 콜부터 되살린다 — 도는 중이면 그 끝을 기다린다 (bootstrapUserSession) */
+        if (!session.isRestored || session.isBootstrapping) {
+            const waitT0 = Date.now();
+            await bootstrapUserSession(userId, req.app.get("io"));
+            slog('부팅', `⏳ [되살리기 먼저] ${payload.order?.id ?? '?'} — 판정 전 진행 중 콜을 되살렸다 (${Date.now() - waitT0}ms)`);
+        }
 
         const realOrderId = (payload.order.id === "unknown" || !payload.order.id)
             ? (session.deviceEvaluatingMap.get(payload.deviceId) || "unknown")
