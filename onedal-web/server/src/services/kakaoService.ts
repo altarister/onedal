@@ -38,6 +38,51 @@ export async function kakaoJson(url: string, init: RequestInit, timeoutMs: numbe
     return res.json();
 }
 
+/**
+ * 🪞 **나란히 한 번 더** — 첫 요청이 문턱(`hedgeAfterMs`) 안에 안 오면 같은 요청을 하나 더 보내고, 먼저 온 성공을 쓴다(나머지는 끊는다).
+ * 길찾기 문턱 1.5초: 제한 없이 20번 잰 값 19번이 0.53~0.97초, 1번이 4.15초 — 추가 호출은 느린 몇 %에서만 나가고
+ * 멈춘 콜도 문턱 + 한 번(약 2.2초 · 어림)에 끝난다. 전체 마감(`deadlineMs`)은 그대로라 최악은 늘지 않는다.
+ * 추가 호출 상한은 판정 한 번마다 `hedgeBudget`(`kakaoHedgeBudget.ts`) 에 담는다 — 판정 밖(KEEP · 경로 비교)은 칸이 없어 한 번 더 보내지 않는다.
+ * HTTP 오류(429 등)는 한 번 더 보내지 않고 바로 던진다 — 한도 초과에 호출을 늘리지 않는다.
+ */
+const KAKAO_ROUTE_HEDGE_MS = 1500;
+
+export function kakaoJsonHedged(url: string, init: RequestInit, hedgeAfterMs: number, deadlineMs: number, label: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const ctrls: AbortController[] = [];
+        let inFlight = 0;
+        let done = false;
+        const finish = (settle: () => void) => {
+            if (done) return;
+            done = true;
+            clearTimeout(hedgeTimer);
+            clearTimeout(deadlineTimer);
+            ctrls.forEach(c => c.abort());
+            settle();
+        };
+        const launch = () => {
+            const c = new AbortController();
+            ctrls.push(c);
+            inFlight++;
+            fetch(url, { ...init, signal: c.signal })
+                .then(res => { if (!res.ok) throw new Error(`카카오 ${label} HTTP ${res.status}`); return res.json(); })
+                .then(json => finish(() => resolve(json)), err => {
+                    inFlight--;
+                    if (inFlight === 0) finish(() => reject(err));
+                });
+        };
+        const hedgeTimer = setTimeout(() => {
+            const budget = hedgeBudget.getStore();
+            if (done || !budget || budget.left <= 0) return;
+            budget.left--;
+            budget.used++;
+            launch();
+        }, hedgeAfterMs);
+        const deadlineTimer = setTimeout(() => finish(() => reject(new Error(`카카오 ${label} 응답 없음(${deadlineMs / 1000}초)`))), deadlineMs);
+        launch();
+    });
+}
+
 function getHeaders() {
     // process.env는 함수 호출 시점에 읽어야 dotenv 로딩 순서에 영향 받지 않음
     const apiKey = process.env.KAKAO_REST_API_KEY || "";
@@ -46,6 +91,8 @@ function getHeaders() {
 
 // ━━━━━━━━━━ [2단계 캐시: L1(인메모리) + L2(SQLite)] ━━━━━━━━━━
 import db from "../db";
+import { hedgeBudget } from "./kakaoHedgeBudget";
+export { hedgeBudget };
 import { slog } from "../utils/fileLogger";
 
 // L1: 인메모리 캐시 (서버 세션 내 초고속 조회)
@@ -319,7 +366,7 @@ export async function calculateSoloRoute(
     
     slog('판정', `[Kakao Nav API (Solo)] 호출 URL: ${url}`);
     
-    const data = await kakaoJson(url, { headers: getHeaders() }, KAKAO_ROUTE_TIMEOUT_MS, '길찾기');
+    const data = await kakaoJsonHedged(url, { headers: getHeaders() }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '길찾기');
     if (!data.routes || data.routes.length === 0) {
         console.error(`❌ [Kakao API Error (Solo)] 경로 탐색 실패:`, JSON.stringify(data));
         throw new Error(`경로 탐색 실패: ${data.msg || "routes 배열 없음"}`);
@@ -420,7 +467,7 @@ export async function calculateDetourRoute(
     if (baseWaypoints) {
         baseUrl += `&waypoints=${baseWaypoints}`;
     }
-    const baseData = cachedBase ? null : await kakaoJson(baseUrl, { headers }, KAKAO_ROUTE_TIMEOUT_MS, '합짐 비교 경로');
+    const baseData = cachedBase ? null : await kakaoJsonHedged(baseUrl, { headers }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '합짐 비교 경로');
     /* 🧮 base 가 비면 0 으로 넘기지 않는다 — 늘어난 분이 합짐 전체가 되어 좋은 합짐이 «똥»으로 보이고, 그 0 이 캐시돼 뒤 후보까지 번진다 */
     if (baseData && (!baseData.routes?.length || baseData.routes[0].result_code !== 0)) {
         const r0 = baseData.routes?.[0];
@@ -455,14 +502,14 @@ export async function calculateDetourRoute(
     // 🧹 요청 사실 한 줄 — 좌표·경유 수면 되짚기에 족하다 (reviews/22 ①-3 «계산당 한 줄»)
     slog('판정', `🚙 [카카오 합짐 경로] 경유 ${wpArray.length}곳 · ${mergedOriginX},${mergedOriginY} → ${mergedDestX},${mergedDestY}`);
     
-    const mergedData = await kakaoJson(KAKAO_WAYPOINTS_URL, {
+    const mergedData = await kakaoJsonHedged(KAKAO_WAYPOINTS_URL, {
         method: "POST",
         headers: {
             ...headers,
             "Content-Type": "application/json"
         },
         body: JSON.stringify(requestBody)
-    }, KAKAO_ROUTE_TIMEOUT_MS, '합짐 경로');
+    }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '합짐 경로');
     
     if (!mergedData.routes || mergedData.routes.length === 0) {
         console.error(`❌ [Kakao API Error (Detour)] 우회 경로 탐색 실패. 응답 코드=${mergedData.msg || '알수없음'}, 상세:`, JSON.stringify(mergedData));

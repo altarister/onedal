@@ -14,6 +14,7 @@ import { goalCityOf } from "../../state/filterManager";
 import { findLoadConflicts, totalDetourCost, getStopTiming } from "../helpers";
 import { haversineKm, originOf, homeOriginOf } from "../../services/geoService";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
+import { hedgeBudget } from "../../services/kakaoHedgeBudget";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
 import { SettingsRepository } from "../../repositories/SettingsRepository";
@@ -72,10 +73,20 @@ export class OrderEvaluator {
     /**
      * 앱에서 올라온 PendingOrder를 심사하여 장/단점(pros/reasons)을 주입합니다.
      */
-    public async evaluate(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any): Promise<void> {
+    /** 🪞 판정 한 번마다 «나란히 한 번 더» 추가 호출 상한 2 (`kakaoService.hedgeBudget`) */
+    public evaluate(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any): Promise<void> {
+        return hedgeBudget.run({ left: 2, used: 0 }, () => this.evaluateOnce(userId, securedOrder, io));
+    }
+
+    private async evaluateOnce(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any): Promise<void> {
         const session = getUserSession(userId);
         const t0 = Date.now();
         let geoMs = 0, routeMs = 0, merged = false;
+        /** 걸린 시간을 실패해도 센다 — 제한 시간에 걸린 판정도 몇 초 먹었는지 판정 시간 줄에 남는다 */
+        const timed = async <T>(p: Promise<T>, add: (ms: number) => void): Promise<T> => {
+            const start = Date.now();
+            try { return await p; } finally { add(Date.now() - start); }
+        };
         /**
          * 🪦 **아직 이 콜의 판정인가** — 카카오를 기다리는 사이 안전취소(같은 객체의 status)나 새 판정(map 이 다른 객체)이 끼어든다.
          *    두 사실만 본다: map 의 그 객체가 이 객체인가 · 아직 심사 중인가. 아니면 저장도 알림도 안 한다.
@@ -122,12 +133,10 @@ export class OrderEvaluator {
                 const needPickup = !securedOrder.pickupX || !securedOrder.pickupY;
                 const needDropoff = !securedOrder.dropoffX || !securedOrder.dropoffY;
 
-                const geoT0 = Date.now();
-                const [pCoord, dCoord] = await Promise.all([
+                const [pCoord, dCoord] = await timed(Promise.all([
                     needPickup ? geocodeAddress(securedOrder.pickup) : Promise.resolve(null),
                     needDropoff ? geocodeAddress(securedOrder.dropoff) : Promise.resolve(null),
-                ]);
-                geoMs = Date.now() - geoT0;
+                ]), ms => { geoMs = ms; });
 
                 if (needPickup) {
                     slog('판정', `🌍 [Geocoding] 상차지 변환: '${securedOrder.pickup}' -> ${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
@@ -156,15 +165,13 @@ export class OrderEvaluator {
 
                     if (!isSharedEvaluate) {
                         // 단독 오더 연산
-                        const routeT0 = Date.now();
-                        const result = await calculateSoloRoute(
+                        const result = await timed(calculateSoloRoute(
                             securedOrder.pickupX!, securedOrder.pickupY!,
                             securedOrder.dropoffX!, securedOrder.dropoffY!,
                             originNow(),
                             routingOptions.defaultPriority,
                             routingOptions.carType
-                        );
-                        routeMs = Date.now() - routeT0;
+                        ), ms => { routeMs = ms; });
 
                         // 🔴 필드를 손으로 채우지 않는다 — routeComposer 의 규약을 안 타면
                         //    **접근 구간(현위치 → 상차지)이 통째로 버려진다.** 콜을 잡는 주 경로라 특히 그렇다.
@@ -378,8 +385,7 @@ export class OrderEvaluator {
                          *    *"후보 콜은 아직 안 실었으므로 상차지를 남긴다."*
                          */
                         merged = true;
-                        const routeT0 = Date.now();
-                        const result = await composeMergedRoute({
+                        const result = await timed(composeMergedRoute({
                             calls: activeCalls,
                             extra: securedOrder,
                             origin: originNow(),
@@ -393,8 +399,7 @@ export class OrderEvaluator {
                                 dwellMin: (s: 'pickup' | 'dropoff') => s === 'pickup'
                                     ? judgmentCfg.unknown.pickupDwellMin : judgmentCfg.unknown.dropoffDwellMin,
                             },
-                        });
-                        routeMs = Date.now() - routeT0;
+                        }), ms => { routeMs = ms; });
                         if (!result) {
                             // 좌표가 하나도 없다 — 기존 실패 처리로 떨어뜨린다
                             throw new Error("합짐 경로 조립 실패: 유효한 좌표가 없습니다");
@@ -822,7 +827,8 @@ export class OrderEvaluator {
             slog('판정', `   - 👍 [장점 수집] (${pros.length}건): ${pros.join(' | ')}`);
         }
 
-        const timing = `좌표 ${geoMs}ms · 길찾기 ${routeMs}ms · 합 ${Date.now() - t0}ms · ${merged ? '합짐' : '단독'}`;
+        const hedged = hedgeBudget.getStore()?.used ?? 0;
+        const timing = `좌표 ${geoMs}ms · 길찾기 ${routeMs}ms${hedged ? ` (다시 ${hedged})` : ''} · 합 ${Date.now() - t0}ms · ${merged ? '합짐' : '단독'}`;
         if (!alive()) {
             slog('판정', `🪦 [판정 버림] ${securedOrder.id.slice(-6)} — 판정 도중 끝났거나 다른 판정으로 바뀐 콜 (${securedOrder.status}) · 저장·알림 안 함 · ${timing}`);
             return;

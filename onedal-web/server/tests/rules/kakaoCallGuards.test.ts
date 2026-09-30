@@ -2,7 +2,7 @@
 import db from '../../src/db';
 import { handleDecision } from '../../src/services/dispatchEngine';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
-import { kakaoJson, calculateSoloRoute, calculateDetourRoute } from '../../src/services/kakaoService';
+import { kakaoJson, kakaoJsonHedged, hedgeBudget, calculateSoloRoute, calculateDetourRoute } from '../../src/services/kakaoService';
 
 /**
  * 🚪 **끝난 콜에는 KEEP 을 싣지 않는다 · 카카오 호출은 제한 시간과 응답 상태를 본다 · 합짐 비교 경로 실패는 0 이 아니다**
@@ -64,5 +64,46 @@ describe('🧮 합짐 비교 경로(base) 실패', () => {
         }) as any;
         await expect(calculateDetourRoute(127.3, 37.3, 127.1, 37.1, 127.4, 37.4, [], { x: 127.0, y: 37.0 }, 'RECOMMEND', 1, null, null))
             .rejects.toThrow('합짐 비교 경로 탐색 실패');
+    });
+});
+
+describe('🪞 나란히 한 번 더 — 첫 요청이 문턱 안에 안 오면 같은 요청을 하나 더 · 먼저 온 성공', () => {
+    const never = (init: any) => new Promise((_r, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason)));
+    const okAfter = (ms: number) => new Promise(r => setTimeout(() => r({ ok: true, status: 200, json: async () => ({ hit: true }) }), ms));
+
+    it('🔴 첫 요청 멈춤 · 둘째가 빨리 옴 → 문턱 + 둘째 시간에 성공 · 다시 1', async () => {
+        let n = 0;
+        global.fetch = ((_: any, init: any) => (++n === 1 ? never(init) : okAfter(50))) as any;
+        const budget = { left: 2, used: 0 };
+        const t0 = Date.now();
+        const j = await hedgeBudget.run(budget, () => kakaoJsonHedged('https://x', {}, 100, 1000, '길찾기'));
+        expect(j).toEqual({ hit: true });
+        expect(Date.now() - t0).toBeLessThan(600);
+        expect(budget.used).toBe(1);
+    });
+
+    it('🔴 둘 다 멈춤 → 전체 마감에 «응답 없음»', async () => {
+        global.fetch = ((_: any, init: any) => never(init)) as any;
+        const budget = { left: 2, used: 0 };
+        await expect(hedgeBudget.run(budget, () => kakaoJsonHedged('https://x', {}, 50, 300, '길찾기'))).rejects.toThrow('카카오 길찾기 응답 없음');
+        expect(budget.used).toBe(1);
+    });
+
+    it('첫 요청이 문턱 안에 오면 추가 호출 0', async () => {
+        let n = 0;
+        global.fetch = (() => { n++; return okAfter(20); }) as any;
+        const budget = { left: 2, used: 0 };
+        await hedgeBudget.run(budget, () => kakaoJsonHedged('https://x', {}, 200, 1000, '길찾기'));
+        await new Promise(r => setTimeout(r, 250));
+        expect(n).toBe(1);
+        expect(budget.used).toBe(0);
+    });
+
+    it('판정 한 번의 추가 호출은 상한까지만 — 상한이 다 쓰였으면 문턱이 지나도 안 보낸다', async () => {
+        let n = 0;
+        global.fetch = ((_: any, init: any) => { n++; return n === 1 ? never(init) : okAfter(10); }) as any;
+        const budget = { left: 0, used: 2 };
+        await expect(hedgeBudget.run(budget, () => kakaoJsonHedged('https://x', {}, 50, 200, '길찾기'))).rejects.toThrow('응답 없음');
+        expect(n).toBe(1);
     });
 });
