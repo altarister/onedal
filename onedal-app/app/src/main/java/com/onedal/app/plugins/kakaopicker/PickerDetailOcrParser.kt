@@ -74,7 +74,8 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
         alarmTappedCard: SimplifiedOfficeOrder?,
         matchedListOrder: SimplifiedOfficeOrder?,
         screenTexts: List<String>,
-        rawScreenStr: String
+        rawScreenStr: String,
+        recent: List<SimplifiedOfficeOrder> = emptyList(),
     ): VerifyResult {
         // 📰 사진에서 칸에 안 넣은 줄 — 상세 페이지의 «정의에 없음»으로 모은다 (reviews/24 · `ScreenWords`)
         val photoSample = parsed.unreadLines.joinToString(" ")
@@ -88,7 +89,8 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
             ).withReservation(detailReservation(parsed))
             return VerifyResult.Success(verifiedOrder, parsed)
         } else {
-            val baseOrder = matchedListOrder
+            // 🧾 상세 글자로 못 가르면 사진의 상차·하차·픽업 km 로 한 번 더 — 꼭 한 줄일 때만 (`photoMatchCard`)
+            val baseOrder = matchedListOrder ?: KakaoPickerParser.photoMatchCard(parsed.pickup, parsed.dropoff, recent)
             val resolvedFare = baseOrder?.fare?.takeIf { it > 0 } ?: extractFareFromTexts(screenTexts)
 
             val now = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {

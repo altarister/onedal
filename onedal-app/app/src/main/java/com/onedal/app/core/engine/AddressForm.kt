@@ -20,6 +20,8 @@ object AddressForm {
         "대전광역시" to "대전", "대전시" to "대전", "세종시" to "세종특별자치시", "세종" to "세종특별자치시",
     )
     private val ROAD = Regex("""\S+(로|길)\s*\d""")
+    /** 시·구 바로 뒤 행정 토막 — 한글로 시작(«101동»은 아니다) · 끝에 숫자 둘까지(«역삼1동») · 동/읍/면/가로 끝 */
+    private val ADMIN_UNIT = Regex("""^[가-힣]{1,6}\d{0,2}(동|읍|면|가)$""")
     private val DIGITS = Regex("""\d""")
 
     /** 🗂️ 명부 + «구 없는 시» — 부를 때마다 다시 합치지 않는다(상세 한 번에 여러 번 불린다 · 명부는 굳힌 상수) */
@@ -36,6 +38,8 @@ object AddressForm {
             val rest = tokens.drop(at + key.size)
             val folded = dongs.mapTo(HashSet()) { fold(it) }
             if (rest.any { fold(it) in folded }) return true
+            // 🔄 행정동은 명부(법정동)에 없다 — 시·구가 정확히 맞은 바로 뒤 한글 «…동/읍/면/가» 토막이면 전체다 (실물 «서울 송파구 위례동» · «역삼1동»)
+            if (rest.firstOrNull()?.let { ADMIN_UNIT.matches(it) } == true) return true
             if (ROAD.containsMatchIn(rest.joinToString(" "))) return true
         }
         return false

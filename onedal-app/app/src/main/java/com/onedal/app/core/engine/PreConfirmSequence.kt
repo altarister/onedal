@@ -107,16 +107,17 @@ fun ScanContext.handlePreConfirmScreen(
     }
 
     // 📋 필수 요소 최종 대조 — 세 배차망 같다. 못 채웠으면 서버에 보내지 않고 버린다
-    if (!OrderRequirement.meetsDetail(order)) {
+    val missing = OrderRequirement.missingDetail(order)
+    if (missing.isNotEmpty()) {
         apiClient.sendAnomalyReport(
             targetApp = currentTargetApp,
             screenName = telemetryManager.currentScreenContext.name,
-            failureReason = "REQUIREMENT_UNMET",
+            failureReason = "REQUIREMENT_UNMET: ${missing.joinToString(" · ")}",
             listOrderInfo = mapOf("fare" to order.fare, "pickup" to order.pickup, "dropoff" to order.dropoff),
             detailParsedText = rawScreenStr.take(500),
             ocrResult = null,
         )
-        dropUnfilledCall("요건 미달 ${order.pickup.take(14)} → ${order.dropoff.take(14)} ${order.fare}원")
+        dropUnfilledCall("요건 미달 — ${missing.joinToString(" · ")}")
         return
     }
 
@@ -276,7 +277,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                 val clock = com.onedal.app.core.StepClock(postedAt) { android.os.SystemClock.elapsedRealtime() }
                 clock.mark("대기")
                 try {
-                val verifyResult = pickerParser.verify(detail, tappedCard, matchedListCard, screenTexts, rawScreenStr)
+                val verifyResult = pickerParser.verify(detail, tappedCard, matchedListCard, screenTexts, rawScreenStr, recentListOrders)
                 clock.mark("대조")
                 when (verifyResult) {
                     is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Success -> {
@@ -288,18 +289,18 @@ private fun ScanContext.handlePreConfirmSnapshot(
                             return@post
                         }
                         // 📋 필수 요소 최종 대조 — 사진으로 채운 값으로 (세 배차망 같다)
-                        val meets = OrderRequirement.meetsDetail(verifiedOrder)
+                        val missing = OrderRequirement.missingDetail(verifiedOrder)
                         clock.mark("요건")
-                        if (!meets) {
+                        if (missing.isNotEmpty()) {
                             apiClient.sendAnomalyReport(
                                 targetApp = currentTargetApp,
                                 screenName = telemetryManager.currentScreenContext.name,
-                                failureReason = "REQUIREMENT_UNMET",
+                                failureReason = "REQUIREMENT_UNMET: ${missing.joinToString(" · ")}",
                                 listOrderInfo = mapOf("fare" to verifiedOrder.fare, "pickup" to verifiedOrder.pickup, "dropoff" to verifiedOrder.dropoff),
                                 detailParsedText = rawScreenStr.take(500),
                                 ocrResult = null,
                             )
-                            dropUnfilledCall("사진으로 채운 값이 요건 미달")
+                            dropUnfilledCall("사진으로 채운 값이 요건 미달 — ${missing.joinToString(" · ")}")
                             return@post
                         }
                         // 🎯 «누른 그 콜인가» — 세 배차망 같은 검증

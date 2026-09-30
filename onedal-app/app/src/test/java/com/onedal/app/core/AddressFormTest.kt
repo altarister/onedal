@@ -42,7 +42,18 @@ class AddressFormTest {
     @Test fun `광역시는 구 없이 시도 + 동을 인정하지 않는다 (같은 이름 동이 여러 구에)`() = assertFalse(AddressForm.isFull("가나 마바동", reg))
     @Test fun `시군구의 한 토막이 빠지면 아니다 (광역 이름 없는 다라구)`() = assertFalse(AddressForm.isFull("다라구 마바동", reg))
     @Test fun `시군구만 있고 동이 없으면 아니다`() = assertFalse(AddressForm.isFull("자차시 카타구", reg))
-    @Test fun `그 시군구의 동이 아니면 아니다`() = assertFalse(AddressForm.isFull("가나 다라구 파하동", reg))
+    /** 🔄 행정동은 명부(법정동)에 없다 — 시·구가 정확히 맞은 바로 뒤 한글 «…동/읍/면/가» 토막이면 전체다 (실물 09-30 13:14 «서울 송파구 위례동» · 1f «가») */
+    @Test fun `시군구 바로 뒤 한글 동 토막이면 명부에 없어도 전체다`() = assertTrue(AddressForm.isFull("가나 다라구 파하동", reg))
+    @Test fun `숫자로 시작하는 101동은 동 토막이 아니다`() = assertFalse(AddressForm.isFull("가나 다라구 101동", reg))
+    @Test fun `시군구가 없으면 동 토막만으로는 아니다`() = assertFalse(AddressForm.isFull("파하동", reg))
+
+    @Test fun `실물 행정동 - 위례동 · 역삼1동 · 을지로6가`() {
+        assertTrue(AddressForm.isFull("서울 송파구 위례동"))
+        assertTrue(AddressForm.isFull("경기 성남시 수정구 위례동"))
+        assertTrue(AddressForm.isFull("서울 강남구 역삼1동"))
+        assertTrue(AddressForm.isFull("서울 중구 을지로6가"))
+        assertFalse(AddressForm.isFull("서울 송파구 101동"))
+    }
     @Test fun `명부 밖 지역은 아니다`() = assertFalse(AddressForm.isFull("타파시 하거구 너더동", reg))
     @Test fun `빈 값은 아니다`() = assertFalse(AddressForm.isFull("", reg))
 

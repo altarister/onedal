@@ -453,6 +453,25 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             }
         }
 
+        /**
+         * 🧾 **사진으로 목록 줄을 한 번 더 찾는다** — 손으로 연 상세에서 `matchListCard` 가 못 가를 때 (실물 09-30 13:14 · 1f «가»).
+         * 상세 글자에는 하차가 없어 한 매장 오더 여럿(올리브영)을 못 갈랐다 — 사진에는 상차·하차 행정동과 픽업 km 가 있다.
+         * 고르는 법 — 카드 상차 토막 ⊂ 사진 상차 · 카드 하차 토막 ⊂ 사진 하차 · 픽업 km 차 0.3 이하. 🔴 **꼭 한 줄일 때만** — 아니면 null(추측하지 않는다).
+         */
+        fun photoMatchCard(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
+            val pickupKeys = regionKeys("${pickup.admin} ${pickup.place.orEmpty()}")
+            val dropoffKeys = regionKeys("${dropoff.admin} ${dropoff.place.orEmpty()}")
+            val hits = recent
+                .filter { c -> cardKeys(c.pickup).let { k -> k.isNotEmpty() && k.all { it in pickupKeys } } }
+                .filter { c -> cardKeys(c.dropoff).let { k -> k.isNotEmpty() && k.all { it in dropoffKeys } } }
+                .filter { c -> c.pickupDistance != null && kotlin.math.abs(c.pickupDistance - pickup.straightKm) <= PHOTO_MATCH_KM }
+                .distinctBy { Triple(it.pickup, it.dropoff, it.fare) }
+            return hits.singleOrNull()
+        }
+
+        /** 사진 픽업 km 와 목록 줄 픽업 km 의 허용 차 — 둘 다 소수 한 자리 직선거리다 */
+        private const val PHOTO_MATCH_KM = 0.3
+
         /** 상세의 «물품 정보 소형 …» — 🔴 «초소형»을 «소형»보다 먼저 본다 */
         private val DETAIL_SIZE_REGEX = Regex("""물품\s*정보\s*(초소형|소형|중형|대형|특대형)""")
 

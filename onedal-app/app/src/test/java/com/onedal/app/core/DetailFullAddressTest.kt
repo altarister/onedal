@@ -78,7 +78,7 @@ class DetailFullAddressTest {
 
     @Test
     fun `글자로 채운 콜과 사진으로 채운 콜이 같은 대조 · 같은 검증을 지난다`() {
-        assertTrue("필수 요소 대조가 두 곳에 없다", Regex("""OrderRequirement\.meetsDetail\(""").findAll(seq).count() >= 3)
+        assertTrue("필수 요소 대조가 두 곳에 없다", Regex("""OrderRequirement\.(meetsDetail|missingDetail)\(""").findAll(seq).count() >= 3)   // missingDetail = 모자란 요건 이름 (meetsDetail 은 그 목록이 비었는가)
         assertTrue("«누른 그 콜인가» 검증이 두 곳에서 불리지 않는다", Regex("""dropIfNotTappedCall\(""").findAll(seq).count() >= 3)
         assertFalse("상세에서 옛 요건(meets)을 본다", seq.contains("OrderRequirement.meets("))
     }

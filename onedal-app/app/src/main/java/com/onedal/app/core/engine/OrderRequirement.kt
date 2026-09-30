@@ -20,8 +20,7 @@ object OrderRequirement {
      * 🏠 **상세의 필수 요소 — 세 배차망 같다** (기사님 «상세에 들어간 뒤엔 모든 주소를 다 가지고 있어야 한다 · 배차망에 따라 달라질 수 없다»)
      * 요금 · 상차 **전체 주소** · 하차 **전체 주소**(도보도). 전체 주소 판정은 `AddressForm` 한 곳 — 모자라면 서버에 보내지 않고 버린다.
      */
-    fun meetsDetail(order: SimplifiedOfficeOrder): Boolean =
-        order.fare > 0 && AddressForm.isFull(order.pickup) && AddressForm.isFull(order.dropoff)
+    fun meetsDetail(order: SimplifiedOfficeOrder): Boolean = missingDetail(order).isEmpty()
 
     /**
      * 📋 **목록 완독** — 요건에 **상차지거리**를 더한다(기사님 «상차지 거리를 찾는 건 공통»). 목록 줄에만 쓴다.
@@ -30,6 +29,16 @@ object OrderRequirement {
      */
     fun listComplete(order: SimplifiedOfficeOrder, allowsEmptyDropoff: Boolean): Boolean =
         meets(order, allowsEmptyDropoff) && order.pickupDistance != null
+
+    /**
+     * 📋 **모자란 요건을 이름으로** — «요건 미달»만으로는 요금인지 주소인지 몰라 사진부터 다시 캐야 했다 (실물 09-30 13:14).
+     * `meetsDetail` 은 이 목록이 비었는가다 — 한 규칙. 로그 «🧾 [값 못 채움]»과 이상 징후 사유에 실린다.
+     */
+    fun missingDetail(order: SimplifiedOfficeOrder): List<String> = buildList {
+        if (order.fare <= 0) add("요금 없음")
+        if (!AddressForm.isFull(order.pickup)) add("상차 주소 짧음(${order.pickup.take(20)})")
+        if (!AddressForm.isFull(order.dropoff)) add("하차 주소 짧음(${order.dropoff.take(20)})")
+    }
 
     private fun filled(value: String): Boolean = value.isNotBlank() && value != MISSING
 }
