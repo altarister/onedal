@@ -47,7 +47,7 @@ describe('배선 — 서버·앱이 같은 규칙을 쓴다', () => {
 
     it('🔴 서버 Stage1 경유 검사가 anyRegionHit 를 쓴다 (includes 로 되돌리지 않는다)', () => {
         const ev = read('../../src/core/engine/OrderEvaluator.ts');
-        expect(ev).toMatch(/anyRegionHit\(dropoffText, keywords, filter\.keywordTraps\)/);
+        expect(ev).toMatch(/anyRegionHit\(dropoffText, keywords, filter\.keywordTraps, filter\.destinationDongSigungu\)/);   // 동명이동 칸까지 (dongSigungu.test)
     });
 
     it('🔴 keywordTraps 는 키워드에서 매번 파생된다 — 한 함수(`refreshKeywordTraps`) · 상차 ∪ 하차 목록 (2026-09-15)', () => {

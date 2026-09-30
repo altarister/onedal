@@ -1,3 +1,4 @@
+import { sigunguHintBefore } from './sigungu';
 /**
  * 🗺️ **지역 키워드 매칭 — 사전 확장으로 부분 문자열 오탐을 막는다** (기사님 확정 ④)
  *
@@ -19,7 +20,7 @@
  * 함께 계산해 `keywordTraps` 로 피기백에 실리고, 앱(Kotlin `RegionMatch`)은
  * 같은 규칙을 미러링한다. 규칙을 바꾸면 **양쪽을 같이** 바꾼다.
  */
-export function regionKeywordHit(text: string, keyword: string, traps?: string[]): boolean {
+export function regionKeywordHit(text: string, keyword: string, traps?: string[], sigunguForms?: string[]): boolean {
     if (!keyword) return false;
     const tails = (traps ?? [])
         .filter(t => t.length > keyword.length && t.startsWith(keyword))
@@ -47,13 +48,16 @@ export function regionKeywordHit(text: string, keyword: string, traps?: string[]
         const before = text.slice(0, i);
         const glued = heads.some(h => before.endsWith(h));
         const trapped = glued || tails.some(tail => rest.startsWith(tail)) || /^[구시군]/.test(rest);
-        if (!trapped) return true;
+        /* 🏘️ 이름이 같은 다른 지역 동 — 바로 앞에 보이는 시군구가 칸의 꼴이 아니면 그 자리는 다른 곳 (목록 페이지에서 상세 주소가 안 보이면 통과) */
+        const hint = sigunguForms?.length ? sigunguHintBefore(before) : null;
+        const otherSigungu = hint != null && !sigunguForms!.includes(hint);
+        if (!trapped && !otherSigungu) return true;
         i = text.indexOf(keyword, i + 1);
     }
     return false;
 }
 
 /** 키워드 목록 중 하나라도 걸리는가 — 트랩 맵과 함께 (호출부 셋: 서버 Stage1 · 앱 1차 · 앱 2차) */
-export function anyRegionHit(text: string, keywords: string[], traps?: Record<string, string[]>): boolean {
-    return keywords.some(k => regionKeywordHit(text, k, traps?.[k]));
+export function anyRegionHit(text: string, keywords: string[], traps?: Record<string, string[]>, dongSigungu?: Record<string, string[]>): boolean {
+    return keywords.some(k => regionKeywordHit(text, k, traps?.[k], dongSigungu?.[k]));
 }

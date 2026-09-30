@@ -967,7 +967,7 @@ export class OrderEvaluator {
             } else {
                 const dropoffText = order.dropoff || '';
                 // 🗺️ 사전 확장 매칭 (④) — "남동"⊂"남동구" 부분 문자열 오탐을 트랩으로 거른다
-                const matched = anyRegionHit(dropoffText, keywords, filter.keywordTraps);
+                const matched = anyRegionHit(dropoffText, keywords, filter.keywordTraps, filter.destinationDongSigungu);
                 if (!matched) {
                     reasons.push(`도착지(${dropoffText.substring(0, 10)}) 경유 이탈`);
                 } else {

@@ -35,3 +35,48 @@ export function sigunguOfShort(short: string | null | undefined): string {
     if (sigungus.size === 1) return [...sigungus][0];
     return sigungus.size > 1 ? SIGUNGU_AMBIGUOUS : SIGUNGU_UNKNOWN;
 }
+
+/** 명부의 시군구 이름 한 벌 (서울 · 인천 · 대전과 경기 · 충청 시군구) */
+const SIGUNGU_NAMES: readonly string[] = [...new Set(DONG_CENTROIDS.map(([, sigungu]) => sigungu))];
+
+/**
+ * 🏘️ **이름이 둘 이상 시군구에 있는 동** — 명부에서 센다(«고덕동» = 서울 강동구 · 평택시). 서버가 오늘 도착 목록 가운데
+ *    이 동에만 destinationDongSigungu 를 붙인다(filterManager).
+ */
+export const SAME_NAME_DONGS: ReadonlySet<string> = (() => {
+    const byName = new Map<string, Set<string>>();
+    for (const [name, sigungu] of DONG_CENTROIDS) {
+        if (!byName.has(name)) byName.set(name, new Set());
+        byName.get(name)!.add(sigungu);
+    }
+    return new Set([...byName].filter(([, s]) => s.size > 1).map(([name]) => name));
+})();
+
+/**
+ * 🏘️ **동 키워드 바로 앞에 보이는 시군구** — 대조할 글자(한 토막 «평택시» · 두 토막 «서울 중구») 또는 모름(null).
+ *    서버 anyRegionHit · 원달앱 RegionMatch 가 같은 규칙을 쓴다(문제지 regionMatchCases.json).
+ *    · 앞 토막(공백 · @ · / 로 자름)이 명부 시군구의 어떤 토막으로 시작하면 시군구 꼴 — 명부에 없어도 «…시·군·구»로 끝나면 시군구 꼴(문법 안전망 · «달서구»)
+ *    · 시도만 보이면(«서울») 모름 — 목록 페이지에서 상세 주소가 안 보이면 통과(상세 페이지는 요건 확인이 시·군·구 없는 하차 주소를 먼저 막는다)
+ *    · 여러 곳의 같은 구 이름(«중구» = 서울 중구 · 대전 중구)이면 앞 토막까지 두 토막으로 — 두 토막이 없으면 모름
+ *    · 구를 건너뛴 «시 + 동»(«경기 성남시 정자동»)은 한 토막 «성남시» — 가리키는 시가 하나다
+ */
+export function sigunguHintBefore(before: string): string | null {
+    const tokens = before.split(/[\s@/]+/).filter(Boolean);
+    const last = tokens[tokens.length - 1];
+    if (!last) return null;
+    const hits = SIGUNGU_NAMES.filter(s => hintMatches(s, last));
+    const suffixed = /[시군구]$/.test(last);
+    if (!hits.length) return suffixed ? last : null;
+    /* 시도 토막(«서울»)만 — 명부 이름의 첫 토막이고 시·군·구 꼴이 아니다 */
+    if (!suffixed && hits.every(s => s.includes(' ') && s.split(' ')[0] === last)) return null;
+    /* 이 토막이 가리키는 곳이 하나면 한 토막 — «성남시»는 분당구·수정구·중원구에 걸려도 가리키는 시는 하나다 */
+    const places = new Set(hits.map(s => {
+        const parts = s.split(' ');
+        return parts.slice(0, parts.findIndex(p => p.startsWith(last)) + 1).join(' ');
+    }));
+    if (places.size === 1) return last;
+    /* 여러 곳의 같은 이름(«중구» = 서울 중구 · 대전 중구) — 앞 토막까지 두 토막으로 */
+    const prev = tokens[tokens.length - 2];
+    return prev ? `${prev} ${last}` : null;
+}
+

@@ -11,7 +11,7 @@
  * - activeFilter는 직접 수정하고 직접 읽는 1등 시민(first-class citizen)입니다.
  */
 
-import { isHomeCallSince } from "@onedal/shared";
+import { isHomeCallSince, SAME_NAME_DONGS } from "@onedal/shared";
 import { callTargetToday } from "../core/callTargetEvents";
 import db from "../db";
 import { getActiveCalls, computeLoadedPoints, buildOrderSync, filterVersionOf } from "../core/helpers";
@@ -899,6 +899,33 @@ export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): 
 function refreshKeywordTraps(session: ReturnType<typeof getUserSession>): void {
     const f = session.activeFilter;
     f.keywordTraps = trapsForKeywords([...new Set([...(f.destinationKeywords ?? []), ...(f.pickupKeywords ?? [])])]);
+    refreshDongSigungu(session);
+}
+
+/**
+ * 🏘️ **이름이 같은 다른 지역 동 — 오늘 도착 목록이 뜻하는 시군구를 붙인다** (평택 고덕동 실사고 · 기사님 «가»).
+ *    도착 목록 가운데 명부에서 이름이 둘 이상 시군구에 있는 동(SAME_NAME_DONGS)만 → 값은 그 동이 든 묶음 부모(시·구)를 cityAliases 로 편 꼴.
+ *    앱 RegionMatch · 서버 anyRegionHit 가 «앞에 다른 시·군·구가 보이면 거름 · 목록 페이지에서 상세 주소가 안 보이면 통과»로 쓴다.
+ *    🔴 트랩과 같은 자리 하나에서 파생 — 목록을 바꾸는 두 길이 refreshKeywordTraps 를 부른다. 도착 목록 **전체**에서 만든다
+ *       (앱에 내릴 때 경유 순서 키로 옮겨 간 동도 여기 있다 · buildAppOrderKm). 부모를 못 찾은 동은 싣지 않는다(= 지금처럼 통과).
+ *    상차 목록은 이번 범위 밖(기사님 «가»는 하차지).
+ */
+function refreshDongSigungu(session: ReturnType<typeof getUserSession>): void {
+    const f = session.activeFilter;
+    const out: Record<string, string[]> = {};
+    for (const dong of f.destinationKeywords ?? []) {
+        if (!SAME_NAME_DONGS.has(dong)) continue;
+        const forms = new Set<string>();
+        for (const [parent, dongs] of Object.entries(f.destinationGroups ?? {})) {
+            if (!dongs.includes(dong)) continue;
+            for (const a of cityAliases(parent)) forms.add(a);
+            /* 구가 있는 시(«성남시 분당구»)는 구를 건너뛴 «시 + 동» 주소(«경기 성남시 정자동»)도 받는다 — 시 꼴도 싣는다 (04) */
+            const city = parent.split(' ')[0];
+            if (parent.includes(' ') && /시$/.test(city)) for (const a of cityAliases(city)) forms.add(a);
+        }
+        if (forms.size) out[dong] = [...forms];
+    }
+    f.destinationDongSigungu = out;
 }
 
 /**

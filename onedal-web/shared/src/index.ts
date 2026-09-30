@@ -972,6 +972,11 @@ export interface AutoDispatchFilter {
      * 부분 문자열 오탐 방지(regionMatch ④)의 사전. destinationKeywords 에서 매번 파생.
      */
     keywordTraps?: Record<string, string[]>;
+    /**
+     * 🏘️ 이름이 같은 다른 지역 동 — 오늘 도착 목록의 동 가운데 명부에서 이름이 겹치는 것만, 값은 그 동이 뜻하는 시군구 꼴(cityAliases).
+     * 앞에 다른 시·군·구가 보이면 거른다 · 목록 페이지에서 상세 주소가 안 보이면 통과 (regionMatch · 서버 filterManager 가 파생).
+     */
+    destinationDongSigungu?: Record<string, string[]>;
 }
 
 /** 📅 예약콜 축의 값 셋 — `today` 오늘 콜만 · `tomorrowToo` 내일 콜도 · `tomorrowOnly` 내일 콜만 */
