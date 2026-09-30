@@ -1628,8 +1628,8 @@ class HijackService : AccessibilityService(), ScanContext {
         // 🚨 자기 자신의 앱(오버레이 UI) 텍스트 수집 원천 차단 (텍스트 오염/무한루프 주범)
         if (node.packageName?.toString() == "com.onedal.app") return
 
-        node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out.add(it) }
-        node.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out.add(it) }
+        com.onedal.app.core.NodeText.clean(node.text)?.let { out.add(it) }
+        com.onedal.app.core.NodeText.clean(node.contentDescription)?.let { out.add(it) }
         for (i in 0 until node.childCount) gatherNodeTexts(node.getChild(i), out)
     }
 
@@ -1639,7 +1639,7 @@ class HijackService : AccessibilityService(), ScanContext {
         // 🚨 자기 자신의 앱(오버레이 UI) 텍스트 수집 원천 차단
         if (node.packageName?.toString() == "com.onedal.app") return
 
-        val text = node.text?.toString()?.trim() ?: node.contentDescription?.toString()?.trim()
+        val text = com.onedal.app.core.NodeText.clean(node.text) ?: com.onedal.app.core.NodeText.clean(node.contentDescription)
         if (!text.isNullOrEmpty()) {
             val rect = Rect()
             node.getBoundsInScreen(rect)
