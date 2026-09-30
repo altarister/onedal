@@ -18,7 +18,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
         /** 카드 줄을 찾을 때 조상을 몇 번까지 타고 올라가나 */
         private const val ROW_HOPS = 6
         /** 뒤로 가기의 «무엇» */
-        private const val BACK_KEY = "뒤로"
+        private const val BACK_KEY = TapInFlight.BACK_KEY
     }
 
     /** 🖐️ 흔들기 난수원 — 시간·자리를 매번 다르게 (`TapShift.holdMs` · `jitter`). 씨앗은 검사가 아니라 실행마다 다르다 */

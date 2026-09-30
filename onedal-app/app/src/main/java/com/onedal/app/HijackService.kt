@@ -1236,7 +1236,6 @@ class HijackService : AccessibilityService(), ScanContext {
         // 앱별 앵커 노드 감지 및 텍스트 그룹화 로직을 파서(ScrapParser)로 위임
         // 📜 목록 머리줄이 보이나 — 사실 한 칸(보고·로그). 바뀔 때만 한 줄
         val headerVisible = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).listHeaderVisible(allNodes)
-        telemetryManager.listHeaderHidden = headerVisible?.let { !it }
         if (headerVisible != null && com.onedal.app.core.LogOnce.changed("list-header", "$headerVisible"))
             AppLogger.i(TAG, LogTag.SCREEN, if (headerVisible) "📜 [목록 맨 위] 머리줄 보임 — 목록 줄을 누를 수 있다"
                 else "📜 [목록 내려감] 머리줄 안 보임 — 앱은 «오더카드 대기 중» 띠 아래 줄만 누른다 (오더카드 꼴이 보이면 안 누른다)")
@@ -1408,7 +1407,10 @@ class HijackService : AccessibilityService(), ScanContext {
             if (isTarget) {
                 // 🔔 이 콜로 처음 알람감이 됐나 — 요금만 오른 같은 콜은 passedNew 에 안 센다(판정은 위에서 다시 했다)
                 val firstFare = alarmedRoutes.firstFareOf(order)
-                if (alarmedRoutes.countIfNew(order, nowMs)) tally.passedNew++
+                if (alarmedRoutes.countIfNew(order, nowMs)) {
+                    tally.passedNew++
+                    AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [새로 셈] ${order.pickup}→${order.dropoff} ${order.fare}원")
+                }
                 else if (LogOnce.changed("alarmed-route:${order.pickup}→${order.dropoff}", "${order.fare}"))
                     AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [이미 알람 낸 콜] ${order.pickup}→${order.dropoff} · 요금 ${firstFare ?: "?"} → ${order.fare} — 셈·알람 안 함")
             }
@@ -1490,7 +1492,10 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         val tapNowMs = android.os.SystemClock.elapsedRealtime()
         val handHeld = tapsFromList && !session.openedByApp && bestIdx >= 0 && handFirst.blocks(tapNowMs)
+        /** 🚧 통과 콜이 있는데 안 연 까닭 — 목록 보고 openBlocked (`OpenBlocked`) */
+        var openBlocked: String? = if (tapsFromList && bestIdx >= 0 && session.openedByApp) com.onedal.app.core.OpenBlocked.BUSY else null
         if (handHeld) {
+            openBlocked = com.onedal.app.core.OpenBlocked.HAND_FIRST
             handFirst.hold(tapNowMs)
             if (LogOnce.changed("hand-first", "${handFirst.lastHandAtMs}"))
                 AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "✋ [손 먼저] 기사님 손 ${"%.1f".format((tapNowMs - handFirst.lastHandAtMs) / 1000.0)}초 전($lastHandWhy) — 소리는 울림 · 누르기 미룸 · 멈추면 곧바로 다시 읽는다")
@@ -1504,6 +1509,7 @@ class HijackService : AccessibilityService(), ScanContext {
             d.dropped?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [알람 미룸 → 탈락] $it") }
             when (d.kind) {
                 com.onedal.app.core.AlarmHold.Kind.HOLD -> {
+                    if (!handHeld) openBlocked = com.onedal.app.core.OpenBlocked.ALARM_HELD
                     lastScreenFingerprint = 0   // 확인 읽기의 글자가 같아도 목록을 다시 봐야 미룬 알람이 울린다
                     AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "⏳ [알람 미룸] 목록이 움직이는 중(내용 바뀜 ${recentContentEvents.size}개/300ms) — 다음 읽기에서 같은 조립이면 울린다 · $label")
                     mainHandler.removeCallbacks(heldAlarmRecheck)
@@ -1526,6 +1532,7 @@ class HijackService : AccessibilityService(), ScanContext {
             val evaluatingTop = if (prefs.contains(com.onedal.app.core.EvaluatingNow.PREF_KEY))
                 prefs.getBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, false) else null
             if (com.onedal.app.core.EvaluatingNow.of(evaluatingTop, savedFilter().evaluatingNow)) {
+                openBlocked = com.onedal.app.core.OpenBlocked.EVALUATING
                 AppLogger.d(TAG, LogTag.TAP, "⏳ [클릭 미룸] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
                     "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 다음 스캔에서 바로 누릅니다")
             } else {
@@ -1534,13 +1541,21 @@ class HijackService : AccessibilityService(), ScanContext {
                     alarmSignaler.fire(
                         fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash,
                         withBorder = false,
-                        withSound = true,
+                        withSound = alarmedRoutes.soundIfNew(order, android.os.SystemClock.elapsedRealtime()),   // 🔔 같은 경로 한 번(스크롤로 나갔다 와도)
                     )
                 }
                 if (!handHeld) {
                 handReleasedMs?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "👆 [미룬 누르기] +${it}ms · 손 먼저") }
+                // 🌊 방금 스크롤 — 흐르는 목록은 누르지 않고 곧 다시 읽는다(주 판정은 배차망의 누르기 직전 Y 차이 · 이것은 덧)
+                val plugin = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp)
                 // 👆 누르기 전 안전 확인과 누를 자리는 배차망이 정한다 (픽커: 오더카드를 피한다)
-                val tap = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).planListTap(allNodes, order, fareNode)
+                val tap = if (scrollGate.scrolledRecently(android.os.SystemClock.elapsedRealtime())) null else plugin.planListTap(allNodes, order, fareNode)
+                if (tap == null) {
+                    openBlocked = if (scrollGate.scrolledRecently(android.os.SystemClock.elapsedRealtime())) com.onedal.app.core.OpenBlocked.LIST_MOVING
+                        else plugin.lastHoldKey ?: com.onedal.app.core.OpenBlocked.HELD
+                    if (openBlocked == com.onedal.app.core.OpenBlocked.LIST_MOVING)
+                        waitBook.schedule("흐르는 목록 다시 읽기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.ScrollGate.QUIET_MS) { reservedRead("흐르는 목록") }
+                }
                 if (tap != null) {
                     AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🚪 [상세 진입] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
                         "모드 $currentMode — ${if (currentMode == "AUTO") "앱이 채우고 확정" else "판정만 받고 확정·수락은 기사님"} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
@@ -1549,6 +1564,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     val fired = touchManager.performSimulatedTouch(fareNode.node, tapRowLeft = tap.rowLeft, delayMs = tap.delayMs, tapDy = tap.dy,
                         tapKey = "call:${CallMemory.fingerprintOf(order)}")   // 👆 같은 콜을 진행 중에 또 누르지 않는다 — 열쇠는 콜 지문
                     if (!fired) {
+                        openBlocked = com.onedal.app.core.OpenBlocked.TAP_NOT_SENT
                         // 🛑 누르기가 실패했다(노드가 사라짐 · 좌표를 못 구함) — 세션을 세우지도, 기억에 넣지도 않는다.
                         //    세우면 화면은 목록 그대로라 «목록으로 돌아왔다» 리셋이 안 오고 다음 스캔부터 아무 콜도 못 누른다
                         AppLogger.w("1DAL_ALARM", LogTag.TAP, "🛑 [진입 실패] ${order.fare}원 — 누르기가 안 됐다. 이번 스캔은 손대지 않고 다음 스캔에 다시 본다")
@@ -1580,6 +1596,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 }   // ✋ 누르기만 손 문 안
             }
         }
+        telemetryManager.openBlocked = openBlocked   // 🚧 열었거나 통과 콜이 없으면 null
         if (scanOrders.isNotEmpty()) alarmedRoutes.seen(scanOrders, nowMs)   // 카드 0장 틀은 «안 보였다»가 아니다
         // 🔔 알람 테두리 — 가리키던 콜이 이번 스캔에 없으면 걷는다 (잡혔거나 남이 가져감 · §6-③)
         alarmSignaler.onScan(scanHashes)

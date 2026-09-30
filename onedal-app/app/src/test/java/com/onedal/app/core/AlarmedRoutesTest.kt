@@ -66,7 +66,8 @@ class AlarmedRoutesTest {
 
     @Test fun `목록 스캔이 passedNew 를 세고 누른 뒤 열기 함을 적는다`() {
         val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
-        assertTrue(src.contains("if (alarmedRoutes.countIfNew(order, nowMs)) tally.passedNew++"))
+        assertTrue(src.contains("if (alarmedRoutes.countIfNew(order, nowMs)) {"))
+        assertTrue(src.contains("tally.passedNew++"))
         assertTrue(src.contains("alarmedRoutes.markOpened(order, "))
         assertTrue(src.contains("if (isTarget && !alarmedRoutes.opened(order)) alarmHits.add("))
     }

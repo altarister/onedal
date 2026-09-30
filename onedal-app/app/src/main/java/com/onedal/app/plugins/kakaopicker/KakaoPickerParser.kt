@@ -2,6 +2,7 @@ package com.onedal.app.plugins.kakaopicker
 
 import android.content.Context
 import com.onedal.app.core.LogTag
+import com.onedal.app.core.OpenBlocked
 import com.onedal.app.core.LogOnce
 import com.onedal.app.core.ScreenReadingOrder
 import com.onedal.app.core.ScreenWords
@@ -284,16 +285,19 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * ① «수락»·«수락하기»·오더카드 버튼 꼴(«숫자 P»)이 하나도 없다 ② 맨 위 띠가 «오더카드 … 대기 중»이고 줄이 그 아래 ③ 줄이 아래 탭 줄 위.
          * @param nodes (글자, top, bottom) · @param fareY 요금 중심 Y(누르는 Y)
          */
-        fun scrolledRowTapBlock(nodes: List<Triple<String, Int, Int>>, fareY: Int): String? {
+        /** 👆 내려간 목록 누르기를 막는 까닭 — 목록 보고 openBlocked 열쇠와 로그 글 */
+        data class TapBlock(val key: String, val why: String) { override fun toString() = why }
+
+        fun scrolledRowTapBlock(nodes: List<Triple<String, Int, Int>>, fareY: Int): TapBlock? {
             nodes.map { it.first.trim() }.firstOrNull { it == OFFER_ACCEPT_WORD || it.contains("수락하기") || isOfferPointButton(it) }
-                ?.let { return "오더카드 꼴이 보인다(«$it»)" }
+                ?.let { return TapBlock(OpenBlocked.ACCEPT_VISIBLE, "오더카드 꼴이 보인다(«$it»)") }
             val band = nodes.filter { it.first.contains(OFFER_BAND_WORD) }
-            if (band.isEmpty()) return "오더카드 대기 띠가 안 보인다"
-            band.firstOrNull { !it.first.contains(OFFER_WAITING_WORD) }?.let { return "띠 글이 대기 중이 아니다(«${it.first.trim()}»)" }
+            if (band.isEmpty()) return TapBlock(OpenBlocked.NO_WAITING_BAND, "오더카드 대기 띠가 안 보인다")
+            band.firstOrNull { !it.first.contains(OFFER_WAITING_WORD) }?.let { return TapBlock(OpenBlocked.NO_WAITING_BAND, "띠 글이 대기 중이 아니다(«${it.first.trim()}»)") }
             val bandBottom = band.maxOf { it.third }
-            if (fareY <= bandBottom + SCROLLED_GAP_PX) return "띠 바로 아래(요금 Y=$fareY · 띠 아래끝 $bandBottom)"
-            val tabTop = nodes.filter { it.first.trim() in TAB_BAR_WORDS }.minOfOrNull { it.second } ?: return "아래 탭 줄을 못 찾았다"
-            if (fareY >= tabTop - SCROLLED_GAP_PX) return "아래 탭 줄에 걸림(요금 Y=$fareY · 탭 위끝 $tabTop)"
+            if (fareY <= bandBottom + SCROLLED_GAP_PX) return TapBlock(OpenBlocked.UNDER_BAND, "띠 바로 아래(요금 Y=$fareY · 띠 아래끝 $bandBottom)")
+            val tabTop = nodes.filter { it.first.trim() in TAB_BAR_WORDS }.minOfOrNull { it.second } ?: return TapBlock(OpenBlocked.TAB_BAR, "아래 탭 줄을 못 찾았다")
+            if (fareY >= tabTop - SCROLLED_GAP_PX) return TapBlock(OpenBlocked.TAB_BAR, "아래 탭 줄에 걸림(요금 Y=$fareY · 탭 위끝 $tabTop)")
             return null
         }
 
@@ -548,7 +552,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             normalizeRegion(s.trim().removeSuffix("시").removeSuffix("군").removeSuffix("읍").removeSuffix("면"))
 
         private fun regionKeys(text: String): Set<String> =
-            text.split(Regex("""\s+""")).map(::regionKey).filter { it.isNotEmpty() }.toSet()
+            com.onedal.app.core.engine.AddressForm.joinSpacedUnit(text).split(Regex("""\s+""")).map(::regionKey).filter { it.isNotEmpty() }.toSet()
 
         private fun cardKeys(region: String): List<String> =
             region.split(' ').map(::regionKey).filter { it.isNotEmpty() }

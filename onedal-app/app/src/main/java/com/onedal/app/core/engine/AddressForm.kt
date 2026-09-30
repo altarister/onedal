@@ -27,8 +27,17 @@ object AddressForm {
     /** 🗂️ 명부 + «구 없는 시» — 부를 때마다 다시 합치지 않는다(상세 한 번에 여러 번 불린다 · 명부는 굳힌 상수) */
     private val defaultMerged: Map<String, Set<String>> by lazy { RegionRegister.bySgg + citiesWithoutGu(RegionRegister.bySgg) }
 
+    /** «죽전 1동» → «죽전1동» · «을지로 3가» → «을지로3가» — 사진 판독이 동 이름과 번호 사이를 띄운다 */
+    private val SPACED_UNIT = Regex("""(?<=^|\s)([가-힣]+)\s+(\d+(?:동|가))(?=\s|$)""")
+
+    /**
+     * 🏘️ **띄어 읽힌 동 번호를 붙인다** (`AddressSpacedDongTest` · 라이브 10-01 00:32:02 «경기 용인시 수지구 죽전 1동 순창떡»이 «하차 주소 짧음»).
+     * 요건 검사 · 사진 행정동 · 목록 줄 대조 열쇠가 같이 쓴다.
+     */
+    fun joinSpacedUnit(text: String): String = SPACED_UNIT.replace(text) { "${it.groupValues[1]}${it.groupValues[2]}" }
+
     fun isFull(text: String, register: Map<String, Set<String>> = RegionRegister.bySgg): Boolean {
-        val tokens = text.trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }.map { SIDO_SHORT[it] ?: it }
+        val tokens = joinSpacedUnit(text).trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }.map { SIDO_SHORT[it] ?: it }
         if (tokens.isEmpty()) return false
         val merged = if (register === RegionRegister.bySgg) defaultMerged else register + citiesWithoutGu(register)
         for ((sgg, dongs) in merged) {

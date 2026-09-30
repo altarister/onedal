@@ -50,24 +50,6 @@ import com.onedal.app.core.AppLogger
  */
 class AlarmSignaler(private val service: AccessibilityService) {
 
-    /**
-     * 🔔 **소리 낸 지문** — 알람은 콜당 한 번 운다. 앱이 못 들어가는 콜(픽커 오더카드 등)은 콜 기억에 안 들어가
-     * 매 스캔 다시 통과하므로, 소리를 낸 지문은 여기서 따로 기억한다(«판정 기억»과 딴 그릇).
-     * 목록에서 사라진 지문은 잊는다 — 사라졌다 다시 오면 새 콜로 다시 운다.
-     */
-    class SoundMemory {
-        private val sounded = mutableSetOf<Int>()
-        /** 처음 보는 지문이면 true (그리고 기억한다) */
-        fun firstTime(orderHash: Int): Boolean = sounded.add(orderHash)
-        /**
-         * 이번 스캔 목록에 있는 지문만 남긴다.
-         * 🔴 카드를 한 장도 못 읽은 틀(겹친 화면 등)은 «콜이 사라졌다»는 사실이 아니다 — 비우지 않는다
-         *    (비웠더니 같은 콜이 15초마다 다시 울렸다 · 실물 09-30 13:41).
-         */
-        fun keepOnly(seen: Set<Int>) { if (seen.isNotEmpty()) sounded.retainAll(seen) }
-    }
-
-    private val soundMemory = SoundMemory()
 
     companion object {
         /** 🔇 테두리·알람이 스스로 걷히는 시간 — 관제웹 띠(FILTER_ALARM_HOLD_MS)와 같은 값 */
@@ -118,7 +100,8 @@ class AlarmSignaler(private val service: AccessibilityService) {
      * @param withSound 소리·진동을 낼까 — 알람 모드에서만 (체험은 자동과 똑같이 조용하다)
      */
     fun fire(anchorRect: Rect, bandHalfPx: Int, orderHash: Int, withBorder: Boolean, withSound: Boolean) {
-        val sounded = withSound && soundMemory.firstTime(orderHash)
+        // 🔔 같은 콜 한 번은 부르는 쪽이 정한다(`AlarmedRoutes.soundIfNew` · 소리 기억 한 곳)
+        val sounded = withSound
         if (sounded) {
             beepTwice()
             vibrateStrong()
@@ -139,7 +122,6 @@ class AlarmSignaler(private val service: AccessibilityService) {
      * (사라짐 = 내가 잡았거나 남이 가져갔거나 — 어느 쪽이든 더 가리킬 것이 없다)
      */
     fun onScan(seenAnchors: Map<Int, Rect>) {
-        soundMemory.keepOnly(seenAnchors.keys)
         val h = activeHash ?: return
         val anchor = seenAnchors[h] ?: run { hide("콜이 리스트에서 사라짐"); return }
         val view = borderView ?: return

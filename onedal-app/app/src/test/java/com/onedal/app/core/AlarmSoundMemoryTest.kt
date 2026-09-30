@@ -1,37 +1,38 @@
 package com.onedal.app.core
 
+import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 🔔 **알람은 콜당 한 번 운다** — 앱이 못 들어가는 콜(픽커 오더카드 등)은 기억에 안 들어가 매 스캔 다시 통과한다.
- * 소리까지 매 스캔 나면 폰이 1초마다 울린다. 그래서 «소리 낸 지문»을 알람 쪽이 따로 기억하고,
- * 목록에서 사라졌다 다시 오면 새 콜로 다시 운다.
+ * 🔔 **폰 소리는 같은 콜(상차+하차)에 한 번 — 스크롤로 화면 밖에 나갔다 돌아와도 다시 울지 않는다** (`AlarmedRoutes` «울림 함» · onedal-1f «가»).
+ * 라이브 10-01 00:31:28 · 00:31:40 16,093 한남 — «🔕 이미 알람 낸 콜» 바로 뒤에 소리가 다시 났다.
+ * 소리 기억이 «이번 스캔에 보인 지문만 남긴다»여서 화면 밖에 나갔다 오면 지워졌다(기사님 «뜬금없이 소리만»).
+ * 목록에서 10분 넘게 안 보이면 잊는다 — 남에게 간 뒤 같은 경로 새 콜은 새로 운다.
  */
 class AlarmSoundMemoryTest {
+    private fun o(fare: Int) = SimplifiedOfficeOrder(id = "c", pickup = "광주 경안", dropoff = "용산 한남", fare = fare, timestamp = "t", pickupDistance = 4.7)
+    private val min = 60_000L
 
-    @Test
-    fun `같은 지문은 한 번만 운다`() {
-        val m = AlarmSignaler.SoundMemory()
-        assertTrue(m.firstTime(42))
-        assertFalse(m.firstTime(42))
-        assertFalse(m.firstTime(42))
+    @Test fun `같은 경로는 한 번만 운다 · 요금만 올라도`() {
+        val r = AlarmedRoutes()
+        assertTrue(r.soundIfNew(o(16093), 0))
+        assertFalse(r.soundIfNew(o(16093), 1_000))
+        assertFalse(r.soundIfNew(o(16500), 2_000))
     }
 
-    @Test
-    fun `목록에서 사라졌다 다시 오면 다시 운다`() {
-        val m = AlarmSignaler.SoundMemory()
-        assertTrue(m.firstTime(42))
-        m.keepOnly(setOf(7))          // 이번 스캔에 42 가 없다
-        assertTrue(m.firstTime(42))
+    @Test fun `스크롤로 화면 밖에 나갔다 돌아와도 다시 울지 않는다`() {
+        val r = AlarmedRoutes()
+        assertTrue(r.soundIfNew(o(16093), 0))
+        r.seen(listOf(SimplifiedOfficeOrder(id = "x", pickup = "분당 삼평", dropoff = "강남 일원본", fare = 10920, timestamp = "t", pickupDistance = 5.0)), 12_000)
+        assertFalse(r.soundIfNew(o(16093), 24_000))
     }
 
-    @Test
-    fun `목록에 남아 있으면 잊지 않는다`() {
-        val m = AlarmSignaler.SoundMemory()
-        assertTrue(m.firstTime(42))
-        m.keepOnly(setOf(42, 7))
-        assertFalse(m.firstTime(42))
+    @Test fun `10분 넘게 안 보였다 다시 뜨면 새로 운다`() {
+        val r = AlarmedRoutes()
+        assertTrue(r.soundIfNew(o(16093), 0))
+        r.seen(emptyList(), 11 * min)
+        assertTrue(r.soundIfNew(o(16093), 11 * min))
     }
 }

@@ -206,7 +206,7 @@ object PickerScreenOcr {
         // 📍 행정동이 두 줄로 꺾였으면(«경기 성남시 중원구 / 상대원1동» · 실물 19:59) 아래 동 줄을 잇는다 — 건물 동(«101동»·«상가동»)은 안 잇는다
         val wrapped = block.filter { it.y > adminHit.y && !HEAD_RE.containsMatchIn(it.text) && timeOf(it.text) == null && !CLOCK_START.containsMatchIn(it.text) }
             .minByOrNull { it.y }?.text?.trim()?.takeIf { joinsWrappedAdmin(adminHead, it) }
-        val admin = if (wrapped != null) "$adminHead $wrapped" else adminHead
+        val admin = com.onedal.app.core.engine.AddressForm.joinSpacedUnit(if (wrapped != null) "$adminHead $wrapped" else adminHead)
         val at = block.firstNotNullOfOrNull { timeOf(it.text) }
 
         // 건물명 — 머리·행정동·시각을 뺀 나머지 첫 줄

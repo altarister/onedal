@@ -34,6 +34,16 @@ object TapShift {
      */
     fun rowLeftOf(rowLeft: Int): Int = maxOf(MIN_X, rowLeft + ROW_INSET_PX)
 
+    /** 스캔 때와 누르기 직전 요금 Y 가 이만큼 넘게 다르면 목록이 흐르는 중 (폰 픽셀) */
+    const val MOVING_PX = 40
+
+    /**
+     * 🌊 **목록이 흐르는 중인가** (`BundleGuardsTest` · 라이브 10-01 00:31:13 요금 Y 716→849 · 00:31:20 1013→1932 — 흐르는 목록을 누르면 «흐름 멈춤»이 된다).
+     * 주 판정은 누르기 직전 다시 잰 Y 차이다 — 스캔이 900ms 걸리는 동안 스크롤 알림이 메인 줄에 쌓여 «방금 스크롤»은 늦게 온다. 방금 스크롤은 덧.
+     */
+    fun listMoving(scanY: Int, nowY: Int, scrolledRecently: Boolean): Boolean =
+        scrolledRecently || kotlin.math.abs(nowY - scanY) > MOVING_PX
+
     /** 아래 탭 줄 위끝에서 이만큼 위까지만 누른다 (폰 픽셀) */
     const val TAB_GAP_PX = 40
     /** 선 위로 이만큼은 보여야 누른다 — 모자라면 보류 */

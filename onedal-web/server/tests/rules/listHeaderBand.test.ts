@@ -45,6 +45,7 @@ describe('🔔 칸 이름 짝', () => {
         const kt = readFileSync(join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app/models/SharedModels.kt'), 'utf8');
         const i = kt.indexOf('data class ScrapPayload');
         expect(i).toBeGreaterThan(-1);
-        expect(kt.slice(i, kt.indexOf('\n)', i))).toMatch(/val listHeaderHidden: Boolean\? = null/);
+        // 원달앱은 listHeaderHidden 대신 «앱이 안 연 까닭» openBlocked 를 싣는다(04 · 1f «가») — 서버가 openBlocked 를 읽게 바꾸는 것은 ab 몫
+        expect(kt.slice(i, kt.indexOf('\n)', i))).toMatch(/val openBlocked: String\? = null/);
     });
 });

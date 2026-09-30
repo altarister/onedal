@@ -92,6 +92,9 @@ interface IDispatchAppPlugin {
      * 👆 **목록에서 이 콜을 눌러도 되나, 어디를 누르나** — 누르기 전 안전 확인 (배차망_모드표.md «누를 수 있는 카드의 조건»).
      * 기본: 요금 칸을 바로 누른다. 픽커: 계약 버튼이 한 번에 눌릴 수 있는 카드(오더카드)를 피한다.
      */
+    /** 🚧 마지막 planListTap 이 보류한 까닭 열쇠(`OpenBlocked`) — 누르면 null. 목록 보고 openBlocked 에 싣는다 */
+    val lastHoldKey: String? get() = null
+
     fun planListTap(
         allNodes: List<com.onedal.app.core.ScreenTextNode>,
         order: SimplifiedOfficeOrder,

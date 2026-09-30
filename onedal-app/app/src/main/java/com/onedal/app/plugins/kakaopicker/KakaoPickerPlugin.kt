@@ -88,11 +88,15 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
         return KakaoPickerParser.listHeaderVisibleOf(allNodes.map { it.text })
     }
 
+    override var lastHoldKey: String? = null
+        private set
+
     override fun planListTap(
         allNodes: List<com.onedal.app.core.ScreenTextNode>,
         order: com.onedal.app.models.SimplifiedOfficeOrder,
         fareNode: com.onedal.app.core.ScreenTextNode,
     ): com.onedal.app.plugins.ListTap? {
+        lastHoldKey = null
         val listHeaderY = KakaoPickerParser.listHeaderCenterY(allNodes.map { it.text to it.rect.centerY() })
         val onListCard = KakaoPickerParser.isListCardAnchor(fareNode.rect.centerY(), listHeaderY)
         if (listHeaderY == null) return planScrolledTap(allNodes, order, fareNode)
@@ -100,6 +104,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
         if (!onListCard || !KakaoPickerParser.clickSafe(order.rawText)) {
             val why = if (!onListCard) "머리줄 아래가 아니다 (오더카드이거나 머리줄을 못 읽었다)" else "카드에 「수락」이 보인다"
             logHeldOnce(order, "🛑 [상세 진입 보류] ${order.fare}원 $anchor — $why · 손대지 않는다")
+            lastHoldKey = if (!onListCard) com.onedal.app.core.OpenBlocked.NOT_UNDER_HEADER else com.onedal.app.core.OpenBlocked.ACCEPT_VISIBLE
             return null
         }
         val headerNode = allNodes.firstOrNull { KakaoPickerParser.isListHeaderText(it.text) }?.node
@@ -111,6 +116,13 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
         if (!KakaoPickerParser.stillListCardAtTap(fareY, headerY)) {
             logHeldOnce(order, "🛑 [상세 진입 보류] ${order.fare}원 — 찍기 직전 다시 재니 머리줄 아래가 아니다 " +
                 "(요금 Y=$fareY · 머리줄 Y=$headerY · 스캔 때 $anchor) · 손대지 않는다")
+            lastHoldKey = com.onedal.app.core.OpenBlocked.TAP_RECHECK
+            return null
+        }
+        // 🌊 흐르는 목록 — 스캔 때와 누르기 직전 요금 Y 가 다르면 안 누른다(누르면 «흐름 멈춤») · 곧 다시 읽는다
+        if (fareY != null && com.onedal.app.core.TapShift.listMoving(fareNode.rect.centerY(), fareY, scrolledRecently = false)) {
+            logHeldOnce(order, "🛑 [상세 진입 보류] ${order.fare}원 — 목록이 움직이는 중(스캔 Y=${fareNode.rect.centerY()} · 지금 Y=$fareY)")
+            lastHoldKey = com.onedal.app.core.OpenBlocked.LIST_MOVING
             return null
         }
         // 👆 맨 아래 줄 — 탭 줄 위로 보이는 몫의 가운데를 누른다, 모자라면 보류 (`TapShift.rowTapDy` · 23:20~23:50 안 먹힘 12번)
@@ -121,6 +133,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
             .minOfOrNull { it.rect.top } ?: fareNode.rect.top
         val dy = com.onedal.app.core.TapShift.rowTapDy(fareCenter, rowTop, tabTop) ?: run {
             logHeldOnce(order, "🛑 [상세 진입 보류] ${order.fare}원 — 탭 줄에 걸림(요금 Y=$fareCenter · 줄 위끝 $rowTop · 탭 위끝 $tabTop) · 목록이 올라오면 누른다")
+            lastHoldKey = com.onedal.app.core.OpenBlocked.TAB_BAR
             return null
         }
         return com.onedal.app.plugins.ListTap(rowLeft = true, delayMs = com.onedal.app.core.TapShift.PREVIEW_MS, dy = dy)
@@ -138,19 +151,24 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
         fareNode: com.onedal.app.core.ScreenTextNode,
     ): com.onedal.app.plugins.ListTap? {
         val fareY = fareNode.rect.centerY()
-        fun hold(why: String): com.onedal.app.plugins.ListTap? {
+        val B = com.onedal.app.core.OpenBlocked
+        fun hold(why: String, key: String): com.onedal.app.plugins.ListTap? {
             logHeldOnce(order, "🛑 [상세 진입 보류] ${order.fare}원 닻(${fareNode.rect.centerX()},$fareY) 내려간 목록 — $why · 손대지 않는다")
+            lastHoldKey = key
             return null
         }
-        if (!SCROLLED_LIST_TAP) return hold("내려간 목록 누르기가 꺼져 있다")
-        if (!KakaoPickerParser.clickSafe(order.rawText)) return hold("카드에 「수락」이 보인다")
+        if (!SCROLLED_LIST_TAP) return hold("내려간 목록 누르기가 꺼져 있다", B.SCROLLED_OFF)
+        if (!KakaoPickerParser.clickSafe(order.rawText)) return hold("카드에 「수락」이 보인다", B.ACCEPT_VISIBLE)
         val nodes = allNodes.map { Triple(it.text, it.rect.top, it.rect.bottom) }
-        KakaoPickerParser.scrolledRowTapBlock(nodes, fareY)?.let { return hold(it) }
+        KakaoPickerParser.scrolledRowTapBlock(nodes, fareY)?.let { return hold(it.why, it.key) }
         // ⏱️ 누르기 직전 — 요금 칸을 다시 재고(스캔과 누름 사이 목록이 움직인다), 창 전체에서 오더카드 꼴을 다시 찾는다
-        val node = fareNode.node ?: return hold("요금 칸 노드가 없다")
-        if (!node.refresh()) return hold("찍기 직전 요금 칸을 다시 못 읽었다")
+        val node = fareNode.node ?: return hold("요금 칸 노드가 없다", B.TAP_RECHECK)
+        if (!node.refresh()) return hold("찍기 직전 요금 칸을 다시 못 읽었다", B.TAP_RECHECK)
         val bounds = android.graphics.Rect().also { node.getBoundsInScreen(it) }
-        KakaoPickerParser.scrolledRowTapBlock(nodes, bounds.centerY())?.let { return hold("찍기 직전 — $it") }
+        // 🌊 흐르는 목록 — 라이브 10-01 00:31:13 716→849 · 00:31:20 1013→1932
+        if (com.onedal.app.core.TapShift.listMoving(fareY, bounds.centerY(), scrolledRecently = false))
+            return hold("목록이 움직이는 중(스캔 Y=$fareY · 지금 Y=${bounds.centerY()})", B.LIST_MOVING)
+        KakaoPickerParser.scrolledRowTapBlock(nodes, bounds.centerY())?.let { return hold("찍기 직전 — ${it.why}", it.key) }
         var root: android.view.accessibility.AccessibilityNodeInfo = node
         val chain = mutableListOf<String>()
         for (i in 0 until 40) {
@@ -159,9 +177,9 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
             root = p
         }
         root.findAccessibilityNodeInfosByText("수락").firstOrNull { it.isVisibleToUser }
-            ?.let { return hold("찍기 직전 — 창에 «${it.text}»가 보인다") }
+            ?.let { return hold("찍기 직전 — 창에 «${it.text}»가 보인다", B.ACCEPT_VISIBLE) }
         root.findAccessibilityNodeInfosByText("P").firstOrNull { it.isVisibleToUser && KakaoPickerParser.isOfferPointButton(it.text?.toString().orEmpty()) }
-            ?.let { return hold("찍기 직전 — 창에 오더카드 버튼 꼴 «${it.text}»가 보인다") }
+            ?.let { return hold("찍기 직전 — 창에 오더카드 버튼 꼴 «${it.text}»가 보인다", B.ACCEPT_VISIBLE) }
         com.onedal.app.core.AppLogger.i("1DAL_ALARM", LogTag.TAP,
             "👆 [내려간 목록에서 누름] ${order.fare}원 · 띠 아래끝 Y=${KakaoPickerParser.waitingBandBottom(nodes)} · 요금 Y=${bounds.centerY()}(스캔 $fareY) · 조상 ${chain.joinToString(" < ")}")
         return com.onedal.app.plugins.ListTap(rowLeft = true, delayMs = com.onedal.app.core.TapShift.PREVIEW_MS)

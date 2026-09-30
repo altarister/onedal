@@ -29,12 +29,13 @@ class PickerListHeaderTest {
     }
 
     @Test fun `카드 0장 틀은 소리 기억을 지우지 않는다`() {
-        val m = AlarmSignaler.SoundMemory()
-        assertTrue(m.firstTime(1))
-        m.keepOnly(emptySet())
-        assertFalse("못 읽은 틀 뒤에 또 울렸다", m.firstTime(1))
-        m.keepOnly(setOf(2))
-        assertTrue("정말 사라진 콜은 잊는다", m.firstTime(1))
+        // 소리 기억은 AlarmedRoutes «울림 함» 한 곳 — 목록 스캔은 카드 0장 틀에서 seen 을 부르지 않는다(HijackService)
+        val r = com.onedal.app.core.AlarmedRoutes()
+        val c = com.onedal.app.models.SimplifiedOfficeOrder(id = "c", pickup = "광주 경안", dropoff = "용산 한남", fare = 1, timestamp = "t", pickupDistance = 1.0)
+        assertTrue(r.soundIfNew(c, 0))
+        assertFalse("못 읽은 틀 뒤에 또 울렸다", r.soundIfNew(c, 1_000))
+        r.seen(emptyList(), 11 * 60_000L)
+        assertTrue("정말 사라진(10분) 콜은 잊는다", r.soundIfNew(c, 11 * 60_000L))
     }
 
     @Test fun `오더카드 기록 - 수락 노드가 있을 때만 · 값과 지명은 이름표로`() {

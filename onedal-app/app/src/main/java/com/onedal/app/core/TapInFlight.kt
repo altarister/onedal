@@ -23,6 +23,8 @@ object TapInFlight {
      * 온다(09-29 로그 · 같은 상세 알림이 14ms 간격). 그 알림을 실패로 읽으면 또 눌러 막으려던 두 번 누르기가 난다.
      */
     const val SETTLE_MIN_MS = 1_000L
+    /** 뒤로 가기 열쇠 — 판정 최소 시간은 앱 뒤로 가기 메아리(`HandFirst.APP_BACK_ECHO_MS`)와 같다 */
+    const val BACK_KEY = "뒤로"
 
     data class Record(
         val seq: Long,
@@ -54,7 +56,8 @@ object TapInFlight {
         rec == null -> Verdict.NONE
         screen != rec.screen -> Verdict.TAKEN
         nowMs - rec.firedAtMs >= SETTLE_MAX_MS -> Verdict.EXPIRED
-        !textChanged && rec.completed && nowMs - rec.firedAtMs >= SETTLE_MIN_MS -> Verdict.NOT_TAKEN
+        // 뒤로 가기는 픽커 상세 → 목록 전환(0.7~0.9초)과 메인 줄 밀림이 겹쳐 1초는 빠듯하다(라이브 10-01 00:32:03) — 메아리 2초
+        !textChanged && rec.completed && nowMs - rec.firedAtMs >= (if (rec.key == BACK_KEY) HandFirst.APP_BACK_ECHO_MS else SETTLE_MIN_MS) -> Verdict.NOT_TAKEN
         else -> Verdict.NONE
     }
 

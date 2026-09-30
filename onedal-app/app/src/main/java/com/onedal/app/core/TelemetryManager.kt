@@ -90,8 +90,8 @@ class TelemetryManager(
      */
     var filterTally: com.onedal.app.models.FilterTally? = null
 
-    /** 📜 목록 머리줄이 안 보이나 — 목록 보고에만 싣는다 (null = 모름 · 인성·24시) */
-    var listHeaderHidden: Boolean? = null
+    /** 🚧 통과 콜이 있는데 앱이 안 연 까닭 — 목록 보고에만 싣는다 (`OpenBlocked`) */
+    var openBlocked: String? = null
 
     /** 🏷️ 마지막으로 읽은 화면의 앱 이름 — 보고의 실물/시뮬(`TargetApp.sourceOf`)을 보낼 때 가른다 */
     var screenPackage: String? = null
@@ -308,7 +308,7 @@ class TelemetryManager(
             targetApp = appCode,
             // 🏷️ 줄이 있으면 담을 때의 출처 · 줄이 없으면(화면 바뀐 보고만) 지금 화면 앱
             source = if (snapshot.isNotEmpty()) rowsSource else TargetApp.sourceOf(screenPackage),
-            listHeaderHidden = listHeaderHidden.takeIf { currentScreenContext == com.onedal.app.models.ScreenContext.LIST },
+            openBlocked = openBlocked.takeIf { currentScreenContext == com.onedal.app.models.ScreenContext.LIST },
             screenWords = screenWords,
             // 📦🚦🎛️ 폰 상태 바가 쓸 셋 — 앱 안엔 있었는데 여태 안 보내던 것들
             appVersion = appVersion,
