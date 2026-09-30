@@ -69,6 +69,8 @@ import java.util.Locale
 class HijackService : AccessibilityService(), ScanContext {
 
     companion object {
+        /** 🧪 미리 받기 — 깊이 우선(우리 훑기 순서와 같다) · 끊기지 않게 (SDK 33+ · `WalkProbe`) */
+        private const val PREFETCH_FLAGS = AccessibilityNodeInfo.FLAG_PREFETCH_DESCENDANTS_DEPTH_FIRST or AccessibilityNodeInfo.FLAG_PREFETCH_UNINTERRUPTIBLE
         private const val TAG = "1DAL_MVP"
 
         /**
@@ -649,6 +651,7 @@ class HijackService : AccessibilityService(), ScanContext {
         if (event == null) return
         val eventPkg = event.packageName?.toString()
         val isOwnApp = eventPkg == packageName
+        if (!isOwnApp) { lastTargetEventMs = android.os.SystemClock.elapsedRealtime(); eventSinceRead = true }
         // ⏱️ 상세 대기 중 알림 출처를 센다 — 1초 요약에 «어디서 몇 번» (`ScanTimer`)
         scanTimerOf(telemetryManager.currentScreenContext)?.let { (timer, label) ->
             timer.countEvent("${eventPkg?.substringAfterLast('.') ?: "?"}/${com.onedal.app.core.ScanTimer.typeWord(event.eventType)}",
@@ -708,6 +711,14 @@ class HijackService : AccessibilityService(), ScanContext {
     /** 🌳 이번 읽기에서 훑은 노드 — 🔴 이번 읽기 안에서만 쓰고 끝나면 비운다(다음 읽기가 옛 노드를 잡지 않게 · `scanScreen`) */
     private val scanNodes = mutableListOf<com.onedal.app.core.RawNode>()
     private var scanWalkMs = 0L
+    /** 🧪 이번 읽기의 지문 글자 · 받는 방식 · 알림 뒤 첫 읽기인가 (`WalkProbe`) */
+    private var scanTexts: List<String> = emptyList()
+    private var scanWay = com.onedal.app.core.WalkProbe.Way.PLAIN
+    private var listReadNo = 0L
+    /** 배차망 앱(우리 앱 아님)의 마지막 알림 시각 · 그 뒤 아직 안 읽었나 · 마지막 캐시 확인 시각 */
+    private var lastTargetEventMs = 0L
+    private var eventSinceRead = false
+    private var lastCacheProbeMs = Long.MIN_VALUE / 2
 
     /**
      * 📡 **화면 한 번 읽기 — 입구는 여기 하나** (접근성 알림 · «필터 도착»이 같은 길).
@@ -720,12 +731,42 @@ class HijackService : AccessibilityService(), ScanContext {
         scanGathered = false
         scanWalkMs = 0L
         scanNodes.clear()
+        val afterEvent = eventSinceRead
+        eventSinceRead = false
+        scanWay = if (ctx == ScreenContext.LIST) com.onedal.app.core.WalkProbe.wayFor(android.os.Build.VERSION.SDK_INT, ++listReadNo)
+            else com.onedal.app.core.WalkProbe.Way.PLAIN
         try { scanScreenBody() } finally { scanNodes.clear() }
         if (!scanGathered) return
         val nowMs = android.os.SystemClock.elapsedRealtime()
         scanTimerOf(ctx)?.let { (timer, label) ->
-            timer.record(nowMs - startMs, scanSameText, nowMs, walkMs = scanWalkMs)?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
+            timer.record(nowMs - startMs, scanSameText, nowMs, walkMs = scanWalkMs,
+                way = scanWay.word.takeIf { ctx == ScreenContext.LIST }, afterEvent = afterEvent)?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
         }
+        probeStaleCache(ctx, nowMs)
+    }
+
+    /**
+     * 🧪 **캐시가 낡았나** — 픽커가 알림을 안 내면 서비스 캐시가 안 버려져 옛 나무를 돌려줄 수 있다(16:18 · 18:45 스크롤 뒤).
+     * 알림 없이 5초 넘은 목록 읽기에서 30초에 한 번까지만 캐시를 비우고 다시 훑어 글자가 달라지는지 한 줄 (`WalkProbe`).
+     * 재기만 한다 — 달라져도 이 자리에서 판정하지 않는다(다음 읽기가 새 나무를 읽는다).
+     */
+    private fun probeStaleCache(ctx: ScreenContext, nowMs: Long) {
+        if (!com.onedal.app.core.WalkProbe.shouldProbeCache(android.os.Build.VERSION.SDK_INT, nowMs, lastTargetEventMs, lastCacheProbeMs,
+                isListScreen = ctx == ScreenContext.LIST, busy = touchManager.tapPending || session.isDetailScrapSent)) return
+        if (android.os.Build.VERSION.SDK_INT < com.onedal.app.core.WalkProbe.PREFETCH_MIN_SDK) return
+        lastCacheProbeMs = nowMs
+        val before = scanTexts
+        clearCache()
+        val root = rootInActiveWindow ?: return
+        val fresh = mutableListOf<com.onedal.app.core.RawNode>()
+        collectNodes(root, fresh)
+        val after = com.onedal.app.core.NodeText.textsOf(fresh)
+        root.recycle()
+        val quietSec = (nowMs - lastTargetEventMs) / 1000
+        val changed = after.sorted() != before.sorted()
+        AppLogger.i(TAG, LogTag.SCREEN, "🧪 [캐시 낡음] 알림 없이 ${quietSec}초 · 비우고 읽으니 글자가 " +
+            if (changed) "달라졌다 — 새로 보인 줄: ${com.onedal.app.core.WalkProbe.newLines(before, after).joinToString(" · ") { com.onedal.app.core.ScreenWords.mask(it) }}"
+            else "같다")
     }
 
     private fun scanScreenBody() {
@@ -741,7 +782,8 @@ class HijackService : AccessibilityService(), ScanContext {
          * 그려질 시간을 주고 몇 박자 뒤 다시 본다. 헛읽기가 늘어도 **지문이 막아** 전송은
          * 안 는다. 재확인은 **읽기만** 한다 — 터치하면 «LIST 오탐 → 세션 리셋»이 난다.
          */
-        val rootNode = rootInActiveWindow ?: run {
+        val rootNode = (if (scanWay == com.onedal.app.core.WalkProbe.Way.PREFETCH && android.os.Build.VERSION.SDK_INT >= com.onedal.app.core.WalkProbe.PREFETCH_MIN_SDK)
+            getRootInActiveWindow(PREFETCH_FLAGS) else rootInActiveWindow) ?: run {
             // 👁️ 화면을 못 얻었다 — 로그 없이 돌아가던 길을 요약에 센다
             scanTimerOf(telemetryManager.currentScreenContext)?.let { (timer, label) ->
                 timer.noRoot(android.os.SystemClock.elapsedRealtime())?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
@@ -752,8 +794,9 @@ class HijackService : AccessibilityService(), ScanContext {
         // 핑거프린트 비교 → 화면 변경 없으면 스킵
         val screenTexts = mutableListOf<String>()
         val walkStartMs = android.os.SystemClock.elapsedRealtime()
-        collectNodes(rootNode, scanNodes)
+        collectNodes(rootNode, scanNodes, prefetch = scanWay == com.onedal.app.core.WalkProbe.Way.PREFETCH)
         screenTexts.addAll(com.onedal.app.core.NodeText.textsOf(scanNodes))
+        scanTexts = screenTexts.toList()
         scanWalkMs = android.os.SystemClock.elapsedRealtime() - walkStartMs
         val fingerprint = screenTexts.sorted().hashCode()
         // ⏱️ 요약은 바깥(`scanScreen`)이 읽기 전체로 싣는다
@@ -1688,7 +1731,7 @@ class HijackService : AccessibilityService(), ScanContext {
      * 🌳 **화면 나무 한 번 훑기** — 지문 글자(`NodeText.textsOf`)와 목록 좌표 노드(`NodeText.textNodesOf`)를 이 한 벌에서 만든다.
      * 두 번 훑으면 노드마다 접근성 통신(getChild)이 두 배다(목록 한 번 300~500ms · 실물 09-30 18:36). 우리 앱 노드는 건너뛴다.
      */
-    private fun collectNodes(node: AccessibilityNodeInfo?, out: MutableList<com.onedal.app.core.RawNode>) {
+    private fun collectNodes(node: AccessibilityNodeInfo?, out: MutableList<com.onedal.app.core.RawNode>, prefetch: Boolean = false) {
         if (node == null) return
         if (node.packageName?.toString() == "com.onedal.app") return
         val text = node.text
@@ -1698,7 +1741,11 @@ class HijackService : AccessibilityService(), ScanContext {
             node.getBoundsInScreen(rect)
             out.add(com.onedal.app.core.RawNode(text, desc, rect.left, rect.top, rect.right, rect.bottom, node, rect))
         }
-        for (i in 0 until node.childCount) collectNodes(node.getChild(i), out)
+        for (i in 0 until node.childCount) {
+            val child = if (prefetch && android.os.Build.VERSION.SDK_INT >= com.onedal.app.core.WalkProbe.PREFETCH_MIN_SDK)
+                node.getChild(i, PREFETCH_FLAGS) else node.getChild(i)
+            collectNodes(child, out, prefetch)
+        }
     }
 }
 

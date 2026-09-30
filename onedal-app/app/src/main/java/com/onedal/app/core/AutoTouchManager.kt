@@ -26,6 +26,8 @@ class AutoTouchManager(private val service: AccessibilityService) {
 
     /** ⏳ 미뤄 둔 찍기를 건 시각(부팅 기준) · 0 이면 없음 — 겹쳐 예약하지 않으려고 둔다 (🔗 «쏘기 전» 잠금 · «쏜 뒤»는 `inFlight`) */
     private var pendingTapAtMs = 0L
+    /** 👆 미뤄 둔 누름이 걸려 있나 — 이때는 캐시를 비우는 계측(`WalkProbe`)을 하지 않는다 */
+    val tapPending: Boolean get() = pendingTapAtMs > 0L
 
     /** 👆 진행 중인 누르기 하나 (🔗 «쏜 뒤» 잠금 · «쏘기 전»은 `pendingTapAtMs`) — 규칙은 `TapInFlight` 한 곳 */
     private var inFlight: TapInFlight.Record? = null
