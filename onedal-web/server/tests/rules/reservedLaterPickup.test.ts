@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { evaluationInputsOf, firstLoadNeedsCall } from '../../src/core/engine/OrderEvaluator';
+import { evaluationInputsOf, firstLoadNeedsCall, reservedLaterLineOf } from '../../src/core/engine/OrderEvaluator';
 import { pickupBackwardOf } from '../../src/core/engine/judgeFacts';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 
@@ -54,5 +54,14 @@ describe('④ 내일 콜에는 «통화 필수» 딱지가 없다', () => {
         expect(firstLoadNeedsCall(40, 20, false)).toBe(true);
         expect(firstLoadNeedsCall(15, 20, false)).toBe(false);
         expect(firstLoadNeedsCall(null, 20, false)).toBe(false);
+    });
+});
+
+describe('📅 판정 로그 — 내일 콜이면 기점·반경·보관 날 한 줄', () => {
+    it('🔴 내일 콜은 «기점 집 · 반경 기본 N km · 보관 날 M/D»', () => {
+        expect(reservedLaterLineOf('2026-10-03', { x: 127, y: 37 }, 15)).toBe('📅 [내일 콜] 기점 집 · 반경 기본 15km · 보관 날 10/3');
+    });
+    it('집 좌표나 기본 반경이 비면 «모름»으로 적는다', () => {
+        expect(reservedLaterLineOf('2026-10-03', null, null)).toBe('📅 [내일 콜] 기점 집(모름) · 반경 기본 모름 · 보관 날 10/3');
     });
 });

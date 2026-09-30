@@ -91,6 +91,13 @@ export function evaluationInputsOf(userId: string, session: ReturnType<typeof ge
  * 📞 **첫짐 상차가 무통보 약속(잡은 뒤 N분)을 넘나** — 오늘 잡아 곧 가는 콜의 약속이다.
  *    내일 콜은 집에서 잰 접근 분이라 오늘 약속과 견줄 것이 아니다 — 딱지를 안 붙인다.
  */
+/** 📅 판정 로그 한 줄 — 내일 콜이 무엇으로 재였나(기점 · 반경 · 보관 날). 비면 «모름» */
+export function reservedLaterLineOf(reservedFor: string | null, home: { x: number; y: number } | null | undefined, radiusKm: number | null): string {
+    const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(reservedFor ?? '');
+    const day = m ? `${Number(m[1])}/${Number(m[2])}` : '모름';
+    return `📅 [내일 콜] 기점 집${home ? '' : '(모름)'} · 반경 기본 ${radiusKm != null ? `${radiusKm}km` : '모름'} · 보관 날 ${day}`;
+}
+
 export const firstLoadNeedsCall = (approachMin: number | null | undefined, promiseMin: number, reservedLater: boolean): boolean =>
     !reservedLater && approachMin != null && approachMin > promiseMin;
 
@@ -171,6 +178,7 @@ export class OrderEvaluator {
 
         slog('판정', `\n======================================================`);
         slog('판정', `[서버-사이드 카카오 연산] 🚀 ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
+        if (reservedLater) slog('판정', `   - ${reservedLaterLineOf(reservedForOf(securedOrder), snap.origin, snap.pickupRadiusKm)}`);
 
         // 1. 주소 정규화 — 상차·하차는 원달앱이 올린 전체 주소 그대로다(서버는 팝업에서 주소를 꺼내지 않는다)
         securedOrder.pickup = this.plugin.normalizeAddress(securedOrder.pickup);
