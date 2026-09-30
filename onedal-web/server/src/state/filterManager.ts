@@ -11,7 +11,7 @@
  * - activeFilter는 직접 수정하고 직접 읽는 1등 시민(first-class citizen)입니다.
  */
 
-import { isHomeCallSince, SAME_NAME_DONGS, reservedPickupRadiusKmOf } from "@onedal/shared";
+import { isHomeCallSince, SAME_NAME_DONGS, reservedPickupRadiusKmOf, wonText } from "@onedal/shared";
 import { callTargetToday } from "../core/callTargetEvents";
 import db from "../db";
 import { getActiveCalls, computeLoadedPoints, buildOrderSync, filterVersionOf } from "../core/helpers";
@@ -1467,7 +1467,7 @@ export function recordDayResult(userId: string, day: string, settingsSnapshot: u
                 VALUES (?, ?, ?, ?, ?, ?, ?)`)
       .run(userId, day, JSON.stringify(settingsSnapshot ?? {}),
            done.revenue, done.calls, JSON.stringify(cancels), JSON.stringify(colors));
-    slog('콜단계', `📊 [성과 기록] ${day} — 매출 ${done.revenue.toLocaleString()}원 · 완료 ${done.calls}콜 · ` +
+    slog('콜단계', `📊 [성과 기록] ${day} — 매출 ${wonText(done.revenue)} · 완료 ${done.calls}콜 · ` +
         `취소 ${JSON.stringify(cancels)} · 색 ${JSON.stringify(colors)}`);
 }
 

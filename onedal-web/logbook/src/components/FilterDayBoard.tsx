@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
 import axios from 'axios';
-import { COLOR_DOT } from '@onedal/shared';
+import { COLOR_DOT, wonText } from '@onedal/shared';
 
 /**
  * 📊 **설정과 성과** (기사님 확정 — 운행일지에)
@@ -96,7 +96,7 @@ function FilterDayRow({ d, open, onToggle }: { d: FilterDay; open: boolean; onTo
         <>
             <tr className="border-b border-border-card/60 hover:bg-surface-hover/40 cursor-pointer" onClick={onToggle}>
                 <td className="py-2 pr-3 font-medium tabular-nums">{d.day}</td>
-                <td className="py-2 pr-3 text-right font-bold tabular-nums">{d.revenue.toLocaleString()}원</td>
+                <td className="py-2 pr-3 text-right font-bold tabular-nums">{wonText(d.revenue)}</td>
                 <td className="py-2 pr-3 text-right tabular-nums">{d.calls}콜</td>
                 <td className="py-2 pr-3 tabular-nums">🚫 {cancelsText}</td>
                 <td className="py-2 pr-3">{colorsText}</td>

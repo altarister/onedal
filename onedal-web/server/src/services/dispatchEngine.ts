@@ -37,7 +37,7 @@ import { getActiveCalls, buildOrderSync, setOrderStatus, filterVersionOf } from 
 const lastSyncLogSig = new Map<string, string>();
 import { stepRecordsOf, stepsView, bridgeUndoMilestone, milestoneAlreadyRecorded } from "./stepSeeder";
 import { slog } from "../utils/fileLogger";
-import { clockText } from "@onedal/shared";
+import { clockText, wonText } from "@onedal/shared";
 
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
@@ -1425,7 +1425,7 @@ export async function reportMilestone(
                           .get(orderId, userId) as any;
             if (row?.paymentType === '착불' && (!row.settlementStatus || row.settlementStatus === '미정산')) {
                 OrderRepository.setCodCollected(orderId, userId, false, row.fare ?? 0);
-                console.warn(`💵 [착불 미확인] ${orderId.slice(0, 8)} — 수령 여부를 고르지 않고 하차 완료. ${(row.fare ?? 0).toLocaleString()}원을 미수금으로 잡습니다`);
+                console.warn(`💵 [착불 미확인] ${orderId.slice(0, 8)} — 수령 여부를 고르지 않고 하차 완료. ${wonText(row.fare ?? 0)}을 미수금으로 잡습니다`);
                 // 화면은 sync(orders 필드)로 안다 — 따로 정산 이벤트를 쏘지 않는다
             }
         } catch (e) {

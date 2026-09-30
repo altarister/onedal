@@ -1,5 +1,6 @@
 import { defineCriterion, scored, multiplied, asCeiling, needsCall, nothing, unmeasurable } from './judge';
 import type { Criterion } from './judge';
+import { manwonText } from './format';
 
 /**
  * ⚖️ **판정 기준 다섯 — 하나씩 따로 산다** (5단계)
@@ -110,22 +111,21 @@ export const MONEY = defineCriterion<MoneyFacts>({
          * 🔴 **순이익이 음수여도 0 으로 자르지 않는다** — 아래 눈금이 0점으로 받는다.
          *    자르면 «10만원 손해»와 «본전»이 같아진다.
          */
-        const toManwon = (n: number) => (n / 10_000).toFixed(1);
         const fuelKrw = f.extraKm != null && f.fuelCostPerKm != null
             ? Math.round(f.extraKm * f.fuelCostPerKm) : null;
         const netFare = f.fare - (fuelKrw ?? 0) - (f.tollKrw ?? 0);
         /* 🧾 뺀 것을 화면이 말한다 — 숫자만 내려가고 까닭이 없으면 기사님이 «왜 깎였나»를 못 보신다 */
         const costNote = [
-            fuelKrw ? `기름 ${fuelKrw > 0 ? '−' : '+'}${toManwon(Math.abs(fuelKrw))}만` : '',
-            f.tollKrw ? `톨비 ${f.tollKrw > 0 ? '−' : '+'}${toManwon(Math.abs(f.tollKrw))}만` : '',
+            fuelKrw ? `기름 ${fuelKrw > 0 ? '−' : '+'}${manwonText(Math.abs(fuelKrw))}` : '',
+            f.tollKrw ? `톨비 ${f.tollKrw > 0 ? '−' : '+'}${manwonText(Math.abs(f.tollKrw))}` : '',
         ].filter(Boolean).join(' · ');
 
         const hourly = (netFare / f.extraMinutes) * 60;
         const T = cfg.target.hourlyKrw, H = cfg.target.honeyHourlyKrw, S = cfg.target.soloHourlyKrw;
-        const scaleNote = f.firstLoad ? `첫짐 기준 ${toManwon(S)}만` : `보통 ${toManwon(T)}만 · 꿀 ${toManwon(H)}만`;
+        const scaleNote = f.firstLoad ? `첫짐 기준 ${manwonText(S)}` : `보통 ${manwonText(T)} · 꿀 ${manwonText(H)}`;
         /* 🧾 뺀 것이 있으면 «요금 − 비용»을 그대로 보인다 — 없으면 지금까지와 같은 문장이다 */
-        const fareText = costNote ? `${toManwon(f.fare)}만(${costNote})` : `${toManwon(f.fare)}만`;
-        const why = `${fareText} ÷ ${f.extraMinutes}분 = ${toManwon(hourly)}만/h (${scaleNote})`;
+        const fareText = costNote ? `${manwonText(f.fare)}(${costNote})` : `${manwonText(f.fare)}`;
+        const why = `${fareText} ÷ ${f.extraMinutes}분 = ${manwonText(hourly)}/h (${scaleNote})`;
 
         /**
          * 🔴 **눈금이 국면마다 다르다** (기사님 확정).
@@ -223,7 +223,7 @@ export const MONEY = defineCriterion<MoneyFacts>({
          * 🔴 천장이지 바닥이 아니다 — 다른 축이 나쁘면 이보다 더 내려간다.
          */
         if (f.minAcceptableKrw && f.fare < f.minAcceptableKrw) {
-            return asCeiling(scored(capped * decay * 0.6, `${why}${decayNote} · 평소 하한(${toManwon(f.minAcceptableKrw)}만) 미달`, false, hourly / 10_000));
+            return asCeiling(scored(capped * decay * 0.6, `${why}${decayNote} · 평소 하한(${manwonText(f.minAcceptableKrw)}) 미달`, false, hourly / 10_000));
         }
         return asCeiling(scored(capped * decay, `${why}${decayNote}`, false, hourly / 10_000));
     },

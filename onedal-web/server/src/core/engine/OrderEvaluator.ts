@@ -3,7 +3,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { judge, COLOR_DOT, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
+import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress } from '@onedal/shared';
 import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, trappedOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
@@ -34,11 +34,6 @@ import { slog } from "../../utils/fileLogger";
  * 「잴 게 없음」·「잴 수 없음」도 그대로 보인다. 그게 기사님이 말씀하신 «조건 전수»다.
  * 🔴 못 쟀으면 **«0점»이라 쓰지 않는다** — 0 은 «나쁘다»로 읽힌다.
  */
-/**
- * 💸 **원을 만원으로** — 기사님이 1~2초에 읽으시는 줄에 쓴다.
- *    「돈」 축의 같은 이름 함수와 한 모양이다 (`criteria.ts` — 소수 한 자리).
- */
-const toManwon = (n: number) => (n / 10_000).toFixed(1);
 
 function verdictLine(v: JudgmentSnapshot): string {
     const emoji = COLOR_DOT[v.color];
@@ -370,8 +365,8 @@ export class OrderEvaluator {
                              * 💸 **«얼마나 모자라나»를 앞에 둔다** — 기사님이 1~2초에 읽으시는 것은
                              *    두 절대값이 아니라 차이다. 거절 사유 줄과 한 모양으로 맞춘다.
                              */
-                            tags.push(`요율 ${toManwon(rateForDisplay.minAcceptable - securedOrder.fare)}만 모자람`
-                                + ` — 시세 ${toManwon(rateForDisplay.minAcceptable)}만 · 실제 ${toManwon(securedOrder.fare)}만`);
+                            tags.push(`요율 ${manwonText(rateForDisplay.minAcceptable - securedOrder.fare)} 모자람`
+                                + ` — 시세 ${manwonText(rateForDisplay.minAcceptable)} · 실제 ${manwonText(securedOrder.fare)}`);
                         }
 
                         /**
@@ -440,7 +435,7 @@ export class OrderEvaluator {
                         dry.extraMin = total;
                         if (rateShort && (dry.color === '꿀' || dry.color === '보통')) {
                             slog('판정', `   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
-                                `실제 ${securedOrder.fare.toLocaleString()}원 < 하한 ${rateForScore!.minAcceptable.toLocaleString()}원)`);
+                                `실제 ${wonText(securedOrder.fare)} < 하한 ${wonText(rateForScore!.minAcceptable)})`);
                             dry.color = '똥';
                         }
                         slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
@@ -979,8 +974,8 @@ export class OrderEvaluator {
         }
         if (!skipFareFloor && filter.dispatchPhase === 'STANDBY' && filter.minFare > 0 && order.fare && order.fare > 0) {
             if (order.fare < filter.minFare) {
-                reasons.push(`첫짐 절대하한가 미달 (${filter.minFare.toLocaleString()}원)`);
-                slog('판정', `   - 💸 [첫짐 하한가] 똥콜 — 실제 ${order.fare.toLocaleString()}원 < 절대하한 ${filter.minFare.toLocaleString()}원`);
+                reasons.push(`첫짐 절대하한가 미달 (${wonText(filter.minFare)})`);
+                slog('판정', `   - 💸 [첫짐 하한가] 똥콜 — 실제 ${wonText(order.fare)} < 절대하한 ${wonText(filter.minFare)}`);
             } else {
                 pros.push(`첫짐 절대하한가 통과`);
             }
@@ -989,7 +984,7 @@ export class OrderEvaluator {
         // 3) 최대 운임 검사
         if (filter.maxFare > 0 && filter.maxFare < 1000000 && order.fare && order.fare > 0) {
             if (order.fare > filter.maxFare) {
-                reasons.push(`요금(${(order.fare / 10000).toFixed(1)}만) 초과`);
+                reasons.push(`요금(${manwonText(order.fare)}) 초과`);
             }
         }
 
@@ -1106,13 +1101,13 @@ export class OrderEvaluator {
                      *       보이면 기사님이 «무엇이 다른가»를 한 번 더 읽으셔야 한다.
                      *    🔴 «시세»라는 낱말은 남긴다 — 그 한 낱말이 «할인율은 안 봤다»를 대신한다.
                      */
-                    reasons.push(`요율 ${toManwon(Math.abs(diff))}만 모자람 — 시세 ${toManwon(adjusted.adjustedMinAcceptable)}만 · 실제 ${toManwon(order.fare)}만`);
-                    slog('판정', `   - 💸 [요율 판정] 시세 미달 — 실제 ${order.fare.toLocaleString()}원 < 시세 하한 ${adjusted.adjustedMinAcceptable.toLocaleString()}원`);
+                    reasons.push(`요율 ${manwonText(Math.abs(diff))} 모자람 — 시세 ${manwonText(adjusted.adjustedMinAcceptable)} · 실제 ${manwonText(order.fare)}`);
+                    slog('판정', `   - 💸 [요율 판정] 시세 미달 — 실제 ${wonText(order.fare)} < 시세 하한 ${wonText(adjusted.adjustedMinAcceptable)}`);
                 } else if (order.fare >= adjusted.adjustedFairPrice) {
-                    pros.push(`꿀콜 🍯 (시세 ${toManwon(adjusted.adjustedFairPrice)}만 이상)`);
-                    slog('판정', `   - 🍯 [요율 판정] 꿀콜 — 실제 ${order.fare.toLocaleString()}원 ≥ 시세 적정 ${adjusted.adjustedFairPrice.toLocaleString()}원`);
+                    pros.push(`꿀콜 🍯 (시세 ${manwonText(adjusted.adjustedFairPrice)} 이상)`);
+                    slog('판정', `   - 🍯 [요율 판정] 꿀콜 — 실제 ${wonText(order.fare)} ≥ 시세 적정 ${wonText(adjusted.adjustedFairPrice)}`);
                 } else {
-                    slog('판정', `   - ✅ [요율 판정] 시세 적정 범위 — 실제 ${order.fare.toLocaleString()}원 (하한 ${adjusted.adjustedMinAcceptable.toLocaleString()} ~ 적정 ${adjusted.adjustedFairPrice.toLocaleString()})`);
+                    slog('판정', `   - ✅ [요율 판정] 시세 적정 범위 — 실제 ${wonText(order.fare)} (하한 ${adjusted.adjustedMinAcceptable.toLocaleString()} ~ 적정 ${adjusted.adjustedFairPrice.toLocaleString()})`);
                 }
             }
         }

@@ -47,7 +47,7 @@ import { slog } from "../utils/fileLogger";
 import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";
 import { logContext, whoLabel } from "../utils/logContext";
-import { clockText } from "@onedal/shared";
+import { clockText, wonText } from "@onedal/shared";
 
 
 
@@ -807,7 +807,7 @@ export function registerSocketHandlers(io: Server) {
             } catch (e) {
                 console.error(`🌉 [단계 다리 실패] ${data.orderId.slice(-6)}:`, (e as Error).message);
             }
-            slog('콜단계', `💵 [착불 ${data.received ? '수령' : '미수'}] ${data.orderId.slice(0, 8)} ${amount.toLocaleString()}원`);
+            slog('콜단계', `💵 [착불 ${data.received ? '수령' : '미수'}] ${data.orderId.slice(0, 8)} ${wonText(amount)}`);
             logRoadmapEvent('콜단계', "서버", `[착불] ${data.received ? '현장 수령' : '미수금 등록'} ${amount}원`);
         });
 

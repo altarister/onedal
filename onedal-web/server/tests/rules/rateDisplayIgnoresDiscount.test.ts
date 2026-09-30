@@ -91,8 +91,8 @@ describe('💸 화면 문구는 시세로 잰다', () => {
     it('🔴 «모자람»이 앞이고 «시세»라 적는다 — 딱지와 거절 사유 두 곳 다', () => {
         const s = src();
         /* 딱지와 거절 사유 두 자리 — 딱지는 줄이 길어 «— 시세»가 다음 줄에 있다 */
-        expect((s.match(/만 모자람/g) ?? []).length).toBeGreaterThanOrEqual(2);
-        expect((s.match(/— 시세 \$\{toManwon/g) ?? []).length).toBeGreaterThanOrEqual(2);
+        expect((s.match(/\$\{manwonText\([^`]*?\)\} 모자람/g) ?? []).length).toBeGreaterThanOrEqual(2);
+        expect((s.match(/— 시세 \$\{manwonText/g) ?? []).length).toBeGreaterThanOrEqual(2);
         /* 옛 문구가 남아 있지 않다 */
         expect(s).not.toMatch(/요율 미달 — 시세 하한/);
     });

@@ -31,3 +31,21 @@ export function hhmmText(at: At): string | null {
     const d = kstOf(at);
     return d ? `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}` : null;
 }
+
+/**
+ * 💸 **요금 글자 — 한 모양 · 한 곳** (공통 함수 2). 기사님이 1~2초에 읽으시는 줄은 만원(소수 한 자리 «3.2만»),
+ *    값을 그대로 적는 줄은 원(쉼표 «12,345원»). 쉼표는 기기 말 설정과 상관없이 한국식으로 고정한다.
+ *    빈 값은 null — 빈 자리 글자(«—» · «금액미상»)는 부르는 쪽이 정한다.
+ */
+export function manwonText(won: number): string;
+export function manwonText(won: number | null | undefined): string | null;
+export function manwonText(won: number | null | undefined): string | null {
+    return won == null ? null : `${(won / 10_000).toFixed(1)}만`;
+}
+
+/** «12,345원» */
+export function wonText(won: number): string;
+export function wonText(won: number | null | undefined): string | null;
+export function wonText(won: number | null | undefined): string | null {
+    return won == null ? null : `${won.toLocaleString('ko-KR')}원`;
+}
