@@ -77,7 +77,7 @@ export function loadRegions(ROOT) {
  *    이 칸은 «미분류» 와 «가게·건물» 을 가리는 용도일 뿐이다
  *    (그래서 `pickerDictPaired` 의 짝 검사 목록에도 넣지 않는다).
  */
-export const isPlace = (w) => /점$|[[\]]|-|로\d+번길$|아파트$|빌라$|타워$|센터$/.test(w) || w.length >= 6;
+export const isPlace = (w) => /점$|[\[\]]|-|로\d+번길$|아파트$|빌라$|타워$|센터$/.test(w) || w.length >= 6;   // 원달앱 짝 `ScreenWords.PLACE`
 
 /**
  * 🔢 **글자가 아니라 «값»인 것** — 요금·거리·시각·남은 시간·예약 날짜·전화.

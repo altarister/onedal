@@ -15,6 +15,8 @@ import com.google.gson.Gson
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.core.ScreenWords
+import com.onedal.app.core.WordKind
 import com.onedal.app.models.withReservation
 import org.json.JSONObject
 import org.json.JSONArray
@@ -630,13 +632,14 @@ class InsungParser(private val context: Context) : IScrapParser {
         }
 
         // ── 2. 지역명 및 예약일정 파싱 (LocationTextAnalyzer 활용) ──
-        val locationInfos = texts
-            .map { it.trim() }
-            .filter { text ->
-                !uiNoiseWords.any { text.equals(it, ignoreCase = true) } && text.length >= 2
-            }
-            .mapNotNull { LocationTextAnalyzer.analyze(it) }
-            .distinctBy { it.cleanRegion }
+        val trimmed = texts.map { it.trim() }
+        val isNoise = { text: String -> uiNoiseWords.any { text.equals(it, ignoreCase = true) } }
+        // 📰 뺀 글자를 버리지 않고 모은다 — 잡음 낱말 · 지역으로 못 알아본 글자 (값·차종은 정의된 칸이라 빠진다 · `ScreenWords`)
+        trimmed.filter(isNoise).forEach { ScreenWords.add(it, WordKind.NOISE, rawJoined) }
+        val analyzed = trimmed.filter { !isNoise(it) && it.length >= 2 }.map { it to LocationTextAnalyzer.analyze(it) }
+        analyzed.filter { (t, info) -> info == null && t != vehicleType }.forEach { ScreenWords.add(it.first, WordKind.UNKNOWN, rawJoined) }
+        val locationInfos = analyzed.mapNotNull { it.second }.distinctBy { it.cleanRegion }
+        locationInfos.drop(2).forEach { ScreenWords.add(it.cleanRegion, WordKind.EXTRA, rawJoined) }   // 셋째 지역부터 — 남는 토막
 
         // 첫 번째 유효 지역 = 상차지, 두 번째 유효 지역 = 하차지 (인성앱 리스트 순서)
         val pickupInfo = locationInfos.getOrNull(0)

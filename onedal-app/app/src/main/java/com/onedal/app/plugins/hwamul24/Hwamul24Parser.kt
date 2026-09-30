@@ -15,6 +15,8 @@ import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.core.ScreenWords
+import com.onedal.app.core.WordKind
 import com.onedal.app.models.withReservation
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -190,8 +192,10 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             "홈", "화물정보", "마이페이지", "환경"
         )
 
-        val locationInfos = texts
-            .map { it.trim() }
+        val trimmed = texts.map { it.trim() }
+        // 📰 뺀 글자를 버리지 않고 모은다 — 잡음 낱말 · 지역으로 못 알아본 글자 · 셋째 지역부터 (`ScreenWords`)
+        trimmed.filter { it in noiseWords }.forEach { ScreenWords.add(it, WordKind.NOISE, rawJoined) }
+        val analyzed = trimmed
             .filter { text ->
                 !noiseWords.contains(text) &&
                 text.length >= 2 &&
@@ -200,8 +204,10 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 !text.contains("톤") && // 차종 제외
                 text != ">" // 화살표 구분자 제외
             }
-            .mapNotNull { LocationTextAnalyzer.analyze(it) }
-            .distinctBy { it.cleanRegion }
+            .map { it to LocationTextAnalyzer.analyze(it) }
+        analyzed.filter { it.second == null }.forEach { ScreenWords.add(it.first, WordKind.UNKNOWN, rawJoined) }
+        val locationInfos = analyzed.mapNotNull { it.second }.distinctBy { it.cleanRegion }
+        locationInfos.drop(2).forEach { ScreenWords.add(it.cleanRegion, WordKind.EXTRA, rawJoined) }
 
         val pickupInfo = locationInfos.getOrNull(0)
         val dropoffInfo = locationInfos.getOrNull(1) ?: pickupInfo

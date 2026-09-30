@@ -651,6 +651,7 @@ class HijackService : AccessibilityService(), ScanContext {
         // 화면 종류 판별 및 서버(텔레메트리) 즉각 동기화
         telemetryManager.screenPackage = rootNode.packageName?.toString()   // 🏷️ 보고의 실물/시뮬 — 판별과 같은 화면
         val detected = detectScreenContext(rawScreenStr, rootNode.packageName?.toString())
+        com.onedal.app.core.ScreenWords.onScreen(com.onedal.app.core.pageOf(detected))   // 📰 이 화면에서 뺀 글자는 이 페이지 몫
         touchManager.onScreen(detected, textChanged = true)   // 👆 화면 처리보다 먼저 — 누른 것이 먹혔나 (종류가 바뀌었나)
         if (detected == ScreenContext.UNKNOWN) {
             AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자): ${rawScreenStr.take(300)}")

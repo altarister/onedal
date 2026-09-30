@@ -4,6 +4,8 @@ import android.content.Context
 import com.onedal.app.core.LogTag
 import com.onedal.app.core.LogOnce
 import com.onedal.app.core.ScreenReadingOrder
+import com.onedal.app.core.ScreenWords
+import com.onedal.app.core.WordKind
 import org.json.JSONObject
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.engine.FareFloor
@@ -695,6 +697,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     private var cardTops: Map<List<String>, String> = emptyMap()
 
     override fun parse(texts: List<String>): SimplifiedOfficeOrder {
+        val sample = texts.joinToString(" ")   // 📰 뺀 글자의 예시 줄 — 이 목록 줄 원문
         // 🗂️ 낱말은 배차망 사전에서 온다 — 서버가 내려준 것 + 앱 기본값 (못 받아도 최소한은 돈다)
         val noise = noiseWords()
         val tagSet = tagWords()
@@ -732,9 +735,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 t == WITHIN_WORD -> tags.add(t)                     // 그 뒤의 «내» («31분 내»)
                 TIME_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «17:00»
                 DATE_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «9/23(수)» — 지역이 아니다
-                t in noise -> { /* 화면 메뉴 글자 — 콜 정보가 아니다, 버린다 (서버 목록 + 앱 기본값) */ }
+                t in noise -> { ScreenWords.add(t, WordKind.NOISE, sample) /* 화면 메뉴 글자 — 콜 정보가 아니다, 버린다 (서버 목록 + 앱 기본값) */ }
                 // 🚫 배정 완료 토스트가 카드 띠에 섞였다 — 지역이 아니다 (`AssignedToastTest`)
-                t.contains(KakaoPickerKeywords.ASSIGNED_TOAST_WORD) -> { }
+                t.contains(KakaoPickerKeywords.ASSIGNED_TOAST_WORD) -> ScreenWords.add(t, WordKind.NOISE, sample)
                 // «내일 착불» 처럼 태그 여럿이 한 노드로 붙어 오는 판 — 낱낱이 전부 태그면 태그다
                 t.contains(' ') && t.split(' ').all { it in tagSet } -> tags.addAll(t.split(' '))
                 /**
@@ -746,8 +749,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                  * 🔴 그래서 **덩어리 안에 메뉴 낱말이 들어 있으면** 콜 정보가 아니다 —
                  *    지역 이름에는 메뉴 글자가 들어갈 일이 없다 (건물 이름의 잡음은 위에서 이미 뗐다).
                  */
-                t.contains(' ') && noise.any { it.length >= 2 && t.contains(it) } -> { }
-                t.endsWith("km") -> { /* «20km» 같은 헤더 반경 — 콜 정보가 아니다 */ }
+                t.contains(' ') && noise.any { it.length >= 2 && t.contains(it) } -> ScreenWords.add(t, WordKind.NOISE, sample)
+                t.endsWith("km") -> { ScreenWords.add(t, WordKind.NOISE, sample) /* «20km» 같은 헤더 반경 — 콜 정보가 아니다 */ }
                 /**
                  * 🔀 **경유 콜의 들를 곳 목록** — «수지, 영통, 상록, …» 이 한 덩어리로 온다.
                  * 첫 곳만 지역으로 쓰고 **몇 곳인지는 꼬리표에 남긴다** (버리지 않는다).
@@ -845,6 +848,10 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 }
             }
         }
+
+        // 📰 지역 토막 중 출발·도착에 안 쓰인 것 — 남는 토막 (다섯째부터 · 경로 조립에서 빠진 것)
+        val used = "$pickup $dropoff".split(' ').toSet()
+        locations.filter { it !in used }.forEach { ScreenWords.add(it, WordKind.EXTRA, sample) }
 
         return SimplifiedOfficeOrder(
             id = "",                          // 리스트에는 ID 가 없다 — 상세에만 오더번호가 있다 (0830 실측)
