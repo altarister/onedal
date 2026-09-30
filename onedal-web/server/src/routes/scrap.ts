@@ -282,7 +282,7 @@ router.post("/", (req, res) => {
          *    이 칸이 있으면 앱은 **판정은 해 두고 클릭만 미뤄**, 앞 콜이 결재되는 즉시 다음을 잡는다.
          * 🔴 저장하지 않는다 — 심사 중인 콜을 쥔 `deviceEvaluatingMap` 에서 파생시킨다 (규칙 ③).
          */
-        appFilter.evaluatingNow = !!session.deviceEvaluatingMap.get(deviceId);
+        appFilter.evaluatingNow = !!session.deviceEvaluatingMap.get(deviceId);   // 응답 맨 위 칸으로도 간다 · 판 글자에는 안 든다 (아래)
 
         // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정)
         //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)
@@ -398,7 +398,10 @@ router.post("/", (req, res) => {
                 destinationKeywords: ((appFilter.destinationKeywords as string[] | undefined) ?? [])
                     .filter((k: string) => !(k in orderKeys)),
             };
-            filterVersion = filterVersionOf(responseFilter);
+            /* 🧬 판 글자는 설정의 지문이다 — «지금 심사 중인가»(순간 상태)는 넣지 않는다. 넣으면 상세 ↔ 목록마다 판이 갈려 앱이 막아 둔 콜을 다시 판정한다.
+               심사 중인가는 응답 맨 위 칸(evaluatingNow)으로 늘 간다. 본문에도 남긴다 — 맨 위를 못 읽는 옛 앱이 판이 바뀔 때 받게 */
+            const { evaluatingNow: _live, ...versioned } = responseFilter;
+            filterVersion = filterVersionOf(versioned);
             // 📱 폰에 실제로 싣는 이 지문을 기억한다 — 시작 전 점검이 폰의 지문과 비교한다 (core/phoneCheck)
             if (deviceId) rememberSentFilterVersion(deviceId, filterVersion);
             if (req.body.filterVersion === filterVersion) responseFilter = undefined;   // 안 바뀜 — 본문 생략
@@ -419,6 +422,8 @@ router.post("/", (req, res) => {
                 callMemoryRound
             },
             ...(filterVersion !== undefined ? { filterVersion } : {}),
+            /* 🔒 심사 중인가 — 판이 같아 필터 본문을 생략할 때도 간다. 앱은 맨 위를 먼저 읽는다(없으면 필터 안 값) */
+            evaluatingNow: appFilter.evaluatingNow,
             ...(responseFilter !== undefined ? { dispatchEngineArgs: responseFilter } : {}),
             decision: piggybackDecision
         });
