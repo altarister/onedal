@@ -189,7 +189,9 @@ data class DispatchBasicRequest(
      * (기사님 확정). 아직 안 잡은 콜이라 인성에는 아무 일도
      * 일어나지 않았으므로 **서버가 취소 카운트에서 뺀다.**
      */
-    val isPreview: Boolean = false
+    val isPreview: Boolean = false,
+    /** 🏷️ 이 상세를 읽은 화면이 실물 배차망 앱인가(real) 시뮬인가(sim) — 목록 보고와 같은 값(`TargetApp.sourceOf`). 모르면 안 싣는다 */
+    val source: String? = null,
 )
 
 data class DispatchDetailedRequest(

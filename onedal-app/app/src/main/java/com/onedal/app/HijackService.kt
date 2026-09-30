@@ -1235,6 +1235,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 // 잡은 방식(자동·알람·직접) — 원장 기록 전용, 파생은 SessionManager 한 곳 (#75)
                 capturedVia = session.capturedVia(effectiveMode),
                 isPreview = session.isPreview,
+                source = TargetApp.sourceOf(telemetryManager.screenPackage),   // 🏷️ 목록 보고와 같은 한 칸 (통계는 실물만 센다)
             )
         )
         AppLogger.d(TAG, LogTag.NETWORK, "📤 [post /confirm request] 서버 전송 내용 -> 모드: $actualMatchType (스위치: ${telemetryManager.currentMode}, 매크로클릭: ${session.contractedByApp}, 미리보기: ${session.isPreview}) | 텍스트: ${rawScreenStr.take(150)}...")
