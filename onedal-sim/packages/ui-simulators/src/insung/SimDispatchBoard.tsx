@@ -29,35 +29,38 @@ const formatFare = (fare: number) => {
   return (fare / 10000).toFixed(1);
 };
 
+/**
+ * 📅 인성 예약 시각 글자 — «낼»은 **지금 시각 기준**으로 가른다: 상차 시각이 지금보다 이르면 내일(«낼4시»), 아니면 오늘.
+ * 9시 이전을 늘 «낼»로 그리면 새벽 시험의 04:06 상차가 내일 콜이 되어 앱이 확정을 넘겼다(`tests/insungTimeLabel.test.ts`).
+ */
+export const insungTimeLabel = (pickupTime: string, now: Date): { text: string; isTomorrow: boolean } | null => {
+  const [hStr, mStr] = pickupTime.split(':');
+  if (!hStr || !mStr) return null;
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+
+  const isTomorrow = h * 60 + m < now.getHours() * 60 + now.getMinutes();
+  let text: string;
+  if (isTomorrow) text = `낼${h}시`;
+  else if (h >= 18) text = `저녁${h - 12}시`;
+  else if (h > 12) text = `오후${h - 12}시`;
+  else if (h === 12) text = '낮12시';
+  else text = `오전${h}시`;
+
+  if (m === 30) text += '반';
+  else if (m > 0) text += `${m}`;
+  return { text, isTomorrow };
+};
+
 // 시간/조건 접두어 생성 헬퍼
 const formatTimePrefix = (call: InsungCall) => {
   if (call.callCategory === '예약' && call.pickupTime) {
-    const [hStr, mStr] = call.pickupTime.split(':');
-    if (!hStr || !mStr) return null;
-    
-    const h = parseInt(hStr, 10);
-    const m = parseInt(mStr, 10);
-    
-    let timeStr = '';
-    let isTomorrow = false;
+    const label = insungTimeLabel(call.pickupTime, new Date());
+    if (!label) return null;
+    const { text: timeStr, isTomorrow } = label;
 
-    if (h <= 9) {
-      timeStr = `낼${h}시`;
-      isTomorrow = true;
-    } else if (h >= 18) {
-      timeStr = `저녁${h > 12 ? h - 12 : h}시`;
-    } else if (h > 12) {
-      timeStr = `오후${h - 12}시`;
-    } else if (h === 12) {
-      timeStr = `낮12시`;
-    } else {
-      timeStr = `오전${h}시`;
-    }
-
-    if (m > 0 && m !== 30) timeStr += `${m}`;
-    else if (m === 30) timeStr += '반';
-
-    // 내일 예약이거나 오전 일찍이면 강조색(빨강), 그 외는 파랑
+    // 내일 예약이면 강조색(빨강), 그 외는 파랑
     const colorClass = isTomorrow ? 'text-[#ff3300]' : 'text-[#0052a3]';
     return <span className={`${colorClass} font-bold mr-0.5 whitespace-nowrap tracking-tighter`}>{timeStr}/</span>;
   }
