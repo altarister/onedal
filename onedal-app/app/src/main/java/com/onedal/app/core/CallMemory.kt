@@ -137,6 +137,13 @@ class CallMemory private constructor(
      *    안 드러나지만, 인성·화물24시는 그 콜이 그대로 남는다.
      * 🔴 **KEEP 으로 끝난 콜은 안 내린다** — 잡은 콜을 또 누르면 사고다.
      */
+    /**
+     * 🔁 **누르기가 안 먹혔다 — «판정 안 함»으로 돌린다** (onedal-ab 리뷰 높음 1).
+     * «막았다»는 필터 값이 바뀔 때만 풀려, 기사님 손가락 때문에 무시된 좋은 콜을 그때까지 건너뛰었다.
+     * 누르기는 일어나지 않았으니 다음 읽기에서 처음처럼 판정·선택된다. 연속 둘째 실패는 부르는 쪽이 [demoteActed] 로 내린다.
+     */
+    fun forgetActed(hash: Int) { acted.remove(hash); blocked.remove(hash) }
+
     fun demoteActed(hash: Int): Boolean {
         if (!acted.remove(hash)) return false
         blocked += hash; trim(blocked)

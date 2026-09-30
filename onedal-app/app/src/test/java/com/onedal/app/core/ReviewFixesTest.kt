@@ -52,4 +52,20 @@ class ReviewFixesTest {
         assertTrue(svc.contains("⏩ [빨리 접기 풂] 상세에 손"))
         assertTrue(svc.substringAfter("private fun onFoldAfter(").substringBefore("\n    }").contains("foldReleasedOrderId"))
     }
+
+    /**
+     * 🔴 **안 먹힌 누르기는 «판정 안 함»으로 돌린다 — «막았다»로 내리지 않는다** (onedal-ab 리뷰 높음 1 · 11b57f8b 의 D 가 실제로는 안 고쳐졌다).
+     * «막았다»는 필터 값이 바뀔 때만 풀려, 기사님 손가락 때문에 무시된 좋은 콜을 그때까지 건너뛰었다.
+     * 같은 콜이 연속 두 번 안 먹히면 그때는 내린다 — 탭 막대처럼 늘 안 먹히는 자리에서 끝없이 되풀이하지 않게(라이브 09-30 8,393 ×6).
+     */
+    @Test fun `D2 안 먹힌 콜은 다음 읽기에서 다시 판정 - 연속 둘째면 내린다`() {
+        val m = CallMemory()
+        m.markEvaluated(7)
+        assertTrue(m.alreadyEvaluated(7))
+        m.forgetActed(7)
+        assertFalse("다음 읽기에서 다시 판정", m.alreadyEvaluated(7))
+        val failed = svc.substringAfter("touchManager.onTapFailed = {").substringBefore("collectMachine =")
+        assertTrue(failed.contains("callMemory.forgetActed("))
+        assertTrue("연속 둘째면 내린다", failed.contains("f.streak >= 2"))
+    }
 }

@@ -540,9 +540,16 @@ class HijackService : AccessibilityService(), ScanContext {
             mainHandler.post {
                 val tappedKey = session.alarmTappedCard?.let { "call:${CallMemory.fingerprintOf(it)}" }
                 if (com.onedal.app.core.engine.DetailOwner.releaseOnTapFailed(session.openedByApp, f.key, tappedKey, f.screen == ScreenContext.LIST)) {
-                    AppLogger.i(TAG, LogTag.TAP, "👆 [앱이 연 콜 되돌림] 누르기 안 먹힘 — 목록 그대로라 «앱이 연 콜» 기억을 지운다 · ${f.key}")
                     session.alarmTappedCard?.let { alarmedRoutes.clearOpened(it) }   // 🔔 «열기 함»도 지운다 — 다음 읽기에서 다시 연다
-                    demoteTappedCall("누르기 안 먹힘")
+                    if (f.streak >= 2) {
+                        // 같은 콜이 연속 두 번 안 먹혔다 — 늘 안 먹히는 자리(탭 막대 등)에서 끝없이 되풀이하지 않게 «막았다»로 내린다
+                        AppLogger.i(TAG, LogTag.TAP, "👆 [앱이 연 콜 되돌림] 누르기 연속 ${f.streak}번 안 먹힘 — «막았다»로 내린다 · ${f.key}")
+                        demoteTappedCall("누르기 연속 안 먹힘")
+                    } else {
+                        // 🔁 누르기는 일어나지 않았다 — «판정 안 함»으로 돌려 다음 읽기에서 다시 판정·선택(«막았다»로 내리면 필터가 바뀔 때까지 건너뛴다 · ab 리뷰 높음 1)
+                        AppLogger.i(TAG, LogTag.TAP, "👆 [앱이 연 콜 되돌림] 누르기 안 먹힘 — 다음 읽기에서 다시 판정 · ${f.key}")
+                        session.alarmTappedCard?.let { callMemory.forgetActed(CallMemory.fingerprintOf(it)) }
+                    }
                     resetSessionState()
                 }
             }
