@@ -349,8 +349,8 @@ function DeviceRow({
                 </div>
             )}
 
-            {/* 🔔 알람 — 배차망 이름은 그 폰이 보는 배차망. 원달앱이 상세까지 열고, 확정·수락은 기사님 */}
-            {filterAlarm && (
+            {/* 🔔 알람 띠 — 기사님 손이 할 일이 있을 때만(목록이 내려가 앱이 못 열 때 · filterAlarmLine 이 null 이면 없음). 배차망 이름은 그 폰이 보는 배차망 */}
+            {filterAlarm && filterAlarmLine(filterAlarm, device.targetApp ? `${TARGET_APP_LABEL[device.targetApp]} ` : '') && (
                 <div className="mx-1 mt-1 rounded border border-info/40 bg-info/15 px-2 py-1.5 flex items-center gap-2 animate-pulse">
                     <span className="text-base leading-none">🔔</span>
                     <span className="text-info font-black text-[13px] tracking-tight">
