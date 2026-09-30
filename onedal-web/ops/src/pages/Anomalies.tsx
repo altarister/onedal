@@ -2,7 +2,7 @@ import { TARGET_APP_LABEL, type OpsAnomaly, type OpsScreenWord, type TargetAppTy
 import { api } from '../api/ops';
 import { Card, PageHeader, Table, fmtTime, memberName, useTick, type Column } from '../ui';
 
-/** ⚠️ 앱 이상 기록 · 배차망 화면 새 글자 — 배차망 앱이 바뀌면 모든 회원이 함께 멈춘다. 원문은 서버가 가려서 준다 */
+/** ⚠️ 앱 이상 기록 · 배차망 화면 새 글자 — 배차망 앱이 바뀌면 모든 회원이 함께 멈춘다. */
 export default function Anomalies() {
     useTick();
     const members = api.members();

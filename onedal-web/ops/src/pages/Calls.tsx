@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { TARGET_APP_LABEL, type OpsCall, type TargetAppType } from '@onedal/shared';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
+import { Button } from '@onedal/ui/button';
+import { Checkbox } from '@onedal/ui/checkbox';
+import { Input } from '@onedal/ui/input';
 import { api } from '../api/ops';
 import { Card, PageHeader, Stat, VERDICT_DOT, fmtTime, fmtWon, memberName, useTick } from '../ui';
 
@@ -73,7 +73,7 @@ function CallCard({ c, name }: { c: OpsCall; name: string }) {
                     <div className="text-base font-black">{VERDICT_DOT[c.verdict]} {name} · {TARGET_APP_LABEL[c.targetApp as TargetAppType]} <span className="text-xs font-normal text-warning">🟡 통화 필요</span></div>
                     <div>상차 <b>{c.pickup.place}</b> · {c.pickup.address} · {tel(c.pickup.phone)} {c.pickup.at && <span className="text-text-muted">· {fmtTime(c.pickup.at)}</span>}</div>
                     <div>하차 <b>{c.dropoff.place}</b> · {c.dropoff.address} · {tel(c.dropoff.phone)}</div>
-                    <div className="text-text-muted">{fmtWon(c.fare)} · KEEP {fmtTime(c.capturedAt)} · 개인 전화 · 상세 번지는 서버가 가려서 보냅니다</div>
+                    <div className="text-text-muted">{fmtWon(c.fare)} · KEEP {fmtTime(c.capturedAt)}</div>
                 </div>
             </div>
             <div className="grid md:grid-cols-4 gap-2 pt-2 border-t border-border-card">

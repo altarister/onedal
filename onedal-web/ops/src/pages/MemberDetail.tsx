@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { TARGET_APP_LABEL, type TargetAppType } from '@onedal/shared';
-import { Button } from '@/components/ui/button';
+import { Button } from '@onedal/ui/button';
 import { api } from '../api/ops';
 import { Card, PageHeader, Stat, StatusBadge, VERDICT_DOT, fmtTime, fmtWon, useTick } from '../ui';
 
@@ -74,7 +74,7 @@ export default function MemberDetail() {
                         </div>
                     ))}
                 </Card>
-                <Card title="오늘 콜 (구간 · 요금 · 판정 — 개인 전화 · 상세 번지는 서버가 가림)">
+                <Card title="오늘 콜 (구간 · 요금 · 판정)">
                     {calls.length === 0 && <p className="text-sm text-text-muted">없습니다</p>}
                     {calls.map(c => (
                         <div key={c.id} className="text-sm flex justify-between gap-2">

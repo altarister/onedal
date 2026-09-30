@@ -5,7 +5,7 @@ import type {
 /**
  * 🧪 **예시 자료 — 세 사람(기사님 · 딸 · 와이프) · 폰 넷 · 콜 몇 건** (reviews/29 «가족 1차판»).
  *    «실제로 돌면 이렇게 보인다»를 보이기 위한 것이다. 서버 문 `/api/ops/*` 가 생기면 `api/ops.ts` 가 이 파일 대신 서버를 읽는다.
- *    🔴 이름 · 전화 · 주소는 전부 지어낸 것이다.
+ *    🔴 이름 · 전화 · 주소는 전부 지어낸 것이다. 가족 1차판이라 관리자는 원문을 본다 — 가림은 남을 받을 때 켠다(reviews/29 기준 3).
  */
 
 const today = new Date();
@@ -52,33 +52,33 @@ for (const m of MEMBERS) m.phones = PHONES.filter(p => p.memberId === m.id);
 export const CALLS: OpsCall[] = [
     {
         id: 'c-101', memberId: 'm-driver1', targetApp: 'insung', status: 'ORDER_CONFIRMED', verdict: '꿀', needsCall: true,
-        pickup: { place: '곤지암 물류센터', phone: '031-760-0000', address: '경기 광주시 곤지암읍 ***', at: d(0, 10, 30) },
-        dropoff: { place: '관고동 ○○상사', phone: '031-630-0000', address: '경기 이천시 관고동 ***', at: null },
+        pickup: { place: '곤지암 물류센터', phone: '031-760-0000', address: '경기 광주시 곤지암읍 곤지암리 123-4 물류센터 B동', at: d(0, 10, 30) },
+        dropoff: { place: '관고동 ○○상사', phone: '031-630-0000', address: '경기 이천시 관고동 55-2 ○○상사', at: null },
         fare: 45000, capturedAt: d(0, 9, 41), callNote: null,
     },
     {
         id: 'c-102', memberId: 'm-driver1', targetApp: 'kakaopicker', status: 'ORDER_CONFIRMED', verdict: '보통', needsCall: false,
-        pickup: { place: '초월 편의점', phone: null, address: '경기 광주시 초월읍 ***', at: d(0, 11, 0) },
-        dropoff: { place: '수하인 (개인)', phone: '010-****-1234', address: '경기 이천시 부발읍 ***', at: null },
+        pickup: { place: '초월 편의점', phone: null, address: '경기 광주시 초월읍 대쌍령리 88 편의점', at: d(0, 11, 0) },
+        dropoff: { place: '수하인 (개인)', phone: '010-2222-1234', address: '경기 이천시 부발읍 아미리 302-1 3층', at: null },
         fare: 12000, capturedAt: d(0, 9, 50),
         callNote: { cargoSize: '박스 2 (라면박스 기준 4)', pickupReadyAt: d(0, 10, 50), counterpartCancelled: false, memo: '뒷문으로 오라고 함', writtenBy: '와이프 (관리자)', writtenAt: d(0, 9, 55) },
     },
     {
         id: 'c-103', memberId: 'm-driver2', targetApp: 'insung', status: 'ORDER_CONFIRMED', verdict: '똥', needsCall: true,
-        pickup: { place: '성남 야탑 ○○물산', phone: '031-700-0000', address: '경기 성남시 분당구 야탑동 ***', at: d(0, 13, 0) },
-        dropoff: { place: '광주 오포 ○○공장', phone: '031-760-1111', address: '경기 광주시 오포읍 ***', at: null },
+        pickup: { place: '성남 야탑 ○○물산', phone: '031-700-0000', address: '경기 성남시 분당구 야탑동 341 ○○물산', at: d(0, 13, 0) },
+        dropoff: { place: '광주 오포 ○○공장', phone: '031-760-1111', address: '경기 광주시 오포읍 능평리 17-3 공장', at: null },
         fare: 28000, capturedAt: d(0, 9, 30), callNote: null,
     },
     {
         id: 'c-104', memberId: 'm-driver2', targetApp: 'kakaopicker', status: 'ORDER_DELIVERED', verdict: '보통', needsCall: false,
-        pickup: { place: '판교 ○○카페', phone: null, address: '경기 성남시 분당구 판교동 ***', at: d(0, 8, 0) },
-        dropoff: { place: '수하인 (개인)', phone: '010-****-5678', address: '경기 성남시 수정구 ***', at: d(0, 8, 40) },
+        pickup: { place: '판교 ○○카페', phone: null, address: '경기 성남시 분당구 판교동 632 카페', at: d(0, 8, 0) },
+        dropoff: { place: '수하인 (개인)', phone: '010-3333-5678', address: '경기 성남시 수정구 태평동 1201 402호', at: d(0, 8, 40) },
         fare: 9000, capturedAt: d(0, 7, 45), callNote: null,
     },
     {
         id: 'c-105', memberId: 'm-driver1', targetApp: 'hwamul24', status: 'ORDER_CANCELLED', verdict: '사고', needsCall: false,
-        pickup: { place: '여주 ○○농산', phone: '031-880-0000', address: '경기 여주시 가남읍 ***', at: d(1, 15, 0) },
-        dropoff: { place: '가락시장', phone: null, address: '서울 송파구 가락동 ***', at: null },
+        pickup: { place: '여주 ○○농산', phone: '031-880-0000', address: '경기 여주시 가남읍 태평리 90 농산', at: d(1, 15, 0) },
+        dropoff: { place: '가락시장', phone: null, address: '서울 송파구 가락동 600 가락시장 채소동', at: null },
         fare: 70000, capturedAt: d(1, 14, 10),
         callNote: { cargoSize: '팔레트 1', pickupReadyAt: null, counterpartCancelled: true, memo: '상대가 다른 차 잡았다고 함', writtenBy: '와이프 (관리자)', writtenAt: d(1, 14, 20) },
     },
