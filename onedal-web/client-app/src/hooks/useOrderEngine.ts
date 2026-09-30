@@ -136,6 +136,7 @@ export function useOrderEngine() {
 
         if (socket.connected) {
             setIsConnected(true);
+            reportWebCode();   // 🖥️ 이 훅이 듣기 전에 이미 붙었으면 connect 는 지나갔다 — 여기서 한 번 알린다
         }
 
         const onConnect = () => {
