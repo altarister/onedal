@@ -23,17 +23,80 @@ const MAX_BYTES = 200 * 1024 * 1024;
 
 const LOG_DIR = path.join(__dirname, '../../logs');
 
-let stream: fs.WriteStream | null = null;
-let written = 0;
-let warnedFull = false;
+let started = false;
 
 /** ANSI 색상 코드 제거 — 파일에서는 읽기만 나쁘게 만든다 */
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
 
+const KST_MS = 9 * 3600 * 1000;
+const DAY_MS = 24 * 3600 * 1000;
+
 const stamp = () => {
-    const d = new Date(Date.now() + 9 * 3600 * 1000);   // KST
+    const d = new Date(Date.now() + KST_MS);   // KST
     return d.toISOString().slice(11, 23);
 };
+
+/** 한국 날짜 «YYYY-MM-DD» */
+export const kstDayOf = (ms: number) => new Date(ms + KST_MS).toISOString().slice(0, 10);
+
+/** 이 시각 다음의 한국 자정 (epoch ms) — 줄마다 날짜를 다시 계산하지 않고 이 값과만 견준다 */
+export const nextKstMidnightOf = (ms: number) => (Math.floor((ms + KST_MS) / DAY_MS) + 1) * DAY_MS - KST_MS;
+
+/**
+ * 🔴 **포트가 다르면 파일도 다르다.**
+ *    검사·재현용으로 다른 포트에 서버를 띄우는 일이 잦은데(scenario · 부팅 스모크 ·
+ *    버그 재현), 한 파일에 섞이면 **어느 서버가 찍은 줄인지 알 수 없다.**
+ *    평소 쓰는 4000 은 접미사 없이 둔다 — 찾기 쉬워야 한다.
+ */
+export const logFileNameOf = (day: string, port: string) => `server-${day}${port === '4000' ? '' : `-${port}`}.log`;
+
+/**
+ * 📄 **한국 날짜마다 파일 하나** — 줄을 쓸 때 한국 날짜가 바뀌었으면 옛 파일을 닫고 새 날짜 파일을 연다.
+ *    새 파일은 쓴 크기를 그 파일 크기로 다시 세고, 크기 넘김 경고도 파일마다 한 번이다.
+ *    넘어간 새 파일 첫 줄에 «📄 [로그 파일] 날짜가 바뀌어 새 파일 — 앞 파일 …» 을 남긴다.
+ */
+export function openDailyLog(dir: string, port: string, onFull: (msg: string) => void, maxBytes: number = MAX_BYTES) {
+    let stream: fs.WriteStream;
+    let file = '';
+    let written = 0;
+    let warnedFull = false;
+    let rollAt = 0;
+
+    const open = (now: number) => {
+        file = path.join(dir, logFileNameOf(kstDayOf(now), port));
+        stream = fs.createWriteStream(file, { flags: 'a' });
+        try { written = fs.statSync(file).size; } catch { written = 0; }
+        warnedFull = false;
+        rollAt = nextKstMidnightOf(now);
+    };
+    const append = (clean: string) => {
+        if (written > maxBytes) {
+            if (!warnedFull) {
+                warnedFull = true;
+                onFull(`🚨 [로그 파일] ${Math.round(maxBytes / 1024 / 1024)}MB 를 넘어 ${path.basename(file)} 기록을 멈춥니다 (터미널 출력은 계속됩니다)`);
+            }
+            return;
+        }
+        written += clean.length;
+        stream.write(clean);
+    };
+
+    open(Date.now());
+    return {
+        get file() { return file; },
+        write(clean: string) {
+            const now = Date.now();
+            if (now >= rollAt) {
+                const prev = path.basename(file);
+                stream.end();
+                open(now);
+                append(`${stamp()}     #부팅 📄 [로그 파일] 날짜가 바뀌어 새 파일 — 앞 파일 ${prev}\n`);
+            }
+            append(clean);
+        },
+        close: () => new Promise<void>(resolve => stream.end(() => resolve())),
+    };
+}
 
 /** 오래된 로그 정리 — 부팅 때 한 번만 */
 function sweepOld() {
@@ -56,34 +119,16 @@ function sweepOld() {
  * `index.ts` 맨 위에서 한 번만 부른다 — 그래야 부팅 로그부터 남는다.
  */
 export function initFileLogger(): void {
-    if (stream) return;
+    if (started) return;
 
     try {
         fs.mkdirSync(LOG_DIR, { recursive: true });
         sweepOld();
 
-        const day = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-        /**
-         * 🔴 **포트가 다르면 파일도 다르다.**
-         *    검사·재현용으로 다른 포트에 서버를 띄우는 일이 잦은데(scenario · 부팅 스모크 ·
-         *    버그 재현), 한 파일에 섞이면 **어느 서버가 찍은 줄인지 알 수 없다.**
-         *    평소 쓰는 4000 은 접미사 없이 둔다 — 찾기 쉬워야 한다.
-         */
-        const port = process.env.PORT || '4000';
-        const suffix = port === '4000' ? '' : `-${port}`;
-        const file = path.join(LOG_DIR, `server-${day}${suffix}.log`);
-        stream = fs.createWriteStream(file, { flags: 'a' });
-        try { written = fs.statSync(file).size; } catch { written = 0; }
+        const log = openDailyLog(LOG_DIR, process.env.PORT || '4000', msg => origError(msg));
+        started = true;
 
         const write = (level: string, args: unknown[]) => {
-            if (!stream) return;
-            if (written > MAX_BYTES) {
-                if (!warnedFull) {
-                    warnedFull = true;
-                    origError(`🚨 [로그 파일] ${MAX_BYTES / 1024 / 1024}MB 를 넘어 파일 기록을 멈춥니다 (터미널 출력은 계속됩니다)`);
-                }
-                return;
-            }
             /**
              * 🏷️ 시각 다음 첫 토막은 태그다 (reviews/22 2단계) — `slog` 로 찍은 줄은 «#태그»를 이미
              *    이고 있고, 태그 없는 경고·오류 줄은 `#경고`, 그 밖의 줄은 `#없음` 을 인다. 터미널 출력은 원문 그대로다.
@@ -94,9 +139,7 @@ export function initFileLogger(): void {
             ).join(' ');
             const tagged = body.startsWith('#') ? body : `#${level === '   ' ? NO_TAG : '경고'} ${body}`;
             const line = `${stamp()} ${level} ${tagged}\n`;
-            const clean = stripAnsi(line);
-            written += clean.length;
-            stream.write(clean);
+            log.write(stripAnsi(line));
         };
 
         const origLog = console.log.bind(console);
@@ -108,7 +151,7 @@ export function initFileLogger(): void {
         console.warn = (...a: unknown[]) => { origWarn(...a); write('WRN', a); };
         console.error = (...a: unknown[]) => { origError(...a); write('ERR', a); };
 
-        origLog(`#부팅 📝 [로그 파일] ${path.relative(process.cwd(), file)} 에 함께 기록합니다 (${KEEP_DAYS}일 보관)`);
+        origLog(`#부팅 📝 [로그 파일] ${path.relative(process.cwd(), log.file)} 에 함께 기록합니다 (한국 날짜마다 새 파일 · ${KEEP_DAYS}일 보관)`);
     } catch (e) {
         // 로그를 못 남기는 것이 서버를 멈출 이유는 아니다
         console.error('📝 [로그 파일] 초기화 실패 — 터미널 출력만 남습니다:', e);
