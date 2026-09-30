@@ -10,7 +10,7 @@ import { sheetStatus, sheetStatusLine, textWidth } from '../lib/sheetStatus';
 import StepSheetMock from '../components/dashboard/StepSheetMock';
 import { pushClock, gapTone } from '../lib/pushedTime';
 import { MOCK_PLANS, CONE_DEMO, QUAD_DEMO, QUAD_SIHEUNG, QUAD_LEG2, BOLT_STEPS, BOLT_STEPS_30, RING_DEMO, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
-import { buildNet, buildFirstLegDemo, WAIT_PRESET, GONJIAM_DROP, GONJIAM_CALL_PATH, DONGWON_DROP, DONGWON_CALL_PATH, BORAM_DROP, BORAM_CALL_PATH, ICHEON_DROP, ICHEON_CALL_PATH, type NetParams, type NetResult } from '@onedal/shared';
+import { COLOR_DOT, buildNet, buildFirstLegDemo, WAIT_PRESET, GONJIAM_DROP, GONJIAM_CALL_PATH, DONGWON_DROP, DONGWON_CALL_PATH, BORAM_DROP, BORAM_CALL_PATH, ICHEON_DROP, ICHEON_CALL_PATH, type NetParams, type NetResult } from '@onedal/shared';
 import { SCENARIO, SEAT_CALLS } from './scenario';
 import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
 import JudgmentSeat from '../components/dashboard/JudgmentSeat';
@@ -1775,7 +1775,7 @@ export default function SheetMockup() {
                             {step.color && <span className={`px-1.5 py-0.5 rounded-[5px] ${
                                 step.color === '꿀' ? 'bg-info/25 text-info'
                                 : step.color === '보통' ? 'bg-success/25 text-success' : 'bg-warning/25 text-warning'}`}>
-                                {step.color === '꿀' ? '🔵' : step.color === '보통' ? '🟢' : '🟡'} {step.color}
+                                {COLOR_DOT[step.color]} {step.color}
                             </span>}
                             {step.priorityLocked
                                 ? <span className="px-1.5 py-0.5 rounded-[5px] bg-surface-alt text-text-muted">🔒 방침 잠김</span>

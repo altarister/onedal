@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SOAK } from './JudgmentSeat';
-import { verdictOf } from '../../lib/verdict';
+import { verdictOf } from '@onedal/shared';
 
 /**
  * 🧪 **판정색 한 벌**

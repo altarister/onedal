@@ -1,4 +1,5 @@
-import { verdictOf, BUTTON_BG } from '../../lib/verdict';
+import { verdictOf } from '@onedal/shared';
+import { BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords, safeCancelSecOf } from "@onedal/shared";
@@ -445,7 +446,7 @@ export default function PinnedRouteCard({
                                     /**
                                      * 🎨 **색은 값에서 온다 — 문장을 뒤지지 않는다**.
                                      *    `kakaoTimeExt` 에 `'꿀'` 이 들어 있나 찾아 색을 정하면
-                                     *    문구를 다듬을 때 색이 조용히 바뀐다. 판정은 `lib/verdict.ts` 하나가 한다.
+                                     *    문구를 다듬을 때 색이 조용히 바뀐다. 판정은 `shared verdict.ts` 하나가 한다.
                                      */
                                     const v = verdictOf(route);
                                     const btnBg = BUTTON_BG[v.color ?? '없음'];

@@ -31,6 +31,7 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
 import { callNodeFill, callNodeText, stopBoxBg, callTextColor, callLineColor, PROMISE_CALLED } from '../styles/callPalette';
 import { useTheme } from '../contexts/ThemeContext';
 import type { SecuredOrder } from '@onedal/shared';
+import { COLOR_DOT } from '@onedal/shared';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
 import { buildLabFacts, extraDriveMin } from './labJudge';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
@@ -3518,7 +3519,7 @@ export default function MapMockup() {
                                         : r.color === '보통' ? 'bg-success/20 text-success border-success/50'
                                         : r.color === '똥' ? 'bg-warning/20 text-warning border-warning/50'
                                         : 'bg-danger/20 text-danger border-danger/50';
-                                    const face = r.color === '꿀' ? '🔵' : r.color === '보통' ? '🟢' : r.color === '똥' ? '🟡' : '🔴';
+                                    const face = COLOR_DOT[r.color];
                                     return (
                                         <div className="flex flex-col gap-1">
                                             <div className={`self-start px-2.5 py-1 rounded-lg border text-[14px] font-black ${tone}`}>
@@ -3850,7 +3851,7 @@ export default function MapMockup() {
                         <div className="w-[96px]"><NumRow label="📦 짐(박스)" value={candBoxes} onChange={setCandBoxes} max={TRUCK_CAPACITY_SLOTS} /></div>
                         {candJudge && (() => {
                             const r = candJudge.result;
-                            const face = r.color === '꿀' ? '🔵' : r.color === '보통' ? '🟢' : r.color === '똥' ? '🟡' : '🔴';
+                            const face = COLOR_DOT[r.color];
                             const tone = r.color === '꿀' ? 'bg-info/20 text-info border-info/50'
                                 : r.color === '보통' ? 'bg-success/20 text-success border-success/50'
                                 : r.color === '똥' ? 'bg-warning/20 text-warning border-warning/50'

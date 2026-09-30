@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SecuredOrder, CallTarget } from '@onedal/shared';
 import { isManualLineage, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from '@onedal/shared';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { verdictOf, type VerdictColor } from '../../lib/verdict';
+import { verdictOf, type Color } from '@onedal/shared';
 import { reservedBadgeOf } from '../../lib/reservedLine';
 import { approxBadgeOf } from '../../lib/approxAddress';
 import { unreadableLine, visibleIn, type Unreadable } from '../../lib/unreadable';
@@ -27,7 +27,7 @@ const hhmm = (at?: string | null) => hhmmText(at) ?? '';
  * 🎨 **판정색 한 벌** — 심사석과 «한 줄 심사석»이 같은 색을 쓴다.
  *    색이 곧 기사님의 결정이라(규칙 ⑤-3), 자리마다 색이 다르면 그게 가장 큰 사고다.
  */
-export const SOAK: Record<VerdictColor, { tint: string; bar: string; text: string; glow: string; wm: string }> = {
+export const SOAK: Record<Color, { tint: string; bar: string; text: string; glow: string; wm: string }> = {
     '꿀':   { tint: 'rgba(79,141,249,.30)', bar: '#4f8df9', text: '#9db9ff', glow: 'rgba(79,141,249,.5)',  wm: 'rgba(79,141,249,.16)' },
     '보통': { tint: 'rgba(47,158,110,.28)', bar: '#2f9e6e', text: '#7fd8ab', glow: 'rgba(47,158,110,.45)', wm: 'rgba(47,158,110,.15)' },
     '똥':   { tint: 'rgba(230,180,34,.30)', bar: '#e6b422', text: '#f0d27a', glow: 'rgba(230,180,34,.45)', wm: 'rgba(230,180,34,.15)' },
@@ -301,7 +301,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                             {negatives.length ? negatives.join(' · ') : '걸리는 것 없음'} · 근거 {open ? '▴' : '▾'}
                         </div>
                         {/**
-                          * 🎬 **이 자리는 «행동이 있으면 행동»이 차지한다** (판정 4단계 · `lib/verdict.ts` 의 `action`).
+                          * 🎬 **이 자리는 «행동이 있으면 행동»이 차지한다** (판정 4단계 · `shared verdict.ts` 의 `action`).
                           *
                           * 🔴 **줄을 늘리지 않는다** — 이 카드는 158px 고정(`overflow-hidden`)이라
                           *    여섯째 줄을 만들면 **맨 아래가 조용히 잘린다**. 실측으로 확인했다 —
@@ -413,7 +413,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                             </div>
                             <div className="truncate" style={{ fontSize: 13.5, fontWeight: 800, marginTop: 2 }}>{routeLine(route.distanceKm, routeText)}{extraLine}</div>
                             {/**
-                              * 🎬 **이 자리는 «행동이 있으면 행동»이 차지한다** (판정 4단계 · `lib/verdict.ts` 의 `action`).
+                              * 🎬 **이 자리는 «행동이 있으면 행동»이 차지한다** (판정 4단계 · `shared verdict.ts` 의 `action`).
                               *    🔴 **줄을 늘리지 않는다** — 이 버튼도 고정 높이 안이라 한 줄을 더하면 잘린다.
                               *    🔴 **색 이름으로 가르지 않는다** — «있으면 그린다» 뿐이다.
                               *       🔵🟢 에는 `action` 이 없어 지금처럼 좋은 점이 보인다.

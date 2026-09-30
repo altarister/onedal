@@ -1,4 +1,4 @@
-import { bellOf } from '../lib/verdict';
+import { bellOf } from '@onedal/shared';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { unreadableAfter, type Unreadable } from '../lib/unreadable';
 import { reportWebCode } from '../lib/webCodeVersion';

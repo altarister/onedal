@@ -3,7 +3,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { judge, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
+import { judge, COLOR_DOT, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress } from '@onedal/shared';
 import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, trappedOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
@@ -41,7 +41,7 @@ import { slog } from "../../utils/fileLogger";
 const toManwon = (n: number) => (n / 10_000).toFixed(1);
 
 function verdictLine(v: JudgmentSnapshot): string {
-    const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';
+    const emoji = COLOR_DOT[v.color];
     const brokenGates = v.gates.filter(g => !g.pass).map(g => g.why ?? g.name);
     /**
      * 🔴 **🔴 에도 점수를 함께 적는다** (기사님 확정 모델).

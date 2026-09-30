@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
 import axios from 'axios';
+import { COLOR_DOT } from '@onedal/shared';
 
 /**
  * 📊 **설정과 성과** (기사님 확정 — 운행일지에)
@@ -20,7 +21,8 @@ interface FilterDay {
         detourAllowKm?: number; dropoffRadiusKm?: number; discountPct?: number }>;
 }
 
-const COLOR_EMOJI: Record<string, string> = { '꿀': '🔵', '보통': '🟢', '똥': '🟡', '사고': '🔴' };
+// 🎨 동그라미는 shared 한 곳 (공통 함수 5) — 날마다 센 색 이름은 글자라 모르는 이름은 그대로 적는다
+const COLOR_EMOJI: Record<string, string> = COLOR_DOT;
 
 export default function FilterDayBoard() {
     const [days, setDays] = useState<FilterDay[] | null>(null);

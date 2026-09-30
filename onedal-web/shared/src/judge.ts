@@ -133,6 +133,9 @@ export const defineCriterion = <F>(c: Criterion<F>): Criterion<any> => c as Crit
 
 export type Color = '꿀' | '보통' | '똥' | '사고';
 
+/** 🎨 **색 → 동그라미** — 먼발치에서 읽히는 한 글자. 서버 로그 · 관제웹 · 운행일지가 같은 표 한 곳 (공통 함수 5) */
+export const COLOR_DOT: Record<Color, string> = { 꿀: '🔵', 보통: '🟢', 똥: '🟡', 사고: '🔴' };
+
 export interface JudgedCriterion {
     key: string;
     name: string;
@@ -316,7 +319,7 @@ export function toSnapshot(v: Judgment) {
 
 /** 한 줄 설명 — 로그·화면이 같은 말을 쓰게 (규칙 ③) */
 export function describe(v: Judgment): string {
-    const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';
+    const emoji = COLOR_DOT[v.color];
     const head = v.score == null ? `${emoji} 잴 수 없음` : `${emoji} ${v.score}점`;
     const body = v.criteria
         .filter(r => r.outcome.kind === 'scored')

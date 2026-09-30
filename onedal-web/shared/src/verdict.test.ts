@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { verdictOf, bellOf } from './verdict';
+import { COLOR_DOT } from './judge';
 
 /**
  * 🎨 **색은 값으로 온다 — 문장을 뒤져서 정하지 않는다**
@@ -40,7 +41,7 @@ describe('🎨 색은 값에서 온다', () => {
     });
 
     /** 🔴 문구를 다듬어도 값이 있으면 색이 안 흔들린다 */
-    it('🔴 따옴표를 빼도 색이 안 바뀐다 — 예전엔 「보통」으로 떨어졌다', () => {
+    it('🔴 따옴표를 빼도 색이 안 바뀐다 — 문장이 아니라 값을 읽는다', () => {
         const trimmedPhrase = { kakaoTimeExt: '꿀콜입니다 총 87분', judgment: { color: '꿀', score: 83, axes: [], gates: [], tags: [] } };
         expect(verdictOf(trimmedPhrase as any).color).toBe('꿀');
     });
@@ -192,5 +193,12 @@ describe('🔔 bellOf', () => {
         expect(bellOf({ judgment: { color: '보통', score: 30, bell: false } } as any)).toBe(false);
         expect(bellOf({ judgment: { color: '꿀', score: 80 } } as any)).toBe(false);
         expect(bellOf({} as any)).toBe(false);
+    });
+});
+
+/** 🎨 색 → 동그라미 — 서버 로그 · 관제웹 · 운행일지가 같은 표 한 곳 (공통 함수 5) */
+describe('🎨 COLOR_DOT', () => {
+    it('🔴 네 색이 네 동그라미', () => {
+        expect(COLOR_DOT).toEqual({ 꿀: '🔵', 보통: '🟢', 똥: '🟡', 사고: '🔴' });
     });
 });
