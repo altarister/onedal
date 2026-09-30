@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { jwtSecret } from "../config/env";
 import db from "../db";
 import { slog } from "../utils/fileLogger";
+import { enterLogWho } from "../utils/logContext";
 
 
 
@@ -66,6 +67,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
         }
 
         req.user = decoded; // 이후 라우터 로직에서 req.user.id 접근 가능
+        enterLogWho(decoded?.name, decoded?.id);   // 🪪 이 요청의 로그 줄 끝에 «@기사» (reviews/29 1단계 J)
         next();
     } catch (err: any) {
         if (err.name === 'TokenExpiredError') {

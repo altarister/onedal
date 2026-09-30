@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { LOG_TAGS, NO_TAG, type LogTag } from '@onedal/shared';
+import { LOG_TAGS, NO_TAG, maskPhone, type LogTag } from '@onedal/shared';
+import { whoNow } from './logContext';
 
 /**
  * 서버 로그를 **파일에도** 남긴다.
@@ -35,6 +36,15 @@ const stamp = () => {
     const d = new Date(Date.now() + KST_MS);   // KST
     return d.toISOString().slice(11, 23);
 };
+
+/**
+ * 🪪 **파일에 쓰는 줄 꾸미기** (reviews/29 1단계 I·J) — 휴대폰 번호를 가리고, 누구의 일인지 알면 줄 끝에 «@기사».
+ *    줄 앞머리(시각 · 수준 · #태그)는 `pnpm log` 가 읽는 자리라 건드리지 않는다. 터미널 출력은 원문 그대로다.
+ */
+export function decorateFileLine(line: string, who: string | undefined): string {
+    const masked = maskPhone(line);
+    return who ? masked.replace(/\n$/, ` @${who}\n`) : masked;
+}
 
 /** 한국 날짜 «YYYY-MM-DD» */
 export const kstDayOf = (ms: number) => new Date(ms + KST_MS).toISOString().slice(0, 10);
@@ -139,7 +149,7 @@ export function initFileLogger(): void {
             ).join(' ');
             const tagged = body.startsWith('#') ? body : `#${level === '   ' ? NO_TAG : '경고'} ${body}`;
             const line = `${stamp()} ${level} ${tagged}\n`;
-            log.write(stripAnsi(line));
+            log.write(decorateFileLine(stripAnsi(line), whoNow()));
         };
 
         const origLog = console.log.bind(console);

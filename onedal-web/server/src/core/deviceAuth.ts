@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { DEVICE_LINK_ERRORS, DEVICE_TOKEN_HEADER } from "@onedal/shared";
 import db from "../db";
 import { slog } from "../utils/fileLogger";
+import { enterLogWho } from "../utils/logContext";
 
 /**
  * 🔑 **폰이 누구인가 — 폰 문 한 곳** (reviews/29 1단계 D·E · 기준 1).
@@ -35,8 +36,8 @@ const toldNotPaired = new Set<string>();
 
 export function authDevice(deviceId: string | null | undefined, token: string | undefined): DeviceAuth {
     if (!deviceId) return { ok: false, status: 401, error: DEVICE_LINK_ERRORS.NOT_PAIRED };
-    const row = db.prepare("SELECT user_id, token_hash FROM user_devices WHERE device_id = ?").get(deviceId) as
-        { user_id: string; token_hash: string | null } | undefined;
+    const row = db.prepare("SELECT d.user_id, d.token_hash, u.name FROM user_devices d LEFT JOIN users u ON u.id = d.user_id WHERE d.device_id = ?").get(deviceId) as
+        { user_id: string; token_hash: string | null; name: string | null } | undefined;
     if (!row) {
         if (!toldNotPaired.has(deviceId)) { toldNotPaired.add(deviceId); slog('통신', `📵 [연결 안 된 폰] ${deviceId} — 보고 거절 (${DEVICE_LINK_ERRORS.NOT_PAIRED})`); }
         return { ok: false, status: 401, error: DEVICE_LINK_ERRORS.NOT_PAIRED };
@@ -51,5 +52,6 @@ export function authDevice(deviceId: string | null | undefined, token: string | 
         toldNoToken.add(deviceId);
         slog('통신', `🔑 [토큰 없는 폰] ${deviceId} — ${row.token_hash ? '토큰을 안 실음(옛 앱)' : '토큰을 받은 적 없음(재연결 전)'} · 이번 단계는 통과`);
     }
+    enterLogWho(row.name, row.user_id);   // 🪪 이 폰 보고의 로그 줄 끝에 «@기사» (reviews/29 1단계 J)
     return { ok: true, userId: row.user_id, deviceId };
 }

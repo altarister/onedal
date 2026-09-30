@@ -46,6 +46,7 @@ import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "..
 import { slog } from "../utils/fileLogger";
 import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";
+import { logContext, whoLabel } from "../utils/logContext";
 
 
 
@@ -61,7 +62,8 @@ import { noteOrigin } from "../utils/originLog";
  * 한 오더의 입력이 실패하는 것과 서버가 죽는 것은 전혀 다른 무게다.
  */
 function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any) {
-    socket.on(event, async (...args: any[]) => {
+    /* 🪪 이 이벤트의 로그 줄 끝에 «@기사» — 핸들러의 비동기 흐름 전체에 싣는다 (reviews/29 1단계 J) */
+    socket.on(event, (...args: any[]) => logContext.run({ who: whoLabel(socket.data.user?.name, socket.data.user?.id) }, async () => {
         try {
             await handler(...args);
         } catch (err: any) {
@@ -78,7 +80,7 @@ function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any)
                 : (raw || "처리 중 오류가 발생했습니다");
             socket.emit("handler-error", { event, message: human, detail: raw });
         }
-    });
+    }));
 }
 
 export function registerSocketHandlers(io: Server) {

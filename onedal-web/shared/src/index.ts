@@ -1767,6 +1767,7 @@ export interface DeviceSession {
 
 export * from './callBands';
 export * from './openBlocked';
+export * from './mask';
 export * from './routeReuse';
 export * from './fuelCost';
 export * from './vehicles';
