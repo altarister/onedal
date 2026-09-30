@@ -17,7 +17,8 @@ import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/
 import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
-import { getUserSession, dropOrderTimer } from "../state/userSessionStore";
+import { getUserSession } from "../state/userSessionStore";
+import { armWait } from "../state/waits";
 import { rememberOrder } from "../state/orderMemory";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
@@ -233,8 +234,8 @@ router.post("/confirm", (req, res) => {
              * 필터가 꺼진 채 들어온 확정(특히 MANUAL 콜)에도 걸려야 한다. 안 걸리면 앱이 리스트로
              * 빠져나갔을 때 관제탑 카드가 영원히 남고 콜 잡기가 통째로 멈춘다.
              *
-             * ⚠️ 타이머는 **ID 를 저장해 취소 가능하게** 한다 (CLAUDE.md 규칙 ② 좀비 타이머).
-             *    저장하지 않으면 콜이 정상 처리된 뒤에도 30초 뒤 깨어나 사고를 친다.
+             * ⚠️ 타이머는 **장부(`armWait`)에 건다** — 장부 밖에서 걸면 콜이 정상 처리된 뒤에도
+             *    30초 뒤 깨어나 사고를 친다.
              */
             /**
              * ⏱️ **몇 초인가는 그 콜 배차망의 값이다** (DB).
@@ -260,8 +261,8 @@ router.post("/confirm", (req, res) => {
                 pendingOrder.judgeUntil = Date.now() + holdSec * 1000;
                 slog('콜단계', `👀 [미리보기] ${pendingOrder.id} — 남은 판정 시간 ${holdSec}초 (표시용 · 끄는 것은 폰 화면이 정한다)`);
             } else if (cancelSec != null) {
-                const graceTimer = setTimeout(() => {
-                    session.activeTimers.delete(`presecured_${pendingOrder.id}`);
+                armWait(session, `presecured_${pendingOrder.id}`,
+                    { label: '안전취소(1차 선점)', armedBy: '/confirm', ms: cancelSec * 1000, orderId: pendingOrder.id, tag: '콜단계' }, () => {
                     const cached = session.pendingOrdersData.get(pendingOrder.id);
                     // 🔴 여기도 상태 목록을 손으로 적고 있었다. `shared` 의
                     //    `EVALUATING_STATUSES` 와 값이 같았지만, 한쪽만 늘어나면 갈라진다.
@@ -269,10 +270,7 @@ router.post("/confirm", (req, res) => {
                         slog('콜단계', `💀 [서버 안전취소 타이머] ${cancelSec}초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
                         handleDecision(userId, pendingOrder.id, "SAFE_CANCEL", io);
                     }
-                }, cancelSec * 1000);
-                /* 같은 콜의 앞 핸들은 먼저 끈다 — /confirm 재시도가 겹쳐 넣으면 좀비 타이머가 남는다 */
-                dropOrderTimer(session, `presecured_${pendingOrder.id}`);
-                session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
+                });   // 같은 콜의 앞 기다림은 armWait 가 먼저 끈다 — /confirm 재시도가 겹쳐 넣어도 좀비가 안 남는다
             } else {
                 slog('콜단계', `👀 [픽커] ${pendingOrder.id} — 안전취소가 없는 배차망이라 서버 타이머를 걸지 않는다 (규칙 ①)`);
             }

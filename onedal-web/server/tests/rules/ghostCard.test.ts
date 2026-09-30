@@ -84,32 +84,30 @@ describe('가확정 콜의 안전망', () => {
         expect(orders.indexOf('presecured_')).toBeGreaterThan(-1);
     });
 
-    it('🔴 타이머 ID 를 저장한다 — 취소할 수 없는 타이머는 좀비가 된다', () => {
-        expect(orders).toMatch(/session\.activeTimers\.set\(`presecured_/);
+    it('🔴 타이머를 장부에 건다 — 취소할 수 없는 타이머는 좀비가 된다', () => {
+        expect(orders).toMatch(/armWait\(session, `presecured_/);
     });
 });
 
 /**
- * 🔴 **타이머 키 목록은 한 곳에만 있다.**
- * `warn_` · `timeout_` · `presecured_` 를 여러 파일이 각자 지우면, 새 키를 더할 때
- * 한 곳만 고쳐져 나머지가 좀비 타이머로 남는다. 그래서 `clearOrderTimers` 하나가 지운다.
+ * 🔴 **콜의 기다림은 한 곳에서 끈다.**
+ * 여러 파일이 각자 키를 지우면, 새 기다림을 더할 때 한 곳만 고쳐져 나머지가 좀비 타이머로 남는다.
+ * 그래서 장부의 `cancelOrderWaits` 하나가 장부 줄의 콜로 찾아 끈다 — 키 모양 목록이 없다.
  */
-describe('타이머 정리 — 키 목록은 한 곳', () => {
+describe('타이머 정리 — 콜의 기다림은 한 곳에서 끈다', () => {
 
-    const store = codeOnly(read('state/userSessionStore.ts'));
+    const waits = codeOnly(read('state/waits.ts'));
 
-    it('clearOrderTimers 가 세 키를 모두 끈다', () => {
-        const fn = store.slice(store.indexOf('export function clearOrderTimers'));
-        expect(fn).toMatch(/'warn_'/);
-        expect(fn).toMatch(/'timeout_'/);
-        expect(fn).toMatch(/'presecured_'/);
-        expect(fn).toMatch(/clearTimeout/);
+    it('cancelOrderWaits 는 키 앞머리가 아니라 장부 줄의 콜로 찾는다', () => {
+        const fn = waits.slice(waits.indexOf('export function cancelOrderWaits'), waits.indexOf('export function cancelAllWaits'));
+        expect(fn).toMatch(/w\.orderId === orderId/);
+        expect(fn).not.toMatch(/prefix|'warn_'|'timeout_'/);
     });
 
     it('🔴 키를 손으로 조립하는 곳이 없다 (타이머를 만드는 자리 하나만 예외)', () => {
         const offenders: string[] = [];
         for (const f of ['routes/scrap.ts', 'routes/emergency.ts', 'routes/detail.ts', 'services/dispatchEngine.ts']) {
-            if (/activeTimers\.(get|delete)\(/.test(codeOnly(read(f)))) offenders.push(f);
+            if (/entries\.(get|delete)\(/.test(codeOnly(read(f)))) offenders.push(f);
         }
         expect(offenders).toEqual([]);
     });
@@ -117,7 +115,7 @@ describe('타이머 정리 — 키 목록은 한 곳', () => {
     it('결재가 나면 그 콜의 타이머를 끈다 (이미 처리된 콜을 30초 뒤에 다시 건드리지 않게)', () => {
         const engine = codeOnly(read('services/dispatchEngine.ts'));
         const fn = engine.slice(engine.indexOf('export async function handleDecision'));
-        expect(fn.slice(0, 800)).toMatch(/clearOrderTimers\(session, orderId\)/);
+        expect(fn.slice(0, 800)).toMatch(/cancelOrderWaits\(session, orderId,/);
     });
 });
 

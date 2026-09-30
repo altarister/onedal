@@ -96,6 +96,7 @@ import db from "../db";
 import { hedgeBudget } from "./kakaoHedgeBudget";
 export { hedgeBudget };
 import { slog } from "../utils/fileLogger";
+import { armWait, cancelWait, globalWaits } from "../state/waits";
 
 // L1: 인메모리 캐시 (서버 세션 내 초고속 조회)
 const MAX_L1_CACHE_SIZE = 5000;
@@ -405,6 +406,7 @@ export async function calculateSoloRoute(
     const early = soloRoutePrefetched.get(url);
     if (early) {
         soloRoutePrefetched.delete(url);
+        cancelWait(globalWaits, `prefetch_${url}`, '판정이 가져감');
         const result = await early.p;
         const again = early.budget?.used ?? 0;
         const judging = hedgeBudget.getStore();
@@ -436,12 +438,17 @@ export function prefetchSoloRoute(
     const p = fetchSoloRoute(url, !!driverLoc);
     const kept = { p, startedAt: Date.now(), budget: hedgeBudget.getStore() ?? null };
     soloRoutePrefetched.set(url, kept);
-    p.catch(() => { if (soloRoutePrefetched.get(url) === kept) soloRoutePrefetched.delete(url); });
-    setTimeout(() => {
+    p.catch(() => {
+        if (soloRoutePrefetched.get(url) !== kept) return;
+        soloRoutePrefetched.delete(url);
+        cancelWait(globalWaits, `prefetch_${url}`, '길찾기 실패');
+    });
+    armWait(globalWaits, `prefetch_${url}`,
+        { label: '미리 출발 보관', armedBy: '/confirm 미리 출발', ms: SOLO_PREFETCH_KEEP_MS, tag: '판정', unref: true }, () => {
         if (soloRoutePrefetched.get(url) !== kept) return;
         soloRoutePrefetched.delete(url);
         slog('판정', `🏃 [미리 출발] ${pickupX.toFixed(4)},${pickupY.toFixed(4)} → ${dropoffX.toFixed(4)},${dropoffY.toFixed(4)} — ${SOLO_PREFETCH_KEEP_MS / 1000}초 안에 판정 안 옴 (카카오 길찾기 1번 헛씀)`);
-    }, SOLO_PREFETCH_KEEP_MS).unref?.();
+    });
 }
 
 async function fetchSoloRoute(url: string, hasOrigin: boolean): Promise<RouteResult> {

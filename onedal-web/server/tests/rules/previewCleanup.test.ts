@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { getUserSession, clearOrderTimers } from '../../src/state/userSessionStore';
+import { getUserSession } from '../../src/state/userSessionStore';
+import { cancelWait } from '../../src/state/waits';
 import { forceCancelEvaluatingOrder } from '../../src/services/dispatchEngine';
 import { initGeoService } from '../../src/services/geoService';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
@@ -24,14 +25,14 @@ const io = { to: () => ({ emit: jest.fn() }) } as any;
 beforeAll(() => { initGeoService(); });
 /**
  * ⏳ **목록 복귀가 건 «이탈 유예» 타이머는 검사마다 끝에 치운다** — 안 치우면 검사가 끝난 뒤 타이머가 돌아
- *    «Cannot log after tests are done»과 없는 콜의 장부 쓰기(FK 오류)를 남긴다. 치우는 길은 서버의 `clearOrderTimers` 하나다.
+ *    «Cannot log after tests are done»과 없는 콜의 장부 쓰기(FK 오류)를 남긴다. 치우는 길은 장부의 `cancelWait` 다.
  */
 afterEach(() => {
     jest.restoreAllMocks();
     for (const u of [USER, 'ADMIN_USER']) {
         const s = getUserSession(u);
-        for (const key of [...s.activeTimers.keys()])
-            if (key.startsWith('listExit_')) clearOrderTimers(s, key.slice('listExit_'.length));
+        for (const key of [...s.entries.keys()])
+            if (key.startsWith('listExit_')) cancelWait(s, key, '검사 끝');
     }
 });
 
@@ -65,7 +66,9 @@ describe('🧹 심사 콜 정리', () => {
 
     it('🔴 안전취소 타임아웃은 정리 함수 하나만 부른다 — 따로 세지 않는다 (두 번 세던 자리)', () => {
         const src = readFileSync(join(__dirname, '../../src/routes/detail.ts'), 'utf8');
-        const body = src.slice(src.indexOf('const timeoutTimer = setTimeout'), src.indexOf('(cancelSec + SERVER_CLEANUP_EXTRA_SEC) * 1000'));
+        const start = src.indexOf('armWait(session, `timeout_');
+        expect(start).toBeGreaterThan(-1);
+        const body = src.slice(start, src.indexOf('} catch', start));
         expect(body).toMatch(/forceCancelEvaluatingOrder\(userId, payload\.order\.id, io, 'TIMEOUT'\)/);
         expect(body).not.toMatch(/countCancel\(/);
         expect(body).not.toMatch(/emit\("order-canceled"/);

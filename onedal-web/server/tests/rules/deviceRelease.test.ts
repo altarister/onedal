@@ -3,6 +3,7 @@ import db from '../../src/db';
 import detailRouter from '../../src/routes/detail';
 import scrapRouter from '../../src/routes/scrap';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
+import { armWait } from '../../src/state/waits';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
 
 /**
@@ -154,7 +155,7 @@ describe('⏲️ 세션을 지우면 그 세션의 콜 타이머도 꺼진다', 
         jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
         const fired = jest.fn();
         const s = getUserSession('test-timer-clear');
-        s.activeTimers.set('timeout_x', setTimeout(fired, 1000));
+        armWait(s, 'timeout_x', { label: '시험', armedBy: '검사', ms: 1000, orderId: 'x', tag: '결재' }, fired);
         clearUserSession('test-timer-clear');
         jest.advanceTimersByTime(2000);
         expect(fired).not.toHaveBeenCalled();

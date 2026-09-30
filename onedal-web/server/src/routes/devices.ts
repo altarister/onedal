@@ -8,6 +8,7 @@ import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { updateActiveFilter } from "../state/filterManager";
 import { slog } from "../utils/fileLogger";
+import { armWait } from "../state/waits";
 
 const router = Router();
 
@@ -458,14 +459,13 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                  * 🔴 **가르는 사실은 «곧 새 콜을 잡았나» 하나다.** 그래서 잠깐 기다렸다가,
                  *    그 사이 이 기기가 다른 콜로 옮겨 갔으면 이 콜은 손대지 않는다.
                  *    기다리는 동안 기사님이 결재하시면 그 길이 먼저 치운다.
-                 * 🔴 타이머는 `session.activeTimers` 에 담는다 — 손으로 나열하면 좀비가 남는다.
+                 * 🔴 기다림은 장부(`state/waits.ts`)로 건다 — 콜이 끝나면 그 콜 것이 함께 꺼진다.
                  */
                 const key = `listExit_${stuckOrderId}`;
-                if (!userSession.activeTimers.has(key)) {
-                    slog('화면', `🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! ` +
-                        `⏳ ${LIST_EXIT_GRACE_MS / 1000}초 기다립니다 — 그 사이 다음 콜을 잡으면 안 치웁니다.`);
-                    const t = setTimeout(() => {
-                        userSession.activeTimers.delete(key);
+                if (!userSession.entries.has(key)) {
+                    slog('화면', `🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! 그 사이 다음 콜을 잡으면 안 치웁니다.`);
+                    armWait(userSession, key,
+                        { label: '목록 이탈 유예', armedBy: '화면 보고', ms: LIST_EXIT_GRACE_MS, orderId: stuckOrderId, tag: '화면' }, () => {
                         /* 🎫 아직도 이 콜이 «지금 심사 중»이면 정말 버린 것이다 */
                         if (userSession.deviceEvaluatingMap.get(deviceId) !== stuckOrderId) {
                             slog('화면', `   ✅ [이탈 유예] ${stuckOrderId} — 그 사이 다음 콜로 옮겨 갔습니다. 안 치웁니다.`);
@@ -474,8 +474,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                         if (!userSession.pendingOrdersData.has(stuckOrderId)) return;   // 이미 다른 길이 치웠다
                         slog('화면', `   🧹 [이탈 유예 끝] ${stuckOrderId} — 새 콜이 안 왔습니다. 대기 중이던 AUTO 롱폴링 파이프 강제 파괴.`);
                         forceCancelEvaluatingOrder(userId, stuckOrderId, io);
-                    }, LIST_EXIT_GRACE_MS);
-                    userSession.activeTimers.set(key, t);
+                    });
                 }
             }
         }

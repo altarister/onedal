@@ -46,7 +46,7 @@ logs/server-YYYY-MM-DD-4012.log   다른 포트(검사·재현용)
   `dropStaleCheck()` 도 같은 방식이지만 지금은 아무 데서도 부르지 않는다. V7 은 표를 지우지 않고 `orders` 의 상태값만 `UPDATE` 로 바꾼다.
   둘 다 지금 DB 에서는 조건이 맞지 않아 실제로 돌지 않는다
 
-- **타이머는 `session.activeTimers` 에 넣어 취소할 수 있게 한다** — 끄는 곳은 `clearOrderTimers` 한 곳이다 (키를 손으로 나열하면 좀비 타이머가 남는다)
+- **기다림(`setTimeout` 한 번짜리)은 `state/waits.ts` 의 `armWait` 로만 건다** — `waitLedger` · `timerKeysCleared` 가 문다 (한 요청 안의 짧은 기다림과 종료 절차만 이름으로 뺀다)
 
 - **`CREATE TABLE IF NOT EXISTS` 는 기존 테이블에 컬럼을 추가하지 않는다.** 칸 추가는 `ensureColumns()` 로 한다.
   enum 성 칸에는 `CHECK` 를 걸지 않는다 — 낡은 `CHECK` 는 새 값을 조용히 거부하고 `ALTER` 로 못 고친다 (`db.ts` 머리).

@@ -8,7 +8,8 @@ import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSe
 import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
-import { getUserSession, dropOrderTimer } from "../state/userSessionStore";
+import { getUserSession } from "../state/userSessionStore";
+import { armWait } from "../state/waits";
 import { evolveOrder, rememberOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder, bootstrapUserSession } from "../services/dispatchEngine";
 import { getDeviceMode } from "./devices";
@@ -323,7 +324,10 @@ router.post("/", async (req, res) => {
         const cancelSec = safeCancelSecOf(readWaitTimes(userId), targetApp);
         if (cancelSec == null) return;
 
-        const warningTimer = setTimeout(() => {
+        /* 같은 콜의 앞 기다림은 armWait 가 먼저 끈다 — 재시도가 겹쳐 넣어도 경고가 두 번 안 뜬다 */
+        const orderId = payload.order.id;
+        armWait(session, `warn_${orderId}`,
+            { label: '안전취소 경고', armedBy: '/detail', ms: cancelSec * 1000, orderId, tag: '결재' }, () => {
             if (session.pendingDecisions.has(payload.order.id)) {
                 if (io) {
                     console.warn(`⚠️ [안전취소 임박] ${payload.order.id} — ${cancelSec}초가 되도록 판정이 없다. 관제웹에 위급 알림`);
@@ -337,9 +341,10 @@ router.post("/", async (req, res) => {
                     });
                 }
             }
-        }, cancelSec * 1000);
+        });
 
-        const timeoutTimer = setTimeout(() => {
+        armWait(session, `timeout_${orderId}`,
+            { label: '안전취소 해제', armedBy: '/detail', ms: (cancelSec + SERVER_CLEANUP_EXTRA_SEC) * 1000, orderId, tag: '결재' }, () => {
             const decision = session.pendingDecisions.get(payload.order.id);
             if (decision) {
                 // ✅ [Phase 1 방어] KEEP 결재가 이미 내려진 콜은 절대 취소하지 않는다
@@ -358,13 +363,7 @@ router.post("/", async (req, res) => {
                       미리보기면 셈도 장부도 건너뛴다 */
                 forceCancelEvaluatingOrder(userId, payload.order.id, io, 'TIMEOUT');
             }
-        }, (cancelSec + SERVER_CLEANUP_EXTRA_SEC) * 1000);
-
-        // 비상 시 취소를 위해 타이머들 등록 — 같은 키의 앞 핸들은 먼저 끈다 (dropOrderTimer)
-        dropOrderTimer(session, `warn_${payload.order.id}`);
-        dropOrderTimer(session, `timeout_${payload.order.id}`);
-        session.activeTimers.set(`warn_${payload.order.id}`, warningTimer);
-        session.activeTimers.set(`timeout_${payload.order.id}`, timeoutTimer);
+        });
 
     } catch (error) {
         res.status(500).json({ error: "Fail" });

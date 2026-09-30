@@ -11,7 +11,7 @@
  *   - APP_CRASH: 앱 비정상 종료 후 재시작
  * 
  * 서버 처리:
- *   1. pendingDecisions 큐에서 해당 orderId 삭제 및 안전취소 타이머 해제(clearOrderTimers)
+ *   1. pendingDecisions 큐에서 해당 orderId 삭제 및 안전취소 기다림 해제(cancelOrderWaits)
  *   2. pendingOrdersData·deviceEvaluatingMap 에서 해당 orderId 정리
  *   3. 취소 카운트 증가 (countCancel — 세는 규칙은 그 한 곳에 있다)
  *   4. 잡아 둔 콜이면 ORDER_RELEASED_BY_OFFICE 로 (메모리+DB), 그 뒤
@@ -25,7 +25,8 @@
 import { Router } from "express";
 import type { EmergencyReport } from "@onedal/shared";
 import { isTerminal } from "@onedal/shared";
-import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
+import { getUserSession } from "../state/userSessionStore";
+import { cancelOrderWaits } from "../state/waits";
 import { updateActiveFilter } from "../state/filterManager";
 import db from "../db";
 import { countCancel } from "../core/cancelCount";
@@ -75,8 +76,7 @@ router.post("/", async (req, res) => {
         /* 👀 미리보기 딱지는 캐시를 지우기 전에 뽑는다 — 지운 뒤 세면 딱지를 못 봐 안 잡은 콜을 취소로 센다 (forceCancel 과 같은 규칙) */
         const wasPreview = !!(session.pendingOrdersData.get(targetOrderId) as any)?.isPreview;
 
-        clearOrderTimers(session, targetOrderId);
-        slog('경고', `   ✅ 롱폴링 대응 안전취소 타이머 무음 해제 완료`);
+        cancelOrderWaits(session, targetOrderId, '긴급 리셋');
 
         if (session.pendingOrdersData.has(targetOrderId)) {
             session.pendingOrdersData.delete(targetOrderId);

@@ -7,6 +7,7 @@ import { callTargetToday } from "../core/callTargetEvents";
 import type { CallOption } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { slog } from "../utils/fileLogger";
+import { cancelAllWaits, type Wait } from "./waits";
 
 // ━━━ 서비스 권장 기본값 (신규 가입자용) ━━━
 // 노선·반경·할인율은 여기 없다 — 그 값들의 기본값은 shared `DEFAULT_FILTER_VALUES` 하나다
@@ -48,8 +49,8 @@ export interface UserSession {
     reservedOrders: MyOrder[];
     // [Option B] 응답 객체 대신 판결(Decision) 데이터를 저장하는 큐 형식으로 변경
     pendingDecisions: Map<string, { action: "KEEP" | "CANCEL" | "SIMULATED_KEEP" | null; evaluatedAt: number }>;
-    // [Option B] 비상벨(emergency) 시 취소할 수 있도록 안전취소 타이머 저장
-    activeTimers: Map<string, NodeJS.Timeout>;
+    /** ⏲️ 이 세션이 건 기다림 장부 — 거는 것·끄는 것은 `state/waits.ts` 로만 */
+    entries: Map<string, Wait>;
     pendingOrdersData: Map<string, PendingOrder>;  // [계층 2-A] 심사 중 오더 (아직 내 퀵이 아님)
     deviceEvaluatingMap: Map<string, string>;
     baseFilter: AutoDispatchFilter;
@@ -329,7 +330,7 @@ function createDefaultSession(userId: string): UserSession {
         myOrders: [],
         reservedOrders: [],
         pendingDecisions: new Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>(),
-        activeTimers: new Map<string, NodeJS.Timeout>(),
+        entries: new Map<string, Wait>(),
         pendingOrdersData: new Map<string, PendingOrder>(),
         deviceEvaluatingMap: new Map<string, string>(),
         baseFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
@@ -525,32 +526,9 @@ export function clearUserSession(userId: string): void {
     if (session) {
         /* ⏲️ 그 세션이 건 콜 타이머도 끈다 — 안 끄면 파기한 세션의 안전취소가 나중에 울려 userId 로 **새 세션**을 만들고 거기에 옛 콜 취소를 건다
               (로그아웃 뒤 다시 로그인 · 검사의 세션 비우기) */
-        for (const t of session.activeTimers.values()) clearTimeout(t);
-        session.activeTimers.clear();
+        cancelAllWaits(session);
         sessions.delete(userId);
         slog('부팅', `🧹 [Session] 유저 ${userId} 메모리 세션 완전 파기 완료`);
     }
 }
 
-/**
- * 한 오더에 걸려 있는 **모든 타이머를 끈다.**
- *
- * 🔴 타이머 키를 여러 곳에 손으로 나열하면 **한 곳만 고칠 때 나머지가 좀비 타이머로 남는다** —
- *    콜이 정상 처리된 뒤에 깨어난 타이머가 멀쩡한 콜을 취소한다.
- *
- * 새 타이머를 만들면 **키를 여기에만 더한다.**
- */
-/** 콜 타이머 하나를 끈다 — 같은 키로 다시 넣기 직전에 부른다(재시도가 겹쳐 넣으면 좀비 타이머가 가짜 «30초 안전취소!»를 띄운다) */
-export function dropOrderTimer(session: { activeTimers: Map<string, any> }, key: string): void {
-    const old = session.activeTimers.get(key);
-    if (old) clearTimeout(old);
-    session.activeTimers.delete(key);
-}
-
-export function clearOrderTimers(session: { activeTimers: Map<string, any> }, orderId: string): void {
-    for (const prefix of ['warn_', 'timeout_', 'presecured_', 'listExit_']) {
-        const t = session.activeTimers.get(`${prefix}${orderId}`);
-        if (t) clearTimeout(t);
-        session.activeTimers.delete(`${prefix}${orderId}`);
-    }
-}

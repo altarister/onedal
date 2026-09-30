@@ -8,7 +8,8 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyO
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
-import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
+import { getUserSession } from "../state/userSessionStore";
+import { cancelOrderWaits } from "../state/waits";
 import { rememberOrder } from "../state/orderMemory";
 import { updateActiveFilter, rebuildNetFilter, goalCityOf, homeCityOf, homeCallsOf } from "../state/filterManager";
 import { recordCallTarget } from "../core/callTargetEvents";
@@ -160,7 +161,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     if (session.pendingDecisions.has(orderId)) {
         session.pendingDecisions.delete(orderId);
     }
-    clearOrderTimers(session, orderId);
+    cancelOrderWaits(session, orderId, '콜 치움');
     Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
         if (v === orderId) session.deviceEvaluatingMap.delete(k);
     });
@@ -472,7 +473,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
      * 남겨 두면 30~35초 뒤에 깨어나 이미 처리된 콜을 다시 건드린다 (좀비 타이머).
      * ⚠️ `pendingDecisions` 는 여기서 지우지 않는다 — 앱이 ACK 할 때까지 판결을 들고 있어야 한다.
      */
-    clearOrderTimers(session, orderId);
+    cancelOrderWaits(session, orderId, '결재');
 
     const cachedPending = session.pendingOrdersData.get(orderId);
     const targetDeviceId = cachedPending?.capturedDeviceId

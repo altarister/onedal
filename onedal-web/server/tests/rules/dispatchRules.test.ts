@@ -76,7 +76,9 @@ describe('규칙 ① 콜의 주인은 기사님이다', () => {
      */
     it('KEEP 결재가 내려진 콜은 타임아웃이 취소하지 않는다', () => {
         const src = read('routes/detail.ts');
-        const timeout = src.slice(src.indexOf('const timeoutTimer'));
+        const start = src.indexOf('armWait(session, `timeout_');
+        expect(start).toBeGreaterThan(-1);
+        const timeout = src.slice(start);
         expect(timeout).toMatch(/action === 'KEEP'[\s\S]{0,400}return/);
     });
 });
@@ -115,10 +117,10 @@ describe('규칙 ② 안전장치는 겹쳐 둔다', () => {
      * 🧟 타이머 좀비
      *   `setTimeout` ID 를 저장하지 않으면 오더가 사라져도 타이머를 못 끈다.
      */
-    it('안전취소 타이머는 ID 를 저장해 취소할 수 있어야 한다', () => {
+    it('안전취소 타이머는 장부에 걸어 취소할 수 있어야 한다', () => {
         const src = read('routes/detail.ts');
-        expect(src).toMatch(/activeTimers\.set\(`warn_/);
-        expect(src).toMatch(/activeTimers\.set\(`timeout_/);
+        expect(src).toMatch(/armWait\(session, `warn_/);
+        expect(src).toMatch(/armWait\(session, `timeout_/);
     });
 });
 

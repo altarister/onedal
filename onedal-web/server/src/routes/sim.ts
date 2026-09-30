@@ -17,6 +17,7 @@ import type { ScenarioState, ScenarioWorld, WorldOrder, WorldIntel, ScenarioRow 
 import { ICHEON_ROUND_TRIP, ICHEON_FIVE_OK } from "../core/simScenarioIcheon";
 import { GANGNAM_FIVE_OK } from "../core/simScenarioGangnam";
 import { slog } from "../utils/fileLogger";
+import { waitsOf, globalWaits } from "../state/waits";
 
 const router = Router();
 
@@ -255,6 +256,9 @@ router.get("/preflight", (_req, res) => {
          *    14:41 에 폰이 옛 필터 · 직접 모드로 돌았는데 서버는 그 대답을 들고만 있었다.
          */
         phones: getUserDevicesSnapshot(userId).map(d => phoneCheckOf(d, sentFilterVersionOf(d.deviceId), Date.now())),
+        /** ⏲️ **지금 걸린 서버 기다림** — 이름 · 건 쪽 · 콜 · 남은 초 (`state/waits.ts`). 이 세션 것과 세션 밖(미리 출발 보관) 것.
+         *    이 문은 개발 빌드에서만 열린다 — 실서버에서는 «⏲️ [기다림 …]» 로그로 본다 */
+        waits: [...waitsOf(session), ...waitsOf(globalWaits)],
         /**
          * 💵 최소 금액 (DB `user_filters.min_fare` · 관제웹 필터 막대) — 원달앱이 피기백 `minFare` 로 받아 세 배차망 목록에 같은 식으로 건다.
          * 요금 경계를 시험하는 문제지가 이 값을 요구한다. 0 이면 끈 것이다.

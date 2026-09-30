@@ -5,7 +5,8 @@ import db from "../db";
 import { capacityFullHold, filterVersionOf, reportSourceOf, releaseEvaluatingDevices } from "../core/helpers";
 import { rememberSentFilterVersion } from "../core/phoneCheck";
 import { readWaitTimes } from "../core/waitTimes";
-import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
+import { getUserSession } from "../state/userSessionStore";
+import { cancelOrderWaits } from "../state/waits";
 import { ensureBusinessDay, buildAppOrderKm } from "../state/filterManager";
 
 import { touchDeviceSession } from "./devices";
@@ -209,8 +210,8 @@ router.post("/", (req, res) => {
         if (deviceId) {
             // 앱이 "저번 결재 무사히 받았습니다" (ACK) 라고 보고하면, 큐와 타이머에서 깨끗이 지워줍니다.
             if (ackDecisionId && session.pendingDecisions.has(ackDecisionId)) {
-                // 타이머 청소 — 키 목록은 clearOrderTimers 한 곳에만 있다
-                clearOrderTimers(session, ackDecisionId);
+                // 기다림 청소 — 장부 줄의 콜로 찾는다
+                cancelOrderWaits(session, ackDecisionId, '폰 확인');
 
                 // 큐에서 제거
                 session.pendingDecisions.delete(ackDecisionId);
