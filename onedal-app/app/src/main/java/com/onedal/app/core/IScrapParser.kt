@@ -77,4 +77,10 @@ interface IScrapParser {
      * 픽커만 덮어쓴다 (상세 글자 «수락하기»가 목록 스캔에 남는다).
      */
     fun isDetailResidue(texts: List<String>): Boolean = false
+
+    /**
+     * 🩹 **상세로 판별된 판에 목록 글자가 섞였나** — `isDetailResidue` 의 거꾸로(상세 시트가 목록 위로 올라오는 찰나).
+     * 그 판 글자는 상세 페이지로 통째로 모으지 않는다(`ScreenWords`). 배차망이 답한다 — 기본 «아니다».
+     */
+    fun isListResidue(texts: List<String>): Boolean = false
 }

@@ -24,6 +24,7 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
     override fun parse(texts: List<String>): SimplifiedOfficeOrder = delegate.parse(texts)
 
     override fun isDetailResidue(texts: List<String>): Boolean = delegate.isDetailResidue(texts)
+    override fun isListResidue(texts: List<String>): Boolean = delegate.isListResidue(texts)
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean = delegate.shouldClick(order, tally)
     override fun parsePickupDistance(rawText: String): Double? {
         return delegate.parsePickupDistance(rawText)

@@ -35,6 +35,7 @@ import com.onedal.app.models.withReservation
 class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
     override fun isDetailResidue(texts: List<String>): Boolean = Companion.isDetailResidue(texts)
+    override fun isListResidue(texts: List<String>): Boolean = Companion.isListResidue(texts)
 
 
     companion object {
@@ -281,6 +282,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 잔상 방어(isPopupResidue)와 같은 계열이다.
          */
         fun isDetailResidue(texts: List<String>): Boolean = texts.any { it.contains("수락하기") }
+
+        /**
+         * 🩹 **목록에만 있는 글자** — 목록 머리 · 광고 머리 · 떠 있는 오더카드 띠 (실물 09-30 09:43:47).
+         * 상세 시트가 목록 위로 올라오는 찰나에 섞인다 — `isDetailResidue` 의 거꾸로.
+         */
+        private val LIST_ONLY_WORDS = listOf("리스트 설정", "이런 일거리 어떤가요", "오더카드 대기 중")
+
+        fun isListResidue(texts: List<String>): Boolean =
+            texts.any { t -> LIST_ONLY_WORDS.any { t.contains(it) } }
 
         /** 📏 요금이 하나뿐이라 이웃이 없을 때 쓰는 카드 한 장 높이 (실측 카드 간격 163~185의 절반보다 넉넉히) */
         private const val LONE_CARD_PX = 100
