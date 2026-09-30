@@ -13,7 +13,7 @@ import { getUserSession } from "../../state/userSessionStore";
 import { goalCityOf } from "../../state/filterManager";
 import { findLoadConflicts, totalDetourCost, getStopTiming } from "../helpers";
 import { haversineKm, originOf, homeOriginOf } from "../../services/geoService";
-import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
+import { geocodeAddress, calculateSoloRoute, prefetchSoloRoute } from "../../services/kakaoService";
 import { hedgeBudget } from "../../services/kakaoHedgeBudget";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
@@ -60,6 +60,34 @@ function verdictLine(v: JudgmentSnapshot): string {
     return `${head}${axisText ? ` — ${axisText}` : ''}${tagText}`;
 }
 
+/**
+ * 판정 입력 — 기점 · 잡은 콜 · 목적지. 판정(`evaluate`)과 1차 신호 미리 출발(`prefetch`)이 같은 한 벌을 쓴다.
+ * 세션을 읽기만 한다 — 부를 때마다 그때 값을 읽는다.
+ */
+function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string }) {
+    /**
+     * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (reviews/23 B-3 · 기사님 결정 3 «가»).
+     *    ① 접근 구간은 지금 자리가 아니라 **집**에서 잰다 — 그날은 집에서 출발한다. 집이 비면 기점이 없다 → 그 축은 «잴 게 없음».
+     *    ② **합칠 상대가 없다** — 오늘 실린 짐과 합짐이 아니다(첫짐 단독).
+     *    가르는 것은 이 콜 하나의 사실(보관 날이 오늘 뒤)이다. 오늘 콜은 지금처럼 부를 때마다 그때 자리를 읽는다.
+     */
+    const reservedLater = isLaterThan(reservedForOf(order), businessDayKey(Date.now()));
+    const originNow = () => reservedLater ? homeOriginOf(userId) : originOf(session);
+    const activeCallsNow = () => reservedLater ? [] : getActiveCalls(session);
+    /**
+     * 🧭 방향 축의 목적지 — 내일 콜은 **내일의 목적지**(자정에 활성 필터가 되돌아가는 기본 설정 값)로 매긴다.
+     *    오늘만 바꾼 목적지로 내일 콜을 매기면 색이 틀린다. 비면 방향은 «목적지 미설정»(깎지 않는다 · 빨강 아님).
+     */
+    const goalNow = () => reservedLater ? (session.baseFilter.destinationCity ?? '') : goalCityOf(session, userId);
+    return { reservedLater, originNow, activeCallsNow, goalNow };
+}
+
+/** 단독 길찾기 인자 — 판정과 미리 출발이 같은 URL 을 만들게(같은 질문이어야 미리 출발한 답을 받아 쓴다) */
+function soloRouteArgsOf(userId: string, originNow: () => { x: number; y: number } | null | undefined, p: { x: number; y: number }, d: { x: number; y: number }) {
+    const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
+    return [p.x, p.y, d.x, d.y, originNow(), routingOptions.defaultPriority, routingOptions.carType] as const;
+}
+
 export class OrderEvaluator {
     private plugin: IAppPlugin;
     /** 🌐 이 심사가 어느 배차망의 콜인가 — 요금 하한이 배차망마다 다르다 (아래 §하한) */
@@ -78,6 +106,29 @@ export class OrderEvaluator {
         return hedgeBudget.run({ left: 2, used: 0 }, () => this.evaluateOnce(userId, securedOrder, io));
     }
 
+    /**
+     * 🏃 **1차 신호(/confirm)에서 카카오를 미리 출발** — 판정과 같은 주소 정규화 · 같은 입력 · 같은 길찾기 인자.
+     *    세션은 읽기만(기점 · 잡은 콜 수) · 알림·저장 없음 · 판정을 시작하지 않는다(문지기는 /detail 에 그대로).
+     *    좌표 둘 → 잡은 콜이 없으면 단독 길찾기까지. 합짐은 좌표만(합짐 경로 인자는 약속 순서·비교 경로 캐시와 얽혀 떼면 두 벌이 된다).
+     */
+    public prefetch(userId: string, order: { pickup?: string; dropoff?: string; reservedDay?: number | null; capturedAt?: string; timestamp?: string }): Promise<void> {
+        return hedgeBudget.run({ left: 2, used: 0 }, async () => {
+            try {
+                if (!process.env.KAKAO_REST_API_KEY || !order.pickup || !order.dropoff) return;
+                const [p, d] = await Promise.all([
+                    geocodeAddress(this.plugin.normalizeAddress(order.pickup)),
+                    geocodeAddress(this.plugin.normalizeAddress(order.dropoff)),
+                ]);
+                if (!p || !d) return;
+                const { originNow, activeCallsNow } = evaluationInputsOf(userId, getUserSession(userId), order);
+                if (activeCallsNow().length > 0) return;
+                prefetchSoloRoute(...soloRouteArgsOf(userId, originNow, p, d));
+            } catch (e) {
+                slog('판정', `🏃 [미리 출발] 실패 — ${(e as Error).message}`);
+            }
+        });
+    }
+
     private async evaluateOnce(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any): Promise<void> {
         const session = getUserSession(userId);
         const t0 = Date.now();
@@ -92,20 +143,7 @@ export class OrderEvaluator {
          *    두 사실만 본다: map 의 그 객체가 이 객체인가 · 아직 심사 중인가. 아니면 저장도 알림도 안 한다.
          */
         const alive = () => session.pendingOrdersData.get(securedOrder.id) === securedOrder && isEvaluating(securedOrder.status);
-        /**
-         * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (reviews/23 B-3 · 기사님 결정 3 «가»).
-         *    ① 접근 구간은 지금 자리가 아니라 **집**에서 잰다 — 그날은 집에서 출발한다. 집이 비면 기점이 없다 → 그 축은 «잴 게 없음».
-         *    ② **합칠 상대가 없다** — 오늘 실린 짐과 합짐이 아니다(첫짐 단독).
-         *    가르는 것은 이 콜 하나의 사실(보관 날이 오늘 뒤)이다. 오늘 콜은 지금처럼 부를 때마다 그때 자리를 읽는다.
-         */
-        const reservedLater = isLaterThan(reservedForOf(securedOrder), businessDayKey(Date.now()));
-        const originNow = () => reservedLater ? homeOriginOf(userId) : originOf(session);
-        const activeCallsNow = () => reservedLater ? [] : getActiveCalls(session);
-        /**
-         * 🧭 방향 축의 목적지 — 내일 콜은 **내일의 목적지**(자정에 활성 필터가 되돌아가는 기본 설정 값)로 매긴다.
-         *    오늘만 바꾼 목적지로 내일 콜을 매기면 색이 틀린다. 비면 방향은 «목적지 미설정»(깎지 않는다 · 빨강 아님).
-         */
-        const goalNow = () => reservedLater ? (session.baseFilter.destinationCity ?? '') : goalCityOf(session, userId);
+        const { reservedLater, originNow, activeCallsNow, goalNow } = evaluationInputsOf(userId, session, securedOrder);
         // 📍 낡은 현위치로 우회 비용을 재면 색이 틀린다 (규칙 ⑤-3) — 비우면 내 주소로 메운다.
         //    비움만 부르면 origin 없는 카카오 호출이 되어 합짐이 전부 🔴 로 나온다 (0831 실측)
         // 판정 기준 — 원천은 DB(세션에 로그인 때 실림). 없으면(검사·초기화 전) 기본표로 폴백
@@ -165,13 +203,9 @@ export class OrderEvaluator {
 
                     if (!isSharedEvaluate) {
                         // 단독 오더 연산
-                        const result = await timed(calculateSoloRoute(
-                            securedOrder.pickupX!, securedOrder.pickupY!,
-                            securedOrder.dropoffX!, securedOrder.dropoffY!,
-                            originNow(),
-                            routingOptions.defaultPriority,
-                            routingOptions.carType
-                        ), ms => { routeMs = ms; });
+                        const result = await timed(calculateSoloRoute(...soloRouteArgsOf(userId, originNow,
+                            { x: securedOrder.pickupX!, y: securedOrder.pickupY! },
+                            { x: securedOrder.dropoffX!, y: securedOrder.dropoffY! })), ms => { routeMs = ms; });
 
                         // 🔴 필드를 손으로 채우지 않는다 — routeComposer 의 규약을 안 타면
                         //    **접근 구간(현위치 → 상차지)이 통째로 버려진다.** 콜을 잡는 주 경로라 특히 그렇다.

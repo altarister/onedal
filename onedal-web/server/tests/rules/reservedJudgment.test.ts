@@ -26,7 +26,9 @@ describe('⚖️ 기점과 합짐 상대는 한 곳에서 정한다', () => {
     });
 
     it('가름은 콜 하나의 사실(보관 날이 오늘 뒤)이다', () => {
-        expect(evaluator).toContain('const reservedLater = isLaterThan(reservedForOf(securedOrder), businessDayKey(Date.now()));');
+        expect(evaluator).toContain('const reservedLater = isLaterThan(reservedForOf(order), businessDayKey(Date.now()));');
+        /* 판정과 1차 신호 미리 출발이 같은 한 벌(evaluationInputsOf)을 쓴다 */
+        expect(evaluator).toContain('= evaluationInputsOf(userId, session, securedOrder);');
     });
 });
 

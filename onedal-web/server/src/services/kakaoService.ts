@@ -365,7 +365,43 @@ export async function calculateSoloRoute(
     avoid?: string,
 ): Promise<RouteResult> {
     const url = buildSoloRouteUrl(pickupX, pickupY, dropoffX, dropoffY, driverLoc, priority, carType, skipPickup, avoid);
-    
+    /* 🏃 1차 신호에서 미리 출발한 같은 질문이면 그것을 받아 쓴다 — 가져간 것은 보관에서 뺀다(한 번만 쓴다) */
+    const early = soloRoutePrefetched.get(url);
+    if (early) {
+        soloRoutePrefetched.delete(url);
+        return early;
+    }
+    return fetchSoloRoute(url, !!driverLoc);
+}
+
+/**
+ * 🏃 **단독 길찾기를 미리 출발** — 1차 신호(/confirm)에서 판정과 같은 인자로 부른다. 결과는 판정이 가져갈 때까지 15초 보관.
+ * URL 에 상차·하차·기점·옵션이 다 들어 있어 기점이 바뀌면 판정은 다른 질문이 되고 새로 묻는다.
+ * 실패하면 곧바로 보관에서 뺀다(판정이 새로 묻게). 보관이 끝날 때까지 안 가져가면(문지기에 막힌 콜) 한 줄로 센다.
+ */
+const SOLO_PREFETCH_KEEP_MS = 15_000;
+const soloRoutePrefetched = new Map<string, Promise<RouteResult>>();
+
+export function prefetchSoloRoute(
+    pickupX: number, pickupY: number,
+    dropoffX: number, dropoffY: number,
+    driverLoc?: { x: number, y: number } | null,
+    priority: string = "RECOMMEND",
+    carType: number = 1,
+): void {
+    const url = buildSoloRouteUrl(pickupX, pickupY, dropoffX, dropoffY, driverLoc, priority, carType, false, undefined);
+    if (soloRoutePrefetched.has(url)) return;
+    const p = fetchSoloRoute(url, !!driverLoc);
+    soloRoutePrefetched.set(url, p);
+    p.catch(() => { if (soloRoutePrefetched.get(url) === p) soloRoutePrefetched.delete(url); });
+    setTimeout(() => {
+        if (soloRoutePrefetched.get(url) !== p) return;
+        soloRoutePrefetched.delete(url);
+        slog('판정', `🏃 [미리 출발] ${pickupX.toFixed(4)},${pickupY.toFixed(4)} → ${dropoffX.toFixed(4)},${dropoffY.toFixed(4)} — ${SOLO_PREFETCH_KEEP_MS / 1000}초 안에 판정 안 옴 (카카오 길찾기 1번 헛씀)`);
+    }, SOLO_PREFETCH_KEEP_MS).unref?.();
+}
+
+async function fetchSoloRoute(url: string, hasOrigin: boolean): Promise<RouteResult> {
     slog('판정', `[Kakao Nav API (Solo)] 호출 URL: ${url}`);
     
     const data = await kakaoJsonHedged(url, { headers: getHeaders() }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '길찾기');
@@ -390,7 +426,7 @@ export async function calculateSoloRoute(
      * ⚠️ `skipPickup` 이면 구간이 하나뿐이라 여기에 안 들어온다 — 접근 구간이 **없는 게 맞다.**
      *    짐을 이미 실었으면 "상차지까지 몇 km" 라는 개념 자체가 없다.
      */
-    if (driverLoc && sections && sections.length > 1) {
+    if (hasOrigin && sections && sections.length > 1) {
         approachDuration = sections[0].duration;
         approachDistance = sections[0].distance;
     }
@@ -403,8 +439,8 @@ export async function calculateSoloRoute(
         raw: summary,
         polyline: extractPolyline(data?.routes),
         sectionEnds: sectionEndsOf(extractSectionLines(data?.routes)),
-        sectionEtas: calculateEtas(sections, !driverLoc), // 정거장 수에 맞춘 도착 예정 시각
-        sectionDriveMin: calculateDriveMinutes(sections, !driverLoc),
+        sectionEtas: calculateEtas(sections, !hasOrigin), // 정거장 수에 맞춘 도착 예정 시각
+        sectionDriveMin: calculateDriveMinutes(sections, !hasOrigin),
         tollKrw: tollOf(summary)
     };
 }
@@ -616,13 +652,25 @@ function regionMatches(doc: any, expectedRegion: string | null, query: string): 
     return true;
 }
 
-export async function geocodeAddress(query: string): Promise<{x: number, y: number} | null> {
-    try {
-        if (!query || query === "배차값없음") return null;
+/** 🏃 날아가는 중인 좌표 질문 — 같은 주소를 미리 출발과 판정이 함께 물으면 한 벌만 보낸다 (끝나면 뺀다) */
+const geocodeInFlight = new Map<string, Promise<{x: number, y: number} | null>>();
 
-        // "경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)빌딩명" 
-        // 1. 괄호를 공백으로 치환하여 단어들이 서로 붙지 않게 정제
-        const cleanQuery = query.replace(/\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim();
+// "경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)빌딩명" — 괄호를 공백으로 치환하여 단어들이 서로 붙지 않게 정제
+const cleanQueryOf = (query: string) => query.replace(/\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim();
+
+export function geocodeAddress(query: string): Promise<{x: number, y: number} | null> {
+    if (!query || query === "배차값없음") return Promise.resolve(null);
+    const key = cleanQueryOf(query);
+    const flying = geocodeInFlight.get(key);
+    if (flying) return flying;
+    const p = geocodeOnce(query).finally(() => geocodeInFlight.delete(key));
+    geocodeInFlight.set(key, p);
+    return p;
+}
+
+async function geocodeOnce(query: string): Promise<{x: number, y: number} | null> {
+    try {
+        const cleanQuery = cleanQueryOf(query);
 
         // ━━━ [P0] 캐시 히트 체크 ━━━
         const cached = geoCacheGet(cleanQuery);
