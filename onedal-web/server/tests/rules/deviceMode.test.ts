@@ -407,7 +407,7 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
 describe('🎛️ 도는 모드 — 원달앱이 계산해 보내고 관제웹이 보인다', () => {
     it('원달앱은 폰 테두리와 같은 함수로 도는 모드를 계산해 보낸다', () => {
         const c = codeOnly(app('core/TelemetryManager.kt'));
-        expect(c).toMatch(/effectiveMode\s*=\s*TargetApp\.effectiveMode\(currentMode,\s*appCode\)/);
+        expect(c).toMatch(/effectiveMode\s*=\s*(?:if \(modeKnown\) )?TargetApp\.effectiveMode\(currentMode,\s*appCode\)/);
         expect(c).toMatch(/appliedMode\s*=\s*currentMode/);   // 명령이 닿았나는 명령 그대로
     });
 
