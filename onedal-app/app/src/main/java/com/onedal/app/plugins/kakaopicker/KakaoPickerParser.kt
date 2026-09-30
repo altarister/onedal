@@ -353,6 +353,18 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             return if (kms.size >= 2) "한 카드에 거리 둘(${kms.joinToString(" · ")})" else null
         }
 
+        /**
+         * ✂️ **윗줄이 잘린 카드** (`PickerClippedCardTest`) — 목록 위 끝에 걸린 카드는 태그 줄(«퀵 반나절 중형 예약 내일»)이나
+         * 도착 구가 잘려 «예약 없음 · 도착 한남»처럼 틀리게 조립된다(실물 20:23:37 내일 콜에 알람 · 20:24:21 «수정 → 수정»).
+         * 글자 하나라도 화면 위(top < 0)에 있거나 태그 낱말이 하나도 없으면 까닭 글, 아니면 null.
+         * 오늘 «📐» 2,285장 가운데 태그 없는 카드는 5장 — 전부 그리는 중간 틀이었다(정상 카드는 늘 배지가 있다).
+         */
+        fun clippedCard(texts: List<String>, tops: List<Int>, tagSet: Set<String>): String? = when {
+            tops.any { it < 0 } -> "윗줄 잘림(화면 위에 걸림)"
+            texts.none { it.trim() in tagSet } -> "윗줄 잘림(태그 줄 없음)"
+            else -> null
+        }
+
         fun detailTextsOf(texts: List<String>): List<String> {
             val i = texts.indexOfFirst { it.startsWith(DETAIL_FIRST_WORD) }
             return if (i <= 0) texts else texts.drop(i)
@@ -859,11 +871,20 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         }
         // 🖼️ 나누는 셈은 순수 함수 `groupByFare` 에 있다 — 실물 좌표로 통째로 검사하려고 떼어 놨다
         val sorted = ScreenReadingOrder.sort(allNodes, { it.rect.top }, { it.rect.bottom }, { it.rect.left })
+        val tagSet = tagWords()
         val groups = groupIndicesByFare(
             sorted.map { Triple(it.text, (it.rect.top + it.rect.bottom) / 2, (it.rect.left + it.rect.right) / 2) },
             bottomTabWords(),
             adStartWords(),
-        )
+        ).filter { (_, idx) ->
+            // ✂️ 윗줄이 잘린 카드(화면 위에 걸림 · 태그 줄 없음)는 덜 읽힌 카드 — 판정·기억·알람에서 뺀다
+            val texts = idx.map { sorted[it].text }
+            val why = clippedCard(texts, idx.map { sorted[it].rect.top }, tagSet) ?: return@filter true
+            if (com.onedal.app.core.LogOnce.changed("clipped:${texts.joinToString(" ")}", why))
+                com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN,
+                    "✂️ [덜 읽힌 카드] $why — 판정·알람 뺌 · ${com.onedal.app.core.ScreenWords.mask(texts.joinToString(" ")).take(40)}")
+            false
+        }
         val cards = groups.map { (i, idx) -> Pair(sorted[i], idx.map { sorted[it].text }) }
         // 🧩 두 카드가 어긋나게 포갠 틀 — 한 카드 묶음에 거리 둘. 섞인 카드(«수지 송파 → 수정 위례»)를 목록으로 믿지 않는다
         cards.firstNotNullOfOrNull { mixedCard(it.second) }?.let { why ->
