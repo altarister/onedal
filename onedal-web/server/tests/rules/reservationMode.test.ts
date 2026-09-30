@@ -35,3 +35,14 @@ describe('📅 예약콜 필터 칸', () => {
         expect(modal).toContain('📅 예약콜 — 오늘 콜만');
     });
 });
+
+describe('📅 탈락 이유 «reservation» — 셋이 같은 낱말', () => {
+    it('필터 성적표(shared) · 버린 콜 이유 글자 · 성적표 요약 축이 «reservation» 을 안다', () => {
+        const s = read(join(__dirname, '../../../shared/src/index.ts'));
+        const tally = s.slice(s.indexOf('export interface FilterTally'), s.indexOf('}', s.indexOf('export interface FilterTally')));
+        expect(tally).toMatch(/reservation\?: number;/);
+        const client = (p: string) => read(join(__dirname, '../../../client-app/src', p));
+        expect(client('statusboard/callVerdict.ts')).toMatch(/reservation: '예약/);
+        expect(client('lib/filterTally.ts')).toContain("['예약', 'reservation']");
+    });
+});

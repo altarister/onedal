@@ -835,7 +835,7 @@ ensureColumns('intel', { targetApp: 'TEXT',
      * 🗳️ **앱이 이 콜을 어떻게 판정했나**.
      *
      *   `pass` 통과 · `vehicle` 차종 · `region` 도착지 · `fare` 요금/단가 ·
-     *   `pickup` 상차거리 · `blacklist` 제외어 · `routeOrder` 경로순서 · `locked` 잠김
+     *   `pickup` 상차거리 · `blacklist` 제외어 · `routeOrder` 경로순서 · `locked` 잠김 · `reservation` 예약콜
      *
      * 🔴 **화면이 판정을 다시 계산하지 않게 하려는 것이다.** 현황판이 앱 판정식을 TS 로
      *    옮겨 적은 **사본**으로 「🗑️ 버린 콜」을 그리고 있었고, 그것이 이미 갈라졌다 —

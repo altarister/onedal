@@ -35,6 +35,7 @@ const AXES: Array<[string, keyof FilterTally]> = [
     ['상차 목록', 'pickupList'],
     ['경로순서', 'routeOrder'],
     ['블랙', 'blacklist'],
+    ['예약', 'reservation'],
 ];
 
 /**

@@ -462,7 +462,7 @@ export interface SimplifiedOfficeOrder {
     tagsText?: string | null;
     /**
      * 🗳️ **앱이 이 콜을 어떻게 판정했나**.
-     *    `pass` · `vehicle` · `region` · `fare` · `pickup` · `blacklist` · `routeOrder` · `locked`
+     *    `pass` · `vehicle` · `region` · `fare` · `pickup` · `blacklist` · `routeOrder` · `locked` · `reservation`(예약콜 축에 막힘)
      *
      * 🔴 화면이 판정을 **다시 계산하지 않게** 하려는 것이다 — 사본은 이미 한 번 갈라졌다.
      * ⚠️ 못 정하면 `null` — 화면은 «못 잼»으로 그린다 (규칙 ④).
@@ -493,6 +493,12 @@ export interface SimplifiedOfficeOrder {
     deliveryDistance?: number;
     /** 🐥 가상 체험 모드로 잡은 가상 주문 (실서버 미수락) */
     isSimulated?: boolean;
+    /** 📅 예약 표시가 있나 — 참인데 `reservedDay` 가 비면 «날 모름» (원달앱 `ReservationText`) */
+    reserved?: boolean | null;
+    /** 📅 폰 달력으로 며칠 뒤 상차인가 (0 = 오늘) */
+    reservedDay?: number | null;
+    /** 📅 예약 시각 «HH:MM» */
+    reservedAt?: string | null;
 }
 // 2. [상세 페이지] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
 export interface DetailedOfficeOrder {
@@ -2025,6 +2031,8 @@ export interface FilterTally {
     routeOrder: number;
     /** 📋 상차 목록에 안 걸린 콜 — 원달앱 2.9.7 부터 (옛 앱은 안 보낸다 · 하차 목록») */
     pickupList?: number;
+    /** 📅 예약콜 축에 막힌 콜 — 원달앱 예약 필터부터 (옛 앱은 안 보낸다 · reviews/23) */
+    reservation?: number;
 }
 
 export const CANCEL_BUDGET_PER_ROUND = 10;
