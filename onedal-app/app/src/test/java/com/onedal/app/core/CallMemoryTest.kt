@@ -236,4 +236,16 @@ class CallMemoryTest {
         m.onFilterVersion("v2")
         assertTrue("잡은 콜은 필터가 바뀌어도 안 누른다", m.alreadyEvaluated(888))
     }
+
+    /**
+     * 🔁 **보고 기억은 넉넉하다 — 긴 목록을 돌아도 같은 콜을 다시 보고하지 않는다** (통계 계획 · 중복 보고 줄이기).
+     * 픽커 목록은 반경 안 콜이 많고 스크롤·새로고침으로 순서가 돈다 — 기억이 작으면 금방 밀려나 같은 콜이 또 올라간다.
+     */
+    @Test
+    fun `보고한 콜 1500개를 돌아도 첫 콜은 다시 보고하지 않는다`() {
+        val m = CallMemory()
+        assertTrue(m.markReportedOnce(1))
+        (2..1500).forEach { m.markReportedOnce(it) }
+        assertFalse("1500개 안에서 첫 콜이 기억에서 밀려났다", m.markReportedOnce(1))
+    }
 }

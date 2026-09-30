@@ -18,10 +18,13 @@ package com.onedal.app.core
  *    (반송 뒤 재클릭 방지 · 알람은 콜당 한 번).
  *
  * 그릇을 갈라 각자 하나의 사실만 답하게 한다 (#76·#78·#79 와 같은 수리 방향).
+ *
+ * 크기는 넉넉히 — 픽커 목록은 반경 안 콜이 많고 스크롤·새로고침으로 순서가 돌아, 작으면 같은 콜이 밀려났다가 다시 보고된다.
+ * 지문은 정수라 2000개도 가볍다 (`CallMemoryTest` «1500개를 돌아도»).
  */
 class CallMemory(
-    private val maxSize: Int = 100,
-    private val keepCount: Int = 50,
+    private val maxSize: Int = 2000,
+    private val keepCount: Int = 1000,
 ) {
     companion object {
         /**
