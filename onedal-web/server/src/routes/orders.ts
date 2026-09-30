@@ -31,6 +31,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
 import { slog } from "../utils/fileLogger";
 import { reportSourceOf } from "../core/helpers";
+import { ownsOrder, ownedByOther } from "../core/orderOwner";
 
 const router = Router();
 
@@ -112,6 +113,11 @@ router.post("/confirm", (req, res) => {
             return res.status(401).json({ error: "UNREGISTERED_DEVICE", message: "미등록 기기입니다. PIN 연동을 먼저 진행해주세요." });
         }
         const userId = deviceRow.user_id;
+        /* 👥 남의 콜 id 로 온 선점 보고는 받지 않는다 (reviews/29 기준 1) */
+        if (ownedByOther(userId, payload.order?.id)) {
+            slog('통신', `🚫 [남의 콜] /confirm ${payload.order?.id} — 이 폰의 기사 콜이 아니다`);
+            return res.status(403).json({ error: "NOT_YOUR_ORDER" });
+        }
 
         /**
          * 📄 **픽커 상세 화면의 글자를 통째로 남긴다** (기사님 확정).
@@ -300,6 +306,11 @@ router.post("/decision", async (req, res) => {
             return res.status(401).json({ error: "UNREGISTERED_DEVICE", message: "미등록 기기입니다. PIN 연동을 먼저 진행해주세요." });
         }
         const userId = deviceRow.user_id;
+        /* 👥 내 콜에만 결재한다 (reviews/29 기준 1) */
+        if (!ownsOrder(userId, payload.orderId)) {
+            slog('결재', `🚫 [남의 콜] /decision ${payload.orderId} — 이 폰의 기사 콜이 아니다`);
+            return res.status(403).json({ error: "NOT_YOUR_ORDER" });
+        }
         
         const mappedStatus = payload.action === 'KEEP' ? 'ORDER_CONFIRMED' : 'SAFE_CANCEL';
         const result = await handleDecision(userId, payload.orderId, mappedStatus, io);

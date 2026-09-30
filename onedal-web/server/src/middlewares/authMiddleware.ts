@@ -82,6 +82,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 /**
  * 관리자(ADMIN) 권한 체크 미들웨어
  * 주의: 반드시 requireAuth 이후에 체이닝해야 합니다.
+ * 🔑 «관리자인가»를 가르는 곳은 여기 하나다 — 운영센터 3단계에서 role 대신 `users.ops_allowed_at` 사실 칸으로 바꾼다(reviews/29 기준 4 · 기사님 = 기사 + 관리자).
  */
 export const requireAdmin = (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {

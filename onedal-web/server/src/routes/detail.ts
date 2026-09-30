@@ -16,6 +16,7 @@ import { getDeviceMode } from "./devices";
 import db from "../db";
 import { slog } from "../utils/fileLogger";
 import { releaseEvaluatingDevices } from "../core/helpers";
+import { ownedByOther } from "../core/orderOwner";
 
 const router = Router();
 
@@ -38,6 +39,11 @@ router.post("/", async (req, res) => {
             return res.status(401).json({ error: "UNREGISTERED_DEVICE", message: "미등록 기기입니다. PIN 연동을 먼저 진행해주세요." });
         }
         const userId = deviceRow.user_id;
+        /* 👥 남의 콜 id 로 온 상세는 받지 않는다 — 기사 둘이 한 서버를 쓴다 (reviews/29 기준 1) */
+        if (ownedByOther(userId, payload.order?.id)) {
+            slog('통신', `🚫 [남의 콜] /detail ${payload.order?.id} — 이 폰의 기사 콜이 아니다`);
+            return res.status(403).json({ error: "NOT_YOUR_ORDER" });
+        }
         const session = getUserSession(userId);
         /* ⏳ 재시작 직후 관제웹이 붙기 전이면 판정 전에 그 기사의 진행 중 콜부터 되살린다 — 도는 중이면 그 끝을 기다린다 (bootstrapUserSession) */
         if (!session.isRestored || session.isBootstrapping) {

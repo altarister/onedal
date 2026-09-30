@@ -947,17 +947,20 @@ export const getUserDevicesSnapshot = (userId: string, io?: any): DeviceSession[
 /**
  * GET /api/devices
  * (예비용) 관제 대시보드 강제 폴링 시 현재 기기 상태 조회
+ * 👥 자기 폰만 — 남의 폰 상태·위치를 주지 않는다 (reviews/29 기준 1)
  */
 router.get("/", requireAuth, (req, res) => {
-    res.json({ devices: getActiveDevicesSnapshot(req.app.get("io")) });
+    res.json({ devices: getUserDevicesSnapshot(req.user!.id, req.app.get("io")) });
 });
 
 /**
  * POST /api/devices/clear
- * 개발/테스트용: 모든 기기 세션 강제 초기화
+ * 개발/테스트용: 기기 세션 강제 초기화
+ * 👥 자기 폰 기억만 지운다 — 남의 폰 연결 상태를 건드리지 않는다
  */
 router.post("/clear", requireAuth, (req, res) => {
-    activeDevices.clear();
+    const mine = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(req.user!.id) as Array<{ device_id: string }>;
+    for (const r of mine) activeDevices.delete(r.device_id);
     res.json({ success: true });
 });
 

@@ -95,7 +95,8 @@ const server = scan(join(ROOT, 'server/src'), [
     ['emit', /io\??\.to\([^)]*\)\.emit\(["']([\w-]+)["']/g],
     ['emit', /socket\.emit\(["']([\w-]+)["']/g],
     ['emit', /io\??\.emit\(["']([\w-]+)["']/g],
-    ['on', /(?:socket\.on|safeOn\(socket,\s*)\(?["']([\w-]+)["']/g],
+    /* 👥 orderId 를 받는 이벤트는 `orderOn("ev", …)` 으로 붙는다(콜 주인 확인 · socketHandlers) — 듣는 곳으로 센다 */
+    ['on', /(?:socket\.on|safeOn\(socket,\s*|orderOn)\(?["']([\w-]+)["']/g],
 ]);
 const client = scan(join(ROOT, 'client-app/src'), [
     ['emit', /socket\.emit\(["']([\w-]+)["']/g],

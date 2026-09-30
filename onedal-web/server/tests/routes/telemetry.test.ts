@@ -109,11 +109,15 @@ describe("📸 이상 징후(telemetry) 라우트 및 DB 저장 검증", () => {
             status: () => resGet
         };
 
+        // 👥 자기 폰 기록만 준다 — 이 폰을 읽는 기사에게 잇는다 (reviews/29 기준 1)
+        db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES ('test-user', 'g-test-user', 'tu@test', 'tu')`).run();
+        db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES ('test-user', ?)`).run(testDeviceId);
         await getHandler({ query: { limit: 10 }, user: { id: "test-user" } }, resGet);
         expect(getResult.success).toBe(true);
         expect(getResult.data.some((r: any) => r.id === postResult.id)).toBe(true);
 
         // 테스트 데이터 정리
         db.prepare("DELETE FROM telemetry_anomalies WHERE id = ?").run(postResult.id);
+        db.prepare("DELETE FROM user_devices WHERE user_id = 'test-user' AND device_id = ?").run(testDeviceId);
     });
 });

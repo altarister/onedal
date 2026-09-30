@@ -125,11 +125,13 @@ router.post("/anomalies", (req, res) => {
 router.get("/anomalies", requireAuth, (req, res) => {
     try {
         const limit = Math.min(Number(req.query.limit) || 50, 200);
+        /* 👥 자기 폰 기록만 — 관리자는 운영센터 문으로 따로 본다 (reviews/29 기준 1) */
         const rows = db.prepare(`
             SELECT * FROM telemetry_anomalies
+            WHERE device_id IN (SELECT device_id FROM user_devices WHERE user_id = ?)
             ORDER BY id DESC
             LIMIT ?
-        `).all(limit);
+        `).all(req.user!.id, limit);
 
         res.json({
             success: true,

@@ -44,6 +44,7 @@ function routeTlOf(userId: string): RouteTl | undefined {
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, trimTraveled, maybeRebuildPickupList } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "../services/geoService";
 import { slog } from "../utils/fileLogger";
+import { ownsOrder } from "../core/orderOwner";
 
 
 
@@ -188,6 +189,19 @@ export function registerSocketHandlers(io: Server) {
         const deviceInfo = parseFriendlyDeviceInfo(rawDevice);
 
         slog('통신', `🔌 [소켓 연결] 유저 접속: ${socket.data.user.name} (${userId}) | 세션: ${clientSessionId.slice(0, 15)} | 기기: ${deviceInfo}`);
+
+        /**
+         * 👥 **orderId 를 받는 이벤트는 여기로 붙인다** — 그 콜이 이 기사의 것일 때만 핸들러를 부른다 (reviews/29 기준 1).
+         *    기사 둘이 한 서버를 쓰면 orderId 만으로 남의 콜 단계 행·결재에 쓸 수 있었다. 남의 콜이면 한 줄 남기고 무시한다.
+         */
+        const orderOn = <T extends { orderId: string }>(event: string, handler: (data: T) => unknown) =>
+            safeOn(socket, event, (data: T) => {
+                if (!ownsOrder(userId, data?.orderId)) {
+                    slog('통신', `🚫 [남의 콜] ${event} ${data?.orderId ?? '?'} — ${socket.data.user.name} 의 콜이 아니다 · 무시`);
+                    return;
+                }
+                return handler(data);
+            });
 
         const session = getUserSession(userId);
         const currentActive = session.activeWebSession;
@@ -564,7 +578,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // 배차 심사 수락/거절
-        safeOn(socket, "decision", async ({ orderId, action }: { orderId: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE' }) => {
+        orderOn("decision", async ({ orderId, action }: { orderId: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE' }) => {
             slog('결재', `⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Status Action: ${action}`);
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
@@ -597,7 +611,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // 카카오 경로 재탐색
-        safeOn(socket, "recalculate-route", async ({ orderId, priority }: { orderId: string, priority: string }) => {
+        orderOn("recalculate-route", async ({ orderId, priority }: { orderId: string, priority: string }) => {
             const result = await recalculateKakaoRoute(userId, orderId, priority, io);
             // 🧭 경로가 바뀌었다 — PLANNED 행의 흐르는 예상을 새 경로로
             try {
@@ -617,7 +631,7 @@ export function registerSocketHandlers(io: Server) {
         // 관제탑에서 누르는 상차/하차 보고.
         // 앱의 화면 자동 감지(AUTO_SCRAPE)가 붙어도 이 핸들러는 그대로 두면 된다 —
         // 진입점만 늘어날 뿐 본체(reportMilestone)는 하나이기 때문이다.
-        safeOn(socket, "report-milestone", async (data: { orderId: string, milestone: Milestone, occurredAt?: string, predictedAt?: string, source?: MilestoneSource, reasons?: string[] }) => {
+        orderOn("report-milestone", async (data: { orderId: string, milestone: Milestone, occurredAt?: string, predictedAt?: string, source?: MilestoneSource, reasons?: string[] }) => {
             /**
              * 🔴 **출처를 손으로 덮어쓰지 않는다** (기사님).
              *    고정값(`'MANUAL_WEB'`)으로 덮으면 **건너뛴 것도 "직접 확인"으로 둔갑**한다.
@@ -641,7 +655,7 @@ export function registerSocketHandlers(io: Server) {
          * 잘못 누른 마일스톤 되돌리기.
          * 기사님 기준: *"단계별로 DB 에 저장하고 … 수정이 가능해야 한다."*
          */
-        safeOn(socket, "undo-milestone", async (data: { orderId: string, milestone: Milestone }) => {
+        orderOn("undo-milestone", async (data: { orderId: string, milestone: Milestone }) => {
             if (!data.orderId || !data.milestone) throw new Error("orderId 또는 milestone 누락");
             const result = await undoMilestone(userId, data.orderId, data.milestone, io);
             // 🌉 다리 — 단계 행도 되돌린다 (마감 해제)
@@ -656,7 +670,7 @@ export function registerSocketHandlers(io: Server) {
 
         // 통화 결과 / 현장 확인 기록
         /** 이미 만들어 둔 여섯 단계를 그대로 읽는다 (화면 새로고침용) */
-        safeOn(socket, "request-steps", (data: { orderId: string }) => {
+        orderOn("request-steps", (data: { orderId: string }) => {
             if (!data?.orderId) throw new Error("orderId 누락");
             socket.emit("steps-synced", { orderId: data.orderId, steps: stepsView(data.orderId, getUserSession(userId)?.judgment) });
         });
@@ -668,7 +682,7 @@ export function registerSocketHandlers(io: Server) {
          *    배지는 신호 대기 중에 툭 누르는 것이다. 같은 문으로 보내면 **안 한 통화가
          *    했다고 기록된다.**
          */
-        safeOn(socket, "save-step-dwell", (data: { orderId: string; step: CallStepId; minutes: number }) => {
+        orderOn("save-step-dwell", (data: { orderId: string; step: CallStepId; minutes: number }) => {
             const { orderId, step, minutes } = data ?? ({} as any);
             if (!orderId || !step) throw new Error("orderId·step 누락");
             /**
@@ -684,7 +698,7 @@ export function registerSocketHandlers(io: Server) {
             socket.emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
         });
 
-        safeOn(socket, "save-cargo-report", (data: { orderId: string } & CargoReport) => {
+        orderOn("save-cargo-report", (data: { orderId: string } & CargoReport) => {
             const { orderId, ...report } = data;
             if (!orderId) throw new Error("orderId 누락");
             // 단계 행(새 장부)이 유일한 원천이다
@@ -772,7 +786,7 @@ export function registerSocketHandlers(io: Server) {
          * 🔴 이 경로가 없어서 `unpaidAmount`·`settlementStatus` 를 쓰는 코드가
          *    프로젝트 전체에 하나도 없었다. 운행일지 미수금 화면은 늘 비어 있었다.
          */
-        safeOn(socket, "cod-collected", (data: { orderId: string, received: boolean, amount?: number }) => {
+        orderOn("cod-collected", (data: { orderId: string, received: boolean, amount?: number }) => {
             if (!data.orderId) throw new Error("orderId 누락");
 
             const session = getUserSession(userId);
@@ -804,7 +818,7 @@ export function registerSocketHandlers(io: Server) {
          *
          * 어느 쪽을 고르든 **그 장소에 기록을 남긴다.** 신고가 틀린 곳은 다음에도 틀린다.
          */
-        safeOn(socket, "resolve-cargo-mismatch", async (data: {
+        orderOn("resolve-cargo-mismatch", async (data: {
             orderId: string, stopType: 'pickup' | 'dropoff', ratio: number, action: 'CONTINUE' | 'RELEASE'
         }) => {
             const when = businessDayKey(Date.now());   // 한국 영업일 — toISOString 은 UTC 날
@@ -830,7 +844,7 @@ export function registerSocketHandlers(io: Server) {
          * 방출(ORDER_RELEASED_BY_ME)과 같지만 **그 장소에 이유를 남긴다** —
          * 같은 곳에서 또 겪을 확률이 높기 때문이다.
          */
-        safeOn(socket, "cancel-at-stop", async (data: { orderId: string, stopType: 'pickup' | 'dropoff', reason?: string }) => {
+        orderOn("cancel-at-stop", async (data: { orderId: string, stopType: 'pickup' | 'dropoff', reason?: string }) => {
             const when = businessDayKey(Date.now());   // 한국 영업일 — toISOString 은 UTC 날
             const line = `${when} 현장 취소${data.reason ? ` — ${data.reason}` : ''}`;
             const placeId = PlaceRepository.findPlaceIdByStop(data.orderId, data.stopType);
