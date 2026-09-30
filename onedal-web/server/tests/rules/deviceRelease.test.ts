@@ -15,7 +15,8 @@ import * as dispatchEngine from '../../src/services/dispatchEngine';
 const U = 'test-device-release';
 const DEV = 'dev-release-1';
 const emitted: string[] = [];
-const io = { to: () => ({ emit: (ev: string) => { emitted.push(ev); } }) };
+const payloads: Array<{ ev: string; body: any }> = [];
+const io = { to: () => ({ emit: (ev: string, body?: any) => { emitted.push(ev); payloads.push({ ev, body }); } }) };
 const app = { get: (k: string) => (k === 'io' ? io : undefined) };
 const handlerOf = (router: any) => {
     const layer = router.stack.find((l: any) => l.route?.path === '/' && l.route.methods.post);
@@ -109,6 +110,39 @@ describe('🔁 ⑰ /detail 재시도 — 같은 판정을 기다린다', () => {
         emitted.length = 0;
         jest.advanceTimersByTime(31_000);
         expect(emitted.filter(e => e === 'safecancel-warning').length).toBe(1);
+        jest.useRealTimers();
+    });
+});
+
+describe('⚠️ 안전취소 경고 문구의 초는 그 배차망의 DB 값이다', () => {
+    const U2 = 'test-safecancel-sec';
+    const DEV2 = 'dev-safecancel-sec';
+    beforeAll(() => {
+        db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U2, `g-${U2}`, 'safecancel@test', '안전취소초검사');
+        db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U2, DEV2);
+        db.prepare(`INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)`).run(U2);
+        db.prepare(`UPDATE user_settings SET safe_cancel_sec_insung = 45 WHERE user_id = ?`).run(U2);
+    });
+    afterAll(() => {
+        db.prepare(`DELETE FROM orders WHERE userId = ?`).run(U2);
+        db.prepare(`DELETE FROM user_settings WHERE user_id = ?`).run(U2);
+        db.prepare(`DELETE FROM user_devices WHERE user_id = ?`).run(U2);
+        db.prepare(`DELETE FROM users WHERE id = ?`).run(U2);
+        clearUserSession(U2);
+    });
+
+    it('🔴 인성 안전취소를 45초로 두면 경고는 45초에 오고 문구도 «45초»다', async () => {
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+        getUserSession(U2).deviceEvaluatingMap.set(DEV2, 'sc-a');
+        await call(detailRouter, {
+            step: 'DETAILED', deviceId: DEV2, targetApp: 'insung',
+            order: { id: 'sc-a', pickup: '경기 이천시 부발읍', dropoff: '경기 여주시 가남읍', fare: 30000, vehicleType: '다마스', rawText: '' },
+        });
+        payloads.length = 0;
+        jest.advanceTimersByTime(46_000);
+        const warn = payloads.find(p => p.ev === 'safecancel-warning');
+        expect(warn?.body?.message).toContain('45초');
+        expect(warn?.body?.message).not.toContain('30초');
         jest.useRealTimers();
     });
 });

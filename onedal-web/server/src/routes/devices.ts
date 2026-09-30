@@ -84,6 +84,12 @@ export function getDeviceMode(deviceId: string, userId?: string): DeviceModeType
  */
 const DEADMAN_TIMEOUT_MS = 150000;
 
+/**
+ * 🧹 **끊긴 폰을 메모리에서 지우는 때** — 30분 동안 보고가 없으면 기기 목록에서 뺀다.
+ *    그 전까지 관제웹은 그 폰을 «끊김»으로 보여 준다. 끊김 판정(`DEADMAN_TIMEOUT_MS`)과는 따로 정한다.
+ */
+const DEVICE_FORGET_MS = 30 * 60_000;
+
 // ═══════════════════════════════════════
 // 유틸: deviceId로 DB에서 deviceName 1회 조회 (캐싱 목적)
 // ═══════════════════════════════════════
@@ -844,7 +850,7 @@ export const getActiveDevicesSnapshot = (io?: any): DeviceSession[] => {
 
     activeDevices.forEach((session, key) => {
         // [퇴근 모드 처리] 더 이상 SHUTDOWN은 없으므로, 핑이 오랫동안 끊기면 완전히 메모리에서 치우기만 합니다
-        if (now - session.lastSeen > DEADMAN_TIMEOUT_MS * 12) { // 약 5분
+        if (now - session.lastSeen > DEVICE_FORGET_MS) {
             activeDevices.delete(key);
             return;
         }
