@@ -177,9 +177,9 @@ export function startStatsRollup(): void {
 
 // ━━━ 읽기 — 관제웹·뉴스레터 문 / 어드민 문 (routes/stats.ts) ━━━
 
-/** 묶는 기준 — 표는 날짜 그대로 두고 읽을 때 계산한다(요일 · 시 · 달 · 계절 · 날) */
-export type FlowGroupBy = 'weekday' | 'hour' | 'month' | 'season' | 'day';
-export const FLOW_GROUP_BYS: readonly FlowGroupBy[] = ['weekday', 'hour', 'month', 'season', 'day'];
+/** 묶는 기준 — 표는 날짜 그대로 두고 읽을 때 계산한다(요일 · 시 · 달 · 계절 · 날 · 요일×시 — 아침 카드) */
+export type FlowGroupBy = 'weekday' | 'hour' | 'month' | 'season' | 'day' | 'weekdayHour';
+export const FLOW_GROUP_BYS: readonly FlowGroupBy[] = ['weekday', 'hour', 'month', 'season', 'day', 'weekdayHour'];
 const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const SEASON_OF_MONTH = ['겨울', '겨울', '봄', '봄', '봄', '여름', '여름', '여름', '가을', '가을', '가을', '겨울'];
 
@@ -193,7 +193,8 @@ const groupOf = (r: FlowRow, by: FlowGroupBy): string => {
     if (by === 'month') return `${m}월`;
     if (by === 'season') return SEASON_OF_MONTH[m - 1];
     if (by === 'day') return r.day;
-    return WEEKDAY[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+    const weekday = WEEKDAY[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+    return by === 'weekdayHour' ? `${weekday} ${r.hour}시` : weekday;
 };
 type Sum = { calls: number; fareFirstAvg: number; fareLastAvg: number };
 const sumOf = (rows: FlowRow[]): Sum | null => {
@@ -259,4 +260,10 @@ export function flowsForAdmin(rows: FlowRow[], by: FlowGroupBy) {
 /** 기간의 줄 — 두 문이 같은 줄을 읽는다(읽는 곳 한 곳) */
 export function flowRowsBetween(from: string, to: string): FlowRow[] {
     return db.prepare(`SELECT * FROM stats_flows WHERE day >= ? AND day <= ? ORDER BY day, hour`).all(from, to) as FlowRow[];
+}
+
+/** 그 기간에 묶인 날 — «주마다 N건»의 나눗수(콜이 0건이어도 묶인 날은 센다). 기사 칸 없음 */
+export function rolledUpDaysBetween(from: string, to: string): string[] {
+    return (db.prepare(`SELECT day FROM stats_rollup_days WHERE day >= ? AND day <= ? ORDER BY day`).all(from, to) as Array<{ day: string }>)
+        .map(r => r.day);
 }

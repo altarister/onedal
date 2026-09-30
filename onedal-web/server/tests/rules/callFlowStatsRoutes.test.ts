@@ -49,6 +49,10 @@ describe('📊 관제웹·뉴스레터 문 — 내 줄 + 남은 3명 이상일 �
         expect(flowsForViewer([row('me', 1)], 'me', 'month')[0].group).toBe('10월');
         expect(flowsForViewer([row('me', 1)], 'me', 'season')[0].group).toBe('가을');
     });
+
+    it('아침 카드용 «요일 × 시» — «월 9시»', () => {
+        expect(flowsForViewer([row('me', 1)], 'me', 'weekdayHour')[0].group).toBe('월 9시');
+    });
 });
 
 describe('📊 어드민 문 — 기사 칸을 준다', () => {
@@ -64,5 +68,10 @@ describe('📊 문 자리', () => {
         expect(route).toMatch(/router\.get\("\/flows", requireAuth,/);
         expect(route).toMatch(/router\.get\("\/flows\/admin", requireAuth, requireAdmin,/);
         expect(readFileSync(join(SRC, 'index.ts'), 'utf8')).toContain('app.use("/api/stats", statsRouter);');
+    });
+
+    it('관제웹 문은 그 기간에 묶인 날 목록(days)을 함께 준다 — «주마다 N건»의 나눗수 · 기사 칸 없음', () => {
+        const route = readFileSync(join(SRC, 'routes/stats.ts'), 'utf8');
+        expect(route).toMatch(/days: rolledUpDaysBetween\(from, to\)/);
     });
 });
