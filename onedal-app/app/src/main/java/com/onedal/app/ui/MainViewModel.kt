@@ -60,6 +60,10 @@ class MainViewModel {
     var waitTimesLabel by mutableStateOf("")
         private set
 
+    /** 🔐 연결이 풀린 까닭 — 비면 정상(`DeviceLink`) */
+    var unlinkedWhy by mutableStateOf<String?>(null)
+        private set
+
     /**
      * 1초 폴링 시작
      */
@@ -84,6 +88,7 @@ class MainViewModel {
                 apiConfirmReq = prefs.getString("api_confirm_req", "없음") ?: "없음"
                 apiConfirmRes = prefs.getString("api_confirm_res", "없음") ?: "없음"
                 showTapMarker = prefs.getBoolean("showTapMarker", false)
+                unlinkedWhy = prefs.getString(com.onedal.app.core.DeviceLink.PREF_UNLINKED, null)
                 delay(1000)
             }
         }

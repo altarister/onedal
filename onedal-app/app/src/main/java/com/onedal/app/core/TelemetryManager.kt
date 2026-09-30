@@ -36,7 +36,9 @@ class TelemetryManager(
         private const val DEBOUNCE_MS = 300L // 콜 수집 후 모아쏘기 위한 디바운스 대기시간
 
         /** ⏱️ 다음 빈 통신까지 — 결재 대기 1초 · 목록 화면 15초 · 그 밖 60초 */
-        fun heartbeatIntervalMs(waitingDecision: Boolean, screen: ScreenContext): Long = when {
+        /** @param unlinked 서버가 이 폰을 거절했다(`DeviceLink`) — 1초 결재 대기도 멈추고 60초로 늦춘다 */
+        fun heartbeatIntervalMs(waitingDecision: Boolean, screen: ScreenContext, unlinked: Boolean = false): Long = when {
+            unlinked -> HEARTBEAT_INTERVAL_MS
             waitingDecision -> FAST_POLLING_MS
             screen == ScreenContext.LIST -> LIST_IDLE_INTERVAL_MS
             else -> HEARTBEAT_INTERVAL_MS
@@ -365,7 +367,7 @@ class TelemetryManager(
     private fun resetHeartbeatTimer() {
         handler.removeCallbacks(heartbeatRunnable)
         if (isRunning) {
-            val interval = heartbeatIntervalMs(isWaitingDecision, currentScreenContext)
+            val interval = heartbeatIntervalMs(isWaitingDecision, currentScreenContext, apiClient.isUnlinked())
             handler.postDelayed(heartbeatRunnable, interval)
         }
     }

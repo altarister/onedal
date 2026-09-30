@@ -1,5 +1,6 @@
 package com.onedal.app.api
 
+import com.onedal.app.core.DeviceLink
 import android.content.Context
 import com.onedal.app.core.LogTag
 import android.os.Build
@@ -75,11 +76,51 @@ class ApiClient(private val context: Context) {
      */
     fun getDeviceId(): String {
         return prefs.getString("deviceId", null) ?: run {
-            val generated = "앱폰-${Build.MODEL.take(8)}-${(100..999).random()}"
+            val generated = DeviceLink.newDeviceId()   // 🔐 식별은 난수 — 사람이 읽는 이름은 짝 때 deviceName
             prefs.edit().putString("deviceId", generated).apply()
             generated
         }
     }
+
+    /**
+     * 🔐 **서버 요청은 여기 한 곳에서 연다** — 토큰 헤더 · 타임아웃 (`DeviceLinkTest`).
+     * 짝 요청만 토큰 없이 연다(아직 토큰이 없다).
+     */
+    private fun open(url: String, method: String = "POST", connectMs: Int = 10000, readMs: Int = connectMs, withToken: Boolean = true): java.net.HttpURLConnection {
+        val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        c.requestMethod = method
+        if (method == "POST") c.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+        c.setRequestProperty("Accept", "application/json")
+        if (withToken) prefs.getString(DeviceLink.PREF_TOKEN, null)?.let { c.setRequestProperty(DeviceLink.HEADER, it) }
+        c.connectTimeout = connectMs
+        c.readTimeout = readMs
+        return c
+    }
+
+    /** 🔐 응답으로 연결 상태를 적는다 — 거절이면 까닭을 남기고(띠 · 보고 60초), 받아 주면 지운다 */
+    private fun noteLink(code: Int, body: String?) {
+        val why = when (DeviceLink.verdict(code, body)) {
+            DeviceLink.Verdict.OK -> null
+            DeviceLink.Verdict.UNLINKED -> DeviceLink.WHY_UNLINKED
+            DeviceLink.Verdict.BLOCKED -> DeviceLink.WHY_BLOCKED
+            DeviceLink.Verdict.OTHER -> return
+        }
+        val prev = prefs.getString(DeviceLink.PREF_UNLINKED, null)
+        if (prev == why) return
+        prefs.edit().apply { if (why == null) remove(DeviceLink.PREF_UNLINKED) else putString(DeviceLink.PREF_UNLINKED, why) }.apply()
+        if (why != null) AppLogger.w(TAG, "🔐 [폰 연결 풀림] HTTP $code · 까닭 $why — 설정에서 PIN 으로 다시 연결")
+        else AppLogger.i(TAG, LogTag.NETWORK, "🔐 [폰 연결 돌아옴] 서버가 다시 받는다")
+    }
+
+    /** 응답 코드 — 거절(401·403)이면 본문까지 읽어 연결 상태를 적는다 */
+    private fun codeOf(c: java.net.HttpURLConnection): Int {
+        val code = c.responseCode
+        noteLink(code, if (code == 401 || code == 403) c.errorStream?.bufferedReader()?.readText() else null)
+        return code
+    }
+
+    /** 🔐 서버가 이 폰을 거절했나 — 보고 간격이 읽는다(`TelemetryManager.heartbeatIntervalMs`) */
+    fun isUnlinked(): Boolean = prefs.getString(DeviceLink.PREF_UNLINKED, null) != null
 
     /**
      * 타겟 URL 생성 (동적 Local / Live 판별)
@@ -122,13 +163,8 @@ class ApiClient(private val context: Context) {
             try {
                 if (!quiet) AppLogger.roadmap(LogTag.NETWORK, "[HTTP 전송] POST $apiName 시작 (시도 $attempt/$maxRetries)", "NETWORK")
 
-                conn = java.net.URL(targetUrl).openConnection() as java.net.HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.setRequestProperty("Accept", "application/json")
+                conn = open(targetUrl, connectMs = timeoutMs)
                 conn.doOutput = true
-                conn.connectTimeout = timeoutMs
-                conn.readTimeout = timeoutMs
 
                 conn.outputStream.use { os ->
                     os.write(jsonBody.toByteArray(Charsets.UTF_8))
@@ -140,6 +176,7 @@ class ApiClient(private val context: Context) {
                 } else {
                     conn.errorStream?.bufferedReader()?.readText() ?: "Error body empty"
                 }
+                noteLink(code, body)
 
                 val elapsedMs = System.currentTimeMillis() - startMs
                 if (!quiet) AppLogger.roadmap(LogTag.NETWORK,
@@ -454,15 +491,11 @@ class ApiClient(private val context: Context) {
                     "deviceId" to getDeviceId(),
                     "lines" to lines.map { mapOf("at" to fmt.format(java.util.Date(it.atMs)), "msg" to it.msg) },
                 ))
-                val c = java.net.URL(getTargetUrl("/api/logs/app")).openConnection() as java.net.HttpURLConnection
+                val c = open(getTargetUrl("/api/logs/app"))
                 conn = c
-                c.requestMethod = "POST"
-                c.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 c.doOutput = true
-                c.connectTimeout = 10000
-                c.readTimeout = 10000
                 c.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-                c.responseCode in 200..299
+                codeOf(c) in 200..299
             } catch (e: Exception) {
                 AppLogger.w(TAG, "📱 [운행 기록 전송 실패] ${e.message} — 대기열에 되돌린다")
                 false
@@ -480,15 +513,9 @@ class ApiClient(private val context: Context) {
                 val targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
                 // URLEncoder.encode 가 필요할 수도 있으나 한글 쿼리는 안드로이드에서 종종 깨지므로 기본적으로 안전하게 요청
                 val targetUrl = getTargetUrl("/api/config/keywords?app=$targetApp")
-                val url = java.net.URL(targetUrl)
+                conn = open(targetUrl, method = "GET")
 
-                conn = url.openConnection() as java.net.HttpURLConnection
-                conn.requestMethod = "GET"
-                conn.setRequestProperty("Accept", "application/json")
-                conn.connectTimeout = 10000
-                conn.readTimeout = 10000
-
-                val code = conn.responseCode
+                val code = codeOf(conn)
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("targetAppKeywords", body).apply()
@@ -514,19 +541,13 @@ class ApiClient(private val context: Context) {
                 val payload = PairDeviceRequest(
                     pin = pin,
                     deviceId = getDeviceId(),
-                    deviceName = deviceName?.takeIf { it.isNotBlank() }
+                    deviceName = deviceName?.takeIf { it.isNotBlank() } ?: Build.MODEL   // 🔐 표시 이름 — 비면 기종(식별 id 는 난수라 사람이 못 읽는다)
                 )
                 val jsonBody = gson.toJson(payload)
                 val targetUrl = getTargetUrl("/api/devices/pair")
-                val url = java.net.URL(targetUrl)
 
-                conn = url.openConnection() as java.net.HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.setRequestProperty("Accept", "application/json")
+                conn = open(targetUrl, withToken = false)
                 conn.doOutput = true
-                conn.connectTimeout = 10000
-                conn.readTimeout = 10000
 
                 conn.outputStream.use { os ->
                     os.write(jsonBody.toByteArray(Charsets.UTF_8))
@@ -544,6 +565,11 @@ class ApiClient(private val context: Context) {
                 } catch (e: Exception) { null }
 
                 if (code in 200..299) {
+                    // 🔐 토큰은 이 응답에 한 번만 온다 — 저장하고 연결 풀림 표시를 지운다
+                    prefs.edit().apply {
+                        resultObj?.deviceToken?.let { putString(DeviceLink.PREF_TOKEN, it) }
+                        remove(DeviceLink.PREF_UNLINKED)
+                    }.apply()
                     val msg = resultObj?.message ?: "기기 연동이 완료되었습니다."
                     onResult(true, msg)
                 } else {
@@ -577,19 +603,13 @@ class ApiClient(private val context: Context) {
             var conn: java.net.HttpURLConnection? = null
             try {
                 val targetUrl = getTargetUrl("/api/devices/${getDeviceId()}/offline")
-                val url = java.net.URL(targetUrl)
-
-                conn = url.openConnection() as java.net.HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.connectTimeout = 3000
-                conn.readTimeout = 1000 // 서버 응답을 안기다리고 폭파
+                conn = open(targetUrl, connectMs = 3000, readMs = 1000) // 서버 응답을 안기다리고 폭파
                 if (reason != null) {
                     conn.doOutput = true
                     conn.outputStream.use { it.write("{\"reason\":\"$reason\"}".toByteArray(Charsets.UTF_8)) }
                 }
 
-                val code = conn.responseCode
+                val code = codeOf(conn)
                 AppLogger.d(TAG, LogTag.NETWORK, "🔌 [오프라인 통보] 전송 완료 (코드: $code)")
             } catch (e: Exception) {
                 // 이 상황에선 에러 로깅 외에는 할 수 있는 게 없음
@@ -630,18 +650,13 @@ class ApiClient(private val context: Context) {
                 )
                 val jsonBody = gson.toJson(payload)
                 val targetUrl = getTargetUrl("/api/telemetry/anomalies")
-                val u = java.net.URL(targetUrl)
-                val c = u.openConnection() as java.net.HttpURLConnection
+                val c = open(targetUrl, connectMs = 5000)
                 conn = c
-                c.requestMethod = "POST"
-                c.connectTimeout = 5000
-                c.readTimeout = 5000
                 c.doOutput = true
-                c.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
                 c.outputStream.use { os ->
                     os.write(jsonBody.toByteArray(Charsets.UTF_8))
                 }
-                val code = c.responseCode
+                val code = codeOf(c)
                 if (code == 200) {
                     AppLogger.w(TAG, "🚨 [이상 징후 보고 완료] $targetApp · $failureReason")
                 } else {

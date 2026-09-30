@@ -37,6 +37,15 @@ fun DashboardScreen(viewModel: MainViewModel) {
             .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // 🔐 서버가 이 폰을 거절했다 — 콜이 조용히 끊기지 않게 맨 위에 (`DeviceLink`)
+        com.onedal.app.core.DeviceLink.bannerOf(viewModel.unlinkedWhy)?.let { banner ->
+            Surface(color = Color(0xFFD32F2F), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(banner, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("설정 탭 → 관제웹에서 받은 PIN 6자리로 다시 연결", color = Color.White, fontSize = 12.sp)
+                }
+            }
+        }
         // ── 1. 상단 상태 바 (배지 2개 한 줄) ──
         Row(
             modifier = Modifier.fillMaxWidth(),

@@ -483,7 +483,9 @@ data class PairDeviceRequest(
 data class PairDeviceResponse(
     val success: Boolean = false,
     val message: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    /** 🔐 기기 비밀 토큰 — 짝 성공 때 한 번만 온다(`DeviceLink`) */
+    val deviceToken: String? = null
 )
 
 
