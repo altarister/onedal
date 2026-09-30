@@ -54,13 +54,13 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 .joinToString(" ").ifEmpty { null }
 
         /**
-         * 📅 **예약은 상차 배지 + 상차지 앞글자로 읽는다** (`Hwamul24ReservationTest`) — 하차 배지(내착)는 상차 날이 아니다.
-         * 화물 글(«당일상 당착 … 10시전하차»)은 1단계에서 넘기지 않는다 — 상차·하차 시각이 한 글에 섞여
-         * «10시전하차»가 «지난 시각 = 내일»로 읽힌다. 가르는 일은 페이지 정의 단계에서.
+         * 📅 **예약은 상차 배지 + 화물 글의 상차 쪽 + 상차지 앞글자로 읽는다** (`Hwamul24ReservationTest` · `Hwamul24MemoTimesTest`).
+         * 하차 배지(내착)와 화물 글의 하차 쪽(«10시전하차»)은 상차 날이 아니다 — `Hwamul24MemoTimes` 가 가른다.
          */
-        fun reservationOf(texts: List<String>, pickupInfo: com.onedal.app.core.LocationInfo?, now: java.time.LocalDateTime): com.onedal.app.core.Reservation {
+        fun reservationOf(texts: List<String>, pickupInfo: com.onedal.app.core.LocationInfo?, now: java.time.LocalDateTime, memo: String? = null): com.onedal.app.core.Reservation {
             val badge = texts.map { it.trim() }.firstOrNull { it in PICKUP_DAY_BADGES }
-            val source = listOfNotNull(badge, pickupInfo?.scheduleText).joinToString(" ")
+            val memoPickup = Hwamul24MemoTimes.split(memo).pickup.ifEmpty { null }
+            val source = listOfNotNull(badge, memoPickup, pickupInfo?.scheduleText).joinToString(" ")
             return com.onedal.app.core.ReservationText.read(source, now, bareLaterTimeIsToday = false)
         }
     }
@@ -280,7 +280,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             rawText = rawJoined,
             pickupDistance = pickupDistance,
             tagsText = badgesOf(texts),
-        ).withReservation(reservationOf(texts, pickupInfo, java.time.LocalDateTime.now()))
+        ).withReservation(reservationOf(texts, pickupInfo, java.time.LocalDateTime.now(), memo = detailMemo))
     }
 
     // ════════════════════════════════════════════════════════════════

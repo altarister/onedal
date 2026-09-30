@@ -1,7 +1,6 @@
 package com.onedal.app.plugins.hwamul24
 
 import com.onedal.app.core.FieldSpec
-import com.onedal.app.core.Handling.DROPPED
 import com.onedal.app.core.Handling.READ
 import com.onedal.app.core.Handling.UNUSED
 import com.onedal.app.core.Page
@@ -24,7 +23,7 @@ object Hwamul24Pages {
             FieldSpec(PageField.PICKUP_DISTANCE, "상차 배지 옆", "15Km", REAL, READ, "Hwamul24CardGrouping.pickupDistanceOf"),
             FieldSpec(PageField.RESERVATION, "상차 배지", "당상 · 내상(실물 캡처에는 없음)", REAL, READ, "Hwamul24Parser.reservationOf"),
             FieldSpec(PageField.TAGS, "하차 배지 · 꼬리표", "당착 · 내착 (읽음) · 수 · 지 · 독차 · 인수증 (잡음으로 뺌)", REAL, READ, "Hwamul24Parser.badgesOf"),
-            FieldSpec(PageField.MEMO, "셋째 줄 화물 글", "당일상 당착 공파렛 50p / 10시전하차 · 당일오전9시30분상", REAL, DROPPED, "Hwamul24Parser.parse — detailMemo 만들고 안 씀"),
+            FieldSpec(PageField.MEMO, "셋째 줄 화물 글", "당일상 당착 공파렛 50p / 10시전하차 · 당일오전9시30분상", REAL, READ, "Hwamul24MemoTimes.split — 상차 쪽만 예약으로"),
             FieldSpec(PageField.CLOCK, "하차 배지 앞 시각", "06:32 (등록 시각인지 모름)", REAL, READ, "Hwamul24Parser.parse — postTime"),
         ),
         Page.DETAIL to listOf(
