@@ -2051,6 +2051,11 @@ export interface FilterTally {
     seen: number;
     /** 전부 통과한 콜 수 */
     passed: number;
+    /**
+     * 🔔 이번 읽기에서 **처음 알람감이 된** 통과 콜 수 — 이미 알람을 낸 콜(상차+하차 · 요금만 오른 같은 콜 포함)은 안 센다.
+     *    서버 알람은 이것으로 가른다. 옛 앱은 안 보낸다 → 서버는 passed 로 가른다.
+     */
+    passedNew?: number;
     vehicle: number;
     region: number;
     fare: number;

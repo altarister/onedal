@@ -275,7 +275,9 @@ describe('🔔 알람이 관제웹까지 가는 길', () => {
         expect(c).toMatch(/filter-pass-alarm/);
         const block = c.split('filter-pass-alarm')[0].slice(-400);
         expect(block).toMatch(/runningModeOf\(session\) === "ALARM"/);
-        expect(block).toMatch(/passed > 0/);
+        /* 새로 알람감이 된 통과 콜 수로 가른다 — 옛 앱은 passedNew 가 없어 passed (alarmNewPassOnly 검사가 행동을 본다) */
+        expect(c).toMatch(/const alarmPassed = filterTally\.passedNew \?\? filterTally\.passed/);
+        expect(block).toMatch(/alarmPassed > 0/);
     });
 
     /**
@@ -411,7 +413,7 @@ describe('🎛️ 도는 모드 — 원달앱이 계산해 보내고 관제웹�
         expect(scrap).toMatch(/effectiveMode:\s*\(req\.body as any\)\.effectiveMode/);
         const dev = codeOnly(srv('routes/devices.ts'));
         expect(dev).toMatch(/session\.effectiveMode\s*=\s*extras\.effectiveMode/);
-        expect(dev).toMatch(/runningModeOf\(session\)\s*===\s*"ALARM"\s*&&\s*filterTally\.passed/);
+        expect(dev).toMatch(/runningModeOf\(session\)\s*===\s*"ALARM"\s*&&\s*alarmPassed > 0/);
     });
 
     it('관제웹 폰 카드는 도는 모드의 글자·색을 한 줄로, 명령은 설명(title)에만 (기사님 «한 줄로»)', () => {

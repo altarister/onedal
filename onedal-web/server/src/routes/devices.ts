@@ -326,25 +326,27 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
          * 앱은 이 모드에서 **확정·수락을 누르지 않는다.** 원달앱이 상세까지 열고 기사님이 누르므로,
          * 서버가 할 일은 *"통과한 콜이 지금 리스트에 있다"* 를 관제웹에 알리는 것뿐이다.
          *
-         * 🟢 **앱을 안 고쳐도 된다** — 성적표(`passed`)가 이미 이 자리로 온다.
-         *    그리고 앱은 이미 본 콜을 지문(`processedOrderHashes`)으로 건너뛰므로
-         *    `passed` 는 **이번에 새로 본** 통과 콜만 센다 → 같은 콜에 두 번 안 울린다.
+         * 🔴 **새로 알람감이 된 통과 콜로 가른다**(`passedNew`) — `passed` 는 같은 콜이 목록에 남거나 픽커가 요금만 올려도
+         *    다시 차서, 같은 콜에 15~45초마다 삑이 났다. 앱이 이미 알람을 낸 콜(상차+하차)을 기억해 새 것만 센다.
+         *    옛 앱은 `passedNew` 가 없어 `passed` 로 가른다.
          *
          * 🔴 **여기 안에서만 본다.** `filterTally` 가 함께 온 보고, 즉 «방금 리스트를 훑었다»
          *    일 때만 참이다. 밖으로 빼면 하트비트마다 옛 숫자로 다시 울린다.
          */
         // 🎛️ 명령이 아니라 **도는 모드**로 — 픽커는 자동 명령이 알람으로 돌아 폰이 울린다, 관제웹도 함께 (기사님 «가»)
-        if (runningModeOf(session) === "ALARM" && filterTally.passed > 0 && io) {
+        /* 🔔 새로 알람감이 된 통과 콜만 — 같은 콜이 목록에 남거나 요금만 올라도 다시 울리던 것 (옛 앱은 passedNew 가 없어 passed) */
+        const alarmPassed = filterTally.passedNew ?? filterTally.passed;
+        if (runningModeOf(session) === "ALARM" && alarmPassed > 0 && io) {
             io.to(userId).emit("filter-pass-alarm", {
                 deviceId,
                 deviceName: session.deviceName,
-                passed: filterTally.passed,
+                passed: alarmPassed,
                 seen: filterTally.seen,
                 at: session.lastSeen,
                 /* 🔔 목록이 내려가 앱이 못 연다 — 관제웹 띠가 «맨 위로 올리거나 직접 여십시오»로 (모름은 거짓 — 지금 문구) */
                 listHeaderHidden: extras?.listHeaderHidden === true,
             });
-            slog('필터', `🔔 [알람] ${deviceId} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건. 기사님이 직접 누르십니다`);
+            slog('필터', `🔔 [알람] ${deviceId} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건${filterTally.passedNew != null ? ` (새로 ${filterTally.passedNew}건)` : ''}. 기사님이 직접 누르십니다`);
         }
     }
     activeDevices.set(deviceId, session);
