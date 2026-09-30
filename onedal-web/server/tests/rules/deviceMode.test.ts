@@ -356,8 +356,9 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
         // 🔴 배차망 이름은 그 폰이 보는 배차망 — «인성»을 글자로 박지 않는다 (픽커 알람에 «인성»이 떴다)
         expect(codeOnly(c)).not.toMatch(/인성 리스트/);
         expect(c).toMatch(/TARGET_APP_LABEL\[device\.targetApp/);
-        // 알람은 원달앱이 상세까지 연다 — 기사님 몫은 확정·수락
-        expect(c).toMatch(/상세에서 확정·수락은 기사님이 누르십시오/);
+        // 알람은 원달앱이 상세까지 연다 — 기사님 몫은 확정·수락 (문구는 lib/filterAlarmLine.ts 에 산다 · 목록이 내려가면 다른 문구)
+        expect(c).toMatch(/filterAlarmLine\(filterAlarm, /);
+        expect(web('lib/filterAlarmLine.ts')).toMatch(/상세에서 확정·수락은 기사님이 누르십시오/);
     });
 
     it('🔴 모드 버튼이 셋이다 (알람이 화면에 있다)', () => {

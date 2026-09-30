@@ -149,6 +149,8 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
  */
 export interface DeviceStatusExtras {
     appVersion?: string;
+    /** 🔔 픽커 목록이 내려가 «리스트 설정» 머리가 안 보임 — 앱이 콜 줄을 못 가려 안 연다. 목록 보고에만 · 없으면 모름 (원달앱 ScrapPayload.listHeaderHidden) */
+    listHeaderHidden?: boolean;
     workStage?: string;
     workStageStep?: number;
     workStageSeconds?: number;
@@ -337,6 +339,8 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                 passed: filterTally.passed,
                 seen: filterTally.seen,
                 at: session.lastSeen,
+                /* 🔔 목록이 내려가 앱이 못 연다 — 관제웹 띠가 «맨 위로 올리거나 직접 여십시오»로 (모름은 거짓 — 지금 문구) */
+                listHeaderHidden: extras?.listHeaderHidden === true,
             });
             slog('필터', `🔔 [알람] ${deviceId} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건. 기사님이 직접 누르십니다`);
         }

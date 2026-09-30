@@ -4,6 +4,7 @@ import type { DeviceSession, DeviceModeType } from "@onedal/shared";
 import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, TARGET_APP_LABEL } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from "../../hooks/useSystemAlerts";
+import { filterAlarmLine } from "../../lib/filterAlarmLine";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { summarizeTally } from "../../lib/filterTally";
 import { formatClock } from "../../lib/clock";
@@ -353,7 +354,7 @@ function DeviceRow({
                 <div className="mx-1 mt-1 rounded border border-info/40 bg-info/15 px-2 py-1.5 flex items-center gap-2 animate-pulse">
                     <span className="text-base leading-none">🔔</span>
                     <span className="text-info font-black text-[13px] tracking-tight">
-                        {device.targetApp ? `${TARGET_APP_LABEL[device.targetApp]} ` : ''}필터 통과 {filterAlarm.passed}건 — 상세에서 확정·수락은 기사님이 누르십시오
+                        {filterAlarmLine(filterAlarm, device.targetApp ? `${TARGET_APP_LABEL[device.targetApp]} ` : '')}
                     </span>
                     <span className="ml-auto text-[10px] text-info/70 font-bold tabular-nums shrink-0">
                         본 {filterAlarm.seen}

@@ -179,6 +179,7 @@ router.post("/", (req, res) => {
                 appliedMode: (req.body as any).appliedMode,
                 effectiveMode: (req.body as any).effectiveMode,
                 filterVersion: appFilterVersion,
+                listHeaderHidden: typeof (req.body as any).listHeaderHidden === 'boolean' ? (req.body as any).listHeaderHidden : undefined,
             });
         }
 
