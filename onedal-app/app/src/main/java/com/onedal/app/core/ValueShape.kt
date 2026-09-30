@@ -15,6 +15,8 @@ object ValueShape {
         Regex("""^\d{1,2}/\d{1,2}\([월화수목금토일]\)$""") to "<날짜>",
         Regex("""^\d{1,2}일$""") to "<날짜>",
         Regex("""^0\d{1,2}-\d{3,4}-\d{4}$""") to "<전화>",
+        Regex("""^\d+(\.\d+)?만\s?원$""") to "<금액>",
+        Regex("""^[\d,]+원$""") to "<금액>",
     )
 
     fun normalize(token: String): String =

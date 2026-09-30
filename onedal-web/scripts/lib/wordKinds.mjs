@@ -94,6 +94,8 @@ export const VALUE_SHAPES = [
     { re: /^\d{1,2}\/\d{1,2}\([월화수목금토일]\)$/, label: '<날짜>' },
     { re: /^\d{1,2}일$/, label: '<날짜>' },
     { re: /^0\d{1,2}-\d{3,4}-\d{4}$/, label: '<전화>' },
+    { re: /^\d+(\.\d+)?만\s?원$/, label: '<금액>' },
+    { re: /^[\d,]+원$/, label: '<금액>' },
 ];
 export const isValueShape = (t) => VALUE_SHAPES.some(({ re }) => re.test(t));
 

@@ -30,6 +30,8 @@ class ValueShapePairTest {
         assertEquals("<날짜>", ValueShape.normalize("9/30(수)"))
         assertEquals("<날짜>", ValueShape.normalize("10일"))
         assertEquals("<전화>", ValueShape.normalize("010-1234-5678"))
+        assertEquals("<금액>", ValueShape.normalize("11만원"))
+        assertEquals("<금액>", ValueShape.normalize("16,093원"))
     }
 
     @Test fun `글자는 그대로다`() {

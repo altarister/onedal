@@ -39,7 +39,7 @@ data class ScreenWordsReport(val page: String, val words: List<ScreenWord>)
  * - «키 : 값» 줄은 키만 — 이름·주소 같은 값은 콜마다 다르다
  * - 지명 명부에 있는 토막 → «<지역>» · 가게·건물 모양 → «<가게·건물>» · 띄어 쓴 긴 글 → «<문장>» (잡음 낱말은 그대로 — 목록이 정해져 있다)
  * - 한 보고 200개 · 낱말 40자 · 예시 줄 200자 (서버 한도와 같다)
- * 한 보고에 두 화면이 섞이면 먼저 것만 싣는다. 화면을 모르면(`onScreen(null)`) 안 모은다.
+ * 한 보고에 두 화면이 섞이면 먼저 것을 싣고 나머지는 다음 보고로 넘긴다(버리지 않는다). 화면을 모르면(`onScreen(null)`) 안 모은다.
  */
 object ScreenWords {
     private const val MAX_WORDS = 200
@@ -50,10 +50,11 @@ object ScreenWords {
     val PLACE = Regex("""점$|[\[\]]|-|로\d+번길$|아파트$|빌라$|타워$|센터$""")
     private const val PLACE_MIN_LEN = 6
     private const val SENTENCE_MIN_LEN = 20
+    private val KEY_COLON = Regex("""(?<!\d):|:(?!\d)""")
 
     private var current: Page? = null
-    private var page: Page? = null
-    private val words = LinkedHashMap<String, ScreenWord>()
+    /** 페이지마다 모은 글자 — 보고 하나는 한 페이지라 먼저 모은 페이지부터 하나씩 꺼낸다 */
+    private val byPage = LinkedHashMap<Page, LinkedHashMap<String, ScreenWord>>()
 
     /** 지명 명부의 이름 — «광주시»·«분당구»·«경안동»과 그 줄임(«광주»·«분당»·«경안»)까지 */
     private val regionNames: Set<String> by lazy {
@@ -69,7 +70,7 @@ object ScreenWords {
     private fun isRegion(w: String) = w in regionNames || bare(w).let { it.length >= 2 && it in regionNames }
 
     /** 지금 읽는 화면의 페이지 — 스캔마다 한 번 (`HijackService`). 모르는 화면이면 null */
-    /** 이 화면의 글자 — 아무도 맡지 않으면(`handled` 가 안 불리면) 다음 화면이나 보고 때 통째로 «정의에 없음»으로 모은다 */
+    /** 이 화면의 글자 — 다음 화면이나 보고 때 통째로 «정의에 없음»으로 모은다 */
     private var pendingRaw: List<String> = emptyList()
     private var pendingSample: String? = null
 
@@ -80,15 +81,11 @@ object ScreenWords {
     @Synchronized fun onScreen(p: Page?, texts: List<String> = emptyList(), sample: String? = null) {
         flushRaw()
         current = p
-        pendingRaw = if (p != null) texts else emptyList()
+        // 🔴 목록 페이지는 통째로 모으지 않는다 — 목록 글자는 파서가 까닭과 함께 넣는다.
+        //    화면이 바뀐 보고는 그 자리에서 나가므로, 걸어 두면 파서가 읽기도 전에 목록 판이 «정의에 없음»으로 쏟아진다
+        pendingRaw = if (p != null && p != Page.LIST) texts else emptyList()
         pendingSample = sample
     }
-
-    /**
-     * 🔎 **이 화면 글자는 맡은 곳이 있다** — 파서가 읽었거나(뺀 글자는 파서가 까닭과 함께 넣는다),
-     * 겹친 화면·배차망 갈아타기처럼 이 판을 버리고 다시 읽는다. 통째로 모으지 않는다.
-     */
-    @Synchronized fun handled() { pendingRaw = emptyList() }
 
     private fun flushRaw() {
         val texts = pendingRaw
@@ -98,27 +95,25 @@ object ScreenWords {
 
     @Synchronized fun add(raw: String, kind: WordKind, sample: String? = null) {
         val p = current ?: return
-        if (page != null && page != p) return
         val w = wordOf(raw, kind) ?: return
+        val words = byPage.getOrPut(p) { LinkedHashMap() }
         val key = "${kind.word}|$w"
         if (key in words || words.size >= MAX_WORDS) return
-        page = p
         words[key] = ScreenWord(w, kind.word, sample?.take(SAMPLE_MAX))
     }
 
-    /** 한 보고 몫을 꺼내고 비운다 — 모은 것이 없으면 null (보고에 안 싣는다) */
+    /** 한 보고 몫(먼저 모은 페이지 하나)을 꺼낸다 — 다른 페이지 것은 다음 보고로. 모은 것이 없으면 null (보고에 안 싣는다) */
     @Synchronized fun drain(): ScreenWordsReport? {
         flushRaw()
-        val p = page ?: return null
-        val r = ScreenWordsReport(p.word, words.values.toList())
-        page = null
-        words.clear()
-        return r
+        val p = byPage.keys.firstOrNull() ?: return null
+        val words = byPage.remove(p)!!
+        return ScreenWordsReport(p.word, words.values.toList())
     }
 
     private fun wordOf(raw: String, kind: WordKind): String? {
         var t = raw.trim()
-        if (t.contains(':')) t = t.substringBefore(':').trim()
+        // «키 : 값»은 키만 — 숫자 사이 콜론(«09:30»)은 시각이라 가르지 않는다
+        KEY_COLON.find(t)?.let { t = t.substring(0, it.range.first).trim() }
         if (t.isEmpty()) return null
         val shaped = ValueShape.normalize(t)
         if (shaped != t) return if (kind == WordKind.UNKNOWN) null else shaped

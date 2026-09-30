@@ -288,6 +288,10 @@ class TelemetryManager(
         val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
         val appCode = TargetApp.codeOf(prefs?.getString("targetApp", null))   // 매핑은 TargetApp 한 곳뿐
 
+        // 📰 모은 글자 한 화면 몫 — 실었으면 한 줄 (폰에서 «상세 낱말이 갔나»를 로그로 본다)
+        val screenWords = ScreenWords.drain()
+        screenWords?.let { AppLogger.d(TAG, LogTag.NETWORK, "📰 [모은 글자] ${it.page} ${it.words.size}개 — ${it.words.take(5).joinToString(" · ") { w -> w.word }}") }
+
         val payload = ScrapPayload(
             deviceId = apiClient.getDeviceId(),
             data = snapshot,
@@ -300,7 +304,7 @@ class TelemetryManager(
             lng = lng,                                   // [GPS 텔레메트리] 앱폰 경도
             targetApp = appCode,
             source = TargetApp.sourceOf(screenPackage),
-            screenWords = ScreenWords.drain(),
+            screenWords = screenWords,
             // 📦🚦🎛️ 폰 상태 바가 쓸 셋 — 앱 안엔 있었는데 여태 안 보내던 것들
             appVersion = appVersion,
             workStage = stage?.stage,

@@ -45,7 +45,7 @@ class ScreenWordsTest {
         assertEquals(200, r.words[0].sample!!.length)
     }
 
-    @Test fun `한 보고에 두 화면이 섞이면 먼저 것만 · 화면을 모르면 안 모은다`() {
+    @Test fun `한 보고에 두 화면이 섞이면 먼저 것을 싣고 나머지는 다음 보고로 - 버리지 않는다`() {
         ScreenWords.onScreen(null)
         ScreenWords.add("당상", WordKind.NOISE)
         assertNull(ScreenWords.drain())
@@ -54,7 +54,17 @@ class ScreenWordsTest {
         ScreenWords.onScreen(Page.DETAIL)
         ScreenWords.add("고객 : 가", WordKind.UNKNOWN)
         assertEquals(listOf("noise" to "당상"), words())
+        val next = ScreenWords.drain()!!
+        assertEquals("detail", next.page)
+        assertEquals(listOf("unknown" to "고객"), next.words.map { it.kind to it.word })
         assertNull("비운 뒤에는 없다", ScreenWords.drain())
+    }
+
+    @Test fun `시각 콜론은 키 값이 아니다 · 만원은 금액`() {
+        ScreenWords.onScreen(Page.DETAIL)
+        ScreenWords.add("단기/장기 · 09:30~18:30", WordKind.UNKNOWN)
+        ScreenWords.add("11만원", WordKind.NOISE)
+        assertEquals(listOf("unknown" to "단기/장기 · 09:30~18:30", "noise" to "<금액>"), words())
     }
 
     @Test fun `가게 건물 모양은 서버 도구 isPlace 와 같은 규칙`() {
@@ -70,11 +80,11 @@ class ScreenWordsTest {
             "unknown" to "한차배송 신청내역 보기", "unknown" to "<문장>"), words())
     }
 
-    @Test fun `목록 파서가 읽은 화면은 통째로 모으지 않는다 - 파서가 까닭과 함께 넣는다`() {
-        ScreenWords.onScreen(Page.LIST, listOf("당상", "화물정보"), "원문")
-        ScreenWords.handled()
-        ScreenWords.add("당상", WordKind.NOISE)
-        assertEquals(listOf("noise" to "당상"), words())
+    @Test fun `목록 페이지는 통째로 모으지 않는다 - 목록 글자는 파서만 까닭과 함께 넣는다`() {
+        ScreenWords.onScreen(Page.LIST, listOf("퀵", "리스트 설정", "픽업지"), "원문")
+        assertNull("화면이 바뀌어 보고가 나가도 목록 글자는 통째로 안 간다", ScreenWords.drain())
+        ScreenWords.add("리스트 설정", WordKind.NOISE)
+        assertEquals(listOf("noise" to "리스트 설정"), words())
     }
 
     @Test fun `화면 종류는 네 페이지 가운데 하나로 - 모르는 화면은 안 모은다`() {

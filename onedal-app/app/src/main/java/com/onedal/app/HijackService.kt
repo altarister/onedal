@@ -799,7 +799,6 @@ class HijackService : AccessibilityService(), ScanContext {
             switchNetworkTo(target)
             // 갈아탄 파서로 이 판을 다시 읽는다 — 다음 이벤트를 기다리지 않는다
             //    (정지 화면이면 그 «다음»이 영영 안 온다 — 실측 2분)
-            com.onedal.app.core.ScreenWords.handled()   // 📰 다시 읽는 판 — 통째로 모으지 않는다
             rootNode.recycle()
             return
         }
@@ -900,7 +899,6 @@ class HijackService : AccessibilityService(), ScanContext {
         //    다음 스캔(1초 안)은 깨끗하다. 무엇이 잔상인가는 배차망 파서가 답한다(기본 «아니다»).
         if (scrapParser.isDetailResidue(screenTexts)) {
             AppLogger.d(TAG, LogTag.SCREEN, "👻 [상세 잔상] 리스트 스캔에 상세 글자 잔류 — 이 판은 버린다")
-            com.onedal.app.core.ScreenWords.handled()   // 📰 두 화면이 겹친 판 — 모으지 않는다
             return
         }
         /**
@@ -918,7 +916,6 @@ class HijackService : AccessibilityService(), ScanContext {
 
         // 앱별 앵커 노드 감지 및 텍스트 그룹화 로직을 파서(ScrapParser)로 위임
         val groupedNodes = scrapParser.groupListNodes(allNodes)
-        com.onedal.app.core.ScreenWords.handled()   // 📰 목록 글자는 파서가 까닭과 함께 넣는다
 
         /** 그룹은 나왔는데 요금을 못 읽어 버려진 수 — 아래 진단이 읽는다 */
         var fareFail = 0
