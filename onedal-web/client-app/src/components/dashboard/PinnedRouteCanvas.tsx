@@ -370,6 +370,17 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
      *    `drawMap` 은 매번 새 함수라 `onload` 에 직접 걸면 옛 함수가 박힌다.
      */
     const drawRef = useRef<() => void>(() => { });
+    /**
+     * 🗺️ **다시 그리기 예약 — 한 프레임에 한 번만.** 시트 가림 애니메이션과 칸 크기 변화가 같은 길을 쓴다.
+     *    여러 번 불려도 걸려 있는 프레임 하나로 모인다(다시 그리는 부하를 늘리지 않게).
+     */
+    const rafRef = useRef<number | null>(null);
+    const scheduleDraw = useCallback(() => {
+        if (rafRef.current != null) return;
+        rafRef.current = requestAnimationFrame(() => { rafRef.current = null; drawRef.current(); });
+    }, []);
+    /** 마지막으로 그린 칸 크기(CSS px) — 크기가 같으면 칸 지켜보기가 다시 그리지 않는다 */
+    const lastSize = useRef({ w: 0, h: 0 });
     /** 🔭 «전체» 맞춤에 넣는 영역 네모 — 영역이 밖으로 나가거나 절반 아래로 줄 때만 새로 잡는다 (`stickyFitBox` · #150) */
     const fitBoxRef = useRef<GeoBox | null>(null);
     /**
@@ -395,6 +406,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
         ctx.scale(dpr, dpr);
+        lastSize.current = { w: rect.width, h: rect.height };
 
         const width = rect.width;
         const height = rect.height;
@@ -474,7 +486,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
         const gap = occludedTarget - occludedNow.current;
         if (Math.abs(gap) > 0.5) {
             occludedNow.current += gap * 0.22;                                   // ≈ 시트의 .25s 와 맞는 속도
-            requestAnimationFrame(() => drawRef.current());
+            scheduleDraw();
         } else {
             occludedNow.current = occludedTarget;
         }
@@ -1178,12 +1190,33 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode, scheduleDraw]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기
         drawMap();
     }, [drawMap]);
+
+    /**
+     * 📐 **칸 크기가 바뀌면 다시 그린다** (기사님 «좋아» · 지도 찌그러짐).
+     *    필터가 펼쳐져 지도 칸이 줄면, 내용은 그대로라 위 효과가 안 돌고 옛 그림이 CSS 로 눌린 채 남았다.
+     *    크기가 실제로 바뀐 때만, 한 프레임에 한 번(`scheduleDraw`). 언마운트 때 끊는다.
+     */
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver(entries => {
+            const { width, height } = entries[0].contentRect;
+            if (width === lastSize.current.w && height === lastSize.current.h) return;
+            scheduleDraw();
+        });
+        ro.observe(canvas);
+        return () => {
+            ro.disconnect();
+            if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+        };
+    }, [scheduleDraw]);
 
     // 제스처 핸들러 (드래그 팬 & 줌)
     const handlePointerDown = (e: any) => {
