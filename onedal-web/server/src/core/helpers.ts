@@ -529,6 +529,18 @@ export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; p
  * "판정은 종료됐는데 화면은 진행 중"인 상태가 된다.
  * 상태를 바꾸는 곳은 이 함수 하나만 쓴다.
  */
+/**
+ * 📱 **그 콜을 쥔 기기의 «심사 중» 표시를 푼다** — 폰은 이 표시가 있으면 다음 콜을 누르지 않는다(scrap 응답의 evaluatingNow).
+ * 푸는 자리 셋이 이 한 함수를 쓴다: 폰 확인(ACK) · 늦은 ACK · KEEP 뒤 ACK 없이 시한이 지남.
+ */
+export function releaseEvaluatingDevices(session: { deviceEvaluatingMap: Map<string, string> }, orderId: string): number {
+    let n = 0;
+    for (const [deviceId, id] of Array.from(session.deviceEvaluatingMap.entries())) {
+        if (id === orderId) { session.deviceEvaluatingMap.delete(deviceId); n++; }
+    }
+    return n;
+}
+
 export function setOrderStatus(
     session: { myOrders: MyOrder[]; pendingOrdersData: Map<string, any> },
     orderId: string,

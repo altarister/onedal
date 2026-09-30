@@ -2,7 +2,7 @@ import { Router } from "express";
 import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS, effectiveRadii } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
-import { capacityFullHold, filterVersionOf, reportSourceOf } from "../core/helpers";
+import { capacityFullHold, filterVersionOf, reportSourceOf, releaseEvaluatingDevices } from "../core/helpers";
 import { rememberSentFilterVersion } from "../core/phoneCheck";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
@@ -213,11 +213,12 @@ router.post("/", (req, res) => {
                 session.pendingDecisions.delete(ackDecisionId);
 
                 // deviceEvaluatingMap 정리 (이 매핑은 Piggyback 전달 완료 후 여기서 삭제)
-                Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
-                    if (v === ackDecisionId) session.deviceEvaluatingMap.delete(k);
-                });
+                releaseEvaluatingDevices(session, ackDecisionId);
 
                 slog('결재', `🧹 [Piggyback V2] 기사님 폰에서 ${ackDecisionId} 판결 수신 확인(ACK)! 안전하게 큐에서 삭제합니다.`);
+            } else if (ackDecisionId && releaseEvaluatingDevices(session, ackDecisionId) > 0) {
+                /* 📱 큐는 이미 비웠는데(시한 정리) 늦게 온 ACK — 기기 표시만 푼다 (안 풀면 폰이 다음 콜을 안 누른다) */
+                slog('결재', `🧹 [늦은 ACK] ${ackDecisionId} — 큐는 이미 비었다 · 폰 잡기를 다시 연다`);
             }
 
             // 현재 이 기사님이 확정(Confirm)을 누르고 결재를 기다리는 콜이 있는지 찾습니다.

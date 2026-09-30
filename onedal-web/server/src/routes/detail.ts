@@ -14,6 +14,7 @@ import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "..
 import { getDeviceMode } from "./devices";
 import db from "../db";
 import { slog } from "../utils/fileLogger";
+import { releaseEvaluatingDevices } from "../core/helpers";
 
 const router = Router();
 
@@ -138,6 +139,11 @@ router.post("/", async (req, res) => {
          */
         if (!rememberOrder(session, pendingOrder)) {
             return res.json({ deviceId: 'server', action: 'CANCEL' });
+        }
+        /* 📱 /confirm 이 빠져도 KEEP 이 폰에 실리게 — 그 기기 칸이 **비어 있을 때만** 채운다. 다른 콜로 차 있으면 앞 콜 정리는 /confirm 몫이다 */
+        if (realOrderId !== 'unknown' && !session.deviceEvaluatingMap.has(payload.deviceId)) {
+            session.deviceEvaluatingMap.set(payload.deviceId, realOrderId);
+            slog('콜단계', `📱 [/confirm 없음] ${realOrderId} — 상세 보고로 기기 칸을 채운다 (KEEP 을 폰에 실을 자리)`);
         }
 
         if (io) {
@@ -318,7 +324,8 @@ router.post("/", async (req, res) => {
                 // ✅ [Phase 1 방어] KEEP 결재가 이미 내려진 콜은 절대 취소하지 않는다
                 if (decision.action === 'KEEP') {
                     session.pendingDecisions.delete(payload.order.id);
-                    slog('결재', `🛡️ [Phase 1 방어] 콜(${payload.order.id})은 KEEP 결재 완료 상태. 앱 ACK 미수신이지만 콜 유지.`);
+                    releaseEvaluatingDevices(session, payload.order.id);
+                    slog('결재', `🛡️ [Phase 1 방어] 콜(${payload.order.id})은 KEEP 결재 완료 상태. 앱 ACK 미수신이지만 콜 유지 · 폰 잡기 다시 연다.`);
                     return; // 취소하지 않고 리턴
                 }
 
