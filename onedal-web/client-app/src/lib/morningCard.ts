@@ -1,4 +1,4 @@
-import { businessDayKey, isEvaluating, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN } from '@onedal/shared';
+import { businessDayKey, isEvaluating, isTerminal, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN } from '@onedal/shared';
 
 /**
  * 📊 **아침 카드 — 오늘 이 시간엔 어디 → 어디가 많다** (reviews/25 4단계 · 기사님 결정 3 · 1f).
@@ -64,4 +64,12 @@ export function keptTodayCount(calls: Array<{ status: string; capturedAt?: strin
     const today = businessDayKey(nowMs);
     return calls.filter(c => !isEvaluating(c.status as any) && c.capturedAt
         && businessDayKey(Date.parse(c.capturedAt)) === today).length;
+}
+
+/**
+ * 진행 중 콜 수 — 카드가 보이는 둘째 조건(«0건»). 잡아서 아직 끝나지 않은 콜(심사 중 · 끝난 콜 제외).
+ * 밤샘 운행 중 자정이 지나면 «오늘 잡은 콜»은 0 이 되는데 짐은 싣고 있다 — 그때 운전 화면에 카드가 뜨지 않게.
+ */
+export function runningCount(calls: Array<{ status: string }>): number {
+    return calls.filter(c => !isEvaluating(c.status as any) && !isTerminal(c.status)).length;
 }

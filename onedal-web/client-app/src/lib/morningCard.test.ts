@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { morningCardOf, keptTodayCount } from './morningCard';
+import { morningCardOf, keptTodayCount, runningCount } from './morningCard';
 
 /**
  * 📊 **아침 카드 — 오늘 이 시간엔 어디 → 어디가 많다** (reviews/25 4단계 · 1f 결정).
@@ -66,5 +66,14 @@ describe('📊 오늘 잡은 콜 — 카드가 보이는 조건', () => {
             { status: 'ORDER_CONFIRMED', capturedAt: at(yday) },
         ] as any, NOW);
         expect(n).toBe(2);
+    });
+});
+
+describe('📊 진행 중 콜 — 카드가 보이는 둘째 조건', () => {
+    it('🔴 잡아서 아직 끝나지 않은 콜만 센다 — 심사 중 · 끝난 콜은 안 센다', () => {
+        expect(runningCount([
+            { status: 'ORDER_CONFIRMED' }, { status: 'ORDER_PICKED_UP' },
+            { status: 'ORDER_AWAITING_DECISION' }, { status: 'ORDER_DELIVERED' }, { status: 'SAFE_CANCEL' },
+        ])).toBe(2);
     });
 });

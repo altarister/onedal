@@ -9,10 +9,12 @@ import { join } from 'path';
 const client = (p: string) => readFileSync(join(__dirname, '../../../client-app/src', p), 'utf8');
 
 describe('📊 아침 카드 자리', () => {
-    it('필터 한 줄 바로 위 · 오늘 잡은 콜 0건일 때만', () => {
+    it('필터 한 줄 바로 위 · 오늘 잡은 콜 0건 · 진행 중 콜 0건일 때만', () => {
         const dash = client('pages/Dashboard.tsx');
         expect(dash).toContain('const keptToday = keptTodayCount([...orders, ...terminatedOrders], Date.now());');
-        const i = dash.indexOf('{keptToday === 0 && <MorningCard />}');
+        /* 🌙 밤샘 운행 중 자정에 카드가 뜨지 않게 — 두 사실: 오늘 잡은 콜 0 · 진행 중 콜 0 (1f «가») */
+        expect(dash).toContain('const showMorningCard = keptToday === 0 && runningCount(orders) === 0;');
+        const i = dash.indexOf('{showMorningCard && <MorningCard />}');
         expect(i).toBeGreaterThan(-1);
         expect(dash.indexOf('<OrderFilterStatus', i)).toBeGreaterThan(i);
     });

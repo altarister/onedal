@@ -5,7 +5,7 @@ import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import Collapse from "../components/ui/collapse";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import MorningCard, { useMorningCardGoneLog } from "../components/dashboard/MorningCard";
-import { keptTodayCount } from "../lib/morningCard";
+import { keptTodayCount, runningCount } from "../lib/morningCard";
 import { useFilterConfig } from "../hooks/useFilterConfig";
 import { useSidePanelRoom } from "../hooks/useSidePanelRoom";
 import StageView from "../components/stage/StageView";
@@ -138,9 +138,10 @@ export default function Dashboard() {
         cancelCounts,
         cancelRounds,
     } = useOrderEngine();
-    // 📊 아침 카드는 오늘 잡은 콜이 0건일 때만 — 예약 보관 콜(내일)은 안 센다
+    // 📊 아침 카드는 오늘 잡은 콜 0건 · 진행 중 콜 0건일 때만 — 예약 보관 콜(내일)은 안 센다 · 밤샘 운행 중 자정에 안 뜬다
     const keptToday = keptTodayCount([...orders, ...terminatedOrders], Date.now());
     useMorningCardGoneLog(keptToday);
+    const showMorningCard = keptToday === 0 && runningCount(orders) === 0;
 
 
     // 서버가 진행/종료를 **나눠서** 보낸다 — 한 배열이면 받는 쪽마다 isTerminal 을
@@ -301,7 +302,7 @@ export default function Dashboard() {
                       * 🪧 **판정석은 시트 맨 아래다** (기사님 확정) — 그래서 이 슬롯은 **늘 필터**(한 줄 현황판)다.
                       *    둘이 같은 자리를 다투지 않는다.
                       */}
-                    {keptToday === 0 && <MorningCard />}
+                    {showMorningCard && <MorningCard />}
                     <OrderFilterStatus
                         onOpenFilter={() => setIsFilterOpen(o => !o)}
                         cancelCounts={cancelCounts} cancelRounds={cancelRounds} />
