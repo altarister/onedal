@@ -62,4 +62,27 @@ class ScreenWordsTest {
         val js = Regex("""export const isPlace = \(w\) => /(.+)/\.test\(w\)""").find(src)!!.groupValues[1]
         assertEquals(js, ScreenWords.PLACE.pattern)
     }
+
+    @Test fun `읽는 파서가 없는 화면은 화면 글자를 통째로 모은다 - 키만 · 값은 빼고`() {
+        ScreenWords.onScreen(Page.CONFIRM, listOf("톤수", "1톤", "결제방법 : 카드", "60,000", "한차배송 신청내역 보기",
+            "1시상차 6박스 카트가지고 고객님앞 갖다주세요"), "원문")
+        assertEquals(listOf("unknown" to "톤수", "unknown" to "1톤", "unknown" to "결제방법",
+            "unknown" to "한차배송 신청내역 보기", "unknown" to "<문장>"), words())
+    }
+
+    @Test fun `목록 파서가 읽은 화면은 통째로 모으지 않는다 - 파서가 까닭과 함께 넣는다`() {
+        ScreenWords.onScreen(Page.LIST, listOf("당상", "화물정보"), "원문")
+        ScreenWords.handled()
+        ScreenWords.add("당상", WordKind.NOISE)
+        assertEquals(listOf("noise" to "당상"), words())
+    }
+
+    @Test fun `화면 종류는 네 페이지 가운데 하나로 - 모르는 화면은 안 모은다`() {
+        assertEquals(Page.LIST, pageOf(com.onedal.app.models.ScreenContext.LIST))
+        assertEquals(Page.DETAIL, pageOf(com.onedal.app.models.ScreenContext.POPUP_MEMO))
+        assertEquals(Page.CONFIRM, pageOf(com.onedal.app.models.ScreenContext.RUN_TO_PICKUP))
+        assertEquals(Page.MY_ORDERS, pageOf(com.onedal.app.models.ScreenContext.MY_ORDERS))
+        assertNull(pageOf(com.onedal.app.models.ScreenContext.HOME))
+        assertNull(pageOf(com.onedal.app.models.ScreenContext.UNKNOWN))
+    }
 }

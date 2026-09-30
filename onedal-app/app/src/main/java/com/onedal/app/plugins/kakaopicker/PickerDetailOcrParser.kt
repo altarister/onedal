@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import com.onedal.app.core.OcrLine
 import com.onedal.app.core.ScreenOcrParser
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.core.ScreenWords
+import com.onedal.app.core.WordKind
 import com.onedal.app.models.withReservation
 
 /**
@@ -63,6 +65,9 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
         screenTexts: List<String>,
         rawScreenStr: String
     ): VerifyResult {
+        // 📰 사진에서 칸에 안 넣은 줄 — 상세 페이지의 «정의에 없음»으로 모은다 (reviews/24 · `ScreenWords`)
+        val photoSample = parsed.unreadLines.joinToString(" ")
+        parsed.unreadLines.forEach { ScreenWords.add(it, WordKind.UNKNOWN, photoSample) }
         if (alarmTappedCard != null) {
             val verifiedOrder = alarmTappedCard.copy(
                 pickup = fullAddress(parsed.pickup),
