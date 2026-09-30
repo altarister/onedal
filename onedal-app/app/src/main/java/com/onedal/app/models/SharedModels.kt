@@ -350,7 +350,14 @@ data class ScrapResponse(
     val foldAfter: FoldAfter? = null,
 )
 
-data class FoldAfter(val orderId: String, val remainSec: Int)
+/**
+ * ⏩ 서버 빨리 접기 — remainSec 는 서버 시계로 잰 남은 초, 0.1초 단위 소수(scrap.ts · 9.7)다.
+ * 🔴 정수 칸으로 받으면 Gson 이 목록 보고 응답 전체를 버린다(라이브 10-01 00:49:53 «Expected an int but was 1.3»).
+ */
+data class FoldAfter(val orderId: String, val remainSec: Double) {
+    /** 앱이 쓰는 남은 초 — 올림(막대가 끝나기 전에 접지 않는다) */
+    fun remainWholeSec(): Int = kotlin.math.ceil(remainSec).toInt().coerceAtLeast(0)
+}
 
 data class DecisionPayload(
     val orderId: String,

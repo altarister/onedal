@@ -30,7 +30,7 @@ class DetailFoldTest {
     @Test fun `목록 보고 응답 맨 위 foldAfter 를 읽는다`() {
         val r = com.google.gson.Gson().fromJson("""{"success":true,"foldAfter":{"orderId":"o1","remainSec":7}}""", ScrapResponse::class.java)
         assertEquals("o1", r.foldAfter?.orderId)
-        assertEquals(7, r.foldAfter?.remainSec)
+        assertEquals(7, r.foldAfter?.remainWholeSec())
     }
 
     @Test fun `confirm 에 openedByApp · 뒤로 가기 직전 같은 콜인지 다시 본다`() {
@@ -55,5 +55,16 @@ class DetailFoldTest {
         assertEquals("원래 마감이 더 이름", DetailFold.whyNot(now + 5_000L, now, 10, true, true, true))
         assertNull(DetailFold.whyNot(thirty, now, 10, true, true, true))
         assertTrue(File("src/main/java/com/onedal/app/HijackService.kt").readText().contains("⏩ [foldAfter 받음]"))
+    }
+
+    /**
+     * 🔴 **서버는 남은 초를 0.1초 단위 소수로 보낸다**(scrap.ts · 9.7) — 정수 칸으로 받으면 목록 보고 응답 전체가 버려진다.
+     * 라이브 10-01 00:49:53 «Expected an int but was 1.3 … path $.foldAfter.remainSec» — 빨리 접기 동안 결재·필터·심사 중 값을 모두 잃었다.
+     */
+    @Test fun `남은 초 소수도 읽는다 · 올림해 정수 초로`() {
+        val r = com.google.gson.Gson().fromJson("""{"success":true,"foldAfter":{"orderId":"o1","remainSec":9.7}}""", ScrapResponse::class.java)
+        assertEquals(9.7, r.foldAfter!!.remainSec, 0.0001)
+        assertEquals(10, r.foldAfter!!.remainWholeSec())
+        assertEquals(0, com.onedal.app.models.FoldAfter("o", 0.0).remainWholeSec())
     }
 }
