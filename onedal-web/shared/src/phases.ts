@@ -254,6 +254,15 @@ export function heldRadiusDistanceKm(held: number | null | undefined, measuredKm
 }
 
 /**
+ * 📅 **내일 콜의 상차 반경 — 줄이지 않은 기본 상차 반경** (기사님 «가»).
+ *    오늘 자동 반경(`effectiveRadii`)을 거치지 않는다 — 자동 반경은 오늘 첫짐 이야기이고, 내일 콜은 내일 집에서 떠난다.
+ *    서버 판정(내일 콜 기점 집)과 앱 알람 필터(`reservedPickupRadiusKm`)가 이 한 함수에서 받는다. 비면 모름(null).
+ */
+export function reservedPickupRadiusKmOf(base: { pickupRadiusKm?: number | null } | null | undefined): number | null {
+    return base?.pickupRadiusKm ?? null;
+}
+
+/**
  * 📐 **지금 실제로 쓰이는 반경 넷** — 자동이면 줄인 값, 수동이면 기사님 값.
  *
  * 🔴 **여기가 유일한 곳이다** (규칙 ③). 필터 화면·무대 지도·서버가 **전부** 이것을 부른다.

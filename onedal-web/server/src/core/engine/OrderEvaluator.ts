@@ -1,7 +1,7 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
          deriveRouteTimeline, minRouteBuffer, marginalDetourMin, tailSplitOf,
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
-         soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf } from "@onedal/shared";
+         soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress } from '@onedal/shared';
@@ -83,7 +83,7 @@ export function evaluationInputsOf(userId: string, session: ReturnType<typeof ge
      * 🔙 등 뒤 상차의 여유(상차 반경) — 내일 콜은 **내일의 반경**(기본 설정 값). 오늘 자동 반경으로 줄인 값으로 재면 내일 콜을 등 뒤로 깎는다.
      *    기본 값이 비면 오늘 반경으로 물러서지 않고 «모름»(null) — 깎지 않는다.
      */
-    const pickupRadiusNow = (): number | null => reservedLater ? (session.baseFilter.pickupRadiusKm ?? null) : session.activeFilter.pickupRadiusKm;
+    const pickupRadiusNow = (): number | null => reservedLater ? reservedPickupRadiusKmOf(session.baseFilter) : session.activeFilter.pickupRadiusKm;
     return { reservedLater, originNow, activeCallsNow, goalNow, pickupRadiusNow };
 }
 

@@ -8,6 +8,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
          sidoList, sggList, dongList, excludedLabel,
          resolvePhaseKey, effectiveRadii, radiusScaleOf,
          VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
+import { radiusScaleNoteOf } from '../../lib/radiusNote';
 import type { PhaseKey, FlatValueKey, CallTarget, ReservationMode } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
@@ -249,15 +250,7 @@ export default function OrderFilterModal({ isOpen, onClose,
      * 화면이 아무 말도 안 해 «안 먹는다»로 보였다. 규칙은 그대로, **까닭만 보인다** — 숫자는 전부
      * 이미 있는 값(`radiusDistanceKm` · `radiusBaseKm` · `radiusScaleOf`)에서 온다.
      */
-    const radiusScaleNote = (() => {
-        const d = filter?.radiusDistanceKm;
-        const b = filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT;
-        if (!Number.isFinite(d as number)) return '거리를 못 재서 배율 ×1.0 — 반경은 원값 그대로입니다';
-        const dKm = Math.round((d as number) * 10) / 10;
-        const s = radiusScaleOf(d, b);
-        if (s >= 1) return `목적지가 ${dKm}km 라 기준거리 ${b}km 로는 안 줄어듭니다 — ${dKm}km 위로 올려야 줄어듭니다`;
-        return `목적지(${dKm}km)가 기준거리 ${b}km 보다 가까워 반경 넷을 ×${Math.round(s * 100) / 100} 로 줄였습니다`;
-    })();
+    const radiusScaleNote = radiusScaleNoteOf(filter, baseFilter);   // 📅 내일 콜 반경까지 (lib/radiusNote)
 
     /**
      * 🚚 **기사님이 «받겠다»고 고른 차종**.

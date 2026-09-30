@@ -234,10 +234,9 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
     it('🔴 배율이 1.0 인 까닭을 화면이 말한다 — 기준거리를 밀어도 반경이 안 움직이는 때', () => {
         const i = modal.indexOf("title=\"📐 얼마나 넓게\"");
         expect(i).toBeGreaterThan(-1);
-        /* 정의는 배율 값(`shownRadii`) 옆 — 제목보다 위다. 세 문장 다 거기서 만든다 */
-        const def = modal.indexOf('const radiusScaleNote = ');
-        expect(def).toBeGreaterThan(-1);
-        const defBody = modal.slice(def, def + 1200);
+        /* 필터 화면은 설명 한 줄을 lib/radiusNote.ts 의 radiusScaleNoteOf 에서 받는다 — 세 문장은 거기서 만든다(글자가 사는 파일을 읽는다) */
+        expect(modal).toMatch(/const radiusScaleNote = radiusScaleNoteOf\(filter, baseFilter\)/);
+        const defBody = readFileSync(join(__dirname, '../../../client-app/src/lib/radiusNote.ts'), 'utf8');
         expect(defBody).toMatch(/radiusScaleOf\(d, b\)/);
         expect(defBody).toMatch(/안 줄어듭니다/);
         expect(defBody).toMatch(/위로 올려야 줄어듭니다/);

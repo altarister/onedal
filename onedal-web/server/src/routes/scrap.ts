@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS, effectiveRadii } from "@onedal/shared";
+import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS, effectiveRadii, reservedPickupRadiusKmOf } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
 import { capacityFullHold, filterVersionOf, reportSourceOf, releaseEvaluatingDevices } from "../core/helpers";
@@ -269,6 +269,9 @@ router.post("/", (req, res) => {
             const eff = effectiveRadii(session.activeFilter);
             appFilter.pickupRadiusKm = eff.pickupRadiusKm;
             appFilter.destinationRadiusKm = eff.destinationRadiusKm;
+            /* 📅 내일 콜은 줄이지 않은 기본 상차 반경 — 서버 판정과 같은 함수 · 비면 칸이 없다(앱은 pickupRadiusKm) */
+            const reservedR = reservedPickupRadiusKmOf(session.baseFilter);
+            if (reservedR != null) appFilter.reservedPickupRadiusKm = reservedR;
         }
         /* 🎯 앱은 «어디로 가나» 하나만 안다 — 복귀면 집 시가 간다 (조사 ①-1 · 파생 `goalCity`) */
         if (session.activeFilter.goalCity) appFilter.destinationCity = session.activeFilter.goalCity;
