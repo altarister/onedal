@@ -2149,3 +2149,4 @@ export function safeCancelSecOf(w: WaitTimes, targetApp: string | null | undefin
     return app === 'hwamul24' ? w.safeCancelSecHwamul24 : w.safeCancelSecInsung;
 }
 export * from './logTags';
+export * from './pageFields';

@@ -1,4 +1,5 @@
 import db from "../db";
+import { SCREEN_PAGES, WORD_KINDS, type ScreenPage, type WordKind, type ScreenWordsReport } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 
 /**
@@ -14,11 +15,6 @@ import { slog } from "../utils/fileLogger";
  * ⚠️ 아는 낱말의 횟수는 메모리에 모았다가 60초마다 쓴다 — 서버가 꺼지면 그 60초 치를 잃는다(대략이면 된다).
  */
 
-export const SCREEN_PAGES = ['list', 'detail', 'confirm', 'myorders'] as const;
-export type ScreenPage = typeof SCREEN_PAGES[number];
-/** 갈래 셋 — 원달앱 페이지 정의(WORD_KINDS)와 같은 낱말. shared 에 서면 그리로 옮긴다 */
-const WORD_KINDS = ['noise', 'unknown', 'extra'] as const;
-type WordKind = typeof WORD_KINDS[number];
 
 /** 한 낱말 길이 · 한 보고 낱말 수 · 예 한 줄 길이 — 쓰레기 보고가 표를 부풀리지 않게 */
 const WORD_MAX_LEN = 40;
@@ -28,15 +24,12 @@ const SAMPLE_MAX_LEN = 200;
 export const QUIET_MS = 24 * 3600_000;
 const FLUSH_MS = 60_000;
 
-/**
- * 앱이 싣는 모양 — `{ page, words: [{ word, kind, sample }] }`. 한 보고는 한 화면이라 page 는 한 번,
- * 예 한 줄은 **낱말마다** 따로 — 보고당 한 줄이면 그 보고의 새 낱말이 전부 같은 예를 갖는다. 공통 칸 이름이 shared 에 서면 그리로 옮긴다.
- */
-export interface ScreenWordsReport { page?: unknown; words?: unknown }
+/** 받는 글자는 믿지 않는다 — 모양(`ScreenWordsReport`)은 shared 한 곳이고, 칸마다 여기서 다시 본다 */
+type LooseReport = { [K in keyof ScreenWordsReport]?: unknown };
 type CleanWord = { kind: WordKind; word: string; sample: string | null };
 
 /** 보고 한 벌을 다듬는다 — 모르는 페이지면 null (지어낸 페이지로 표를 채우지 않는다 · 규칙 ④) · 모르는 갈래의 낱말은 뺀다 */
-export function wordsOf(report: ScreenWordsReport): { page: ScreenPage; words: CleanWord[] } | null {
+export function wordsOf(report: LooseReport): { page: ScreenPage; words: CleanWord[] } | null {
     const page = report?.page;
     if (typeof page !== 'string' || !(SCREEN_PAGES as readonly string[]).includes(page)) return null;
     const seen = new Set<string>();
@@ -96,7 +89,7 @@ const stmtUpsert = db.prepare(`
     ON CONFLICT (target_app, page, word, kind) DO UPDATE SET last_seen = excluded.last_seen, seen_count = seen_count + excluded.seen_count
 `);
 
-export function noteScreenWords(userId: string, targetApp: string, report: ScreenWordsReport, io?: any): void {
+export function noteScreenWords(userId: string, targetApp: string, report: LooseReport, io?: any): void {
     try {
         const r = wordsOf(report);
         if (!r || r.words.length === 0) return;

@@ -14,7 +14,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
 import { PluginFactory } from "../core/plugins/PluginFactory";
 import { slog } from "../utils/fileLogger";
-import { noteScreenWords, type ScreenWordsReport } from "../services/screenWords";
+import { noteScreenWords } from "../services/screenWords";
 
 /**
  * 🧭 **경로 순서 맵이 도착지를 얼마나 덮나 — 바뀔 때만 한 줄** (기사님 요청 «콘솔로그에 넣어서 너도 확인할 수 있도록»).
@@ -67,7 +67,7 @@ router.post("/", (req, res) => {
             return res.status(400).json({ error: "data 배열이 필요합니다" });
         }
         /** 🏷️ 실물 앱인가 시뮬레이터인가 — 보고 한 칸(한 보고 = 한 화면). 모르는 값·옛 앱은 null (규칙 ④) */
-        const body = req.body as { source?: unknown; screenWords?: ScreenWordsReport };
+        const body = req.body as { source?: unknown; screenWords?: Parameters<typeof noteScreenWords>[2] };
         const source = body.source === 'real' || body.source === 'sim' ? body.source : null;
 
         // 1. 기기 등록 여부 검증 (하드 락: 미등록 기기는 즉시 차단)

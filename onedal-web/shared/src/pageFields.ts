@@ -16,6 +16,15 @@ export type ScreenPage = typeof SCREEN_PAGES[number];
 export const WORD_KINDS = ['noise', 'unknown', 'extra'] as const;
 export type WordKind = typeof WORD_KINDS[number];
 
+/**
+ * 📰 원달앱이 보고 본문 한 칸 `screenWords` 로 싣는 모양 — 한 보고는 한 화면이라 page 는 한 번, 예 한 줄은 낱말마다.
+ * 서버 `services/screenWords.ts` 가 받아 `screen_words` 표에 센다.
+ */
+export interface ScreenWordsReport {
+    page: ScreenPage;
+    words: Array<{ word: string; kind: WordKind; sample?: string | null }>;
+}
+
 /** 칸 이름 — 세 배차망 공통. 새 칸은 여기와 원달앱 짝에 같이 더한다 */
 export const PAGE_FIELDS = [
     'pickup',            // 상차지

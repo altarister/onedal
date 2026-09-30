@@ -30,6 +30,12 @@ describe('📰 낱말 표', () => {
         expect(s).toContain('ON CONFLICT (target_app, page, word, kind) DO UPDATE SET last_seen = excluded.last_seen, seen_count = seen_count + excluded.seen_count');
     });
 
+    it('페이지·갈래 이름은 shared 한 벌을 쓴다 — 원달앱 짝(PageFieldPairTest)과 같은 낱말', () => {
+        const s = read('services/screenWords.ts');
+        expect(s).toMatch(/import \{ SCREEN_PAGES, WORD_KINDS[^}]*\} from "@onedal\/shared"/);
+        expect(s).not.toMatch(/const (SCREEN_PAGES|WORD_KINDS) = \[/);
+    });
+
     it('처음 본 낱말은 경고 한 줄과 관제웹 이벤트', () => {
         const s = read('services/screenWords.ts');
         expect(s).toContain('📰 [새 글자]');
