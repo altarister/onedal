@@ -439,8 +439,12 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /** 상세의 «픽업 7.2km» — 이 앞은 픽업지 칸, 뒤는 배송지 칸이다 */
         private val DETAIL_PICKUP_KM_REGEX = Regex("""픽업\s*[\d.]+\s*k?m""")
 
-        /** 지역 한 토막의 대조 열쇠 — «광주시»→«광주» · «중원구»→«중원» · «금광2동»→«금광» (리스트 줄임 표기와 만나게) */
-        private fun regionKey(s: String): String = normalizeRegion(s.trim().removeSuffix("시").removeSuffix("군"))
+        /**
+         * 지역 한 토막의 대조 열쇠 — «광주시»→«광주» · «중원구»→«중원» · «금광2동»→«금광» · «모현읍»→«모현» (리스트 줄임 표기와 만나게).
+         * 목록 줄 찾기 전용이다(필터는 `normalizeRegion` · `RegionMatch`). 읍·면을 안 떼면 사진 «모현읍» ↔ 목록 «처인 모현»이 안 만나 요금을 못 가져왔다(실물 09-30 16:03:36).
+         */
+        private fun regionKey(s: String): String =
+            normalizeRegion(s.trim().removeSuffix("시").removeSuffix("군").removeSuffix("읍").removeSuffix("면"))
 
         private fun regionKeys(text: String): Set<String> =
             text.split(Regex("""\s+""")).map(::regionKey).filter { it.isNotEmpty() }.toSet()

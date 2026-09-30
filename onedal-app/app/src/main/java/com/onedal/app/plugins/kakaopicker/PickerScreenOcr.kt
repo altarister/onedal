@@ -75,8 +75,8 @@ object PickerScreenOcr {
     private val SECTION_TITLES = listOf("물품 정보", "유의사항", "최종 수익", "배송비", "프로모션", "픽업 장소")
     private fun isSectionTitle(text: String) = SECTION_TITLES.any { text.startsWith(it) }
 
-    /** `내일 15:00` · `오늘 9:20` · `15:00` */
-    private val TIME_RE = Regex("^(오늘|내일|모레)?\\s*([0-9]{1,2}:[0-9]{2})$")
+    /** 🕘 정류장 시각 — «10:00» · «내일 15:00» · «10/03(토) 11:00»(며칠 뒤 예약 · 실물 09-30 16:03 — 못 알아보면 건물 이름 자리에 들어가 주소가 틀어진다) */
+    private val TIME_RE = Regex("^(오늘|내일|모레|[0-9]{1,2}/[0-9]{1,2}\\([월화수목금토일]\\))?\\s*([0-9]{1,2}:[0-9]{2})$")
 
     /**
      * `10:00까지 픽업` · `12:39까지 배송` — **오늘 콜**은 시각이 이 꼴로 온다 (A24 실측).
