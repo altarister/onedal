@@ -1,4 +1,4 @@
-import { businessDayKey } from "@onedal/shared";
+import { businessDayKey, isTerminal } from "@onedal/shared";
 import type { MyOrder } from "@onedal/shared";
 
 /**
@@ -27,6 +27,13 @@ export function reservedForOf(order: { reservedDay?: number | null; capturedAt?:
 
 /** 오늘 뒤의 날인가 — 문자열 날짜(YYYY-MM-DD)라 글자 비교가 곧 날 비교다 */
 export const isLaterThan = (reservedFor: string | null | undefined, today: string) => !!reservedFor && reservedFor > today;
+
+/**
+ * 보관 중인 콜인가 — 보관 날이 오늘 뒤이고 끝나지 않은 콜. 재시작 되살리기와 관제웹 콜 목록 문(`GET /orders`)이 같이 쓴다.
+ * 끝난 예약 콜(방출)은 버리는 문을 지나 오늘 «취소/방출»에 남는다 — 장부의 `reserved_for` 는 그대로라 상태까지 봐야 한다.
+ */
+export const isHeldReserved = (o: { reservedFor?: string | null; status?: string }, today: string) =>
+    isLaterThan(o.reservedFor, today) && !isTerminal(o.status);
 
 /** 나오는 문 — 보관 날이 오늘(또는 지난 날)이 된 콜을 진행 중 콜로 옮긴다. 옮긴 수를 돌려준다 */
 export function promoteDueReserved(session: { myOrders: MyOrder[]; reservedOrders: MyOrder[] }, today: string): number {

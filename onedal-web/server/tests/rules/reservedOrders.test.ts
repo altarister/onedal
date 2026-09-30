@@ -6,6 +6,8 @@ import { ensureBusinessDay } from '../../src/state/filterManager';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { buildOrderSync } from '../../src/core/helpers';
 import { businessDayKey, pickupClockMsOf } from '@onedal/shared';
+import { isHeldReserved } from '../../src/services/reservedOrders';
+import ordersRouter from '../../src/routes/orders';
 
 /**
  * 📅 **예약 보관 — 내일 콜은 오늘 하루에 넣지 않는다** (reviews/23 B-1·B-2 · 기사님 «가 가 가»).
@@ -157,5 +159,43 @@ describe('📅 관제웹 서랍의 «예약» 칸 (B-4)', () => {
         expect(drawer).toContain('⋯ 방출');
         expect(drawer).toContain("onDecision?.(c.id, 'ORDER_RELEASED_BY_ME')");
         expect(drawer).toMatch(/<details[\s\S]{0,400}⋯ 방출/);
+    });
+});
+
+describe('📅 보관 중인 콜 한 벌 — 관제웹 콜 목록 문과 재시작 되살리기 (04 리뷰 · 1f «가»)', () => {
+    it('🔴 보관 = 보관 날이 오늘 뒤 · 끝나지 않은 콜', () => {
+        expect(isHeldReserved({ reservedFor: keyAfter(1), status: 'ORDER_CONFIRMED' }, todayKey)).toBe(true);
+        expect(isHeldReserved({ reservedFor: keyAfter(1), status: 'ORDER_RELEASED_BY_ME' }, todayKey)).toBe(false);
+        expect(isHeldReserved({ reservedFor: todayKey, status: 'ORDER_CONFIRMED' }, todayKey)).toBe(false);
+        expect(isHeldReserved({ reservedFor: null, status: 'ORDER_CONFIRMED' }, todayKey)).toBe(false);
+    });
+
+    const insRow = db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, reserved, reservedDay, reservedAt, reserved_for)
+        VALUES (?, 'NEW_ORDER', ?, ?, ?, ?, '상', '하', 10000, 'insung', 1, 1, '09:00', ?)`);
+
+    it('🔴 관제웹 콜 목록 문(GET /orders)은 보관 중인 내일 콜을 안 주고, 취소한 내일 콜은 오늘 «취소/방출»로 준다', () => {
+        db.prepare(`DELETE FROM orders WHERE userId = ?`).run(U);
+        insRow.run(`${U}-g-held`, 'ORDER_CONFIRMED', U, todayAt(10), todayAt(10), keyAfter(1));
+        insRow.run(`${U}-g-canceled`, 'ORDER_RELEASED_BY_ME', U, todayAt(10), todayAt(10), keyAfter(1));
+        const layer = (ordersRouter as any).stack.find((l: any) => l.route?.path === '/' && l.route.methods.get);
+        const handler = layer.route.stack[layer.route.stack.length - 1].handle;
+        let body: any = null;
+        handler({ user: { id: U } }, { json: (b: any) => { body = b; }, status: () => ({ json: (b: any) => { body = b; } }) });
+        const ids = (body?.orders ?? []).map((o: any) => o.id);
+        expect(ids).not.toContain(`${U}-g-held`);
+        expect(ids).toContain(`${U}-g-canceled`);
+    });
+
+    it('🔴 재시작 되살리기는 취소한 내일 콜을 보관에 다시 넣지 않는다', async () => {
+        db.prepare(`DELETE FROM orders WHERE userId = ?`).run(U);
+        insRow.run(`${U}-r-held`, 'ORDER_CONFIRMED', U, todayAt(10), todayAt(10), keyAfter(1));
+        insRow.run(`${U}-r-canceled`, 'ORDER_RELEASED_BY_ME', U, todayAt(10), todayAt(10), keyAfter(1));
+        clearUserSession(U);
+
+        await restoreAndRecalculateSession(U, io);
+
+        const reserved = getUserSession(U).reservedOrders.map(c => c.id);
+        expect(reserved).toContain(`${U}-r-held`);
+        expect(reserved).not.toContain(`${U}-r-canceled`);
     });
 });

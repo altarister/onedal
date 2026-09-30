@@ -3,7 +3,7 @@ import { businessDayKey, restoreWhere, mapVehicleToKakaoCarType, getRemainingCap
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
          CALL_TARGET_LABEL, isEvaluating } from "@onedal/shared";
-import { reservedForOf, isLaterThan, takeReserved } from "./reservedOrders";
+import { reservedForOf, isLaterThan, isHeldReserved, takeReserved } from "./reservedOrders";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
@@ -1087,8 +1087,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
          *    새 날에 서버가 뜨면 세션이 오늘로 태어나 영업일 전환이 안 돈다 — 그래서 여기서도 가른다.
          */
         const today = businessDayKey(Date.now());
-        session.reservedOrders = allLoaded.filter(o => isLaterThan(o.reservedFor, today));
-        session.myOrders = allLoaded.filter(o => !isLaterThan(o.reservedFor, today));
+        session.reservedOrders = allLoaded.filter(o => isHeldReserved(o, today));
+        session.myOrders = allLoaded.filter(o => !isHeldReserved(o, today));
 
         // 카카오 궤적 복원 연산 시에는 진행 중인(취소/방출/완료가 아닌) 콜만 필터링하여 사용
         const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);

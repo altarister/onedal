@@ -14,12 +14,13 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
+import { businessDayKey, restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
 import { rememberOrder } from "../state/orderMemory";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
+import { isHeldReserved } from "../services/reservedOrders";
 import { getDeviceMode } from "./devices";
 import { parsePolyline, parseSectionEnds, parseSectionStops, parseSectionDriveMin } from "../services/routeComposer";
 import { updateActiveFilter } from "../state/filterManager";
@@ -55,7 +56,10 @@ router.get("/", requireAuth, (req, res) => {
                AND ${win.sql}
              ORDER BY timestamp ASC`
         );
-        const rows = stmt.all(userId, ...RESTORABLE_STATUSES, ...win.params);
+        /* 📅 보관 중인 내일 콜은 오늘 목록에 안 싣는다 — 소켓이 `reserved` 로 따로 싣는다 · 가름은 되살리기와 같은 한 벌 */
+        const today = businessDayKey(Date.now());
+        const rows = (stmt.all(userId, ...RESTORABLE_STATUSES, ...win.params) as any[])
+            .filter(r => !isHeldReserved({ reservedFor: r.reserved_for, status: r.status }, today));
 
         /**
          * 🗺️ **장부의 문자열을 좌표 배열로 되돌려 내보낸다** (실측 사고).
