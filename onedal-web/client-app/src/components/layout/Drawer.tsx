@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { deckOfCycle, type SecuredOrder } from '@onedal/shared';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAddressLabel } from '../../lib/routeUtils';
+import { reservedLineOf } from '../../lib/reservedLine';
+import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { callsInView, countsByView, FINISHED_TABS, type CallView } from '../../lib/finishedCalls';
 
 /**
@@ -34,6 +36,10 @@ type Props = {
     open: boolean;
     onClose: () => void;
     activeRoute: SecuredOrder[];
+    /** 📅 예약 보관 — 내일 이후 콜 (reviews/23 B-4). 오늘 탭 셋과 따로 머리 아래 칸 하나 */
+    reserved?: SecuredOrder[];
+    /** 예약 콜 방출 — 오늘 덱의 방출과 같은 결재 문 */
+    onDecision?: (orderId: string, status: 'ORDER_RELEASED_BY_ME') => void;
 };
 
 type FinishedTab = Exclude<CallView, 'ACTIVE' | 'ALL'>;
@@ -67,7 +73,7 @@ const whyOf = (c: SecuredOrder): string => {
     }
 };
 
-export default function Drawer({ open, onClose, activeRoute }: Props) {
+export default function Drawer({ open, onClose, activeRoute, reserved = [], onDecision }: Props) {
     const { theme, setTheme } = useTheme();
     const [tab, setTab] = useState<FinishedTab>('COMPLETED');
 
@@ -111,6 +117,36 @@ export default function Drawer({ open, onClose, activeRoute }: Props) {
                         ✕
                     </button>
                 </div>
+
+                {/**
+                  * 📅 **예약 — 내일 이후 콜** (reviews/23 B-4). 오늘 덱·시트·지도와 안 섞인다 — 그날이 되면 서버가 진행 중으로 올린다.
+                  *    한 줄은 «날 · 상차 시각 · 상차→하차 · 요금 · 색»(`reservedLineOf`). 🔴 0건이면 칸이 없다.
+                  *    «⋯ 방출» 은 한 번 펼친 뒤에 누른다 — 오늘 덱의 «⋯ 이 콜 처리»와 같은 두 단계(잘못 누름 막기).
+                  */}
+                {reserved.length > 0 && (
+                    <div className="border-b border-border-card">
+                        <div className="px-4 pt-2.5 pb-1 text-[11px] font-black text-info">📅 예약 {reserved.length}건</div>
+                        {reserved.map(c => {
+                            const line = reservedLineOf(c);
+                            return (
+                                <div key={c.id} className="px-4 py-2 border-t border-border-card/50">
+                                    <div className="text-[13px] font-bold text-text-primary tabular-nums truncate">{line.text}</div>
+                                    <details className="group">
+                                        <summary className="list-none cursor-pointer text-[10.5px] font-bold text-text-muted py-1 select-none">
+                                            <span className="group-open:hidden">⋯ 방출</span>
+                                            <span className="hidden group-open:inline">× 닫기</span>
+                                        </summary>
+                                        <button type="button"
+                                            onClick={() => { logRoadmapEvent('결재', '웹', `서랍 예약 칸 — 방출 (${c.id.slice(-6)})`); onDecision?.(c.id, 'ORDER_RELEASED_BY_ME'); }}
+                                            className="w-full py-2 rounded-md border border-warning/30 bg-warning/10 text-[12px] font-bold text-warning">
+                                            🙋‍♂️ 예약 방출 — 되돌릴 수 없습니다
+                                        </button>
+                                    </details>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* 탭 셋 — 기사님 «예전처럼 탭 셋으로» */}
                 <div className="flex border-b border-border-card">

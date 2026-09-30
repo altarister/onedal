@@ -102,6 +102,9 @@ export function verdictOf(order: Judged): Verdict {
 }
 
 /** 색 → 버튼 칠. 색과 칠을 한 곳에서 짝지어 둔다 (두 벌이 되지 않게 · 규칙 ③) */
+/** 🎨 색을 한 글자로 — 먼발치에서 읽히는 줄(서랍 «예약» 등)이 쓴다. 서버 로그의 동그라미와 같은 짝 */
+export const VERDICT_DOT: Record<VerdictColor, string> = { 꿀: '🔵', 보통: '🟢', 똥: '🟡', 사고: '🔴' };
+
 export const BUTTON_BG: Record<VerdictColor | '없음', string> = {
     '꿀': 'bg-info hover:bg-info/80 shadow-[0_0_15px_var(--theme-glow-primary)]',
     '보통': 'bg-success hover:bg-success/80',

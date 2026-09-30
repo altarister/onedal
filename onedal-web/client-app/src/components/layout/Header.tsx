@@ -11,9 +11,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 
 
-export default function Header({ isConnected, liveCalls, onMenu }: {
+export default function Header({ isConnected, liveCalls, onMenu, reservedCount }: {
     isConnected: boolean;
     liveCalls?: SecuredOrder[];
+    /** 📅 예약 보관 수 — 0 이면 아무것도 안 그린다. 누르면 서랍(«📅 예약» 칸)이 열린다 (reviews/23 B-4) */
+    reservedCount?: number;
     /** ☰ 를 누르면 왼쪽 서랍이 열린다 — 안 주면 버튼을 안 그린다(로그인 등 서랍 없는 화면) */
     onMenu?: () => void;
 }) {
@@ -66,6 +68,13 @@ export default function Header({ isConnected, liveCalls, onMenu }: {
                                 className="shrink-0 w-9 h-9 -ml-1 flex items-center justify-center rounded-lg
                                            text-text-primary focus:outline-none active:scale-95 transition-transform">
                                 <span className="text-xl leading-none">☰</span>
+                            </button>
+                        )}
+                        {/* 📅 예약 보관 수 — 내일 콜이 있을 때만. 운전 중 볼 일은 아니라 숫자만 둔다 */}
+                        {!!reservedCount && (
+                            <button onClick={onMenu} aria-label={`예약 ${reservedCount}건 — 서랍 열기`}
+                                className="shrink-0 px-1.5 h-7 rounded-md border border-info/40 bg-info/10 text-[11px] font-black text-info tabular-nums">
+                                📅 {reservedCount}
                             </button>
                         )}
                         {/* 🚚 로고 자리 = 내 차 상황 (기사님: "영역을 아끼자").

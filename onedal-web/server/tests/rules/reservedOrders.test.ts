@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import db from '../../src/db';
 import { handleDecision, restoreAndRecalculateSession } from '../../src/services/dispatchEngine';
 import { ensureBusinessDay } from '../../src/state/filterManager';
@@ -132,5 +134,28 @@ describe('📅 상차 시계 — 예약 날·시각으로 날짜를 만든다 (B
     });
     it('예약이 없으면 지금처럼 — 잡은 시각 + 잠정', () => {
         expect(pickupClockMsOf({} as any, captured, 20)).toBe(captured + 20 * 60_000);
+    });
+});
+
+describe('📅 관제웹 서랍의 «예약» 칸 (B-4)', () => {
+    const client = (p: string) => readFileSync(join(__dirname, '../../../client-app/src', p), 'utf8');
+
+    it('sync 의 reserved 를 받아 서랍과 머리줄로 — 오늘 덱·시트·지도에는 안 넘긴다', () => {
+        expect(client('hooks/useOrderEngine.ts')).toContain('setReservedOrders(payload.reserved ?? []);');
+        const dash = client('pages/Dashboard.tsx');
+        expect(dash).toMatch(/<Drawer [^\n]*reserved=\{reservedOrders\}/);
+        expect(dash).toMatch(/<Header [^\n]*reservedCount=\{reservedOrders\.length\}/);
+    });
+
+    it('🔴 0건이면 칸도 숫자도 안 보인다', () => {
+        expect(client('components/layout/Drawer.tsx')).toContain('{reserved.length > 0 && (');
+        expect(client('components/layout/Header.tsx')).toContain('{!!reservedCount && (');
+    });
+
+    it('«⋯ 방출» 은 한 번 펼친 뒤에 누른다 — 오늘 덱의 방출과 같은 두 단계', () => {
+        const drawer = client('components/layout/Drawer.tsx');
+        expect(drawer).toContain('⋯ 방출');
+        expect(drawer).toContain("onDecision?.(c.id, 'ORDER_RELEASED_BY_ME')");
+        expect(drawer).toMatch(/<details[\s\S]{0,400}⋯ 방출/);
     });
 });

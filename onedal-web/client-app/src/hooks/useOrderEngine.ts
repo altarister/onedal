@@ -34,6 +34,8 @@ export function useOrderEngine() {
      * 관제탑의 완료/취소 탭 표시용 — 적재·경로 계산에는 절대 쓰지 않는다.
      */
     const [terminatedOrders, setTerminatedOrders] = useState<SecuredOrder[]>([]);
+    /** 📅 예약 보관 — 내일 이후 콜. 오늘 목록과 안 섞는다 — 서랍 «예약» 칸만 그린다 (reviews/23 B-4) */
+    const [reservedOrders, setReservedOrders] = useState<SecuredOrder[]>([]);
     /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의) */
     const [routeStops, setRouteStops] = useState<RouteStopInfo[]>([]);
     const [routeComputedAt, setRouteComputedAt] = useState<string | null>(null);
@@ -293,6 +295,7 @@ export function useOrderEngine() {
              * 자동 치유는 그대로다 — 소켓이 새로 붙으면 서버가 무조건 한 번 보낸다.
              */
             setTerminatedOrders(payload.terminated || []);
+            setReservedOrders(payload.reserved ?? []);
             // 옛 서버는 이 필드가 없다 → 빈 배열 (화면은 번호 없이 콜만 그린다)
             setRouteStops(payload.routeStops ?? []);
             setRouteComputedAt(payload.routeComputedAt ?? null);
@@ -380,6 +383,7 @@ export function useOrderEngine() {
         mergeCalls,
         liveCalls,
         terminatedOrders,
+        reservedOrders,
         handleDecision,
         handleRecalculate,
     };

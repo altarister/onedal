@@ -126,6 +126,7 @@ export default function Dashboard() {
         isConnected,
         liveCalls,
         terminatedOrders,
+        reservedOrders,
         handleDecision,
         handleRecalculate,
         routeStops,
@@ -250,10 +251,10 @@ export default function Dashboard() {
             onScroll={(e) => { e.currentTarget.scrollTop = 0; e.currentTarget.scrollLeft = 0; }}>
 
             {/* 📍 공통 헤더 컴포넌트 */}
-            <Header isConnected={isConnected} liveCalls={liveCalls} onMenu={() => setDrawerOpen(true)} />
+            <Header isConnected={isConnected} liveCalls={liveCalls} reservedCount={reservedOrders.length} onMenu={() => setDrawerOpen(true)} />
 
             {/* ☰ 왼쪽 서랍 — 생김새를 정한 자리는 `/mockup/drawer` 다 */}
-            <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} activeRoute={activeRoute} />
+            <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} activeRoute={activeRoute} reserved={reservedOrders} onDecision={handleDecision} />
 
             {/* 🛡️ 필터 바깥 터치 시 닫기 백드롭 (운행 중 흔들림에 의한 하단 카드/지도 고스트 클릭 방지 · 어둡지 않고 밝게 유지) */}
             {isFilterOpen && (
