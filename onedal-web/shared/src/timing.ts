@@ -566,6 +566,8 @@ export interface TimingOrderFields {
     itemDescription?: string;
     /** 📅 예약 날(0 오늘 · 1 내일 · N)·시각 «HH:MM» — 있으면 상차 시계가 이것으로 날짜를 만든다 (reviews/23 B-2) */
     reservedDay?: number | null;
+    /** 📅 앱이 목록을 읽은 시각 — `reservedDay` 를 센 바로 그 순간이라 예약 날의 기준이다 (없으면 잡은 시각) */
+    timestamp?: string;
     reservedAt?: string | null;
     detailMemo?: string;
     approachDurationMin?: number;
@@ -698,16 +700,18 @@ export function derivationInputsOf(cfg: {
  * 통화로 굳힌 약속은 호출부(declared)가 이긴다. 파생 한 곳 — 시딩과 타임라인이 같이 쓴다.
  */
 export function pickupClockMsOf(
-    order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo' | 'reservedDay' | 'reservedAt'>,
+    order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo' | 'reservedDay' | 'reservedAt' | 'timestamp'>,
     capturedMs: number, offsetMinutes: number,
 ): number {
     /**
-     * 📅 **예약이 먼저다** (reviews/23 B-2) — «잡은 날 + reservedDay 일»의 reservedAt 시각.
-     *    오늘 안의 «예약 18:30»(0일)도 여기서 맞는다. 적요 시각은 날을 모르니 예약이 없을 때만 쓴다.
+     * 📅 **예약이 먼저다** (reviews/23 B-2) — «목록 읽은 날 + reservedDay 일»의 reservedAt 시각.
+     *    날의 기준은 앱이 날수를 센 순간(`timestamp`)이다 — 목록 읽기와 상세 사이에 자정이 끼면 잡은 날로는 하루 밀린다.
+     *    없거나 못 읽으면 잡은 시각. 오늘 안의 «예약 18:30»(0일)도 여기서 맞는다. 적요 시각은 날을 모르니 예약이 없을 때만 쓴다.
      */
     const at = /^(\d{1,2}):(\d{2})$/.exec(order.reservedAt ?? '');
     if (at && order.reservedDay != null && order.reservedDay >= 0) {
-        const day = new Date(capturedMs + 9 * 3600_000 + order.reservedDay * 86_400_000).toISOString().slice(0, 10);
+        const countedMs = parseCapturedAt(order.timestamp, capturedMs) ?? capturedMs;
+        const day = new Date(countedMs + 9 * 3600_000 + order.reservedDay * 86_400_000).toISOString().slice(0, 10);
         const t = Date.parse(`${day}T${at[1].padStart(2, '0')}:${at[2]}:00+09:00`);
         if (Number.isFinite(t) && t >= capturedMs) return t;   // 과거 시각이면 무시 (적요 시각과 같은 규칙)
     }

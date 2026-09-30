@@ -5,6 +5,7 @@ import { handleDecision, restoreAndRecalculateSession } from '../../src/services
 import { ensureBusinessDay } from '../../src/state/filterManager';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { buildOrderSync } from '../../src/core/helpers';
+import { reservedForOf } from '../../src/services/reservedOrders';
 import { businessDayKey, pickupClockMsOf } from '@onedal/shared';
 
 /**
@@ -157,5 +158,25 @@ describe('📅 관제웹 서랍의 «예약» 칸 (B-4)', () => {
         expect(drawer).toContain('⋯ 방출');
         expect(drawer).toContain("onDecision?.(c.id, 'ORDER_RELEASED_BY_ME')");
         expect(drawer).toMatch(/<details[\s\S]{0,400}⋯ 방출/);
+    });
+});
+
+describe('📅 날수를 센 순간의 날로 — 목록 읽기와 상세 수신 사이에 자정이 껴도 (04 교차 검토)', () => {
+    // 목록을 23:59:50 에 읽어 «내일»(reservedDay 1)로 셌고, 서버는 00:00:10 에 받았다
+    const listAt = '2026-10-01T23:59:50+09:00';
+    const gotAt = '2026-10-02T00:00:10+09:00';
+
+    it('🔴 보관 날 = 목록 읽은 날 + 1 — 받은 날 + 1(모레)이 아니다', () => {
+        expect(reservedForOf({ reservedDay: 1, timestamp: listAt, capturedAt: gotAt })).toBe('2026-10-02');
+    });
+
+    it('🔴 상차 시계도 목록 읽은 날 기준 — 10/2 09:00', () => {
+        expect(pickupClockMsOf({ reservedDay: 1, reservedAt: '09:00', timestamp: listAt } as any, Date.parse(gotAt), 20))
+            .toBe(Date.parse('2026-10-02T09:00:00+09:00'));
+    });
+
+    it('목록 시각이 없거나 못 읽으면 지금처럼 잡은 시각', () => {
+        expect(reservedForOf({ reservedDay: 1, timestamp: 'bad', capturedAt: gotAt })).toBe('2026-10-03');
+        expect(reservedForOf({ reservedDay: 1, capturedAt: gotAt })).toBe('2026-10-03');
     });
 });
