@@ -109,7 +109,7 @@ class CallMemoryTest {
 
     @Test
     fun `기억이 넘치면 최근 것만 남긴다`() {
-        val memory = CallMemory(maxSize = 10, keepCount = 5)
+        val memory = CallMemory.sizedForTest(maxSize = 10, keepCount = 5)
         for (h in 1..11) memory.onScanned(h, wasEvaluated = true)
         assertEquals(5, memory.evaluatedCount)
         assertTrue(memory.alreadyEvaluated(11))
@@ -247,5 +247,19 @@ class CallMemoryTest {
         assertTrue(m.markReportedOnce(1))
         (2..1500).forEach { m.markReportedOnce(it) }
         assertFalse("1500개 안에서 첫 콜이 기억에서 밀려났다", m.markReportedOnce(1))
+    }
+
+    /**
+     * 🔢 **앱 코드는 기억 크기를 넘길 수 없다 — 크기 숫자는 CallMemory.kt 한 곳** (096a12ef 교훈).
+     * 기본값만 2000 으로 바꾸고 스캐너가 100 을 직접 넘겨 운행은 그대로 100 이었다 — 기본값을 보는 검사로는 못 잡는다.
+     * 그래서 공개 생성자에 인자가 없는지를 본다(검사는 `sizedForTest` 로만 작게 만든다).
+     */
+    @Test
+    fun `공개 생성자는 인자가 없다 - 앱 코드가 크기를 넘길 길이 없다`() {
+        // 컴파일러가 만든 합성 생성자(DefaultConstructorMarker)는 소스에서 부를 수 없어 뺀다
+        val ctors = CallMemory::class.java.constructors.filterNot { it.isSynthetic }
+        assertTrue("공개 생성자가 없다", ctors.isNotEmpty())
+        assertTrue(ctors.joinToString { it.parameterTypes.joinToString(prefix = "(", postfix = ")") { t -> t.simpleName } },
+            ctors.all { it.parameterCount == 0 })
     }
 }

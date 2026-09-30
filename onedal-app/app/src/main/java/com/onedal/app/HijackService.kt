@@ -80,8 +80,9 @@ class HijackService : AccessibilityService(), ScanContext {
          * `Z` 대신 `XXX` 를 쓰면 `+09:00` 이 붙어 어느 시간대에서 찍었는지가 값에 남는다.
          */
         private const val ISO_TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ssXXX"
-        private const val MAX_ORDER_HASH_CACHE = 100
-        private const val ORDER_HASH_KEEP_COUNT = 50
+        /** 📋 상세가 목록의 어느 줄인가를 찾으려고 들고 있는 최근 목록 콜 — 넘치면 뒤쪽만 남긴다 (같은 콜 기억 크기와 다른 것) */
+        private const val RECENT_LIST_ORDERS_MAX = 100
+        private const val RECENT_LIST_ORDERS_KEEP = 50
         private const val MAX_TEXT_NODE_HEIGHT_PX = 400
         internal const val FARE_RANGE_MIN = 10.0
         internal const val FARE_RANGE_MAX = 9999.0
@@ -136,7 +137,7 @@ class HijackService : AccessibilityService(), ScanContext {
     override val screenDetector = ScreenDetector()
     private var lastScreenFingerprint = 0
     // 👁️ «본 콜» 장부 — «평가했다»와 «보고했다»를 딴 그릇으로 (#79 · CallMemory 주석 참고)
-    private val callMemory = CallMemory(MAX_ORDER_HASH_CACHE, ORDER_HASH_KEEP_COUNT)
+    private val callMemory = CallMemory()   // 크기는 CallMemory.kt 한 곳
     override var currentTargetApp = "insung"
 
     override val effectiveMode: String
@@ -1193,8 +1194,8 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager.filterTally = tally
 
         // 메모리 관리 (지문 장부는 CallMemory 가 스스로 자른다)
-        if (recentListOrders.size > MAX_ORDER_HASH_CACHE) {
-            val keepers = recentListOrders.takeLast(ORDER_HASH_KEEP_COUNT)
+        if (recentListOrders.size > RECENT_LIST_ORDERS_MAX) {
+            val keepers = recentListOrders.takeLast(RECENT_LIST_ORDERS_KEEP)
             recentListOrders.clear()
             recentListOrders.addAll(keepers)
         }

@@ -21,12 +21,22 @@ package com.onedal.app.core
  *
  * 크기는 넉넉히 — 픽커 목록은 반경 안 콜이 많고 스크롤·새로고침으로 순서가 돌아, 작으면 같은 콜이 밀려났다가 다시 보고된다.
  * 지문은 정수라 2000개도 가볍다 (`CallMemoryTest` «1500개를 돌아도»).
+ * 🔴 **크기 숫자는 여기 한 곳** — 공개 생성자에 인자가 없어 앱 코드가 크기를 넘길 수 없다(`CallMemoryTest` 가 문다).
+ * 오래 남는 기억은 영업일이 바뀔 때 서버가 회차를 올려 비운다(`onRound`) — 매일 같은 노선·요금의 정기 콜을 «이미 본 콜»로 넘기지 않게.
  */
-class CallMemory(
-    private val maxSize: Int = 2000,
-    private val keepCount: Int = 1000,
+class CallMemory private constructor(
+    private val maxSize: Int,
+    private val keepCount: Int,
 ) {
+    constructor() : this(MAX_SIZE, KEEP_COUNT)
+
     companion object {
+        private const val MAX_SIZE = 2000
+        private const val KEEP_COUNT = 1000
+
+        /** 🧪 검사에서만 — 작은 기억으로 밀려나기를 본다 */
+        internal fun sizedForTest(maxSize: Int, keepCount: Int) = CallMemory(maxSize, keepCount)
+
         /**
          * 🧮 **콜 지문 — 상차 + 하차 + 요금. 지문 식은 여기 한 곳이다** (`FingerprintOnePlaceTest`).
          * 🔴 **목록에서 읽은 콜만 넘긴다.** 상세 글자로 덮인 콜(픽커는 사진을 읽으면 주소가 길어진다)을 넘기면
@@ -53,7 +63,8 @@ class CallMemory(
     private var lastRound: Int? = null
 
     /**
-     * 🧹 **서버 회차 — 바뀌면 기억을 비운다** (서버 `routes/sim.ts` 의 `callMemoryRoundForPhone`).
+     * 🧹 **서버 회차 — 바뀌면 기억을 비운다** (서버 `services/callMemoryRound.ts` 의 `callMemoryRoundOf` — 한국 영업일 번호 + 시뮬 회차).
+     * 영업일이 바뀌면 번호가 바뀌어 비운다 — 매일 같은 정기 콜을 다음 날 다시 본다 (기사님 «가»).
      *
      * 시뮬레이터 시나리오를 다시 시작하면 서버가 이전 콜을 리셋하고 회차를 올린다. 같은 콜이 다시 뜨는데
      * 지문(상차 동 + 하차 동 + 요금)이 같아 «이미 본 콜»로 판정 없이 삼켰다.
