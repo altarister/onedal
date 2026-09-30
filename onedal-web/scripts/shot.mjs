@@ -22,6 +22,7 @@
  *   node scripts/shot.mjs '/mockup/sheet?step=12' /tmp/a.png
  *   node scripts/shot.mjs '/' /tmp/b.png          ← 실물 (로그인 우회)
  *   WIDTH=393 HEIGHT=852 node scripts/shot.mjs …  ← 폰 크기를 바꿔 본다
+ *   THEME=light node scripts/shot.mjs …           ← 밝은 테마로 찍는다 (기본은 어둡게)
  */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -122,6 +123,13 @@ try {
      */
     await send('Runtime.evaluate', {
         expression: `localStorage.setItem('stagePreview', ${JSON.stringify(process.env.STAGE ?? '1')})`,
+    });
+    /* 🌓 `THEME=light|dark` — 테마 한 칸(`onedal-ui-theme`)을 심는다. 없으면 지워서 관제웹 기본(어둡게) —
+       🔴 크롬 프로필이 지난 실행의 값을 들고 있어, 안 지우면 «어둡게»를 찍는다며 밝게 찍는다 */
+    await send('Runtime.evaluate', {
+        expression: process.env.THEME
+            ? `localStorage.setItem('onedal-ui-theme', ${JSON.stringify(process.env.THEME)})`
+            : `localStorage.removeItem('onedal-ui-theme')`,
     });
 
     await send('Page.navigate', { url: `${WEB}${PATHNAME}` });
