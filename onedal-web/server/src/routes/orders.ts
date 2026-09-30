@@ -32,6 +32,7 @@ import { dbQueue } from "../utils/dbQueue";
 import { slog } from "../utils/fileLogger";
 import { reportSourceOf } from "../core/helpers";
 import { ownsOrder, ownedByOther } from "../core/orderOwner";
+import { authDevice, deviceTokenOf } from "../core/deviceAuth";
 
 const router = Router();
 
@@ -104,15 +105,10 @@ router.post("/confirm", (req, res) => {
             return res.status(400).json({ error: "이 엔드포인트는 step=BASIC 전용입니다. 상세 보고는 POST /api/orders/detail 을 사용하세요." });
         }
 
-        // [하드 락] 미등록 기기 차단
-        if (!payload.deviceId) {
-            return res.status(401).json({ error: "MISSING_DEVICE_ID" });
-        }
-        const deviceRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
-        if (!deviceRow) {
-            return res.status(401).json({ error: "UNREGISTERED_DEVICE", message: "미등록 기기입니다. PIN 연동을 먼저 진행해주세요." });
-        }
-        const userId = deviceRow.user_id;
+        // 🔑 [하드 락] 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth · reviews/29 1단계 D·E)
+        const auth = authDevice(payload.deviceId, deviceTokenOf(req));
+        if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+        const userId = auth.userId;
         /* 👥 남의 콜 id 로 온 선점 보고는 받지 않는다 (reviews/29 기준 1) */
         if (ownedByOther(userId, payload.order?.id)) {
             slog('통신', `🚫 [남의 콜] /confirm ${payload.order?.id} — 이 폰의 기사 콜이 아니다`);
@@ -134,7 +130,7 @@ router.post("/confirm", (req, res) => {
             dbQueue.runAsync(
                 "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText, rawDetailText, reserved, reservedDay, reservedAt, source) " +
                 "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                userId === "ADMIN_USER" ? null : userId,
+                userId,
                 payload.deviceId,
                 "PICKER_DETAIL",          // 리스트 훑기(INTEL_BULK)와 갈라 둔다
                 payload.order.pickup ?? "",
@@ -297,15 +293,10 @@ router.post("/decision", async (req, res) => {
         const io = req.app.get("io");
         slog('결재', `⚖️ [REST Decision 수신] ID: ${payload.orderId}, Action: ${payload.action} (앱에서 직통)`);
 
-        // [하드 락] 미등록 기기 차단
-        if (!payload.deviceId) {
-            return res.status(401).json({ error: "MISSING_DEVICE_ID" });
-        }
-        const deviceRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
-        if (!deviceRow) {
-            return res.status(401).json({ error: "UNREGISTERED_DEVICE", message: "미등록 기기입니다. PIN 연동을 먼저 진행해주세요." });
-        }
-        const userId = deviceRow.user_id;
+        // 🔑 [하드 락] 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth · reviews/29 1단계 D·E)
+        const auth = authDevice(payload.deviceId, deviceTokenOf(req));
+        if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+        const userId = auth.userId;
         /* 👥 내 콜에만 결재한다 (reviews/29 기준 1) */
         if (!ownsOrder(userId, payload.orderId)) {
             slog('결재', `🚫 [남의 콜] /decision ${payload.orderId} — 이 폰의 기사 콜이 아니다`);

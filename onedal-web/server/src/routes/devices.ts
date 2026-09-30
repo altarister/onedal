@@ -8,6 +8,8 @@ import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { updateActiveFilter } from "../state/filterManager";
 import { slog } from "../utils/fileLogger";
+import { authDevice, deviceTokenOf, newDeviceToken } from "../core/deviceAuth";
+import { DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from "@onedal/shared";
 import { armWait } from "../state/waits";
 
 const router = Router();
@@ -402,7 +404,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
      *    카드를 여는 순간 폰이 아직 안 그려진 옛 목록 화면을 한 번 더 보내거나(시뮬레이터 22:15),
      *    «알 수 없는 화면»이 잠깐 끼면(실제 픽커 9/02) 방금 연 콜을 치웠다. 상세를 봤나는 `markDetailSeen` 한 곳이 적는다.
      */
-    markDetailSeen(deviceId, screenContext, prevScreen);
+    markDetailSeen(userId, deviceId, screenContext, prevScreen);
     /**
      * ⏳ **«알 수 없는 화면»이 이어진 시간을 잰다** — 상세든 목록이든 다른 화면이 오면 지운다.
      *    카드를 여는 순간 잠깐 끼는 것(0.05~0.18초)과 **앱 밖으로 나간 것**을 가르는 값이다 (`leftDetail`).
@@ -420,7 +422,6 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
      *    직접 잡은 콜은 서버가 버리지 않는다 (규칙 ①).
      */
     {
-        const userId = userOfDevice(deviceId);
         const userSession = getUserSession(userId);
         const stuckOrderId = userSession.deviceEvaluatingMap.get(deviceId);
         const stuck = stuckOrderId ? userSession.pendingOrdersData.get(stuckOrderId) as any : null;
@@ -440,12 +441,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         }
     }
     if (isListScreen(screenContext)) {
-        let userId = "ADMIN_USER";
-        if (deviceId) {
-            const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
-            if (row) userId = row.user_id;
-        }
-
+        /* 🔑 이 보고를 올린 폰의 기사 — 폰 문(authDevice)이 이미 정했다 · 가짜 기사로 받지 않는다 */
         const userSession = getUserSession(userId);
         const stuckOrderId = userSession.deviceEvaluatingMap.get(deviceId);
         if (stuckOrderId) {
@@ -504,10 +500,10 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     return session.mode;
 };
 
-/** 이 기기의 사용자 — `user_devices` 에 없으면 `ADMIN_USER` (목록 복귀 정리와 같은 규칙) */
-export function userOfDevice(deviceId: string): string {
+/** 이 기기의 사용자 — `user_devices` 에 없으면 null (연결 안 된 폰 · 가짜 기사로 받지 않는다 · reviews/29 1단계 E) */
+export function userOfDevice(deviceId: string): string | null {
     const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
-    return row?.user_id ?? "ADMIN_USER";
+    return row?.user_id ?? null;
 }
 
 /** 이 기기가 마지막으로 알린 화면 — 기기 세션이 없으면 undefined(모름) */
@@ -543,9 +539,9 @@ function leftDetail(session: DeviceSession): boolean {
  * 👁️ **심사 중인 콜의 상세를 봤나** (#154) — 콜이 생긴 뒤 상세 계열 보고가 왔거나, 생긴 뒤 첫 보고 때 직전 화면이 이미 상세였으면 본 것이다.
  * 한 번 본 콜은 계속 본 것이다. 목록 보고 때 치울지는 이 표시 하나로 가른다.
  */
-function markDetailSeen(deviceId: string, screenContext?: string, prevScreen?: string): void {
+function markDetailSeen(userId: string, deviceId: string, screenContext?: string, prevScreen?: string): void {
     if (!screenContext) return;
-    const userSession = getUserSession(userOfDevice(deviceId));
+    const userSession = getUserSession(userId);
     const id = userSession.deviceEvaluatingMap.get(deviceId);
     const o = id ? userSession.pendingOrdersData.get(id) as any : null;
     if (!o || o.detailSeen) return;
@@ -612,7 +608,7 @@ router.post("/pair", (req, res) => {
         // 1. PIN 유효성 검증 및 소비
         const userId = consumePin(pin);
         if (!userId) {
-            return res.status(401).json({ error: "PIN이 만료되었거나 유효하지 않습니다. 관제 웹에서 새 PIN을 발급받아주세요." });
+            return res.status(401).json({ error: DEVICE_LINK_ERRORS.PIN_INVALID, message: "PIN이 만료되었거나 유효하지 않습니다. 관제 웹에서 새 PIN을 발급받아주세요." });
         }
 
         // 2. 다른 사람 기기를 하이재킹하려는지 검증
@@ -630,6 +626,9 @@ router.post("/pair", (req, res) => {
             db.prepare("INSERT INTO user_devices (user_id, device_id, device_name) VALUES (?, ?, ?)").run(userId, deviceId, deviceName || null);
         }
         
+        /* 🔑 연결할 때마다 새 비밀 토큰 — DB 에는 sha256 만, 원문은 응답으로 한 번 (reviews/29 1단계 D) */
+        const { token, hash } = newDeviceToken();
+        db.prepare("UPDATE user_devices SET token_hash = ? WHERE device_id = ?").run(hash, deviceId);
         logRoadmapEvent('통신', "서버", "승인된 디바이스 정보 DB 저장");
 
         slog('통신', `📱 [기기 페어링 완료] User: ${userId} ← Device: ${deviceId} (${deviceName || "이름없음"})`);
@@ -649,7 +648,7 @@ router.post("/pair", (req, res) => {
             });
         }
 
-        res.json({ success: true, message: "기기 페어링이 완료되었습니다." });
+        res.json({ success: true, message: "기기 페어링이 완료되었습니다.", [PAIR_TOKEN_FIELD]: token });
     } catch (error: any) {
         console.error("기기 페어링 에러:", error);
         res.status(500).json({ error: "기기 페어링 중 오류가 발생했습니다." });
@@ -736,6 +735,8 @@ router.put("/:deviceId/name", requireAuth, (req, res) => {
 router.post("/:deviceId/offline", (req, res) => {
     try {
         const deviceId = req.params.deviceId as string;
+        const auth = authDevice(deviceId, deviceTokenOf(req));
+        if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
         const session = activeDevices.get(deviceId);
         if (session) {
             // 메모리 세션을 즉시 OFFLINE 처리.
@@ -753,7 +754,7 @@ router.post("/:deviceId/offline", (req, res) => {
             const why = session.offlineReason ? DEVICE_OFFLINE_LABEL[session.offlineReason] : "까닭 모름";
             slog('통신', `📵 [즉각 오프라인 마킹] 기기(${deviceId})가 자체 보고를 통해 오프라인 전환 완료 — ${why}`);
             /* 🛟 끊긴 폰은 «목록으로 돌아왔다»를 못 보낸다 — 열어 둔 미리보기를 지금 치운다 (#155 · 보고 없이 끊기면 생존신고 감시가 치운다) */
-            cleanPreviewOfDevice(userOfDevice(deviceId), deviceId, req.app.get("io"), "폰 끊김");
+            cleanPreviewOfDevice(auth.userId, deviceId, req.app.get("io"), "폰 끊김");
         }
         res.json({ success: true });
     } catch (error) {
@@ -898,7 +899,8 @@ export const getActiveDevicesSnapshot = (io?: any): DeviceSession[] => {
              *    «오프라인이 된다»도 영영 안 온다. 이 길이 없으면 심사석을 치울 사람이 아무도 없다.
              *    🔴 넘어가는 순간 한 번만 — 매 스냅샷마다 부르면 이미 치운 콜을 계속 찾는다.
              */
-            if (wasOnline) cleanPreviewOfDevice(userOfDevice(session.deviceId), session.deviceId, io, "통신 두절");
+            const owner = wasOnline ? userOfDevice(session.deviceId) : null;
+            if (owner) cleanPreviewOfDevice(owner, session.deviceId, io, "통신 두절");
         }
 
         result.push(session);

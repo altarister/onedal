@@ -31,6 +31,7 @@ import { updateActiveFilter } from "../state/filterManager";
 import db from "../db";
 import { countCancel } from "../core/cancelCount";
 import { slog } from "../utils/fileLogger";
+import { authDevice, deviceTokenOf } from "../core/deviceAuth";
 
 const router = Router();
 
@@ -46,11 +47,10 @@ router.post("/", async (req, res) => {
         slog('경고', `   화면: ${screenContext}`);
         slog('경고', `   텍스트: ${screenText?.substring(0, 100)}...`);
 
-        let userId = "ADMIN_USER";
-        if (deviceId) {
-            const deviceRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
-            if (deviceRow) userId = deviceRow.user_id;
-        }
+        /* 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 가짜 기사로 받지 않는다 (core/deviceAuth · reviews/29 1단계 D·E) */
+        const auth = authDevice(deviceId, deviceTokenOf(req));
+        if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+        const userId = auth.userId;
         
         const session = getUserSession(userId);
 

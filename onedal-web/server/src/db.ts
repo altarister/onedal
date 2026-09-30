@@ -130,6 +130,16 @@ db.exec(`
  */
 ensureColumns('user_devices', { mode: `TEXT` });
 
+/**
+ * 🔑 **`user_devices.token_hash` — 폰 비밀 토큰의 sha256** (README ⑤-4 다섯 · reviews/29 1단계 D · 기사님 «가»)
+ *    ① 스키마: 이 표 `token_hash TEXT` — 칸이 없는 DB 는 ensureColumns 가 NULL 로 붙인다. 옛 폰은 NULL(옛 앱 · 이번 단계는 통과).
+ *    ② 값: 폰을 연결할 때 서버가 만든 32바이트 난수의 sha256. 원문은 폰(원달앱)에만 있다.
+ *    ③ 시점: 연결 성공 때 쓰고(`POST /api/devices/pair`) · 폰 요청마다 읽는다(헤더 `X-Device-Token`).
+ *    ④ 화면: 없다 — 기사님이 고치지 않는다. 폰 연결 끊기가 행째 지운다.
+ *    ⑤ 읽는 곳: `core/deviceAuth.ts` 의 `authDevice` 하나.
+ */
+ensureColumns('user_devices', { token_hash: `TEXT` });
+
 
 // user_devices: 하나의 물리 기기(UUID)는 오직 한 명의 기사 계정에만 귀속되도록 강제
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_device_id_unique ON user_devices(device_id)`);

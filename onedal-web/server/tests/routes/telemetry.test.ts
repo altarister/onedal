@@ -42,6 +42,9 @@ describe("📸 이상 징후(telemetry) 라우트 및 DB 저장 검증", () => {
 
     it("정상적인 이상 징후 페이로드가 DB에 정확히 기록되고 조회된다", async () => {
         const testDeviceId = "TEST-DEVICE-A24-999";
+        // 🔑 연결된 폰만 받는다 · 자기 폰 기록만 준다 — 이 폰을 읽는 기사에게 잇는다 (reviews/29 1단계)
+        db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES ('test-user', 'g-test-user', 'tu@test', 'tu')`).run();
+        db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES ('test-user', ?)`).run(testDeviceId);
         const testPayload = {
             timestamp: "2026-09-19T02:00:00.000Z",
             deviceId: testDeviceId,
@@ -109,9 +112,6 @@ describe("📸 이상 징후(telemetry) 라우트 및 DB 저장 검증", () => {
             status: () => resGet
         };
 
-        // 👥 자기 폰 기록만 준다 — 이 폰을 읽는 기사에게 잇는다 (reviews/29 기준 1)
-        db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES ('test-user', 'g-test-user', 'tu@test', 'tu')`).run();
-        db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES ('test-user', ?)`).run(testDeviceId);
         await getHandler({ query: { limit: 10 }, user: { id: "test-user" } }, resGet);
         expect(getResult.success).toBe(true);
         expect(getResult.data.some((r: any) => r.id === postResult.id)).toBe(true);

@@ -2,8 +2,9 @@ import { Router } from "express";
 import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { isDetailScreen, isListScreen } from "@onedal/shared";
-import { userOfDevice, deviceScreenOf } from "./devices";
+import { deviceScreenOf } from "./devices";
 import { slog } from "../utils/fileLogger";
+import { authDevice, deviceTokenOf } from "../core/deviceAuth";
 
 const router = Router();
 
@@ -63,6 +64,9 @@ router.post("/anomalies", (req, res) => {
                 error: "필수 항목(deviceId, targetApp, failureReason)이 누락되었습니다."
             });
         }
+        /* 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth · reviews/29 1단계 D·E) */
+        const auth = authDevice(deviceId, deviceTokenOf(req));
+        if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
 
         const anomalyTimestamp = timestamp || new Date().toISOString();
         const listOrderJson = listOrderInfo ? JSON.stringify(listOrderInfo) : null;
@@ -101,8 +105,7 @@ router.post("/anomalies", (req, res) => {
         if (reason && isDetailScreen(screenName) && screenNow && isListScreen(screenNow)) {
             slog('화면', `⚪ [판정 못 함 안 띄움] ${reason} — 폰이 이미 목록이다(늦게 닿은 보고)`);
         } else if (reason && isDetailScreen(screenName) && io) {
-            const userId = userOfDevice(deviceId);
-            io.to(userId).emit("detail-unreadable", {
+            io.to(auth.userId).emit("detail-unreadable", {
                 reason, pickup: listOrderInfo?.pickup ?? null, fare: listOrderInfo?.fare ?? null, at: new Date().toISOString(),
             });
             slog('화면', `⚪ [판정 못 함] ${reason} · ${listOrderInfo?.pickup ?? '상차 모름'} — 평가 자리에 띄움`);

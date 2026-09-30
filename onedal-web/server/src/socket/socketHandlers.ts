@@ -45,6 +45,7 @@ import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, trimTraveled, ma
 import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "../services/geoService";
 import { slog } from "../utils/fileLogger";
 import { ownsOrder } from "../core/orderOwner";
+import { noteOrigin } from "../utils/originLog";
 
 
 
@@ -189,6 +190,7 @@ export function registerSocketHandlers(io: Server) {
         const deviceInfo = parseFriendlyDeviceInfo(rawDevice);
 
         slog('통신', `🔌 [소켓 연결] 유저 접속: ${socket.data.user.name} (${userId}) | 세션: ${clientSessionId.slice(0, 15)} | 기기: ${deviceInfo}`);
+        noteOrigin(socket.handshake.headers.origin, `소켓 · ${deviceInfo}`);   // 🌐 처음 보는 Origin — CORS 좁히기 전 목록 모으기
 
         /**
          * 👥 **orderId 를 받는 이벤트는 여기로 붙인다** — 그 콜이 이 기사의 것일 때만 핸들러를 부른다 (reviews/29 기준 1).

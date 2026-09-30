@@ -45,6 +45,7 @@ import { initGeoService } from "./services/geoService";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
 import { registerSocketHandlers } from "./socket/socketHandlers";
 import { slog } from "./utils/fileLogger";
+import { noteOrigin } from "./utils/originLog";
 
 dotenv.config({ path: path.join(__dirname, "../.env"), quiet: true });   // 라이브러리 광고 줄은 태그 없이 #없음 을 남긴다 — 확인 줄은 validateEnv 가 찍는다
 
@@ -67,6 +68,8 @@ app.set("io", io);
 
 // 미들웨어 설정
 app.use(cors());
+/* 🌐 처음 보는 Origin 을 한 줄 — CORS 를 좁히기 전에 실제로 붙는 출처를 모은다 (reviews/29 1단계 H · 소켓은 socketHandlers) */
+app.use((req, _res, next) => { noteOrigin(req.headers.origin, `HTTP ${req.method} ${req.path}`); next(); });
 app.use(express.json());
 
 /**

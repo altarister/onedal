@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { LOG_TAGS, type LogTag } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
+import { authDevice, deviceTokenOf } from "../core/deviceAuth";
 
 /**
  * 🖥️ **관제웹이 스스로 남기는 로그를 받는다** (필드테스트 1회차 ④)
@@ -63,10 +64,15 @@ function splitTag(msg: string): { tag: LogTag | null; body: string } {
 }
 
 /** 받는 모양은 관제웹 · 원달앱이 같다 — 출처 머리와 한 줄 길이만 다르다. `keep` 이 있으면 그 무늬만 싣는다 */
-function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLen: number, keep?: RegExp) {
+function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLen: number, keep?: RegExp, fromDevice = false) {
     return (req: Request, res: Response) => {
         const body = req.body as { deviceId?: string; lines?: ClientLogLine[] };
         const lines = Array.isArray(body?.lines) ? body.lines : [];
+        /* 🔑 원달앱 로그는 연결된 폰만 — 연결 안 된 폰 · 틀린 토큰은 거절 (core/deviceAuth · reviews/29 1단계 D·E) */
+        if (fromDevice) {
+            const auth = authDevice(body?.deviceId, deviceTokenOf(req));
+            if (!auth.ok) { res.status(auth.status).json({ ok: false, error: auth.error }); return; }
+        }
 
         // 🔴 즉시 응답한다 — 로그 때문에 화면이 멈추면 안 된다 (규칙 ② «HTTP 를 물고 기다리지 않는다»)
         res.json({ ok: true, received: Math.min(lines.length, MAX_LINES) });
@@ -92,6 +98,6 @@ function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLe
 }
 
 router.post("/", logLinesRoute(who => `🖥️ [관제웹 ${who}]`, "관제웹", MAX_LEN, RELAY_KEEP));
-router.post("/app", logLinesRoute(who => `📱 [원달앱 ${who}]`, "원달앱", MAX_APP_LEN));
+router.post("/app", logLinesRoute(who => `📱 [원달앱 ${who}]`, "원달앱", MAX_APP_LEN, undefined, true));
 
 export default router;

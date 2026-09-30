@@ -1,4 +1,5 @@
 import router from '../../src/routes/logs';
+import db from '../../src/db';
 
 /**
  * 📱 **원달앱 운행 기록을 받는 입구** — `POST /api/logs/app`
@@ -18,9 +19,15 @@ const handlerOf = (path: string): Handler => {
 describe('📱 POST /api/logs/app — 원달앱 운행 기록', () => {
     let logs: string[];
     let spy: jest.SpyInstance;
+    /* 🔑 원달앱 로그는 연결된 폰만 받는다 (reviews/29 1단계 D·E) — 이 검사의 폰을 시험 기사에 잇는다(일꾼마다 빈 DB) */
+    beforeAll(() => {
+        db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES ('test-trace', 'g-test-trace', 'tt@test', 'tt')`).run();
+        for (const d of ['앱폰-SM-A245N-784', 'a']) db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES ('test-trace', ?)`).run(d);
+    });
     beforeEach(() => {
         logs = [];
-        spy = jest.spyOn(console, 'log').mockImplementation((...args: unknown[]) => { logs.push(args.join(' ')); });
+        /* 원달앱 줄(📱)만 모은다 — 폰 확인이 처음 한 번 남기는 «토큰 없는 폰» 줄은 이 검사의 대상이 아니다 */
+        spy = jest.spyOn(console, 'log').mockImplementation((...args: unknown[]) => { const l = args.join(' '); if (l.startsWith('📱')) logs.push(l); });
     });
     afterEach(() => spy.mockRestore());
 

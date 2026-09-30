@@ -18,6 +18,7 @@ import { PluginFactory } from "../core/plugins/PluginFactory";
 import { slog } from "../utils/fileLogger";
 import { noteScreenWords } from "../services/screenWords";
 import { recalcRouteIfStopsChanged } from "../services/dispatchEngine";
+import { authDevice, deviceTokenOf } from "../core/deviceAuth";
 
 /**
  * 🧭 **경로 순서 맵이 도착지를 얼마나 덮나 — 바뀔 때만 한 줄** (기사님 요청 «콘솔로그에 넣어서 너도 확인할 수 있도록»).
@@ -79,23 +80,10 @@ router.post("/", (req, res) => {
         const body = req.body as { source?: unknown; screenWords?: Parameters<typeof noteScreenWords>[2] };
         const source = reportSourceOf(body.source);
 
-        // 1. 기기 등록 여부 검증 (하드 락: 미등록 기기는 즉시 차단)
-        if (!deviceId) {
-            return res.status(401).json({
-                error: "MISSING_DEVICE_ID",
-                message: "deviceId가 누락되었습니다. 앱에서 기기 식별자를 전송해주세요."
-            });
-        }
-
-        let userId = "ADMIN_USER";
-        const deviceRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as { user_id: string } | undefined;
-        if (!deviceRow) {
-            return res.status(401).json({
-                error: "UNREGISTERED_DEVICE",
-                message: "이 기기는 등록되지 않았습니다. 관제 웹에서 PIN 연동을 먼저 진행해주세요."
-            });
-        }
-        userId = deviceRow.user_id;
+        // 1. 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth · reviews/29 1단계 D·E)
+        const auth = authDevice(deviceId, deviceTokenOf(req));
+        if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+        const userId = auth.userId;
 
         const timestamp = new Date().toISOString();
 
@@ -111,7 +99,7 @@ router.post("/", (req, res) => {
         data.forEach(item => {
             dbQueue.runAsync(
                 "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText, vehicleType, deliveryDistanceKm, scheduleText, postTime, rawText, pickupX, pickupY, dropoffX, dropoffY, verdict, reserved, reservedDay, reservedAt, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                userId === "ADMIN_USER" ? null : userId,
+                userId,
                 deviceId || null,
                 "INTEL_BULK",
                 plugin.normalizeAddress(item.pickup),
@@ -299,7 +287,7 @@ router.post("/", (req, res) => {
          *    이 칸이 있으면 앱은 **판정은 해 두고 클릭만 미뤄**, 앞 콜이 결재되는 즉시 다음을 잡는다.
          * 🔴 저장하지 않는다 — 심사 중인 콜을 쥔 `deviceEvaluatingMap` 에서 파생시킨다 (규칙 ③).
          */
-        appFilter.evaluatingNow = !!session.deviceEvaluatingMap.get(deviceId);   // 응답 맨 위 칸으로도 간다 · 판 글자에는 안 든다 (아래)
+        appFilter.evaluatingNow = !!session.deviceEvaluatingMap.get(auth.deviceId);   // 응답 맨 위 칸으로도 간다 · 판 글자에는 안 든다 (아래)
 
         // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정)
         //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)
