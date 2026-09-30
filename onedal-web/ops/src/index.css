@@ -1,0 +1,28 @@
+@import "tailwindcss";
+@import "@onedal/shared/src/theme.css";
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+/* 🔴 관제웹 부품을 임시로 가져다 쓴다 — Tailwind 가 이 폴더 밖은 안 훑으므로 알려 준다 (ops/CLAUDE.md) */
+@source "../../client-app/src/components/ui";
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}

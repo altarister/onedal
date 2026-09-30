@@ -13,6 +13,7 @@
 | `onedal-web/server/`        | 판정 엔진 — 파싱·카카오 경로·요율 연산                         | Express 5, better-sqlite3, Socket.IO            |
 | `onedal-web/client-app/`    | 관제탑 — 기사님이 KEEP/CANCEL 결재                             | Vite 8, React 19, Tailwind v4, Capacitor        |
 | `onedal-web/logbook/`       | 운행일지 대시보드                                              | Vite + React                                    |
+| `onedal-web/ops/`           | 운영센터 — 관리자가 회원 · 폰 · 콜 · 공지 · 앱 배포를 본다     | Vite 8, React 19, Tailwind v4                   |
 | `onedal-web/shared/`        | 서버·관제웹·운행일지가 함께 쓰는 규격과 순수 계산 (의존 0)     | TypeScript                                      |
 | `onedal-sim/`               | 배차망 시뮬레이터 — 앱폰이 읽을 가짜 배차망 화면               | Vite 7, React 19                                |
 | `onedal-map/`               | 지도 공장 — 콜 필터 그물이 쓰는 읍면동 폴리곤을 만든다         | Node · Python 스크립트                          |
@@ -43,6 +44,7 @@
 | `4000` | 서버 (api) | `onedal-web/server/src/index.ts` | `PORT` 환경변수로 바꿀 수 있다 · 배포에서는 80 → 4000 으로 넘긴다 |
 | `3000` | 관제웹 (vite 개발 서버) | `onedal-web/client-app/vite.config.ts` | `/api` 를 4000 으로 넘긴다 |
 | `3001` | 운행일지 (vite 개발 서버) | `onedal-web/logbook/vite.config.ts` | `pnpm dev` 가 함께 띄운다 |
+| `3002` | 운영센터 (vite 개발 서버) | `onedal-web/ops/vite.config.ts` | `pnpm dev:ops` 로 따로 띄운다 · `/api` 를 4000 으로 넘긴다 |
 | `5173` | 배차망 시뮬레이터 | `onedal-sim/vite.config.ts` | 🔴 바꾸지 않는다 — 시뮬 앱(Kotlin)이 이 번호로 붙는다 |
 | `4173` | 관제웹 `vite preview` (빌드 미리보기) | vite 기본값 | 개발에서는 안 띄운다 · 관제웹이 이 주소를 «개발 주소»로 안다 |
 | `4012` | `pnpm scenario` 전용 서버 | `onedal-web/scripts/scenario.mjs` | 전용 DB · 끝나면 내린다 |
