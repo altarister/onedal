@@ -39,8 +39,9 @@ export const Hwamul24CallDetailScreen = ({ call, onClose, onAccept }: DetailProp
   const distKm = call.distanceKm?.toFixed(0) || '0';
 
   // 날짜/시간
-  const now = new Date();
-  const dispatchTime = `${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${call.pickupTime || '13:43'}`;
+  // 📅 배차 날짜는 콜에 실린 상차 날짜로(`pickupAt`) — 없으면 오늘
+  const day = call.pickupAt ? new Date(call.pickupAt) : new Date();
+  const dispatchTime = `${(day.getMonth() + 1).toString().padStart(2, '0')}-${day.getDate().toString().padStart(2, '0')} ${call.pickupTime || '13:43'}`;
 
   return (
     <div className="w-full h-full flex flex-col bg-white font-sans text-black select-none overflow-hidden">

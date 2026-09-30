@@ -20,7 +20,7 @@
  */
 import React from 'react';
 import type { PickerCall, PickerKind } from './pickerCall';
-import { formatPickerRegion, formatPickerAddressLine, minutesLeftToday, pickerKindOf, pickerTagChipClass } from './pickerCall';
+import { formatPickerRegion, formatPickerAddressLine, minutesLeftAt, pickerKindOf, pickerTagChipClass } from './pickerCall';
 import type { PickerOngoingStep } from './PickerOngoingScreen';
 
 interface BoardProps {
@@ -128,8 +128,8 @@ const PickerCallCard = React.memo(({ call, onCardClick }: { call: PickerCall; on
 const MyOrderRow = ({ call, step, onClick }: { call: PickerCall; step?: PickerOngoingStep; onClick: (call: PickerCall) => void }) => {
   const kind = pickerKindOf(call);
   const delivering = !!step && step !== 'OVERVIEW' && step !== 'DEPART' && step !== 'TO_PICKUP' && step !== 'AT_PICKUP';
-  const pickupLeft = minutesLeftToday(call.pickupTime);
-  const deliveryLeft = minutesLeftToday(call.deliveryTime);
+  const pickupLeft = minutesLeftAt(call.pickupAt);
+  const deliveryLeft = minutesLeftAt(call.deliveryAt);
   const place = delivering ? call.dropoffDetails?.[0] : call.pickupDetails?.[0];
   const dropoff = call.dropoffDetails?.[0];
   /**

@@ -55,6 +55,9 @@ export interface BaseCall {
     distanceKm: number;
     pickupTime?: string;
     deliveryTime?: string;
+    /** 📅 상차·하차 시각의 날짜째(ISO) — «오늘·낼·모레»·남은 분은 이것으로만 가른다(`callDay`) · HH:MM 칸은 표시용 */
+    pickupAt?: string;
+    deliveryAt?: string;
     fare: number;
     /** ⚠️ 읽는 화면이 없다 — 생성기가 채우기만 한다 (지우지 않고 둔다) */
     isMatchingRoute: boolean;

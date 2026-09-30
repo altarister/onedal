@@ -21,6 +21,7 @@
  * ⚠️ 시트를 «하»로 내려도 가려진 글자가 웹뷰 접근성에는 남는다 — 실물 픽커가 가려진 글자를 내주는지는 모른다.
  * ⚠️ 실물 픽커는 상세의 배송지를 접근성에 안 넘긴다(덤프 11 · 서버 글자인식이 대신 읽는다). 그 흉내는 계획서 §10 «나중»이다 — 지금은 보인다.
  */
+import { dayOffset, minutesLeft } from '@altari/core-simulator';
 import { useState } from 'react';
 import type { PickerCall } from './pickerCall';
 import { formatPickerAddressLine, PICKER_ITEM_SPEC, pickerTagChipClass } from './pickerCall';
@@ -45,23 +46,6 @@ const SHEET_PULL_PX = 24;
 const BUTTONS_PX = 64;
 
 
-/** «HH:MM» 이 오늘 몇 시인가 — 지난 시각이면 다음 날로 본다 (자정을 넘긴 마감 · 내일 예약) */
-function targetOf(hhmm?: string): { at: Date; nextDay: boolean } | null {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm ?? '');
-  if (!m) return null;
-  const now = new Date();
-  const at = new Date(now);
-  at.setHours(Number(m[1]), Number(m[2]), 0, 0);
-  const nextDay = at.getTime() < now.getTime() - 60_000;
-  if (nextDay) at.setDate(at.getDate() + 1);
-  return { at, nextDay };
-}
-
-function minutesUntil(hhmm?: string): number | null {
-  const t = targetOf(hhmm);
-  return t ? Math.max(0, Math.round((t.at.getTime() - Date.now()) / 60_000)) : null;
-}
-
 const pointP = (n: number) => `${n.toLocaleString('ko-KR')}P`;
 
 const BackArrow = () => <div className="w-3 h-3 border-l-2 border-b-2 border-[#333] rotate-45" />;
@@ -83,8 +67,11 @@ export const PickerCallDetailScreen = ({ call, onClose, onAccept }: Props) => {
   const dropoff = call.dropoffDetails?.[0];
   const pickupLine = formatPickerAddressLine(pickup?.addressDetail, pickup?.region) || call.pickups[0]?.fullName.replace(/ \/ /g, ' ') || '';
   const dropoffLine = formatPickerAddressLine(dropoff?.addressDetail, dropoff?.region) || call.dropoffs[0]?.fullName.replace(/ \/ /g, ' ') || '';
-  const leftMinutes = minutesUntil(call.deliveryTime);
-  const reserved = targetOf(call.reservedAt);
+  // 📅 날은 콜에 실린 날짜로 — «지난 시각이면 다음 날» 짐작을 걷었다(`callDay`)
+  const now = new Date();
+  const left = minutesLeft(call.deliveryAt, now);
+  const leftMinutes = left === null ? null : Math.max(0, left);
+  const reserved = call.reservedAt ? { nextDay: (dayOffset(call.pickupAt, now) ?? 0) >= 1 } : null;
   const spec = PICKER_ITEM_SPEC[call.itemSize];
   const memo = dropoff?.memo;
   const high = level === 'HIGH';

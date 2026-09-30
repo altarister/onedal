@@ -22,7 +22,7 @@
  * - 🔴 모르는 칸은 안 그린다 — 오더 코드(DJYZ914 꼴) · 메뉴 · 고객사 주문번호 · 물품 설명 딱지(«전자제품이에요») · 접수자 이름
  */
 import type { PickerCall } from './pickerCall';
-import { minutesLeftToday, PICKER_ITEM_SPEC, pickerTagChipClass } from './pickerCall';
+import { minutesLeftAt, PICKER_ITEM_SPEC, pickerTagChipClass } from './pickerCall';
 import { formatPickerDistance, formatPickerFare } from './PickerDispatchBoard';
 
 /** 퀵 흰 페이지의 단계 — 17-1 · 17-2 · 22-1 출발 전 · 22-1 출발 뒤 */
@@ -50,7 +50,7 @@ const BOTTOM_PX = 64;
 export const PickerQuickPickupPage = ({ call, phase, onDepart, onPickedUp, onDropoffDepart, onDelivered, onBack, onCancel }: Props) => {
   /** 22-1 배송 페이지인가 — 출발 전 · 출발 뒤 둘 다 (머리와 버튼만 다르다) */
   const delivering = phase === 'DROPOFF_DEPART' || phase === 'TO_DROPOFF';
-  const left = minutesLeftToday(call.pickupTime);
+  const left = minutesLeftAt(call.pickupAt);
   /** 픽업 마감이 지난 분 — 안 지났으면 null */
   const late = !delivering && left !== null && left < 0 ? -left : null;
   const red = late !== null ? { color: LATE_RED } : undefined;

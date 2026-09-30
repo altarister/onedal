@@ -138,7 +138,7 @@ export function generateBaseCall(config: SimGeneratorConfig, forced?: ForcedPair
 
   /**
    * 상차는 지금부터 재고, 하차는 그 상차에서 잰다 — 둘의 간격이 뒤집히지 않는다.
-   * 자정을 넘기면 시각만 남으므로(«01:20상차») 날짜 없이도 읽는 쪽 해석이 흔들리지 않는다.
+   * 날짜째 싣는다(`pickupAt` · `deliveryAt`) — 화면이 HH:MM 에서 날짜를 짐작하지 않게(`callDay`).
    */
   const isReserved = rng() < RESERVED_RATE;
   const pickupOffsetMin = isReserved
@@ -190,6 +190,8 @@ export function generateBaseCall(config: SimGeneratorConfig, forced?: ForcedPair
     distanceKm,
     pickupTime: hhmm(pickupAt),
     deliveryTime: hhmm(dropoffAt),
+    pickupAt: pickupAt.toISOString(),
+    deliveryAt: dropoffAt.toISOString(),
     isMatchingRoute: true,
     violation: undefined
   };

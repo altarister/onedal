@@ -29,3 +29,4 @@ export type { InjectedCall, InjectedPlace, InjectedBatch, InjectedCursor } from 
 
 // 유틸리티
 export { calculateDistanceKm } from './geo';
+export { dayOffset, minutesLeft } from './callDay';

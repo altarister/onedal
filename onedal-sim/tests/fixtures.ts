@@ -24,6 +24,8 @@ export const callA: SimCall = {
     companyName: '하나로유통',
     pickupTime: '09:30',
     deliveryTime: '11:00',
+    pickupAt: '2026-09-14T09:30:00+09:00',
+    deliveryAt: '2026-09-14T11:00:00+09:00',
     fare: 45000,
     isMatchingRoute: true,
 };
@@ -39,6 +41,7 @@ export const callB: SimCall = {
     vehicleType: '1t',
     paymentType: '착불',
     pickupTime: '14:30',
+    pickupAt: '2026-09-14T14:30:00+09:00',
     fare: 70000,
 };
 

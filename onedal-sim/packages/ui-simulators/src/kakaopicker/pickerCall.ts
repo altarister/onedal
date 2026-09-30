@@ -6,6 +6,7 @@
  *    시뮬레이터가 파서에 맞춰 주면 파서를 시험하지 못한다. 실물 캡처(`ex_images/카카오픽커/실물_2026/` 02 · 07)와
  *    실물 화면 덤프 09 에서 뽑는다.
  */
+import { minutesLeft } from '@altari/core-simulator';
 import type { BaseCall } from '@altari/core-simulator';
 import type { CallDraft, CallOptions, RandomSource } from '@altari/core-simulator';
 import { pickWith } from '@altari/core-simulator';
@@ -146,17 +147,10 @@ function orderNumber(rng: RandomSource): string {
 }
 
 /**
- * «HH:MM» 까지 **오늘** 남은 분 — 지났으면 0 이하 · 모르면 `null`.
- * ⚠️ 상세의 `minutesUntil` 과 **일부러 다르다** — 상세는 수락 전이라 지난 시각을 «다음 날 마감»으로 보지만,
- *    수락 뒤에는 이미 잡은 콜의 마감이라 지났으면 «준비 완료»다 (실물 18 «픽업 준비 완료»).
- * 읽는 곳: 수락 뒤 화면(`PickerOngoingScreen`) · «내 오더» 카드(`PickerDispatchBoard`).
+ * 콜에 실린 시각(`pickupAt` · `deliveryAt`)까지 남은 분 — 지났으면 0 이하 · 날짜 없으면 `null`. 자정을 넘어도 날짜로 잰다(`callDay`).
+ * 읽는 곳: 수락 뒤 화면(`PickerOngoingScreen`) · «내 오더» 카드(`PickerDispatchBoard`) · 퀵 픽업(`PickerQuickPickupPage`).
  */
-export function minutesLeftToday(hhmm?: string): number | null {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm ?? '');
-  if (!m) return null;
-  const now = new Date();
-  const target = new Date(now);
-  target.setHours(Number(m[1]), Number(m[2]), 0, 0);
-  return Math.round((target.getTime() - now.getTime()) / 60_000);
+export function minutesLeftAt(at?: string): number | null {
+  return minutesLeft(at, new Date());
 }
 

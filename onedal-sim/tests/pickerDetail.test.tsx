@@ -66,11 +66,11 @@ describe('픽커 상세 — 글자', () => {
     });
 
     it('예약콜은 «오늘 HH:MM 픽업예약» 상자 — «배송 N분 남음» 대신 (실물 10-1 · 33 · 서버 글자인식이 «픽업예약»으로 예약을 안다)', () => {
-        const later = textOf(<PickerCallDetailScreen call={{ ...pickerA, reservedAt: '17:30' }} onClose={noop} />);
+        const later = textOf(<PickerCallDetailScreen call={{ ...pickerA, reservedAt: '17:30', pickupAt: '2026-09-14T17:30:00+09:00' }} onClose={noop} />);
         expect(later).toContain('오늘 17:30 픽업예약');
         expect(later).not.toContain('남음');
         expect(later).not.toMatch(/예약 17:30/);   // 태그 줄에 시각을 따로 안 붙인다
-        const earlier = textOf(<PickerCallDetailScreen call={{ ...pickerA, reservedAt: '08:00' }} onClose={noop} />);
+        const earlier = textOf(<PickerCallDetailScreen call={{ ...pickerA, reservedAt: '08:00', pickupAt: '2026-09-15T08:00:00+09:00' }} onClose={noop} />);
         expect(earlier).toContain('내일 08:00 픽업예약');
     });
 

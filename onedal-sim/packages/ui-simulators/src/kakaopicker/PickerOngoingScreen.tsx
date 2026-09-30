@@ -16,7 +16,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { PickerCall } from './pickerCall';
-import { formatPickerAddressLine, minutesLeftToday, pickerKindOf } from './pickerCall';
+import { formatPickerAddressLine, minutesLeftAt, pickerKindOf } from './pickerCall';
 import { formatPickerFare } from './PickerDispatchBoard';
 import { PickerMapBackdrop, usePickerSheetDrag } from './PickerMapSheet';
 import { PickerQuickPickupPage } from './PickerQuickPickupPage';
@@ -102,8 +102,8 @@ export const PickerOngoingScreen = ({ call, initialStep = 'TO_PICKUP', onStepCha
   const dropoff = call.dropoffDetails?.[0];
   const pickupLine = formatPickerAddressLine(pickup?.addressDetail, pickup?.region);
   const dropoffLine = formatPickerAddressLine(dropoff?.addressDetail, dropoff?.region);
-  const pickupLeft = minutesLeftToday(call.pickupTime);
-  const deliveryLeft = minutesLeftToday(call.deliveryTime);
+  const pickupLeft = minutesLeftAt(call.pickupAt);
+  const deliveryLeft = minutesLeftAt(call.deliveryAt);
   const fareP = `${formatPickerFare(call.fare)}P`;
 
   /* 배정 취소 불가 (실물 19) — 픽커는 수락이 곧 계약이다. 퀵 17-1 의 «배정 취소»도 같은 팝업을 쓴다 (⚠️ 퀵은 추정) */

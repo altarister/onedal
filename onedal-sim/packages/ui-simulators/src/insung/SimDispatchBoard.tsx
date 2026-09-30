@@ -7,6 +7,7 @@
 import React from 'react';
 import { formatRegionName, formatInsungVehicle } from './insungCall';
 import type { InsungCall } from './insungCall';
+import { dayOffset } from '@altari/core-simulator';
 
 interface SimBoardProps {
   streamingCalls: InsungCall[];
@@ -30,19 +31,20 @@ const formatFare = (fare: number) => {
 };
 
 /**
- * 📅 인성 예약 시각 글자 — «낼»은 **지금 시각 기준**으로 가른다: 상차 시각이 지금보다 이르면 내일(«낼4시»), 아니면 오늘.
- * 9시 이전을 늘 «낼»로 그리면 새벽 시험의 04:06 상차가 내일 콜이 되어 앱이 확정을 넘겼다(`tests/insungTimeLabel.test.ts`).
+ * 📅 인성 예약 시각 글자 — 날은 **콜에 실린 날짜**(`pickupAt`)로 가른다: 내일 «낼N시» · 모레 «모레N시» · 오늘은 오전·낮·오후·저녁.
+ * 날짜가 없는 콜은 짐작하지 않고 오늘 꼴이다(`tests/callDay.test.ts`).
  */
-export const insungTimeLabel = (pickupTime: string, now: Date): { text: string; isTomorrow: boolean } | null => {
+export const insungTimeLabel = (pickupAt: string | undefined, pickupTime: string, now: Date): { text: string; isTomorrow: boolean } | null => {
   const [hStr, mStr] = pickupTime.split(':');
   if (!hStr || !mStr) return null;
   const h = parseInt(hStr, 10);
   const m = parseInt(mStr, 10);
   if (Number.isNaN(h) || Number.isNaN(m)) return null;
 
-  const isTomorrow = h * 60 + m < now.getHours() * 60 + now.getMinutes();
+  const days = dayOffset(pickupAt, now) ?? 0;
   let text: string;
-  if (isTomorrow) text = `낼${h}시`;
+  if (days >= 2) text = `모레${h}시`;
+  else if (days === 1) text = `낼${h}시`;
   else if (h >= 18) text = `저녁${h - 12}시`;
   else if (h > 12) text = `오후${h - 12}시`;
   else if (h === 12) text = '낮12시';
@@ -50,13 +52,13 @@ export const insungTimeLabel = (pickupTime: string, now: Date): { text: string; 
 
   if (m === 30) text += '반';
   else if (m > 0) text += `${m}`;
-  return { text, isTomorrow };
+  return { text, isTomorrow: days >= 1 };
 };
 
 // 시간/조건 접두어 생성 헬퍼
 const formatTimePrefix = (call: InsungCall) => {
   if (call.callCategory === '예약' && call.pickupTime) {
-    const label = insungTimeLabel(call.pickupTime, new Date());
+    const label = insungTimeLabel(call.pickupAt, call.pickupTime, new Date());
     if (!label) return null;
     const { text: timeStr, isTomorrow } = label;
 
