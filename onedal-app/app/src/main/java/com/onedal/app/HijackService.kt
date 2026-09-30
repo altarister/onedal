@@ -301,6 +301,10 @@ class HijackService : AccessibilityService(), ScanContext {
     private val scrollGate = com.onedal.app.core.ScrollGate()
     private val scrollScan = Runnable { scrollGate.onScanned(); scanScreen() }
 
+    /** 🚦 «내용 바뀜»을 모아 읽는다 — 첫 알림 즉시 · 250ms 안은 한 번 (`ContentGate`) */
+    private val contentGate = com.onedal.app.core.ContentGate()
+    private val contentScan = Runnable { contentGate.onScanned(android.os.SystemClock.elapsedRealtime()); scanScreen() }
+
     /** ⏱️ 상세 대기 중 화면 읽기 시간 요약 (1초마다 한 줄) */
     private val detailScanTimer = com.onedal.app.core.ScanTimer()
 
@@ -620,25 +624,33 @@ class HijackService : AccessibilityService(), ScanContext {
             return
         }
 
-        // 📜 스크롤 — 픽커 목록은 스크롤만으로 «내용 바뀜»을 안 낸다. 목록 화면일 때만 모아서 한 번 읽는다(`ScrollGate`)
-        //    상세 대기 중에는 화면이 목록이 아니라 이 길로 목록을 읽지 않는다
-        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
-            if (telemetryManager.currentScreenContext == ScreenContext.LIST) {
-                val now = android.os.SystemClock.elapsedRealtime()
-                mainHandler.removeCallbacks(scrollScan)
-                mainHandler.postDelayed(scrollScan, (scrollGate.onScroll(now) - now).coerceAtLeast(0))
-            }
-            return
-        }
         // 🏁 토스트는 알림 이벤트로 온다 — «방금 배정된 오더입니다»(다른 기사가 먼저)만 본다
         if (event?.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
             onNotificationEvent(event)
             return
         }
-        val watched = event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
-                event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-        if (!watched) return
-        scanScreen()
+        if (event == null) return
+        val eventPkg = event.packageName?.toString()
+        val isOwnApp = eventPkg == packageName
+        // ⏱️ 상세 대기 중 알림 출처를 센다 — 1초 요약에 «어디서 몇 번» (`ScanTimer`)
+        if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM)
+            detailScanTimer.countEvent("${eventPkg?.substringAfterLast('.') ?: "?"}/${com.onedal.app.core.ScanTimer.typeWord(event.eventType)}")
+        // 🚦 스크롤은 목록일 때만 모아서(`ScrollGate`) · 내용 바뀜은 250ms 모아서(`ContentGate`) · 창 바뀜은 바로
+        val now = android.os.SystemClock.elapsedRealtime()
+        when (com.onedal.app.core.EventRoute.of(event.eventType, isOwnApp, telemetryManager.currentScreenContext == ScreenContext.LIST)) {
+            com.onedal.app.core.EventRoute.Route.IGNORE -> Unit
+            com.onedal.app.core.EventRoute.Route.SCROLL_SCAN -> {
+                mainHandler.removeCallbacks(scrollScan)
+                mainHandler.postDelayed(scrollScan, (scrollGate.onScroll(now) - now).coerceAtLeast(0))
+            }
+            com.onedal.app.core.EventRoute.Route.SCAN ->
+                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) { contentGate.onScanned(now); scanScreen() }
+                else when (val wait = contentGate.onEvent(now)) {
+                    0L -> { contentGate.onScanned(now); scanScreen() }
+                    null -> Unit
+                    else -> mainHandler.postDelayed(contentScan, wait)
+                }
+        }
     }
 
     /**

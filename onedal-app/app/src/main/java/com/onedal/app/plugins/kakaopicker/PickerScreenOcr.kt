@@ -42,6 +42,8 @@ data class PickerDetailFromImage(
     val reserved: Boolean,
     val unreadLines: List<String> = emptyList(),
     val finalIncome: Int? = null,
+    /** 📅 «오늘 17:00 픽업예약» 띠 줄 그대로 — 예약 날·시각은 여기서 먼저 읽는다(픽업 줄은 «17:00까지 픽업»처럼 날이 없다) */
+    val reservedLine: String? = null,
 )
 
 object PickerScreenOcr {
@@ -160,7 +162,8 @@ object PickerScreenOcr {
         val itemSize = sorted.firstOrNull { SIZE_RE.containsMatchIn(it.text) }?.text
 
         // ④ 예약 콜인가 — 「…픽업예약」 줄 하나로 판단한다
-        val reserved = sorted.any { it.text.contains("픽업예약") }
+        val reservedLine = sorted.firstOrNull { it.text.contains("픽업예약") }?.text
+        val reserved = reservedLine != null
 
         // ⑤ 칸에 안 넣은 줄 — 버리지 않고 돌려준다(유의사항 · 꼬리표 · 버튼 …). 픽커가 상세를 바꾸면 여기서 먼저 보인다
         val used = setOfNotNull(pickup.admin, pickup.place, dropoff.admin, dropoff.place, itemSize)
@@ -169,7 +172,7 @@ object PickerScreenOcr {
                 !isSectionTitle(it)
         }
 
-        return PickerDetailFromImage(pickup, dropoff, itemSize, reserved, unreadLines, finalIncomeOf(sorted))
+        return PickerDetailFromImage(pickup, dropoff, itemSize, reserved, unreadLines, finalIncomeOf(sorted), reservedLine)
     }
 
     /** 한 덩어리(머리 − 여유 ~ 다음 머리 − 여유)에서 행정동·건물명·시각을 뽑는다 */

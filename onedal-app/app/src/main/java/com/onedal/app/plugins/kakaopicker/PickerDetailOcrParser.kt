@@ -128,11 +128,15 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
     }
 
     /**
-     * 📅 **상세 사진의 예약이 목록 값을 덮는다** — «내일 14:00 픽업예약» 띠가 있으면 상차 정거장 시각(«내일 14:00»)으로,
-     * 띠가 없으면 예약이 아니다(오늘 콜은 «10:00까지 픽업»으로 온다) (`PickerReservationTest`).
+     * 📅 **상세 사진의 예약이 목록 값을 덮는다** — «오늘 17:00 픽업예약» 띠 줄을 먼저 읽고, 띠에서 날·시각을 못 읽을 때만
+     * 상차 정거장 시각(«내일 14:00»)으로. 띠가 없으면 예약이 아니다 (`PickerReservationTest` · `PickerReservedBandTest`).
+     * 🔴 띠가 «오늘»이면 픽업 줄은 «17:00까지 픽업»(날 없음)이라 픽업 줄만 보면 «날 모름»으로 오늘 콜을 막는다(실물 09-30 14:21).
      */
-    private fun detailReservation(parsed: PickerDetailFromImage): com.onedal.app.core.Reservation =
-        if (parsed.reserved) com.onedal.app.core.ReservationText.read(
-            "예약 ${parsed.pickup.at.orEmpty()}", java.time.LocalDateTime.now(), bareLaterTimeIsToday = false)
-        else com.onedal.app.core.Reservation.NONE
+    private fun detailReservation(parsed: PickerDetailFromImage): com.onedal.app.core.Reservation {
+        if (!parsed.reserved) return com.onedal.app.core.Reservation.NONE
+        val now = java.time.LocalDateTime.now()
+        val band = parsed.reservedLine?.let { com.onedal.app.core.ReservationText.read(it, now, bareLaterTimeIsToday = false) }
+        if (band != null && band.day != null && band.at != null) return band
+        return com.onedal.app.core.ReservationText.read("예약 ${parsed.pickup.at.orEmpty()}", now, bareLaterTimeIsToday = false)
+    }
 }

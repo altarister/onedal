@@ -72,11 +72,16 @@ describe('🪟 창이 바뀌면 화면을 다시 본다', () => {
         expect(handler).toMatch(/TYPE_WINDOW_STATE_CHANGED/);
     });
 
-    /** 내용 변경은 여전히 필요하다 — 리스트가 갱신되는 것은 창이 안 바뀌고 내용만 바뀐다 */
+    /**
+     * 내용 변경은 여전히 필요하다 — 리스트가 갱신되는 것은 창이 안 바뀌고 내용만 바뀐다.
+     * 알림을 가르는 곳은 `EventRoute` 한 곳이다(250ms 모아 읽기 · 우리 앱 내용 바뀜은 버림) — 배차망 앱의 내용 바뀜은 읽기로 간다.
+     */
     it('내용 변경도 계속 본다 — 리스트 갱신은 창이 안 바뀐다', () => {
         expect(xml).toMatch(/typeWindowContentChanged/);
         const handler = codeOnly.slice(codeOnly.indexOf('override fun onAccessibilityEvent'));
-        expect(handler).toMatch(/TYPE_WINDOW_CONTENT_CHANGED/);
+        expect(handler).toMatch(/EventRoute\.of\(/);
+        const route = readFileSync(join(APP, 'core/ContentGate.kt'), 'utf-8');
+        expect(route).toMatch(/TYPE_WINDOW_CONTENT_CHANGED -> if \(isOwnApp\) Route\.IGNORE else Route\.SCAN/);
     });
 });
 
