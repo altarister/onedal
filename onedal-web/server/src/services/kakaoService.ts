@@ -162,11 +162,15 @@ export interface RouteResult {
      *    🔴 **안 오면 `null`** — 0 과 다르다. 0 은 «톨비 없는 길»이고 `null` 은 «못 받았다»이다 (규칙 ④).
      */
     tollKrw?: number | null;
+    /** 🚧 주변 유고(교통 장애)로 거절당해 «주변 유고 무시»로 다시 잰 길이면 그 코드 — 아니면 없음 (`askIgnoringEndEvents`) */
+    roadEvent?: RoadEventCode | null;
 }
 
 export interface DetourResult {
     base: RouteResult;
     merged: RouteResult;
+    /** 🚧 비교 경로나 합짐 경로 가운데 하나라도 «주변 유고 무시»로 다시 잰 것이면 그 코드 */
+    roadEvent?: RoadEventCode | null;
     timeDiffMin: number;
     distDiffKm: string;
     /**
@@ -319,8 +323,37 @@ function parseKakaoErrorMsg(resultCode: number, resultMsg: string): string {
         case 102: return `시작지점 탐색불가 (${resultMsg})`;
         case 103: return `도착지점 탐색불가 (${resultMsg})`;
         case 104: return `도로 단절구간 (5m이내 등) (${resultMsg})`;
+        case 106: return `도착 지점 주변 유고(교통 장애) (${resultMsg})`;   // 실물 응답으로 확인
         default: return resultMsg;
     }
+}
+
+/**
+ * 🚧 **주변 유고(교통 장애) 코드 — 어느 쪽 주변인가.**
+ *    106 은 실물 응답으로 확인 · 105(출발 주변) · 107(경유지 주변)은 같은 꼴이라는 가정(카카오 문서 원문 미확인).
+ */
+export type RoadEventCode = 105 | 106 | 107;
+const ROAD_EVENT_WHERE: Record<number, string> = { 105: '출발', 106: '도착', 107: '경유지' };
+/** 유고 코드가 어느 쪽 주변인가 — 판정 딱지가 이 이름을 쓴다(한 벌) */
+export const roadEventWhereOf = (code: RoadEventCode | null | undefined): string | null => (code != null ? ROAD_EVENT_WHERE[code] ?? null : null);
+
+/**
+ * 🚧 **주변 유고로 길을 안 주면, 그때만 «주변 유고 무시»(roadevent=1)로 한 번 더** (기사님 «가» · onedal-1f).
+ *    우리 쪽 측정 실패가 🔴 로 나가 좋은 콜을 놓치지 않게. 평소 길찾기는 그대로(유고 반영) — 성공하는 콜의 시간은 안 바뀐다.
+ *    한 번 더 물은 것은 판정 칸의 «다시»(`hedgeBudget.used`)로 센다 — 나란히 한 번 더의 몫(`left`)은 먹지 않는다.
+ *    다시 물어도 실패하면 처음 응답을 그대로 돌려줘 지금의 오류 길(잴 수 없음)을 탄다. 유고가 아닌 오류는 다시 묻지 않는다.
+ *    단독 · 합짐 비교 경로 · 합짐 경로 세 자리가 이 하나를 쓴다.
+ */
+async function askIgnoringEndEvents(ask: (ignoreEnds: boolean) => Promise<any>, label: string): Promise<{ data: any; roadEvent: RoadEventCode | null }> {
+    const first = await ask(false);
+    const code = first?.routes?.[0]?.result_code;
+    if (!(code in ROAD_EVENT_WHERE)) return { data: first, roadEvent: null };
+    const budget = hedgeBudget.getStore();
+    if (budget) budget.used++;
+    const again = await ask(true);
+    if (again?.routes?.[0]?.result_code !== 0) return { data: first, roadEvent: null };
+    slog('판정', `🚧 [유고 우회] ${code} → roadevent=1 성공 ${Math.round((again.routes[0].summary?.duration ?? 0) / 60)}분 (${label} · ${ROAD_EVENT_WHERE[code]} 주변)`);
+    return { data: again, roadEvent: code as RoadEventCode };
 }
 
 // ━━━━━━━━━━ [공개 API 함수] ━━━━━━━━━━
@@ -414,7 +447,8 @@ export function prefetchSoloRoute(
 async function fetchSoloRoute(url: string, hasOrigin: boolean): Promise<RouteResult> {
     slog('판정', `[Kakao Nav API (Solo)] 호출 URL: ${url}`);
     
-    const data = await kakaoJsonHedged(url, { headers: getHeaders() }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '길찾기');
+    const { data, roadEvent } = await askIgnoringEndEvents(
+        ignoreEnds => kakaoJsonHedged(ignoreEnds ? `${url}&roadevent=1` : url, { headers: getHeaders() }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '길찾기'), '단독');
     if (!data.routes || data.routes.length === 0) {
         console.error(`❌ [Kakao API Error (Solo)] 경로 탐색 실패:`, JSON.stringify(data));
         throw new Error(`경로 탐색 실패: ${data.msg || "routes 배열 없음"}`);
@@ -451,7 +485,8 @@ async function fetchSoloRoute(url: string, hasOrigin: boolean): Promise<RouteRes
         sectionEnds: sectionEndsOf(extractSectionLines(data?.routes)),
         sectionEtas: calculateEtas(sections, !hasOrigin), // 정거장 수에 맞춘 도착 예정 시각
         sectionDriveMin: calculateDriveMinutes(sections, !hasOrigin),
-        tollKrw: tollOf(summary)
+        tollKrw: tollOf(summary),
+        roadEvent,
     };
 }
 
@@ -521,8 +556,11 @@ export async function calculateDetourRoute(
         baseUrl += `&waypoints=${baseWaypoints}`;
     }
     /* ⚡ base 는 띄워만 두고 merged 와 함께 기다린다 — 차례로 부르면 합짐 판정·KEEP 마다 카카오 한 번 길이가 더 든다 */
-    const basePending: Promise<any> = (cachedBase || baseIsMerged) ? Promise.resolve(null)
-        : kakaoJsonHedged(baseUrl, { headers }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '합짐 비교 경로');
+    const baseAsked: Promise<{ data: any; roadEvent: RoadEventCode | null }> = (cachedBase || baseIsMerged)
+        ? Promise.resolve({ data: null, roadEvent: null })
+        : askIgnoringEndEvents(ignoreEnds => kakaoJsonHedged(ignoreEnds ? `${baseUrl}&roadevent=1` : baseUrl, { headers },
+            KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '합짐 비교 경로'), '합짐 비교');
+    const basePending: Promise<any> = baseAsked.then(r => r.data);
     basePending.catch(() => { /* merged 가 먼저 실패해도 처리되지 않은 거절로 남지 않게 — 원인은 아래 Promise.all 이 던진다 */ });
 
     // 2. 합짐(경유) 연산 (다중 경유지 POST API 사용 - 최대 30개 지원)
@@ -552,14 +590,16 @@ export async function calculateDetourRoute(
     // 🧹 요청 사실 한 줄 — 좌표·경유 수면 되짚기에 족하다 (reviews/22 ①-3 «계산당 한 줄»)
     slog('판정', `🚙 [카카오 합짐 경로] 경유 ${wpArray.length}곳 · ${mergedOriginX},${mergedOriginY} → ${mergedDestX},${mergedDestY}`);
     
-    const [baseFetched, mergedData] = await Promise.all([basePending, kakaoJsonHedged(KAKAO_WAYPOINTS_URL, {
+    const mergedAsked = askIgnoringEndEvents(ignoreEnds => kakaoJsonHedged(KAKAO_WAYPOINTS_URL, {
         method: "POST",
         headers: {
             ...headers,
             "Content-Type": "application/json"
         },
-        body: JSON.stringify(requestBody)
-    }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '합짐 경로')]);
+        body: JSON.stringify(ignoreEnds ? { ...requestBody, roadevent: 1 } : requestBody)
+    }, KAKAO_ROUTE_HEDGE_MS, KAKAO_ROUTE_TIMEOUT_MS, '합짐 경로'), '합짐');
+    const [baseFetched, { data: mergedData, roadEvent: mergedRoadEvent }] = await Promise.all([basePending, mergedAsked]);
+    const baseRoadEvent = (await baseAsked).roadEvent;
     /* 🧮 base 가 비면 0 으로 넘기지 않는다 — 늘어난 분이 합짐 전체가 되어 좋은 합짐이 «똥»으로 보이고, 그 0 이 캐시돼 뒤 후보까지 번진다 */
     if (baseFetched && (!baseFetched.routes?.length || baseFetched.routes[0].result_code !== 0)) {
         const r0 = baseFetched.routes?.[0];
@@ -627,7 +667,8 @@ export async function calculateDetourRoute(
             const b = (cachedBase ?? { tollKrw: tollOf(baseSummary) }).tollKrw;
             const m = tollOf(mergedSummary);
             return b == null || m == null ? null : m - b;
-        })()
+        })(),
+        roadEvent: mergedRoadEvent ?? baseRoadEvent ?? null,
     };
 }
 

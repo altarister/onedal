@@ -13,7 +13,7 @@ import { getUserSession } from "../../state/userSessionStore";
 import { goalCityOf } from "../../state/filterManager";
 import { findLoadConflicts, totalDetourCost, getStopTiming } from "../helpers";
 import { haversineKm, originOf, homeOriginOf } from "../../services/geoService";
-import { geocodeCallAddress, calculateSoloRoute, prefetchSoloRoute } from "../../services/kakaoService";
+import { geocodeCallAddress, calculateSoloRoute, prefetchSoloRoute, roadEventWhereOf, type RoadEventCode } from "../../services/kakaoService";
 import { hedgeBudget } from "../../services/kakaoHedgeBudget";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
@@ -107,6 +107,12 @@ export function approxTagsOf(order: ApproxAddress): string[] {
         order.pickupApprox ? `주소 대략 — 상차 ${order.pickupApprox} 중심` : null,
         order.dropoffApprox ? `주소 대략 — 하차 ${order.dropoffApprox} 중심` : null,
     ].filter((t): t is string => t != null);
+}
+
+/** 🚧 **주변 유고를 무시하고 잰 길이면 딱지** — 어느 쪽 주변인지 기사님 말로. 색은 안 건드린다 (기사님 «가») */
+export function roadEventTagsOf(code: RoadEventCode | null | undefined): string[] {
+    const where = roadEventWhereOf(code);
+    return where ? [`${where} 주변 교통 장애 — 무시하고 잰 길`] : [];
 }
 
 export const firstLoadNeedsCall = (approachMin: number | null | undefined, promiseMin: number, reservedLater: boolean): boolean =>
@@ -294,7 +300,7 @@ export class OrderEvaluator {
                         const dwell = totalDetourCost(0, securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
                         const total = securedOrder.totalDurationMin != null
                             ? securedOrder.totalDurationMin + dwell.dwell : null;
-                        const tags: string[] = [...approxTagsOf(securedOrder)];
+                        const tags: string[] = [...approxTagsOf(securedOrder), ...roadEventTagsOf(result.roadEvent)];
                         if (firstLoadNeedsCall(securedOrder.approachDurationMin, judgmentCfg.unknown.pickupPromiseMin, reservedLater))
                             tags.push('통화 필수 — 무통보 상차 한계 밖');
                         if (dwell.hasUnknown) tags.push('정차 미확인(일반값)');
@@ -560,7 +566,7 @@ export class OrderEvaluator {
 
                             // 딱지 — 판단 없이 사실만 (절대치 문턱의 강등 자리). 분·km 둘 다 한계 기준
                             const marginalKm = distDiff;
-                            const tags = [`우회 ${marginal > 0 ? '+' : ''}${marginal}분 · ${marginalKm > 0 ? '+' : ''}${marginalKm}km`, ...approxTagsOf(securedOrder)];
+                            const tags = [`우회 ${marginal > 0 ? '+' : ''}${marginal}분 · ${marginalKm > 0 ? '+' : ''}${marginalKm}km`, ...approxTagsOf(securedOrder), ...roadEventTagsOf(result?.roadEvent)];
                             const candPickup = tlAfter.find(e => e.orderId === securedOrder.id && e.stopType === 'pickup');
                             /**
                              * 🛣️ **«길을 벗어나는 분» — 「돈」의 우회 감쇠가 이것만 본다** (기사님 확정).
