@@ -28,11 +28,12 @@ import { useEffect, useRef, useState } from 'react';
 import { APP_FILTER_KEYS, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabel, isModeApplying,
          DEVICE_MODE_LABEL } from '@onedal/shared';
 import type { SecuredOrder, DeviceSession, DeviceModeType } from '@onedal/shared';
+import { SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind } from '@onedal/shared';
 /* 🌉 관제웹 안쪽은 **다리 하나**로만 본다 — 옮길 때 `bridge.ts` 만 새로 쓰면 된다 */
 import { LAB_EVENING,
          useFilterConfig, useDeviceStore, summarizeTally, apiBase,
          useMockDriveStore, MOCK_DRIVE_SPEEDS, MOCK_DRIVE_DEFAULTS, publishLocation, apiClient,
-         useDriverPositionStore, ensureDriverPositionSubscribed,
+         useDriverPositionStore, ensureDriverPositionSubscribed, socket,
          useSettingsStore, KM_PER_TICK, STOP_OFF_ROAD_KM } from './bridge';
 /* ⚖️ **앱이 내린 판정을 읽는다** — 여기서 다시 재지 않는다 (`callVerdict.ts` 머리 참조).
    사본을 두면 앱과 갈라진다 */
@@ -625,6 +626,42 @@ function SimCallCard() {
                 </button>
             </div>
             {note && <Row k="방금 낸 것" v={note.text} tone={note.ok ? 'ok' : 'warn'} />}
+        </Card>
+    );
+}
+
+/** 📰 서버가 처음 본 화면 낱말 한 줄 — 읽기 문(`/api/screen-words/recent`)과 소켓(`screen-word-new`)이 같은 모양 */
+interface NewWord { targetApp: string; page: string; word: string; kind: string; firstSeen: string; seenCount?: number; sample: string | null }
+
+/**
+ * 📰 **새 글자 — 배차망 앱이 바뀐 첫 신호** (reviews/24 · 기사님 «정의되지 않았다고 버리지 말고 모아라»).
+ *    원달앱이 화면에서 정의에 없거나 잡음으로 뺀 글자를 서버가 처음 볼 때 한 줄이 선다. 진행 중 화면·소리는 안 쓴다 —
+ *    운전 중에는 못 보고 급한 일이 아니다. 🔴 테스트용 묶음 밖에 둔다 — 실물 픽커의 새 글자는 라이브에서 보여야 한다.
+ */
+function NewWordsCard() {
+    const [rows, setRows] = useState<NewWord[] | null>(null);
+    useEffect(() => {
+        let alive = true;
+        apiClient.get<{ words: NewWord[] }>('/screen-words/recent?days=7')
+            .then(r => { if (alive) setRows(r.data.words); })
+            .catch(() => { if (alive) setRows(null); });
+        const onNew = (w: NewWord) => setRows(prev => [w, ...(prev ?? [])].slice(0, 20));
+        socket.on('screen-word-new', onNew);
+        return () => { alive = false; socket.off('screen-word-new', onNew); };
+    }, []);
+    const shown = (rows ?? []).slice(0, 5);
+    return (
+        <Card title={shown.length ? `📰 새 글자 — 최근 7일 ${rows!.length}개` : '📰 새 글자'}
+              note={'원달앱이 모르는 글자를 처음 봤을 때\n배차망 앱이 바뀐 첫 신호'}>
+            {rows === null
+                ? <Row k="지금" v="못 읽었다 — 서버에 못 붙었다" tone="warn" />
+                : shown.length === 0
+                    ? <Row k="최근 7일" v="처음 본 글자 없음" tone="ok" />
+                    : shown.map(w => (
+                        <Row key={`${w.targetApp}${w.page}${w.kind}${w.word}`}
+                             k={`${w.targetApp} ${SCREEN_PAGE_LABEL[w.page as ScreenPage] ?? w.page}`}
+                             v={`‹${w.word}› ${WORD_KIND_LABEL[w.kind as WordKind] ?? w.kind}${w.sample ? ` — ${w.sample.slice(0, 40)}` : ''}`} />
+                    ))}
         </Card>
     );
 }
@@ -1257,6 +1294,7 @@ export default function StatusBoard({ activeRoute }: Props) {
                 </Card>
             ),
         },
+        { key: 'newWords', side: 'server', node: <NewWordsCard /> },
         /* 🧪 «🎭 모의 주행»은 서버를 바꾸는 것이라 맨 위 테스트 구역에 있다
            (기사님 지시: 어드민에서 없어져야 하는 셋). */
         {

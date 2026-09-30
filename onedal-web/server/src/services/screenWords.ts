@@ -1,5 +1,5 @@
 import db from "../db";
-import { SCREEN_PAGES, WORD_KINDS, type ScreenPage, type WordKind, type ScreenWordsReport } from "@onedal/shared";
+import { SCREEN_PAGES, WORD_KINDS, SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind, type ScreenWordsReport } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 
 /**
@@ -53,8 +53,6 @@ export function wordsOf(report: LooseReport): { page: ScreenPage; words: CleanWo
 export function isQuietPeriod(earliestFirstSeenMs: number | null, nowMs: number): boolean {
     return earliestFirstSeenMs == null || nowMs < earliestFirstSeenMs + QUIET_MS;
 }
-
-const KIND_LABEL: Record<WordKind, string> = { noise: '잡음으로 뺌', unknown: '정의에 없음', extra: '남는 토막' };
 
 const pairKey = (app: string, page: string) => `${app}|${page}`;
 const wordKey = (app: string, page: string, kind: string, word: string) => `${app}|${page}|${kind}|${word}`;
@@ -113,7 +111,7 @@ export function noteScreenWords(userId: string, targetApp: string, report: Loose
             set.add(wk);
             stmtInsert.run(targetApp, r.page, word, kind, now, now, sample);
             if (quiet) continue;
-            console.warn(`📰 [새 글자] ${targetApp} ${r.page} ‹${word}› 처음 봄 (${KIND_LABEL[kind]})`
+            console.warn(`📰 [새 글자] ${targetApp} ${SCREEN_PAGE_LABEL[r.page]} ‹${word}› 처음 봄 (${WORD_KIND_LABEL[kind]})`
                 + (sample ? ` — 예: ${sample.slice(0, 60)}` : ''));
             io?.to(userId).emit('screen-word-new', { targetApp, page: r.page, word, kind, firstSeen: now, sample });
         }
@@ -137,10 +135,22 @@ export function flushScreenWords(): void {
             if (isQuietPeriod(q.earliest, nowMs)) continue;
             quietPairs.delete(pk);
             const n = (db.prepare(`SELECT COUNT(*) AS n FROM screen_words WHERE target_app = ? AND page = ?`).get(q.app, q.page) as { n: number }).n;
-            slog('화면', `📰 [조용한 첫 하루 끝] ${q.app} ${q.page} — 낱말 ${n}개 모음 · 이제부터 처음 보는 낱말은 알린다`);
+            slog('화면', `📰 [조용한 첫 하루 끝] ${q.app} ${SCREEN_PAGE_LABEL[q.page as ScreenPage] ?? q.page} — 낱말 ${n}개 모음 · 이제부터 처음 보는 낱말은 알린다`);
         }
     } catch (e) {
         console.error('📰 [새 글자] 모아 쓰기 실패:', (e as Error).message);
     }
 }
 setInterval(flushScreenWords, FLUSH_MS).unref();
+
+/** 📰 현황판 «새 글자» 줄 — 최근 며칠에 처음 본 낱말. 조용한 첫 하루에 모인 것도 표에 있는 그대로 싣는다 */
+export function recentNewWords(days: number, limit = 20): Array<{ targetApp: string; page: string; word: string; kind: string; firstSeen: string; seenCount: number; sample: string | null }> {
+    const since = new Date(Date.now() - days * 86_400_000).toISOString();
+    return (db.prepare(`
+        SELECT target_app, page, word, kind, first_seen, seen_count, sample FROM screen_words
+        WHERE first_seen >= ? ORDER BY first_seen DESC LIMIT ?
+    `).all(since, limit) as any[]).map(r => ({
+        targetApp: r.target_app, page: r.page, word: r.word, kind: r.kind,
+        firstSeen: r.first_seen, seenCount: r.seen_count, sample: r.sample ?? null,
+    }));
+}

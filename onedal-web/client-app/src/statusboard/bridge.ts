@@ -55,6 +55,11 @@ export { useDriverPositionStore, ensureDriverPositionSubscribed } from '../store
  *    서버 값을 읽어 오는 것은 `loadScreenSettings`(관제웹)가 이미 한다 (규칙 ③).
  */
 export { useSettingsStore } from '../stores/settingsStore';
+/* 🔴 **인증이 필요한 문은 이걸로 연다** — 토큰을 손으로 붙이면 갱신(리프레시)을 놓친다.
+   테스트용 구역(주소 찾기 · 집)과 «📰 새 글자» 줄이 함께 쓴다 — 새 글자 줄은 라이브에도 남으니 이 줄은 테스트용 구역 밖이다 */
+export { apiClient } from '../api/apiClient';
+/* 📰 **소켓은 듣기만** — «새 글자» 줄이 `screen-word-new` 를 듣는다. 보내는 일(위치)은 `publishLocation` 한 곳을 지난다 */
+export { socket } from '../lib/socket';
 /* ── 🧪 **여기부터 셋은 «테스트용»이다 — 어드민으로 갈 때 함께 걷는다** ──
    (기사님 지시: *"모의 주행과 내 위치의 주소찾기, 집주소 이렇게 3개의 모듈은
     어드민때는 없어져야 하는것들이야"*)
@@ -70,8 +75,6 @@ export { useSettingsStore } from '../stores/settingsStore';
  */
 export { useMockDriveStore, MOCK_DRIVE_SPEEDS, MOCK_DRIVE_DEFAULTS } from '../stores/mockDriveStore';
 export { publishLocation } from '../lib/gpsBridge';
-/* 🔴 **인증이 필요한 문은 이걸로 연다** — 토큰을 손으로 붙이면 갱신(리프레시)을 놓친다 */
-export { apiClient } from '../api/apiClient';
 /**
  * 🎭 **연기 눈금이 실제로 몇 km 를 걷는가 — 그 수의 원천**.
  *    화면이 「한 걸음」·「닿는 거리」를 적으려면 필요하다. **계산식은 `simStep` 이 갖는다** —

@@ -8,6 +8,8 @@
 /** 페이지 넷 — 목록 · 상세(확정 전) · 확정(계약 직후) · 내 오더/배차내역 */
 export const SCREEN_PAGES = ['list', 'detail', 'confirm', 'myorders'] as const;
 export type ScreenPage = typeof SCREEN_PAGES[number];
+/** 사람이 읽는 이름 — 서버 로그와 관제웹 현황판이 같은 말을 쓴다 */
+export const SCREEN_PAGE_LABEL: Record<ScreenPage, string> = { list: '목록', detail: '상세', confirm: '확정', myorders: '내 오더' };
 
 /**
  * 모은 글자의 갈래 — 잡음 낱말로 뺀 글자(noise) · 정의에 없어 못 알아본 글자(unknown) · 칸이 다 차서 남는 토막(extra).
@@ -15,6 +17,8 @@ export type ScreenPage = typeof SCREEN_PAGES[number];
  */
 export const WORD_KINDS = ['noise', 'unknown', 'extra'] as const;
 export type WordKind = typeof WORD_KINDS[number];
+/** 사람이 읽는 이름 — 서버 로그와 관제웹 현황판이 같은 말을 쓴다 */
+export const WORD_KIND_LABEL: Record<WordKind, string> = { noise: '잡음으로 뺌', unknown: '정의에 없음', extra: '남는 토막' };
 
 /**
  * 📰 원달앱이 보고 본문 한 칸 `screenWords` 로 싣는 모양 — 한 보고는 한 화면이라 page 는 한 번, 예 한 줄은 낱말마다.

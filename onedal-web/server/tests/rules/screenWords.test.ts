@@ -81,3 +81,30 @@ describe('📰 조용한 첫 하루 — isQuietPeriod', () => {
     it('첫 보고부터 24시간 안은 조용하다', () => expect(isQuietPeriod(t0, t0 + QUIET_MS - 1)).toBe(true));
     it('24시간이 지나면 알린다', () => expect(isQuietPeriod(t0, t0 + QUIET_MS)).toBe(false));
 });
+
+describe('📰 현황판 «새 글자» 줄 — 라이브에서도 보인다', () => {
+    const client = (p: string) => readFileSync(join(__dirname, '../../../client-app/src', p), 'utf8');
+
+    it('읽기 문 하나 — 인증 뒤 최근 처음 본 낱말', () => {
+        const route = read('routes/screenWords.ts');
+        expect(route).toMatch(/router\.get\("\/recent", requireAuth/);
+        expect(read('index.ts')).toContain('app.use("/api/screen-words", screenWordsRouter);');
+    });
+
+    it('현황판이 문으로 채우고 소켓으로 새로 고친다 — 테스트용 묶음 밖', () => {
+        const sb = client('statusboard/StatusBoard.tsx');
+        expect(sb).toContain("apiClient.get<{ words: NewWord[] }>('/screen-words/recent?days=7')");
+        expect(sb).toContain("socket.on('screen-word-new', onNew)");
+        expect(sb).toContain("socket.off('screen-word-new', onNew)");
+        const testOnly = sb.slice(sb.indexOf('function TestOnlySection'), sb.indexOf('function TestOnlySection') + 3000);
+        expect(testOnly).not.toContain('NewWordsCard');
+    });
+
+    it('갈래·페이지의 한국어 이름은 shared 한 곳 — 서버 로그와 현황판이 같은 말', () => {
+        const shared = readFileSync(join(__dirname, '../../../shared/src/pageFields.ts'), 'utf8');
+        expect(shared).toContain('export const WORD_KIND_LABEL');
+        expect(shared).toContain('export const SCREEN_PAGE_LABEL');
+        expect(read('services/screenWords.ts')).toContain('WORD_KIND_LABEL[kind]');
+        expect(client('statusboard/StatusBoard.tsx')).toContain('WORD_KIND_LABEL');
+    });
+});
