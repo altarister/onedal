@@ -173,10 +173,10 @@ const simCalls = createSimCallQueue();
 let phoneRoundSent: number | null = null;
 
 /**
- * 📱 **폰 «본 콜» 기억의 회차 — `/api/scrap` 응답 꼬리(`deviceControl.callMemoryRound`)에 싣는다** (`core/simCallQueue.ts` 머리).
- * 원달앱은 번호가 바뀐 것을 보면 `CallMemory` 를 비운다. 🔴 개발 빌드에서만 — 운영에는 시뮬레이터 회차가 없다.
+ * 📱 **폰 «본 콜» 기억 번호에 더할 시뮬 회차** — 번호 합성은 `services/callMemoryRound.ts` 의 `callMemoryRoundOf` 한 곳 (`core/simCallQueue.ts` 머리).
+ * 🔴 개발 빌드에서만 — 운영에는 시뮬레이터 회차가 없다(null · 번호는 영업일로만 바뀐다).
  */
-export function callMemoryRoundForPhone(): number | null {
+export function simRoundForPhone(): number | null {
     if (!isDevBuild()) return null;
     phoneRoundSent = simCalls.round;
     return simCalls.round;

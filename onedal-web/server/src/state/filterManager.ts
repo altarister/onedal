@@ -1420,6 +1420,8 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
 
     const yesterday = session.businessDay;
     session.businessDay = today;
+    /* 🧹 폰 «본 콜» 기억 번호는 영업일에서 계산된다(`services/callMemoryRound.ts`) — 여기서는 바뀐 순간을 알리기만 한다 */
+    slog('콜단계', `🧹 [본 콜 기억] 영업일 전환 ${yesterday} → ${today} — 앱에 비우기 신호`);
 
     /**
      * 📊 **성과 기록 — 어제치를 리셋 전에 집계한다** (필터 정의 4장).
