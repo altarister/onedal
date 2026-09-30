@@ -18,7 +18,8 @@ import com.onedal.app.models.SimplifiedOfficeOrder
  * @param rowLeft 요금 칸이 아니라 그 줄의 왼쪽 끝을 누른다 (`TapShift`)
  * @param delayMs 자국을 보여 준 뒤 누르기까지 기다리는 시간
  */
-data class ListTap(val rowLeft: Boolean, val delayMs: Long)
+/** @param dy 요금 중심에서 누를 Y 를 옮길 픽셀 — 맨 아래 줄은 탭 줄 위로 보이는 몫의 가운데 (`TapShift.rowTapDy`) */
+data class ListTap(val rowLeft: Boolean, val delayMs: Long, val dy: Int = 0)
 
 interface IDispatchAppPlugin {
     val code: String                  // "kakaopicker", "insung", "hwamul24"

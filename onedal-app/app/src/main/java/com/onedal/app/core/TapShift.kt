@@ -34,6 +34,25 @@ object TapShift {
      */
     fun rowLeftOf(rowLeft: Int): Int = maxOf(MIN_X, rowLeft + ROW_INSET_PX)
 
+    /** 아래 탭 줄 위끝에서 이만큼 위까지만 누른다 (폰 픽셀) */
+    const val TAB_GAP_PX = 40
+    /** 선 위로 이만큼은 보여야 누른다 — 모자라면 보류 */
+    const val VISIBLE_MIN_PX = 60
+
+    /**
+     * 👆 **맨 아래 줄을 누를 Y — 요금 중심에서 옮길 픽셀, 보류면 null** (onedal-1f «가» · `TabLineTapTest`).
+     * 요금 중심이 «탭 줄 위끝 − [TAB_GAP_PX]» 아래면 그 선 위로 보이는 몫(줄 위끝~선)의 가운데를 누른다 —
+     * 보이는 몫이 [VISIBLE_MIN_PX] 미만이면 보류. 선 위의 줄·탭 줄을 모르면 0(지금처럼 요금 중심).
+     * 라이브 09-30 23:20~23:50 «누르기 안 먹힘» 12번 모두 Y=2102 — 탭 줄 위끝 2100 위를 눌렀다.
+     */
+    fun rowTapDy(fareCenterY: Int, rowTopY: Int, tabTopY: Int?): Int? {
+        tabTopY ?: return 0
+        val line = tabTopY - TAB_GAP_PX
+        if (fareCenterY <= line) return 0
+        if (line - rowTopY < VISIBLE_MIN_PX) return null
+        return (rowTopY + line) / 2 - fareCenterY
+    }
+
     /**
      * ⏳ **자국을 보여 주고 이만큼 미뤘다 찍는다 — 지금은 0, 바로 찍는다** (기사님 지시).
      *

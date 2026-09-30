@@ -112,7 +112,17 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
                 "(요금 Y=$fareY · 머리줄 Y=$headerY · 스캔 때 $anchor) · 손대지 않는다")
             return null
         }
-        return com.onedal.app.plugins.ListTap(rowLeft = true, delayMs = com.onedal.app.core.TapShift.PREVIEW_MS)
+        // 👆 맨 아래 줄 — 탭 줄 위로 보이는 몫의 가운데를 누른다, 모자라면 보류 (`TapShift.rowTapDy` · 23:20~23:50 안 먹힘 12번)
+        val tabWords = setOf("신규", "내 오더")
+        val tabTop = allNodes.filter { it.text.trim() in tabWords }.minOfOrNull { it.rect.top }
+        val fareCenter = fareY ?: fareNode.rect.centerY()
+        val rowTop = allNodes.filter { it.text.trim() !in tabWords && it.rect.centerY() in (fareCenter - KakaoPickerParser.CARD_BAND_PX)..fareCenter }
+            .minOfOrNull { it.rect.top } ?: fareNode.rect.top
+        val dy = com.onedal.app.core.TapShift.rowTapDy(fareCenter, rowTop, tabTop) ?: run {
+            logHeldOnce(order, "🛑 [상세 진입 보류] ${order.fare}원 — 탭 줄에 걸림(요금 Y=$fareCenter · 줄 위끝 $rowTop · 탭 위끝 $tabTop) · 목록이 올라오면 누른다")
+            return null
+        }
+        return com.onedal.app.plugins.ListTap(rowLeft = true, delayMs = com.onedal.app.core.TapShift.PREVIEW_MS, dy = dy)
     }
 
     /**

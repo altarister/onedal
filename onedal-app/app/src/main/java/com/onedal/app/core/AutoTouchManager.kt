@@ -116,6 +116,8 @@ class AutoTouchManager(private val service: AccessibilityService) {
         leftShiftPx: Int = 0,
         tapRowLeft: Boolean = false,
         delayMs: Long = 0L,
+        /** 요금 중심에서 누를 Y 를 옮길 픽셀 (`ListTap.dy`) — 누르기 직전 다시 잰 자리에 더한다 */
+        tapDy: Int = 0,
         mark: Boolean = true,
         /** 무엇을 눌렀나 — 같은 누름을 가리는 열쇠. 목록 줄은 콜 지문(`call:…`), 버튼은 글자. 없으면 노드 글자 */
         tapKey: String? = null,
@@ -126,7 +128,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
     ): Boolean {
         val key = tapKey ?: node.text?.toString() ?: node.contentDescription?.toString() ?: "?"
         if (!isRefire && blockedInFlight(key)) return false
-        val redo: () -> Unit = refire ?: { performSimulatedTouch(node, leftShiftPx, tapRowLeft, 0L, false, key, isRefire = true) }
+        val redo: () -> Unit = refire ?: { performSimulatedTouch(node, leftShiftPx, tapRowLeft, 0L, tapDy, false, key, isRefire = true) }
         /**
          * 🔴 **찍기 직전에 다시 잰다**.
          *
@@ -148,7 +150,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
         node.getBoundsInScreen(rect)
 
         val x = tapXOf(node, rect, leftShiftPx, tapRowLeft).toFloat()
-        val y = rect.centerY().toFloat()
+        val y = (rect.centerY() + tapDy).toFloat()
 
         if (x <= 0f || y <= 0f) {
             AppLogger.e(TAG, LogTag.TAP, "❌ [터치 실패] 화면 좌표를 구할 수 없습니다. (X:$x, Y:$y)")
