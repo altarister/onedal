@@ -1335,6 +1335,8 @@ class HijackService : AccessibilityService(), ScanContext {
                 ?: if (discardStreak == com.onedal.app.core.ListWatch.DISCARD_STREAK_MAX)
                     AppLogger.i(TAG, LogTag.SCREEN, "📐 섞인 틀 연속 ${discardStreak}번 — 곧 다시 읽기를 멈추고 5초 주기로") else Unit
         } else discardStreak = 0
+        // 🔔 경로 기억에 이번 읽기의 흔들림 — 흔들린 읽기는 «다른 콜» 가르기에 안 쓴다 (`AlarmedRoutes.beginRead`)
+        alarmedRoutes.beginRead(steady = !scrapParser.lastFrameDiscarded && !scanMoving)
 
         /** 그룹은 나왔는데 요금을 못 읽어 버려진 수 — 아래 진단이 읽는다 */
         var fareFail = 0

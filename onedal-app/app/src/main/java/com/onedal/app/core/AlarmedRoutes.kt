@@ -23,6 +23,8 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
     }
 
     private class Entry(var pickup: Set<String>, var dropoff: Set<String>, var lastSeenMs: Long, var fare: Int) {
+        /** 본 가장 높은 요금 — 이보다 낮으면 다른 콜(요금은 내려가지 않는다) */
+        var topFare = fare
         var counted = false
         var sounded = false
         var opened = false
@@ -32,11 +34,22 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
 
     private fun tokens(s: String) = s.trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }.toSet()
 
+    /** 🔔 이번 읽기가 흔들림 없나(겹친 틀 · 흐르는 목록 아님) — 흔들린 읽기는 요금을 잘못 읽을 수 있어 다른 콜 가르기에 안 쓴다 */
+    private var steady = false   // 읽기 시작 알림 전에는 옛 판단(같은 경로면 같은 콜)
+    /** 이번 읽기에서 경로를 쓴 줄(지문) — 같은 읽기의 다른 줄이 같은 경로면 다른 콜 */
+    private val usedThisRead = HashMap<Entry, Int>()
+
+    /** 🔔 목록 읽기 한 번의 시작 — `HijackService.handleListScreen` 이 겹친 틀 판정 뒤 부른다 (`AlarmedRoutesSplitTest`) */
+    fun beginRead(steady: Boolean) { this.steady = steady; usedThisRead.clear() }
+
     private fun find(o: SimplifiedOfficeOrder): Entry? {
         val p = tokens(o.pickup); val d = tokens(o.dropoff)
         if (p.isEmpty() || d.isEmpty()) return null
+        val fp = CallMemory.fingerprintOf(o)
         return entries.firstOrNull { e ->
-            (e.pickup.containsAll(p) && e.dropoff.containsAll(d)) || (p.containsAll(e.pickup) && d.containsAll(e.dropoff))
+            ((e.pickup.containsAll(p) && e.dropoff.containsAll(d)) || (p.containsAll(e.pickup) && d.containsAll(e.dropoff))) &&
+                // 🔔 흔들림 없는 읽기에서만 — 요금이 내려갔거나 같은 읽기의 다른 줄이 쓴 경로면 다른 콜(실물 09-30 «송파→강남 10318 → 9086»)
+                !(steady && ((o.fare in 1 until e.topFare) || usedThisRead[e]?.let { it != fp } == true))
         }
     }
 
@@ -46,6 +59,7 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
         val e = find(o) ?: Entry(p, d, nowMs, o.fare).also { entries.add(it) }
         if (p.size + d.size > e.pickup.size + e.dropoff.size) { e.pickup = p; e.dropoff = d }   // 자세한 쪽을 남긴다
         e.lastSeenMs = nowMs
+        if (steady) { usedThisRead[e] = CallMemory.fingerprintOf(o); if (o.fare > e.topFare) e.topFare = o.fare }
         return e
     }
 
