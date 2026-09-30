@@ -76,3 +76,34 @@ class PickerStopPlaceTest {
         assertEquals(null, PickerScreenOcr.parseDetail(withNote)!!.dropoff.place)
     }
 }
+
+/**
+ * 📍 **행정동이 두 줄로 꺾인 주소 · 요일 오독** — 라이브 09-30 19:59:34 손 상세(서버 이상 기록 515 사진 13줄 그대로).
+ * 화면 «경기 성남시 중원구 / 상대원1동» 두 줄 → 첫 줄만 잡아 «상차 주소 짧음»으로 버렸다 · 정류장 시각 «10/07(수)»를 «10/07(4)»로 읽었다.
+ */
+class PickerWrappedAdminTest {
+    private val lines = listOf(
+        OcrLine(30, "퀵 예약 비즈 0"), OcrLine(93, "0 10/7(수) 09:00 픽업예약"),
+        OcrLine(193, "경기 성남시 중원구"), OcrLine(236, "상대원1동"), OcrLine(278, "중앙인더스피아3차"),
+        OcrLine(329, "서울 강남구 청담동"), OcrLine(192, "픽업 12.9km"), OcrLine(222, "10/07(4) 09:00"), OcrLine(567, "넘기기"),
+        OcrLine(328, "배송 14.9km"), OcrLine(357, "10/07(+) 10:36"), OcrLine(434, "물품 정보 중형 세 변의 합 140cm 20kg 이하"), OcrLine(567, "수락하기"),
+    )
+
+    @Test fun `두 줄로 꺾인 행정동을 잇는다 · 오독 요일도 정류장 시각`() {
+        val d = PickerScreenOcr.parseDetail(lines)!!
+        assertEquals("경기 성남시 중원구 상대원1동", d.pickup.admin)
+        assertEquals("중앙인더스피아3차", d.pickup.place)
+        assertEquals("10/07(4) 09:00", d.pickup.at)
+        assertEquals("서울 강남구 청담동", d.dropoff.admin)
+        assertEquals("10/07(+) 10:36", d.dropoff.at)
+    }
+
+    @Test fun `건물 동 번호는 잇지 않는다 - 101동 · 상가동 · 관리동`() {
+        for (unit in listOf("101동", "A동", "상가동", "관리동")) {
+            val d = PickerScreenOcr.parseDetail(lines.map { if (it.text == "상대원1동") OcrLine(it.y, unit) else it })!!
+            assertEquals(unit, "경기 성남시 중원구", d.pickup.admin)
+        }
+    }
+
+    @Test fun `빈 괄호는 정류장 시각이 아니다`() = assertEquals(null, PickerScreenOcr.timeOf("10/07() 09:00"))
+}

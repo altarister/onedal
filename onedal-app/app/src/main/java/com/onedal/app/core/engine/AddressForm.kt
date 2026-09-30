@@ -45,6 +45,17 @@ object AddressForm {
         return false
     }
 
+    /**
+     * 📍 **이 주소의 시·군·구에 그 동이 명부에 있나** — 두 줄로 꺾인 행정동을 이을지 가른다(`PickerScreenOcr.readStop`).
+     * «경기 성남시 중원구» + «상대원1동» → 참 · «상가동»·«관리동»(건물 동) → 거짓. 숫자·«본동»은 접어 대조한다.
+     */
+    fun knownDong(address: String, dong: String, register: Map<String, Set<String>> = RegionRegister.bySgg): Boolean {
+        val tokens = address.trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }.map { SIDO_SHORT[it] ?: it }
+        val merged = if (register === RegionRegister.bySgg) defaultMerged else register + citiesWithoutGu(register)
+        val want = fold(dong)
+        return merged.any { (sgg, dongs) -> indexOfRun(tokens, sgg.split(' ')) >= 0 && dongs.any { fold(it) == want } }
+    }
+
     private fun fold(s: String) = s.replace(DIGITS, "").replace("본동", "동")
 
     /** «성남시 분당구»·«성남시 수정구» → «성남시» = 두 구의 동을 합친 것. 첫 토막이 «…시»인 두 토막 키만 (광역시 «서울 강남구»는 제외) */

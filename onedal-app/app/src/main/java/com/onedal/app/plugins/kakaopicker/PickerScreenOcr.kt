@@ -75,8 +75,11 @@ object PickerScreenOcr {
     private val SECTION_TITLES = listOf("물품 정보", "유의사항", "최종 수익", "배송비", "프로모션", "픽업 장소")
     private fun isSectionTitle(text: String) = SECTION_TITLES.any { text.startsWith(it) }
 
-    /** 🕘 정류장 시각 — «10:00» · «내일 15:00» · «10/03(토) 11:00»(며칠 뒤 예약 · 실물 09-30 16:03 — 못 알아보면 건물 이름 자리에 들어가 주소가 틀어진다) */
-    private val TIME_RE = Regex("^(오늘|내일|모레|[0-9]{1,2}/[0-9]{1,2}\\([월화수목금토일]\\))?\\s*([0-9]{1,2}:[0-9]{2})$")
+    /**
+     * 🕘 정류장 시각 — «10:00» · «내일 15:00» · «10/03(토) 11:00»(며칠 뒤 예약 · 실물 09-30 16:03 — 못 알아보면 건물 이름 자리에 들어가 주소가 틀어진다).
+     * 괄호 안은 닫는 괄호가 아닌 한 글자 — 판독기가 요일을 «(4)»·«(+)»로 읽는다(실물 19:59). 요일은 쓰지 않고 날짜 숫자만 쓴다.
+     */
+    private val TIME_RE = Regex("^(오늘|내일|모레|[0-9]{1,2}/[0-9]{1,2}\\([^)]\\))?\\s*([0-9]{1,2}:[0-9]{2})$")
 
     /**
      * `10:00까지 픽업` · `12:39까지 배송` — **오늘 콜**은 시각이 이 꼴로 온다 (A24 실측).
@@ -104,7 +107,7 @@ object PickerScreenOcr {
     fun isAdminLine(text: String): Boolean = PROVINCES.any { text.startsWith("$it ") }
 
     /** 시각 줄이면 화면에 적힌 시각 그대로(`내일 15:00` · `10:00까지`), 아니면 null */
-    private fun timeOf(text: String): String? =
+    internal fun timeOf(text: String): String? =
         TIME_RE.find(text)?.value?.trim() ?: DEADLINE_RE.find(text)?.groupValues?.get(1)?.let { "${it}까지" }
 
     /**
@@ -176,6 +179,19 @@ object PickerScreenOcr {
     }
 
     /** 한 덩어리(머리 − 여유 ~ 다음 머리 − 여유)에서 행정동·건물명·시각을 뽑는다 */
+    private val WRAPPED_UNIT = Regex("""^[가-힣]{1,6}\d{0,2}(동|읍|면|가)$""")
+
+    /**
+     * 📍 두 줄로 꺾인 행정동을 이을까 — 윗줄이 시·군·구로 끝나고, 아랫줄이 한글로 시작하는 동·읍·면·가 한 토막이며,
+     * 그 시·군·구의 명부 동이거나 숫자가 붙은 행정동(«상대원1동»)일 때만. «101동»·«A동»·«상가동»·«관리동»(건물 동)은 안 잇는다.
+     */
+    private fun joinsWrappedAdmin(upper: String, lower: String): Boolean {
+        val last = upper.trim().split(Regex("""\s+""")).lastOrNull() ?: return false
+        if (!(last.endsWith("시") || last.endsWith("군") || last.endsWith("구"))) return false
+        if (!WRAPPED_UNIT.matches(lower)) return false
+        return lower.any { it.isDigit() } || com.onedal.app.core.engine.AddressForm.knownDong(upper, lower)
+    }
+
     private fun readStop(sorted: List<OcrLine>, head: Head, nextHeadY: Int): PickerStopFromImage? {
         // 정류장 칸의 아래 끝 — 다음 머리 또는 첫 제목 줄(«물품 정보» 등). 그 아래 요금·유의사항 글은 정류장이 아니다
         //   (건물 없는 하차에 «12,628 P»가 건물로 들어갔다 · 실물 09-30 16:11 · `PickerStopPlaceTest`)
@@ -183,14 +199,19 @@ object PickerScreenOcr {
         val upper = minOf(if (nextHeadY == Int.MAX_VALUE) Int.MAX_VALUE else nextHeadY - SLACK, sectionY)
         val block = sorted.filter { it.y >= head.y - SLACK && it.y < upper }
 
-        val adminLine = block.firstOrNull { isAdminLine(it.text) }?.text ?: return null
+        val adminHit = block.firstOrNull { isAdminLine(it.text) } ?: return null
+        val adminLine = adminHit.text
         // 머리가 행정동 줄에 붙어 오면(«…상대원1동 찍업 12.7km») 주소는 머리 앞까지
-        val admin = HEAD_RE.find(adminLine)?.let { adminLine.substring(0, it.range.first).trim() } ?: adminLine
+        val adminHead = HEAD_RE.find(adminLine)?.let { adminLine.substring(0, it.range.first).trim() } ?: adminLine
+        // 📍 행정동이 두 줄로 꺾였으면(«경기 성남시 중원구 / 상대원1동» · 실물 19:59) 아래 동 줄을 잇는다 — 건물 동(«101동»·«상가동»)은 안 잇는다
+        val wrapped = block.filter { it.y > adminHit.y && !HEAD_RE.containsMatchIn(it.text) && timeOf(it.text) == null && !CLOCK_START.containsMatchIn(it.text) }
+            .minByOrNull { it.y }?.text?.trim()?.takeIf { joinsWrappedAdmin(adminHead, it) }
+        val admin = if (wrapped != null) "$adminHead $wrapped" else adminHead
         val at = block.firstNotNullOfOrNull { timeOf(it.text) }
 
         // 건물명 — 머리·행정동·시각을 뺀 나머지 첫 줄
         val place = block.firstOrNull {
-            it.text != adminLine && !HEAD_RE.containsMatchIn(it.text) && timeOf(it.text) == null && !CLOCK_START.containsMatchIn(it.text) &&
+            it.text != adminLine && it.text.trim() != wrapped && !HEAD_RE.containsMatchIn(it.text) && timeOf(it.text) == null && !CLOCK_START.containsMatchIn(it.text) &&
                 !isSectionTitle(it.text) && !SIZE_RE.containsMatchIn(it.text) &&
                 com.onedal.app.core.ValueShape.normalize(it.text.trim()) == it.text.trim()   // 값 꼴(요금·포인트·숫자)은 장소가 아니다
         }?.text
