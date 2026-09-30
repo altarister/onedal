@@ -4,12 +4,25 @@ import { verdictOf, VERDICT_DOT } from './verdict';
 
 const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 
+const partsOf = (reservedFor: string | null | undefined) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(reservedFor ?? '');
+    return m ? { y: Number(m[1]), mo: Number(m[2]), d: Number(m[3]) } : null;
+};
+
 /** 📅 보관 날 글자 «10/3(토)» — 서랍 줄과 판정석 알약이 같이 쓴다. 요일은 보관 날 기준. 모르면 «—» */
 export function reservedDayLabel(reservedFor: string | null | undefined): string {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(reservedFor ?? '');
-    if (!m) return '—';
-    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-    return `${mo}/${d}(${WEEKDAY[new Date(Date.UTC(y, mo - 1, d)).getUTCDay()]})`;
+    const p = partsOf(reservedFor);
+    return p ? `${p.mo}/${p.d}(${WEEKDAY[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()]})` : '—';
+}
+
+type ReservedFields = { reservedFor?: string | null; reservedDay?: number | null; reservedAt?: string | null; capturedAt?: string };
+/** 보관 날 — 적힌 것(`reservedFor` · 보관된 콜)이 먼저, 없으면 잡은 날 + `reservedDay`(서버와 같은 `reservedForOf`). 오늘 콜이면 null */
+const reservedDayOf = (c: ReservedFields) => c.reservedFor || reservedForOf(c);
+
+/** 📅 상태바 한 줄 심사석의 짧은 꼴 «10/3» (시각·요일 없음) — 오늘 콜이면 null */
+export function reservedShortOf(c: ReservedFields): string | null {
+    const p = partsOf(reservedDayOf(c));
+    return p ? `${p.mo}/${p.d}` : null;
 }
 
 /**
@@ -17,8 +30,8 @@ export function reservedDayLabel(reservedFor: string | null | undefined): string
  * 보관 날은 적힌 것(`reservedFor` · 보관된 콜)이 먼저, 없으면 잡은 날 + `reservedDay`(서버와 같은 `reservedForOf`).
  * 오늘 콜(0 · 없음)이면 null — 아무것도 안 그린다. 시각을 모르면 «시각 모름» (지어내지 않는다).
  */
-export function reservedBadgeOf(c: { reservedFor?: string | null; reservedDay?: number | null; reservedAt?: string | null; capturedAt?: string }): string | null {
-    const day = c.reservedFor || reservedForOf(c);
+export function reservedBadgeOf(c: ReservedFields): string | null {
+    const day = reservedDayOf(c);
     if (!day) return null;
     const at = c.reservedAt && /^\d{1,2}:\d{2}$/.test(c.reservedAt) ? c.reservedAt : '시각 모름';
     return `📅 ${reservedDayLabel(day)} ${at} 예약`;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { reservedLineOf, reservedDayLabel, reservedBadgeOf } from './reservedLine';
+import { reservedLineOf, reservedDayLabel, reservedBadgeOf, reservedShortOf } from './reservedLine';
 
 /**
  * 📅 **서랍 «예약» 칸의 한 줄 — 먼발치에서 읽히게** (reviews/23 B-4 · onedal-1f 조건).
@@ -49,5 +49,17 @@ describe('📅 판정석 예약 알약', () => {
     });
     it('이미 보관 날이 적힌 콜은 그 날을 쓴다', () => {
         expect(reservedBadgeOf({ reservedFor: '2026-10-06', reservedAt: '09:00', capturedAt })).toBe('📅 10/6(화) 09:00 예약');
+    });
+});
+
+/** 📅 **상태바 한 줄 심사석의 짧은 꼴** «10/3» (onedal-1f · 기사님 «붙여») — 날 글자는 같은 한 벌에서 */
+describe('📅 상태바 짧은 예약 날', () => {
+    const capturedAt = new Date(2026, 8, 30, 16, 0).toISOString();
+    it('🔴 3일 뒤 → «10/3» (시각 · 요일 없음)', () => {
+        expect(reservedShortOf({ reservedDay: 3, reservedAt: '11:00', capturedAt })).toBe('10/3');
+    });
+    it('🔴 오늘 콜은 없다', () => {
+        expect(reservedShortOf({ reservedDay: 0, capturedAt })).toBeNull();
+        expect(reservedShortOf({ capturedAt })).toBeNull();
     });
 });

@@ -203,3 +203,20 @@ describe('🎬 시트 상태바 — 일곱 경우', () => {
         });
     });
 });
+
+/**
+ * 📅 **판정 중인 콜이 예약 콜이면 짧은 날을 싣는다** (onedal-1f · 기사님 «붙여»).
+ * 판정 중일 때만 · 경우(대기·주행·정차)와 따로 — 오늘 콜로 보고 수락하지 않게.
+ */
+describe('📅 상태바 — 판정 중 예약 콜', () => {
+    it('🔴 갈 곳 없이 판정 중 · 예약 날 «10/3» 이 실린다', () => {
+        expect(sheetStatus({ judging: true, judgingReservedDay: '10/3' }).reservedDay).toBe('10/3');
+    });
+    it('🔴 달리며 판정 중이어도 실린다', () => {
+        expect(sheetStatus({ judging: true, judgingReservedDay: '10/3', moving: true, next: { visitNo: 1, name: '역북동' } }).reservedDay).toBe('10/3');
+    });
+    it('판정 중이 아니거나 오늘 콜이면 없다', () => {
+        expect(sheetStatus({ judging: false, judgingReservedDay: '10/3' }).reservedDay).toBeNull();
+        expect(sheetStatus({ judging: true, judgingReservedDay: null }).reservedDay).toBeNull();
+    });
+});

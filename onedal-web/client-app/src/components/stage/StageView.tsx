@@ -14,6 +14,7 @@ import { sheetTransition } from './sheetTransition';
 import { barFocusOf, type BarFocus } from './barFocus';
 /* 🎬 상태바 문구는 여기 한 곳이 정한다 — 화면은 그리기만 한다 (규칙 ③) */
 import { sheetStatus } from '../../lib/sheetStatus';
+import { reservedShortOf } from '../../lib/reservedLine';
 import { remainOnRouteKm } from '../../lib/remainOnRoute';
 import { trailOfShown, hiddenPastIds } from '../../lib/pastCalls';
 import { deckOrder } from '../../lib/deckFocus';
@@ -636,6 +637,7 @@ export default function StageView(props: Props) {
         idle: cycleDeck.length === 0,
         doneToday: cycleDeck.filter(isDeliveredCall).length,
         judging: !!judging,
+        judgingReservedDay: judging ? reservedShortOf(judging) : null,
         moving: drive === 'drive',
         next: next ? {
             visitNo: next.visitNo, name: next.name,
@@ -889,8 +891,10 @@ export default function StageView(props: Props) {
                                 }}
                                 className="w-full flex items-center gap-1.5 text-left min-h-[30px] active:opacity-70 transition-opacity">
                                 <span className="shrink-0">{bar.mark}</span>
+                                {/* 📅 판정 중인 콜이 예약 콜이면 보관 날 — 줄지 않는다(shrink-0) · 넘치면 옆 글자가 먼저 줄어든다 */}
+                                {bar.reservedDay && <span className="shrink-0 font-black text-info">📅 {bar.reservedDay}</span>}
                                 {bar.notice ? (
-                                    <span className="text-text-muted font-semibold">· {bar.notice}</span>
+                                    <span className="min-w-0 truncate text-text-muted font-semibold">· {bar.notice}</span>
                                 ) : null}
                                 {!bar.notice && (
                                     <>
@@ -903,7 +907,7 @@ export default function StageView(props: Props) {
                                             } : { background: 'var(--color-info)', color: '#fff' }}>
                                             {bar.no}
                                         </span>
-                                        <span className="shrink-0">{bar.name}</span>
+                                        <span className={bar.reservedDay ? 'min-w-0 truncate' : 'shrink-0'}>{bar.name}</span>
                                         {bar.lead && <span className="shrink-0 text-text-muted font-semibold">{bar.lead}</span>}
                                         <span className="ml-auto shrink-0 text-text-muted font-semibold truncate">{bar.tail}</span>
                                     </>
