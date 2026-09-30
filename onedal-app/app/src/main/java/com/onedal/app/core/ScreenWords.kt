@@ -73,7 +73,10 @@ object ScreenWords {
     /** 도 이름 — 명부 키는 도 아래를 «성남시 분당구»로 적어 도가 없다(광역시 «서울»은 키에 있다) */
     private val PROVINCES = setOf("경기", "강원", "충북", "충남", "세종")
 
-    private fun bare(w: String) = w.replace(Regex("""\d+"""), "").replace(Regex("""(동|읍|면|시|구|군)$"""), "")
+    private val SPACES = Regex("""\s+""")
+    private val DIGITS = Regex("""\d+""")
+    private val REGION_TAIL = Regex("""(동|읍|면|시|구|군)$""")
+    private fun bare(w: String) = w.replace(DIGITS, "").replace(REGION_TAIL, "")
 
     private fun isRegion(w: String) = w in regionNames || bare(w).let { it.length >= 2 && it in regionNames }
 
@@ -111,7 +114,7 @@ object ScreenWords {
         val words = byPage.getOrPut(p) { LinkedHashMap() }
         val key = "${kind.word}|$w"
         if (key in words || words.size >= MAX_WORDS) return
-        words[key] = ScreenWord(w, kind.word, sample?.let(::mask)?.take(SAMPLE_MAX))
+        words[key] = ScreenWord(w, kind.word, sample?.let(::maskOnce)?.take(SAMPLE_MAX))
     }
 
     /**
@@ -119,9 +122,25 @@ object ScreenWords {
      * «경기 성남시 중원구 금광1동» → «<지역>»(이어진 지역은 하나로) · «010-1234-5678»·«01012345678» → «<전화>» · «105동» → «<동호수>» · 요금 → «<숫자>».
      * ⚠️ 사람 이름은 모양으로 못 가린다.
      */
+    /**
+     * ⏱️ **예시 글 하나는 한 번만 가린다** — 새 낱말마다 화면 전체(수백 토막)를 다시 가려 인성 화면이 바뀔 때마다
+     * 메인 스레드가 0.6~1초 멈췄다(기사님 «느려» · `ScreenWordsSpeedTest`). 부르는 곳(`add`)이 잠금 안이라 같이 잠긴다.
+     */
+    private var maskedRaw: String? = null
+    private var maskedOut = ""
+    private fun maskOnce(raw: String): String {
+        if (raw != maskedRaw) { maskedOut = mask(raw); maskedRaw = raw }
+        return maskedOut
+    }
+
+    /** 🧪 가린 토막 수 — 예시 글을 낱말마다 다시 가리지 않는지 검사가 센다(`ScreenWordsSpeedTest`) */
+    @Volatile internal var maskTokens = 0L
+
     fun mask(raw: String): String {
         val out = ArrayList<String>()
-        for (t in raw.trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }) {
+        val tokens = raw.trim().split(SPACES).filter { it.isNotEmpty() }
+        maskTokens += tokens.size
+        for (t in tokens) {
             val shaped = ValueShape.normalize(t)
             val m = when {
                 shaped != t -> shaped

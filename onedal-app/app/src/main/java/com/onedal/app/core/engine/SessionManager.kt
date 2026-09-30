@@ -94,6 +94,8 @@ class SessionManager {
      *    찍고 바로 0 으로 비우고, 이쪽은 미리보기가 카드를 되찾을 때까지 남아 있어야 한다.
      */
     var alarmTappedAtMs: Long = 0L
+    /** 👆 이 상세를 누가 열었나 — 처음 알아본 읽기에서 한 번 정한다(`DetailOwner.openerAt`) · null 이면 아직 */
+    var settledOpener: String? = null
     /** 🏁 그 콜을 누르기로 정한 목록 읽기의 시각(부팅 기준) — «발견→누름 ms» (먼저 가져감 한 줄) */
     var alarmFoundAtMs: Long = 0L
 
@@ -166,6 +168,7 @@ class SessionManager {
         lastDetailOrder = null
         alarmTappedCard = null
         alarmTappedAtMs = 0L
+        settledOpener = null
         alarmFoundAtMs = 0L
         currentOrderId = ""
         openedByApp = false

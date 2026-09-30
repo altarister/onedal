@@ -14,6 +14,13 @@ object DetailOwner {
     fun releaseToHand(openedByApp: Boolean, contractedByApp: Boolean, opener: String): Boolean =
         openedByApp && !contractedByApp && opener == com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.OPENER_HAND
 
+    /**
+     * 👆 **연 쪽은 한 번 정한다** — 정해 둔 값이 있으면 그것, 없으면 지금 창으로 잰다(`OpenerLatchTest`).
+     * 채우기(인성 팝업 3장)·사진 판독 뒤에 다시 재면 느린 날 앱이 연 상세가 창 밖으로 나가 손 상세가 됐다.
+     */
+    fun openerAt(settled: String?, tapAtMs: Long, nowMs: Long): String =
+        settled ?: com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.detailOpener(tapAtMs, nowMs)
+
     /** 열린 상세가 앱이 누른 줄과 다를 때 */
     fun onMismatch(contractedByApp: Boolean): OnMismatch = if (contractedByApp) OnMismatch.RETREAT else OnMismatch.KEEP_AS_HAND
 

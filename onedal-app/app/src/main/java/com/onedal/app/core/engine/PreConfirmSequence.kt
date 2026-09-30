@@ -55,6 +55,9 @@ fun ScanContext.handlePreConfirmScreen(
         scheduleDetailBack()
     }
 
+    // 👆 누가 열었나는 처음 알아본 이 읽기에서 정한다 — 채우기·사진 뒤에 다시 재지 않는다(`OpenerLatchTest`)
+    settleOpener()
+
     // 📸 사진 판독이 도는 중이면 기다린다 — 사진은 따로 돌고, 같은 상세가 다시 들어와도 두 번 찍지 않는다
     if (session.isVerifyingSnapshot) return
 
@@ -431,7 +434,13 @@ fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: 
  * 사진 판독과 «누른 그 콜인가»가 같은 사실을 읽게 한다. 돌려주는 값: 시간 창의 연 쪽(로그용).
  */
 fun ScanContext.settleOpener(): String {
-    val opener = KakaoPickerKeywords.detailOpener(session.alarmTappedAtMs, android.os.SystemClock.elapsedRealtime())
+    val now = android.os.SystemClock.elapsedRealtime()
+    val first = session.settledOpener == null
+    val opener = DetailOwner.openerAt(session.settledOpener, session.alarmTappedAtMs, now)
+    if (first) {
+        session.settledOpener = opener
+        if (session.openedByApp) AppLogger.i(TAG, LogTag.CALL_STAGE, "👆 [연 쪽 정함] $opener · 터치 뒤 ${now - session.alarmTappedAtMs}ms")
+    }
     if (DetailOwner.releaseToHand(session.openedByApp, session.contractedByApp, opener))
         releaseAppOpened("앱이 누른 지 ${KakaoPickerKeywords.ALARM_OPEN_WINDOW_MS / 1000}초 밖에 열린 상세")
     return opener
