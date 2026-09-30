@@ -1528,7 +1528,7 @@ class HijackService : AccessibilityService(), ScanContext {
          * 🔴 누를 콜은 늘 방금 읽은 화면에서 고른다 — 담아 두지 않는다 (기사님 · onedal-1f).
          * 담아 둔 사이 줄이 움직이면 엉뚱한 줄·오더카드를 누른다(09-13) — 사라짐·요금 바뀜·더 좋은 콜을 대기열은 모른다.
          * ✋ 기사님 손이 먼저 — 소리는 곧바로 울리고(시선이 먼저 옮겨 가야 화면이 바뀐 것을 안다 · 기사님 «가»),
-         *    앱의 누르기만 손이 멈춘 뒤 1.5초 미룬다. 멈추면 곧바로 다시 읽어 그 화면에서 고른다 (`HandFirst`).
+         *    앱의 누르기만 손이 멈춘 뒤 1초 미룬다. 멈추면 곧바로 다시 읽어 그 화면에서 고른다 (`HandFirst`).
          *    소리 → 누름 차례: 같은 읽기면 fire 가 누름 앞이고, 미룬 누름은 뒤 읽기라 늘 소리가 먼저다. 같은 콜 소리는 한 번(`SoundMemory`).
          */
         val tapNowMs = android.os.SystemClock.elapsedRealtime()

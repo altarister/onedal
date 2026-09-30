@@ -13,15 +13,15 @@ import java.io.File
  * 3초 근거(폰 로그 09-30 · 어림): 상세→목록 복귀 뒤 다음 손 동작 54번 — 3초 안 17 · 5초 안 28 · 중앙 4.5초.
  */
 class HandFirstTest {
-    /** 기사님 «3초가 너무 긴 것 같은데.. 소리가 나면 내가 손을 떼라는 거지?» → 1.5초 (onedal-1f «가») */
-    @Test fun `손 뒤 1점5초 안에는 막고 1점5초 뒤는 푼다`() {
-        assertEquals(1_500L, HandFirst.QUIET_MS)
+    /** 기사님 «3초가 너무 긴 것 같은데..» → 1.5초 → 30분 셈(손 먼저 놓침 0 · 미룬 누르기 중앙 1.41초) 뒤 «1초 나» (onedal-1f) */
+    @Test fun `손 뒤 1초 안에는 막고 1초 뒤는 푼다`() {
+        assertEquals(1_000L, HandFirst.QUIET_MS)
         val h = HandFirst()
         assertFalse("손 흔적 없음", h.blocks(10_000))
         h.onHand(10_000)
-        assertTrue(h.blocks(11_000))
-        assertFalse(h.blocks(11_500))
-        assertEquals(11_500L, h.quietAtMs())
+        assertTrue(h.blocks(10_500))
+        assertFalse(h.blocks(11_000))
+        assertEquals(11_000L, h.quietAtMs())
         assertEquals("뒤로 가기 메아리는 뜻이 달라 그대로", 2_000L, HandFirst.APP_BACK_ECHO_MS)
     }
 

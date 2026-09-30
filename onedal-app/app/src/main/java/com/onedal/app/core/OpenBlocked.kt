@@ -5,7 +5,7 @@ package com.onedal.app.core
  * 관제웹 띠가 «목록이 내려감»이 아니라 이 까닭을 따라간다. 열었거나 통과 콜이 없거나 누르는 모드가 아니면(알람 꺼짐 등) 안 싣는다.
  */
 object OpenBlocked {
-    /** 기사님 손이 움직인 뒤 1.5초 — 손이 멈추면 곧 연다 (`HandFirst`) */
+    /** 기사님 손이 움직인 뒤 1초 — 손이 멈추면 곧 연다 (`HandFirst`) */
     const val HAND_FIRST = "handFirst"
     /** 목록이 그려지는 중(내용 바뀜이 몰림) — 다음 읽기에서 같은 조립이면 연다 (`AlarmHold`) */
     const val ALARM_HELD = "alarmHeld"
