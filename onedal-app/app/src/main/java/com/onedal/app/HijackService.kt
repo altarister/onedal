@@ -1565,40 +1565,67 @@ class HijackService : AccessibilityService(), ScanContext {
                         waitBook.schedule("흐르는 목록 다시 읽기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.ScrollGate.QUIET_MS) { reservedRead("흐르는 목록") }
                 }
                 if (tap != null) {
-                    AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🚪 [상세 진입] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
-                        "모드 $currentMode — ${if (currentMode == "AUTO") "앱이 채우고 확정" else "판정만 받고 확정·수락은 기사님"} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
-                    AppLogger.d(TAG, LogTag.TAP, "💥 [$currentMode] 꿀콜 조건 통과! 요금 최고 콜 터치 진행!")
-                    alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용
-                    val fired = touchManager.performSimulatedTouch(fareNode.node, tapRowLeft = tap.rowLeft, delayMs = tap.delayMs, tapDy = tap.dy,
-                        tapKey = "call:${CallMemory.fingerprintOf(order)}")   // 👆 같은 콜을 진행 중에 또 누르지 않는다 — 열쇠는 콜 지문
-                    if (!fired) {
-                        openBlocked = com.onedal.app.core.OpenBlocked.TAP_NOT_SENT
-                        // 🛑 누르기가 실패했다(노드가 사라짐 · 좌표를 못 구함) — 세션을 세우지도, 기억에 넣지도 않는다.
-                        //    세우면 화면은 목록 그대로라 «목록으로 돌아왔다» 리셋이 안 오고 다음 스캔부터 아무 콜도 못 누른다
-                        AppLogger.w("1DAL_ALARM", LogTag.TAP, "🛑 [진입 실패] ${order.fare}원 — 누르기가 안 됐다. 이번 스캔은 손대지 않고 다음 스캔에 다시 본다")
-                    }
-                    if (fired) {
-                        /**
-                         * 📝 **누른 콜을 기억에 넣는다** — 앱이 들어간 콜만 기억한다(기사님 확정).
-                         * 누르기는 이 자리에서 바로 끝나고(동기), 목록 이벤트는 같은 줄 뒤에 오므로 그 사이에 끼지 않는다.
-                         * 넣지 않으면 목록으로 돌아오자마자 처음 보는 콜로 또 눌린다.
-                         * 🔴 «눌렀다»는 필터 버전이 바뀌어도 안 지워진다 (`CallMemory.markEvaluated`).
-                         */
-                        callMemory.markEvaluated(orderHash)
-                        alarmedRoutes.markOpened(order, android.os.SystemClock.elapsedRealtime())   // 🔔 요금만 올라도 다시 안 연다
-                        session.openedByApp = true // 콜 잡기 시작!
-                        // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳 · 📅 내일 콜은 자동이어도 기사님이 확정 (상세에서 한 번 더: `appPressesAccept`)
-                        session.contractedByApp = currentMode == "AUTO" && com.onedal.app.core.engine.ReservationGate.isToday(order)
-                        session.setOrderId(order.id)
-                        session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
-                        /**
-                         * 🎯 **찍는 그 카드를 쥐여 둔다** — 앱이 직접 누르고 들어가는 판이라 어느 콜인지 이미 안다.
-                         * 픽커 사진 읽기가 이 카드와 엄격히 대조한다 (`detailOpener` 가 «알람이 연 상세»로 가른다).
-                         */
-                        session.alarmTappedCard = order
-                        session.alarmTappedAtMs = alarmTapAtMs
-                        session.alarmFoundAtMs = listReadAtMs
-                        // 📊 서버 보고는 루프에서 이미 했다 (`markReportedOnce`) — 여기서 다시 보내지 않는다
+                    /**
+                     * 📬 **누르기로 정했으면 메인 줄 맨 뒤로 한 번 넘긴다** (onedal-1f 대안 · 라이브 10-01 00:31:20).
+                     * 접근성 알림은 같은 메인 줄로 온다 — 목록 읽기(~900ms) 동안 쌓인 스크롤 알림이 먼저 처리되어 onHand 가 걸린다.
+                     * 넘겨받은 쪽이 목록 화면 · 누르는 중 · 손 먼저(알림 시각) · 흐르는 목록(요금 칸 다시 잼)을 다시 보고 괜찮을 때만 쏜다.
+                     * 목록 몫 기다림이라 넘기는 사이 목록을 떠나면 거둬진다.
+                     */
+                    waitBook.schedule("누르기 넘김", com.onedal.app.core.WaitBook.LIST, 0L) handoff@{
+                        val nowTap = android.os.SystemClock.elapsedRealtime()
+                        val nowY = fareNode.node?.takeIf { it.refresh() }?.let { n -> android.graphics.Rect().also { n.getBoundsInScreen(it) }.centerY() }
+                        val stop: Pair<String, String>? = when {
+                            telemetryManager.currentScreenContext != ScreenContext.LIST -> "목록이 아니다" to com.onedal.app.core.OpenBlocked.TAP_RECHECK
+                            session.openedByApp || touchManager.tapPending -> "이미 누르는 중" to com.onedal.app.core.OpenBlocked.BUSY
+                            handFirst.blocks(nowTap) -> "손 먼저(넘기는 사이 처리된 손 흔적 · $lastHandWhy)" to com.onedal.app.core.OpenBlocked.HAND_FIRST
+                            nowY == null -> "요금 칸을 다시 못 읽었다" to com.onedal.app.core.OpenBlocked.TAP_RECHECK
+                            com.onedal.app.core.TapShift.listMoving(fareNode.rect.centerY(), nowY, scrollGate.scrolledRecently(nowTap)) ->
+                                "목록이 움직이는 중(스캔 Y=${fareNode.rect.centerY()} · 지금 Y=$nowY)" to com.onedal.app.core.OpenBlocked.LIST_MOVING
+                            else -> null
+                        }
+                        if (stop != null) {
+                            AppLogger.i("1DAL_ALARM", LogTag.TAP, "✋ [누르기 넘김 뒤 멈춤] ${order.fare}원 — ${stop.first}")
+                            telemetryManager.openBlocked = stop.second
+                            if (stop.second == com.onedal.app.core.OpenBlocked.HAND_FIRST) handFirst.hold(nowTap)
+                            if (stop.second == com.onedal.app.core.OpenBlocked.LIST_MOVING)
+                                waitBook.schedule("흐르는 목록 다시 읽기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.ScrollGate.QUIET_MS) { reservedRead("흐르는 목록") }
+                            return@handoff
+                        }
+                        AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🚪 [상세 진입] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
+                            "모드 $currentMode — ${if (currentMode == "AUTO") "앱이 채우고 확정" else "판정만 받고 확정·수락은 기사님"} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
+                        AppLogger.d(TAG, LogTag.TAP, "💥 [$currentMode] 꿀콜 조건 통과! 요금 최고 콜 터치 진행!")
+                        alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용
+                        val fired = touchManager.performSimulatedTouch(fareNode.node, tapRowLeft = tap.rowLeft, delayMs = tap.delayMs, tapDy = tap.dy,
+                            tapKey = "call:${CallMemory.fingerprintOf(order)}")   // 👆 같은 콜을 진행 중에 또 누르지 않는다 — 열쇠는 콜 지문
+                        if (!fired) {
+                            telemetryManager.openBlocked = com.onedal.app.core.OpenBlocked.TAP_NOT_SENT
+                            // 🛑 누르기가 실패했다(노드가 사라짐 · 좌표를 못 구함) — 세션을 세우지도, 기억에 넣지도 않는다.
+                            //    세우면 화면은 목록 그대로라 «목록으로 돌아왔다» 리셋이 안 오고 다음 스캔부터 아무 콜도 못 누른다
+                            AppLogger.w("1DAL_ALARM", LogTag.TAP, "🛑 [진입 실패] ${order.fare}원 — 누르기가 안 됐다. 이번 스캔은 손대지 않고 다음 스캔에 다시 본다")
+                        }
+                        if (fired) {
+                            /**
+                             * 📝 **누른 콜을 기억에 넣는다** — 앱이 들어간 콜만 기억한다(기사님 확정).
+                             * 누르기는 이 자리에서 바로 끝나고(동기), 목록 이벤트는 같은 줄 뒤에 오므로 그 사이에 끼지 않는다.
+                             * 넣지 않으면 목록으로 돌아오자마자 처음 보는 콜로 또 눌린다.
+                             * 🔴 «눌렀다»는 필터 버전이 바뀌어도 안 지워진다 (`CallMemory.markEvaluated`).
+                             */
+                            callMemory.markEvaluated(orderHash)
+                            alarmedRoutes.markOpened(order, android.os.SystemClock.elapsedRealtime())   // 🔔 요금만 올라도 다시 안 연다
+                            session.openedByApp = true // 콜 잡기 시작!
+                            // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳 · 📅 내일 콜은 자동이어도 기사님이 확정 (상세에서 한 번 더: `appPressesAccept`)
+                            session.contractedByApp = currentMode == "AUTO" && com.onedal.app.core.engine.ReservationGate.isToday(order)
+                            session.setOrderId(order.id)
+                            session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
+                            /**
+                             * 🎯 **찍는 그 카드를 쥐여 둔다** — 앱이 직접 누르고 들어가는 판이라 어느 콜인지 이미 안다.
+                             * 픽커 사진 읽기가 이 카드와 엄격히 대조한다 (`detailOpener` 가 «알람이 연 상세»로 가른다).
+                             */
+                            session.alarmTappedCard = order
+                            session.alarmTappedAtMs = alarmTapAtMs
+                            session.alarmFoundAtMs = listReadAtMs
+                            // 📊 서버 보고는 루프에서 이미 했다 (`markReportedOnce`) — 여기서 다시 보내지 않는다
+                        }
                     }
                 }
                 }   // ✋ 누르기만 손 문 안

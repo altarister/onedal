@@ -93,4 +93,18 @@ class HandFirstTest {
         val quiet = src.substringAfter("waitBook.schedule(\"손 멈춤\"").substringBefore("\n    }")
         assertTrue("미룬 누르기는 손 멈춤 다시 읽기에서 푼다", quiet.contains("handFirst.releasedMs("))
     }
+
+    /**
+     * 📬 **누르기로 정하면 메인 줄 맨 뒤로 한 번 넘긴다** (onedal-1f 대안 · 라이브 10-01 00:31:20).
+     * 목록 읽기 동안 쌓인 접근성 알림(같은 메인 줄)이 먼저 처리되어 onHand 가 걸린 뒤, 넘겨받은 쪽이 손 먼저·흐르는 목록을 다시 본다.
+     */
+    @Test fun `누르기는 넘겨받은 쪽에서 손 먼저·흐르는 목록·목록 화면을 다시 보고 쏜다`() {
+        val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
+        val handoff = src.substringAfter("waitBook.schedule(\"누르기 넘김\", com.onedal.app.core.WaitBook.LIST, 0L)").substringBefore("performSimulatedTouch(")
+        assertTrue("넘김이 없다", handoff.length < src.length)
+        assertTrue(handoff.contains("handFirst.blocks("))
+        assertTrue(handoff.contains("TapShift.listMoving("))
+        assertTrue(handoff.contains("ScreenContext.LIST"))
+        assertTrue(src.contains("✋ [누르기 넘김 뒤 멈춤]"))
+    }
 }
