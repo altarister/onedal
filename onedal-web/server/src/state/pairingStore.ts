@@ -29,6 +29,9 @@ setInterval(() => {
             pendingPins.delete(pin);
         }
     }
+    /* 🔢 시도 한도 기록도 창·잠금이 지나면 지운다 — 대입이 쏟아져도 메모리가 안 쌓이게 */
+    for (const m of [ipFails, deviceFails])
+        for (const [k, f] of m) if (now - f.firstAt > PIN_TRY.WINDOW_MS && f.lockedUntil <= now) m.delete(k);
 }, 60_000).unref(); // 1분마다 정리
 
 /**
@@ -64,7 +67,7 @@ export function generatePin(userId: string): { pin: string; expiresIn: number } 
  * 유효한 PIN이면 해당 userId를 반환하고 PIN을 즉시 폐기합니다.
  * 만료되었거나 존재하지 않으면 null을 반환합니다.
  */
-export function consumePin(pin: string): string | null {
+function consumePin(pin: string): string | null {
     const entry = pendingPins.get(pin);
 
     if (!entry) {
@@ -87,4 +90,50 @@ export function consumePin(pin: string): string | null {
  */
 export function getActivePinCount(): number {
     return pendingPins.size;
+}
+
+/**
+ * 🔢 **연결 번호 시도 한도** (reviews/29 1단계 F · onedal-1f «가») — 코드 상수다. 기사님이 고칠 값이 아니다.
+ *    3분 수명의 6자리(90만)를 대입하면 남의 계정에 폰을 붙일 수 있었다.
+ *    같은 IP 가 10분 안에 5번 틀리면 · 같은 폰(deviceId)이 3번 틀리면 10분 잠근다 — 맞힐 확률이 0.0006% 로 준다.
+ *    기사님이 번호를 한두 번 잘못 치는 일은 넉넉히 넘긴다. 메모리라 서버를 다시 띄우면 비는 것은 받아들인다.
+ */
+export const PIN_TRY = { IP_FAILS: 5, DEVICE_FAILS: 3, WINDOW_MS: 10 * 60_000, LOCK_MS: 10 * 60_000 } as const;
+
+type Fails = { count: number; firstAt: number; lockedUntil: number };
+const ipFails = new Map<string, Fails>();
+const deviceFails = new Map<string, Fails>();
+
+function lockLeftMs(m: Map<string, Fails>, key: string, now: number): number {
+    const f = m.get(key);
+    return f && f.lockedUntil > now ? f.lockedUntil - now : 0;
+}
+
+function recordFail(m: Map<string, Fails>, key: string, limit: number, now: number, what: string): void {
+    const prev = m.get(key);
+    const f = !prev || now - prev.firstAt > PIN_TRY.WINDOW_MS ? { count: 0, firstAt: now, lockedUntil: 0 } : prev;
+    f.count += 1;
+    if (f.count >= limit && f.lockedUntil <= now) {
+        f.lockedUntil = now + PIN_TRY.LOCK_MS;
+        slog('통신', `🔒 [연결 번호 잠금] ${what} ${key} — ${f.count}번 틀림 · ${PIN_TRY.LOCK_MS / 60_000}분 잠금`);
+    }
+    m.set(key, f);
+}
+
+export type PinTry = { ok: true; userId: string } | { ok: false; locked: boolean; retryInSec?: number };
+
+/** 🔢 연결 번호를 한도 안에서 쓴다 — 잠겼으면 맞는 번호도 안 받는다 */
+export function tryConsumePin(pin: string, who: { ip: string; deviceId: string }): PinTry {
+    const now = Date.now();
+    const left = Math.max(lockLeftMs(ipFails, who.ip, now), lockLeftMs(deviceFails, who.deviceId, now));
+    if (left > 0) return { ok: false, locked: true, retryInSec: Math.ceil(left / 1000) };
+    const userId = consumePin(pin);
+    if (userId) {
+        ipFails.delete(who.ip);
+        deviceFails.delete(who.deviceId);
+        return { ok: true, userId };
+    }
+    recordFail(ipFails, who.ip, PIN_TRY.IP_FAILS, now, 'IP');
+    recordFail(deviceFails, who.deviceId, PIN_TRY.DEVICE_FAILS, now, '폰');
+    return { ok: false, locked: false };
 }

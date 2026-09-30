@@ -2,7 +2,7 @@ import { Router } from "express";
 import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf, openBlockedNeedsHand } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
-import { generatePin, consumePin } from "../state/pairingStore";
+import { generatePin, tryConsumePin } from "../state/pairingStore";
 import { requireAuth } from "../middlewares/authMiddleware";
 import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -606,10 +606,15 @@ router.post("/pair", (req, res) => {
 
         logRoadmapEvent('통신', "서버", "앱폰으로 부터 6자리 PIN 인증 요청 받음 및 deviceId 발급 연산");
         // 1. PIN 유효성 검증 및 소비
-        const userId = consumePin(pin);
-        if (!userId) {
+        /* 🔢 시도 한도 안에서만 번호를 쓴다 — 잠겼으면 429 · 글자는 PIN_INVALID 그대로(앱은 짝 화면 오류 글) (reviews/29 1단계 F) */
+        const tried = tryConsumePin(pin, { ip: String(req.ip ?? ''), deviceId });
+        if (!tried.ok && tried.locked) {
+            return res.status(429).json({ error: DEVICE_LINK_ERRORS.PIN_INVALID, retryInSec: tried.retryInSec, message: `번호를 여러 번 틀려 잠시 막혔습니다. ${Math.ceil((tried.retryInSec ?? 0) / 60)}분 뒤 다시 해 주세요.` });
+        }
+        if (!tried.ok) {
             return res.status(401).json({ error: DEVICE_LINK_ERRORS.PIN_INVALID, message: "PIN이 만료되었거나 유효하지 않습니다. 관제 웹에서 새 PIN을 발급받아주세요." });
         }
+        const userId = tried.userId;
 
         // 2. 다른 사람 기기를 하이재킹하려는지 검증
         const existingRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as { user_id: string } | undefined;
