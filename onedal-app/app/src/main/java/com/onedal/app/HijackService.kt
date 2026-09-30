@@ -136,6 +136,8 @@ class HijackService : AccessibilityService(), ScanContext {
     override lateinit var keywords: ScreenKeywords
     override val screenDetector = ScreenDetector()
     private var lastScreenFingerprint = 0
+    /** 🔔 «이 콜로 이미 알람을 냈나» — 상차+하차 열쇠 (`AlarmedRoutes`) */
+    private val alarmedRoutes = com.onedal.app.core.AlarmedRoutes()
     /** 🔄 마지막으로 본 필터 버전 · 이미 적은 «버전만 바뀜» 쌍 (목록 스캔 첫머리) */
     private var seenFilterVersion: String? = null
     private val versionOnlyPairs = mutableSetOf<String>()
@@ -1190,6 +1192,9 @@ class HijackService : AccessibilityService(), ScanContext {
         val scanHashes = mutableMapOf<Int, android.graphics.Rect>()
         /** 🎯 이번 스캔의 통과 콜들 — 루프 뒤에 요금 최고 하나만 누른다 (기사님 확정 · 모든 모드 같은 규칙) */
         val alarmHits = mutableListOf<Triple<SimplifiedOfficeOrder, ScreenTextNode, Int>>()
+        /** 🔔 이번 스캔에 보인 콜(건너뛴 콜 포함) — 알람 기억의 «마지막으로 본 때» (`AlarmedRoutes`) */
+        val scanOrders = mutableListOf<SimplifiedOfficeOrder>()
+        val nowMs = android.os.SystemClock.elapsedRealtime()
 
         /**
          * 🔄 **필터 버전이 바뀌었으면 «막았다» 기억만 비운다** (#135).
@@ -1259,6 +1264,7 @@ class HijackService : AccessibilityService(), ScanContext {
             // 📅 예약인데 날을 모른다 — 상세가 가른다. 배차망별로 몇 번인지 세려고 콜당 한 줄
             if (order.reserved == true && order.reservedDay == null && LogOnce.changed("reservation-unknown:$orderHash", "1"))
                 AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 날 모름] $currentTargetApp · ${order.pickup}→${order.dropoff} ${order.fare}원 · ${order.tagsText ?: order.scheduleText ?: ""}")
+            scanOrders.add(order)
             scanHashes[orderHash] = fareNode.rect   // 🔔 이미 본 콜도 «아직 화면에 있다 + 지금 여기 있다»는 사실은 남긴다
             /**
              * ⏭️ **건너뛰었다는 사실을 남긴다**.
@@ -1309,8 +1315,14 @@ class HijackService : AccessibilityService(), ScanContext {
              * 자동·체험·알람 모두 «목록을 끝까지 보고 요금 최고 하나»를 누른다. 요금이 같으면 먼저 읽힌 콜이다.
              */
             if (isTarget) {
-                alarmHits.add(Triple(order, fareNode, orderHash))
+                // 🔔 이 콜로 처음 알람감이 됐나 — 요금만 오른 같은 콜은 passedNew 에 안 센다(판정은 위에서 다시 했다)
+                val firstFare = alarmedRoutes.firstFareOf(order)
+                if (alarmedRoutes.countIfNew(order, nowMs)) tally.passedNew++
+                else if (LogOnce.changed("alarmed-route:${order.pickup}→${order.dropoff}", "${order.fare}"))
+                    AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [이미 알람 낸 콜] ${order.pickup}→${order.dropoff} · 요금 ${firstFare ?: "?"} → ${order.fare} — 셈·알람 안 함")
             }
+            // 폰이 이미 알람을 내고 연 콜은 요금만 올라도 다시 안 연다 — 셈만 하고 못 연 콜(심사 중·미룸)은 연다
+            if (isTarget && !alarmedRoutes.opened(order)) alarmHits.add(Triple(order, fareNode, orderHash))
 
             // 4) 신규 콜 → 서버에 텔레메트리 보고 — **보고는 콜당 한 번** (평가와 딴 그릇 · #79)
             if (callMemory.markReportedOnce(orderHash)) {
@@ -1441,6 +1453,7 @@ class HijackService : AccessibilityService(), ScanContext {
                          * 🔴 «눌렀다»는 필터 버전이 바뀌어도 안 지워진다 (`CallMemory.markEvaluated`).
                          */
                         callMemory.markEvaluated(orderHash)
+                        alarmedRoutes.markOpened(order, android.os.SystemClock.elapsedRealtime())   // 🔔 요금만 올라도 다시 안 연다
                         session.openedByApp = true // 콜 잡기 시작!
                         // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳 · 📅 내일 콜은 자동이어도 기사님이 확정 (상세에서 한 번 더: `appPressesAccept`)
                         session.contractedByApp = currentMode == "AUTO" && com.onedal.app.core.engine.ReservationGate.isToday(order)
@@ -1458,6 +1471,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 }
             }
         }
+        if (scanOrders.isNotEmpty()) alarmedRoutes.seen(scanOrders, nowMs)   // 카드 0장 틀은 «안 보였다»가 아니다
         // 🔔 알람 테두리 — 가리키던 콜이 이번 스캔에 없으면 걷는다 (잡혔거나 남이 가져감 · §6-③)
         alarmSignaler.onScan(scanHashes)
 

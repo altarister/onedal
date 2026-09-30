@@ -317,6 +317,8 @@ data class FilterTally(
     var seen: Int = 0,
     /** 전부 통과한 콜 수 */
     var passed: Int = 0,
+    /** 🔔 이번에 처음 알람감이 된 통과 콜 수 — 이미 알람 낸 콜이 요금만 올라 다시 통과한 것은 안 센다 (`AlarmedRoutes` · 서버 필터 알람이 읽는다) */
+    var passedNew: Int = 0,
     var vehicle: Int = 0,
     var region: Int = 0,
     var fare: Int = 0,
