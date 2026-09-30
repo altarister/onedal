@@ -38,4 +38,11 @@ class DetailFoldTest {
         assertTrue(src.contains("openedByApp = session.openedByApp,"))
         assertTrue(src.contains("detailFoldOrderId?.let { it != session.currentOrderId } == true"))
     }
+
+    /** 📏 ab 실측 «막대 끝 → 접힘» 중앙 1.2초 — 뒤로 간 뒤 목록 확인까지 ms 를 남기고, 접기로 돌아간 것을 «무응답»이라 적지 않는다 */
+    @Test fun `뒤로 간 뒤 목록 확인까지 ms · 접기 복귀 글`() {
+        val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
+        assertTrue(src.contains("↩️ [목록 확인] 뒤로 간 뒤"))
+        assertTrue(src.contains("if (folded) \"서버 판정 뒤 접기\" else"))
+    }
 }

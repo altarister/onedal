@@ -234,6 +234,8 @@ class HijackService : AccessibilityService(), ScanContext {
     /** ⏩ 상세 대기 마감(부팅 기준) · 판정 뒤 접기로 당겼으면 그 콜 (`DetailFold`) */
     private var detailBackDeadlineMs: Long? = null
     private var detailFoldOrderId: String? = null
+    /** 📏 앱이 상세에서 뒤로 가기를 보낸 때(부팅 기준) — 목록 확인까지 ms 를 로그에 남긴다 (0 = 없음) */
+    private var lastBackAtMs = 0L
 
     /**
      * 🚚 마지막으로 알아본 픽커 운행 단계 — **바뀔 때만 로그를 남기려고** 들고 있다.
@@ -288,13 +290,16 @@ class HijackService : AccessibilityService(), ScanContext {
                 detailFoldOrderId = null
                 return@Runnable
             }
+            val folded = detailFoldOrderId != null
             detailFoldOrderId = null
+            val why = if (folded) "서버 판정 뒤 접기" else "${delayMs / 1000}초 무응답"
             // 아직 확정 전 상세에 있고, 앱이 계약하지 않는 콜일 때만 나온다 — 모드·배차망은 가리지 않는다
             if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
                 && !session.contractedByApp) {
-                AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "↩️ [상세 대기] ${delayMs / 1000}초 무응답 — 리스트로 자동 복귀 · 연 쪽: $opener")
+                AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "↩️ [상세 대기] $why — 리스트로 자동 복귀 · 연 쪽: $opener")
                 // 🔴 뒤로 가기도 `touchManager` 한 곳으로 — 거기서 자국을 남긴다 (배차망을 가리지 않는다)
-                touchManager.performBack("${delayMs / 1000}초 무응답")
+                lastBackAtMs = android.os.SystemClock.elapsedRealtime()
+                touchManager.performBack(why)
             } else {
                 AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏹️ [상세 대기] ${delayMs / 1000}초가 됐지만 상세가 아니다 — 뒤로 가지 않는다 · 연 쪽: $opener")
             }
@@ -997,6 +1002,11 @@ class HijackService : AccessibilityService(), ScanContext {
         if (isListScreen && !wasListScreen) {
             AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
             resetSessionState()
+            // 📏 앱이 뒤로 간 복귀면 목록 확인까지 ms — 목록 보고는 화면이 바뀐 순간 곧바로 나간다(`updateScreenContext`)
+            if (lastBackAtMs > 0L) {
+                AppLogger.i(TAG, LogTag.SCREEN, "↩️ [목록 확인] 뒤로 간 뒤 ${android.os.SystemClock.elapsedRealtime() - lastBackAtMs}ms — 목록 보고 곧바로 보냄")
+                lastBackAtMs = 0L
+            }
             touchedAtMs = android.os.SystemClock.elapsedRealtime()   // ✋ 상세→목록 복귀 — 10초 동안 조용한 다시 읽기를 촘촘히
             // 👁️ 돌아온 5초는 목록 요약을 1초마다 빠짐없이 (`listWatch`)
             mainHandler.removeCallbacks(listWatch)
@@ -1764,6 +1774,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 AppLogger.i("1DAL_PICKER", LogTag.DECISION, "↩️ [결재 CANCEL] 앱이 연 콜 — 바로 목록으로 돌아온다")
                 mainHandler.postDelayed({
                     if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
+                        lastBackAtMs = android.os.SystemClock.elapsedRealtime()
                         touchManager.performBack("결재 CANCEL")
                     }
                     resetSessionState()
