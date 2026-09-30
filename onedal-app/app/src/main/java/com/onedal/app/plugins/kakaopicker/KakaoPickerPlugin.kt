@@ -81,9 +81,14 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
 
     override fun listHeaderVisible(allNodes: List<com.onedal.app.core.ScreenTextNode>): Boolean {
         // 📏 아래 탭 줄 위끝 — 맨 아래 줄 누르기가 안 먹힌 자리(Y=2102 · 라이브 09-30 22:56 · 23:01)를 가를 재료. 바뀔 때만 한 줄
-        allNodes.filter { it.text.trim() == "신규" || it.text.trim() == "내 오더" }.minOfOrNull { it.rect.top }?.let { y ->
-            if (com.onedal.app.core.LogOnce.changed("tab-bar-top", "$y"))
-                com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "📏 [아래 탭 줄] 위끝 Y=$y (신규·내 오더)")
+        // 📏 글자 위끝이 바뀔 때만 막대를 찾아 한 줄(조상 걷기를 매 읽기 하지 않는다)
+        val tab = allNodes.filter { it.text.trim() in tabWords }
+        tab.minOfOrNull { it.rect.top }?.let { y ->
+            if (com.onedal.app.core.LogOnce.changed("tab-bar-top", "$y")) {
+                val bar = barTopFrom(tab)
+                com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN,
+                    if (bar != null) "📏 [아래 탭 줄] 막대 위끝 Y=$bar (글자 위끝 $y)" else "📏 [아래 탭 줄] 막대 위끝 못 찾음 — 글자 위끝 Y=$y − 120")
+            }
         }
         return KakaoPickerParser.listHeaderVisibleOf(allNodes.map { it.text })
     }
@@ -136,7 +141,29 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
     }
 
     private val tabWords = setOf("신규", "내 오더")
-    private fun tabTopOf(allNodes: List<com.onedal.app.core.ScreenTextNode>): Int? = allNodes.filter { it.text.trim() in tabWords }.minOfOrNull { it.rect.top }
+    /** 📏 탭 막대 위끝 — 막대(«신규»를 품은 화면 폭 가로 조상)를 찾으면 그 위끝, 못 찾으면 글자 위끝 − 80 (`TapShift.barTopOf`) */
+    private fun tabTopOf(allNodes: List<com.onedal.app.core.ScreenTextNode>): Int? {
+        val tab = allNodes.filter { it.text.trim() in tabWords }
+        val textTop = tab.minOfOrNull { it.rect.top } ?: return null
+        return barTopFrom(tab) ?: com.onedal.app.core.TapShift.tabTopFallback(textTop)
+    }
+
+    private fun barTopFrom(tab: List<com.onedal.app.core.ScreenTextNode>): Int? {
+        val screenWidth = android.content.res.Resources.getSystem().displayMetrics.widthPixels
+        for (t in tab) {
+            val chain = mutableListOf<Triple<Int, Int, Int>>()
+            var n = t.node?.parent
+            var depth = 0
+            while (n != null && depth < 8) {
+                val r = android.graphics.Rect().also { n!!.getBoundsInScreen(it) }
+                chain.add(Triple(r.top, r.width(), r.height()))
+                n = n.parent
+                depth++
+            }
+            com.onedal.app.core.TapShift.barTopOf(chain, screenWidth)?.let { return it }
+        }
+        return null
+    }
 
     /** 👆 탭 줄 선 — 두 길(머리줄 · 내려간 목록)이 같이 쓴다. 요금 중심에서 옮길 픽셀, 보류면 null (`TapShift.rowTapDy`) */
     private fun tabLineDy(allNodes: List<com.onedal.app.core.ScreenTextNode>, fareNode: com.onedal.app.core.ScreenTextNode, fareCenter: Int): Int? {

@@ -46,6 +46,19 @@ object TapShift {
 
     /** 아래 탭 줄 위끝에서 이만큼 위까지만 누른다 (폰 픽셀) */
     const val TAB_GAP_PX = 40
+    /** 탭 막대를 못 찾으면 글자 위끝에서 이만큼 위를 막대 위끝으로 본다 — 여유 [TAB_GAP_PX] 와 합쳐 글자 위끝 − 120 (라이브 10-01 먹힌 가장 아래 1939 · 안 먹힌 2031·2045) */
+    const val TAB_TEXT_FALLBACK_PX = 80
+
+    /**
+     * 📏 **탭 막대 위끝** (`TabLineTapTest`) — «신규» 글자를 품은 조상 가운데 화면 폭 80% 이상 · 높이 400 이하인 첫 가로 노드의 위끝.
+     * 글자 위끝은 막대보다 아래라 그 바로 위 줄을 누르면 막대에 떨어졌다(라이브 10-01 01:12:39 7,630 · Y 2031).
+     * @param ancestors (top, width, height) — 가까운 조상부터
+     */
+    fun barTopOf(ancestors: List<Triple<Int, Int, Int>>, screenWidth: Int): Int? =
+        ancestors.firstOrNull { (_, w, h) -> w >= screenWidth * 8 / 10 && h in 1..400 }?.first
+
+    fun tabTopFallback(textTop: Int): Int = textTop - TAB_TEXT_FALLBACK_PX
+
     /** 선 위로 이만큼은 보여야 누른다 — 모자라면 보류 */
     const val VISIBLE_MIN_PX = 60
 

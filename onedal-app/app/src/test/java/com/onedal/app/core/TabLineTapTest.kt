@@ -41,4 +41,23 @@ class TabLineTapTest {
         assertTrue(scrolled.contains("dy = dy"))
         assertTrue(plugin.substringAfter("private fun tabLineDy(").substringBefore("\n    }").contains("TapShift.rowTapDy("))
     }
+
+    /**
+     * 📏 **탭 선은 글자가 아니라 탭 막대 위끝으로** (onedal-1f «가» · 라이브 10-01 01:12:39 7,630 요금 Y 2031 — 글자 «신규» 위끝 2100 − 40 선 안인데 탭 막대 위라 안 열렸다).
+     * «신규»를 품은 조상 가운데 화면 폭에 가까운 가로 노드(폭 80% 이상 · 높이 400 이하)의 위끝. 못 찾으면 글자 위끝 − 80(여유 40 과 합쳐 −120).
+     * 오늘 먹힌 목록 누름 가장 아래 Y 1939 · 안 먹힌 2031 · 2045 · 2102.
+     */
+    @Test fun `탭 막대 위끝 - 화면 폭 가로 조상`() {
+        // (top, width, height) — 글자 칸 · 탭 한 칸 · 탭 막대 · 화면 전체
+        val ancestors = listOf(Triple(2100, 120, 60), Triple(2040, 540, 180), Triple(2020, 1080, 200), Triple(0, 1080, 2340))
+        assertEquals(2020, TapShift.barTopOf(ancestors, screenWidth = 1080))
+        assertNull("가로 막대가 없으면", TapShift.barTopOf(listOf(Triple(2100, 120, 60), Triple(0, 1080, 2340)), screenWidth = 1080))
+    }
+
+    @Test fun `막대를 못 찾으면 글자 위끝 − 120 선`() {
+        assertEquals(2020, TapShift.tabTopFallback(textTop = 2100))
+        assertNull("7,630 Y 2031 은 이제 보이는 몫이 모자라거나 옮겨 누른다", TapShift.rowTapDy(fareCenterY = 2031, rowTopY = 1985, tabTopY = TapShift.tabTopFallback(2100)))
+        val plugin = File("src/main/java/com/onedal/app/plugins/kakaopicker/KakaoPickerPlugin.kt").readText()
+        assertTrue(plugin.contains("📏 [아래 탭 줄] 막대 위끝"))
+    }
 }
