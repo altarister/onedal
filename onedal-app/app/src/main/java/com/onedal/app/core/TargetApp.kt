@@ -36,6 +36,19 @@ object TargetApp {
      */
     const val SIMULATOR_PACKAGE = "com.onedal.simulator"
 
+    /** 🏷️ 실물 배차망 앱 이름 — 여기 있을 때만 보고가 real 이다. 실물 인성·화물24시는 설치하는 날 이 줄에 더한다 */
+    private val REAL_NETWORK_PACKAGES = setOf(KAKAOPICKER_PACKAGE)
+
+    /**
+     * 🏷️ **이 화면의 보고는 실물인가 시뮬인가** — 통계·뉴스레터는 real 만 센다 (`TargetAppSourceTest`).
+     * 🔴 실물 목록에 없으면 전부 sim — 시뮬 쪽 이름을 막는 식이면 크롬·다른 브라우저가 «실물»로 샌다. 이름을 모르면 싣지 않는다
+     */
+    fun sourceOf(pkg: String?): String? = when {
+        pkg == null -> null
+        pkg in REAL_NETWORK_PACKAGES -> "real"
+        else -> "sim"
+    }
+
     /** 저장된 라벨 → 서버 코드. 모르는 라벨은 인성 — 오프라인 안전망과 같은 결 */
     fun codeOf(label: String?): String =
         com.onedal.app.plugins.DispatchPluginRegistry.findByLabel(label).code

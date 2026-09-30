@@ -89,6 +89,9 @@ class TelemetryManager(
      */
     var filterTally: com.onedal.app.models.FilterTally? = null
 
+    /** 🏷️ 마지막으로 읽은 화면의 앱 이름 — 보고의 실물/시뮬(`TargetApp.sourceOf`)을 보낼 때 가른다 */
+    var screenPackage: String? = null
+
     /**
      * 💤 **폰 화면이 켜져 있는가** (기사님 확정).
      *
@@ -296,6 +299,7 @@ class TelemetryManager(
             lat = lat,                                   // [GPS 텔레메트리] 앱폰 위도
             lng = lng,                                   // [GPS 텔레메트리] 앱폰 경도
             targetApp = appCode,
+            source = TargetApp.sourceOf(screenPackage),
             // 📦🚦🎛️ 폰 상태 바가 쓸 셋 — 앱 안엔 있었는데 여태 안 보내던 것들
             appVersion = appVersion,
             workStage = stage?.stage,

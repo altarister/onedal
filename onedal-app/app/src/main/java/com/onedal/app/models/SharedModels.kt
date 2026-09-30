@@ -242,6 +242,8 @@ data class ScrapPayload(
      * 서버가 «내가 보낸 것»과 이 값을 대조하면 「적용중」이 저절로 파생된다 (규칙 ③).
      */
     val appliedMode: String? = null,
+    /** 🏷️ 이 보고를 만든 화면이 실물 배차망 앱인가(real) 시뮬인가(sim) — `TargetApp.sourceOf`. 모르면 안 싣는다 */
+    val source: String? = null,
     /**
      * 🎛️ **이 배차망에서 실제로 도는 모드** — 폰 테두리 색과 같은 계산(`TargetApp.effectiveMode`).
      * 픽커는 자동이 없어 자동 명령이 알람으로 돈다. 명령과 다르면 관제웹 폰 카드가 둘 다 보인다.
