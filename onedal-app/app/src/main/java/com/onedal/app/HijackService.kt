@@ -1470,18 +1470,20 @@ class HijackService : AccessibilityService(), ScanContext {
         /**
          * 🔴 누를 콜은 늘 방금 읽은 화면에서 고른다 — 담아 두지 않는다 (기사님 · onedal-1f).
          * 담아 둔 사이 줄이 움직이면 엉뚱한 줄·오더카드를 누른다(09-13) — 사라짐·요금 바뀜·더 좋은 콜을 대기열은 모른다.
-         * ✋ 기사님 손이 먼저 — 손이 움직인 뒤 3초는 소리도 누르기도 미루고, 멈추면 곧바로 다시 읽어 그 화면에서 고른다 (`HandFirst`).
+         * ✋ 기사님 손이 먼저 — 소리는 곧바로 울리고(시선이 먼저 옮겨 가야 화면이 바뀐 것을 안다 · 기사님 «가»),
+         *    앱의 누르기만 손이 멈춘 뒤 3초 미룬다. 멈추면 곧바로 다시 읽어 그 화면에서 고른다 (`HandFirst`).
+         *    소리 → 누름 차례: 같은 읽기면 fire 가 누름 앞이고, 미룬 누름은 뒤 읽기라 늘 소리가 먼저다. 같은 콜 소리는 한 번(`SoundMemory`).
          */
         val tapNowMs = android.os.SystemClock.elapsedRealtime()
         val handHeld = tapsFromList && !session.openedByApp && bestIdx >= 0 && handFirst.blocks(tapNowMs)
         if (handHeld) {
             handFirst.hold(tapNowMs)
             if (LogOnce.changed("hand-first", "${handFirst.lastHandAtMs}"))
-                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "✋ [손 먼저] 기사님 손 ${"%.1f".format((tapNowMs - handFirst.lastHandAtMs) / 1000.0)}초 전($lastHandWhy) — 앱 누르기 미룸 · 멈추면 곧바로 다시 읽는다")
+                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "✋ [손 먼저] 기사님 손 ${"%.1f".format((tapNowMs - handFirst.lastHandAtMs) / 1000.0)}초 전($lastHandWhy) — 소리는 울림 · 누르기 미룸 · 멈추면 곧바로 다시 읽는다")
         }
         val handReleasedMs = if (handHeld || bestIdx < 0) null else handFirst.releasedMs(tapNowMs)
         var holdFires = false
-        if (tapsFromList && !session.openedByApp && !handHeld) {
+        if (tapsFromList && !session.openedByApp) {
             val best = if (bestIdx >= 0) alarmHits[bestIdx] else null
             val label = best?.first?.let { "${it.pickup}→${it.dropoff} ${"%,d".format(it.fare)}원 · 예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(it)}" }
             val d = alarmHold.decide(best?.third, label, scanMoving, android.os.SystemClock.elapsedRealtime())
@@ -1520,8 +1522,9 @@ class HijackService : AccessibilityService(), ScanContext {
                         withBorder = false,
                         withSound = true,
                     )
-                    handReleasedMs?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [미룬 알람 울림] +${it}ms · 손 먼저") }
                 }
+                if (!handHeld) {
+                handReleasedMs?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "👆 [미룬 누르기] +${it}ms · 손 먼저") }
                 // 👆 누르기 전 안전 확인과 누를 자리는 배차망이 정한다 (픽커: 오더카드를 피한다)
                 val tap = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).planListTap(allNodes, order, fareNode)
                 if (tap != null) {
@@ -1560,6 +1563,7 @@ class HijackService : AccessibilityService(), ScanContext {
                         // 📊 서버 보고는 루프에서 이미 했다 (`markReportedOnce`) — 여기서 다시 보내지 않는다
                     }
                 }
+                }   // ✋ 누르기만 손 문 안
             }
         }
         if (scanOrders.isNotEmpty()) alarmedRoutes.seen(scanOrders, nowMs)   // 카드 0장 틀은 «안 보였다»가 아니다

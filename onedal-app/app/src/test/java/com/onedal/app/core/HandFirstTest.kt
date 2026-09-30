@@ -39,7 +39,12 @@ class HandFirstTest {
         val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
         assertTrue("스크롤 · 손 상세 · 앱이 안 한 복귀 · 누름 알림", Regex("""onHand\(""").findAll(src).count() >= 5)
         assertTrue(src.contains("✋ [손 먼저] 기사님 손"))
-        assertTrue(src.contains("🔔 [미룬 알람 울림] +\${it}ms · 손 먼저"))
+        assertTrue("소리는 곧바로 · 누르기만 미룬다(기사님 «가»)", src.contains("— 소리는 울림 · 누르기 미룸"))
+        assertTrue(src.contains("👆 [미룬 누르기] +\${it}ms · 손 먼저"))
+        // 누르기만 손에 막힌다 — 소리(fire)는 손 문 밖이고, 누름(planListTap)은 손 문 안이다
+        val block = src.substringAfter("val handHeld =").substringBefore("\n    private fun ")
+        assertTrue(block.contains("if (!handHeld) {"))
+        assertTrue(block.indexOf("alarmSignaler.fire(") < block.indexOf("if (!handHeld) {"))
         assertTrue(src.contains("누를 콜은 늘 방금 읽은 화면에서 고른다 — 담아 두지 않는다"))
     }
 }
