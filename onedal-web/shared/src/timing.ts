@@ -331,6 +331,20 @@ export function businessDayKey(ms: number): string {
 }
 
 /**
+ * 이 콜의 보관 날 `YYYY-MM-DD` — 잡은 날 + `reservedDay` 일. 오늘 콜(0 · 없음)이면 null.
+ * 날 경계는 `businessDayKey`(영업일 전환과 같은 자정) 하나로 잰다. 서버(판정 · 보관)와 관제웹(판정석 예약 알약)이 같이 쓴다.
+ */
+export function reservedForOf(order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string }): string | null {
+    const days = order.reservedDay;
+    if (days == null || !(days >= 1)) return null;
+    const base = Date.parse(order.capturedAt ?? order.timestamp ?? '');
+    if (!Number.isFinite(base)) return null;
+    const d = new Date(base);
+    d.setDate(d.getDate() + days);
+    return businessDayKey(d.getTime());
+}
+
+/**
  * 📅 **영업일 [시작, 끝)** — businessDayKey 와 같은 규칙(로컬 자정). 저장된 시각(UTC ISO 글자)을 이 구간으로 거른다 —
  *    날 글자 앞부분(LIKE 'YYYY-MM-DD%')으로 거르면 한국 새벽 0~9시가 어제로 간다.
  */

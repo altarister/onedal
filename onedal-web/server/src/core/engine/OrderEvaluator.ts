@@ -1,7 +1,7 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
          deriveRouteTimeline, minRouteBuffer, marginalDetourMin, tailSplitOf,
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
-         soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating } from "@onedal/shared";
+         soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { judge, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
@@ -23,7 +23,7 @@ import { applySoloRoute, composeMergedRoute } from "../../services/routeComposer
 import { IAppPlugin } from "../plugins/IAppPlugin";
 import { PluginFactory } from "../plugins/PluginFactory";
 import { getActiveCalls } from "../helpers";
-import { reservedForOf, isLaterThan } from "../../services/reservedOrders";
+import { isLaterThan } from "../../services/reservedOrders";
 import { slog } from "../../utils/fileLogger";
 
 

@@ -2,8 +2,8 @@ import { businessDayKey, restoreWhere, mapVehicleToKakaoCarType, getRemainingCap
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
-         CALL_TARGET_LABEL, isEvaluating, isTerminal } from "@onedal/shared";
-import { reservedForOf, isLaterThan, isHeldReserved, takeReserved } from "./reservedOrders";
+         CALL_TARGET_LABEL, isEvaluating, isTerminal, reservedForOf } from "@onedal/shared";
+import { isLaterThan, isHeldReserved, takeReserved } from "./reservedOrders";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";

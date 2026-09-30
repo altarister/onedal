@@ -1,4 +1,4 @@
-import { businessDayKey, isTerminal } from "@onedal/shared";
+import { isTerminal } from "@onedal/shared";
 import type { MyOrder } from "@onedal/shared";
 
 /**
@@ -10,20 +10,6 @@ import type { MyOrder } from "@onedal/shared";
  * 🔴 옮기는 함수는 하나, 부르는 곳은 둘 — 영업일 전환(`ensureBusinessDay`) · 서버 재시작 되살리기
  *    (새 날에 서버가 뜨면 세션이 오늘로 태어나 영업일 전환이 안 돈다).
  */
-
-/**
- * 이 콜의 보관 날 `YYYY-MM-DD` — 잡은 날 + `reservedDay` 일. 오늘 콜(0 · 없음)이면 null.
- * 날 경계는 `businessDayKey`(영업일 전환과 같은 자정) 하나로 잰다.
- */
-export function reservedForOf(order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string }): string | null {
-    const days = order.reservedDay;
-    if (days == null || !(days >= 1)) return null;
-    const base = Date.parse(order.capturedAt ?? order.timestamp ?? '');
-    if (!Number.isFinite(base)) return null;
-    const d = new Date(base);
-    d.setDate(d.getDate() + days);
-    return businessDayKey(d.getTime());
-}
 
 /** 오늘 뒤의 날인가 — 문자열 날짜(YYYY-MM-DD)라 글자 비교가 곧 날 비교다 */
 export const isLaterThan = (reservedFor: string | null | undefined, today: string) => !!reservedFor && reservedFor > today;
