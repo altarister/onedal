@@ -229,6 +229,8 @@ class TelemetryManager(
      */
     @Volatile
     var currentMode: String = "MANUAL"
+    /** 🎛️ 서버 모드를 한 번이라도 받았나 — 받기 전 보고에는 «도는 모드»를 싣지 않는다(기본값 MANUAL 이 «명령과 갈렸다»로 읽혔다 · `ModeFirstReportTest`) */
+    private var modeKnown = false
 
     /** 🖼️ 서버에서 모드를 받을 때마다 부른다 — 화면 테두리(`ModeFrame`)가 색을 맞춘다 */
     @Volatile
@@ -316,7 +318,7 @@ class TelemetryManager(
             workStageStep = stage?.step,
             workStageSeconds = stage?.seconds,
             appliedMode = currentMode,
-            effectiveMode = TargetApp.effectiveMode(currentMode, appCode),
+            effectiveMode = if (modeKnown) TargetApp.effectiveMode(currentMode, appCode) else null,
             // 🧭 [피기백 v2] 들고 있는 필터 버전 — 같으면 서버가 본문을 생략한다.
             // ⚠️ null 이면 Gson 이 필드를 통째로 빼서 서버가 구앱으로 오인한다 —
             //    아직 버전이 없으면 빈 문자열("전체 주세요")을 보낸다
@@ -347,6 +349,7 @@ class TelemetryManager(
         apiClient.sendScrapTelemetry(
             payload = payload,
             onModeReceived = { mode ->
+                modeKnown = true
                 currentMode = mode
                 modeCallback?.invoke(mode)
             },
