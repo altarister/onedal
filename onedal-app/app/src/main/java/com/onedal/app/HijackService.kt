@@ -239,7 +239,6 @@ class HijackService : AccessibilityService(), ScanContext {
     /** ✋ 기사님 손이 먼저 — 손 흔적 · 멈추면 곧바로 다시 읽기 (`HandFirst`) */
     private val handFirst = com.onedal.app.core.HandFirst()
     private var lastHandWhy = ""
-    private val handQuietRead = Runnable { reservedRead("손 멈춤") }
 
     private fun onHand(why: String) {
         val now = android.os.SystemClock.elapsedRealtime()
@@ -249,8 +248,7 @@ class HijackService : AccessibilityService(), ScanContext {
         }
         handFirst.onHand(now)
         lastHandWhy = why
-        mainHandler.removeCallbacks(handQuietRead)
-        mainHandler.postDelayed(handQuietRead, com.onedal.app.core.HandFirst.QUIET_MS + 50)
+        waitBook.schedule("손 멈춤", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.HandFirst.QUIET_MS + 50) { reservedRead("손 멈춤") }
     }
 
     /**
@@ -322,7 +320,7 @@ class HijackService : AccessibilityService(), ScanContext {
             }
         }
         detailBackRunnable = r
-        mainHandler.postDelayed(r, delayMs)
+        waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, delayMs) { r.run() }
     }
 
     /** ⏩ 판정 뒤 접기 — 걸린 상세 대기의 마감을 서버가 준 남은 초로 당긴다(더 이를 때만) · 조건은 `DetailFold` */
@@ -339,8 +337,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val deadline = com.onedal.app.core.engine.DetailFold.newDeadlineMs(detailBackDeadlineMs, now, remainSec,
             sameOrder = sameOrder, openedByApp = session.openedByApp, onPreConfirmDetail = onDetail) ?: return
         val leftSec = ((detailBackDeadlineMs ?: now) - now) / 1000
-        mainHandler.removeCallbacks(r)
-        mainHandler.postDelayed(r, deadline - now)
+        waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, deadline - now) { r.run() }   // 같은 이름 — 앞의 것을 거두고 당겨 건다
         detailBackDeadlineMs = deadline
         detailFoldOrderId = orderId
         AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏩ [상세 대기 줄임] 서버 판정 뒤 접기 — ${remainSec}초 뒤 목록으로 (원래 ${leftSec}초 남음) · 콜 $orderId")
@@ -348,7 +345,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     private fun cancelDetailBack() {
         detailBackRunnable?.let {
-            mainHandler.removeCallbacks(it)
+            waitBook.cancel("상세 대기")
             val stayedSec = (android.os.SystemClock.elapsedRealtime() - detailBackArmedAtMs) / 1000
             AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏹️ [상세 대기] 풀었다 — ${stayedSec}초 머묾 · 연 쪽: $detailBackOpener (콜 끝 · 리스트 복귀)")
         }
@@ -392,6 +389,16 @@ class HijackService : AccessibilityService(), ScanContext {
 
     // ── AUTO 모드 타이머 ──
     override val mainHandler = Handler(Looper.getMainLooper())
+    override val waitBook = com.onedal.app.core.WaitBook(object : com.onedal.app.core.WaitBook.Poster {
+        override fun post(r: Runnable, delayMs: Long) { mainHandler.postDelayed(r, delayMs) }
+        override fun remove(r: Runnable) { mainHandler.removeCallbacks(r) }
+    }) { android.os.SystemClock.elapsedRealtime() }
+
+    /** ⏳ 상세↔목록이 바뀔 때 지금 걸린 기다림 한 줄 */
+    private fun logPendingWaits(where: String) {
+        val p = waitBook.pending()
+        if (p.isNotEmpty()) AppLogger.d(TAG, LogTag.SCREEN, "⏳ [걸린 기다림] $where — " + p.joinToString(" · ") { "${it.name}(${it.owner} · ${it.remainMs}ms)" })
+    }
     private val safeCancelTimer = SafeCancelTimer()
 
     /**
@@ -639,7 +646,7 @@ class HijackService : AccessibilityService(), ScanContext {
         mainHandler.removeCallbacks(listWatchdog)
         mainHandler.removeCallbacks(afterDiscardRead)
         mainHandler.removeCallbacks(heldAlarmRecheck)
-        mainHandler.removeCallbacks(handQuietRead)
+        waitBook.cancelAll()
         super.onDestroy()
         live = null
         if (::screenReader.isInitialized) screenReader.close()
@@ -1033,12 +1040,14 @@ class HijackService : AccessibilityService(), ScanContext {
             listBlindSinceMs = System.currentTimeMillis()
             alarmHold.clear()   // ⏳ 목록을 떠났다 — 미룬 알람을 버린다
             mainHandler.removeCallbacks(heldAlarmRecheck)
-            mainHandler.removeCallbacks(handQuietRead)
+            waitBook.cancelOwner(com.onedal.app.core.WaitBook.LIST)
+            logPendingWaits("목록 → ${detected.name}")
             mainHandler.removeCallbacks(afterDiscardRead)
         }
         if (isListScreen && !wasListScreen) {
             AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
             resetSessionState()
+            logPendingWaits("${previous.name} → 목록")
             // 📏 앱이 뒤로 간 복귀면 목록 확인까지 ms — 목록 보고는 화면이 바뀐 순간 곧바로 나간다(`updateScreenContext`)
             // ✋ 앱이 뒤로 가기를 안 보냈는데 목록으로 왔다 — 기사님 손(넘기기·뒤로)
             if (android.os.SystemClock.elapsedRealtime() - touchManager.lastAppBackAtMs > com.onedal.app.core.HandFirst.APP_BACK_ECHO_MS) onHand("상세 → 목록")
@@ -1798,11 +1807,11 @@ class HijackService : AccessibilityService(), ScanContext {
         if (isSimulated) {
             AppLogger.roadmap(LogTag.DECISION, "🐥 [체험 모드] 관제탑 판결 $decision 수신 → 안전한 뒤로가기(Back) 집행", telemetryManager.currentScreenContext.name)
             AppLogger.d(TAG, LogTag.DECISION, "🐥 [체험] 실서버 버튼을 누르지 않고 GLOBAL_ACTION_BACK 실행")
-            mainHandler.postDelayed({
+            waitBook.schedule("체험 결재 뒤 뒤로", com.onedal.app.core.WaitBook.SESSION, 300) {
                 performGlobalAction(GLOBAL_ACTION_BACK)
                 resetSessionState()
                 AppLogger.roadmap(LogTag.DECISION, "✅ [체험] 뒤로가기 완료 → 리스트 복귀, 합짐 콜 스캔 대기", telemetryManager.currentScreenContext.name)
-            }, 300)
+            }
             return
         }
 
@@ -1829,13 +1838,13 @@ class HijackService : AccessibilityService(), ScanContext {
         if (!session.contractedByApp) {
             if (session.openedByApp && decision == "CANCEL") {
                 AppLogger.i("1DAL_PICKER", LogTag.DECISION, "↩️ [결재 CANCEL] 앱이 연 콜 — 바로 목록으로 돌아온다")
-                mainHandler.postDelayed({
+                waitBook.schedule("결재 CANCEL 뒤 뒤로", com.onedal.app.core.WaitBook.SESSION, 300) {
                     if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
                         lastBackAtMs = android.os.SystemClock.elapsedRealtime()
                         touchManager.performBack("결재 CANCEL")
                     }
                     resetSessionState()
-                }, 300)
+                }
             }
             return // 앱이 계약하지 않은 콜은 버튼을 누르지 않는다
         }
@@ -1844,11 +1853,12 @@ class HijackService : AccessibilityService(), ScanContext {
         AppLogger.roadmap(LogTag.DECISION, "🛡️ 관제탑 판결 수신 (Action: $decision) → '$targetBtnStr' 버튼 클릭 집행 개시", telemetryManager.currentScreenContext.name)
         AppLogger.d(TAG, LogTag.DECISION, "⚡ 판결 집행: 행동=$decision, 누를버튼=$targetBtnStr (버튼클릭을 시작합니다), 500ms 지연")
         
-        mainHandler.postDelayed({
+        // ⏳ 판결 몫 — «취소» 누름이 곧 계약 취소라, 그 사이 콜이 끝나도(목록 오탐 리셋) 거두지 않는다
+        waitBook.schedule("판결 버튼", com.onedal.app.core.WaitBook.DECISION, 500) {
             val rootNode = rootInActiveWindow
             if (rootNode == null) {
                 resetSessionState()
-                return@postDelayed
+                return@schedule
             }
             if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = effectiveMode)) {
                 if (decision == "KEEP") {
@@ -1870,7 +1880,7 @@ class HijackService : AccessibilityService(), ScanContext {
              */
             resetSessionState()
             rootNode.recycle()
-        }, 500)
+        }
     }
 
     private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "") {
@@ -1894,6 +1904,10 @@ class HijackService : AccessibilityService(), ScanContext {
     /** 세션 상태 전체 초기화 (리스트 복귀 시 호출) */
     override fun resetSessionState() {
         cancelDetailBack()   // ⏱️ 콜이 끝났다 — 상세 대기 타이머도 이 한 곳에서 끈다 (#124)
+        // ⏳ 콜이 끝났다 — 이 콜이 건 기다림(세션 몫)을 한 번에 거둔다. 손 클릭 AUTO 1초 보고는 거두면서 끈다
+        waitBook.cancelOwner(com.onedal.app.core.WaitBook.SESSION).takeIf { it.isNotEmpty() }
+            ?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏳ [기다림 거둠] 세션 — ${it.joinToString(" · ")}") }
+        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, false)
         session.reset {
             cancelSafeCancelTimer()
             telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 콜 잡기 모드
