@@ -1067,7 +1067,11 @@ class HijackService : AccessibilityService(), ScanContext {
      *    서버가 한다. 실측이 쌓이면 그때 기준을 정한다.
      */
 
+    /** 🧾 목록 읽기 번호 — 목록 줄을 본 때를 적는다(`ListSightings`) */
+    private var listScanNo = 0L
+
     private fun handleListScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
+        listScanNo++
         val listReadAtMs = android.os.SystemClock.elapsedRealtime()   // 🏁 «발견→누름»의 발견
         // 🎛️ 이 배차망에서 실제로 도는 모드 (자동인데 픽커면 알람) — 검사(deviceMode · appSafeDefaults)가 이 이름의 글자를 읽는다
         val currentMode = effectiveMode
@@ -1188,6 +1192,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 continue
             }
             val orderHash = CallMemory.fingerprintOf(order)
+            com.onedal.app.core.ListSightings.saw(orderHash, listScanNo)   // 🧾 몇 번째 읽기에서 봤나 — 같은 콜 요금 인상 가르기
             // 📅 예약인데 날을 모른다 — 상세가 가른다. 배차망별로 몇 번인지 세려고 콜당 한 줄
             if (order.reserved == true && order.reservedDay == null && LogOnce.changed("reservation-unknown:$orderHash", "1"))
                 AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 날 모름] $currentTargetApp · ${order.pickup}→${order.dropoff} ${order.fare}원 · ${order.tagsText ?: order.scheduleText ?: ""}")

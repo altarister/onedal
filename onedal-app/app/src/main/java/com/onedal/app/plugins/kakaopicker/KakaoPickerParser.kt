@@ -507,8 +507,11 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             }
             val picked = if (byPickup.size <= 1) byPickup
                 else byPickup.filter { c -> cardKeys(c.dropoff).let { k -> k.isNotEmpty() && k.all { it in dropoffPart } } }
+            // 🧾 여럿이어도 같은 콜이 요금만 오른 것이면 마지막에 본 줄 (`ListSightings`)
+            val sameCall = if (picked.size == 1) null else com.onedal.app.core.ListSightings.latestOfSameCall(picked.ifEmpty { byPickup })
             return when {
                 picked.size == 1 -> ListCardMatch(picked[0], "$how 이 맞는 카드 하나")
+                sameCall != null -> ListCardMatch(sameCall, "$how 이 맞는 줄이 같은 콜의 요금만 다른 것 — 마지막에 본 ${sameCall.fare}원")
                 byPickup.isEmpty() -> ListCardMatch(null, "리스트 카드 중 $how 이 맞는 것이 없다")
                 picked.isEmpty() -> ListCardMatch(null, "$how 이 맞는 카드 ${byPickup.size}장 — 배송지로도 못 가른다")
                 else -> ListCardMatch(null, "$how · 배송지가 맞는 카드 ${picked.size}장 — 어느 것인지 모른다")
@@ -521,12 +524,14 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 고르는 법 — 카드 상차 토막 ⊂ 사진 상차 · 카드 하차 토막 ⊂ 사진 하차 · 픽업 km 차 0.3 이하. 🔴 **꼭 한 줄일 때만** — 아니면 null(추측하지 않는다).
          */
         fun photoMatchCard(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? =
-            photoMatchSteps(pickup, dropoff, recent).last().singleOrNull()
+            photoMatchSteps(pickup, dropoff, recent).last().let { it.singleOrNull() ?: com.onedal.app.core.ListSightings.latestOfSameCall(it) }
 
         /** 🧾 진단 한 줄 — 사진 대조가 어느 단계에서 줄었나 (`[손 상세 대조]`) */
         fun photoMatchReport(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>): String {
             val s = photoMatchSteps(pickup, dropoff, recent)
-            return "최근 목록 ${recent.size}줄 · 상차 맞음 ${s[0].size} · 하차 맞음 ${s[1].size} · km 맞음 ${s[2].size} · 다른 콜 ${s[3].size}"
+            val same = if (s[3].size > 1) com.onedal.app.core.ListSightings.latestOfSameCall(s[3]) else null
+            return "최근 목록 ${recent.size}줄 · 상차 맞음 ${s[0].size} · 하차 맞음 ${s[1].size} · km 맞음 ${s[2].size} · 다른 콜 ${s[3].size}" +
+                (same?.let { " · 같은 콜이 요금만 올랐다(${s[3].joinToString(" → ") { c -> "${c.fare}" }}) — 마지막에 본 ${it.fare}원" } ?: "")
         }
 
         /** 상차 → 하차 → km → 같은 콜 하나로 — 단계마다 남은 줄 (대조와 진단이 같은 단계를 쓴다) */
