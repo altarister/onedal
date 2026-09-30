@@ -19,6 +19,16 @@ class HandFirst(private val quietMs: Long = QUIET_MS) {
         /** 앱 누름 뒤 이 안의 손 흔적을 센다 — 잠금 창을 정하는 재료 */
         const val AFTER_APP_TAP_MS = 1_000L
 
+        /**
+         * 🕰️ 알림이 실제로 난 시각(부팅 기준) — AccessibilityEvent.eventTime 은 uptime 기준이다.
+         * 목록 읽기가 길면 알림이 메인 줄에 쌓였다가 늦게 처리된다(라이브 10-01 00:31:20 · 896ms) — 처리 시각이 아니라 난 시각으로 적는다.
+         */
+        fun eventElapsedMs(nowElapsedMs: Long, nowUptimeMs: Long, eventUptimeMs: Long): Long = nowElapsedMs - (nowUptimeMs - eventUptimeMs)
+
+        /** 앱이 누르기 전 [QUIET_MS] 안에 난 손인데 누른 뒤에야 처리됐다 — 그 ms(앱이 손을 놓치고 누른 것), 아니면 null */
+        fun missedBeforeTapMs(handAtMs: Long, lastAppTapAtMs: Long): Long? =
+            (lastAppTapAtMs - handAtMs).takeIf { lastAppTapAtMs > 0L && it in 1L..QUIET_MS }
+
         /** 앱이 누른 뒤 [AFTER_APP_TAP_MS] 안이면 그 ms, 아니면 null */
         fun afterAppTapMs(nowMs: Long, lastAppTapAtMs: Long): Long? =
             (nowMs - lastAppTapAtMs).takeIf { lastAppTapAtMs > 0L && it in 0L..AFTER_APP_TAP_MS }
@@ -31,7 +41,8 @@ class HandFirst(private val quietMs: Long = QUIET_MS) {
         private set
     private var heldSinceMs = 0L
 
-    fun onHand(nowMs: Long) { lastHandAtMs = nowMs }
+    /** 손 흔적 — 늦게 처리된 옛 알림이 시계를 뒤로 돌리지 않는다 */
+    fun onHand(atMs: Long) { lastHandAtMs = maxOf(lastHandAtMs, atMs) }
 
     fun blocks(nowMs: Long): Boolean = lastHandAtMs > 0L && nowMs - lastHandAtMs < quietMs
 

@@ -5,6 +5,7 @@ import com.onedal.app.core.LogTag
 import android.graphics.Rect
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.LogOnce
+import com.onedal.app.core.HandFirst
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.api.ApiClient
@@ -240,15 +241,23 @@ class HijackService : AccessibilityService(), ScanContext {
     private val handFirst = com.onedal.app.core.HandFirst()
     private var lastHandWhy = ""
 
-    private fun onHand(why: String) {
+    /** ✋ 손 흔적 — [atMs] 는 알림이 실제로 난 시각(부팅 기준 · 스크롤은 event.eventTime) */
+    private fun onHand(why: String, atMs: Long = android.os.SystemClock.elapsedRealtime()) {
         val now = android.os.SystemClock.elapsedRealtime()
-        // 👆 앱이 누른 뒤 1초 안의 손 — 잠금 창을 정하기 전에 센다(부딪힘이 실제로 있나)
-        com.onedal.app.core.HandFirst.afterAppTapMs(now, touchManager.lastAppTapAtMs)?.let {
-            AppLogger.i(TAG, LogTag.TAP, "👆 [앱 누름 뒤 손] ${it}ms · $why")
+        val lastTap = touchManager.lastAppTapAtMs
+        // 👆 앱 누름과 손 — 누르기 전에 났는데 늦게 온 손(앱이 놓치고 누름)과 누른 뒤 손을 가른다. 누름 한 번에 한 줄
+        com.onedal.app.core.HandFirst.missedBeforeTapMs(atMs, lastTap)?.let {
+            if (LogOnce.changed("hand-missed", "$lastTap")) AppLogger.i(TAG, LogTag.TAP, "✋ [손 먼저 놓침] 누르기 ${it}ms 전 손($why) — 목록 읽는 동안 늦게 도착")
+        } ?: com.onedal.app.core.HandFirst.afterAppTapMs(atMs, lastTap)?.let {
+            if (LogOnce.changed("hand-after-tap", "$lastTap")) AppLogger.i(TAG, LogTag.TAP, "👆 [앱 누름 뒤 손] ${it}ms · $why")
         }
-        handFirst.onHand(now)
+        handFirst.onHand(atMs)
         lastHandWhy = why
-        waitBook.schedule("손 멈춤", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.HandFirst.QUIET_MS + 50) { reservedRead("손 멈춤") }
+        waitBook.schedule("손 멈춤", com.onedal.app.core.WaitBook.LIST, maxOf(0L, handFirst.quietAtMs() + 50 - now)) {
+            // 👆 미룬 누르기는 손이 멈춘 뒤 이 다시 읽기에서 푼다 — 그때까지의 ms 만 적는다
+            handFirst.releasedMs(android.os.SystemClock.elapsedRealtime())?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "👆 [미룬 누르기] +${it}ms · 손 먼저") }
+            reservedRead("손 멈춤")
+        }
     }
 
     /**
@@ -763,7 +772,8 @@ class HijackService : AccessibilityService(), ScanContext {
                 scrollGate.scrolledRecently(now))) {
             com.onedal.app.core.EventRoute.Route.IGNORE -> Unit
             com.onedal.app.core.EventRoute.Route.SCROLL_SCAN -> {
-                onHand("스크롤")   // ✋ 앱은 스크롤하지 않는다 — 스크롤 알림은 기사님 손이다
+                // ✋ 앱은 스크롤하지 않는다 — 스크롤 알림은 기사님 손이다 · 알림이 실제로 난 시각으로(메인 줄에 밀려 늦게 올 수 있다)
+                onHand("스크롤", HandFirst.eventElapsedMs(now, android.os.SystemClock.uptimeMillis(), event.eventTime))
                 touchedAtMs = now   // ✋ 목록을 만진다 — 10초 동안 조용한 다시 읽기를 촘촘히
                 mainHandler.removeCallbacks(scrollScan)
                 mainHandler.postDelayed(scrollScan, (scrollGate.onScroll(now) - now).coerceAtLeast(0))
@@ -1500,7 +1510,6 @@ class HijackService : AccessibilityService(), ScanContext {
             if (LogOnce.changed("hand-first", "${handFirst.lastHandAtMs}"))
                 AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "✋ [손 먼저] 기사님 손 ${"%.1f".format((tapNowMs - handFirst.lastHandAtMs) / 1000.0)}초 전($lastHandWhy) — 소리는 울림 · 누르기 미룸 · 멈추면 곧바로 다시 읽는다")
         }
-        val handReleasedMs = if (handHeld || bestIdx < 0) null else handFirst.releasedMs(tapNowMs)
         var holdFires = false
         if (tapsFromList && !session.openedByApp) {
             val best = if (bestIdx >= 0) alarmHits[bestIdx] else null
@@ -1545,7 +1554,6 @@ class HijackService : AccessibilityService(), ScanContext {
                     )
                 }
                 if (!handHeld) {
-                handReleasedMs?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "👆 [미룬 누르기] +${it}ms · 손 먼저") }
                 // 🌊 방금 스크롤 — 흐르는 목록은 누르지 않고 곧 다시 읽는다(주 판정은 배차망의 누르기 직전 Y 차이 · 이것은 덧)
                 val plugin = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp)
                 // 👆 누르기 전 안전 확인과 누를 자리는 배차망이 정한다 (픽커: 오더카드를 피한다)

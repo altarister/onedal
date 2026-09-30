@@ -65,4 +65,32 @@ class HandFirstTest {
         assertNull("앱이 쏜 적 없음", HandFirst.afterAppTapMs(nowMs = 6_200, lastAppTapAtMs = 0))
         assertTrue(File("src/main/java/com/onedal/app/HijackService.kt").readText().contains("👆 [앱 누름 뒤 손]"))
     }
+
+    /**
+     * 🕰️ **손 흔적은 알림이 실제로 난 시각으로** (onedal-1f «가» · 라이브 10-01 00:31:20).
+     * 목록 읽기(896ms) 동안 스크롤 알림이 메인 줄에 쌓였다가 누른 뒤에 처리됐다 — 처리 시각으로 적으면 «앱 누름 뒤 손»으로 잘못 세고,
+     * 손 먼저 시계도 늦게 멈춘다. AccessibilityEvent.eventTime 은 uptime 기준이라 부팅 기준(elapsedRealtime)으로 바꾼다.
+     */
+    @Test fun `알림 시각을 부팅 기준으로`() =
+        assertEquals(9_100L, HandFirst.eventElapsedMs(nowElapsedMs = 10_000, nowUptimeMs = 5_000, eventUptimeMs = 4_100))
+
+    @Test fun `손 흔적 시각은 뒤로 가지 않는다`() {
+        val h = HandFirst()
+        h.onHand(10_000); h.onHand(9_500)
+        assertEquals(10_000L, h.lastHandAtMs)
+    }
+
+    @Test fun `누르기 전에 났는데 누른 뒤 처리된 손은 놓침 ms`() {
+        assertEquals(300L, HandFirst.missedBeforeTapMs(handAtMs = 19_700, lastAppTapAtMs = 20_000))
+        assertNull("누른 뒤의 손", HandFirst.missedBeforeTapMs(handAtMs = 20_100, lastAppTapAtMs = 20_000))
+        assertNull("손 먼저 창 밖", HandFirst.missedBeforeTapMs(handAtMs = 17_000, lastAppTapAtMs = 20_000))
+    }
+
+    @Test fun `스크롤 알림은 알림 시각으로 · 미룸은 손 멈춤 다시 읽기에서 푼다`() {
+        val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
+        assertTrue(src.contains("onHand(\"스크롤\", HandFirst.eventElapsedMs("))
+        assertTrue(src.contains("✋ [손 먼저 놓침]"))
+        val quiet = src.substringAfter("waitBook.schedule(\"손 멈춤\"").substringBefore("\n    }")
+        assertTrue("미룬 누르기는 손 멈춤 다시 읽기에서 푼다", quiet.contains("handFirst.releasedMs("))
+    }
 }
