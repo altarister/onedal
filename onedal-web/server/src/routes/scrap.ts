@@ -144,16 +144,16 @@ router.post("/", (req, res) => {
         });
 
         /**
-         * 비동기 큐이므로 정확한 즉시 개수 파악은 어렵지만 대략적으로 제공.
-         * 🧮 표 전체를 세는 일이라 intel 이 쌓일수록 느려진다 — 행이 느는 것은 콜이 실린 보고뿐이므로
-         *    그때(와 서버가 뜬 뒤 첫 요청)만 다시 세고, 빈 보고는 마지막 값을 싣는다.
+         * 📚 **원문 개수는 처음 한 번만 센다 · 그 뒤엔 넣는 줄 수만큼 더한다** (원달앱 화면 숫자 apiStatus.totalItems).
+         *    보고마다 표 전체를 세면 원문이 쌓일수록 느려진다(지우는 곳이 없어 늘기만 한다). 비동기 큐라 방금 넣은 줄도 미리 더한다.
+         *    픽커 상세 줄(orders.ts)은 여기서 안 세어 화면 숫자는 목록 줄 수다 · reset:calls 는 서버를 다시 띄워 다시 센다.
          */
-        if (data.length > 0 || intelCountCache === null) {
+        if (intelCountCache === null) {
             intelCountCache = (db.prepare("SELECT COUNT(*) as count FROM intel").get() as { count: number })?.count || 0;
+        } else {
+            intelCountCache += data.length;
         }
         const totalScrap = intelCountCache;
-        // 방금 넣은 행은 큐가 아직 안 썼을 수 있다 — 다음 보고가 한 번 더 세어 맞춘다
-        if (data.length > 0) intelCountCache = null;
 
         if (data.length > 0) logRoadmapEvent('통신', "서버", ` [/api/scrap 수신] User: ${userId} (${deviceId}) | ${data.length}항목 적재 중${screenContext ? ` [화면: ${screenContext}]` : ''}`);
         // console.log(`🛡️ [서버] /api/scrap 수신 직후: 서버단 2차 해시 검증 및 무효 콜 필터링 통과 완료`);

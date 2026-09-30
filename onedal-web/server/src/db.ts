@@ -848,6 +848,11 @@ ensureColumns('intel', { targetApp: 'TEXT',
      *    그린다 — 지어내지 않는다 (규칙 ④).
      */
     verdict: 'TEXT' });
+/**
+ * 📚 통계 묶기가 원문을 읽는 두 질문(하루치 · 매시간 MIN)의 조건 그대로 — type · source · timestamp (services/callFlowStats.ts).
+ *    원문은 지우는 곳이 없어 늘기만 한다. 칸(source)을 붙인 뒤여야 한다. 첫 부팅에 기존 행으로 한 번 만든다(실서버 4,630행 · 1f 잰 값).
+ */
+db.exec(`CREATE INDEX IF NOT EXISTS idx_intel_bulk_real_ts ON intel(type, source, timestamp)`);
 
 // ═══════════════════════════════════════
 // [8] 카카오 지오코딩 영구 캐시 (장소 사전)

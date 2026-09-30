@@ -80,13 +80,11 @@ describe('🧹 필터 변경 줄 — 필터가 실제로 바뀐 때만', () => {
     });
 });
 
-describe('🧮 스크랩 응답의 누적 수 — 빈 보고는 표를 다시 세지 않는다', () => {
-    it('intel 에 쓴 보고(또는 첫 요청)만 COUNT 를 부른다', () => {
+describe('🧮 스크랩 응답의 누적 수 — 표는 처음 한 번만 센다 (서버 병목 14)', () => {
+    it('첫 요청만 COUNT 를 부르고, 그 뒤엔 넣는 줄 수만큼 더한다 — 빈 보고도 콜이 실린 보고도 표를 다시 세지 않는다', () => {
         const s = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
-        expect(s).toMatch(/if \(data\.length > 0 \|\| intelCountCache === null\) \{\s*intelCountCache = \(db\.prepare\("SELECT COUNT\(\*\) as count FROM intel"\)/);
-    });
-    it('콜이 실린 보고 뒤 다음 보고가 한 번 더 센다 — 비동기 큐가 넣은 행까지', () => {
-        const s = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
-        expect(s).toContain('if (data.length > 0) intelCountCache = null;');
+        expect(s).toMatch(/if \(intelCountCache === null\) \{\s*intelCountCache = \(db\.prepare\("SELECT COUNT\(\*\) as count FROM intel"\)/);
+        expect(s).toContain('intelCountCache += data.length;');
+        expect(s).not.toContain('intelCountCache = null;');
     });
 });
