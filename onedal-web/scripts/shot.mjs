@@ -23,6 +23,8 @@
  *   node scripts/shot.mjs '/' /tmp/b.png          ← 실물 (로그인 우회)
  *   WIDTH=393 HEIGHT=852 node scripts/shot.mjs …  ← 폰 크기를 바꿔 본다
  *   THEME=light node scripts/shot.mjs …           ← 밝은 테마로 찍는다 (기본은 어둡게)
+ *   AUTH=0 node scripts/shot.mjs '/join' …        ← 로그인 없이 찍는다 (로그인 밖 화면)
+ *   PROBE=1 node scripts/shot.mjs '/withdraw' …   ← 시험 계정으로 찍는다 (기사님 세션을 안 건드린다)
  */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -43,11 +45,13 @@ const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 if (!WEB.includes('localhost')) { console.error('🔴 로컬에서만 씁니다'); process.exit(1); }
 
-/** 개발용 우회 로그인 — 실물 화면을 열려면 토큰이 있어야 한다 */
+/** 개발용 우회 로그인 — 실물 화면을 열려면 토큰이 있어야 한다.
+ *  `PROBE=1` 이면 시험 계정(«실측(자동)»)으로 — 기사님 계정의 관제 세션을 건드리지 않는다 */
 async function devToken() {
     try {
         const r = await fetch(`${API}/api/auth/bypass`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(process.env.PROBE ? { probe: true } : {}),
         });
         const d = await r.json();
         return d.accessToken ?? d.token ?? null;
@@ -108,15 +112,17 @@ try {
         width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: true,
     });
 
-    /* 🔴 토큰은 **그 origin 에서** 심어야 한다 — 먼저 관제웹을 한 번 연다 */
-    const token = await devToken();
+    /* 🔴 토큰은 **그 origin 에서** 심어야 한다 — 먼저 관제웹을 한 번 연다.
+       `AUTH=0` 이면 안 심는다 — 로그인 밖 화면(가입 · 약관)을 찍을 때. 기사님 계정 세션을 열지 않는다 */
+    const token = process.env.AUTH === '0' ? null : await devToken();
     await send('Page.navigate', { url: `${WEB}/login` });
     await sleep(1200);
-    if (token) {
-        await send('Runtime.evaluate', {
-            expression: `localStorage.setItem('access_token', ${JSON.stringify(token)})`,
-        });
-    }
+    /* 🔴 프로필이 지난 실행의 토큰을 들고 있다 — 안 심을 때는 지운다 (안 지우면 로그인 밖 화면이 «이미 회원»으로 찍힌다) */
+    await send('Runtime.evaluate', {
+        expression: token
+            ? `localStorage.setItem('access_token', ${JSON.stringify(token)})`
+            : `localStorage.removeItem('access_token')`,
+    });
     /**
      * 🎭 **새 화면(무대)은 아직 토글 뒤에 있다** — 끄고 켜는 것이 `localStorage` 한 칸이다.
      *    `STAGE=0` 이면 옛 화면을 찍는다 (둘을 나란히 볼 때 쓴다).

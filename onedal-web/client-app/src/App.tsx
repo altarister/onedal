@@ -7,6 +7,11 @@ import MapMockup from "./pages/MapMockup";
 import DrawerMockup from "./pages/DrawerMockup";
 import Settlement from "./pages/Settlement";
 import Login from "./pages/Login";
+import Join from "./pages/Join";
+import JoinApps from "./pages/JoinApps";
+import Pending from "./pages/Pending";
+import Withdraw from "./pages/Withdraw";
+import Terms from "./pages/Terms";
 import { logRoadmapEvent, startMemoryWatch } from "./lib/roadmapLogger";
 import { useAuth } from "./contexts/AuthContext";
 import { useNativeLocation } from "./hooks/useNativeLocation";
@@ -113,6 +118,8 @@ function AppLayout() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/settlement" element={<Settlement />} />
+        {/* 🚪 탈퇴 — 로그인한 기사만 (reviews/29 «관제웹 기사 쪽 페이지») */}
+        <Route path="/withdraw" element={<Withdraw />} />
         {/* 🧭 내비 한 장 자리 — 개인 폰(아이폰)이 여는 화면을 새로 만들면 여기 건다. 지금은 이 줄이 없어
             `/navi` 도 아래 줄로 홈에 간다. 위치는 위에서 끈다 (관제폰과 좌표가 섞이면 도착 판정이 흔들린다) */}
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -167,7 +174,15 @@ export default function App() {
             새 화면으로 굳히면 옛 화면의 탭 줄이 사라지는데, 폰에서는 현황판도 안 떠 볼 곳이 없어진다.
             고정값만 그리고 서버·소켓·GPS 를 안 쓴다 */}
         <Route path="/mockup/drawer" element={<DrawerMockup />} />
-        <Route 
+        {/* 📝 **가입 · 승인 대기 · 앱 받기 · 약관 — 로그인 밖** (reviews/29 «관제웹 기사 쪽 페이지»).
+            주소를 받은 새 계정이 로그인 전에 읽는다. 글은 운영센터 «페이지 글»에서 온다 · 서버 문은 `api/join.ts` 한 곳 */}
+        <Route path="/join" element={<Join />} />
+        <Route path="/join/apps" element={<JoinApps />} />
+        <Route path="/pending" element={<Pending />} />
+        <Route path="/terms" element={<Terms kind="terms" />} />
+        <Route path="/privacy" element={<Terms kind="privacy" />} />
+        <Route path="/location-terms" element={<Terms kind="location" />} />
+        <Route
           path="/*" 
           element={
             <AuthGuard>
