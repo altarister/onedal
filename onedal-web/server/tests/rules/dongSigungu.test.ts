@@ -54,3 +54,12 @@ describe('🏘️ 칸 파생 — 도착 목록 가운데 이름이 겹치는 동
         expect(f.destinationDongSigungu['고덕동'].sort()).toEqual([...new Set(cityAliases('서울 강동구'))].sort());
     });
 });
+
+describe('🏘️ 채점기도 같은 원본', () => {
+    it('🔴 픽커 알람 채점기가 지역 대조를 shared regionMatch 에서 가져온다 — 사본 regionHit 이 없다', () => {
+        const grader = readFileSync(join(__dirname, '../../../../onedal-sim/scripts/pickerAlarmGrade.mjs'), 'utf8');
+        expect(grader).toContain("from '../../onedal-web/shared/src/regionMatch.ts'");
+        expect(grader).not.toMatch(/function regionHit\(/);
+        expect(grader).toMatch(/dongTokenMatch\(dropoff, \[\.\.\.keys, \.\.\.\(f\.cityAliases \?\? \[\]\)\], f\.dongSigungu \?\? \{\}\)/);
+    });
+});

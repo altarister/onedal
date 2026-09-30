@@ -6,9 +6,10 @@
  * 기사님: *"서버는 수시로 바뀔 수 있어 그리고 콜은 내 맘대로 나오는 것이 아냐 … 서버는 서버대로 문제는 문제대로 했을 때
  *        정답이 계속 바뀌고 그 정답이 맞는가를 확인하면 어때?"*
  *
- *   node onedal-sim/scripts/pickerAlarmGrade.mjs                       # 연결된 폰의 오늘 원달앱 로그를 받아 채점
- *   node onedal-sim/scripts/pickerAlarmGrade.mjs --since 14:50         # 이 시각 이후 판정만
- *   node onedal-sim/scripts/pickerAlarmGrade.mjs <로그파일>             # 저장된 로그
+ *   npx tsx onedal-sim/scripts/pickerAlarmGrade.mjs                    # 연결된 폰의 오늘 원달앱 로그를 받아 채점
+ *   npx tsx onedal-sim/scripts/pickerAlarmGrade.mjs --since 14:50      # 이 시각 이후 판정만
+ *   npx tsx onedal-sim/scripts/pickerAlarmGrade.mjs <로그파일>          # 저장된 로그
+ *   (tsx 로 돈다 — 지역 대조를 shared regionMatch.ts 에서 가져온다)
  *
  * 읽는 줄 (원달앱 `KakaoPickerParser.shouldClick`):
  *   🧾 [알람 필터] {"minFare":…,"pickupRadiusKm":…,"destKeywords":[…],"keywordTraps":{…},"cityAliases":[…]}   ← 필터가 바뀔 때만
@@ -18,42 +19,47 @@
  *   - 채점기 축 ≠ 앱 축 → **원달앱 판정**이 필터를 잘못 적용했다 (앱을 고친다)
  *   - 둘은 같은데 기사님이 원한 결과가 아니다 → **서버 필터**(계산 방식·값)를 기사님이 정한다 — 채점기는 «왜»(어느 축)만 보인다
  *
- * 🔴 **일부러 두 벌이다** — 아래 `decideAxes` · `regionHit` · `normalizeRegion` 은 원달앱 `KakaoPickerParser.decideAxes` ·
- *    `RegionMatch.hit` · `normalizeRegion` 을 **옮겨 적은 것**이다. 채점기가 앱 코드를 부르면 앱이 틀려도 채점이 같이 틀린다.
- *    앱 규칙을 바꾸면 여기도 바꾼다 — 안 바꾸면 채점이 빨간불로 알린다.
+ * 🔴 **앱 코드를 부르지 않는다** — 채점기가 앱 코드를 부르면 앱이 틀려도 채점이 같이 틀린다.
+ *    지역 대조(키워드 · 트랩 · 이름이 같은 다른 지역 동)는 **원본 규칙** shared `regionMatch.ts` 를 가져다 쓴다 — 앱 `RegionMatch` 는
+ *    이 원본의 미러라, 앱이 원본과 어긋나면 채점이 어긋남으로 알린다(사본을 두면 원본이 바뀔 때 채점기만 낡는다 · 04 리뷰).
+ *    `decideAxes` · `normalizeRegion` · `dongTokenMatch`(픽커 줄임 토막 — 앱 전용 규칙)는 옮겨 적은 것이다 — 앱 규칙을 바꾸면 여기도 바꾼다.
  * 종료 코드: 어긋난 판정이 하나라도 있으면 1.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+/* shared 는 CommonJS 로 읽힌다 — 기본 가져오기로 받는다 */
+import regionMatch from '../../onedal-web/shared/src/regionMatch.ts';
+import sigungu from '../../onedal-web/shared/src/sigungu.ts';
+const { anyRegionHit } = regionMatch;
+const { sigunguHintBefore } = sigungu;
 
 const args = process.argv.slice(2);
 const sinceIdx = args.indexOf('--since');
 const since = sinceIdx >= 0 ? args[sinceIdx + 1] : null;
 const file = args.find((a, i) => !a.startsWith('--') && (sinceIdx < 0 || i !== sinceIdx + 1));
 
-// ── 원달앱 규칙을 옮겨 적은 것 (위 «일부러 두 벌») ──
-
-/** `RegionMatch.hit` — 키워드 뒤에 트랩 꼬리나 구·시·군이 붙으면 그 자리는 다른 곳이다 */
-function regionHit(text, keyword, traps = []) {
-    if (!keyword) return false;
-    const tails = traps.filter(t => t.length > keyword.length && t.startsWith(keyword)).map(t => t.slice(keyword.length));
-    let i = text.indexOf(keyword);
-    while (i !== -1) {
-        const rest = text.slice(i + keyword.length);
-        const trapped = tails.some(t => rest.startsWith(t)) || (rest.length > 0 && '구시군'.includes(rest[0]));
-        if (!trapped) return true;
-        i = text.indexOf(keyword, i + 1);
-    }
-    return false;
-}
+// ── 원달앱 규칙을 옮겨 적은 것 (픽커 전용 · 지역 대조 원본은 shared regionMatch) ──
 
 /** `KakaoPickerParser.normalizeRegion` — «동»·«구»를 떼고 꼬리 숫자를 뗀다 */
 const normalizeRegion = s => s.replace(/동$/, '').replace(/구$/, '').replace(/\d+$/, '');
 
-/** `dongTokenMatch` — 줄임 표기(«창전»)와 키워드(«창전동»)를 토큰 단위로 */
-function dongTokenMatch(dropoff, keys) {
-    const normKeys = new Set(keys.map(normalizeRegion).filter(k => k.length >= 2));
-    return dropoff.split(' ').map(t => normalizeRegion(t.trim())).some(t => t.length >= 2 && normKeys.has(t));
+/**
+ * `dongTokenMatch` — 줄임 표기(«창전»)와 키워드(«창전동»)를 토큰 단위로.
+ * 🏘️ 이름이 같은 다른 지역 동: 맞은 토막 앞에 다른 시·군·구(«평택 고덕»의 «평택»)가 보이면 그 토막은 다른 곳 — 앞 토막 판단은 shared sigunguHintBefore.
+ */
+function dongTokenMatch(dropoff, keys, dongSigungu = {}) {
+    const tokens = dropoff.split(' ').map(t => t.trim()).filter(Boolean);
+    return keys.some(k => {
+        const nk = normalizeRegion(k);
+        if (nk.length < 2) return false;
+        const forms = dongSigungu[k];
+        return tokens.some((t, j) => {
+            if (normalizeRegion(t) !== nk) return false;
+            if (!forms?.length) return true;
+            const hint = sigunguHintBefore(tokens.slice(0, j).join(' '));
+            return hint == null || forms.includes(hint);
+        });
+    });
 }
 
 /** `ReservationGate.passesList` — 목록에서는 확실한 다른 날만 막는다 (날 모름 = day null) */
@@ -80,8 +86,9 @@ function decideAxes({ fare, pickupKm, dropoff, reserved = false, day = null }, f
     const pickupOk = pickupKm != null && pickupKm <= f.pickupRadiusKm;   // 상차지거리는 목록 완독 칸 — 모르면 통과 아님
     const keys = f.destKeywords ?? [];
     const destOk = keys.length === 0 || dropoff === '' ||
-        keys.some(k => regionHit(dropoff, k, (f.keywordTraps ?? {})[k] ?? [])) ||
-        dongTokenMatch(dropoff, [...keys, ...(f.cityAliases ?? [])]);
+        /* 🏘️ 이름이 같은 다른 지역 동 — 폰 로그의 필터 줄이 dongSigungu 를 실어야 채점에 든다(04 · 없으면 칸 없이 = 지금과 같음) */
+        anyRegionHit(dropoff, keys, f.keywordTraps ?? {}, f.dongSigungu) ||
+        dongTokenMatch(dropoff, [...keys, ...(f.cityAliases ?? [])], f.dongSigungu ?? {});
     return { fare: fareOk, pickup: pickupOk, destination: destOk, reservation: reservationOk, pass: reservationOk && fareOk && pickupOk && destOk };
 }
 

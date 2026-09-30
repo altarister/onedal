@@ -43,7 +43,7 @@ export const PICKER_PRESET_BOOK: PresetBook = {
             title: '🚚 이천 방향 — 집에서 이천까지 일곱 지점 (픽커)',
             desc: '7문제 · **지점은 인성 «칠지점» 그대로**, 요금만 P(원 ÷ 5). ' +
                   '🔴 **정답을 싣지 않는다** — 서버 필터는 수시로 바뀌므로, 원달앱이 판정하는 순간 그 폰의 필터로 ' +
-                  '`node onedal-sim/scripts/pickerAlarmGrade.mjs` 가 채점한다. 원달앱은 **울리고 상세까지만** 간다 — 「수락하기」는 기사님 손가락이다',
+                  '`npx tsx onedal-sim/scripts/pickerAlarmGrade.mjs` 가 채점한다. 원달앱은 **울리고 상세까지만** 간다 — 「수락하기」는 기사님 손가락이다',
         },
     ],
     requires: {},
