@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { Button } from '@onedal/ui/button';
 import { api } from '../api/ops';
 import { Card, PageHeader, StatusBadge, fmtTime, memberName, useTick } from '../ui';
 

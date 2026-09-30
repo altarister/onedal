@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { OpsRelease } from '@onedal/shared';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Badge } from '@onedal/ui/badge';
+import { Button } from '@onedal/ui/button';
+import { Input } from '@onedal/ui/input';
 import { api } from '../api/ops';
 import { Card, PageHeader, Table, fmtTime, useTick, type Column } from '../ui';
 

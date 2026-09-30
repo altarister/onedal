@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Checkbox } from '../components/ui/checkbox';
-import { Input } from '../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Button } from '@onedal/ui/button';
+import { Checkbox } from '@onedal/ui/checkbox';
+import { Input } from '@onedal/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@onedal/ui/select';
 import { useAuth } from '../contexts/AuthContext';
 import { submitJoin } from '../api/join';
 import { TARGET_APPS, TARGET_APP_LABEL, VEHICLE_PICKS } from '@onedal/shared';

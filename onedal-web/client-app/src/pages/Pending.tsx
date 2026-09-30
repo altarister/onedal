@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Button } from '../components/ui/button';
+import { Button } from '@onedal/ui/button';
 import { TARGET_APP_LABEL } from '@onedal/shared';
 import { EMPTY_INFO, type JoinInfo } from '../lib/joinFlow';
 import { JoinShell, SectionCard } from './JoinSteps';

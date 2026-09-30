@@ -14,6 +14,5 @@
 ## 지금은 목업이다
 
 - 자료는 `src/mock/` 의 예시(세 사람 · 콜 몇 건 · 폰 넷)다. 서버 문 `/api/ops/*` 가 생기면 `src/api/ops.ts` 만 채운다.
-- 🔴 부품(버튼 · 표 · 배지 …)은 관제웹 `client-app/src/components/ui/*` 를 **상대 경로로 가져다 쓴다** — 임시다. `onedal-web/ui/` 패키지가 생기면 그리로 옮긴다.
-  `vite.config.ts` 의 `@` 별칭이 관제웹 `src` 를 가리키고, `index.css` 의 `@source` 가 그 폴더를 Tailwind 에 알린다 — 둘 중 하나가 빠지면 부품이 회색으로 그려진다.
+- 부품(버튼 · 표 · 배지 …)은 `@onedal/ui`(`onedal-web/ui/`)에서 온다 — 관제웹 파일을 직접 가져오지 않는다(`opsIsolated` 검사). `index.css` 의 `@source "../../ui/src"` 가 빠지면 부품이 회색으로 그려진다.
 - 🔴 관제웹은 `ops/` 를 가져다 쓰지 않는다 (`opsIsolated` 검사) — 기사 폰이 받는 파일에 운영센터 코드가 섞이지 않게.

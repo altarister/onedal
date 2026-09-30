@@ -10,8 +10,8 @@ import { summarizeTally } from "../../lib/filterTally";
 import type { AutoDispatchFilter } from "@onedal/shared";
 
 
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
+import { Badge } from "@onedal/ui/badge";
+import { Button } from "@onedal/ui/button";
 
 /**
  * 🎨 **폰 모드 색 — 원달앱이 폰 화면에 두르는 테두리와 같다**: 알람 녹색 · 자동 파랑 · 직접 주황.

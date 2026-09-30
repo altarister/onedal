@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../../../api/apiClient";
 import { socket } from "../../../lib/socket";
-import { Button } from "../../ui/button";
-import { Input } from "../../ui/input";
+import { Button } from "@onedal/ui/button";
+import { Input } from "@onedal/ui/input";
 import { deviceLabel } from "@onedal/shared";
 
 interface RegisteredDevice {

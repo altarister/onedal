@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@onedal/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@onedal/ui/tabs";
 
 import GeneralSettingsTab from "./settings/GeneralSettingsTab";
 import PricingSettingsTab from "./settings/PricingSettingsTab";

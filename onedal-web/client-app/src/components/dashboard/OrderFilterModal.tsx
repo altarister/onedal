@@ -15,8 +15,8 @@ import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
 import { ALL_KEY, excludedSggsOf, excludedDongsOf, toggleSggAll, toggleSggOne, toggleDongAll, toggleDongOne } from "../../lib/excludePick";
 
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { Button } from "@onedal/ui/button";
+import { Input } from "@onedal/ui/input";
 /* 🎛️ 고르기 칸은 목업과 **같은 부품**이다 (규칙 ③) */
 import { PickLayer } from "../ui/PickLayer";
 import { KnobGrid } from "../ui/KnobGrid";

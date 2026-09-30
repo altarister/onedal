@@ -8,7 +8,7 @@ import { apiClient } from "../../api/apiClient";
 import { logStateChange } from '../../lib/roadmapLogger';
 import { initialMotion, motionOnFix, motionOnTick } from './driveMotion';
 
-import { Badge } from "../ui/badge";
+import { Badge } from "@onedal/ui/badge";
 
 // 이 패널은 "지금 트럭에 뭐가 실려 있나"만 그린다.
 // 살아 있는 콜만 받는다 — 스스로 거르면 그 필터를 빠뜨리는 순간 취소한 콜까지

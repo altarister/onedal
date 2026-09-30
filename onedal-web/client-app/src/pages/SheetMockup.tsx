@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '@onedal/ui/theme';
 import { MAP_THEME_COLORS } from '../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../styles/callPalette';
 import PinnedRouteCanvas from '../components/dashboard/PinnedRouteCanvas';

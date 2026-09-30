@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@onedal/ui/button';
+import { Input } from '@onedal/ui/input';
 import { api } from '../api/ops';
 import { Card, PageHeader, fmtTime, useTick } from '../ui';
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { deckOfCycle, type SecuredOrder } from '@onedal/shared';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '@onedal/ui/theme';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { reservedLineOf } from '../../lib/reservedLine';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';

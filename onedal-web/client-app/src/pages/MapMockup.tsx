@@ -29,7 +29,7 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
  *    타이틀 줄이 같은 색을 쓰면 시트와 지도가 **같은 말**을 한다 (상차는 밝고 선명, 하차는 깊게).
  */
 import { callNodeFill, callNodeText, stopBoxBg, callTextColor, callLineColor, PROMISE_CALLED } from '../styles/callPalette';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '@onedal/ui/theme';
 import type { SecuredOrder } from '@onedal/shared';
 import { COLOR_DOT } from '@onedal/shared';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다

@@ -14,6 +14,7 @@
 | `onedal-web/client-app/`    | 관제탑 — 기사님이 KEEP/CANCEL 결재                             | Vite 8, React 19, Tailwind v4, Capacitor        |
 | `onedal-web/logbook/`       | 운행일지 대시보드                                              | Vite + React                                    |
 | `onedal-web/ops/`           | 운영센터 — 관리자가 회원 · 폰 · 콜 · 공지 · 앱 배포를 본다     | Vite 8, React 19, Tailwind v4                   |
+| `onedal-web/ui/`            | 관제웹 · 운영센터가 함께 쓰는 브라우저 부품(버튼 · 카드 …) · `cn` · 테마 토글 — React 의존이라 shared 에 못 두는 것 | TypeScript, React 19                           |
 | `onedal-web/shared/`        | 서버·관제웹·운행일지가 함께 쓰는 규격과 순수 계산 (의존 0)     | TypeScript                                      |
 | `onedal-sim/`               | 배차망 시뮬레이터 — 앱폰이 읽을 가짜 배차망 화면               | Vite 7, React 19                                |
 | `onedal-map/`               | 지도 공장 — 콜 필터 그물이 쓰는 읍면동 폴리곤을 만든다         | Node · Python 스크립트                          |

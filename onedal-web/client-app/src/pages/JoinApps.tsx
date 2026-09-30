@@ -1,5 +1,5 @@
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '../components/ui/button';
+import { Button } from '@onedal/ui/button';
 import { APP_STEPS, nextOf, prevOf, stepFromQuery, type AppStep } from '../lib/joinFlow';
 import { ContentSlot, JoinShell, SectionCard } from './JoinSteps';
 

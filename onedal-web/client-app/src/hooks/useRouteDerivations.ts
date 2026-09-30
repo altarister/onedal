@@ -13,7 +13,7 @@ import { useDrivenTrailStore, ensureDrivenTrailSubscribed, clearDrivenTrail, res
 import { useFilterConfig } from './useFilterConfig';
 import { useMasterGps } from './useMasterGps';
 import { callLineColor } from '../styles/callPalette';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '@onedal/ui/theme';
 import { apiClient } from '../api/apiClient';
 import { getAddressLabel } from '../lib/routeUtils';
 import { logStateChange } from '../lib/roadmapLogger';

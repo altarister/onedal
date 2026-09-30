@@ -37,7 +37,7 @@ function hereStopsOf(trail: Array<{ orderId: string; type: string; x?: number | 
         .map(v => `${v.orderId}:${v.type === '상차' ? 'pickup' : 'dropoff'}`);
 }
 import { callNodeFill, callNodeText } from '../../styles/callPalette';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '@onedal/ui/theme';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
 import { useDepartureDue } from '../dashboard/DepartureCountdown';
 import { useDriveMotion } from '../dashboard/VehicleStatusPanel';

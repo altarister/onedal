@@ -5,7 +5,7 @@ import type { RouteTimelineEntry } from '@onedal/shared';
 import { pickAutoFocus } from '../../lib/deckFocus';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { hhmmText } from '@onedal/shared';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '@onedal/ui/theme';
 /* 🌈 지도와 **같은 색표**를 읽는다 — 두 벌이면 지도와 목록이 다른 말을 한다 (규칙 ③) */
 import { stopBoxBg, callTextColor, PROMISE_CALLED } from '../../styles/callPalette';
 import type { CallRecords } from '../../hooks/records';

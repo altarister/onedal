@@ -3,8 +3,8 @@ import { apiClient } from "../../../api/apiClient";
 import { VEHICLE_OPTIONS, DEFAULT_WAIT_TIMES, waitSecOrNull } from "@onedal/shared";
 import type { WaitTimes } from "@onedal/shared";
 import { useSettingsStore } from "../../../stores/settingsStore";
-import { Button } from "../../ui/button";
-import { Input } from "../../ui/input";
+import { Button } from "@onedal/ui/button";
+import { Input } from "@onedal/ui/input";
 import { useAuth } from "../../../contexts/AuthContext";
 
 interface Props {

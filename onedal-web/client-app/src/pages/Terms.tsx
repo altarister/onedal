@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Button } from '../components/ui/button';
+import { Button } from '@onedal/ui/button';
 import type { ContentKind } from '../lib/joinFlow';
 import { ContentSlot, JoinShell } from './JoinSteps';
 

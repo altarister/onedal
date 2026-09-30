@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TARGET_APP_LABEL, type OpsMember, type TargetAppType } from '@onedal/shared';
-import { Button } from '@/components/ui/button';
+import { Button } from '@onedal/ui/button';
 import { api } from '../api/ops';
 import { Card, PageHeader, Stat, StatusBadge, Table, memberStatus, useTick, type Column } from '../ui';
 

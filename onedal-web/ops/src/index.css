@@ -5,8 +5,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* 🔴 관제웹 부품을 임시로 가져다 쓴다 — Tailwind 가 이 폴더 밖은 안 훑으므로 알려 준다 (ops/CLAUDE.md) */
-@source "../../client-app/src/components/ui";
+/* 🔴 공통 부품(@onedal/ui)은 작업 공간 링크라 Tailwind 가 안 훑는다 — 알려 준다 (ui/CLAUDE.md) */
+@source "../../ui/src";
 
 @layer base {
   *,

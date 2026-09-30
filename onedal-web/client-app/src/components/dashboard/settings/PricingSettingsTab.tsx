@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { apiClient } from "../../../api/apiClient";
 import { VEHICLE_OPTIONS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
 import { useFilterConfig } from "../../../hooks/useFilterConfig";
-import { Button } from "../../ui/button";
-import { Input } from "../../ui/input";
+import { Button } from "@onedal/ui/button";
+import { Input } from "@onedal/ui/input";
 
 interface Props {
   onClose: () => void;

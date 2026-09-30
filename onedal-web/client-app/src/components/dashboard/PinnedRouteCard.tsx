@@ -17,7 +17,7 @@ import { MILESTONE_LABEL, timingError,
          deriveCallTiming } from "@onedal/shared";
 import { useJudgmentStore } from "../../stores/judgmentStore";
 import type { RouteTimelineEntry, RouteStopInfo, CallTiming } from "@onedal/shared";
-import { Button } from "../ui/button";
+import { Button } from "@onedal/ui/button";
 import { clockText, hhmmText } from "@onedal/shared";
 
 /**

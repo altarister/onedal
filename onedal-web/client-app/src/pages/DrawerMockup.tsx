@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '@onedal/ui/theme';
 
 /**
  * ☰ **왼쪽 서랍 목업 — 끝난 콜을 관제에서 빼서 여기로** (기사님 확정)

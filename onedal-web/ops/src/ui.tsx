@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import type { OpsMember } from '@onedal/shared';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@onedal/ui/badge';
 import { subscribe } from './api/ops';
 
 /**
  * 🏢 **운영센터 화면 틀 — 왼쪽 메뉴 · 머리 · 표 · 배지**. PC 폭이 기본이고 폰 폭에서는 메뉴가 위로 접힌다.
- *    부품(Badge · Button …)은 관제웹 것을 `@/components/ui/*` 로 임시로 가져다 쓴다 (ops/CLAUDE.md).
+ *    부품(Badge · Button …)은 `@onedal/ui` 에서 온다 (ui/CLAUDE.md).
  */
 
 export const NAV: { to: string; label: string; mark: string }[] = [

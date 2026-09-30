@@ -7,8 +7,8 @@ import { useServerClock } from "../../hooks/useServerClock";
 import { serverNow, isSynced, isDrifting } from "../../lib/serverClock";
 import { clockText } from "@onedal/shared";
 import { useSoundManager } from "../../hooks/useSoundManager";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Button } from "../ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@onedal/ui/avatar";
+import { Button } from "@onedal/ui/button";
 
 
 export default function Header({ isConnected, liveCalls, onMenu, reservedCount }: {

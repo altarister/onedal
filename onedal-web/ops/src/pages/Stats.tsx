@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@onedal/ui/button';
 import { api } from '../api/ops';
 import { Card, PageHeader, fmtWon, memberName, useTick } from '../ui';
 

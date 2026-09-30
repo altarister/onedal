@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Checkbox } from '../components/ui/checkbox';
+import { Button } from '@onedal/ui/button';
+import { Checkbox } from '@onedal/ui/checkbox';
 import { submitWithdraw } from '../api/join';
 import { ContentSlot, JoinShell, SectionCard } from './JoinSteps';
 

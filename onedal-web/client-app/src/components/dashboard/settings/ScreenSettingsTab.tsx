@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "../../../api/apiClient";
-import { Button } from "../../ui/button";
-import { Input } from "../../ui/input";
+import { Button } from "@onedal/ui/button";
+import { Input } from "@onedal/ui/input";
 import { MOTION_HOLD_SEC_DEFAULT } from "@onedal/shared";
 import { useSettingsStore } from "../../../stores/settingsStore";
 

@@ -6,7 +6,7 @@ import type { SecuredOrder } from "@onedal/shared";
 import { isEvaluating } from "@onedal/shared";
 import sidoDataRaw from '../../mapData/sidoData.json';
 import { getDistanceKm } from '../../lib/routeUtils';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '@onedal/ui/theme';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { offsetScreenPath } from '../../lib/parallelPath';
 import { bandStrokeOf } from '../../lib/bandStroke';
