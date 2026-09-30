@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TARGET_APP_LABEL, type OpsMember, type TargetAppType } from '@onedal/shared';
+import { Badge } from '@onedal/ui/badge';
 import { Button } from '@onedal/ui/button';
 import { api } from '../api/ops';
 import { Card, PageHeader, Stat, StatusBadge, Table, memberStatus, useTick, type Column } from '../ui';
@@ -22,7 +23,14 @@ export default function Members() {
         { key: 'networks', label: '배차망', render: m => m.networks.map(n => TARGET_APP_LABEL[n as TargetAppType]).join(' · ') || '—' },
         { key: 'region', label: '지역', render: m => m.region || '—' },
         { key: 'paid', label: '유료 기한', render: m => m.paidUntil ?? <span className="text-text-muted">없음</span> },
-        { key: 'allow', label: '허락', render: m => <span className="text-xs">{m.autoUntil ? '자동 잡기 ' : ''}{m.statsUntil ? '통계' : ''}{!m.autoUntil && !m.statsUntil ? '—' : ''}</span> },
+        { key: 'allow', label: '허락', className: 'whitespace-nowrap', render: m => (
+            <span className="flex gap-1">
+                {m.autoUntil && <Badge variant="outline" className="bg-info/15 text-info border-info/30">자동 잡기</Badge>}
+                {m.statsUntil && <Badge variant="outline">통계</Badge>}
+                {m.opsAllowedAt && <Badge variant="outline" className="bg-accent-alt/15 text-accent-alt border-accent-alt/30">운영센터</Badge>}
+                {!m.autoUntil && !m.statsUntil && !m.opsAllowedAt && <span className="text-text-muted">—</span>}
+            </span>
+        ) },
         { key: 'phones', label: '폰', render: m => `${m.phones.length}대 · 연결 ${m.phones.filter(p => p.status === 'ONLINE').length}` },
         { key: 'ver', label: '앱', render: m => m.phones.map(p => p.appVersion).filter((v, i, a) => a.indexOf(v) === i).join(' / ') || '—' },
         { key: 'created', label: '가입', render: m => m.createdAt.slice(0, 10) },

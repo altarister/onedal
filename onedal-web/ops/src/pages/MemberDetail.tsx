@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { TARGET_APP_LABEL, type TargetAppType } from '@onedal/shared';
+import { TARGET_APP_LABEL, deviceLabel, type TargetAppType } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
 import { api } from '../api/ops';
 import { Card, PageHeader, Stat, StatusBadge, VERDICT_DOT, fmtTime, fmtWon, useTick } from '../ui';
@@ -34,6 +34,7 @@ export default function MemberDetail() {
                     <dt className="text-text-muted">통계</dt><dd className="font-semibold">{m.statsUntil ? `${m.statsUntil} 까지` : '없음'}</dd>
                     <dt className="text-text-muted">차종 · 배차망</dt><dd className="font-semibold">{m.vehicle || '—'} · {m.networks.map(n => TARGET_APP_LABEL[n as TargetAppType]).join(' · ') || '—'}</dd>
                     <dt className="text-text-muted">지역 · 유튜브</dt><dd className="font-semibold">{m.region || '—'} · {m.youtubeChannel ?? '(비움)'}</dd>
+                    <dt className="text-text-muted">운영센터</dt><dd className="font-semibold">{m.opsAllowedAt ? `허락됨 (${fmtTime(m.opsAllowedAt)})` : '—'}</dd>
                 </dl>
             </Card>
 
@@ -69,7 +70,7 @@ export default function MemberDetail() {
                     {m.phones.length === 0 && <p className="text-sm text-text-muted">연결된 폰이 없습니다</p>}
                     {m.phones.map(p => (
                         <div key={p.deviceId} className="flex items-center justify-between text-sm">
-                            <div><span className={p.status === 'ONLINE' ? 'text-success' : 'text-danger'}>●</span> <b>{p.deviceName}</b> <span className="text-text-muted">v{p.appVersion} · {p.mode}</span></div>
+                            <div><span className={p.status === 'ONLINE' ? 'text-success' : 'text-danger'}>●</span> <b>{deviceLabel(p)}</b> <span className="text-text-muted">v{p.appVersion} · {p.mode}</span></div>
                             <div className="text-xs text-text-muted">{p.status === 'ONLINE' ? fmtTime(p.lastSeenAt) : p.offlineReason ?? '끊김'}</div>
                         </div>
                     ))}

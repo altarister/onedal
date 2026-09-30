@@ -7,7 +7,9 @@ import { ANOMALIES, AUDIT, CALLS, CHECKS, CONTENTS, KAKAO_USAGE, MEMBERS, MONTH_
  *    쓰기는 전부 `audit` 에 한 줄 남긴다 (열람 기록의 짝 · ops/CLAUDE.md).
  */
 
+/** 지금 보는 관리자 — 목업은 한 명. 서버가 생기면 로그인한 사람(`opsAllowedAt` 이 있는 회원)의 이름 */
 const ADMIN_NAME = '와이프 (관리자)';
+export function currentAdminName(): string { return ADMIN_NAME; }
 const now = () => new Date().toISOString();
 let auditSeq = AUDIT.length + 1;
 const listeners = new Set<() => void>();

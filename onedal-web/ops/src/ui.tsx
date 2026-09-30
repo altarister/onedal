@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import type { OpsMember } from '@onedal/shared';
 import { Badge } from '@onedal/ui/badge';
-import { subscribe } from './api/ops';
+import { currentAdminName, subscribe } from './api/ops';
 
 /**
  * 🏢 **운영센터 화면 틀 — 왼쪽 메뉴 · 머리 · 표 · 배지**. PC 폭이 기본이고 폰 폭에서는 메뉴가 위로 접힌다.
@@ -49,7 +49,7 @@ export function Shell({ children }: { children: ReactNode }) {
                         </NavLink>
                     ))}
                 </nav>
-                <div className="hidden md:block px-4 pb-4 text-[11px] text-text-muted">관리자: 와이프 · 열람은 기록에 남습니다</div>
+                <div className="hidden md:block px-4 pb-4 text-[11px] text-text-muted">관리자: {currentAdminName()} · 열람은 기록에 남습니다</div>
             </aside>
             <main className="flex-1 min-w-0 p-4 md:p-6 space-y-4">{children}</main>
         </div>
@@ -134,6 +134,13 @@ export function fmtTime(iso: string | null | undefined): string {
     const same = t.toDateString() === today.toDateString();
     const hm = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
     return same ? hm : `${t.getMonth() + 1}/${t.getDate()} ${hm}`;
+}
+
+/** 날짜까지 — «몇 시»만으로는 어느 날인지 모르는 값(서버 부팅 등) */
+export function fmtDateTime(iso: string | null | undefined): string {
+    if (!iso) return '—';
+    const t = new Date(iso);
+    return `${t.getMonth() + 1}/${t.getDate()} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
 }
 
 export function fmtWon(n: number): string { return `${n.toLocaleString('ko-KR')}원`; }

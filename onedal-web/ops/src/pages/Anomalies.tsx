@@ -1,4 +1,4 @@
-import { TARGET_APP_LABEL, type OpsAnomaly, type OpsScreenWord, type TargetAppType } from '@onedal/shared';
+import { TARGET_APP_LABEL, deviceLabel, type OpsAnomaly, type OpsScreenWord, type TargetAppType } from '@onedal/shared';
 import { api } from '../api/ops';
 import { Card, PageHeader, Table, fmtTime, memberName, useTick, type Column } from '../ui';
 
@@ -7,12 +7,14 @@ export default function Anomalies() {
     useTick();
     const members = api.members();
     const rows = api.anomalies();
+    const phones = api.phones();
+    const phoneName = (deviceId: string) => deviceLabel({ deviceId, deviceName: phones.find(p => p.deviceId === deviceId)?.deviceName });
     const words = api.screenWords();
     const app = (a: string) => TARGET_APP_LABEL[a as TargetAppType] ?? a;
     const cols: Column<OpsAnomaly>[] = [
         { key: 'at', label: '시각', render: a => fmtTime(a.at) },
         { key: 'm', label: '회원', render: a => memberName(members, a.memberId) },
-        { key: 'dev', label: '폰', render: a => <span className="text-xs text-text-muted">{a.deviceId}</span> },
+        { key: 'dev', label: '폰', render: a => phoneName(a.deviceId) },
         { key: 'app', label: '배차망', render: a => app(a.targetApp) },
         { key: 'scr', label: '화면', render: a => a.screen },
         { key: 'why', label: '까닭', render: a => a.reason },

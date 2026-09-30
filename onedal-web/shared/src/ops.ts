@@ -21,6 +21,8 @@ export interface OpsMember {
     paidUntil: string | null;
     autoUntil: string | null;
     statsUntil: string | null;
+    /** 운영센터에 들어올 수 있나 — 비면 못 들어온다 (기사님 = 기사 + 관리자 · reviews/29 기준 4) */
+    opsAllowedAt: string | null;
     phones: OpsPhone[];
 }
 

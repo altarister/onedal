@@ -6,7 +6,7 @@ import { PageHeader, Table, fmtTime, memberName, useTick, type Column } from '..
 export default function Audit() {
     useTick();
     const members = api.members();
-    const rows = api.audit();
+    const rows = [...api.audit()].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)); // 최신이 위 — 자료 순서가 아니라 화면에서 정렬
     const cols: Column<OpsAudit>[] = [
         { key: 'at', label: '시각', render: a => fmtTime(a.at) },
         { key: 'who', label: '관리자', render: a => a.admin },

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { deviceLabel } from '@onedal/shared';
 import { api } from '../api/ops';
 import { Card, PageHeader, VERDICT_DOT, fmtTime, memberName, useTick } from '../ui';
 
@@ -10,7 +11,7 @@ const SPOTS: Record<string, { x: number; y: number }> = { 'm-driver1': { x: 38, 
 const STOPS = [
     { id: 's1', label: '① 곤지암 상차', x: 44, y: 52, kind: 'pickup' },
     { id: 's2', label: '① 관고동 하차', x: 70, y: 66, kind: 'dropoff' },
-    { id: 's3', label: '② 야탑 상차', x: 18, y: 26, kind: 'pickup' },
+    { id: 's3', label: '② 야탑 상차', x: 12, y: 18, kind: 'pickup' },
     { id: 's4', label: '② 오포 하차', x: 32, y: 40, kind: 'dropoff' },
 ];
 
@@ -47,7 +48,7 @@ export default function MapPage() {
                 </Card>
                 <div className="space-y-4">
                     <Card title="지금 위치를 보내는 폰">
-                        {phones.map(p => <div key={p.deviceId} className="text-sm flex justify-between"><span><b>{memberName(members, p.memberId)}</b> · {p.deviceName}</span><span className="text-text-muted">{fmtTime(p.lastSeenAt)}</span></div>)}
+                        {phones.map(p => <div key={p.deviceId} className="text-sm flex justify-between"><span><b>{memberName(members, p.memberId)}</b> · {deviceLabel(p)}</span><span className="text-text-muted">{fmtTime(p.lastSeenAt)}</span></div>)}
                         {phones.length === 0 && <p className="text-sm text-text-muted">없습니다</p>}
                     </Card>
                     <Card title="진행 중 콜">

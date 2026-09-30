@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { deviceLabel } from '@onedal/shared';
 import { api } from '../api/ops';
-import { Card, PageHeader, Stat, fmtTime, memberName, useTick } from '../ui';
+import { Card, PageHeader, Stat, fmtDateTime, fmtTime, memberName, useTick } from '../ui';
 
 /**
  * 🧰 **현황판(점검)** — 관제웹 PC 오른쪽 현황판 가운데 «여러 폰을 한눈에 · 서버 점검 · 필터 전문 · 버린 콜»을 여기로 옮긴다
@@ -11,8 +12,8 @@ import { Card, PageHeader, Stat, fmtTime, memberName, useTick } from '../ui';
 /** 예시 — 서버 `/api/health` 와 폰 보고(지문 · 성적표 · 누적)가 주는 것의 모양 */
 const SERVER = { bootedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), commit: 'a9eb50c1', branch: 'main', sockets: 3, lastScrapAt: new Date(Date.now() - 4000).toISOString(), db: 'data.db', tz: 'Asia/Seoul' };
 const PHONE_DETAIL: Record<string, { filterHash: string; filterAgeSec: number; scansPerMin: number; lastList: string; listCount: number; tally: { seen: number; passed: number; blockedFare: number; blockedArea: number; blockedVehicle: number }; cumulative: { collected: number; accepted: number; cancels: number; cancelLimit: number }; screenOn: boolean; nodeCount: number }> = {
-    'dev-a1': { filterHash: '7f3a…c9', filterAgeSec: 41, scansPerMin: 28, lastList: '인성 콜리스트', listCount: 37, tally: { seen: 212, passed: 9, blockedFare: 140, blockedArea: 51, blockedVehicle: 12 }, cumulative: { collected: 1240, accepted: 4, cancels: 1, cancelLimit: 3 }, screenOn: true, nodeCount: 412 },
-    'dev-b1': { filterHash: '7f3a…c9', filterAgeSec: 3600, scansPerMin: 0, lastList: '(접근성 꺼짐)', listCount: 0, tally: { seen: 0, passed: 0, blockedFare: 0, blockedArea: 0, blockedVehicle: 0 }, cumulative: { collected: 210, accepted: 0, cancels: 0, cancelLimit: 3 }, screenOn: false, nodeCount: 0 },
+    'd-3f1c9a2e-7b4d-4e8a-9c1d-0a6b2e5f7c11': { filterHash: '7f3a…c9', filterAgeSec: 41, scansPerMin: 28, lastList: '인성 콜리스트', listCount: 37, tally: { seen: 212, passed: 9, blockedFare: 140, blockedArea: 51, blockedVehicle: 12 }, cumulative: { collected: 1240, accepted: 4, cancels: 1, cancelLimit: 3 }, screenOn: true, nodeCount: 412 },
+    'd-5a7c2e19-9d4b-4a3c-8e1f-2b6d9c0a7e33': { filterHash: '7f3a…c9', filterAgeSec: 3600, scansPerMin: 0, lastList: '(접근성 꺼짐)', listCount: 0, tally: { seen: 0, passed: 0, blockedFare: 0, blockedArea: 0, blockedVehicle: 0 }, cumulative: { collected: 210, accepted: 0, cancels: 0, cancelLimit: 3 }, screenOn: false, nodeCount: 0 },
 };
 const FILTER_FULL: Record<string, object> = {
     'm-driver1': { isActive: true, minFare: 30000, radiusKm: 12, destinations: ['이천시', '여주시'], excludedKeywords: ['냉동', '이사'], vehicle: '1t', capacityBoxes: 100, pickupSlackMin: 20, safeCancelSec: { insung: 180, hwamul24: 120 }, phase: 'GATHERING' },
@@ -30,7 +31,7 @@ export default function Board() {
     const members = api.members();
     const phones = api.phones();
     const [who, setWho] = useState('m-driver1');
-    const [phoneId, setPhoneId] = useState('dev-a1');
+    const [phoneId, setPhoneId] = useState('d-3f1c9a2e-7b4d-4e8a-9c1d-0a6b2e5f7c11');
     const pd = PHONE_DETAIL[phoneId];
     const phone = phones.find(p => p.deviceId === phoneId);
 
@@ -38,7 +39,7 @@ export default function Board() {
         <>
             <PageHeader title="현황판 (점검)" sub="관제웹 오른쪽 현황판에서 옮겨 온 칸 — 여러 폰 · 서버 · 필터 전문 · 버린 콜" />
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <Stat label="서버 부팅" value={fmtTime(SERVER.bootedAt)} hint={`${SERVER.branch} · ${SERVER.commit}`} />
+                <Stat label="서버 부팅" value={fmtDateTime(SERVER.bootedAt)} hint={`${SERVER.branch} · ${SERVER.commit}`} />
                 <Stat label="소켓 연결" value={SERVER.sockets} hint="관제웹 · 운영센터" />
                 <Stat label="마지막 폰 보고" value={fmtTime(SERVER.lastScrapAt)} tone="ok" />
                 <Stat label="DB · 시간대" value={SERVER.db} hint={SERVER.tz} />
@@ -49,7 +50,7 @@ export default function Board() {
                 <div className="flex flex-wrap gap-2">
                     {phones.filter(p => p.deviceName.includes('배차망')).map(p => (
                         <button key={p.deviceId} type="button" onClick={() => setPhoneId(p.deviceId)} className={`rounded-lg px-3 py-1.5 text-sm ${phoneId === p.deviceId ? 'bg-info/15 text-info font-bold' : 'bg-surface-alt'}`}>
-                            <span className={p.status === 'ONLINE' ? 'text-success' : 'text-danger'}>●</span> {memberName(members, p.memberId)} · {p.deviceName}
+                            <span className={p.status === 'ONLINE' ? 'text-success' : 'text-danger'}>●</span> {memberName(members, p.memberId)} · {deviceLabel(p)}
                         </button>
                     ))}
                 </div>

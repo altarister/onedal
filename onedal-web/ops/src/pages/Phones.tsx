@@ -1,4 +1,4 @@
-import type { OpsPhone } from '@onedal/shared';
+import { deviceLabel, type OpsPhone } from '@onedal/shared';
 import { api } from '../api/ops';
 import { PageHeader, Stat, Table, fmtTime, memberName, useTick, type Column } from '../ui';
 
@@ -10,14 +10,14 @@ export default function Phones() {
     const latest = Object.fromEntries(api.releases().filter(r => r.isLatest).map(r => [r.app, r.version]));
     const columns: Column<OpsPhone>[] = [
         { key: 'st', label: '연결', render: p => <span className={p.status === 'ONLINE' ? 'text-success font-bold' : 'text-danger font-bold'}>{p.status === 'ONLINE' ? '● 연결' : '● 끊김'}</span> },
-        { key: 'name', label: '폰', render: p => <b>{p.deviceName}</b> },
+        { key: 'name', label: '폰', render: p => <b>{deviceLabel(p)}</b> },
         { key: 'member', label: '회원', render: p => memberName(members, p.memberId) },
         { key: 'reason', label: '끊긴 까닭', render: p => p.offlineReason ?? <span className="text-text-muted">—</span> },
         { key: 'seen', label: '마지막 연락', render: p => fmtTime(p.lastSeenAt) },
         { key: 'ver', label: '앱', render: p => { const isScanner = p.deviceName.includes('배차망'); const l = latest[isScanner ? 'scanner' : 'dashboard']; return <span>v{p.appVersion}{l && l !== p.appVersion && <span className="ml-1 text-xs text-warning">↑ {l}</span>}</span>; } },
         { key: 'mode', label: '모드', render: p => <span className={p.mode === 'AUTO' ? 'text-info font-bold' : ''}>{p.mode === 'AUTO' ? '자동' : p.mode === 'ALARM' ? '알람' : '대기'}</span> },
         { key: 'loc', label: '위치', render: p => p.locationOn ? '보냄' : <span className="text-text-muted">안 보냄</span> },
-        { key: 'id', label: '기기 id', render: p => <span className="text-xs text-text-muted">{p.deviceId}</span> },
+        { key: 'id', label: '기기 id', render: p => <span className="text-xs text-text-muted" title={p.deviceId}>…{p.deviceId.slice(-4)}</span> },
     ];
     return (
         <>
