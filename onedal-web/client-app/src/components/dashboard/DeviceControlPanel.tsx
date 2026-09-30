@@ -349,7 +349,7 @@ function DeviceRow({
                 </div>
             )}
 
-            {/* 🔔 알람 띠 — 기사님 손이 할 일이 있을 때만(목록이 내려가 앱이 못 열 때 · filterAlarmLine 이 null 이면 없음). 배차망 이름은 그 폰이 보는 배차망 */}
+            {/* 🔔 알람 띠 — 기사님 손이 할 일이 있을 때만(앱이 못 열었고 손이 있어야 풀리는 까닭 · filterAlarmLine 이 null 이면 없음). 배차망 이름은 그 폰이 보는 배차망 */}
             {filterAlarm && filterAlarmLine(filterAlarm, device.targetApp ? `${TARGET_APP_LABEL[device.targetApp]} ` : '') && (
                 <div className="mx-1 mt-1 rounded border border-info/40 bg-info/15 px-2 py-1.5 flex items-center gap-2 animate-pulse">
                     <span className="text-base leading-none">🔔</span>

@@ -156,8 +156,8 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
  */
 export interface DeviceStatusExtras {
     appVersion?: string;
-    /** 🔔 픽커 목록이 내려가 «리스트 설정» 머리가 안 보임 — 앱이 콜 줄을 못 가려 안 연다. 목록 보고에만 · 없으면 모름 (원달앱 ScrapPayload.listHeaderHidden) */
-    listHeaderHidden?: boolean;
+    /** 🚧 통과 콜이 있는데 앱이 안 연 까닭 열쇠 — 목록 보고에만 · 없으면 앱이 열었다 (원달앱 ScrapPayload.openBlocked · shared `OPEN_BLOCKED`) */
+    openBlocked?: string;
     workStage?: string;
     workStageStep?: number;
     workStageSeconds?: number;
@@ -350,10 +350,11 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                 passed: alarmPassed,
                 seen: filterTally.seen,
                 at: session.lastSeen,
-                /* 🔔 목록이 내려가 앱이 못 연다 — 관제웹 띠가 «맨 위로 올리거나 직접 여십시오»로 (모름은 거짓 — 지금 문구) */
-                listHeaderHidden: extras?.listHeaderHidden === true,
+                /* 🚧 앱이 안 연 까닭 — 관제웹 띠가 기사님 손이 필요한 까닭일 때만 «직접 여십시오»로 (없으면 앱이 열었다) */
+                ...(extras?.openBlocked ? { openBlocked: extras.openBlocked } : {}),
             });
-            slog('필터', `🔔 [알람] ${deviceId} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건${filterTally.passedNew != null ? ` (새로 ${filterTally.passedNew}건)` : ''}. 기사님이 직접 누르십니다`);
+            slog('필터', `🔔 [알람] ${deviceId} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건${filterTally.passedNew != null ? ` (새로 ${filterTally.passedNew}건)` : ''}` +
+                `${extras?.openBlocked ? ` · 앱이 못 연 까닭 ${extras.openBlocked}` : ''}. 기사님이 직접 누르십니다`);
         }
     }
     activeDevices.set(deviceId, session);

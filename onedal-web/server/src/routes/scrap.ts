@@ -41,6 +41,10 @@ function logOrderKmCoverage(userId: string, keywords: string[], orderKm: Record<
         `모르는 곳 ${unknown.length}곳 — 모르는 곳으로 가는 콜은 앱이 역주행을 못 가린다` +
         (unknown.length ? ` (${sample})` : ''));
 }
+/** 🚧 앱이 안 연 까닭 열쇠 — 짧은 영문 열쇠만 받는다(모르는 값은 버린다 · 뜻은 shared `OPEN_BLOCKED`) */
+const openBlockedOf = (v: unknown): string | undefined =>
+    typeof v === 'string' && /^[a-zA-Z]{1,32}$/.test(v) ? v : undefined;
+
 const router = Router();
 
 // 🧭 피기백 v2 로 말하는 기기 — 최초 감지 로그를 1회만 찍기 위한 표식 (메모리)
@@ -182,7 +186,7 @@ router.post("/", (req, res) => {
                 appliedMode: (req.body as any).appliedMode,
                 effectiveMode: (req.body as any).effectiveMode,
                 filterVersion: appFilterVersion,
-                listHeaderHidden: typeof (req.body as any).listHeaderHidden === 'boolean' ? (req.body as any).listHeaderHidden : undefined,
+                openBlocked: openBlockedOf((req.body as any).openBlocked),
             });
         }
 

@@ -32,8 +32,8 @@ export interface FilterPassAlarm {
     passed: number;
     /** 이번 스캔에서 판정한 콜 수 */
     seen: number;
-    /** 픽커 목록이 내려가 앱이 못 연다 (서버 devices.ts · 원달앱 listHeaderHidden) */
-    listHeaderHidden?: boolean;
+    /** 🚧 통과 콜이 있는데 원달앱이 안 연 까닭 열쇠 — 없으면 앱이 열었다 (shared `openBlockedSayOf`) */
+    openBlocked?: string;
     at: number;
 }
 

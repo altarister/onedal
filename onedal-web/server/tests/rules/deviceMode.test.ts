@@ -358,9 +358,9 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
         // 🔴 배차망 이름은 그 폰이 보는 배차망 — «인성»을 글자로 박지 않는다 (픽커 알람에 «인성»이 떴다)
         expect(codeOnly(c)).not.toMatch(/인성 리스트/);
         expect(c).toMatch(/TARGET_APP_LABEL\[device\.targetApp/);
-        // 띠는 기사님 손이 할 일이 있을 때만 — 목록이 내려가 앱이 못 열 때. 보통 갈래 «확정·수락은 기사님이» 띠는 지웠다(기사님 «지우는 것이 맞다») · 소리는 그대로
+        // 띠는 기사님 손이 할 일이 있을 때만 — 앱이 못 열었고 손이 있어야 풀리는 까닭일 때. 보통 갈래 «확정·수락은 기사님이» 띠는 지웠다(기사님 «지우는 것이 맞다») · 소리는 그대로
         expect(c).toMatch(/filterAlarmLine\(filterAlarm, /);
-        expect(web('lib/filterAlarmLine.ts')).toMatch(/목록이 내려가 앱이 못 엽니다/);
+        expect(web('lib/filterAlarmLine.ts')).toMatch(/앱이 못 열었습니다: \$\{why\} — 직접 여십시오/);
         expect(web('lib/filterAlarmLine.ts')).not.toMatch(/상세에서 확정·수락은 기사님이 누르십시오/);
     });
 
