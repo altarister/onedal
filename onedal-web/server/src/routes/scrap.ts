@@ -402,7 +402,7 @@ router.post("/", (req, res) => {
         }
 
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
-        const callMemoryRound = callMemoryRoundOf(Date.now(), simRoundForPhone());
+        const callMemoryRound = callMemoryRoundOf(session.businessDay, simRoundForPhone());
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
         res.json({
             success: true,

@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { businessDayKey, restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession, dropOrderTimer } from "../state/userSessionStore";
@@ -57,8 +57,9 @@ router.get("/", requireAuth, (req, res) => {
                AND ${win.sql}
              ORDER BY timestamp ASC`
         );
-        /* 📅 보관 중인 내일 콜은 오늘 목록에 안 싣는다 — 소켓이 `reserved` 로 따로 싣는다 · 가름은 되살리기와 같은 한 벌 */
-        const today = businessDayKey(Date.now());
+        /* 📅 보관 중인 내일 콜은 오늘 목록에 안 싣는다 — 소켓이 `reserved` 로 따로 싣는다 · 가름은 되살리기와 같은 한 벌
+              «오늘»은 세션의 영업일 — 진행 중 콜로 자정 전환이 미뤄지면 소켓과 같은 날을 본다 */
+        const today = getUserSession(userId).businessDay;
         const rows = (stmt.all(userId, ...RESTORABLE_STATUSES, ...win.params) as any[])
             .filter(r => !isHeldReserved({ reservedFor: r.reserved_for, status: r.status }, today));
 

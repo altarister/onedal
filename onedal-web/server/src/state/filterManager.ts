@@ -1413,10 +1413,27 @@ export function recordDayResult(userId: string, day: string, settingsSnapshot: u
  *
  * @returns 되돌렸으면 true
  */
+/** 🌙 전환을 미룬 날을 기사마다 한 번만 적는다 — scrap 마다 같은 줄이 쌓이지 않게 */
+const heldDayLogged = new Map<string, string>();
+
 export function ensureBusinessDay(userId: string, io?: any): boolean {
     const session = getUserSession(userId);
     const today = businessDayKey(Date.now());
     if (session.businessDay === today) return false;
+
+    /**
+     * 🌙 **진행 중 콜이 있으면 전환 전체를 미룬다** (기사님 «가») — 짐을 싣고 자정을 넘기면 출발 기록·오늘 필터가 지워져
+     *    «모으는 중»으로 돌아갔다. session.businessDay 를 어제로 둔 채 돌아가, 콜을 다 마친 뒤 부르는 자리(scrap · 관제웹 접속)에서 넘어간다.
+     *    폰 «본 콜» 기억 번호 · 관제웹 콜 목록의 보관 가름도 session.businessDay 를 본다 — 셋이 같은 날.
+     */
+    const running = getActiveCalls(session).length;
+    if (running > 0) {
+        if (heldDayLogged.get(userId) !== today) {
+            heldDayLogged.set(userId, today);
+            slog('필터', `🌙 [영업일 전환 미룸] ${session.businessDay} → ${today} — 진행 중 콜 ${running}건 · 다 마치면 넘어간다`);
+        }
+        return false;
+    }
 
     const yesterday = session.businessDay;
     session.businessDay = today;

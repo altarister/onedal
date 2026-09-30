@@ -65,20 +65,24 @@ afterAll(() => {
     clearUserSession(U);
 });
 
-it('🔴 영업일 전환이 어제 하차분만 화면 사이클에서 정리한다 — 오늘 하차분·미하차는 남는다', () => {
+it('🔴 영업일 전환이 어제 하차분만 화면 사이클에서 정리한다 — 오늘 하차분은 남는다', () => {
     const session = getUserSession(U);
     const mem = (id: string, status: string) => ({ id: `${U}-${id}`, status, capturedAt: yday(21) }) as any;
     session.myOrders = [mem('ydone', 'ORDER_DELIVERED'), mem('tdone', 'ORDER_DELIVERED'), mem('live', 'ORDER_PICKED_UP')];
     for (const o of session.myOrders) session.pendingOrdersData.set(o.id, o);
     session.businessDay = yday(0).slice(0, 10);  // 어제 날짜 — 자정을 걸쳐 살아 있던 세션
 
+    /* 🌙 미하차 콜이 있으면 전환 전체를 미룬다 (기사님 «가» · 서버 병목 6) — 어제 하차분도 아직 그대로 */
+    expect(ensureBusinessDay(U)).toBe(false);
+    expect(session.myOrders.map(o => o.id)).toContain(`${U}-ydone`);
+
+    /* 그 콜을 마치면(여기서는 화면에서 빠진 것으로) 넘어가며 어제 하차분만 정리한다 */
+    session.myOrders = session.myOrders.filter(o => o.id !== `${U}-live`);
     const switched = ensureBusinessDay(U);
     expect(switched).toBe(true);
 
     const ids = session.myOrders.map(o => o.id);
     expect(ids).not.toContain(`${U}-ydone`);     // 어제 하차 — 오늘 화면에서 빠진다
     expect(ids).toContain(`${U}-tdone`);         // 오늘 새벽 하차 — 오늘 사이클의 "한 일"
-    expect(ids).toContain(`${U}-live`);          // 미하차 — 규칙 ①
     expect(session.pendingOrdersData.has(`${U}-ydone`)).toBe(false);
-    expect(session.pendingOrdersData.has(`${U}-live`)).toBe(true);
 });
