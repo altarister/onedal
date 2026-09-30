@@ -1,0 +1,41 @@
+package com.onedal.app.core.engine
+
+import com.onedal.app.models.ScrapResponse
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.File
+
+/**
+ * ⏩ **앱이 연 나쁜 콜은 판정 뒤 서버가 준 남은 초에 목록으로** (기사님 «가» · onedal-ab 안 · onedal-1f).
+ * 서버가 목록 보고 응답 맨 위에 foldAfter{orderId, remainSec}를 싣는다(🔴·벨 미만 · 앱이 연 콜만 · 서버 시계로 잰 남은 초).
+ * 앱은 10 을 들지 않는다. 없으면 지금처럼 pickerAlarmDetailSec(30초).
+ */
+class DetailFoldTest {
+    private val now = 100_000L
+    private val thirty = now + 25_000L   // 30초 타이머가 걸린 지 5초 — 25초 남음
+
+    private fun fold(deadline: Long? = thirty, remain: Int = 10, same: Boolean = true, byApp: Boolean = true, detail: Boolean = true) =
+        DetailFold.newDeadlineMs(deadline, now, remain, sameOrder = same, openedByApp = byApp, onPreConfirmDetail = detail)
+
+    @Test fun `앱이 연 같은 콜 - 받은 때 더하기 남은 초`() = assertEquals(now + 10_000L, fold())
+    @Test fun `남은 초 0 이면 곧`() = assertEquals(now, fold(remain = 0))
+    @Test fun `손으로 연 콜은 안 줄인다`() = assertNull(fold(byApp = false))
+    @Test fun `다른 콜은 안 줄인다`() = assertNull(fold(same = false))
+    @Test fun `확정 전 상세가 아니면 안 줄인다`() = assertNull(fold(detail = false))
+    @Test fun `원래 마감이 더 이르면 그대로`() = assertNull(fold(deadline = now + 5_000L))
+    @Test fun `걸린 타이머가 없으면 안 건다`() = assertNull(fold(deadline = null))
+
+    @Test fun `목록 보고 응답 맨 위 foldAfter 를 읽는다`() {
+        val r = com.google.gson.Gson().fromJson("""{"success":true,"foldAfter":{"orderId":"o1","remainSec":7}}""", ScrapResponse::class.java)
+        assertEquals("o1", r.foldAfter?.orderId)
+        assertEquals(7, r.foldAfter?.remainSec)
+    }
+
+    @Test fun `confirm 에 openedByApp · 뒤로 가기 직전 같은 콜인지 다시 본다`() {
+        val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
+        assertTrue(src.contains("openedByApp = session.openedByApp,"))
+        assertTrue(src.contains("detailFoldOrderId?.let { it != session.currentOrderId } == true"))
+    }
+}

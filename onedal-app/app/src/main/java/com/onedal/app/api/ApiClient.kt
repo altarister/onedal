@@ -246,7 +246,8 @@ class ApiClient(private val context: Context) {
         payload: ScrapPayload, 
         onModeReceived: (String) -> Unit,
         onDecisionReceived: ((String, String) -> Unit)? = null,
-        onCallMemoryRound: ((Int) -> Unit)? = null
+        onCallMemoryRound: ((Int) -> Unit)? = null,
+        onFoldAfter: ((String, Int) -> Unit)? = null,
     ) {
         telemetryExecutor.submit {
             val startMs = System.currentTimeMillis()
@@ -363,6 +364,8 @@ class ApiClient(private val context: Context) {
                         // 콜백 호출
                         onDecisionReceived?.invoke(scrapRes.decision.orderId, scrapRes.decision.action)
                     }
+                    // ⏩ 판정 뒤 접기 — 결재(decision)와 다른 사실이라 따로 받는다 (`DetailFold`)
+                    scrapRes.foldAfter?.let { onFoldAfter?.invoke(it.orderId, it.remainSec) }
 
                     // 서버가 pendingAck를 성공적으로 비웠다면 (이 부분은 응답이 성공했으므로 안심하고 로컬에서도 날림)
                     // (단, 이번 요청에 ackDecisionId를 담아 보낸 경우에만 성공 시 삭해야함)

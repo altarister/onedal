@@ -192,6 +192,11 @@ data class DispatchBasicRequest(
     val isPreview: Boolean = false,
     /** 🏷️ 이 상세를 읽은 화면이 실물 배차망 앱인가(real) 시뮬인가(sim) — 목록 보고와 같은 값(`TargetApp.sourceOf`). 모르면 안 싣는다 */
     val source: String? = null,
+    /**
+     * 👆 이 상세를 앱이 목록에서 눌러 열었나(알람 모드 자동 열기) — 손으로 연 상세는 false.
+     * 서버가 판정 뒤 접기(foldAfter)와 관제웹 남은 시간 막대를 가른다. 🔴 보호 분기(matchType)와는 따로다(#75)
+     */
+    val openedByApp: Boolean? = null,
 )
 
 data class DispatchDetailedRequest(
@@ -340,8 +345,12 @@ data class ScrapResponse(
     val decision: DecisionPayload? = null,
     // 🧭 [피기백 v2] 서버가 계산한 필터 버전 — dispatchEngineArgs 와 함께 저장해 뒀다가
     //    다음 텔레메트리에 실어 보낸다. 구서버 응답에는 없다(null) → 늘 전체 수신 (호환)
-    val filterVersion: String? = null
+    val filterVersion: String? = null,
+    /** ⏩ 앱이 연 나쁜 콜(🔴·벨 미만) 상세를 접을 남은 초 — 서버 시계로 잰다. 없으면 pickerAlarmDetailSec 그대로 (`DetailFold`) */
+    val foldAfter: FoldAfter? = null,
 )
+
+data class FoldAfter(val orderId: String, val remainSec: Int)
 
 data class DecisionPayload(
     val orderId: String,

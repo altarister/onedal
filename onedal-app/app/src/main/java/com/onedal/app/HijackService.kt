@@ -231,6 +231,9 @@ class HijackService : AccessibilityService(), ScanContext {
     private var alarmTapAtMs = 0L
     private var detailBackOpener = ""
     private var detailBackArmedAtMs = 0L
+    /** ⏩ 상세 대기 마감(부팅 기준) · 판정 뒤 접기로 당겼으면 그 콜 (`DetailFold`) */
+    private var detailBackDeadlineMs: Long? = null
+    private var detailFoldOrderId: String? = null
 
     /**
      * 🚚 마지막으로 알아본 픽커 운행 단계 — **바뀔 때만 로그를 남기려고** 들고 있다.
@@ -271,11 +274,21 @@ class HijackService : AccessibilityService(), ScanContext {
         alarmTapAtMs = 0L
         detailBackOpener = opener
         detailBackArmedAtMs = now
+        detailBackDeadlineMs = now + delayMs
+        detailFoldOrderId = null
         telemetryManager.isWaitingDecision = true          // ⏱️ [1초 고속 무전] 상세에 머무는 동안 서버 판결(유지/취소)을 1초마다 물어본다
         AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 (1초 주기 판결 수신 가동) · 연 쪽: $opener")
         val r = Runnable {
             detailBackRunnable = null
+            detailBackDeadlineMs = null
             telemetryManager.isWaitingDecision = false
+            // ⏩ 판정 뒤 접기로 당긴 마감이면 — 뒤로 가기 직전 아직 그 콜인지 다시 본다(기사님이 이미 나가셨거나 다른 콜이면 안 누른다)
+            if (detailFoldOrderId?.let { it != session.currentOrderId } == true) {
+                AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏹️ [상세 대기] 접을 콜($detailFoldOrderId)이 지금 콜이 아니다 — 뒤로 가지 않는다")
+                detailFoldOrderId = null
+                return@Runnable
+            }
+            detailFoldOrderId = null
             // 아직 확정 전 상세에 있고, 앱이 계약하지 않는 콜일 때만 나온다 — 모드·배차망은 가리지 않는다
             if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
                 && !session.contractedByApp) {
@@ -290,6 +303,21 @@ class HijackService : AccessibilityService(), ScanContext {
         mainHandler.postDelayed(r, delayMs)
     }
 
+    /** ⏩ 판정 뒤 접기 — 걸린 상세 대기의 마감을 서버가 준 남은 초로 당긴다(더 이를 때만) · 조건은 `DetailFold` */
+    private fun onFoldAfter(orderId: String, remainSec: Int) {
+        val r = detailBackRunnable ?: return
+        val now = android.os.SystemClock.elapsedRealtime()
+        val deadline = com.onedal.app.core.engine.DetailFold.newDeadlineMs(detailBackDeadlineMs, now, remainSec,
+            sameOrder = orderId == session.currentOrderId, openedByApp = session.openedByApp,
+            onPreConfirmDetail = telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) ?: return
+        val leftSec = ((detailBackDeadlineMs ?: now) - now) / 1000
+        mainHandler.removeCallbacks(r)
+        mainHandler.postDelayed(r, deadline - now)
+        detailBackDeadlineMs = deadline
+        detailFoldOrderId = orderId
+        AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏩ [상세 대기 줄임] 서버 판정 뒤 접기 — ${remainSec}초 뒤 목록으로 (원래 ${leftSec}초 남음) · 콜 $orderId")
+    }
+
     private fun cancelDetailBack() {
         detailBackRunnable?.let {
             mainHandler.removeCallbacks(it)
@@ -297,6 +325,8 @@ class HijackService : AccessibilityService(), ScanContext {
             AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏹️ [상세 대기] 풀었다 — ${stayedSec}초 머묾 · 연 쪽: $detailBackOpener (콜 끝 · 리스트 복귀)")
         }
         detailBackRunnable = null
+        detailBackDeadlineMs = null
+        detailFoldOrderId = null
         telemetryManager.isWaitingDecision = false         // ⏱️ 상세 대기 해제 시 1초 무전 종료
     }
     override lateinit var collectMachine: DetailCollectMachine
@@ -515,6 +545,9 @@ class HijackService : AccessibilityService(), ScanContext {
                 executeDecisionImmediately(action)
             }
         }
+
+        // ⏩ 판정 뒤 접기 — 앱이 연 나쁜 콜 상세를 서버가 준 남은 초에 목록으로 (`DetailFold`) · 스캔과 같은 메인 스레드에서
+        telemetryManager.foldAfterCallback = { orderId, remainSec -> mainHandler.post { onFoldAfter(orderId, remainSec) } }
 
         // 🧹 서버 회차가 바뀌면 «본 콜» 기억을 비운다 — 스캔 루프와 같은 메인 스레드에서 (CallMemory 는 잠금이 없다)
         telemetryManager.callMemoryRoundCallback = { round ->
@@ -1522,6 +1555,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 capturedAt = order.timestamp,
                 matchType = actualMatchType,
                 targetApp = currentTargetApp,
+                openedByApp = session.openedByApp,   // 👆 앱이 목록에서 눌러 연 상세인가 — 서버가 판정 뒤 접기를 가른다(보호 분기와 따로)
                 // 잡은 방식(자동·알람·직접) — 원장 기록 전용, 파생은 SessionManager 한 곳 (#75)
                 capturedVia = session.capturedVia(effectiveMode),
                 isPreview = session.isPreview,
