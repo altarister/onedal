@@ -563,6 +563,7 @@ class HijackService : AccessibilityService(), ScanContext {
         // 📜 조용한 목록 다시 읽기 감시를 뗀다 — 서비스가 내려간 뒤 옛 서비스가 읽지 않게
         mainHandler.removeCallbacks(listWatchdog)
         mainHandler.removeCallbacks(afterDiscardRead)
+        mainHandler.removeCallbacks(heldAlarmRecheck)
         super.onDestroy()
         live = null
         if (::screenReader.isInitialized) screenReader.close()
@@ -657,7 +658,14 @@ class HijackService : AccessibilityService(), ScanContext {
         if (event == null) return
         val eventPkg = event.packageName?.toString()
         val isOwnApp = eventPkg == packageName
-        if (!isOwnApp) { lastTargetEventMs = android.os.SystemClock.elapsedRealtime(); eventSinceRead = true }
+        if (!isOwnApp) {
+            val t = android.os.SystemClock.elapsedRealtime()
+            lastTargetEventMs = t; eventSinceRead = true
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+                recentContentEvents.addLast(t)
+                while (recentContentEvents.isNotEmpty() && t - recentContentEvents.first() > com.onedal.app.core.AlarmHold.MOVING_WINDOW_MS) recentContentEvents.removeFirst()
+            }
+        }
         // ⏱️ 상세 대기 중 알림 출처를 센다 — 1초 요약에 «어디서 몇 번» (`ScanTimer`)
         scanTimerOf(telemetryManager.currentScreenContext)?.let { (timer, label) ->
             timer.countEvent("${eventPkg?.substringAfterLast('.') ?: "?"}/${com.onedal.app.core.ScanTimer.typeWord(event.eventType)}",
@@ -723,6 +731,11 @@ class HijackService : AccessibilityService(), ScanContext {
     private var listReadNo = 0L
     /** 배차망 앱(우리 앱 아님)의 마지막 알림 시각 · 그 뒤 아직 안 읽었나 · 마지막 캐시 확인 시각 */
     private var lastTargetEventMs = 0L
+    /** ⏳ 최근 배차망 «내용 바뀜» 시각(300ms 만) · 이번 읽기가 움직이는 틀인가 · 미룬 알람 (`AlarmHold`) */
+    private val recentContentEvents = ArrayDeque<Long>()
+    private var scanMoving = false
+    private val alarmHold = com.onedal.app.core.AlarmHold()
+    private val heldAlarmRecheck = Runnable { quietRead("미룬 알람 확인") }
     private var eventSinceRead = false
     /** 📜 조용한 목록 다시 읽기 — 마지막 읽기 시각 · 이번 읽기가 조용한 다시 읽기인가 · 겹친 틀 연달아 버린 수 (`ListWatch`) */
     private var lastReadMs = 0L
@@ -740,6 +753,7 @@ class HijackService : AccessibilityService(), ScanContext {
         scanGathered = false
         scanWalkMs = 0L
         scanNodes.clear()
+        scanMoving = com.onedal.app.core.AlarmHold.isMoving(recentContentEvents.toList(), startMs)
         val afterEvent = eventSinceRead
         eventSinceRead = false
         scanWay = if (ctx == ScreenContext.LIST) com.onedal.app.core.WalkProbe.wayFor(android.os.Build.VERSION.SDK_INT, ++listReadNo)
@@ -928,6 +942,8 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         if (!isListScreen && wasListScreen) {
             listBlindSinceMs = System.currentTimeMillis()
+            alarmHold.clear()   // ⏳ 목록을 떠났다 — 미룬 알람을 버린다
+            mainHandler.removeCallbacks(heldAlarmRecheck)
         }
         if (isListScreen && !wasListScreen) {
             AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
@@ -1333,7 +1349,30 @@ class HijackService : AccessibilityService(), ScanContext {
         if (LogOnce.changed("seenCount", "$seenSkipped") && seenSkipped > 0) AppLogger.d(TAG, LogTag.FILTER, "⏭️ [이미 본 콜] 이 스캔 ${seenSkipped}개 건너뜀")
         val tapsFromList = currentMode == "AUTO" || currentMode == "SIMULATION" || currentMode == "ALARM"
         val bestIdx = AlarmSignaler.pickBestIndex(alarmHits.map { it.first.fare })
-        if (tapsFromList && !session.openedByApp && bestIdx >= 0) {
+        /**
+         * ⏳ **목록이 움직이는 틀이면 통과 콜을 미룬다** (`AlarmHold` · 기사님 «가») — 덜 그려진 카드로 울리지 않게.
+         * 다음 읽기에서 같은 조립이면 울리고(미룬 ms), 달라졌으면 버린다. 조용한 목록의 새 콜은 바로.
+         */
+        var holdFires = false
+        if (tapsFromList && !session.openedByApp) {
+            val best = if (bestIdx >= 0) alarmHits[bestIdx] else null
+            val label = best?.first?.let { "${it.pickup}→${it.dropoff} ${"%,d".format(it.fare)}원 · 예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(it)}" }
+            val d = alarmHold.decide(best?.third, label, scanMoving, android.os.SystemClock.elapsedRealtime())
+            d.dropped?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [알람 미룸 → 탈락] $it") }
+            when (d.kind) {
+                com.onedal.app.core.AlarmHold.Kind.HOLD -> {
+                    AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "⏳ [알람 미룸] 목록이 움직이는 중(내용 바뀜 ${recentContentEvents.size}개/300ms) — 다음 읽기에서 같은 조립이면 울린다 · $label")
+                    mainHandler.removeCallbacks(heldAlarmRecheck)
+                    mainHandler.postDelayed(heldAlarmRecheck, com.onedal.app.core.AlarmHold.RECHECK_MS)
+                }
+                com.onedal.app.core.AlarmHold.Kind.FIRE -> {
+                    d.heldMs?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [미룬 알람 울림] +${it}ms · $label") }
+                    holdFires = true
+                }
+                com.onedal.app.core.AlarmHold.Kind.NONE -> Unit
+            }
+        }
+        if (tapsFromList && !session.openedByApp && bestIdx >= 0 && holdFires) {
             val (order, fareNode, orderHash) = alarmHits[bestIdx]
             /**
              * 🔒 **서버가 앞 콜을 심사 중이면 이번 스캔은 누르지 않는다** (기사님 · 실주행 오송읍 · 한 번에 하나만 평가).
