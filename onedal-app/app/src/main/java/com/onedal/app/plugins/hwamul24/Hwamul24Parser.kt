@@ -15,6 +15,7 @@ import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.models.withReservation
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,6 +41,26 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
     companion object {
         private const val TAG = "1DAL_PARSER_24H"
+
+        /** 📅 상차 날 배지(당일 상차 · 내일 상차) · 하차 날 배지(당일 도착 · 내일 도착) — 실물 목록 «[당상] … [당착]» */
+        private val PICKUP_DAY_BADGES = setOf("당상", "내상")
+        private val DROPOFF_DAY_BADGES = setOf("당착", "내착")
+
+        /** 🏷️ 날 배지를 꼬리표로 — 잡음으로 버리지 않는다 (지역 후보에서는 빠진다) */
+        fun badgesOf(texts: List<String>): String? =
+            texts.map { it.trim() }.filter { it in PICKUP_DAY_BADGES || it in DROPOFF_DAY_BADGES }
+                .joinToString(" ").ifEmpty { null }
+
+        /**
+         * 📅 **예약은 상차 배지 + 상차지 앞글자로 읽는다** (`Hwamul24ReservationTest`) — 하차 배지(내착)는 상차 날이 아니다.
+         * 화물 글(«당일상 당착 … 10시전하차»)은 1단계에서 넘기지 않는다 — 상차·하차 시각이 한 글에 섞여
+         * «10시전하차»가 «지난 시각 = 내일»로 읽힌다. 가르는 일은 페이지 정의 단계에서.
+         */
+        fun reservationOf(texts: List<String>, pickupInfo: com.onedal.app.core.LocationInfo?, now: java.time.LocalDateTime): com.onedal.app.core.Reservation {
+            val badge = texts.map { it.trim() }.firstOrNull { it in PICKUP_DAY_BADGES }
+            val source = listOfNotNull(badge, pickupInfo?.scheduleText).joinToString(" ")
+            return com.onedal.app.core.ReservationText.read(source, now, bareLaterTimeIsToday = false)
+        }
     }
 
     private val prefs by lazy {
@@ -162,7 +183,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         // ── 3. 지역명 파싱 (LocationTextAnalyzer 활용) ──
         // 화물24시 노이즈 단어 (뱃지, 숫자, UI 요소)
         val noiseWords = setOf(
-            "당상", "당착", "내착", "수", "지", "독차", "왕복",
+            "당상", "내상", "당착", "내착", "수", "지", "독차", "왕복",  // 날 배지는 지역이 아니다 — 꼬리표·예약으로는 `badgesOf` 가 읽는다
             "인수증", "선/착불", "전체", "화물정보", "자동새로고침",
             "오더검색", "자동터치", "성공", "최대", "ON", "OFF",
             "홈", "화물정보", "마이페이지", "환경"
@@ -250,8 +271,9 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             scheduleText = scheduleText,
             vehicleType = vehicleType,
             rawText = rawJoined,
-            pickupDistance = pickupDistance
-        )
+            pickupDistance = pickupDistance,
+            tagsText = badgesOf(texts),
+        ).withReservation(reservationOf(texts, pickupInfo, java.time.LocalDateTime.now()))
     }
 
     // ════════════════════════════════════════════════════════════════

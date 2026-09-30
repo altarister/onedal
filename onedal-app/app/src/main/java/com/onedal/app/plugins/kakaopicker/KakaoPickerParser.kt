@@ -11,6 +11,7 @@ import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.models.withReservation
 
 /**
  * 🌐 카카오T픽커 리스트 파서 — **수집 전용** (기사님 확정 · 픽커_수집.md).
@@ -454,6 +455,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /** 배송 종류 태그 — 퀵은 지역이 넷(출발 시·동 · 도착 시·동), 도보는 가게 이름이라 넷이 안 된다 */
         private const val QUICK_TAG = "퀵"
         private const val WALK_TAG = "도보"
+        /** 📅 목록 태그 줄의 예약 표시 */
+        private const val RESERVED_TAG = "예약"
 
         /**
          * ⏸️ **퀵 콜인데 하차지를 못 읽었나** (기사님 지시).
@@ -845,8 +848,16 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             rawText = texts.joinToString(" "),
             pickupDistance = pickupKm,
             deliveryDistance = null,          // 리스트에 배송거리가 없다 (인성과의 결정적 차이)
-        )
+        ).withReservation(listReservation(tags, java.time.LocalDateTime.now()))
     }
+
+    /**
+     * 📅 **목록 예약은 태그 줄로 읽는다** — «예약» 태그가 있을 때만(«예약 내일»·«예약 18:30»·«예약 9/30(수)»·«예약»만).
+     * 날 낱말 없는 늦은 시각은 날 모름 — 상세 사진(«내일 14:00 픽업예약»)이 가른다 (`PickerReservationTest`).
+     */
+    private fun listReservation(tags: List<String>, now: java.time.LocalDateTime): com.onedal.app.core.Reservation =
+        if (RESERVED_TAG in tags) com.onedal.app.core.ReservationText.read(tags.joinToString(" "), now, bareLaterTimeIsToday = false)
+        else com.onedal.app.core.Reservation.NONE
 
     /**
      * 🔔 알람 판정 위임 — 조건은 피기백 필터(원천 DB)에서 읽는다.

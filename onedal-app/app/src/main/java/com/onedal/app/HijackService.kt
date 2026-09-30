@@ -1002,6 +1002,9 @@ class HijackService : AccessibilityService(), ScanContext {
                 continue
             }
             val orderHash = CallMemory.fingerprintOf(order)
+            // 📅 예약인데 날을 모른다 — 상세가 가른다. 배차망별로 몇 번인지 세려고 콜당 한 줄
+            if (order.reserved == true && order.reservedDay == null && LogOnce.changed("reservation-unknown:$orderHash", "1"))
+                AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 날 모름] $currentTargetApp · ${order.pickup}→${order.dropoff} ${order.fare}원 · ${order.tagsText ?: order.scheduleText ?: ""}")
             scanHashes[orderHash] = fareNode.rect   // 🔔 이미 본 콜도 «아직 화면에 있다 + 지금 여기 있다»는 사실은 남긴다
             /**
              * ⏭️ **건너뛰었다는 사실을 남긴다**.

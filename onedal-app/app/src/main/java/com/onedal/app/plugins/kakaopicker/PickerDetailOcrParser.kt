@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import com.onedal.app.core.OcrLine
 import com.onedal.app.core.ScreenOcrParser
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.models.withReservation
 
 /**
  * 📷 **카카오 픽커 상세 화면 OCR 파서 및 검증 구현체**
@@ -68,7 +69,7 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
                 dropoff = fullAddress(parsed.dropoff),
                 rawText = rawScreenStr,
                 itemSize = parsed.itemSize ?: alarmTappedCard.itemSize
-            )
+            ).withReservation(detailReservation(parsed))
             return VerifyResult.Success(verifiedOrder, parsed)
         } else {
             val baseOrder = matchedListOrder
@@ -101,7 +102,16 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
                 vehicleType = KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE,
                 tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ")
             )
-            return VerifyResult.Success(manualOrder, parsed)
+            return VerifyResult.Success(manualOrder.withReservation(detailReservation(parsed)), parsed)
         }
     }
+
+    /**
+     * 📅 **상세 사진의 예약이 목록 값을 덮는다** — «내일 14:00 픽업예약» 띠가 있으면 상차 정거장 시각(«내일 14:00»)으로,
+     * 띠가 없으면 예약이 아니다(오늘 콜은 «10:00까지 픽업»으로 온다) (`PickerReservationTest`).
+     */
+    private fun detailReservation(parsed: PickerDetailFromImage): com.onedal.app.core.Reservation =
+        if (parsed.reserved) com.onedal.app.core.ReservationText.read(
+            "예약 ${parsed.pickup.at.orEmpty()}", java.time.LocalDateTime.now(), bareLaterTimeIsToday = false)
+        else com.onedal.app.core.Reservation.NONE
 }

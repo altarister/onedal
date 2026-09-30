@@ -15,6 +15,7 @@ import com.google.gson.Gson
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.models.withReservation
 import org.json.JSONObject
 import org.json.JSONArray
 import java.text.SimpleDateFormat
@@ -256,6 +257,17 @@ class InsungParser(private val context: Context) : IScrapParser {
          *    따로 세면 그 순간 또 두 벌이 된다 (규칙 ③).
          */
         data class Verdict(val passed: Boolean, val axis: String)
+
+        /**
+         * 📅 **날 없는 늦은 시각(«21시/»)은 오늘** — 실물 인성은 내일에 «낼»을 적는다(한 화면에 «낼7시/»와 «21시/»가 나란히).
+         * ⚠️ 근거가 실물 캡처 한 장이다 — 실물 인성을 설치하면 페이지 정의(reviews/24)의 «모름» 칸과 함께 다시 본다.
+         * 거짓이면 상세 출발지 줄도 «1시/»뿐이라 채운 뒤에도 날을 몰라 인성 저녁 예약이 전부 막힌다.
+         */
+        private const val BARE_LATER_TIME_IS_TODAY = true
+
+        /** 📅 예약은 **출발지 칸 앞글자**로만 읽는다 — 도착지 칸 «낼8/중구봉래동»은 도착 약속이다 (`InsungReservationTest`) */
+        fun reservationOf(pickupInfo: com.onedal.app.core.LocationInfo?, now: java.time.LocalDateTime): com.onedal.app.core.Reservation =
+            com.onedal.app.core.ReservationText.read(pickupInfo?.scheduleText, now, BARE_LATER_TIME_IS_TODAY)
 
         /** 판정하고 **어느 축에서 걸렸는지**까지 돌려준다 — `decide` 는 이것을 감싼 것이다 */
         fun decide(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Boolean =
@@ -677,7 +689,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             //    단가 판정(fare ≥ 배송거리 × 단가)의 입력이다. 없으면 null →
             //    판정을 건너뛰고 통과시킨다 (앱은 일단 잡아와라, 서버가 정확히 잰다).
             deliveryDistance = distances.getOrNull(1)
-        )
+        ).withReservation(reservationOf(pickupInfo, java.time.LocalDateTime.now()))
     }
 
     /**

@@ -121,7 +121,16 @@ data class SimplifiedOfficeOrder(
      *    (규칙 ④: 지어내지 않는다).
      */
     val verdict: String? = null,
-    val isSimulated: Boolean? = null
+    val isSimulated: Boolean? = null,
+    /**
+     * 📅 **예약** (`ReservationText`) — 상차 쪽 글자로 읽는다.
+     * 표시 없음 = `reserved` 거짓 · 날 모름 = `reserved` 참 + `reservedDay` null · `reservedDay` = 폰 달력으로 며칠 뒤(0 = 오늘).
+     * 상세에서 읽은 값이 목록 값을 덮는다(픽커 사진 «내일 14:00 픽업예약»).
+     */
+    val reserved: Boolean? = null,
+    val reservedDay: Int? = null,
+    /** 📅 예약 시각 «HH:MM» — 모르면 null */
+    val reservedAt: String? = null,
 )
 
 // ────────────────────────────────────────────────
@@ -437,3 +446,7 @@ data class PairDeviceResponse(
     val error: String? = null
 )
 
+
+/** 📅 콜에 읽은 예약을 싣는다 — 세 칸을 한 번에 (한 칸만 바꿔 «표시 없음인데 날이 있다»가 되지 않게) */
+fun SimplifiedOfficeOrder.withReservation(r: com.onedal.app.core.Reservation): SimplifiedOfficeOrder =
+    copy(reserved = r.marked, reservedDay = r.day, reservedAt = r.at)
