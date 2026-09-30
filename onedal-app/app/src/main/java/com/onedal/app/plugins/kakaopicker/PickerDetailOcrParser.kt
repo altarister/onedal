@@ -133,9 +133,19 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
      * 픽커는 시간이 지나며 요금을 올려 목록 줄 요금과 다를 수 있다 — 두 값이 다르면 한 줄. 목록 줄(본 콜 기억 지문)은 바꾸지 않는다.
      * 알람 필터(목록 단계)는 목록 요금 그대로, 채운 뒤 필터·서버 판정은 이 값.
      */
+    /** 이만큼(배) 넘게 다르면 숫자 한 자리가 빠지거나 붙은 오독이다 — 열 배에 여유를 둔 값 */
+    private val DIGIT_SLIP = 8
+
     private fun detailFare(listFare: Int?, finalIncome: Int?): Int? {
         val list = listFare?.takeIf { it > 0 }
         val fin = finalIncome?.takeIf { it > 0 } ?: return list
+        // 🔢 열 배 차이(사진 숫자 한 자리 빠짐·붙음 · «13,020»→«1302»)는 오독으로 본다 — 판정이 열 배 틀리지 않게.
+        //    두 배 인상은 믿는다(픽커가 실제로 올린다). 목록 요금이 없으면(손 상세 · 목록 못 찾음) 최종 수익 그대로
+        if (list != null && (fin.toLong() * DIGIT_SLIP <= list || list.toLong() * DIGIT_SLIP <= fin)) {
+            com.onedal.app.core.AppLogger.w("1DAL_PRE_CONFIRM", com.onedal.app.core.LogTag.CALL_STAGE,
+                "💰 [요금] 최종 수익 ${"%,d".format(fin)} 이 목록 ${"%,d".format(list)} 과 너무 달라 목록 값 — 사진 숫자 오독으로 본다")
+            return list
+        }
         if (list != null && list != fin && com.onedal.app.core.LogOnce.changed("detail-fare:$list", "$fin"))
             com.onedal.app.core.AppLogger.i("1DAL_PRE_CONFIRM", com.onedal.app.core.LogTag.CALL_STAGE,
                 "💰 [요금] 목록 ${"%,d".format(list)} → 최종 수익 ${"%,d".format(fin)}")

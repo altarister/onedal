@@ -50,4 +50,15 @@ class PickerFinalFareTest {
         val m = KakaoPickerParser.matchListCard(handOpened, listOf(listCard, listCard.copy(dropoff = "강남 역삼2", fare = 9000)))
         assertNull(m.card)
     }
+
+    /** 🔢 사진 숫자 한 자리 빠짐·붙음(열 배 차이)은 오독으로 본다 — 판정이 열 배 틀리지 않게 (onedal-1f «가») */
+    @Test fun `최종 수익이 목록과 열 배 차이면 목록 요금`() {
+        val card = listCard.copy(fare = 13020)
+        assertEquals(13020, fareOf(PickerDetailOcrParser().verify(detail(1302), card, null, emptyList(), "")))
+        assertEquals(13020, fareOf(PickerDetailOcrParser().verify(detail(130200), card, null, emptyList(), "")))
+        assertEquals("두 배 인상은 믿는다", 26040, fareOf(PickerDetailOcrParser().verify(detail(26040), card, null, emptyList(), "")))
+    }
+
+    @Test fun `목록 요금이 없으면 안전장치 없이 최종 수익`() =
+        assertEquals(1302, fareOf(PickerDetailOcrParser().verify(detail(1302), null, null, emptyList(), "")))
 }

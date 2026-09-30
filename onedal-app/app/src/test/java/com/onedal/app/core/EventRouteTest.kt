@@ -46,4 +46,19 @@ class EventRouteTest {
             else if (d != null) { pendingAt = t + d; assertTrue("알림 $t 의 읽기가 ${t + d}", d <= ContentGate.WINDOW_MS) }
         }
     }
+
+    /** 📜 스크롤 중 «내용 바뀜»은 스크롤 읽기 한 번에 맡긴다 — 스크롤 중 초당 3~4번 읽어 메인 스레드를 0.6~1초 썼다(실물 09-30 18:29) */
+    @Test fun `목록에서 스크롤 300ms 안의 내용 바뀜은 읽지 않는다 - 스크롤 읽기가 곧 읽는다`() {
+        assertEquals(EventRoute.Route.IGNORE, EventRoute.of(content, isOwnApp = false, isListScreen = true, scrolledRecently = true))
+        assertEquals(EventRoute.Route.SCAN, EventRoute.of(content, isOwnApp = false, isListScreen = true, scrolledRecently = false))
+        assertEquals("상세는 스크롤과 무관하게 읽는다", EventRoute.Route.SCAN, EventRoute.of(content, isOwnApp = false, isListScreen = false, scrolledRecently = true))
+        assertEquals("창 바뀜은 늘 읽는다", EventRoute.Route.SCAN, EventRoute.of(state, isOwnApp = false, isListScreen = true, scrolledRecently = true))
+    }
+
+    @Test fun `스크롤이 멈추면 300ms 안에 읽고 그 뒤 내용 바뀜은 다시 바로 읽는다`() {
+        val g = ScrollGate()
+        assertEquals(1300L, g.onScroll(1000))
+        assertTrue(g.scrolledRecently(1299))
+        assertTrue(!g.scrolledRecently(1300))
+    }
 }

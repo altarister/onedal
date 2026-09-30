@@ -657,7 +657,8 @@ class HijackService : AccessibilityService(), ScanContext {
         }
         // 🚦 스크롤은 목록일 때만 모아서(`ScrollGate`) · 내용 바뀜은 250ms 모아서(`ContentGate`) · 창 바뀜은 바로
         val now = android.os.SystemClock.elapsedRealtime()
-        when (com.onedal.app.core.EventRoute.of(event.eventType, isOwnApp, telemetryManager.currentScreenContext == ScreenContext.LIST)) {
+        when (com.onedal.app.core.EventRoute.of(event.eventType, isOwnApp, telemetryManager.currentScreenContext == ScreenContext.LIST,
+                scrollGate.scrolledRecently(now))) {
             com.onedal.app.core.EventRoute.Route.IGNORE -> Unit
             com.onedal.app.core.EventRoute.Route.SCROLL_SCAN -> {
                 mainHandler.removeCallbacks(scrollScan)
@@ -702,11 +703,28 @@ class HijackService : AccessibilityService(), ScanContext {
         )
     }
 
+    /** ⏱️ 이번 읽기에서 화면을 얻어 글자를 모았나 · 지난번과 같은 글자였나 — `scanScreen` 이 요약에 싣는다 */
+    private var scanGathered = false
+    private var scanSameText = false
+
     /**
      * 📡 **화면 한 번 읽기 — 입구는 여기 하나** (접근성 알림 · «필터 도착»이 같은 길).
      * 화면 글자(지문)가 바로 전과 같으면 스캔을 건너뛴다 — 필터 도착은 지문을 비우고 불러 같은 글자라도 다시 판정한다.
+     * ⏱️ 읽기 전체(나무 훑기 · 목록 조립 · 보고)를 재서 1초 요약에 싣는다 — 첫 훑기만 재면 실제 무게가 안 보였다(실물 09-30 18:29).
      */
     private fun scanScreen() {
+        val ctx = telemetryManager.currentScreenContext
+        val startMs = android.os.SystemClock.elapsedRealtime()
+        scanGathered = false
+        scanScreenBody()
+        if (!scanGathered) return
+        val nowMs = android.os.SystemClock.elapsedRealtime()
+        scanTimerOf(ctx)?.let { (timer, label) ->
+            timer.record(nowMs - startMs, scanSameText, nowMs)?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
+        }
+    }
+
+    private fun scanScreenBody() {
 
         /**
          * ⏱️ **창이 바뀌면 한 번으로 안 믿는다** (기사님 실측:
@@ -729,15 +747,11 @@ class HijackService : AccessibilityService(), ScanContext {
 
         // 핑거프린트 비교 → 화면 변경 없으면 스킵
         val screenTexts = mutableListOf<String>()
-        val gatherStartMs = android.os.SystemClock.elapsedRealtime()
         gatherNodeTexts(rootNode, screenTexts)
         val fingerprint = screenTexts.sorted().hashCode()
-        // ⏱️ 화면 읽기가 main 을 얼마나 쓰나 · 같은 글자로 건너뛰었나 — 목록·상세 1초마다 요약 한 줄(이벤트마다 줄은 남기지 않는다)
-        scanTimerOf(telemetryManager.currentScreenContext)?.let { (timer, label) ->
-            val nowMs = android.os.SystemClock.elapsedRealtime()
-            timer.record(nowMs - gatherStartMs, fingerprint == lastScreenFingerprint, nowMs)
-                ?.let { AppLogger.d(TAG, LogTag.SCREEN, "$label $it") }
-        }
+        // ⏱️ 요약은 바깥(`scanScreen`)이 읽기 전체로 싣는다
+        scanGathered = true
+        scanSameText = fingerprint == lastScreenFingerprint
         if (fingerprint == lastScreenFingerprint) {
             touchManager.onScreen(telemetryManager.currentScreenContext, textChanged = false)   // 👆 화면 그대로 — 누른 것이 안 먹혔나 본다
             rootNode.recycle(); return

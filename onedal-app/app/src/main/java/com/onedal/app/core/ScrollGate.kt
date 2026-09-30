@@ -17,11 +17,19 @@ class ScrollGate(private val quietMs: Long = QUIET_MS, private val maxWaitMs: Lo
     }
 
     private var firstScrollAtMs: Long = -1
+    private var lastScrollAtMs: Long = Long.MIN_VALUE / 2
 
     fun onScroll(nowMs: Long): Long {
+        lastScrollAtMs = nowMs
         if (firstScrollAtMs < 0) firstScrollAtMs = nowMs
         return minOf(nowMs + quietMs, firstScrollAtMs + maxWaitMs)
     }
+
+    /**
+     * 📜 **마지막 스크롤이 [quietMs] 안인가** — 그동안 온 «내용 바뀜»은 이 문이 곧 한 번 읽는다(`EventRoute`).
+     * 스크롤 중 내용 알림이 초당 수십 개라 따로 읽으면 초당 3~4번 · 메인 스레드 0.6~1초였다(실물 09-30 18:29).
+     */
+    fun scrolledRecently(nowMs: Long): Boolean = nowMs - lastScrollAtMs < quietMs
 
     /** 읽었다 — 다음 스크롤부터 새로 모은다 */
     fun onScanned() { firstScrollAtMs = -1 }

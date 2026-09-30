@@ -81,7 +81,8 @@ describe('🪟 창이 바뀌면 화면을 다시 본다', () => {
         const handler = codeOnly.slice(codeOnly.indexOf('override fun onAccessibilityEvent'));
         expect(handler).toMatch(/EventRoute\.of\(/);
         const route = readFileSync(join(APP, 'core/ContentGate.kt'), 'utf-8');
-        expect(route).toMatch(/TYPE_WINDOW_CONTENT_CHANGED -> if \(isOwnApp\) Route\.IGNORE else Route\.SCAN/);
+        // 예외는 우리 앱 · «스크롤 중인 목록»(스크롤 읽기가 멈춘 뒤 300ms 안에 한 번 읽는다) 둘뿐이다
+        expect(route).toMatch(/TYPE_WINDOW_CONTENT_CHANGED -> if \(isOwnApp \|\| \(isListScreen && scrolledRecently\)\) Route\.IGNORE else Route\.SCAN/);
     });
 });
 

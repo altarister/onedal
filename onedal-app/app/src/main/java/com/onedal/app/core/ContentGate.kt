@@ -31,6 +31,7 @@ class ContentGate(private val windowMs: Long = WINDOW_MS) {
 /**
  * 🚦 **접근성 알림이 화면 읽기로 가는 길 — 사실 셋으로 가른다** (`EventRouteTest`).
  * - 스크롤: 목록일 때만 모아 읽기 · 다른 화면에선 버린다
+ * - 목록에서 스크롤한 지 300ms 안의 «내용 바뀜»은 버린다 — 스크롤 읽기(`ScrollGate`)가 멈춘 뒤 300ms(늦어도 1초) 안에 한 번 읽는다
  * - 우리 앱의 «내용 바뀜»(테두리·알람 창 다시 그리기)은 버린다 — 그 알림에 기대는 곳이 없다.
  *   우리 앱 «창 바뀜»은 본다 — 원달앱 화면으로 넘어간 것을 «모름»으로 알아야 한다
  * 누름·토스트 알림은 이 길 앞에서 따로 간다.
@@ -38,9 +39,10 @@ class ContentGate(private val windowMs: Long = WINDOW_MS) {
 object EventRoute {
     enum class Route { SCAN, SCROLL_SCAN, IGNORE }
 
-    fun of(eventType: Int, isOwnApp: Boolean, isListScreen: Boolean): Route = when (eventType) {
+    /** @param scrolledRecently 마지막 스크롤이 300ms 안인가(`ScrollGate.scrolledRecently`) — 목록의 내용 바뀜은 스크롤 읽기가 곧 읽는다 */
+    fun of(eventType: Int, isOwnApp: Boolean, isListScreen: Boolean, scrolledRecently: Boolean = false): Route = when (eventType) {
         AccessibilityEvent.TYPE_VIEW_SCROLLED -> if (isListScreen && !isOwnApp) Route.SCROLL_SCAN else Route.IGNORE
-        AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> if (isOwnApp) Route.IGNORE else Route.SCAN
+        AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> if (isOwnApp || (isListScreen && scrolledRecently)) Route.IGNORE else Route.SCAN
         AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> Route.SCAN
         else -> Route.IGNORE
     }
