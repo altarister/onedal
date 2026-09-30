@@ -23,8 +23,11 @@ import db, { dwellRatesFor, forgetCallOptions, seedCallOptions } from '../../src
  *    ① DB 를 고친다  ② **기억을 버린다**  ③ 세션·화면을 갱신한다.
  */
 
-const USER: string = (db.prepare(`SELECT id FROM users LIMIT 1`).get() as any)?.id;
-const maybe = USER ? describe : describe.skip;
+/* 🧪 제 검사 사용자를 만든다 — 기사님 로컬 DB 의 첫 사용자(기사님 계정)로 돌지 않는다 · 빈 검사 DB 에서도 늘 돈다 (jestDbIsolated) */
+const USER = 'test-call-options';
+db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(USER, `g-${USER}`, `${USER}@test`, '검사 사용자');
+afterAll(() => { try { db.prepare(`DELETE FROM users WHERE id = ?`).run(USER); } catch { /* 남은 줄이 붙잡으면 다음 돌림이 INSERT OR IGNORE 로 이어 쓴다 */ } });
+const maybe = describe;
 
 maybe('🎛️ 저장하면 서버 판정이 바로 새 값을 쓴다', () => {
     beforeAll(() => seedCallOptions(USER));

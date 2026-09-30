@@ -24,8 +24,11 @@ import { dwellActualOfSteps, dwellLedgerOfSteps, dwellSlipMinutes, deriveRouteTi
  *    기사님: *"누구도 거짓을 말하지 않았고 **결과는 바뀐 거지**."* 둘 다 사실이다.
  */
 
-const USER: string = (db.prepare(`SELECT id FROM users LIMIT 1`).get() as any)?.id;
-const maybe = USER ? describe : describe.skip;
+/* 🧪 제 검사 사용자를 만든다 — 기사님 로컬 DB 의 첫 사용자(기사님 계정)로 돌지 않는다 · 빈 검사 DB 에서도 늘 돈다 (jestDbIsolated) */
+const USER = 'test-sheet-edit';
+db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(USER, `g-${USER}`, `${USER}@test`, '검사 사용자');
+afterAll(() => { try { db.prepare(`DELETE FROM users WHERE id = ?`).run(USER); } catch { /* 남은 줄이 붙잡으면 다음 돌림이 INSERT OR IGNORE 로 이어 쓴다 */ } });
+const maybe = describe;
 
 const ID = 'TEST-DWELL-EDIT';
 const 콜 = {

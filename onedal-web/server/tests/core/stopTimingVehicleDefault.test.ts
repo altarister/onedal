@@ -41,7 +41,10 @@ import { getStopTiming, totalDetourCost } from '../../src/core/helpers';
  */
 
 const ID = 'TEST-DWELL-VEHICLE';
-const USER: string = (db.prepare(`SELECT id FROM users LIMIT 1`).get() as any)?.id;
+/* 🧪 제 검사 사용자를 만든다 — 기사님 로컬 DB 의 첫 사용자(기사님 계정)로 돌지 않는다 · 빈 검사 DB 에서도 늘 돈다 (jestDbIsolated) */
+const USER = 'test-stop-timing';
+db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(USER, `g-${USER}`, `${USER}@test`, '검사 사용자');
+afterAll(() => { try { db.prepare(`DELETE FROM users WHERE id = ?`).run(USER); } catch { /* 남은 줄이 붙잡으면 다음 돌림이 INSERT OR IGNORE 로 이어 쓴다 */ } });
 
 const putOrder = (vehicleType: string | null) => {
     db.prepare(`DELETE FROM orders WHERE id = ?`).run(ID);
@@ -58,7 +61,7 @@ const putOrder = (vehicleType: string | null) => {
 
 afterAll(() => { db.prepare(`DELETE FROM orders WHERE id = ?`).run(ID); });
 
-const maybe = USER ? describe : describe.skip;   // 빈 DB 에서는 건너뛴다
+const maybe = describe;
 
 /**
  * 🔴 **진짜 판정 시점에는 `orders` 행조차 없다**.

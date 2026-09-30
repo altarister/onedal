@@ -23,7 +23,10 @@ import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone
 
 const ORDER_ID = 'TEST-BIRTH-1';
 /** `orders.userId` 가 `users(id)` 를 참조한다 — 실제 계정 하나를 빌려 쓴다 */
-const USER: string = (db.prepare(`SELECT id FROM users LIMIT 1`).get() as any)?.id;
+/* 🧪 제 검사 사용자를 만든다 — 기사님 로컬 DB 의 첫 사용자(기사님 계정)로 돌지 않는다 · 빈 검사 DB 에서도 늘 돈다 (jestDbIsolated) */
+const USER = 'test-step-seeder';
+db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(USER, `g-${USER}`, `${USER}@test`, '검사 사용자');
+afterAll(() => { try { db.prepare(`DELETE FROM users WHERE id = ?`).run(USER); } catch { /* 남은 줄이 붙잡으면 다음 돌림이 INSERT OR IGNORE 로 이어 쓴다 */ } });
 const kst = (v: string) => new Date(v).toLocaleTimeString('ko-KR',
     { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' });
 
@@ -48,7 +51,7 @@ const of = (step: string) => view().find(s => s.step === step)!;
 
 afterAll(() => { db.prepare(`DELETE FROM orders WHERE id = ?`).run(ORDER_ID); });
 
-const maybe = USER ? describe : describe.skip;   // 빈 DB 에서는 건너뛴다
+const maybe = describe;
 
 maybe('출생 모델 — KEEP 은 첫 행만 낳는다', () => {
     it('🔴 KEEP 후 태어난 행은 상차지 통화 하나뿐이다', () => {

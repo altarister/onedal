@@ -32,8 +32,11 @@ import { getUserSession } from '../../src/state/userSessionStore';
  * 끊긴 곳은 «저장한 값이 그 식에 닿는가»라서, 저장 경로를 실제로 태워야만 보인다.
  */
 
-const USER: string = (db.prepare(`SELECT id FROM users LIMIT 1`).get() as any)?.id;
-const maybe = USER ? describe : describe.skip;
+/* 🧪 제 검사 사용자를 만든다 — 기사님 로컬 DB 의 첫 사용자(기사님 계정)로 돌지 않는다 · 빈 검사 DB 에서도 늘 돈다 (jestDbIsolated) */
+const USER = 'test-pricing-save';
+db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(USER, `g-${USER}`, `${USER}@test`, '검사 사용자');
+afterAll(() => { try { db.prepare(`DELETE FROM users WHERE id = ?`).run(USER); } catch { /* 남은 줄이 붙잡으면 다음 돌림이 INSERT OR IGNORE 로 이어 쓴다 */ } });
+const maybe = describe;
 
 /**
  * `PUT /api/settings/pricing` 의 핸들러를 라우터에서 꺼내 직접 태운다.

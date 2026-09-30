@@ -31,7 +31,9 @@ beforeAll(() => {
 });
 beforeEach(() => { localCalls = 0; naviCalls = 0; });
 afterEach(() => { global.fetch = realFetch; jest.useRealTimers(); jest.restoreAllMocks(); });
-afterAll(() => {
+afterAll(async () => {
+    /* 미리 출발은 길찾기를 띄워만 두고 안 기다린다 — 가라앉을 때까지 잠깐 두어 검사가 끝난 뒤 로그가 찍히지 않게(한 줄 돌림) */
+    await new Promise(r => setTimeout(r, 200));
     db.prepare(`DELETE FROM geocode_cache WHERE query LIKE ?`).run(`%${MARK}%`);
     db.prepare(`DELETE FROM users WHERE id = ?`).run(U);
     clearUserSession(U);

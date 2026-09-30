@@ -57,7 +57,6 @@ beforeAll(() => {
 afterAll(() => {
     db.prepare(`DELETE FROM filter_day_results WHERE user_id = ?`).run(U);
     db.prepare(`DELETE FROM orders WHERE userId = ?`).run(U);
-    db.prepare(`DELETE FROM user_filter_phases WHERE user_id = ?`).run(U);
     db.prepare(`DELETE FROM user_filters WHERE user_id = ?`).run(U);
     db.prepare(`DELETE FROM user_settings WHERE user_id = ?`).run(U);
     db.prepare(`DELETE FROM user_judgment WHERE user_id = ?`).run(U);
