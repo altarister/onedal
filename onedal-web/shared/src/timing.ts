@@ -330,6 +330,27 @@ export function businessDayKey(ms: number): string {
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/**
+ * 📅 **영업일 [시작, 끝)** — businessDayKey 와 같은 규칙(로컬 자정). 저장된 시각(UTC ISO 글자)을 이 구간으로 거른다 —
+ *    날 글자 앞부분(LIKE 'YYYY-MM-DD%')으로 거르면 한국 새벽 0~9시가 어제로 간다.
+ */
+export function businessDayRange(ms: number): { startMs: number; endMs: number } {
+    const d = new Date(ms);
+    return {
+        startMs: new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(),
+        endMs: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime(),
+    };
+}
+
+/** 📅 **그 영업일이 든 달 [1일, 다음 달 1일)** — 같은 로컬 자정 규칙 */
+export function businessMonthRange(ms: number): { startMs: number; endMs: number } {
+    const d = new Date(ms);
+    return {
+        startMs: new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
+        endMs: new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(),
+    };
+}
+
 /** 원칙 1 — 일과 종료. 기사님 결정: **17시** */
 export const BUSINESS_DAY_END_HOUR = 17;
 

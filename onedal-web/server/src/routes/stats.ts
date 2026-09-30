@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth, requireAdmin } from "../middlewares/authMiddleware";
 import { flowRowsBetween, flowsForViewer, flowsForAdmin, rolledUpDaysBetween, FLOW_GROUP_BYS, type FlowGroupBy } from "../services/callFlowStats";
+import { businessDayKey } from "@onedal/shared";
 
 /**
  * 📊 **콜 흐름 통계 읽는 문 둘** (reviews/25 3단계 · 1f 결정 ②) — 쓰기는 하루 묶기(`services/callFlowStats.ts`) 한 곳뿐이다.
@@ -12,8 +13,8 @@ const router = Router();
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 function rangeOf(q: any): { from: string; to: string; by: FlowGroupBy } {
-    const today = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
-    const ago = new Date(Date.now() + 9 * 3600_000 - 28 * 86_400_000).toISOString().slice(0, 10);
+    const today = businessDayKey(Date.now());
+    const ago = businessDayKey(Date.now() - 28 * 86_400_000);
     const by = (FLOW_GROUP_BYS as readonly string[]).includes(q.groupBy) ? q.groupBy as FlowGroupBy : 'weekday';
     return { from: DAY_RE.test(q.from) ? q.from : ago, to: DAY_RE.test(q.to) ? q.to : today, by };
 }

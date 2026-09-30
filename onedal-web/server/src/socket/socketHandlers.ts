@@ -6,7 +6,7 @@ import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, CallStepId } from "@onedal/shared";
-import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow, deriveRouteTimeline, derivationInputsOf, isTerminal } from "@onedal/shared";
+import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow, deriveRouteTimeline, derivationInputsOf, isTerminal, businessDayKey } from "@onedal/shared";
 import db, { forgetCallOptions, loadCallOptions } from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
@@ -807,7 +807,7 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "resolve-cargo-mismatch", async (data: {
             orderId: string, stopType: 'pickup' | 'dropoff', ratio: number, action: 'CONTINUE' | 'RELEASE'
         }) => {
-            const when = new Date().toISOString().slice(0, 10);
+            const when = businessDayKey(Date.now());   // 한국 영업일 — toISOString 은 UTC 날
             const verdict = data.action === 'RELEASE' ? '방출' : '수행';
             const line = `${when} 신고 불일치 ${data.ratio.toFixed(1)}배 → ${verdict}`;
 
@@ -831,7 +831,7 @@ export function registerSocketHandlers(io: Server) {
          * 같은 곳에서 또 겪을 확률이 높기 때문이다.
          */
         safeOn(socket, "cancel-at-stop", async (data: { orderId: string, stopType: 'pickup' | 'dropoff', reason?: string }) => {
-            const when = new Date().toISOString().slice(0, 10);
+            const when = businessDayKey(Date.now());   // 한국 영업일 — toISOString 은 UTC 날
             const line = `${when} 현장 취소${data.reason ? ` — ${data.reason}` : ''}`;
             const placeId = PlaceRepository.findPlaceIdByStop(data.orderId, data.stopType);
             if (placeId) PlaceRepository.appendPlaceMemo(placeId, line);

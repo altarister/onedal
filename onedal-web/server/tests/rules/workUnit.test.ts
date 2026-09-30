@@ -42,7 +42,7 @@ describe('매출은 업무 단위로 센다', () => {
      * 기사님: *"어제 잡은 콜을 오늘 아침에 배달하는 경우가 흔할 거니까."*
      */
     it('🔴 잡은 날이 아니라 **내린 날**로 센다', () => {
-        expect(stat).toMatch(/completedAt LIKE/);
+        expect(stat).toMatch(/completedAt >= \? AND completedAt < \?/);
         expect(stat).not.toMatch(/capturedAt LIKE/);
     });
 });

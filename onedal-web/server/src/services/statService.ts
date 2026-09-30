@@ -12,6 +12,7 @@
  */
 
 import db from "../db";
+import { businessDayRange, businessMonthRange } from "@onedal/shared";
 
 // ═══════════════════════════════════════
 // 1) 대시보드 요약 지표 (KeyMetricsBoard)
@@ -30,9 +31,10 @@ export interface SummaryMetrics {
 }
 
 export function getSummaryMetrics(userId: string): SummaryMetrics {
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
-    const monthStr = todayStr.slice(0, 7);              // YYYY-MM
+    /* 📅 한국 영업일·영업월 [시작, 끝) — 완료 시각은 UTC 글자로 저장돼 날 글자 앞부분으로 거르면 새벽 0~9시가 어제로 간다 */
+    const iso = (r: { startMs: number; endMs: number }) => [new Date(r.startMs).toISOString(), new Date(r.endMs).toISOString()];
+    const [dayFrom, dayTo] = iso(businessDayRange(Date.now()));
+    const [monthFrom, monthTo] = iso(businessMonthRange(Date.now()));
 
     // 오늘 매출/주행거리/건수
     const todayRow = db.prepare(`
@@ -43,8 +45,8 @@ export function getSummaryMetrics(userId: string): SummaryMetrics {
         FROM orders
         WHERE userId = ?
           AND status IN ('ORDER_DELIVERED', 'ORDER_COMPLETED')
-          AND completedAt LIKE ?
-    `).get(userId, `${todayStr}%`) as { revenue: number; distanceKm: number; orderCount: number };
+          AND completedAt >= ? AND completedAt < ?
+    `).get(userId, dayFrom, dayTo) as { revenue: number; distanceKm: number; orderCount: number };
 
     // 이번 달 매출/주행거리/건수
     const monthRow = db.prepare(`
@@ -55,8 +57,8 @@ export function getSummaryMetrics(userId: string): SummaryMetrics {
         FROM orders
         WHERE userId = ?
           AND status IN ('ORDER_DELIVERED', 'ORDER_COMPLETED')
-          AND completedAt LIKE ?
-    `).get(userId, `${monthStr}%`) as { revenue: number; distanceKm: number; orderCount: number };
+          AND completedAt >= ? AND completedAt < ?
+    `).get(userId, monthFrom, monthTo) as { revenue: number; distanceKm: number; orderCount: number };
 
     // 미수금 총액
     const unpaidRow = db.prepare(`
