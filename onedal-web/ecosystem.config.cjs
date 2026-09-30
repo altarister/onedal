@@ -13,11 +13,13 @@ module.exports = {
       env_production: {
         NODE_ENV: 'production',
         DB_FILE: 'data.db', // AWS에서 강제로 실데이터용 DB를 바라보도록 설정
+        TZ: 'Asia/Seoul', // 🕐 서버는 한국 시간으로 돈다 — 서버도 스스로 정한다(server/src/config/timezone.ts)
         PORT: 4000 // AWS iptables 규칙(80 -> 4000)과 일치하도록 복구
       },
       env: {
         NODE_ENV: 'production',
         DB_FILE: 'data.db', // AWS에서 강제로 실데이터용 DB를 바라보도록 설정
+        TZ: 'Asia/Seoul', // 🕐 서버는 한국 시간으로 돈다 — 서버도 스스로 정한다(server/src/config/timezone.ts)
         PORT: 4000 // 백엔드 포트 고정 (차후 AWS 서버에서 80포트를 4000으로 리다이렉트)
       }
     }

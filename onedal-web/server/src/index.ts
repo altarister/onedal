@@ -1,10 +1,13 @@
 // Force trigger GitHub Actions deployment
+/* 🕐 날 계산·로그보다 먼저 — 서버는 한국 시간으로 돈다 (config/timezone.ts) */
+import "./config/timezone";
 /**
- * 🔴 **맨 위여야 한다.** 이 줄 아래의 import 들이 모듈 로드 중에 찍는 로그(DB 준비, 지오 로드
+ * 🔴 **맨 위여야 한다**(시간대 다음). 이 줄 아래의 import 들이 모듈 로드 중에 찍는 로그(DB 준비, 지오 로드
  *    등)까지 파일에 남기려면 `console` 가로채기가 그보다 먼저 일어나야 한다.
  */
 import { initFileLogger } from "./utils/fileLogger";
 initFileLogger();
+import { serverTimeZone } from "./config/timezone";
 
 import express from "express";
 import { createServer } from "http";
@@ -183,6 +186,8 @@ httpServer.listen(PORT as number, "0.0.0.0", () => {
         if (n > 0) slog('부팅', `🛰️ [궤적 정리] ${GPS_TRACK.KEEP_DAYS}일 지난 좌표 ${n.toLocaleString()}점 삭제`);
     }
     logServerIdentity();
+    slog('부팅', `🕐 [시간대] ${serverTimeZone()}`);
+    if (serverTimeZone() !== 'Asia/Seoul') console.warn(`⚠️ [시간대] 서버가 ${serverTimeZone()} 로 돈다 — 날 경계·17시 일과 종료가 한국 시간과 어긋난다`);
     // hydrateSessionsFromDB(); // 서버 기동 시 일괄 복구 로직 폐기 완료 (userSessionStore에서 Lazy Load로 대체)
     logRoadmapEvent('부팅', "서버", "서버 기동 및 디폴트 필터 셋업 (대기 모드)");
     slog('부팅', `\n🚀 1DAL 서버 (Express + Socket.io) 시작됨`);
