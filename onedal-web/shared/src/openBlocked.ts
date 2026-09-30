@@ -23,6 +23,10 @@ export const OPEN_BLOCKED: Record<string, { say: string; needsHand: boolean }> =
     held: { say: '까닭 없이 보류', needsHand: true },
 };
 
+/** 기사님 손이 있어야 풀리는 까닭인가 — 표에 없는 열쇠는 손 필요로 본다(지어내지 않고 띠에 그대로 보인다) */
+export const openBlockedNeedsHand = (key: string | null | undefined): boolean =>
+    !!key && (OPEN_BLOCKED[key]?.needsHand ?? true);
+
 /** 띠에 붙일 까닭 — 없거나 곧 스스로 풀리면 null. 표에 없는 열쇠는 지어내지 않고 그대로 보인다 */
 export function openBlockedSayOf(key: string | null | undefined): string | null {
     if (!key) return null;

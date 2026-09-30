@@ -270,14 +270,15 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
  */
 /**
  * ⏩ **빨리 접기 — 판정이 나온 때부터 몇 초** (기사님 «붉은색과 50점 이하는 … 10초 정도면 … 빨리 접어서 다른 콜을 보게»).
- *    대상은 앱이 알람 모드로 연 상세(`openedByApp`)뿐이다 — 손으로 연 상세는 그대로. 조건은 점수 없음(🔴) 또는 벨 점수 미만(bell=false).
- *    코드 상수다(설정값·저장 칸 아님) · 기준선은 벨 점수 그대로. 접는 것은 폰이다 — 폰이 이 초 뒤 목록으로 돌아가면
+ *    대상은 앱이 알람 모드로 연 상세(`openedByApp`)뿐이다 — 손으로 연 상세는 그대로. 조건은 점수 없음(🔴) 또는 벨 점수 미만(bell=false)이면서 꿀이 아님.
+ *    접는 선은 벨 점수와 꿀 경계 중 낮은 쪽이다 — 기사님이 벨을 꿀 경계 위로 올려도 🔵 는 접히지 않는다. 코드 상수다(설정값·저장 칸 아님). 접는 것은 폰이다 — 폰이 이 초 뒤 목록으로 돌아가면
  *    서버·관제웹은 지금처럼 «상세 이탈» 하나로 끈다(미리보기를 시간으로 끄지 않는다는 기사님 결정 그대로).
  */
 export const QUICK_FOLD_SEC = 10;
-export function quickFoldSecOf(judgment: { score: number | null; bell?: boolean } | null | undefined, openedByApp: boolean | undefined): number | null {
+export function quickFoldSecOf(judgment: { score: number | null; bell?: boolean; color?: string } | null | undefined, openedByApp: boolean | undefined): number | null {
     if (openedByApp !== true || !judgment) return null;
-    return judgment.score == null || judgment.bell !== true ? QUICK_FOLD_SEC : null;
+    if (judgment.score == null) return QUICK_FOLD_SEC;
+    return judgment.bell !== true && judgment.color !== '꿀' ? QUICK_FOLD_SEC : null;
 }
 
 export function toSnapshot(v: Judgment) {

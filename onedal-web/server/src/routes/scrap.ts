@@ -187,6 +187,7 @@ router.post("/", (req, res) => {
                 effectiveMode: (req.body as any).effectiveMode,
                 filterVersion: appFilterVersion,
                 openBlocked: openBlockedOf((req.body as any).openBlocked),
+                listHeaderHidden: typeof (req.body as any).listHeaderHidden === 'boolean' ? (req.body as any).listHeaderHidden : undefined,
             });
         }
 

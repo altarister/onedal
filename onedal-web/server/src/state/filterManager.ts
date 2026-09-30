@@ -1110,11 +1110,26 @@ function broadcastFilter(userId: string, session: ReturnType<typeof getUserSessi
  * @param userId - 유저 ID
  * @param changes - 변경할 필터 필드 (Partial)
  */
+/**
+ * 🔢 **원달앱이 정수(Int)로 받는 필터 칸은 정수로 거른다** — minFare · maxFare.
+ *    소수(22999.999…)가 한 번 들어가면 원달앱 Gson 이 목록 보고 응답 전체를 버려, 그 필터가 도는 동안
+ *    폰이 결재·모드·필터를 하나도 못 받는다. 들어오는 문(오늘 필터 · 평소 필터) 둘에서 거른다.
+ */
+function wholeFareFields(changes: Partial<AutoDispatchFilter>): Partial<AutoDispatchFilter> {
+    const out = { ...changes };
+    for (const k of ['minFare', 'maxFare'] as const) {
+        const v = out[k];
+        if (typeof v === 'number' && Number.isFinite(v) && !Number.isInteger(v)) out[k] = Math.round(v);
+    }
+    return out;
+}
+
 export function saveBaseFilter(
     userId: string,
-    changes: Partial<AutoDispatchFilter>,
+    rawChanges: Partial<AutoDispatchFilter>,
     io?: any
 ): void {
+    const changes = wholeFareFields(rawChanges);
     const session = getUserSession(userId);
 
     // baseFilter만 업데이트
@@ -1175,9 +1190,10 @@ export function saveBaseFilter(
  */
 export function updateActiveFilter(
     userId: string,
-    changes: Partial<AutoDispatchFilter>,
+    rawChanges: Partial<AutoDispatchFilter>,
     io?: any
 ): AutoDispatchFilter {
+    const changes = wholeFareFields(rawChanges);
     const session = getUserSession(userId);
 
     // [중요] STANDBY 전환 감지: 다른 상태(GATHERING/DELIVERING)에서 STANDBY로 복귀할 때

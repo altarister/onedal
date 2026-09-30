@@ -1730,6 +1730,10 @@ export interface DeviceSession {
      *    **옛 숫자가 새것처럼** 보인다 (그게 지금 고치려는 거짓말 그 자체다).
      */
     filterTallyAt?: number;
+    /** 🚧 마지막 목록 보고의 «앱이 못 연 까닭» 열쇠 — 바뀔 때만 소리 없는 띠를 보낸다(`devices.ts`) */
+    lastOpenBlocked?: string;
+    /** 📦 «옛 원달앱»(listHeaderHidden 을 보내는 판) 경고를 이 기기에 이미 남겼나 */
+    oldAppWarned?: boolean;
     stats: {
         polled: number;     // 리스트 조회(콜 수집) 누적 횟수
         grabbed: number;    // 성공 횟수

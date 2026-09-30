@@ -59,6 +59,15 @@ describe('⚪ 소켓 푸시', () => {
         report('DETAIL_PRE_CONFIRM', 'SNAPSHOT_MISMATCH: 다른 콜');
         expect(unreadables()).toHaveLength(0);
     });
+    it('🔴 보고는 상세에서 왔어도 폰이 이미 목록이면 안 띄운다 — 늦게 닿은 보고가 목록 위에 ⚪ 를 남기지 않게', () => {
+        touchDeviceSession(DEV, U, 1, 'LIST', io);
+        emitted.length = 0;
+        report('DETAIL_PRE_CONFIRM', 'REQUIREMENT_UNMET: 요금 없음');
+        expect(unreadables()).toHaveLength(0);
+        touchDeviceSession(DEV, U, 1, 'DETAIL_PRE_CONFIRM', io);
+        report('DETAIL_PRE_CONFIRM', 'REQUIREMENT_UNMET: 요금 없음');
+        expect(unreadables()).toHaveLength(1);
+    });
 });
 
 describe('⚪ 지우는 때 — 상세에서 나갈 때', () => {

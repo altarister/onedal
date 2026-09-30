@@ -116,18 +116,19 @@ export function roadEventTagsOf(code: RoadEventCode | null | undefined): string[
 }
 
 /** ⏩ 빨리 접기를 싣는 콜의 모양 — 판정 결과 · 앱이 열었나 · 판정 끝 시각 */
-type QuickFoldTarget = { id: string; judgment?: { score: number | null; bell?: boolean } | null; openedByApp?: boolean; foldAfterSec?: number | null; judgeUntil?: number };
+type QuickFoldTarget = { id: string; isPreview?: boolean; judgment?: { score: number | null; bell?: boolean; color?: string } | null; openedByApp?: boolean; foldAfterSec?: number | null; judgeUntil?: number };
 
 /**
- * ⏩ **판정 끝에 빨리 접기를 싣는다** — 앱이 알람으로 연 🔴·벨 미만 콜이면 foldAfterSec 과 judgeUntil(= 판정 끝 + 그 초).
+ * ⏩ **판정 끝에 빨리 접기를 싣는다** — 앱이 알람으로 연 미리보기 콜이 🔴·벨 미만(꿀 아님)이면 foldAfterSec 과 judgeUntil(= 판정 끝 + 그 초).
+ *    미리보기 콜에만 건다 — 잡은 콜의 막대는 안전취소 시간이다. 막대 끝은 당기기만 한다(원래 끝이 더 이르면 그대로).
  *    judgeUntil 은 관제웹 막대의 끝이고, 폰은 목록 보고 응답의 foldAfter.remainSec(서버 시계)로 그때 목록으로 돌아간다.
  *    서버는 시간으로 끄지 않는다(기사님 결정) — 끄는 것은 폰의 상세 이탈 하나다.
  */
 export function applyQuickFold(order: QuickFoldTarget, nowMs: number): number | null {
-    const fold = quickFoldSecOf(order.judgment ?? null, order.openedByApp);
+    const fold = order.isPreview === true ? quickFoldSecOf(order.judgment ?? null, order.openedByApp) : null;
     order.foldAfterSec = fold;
     if (fold != null) {
-        order.judgeUntil = nowMs + fold * 1000;
+        order.judgeUntil = Math.min(order.judgeUntil ?? Infinity, nowMs + fold * 1000);
         slog('판정', `⏩ [빨리 접기] ${order.id.slice(-6)} — ${fold}초 뒤 폰이 목록으로 (앱이 연 콜 · ${order.judgment?.score == null ? '점수 없음' : `벨 점수 미만 ${order.judgment.score}점`})`);
     }
     return fold;

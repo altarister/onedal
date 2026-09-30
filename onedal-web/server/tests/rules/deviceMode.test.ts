@@ -360,6 +360,10 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
         expect(c).toMatch(/TARGET_APP_LABEL\[device\.targetApp/);
         // 띠는 기사님 손이 할 일이 있을 때만 — 앱이 못 열었고 손이 있어야 풀리는 까닭일 때. 보통 갈래 «확정·수락은 기사님이» 띠는 지웠다(기사님 «지우는 것이 맞다») · 소리는 그대로
         expect(c).toMatch(/filterAlarmLine\(filterAlarm, /);
+        // 🔴 알림은 그 알림을 낸 폰의 줄에만 — 폰이 둘이면 다른 폰 줄에 띠가 뜨지 않게
+        expect(c).toMatch(/filterAlarm\.deviceId === device\.deviceId/);
+        // 🔴 소리 없는 띠(까닭이 «손 필요»로 바뀜)는 울리지 않는다
+        expect(web('hooks/useSystemAlerts.ts')).toMatch(/if \(!alarm\.silent\) soundManager\.playFilterAlarm\(\)/);
         expect(web('lib/filterAlarmLine.ts')).toMatch(/앱이 못 열었습니다: \$\{why\} — 직접 여십시오/);
         expect(web('lib/filterAlarmLine.ts')).not.toMatch(/상세에서 확정·수락은 기사님이 누르십시오/);
     });

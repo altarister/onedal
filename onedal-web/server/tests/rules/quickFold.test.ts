@@ -37,16 +37,31 @@ afterAll(() => {
 
 describe('⏩ 판정 끝에 싣기', () => {
     it('🔴 앱이 연 벨 미만 콜 → foldAfterSec 10 · judgeUntil = 판정 끝 + 10초', () => {
-        const o: any = { id: 'qf-a', judgment: { score: 30, bell: false }, openedByApp: true, judgeUntil: 999 };
+        const o: any = { id: 'qf-a', isPreview: true, judgment: { score: 30, bell: false, color: '보통' }, openedByApp: true, judgeUntil: 1_030_000 };
         expect(applyQuickFold(o, 1_000_000)).toBe(10);
         expect(o.foldAfterSec).toBe(10);
         expect(o.judgeUntil).toBe(1_010_000);
     });
+    it('🔴 막대 끝은 당기기만 한다 — 원래 끝이 판정 끝 + 10초보다 이르면 그대로', () => {
+        const o: any = { id: 'qf-a2', isPreview: true, judgment: { score: 30, bell: false, color: '보통' }, openedByApp: true, judgeUntil: 1_005_000 };
+        expect(applyQuickFold(o, 1_000_000)).toBe(10);
+        expect(o.judgeUntil).toBe(1_005_000);
+    });
+    it('🔴 미리보기 콜에만 — 잡은 콜(안전취소 막대)은 안 접는다', () => {
+        const held: any = { id: 'qf-a3', judgment: { score: 30, bell: false, color: '보통' }, openedByApp: true, judgeUntil: 1_030_000 };
+        expect(applyQuickFold(held, 1_000_000)).toBeNull();
+        expect(held.foldAfterSec).toBeNull();
+        expect(held.judgeUntil).toBe(1_030_000);
+    });
+    it('🔴 꿀 콜은 벨 점수 아래여도 안 접는다 — 기사님이 벨을 꿀 경계 위로 올려도 🔵 가 접히지 않게', () => {
+        const honey: any = { id: 'qf-a4', isPreview: true, judgment: { score: 75, bell: false, color: '꿀' }, openedByApp: true, judgeUntil: 1_030_000 };
+        expect(applyQuickFold(honey, 1_000_000)).toBeNull();
+    });
     it('🔴 손으로 연 콜 · 벨 이상 콜은 그대로(judgeUntil 안 건드림)', () => {
-        const hand: any = { id: 'qf-b', judgment: { score: null, bell: false }, openedByApp: false, judgeUntil: 777 };
+        const hand: any = { id: 'qf-b', isPreview: true, judgment: { score: null, bell: false }, openedByApp: false, judgeUntil: 777 };
         expect(applyQuickFold(hand, 1_000_000)).toBeNull();
         expect(hand.judgeUntil).toBe(777);
-        const good: any = { id: 'qf-c', judgment: { score: 60, bell: true }, openedByApp: true, judgeUntil: 777 };
+        const good: any = { id: 'qf-c', isPreview: true, judgment: { score: 60, bell: true }, openedByApp: true, judgeUntil: 777 };
         expect(applyQuickFold(good, 1_000_000)).toBeNull();
         expect(good.judgeUntil).toBe(777);
     });

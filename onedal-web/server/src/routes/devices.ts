@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf, openBlockedNeedsHand } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
 import { generatePin, consumePin } from "../state/pairingStore";
@@ -158,6 +158,8 @@ export interface DeviceStatusExtras {
     appVersion?: string;
     /** 🚧 통과 콜이 있는데 앱이 안 연 까닭 열쇠 — 목록 보고에만 · 없으면 앱이 열었다 (원달앱 ScrapPayload.openBlocked · shared `OPEN_BLOCKED`) */
     openBlocked?: string;
+    /** 📦 옛 원달앱(openBlocked 전 판)의 «목록이 내려감» — 참이면 openBlocked scrolledOff 로 받는다 */
+    listHeaderHidden?: boolean;
     workStage?: string;
     workStageStep?: number;
     workStageSeconds?: number;
@@ -343,18 +345,36 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         // 🎛️ 명령이 아니라 **도는 모드**로 — 픽커는 자동 명령이 알람으로 돌아 폰이 울린다, 관제웹도 함께 (기사님 «가»)
         /* 🔔 새로 알람감이 된 통과 콜만 — 같은 콜이 목록에 남거나 요금만 올라도 다시 울리던 것 (옛 앱은 passedNew 가 없어 passed) */
         const alarmPassed = filterTally.passedNew ?? filterTally.passed;
+        /* 📦 옛 원달앱은 까닭 대신 «목록이 내려감»만 보낸다 — scrolledOff 로 받고, 새 앱을 까시라고 기기마다 한 번 */
+        if (typeof extras?.listHeaderHidden === 'boolean' && !session.oldAppWarned) {
+            session.oldAppWarned = true;
+            slog('필터', `⚠️ [옛 원달앱] ${deviceId} (판 ${session.version ?? '모름'}) — 목록 보고에 listHeaderHidden 을 싣는 옛 판이다 · 앱이 못 연 까닭은 «목록이 내려감»만 알 수 있다 · 새 앱을 까십시오`);
+        }
+        const openBlocked = extras?.openBlocked ?? (extras?.listHeaderHidden === true ? 'scrolledOff' : undefined);
+        const alarmBody = {
+            deviceId,
+            deviceName: session.deviceName,
+            /* 🔢 목록에 보이는 통과 수 — 띠의 «필터 통과 N건». 소리는 새로 통과 수(passedNew)로 가른다 */
+            passed: filterTally.passed,
+            passedNew: alarmPassed,
+            seen: filterTally.seen,
+            at: session.lastSeen,
+            /* 🚧 앱이 안 연 까닭 — 관제웹 띠가 기사님 손이 필요한 까닭일 때만 «직접 여십시오»로 (없으면 앱이 열었다) */
+            ...(openBlocked ? { openBlocked } : {}),
+        };
+        const prevBlocked = session.lastOpenBlocked;
+        session.lastOpenBlocked = openBlocked;
         if (runningModeOf(session) === "ALARM" && alarmPassed > 0 && io) {
-            io.to(userId).emit("filter-pass-alarm", {
-                deviceId,
-                deviceName: session.deviceName,
-                passed: alarmPassed,
-                seen: filterTally.seen,
-                at: session.lastSeen,
-                /* 🚧 앱이 안 연 까닭 — 관제웹 띠가 기사님 손이 필요한 까닭일 때만 «직접 여십시오»로 (없으면 앱이 열었다) */
-                ...(extras?.openBlocked ? { openBlocked: extras.openBlocked } : {}),
-            });
+            io.to(userId).emit("filter-pass-alarm", alarmBody);
             slog('필터', `🔔 [알람] ${deviceId} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건${filterTally.passedNew != null ? ` (새로 ${filterTally.passedNew}건)` : ''}` +
-                `${extras?.openBlocked ? ` · 앱이 못 연 까닭 ${extras.openBlocked}` : ''}. 기사님이 직접 누르십니다`);
+                `${openBlocked ? ` · 앱이 못 연 까닭 ${openBlocked}` : ''}. 기사님이 직접 누르십니다`);
+        } else if (runningModeOf(session) === "ALARM" && io && openBlocked !== prevBlocked && openBlockedNeedsHand(openBlocked)) {
+            /**
+             * 🚧 **띠는 소리와 따로** — 첫 읽기 까닭이 곧 풀리는 것(흐르는 목록 등)이었다가 다음 읽기에 «손 필요»(탭 줄 등)로 바뀌면
+             *    새로 통과한 콜이 없어 소리 알림이 안 가 «직접 여십시오» 띠도 못 떴다. 까닭이 «손 필요»로 바뀔 때만(기기별) 소리 없이 띠만 보낸다.
+             */
+            io.to(userId).emit("filter-pass-alarm", { ...alarmBody, silent: true });
+            slog('필터', `🚧 [띠만] ${deviceId} — 통과 ${filterTally.passed}건 · 앱이 못 연 까닭 ${prevBlocked ?? '없음'} → ${openBlocked} (소리 없음)`);
         }
     }
     activeDevices.set(deviceId, session);
@@ -488,6 +508,11 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
 export function userOfDevice(deviceId: string): string {
     const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
     return row?.user_id ?? "ADMIN_USER";
+}
+
+/** 이 기기가 마지막으로 알린 화면 — 기기 세션이 없으면 undefined(모름) */
+export function deviceScreenOf(deviceId: string): ScreenContextType | undefined {
+    return activeDevices.get(deviceId)?.screenContext;
 }
 
 /** 상세 계열 화면인가 — 목록도 «알 수 없음»도 아니다. 알 수 없음은 카드를 여는 순간 잠깐 끼기도 한다 (실제 픽커 9/02 · 68건 중 3건) */

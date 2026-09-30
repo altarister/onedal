@@ -29,10 +29,10 @@ describe('🔔 새로 통과한 콜만 알람', () => {
     it('🔴 통과 3건이지만 새로 알람감이 된 콜 0 → 알람 없음', () => {
         expect(report({ seen: 4, passed: 3, passedNew: 0 })).toHaveLength(0);
     });
-    it('🔴 새로 1건 → 알람 · 싣는 통과 수도 새로 된 수', () => {
+    it('🔴 새로 1건 → 알람 · 새로 된 수(passedNew)와 목록에 보이는 통과 수(passed)를 따로 싣는다', () => {
         const sent = report({ seen: 4, passed: 3, passedNew: 1 });
         expect(sent).toHaveLength(1);
-        expect(sent[0].passed).toBe(1);
+        expect(sent[0]).toMatchObject({ passed: 3, passedNew: 1 });
     });
     it('옛 앱(passedNew 없음)은 지금처럼 passed', () => {
         expect(report({ seen: 4, passed: 2 })).toHaveLength(1);

@@ -28,8 +28,12 @@ export interface SafeCancelWarning {
 export interface FilterPassAlarm {
     deviceId: string;
     deviceName?: string;
-    /** 이번 스캔에서 새로 통과한 콜 수 */
+    /** 이번 스캔에서 필터를 통과한 콜 수 — 목록에 보이는 수(띠의 «필터 통과 N건») */
     passed: number;
+    /** 그중 새로 알람감이 된 콜 수 — 소리는 이것으로 가른다(서버) */
+    passedNew?: number;
+    /** 소리 없는 띠 — 앱이 못 연 까닭이 «손 필요»로 바뀌었을 때만 온다 */
+    silent?: boolean;
     /** 이번 스캔에서 판정한 콜 수 */
     seen: number;
     /** 🚧 통과 콜이 있는데 원달앱이 안 연 까닭 열쇠 — 없으면 앱이 열었다 (shared `openBlockedSayOf`) */
@@ -99,7 +103,7 @@ export function useSystemAlerts() {
         const handleFilterAlarm = (alarm: FilterPassAlarm) => {
             console.log("🔔 [필터 통과 알람]", alarm);
             setFilterAlarm(alarm);
-            soundManager.playFilterAlarm();
+            if (!alarm.silent) soundManager.playFilterAlarm();
         };
 
         socket.on("emergency-alert", handleEmergency);

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
-import { isDetailScreen } from "@onedal/shared";
-import { userOfDevice } from "./devices";
+import { isDetailScreen, isListScreen } from "@onedal/shared";
+import { userOfDevice, deviceScreenOf } from "./devices";
 import { slog } from "../utils/fileLogger";
 
 const router = Router();
@@ -93,10 +93,14 @@ router.post("/anomalies", (req, res) => {
          * ⚪ **상세 화면에서 온 요건 미달이면 평가 자리로** — 앱은 이 콜을 버렸다(판정이 안 온다).
          *    가르는 것은 개별 사실 둘: 보고가 상세 화면에서 왔나(`isDetailScreen`) · 요건 미달인가. 목록 스캔의 요건 미달은 안 띄운다.
          *    지우는 것은 폰이 상세에서 나갈 때(`devices.ts` 화면 바뀜) · 진짜 판정이 올 때(관제웹).
+         *    🔴 폰이 이미 목록이면 안 띄운다 — 보고와 화면 바뀜은 다른 길이라, 늦게 닿은 보고가 지운 뒤의 목록 위에 ⚪ 를 남긴다.
          */
         const reason = unreadableReasonOf(failureReason);
         const io = req.app?.get("io");
-        if (reason && isDetailScreen(screenName) && io) {
+        const screenNow = deviceScreenOf(deviceId);
+        if (reason && isDetailScreen(screenName) && screenNow && isListScreen(screenNow)) {
+            slog('화면', `⚪ [판정 못 함 안 띄움] ${reason} — 폰이 이미 목록이다(늦게 닿은 보고)`);
+        } else if (reason && isDetailScreen(screenName) && io) {
             const userId = userOfDevice(deviceId);
             io.to(userId).emit("detail-unreadable", {
                 reason, pickup: listOrderInfo?.pickup ?? null, fare: listOrderInfo?.fare ?? null, at: new Date().toISOString(),
