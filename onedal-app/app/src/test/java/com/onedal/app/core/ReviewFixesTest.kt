@@ -29,7 +29,7 @@ class ReviewFixesTest {
         assertTrue(svc.substringAfter("private fun reservedRead(").substringBefore("\n    }").contains("lastScreenFingerprint = 0"))
 
     @Test fun `B 넘겨받은 쪽이 planListTap 을 다시 거친다`() =
-        assertTrue(svc.substringAfter("waitBook.schedule(\"누르기 넘김\"").substringBefore("performSimulatedTouch(").contains("plugin.planListTap(allNodes, order, fareNode)"))
+        assertTrue(svc.substringAfter("waitBook.schedule(\"누르기 넘김\"").substringBefore("performSimulatedTouch(").contains("plugin.planListTap(fresh, order, freshFare)"))
 
     @Test fun `C 무시된 목록 줄 누름은 곧바로 다시 누르지 않는다`() {
         val touch = File("$root/core/AutoTouchManager.kt").readText()

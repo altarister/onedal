@@ -137,7 +137,27 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
             lastHoldKey = com.onedal.app.core.OpenBlocked.TAB_BAR
             return null
         }
+        // 🟩 머리줄 길도 누르기 직전 창 전체에서 오더카드 꼴을 다시 찾는다(내려간 목록 길과 같은 도우미 · 리뷰)
+        val offer = fareNode.node?.let { offerSignInWindow(it) }
+        if (offer != null) {
+            logHeldOnce(order, "🛑 [상세 진입 보류] ${order.fare}원 — 찍기 직전 $offer · 손대지 않는다")
+            lastHoldKey = com.onedal.app.core.OpenBlocked.ACCEPT_VISIBLE
+            return null
+        }
         return com.onedal.app.plugins.ListTap(rowLeft = true, delayMs = com.onedal.app.core.TapShift.PREVIEW_MS, dy = dy)
+    }
+
+    /**
+     * 🟩 **창 전체에 오더카드 꼴(«수락» · «숫자 P»)이 보이나 — 까닭 글, 없으면 null** (두 길이 누르기 직전에 같이 쓴다 · 리뷰).
+     * 요금 노드에서 창 뿌리까지 올라가 찾는다(걷기 없이 findAccessibilityNodeInfosByText).
+     */
+    private fun offerSignInWindow(node: android.view.accessibility.AccessibilityNodeInfo): String? {
+        var root: android.view.accessibility.AccessibilityNodeInfo = node
+        for (i in 0 until 40) root = root.parent ?: break
+        root.findAccessibilityNodeInfosByText("수락").firstOrNull { it.isVisibleToUser }?.let { return "창에 «${it.text}»가 보인다" }
+        root.findAccessibilityNodeInfosByText("P").firstOrNull { it.isVisibleToUser && KakaoPickerParser.isOfferPointButton(it.text?.toString().orEmpty()) }
+            ?.let { return "창에 오더카드 버튼 꼴 «${it.text}»가 보인다" }
+        return null
     }
 
     private val tabWords = setOf("신규", "내 오더")
@@ -202,17 +222,13 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
         if (com.onedal.app.core.TapShift.listMoving(fareY, bounds.centerY(), scrolledRecently = false))
             return hold("목록이 움직이는 중(스캔 Y=$fareY · 지금 Y=${bounds.centerY()})", B.LIST_MOVING)
         KakaoPickerParser.scrolledRowTapBlock(nodes, bounds.centerY())?.let { return hold("찍기 직전 — ${it.why}", it.key) }
-        var root: android.view.accessibility.AccessibilityNodeInfo = node
         val chain = mutableListOf<String>()
-        for (i in 0 until 40) {
-            val p = root.parent ?: break
-            if (chain.size < 6) chain.add("${p.className?.toString()?.substringAfterLast('.') ?: "?"}${if (p.isScrollable) "↕" else ""}")
-            root = p
+        var p = node.parent
+        while (p != null && chain.size < 6) {
+            chain.add("${p.className?.toString()?.substringAfterLast('.') ?: "?"}${if (p.isScrollable) "↕" else ""}")
+            p = p.parent
         }
-        root.findAccessibilityNodeInfosByText("수락").firstOrNull { it.isVisibleToUser }
-            ?.let { return hold("찍기 직전 — 창에 «${it.text}»가 보인다", B.ACCEPT_VISIBLE) }
-        root.findAccessibilityNodeInfosByText("P").firstOrNull { it.isVisibleToUser && KakaoPickerParser.isOfferPointButton(it.text?.toString().orEmpty()) }
-            ?.let { return hold("찍기 직전 — 창에 오더카드 버튼 꼴 «${it.text}»가 보인다", B.ACCEPT_VISIBLE) }
+        offerSignInWindow(node)?.let { return hold("찍기 직전 — $it", B.ACCEPT_VISIBLE) }
         com.onedal.app.core.AppLogger.i("1DAL_ALARM", LogTag.TAP,
             "👆 [내려간 목록에서 누름] ${order.fare}원 · 띠 아래끝 Y=${KakaoPickerParser.waitingBandBottom(nodes)} · 요금 Y=${bounds.centerY()}(스캔 $fareY) · 조상 ${chain.joinToString(" < ")}")
         // 👆 탭 줄 선 — 머리줄 길과 같은 도우미(라이브 10-01 01:02:56 6,622 요금 Y 2045 안 먹힘)
