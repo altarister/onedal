@@ -21,7 +21,7 @@ describe('📅 예약 셋', () => {
 
     it('목록 보고가 intel 에 적는다', () => {
         const scrap = read(join(SRC, 'routes/scrap.ts'));
-        expect(scrap).toMatch(/INSERT INTO intel \([^)]*reserved, reservedDay, reservedAt\)/);
+        expect(scrap).toMatch(/INSERT INTO intel \([^)]*reserved, reservedDay, reservedAt[,)]/);
         expect(scrap).toContain('(item as any).reservedDay ?? null');
     });
 

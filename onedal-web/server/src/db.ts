@@ -772,6 +772,8 @@ db.exec(`
 ensureColumns('intel', { targetApp: 'TEXT',
     /** 📅 예약 표시(1·0·NULL)·날(0 오늘 · 1 내일 · N · NULL)·시각 «HH:MM» — 앱이 읽어 싣는다 (reviews/23 · orders 칸 주석) */
     reserved: 'INTEGER', reservedDay: 'INTEGER', reservedAt: 'TEXT',
+    /** 🏷️ 실물 앱(real)인가 시뮬레이터(sim)인가 — 보고 본문 한 칸에서. 옛 앱은 NULL. 통계는 real 만 센다 (reviews/25) */
+    source: 'TEXT',
     // 🌐 픽커 수집 필드 셋 (기사님 확정 · 픽커_수집.md §5-①) — 인성 콜은 null
     itemSize: 'TEXT', pickupDistanceKm: 'REAL', tagsText: 'TEXT',
     /**

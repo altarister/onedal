@@ -65,6 +65,9 @@ router.post("/", (req, res) => {
         if (!data || !Array.isArray(data)) {
             return res.status(400).json({ error: "data 배열이 필요합니다" });
         }
+        /** 🏷️ 실물 앱인가 시뮬레이터인가 — 보고 한 칸(한 보고 = 한 화면). 모르는 값·옛 앱은 null (규칙 ④) */
+        const body = req.body as { source?: unknown };
+        const source = body.source === 'real' || body.source === 'sim' ? body.source : null;
 
         // 1. 기기 등록 여부 검증 (하드 락: 미등록 기기는 즉시 차단)
         if (!deviceId) {
@@ -95,7 +98,7 @@ router.post("/", (req, res) => {
         // 2. 비동기 Write Queue를 통해 밀려들어오는 데이터를 오류 없이 INSERT
         data.forEach(item => {
             dbQueue.runAsync(
-                "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText, vehicleType, deliveryDistanceKm, scheduleText, postTime, rawText, pickupX, pickupY, dropoffX, dropoffY, verdict, reserved, reservedDay, reservedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText, vehicleType, deliveryDistanceKm, scheduleText, postTime, rawText, pickupX, pickupY, dropoffX, dropoffY, verdict, reserved, reservedDay, reservedAt, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 userId === "ADMIN_USER" ? null : userId,
                 deviceId || null,
                 "INTEL_BULK",
@@ -130,7 +133,8 @@ router.post("/", (req, res) => {
                 /* 📅 예약 표시·날·시각 — 받아 적기만 (reviews/23 1단계) · 참/거짓이 아니면 모름(NULL) */
                 typeof (item as any).reserved === 'boolean' ? ((item as any).reserved ? 1 : 0) : null,
                 (item as any).reservedDay ?? null,
-                (item as any).reservedAt ?? null
+                (item as any).reservedAt ?? null,
+                source
             );
         });
 
