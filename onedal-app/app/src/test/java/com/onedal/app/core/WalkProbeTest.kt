@@ -20,13 +20,14 @@ class WalkProbeTest {
     @Test fun `캐시 확인 - 목록 · 알림 없이 5초 · 30초에 한 번 · 누름 대기 아님`() {
         fun probe(now: Long, lastEvent: Long = 0, lastProbe: Long = Long.MIN_VALUE / 2, list: Boolean = true, busy: Boolean = false, sdk: Int = 36) =
             WalkProbe.shouldProbeCache(sdk, now, lastEvent, lastProbe, list, busy)
-        assertTrue(probe(now = 5000))
-        assertFalse("알림 4.9초 전", probe(now = 4900))
+        assertTrue(probe(now = 5100, lastEvent = 100))
+        assertFalse("알림 4.9초 전", probe(now = 5000, lastEvent = 100))
+        assertFalse("붙은 뒤 알림을 한 번도 못 봤다 — 조용한지 모른다(설치 직후 «알림 없이 1078930초»)", probe(now = 5000, lastEvent = 0))
         assertFalse("30초 안에 또", probe(now = 40_000, lastEvent = 30_000, lastProbe = 20_000))
         assertTrue(probe(now = 60_000, lastEvent = 50_000, lastProbe = 20_000))
-        assertFalse("상세·다른 화면", probe(now = 5000, list = false))
-        assertFalse("누름이 걸려 있다", probe(now = 5000, busy = true))
-        assertFalse("SDK 33 미만", probe(now = 5000, sdk = 32))
+        assertFalse("상세·다른 화면", probe(now = 5100, lastEvent = 100, list = false))
+        assertFalse("누름이 걸려 있다", probe(now = 5100, lastEvent = 100, busy = true))
+        assertFalse("SDK 33 미만", probe(now = 5100, lastEvent = 100, sdk = 32))
     }
 
     @Test fun `새로 보인 줄 - 앞 세 개까지`() =

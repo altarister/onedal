@@ -21,6 +21,7 @@ object WalkProbe {
 
     fun shouldProbeCache(sdk: Int, nowMs: Long, lastEventMs: Long, lastProbeMs: Long, isListScreen: Boolean, busy: Boolean): Boolean =
         sdk >= PREFETCH_MIN_SDK && isListScreen && !busy &&
+            lastEventMs > 0 &&   // 붙은 뒤 알림을 한 번도 못 봤으면 조용한지 모른다
             nowMs - lastEventMs >= QUIET_MS && nowMs - lastProbeMs >= CACHE_PROBE_EVERY_MS
 
     /** 비운 뒤에 새로 보인 줄 — 앞 [max] 개 (세곡 같은 줄이 새로 나타나면 캐시가 낡았던 것) */
