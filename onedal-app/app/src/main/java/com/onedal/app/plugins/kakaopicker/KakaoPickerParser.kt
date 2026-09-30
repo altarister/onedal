@@ -546,7 +546,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
              */
             val withFare = detailFare?.let { byPickupWith(it) }
             val fare = detailFare?.takeIf { withFare!!.isNotEmpty() }
-            val byPickup = withFare?.takeIf { it.isNotEmpty() } ?: byPickupWith(null)
+            val byPickup = mergePartialRows(withFare?.takeIf { it.isNotEmpty() } ?: byPickupWith(null))
             val how = when {
                 fare != null -> "요금 ${fare}원 · 픽업지"
                 detailFare != null -> "요금 달라(상세 최종 수익 ${detailFare}원인 목록 줄 없음) 요금 없이 픽업지${if (size != null) " · 크기 $size" else ""}"
@@ -588,8 +588,10 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun photoMatchReport(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>, fareUnread: Boolean = false): String {
             val s = photoMatchSteps(pickup, dropoff, recent)
             val same = if (s[3].size > 1) com.onedal.app.core.ListSightings.latestOfSameCall(s[3]) else null
+            val merged = s[2].distinctBy { Triple(it.pickup, it.dropoff, it.fare) }.size > s[3].size
             val twin = if (s[3].size > 1 && same == null && fareUnread) com.onedal.app.core.ListSightings.lowestOfTwins(s[3]) else null
             return "최근 목록 ${recent.size}줄 · 상차 맞음 ${s[0].size} · 하차 맞음 ${s[1].size} · km 맞음 ${s[2].size} · 다른 콜 ${s[3].size}" +
+                (if (merged) " · 같은 콜을 동 없이 읽은 줄 합침" else "") +
                 (same?.let { " · 같은 콜이 요금만 올랐다(${s[3].joinToString(" → ") { c -> "${c.fare}" }}) — 마지막에 본 ${it.fare}원" } ?: "") +
                 (twin?.let { " · 같은 경로 요금 둘 — 낮은 ${"%,d".format(it.first.fare)}" } ?: "") +
                 // 🔎 km 까지 맞은 후보가 여럿이면 무엇이었는지(목록 줄임 이름 · 요금) — 못 고른 까닭을 로그로 가른다
@@ -603,7 +605,22 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val byPickup = recent.filter { c -> cardKeys(c.pickup).let { k -> k.isNotEmpty() && k.all { it in pickupKeys } } }
             val byDropoff = byPickup.filter { c -> cardKeys(c.dropoff).let { k -> k.isNotEmpty() && k.all { it in dropoffKeys } } }
             val byKm = byDropoff.filter { c -> c.pickupDistance != null && kotlin.math.abs(c.pickupDistance - pickup.straightKm) <= PHOTO_MATCH_KM }
-            return listOf(byPickup, byDropoff, byKm, byKm.distinctBy { Triple(it.pickup, it.dropoff, it.fare) })
+            return listOf(byPickup, byDropoff, byKm, mergePartialRows(byKm.distinctBy { Triple(it.pickup, it.dropoff, it.fare) }))
+        }
+
+        /**
+         * 🧩 **같은 콜을 동 없이 읽은 줄은 합친다** (`PickerPartialRowMergeTest` · 라이브 09-30 20:47:56 «분당 삼평→강남 일원본» · «분당→강남» 10,920).
+         * 요금이 같고 픽업 km 가 같으며(0.1 안), 한 줄의 상차·하차 토막이 다른 줄의 부분집합이면 토막이 적은 줄을 뺀다 —
+         * 덜 그려진 카드가 동 없이 읽힌 것이다. 요금이 같으니 합쳐도 고르는 요금이 틀릴 수 없다. 부분집합이 아닌 줄은 그대로 남는다.
+         */
+        fun mergePartialRows(cands: List<SimplifiedOfficeOrder>): List<SimplifiedOfficeOrder> = cands.filter { c ->
+            val cp = cardKeys(c.pickup).toSet(); val cd = cardKeys(c.dropoff).toSet()
+            cands.none { d ->
+                d !== c && d.fare == c.fare &&
+                    c.pickupDistance != null && d.pickupDistance != null && kotlin.math.abs(c.pickupDistance - d.pickupDistance) <= 0.1 &&
+                    cardKeys(d.pickup).toSet().let { dp -> dp.containsAll(cp) } && cardKeys(d.dropoff).toSet().let { dd -> dd.containsAll(cd) } &&
+                    cardKeys(d.pickup).size + cardKeys(d.dropoff).size > cp.size + cd.size
+            }
         }
 
         /** 사진 픽업 km 와 목록 줄 픽업 km 의 허용 차 — 둘 다 소수 한 자리 직선거리다 */

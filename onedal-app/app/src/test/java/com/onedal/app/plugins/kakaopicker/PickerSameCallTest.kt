@@ -52,3 +52,26 @@ class PickerSameCallTest {
         assertNull(KakaoPickerParser.photoMatchCard(pickupStop, dropoffStop, listOf(a, b)))
     }
 }
+
+/**
+ * 🧩 **같은 콜을 동 없이 읽은 줄은 합친다** — 라이브 09-30 20:47:56 손 상세
+ * «후보 10,920(분당 삼평→강남 일원본 16.5km) · 10,920(분당→강남 16.5km)» → 요금 없음으로 버렸다(덜 그려진 카드가 동 없이 읽힘).
+ * 요금·km 가 같고 한 줄의 토막이 다른 줄의 부분집합이면 토막이 많은 줄 하나로(합쳐도 고르는 요금이 틀릴 수 없다).
+ */
+class PickerPartialRowMergeTest {
+    @Before @After fun clear() = ListSightings.clear()
+
+    private fun card(pickup: String, dropoff: String) =
+        SimplifiedOfficeOrder(id = "$pickup$dropoff", pickup = pickup, dropoff = dropoff, fare = 10920, timestamp = "t", pickupDistance = 16.5)
+    private val pickupStop = PickerStopFromImage("경기 성남시 분당구 삼평동", null, 16.5, null)
+    private val dropoffStop = PickerStopFromImage("서울 강남구 일원본동", null, 3.0, null)
+
+    @Test fun `동 없이 읽은 줄은 합친다 - 20시47분56초 두 후보`() {
+        val full = card("분당 삼평", "강남 일원본"); val partial = card("분당", "강남")
+        assertEquals("분당 삼평", KakaoPickerParser.photoMatchCard(pickupStop, dropoffStop, listOf(full, partial))?.pickup)
+        assertEquals(true, KakaoPickerParser.photoMatchReport(pickupStop, dropoffStop, listOf(full, partial)).contains("같은 콜을 동 없이 읽은 줄 합침"))
+    }
+
+    @Test fun `서로 부분집합이 아니면 합치지 않는다 - 안 고름`() =
+        assertNull(KakaoPickerParser.photoMatchCard(pickupStop, dropoffStop, listOf(card("분당 삼평", "강남"), card("분당", "강남 일원본"))))
+}
