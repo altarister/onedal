@@ -365,11 +365,19 @@ export async function calculateSoloRoute(
     avoid?: string,
 ): Promise<RouteResult> {
     const url = buildSoloRouteUrl(pickupX, pickupY, dropoffX, dropoffY, driverLoc, priority, carType, skipPickup, avoid);
-    /* 🏃 1차 신호에서 미리 출발한 같은 질문이면 그것을 받아 쓴다 — 가져간 것은 보관에서 뺀다(한 번만 쓴다) */
+    /**
+     * 🏃 1차 신호에서 미리 출발한 같은 질문이면 그것을 받아 쓴다 — 가져간 것은 보관에서 뺀다(한 번만 쓴다).
+     *    미리 출발 쪽 칸에서 나간 «한 번 더»도 이 판정 칸에 더한다 — 판정 시간 줄의 «다시»가 그것까지 센다.
+     */
     const early = soloRoutePrefetched.get(url);
     if (early) {
         soloRoutePrefetched.delete(url);
-        return early;
+        const result = await early.p;
+        const again = early.budget?.used ?? 0;
+        const judging = hedgeBudget.getStore();
+        if (judging && again) judging.used += again;
+        slog('판정', `🏃 [미리 출발 받음] 출발 뒤 ${Date.now() - early.startedAt}ms · 다시 ${again}`);
+        return result;
     }
     return fetchSoloRoute(url, !!driverLoc);
 }
@@ -380,7 +388,8 @@ export async function calculateSoloRoute(
  * 실패하면 곧바로 보관에서 뺀다(판정이 새로 묻게). 보관이 끝날 때까지 안 가져가면(문지기에 막힌 콜) 한 줄로 센다.
  */
 const SOLO_PREFETCH_KEEP_MS = 15_000;
-const soloRoutePrefetched = new Map<string, Promise<RouteResult>>();
+/** 보관 — 요청 · 출발 시각 · 미리 출발의 «한 번 더» 칸(판정이 받아 쓸 때 제 칸에 더한다) */
+const soloRoutePrefetched = new Map<string, { p: Promise<RouteResult>; startedAt: number; budget: { used: number } | null }>();
 
 export function prefetchSoloRoute(
     pickupX: number, pickupY: number,
@@ -392,10 +401,11 @@ export function prefetchSoloRoute(
     const url = buildSoloRouteUrl(pickupX, pickupY, dropoffX, dropoffY, driverLoc, priority, carType, false, undefined);
     if (soloRoutePrefetched.has(url)) return;
     const p = fetchSoloRoute(url, !!driverLoc);
-    soloRoutePrefetched.set(url, p);
-    p.catch(() => { if (soloRoutePrefetched.get(url) === p) soloRoutePrefetched.delete(url); });
+    const kept = { p, startedAt: Date.now(), budget: hedgeBudget.getStore() ?? null };
+    soloRoutePrefetched.set(url, kept);
+    p.catch(() => { if (soloRoutePrefetched.get(url) === kept) soloRoutePrefetched.delete(url); });
     setTimeout(() => {
-        if (soloRoutePrefetched.get(url) !== p) return;
+        if (soloRoutePrefetched.get(url) !== kept) return;
         soloRoutePrefetched.delete(url);
         slog('판정', `🏃 [미리 출발] ${pickupX.toFixed(4)},${pickupY.toFixed(4)} → ${dropoffX.toFixed(4)},${dropoffY.toFixed(4)} — ${SOLO_PREFETCH_KEEP_MS / 1000}초 안에 판정 안 옴 (카카오 길찾기 1번 헛씀)`);
     }, SOLO_PREFETCH_KEEP_MS).unref?.();
