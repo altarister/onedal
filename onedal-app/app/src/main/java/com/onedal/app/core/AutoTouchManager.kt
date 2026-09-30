@@ -34,6 +34,11 @@ class AutoTouchManager(private val service: AccessibilityService) {
     /** 먹혔다고 판정한 마지막 누르기 — 잔상 착각을 막으려고 누른 뒤 잠깐 더 같은 누름을 막는다 (`TapInFlight.blocks`) */
     private var lastTaken: TapInFlight.Record? = null
     private var tapSeq = 0L
+    /** ✋ 앱이 마지막으로 터치를 쏜 때 · 뒤로 가기를 보낸 때(부팅 기준) — 손과 가르는 재료 (`HandFirst`) */
+    var lastAppTapAtMs = 0L
+        private set
+    var lastAppBackAtMs = 0L
+        private set
     /** 시스템이 무시했을 때 한 번 더 부를 길 — 저장한 좌표가 아니라 같은 함수를 다시 부른다(버튼은 다시 찾고, 자리는 다시 잰다) */
     private var inFlightRefire: (() -> Unit)? = null
     /** 지금 화면 종류 — 화면 알림마다 `onScreen` 이 적는다 */
@@ -288,6 +293,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
         val seq = ++tapSeq
         inFlight = TapInFlight.Record(seq, key, screenNow, android.os.SystemClock.elapsedRealtime(), refired = isRefire)
         inFlightRefire = refire
+        lastAppTapAtMs = android.os.SystemClock.elapsedRealtime()
         val dispatched = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 super.onCompleted(gestureDescription)
@@ -404,6 +410,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
         }
 
         val dispatched = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+        if (dispatched) lastAppBackAtMs = android.os.SystemClock.elapsedRealtime()
         // 전역 동작은 «끝났다» 알림이 없다 — 보내는 순간 끝난 것으로 적는다
         if (dispatched) {
             inFlight = TapInFlight.Record(++tapSeq, BACK_KEY, screenNow, android.os.SystemClock.elapsedRealtime(), completed = true)

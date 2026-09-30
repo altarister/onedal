@@ -236,6 +236,17 @@ class HijackService : AccessibilityService(), ScanContext {
     private var detailFoldOrderId: String? = null
     /** 📏 앱이 상세에서 뒤로 가기를 보낸 때(부팅 기준) — 목록 확인까지 ms 를 로그에 남긴다 (0 = 없음) */
     private var lastBackAtMs = 0L
+    /** ✋ 기사님 손이 먼저 — 손 흔적 · 멈추면 곧바로 다시 읽기 (`HandFirst`) */
+    private val handFirst = com.onedal.app.core.HandFirst()
+    private var lastHandWhy = ""
+    private val handQuietRead = Runnable { reservedRead("손 멈춤") }
+
+    private fun onHand(why: String) {
+        handFirst.onHand(android.os.SystemClock.elapsedRealtime())
+        lastHandWhy = why
+        mainHandler.removeCallbacks(handQuietRead)
+        mainHandler.postDelayed(handQuietRead, com.onedal.app.core.HandFirst.QUIET_MS + 50)
+    }
 
     /**
      * 🚚 마지막으로 알아본 픽커 운행 단계 — **바뀔 때만 로그를 남기려고** 들고 있다.
@@ -274,6 +285,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val now = android.os.SystemClock.elapsedRealtime()
         val opener = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.detailOpener(alarmTapAtMs, now)
         alarmTapAtMs = 0L
+        if (opener == com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.OPENER_HAND) onHand("손으로 연 상세")
         detailBackOpener = opener
         detailBackArmedAtMs = now
         detailBackDeadlineMs = now + delayMs
@@ -622,6 +634,7 @@ class HijackService : AccessibilityService(), ScanContext {
         mainHandler.removeCallbacks(listWatchdog)
         mainHandler.removeCallbacks(afterDiscardRead)
         mainHandler.removeCallbacks(heldAlarmRecheck)
+        mainHandler.removeCallbacks(handQuietRead)
         super.onDestroy()
         live = null
         if (::screenReader.isInitialized) screenReader.close()
@@ -696,6 +709,8 @@ class HijackService : AccessibilityService(), ScanContext {
             val live = TargetApp.isKakaoPickerApp(pkg)
             // 👆 픽커 · 시뮬레이터 · 마지막으로 배차망 화면이던 앱(인성·화물24) — 누름은 기록이 꺼져 있어도 늘 남기고 올린다
             if (TargetApp.isNetworkPackage(pkg, lastNetworkPackage)) {
+                // ✋ 앱이 쏜 터치의 메아리가 아니면 기사님 손 (인성·24 · 픽커는 목록 줄 누름에 알림을 안 낸다)
+                if (com.onedal.app.core.HandFirst.isClickHand(android.os.SystemClock.elapsedRealtime(), touchManager.lastAppTapAtMs)) onHand("누름")
                 val nodeTexts = mutableListOf<String>()
                 event.source?.let { gatherNodeTexts(it, nodeTexts) }
                 val label = com.onedal.app.plugins.kakaopicker.PickerTrace.clickLabelOf(event.text, event.contentDescription, nodeTexts)
@@ -736,6 +751,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 scrollGate.scrolledRecently(now))) {
             com.onedal.app.core.EventRoute.Route.IGNORE -> Unit
             com.onedal.app.core.EventRoute.Route.SCROLL_SCAN -> {
+                onHand("스크롤")   // ✋ 앱은 스크롤하지 않는다 — 스크롤 알림은 기사님 손이다
                 touchedAtMs = now   // ✋ 목록을 만진다 — 10초 동안 조용한 다시 읽기를 촘촘히
                 mainHandler.removeCallbacks(scrollScan)
                 mainHandler.postDelayed(scrollScan, (scrollGate.onScroll(now) - now).coerceAtLeast(0))
@@ -1012,12 +1028,15 @@ class HijackService : AccessibilityService(), ScanContext {
             listBlindSinceMs = System.currentTimeMillis()
             alarmHold.clear()   // ⏳ 목록을 떠났다 — 미룬 알람을 버린다
             mainHandler.removeCallbacks(heldAlarmRecheck)
+            mainHandler.removeCallbacks(handQuietRead)
             mainHandler.removeCallbacks(afterDiscardRead)
         }
         if (isListScreen && !wasListScreen) {
             AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
             resetSessionState()
             // 📏 앱이 뒤로 간 복귀면 목록 확인까지 ms — 목록 보고는 화면이 바뀐 순간 곧바로 나간다(`updateScreenContext`)
+            // ✋ 앱이 뒤로 가기를 안 보냈는데 목록으로 왔다 — 기사님 손(넘기기·뒤로)
+            if (android.os.SystemClock.elapsedRealtime() - touchManager.lastAppBackAtMs > com.onedal.app.core.HandFirst.QUIET_MS) onHand("상세 → 목록")
             if (lastBackAtMs > 0L) {
                 AppLogger.i(TAG, LogTag.SCREEN, "↩️ [목록 확인] 뒤로 간 뒤 ${android.os.SystemClock.elapsedRealtime() - lastBackAtMs}ms — 목록 보고 곧바로 보냄")
                 lastBackAtMs = 0L
@@ -1448,8 +1467,21 @@ class HijackService : AccessibilityService(), ScanContext {
          * ⏳ **목록이 움직이는 틀이면 통과 콜을 미룬다** (`AlarmHold` · 기사님 «가») — 덜 그려진 카드로 울리지 않게.
          * 다음 읽기에서 같은 조립이면 울리고(미룬 ms), 달라졌으면 버린다. 조용한 목록의 새 콜은 바로.
          */
+        /**
+         * 🔴 누를 콜은 늘 방금 읽은 화면에서 고른다 — 담아 두지 않는다 (기사님 · onedal-1f).
+         * 담아 둔 사이 줄이 움직이면 엉뚱한 줄·오더카드를 누른다(09-13) — 사라짐·요금 바뀜·더 좋은 콜을 대기열은 모른다.
+         * ✋ 기사님 손이 먼저 — 손이 움직인 뒤 3초는 소리도 누르기도 미루고, 멈추면 곧바로 다시 읽어 그 화면에서 고른다 (`HandFirst`).
+         */
+        val tapNowMs = android.os.SystemClock.elapsedRealtime()
+        val handHeld = tapsFromList && !session.openedByApp && bestIdx >= 0 && handFirst.blocks(tapNowMs)
+        if (handHeld) {
+            handFirst.hold(tapNowMs)
+            if (LogOnce.changed("hand-first", "${handFirst.lastHandAtMs}"))
+                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "✋ [손 먼저] 기사님 손 ${"%.1f".format((tapNowMs - handFirst.lastHandAtMs) / 1000.0)}초 전($lastHandWhy) — 앱 누르기 미룸 · 멈추면 곧바로 다시 읽는다")
+        }
+        val handReleasedMs = if (handHeld || bestIdx < 0) null else handFirst.releasedMs(tapNowMs)
         var holdFires = false
-        if (tapsFromList && !session.openedByApp) {
+        if (tapsFromList && !session.openedByApp && !handHeld) {
             val best = if (bestIdx >= 0) alarmHits[bestIdx] else null
             val label = best?.first?.let { "${it.pickup}→${it.dropoff} ${"%,d".format(it.fare)}원 · 예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(it)}" }
             val d = alarmHold.decide(best?.third, label, scanMoving, android.os.SystemClock.elapsedRealtime())
@@ -1488,6 +1520,7 @@ class HijackService : AccessibilityService(), ScanContext {
                         withBorder = false,
                         withSound = true,
                     )
+                    handReleasedMs?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [미룬 알람 울림] +${it}ms · 손 먼저") }
                 }
                 // 👆 누르기 전 안전 확인과 누를 자리는 배차망이 정한다 (픽커: 오더카드를 피한다)
                 val tap = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).planListTap(allNodes, order, fareNode)
