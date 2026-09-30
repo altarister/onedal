@@ -112,3 +112,16 @@ describe('🔁 ⑰ /detail 재시도 — 같은 판정을 기다린다', () => {
         jest.useRealTimers();
     });
 });
+
+describe('⏲️ 세션을 지우면 그 세션의 콜 타이머도 꺼진다', () => {
+    it('🔴 clearUserSession 뒤 그 세션이 건 타이머가 울리지 않는다 — 새 세션에 옛 콜 취소가 걸리지 않게', () => {
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+        const fired = jest.fn();
+        const s = getUserSession('test-timer-clear');
+        s.activeTimers.set('timeout_x', setTimeout(fired, 1000));
+        clearUserSession('test-timer-clear');
+        jest.advanceTimersByTime(2000);
+        expect(fired).not.toHaveBeenCalled();
+        jest.useRealTimers();
+    });
+});

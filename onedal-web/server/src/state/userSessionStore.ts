@@ -521,7 +521,12 @@ export function getAllActiveUserIds(): string[] {
 
 // 명시적 로그아웃 시 메모리 세션 파기용 함수
 export function clearUserSession(userId: string): void {
-    if (sessions.has(userId)) {
+    const session = sessions.get(userId);
+    if (session) {
+        /* ⏲️ 그 세션이 건 콜 타이머도 끈다 — 안 끄면 파기한 세션의 안전취소가 나중에 울려 userId 로 **새 세션**을 만들고 거기에 옛 콜 취소를 건다
+              (로그아웃 뒤 다시 로그인 · 검사의 세션 비우기) */
+        for (const t of session.activeTimers.values()) clearTimeout(t);
+        session.activeTimers.clear();
         sessions.delete(userId);
         slog('부팅', `🧹 [Session] 유저 ${userId} 메모리 세션 완전 파기 완료`);
     }
