@@ -57,8 +57,10 @@ object PickerScreenOcr {
      *    **주소 뒤에** 붙기도 한다. `^` 로 묶어 두면 뒤 모양을 통째로 놓친다 —
      *    사진에 배송지가 또렷한데 「머리 둘 누락」으로 버렸다 (이상 기록 #46·#48·#39).
      *    지도 라벨과 섞이는 것은 `^` 가 아니라 «먼저 나오는 것 하나만» 이 막는다.
+     * 🔴 **숫자와 km 사이 오독 한 글자는 봐준다** — 실물 «픽업 14.7가km»(09-30 12:52 · 이상 기록 id 33)로 머리를 못 찾아 콜을 놓쳤다.
+     *    한 글자(숫자·빈칸 아닌 것)까지만 — 더 느슨하면 지도 라벨이 걸린다.
      */
-    private val HEAD_RE = Regex("(?:^|\\s)(픽업|배송)\\s*([0-9]+(?:\\.[0-9]+)?)\\s*km")
+    private val HEAD_RE = Regex("(?:^|\\s)(픽업|배송)\\s*([0-9]+(?:\\.[0-9]+)?)\\s*[^\\s\\d]?\\s*km")
 
     /** `내일 15:00` · `오늘 9:20` · `15:00` */
     private val TIME_RE = Regex("^(오늘|내일|모레)?\\s*([0-9]{1,2}:[0-9]{2})$")
@@ -66,8 +68,13 @@ object PickerScreenOcr {
     /**
      * `10:00까지 픽업` · `12:39까지 배송` — **오늘 콜**은 시각이 이 꼴로 온다 (A24 실측).
      * 🔴 이 줄을 시각으로 안 보면 **건물명 자리에 들어간다** — 첫 판에서 그랬다.
+     * 🔴 시각과 «픽업|배송» 사이 두 글자까지는 오독을 봐준다 — 실물 «16:55가지 배송»(09-30 12:54 · 이상 기록 id 34).
+     *    화면에 적힌 뜻대로 «HH:MM까지»로 돌려준다.
      */
-    private val DEADLINE_RE = Regex("^([0-9]{1,2}:[0-9]{2}까지)\\s*(픽업|배송)$")
+    private val DEADLINE_RE = Regex("^([0-9]{1,2}:[0-9]{2})\\s*\\S{0,2}\\s*(픽업|배송)$")
+
+    /** 🔴 시각으로 시작하는 줄은 장소(건물 이름)가 아니다 — 오독으로 시각 꼴이 깨져도 건물 이름 자리에 들어가지 않게 */
+    private val CLOCK_START = Regex("^[0-9]{1,2}:[0-9]{2}")
 
     private val SIZE_RE = Regex("^(초소형|소형|중형|대형)")
 
@@ -85,7 +92,16 @@ object PickerScreenOcr {
 
     /** 시각 줄이면 화면에 적힌 시각 그대로(`내일 15:00` · `10:00까지`), 아니면 null */
     private fun timeOf(text: String): String? =
-        TIME_RE.find(text)?.value?.trim() ?: DEADLINE_RE.find(text)?.groupValues?.get(1)
+        TIME_RE.find(text)?.value?.trim() ?: DEADLINE_RE.find(text)?.groupValues?.get(1)?.let { "${it}까지" }
+
+    /**
+     * 📸 **머리가 없는 쪽** — 판독 실패 까닭을 «픽업 머리 없음»처럼 이름으로 (`PickerDetailOcrParser.failureReason`).
+     * 머리 둘이 다 있는데 실패했으면 빈 목록 — 행정동 줄을 못 찾은 것이다.
+     */
+    fun missingHeads(lines: List<OcrLine>): List<String> {
+        val found = lines.mapNotNull { HEAD_RE.find(stripBullet(it.text))?.groupValues?.get(1) }.toSet()
+        return listOf("픽업", "배송").filter { it !in found }
+    }
 
     /**
      * 머리(`픽업 Nkm`·`배송 Nkm`) 둘이 다 없으면 **`null`** — 반쪽짜리를 만들지 않는다 (규칙 ④).
@@ -121,7 +137,7 @@ object PickerScreenOcr {
         // ⑤ 칸에 안 넣은 줄 — 버리지 않고 돌려준다(유의사항 · 꼬리표 · 버튼 …). 픽커가 상세를 바꾸면 여기서 먼저 보인다
         val used = setOfNotNull(pickup.admin, pickup.place, dropoff.admin, dropoff.place, itemSize)
         val unreadLines = sorted.map { it.text }.filter {
-            it !in used && !HEAD_RE.containsMatchIn(it) && timeOf(it) == null && !it.contains("픽업예약")
+            it !in used && !HEAD_RE.containsMatchIn(it) && timeOf(it) == null && !CLOCK_START.containsMatchIn(it) && !it.contains("픽업예약")
         }
 
         return PickerDetailFromImage(pickup, dropoff, itemSize, reserved, unreadLines)
@@ -137,7 +153,7 @@ object PickerScreenOcr {
 
         // 건물명 — 머리·행정동·시각을 뺀 나머지 첫 줄
         val place = block.firstOrNull {
-            it.text != admin && !HEAD_RE.containsMatchIn(it.text) && timeOf(it.text) == null
+            it.text != admin && !HEAD_RE.containsMatchIn(it.text) && timeOf(it.text) == null && !CLOCK_START.containsMatchIn(it.text)
         }?.text
 
         return PickerStopFromImage(admin = admin, place = place, straightKm = head.km, at = at)

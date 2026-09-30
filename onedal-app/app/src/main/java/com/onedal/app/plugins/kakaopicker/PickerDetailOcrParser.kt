@@ -28,6 +28,11 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
          * 💰 화면 텍스트에서 요금(예: "9,693P", "9693P", "15,000원") 추출
          */
         fun extractFareFromTexts(texts: List<String>): Int {
+            // «최종 수익 11,249» — 원·P 가 안 붙는다 (실물 09-30 12:54 · 이상 기록 id 34 · 목록 대조와 같은 규칙)
+            for (text in texts) {
+                val v = KakaoPickerParser.DETAIL_FARE_REGEX.find(text)?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull()
+                if (v != null && v > 0) return v
+            }
             val fareRe = Regex("([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{3,})\\s*(?:P|p|원)")
             for (text in texts) {
                 val match = fareRe.find(text)
@@ -47,6 +52,12 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
 
     override fun parse(lines: List<OcrLine>): PickerDetailFromImage? {
         return PickerScreenOcr.parseDetail(lines)
+    }
+
+    /** 📸 판독 실패 까닭 — 없는 머리를 이름으로, 머리가 다 있으면 주소 줄 */
+    override fun failureReason(lines: List<OcrLine>): String {
+        val missing = PickerScreenOcr.missingHeads(lines)
+        return if (missing.isEmpty()) "행정동 줄 없음" else missing.joinToString("·") + " 머리 없음"
     }
 
     sealed class VerifyResult {

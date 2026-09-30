@@ -25,4 +25,7 @@ interface ScreenOcrParser<T> {
      *    파싱 실패 시 null 반환
      */
     fun parse(lines: List<OcrLine>): T?
+
+    /** 3. 파싱이 null 일 때 왜인가 — 없는 쪽을 이름으로(이상 기록에 실린다). 모르면 null */
+    fun failureReason(lines: List<OcrLine>): String? = null
 }

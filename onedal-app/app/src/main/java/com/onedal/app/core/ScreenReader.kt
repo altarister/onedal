@@ -154,7 +154,7 @@ class ScreenReader(private val service: AccessibilityService) {
                         if (parsed == null) {
                             AppLogger.w(TAG, "👀 [스냅샷 판독 실패] 파서가 결과를 반환하지 못함 · ${lines.size}줄 (${totalMs}ms)"
                                 + (shot?.let { " · 사진 " + it } ?: " · 사진 저장 실패"))
-                            onParseFailed("머리 둘(픽업/배송) 누락", lines)
+                            onParseFailed(parser.failureReason(lines) ?: "파서가 결과를 못 냄", lines)
                             return@addOnSuccessListener
                         }
                         AppLogger.i(TAG, LogTag.CALL_STAGE, "📸 [스냅샷] 사진 " + (shot ?: "저장 실패"))

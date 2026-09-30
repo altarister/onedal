@@ -400,7 +400,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /** 👀 상세 화면 ↔ 리스트 카드 대조 결과 — 못 고르면 `card = null` 과 그 까닭 (#119) */
         data class ListCardMatch(val card: SimplifiedOfficeOrder?, val why: String)
 
-        private val DETAIL_FARE_REGEX = Regex("""최종 수익\s*([\d,]+)""")
+        /** 💰 상세의 «최종 수익 N» — 목록 줄 대조와 사진 판독의 요금 찾기가 같이 쓴다 (한 벌) */
+        internal val DETAIL_FARE_REGEX = Regex("""최종 수익\s*([\d,]+)""")
         /** 상세의 «픽업 7.2km» — 이 앞은 픽업지 칸, 뒤는 배송지 칸이다 */
         private val DETAIL_PICKUP_KM_REGEX = Regex("""픽업\s*[\d.]+\s*k?m""")
 
