@@ -235,6 +235,25 @@ class HijackService : AccessibilityService(), ScanContext {
     /** ⏩ 상세 대기 마감(부팅 기준) · 판정 뒤 접기로 당겼으면 그 콜 (`DetailFold`) */
     private var detailBackDeadlineMs: Long? = null
     private var detailFoldOrderId: String? = null
+    /** ⏩ 상세 대기 원래 마감(빨리 접기 풂에 되돌릴 자리) · 기사님 손으로 빨리 접기를 푼 콜 */
+    private var detailBackOrigDeadlineMs: Long? = null
+    private var foldReleasedOrderId: String? = null
+
+    /** ⏩ 앱이 연 상세에서 기사님 손(스크롤·누름) — 빨리 접기를 풀어 원래 마감으로 (기사님이 보고 계신 콜을 앱이 닫지 않는다 · 1f «가») */
+    private fun releaseFoldOnHand(why: String) {
+        if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) return
+        val orderId = detailFoldOrderId ?: return
+        val r = detailBackRunnable ?: return
+        val orig = detailBackOrigDeadlineMs ?: return
+        val now = android.os.SystemClock.elapsedRealtime()
+        foldReleasedOrderId = orderId
+        detailFoldOrderId = null
+        if (orig > now) {
+            waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, orig - now) { r.run() }
+            detailBackDeadlineMs = orig
+        }
+        AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏩ [빨리 접기 풂] 상세에 손($why) — 원래 마감으로 (${maxOf(0L, orig - now) / 1000}초 남음) · 콜 $orderId")
+    }
     /** 📏 앱이 상세에서 뒤로 가기를 보낸 때(부팅 기준) — 목록 확인까지 ms 를 로그에 남긴다 (0 = 없음) */
     private var lastBackAtMs = 0L
     /** ✋ 기사님 손이 먼저 — 손 흔적 · 멈추면 곧바로 다시 읽기 (`HandFirst`) */
@@ -301,7 +320,9 @@ class HijackService : AccessibilityService(), ScanContext {
         detailBackOpener = opener
         detailBackArmedAtMs = now
         detailBackDeadlineMs = now + delayMs
+        detailBackOrigDeadlineMs = now + delayMs
         detailFoldOrderId = null
+        foldReleasedOrderId = null
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, true)          // ⏱️ [1초 고속 무전] 상세에 머무는 동안 서버 판결(유지/취소)을 1초마다 물어본다
         AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 (1초 주기 판결 수신 가동) · 연 쪽: $opener")
         val r = Runnable {
@@ -333,23 +354,24 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     /** ⏩ 판정 뒤 접기 — 걸린 상세 대기의 마감을 서버가 준 남은 초로 당긴다(더 이를 때만) · 조건은 `DetailFold` */
-    private fun onFoldAfter(orderId: String, remainSec: Int) {
+    private fun onFoldAfter(orderId: String, remainMs: Long) {
         val now = android.os.SystemClock.elapsedRealtime()
         val sameOrder = orderId == session.currentOrderId
         val onDetail = telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
-        val why = com.onedal.app.core.engine.DetailFold.whyNot(detailBackDeadlineMs, now, remainSec, sameOrder, session.openedByApp, onDetail)
+        val why = if (foldReleasedOrderId == orderId) "상세에 손 · 풂"
+            else com.onedal.app.core.engine.DetailFold.whyNot(detailBackDeadlineMs, now, remainMs, sameOrder, session.openedByApp, onDetail)
         // 🔎 받은 때와 까닭 — 콜마다 까닭이 바뀔 때만 한 줄 (서버 «⏩ [빨리 접기] 폰에 처음 알림»과 맞댄다)
         if (LogOnce.changed("fold-after:$orderId", why ?: "당김"))
-            AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏩ [foldAfter 받음] 콜 $orderId · 남은 ${remainSec}초 · ${why?.let { "무시 — $it" } ?: "당김"} (지금 콜 ${session.currentOrderId.ifEmpty { "없음" }})")
+            AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏩ [foldAfter 받음] 콜 $orderId · 남은 ${"%.1f".format(remainMs / 1000.0)}초 · ${why?.let { "무시 — $it" } ?: "당김"} (지금 콜 ${session.currentOrderId.ifEmpty { "없음" }})")
         if (why != null) return
         val r = detailBackRunnable ?: return
-        val deadline = com.onedal.app.core.engine.DetailFold.newDeadlineMs(detailBackDeadlineMs, now, remainSec,
+        val deadline = com.onedal.app.core.engine.DetailFold.newDeadlineMs(detailBackDeadlineMs, now, remainMs,
             sameOrder = sameOrder, openedByApp = session.openedByApp, onPreConfirmDetail = onDetail) ?: return
         val leftSec = ((detailBackDeadlineMs ?: now) - now) / 1000
         waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, deadline - now) { r.run() }   // 같은 이름 — 앞의 것을 거두고 당겨 건다
         detailBackDeadlineMs = deadline
         detailFoldOrderId = orderId
-        AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏩ [상세 대기 줄임] 서버 판정 뒤 접기 — ${remainSec}초 뒤 목록으로 (원래 ${leftSec}초 남음) · 콜 $orderId")
+        AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏩ [상세 대기 줄임] 서버 판정 뒤 접기 — ${"%.1f".format(remainMs / 1000.0)}초 뒤 목록으로 (원래 ${leftSec}초 남음) · 콜 $orderId")
     }
 
     private fun cancelDetailBack() {
@@ -361,6 +383,8 @@ class HijackService : AccessibilityService(), ScanContext {
         detailBackRunnable = null
         detailBackDeadlineMs = null
         detailFoldOrderId = null
+        detailBackOrigDeadlineMs = null
+        foldReleasedOrderId = null
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, false)         // ⏱️ 상세 대기 해제 시 1초 무전 종료
     }
     override lateinit var collectMachine: DetailCollectMachine
@@ -517,6 +541,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 val tappedKey = session.alarmTappedCard?.let { "call:${CallMemory.fingerprintOf(it)}" }
                 if (com.onedal.app.core.engine.DetailOwner.releaseOnTapFailed(session.openedByApp, f.key, tappedKey, f.screen == ScreenContext.LIST)) {
                     AppLogger.i(TAG, LogTag.TAP, "👆 [앱이 연 콜 되돌림] 누르기 안 먹힘 — 목록 그대로라 «앱이 연 콜» 기억을 지운다 · ${f.key}")
+                    session.alarmTappedCard?.let { alarmedRoutes.clearOpened(it) }   // 🔔 «열기 함»도 지운다 — 다음 읽기에서 다시 연다
                     demoteTappedCall("누르기 안 먹힘")
                     resetSessionState()
                 }
@@ -600,7 +625,7 @@ class HijackService : AccessibilityService(), ScanContext {
         }
 
         // ⏩ 판정 뒤 접기 — 앱이 연 나쁜 콜 상세를 서버가 준 남은 초에 목록으로 (`DetailFold`) · 스캔과 같은 메인 스레드에서
-        telemetryManager.foldAfterCallback = { orderId, remainSec -> mainHandler.post { onFoldAfter(orderId, remainSec) } }
+        telemetryManager.foldAfterCallback = { orderId, remainMs -> mainHandler.post { onFoldAfter(orderId, remainMs) } }
 
         // 🧹 서버 회차가 바뀌면 «본 콜» 기억을 비운다 — 스캔 루프와 같은 메인 스레드에서 (CallMemory 는 잠금이 없다)
         telemetryManager.callMemoryRoundCallback = { round ->
@@ -731,7 +756,10 @@ class HijackService : AccessibilityService(), ScanContext {
             // 👆 픽커 · 시뮬레이터 · 마지막으로 배차망 화면이던 앱(인성·화물24) — 누름은 기록이 꺼져 있어도 늘 남기고 올린다
             if (TargetApp.isNetworkPackage(pkg, lastNetworkPackage)) {
                 // ✋ 앱이 쏜 터치의 메아리가 아니면 기사님 손 (인성·24 · 픽커는 목록 줄 누름에 알림을 안 낸다)
-                if (com.onedal.app.core.HandFirst.isClickHand(android.os.SystemClock.elapsedRealtime(), touchManager.lastAppTapAtMs)) onHand("누름")
+                if (com.onedal.app.core.HandFirst.isClickHand(android.os.SystemClock.elapsedRealtime(), touchManager.lastAppTapAtMs)) {
+                    onHand("누름")
+                    releaseFoldOnHand("상세 누름")
+                }
                 val nodeTexts = mutableListOf<String>()
                 event.source?.let { gatherNodeTexts(it, nodeTexts) }
                 val label = com.onedal.app.plugins.kakaopicker.PickerTrace.clickLabelOf(event.text, event.contentDescription, nodeTexts)
@@ -756,6 +784,8 @@ class HijackService : AccessibilityService(), ScanContext {
         if (TargetApp.isNetworkPackage(eventPkg, lastNetworkPackage)) {
             val t = android.os.SystemClock.elapsedRealtime()
             lastTargetEventMs = t; eventSinceRead = true
+            // ⏩ 상세 안 스크롤은 기사님 손 — 앱이 연 콜의 빨리 접기를 푼다
+            if (event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) releaseFoldOnHand("상세 스크롤")
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
                 recentContentEvents.addLast(t)
                 while (recentContentEvents.isNotEmpty() && t - recentContentEvents.first() > com.onedal.app.core.AlarmHold.MOVING_WINDOW_MS) recentContentEvents.removeFirst()
@@ -901,6 +931,7 @@ class HijackService : AccessibilityService(), ScanContext {
     /** ⏰ 걸어 둔 다시 읽기 — 그사이 화면이 바뀌었을 수 있어 부르는 때에 다시 본다: 목록인가 · 누르는 중 아닌가 · 상세 보내는 중 아닌가 */
     private fun reservedRead(why: String) {
         if (telemetryManager.currentScreenContext != ScreenContext.LIST || touchManager.tapPending || session.isDetailScrapSent) return
+        lastScreenFingerprint = 0   // 걸어 둔 다시 읽기는 같은 글자여도 목록을 다시 본다(손 먼저·흐르는 목록 뒤 «같은 화면»으로 건너뛰어 끝내 안 열었다 · ab 리뷰)
         quietRead(why)
     }
 
@@ -1591,11 +1622,20 @@ class HijackService : AccessibilityService(), ScanContext {
                                 waitBook.schedule("흐르는 목록 다시 읽기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.ScrollGate.QUIET_MS) { reservedRead("흐르는 목록") }
                             return@handoff
                         }
+                        // 🔁 넘겨받은 쪽이 배차망의 누르기 전 안전 확인을 그대로 다시 거친다(오더카드·머리줄·띠·탭 줄 · 창 재검색) — ab 리뷰
+                        val tap2 = plugin.planListTap(allNodes, order, fareNode) ?: run {
+                            val key = plugin.lastHoldKey ?: com.onedal.app.core.OpenBlocked.HELD
+                            AppLogger.i("1DAL_ALARM", LogTag.TAP, "✋ [누르기 넘김 뒤 멈춤] ${order.fare}원 — 안전 확인 다시($key)")
+                            telemetryManager.openBlocked = key
+                            if (key == com.onedal.app.core.OpenBlocked.LIST_MOVING)
+                                waitBook.schedule("흐르는 목록 다시 읽기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.ScrollGate.QUIET_MS) { reservedRead("흐르는 목록") }
+                            return@handoff
+                        }
                         AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🚪 [상세 진입] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
                             "모드 $currentMode — ${if (currentMode == "AUTO") "앱이 채우고 확정" else "판정만 받고 확정·수락은 기사님"} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
                         AppLogger.d(TAG, LogTag.TAP, "💥 [$currentMode] 꿀콜 조건 통과! 요금 최고 콜 터치 진행!")
                         alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용
-                        val fired = touchManager.performSimulatedTouch(fareNode.node, tapRowLeft = tap.rowLeft, delayMs = tap.delayMs, tapDy = tap.dy,
+                        val fired = touchManager.performSimulatedTouch(fareNode.node, tapRowLeft = tap2.rowLeft, delayMs = tap2.delayMs, tapDy = tap2.dy,
                             tapKey = "call:${CallMemory.fingerprintOf(order)}")   // 👆 같은 콜을 진행 중에 또 누르지 않는다 — 열쇠는 콜 지문
                         if (!fired) {
                             telemetryManager.openBlocked = com.onedal.app.core.OpenBlocked.TAP_NOT_SENT

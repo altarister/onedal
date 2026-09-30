@@ -339,8 +339,9 @@ data class FilterTally(
 // 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)
 data class ScrapResponse(
     val success: Boolean,
-    val apiStatus: ApiStatus,
-    val deviceControl: DeviceControl,
+    // 🔴 응답 한 칸의 모양 때문에 목록 보고 응답을 버리지 않는다 — 서버가 빼거나 null 로 보내도 받는다(쓰는 곳에서 막는다)
+    val apiStatus: ApiStatus? = null,
+    val deviceControl: DeviceControl? = null,
     val dispatchEngineArgs: FilterConfig?,
     val decision: DecisionPayload? = null,
     // 🧭 [피기백 v2] 서버가 계산한 필터 버전 — dispatchEngineArgs 와 함께 저장해 뒀다가
@@ -354,14 +355,17 @@ data class ScrapResponse(
  * ⏩ 서버 빨리 접기 — remainSec 는 서버 시계로 잰 남은 초, 0.1초 단위 소수(scrap.ts · 9.7)다.
  * 🔴 정수 칸으로 받으면 Gson 이 목록 보고 응답 전체를 버린다(라이브 10-01 00:49:53 «Expected an int but was 1.3»).
  */
-data class FoldAfter(val orderId: String, val remainSec: Double) {
+data class FoldAfter(val orderId: String, val remainSec: Double = 0.0, val remainMs: Long? = null) {
     /** 앱이 쓰는 남은 초 — 올림(막대가 끝나기 전에 접지 않는다) */
     fun remainWholeSec(): Int = kotlin.math.ceil(remainSec).toInt().coerceAtLeast(0)
+
+    /** 앱이 쓰는 남은 ms — 서버 remainMs(정수 ms · ab 9e767a09)가 있으면 그것, 없으면 remainSec 올림 */
+    fun remainMsOrSec(): Long = remainMs?.coerceAtLeast(0L) ?: remainWholeSec() * 1000L
 }
 
 data class DecisionPayload(
-    val orderId: String,
-    val action: String
+    val orderId: String?,
+    val action: String?
 )
 
 data class ApiStatus(
@@ -370,7 +374,7 @@ data class ApiStatus(
 )
 
 data class DeviceControl(
-    val mode: String = "MANUAL",
+    val mode: String? = "MANUAL",
     // 🧹 시뮬레이터 회차 — 바뀌면 «본 콜» 기억을 비운다 (CallMemory.onRound). 운영 서버는 안 싣는다(null)
     val callMemoryRound: Int? = null
 )

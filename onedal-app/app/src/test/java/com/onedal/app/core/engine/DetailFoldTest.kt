@@ -17,7 +17,7 @@ class DetailFoldTest {
     private val thirty = now + 25_000L   // 30초 타이머가 걸린 지 5초 — 25초 남음
 
     private fun fold(deadline: Long? = thirty, remain: Int = 10, same: Boolean = true, byApp: Boolean = true, detail: Boolean = true) =
-        DetailFold.newDeadlineMs(deadline, now, remain, sameOrder = same, openedByApp = byApp, onPreConfirmDetail = detail)
+        DetailFold.newDeadlineMs(deadline, now, remain * 1000L, sameOrder = same, openedByApp = byApp, onPreConfirmDetail = detail)
 
     @Test fun `앱이 연 같은 콜 - 받은 때 더하기 남은 초`() = assertEquals(now + 10_000L, fold())
     @Test fun `남은 초 0 이면 곧`() = assertEquals(now, fold(remain = 0))
@@ -48,12 +48,12 @@ class DetailFoldTest {
 
     /** 🔎 ab 부탁 — 서버는 판정 뒤 첫 응답부터 약 10초를 실었는데 앱은 «0초»로 처음 줄였다. 받은 때와 무시한 까닭을 남긴다 */
     @Test fun `무시하는 까닭을 말한다`() {
-        assertEquals("상세 대기 타이머 없음", DetailFold.whyNot(null, now, 10, true, true, true))
-        assertEquals("다른 콜", DetailFold.whyNot(thirty, now, 10, false, true, true))
-        assertEquals("손 상세", DetailFold.whyNot(thirty, now, 10, true, false, true))
-        assertEquals("확정 전 상세 아님", DetailFold.whyNot(thirty, now, 10, true, true, false))
-        assertEquals("원래 마감이 더 이름", DetailFold.whyNot(now + 5_000L, now, 10, true, true, true))
-        assertNull(DetailFold.whyNot(thirty, now, 10, true, true, true))
+        assertEquals("상세 대기 타이머 없음", DetailFold.whyNot(null, now, 10_000L, true, true, true))
+        assertEquals("다른 콜", DetailFold.whyNot(thirty, now, 10_000L, false, true, true))
+        assertEquals("손 상세", DetailFold.whyNot(thirty, now, 10_000L, true, false, true))
+        assertEquals("확정 전 상세 아님", DetailFold.whyNot(thirty, now, 10_000L, true, true, false))
+        assertEquals("원래 마감이 더 이름", DetailFold.whyNot(now + 5_000L, now, 10_000L, true, true, true))
+        assertNull(DetailFold.whyNot(thirty, now, 10_000L, true, true, true))
         assertTrue(File("src/main/java/com/onedal/app/HijackService.kt").readText().contains("⏩ [foldAfter 받음]"))
     }
 
@@ -66,5 +66,22 @@ class DetailFoldTest {
         assertEquals(9.7, r.foldAfter!!.remainSec, 0.0001)
         assertEquals(10, r.foldAfter!!.remainWholeSec())
         assertEquals(0, com.onedal.app.models.FoldAfter("o", 0.0).remainWholeSec())
+    }
+
+    /** ab 9e767a09 — foldAfter.remainMs(정수 ms)가 있으면 그것(올림 몫 최대 1초가 빠져 막대 끝과 접힘이 더 맞는다), 없으면 remainSec 올림 */
+    @Test fun `남은 ms 가 있으면 그것 · 없으면 남은 초 올림`() {
+        val g = com.google.gson.Gson()
+        assertEquals(9_650L, g.fromJson("""{"foldAfter":{"orderId":"o","remainSec":10,"remainMs":9650}}""", ScrapResponse::class.java).foldAfter!!.remainMsOrSec())
+        assertEquals(10_000L, g.fromJson("""{"foldAfter":{"orderId":"o","remainSec":9.7}}""", ScrapResponse::class.java).foldAfter!!.remainMsOrSec())
+    }
+
+    /** 🔴 응답 한 칸의 모양 때문에 결재를 잃지 않는다 — 서버가 칸을 빼거나 null 로 보내도 목록 보고 응답을 받는다(1f) */
+    @Test fun `응답의 기기 제어·결재 칸은 없어도 받는다`() {
+        val r = com.google.gson.Gson().fromJson("""{"success":true,"decision":{"orderId":"o1","action":null}}""", ScrapResponse::class.java)
+        assertEquals(null, r.deviceControl)
+        assertEquals(null, r.decision?.action)
+        val model = File("src/main/java/com/onedal/app/models/SharedModels.kt").readText()
+        assertTrue(model.contains("val deviceControl: DeviceControl? = null"))
+        assertTrue(model.contains("val apiStatus: ApiStatus? = null"))
     }
 }

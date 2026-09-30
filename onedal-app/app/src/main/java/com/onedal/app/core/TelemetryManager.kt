@@ -118,7 +118,7 @@ class TelemetryManager(
     // [Piggyback V2] 결재 수신 콜백
     var decisionCallback: ((String, String) -> Unit)? = null
     /** ⏩ 판정 뒤 접기(foldAfter) — orderId · 남은 초 */
-    var foldAfterCallback: ((String, Int) -> Unit)? = null
+    var foldAfterCallback: ((String, Long) -> Unit)? = null
 
     // 🧹 서버 회차 수신 콜백 — 본 콜 기억 비우기 (HijackService 가 메인 스레드로 넘긴다)
     var callMemoryRoundCallback: ((Int) -> Unit)? = null

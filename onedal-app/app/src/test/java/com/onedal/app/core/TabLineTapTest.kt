@@ -29,7 +29,16 @@ class TabLineTapTest {
         val plugin = File("$root/plugins/kakaopicker/KakaoPickerPlugin.kt").readText()
         assertTrue(plugin.contains("TapShift.rowTapDy("))
         assertTrue(plugin.contains("탭 줄에 걸림"))
-        assertTrue(File("$root/HijackService.kt").readText().contains("tapDy = tap.dy"))
+        assertTrue(File("$root/HijackService.kt").readText().contains("tapDy = tap2.dy"))
         assertTrue(File("$root/core/AutoTouchManager.kt").readText().contains("rect.centerY() + tapDy"))
+    }
+
+    /** 내려간 목록 길도 같은 선 — 라이브 10-01 01:02:56 6,622 «요금 Y=2045» 가 선(2060) 안이라 통과했는데 안 먹혔다(보이는 몫 가운데를 안 눌렀다) */
+    @Test fun `내려간 목록 길도 탭 줄 선으로 누를 Y 를 정한다`() {
+        val plugin = File("src/main/java/com/onedal/app/plugins/kakaopicker/KakaoPickerPlugin.kt").readText()
+        val scrolled = plugin.substringAfter("private fun planScrolledTap(").substringBefore("\n    companion object")
+        assertTrue("두 길이 같은 도우미", scrolled.contains("tabLineDy("))
+        assertTrue(scrolled.contains("dy = dy"))
+        assertTrue(plugin.substringAfter("private fun tabLineDy(").substringBefore("\n    }").contains("TapShift.rowTapDy("))
     }
 }

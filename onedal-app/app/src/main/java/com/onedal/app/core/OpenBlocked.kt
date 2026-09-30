@@ -23,7 +23,7 @@ object OpenBlocked {
     const val NO_WAITING_BAND = "noWaitingBand"
     /** 내려간 목록에서 띠 바로 아래 줄 */
     const val UNDER_BAND = "underBand"
-    /** 아래 탭 줄에 걸린 맨 아래 줄 — 목록이 올라오면 연다 (`TapShift.rowTapDy`) */
+    /** 아래 탭 줄에 걸린 맨 아래 줄 — 기사님이 목록을 올리셔야 연다(손 필요 · `TapShift.rowTapDy`) */
     const val TAB_BAR = "tabBar"
     /** 찍기 직전 다시 재니 조건이 깨졌다(요금 칸을 못 다시 읽음 · 머리줄 아래가 아님) */
     const val TAP_RECHECK = "tapRecheck"

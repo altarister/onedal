@@ -78,6 +78,9 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
     /** 이 열쇠로 이미 폰이 알람을 내고 열었나 */
     fun opened(o: SimplifiedOfficeOrder): Boolean = find(o)?.opened == true
 
+    /** 누르기가 안 먹혔다 — «열기 함»을 지워 다음 읽기에서 다시 연다(지우지 않으면 영영 안 열린다 · ab 리뷰) */
+    fun clearOpened(o: SimplifiedOfficeOrder) { find(o)?.opened = false }
+
     fun markOpened(o: SimplifiedOfficeOrder, nowMs: Long) {
         entryOf(o, nowMs)?.let { it.opened = true; it.counted = true }
     }

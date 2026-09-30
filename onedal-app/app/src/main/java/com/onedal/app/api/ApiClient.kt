@@ -247,7 +247,7 @@ class ApiClient(private val context: Context) {
         onModeReceived: (String) -> Unit,
         onDecisionReceived: ((String, String) -> Unit)? = null,
         onCallMemoryRound: ((Int) -> Unit)? = null,
-        onFoldAfter: ((String, Int) -> Unit)? = null,
+        onFoldAfter: ((String, Long) -> Unit)? = null,
     ) {
         telemetryExecutor.submit {
             val startMs = System.currentTimeMillis()
@@ -346,8 +346,8 @@ class ApiClient(private val context: Context) {
                         }
                     }
 
-                    prefs.edit().putString("apiStatus", gson.toJson(scrapRes.apiStatus)).apply()
-                    prefs.edit().putString("deviceControl", gson.toJson(scrapRes.deviceControl)).apply()
+                    scrapRes.apiStatus?.let { prefs.edit().putString("apiStatus", gson.toJson(it)).apply() }
+                    scrapRes.deviceControl?.let { prefs.edit().putString("deviceControl", gson.toJson(it)).apply() }
 
                     // 방금 보낸 스크랩 정보 화면 표시용으로 저장
                     prefs.edit()
@@ -357,15 +357,20 @@ class ApiClient(private val context: Context) {
                         .apply()
 
                     // Piggyback 판결(Decision) 분실 방지 (수신 처리)
-                    if (scrapRes.decision != null) {
-                        AppLogger.w(TAG, LogTag.DECISION, "⚡ [Piggyback Decision 수신] orderId: ${scrapRes.decision.orderId}, action: ${scrapRes.decision.action}")
+                    // 결재 두 칸이 다 있을 때만 — 한 칸이 비면 넘기지 않고 적어 둔다(응답을 버리지 않는다)
+                    val decisionId = scrapRes.decision?.orderId
+                    val decisionAction = scrapRes.decision?.action
+                    if (scrapRes.decision != null && (decisionId == null || decisionAction == null))
+                        AppLogger.w(TAG, LogTag.DECISION, "⚠️ [결재 칸 비어 있음] orderId=$decisionId · action=$decisionAction — 넘기지 않는다")
+                    if (decisionId != null && decisionAction != null) {
+                        AppLogger.w(TAG, LogTag.DECISION, "⚡ [Piggyback Decision 수신] orderId: $decisionId, action: $decisionAction")
                         // 수신 확인증(ACK) 준비 (다음 번 텔레메트리 때 서버로 전송됨)
-                        prefs.edit().putString("pendingAckDecisionId", scrapRes.decision.orderId).apply()
+                        prefs.edit().putString("pendingAckDecisionId", decisionId).apply()
                         // 콜백 호출
-                        onDecisionReceived?.invoke(scrapRes.decision.orderId, scrapRes.decision.action)
+                        onDecisionReceived?.invoke(decisionId, decisionAction)
                     }
                     // ⏩ 판정 뒤 접기 — 결재(decision)와 다른 사실이라 따로 받는다 (`DetailFold`)
-                    scrapRes.foldAfter?.let { onFoldAfter?.invoke(it.orderId, it.remainWholeSec()) }
+                    scrapRes.foldAfter?.let { onFoldAfter?.invoke(it.orderId, it.remainMsOrSec()) }
 
                     // 서버가 pendingAck를 성공적으로 비웠다면 (이 부분은 응답이 성공했으므로 안심하고 로컬에서도 날림)
                     // (단, 이번 요청에 ackDecisionId를 담아 보낸 경우에만 성공 시 삭해야함)
@@ -373,8 +378,8 @@ class ApiClient(private val context: Context) {
                         prefs.edit().remove("pendingAckDecisionId").apply()
                     }
 
-                    scrapRes.deviceControl.callMemoryRound?.let { onCallMemoryRound?.invoke(it) }
-                    onModeReceived(scrapRes.deviceControl.mode)
+                    scrapRes.deviceControl?.callMemoryRound?.let { onCallMemoryRound?.invoke(it) }
+                    scrapRes.deviceControl?.mode?.let { onModeReceived(it) }
                 } else {
                     AppLogger.w(TAG, "📡 [텔레메트리] 서버 에러 응답: $code")
                 }

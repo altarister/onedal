@@ -249,8 +249,9 @@ class AutoTouchManager(private val service: AccessibilityService) {
     private fun tapXOf(node: AccessibilityNodeInfo, rect: Rect, leftShiftPx: Int, tapRowLeft: Boolean): Int {
         if (tapRowLeft) {
             rowRectOf(node)?.let { return TapShift.rowLeftOf(it.left) }
-            AppLogger.w(TAG, LogTag.TAP, "⚠️ [줄 못 찾음] 카드 줄을 못 찾아 요금 자리에서 왼쪽으로 옮겨 찍는다")
-            return TapShift.leftOf(rect.centerX(), TapShift.PICKER_LIST_LEFT_PX)
+            // 🛑 요금 자리에서 옮기면 화면 오른쪽 절반(오더카드 «수락» 쪽)에 떨어진다 — 누르지 않는다(ab 리뷰)
+            AppLogger.w(TAG, LogTag.TAP, "⚠️ [줄 못 찾음] 카드 줄을 못 찾았다 — 누르지 않는다")
+            return -1
         }
         return TapShift.leftOf(rect.centerX(), leftShiftPx)
     }
@@ -307,6 +308,11 @@ class AutoTouchManager(private val service: AccessibilityService) {
                 AppLogger.e(TAG, LogTag.TAP, "❌ [터치 실패] 시스템에 의해 무시됨")
                 val cur = inFlight
                 when {
+                    // ↩️ 목록 줄 누름이 무시됐다 — 대개 기사님 손가락이다. 곧바로 다시 누르지 않고 거둔다(되돌림은 onTapFailed) · 다음 읽기가 손 먼저·흐르는 목록을 거쳐 다시 고른다(ab 리뷰)
+                    cur != null && cur.seq == seq && key.startsWith("call:") -> {
+                        AppLogger.w(TAG, LogTag.TAP, "↩️ [무시된 누름] «${key.take(20)}» — 시스템이 무시했다. 곧바로 다시 누르지 않고 다음 읽기에서 다시 고른다")
+                        fail(cur, "시스템이 무시 — 다음 읽기에서 다시", android.os.SystemClock.elapsedRealtime())
+                    }
                     TapInFlight.shouldRefire(cur, seq, screenNow) -> {
                         AppLogger.w(TAG, LogTag.TAP, "🔁 [다시 누름] «${key.take(20)}» — 시스템이 무시했다. 한 번만 다시")
                         val redo = inFlightRefire
