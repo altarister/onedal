@@ -17,6 +17,7 @@ import { sheetStatus } from '../../lib/sheetStatus';
 import { reservedShortOf } from '../../lib/reservedLine';
 import { approxShortOf } from '../../lib/approxAddress';
 import { seatOccupied, seatKeyOf, type Unreadable } from '../../lib/unreadable';
+import { setSeatBusyForReload } from '../../lib/webCodeVersion';
 import { remainOnRouteKm } from '../../lib/remainOnRoute';
 import { trailOfShown, hiddenPastIds } from '../../lib/pastCalls';
 import { deckOrder } from '../../lib/deckFocus';
@@ -419,6 +420,9 @@ export default function StageView(props: Props) {
     useEffect(() => { feed({ type: 'signal' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [drive, seatKey, liveRoute.length, ruleTick, isFilterOpen]);
+
+    /* 🔄 훅 파일이 핫 교체되면 스스로 다시 읽는다 — 평가 자리(판정 중 콜 · ⚪)가 차 있으면 미룬다 (lib/webCodeVersion) */
+    useEffect(() => { setSeatBusyForReload(seatBusy); }, [seatBusy]);
 
     /* ⚪ 평가 자리 로그 — ⚪ 가 바뀔 때 무엇이 자리를 차지했고 시트가 어디였나 (기사님 창에서 안 보인 까닭을 가른다) */
     const unreadableAt = props.unreadable?.at ?? null;

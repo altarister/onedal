@@ -1,6 +1,7 @@
 import { verdictOf } from '../lib/verdict';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { unreadableAfter, type Unreadable } from '../lib/unreadable';
+import { reportWebCode } from '../lib/webCodeVersion';
 import { setRouteOrigin } from '../stores/driverPositionStore';
 import { socket } from "../lib/socket";
 import { apiBase } from "../lib/serverTarget";   // 🎯 주소를 정하는 곳은 하나다 (규칙 ③)
@@ -143,6 +144,7 @@ export function useOrderEngine() {
              *    끊긴 동안 쌓아 뒀다가 붙으면 한꺼번에 올라간다 (`roadmapLogger`).
              */
             logStateChange("통신", "소켓", "연결됨", "관제대시보드");
+            reportWebCode();   // 🖥️ 이 창이 어떤 코드인가 — 서버 로그로 (새로고침을 묻지 않게)
             setIsConnected(true);
             // 💡 서버 재시작(소켓 재접속) 시, 프론트엔드의 캐시도 강제 초기화!
             // 화면에 남아있는 평가 중인/확정된 상태도 모두 유령(Ghost)이 됩니다. 따라서 전부 지워야 싱크가 맞습니다.
