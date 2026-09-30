@@ -9,8 +9,15 @@
  *   글만 있는 메시지는 온전히 적히므로 «계획(글만) → 기사님 답 → 도구» 흐름은 늘 잡힌다.
  *   기사님의 짧은 답(«가»·«계속»·«고쳐» — SHORT_REPLY 자 이하)이 **연달아** 이어지는 동안은 같은 일로 본다 —
  *   마지막 긴 말씀(새 지시) 뒤에 쓴 «계획:»까지 거슬러 인정한다. 긴 새 지시에는 그 뒤의 «계획:»이 있어야 한다.
+ * ⚠️ 이 훅이 못 고치는 것: 훅이 도는 순간에는 지금 쓰는 메시지(글 + 도구 호출)가 아직 기록 파일에 없다.
+ *   그래서 새 지시 뒤 **같은 메시지** 안의 «계획:» 줄은 그 메시지의 첫 도구 호출이 못 보고 한 번 막힌다 —
+ *   막힌 뒤 다시 부르면 앞 메시지의 계획이 보여 통과한다.
  * 왜 프로그램으로 막나: CLAUDE.md 의 글은 제가 «일의 종류»를 정하는 첫 순간에 읽히지 않는다.
  * 안 막는 것: 하위 에이전트(agent_id 가 있음) — 계획은 주 세션이 쓴다.
+ * 기사님 말씀으로 안 세는 것: 배경 작업 알림 · 다른 에이전트의 메시지 · 대화 요약 이어 붙임 · 슬래시 명령 기록.
+ *   이것들도 기록에 user 로 실려, 세면 그 차례마다 «새 지시»가 되어 도구가 막힌다.
+ *   가르는 기준은 기록의 `turnOrigin` 칸(기사님 글 = 'human')이 먼저다 — 칸이 없는 옛 기록만 글 맨 앞 모양으로 가른다.
+ *   글 맨 앞만 본다 — 기사님이 알림 글을 붙여 넣으신 말씀은 그대로 센다.
  */
 import { readFileSync } from 'node:fs';
 
@@ -33,13 +40,23 @@ let lines = [];
 try { lines = readFileSync(input.transcript_path, 'utf8').split('\n').filter(Boolean); }
 catch { block('🔴 계획 우선 훅: 대화 기록을 읽지 못했다 — 먼저 «계획:» 으로 시작하는 줄에 무엇을·어떻게·왜를 쓴다.'); }
 
-/** 실제 사용자 메시지 = user 타입이고 tool_result 가 없는 것 (도구 결과도 user 타입으로 실린다) */
+/** 칸이 없는 옛 기록용 — 글 맨 앞이 알림·에이전트 메시지·슬래시 명령이면 기사님 말씀이 아니다 */
+const NOT_DRIVER = /^\s*(?:Another Claude session sent a message:\s*)?<(?:cross-session-message|task-notification|command-name|local-command-stdout)\b/;
+
+/**
+ * 실제 사용자 메시지(기사님 말씀).
+ * 도구 결과·메타·곁가지·요약 이어 붙임은 아니다. `turnOrigin` 칸이 있으면 그것 하나로 가른다.
+ */
 function isRealUserMessage(rec) {
-    if (rec.type !== 'user' || rec.isMeta || rec.isSidechain) return false;
+    if (rec.type !== 'user' || rec.isMeta || rec.isSidechain || rec.isCompactSummary) return false;
     const c = rec.message?.content;
-    if (typeof c === 'string') return true;
-    if (!Array.isArray(c)) return false;
-    return !c.some(b => b?.type === 'tool_result');
+    if (Array.isArray(c) && c.some(b => b?.type === 'tool_result')) return false;
+    if (typeof rec.turnOrigin === 'string') return rec.turnOrigin === 'human';
+    const raw = typeof c === 'string' ? c
+        : Array.isArray(c) ? c.filter(b => b?.type === 'text').map(b => b.text).join('\n')
+        : null;
+    if (raw == null) return false;
+    return !NOT_DRIVER.test(raw);
 }
 
 /** 화면에 보이는 글만 센다 — thinking 은 기사님이 못 보므로 계획이 아니다 */
@@ -59,11 +76,20 @@ for (const line of lines) {
     if (isRealUserMessage(rec)) userIdx.push(recs.length - 1);
 }
 
-/** 사용자 메시지의 글 — 도구 결과·IDE 알림 태그는 뺀다 */
+/**
+ * 사용자 메시지의 글 — 편집기·시스템이 붙인 태그만 이름으로 정해 뺀다(속성 있어도).
+ * 🔴 <pasted_content> 는 빼지 않는다 — 기사님이 붙여 넣은 글이라 말씀의 길이에 든다.
+ */
+const CONTEXT_TAGS = [
+    'system-reminder', 'ide_opened_file', 'ide_selection',
+    'task-notification', 'cross-session-message',
+    'command-name', 'command-message', 'command-args', 'local-command-stdout',
+].join('|');
+const CONTEXT_TAG_RE = new RegExp(`<(${CONTEXT_TAGS})\\b[^>]*>[\\s\\S]*?<\\/\\1>`, 'g');
 function userText(rec) {
     const c = rec.message?.content;
     const raw = typeof c === 'string' ? c : Array.isArray(c) ? c.filter(b => b?.type === 'text').map(b => b.text).join('\n') : '';
-    return raw.replace(/<[a-z_]+>[\s\S]*?<\/[a-z_]+>/g, '').trim();
+    return raw.replace(CONTEXT_TAG_RE, '').trim();
 }
 const SHORT_REPLY = 20;
 const isShort = (i) => userText(recs[i]).length <= SHORT_REPLY;
