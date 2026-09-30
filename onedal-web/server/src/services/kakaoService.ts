@@ -661,6 +661,9 @@ function regionMatches(doc: any, expectedRegion: string | null, query: string): 
     return true;
 }
 
+/** 카카오가 좌표 질의에 하나도 답하지 못했다(모두 오류) — 주소가 틀린 것과 가른다 */
+class GeocodeUnavailableError extends Error {}
+
 /** 🏃 날아가는 중인 좌표 질문 — 같은 주소를 미리 출발과 판정이 함께 물으면 한 벌만 보낸다 (끝나면 뺀다) */
 const geocodeInFlight = new Map<string, Promise<{x: number, y: number} | null>>();
 
@@ -748,6 +751,8 @@ async function geocodeOnce(query: string): Promise<{x: number, y: number} | null
 
         /* 🌟 후보 질의를 동시에 쏘고, 앞 순위가 다 끝났고 받아들일 만한 답이 오면 곧바로 답한다 — 느린 키워드 검색을 기다리지 않는다 */
         const headers = getHeaders();
+        /** 질의마다 오류 원인 — 모두가 오류로 끝났으면 «주소 못 찾음»이 아니라 카카오 쪽 원인이다 */
+        const failures: string[] = [];
         const promises = fallbackQueries.map((fq, index) => {
             const url = `${KAKAO_LOCAL_URL}/${fq.type}.json?query=${encodeURIComponent(fq.text)}`;
             /* 🪞 1순위(번지까지 주소 검색 — 대부분 여기서 끝난다)만 나란히 한 번 더 */
@@ -767,6 +772,7 @@ async function geocodeOnce(query: string): Promise<{x: number, y: number} | null
                 })
                 .catch((err) => {
                     console.error(`❌ [Geocoding] fetch 에러 (쿼리: '${fq.text}'):`, err.message);
+                    failures.push(err.message);
                     return null;
                 });
         });
@@ -780,10 +786,14 @@ async function geocodeOnce(query: string): Promise<{x: number, y: number} | null
             return chosen.result;
         }
 
+        /* 🧯 모든 질의가 오류(한도 초과 · 5xx · 응답 없음)로 끝났다 — «주소 못 찾음»이 아니라 원인을 던진다 (판정의 실패 갈래가 그대로 적는다) */
+        if (failures.length === promises.length) throw new GeocodeUnavailableError(failures[0]);
+
         // 모든 시도 실패
         slog('경고', `[GeoResolver] 카카오 좌표 변환 최종 실패: 원본=${query}`);
         return null;
     } catch (e) {
+        if (e instanceof GeocodeUnavailableError) throw e;
         console.error("카카오 지오코딩 에러:", e);
         return null;
     }

@@ -56,3 +56,18 @@ describe('🗺️ 좌표 — 1순위가 오면 바로', () => {
         expect(budget.used).toBe(1);
     });
 });
+
+describe('🗺️ 좌표 — 카카오 오류는 «주소 못 찾음»이 아니다 (서버 병목 11)', () => {
+    it('🔴 모든 질의가 오류(429)로 끝나면 원인을 던진다 — 판정 사유가 «카카오 좌표 HTTP 429»', async () => {
+        global.fetch = (() => Promise.resolve({ ok: false, status: 429, json: async () => ({}) })) as any;
+        await expect(geocodeAddress(`경기 이천시 부발읍 경충대로 2091 ${MARK}라`)).rejects.toThrow('HTTP 429');
+    });
+
+    it('빈 결과가 하나라도 있으면 지금처럼 null — 정말 못 찾은 주소', async () => {
+        let n = 0;
+        global.fetch = (() => (++n === 1
+            ? Promise.resolve({ ok: true, status: 200, json: async () => ({ documents: [] }) })
+            : Promise.resolve({ ok: false, status: 429, json: async () => ({}) }))) as any;
+        await expect(geocodeAddress(`경기 이천시 부발읍 경충대로 2091 ${MARK}마`)).resolves.toBeNull();
+    });
+});
