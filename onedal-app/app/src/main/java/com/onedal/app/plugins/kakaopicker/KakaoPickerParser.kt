@@ -343,6 +343,16 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             return stacked(FARE_SHAPE, "요금") ?: stacked(KM_SHAPE, "거리")
         }
 
+        /**
+         * 🧩 **한 카드에 거리 둘 = 섞인 카드** (`PickerOverlapFrameTest`) — 정상 카드는 거리가 하나다.
+         * 오늘 «📐» 2,207줄 전수: 거리 둘 이상 17줄 · 전부 두 카드가 어긋나게 포갠 틀(대개 매분 00초 목록 다시 그리기) · 정상 0줄.
+         * 까닭 글 또는 null.
+         */
+        fun mixedCard(texts: List<String>): String? {
+            val kms = texts.map { it.trim() }.filter { KM_SHAPE.matches(it) }
+            return if (kms.size >= 2) "한 카드에 거리 둘(${kms.joinToString(" · ")})" else null
+        }
+
         fun detailTextsOf(texts: List<String>): List<String> {
             val i = texts.indexOfFirst { it.startsWith(DETAIL_FIRST_WORD) }
             return if (i <= 0) texts else texts.drop(i)
@@ -840,6 +850,12 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             adStartWords(),
         )
         val cards = groups.map { (i, idx) -> Pair(sorted[i], idx.map { sorted[it].text }) }
+        // 🧩 두 카드가 어긋나게 포갠 틀 — 한 카드 묶음에 거리 둘. 섞인 카드(«수지 송파 → 수정 위례»)를 목록으로 믿지 않는다
+        cards.firstNotNullOfOrNull { mixedCard(it.second) }?.let { why ->
+            com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "📐 [겹친 틀 버림] $why — 이 틀은 목록으로 안 쓰고 곧 다시 읽는다")
+            lastFrameDiscarded = true
+            return emptyList()
+        }
         cardTops = groups.indices.associate { g ->
             cards[g].second to groups[g].second.joinToString(" ") { "${sorted[it].text}@${sorted[it].rect.top}" }
         }

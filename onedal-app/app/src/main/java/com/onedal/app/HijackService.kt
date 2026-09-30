@@ -1121,6 +1121,8 @@ class HijackService : AccessibilityService(), ScanContext {
             discardStreak++
             mainHandler.removeCallbacks(afterDiscardRead)
             com.onedal.app.core.ListWatch.afterDiscard(discardStreak)?.let { mainHandler.postDelayed(afterDiscardRead, it) }
+                ?: if (discardStreak == com.onedal.app.core.ListWatch.DISCARD_STREAK_MAX)
+                    AppLogger.i(TAG, LogTag.SCREEN, "📐 섞인 틀 연속 ${discardStreak}번 — 곧 다시 읽기를 멈추고 5초 주기로") else Unit
         } else discardStreak = 0
 
         /** 그룹은 나왔는데 요금을 못 읽어 버려진 수 — 아래 진단이 읽는다 */
