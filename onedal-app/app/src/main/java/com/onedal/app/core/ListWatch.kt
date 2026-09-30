@@ -16,6 +16,12 @@ object ListWatch {
     fun shouldRead(nowMs: Long, lastReadMs: Long, lastEventMs: Long, isListScreen: Boolean, busy: Boolean): Boolean =
         isListScreen && !busy && nowMs - lastReadMs >= QUIET_MS && nowMs - lastEventMs >= QUIET_MS
 
+    /** 로그 글 — 붙은 뒤 읽기도 알림도 없었으면(둘 다 0) 초가 아니라 «붙은 뒤 첫 읽기» */
+    fun quietWord(nowMs: Long, lastReadMs: Long, lastEventMs: Long): String {
+        val since = maxOf(lastReadMs, lastEventMs)
+        return if (since <= 0L) "붙은 뒤 첫 읽기" else "알림 없이 ${(nowMs - since) / 1000}초"
+    }
+
     /** 겹친 틀을 [streak] 번 연달아 버렸다 — 다시 읽을 때까지 기다릴 ms · null 이면 주기 읽기에 맡긴다 */
     fun afterDiscard(streak: Int): Long? = if (streak < DISCARD_STREAK_MAX) AFTER_DISCARD_MS else null
 }

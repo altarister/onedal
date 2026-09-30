@@ -37,4 +37,10 @@ class ListWatchTest {
         assertEquals("1000ms 동안 1번(같은 글자 1) · 평균 420ms · 최대 420ms · 합 420ms · 훑기 합 380ms · 조용한 다시 읽기 1번(훑기 380ms)",
             s.tick(1000, force = false))
     }
+
+    /** 설치 직후 «알림 없이 1083265초»(마지막 읽기·알림 시각 0 · 폰이 켜진 뒤 시간)로 찍혔다(실물 20:02:22) */
+    @Test fun `로그 글 - 붙은 뒤 읽기도 알림도 없었으면 초가 아니라 붙은 뒤 첫 읽기`() {
+        assertEquals("붙은 뒤 첫 읽기", ListWatch.quietWord(nowMs = 1_083_265_000, lastReadMs = 0, lastEventMs = 0))
+        assertEquals("알림 없이 6초", ListWatch.quietWord(nowMs = 10_000, lastReadMs = 4_000, lastEventMs = 3_000))
+    }
 }

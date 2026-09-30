@@ -776,7 +776,7 @@ class HijackService : AccessibilityService(), ScanContext {
             if (com.onedal.app.core.ListWatch.shouldRead(now, lastReadMs, lastTargetEventMs,
                     isListScreen = telemetryManager.currentScreenContext == ScreenContext.LIST,
                     busy = touchManager.tapPending || session.isDetailScrapSent))
-                quietRead("알림 없이 ${(now - maxOf(lastReadMs, lastTargetEventMs)) / 1000}초")
+                quietRead(com.onedal.app.core.ListWatch.quietWord(now, lastReadMs, lastTargetEventMs))
             mainHandler.postDelayed(this, 1000)
         }
     }
