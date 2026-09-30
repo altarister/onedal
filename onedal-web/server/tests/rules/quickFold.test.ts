@@ -64,6 +64,22 @@ describe('⏩ 폰에 알리기', () => {
         expect(r).not.toHaveProperty('evaluatedAt');
         s.deviceEvaluatingMap.delete(DEV); s.pendingOrdersData.delete('qf-d');
     });
+    it('🔴 remainSec 은 정수(올림 · 0 아래 없음) · remainMs 는 정수 — 원달앱 FoldAfter(remainSec: Int)가 소수를 받으면 응답 전체를 버린다', async () => {
+        const s = getUserSession(U);
+        s.pendingOrdersData.set('qf-i', { id: 'qf-i', status: 'ORDER_AWAITING_DECISION', isPreview: true, foldAfterSec: 10, judgeUntil: Date.now() + 9_450 });
+        s.deviceEvaluatingMap.set(DEV, 'qf-i');
+        const r = await report();
+        expect(Number.isInteger(r.foldAfter.remainSec)).toBe(true);
+        expect(r.foldAfter.remainSec).toBe(10);
+        expect(Number.isInteger(r.foldAfter.remainMs)).toBe(true);
+        expect(r.foldAfter.remainMs).toBeGreaterThan(9_000);
+        expect(r.foldAfter.remainMs).toBeLessThanOrEqual(9_450);
+        s.pendingOrdersData.get('qf-i').judgeUntil = Date.now() - 500;   // 막대 끝이 지났다
+        const late = await report();
+        expect(late.foldAfter.remainSec).toBe(0);
+        expect(late.foldAfter.remainMs).toBe(0);
+        s.deviceEvaluatingMap.delete(DEV); s.pendingOrdersData.delete('qf-i');
+    });
     it('빨리 접기 콜이 아니면 칸이 없다', async () => {
         const s = getUserSession(U);
         s.pendingOrdersData.set('qf-e', { id: 'qf-e', status: 'ORDER_AWAITING_DECISION', isPreview: true, judgeUntil: Date.now() + 30_000 });

@@ -420,14 +420,17 @@ router.post("/", (req, res) => {
         /* ⏩ 빨리 접기 — 이 기기의 심사 중 콜에 foldAfterSec 이 있으면 남은 초(서버 시계). 폰은 받은 뒤 그 초에 목록으로 돌아간다 · 판정 시각은 안 보낸다(폰 시계와 섞지 않게) */
         const foldOrderId = deviceId ? session.deviceEvaluatingMap.get(deviceId) : undefined;
         const foldOrder = foldOrderId ? session.pendingOrdersData.get(foldOrderId) : undefined;
-        const foldAfter = foldOrder?.foldAfterSec != null && foldOrder.judgeUntil != null
-            ? { orderId: foldOrder.id, remainSec: Math.max(0, Math.round((foldOrder.judgeUntil - Date.now()) / 100) / 10) }
+        /* 🔴 remainSec 은 **정수**(올림) — 원달앱 FoldAfter 가 Int 로 받아 소수(9.5)면 응답 전체를 버린다. 정밀한 값은 remainMs(정수 ms) */
+        const foldRemainMs = foldOrder?.foldAfterSec != null && foldOrder.judgeUntil != null
+            ? Math.max(0, Math.round(foldOrder.judgeUntil - Date.now())) : undefined;
+        const foldAfter = foldOrder && foldRemainMs != null
+            ? { orderId: foldOrder.id, remainSec: Math.ceil(foldRemainMs / 1000), remainMs: foldRemainMs }
             : undefined;
         /* ⏩ 이 콜의 foldAfter 를 폰에 처음 실어 보낸 때 한 줄 — «판정 뒤 첫 응답부터 갔나»를 로그로 가른다(폰의 빈 보고는 로그에 안 남아서) */
         if (foldAfter && !foldNotified.has(foldAfter.orderId)) {
             foldNotified.add(foldAfter.orderId);
             if (foldNotified.size > 500) foldNotified.delete(foldNotified.values().next().value as string);
-            slog('판정', `⏩ [빨리 접기] 폰에 처음 알림 ${foldAfter.orderId.slice(-6)} — 남은 ${foldAfter.remainSec}초`);
+            slog('판정', `⏩ [빨리 접기] 폰에 처음 알림 ${foldAfter.orderId.slice(-6)} — 남은 ${(foldAfter.remainMs / 1000).toFixed(1)}초`);
         }
 
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
