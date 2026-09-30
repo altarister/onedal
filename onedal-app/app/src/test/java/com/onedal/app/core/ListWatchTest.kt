@@ -43,4 +43,28 @@ class ListWatchTest {
         assertEquals("붙은 뒤 첫 읽기", ListWatch.quietWord(nowMs = 1_083_265_000, lastReadMs = 0, lastEventMs = 0))
         assertEquals("알림 없이 6초", ListWatch.quietWord(nowMs = 10_000, lastReadMs = 4_000, lastEventMs = 3_000))
     }
+
+    /**
+     * ✋ **손이 닿은 직후 10초는 1.5초 간격** (onedal-1f «가» · 실측 조용한 다시 읽기 30분 4.2%).
+     * 16:18:24 스크롤 4초 뒤 · 19:46 겹친 틀 뒤 손 상세 — 기사님은 카드를 보고 1~4초 안에 누르신다. 5초 주기로는 그 전에 목록을 못 읽었다.
+     * 방아쇠는 개별 사실 — 스크롤 알림 · 상세→목록 복귀 · 겹친 틀 버림.
+     */
+    @Test fun `손 닿은 뒤 4초 안에 다시 읽는다 - 1초 주기 감시`() {
+        val touched = 0L
+        val firstRead = (1_000L..4_000L step 1_000).first { now ->
+            ListWatch.shouldRead(now, lastReadMs = 0, lastEventMs = 0, isListScreen = true, busy = false, touchedAtMs = touched)
+        }
+        assertTrue("손 닿은 뒤 첫 다시 읽기가 ${firstRead}ms", firstRead <= 4_000)
+    }
+
+    @Test fun `알림 읽기가 방금 돌았으면 건너뛴다 - 두 번 읽지 않게`() =
+        assertFalse(ListWatch.shouldRead(nowMs = 3_000, lastReadMs = 2_500, lastEventMs = 0, isListScreen = true, busy = false, touchedAtMs = 0))
+
+    @Test fun `손 닿은 뒤 10초가 지나면 5초로 돌아간다`() {
+        assertFalse(ListWatch.shouldRead(nowMs = 12_000, lastReadMs = 10_000, lastEventMs = 0, isListScreen = true, busy = false, touchedAtMs = 0))
+        assertTrue(ListWatch.shouldRead(nowMs = 15_000, lastReadMs = 10_000, lastEventMs = 0, isListScreen = true, busy = false, touchedAtMs = 0))
+    }
+
+    @Test fun `손 닿은 뒤라도 목록이 아니면 안 돈다`() =
+        assertFalse(ListWatch.shouldRead(nowMs = 2_000, lastReadMs = 0, lastEventMs = 0, isListScreen = false, busy = false, touchedAtMs = 0))
 }

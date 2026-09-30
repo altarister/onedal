@@ -6,15 +6,26 @@ package com.onedal.app.core
  * 그래서 목록에서 [QUIET_MS] 넘게 읽기도 배차망 알림도 없으면 **캐시를 비우고** 한 번 읽는다(`HijackService.quietRead`).
  * - 기사님이 목록을 만지는 중(스크롤·내용 알림)에는 마지막 알림 시각이 바뀌어 저절로 안 끼어든다
  * - 상세·다른 화면 · 누름 대기 중에는 안 읽는다
+ * - 손이 닿은 직후 [TOUCH_WINDOW_MS] 는 [TOUCH_READ_MS] 간격(실측 5초 주기 부담 4.2% · 16:18:24 · 19:46 손 상세가 기억에 없던 콜)
  * - 겹친 틀을 버렸으면 [AFTER_DISCARD_MS] 뒤 한 번 · [DISCARD_STREAK_MAX] 번 연달아 버리면 다시 [QUIET_MS] 주기로
  */
 object ListWatch {
     const val QUIET_MS = 5_000L
     const val AFTER_DISCARD_MS = 500L
     const val DISCARD_STREAK_MAX = 3
+    /** ✋ 손이 닿은 뒤(스크롤 알림 · 상세→목록 복귀 · 겹친 틀 버림) 이만큼은 [TOUCH_READ_MS] 간격 — 기사님은 카드를 보고 1~4초 안에 누르신다 */
+    const val TOUCH_WINDOW_MS = 10_000L
+    const val TOUCH_READ_MS = 1_500L
 
-    fun shouldRead(nowMs: Long, lastReadMs: Long, lastEventMs: Long, isListScreen: Boolean, busy: Boolean): Boolean =
-        isListScreen && !busy && nowMs - lastReadMs >= QUIET_MS && nowMs - lastEventMs >= QUIET_MS
+    /**
+     * @param touchedAtMs 마지막으로 손이 닿은 때 — 그 뒤 [TOUCH_WINDOW_MS] 안이면 간격 [TOUCH_READ_MS] · 아니면 [QUIET_MS].
+     *   알림 읽기가 간격 안에 돌았으면(마지막 읽기) 건너뛴다 — 두 번 읽지 않게
+     */
+    fun shouldRead(nowMs: Long, lastReadMs: Long, lastEventMs: Long, isListScreen: Boolean, busy: Boolean,
+                   touchedAtMs: Long = Long.MIN_VALUE / 2): Boolean {
+        val gap = if (nowMs - touchedAtMs in 0..TOUCH_WINDOW_MS) TOUCH_READ_MS else QUIET_MS
+        return isListScreen && !busy && nowMs - lastReadMs >= gap && nowMs - lastEventMs >= gap
+    }
 
     /** 로그 글 — 붙은 뒤 읽기도 알림도 없었으면(둘 다 0) 초가 아니라 «붙은 뒤 첫 읽기» */
     fun quietWord(nowMs: Long, lastReadMs: Long, lastEventMs: Long): String {

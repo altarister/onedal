@@ -677,6 +677,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 scrollGate.scrolledRecently(now))) {
             com.onedal.app.core.EventRoute.Route.IGNORE -> Unit
             com.onedal.app.core.EventRoute.Route.SCROLL_SCAN -> {
+                touchedAtMs = now   // ✋ 목록을 만진다 — 10초 동안 조용한 다시 읽기를 촘촘히
                 mainHandler.removeCallbacks(scrollScan)
                 mainHandler.postDelayed(scrollScan, (scrollGate.onScroll(now) - now).coerceAtLeast(0))
             }
@@ -739,6 +740,8 @@ class HijackService : AccessibilityService(), ScanContext {
     private var eventSinceRead = false
     /** 📜 조용한 목록 다시 읽기 — 마지막 읽기 시각 · 이번 읽기가 조용한 다시 읽기인가 · 겹친 틀 연달아 버린 수 (`ListWatch`) */
     private var lastReadMs = 0L
+    /** ✋ 마지막으로 손이 닿은 때 — 목록 스크롤 알림 · 상세→목록 복귀 · 겹친 틀 버림 (`ListWatch.TOUCH_WINDOW_MS`) */
+    private var touchedAtMs = Long.MIN_VALUE / 2
     private var quietReading = false
     private var discardStreak = 0
 
@@ -789,7 +792,7 @@ class HijackService : AccessibilityService(), ScanContext {
             val now = android.os.SystemClock.elapsedRealtime()
             if (com.onedal.app.core.ListWatch.shouldRead(now, lastReadMs, lastTargetEventMs,
                     isListScreen = telemetryManager.currentScreenContext == ScreenContext.LIST,
-                    busy = touchManager.tapPending || session.isDetailScrapSent))
+                    busy = touchManager.tapPending || session.isDetailScrapSent, touchedAtMs = touchedAtMs))
                 quietRead(com.onedal.app.core.ListWatch.quietWord(now, lastReadMs, lastTargetEventMs))
             mainHandler.postDelayed(this, 1000)
         }
@@ -948,6 +951,7 @@ class HijackService : AccessibilityService(), ScanContext {
         if (isListScreen && !wasListScreen) {
             AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
             resetSessionState()
+            touchedAtMs = android.os.SystemClock.elapsedRealtime()   // ✋ 상세→목록 복귀 — 10초 동안 조용한 다시 읽기를 촘촘히
             // 👁️ 돌아온 5초는 목록 요약을 1초마다 빠짐없이 (`listWatch`)
             mainHandler.removeCallbacks(listWatch)
             listWatchTicks = 5
@@ -1135,6 +1139,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val groupedNodes = scrapParser.groupListNodes(allNodes)
         if (scrapParser.lastFrameDiscarded) {
             discardStreak++
+            touchedAtMs = android.os.SystemClock.elapsedRealtime()   // ✋ 목록이 움직였다 — 10초 동안 촘촘히
             mainHandler.removeCallbacks(afterDiscardRead)
             com.onedal.app.core.ListWatch.afterDiscard(discardStreak)?.let { mainHandler.postDelayed(afterDiscardRead, it) }
                 ?: if (discardStreak == com.onedal.app.core.ListWatch.DISCARD_STREAK_MAX)
