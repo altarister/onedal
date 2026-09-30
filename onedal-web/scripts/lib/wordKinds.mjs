@@ -80,17 +80,22 @@ export function loadRegions(ROOT) {
 export const isPlace = (w) => /점$|[[\]]|-|로\d+번길$|아파트$|빌라$|타워$|센터$/.test(w) || w.length >= 6;
 
 /**
- * 🔢 **글자가 아니라 «값»인 것** — 요금·거리·시각·남은 시간·예약 날짜.
+ * 🔢 **글자가 아니라 «값»인 것** — 요금·거리·시각·남은 시간·예약 날짜·전화.
  * 배차망이 달라도 모양이 같아서 여기 모아 둔다. 새 배차망에서 다른 꼴이 나오면 여기에 더한다.
+ * 🔴 **원달앱 짝** `core/ValueShape.kt` — 앱은 모은 글자를 싣기 전에 값을 이 이름표로 바꾼다(`ValueShapePairTest` 가 정규식 글자와 이름표를 문다).
+ *    한 줄에 `{ re: /…/, label: '<…>' }` 하나 — 짝 검사가 이 모양을 읽는다.
  */
-const VALUE_SHAPES = [
-    /^[\d,.]+$/,                              // 요금·숫자
-    /^\d+(\.\d+)?(km|m)$/,                    // 거리
-    /^\d{1,2}:\d{2}$/,                        // 시각
-    /^\d+분( 내)?$/,                           // 남은 시간
-    /^\d{1,2}\/\d{1,2}\([월화수목금토일]\)$/,    // 예약 날짜
+export const VALUE_SHAPES = [
+    { re: /^[\d,.]+$/, label: '<숫자>' },
+    { re: /^\d+(\.\d+)?(km|m)$/, label: '<거리>' },
+    { re: /^\d{1,2}:\d{2}$/, label: '<시각>' },
+    { re: /^\d{1,2}시(\d{1,2}분?|반)?$/, label: '<시각>' },
+    { re: /^\d+분( 내)?$/, label: '<남은 시간>' },
+    { re: /^\d{1,2}\/\d{1,2}\([월화수목금토일]\)$/, label: '<날짜>' },
+    { re: /^\d{1,2}일$/, label: '<날짜>' },
+    { re: /^0\d{1,2}-\d{3,4}-\d{4}$/, label: '<전화>' },
 ];
-export const isValueShape = (t) => VALUE_SHAPES.some((re) => re.test(t));
+export const isValueShape = (t) => VALUE_SHAPES.some(({ re }) => re.test(t));
 
 /**
  * 🧮 **장부의 화면 원문에서 낱말을 모아 갈래로 센다.**
