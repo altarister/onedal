@@ -434,8 +434,9 @@ export function getUserSession(userId: string): UserSession {
                 // Restore saved filter into baseFilter — 국면 파생 조각 + user_filters 잔여 칸
                 session.baseFilter = {
                     ...firstPatch,
-                    minFare: filterRow.min_fare,   // 최소 금액 — 🔍 필터 «어떤 콜»에서 고친다
-                    maxFare: filterRow.max_fare,
+                    /* 🔢 원달앱이 Int 로 받는 칸 — DB 에 소수가 들어 있어도 정수로 읽는다(소수 한 칸이면 폰이 응답 전체를 버린다) */
+                    minFare: wholeOrAsIs(filterRow.min_fare),   // 최소 금액 — 🔍 필터 «어떤 콜»에서 고친다
+                    maxFare: wholeOrAsIs(filterRow.max_fare),
                     excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
                     isActive: Boolean(filterRow.is_active),
                     // ratePerKm 은 파생값 — 콜할인율(현 국면)과 DB 단가표·수수료에서 매번 만든다.
@@ -521,6 +522,11 @@ export function getUserSession(userId: string): UserSession {
 
 export function getAllActiveUserIds(): string[] {
     return Array.from(sessions.keys());
+}
+
+/** 🔢 숫자면 반올림, 아니면(NULL 등) 그대로 — 원달앱이 Int 로 받는 필터 칸을 DB 에서 읽을 때 */
+function wholeOrAsIs(v: unknown): any {
+    return typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : v;
 }
 
 // 명시적 로그아웃 시 메모리 세션 파기용 함수

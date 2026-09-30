@@ -28,6 +28,17 @@ describe('🔔 벨 점수', () => {
         const high = toSnapshot(judge(CRITERIA, first(50_000, 60), { ...cfg, bell: { scoreMin: (s.score ?? 0) + 1 } }));
         expect(high.bell).toBe(false);
     });
+    it('🔴 빨리 접기 선(foldable)은 점수로 — 점수 < min(벨 점수, 꿀 경계) · 색(🟡 등)으로 가르지 않는다', () => {
+        const s = toSnapshot(judge(CRITERIA, first(50_000, 60), cfg));
+        expect(s.score).not.toBeNull();
+        /* 벨을 점수 위로 올려도 꿀 경계가 점수 아래면 안 접는다 */
+        const bellHigh = toSnapshot(judge(CRITERIA, first(50_000, 60), { ...cfg, bell: { scoreMin: (s.score ?? 0) + 1 }, color: { ...cfg.color, honeyMin: 0 } }));
+        expect(bellHigh.bell).toBe(false);
+        expect(bellHigh.foldable).toBe(false);
+        /* 둘 다 점수 위면 접는다 */
+        const both = toSnapshot(judge(CRITERIA, first(50_000, 60), { ...cfg, bell: { scoreMin: (s.score ?? 0) + 1 }, color: { ...cfg.color, honeyMin: (s.score ?? 0) + 1 } }));
+        expect(both.foldable).toBe(true);
+    });
     it('🔴 옛 DB 에도 칸이 붙는다 — DEFAULT 50', () => {
         const col = (db.prepare(`PRAGMA table_info(user_judgment)`).all() as any[]).find(c => c.name === 'bell_score_min');
         expect(col).toBeTruthy();

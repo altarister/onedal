@@ -27,6 +27,16 @@ describe('🔢 필터 정수 칸', () => {
         expect(f.maxFare).toBe(150000);
     });
 
+    it('🔴 DB 에 이미 소수가 있어도 세션을 만들 때 정수로 읽는다', () => {
+        db.prepare(`INSERT OR IGNORE INTO user_filters (user_id) VALUES (?)`).run(U);
+        db.prepare(`UPDATE user_filters SET min_fare = 22999.7, max_fare = 99999.5 WHERE user_id = ?`).run(U);
+        clearUserSession(U);
+        const s = getUserSession(U);
+        expect(s.baseFilter.minFare).toBe(23000);
+        expect(s.baseFilter.maxFare).toBe(100000);
+        expect(Number.isInteger(s.activeFilter.minFare)).toBe(true);
+    });
+
     it('🔴 평소 필터 저장도 정수로', () => {
         saveBaseFilter(U, { minFare: 15000.5 } as any);
         expect(Number.isInteger(getUserSession(U).baseFilter.minFare)).toBe(true);

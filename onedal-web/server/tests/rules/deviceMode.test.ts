@@ -354,18 +354,17 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
      */
     it('🔴 알람이 화면에도 뜬다 (소리만 나지 않는다)', () => {
         const c = web('components/dashboard/DeviceControlPanel.tsx');
-        expect(c).toMatch(/filterAlarm/);
         // 🔴 배차망 이름은 그 폰이 보는 배차망 — «인성»을 글자로 박지 않는다 (픽커 알람에 «인성»이 떴다)
         expect(codeOnly(c)).not.toMatch(/인성 리스트/);
         expect(c).toMatch(/TARGET_APP_LABEL\[device\.targetApp/);
-        // 띠는 기사님 손이 할 일이 있을 때만 — 앱이 못 열었고 손이 있어야 풀리는 까닭일 때. 보통 갈래 «확정·수락은 기사님이» 띠는 지웠다(기사님 «지우는 것이 맞다») · 소리는 그대로
-        expect(c).toMatch(/filterAlarmLine\(filterAlarm, /);
-        // 🔴 알림은 그 알림을 낸 폰의 줄에만 — 폰이 둘이면 다른 폰 줄에 띠가 뜨지 않게
-        expect(c).toMatch(/filterAlarm\.deviceId === device\.deviceId/);
-        // 🔴 소리 없는 띠(까닭이 «손 필요»로 바뀜)는 울리지 않는다
-        expect(web('hooks/useSystemAlerts.ts')).toMatch(/if \(!alarm\.silent\) soundManager\.playFilterAlarm\(\)/);
+        // 띠는 기사님 손이 할 일이 있을 때만 — 앱이 못 열었고 손이 있어야 풀리는 까닭인 동안. 보통 갈래 «확정·수락은 기사님이» 띠는 지웠다(기사님 «지우는 것이 맞다») · 소리는 그대로
+        // 🔴 그 폰의 기기 상태로 그린다 — 그 폰 줄에만 뜨고, 까닭이 그대로면 유지 · 풀리면 사라진다(알림 10초로 끄지 않는다)
+        expect(c).toMatch(/handBandOf\(device, /);
+        expect(web('lib/handBand.ts')).toMatch(/device\.lastOpenBlocked/);
         expect(web('lib/filterAlarmLine.ts')).toMatch(/앱이 못 열었습니다: \$\{why\} — 직접 여십시오/);
         expect(web('lib/filterAlarmLine.ts')).not.toMatch(/상세에서 확정·수락은 기사님이 누르십시오/);
+        // 🔴 소리 없는 띠(까닭이 «손 필요»로 바뀜)는 울리지 않는다
+        expect(web('hooks/useSystemAlerts.ts')).toMatch(/if \(!alarm\.silent\) soundManager\.playFilterAlarm\(\)/);
     });
 
     it('🔴 모드 버튼이 셋이다 (알람이 화면에 있다)', () => {

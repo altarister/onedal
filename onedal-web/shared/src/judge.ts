@@ -150,6 +150,8 @@ export interface Judgment {
     notes: string[];
     /** 🔔 벨을 울릴까 — 점수 ≥ 벨 점수(`cfg.bell.scoreMin`). 색과 따로다. 점수 없음이면 false */
     bell: boolean;
+    /** ⏩ 빨리 접을 콜인가 — 점수 없음 또는 점수 < min(벨 점수, 꿀 경계). 색(🟡 등)으로 가르지 않는다 (`quickFoldSecOf`) */
+    foldable: boolean;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -253,7 +255,8 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
 
     /* 🔔 벨은 색이 아니라 점수로 (기사님 «가») — 관제웹은 이 한 칸만 읽는다 */
     const bell = score != null && score >= (cfg.bell.scoreMin);
-    return { color, score, criteria: rows, notes, bell };
+    const foldable = score == null || score < Math.min(cfg.bell.scoreMin, cfg.color.honeyMin);
+    return { color, score, criteria: rows, notes, bell, foldable };
 }
 
 
@@ -275,8 +278,10 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
  *    서버·관제웹은 지금처럼 «상세 이탈» 하나로 끈다(미리보기를 시간으로 끄지 않는다는 기사님 결정 그대로).
  */
 export const QUICK_FOLD_SEC = 10;
-export function quickFoldSecOf(judgment: { score: number | null; bell?: boolean; color?: string } | null | undefined, openedByApp: boolean | undefined): number | null {
+export function quickFoldSecOf(judgment: { score: number | null; bell?: boolean; color?: string; foldable?: boolean } | null | undefined, openedByApp: boolean | undefined): number | null {
     if (openedByApp !== true || !judgment) return null;
+    /* 판정이 실은 선(점수 < min(벨, 꿀 경계))을 따른다 — 없으면(옛 판정) 벨 미만이면서 꿀 아님 */
+    if (judgment.foldable != null) return judgment.foldable ? QUICK_FOLD_SEC : null;
     if (judgment.score == null) return QUICK_FOLD_SEC;
     return judgment.bell !== true && judgment.color !== '꿀' ? QUICK_FOLD_SEC : null;
 }
@@ -287,6 +292,7 @@ export function toSnapshot(v: Judgment) {
         color: v.color,
         score: v.score,
         bell: v.bell,
+        foldable: v.foldable,
         axes: v.criteria.map(c => ({
             key: c.key, name: c.name,
             // 🔴 못 잰 기준은 **null** 이다 — 위 주석대로. `?? 0` 이었을 때

@@ -987,6 +987,12 @@ export function ensureReservedPickupList(session: ReturnType<typeof getUserSessi
         line: null,
         parts: { line: false, goalCities: [] },
     });
+    /* 🔴 빈 목록은 싣지도 붙잡지도 않는다 — 앱은 빈 목록을 «내일 콜 전부 탈락»으로 읽고, 붙잡으면 지도 자료를 못 읽어 한 번 빈 것이 계속 간다 */
+    if (list.length === 0) {
+        session.reservedPickup = null;
+        slog('필터', `📋 [내일 상차 목록] 집 · 반경 ${radiusKm}km → 0곳 — 싣지 않고 다음에 다시 센다`);
+        return null;
+    }
     session.reservedPickup = { key, keywords: list, groups: grouped };
     slog('필터', `📋 [내일 상차 목록] 집 ${SettingsRepository.getHomeLocation(userId)?.address ?? '?'} · 반경 ${radiusKm}km → ${list.length}곳`);
     return session.reservedPickup;

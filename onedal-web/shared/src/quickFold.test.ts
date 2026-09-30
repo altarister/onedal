@@ -15,6 +15,9 @@ describe('⏩ 빨리 접기', () => {
         // 🔴 꿀 콜은 벨 점수 아래여도 안 접는다 — 접는 선은 벨 점수와 꿀 경계 중 낮은 쪽
         expect(quickFoldSecOf({ score: 75, bell: false, color: '꿀' }, true)).toBeNull();
         expect(quickFoldSecOf({ score: 65, bell: false, color: '보통' }, true)).toBe(10);
+        // 🔴 판정이 실은 foldable(점수 < min(벨, 꿀 경계))을 따른다 — 🟡 라도 꿀 경계 이상이면 안 접는다
+        expect(quickFoldSecOf({ score: 75, bell: false, color: '똥', foldable: false }, true)).toBeNull();
+        expect(quickFoldSecOf({ score: 30, bell: false, color: '똥', foldable: true }, true)).toBe(10);
     });
     it('🔴 손으로 연 콜 · 모름 · 판정 없음 → null', () => {
         expect(quickFoldSecOf({ score: null, bell: false }, false)).toBeNull();
