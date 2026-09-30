@@ -402,7 +402,7 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
       why: '총점이 이 점수 이상이면 파란색' },
     { col: 'bell_score_min', path: ['bell', 'scoreMin'], group: '알림',
       label: '🔔 벨', unit: '점 이상', min: 0, max: 100, int: true,
-      why: '판정 점수가 이 점수 이상이면 관제웹이 벨을 울린다 — 색과 따로(🟡 라도 넘으면 울림 · 점수 없음은 안 울림). 기사님: «색 말고 점수가 50점 이상이면»' },
+      why: '판정 점수가 이 점수 이상이면 벨을 울린다 — 색과 따로(🟡 라도 넘으면 울림 · 점수 없음은 안 울림)' },
     /**
      * 🔴 **🟢 보통 경계(`color.normalMin`)는 여기 없다** — 색을 만들지 않으므로 고칠 칸도 없다.
      *    🟡 은 «전화하면 잡을 수 있다» 하나만 뜻하고(`judge.ts` 의 색 결정),
