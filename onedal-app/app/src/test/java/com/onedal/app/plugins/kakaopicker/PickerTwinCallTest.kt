@@ -65,6 +65,33 @@ class PickerTwinCallTest {
         assertNull(KakaoPickerParser.photoMatchCard(d.pickup, d.dropoff, listOf(a, b), fareUnread = false))
     }
 
+    private val detailTexts = listOf("픽업지 서울 송파구 문정2동 와인마트 문정점", "픽업 장소", "매장 직원에게 문의")
+
+    @Test fun `목록 길 쌍둥이 - 까닭이 낮은 요금이라 말한다`() {
+        val a = card(7238); val b = card(6160)
+        saw(a, 20, 21); saw(b, 20, 21)
+        val m = KakaoPickerParser.matchListCard(detailTexts, listOf(a, b))
+        assertEquals(6160, m.card?.fare)
+        assertTrue(m.why, m.why.contains("같은 경로 요금 둘 — 낮은 6,160"))
+    }
+
+    @Test fun `목록 길 요금만 오른 같은 콜 - 까닭이 마지막에 본`() {
+        val a = card(6160); val b = card(7238)
+        saw(a, 5); saw(b, 9)
+        val m = KakaoPickerParser.matchListCard(detailTexts, listOf(a, b))
+        assertEquals(7238, m.card?.fare)
+        assertTrue(m.why, m.why.contains("요금만 다른 같은 콜 — 마지막에 본 7238원"))
+    }
+
+    @Test fun `목록 길로 찾은 쌍둥이도 사진 길과 같은 꼬리 글`() {
+        val a = card(7238); val b = card(6160)
+        saw(a, 20, 21); saw(b, 20, 21)
+        val o = (PickerDetailOcrParser().verify(PickerScreenOcr.parseDetail(lines)!!.copy(finalIncome = null), null, b, emptyList(), "", listOf(a, b))
+            as PickerDetailOcrParser.VerifyResult.Success).order
+        assertEquals(6160, o.fare)
+        assertTrue(o.tagsText.orEmpty(), o.tagsText.orEmpty().endsWith("요금 둘 중 낮은 값 · 7,238 / 6,160"))
+    }
+
     @Test fun `함께 뜬 적 없으면 요금만 오른 같은 콜 - 최신 값`() {
         val a = card(6160); val b = card(7238)
         saw(a, 5); saw(b, 9)

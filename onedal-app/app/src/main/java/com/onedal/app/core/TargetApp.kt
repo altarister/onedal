@@ -86,6 +86,13 @@ object TargetApp {
      */
     fun isKakaoPickerApp(packageName: String?): Boolean = packageName == KAKAOPICKER_PACKAGE
 
+    /**
+     * 📡 **배차망 앱에서 온 알림인가** — 픽커 · 시뮬레이터 · 마지막으로 배차망 화면이던 앱(인성·화물24 · 화면 글자로 정한 것).
+     * 내비·상태줄 알림은 아니다 — 세면 운행 중 «목록이 조용하다»가 안 와 조용한 다시 읽기가 멈춘다 (`NetworkEventSourceTest`).
+     */
+    fun isNetworkPackage(pkg: String?, lastNetworkPackage: String?): Boolean =
+        pkg != null && (isKakaoPickerApp(pkg) || pkg == SIMULATOR_PACKAGE || pkg == lastNetworkPackage)
+
     /** 🏁 «먼저 가져감» 토스트를 믿는 앱 — 실제 픽커 · 시뮬레이터 앱. 그 밖 앱의 알림은 글자를 남기지 않는다(개인정보) */
     /** 📱 붙는 순간 화면이 **실물 배차망 목록**이면 운행 기록을 켠다 — 앱을 새로 깔면 목록에서 바로 붙어 «홈에서 목록으로» 조건이 영영 안 온다(09-30 14:13) */
     fun startsTraceOnAttach(pkg: String?, isList: Boolean): Boolean = isList && sourceOf(pkg) == "real"

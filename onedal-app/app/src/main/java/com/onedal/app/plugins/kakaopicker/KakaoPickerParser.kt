@@ -350,8 +350,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          */
         fun mixedCard(texts: List<String>): String? {
             val kms = texts.map { it.trim() }.filter { KM_SHAPE.matches(it) }
-            return if (kms.size >= 2) "한 카드에 거리 둘(${kms.joinToString(" · ")})" else null
+            return if (kms.size >= 2) "한 카드에 거리 둘(${kms.joinToString(" · ")} · 거리 ${if (kms.distinct().size == 1) "같음" else "다름"})" else null
         }
+
+        /**
+         * ✂️ **잘린 카드가 목록 어디였나** — 머리줄(없으면 화면 위) 밑 카드 두 장 높이 안이면 «위 끝», 아니면 «한가운데(y=…)».
+         * 위 끝이면 스크롤에 걸린 카드, 한가운데면 그리는 중간 틀이다 (onedal-ab 검토 (c)).
+         */
+        fun clipPlace(cardTop: Int, cardBottom: Int, headerY: Int?): String =
+            if (cardTop - (headerY ?: 0) <= 2 * (cardBottom - cardTop)) "위 끝" else "한가운데(y=$cardTop)"
 
         /**
          * ✂️ **윗줄이 잘린 카드** (`PickerClippedCardTest`) — 목록 위 끝에 걸린 카드는 태그 줄(«퀵 반나절 중형 예약 내일»)이나
@@ -555,12 +562,14 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val picked = if (byPickup.size <= 1) byPickup
                 else byPickup.filter { c -> cardKeys(c.dropoff).let { k -> k.isNotEmpty() && k.all { it in dropoffPart } } }
             // 🧾 여럿이어도 같은 콜이 요금만 오른 것이면 마지막에 본 줄 (`ListSightings`)
-            val sameCall = if (picked.size == 1) null else com.onedal.app.core.ListSightings.latestOfSameCall(picked.ifEmpty { byPickup })
-                // 🍷 최종 수익을 못 읽었으면 쌍둥이 콜(함께 뜬 · 모두 같고 요금만 다름)의 낮은 요금 줄
-                ?: if (detailFare == null) com.onedal.app.core.ListSightings.lowestOfTwins(picked.ifEmpty { byPickup })?.first else null
+            val latest = if (picked.size == 1) null else com.onedal.app.core.ListSightings.latestOfSameCall(picked.ifEmpty { byPickup })
+            // 🍷 최종 수익을 못 읽었으면 쌍둥이 콜(함께 뜬 · 모두 같고 요금만 다름)의 낮은 요금 줄
+            val twin = if (picked.size == 1 || latest != null || detailFare != null) null
+                else com.onedal.app.core.ListSightings.lowestOfTwins(picked.ifEmpty { byPickup })?.first
             return when {
                 picked.size == 1 -> ListCardMatch(picked[0], "$how 이 맞는 카드 하나")
-                sameCall != null -> ListCardMatch(sameCall, "$how 이 맞는 줄이 같은 콜의 요금만 다른 것 — 마지막에 본 ${sameCall.fare}원")
+                latest != null -> ListCardMatch(latest, "$how 이 맞는 줄이 요금만 다른 같은 콜 — 마지막에 본 ${latest.fare}원")
+                twin != null -> ListCardMatch(twin, "$how 이 맞는 줄이 같은 경로 요금 둘 — 낮은 ${"%,d".format(twin.fare)}원")
                 byPickup.isEmpty() -> ListCardMatch(null, "리스트 카드 중 $how 이 맞는 것이 없다")
                 picked.isEmpty() -> ListCardMatch(null, "$how 이 맞는 카드 ${byPickup.size}장 — 배송지로도 못 가른다")
                 else -> ListCardMatch(null, "$how · 배송지가 맞는 카드 ${picked.size}장 — 어느 것인지 모른다")
@@ -579,10 +588,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                     ?: if (fareUnread) com.onedal.app.core.ListSightings.lowestOfTwins(it)?.first else null
             }
 
-        /** 🍷 사진 대조가 쌍둥이 콜 길로 골랐으면 그 요금들(높은 순) — 꼬리 글용 */
-        fun photoTwinFares(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>): List<Int>? =
-            photoMatchSteps(pickup, dropoff, recent).last().takeIf { it.size > 1 && com.onedal.app.core.ListSightings.latestOfSameCall(it) == null }
-                ?.let { com.onedal.app.core.ListSightings.lowestOfTwins(it)?.second }
+        /** 🍷 고른 줄이 쌍둥이 콜(함께 뜬 · 모두 같고 요금만 다름)의 낮은 요금이면 꼬리 글 — 목록 줄 대조 · 사진 대조가 같이 쓴다 (`PickerTwinCallTest`) */
+        fun twinNoteOf(base: SimplifiedOfficeOrder?, recent: List<SimplifiedOfficeOrder>): String? {
+            base ?: return null
+            fun key(c: SimplifiedOfficeOrder) = listOf(c.pickup, c.dropoff, c.pickupDistance, c.tagsText, c.itemSize)
+            val (low, fares) = com.onedal.app.core.ListSightings.lowestOfTwins(recent.filter { key(it) == key(base) }.distinctBy { it.fare }) ?: return null
+            return if (low.fare == base.fare) "요금 둘 중 낮은 값 · ${fares.joinToString(" / ") { "%,d".format(it) }}" else null
+        }
 
         /** 🧾 진단 한 줄 — 사진 대조가 어느 단계에서 줄었나 (`[손 상세 대조]`) */
         fun photoMatchReport(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>, fareUnread: Boolean = false): String {
@@ -881,8 +893,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             lastFrameDiscarded = true
             return emptyList()
         }
+        val headerY = listHeaderCenterY(triples.map { it.first to it.second })
         // 🟩 오더카드가 보이면 한 줄(바뀔 때만) — 2단계 근거 · 기록만
-        offerCardRecord(triples, listHeaderCenterY(triples.map { it.first to it.second }))?.let { line ->
+        offerCardRecord(triples, headerY)?.let { line ->
             if (com.onedal.app.core.LogOnce.changed("offer-card", line.substringBefore(" · 띠 노드")))
                 com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "🟩 [오더카드 보임] $line")
         }
@@ -899,7 +912,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val why = clippedCard(texts, idx.map { sorted[it].rect.top }, tagSet) ?: return@filter true
             if (com.onedal.app.core.LogOnce.changed("clipped:${texts.joinToString(" ")}", why))
                 com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.SCREEN,
-                    "✂️ [덜 읽힌 카드] $why — 판정·알람 뺌 · ${com.onedal.app.core.ScreenWords.mask(texts.joinToString(" ")).take(40)}")
+                    "✂️ [덜 읽힌 카드] $why · ${clipPlace(idx.minOf { sorted[it].rect.top }, idx.maxOf { sorted[it].rect.bottom }, headerY)} — 판정·알람 뺌 · ${com.onedal.app.core.ScreenWords.mask(texts.joinToString(" ")).take(40)}")
             false
         }
         val cards = groups.map { (i, idx) -> Pair(sorted[i], idx.map { sorted[it].text }) }

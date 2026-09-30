@@ -1,7 +1,9 @@
 package com.onedal.app.plugins.kakaopicker
 
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -64,4 +66,19 @@ class PickerClippedCardTest {
         assertNull(KakaoPickerParser.clippedCard(
             listOf("퀵", "승", "예약", "14:30", "분당", "16.9km", "수지", "죽전2", "서현1", "10,010"),
             listOf(1556, 1556, 1556, 1558, 1553, 1617, 1613, 1613, 1613, 1580), tagSet))
+}
+
+/** 📐 버림 로그가 스스로 말하게 — 거리가 같은 섞임인가 · 잘린 카드가 목록 위 끝인가 한가운데인가 (onedal-ab 검토 (c) · 1f «가») */
+class PickerDiscardWordsTest {
+    @Test fun `거리 둘이 같으면 같음`() =
+        assertTrue(KakaoPickerParser.mixedCard(listOf("수지", "14.5km", "송파", "14.5km", "9,394"))!!.contains("거리 같음"))
+
+    @Test fun `거리 둘이 다르면 다름`() =
+        assertTrue(KakaoPickerParser.mixedCard(listOf("수지", "14.5km", "송파", "17.3km", "9,394"))!!.contains("거리 다름"))
+
+    @Test fun `머리줄 바로 밑 카드는 위 끝`() = assertEquals("위 끝", KakaoPickerParser.clipPlace(250, 400, 200))
+
+    @Test fun `화면 위에 걸린 카드는 머리줄이 없어도 위 끝`() = assertEquals("위 끝", KakaoPickerParser.clipPlace(-20, 130, null))
+
+    @Test fun `목록 한가운데 카드`() = assertEquals("한가운데(y=1500)", KakaoPickerParser.clipPlace(1500, 1650, 200))
 }

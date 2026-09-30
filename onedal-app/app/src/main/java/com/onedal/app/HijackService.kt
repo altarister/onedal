@@ -637,7 +637,7 @@ class HijackService : AccessibilityService(), ScanContext {
             val pkg = event.packageName?.toString()
             val live = TargetApp.isKakaoPickerApp(pkg)
             // 👆 픽커 · 시뮬레이터 · 마지막으로 배차망 화면이던 앱(인성·화물24) — 누름은 기록이 꺼져 있어도 늘 남기고 올린다
-            if (live || pkg == TargetApp.SIMULATOR_PACKAGE || (pkg != null && pkg == lastNetworkPackage)) {
+            if (TargetApp.isNetworkPackage(pkg, lastNetworkPackage)) {
                 val nodeTexts = mutableListOf<String>()
                 event.source?.let { gatherNodeTexts(it, nodeTexts) }
                 val label = com.onedal.app.plugins.kakaopicker.PickerTrace.clickLabelOf(event.text, event.contentDescription, nodeTexts)
@@ -658,7 +658,8 @@ class HijackService : AccessibilityService(), ScanContext {
         if (event == null) return
         val eventPkg = event.packageName?.toString()
         val isOwnApp = eventPkg == packageName
-        if (!isOwnApp) {
+        // 📡 조용한 다시 읽기 · «움직이는 중»은 배차망 앱 알림만 센다 — 내비·상태줄 알림은 목록이 움직인 것이 아니다
+        if (TargetApp.isNetworkPackage(eventPkg, lastNetworkPackage)) {
             val t = android.os.SystemClock.elapsedRealtime()
             lastTargetEventMs = t; eventSinceRead = true
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
@@ -736,7 +737,7 @@ class HijackService : AccessibilityService(), ScanContext {
     private val recentContentEvents = ArrayDeque<Long>()
     private var scanMoving = false
     private val alarmHold = com.onedal.app.core.AlarmHold()
-    private val heldAlarmRecheck = Runnable { quietRead("미룬 알람 확인") }
+    private val heldAlarmRecheck = Runnable { reservedRead("미룬 알람 확인") }
     private var eventSinceRead = false
     /** 📜 조용한 목록 다시 읽기 — 마지막 읽기 시각 · 이번 읽기가 조용한 다시 읽기인가 · 겹친 틀 연달아 버린 수 (`ListWatch`) */
     private var lastReadMs = 0L
@@ -799,7 +800,13 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     /** 📐 겹친 틀을 버렸으면 곧 한 번 더 (`ListWatch.afterDiscard`) */
-    private val afterDiscardRead = Runnable { quietRead("겹친 틀 버린 뒤") }
+    private val afterDiscardRead = Runnable { reservedRead("겹친 틀 버린 뒤") }
+
+    /** ⏰ 걸어 둔 다시 읽기 — 그사이 화면이 바뀌었을 수 있어 부르는 때에 다시 본다: 목록인가 · 누르는 중 아닌가 · 상세 보내는 중 아닌가 */
+    private fun reservedRead(why: String) {
+        if (telemetryManager.currentScreenContext != ScreenContext.LIST || touchManager.tapPending || session.isDetailScrapSent) return
+        quietRead(why)
+    }
 
     private fun scanScreenBody() {
 
@@ -947,6 +954,7 @@ class HijackService : AccessibilityService(), ScanContext {
             listBlindSinceMs = System.currentTimeMillis()
             alarmHold.clear()   // ⏳ 목록을 떠났다 — 미룬 알람을 버린다
             mainHandler.removeCallbacks(heldAlarmRecheck)
+            mainHandler.removeCallbacks(afterDiscardRead)
         }
         if (isListScreen && !wasListScreen) {
             AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
@@ -1139,6 +1147,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val groupedNodes = scrapParser.groupListNodes(allNodes)
         if (scrapParser.lastFrameDiscarded) {
             discardStreak++
+            lastScreenFingerprint = 0   // 다시 읽은 글자가 버린 틀과 같아도 목록을 다시 본다 (라이브 09-30 20:47:00 · 33.1초 멈춤)
             touchedAtMs = android.os.SystemClock.elapsedRealtime()   // ✋ 목록이 움직였다 — 10초 동안 촘촘히
             mainHandler.removeCallbacks(afterDiscardRead)
             com.onedal.app.core.ListWatch.afterDiscard(discardStreak)?.let { mainHandler.postDelayed(afterDiscardRead, it) }
@@ -1366,6 +1375,7 @@ class HijackService : AccessibilityService(), ScanContext {
             d.dropped?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [알람 미룸 → 탈락] $it") }
             when (d.kind) {
                 com.onedal.app.core.AlarmHold.Kind.HOLD -> {
+                    lastScreenFingerprint = 0   // 확인 읽기의 글자가 같아도 목록을 다시 봐야 미룬 알람이 울린다
                     AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "⏳ [알람 미룸] 목록이 움직이는 중(내용 바뀜 ${recentContentEvents.size}개/300ms) — 다음 읽기에서 같은 조립이면 울린다 · $label")
                     mainHandler.removeCallbacks(heldAlarmRecheck)
                     mainHandler.postDelayed(heldAlarmRecheck, com.onedal.app.core.AlarmHold.RECHECK_MS)
