@@ -144,6 +144,11 @@ export class OrderEvaluator {
          */
         const alive = () => session.pendingOrdersData.get(securedOrder.id) === securedOrder && isEvaluating(securedOrder.status);
         const { reservedLater, originNow, activeCallsNow, goalNow } = evaluationInputsOf(userId, session, securedOrder);
+        /**
+         * 📸 **판정 재료는 시작 때 한 번 뜬다** — 기점 · 잡은 콜 · 목적지 · 오늘 필터(얕은 사본: 칸을 그 자리에서 고치는 쪽이 있어 참조는 사진이 아니다).
+         *    카카오를 기다리는 사이 GPS · 필터 변경 · KEEP 이 끼어들어도 한 판정이 옛 값/새 값을 섞지 않는다.
+         */
+        const snap = { origin: originNow(), activeCalls: activeCallsNow(), goal: goalNow(), filter: { ...session.activeFilter } };
         // 📍 낡은 현위치로 우회 비용을 재면 색이 틀린다 (규칙 ⑤-3) — 비우면 내 주소로 메운다.
         //    비움만 부르면 origin 없는 카카오 호출이 되어 합짐이 전부 🔴 로 나온다 (0831 실측)
         // 판정 기준 — 원천은 DB(세션에 로그인 때 실림). 없으면(검사·초기화 전) 기본표로 폴백
@@ -160,7 +165,7 @@ export class OrderEvaluator {
         securedOrder.dropoff = this.plugin.normalizeAddress(securedOrder.dropoff);
 
         // Stage 1. 형상 필터
-        const { excludedHits } = this.runStage1ShapeFilter(securedOrder, session, reasons, pros);
+        const { excludedHits } = this.runStage1ShapeFilter(securedOrder, snap.filter, reasons, pros);
 
         // Stage 1.5 지오코딩 및 카카오 연산
         try {
@@ -195,7 +200,7 @@ export class OrderEvaluator {
                 // ⚠️ 두 쪽 모두 X 로 본다 — 아래 else 의 진단문이 X 로 «어느 쪽이 없나»를 가른다
                 if (securedOrder.pickupX && securedOrder.dropoffX) {
                     const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
-                    const activeCalls = activeCallsNow();
+                    const activeCalls = snap.activeCalls;
                     const activeMain = activeCalls[0];
                     const activeSubs = activeCalls.slice(1);
                     
@@ -203,7 +208,7 @@ export class OrderEvaluator {
 
                     if (!isSharedEvaluate) {
                         // 단독 오더 연산
-                        const result = await timed(calculateSoloRoute(...soloRouteArgsOf(userId, originNow,
+                        const result = await timed(calculateSoloRoute(...soloRouteArgsOf(userId, () => snap.origin,
                             { x: securedOrder.pickupX!, y: securedOrder.pickupY! },
                             { x: securedOrder.dropoffX!, y: securedOrder.dropoffY! })), ms => { routeMs = ms; });
 
@@ -217,7 +222,7 @@ export class OrderEvaluator {
                          * 심사마다 (직선거리, 카카오 접근 분) 쌍을 `reach_samples` 장부에
                          * 남긴다 — 로그는 3일 순환이라 표본이 증발한다. 역산은 `pnpm reach`.
                          */
-                        const me = originNow();
+                        const me = snap.origin;
                         if (me && securedOrder.pickupX && securedOrder.pickupY
                             && securedOrder.approachDurationMin != null) {
                             const lineKm = haversineKm(me.y, me.x,
@@ -296,7 +301,7 @@ export class OrderEvaluator {
                          *    그래서 값이 둘이고 이름으로 갈라 둔다.
                          */
                         const rateForScore = (securedOrder as any).isPreview
-                            ? this.loadPricing(securedOrder, userId, session.activeFilter.callDiscountPct) : null;
+                            ? this.loadPricing(securedOrder, userId, snap.filter.callDiscountPct) : null;
                         /* 💸 화면에 쓸 하한 — 할인율 0 으로 다시 재서 «시세»를 본다 */
                         const rateForDisplay = (securedOrder as any).isPreview
                             ? this.loadPricing(securedOrder, userId, 0) : null;
@@ -323,9 +328,9 @@ export class OrderEvaluator {
                          *    강남으로 올라가는 콜인데 🟡 로 떨어졌다. 셈은 `destProgressOf` 한 곳에 있다.
                          */
                         const progress = destProgressOf({
-                            me: originNow(),
+                            me: snap.origin,
                             dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
-                            goalCity: goalNow(),
+                            goalCity: snap.goal,
                             destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
                         });
                         /**
@@ -363,10 +368,10 @@ export class OrderEvaluator {
                              *    「돈」이 못 센다. 그물이 쓰는 식과 한 벌이다 (`isPickupBackward`).
                              */
                             pickupBackward: pickupBackwardOf({
-                                me: originNow(),
+                                me: snap.origin,
                                 pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
-                                goalCity: goalNow(),
-                                pickupRadiusKm: session.activeFilter.pickupRadiusKm,
+                                goalCity: snap.goal,
+                                pickupRadiusKm: snap.filter.pickupRadiusKm,
                             }),
                             // 🏔️ 들어가면 빈 차로 나오는 곳 — 요금으로는 안 보인다 (노하우 148행)
                             trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
@@ -384,7 +389,7 @@ export class OrderEvaluator {
                         slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
                         // 🧪 도달 반경 dryRun (구현 4 계측) — 거르지 않는다, 설정 반경과 견주기만
                         slog('판정', `   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupPromiseMin}분 ` +
-                            `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupPromiseMin)}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
+                            `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupPromiseMin)}km (설정 ${snap.filter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
                         /**
                          * 🔴 **축 아홉을 사유 문자열에 싣지 않는다** (기사님 확정 · 화면 디자인).
                          *
@@ -422,7 +427,7 @@ export class OrderEvaluator {
                         const result = await timed(composeMergedRoute({
                             calls: activeCalls,
                             extra: securedOrder,
-                            origin: originNow(),
+                            origin: snap.origin,
                             priority: routingOptions.defaultPriority,
                             carType: routingOptions.carType,
                             /* ⏱️ 판정도 **잡은 뒤와 같은 순서**로 잰다 — 다르면 화면이 말한 늦음과 실제 경로가 갈린다 */
@@ -451,7 +456,7 @@ export class OrderEvaluator {
                         const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
 
                         const slotsTotal = TRUCK_CAPACITY_SLOTS;
-                        const slotsUsed = session.activeFilter.slotsUsed ?? 0;
+                        const slotsUsed = snap.filter.slotsUsed ?? 0;
 
                         // 함께 실을 수 없는 화물인지 (위험물 + 식료품 등) — 문지기 재료
                         const conflicts = findLoadConflicts(userId, session, securedOrder.id);
@@ -484,7 +489,7 @@ export class OrderEvaluator {
                             const nameOf = (id: string) => {
                                 const idx = activeCalls.findIndex(c => c.id === id);
                                 return idx >= 0
-                                    ? callName({ target: session.activeFilter.callTarget, index: idx })
+                                    ? callName({ target: snap.filter.callTarget, index: idx })
                                     : id.slice(-6);
                             };
                             // ⏰ 깨지는 약속 — 짓는 곳은 `lateStopsOf` 하나다 (규칙 ③)
@@ -675,7 +680,7 @@ export class OrderEvaluator {
                                  */
                                 freePct: slotsTotal > 0 ? ((slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
                                 /** 📦 그 적재량을 어떻게 알았나 — 확정값일 때만 색을 덮는다 */
-                                confidence: session.activeFilter.capacityConfidence ?? null,
+                                confidence: snap.filter.capacityConfidence ?? null,
                                 conflicts, excludedHits, lateStops,
                                 /**
                                  * 🧭 **합짐도 방향을 본다 — 기점은 «잡아 둔 콜을 다 내린 곳»이다** (기사님 확정).
@@ -703,7 +708,7 @@ export class OrderEvaluator {
                                     const p = destProgressOf({
                                         me: from,
                                         dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
-                                        goalCity: goalNow(),
+                                        goalCity: snap.goal,
                                     });
                                     /**
                                      * 🔴 **돌았는지 한 줄로 남긴다** — 오늘 꼬리 빼기가 한 나절 조용히 안 돌았고
@@ -726,7 +731,7 @@ export class OrderEvaluator {
                                  */
                                 trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
                                 // 🏗️ 정차 중(모으는 중) ↔ 주행 중 — 가르는 곳은 `resolvePhaseKey` 하나다
-                                phase: resolvePhaseKey(session.activeFilter.callTarget, session.activeFilter.dispatchPhase),
+                                phase: resolvePhaseKey(snap.filter.callTarget, snap.filter.dispatchPhase),
                                 tags,
                             }), judgmentCfg));
                             dry.stops = stopsView;
@@ -736,7 +741,7 @@ export class OrderEvaluator {
                             slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
                             // 🧪 도달 반경 dryRun (구현 4 계측) — 앞 일이 많을수록 버퍼가 줄어 반경이 준다 (16-3)
                             if (bufAfter) slog('판정', `   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +
-                                `≈ ${reachRadiusKm(Math.max(0, bufAfter.minutes))}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정)`);
+                                `≈ ${reachRadiusKm(Math.max(0, bufAfter.minutes))}km (설정 ${snap.filter.pickupRadiusKm}km · 계수 잠정)`);
 
                             const failedGates = dry.gates.filter(g => !g.pass);
                             if (failedGates.length) reasons.push(...failedGates.map(g => g.why ?? g.name));
@@ -777,8 +782,8 @@ export class OrderEvaluator {
                      *    방금 앱이 집어 온 **후보콜의 주소를 카카오가 못 찾은 것**이다 — 첫짐 콜 이야기로 적으면
                      *    기사님이 *"내가 KEEP 한 첫 콜에 문제가 있나?"* 로 읽으신다.
                      */
-                    const who = callName({ target: session.activeFilter.callTarget,
-                                           index: activeCallsNow().length, candidate: true });
+                    const who = callName({ target: snap.filter.callTarget,
+                                           index: snap.activeCalls.length, candidate: true });
                     const missing = !securedOrder.pickupX ? '상차지' : '하차지';
                     const addr = (!securedOrder.pickupX ? securedOrder.pickup : securedOrder.dropoff) || '';
                     reasons.push(`${who}의 ${missing} 주소를 찾지 못했습니다`);
@@ -822,16 +827,16 @@ export class OrderEvaluator {
                  *    까닭이 빠지면 화면이 «재료가 없다» 로 읽는다.
                  */
                 progress: destProgressOf({
-                    me: originNow(),
+                    me: snap.origin,
                     dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
-                    goalCity: goalNow(),
+                    goalCity: snap.goal,
                     destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
                 }),
                 pickupBackward: pickupBackwardOf({
-                    me: originNow(),
+                    me: snap.origin,
                     pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
-                    goalCity: goalNow(),
-                    pickupRadiusKm: session.activeFilter.pickupRadiusKm,
+                    goalCity: snap.goal,
+                    pickupRadiusKm: snap.filter.pickupRadiusKm,
                 }),
                 trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
                 tags: [`판정 불가 — ${why}`],
@@ -844,7 +849,7 @@ export class OrderEvaluator {
         securedOrder.kakaoTimeExt = timeExt;
 
         // Stage 3. 요율 판정 — 콜할인율은 activeFilter.callDiscountPct 한 벌 (원천: user_filters)
-        this.runStage3Pricing(securedOrder, userId, session.activeFilter.callDiscountPct, reasons, pros);
+        this.runStage3Pricing(securedOrder, userId, snap.filter.callDiscountPct, reasons, pros);
 
         // 최종 평가 합산
         securedOrder.rejectionReasons = reasons;
@@ -862,7 +867,9 @@ export class OrderEvaluator {
         }
 
         const hedged = hedgeBudget.getStore()?.used ?? 0;
-        const timing = `좌표 ${geoMs}ms · 길찾기 ${routeMs}ms${hedged ? ` (다시 ${hedged})` : ''} · 합 ${Date.now() - t0}ms · ${merged ? '합짐' : '단독'}`;
+        /* 📸 사진 뒤에 잡은 콜 수가 바뀌었다(판정 도중 KEEP 등) — 고치지 않고 셀 수 있게만 (16 «판정 낡음»과 같은 뿌리) */
+        const callsMoved = activeCallsNow().length !== snap.activeCalls.length;
+        const timing = `좌표 ${geoMs}ms · 길찾기 ${routeMs}ms${hedged ? ` (다시 ${hedged})` : ''} · 합 ${Date.now() - t0}ms · ${merged ? '합짐' : '단독'}${callsMoved ? ' · 판정 중 잡은 콜 수가 바뀜' : ''}`;
         if (!alive()) {
             slog('판정', `🪦 [판정 버림] ${securedOrder.id.slice(-6)} — 판정 도중 끝났거나 다른 판정으로 바뀐 콜 (${securedOrder.status}) · 저장·알림 안 함 · ${timing}`);
             return;
@@ -885,8 +892,7 @@ export class OrderEvaluator {
      *    `reasons` 문장에만 남기면 판정이 못 받아 「성질」 기준이 빈손으로 돈다.
      *    훑는 곳은 여기 하나다 — 판정은 **옮겨 담기만** 한다 (규칙 ③).
      */
-    private runStage1ShapeFilter(order: SecuredOrder | PendingOrder, session: any, reasons: string[], pros: string[]): { excludedHits: string[] } {
-        const filter = session.activeFilter;
+    private runStage1ShapeFilter(order: SecuredOrder | PendingOrder, filter: any, reasons: string[], pros: string[]): { excludedHits: string[] } {
         
         // 1) 차종 검사 — 배차망은 줄여 적는다(«승»). 원달앱처럼 줄임말을 맞춰 본다
         if (filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 && order.vehicleType) {

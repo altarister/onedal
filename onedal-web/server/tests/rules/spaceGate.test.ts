@@ -67,6 +67,6 @@ describe('📦 남는 자리를 0 에서 자르지 않는다 (배선)', () => {
     });
 
     it('🔴 적재 근거를 판정에 실어 준다', () => {
-        expect(ev).toMatch(/confidence:\s*session\.activeFilter\.capacityConfidence/);
+        expect(ev).toMatch(/confidence:\s*snap\.filter\.capacityConfidence/);   // 오늘 필터는 판정 시작 때 뜬 사본 (서버 병목 15)
     });
 });

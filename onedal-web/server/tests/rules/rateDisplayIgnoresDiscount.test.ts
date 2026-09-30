@@ -42,7 +42,7 @@ describe('🔴 점수는 할인율과 무관하고, 이 고침으로도 안 바�
      */
     it('🔴 점수 입력은 rateForScore(할인율 반영본)를 쓴다', () => {
         const s = src();
-        expect(s).toMatch(/rateForScore = [\s\S]{0,120}?session\.activeFilter\.callDiscountPct/);
+        expect(s).toMatch(/rateForScore = [\s\S]{0,120}?snap\.filter\.callDiscountPct/);   // 오늘 필터는 판정 시작 때 뜬 사본 (서버 병목 15)
         expect(s).toMatch(/minAcceptableKrw:\s*rateShort\s*\?\s*rateForScore!\.minAcceptable/);
         /* 🔴 표시용 값이 점수 입력으로 새지 않는다 */
         expect(s).not.toMatch(/minAcceptableKrw:[^;\n]*rateForDisplay/);

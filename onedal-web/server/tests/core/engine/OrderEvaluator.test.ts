@@ -116,7 +116,7 @@ describe('OrderEvaluator', () => {
     test('줄여 적은 차종(승)도 허용 목록(승용차)과 맞춰 본다', () => {
         const session = { activeFilter: { allowedVehicleTypes: ['다마스', '승용차'], excludedKeywords: [] } };
         const reasons = [], pros = [];
-        evaluator.runStage1ShapeFilter({ id: 'v1', vehicleType: '승', fare: 30000, rawText: '' }, session, reasons, pros);
+        evaluator.runStage1ShapeFilter({ id: 'v1', vehicleType: '승', fare: 30000, rawText: '' }, session.activeFilter, reasons, pros);
         expect(reasons.some(r => r.includes('차종'))).toBe(false);
         expect(pros.some(r => r.includes('차종'))).toBe(true);
     });
@@ -124,7 +124,7 @@ describe('OrderEvaluator', () => {
     test('허용 목록에 없는 차종은 여전히 불일치다', () => {
         const session = { activeFilter: { allowedVehicleTypes: ['다마스', '승용차'], excludedKeywords: [] } };
         const reasons = [], pros = [];
-        evaluator.runStage1ShapeFilter({ id: 'v2', vehicleType: '1t', fare: 30000, rawText: '' }, session, reasons, pros);
+        evaluator.runStage1ShapeFilter({ id: 'v2', vehicleType: '1t', fare: 30000, rawText: '' }, session.activeFilter, reasons, pros);
         expect(reasons.some(r => r.includes('차종(1t) 불일치'))).toBe(true);
     });
 });

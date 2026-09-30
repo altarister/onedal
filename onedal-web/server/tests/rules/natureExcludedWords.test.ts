@@ -114,7 +114,7 @@ describe('🔗 형상 필터가 적요에서 제외어를 찾는다', () => {
         const ev: any = new OrderEvaluator('insung');
         const session = { activeFilter: { excludedKeywords, isSharedMode: false } };
         return ev.runStage1ShapeFilter(
-            { pickup: '', dropoff: '', detailMemo: '', ...order }, session, [], [],
+            { pickup: '', dropoff: '', detailMemo: '', ...order }, session.activeFilter, [], [],
         ).excludedHits as string[];
     };
 
