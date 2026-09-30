@@ -1,4 +1,5 @@
 import { slog } from '../utils/fileLogger';
+import { maskPin } from "@onedal/shared";
 /**
  * pairingStore.ts — 6자리 PIN 기반 기기 페어링 임시 저장소
  * 
@@ -58,7 +59,7 @@ export function generatePin(userId: string): { pin: string; expiresIn: number } 
         expiresAt: Date.now() + TTL_MS,
     });
 
-    slog('통신', `🔑 [PIN 발급] User: ${userId} → PIN: ${pin} (3분간 유효)`);
+    slog('통신', `🔑 [PIN 발급] User: ${userId} → PIN: ${maskPin(pin)} (3분간 유효)`);
     return { pin, expiresIn: 180 };
 }
 
@@ -81,7 +82,7 @@ function consumePin(pin: string): string | null {
         return null; // 만료된 PIN
     }
 
-    slog('통신', `✅ [PIN 소비] PIN: ${pin} → User: ${entry.userId} (페어링 성공)`);
+    slog('통신', `✅ [PIN 소비] PIN: ${maskPin(pin)} → User: ${entry.userId} (페어링 성공)`);
     return entry.userId;
 }
 

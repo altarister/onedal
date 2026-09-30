@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { maskPhone } from './mask';
+import { maskPhone, maskPin } from './mask';
 
 /**
  * 📵 **휴대폰 번호 가림** (reviews/29 1단계 I · 가림 규칙 «010 계열 가운데 넉 자리») — 서버 로그 · 운영센터 · 관제웹이 같은 함수를 쓴다.
@@ -15,5 +15,12 @@ describe('📵 maskPhone', () => {
     it('🔴 유선 · 대표번호 · 금액 · 좌표는 그대로', () => {
         const s = '02-123-4567 · 031-123-4567 · 1588-1234 · 12,345원 · 37.3771779 · 127.294001 · 주문 20261001123456';
         expect(maskPhone(s)).toBe(s);
+    });
+});
+
+describe('🔑 maskPin', () => {
+    it('🔴 폰 연결 번호는 뒤 두 자리만 — 로그에 번호가 통째로 남지 않게', () => {
+        expect(maskPin('805718')).toBe('****18');
+        expect(maskPin('')).toBe('');
     });
 });

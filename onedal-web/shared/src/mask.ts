@@ -8,3 +8,8 @@ const MOBILE = /(?<![\d.])(01[016789])[-.\s]?(\d{3,4})[-.\s]?(\d{4})(?![\d.])/g;
 export function maskPhone(text: string): string {
     return text.replace(MOBILE, (_m, head: string, _mid: string, tail: string) => `${head}-****-${tail}`);
 }
+
+/** 🔑 **폰 연결 번호(PIN) 가림** — 뒤 두 자리만(****18). 로그를 읽는 사람이 3분 안에 그 번호로 남의 계정에 폰을 붙이지 못하게 */
+export function maskPin(pin: string): string {
+    return pin ? `${'*'.repeat(Math.max(0, pin.length - 2))}${pin.slice(-2)}` : '';
+}
