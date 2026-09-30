@@ -24,7 +24,7 @@ import com.onedal.app.api.ApiClient
  * PIN 연동, 서버 환경, 안전 대기 시간, 디버그 터치 마커 토글 및 접근성 설정을 제공합니다.
  */
 @Composable
-fun SettingsScreen(viewModel: MainViewModel) {
+fun SettingsScreen(viewModel: MainViewModel, onOpenCheck: () -> Unit = {}) {
     val context = LocalContext.current
     val apiClient = remember { ApiClient(context) }
 
@@ -44,6 +44,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // 🩺 점검 탭으로 — 무엇이 빠졌는지 한 화면에 (`FirstRunCheck`)
+        OutlinedButton(onClick = onOpenCheck, modifier = Modifier.fillMaxWidth()) { Text("🩺 점검 화면 열기") }
         // ── 상단 기기 ID 배지 ──
         Surface(
             shape = RoundedCornerShape(20.dp),

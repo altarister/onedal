@@ -60,9 +60,35 @@ class MainViewModel {
     var waitTimesLabel by mutableStateOf("")
         private set
 
+    /** 🩺 점검 탭이 읽는 사실 — 1초마다 새로 (`FirstRunCheck`) */
+    var hasDeviceToken by mutableStateOf(false)
+        private set
+    var batteryExempt by mutableStateOf(true)
+        private set
+    var serverUrl by mutableStateOf("")
+        private set
+
+    /** 🩺 지금 사실 한 벌 — 점검 탭과 켤 때 첫 탭 고르기가 같이 읽는다 */
+    fun checkFacts(): com.onedal.app.core.FirstRunCheck.Facts = com.onedal.app.core.FirstRunCheck.Facts(
+        live = isLiveMode, serverUrl = serverUrl, lastReplyAtMs = lastScrapTime, nowMs = System.currentTimeMillis(),
+        hasToken = hasDeviceToken, unlinkedWhy = unlinkedWhy, accessibilityOn = isServiceActive,
+        batteryExempt = batteryExempt, sdkInt = android.os.Build.VERSION.SDK_INT,
+    )
+
     /** 🔐 연결이 풀린 까닭 — 비면 정상(`DeviceLink`) */
     var unlinkedWhy by mutableStateOf<String?>(null)
         private set
+
+    /** 🩺 점검 사실 읽기 — 켤 때 한 번(첫 탭 고르기)과 1초마다 */
+    private fun readCheckFacts(context: Context, prefs: android.content.SharedPreferences) {
+        isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
+        isLiveMode = prefs.getBoolean("isLiveMode", false)
+        lastScrapTime = prefs.getLong("lastScrapTime", 0L)
+        unlinkedWhy = prefs.getString(com.onedal.app.core.DeviceLink.PREF_UNLINKED, null)
+        hasDeviceToken = prefs.getString(com.onedal.app.core.DeviceLink.PREF_TOKEN, null) != null
+        serverUrl = if (isLiveMode) "1dal.altari.com" else prefs.getString("localPcIp", "172.30.1.89:4000") ?: "172.30.1.89:4000"
+        batteryExempt = (context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isIgnoringBatteryOptimizations(context.packageName)
+    }
 
     /**
      * 1초 폴링 시작
@@ -75,6 +101,7 @@ class MainViewModel {
         isLiveMode = prefs.getBoolean("isLiveMode", false)
         showTapMarker = prefs.getBoolean("showTapMarker", false)
         waitTimesLabel = waitTimesLabelOf(prefs.getString("activeFilter", null))
+        readCheckFacts(context, prefs)
 
         scope.launch {
             while (true) {
@@ -89,6 +116,7 @@ class MainViewModel {
                 apiConfirmRes = prefs.getString("api_confirm_res", "없음") ?: "없음"
                 showTapMarker = prefs.getBoolean("showTapMarker", false)
                 unlinkedWhy = prefs.getString(com.onedal.app.core.DeviceLink.PREF_UNLINKED, null)
+                readCheckFacts(context, prefs)
                 delay(1000)
             }
         }

@@ -1,7 +1,6 @@
 package com.onedal.app
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -23,6 +22,7 @@ import com.onedal.app.ui.MainViewModel
 import com.onedal.app.ui.DashboardScreen
 import com.onedal.app.ui.NetworksScreen
 import com.onedal.app.ui.SettingsScreen
+import com.onedal.app.ui.CheckScreen
 
 fun isAccessibilityServiceEnabled(context: Context, service: Class<*>): Boolean {
     val expectedComponentName = ComponentName(context, service)
@@ -47,14 +47,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // --- 배터리 최적화 제외 권한 요청 (P1-2) ---
-        val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
-            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-            intent.data = Uri.parse("package:$packageName")
-            startActivity(intent)
-        }
-        // ----------------------------------------
+        // 🔋 배터리 최적화 예외는 켤 때 창을 바로 띄우지 않는다 — 점검 탭 «예외로 두기» 버튼이 맡는다 (`FirstRunCheck`)
 
         setContent {
             MaterialTheme {
@@ -65,14 +58,12 @@ class MainActivity : ComponentActivity() {
                     val context = LocalContext.current
                     val vm = remember { MainViewModel() }
 
-                    // 폴링 시작 (1회만)
-                    LaunchedEffect(Unit) {
-                        vm.startPolling(context)
-                    }
+                    // 폴링 시작 (1회만) — 켤 때 사실을 한 번 읽어 첫 탭을 고른다
+                    remember { vm.startPolling(context); true }
 
-                    // 3탭 구조: 대시보드 / 배차망 / 설정
-                    var selectedTab by remember { mutableStateOf(0) }
-                    val tabs = listOf("📊 대시보드", "🚚 배차망", "⚙️ 설정")
+                    // 4탭 구조: 대시보드 / 배차망 / 설정 / 점검 — 🩺 켤 때 빨강(먼저 띄울 것)이 있으면 점검 탭부터
+                    var selectedTab by remember { mutableStateOf(if (com.onedal.app.core.FirstRunCheck.mustShow(com.onedal.app.core.FirstRunCheck.rows(vm.checkFacts()))) 3 else 0) }
+                    val tabs = listOf("📊 대시보드", "🚚 배차망", "⚙️ 설정", "🩺 점검")
 
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -104,7 +95,8 @@ class MainActivity : ComponentActivity() {
                             when (selectedTab) {
                                 0 -> DashboardScreen(viewModel = vm)
                                 1 -> NetworksScreen(viewModel = vm)
-                                2 -> SettingsScreen(viewModel = vm)
+                                2 -> SettingsScreen(viewModel = vm, onOpenCheck = { selectedTab = 3 })
+                                3 -> CheckScreen(viewModel = vm, onOpenSettings = { selectedTab = 2 })
                             }
                         }
                     }
