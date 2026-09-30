@@ -24,12 +24,12 @@ const weekdayOfDay = (day: string) => {
 const resolved = (s: string) => s !== SIGUNGU_AMBIGUOUS && s !== SIGUNGU_UNKNOWN;
 const man = (won: number) => `${(won / 10000).toFixed(1)}만`;
 
-export function morningCardOf(reply: FlowsReply, nowMs: number): { lines: string[]; tail: string } {
+export function morningCardOf(reply: FlowsReply, nowMs: number): { lines: string[]; tail: string; sampleDays: number; flows: number } {
     const now = new Date(nowMs);
     const weekday = WEEKDAY[now.getDay()];
     const h = now.getHours();
     const sampleDays = reply.days.filter(d => weekdayOfDay(d) === weekday).length;
-    if (sampleDays === 0) return { lines: ['📊 아직 쌓인 날이 없다 — 내일 아침부터'], tail: '내 폰이 본 목록 기준' };
+    if (sampleDays === 0) return { lines: ['📊 아직 쌓인 날이 없다 — 내일 아침부터'], tail: '내 폰이 본 목록 기준', sampleDays, flows: 0 };
 
     const window = new Set(Array.from({ length: WINDOW_HOURS }, (_, i) => `${weekday} ${h + i}시`));
     const flows = new Map<string, { from: string; to: string; calls: number; fareSum: number }>();
@@ -53,7 +53,7 @@ export function morningCardOf(reply: FlowsReply, nowMs: number): { lines: string
         ? top.map(f => `${f.from} → ${f.to} · 주마다 ${(f.calls / sampleDays).toFixed(1)}건 · 평균 ${man(f.fareSum / f.calls)}`)
         : ['이 시간대에 본 콜이 없다'])];
     const tail = `내 폰이 본 목록 기준${hidden ? ` · 동네 못 가림 ${Math.round(hidden / total * 100)}%` : ''}`;
-    return { lines, tail };
+    return { lines, tail, sampleDays, flows: top.length };
 }
 
 /**

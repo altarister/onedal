@@ -28,4 +28,14 @@ describe('📊 아침 카드 자리', () => {
         expect(card).toMatch(/try \{ localStorage\.setItem\(CLOSED_KEY, today\); \} catch/);
         expect(card).toMatch(/try \{ return localStorage\.getItem\(CLOSED_KEY\) === today; \} catch \{ return false; \}/);
     });
+
+    it('📝 로그 세 줄 — 보임 · ✕ 닫음 · 첫 콜로 사라짐, 태그 #화면 · 그날 한 번씩 (README «로그를 넣을 때»)', () => {
+        const card = client('components/dashboard/MorningCard.tsx');
+        expect(card).not.toMatch(/console\.log\(/);
+        expect(card.match(/logRoadmapEvent\('화면', '웹', /g)?.length).toBe(3);
+        expect(card).toMatch(/if \(firstToday\(SHOWN_KEY, today\)\) logRoadmapEvent\('화면', '웹', /);
+        expect(card).toMatch(/firstToday\(GONE_KEY, today\)\) logRoadmapEvent\('화면', '웹', /);
+        expect(card).toContain("'📊 ✕ 로 닫음'");
+        expect(client('pages/Dashboard.tsx')).toContain('useMorningCardGoneLog(keptToday);');
+    });
 });

@@ -4,7 +4,7 @@ import Drawer from "../components/layout/Drawer";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import Collapse from "../components/ui/collapse";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
-import MorningCard from "../components/dashboard/MorningCard";
+import MorningCard, { useMorningCardGoneLog } from "../components/dashboard/MorningCard";
 import { keptTodayCount } from "../lib/morningCard";
 import { useFilterConfig } from "../hooks/useFilterConfig";
 import { useSidePanelRoom } from "../hooks/useSidePanelRoom";
@@ -140,6 +140,7 @@ export default function Dashboard() {
     } = useOrderEngine();
     // 📊 아침 카드는 오늘 잡은 콜이 0건일 때만 — 예약 보관 콜(내일)은 안 센다
     const keptToday = keptTodayCount([...orders, ...terminatedOrders], Date.now());
+    useMorningCardGoneLog(keptToday);
 
 
     // 서버가 진행/종료를 **나눠서** 보낸다 — 한 배열이면 받는 쪽마다 isTerminal 을
