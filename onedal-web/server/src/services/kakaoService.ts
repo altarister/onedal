@@ -46,6 +46,8 @@ export async function kakaoJson(url: string, init: RequestInit, timeoutMs: numbe
  * HTTP 오류(429 등)는 한 번 더 보내지 않고 바로 던진다 — 한도 초과에 호출을 늘리지 않는다.
  */
 const KAKAO_ROUTE_HEDGE_MS = 1500;
+/** 좌표 1순위 질의 문턱 1.2초 — 두 주소 합이 1.19초였다(그 안에 대개 온다) */
+const KAKAO_LOCAL_HEDGE_MS = 1200;
 
 export function kakaoJsonHedged(url: string, init: RequestInit, hedgeAfterMs: number, deadlineMs: number, label: string): Promise<any> {
     return new Promise((resolve, reject) => {
@@ -579,6 +581,41 @@ export async function calculateDetourRoute(
  * 
  * [P0 개선] 인메모리 캐시를 통해 동일 주소 재조회 시 카카오 API 호출 0회
  */
+/**
+ * 🥇 **앞 순위가 다 끝났고 받아들일 만한 첫 답** — 질의 i 가 끝날 때마다 0..i 를 순서대로 본다.
+ *    앞 순위가 아직이면 기다리고, 받아들일 만하면 곧바로 답한다(뒤 순위는 기다리지 않는다). 다 끝났는데 없으면 null.
+ *    받아들일지는 질의마다 한 번만 묻는다(불일치 로그가 겹치지 않게).
+ */
+function firstAcceptable<T>(promises: Array<Promise<T | null>>, accept: (r: T) => boolean): Promise<T | null> {
+    return new Promise(resolve => {
+        const settled: Array<{ value: T | null; ok: boolean } | undefined> = new Array(promises.length);
+        let done = false;
+        const check = () => {
+            if (done) return;
+            for (let i = 0; i < settled.length; i++) {
+                const s = settled[i];
+                if (!s) return;
+                if (s.ok) { done = true; resolve(s.value); return; }
+            }
+            done = true;
+            resolve(null);
+        };
+        promises.forEach((p, i) => p.then(value => { settled[i] = { value, ok: value != null && accept(value) }; check(); }));
+    });
+}
+
+/** 카카오가 준 곳의 시·도가 기대와 같은가 — 기대가 없으면 받아들인다 (예: 경기 → 광주광역시 오인 방지) */
+function regionMatches(doc: any, expectedRegion: string | null, query: string): boolean {
+    if (!expectedRegion) return true;
+    const addrRegion = doc.address_name ? doc.address_name.split(' ')[0] : '';
+    const roadRegion = (doc.road_address && doc.road_address.address_name) ? doc.road_address.address_name.split(' ')[0] : '';
+    if (addrRegion !== expectedRegion && roadRegion !== expectedRegion) {
+        slog('판정', `[GeoResolver] 지역 불일치 방어: 쿼리 '${query}', 결과 '${doc.address_name}' -> 스킵 (기대지역: ${expectedRegion})`);
+        return false;
+    }
+    return true;
+}
+
 export async function geocodeAddress(query: string): Promise<{x: number, y: number} | null> {
     try {
         if (!query || query === "배차값없음") return null;
@@ -639,29 +676,6 @@ export async function geocodeAddress(query: string): Promise<{x: number, y: numb
             fallbackQueries.push({ type: 'keyword', text: `${regionPart} ${storePart}` });
         }
 
-        // 🌟 [최적화] 순차 호출이 아닌 '병렬 호출(Concurrent)' 로 전환하여 지연 시간(Latency)을 200ms 이하로 단축
-        const headers = getHeaders();
-        const promises = fallbackQueries.map((fq, index) => {
-            const url = `${KAKAO_LOCAL_URL}/${fq.type}.json?query=${encodeURIComponent(fq.text)}`;
-            return kakaoJson(url, { headers }, KAKAO_LOCAL_TIMEOUT_MS, '좌표')
-                .then(data => {
-                    if (data.documents && data.documents.length > 0) {
-                        return { 
-                            index, 
-                            doc: data.documents[0],
-                            result: { x: parseFloat(data.documents[0].x), y: parseFloat(data.documents[0].y) } 
-                        };
-                    }
-                    return null;
-                })
-                .catch((err) => {
-                    console.error(`❌ [Geocoding] fetch 에러 (쿼리: '${fq.text}'):`, err.message);
-                    return null;
-                });
-        });
-
-        const results = await Promise.all(promises);
-        
         /**
          * 🗺️ **기대지역은 지도가 답한다 — 손으로 적은 시도 목록을 두지 않는다**.
          *
@@ -675,24 +689,38 @@ export async function geocodeAddress(query: string): Promise<{x: number, y: numb
          */
         const expectedRegion: string | null = sidoOfPlaceName(query);
 
-        // 우선순위(index)가 가장 높은(낮은 숫자) 성공 결과를 채택하되, 지역 불일치는 스킵
-        const validResults = results.filter(r => r !== null).sort((a, b) => a!.index - b!.index);
-        
-        for (const res of validResults) {
-            if (expectedRegion) {
-                const addrRegion = res!.doc.address_name ? res!.doc.address_name.split(' ')[0] : '';
-                const roadRegion = (res!.doc.road_address && res!.doc.road_address.address_name) ? res!.doc.road_address.address_name.split(' ')[0] : '';
+        /* 🌟 후보 질의를 동시에 쏘고, 앞 순위가 다 끝났고 받아들일 만한 답이 오면 곧바로 답한다 — 느린 키워드 검색을 기다리지 않는다 */
+        const headers = getHeaders();
+        const promises = fallbackQueries.map((fq, index) => {
+            const url = `${KAKAO_LOCAL_URL}/${fq.type}.json?query=${encodeURIComponent(fq.text)}`;
+            /* 🪞 1순위(번지까지 주소 검색 — 대부분 여기서 끝난다)만 나란히 한 번 더 */
+            const call = index === 0
+                ? kakaoJsonHedged(url, { headers }, KAKAO_LOCAL_HEDGE_MS, KAKAO_LOCAL_TIMEOUT_MS, '좌표')
+                : kakaoJson(url, { headers }, KAKAO_LOCAL_TIMEOUT_MS, '좌표');
+            return call
+                .then(data => {
+                    if (data.documents && data.documents.length > 0) {
+                        return {
+                            index,
+                            doc: data.documents[0],
+                            result: { x: parseFloat(data.documents[0].x), y: parseFloat(data.documents[0].y) }
+                        };
+                    }
+                    return null;
+                })
+                .catch((err) => {
+                    console.error(`❌ [Geocoding] fetch 에러 (쿼리: '${fq.text}'):`, err.message);
+                    return null;
+                });
+        });
 
-                // 카카오에서 반환된 주소/도로명주소의 시/도가 기대하는 시/도(expectedRegion)와 다른 경우 예외처리 방어 로직 (예: 경기 -> 전남 광주 오인 방지)
-                if (addrRegion !== expectedRegion && roadRegion !== expectedRegion) {
-                    slog('판정', `[GeoResolver] 지역 불일치 방어: 쿼리 '${query}', 결과 '${res!.doc.address_name}' -> 스킵 (기대지역: ${expectedRegion})`);
-                    continue; // 다음 우선순위 결과 시도
-                }
-            }
+        // 우선순위(index)가 가장 높은(낮은 숫자) 성공 결과를 채택하되, 지역 불일치는 스킵
+        const chosen = await firstAcceptable(promises, res => regionMatches(res.doc, expectedRegion, query));
+        if (chosen) {
             // ━━━ 캐시에 저장 (L1 + L2) ━━━
-            geoCacheSet(cleanQuery, res!.result);
-            slog('판정', `🗺️ [GeoCache SET] '${cleanQuery}' → X:${res!.result.x}, Y:${res!.result.y} (L1: ${geoL1.size}개)`);
-            return res!.result;
+            geoCacheSet(cleanQuery, chosen.result);
+            slog('판정', `🗺️ [GeoCache SET] '${cleanQuery}' → X:${chosen.result.x}, Y:${chosen.result.y} (L1: ${geoL1.size}개)`);
+            return chosen.result;
         }
 
         // 모든 시도 실패

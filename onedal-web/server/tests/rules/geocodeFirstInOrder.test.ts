@@ -1,0 +1,58 @@
+// @ts-nocheck
+import db from '../../src/db';
+import { geocodeAddress, hedgeBudget } from '../../src/services/kakaoService';
+
+/**
+ * 🗺️ **좌표는 1순위가 오면 바로** (서버 병목 묶음 3 (b) · onedal-1f «가»).
+ *
+ * 후보 질의 최대 6개를 동시에 쏘되, 앞 순위가 다 끝났고 받아들일 만한 답이 오면 곧바로 답한다 — 느린 키워드 검색을 기다리지 않는다.
+ * 고르는 규칙(순위 · 지역 불일치 방어)은 그대로. 1순위 질의가 1.2초 안에 안 오면 같은 질의를 나란히 한 번 더(판정 칸 상한 안에서).
+ */
+/** 숫자 없는 표지 — 숫자가 있으면 서버가 표지까지를 «번지»로 잘라 1순위 질의가 달라진다 */
+const MARK = `검사상호${[...String(Date.now() % 100000)].map(d => 'ABCDEFGHIJ'[+d]).join('')}`;
+const realFetch = global.fetch;
+const q = (n: number) => `경기 이천시 부발읍 경충대로 2091 ${MARK}${'가나다'[n - 1]}`;
+const FIRST = '경기 이천시 부발읍 경충대로 2091';
+const doc = (sido: string, x: number) => ({ documents: [{ x: String(x), y: '37.2', address_name: `${sido} 이천시 부발읍`, road_address: null }] });
+const reply = (ms: number, body: any) => new Promise(r => setTimeout(() => r({ ok: true, status: 200, json: async () => body }), ms));
+const never = (init: any) => new Promise((_r, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason)));
+/** 1순위 = 번지까지 자른 주소 검색 */
+const isFirst = (url: string) => url.includes('/address.json') && decodeURIComponent(url.split('query=')[1]) === FIRST;
+
+beforeAll(() => { process.env.KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || 'test-key'; });
+afterEach(() => { global.fetch = realFetch; });
+afterAll(() => { db.prepare(`DELETE FROM geocode_cache WHERE query LIKE ?`).run(`%${MARK}%`); });
+
+describe('🗺️ 좌표 — 1순위가 오면 바로', () => {
+    it('🔴 1순위 50ms · 나머지 1초 → 1순위 좌표를 300ms 안에', async () => {
+        global.fetch = ((url: string) => isFirst(url) ? reply(50, doc('경기', 127.11)) : reply(1000, doc('경기', 127.99))) as any;
+        const t0 = Date.now();
+        const r = await geocodeAddress(q(1));
+        expect(r?.x).toBe(127.11);
+        expect(Date.now() - t0).toBeLessThan(300);
+    });
+
+    it('🔴 1순위가 지역 불일치면 건너뛰고 2순위 — 2순위가 오는 대로', async () => {
+        global.fetch = ((url: string) => isFirst(url) ? reply(20, doc('전남', 126.9))
+            : url.includes('/keyword.json') && decodeURIComponent(url.split('query=')[1]) === q(2) ? reply(100, doc('경기', 127.22))
+            : reply(1000, doc('경기', 127.99))) as any;
+        const t0 = Date.now();
+        const r = await geocodeAddress(q(2));
+        expect(r?.x).toBe(127.22);
+        expect(Date.now() - t0).toBeLessThan(400);
+    });
+
+    it('🔴 1순위가 멈추면 1.2초 뒤 나란히 한 번 더 — 둘째가 오면 그것 · 다시 1', async () => {
+        let firstCalls = 0;
+        global.fetch = ((url: string, init: any) => {
+            if (isFirst(url)) return ++firstCalls === 1 ? never(init) : reply(50, doc('경기', 127.33));
+            return reply(2500, { documents: [] });
+        }) as any;
+        const budget = { left: 2, used: 0 };
+        const t0 = Date.now();
+        const r = await hedgeBudget.run(budget, () => geocodeAddress(q(3)));
+        expect(r?.x).toBe(127.33);
+        expect(Date.now() - t0).toBeLessThan(2000);
+        expect(budget.used).toBe(1);
+    });
+});
