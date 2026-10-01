@@ -16,8 +16,18 @@ export function networkLevelOf(f: { shownNow: boolean; readsInWindow: number; fa
     return 'ok';
 }
 
-/** 🚨 진행 중 콜이 있는데 운전석 폰 GPS 가 이만큼 안 오면 기사 이상 신호 (onedal-69 «가» Q2 — 운전 중 폰은 몇 초마다 보낸다) */
+/** 🚨 진행 중 콜이 있는데 위치가 이만큼 안 오면 기사 이상 신호 (onedal-69 «가» Q2 — 운전 중 폰은 몇 초마다 보낸다) */
 export const GPS_STALE_MS = 10 * 60_000;
+
+/**
+ * 📍 위치가 안 온다 — 운전석 GPS(관제웹 · session.lastFixAt)와 원달앱 폰 위치(기기 세션 lastLocationAt) 중 **늦은 것**이 10분 넘으면 (onedal-69 «나»).
+ *    배차망 앱을 앞에 띄우고 달리면 관제웹은 위치를 멈춘다 — 원달앱 폰이 보고에 위치를 실어 보내는 중이면 «안 옴»이 아니다.
+ *    둘 다 모르면(받은 적 없음) 안 온 것이다.
+ */
+export function locationStaleOf(lastFixAt: number | null | undefined, phoneLocationAts: Array<number | undefined>, now: number): boolean {
+    const latest = Math.max(lastFixAt ?? 0, ...phoneLocationAts.map(t => t ?? 0));
+    return latest === 0 || now - latest > GPS_STALE_MS;
+}
 
 /**
  * 📱 업데이트 필요 — 폰은 판 «이름»만 보낸다(기기 세션 version). 앱 배포 표에서 그 이름의 판 코드를 찾아 최소 판보다 낮으면 참.

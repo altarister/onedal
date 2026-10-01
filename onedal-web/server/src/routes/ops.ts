@@ -11,7 +11,7 @@ import { BOOTED_AT, GIT_INFO } from "./health";
 import { peekUserSession, baseFilterFromDb, getAllActiveUserIds } from "../state/userSessionStore";
 import { appFilterOf } from "../state/appFilter";
 import { kakaoUsageOf, kakaoBoardOf } from "../services/kakaoUsage";
-import { networkLevelOf, needsUpdateOf, NETWORK_ALARM, GPS_STALE_MS } from "../services/opsHome";
+import { networkLevelOf, needsUpdateOf, locationStaleOf, NETWORK_ALARM } from "../services/opsHome";
 import { nextStopOf } from "../services/geoService";
 import { listReleases, scrapReleaseCodes } from "../core/releases";
 import { intelRowsOf } from "../services/intelRows";
@@ -435,10 +435,10 @@ export function homeOf(io: any): OpsHome {
         const next = session?.lastFix ? nextStopOf(session, session.lastFix) : null;
         const nextCall = next ? mine.find(c => c.id === next.orderId) : undefined;
         const stop = nextCall ? (next!.stopType === 'pickup' ? nextCall.pickup : nextCall.dropoff) : null;
-        /* 🚨 진행 중 콜이 있는데 배차망 폰이 하나도 안 붙어 있거나(꺼 둔 예비 폰 하나로는 안 울린다) 운전석 GPS 가 10분 넘게 안 온다 (onedal-69 «가» Q2) */
+        /* 🚨 진행 중 콜이 있는데 배차망 폰이 하나도 안 붙어 있거나(꺼 둔 예비 폰 하나로는 안 울린다) 위치가 10분 넘게 안 온다(운전석 GPS · 원달앱 폰 위치 중 늦은 것 · onedal-69 Q2 «가» · Q6 «나») */
         const myPhones = phones.filter(p => p.memberId === memberId);
         if (myPhones.length > 0 && !myPhones.some(p => p.status === 'ONLINE')) alertMembers.add(memberId);
-        if (!session?.lastFixAt || now - session.lastFixAt > GPS_STALE_MS) alertMembers.add(memberId);
+        if (locationStaleOf(session?.lastFixAt, getUserDevicesSnapshot(memberId, io).map(d => d.lastLocationAt), now)) alertMembers.add(memberId);
         return {
             memberId,
             stage: mine.some(c => c.status === 'ORDER_PICKED_UP') ? '배송 중' : '상차 가는 중',

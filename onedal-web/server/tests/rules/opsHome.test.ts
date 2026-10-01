@@ -1,7 +1,8 @@
 // @ts-nocheck
 import db from '../../src/db';
 import opsRouter from '../../src/routes/ops';
-import { networkLevelOf, NETWORK_ALARM, needsUpdateOf } from '../../src/services/opsHome';
+import { networkLevelOf, NETWORK_ALARM, needsUpdateOf, locationStaleOf, GPS_STALE_MS } from '../../src/services/opsHome';
+import { touchDeviceSession } from '../../src/routes/devices';
 import { homeOf, locationsOf } from '../../src/routes/ops';
 import { getUserSession, peekUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { kakaoTotalOf } from '@onedal/shared';
@@ -76,6 +77,18 @@ describe('🏠 홈 숫자 = 쪽 숫자', () => {
         s.lastFixAt = Date.now() - 11 * 60_000;
         expect(homeOf(io).todo.emergencies).toBe(fresh + 1);
     });
+    /* 배차망 앱을 앞에 띄우고 달리면 관제웹은 위치를 멈춘다 — 원달앱 폰이 보고에 위치를 실어 보내는 중이면 «위치 안 옴»이 아니다 (onedal-69 «나» · f5 026d5917) */
+    it('🔴 운전석 GPS 가 10분 넘어도 원달앱 폰이 위치를 실어 보내는 중이면 안 울린다', () => {
+        db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, 'd-home-driver')`).run(D);
+        const s = getUserSession(D);
+        s.lastFix = { x: 127.2, y: 37.4 };
+        s.lastFixAt = Date.now();
+        touchDeviceSession('d-home-driver', D, 0, 'LIST', io, false, 37.4, 127.2);   // 폰을 먼저 붙인다 — 안 붙은 폰은 «폰 끊김»으로 따로 울려 이 칸을 가린다
+        const fresh = homeOf(io).todo.emergencies;
+        s.lastFixAt = Date.now() - 11 * 60_000;
+        expect(homeOf(io).todo.emergencies).toBe(fresh);
+        db.prepare(`DELETE FROM user_devices WHERE device_id = 'd-home-driver'`).run();
+    });
 });
 
 describe('🏠 배차망 단계 · 업데이트 판단', () => {
@@ -84,6 +97,13 @@ describe('🏠 배차망 단계 · 업데이트 판단', () => {
         expect(networkLevelOf({ shownNow: false, readsInWindow: 0, failsInWindow: NETWORK_ALARM.FAILS, newWords: 0 })).toBe('ok');
         expect(networkLevelOf({ shownNow: true, readsInWindow: 1, failsInWindow: NETWORK_ALARM.FAILS, newWords: 0 })).toBe('ok');
         expect(networkLevelOf({ shownNow: true, readsInWindow: 0, failsInWindow: NETWORK_ALARM.FAILS - 1, newWords: 2 })).toBe('warn');
+    });
+    it('🔴 위치 안 옴 = 운전석 GPS · 원달앱 폰 위치 중 늦은 것이 10분 넘음 · 둘 다 모르면 안 옴', () => {
+        const now = 1_000_000_000_000, old = now - GPS_STALE_MS - 1, fresh = now - 1000;
+        expect(locationStaleOf(old, [fresh], now)).toBe(false);
+        expect(locationStaleOf(fresh, [old], now)).toBe(false);
+        expect(locationStaleOf(old, [old, undefined], now)).toBe(true);
+        expect(locationStaleOf(null, [], now)).toBe(true);
     });
     it('🔴 업데이트 필요 = 앱 배포 표에서 그 판 이름의 코드가 최소 판보다 낮다 · 표에 없는 이름 · 최소 판 없음은 안 센다', () => {
         const rel = [{ versionName: '1.0.3', versionCode: 103 }, { versionName: '1.0.5', versionCode: 105 }];
