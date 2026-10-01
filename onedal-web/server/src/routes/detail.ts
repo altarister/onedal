@@ -73,8 +73,12 @@ router.post("/", async (req, res) => {
         // 🧠 앞의 기억(`/orders/confirm` 이 남긴 것)에서 시작한다 — 날 payload 로 시작하지 않는다.
         //    payload 에 없는 키(예: `targetApp`)가 여기서 증발하던 자리다.
         const deviceMode = getDeviceMode(payload.deviceId, userId);
+        /* 📝 빈 원문은 앞 기억의 원문(/confirm 이 남긴 화면 글)을 덮지 않는다 — 화물24시 · 사진 없이 가는 픽커는 상세 글이 빈 채로 온다.
+              덮으면 판정의 제외어 검사가 적요 · 유의사항을 못 본다. 비지 않은 원문(인성 팝업 모은 글)은 덮는다 */
+        const { rawText: reportedRawText, ...reportedOrder } = payload.order;
         let pendingOrder: PendingOrder = evolveOrder(session, realOrderId, {
-            ...payload.order,
+            ...reportedOrder,
+            ...(reportedRawText ? { rawText: reportedRawText } : {}),
             status: 'ORDER_SECURED_EVALUATING' as any,
             capturedDeviceId: payload.deviceId,
             capturedAt: payload.capturedAt || new Date().toISOString(),
