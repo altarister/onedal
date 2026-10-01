@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync } from 'fs';
+import { join } from 'path';
 import { parseMockupFare, parseDetailedRawText } from '../../src/utils/parser';
 
 /**
@@ -100,5 +102,24 @@ describe("parseDetailedRawText — 결제방법 추출", () => {
 
     it("기존 '결제방법' 필드 표기도 계속 지원한다", () => {
         expect(parseDetailedRawText("결제방법 : 착불").paymentType).toBe("착불");
+    });
+});
+
+/* 🔴 못 찾은 칸을 지어내지 않는다 — «편도» · «일반»을 지어내면 관제웹 콜 상세에 화면에 없던 글자가 뜬다 (reviews/34 1단계 ③ · 기사님 «가») */
+describe("parseDetailedRawText — 운송구분 · 오더형태는 원문에 있을 때만", () => {
+    it("🔴 이름표가 없으면 칸 없음 — «편도» · «일반»을 지어내지 않는다", () => {
+        const got = parseDetailedRawText(["상태 : 신규", "차량 : 다마스", "요금 : 50,000(카드)"].join("\n"));
+        expect(got.tripType).toBeUndefined();
+        expect(got.orderForm).toBeUndefined();
+    });
+    it("원문에 있으면 그대로 — «오더형태 : 급송» → 급송(급송 표시 길) · «운송구분 : 왕복» → 왕복", () => {
+        const got = parseDetailedRawText(["운송구분 : 왕복", "오더형태 : 급송"].join("\n"));
+        expect(got.tripType).toBe("왕복");
+        expect(got.orderForm).toBe("급송");
+    });
+    it("판정(core/engine)은 이 두 칸을 읽지 않는다 — 비어도 판정 무변화", () => {
+        const dir = join(__dirname, "../../src/core/engine");
+        const hits = readdirSync(dir).filter(f => f.endsWith(".ts") && /tripType|orderForm/.test(readFileSync(join(dir, f), "utf8")));
+        expect(hits).toEqual([]);
     });
 });
