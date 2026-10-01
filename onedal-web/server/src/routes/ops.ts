@@ -127,8 +127,6 @@ function callNoteOf(o: OrderRow, steps: ReturnType<typeof stepsView>): OpsCallNo
         unit: (r.planned_unit as CargoUnit | null) ?? null, quantity: r.planned_quantity ?? null,
         promisedArrivalAt: isoKst(r.promised_arrival_at), memo: r.memo ?? '',
         writtenBy: nameOf(r.written_by ?? o.userId), writtenAt: isoKst(r.occurred_at) ?? '',
-        counterpartCancelledAt: isoKst(r.counterpart_cancelled_at ?? null),
-        counterpartCancelledBy: r.counterpart_cancelled_at ? nameOf(r.counterpart_cancelled_by ?? o.userId) : null,
     };
 }
 

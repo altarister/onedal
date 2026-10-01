@@ -61,11 +61,11 @@ describe('📵 상대 취소 칸', () => {
         const before = audits();
         const r1 = await note({ stopType: 'pickup', unit: '라면박스', quantity: 4, counterpartCancelled: true });
         expect(r1.status).toBe(200);
-        expect(r1.out.callNote).toMatchObject({ counterpartCancelledBy: '기사', counterpartCancelledAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) });
+        expect(r1.out.counterpartCancelled).toEqual([{ stopType: 'pickup', at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/), by: '기사' }]);   // 통화 메모와 따로 실리는 칸
         const r2 = await note({ stopType: 'pickup', unit: '라면박스', quantity: 4, counterpartCancelled: false });
         expect(r2.status).toBe(200);
         expect(row()).toMatchObject({ a: null, b: null });
-        expect(r2.out.callNote).toMatchObject({ counterpartCancelledAt: null, counterpartCancelledBy: null });
+        expect(r2.out.counterpartCancelled).toEqual([]);
         expect(audits()).toBe(before + 1);
     });
     it('🔴 판정 · 안전취소 · 필터 · 자동 동작은 이 칸을 읽지 않는다 — 화면에만 보이는 사실', () => {
