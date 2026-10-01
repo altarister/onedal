@@ -16,7 +16,7 @@ import { clearUserSession } from '../../src/state/userSessionStore';
  */
 const D = 'test-call-driver', A = 'test-call-admin';
 const O1 = 'TEST-CALL-1', O2 = 'TEST-CALL-2', O3 = 'TEST-CALL-3', ODONE = 'TEST-CALL-DONE';
-const io = { to: () => ({ emit: () => {} }), in: () => ({ disconnectSockets: () => {} }) };
+const io = { to: () => ({ emit: () => {} }), in: () => ({ disconnectSockets: () => {} }), of: () => ({ to: () => ({ emit: () => {} }) }) };
 const app = { get: (k: string) => (k === 'io' ? io : undefined) };
 const call = async (method: string, path: string, { params = {}, body = {}, query = {} }: any = {}) => {
     const layer = opsRouter.stack.find((l: any) => l.route?.path === path && l.route.methods[method]);
@@ -126,7 +126,7 @@ describe('📞 관리자 방 · 결재 · 장부', () => {
         expect(emits.every(e => /\{ memberId: \w+ \}/.test(e))).toBe(true);
     });
     it('🔴 신호는 콜 · 상태 · 판정 색이 바뀔 때만(주행 시각이 1~2초마다 바뀌어도 안 보낸다)', () => {
-        expect(sock).toMatch(/opsSig[\s\S]{0,400}io\.to\("admin_room"\)\.emit\("ops-calls-changed"/);
+        expect(sock).toMatch(/opsSig[\s\S]{0,400}io\.of\("\/ops"\)\.to\("admin_room"\)\.emit\("ops-calls-changed"/);
     });
     it('🔴 결재 · 운행 단계는 남의 콜을 버리는 문(orderOn)으로만 받는다', () => {
         expect(sock).toMatch(/orderOn\("decision"/);

@@ -74,11 +74,11 @@ describe('소켓 — REST 와 같은 판단을 쓴다 (한 곳에서 정한다)'
         .replace(/(^|[^:])\/\/.*$/gm, '$1');
 
     it('🔴 소켓 핸드셰이크도 «이 서버의 유저인가»를 확인한다', () => {
-        expect(code('socket/socketHandlers.ts')).toMatch(/isKnownUser\(/);
+        expect(code('socket/authSocket.ts')).toMatch(/isKnownUser\(/);   // 소켓 JWT 검사는 관제웹 · 운영센터(/ops)가 같이 쓰는 authSocket 한 곳
     });
 
     it('🔴 판단은 한 곳에서만 만든다 — 각자 users 를 조회하지 않는다', () => {
         // 두 문이 각자 SELECT 를 쓰면 한쪽만 고쳐진다 (경유 4벌·상태목록 3벌과 같은 뿌리)
-        expect(code('socket/socketHandlers.ts')).not.toMatch(/FROM\s+users/i);
+        expect(code('socket/authSocket.ts')).not.toMatch(/FROM\s+users/i);
     });
 });

@@ -94,7 +94,7 @@ function scan(dirs, patterns) {
 
 // `io.to(...)`, `io?.to(...)`, `socket.emit(...)`, `io.emit(...)` 를 모두 잡는다
 const server = scan(join(ROOT, 'server/src'), [
-    ['emit', /io\??\.to\([^)]*\)\.emit\(["']([\w-]+)["']/g],
+    ['emit', /io\??(?:\.of\([^)]*\))?\.to\([^)]*\)\.emit\(["']([\w-]+)["']/g],   // 운영센터 이름공간(io.of('/ops'))으로 보내는 것도 센다
     ['emit', /socket\.emit\(["']([\w-]+)["']/g],
     ['emit', /io\??\.emit\(["']([\w-]+)["']/g],
     /* 👥 orderId 를 받는 이벤트는 `orderOn("ev", …)` 으로 붙는다(콜 주인 확인 · socketHandlers) — 듣는 곳으로 센다 */

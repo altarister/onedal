@@ -70,7 +70,8 @@ describe('🏢 들어오는 문 — ops_allowed_at 하나', () => {
     });
     it('🔴 소켓 관리자 방도 같은 칸 · requireAdmin(토큰 role)은 남아 있지 않다', () => {
         const sock = readFileSync(join(__dirname, '../../src/socket/socketHandlers.ts'), 'utf8');
-        expect(sock).toMatch(/if \(opsAllowed\(userId\)\)[\s\S]{0,80}admin_room/);
+        /* 관리자 방은 운영센터 소켓(/ops 이름공간)만 — 들어오는 판단은 같은 opsAllowed(socket/opsSocket opsGate) */
+        expect(readFileSync(join(__dirname, '../../src/socket/opsSocket.ts'), 'utf8')).toMatch(/nsp\.use\(opsGate\)[\s\S]*function opsGate|function opsGate[\s\S]{0,200}opsAllowed\(/);
         expect(sock).not.toMatch(/role === "ADMIN"/);
         const src = ['middlewares/authMiddleware.ts', 'routes/stats.ts', 'routes/screenWords.ts'].map(f => readFileSync(join(__dirname, '../../src', f), 'utf8')).join('\n');
         expect(src).not.toMatch(/requireAdmin/);

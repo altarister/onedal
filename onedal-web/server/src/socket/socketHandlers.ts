@@ -1,7 +1,5 @@
 import { Server, Socket } from "socket.io";
-import jwt from "jsonwebtoken";
-import { jwtSecret, isLiveServer } from "../config/env";
-import { isKnownUser } from "../middlewares/authMiddleware";
+import { isLiveServer } from "../config/env";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -30,7 +28,8 @@ import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";
 import { logContext, whoLabel } from "../utils/logContext";
 import { clockText, wonText } from "@onedal/shared";
-import { opsAllowed } from "../core/opsAccess";
+import { authSocket } from "./authSocket";
+import { registerOpsNamespace } from "./opsSocket";
 
 
 
@@ -69,40 +68,9 @@ function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any)
 
 export function registerSocketHandlers(io: Server) {
 
-    // 1. Socket.io JWT 핸드셰이크 인증 미들웨어
-    io.use((socket, next) => {
-        const token = socket.handshake.auth?.token 
-                    || socket.handshake.headers?.authorization?.split(' ')[1];
-        
-        if (!token) {
-            slog('경고', "❌ [Socket] 인증 토큰 누락 접속 거부");
-            return next(new Error('인증 토큰 없음'));
-        }
-        
-        try {
-            const decoded = jwt.verify(token, jwtSecret()) as any;
-
-            /**
-             * 🔴 **서명은 «어느 서버가 발급했나»를 구분하지 못한다** (기사님 실측).
-             *
-             * 로컬과 라이브가 같은 JWT 비밀을 쓰므로 라이브 토큰이 로컬 서명 검증을 통과한다.
-             * 그대로 들이면 `getUserSession` 이 **DB 에 없는 유저의 메모리 세션**을 만들고,
-             * 소켓이 끊겨도 그 세션은 남아 1초 인터벌이 영원히 그것까지 돈다.
-             *
-             * 판단은 `authMiddleware.isKnownUser` 하나뿐이다 — 여기서 따로 조회하지 않는다 (규칙 ③).
-             */
-            if (!isKnownUser(decoded?.id)) {
-                slog('경고', `❌ [Socket] 이 서버에 없는 유저의 토큰 — ${decoded?.id} (${decoded?.email})`);
-                return next(new Error('이 서버에 등록되지 않은 계정'));
-            }
-
-            socket.data.user = decoded; // { id, email, name, role }
-            next();
-        } catch (err) {
-            slog('경고', "❌ [Socket] 토큰 검증 실패:", err);
-            next(new Error('토큰 만료 또는 위조'));
-        }
-    });
+    // 1. Socket.io JWT 핸드셰이크 인증 — 관제웹 · 운영센터(/ops)가 같은 함수(socket/authSocket)
+    io.use(authSocket);
+    registerOpsNamespace(io);
 
     /**
      * 📱 기기 User-Agent 또는 클라이언트 보고값을 깔끔한 한글 기기명으로 정리
@@ -138,10 +106,6 @@ export function registerSocketHandlers(io: Server) {
         // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 경유를 만든다
         /* 📅 날이 바뀌며 예약 콜이 오늘 콜이 됐을 수 있다 — 정거장이 바뀌었으면 경로를 다시 잰다 (reviews/23 B-1) */
         if (ensureBusinessDay(userId, io)) void recalcRouteIfStopsChanged(userId, io, '영업일 전환');
-        /* 🏢 관리자 방은 운영센터 허락 칸으로 — HTTP requireOps 와 같은 판단(core/opsAccess) · 접속 때 한 번 */
-        if (opsAllowed(userId)) {
-            socket.join("admin_room");
-        }
 
         // 접속 시 초기 데이터 전송 (유저별 등록 기기 목록 포함)
         socket.emit("telemetry-devices", getUserDevicesSnapshot(userId, io));
@@ -833,7 +797,7 @@ export function registerSocketHandlers(io: Server) {
             const opsSig = calls.map(c => `${c.id}:${c.status}:${c.judgment?.color ?? ''}`).join(',');
             if (lastOpsSig.get(uid) !== opsSig) {
                 lastOpsSig.set(uid, opsSig);
-                io.to("admin_room").emit("ops-calls-changed", { memberId: uid });
+                io.of("/ops").to("admin_room").emit("ops-calls-changed", { memberId: uid });
             }
         }
         /**

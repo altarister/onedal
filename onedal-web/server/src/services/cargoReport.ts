@@ -24,9 +24,9 @@ export function saveCargoReport(userId: string, orderId: string, report: CargoRe
     // 단계 행(새 장부)이 유일한 원천이다
     bridgeCargoReport(userId, orderId, report, getUserSession(userId)?.judgment, routeTlOf(userId), writerId);
     /* 적은 소켓이 아니라 기사 화면 전부에 — 관리자가 적어도 기사 관제웹이 바로 닫힌다.
-       관리자 방에는 자료 없이 신호만(운영센터가 GET /api/ops/calls 로 다시 읽고 requireOps 가 요청마다 허락을 본다 · 허락을 거둔 소켓이 방에 남아도 자료를 못 받는다) */
+       관리자 방(운영센터 소켓 /ops 만)에는 자료 없이 신호만(운영센터가 GET /api/ops/calls 로 다시 읽고 requireOps 가 요청마다 허락을 본다 · 허락을 거둔 소켓이 방에 남아도 자료를 못 받는다) */
     io.to(userId).emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
-    io.to("admin_room").emit("ops-calls-changed", { memberId: userId });
+    io.of("/ops").to("admin_room").emit("ops-calls-changed", { memberId: userId });
 
     const all = stepRecordsOf(orderId).reports;
     const pick = (st: string, k: string) => all.find(r => r.stopType === st && r.kind === k);
