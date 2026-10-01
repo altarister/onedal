@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CALL_NOTE_MEMO_MAX, CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT, TARGET_APP_LABEL, type CargoUnit, type OpsCall, type OpsCallNoteWrite } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api, useOps, write } from '../api/ops';
+import { useCallsChanged, useSignalConnected } from '../api/socket';
 import { baseDayLabel, baseDayOf, promisedAtOf } from '../api/callNote';
 import { COLOR_DOT, Card, ErrorBand, PageHeader, Stat, StatRow, dayKey, fmtTime, fmtWon, memberName, statusKo, todayKey } from '../ui';
 
@@ -10,13 +11,17 @@ import { COLOR_DOT, Card, ErrorBand, PageHeader, Stat, StatRow, dayKey, fmtTime,
  * 📞 **통화 도우미** — 서버가 «통화 필요»(🟡 이고 상차 통화 전)인 콜을 위에 놓는다. 관리자가 상차지 · 하차지에 전화해 결과를 적으면
  *    서버가 그 콜의 통화 단계 행에 적는다(기사 소켓과 같은 길 · reviews/29 5단계) — 기사 관제웹의 통화 단계에 같은 값 + «✍️ 누가 적음»이 보인다.
  *    적는 칸은 기사가 쓰는 «통화함»과 같은 구조 값(짐 단위 · 수량 · 약속 시각 · 메모). «상대가 취소했다»는 메모 글로만(사실 칸은 기사님 «가» 뒤).
- *    🔴 CANCEL 결재는 기사가 관제웹에서 누른다 — 여기엔 그 버튼이 없다. 목록은 30초마다 다시 읽는다.
+ *    🔴 CANCEL 결재는 기사가 관제웹에서 누른다 — 여기엔 그 버튼이 없다. 서버 신호(`ops-calls-changed`)가 오면 바로 다시 읽고, 신호가 끊겼을 때만 30초마다.
  */
 export default function Calls() {
     const [who, setWho] = useState<string>('all');
-    const [tick, setTick] = useState(0);
-    useEffect(() => { const t = setInterval(() => setTick(n => n + 1), 30_000); return () => clearInterval(t); }, []);
-    const { data, error, reload } = useOps(() => Promise.all([api.members(), api.calls(who === 'all' ? undefined : who)]), [who, tick]);
+    const { data, error, reload } = useOps(() => Promise.all([api.members(), api.calls(who === 'all' ? undefined : who)]), [who]);
+    // 🔔 서버 신호(콜 · 판정 · 통화 결과가 바뀜)가 오면 보고 있는 기사 것만 다시 읽는다 — 자료는 소켓으로 안 온다
+    const onSignal = useCallback(({ memberId }: { memberId: string }) => { if (who === 'all' || !memberId || memberId === who) reload(); }, [who, reload]);
+    useCallsChanged(onSignal);
+    // 신호가 끊겼을 때만 30초마다 — 물러설 자리
+    const connected = useSignalConnected();
+    useEffect(() => { if (connected) return; const t = setInterval(reload, 30_000); return () => clearInterval(t); }, [connected, reload]);
     const [members, calls] = data ?? [[], []];
     const todo = calls.filter(c => c.needsCall);
     const rest = calls.filter(c => !c.needsCall);
@@ -78,7 +83,7 @@ function CallCard({ c, name, reload }: { c: OpsCall; name: string; reload: () =>
     const save = () => {
         const note: OpsCallNoteWrite = {
             stopType,
-            unit: pickup ? unit : null, quantity: pickup && qInput?.mode !== 'none' ? quantity : null,   // 짐은 상차에서만 — 하차로 보내면 두 벌이 된다
+            unit: pickup ? unit : null, quantity: pickup && qInput?.mode !== 'none' && quantity != null ? Math.round(quantity) : null,   // 짐은 상차에서만 — 하차로 보내면 두 벌이 된다 · 수량은 정수
             promisedArrivalAt: promisedAtOf(stopAt, hhmm), memo: memo.trim(),
         };
         void write(() => api.writeCallNote(c.id, note), () => { setUnit(null); setQuantity(null); setHhmm(''); setMemo(''); reload(); });
@@ -106,7 +111,7 @@ function CallCard({ c, name, reload }: { c: OpsCall; name: string; reload: () =>
                         {CARGO_UNITS.map(u => <button key={u} type="button" className={chipCls(unit === u)} onClick={() => pickUnit(u)}>{u}</button>)}
                         {qInput?.mode === 'preset' && qInput.options.map(n => <button key={n} type="button" className={chipCls(quantity === n)} onClick={() => setQuantity(n)}>{n}개</button>)}
                         {qInput && qInput.mode !== 'preset' && qInput.mode !== 'none' && (
-                            <Input type="number" min={1} value={quantity ?? ''} onChange={e => setQuantity(e.target.value ? Number(e.target.value) : null)} placeholder="몇 개" className="w-24" />
+                            <Input type="number" min={1} step={1} value={quantity ?? ''} onChange={e => setQuantity(e.target.value ? Number(e.target.value) : null)} placeholder="몇 개" className="w-24" />
                         )}
                     </div>
                 )}

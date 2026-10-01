@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { api, countsRefresh, useOps } from './api/ops';
 import { logout, session } from './api/client';
+import { useSignalConnected } from './api/socket';
 
 /**
  * 🏢 **운영센터 화면 틀** — PC 는 왼쪽 메뉴 + 윗줄(마지막 갱신 · 관리자), 폰은 윗줄 + 아래 탭 넷(+ 더 보기).
@@ -45,6 +46,7 @@ export function Shell({ children }: { children: ReactNode }) {
     useEffect(() => countsRefresh.add(() => setMinute(m => m + 1)), []);   // 쓰기 뒤 바로
     const counts = useOps(() => api.counts(), [minute]);
     const c: OpsCounts = counts.data ?? { pendingMembers: 0, callsTodo: 0, phonesOffline: 0 };
+    const signalOn = useSignalConnected();
     const [refreshedAt, setRefreshedAt] = useState(() => new Date());
     useEffect(() => { if (counts.data) setRefreshedAt(new Date()); }, [counts.data]);
     const leave = async () => { await logout(); navigate('/login', { replace: true }); };
@@ -94,6 +96,7 @@ export function Shell({ children }: { children: ReactNode }) {
                     <Link to="/members" className="md:hidden flex items-center gap-2 font-black"><span className="w-7 h-7 rounded-md bg-gradient-to-tr from-accent-alt to-info flex items-center justify-center text-white text-xs">1D</span>운영센터</Link>
                     <div className="ml-auto flex items-center gap-3 text-xs text-text-muted">
                         <span>마지막 갱신 {clockOf(refreshedAt)}</span>
+                        <span className={signalOn ? 'text-success' : ''} title="서버 신호(콜이 바뀌면 바로 다시 읽기) — 끊기면 30초마다">{signalOn ? '● 신호 연결' : '○ 신호 끊김 — 30초마다'}</span>
                         <span className="hidden md:inline">{session.name || '관리자'}</span>
                         <span className="md:hidden">{themeButton}</span>
                     </div>

@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-route
 import { Button } from '@onedal/ui/button';
 import { Shell } from './ui';
 import { client, fetchMeName, logout, session, statusOf, token } from './api/client';
+import { connectSignal, disconnectSignal } from './api/socket';
 import Login from './pages/Login';
 import Members from './pages/Members';
 import MemberDetail from './pages/MemberDetail';
@@ -35,14 +36,14 @@ function OpsGate({ children }: { children: ReactNode }) {
             try {
                 await client.get('/ops/counts');
                 session.name = await fetchMeName();
-                if (alive) setChecked(true);
+                if (alive) { connectSignal(); setChecked(true); }   // 허락이 확인된 뒤에만 신호 소켓(/ops)을 연다
             } catch (e) {
                 if (!alive) return;
                 if (statusOf(e) === 403) navigate('/denied', { replace: true });
                 else if (statusOf(e) !== 401) setFailed('서버 응답이 없습니다');
             }
         })();
-        return () => { alive = false; };
+        return () => { alive = false; disconnectSignal(); };   // 로그인 화면으로 나가면 닫는다
     }, [navigate]);
 
     if (failed) return <Notice title="서버 응답이 없습니다" body="잠시 뒤 다시 열어 주세요." action={<Button type="button" variant="outline" onClick={() => window.location.reload()}>다시</Button>} />;

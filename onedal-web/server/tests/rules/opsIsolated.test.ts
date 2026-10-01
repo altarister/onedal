@@ -65,9 +65,9 @@ describe('🏢 운영센터는 따로 살고 부품은 @onedal/ui 한 곳', () =
         }
     });
 
-    it('🔴 운영센터 package.json 에 폰 전용 의존이 없다', () => {
+    it('🔴 운영센터 package.json 에 폰 전용 의존이 없다 — socket.io-client 는 신호 소켓(/ops 이름공간 · opsSocket 검사)용이라 허용', () => {
         const pkg = JSON.parse(readFileSync(join(WEB, 'ops/package.json'), 'utf8'));
         const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies });
-        expect(deps.filter(d => /capacitor|socket\.io|zustand|capgo/.test(d))).toEqual([]);
+        expect(deps.filter(d => /capacitor|zustand|capgo/.test(d))).toEqual([]);
     });
 });

@@ -36,9 +36,7 @@ const BUILTIN = new Set(['connect', 'disconnect', 'connect_error', 'reconnect', 
  *
  * ⚠️ 이미 구현된 이벤트가 여기 남아 있으면, 이 검사가 막으려던 사고를 이 검사가 만든다.
  */
-const KNOWN_GAPS = {
-    'ops-calls-changed': '운영센터(ops/)가 관리자 방 신호를 들을 소켓 자리를 아직 안 만들었다(e7 · reviews/29 5단계 화면) — 운영센터가 socket.on 을 붙이면 내린다',
-};
+const KNOWN_GAPS = {};
 
 function walk(dir, out = []) {
     for (const name of readdirSync(dir)) {
@@ -177,7 +175,8 @@ const ALLOWED_MULTI = new Map([
     ['next-stop-approaching', [2, '스토어(판단 한 곳) + 대시보드(알림 한 줄)']],
     ['steps-synced',          [2, '카드(제 콜 하나) + 훅(전체 모아 파생) — 보는 범위가 다르다']],
     ['milestone-result',      [2, '오류 표시(useServerErrors) + 시트(성공했을 때만 문을 닫는다) — 보는 것이 다르다']],
-    ['connect',               [2, '재연결 때 각자 제 것을 다시 요청한다']],
+    ['connect',               [3, '재연결 때 각자 제 것을 다시 요청한다 + 운영센터 신호 소켓(다른 앱 · /ops 이름공간)']],
+    ['disconnect',            [2, '관제웹 엔진(끊김 표시) + 운영센터 신호 소켓(다른 앱 · /ops 이름공간 — 끊기면 30초 물러서기)']],
 ]);
 
 const multi = [...(client.get('on') ?? new Map())]
