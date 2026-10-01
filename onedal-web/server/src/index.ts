@@ -54,6 +54,7 @@ import { logRoadmapEvent } from "./utils/roadmapLogger";
 import { registerSocketHandlers } from "./socket/socketHandlers";
 import { slog } from "./utils/fileLogger";
 import { noteOrigin } from "./utils/originLog";
+import { serveForHost } from "./utils/hostStatic";
 
 dotenv.config({ path: path.join(__dirname, "../.env"), quiet: true });   // 라이브러리 광고 줄은 태그 없이 #없음 을 남긴다 — 확인 줄은 validateEnv 가 찍는다
 
@@ -168,17 +169,15 @@ registerSocketHandlers(io);
  *    관제웹보다 뒤면 영영 안 불린다.
  */
 const REHEARSAL_HOST = 'rehearsal.';
-const simBuildPath = path.join(__dirname, '../../../onedal-sim/dist');
-if (fs.existsSync(simBuildPath)) {
-    slog('부팅', `🎯 리허설 배차망을 서빙합니다: ${simBuildPath} (host: ${REHEARSAL_HOST}*)`);
-    const simStatic = express.static(simBuildPath);
-    app.use((req, res, next) => {
-        if (!req.hostname?.startsWith(REHEARSAL_HOST)) return next();
-        simStatic(req, res, () => res.sendFile(path.join(simBuildPath, 'index.html')));
-    });
-} else {
-    slog('부팅', `⚠️ 리허설 배차망 빌드(${simBuildPath})가 없어 건너뜁니다 — onedal-sim 을 빌드하면 켜집니다.`);
-}
+serveForHost(app, REHEARSAL_HOST, path.join(__dirname, '../../../onedal-sim/dist'), '🎯 리허설 배차망');
+
+/**
+ * 🏢 **운영센터** — `ops.altari.com` 은 운영센터 화면(onedal-web/ops)을 서빙한다 (reviews/29 3단계).
+ *    리허설과 같은 자리 · 같은 방식 — /api 는 모든 주소에서 산다(운영센터 화면은 같은 출처의 /api/ops 를 부른다).
+ *    🔴 배포(운영센터 빌드 단계 · DNS · 인증서)는 아직 — 빌드가 없으면 건너뛰어 그 주소도 관제웹을 받는다.
+ */
+const OPS_HOST = 'ops.';
+serveForHost(app, OPS_HOST, path.join(__dirname, '../../ops/dist'), '🏢 운영센터');
 
 // React 프론트엔드 정적 파일 서빙 (프로덕션 배포용)
 const clientBuildPath = path.join(__dirname, '../../client-app/dist');
