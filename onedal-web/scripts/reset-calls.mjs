@@ -13,6 +13,7 @@
  * 옵션으로 만들어줘."* → `pnpm dev:fresh` 가 이걸 먼저 돌리고 서버를 띄운다.
  *
  * 🔴 **콜의 생애만 지운다. 설정·필터·장소·좌표캐시는 남긴다.**
+ *    원장(intel)은 시뮬(source 'sim') · 옛 앱(NULL) 줄만 — 픽커 실물 읽기(source 'real')는 남긴다(통계 · 처음 보는 글자의 원천 · 기사님 «가»).
  *    매번 필터를 다시 맞추거나 카카오를 다시 부르면 시뮬이 느려지고 돈이 든다.
  *    (지우는 것은 손으로·의도적으로 — 루트 README.md. 그래서 부팅 경로가 아니라 이 스크립트다.)
  *
@@ -67,15 +68,20 @@ const existing = new Set(
 );
 
 let total = 0;
+/* 🔴 원장은 실물(source 'real')을 남긴다 — source 칸이 없는 옛 모양 표는 실물을 가를 수 없어 지금처럼 다 지운다 */
+const hasSource = (t) => db.prepare(`PRAGMA table_info(${t})`).all().some(c => c.name === 'source');
 const wipe = db.transaction(() => {
   for (const t of CALL_TABLES) {
     if (!existing.has(t)) continue;
-    const n = db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n;
+    const keepReal = t === 'intel' && hasSource(t);
+    const where = keepReal ? ` WHERE source IS NOT 'real'` : '';
+    const n = db.prepare(`SELECT COUNT(*) AS n FROM ${t}${where}`).get().n;
     if (n > 0) {
-      db.prepare(`DELETE FROM ${t}`).run();
+      db.prepare(`DELETE FROM ${t}${where}`).run();
       console.log(`  🧹 ${t.padEnd(22)} ${n} 건 지움`);
       total += n;
     }
+    if (keepReal) console.log(`  🔒 ${t.padEnd(22)} 실물 ${db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n} 건 남김`);
   }
 });
 wipe();
