@@ -112,6 +112,14 @@ describe('📞 /calls', () => {
         expect(r.out.find((c: any) => c.id === O2).needsCall).toBe(false);
         expect(r.out[0].pickup.at).toMatch(/^\d{4}-\d{2}-\d{2}T/);   // 상차 예정 시각 — 화면이 약속 시각의 기준 날로 쓴다
     });
+
+    /* 🔴 메뉴 숫자(«통화 도우미» 배지 · 폰 폭 ☰ 빨강)는 /calls 와 같은 함수로 센다 — 따로 두면 0 이 남거나 둘이 갈린다 */
+    it('🔴 /counts 의 callsTodo = /calls(회원 전부)의 통화 필요 수', async () => {
+        const all = await call('get', '/calls');
+        const todo = all.out.filter((c: any) => c.needsCall).length;
+        expect(todo).toBeGreaterThan(0);
+        expect((await call('get', '/counts')).out.callsTodo).toBe(todo);
+    });
 });
 
 describe('📞 관리자 방 · 결재 · 장부', () => {

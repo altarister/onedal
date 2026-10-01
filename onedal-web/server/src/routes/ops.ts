@@ -250,17 +250,23 @@ router.get("/counts", (req, res) => {
     const io = req.app.get("io");
     const ids = (db.prepare(`SELECT DISTINCT user_id FROM user_devices`).all() as { user_id: string }[]).map(r => r.user_id);
     const phonesOffline = ids.flatMap(id => phonesOf(id, io)).filter(p => p.status !== 'ONLINE').length;
-    const counts: OpsCounts = { pendingMembers, callsTodo: 0, phonesOffline };
+    const callsTodo = opsCallsOf(null).filter(c => c.needsCall).length;   // 통화 도우미 화면(/calls)과 같은 함수
+    const counts: OpsCounts = { pendingMembers, callsTodo, phonesOffline };
     res.json(counts);
 });
 
 // ── 통화 도우미 ──────────────────────────────────────────
 
-router.get("/calls", (req, res) => {
-    const memberId = typeof req.query.memberId === 'string' && req.query.memberId ? req.query.memberId : null;
+/** 📞 진행 중 KEEP 콜 — 통화 도우미 화면과 메뉴 숫자(/counts 의 callsTodo)가 같이 부른다 · memberId 가 없으면 회원 전부 */
+function opsCallsOf(memberId: string | null) {
     const rows = db.prepare(`${ORDER_SQL} WHERE ${IN_PROGRESS_SQL}${memberId ? ' AND o.userId = ?' : ''} ORDER BY o.timestamp DESC`)
         .all(...inProgressParams(), ...(memberId ? [memberId] : [])) as OrderRow[];
-    const calls = rows.map(opsCallOf);
+    return rows.map(opsCallOf);
+}
+
+router.get("/calls", (req, res) => {
+    const memberId = typeof req.query.memberId === 'string' && req.query.memberId ? req.query.memberId : null;
+    const calls = opsCallsOf(memberId);
     res.json([...calls.filter(c => c.needsCall), ...calls.filter(c => !c.needsCall)]);
 });
 

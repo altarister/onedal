@@ -169,7 +169,7 @@ describe('🏢 글 · 공지 · 기록 · 숫자', () => {
         const audit = await call(opsRouter, 'get', '/audit', { query: {} });
         expect(audit.out[0]).toMatchObject({ admin: ADMIN });
         const counts = await call(opsRouter, 'get', '/counts');
-        expect(counts.out).toEqual(expect.objectContaining({ pendingMembers: expect.any(Number), callsTodo: 0, phonesOffline: expect.any(Number) }));
+        expect(counts.out).toEqual(expect.objectContaining({ pendingMembers: expect.any(Number), callsTodo: expect.any(Number), phonesOffline: expect.any(Number) }));
         const an = await call(opsRouter, 'get', '/anomalies');
         expect(an.out).toEqual(expect.objectContaining({ anomalies: expect.any(Array), screenWords: expect.any(Array) }));
         const phones = await call(opsRouter, 'get', '/phones');
