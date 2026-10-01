@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { OpsCallNote, OpsRelease } from '@onedal/shared';
 import { session } from './client';
+import { createListeners } from './listeners';
 import { BOARD_DROPPED, BOARD_FILTER_FULL, BOARD_PHONE_DETAIL, BOARD_SERVER, CALLS, CHECKS, MEMBERS, MONTH_CODE, PHONES, RELEASES } from '../mock/data';
 
 /**
@@ -20,13 +21,13 @@ const plusOneMonthFrom = (base: string | null) => {
     return localDay(t);
 };
 
-const listeners = new Set<() => void>();
-const notify = () => listeners.forEach(l => l());
+const listeners = createListeners();
+const notify = () => listeners.notify();
 
-/** 예시 자료가 바뀌면 다시 그린다 — 메모리 변화를 그대로 알린다 */
+/** 예시 자료가 바뀌면 다시 그린다 — 메모리 변화를 그대로 알린다. 정리는 자기 듣기 하나만(`listeners.ts`) */
 export function useExampleTick() {
     const [, setN] = useState(0);
-    useEffect(() => { listeners.add(() => setN(n => n + 1)); return () => { listeners.clear(); }; }, []);
+    useEffect(() => listeners.add(() => setN(n => n + 1)), []);
 }
 
 export const example = {

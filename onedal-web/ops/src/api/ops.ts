@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type {
     OpsAnomaliesReply, OpsAudit, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsNotice, OpsNoticePost, OpsPhone, OpsSuspendRequest,
 } from '@onedal/shared';
-import { client } from './client';
+import { client, errorTextOf, statusOf } from './client';
+import { createListeners } from './listeners';
 
 /**
  * 🏢 **운영센터가 서버 문 `/api/ops/*` 를 부르는 곳 — 이 파일 하나** (reviews/29 3단계 · 서버 `routes/ops.ts` · 규격 shared `ops.ts`).
@@ -58,14 +59,17 @@ export function useOps<T>(load: () => Promise<T>, deps: unknown[]): Loaded<T> {
     useEffect(() => {
         let alive = true;
         load().then(d => { if (alive) { setData(d); setError(null); } })
-            .catch(() => { if (alive) setError('서버 응답이 없습니다'); });
+            .catch((e: unknown) => { if (alive) setError(statusOf(e) === 404 ? (errorTextOf(e) ?? '없습니다') : '서버 응답이 없습니다'); });   // 404 는 장애가 아니라 «없는 회원입니다»
         return () => { alive = false; };
     }, [n, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
     return { data, error, reload };
 }
 
-/** 쓰기 한 번 — 끝나면 다시 읽는다. 실패하면 창 하나(화면은 그대로) */
+/** 메뉴 숫자(`/ops/counts`)를 다시 읽으라는 소식 — 틀(Shell)이 듣고, 쓰기가 끝나면 알린다(60초를 안 기다린다) */
+export const countsRefresh = createListeners();
+
+/** 쓰기 한 번 — 끝나면 다시 읽고 메뉴 숫자도 다시. 실패하면 창 하나(화면은 그대로) — 서버가 까닭을 줬으면(«자기 계정은 정지 · 탈퇴할 수 없습니다» 등) 그 글 */
 export async function write(go: () => Promise<unknown>, reload: () => void): Promise<void> {
-    try { await go(); reload(); }
-    catch { alert('서버에 적지 못했습니다 — 다시 해 주세요'); }
+    try { await go(); reload(); countsRefresh.notify(); }
+    catch (e: unknown) { alert(errorTextOf(e) ?? '서버에 적지 못했습니다 — 다시 해 주세요'); }
 }

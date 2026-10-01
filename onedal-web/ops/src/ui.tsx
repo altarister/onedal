@@ -6,7 +6,7 @@ import { Badge } from '@onedal/ui/badge';
 import {
     AlertTriangle, BarChart3, FileText, LogOut, Map as MapIcon, Megaphone, Moon, MoreHorizontal, Package, Phone, ScrollText, Smartphone, Sun, Users, Wrench, X,
 } from 'lucide-react';
-import { api, useOps } from './api/ops';
+import { api, countsRefresh, useOps } from './api/ops';
 import { logout, session } from './api/client';
 
 /**
@@ -15,7 +15,7 @@ import { logout, session } from './api/client';
  *    시각 글자는 shared 의 `hhmmText` · `isoKst` · `businessDayKey` 를 거친다 — 화면이 직접 파싱하지 않는다(`toISOString()` 은 UTC 라 새벽 0~9시에 하루 어긋난다).
  */
 
-/** 메뉴 옆 숫자는 서버 `/ops/counts`(할 일이 있는 것만) — 틀이 60초마다 다시 읽는다 */
+/** 메뉴 옆 숫자는 서버 `/ops/counts`(할 일이 있는 것만) — 틀이 60초마다, 그리고 쓰기 뒤 바로 다시 읽는다 */
 export const NAV: { to: string; label: string; icon: ReactNode; badge?: (c: OpsCounts) => number }[] = [
     { to: '/members', label: '회원', icon: <Users className="size-4" />, badge: c => c.pendingMembers },
     { to: '/calls', label: '통화 도우미', icon: <Phone className="size-4" />, badge: c => c.callsTodo },
@@ -42,6 +42,7 @@ export function Shell({ children }: { children: ReactNode }) {
     const navigate = useNavigate();
     const [minute, setMinute] = useState(0);
     useEffect(() => { const t = setInterval(() => setMinute(m => m + 1), 60_000); return () => clearInterval(t); }, []);
+    useEffect(() => countsRefresh.add(() => setMinute(m => m + 1)), []);   // 쓰기 뒤 바로
     const counts = useOps(() => api.counts(), [minute]);
     const c: OpsCounts = counts.data ?? { pendingMembers: 0, callsTodo: 0, phonesOffline: 0 };
     const [refreshedAt, setRefreshedAt] = useState(() => new Date());

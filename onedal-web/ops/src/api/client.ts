@@ -43,6 +43,12 @@ export function statusOf(e: unknown): number | undefined {
     return axios.isAxiosError(e) ? e.response?.status : undefined;
 }
 
+/** 서버가 준 까닭 글(`{ error }`) — 없으면 null. 관리자가 «왜»를 알게 창 · 띠에 그대로 보인다 */
+export function errorTextOf(e: unknown): string | null {
+    const data = axios.isAxiosError(e) ? e.response?.data as { error?: unknown } | undefined : undefined;
+    return typeof data?.error === 'string' && data.error ? data.error : null;
+}
+
 /** 지금 로그인한 관리자 — 문지기(`OpsGate`)가 `/auth/me` 로 채운다. 화면 머리 · 목업 쓰기의 «누가 적었나»가 읽는다 */
 export const session = { name: '' };
 
