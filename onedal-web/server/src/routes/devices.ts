@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf, openBlockedNeedsHand } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
-import { getUserSession, peekUserSession } from "../state/userSessionStore";
+import { getUserSession, peekUserSession, baseFilterFromDb } from "../state/userSessionStore";
 import { generatePin, tryConsumePin } from "../state/pairingStore";
 import { requireAuth } from "../middlewares/authMiddleware";
 import db from "../db";
@@ -67,14 +67,15 @@ function resolveDefaultMode(deviceId: string, userId: string): DeviceModeType {
 
 /**
  * 👀 **화면용 모드 판단 — 세션을 만들지 않는다** (운영센터 · 관제웹 폰 목록의 «등록됐지만 안 붙은 폰»).
- *    저장된 선택 › 있는 세션의 필터(peek) › MANUAL. resolveDefaultMode 는 getUserSession 이라 세션 없는 회원(와이프 · 승인 대기)의
+ *    저장된 선택 › 필터 켜짐(있는 세션 것, 없으면 DB 평소 설정 — baseFilterFromDb · 세션을 안 만든다)이면 AUTO › MANUAL.
+ *    폰 보고 길이 세션을 만들며 내는 답과 같다(onedal-04 교차 리뷰). resolveDefaultMode 는 getUserSession 이라 세션 없는 회원(와이프 · 승인 대기)의
  *    기사 세션을 만들고 user_settings 줄까지 썼다 — 읽기가 남의 세션을 깨우면 안 된다(`opsReadNoSession` 검사).
  *    🔴 폰 보고 길(getDeviceMode)은 그대로 resolveDefaultMode — 보고하는 회원은 운행 중이라 세션이 있다.
  */
 function viewModeOf(deviceId: string, userId: string): DeviceModeType {
     const row = db.prepare("SELECT mode FROM user_devices WHERE device_id = ?").get(deviceId) as { mode?: string } | undefined;
     if (isDeviceMode(row?.mode)) return row.mode;
-    return peekUserSession(userId)?.activeFilter?.isActive ? "AUTO" : "MANUAL";
+    return (peekUserSession(userId)?.activeFilter ?? baseFilterFromDb(userId)).isActive ? "AUTO" : "MANUAL";
 }
 
 /**

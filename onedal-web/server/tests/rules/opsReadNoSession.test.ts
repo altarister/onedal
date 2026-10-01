@@ -50,6 +50,13 @@ describe('👀 운영센터 읽기는 세션을 안 만든다', () => {
         expect((await call('/phones')).find((p: any) => p.deviceId === 'd-nosess-m').mode).toBe('ALARM');
         expect(peekUserSession(M)).toBeUndefined();
     });
+    it('🔴 세션 없는 회원이라도 평소 설정이 켜져 있으면 화면 모드는 AUTO — 폰이 처음부터 받는 모드와 같다(재기동 뒤 «수동»으로 보이던 것) · 세션 안 생김', async () => {
+        db.prepare(`UPDATE user_devices SET mode = NULL WHERE device_id = 'd-nosess-m'`).run();
+        db.prepare(`INSERT OR REPLACE INTO user_filters (user_id, min_fare, max_fare, is_active) VALUES (?, 30000, 1000000, 1)`).run(M);
+        expect((await call('/phones')).find((p: any) => p.deviceId === 'd-nosess-m').mode).toBe('AUTO');
+        expect(peekUserSession(M)).toBeUndefined();
+        db.prepare(`DELETE FROM user_filters WHERE user_id = ?`).run(M);
+    });
     it('🔴 폰 보고 길(getDeviceMode)은 그대로 — 세션 필터가 켜졌고 저장 선택이 없으면 AUTO', () => {
         const s = getUserSession(DRV);
         s.activeFilter = { ...(s.activeFilter ?? {}), isActive: true };
