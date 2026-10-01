@@ -1,4 +1,5 @@
 import { businessDayKey, isEvaluating, isTerminal, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO, manwonText } from '@onedal/shared';
+import type { FlowsViewerReply } from '@onedal/shared';   // 응답 모양은 shared 한 곳(공통 함수 6)
 
 /**
  * 📊 **아침 카드 — 오늘 이 시간엔 어디 → 어디가 많다** (reviews/25 4단계 · 기사님 결정 3 · 1f).
@@ -12,10 +13,6 @@ import { businessDayKey, isEvaluating, isTerminal, SIGUNGU_AMBIGUOUS, SIGUNGU_UN
 const WINDOW_HOURS = 3;
 const TOP = 2;
 
-/** 평균은 요금을 아는 콜(fareCalls)의 평균 — 하나도 모르면 null (서버 `sumOf`) */
-interface Sum { calls: number; fareCalls: number; fareFirstAvg: number | null }
-interface ViewerCell { group: string; from: string; to: string; mine: Sum | null; all: (Sum & { drivers: number }) | null }
-export interface FlowsReply { days: string[]; cells: ViewerCell[] }
 
 const weekdayOfDay = (day: string) => {
     const [y, m, d] = day.split('-').map(Number);
@@ -23,7 +20,7 @@ const weekdayOfDay = (day: string) => {
 };
 const resolved = (s: string) => s !== SIGUNGU_AMBIGUOUS && s !== SIGUNGU_UNKNOWN;
 
-export function morningCardOf(reply: FlowsReply, nowMs: number): { lines: string[]; tail: string; sampleDays: number; flows: number } {
+export function morningCardOf(reply: Pick<FlowsViewerReply, 'days' | 'cells'>, nowMs: number): { lines: string[]; tail: string; sampleDays: number; flows: number } {
     const now = new Date(nowMs);
     const weekday = WEEKDAY_KO[now.getDay()];
     const h = now.getHours();

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
 import axios from 'axios';
-import { COLOR_DOT, wonText } from '@onedal/shared';
+import { COLOR_DOT, wonText, type FilterDayRow as FilterDay, type FilterDaysReply } from '@onedal/shared';
 
 /**
  * 📊 **설정과 성과** (기사님 확정 — 운행일지에)
@@ -11,15 +11,6 @@ import { COLOR_DOT, wonText } from '@onedal/shared';
  * 성과로 정하게 하는 자리다. 기록이 없으면(첫 자정 전) 그렇다고 말한다.
  */
 
-interface FilterDay {
-    day: string;
-    revenue: number;
-    calls: number;
-    cancels: Record<string, number>;
-    colors: Record<string, number>;
-    settings: Record<string, { destinationCity?: string; pickupRadiusKm?: number;
-        detourAllowKm?: number; dropoffRadiusKm?: number; discountPct?: number }>;
-}
 
 // 🎨 동그라미는 shared 한 곳 (공통 함수 5) — 날마다 센 색 이름은 글자라 모르는 이름은 그대로 적는다
 const COLOR_EMOJI: Record<string, string> = COLOR_DOT;
@@ -31,7 +22,7 @@ export default function FilterDayBoard() {
 
     useEffect(() => {
         const token = localStorage.getItem('accessToken');
-        axios.get<{ days: FilterDay[] }>('/api/logbook/filter-days', {
+        axios.get<FilterDaysReply>('/api/logbook/filter-days', {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then((res) => setDays(res.data.days))

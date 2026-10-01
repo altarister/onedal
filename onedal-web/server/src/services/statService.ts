@@ -11,22 +11,12 @@
 
 import db from "../db";
 import { businessDayRange, businessMonthRange } from "@onedal/shared";
+import type { SummaryMetrics, HotspotPlace, BlacklistedPlace, PlaceInsights } from "@onedal/shared";
 
 // ═══════════════════════════════════════
 // 1) 대시보드 요약 지표 (KeyMetricsBoard)
 // ═══════════════════════════════════════
 
-export interface SummaryMetrics {
-    todayRevenue: number;
-    todayDistanceKm: number;
-    todayEfficiency: number;        // 원/km
-    monthRevenue: number;
-    monthDistanceKm: number;
-    monthEfficiency: number;
-    unpaidTotal: number;
-    todayOrderCount: number;
-    monthOrderCount: number;
-}
 
 export function getSummaryMetrics(userId: string): SummaryMetrics {
     /* 📅 한국 영업일·영업월 [시작, 끝) — 완료 시각은 UTC 글자로 저장돼 날 글자 앞부분으로 거르면 새벽 0~9시가 어제로 간다 */
@@ -90,27 +80,8 @@ export function getSummaryMetrics(userId: string): SummaryMetrics {
 // 2) 장소 인사이트 (PlaceInsightBoard)
 // ═══════════════════════════════════════
 
-export interface HotspotPlace {
-    id: number;
-    addressDetail: string;
-    customerName: string;
-    region: string;
-    visitCount: number;
-    lastVisitedAt: string | null;
-}
 
-export interface BlacklistedPlace {
-    id: number;
-    addressDetail: string;
-    customerName: string;
-    rating: number;
-    blacklistMemo: string | null;
-}
 
-export interface PlaceInsights {
-    hotspots: HotspotPlace[];
-    blacklisted: BlacklistedPlace[];
-}
 
 export function getPlaceInsights(userId: string, limit: number = 5): PlaceInsights {
     const hotspots = db.prepare(`

@@ -3,7 +3,7 @@ import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
 import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, modeHeldWhy, TARGET_APP_LABEL, deviceLabel, clockText } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
-import type { EmergencyAlert, SafeCancelWarning } from "../../hooks/useSystemAlerts";
+import type { EmergencyAlert, SafeCancelWarning } from "@onedal/shared";
 import { handBandOf } from "../../lib/handBand";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { summarizeTally } from "../../lib/filterTally";

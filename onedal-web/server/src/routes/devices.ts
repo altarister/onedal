@@ -13,6 +13,7 @@ import { accountGateOf } from "../core/accountGate";
 import { allowanceOf } from "../core/allowance";
 import { DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from "@onedal/shared";
 import { armWait } from "../state/waits";
+import type { FilterPassAlarm } from "@onedal/shared";
 
 const router = Router();
 
@@ -357,7 +358,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             slog('필터', `⚠️ [옛 원달앱] ${deviceLabelOf(deviceId)} (판 ${session.version ?? '모름'}) — 목록 보고에 listHeaderHidden 을 싣는 옛 판이다 · 앱이 못 연 까닭은 «목록이 내려감»만 알 수 있다 · 새 앱을 까십시오`);
         }
         const openBlocked = extras?.openBlocked ?? (extras?.listHeaderHidden === true ? 'scrolledOff' : undefined);
-        const alarmBody = {
+        const alarmBody: FilterPassAlarm = {
             deviceId,
             deviceName: session.deviceName,
             /* 🔢 목록에 보이는 통과 수 — 띠의 «필터 통과 N건». 소리는 새로 통과 수(passedNew)로 가른다 */

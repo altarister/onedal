@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { TARGET_APP_LABEL, isTargetApp } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
-import { api, useOps, type StatsAdminCell, type StatsGroupBy } from '../api/ops';
+import { api, useOps, type StatsGroupBy } from '../api/ops';
+import type { FlowsAdminCell } from '@onedal/shared';
 import { ErrorBand, KV, PageHeader, Table, fmtWon, memberName, type Column } from '../ui';
 
 /** 📊 콜 흐름 통계 — 어느 동네에서 어디로 가는 콜이 많은가 (회원 칸 포함 · 관리자 문 · 최근 28일). 회원에게 보내는 것은 3명 이상 섞인 칸만(reviews/25). 폰에서는 줄마다 카드 */
@@ -13,9 +14,9 @@ export default function Stats() {
     const [members, reply] = data ?? [[], null];
     const rows = (reply?.cells ?? []).filter(c => c.calls).sort((a, b) => (b.calls ?? 0) - (a.calls ?? 0));
     const max = Math.max(1, ...rows.map(r => r.calls ?? 0));
-    const appOf = (r: StatsAdminCell) => isTargetApp(r.targetApp) ? TARGET_APP_LABEL[r.targetApp] : r.targetApp;
-    const fare = (r: StatsAdminCell) => r.fareLastAvg != null ? fmtWon(r.fareLastAvg) : '—';
-    const cols: Column<StatsAdminCell>[] = [
+    const appOf = (r: FlowsAdminCell) => isTargetApp(r.targetApp) ? TARGET_APP_LABEL[r.targetApp] : r.targetApp;
+    const fare = (r: FlowsAdminCell) => r.fareLastAvg != null ? fmtWon(r.fareLastAvg) : '—';
+    const cols: Column<FlowsAdminCell>[] = [
         { key: 'g', label: BY_LABEL[by], render: r => r.group },
         { key: 'm', label: '회원', render: r => memberName(members, r.userId) },
         { key: 'app', label: '배차망', render: appOf },

@@ -26,7 +26,7 @@ describe('📊 아침 카드 자리', () => {
 
     it('읽는 문은 관제웹 통계 문 하나 · ✕ 닫은 날 저장은 try/catch', () => {
         const card = client('components/dashboard/MorningCard.tsx');
-        expect(card).toContain("apiClient.get<FlowsReply>('/stats/flows', { params: { from, to, groupBy: 'weekdayHour' } })");
+        expect(card).toContain("apiClient.get<FlowsViewerReply>('/stats/flows', { params: { from, to, groupBy: 'weekdayHour' } })");
         expect(card).toMatch(/try \{ localStorage\.setItem\(CLOSED_KEY, today\); \} catch/);
         expect(card).toMatch(/try \{ return localStorage\.getItem\(CLOSED_KEY\) === today; \} catch \{ return false; \}/);
     });

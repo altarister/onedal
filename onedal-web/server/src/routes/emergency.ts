@@ -32,6 +32,7 @@ import db from "../db";
 import { countCancel } from "../core/cancelCount";
 import { slog } from "../utils/fileLogger";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
+import type { EmergencyAlert } from "@onedal/shared";
 
 const router = Router();
 
@@ -119,14 +120,15 @@ router.post("/", async (req, res) => {
         }
 
         if (io) {
-            io.to(userId).emit("emergency-alert", {
+            const alert: EmergencyAlert = {
                 deviceId,
                 orderId: targetOrderId,
                 reason,
                 screenContext,
                 screenText: screenText?.substring(0, 300),
                 timestamp: timestamp || new Date().toISOString(),
-            });
+            };
+            io.to(userId).emit("emergency-alert", alert);
             slog('경고', `   ✅ 관제탑 emergency-alert emit 완료`);
         }
 

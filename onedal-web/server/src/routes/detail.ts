@@ -18,6 +18,7 @@ import { slog } from "../utils/fileLogger";
 import { releaseEvaluatingDevices } from "../core/helpers";
 import { ownedByOther } from "../core/orderOwner";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
+import type { SafeCancelWarning } from "@onedal/shared";
 
 const router = Router();
 
@@ -333,14 +334,15 @@ router.post("/", async (req, res) => {
             if (session.pendingDecisions.has(payload.order.id)) {
                 if (io) {
                     console.warn(`⚠️ [안전취소 임박] ${payload.order.id} — ${cancelSec}초가 되도록 판정이 없다. 관제웹에 위급 알림`);
-                    io.to(userId).emit("safecancel-warning", {
+                    const warning: SafeCancelWarning = {
                         orderId: payload.order.id,
                         deviceId: payload.deviceId,
                         pickup: pendingOrder.pickup,
                         dropoff: pendingOrder.dropoff,
                         message: `${cancelSec}초 안전취소!`,   // ⚠️ 는 관제웹 경고 줄이 붙인다
                         timestamp: new Date().toISOString(),
-                    });
+                    };
+                    io.to(userId).emit("safecancel-warning", warning);
                 }
             }
         });

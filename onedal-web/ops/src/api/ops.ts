@@ -5,6 +5,7 @@ import type {
 } from '@onedal/shared';
 import { client, errorTextOf, statusOf } from './client';
 import { createListeners } from './listeners';
+import type { FlowsAdminReply } from '@onedal/shared';   // 응답 모양은 shared 한 곳(공통 함수 6)
 
 /**
  * 🏢 **운영센터가 서버 문 `/api/ops/*` 를 부르는 곳 — 이 파일 하나** (reviews/29 3단계 · 서버 `routes/ops.ts` · 규격 shared `ops.ts`).
@@ -62,12 +63,10 @@ export const api = {
         })).data,
 
     /** 📊 콜 흐름 통계(관리자 문 `/api/stats/flows/admin` · 회원 칸 포함) — 기본 최근 28일. 평균은 요금을 아는 콜로만(없으면 null) */
-    statsAdmin: async (groupBy: StatsGroupBy) => (await client.get<StatsAdminReply>('/stats/flows/admin', { params: { groupBy } })).data,
+    statsAdmin: async (groupBy: StatsGroupBy) => (await client.get<FlowsAdminReply>('/stats/flows/admin', { params: { groupBy } })).data,
 };
 
 export type StatsGroupBy = 'weekday' | 'hour' | 'month';
-export interface StatsAdminCell { group: string; targetApp: string; from: string; to: string; userId: string; drivers: number; calls?: number; fareCalls?: number; fareFirstAvg?: number | null; fareLastAvg?: number | null }
-export interface StatsAdminReply { from: string; to: string; groupBy: string; cells: StatsAdminCell[] }
 
 export interface Loaded<T> { data: T | null; error: string | null; reload: () => void }
 

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { businessDayKey } from '@onedal/shared';
 import { apiClient } from '../../api/apiClient';
-import { morningCardOf, type FlowsReply } from '../../lib/morningCard';
+import { morningCardOf } from '../../lib/morningCard';
+import type { FlowsViewerReply } from '@onedal/shared';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 /**
@@ -36,7 +37,7 @@ export default function MorningCard() {
     const [closed, setClosed] = useState(() => {
         try { return localStorage.getItem(CLOSED_KEY) === today; } catch { return false; }
     });
-    const [reply, setReply] = useState<FlowsReply | null>(null);
+    const [reply, setReply] = useState<FlowsViewerReply | null>(null);
 
     useEffect(() => {
         if (closed) return;
@@ -44,7 +45,7 @@ export default function MorningCard() {
         const from = businessDayKey(at - 28 * DAY_MS);
         const to = businessDayKey(at - DAY_MS);
         let alive = true;
-        apiClient.get<FlowsReply>('/stats/flows', { params: { from, to, groupBy: 'weekdayHour' } })
+        apiClient.get<FlowsViewerReply>('/stats/flows', { params: { from, to, groupBy: 'weekdayHour' } })
             .then(r => { if (alive) setReply(r.data); })
             .catch(() => { /* 못 읽으면 카드를 안 그린다 */ });
         return () => { alive = false; };

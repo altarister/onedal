@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { HealthReply } from '@onedal/shared';   // 응답 모양은 shared 한 곳(공통 함수 6)
 
 /**
  * 🔑 **운영센터가 서버를 부르는 길 — 이 파일 하나** (reviews/29 3단계 · 서버 문 `/api/auth/*` · `/api/ops/*`).
@@ -52,9 +53,8 @@ export function errorTextOf(e: unknown): string | null {
 /** 지금 로그인한 관리자 — 문지기(`OpsGate`)가 `/auth/me` 로 채운다. 화면 머리 · 목업 쓰기의 «누가 적었나»가 읽는다 */
 export const session = { name: '' };
 
-export interface ServerHealth { ok: boolean; now: number; bootedAt: string; /** 라이브 서버인가 — 서버가 내주는 사실(없으면 모른다 = 우회 버튼 안 보임) */ live?: boolean }
-export async function fetchHealth(): Promise<ServerHealth> {
-    return (await client.get<ServerHealth>('/health')).data;
+export async function fetchHealth(): Promise<HealthReply> {
+    return (await client.get<HealthReply>('/health')).data;
 }
 
 export async function loginGoogle(credential: string): Promise<void> {

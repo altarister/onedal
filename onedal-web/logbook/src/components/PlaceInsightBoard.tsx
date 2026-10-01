@@ -1,28 +1,10 @@
 import { useState, useEffect } from 'react';
 import { MapPin, AlertTriangle, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import type { PlaceInsights } from '@onedal/shared';   // 응답 모양은 shared 한 곳(공통 함수 6)
 
-interface HotspotPlace {
-  id: number;
-  addressDetail: string;
-  customerName: string;
-  region: string;
-  visitCount: number;
-  lastVisitedAt: string | null;
-}
 
-interface BlacklistedPlace {
-  id: number;
-  addressDetail: string;
-  customerName: string;
-  rating: number;
-  blacklistMemo: string | null;
-}
 
-interface PlaceInsights {
-  hotspots: HotspotPlace[];
-  blacklisted: BlacklistedPlace[];
-}
 
 export default function PlaceInsightBoard() {
   const [data, setData] = useState<PlaceInsights | null>(null);

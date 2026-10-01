@@ -1,18 +1,8 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, Route, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import type { SummaryMetrics } from '@onedal/shared';   // 응답 모양은 shared 한 곳(공통 함수 6)
 
-interface SummaryMetrics {
-  todayRevenue: number;
-  todayDistanceKm: number;
-  todayEfficiency: number;
-  monthRevenue: number;
-  monthDistanceKm: number;
-  monthEfficiency: number;
-  unpaidTotal: number;
-  todayOrderCount: number;
-  monthOrderCount: number;
-}
 
 export default function KeyMetricsBoard() {
   const [metrics, setMetrics] = useState<SummaryMetrics | null>(null);

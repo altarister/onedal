@@ -3,6 +3,7 @@ import { allowanceOf } from "../core/allowance";
 import { requireAuth, requireOps } from "../middlewares/authMiddleware";
 import { flowRowsBetween, flowsForViewer, flowsForAdmin, rolledUpDaysBetween, FLOW_GROUP_BYS, type FlowGroupBy } from "../services/callFlowStats";
 import { businessDayKey } from "@onedal/shared";
+import type { FlowsViewerReply, FlowsAdminReply } from "@onedal/shared";
 
 /**
  * 📊 **콜 흐름 통계 읽는 문 둘** (reviews/25 3단계 · 1f 결정 ②) — 쓰기는 하루 묶기(`services/callFlowStats.ts`) 한 곳뿐이다.
@@ -25,12 +26,14 @@ router.get("/flows", requireAuth, (req, res) => {
     if (!allowanceOf(req.user!.id).statsLive) return res.status(403).json({ error: 'STATS_NOT_ALLOWED' });
     const { from, to, by } = rangeOf(req.query);
     /* 📅 days — 그 기간에 묶인 날(아침 카드의 «주마다 N건» 나눗수 · 표본 날 수) */
-    res.json({ from, to, groupBy: by, days: rolledUpDaysBetween(from, to), cells: flowsForViewer(flowRowsBetween(from, to), req.user!.id, by) });
+    const body: FlowsViewerReply = { from, to, groupBy: by, days: rolledUpDaysBetween(from, to), cells: flowsForViewer(flowRowsBetween(from, to), req.user!.id, by) };
+    res.json(body);
 });
 
 router.get("/flows/admin", requireAuth, requireOps, (req, res) => {
     const { from, to, by } = rangeOf(req.query);
-    res.json({ from, to, groupBy: by, cells: flowsForAdmin(flowRowsBetween(from, to), by) });
+    const body: FlowsAdminReply = { from, to, groupBy: by, cells: flowsForAdmin(flowRowsBetween(from, to), by) };
+    res.json(body);
 });
 
 export default router;

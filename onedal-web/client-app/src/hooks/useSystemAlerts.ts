@@ -2,44 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { socket } from "../lib/socket";
 import { soundManager } from "../lib/soundManager";
 import { orderIdOf } from "../lib/socketPayload";
+import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from '@onedal/shared';   // 소켓 알림 모양은 shared 한 곳(공통 함수 6)
 
-export interface EmergencyAlert {
-    deviceId: string;
-    orderId: string;
-    reason: string;
-    screenContext: string;
-    screenText: string;
-    timestamp: string;
-}
 
-export interface SafeCancelWarning {
-    orderId: string;
-    deviceId: string;
-    pickup: string;
-    dropoff: string;
-    message: string;
-    timestamp: string;
-}
 
 /**
  * 🔔 **알람 모드 — 필터를 통과한 콜이 리스트에 떴다** (기사님 확정).
  * 원달앱은 상세까지 열고 확정·수락은 누르지 않는다. 기사님이 상세에서 누르신다.
  */
-export interface FilterPassAlarm {
-    deviceId: string;
-    deviceName?: string;
-    /** 이번 스캔에서 필터를 통과한 콜 수 — 목록에 보이는 수(띠의 «필터 통과 N건») */
-    passed: number;
-    /** 그중 새로 알람감이 된 콜 수 — 소리는 이것으로 가른다(서버) */
-    passedNew?: number;
-    /** 소리 없는 띠 — 앱이 못 연 까닭이 «손 필요»로 바뀌었을 때만 온다 */
-    silent?: boolean;
-    /** 이번 스캔에서 판정한 콜 수 */
-    seen: number;
-    /** 🚧 통과 콜이 있는데 원달앱이 안 연 까닭 열쇠 — 없으면 앱이 열었다 (shared `openBlockedSayOf`) */
-    openBlocked?: string;
-    at: number;
-}
 
 /**
  * 🔇 **알람은 «먼저 오는 것»으로 그친다** (기사님 확정).

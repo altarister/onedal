@@ -8,6 +8,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../middlewares/authMiddleware";
 import db from "../../db";
+import type { FilterDaysReply } from "@onedal/shared";
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.get("/", requireAuth, (req, res) => {
             SELECT day, settings, revenue, calls, cancels, colors
             FROM filter_day_results WHERE user_id = ?
             ORDER BY day DESC LIMIT ?`).all(userId, limit) as any[];
-        res.json({
+        const body: FilterDaysReply = {
             days: rows.map(r => ({
                 day: r.day,
                 revenue: r.revenue,
@@ -28,7 +29,8 @@ router.get("/", requireAuth, (req, res) => {
                 colors: JSON.parse(r.colors || '{}'),
                 settings: JSON.parse(r.settings || '{}'),
             })),
-        });
+        };
+        res.json(body);
     } catch (e) {
         console.error("filter-days GET 에러:", e);
         res.status(500).json({ error: "서버 오류발생" });
