@@ -261,8 +261,8 @@ router.post("/bypass", async (req, res) => {
             if (!userRow) {
                 const probeId = uuidv4();
                 db.prepare(`
-                    INSERT INTO users (id, google_id, email, name, avatar, role)
-                    VALUES (?, ?, ?, ?, ?, 'ADMIN')
+                    INSERT INTO users (id, google_id, email, name, avatar, role, approved_at)
+                    VALUES (?, ?, ?, ?, ?, 'ADMIN', datetime('now', 'localtime'))
                 `).run(probeId, "probe_google_id", PROBE_EMAIL, "실측(자동)", "");
                 /**
                  * 🔴 **빈 그릇은 «제한 없음»이 아니라 «고장»이다** (규칙 ④) — 행을 함께 만든다.
@@ -291,8 +291,8 @@ router.post("/bypass", async (req, res) => {
             slog('경고', "⚠️ DB에 유저가 없어 임시 개발자 계정을 생성합니다.");
             const newId = uuidv4();
             db.prepare(`
-                INSERT INTO users (id, google_id, email, name, avatar, role)
-                VALUES (?, ?, ?, ?, ?, 'ADMIN')
+                INSERT INTO users (id, google_id, email, name, avatar, role, approved_at)
+                VALUES (?, ?, ?, ?, ?, 'ADMIN', datetime('now', 'localtime'))
             `).run(newId, "bypass_google_id", "dev@onedal.local", "개발자(우회)", "");
             
             db.prepare(`INSERT INTO user_settings (user_id) VALUES (?)`).run(newId);

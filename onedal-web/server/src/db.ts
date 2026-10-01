@@ -27,13 +27,13 @@ slog('부팅', `📂 SQLite DB 준비 완료: ${dbPath}`);
 // ═══════════════════════════════════════════════════════════════
 
 /** 빠진 컬럼만 덧붙인다. **데이터를 건드리지 않는 순수 추가 연산**이다 */
-function ensureColumns(table: string, columns: Record<string, string>) {
-    const exists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table);
+function ensureColumns(table: string, columns: Record<string, string>, on: Database.Database = db) {
+    const exists = on.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table);
     if (!exists) return;
-    const have = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as any[]).map(c => c.name));
+    const have = new Set((on.prepare(`PRAGMA table_info(${table})`).all() as any[]).map(c => c.name));
     for (const [col, type] of Object.entries(columns)) {
         if (have.has(col)) continue;
-        db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+        on.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
         slog('부팅', `🔧 [스키마] ${table}.${col} 컬럼 추가`);
     }
 }
@@ -79,6 +79,88 @@ db.exec(`
         role TEXT DEFAULT 'USER' CHECK(role IN ('ADMIN', 'USER')),
         created_at TEXT DEFAULT (datetime('now', 'localtime'))
     )
+`);
+
+/**
+ * 🪪 **회원 사실 칸** (reviews/29 4장 · 2·3단계) — 상태 이름 한 칸이 아니라 «언제 그 일이 있었나» 시각 칸이다.
+ *    «승인 대기 · 사용 중 · 정지 · 탈퇴»는 화면 글에서만 만든다(shared `opsMemberStatus`). 부품은 자기에게 필요한 칸 하나만 본다.
+ *
+ * - `approved_at` — 비면 승인 전.
+ *   ② 새 구글 가입은 비움 · 개발 문(/bypass · probe — 라이브 막힘)은 지금 시각(로컬 검사 · 시뮬이 승인 대기에 안 막히게)
+ *   ③ 가입 때 비움 → 운영센터 «승인»이 씀 → 폰 연결 · /api/scrap · /me 가 읽음  ④ 관제웹 /pending · 운영센터 «승인 대기»
+ *   ⑤ 기기 문 «이 계정 폰 보고를 받나» · /me «대기 화면으로 보내나» · 운영센터 «누구를 승인하나»
+ * - `withdrawn_at` — 비면 회원. ③ 탈퇴 문이 씀 · 기기 문 · /me 가 읽음  ④ 운영센터 «탈퇴» · 관제웹 탈퇴 끝 화면  ⑤ 기기 문(거절) · /me · 운영센터
+ * - `phone` · `dispatch_networks`(JSON 배열 · shared `TargetAppType` 키 · CHECK 없음 — 파일 머리) — ② 비움 ③ 가입 정보 단계가 씀
+ *   ④ 관제웹 가입 1단계 · 운영센터 회원 표  ⑤ 운영센터(연락 · 어느 배차망을 쓰나)만 — 판정 · 필터는 안 읽는다. 차종은 여기 없다(기사 설정 `user_settings`)
+ * - `ops_allowed_at` — 비면 운영센터에 못 들어온다. ② 옮기기에서 안 채움 — 실서버는 기사님 손(reviews/26 «push 전»)
+ *   ③ 운영센터 HTTP(requireOps) · 소켓 관리자 방 입장 때 읽음  ④ 운영센터 회원 상세  ⑤ requireOps · 관리자 방
+ * - `suspended_at` · `suspend_after_active` — 비면 정지 아님 · 0. ③ 운영센터 «정지(끝난 뒤) / 즉시»가 씀 · 기기 문이 «진행 중 콜 있음»과 함께 읽음
+ *   ④ 운영센터 «정지 · 정지(끝난 뒤)»  ⑤ 기기 문 · 운영센터
+ * `role` 은 그대로 둔다 — requireAdmin(stats · screenWords)이 아직 읽는다. ops_allowed_at 으로 옮기는 것은 3단계 문을 만들 때.
+ */
+const ACCOUNT_COLUMNS: Record<string, string> = {
+    approved_at: 'TEXT', withdrawn_at: 'TEXT', phone: 'TEXT', dispatch_networks: 'TEXT',
+    ops_allowed_at: 'TEXT', suspended_at: 'TEXT', suspend_after_active: 'INTEGER DEFAULT 0',
+};
+
+/**
+ * 🔴 **이미 있는 회원은 승인된 것으로 친다** — approved_at 을 가입 시각으로 채운다. 안 채우면 실서버 기사님 계정이
+ *    다음 배포에 «승인 대기»로 막혀 운행이 선다. **칸이 이번 기동에 새로 생겼을 때만** 돈다 —
+ *    매 기동마다 돌면 승인 대기 회원이 재시작에 저절로 승인된다 (`accountColumns` 검사가 두 번 기동으로 문다).
+ */
+export function migrateAccountColumns(on: Database.Database = db): void {
+    const had = (on.prepare(`PRAGMA table_info(users)`).all() as any[]).some(c => c.name === 'approved_at');
+    ensureColumns('users', ACCOUNT_COLUMNS, on);
+    if (had) return;
+    const n = on.prepare(`UPDATE users SET approved_at = created_at WHERE approved_at IS NULL`).run().changes;
+    slog('부팅', `🪪 [회원 옮기기] 기존 회원 ${n}명을 가입 시각으로 승인 처리`);
+}
+migrateAccountColumns();
+
+/**
+ * 📝 **글 · 동의 · 운영센터 기록 · 공지** (reviews/29 4장 · shared `OpsContent` · `OpsAudit` · `OpsNotice` 와 같은 칸). 빈 표에서 시작한다.
+ * - `contents` — 판마다 한 줄. 동의가 «몇 판에 동의했나»를 가리키니 옛 판을 덮어쓰지 않는다. 읽기는 kind 별 최신 판 · 빈 표면 «글 없음»으로 흐름이 돈다
+ * - `agreements` — 회원 · 글 판 · 항목 · 시각. 지우지 않는다(동의 이력)
+ * - `ops_audit` — 관리자의 쓰기 · 열람마다 한 줄. 화면의 관리자 이름은 users 와 묶어 읽는다
+ * - `notices` — 내리기는 줄을 지우지 않고 `ended_at` 을 적는다. 관제웹 상단 공지는 «ended_at 비어 있고 active_until 이 비었거나 오늘 이후»
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS contents (
+        kind TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        body TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL,
+        updated_by TEXT,
+        PRIMARY KEY (kind, version)
+    );
+    CREATE TABLE IF NOT EXISTS agreements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        item TEXT NOT NULL,
+        agreed_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_agreements_user ON agreements(user_id);
+    CREATE TABLE IF NOT EXISTS ops_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        at TEXT NOT NULL,
+        admin_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        target_user_id TEXT,
+        detail TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_ops_audit_target ON ops_audit(target_user_id, at);
+    CREATE TABLE IF NOT EXISTS notices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        posted_at TEXT NOT NULL,
+        active_until TEXT,
+        posted_by TEXT,
+        ended_at TEXT,
+        ended_by TEXT
+    );
 `);
 
 // ═══════════════════════════════════════
