@@ -12,6 +12,14 @@ export const CONTENT_KINDS: readonly ContentKind[] = ['terms', 'privacy', 'locat
 /** 다시 동의를 받는 글 — 판이 오르면 회원이 다음 로그인 때 다시 동의한다 */
 export const CONSENT_KINDS: readonly ContentKind[] = ['terms', 'privacy', 'location'];
 
+/**
+ * 📣 **글이 없는 필수 고지** — 체크 칸만 있고 판이 없다. 그래도 «동의했다» 기록은 남아야 한다(제재 위험 고지는 다툼 때 가장 먼저 찾는 기록).
+ *    서버는 agreements 에 kind 'ack' · 0판 · item = 이 키로 적는다. 첫 가입(POST /api/join) 때만 받고, /agree 는 받지 않는다.
+ *    고지 줄이 없는 기존 회원은 막지도 다시 동의로 보내지도 않는다(판이 없어 «다시»가 없다).
+ */
+export const ACK_KEYS = ['thirdParty', 'networkRisk'] as const;
+export type AckKey = typeof ACK_KEYS[number];
+
 export interface JoinInfo {
     phone: string;
     dispatchNetworks: TargetAppType[];
@@ -27,6 +35,8 @@ export interface Agreement {
 export interface JoinRequest {
     info: JoinInfo;
     agreements: Agreement[];
+    /** 🔴 글 없는 고지 — ACK_KEYS 가 다 있어야 서버가 받는다(하나라도 빠지면 400) */
+    acknowledged: AckKey[];
 }
 
 /** 내 가입 상태 — 사실 시각 칸 + 서버가 계산한 blocked(`accountBlocked`) */

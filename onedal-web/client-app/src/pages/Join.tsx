@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@onedal/ui/button';
 import { Checkbox } from '@onedal/ui/checkbox';
 import { Input } from '@onedal/ui/input';
-import { CONSENT_KINDS, TARGET_APPS, TARGET_APP_LABEL, type ContentKind, type ContentReply } from '@onedal/shared';
+import { ACK_KEYS, CONSENT_KINDS, TARGET_APPS, TARGET_APP_LABEL, type ContentKind, type ContentReply } from '@onedal/shared';
 import { useAuth } from '../contexts/AuthContext';
 import { JoinStaleError, agree, fetchContents, submitJoin } from '../api/join';
 import {
@@ -80,7 +80,8 @@ export default function Join() {
     const submit = async () => {
         setSending(true); setError(null);
         try {
-            await submitJoin({ info: state.info, agreements: agreementsFor(contents) });
+            // 📣 글 없는 필수 고지 — 체크한 키를 그대로 싣는다(서버가 동의 기록으로 남긴다 · shared ACK_KEYS)
+            await submitJoin({ info: state.info, agreements: agreementsFor(contents), acknowledged: ACK_KEYS.filter(k => state.agreed[k]) });
             try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* 위와 같다 */ }
             navigate('/pending');
         } catch (e) {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { CONSENT_KINDS, isTargetApp, type Agreement, type ContentKind, type JoinInfo, type JoinMeReply, type JoinRequest } from "@onedal/shared";
+import { ACK_KEYS, CONSENT_KINDS, isTargetApp, type AckKey, type Agreement, type ContentKind, type JoinInfo, type JoinMeReply, type JoinRequest } from "@onedal/shared";
 import db from "../db";
 import { accountGateOf } from "../core/accountGate";
 import { latestContent, isContentKind } from "./contents";
@@ -13,9 +13,14 @@ import { slog } from "../utils/fileLogger";
  */
 const router = Router();
 
-/** 종류별로 동의한 가장 높은 판 */
+/** 종류별로 동의한 가장 높은 판 — 글 없는 고지(kind 'ack')는 판이 없어 섞지 않는다 */
 function agreedOf(userId: string): Agreement[] {
-    return db.prepare(`SELECT kind, MAX(version) AS version FROM agreements WHERE user_id = ? GROUP BY kind ORDER BY kind`).all(userId) as Agreement[];
+    return db.prepare(`SELECT kind, MAX(version) AS version FROM agreements WHERE user_id = ? AND kind != 'ack' GROUP BY kind ORDER BY kind`).all(userId) as Agreement[];
+}
+
+/** 글 없는 필수 고지 둘이 다 있나 — 모르는 키가 섞여도 받지 않는다 */
+function acksComplete(list: unknown): list is AckKey[] {
+    return Array.isArray(list) && list.every(k => (ACK_KEYS as readonly string[]).includes(k)) && ACK_KEYS.every(k => list.includes(k));
 }
 
 /** 다시 동의할 글 — CONSENT_KINDS 가운데 글에 그 종류의 판이 있고, 동의가 없거나 동의 판 < 최신 판인 것. 글이 없는 종류는 요구하지 않는다 */
@@ -54,7 +59,7 @@ function staleAgreement(list: unknown): string | null {
 }
 
 function saveAgreements(userId: string, list: Agreement[]): void {
-    // item 칸(4장 «항목»)은 지금 규격에 따로 없어 종류 이름을 그대로 적는다 — 한 글 안에 항목이 생기면 그때 가른다
+    // item 칸(4장 «항목») — 글 동의는 종류 이름 · 글 없는 고지는 kind 'ack' 줄에 고지 키(위 POST /)
     const put = db.prepare(`INSERT INTO agreements (user_id, kind, version, item, agreed_at) VALUES (?, ?, ?, ?, datetime('now', 'localtime'))`);
     for (const a of list) put.run(userId, a.kind, a.version, a.kind);
 }
@@ -66,17 +71,20 @@ router.get("/me", (req, res) => {
 
 router.post("/", (req, res) => {
     const userId = req.user!.id;
-    const { info, agreements } = (req.body ?? {}) as Partial<JoinRequest>;
+    const { info, agreements, acknowledged } = (req.body ?? {}) as Partial<JoinRequest>;
     const phone = typeof info?.phone === 'string' ? info.phone.trim() : '';
     const networks = info?.dispatchNetworks;
     if (!phone || !Array.isArray(networks) || networks.length === 0 || !networks.every(isTargetApp)) {
         return res.status(400).json({ error: "연락처와 배차망을 확인해 주세요." });
     }
+    if (!acksComplete(acknowledged)) return res.status(400).json({ error: "필수 고지에 모두 동의해 주세요." });
     const stale = staleAgreement(agreements ?? []);
     if (stale) return res.status(409).json({ error: "글이 바뀌었습니다. 다시 읽고 동의해 주세요.", kind: stale });
     db.transaction(() => {
         db.prepare(`UPDATE users SET phone = ?, dispatch_networks = ? WHERE id = ?`).run(phone, JSON.stringify(networks), userId);
         saveAgreements(userId, (agreements ?? []) as Agreement[]);
+        const ack = db.prepare(`INSERT INTO agreements (user_id, kind, version, item, agreed_at) VALUES (?, 'ack', 0, ?, datetime('now', 'localtime'))`);
+        for (const k of acknowledged) ack.run(userId, k);
     })();
     slog('통신', `🪪 [가입 정보] ${userId} — 배차망 ${networks.join(' · ')} · 동의 ${(agreements ?? []).length}건`);
     return res.json(joinMeOf(userId));

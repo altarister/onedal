@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { JoinMeReply } from '@onedal/shared';
+import { ACK_KEYS } from '@onedal/shared';
 import {
     AGREEMENT_ITEMS, JOIN_STEPS, APP_STEPS, EMPTY_INFO,
     allRequiredAgreed, infoComplete, canProceed, nextOf, prevOf, stepFromQuery, toggleNetwork, agreementsFor, gateDecision,
@@ -73,5 +74,12 @@ describe('🚪 로그인 뒤 문지기(gateDecision)', () => {
     });
     it('🔴 다시 동의할 글이 있어도 화면을 옮기지 않는다(ok) — 띠 한 줄은 me.reconsent 사실로 따로 그린다', () => {
         expect(gateDecision(me({ reconsent: ['terms'] }), false)).toBe('ok');
+    });
+});
+
+describe('📣 글 없는 필수 고지', () => {
+    it('🔴 체크 칸 중 글이 없는 필수 항목 키가 shared ACK_KEYS 와 같다 — 갈라지면 서버가 400 이거나 기록이 빠진다', () => {
+        const keys = AGREEMENT_ITEMS.filter(i => i.required && !i.contentKind).map(i => i.key).sort();
+        expect(keys).toEqual([...ACK_KEYS].sort());
     });
 });

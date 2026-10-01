@@ -12,6 +12,7 @@ import { DEVICE_LINK_ERRORS } from '@onedal/shared';
  * 탈퇴는 지우지 않는다 — withdrawn_at 만 적고, 폰은 폰 문에서 막힌다.
  */
 const U = 'test-join-new';
+const ACK = ['thirdParty', 'networkRisk'];
 const handle = (router: any, method: string, path: string) => {
     const layer = router.stack.find((l: any) => l.route?.path === path && l.route.methods[method]);
     return layer.route.stack[layer.route.stack.length - 1].handle;
@@ -49,18 +50,47 @@ describe('📝 글이 비어도 흐름이 돈다', () => {
         expect(out).toMatchObject({ approvedAt: null, withdrawnAt: null, blocked: true, info: null, agreed: [], reconsent: [], paidUntil: null });
     });
     it('🔴 가입 정보 저장 — 동의할 글이 없으니 빈 동의로 통과 · 승인 시각은 안 건드림', async () => {
-        const { status, out } = await join({ info: { phone: '010-1234-5678', dispatchNetworks: ['insung', 'kakaopicker'] }, agreements: [] });
+        const { status, out } = await join({ info: { phone: '010-1234-5678', dispatchNetworks: ['insung', 'kakaopicker'] }, agreements: [], acknowledged: ACK });
         expect(status).toBe(200);
         expect(out.info).toEqual({ phone: '010-1234-5678', dispatchNetworks: ['insung', 'kakaopicker'] });
         expect(out.approvedAt).toBeNull();
     });
     it('🔴 모르는 배차망 · 빈 연락처는 400', async () => {
-        expect((await join({ info: { phone: '010-1234-5678', dispatchNetworks: ['nope'] }, agreements: [] })).status).toBe(400);
-        expect((await join({ info: { phone: '', dispatchNetworks: ['insung'] }, agreements: [] })).status).toBe(400);
+        expect((await join({ info: { phone: '010-1234-5678', dispatchNetworks: ['nope'] }, agreements: [], acknowledged: ACK })).status).toBe(400);
+        expect((await join({ info: { phone: '', dispatchNetworks: ['insung'] }, agreements: [], acknowledged: ACK })).status).toBe(400);
     });
     it('🔴 글은 로그인 없이 읽는다 — 없으면 null · 모르는 종류는 404', async () => {
         expect(await content('terms')).toEqual({ status: 200, out: null });
         expect((await content('nope')).status).toBe(404);
+    });
+});
+
+describe('📝 글 없는 고지 둘도 동의 기록이 남는다', () => {
+    const acks = () => db.prepare(`SELECT kind, version, item FROM agreements WHERE user_id = ? AND kind = 'ack' ORDER BY item`).all(U);
+    it('🔴 가입은 고지 둘(제3자 정보 · 배차망 제재 위험)이 다 있어야 받는다 — 하나라도 없으면 400', async () => {
+        const info = { phone: '010-1234-5678', dispatchNetworks: ['insung'] };
+        expect((await join({ info, agreements: [] })).status).toBe(400);
+        expect((await join({ info, agreements: [], acknowledged: ['thirdParty'] })).status).toBe(400);
+        expect((await join({ info, agreements: [], acknowledged: ['thirdParty', 'nope'] })).status).toBe(400);
+    });
+    it('🔴 받은 고지는 agreements 에 kind ack · 0판 · item 키로 · /me 의 동의한 글에는 안 섞인다', async () => {
+        expect(acks()).toEqual([
+            { kind: 'ack', version: 0, item: 'networkRisk' },
+            { kind: 'ack', version: 0, item: 'thirdParty' },
+        ]);
+        expect((await me()).out.agreed.some((a: any) => a.kind === 'ack')).toBe(false);
+    });
+    it('🔴 /agree 는 고지를 받지 않는다(첫 가입 때만)', async () => {
+        const n = acks().length;
+        await call(handle(joinRouter, 'post', '/agree'), { body: { agreements: [], acknowledged: ACK } });
+        expect(acks().length).toBe(n);
+    });
+    it('🔴 고지 줄이 없는 기존 회원은 막지도, 다시 동의로 보내지도 않는다', async () => {
+        const OLD = 'test-join-old';
+        db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name, approved_at) VALUES (?, ?, ?, ?, datetime('now'))`).run(OLD, `g-${OLD}`, `${OLD}@test`, OLD);
+        const r = await call(handle(joinRouter, 'get', '/me'), { userId: OLD });
+        expect(r.out).toMatchObject({ blocked: false, reconsent: [] });
+        db.prepare(`DELETE FROM users WHERE id = ?`).run(OLD);
     });
 });
 
@@ -82,7 +112,7 @@ describe('📝 글이 생기면 동의 · 판이 오르면 다시 동의', () =>
         expect((await agree([{ kind: 'terms', version: 2 }])).out.reconsent).toEqual([]);
     });
     it('🔴 가입도 동의 판이 최신과 다르면 409', async () => {
-        const r = await join({ info: { phone: '010-1234-5678', dispatchNetworks: ['insung'] }, agreements: [{ kind: 'terms', version: 1 }] });
+        const r = await join({ info: { phone: '010-1234-5678', dispatchNetworks: ['insung'] }, agreements: [{ kind: 'terms', version: 1 }], acknowledged: ACK });
         expect(r.status).toBe(409);
     });
 });
