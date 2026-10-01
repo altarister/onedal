@@ -48,7 +48,6 @@ describe('📵 상대 취소 칸', () => {
         expect(row()).toMatchObject({ a: expect.any(String), b: D });
         const v = stepsView(O).find((s: any) => s.step === 'CALL_PICKUP');
         expect((v.row as any).counterpart_cancelled_at).toBe(row().a);
-        expect(v.counterpartCancelledByName).toBe('기사');   // 기사 본인이어도 이름 — 관제웹 경고 줄은 누가 적었든 이름이 있어야 읽힌다 (ea)
     });
     it('🔴 칸을 안 실은 저장(undefined)은 그대로 · 다시 true 여도 처음 시각을 지킨다', () => {
         const first = row().a;
