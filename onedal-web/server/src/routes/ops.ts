@@ -474,7 +474,8 @@ export function homeOf(io: any): OpsHome {
     const keepAts = calls.filter(c => c.needsCall).map(c => c.capturedAt).filter(Boolean).sort();
     return {
         todo: {
-            emergencies: alertMembers.size + networks.filter(n => n.level === 'alarm').length,
+            emergencies: alertMembers.size,
+            networkAlarms: networks.filter(n => n.level === 'alarm').length,
             callsTodo: counts.callsTodo,
             oldestKeepAt: keepAts[0] ?? null,
             pendingMembers: counts.pendingMembers,

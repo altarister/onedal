@@ -64,6 +64,11 @@ describe('🏠 홈 숫자 = 쪽 숫자', () => {
         expect(peekUserSession(Q)).toBeUndefined();
         expect(home.regions).toEqual(locationsOf({ todayOnly: true }).regions);
     });
+    it('🔴 기사 신호와 배차망 비상은 따로 — networkAlarms = 🔴 단계 배차망 수 · emergencies 에 안 섞인다', () => {
+        const home = homeOf(io);
+        expect(home.todo.networkAlarms).toBe(home.networks.filter((n: any) => n.level === 'alarm').length);
+        expect(home.todo.emergencies).toBeLessThanOrEqual(home.working.driving);   // 기사 신호는 운행 중 기사 수를 넘지 않는다
+    });
     it('🔴 /home 문이 같은 것을 준다', async () => {
         const out = await call('/home');
         expect(out.todo.callsTodo).toBe(homeOf(io).todo.callsTodo);

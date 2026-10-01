@@ -294,8 +294,10 @@ export interface OpsLocations {
  */
 export interface OpsHome {
     todo: {
-        /** 기사 이상 신호 — 진행 중 콜 + 폰 끊김 · 진행 중 콜 + 운전석 GPS 10분 · 배차망 «비상» */
+        /** 기사 이상 신호 — 진행 중 콜이 있는 기사 중 배차망 폰이 하나도 안 붙음 · 위치(운전석 GPS · 원달앱 폰 중 늦은 것)가 10분 넘게 안 옴 */
         emergencies: number;
+        /** 배차망 «비상»(🔴 단계) 수 — 기사 신호와 섞지 않는다(networks 의 level 'alarm' 수) */
+        networkAlarms: number;
         callsTodo: number;
         /** 가장 오래된 전화할 콜의 KEEP 시각(ISO) — 화면이 «몇 분 전»을 셈한다 */
         oldestKeepAt: string | null;
