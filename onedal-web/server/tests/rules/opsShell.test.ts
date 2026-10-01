@@ -49,10 +49,13 @@ describe('🧭 운영센터 틀', () => {
     it('🔴 옛 주소 일곱은 새 자리로 넘긴다(replace) — 즐겨찾기 · 기록의 링크가 죽지 않게', () => {
         const app = read('App.tsx');
         const moved: Array<[string, string]> = [
-            ['/members/check', '/members?tab=check'], ['/board', '/inspect'], ['/phones', '/inspect'], ['/anomalies', '/inspect'],
+            ['/members/check', '/members?tab=check'], ['/phones', '/inspect'], ['/anomalies', '/inspect'],
             ['/notices', '/manage?tab=notices'], ['/contents', '/manage?tab=contents'], ['/releases', '/manage?tab=releases'],
         ];
         for (const [from, to] of moved) expect(app).toContain(`<Route path="${from}" element={<Navigate to="${to}" replace />} />`);
+        // 옛 현황판은 회원을 붙여 온 링크면 그 회원의 «폰 · 필터» 칸으로, 아니면 점검으로
+        expect(app).toContain('<Route path="/board" element={<OldBoard />} />');
+        expect(app).toContain("<Navigate to={memberId ? `/members/${memberId}?tab=phone` : '/inspect'} replace />");
         expect(app).toContain('<Route path="/" element={<Home />} />');
     });
 

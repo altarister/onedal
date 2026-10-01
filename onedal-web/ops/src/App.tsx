@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@onedal/ui/button';
 import { Shell } from './ui';
 import { client, fetchMeName, logout, session, statusOf, token } from './api/client';
@@ -61,6 +61,13 @@ function Denied() {
     } />;
 }
 
+/** 옛 현황판 주소 — 회원을 붙여 온 링크(`/board?memberId=X`)는 그 회원의 «폰 · 필터» 칸으로, 아니면 «점검»으로 */
+function OldBoard() {
+    const [params] = useSearchParams();
+    const memberId = params.get('memberId');
+    return <Navigate to={memberId ? `/members/${memberId}?tab=phone` : '/inspect'} replace />;
+}
+
 function Notice({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-bg-base px-4 text-text-primary">
@@ -95,7 +102,7 @@ export default function App() {
                                 <Route path="/audit" element={<Audit />} />
                                 {/* 옛 주소 일곱 — 새 자리로 넘긴다(즐겨찾기 · 기록에 남은 링크가 죽지 않게) */}
                                 <Route path="/members/check" element={<Navigate to="/members?tab=check" replace />} />
-                                <Route path="/board" element={<Navigate to="/inspect" replace />} />
+                                <Route path="/board" element={<OldBoard />} />
                                 <Route path="/phones" element={<Navigate to="/inspect" replace />} />
                                 <Route path="/anomalies" element={<Navigate to="/inspect" replace />} />
                                 <Route path="/notices" element={<Navigate to="/manage?tab=notices" replace />} />

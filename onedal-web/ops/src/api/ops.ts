@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RELEASE_UPLOAD_HEADERS } from '@onedal/shared';
 import type {
-    OpsAllowRequest, OpsAnomaliesReply, OpsBoardFilter, OpsBoardIntel, OpsBoardKakao, OpsBoardPhone, OpsBoardServer, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsSuspendRequest,
+    OpsAllowRequest, OpsAnomaliesReply, OpsBoardFilter, OpsBoardIntel, OpsBoardKakao, OpsBoardPhone, OpsBoardServer, OpsHome, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsSuspendRequest,
 } from '@onedal/shared';
 import { client, errorTextOf, statusOf } from './client';
 import { createListeners } from './listeners';
@@ -26,6 +26,8 @@ export const api = {
     /** since 가 있으면 그 날(한국 날)부터 전부 · 없으면 최근 200줄 */
     audit: (since?: string) => get<OpsAudit[]>(since ? `/audit?since=${since}` : '/audit'),
     counts: () => get<OpsCounts>('/counts'),
+    /** 🏠 홈 한 장 — 서버가 각 쪽의 문과 같은 함수로 센 숫자(홈 숫자 = 쪽 숫자) */
+    home: () => get<OpsHome>('/home'),
 
     /** 승인 — 승인 시각만 적는다. 유료 기한은 안 건드린다(가족판은 비움 = 기한 없음) */
     approve: (id: string) => post<OpsMember>(`/members/${id}/approve`),

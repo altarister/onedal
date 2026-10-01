@@ -156,6 +156,22 @@ export const FILTER_FIELDS: readonly FilterField<FlatValueKey>[] = [
       why: '시세 대비 허용 할인. 100 = 전부 (금액 무관 — 붙이면 늘어나는 매출). 자동으로 안 내려간다 (정의서)' },
 ] as const;
 
+/**
+ * 🎛️ **값 다섯을 화면 줄로 — 한 벌** (관제웹 현황판 «필터설정값» · 운영센터 회원 상세 «기사가 정한 값»이 같이 부른다).
+ *    이름은 `FILTER_FIELDS` 의 label 그대로. 평소값(`base`)을 주면 다른 줄만 그 자리에서 말한다 — «현위반경 10km (평소 15km)».
+ *    값을 만들지 않는다 — 서버가 준 두 벌을 나란히 놓고 같은지 다른지만 본다.
+ */
+export function filterValueRowsOf(
+    now: Record<string, unknown> | null | undefined, base?: Record<string, unknown> | null,
+): Array<{ path: string; label: string; text: string; differs: boolean }> {
+    return FILTER_FIELDS.map(f => {
+        const v = now?.[f.path];
+        const b = base?.[f.path];
+        const differs = b !== undefined && b !== null && String(b) !== String(v ?? '');
+        return { path: f.path, label: f.label, text: `${v ?? '—'}${f.unit}${differs ? ` (평소 ${b}${f.unit})` : ''}`, differs };
+    });
+}
+
 /** 값 다섯의 **기본값** — DB 가 비었을 때 (기사님이 화면에서 바꾸신다) */
 /**
  * 📐 **반경 자동 맞춤 — 목적지가 가까우면 손잡이가 죽는다**.

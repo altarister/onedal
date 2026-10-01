@@ -25,7 +25,8 @@ describe('🧰 운영센터 현황판 화면', () => {
         const b = read('ops/src/pages/MemberPhoneFilter.tsx');
         expect(b).toContain('summarizeTally(p.filterTally, p.filterTallyAt)');
         expect(b).toContain("v === 'pass' ? '통과'");
-        expect(b).not.toMatch(/minFare|maxFare|radiusKm\s*[<>]/);   // 필터 값으로 콜을 다시 재는 줄이 없다
+        // 필터 값으로 콜을 다시 재는 줄이 없다 — 값을 «보여 주기»(요금 줄)는 하지만 콜의 요금 · 거리와 견주는 식은 없다
+        expect(b).not.toMatch(/\.fare\s*[<>]=?|[<>]=?\s*\w+\.(minFare|maxFare)|(minFare|maxFare)\s*[<>]|radiusKm\s*[<>]/);
     });
     it('🔴 관제웹 현황판은 그대로다 — 운영센터로 간다고 관제웹에서 빼지 않았다(1차)', () => {
         const s = read('client-app/src/statusboard/StatusBoard.tsx');

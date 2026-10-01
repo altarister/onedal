@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-    DEVICE_MODE_LABEL, TARGET_APP_LABEL, VERDICT_AXIS_LABEL, appFilterRowsOf, clockText, deviceLabel, isTargetApp, summarizeTally, workStageLabel,
+    DEVICE_MODE_LABEL, TARGET_APP_LABEL, VERDICT_AXIS_LABEL, appFilterRowsOf, clockText, deviceLabel, filterValueRowsOf, isTargetApp, summarizeTally, wonText, workStageLabel,
     type DeviceModeType, type IntelRow, type OpsBoardPhone,
 } from '@onedal/shared';
 import { api, useOps } from '../api/ops';
@@ -59,8 +59,20 @@ export default function MemberPhoneFilter({ memberId }: { memberId: string }) {
                         {appPhone && <div className="grid grid-cols-2 gap-x-4 text-xs">{appRows.map(([k, v]) => <Row key={k} k={k} v={v} />)}</div>}
                         <p className="text-xs text-text-muted">서버가 폰에 답할 때 조립한 값 — 자동 반경 · 복귀 목적지 · 내일 콜 · 경로 순서가 들어 있어 아래 «기사가 정한 값»과 다를 수 있습니다.</p>
                     </Card>
-                    <Card title={`🧾 기사가 정한 값 — ${filter ? (filter.active ? '오늘 쓰는 값(세션)' : '평소 설정(오늘 세션 없음)') : '…'}`}>
-                        <pre className="text-xs leading-relaxed rounded-xl bg-bg-base border border-border-card p-3 overflow-x-auto max-h-80">{shownFilter ? JSON.stringify(shownFilter, null, 2) : '읽는 중…'}</pre>
+                    <Card title={`🧾 기사가 정한 값 — ${filter ? (filter.active ? '오늘 쓰는 값 (평소와 다르면 옆에)' : '평소 설정 (오늘 세션 없음)') : '…'}`}>
+                        {shownFilter && (
+                            <div className="text-sm space-y-0.5">
+                                {filterValueRowsOf(shownFilter as unknown as Record<string, unknown>, filter?.active ? filter.base as unknown as Record<string, unknown> : null)
+                                    .map(r => <Row key={r.path} k={r.label} v={r.text} tone={r.differs ? 'warn' : undefined} />)}
+                                <Row k="요금" v={`${wonText(shownFilter.minFare) ?? '—'} ~ ${wonText(shownFilter.maxFare) ?? '—'}`} />
+                                <Row k="제외 지역" v={shownFilter.excludedRegions?.length ? `${shownFilter.excludedRegions.length}곳 · ${shownFilter.excludedRegions.slice(0, 6).join(', ')}` : undefined} empty="— 없다" />
+                            </div>
+                        )}
+                        {!shownFilter && <p className="text-sm text-text-muted">읽는 중…</p>}
+                        <details className="text-xs">
+                            <summary className="cursor-pointer text-text-muted">원문 보기 (서버가 쥔 값 그대로)</summary>
+                            <pre className="mt-2 leading-relaxed rounded-xl bg-bg-base border border-border-card p-3 overflow-x-auto max-h-80">{shownFilter ? JSON.stringify(shownFilter, null, 2) : ''}</pre>
+                        </details>
                         <p className="text-xs text-text-muted">읽기만 — 필터를 고치는 손잡이는 기사 관제웹에 있습니다.</p>
                     </Card>
                 </div>

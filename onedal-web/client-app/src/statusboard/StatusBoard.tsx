@@ -25,7 +25,7 @@
  *       그 안은 다시 **둘**이다: 🖥️ 서버(심사·통신·저장) · 📱 앱(올라온 보고·내려갈 값).
  */
 import { useEffect, useRef, useState } from 'react';
-import { haversineKm, appFilterRowsOf, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabel, isModeApplying,
+import { haversineKm, appFilterRowsOf, filterValueRowsOf, isEvaluating, isTerminal, workStageLabel, isModeApplying,
          DEVICE_MODE_LABEL, deviceLabel, clockText, wonText } from '@onedal/shared';
 import type { SecuredOrder, DeviceSession, DeviceModeType, AppFilterReply } from '@onedal/shared';
 import { SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind } from '@onedal/shared';
@@ -1345,16 +1345,9 @@ export default function StatusBoard({ activeRoute }: Props) {
                       * 🔴 값을 만드는 것이 아니라 **서버가 준 두 벌을 나란히 놓는 것**이다 —
                       *    둘 다 서버가 쥔 값이고, 여기서는 같은지 다른지만 본다.
                       */}
-                    {FILTER_FIELDS.map(f => {
-                        const now = (filter as Record<string, unknown> | null)?.[f.path];
-                        const base = (baseFilter as Record<string, unknown> | null)?.[f.path];
-                        const differs = base !== undefined && base !== null && String(base) !== String(now ?? '');
-                        return (
-                            <Row key={f.path} k={f.label}
-                                 v={`${now ?? '—'}${f.unit}${differs ? ` (평소 ${base}${f.unit})` : ''}`}
-                                 tone={differs ? 'warn' : undefined} />
-                        );
-                    })}
+                    {filterValueRowsOf(filter as Record<string, unknown> | null, baseFilter as Record<string, unknown> | null).map(r => (
+                        <Row key={r.path} k={r.label} v={r.text} tone={r.differs ? 'warn' : undefined} />
+                    ))}
                     <Row k="마름모" v={`${filter?.srcAngleDeg ?? '—'}° · ${filter?.dstAngleDeg ?? '—'}° · ${filter?.quadRadiusKm ?? '—'}km`} />
                     <Row k="제외 지역" v={filter?.excludedRegions} empty="— 없다" />
                     <Row k="요금" v={filter?.minFare != null || filter?.maxFare != null
