@@ -607,8 +607,12 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig,
         const by = born[step]?.written_by as string | null | undefined;
         const writtenByName = by && by !== born[step]?.userId
             ? ((db.prepare(`SELECT name FROM users WHERE id = ?`).get(by) as { name?: string } | undefined)?.name ?? by) : undefined;
+        /* 📵 상대 취소를 적은 사람 — 기사 본인이어도 이름(관제웹 경고 줄은 누가 적었든 이름이 있어야 읽힌다 · 행의 written_by 는 마지막에 적은 사람이라 다를 수 있다) */
+        const cancelBy = born[step]?.counterpart_cancelled_at ? born[step]?.counterpart_cancelled_by as string | null | undefined : undefined;
+        const counterpartCancelledByName = cancelBy
+            ? ((db.prepare(`SELECT name FROM users WHERE id = ?`).get(cancelBy) as { name?: string } | undefined)?.name ?? cancelBy) : undefined;
         return born[step]
-            ? { step, table: t.table, label: t.label, born: true, row: { ...born[step], ...extra }, ...(writtenByName ? { writtenByName } : {}) }
+            ? { step, table: t.table, label: t.label, born: true, row: { ...born[step], ...extra }, ...(writtenByName ? { writtenByName } : {}), ...(counterpartCancelledByName ? { counterpartCancelledByName } : {}) }
             : { step, table: t.table, label: t.label, born: false, row: { status: 'PLANNED', ...chain[step], ...extra } };
     });
 }
