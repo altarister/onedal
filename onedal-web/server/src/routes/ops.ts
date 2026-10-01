@@ -8,15 +8,15 @@ import {
 import db from "../db";
 import { getUserDevicesSnapshot, getActiveDevicesSnapshot } from "./devices";
 import { BOOTED_AT, GIT_INFO } from "./health";
-import { peekUserSession, baseFilterFromDb } from "../state/userSessionStore";
+import { peekUserSession, baseFilterFromDb, getAllActiveUserIds } from "../state/userSessionStore";
 import { appFilterOf } from "../state/appFilter";
 import { kakaoUsageOf, kakaoBoardOf } from "../services/kakaoUsage";
 import { networkLevelOf, needsUpdateOf, NETWORK_ALARM, GPS_STALE_MS } from "../services/opsHome";
 import { nextStopOf } from "../services/geoService";
 import { listReleases, scrapReleaseCodes } from "../core/releases";
 import { intelRowsOf } from "../services/intelRows";
-import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer, OpsHome } from "@onedal/shared";
-import { TARGET_APPS, accountBlocked, kakaoTotalOf, kstDateText } from "@onedal/shared";
+import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer, OpsHome, OpsLocations } from "@onedal/shared";
+import { TARGET_APPS, accountBlocked, kakaoTotalOf, kstDateText, nearestDong } from "@onedal/shared";
 import { latestContent, isContentKind } from "./contents";
 import { noticeOf, type NoticeRow } from "./notices";
 import { slog } from "../utils/fileLogger";
@@ -49,12 +49,12 @@ const lastViewed = new Map<string, number>();
  */
 export const BOARD_VIEW_GAP_MS = 60_000;
 const lastBoardRead = new Map<string, number>();
-function auditBoardView(adminId: string, target: string | null): void {
-    const key = `${adminId}|${target ?? '*'}`, now = Date.now();
+function auditBoardView(adminId: string, target: string | null, action = '현황판 봄', detail = '/board'): void {
+    const key = `${adminId}|${action}|${target ?? '*'}`, now = Date.now();
     const last = lastBoardRead.get(key);
     lastBoardRead.set(key, now);
     if (last != null && now - last <= BOARD_VIEW_GAP_MS) return;
-    audit(adminId, '현황판 봄', target, '/board');
+    audit(adminId, action, target, detail);
 }
 
 function auditView(adminId: string, target: string, detail: string): void {
@@ -366,6 +366,36 @@ router.get("/board/intel", (req, res) => {
     res.json(body);
 });
 
+// ── 위치 ───────────────────────────────────────────────
+
+/**
+ * 🗺️ **회원 위치 — 운전석 폰 GPS 마지막 점** (reviews/33 3단계 · 기사님 «가» · onedal-69 «가» Q5).
+ *    세션의 lastFix 중 폰이 보낸 진짜 위치(lastFixSource 'gps')만 — 모의 주행 · 손으로 찍은 점은 «지금 어디 있나»에 섞으면 거짓 위치다.
+ *    시 · 구는 동 명부(shared nearestDong · 카카오 안 부름). 세션이 없는 회원은 점이 없다(peek · 세션을 만들지 않는다).
+ *    todayOnly: 홈 뱃지는 «지금 어디서 일하나»라 한국 날이 오늘인 점만 · /locations 는 오래된 점도 시각과 함께 다 준다.
+ */
+export function locationsOf({ todayOnly }: { todayOnly: boolean }): OpsLocations {
+    const today = kstDateText(Date.now());
+    const rows = getAllActiveUserIds().flatMap(memberId => {
+        const s = peekUserSession(memberId);
+        if (!s?.lastFix || s.lastFixSource !== 'gps' || s.lastFixAt == null) return [];
+        if (todayOnly && kstDateText(s.lastFixAt) !== today) return [];
+        const { x: lng, y: lat } = s.lastFix;
+        return [{ memberId, lat, lng, at: new Date(s.lastFixAt).toISOString(), region: nearestDong({ lng, lat }).region }];
+    });
+    const counts = new Map<string, number>();
+    for (const r of rows) counts.set(r.region, (counts.get(r.region) ?? 0) + 1);
+    const regions = [...counts.entries()].map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    return { rows, regions };
+}
+
+/* 좌표를 보는 문 — 열람 기록 «위치 봄»(같은 관리자가 60초 안에 다시 읽으면 줄을 안 더한다 · 현황판과 같은 묶기) */
+router.get("/locations", (req, res) => {
+    auditBoardView(adminOf(req), null, '위치 봄', '/locations');
+    res.json(locationsOf({ todayOnly: false }));
+});
+
 // ── 홈 ─────────────────────────────────────────────────
 
 /**
@@ -455,7 +485,7 @@ export function homeOf(io: any): OpsHome {
         access: { phonesOnline: phones.filter(p => p.status === 'ONLINE').length, phonesOffline: counts.phonesOffline, lastScrapAt: server.lastScrapAt, bootedAt: server.bootedAt, sockets: server.sockets },
         networks,
         working: { reporting: new Set(phones.filter(p => p.status === 'ONLINE').map(p => p.memberId)).size, driving: byMember.size, rows },
-        regions: [],
+        regions: locationsOf({ todayOnly: true }).regions,   // 시 · 구 수만 — 좌표가 없어 열람 기록은 안 남긴다
         members,
         kakao: kakaoTotalOf(kakaoBoardOf().rows),
     };

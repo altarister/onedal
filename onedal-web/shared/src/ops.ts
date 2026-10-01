@@ -282,6 +282,12 @@ export function kakaoTotalOf(rows: OpsBoardKakao['rows']): { route: { today: num
     };
 }
 
+/** 🗺️ 회원 위치 — 운전석 폰 진짜 GPS 마지막 점 · 시 · 구는 동 명부 · regions 는 rows 의 시 · 구를 센 것(많은 순) */
+export interface OpsLocations {
+    rows: Array<{ memberId: string; lat: number; lng: number; at: string; region: string }>;
+    regions: Array<{ label: string; count: number }>;
+}
+
 /**
  * 🏠 **운영센터 홈 한 장** (reviews/33 2단계 · GET /api/ops/home · 모양은 onedal-ea) — 숫자는 그 쪽 문과 같은 함수로 센다(홈 숫자 = 쪽 숫자).
  *    기사마다 오늘 콜 수 · 매출은 없다 — 시뮬 콜과 실콜을 가를 칸이 아직 없다(실콜이 생기면 채운다 · onedal-69 «가» Q1).
@@ -303,8 +309,8 @@ export interface OpsHome {
     access: { phonesOnline: number; phonesOffline: number; lastScrapAt: string | null; bootedAt: string; sockets: { web: number; ops: number } };
     networks: Array<{ targetApp: TargetAppType; lastGoodAt: string | null; anomaliesToday: number; anomalies7d: number; newWords: number; level: 'ok' | 'warn' | 'alarm' }>;
     working: { reporting: number; driving: number; rows: Array<{ memberId: string; stage: string; nextStop: string | null; etaAt: string | null }> };
-    /** 시 · 구 뱃지 — 3단계(GET /api/ops/locations) 전에는 빈 배열 */
-    regions: Array<{ label: string; count: number }>;
+    /** 시 · 구 뱃지 — /locations 와 같은 함수 · 오늘 점만(«지금 어디서 일하나») */
+    regions: OpsLocations['regions'];
     members: { total: number; active: number; pending: number; suspended: number; grace: number };
     kakao: { route: { today: number; month: number }; local: { today: number; month: number } };
 }

@@ -2,7 +2,7 @@
 import db from '../../src/db';
 import opsRouter from '../../src/routes/ops';
 import { networkLevelOf, NETWORK_ALARM, needsUpdateOf } from '../../src/services/opsHome';
-import { homeOf } from '../../src/routes/ops';
+import { homeOf, locationsOf } from '../../src/routes/ops';
 import { getUserSession, peekUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { kakaoTotalOf } from '@onedal/shared';
 
@@ -58,10 +58,10 @@ describe('🏠 홈 숫자 = 쪽 숫자', () => {
         expect(home.members.pending).toBe(pending);
         expect(home.members.total).toBe(db.prepare(`SELECT COUNT(*) n FROM users WHERE withdrawn_at IS NULL`).get().n);
     });
-    it('🔴 세션을 만들지 않는다 · 지역은 3단계 전이라 빈 배열', () => {
+    it('🔴 세션을 만들지 않는다 · 지역은 /locations 의 오늘 점 regions 와 같다', () => {
         const home = homeOf(io);
         expect(peekUserSession(Q)).toBeUndefined();
-        expect(home.regions).toEqual([]);
+        expect(home.regions).toEqual(locationsOf({ todayOnly: true }).regions);
     });
     it('🔴 /home 문이 같은 것을 준다', async () => {
         const out = await call('/home');
