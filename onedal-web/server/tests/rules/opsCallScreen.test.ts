@@ -31,6 +31,10 @@ describe('📞 통화 도우미 화면', () => {
         expect(calls).not.toMatch(/cargoSize/);
         expect(calls).toContain('...(cancelTouched != null ? { counterpartCancelled: cancelTouched } : {})');   // 안 건드리면 안 싣는다 — 서버가 그대로 둔다
         expect(calls).toContain('placeholder="통화에서 들은 것"');
+        /* 취소 사실은 통화 메모가 아니라 서버 OpsCall.counterpartCancelled 에서 읽는다 — 통화 전인 콜에 취소만 적은 것도 보인다 */
+        expect(calls).toContain('const cancelKnown = c.counterpartCancelled.some(m => m.stopType === stopType);');
+        expect(calls).toContain('const mark = c.counterpartCancelled[0];');
+        expect(calls).not.toMatch(/callNote\??\.counterpartCancelled/);
         /* 적은 뒤에 온 취소 소식 — 아래 목록 줄의 글 버튼은 그 사실 칸만 싣는다(짐 · 약속 · 메모는 비워 보내 서버가 그대로 둔다) · 지우기는 한 번 묻는다 */
         expect(calls).toContain("unit: null, quantity: null, promisedArrivalAt: null, memo: '', counterpartCancelled: !on");
         /* 지우기는 번복용이 아니다(상대가 취소했으면 기사도 취소하고 끝) — «잘못 누름 지우기»만 · 한 번 묻는다 */

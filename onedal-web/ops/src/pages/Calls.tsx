@@ -51,6 +51,7 @@ export default function Calls() {
                                 <span>{COLOR_DOT[c.verdict]} <b>{memberName(members, c.memberId)}</b> · {TARGET_APP_LABEL[c.targetApp]} · {c.pickup.place} → {c.dropoff.place}</span>
                                 <span className="text-text-muted shrink-0">{fmtWon(c.fare)} · {statusKo(c.status)}</span>
                             </div>
+                            <CancelMarks c={c} />
                             {c.callNote && <div className="text-xs text-text-muted mt-0.5">{noteText(c.callNote)}</div>}
                             <CancelToggle c={c} reload={reload} />
                         </div>
@@ -68,10 +69,11 @@ export default function Calls() {
  *    🔴 지우기는 번복용이 아니다 — 상대가 취소했으면 기사도 취소하고 끝이다. «잘못 누름 지우기»만이고 한 번 묻는다.
  */
 function CancelToggle({ c, reload }: { c: OpsCall; reload: () => void }) {
-    const on = !!c.callNote?.counterpartCancelledAt;
+    const mark = c.counterpartCancelled[0];   // 통화 메모와 무관하게 — 통화 전인 콜에 취소만 적은 것도 여기 온다
+    const on = !!mark;
     const send = () => {
         if (on && !window.confirm('잘못 누른 표시를 지웁니다 — 상대가 정말 취소했다면 지우지 마세요')) return;
-        const note: OpsCallNoteWrite = { stopType: c.callNote?.stopType ?? 'pickup', unit: null, quantity: null, promisedArrivalAt: null, memo: '', counterpartCancelled: !on };
+        const note: OpsCallNoteWrite = { stopType: mark?.stopType ?? c.callNote?.stopType ?? 'pickup', unit: null, quantity: null, promisedArrivalAt: null, memo: '', counterpartCancelled: !on };
         void write(() => api.writeCallNote(c.id, note), reload);
     };
     return (
@@ -81,10 +83,16 @@ function CancelToggle({ c, reload }: { c: OpsCall; reload: () => void }) {
     );
 }
 
+/** 📵 취소가 적힌 통화 행마다 한 줄 — 서버 `OpsCall.counterpartCancelled` 그대로(통화 단계가 끝났든 아니든) */
+function CancelMarks({ c }: { c: OpsCall }) {
+    return <>{c.counterpartCancelled.map(m => (
+        <div key={m.stopType} className="text-xs font-bold text-danger mt-0.5">⚠️ 상대가 취소했다고 함 — {m.stopType === 'pickup' ? '상차지' : '하차지'} 통화 · {m.by} {fmtTime(m.at)}</div>
+    ))}</>;
+}
+
 /** 적힌 결과 한 줄 — «📝 상차 · 파레트 2 · 약속 14:30 · 메모 — 와이프 10:12» */
 function noteText(n: NonNullable<OpsCall['callNote']>): string {
     const parts = [n.stopType === 'pickup' ? '상차' : '하차'];
-    if (n.counterpartCancelledAt) parts.unshift(`⚠️ 상대가 취소했다고 함(${n.counterpartCancelledBy ?? ''} ${fmtTime(n.counterpartCancelledAt)})`);
     if (n.unit) parts.push(`${n.unit}${n.quantity != null ? ` ${n.quantity}` : ''}`);
     if (n.promisedArrivalAt) parts.push(`약속 ${fmtTime(n.promisedArrivalAt)}`);
     if (n.memo) parts.push(n.memo);
@@ -102,7 +110,7 @@ function CallCard({ c, name, reload }: { c: OpsCall; name: string; reload: () =>
     const pickup = stopType === 'pickup';
     const stopAt = pickup ? c.pickup.at : c.dropoff.at;
     const baseDay = baseDayOf(stopAt);
-    const cancelKnown = c.callNote?.stopType === stopType && !!c.callNote.counterpartCancelledAt;   // 서버에 적혀 있는 것(이 정거장 쪽)
+    const cancelKnown = c.counterpartCancelled.some(m => m.stopType === stopType);   // 서버에 적혀 있는 것(이 정거장 쪽)
     const cancelShown = cancelTouched ?? cancelKnown;
     const qInput = unit ? CARGO_UNIT_QUANTITY_INPUT[unit] : null;
     const pickUnit = (u: CargoUnit) => { setUnit(u); setQuantity(null); };
@@ -124,6 +132,7 @@ function CallCard({ c, name, reload }: { c: OpsCall; name: string; reload: () =>
                 <div>상차 <b>{c.pickup.place}</b> · {tel(c.pickup.phone)} {c.pickup.at && <span className="text-text-muted">· 예정 {fmtTime(c.pickup.at)}</span>}</div>
                 <div>하차 <b>{c.dropoff.place}</b> · {tel(c.dropoff.phone)} {c.dropoff.at && <span className="text-text-muted">· 예정 {fmtTime(c.dropoff.at)}</span>}</div>
                 <div className="text-text-muted">{fmtWon(c.fare)} · KEEP {fmtTime(c.capturedAt)}</div>
+                <CancelMarks c={c} />
                 {c.callNote && <div className="text-xs text-text-muted">{noteText(c.callNote)}</div>}
             </div>
             <div className="space-y-2 pt-2 border-t border-border-card">
