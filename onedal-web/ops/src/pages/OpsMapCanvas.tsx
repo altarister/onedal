@@ -53,6 +53,7 @@ export default function OpsMapCanvas({ dots, onPick }: { dots: MapDot[]; onPick?
                 img = new Image();
                 img.crossOrigin = 'anonymous';
                 img.onload = () => setTilesReady(n => n + 1);
+                img.onerror = () => { tileCache.delete(key); };   // 못 받은 조각은 기억에서 뺀다 — 다음 그리기 때 다시 받는다(여기서 다시 그리기를 부르지 않는다 · 실패가 요청 되돌이가 되지 않게)
                 img.src = `https://tile.openstreetmap.org/${key}.png`;
                 tileCache.set(key, img);
             }
