@@ -380,7 +380,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
              * 🚧 **띠는 소리와 따로** — 첫 읽기 까닭이 곧 풀리는 것(흐르는 목록 등)이었다가 다음 읽기에 «손 필요»(탭 줄 등)로 바뀌면
              *    새로 통과한 콜이 없어 소리 알림이 안 가 «직접 여십시오» 띠도 못 떴다. 까닭이 «손 필요»로 바뀔 때만(기기별) 소리 없이 띠만 보낸다.
              */
-            io.to(userId).emit("filter-pass-alarm", { ...alarmBody, silent: true });
+            io.to(userId).emit("filter-pass-alarm", { ...alarmBody, silent: true } satisfies FilterPassAlarm);
             slog('필터', `🚧 [띠만] ${deviceLabelOf(deviceId)} — 통과 ${filterTally.passed}건 · 앱이 못 연 까닭 ${prevBlocked ?? '없음'} → ${openBlocked} (소리 없음)`);
         }
     }
