@@ -2,7 +2,7 @@ import { Router } from "express";
 import { modeForPhone } from "@onedal/shared";
 import { allowanceOf } from "../core/allowance";
 import { scrapReleaseCodes } from "../core/releases";
-import { isTargetApp, DEFAULT_TARGET_APP } from "@onedal/shared";
+import { isTargetApp, DEFAULT_TARGET_APP, addressOf } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
 import { filterVersionOf, reportSourceOf, releaseEvaluatingDevices } from "../core/helpers";
@@ -18,7 +18,6 @@ import { simRoundForPhone } from "./sim";
 import { callMemoryRoundOf } from "../services/callMemoryRound";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
-import { PluginFactory } from "../core/plugins/PluginFactory";
 import { slog } from "../utils/fileLogger";
 import { noteScreenWords } from "../services/screenWords";
 import { recalcRouteIfStopsChanged } from "../services/dispatchEngine";
@@ -94,7 +93,6 @@ router.post("/", (req, res) => {
         // 배차망 코드는 shared 표준 한 벌만 믿는다 — 모르는 값은 기본값으로 (픽커_수집.md §6-전)
         const targetApp = isTargetApp((req.body as any).targetApp)
             ? (req.body as any).targetApp as TargetAppType : DEFAULT_TARGET_APP;
-        const plugin = PluginFactory.getPlugin(targetApp);
         /* 📰 화면에서 정의에 없거나 잡음으로 뺀 글자 — 모아 센다 (reviews/24 · 없는 보고는 지나간다) */
         if (body.screenWords) noteScreenWords(userId, targetApp, body.screenWords, req.app.get("io"));
 
@@ -106,8 +104,8 @@ router.post("/", (req, res) => {
                 userId,
                 deviceId || null,
                 "INTEL_BULK",
-                plugin.normalizeAddress(item.pickup),
-                plugin.normalizeAddress(item.dropoff),
+                addressOf(targetApp, item.pickup),
+                addressOf(targetApp, item.dropoff),
                 item.fare || 0,
                 timestamp,
                 targetApp,

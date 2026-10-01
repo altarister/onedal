@@ -3,7 +3,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, isTargetApp, DEFAULT_TARGET_APP } from '@onedal/shared';
+import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress, TargetAppType } from '@onedal/shared';
 import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, trappedOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
@@ -21,8 +21,6 @@ import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
 import { SettingsRepository } from "../../repositories/SettingsRepository";
 import { PricingEngine } from "./PricingEngine";
 import { applySoloRoute, composeMergedRoute } from "../../services/routeComposer";
-import { IAppPlugin } from "../plugins/IAppPlugin";
-import { PluginFactory } from "../plugins/PluginFactory";
 import { getActiveCalls } from "../helpers";
 import { isLaterThan } from "../../services/reservedOrders";
 import { slog } from "../../utils/fileLogger";
@@ -140,12 +138,10 @@ function soloRouteArgsOf(userId: string, originNow: () => { x: number; y: number
 }
 
 export class OrderEvaluator {
-    private plugin: IAppPlugin;
     /** 🌐 이 심사가 어느 배차망의 콜인가 — 콜 한 벌의 글 범위(정의 표 callText)를 고른다. 모르는 값은 기본 배차망(플러그인 고르기와 같다) */
     private targetApp: TargetAppType;
 
     constructor(targetApp: string = 'insung') {
-        this.plugin = PluginFactory.getPlugin(targetApp);
         const lower = targetApp.toLowerCase();
         this.targetApp = isTargetApp(lower) ? lower : DEFAULT_TARGET_APP;
     }
@@ -168,8 +164,8 @@ export class OrderEvaluator {
             try {
                 if (!process.env.KAKAO_REST_API_KEY || !order.pickup || !order.dropoff) return;
                 const [p, d] = await Promise.all([
-                    geocodeCallAddress(this.plugin.normalizeAddress(order.pickup)),
-                    geocodeCallAddress(this.plugin.normalizeAddress(order.dropoff)),
+                    geocodeCallAddress(addressOf(this.targetApp, order.pickup)),
+                    geocodeCallAddress(addressOf(this.targetApp, order.dropoff)),
                 ]);
                 if (!p || !d) return;
                 const { originNow, activeCallsNow } = evaluationInputsOf(userId, getUserSession(userId), order);
@@ -214,8 +210,8 @@ export class OrderEvaluator {
         if (reservedLater) slog('판정', `   - ${reservedLaterLineOf(reservedForOf(securedOrder), snap.origin, snap.pickupRadiusKm)}`);
 
         // 1. 주소 정규화 — 상차·하차는 원달앱이 올린 전체 주소 그대로다(서버는 팝업에서 주소를 꺼내지 않는다)
-        securedOrder.pickup = this.plugin.normalizeAddress(securedOrder.pickup);
-        securedOrder.dropoff = this.plugin.normalizeAddress(securedOrder.dropoff);
+        securedOrder.pickup = addressOf(this.targetApp, securedOrder.pickup);
+        securedOrder.dropoff = addressOf(this.targetApp, securedOrder.dropoff);
 
         // Stage 1. 형상 필터
         const { excludedHits } = this.runStage1ShapeFilter(securedOrder, snap.filter, reasons, pros);
@@ -988,7 +984,7 @@ export class OrderEvaluator {
             }
         }
 
-        // 4) 제외 키워드 검사 (플러그인 커스텀 룰 혼합) — 배차망별 «제외어 찾는 칸»에서만 찾는다(기사님 «가» · 정의 표 excludeScan · shared `excludeScanTextOf`).
+        // 4) 제외 키워드 검사 — 배차망별 «제외어 찾는 칸»에서만 찾는다(기사님 «가» · 정의 표 excludeScan · shared `excludeScanTextOf`).
         //    인성 적요 · 결제 괄호 · 구분 / 화물24시 화물정보 · 결제방법 / 픽커 물품정보 · 유의사항 — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다
         const excludedHits: string[] = [];
         const rawText = excludeScanTextOf(this.targetApp, (order as any).rawText || '');
@@ -1001,9 +997,7 @@ export class OrderEvaluator {
             }
             if (!excludedHits.length) pros.push(`제외키워드 없음`);
         }
-        
-        const customReasons = this.plugin.evaluateCustomRules(rawText);
-        reasons.push(...customReasons);
+
 
         /**
          * 5) 도착지 키워드 검사 (합짐 모드일 때)

@@ -42,3 +42,17 @@ export function pageFareOf(app: TargetAppType, page: ScreenPage, text: string | 
 export function excludeScanTextOf(app: TargetAppType, text: string | readonly string[]): string {
     return NETWORK_PAGES[app].excludeScan.map(f => pageFieldOf(app, 'detail', f, text)).filter((t): t is string => !!t).join(' ');
 }
+
+const addressCutRes = new Map<TargetAppType, RegExp | null>();
+/**
+ * 🏠 **카카오에 묻기 전 콜 주소 다듬기** — 정의 표의 배차망 단위 칸 `addressCut` 에 맞는 부분을 지우고 앞뒤 공백을 자른다(reviews/34 3단계 5②).
+ *    인성 끝의 «(건물명)» · 화물24시 쉼표 뒤 상세 주소 · 픽커는 자르기만. 원달앱은 안 읽는다(원달앱은 주소를 꺼내고, 서버는 묻기 전에 다듬는다).
+ */
+export function addressOf(app: TargetAppType, raw: string): string {
+    if (!addressCutRes.has(app)) {
+        const cut = (NETWORK_PAGES[app] as { addressCut?: string | null }).addressCut;
+        addressCutRes.set(app, cut ? new RegExp(cut) : null);
+    }
+    const re = addressCutRes.get(app);
+    return (re ? raw.replace(re, '') : raw).trim();
+}
