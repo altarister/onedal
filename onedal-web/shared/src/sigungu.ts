@@ -33,6 +33,12 @@ export function sigunguOfShort(short: string | null | undefined): string {
         ? new Set(found.map(([, sigungu]) => sigungu))
         : new Set(DONG_CENTROIDS.filter(([, sigungu]) => hintMatches(sigungu, stem)).map(([, sigungu]) => sigungu));
     if (sigungus.size === 1) return [...sigungus][0];
+    /* 🔴 픽커는 행정동 이름(«수정 위례» · «광주 광남1» · «처인 중앙»)을 쓰고 명부는 법정동뿐이다 —
+          동으로 못 찾았고 앞 토막이 시군구 하나로 정해지면 그 시군구(시군구 수준이라 추측이 아니다 · 둘 이상이면 그대로 모호) */
+    if (!found.length && hint) {
+        const byHint = new Set(DONG_CENTROIDS.filter(([, sigungu]) => hintMatches(sigungu, hint)).map(([, sigungu]) => sigungu));
+        if (byHint.size === 1) return [...byHint][0];
+    }
     return sigungus.size > 1 ? SIGUNGU_AMBIGUOUS : SIGUNGU_UNKNOWN;
 }
 

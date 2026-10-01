@@ -24,6 +24,17 @@ describe('📊 시군구 — 서버 지도 명부 한 벌', () => {
     it('🔴 후보 시군구가 둘 이상이면 추측하지 않고 «모호»', () => {
         expect(sigunguOfShort('중앙')).toBe('모호');
     });
+    /* 🔴 픽커는 행정동 이름(위례 · 광남1 · 중앙 · 구성)을 쓰고 명부는 법정동뿐이다 — 동으로 못 찾아도 앞 토막이 시군구 하나로 정해지면 그 시군구 (onedal-69 «가» Q9) */
+    it('🔴 행정동이라 동으로 못 찾아도 앞 토막이 시군구 하나면 그 시군구', () => {
+        expect(sigunguOfShort('수정 위례')).toBe('성남시 수정구');
+        expect(sigunguOfShort('광주 광남1')).toBe('광주시');
+        expect(sigunguOfShort('처인 중앙')).toBe('용인시 처인구');
+        expect(sigunguOfShort('기흥 구성')).toBe('용인시 기흥구');
+    });
+    it('🔴 한 토막이 여러 시에 있으면 그대로 «모호» — 앞 토막이 없으면 추측하지 않는다', () => {
+        expect(sigunguOfShort('용산')).toBe('모호');
+        expect(sigunguOfShort('중구')).toBe('모호');
+    });
     it('명부에 없으면 «모름» — 버리지 않는다', () => {
         expect(sigunguOfShort('없는동네 쀍쀍')).toBe('모름');
         expect(sigunguOfShort('')).toBe('모름');
