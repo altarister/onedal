@@ -1,6 +1,7 @@
 import { Router, type Request } from "express";
 import {
-    CONTENT_KINDS, DEVICE_OFFLINE_LABEL, WORD_KINDS, isTargetApp, isoKst, restoreWindow, type OpsAgreement,
+    CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow,
+    type CargoReport, type CargoUnit, type OpsAgreement, type OpsCallNote,
     type ContentKind, type OpsAnomaly, type OpsAudit, type OpsCall, type OpsContent, type OpsCounts, type OpsMember,
     type OpsMemberDetail, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
 } from "@onedal/shared";
@@ -9,6 +10,8 @@ import { getUserDevicesSnapshot } from "./devices";
 import { latestContent, isContentKind } from "./contents";
 import { noticeOf, type NoticeRow } from "./notices";
 import { slog } from "../utils/fileLogger";
+import { stepsView } from "../services/stepSeeder";
+import { saveCargoReport, CargoReportError } from "../services/cargoReport";
 
 /**
  * 🏢 **운영센터 서버 문 `/api/ops/*`** (reviews/29 3단계 · shared ops.ts 규격 · 붙일 때 requireAuth + requireOps 한 번 — index.ts).
@@ -73,18 +76,54 @@ function memberOf(r: UserRow, io: unknown): OpsMember {
 
 const userRow = (id: string) => db.prepare(`${USER_SQL} WHERE u.id = ?`).get(id) as UserRow | undefined;
 
-/** 오늘 잡은 콜 — 통화 도우미 칸(needsCall · callNote · 연락처)은 5단계 */
+type OrderRow = { id: string; userId: string; status: string; targetApp: string | null; pickup: string; dropoff: string; fare: number | null; capturedAt: string | null; timestamp: string; color: string | null };
+const ORDER_SQL = `SELECT o.id, o.userId, o.status, o.targetApp, o.pickup, o.dropoff, o.fare, o.capturedAt, o.timestamp, j.color
+    FROM orders o LEFT JOIN order_judgments j ON j.orderId = o.id`;
+const nameOf = (id: string | null | undefined) => id ? ((db.prepare(`SELECT name FROM users WHERE id = ?`).get(id) as { name?: string } | undefined)?.name ?? id) : '';
+
+/** 📞 통화 결과 — 두 통화 행 중 통화 신고로 닫힌 것의 마지막 · 적은 사람은 written_by(없으면 그 기사) */
+function callNoteOf(o: OrderRow, steps: ReturnType<typeof stepsView>): OpsCallNote | null {
+    const done = (['CALL_PICKUP', 'CALL_DROPOFF'] as const)
+        .map(step => ({ step, v: steps.find(s => s.step === step) }))
+        .filter(({ v }) => v?.born && v.row.status === 'DONE' && (v.row as Record<string, any>).planned_source === 'DECLARED')
+        .sort((a, b) => String((b.v!.row as any).occurred_at ?? '').localeCompare(String((a.v!.row as any).occurred_at ?? '')));
+    if (!done.length) return null;
+    const r = done[0].v!.row as Record<string, any>;
+    return {
+        stopType: done[0].step === 'CALL_PICKUP' ? 'pickup' : 'dropoff',
+        unit: (r.planned_unit as CargoUnit | null) ?? null, quantity: r.planned_quantity ?? null,
+        promisedArrivalAt: isoKst(r.promised_arrival_at), memo: r.memo ?? '',
+        writtenBy: nameOf(r.written_by ?? o.userId), writtenAt: isoKst(r.occurred_at) ?? '',
+    };
+}
+
+/** 운영센터 콜 한 줄 — 🟡(통화 필요)이고 상차 통화가 아직이면 needsCall · 정거장 시각은 약속 › 통화 때 예상 › 상차 시계(상차 날의 기준) */
+function opsCallOf(o: OrderRow): OpsCall {
+    const steps = stepsView(o.id);
+    const atOf = (step: 'CALL_PICKUP' | 'CALL_DROPOFF') => {
+        const r = steps.find(s => s.step === step)?.row as Record<string, any> | undefined;
+        return isoKst(r?.promised_arrival_at ?? r?.predicted_at ?? r?.deadline_at ?? null);
+    };
+    const pickupCall = steps.find(s => s.step === 'CALL_PICKUP');
+    return {
+        id: o.id, memberId: o.userId, targetApp: isTargetApp(o.targetApp) ? o.targetApp : 'insung', status: o.status,
+        verdict: (o.color ?? '보통') as OpsCall['verdict'],
+        needsCall: o.color === '똥' && (!pickupCall?.born || pickupCall.row.status === 'PLANNED'),
+        callNote: callNoteOf(o, steps), fare: o.fare ?? 0, capturedAt: isoKst(o.capturedAt ?? o.timestamp) ?? '',
+        pickup: { place: o.pickup, phone: null, address: o.pickup, at: atOf('CALL_PICKUP') },
+        dropoff: { place: o.dropoff, phone: null, address: o.dropoff, at: atOf('CALL_DROPOFF') },
+    };
+}
+
+/** 오늘 잡은 콜(회원 상세) */
 function todayCallsOf(userId: string): OpsCall[] {
     const { todayStartIso } = restoreWindow(Date.now());
-    const rows = db.prepare(`SELECT o.id, o.status, o.targetApp, o.pickup, o.dropoff, o.fare, o.capturedAt, o.timestamp, j.color
-        FROM orders o LEFT JOIN order_judgments j ON j.orderId = o.id WHERE o.userId = ? AND o.timestamp >= ? ORDER BY o.timestamp DESC`).all(userId, todayStartIso) as any[];
-    return rows.map(o => ({
-        id: o.id, memberId: userId, targetApp: isTargetApp(o.targetApp) ? o.targetApp : 'insung', status: o.status, verdict: o.color ?? '보통',
-        needsCall: false, callNote: null, fare: o.fare ?? 0, capturedAt: isoKst(o.capturedAt ?? o.timestamp) ?? '',
-        pickup: { place: o.pickup, phone: null, address: o.pickup, at: null },
-        dropoff: { place: o.dropoff, phone: null, address: o.dropoff, at: null },
-    }));
+    return (db.prepare(`${ORDER_SQL} WHERE o.userId = ? AND o.timestamp >= ? ORDER BY o.timestamp DESC`).all(userId, todayStartIso) as OrderRow[]).map(opsCallOf);
 }
+
+/** 진행 중 콜(KEEP 한 · 끝나지 않은 · 재부팅 복구 창) — 미리보기 · 체험 콜은 orders 에 없다 */
+const IN_PROGRESS_SQL = `o.status IN (${IN_PROGRESS_STATUSES.map(() => '?').join(', ')}) AND o.timestamp >= ?`;
+const inProgressParams = () => [...IN_PROGRESS_STATUSES, restoreWindow(Date.now()).unfinishedSinceIso];
 
 type AnomalyRow = { id: number; created_at: string; device_id: string; target_app: string; screen_name: string | null; failure_reason: string; user_id: string | null };
 const ANOMALY_SQL = `SELECT a.id, a.created_at, a.device_id, a.target_app, a.screen_name, a.failure_reason, d.user_id
@@ -185,6 +224,46 @@ router.get("/counts", (req, res) => {
     const phonesOffline = ids.flatMap(id => phonesOf(id, io)).filter(p => p.status !== 'ONLINE').length;
     const counts: OpsCounts = { pendingMembers, callsTodo: 0, phonesOffline };
     res.json(counts);
+});
+
+// ── 통화 도우미 ──────────────────────────────────────────
+
+router.get("/calls", (req, res) => {
+    const memberId = typeof req.query.memberId === 'string' && req.query.memberId ? req.query.memberId : null;
+    const rows = db.prepare(`${ORDER_SQL} WHERE ${IN_PROGRESS_SQL}${memberId ? ' AND o.userId = ?' : ''} ORDER BY o.timestamp DESC`)
+        .all(...inProgressParams(), ...(memberId ? [memberId] : [])) as OrderRow[];
+    const calls = rows.map(opsCallOf);
+    res.json([...calls.filter(c => c.needsCall), ...calls.filter(c => !c.needsCall)]);
+});
+
+const UNITS: readonly string[] = [...CARGO_UNITS, ...LEGACY_CARGO_UNITS];
+
+/**
+ * 📞 관리자가 기사 콜에 통화 결과를 적는다 — 이 문이 셋을 확인한다(04 메모 ②): 관리자 허락(requireOps · 앞에서) · 그 콜이 있고 진행 중 · 대상 기사 = 그 콜의 기사.
+ *    기사 소켓의 orderOn(남의 콜 거절)은 넓히지 않는다. 🔴 기사님이 현장에서 잰 값(ACTUAL)이 있으면 409 — 나중 것이 이겨도 현장 실측은 못 덮는다.
+ */
+router.post("/calls/:id/note", (req, res) => {
+    const adminId = adminOf(req);
+    const o = db.prepare(`${ORDER_SQL} WHERE o.id = ? AND ${IN_PROGRESS_SQL}`).get(req.params.id, ...inProgressParams()) as OrderRow | undefined;
+    if (!o) return res.status(404).json({ error: "진행 중인 콜이 아닙니다." });
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const stopType = b.stopType === 'pickup' || b.stopType === 'dropoff' ? b.stopType : null;
+    const unit = b.unit == null ? null : typeof b.unit === 'string' && UNITS.includes(b.unit) ? b.unit : undefined;
+    const quantity = b.quantity == null ? null : typeof b.quantity === 'number' && b.quantity > 0 ? b.quantity : undefined;
+    const promised = b.promisedArrivalAt == null ? null : typeof b.promisedArrivalAt === 'string' && Number.isFinite(Date.parse(b.promisedArrivalAt)) ? b.promisedArrivalAt : undefined;
+    const memo = typeof b.memo === 'string' ? b.memo.trim() : '';
+    if (!stopType || unit === undefined || quantity === undefined || promised === undefined) return res.status(400).json({ error: "통화 결과 칸을 확인해 주세요." });
+    const actual = stepsView(o.id).find(s => s.step === (stopType === 'pickup' ? 'LOADED' : 'DELIVERED'));
+    if (actual?.born && (actual.row as Record<string, any>).actual_unit != null) return res.status(409).json({ error: "기사님이 현장에서 적은 값이 있습니다." });
+    const report = { stopType, kind: 'DECLARED', unit: unit ?? undefined, quantity: quantity ?? undefined, promisedArrivalAt: promised ?? undefined, memo: memo || undefined } as CargoReport;
+    try {
+        saveCargoReport(o.userId, o.id, report, adminId, req.app.get("io"));
+    } catch (e) {
+        if (e instanceof CargoReportError) return res.status(e.status).json({ error: e.message });
+        throw e;
+    }
+    audit(adminId, '통화 결과 적음', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'} · ${unit ?? '-'} × ${quantity ?? '-'}${memo ? ` · ${memo.slice(0, 20)}` : ''}`);
+    return res.json(opsCallOf(db.prepare(`${ORDER_SQL} WHERE o.id = ?`).get(o.id) as OrderRow));
 });
 
 // ── 공지 ────────────────────────────────────────────────

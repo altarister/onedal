@@ -51,6 +51,7 @@ const CALL_PICKUP: StepTable = {
         ['status',     'status',      `TEXT NOT NULL DEFAULT 'PLANNED'`, '계획 · 통화함 · 건너뜀'],
         ['occurredAt', 'occurred_at', 'TEXT',    '**통화한** 시각'],
         ['source',     'source',      'TEXT',    '직접 · 건너뜀 (GPS 는 없다 — 통화를 기계가 대신할 수 없다)'],
+        ['writtenBy',  'written_by',  'TEXT',    '📞 **적은 사람** userId — 기사 자신 · 관리자(통화 도우미 · reviews/29 5단계). 나중 것이 이긴다. 기사가 아니면 관제웹이 «(와이프)», 장부는 «📞 관리자 신고»(실측으로 안 셈)'],
         ['memo',       'memo',        'TEXT',    '**통화 시도의 결과** — "전화 받지 않음" · "지하 2층, 경비실 통과"'],
 
         ['predictedAt', 'predicted_at', 'TEXT', '🔴 **이 통화를 걸 때 예상한 도착 시각** — 약속의 *근거*다. `상차지 도착` 의 같은 이름과 **다른 값**이다: 저기는 도착 직전까지 갱신된 마지막 예상이고, 여기는 **말을 꺼낸 순간** 얼마로 보였는지다. 둘을 견주면 "그때 여유를 얼마나 뒀나" 가 재현된다'],
@@ -81,6 +82,7 @@ const CALL_DROPOFF: StepTable = {
         ['status',     'status',      `TEXT NOT NULL DEFAULT 'PLANNED'`, '계획 · 통화함 · 건너뜀'],
         ['occurredAt', 'occurred_at', 'TEXT',    '**통화한** 시각'],
         ['source',     'source',      'TEXT',    '직접 · 건너뜀'],
+        ['writtenBy',  'written_by',  'TEXT',    '📞 **적은 사람** userId — 기사 자신 · 관리자(통화 도우미 · reviews/29 5단계). 나중 것이 이긴다. 기사가 아니면 관제웹이 «(와이프)», 장부는 «📞 관리자 신고»(실측으로 안 셈)'],
         ['memo',       'memo',        'TEXT',    '**통화 시도의 결과** — "5시 이후엔 문 닫음"'],
 
         ['predictedAt', 'predicted_at', 'TEXT', '🔴 **이 통화를 걸 때 예상한 하차지 도착 시각** — 약속의 근거 (`상차지 통화` 와 같은 뜻)'],

@@ -185,7 +185,7 @@ describe('🕐 펼친 카드의 상차·하차 줄 — **제 몫이 있을 때�
 describe('🕐 시각을 만드는 네 곳이 같은 재료를 쓴다', () => {
     const 제품 = [
         '../../src/core/engine/OrderEvaluator.ts',
-        '../../src/socket/socketHandlers.ts',
+        '../../src/services/routeTl.ts',   // 서버 타임라인 routeTlOf — 소켓에서 옮겼다
         '../../../client-app/src/components/dashboard/DepartureCountdown.tsx',
         '../../../client-app/src/hooks/useRouteDerivations.ts',
     ];

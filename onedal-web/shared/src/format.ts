@@ -37,6 +37,12 @@ export function clockText(at: At): string | null {
     return d ? `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}` : null;
 }
 
+/** «YYYY-MM-DD» 한국 달력 날 — 기기 시간대와 상관없이(영업일 키 businessDayKey 와 다르다 · 약속 시각의 기준 날) */
+export function kstDateText(at: At): string | null {
+    const d = kstOf(at);
+    return d ? `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}` : null;
+}
+
 /** «HH:MM» 한국 시각 */
 export function hhmmText(at: At): string | null {
     const d = kstOf(at);

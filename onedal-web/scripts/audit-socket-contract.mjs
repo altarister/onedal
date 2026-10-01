@@ -4,7 +4,7 @@
  * 누가: 에이전트
  * 언제: 소켓 이벤트를 더하거나 이름을 바꾼 뒤
  * 어디서: cd onedal-web && pnpm audit:socket
- * 무엇을: 서버 `emit` ↔ 관제웹 `on` 을 대조해 한쪽만 있는 이벤트를 찾는다
+ * 무엇을: 서버 `emit` ↔ 관제웹 · 운영센터 `on` 을 대조해 한쪽만 있는 이벤트를 찾는다
  * 왜: 손으로 대조하면 빠뜨린다
  * (잡는 것 · 못 잡는 것 · 검수는 onedal-web/CLAUDE.md 스크립트 표)
  *
@@ -30,13 +30,15 @@ const BUILTIN = new Set(['connect', 'disconnect', 'connect_error', 'reconnect', 
 /**
  * 아직 구현 전이라 알고도 비워둔 것 (근거를 함께 적는다).
  *
- * 🔴 **지금은 비어 있다.** 여기 이름을 올리면 그 이벤트는 🔴 대신 🟡 로 나오므로,
+ * 🔴 **비어 있어야 정상이다.** 여기 이름을 올리면 그 이벤트는 🔴 대신 🟡 로 나오므로,
  *    **진짜 파손이 생겨도 이 검사가 숨긴다.** 올릴 때는 «왜 아직 없는가»를 함께 적고,
  *    구현되면 **반드시 내린다.**
  *
  * ⚠️ 이미 구현된 이벤트가 여기 남아 있으면, 이 검사가 막으려던 사고를 이 검사가 만든다.
  */
-const KNOWN_GAPS = {};
+const KNOWN_GAPS = {
+    'ops-calls-changed': '운영센터(ops/)가 관리자 방 신호를 들을 소켓 자리를 아직 안 만들었다(e7 · reviews/29 5단계 화면) — 운영센터가 socket.on 을 붙이면 내린다',
+};
 
 function walk(dir, out = []) {
     for (const name of readdirSync(dir)) {
@@ -63,9 +65,9 @@ function collectFromArrays(text, varNamesUsedDynamically) {
     return found;
 }
 
-function scan(dir, patterns) {
+function scan(dirs, patterns) {
     const map = new Map();
-    for (const file of walk(dir)) {
+    for (const file of [].concat(dirs).flatMap(d => walk(d))) {
         const text = readFileSync(file, 'utf8');
         const rel = relative(ROOT, file);
         for (const [kind, re] of patterns) {
@@ -98,7 +100,8 @@ const server = scan(join(ROOT, 'server/src'), [
     /* 👥 orderId 를 받는 이벤트는 `orderOn("ev", …)` 으로 붙는다(콜 주인 확인 · socketHandlers) — 듣는 곳으로 센다 */
     ['on', /(?:socket\.on|safeOn\(socket,\s*|orderOn)\(?["']([\w-]+)["']/g],
 ]);
-const client = scan(join(ROOT, 'client-app/src'), [
+/* 듣는 쪽은 둘 — 기사 관제웹과 관리자 운영센터(관리자 방 신호) */
+const client = scan([join(ROOT, 'client-app/src'), join(ROOT, 'ops/src')], [
     ['emit', /socket\.emit\(["']([\w-]+)["']/g],
     ['on', /socket\.on\(["']([\w-]+)["']/g],
 ]);

@@ -2,6 +2,7 @@ import type { Color } from './judge';
 import type { TargetAppType } from './index';
 import type { ContentKind } from './join';
 import type { WordKind } from './pageFields';
+import type { CargoUnit } from './cargoUnits';
 
 /**
  * 🏢 **운영센터 API 규격 — 타입 + 회원 상태 규칙(순수)** (reviews/29 · 운영센터 `ops/` 와 서버 문 `/api/ops/*` 가 같은 모양을 읽는다).
@@ -58,12 +59,18 @@ export interface OpsCall {
     callNote: OpsCallNote | null;
 }
 
-/** 통화 도우미가 적는 결과 — 기사가 쓰는 «통화함» 규격과 같은 칸 + 누가 적었나 */
+/**
+ * 통화 도우미가 적는 결과 — 기사가 쓰는 «통화함» 규격과 같은 구조 값(짐을 글자로 받으면 판정이 못 굳는다) + 누가 적었나.
+ * «상대가 취소했다»는 지금은 memo 글로만(사실 칸은 기사님 «가» 뒤 · reviews/29 5단계).
+ */
 export interface OpsCallNote {
-    cargoSize: string;
-    pickupReadyAt: string | null;
-    counterpartCancelled: boolean;
+    stopType: 'pickup' | 'dropoff';
+    unit: CargoUnit | null;
+    quantity: number | null;
+    /** 약속(언제까지 가나) — ISO */
+    promisedArrivalAt: string | null;
     memo: string;
+    /** 마지막으로 적은 사람 이름(기사 · 관리자) */
     writtenBy: string;
     writtenAt: string;
 }

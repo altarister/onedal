@@ -11,7 +11,8 @@ import { join } from 'path';
  * 🔴 다시 짜기는 **조건부**다 — 남은 정거장이 이미 보낸 순서를 그대로 따르면 안 부른다
  *    (`recalcRouteIfStopsChanged` → `routeNeedsRecompute`).
  */
-const handlers = readFileSync(join(__dirname, '../../src/socket/socketHandlers.ts'), 'utf8');
+/* 📞 통화 저장 몸통은 기사 소켓 · 운영센터가 같이 부르는 services/cargoReport 로 옮겼다(reviews/29 5단계) */
+const handlers = readFileSync(join(__dirname, '../../src/services/cargoReport.ts'), 'utf8');
 const engine = readFileSync(join(__dirname, '../../src/services/dispatchEngine.ts'), 'utf8');
 
 describe('통화 약속 저장 → 경로 다시 짜기', () => {

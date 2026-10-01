@@ -32,7 +32,7 @@ describe('파생 치환 ② — 계산은 stepRecordsOf 관문 하나', () => {
         const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
         expect(ev).toMatch(/stepRecordsOf\(id\)\.reports/);
         expect(ev).not.toMatch(/OrderRepository\.getCargoReports/);
-        const sh = codeOnly(read('socket/socketHandlers.ts'));
+        const sh = codeOnly(read('services/routeTl.ts'));   // routeTlOf 는 소켓 · 통화 저장이 같이 쓰려고 여기로
         const tl = sh.slice(sh.indexOf('function routeTlOf'), sh.indexOf('\n}', sh.indexOf('function routeTlOf')));
         expect(tl).toMatch(/stepRecordsOf\(/);
         expect(tl).not.toMatch(/getCargoReports|getMilestones/);

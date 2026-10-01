@@ -93,7 +93,9 @@ for (const o of orders.reverse()) {
         if (r && r.status && r.status !== 'PLANNED') rp.push({
             stopType, kind: r.status === 'SKIPPED' ? 'SKIPPED' : 'DECLARED',
             unit: r.planned_unit, quantity: r.planned_quantity, handling: r.planned_handling,
-            promisedArrivalFromAt: r.promised_arrival_from_at, promisedArrivalAt: r.promised_arrival_at, memo: r.memo });
+            promisedArrivalFromAt: r.promised_arrival_from_at, promisedArrivalAt: r.promised_arrival_at, memo: r.memo,
+            // 📞 기사 아닌 사람(관리자 · 통화 도우미)이 적은 줄 — 실측으로 세지 않는다
+            byOther: !!r.written_by && r.written_by !== r.userId });
     }
     for (const [t, stopType] of [['step_loaded', 'pickup'], ['step_delivered', 'dropoff']]) {
         const r = db.prepare(`SELECT * FROM ${t} WHERE orderId = ?`).get(o.id);
@@ -105,7 +107,7 @@ for (const o of orders.reverse()) {
         console.log(`  ─ 신고`);
         for (const r of rp) {
             const stop = r.stopType === 'pickup' ? '상차' : '하차';
-            const kind = r.kind === 'DECLARED' ? '통화' : r.kind === 'SKIPPED' ? '⏭️ 통화 건너뜀' : '현장';
+            const kind = r.byOther ? '📞 관리자 신고' : r.kind === 'DECLARED' ? '통화' : r.kind === 'SKIPPED' ? '⏭️ 통화 건너뜀' : '현장';
             const cargo = [r.unit && `${r.unit} ${r.quantity ?? ''}`, r.handling].filter(Boolean).join(' · ');
             const promise = r.promisedArrivalAt
                 ? (r.promisedArrivalFromAt
@@ -121,5 +123,6 @@ for (const o of orders.reverse()) {
 console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 console.log(`\n✍️ 직접 = 기사님이 눌렀다 (실측 통계에 씀)`);
 console.log(`🛰️ 자동 = GPS 도착 감지 (참고값)`);
-console.log(`⏭️ 건너뜀 = 기록 없이 지나감 — 그 콜의 실측은 믿을 수 없다\n`);
+console.log(`⏭️ 건너뜀 = 기록 없이 지나감 — 그 콜의 실측은 믿을 수 없다`);
+console.log(`📞 관리자 신고 = 와이프(통화 도우미)가 대신 통화해 적었다 — 기사님 실측이 아니다 (단계 행 written_by)\n`);
 db.close();

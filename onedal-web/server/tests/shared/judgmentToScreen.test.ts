@@ -73,7 +73,7 @@ describe('판정 기준 → 화면 파생 (시간 4칸)', () => {
     });
 
     it('🔴 서버 타임라인(routeTlOf)도 같은 함수를 먹는다 — 손 조립 금지', () => {
-        const src = codeOnly(read(join(SERVER, 'socket/socketHandlers.ts')));
+        const src = codeOnly(read(join(SERVER, 'services/routeTl.ts')));   // routeTlOf 는 소켓 · 통화 저장이 같이 쓰려고 여기로
         expect(src).toMatch(/derivationInputsOf\(/);
     });
 });

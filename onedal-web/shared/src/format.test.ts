@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockText, hhmmText, isoKst, manwonText, wonText } from './format';
+import { clockText, hhmmText, isoKst, kstDateText, manwonText, wonText } from './format';
 
 /**
  * 🕐 **시각 글자는 한 모양 — 24시간 «HH:MM:SS» · «HH:MM» · 늘 한국 시각** (onedal-1f 결정 · 공통 함수 1).
@@ -59,5 +59,13 @@ describe('🕐 isoKst', () => {
     it('🔴 시각 글자 함수도 지역 시각 글자를 같은 길로 읽는다', () => {
         expect(clockText('2026-10-01 14:05:03')).toBe('14:05:03');
         expect(hhmmText('2026-10-01 00:04:00')).toBe('00:04');
+    });
+});
+
+describe('📅 kstDateText', () => {
+    it('🔴 한국 달력 날 — UTC 로 전날인 시각도 한국 날 · 지역 글자도 · 빈 값 null', () => {
+        expect(kstDateText('2026-10-01T16:30:00.000Z')).toBe('2026-10-02');
+        expect(kstDateText('2026-10-02 01:30:00')).toBe('2026-10-02');
+        expect(kstDateText(null)).toBeNull();
     });
 });

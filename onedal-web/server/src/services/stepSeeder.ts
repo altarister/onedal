@@ -285,7 +285,7 @@ function finalizeStep(userId: string, orderId: string, step: StepId,
  *    «실패해도 그만»으로 오해된다
  */
 export function bridgeCargoReport(userId: string, orderId: string,
-    report: CargoReport, judgment?: JudgmentConfig, routeTl?: RouteTl) {
+    report: CargoReport, judgment?: JudgmentConfig, routeTl?: RouteTl, writtenBy?: string) {
     const now = new Date().toISOString();
     if (report.kind === 'DECLARED' || report.kind === 'SKIPPED') {
         const step: StepId = report.stopType === 'pickup' ? 'CALL_PICKUP' : 'CALL_DROPOFF';
@@ -305,6 +305,7 @@ export function bridgeCargoReport(userId: string, orderId: string,
             planned_source: report.kind === 'SKIPPED' ? undefined : 'DECLARED',
             memo: (report as any).memo ?? undefined,
             onward_deadline_at: (report as any).onwardDeadlineAt ?? undefined,
+            written_by: writtenBy,   // 📞 적은 사람 — 기사 · 관리자(통화 도우미). 나중 것이 이긴다
         }, judgment, routeTl);
         /**
          * ⏱️ **짐이 바뀌었으면 예측 정차도 다시 잰다** (기사님 리허설).
@@ -587,8 +588,12 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig,
         const t = tableOf(step);
         const extra = (step === 'CALL_PICKUP' || step === 'CALL_DROPOFF')
             ? { deadline_at: deadlineOf(step) } : {};
+        /* 📞 기사 아닌 사람이 적은 통화 행 — 관제웹이 «(와이프)» 를 붙인다. 기사 자신이면 칸 없음 */
+        const by = born[step]?.written_by as string | null | undefined;
+        const writtenByName = by && by !== born[step]?.userId
+            ? ((db.prepare(`SELECT name FROM users WHERE id = ?`).get(by) as { name?: string } | undefined)?.name ?? by) : undefined;
         return born[step]
-            ? { step, table: t.table, label: t.label, born: true, row: { ...born[step], ...extra } }
+            ? { step, table: t.table, label: t.label, born: true, row: { ...born[step], ...extra }, ...(writtenByName ? { writtenByName } : {}) }
             : { step, table: t.table, label: t.label, born: false, row: { status: 'PLANNED', ...chain[step], ...extra } };
     });
 }
