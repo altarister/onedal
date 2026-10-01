@@ -33,6 +33,9 @@ class PageFieldReadTest {
             val expect = c["expect"].takeIf { !it.isJsonNull }?.asString
             assertEquals("${c["network"].asString} ${c["page"].asString} ${c["field"].asString} — ${c["why"].asString}",
                 expect, PageFieldRead.fieldOf(pagesOf.getValue(c["network"].asString), page, field, texts))
+            /* 💰 숫자로 바꾼 값 — 서버도 같은 칸을 같은 규칙(쉼표 떼고 정수 · 0 이하 못 읽음)으로 푼다 */
+            if (c.has("fare")) assertEquals("${c["network"].asString} ${c["page"].asString} 요금 숫자 — ${c["why"].asString}",
+                c["fare"].takeIf { !it.isJsonNull }?.asInt, PageFieldRead.fareOf(pagesOf.getValue(c["network"].asString), page, texts))
         }
     }
 
