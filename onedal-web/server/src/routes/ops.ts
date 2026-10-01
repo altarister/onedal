@@ -16,7 +16,7 @@ import { nextStopOf } from "../services/geoService";
 import { listReleases, scrapReleaseCodes } from "../core/releases";
 import { intelRowsOf } from "../services/intelRows";
 import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer, OpsHome, OpsLocations, OpsStats } from "@onedal/shared";
-import { marketStatsOf } from "../services/callFlowStats";
+import { marketStatsOf, clampStatsRange } from "../services/callFlowStats";
 import { rangeOf } from "./stats";
 import { TARGET_APPS, accountBlocked, kakaoTotalOf, kstDateText, nearestDong } from "@onedal/shared";
 import { latestContent, isContentKind } from "./contents";
@@ -372,7 +372,7 @@ router.get("/board/intel", (req, res) => {
 
 /* 📊 시장에 뜬 실물 콜 — 기간은 옛 통계 문과 같은 읽기(rangeOf) · 셈은 services/callFlowStats 한 곳 */
 router.get("/stats", (req, res) => {
-    const { from, to } = rangeOf(req.query);
+    const { from, to } = clampStatsRange(rangeOf(req.query).from, rangeOf(req.query).to);   // 원문을 읽는 문이라 기간 상한
     const body: OpsStats = { from, to, ...marketStatsOf(from, to) };
     res.json(body);
 });

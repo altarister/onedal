@@ -2,7 +2,7 @@
 import db from '../../src/db';
 import opsRouter from '../../src/routes/ops';
 import statsRouter from '../../src/routes/stats';
-import { rollupDay } from '../../src/services/callFlowStats';
+import { rollupDay, OPS_STATS_MAX_DAYS } from '../../src/services/callFlowStats';
 
 /**
  * 📊 **운영센터 통계 — 실제로 있는 자료만** (reviews/33 4단계 · onedal-69 «가» Q7 «가»).
@@ -34,6 +34,8 @@ beforeAll(() => {
     ins.run(U, '경기 이천시 부발읍', '경기 광주시 경안동', 40000, iso(11, 0), 'kakaopicker', 15, 'locked', 'real');  // 잠김 — 버린 것 아님
     ins.run(U, '경기 이천시 부발읍', '경기 성남시 분당구', 20000, iso(12, 0), 'kakaopicker', 25, null, 'real');      // 판정 없음
     ins.run(U, '경기 이천시 부발읍', '서울 강남구 역삼동', 500000, iso(13, 0), 'insung', 60, 'fare', 'sim');        // 시뮬 — 어디에도 없다
+    ins.run(U, '경기 여주시 가남읍', '서울 송파구 잠실동', 70000, iso(14, 0), 'kakaopicker', 50, 'vehicle', 'real'); // 버림(차종) …
+    ins.run(U, '경기 여주시 가남읍', '서울 송파구 잠실동', 70000, iso(14, 2), 'kakaopicker', 50, 'locked', 'real');  // … 그 뒤 잠김 — 버린 까닭은 차종 그대로
     rollupDay(DAY);
 });
 afterAll(() => {
@@ -60,11 +62,20 @@ describe('📊 운영센터 통계', () => {
     });
     it('🔴 버린 콜 — 같은 콜 한 번 · 잠김 · 판정 없음은 따로 · 시뮬 없음 · 요금 높은 순', async () => {
         const { dropped } = await get(opsRouter, '/stats', { from: DAY, to: DAY });
-        expect(dropped.byAxis).toEqual([{ axis: 'region', calls: 1 }]);
+        expect(dropped.byAxis).toEqual([{ axis: 'region', calls: 1 }, { axis: 'vehicle', calls: 1 }]);
         expect(dropped.locked).toBe(1);
         expect(dropped.unjudged).toBe(1);
-        expect(dropped.topFares).toHaveLength(1);
+        expect(dropped.topFares).toHaveLength(2);
         expect(dropped.topFares[0]).toMatchObject({ targetApp: 'kakaopicker', fare: 95000, axis: 'region' });
+        expect(dropped.topFares[1]).toMatchObject({ fare: 70000, axis: 'vehicle' });   // 잠김(locked)이 앞의 버린 까닭을 덮지 않는다 (f5 리뷰)
         expect(dropped.topFares.some((t: any) => t.fare === 500000)).toBe(false);
+    });
+
+    /* 원문을 한 번에 읽어 묶는 문이라 기간을 자른다 — 동기 DB 라 긴 읽기 동안 폰 보고가 멈춘다 (f5 리뷰) */
+    it('🔴 기간은 OPS_STATS_MAX_DAYS 일까지 — 더 길면 끝(to)에서 거꾸로 자른다', async () => {
+        const out = await get(opsRouter, '/stats', { from: '2000-01-01', to: DAY });
+        const days = (Date.parse(`${out.to}T00:00:00Z`) - Date.parse(`${out.from}T00:00:00Z`)) / 86_400_000 + 1;
+        expect(out.to).toBe(DAY);
+        expect(days).toBe(OPS_STATS_MAX_DAYS);
     });
 });

@@ -9,7 +9,7 @@ import type { OpsBoardIntel } from './ops';
 // ── 콜 흐름 통계(GET /api/stats/flows · /flows/admin) ─────────────────
 
 /** 한 칸의 합 — 평균은 요금을 아는 콜(fareCalls)로만, 하나도 모르면 null */
-export interface FlowSum { calls: number; fareCalls: number; fareFirstAvg: number | null; fareLastAvg: number | null }
+export interface FlowSum { calls: number; fareCalls: number; fareFirstAvg: number | null; fareLastAvg: number | null; /** 아는 km 의 평균(소수 한 자리) — 모르면 null · 나중에 더한 칸이라 읽는 쪽은 없을 수도 있게 */ kmAvg?: number | null }
 
 /** 기사가 보는 칸 — 내 것 · 모두(남이 3명 넘게 섞였을 때만) */
 export interface FlowsViewerCell {

@@ -35,7 +35,7 @@ export interface SameCall {
     /** 모르면 null — 앱이 0 으로 적은 요금도 모름 */
     firstMs: number; fareFirst: number | null; fareLast: number | null;
     vehicleType: string; km: number | null; reserved: boolean; passed: boolean;
-    /** 마지막으로 실린 앱 판정(pass · 떨어뜨린 축 · locked) — 없으면 null(옛 앱) · 운영센터 «버린 콜»이 읽는다 */
+    /** 마지막으로 실린 앱 판정(pass · 떨어뜨린 축 · locked) — 잠김은 앞의 판정을 덮지 않는다 · 없으면 null(옛 앱) · 운영센터 «버린 콜»이 읽는다 */
     lastVerdict: string | null;
 }
 
@@ -58,7 +58,8 @@ export function groupSameCalls(rows: IntelRow[]): SameCall[] {
             hit.call.km ??= r.deliveryDistanceKm ?? null;
             hit.call.reserved ||= reserved;
             hit.call.passed ||= r.verdict === 'pass';
-            if (r.verdict != null) hit.call.lastVerdict = r.verdict;
+            /* 잠김(locked)은 «심사 중이라 안 봤다» — 앞서 받은 버린 까닭을 덮지 않는다(그 콜이 locked 만 받았을 때만 locked) */
+            if (r.verdict != null && (r.verdict !== 'locked' || hit.call.lastVerdict == null)) hit.call.lastVerdict = r.verdict;
             continue;
         }
         const call: SameCall = {
@@ -299,6 +300,15 @@ export function rolledUpDaysBetween(from: string, to: string): string[] {
  *    잠김(locked)과 판정 없음(옛 앱)은 «버린 것»이 아니라 따로 센다. 기사별 벌이는 여기 없다 — 잡은 콜에 시뮬/실콜을 가를 칸이 없다.
  */
 const TOP_DROPPED = 20;
+/**
+ * 📅 운영센터 통계 기간 상한 — 버린 콜은 원문(intel)을 한 번에 읽어 메모리로 묶는다. better-sqlite3 는 동기라 그동안 폰 보고도 멈춘다.
+ *    석 달(92일)이면 계절 하나를 본다. 더 길면 끝(to)에서 거꾸로 자른다 (f5 리뷰).
+ */
+export const OPS_STATS_MAX_DAYS = 92;
+export function clampStatsRange(from: string, to: string): { from: string; to: string } {
+    const earliest = new Date(Date.parse(`${to}T00:00:00Z`) - (OPS_STATS_MAX_DAYS - 1) * DAY_MS).toISOString().slice(0, 10);
+    return { from: from < earliest ? earliest : from, to };
+}
 export function marketStatsOf(from: string, to: string): Omit<OpsStats, 'from' | 'to'> {
     const rows = flowRowsBetween(from, to);
     const byRoute = new Map<string, FlowRow[]>();
