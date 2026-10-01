@@ -52,27 +52,28 @@ describe('배차망 화면 정의 표', () => {
 });
 
 /**
- * 🚫 **콜 한 벌의 글 — 제외어를 찾을 범위** (reviews/34 3단계 5③ · onedal-69 · onedal-46).
- * 화면 머리 · 버튼 · 목록 잔상(«화물과퀵» 화주 줄 · «60분 안보기» · «배차신청» · «넘기기»)은 범위 밖 — 기사님 제외어 «퀵»이 화물24시 상세 전부에 걸리던 길을 막는다.
- * 결제방법 «착불» · 인성 «구분 : 왕복»처럼 콜 내용은 범위 안 · 못 맞으면 빈 글(지어내지 않는다). 서버 pageRead 가 같은 표로 읽는다.
+ * 🚫 **제외어를 찾는 칸** (기사님 «배차망별 칸에서만» · reviews/34 3단계 5③ · onedal-69 · onedal-46).
+ * 인성 = 적요 + 결제 괄호 + 구분 · 화물24시 = 화물정보 + 결제방법 · 픽커 = 물품정보 + 유의사항. 주소 · 화주 이름 · 화면 머리 · 버튼 · 목록 잔상은 안 본다.
+ * 칸마다 그 상세 화면 정의 줄의 읽는 법으로 읽는다(서버가 쓰는 pageFieldOf 그대로). 기사님 제외어 여섯(착불 · 수거 · 까대기 · 직접운반 · 왕복 · 대기)이 그 칸에서 걸린다.
  */
-describe('콜 글 범위 (callText)', () => {
-    it('배차망마다 하나 · JS 에서 안 터지고 공통 문법만 · 1번 묶음', () => {
+describe('제외어 찾는 칸 (excludeScan)', () => {
+    it('배차망마다 칸 목록이 있고 · 칸마다 상세 화면 정의에 읽는 줄(READ + read)이 있다', () => {
         for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
-            expect(typeof spec.callText, `${net} callText`).toBe('string');
-            expect(() => new RegExp(spec.callText), net).not.toThrow();
-            expect(spec.callText, `${net} — 금지 문법`).not.toMatch(/\\p\{|\(\?<[A-Za-z]|\+\+|\*\+|\?\+|\(\?[imsx]|\\[bBwW]/);
-            expect(new RegExp(`${spec.callText}|`).exec('')!.length, `${net} — 1번 묶음`).toBeGreaterThanOrEqual(2);
+            expect(spec.excludeScan.length, `${net} excludeScan`).toBeGreaterThan(0);
+            for (const f of spec.excludeScan) {
+                expect(PAGE_FIELDS, `${net} 칸 ${f}`).toContain(f);
+                expect(spec.pages.detail.some(r => r.field === f && r.handling === 'READ' && r.read !== undefined), `${net} detail ${f} 읽는 법`).toBe(true);
+            }
         }
     });
 
-    it('공통 문제지 — 범위 안 글 · 범위 밖 낱말', () => {
-        const sheet = JSON.parse(readFileSync(join(__dirname, 'pageReadCases.json'), 'utf8')) as { callTextCases: Array<{ network: TargetAppType; texts: string[]; expect: string | null; outside: string[]; why: string }> };
-        expect(sheet.callTextCases.length).toBeGreaterThan(0);
-        for (const c of sheet.callTextCases) {
-            const got = new RegExp(NETWORK_PAGES[c.network].callText).exec(c.texts.join(' '))?.[1]?.trim() || null;
-            expect(got, `${c.network} — ${c.why}`).toBe(c.expect);
-            for (const w of c.outside) expect(got ?? '', `${c.network} «${w}» 는 범위 밖 — ${c.why}`).not.toContain(w);
+    it('공통 문제지 — 걸릴 낱말은 그 칸들에 있고 · 안 걸릴 낱말(주소 · 화주 · 머리 · 버튼)은 없다', () => {
+        const sheet = JSON.parse(readFileSync(join(__dirname, 'pageReadCases.json'), 'utf8')) as { excludeCases: Array<{ network: TargetAppType; texts: string[]; hits: string[]; misses: string[]; why: string }> };
+        expect(sheet.excludeCases.length).toBeGreaterThan(0);
+        for (const c of sheet.excludeCases) {
+            const scanned = NETWORK_PAGES[c.network].excludeScan.map(f => pageFieldOf(c.network, 'detail', f, c.texts) ?? '').join(' ');
+            for (const w of c.hits) expect(scanned, `${c.network} «${w}» 걸림 — ${c.why}`).toContain(w);
+            for (const w of c.misses) expect(scanned, `${c.network} «${w}» 안 걸림 — ${c.why}`).not.toContain(w);
         }
     });
 });
