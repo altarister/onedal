@@ -2,6 +2,7 @@ package com.onedal.app.core.engine
 
 /**
  * 🗺️ **전체 주소 명부 — 생성 파일이다, 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:regions`).
+ * 다시 뽑는 순서: 행정안전부가 행정동 새 판을 내면 `pnpm gen:admin-dongs <KIKmix 경로>` → `pnpm gen:regions` · 서버 지도를 다시 만들면 `pnpm gen:regions` 만.
  * 원천은 둘 — 법정동은 서버 지도 산출물 `onedal-web/shared/src/dongCentroids.ts`(서버가 좌표를 찍는 지도와 같은 명부),
  * 행정동은 `onedal-web/shared/src/adminDongs.ts`(행정안전부 원천 · 서버가 도착 낱말을 펼 때 쓰는 표와 같은 것).
  * 시군구 119개 · 법정 읍면동 1968개 · 행정동 872개(그 시군구 법정동과 같은 이름은 뺌). 꼴: «시군구=동,동|…» (광역시는 «서울 강남구», 도 아래는 «성남시 분당구»).
