@@ -27,12 +27,14 @@ client.interceptors.request.use(config => {
     return config;
 });
 
-/** 토큰이 죽었으면(401) 지우고 로그인 화면으로 — 화면이 «왜 비었지»를 겪지 않게 */
+/**
+ * 토큰이 죽었으면(401) 지우고 로그인 화면으로 · 허락이 없으면(403 · `users.ops_allowed_at` 비움 — 쓰는 중에 거둬도) «허락 없음» 화면으로 — 한 곳에서.
+ * «허락 없음» 화면(`/denied`)은 서버 문을 부르지 않으니 되돌이가 없다.
+ */
 client.interceptors.response.use(r => r, (e: unknown) => {
-    if (axios.isAxiosError(e) && e.response?.status === 401 && token()) {
-        setToken(null);
-        window.location.assign('/login');
-    }
+    const status = axios.isAxiosError(e) ? e.response?.status : undefined;
+    if (status === 401 && token()) { setToken(null); window.location.assign('/login'); }
+    if (status === 403 && window.location.pathname !== '/denied') window.location.assign('/denied');
     return Promise.reject(e);
 });
 
@@ -60,9 +62,10 @@ export async function loginBypass(): Promise<void> {
     setToken(data.accessToken);
 }
 
+/** 이름만 — 못 받아도 빈 이름(허락은 이미 확인됐으니 이름 때문에 화면을 막지 않는다) */
 export async function fetchMeName(): Promise<string> {
-    const { data } = await client.get<{ user: { name: string } | null }>('/auth/me');
-    return data.user?.name ?? '';
+    try { return (await client.get<{ user: { name: string } | null }>('/auth/me')).data.user?.name ?? ''; }
+    catch { return ''; }
 }
 
 export async function logout(): Promise<void> {

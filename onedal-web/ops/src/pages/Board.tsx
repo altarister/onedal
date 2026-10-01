@@ -1,32 +1,33 @@
 import { useState } from 'react';
 import { deviceLabel } from '@onedal/shared';
-import { api } from '../api/ops';
-import { Card, PageHeader, Stat, fmtDateTime, fmtTime, memberName, useTick } from '../ui';
+import { EXAMPLE_STAGE, example, useExampleTick } from '../api/example';
+import { Card, PageHeader, Stat, fmtDateTime, fmtTime, memberName, ExampleBand } from '../ui';
 
 /**
  * 🧰 **현황판(점검)** — 관제웹 PC 오른쪽 현황판 가운데 «여러 폰을 한눈에 · 서버 점검 · 필터 전문 · 버린 콜»을 여기로 옮긴다
  *    (기사님 «현황판도 어드민 어딘가로 이사» · 칸 표는 reviews/31). 운전 중 기사가 1~2초에 보는 것(내 폰 · 내 필터 · 내 콜)은 관제웹에 남는다.
- *    🔴 관제웹 현황판 코드는 아직 그대로다 — 이 쪽은 목업이고, 이사는 기사님이 보신 뒤다.
+ *    🔴 관제웹 현황판 코드는 아직 그대로다 — 이 쪽은 예시 자료이고, 이사는 기사님이 보신 뒤다.
  */
 
 
 export default function Board() {
-    useTick();
-    const members = api.members();
-    const phones = api.phones();
+    useExampleTick();
+    const members = example.members();
+    const phones = example.phones();
     const [who, setWho] = useState('m-driver1');
     const [phoneId, setPhoneId] = useState('d-3f1c9a2e-7b4d-4e8a-9c1d-0a6b2e5f7c11');
-    const pd = api.boardPhoneDetail(phoneId);
+    const pd = example.boardPhoneDetail(phoneId);
     const phone = phones.find(p => p.deviceId === phoneId);
 
     return (
         <>
             <PageHeader title="현황판 (점검)" sub="관제웹 오른쪽 현황판에서 옮겨 온 칸 — 여러 폰 · 서버 · 필터 전문 · 버린 콜" />
+            <ExampleBand stage={EXAMPLE_STAGE.board} />
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                <Stat label="서버 부팅" value={fmtDateTime(api.boardServer().bootedAt)} hint={`${api.boardServer().branch} · ${api.boardServer().commit}`} />
-                <Stat label="소켓 연결" value={api.boardServer().sockets} hint="관제웹 · 운영센터" />
-                <Stat label="마지막 폰 보고" value={fmtTime(api.boardServer().lastScrapAt)} tone="ok" />
-                <Stat label="DB · 시간대" value={api.boardServer().db} hint={api.boardServer().tz} />
+                <Stat label="서버 부팅" value={fmtDateTime(example.boardServer().bootedAt)} hint={`${example.boardServer().branch} · ${example.boardServer().commit}`} />
+                <Stat label="소켓 연결" value={example.boardServer().sockets} hint="관제웹 · 운영센터" />
+                <Stat label="마지막 폰 보고" value={fmtTime(example.boardServer().lastScrapAt)} tone="ok" />
+                <Stat label="DB · 시간대" value={example.boardServer().db} hint={example.boardServer().tz} />
                 <Stat label="어긋남" value={0} tone="ok" hint="화면 두 자리가 다른 말" />
             </div>
 
@@ -61,12 +62,12 @@ export default function Board() {
             </Card>
 
             <div className="grid lg:grid-cols-2 gap-4">
-                <Card title={<span>🧾 필터 전문 — 서버가 준 그대로 · <select value={who} onChange={e => setWho(e.target.value)} className="rounded border border-border-card bg-surface px-2 py-0.5 text-xs">{members.filter(m => m.role !== 'ADMIN' && api.boardFilterFull(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></span>}>
-                    <pre className="text-xs leading-relaxed rounded-xl bg-bg-base border border-border-card p-3 overflow-x-auto">{JSON.stringify(api.boardFilterFull(who), null, 2)}</pre>
+                <Card title={<span>🧾 필터 전문 — 서버가 준 그대로 · <select value={who} onChange={e => setWho(e.target.value)} className="rounded border border-border-card bg-surface px-2 py-0.5 text-xs">{members.filter(m => m.role !== 'ADMIN' && example.boardFilterFull(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></span>}>
+                    <pre className="text-xs leading-relaxed rounded-xl bg-bg-base border border-border-card p-3 overflow-x-auto">{JSON.stringify(example.boardFilterFull(who), null, 2)}</pre>
                     <p className="text-xs text-text-muted">읽기만 — 필터를 고치는 손잡이는 기사 관제웹에 있습니다.</p>
                 </Card>
                 <Card title="🗑️ 버린 콜 — 앱이 거른 것 (서버가 받은 그대로)">
-                    {api.boardDropped().map((d, i) => (
+                    {example.boardDropped().map((d, i) => (
                         <div key={i} className="text-sm flex justify-between gap-2 border-t border-border-card first:border-t-0 pt-1 first:pt-0">
                             <span><span className="text-text-muted">{fmtTime(d.at)}</span> <b>{memberName(members, d.memberId)}</b> · {d.app} · {d.line}</span>
                             <span className="text-warning shrink-0">{d.why}</span>

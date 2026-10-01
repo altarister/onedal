@@ -2,20 +2,17 @@ import { useState } from 'react';
 import type { OpsAudit } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
-import { api } from '../api/ops';
-import { Card, KV, PageHeader, Table, dayKey, fmtTime, memberName, plusDaysKey, useTick, type Column } from '../ui';
+import { api, useOps } from '../api/ops';
+import { Card, ErrorBand, KV, PageHeader, Table, fmtTime, memberName, plusDaysKey, todayKey, type Column } from '../ui';
 
-/** 🧾 기록 — 관리자가 한 일 · 본 것. 동의의 짝 · 위치정보 이용 기록 (ops/CLAUDE.md) */
+/** 🧾 기록 — 관리자가 한 일 · 본 것(서버 `ops_audit`). 동의의 짝 · 위치정보 이용 기록 (ops/CLAUDE.md). 기간은 서버가 거른다(`?since`) · «전체»는 최근 200줄 */
 export default function Audit() {
-    useTick();
-    const members = api.members();
     const [period, setPeriod] = useState<'오늘' | '7일' | '전체'>('7일');
     const [q, setQ] = useState('');
-    const since = period === '오늘' ? dayKey() : period === '7일' ? plusDaysKey(-6) : '';
-    const rows = [...api.audit()]
-        .filter(a => dayKey(a.at) >= since)
-        .filter(a => !q.trim() || [a.action, a.detail, memberName(members, a.targetMemberId)].some(v => v.includes(q.trim())))
-        .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)); // 최신이 위 — 자료 순서가 아니라 화면에서 정렬
+    const since = period === '오늘' ? todayKey() : period === '7일' ? plusDaysKey(-6) : undefined;
+    const { data, error, reload } = useOps(() => Promise.all([api.members(), api.audit(since)]), [since]);
+    const [members, audit] = data ?? [[], []];
+    const rows = audit.filter(a => !q.trim() || [a.action, a.detail, memberName(members, a.targetMemberId)].some(v => v.includes(q.trim())));
     const cols: Column<OpsAudit>[] = [
         { key: 'at', label: '시각', render: a => fmtTime(a.at) },
         { key: 'who', label: '관리자', render: a => a.admin },
@@ -25,14 +22,15 @@ export default function Audit() {
     ];
     return (
         <>
-            <PageHeader title="기록" sub="승인 · 정지 · 공지 · 글 · 앱 올리기 · 위치 · 콜 열람 — 지우지 않습니다" />
+            <PageHeader title="기록" sub="승인 · 정지 · 공지 · 글 · 회원 열람 — 지우지 않습니다" />
+            {error && <ErrorBand text={error} onRetry={reload} />}
             <Card>
                 <div className="flex gap-2 flex-wrap items-center">
                     {(['오늘', '7일', '전체'] as const).map(p => <Button key={p} type="button" size="sm" variant={period === p ? 'default' : 'outline'} onClick={() => setPeriod(p)}>{p}</Button>)}
                     <Input value={q} onChange={e => setQ(e.target.value)} placeholder="한 일 · 내용 · 회원 찾기" className="md:ml-auto md:w-56" />
                 </div>
             </Card>
-            <Table rows={rows} columns={cols} rowKey={a => String(a.id)} card={a => (
+            <Table rows={rows} columns={cols} rowKey={a => String(a.id)} empty={data ? '없습니다' : '읽는 중…'} card={a => (
                 <div className="space-y-1">
                     <div className="flex justify-between gap-2"><span className="font-bold">{a.action}</span><span className="text-xs text-text-muted">{fmtTime(a.at)}</span></div>
                     <KV k="대상 · 내용" v={`${a.targetMemberId ? memberName(members, a.targetMemberId) : '—'} · ${a.detail || '—'}`} />

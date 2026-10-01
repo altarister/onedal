@@ -20,12 +20,12 @@ import Board from './pages/Board';
 
 /**
  * 🏢 **운영센터 주소 — reviews/29 5장 그대로.** 로그인(`/login`) 밖은 토큰이 없으면 로그인으로.
- *    들어올 수 있나는 서버가 정한다 — `/api/ops/counts` 한 번에 403 이면 «허락이 없는 계정»(`users.ops_allowed_at` · core/opsAccess). 화면은 role 을 읽지 않는다.
+ *    들어올 수 있나는 서버가 정한다 — `/api/ops/counts` 한 번에 403 이면 «허락이 없는 계정»(`/denied` · `users.ops_allowed_at` · core/opsAccess).
+ *    쓰는 중에 허락을 거둬도 `client.ts` 가 403 을 `/denied` 로 보낸다(한 곳). 화면은 role 을 읽지 않는다.
  */
 function OpsGate({ children }: { children: ReactNode }) {
     const navigate = useNavigate();
     const [checked, setChecked] = useState(false);
-    const [denied, setDenied] = useState(false);
     const [failed, setFailed] = useState<string | null>(null);
 
     useEffect(() => {
@@ -38,19 +38,28 @@ function OpsGate({ children }: { children: ReactNode }) {
                 if (alive) setChecked(true);
             } catch (e) {
                 if (!alive) return;
-                if (statusOf(e) === 403) { setDenied(true); setChecked(true); }
+                if (statusOf(e) === 403) navigate('/denied', { replace: true });
                 else if (statusOf(e) !== 401) setFailed('서버 응답이 없습니다');
             }
         })();
         return () => { alive = false; };
     }, [navigate]);
 
-    const leave = async () => { await logout(); navigate('/login', { replace: true }); };
-
     if (failed) return <Notice title="서버 응답이 없습니다" body="잠시 뒤 다시 열어 주세요." action={<Button type="button" variant="outline" onClick={() => window.location.reload()}>다시</Button>} />;
     if (!checked) return <Notice title="확인 중…" body="" />;
-    if (denied) return <Notice title="운영센터 허락이 없는 계정입니다" body="관리자에게 물어보세요. 기사 화면은 관제웹(1dal.altari.com)입니다." action={<Button type="button" variant="outline" onClick={() => void leave()}>로그아웃</Button>} />;
     return <>{children}</>;
+}
+
+/** 🚫 허락이 없는 계정 — 서버 문을 부르지 않는다(403 되돌이 없음). 허락을 받았으면 «다시 확인»이 문지기를 다시 돈다 */
+function Denied() {
+    const navigate = useNavigate();
+    const leave = async () => { await logout(); navigate('/login', { replace: true }); };
+    return <Notice title="운영센터 허락이 없는 계정입니다" body="관리자에게 물어보세요. 기사 화면은 관제웹(1dal.altari.com)입니다." action={
+        <div className="flex gap-2 justify-center">
+            <Button type="button" variant="outline" onClick={() => navigate('/', { replace: true })}>다시 확인</Button>
+            <Button type="button" variant="ghost" onClick={() => void leave()}>로그아웃</Button>
+        </div>
+    } />;
 }
 
 function Notice({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
@@ -70,6 +79,7 @@ export default function App() {
         <BrowserRouter>
             <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/denied" element={<Denied />} />
                 <Route path="/*" element={
                     <OpsGate>
                         <Shell>

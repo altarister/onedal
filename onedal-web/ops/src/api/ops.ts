@@ -1,160 +1,71 @@
-import { useEffect, useState } from 'react';
-import { CONTENT_KINDS } from '@onedal/shared';
-import type { OpsAudit, OpsCall, OpsCallNote, OpsContent, OpsContentKind, OpsMember, OpsNotice, OpsRelease } from '@onedal/shared';
-import { session } from './client';
-import { ANOMALIES, AUDIT, BOARD_DROPPED, BOARD_FILTER_FULL, BOARD_PHONE_DETAIL, BOARD_SERVER, CALLS, CHECKS, CONTENTS, KAKAO_USAGE, MEMBERS, MONTH_CODE, NOTICES, PHONES, RELEASES, SCREEN_WORDS, STATS_ROWS } from '../mock/data';
+import { useCallback, useEffect, useState } from 'react';
+import type {
+    OpsAnomaliesReply, OpsAudit, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsNotice, OpsNoticePost, OpsPhone, OpsSuspendRequest,
+} from '@onedal/shared';
+import { client } from './client';
 
 /**
- * 🏢 **운영센터가 서버를 부르는 곳 — 이 파일 하나** (reviews/29 3단계 · 서버 문 `/api/ops/*` 는 ab 가 만든다).
- *    🔴 지금은 목업이다: 메모리의 예시 자료를 읽고 쓴다. 서버가 생기면 이 함수들만 바꾼다 — 화면은 안 바뀐다.
- *    쓰기는 전부 `audit` 에 한 줄 남긴다 (열람 기록의 짝 · ops/CLAUDE.md).
- *    날짜 칸(`paidUntil` · `autoUntil` …)은 한국 날 `YYYY-MM-DD` 다 — UTC 로 세지 않는다.
+ * 🏢 **운영센터가 서버 문 `/api/ops/*` 를 부르는 곳 — 이 파일 하나** (reviews/29 3단계 · 서버 `routes/ops.ts` · 규격 shared `ops.ts`).
+ *    쓰기마다 서버가 `ops_audit` 한 줄을 남긴다 — 화면은 기록을 따로 적지 않는다. 회원 상세 열람도 서버가 적는다(«회원 봄»).
+ *    🔴 서버가 안 되면 쪽이 «서버 응답이 없습니다 — 다시»를 보인다 — 예시 자료로 대신 그리지 않는다(장애를 가리면 노이즈).
+ *    통계는 서버의 관리자 통계 문(`/api/stats/flows/admin`)을 읽는다. 아직 서버 문이 없는 쪽(통화 도우미 · 앱 배포 · 멤버 대조 · 현황판)은 `example.ts` 의 예시 자료를 쓰고 쪽 머리에 그렇다고 적는다.
  */
-
-/** 지금 보는 관리자 — 로그인한 사람의 이름(`client.ts` 의 `session` · 문지기가 `/auth/me` 로 채운다) */
-export function currentAdminName(): string { return session.name || '관리자'; }
-
-const now = () => new Date().toISOString();
-const localDay = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-const todayDay = () => localDay(new Date());
-/** 기한 +1달 — 남은 날이 있으면 그 위에 얹는다(오늘부터 다시 재지 않는다) */
-const plusOneMonthFrom = (base: string | null) => {
-    const t = base && base > todayDay() ? new Date(`${base}T12:00:00`) : new Date();
-    t.setMonth(t.getMonth() + 1);
-    return localDay(t);
-};
-
-let auditSeq = AUDIT.length + 1;
-const listeners = new Set<() => void>();
-const notify = () => listeners.forEach(l => l());
-
-/** 화면이 «자료가 바뀌었다»를 듣는 자리 — 목업이라 메모리 변화를 그대로 알린다 */
-export function subscribe(fn: () => void): () => void { listeners.add(fn); return () => listeners.delete(fn); }
-
-/** 자료가 바뀌면 다시 그린다 — 서버가 생기면 {data · loading · error} 훅으로 바뀐다(쪽은 그때 훅만 바꾼다) */
-export function useTick() {
-    const [, setN] = useState(0);
-    useEffect(() => subscribe(() => setN(n => n + 1)), []);
-}
-
-function log(action: string, targetMemberId: string | null, detail: string) {
-    AUDIT.unshift({ id: auditSeq++, at: now(), admin: currentAdminName(), action, targetMemberId, detail });
-}
-
-/** 열람 기록 — 같은 열람이 3초 안에 두 번 오면(StrictMode · 다시 그리기) 한 줄만 */
-const recentViews = new Map<string, number>();
-function logViewOnce(what: string, targetMemberId: string | null, detail: string) {
-    const key = `${what}|${targetMemberId}|${detail}`;
-    const t = Date.now();
-    if ((recentViews.get(key) ?? 0) > t - 3000) return;
-    recentViews.set(key, t);
-    log(what, targetMemberId, detail);
-}
+const get = async <T,>(path: string) => (await client.get<T>(`/ops${path}`)).data;
+const post = async <T,>(path: string, body?: unknown) => (await client.post<T>(`/ops${path}`, body)).data;
 
 export const api = {
-    members: (): OpsMember[] => MEMBERS,
-    member: (id: string): OpsMember | undefined => MEMBERS.find(m => m.id === id),
-    phones: () => PHONES,
-    calls: (): OpsCall[] => CALLS,
-    anomalies: () => ANOMALIES,
-    screenWords: () => SCREEN_WORDS,
-    /** 글 순서는 규격의 순서 — 화면이 늘 같은 차례로 보인다 */
-    contents: (): OpsContent[] => [...CONTENTS].sort((a, b) => CONTENT_KINDS.indexOf(a.kind) - CONTENT_KINDS.indexOf(b.kind)),
-    notices: (): OpsNotice[] => NOTICES,
-    releases: (): OpsRelease[] => RELEASES,
-    audit: (): OpsAudit[] => AUDIT,
-    checks: () => CHECKS,
-    monthCode: () => MONTH_CODE,
-    /** 5단계 표(kakao_usage_days)가 생기기 전엔 null — 화면은 «아직 안 셈» */
-    kakaoUsage: (memberId: string): { today: number; month: number } | null => KAKAO_USAGE[memberId] ?? null,
-    stats: () => STATS_ROWS,
-    boardServer: () => BOARD_SERVER,
-    boardPhoneDetail: (deviceId: string) => BOARD_PHONE_DETAIL[deviceId],
-    boardFilterFull: (memberId: string) => BOARD_FILTER_FULL[memberId],
-    boardDropped: () => BOARD_DROPPED,
-    /** 메뉴 옆 숫자 — 할 일이 있는 것만 */
-    counts: () => ({
-        pendingMembers: MEMBERS.filter(m => m.role !== 'ADMIN' && !m.approvedAt && !m.withdrawnAt).length,
-        callsTodo: CALLS.filter(c => c.needsCall).length,
-        phonesOffline: PHONES.filter(p => p.status === 'OFFLINE').length,
-    }),
+    members: () => get<OpsMember[]>('/members'),
+    member: (id: string) => get<OpsMemberDetail>(`/members/${id}`),
+    phones: () => get<OpsPhone[]>('/phones'),
+    anomalies: () => get<OpsAnomaliesReply>('/anomalies'),
+    contents: () => get<OpsContent[]>('/contents'),
+    notices: () => get<OpsNotice[]>('/notices'),
+    /** since 가 있으면 그 날(한국 날)부터 전부 · 없으면 최근 200줄 */
+    audit: (since?: string) => get<OpsAudit[]>(since ? `/audit?since=${since}` : '/audit'),
+    counts: () => get<OpsCounts>('/counts'),
 
-    /** 열람도 기록에 남긴다 — 누구 것을 봤는지까지 */
-    viewed(what: string, targetMemberId: string | null, detail: string) { logViewOnce(what, targetMemberId, detail); notify(); },
+    /** 승인 — 승인 시각만 적는다. 유료 기한은 안 건드린다(가족판은 비움 = 기한 없음) */
+    approve: (id: string) => post<OpsMember>(`/members/${id}/approve`),
+    /** 정지 — «끝난 뒤»(진행 중 콜이 끝나면 멈춤) 또는 즉시(관제웹 연결도 끊긴다 · 안전취소가 멈춘다) */
+    suspend: (id: string, afterActive: boolean) => post<OpsMember>(`/members/${id}/suspend`, { afterActive } satisfies OpsSuspendRequest),
+    resume: (id: string) => post<OpsMember>(`/members/${id}/resume`),
+    withdraw: (id: string) => post<OpsMember>(`/members/${id}/withdraw`),
+    /** 글 저장은 새 판 한 줄 — 옛 판을 덮어쓰지 않는다(동의가 판을 가리킨다) */
+    saveContent: async (kind: OpsContentKind, title: string, body: string) => (await client.put<OpsContent>(`/ops/contents/${kind}`, { title, body } satisfies OpsContentSave)).data,
+    postNotice: (text: string, activeUntil: string | null) => post<OpsNotice>('/notices', { text, activeUntil } satisfies OpsNoticePost),
+    /** 내림 — 줄을 지우지 않고 내린 시각을 적는다 */
+    endNotice: (id: number) => post<OpsNotice>(`/notices/${id}/end`),
 
-    /** 승인 — 승인 시각만 적는다. 유료 기한은 안 건드린다(가족판은 비움 = 기한 없음 · 멤버 대조가 따로 늘린다) */
-    approve(id: string) {
-        const m = this.member(id); if (!m) return;
-        m.approvedAt = now();
-        log('승인', id, ''); notify();
-    },
-    suspend(id: string, immediate: boolean) {
-        const m = this.member(id); if (!m) return;
-        m.suspendedAt = now(); m.suspendAfterActive = !immediate;
-        log(immediate ? '즉시 정지' : '정지 (진행 중 콜 끝난 뒤)', id, immediate ? '안전취소 멈춤 경고 확인' : ''); notify();
-    },
-    resume(id: string) {
-        const m = this.member(id); if (!m) return;
-        m.suspendedAt = null; m.suspendAfterActive = false;
-        log('정지 풀기', id, ''); notify();
-    },
-    withdraw(id: string) {
-        const m = this.member(id); if (!m) return;
-        m.withdrawnAt = now();
-        log('탈퇴 처리', id, '폰 보고 거절 · 파기 예정'); notify();
-    },
-    /** 허락 켜기 · 끄기 — 켜면 «허락 시각»이 생기고 기한은 비움(없음). 기한은 따로 둔다 */
-    setAllow(id: string, what: 'auto' | 'stats', on: boolean, until: string | null = null) {
-        const m = this.member(id); if (!m) return;
-        if (what === 'auto') { m.autoAllowedAt = on ? now() : null; m.autoUntil = on ? until : null; }
-        else { m.statsAllowedAt = on ? now() : null; m.statsUntil = on ? until : null; }
-        log(`${what === 'auto' ? '자동 잡기' : '통계'} ${on ? '허락' : '끔'}`, id, on ? (until ? `${until} 까지` : '기한 없음') : ''); notify();
-    },
-    setPaidUntil(id: string, until: string | null) {
-        const m = this.member(id); if (!m) return;
-        m.paidUntil = until;
-        log('유료 기한', id, until ?? '없음'); notify();
-    },
-    writeCallNote(callId: string, note: Omit<OpsCallNote, 'writtenBy' | 'writtenAt'>) {
-        const c = CALLS.find(x => x.id === callId); if (!c) return;
-        c.callNote = { ...note, writtenBy: currentAdminName(), writtenAt: now() };
-        c.needsCall = false;
-        log('통화 결과 적음', c.memberId, `${callId} · ${note.cargoSize}${note.counterpartCancelled ? ' · 상대 취소' : ''}`); notify();
-    },
-    saveContent(kind: OpsContentKind, title: string, body: string) {
-        const c = CONTENTS.find(x => x.kind === kind); if (!c) return;
-        c.title = title; c.body = body; c.version += 1; c.updatedAt = now();
-        log('페이지 글 적음', null, `${title} v${c.version}`); notify();
-    },
-    postNotice(text: string, activeUntil: string | null) {
-        NOTICES.unshift({ id: Math.max(0, ...NOTICES.map(n => n.id)) + 1, text, postedAt: now(), activeUntil, endedAt: null });
-        log('공지 올림', null, text.slice(0, 30)); notify();
-    },
-    /** 내림 — 줄을 지우지 않고 내린 시각을 적는다(지우기는 기사님 · 기록은 남는다) */
-    endNotice(id: number) {
-        const n = NOTICES.find(x => x.id === id); if (!n || n.endedAt) return;
-        n.endedAt = now();
-        log('공지 내림', null, `#${id}`); notify();
-    },
-    /** 올리기 — «최신»은 versionCode 가 가장 큰 판이다. 낮은 판을 올리면 최신이 되지 않는다(최소 판이 최신보다 높아지지 않게) */
-    uploadRelease(app: OpsRelease['app'], version: string, versionCode: number, fileName: string) {
-        const maxCode = Math.max(0, ...RELEASES.filter(r => r.app === app).map(r => r.versionCode));
-        const isLatest = versionCode > maxCode;
-        if (isLatest) RELEASES.forEach(r => { if (r.app === app) r.isLatest = false; });
-        RELEASES.unshift({ app, version, versionCode, fileName, sha256: '(계산 자리)', uploadedAt: now(), isLatest, isMinimum: false });
-        log('APK 올림', null, `${app} ${version} (code ${versionCode}${isLatest ? ' · 최신' : ' · 옛 판'})`); notify();
-    },
-    /** 최소 판 — 최신보다 높게는 못 둔다 */
-    setMinimum(app: OpsRelease['app'], versionCode: number) {
-        const latest = RELEASES.find(r => r.app === app && r.isLatest);
-        if (latest && versionCode > latest.versionCode) return;
-        RELEASES.forEach(r => { if (r.app === app) r.isMinimum = r.versionCode === versionCode; });
-        log('최소 판 지정', null, `${app} versionCode ${versionCode}`); notify();
-    },
-    checkMember(memberId: string, ok: boolean) {
-        const c = CHECKS.find(x => x.memberId === memberId); if (!c) return;
-        c.checkedAt = now(); c.result = ok ? 'OK' : 'MISMATCH';
-        if (ok) { const m = this.member(memberId); if (m) m.paidUntil = plusOneMonthFrom(m.paidUntil); }
-        log('멤버 대조', memberId, ok ? '일치 · 기한 +1달' : '불일치'); notify();
-    },
+    /** 📊 콜 흐름 통계(관리자 문 `/api/stats/flows/admin` · 회원 칸 포함) — 기본 최근 28일. 평균은 요금을 아는 콜로만(없으면 null) */
+    statsAdmin: async (groupBy: StatsGroupBy) => (await client.get<StatsAdminReply>('/stats/flows/admin', { params: { groupBy } })).data,
 };
+
+export type StatsGroupBy = 'weekday' | 'hour' | 'month';
+export interface StatsAdminCell { group: string; targetApp: string; from: string; to: string; userId: string; drivers: number; calls?: number; fareCalls?: number; fareFirstAvg?: number | null; fareLastAvg?: number | null }
+export interface StatsAdminReply { from: string; to: string; groupBy: string; cells: StatsAdminCell[] }
+
+export interface Loaded<T> { data: T | null; error: string | null; reload: () => void }
+
+/**
+ * 서버에서 읽는 훅 — 쪽은 `const { data, error, reload } = useOps(() => api.members(), [])`.
+ * 쓰기 뒤에는 `reload()`. `error` 가 있으면 쪽이 `ErrorBand` 를 그린다. 401 · 403 은 `client.ts` 가 로그인 · «허락 없음»으로 보낸다.
+ */
+export function useOps<T>(load: () => Promise<T>, deps: unknown[]): Loaded<T> {
+    const [data, setData] = useState<T | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [n, setN] = useState(0);
+    const reload = useCallback(() => setN(x => x + 1), []);
+    useEffect(() => {
+        let alive = true;
+        load().then(d => { if (alive) { setData(d); setError(null); } })
+            .catch(() => { if (alive) setError('서버 응답이 없습니다'); });
+        return () => { alive = false; };
+    }, [n, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
+    return { data, error, reload };
+}
+
+/** 쓰기 한 번 — 끝나면 다시 읽는다. 실패하면 창 하나(화면은 그대로) */
+export async function write(go: () => Promise<unknown>, reload: () => void): Promise<void> {
+    try { await go(); reload(); }
+    catch { alert('서버에 적지 못했습니다 — 다시 해 주세요'); }
+}

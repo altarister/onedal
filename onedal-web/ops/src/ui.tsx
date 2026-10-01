@@ -1,26 +1,26 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
-import { COLOR_DOT, opsMemberStatus, wonText, type OpsMember } from '@onedal/shared';
+import { COLOR_DOT, businessDayKey, hhmmText, isoKst, opsMemberStatus, wonText, type OpsCounts, type OpsMember } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 import { Badge } from '@onedal/ui/badge';
 import {
     AlertTriangle, BarChart3, FileText, LogOut, Map as MapIcon, Megaphone, Moon, MoreHorizontal, Package, Phone, ScrollText, Smartphone, Sun, Users, Wrench, X,
 } from 'lucide-react';
-import { api, currentAdminName, subscribe, useTick } from './api/ops';
-import { logout } from './api/client';
-export { useTick };
+import { api, useOps } from './api/ops';
+import { logout, session } from './api/client';
 
 /**
  * 🏢 **운영센터 화면 틀** — PC 는 왼쪽 메뉴 + 윗줄(마지막 갱신 · 관리자), 폰은 윗줄 + 아래 탭 넷(+ 더 보기).
  *    표는 폰 폭에서 카드로 바뀐다(`Table` 의 `card`). 부품은 `@onedal/ui`, 판정 점은 shared `COLOR_DOT` 한 벌.
- *    날짜는 **브라우저의 한국 날**로 센다(`dayKey`) — `toISOString()` 은 UTC 라 새벽 0~9시에 하루 어긋난다.
+ *    시각 글자는 shared 의 `hhmmText` · `isoKst` · `businessDayKey` 를 거친다 — 화면이 직접 파싱하지 않는다(`toISOString()` 은 UTC 라 새벽 0~9시에 하루 어긋난다).
  */
 
-export const NAV: { to: string; label: string; icon: ReactNode; badge?: () => number }[] = [
-    { to: '/members', label: '회원', icon: <Users className="size-4" />, badge: () => api.counts().pendingMembers },
-    { to: '/calls', label: '통화 도우미', icon: <Phone className="size-4" />, badge: () => api.counts().callsTodo },
+/** 메뉴 옆 숫자는 서버 `/ops/counts`(할 일이 있는 것만) — 틀이 60초마다 다시 읽는다 */
+export const NAV: { to: string; label: string; icon: ReactNode; badge?: (c: OpsCounts) => number }[] = [
+    { to: '/members', label: '회원', icon: <Users className="size-4" />, badge: c => c.pendingMembers },
+    { to: '/calls', label: '통화 도우미', icon: <Phone className="size-4" />, badge: c => c.callsTodo },
     { to: '/map', label: '지도', icon: <MapIcon className="size-4" /> },
-    { to: '/phones', label: '폰', icon: <Smartphone className="size-4" />, badge: () => api.counts().phonesOffline },
+    { to: '/phones', label: '폰', icon: <Smartphone className="size-4" />, badge: c => c.phonesOffline },
     { to: '/anomalies', label: '이상 기록', icon: <AlertTriangle className="size-4" /> },
     { to: '/board', label: '현황판(점검)', icon: <Wrench className="size-4" /> },
     { to: '/contents', label: '페이지 글', icon: <FileText className="size-4" /> },
@@ -38,9 +38,14 @@ function NavBadge({ n }: { n: number }) {
 }
 
 export function Shell({ children }: { children: ReactNode }) {
-    useTick();
     const location = useLocation();
     const navigate = useNavigate();
+    const [minute, setMinute] = useState(0);
+    useEffect(() => { const t = setInterval(() => setMinute(m => m + 1), 60_000); return () => clearInterval(t); }, []);
+    const counts = useOps(() => api.counts(), [minute]);
+    const c: OpsCounts = counts.data ?? { pendingMembers: 0, callsTodo: 0, phonesOffline: 0 };
+    const [refreshedAt, setRefreshedAt] = useState(() => new Date());
+    useEffect(() => { if (counts.data) setRefreshedAt(new Date()); }, [counts.data]);
     const leave = async () => { await logout(); navigate('/login', { replace: true }); };
     const logoutButton = (
         <button type="button" onClick={() => void leave()} className="flex items-center gap-1 text-xs text-text-muted rounded-md px-2 py-1 hover:bg-surface-alt" aria-label="로그아웃">
@@ -51,8 +56,6 @@ export function Shell({ children }: { children: ReactNode }) {
     const dark = theme === 'dark';
     const [more, setMore] = useState(false);
     useEffect(() => { setMore(false); }, [location.pathname]);
-    const [refreshedAt, setRefreshedAt] = useState(() => new Date());
-    useEffect(() => subscribe(() => setRefreshedAt(new Date())), []);
     const themeButton = (
         <button type="button" onClick={toggleTheme} className="flex items-center gap-1 text-xs text-text-muted rounded-md px-2 py-1 hover:bg-surface-alt" aria-label="테마 바꾸기">
             {dark ? <><Sun className="size-3.5" /> 밝게로</> : <><Moon className="size-3.5" /> 어둡게로</>}
@@ -73,13 +76,13 @@ export function Shell({ children }: { children: ReactNode }) {
                 <nav className="flex flex-col px-2 gap-0.5">
                     {NAV.map(n => (
                         <NavLink key={n.to} to={n.to} className={({ isActive }) => `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-info/15 text-info font-bold' : 'text-text-muted hover:bg-surface-alt hover:text-text-primary'}`}>
-                            {n.icon}<span>{n.label}</span>{n.badge && <NavBadge n={n.badge()} />}
+                            {n.icon}<span>{n.label}</span>{n.badge && <NavBadge n={n.badge(c)} />}
                         </NavLink>
                     ))}
                 </nav>
                 <div className="mt-auto px-4 py-4 space-y-2 text-[11px] text-text-muted">
                     <div className="flex gap-1">{themeButton}{logoutButton}</div>
-                    <div>관리자: {currentAdminName()}</div>
+                    <div>관리자: {session.name || '관리자'}</div>
                     <div>열람은 기록에 남습니다</div>
                 </div>
             </aside>
@@ -89,8 +92,8 @@ export function Shell({ children }: { children: ReactNode }) {
                 <div className="sticky top-0 z-20 bg-surface/90 backdrop-blur border-b border-border-card px-4 h-11 flex items-center gap-3">
                     <Link to="/members" className="md:hidden flex items-center gap-2 font-black"><span className="w-7 h-7 rounded-md bg-gradient-to-tr from-accent-alt to-info flex items-center justify-center text-white text-xs">1D</span>운영센터</Link>
                     <div className="ml-auto flex items-center gap-3 text-xs text-text-muted">
-                        <span>마지막 갱신 {refreshedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
-                        <span className="hidden md:inline">{currentAdminName()}</span>
+                        <span>마지막 갱신 {clockOf(refreshedAt)}</span>
+                        <span className="hidden md:inline">{session.name || '관리자'}</span>
                         <span className="md:hidden">{themeButton}</span>
                     </div>
                 </div>
@@ -102,7 +105,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 {NAV.filter(n => PHONE_TABS.includes(n.to)).map(n => (
                     <NavLink key={n.to} to={n.to} className={({ isActive }) => `relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActive ? 'text-info font-bold' : 'text-text-muted'}`}>
                         {n.icon}<span>{n.label.replace('통화 도우미', '통화')}</span>
-                        {n.badge && n.badge() > 0 && <span className="absolute top-1 right-1/4 min-w-4 h-4 px-1 rounded-full bg-warning text-black text-[10px] font-black flex items-center justify-center">{n.badge()}</span>}
+                        {n.badge && n.badge(c) > 0 && <span className="absolute top-1 right-1/4 min-w-4 h-4 px-1 rounded-full bg-warning text-black text-[10px] font-black flex items-center justify-center">{n.badge(c)}</span>}
                     </NavLink>
                 ))}
                 <button type="button" onClick={() => setMore(v => !v)} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${more || rest.some(n => n.to === location.pathname) ? 'text-info font-bold' : 'text-text-muted'}`}>
@@ -118,10 +121,25 @@ export function Shell({ children }: { children: ReactNode }) {
                                 <NavLink key={n.to} to={n.to} className={({ isActive }) => `flex items-center gap-2 rounded-xl px-3 py-3 text-sm ${isActive ? 'bg-info/15 text-info font-bold' : 'bg-surface-alt'}`}>{n.icon}<span>{n.label}</span></NavLink>
                             ))}
                         </div>
-                        <div className="mt-3 flex justify-between text-xs text-text-muted"><span>관리자: {currentAdminName()}</span>{logoutButton}</div>
+                        <div className="mt-3 flex justify-between text-xs text-text-muted"><span>관리자: {session.name || '관리자'}</span>{logoutButton}</div>
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+/** 🧪 예시 자료 띠 — 서버 문이 아직 없는 쪽의 머리에. 자료가 예시라는 개별 사실로 그린다 */
+export function ExampleBand({ stage }: { stage: string }) {
+    return <div className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm">🧪 예시 자료입니다 — 서버 문은 {stage}. 여기서 누른 것은 기록에 남지 않습니다.</div>;
+}
+
+/** 서버가 안 될 때 — 예시 자료로 대신 그리지 않는다 */
+export function ErrorBand({ text, onRetry }: { text: string; onRetry: () => void }) {
+    return (
+        <div className="rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-sm flex items-center justify-between gap-3">
+            <span>⚠️ {text}</span>
+            <button type="button" onClick={onRetry} className="rounded-md border border-border-card px-2 py-1 text-xs hover:bg-surface-alt">다시</button>
         </div>
     );
 }
@@ -224,30 +242,33 @@ const STATUS_KO: Record<string, string> = { ORDER_CONFIRMED: '진행 중', ORDER
 export function statusKo(status: string): string { return STATUS_KO[status] ?? status.replace('ORDER_', ''); }
 
 /** 한국 날 — 브라우저 시간대(기사님 · 관리자는 한국). `toISOString()` 은 UTC 라 쓰지 않는다 */
+/** 한국 날 `YYYY-MM-DD` — shared 두 함수를 거친다(ISO 글자 → ms → 영업일 키). 브라우저는 한국(기사님 · 관리자) */
 export function dayKey(at: Date | string | number = new Date()): string {
-    const t = at instanceof Date ? at : new Date(at);
-    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    const ms = at instanceof Date ? at.getTime() : typeof at === 'number' ? at : Date.parse(isoKst(at) ?? '');
+    return businessDayKey(Number.isFinite(ms) ? ms : Date.now());
 }
 export function todayKey(): string { return dayKey(new Date()); }
 export function plusDaysKey(n: number, from: Date | string = new Date()): string {
-    const t = from instanceof Date ? new Date(from) : new Date(from);
+    const t = from instanceof Date ? new Date(from) : new Date(isoKst(from) ?? from);
     t.setDate(t.getDate() + n);
     return dayKey(t);
 }
+const clockOf = (t: Date) => hhmmText(t) ?? '--:--';
 
+/** «HH:MM» — 오늘이 아니면 «M/D HH:MM». 시각 글자는 shared `hhmmText` */
 export function fmtTime(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    const t = new Date(iso);
-    const same = dayKey(t) === todayKey();
-    const hm = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
-    return same ? hm : `${t.getMonth() + 1}/${t.getDate()} ${hm}`;
+    const hm = hhmmText(iso);
+    if (!hm) return '—';
+    const day = dayKey(iso!);
+    return day === todayKey() ? hm : `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))} ${hm}`;
 }
 
 /** 날짜까지 — «몇 시»만으로는 어느 날인지 모르는 값(서버 부팅 등) */
 export function fmtDateTime(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    const t = new Date(iso);
-    return `${t.getMonth() + 1}/${t.getDate()} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+    const hm = hhmmText(iso);
+    if (!hm) return '—';
+    const day = dayKey(iso!);
+    return `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))} ${hm}`;
 }
 
 /** 금액 — shared `wonText` 한 벌 */

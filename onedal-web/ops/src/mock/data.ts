@@ -1,10 +1,8 @@
-import type {
-    OpsAnomaly, OpsAudit, OpsCall, OpsContent, OpsMember, OpsMemberCheck, OpsNotice, OpsPhone, OpsRelease, OpsScreenWord,
-} from '@onedal/shared';
+import type { OpsCall, OpsMember, OpsMemberCheck, OpsPhone, OpsRelease } from '@onedal/shared';
 
 /**
  * 🧪 **예시 자료 — 세 사람(기사님 · 딸 · 와이프) · 폰 넷 · 콜 몇 건** (reviews/29 «가족 1차판»).
- *    «실제로 돌면 이렇게 보인다»를 보이기 위한 것이다. 서버 문 `/api/ops/*` 가 생기면 `api/ops.ts` 가 이 파일 대신 서버를 읽는다.
+ *    서버 문이 아직 없는 쪽(통화 도우미 · 앱 배포 · 멤버 대조 · 현황판)만 `api/example.ts` 로 읽는다 — 서버 쪽은 이 파일을 모른다.
  *    🔴 이름 · 전화 · 주소는 전부 지어낸 것이다. 가족 1차판이라 관리자는 원문을 본다 — 가림은 남을 받을 때 켠다(reviews/29 기준 3).
  */
 
@@ -13,9 +11,6 @@ const d = (daysAgo: number, hh = 9, mm = 0) => {
     const t = new Date(today); t.setDate(t.getDate() - daysAgo); t.setHours(hh, mm, 0, 0); return t.toISOString();
 };
 const localDay = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-const plusDays = (n: number) => { const t = new Date(today); t.setDate(t.getDate() + n); return localDay(t); };
-const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
-const tomorrowName = DAY_NAMES[(today.getDay() + 1) % 7];
 
 export const MEMBERS: OpsMember[] = [
     {
@@ -87,51 +82,10 @@ export const CALLS: OpsCall[] = [
     },
 ];
 
-export const ANOMALIES: OpsAnomaly[] = [
-    { id: 1, at: d(0, 9, 12), memberId: 'm-driver2', deviceId: 'd-5a7c2e19-9d4b-4a3c-8e1f-2b6d9c0a7e33', targetApp: 'insung', screen: '상세', reason: '상세 화면을 못 읽음 — 팝업이 250ms 안에 안 뜸' },
-    { id: 2, at: d(0, 8, 50), memberId: 'm-driver1', deviceId: 'd-3f1c9a2e-7b4d-4e8a-9c1d-0a6b2e5f7c11', targetApp: 'kakaopicker', screen: '목록', reason: '사진 읽기 실패 (글자 깨짐)' },
-    { id: 3, at: d(1, 17, 3), memberId: 'm-driver1', deviceId: 'd-3f1c9a2e-7b4d-4e8a-9c1d-0a6b2e5f7c11', targetApp: 'hwamul24', screen: '목록', reason: '요금 칸 없음' },
-    { id: 4, at: d(1, 9, 30), memberId: null, deviceId: 'd-00000000-0000-4000-8000-0000000000ff', targetApp: 'insung', screen: '목록', reason: '연결 안 된 폰의 보고 — 거절함' },
-    { id: 5, at: d(2, 12, 0), memberId: 'm-driver2', deviceId: 'd-5a7c2e19-9d4b-4a3c-8e1f-2b6d9c0a7e33', targetApp: 'insung', screen: '팝업', reason: '결재 «닫기» 뒤 목록 복귀 안 됨' },
-];
-
-export const SCREEN_WORDS: OpsScreenWord[] = [
-    { targetApp: 'insung', page: '목록', word: '급송', kind: '정의 밖', firstSeenAt: d(0, 8, 20) },
-    { targetApp: 'insung', page: '상세', word: '착불', kind: '정의 밖', firstSeenAt: d(0, 8, 21) },
-    { targetApp: 'kakaopicker', page: '목록', word: '픽업완료', kind: '잡음', firstSeenAt: d(1, 10, 0) },
-    { targetApp: 'hwamul24', page: '목록', word: '혼적', kind: '정의 밖', firstSeenAt: d(1, 16, 40) },
-    { targetApp: 'insung', page: '팝업', word: '재배차', kind: '남은 토막', firstSeenAt: d(2, 9, 0) },
-];
-
-export const CONTENTS: OpsContent[] = [
-    { kind: 'terms', title: '서비스 약관', body: '', version: 0, updatedAt: '' },
-    { kind: 'privacy', title: '개인정보 처리방침', body: '', version: 0, updatedAt: '' },
-    { kind: 'location', title: '위치정보 이용약관', body: '', version: 0, updatedAt: '' },
-    { kind: 'joinGuide', title: '가입 안내', body: '1DAL 은 배차망(인성 · 화물24시 · 픽커)의 콜을 읽어 좋은 콜을 알려 주는 도구입니다.\n가족 1차판 — 관리자 승인 뒤 쓸 수 있습니다.', version: 1, updatedAt: d(2, 20, 0) },
-    { kind: 'installGuide', title: '설치 안내', body: '', version: 0, updatedAt: '' },
-    { kind: 'withdrawGuide', title: '탈퇴 안내', body: '', version: 0, updatedAt: '' },
-];
-
-export const NOTICES: OpsNotice[] = [
-    { id: 1, text: `내일(${tomorrowName}) 새벽 2~3시 서버 점검 — 그 시간엔 알람이 안 울립니다`, postedAt: d(0, 7, 0), activeUntil: plusDays(1), endedAt: null },
-    { id: 2, text: '원달앱 2.9.12 로 올려 주세요 — 픽커 사진 읽기가 좋아졌습니다', postedAt: d(3, 9, 0), activeUntil: null, endedAt: null },
-];
-
 export const RELEASES: OpsRelease[] = [
     { app: 'scanner', version: '2.9.12', versionCode: 59, fileName: 'onedal-app-2.9.12.apk', sha256: 'a3f9…c1e2', uploadedAt: d(3, 8, 40), isLatest: true, isMinimum: false },
     { app: 'scanner', version: '2.9.11', versionCode: 58, fileName: 'onedal-app-2.9.11.apk', sha256: '77b0…9d4a', uploadedAt: d(10, 8, 40), isLatest: false, isMinimum: true },
     { app: 'dashboard', version: '1.0', versionCode: 1, fileName: 'onedal-dashboard-1.0.apk', sha256: '0c1d…ee31', uploadedAt: d(10, 8, 45), isLatest: true, isMinimum: true },
-];
-
-export const AUDIT: OpsAudit[] = [
-    { id: 8, at: d(0, 9, 55), admin: '와이프 (관리자)', action: '통화 결과 적음', targetMemberId: 'm-driver1', detail: 'c-102 · 박스 2 · 10:50 상차 가능' },
-    { id: 7, at: d(0, 9, 40), admin: '와이프 (관리자)', action: '위치 봄', targetMemberId: 'm-driver2', detail: '/map' },
-    { id: 6, at: d(0, 7, 5), admin: '와이프 (관리자)', action: '공지 올림', targetMemberId: null, detail: '서버 점검 안내' },
-    { id: 5, at: d(2, 8, 30), admin: '와이프 (관리자)', action: '승인', targetMemberId: 'm-driver2', detail: '가족 — 유료 기한 없음' },
-    { id: 4, at: d(2, 20, 0), admin: '와이프 (관리자)', action: '페이지 글 적음', targetMemberId: null, detail: '가입 안내 v1' },
-    { id: 3, at: d(3, 8, 40), admin: '와이프 (관리자)', action: 'APK 올림', targetMemberId: null, detail: '원달앱 2.9.12 (최신)' },
-    { id: 2, at: d(3, 9, 0), admin: '와이프 (관리자)', action: '공지 올림', targetMemberId: null, detail: '원달앱 업데이트 안내' },
-    { id: 1, at: d(1, 14, 25), admin: '와이프 (관리자)', action: '콜 봄', targetMemberId: 'm-driver1', detail: 'c-105 · 취소 사유 확인' },
 ];
 
 const thisMonth = localDay(today).slice(0, 7);
@@ -141,19 +95,6 @@ export const CHECKS: OpsMemberCheck[] = [
     { memberId: 'm-pending', month: thisMonth, codeEntered: '4812', checkedAt: null, result: null },
 ];
 export const MONTH_CODE = '4821';
-
-export const KAKAO_USAGE: Record<string, { today: number; month: number }> = {
-    'm-driver1': { today: 63, month: 1240 },
-    'm-driver2': { today: 18, month: 210 },
-};
-
-export const STATS_ROWS = [
-    { group: '월', from: '광주시', to: '이천시', calls: 41, fareAvg: 43800, memberId: 'm-driver1' },
-    { group: '월', from: '광주시', to: '성남시 분당구', calls: 23, fareAvg: 31200, memberId: 'm-driver1' },
-    { group: '월', from: '성남시 분당구', to: '광주시', calls: 17, fareAvg: 27500, memberId: 'm-driver2' },
-    { group: '화', from: '이천시', to: '여주시', calls: 12, fareAvg: 38900, memberId: 'm-driver1' },
-    { group: '화', from: '성남시 수정구', to: '성남시 분당구', calls: 9, fareAvg: 9500, memberId: 'm-driver2' },
-];
 
 /** 🧰 현황판(점검) 예시 — 서버 /api/health 와 폰 보고(지문 · 성적표 · 누적)가 주는 것의 모양 */
 export const BOARD_SERVER = { bootedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), commit: 'a9eb50c1', branch: 'main', sockets: 3, lastScrapAt: new Date(Date.now() - 4000).toISOString(), db: 'data.db', tz: 'Asia/Seoul' };

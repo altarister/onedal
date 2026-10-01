@@ -3,18 +3,18 @@ import { TARGET_APP_LABEL, type OpsCall } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
 import { Checkbox } from '@onedal/ui/checkbox';
 import { Input } from '@onedal/ui/input';
-import { api } from '../api/ops';
-import { COLOR_DOT, Card, PageHeader, Stat, StatRow, dayKey, fmtTime, fmtWon, memberName, statusKo, todayKey, useTick } from '../ui';
+import { EXAMPLE_STAGE, example, useExampleTick } from '../api/example';
+import { COLOR_DOT, Card, PageHeader, Stat, StatRow, dayKey, fmtTime, fmtWon, memberName, statusKo, todayKey, ExampleBand } from '../ui';
 
 /**
  * 📞 **통화 도우미** — 기사가 KEEP 했거나 판정이 «통화 필요»인 콜이 맨 위. 관리자가 상차지 · 하차지에 전화해 결과를 적는다 (reviews/29 5단계).
  *    적는 칸은 기사가 쓰는 «통화함»과 같다 + 누가 적었나. 🔴 «상대가 취소함»은 정보다 — CANCEL 결재는 기사가 관제웹에서 누른다.
  */
 export default function Calls() {
-    useTick();
-    const members = api.members();
+    useExampleTick();
+    const members = example.members();
     const [who, setWho] = useState<string>('all');
-    const all = api.calls().filter(c => who === 'all' || c.memberId === who);
+    const all = example.calls().filter(c => who === 'all' || c.memberId === who);
     const todo = all.filter(c => c.needsCall);
     const rest = all.filter(c => !c.needsCall);
 
@@ -26,6 +26,7 @@ export default function Calls() {
                     {members.filter(m => m.role !== 'ADMIN').map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
             } />
+            <ExampleBand stage={EXAMPLE_STAGE.calls} />
             <StatRow>
                 <Stat label="전화할 콜" value={todo.length} tone={todo.length ? 'warn' : 'ok'} />
                 <Stat label="오늘 적은 결과" value={all.filter(c => c.callNote && dayKey(c.callNote.writtenAt) === todayKey()).length} />
@@ -64,7 +65,7 @@ function CallCard({ c, name }: { c: OpsCall; name: string }) {
     const save = () => {
         // 상차 가능 시각 — 오늘(한국 날)의 그 시각. toISOString 의 날짜(UTC)를 쓰면 새벽에 전날이 된다
         const at = ready ? (() => { const [h, mi] = ready.split(':').map(Number); const t = new Date(); t.setHours(h, mi, 0, 0); return t.toISOString(); })() : null;
-        api.writeCallNote(c.id, { cargoSize: cargoSize || '(안 물음)', pickupReadyAt: at, counterpartCancelled: cancelled, memo });
+        example.writeCallNote(c.id, { cargoSize: cargoSize || '(안 물음)', pickupReadyAt: at, counterpartCancelled: cancelled, memo });
     };
     const tel = (p: string | null) => p ? <a href={`tel:${p.replace(/[^\d]/g, '')}`} className="text-info font-bold underline-offset-2 hover:underline">📞 {p}</a> : <span className="text-text-muted">번호 없음</span>;
     return (
