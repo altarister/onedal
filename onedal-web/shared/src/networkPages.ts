@@ -30,11 +30,21 @@ export interface NetworkPageSpec {
     /** 그 배차망 정의의 머리 글(생성 파일 머리에 실린다) */
     about: string[];
     pages: Record<ScreenPage, NetworkFieldSpec[]>;
+    /**
+     * 🚫 **콜 한 벌의 글** — 상세 원문에서 화면 머리 · 버튼 · 목록 잔상을 빼고 콜 부분만 꺼내는 정규식 원문(1번 묶음).
+     * 서버 제외어 검사가 이 범위에서만 찾는다(`pageRead.callTextOf` · reviews/34 3단계 5③). 못 맞으면 빈 글 — 지어내지 않는다.
+     * 원달앱은 읽지 않는다(원달앱 제외어는 목록 카드 글에서만 찾는다) · gen:pages 는 이 칸을 뽑지 않는다.
+     */
+    callText: string;
+    /** 그 범위로 잡은 까닭 한 줄 */
+    callTextWhy: string;
 }
 
 export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
   "insung": {
     "about": ["📄 **인성 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/인성 · 시뮬 onedal-sim).", "⚠️ 실물 인성 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처 몇 장이 근거다. 설치하면 이 표부터 다시 본다."],
+    "callText": "([\\s\\S]*)",
+    "callTextWhy": "상세 원문은 팝업까지 모은 글이라 머리 · 버튼 글이 없다 — 통째(«구분 : 왕복»도 본다)",
     "pages": {
       "list": [
         {"field": "pickup", "where": "출발지 칸", "sample": "@초이동 · @남양주(오남", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},
@@ -79,6 +89,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
   },
   "hwamul24": {
     "about": ["📄 **화물24시 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/화물24시).", "⚠️ 실물 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처가 근거다. 시뮬 상세 화면은 실물과 모양이 달라(머리 «배차내역») 상세까지 못 간다."],
+    "callText": "(상차지[\\s\\S]*?)(?=배차신청|$)",
+    "callTextWhy": "«상차지»부터 «배차신청» 앞까지 — 화주 이름 줄(«화물과퀵»)·«60분 안보기» 버튼·잔액 머리와 아래 버튼을 뺀다(실물 캡처 18 · 시뮬은 «60분 안보기»가 없어 «상차지»로 잡는다)",
     "pages": {
       "list": [
         {"field": "pickup", "where": "왼쪽 윗줄", "sample": "경기 시흥 정왕동", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse"},
@@ -117,6 +129,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
   },
   "kakaopicker": {
     "about": ["📄 **카카오 픽커 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/카카오픽커/실물_2026 · 실물 로그).", "칸 이름은 세 배차망 공통(`PageField`) — 여기에는 «어디서 · 어떤 글자로»만 적는다.", "안 읽는·버리는 칸(UNUSED·DROPPED)이 다음에 읽을 재료다."],
+    "callText": "[\\s\\S]*(픽업지[\\s\\S]*?)(?=넘기기|수락하기|$)",
+    "callTextWhy": "마지막 «픽업지»부터 «넘기기»/«수락하기» 앞까지 — 앞은 목록 잔상, 뒤는 버튼(서버 옛 callTextOf 와 같은 답)",
     "pages": {
       "list": [
         {"field": "fare", "where": "목록 줄 오른쪽", "sample": "16,093", "seen": "REAL", "handling": "READ", "usedAt": "KakaoPickerParser.parse"},

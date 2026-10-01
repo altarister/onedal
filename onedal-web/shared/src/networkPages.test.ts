@@ -50,3 +50,29 @@ describe('배차망 화면 정의 표', () => {
         }
     });
 });
+
+/**
+ * 🚫 **콜 한 벌의 글 — 제외어를 찾을 범위** (reviews/34 3단계 5③ · onedal-69 · onedal-46).
+ * 화면 머리 · 버튼 · 목록 잔상(«화물과퀵» 화주 줄 · «60분 안보기» · «배차신청» · «넘기기»)은 범위 밖 — 기사님 제외어 «퀵»이 화물24시 상세 전부에 걸리던 길을 막는다.
+ * 결제방법 «착불» · 인성 «구분 : 왕복»처럼 콜 내용은 범위 안 · 못 맞으면 빈 글(지어내지 않는다). 서버 pageRead 가 같은 표로 읽는다.
+ */
+describe('콜 글 범위 (callText)', () => {
+    it('배차망마다 하나 · JS 에서 안 터지고 공통 문법만 · 1번 묶음', () => {
+        for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
+            expect(typeof spec.callText, `${net} callText`).toBe('string');
+            expect(() => new RegExp(spec.callText), net).not.toThrow();
+            expect(spec.callText, `${net} — 금지 문법`).not.toMatch(/\\p\{|\(\?<[A-Za-z]|\+\+|\*\+|\?\+|\(\?[imsx]|\\[bBwW]/);
+            expect(new RegExp(`${spec.callText}|`).exec('')!.length, `${net} — 1번 묶음`).toBeGreaterThanOrEqual(2);
+        }
+    });
+
+    it('공통 문제지 — 범위 안 글 · 범위 밖 낱말', () => {
+        const sheet = JSON.parse(readFileSync(join(__dirname, 'pageReadCases.json'), 'utf8')) as { callTextCases: Array<{ network: TargetAppType; texts: string[]; expect: string | null; outside: string[]; why: string }> };
+        expect(sheet.callTextCases.length).toBeGreaterThan(0);
+        for (const c of sheet.callTextCases) {
+            const got = new RegExp(NETWORK_PAGES[c.network].callText).exec(c.texts.join(' '))?.[1]?.trim() || null;
+            expect(got, `${c.network} — ${c.why}`).toBe(c.expect);
+            for (const w of c.outside) expect(got ?? '', `${c.network} «${w}» 는 범위 밖 — ${c.why}`).not.toContain(w);
+        }
+    });
+});
