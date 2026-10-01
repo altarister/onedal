@@ -26,7 +26,7 @@ import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "..
 import { slog } from "../utils/fileLogger";
 import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";
-import { logContext, whoLabel, enterLogWho } from "../utils/logContext";
+import { logContext, whoLabel } from "../utils/logContext";
 import { clockText, wonText } from "@onedal/shared";
 import { authSocket } from "./authSocket";
 import { webAccountGate } from "./webAccountGate";
@@ -131,9 +131,9 @@ export function registerSocketHandlers(io: Server) {
     }
 
     // 2. 개별 유저 연결 수립
-    io.on("connection", (socket: Socket) => {
+    /* 🪪 연결 처리(하루 준비 등) 전체를 그 기사 몫으로 — 로그 «@기사» · 카카오 사용량 «누구 몫». 이벤트 감싸기(safeOn)와 같은 run 이라 다른 흐름으로 새지 않는다 */
+    io.on("connection", (socket: Socket) => logContext.run({ who: whoLabel(socket.data.user?.name, socket.data.user?.id), userId: socket.data.user?.id }, () => {
         const userId = socket.data.user.id;
-        enterLogWho(socket.data.user?.name, userId);   // 🪪 연결 처리(하루 준비 등)의 로그 «@기사» · 카카오 사용량 «누구 몫»
         const clientSessionId = (socket.handshake.auth?.clientSessionId as string) ||
                                 (socket.handshake.query?.clientSessionId as string) ||
                                 `anon_${socket.id}`;
@@ -764,7 +764,7 @@ export function registerSocketHandlers(io: Server) {
                 session.activeWebSession = null;
             }
         });
-    });
+    }));
 
     /**
      * 3. 백그라운드 싱크 — **바뀌었을 때만 보낸다.**

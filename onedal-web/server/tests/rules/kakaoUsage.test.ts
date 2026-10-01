@@ -64,7 +64,9 @@ describe('🗺️ 카카오 사용량', () => {
         expect(sim.match(/countKakao\(/g)?.length).toBe(2);
         const sock = readFileSync(join(__dirname, '../../src/socket/socketHandlers.ts'), 'utf8');
         expect(sock).toMatch(/logContext\.run\(\{ who: whoLabel\(socket\.data\.user\?\.name, socket\.data\.user\?\.id\), userId: socket\.data\.user\?\.id \}/);
-        expect(sock).toMatch(/io\.on\("connection", \(socket: Socket\) => \{\s*\n\s*const userId = socket\.data\.user\.id;\s*\n\s*enterLogWho\(/);
+        /* 연결 처리는 enterWith 가 아니라 run 으로 — enterWith 는 socket.io 의 다른 흐름(다음 연결 · 내부 타이머)으로 새어 남의 일에 회원이 붙는다 (f5 교차 리뷰) */
+        expect(sock).toMatch(/io\.on\("connection", \(socket: Socket\) => logContext\.run\(\{ who: whoLabel\(socket\.data\.user\?\.name, socket\.data\.user\?\.id\), userId: socket\.data\.user\?\.id \}, \(\) => \{/);
+        expect(sock).not.toMatch(/enterLogWho\(/);
         expect(sock).toMatch(/for \(const uid of userIds\) logContext\.run\(\{ userId: uid \}/);
     });
 });
