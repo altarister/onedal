@@ -278,17 +278,19 @@ router.get("/counts", (req, res) => {
 
 // ── 통화 도우미 ──────────────────────────────────────────
 
-/** 📞 진행 중 KEEP 콜 — 통화 도우미 화면과 메뉴 숫자(/counts 의 callsTodo)가 같이 부른다 · memberId 가 없으면 회원 전부 */
-function opsCallsOf(memberId: string | null) {
-    const rows = db.prepare(`${ORDER_SQL} WHERE ${IN_PROGRESS_SQL}${memberId ? ' AND o.userId = ?' : ''} ORDER BY o.timestamp DESC`)
+/**
+ * 📞 진행 중 KEEP 콜 — 통화 도우미 화면 · 메뉴 숫자(/counts 의 callsTodo) · 홈이 같이 부른다 · memberId 가 없으면 회원 전부.
+ *    🔴 순서는 여기 한 곳: 통화 필요가 먼저, 그 안에서 KEEP(capturedAt)이 오래된 순 — 가장 급한 콜이 맨 위(KEEP 직후 바로 통화) · 나머지도 오래된 순
+ */
+function opsCallsOf(memberId: string | null): OpsCall[] {
+    const rows = db.prepare(`${ORDER_SQL} WHERE ${IN_PROGRESS_SQL}${memberId ? ' AND o.userId = ?' : ''}`)
         .all(...inProgressParams(), ...(memberId ? [memberId] : [])) as OrderRow[];
-    return rows.map(opsCallOf);
+    return rows.map(opsCallOf).sort((a, b) => Number(b.needsCall) - Number(a.needsCall) || a.capturedAt.localeCompare(b.capturedAt) || a.id.localeCompare(b.id));
 }
 
 router.get("/calls", (req, res) => {
     const memberId = typeof req.query.memberId === 'string' && req.query.memberId ? req.query.memberId : null;
-    const calls = opsCallsOf(memberId);
-    res.json([...calls.filter(c => c.needsCall), ...calls.filter(c => !c.needsCall)]);
+    res.json(opsCallsOf(memberId));
 });
 
 const UNITS: readonly string[] = [...CARGO_UNITS, ...LEGACY_CARGO_UNITS];
@@ -511,13 +513,13 @@ export function homeOf(io: any): OpsHome {
     const minimum = scrapReleaseCodes().appMinimumCode;
     const needUpdate = phones.filter(p => needsUpdateOf(p.appVersion, releases, minimum)).length;
 
-    const keepAts = calls.filter(c => c.needsCall).map(c => c.capturedAt).filter(Boolean).sort();
+    const firstTodo = calls.find(c => c.needsCall);   // opsCallsOf 의 순서 — 통화 도우미 첫 줄
     return {
         todo: {
             emergencies: alertMembers.size,
             networkAlarms: networks.filter(n => n.level === 'alarm').length,
             callsTodo: counts.callsTodo,
-            oldestKeepAt: keepAts[0] ?? null,
+            oldestKeepAt: firstTodo?.capturedAt || null,
             pendingMembers: counts.pendingMembers,
             expiringSoon: users.filter(u => !!u.approved_at && (endsSoon(u.paid_until) || endsSoon(u.auto_until) || endsSoon(u.stats_until) || inGrace(u))).length,
             phonesOffline: counts.phonesOffline,
