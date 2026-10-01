@@ -28,6 +28,21 @@ describe('🧰 운영센터 현황판 화면', () => {
         const s = read('client-app/src/statusboard/StatusBoard.tsx');
         for (const t of ['🖥️ 지금 무엇이 도는가', '📡 이 폰이 든 필터', '👁️ 폰이 일하고 있나', '🔍 이 폰의 성적표', '🧾 필터 전문', '🗑️ 버린 콜']) expect(s).toContain(t);
     });
+    it('🔴 축 이름표 두 벌(성적표 짧은 이름 AXES · 버린 콜 까닭 VERDICT_AXIS_LABEL)의 축 키 목록이 같다 — 새 축이 한쪽에만 더해지지 않게', () => {
+        const src = read('shared/src/filterTally.ts');
+        const axes = [...src.slice(src.indexOf('const AXES'), src.indexOf('];', src.indexOf('const AXES'))).matchAll(/\['[^']+', '(\w+)'\]/g)].map(m => m[1]).sort();
+        const body = src.slice(src.indexOf('export const VERDICT_AXIS_LABEL'));
+        const labels = [...body.slice(0, body.indexOf('};')).matchAll(/^\s{4}(\w+): '/gm)].map(m => m[1]).sort();
+        expect(axes.length).toBeGreaterThan(5);
+        expect(labels).toEqual(axes);
+    });
+
+    it('🔴 운영센터 개발 서버는 신호 소켓(/socket.io)도 서버로 넘긴다 — 없으면 소켓이 Vite 에서 멈춘다', () => {
+        const v = read('ops/vite.config.ts');
+        expect(v).toMatch(/'\/socket\.io': \{ target: API_TARGET, ws: true \}/);
+        expect(v).toContain("'/api': API_TARGET");
+    });
+
     it('예시 쪽은 멤버 대조 하나 — 예시 자료에 현황판 것이 없다', () => {
         expect(read('ops/src/api/example.ts')).not.toMatch(/BOARD|board/);
         expect(read('ops/src/mock/data.ts')).not.toMatch(/BOARD_/);

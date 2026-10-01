@@ -26,7 +26,8 @@ export interface TallySummary {
 
 /** 시각 포맷은 shared `format.ts`(clockText) 한 곳에서만 만든다 — 왜 절대시각인지도 거기 적혀 있다 */
 
-/** 화면 이름 ↔ 축. 동점이면 이 순서가 유지된다 (정렬이 흔들려 화면이 깜빡이지 않게) */
+/** 화면 이름 ↔ 축. 동점이면 이 순서가 유지된다 (정렬이 흔들려 화면이 깜빡이지 않게).
+ *  🔴 축 키는 아래 `VERDICT_AXIS_LABEL` 과 같은 목록이다 — 여기는 성적표의 짧은 이름, 저기는 버린 콜의 까닭 글. 새 축은 둘에 같이 더한다(`opsBoardScreen` 검사가 키 목록을 견준다) */
 const AXES: Array<[string, keyof FilterTally]> = [
     ['도착지', 'region'],
     ['차종', 'vehicle'],
