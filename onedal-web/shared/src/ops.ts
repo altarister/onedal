@@ -1,6 +1,7 @@
 import type { Color } from './judge';
 import type { TargetAppType } from './index';
 import type { ContentKind } from './join';
+import type { WordKind } from './pageFields';
 
 /**
  * 🏢 **운영센터 API 규격 — 타입 + 회원 상태 규칙(순수)** (reviews/29 · 운영센터 `ops/` 와 서버 문 `/api/ops/*` 가 같은 모양을 읽는다).
@@ -81,7 +82,8 @@ export interface OpsScreenWord {
     targetApp: TargetAppType;
     page: string;
     word: string;
-    kind: '잡음' | '정의 밖' | '남은 토막';
+    /** 저장은 키 · 글은 화면이 shared `WORD_KIND_LABEL` 로 */
+    kind: WordKind;
     firstSeenAt: string;
 }
 
@@ -141,6 +143,16 @@ export interface OpsMemberDetail {
     audit: OpsAudit[];
     /** 카카오 길찾기 호출 수 — 5단계 표(kakao_usage_days)가 생기기 전엔 null(«아직 안 셈») */
     kakaoUsage: { today: number; month: number } | null;
+    /** 동의 기록 — 글 동의(종류 · 판)와 글 없는 고지(kind 'ack' · item 키 · 0판) · 지우지 않는다 */
+    agreements: OpsAgreement[];
+}
+
+/** 동의 한 줄 — 서버 agreements 표 그대로 */
+export interface OpsAgreement {
+    kind: ContentKind | 'ack';
+    item: string | null;
+    version: number;
+    at: string;
 }
 
 /** 메뉴 옆 숫자 — 할 일이 있는 것만 */

@@ -125,6 +125,24 @@ describe('🏢 회원 — 승인 · 정지 · 탈퇴 · 기록', () => {
     });
 });
 
+describe('🏢 회원 상세의 동의 기록 · 새 글자 종류', () => {
+    it('🔴 상세에 동의 기록 — 글 동의는 종류 · 판, 글 없는 고지는 kind ack · item 키 · 0판 · 시각은 ISO', async () => {
+        db.prepare(`INSERT INTO agreements (user_id, kind, version, item, agreed_at) VALUES (?, 'terms', 3, 'terms', '1970-01-02 09:00:00'), (?, 'ack', 0, 'networkRisk', '1970-01-02 09:00:00')`).run(PLAIN, PLAIN);
+        const d = await call(opsRouter, 'get', '/members/:id', { params: { id: PLAIN } });
+        expect(d.out.agreements).toEqual([
+            { kind: 'terms', item: 'terms', version: 3, at: '1970-01-02T09:00:00+09:00' },
+            { kind: 'ack', item: 'networkRisk', version: 0, at: '1970-01-02T09:00:00+09:00' },
+        ]);
+        db.prepare(`DELETE FROM agreements WHERE user_id = ?`).run(PLAIN);
+    });
+    it('🔴 새 글자 종류는 shared WordKind 키 그대로 — 이름표는 화면이 WORD_KIND_LABEL 로', async () => {
+        db.prepare(`INSERT OR REPLACE INTO screen_words (target_app, page, word, kind, first_seen, last_seen, seen_count) VALUES ('insung', '목록', '검사글자', 'noise', '1970-01-02 09:00:00', '9999-12-31 00:00:00', 1)`).run();
+        const an = await call(opsRouter, 'get', '/anomalies');
+        expect(an.out.screenWords.find((w: any) => w.word === '검사글자')?.kind).toBe('noise');
+        db.prepare(`DELETE FROM screen_words WHERE word = '검사글자'`).run();
+    });
+});
+
 describe('🏢 글 · 공지 · 기록 · 숫자', () => {
     it('🔴 글 저장은 판 +1 · 기록 한 줄 · 목록은 여섯 종류(없는 것은 0판)', async () => {
         const before = auditCount();

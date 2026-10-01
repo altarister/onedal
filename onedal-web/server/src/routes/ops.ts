@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import {
-    CONTENT_KINDS, DEVICE_OFFLINE_LABEL, isTargetApp, isoKst, restoreWindow,
+    CONTENT_KINDS, DEVICE_OFFLINE_LABEL, WORD_KINDS, isTargetApp, isoKst, restoreWindow, type OpsAgreement,
     type ContentKind, type OpsAnomaly, type OpsAudit, type OpsCall, type OpsContent, type OpsCounts, type OpsMember,
     type OpsMemberDetail, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
 } from "@onedal/shared";
@@ -94,8 +94,6 @@ const anomalyOf = (a: AnomalyRow): OpsAnomaly => ({
     targetApp: isTargetApp(a.target_app) ? a.target_app : 'insung', screen: a.screen_name ?? '', reason: a.failure_reason,
 });
 
-/** 새 글자 종류 — 저장은 shared WordKind 키 · 운영센터 규격은 이 글자다 */
-const WORD_KIND_OPS: Record<WordKind, OpsScreenWord['kind']> = { noise: '잡음', unknown: '정의 밖', extra: '남은 토막' };
 
 type AuditRow = { id: number; at: string; admin_name: string | null; admin_id: string; action: string; target_user_id: string | null; detail: string };
 const auditOf = (a: AuditRow): OpsAudit => ({ id: a.id, at: isoKst(a.at) ?? '', admin: a.admin_name ?? a.admin_id, action: a.action, targetMemberId: a.target_user_id, detail: a.detail });
@@ -119,6 +117,9 @@ router.get("/members/:id", (req, res) => {
         anomalies: (db.prepare(`${ANOMALY_SQL} WHERE d.user_id = ? ORDER BY a.id DESC LIMIT 50`).all(r.id) as AnomalyRow[]).map(anomalyOf),
         audit: (db.prepare(`${AUDIT_SQL} WHERE a.target_user_id = ? ORDER BY a.id DESC LIMIT 50`).all(r.id) as AuditRow[]).map(auditOf),
         kakaoUsage: null,
+        agreements: (db.prepare(`SELECT kind, item, version, agreed_at FROM agreements WHERE user_id = ? ORDER BY id`).all(r.id) as
+            { kind: OpsAgreement['kind']; item: string | null; version: number; agreed_at: string }[])
+            .map(a => ({ kind: a.kind, item: a.item, version: a.version, at: isoKst(a.agreed_at) ?? '' })),
     };
     return res.json(detail);
 });
@@ -164,8 +165,8 @@ router.get("/anomalies", (_req, res) => {
     const anomalies = (db.prepare(`${ANOMALY_SQL} ORDER BY a.id DESC LIMIT 100`).all() as AnomalyRow[]).map(anomalyOf);
     const words = db.prepare(`SELECT target_app, page, word, kind, first_seen FROM screen_words ORDER BY last_seen DESC LIMIT 100`).all() as
         { target_app: string; page: string; word: string; kind: WordKind; first_seen: string }[];
-    const screenWords: OpsScreenWord[] = words.filter(w => isTargetApp(w.target_app) && WORD_KIND_OPS[w.kind])
-        .map(w => ({ targetApp: w.target_app as TargetAppType, page: w.page, word: w.word, kind: WORD_KIND_OPS[w.kind], firstSeenAt: isoKst(w.first_seen) ?? '' }));
+    const screenWords: OpsScreenWord[] = words.filter(w => isTargetApp(w.target_app) && (WORD_KINDS as readonly string[]).includes(w.kind))
+        .map(w => ({ targetApp: w.target_app as TargetAppType, page: w.page, word: w.word, kind: w.kind, firstSeenAt: isoKst(w.first_seen) ?? '' }));
     res.json({ anomalies, screenWords });
 });
 
