@@ -8,11 +8,6 @@ export class InsungPlugin implements IAppPlugin {
         return rawAddress.replace(/\(.*?\)$/g, '').trim();
     }
 
-    normalizePlaceName(rawName: string): string {
-        // (주), 주식회사, 유한회사 등 제거
-        return rawName.replace(/\(주\)|주식회사|유한회사|\s/g, '').trim();
-    }
-
     /** 🚫 콜 한 벌의 글 — 상세 팝업 글이 곧 콜 글이다(잔상 보고 없음) */
     callTextOf(rawText: string): string {
         return rawText;

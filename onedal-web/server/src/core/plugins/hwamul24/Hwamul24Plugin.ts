@@ -8,11 +8,6 @@ export class Hwamul24Plugin implements IAppPlugin {
         return rawAddress.split(',')[0].trim();
     }
 
-    normalizePlaceName(rawName: string): string {
-        // 대괄호 [ ] 등 제거
-        return rawName.replace(/\[.*?\]/g, '').trim();
-    }
-
     /** 🚫 콜 한 벌의 글 — 상세 팝업 글이 곧 콜 글이다(잔상 보고 없음) */
     callTextOf(rawText: string): string {
         return rawText;

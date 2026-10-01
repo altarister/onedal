@@ -75,7 +75,7 @@ export function parseLocationDetails(rawText: string, searchTag: "[출발지상�
 export function parseMockupFare(rawText: string): number | undefined {
     if (!rawText) return undefined;
 
-    // 1. 명시적 요금 포맷 (예: "요금 : 40,000(신용)", "요금: 45000", "금액 4.5만")
+    // 이름표 있는 요금만 읽는다 (예: "요금 : 40,000(신용)", "요금: 45000", "금액 4.5만")
     //    쉼표를 포함해서 잡는다 — `\d+` 는 쉼표에서 멈춰 "40,000"을 40으로 읽는다.
     //    🔴 «수납금액»(화물24시 — 부가세를 더한 합계)은 요금이 아니다 — 잡으면 콜이 실제보다 좋아 보인다(노이즈)
     const fareMatch = rawText.match(/(?:요금|(?<!수납)금액)\s*[:]?\s*([\d,]+(?:\.\d+)?)\s*(만|천)?/);
@@ -97,19 +97,7 @@ export function parseMockupFare(rawText: string): number | undefined {
         return val;
     }
 
-    // 2. 정확한 4~5자리 정수 (최소 1만원 이상)
-    const exactNumMatch = rawText.match(/\b([1-9]\d{3,5})\b/);
-    if (exactNumMatch) {
-        return parseInt(exactNumMatch[1], 10);
-    }
-
-    // 3. 인성콜 축약형 (예: "45", "42.5" -> 45000원)
-    const shortNumMatch = rawText.match(/\b([1-9]\d?(?:\.\d)?)\b/);
-    if (shortNumMatch) {
-        const val = parseFloat(shortNumMatch[1]);
-        if (val >= 10 && val <= 999) return val * 1000;
-    }
-
+    // 이름표(«요금» · «금액») 없는 숫자는 짐작하지 않는다 — 화물번호 · «60분» 을 요금으로 잡아 좋은 콜이 떨어진다
     return undefined;
 }
 

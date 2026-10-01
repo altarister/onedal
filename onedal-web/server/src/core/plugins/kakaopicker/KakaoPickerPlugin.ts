@@ -14,10 +14,6 @@ export class KakaoPickerPlugin implements IAppPlugin {
         return rawAddress.trim();
     }
 
-    normalizePlaceName(rawName: string): string {
-        return rawName.trim();
-    }
-
     /**
      * 🚫 픽커 상세의 콜 한 벌 — **마지막 «픽업지»부터 «넘기기»/«수락하기» 앞까지**(픽업지 · 물품 정보 · 유의사항).
      *    그 앞은 목록 잔상(«퀵 오더카드 대기 중...»), 뒤는 버튼 글자다. 유의사항·물품이 칸으로 안 와 화면 글을 통째로 버리지 않는다.

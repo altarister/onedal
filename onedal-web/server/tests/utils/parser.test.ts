@@ -63,6 +63,14 @@ describe("parseMockupFare — 요금 파싱", () => {
         });
     });
 
+    /* 🔴 이름표(«요금» · «금액») 없는 숫자는 요금이 아니다 — 화물번호 · 분 · 거리를 요금으로 잡아 좋은 콜이 떨어졌다 (reviews/34 1단계 ②) */
+    it("🔴 이름표 없는 숫자는 못 읽음 — 화물24시 화물번호 · «60분»", () => {
+        expect(parseMockupFare("화물번호:3-9483-2159 경기 광주시 → 서울 용산구 운송료 60,000원")).toBeUndefined();
+        expect(parseMockupFare("상차 60분 안보기 1t 카고")).toBeUndefined();
+        expect(parseMockupFare("요금 : 50,000(카드)")).toBe(50000);
+        expect(parseMockupFare("요금 : 4.5만")).toBe(45000);
+    });
+
     it("요금 정보가 없으면 undefined", () => {
         expect(parseMockupFare("")).toBeUndefined();
         expect(parseMockupFare("상태 : 배송")).toBeUndefined();
