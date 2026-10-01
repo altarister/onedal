@@ -43,6 +43,26 @@ describe('🧰 운영센터 현황판 화면', () => {
         expect(v).toContain("'/api': API_TARGET");
     });
 
+    it('🔴 «앱에 내려갈 필터»는 폰이 받는 그대로 — 두 현황판이 서버 조립 결과를 읽는다(activeFilter 에서 골라 찍지 않는다)', () => {
+        const b = read('ops/src/pages/Board.tsx');
+        expect(b).toContain('filter?.app?.find(');
+        expect(b).toContain('🧾 기사가 정한 값');
+        expect(b).toContain('폰이 오늘 아직 보고 안 함');
+        const s = read('client-app/src/statusboard/StatusBoard.tsx');
+        expect(s).toContain('`/devices/app-filter?deviceId=');
+        expect(s).toContain("node: <AppFilterCard devices={devices} />");
+        expect(s).not.toMatch(/APP_FILTER_KEYS\.map\(k => \(\s*<Row key=\{k\} k=\{k\} v=\{\(filter as/);
+    });
+
+    it('🔴 useAppFilter 는 현황판 안에서만 — 현황판은 PC 폭에서만 붙어(Dashboard withPanel) 거치대 폰이 이 문을 부르지 않는다', () => {
+        const { readdirSync, statSync } = require('fs') as typeof import('fs');
+        const walk = (dir: string): string[] => readdirSync(dir).flatMap(n => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
+        const users = walk(join(WEB, 'client-app/src')).filter(f => /\.tsx?$/.test(f) && /useAppFilter|devices\/app-filter/.test(readFileSync(f, 'utf8')));
+        expect(users.map(f => f.replace(WEB, ''))).toEqual(['/client-app/src/statusboard/StatusBoard.tsx']);
+        const d = read('client-app/src/pages/Dashboard.tsx');
+        expect(d).toContain('if (!withPanel) return body;');
+    });
+
     it('예시 쪽은 멤버 대조 하나 — 예시 자료에 현황판 것이 없다', () => {
         expect(read('ops/src/api/example.ts')).not.toMatch(/BOARD|board/);
         expect(read('ops/src/mock/data.ts')).not.toMatch(/BOARD_/);

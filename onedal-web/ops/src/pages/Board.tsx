@@ -8,7 +8,7 @@ import { Card, ErrorBand, PageHeader, Stat, fmtDateTime, fmtTime, fmtWon, member
 
 /**
  * 🧰 **현황판(점검)** — 관제웹 PC 오른쪽 현황판의 점검 칸을 운영센터에서 회원마다 본다(reviews/31 1차 · 서버 `/api/ops/board/*` · 읽기만).
- *    서버 점검 · 폰이 일하고 있나(필터 지문 · 화면 · 성적표 · 누적) · 필터 전문 · 앱이 올린/버린 콜. 열람 기록은 서버가 남긴다(열어 둔 동안 한 줄).
+ *    서버 점검 · 폰이 일하고 있나(필터 지문 · 화면 · 성적표 · 누적) · 앱에 내려갈 필터(폰이 받는 그대로) · 기사가 정한 값 · 앱이 올린/버린 콜. 열람 기록은 서버가 남긴다(열어 둔 동안 한 줄).
  *    🔴 관제웹 현황판은 그대로다 — 여기는 «여러 회원을 한눈에»가 더해진 것. 시험 도구(위치 찍기 · 모의 주행 …)와 «어긋남»은 관제웹 화면 안에서만 뜻이 있어 여기 없다.
  *    필터를 고치는 손잡이도 없다 — 기사 관제웹에 있다. 10초마다 다시 읽는다(관제웹 현황판과 같은 박자).
  */
@@ -28,10 +28,14 @@ export default function Board() {
     const [filter, intel] = detail.data ?? [null, null];
     const phone = phones.find(p => p.deviceId === phoneId) ?? phones[0];
     const shownFilter = filter?.active ?? filter?.base ?? null;
+    /* 📦 폰이 받는 필터 — 서버가 폰 문과 같은 함수로 조립한 것(회원의 폰마다). 화면은 고르거나 다시 계산하지 않는다 */
+    const [appPhoneId, setAppPhoneId] = useState('');
+    const appPhone = filter?.app?.find(a => a.deviceId === appPhoneId) ?? filter?.app?.[0];
+    const appRows = appPhone ? appFilterRows(appPhone.filter) : [];
 
     return (
         <>
-            <PageHeader title="현황판 (점검)" sub="서버 · 폰이 일하고 있나 · 필터 전문 · 앱이 올린 콜 — 읽기만 · 10초마다" />
+            <PageHeader title="현황판 (점검)" sub="서버 · 폰이 일하고 있나 · 앱에 내려갈 필터 · 기사가 정한 값 · 앱이 올린 콜 — 읽기만 · 10초마다" />
             {top.error && <ErrorBand text={top.error} onRetry={top.reload} />}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <Stat label="서버 부팅" value={fmtDateTime(server?.bootedAt)} hint={server ? `${server.branch} · ${server.commit}` : undefined} />
@@ -61,15 +65,26 @@ export default function Board() {
             </div>
             {detail.error && <ErrorBand text={detail.error} onRetry={detail.reload} />}
             <div className="grid lg:grid-cols-2 gap-4">
-                <Card title={`🧾 필터 전문 — ${filter ? (filter.active ? '오늘 쓰는 값(세션)' : '평소 설정(오늘 세션 없음)') : '…'}`}>
-                    {shownFilter && (
-                        <div className="grid grid-cols-2 gap-x-4 text-xs">
-                            {APP_FILTER_KEYS.map(k => <Row key={k} k={k} v={(shownFilter as unknown as Record<string, unknown>)[k]} />)}
-                        </div>
-                    )}
-                    <pre className="text-xs leading-relaxed rounded-xl bg-bg-base border border-border-card p-3 overflow-x-auto max-h-80">{shownFilter ? JSON.stringify(shownFilter, null, 2) : '읽는 중…'}</pre>
-                    <p className="text-xs text-text-muted">읽기만 — 필터를 고치는 손잡이는 기사 관제웹에 있습니다.</p>
-                </Card>
+                <div className="space-y-4">
+                    <Card title={`📦 앱에 내려갈 필터 — 폰이 받는 그대로${appPhone ? ` (${appRows.length}칸)` : ''}`}>
+                        {filter && !filter.app?.length && <p className="text-sm text-text-muted">폰이 오늘 아직 보고 안 함 — 세션이 없어 서버가 조립할 것이 없습니다.</p>}
+                        {filter?.app && filter.app.length > 1 && (
+                            <div className="flex flex-wrap gap-2">
+                                {filter.app.map(a => (
+                                    <button key={a.deviceId} type="button" onClick={() => setAppPhoneId(a.deviceId)} className={`rounded-lg px-2 py-1 text-xs ${appPhone?.deviceId === a.deviceId ? 'bg-info/15 text-info font-bold' : 'bg-surface-alt'}`}>
+                                        {deviceLabel({ deviceId: a.deviceId, deviceName: phones.find(p => p.deviceId === a.deviceId)?.deviceName })}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {appPhone && <div className="grid grid-cols-2 gap-x-4 text-xs">{appRows.map(([k, v]) => <Row key={k} k={k} v={v} />)}</div>}
+                        <p className="text-xs text-text-muted">서버가 폰에 답할 때 조립한 값 — 자동 반경 · 복귀 목적지 · 내일 콜 · 경로 순서가 들어 있어 아래 «기사가 정한 값»과 다를 수 있습니다.</p>
+                    </Card>
+                    <Card title={`🧾 기사가 정한 값 — ${filter ? (filter.active ? '오늘 쓰는 값(세션)' : '평소 설정(오늘 세션 없음)') : '…'}`}>
+                        <pre className="text-xs leading-relaxed rounded-xl bg-bg-base border border-border-card p-3 overflow-x-auto max-h-80">{shownFilter ? JSON.stringify(shownFilter, null, 2) : '읽는 중…'}</pre>
+                        <p className="text-xs text-text-muted">읽기만 — 필터를 고치는 손잡이는 기사 관제웹에 있습니다.</p>
+                    </Card>
+                </div>
                 <Card title={`🗑️ 앱이 올린 콜 — 최근 ${intel?.rows.length ?? 0}건${intel ? ` / 쌓인 ${intel.total}` : ''} (판정은 앱이 한 것)`}>
                     {intel?.rows.length === 0 && <p className="text-sm text-text-muted">없습니다</p>}
                     {intel?.rows.map(r => <IntelLine key={r.id} r={r} />)}
@@ -77,6 +92,17 @@ export default function Board() {
             </div>
         </>
     );
+}
+
+/** 칸 순서 — shared `APP_FILTER_KEYS` 먼저, 표에 없는 칸(서버가 더 얹은 것)은 뒤에. 묶음 값은 개수로 줄인다(경로 순서 맵은 수백 칸) */
+function appFilterRows(app: Record<string, unknown>): Array<[string, unknown]> {
+    const known = (APP_FILTER_KEYS as readonly string[]).filter(k => k in app);
+    const rest = Object.keys(app).filter(k => !known.includes(k));
+    return [...known, ...rest].map(k => {
+        const v = app[k];
+        if (Array.isArray(v)) return [k, v.length ? `${v.length}개 · ${v.slice(0, 6).join(', ')}${v.length > 6 ? ' …' : ''}` : '(빈 목록)'];
+        return [k, v && typeof v === 'object' ? `${Object.keys(v).length}개 키` : v];
+    });
 }
 
 function IntelLine({ r }: { r: IntelRow }) {

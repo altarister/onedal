@@ -27,7 +27,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { haversineKm, APP_FILTER_KEYS, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabel, isModeApplying,
          DEVICE_MODE_LABEL, deviceLabel, clockText, wonText } from '@onedal/shared';
-import type { SecuredOrder, DeviceSession, DeviceModeType } from '@onedal/shared';
+import type { SecuredOrder, DeviceSession, DeviceModeType, AppFilterReply } from '@onedal/shared';
 import { SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind } from '@onedal/shared';
 /* 🌉 관제웹 안쪽은 **다리 하나**로만 본다 — 옮길 때 `bridge.ts` 만 새로 쓰면 된다 */
 import { LAB_EVENING,
@@ -985,6 +985,66 @@ function JudgingSeatCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
  *    탈락 사유별 수 · 누적 · 모드가 폰에 닿았나 · 서버가 받은 좌표 · 앱 버전.
  *    ⚠️ 폰 이름만은 겹친다 — **탭을 고르는 손잡이**라 없으면 무엇을 보는지 모른다.
  */
+/**
+ * 📦 **앱에 내려갈 필터 — 폰이 받는 그대로** (서버 `GET /api/devices/app-filter` · 폰 문과 같은 함수 `appFilterOf`).
+ *    🔴 내 필터(activeFilter)에서 골라 찍지 않는다 — 서버가 보낼 때 덮는 칸(자동 반경 · 복귀 목적지)과 얹는 칸(내일 콜 셋 · 경로 순서)이
+ *       있어, 골라 찍으면 «폰이 받는 값과 다른 값»을 말하게 된다.
+ *    이 훅은 현황판 안에서만 산다 — 현황판은 PC 폭에서만 붙으니(`Dashboard` 의 `withPanel`) 거치대 폰은 이 문을 부르지 않는다.
+ */
+function useAppFilter(deviceId: string | undefined): Record<string, unknown> | null {
+    const [app, setApp] = useState<Record<string, unknown> | null>(null);
+    useEffect(() => {
+        if (!deviceId) { setApp(null); return; }
+        let alive = true;
+        const ask = async () => {
+            try {
+                const { data } = await apiClient.get<AppFilterReply>(`/devices/app-filter?deviceId=${encodeURIComponent(deviceId)}`);
+                if (alive) setApp(data.filter ?? null);
+            } catch { if (alive) setApp(null); }
+        };
+        void ask();
+        const t = setInterval(ask, 10_000);   // «지금 무엇이 도는가»와 같은 박자
+        return () => { alive = false; clearInterval(t); };
+    }, [deviceId]);
+    return app;
+}
+
+/** 칸 순서 — shared `APP_FILTER_KEYS` 먼저, 표에 없는 칸(서버가 더 얹은 것)은 뒤에. 묶음 값은 개수로 줄인다(경로 순서 맵은 수백 칸) */
+function appFilterRows(app: Record<string, unknown>): Array<[string, unknown]> {
+    const known = (APP_FILTER_KEYS as readonly string[]).filter(k => k in app);
+    const rest = Object.keys(app).filter(k => !known.includes(k));
+    return [...known, ...rest].map(k => {
+        const v = app[k];
+        return [k, v && typeof v === 'object' && !Array.isArray(v) ? `${Object.keys(v).length}개 키` : v];
+    });
+}
+
+function AppFilterCard({ devices }: { devices: DeviceSession[] }) {
+    /* 고른 폰은 id 로 기억한다(앱 탭과 같은 까닭) — 사라지면 첫 폰 */
+    const [pickId, setPickId] = useState<string | null>(null);
+    const phone = devices.find(d => d.deviceId === pickId) ?? devices[0];
+    const app = useAppFilter(phone?.deviceId);
+    const rows = app ? appFilterRows(app) : [];
+    return (
+        <Card tall fold
+              title={app ? `📦 앱에 내려갈 필터 — 폰이 받는 그대로 ${rows.length}칸` : '📦 앱에 내려갈 필터'}
+              note={'서버 → 앱\n폰 문과 같은 함수\n(자동 반경 · 복귀 · 내일 콜 · 경로 순서 포함)'}>
+            {devices.length > 1 && (
+                <div className="flex flex-wrap gap-1 pb-1">
+                    {devices.map(d => (
+                        <button key={d.deviceId} type="button" onClick={() => setPickId(d.deviceId)}
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-black ${phone?.deviceId === d.deviceId ? 'bg-info/20 text-info' : 'text-text-muted'}`}>
+                            {deviceLabel(d)}
+                        </button>
+                    ))}
+                </div>
+            )}
+            {!app && <Row k="(없음)" v={undefined} empty={phone ? '폰이 오늘 아직 보고 안 함' : '등록된 폰이 없다'} tone="warn" />}
+            {rows.map(([k, v]) => <Row key={k} k={k} v={v} />)}
+        </Card>
+    );
+}
+
 function PhoneTabs({ devices }: { devices: DeviceSession[] }) {
     /* 🔴 **고른 폰은 id 로 기억한다** — 순서(index)로 쥐면 폰이 하나 빠질 때
        **엉뚱한 폰을 보게 된다.** 그 폰이 사라지면 첫 폰으로 떨어진다. */
@@ -1362,17 +1422,7 @@ export default function StatusBoard({ activeRoute }: Props) {
         {
             key: 'appFilter',
             side: 'app',
-            node: (
-                <Card tall fold
-                      title={`📦 앱에 내려갈 필터 — ${APP_FILTER_KEYS.length}개`}
-                      note={'서버 → 앱\n폰마다 같은 한 벌 (shared APP_FILTER_KEYS)'}>
-                    {/* 🔴 키 목록을 여기 또 적지 않는다 — 표가 유일한 원천이다 (규칙 ③).
-                        `orderKm` 은 서버가 조립할 때 얹으므로 여긴 «숨김» 이다. */}
-                    {APP_FILTER_KEYS.map(k => (
-                        <Row key={k} k={k} v={(filter as Record<string, unknown> | null)?.[k]} empty="— 숨김" />
-                    ))}
-                </Card>
-            ),
+            node: <AppFilterCard devices={devices} />,
         },
         {
             /**
