@@ -67,20 +67,24 @@ export function generatePin(userId: string): { pin: string; expiresIn: number } 
  * PIN을 소비(사용)합니다.
  * 유효한 PIN이면 해당 userId를 반환하고 PIN을 즉시 폐기합니다.
  * 만료되었거나 존재하지 않으면 null을 반환합니다.
+ * 🔴 번호가 맞아도 주인이 막혔으면(`isBlocked`) 지우지 않고 `{ blockedOwner }` — 승인 뒤 같은 번호가 «틀린 번호»가 되지 않게 (onedal-69 «가»).
  */
-function consumePin(pin: string): string | null {
+function consumePin(pin: string, isBlocked?: (userId: string) => boolean): string | null | { blockedOwner: string } {
     const entry = pendingPins.get(pin);
 
     if (!entry) {
         return null; // 존재하지 않는 PIN
     }
 
-    // 즉시 폐기 (1회용)
-    pendingPins.delete(pin);
-
     if (Date.now() > entry.expiresAt) {
+        pendingPins.delete(pin);
         return null; // 만료된 PIN
     }
+
+    if (isBlocked?.(entry.userId)) return { blockedOwner: entry.userId };
+
+    // 즉시 폐기 (1회용)
+    pendingPins.delete(pin);
 
     slog('통신', `✅ [PIN 소비] PIN: ${maskPin(pin)} → User: ${entry.userId} (페어링 성공)`);
     return entry.userId;
@@ -124,15 +128,16 @@ function recordFail(m: Map<string, Fails>, key: string, limit: number, now: numb
     m.set(key, f);
 }
 
-export type PinTry = { ok: true; userId: string } | { ok: false; locked: boolean; retryInSec?: number };
+export type PinTry = { ok: true; userId: string } | { ok: false; locked: boolean; retryInSec?: number; blockedOwner?: string };
 
-/** 🔢 연결 번호를 한도 안에서 쓴다 — 잠겼으면 맞는 번호도 안 받는다 */
-export function tryConsumePin(pin: string, who: { ip: string; hopIp?: string; deviceId: string }): PinTry {
+/** 🔢 연결 번호를 한도 안에서 쓴다 — 잠겼으면 맞는 번호도 안 받는다 · 맞는 번호의 주인이 막혔으면 번호를 남기고 실패로 세지 않는다(`blockedOwner`) */
+export function tryConsumePin(pin: string, who: { ip: string; hopIp?: string; deviceId: string }, isBlocked?: (userId: string) => boolean): PinTry {
     const now = Date.now();
     const hop = who.hopIp ?? who.ip;
     const left = Math.max(lockLeftMs(ipFails, who.ip, now), lockLeftMs(hopFails, hop, now), lockLeftMs(deviceFails, who.deviceId, now));
     if (left > 0) return { ok: false, locked: true, retryInSec: Math.ceil(left / 1000) };
-    const userId = consumePin(pin);
+    const userId = consumePin(pin, isBlocked);
+    if (userId && typeof userId === 'object') return { ok: false, locked: false, blockedOwner: userId.blockedOwner };
     if (userId) {
         ipFails.delete(who.ip);
         deviceFails.delete(who.deviceId);   // 바로 붙은 쪽(hop)은 지우지 않는다 — 에지 하나를 여럿이 지나니 한 사람이 맞혔다고 남의 실패를 씻지 않는다

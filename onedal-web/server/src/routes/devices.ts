@@ -600,6 +600,10 @@ export const incrementDeviceStats = (deviceId: string, type: "grabbed" | "cancel
 router.post("/pin", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
+        /* 🚧 막힌 계정에는 번호를 주지 않는다 — 연결 문과 같은 판단(core/accountGate) */
+        if (accountGateOf(userId).blocked) {
+            return res.status(403).json({ error: DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED, message: "이 계정은 아직 쓸 수 없습니다. 관제웹에서 가입 상태를 확인해 주세요." });
+        }
         const result = generatePin(userId);
         res.json(result);
     } catch (error) {
@@ -627,7 +631,13 @@ router.post("/pair", (req, res) => {
         logRoadmapEvent('통신', "서버", "앱폰으로 부터 6자리 PIN 인증 요청 받음 및 deviceId 발급 연산");
         // 1. PIN 유효성 검증 및 소비
         /* 🔢 시도 한도 안에서만 번호를 쓴다 — 잠겼으면 429 · 글자는 PIN_INVALID 그대로(앱은 짝 화면 오류 글) (reviews/29 1단계 F) */
-        const tried = tryConsumePin(pin, { ip: clientIpOf(req), hopIp: String(req.ip ?? '?'), deviceId });
+        /* 🚧 승인 전 · 탈퇴 · 정지 계정에는 폰을 잇지 않는다 — 폰 문과 같은 판단(core/accountGate · reviews/29 2단계).
+              번호를 지우기 전에 본다 — 막혔으면 번호를 남겨 승인 뒤 같은 번호로 이을 수 있다 */
+        const tried = tryConsumePin(pin, { ip: clientIpOf(req), hopIp: String(req.ip ?? '?'), deviceId }, id => accountGateOf(id).blocked);
+        if (!tried.ok && tried.blockedOwner) {
+            slog('통신', `🚫 [계정 막힘] ${tried.blockedOwner} — 폰 연결 거절 (${DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED})`);
+            return res.status(403).json({ error: DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED, message: "이 계정은 아직 쓸 수 없습니다. 관제웹에서 가입 상태를 확인해 주세요." });
+        }
         if (!tried.ok && tried.locked) {
             return res.status(429).json({ error: DEVICE_LINK_ERRORS.PIN_INVALID, retryInSec: tried.retryInSec, message: `번호를 여러 번 틀려 잠시 막혔습니다. ${Math.ceil((tried.retryInSec ?? 0) / 60)}분 뒤 다시 해 주세요.` });
         }
@@ -635,11 +645,6 @@ router.post("/pair", (req, res) => {
             return res.status(401).json({ error: DEVICE_LINK_ERRORS.PIN_INVALID, message: "PIN이 만료되었거나 유효하지 않습니다. 관제 웹에서 새 PIN을 발급받아주세요." });
         }
         const userId = tried.userId;
-        /* 🚧 승인 전 · 탈퇴 · 정지 계정에는 폰을 잇지 않는다 — 폰 문과 같은 판단(core/accountGate · reviews/29 2단계) */
-        if (accountGateOf(userId).blocked) {
-            slog('통신', `🚫 [계정 막힘] ${userId} — 폰 연결 거절 (${DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED})`);
-            return res.status(403).json({ error: DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED, message: "이 계정은 아직 쓸 수 없습니다. 관제웹에서 가입 상태를 확인해 주세요." });
-        }
 
         // 2. 다른 사람 기기를 하이재킹하려는지 검증
         const existingRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as { user_id: string } | undefined;
