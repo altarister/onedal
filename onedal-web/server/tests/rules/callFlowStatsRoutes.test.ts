@@ -66,7 +66,7 @@ describe('📊 문 자리', () => {
     it('관제웹 문은 인증 · 어드민 문은 인증 + 관리자 · 입구에 한 줄', () => {
         const route = readFileSync(join(SRC, 'routes/stats.ts'), 'utf8');
         expect(route).toMatch(/router\.get\("\/flows", requireAuth,/);
-        expect(route).toMatch(/router\.get\("\/flows\/admin", requireAuth, requireAdmin,/);
+        expect(route).toMatch(/router\.get\("\/flows\/admin", requireAuth, requireOps,/);
         expect(readFileSync(join(SRC, 'index.ts'), 'utf8')).toContain('app.use("/api/stats", statsRouter);');
     });
 

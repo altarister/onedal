@@ -96,7 +96,7 @@ db.exec(`
  *   ③ 운영센터 HTTP(requireOps) · 소켓 관리자 방 입장 때 읽음  ④ 운영센터 회원 상세  ⑤ requireOps · 관리자 방
  * - `suspended_at` · `suspend_after_active` — 비면 정지 아님 · 0. ③ 운영센터 «정지(끝난 뒤) / 즉시»가 씀 · 기기 문이 «진행 중 콜 있음»과 함께 읽음
  *   ④ 운영센터 «정지 · 정지(끝난 뒤)»  ⑤ 기기 문 · 운영센터
- * `role` 은 그대로 둔다 — requireAdmin(stats · screenWords)이 아직 읽는다. ops_allowed_at 으로 옮기는 것은 3단계 문을 만들 때.
+ * `role` 은 거래처 옮기기(`seedUserPlaces` — 거래처 주인 찾기)만 읽는다. «관리자인가»는 ops_allowed_at 하나(core/opsAccess · requireOps).
  */
 const ACCOUNT_COLUMNS: Record<string, string> = {
     approved_at: 'TEXT', withdrawn_at: 'TEXT', phone: 'TEXT', dispatch_networks: 'TEXT',

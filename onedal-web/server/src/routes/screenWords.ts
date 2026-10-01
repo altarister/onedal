@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, requireAdmin } from "../middlewares/authMiddleware";
+import { requireAuth, requireOps } from "../middlewares/authMiddleware";
 import { recentNewWords } from "../services/screenWords";
 
 /**
@@ -10,7 +10,7 @@ import { recentNewWords } from "../services/screenWords";
 const router = Router();
 
 /* 👥 관리자만 — 배차망 화면 글은 모든 기사 폰이 모은 공통 자료다 (reviews/29 기준 1) */
-router.get("/recent", requireAuth, requireAdmin, (req, res) => {
+router.get("/recent", requireAuth, requireOps, (req, res) => {
     const days = Math.min(Math.max(Number(req.query.days) || 7, 1), 30);
     res.json({ words: recentNewWords(days) });
 });

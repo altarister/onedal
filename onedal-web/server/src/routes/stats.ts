@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, requireAdmin } from "../middlewares/authMiddleware";
+import { requireAuth, requireOps } from "../middlewares/authMiddleware";
 import { flowRowsBetween, flowsForViewer, flowsForAdmin, rolledUpDaysBetween, FLOW_GROUP_BYS, type FlowGroupBy } from "../services/callFlowStats";
 import { businessDayKey } from "@onedal/shared";
 
@@ -25,7 +25,7 @@ router.get("/flows", requireAuth, (req, res) => {
     res.json({ from, to, groupBy: by, days: rolledUpDaysBetween(from, to), cells: flowsForViewer(flowRowsBetween(from, to), req.user!.id, by) });
 });
 
-router.get("/flows/admin", requireAuth, requireAdmin, (req, res) => {
+router.get("/flows/admin", requireAuth, requireOps, (req, res) => {
     const { from, to, by } = rangeOf(req.query);
     res.json({ from, to, groupBy: by, cells: flowsForAdmin(flowRowsBetween(from, to), by) });
 });

@@ -29,7 +29,9 @@ import devicesRouter from "./routes/devices";
 import telemetryRouter from "./routes/telemetry";
 import configRouter from "./routes/config";
 import joinRouter from "./routes/join";
-import { requireAuth } from "./middlewares/authMiddleware";
+import { requireAuth, requireOps } from "./middlewares/authMiddleware";
+import opsRouter from "./routes/ops";
+import noticesRouter from "./routes/notices";
 import contentsRouter from "./routes/contents";
 import authRouter from "./routes/auth";
 import settingsRouter from "./routes/settings";
@@ -113,6 +115,8 @@ app.use("/api/config", configRouter); // 타겟 앱 키워드 연동
 app.use("/api/auth", authRouter); // OAuth 로그인/인증 라우터
 app.use("/api/join", requireAuth, joinRouter); // 🪪 가입 · 동의 · 내 상태 · 탈퇴 (reviews/29 2단계)
 app.use("/api/contents", contentsRouter); // 📝 약관 · 안내 글 읽기 — 로그인 없이(가입 전에 읽는다)
+app.use("/api/ops", requireAuth, requireOps, opsRouter); // 🏢 운영센터 — 허락 칸(ops_allowed_at) 하나로 들어온다 · 쓰기마다 ops_audit (reviews/29 3단계)
+app.use("/api/notices", requireAuth, noticesRouter); // 📢 기사가 보는 지금 공지
 app.use("/api/settings", settingsRouter); // 개인화 설정 라우터
 app.use("/api/sim", simRouter); // 🧪 시뮬레이터가 «지금 어디»를 묻는 문 — 운영에서는 404
 // GET/PUT /api/filters 제거 — 관제웹·앱·운행일지 전수 grep 결과 **호출부 0건**.

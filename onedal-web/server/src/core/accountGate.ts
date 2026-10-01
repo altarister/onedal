@@ -37,5 +37,9 @@ export function hasActiveCall(userId: string): boolean {
 export function accountGateOf(userId: string): { blocked: boolean; facts: AccountFacts | null } {
     const facts = accountFactsOf(userId);
     if (!facts) return { blocked: true, facts: null };
-    return { blocked: accountBlocked(facts, businessDayKey(Date.now()), hasActiveCall(userId)), facts };
+    /* ⏱️ 진행 중 콜은 답이 거기에 달렸을 때만 읽는다 — «콜 없음»과 «콜 있음»의 답이 같으면(평범한 회원 · 승인 전 · 탈퇴 · 즉시 정지)
+          세션 · orders 를 안 본다. 폰 보고는 분당 수십 번이다. 규칙은 shared accountBlocked 한 벌 그대로 (onedal-1f) */
+    const today = businessDayKey(Date.now());
+    const idle = accountBlocked(facts, today, false), busy = accountBlocked(facts, today, true);
+    return { blocked: idle === busy ? idle : accountBlocked(facts, today, hasActiveCall(userId)), facts };
 }

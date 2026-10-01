@@ -48,6 +48,7 @@ import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";
 import { logContext, whoLabel } from "../utils/logContext";
 import { clockText, wonText } from "@onedal/shared";
+import { opsAllowed } from "../core/opsAccess";
 
 
 
@@ -140,7 +141,7 @@ export function registerSocketHandlers(io: Server) {
     /**
      * 🖥️ 관제탑 소켓 세션 활성화 및 초기 데이터 전송
      */
-    function activateUserSocket(socket: Socket, userId: string, role: string, session: UserSession, io: Server) {
+    function activateUserSocket(socket: Socket, userId: string, session: UserSession, io: Server) {
         // 방 참여 (개별 유저 룸) — 부트스트랩이 emit 하기 전에 반드시 먼저 들어가 있어야 한다
         socket.join(userId);
 
@@ -155,7 +156,8 @@ export function registerSocketHandlers(io: Server) {
         // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 경유를 만든다
         /* 📅 날이 바뀌며 예약 콜이 오늘 콜이 됐을 수 있다 — 정거장이 바뀌었으면 경로를 다시 잰다 (reviews/23 B-1) */
         if (ensureBusinessDay(userId, io)) void recalcRouteIfStopsChanged(userId, io, '영업일 전환');
-        if (role === "ADMIN") {
+        /* 🏢 관리자 방은 운영센터 허락 칸으로 — HTTP requireOps 와 같은 판단(core/opsAccess) · 접속 때 한 번 */
+        if (opsAllowed(userId)) {
             socket.join("admin_room");
         }
 
@@ -183,7 +185,6 @@ export function registerSocketHandlers(io: Server) {
     // 2. 개별 유저 연결 수립
     io.on("connection", (socket: Socket) => {
         const userId = socket.data.user.id;
-        const role = socket.data.user.role;
         const clientSessionId = (socket.handshake.auth?.clientSessionId as string) ||
                                 (socket.handshake.query?.clientSessionId as string) ||
                                 `anon_${socket.id}`;
@@ -249,7 +250,7 @@ export function registerSocketHandlers(io: Server) {
                     deviceInfo,
                     connectedAt: Date.now()
                 };
-                activateUserSocket(socket, userId, role, session, io);
+                activateUserSocket(socket, userId, session, io);
                 socket.emit("takeover-approved");
             });
 
@@ -265,7 +266,7 @@ export function registerSocketHandlers(io: Server) {
                 deviceInfo,
                 connectedAt: currentActive?.connectedAt || Date.now()
             };
-            activateUserSocket(socket, userId, role, session, io);
+            activateUserSocket(socket, userId, session, io);
         }
 
         /**

@@ -102,6 +102,16 @@ describe('🚧 서버가 다시 떠도 진행 중 콜을 안다', () => {
     });
 });
 
+describe('🚧 평범한 회원은 진행 중 콜을 안 읽는다', () => {
+    it('🔴 승인된 회원의 폰 보고는 orders 를 읽지 않는다 — 폰 보고는 분당 수십 번이다', () => {
+        clearUserSession(OK);
+        const spy = jest.spyOn(db, 'prepare');
+        expect(authDevice('d-gate-ok', undefined)).toMatchObject({ ok: true });
+        expect(spy.mock.calls.some(([sql]) => /FROM orders/.test(String(sql)))).toBe(false);
+        spy.mockRestore();
+    });
+});
+
 describe('🚧 문 두 곳', () => {
     it('🔴 승인 전 계정의 폰 연결(연결 번호)은 403 · 폰 줄을 만들지 않는다', async () => {
         const { pin } = generatePin(NEW);

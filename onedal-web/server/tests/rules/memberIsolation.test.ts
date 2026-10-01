@@ -7,7 +7,7 @@ import telemetryRouter from '../../src/routes/telemetry';
 import screenWordsRouter from '../../src/routes/screenWords';
 import detailRouter from '../../src/routes/detail';
 import ordersRouter from '../../src/routes/orders';
-import { requireAdmin } from '../../src/middlewares/authMiddleware';
+import { requireOps } from '../../src/middlewares/authMiddleware';
 import { ownsOrder } from '../../src/core/orderOwner';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 
@@ -74,7 +74,7 @@ describe('👥 문 5개 — 자기 것만 · 관리자만', () => {
         expect(devs.has(DB)).toBe(false);
     });
     it('🔴 GET /api/screen-words/recent — 관리자만(배차망 화면 글은 모든 기사 공통 자료)', () => {
-        expect(handlesOf(screenWordsRouter, 'get', '/recent')).toContain(requireAdmin);
+        expect(handlesOf(screenWordsRouter, 'get', '/recent')).toContain(requireOps);
     });
 });
 

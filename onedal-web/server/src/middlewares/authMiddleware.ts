@@ -4,6 +4,7 @@ import { jwtSecret } from "../config/env";
 import db from "../db";
 import { slog } from "../utils/fileLogger";
 import { enterLogWho } from "../utils/logContext";
+import { opsAllowed } from "../core/opsAccess";
 
 
 
@@ -82,20 +83,18 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 };
 
 /**
- * 관리자(ADMIN) 권한 체크 미들웨어
- * 주의: 반드시 requireAuth 이후에 체이닝해야 합니다.
- * 🔑 «관리자인가»를 가르는 곳은 여기 하나다 — 운영센터 3단계에서 role 대신 `users.ops_allowed_at` 사실 칸으로 바꾼다(reviews/29 기준 4 · 기사님 = 기사 + 관리자).
+ * 🏢 **운영센터 권한** — requireAuth 뒤에 붙인다.
+ * 🔑 «관리자인가»를 가르는 곳은 여기 하나다 — 토큰의 role 이 아니라 요청마다 `users.ops_allowed_at`(core/opsAccess · reviews/29 기준 4).
+ *    허락을 끄면 다음 요청부터 막힌다. 운영센터 문 · 현황판 «새 글자» · 관리자 통계가 같이 쓴다.
  */
-export const requireAdmin = (req: Request, res: Response, next: NextFunction): void => {
+export const requireOps = (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
         res.status(401).json({ error: "인증 정보가 없습니다." });
         return;
     }
-
-    if (req.user.role !== "ADMIN") {
-        res.status(403).json({ error: "접근 권한이 부족합니다 (ADMIN 전용)." });
+    if (!opsAllowed(req.user.id)) {
+        res.status(403).json({ error: "운영센터 허락이 없는 계정입니다." });
         return;
     }
-
     next();
 };
