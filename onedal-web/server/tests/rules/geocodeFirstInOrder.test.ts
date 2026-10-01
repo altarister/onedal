@@ -56,12 +56,13 @@ describe('🗺️ 좌표 — 1순위가 오면 바로', () => {
     });
 
     /* 실제 시계 — 가짜 시계가 부르는 타이머에는 판정 칸(hedgeBudget · 비동기 맥락)이 안 따라가 한 번 더를 못 본다.
-       시간 기준 대신 나머지 질의를 영영 안 오게 둔다 — 둘째 답이 나오면 나머지를 안 기다린 것이다(기다리면 3초 마감에 다른 답이 된다) */
+       이 칸은 «한 번 더»만 본다(«나머지를 안 기다림»은 위 두 칸이 가짜 시계로 본다) · 시간 기준은 두지 않는다.
+       나머지 질의는 2.5초 뒤 빈 답 — 영영 안 오게 두면 검사가 끝난 뒤 제한 시간에 끊겨 오류 줄이 다음 검사로 샌다 */
     it('🔴 1순위가 멈추면 1.2초 뒤 나란히 한 번 더 — 둘째가 오면 그것 · 다시 1', async () => {
         let firstCalls = 0;
         global.fetch = ((url: string, init: any) => {
             if (isFirst(url)) return ++firstCalls === 1 ? never(init) : reply(50, doc('경기', 127.33));
-            return never(init);
+            return reply(2500, { documents: [] });
         }) as any;
         const budget = { left: 2, used: 0 };
         const r = await hedgeBudget.run(budget, () => geocodeAddress(q(3)));
