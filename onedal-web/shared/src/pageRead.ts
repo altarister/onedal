@@ -50,7 +50,7 @@ const addressCutRes = new Map<TargetAppType, RegExp | null>();
  */
 export function addressOf(app: TargetAppType, raw: string): string {
     if (!addressCutRes.has(app)) {
-        const cut = (NETWORK_PAGES[app] as { addressCut?: string | null }).addressCut;
+        const cut = NETWORK_PAGES[app].addressCut;
         addressCutRes.set(app, cut ? new RegExp(cut) : null);
     }
     const re = addressCutRes.get(app);
