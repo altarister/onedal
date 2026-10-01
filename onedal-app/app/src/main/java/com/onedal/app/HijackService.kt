@@ -453,16 +453,7 @@ class HijackService : AccessibilityService(), ScanContext {
      * ⏱️ **서버가 내려준 필터(저장본)** — 배차망별 대기 시간을 여기서 읽는다 (기사님 확정).
      * 🔴 원천은 서버 DB 다 — 폰 안 저장소 값은 서버가 모르는 값이 된다. 못 읽으면 `FilterConfig` 기본값(서버 DB 기본값과 같다).
      */
-    private fun savedFilter(): com.onedal.app.models.FilterConfig {
-        val json = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).getString("activeFilter", null)
-            ?: return com.onedal.app.models.FilterConfig()
-        return try {
-            com.google.gson.Gson().fromJson(json, com.onedal.app.models.FilterConfig::class.java)
-                ?: com.onedal.app.models.FilterConfig()
-        } catch (e: Exception) {
-            com.onedal.app.models.FilterConfig()
-        }
-    }
+    private fun savedFilter(): com.onedal.app.models.FilterConfig = com.onedal.app.core.FilterStore.current(this)
 
     // 화면 꺼짐/켜짐 감지용 리시버 (퇴근 시 즉시 오프라인 통보 / 출근 시 즉시 생존 신고)
     private val screenOffReceiver = object : BroadcastReceiver() {

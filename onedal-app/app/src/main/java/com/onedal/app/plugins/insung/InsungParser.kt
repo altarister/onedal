@@ -6,7 +6,6 @@ import com.onedal.app.core.AppLogger
 import com.onedal.app.plugins.RouteOrderFilter
 import com.onedal.app.plugins.PickupListFilter
 import com.onedal.app.plugins.RegionMatch
-import com.onedal.app.plugins.DestinationList
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.engine.FareFloor
 import com.onedal.app.core.LocationTextAnalyzer
@@ -482,110 +481,8 @@ class InsungParser(private val context: Context) : IScrapParser {
         context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
     }
 
-    /**
-     * SharedPreferences에 저장된 최신 필터를 로드합니다.
-     * 3초마다 텔레메트리 응답이 갱신해 주므로 항상 최신 상태입니다.
-     */
-    /**
-     * JSON 배열을 List<String>으로 파싱하는 헬퍼
-     */
-    private fun parseJsonArray(json: JSONObject, key: String): List<String> {
-        return try {
-            val arr = json.optJSONArray(key)
-            if (arr != null) (0 until arr.length()).map { arr.getString(it) } else emptyList()
-        } catch (e: Exception) { emptyList() }
-    }
-
-    /**
-     * 화면에서 읽은 축약 차종(오·다·라·1t…)에 해당하는 단가를 단가표에서 찾습니다.
-     *
-     * 앱 파서는 인성 화면의 축약 코드를 그대로 뽑는데(`"라"`, `"다"`), 단가표 키는
-     * 정식 차종명(`"라보"`, `"다마스"`)이다. 조건 1(차종 매칭)이 쓰는 것과 **같은 규칙**으로
-     * 맞춘다 — 두 곳이 갈라지면 "차종은 통과인데 단가는 못 찾는" 상태가 된다.
-     *
-     * @return 단가(원/km). 매칭 실패 시 null → 호출부가 단가 판정을 건너뛴다
-     */
-
-    /**
-     * `{"1t": 693, "다마스": 554, ...}` 형태의 차종별 단가를 파싱합니다.
-     * 키가 없으면 빈 맵 — 호출부가 minFare 판정으로 되돌아간다 (구서버 호환).
-     */
-    private fun parseRateMap(json: JSONObject, key: String): Map<String, Int> {
-        return try {
-            val obj = json.optJSONObject(key) ?: return emptyMap()
-            val out = mutableMapOf<String, Int>()
-            obj.keys().forEach { k -> out[k] = obj.optInt(k, 0) }
-            out
-        } catch (e: Exception) { emptyMap() }
-    }
-
-    /**
-     * 콤마 구분 문자열을 List<String>으로 파싱하는 헬퍼
-     */
-    /** 🧭 orderKm 파싱 — JSON null 은 "순서를 모름"이므로 코틀린 null 로 보존한다 (0 으로 지어내지 않는다) */
-    private fun parseOrderMap(json: JSONObject, key: String): Map<String, Double?> {
-        val obj = json.optJSONObject(key) ?: return emptyMap()
-        val map = mutableMapOf<String, Double?>()
-        for (k in obj.keys()) {
-            map[k] = if (obj.isNull(k)) null else obj.optDouble(k)
-        }
-        return map
-    }
-
-    /** 🗺️ keywordTraps 파싱 — {동: [더 긴 지명...]} (RegionMatch ④). 없으면 빈 맵 (구서버 호환) */
-    private fun parseTrapsMap(json: JSONObject, key: String): Map<String, List<String>> {
-        val obj = json.optJSONObject(key) ?: return emptyMap()
-        val map = mutableMapOf<String, List<String>>()
-        for (k in obj.keys()) {
-            val arr = obj.optJSONArray(k) ?: continue
-            map[k] = (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotEmpty() } }
-        }
-        return map
-    }
-
-    private fun parseCommaSeparated(json: JSONObject, key: String): List<String> {
-        val str = json.optString(key, "")
-        return if (str.isNotEmpty()) str.split(",").map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
-    }
-
-    fun loadCurrentFilter(): FilterConfig {
-        return try {
-            val jsonStr = prefs.getString("activeFilter", null) ?: return FilterConfig()
-            val json = JSONObject(jsonStr)
-
-            // 각 optXxx 의 두 번째 인자는 서버 미응답 시 최후 안전망 (정상 흐름에서는 서버가 항상 전송)
-            // 🧭 [피기백 v2] 도착 목록 = destinationKeywords ∪ orderKm 키.
-            //    신서버는 orderKm 에 실린 동을 키워드에서 빼서 보낸다 (같은 목록 두 번 안 싣기).
-            //    구서버(중복 포함)와도 distinct 로 같은 집합이 된다 (호환)
-            val progress = parseOrderMap(json, "orderKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
-            val traps = parseTrapsMap(json, "keywordTraps")       // 없으면 빈 맵 → 문법 안전망만 (구서버 호환)
-            FilterConfig(
-                allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
-                isActive = json.optBoolean("isActive", false),   // 키가 없으면 멈춘다 (안전 방향)
-                reservationMode = json.optString("reservationMode").ifEmpty { null },   // 📅 없으면 오늘 콜만 (`ReservationGate.modeOf`)
-                /* 🔒 선점 중 — 판정은 하고 클릭만 미룬다. 키가 없으면 false (옛 서버는 안 보낸다) */
-                evaluatingNow = json.optBoolean("evaluatingNow", false),
-                isSharedMode = json.optBoolean("isSharedMode", false),
-                pickupRadiusKm = json.optDouble("pickupRadiusKm", 10.0),
-                minFare = json.optInt("minFare", 30000),         // 서버 기본값과 동일
-                maxFare = json.optInt("maxFare", 1000000),
-                destinationCity = json.optString("destinationCity", ""),
-                destinationRadiusKm = json.optDouble("destinationRadiusKm", 10.0),
-                excludedKeywords = parseJsonArray(json, "excludedKeywords"),
-                destinationKeywords = DestinationList.of(parseJsonArray(json, "destinationKeywords"), progress.keys),
-                // 📋 칸이 없으면 null(옛 서버 → 옛 판정) · 있으면 빈 목록이어도 목록 (빈 목록 = 고장 → 막음)
-                pickupKeywords = if (json.has("pickupKeywords")) parseJsonArray(json, "pickupKeywords") else null,
-                customCityFilters = parseJsonArray(json, "customCityFilters"),
-                ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
-                orderKm = progress,
-                keywordTraps = traps,
-                destinationDongSigungu = parseTrapsMap(json, "destinationDongSigungu"),
-            )
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")
-            FilterConfig()
-        }
-    }
+    /** 🎛️ 지금 저장된 필터 — 읽기 규칙은 `FilterStore` 한 곳(같은 원문은 한 번만 푼다) */
+    fun loadCurrentFilter(): FilterConfig = com.onedal.app.core.FilterStore.current(context)
 
     /**
      * @param texts 한 화면 주기에서 새로 나타난 텍스트 블록 리스트

@@ -41,10 +41,13 @@ class FilterAfterFillTest {
 
     @Test
     fun `세 파서가 같은 도착 목록 함수를 쓴다 - 픽커도 경유 순서 목록을 읽는다`() {
+        /* 필터 읽기는 FilterStore 한 곳 — 거기서 도착 목록을 DestinationList.of(키워드, 경유 순서 목록 키)로 만들고, 세 파서가 그것을 읽는다 */
+        val store = codeOnly("$root/core/FilterStore.kt")
+        assertTrue(store.contains("DestinationList.of("))
+        assertTrue(store.contains("\"orderKm\""))
         for (f in listOf("insung/InsungParser.kt", "hwamul24/Hwamul24Parser.kt", "kakaopicker/KakaoPickerParser.kt")) {
-            assertTrue("$f 가 DestinationList.of 를 안 쓴다", codeOnly("$root/plugins/$f").contains("DestinationList.of("))
+            assertTrue("$f 가 FilterStore 를 안 읽는다", codeOnly("$root/plugins/$f").contains("FilterStore."))
         }
-        assertTrue(codeOnly("$root/plugins/kakaopicker/KakaoPickerParser.kt").contains("\"orderKm\""))
     }
 
     @Test

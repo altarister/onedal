@@ -1033,6 +1033,8 @@ export const APP_FILTER_KEYS = [
     'reservationMode',
     /* ⬇️ 평면 필터에 없다 — 조립할 때 얹는다 */
     'orderKm',
+    /* 📅 내일 이후 예약 콜 상차 — scrap 이 조립할 때 얹는다(기본 반경 · 집 둘레 동 목록 · 시군구 묶음) · 원달앱 FilterStore 가 읽는다 */
+    'reservedPickupRadiusKm', 'reservedPickupKeywords', 'reservedPickupGroups',
     /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings */
     'safeCancelSecInsung', 'safeCancelSecHwamul24', 'pickerAlarmDetailSec',
     /**

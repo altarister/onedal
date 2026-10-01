@@ -472,6 +472,12 @@ data class FilterConfig(
      * 동 바로 앞에 다른 시군구가 보이면 거른다(`RegionMatch`). 비어 있으면(옛 서버) 이 확인을 안 한다.
      */
     val destinationDongSigungu: Map<String, List<String>> = emptyMap(),
+    /** 📅 내일 이후 예약 콜의 상차 반경 — 없으면 pickupRadiusKm (픽커 `pickupRadiusFor`) */
+    val reservedPickupRadiusKm: Double? = null,
+    /** 📅 내일 이후 예약 콜 상차 — 집 둘레 기본 반경 안의 동 목록(서버 pickupListFor · 없으면 반경 길) */
+    val reservedPickupKeywords: List<String>? = null,
+    /** 📅 내일 상차 목록의 시군구 → 동(이름이 같은 다른 시군구 동을 가른다) · 비면 null */
+    val reservedPickupGroups: Map<String, List<String>>? = null,
 )
 
 // ────────────────────────────────────────────────

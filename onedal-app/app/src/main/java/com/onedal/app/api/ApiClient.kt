@@ -369,7 +369,7 @@ class ApiClient(private val context: Context) {
                         if (!prevFilterVersion.isNullOrEmpty() && newFilterVersion != prevFilterVersion) onFilterChanged?.invoke(newFilterVersion)
 
                         // 서버가 이제 Array로 내려주므로 Gson 파싱(역직렬화) 시 에러(IllegalStateException)가 전혀 발생하지 않음
-                        val updatedFilter = gson.fromJson(filterJson, FilterConfig::class.java)
+                        val updatedFilter = com.onedal.app.core.FilterStore.parse(filterJson)
 
                         // 로그 다이어트
                         // 기존에는 필터 전체 스키마(키워드 400여 개 포함, ~10KB)를 매 응답마다 d 레벨로 찍었다.

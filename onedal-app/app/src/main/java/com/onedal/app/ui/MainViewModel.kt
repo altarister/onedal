@@ -165,7 +165,7 @@ class MainViewModel {
 
     fun getFilterConfig(): com.onedal.app.models.FilterConfig? = try {
         if (activeFilterJson.isBlank() || activeFilterJson == "{}") null
-        else com.google.gson.Gson().fromJson(activeFilterJson, com.onedal.app.models.FilterConfig::class.java)
+        else com.onedal.app.core.FilterStore.parse(activeFilterJson)
     } catch (e: Exception) { null }
 
     fun getFilterDisplayText(): String = try {
@@ -220,7 +220,7 @@ class MainViewModel {
      */
     private fun waitTimesLabelOf(json: String?): String {
         val f = try {
-            json?.let { com.google.gson.Gson().fromJson(it, com.onedal.app.models.FilterConfig::class.java) }
+            json?.let { com.onedal.app.core.FilterStore.parse(it) }
         } catch (e: Exception) { null }
             ?: return "서버 값을 아직 못 받았습니다 — 기본 인성 30초 · 화물24시 30초 · 픽커 상세 60초"
         return "인성 ${f.safeCancelSecInsung}초 · 화물24시 ${f.safeCancelSecHwamul24}초 · 픽커 상세 ${f.pickerAlarmDetailSec}초"
