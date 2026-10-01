@@ -15,3 +15,16 @@ export function allowanceLive(allowedAt: string | null | undefined, until: strin
 export function modeForPhone(command: string, autoLive: boolean): string {
     return command === 'AUTO' && !autoLive ? 'ALARM' : command;
 }
+
+/**
+ * 📱 **폰에 갈 모드 — 기기 세션에서** — 명령(`mode`)과 «자동 잡기 허락이 살아 있나»(`autoAllowed` · 서버가 폰 보고마다 적는다)로 그때그때 계산한다.
+ * 허락 사실이 없으면(옛 서버 · 꺼진 폰 줄) 산 것으로 — 명령 그대로. 관제웹이 명령을 바꾼 순간부터 «적용중»이 이 값과 견준다.
+ */
+export function phoneModeOf(d: { mode?: string; autoAllowed?: boolean }): string | undefined {
+    return d.mode ? modeForPhone(d.mode, d.autoAllowed !== false) : undefined;
+}
+
+/** 🎛️ **명령과 폰 모드가 허락 때문에 갈린 까닭 한 줄** — 관제웹 모드 스위치가 그린다. 갈리지 않았으면 null */
+export function modeHeldWhy(d: { mode?: string; autoAllowed?: boolean }): string | null {
+    return d.mode === 'AUTO' && d.autoAllowed === false ? '폰은 알람으로 도는 중 — 자동 잡기 허락이 꺼졌습니다' : null;
+}

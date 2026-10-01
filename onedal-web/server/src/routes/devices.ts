@@ -10,6 +10,7 @@ import { updateActiveFilter } from "../state/filterManager";
 import { slog } from "../utils/fileLogger";
 import { authDevice, deviceTokenOf, newDeviceToken, deviceLabelOf } from "../core/deviceAuth";
 import { accountGateOf } from "../core/accountGate";
+import { allowanceOf } from "../core/allowance";
 import { DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from "@onedal/shared";
 import { armWait } from "../state/waits";
 
@@ -284,6 +285,8 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         session.workStageSeconds = extras.workStageSeconds;
     }
     if (extras?.appliedMode) session.appliedMode = extras.appliedMode;
+    /* 🎛️ 자동 잡기 허락이 지금 살아 있나 — 폰 보고마다 적는다(메모리). 꺼지면 AUTO 명령도 폰은 ALARM 이라 관제웹 «적용중» · 도는 모드가 이것을 본다 (shared `phoneModeOf`) */
+    session.autoAllowed = allowanceOf(userId).autoLive;
     /**
      * 🎛️ **도는 모드가 명령과 갈리는 순간 · 다시 같아지는 순간만 한 줄** (하트비트마다 찍으면 로그가 덮인다).
      * 픽커는 자동이 없어 자동 명령이 알람으로 돈다 — 언제 시작해 언제 끝났는지가 남아야 한다.

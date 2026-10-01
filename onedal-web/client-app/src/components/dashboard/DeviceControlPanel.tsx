@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, TARGET_APP_LABEL, deviceLabel, clockText } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, modeHeldWhy, TARGET_APP_LABEL, deviceLabel, clockText } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "../../hooks/useSystemAlerts";
 import { handBandOf } from "../../lib/handBand";
@@ -85,6 +85,8 @@ function DeviceRow({
      */
     const running = (runningModeOf(device) ?? device.mode) as DeviceModeType;
     const runningDiffers = running !== device.mode;
+    /** 🎛️ 자동 잡기 허락이 꺼져 AUTO 명령도 폰은 알람으로 돈다 — 까닭을 한 줄로 (없으면 null · shared `modeHeldWhy`) */
+    const heldWhy = modeHeldWhy(device);
     const [applyingSince, setApplyingSince] = useState<number | null>(null);
     /** 🎛️ 모드 고르는 레이어가 열렸나 — **폰마다 하나씩**이라 여기(줄 안)에 산다 */
     const [modeOpen, setModeOpen] = useState(false);
@@ -292,6 +294,8 @@ function DeviceRow({
                            진단에 필요한 값이라 **버리지 않고** 손댈 때 보이게 둔다 */
                         title={applying
                             ? `적용중${lastHeardSec != null ? ` · 마지막 통신 ${lastHeardSec}초 전` : ''}`
+                            : heldWhy
+                                ? heldWhy
                             : runningDiffers
                                 ? `명령: ${DEVICE_MODE_LABEL[device.mode]} · 이 배차망에서는 ${DEVICE_MODE_LABEL[running]}으로 돈다`
                                 : '모드를 바꾸려면 누릅니다'}
@@ -321,6 +325,10 @@ function DeviceRow({
                     )}
                 </div>
             </div>
+            {/* 🎛️ 허락이 꺼져 «자동인데 왜 안 잡지»가 되지 않게 — 접지 않고 보인다 */}
+            {heldWhy && (
+                <div className="px-2.5 pb-1 text-[12px] font-bold text-warning">{heldWhy}</div>
+            )}
             {/**
               * 📂 **접힌 셋 — 폰 이름을 눌러야 열린다**.
               *

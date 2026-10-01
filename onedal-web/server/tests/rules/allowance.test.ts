@@ -2,7 +2,8 @@
 import fs from 'fs';
 import path from 'path';
 import Database from 'better-sqlite3';
-import { allowanceLive, modeForPhone } from '@onedal/shared';
+import { allowanceLive, modeForPhone, runningModeOf, isModeApplying } from '@onedal/shared';
+import { touchDeviceSession, getActiveDevicesSnapshot } from '../../src/routes/devices';
 import db, { migrateAccountColumns, migrateAllowanceColumns } from '../../src/db';
 import { allowanceOf } from '../../src/core/allowance';
 import { accountFactsOf } from '../../src/core/accountGate';
@@ -100,6 +101,24 @@ describe('실제 DB — 허락 · 유료 기한 · 통계 · 승인', () => {
         expect(ops).toContain('auto_allowed_at = COALESCE(auto_allowed_at, datetime(\'now\', \'localtime\'))');
         expect(ops).not.toContain('paidUntil: null, autoAllowedAt: null');
         expect(SRC('index.ts')).toContain('opsAllowRouter');
+    });
+
+    it('🔴 폰 보고마다 허락 사실을 기기 세션에 적는다 — 꺼지면 도는 모드 알람 · «적용중» 아님 · 운영센터 폰 표도 실제 모드', () => {
+        const DEV = 'dev-test-allow-1';
+        const io = { to: () => ({ emit: () => {} }) };
+        db.prepare(`UPDATE users SET auto_allowed_at = NULL WHERE id = ?`).run(U);
+        touchDeviceSession(DEV, U, 0, 'LIST', io, false, undefined, undefined, undefined, true, undefined, 'insung', { appliedMode: 'ALARM' });
+        let s = getActiveDevicesSnapshot().find((d: any) => d.deviceId === DEV);
+        s.mode = 'AUTO';
+        expect(s.autoAllowed).toBe(false);
+        expect(runningModeOf(s)).toBe('ALARM');
+        expect(isModeApplying(s)).toBe(false);
+        db.prepare(`UPDATE users SET auto_allowed_at = datetime('now', 'localtime') WHERE id = ?`).run(U);
+        touchDeviceSession(DEV, U, 0, 'LIST', io, false, undefined, undefined, undefined, true, undefined, 'insung', { appliedMode: 'AUTO' });
+        s = getActiveDevicesSnapshot().find((d: any) => d.deviceId === DEV);
+        expect(s.autoAllowed).toBe(true);
+        expect(runningModeOf(s)).toBe('AUTO');
+        expect(SRC('routes/ops.ts')).toMatch(/function phonesOf[\s\S]*?runningModeOf\(s\)/);
     });
 
     it('🔴 승인 대기 → 운영센터 승인 → 자동 허락이 산다(다음 보고가 AUTO 명령을 AUTO 로)', async () => {

@@ -1,6 +1,7 @@
 import { unitPoints } from './cargoUnits';
 import type { CapacityConfidence } from './vehicles';
 import { businessDayKey } from './timing';
+import { phoneModeOf } from './allowance';
 export const EVENT_TYPES = {
     NEW_ORDER: "NEW_ORDER" as const,
     INTEL_BULK: "INTEL_BULK" as const,
@@ -1528,17 +1529,18 @@ export function workStageLabel(d: {
  * ⚠️ 대답을 안 싣는 구앱(`undefined`)은 «적용중»이라 하지 않는다 — 모름을
  *    «안 됐다»로 읽으면 영원히 안 풀리는 딤드가 된다 (규칙 ④).
  */
-export function isModeApplying(d: { mode?: string; appliedMode?: string }): boolean {
+export function isModeApplying(d: { mode?: string; autoAllowed?: boolean; appliedMode?: string }): boolean {
     if (!d.appliedMode) return false;
-    return d.mode !== d.appliedMode;
+    /* 📱 명령이 아니라 폰에 갈 모드와 견준다 — 자동 잡기 허락이 꺼지면 AUTO 명령도 폰은 ALARM 이라, 명령과 견주면 «적용중»이 영영 안 풀린다 */
+    return phoneModeOf(d) !== d.appliedMode;
 }
 
 /**
- * 🎛️ **이 배차망에서 도는 모드** — 원달앱이 대답한 값, 없으면(옛 원달앱) 명령 그대로.
+ * 🎛️ **이 배차망에서 도는 모드** — 원달앱이 대답한 값, 없으면(옛 원달앱) 폰에 갈 모드(`phoneModeOf` — 허락이 꺼지면 AUTO 명령도 알람).
  * 관제웹 폰 카드와 알람 소리가 이것을 본다. «명령이 닿았나»(`isModeApplying`)는 명령끼리 대조한다.
  */
-export function runningModeOf(d: { mode?: string; effectiveMode?: string }): string | undefined {
-    return d.effectiveMode || d.mode;
+export function runningModeOf(d: { mode?: string; autoAllowed?: boolean; effectiveMode?: string }): string | undefined {
+    return d.effectiveMode || phoneModeOf(d);
 }
 
 export function isListScreen(screenContext?: string | null): boolean {
@@ -1762,6 +1764,11 @@ export interface DeviceSession {
      * 픽커는 자동이 없어 자동 명령이 알람으로 돈다. 읽을 때는 `runningModeOf` 를 거친다(옛 원달앱은 안 싣는다).
      */
     effectiveMode?: string;
+    /**
+     * 🎛️ **이 회원의 자동 잡기 허락이 지금 살아 있나** — 서버가 폰 보고마다 적는다(메모리 · 저장 칸 아님 · reviews/29 6단계).
+     * 꺼지면 AUTO 명령도 폰은 ALARM — 읽을 때는 `phoneModeOf` · `modeHeldWhy` 를 거친다.
+     */
+    autoAllowed?: boolean;
 }
 
 

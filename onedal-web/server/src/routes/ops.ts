@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import {
-    CALL_NOTE_MEMO_MAX, CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow,
+    CALL_NOTE_MEMO_MAX, CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow, runningModeOf,
     type CargoReport, type CargoUnit, type OpsAgreement, type OpsCallNote,
     type ContentKind, type OpsAnomaly, type OpsAudit, type OpsCall, type OpsContent, type OpsCounts, type OpsMember,
     type OpsMemberDetail, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
@@ -52,17 +52,21 @@ function networksOf(text: string | null): TargetAppType[] {
 }
 
 function phonesOf(userId: string, io: unknown): OpsPhone[] {
-    return getUserDevicesSnapshot(userId, io).map(s => ({
-        deviceId: s.deviceId,
-        deviceName: s.deviceName ?? '',
-        memberId: userId,
-        status: s.status,
-        offlineReason: s.offlineReason ? DEVICE_OFFLINE_LABEL[s.offlineReason] : null,
-        lastSeenAt: s.lastSeen ? new Date(s.lastSeen).toISOString() : '',
-        appVersion: s.version ?? '',
-        mode: s.mode === 'AUTO' || s.mode === 'MANUAL' ? s.mode : 'ALARM',
-        locationOn: s.lat != null && s.lng != null,
-    }));
+    return getUserDevicesSnapshot(userId, io).map(s => {
+        /* 🎛️ 명령이 아니라 실제로 도는 모드 — 자동 잡기 허락이 꺼지면 AUTO 명령도 알람으로 돈다 (shared `runningModeOf`) */
+        const running = runningModeOf(s);
+        return {
+            deviceId: s.deviceId,
+            deviceName: s.deviceName ?? '',
+            memberId: userId,
+            status: s.status,
+            offlineReason: s.offlineReason ? DEVICE_OFFLINE_LABEL[s.offlineReason] : null,
+            lastSeenAt: s.lastSeen ? new Date(s.lastSeen).toISOString() : '',
+            appVersion: s.version ?? '',
+            mode: running === 'AUTO' || running === 'MANUAL' ? running : 'ALARM',
+            locationOn: s.lat != null && s.lng != null,
+        };
+    });
 }
 
 function memberOf(r: UserRow, io: unknown): OpsMember {
