@@ -78,6 +78,30 @@ describe('🚧 폰 문 — 계정 사실', () => {
     });
 });
 
+describe('🚧 서버가 다시 떠도 진행 중 콜을 안다', () => {
+    const putOrder = (id: string, status: string, timestamp = new Date().toISOString()) =>
+        db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, pickup, dropoff, fare) VALUES (?, 'AUTO', ?, ?, ?, '상차', '하차', 10000)`).run(id, status, AFTER, timestamp);
+    afterAll(() => db.prepare(`DELETE FROM orders WHERE userId = ?`).run(AFTER));
+
+    it('🔴 «끝난 뒤» 정지 + 세션 없음(재기동) + DB 에 진행 중 콜 → 받는다 — 결재 · 비상 보고가 그 콜에 닿게', () => {
+        clearUserSession(AFTER);
+        putOrder('o-gate-db', 'ORDER_CONFIRMED');
+        expect(authDevice('d-gate-after', undefined)).toMatchObject({ ok: true, userId: AFTER });
+    });
+    it('🔴 DB 의 콜이 끝났거나 복구 창(어제 영업일)보다 오래된 미완료면 막는다 — 옛 줄이 정지를 영원히 미루지 않게', () => {
+        clearUserSession(AFTER);
+        putOrder('o-gate-db', 'ORDER_COMPLETED');
+        expect(authDevice('d-gate-after', undefined)).toEqual(blocked);
+        putOrder('o-gate-db', 'ORDER_CONFIRMED', new Date(Date.now() - 5 * 86_400_000).toISOString());
+        expect(authDevice('d-gate-after', undefined)).toEqual(blocked);
+    });
+    it('🔴 즉시 정지는 진행 중 콜이 있어도 막는다', () => {
+        db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, pickup, dropoff, fare) VALUES ('o-gate-sus', 'AUTO', 'ORDER_CONFIRMED', ?, ?, '상차', '하차', 10000)`).run(SUS, new Date().toISOString());
+        expect(authDevice('d-gate-sus', undefined)).toEqual(blocked);
+        db.prepare(`DELETE FROM orders WHERE id = 'o-gate-sus'`).run();
+    });
+});
+
 describe('🚧 문 두 곳', () => {
     it('🔴 승인 전 계정의 폰 연결(연결 번호)은 403 · 폰 줄을 만들지 않는다', async () => {
         const { pin } = generatePin(NEW);
