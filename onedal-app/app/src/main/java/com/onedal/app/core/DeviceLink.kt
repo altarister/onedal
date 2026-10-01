@@ -39,6 +39,9 @@ object DeviceLink {
     /** 식별 id — 폰 이름과 따로 둔 긴 난수(표시 이름은 짝 때 보내는 deviceName) */
     fun newDeviceId(): String = "d-" + java.util.UUID.randomUUID().toString()
 
+    /** ⛔ 콜을 집나 — 마지막 서버 답이 «계정 막힘»(승인 전 · 정지 · 탈퇴)이면 안 집는다. 토큰 풀림은 다시 연결할 일이라 집기는 그대로 (`AccountBlockedTest`) */
+    fun picksCalls(why: String?): Boolean = why != WHY_BLOCKED
+
     /** 짝 맺기 거절 글 — 서버 까닭 글자를 한글로(모르는 글은 그대로) */
     fun pairErrorText(error: String): String = when (error) {
         ERR_ACCOUNT_BLOCKED -> "승인 전이거나 이용이 멈춘 계정입니다"

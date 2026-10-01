@@ -1297,6 +1297,9 @@ class HijackService : AccessibilityService(), ScanContext {
      *    서버가 한다. 실측이 쌓이면 그때 기준을 정한다.
      */
 
+    /** ⛔ 지난 목록 읽기에서 계정이 막혀 있었나 — 바뀔 때만 한 줄 */
+    private var wasAccountBlocked = false
+
     /** 🧾 목록 읽기 번호 — 목록 줄을 본 때를 적는다(`ListSightings`) */
     private var listScanNo = 0L
 
@@ -1342,6 +1345,13 @@ class HijackService : AccessibilityService(), ScanContext {
         } else discardStreak = 0
         // 🔔 경로 기억에 이번 읽기의 흔들림 — 흔들린 읽기는 «다른 콜» 가르기에 안 쓴다 (`AlarmedRoutes.beginRead`)
         alarmedRoutes.beginRead(steady = !scrapParser.lastFrameDiscarded && !scanMoving)
+        // ⛔ 막힌 계정이면 콜을 집지 않는다 — 판정을 안 하니 알람·상세 열기·누르기가 쉬고, «막았다» 기억에도 안 남아 풀리면 처음처럼 판정한다
+        val accountBlocked = !com.onedal.app.core.DeviceLink.picksCalls(apiClient.unlinkedWhy())
+        if (accountBlocked != wasAccountBlocked) {
+            wasAccountBlocked = accountBlocked
+            if (accountBlocked) AppLogger.w(TAG, "⛔ [계정 막힘] 서버가 이 계정을 막았다(승인 전 · 정지 · 탈퇴) — 콜을 집지 않는다 · 화면 읽기·보고는 계속")
+            else AppLogger.i(TAG, LogTag.FILTER, "✅ [계정 풀림] 서버가 다시 받는다 — 콜을 다시 집는다")
+        }
 
         /** 그룹은 나왔는데 요금을 못 읽어 버려진 수 — 아래 진단이 읽는다 */
         var fareFail = 0
@@ -1485,7 +1495,7 @@ class HijackService : AccessibilityService(), ScanContext {
              * 여기서 필터를 다시 읽어 판단하면 decide 와 두 벌이 된다 (규칙 ③).
              */
             val seenBefore = tally.seen
-            val isTarget = scrapParser.shouldClick(order, tally)
+            val isTarget = !accountBlocked && scrapParser.shouldClick(order, tally)
             val wasEvaluated = tally.seen > seenBefore
 
             /**

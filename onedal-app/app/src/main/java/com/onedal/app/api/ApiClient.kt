@@ -120,6 +120,9 @@ class ApiClient(private val context: Context) {
     }
 
     /** 🔐 서버가 이 폰을 거절했나 — 보고 간격이 읽는다(`TelemetryManager.heartbeatIntervalMs`) */
+    /** 🔐 연결이 풀린 까닭(«토큰» · «계정») — 비면 정상 */
+    fun unlinkedWhy(): String? = prefs.getString(DeviceLink.PREF_UNLINKED, null)
+
     fun isUnlinked(): Boolean = prefs.getString(DeviceLink.PREF_UNLINKED, null) != null
 
     /**
