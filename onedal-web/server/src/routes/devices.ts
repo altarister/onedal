@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf, openBlockedNeedsHand } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
-import { getUserSession } from "../state/userSessionStore";
+import { getUserSession, peekUserSession } from "../state/userSessionStore";
 import { generatePin, tryConsumePin } from "../state/pairingStore";
 import { requireAuth } from "../middlewares/authMiddleware";
 import db from "../db";
@@ -63,6 +63,18 @@ function resolveDefaultMode(deviceId: string, userId: string): DeviceModeType {
     const row = db.prepare("SELECT mode FROM user_devices WHERE device_id = ?").get(deviceId) as { mode?: string } | undefined;
     if (isDeviceMode(row?.mode)) return row.mode;
     return getUserSession(userId).activeFilter?.isActive ? "AUTO" : "MANUAL";
+}
+
+/**
+ * 👀 **화면용 모드 판단 — 세션을 만들지 않는다** (운영센터 · 관제웹 폰 목록의 «등록됐지만 안 붙은 폰»).
+ *    저장된 선택 › 있는 세션의 필터(peek) › MANUAL. resolveDefaultMode 는 getUserSession 이라 세션 없는 회원(와이프 · 승인 대기)의
+ *    기사 세션을 만들고 user_settings 줄까지 썼다 — 읽기가 남의 세션을 깨우면 안 된다(`opsReadNoSession` 검사).
+ *    🔴 폰 보고 길(getDeviceMode)은 그대로 resolveDefaultMode — 보고하는 회원은 운행 중이라 세션이 있다.
+ */
+function viewModeOf(deviceId: string, userId: string): DeviceModeType {
+    const row = db.prepare("SELECT mode FROM user_devices WHERE device_id = ?").get(deviceId) as { mode?: string } | undefined;
+    if (isDeviceMode(row?.mode)) return row.mode;
+    return peekUserSession(userId)?.activeFilter?.isActive ? "AUTO" : "MANUAL";
 }
 
 /**
@@ -951,7 +963,7 @@ export const getUserDevicesSnapshot = (userId: string, io?: any): DeviceSession[
                 deviceName: r.device_name,
                 lastSeen: 0,
                 status: "OFFLINE",
-                mode: resolveDefaultMode(r.device_id, userId),
+                mode: viewModeOf(r.device_id, userId),
                 screenContext: "UNKNOWN",
                 stats: { polled: 0, grabbed: 0, canceled: 0 }
             });
