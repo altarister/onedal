@@ -298,6 +298,20 @@ function counterpartPatchOf(orderId: string, step: StepId, flag: boolean | undef
     return cur?.counterpart_cancelled_at ? {} : { counterpart_cancelled_at: now, counterpart_cancelled_by: by };
 }
 
+/**
+ * 📵 **취소 표시만 쓴다** — 짐 · 약속 · 메모 없이 «상대 취소»만 바꾸는 요청(운영센터 체크 칸).
+ *    통화 단계의 상태 · 적은 사람 · 짐 · 약속 · 정차 예측은 건드리지 않는다(단계를 «마쳤습니다»로 굳히지 않는다) · 칸 둘만 · 규칙은 counterpartPatchOf 한 곳.
+ *    그 통화 단계가 아직 안 태어났으면 false(쓸 행이 없다).
+ */
+export function writeCounterpartCancelled(orderId: string, stopType: 'pickup' | 'dropoff', flag: boolean, by: string): boolean {
+    const step: StepId = stopType === 'pickup' ? 'CALL_PICKUP' : 'CALL_DROPOFF';
+    if (!bornRows(orderId)[step]) return false;
+    const patch = counterpartPatchOf(orderId, step, flag, new Date().toISOString(), by);
+    const cols = Object.keys(patch);
+    if (cols.length) db.prepare(`UPDATE ${tableOf(step).table} SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE orderId = ?`).run(...cols.map(c => patch[c]), orderId);
+    return true;
+}
+
 export function bridgeCargoReport(userId: string, orderId: string,
     report: CargoReport, judgment?: JudgmentConfig, routeTl?: RouteTl, writtenBy?: string) {
     const now = new Date().toISOString();

@@ -1,6 +1,6 @@
 import type { Server } from "socket.io";
 import { cargoMismatchRatio, clockText, type CargoReport } from "@onedal/shared";
-import { bridgeCargoReport, stepsView, stepRecordsOf } from "./stepSeeder";
+import { bridgeCargoReport, stepsView, stepRecordsOf, writeCounterpartCancelled } from "./stepSeeder";
 import { routeTlOf } from "./routeTl";
 import { recalcRouteIfStopsChanged } from "./dispatchEngine";
 import { updateActiveFilter } from "../state/filterManager";
@@ -15,6 +15,16 @@ import { slog } from "../utils/fileLogger";
  */
 export class CargoReportError extends Error {
     constructor(public status: number, message: string) { super(message); }
+}
+
+/**
+ * 📵 **상대 취소 표시만** — 운영센터 체크 칸(짐 · 약속 · 메모 없음). 통화 단계를 마친 것으로 굳히지 않고 칸 둘만 쓴다(stepSeeder.writeCounterpartCancelled).
+ *    현장 실측이 있어도 막지 않는다 — 409 는 «현장 값을 덮지 않기»인데 이 쓰기는 현장 값을 안 건드린다. 화면 둘에 알리는 것은 saveCargoReport 와 같다.
+ */
+export function saveCounterpartCancelled(userId: string, orderId: string, stopType: 'pickup' | 'dropoff', flag: boolean, writerId: string, io: Server): void {
+    if (!writeCounterpartCancelled(orderId, stopType, flag, writerId)) throw new CargoReportError(409, "그 통화 단계가 아직 없습니다");
+    io.to(userId).emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
+    io.of("/ops").to("admin_room").emit("ops-calls-changed", { memberId: userId });
 }
 
 export function saveCargoReport(userId: string, orderId: string, report: CargoReport, writerId: string, io: Server): void {

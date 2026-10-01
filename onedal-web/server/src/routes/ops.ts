@@ -23,7 +23,7 @@ import { latestContent, isContentKind } from "./contents";
 import { noticeOf, type NoticeRow } from "./notices";
 import { slog } from "../utils/fileLogger";
 import { stepsView } from "../services/stepSeeder";
-import { saveCargoReport, CargoReportError } from "../services/cargoReport";
+import { saveCargoReport, saveCounterpartCancelled, CargoReportError } from "../services/cargoReport";
 
 /**
  * 🏢 **운영센터 서버 문 `/api/ops/*`** (reviews/29 3단계 · shared ops.ts 규격 · 붙일 때 requireAuth + requireOps 한 번 — index.ts).
@@ -303,6 +303,19 @@ router.post("/calls/:id/note", (req, res) => {
     const counterpartCancelled = typeof b.counterpartCancelled === 'boolean' ? b.counterpartCancelled : undefined;
     if (!stopType || unit === undefined || quantity === undefined || promised === undefined) return res.status(400).json({ error: "통화 결과 칸을 확인해 주세요." });
     if (memo.length > CALL_NOTE_MEMO_MAX) return res.status(400).json({ error: `메모는 ${CALL_NOTE_MEMO_MAX}자까지입니다.` });
+    /* 📵 «취소 표시만»(짐 · 약속 · 메모 없음) — 칸 둘만 쓴다 · 통화 단계를 마친 것으로 굳히지 않는다 · 현장 실측이 있어도 409 아님(현장 값을 안 건드린다) */
+    if (counterpartCancelled !== undefined && unit == null && quantity == null && promised == null && !memo) {
+        const callStep = stopType === 'pickup' ? 'CALL_PICKUP' : 'CALL_DROPOFF';
+        const was = !!(stepsView(o.id).find(s => s.step === callStep)?.row as Record<string, any> | undefined)?.counterpart_cancelled_at;
+        try {
+            saveCounterpartCancelled(o.userId, o.id, stopType, counterpartCancelled, adminId, req.app.get("io"));
+        } catch (e) {
+            if (e instanceof CargoReportError) return res.status(e.status).json({ error: e.message });
+            throw e;
+        }
+        if (counterpartCancelled || was) audit(adminId, counterpartCancelled ? '상대 취소 적음' : '상대 취소 지움', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'}`);
+        return res.json(opsCallOf(db.prepare(`${ORDER_SQL} WHERE o.id = ?`).get(o.id) as OrderRow));
+    }
     const actual = stepsView(o.id).find(s => s.step === (stopType === 'pickup' ? 'LOADED' : 'DELIVERED'));
     if (actual?.born && (actual.row as Record<string, any>).actual_unit != null) return res.status(409).json({ error: "기사님이 현장에서 적은 값이 있습니다." });
     const report = { stopType, kind: 'DECLARED', unit: unit ?? undefined, quantity: quantity ?? undefined, promisedArrivalAt: promised ?? undefined, memo: memo || undefined, counterpartCancelled } as CargoReport;

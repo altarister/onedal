@@ -73,4 +73,18 @@ describe('📵 상대 취소 칸', () => {
         for (const f of ['core/engine/OrderEvaluator.ts', 'state/waits.ts', 'routes/emergency.ts', 'state/filterManager.ts', 'services/dispatchEngine.ts'])
             expect(src(f)).not.toMatch(/counterpart_?[cC]ancelled/);
     });
+
+    /* 🔴 409 는 «현장 값을 덮지 않기» — 짐 · 약속 · 메모를 안 실은 «취소 표시만»은 현장 값을 안 건드리니 막지 않는다 · 통화 단계의 상태 · 적은 사람도 안 바꾼다 (onedal-69 · ea) */
+    it('🔴 현장 실측이 있어도 «취소 표시만»은 통과 · 현장 값 · 통화 행 상태 그대로 · 짐 값을 실으면 여전히 409', async () => {
+        saveCargoReport(D, O, { stopType: 'pickup', kind: 'ACTUAL', unit: '라면박스', quantity: 9 }, D, io);
+        const actualBefore = db.prepare(`SELECT actual_unit u, actual_quantity q FROM step_loaded WHERE orderId = ?`).get(O);
+        const callBefore = db.prepare(`SELECT status, written_by, planned_quantity FROM step_call_pickup WHERE orderId = ?`).get(O);
+        const only = await note({ stopType: 'pickup', counterpartCancelled: true });
+        expect(only.status).toBe(200);
+        expect(row().a).toEqual(expect.any(String));
+        expect(row().b).toBe(A);
+        expect(db.prepare(`SELECT actual_unit u, actual_quantity q FROM step_loaded WHERE orderId = ?`).get(O)).toEqual(actualBefore);
+        expect(db.prepare(`SELECT status, written_by, planned_quantity FROM step_call_pickup WHERE orderId = ?`).get(O)).toEqual(callBefore);
+        expect((await note({ stopType: 'pickup', unit: '라면박스', quantity: 4, counterpartCancelled: false })).status).toBe(409);
+    });
 });
