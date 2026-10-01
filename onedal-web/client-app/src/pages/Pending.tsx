@@ -4,6 +4,7 @@ import { Button } from '@onedal/ui/button';
 import { TARGET_APP_LABEL, type JoinMeReply } from '@onedal/shared';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchMeSafe } from '../api/join';
+import { ensureSocketConnected } from '../lib/socket';
 import { gateDecision } from '../lib/joinFlow';
 import { JoinShell, SectionCard } from './JoinSteps';
 
@@ -27,7 +28,7 @@ export default function Pending() {
             if (r.missing) { navigate('/join', { replace: true }); return; }
             setMe(r.me);
             const d = gateDecision(r.me, r.failed);
-            if (d === 'ok' && r.me) navigate('/', { replace: true });
+            if (d === 'ok' && r.me) { ensureSocketConnected(); navigate('/', { replace: true }); }   // 승인 전에 거절됐던 소켓을 다시 잇는다
             if (d === 'blocked') navigate('/blocked', { replace: true });
         });
         return () => { alive = false; };

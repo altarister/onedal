@@ -14,6 +14,7 @@ import Withdraw from "./pages/Withdraw";
 import Terms from "./pages/Terms";
 import Blocked from "./pages/Blocked";
 import { fetchMeSafe } from "./api/join";
+import { ensureSocketConnected } from './lib/socket';
 import { gateDecision, type GateDecision } from "./lib/joinFlow";
 import type { ContentKind } from "@onedal/shared";
 import { logRoadmapEvent, startMemoryWatch } from "./lib/roadmapLogger";
@@ -62,8 +63,10 @@ function MemberGate() {
     let alive = true;
     fetchMeSafe().then(r => {
       if (!alive) return;
-      setDecision(gateDecision(r.me, r.failed));
+      const d = gateDecision(r.me, r.failed);
+      setDecision(d);
       setReconsent(r.me?.reconsent ?? []);
+      if (d === 'ok') ensureSocketConnected();   // 승인 대기 화면을 거치지 않고 온 경우(새로고침 · 주소 직접) — 닫혀 있을 때만 한 번
     });
     return () => { alive = false; };
   }, []);

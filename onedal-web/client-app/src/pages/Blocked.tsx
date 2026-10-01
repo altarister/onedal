@@ -4,6 +4,7 @@ import { Button } from '@onedal/ui/button';
 import { kstDateText, opsMemberStatus, type JoinMeReply } from '@onedal/shared';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchMeSafe } from '../api/join';
+import { ensureSocketConnected } from '../lib/socket';
 import { gateDecision } from '../lib/joinFlow';
 import { ContentSlot, JoinShell, SectionCard } from './JoinSteps';
 
@@ -27,7 +28,7 @@ export default function Blocked() {
             if (!alive) return;
             setFailed(r.failed); setMe(r.me);
             const d = gateDecision(r.me, r.failed);
-            if (d === 'ok') navigate('/', { replace: true });
+            if (d === 'ok') { ensureSocketConnected(); navigate('/', { replace: true }); }   // 막혀 있던 동안 거절됐던 소켓을 다시 잇는다
             if (d === 'pending') navigate('/pending', { replace: true });
         });
         return () => { alive = false; };

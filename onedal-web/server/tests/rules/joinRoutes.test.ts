@@ -55,7 +55,19 @@ describe('📝 가입 쪽 주소', () => {
         const b = readFileSync(join(SRC, 'pages/Blocked.tsx'), 'utf8');
         expect(b).toMatch(/setInterval\(again, 30_000\)/);
         expect(b).toContain("document.addEventListener('visibilitychange', onVisible)");
-        expect(b).toContain("if (d === 'ok') navigate('/', { replace: true });");
+        expect(b).toContain("if (d === 'ok') { ensureSocketConnected(); navigate('/', { replace: true }); }");
+    });
+
+    it('🔴 승인 뒤 관제 화면으로 갈 때 닫힌 소켓을 한 번 잇는다 — 통과가 정해진 세 자리에서만 · 붙은 소켓은 안 끊는다', () => {
+        const sock = readFileSync(join(SRC, 'lib/socket.ts'), 'utf8');
+        const fn = sock.slice(sock.indexOf('export function ensureSocketConnected'));
+        expect(fn).toMatch(/if \(!socket\.connected && !socket\.active\) socket\.connect\(\);/);
+        expect(fn).not.toContain('disconnect');
+        const { readdirSync, statSync } = require('fs') as typeof import('fs');
+        const walk = (dir: string): string[] => readdirSync(dir).flatMap(n => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
+        const callers = walk(SRC).filter(f => /\.tsx?$/.test(f) && !/\.test\./.test(f) && /ensureSocketConnected\(\)/.test(readFileSync(f, 'utf8')) && !f.endsWith('lib/socket.ts'));
+        expect(callers.map(f => f.replace(SRC, '')).sort()).toEqual(['/App.tsx', '/pages/Blocked.tsx', '/pages/Pending.tsx']);
+        expect(readFileSync(join(SRC, 'pages/Blocked.tsx'), 'utf8')).toContain("if (d === 'ok') { ensureSocketConnected(); navigate('/', { replace: true }); }");
     });
 
     it('🔴 가입 쪽 화면은 서버를 직접 부르지 않는다 — api/join.ts 한 곳', () => {

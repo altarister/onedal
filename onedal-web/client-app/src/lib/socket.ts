@@ -35,5 +35,12 @@ export const socket = io(baseURL || undefined, {
     }
 });
 
-
-
+/**
+ * 🔌 **닫혀 있으면 한 번 잇는다** — 서버가 막힌 계정(승인 전 · 정지 …)의 소켓을 거절하면 socket.io 는 스스로 다시 시도하지 않는다.
+ *    그래서 «내 상태를 막 읽어 통과로 판정한 순간»(승인 대기 화면 · 멈춤 화면 · 관제 화면의 문지기)에만 부른다.
+ *    🔴 붙어 있거나(connected) 스스로 다시 잇는 중(active)이면 아무것도 안 한다 — 붙은 소켓을 끊었다 잇지 않는다(운전 중 결재가 끊긴다).
+ *    🔴 1초 고리 · 소켓 이벤트에서 부르지 않는다 — «다른 기기에서 접속»으로 서버가 끊은 소켓을 되살리면 세션 인계가 깨진다.
+ */
+export function ensureSocketConnected(): void {
+    if (!socket.connected && !socket.active) socket.connect();
+}
