@@ -13,6 +13,13 @@ const API_TARGET = process.env.OPS_API_TARGET || 'http://localhost:4000'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   envDir: '../client-app',
+  build: {
+    rolldownOptions: {
+      // 📦 공용(shared)의 코드 모듈은 순수하다 — 운영센터가 안 부르는 것(동 좌표 명부 등)은 덩어리에서 털어낸다.
+      //    🔴 .css(theme.css)는 가져오기 자체가 일이라 뺀다 — 안 빼면 색 · 글꼴이 조용히 빠진다
+      treeshake: { moduleSideEffects: (id: string) => id.endsWith('.css') || !id.includes('/shared/src/') },
+    },
+  },
   server: {
     host: true,
     port: 3002,

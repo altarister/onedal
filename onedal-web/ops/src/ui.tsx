@@ -1,17 +1,18 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { COLOR_DOT, hhmmText, isoKst, kstDateText, opsMemberStatus, wonText, type OpsCounts, type OpsMember } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 import { Badge } from '@onedal/ui/badge';
 import {
-    AlertTriangle, BarChart3, FileText, LogOut, Map as MapIcon, Megaphone, Moon, MoreHorizontal, Package, Phone, ScrollText, Smartphone, Sun, Users, Wrench, X,
+    AlertTriangle, BarChart3, FileText, LogOut, Map as MapIcon, Megaphone, Menu, Moon, Package, Phone, ScrollText, Smartphone, Sun, Users, Wrench, X,
 } from 'lucide-react';
 import { api, countsRefresh, useOps } from './api/ops';
 import { logout, session } from './api/client';
-import { useSignalConnected } from './api/socket';
+import { useCallsChanged, useSignalConnected } from './api/socket';
+import { menuBadgeOf } from './api/menuBadge';
 
 /**
- * 🏢 **운영센터 화면 틀** — PC 는 왼쪽 메뉴 + 윗줄(마지막 갱신 · 관리자), 폰은 윗줄 + 아래 탭 넷(+ 더 보기).
+ * 🏢 **운영센터 화면 틀** — PC 는 왼쪽 메뉴 + 윗줄(마지막 갱신 · 관리자), 폰은 윗줄(☰ · 지금 쪽 이름) + ☰ 를 누르면 밀려 나오는 같은 메뉴(`NavList` 한 벌).
  *    표는 폰 폭에서 카드로 바뀐다(`Table` 의 `card`). 부품은 `@onedal/ui`, 판정 점은 shared `COLOR_DOT` 한 벌.
  *    시각 글자는 shared 의 `hhmmText` · `isoKst` · `kstDateText` 를 거친다 — 화면이 직접 파싱하지 않는다(`toISOString()` 은 UTC 라 새벽 0~9시에 하루 어긋난다).
  */
@@ -30,12 +31,34 @@ export const NAV: { to: string; label: string; icon: ReactNode; badge?: (c: OpsC
     { to: '/stats', label: '통계', icon: <BarChart3 className="size-4" /> },
     { to: '/audit', label: '기록', icon: <ScrollText className="size-4" /> },
 ];
-/** 폰 아래 탭 — 자주 쓰는 넷. 나머지는 «더 보기» */
-const PHONE_TABS = ['/members', '/calls', '/phones', '/anomalies'];
-
 function NavBadge({ n }: { n: number }) {
     if (!n) return null;
     return <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-warning text-black text-[11px] font-black flex items-center justify-center">{n}</span>;
+}
+
+/**
+ * 메뉴 한 벌 — PC 왼쪽 사이드바와 폰 햄버거 사이드바가 같이 그린다(목록 · 숫자 배지 · 아래 칸이 두 벌이면 갈라진다).
+ * `onPick` 은 폰에서 메뉴를 누르면 사이드바를 닫는 자리.
+ */
+function NavList({ c, footer, onPick }: { c: OpsCounts; footer: ReactNode; onPick?: () => void }) {
+    return (
+        <>
+            <div className="px-4 py-4">
+                <Link to="/members" onClick={onPick} className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-lg bg-gradient-to-tr from-accent-alt to-info flex items-center justify-center text-white font-black text-sm">1D</span>
+                    <span className="font-black">운영센터</span>
+                </Link>
+            </div>
+            <nav className="flex flex-col px-2 gap-0.5">
+                {NAV.map(n => (
+                    <NavLink key={n.to} to={n.to} onClick={onPick} className={({ isActive }) => `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-info/15 text-info font-bold' : 'text-text-muted hover:bg-surface-alt hover:text-text-primary'}`}>
+                        {n.icon}<span>{n.label}</span>{n.badge && <NavBadge n={n.badge(c)} />}
+                    </NavLink>
+                ))}
+            </nav>
+            <div className="mt-auto px-4 py-4 space-y-2 text-[11px] text-text-muted">{footer}</div>
+        </>
+    );
 }
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -44,89 +67,80 @@ export function Shell({ children }: { children: ReactNode }) {
     const [minute, setMinute] = useState(0);
     useEffect(() => { const t = setInterval(() => setMinute(m => m + 1), 60_000); return () => clearInterval(t); }, []);
     useEffect(() => countsRefresh.add(() => setMinute(m => m + 1)), []);   // 쓰기 뒤 바로
+    const onCallsChanged = useCallback(() => setMinute(m => m + 1), []);
+    useCallsChanged(onCallsChanged);   // 콜이 바뀌었다는 서버 신호 — «전화할 콜» 숫자(메뉴 · ☰)를 60초 기다리지 않고 다시 읽는다
     const counts = useOps(() => api.counts(), [minute]);
     const c: OpsCounts = counts.data ?? { pendingMembers: 0, callsTodo: 0, phonesOffline: 0 };
     const signalOn = useSignalConnected();
     const [refreshedAt, setRefreshedAt] = useState(() => new Date());
     useEffect(() => { if (counts.data) setRefreshedAt(new Date()); }, [counts.data]);
     const leave = async () => { await logout(); navigate('/login', { replace: true }); };
-    const logoutButton = (
-        <button type="button" onClick={() => void leave()} className="flex items-center gap-1 text-xs text-text-muted rounded-md px-2 py-1 hover:bg-surface-alt" aria-label="로그아웃">
-            <LogOut className="size-3.5" /> 로그아웃
-        </button>
-    );
     const { theme, toggleTheme } = useTheme();   // 관제웹과 같은 토글 · localStorage 에 남는다
     const dark = theme === 'dark';
-    const [more, setMore] = useState(false);
-    useEffect(() => { setMore(false); }, [location.pathname]);
-    const themeButton = (
-        <button type="button" onClick={toggleTheme} className="flex items-center gap-1 text-xs text-text-muted rounded-md px-2 py-1 hover:bg-surface-alt" aria-label="테마 바꾸기">
-            {dark ? <><Sun className="size-3.5" /> 밝게로</> : <><Moon className="size-3.5" /> 어둡게로</>}
-        </button>
+
+    /* 📱 폰 폭 — ☰ 를 누르면 왼쪽에서 사이드바가 밀려 나온다. 쪽이 바뀌거나 Esc · 바깥을 누르면 닫힌다. 열린 동안 뒤 화면은 안 굴러간다 */
+    const [menuOpen, setMenuOpen] = useState(false);
+    useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+    useEffect(() => {
+        if (!menuOpen) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+        const before = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', onKey);
+        return () => { document.body.style.overflow = before; window.removeEventListener('keydown', onKey); };
+    }, [menuOpen]);
+    /** 지금 쪽 이름 — 주소가 그 메뉴로 시작하는 것(회원 상세 · 멤버 대조는 «회원») */
+    const pageName = NAV.find(n => location.pathname === n.to || location.pathname.startsWith(`${n.to}/`))?.label ?? '운영센터';
+    const badge = menuBadgeOf(c);
+
+    const footer = (
+        <>
+            <div className="flex gap-1">
+                <button type="button" onClick={toggleTheme} className="flex items-center gap-1 text-xs text-text-muted rounded-md px-2 py-1 hover:bg-surface-alt" aria-label="테마 바꾸기">
+                    {dark ? <><Sun className="size-3.5" /> 밝게로</> : <><Moon className="size-3.5" /> 어둡게로</>}
+                </button>
+                <button type="button" onClick={() => void leave()} className="flex items-center gap-1 text-xs text-text-muted rounded-md px-2 py-1 hover:bg-surface-alt" aria-label="로그아웃">
+                    <LogOut className="size-3.5" /> 로그아웃
+                </button>
+            </div>
+            <div>관리자: {session.name || '관리자'}</div>
+            <div>열람은 기록에 남습니다</div>
+        </>
     );
-    const rest = NAV.filter(n => !PHONE_TABS.includes(n.to));
 
     return (
         <div className="min-h-screen bg-bg-base text-text-primary md:flex">
             {/* PC 왼쪽 메뉴 */}
             <aside className="hidden md:flex md:w-56 md:min-h-screen flex-col bg-surface border-r border-border-card">
-                <div className="px-4 py-4">
-                    <Link to="/members" className="flex items-center gap-2">
-                        <span className="w-8 h-8 rounded-lg bg-gradient-to-tr from-accent-alt to-info flex items-center justify-center text-white font-black text-sm">1D</span>
-                        <span className="font-black">운영센터</span>
-                    </Link>
-                </div>
-                <nav className="flex flex-col px-2 gap-0.5">
-                    {NAV.map(n => (
-                        <NavLink key={n.to} to={n.to} className={({ isActive }) => `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-info/15 text-info font-bold' : 'text-text-muted hover:bg-surface-alt hover:text-text-primary'}`}>
-                            {n.icon}<span>{n.label}</span>{n.badge && <NavBadge n={n.badge(c)} />}
-                        </NavLink>
-                    ))}
-                </nav>
-                <div className="mt-auto px-4 py-4 space-y-2 text-[11px] text-text-muted">
-                    <div className="flex gap-1">{themeButton}{logoutButton}</div>
-                    <div>관리자: {session.name || '관리자'}</div>
-                    <div>열람은 기록에 남습니다</div>
-                </div>
+                <NavList c={c} footer={footer} />
             </aside>
 
             <div className="flex-1 min-w-0 flex flex-col">
-                {/* 윗줄 — 폰에서는 제목 · PC 에서는 마지막 갱신 · 관리자 */}
-                <div className="sticky top-0 z-20 bg-surface/90 backdrop-blur border-b border-border-card px-4 h-11 flex items-center gap-3">
-                    <Link to="/members" className="md:hidden flex items-center gap-2 font-black"><span className="w-7 h-7 rounded-md bg-gradient-to-tr from-accent-alt to-info flex items-center justify-center text-white text-xs">1D</span>운영센터</Link>
+                {/* 윗줄 — 폰에서는 ☰ + 지금 쪽 이름 · PC 에서는 마지막 갱신 · 관리자 */}
+                <div className="sticky top-0 z-20 bg-surface/90 backdrop-blur border-b border-border-card px-3 md:px-4 h-11 flex items-center gap-2 md:gap-3">
+                    <button type="button" onClick={() => setMenuOpen(true)} aria-label="메뉴 열기" aria-expanded={menuOpen} className="md:hidden relative -ml-1 p-2 rounded-lg hover:bg-surface-alt">
+                        <Menu className="size-5" />
+                        {badge && (
+                            <span className={`absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full text-[10px] font-black flex items-center justify-center ${badge.urgent ? 'bg-danger text-white' : 'bg-surface-alt text-text-muted border border-border-card'}`}>{badge.n}</span>
+                        )}
+                    </button>
+                    <span className="md:hidden font-black truncate">{pageName}</span>
                     <div className="ml-auto flex items-center gap-3 text-xs text-text-muted">
-                        <span>마지막 갱신 {clockOf(refreshedAt)}</span>
+                        <span className="hidden sm:inline">마지막 갱신 {clockOf(refreshedAt)}</span>
                         <span className={signalOn ? 'text-success' : ''} title="서버 신호(콜이 바뀌면 바로 다시 읽기) — 끊기면 30초마다">{signalOn ? '● 신호 연결' : '○ 신호 끊김 — 30초마다'}</span>
                         <span className="hidden md:inline">{session.name || '관리자'}</span>
-                        <span className="md:hidden">{themeButton}</span>
                     </div>
                 </div>
-                <main className="flex-1 min-w-0 p-3 md:p-6 space-y-3 md:space-y-4 pb-20 md:pb-6">{children}</main>
+                <main className="flex-1 min-w-0 p-3 md:p-6 space-y-3 md:space-y-4">{children}</main>
             </div>
 
-            {/* 폰 아래 탭 */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-surface/95 backdrop-blur border-t border-border-card grid grid-cols-5">
-                {NAV.filter(n => PHONE_TABS.includes(n.to)).map(n => (
-                    <NavLink key={n.to} to={n.to} className={({ isActive }) => `relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActive ? 'text-info font-bold' : 'text-text-muted'}`}>
-                        {n.icon}<span>{n.label.replace('통화 도우미', '통화')}</span>
-                        {n.badge && n.badge(c) > 0 && <span className="absolute top-1 right-1/4 min-w-4 h-4 px-1 rounded-full bg-warning text-black text-[10px] font-black flex items-center justify-center">{n.badge(c)}</span>}
-                    </NavLink>
-                ))}
-                <button type="button" onClick={() => setMore(v => !v)} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${more || rest.some(n => n.to === location.pathname) ? 'text-info font-bold' : 'text-text-muted'}`}>
-                    <MoreHorizontal className="size-4" /><span>더 보기</span>
-                </button>
-            </nav>
-            {more && (
-                <div className="md:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setMore(false)}>
-                    <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl bg-surface p-4 pb-6" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-2"><span className="font-bold">더 보기</span><button type="button" onClick={() => setMore(false)} aria-label="닫기"><X className="size-4" /></button></div>
-                        <div className="grid grid-cols-2 gap-2">
-                            {rest.map(n => (
-                                <NavLink key={n.to} to={n.to} className={({ isActive }) => `flex items-center gap-2 rounded-xl px-3 py-3 text-sm ${isActive ? 'bg-info/15 text-info font-bold' : 'bg-surface-alt'}`}>{n.icon}<span>{n.label}</span></NavLink>
-                            ))}
-                        </div>
-                        <div className="mt-3 flex justify-between text-xs text-text-muted"><span>관리자: {session.name || '관리자'}</span>{logoutButton}</div>
-                    </div>
+            {/* 📱 폰 사이드바 — PC 와 같은 NavList */}
+            {menuOpen && (
+                <div className="md:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setMenuOpen(false)} role="presentation">
+                    <aside className="absolute inset-y-0 left-0 w-64 max-w-[85vw] flex flex-col bg-surface border-r border-border-card shadow-xl overflow-y-auto" role="dialog" aria-modal="true" aria-label="메뉴" onClick={e => e.stopPropagation()}>
+                        <button type="button" onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기" className="absolute top-3 right-3 p-1.5 rounded-lg text-text-muted hover:bg-surface-alt"><X className="size-4" /></button>
+                        <NavList c={c} footer={footer} onPick={() => setMenuOpen(false)} />
+                    </aside>
                 </div>
             )}
         </div>

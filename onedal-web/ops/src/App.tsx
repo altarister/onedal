@@ -1,23 +1,25 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Button } from '@onedal/ui/button';
 import { Shell } from './ui';
 import { client, fetchMeName, logout, session, statusOf, token } from './api/client';
 import { connectSignal, disconnectSignal } from './api/socket';
 import Login from './pages/Login';
-import Members from './pages/Members';
-import MemberDetail from './pages/MemberDetail';
-import MembersCheck from './pages/MembersCheck';
-import Calls from './pages/Calls';
-import MapPage from './pages/MapPage';
-import Phones from './pages/Phones';
-import Anomalies from './pages/Anomalies';
-import Contents from './pages/Contents';
-import Notices from './pages/Notices';
-import Releases from './pages/Releases';
-import Stats from './pages/Stats';
-import Audit from './pages/Audit';
-import Board from './pages/Board';
+
+/** 쪽은 열 때 따로 받는다 — 처음 받는 덩어리를 줄여 폰 브라우저에서 빨리 뜨게. 로그인만 처음부터(첫 화면) */
+const Members = lazy(() => import('./pages/Members'));
+const MemberDetail = lazy(() => import('./pages/MemberDetail'));
+const MembersCheck = lazy(() => import('./pages/MembersCheck'));
+const Calls = lazy(() => import('./pages/Calls'));
+const MapPage = lazy(() => import('./pages/MapPage'));
+const Phones = lazy(() => import('./pages/Phones'));
+const Anomalies = lazy(() => import('./pages/Anomalies'));
+const Contents = lazy(() => import('./pages/Contents'));
+const Notices = lazy(() => import('./pages/Notices'));
+const Releases = lazy(() => import('./pages/Releases'));
+const Stats = lazy(() => import('./pages/Stats'));
+const Audit = lazy(() => import('./pages/Audit'));
+const Board = lazy(() => import('./pages/Board'));
 
 /**
  * 🏢 **운영센터 주소 — reviews/29 5장 그대로.** 로그인(`/login`) 밖은 토큰이 없으면 로그인으로.
@@ -84,6 +86,7 @@ export default function App() {
                 <Route path="/*" element={
                     <OpsGate>
                         <Shell>
+                            <Suspense fallback={<p className="text-sm text-text-muted">읽는 중…</p>}>
                             <Routes>
                                 <Route path="/" element={<Navigate to="/members" replace />} />
                                 <Route path="/members" element={<Members />} />
@@ -101,6 +104,7 @@ export default function App() {
                                 <Route path="/audit" element={<Audit />} />
                                 <Route path="*" element={<Navigate to="/members" replace />} />
                             </Routes>
+                            </Suspense>
                         </Shell>
                     </OpsGate>
                 } />

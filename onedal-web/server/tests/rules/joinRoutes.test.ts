@@ -51,6 +51,13 @@ describe('📝 가입 쪽 주소', () => {
         expect(layoutPart).toContain('<Route path="*" element={<Navigate to="/" replace />} />');
     });
 
+    it('🔴 «이용이 멈췄습니다» 화면은 스스로 다시 읽는다 — 관리자가 정지를 풀면 30초 안(또는 화면이 다시 보일 때) 관제로 나간다', () => {
+        const b = readFileSync(join(SRC, 'pages/Blocked.tsx'), 'utf8');
+        expect(b).toMatch(/setInterval\(again, 30_000\)/);
+        expect(b).toContain("document.addEventListener('visibilitychange', onVisible)");
+        expect(b).toContain("if (d === 'ok') navigate('/', { replace: true });");
+    });
+
     it('🔴 가입 쪽 화면은 서버를 직접 부르지 않는다 — api/join.ts 한 곳', () => {
         for (const f of ['Join', 'JoinApps', 'Pending', 'Withdraw', 'Terms', 'JoinSteps', 'Blocked']) {
             const src = readFileSync(join(SRC, 'pages', `${f}.tsx`), 'utf8');

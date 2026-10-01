@@ -33,6 +33,15 @@ export default function Blocked() {
         return () => { alive = false; };
     }, [navigate, tick]);
 
+    /* 관리자가 정지를 풀면 이 화면에서 스스로 나간다 — 30초마다 · 화면이 다시 보일 때 다시 읽는다(안 그러면 «다시 보기»를 누를 때까지 갇힌다) */
+    useEffect(() => {
+        const again = () => setTick(t => t + 1);
+        const onVisible = () => { if (document.visibilityState === 'visible') again(); };
+        const timer = setInterval(again, 30_000);
+        document.addEventListener('visibilitychange', onVisible);
+        return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+    }, []);
+
     const why = me ? opsMemberStatus(me, todayKey()).text : failed ? '상태를 읽지 못했습니다' : '확인 중…';
 
     return (
