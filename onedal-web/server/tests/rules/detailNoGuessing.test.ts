@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { pageFieldOf, pageFareOf, normalizeVehicleType } from '@onedal/shared';
+import { applySoloRoute } from '../../src/services/routeComposer';
 
 /**
  * 🔎 **서버는 상세 원문에서 칸을 짐작하지 않는다** (reviews/34 3단계 · 기사님 «가»).
@@ -61,5 +62,26 @@ describe('🚚 상세 차종 — 정의 표대로', () => {
     });
     it('🔴 상세 길이 원달앱 · 목록 차종이 없을 때만 정의 표로 차종을 읽는다', () => {
         expect(read('routes/detail.ts')).toMatch(/if \(!pendingOrder\.vehicleType\) \{\s*pendingOrder\.vehicleType = pageFieldOf\(targetApp, 'detail', 'vehicleType', rawText\)/);
+    });
+});
+
+/**
+ * 📏 **거리 칸(distanceKm)은 카카오가 잰 배송 거리다** (reviews/34 3단계 2 · 기사님 «가» · onedal-69 «가»).
+ *    원달앱은 거리를 안 싣고, 옛 짐작은 원문의 이름표 없는 소수 · 공백 사이 두 자리 숫자를 거리로 잡았다 — 관제웹 심사석 «Nkm»가 그 숫자였다.
+ *    이제 단독 배송을 잰 자리(경로 짜기 · 확정 뒤 재기)에서 kakaoSoloDistanceKm 와 같은 값을 적는다. 못 재면 칸 없음.
+ */
+describe('📏 거리 칸 — 카카오 실측', () => {
+    it('🔴 상세 길이 원문에서 거리를 짐작하지 않는다', () => {
+        expect(read('routes/detail.ts')).not.toMatch(/parseMockupDistance/);
+        expect(read('utils/parser.ts')).not.toMatch(/parseMockupDistance/);
+    });
+    it('🔴 단독 경로를 재면 거리 칸 = 카카오 배송 거리(접근 구간 뺀 값)', () => {
+        const holder: any = { id: 'o-dist' };
+        applySoloRoute(holder, { distance: 25000, duration: 1800, approachDistance: 5000, approachDuration: 300, polyline: [] } as any);
+        expect(holder.kakaoSoloDistanceKm).toBe(20);
+        expect(holder.distanceKm).toBe(holder.kakaoSoloDistanceKm);
+    });
+    it('🔴 확정 뒤 단독 배송을 다시 재는 자리도 거리 칸을 같이 적는다', () => {
+        expect(read('services/dispatchEngine.ts')).toMatch(/o\.kakaoSoloDistanceKm = solo\.km;\s*o\.distanceKm = solo\.km;/);
     });
 });

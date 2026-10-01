@@ -88,6 +88,7 @@ export function applySoloRoute(holder: RouteHolder, r: RouteResult): void {
     holder.routeComputedAt = new Date().toISOString();   // 타임라인 추정 약속의 기준 = 카카오호출시점
 
     holder.kakaoSoloDistanceKm = toKm(Math.max(0, r.distance - approachM));
+    holder.distanceKm = holder.kakaoSoloDistanceKm;   // 📏 거리 칸 = 카카오 배송 거리(관제웹 심사석 «Nkm») — 원문에서 짐작하지 않는다
     holder.kakaoSoloDurationMin = toMin(Math.max(0, r.duration - approachSec));
 
     // 접근 구간은 현위치를 알 때만 나온다. 모르면 값을 만들지 않는다 —

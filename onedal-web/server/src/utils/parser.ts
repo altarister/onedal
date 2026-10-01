@@ -60,48 +60,6 @@ export function parseLocationDetails(rawText: string, searchTag: "[출발지상�
 }
 
 /**
- * [목업 지원 전용] 거리 텍스트 파싱
- */
-export function parseMockupDistance(rawText: string): number | undefined {
-    if (!rawText) return undefined;
-
-    // 명시적 km 포맷
-    const distMatch = rawText.match(/(\d+(?:\.\d+)?)\s*(?:km|KM|킬로)/i);
-    if (distMatch) return parseFloat(distMatch[1]);
-
-    // "거리: 52.9" 포맷
-    const shortDist = rawText.match(/거리\s*[:]?\s*(\d+(?:\.\d+)?)/);
-    if (shortDist) return parseFloat(shortDist[1]);
-
-    // km 구문이 없는 순수 숫자 추출 (안드로이드 앱과 동일하게 100.0 미만의 소수점/정수는 거리로 추정)
-    // 인성콜 특유의 약어(예: "오 12.5") 지원
-    const blindDists = rawText.match(/\b(\d+\.\d+)\b/g);
-    if (blindDists) {
-        let maxDist = 0;
-        for (const str of blindDists) {
-            const val = parseFloat(str);
-            if (val > maxDist && val < 100.0) maxDist = val;
-        }
-        if (maxDist > 0) return maxDist;
-    }
-
-    // 100.0 미만의 정수 (예: "73") 인데 맥락상 거리일 확률이 있는 경우
-    // 하지만 "45"(4.5만) 같은 요금과 겹칠 위험이 있으므로 소수점 혹은 km/거리 텍스트가 있을때만 위에서 잡힙니다.
-    // 추가 강구책으로 앞/뒤에 아무것도 안 붙은 두자리수 미만 숫자를 잡아냅니다.
-    const blindInts = rawText.match(/\s(\d{1,2})\s/g);
-    if (blindInts) {
-        let maxDist = 0;
-        for (const str of blindInts) {
-            const val = parseInt(str.trim(), 10);
-            if (val > maxDist && val < 100) maxDist = val;
-        }
-        if (maxDist > 0) return maxDist;
-    }
-
-    return undefined;
-}
-
-/**
  * [Dumb Client / Smart Server]
  * 원본 텍스트(rawText)로부터 세부 메타데이터를 정규식으로 추출합니다.
  */

@@ -554,6 +554,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             if (solo) {
                 for (const o of [confirmedOrder, cachedOrder] as any[]) {
                     o.kakaoSoloDistanceKm = solo.km;
+                    o.distanceKm = solo.km;   // 📏 거리 칸 = 카카오 배송 거리
                     o.kakaoSoloDurationMin = solo.minutes;
                 }
             }
