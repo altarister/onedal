@@ -9,7 +9,8 @@ export default function Notices() {
     useTick();
     const [text, setText] = useState('');
     const [until, setUntil] = useState('');
-    const list = api.notices();
+    const list = api.notices().filter(n => !n.endedAt);
+    const ended = api.notices().filter(n => n.endedAt);
     return (
         <>
             <PageHeader title="공지" sub="기사 관제웹 상단에 한 줄로 — 운전 중에 읽히게 짧게" />
@@ -29,10 +30,15 @@ export default function Notices() {
                             <div className="font-semibold">{n.text}</div>
                             <div className="text-xs text-text-muted">{fmtTime(n.postedAt)} 올림 · {n.activeUntil ? `${n.activeUntil} 까지` : '내릴 때까지'}</div>
                         </div>
-                        <Button type="button" size="xs" variant="outline" onClick={() => api.removeNotice(n.id)}>내리기</Button>
+                        <Button type="button" size="xs" variant="outline" onClick={() => api.endNotice(n.id)}>내리기</Button>
                     </div>
                 ))}
             </Card>
+            {ended.length > 0 && (
+                <Card title="내린 공지 — 지우지 않습니다">
+                    {ended.map(n => <div key={n.id} className="text-sm text-text-muted flex justify-between gap-3"><span>{n.text}</span><span className="shrink-0">{fmtTime(n.postedAt)} 올림 · {fmtTime(n.endedAt)} 내림</span></div>)}
+                </Card>
+            )}
             <Card title="기사 화면에서 이렇게 보입니다">
                 <div className="rounded-xl bg-info/10 border border-info/30 px-3 py-2 text-sm">📢 {list[0]?.text ?? '(공지 없음)'}</div>
             </Card>

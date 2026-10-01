@@ -36,7 +36,6 @@ export default function MemberDetail() {
                     <dt className="text-text-muted">통계</dt><dd className="font-semibold">{m.statsAllowedAt ? `허락됨 · ${allowText(m.statsAllowedAt, m.statsUntil)}` : '없음'}</dd>
                     <dt className="text-text-muted">운영센터</dt><dd className="font-semibold">{m.opsAllowedAt ? `허락됨 (${fmtTime(m.opsAllowedAt)})` : '—'}</dd>
                     <dt className="text-text-muted">차종 · 배차망</dt><dd className="font-semibold">{m.vehicle || '—'} · {m.networks.map(n => TARGET_APP_LABEL[n]).join(' · ') || '—'}</dd>
-                    <dt className="text-text-muted">지역 · 유튜브</dt><dd className="font-semibold">{m.region || '—'} · {m.youtubeChannel ?? '(비움)'}</dd>
                 </dl>
             </Card>
 
@@ -71,7 +70,7 @@ export default function MemberDetail() {
             <StatRow>
                 <Stat label="오늘 본 콜" value={todayCalls.length} />
                 <Stat label="진행 중" value={activeCalls} tone={activeCalls ? 'ok' : undefined} />
-                <Stat label="카카오 오늘 / 이달" value={`${usage.today} / ${usage.month}`} hint="길찾기 호출 수" />
+                <Stat label="카카오 오늘 / 이달" value={usage ? `${usage.today} / ${usage.month}` : '아직 안 셈'} hint="길찾기 호출 수 — 5단계" />
                 <Stat label="이상 기록" value={anomalies.length} tone={anomalies.length ? 'warn' : undefined} />
             </StatRow>
 

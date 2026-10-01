@@ -20,25 +20,25 @@ const tomorrowName = DAY_NAMES[(today.getDay() + 1) % 7];
 export const MEMBERS: OpsMember[] = [
     {
         id: 'm-driver1', name: '기사님 (기사1)', email: 'driver1@example.com', phone: '010-1111-2222', vehicle: '1t',
-        networks: ['insung', 'hwamul24', 'kakaopicker'], region: '광주 · 이천 · 여주', youtubeChannel: null, role: 'USER',
+        networks: ['insung', 'hwamul24', 'kakaopicker'], role: 'USER',
         createdAt: d(40), approvedAt: d(40, 10), suspendedAt: null, suspendAfterActive: false, withdrawnAt: null,
         paidUntil: null, autoAllowedAt: d(40, 10), autoUntil: null, statsAllowedAt: d(40, 10), statsUntil: null, opsAllowedAt: d(40, 10), phones: [],
     },
     {
         id: 'm-driver2', name: '딸 (기사2)', email: 'driver2@example.com', phone: '010-3333-4444', vehicle: '다마스',
-        networks: ['insung', 'kakaopicker'], region: '성남 · 광주', youtubeChannel: '화물기사 2호', role: 'USER',
+        networks: ['insung', 'kakaopicker'], role: 'USER',
         createdAt: d(3, 21, 12), approvedAt: d(2, 8, 30), suspendedAt: null, suspendAfterActive: false, withdrawnAt: null,
         paidUntil: null, autoAllowedAt: d(2, 8, 30), autoUntil: null, statsAllowedAt: d(2, 8, 30), statsUntil: null, opsAllowedAt: null, phones: [],
     },
     {
         id: 'm-admin', name: '와이프 (관리자)', email: 'admin@example.com', phone: '010-5555-6666', vehicle: '',
-        networks: [], region: '', youtubeChannel: null, role: 'ADMIN',
+        networks: [], role: 'ADMIN',
         createdAt: d(40), approvedAt: d(40), suspendedAt: null, suspendAfterActive: false, withdrawnAt: null,
         paidUntil: null, autoAllowedAt: null, autoUntil: null, statsAllowedAt: null, statsUntil: null, opsAllowedAt: d(40), phones: [],
     },
     {
         id: 'm-pending', name: '신청자 (예시)', email: 'new@example.com', phone: '010-7777-8888', vehicle: '라보',
-        networks: ['hwamul24'], region: '용인', youtubeChannel: '라보왕', role: 'USER',
+        networks: ['hwamul24'], role: 'USER',
         createdAt: d(0, 7, 41), approvedAt: null, suspendedAt: null, suspendAfterActive: false, withdrawnAt: null,
         paidUntil: null, autoAllowedAt: null, autoUntil: null, statsAllowedAt: null, statsUntil: null, opsAllowedAt: null, phones: [],
     },
@@ -113,8 +113,8 @@ export const CONTENTS: OpsContent[] = [
 ];
 
 export const NOTICES: OpsNotice[] = [
-    { id: 1, text: `내일(${tomorrowName}) 새벽 2~3시 서버 점검 — 그 시간엔 알람이 안 울립니다`, postedAt: d(0, 7, 0), activeUntil: plusDays(1) },
-    { id: 2, text: '원달앱 2.9.12 로 올려 주세요 — 픽커 사진 읽기가 좋아졌습니다', postedAt: d(3, 9, 0), activeUntil: null },
+    { id: 1, text: `내일(${tomorrowName}) 새벽 2~3시 서버 점검 — 그 시간엔 알람이 안 울립니다`, postedAt: d(0, 7, 0), activeUntil: plusDays(1), endedAt: null },
+    { id: 2, text: '원달앱 2.9.12 로 올려 주세요 — 픽커 사진 읽기가 좋아졌습니다', postedAt: d(3, 9, 0), activeUntil: null, endedAt: null },
 ];
 
 export const RELEASES: OpsRelease[] = [

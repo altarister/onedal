@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CONTENT_KINDS } from '@onedal/shared';
 import type { OpsAudit, OpsCall, OpsCallNote, OpsContent, OpsContentKind, OpsMember, OpsNotice, OpsRelease } from '@onedal/shared';
 import { ANOMALIES, AUDIT, BOARD_DROPPED, BOARD_FILTER_FULL, BOARD_PHONE_DETAIL, BOARD_SERVER, CALLS, CHECKS, CONTENTS, KAKAO_USAGE, MEMBERS, MONTH_CODE, NOTICES, PHONES, RELEASES, SCREEN_WORDS, STATS_ROWS } from '../mock/data';
 
@@ -57,13 +58,15 @@ export const api = {
     calls: (): OpsCall[] => CALLS,
     anomalies: () => ANOMALIES,
     screenWords: () => SCREEN_WORDS,
-    contents: (): OpsContent[] => CONTENTS,
+    /** 글 순서는 규격의 순서 — 화면이 늘 같은 차례로 보인다 */
+    contents: (): OpsContent[] => [...CONTENTS].sort((a, b) => CONTENT_KINDS.indexOf(a.kind) - CONTENT_KINDS.indexOf(b.kind)),
     notices: (): OpsNotice[] => NOTICES,
     releases: (): OpsRelease[] => RELEASES,
     audit: (): OpsAudit[] => AUDIT,
     checks: () => CHECKS,
     monthCode: () => MONTH_CODE,
-    kakaoUsage: (memberId: string) => KAKAO_USAGE[memberId] ?? { today: 0, month: 0 },
+    /** 5단계 표(kakao_usage_days)가 생기기 전엔 null — 화면은 «아직 안 셈» */
+    kakaoUsage: (memberId: string): { today: number; month: number } | null => KAKAO_USAGE[memberId] ?? null,
     stats: () => STATS_ROWS,
     boardServer: () => BOARD_SERVER,
     boardPhoneDetail: (deviceId: string) => BOARD_PHONE_DETAIL[deviceId],
@@ -124,11 +127,13 @@ export const api = {
         log('페이지 글 적음', null, `${title} v${c.version}`); notify();
     },
     postNotice(text: string, activeUntil: string | null) {
-        NOTICES.unshift({ id: (NOTICES[0]?.id ?? 0) + 1, text, postedAt: now(), activeUntil });
+        NOTICES.unshift({ id: Math.max(0, ...NOTICES.map(n => n.id)) + 1, text, postedAt: now(), activeUntil, endedAt: null });
         log('공지 올림', null, text.slice(0, 30)); notify();
     },
-    removeNotice(id: number) {
-        const i = NOTICES.findIndex(n => n.id === id); if (i >= 0) NOTICES.splice(i, 1);
+    /** 내림 — 줄을 지우지 않고 내린 시각을 적는다(지우기는 기사님 · 기록은 남는다) */
+    endNotice(id: number) {
+        const n = NOTICES.find(x => x.id === id); if (!n || n.endedAt) return;
+        n.endedAt = now();
         log('공지 내림', null, `#${id}`); notify();
     },
     /** 올리기 — «최신»은 versionCode 가 가장 큰 판이다. 낮은 판을 올리면 최신이 되지 않는다(최소 판이 최신보다 높아지지 않게) */

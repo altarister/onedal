@@ -16,7 +16,7 @@ export default function Members() {
     const all = api.members().filter(m => m.role !== 'ADMIN');
     const rows = all
         .filter(m => filter === 'all' || memberStatus(m).text.includes(filter))
-        .filter(m => !q.trim() || [m.name, m.phone, m.email, m.region, m.vehicle].some(v => v.includes(q.trim())));
+        .filter(m => !q.trim() || [m.name, m.phone, m.email, m.vehicle].some(v => v.includes(q.trim())));
     const count = (t: string) => all.filter(m => memberStatus(m).text.includes(t)).length;
     const nets = (m: OpsMember) => m.networks.map(n => TARGET_APP_LABEL[n]).join(' · ') || '—';
     const allows = (m: OpsMember) => (
@@ -34,7 +34,6 @@ export default function Members() {
         { key: 'phone', label: '연락처', className: 'whitespace-nowrap', render: m => m.phone },
         { key: 'vehicle', label: '차종', render: m => m.vehicle || '—' },
         { key: 'networks', label: '배차망', render: nets },
-        { key: 'region', label: '지역', render: m => m.region || '—' },
         { key: 'paid', label: '유료 기한', className: 'whitespace-nowrap', render: m => m.paidUntil ?? <span className="text-text-muted">없음</span> },
         { key: 'allow', label: '허락', className: 'whitespace-nowrap', render: allows },
         { key: 'phones', label: '폰', render: m => `${m.phones.length}대 · 연결 ${m.phones.filter(p => p.status === 'ONLINE').length}` },
@@ -56,7 +55,7 @@ export default function Members() {
                     {(['all', '승인 대기', '사용 중', '유예', '정지'] as const).map(f => (
                         <Button key={f} type="button" size="sm" variant={filter === f ? 'default' : 'outline'} onClick={() => setFilter(f)}>{f === 'all' ? '전체' : f}</Button>
                     ))}
-                    <Input value={q} onChange={e => setQ(e.target.value)} placeholder="이름 · 연락처 · 지역 찾기" className="md:ml-auto md:w-56" />
+                    <Input value={q} onChange={e => setQ(e.target.value)} placeholder="이름 · 연락처 · 차종 찾기" className="md:ml-auto md:w-56" />
                 </div>
             </Card>
             <Table rows={rows} columns={columns} rowKey={m => m.id} onRow={m => navigate(`/members/${m.id}`)} empty="해당하는 회원이 없습니다"
@@ -64,7 +63,7 @@ export default function Members() {
                     <div className="space-y-1.5">
                         <div className="flex items-center justify-between gap-2"><span className="font-bold">{m.name}</span><StatusBadge m={m} /></div>
                         <KV k="연락처 · 차종" v={`${m.phone} · ${m.vehicle || '—'}`} />
-                        <KV k="배차망 · 지역" v={`${nets(m)} · ${m.region || '—'}`} />
+                        <KV k="배차망" v={nets(m)} />
                         <KV k="폰 · 앱" v={`${m.phones.length}대 (연결 ${m.phones.filter(p => p.status === 'ONLINE').length}) · ${m.phones.map(p => p.appVersion).filter((v, i, a) => a.indexOf(v) === i).join(' / ') || '—'}`} />
                         <div className="flex items-center justify-between gap-2 pt-1"><span className="text-xs text-text-muted">유료 {m.paidUntil ?? '없음'}</span>{allows(m)}</div>
                     </div>

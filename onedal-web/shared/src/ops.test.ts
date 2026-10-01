@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GRACE_DAYS, opsMemberStatus } from './ops';
+import { GRACE_DAYS, accountBlocked, opsMemberStatus } from './ops';
 
 /** 회원 상태는 사실 칸에서만 — 서버는 blocked 만 읽고, 글은 화면 몫 (reviews/29 · 기한 지나면 자동 정지 · 14일 유예 · 탈퇴는 관리자 손) */
 const base = { approvedAt: '2026-09-01T09:00:00.000Z', suspendedAt: null, suspendAfterActive: false, withdrawnAt: null, paidUntil: null };
@@ -26,5 +26,20 @@ describe('회원 상태 — 사실 칸에서 글과 blocked 를 만든다', () =
         expect(r.blocked).toBe(true);
         expect(r.text).toBe('정지 · 유예 끝 — 탈퇴 처리 필요');
         expect(r.graceDay).toBe(30);
+    });
+
+    it('🔴 «끝난 뒤» 정지와 기한 지남은 진행 중 콜이 있으면 아직 막지 않는다 — 중간에 끊으면 안전취소가 멈춘다', () => {
+        const after = { ...base, suspendedAt: '2026-09-30T00:00:00Z', suspendAfterActive: true };
+        expect(accountBlocked(after, TODAY, true)).toBe(false);
+        expect(accountBlocked(after, TODAY, false)).toBe(true);
+        expect(opsMemberStatus(after, TODAY, true).text).toBe('정지 (진행 중 콜 끝난 뒤)');
+        const expired = { ...base, paidUntil: '2026-09-30' };
+        expect(accountBlocked(expired, TODAY, true)).toBe(false);
+        expect(accountBlocked(expired, TODAY, false)).toBe(true);
+    });
+    it('즉시 정지 · 승인 전 · 탈퇴는 진행 중 콜이 있어도 막는다', () => {
+        expect(accountBlocked({ ...base, suspendedAt: '2026-09-30T00:00:00Z' }, TODAY, true)).toBe(true);
+        expect(accountBlocked({ ...base, approvedAt: null }, TODAY, true)).toBe(true);
+        expect(accountBlocked({ ...base, withdrawnAt: '2026-09-30T00:00:00Z' }, TODAY, true)).toBe(true);
     });
 });

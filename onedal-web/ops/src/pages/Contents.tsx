@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { OpsContentKind } from '@onedal/shared';
+import { CONSENT_KINDS, type OpsContentKind } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api } from '../api/ops';
@@ -15,7 +15,7 @@ export default function Contents() {
     const [body, setBody] = useState(cur.body);
     const pick = (k: OpsContentKind) => { setKind(k); const c = list.find(x => x.kind === k)!; setTitle(c.title); setBody(c.body); };
     const dirty = title !== cur.title || body !== cur.body;
-    const needsReconsent = kind === 'terms' || kind === 'privacy' || kind === 'location';
+    const needsReconsent = CONSENT_KINDS.includes(kind);   // 다시 동의받는 글 — 규격 한 곳
 
     return (
         <>
