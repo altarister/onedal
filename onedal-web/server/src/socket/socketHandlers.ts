@@ -16,6 +16,8 @@ import { buildOrderSync, getActiveCalls } from "../core/helpers";
 
 /** 🧹 복구 보내기 줄을 마지막으로 적었을 때의 콜·상태 — 기사님마다 따로 */
 const lastRecoverLogSig = new Map<string, string>();
+/** 🏢 운영센터 신호를 보낸 마지막 콜 지문(콜 · 상태 · 판정 색) — 기사마다 */
+const lastOpsSig = new Map<string, string>();
 import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
 import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
 import { routeTlOf } from "../services/routeTl";
@@ -826,8 +828,13 @@ export function registerSocketHandlers(io: Server) {
                 slog('통신', `📤 [Socket 푸시] sync-active-orders (복구 · 활성 ${calls.length}건 ${callsSig || '없음'})`);
             }
             io.to(uid).emit("sync-active-orders", sync);
-            /* 🏢 관리자 방에는 «이 기사 콜이 바뀌었다» 신호만 — 자료는 안 싣는다(운영센터가 GET /api/ops/calls 로 다시 읽고, requireOps 가 요청마다 허락을 다시 본다 · reviews/29 5단계 · 04 메모 ①) */
-            io.to("admin_room").emit("ops-calls-changed", { memberId: uid });
+            /* 🏢 관리자 방에는 «이 기사 콜이 바뀌었다» 신호만 — 자료는 안 싣는다(운영센터가 GET /api/ops/calls 로 다시 읽고, requireOps 가 요청마다 허락을 다시 본다 · reviews/29 5단계 · 04 메모 ①).
+                  콜 · 상태 · 판정 색이 바뀔 때만 — 주행 시각 · 위치만 바뀐 1~2초마다의 변화로는 안 보낸다(통화 행이 바뀐 때는 saveCargoReport 가 보낸다) */
+            const opsSig = calls.map(c => `${c.id}:${c.status}:${c.judgment?.color ?? ''}`).join(',');
+            if (lastOpsSig.get(uid) !== opsSig) {
+                lastOpsSig.set(uid, opsSig);
+                io.to("admin_room").emit("ops-calls-changed", { memberId: uid });
+            }
         }
         /**
          * 🔴 `.unref()` — **이 1초 타이머가 서버를 붙잡지 않게 한다**.

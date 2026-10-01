@@ -174,6 +174,8 @@ export interface OpsPaidUntilRequest { until: string | null }
 export interface OpsContentSave { title: string; body: string }
 export interface OpsNoticePost { text: string; activeUntil: string | null }
 export type OpsCallNoteWrite = Omit<OpsCallNote, 'writtenBy' | 'writtenAt'>;
+/** 통화 메모 글자 수 상한 — 서버가 넘으면 400 · 운영센터 화면이 같은 상수로 글자 수를 보인다 */
+export const CALL_NOTE_MEMO_MAX = 200;
 export interface OpsMinimumRelease { app: OpsRelease['app']; versionCode: number }
 
 /** 유예 — 유료 기한이 지난 뒤 확인 번호로 되살릴 수 있는 날 수 (reviews/29 · 첫 값 · 유튜브 결제 실패 재시도 기간 확인 후 조정) */

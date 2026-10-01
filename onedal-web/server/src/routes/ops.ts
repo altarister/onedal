@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import {
-    CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow,
+    CALL_NOTE_MEMO_MAX, CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow,
     type CargoReport, type CargoUnit, type OpsAgreement, type OpsCallNote,
     type ContentKind, type OpsAnomaly, type OpsAudit, type OpsCall, type OpsContent, type OpsCounts, type OpsMember,
     type OpsMemberDetail, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
@@ -253,6 +253,7 @@ router.post("/calls/:id/note", (req, res) => {
     const promised = b.promisedArrivalAt == null ? null : typeof b.promisedArrivalAt === 'string' && Number.isFinite(Date.parse(b.promisedArrivalAt)) ? b.promisedArrivalAt : undefined;
     const memo = typeof b.memo === 'string' ? b.memo.trim() : '';
     if (!stopType || unit === undefined || quantity === undefined || promised === undefined) return res.status(400).json({ error: "통화 결과 칸을 확인해 주세요." });
+    if (memo.length > CALL_NOTE_MEMO_MAX) return res.status(400).json({ error: `메모는 ${CALL_NOTE_MEMO_MAX}자까지입니다.` });
     const actual = stepsView(o.id).find(s => s.step === (stopType === 'pickup' ? 'LOADED' : 'DELIVERED'));
     if (actual?.born && (actual.row as Record<string, any>).actual_unit != null) return res.status(409).json({ error: "기사님이 현장에서 적은 값이 있습니다." });
     const report = { stopType, kind: 'DECLARED', unit: unit ?? undefined, quantity: quantity ?? undefined, promisedArrivalAt: promised ?? undefined, memo: memo || undefined } as CargoReport;

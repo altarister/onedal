@@ -23,10 +23,10 @@ export function saveCargoReport(userId: string, orderId: string, report: CargoRe
     if (writerId !== userId && report.kind !== 'DECLARED') throw new CargoReportError(400, "관리자는 통화 신고만 적을 수 있습니다");
     // 단계 행(새 장부)이 유일한 원천이다
     bridgeCargoReport(userId, orderId, report, getUserSession(userId)?.judgment, routeTlOf(userId), writerId);
-    /* 적은 소켓이 아니라 기사 화면 전부와 관리자 방 둘에 — 관리자가 적어도 기사 관제웹이 바로 닫힌다 */
-    const steps = stepsView(orderId, getUserSession(userId)?.judgment);
-    io.to(userId).emit("steps-synced", { orderId, steps });
-    io.to("admin_room").emit("steps-synced", { orderId, memberId: userId, steps });
+    /* 적은 소켓이 아니라 기사 화면 전부에 — 관리자가 적어도 기사 관제웹이 바로 닫힌다.
+       관리자 방에는 자료 없이 신호만(운영센터가 GET /api/ops/calls 로 다시 읽고 requireOps 가 요청마다 허락을 본다 · 허락을 거둔 소켓이 방에 남아도 자료를 못 받는다) */
+    io.to(userId).emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
+    io.to("admin_room").emit("ops-calls-changed", { memberId: userId });
 
     const all = stepRecordsOf(orderId).reports;
     const pick = (st: string, k: string) => all.find(r => r.stopType === st && r.kind === k);

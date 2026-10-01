@@ -90,6 +90,10 @@ describe('📞 관리자가 적는다', () => {
         const r = await call('post', '/calls/:id/note', { params: { id: O2 }, body: { stopType: 'pickup', unit: '라면박스', quantity: 1, promisedArrivalAt: null, memo: '' } });
         expect(r.status).toBe(409);
     });
+    it('🔴 메모는 200자까지(400)', async () => {
+        const r = await call('post', '/calls/:id/note', { params: { id: O1 }, body: { stopType: 'pickup', unit: null, quantity: null, promisedArrivalAt: null, memo: '가'.repeat(201) } });
+        expect(r.status).toBe(400);
+    });
     it('🔴 없는 콜 · 끝난 콜에는 못 적는다(404)', async () => {
         expect((await call('post', '/calls/:id/note', { params: { id: 'nope' }, body: { stopType: 'pickup', unit: null, quantity: null, promisedArrivalAt: null, memo: '' } })).status).toBe(404);
         expect((await call('post', '/calls/:id/note', { params: { id: ODONE }, body: { stopType: 'pickup', unit: null, quantity: null, promisedArrivalAt: null, memo: '' } })).status).toBe(404);
@@ -112,8 +116,17 @@ describe('📞 /calls', () => {
 
 describe('📞 관리자 방 · 결재 · 장부', () => {
     const sock = readFileSync(join(__dirname, '../../src/socket/socketHandlers.ts'), 'utf8');
-    it('🔴 1초 고리는 관리자 방에 «이 기사 콜이 바뀌었다» 신호만 — 자료는 안 싣는다', () => {
-        expect(sock).toMatch(/io\.to\("admin_room"\)\.emit\("ops-calls-changed", \{ memberId: uid \}\)/);
+    it('🔴 관리자 방으로 나가는 것은 «이 기사 콜이 바뀌었다» 신호 하나뿐 — 자료는 안 싣는다(허락을 거둬도 방에 남은 소켓이 자료를 못 받게)', () => {
+        const { readdirSync, statSync } = require('fs');
+        const walk = (d: string): string[] => readdirSync(d).flatMap((f: string) => { const p = join(d, f); return statSync(p).isDirectory() ? walk(p) : [p]; });
+        const emits = walk(join(__dirname, '../../src')).filter(f => f.endsWith('.ts'))
+            .flatMap(f => [...readFileSync(f, 'utf8').matchAll(/\.to\(["']admin_room["']\)\.emit\(["']([\w-]+)["'],\s*([^)]*)\)/g)].map(m => `${m[1]} ${m[2].trim()}`));
+        expect(emits.length).toBeGreaterThan(0);
+        expect([...new Set(emits.map(e => e.split(' ')[0]))]).toEqual(['ops-calls-changed']);
+        expect(emits.every(e => /\{ memberId: \w+ \}/.test(e))).toBe(true);
+    });
+    it('🔴 신호는 콜 · 상태 · 판정 색이 바뀔 때만(주행 시각이 1~2초마다 바뀌어도 안 보낸다)', () => {
+        expect(sock).toMatch(/opsSig[\s\S]{0,400}io\.to\("admin_room"\)\.emit\("ops-calls-changed"/);
     });
     it('🔴 결재 · 운행 단계는 남의 콜을 버리는 문(orderOn)으로만 받는다', () => {
         expect(sock).toMatch(/orderOn\("decision"/);
