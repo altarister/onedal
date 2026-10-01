@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { workStageLabel, isModeApplying, runningModeOf, modeHeldWhy } from './index';
+import { workStageLabel, isModeApplying, runningModeOf, modeChoicesOf, DEVICE_MODES } from './index';
 
 /**
  * 🚦 **관제웹이 폰의 «지금 하는 일»과 «모드가 닿았나»를 읽는 자리**
@@ -61,7 +61,7 @@ describe('🎛️ 이 배차망에서 도는 모드', () => {
 
 /**
  * 🎛️ **자동 잡기 허락이 꺼진 폰** (reviews/29 6단계 · ab 리뷰 ① · onedal-1f «가»).
- * 명령은 AUTO 그대로인데 서버가 폰에 ALARM 을 내려보낸다 — «적용중»은 폰에 갈 모드와 견주고, 까닭을 한 줄로 말한다.
+ * 명령은 AUTO 그대로인데 서버가 폰에 ALARM 을 내려보낸다 — «적용중»은 폰에 갈 모드와 견주고, 관제웹 모드 목록에는 «자동»이 없다.
  */
 describe('🎛️ 허락이 꺼져 폰이 알람으로 도는 때', () => {
     const held = { mode: 'AUTO', autoAllowed: false, appliedMode: 'ALARM' };
@@ -71,11 +71,14 @@ describe('🎛️ 허락이 꺼져 폰이 알람으로 도는 때', () => {
     it('도는 모드는 알람 — 앱이 아직 도는 모드를 안 실어도', () => {
         expect(runningModeOf({ mode: 'AUTO', autoAllowed: false })).toBe('ALARM');
     });
-    it('까닭 한 줄 — 허락이 꺼졌을 때만', () => {
-        expect(modeHeldWhy(held)).toBe('폰은 알람으로 도는 중 — 자동 잡기 허락이 꺼졌습니다');
-        expect(modeHeldWhy({ mode: 'AUTO', autoAllowed: true })).toBeNull();
-        expect(modeHeldWhy({ mode: 'ALARM', autoAllowed: false })).toBeNull();
-        expect(modeHeldWhy({ mode: 'AUTO' })).toBeNull();
+    it('🔴 모드 고르기 목록 — 허락이 꺼진 폰은 «자동»이 어디에도 없다(명령이 AUTO 로 남아 있어도 끝자리는 알람)', () => {
+        for (const mode of DEVICE_MODES) expect(modeChoicesOf(DEVICE_MODES, { mode, autoAllowed: false })).not.toContain('AUTO');
+        expect(modeChoicesOf(DEVICE_MODES, { mode: 'AUTO', autoAllowed: false }).at(-1)).toBe('ALARM');
+        expect(modeChoicesOf(DEVICE_MODES, { mode: 'MANUAL', autoAllowed: false }).at(-1)).toBe('MANUAL');
+    });
+    it('🔴 허락이 켜졌거나 허락 사실이 없는 폰은 지금 그대로 — 셋 다 · 고른 것이 맨 뒤', () => {
+        for (const autoAllowed of [true, undefined]) for (const mode of DEVICE_MODES)
+            expect(modeChoicesOf(DEVICE_MODES, { mode, autoAllowed })).toEqual([...DEVICE_MODES.filter(m => m !== mode), mode]);
     });
     it('허락을 켜면 폰에 갈 모드는 AUTO — 다음 보고가 AUTO 일 때까지 «적용중»', () => {
         expect(isModeApplying({ mode: 'AUTO', autoAllowed: true, appliedMode: 'ALARM' })).toBe(true);

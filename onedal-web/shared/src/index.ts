@@ -1787,7 +1787,7 @@ export interface DeviceSession {
     effectiveMode?: string;
     /**
      * 🎛️ **이 회원의 자동 잡기 허락이 지금 살아 있나** — 서버가 폰 보고마다 적는다(메모리 · 저장 칸 아님 · reviews/29 6단계).
-     * 꺼지면 AUTO 명령도 폰은 ALARM — 읽을 때는 `phoneModeOf` · `modeHeldWhy` 를 거친다.
+     * 꺼지면 AUTO 명령도 폰은 ALARM — 읽을 때는 `phoneModeOf` 를 거친다 · 관제웹 모드 목록은 `modeChoicesOf`.
      */
     autoAllowed?: boolean;
 }

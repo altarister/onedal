@@ -24,7 +24,13 @@ export function phoneModeOf(d: { mode?: string; autoAllowed?: boolean }): string
     return d.mode ? modeForPhone(d.mode, d.autoAllowed !== false) : undefined;
 }
 
-/** 🎛️ **명령과 폰 모드가 허락 때문에 갈린 까닭 한 줄** — 관제웹 모드 스위치가 그린다. 갈리지 않았으면 null */
-export function modeHeldWhy(d: { mode?: string; autoAllowed?: boolean }): string | null {
-    return d.mode === 'AUTO' && d.autoAllowed === false ? '폰은 알람으로 도는 중 — 자동 잡기 허락이 꺼졌습니다' : null;
+/**
+ * 🎛️ **관제웹 모드 고르기 목록** — 자동 잡기 허락이 꺼진 폰(`autoAllowed === false`)은 «자동»을 그리지 않는다(못 쓰는 버튼을 보이지 않는다).
+ * 끝자리는 지금 고른 것 — 폰에 갈 모드(`phoneModeOf`)라 허락이 꺼진 폰에 AUTO 명령이 남아 있어도 «알람»으로 그린다(저장된 명령은 안 건드린다).
+ * 허락이 켜졌거나 허락 사실이 없는 폰은 셋 그대로 · 고른 것이 맨 뒤.
+ */
+export function modeChoicesOf<M extends string>(modes: readonly M[], d: { mode: M; autoAllowed?: boolean }): M[] {
+    const current = (phoneModeOf(d) ?? d.mode) as M;
+    const shown = modes.filter(m => d.autoAllowed !== false || m !== 'AUTO');
+    return [...shown.filter(m => m !== current), current];
 }
