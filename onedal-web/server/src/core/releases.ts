@@ -39,14 +39,13 @@ export function assertOutsideRepo(dir: string, repoRoot = REPO_ROOT): void {
 const ZIP_HEAD = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
 
 /**
- * 📥 **받는 흐름을 파일로** — 상한을 흐름에서 세어 넘으면 끊는다(413) · 끝나면 첫 4바이트가 zip 머리인지(400) · 이름 바꾸기.
- * 실패하면 임시 파일을 지운다 — 반쯤 쓴 APK 가 남지 않는다.
+ * 📥 **받는 흐름을 임시 파일로** — 상한을 흐름에서 세어 넘으면 끊는다(413) · 끝나면 첫 4바이트가 zip 머리인지(400).
+ * 제자리 두기는 [commitRelease] 가 표 줄을 잡은 뒤에 한다. 실패하면 임시 파일을 지운다 — 반쯤 쓴 APK 가 남지 않는다.
  */
 export async function receiveApk(input: Readable, opts: { dir: string; app: ReleaseApp; versionCode: number; limit: number }):
-    Promise<{ fileName: string; sha256: string; sizeBytes: number }> {
+    Promise<{ tmpPath: string; sha256: string; sizeBytes: number }> {
     fs.mkdirSync(opts.dir, { recursive: true });
-    const fileName = `${opts.app}-${opts.versionCode}.apk`;
-    const tmp = path.join(opts.dir, `.upload-${fileName}-${process.pid}-${Date.now()}.tmp`);
+    const tmp = path.join(opts.dir, `.upload-${opts.app}-${opts.versionCode}-${process.pid}-${crypto.randomBytes(4).toString("hex")}.tmp`);
     const hash = crypto.createHash("sha256");
     let size = 0;
     const counter = new Transform({
@@ -63,8 +62,7 @@ export async function receiveApk(input: Readable, opts: { dir: string; app: Rele
         const fd = fs.openSync(tmp, "r");
         try { fs.readSync(fd, head, 0, 4, 0); } finally { fs.closeSync(fd); }
         if (!head.equals(ZIP_HEAD)) throw new ReleaseError(400, "APK 가 아니다 (zip 머리가 없다)");
-        fs.renameSync(tmp, path.join(opts.dir, fileName));
-        return { fileName, sha256: hash.digest("hex"), sizeBytes: size };
+        return { tmpPath: tmp, sha256: hash.digest("hex"), sizeBytes: size };
     } catch (e) {
         try { fs.unlinkSync(tmp); } catch { /* 이미 없다 */ }
         throw e instanceof ReleaseError ? e : new ReleaseError(400, `APK 를 받지 못했다 (${(e as Error).message})`);
@@ -101,6 +99,35 @@ export function addRelease(r: { app: ReleaseApp; versionCode: number; versionNam
     db.prepare(`INSERT INTO app_releases (app, version_code, version_name, file_name, sha256, size_bytes, uploaded_at, uploaded_by)
         VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), ?)`).run(r.app, r.versionCode, r.versionName, r.fileName, r.sha256, r.sizeBytes, r.uploadedBy);
     forget();
+}
+
+/**
+ * 📦 **표 줄 넣기 → 파일 제자리** 를 한 묶음으로 (ab 리뷰 · onedal-1f).
+ * 같은 판 번호가 거의 동시에 둘 오면 표 줄(UNIQUE)을 먼저 잡은 쪽만 파일을 둔다 — 뒤엣것은 409 · 앞 파일을 덮지 않는다.
+ * 파일 두기는 rename 이 아니라 link(이미 있으면 실패) — 실패하면 묶음이 표 줄도 되돌린다. 임시 파일은 늘 지운다.
+ */
+export function commitRelease(r: { dir: string; tmpPath: string; app: ReleaseApp; versionCode: number; versionName: string; sha256: string; sizeBytes: number; uploadedBy: string | null }): string {
+    const fileName = `${r.app}-${r.versionCode}.apk`;
+    try {
+        db.transaction(() => {
+            try {
+                db.prepare(`INSERT INTO app_releases (app, version_code, version_name, file_name, sha256, size_bytes, uploaded_at, uploaded_by)
+                    VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), ?)`).run(r.app, r.versionCode, r.versionName, fileName, r.sha256, r.sizeBytes, r.uploadedBy);
+            } catch (e) {
+                if (String((e as Error).message).includes("UNIQUE")) throw new ReleaseError(409, `${r.app} 판 번호 ${r.versionCode} 는 이미 있다`);
+                throw e;
+            }
+            try { fs.linkSync(r.tmpPath, path.join(r.dir, fileName)); }
+            catch (e) {
+                if ((e as NodeJS.ErrnoException).code === "EEXIST") throw new ReleaseError(409, `${fileName} 파일이 이미 있다`);
+                throw e;
+            }
+        })();
+    } finally {
+        try { fs.unlinkSync(r.tmpPath); } catch { /* 이미 없다 */ }
+    }
+    forget();
+    return fileName;
 }
 
 /** 최소 판 — 그 판이 있고 최신 이하일 때만 · 앱마다 한 줄만 참(한 묶음) */

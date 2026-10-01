@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import { Readable } from 'stream';
 import db from '../../src/db';
 import {
-    receiveApk, addRelease, listReleases, setMinimum, scrapReleaseCodes, assertOutsideRepo, ReleaseError, RELEASE_LIMIT_BYTES,
+    receiveApk, commitRelease, addRelease, listReleases, setMinimum, scrapReleaseCodes, assertOutsideRepo, ReleaseError, RELEASE_LIMIT_BYTES,
 } from '../../src/core/releases';
 import { issueDownloadKey, findDownloadKey, DOWNLOAD_KEY_MS } from '../../src/routes/downloads';
 import downloadsRouter from '../../src/routes/downloads';
@@ -29,11 +29,12 @@ describe('앱 배포', () => {
         expect(scrap).toContain('...scrapReleaseCodes()');
     });
 
-    it('🔴 흘려 받기 — 해시·크기를 같이 재고 임시 파일을 안 남긴다', async () => {
+    it('🔴 흘려 받기 — 해시·크기를 같이 재고 임시 파일까지만 · 표 넣기가 된 뒤에 제자리', async () => {
         const buf = apk();
         const r = await receiveApk(Readable.from([buf]), { dir, app: 'scanner', versionCode: 60, limit: RELEASE_LIMIT_BYTES });
         expect(r.sha256).toBe(crypto.createHash('sha256').update(buf).digest('hex'));
         expect(r.sizeBytes).toBe(buf.length);
+        commitRelease({ dir, tmpPath: r.tmpPath, app: 'scanner', versionCode: 60, versionName: '2.9.13', sha256: r.sha256, sizeBytes: r.sizeBytes, uploadedBy: 'admin' });
         expect(fs.readdirSync(dir)).toEqual(['scanner-60.apk']);
     });
 
@@ -90,5 +91,29 @@ describe('앱 배포', () => {
         expect(status).toBe(403);
         expect(out.error).toBe(DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED);
         db.prepare(`DELETE FROM users WHERE id = ?`).run(U);
+    });
+
+    it('🔴 같은 판 번호가 거의 동시에 둘 — 표 줄을 먼저 잡은 쪽만 제자리 · 뒤엣것 409 · 디스크 해시 = 표 해시', async () => {
+        const r1 = await receiveApk(Readable.from([apk()]), { dir, app: 'scanner', versionCode: 63, limit: RELEASE_LIMIT_BYTES });
+        const r2 = await receiveApk(Readable.from([apk()]), { dir, app: 'scanner', versionCode: 63, limit: RELEASE_LIMIT_BYTES });
+        const meta = { dir, app: 'scanner', versionCode: 63, versionName: 'x', uploadedBy: 'admin' };
+        commitRelease({ ...meta, tmpPath: r1.tmpPath, sha256: r1.sha256, sizeBytes: r1.sizeBytes });
+        expect(() => commitRelease({ ...meta, tmpPath: r2.tmpPath, sha256: r2.sha256, sizeBytes: r2.sizeBytes })).toThrow(expect.objectContaining({ status: 409 }));
+        const disk = crypto.createHash('sha256').update(fs.readFileSync(path.join(dir, 'scanner-63.apk'))).digest('hex');
+        expect(disk).toBe(db.prepare(`SELECT sha256 FROM app_releases WHERE app = 'scanner' AND version_code = 63`).get().sha256);
+        expect(fs.readdirSync(dir)).toEqual(['scanner-63.apk']);
+    });
+
+    it('🔴 깨진 % 머리 칸은 500 이 아니라 400', async () => {
+        const opsReleases = (await import('../../src/routes/opsReleases')).default;
+        const layer = opsReleases.stack.find((l: any) => l.route?.path === '/releases' && l.route.methods.post);
+        const h = layer.route.stack[layer.route.stack.length - 1].handle;
+        let status = 200;
+        const res = { status: (s: number) => { status = s; return res; }, json: () => res, setHeader: () => res, on: () => res };
+        const req: any = Readable.from([apk()]);
+        req.headers = { 'x-release-app': 'scanner', 'x-version-code': '64', 'x-version-name': '%E0%A4%A', 'x-file-name': 'a.apk' };
+        req.user = { id: 'admin' };
+        await h(req, res);
+        expect(status).toBe(400);
     });
 });

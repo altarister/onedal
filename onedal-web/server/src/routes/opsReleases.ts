@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import { RELEASE_UPLOAD_HEADERS, type OpsMinimumRelease } from "@onedal/shared";
 import { audit } from "./ops";
 import {
-    RELEASE_APPS, RELEASE_LIMIT_BYTES, ReleaseError, addRelease, assertNewVersion, assertOutsideRepo, listReleases, receiveApk, releasesDir, setMinimum,
+    RELEASE_APPS, RELEASE_LIMIT_BYTES, ReleaseError, commitRelease, assertNewVersion, assertOutsideRepo, listReleases, receiveApk, releasesDir, setMinimum,
     type ReleaseApp,
 } from "../core/releases";
 import { slog } from "../utils/fileLogger";
@@ -38,9 +38,12 @@ router.post("/releases", async (req, res) => {
     const h = (k: string) => String(req.headers[k] ?? '').trim();
     const app = h(RELEASE_UPLOAD_HEADERS.app) as ReleaseApp;
     const versionCode = Number(h(RELEASE_UPLOAD_HEADERS.versionCode));
-    const versionName = decodeURIComponent(h(RELEASE_UPLOAD_HEADERS.versionName));
-    const original = decodeURIComponent(h(RELEASE_UPLOAD_HEADERS.fileName));
     try {
+        let versionName: string, original: string;
+        try {
+            versionName = decodeURIComponent(h(RELEASE_UPLOAD_HEADERS.versionName));
+            original = decodeURIComponent(h(RELEASE_UPLOAD_HEADERS.fileName));
+        } catch { throw new ReleaseError(400, "머리 칸 글자가 깨졌다"); }
         if (!RELEASE_APPS.includes(app)) throw new ReleaseError(400, "앱이 scanner · dashboard 가 아니다");
         if (!Number.isInteger(versionCode) || versionCode <= 0) throw new ReleaseError(400, "판 번호(versionCode)는 양의 정수");
         if (!versionName || versionName.length > 40) throw new ReleaseError(400, "판 이름이 비었거나 길다");
@@ -51,12 +54,14 @@ router.post("/releases", async (req, res) => {
         const dir = releasesDir();
         assertOutsideRepo(dir);
         const r = await receiveApk(req, { dir, app, versionCode, limit: RELEASE_LIMIT_BYTES });
-        addRelease({ app, versionCode, versionName, fileName: r.fileName, sha256: r.sha256, sizeBytes: r.sizeBytes, uploadedBy: adminOf(req) ?? null });
+        commitRelease({ dir, tmpPath: r.tmpPath, app, versionCode, versionName, sha256: r.sha256, sizeBytes: r.sizeBytes, uploadedBy: adminOf(req) ?? null });
         audit(adminOf(req), 'APK 올림', null, `${app} ${versionName} (code ${versionCode} · ${Math.round(r.sizeBytes / 1024 / 1024)}MB)`);
         slog('통신', `📦 [앱 배포] ${app} ${versionName} (code ${versionCode}) 올림 · ${r.sizeBytes}바이트 · sha256 ${r.sha256.slice(0, 12)}…`);
         res.json(listReleases());
     } catch (e) {
-        req.resume();   // 남은 본문을 흘려 버린다 — 끊지 않으면 브라우저가 응답을 못 받는다
+        // 남은 본문은 받지 않고 끊는다 — 거절 응답이 다 나간 뒤 연결을 닫는다(50MB 를 헛받지 않게)
+        res.setHeader('Connection', 'close');
+        res.on('finish', () => req.destroy());
         fail(res, e);
     }
 });
