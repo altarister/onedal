@@ -14,7 +14,7 @@ import type { FlowsViewerReply, FlowsAdminReply } from "@onedal/shared";
 const router = Router();
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-function rangeOf(q: any): { from: string; to: string; by: FlowGroupBy } {
+export function rangeOf(q: any): { from: string; to: string; by: FlowGroupBy } {
     const today = businessDayKey(Date.now());
     const ago = businessDayKey(Date.now() - 28 * 86_400_000);
     const by = (FLOW_GROUP_BYS as readonly string[]).includes(q.groupBy) ? q.groupBy as FlowGroupBy : 'weekday';

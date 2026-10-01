@@ -282,6 +282,28 @@ export function kakaoTotalOf(rows: OpsBoardKakao['rows']): { route: { today: num
     };
 }
 
+/**
+ * 📊 운영센터 통계 (reviews/33 4단계) — «목록에 뜬 실물 콜»(배차망 화면을 읽어 올린 것 · 시뮬 빼고)로만.
+ *    기사별 벌이는 없다 — 잡은 콜에 시뮬/실콜을 가를 칸이 없다(화면이 «실제 콜이 생기면 채워집니다»).
+ */
+export interface OpsStats {
+    from: string; to: string;
+    /** 배차망별 실물 콜 수 — 화면 머리가 «지금은 카카오 픽커만»처럼 사실로 적는다 */
+    sources: Array<{ targetApp: TargetAppType; calls: number }>;
+    /** 노선(출발 시군구 → 도착 시군구) — 많은 순 · 평균은 아는 값으로만 */
+    routes: Array<{ from: string; to: string; calls: number; fareCalls: number; fareFirstAvg: number | null; fareLastAvg: number | null; kmAvg: number | null; passed: number }>;
+    dropped: {
+        /** 앱이 떨어뜨린 축마다(글자는 VERDICT_AXIS_LABEL) */
+        byAxis: Array<{ axis: string; calls: number }>;
+        /** 잠겨서 안 본 것 — 버린 것이 아니다 */
+        locked: number;
+        /** 판정이 안 실린 것(옛 앱) */
+        unjudged: number;
+        /** 버린 콜 중 요금 높은 20 */
+        topFares: Array<{ at: string; targetApp: string; pickup: string; dropoff: string; fare: number; axis: string }>;
+    };
+}
+
 /** 🗺️ 회원 위치 — 운전석 폰 진짜 GPS 마지막 점 · 시 · 구는 동 명부 · regions 는 rows 의 시 · 구를 센 것(많은 순) */
 export interface OpsLocations {
     rows: Array<{ memberId: string; lat: number; lng: number; at: string; region: string }>;

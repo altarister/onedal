@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import db from "../db";
-import { businessDayKey, sigunguOfShort, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO } from "@onedal/shared";
+import { businessDayKey, sigunguOfShort, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO, TARGET_APPS } from "@onedal/shared";
+import type { OpsStats } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 
 /**
@@ -34,6 +35,8 @@ export interface SameCall {
     /** 모르면 null — 앱이 0 으로 적은 요금도 모름 */
     firstMs: number; fareFirst: number | null; fareLast: number | null;
     vehicleType: string; km: number | null; reserved: boolean; passed: boolean;
+    /** 마지막으로 실린 앱 판정(pass · 떨어뜨린 축 · locked) — 없으면 null(옛 앱) · 운영센터 «버린 콜»이 읽는다 */
+    lastVerdict: string | null;
 }
 
 /** 같은 콜로 묶는다 — (기사 · 배차망 · 상차 · 하차)가 같고 직전에 본 때로부터 30분 안이면 같은 콜. 줄은 시각 순으로 온다 */
@@ -55,12 +58,13 @@ export function groupSameCalls(rows: IntelRow[]): SameCall[] {
             hit.call.km ??= r.deliveryDistanceKm ?? null;
             hit.call.reserved ||= reserved;
             hit.call.passed ||= r.verdict === 'pass';
+            if (r.verdict != null) hit.call.lastVerdict = r.verdict;
             continue;
         }
         const call: SameCall = {
             userId: r.user_id ?? '', targetApp: r.targetApp ?? '', pickup: r.pickup, dropoff: r.dropoff,
             firstMs: ms, fareFirst: fare, fareLast: fare, vehicleType: r.vehicleType ?? '',
-            km: r.deliveryDistanceKm ?? null, reserved, passed: r.verdict === 'pass',
+            km: r.deliveryDistanceKm ?? null, reserved, passed: r.verdict === 'pass', lastVerdict: r.verdict ?? null,
         };
         calls.push(call);
         open.set(key, { call, lastMs: ms });
@@ -204,6 +208,7 @@ const SEASON_OF_MONTH = ['겨울', '겨울', '봄', '봄', '봄', '여름', '여
 interface FlowRow {
     day: string; hour: number; target_app: string; from_sigungu: string; to_sigungu: string; user_id: string;
     drivers: number; calls: number; fare_calls: number; fare_first_sum: number; fare_last_sum: number;
+    km_calls: number; km_sum: number; passed_calls: number;
 }
 const groupOf = (r: FlowRow, by: FlowGroupBy): string => {
     const [y, m, d] = r.day.split('-').map(Number);
@@ -214,14 +219,16 @@ const groupOf = (r: FlowRow, by: FlowGroupBy): string => {
     const weekday = WEEKDAY_KO[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
     return by === 'weekdayHour' ? `${weekday} ${r.hour}시` : weekday;
 };
-/** 평균은 요금을 아는 콜(fareCalls)로만 나눈다 — 하나도 모르면 null */
-type Sum = { calls: number; fareCalls: number; fareFirstAvg: number | null; fareLastAvg: number | null };
+/** 평균은 요금을 아는 콜(fareCalls)로만 나눈다 — 하나도 모르면 null · km 평균도 아는 콜(km_calls)로만(소수 한 자리) */
+type Sum = { calls: number; fareCalls: number; fareFirstAvg: number | null; fareLastAvg: number | null; kmAvg: number | null };
 const sumOf = (rows: FlowRow[]): Sum | null => {
     const calls = rows.reduce((s, r) => s + r.calls, 0);
     if (!calls) return null;
     const fareCalls = rows.reduce((s, r) => s + r.fare_calls, 0);
     const avg = (k: 'fare_first_sum' | 'fare_last_sum') => fareCalls ? Math.round(rows.reduce((s, r) => s + r[k], 0) / fareCalls) : null;
-    return { calls, fareCalls, fareFirstAvg: avg('fare_first_sum'), fareLastAvg: avg('fare_last_sum') };
+    const kmCalls = rows.reduce((s, r) => s + (r.km_calls ?? 0), 0);
+    const kmAvg = kmCalls ? Math.round(rows.reduce((s, r) => s + (r.km_sum ?? 0), 0) / kmCalls * 10) / 10 : null;
+    return { calls, fareCalls, fareFirstAvg: avg('fare_first_sum'), fareLastAvg: avg('fare_last_sum'), kmAvg };
 };
 
 /** 남의 기사가 이만큼 섞여야 칸 합계를 보인다 (기사님 결정 4 — 한 사람을 알아볼 수 없게) */
@@ -284,4 +291,39 @@ export function flowRowsBetween(from: string, to: string): FlowRow[] {
 export function rolledUpDaysBetween(from: string, to: string): string[] {
     return (db.prepare(`SELECT day FROM stats_rollup_days WHERE day >= ? AND day <= ? ORDER BY day`).all(from, to) as Array<{ day: string }>)
         .map(r => r.day);
+}
+
+/**
+ * 🏢 **운영센터 통계 — 시장에 뜬 실물 콜** (reviews/33 4단계 · onedal-69 «가» Q7 «가»).
+ *    노선 · 배차망은 stats_flows(flowRowsBetween — 옛 문과 같은 줄 · 같은 sumOf), 버린 콜은 원문(intel source='real')을 groupSameCalls 로 묶어 센다.
+ *    잠김(locked)과 판정 없음(옛 앱)은 «버린 것»이 아니라 따로 센다. 기사별 벌이는 여기 없다 — 잡은 콜에 시뮬/실콜을 가를 칸이 없다.
+ */
+const TOP_DROPPED = 20;
+export function marketStatsOf(from: string, to: string): Omit<OpsStats, 'from' | 'to'> {
+    const rows = flowRowsBetween(from, to);
+    const byRoute = new Map<string, FlowRow[]>();
+    for (const r of rows) byRoute.set(`${r.from_sigungu}|${r.to_sigungu}`, [...(byRoute.get(`${r.from_sigungu}|${r.to_sigungu}`) ?? []), r]);
+    const routes = [...byRoute.entries()].map(([key, rs]) => {
+        const [fromSigungu, toSigungu] = key.split('|');
+        return { from: fromSigungu, to: toSigungu, ...sumOf(rs)!, passed: rs.reduce((n, r) => n + (r.passed_calls ?? 0), 0) };
+    }).sort((a, b) => b.calls - a.calls || a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+    const sources = TARGET_APPS.map(targetApp => ({ targetApp, calls: rows.filter(r => r.target_app === targetApp).reduce((n, r) => n + r.calls, 0) }));
+
+    const calls = groupSameCalls(stmtDayRows.all(dayBounds(from).from, dayBounds(to).to) as IntelRow[]);
+    const notPassed = calls.filter(c => !c.passed);
+    const droppedCalls = notPassed.filter(c => c.lastVerdict != null && c.lastVerdict !== 'locked');
+    const axisCount = new Map<string, number>();
+    for (const c of droppedCalls) axisCount.set(c.lastVerdict!, (axisCount.get(c.lastVerdict!) ?? 0) + 1);
+    return {
+        sources,
+        routes,
+        dropped: {
+            byAxis: [...axisCount.entries()].map(([axis, n]) => ({ axis, calls: n })).sort((a, b) => b.calls - a.calls || a.axis.localeCompare(b.axis)),
+            locked: notPassed.filter(c => c.lastVerdict === 'locked').length,
+            unjudged: notPassed.filter(c => c.lastVerdict == null).length,
+            topFares: droppedCalls.filter(c => (c.fareLast ?? c.fareFirst) != null)
+                .map(c => ({ at: new Date(c.firstMs).toISOString(), targetApp: c.targetApp, pickup: c.pickup, dropoff: c.dropoff, fare: (c.fareLast ?? c.fareFirst)!, axis: c.lastVerdict! }))
+                .sort((a, b) => b.fare - a.fare).slice(0, TOP_DROPPED),
+        },
+    };
 }
