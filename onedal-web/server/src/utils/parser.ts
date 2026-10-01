@@ -144,32 +144,6 @@ export function parseMockupDistance(rawText: string): number | undefined {
 }
 
 /**
- * [목업 지원 전용] 차종 텍스트 파싱
- */
-export function parseMockupVehicleType(rawText: string): string | undefined {
-    if (!rawText) return undefined;
-
-    const vehicles = ["오토바이", "다마스", "라보", "1t", "1.4톤", "2.5톤", "3.5톤", "5톤"];
-    for (const v of vehicles) {
-        if (rawText.includes(v)) return v;
-    }
-
-    // 약어 매칭 (안드로이드 정규식 참조)
-    const shorts: Record<string, string> = {
-        "오": "오토바이", "다": "다마스", "라": "라보", "1t": "1톤", "1.4t": "1.4톤"
-    };
-
-    // 텍스트 앞부분이나 특정 심볼과 결합된 한 글자를 찾습니다.
-    for (const [key, val] of Object.entries(shorts)) {
-        if (new RegExp(`(?:\\s|^|\\[|\\()${key}(?:\\s|\\d|$)`).test(rawText)) {
-            return val;
-        }
-    }
-
-    return undefined;
-}
-
-/**
  * [Dumb Client / Smart Server]
  * 원본 텍스트(rawText)로부터 세부 메타데이터를 정규식으로 추출합니다.
  */

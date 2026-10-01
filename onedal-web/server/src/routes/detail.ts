@@ -5,7 +5,7 @@
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
 import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
-import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
+import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -105,9 +105,7 @@ router.post("/", async (req, res) => {
             if (!pendingOrder.distanceKm) {
                 pendingOrder.distanceKm = parseMockupDistance(rawText) || 0;
             }
-            if (!pendingOrder.vehicleType) {
-                pendingOrder.vehicleType = parseMockupVehicleType(rawText) || "";
-            }
+            // 🚚 차종은 짐작하지 않는다 — /confirm 이 남긴 목록 차종 · 원문의 «차종 :» 이름표만. 없으면 비워 두고 판정의 차종 문은 건너뛴다
         }
 
         const checkMatch = (existingOrder: SecuredOrder | PendingOrder) => {
