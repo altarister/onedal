@@ -9,7 +9,7 @@ import { join } from 'path';
  */
 const WEB = join(__dirname, '../../..');
 const THEME_CSS = join(WEB, 'shared/src/theme.css');
-const APPS_USING_SHARED_THEME = ['client-app'];
+const APPS_USING_SHARED_THEME = ['client-app', 'logbook', 'ops'];
 
 const defineTokenRe = /^\s*--theme-[\w-]+\s*:/m;
 
