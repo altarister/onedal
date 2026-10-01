@@ -2,15 +2,15 @@ import { Router } from "express";
 import { modeForPhone } from "@onedal/shared";
 import { allowanceOf } from "../core/allowance";
 import { scrapReleaseCodes } from "../core/releases";
-import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS, effectiveRadii, reservedPickupRadiusKmOf } from "@onedal/shared";
+import { isTargetApp, DEFAULT_TARGET_APP } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
-import { capacityFullHold, filterVersionOf, reportSourceOf, releaseEvaluatingDevices } from "../core/helpers";
+import { filterVersionOf, reportSourceOf, releaseEvaluatingDevices } from "../core/helpers";
 import { rememberSentFilterVersion } from "../core/phoneCheck";
-import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
 import { cancelOrderWaits } from "../state/waits";
-import { ensureBusinessDay, buildAppOrderKm, ensureReservedPickupList } from "../state/filterManager";
+import { ensureBusinessDay, ensureReservedPickupList } from "../state/filterManager";
+import { appFilterOf } from "../state/appFilter";
 
 import { touchDeviceSession } from "./devices";
 import { simRoundForPhone } from "./sim";
@@ -245,69 +245,18 @@ router.post("/", (req, res) => {
          */
 
         /**
-         * 📦 **앱이 읽는 키만 골라 싣는다**.
-         *    표는 `shared` 의 `APP_FILTER_KEYS` 하나다.
-         *
-         * 🔴 «떼는 키»를 손으로 나열하면 새 칸이 생길 때마다 그 목록에 넣어야 하고, **안 넣으면 조용히 앱으로 간다.**
-         *    골라 싣는 쪽은 **기본이 «안 간다»** 라 안전하다.
-         *
-         * 여기서 안 실리는 값(`destinationGroups`·마름모·제외 지역·국면 축 …)은
-         * **관제웹이 소켓(`filter-updated`)으로 따로 받는다.** 하트비트에 실으면 낭비다 —
-         * 예: `destinationGroups` 하나가 응답의 27%(약 3.6KB)다.
+         * 📦 **앱에 내려갈 필터는 `appFilterOf` 한 곳이 만든다** — 운영센터 · 관제웹도 같은 함수로 «폰이 받는 값»을 읽는다.
+         *    함수는 로그 · 세션 쓰기를 안 한다. 내일 콜 목록 재기(세션 캐시)와 아래 로그 · 만석 알림 깃발은 이 폰 문의 몫이다.
          */
-        const src = session.activeFilter as unknown as Record<string, unknown>;
-        const appFilter: Record<string, unknown> = {};
-        for (const k of APP_FILTER_KEYS) if (src[k] !== undefined) appFilter[k] = src[k];
-        /**
-         * 📐 **앱에는 «지금 실제로 쓰이는» 반경이 간다** (전수 조사 ①-4).
-         *    원값을 그대로 복사하면 자동 ON·배율 0.4 일 때 **서버·지도는 6.2km, 앱은 15km** 로 갈라진다.
-         *    앱은 `pickupRadiusKm` 으로 실제로 거른다(`Hwamul24Parser.kt`).
-         *    셈은 서버·지도·필터 화면이 부르는 **그 함수**다 (규칙 ③).
-         */
-        {
-            const eff = effectiveRadii(session.activeFilter);
-            appFilter.pickupRadiusKm = eff.pickupRadiusKm;
-            appFilter.destinationRadiusKm = eff.destinationRadiusKm;
-            /* 📅 내일 콜은 줄이지 않은 기본 상차 반경 — 서버 판정과 같은 함수 · 비면 칸이 없다(앱은 pickupRadiusKm) */
-            const reservedR = reservedPickupRadiusKmOf(session.baseFilter);
-            if (reservedR != null) appFilter.reservedPickupRadiusKm = reservedR;
-            /* 📅 내일 콜 상차 목록 — 집 둘레 같은 반경 안의 동(판정과 같은 집 · 반경) · 집이 없으면 칸이 없다(앱은 옛 길) */
-            const reservedList = ensureReservedPickupList(session, userId);
-            if (reservedList) {
-                appFilter.reservedPickupKeywords = reservedList.keywords;
-                appFilter.reservedPickupGroups = reservedList.groups;
-            }
-        }
-        /* 🎯 앱은 «어디로 가나» 하나만 안다 — 복귀면 집 시가 간다 (조사 ①-1 · 파생 `goalCity`) */
-        if (session.activeFilter.goalCity) appFilter.destinationCity = session.activeFilter.goalCity;
-
-        /**
-         * 🔒 **지금 이 폰이 심사 중인 콜이 있나** — «잠김»의 까닭을 가른다 (기사님 · 실주행 오송읍).
-         *
-         * 🔴 `isActive=false` 는 **만석**이라는 뜻이다(`capacityFullHold` · 기사님 «1톤 두 개는 사고»).
-         *    선점 중에도 그것을 끄면 앱은 둘을 구별 못 해, 목록에 콜이 보여도 **판정조차 안 한다** —
-         *    오송읍 셋을 잡는 데 3분 25초가 걸렸다(04:58 · 「🔒 평가 보류」가 10초마다).
-         *    이 칸이 있으면 앱은 **판정은 해 두고 클릭만 미뤄**, 앞 콜이 결재되는 즉시 다음을 잡는다.
-         * 🔴 저장하지 않는다 — 심사 중인 콜을 쥔 `deviceEvaluatingMap` 에서 파생시킨다 (규칙 ③).
-         */
-        appFilter.evaluatingNow = !!session.deviceEvaluatingMap.get(auth.deviceId);   // 응답 맨 위 칸으로도 간다 · 판 글자에는 안 든다 (아래)
-
-        // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정)
-        //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)
-        //    🔴 키 이름은 orderKm — #78 이후 실리는 값이 «순서 전용»이라 이름을 한 벌로
-        //       맞췄다 (기사님 확정 · 옛 이름 progressKm 은 트림용에만 남는다)
-        appFilter.orderKm = buildAppOrderKm(session);
+        const reservedList = ensureReservedPickupList(session, userId);
+        const { filter: appFilter, holds } = appFilterOf(session, userId, auth.deviceId, reservedList);
         logOrderKmCoverage(userId, session.activeFilter.destinationKeywords ?? [], appFilter.orderKm as Record<string, number | null>);
-
-        // ⏱️ 배차망별 대기 시간 — 원천은 DB(user_settings), 원달앱은 받아 쓴다
-        Object.assign(appFilter, readWaitTimes(userId));
 
         // 부트스트랩이 끝나기 전에는 콜 잡기를 시키지 않는다.
         // 이 구간(1~3초)의 activeFilter 는 아직 경유도 적재 차종도 반영되지 않은 미완성 상태라,
         // 그대로 내보내면 경로를 벗어난 콜을 잡을 수 있다.
         // 잘못된 필터로 잡는 것보다 잠깐 멈추는 편이 안전하다.
-        if (session.isBootstrapping) {
-            appFilter.isActive = false;
+        if (holds.bootstrapping) {
             slog('필터', `⏳ [부트스트랩 중] ${deviceLabelOf(deviceId)} 에게 isActive=false 로 응답 (필터 준비 중)`);
         }
 
@@ -318,8 +267,7 @@ router.post("/", (req, res) => {
          * 하차로 공간이 생기면 재계산이 차종 목록을 되살려 자동 복귀한다.
          * 직접콜(MANUAL)은 필터를 안 타므로 기사님이 잡는 것은 막히지 않는다.
          */
-        if (capacityFullHold(session.activeFilter)) {
-            appFilter.isActive = false;
+        if (holds.capacityFull) {
             if (!session.capacityHoldNotified) {
                 session.capacityHoldNotified = true;
                 slog('필터', `⛔ [적재 만석] ${deviceLabelOf(deviceId)} 에게 isActive=false 로 응답 (실을 수 있는 차종 없음 — 하차하면 재개)`);
@@ -344,8 +292,7 @@ router.post("/", (req, res) => {
          *
          * → 하루는 **관제탑을 열어야** 시작된다. 오늘 필터를 확정할 자리가 거기이기 때문이다.
          */
-        if (!session.isRestored) {
-            appFilter.isActive = false;
+        if (holds.notRestored) {
             slog('필터', `🚦 [콜 잡기 대기] ${deviceLabelOf(deviceId)} — 관제탑이 아직 접속하지 않았습니다. ` +
                 `오늘 필터가 확정되기 전에는 콜을 잡지 않습니다 (관제웹을 열어 주세요)`);
         }
@@ -357,10 +304,8 @@ router.post("/", (req, res) => {
          * 빈 키워드를 그대로 내보내면 앱이 `isEmpty() → true` 로 읽어
          * **모든 도착지를 통과**시킨다 (`callFilterBlocker` 주석 참고).
          */
-        const blocker = callFilterBlocker(session.activeFilter);
-        if (blocker) {
-            appFilter.isActive = false;
-            slog('필터', `🚦 [콜 잡기 보류] ${deviceLabelOf(deviceId)} — ${blocker}`);
+        if (holds.blocker) {
+            slog('필터', `🚦 [콜 잡기 보류] ${deviceLabelOf(deviceId)} — ${holds.blocker}`);
         }
 
         /**

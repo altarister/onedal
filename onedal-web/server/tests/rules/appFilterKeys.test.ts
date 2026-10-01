@@ -67,7 +67,7 @@ describe('앱 피기백 규격 — 서버가 싣는 것과 앱이 읽는 것이 
     });
 
     it('🔴 서버는 표로 **고른다** — 떼는 목록을 손으로 나열하지 않는다', () => {
-        const scrap = codeOnly(read(join(SERVER, 'routes/scrap.ts')));
+        const scrap = codeOnly(read(join(SERVER, 'routes/scrap.ts')) + read(join(SERVER, 'state/appFilter.ts')));   // 폰 문 + 그 필터를 만드는 곳
         expect(scrap).toMatch(/APP_FILTER_KEYS/);
         // 떼어내는 구조분해가 없다
         expect(scrap).not.toMatch(/const \{ destinationGroups,/);

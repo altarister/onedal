@@ -73,8 +73,11 @@ describe('📅 서버 판정과 같은 값 · 앱에 싣기', () => {
         expect(body.slice(0, 2500)).toMatch(/pickupListFor\(/);
     });
     it('🔴 앱 필터에 reservedPickupKeywords · reservedPickupGroups 로 싣는다', () => {
+        /* 폰 문이 목록을 재고(ensure) · 싣는 칸은 appFilterOf 가 얹는다 */
         const scrap = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
-        expect(scrap).toMatch(/appFilter\.reservedPickupKeywords = /);
-        expect(scrap).toMatch(/appFilter\.reservedPickupGroups = /);
+        const appFilter = readFileSync(join(__dirname, '../../src/state/appFilter.ts'), 'utf8');
+        expect(scrap).toMatch(/ensureReservedPickupList\(session, userId\)/);
+        expect(appFilter).toMatch(/filter\.reservedPickupKeywords = /);
+        expect(appFilter).toMatch(/filter\.reservedPickupGroups = /);
     });
 });

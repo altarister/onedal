@@ -239,8 +239,17 @@ export interface OpsBoardServer {
 /** 폰 한 대 — 기기 세션 칸 그대로(좌표 빼고) + 주인 · 위치 있음 여부(좌표는 지도 문 몫) */
 export type OpsBoardPhone = Omit<DeviceSession, 'lat' | 'lng'> & { memberId: string; hasLocation: boolean };
 
-/** 필터 전문 — active 는 오늘 세션이 있을 때만(없으면 null · 세션을 만들지 않는다) · base 는 평소 설정 */
-export interface OpsBoardFilter { active: AutoDispatchFilter | null; base: AutoDispatchFilter }
+/**
+ * 📦 앱에 내려갈 필터 — 서버 `appFilterOf` 가 만든 그대로(자동 반경 · 복귀 목적지 · 내일 콜 칸 · 경로 순서 · 잠금이 얹힌 값).
+ *    피기백 v2 가 전선에서 줄이기 전 값이다 — 앱이 합쳐 쓰는 값과 같다. 칸 이름은 `APP_FILTER_KEYS` 와 그 위에 얹는 칸.
+ */
+export type AppFilter = Record<string, unknown>;
+
+/** 필터 전문 — active 는 오늘 세션이 있을 때만(없으면 null · 세션을 만들지 않는다) · base 는 평소 설정 · app 은 그 회원 폰마다(세션 없으면 null) */
+export interface OpsBoardFilter { active: AutoDispatchFilter | null; base: AutoDispatchFilter; app: Array<{ deviceId: string; filter: AppFilter }> | null }
+
+/** 관제웹 본인 폰 하나의 앱 필터 — 세션이 없으면 null(세션을 만들지 않는다) */
+export interface AppFilterReply { filter: AppFilter | null }
 
 /** 원장(intel) 한 줄 — 서버 칸 이름 그대로(device_id) · verdict 는 앱 판정(pass · 떨어뜨린 축 · locked · null) — 화면은 옮겨 적기만 */
 export interface IntelRow {

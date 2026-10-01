@@ -13,7 +13,8 @@ import { accountGateOf } from "../core/accountGate";
 import { allowanceOf } from "../core/allowance";
 import { DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from "@onedal/shared";
 import { armWait } from "../state/waits";
-import type { FilterPassAlarm } from "@onedal/shared";
+import type { AppFilterReply, FilterPassAlarm } from "@onedal/shared";
+import { appFilterOf } from "../state/appFilter";
 
 const router = Router();
 
@@ -973,6 +974,21 @@ export const getUserDevicesSnapshot = (userId: string, io?: any): DeviceSession[
     
     return result;
 };
+
+/**
+ * GET /api/devices/app-filter?deviceId=
+ * 📦 내 폰 한 대가 받는 앱 필터 — 폰 문(scrap)과 같은 함수(`appFilterOf`) · 내일 콜 목록은 폰에 마지막으로 실은 것.
+ * 👥 자기 폰만(남의 폰이면 404) · 세션이 없으면 null — 세션을 만들지 않는다
+ */
+router.get("/app-filter", requireAuth, (req, res) => {
+    const userId = req.user!.id;
+    const deviceId = typeof req.query.deviceId === 'string' ? req.query.deviceId : '';
+    const mine = db.prepare("SELECT 1 FROM user_devices WHERE device_id = ? AND user_id = ?").get(deviceId, userId);
+    if (!mine) return res.status(404).json({ error: "내 폰이 아닙니다." });
+    const session = peekUserSession(userId);
+    const body: AppFilterReply = { filter: session ? appFilterOf(session, userId, deviceId, session.reservedPickup).filter : null };
+    return res.json(body);
+});
 
 /**
  * GET /api/devices

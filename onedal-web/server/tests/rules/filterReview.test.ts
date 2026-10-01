@@ -225,7 +225,7 @@ describe('2단계 · 바꾸면 앱 목록도 다시 난다 (조사 ①-3)', () =
 
 describe('2단계 · 줄인 반경이 앱·요약줄·지도 띠에 간다 — 세 벌을 한 벌로 (조사 ①-4·5)', () => {
     it('🔴 앱 피기백이 effectiveRadii 를 싣는다', () => {
-        const sc = codeOnly(read('routes/scrap.ts'));
+        const sc = codeOnly(read('state/appFilter.ts'));   // 폰 문(scrap)이 싣는 필터를 만드는 곳
         const i = sc.indexOf('for (const k of APP_FILTER_KEYS)');
         expect(i).toBeGreaterThan(-1);
         expect(sc.slice(i, i + 700)).toMatch(/effectiveRadii\(/);
@@ -317,8 +317,8 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
     });
 
     it('🔴 앱·지도·요약줄이 «그물의 목적지»를 본다', () => {
-        const sc = codeOnly(read('routes/scrap.ts'));
-        expect(sc).toMatch(/appFilter\.destinationCity\s*=.*goalCity/);
+        const sc = codeOnly(read('state/appFilter.ts'));
+        expect(sc).toMatch(/filter\.destinationCity\s*=.*goalCity/);
         const sv = codeOnly(readClient('components/stage/StageView.tsx'));
         /* 🔴 지도는 목적지 목록을 **다시 계산하지 않는다** — 서버가 낸 `goalCities` 를 그대로 쓴다.
               마지막 KEEP 순서는 관제웹이 모르므로 여기서 계산하면 서버와 갈라진다 (규칙 ③) */

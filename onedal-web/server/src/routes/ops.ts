@@ -9,6 +9,7 @@ import db from "../db";
 import { getUserDevicesSnapshot, getActiveDevicesSnapshot } from "./devices";
 import { BOOTED_AT, GIT_INFO } from "./health";
 import { peekUserSession, baseFilterFromDb } from "../state/userSessionStore";
+import { appFilterOf } from "../state/appFilter";
 import { intelRowsOf } from "../services/intelRows";
 import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer } from "@onedal/shared";
 import { latestContent, isContentKind } from "./contents";
@@ -324,7 +325,12 @@ router.get("/board/filter", (req, res) => {
     if (!memberId) return res.status(400).json({ error: "회원을 골라 주세요." });
     auditBoardView(adminOf(req), memberId);
     const session = peekUserSession(memberId);
-    const body: OpsBoardFilter = { active: session?.activeFilter ?? null, base: session?.baseFilter ?? baseFilterFromDb(memberId) };
+    /* 📦 폰마다 «앱이 받는 값» — 폰 문과 같은 함수 · 내일 콜 목록은 폰에 마지막으로 실은 것(다시 재지 않는다) · 기기마다 다른 칸은 evaluatingNow */
+    const app = session
+        ? (db.prepare(`SELECT device_id FROM user_devices WHERE user_id = ? ORDER BY device_id`).all(memberId) as Array<{ device_id: string }>)
+            .map(d => ({ deviceId: d.device_id, filter: appFilterOf(session, memberId, d.device_id, session.reservedPickup).filter }))
+        : null;
+    const body: OpsBoardFilter = { active: session?.activeFilter ?? null, base: session?.baseFilter ?? baseFilterFromDb(memberId), app };
     return res.json(body);
 });
 

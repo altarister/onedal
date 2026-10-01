@@ -89,8 +89,8 @@ describe('배차망별 대기 시간 — ① 스키마 · ③ 시점', () => {
 
     it('③ 원달앱에 보내는 응답에 셋이 실린다 — 표에도 있다', () => {
         for (const k of KEYS) expect((APP_FILTER_KEYS as readonly string[]).includes(k)).toBe(true);
-        const scrap = codeOnly(read(join(SERVER, 'routes/scrap.ts')));
-        expect(scrap).toMatch(/readWaitTimes\(/);
+        const appFilter = codeOnly(read(join(SERVER, 'state/appFilter.ts')));   // 폰 문(scrap)이 싣는 필터를 만드는 곳
+        expect(appFilter).toMatch(/readWaitTimes\(/);
     });
 });
 
