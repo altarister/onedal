@@ -31,7 +31,7 @@ setInterval(() => {
         }
     }
     /* 🔢 시도 한도 기록도 창·잠금이 지나면 지운다 — 대입이 쏟아져도 메모리가 안 쌓이게 */
-    for (const m of [ipFails, deviceFails])
+    for (const m of [ipFails, hopFails, deviceFails])
         for (const [k, f] of m) if (now - f.firstAt > PIN_TRY.WINDOW_MS && f.lockedUntil <= now) m.delete(k);
 }, 60_000).unref(); // 1분마다 정리
 
@@ -97,12 +97,15 @@ export function getActivePinCount(): number {
  * 🔢 **연결 번호 시도 한도** (reviews/29 1단계 F · onedal-1f «가») — 코드 상수다. 기사님이 고칠 값이 아니다.
  *    3분 수명의 6자리(90만)를 대입하면 남의 계정에 폰을 붙일 수 있었다.
  *    같은 IP 가 10분 안에 5번 틀리면 · 같은 폰(deviceId)이 3번 틀리면 10분 잠근다 — 맞힐 확률이 0.0006% 로 준다.
+ *    IP 는 폰의 진짜 IP(`clientIpOf` — 클라우드플레어 머리)다. 머리는 위조할 수 있어, 바로 붙은 쪽(req.ip · 실서버에선 중계 에지)도
+ *    10분 50번으로 함께 센다 — 에지 하나를 50명이 10분 안에 틀릴 일은 없고, 바로 붙어 머리를 바꿔 가면 여기 걸린다 (onedal-69 «가»).
  *    기사님이 번호를 한두 번 잘못 치는 일은 넉넉히 넘긴다. 메모리라 서버를 다시 띄우면 비는 것은 받아들인다.
  */
-export const PIN_TRY = { IP_FAILS: 5, DEVICE_FAILS: 3, WINDOW_MS: 10 * 60_000, LOCK_MS: 10 * 60_000 } as const;
+export const PIN_TRY = { IP_FAILS: 5, HOP_FAILS: 50, DEVICE_FAILS: 3, WINDOW_MS: 10 * 60_000, LOCK_MS: 10 * 60_000 } as const;
 
 type Fails = { count: number; firstAt: number; lockedUntil: number };
 const ipFails = new Map<string, Fails>();
+const hopFails = new Map<string, Fails>();
 const deviceFails = new Map<string, Fails>();
 
 function lockLeftMs(m: Map<string, Fails>, key: string, now: number): number {
@@ -124,17 +127,19 @@ function recordFail(m: Map<string, Fails>, key: string, limit: number, now: numb
 export type PinTry = { ok: true; userId: string } | { ok: false; locked: boolean; retryInSec?: number };
 
 /** 🔢 연결 번호를 한도 안에서 쓴다 — 잠겼으면 맞는 번호도 안 받는다 */
-export function tryConsumePin(pin: string, who: { ip: string; deviceId: string }): PinTry {
+export function tryConsumePin(pin: string, who: { ip: string; hopIp?: string; deviceId: string }): PinTry {
     const now = Date.now();
-    const left = Math.max(lockLeftMs(ipFails, who.ip, now), lockLeftMs(deviceFails, who.deviceId, now));
+    const hop = who.hopIp ?? who.ip;
+    const left = Math.max(lockLeftMs(ipFails, who.ip, now), lockLeftMs(hopFails, hop, now), lockLeftMs(deviceFails, who.deviceId, now));
     if (left > 0) return { ok: false, locked: true, retryInSec: Math.ceil(left / 1000) };
     const userId = consumePin(pin);
     if (userId) {
         ipFails.delete(who.ip);
-        deviceFails.delete(who.deviceId);
+        deviceFails.delete(who.deviceId);   // 바로 붙은 쪽(hop)은 지우지 않는다 — 에지 하나를 여럿이 지나니 한 사람이 맞혔다고 남의 실패를 씻지 않는다
         return { ok: true, userId };
     }
     recordFail(ipFails, who.ip, PIN_TRY.IP_FAILS, now, 'IP');
+    recordFail(hopFails, hop, PIN_TRY.HOP_FAILS, now, '바로 붙은 IP');
     recordFail(deviceFails, who.deviceId, PIN_TRY.DEVICE_FAILS, now, '폰');
     return { ok: false, locked: false };
 }

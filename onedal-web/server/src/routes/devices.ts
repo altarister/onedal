@@ -15,6 +15,7 @@ import { DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from "@onedal/shared";
 import { armWait } from "../state/waits";
 import type { AppFilterReply, FilterPassAlarm } from "@onedal/shared";
 import { appFilterOf } from "../state/appFilter";
+import { clientIpOf } from "../utils/clientIp";
 
 const router = Router();
 
@@ -626,7 +627,7 @@ router.post("/pair", (req, res) => {
         logRoadmapEvent('통신', "서버", "앱폰으로 부터 6자리 PIN 인증 요청 받음 및 deviceId 발급 연산");
         // 1. PIN 유효성 검증 및 소비
         /* 🔢 시도 한도 안에서만 번호를 쓴다 — 잠겼으면 429 · 글자는 PIN_INVALID 그대로(앱은 짝 화면 오류 글) (reviews/29 1단계 F) */
-        const tried = tryConsumePin(pin, { ip: String(req.ip ?? ''), deviceId });
+        const tried = tryConsumePin(pin, { ip: clientIpOf(req), hopIp: String(req.ip ?? '?'), deviceId });
         if (!tried.ok && tried.locked) {
             return res.status(429).json({ error: DEVICE_LINK_ERRORS.PIN_INVALID, retryInSec: tried.retryInSec, message: `번호를 여러 번 틀려 잠시 막혔습니다. ${Math.ceil((tried.retryInSec ?? 0) / 60)}분 뒤 다시 해 주세요.` });
         }

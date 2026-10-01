@@ -11,6 +11,7 @@ import { getUserSession } from "../state/userSessionStore";
 import { cancelOrderWaits } from "../state/waits";
 import { ensureBusinessDay, ensureReservedPickupList } from "../state/filterManager";
 import { appFilterOf } from "../state/appFilter";
+import { clientIpOf } from "../utils/clientIp";
 
 import { touchDeviceSession } from "./devices";
 import { simRoundForPhone } from "./sim";
@@ -334,7 +335,7 @@ router.post("/", (req, res) => {
         if (deviceId) {
             const now = Date.now();
             const prev = senderTrace.get(deviceId);
-            const ip = req.get?.('cf-connecting-ip') ?? req.ip ?? '?';
+            const ip = clientIpOf(req);
             if (prev && prev.ip !== ip && now - prev.at < 15_000 && now - prev.warnedAt > 60_000) {
                 prev.warnedAt = now;
                 console.warn(`🛰️⚠️ [이중 발신] ${deviceLabelOf(deviceId)} 가 두 곳에서 동시에 신호 중 — ${prev.ip} ↔ ${ip}. ` +
