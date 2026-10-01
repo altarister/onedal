@@ -150,7 +150,7 @@ export interface OpsMemberDetail {
     anomalies: OpsAnomaly[];
     audit: OpsAudit[];
     /** 카카오 길찾기 호출 수 — 5단계 표(kakao_usage_days)가 생기기 전엔 null(«아직 안 셈») */
-    kakaoUsage: { today: number; month: number } | null;
+    kakaoUsage: { today: number; month: number };
     /** 동의 기록 — 글 동의(종류 · 판)와 글 없는 고지(kind 'ack' · item 키 · 0판) · 지우지 않는다 */
     agreements: OpsAgreement[];
 }
@@ -262,6 +262,16 @@ export interface OpsBoardFilter { active: AutoDispatchFilter | null; base: AutoD
 
 /** 관제웹 본인 폰 하나의 앱 필터 — 세션이 없으면 null(세션을 만들지 않는다) */
 export interface AppFilterReply { filter: AppFilter | null }
+
+/**
+ * 🗺️ 현황판 «카카오 호출 — 오늘 / 이달» — 이달(1일~오늘)에 한 번이라도 센 주인만 줄로 · 합계는 화면이 줄을 더한다.
+ *    memberId null = 주인 없음(요청 흐름 밖 · 시뮬레이터). 길찾기 · 좌표 찾기는 카카오 한도가 따로라 나눈다.
+ */
+export interface OpsBoardKakao {
+    /** 한국 오늘 YYYY-MM-DD */
+    day: string;
+    rows: Array<{ memberId: string | null; route: { today: number; month: number }; local: { today: number; month: number } }>;
+}
 
 /** 원장(intel) 한 줄 — 서버 칸 이름 그대로(device_id) · verdict 는 앱 판정(pass · 떨어뜨린 축 · locked · null) — 화면은 옮겨 적기만 */
 export interface IntelRow {

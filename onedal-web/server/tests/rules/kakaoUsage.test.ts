@@ -69,4 +69,19 @@ describe('🗺️ 카카오 사용량', () => {
         expect(sock).not.toMatch(/enterLogWho\(/);
         expect(sock).toMatch(/for \(const uid of userIds\) logContext\.run\(\{ userId: uid \}/);
     });
+
+    /* 🏢 운영센터 현황판 «카카오 호출 — 오늘 / 이달» (onedal-ea 문 모양 · onedal-69 «가») — 이달에 센 주인만 줄로 · 주인 없음('')은 null · 합은 화면이 더한다 */
+    it('🔴 /board/kakao — 주인마다 길찾기 · 좌표 찾기의 오늘 / 이달 · 주인 없음은 memberId null', async () => {
+        const layer = opsRouter.stack.find((l: any) => l.route?.path === '/board/kakao' && l.route.methods.get);
+        expect(layer).toBeTruthy();
+        let out: any;
+        const res = { status: () => res, json: (b: any) => { out = b; return res; } };
+        await layer.route.stack[layer.route.stack.length - 1].handle({ app: { get: () => undefined }, params: {}, query: {}, user: { id: A }, headers: {} }, res);
+        expect(out.day).toBe(today());
+        const mine = out.rows.find((r: any) => r.memberId === U);
+        expect(mine).toEqual({ memberId: U, route: { today: 3, month: expect.any(Number) }, local: { today: 1, month: expect.any(Number) } });
+        expect(out.rows.some((r: any) => r.memberId === null)).toBe(true);
+        expect(out.rows.some((r: any) => r.memberId === '')).toBe(false);
+        expect(out.rows.every((r: any) => r.route.month + r.local.month > 0)).toBe(true);
+    });
 });

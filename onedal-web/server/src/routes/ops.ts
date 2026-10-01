@@ -10,7 +10,7 @@ import { getUserDevicesSnapshot, getActiveDevicesSnapshot } from "./devices";
 import { BOOTED_AT, GIT_INFO } from "./health";
 import { peekUserSession, baseFilterFromDb } from "../state/userSessionStore";
 import { appFilterOf } from "../state/appFilter";
-import { kakaoUsageOf } from "../services/kakaoUsage";
+import { kakaoUsageOf, kakaoBoardOf } from "../services/kakaoUsage";
 import { intelRowsOf } from "../services/intelRows";
 import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer } from "@onedal/shared";
 import { latestContent, isContentKind } from "./contents";
@@ -339,6 +339,11 @@ router.get("/board/filter", (req, res) => {
         : null;
     const body: OpsBoardFilter = { active: session?.activeFilter ?? null, base: session?.baseFilter ?? baseFilterFromDb(memberId), app };
     return res.json(body);
+});
+
+/* 🗺️ 카카오 호출 — 회원 전체를 모아 본다(/board/server 처럼 한 회원 열람이 아니라 열람 기록은 안 남긴다) */
+router.get("/board/kakao", (_req, res) => {
+    res.json(kakaoBoardOf());
 });
 
 router.get("/board/intel", (req, res) => {

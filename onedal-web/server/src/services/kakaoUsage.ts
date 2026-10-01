@@ -1,4 +1,5 @@
 import { kstDateText } from "@onedal/shared";
+import type { OpsBoardKakao } from "@onedal/shared";
 import db from "../db";
 import { userIdNow } from "../utils/logContext";
 
@@ -16,6 +17,25 @@ export function countKakao(url: string): void {
             ON CONFLICT(user_id, day) DO UPDATE SET route_calls = route_calls + excluded.route_calls, local_calls = local_calls + excluded.local_calls`)
             .run(userIdNow() ?? '', kstDateText(Date.now()) ?? '', route ? 1 : 0, route ? 0 : 1);
     } catch { /* 세기 실패는 운행과 무관 — 조용히 넘긴다 */ }
+}
+
+/** 운영센터 현황판 — 이달에 센 주인마다 오늘 / 이달(길찾기 · 좌표 찾기) · 주인 없음('')은 null */
+export function kakaoBoardOf(): OpsBoardKakao {
+    const day = kstDateText(Date.now()) ?? '';
+    const rows = db.prepare(`SELECT user_id,
+            SUM(CASE WHEN day = @day THEN route_calls ELSE 0 END) route_today, SUM(route_calls) route_month,
+            SUM(CASE WHEN day = @day THEN local_calls ELSE 0 END) local_today, SUM(local_calls) local_month
+        FROM kakao_usage_days WHERE day >= @from AND day <= @day GROUP BY user_id
+        HAVING SUM(route_calls) + SUM(local_calls) > 0 ORDER BY user_id`)
+        .all({ day, from: `${day.slice(0, 7)}-01` }) as Array<{ user_id: string; route_today: number; route_month: number; local_today: number; local_month: number }>;
+    return {
+        day,
+        rows: rows.map(r => ({
+            memberId: r.user_id || null,
+            route: { today: r.route_today, month: r.route_month },
+            local: { today: r.local_today, month: r.local_month },
+        })),
+    };
 }
 
 /** 운영센터 회원 상세 — 오늘 · 이달(1일부터 오늘까지) 길찾기 호출 수 (화면 글 «길찾기 호출 수») */
