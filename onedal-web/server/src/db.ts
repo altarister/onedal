@@ -92,7 +92,7 @@ db.exec(`
  * - `withdrawn_at` — 비면 회원. ③ 탈퇴 문이 씀 · 기기 문 · /me 가 읽음  ④ 운영센터 «탈퇴» · 관제웹 탈퇴 끝 화면  ⑤ 기기 문(거절) · /me · 운영센터
  * - `phone` · `dispatch_networks`(JSON 배열 · shared `TargetAppType` 키 · CHECK 없음 — 파일 머리) — ② 비움 ③ 가입 정보 단계가 씀
  *   ④ 관제웹 가입 1단계 · 운영센터 회원 표  ⑤ 운영센터(연락 · 어느 배차망을 쓰나)만 — 판정 · 필터는 안 읽는다. 차종은 여기 없다(기사 설정 `user_settings`)
- * - `ops_allowed_at` — 비면 운영센터에 못 들어온다. ② 옮기기에서 안 채움 — 실서버는 기사님 손(reviews/26 «push 전»)
+ * - `ops_allowed_at` — 비면 운영센터에 못 들어온다. ② 옮기기에서 안 채움 — 실서버는 기사님 손(reviews/26 «push 뒤» — 칸이 push 뒤 첫 부팅에 생긴다)
  *   ③ 운영센터 HTTP(requireOps) · 소켓 관리자 방 입장 때 읽음  ④ 운영센터 회원 상세  ⑤ requireOps · 관리자 방
  * - `suspended_at` · `suspend_after_active` — 비면 정지 아님 · 0. ③ 운영센터 «정지(끝난 뒤) / 즉시»가 씀 · 기기 문이 «진행 중 콜 있음»과 함께 읽음
  *   ④ 운영센터 «정지 · 정지(끝난 뒤)»  ⑤ 기기 문 · 운영센터
@@ -106,14 +106,18 @@ const ACCOUNT_COLUMNS: Record<string, string> = {
 /**
  * 🔴 **이미 있는 회원은 승인된 것으로 친다** — approved_at 을 가입 시각으로 채운다. 안 채우면 실서버 기사님 계정이
  *    다음 배포에 «승인 대기»로 막혀 운행이 선다. **칸이 이번 기동에 새로 생겼을 때만** 돈다 —
- *    매 기동마다 돌면 승인 대기 회원이 재시작에 저절로 승인된다 (`accountColumns` 검사가 두 번 기동으로 문다).
+ *    매 기동마다 돌면 승인 대기 회원이 재시작에 저절로 승인된다 (`accountColumns` 검사가 두 번 기동 · 채우기 실패로 문다).
  */
 export function migrateAccountColumns(on: Database.Database = db): void {
     const had = (on.prepare(`PRAGMA table_info(users)`).all() as any[]).some(c => c.name === 'approved_at');
-    ensureColumns('users', ACCOUNT_COLUMNS, on);
-    if (had) return;
-    const n = on.prepare(`UPDATE users SET approved_at = created_at WHERE approved_at IS NULL`).run().changes;
-    slog('부팅', `🪪 [회원 옮기기] 기존 회원 ${n}명을 가입 시각으로 승인 처리`);
+    /* 🔴 칸 더하기와 채우기를 한 묶음으로 — 칸만 생기고 채우기 전에 죽으면 다음 기동은 «칸 있음»으로 채우기를 영영 건너뛴다.
+          SQLite 는 ADD COLUMN 도 묶음 안에서 되돌린다. 가입 시각이 빈 옛 줄은 지금 시각으로 — 그 회원만 막히지 않게 */
+    on.transaction(() => {
+        ensureColumns('users', ACCOUNT_COLUMNS, on);
+        if (had) return;
+        const n = on.prepare(`UPDATE users SET approved_at = COALESCE(created_at, datetime('now', 'localtime')) WHERE approved_at IS NULL`).run().changes;
+        slog('부팅', `🪪 [회원 옮기기] 기존 회원 ${n}명을 가입 시각으로 승인 처리`);
+    })();
 }
 migrateAccountColumns();
 

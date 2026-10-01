@@ -37,6 +37,28 @@ describe('🪪 기존 회원 승인 시각 채우기', () => {
     });
 });
 
+describe('🪪 옮기기는 한 묶음', () => {
+    it('🔴 채우기가 실패하면 칸도 안 생긴다 — 다음 기동에 다시 시도해 채운다', () => {
+        const m = new Database(':memory:');
+        m.exec(OLD_USERS);
+        m.prepare(`INSERT INTO users (id, google_id, email, name) VALUES ('a', 'ga', 'a@x', '회원1')`).run();
+        m.exec(`CREATE TRIGGER fail_fill BEFORE UPDATE ON users BEGIN SELECT RAISE(ABORT, '채우기 실패'); END`);
+        expect(() => migrateAccountColumns(m)).toThrow();
+        expect(m.prepare(`PRAGMA table_info(users)`).all().some(c => c.name === 'approved_at')).toBe(false);
+        m.exec(`DROP TRIGGER fail_fill`);
+        migrateAccountColumns(m);
+        expect(m.prepare(`SELECT approved_at FROM users WHERE id = 'a'`).get().approved_at).not.toBeNull();
+    });
+
+    it('🔴 가입 시각이 빈 옛 줄도 채운다 — 그 회원만 막히지 않게', () => {
+        const m = new Database(':memory:');
+        m.exec(OLD_USERS);
+        m.prepare(`INSERT INTO users (id, google_id, email, name, created_at) VALUES ('a', 'ga', 'a@x', '회원1', NULL)`).run();
+        migrateAccountColumns(m);
+        expect(m.prepare(`SELECT approved_at FROM users WHERE id = 'a'`).get().approved_at).not.toBeNull();
+    });
+});
+
 describe('🪪 새 칸 · 새 표', () => {
     const cols = (t: string) => (db.prepare(`PRAGMA table_info(${t})`).all() as any[]).map(c => c.name);
 
