@@ -8,10 +8,9 @@
  * 여기 있는 것은 전부 **순수 함수**다 — 캔버스도 DOM 도 모른다. 그래서 검사할 수 있다.
  */
 
-/** 지도 타일 한 장의 원본 크기(px) — 표준 슬리피 타일 규격 */
-export const TILE_SIZE = 256;
-/** OSM 이 제공하는 최대 확대 단계 */
-export const TILE_MAX_ZOOM = 19;
+/* 🌍 타일 일반식 셋(TILE_SIZE · TILE_MAX_ZOOM · projectMercator)은 shared `mapTile` 한 벌 — 운영센터 지도와 같이 쓴다. 이 파일을 쓰는 곳이 그대로 가져가게 다시 내보낸다 */
+import { TILE_SIZE, TILE_MAX_ZOOM, projectMercator } from '@onedal/shared';
+export { TILE_SIZE, TILE_MAX_ZOOM, projectMercator };
 
 export const PADDING_LEFT = 70;    // 좌측 버튼 여백 (전체·구간·현위치 · 내비)
 export const PADDING_RIGHT = 60;   // 우측 버튼 여백 (+, -, 초기화 · 이름표)
@@ -25,22 +24,6 @@ export const SINGLE_POINT_SPAN = 0.01 / 360;
 export const FIT_MARGIN = 0.9;
 
 export interface GeoPoint { x: number; y: number }   // x = 경도, y = 위도
-
-/**
- * 🌍 **웹 메르카토르** — 지도 타일이 쓰는 투영. 결과는 0~1 정규 좌표다.
- *
- * 🔴 경도·위도를 **그대로 평면에** 놓으면(선형 투영) 위도 37도(한국)에서
- *    세로가 약 **1.25배** 어긋나, 그 위에 타일을 얹으면 마커가 도로에서 밀린다.
- *    투영은 여기 하나에서 정한다 — 그리는 코드는 전부 `toScreenPoint` 를 지난다.
- */
-export function projectMercator(lng: number, lat: number): { nx: number; ny: number } {
-    const clamped = Math.max(-85.05112878, Math.min(85.05112878, lat));
-    const s = Math.sin(clamped * Math.PI / 180);
-    return {
-        nx: (lng + 180) / 360,
-        ny: 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI),
-    };
-}
 
 /**
  * 🪟 **시트에 가려도 최소한 이만큼은 지도로 남긴다** (px).

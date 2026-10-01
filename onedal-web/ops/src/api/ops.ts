@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RELEASE_UPLOAD_HEADERS } from '@onedal/shared';
 import type {
-    OpsAllowRequest, OpsAnomaliesReply, OpsBoardFilter, OpsBoardIntel, OpsBoardKakao, OpsBoardPhone, OpsBoardServer, OpsHome, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsSuspendRequest,
+    OpsAllowRequest, OpsAnomaliesReply, OpsBoardFilter, OpsBoardIntel, OpsBoardKakao, OpsBoardPhone, OpsBoardServer, OpsHome, OpsLocations, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsSuspendRequest,
 } from '@onedal/shared';
 import { client, errorTextOf, statusOf } from './client';
 import { createListeners } from './listeners';
@@ -26,6 +26,8 @@ export const api = {
     /** since 가 있으면 그 날(한국 날)부터 전부 · 없으면 최근 200줄 */
     audit: (since?: string) => get<OpsAudit[]>(since ? `/audit?since=${since}` : '/audit'),
     counts: () => get<OpsCounts>('/counts'),
+    /** 🗺️ 회원 위치 — 운전석 폰 GPS 마지막 점 + 시 · 구 뱃지(서버가 동 명부로 찾는다 · 열람 기록 «위치 봄»은 서버가 남긴다) */
+    locations: () => get<OpsLocations>('/locations'),
     /** 🏠 홈 한 장 — 서버가 각 쪽의 문과 같은 함수로 센 숫자(홈 숫자 = 쪽 숫자) */
     home: () => get<OpsHome>('/home'),
 

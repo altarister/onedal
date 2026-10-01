@@ -1795,6 +1795,7 @@ export * from './callBands';
 export * from './openBlocked';
 export * from './mask';
 export * from './format';
+export * from './mapTile';
 export * from './replies';
 export * from './filterTally';
 export * from './jsonArray';

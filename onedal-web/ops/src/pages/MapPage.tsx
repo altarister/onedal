@@ -1,36 +1,40 @@
-import { deviceLabel } from '@onedal/shared';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, useOps } from '../api/ops';
-import { Card, ErrorBand, PageHeader, fmtTime, memberName } from '../ui';
+import OpsMapCanvas, { type MapDot } from './OpsMapCanvas';
+import { Card, ErrorBand, KV, PageHeader, dayKey, fmtTime, memberName, todayKey } from '../ui';
 
 /**
- * 🗺️ 지도 — 회원 지금 위치 · 잡은 콜의 상하차. 실제 지도는 관제웹 지도 부품(`ui/` 로 옮긴 뒤)을 쓴다 — 지금은 자리만.
- *    위치를 보내는 폰은 서버 `/ops/phones`(배차망 폰) · 좌표 자체와 진행 중 콜의 상하차는 5단계(위치 읽는 문 + 열람 기록). 
+ * 🗺️ **지도 — 회원들이 지금 어디 있나** (reviews/33 3단계 · 서버 `GET /api/ops/locations` · 읽기만 · 열람 기록 «위치 봄»은 서버가 남긴다).
+ *    점은 운전석 폰 GPS 의 마지막 자리 · 시 · 구는 서버가 동 명부로 찾는다(카카오를 안 부른다). 뱃지는 서버가 센 것 그대로다(화면이 다시 세지 않는다).
+ *    오늘 보고가 아닌 점은 흐리게 — 마지막 시각을 같이 적는다. 30초마다 다시 읽는다(위치는 천천히 바뀐다).
  */
 export default function MapPage() {
-    const { data, error, reload } = useOps(() => Promise.all([api.members(), api.phones()]), []);
-    const [members, allPhones] = data ?? [[], []];
-    const phones = allPhones.filter(p => p.locationOn);
+    const navigate = useNavigate();
+    const [tick, setTick] = useState(0);
+    useEffect(() => { const t = setInterval(() => setTick(n => n + 1), 30_000); return () => clearInterval(t); }, []);
+    const { data, error, reload } = useOps(() => Promise.all([api.members(), api.locations()]), [tick]);
+    const [members, loc] = data ?? [[], null];
+    const today = todayKey();
+    const dots: MapDot[] = (loc?.rows ?? []).map(r => ({
+        id: r.memberId, lat: r.lat, lng: r.lng, label: memberName(members, r.memberId), note: fmtTime(r.at), faded: dayKey(r.at) !== today,
+    }));
     return (
         <>
-            <PageHeader title="지도" sub="회원 지금 위치 · 잡은 콜의 상하차 — 좌표를 읽는 문은 5단계" />
+            <PageHeader title="지도" sub="운전석 폰 GPS 의 마지막 자리 — 오늘 보고가 아닌 점은 흐리게 · 30초마다" />
             {error && <ErrorBand text={error} onRetry={reload} />}
-            <div className="grid lg:grid-cols-[2fr_1fr] gap-4">
-                <Card>
-                    <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-border-card bg-[radial-gradient(circle_at_30%_30%,rgba(59,130,246,0.10),transparent_45%),radial-gradient(circle_at_70%_70%,rgba(16,185,129,0.10),transparent_45%)] bg-surface-alt">
-                        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(rgba(128,128,128,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(128,128,128,0.25) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-                        <div className="absolute left-3 top-3 text-xs text-text-muted bg-surface/80 rounded px-2 py-1">지도 자리 — 관제웹 지도 부품을 ui/ 로 옮긴 뒤 붙입니다 · 좌표는 5단계 문에서</div>
-                    </div>
-                </Card>
-                <div className="space-y-4">
-                    <Card title="지금 위치를 보내는 폰">
-                        {phones.map(p => <div key={p.deviceId} className="text-sm flex justify-between"><span><b>{memberName(members, p.memberId)}</b> · {deviceLabel(p)}</span><span className="text-text-muted">{fmtTime(p.lastSeenAt)}</span></div>)}
-                        {phones.length === 0 && <p className="text-sm text-text-muted">{data ? '없습니다' : '읽는 중…'}</p>}
-                    </Card>
-                    <Card title="진행 중 콜">
-                        <p className="text-sm text-text-muted">모든 회원의 진행 중 콜을 읽는 문은 5단계 — 지금은 회원 한 명 화면의 «오늘 콜»에서 봅니다.</p>
-                    </Card>
-                </div>
+            <div className="flex flex-wrap gap-1.5">
+                {loc?.regions.map(r => <span key={r.label} className="rounded-full border border-border-card bg-surface-alt/40 px-2.5 py-1 text-xs">{r.label} <b>{r.count}</b></span>)}
+                {loc && loc.regions.length === 0 && <span className="text-sm text-text-muted">위치를 보낸 운전석 폰이 없습니다</span>}
+                {!loc && !error && <span className="text-sm text-text-muted">읽는 중…</span>}
             </div>
+            <OpsMapCanvas dots={dots} onPick={id => navigate(`/members/${id}`)} />
+            <Card title={`회원 위치 — ${loc?.rows.length ?? 0}명`}>
+                {loc?.rows.map(r => (
+                    <KV key={r.memberId} k={`${memberName(members, r.memberId)} · ${r.region}`} v={fmtTime(r.at)} />
+                ))}
+                {loc && loc.rows.length === 0 && <p className="text-sm text-text-muted">없습니다</p>}
+            </Card>
         </>
     );
 }

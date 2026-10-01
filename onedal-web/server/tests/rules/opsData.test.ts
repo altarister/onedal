@@ -12,7 +12,9 @@ const read = (f: string) => readFileSync(join(SRC, f), 'utf8');
 const EXAMPLE_PAGES = ['MembersCheck'];
 /** 칸 셋을 담기만 하는 쪽(운영) — 자료는 그 안의 칸(공지 · 페이지 글 · 앱 배포)이 읽는다 */
 const CONTAINER_PAGES = ['Manage'];
-const SERVER_PAGES = readdirSync(join(SRC, 'pages')).map(f => f.replace(/\.tsx$/, '')).filter(p => !EXAMPLE_PAGES.includes(p) && !CONTAINER_PAGES.includes(p) && p !== 'Login');
+/** 받은 값만 그리는 부품(지도 캔버스) — 서버는 그것을 쓰는 쪽(MapPage)이 읽는다 */
+const DRAW_ONLY_PARTS = ['OpsMapCanvas'];
+const SERVER_PAGES = readdirSync(join(SRC, 'pages')).map(f => f.replace(/\.tsx$/, '')).filter(p => !EXAMPLE_PAGES.includes(p) && !CONTAINER_PAGES.includes(p) && !DRAW_ONLY_PARTS.includes(p) && p !== 'Login');
 
 describe('🏢 운영센터 자료', () => {
     it('🔴 서버 문이 있는 쪽은 예시 자료를 가져오지 않고 useOps 로 읽는다 · 서버가 안 되면 ErrorBand', () => {
@@ -22,6 +24,10 @@ describe('🏢 운영센터 자료', () => {
             expect(src).toContain('useOps(');
             expect(src).toMatch(/<ErrorBand text=\{(\w+\.)?error\} onRetry=\{(\w+\.)?reload\} \/>/);
         }
+    });
+
+    it('🔴 그리기만 하는 부품은 서버를 부르지 않는다 — 예외가 서버 읽는 쪽을 숨기는 구멍이 되지 않게', () => {
+        for (const p of DRAW_ONLY_PARTS) expect(read(`pages/${p}.tsx`)).not.toMatch(/api\/ops|api\/client|api\/example|mock\/data|fetch\(/);
     });
 
     it('🔴 예시 쪽은 머리에 ExampleBand 를 적고 서버 문을 부르지 않는다', () => {

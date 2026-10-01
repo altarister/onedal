@@ -20,8 +20,8 @@ describe('🏠 운영센터 홈 화면', () => {
         expect(read('api/ops.ts')).toContain("get<OpsHome>('/home')");
     });
 
-    it('🔴 «지금 할 일» 여섯 칸이 서버 값 그대로 — 화면에서 더하거나 지어내지 않는다', () => {
-        for (const k of ['t?.emergencies', 't?.callsTodo', 't?.pendingMembers', 't?.expiringSoon', 't?.phonesOffline', 't?.needUpdate']) expect(code).toContain(`n: ${k}`);
+    it('🔴 «지금 할 일» 일곱 칸이 서버 값 그대로 — 화면에서 더하거나 지어내지 않는다 · 기사 이상 신호와 배차망 비상은 따로 센다', () => {
+        for (const k of ['t?.emergencies', 't?.networkAlarms', 't?.callsTodo', 't?.pendingMembers', 't?.expiringSoon', 't?.phonesOffline', 't?.needUpdate']) expect(code).toContain(`n: ${k}`);
         expect(code).not.toMatch(/Math\.random|\bn: \d+,/);
     });
 

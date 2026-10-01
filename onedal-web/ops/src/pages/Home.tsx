@@ -28,6 +28,7 @@ export default function Home() {
     const t = h?.todo;
     const todo: Array<{ icon: string; label: string; n: number | undefined; to: string; urgent?: boolean; note?: string }> = [
         { icon: '🚨', label: '기사 이상 신호', n: t?.emergencies, to: '/inspect', urgent: true },
+        { icon: '📡', label: '배차망 비상', n: t?.networkAlarms, to: '/inspect', urgent: true },
         { icon: '📞', label: '전화할 콜', n: t?.callsTodo, to: '/calls', urgent: true, note: t?.oldestKeepAt ? `가장 오래된 KEEP ${fmtTime(t.oldestKeepAt)}` : undefined },
         { icon: '👤', label: '승인 대기', n: t?.pendingMembers, to: '/members' },
         { icon: '⏳', label: '곧 끝나는 기한', n: t?.expiringSoon, to: '/members', note: '7일 안 · 유예 중' },
@@ -41,7 +42,7 @@ export default function Home() {
             <PageHeader title="홈" sub="운영센터 한 장 — 지금 할 일이 맨 위" />
             {error && <ErrorBand text={error} onRetry={reload} />}
             <Card title="지금 할 일">
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
                     {todo.map(x => (
                         <Link key={x.label} to={x.to} className="rounded-xl border border-border-card bg-surface-alt/30 px-3 py-2 block hover:bg-surface-alt">
                             <div className="text-xs text-text-muted">{x.icon} {x.label}</div>
