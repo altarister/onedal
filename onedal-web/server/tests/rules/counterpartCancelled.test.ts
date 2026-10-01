@@ -87,4 +87,26 @@ describe('📵 상대 취소 칸', () => {
         expect(db.prepare(`SELECT status, written_by, planned_quantity FROM step_call_pickup WHERE orderId = ?`).get(O)).toEqual(callBefore);
         expect((await note({ stopType: 'pickup', unit: '라면박스', quantity: 4, counterpartCancelled: false })).status).toBe(409);
     });
+
+    /* 🔴 운영센터는 취소 사실을 통화 메모와 따로 받는다 — 통화 전 콜에 «취소 표시만» 적어도 보여야 다시 누르거나 못 지우는 일이 없다 (ea) */
+    it('🔴 통화 전 콜에 취소만 적어도 OpsCall.counterpartCancelled 에 보인다 · 지우면 빈다', async () => {
+        const O2 = 'TEST-CP-2';
+        db.prepare(`DELETE FROM orders WHERE id = ?`).run(O2);
+        db.prepare(`INSERT INTO orders (id, userId, status, timestamp, capturedAt, pickup, dropoff, fare, vehicleType) VALUES (?, ?, 'ORDER_CONFIRMED', ?, ?, '경기 광주시 경안동', '경기 파주시 금촌동', 30000, '1t')`)
+            .run(O2, D, new Date().toISOString(), new Date().toISOString());
+        birthFirstStep(D, O2);
+        const post = async (body: any) => {
+            const layer = opsRouter.stack.find((l: any) => l.route?.path === '/calls/:id/note' && l.route.methods.post);
+            let out: any;
+            const res = { status: () => res, json: (b: any) => { out = b; return res; } };
+            await layer.route.stack[layer.route.stack.length - 1].handle({ app, params: { id: O2 }, body, query: {}, user: { id: A }, headers: {} }, res);
+            return out;
+        };
+        const on = await post({ stopType: 'pickup', counterpartCancelled: true });
+        expect(on.callNote).toBeNull();   // 통화는 아직 안 했다
+        expect(on.counterpartCancelled).toEqual([{ stopType: 'pickup', at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/), by: '와이프' }]);
+        const off = await post({ stopType: 'pickup', counterpartCancelled: false });
+        expect(off.counterpartCancelled).toEqual([]);
+        db.prepare(`DELETE FROM orders WHERE id = ?`).run(O2);
+    });
 });

@@ -145,6 +145,14 @@ function opsCallOf(o: OrderRow): OpsCall {
         verdict: (o.color ?? '보통') as OpsCall['verdict'],
         needsCall: o.color === '똥' && (!pickupCall?.born || pickupCall.row.status === 'PLANNED'),
         callNote: callNoteOf(o, steps), fare: o.fare ?? 0, capturedAt: isoKst(o.capturedAt ?? o.timestamp) ?? '',
+        /* 📵 통화 메모(마친 통화 신고 행)와 따로 — 통화 전 콜에 «취소 표시만» 적어도 운영센터가 본다 */
+        counterpartCancelled: (['CALL_PICKUP', 'CALL_DROPOFF'] as const).flatMap(step => {
+            const r = steps.find(s => s.step === step);
+            const row = r?.born ? r.row as Record<string, any> : null;
+            return row?.counterpart_cancelled_at
+                ? [{ stopType: step === 'CALL_PICKUP' ? 'pickup' as const : 'dropoff' as const, at: isoKst(row.counterpart_cancelled_at) ?? '', by: nameOf(row.counterpart_cancelled_by ?? o.userId) }]
+                : [];
+        }),
         pickup: { place: o.pickup, phone: null, address: o.pickup, at: atOf('CALL_PICKUP') },
         dropoff: { place: o.dropoff, phone: null, address: o.dropoff, at: atOf('CALL_DROPOFF') },
     };

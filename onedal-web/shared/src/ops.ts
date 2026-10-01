@@ -58,6 +58,8 @@ export interface OpsCall {
     fare: number;
     capturedAt: string;
     callNote: OpsCallNote | null;
+    /** 📵 상대 취소가 적힌 통화 행마다(통화를 마쳤든 아니든) — 없으면 빈 배열 · by 는 적은 사람 이름 */
+    counterpartCancelled: Array<{ stopType: 'pickup' | 'dropoff'; at: string; by: string }>;
 }
 
 /**
