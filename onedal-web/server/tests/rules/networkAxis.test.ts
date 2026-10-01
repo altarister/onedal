@@ -120,11 +120,10 @@ describe('픽커 상세 원문 보관', () => {
  * 픽커는 원달앱이 최소 금액(관제웹 필터 막대 · 세 배차망 공통)으로 이미 걸렀다
  * (규칙 ⑤-1: *"돈은 앱이 이미 걸렀다 — 서버가 다시 세지 않는다"*).
  */
-describe('요금 하한의 배차망 축', () => {
-    it('🔴 픽커는 인성 절대하한을 타지 않는다', () => {
+describe('요금 하한은 배차망 축이 아니다', () => {
+    it('🔴 첫짐 하한 건너뛰기는 «원달앱이 걸러 연 콜»이라는 콜의 사실로 — 배차망 이름이 아니다 (동작은 fareFloorByAppFilter)', () => {
         const src = readFileSync(join(__dirname, '../../src/core/engine/OrderEvaluator.ts'), 'utf8');
-        expect(src).toMatch(/targetApp === 'kakaopicker'/);
-        // 인성 경로는 살아 있어야 한다 — 픽커만 건너뛴다
+        expect(src).toMatch(/const skipFareFloor = \(order as \{ openedByApp\?: boolean \}\)\.openedByApp === true;/);
         expect(src).toMatch(/첫짐 절대하한가 미달/);
     });
 });

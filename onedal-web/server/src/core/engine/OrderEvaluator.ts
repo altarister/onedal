@@ -141,7 +141,7 @@ function soloRouteArgsOf(userId: string, originNow: () => { x: number; y: number
 
 export class OrderEvaluator {
     private plugin: IAppPlugin;
-    /** 🌐 이 심사가 어느 배차망의 콜인가 — 요금 하한이 배차망마다 다르다 (아래 §하한) */
+    /** 🌐 이 심사가 어느 배차망의 콜인가 */
     private targetApp: string;
 
     constructor(targetApp: string = 'insung') {
@@ -959,16 +959,15 @@ export class OrderEvaluator {
         /**
          * 2) 첫짐 절대 하한가 검사
          *
-         * 🔴 **하한은 배차망마다 다르다** (기사님 확정 · 실측으로 드러났다).
+         * 🔴 **«원달앱이 이미 걸렀나»로 가른다 — 배차망이 아니라** (reviews/34 3단계 5① · 기사님 «가»).
          *
-         * 픽커 콜은 5,544원이 정상 범위인데 **인성 하한 20,000원**에 걸려 전부 «똥콜»로
-         * 나왔다(08:37 실측). 요금 체계가 아예 다른 판을 한 잣대로 잰 것이다.
-         *
-         * 픽커의 하한은 **앱이 이미 걸렀다** — 원달앱이 최소 금액(관제웹 필터 막대 · 세 배차망 공통)
-         * 으로 거른 콜만 상세로 올라온다. 규칙 ⑤-1: *"돈은 앱이 이미 걸렀다 — 서버가
-         * 다시 세지 않는다."* 그래서 픽커는 이 검사를 **건너뛴다.**
+         * 원달앱은 세 배차망 모두 목록 판정에서 같은 최소 금액(관제웹 필터 막대)으로 거르고,
+         * 통과한 콜만 원달앱이 눌러 연다(`openedByApp` · /confirm 이 싣는다 · 자동 모드도 여기 든다).
+         * 규칙 ⑤-1: *"돈은 앱이 이미 걸렀다 — 서버가 다시 세지 않는다."* 그래서 그 콜은 건너뛴다.
+         * 손으로 연 콜(직접 · 미리보기)은 원달앱 목록 판정을 안 거쳤으니 배차망 상관없이 여기서 센다.
+         * 모르면(옛 원달앱 · /confirm 없음) 센다 — 같은 최소 금액이라 원달앱이 연 콜도 결과는 같다.
          */
-        const skipFareFloor = this.targetApp === 'kakaopicker';
+        const skipFareFloor = (order as { openedByApp?: boolean }).openedByApp === true;
         if (skipFareFloor && order.fare && order.fare > 0) {
             pros.push(`요금은 앱이 이미 걸렀다 (최소 금액)`);
         }
