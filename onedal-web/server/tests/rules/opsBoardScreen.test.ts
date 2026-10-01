@@ -21,6 +21,12 @@ describe('🧰 운영센터 현황판 화면', () => {
         const ops = read('ops/src/api/ops.ts');
         for (const p of ["'/board/server'", '/board/phones', '/board/filter?memberId=', '/board/intel?memberId=']) expect(ops).toContain(p);
     });
+    it('🔴 점검의 오류 칸은 서버 errorsToday 그대로 — «부팅 뒤 · 오늘» · 0 이면 «없음» · 다시 띄우면 0 이라고 적는다', () => {
+        const inspect = read('ops/src/pages/Inspect.tsx');
+        expect(inspect).toContain('<Stat label="오류 (부팅 뒤 · 오늘)"');
+        expect(inspect).toContain("server.errorsToday.count === 0 ? '없음' : `${server.errorsToday.count}줄 · ${server.errorsToday.kinds}가지`");
+        expect(inspect).toContain('hint="서버를 다시 띄우면 0"');
+    });
     it('🔴 성적표는 shared summarizeTally · 판정은 옮겨 적기만(다시 재지 않는다)', () => {
         const b = read('ops/src/pages/MemberPhoneFilter.tsx');
         expect(b).toContain('summarizeTally(p.filterTally, p.filterTallyAt)');

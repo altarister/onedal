@@ -58,6 +58,8 @@ export default function Home() {
                     <KV k="폰 연결 · 끊김" v={h ? `${h.access.phonesOnline} · ${h.access.phonesOffline}` : '—'} />
                     <KV k="마지막 폰 보고" v={fmtTime(h?.access.lastScrapAt)} />
                     <KV k="서버 부팅" v={fmtDateTime(h?.access.bootedAt)} />
+                    {/* 🧯 서버 오류 줄 — 서버 메모리가 센 그대로(다시 띄우거나 날이 바뀌면 0)라 «부팅 뒤 · 오늘»을 같이 적는다 */}
+                    <KV k="오류 (부팅 뒤 · 오늘)" v={!h ? '—' : h.access.errorsToday.count === 0 ? '없음' : <span className="text-warning font-bold">{h.access.errorsToday.count}줄 · {h.access.errorsToday.kinds}가지</span>} />
                     <KV k="붙은 화면 (관제웹 · 운영센터)" v={h ? `${h.access.sockets.web} · ${h.access.sockets.ops}` : '—'} />
                     {more('/inspect', '점검에서 보기')}
                 </Card>

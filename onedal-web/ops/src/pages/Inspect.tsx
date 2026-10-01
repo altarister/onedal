@@ -20,10 +20,12 @@ export default function Inspect() {
         <>
             <PageHeader title="점검" sub="서버 · 폰 접속 · 카카오 호출 · 이상 기록 — 읽기만 · 10초마다" />
             {error && <ErrorBand text={error} onRetry={reload} />}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <Stat label="서버 부팅" value={fmtDateTime(server?.bootedAt)} hint={server ? `${server.branch} · ${server.commit}` : undefined} />
                 <Stat label="붙은 화면" value={server ? `${server.sockets.web} · ${server.sockets.ops}` : '—'} hint="관제웹 · 운영센터" />
                 <Stat label="마지막 폰 보고" value={fmtTime(server?.lastScrapAt)} tone={server?.lastScrapAt ? 'ok' : undefined} />
+                <Stat label="오류 (부팅 뒤 · 오늘)" value={!server ? '—' : server.errorsToday.count === 0 ? '없음' : `${server.errorsToday.count}줄 · ${server.errorsToday.kinds}가지`}
+                    tone={server && server.errorsToday.count > 0 ? 'warn' : undefined} hint="서버를 다시 띄우면 0" />
                 <Stat label="DB" value={server?.dbFile ?? '—'} hint={server ? `커밋 ${fmtDateTime(server.committedAt)}` : undefined} />
             </div>
             <Phones />

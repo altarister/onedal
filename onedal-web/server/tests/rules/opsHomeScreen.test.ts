@@ -25,6 +25,12 @@ describe('🏠 운영센터 홈 화면', () => {
         expect(code).not.toMatch(/Math\.random|\bn: \d+,/);
     });
 
+    it('🔴 «접속 상태»의 오류 줄은 서버 값 그대로 — «부팅 뒤 · 오늘»을 같이 적는다 · 0 이면 «없음» · «지금 할 일»에는 올리지 않는다', () => {
+        expect(code).toContain('<KV k="오류 (부팅 뒤 · 오늘)"');
+        expect(code).toContain("h.access.errorsToday.count === 0 ? '없음'");
+        expect(code).toContain('{h.access.errorsToday.count}줄 · {h.access.errorsToday.kinds}가지');
+        expect(code).not.toMatch(/n: t\?\.errors|n: h\?\.access\.errorsToday/);
+    });
     it('🔴 상대시각을 쓰지 않는다 — 가장 오래된 KEEP 은 시각으로', () => {
         expect(code).toContain('fmtTime(t.oldestKeepAt)');
         expect(code).not.toMatch(/분 전|방금|Date\.now\(\) -/);
