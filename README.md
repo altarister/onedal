@@ -105,6 +105,7 @@
 | 관제웹·앱이 붙은 서버 | 내 PC 서버 ↔ 실서버(라이브) | 내 PC 를 고치며 실서버 화면을 본다 | 내 PC 서버 로그에 `🔌 [소켓 연결]` 이 찍히는가 — 화면은 멀쩡한데 로그가 조용하면 다른 서버다 |
 | 앱 코드를 고침 | 폰에 깔린 앱 | 옛 앱이 돈다 | 관제웹 오른쪽 곁 패널(현황판)의 «앱 버전» 칸, 또는 `adb shell dumpsys package com.onedal.app \| grep versionName` — 다르면 `adb install -r` |
 | `client-app/.env` 에 `VITE_API_URL` 을 적음 | Vite 프록시 | 내 PC 에서 프록시가 깨진다 | 내 PC 에서는 비워 둔다 |
+| 운영센터에서 APK 를 올림 | 서버의 APK 폴더 `RELEASES_DIR`(기본 `~/onedal-releases` · 레포 밖) | 레포 안이면 서버가 거부한다 · 실서버는 처음 한 번 폴더를 만든다(기사님 손) | 운영센터 «앱 배포» 표 · `ls $RELEASES_DIR` |
 
 ## 짝이 있는 것 — 이걸 건드리면 저것도 본다
 

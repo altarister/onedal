@@ -23,7 +23,7 @@ const adminOf = (req: Request) => req.user!.id;
 const nowText = () => db.prepare(`SELECT datetime('now', 'localtime') AS t`).get() as { t: string };
 
 /** 🧾 관리자의 한 일 · 본 것 — 여기 한 곳으로만 쓴다 */
-function audit(adminId: string, action: string, target: string | null, detail = ''): void {
+export function audit(adminId: string, action: string, target: string | null, detail = ''): void {
     db.prepare(`INSERT INTO ops_audit (at, admin_id, action, target_user_id, detail) VALUES (datetime('now', 'localtime'), ?, ?, ?, ?)`).run(adminId, action, target, detail);
 }
 

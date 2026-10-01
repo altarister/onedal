@@ -167,6 +167,27 @@ db.exec(`
     );
 `);
 
+/**
+ * 📦 **앱 판** (reviews/29 4장 · 4단계 · `core/releases`) — 운영센터가 올린 APK 한 판에 한 줄. 파일 자체는 레포 밖 폴더(RELEASES_DIR).
+ * «최신»은 칸으로 두지 않고 앱마다 version_code 가 가장 큰 줄로 계산한다(두 벌 금지). `is_minimum` 은 앱마다 한 줄만 1.
+ * 표가 비면 원달앱 보고 응답에 판 칸이 없다 — 기사 흐름 무변화.
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS app_releases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        app TEXT NOT NULL CHECK(app IN ('scanner', 'dashboard')),
+        version_code INTEGER NOT NULL,
+        version_name TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        sha256 TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        is_minimum INTEGER NOT NULL DEFAULT 0,
+        uploaded_at TEXT NOT NULL,
+        uploaded_by TEXT,
+        UNIQUE(app, version_code)
+    );
+`);
+
 // ═══════════════════════════════════════
 // [2] 다중 로그인 토큰
 // ═══════════════════════════════════════

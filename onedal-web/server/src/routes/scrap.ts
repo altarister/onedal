@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { scrapReleaseCodes } from "../core/releases";
 import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS, effectiveRadii, reservedPickupRadiusKmOf } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
@@ -446,6 +447,8 @@ router.post("/", (req, res) => {
             /* 🔒 심사 중인가 — 판이 같아 필터 본문을 생략할 때도 간다. 앱은 맨 위를 먼저 읽는다(없으면 필터 안 값) */
             evaluatingNow: appFilter.evaluatingNow,
             ...(foldAfter ? { foldAfter } : {}),
+            /* 📦 원달앱 최신·최소 판 — 표가 비면 칸 없음(앱은 아무것도 안 띄운다 · reviews/29 4단계) */
+            ...scrapReleaseCodes(),
             ...(responseFilter !== undefined ? { dispatchEngineArgs: responseFilter } : {}),
             decision: piggybackDecision
         });
