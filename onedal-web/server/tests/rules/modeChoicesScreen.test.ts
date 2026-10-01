@@ -22,6 +22,10 @@ describe('🎛️ 관제웹 폰 모드 고르기', () => {
             expect(read(f)).not.toMatch(/modeHeldWhy|heldWhy|자동 잡기 허락이 꺼졌습니다/);
     });
 
+    it('🔴 목록의 어느 자리든 누르면 그 모드 명령이 나간다 — 끝자리(지금 고른 자리)도 건너뛰지 않는다', () => {
+        /* 허락이 꺼진 폰의 끝자리 «알람»을 누르면 저장된 명령이 자동 → 알람으로 바뀐다 — 기사가 알람을 고른 것으로 본다(기사님 «가») */
+        expect(panel).toContain('onClick={() => { setModeOpen(false); onModeChange(device.deviceId, m); }}');
+    });
     it('🔴 «적용중» 고침은 그대로 — 폰에 갈 모드와 견준다', () => {
         expect(panel).toContain('const applying = isModeApplying(device);');
         expect(read('shared/src/index.ts')).toContain('return phoneModeOf(d) !== d.appliedMode;');
