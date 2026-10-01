@@ -33,18 +33,18 @@ describe('배차망 화면 정의 표', () => {
         }
     });
 
-    it('한 배차망 · 한 화면 · 한 칸에 읽는 법이 있는 줄은 하나 — 둘이면 서버와 원달앱이 다른 줄을 고를 수 있다', () => {
+    it('한 배차망 · 한 화면 · 한 칸(· 조각)에 읽는 법이 있는 줄은 하나 — 둘이면 서버와 원달앱이 다른 줄을 고를 수 있다', () => {
         for (const [net, spec] of Object.entries(NETWORK_PAGES)) for (const [page, rows] of Object.entries(spec.pages)) {
-            const readable = rows.filter(r => r.handling === 'READ' && r.read !== undefined).map(r => r.field);
+            const readable = rows.filter(r => r.handling === 'READ' && r.read !== undefined).map(r => `${r.field}|${r.part ?? ''}`);   // 같은 칸이라도 조각(part)이 다르면 다른 줄
             expect(readable.filter((f, i) => readable.indexOf(f) !== i), `${net} ${page}`).toEqual([]);
         }
     });
 
     it('공통 문제지 — 서버가 쓰는 pageFieldOf · pageFareOf 로 읽어도 원달앱과 같은 답(같은 표 · 노드를 한 칸 띄어 이음)', () => {
-        const sheet = JSON.parse(readFileSync(join(__dirname, 'pageReadCases.json'), 'utf8')) as { cases: Array<{ network: string; page: string; field: string; texts: string[]; expect: string | null; fare?: number | null; why: string }> };
+        const sheet = JSON.parse(readFileSync(join(__dirname, 'pageReadCases.json'), 'utf8')) as { cases: Array<{ network: string; page: string; field: string; part?: string; texts: string[]; expect: string | null; fare?: number | null; why: string }> };
         for (const c of sheet.cases) {
-            const at = `${c.network} ${c.page} ${c.field} — ${c.why}`;
-            expect(pageFieldOf(c.network as TargetAppType, c.page as ScreenPage, c.field as PageField, c.texts), at).toBe(c.expect);
+            const at = `${c.network} ${c.page} ${c.field}${c.part ? '.' + c.part : ''} — ${c.why}`;
+            expect(pageFieldOf(c.network as TargetAppType, c.page as ScreenPage, c.field as PageField, c.texts, c.part), at).toBe(c.expect);
             /* 💰 숫자로 바꾼 값 — 원달앱 PageFieldRead.fareOf 와 같은 규칙(쉼표 떼고 정수 · 0 이하 못 읽음) · 서버가 쓰는 함수 그대로 */
             if (c.fare !== undefined) expect(pageFareOf(c.network as TargetAppType, c.page as ScreenPage, c.texts), `${at} 요금 숫자`).toBe(c.fare);
         }

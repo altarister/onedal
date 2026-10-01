@@ -25,7 +25,7 @@ class NetworkPagesPairTest {
 
     private fun rowsOf(pages: PageSpecs): List<List<String?>> =
         Page.values().filter { it in pages }.flatMap { page ->
-            pages.getValue(page).map { f -> listOf(page.word, f.field.word, f.where, f.sample, f.seen.name, f.handling.name, f.usedAt, f.read?.pattern) }
+            pages.getValue(page).map { f -> listOf(page.word, f.field.word, f.where, f.sample, f.seen.name, f.handling.name, f.usedAt, f.read?.pattern, f.part) }
         }
 
     private fun rowsOf(network: String): List<List<String?>> {
@@ -33,7 +33,7 @@ class NetworkPagesPairTest {
         return pages.entrySet().flatMap { (page, rows) ->
             rows.asJsonArray.map { it.asJsonObject }.map { r ->
                 fun s(k: String) = r[k]?.takeIf { !it.isJsonNull }?.asString
-                listOf(page, s("field"), s("where"), s("sample"), s("seen"), s("handling"), s("usedAt") ?: "", s("read"))
+                listOf(page, s("field"), s("where"), s("sample"), s("seen"), s("handling"), s("usedAt") ?: "", s("read"), s("part") ?: "")
             }
         }
     }

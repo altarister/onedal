@@ -8,9 +8,9 @@ import com.onedal.app.models.SimplifiedOfficeOrder
  * 노드 글은 한 칸 띄어 잇는다(서버에 보내는 원문 rawText 와 같은 꼴) — 노드가 갈려 온 «운송료» · «60,000» 도 한 줄에서 만난다.
  */
 object PageFieldRead {
-    /** 그 화면 · 그 칸의 값 글자 — 정의에 읽는 법이 없거나 화면에 없으면 null(지어내지 않는다) */
-    fun fieldOf(pages: PageSpecs, page: Page, field: PageField, texts: List<String>): String? {
-        val spec = pages[page]?.firstOrNull { it.field == field && it.handling == Handling.READ && it.read != null } ?: return null
+    /** 그 화면 · 그 칸(· 조각)의 값 글자 — 정의에 읽는 법이 없거나 화면에 없으면 null(지어내지 않는다) */
+    fun fieldOf(pages: PageSpecs, page: Page, field: PageField, texts: List<String>, part: String = ""): String? {
+        val spec = pages[page]?.firstOrNull { it.field == field && it.part == part && it.handling == Handling.READ && it.read != null } ?: return null
         return spec.read!!.find(texts.joinToString(" "))?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }
     }
 

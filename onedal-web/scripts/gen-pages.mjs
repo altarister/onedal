@@ -50,9 +50,11 @@ for (const [net, file, pkg, obj] of TARGETS) {
             if (!['READ', 'DROPPED', 'UNUSED'].includes(r.handling)) fail(`${net} ${page} ${r.field} — handling «${r.handling}»`);
             if (r.read !== undefined) { try { new RegExp(r.read); } catch (e) { fail(`${net} ${page} ${r.field} — read 정규식이 JS 에서 깨진다: ${e.message}`); } }
             const args = [`PageField.${f}`, kstr(r.where), kstr(r.sample), `Seen.${r.seen}`, `Handling.${r.handling}`];
-            if (r.usedAt !== undefined || r.read !== undefined) args.push(kstr(r.usedAt ?? ''));
-            const call = r.read !== undefined
-                ? `            FieldSpec(${args.join(', ')},\n                read = ${kregex(r.read)}),`
+            if (r.usedAt !== undefined || r.read !== undefined || r.part) args.push(kstr(r.usedAt ?? ''));
+            /* 🧩 조각(part) — 같은 칸이 한 화면에 여럿일 때. 빈 조각은 싣지 않는다 */
+            const named = [r.read !== undefined ? `read = ${kregex(r.read)}` : null, r.part ? `part = ${kstr(r.part)}` : null].filter(Boolean);
+            const call = named.length
+                ? `            FieldSpec(${args.join(', ')},\n                ${named.join(', ')}),`
                 : `            FieldSpec(${args.join(', ')}),`;
             return (r.note ? `            /* ${r.note} */\n` : '') + call;
         });

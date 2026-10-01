@@ -21,9 +21,9 @@ class PagesDefinedTest {
         }
     }
 
-    @Test fun `한 페이지에 같은 칸 이름을 두 번 쓰지 않는다`() {
+    @Test fun `한 페이지에 같은 칸 · 조각을 두 번 쓰지 않는다`() {
         for ((name, pages) in all) pages.forEach { (page, fields) ->
-            val dup = fields.groupBy { it.field }.filterValues { it.size > 1 }.keys
+            val dup = fields.groupBy { it.field to it.part }.filterValues { it.size > 1 }.keys   // 같은 칸이라도 조각(part)이 다르면 다른 줄
             assertTrue("$name $page 겹친 칸: $dup", dup.isEmpty())
         }
     }

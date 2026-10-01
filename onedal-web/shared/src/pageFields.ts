@@ -48,5 +48,7 @@ export const PAGE_FIELDS = [
     'payment',           // 결제 방법 (신용·카드·착불)
     'commission',        // 수수료
     'stage',             // 운행 단계 (픽업 이동·배송 중)
+    'toll',              // 탁송료 · 경유비
+    'billing',           // 계산서 · 영수증
 ] as const;
 export type PageField = typeof PAGE_FIELDS[number];

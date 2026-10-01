@@ -38,4 +38,6 @@ enum class PageField(val word: String) {
     PAYMENT("payment"),                    // 결제 방법
     COMMISSION("commission"),              // 수수료
     STAGE("stage"),                        // 운행 단계
+    TOLL("toll"),                          // 탁송료 · 경유비
+    BILLING("billing"),                    // 계산서 · 영수증
 }
