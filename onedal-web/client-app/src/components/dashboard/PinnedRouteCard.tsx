@@ -1027,15 +1027,6 @@ export default function PinnedRouteCard({
                                                             )}
                                                             {allDone && <span className="text-success text-[10px] font-bold">운행 완료 · 6단계를 모두 마쳤습니다</span>}
                                                         </div>
-                                                        {/* ── 📵 상대 취소 — 통화한 사람(기사 · 운영센터)이 «상대가 취소했다고 함»을 적었으면 단계 칸들 위에 콜마다 한 번.
-                                                               어느 단계 칸을 보고 있어도 보인다(운영센터가 적으면 통화 단계가 끝나 다음 칸으로 넘어간다).
-                                                               🔴 글만이다 — 버튼이 아니고 결재를 누르거나 바꾸지 않는다. CANCEL 은 기사님이 보고 누르신다 ── */}
-                                                        {seededSteps.filter(x => x.row?.counterpart_cancelled_at).map(x => (
-                                                            <div key={x.step} role="alert" className="mb-1.5 rounded-md border border-danger/60 bg-danger/15 px-2.5 py-2">
-                                                                <div className="text-[15px] font-black text-danger break-keep">⚠️ 상대가 취소했다고 함 — 확인하고 CANCEL</div>
-                                                                <div className="text-[11px] text-text-muted">{x.step === 'CALL_PICKUP' ? '상차지' : '하차지'} 통화 · {x.counterpartCancelledByName ? <><b className="text-text-primary">{x.counterpartCancelledByName}</b> · </> : null}<span className="tabular-nums">{hhmmText(x.row.counterpart_cancelled_at)}</span> 적음</div>
-                                                            </div>
-                                                        ))}
                                                         {/**
                                                           * 🌱 **가로 트랙 — 한 장씩 넘긴다.**
                                                           * ⚠️ «한 번에 하나»(기사님 확정)는 그대로다 — 스와이프로도 넘긴다.

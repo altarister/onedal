@@ -35,6 +35,9 @@ describe('📞 통화 도우미 화면', () => {
         expect(calls).toContain('const cancelKnown = c.counterpartCancelled.some(m => m.stopType === stopType);');
         expect(calls).toContain('const mark = c.counterpartCancelled[0];');
         expect(calls).not.toMatch(/callNote\??\.counterpartCancelled/);
+        /* 운영센터 메모다 — 기사 화면에는 안 뜬다고 적는다(뜬다고 적으면 관리자가 전화를 안 한다) */
+        expect(calls).toContain('기사 화면에는 안 뜹니다 — 기사님께 전화로 알리세요');
+        expect(calls).not.toContain('기사 화면에 경고로 뜹니다');
         /* 적은 뒤에 온 취소 소식 — 아래 목록 줄의 글 버튼은 그 사실 칸만 싣는다(짐 · 약속 · 메모는 비워 보내 서버가 그대로 둔다) · 지우기는 한 번 묻는다 */
         expect(calls).toContain("unit: null, quantity: null, promisedArrivalAt: null, memo: '', counterpartCancelled: !on");
         /* 지우기는 번복용이 아니다(상대가 취소했으면 기사도 취소하고 끝) — «잘못 누름 지우기»만 · 한 번 묻는다 */

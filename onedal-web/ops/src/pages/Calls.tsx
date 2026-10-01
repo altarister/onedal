@@ -10,7 +10,7 @@ import { COLOR_DOT, Card, ErrorBand, PageHeader, Stat, StatRow, dayKey, fmtTime,
 /**
  * 📞 **통화 도우미** — 서버가 «통화 필요»(🟡 이고 상차 통화 전)인 콜을 위에 놓는다. 관리자가 상차지 · 하차지에 전화해 결과를 적으면
  *    서버가 그 콜의 통화 단계 행에 적는다(기사 소켓과 같은 길 · reviews/29 5단계) — 기사 관제웹의 통화 단계에 같은 값 + «✍️ 누가 적음»이 보인다.
- *    적는 칸은 기사가 쓰는 «통화함»과 같은 구조 값(짐 단위 · 수량 · 약속 시각 · 메모). «상대가 취소했다고 함»은 사실 칸(체크) — 기사 관제웹 통화 단계 맨 위에 경고 줄로 뜬다. 손댔을 때만 실어 보낸다(안 건드리면 서버가 그대로 둔다 — 약속만 고쳐 적다가 조용히 지워지지 않게).
+ *    적는 칸은 기사가 쓰는 «통화함»과 같은 구조 값(짐 단위 · 수량 · 약속 시각 · 메모). «상대가 취소했다고 함»은 사실 칸(체크) — 운영센터의 메모다(기사 관제웹에는 안 뜬다 · 관리자가 전화로 알리고 기사가 그 콜을 열어 취소한다). 손댔을 때만 실어 보낸다(안 건드리면 서버가 그대로 둔다 — 약속만 고쳐 적다가 조용히 지워지지 않게).
  *    🔴 CANCEL 결재는 기사가 관제웹에서 누른다 — 여기엔 그 버튼이 없다. 서버 신호(`ops-calls-changed`)가 오면 바로 다시 읽고, 신호가 끊겼을 때만 30초마다.
  */
 export default function Calls() {
@@ -65,7 +65,7 @@ export default function Calls() {
 /**
  * 📵 **적은 뒤에 온 취소 소식** — 통화 결과를 이미 적은 콜(적는 칸이 없는 아래 목록)에서 «상대가 취소했다고 함»만 켜고 끈다.
  *    그 사실 칸만 실어 보낸다 — 짐 · 약속 · 메모는 비워 보내 서버가 그대로 둔다. 쪽은 적힌 메모의 쪽, 없으면 상차.
- *    🔴 기사 화면의 경고 글을 켜고 끄는 것뿐이다 — 콜 취소(CANCEL)는 기사가 관제웹에서 누른다.
+ *    🔴 운영센터 메모를 켜고 끄는 것뿐이다(기사 화면에는 안 뜬다) — 콜 취소(CANCEL)는 기사가 관제웹에서 누른다.
  *    🔴 지우기는 번복용이 아니다 — 상대가 취소했으면 기사도 취소하고 끝이다. «잘못 누름 지우기»만이고 한 번 묻는다.
  */
 function CancelToggle({ c, reload }: { c: OpsCall; reload: () => void }) {
@@ -154,7 +154,7 @@ function CallCard({ c, name, reload }: { c: OpsCall; name: string; reload: () =>
                 <label className="flex flex-wrap items-center gap-2 text-sm">
                     <input type="checkbox" className="size-4" checked={cancelShown} onChange={e => setCancelTouched(e.target.checked)} />
                     <span className={cancelShown ? 'font-bold text-danger' : ''}>상대가 취소했다고 함</span>
-                    <span className="text-xs text-text-muted">기사 화면에 경고로 뜹니다 — 취소(CANCEL)는 기사가 누릅니다 · 잘못 눌렀으면 풀고 «적기»</span>
+                    <span className="text-xs text-text-muted">기사 화면에는 안 뜹니다 — 기사님께 전화로 알리세요 · 취소(CANCEL)는 기사가 누릅니다 · 잘못 눌렀으면 풀고 «적기»</span>
                 </label>
                 <div className="grid md:grid-cols-[auto_1fr_2fr_auto] gap-2 items-end">
                     <label className="text-xs text-text-muted space-y-1"><span>약속 시각 · {baseDayLabel(baseDay)}</span><Input type="time" value={hhmm} onChange={e => setHhmm(e.target.value)} /></label>
