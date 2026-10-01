@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { allowanceOf } from "../core/allowance";
 import { requireAuth, requireOps } from "../middlewares/authMiddleware";
 import { flowRowsBetween, flowsForViewer, flowsForAdmin, rolledUpDaysBetween, FLOW_GROUP_BYS, type FlowGroupBy } from "../services/callFlowStats";
 import { businessDayKey } from "@onedal/shared";
@@ -20,6 +21,8 @@ function rangeOf(q: any): { from: string; to: string; by: FlowGroupBy } {
 }
 
 router.get("/flows", requireAuth, (req, res) => {
+    /* 🎛️ 통계 허락이 안 살았으면 거절 — 아침 카드는 실패하면 안 그린다 (reviews/29 6단계) */
+    if (!allowanceOf(req.user!.id).statsLive) return res.status(403).json({ error: 'STATS_NOT_ALLOWED' });
     const { from, to, by } = rangeOf(req.query);
     /* 📅 days — 그 기간에 묶인 날(아침 카드의 «주마다 N건» 나눗수 · 표본 날 수) */
     res.json({ from, to, groupBy: by, days: rolledUpDaysBetween(from, to), cells: flowsForViewer(flowRowsBetween(from, to), req.user!.id, by) });

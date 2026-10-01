@@ -122,6 +122,30 @@ export function migrateAccountColumns(on: Database.Database = db): void {
 migrateAccountColumns();
 
 /**
+ * 🎛️ **허락 칸** (reviews/29 4장 · 6단계 · shared `allowanceLive`) — 자동 잡기 · 통계 허락 시각과 기한 · 유료 기한.
+ * 기한이 비면 기한 없음. 부품은 «지금 이 허락이 살아 있나» 하나만 본다.
+ */
+const ALLOWANCE_COLUMNS: Record<string, string> = {
+    auto_allowed_at: 'TEXT', auto_until: 'TEXT', stats_allowed_at: 'TEXT', stats_until: 'TEXT', paid_until: 'TEXT',
+};
+
+/**
+ * 🔴🔴 **이미 승인된 회원은 두 허락을 켠 채로 시작한다** — 안 채우면 다음 배포에 기사님 폰이 ALARM 으로 떨어져 운행이 바뀐다.
+ *    기한은 비운다(= 기한 없음). 승인 대기 회원은 안 켠다 — 운영센터 «승인»이 켠다(ops.ts approve).
+ *    **칸이 이번 기동에 새로 생겼을 때만 · 한 묶음** — 매 기동마다 돌면 운영센터가 끈 허락을 재기동이 되살린다(`allowance` 검사).
+ */
+export function migrateAllowanceColumns(on: Database.Database = db): void {
+    const had = (on.prepare(`PRAGMA table_info(users)`).all() as any[]).some(c => c.name === 'auto_allowed_at');
+    on.transaction(() => {
+        ensureColumns('users', ALLOWANCE_COLUMNS, on);
+        if (had) return;
+        const n = on.prepare(`UPDATE users SET auto_allowed_at = approved_at, stats_allowed_at = approved_at WHERE approved_at IS NOT NULL`).run().changes;
+        slog('부팅', `🎛️ [허락 옮기기] 승인된 회원 ${n}명 — 자동 잡기 · 통계 허락 켬(기한 없음)`);
+    })();
+}
+migrateAllowanceColumns();
+
+/**
  * 📝 **글 · 동의 · 운영센터 기록 · 공지** (reviews/29 4장 · shared `OpsContent` · `OpsAudit` · `OpsNotice` 와 같은 칸). 빈 표에서 시작한다.
  * - `contents` — 판마다 한 줄. 동의가 «몇 판에 동의했나»를 가리키니 옛 판을 덮어쓰지 않는다. 읽기는 kind 별 최신 판 · 빈 표면 «글 없음»으로 흐름이 돈다
  * - `agreements` — 회원 · 글 판 · 항목 · 시각. 지우지 않는다(동의 이력)

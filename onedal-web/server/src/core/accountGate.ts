@@ -21,10 +21,10 @@ export interface AccountFacts {
 }
 
 export function accountFactsOf(userId: string): AccountFacts | null {
-    const row = db.prepare(`SELECT approved_at, suspended_at, suspend_after_active, withdrawn_at FROM users WHERE id = ?`).get(userId) as
-        { approved_at: string | null; suspended_at: string | null; suspend_after_active: number | null; withdrawn_at: string | null } | undefined;
+    const row = db.prepare(`SELECT approved_at, suspended_at, suspend_after_active, withdrawn_at, paid_until FROM users WHERE id = ?`).get(userId) as
+        { approved_at: string | null; suspended_at: string | null; suspend_after_active: number | null; withdrawn_at: string | null; paid_until: string | null } | undefined;
     if (!row) return null;
-    return { approvedAt: row.approved_at, suspendedAt: row.suspended_at, suspendAfterActive: !!row.suspend_after_active, withdrawnAt: row.withdrawn_at, paidUntil: null };
+    return { approvedAt: row.approved_at, suspendedAt: row.suspended_at, suspendAfterActive: !!row.suspend_after_active, withdrawnAt: row.withdrawn_at, paidUntil: row.paid_until };
 }
 
 export function hasActiveCall(userId: string): boolean {

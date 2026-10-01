@@ -32,6 +32,7 @@ import joinRouter from "./routes/join";
 import { requireAuth, requireOps } from "./middlewares/authMiddleware";
 import opsRouter from "./routes/ops";
 import opsReleasesRouter from "./routes/opsReleases";
+import opsAllowRouter from "./routes/opsAllow";
 import downloadsRouter from "./routes/downloads";
 import noticesRouter from "./routes/notices";
 import contentsRouter from "./routes/contents";
@@ -119,6 +120,7 @@ app.use("/api/join", requireAuth, joinRouter); // 🪪 가입 · 동의 · 내 �
 app.use("/api/contents", contentsRouter); // 📝 약관 · 안내 글 읽기 — 로그인 없이(가입 전에 읽는다)
 app.use("/api/ops", requireAuth, requireOps, opsRouter); // 🏢 운영센터 — 허락 칸(ops_allowed_at) 하나로 들어온다 · 쓰기마다 ops_audit (reviews/29 3단계)
 app.use("/api/ops", requireAuth, requireOps, opsReleasesRouter); // 📦 앱 배포 — 운영센터와 같은 문지기 (reviews/29 4단계)
+app.use("/api/ops", requireAuth, requireOps, opsAllowRouter); // 🎛️ 허락 · 유료 기한 — 운영센터와 같은 문지기 (reviews/29 6단계)
 app.use("/api/downloads", downloadsRouter); // 📥 앱 받기 — 링크는 로그인 · 받기는 10분 열쇠
 app.use("/api/notices", requireAuth, noticesRouter); // 📢 기사가 보는 지금 공지
 app.use("/api/settings", settingsRouter); // 개인화 설정 라우터

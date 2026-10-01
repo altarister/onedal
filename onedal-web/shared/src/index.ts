@@ -1775,6 +1775,7 @@ export * from './fuelCost';
 export * from './vehicles';
 export * from './deviceLink';
 export * from './releases';
+export * from './allowance';
 export * from './regionMatch';
 export * from './pricing';
 export * from './phases';

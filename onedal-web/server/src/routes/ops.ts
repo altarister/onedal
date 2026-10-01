@@ -43,6 +43,7 @@ type UserRow = {
     id: string; name: string; email: string; phone: string | null; dispatch_networks: string | null; role: 'ADMIN' | 'USER';
     created_at: string; approved_at: string | null; suspended_at: string | null; suspend_after_active: number | null;
     withdrawn_at: string | null; ops_allowed_at: string | null; vehicle_type: string | null;
+    auto_allowed_at: string | null; auto_until: string | null; stats_allowed_at: string | null; stats_until: string | null; paid_until: string | null;
 };
 const USER_SQL = `SELECT u.*, s.vehicle_type FROM users u LEFT JOIN user_settings s ON s.user_id = u.id`;
 
@@ -69,7 +70,8 @@ function memberOf(r: UserRow, io: unknown): OpsMember {
         id: r.id, name: r.name, email: r.email, phone: r.phone ?? '', vehicle: r.vehicle_type ?? '', networks: networksOf(r.dispatch_networks),
         role: r.role, createdAt: isoKst(r.created_at) ?? '', approvedAt: isoKst(r.approved_at), suspendedAt: isoKst(r.suspended_at),
         suspendAfterActive: !!r.suspend_after_active, withdrawnAt: isoKst(r.withdrawn_at), opsAllowedAt: isoKst(r.ops_allowed_at),
-        paidUntil: null, autoAllowedAt: null, autoUntil: null, statsAllowedAt: null, statsUntil: null,
+        paidUntil: r.paid_until, autoAllowedAt: isoKst(r.auto_allowed_at), autoUntil: r.auto_until,
+        statsAllowedAt: isoKst(r.stats_allowed_at), statsUntil: r.stats_until,
         phones: phonesOf(r.id, io),
     };
 }
@@ -164,7 +166,7 @@ router.get("/members/:id", (req, res) => {
 });
 
 /** 회원 한 줄을 바꾸고 기록 한 줄 — 자기 자신을 잠그는 일(정지 · 탈퇴)은 막는다 */
-function memberWrite(req: Request, res: any, action: string, sql: string, params: unknown[], opts: { selfBlock?: boolean; cutSockets?: boolean; detail?: string } = {}) {
+export function memberWrite(req: Request, res: any, action: string, sql: string, params: unknown[], opts: { selfBlock?: boolean; cutSockets?: boolean; detail?: string } = {}) {
     const id = req.params.id as string, adminId = adminOf(req);
     if (!userRow(id)) return res.status(404).json({ error: "없는 회원입니다." });
     if (opts.selfBlock && id === adminId) return res.status(400).json({ error: "자기 계정은 정지 · 탈퇴할 수 없습니다." });
@@ -176,7 +178,9 @@ function memberWrite(req: Request, res: any, action: string, sql: string, params
 }
 
 router.post("/members/:id/approve", (req, res) =>
-    memberWrite(req, res, '승인', `UPDATE users SET approved_at = COALESCE(approved_at, datetime('now', 'localtime')) WHERE id = ?`, []));
+    /* 🎛️ 승인 때 비어 있는 두 허락을 지금으로 켠다(기한 없음) — 기사는 모두 같은 기능이 기본(reviews/29 기준 2 · 6단계) */
+    memberWrite(req, res, '승인', `UPDATE users SET approved_at = COALESCE(approved_at, datetime('now', 'localtime')),
+        auto_allowed_at = COALESCE(auto_allowed_at, datetime('now', 'localtime')), stats_allowed_at = COALESCE(stats_allowed_at, datetime('now', 'localtime')) WHERE id = ?`, []));
 
 router.post("/members/:id/suspend", (req, res) => {
     const afterActive = !!(req.body ?? {}).afterActive;

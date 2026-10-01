@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { modeForPhone } from "@onedal/shared";
+import { allowanceOf } from "../core/allowance";
 import { scrapReleaseCodes } from "../core/releases";
 import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS, effectiveRadii, reservedPickupRadiusKmOf } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
@@ -439,7 +441,8 @@ router.post("/", (req, res) => {
                 totalItems: totalScrap
             },
             deviceControl: {
-                mode: deviceMode,
+                /* 🎛️ 자동 잡기 허락이 안 살았으면 AUTO 명령도 폰에는 ALARM — 관제웹 명령은 그대로 (reviews/29 6단계) */
+                mode: modeForPhone(deviceMode, allowanceOf(userId).autoLive),
                 /* 🧹 본 콜 기억 번호 — 영업일이 바뀌거나 (개발) 시뮬 회차가 오르면 바뀌고, 원달앱이 «본 콜» 기억을 비운다 (`services/callMemoryRound.ts`) · 운영도 싣는다 */
                 callMemoryRound
             },
