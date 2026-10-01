@@ -9,6 +9,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { updateActiveFilter } from "../state/filterManager";
 import { slog } from "../utils/fileLogger";
 import { authDevice, deviceTokenOf, newDeviceToken, deviceLabelOf } from "../core/deviceAuth";
+import { accountGateOf } from "../core/accountGate";
 import { DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from "@onedal/shared";
 import { armWait } from "../state/waits";
 
@@ -615,6 +616,11 @@ router.post("/pair", (req, res) => {
             return res.status(401).json({ error: DEVICE_LINK_ERRORS.PIN_INVALID, message: "PIN이 만료되었거나 유효하지 않습니다. 관제 웹에서 새 PIN을 발급받아주세요." });
         }
         const userId = tried.userId;
+        /* 🚧 승인 전 · 탈퇴 · 정지 계정에는 폰을 잇지 않는다 — 폰 문과 같은 판단(core/accountGate · reviews/29 2단계) */
+        if (accountGateOf(userId).blocked) {
+            slog('통신', `🚫 [계정 막힘] ${userId} — 폰 연결 거절 (${DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED})`);
+            return res.status(403).json({ error: DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED, message: "이 계정은 아직 쓸 수 없습니다. 관제웹에서 가입 상태를 확인해 주세요." });
+        }
 
         // 2. 다른 사람 기기를 하이재킹하려는지 검증
         const existingRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as { user_id: string } | undefined;

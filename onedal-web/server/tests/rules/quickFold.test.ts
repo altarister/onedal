@@ -4,6 +4,7 @@ import scrapRouter from '../../src/routes/scrap';
 import { applyQuickFold } from '../../src/core/engine/OrderEvaluator';
 import { touchDeviceSession } from '../../src/routes/devices';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * ⏩ **빨리 접기 — 앱이 알람으로 연 🔴·벨 미만 콜은 판정 뒤 10초에 폰이 목록으로** (기사님 «가» · onedal-1f 가)).
@@ -27,6 +28,7 @@ const report = async () => {
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'quickfold@test', '빨리접기검사');
+    approvedUser(U);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
     db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
 });
 afterAll(() => {

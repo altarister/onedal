@@ -4,6 +4,7 @@ import detailRouter from '../../src/routes/detail';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { bootstrapUserSession, restoreAndRecalculateSession } from '../../src/services/dispatchEngine';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * ⏳ **서버 재시작 직후 관제웹이 붙기 전에 /detail 이 오면 먼저 되살린다** (서버 병목 10 · 기사님 «가» · onedal-1f «가»).
@@ -40,6 +41,7 @@ const insertCall = (id: string, h: number, extra: Record<string, string | null> 
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'restore@test', '되살리기검사');
+    approvedUser(U);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
     db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
 });
 beforeEach(() => {

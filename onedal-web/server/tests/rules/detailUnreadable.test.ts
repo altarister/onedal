@@ -2,6 +2,7 @@
 import db from '../../src/db';
 import telemetryRouter, { unreadableReasonOf } from '../../src/routes/telemetry';
 import { touchDeviceSession } from '../../src/routes/devices';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * ⚪ **손으로 연 상세를 앱이 못 읽으면 평가 자리에 «판정 못 함» 한 줄** (기사님 «가» · onedal-1f).
@@ -28,6 +29,7 @@ const clears = () => emitted.filter(([ev]) => ev === 'detail-unreadable-clear');
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'unreadable@test', '판정못함검사');
+    approvedUser(U);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
     db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
 });
 beforeEach(() => { emitted.length = 0; });

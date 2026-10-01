@@ -2,6 +2,7 @@
 import db from '../../src/db';
 import scrapRouter from '../../src/routes/scrap';
 import { clearUserSession } from '../../src/state/userSessionStore';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * 🛰️ **이중 발신 경고는 폰의 실제 IP 로 가른다** (onedal-1f «가»).
@@ -25,6 +26,7 @@ const warnings = (spy: jest.SpyInstance) => spy.mock.calls.filter(c => String(c[
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'dual@test', '이중발신검사');
+    approvedUser(U);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
     db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
 });
 afterAll(() => {

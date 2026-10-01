@@ -5,6 +5,7 @@ import scrapRouter from '../../src/routes/scrap';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { armWait } from '../../src/state/waits';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * 📱 **폰의 «심사 중» 표시는 풀려야 한다 · /confirm 이 빠져도 KEEP 이 폰에 실린다** (서버 병목 4·5 · onedal-1f «가»).
@@ -39,6 +40,7 @@ beforeAll(() => {
     savedKey = process.env.KAKAO_REST_API_KEY;
     delete process.env.KAKAO_REST_API_KEY;      // 판정이 카카오를 부르지 않게 — 키 없음 갈래로 곧바로 끝난다
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'release@test', '기기풀기검사');
+    approvedUser(U);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
     db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
 });
 afterAll(() => {
@@ -120,6 +122,7 @@ describe('⚠️ 안전취소 경고 문구의 초는 그 배차망의 DB 값이
     const DEV2 = 'dev-safecancel-sec';
     beforeAll(() => {
         db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U2, `g-${U2}`, 'safecancel@test', '안전취소초검사');
+        approvedUser(U2);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
         db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U2, DEV2);
         db.prepare(`INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)`).run(U2);
         db.prepare(`UPDATE user_settings SET safe_cancel_sec_insung = 45 WHERE user_id = ?`).run(U2);

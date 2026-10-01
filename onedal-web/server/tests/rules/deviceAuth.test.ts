@@ -10,6 +10,7 @@ import { authDevice } from '../../src/core/deviceAuth';
 import { noteOrigin } from '../../src/utils/originLog';
 import { DEVICE_TOKEN_HEADER, PAIR_TOKEN_FIELD, DEVICE_LINK_ERRORS } from '@onedal/shared';
 import { clearUserSession } from '../../src/state/userSessionStore';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * 🔑 **폰은 비밀 토큰으로 자기를 밝힌다 · 연결 안 된 폰은 거절** (reviews/29 1단계 D·E · onedal-1f «가» · 04 와 이름 확정).
@@ -33,6 +34,7 @@ const sha = (t: string) => createHash('sha256').update(t).digest('hex');
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, `${U}@test`, U);
+    approvedUser(U);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
 });
 afterAll(() => {
     db.prepare(`DELETE FROM user_devices WHERE user_id = ?`).run(U);

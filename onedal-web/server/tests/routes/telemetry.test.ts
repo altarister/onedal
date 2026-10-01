@@ -1,5 +1,6 @@
 import db from "../../src/db";
 import telemetryRouter from "../../src/routes/telemetry";
+import { approvedUser } from '../fixtures/approvedUser';
 
 describe("📸 이상 징후(telemetry) 라우트 및 DB 저장 검증", () => {
     it("telemetry_anomalies 테이블이 생성되어 있다", () => {
@@ -44,6 +45,7 @@ describe("📸 이상 징후(telemetry) 라우트 및 DB 저장 검증", () => {
         const testDeviceId = "TEST-DEVICE-A24-999";
         // 🔑 연결된 폰만 받는다 · 자기 폰 기록만 준다 — 이 폰을 읽는 기사에게 잇는다 (reviews/29 1단계)
         db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES ('test-user', 'g-test-user', 'tu@test', 'tu')`).run();
+        approvedUser('test-user');   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
         db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES ('test-user', ?)`).run(testDeviceId);
         const testPayload = {
             timestamp: "2026-09-19T02:00:00.000Z",

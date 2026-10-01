@@ -6,6 +6,7 @@ import { ensureBusinessDay } from '../../src/state/filterManager';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { callMemoryRoundOf } from '../../src/services/callMemoryRound';
 import { businessDayKey } from '@onedal/shared';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * 🌙 **진행 중 콜이 있으면 자정 영업일 전환을 미룬다** (서버 병목 6 · 기사님 «가» · onedal-1f «가»).
@@ -35,6 +36,7 @@ const active = (id: string) => ({ id, status: 'ORDER_CONFIRMED', pickup: '상', 
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'rollover@test', '자정전환검사');
+    approvedUser(U);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
     db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
 });
 afterAll(() => {

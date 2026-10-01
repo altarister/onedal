@@ -374,6 +374,11 @@ function createDefaultSession(userId: string): UserSession {
     };
 }
 
+/** 있는 세션만 — 없으면 만들지 않는다(막힌 계정 판단처럼 «읽기만» 하는 자리 · core/accountGate) */
+export function peekUserSession(userId: string): UserSession | undefined {
+    return sessions.get(userId);
+}
+
 // V2의 핵심: 앞으로 모든 상태 접근은 userId 파라미터를 강제로 요구합니다.
 export function getUserSession(userId: string): UserSession {
     if (!sessions.has(userId)) {

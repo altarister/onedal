@@ -2,6 +2,7 @@
 import db from '../../src/db';
 import scrapRouter from '../../src/routes/scrap';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * 🧬 **필터 판 글자는 설정의 지문이다 — «지금 심사 중인가»는 넣지 않는다** (onedal-1f «가» · 04 앱 68f75f6e 먼저).
@@ -25,6 +26,7 @@ const report = async (filterVersion: string) => {
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'evalnow@test', '판글자검사');
+    approvedUser(U);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
     db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
 });
 afterAll(() => {

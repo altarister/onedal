@@ -2,6 +2,7 @@
 import db from '../../src/db';
 import scrapRouter from '../../src/routes/scrap';
 import { clearUserSession } from '../../src/state/userSessionStore';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * 📚 **원문(intel) 개수는 처음 한 번만 센다 · 통계 묶기는 인덱스로 읽는다** (서버 병목 14 · onedal-1f «가»).
@@ -25,6 +26,7 @@ const report = async (n: number) => {
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'intel@test', '원문개수검사');
+    approvedUser(U);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
     db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
 });
 afterAll(async () => {

@@ -2,6 +2,7 @@
 import db from '../../src/db';
 import scrapRouter from '../../src/routes/scrap';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * 📅 **앱 알람 필터에 내일 콜 상차 반경(줄이지 않은 기본값)을 따로 싣는다** (기사님 «가» · onedal-1f · 앱 edde9b70 먼저).
@@ -25,6 +26,7 @@ const report = async () => {
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'reservedradius@test', '내일반경검사');
+    approvedUser(U);   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
     db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
 });
 afterAll(() => {
