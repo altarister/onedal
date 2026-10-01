@@ -1042,6 +1042,8 @@ export class OrderEvaluator {
      *    각자 계산하면 언젠가 갈라진다 — 파생값은 한 곳에서 만든다 (규칙 ③).
      *
      * 못 구하면 `null` 을 준다. 0 이나 짐작값을 지어내지 않는다 (규칙 ④).
+     *
+     * 배차망마다 곱하는 배수는 없다 — 같은 콜 · 같은 요금이면 인성 · 화물24시 · 픽커가 같은 기준이다.
      */
     private loadPricing(order: SecuredOrder | PendingOrder, userId: string, callDiscountPct?: number):
         { fairPrice: number; minAcceptable: number } | null {
@@ -1055,13 +1057,7 @@ export class OrderEvaluator {
                 routingOpts.vehicleType,
                 pricing
             );
-            const adjusted = this.plugin.applyPricingExceptions(
-                order.fare, base.fairPrice, base.minAcceptable
-            );
-            return {
-                fairPrice: adjusted.adjustedFairPrice,
-                minAcceptable: adjusted.adjustedMinAcceptable,
-            };
+            return { fairPrice: base.fairPrice, minAcceptable: base.minAcceptable };
         } catch (e) {
             console.error(`   - ⚠️ [요율] 적정가 계산 실패:`, e);
             return null;

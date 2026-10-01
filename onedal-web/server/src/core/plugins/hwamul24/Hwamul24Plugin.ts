@@ -1,4 +1,4 @@
-import { IAppPlugin, AdjustedPricing } from '../IAppPlugin';
+import { IAppPlugin } from '../IAppPlugin';
 
 export class Hwamul24Plugin implements IAppPlugin {
     readonly appId = 'hwamul24';
@@ -11,14 +11,6 @@ export class Hwamul24Plugin implements IAppPlugin {
     normalizePlaceName(rawName: string): string {
         // 대괄호 [ ] 등 제거
         return rawName.replace(/\[.*?\]/g, '').trim();
-    }
-
-    applyPricingExceptions(actualFare: number, fairPrice: number, minAcceptable: number): AdjustedPricing {
-        // 화물24는 수수료가 이미 공제된 금액이라 가정할 경우 보정치 1.15 곱함
-        return { 
-            adjustedFairPrice: fairPrice * 1.15,
-            adjustedMinAcceptable: minAcceptable * 1.15 
-        };
     }
 
     /** 🚫 콜 한 벌의 글 — 상세 팝업 글이 곧 콜 글이다(잔상 보고 없음) */

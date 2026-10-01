@@ -1,4 +1,4 @@
-import { IAppPlugin, AdjustedPricing } from '../IAppPlugin';
+import { IAppPlugin } from '../IAppPlugin';
 
 export class InsungPlugin implements IAppPlugin {
     readonly appId = 'insung';
@@ -11,11 +11,6 @@ export class InsungPlugin implements IAppPlugin {
     normalizePlaceName(rawName: string): string {
         // (주), 주식회사, 유한회사 등 제거
         return rawName.replace(/\(주\)|주식회사|유한회사|\s/g, '').trim();
-    }
-
-    applyPricingExceptions(actualFare: number, fairPrice: number, minAcceptable: number): AdjustedPricing {
-        // 인성콜은 특별한 예외 없이 표준 요율을 따릅니다.
-        return { adjustedFairPrice: fairPrice, adjustedMinAcceptable: minAcceptable };
     }
 
     /** 🚫 콜 한 벌의 글 — 상세 팝업 글이 곧 콜 글이다(잔상 보고 없음) */
