@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CONTENT_KINDS, TARGET_APP_LABEL, deviceLabel, type OpsAgreement } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
+import { Input } from '@onedal/ui/input';
 import { api, useOps, write } from '../api/ops';
-import { COLOR_DOT, Card, ErrorBand, PageHeader, Stat, StatRow, StatusBadge, allowText, fmtTime, fmtWon, statusKo } from '../ui';
+import { allowState } from '../api/allowance';
+import { COLOR_DOT, Card, ErrorBand, PageHeader, Stat, StatRow, StatusBadge, fmtTime, fmtWon, statusKo, todayKey } from '../ui';
 
 /**
  * 👤 회원 한 명 — 사실 칸 · 폰 · 오늘 콜 · 이상 기록 · 동의 기록 · 카카오 사용량 · 이 회원에 대한 기록. 열람은 서버가 기록에 남긴다(«회원 봄»).
- *    허락(자동 잡기 · 통계) · 유료 기한은 6단계 — 버튼은 자리만(눌리지 않는다). 통화 도우미 칸은 5단계.
+ *    허락(자동 잡기 · 통계) · 유료 기한은 서버 `/members/:id/allow` · `/paid-until` 에 적는다 — «지금 살아 있나»는 shared `allowanceLive`(`api/allowance.ts`) 하나. 날짜를 더하는 버튼은 없다(날은 달력 칸으로 고른다).
  */
 const CONTENT_TITLE: Record<string, string> = { terms: '이용약관', privacy: '개인정보 처리방침', location: '위치정보 약관', joinGuide: '가입 안내', installGuide: '설치 안내', withdrawGuide: '탈퇴 안내', ack: '고지 확인' };
 const ACK_TITLE: Record<string, string> = { thirdParty: '제3자 정보 고지', networkRisk: '배차망 제재 위험 고지' };
@@ -23,6 +26,9 @@ export default function MemberDetail() {
     const activeCalls = todayCalls.filter(c => c.status === 'ORDER_CONFIRMED').length;
     const alive = !m.withdrawnAt;
     const act = (go: () => Promise<unknown>) => void write(go, reload);
+    const today = todayKey();
+    const auto = allowState(m.autoAllowedAt, m.autoUntil, today);
+    const stats = allowState(m.statsAllowedAt, m.statsUntil, today);
 
     return (
         <>
@@ -34,8 +40,8 @@ export default function MemberDetail() {
                     <dt className="text-text-muted">유료 기한</dt><dd className="font-semibold">{m.paidUntil ?? '없음'}</dd>
                     <dt className="text-text-muted">정지</dt><dd className="font-semibold">{m.suspendedAt ? `${fmtTime(m.suspendedAt)}${m.suspendAfterActive ? ' (끝난 뒤)' : ' (즉시)'}` : '—'}</dd>
                     <dt className="text-text-muted">탈퇴</dt><dd className="font-semibold">{fmtTime(m.withdrawnAt)}</dd>
-                    <dt className="text-text-muted">자동 잡기</dt><dd className="font-semibold">{m.autoAllowedAt ? `허락됨 · ${allowText(m.autoAllowedAt, m.autoUntil)}` : '알람만'}</dd>
-                    <dt className="text-text-muted">통계</dt><dd className="font-semibold">{m.statsAllowedAt ? `허락됨 · ${allowText(m.statsAllowedAt, m.statsUntil)}` : '없음'}</dd>
+                    <dt className="text-text-muted">자동 잡기</dt><dd className="font-semibold">{auto.text}{!auto.live && <span className="font-normal text-text-muted"> — 폰은 알람으로 돕니다</span>}</dd>
+                    <dt className="text-text-muted">통계</dt><dd className="font-semibold">{stats.text}</dd>
                     <dt className="text-text-muted">운영센터</dt><dd className="font-semibold">{m.opsAllowedAt ? `허락됨 (${fmtTime(m.opsAllowedAt)})` : '—'}</dd>
                     <dt className="text-text-muted">차종 · 배차망</dt><dd className="font-semibold">{m.vehicle || '—'} · {m.networks.map(n => TARGET_APP_LABEL[n]).join(' · ') || '—'}</dd>
                 </dl>
@@ -47,6 +53,7 @@ export default function MemberDetail() {
                     <>
                         <div className="flex flex-wrap gap-2">
                             {!m.approvedAt && <Button type="button" size="sm" onClick={() => act(() => api.approve(m.id))}>승인</Button>}
+                            {!m.approvedAt && <span className="text-xs text-text-muted self-center">승인하면 자동 잡기 · 통계 허락이 함께 켜집니다 — 알람만 쓰게 하려면 승인 뒤 «자동 잡기 끄기»</span>}
                             {!m.suspendedAt && m.approvedAt && (
                                 <Button type="button" size="sm" variant="outline" onClick={() => { if (confirm(`진행 중 콜 ${activeCalls}건 — 끝나면 멈춥니다. 정지할까요?`)) act(() => api.suspend(m.id, true)); }}>정지 (끝난 뒤)</Button>
                             )}
@@ -56,11 +63,10 @@ export default function MemberDetail() {
                             {m.suspendedAt && <Button type="button" size="sm" onClick={() => act(() => api.resume(m.id))}>정지 풀기</Button>}
                             <Button type="button" size="sm" variant="ghost" onClick={() => { if (confirm('탈퇴 처리는 되돌릴 수 없습니다. 폰 보고가 거절되고 관제웹 연결이 끊깁니다. 기록은 남습니다.')) act(() => api.withdraw(m.id)); }}>탈퇴 처리</Button>
                         </div>
-                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border-card items-center">
-                            <span className="text-xs text-text-muted">허락 · 유료 기한 — 6단계에서 켜집니다:</span>
-                            <Button type="button" size="xs" variant="outline" disabled>자동 잡기 허락</Button>
-                            <Button type="button" size="xs" variant="outline" disabled>통계 허락</Button>
-                            <Button type="button" size="xs" variant="outline" disabled>유료 기한 +1달</Button>
+                        <div className="space-y-2 pt-2 border-t border-border-card">
+                            <AllowRow label="자동 잡기" state={auto} until={m.autoUntil} offConfirm="자동 잡기를 끄면 이 회원 폰은 다음 보고부터 알람으로 돕니다. 끌까요?" onSet={(on, until) => act(() => api.setAllow(m.id, 'auto', on, until))} />
+                            <AllowRow label="통계" state={stats} until={m.statsUntil} onSet={(on, until) => act(() => api.setAllow(m.id, 'stats', on, until))} />
+                            <DayRow label="유료 기한" value={m.paidUntil} emptyLabel="없음으로 (가족)" onSet={until => act(() => api.setPaidUntil(m.id, until))} />
                         </div>
                     </>
                 )}
@@ -108,5 +114,38 @@ export default function MemberDetail() {
                 </Card>
             </div>
         </>
+    );
+}
+
+/** 허락 한 줄 — [켜기/끄기] + 기한 날(달력 칸) + [기한 적기] + [기한 없애기]. 날짜를 더하지 않는다 */
+function AllowRow({ label, state, until, offConfirm, onSet }: {
+    label: string; state: { on: boolean; live: boolean; text: string }; until: string | null; offConfirm?: string; onSet: (on: boolean, until: string | null) => void;
+}) {
+    const [day, setDay] = useState('');
+    return (
+        <div className="flex flex-wrap gap-2 items-center text-sm">
+            <span className="w-20 text-xs text-text-muted">{label}</span>
+            <span className={`text-xs font-semibold ${state.live ? 'text-success' : 'text-text-muted'}`}>{state.text}</span>
+            {state.on
+                ? <Button type="button" size="xs" variant="outline" onClick={() => { if (!offConfirm || confirm(offConfirm)) onSet(false, null); }}>{label} 끄기</Button>
+                : <Button type="button" size="xs" variant="outline" onClick={() => onSet(true, day || null)}>{label} 허락 ({day || '기한 없음'})</Button>}
+            <Input type="date" value={day} onChange={e => setDay(e.target.value)} className="w-40 h-8" aria-label={`${label} 기한`} />
+            {state.on && <Button type="button" size="xs" variant="ghost" disabled={!day} onClick={() => { onSet(true, day); setDay(''); }}>기한 적기</Button>}
+            {state.on && until && <Button type="button" size="xs" variant="ghost" onClick={() => onSet(true, null)}>기한 없애기</Button>}
+        </div>
+    );
+}
+
+/** 날 한 칸 — 유료 기한. 달력 칸으로 고른 날을 그대로 적는다 */
+function DayRow({ label, value, emptyLabel, onSet }: { label: string; value: string | null; emptyLabel: string; onSet: (until: string | null) => void }) {
+    const [day, setDay] = useState('');
+    return (
+        <div className="flex flex-wrap gap-2 items-center text-sm">
+            <span className="w-20 text-xs text-text-muted">{label}</span>
+            <span className="text-xs font-semibold">{value ?? '없음'}</span>
+            <Input type="date" value={day} onChange={e => setDay(e.target.value)} className="w-40 h-8" aria-label={label} />
+            <Button type="button" size="xs" variant="outline" disabled={!day} onClick={() => { onSet(day); setDay(''); }}>적기</Button>
+            {value && <Button type="button" size="xs" variant="ghost" onClick={() => onSet(null)}>{emptyLabel}</Button>}
+        </div>
     );
 }

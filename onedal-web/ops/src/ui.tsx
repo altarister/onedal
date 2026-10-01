@@ -233,11 +233,6 @@ export function StatusBadge({ m }: { m: OpsMember }) {
     return <Badge variant="outline" className={cls}>{s.text}</Badge>;
 }
 
-/** 허락 글 — «허락 시각» 이 있으면 켜짐 · 기한이 비면 «기한 없음» */
-export function allowText(allowedAt: string | null, until: string | null): string {
-    if (!allowedAt) return '—';
-    return until ? `${until} 까지` : '기한 없음';
-}
 
 export { COLOR_DOT };
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RELEASE_UPLOAD_HEADERS } from '@onedal/shared';
 import type {
-    OpsAnomaliesReply, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPhone, OpsRelease, OpsSuspendRequest,
+    OpsAllowRequest, OpsAnomaliesReply, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsSuspendRequest,
 } from '@onedal/shared';
 import { client, errorTextOf, statusOf } from './client';
 import { createListeners } from './listeners';
@@ -32,6 +32,10 @@ export const api = {
     suspend: (id: string, afterActive: boolean) => post<OpsMember>(`/members/${id}/suspend`, { afterActive } satisfies OpsSuspendRequest),
     resume: (id: string) => post<OpsMember>(`/members/${id}/resume`),
     withdraw: (id: string) => post<OpsMember>(`/members/${id}/withdraw`),
+    /** 허락(자동 잡기 · 통계) 켜기 · 끄기 — 켜기는 허락 시각이 없으면 지금 · 기한은 날(YYYY-MM-DD) 또는 비움(= 기한 없음) · 끄기는 허락 시각만 비운다 */
+    setAllow: (id: string, what: OpsAllowRequest['what'], on: boolean, until: string | null) => post<OpsMember>(`/members/${id}/allow`, { what, on, until } satisfies OpsAllowRequest),
+    /** 유료 기한 — 날 또는 비움(가족 = 기한 없음). 지나면 서버가 «끝난 뒤 멈춤»과 같은 길로 막는다 */
+    setPaidUntil: (id: string, until: string | null) => post<OpsMember>(`/members/${id}/paid-until`, { until } satisfies OpsPaidUntilRequest),
     /** 글 저장은 새 판 한 줄 — 옛 판을 덮어쓰지 않는다(동의가 판을 가리킨다) */
     saveContent: async (kind: OpsContentKind, title: string, body: string) => (await client.put<OpsContent>(`/ops/contents/${kind}`, { title, body } satisfies OpsContentSave)).data,
     postNotice: (text: string, activeUntil: string | null) => post<OpsNotice>('/notices', { text, activeUntil } satisfies OpsNoticePost),

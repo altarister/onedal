@@ -5,7 +5,8 @@ import { Badge } from '@onedal/ui/badge';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api, useOps } from '../api/ops';
-import { Card, ErrorBand, KV, PageHeader, Stat, StatRow, StatusBadge, Table, memberStatus, type Column } from '../ui';
+import { allowState } from '../api/allowance';
+import { Card, ErrorBand, KV, PageHeader, Stat, StatRow, StatusBadge, Table, memberStatus, todayKey, type Column } from '../ui';
 
 /** 👥 회원 목록 — 승인 대기 · 사용 중 · 정지 · 유예는 사실 시각 칸에서 글로만 (ops/CLAUDE.md). 기사님도 한 줄(기사 + 관리자 · reviews/29 기준 4). 폰에서는 줄마다 카드 */
 export default function Members() {
@@ -19,10 +20,19 @@ export default function Members() {
         .filter(m => !q.trim() || [m.name, m.phone, m.email, m.vehicle].some(v => v.includes(q.trim())));
     const count = (t: string) => all.filter(m => memberStatus(m).text.includes(t)).length;
     const nets = (m: OpsMember) => m.networks.map(n => TARGET_APP_LABEL[n]).join(' · ') || '—';
+    const today = todayKey();
+    /** 허락 배지 — «지금 살아 있나»(shared allowanceLive)로. 허락 시각은 있는데 기한이 지났으면 흐리게 «기한 지남» */
+    const allowBadge = (label: string, allowedAt: string | null, until: string | null, liveCls: string) => {
+        const st = allowState(allowedAt, until, today);
+        if (!st.on) return null;
+        return st.live
+            ? <Badge variant="outline" className={liveCls}>{label}</Badge>
+            : <Badge variant="outline" className="opacity-50">{label} · 기한 지남</Badge>;
+    };
     const allows = (m: OpsMember) => (
         <span className="flex gap-1 flex-wrap">
-            {m.autoAllowedAt && <Badge variant="outline" className="bg-info/15 text-info border-info/30">자동 잡기</Badge>}
-            {m.statsAllowedAt && <Badge variant="outline">통계</Badge>}
+            {allowBadge('자동 잡기', m.autoAllowedAt, m.autoUntil, 'bg-info/15 text-info border-info/30')}
+            {allowBadge('통계', m.statsAllowedAt, m.statsUntil, '')}
             {m.opsAllowedAt && <Badge variant="outline" className="bg-accent-alt/15 text-accent-alt border-accent-alt/30">운영센터</Badge>}
             {!m.autoAllowedAt && !m.statsAllowedAt && !m.opsAllowedAt && <span className="text-text-muted">—</span>}
         </span>
