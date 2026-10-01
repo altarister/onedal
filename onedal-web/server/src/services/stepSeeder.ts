@@ -49,6 +49,7 @@ const iso = (ms: number | null) => ms == null ? null : new Date(ms).toISOString(
 const ms = (v?: string | null) => v ? Date.parse(v) : null;
 const j = (v: unknown) => v == null ? null : JSON.stringify(v);
 /** JSON 배열 칸 — 🔴 «[]» 는 [](«비어 있음»)로 둔다: `parse(tags) ?? [기본]` 에서 기사님이 비운 태그에 기본을 다시 붙이지 않는다(shared stepRecords 는 «[]» 를 «없음»으로 — 반대로 읽는다) */
+/* 배열이 아닌 JSON(«{}» · «"일반화물"» · «5»)은 null → 기본이 붙는다 — 깨진 줄에서만 나는 일 · 옛 몸통은 그대로 돌려줘 문자열이 글자 하나씩 태그가 될 수 있었다(onedal-04 교차 리뷰) */
 const parse = (v?: string | null) => jsonArrayOf(v) as string[] | null;
 
 /**
