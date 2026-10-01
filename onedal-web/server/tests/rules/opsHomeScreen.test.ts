@@ -46,10 +46,10 @@ describe('🏠 운영센터 홈 화면', () => {
         expect(code).toContain('위치 문이 생기면 채워집니다');
     });
 
-    it('🔴 회원 상세 «기사가 정한 값»은 한글 이름표 줄(shared filterValueRowsOf) — 원문 JSON 은 접힌 «원문 보기» 안', () => {
+    it('🔴 회원 상세 «🎛️ 필터설정값»은 한글 이름표 줄(shared filterValueRowsOf) — 원문 JSON 은 «🧾 필터 전문» 카드 안에 접혀 있다', () => {
         const mpf = read('pages/MemberPhoneFilter.tsx');
         expect(mpf).toContain('filterValueRowsOf(shownFilter');
-        expect(mpf).toMatch(/<details[^>]*>\s*<summary[^>]*>원문 보기/);
+        expect(mpf).toMatch(/<Card title="🧾 필터 전문">\s*<details[^>]*>\s*<summary/);
         const panel = readFileSync(join(SRC, '../../client-app/src/statusboard/StatusBoard.tsx'), 'utf8');
         expect(panel).toContain('filterValueRowsOf(filter as');   // 관제웹 «필터설정값» 과 한 벌
     });

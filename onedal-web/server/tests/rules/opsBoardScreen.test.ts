@@ -27,6 +27,33 @@ describe('🧰 운영센터 현황판 화면', () => {
         expect(inspect).toContain("server.errorsToday.count === 0 ? '없음' : `${server.errorsToday.count}줄 · ${server.errorsToday.kinds}가지`");
         expect(inspect).toContain('hint="서버를 다시 띄우면 0"');
     });
+    it('🔴 회원 «폰 · 필터» 칸은 관제웹 현황판의 그 기사 몫과 같은 카드 이름 · 같은 순서 — 기사님이 «같은 것이 다 있나»를 대조하신다', () => {
+        const board = read('client-app/src/statusboard/StatusBoard.tsx');
+        const b = read('ops/src/pages/MemberPhoneFilter.tsx');
+        const body = b.slice(b.indexOf('export default function MemberPhoneFilter'));
+        /* 관제웹 현황판이 그리는 순서(서버 줄 → 앱 줄 → 심사 → 폰 넷) — 🚨 어긋남은 옮길 수 없어 뺀다 */
+        const TITLES = ['🖥️ 지금 무엇이 도는가', '📰 새 글자', '📍 내 위치', '🎛️ 필터설정값', '📋 콜 리스트', '🗑️ 버린 콜', '📦 앱에 내려갈 필터', '🎛️ 지금 어떤 판인가', '🗂️ 영역', '🧾 필터 전문', '⚖️ 심사 중'];
+        const PHONE = ['📡 이 폰이 든 필터', '👁️ 폰이 일하고 있나', '🔍 이 폰의 성적표', '📊 누적 · 좌표'];
+        for (const title of [...TITLES, ...PHONE]) { expect({ title, 관제웹: board.includes(title) }).toEqual({ title, 관제웹: true }); expect({ title, 운영센터: b.includes(title) }).toEqual({ title, 운영센터: true }); }
+        const at = ['🖥️ 지금 무엇이 도는가', '<NewWordsCard', '<LocationCard', '🎛️ 필터설정값', '📋 콜 리스트', '🗑️ 버린 콜', '📦 앱에 내려갈 필터', '🎛️ 지금 어떤 판인가', '🗂️ 영역', '🧾 필터 전문', '<JudgingCard', '📱 폰 —'].map(k => body.indexOf(k));
+        expect(at.every(i => i > 0)).toBe(true);
+        expect([...at].sort((x, y) => x - y)).toEqual(at);
+        expect(b.replace(/\/\*[\s\S]*?\*\//g, '')).not.toContain('🚨 어긋남');   // 주석 말고 화면에
+    });
+    it('🔴 서버로 값을 보내는 시험 도구는 운영센터에 없다 — 관리자가 남의 차를 움직이지 않는다 · 상대시각도 없다', () => {
+        const b = read('ops/src/pages/MemberPhoneFilter.tsx');
+        const code = b.replace(/\/\*[\s\S]*?\*\//g, '');
+        expect(code).not.toMatch(/🎭|위치 찍기|🚚 개별콜|문제지|본 콜 기억|publishLocation|simAsk|client\.(post|put)|write\(/);
+        expect(code).not.toMatch(/초 전|분 전|agoOf|Date\.now\(\) -/);
+        expect(b).toContain('api.boardMember(memberId)');
+        expect(read('ops/src/api/ops.ts')).toContain('/board/member?memberId=');
+    });
+    it('🔴 위치 출처 글자는 관제웹 현황판과 같은 한 벌 — 두 파일의 네 줄이 글자까지 같다(관제웹을 안 건드리려 따로 둔 사본)', () => {
+        const pick = (src: string) => ['gps', 'mock', 'manual', 'home'].map(k => src.slice(src.indexOf('const LOCATION_SOURCE_LABEL')).match(new RegExp(`${k}: '([^']+)'`))?.[1]);
+        const web = pick(read('client-app/src/statusboard/StatusBoard.tsx'));
+        expect(web.every(Boolean)).toBe(true);
+        expect(pick(read('ops/src/pages/MemberPhoneFilter.tsx'))).toEqual(web);
+    });
     it('🔴 성적표는 shared summarizeTally · 판정은 옮겨 적기만(다시 재지 않는다)', () => {
         const b = read('ops/src/pages/MemberPhoneFilter.tsx');
         expect(b).toContain('summarizeTally(p.filterTally, p.filterTallyAt)');
@@ -56,7 +83,7 @@ describe('🧰 운영센터 현황판 화면', () => {
     it('🔴 «앱에 내려갈 필터»는 폰이 받는 그대로 — 두 현황판이 서버 조립 결과를 읽는다(activeFilter 에서 골라 찍지 않는다)', () => {
         const b = read('ops/src/pages/MemberPhoneFilter.tsx');
         expect(b).toContain('filter?.app?.find(');
-        expect(b).toContain('🧾 기사가 정한 값');
+        expect(b).toContain('🎛️ 필터설정값');   // 관제웹 현황판과 같은 이름
         expect(b).toContain('폰이 오늘 아직 보고 안 함');
         const s = read('client-app/src/statusboard/StatusBoard.tsx');
         expect(s).toContain('`/devices/app-filter?deviceId=');

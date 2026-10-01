@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RELEASE_UPLOAD_HEADERS } from '@onedal/shared';
 import type {
-    OpsAllowRequest, OpsAnomaliesReply, OpsBoardFilter, OpsBoardIntel, OpsBoardKakao, OpsBoardPhone, OpsBoardServer, OpsHome, OpsLocations, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsStats, OpsSuspendRequest,
+    OpsAllowRequest, OpsAnomaliesReply, OpsBoardFilter, OpsBoardIntel, OpsBoardKakao, OpsBoardMember, OpsBoardPhone, OpsBoardServer, OpsHome, OpsLocations, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsStats, OpsSuspendRequest,
 } from '@onedal/shared';
 import { client, errorTextOf, statusOf } from './client';
 import { createListeners } from './listeners';
@@ -71,6 +71,8 @@ export const api = {
     boardFilter: (memberId: string) => get<OpsBoardFilter>(`/board/filter?memberId=${encodeURIComponent(memberId)}`),
     /** 카카오 호출 수 — 회원마다 + 주인 없음(memberId null) 줄 · 이달에 센 주인만 · 합계는 화면이 더한다 */
     boardKakao: () => get<OpsBoardKakao>('/board/kakao'),
+    /** 📍⚖️📰 관제웹 현황판의 그 기사 몫 셋 — 서버가 쥔 내 위치 · 심사 중인 콜 · 새 글자(모든 폰 공통). 세션이 없으면 위치 · 심사는 null */
+    boardMember: (memberId: string) => get<OpsBoardMember>(`/board/member?memberId=${encodeURIComponent(memberId)}`),
     boardIntel: (memberId: string, limit = 40) => get<OpsBoardIntel>(`/board/intel?memberId=${encodeURIComponent(memberId)}&limit=${limit}`),
 
     /** 📊 통계 — 목록에 뜬 실물 콜만(시뮬레이터 콜은 서버가 안 센다) · 기간은 서버 기본(최근 28일) · 합 · 평균은 서버가 센 그대로 */
