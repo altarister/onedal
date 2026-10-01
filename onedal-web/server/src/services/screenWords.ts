@@ -1,4 +1,5 @@
 import db from "../db";
+import type { NewScreenWord } from "@onedal/shared";
 import { SCREEN_PAGES, WORD_KINDS, SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind, type ScreenWordsReport } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 
@@ -144,7 +145,7 @@ export function flushScreenWords(): void {
 setInterval(flushScreenWords, FLUSH_MS).unref();
 
 /** 📰 현황판 «새 글자» 줄 — 최근 며칠에 처음 본 낱말. 조용한 첫 하루에 모인 것도 표에 있는 그대로 싣는다 */
-export function recentNewWords(days: number, limit = 20): Array<{ targetApp: string; page: string; word: string; kind: string; firstSeen: string; seenCount: number; sample: string | null }> {
+export function recentNewWords(days: number, limit = 20): NewScreenWord[] {
     const since = new Date(Date.now() - days * 86_400_000).toISOString();
     return (db.prepare(`
         SELECT target_app, page, word, kind, first_seen, seen_count, sample FROM screen_words

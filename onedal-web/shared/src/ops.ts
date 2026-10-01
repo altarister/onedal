@@ -1,5 +1,5 @@
 import type { Color } from './judge';
-import type { TargetAppType, DeviceSession, AutoDispatchFilter } from './index';
+import type { TargetAppType, DeviceSession, AutoDispatchFilter, JudgmentSnapshot } from './index';
 import type { ContentKind } from './join';
 import type { WordKind } from './pageFields';
 import type { CargoUnit } from './cargoUnits';
@@ -309,6 +309,21 @@ export interface OpsStats {
         /** 버린 콜 중 요금 높은 20 */
         topFares: Array<{ at: string; targetApp: string; pickup: string; dropoff: string; fare: number; axis: string }>;
     };
+}
+
+/**
+ * 🧑‍✈️ 회원 상세 «폰 · 필터» 칸의 기사 몫 셋 — 관제웹 현황판과 같은 값(GET /api/ops/board/member · 읽기만 · 세션 없으면 위치 · 심사 중 null).
+ *    newWords 는 모든 폰 공통(화면 낱말에 «누가» 칸이 없다 — 배차망 화면이 바뀐 신호라 회원별일 까닭이 적다).
+ */
+/** 📰 처음 본 화면 낱말 한 줄 — 서버 recentNewWords 가 돌려주는 그대로(관제웹 «새 글자» · 운영센터 회원 상세가 같은 함수) */
+export interface NewScreenWord { targetApp: string; page: string; word: string; kind: string; firstSeen: string; seenCount: number; sample: string | null }
+
+export interface OpsBoardMember {
+    /** 📍 서버가 그 기사의 «지금 자리»로 쥔 기점 — at 은 ISO(운영센터 다른 시각 칸과 같은 모양) · source 는 gps · mock · manual · home */
+    location: { lat: number; lng: number; at: string | null; source: string | null; isFallback: boolean; region: string } | null;
+    /** ⚖️ 지금 심사 중인 콜(shared judgingCallOf) — 판정은 관제웹 «⚖️ 심사 중»이 그리는 JudgmentSnapshot 그대로 */
+    judging: { id: string; pickup: string | null; dropoff: string | null; status: string | null; isPreview: boolean; fare: number | null; judgment: JudgmentSnapshot | null } | null;
+    newWords: NewScreenWord[];
 }
 
 /** 🗺️ 회원 위치 — 운전석 폰 진짜 GPS 마지막 점 · 시 · 구는 동 명부 · regions 는 rows 의 시 · 구를 센 것(많은 순) */

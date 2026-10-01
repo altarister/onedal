@@ -3,6 +3,7 @@ import db from "../db";
 import { getAllActiveUserIds, getUserSession } from "../state/userSessionStore";
 import { isLiveServer, PROBE_EMAIL } from "../config/env";
 import { originOf } from "../services/geoService";
+import { driverLocationOf } from "../services/driverLocation";
 import { getActiveCalls } from "../core/helpers";
 import { mapCoverage } from "../services/geoService";
 import { SettingsRepository } from "../repositories/SettingsRepository";
@@ -77,7 +78,7 @@ router.get("/driver-location", (_req, res) => {
      *    (개편). 저장된 칸을 읽는 게 아니라 `originOf` 가 **지금 고른다**.
      *    그래야 «화면은 이천인데 서버는 집»이 생기지 않는다 (규칙 ③).
      */
-    const loc = originOf(session);
+    const loc = driverLocationOf(session);   // 운영센터 회원 상세와 같은 함수
     if (!loc) return res.json({ ok: false, reason: "현위치를 아직 모릅니다" });
 
     return res.json({
@@ -85,7 +86,7 @@ router.get("/driver-location", (_req, res) => {
         x: loc.x, y: loc.y,
         /** GPS 가 아니라 «내 주소»로 메운 값인가 — 시뮬이 화면에 그대로 밝힌다 */
         isFallback: loc.isFallback,
-        at: session.lastFixAt ?? null,
+        at: loc.at,
         /**
          * 📍 **이 위치가 «어디서 왔나»** (기사님 지시로 신설).
          *

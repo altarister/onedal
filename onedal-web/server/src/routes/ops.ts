@@ -15,11 +15,14 @@ import { networkLevelOf, needsUpdateOf, locationStaleOf, NETWORK_ALARM } from ".
 import { nextStopOf } from "../services/geoService";
 import { listReleases, scrapReleaseCodes } from "../core/releases";
 import { errorsToday } from "../utils/errorTally";
+import { driverLocationOf } from "../services/driverLocation";
+import { recentNewWords } from "../services/screenWords";
+import { buildOrderSync } from "../core/helpers";
 import { intelRowsOf } from "../services/intelRows";
-import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer, OpsHome, OpsLocations, OpsStats } from "@onedal/shared";
+import type { OpsBoardFilter, OpsBoardIntel, OpsBoardMember, OpsBoardPhone, OpsBoardServer, OpsHome, OpsLocations, OpsStats } from "@onedal/shared";
 import { marketStatsOf, clampStatsRange } from "../services/callFlowStats";
 import { rangeOf } from "./stats";
-import { TARGET_APPS, accountBlocked, kakaoTotalOf, kstDateText, nearestDong } from "@onedal/shared";
+import { TARGET_APPS, accountBlocked, judgingCallOf, kakaoTotalOf, kstDateText, nearestDong } from "@onedal/shared";
 import { latestContent, isContentKind } from "./contents";
 import { noticeOf, type NoticeRow } from "./notices";
 import { slog } from "../utils/fileLogger";
@@ -436,6 +439,27 @@ export function locationsOf({ todayOnly }: { todayOnly: boolean }): OpsLocations
 router.get("/locations", (req, res) => {
     auditBoardView(adminOf(req), null, '위치 봄', '/locations');
     res.json(locationsOf({ todayOnly: false }));
+});
+
+/**
+ * 🧑‍✈️ **회원 상세의 기사 몫 셋** (기사님 «회원 페이지로 들어가면 다 있어야» · onedal-69 «가» · 모양 onedal-ea) — 관제웹 현황판과 같은 함수.
+ *    📍 driverLocationOf(관제웹 «내 위치»의 sim 문과 한 벌) · ⚖️ judgingCallOf(관제웹 심사석과 같은 shared 술어 · buildOrderSync 의 active — 관제웹이 받는 그 목록) · 📰 recentNewWords(모든 폰 공통).
+ *    🔴 세션은 peek 만 · 열람 기록 «현황판 봄»(60초 묶기) · 좌표가 있으면 «위치 봄»도(같은 묶기).
+ */
+router.get("/board/member", (req, res) => {
+    const memberId = boardMemberOf(req);
+    if (!memberId) return res.status(400).json({ error: "회원을 골라 주세요." });
+    auditBoardView(adminOf(req), memberId);
+    const session = peekUserSession(memberId);
+    const loc = session ? driverLocationOf(session) : null;
+    if (loc) auditBoardView(adminOf(req), memberId, '위치 봄', '/board/member');
+    const j = session ? judgingCallOf(buildOrderSync(session).active as Array<Record<string, any>>) : undefined;
+    const body: OpsBoardMember = {
+        location: loc ? { lat: loc.y, lng: loc.x, at: loc.at != null ? new Date(loc.at).toISOString() : null, source: loc.source ?? null, isFallback: !!loc.isFallback, region: nearestDong({ lng: loc.x, lat: loc.y }).region } : null,
+        judging: j ? { id: j.id, pickup: j.pickup ?? null, dropoff: j.dropoff ?? null, status: j.status ?? null, isPreview: !!j.isPreview, fare: j.fare ?? null, judgment: j.judgment ?? null } : null,
+        newWords: recentNewWords(7),
+    };
+    res.json(body);
 });
 
 // ── 홈 ─────────────────────────────────────────────────
