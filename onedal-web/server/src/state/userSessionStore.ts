@@ -8,6 +8,7 @@ import type { CallOption } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { slog } from "../utils/fileLogger";
 import { cancelAllWaits, type Wait } from "./waits";
+import { jsonArrayOf } from "@onedal/shared";
 
 // ━━━ 서비스 권장 기본값 (신규 가입자용) ━━━
 // 노선·반경·할인율은 여기 없다 — 그 값들의 기본값은 shared `DEFAULT_FILTER_VALUES` 하나다
@@ -317,11 +318,7 @@ const sessions = new Map<string, UserSession>();
  *    세션 생성을 막지 않고, 없는 제외를 지어내지도 않는다 (규칙 ④).
  */
 function safeJsonArray(v: unknown): string[] {
-    if (typeof v !== 'string' || !v) return [];
-    try {
-        const p = JSON.parse(v);
-        return Array.isArray(p) ? p.filter((x): x is string => typeof x === 'string') : [];
-    } catch { return []; }
+    return (jsonArrayOf(v) ?? []).filter((x): x is string => typeof x === 'string');   // 읽기는 shared 한 뿌리 · 깨졌거나 없으면 «없음»
 }
 
 function createDefaultSession(userId: string): UserSession {

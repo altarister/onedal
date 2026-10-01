@@ -1,4 +1,5 @@
 import { STEP_MILESTONE } from './callSteps';
+import { jsonArrayOf } from './jsonArray';
 /**
  * 🔄 **단계 행 → 옛 장부 모양 어댑터**
  *
@@ -41,9 +42,10 @@ export interface StepRecords {
     milestones: Array<{ milestone: string; occurredAt: string; source?: string }>;
 }
 
+/** JSON 배열 칸 — 🔴 «[]» 도 undefined(«없음»)로 읽는다(서버 stepSeeder 는 «[]» 를 «비어 있음»으로 — 반대로 읽는다) */
 const parse = (v?: string | null): string[] | undefined => {
-    try { const a = v ? JSON.parse(v) : null; return Array.isArray(a) && a.length ? a : undefined; }
-    catch { return undefined; }
+    const a = jsonArrayOf(v) as string[] | null;
+    return a && a.length ? a : undefined;
 };
 
 /**

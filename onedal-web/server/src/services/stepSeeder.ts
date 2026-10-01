@@ -26,6 +26,7 @@ import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOf
          soloMinutesOf, derivationInputsOf, dwellLedgerOfSteps } from '@onedal/shared';
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
 import { slog } from '../utils/fileLogger';
+import { jsonArrayOf } from "@onedal/shared";
 
 /** 🧭 경로가 아는 시각 — `deriveRouteTimeline` 의 결과를 그대로 받는다 (파생 한 곳 · 규칙 ③) */
 export type RouteTl = Pick<RouteTimelineEntry, 'orderId' | 'stopType' | 'etaMs'>[];
@@ -47,7 +48,8 @@ const tableOf = (step: StepId) => STEP_TABLES.find(t => t.step === step)!;
 const iso = (ms: number | null) => ms == null ? null : new Date(ms).toISOString();
 const ms = (v?: string | null) => v ? Date.parse(v) : null;
 const j = (v: unknown) => v == null ? null : JSON.stringify(v);
-const parse = (v?: string | null) => { try { return v ? JSON.parse(v) : null; } catch { return null; } };
+/** JSON 배열 칸 — 🔴 «[]» 는 [](«비어 있음»)로 둔다: `parse(tags) ?? [기본]` 에서 기사님이 비운 태그에 기본을 다시 붙이지 않는다(shared stepRecords 는 «[]» 를 «없음»으로 — 반대로 읽는다) */
+const parse = (v?: string | null) => jsonArrayOf(v) as string[] | null;
 
 /**
  * ⚙️ 단계 표 여섯을 읽는 문장 — DB 객체마다 한 번만 준비해 쥔다(부를 때마다 준비하면 약속 순서 계산이 수만 번 연다).

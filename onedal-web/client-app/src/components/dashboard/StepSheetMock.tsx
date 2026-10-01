@@ -39,6 +39,7 @@ import {
 } from '@onedal/shared';
 import type { CargoUnit } from '@onedal/shared';
 import { hhmmText, wonText } from "@onedal/shared";
+import { jsonArrayOf } from '@onedal/shared';
 
 /** 서버 `stepsView()` 가 주는 한 단계 */
 export interface StepViewLike {
@@ -51,7 +52,7 @@ export interface StepViewLike {
 }
 
 const hhmm = (v?: string | null) => hhmmText(v);   // 🕐 한 모양은 shared
-const parse = (v?: string | null): string[] => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } };
+const parse = (v?: string | null): string[] => (jsonArrayOf(v) ?? []) as string[];   // 읽기는 shared 한 뿌리
 
 /* ── 시트 공용 옷들 ── */
 const chip = (active: boolean) =>

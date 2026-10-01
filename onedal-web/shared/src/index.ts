@@ -1778,6 +1778,7 @@ export * from './mask';
 export * from './format';
 export * from './replies';
 export * from './filterTally';
+export * from './jsonArray';
 export * from './verdict';
 export * from './routeReuse';
 export * from './fuelCost';
