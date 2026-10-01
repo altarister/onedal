@@ -19,6 +19,11 @@ data class FieldSpec(
     val seen: Seen,
     val handling: Handling,
     val usedAt: String = "",
+    /**
+     * 📖 **이 칸을 화면 글에서 읽는 법** — 노드 글을 한 칸 띄어 이은 줄에 대고, 1번 묶음이 값이다(`PageFieldRead.fieldOf`).
+     * 없으면 공통 길이 이 칸을 읽지 않는다(설명만 하는 칸). 배차망마다 다른 것은 이 인자 하나다 — 공통 코드는 배차망 이름을 모른다.
+     */
+    val read: Regex? = null,
 )
 
 /** 📄 배차망 하나의 페이지 정의 — 페이지 넷 × 칸들. 플러그인 폴더의 `…Pages.kt` 가 적는다 */

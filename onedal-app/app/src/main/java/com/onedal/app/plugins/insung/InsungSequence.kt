@@ -91,7 +91,9 @@ fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOffic
         dropoff = tempOrder.dropoff.takeIf {
             it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
         } ?: "배차값없음",
-        fare = tempOrder.fare,
+        /* 💰 목록 규칙(차종 다음 칸)이 못 읽으면 확정 화면 정의(«요금 : N»)로 — InsungPages CONFIRM FARE 의 READ */
+        fare = tempOrder.fare.takeIf { it > 0 }
+            ?: (com.onedal.app.core.PageFieldRead.fareOf(InsungPages.pages, com.onedal.app.core.Page.CONFIRM, screenTexts) ?: 0),
         timestamp = nowTimestamp(),
         rawText = screenTexts.joinToString(" ")
     )

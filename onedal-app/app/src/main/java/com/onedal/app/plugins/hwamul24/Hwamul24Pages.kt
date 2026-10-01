@@ -35,7 +35,9 @@ object Hwamul24Pages {
             FieldSpec(PageField.MEMO, "화물정보 칸", "지금상 당착 59박스 수/수-A [독차]", REAL, UNUSED),
             FieldSpec(PageField.VEHICLE_TYPE, "톤수 · 차종 · 적재중량", "1톤 · 전체 · 1톤", REAL, UNUSED),
             FieldSpec(PageField.TAGS, "운행방법", "편도", REAL, UNUSED),
-            FieldSpec(PageField.FARE, "운송료 · 부가세 · 수납금액", "60,000 · 6,000 · 65,144", REAL, UNUSED),
+            /* 💰 목록 요금과 같은 «운송료»만 — 실물은 «운송료» · «60,000» 이 다른 노드, 시뮬은 «60,000원» (부가세 · 수납금액은 안 읽음) */
+            FieldSpec(PageField.FARE, "운송료 · 부가세 · 수납금액", "60,000 · 6,000 · 65,144", REAL, READ, "목록 줄을 못 찾은 손 상세는 PageFieldRead(PreConfirmSequence)",
+                read = Regex("""운송료\s*:?\s*([\d,]+)""")),
             FieldSpec(PageField.PAYMENT, "결제방법", "카드", REAL, UNUSED),
             FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 = (운송료+부가세) x1.298%", REAL, UNUSED),
         ),

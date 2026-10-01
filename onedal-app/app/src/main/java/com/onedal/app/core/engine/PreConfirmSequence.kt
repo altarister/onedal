@@ -1,5 +1,8 @@
 package com.onedal.app.core.engine
 
+import com.onedal.app.core.Page
+import com.onedal.app.core.PageFieldRead
+
 import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.core.LogTag
 import com.onedal.app.core.AppLogger
@@ -66,7 +69,7 @@ fun ScanContext.handlePreConfirmScreen(
     val matchedOrder = scrapParser.matchDetailOrder(screenTexts, recentListOrders)
     markRead("상세 대조")
 
-    val finalOrder = if (session.openedByApp && session.lastDetailOrder != null) {
+    val pickedOrder = if (session.openedByApp && session.lastDetailOrder != null) {
         // 앱이 눌러 연 상세는 이미 클릭 시점에 order를 가지고 있음 — 종류는 «누가 계약했나»에서 (`clickOrigin`)
         session.lastDetailOrder!!.copy(
             type = "${session.clickOrigin}_CLICK",
@@ -89,6 +92,8 @@ fun ScanContext.handlePreConfirmScreen(
             rawText = rawScreenStr
         )
     }
+    /* 💰 요금이 비었으면(손으로 연 상세 · 목록 줄을 못 찾음) 그 배차망의 상세 화면 정의로 읽는다 — 앱이 연 콜의 목록 값은 그대로 (`PageFieldRead`) */
+    val finalOrder = PageFieldRead.withFare(pickedOrder, plugin.pages, Page.DETAIL, screenTexts)
 
     if (session.currentOrderId.isEmpty()) {
         session.setOrderId(finalOrder.id)
