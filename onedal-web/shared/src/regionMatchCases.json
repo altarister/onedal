@@ -165,6 +165,13 @@
       "expect": true,
       "why": "픽커 목록 줄임 토막",
       "only": "picker"
+    },
+    {
+      "text": "광주 광남1",
+      "keyword": "광남1동",
+      "expect": true,
+      "why": "픽커 목록 줄임 토막 — 행정동 광남1동(광주시 · 법정 목동 · 삼동 · 장지동 등)",
+      "only": "picker"
     }
   ]
 }

@@ -70,6 +70,29 @@ class AddressFormTest {
         assertEquals("원달앱 명부가 서버 지도와 다르다 — cd onedal-web && pnpm gen:regions", expect, RegionRegister.bySgg)
     }
 
+    /**
+     * 🔗 **짝 — 원달앱 행정동 명부와 shared 행정동 표가 같다** (`pnpm gen:regions` 가 같이 뽑는다 · 기사님 «가» 행정동 별칭 표).
+     * 그 시군구의 법정동과 이름이 같은 행정동은 뺀다(명부가 이미 안다 — shared `adminDongMatch` 와 같은 규칙).
+     */
+    @Test
+    fun `원달앱 행정동 명부는 shared 행정동 표와 같다`() {
+        val ts = File("../../onedal-web/shared/src/adminDongs.ts").readText()
+        val rows = Regex("""\["([^"]+)","([^"]+)",\[""").findAll(ts).toList()
+        assertTrue("adminDongs.ts 에서 줄을 못 읽었다", rows.isNotEmpty())
+        val expect = rows.map { it.groupValues[1] to it.groupValues[2] }
+            .filter { (sgg, admin) -> RegionRegister.bySgg[sgg]?.contains(admin) != true }
+            .groupBy({ it.first }, { it.second }).mapValues { it.value.toSet() }
+        assertEquals("원달앱 행정동 명부가 shared 표와 다르다 — cd onedal-web && pnpm gen:regions", expect, RegionRegister.adminBySgg)
+    }
+
+    /** 📍 사진의 두 줄 행정동 잇기 — 명부(법정동)에 없는 이름의 행정동도 그 시군구 것이면 잇는다 */
+    @Test fun `행정동도 그 시군구의 동으로 안다 - 위례동 광남1동 처인구 중앙동`() {
+        assertTrue(AddressForm.knownDong("경기 성남시 수정구", "위례동"))
+        assertTrue(AddressForm.knownDong("경기 광주시", "광남1동"))
+        assertTrue(AddressForm.knownDong("경기 용인시 처인구", "중앙동"))
+        assertFalse(AddressForm.knownDong("경기 성남시 수정구", "광남1동"))   // 다른 시군구의 행정동은 아니다
+    }
+
     /** 🗂️ 기본 명부는 한 번 합쳐 두고 다시 쓴다 — 두 번 불러도 같은 답 (상세 속도 · 동작 같음) */
     @Test fun `기본 명부로 두 번 불러도 같은 결과`() {
         val full = "경기 성남시 중원구 도촌동"

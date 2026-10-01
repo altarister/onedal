@@ -33,6 +33,18 @@ class RegionMatchTableTest {
         }
     }
 
+    /**
+     * 🗺️ **시구 별칭이 있어도 같은 답** (행정동 · onedal-69 «가») — 서버는 목적지 시구 꼴(«수정» · «처인»)을 시 별칭(customCityFilters)으로도 싣는다.
+     * 픽커 목록 줄은 별칭으로 통과하던 것이 그대로 통과해야 하고(별칭 있음), 서버가 행정동 낱말을 펴 주면 별칭 없이도 통과한다(위 시험).
+     */
+    @Test fun `픽커 도착 판정 - 행정동 줄은 시구 별칭이 있어도 통과`() {
+        for (c in cases.filter { it["only"]?.asString == "picker" && it["expect"].asBoolean }) {
+            val aliases = dongSigungu[c["keyword"].asString] ?: emptyList()
+            assertEquals(label(c) + " (별칭 있음)", true,
+                KakaoPickerParser.destinationOk(c["text"].asString, listOf(c["keyword"].asString), emptyMap(), aliases, dongSigungu))
+        }
+    }
+
     @Test fun `칸이 비면 지금과 같다 - 평택 고덕동도 통과`() {
         assertEquals(true, RegionMatch.anyHit("경기 평택시 고덕동 고덕헤리움 101동", listOf("고덕동"), emptyMap()))
         assertEquals(true, KakaoPickerParser.destinationOk("평택 고덕", listOf("고덕동"), emptyMap(), emptyList(), emptyMap()))

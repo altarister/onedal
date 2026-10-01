@@ -8,7 +8,7 @@ package com.onedal.app.core.engine
  * - 시군구 키는 두 모양이다 — 광역시는 «서울 강남구»(시도 포함), 도 아래는 «성남시 분당구»·«광주시»(시도 없음).
  *   주소 앞의 시도(«경기 …»)는 있어도 없어도 된다 — 키의 토막이 주소에 연달아 있는지만 본다.
  * - 명부는 **법정동**이고 픽커 사진 주소는 **행정동**이다. 그래서 숫자와 «본동»을 접어 대조한다 — «삼성1동»·«반포본동»은 «삼성동»·«반포동»과 같게 본다.
- *   ⚠️ 한계: 이름 자체가 다른 행정동(«여의동»·«을지로동»·«위례동» 등)은 명부에 없어 전체 주소가 아니라고 판정된다(상세에서 탈락) — 명부에 행정동이 들어오면 풀린다.
+ *   이름 자체가 다른 행정동(«위례동»·«광남1동»·처인구 «중앙동»)은 명부의 행정동 칸(`RegionRegister.adminBySgg` · 행정안전부 원천)으로 안다 — 기본 명부는 법정동 ∪ 행정동(`withAdmin`).
  * - 구가 있는 시(«성남시 분당구»·«부천시 원미구»)는 **구 없이 «시 + 동»**도 된다 — 그 동이 그 시의 어느 구엔가 있으면.
  *   부천처럼 구가 없어진 시는 실제 주소에 구가 없다(«경기 부천시 중동»). 광역시(«서울 …»)는 인정하지 않는다 — 같은 이름 동이 여러 구에 있다.
  * - 명부 밖 지역(지도에 없는 곳)은 전체 주소가 아니다 → 상세에서 탈락한다(기사님이 받아들인 한계 · 전국 확대는 지도 확장과 함께).
@@ -25,7 +25,7 @@ object AddressForm {
     private val DIGITS = Regex("""\d""")
 
     /** 🗂️ 명부 + «구 없는 시» — 부를 때마다 다시 합치지 않는다(상세 한 번에 여러 번 불린다 · 명부는 굳힌 상수) */
-    private val defaultMerged: Map<String, Set<String>> by lazy { RegionRegister.bySgg + citiesWithoutGu(RegionRegister.bySgg) }
+    private val defaultMerged: Map<String, Set<String>> by lazy { RegionRegister.withAdmin + citiesWithoutGu(RegionRegister.withAdmin) }
 
     /**
      * «죽전 1동» → «죽전1동» · «을지로 3가» → «을지로3가» — 사진 판독이 동 이름과 번호 사이를 띄운다.
@@ -44,10 +44,10 @@ object AddressForm {
         if ("${base}동" in registeredDongs || base in registeredDongs) "$base${it.groupValues[2]}" else it.value
     }
 
-    fun isFull(text: String, register: Map<String, Set<String>> = RegionRegister.bySgg): Boolean {
+    fun isFull(text: String, register: Map<String, Set<String>> = RegionRegister.withAdmin): Boolean {
         val tokens = joinSpacedUnit(text).trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }.map { SIDO_SHORT[it] ?: it }
         if (tokens.isEmpty()) return false
-        val merged = if (register === RegionRegister.bySgg) defaultMerged else register + citiesWithoutGu(register)
+        val merged = if (register === RegionRegister.withAdmin) defaultMerged else register + citiesWithoutGu(register)
         for ((sgg, dongs) in merged) {
             val key = sgg.split(' ')
             val at = indexOfRun(tokens, key)
@@ -66,9 +66,9 @@ object AddressForm {
      * 📍 **이 주소의 시·군·구에 그 동이 명부에 있나** — 두 줄로 꺾인 행정동을 이을지 가른다(`PickerScreenOcr.readStop`).
      * «경기 성남시 중원구» + «상대원1동» → 참 · «상가동»·«관리동»(건물 동) → 거짓. 숫자·«본동»은 접어 대조한다.
      */
-    fun knownDong(address: String, dong: String, register: Map<String, Set<String>> = RegionRegister.bySgg): Boolean {
+    fun knownDong(address: String, dong: String, register: Map<String, Set<String>> = RegionRegister.withAdmin): Boolean {
         val tokens = address.trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }.map { SIDO_SHORT[it] ?: it }
-        val merged = if (register === RegionRegister.bySgg) defaultMerged else register + citiesWithoutGu(register)
+        val merged = if (register === RegionRegister.withAdmin) defaultMerged else register + citiesWithoutGu(register)
         val want = fold(dong)
         return merged.any { (sgg, dongs) -> indexOfRun(tokens, sgg.split(' ')) >= 0 && dongs.any { fold(it) == want } }
     }

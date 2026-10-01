@@ -129,6 +129,12 @@ class ScreenWordsTest {
         assertEquals("<지역>", ScreenWords.mask("세종로"))
     }
 
+    @Test fun `행정동도 지역이다 - 위례 광남1 역삼1동은 모르는 글자가 아니다`() {
+        assertEquals("<지역>", ScreenWords.mask("위례"))
+        assertEquals("<지역>", ScreenWords.mask("광남1"))
+        assertEquals("<지역>", ScreenWords.mask("위례동"))
+    }
+
     @Test fun `도로명 모양은 서버 도구 isRoad 와 같은 규칙`() {
         val src = File("../../onedal-web/scripts/lib/wordKinds.mjs").readText()
         val js = Regex("""export const isRoad = \(w\) => /(.+)/\.test\(w\)""").find(src)!!.groupValues[1]

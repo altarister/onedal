@@ -60,10 +60,10 @@ object ScreenWords {
     /** 페이지마다 모은 글자 — 보고 하나는 한 페이지라 먼저 모은 페이지부터 하나씩 꺼낸다 */
     private val byPage = LinkedHashMap<Page, LinkedHashMap<String, ScreenWord>>()
 
-    /** 지명 명부의 이름 — «광주시»·«분당구»·«경안동»과 그 줄임(«광주»·«분당»·«경안»)까지 */
+    /** 지명 명부의 이름 — «광주시»·«분당구»·«경안동»·행정동 «위례동»과 그 줄임(«광주»·«분당»·«경안»·«위례»)까지 */
     private val regionNames: Set<String> by lazy {
         val out = HashSet<String>()
-        for ((sgg, dongs) in com.onedal.app.core.engine.RegionRegister.bySgg) {
+        for ((sgg, dongs) in com.onedal.app.core.engine.RegionRegister.withAdmin) {   // 행정동(«위례» · «광남1»)도 지역이다
             (sgg.split(" ") + dongs).forEach { out.add(it); out.add(bare(it)) }
         }
         out.addAll(PROVINCES)
