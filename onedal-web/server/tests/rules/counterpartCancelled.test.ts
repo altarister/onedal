@@ -25,7 +25,7 @@ const note = async (body: any) => {
     await layer.route.stack[layer.route.stack.length - 1].handle({ app, params: { id: O }, body, query: {}, user: { id: A }, headers: {} }, res);
     return { status, out };
 };
-const audits = () => db.prepare(`SELECT COUNT(*) n FROM ops_audit WHERE admin_id = ? AND action = '상대 취소 지움'`).get(A).n;
+const audits = () => db.prepare(`SELECT COUNT(*) n FROM ops_audit WHERE admin_id = ? AND action = '상대 취소 지움(잘못 누름)'`).get(A).n;
 
 beforeAll(() => {
     for (const [id, name] of [[D, '기사'], [A, '와이프']]) db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(id, `g-${id}`, `${id}@test`, name);

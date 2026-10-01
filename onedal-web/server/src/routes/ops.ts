@@ -313,7 +313,7 @@ router.post("/calls/:id/note", (req, res) => {
             if (e instanceof CargoReportError) return res.status(e.status).json({ error: e.message });
             throw e;
         }
-        if (counterpartCancelled || was) audit(adminId, counterpartCancelled ? '상대 취소 적음' : '상대 취소 지움', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'}`);
+        if (counterpartCancelled || was) audit(adminId, counterpartCancelled ? '상대 취소 적음' : '상대 취소 지움(잘못 누름)', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'}`);
         return res.json(opsCallOf(db.prepare(`${ORDER_SQL} WHERE o.id = ?`).get(o.id) as OrderRow));
     }
     const actual = stepsView(o.id).find(s => s.step === (stopType === 'pickup' ? 'LOADED' : 'DELIVERED'));
@@ -329,7 +329,7 @@ router.post("/calls/:id/note", (req, res) => {
     }
     audit(adminId, '통화 결과 적음', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'} · ${unit ?? '-'} × ${quantity ?? '-'}${counterpartCancelled ? ' · 상대 취소' : ''}${memo ? ` · ${memo.slice(0, 20)}` : ''}`);
     /* 📵 적혀 있던 «상대 취소»를 관리자가 지웠다 — 따로 한 줄(누가 무엇을 되돌렸나) */
-    if (counterpartCancelled === false && wasCancelled) audit(adminId, '상대 취소 지움', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'}`);
+    if (counterpartCancelled === false && wasCancelled) audit(adminId, '상대 취소 지움(잘못 누름)', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'}`);
     return res.json(opsCallOf(db.prepare(`${ORDER_SQL} WHERE o.id = ?`).get(o.id) as OrderRow));
 });
 
