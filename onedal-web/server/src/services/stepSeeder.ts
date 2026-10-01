@@ -287,6 +287,17 @@ function finalizeStep(userId: string, orderId: string, step: StepId,
  * ⚠️ **이 경로가 유일한 저장 경로다** — 이름의 «bridge» 를 «곁다리»로 읽으면 호출부의 try 가
  *    «실패해도 그만»으로 오해된다
  */
+/**
+ * 📵 상대 취소 칸 — true 면 그때 시각 · 적은 사람(이미 적혀 있으면 처음 시각을 지킨다) · false 면 비움 · undefined 면 건드리지 않음(칸을 안 실은 기사 저장).
+ *    finalizeStep 은 undefined 를 건너뛰고 null 은 그대로 써서 비운다.
+ */
+function counterpartPatchOf(orderId: string, step: StepId, flag: boolean | undefined, now: string, by: string): Record<string, string | null | undefined> {
+    if (flag === undefined) return {};
+    if (flag === false) return { counterpart_cancelled_at: null, counterpart_cancelled_by: null };
+    const cur = db.prepare(`SELECT counterpart_cancelled_at FROM ${tableOf(step).table} WHERE orderId = ?`).get(orderId) as { counterpart_cancelled_at: string | null } | undefined;
+    return cur?.counterpart_cancelled_at ? {} : { counterpart_cancelled_at: now, counterpart_cancelled_by: by };
+}
+
 export function bridgeCargoReport(userId: string, orderId: string,
     report: CargoReport, judgment?: JudgmentConfig, routeTl?: RouteTl, writtenBy?: string) {
     const now = new Date().toISOString();
@@ -309,6 +320,7 @@ export function bridgeCargoReport(userId: string, orderId: string,
             memo: (report as any).memo ?? undefined,
             onward_deadline_at: (report as any).onwardDeadlineAt ?? undefined,
             written_by: writtenBy,   // 📞 적은 사람 — 기사 · 관리자(통화 도우미). 나중 것이 이긴다
+            ...counterpartPatchOf(orderId, step, report.counterpartCancelled, now, writtenBy ?? userId),
         }, judgment, routeTl);
         /**
          * ⏱️ **짐이 바뀌었으면 예측 정차도 다시 잰다** (기사님 리허설).

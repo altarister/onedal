@@ -283,6 +283,8 @@ export type CargoReportKind = 'DECLARED' | 'ACTUAL' | 'SKIPPED' | 'PLANNED';
 export interface CargoReport {
     stopType: 'pickup' | 'dropoff';
     kind: CargoReportKind;
+    /** 📵 상대(화주)가 콜을 취소했다 — true 면 그때 시각을 적고 · false 면 비우고 · 없으면(undefined) 그대로 둔다(통화 단계 행 counterpart_cancelled_at) */
+    counterpartCancelled?: boolean;
     /**
      * 적재 단위. 기사님이 통화에서 실제로 쓰는 말이다 — 1t 기준 파레트가 기본,
      * 소량이면 라면박스. 추상적인 소·중·대보다 부피를 유추하기 쉽다.

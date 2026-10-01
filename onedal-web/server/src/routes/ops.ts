@@ -127,6 +127,8 @@ function callNoteOf(o: OrderRow, steps: ReturnType<typeof stepsView>): OpsCallNo
         unit: (r.planned_unit as CargoUnit | null) ?? null, quantity: r.planned_quantity ?? null,
         promisedArrivalAt: isoKst(r.promised_arrival_at), memo: r.memo ?? '',
         writtenBy: nameOf(r.written_by ?? o.userId), writtenAt: isoKst(r.occurred_at) ?? '',
+        counterpartCancelledAt: isoKst(r.counterpart_cancelled_at ?? null),
+        counterpartCancelledBy: r.counterpart_cancelled_at ? nameOf(r.counterpart_cancelled_by ?? o.userId) : null,
     };
 }
 
@@ -297,18 +299,24 @@ router.post("/calls/:id/note", (req, res) => {
     const quantity = b.quantity == null ? null : typeof b.quantity === 'number' && b.quantity > 0 ? b.quantity : undefined;
     const promised = b.promisedArrivalAt == null ? null : typeof b.promisedArrivalAt === 'string' && Number.isFinite(Date.parse(b.promisedArrivalAt)) ? b.promisedArrivalAt : undefined;
     const memo = typeof b.memo === 'string' ? b.memo.trim() : '';
+    /* 📵 상대 취소 — true · false 만 받는다(없으면 그대로) */
+    const counterpartCancelled = typeof b.counterpartCancelled === 'boolean' ? b.counterpartCancelled : undefined;
     if (!stopType || unit === undefined || quantity === undefined || promised === undefined) return res.status(400).json({ error: "통화 결과 칸을 확인해 주세요." });
     if (memo.length > CALL_NOTE_MEMO_MAX) return res.status(400).json({ error: `메모는 ${CALL_NOTE_MEMO_MAX}자까지입니다.` });
     const actual = stepsView(o.id).find(s => s.step === (stopType === 'pickup' ? 'LOADED' : 'DELIVERED'));
     if (actual?.born && (actual.row as Record<string, any>).actual_unit != null) return res.status(409).json({ error: "기사님이 현장에서 적은 값이 있습니다." });
-    const report = { stopType, kind: 'DECLARED', unit: unit ?? undefined, quantity: quantity ?? undefined, promisedArrivalAt: promised ?? undefined, memo: memo || undefined } as CargoReport;
+    const report = { stopType, kind: 'DECLARED', unit: unit ?? undefined, quantity: quantity ?? undefined, promisedArrivalAt: promised ?? undefined, memo: memo || undefined, counterpartCancelled } as CargoReport;
+    const callStep = stopType === 'pickup' ? 'CALL_PICKUP' : 'CALL_DROPOFF';
+    const wasCancelled = !!(stepsView(o.id).find(s => s.step === callStep)?.row as Record<string, any> | undefined)?.counterpart_cancelled_at;
     try {
         saveCargoReport(o.userId, o.id, report, adminId, req.app.get("io"));
     } catch (e) {
         if (e instanceof CargoReportError) return res.status(e.status).json({ error: e.message });
         throw e;
     }
-    audit(adminId, '통화 결과 적음', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'} · ${unit ?? '-'} × ${quantity ?? '-'}${memo ? ` · ${memo.slice(0, 20)}` : ''}`);
+    audit(adminId, '통화 결과 적음', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'} · ${unit ?? '-'} × ${quantity ?? '-'}${counterpartCancelled ? ' · 상대 취소' : ''}${memo ? ` · ${memo.slice(0, 20)}` : ''}`);
+    /* 📵 적혀 있던 «상대 취소»를 관리자가 지웠다 — 따로 한 줄(누가 무엇을 되돌렸나) */
+    if (counterpartCancelled === false && wasCancelled) audit(adminId, '상대 취소 지움', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'}`);
     return res.json(opsCallOf(db.prepare(`${ORDER_SQL} WHERE o.id = ?`).get(o.id) as OrderRow));
 });
 

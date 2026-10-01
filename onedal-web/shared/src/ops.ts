@@ -74,6 +74,9 @@ export interface OpsCallNote {
     /** 마지막으로 적은 사람 이름(기사 · 관리자) */
     writtenBy: string;
     writtenAt: string;
+    /** 📵 상대(화주)가 취소했다고 적은 때(ISO) · 적은 사람 이름 — 아니면 null */
+    counterpartCancelledAt: string | null;
+    counterpartCancelledBy: string | null;
 }
 
 export interface OpsAnomaly {
@@ -174,7 +177,10 @@ export interface OpsAllowRequest { what: 'auto' | 'stats'; on: boolean; until: s
 export interface OpsPaidUntilRequest { until: string | null }
 export interface OpsContentSave { title: string; body: string }
 export interface OpsNoticePost { text: string; activeUntil: string | null }
-export type OpsCallNoteWrite = Omit<OpsCallNote, 'writtenBy' | 'writtenAt'>;
+export type OpsCallNoteWrite = Omit<OpsCallNote, 'writtenBy' | 'writtenAt' | 'counterpartCancelledAt' | 'counterpartCancelledBy'> & {
+    /** 📵 true = 상대 취소 · false = 상대 취소 지움 · 없으면 그대로 */
+    counterpartCancelled?: boolean;
+};
 /** 통화 메모 글자 수 상한 — 서버가 넘으면 400 · 운영센터 화면이 같은 상수로 글자 수를 보인다 */
 export const CALL_NOTE_MEMO_MAX = 200;
 export interface OpsMinimumRelease { app: OpsRelease['app']; versionCode: number }
