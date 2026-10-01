@@ -27,7 +27,7 @@ describe('배차망 화면 정의 표', () => {
             const at = `${net} ${page} ${r.field}`;
             expect(() => new RegExp(r.read!), at).not.toThrow();
             expect(r.read, `${at} — \\p{} · 이름 묶음 · 소유 수량자 · 안쪽 플래그 금지`).not.toMatch(/\\p\{|\(\?<[A-Za-z]|\+\+|\*\+|\?\+|\(\?[imsx]/);
-            /* \b · \w · \W · \B 금지 — JS(u 없음)는 한글을 낱말 글자로 안 보고 코틀린은 본다 · 같은 정규식이 둘에서 다른 답(옛 서버 짐작이 «60분»을 60 으로 잡은 까닭 · onedal-46) */
+            /* \b · \w · \W · \B 금지 — JS(u 없음)는 한글을 낱말 글자로 안 보고 코틀린은 본다 · 같은 정규식이 둘에서 다른 답(«60분» 의 «0»과 «분» 사이를 JS 는 낱말 경계로 본다) */
             expect(r.read, `${at} — \\b · \\w · \\W · \\B 금지(한글 낱말 경계가 JS 와 코틀린에서 갈린다)`).not.toMatch(/\\[bBwW]/);
             expect(new RegExp(`${r.read}|`).exec('')!.length, `${at} — 1번 묶음`).toBeGreaterThanOrEqual(2);
         }
@@ -79,22 +79,22 @@ describe('제외어 찾는 칸 (excludeScan)', () => {
 });
 
 /**
- * 🏠 **주소 다듬기(addressCut)** — 서버 옛 플러그인 normalizeAddress 와 글자까지 같은 답(reviews/34 3단계 5② · 판정 무변화 · onedal-46).
- * 옛 함수를 글자 그대로 옮겨 견본마다 대조한다 — 정규식을 «더 맞게» 고치면(예: 인성 `\([^)]*\)$`) 여기서 빨개진다.
+ * 🏠 **주소 다듬기(addressCut)** — 아래 기준 답(BASE · 글자 그대로)과 견본마다 같은 답이어야 한다(reviews/34 3단계 5② · 판정 무변화를 묶는다).
+ * 기준 답과 견본마다 대조한다 — 정규식을 «더 맞게» 고치면(예: 인성 `\([^)]*\)$`) 여기서 빨개진다.
  */
 describe('주소 다듬기 (addressCut)', () => {
-    const OLD: Record<string, (a: string) => string> = {
+    const BASE: Record<string, (a: string) => string> = {
         insung: a => a.replace(/\(.*?\)$/g, '').trim(),
         hwamul24: a => a.split(',')[0].trim(),
         kakaopicker: a => a.trim(),
     };
     const SAMPLES = ['서울 강남구 역삼동 123 (역삼빌딩)', '가 (나) 다 (라)', '경기 군포 부곡동, 101동 1호', ' 용산 한남 ', '경기 광주시 경안동', '(앞괄호) 서울 중구', '', ',앞쉼표'];
-    it('배차망마다 칸이 있고 · 공통 문법 · 옛 플러그인과 같은 답', () => {
+    it('배차망마다 칸이 있고 · 공통 문법 · 기준 답과 같은 답', () => {
         for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
             expect(spec.addressCut === null || typeof spec.addressCut === 'string', `${net} addressCut`).toBe(true);
             if (spec.addressCut) expect(spec.addressCut, `${net} — 금지 문법`).not.toMatch(/\\p\{|\(\?<[A-Za-z]|\+\+|\*\+|\?\+|\(\?[imsx]|\\[bBwW]/);
             const cutOf = (a: string) => (spec.addressCut ? a.replace(new RegExp(spec.addressCut), '') : a).trim();
-            for (const a of SAMPLES) expect(cutOf(a), `${net} «${a}»`).toBe(OLD[net](a));
+            for (const a of SAMPLES) expect(cutOf(a), `${net} «${a}»`).toBe(BASE[net](a));
         }
     });
 });

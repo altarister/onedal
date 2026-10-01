@@ -52,7 +52,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "excludeScan": ["memo", "payment", "tags"],
     "excludeScanWhy": "기사님 «인성은 적요»(+ 결제 괄호 «(착불)» · 구분 «왕복») — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다",
     "addressCut": "\\(.*?\\)$",
-    "addressCutWhy": "끝에 붙는 «(건물명)»을 지운다 — 첫 «(»부터 끝까지(서버 옛 InsungPlugin.normalizeAddress 와 같은 답)",
+    "addressCutWhy": "끝에 붙는 «(건물명)»을 지운다 — 첫 «(»부터 끝까지",
     "pages": {
       "list": [
         {"field": "pickup", "where": "출발지 칸", "sample": "@초이동 · @남양주(오남", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},
@@ -100,7 +100,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "excludeScan": ["memo", "payment"],
     "excludeScanWhy": "기사님 «화물24시는 화물정보»(+ 결제방법 «착불») — 화주 이름 줄(«화물과퀵») · «60분 안보기» · 버튼 · 주소는 안 본다",
     "addressCut": ",[\\s\\S]*$",
-    "addressCutWhy": "첫 쉼표부터 끝(뒤 상세 주소)을 지운다(서버 옛 Hwamul24Plugin.normalizeAddress 와 같은 답)",
+    "addressCutWhy": "첫 쉼표부터 끝(뒤 상세 주소)을 지운다",
     "pages": {
       "list": [
         {"field": "pickup", "where": "왼쪽 윗줄", "sample": "경기 시흥 정왕동", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse"},
