@@ -26,7 +26,16 @@ describe('배차망 화면 정의 표', () => {
             const at = `${net} ${page} ${r.field}`;
             expect(() => new RegExp(r.read!), at).not.toThrow();
             expect(r.read, `${at} — \\p{} · 이름 묶음 · 소유 수량자 · 안쪽 플래그 금지`).not.toMatch(/\\p\{|\(\?<[A-Za-z]|\+\+|\*\+|\?\+|\(\?[imsx]/);
+            /* \b · \w · \W · \B 금지 — JS(u 없음)는 한글을 낱말 글자로 안 보고 코틀린은 본다 · 같은 정규식이 둘에서 다른 답(옛 서버 짐작이 «60분»을 60 으로 잡은 까닭 · onedal-46) */
+            expect(r.read, `${at} — \\b · \\w · \\W · \\B 금지(한글 낱말 경계가 JS 와 코틀린에서 갈린다)`).not.toMatch(/\\[bBwW]/);
             expect(new RegExp(`${r.read}|`).exec('')!.length, `${at} — 1번 묶음`).toBeGreaterThanOrEqual(2);
+        }
+    });
+
+    it('한 배차망 · 한 화면 · 한 칸에 읽는 법이 있는 줄은 하나 — 둘이면 서버와 원달앱이 다른 줄을 고를 수 있다', () => {
+        for (const [net, spec] of Object.entries(NETWORK_PAGES)) for (const [page, rows] of Object.entries(spec.pages)) {
+            const readable = rows.filter(r => r.handling === 'READ' && r.read !== undefined).map(r => r.field);
+            expect(readable.filter((f, i) => readable.indexOf(f) !== i), `${net} ${page}`).toEqual([]);
         }
     });
 
