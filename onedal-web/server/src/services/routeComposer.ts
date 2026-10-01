@@ -378,8 +378,8 @@ function baseCacheKey(
 /** 이 자리·이 질문으로 이미 잰 base 가 있나 */
 function reusableBase(key: string | null, origin: Coord | null | undefined): any | null {
     if (!key || !origin) return null;   // 기점을 모르면 «200m 안»을 잴 수 없다 — 되쓰지 않는다
-    /* 🔴 `haversineKm({ lat: lat, lng: lng }, { lat: lat, lng: lng })` — x 는 경도라 (y, x) 순서다. (x, y) 로 넘기면 북쪽 200m 가 121m 로 읽혀
-       330m 밖 base 를 되썼다 (코드리뷰 C-6 · 같은 파일의 다른 자리는 전부 (y, x)) */
+    /* 🔴 점을 통째로 넘긴다(shared haversineKm) — 숫자 넷으로 넘기면 위도 자리에 경도(x)가 들어가 북쪽 200m 가 121m 로 읽혀
+       330m 밖 base 를 되썼다 · 점으로 넘기면 순서를 틀릴 자리가 없다 */
     const hit = baseRouteCache.find(e =>
         e.key === key && haversineKm(origin, e.origin) <= BASE_CACHE_RADIUS_KM);
     if (!hit) return null;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@onedal/ui/button';
-import { opsMemberStatus, type JoinMeReply } from '@onedal/shared';
+import { kstDateText, opsMemberStatus, type JoinMeReply } from '@onedal/shared';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchMeSafe } from '../api/join';
 import { gateDecision } from '../lib/joinFlow';
@@ -12,7 +12,7 @@ import { ContentSlot, JoinShell, SectionCard } from './JoinSteps';
  *    기사는 운전 중 원달앱을 안 보니 막힘은 관제웹이 알린다. 까닭 글은 사실 칸에서 shared `opsMemberStatus` 가 만든다 — 상태 이름 칸은 없다.
  *    막힘이 풀렸으면(다시 읽어 blocked 가 거짓) 관제로 돌아간다.
  */
-const todayKey = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+const todayKey = () => kstDateText(Date.now()) ?? '';   // 한국 달력 날 — 기기 시간대와 상관없이(shared 하나)
 
 export default function Blocked() {
     const navigate = useNavigate();

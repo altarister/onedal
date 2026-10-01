@@ -283,7 +283,7 @@ export function getDetourRegions(
      */
     const wholeInSrc = (fb?: number[]): boolean => {
         if (!excludeCircle || !fb) return false;
-        return cornersOf(fb).every(([lng, lat]) => haversineKm({ lat: lat, lng: lng }, excludeCircle) <= excludeCircle.km);
+        return cornersOf(fb).every(([lng, lat]) => haversineKm({ lat, lng }, excludeCircle) <= excludeCircle.km);
     };
 
     // 3. 교차점 검사 (Intersect)
@@ -1362,7 +1362,7 @@ export function processDriverMovement(
          *    ⚠️ 필터 변경(`applyFilterCb`)과 **다른 통로**다 — 이유는 인자 주석에 있다.
          */
         const lastTrim = session.lastTrimGPS;
-        const dist = lastTrim ? haversineKm(lastTrim, { lat: lat, lng: lng }) : Infinity;
+        const dist = lastTrim ? haversineKm(lastTrim, { lat, lng }) : Infinity;
 
         if (dist > 0.5 && trimTraveledCb && getActivePolyline(session)) {
             session.lastTrimGPS = currentGPS;

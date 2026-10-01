@@ -25,7 +25,7 @@ const rad = (d: number) => d * Math.PI / 180;
 
 /** 점 하나 — 지도 모양 {lng, lat} 또는 주문 좌표 모양 {x, y}(x 는 경도 · y 는 위도) */
 export type GeoPoint = { lng: number; lat: number } | { x: number; y: number };
-const lngLatOf = (p: GeoPoint): { lng: number; lat: number } => ('lng' in p ? p : { lng: p.x, lat: p.y });
+const lngLatOf = (p: GeoPoint): { lng: number; lat: number } => ('lng' in p && typeof p.lng === 'number' ? p : { lng: (p as { x: number }).x, lat: (p as { y: number }).y });
 
 /**
  * 📏 **두 지점 직선 거리(km) — 몸통과 지구 반지름은 여기 하나** (공통 함수 3 · `oneDistance` 검사).

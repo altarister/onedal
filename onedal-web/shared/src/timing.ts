@@ -10,7 +10,7 @@ import { unitPoints } from './cargoUnits';
 import { protectionMinutes, afterworkMinutes } from './cargoUnits';
 import type { CargoReport } from './index';
 import { parseCargoHints } from './cargoHints';
-import { hhmmText } from './format';
+import { hhmmText, kstDateText } from './format';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 상하차 소요 시간 (dwell time)
@@ -328,10 +328,9 @@ export function describeSlack(slack: number | null): { text: string; level: 'non
 /** 요일 글자 — `Date#getDay()`·`getUTCDay()` 차례(일요일 0). 서버 흐름 통계 · 관제웹 아침 카드 · 예약 날 글자가 같이 쓴다 */
 export const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'] as const;
 
+/** 🔴 계산은 shared `kstDateText` 하나(늘 한국 달력 날) — 기기 시간대를 따르지 않는다. 이름은 «영업일»이라는 뜻으로 둔다 (공통 함수 4 · `oneDayKey` 검사) */
 export function businessDayKey(ms: number): string {
-    const d = new Date(ms);
-    const p = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    return kstDateText(new Date(ms)) ?? '';
 }
 
 /**
@@ -746,7 +745,7 @@ export function pickupClockMsOf(
      */
     const at = /^(\d{1,2}):(\d{2})$/.exec(order.reservedAt ?? '');
     if (at && order.reservedDay != null && order.reservedDay >= 0) {
-        const day = new Date(capturedMs + 9 * 3600_000 + order.reservedDay * 86_400_000).toISOString().slice(0, 10);
+        const day = kstDateText(capturedMs + order.reservedDay * 86_400_000);
         const t = Date.parse(`${day}T${at[1].padStart(2, '0')}:${at[2]}:00+09:00`);
         if (Number.isFinite(t) && t >= capturedMs) return t;   // 과거 시각이면 무시 (적요 시각과 같은 규칙)
     }
@@ -759,7 +758,7 @@ export function pickupClockMsOf(
     if ((order.reservedDay ?? 0) >= 1) return null;
     const hint = parseCargoHints(order.itemDescription, order.detailMemo).promisedAt;
     if (hint) {
-        const kstDay = new Date(capturedMs + 9 * 3600_000).toISOString().slice(0, 10);
+        const kstDay = kstDateText(capturedMs);
         const t = Date.parse(`${kstDay}T${hint}:00+09:00`);
         if (Number.isFinite(t) && t >= capturedMs) return t;   // 과거 시각이면 무시
     }

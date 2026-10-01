@@ -1,4 +1,5 @@
 import type { OpsMember, OpsMemberCheck, OpsPhone } from '@onedal/shared';
+import { kstDateText } from '@onedal/shared';
 
 /**
  * 🧪 **예시 자료 — 세 사람(기사님 · 딸 · 와이프) · 폰 넷 · 콜 몇 건** (reviews/29 «가족 1차판»).
@@ -10,7 +11,7 @@ const today = new Date();
 const d = (daysAgo: number, hh = 9, mm = 0) => {
     const t = new Date(today); t.setDate(t.getDate() - daysAgo); t.setHours(hh, mm, 0, 0); return t.toISOString();
 };
-const localDay = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+const localDay = (t: Date) => kstDateText(t) ?? '';   // 한국 달력 날 — shared 하나
 
 export const MEMBERS: OpsMember[] = [
     {

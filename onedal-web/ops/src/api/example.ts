@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createListeners } from './listeners';
 import { BOARD_DROPPED, BOARD_FILTER_FULL, BOARD_PHONE_DETAIL, BOARD_SERVER, CHECKS, MEMBERS, MONTH_CODE, PHONES } from '../mock/data';
+import { kstDateText } from '@onedal/shared';
 
 /**
  * 🧪 **예시 자료를 쓰는 쪽** — 서버 문이 아직 없는 쪽만(멤버 대조 6단계 · 현황판 이사 reviews/31).
@@ -10,7 +11,7 @@ import { BOARD_DROPPED, BOARD_FILTER_FULL, BOARD_PHONE_DETAIL, BOARD_SERVER, CHE
 export const EXAMPLE_STAGE = { checks: '6단계 (멤버십)', board: '현황판 이사 (reviews/31) 뒤' } as const;
 
 const now = () => new Date().toISOString();
-const localDay = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+const localDay = (t: Date) => kstDateText(t) ?? '';   // 한국 달력 날 — shared 하나
 const todayDay = () => localDay(new Date());
 /** 기한 +1달 — 남은 날이 있으면 그 위에 얹는다(오늘부터 다시 재지 않는다) */
 const plusOneMonthFrom = (base: string | null) => {

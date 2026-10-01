@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { LOG_TAGS, NO_TAG, maskPhone, type LogTag } from '@onedal/shared';
+import { LOG_TAGS, NO_TAG, kstDateText, maskPhone, type LogTag } from '@onedal/shared';
 import { whoNow } from './logContext';
 
 /**
@@ -47,7 +47,7 @@ export function decorateFileLine(line: string, who: string | undefined): string 
 }
 
 /** 한국 날짜 «YYYY-MM-DD» */
-export const kstDayOf = (ms: number) => new Date(ms + KST_MS).toISOString().slice(0, 10);
+export const kstDayOf = (ms: number) => kstDateText(new Date(ms)) ?? '';   // 한국 날 계산은 shared 하나
 
 /** 이 시각 다음의 한국 자정 (epoch ms) — 줄마다 날짜를 다시 계산하지 않고 이 값과만 견준다 */
 export const nextKstMidnightOf = (ms: number) => (Math.floor((ms + KST_MS) / DAY_MS) + 1) * DAY_MS - KST_MS;
