@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { LOG_TAGS, NO_TAG, kstDateText, maskPhone, type LogTag } from '@onedal/shared';
 import { whoNow } from './logContext';
+import { noteError } from './errorTally';
 
 /**
  * 서버 로그를 **파일에도** 남긴다.
@@ -147,6 +148,7 @@ export function initFileLogger(): void {
             const body = args.map(a =>
                 typeof a === 'string' ? a : (() => { try { return JSON.stringify(a); } catch { return String(a); } })()
             ).join(' ');
+            if (level === 'ERR') noteError(body);   // 🧯 운영센터 «서버 오늘 오류 수» — 쓰는 순간 센다(utils/errorTally)
             const tagged = body.startsWith('#') ? body : `#${level === '   ' ? NO_TAG : '경고'} ${body}`;
             const line = `${stamp()} ${level} ${tagged}\n`;
             log.write(decorateFileLine(stripAnsi(line), whoNow()));

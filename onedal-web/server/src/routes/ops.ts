@@ -14,6 +14,7 @@ import { kakaoUsageOf, kakaoBoardOf } from "../services/kakaoUsage";
 import { networkLevelOf, needsUpdateOf, locationStaleOf, NETWORK_ALARM } from "../services/opsHome";
 import { nextStopOf } from "../services/geoService";
 import { listReleases, scrapReleaseCodes } from "../core/releases";
+import { errorsToday } from "../utils/errorTally";
 import { intelRowsOf } from "../services/intelRows";
 import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer, OpsHome, OpsLocations, OpsStats } from "@onedal/shared";
 import { marketStatsOf, clampStatsRange } from "../services/callFlowStats";
@@ -353,6 +354,7 @@ function boardServerOf(io: any): OpsBoardServer {
         dbFile: process.env.DB_FILE || "local.db",
         sockets: { web: io?.of("/").sockets.size ?? 0, ops: io?.of("/ops").sockets.size ?? 0 },
         lastScrapAt: seen.length ? new Date(Math.max(...seen)).toISOString() : null,
+        errorsToday: errorsToday(),
     };
 }
 
@@ -523,7 +525,7 @@ export function homeOf(io: any): OpsHome {
             phonesOffline: counts.phonesOffline,
             needUpdate,
         },
-        access: { phonesOnline: phones.filter(p => p.status === 'ONLINE').length, phonesOffline: counts.phonesOffline, lastScrapAt: server.lastScrapAt, bootedAt: server.bootedAt, sockets: server.sockets },
+        access: { phonesOnline: phones.filter(p => p.status === 'ONLINE').length, phonesOffline: counts.phonesOffline, lastScrapAt: server.lastScrapAt, bootedAt: server.bootedAt, sockets: server.sockets, errorsToday: server.errorsToday },
         networks,
         working: { reporting: new Set(phones.filter(p => p.status === 'ONLINE').map(p => p.memberId)).size, driving: byMember.size, rows },
         regions: locationsOf({ todayOnly: true }).regions,   // 시 · 구 수만 — 좌표가 없어 열람 기록은 안 남긴다

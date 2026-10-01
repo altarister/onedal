@@ -251,6 +251,8 @@ export interface OpsBoardServer {
     sockets: { web: number; ops: number };
     /** 기기 세션 lastSeen 가운데 가장 늦은 것(ISO) — 붙은 폰이 없으면 null */
     lastScrapAt: string | null;
+    /** 🧯 서버 오류 줄(ERR) 수 · 같은 모양을 접은 가짓수 — 부팅 뒤 · 오늘(한국 날)만 */
+    errorsToday: { count: number; kinds: number };
 }
 
 /** 폰 한 대 — 기기 세션 칸 그대로(좌표 빼고) + 주인 · 위치 있음 여부(좌표는 지도 문 몫) */
@@ -335,7 +337,7 @@ export interface OpsHome {
         /** 최소 판보다 낮은 폰 */
         needUpdate: number;
     };
-    access: { phonesOnline: number; phonesOffline: number; lastScrapAt: string | null; bootedAt: string; sockets: { web: number; ops: number } };
+    access: { phonesOnline: number; phonesOffline: number; lastScrapAt: string | null; bootedAt: string; sockets: { web: number; ops: number }; errorsToday: OpsBoardServer['errorsToday'] };
     networks: Array<{ targetApp: TargetAppType; lastGoodAt: string | null; anomaliesToday: number; anomalies7d: number; newWords: number; level: 'ok' | 'warn' | 'alarm' }>;
     working: { reporting: number; driving: number; rows: Array<{ memberId: string; stage: string; nextStop: string | null; etaAt: string | null }> };
     /** 시 · 구 뱃지 — /locations 와 같은 함수 · 오늘 점만(«지금 어디서 일하나») */
