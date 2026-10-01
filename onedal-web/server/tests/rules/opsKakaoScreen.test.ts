@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { kakaoTotalOf } from '../../../ops/src/api/kakaoTotal';
+import { kakaoTotalOf } from '@onedal/shared';
 
 /**
  * 🗺️ **운영센터 카카오 호출 카드 — 주인 없는 호출도 보인다** (reviews/29 5단계 · 46 서버 9f860fbf · onedal-69 «가»).
@@ -18,6 +18,12 @@ describe('🗺️ 운영센터 카카오 호출 카드', () => {
         ];
         expect(kakaoTotalOf(rows)).toEqual({ route: { today: 5, month: 50 }, local: { today: 1, month: 12 } });
         expect(kakaoTotalOf([])).toEqual({ route: { today: 0, month: 0 }, local: { today: 0, month: 0 } });
+    });
+
+    it('🔴 덧셈은 shared 한 벌 — 운영센터는 다시 내보내기만(서버 홈과 같은 함수)', () => {
+        const api = read('api/kakaoTotal.ts').replace(/\/\*[\s\S]*?\*\//g, '');
+        expect(api).toContain("export { kakaoTotalOf } from '@onedal/shared';");
+        expect(api).not.toMatch(/function|reduce/);
     });
 
     it('🔴 카드는 서버 문 하나를 읽고 memberId null 줄을 «주인 없음»으로 그린다 — 한 덩어리 부품(놓는 쪽은 회원 목록과 박자만)', () => {
