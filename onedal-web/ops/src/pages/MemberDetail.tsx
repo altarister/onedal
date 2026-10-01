@@ -78,7 +78,7 @@ export default function MemberDetail() {
             <StatRow>
                 <Stat label="오늘 본 콜" value={todayCalls.length} />
                 <Stat label="진행 중" value={activeCalls} tone={activeCalls ? 'ok' : undefined} />
-                <Stat label="카카오 오늘 / 이달" value={usage ? `${usage.today} / ${usage.month}` : '아직 안 셈'} hint="길찾기 호출 수 — 5단계" />
+                <Stat label="카카오 오늘 / 이달" value={`${usage.today} / ${usage.month}`} hint="길찾기 호출 수" />
                 <Stat label="이상 기록" value={anomalies.length} tone={anomalies.length ? 'warn' : undefined} />
             </StatRow>
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RELEASE_UPLOAD_HEADERS } from '@onedal/shared';
 import type {
-    OpsAllowRequest, OpsAnomaliesReply, OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsSuspendRequest,
+    OpsAllowRequest, OpsAnomaliesReply, OpsBoardFilter, OpsBoardIntel, OpsBoardKakao, OpsBoardPhone, OpsBoardServer, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsSuspendRequest,
 } from '@onedal/shared';
 import { client, errorTextOf, statusOf } from './client';
 import { createListeners } from './listeners';
@@ -66,6 +66,8 @@ export const api = {
     boardServer: () => get<OpsBoardServer>('/board/server'),
     boardPhones: (memberId?: string) => get<OpsBoardPhone[]>(memberId ? `/board/phones?memberId=${encodeURIComponent(memberId)}` : '/board/phones'),
     boardFilter: (memberId: string) => get<OpsBoardFilter>(`/board/filter?memberId=${encodeURIComponent(memberId)}`),
+    /** 카카오 호출 수 — 회원마다 + 주인 없음(memberId null) 줄 · 이달에 센 주인만 · 합계는 화면이 더한다 */
+    boardKakao: () => get<OpsBoardKakao>('/board/kakao'),
     boardIntel: (memberId: string, limit = 40) => get<OpsBoardIntel>(`/board/intel?memberId=${encodeURIComponent(memberId)}&limit=${limit}`),
 
     /** 📊 콜 흐름 통계(관리자 문 `/api/stats/flows/admin` · 회원 칸 포함) — 기본 최근 28일. 평균은 요금을 아는 콜로만(없으면 null) */

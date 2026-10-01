@@ -4,6 +4,7 @@ import {
     type DeviceModeType, type IntelRow, type OpsBoardPhone,
 } from '@onedal/shared';
 import { api, useOps } from '../api/ops';
+import KakaoUsageCard from './KakaoUsageCard';
 import { Card, ErrorBand, PageHeader, Stat, fmtDateTime, fmtTime, fmtWon, memberName } from '../ui';
 
 /**
@@ -55,6 +56,8 @@ export default function Board() {
                 </div>
                 {phone && <PhoneCards p={phone} />}
             </Card>
+
+            <KakaoUsageCard members={members} tick={tick} />
 
             <div className="flex items-center gap-2 text-sm">
                 <span className="text-text-muted">회원</span>
