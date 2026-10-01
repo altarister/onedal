@@ -35,6 +35,8 @@ export interface StepViewRow {
     table?: string;
     born?: boolean;
     row: Record<string, any>;
+    /** 📵 «상대가 취소했다고 함»을 적은 사람 이름 — 통화 행에 `counterpart_cancelled_at` 이 있을 때만 서버가 싣는다(기사 본인이어도) */
+    counterpartCancelledByName?: string;
 }
 
 export interface StepRecords {

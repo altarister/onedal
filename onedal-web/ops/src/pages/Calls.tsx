@@ -10,7 +10,7 @@ import { COLOR_DOT, Card, ErrorBand, PageHeader, Stat, StatRow, dayKey, fmtTime,
 /**
  * 📞 **통화 도우미** — 서버가 «통화 필요»(🟡 이고 상차 통화 전)인 콜을 위에 놓는다. 관리자가 상차지 · 하차지에 전화해 결과를 적으면
  *    서버가 그 콜의 통화 단계 행에 적는다(기사 소켓과 같은 길 · reviews/29 5단계) — 기사 관제웹의 통화 단계에 같은 값 + «✍️ 누가 적음»이 보인다.
- *    적는 칸은 기사가 쓰는 «통화함»과 같은 구조 값(짐 단위 · 수량 · 약속 시각 · 메모). «상대가 취소했다»는 메모 글로만(사실 칸은 기사님 «가» 뒤).
+ *    적는 칸은 기사가 쓰는 «통화함»과 같은 구조 값(짐 단위 · 수량 · 약속 시각 · 메모). «상대가 취소했다고 함»은 사실 칸(체크) — 기사 관제웹 통화 단계 맨 위에 경고 줄로 뜬다. 손댔을 때만 실어 보낸다(안 건드리면 서버가 그대로 둔다 — 약속만 고쳐 적다가 조용히 지워지지 않게).
  *    🔴 CANCEL 결재는 기사가 관제웹에서 누른다 — 여기엔 그 버튼이 없다. 서버 신호(`ops-calls-changed`)가 오면 바로 다시 읽고, 신호가 끊겼을 때만 30초마다.
  */
 export default function Calls() {
@@ -52,6 +52,7 @@ export default function Calls() {
                                 <span className="text-text-muted shrink-0">{fmtWon(c.fare)} · {statusKo(c.status)}</span>
                             </div>
                             {c.callNote && <div className="text-xs text-text-muted mt-0.5">{noteText(c.callNote)}</div>}
+                            <CancelToggle c={c} reload={reload} />
                         </div>
                     ))}
                 </Card>
@@ -60,9 +61,29 @@ export default function Calls() {
     );
 }
 
+/**
+ * 📵 **적은 뒤에 온 취소 소식** — 통화 결과를 이미 적은 콜(적는 칸이 없는 아래 목록)에서 «상대가 취소했다고 함»만 켜고 끈다.
+ *    그 사실 칸만 실어 보낸다 — 짐 · 약속 · 메모는 비워 보내 서버가 그대로 둔다. 쪽은 적힌 메모의 쪽, 없으면 상차.
+ *    🔴 기사 화면의 경고 글을 켜고 끄는 것뿐이다 — 콜 취소(CANCEL)는 기사가 관제웹에서 누른다. «지우기»는 잘못 누름을 막게 한 번 묻는다.
+ */
+function CancelToggle({ c, reload }: { c: OpsCall; reload: () => void }) {
+    const on = !!c.callNote?.counterpartCancelledAt;
+    const send = () => {
+        if (on && !window.confirm('«상대가 취소했다고 함» 표시를 지울까요? 기사 화면의 경고 줄이 사라집니다.')) return;
+        const note: OpsCallNoteWrite = { stopType: c.callNote?.stopType ?? 'pickup', unit: null, quantity: null, promisedArrivalAt: null, memo: '', counterpartCancelled: !on };
+        void write(() => api.writeCallNote(c.id, note), reload);
+    };
+    return (
+        <button type="button" onClick={send} className={`mt-1 text-xs underline underline-offset-2 ${on ? 'text-text-muted' : 'text-danger'}`}>
+            {on ? '취소 표시 지우기' : '상대가 취소했다고 함 적기'}
+        </button>
+    );
+}
+
 /** 적힌 결과 한 줄 — «📝 상차 · 파레트 2 · 약속 14:30 · 메모 — 와이프 10:12» */
 function noteText(n: NonNullable<OpsCall['callNote']>): string {
     const parts = [n.stopType === 'pickup' ? '상차' : '하차'];
+    if (n.counterpartCancelledAt) parts.unshift(`⚠️ 상대가 취소했다고 함(${n.counterpartCancelledBy ?? ''} ${fmtTime(n.counterpartCancelledAt)})`);
     if (n.unit) parts.push(`${n.unit}${n.quantity != null ? ` ${n.quantity}` : ''}`);
     if (n.promisedArrivalAt) parts.push(`약속 ${fmtTime(n.promisedArrivalAt)}`);
     if (n.memo) parts.push(n.memo);
@@ -75,9 +96,13 @@ function CallCard({ c, name, reload }: { c: OpsCall; name: string; reload: () =>
     const [quantity, setQuantity] = useState<number | null>(null);
     const [hhmm, setHhmm] = useState('');
     const [memo, setMemo] = useState('');
+    /** 📵 상대 취소 체크 — null = 안 건드림(서버가 그대로 둔다) · true/false = 관리자가 누른 값 */
+    const [cancelTouched, setCancelTouched] = useState<boolean | null>(null);
     const pickup = stopType === 'pickup';
     const stopAt = pickup ? c.pickup.at : c.dropoff.at;
     const baseDay = baseDayOf(stopAt);
+    const cancelKnown = c.callNote?.stopType === stopType && !!c.callNote.counterpartCancelledAt;   // 서버에 적혀 있는 것(이 정거장 쪽)
+    const cancelShown = cancelTouched ?? cancelKnown;
     const qInput = unit ? CARGO_UNIT_QUANTITY_INPUT[unit] : null;
     const pickUnit = (u: CargoUnit) => { setUnit(u); setQuantity(null); };
     const save = () => {
@@ -85,8 +110,9 @@ function CallCard({ c, name, reload }: { c: OpsCall; name: string; reload: () =>
             stopType,
             unit: pickup ? unit : null, quantity: pickup && qInput?.mode !== 'none' && quantity != null ? Math.round(quantity) : null,   // 짐은 상차에서만 — 하차로 보내면 두 벌이 된다 · 수량은 정수
             promisedArrivalAt: promisedAtOf(stopAt, hhmm), memo: memo.trim(),
+            ...(cancelTouched != null ? { counterpartCancelled: cancelTouched } : {}),
         };
-        void write(() => api.writeCallNote(c.id, note), () => { setUnit(null); setQuantity(null); setHhmm(''); setMemo(''); reload(); });
+        void write(() => api.writeCallNote(c.id, note), () => { setUnit(null); setQuantity(null); setHhmm(''); setMemo(''); setCancelTouched(null); reload(); });
     };
     const tel = (p: string | null) => p ? <a href={`tel:${p.replace(/[^\d]/g, '')}`} className="text-info font-bold underline-offset-2 hover:underline">📞 {p}</a> : <span className="text-text-muted">번호 없음</span>;
     const chipCls = (on: boolean) => `px-2.5 py-1.5 rounded-md text-sm font-bold border ${on ? 'bg-info/15 text-info border-info/40' : 'bg-surface-alt/40 border-border-card text-text-muted'}`;
@@ -102,8 +128,8 @@ function CallCard({ c, name, reload }: { c: OpsCall; name: string; reload: () =>
             <div className="space-y-2 pt-2 border-t border-border-card">
                 <div className="flex flex-wrap gap-1.5 items-center">
                     <span className="text-xs text-text-muted w-16">어디</span>
-                    <button type="button" className={chipCls(pickup)} onClick={() => setStopType('pickup')}>상차지</button>
-                    <button type="button" className={chipCls(!pickup)} onClick={() => setStopType('dropoff')}>하차지</button>
+                    <button type="button" className={chipCls(pickup)} onClick={() => { setStopType('pickup'); setCancelTouched(null); }}>상차지</button>
+                    <button type="button" className={chipCls(!pickup)} onClick={() => { setStopType('dropoff'); setCancelTouched(null); }}>하차지</button>
                 </div>
                 {pickup && (
                     <div className="flex flex-wrap gap-1.5 items-center">
@@ -115,11 +141,16 @@ function CallCard({ c, name, reload }: { c: OpsCall; name: string; reload: () =>
                         )}
                     </div>
                 )}
+                <label className="flex flex-wrap items-center gap-2 text-sm">
+                    <input type="checkbox" className="size-4" checked={cancelShown} onChange={e => setCancelTouched(e.target.checked)} />
+                    <span className={cancelShown ? 'font-bold text-danger' : ''}>상대가 취소했다고 함</span>
+                    <span className="text-xs text-text-muted">기사 화면에 경고로 뜹니다 — 취소(CANCEL)는 기사가 누릅니다 · 잘못 눌렀으면 풀고 «적기»</span>
+                </label>
                 <div className="grid md:grid-cols-[auto_1fr_2fr_auto] gap-2 items-end">
                     <label className="text-xs text-text-muted space-y-1"><span>약속 시각 · {baseDayLabel(baseDay)}</span><Input type="time" value={hhmm} onChange={e => setHhmm(e.target.value)} /></label>
                     <div className="text-xs text-text-muted md:pb-2">{pickup ? '«몇 시까지 갈게요»' : '«몇 시까지 내릴게요»'}</div>
-                    <label className="text-xs text-text-muted space-y-1"><span>메모 · {memo.length}/{CALL_NOTE_MEMO_MAX}</span><Input placeholder="통화에서 들은 것 — 상대가 취소했다고 하면 여기에" value={memo} maxLength={CALL_NOTE_MEMO_MAX} onChange={e => setMemo(e.target.value)} /></label>
-                    <Button type="button" size="sm" disabled={!unit && !hhmm && !memo.trim()} onClick={save}>적기</Button>
+                    <label className="text-xs text-text-muted space-y-1"><span>메모 · {memo.length}/{CALL_NOTE_MEMO_MAX}</span><Input placeholder="통화에서 들은 것" value={memo} maxLength={CALL_NOTE_MEMO_MAX} onChange={e => setMemo(e.target.value)} /></label>
+                    <Button type="button" size="sm" disabled={!unit && !hhmm && !memo.trim() && cancelTouched == null} onClick={save}>적기</Button>
                 </div>
             </div>
         </Card>

@@ -23,12 +23,19 @@ describe('📞 통화 도우미 화면', () => {
         expect(baseDayOf(null, NOW)).toBe('2026-10-01');
         expect(promisedAtOf(null, '', NOW)).toBeNull();
     });
-    it('🔴 화면은 서버 문만 — 짐 단위는 shared CARGO_UNITS · «상대 취소» 사실 칸 없음(메모 글) · 짐은 상차에서만', () => {
+    it('🔴 화면은 서버 문만 — 짐 단위는 shared CARGO_UNITS · «상대 취소»는 체크 칸(손댔을 때만 실음) · CANCEL 버튼 없음 · 짐은 상차에서만', () => {
         const calls = read('ops/src/pages/Calls.tsx');
         expect(calls).toContain("api.calls(");
         expect(calls).toContain("api.writeCallNote(c.id, note)");
         expect(calls).toContain('CARGO_UNITS.map(');
-        expect(calls).not.toMatch(/counterpartCancelled|cargoSize/);
+        expect(calls).not.toMatch(/cargoSize/);
+        expect(calls).toContain('...(cancelTouched != null ? { counterpartCancelled: cancelTouched } : {})');   // 안 건드리면 안 싣는다 — 서버가 그대로 둔다
+        expect(calls).toContain('placeholder="통화에서 들은 것"');
+        /* 적은 뒤에 온 취소 소식 — 아래 목록 줄의 글 버튼은 그 사실 칸만 싣는다(짐 · 약속 · 메모는 비워 보내 서버가 그대로 둔다) · 지우기는 한 번 묻는다 */
+        expect(calls).toContain("unit: null, quantity: null, promisedArrivalAt: null, memo: '', counterpartCancelled: !on");
+        expect(calls).toContain('if (on && !window.confirm(');
+        expect(calls).toContain('<CancelToggle c={c} reload={reload} />');
+        expect(calls.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/<Button[^>]*>[^<]*(CANCEL|취소)[^<]*<\/Button>|decide|emit\(/);   // 결재는 기사 몫
         expect(calls).toContain('unit: pickup ? unit : null');
         const ops = read('ops/src/api/ops.ts');
         expect(ops).toMatch(/post<OpsCall>\(`\/calls\/\$\{id\}\/note`, note\)/);
