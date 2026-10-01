@@ -25,6 +25,7 @@
     "lint:gate": "pnpm --filter client-app lint:gate",
     "log": "node scripts/log.mjs",
     "gen:regions": "node scripts/gen-regions.mjs",
+    "gen:pages": "node scripts/gen-pages.mjs",
     "gen:admin-dongs": "node scripts/gen-admin-dongs.mjs"
   },
   "pnpm": {

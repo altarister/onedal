@@ -40,6 +40,7 @@
 | `pnpm route:order` | 「상차 먼저」 vs 「지나가는 길목부터」(지금 규칙) 순서 비교 | 직선거리다 — 카카오 실주행과 다르다 | 돈다 |
 | `pnpm net:compare` | 그물 두 벌(지도 `callNet` ↔ 서버 turf)의 통과 동 목록 차이 | 두 계산은 같은 질문이 아니다 — 차이의 크기일 뿐 · 판정이 없다 | 돈다 |
 | `pnpm gen:regions` | 서버 지도 산출물(`shared/src/dongCentroids.ts`)에서 원달앱 전체 주소 명부(`RegionRegister.kt`)를 뽑는다 — 지도를 다시 만들어 dongCentroids 를 다시 뽑은 뒤 돌린다. 원달앱 명부를 손으로 적으면 서버 지도와 갈라진다 | 판정이 없다 — 뽑는 도구 · dongCentroids 자체는 다시 뽑지 않는다 | 도구 아님 — 짝은 원달앱 `AddressFormTest` 의 «명부는 서버 지도 산출물과 같다»가 문다 |
+| `pnpm gen:pages` | 배차망 화면 정의 표(`shared/src/networkPages.ts` — 화면 · 칸 · 자리 글 · 견본 · 읽나 · 읽는 법)에서 원달앱 화면 정의 셋(`InsungPages.kt` · `Hwamul24Pages.kt` · `KakaoPickerPages.kt`)을 생성 파일로 뽑는다 — 표를 고친 뒤 돌린다. 원달앱 정의를 손으로 고치면 표 · 서버와 갈라진다 | 판정이 없다 — 뽑는 도구 · 읽는 법(정규식)이 실제 화면 글을 맞게 읽는지는 안 본다(그건 공통 문제지 `shared/src/pageReadCases.json` 몫) | 도구 아님 — 짝은 원달앱 `NetworkPagesPairTest`(표 = 코틀린 · 생성 파일 머리) · 문제지는 원달앱 `PageFieldReadTest` 와 shared `networkPages.test` 가 같이 푼다 |
 | `pnpm gen:admin-dongs` | 행정안전부 «행정기관(행정동) 및 관할구역(법정동)» 꾸러미의 KIKmix 파일(인자로 경로)에서 명부와 같은 시도 범위의 행정동 → 관할 법정동 표(`shared/src/adminDongs.ts`)를 뽑는다 — 픽커 화면의 행정동 하차가 목적지 낱말에 들게. 원천 파일은 레포 밖(받는 곳 · 기준일은 산출물 머리) | 판정이 없다 — 뽑는 도구 · 원천을 내려받지 않는다(사람이 받아 경로를 준다) · 동 단위만(읍 · 면은 행정과 법정이 같고 리는 명부 밖) | 2026-10-02 KIKmix.20260930 으로 뽑아 위례동(수정구 · 송파구) · 광남1동 · 역삼1동 · 처인구 중앙동이 드는 것을 봤다 · 검사 adminDongs 가 그 표로 서버 낱말을 문다 |
 
 🔧 **도구를 손볼 때**
