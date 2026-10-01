@@ -31,7 +31,7 @@ class DecisionExecutionTest {
     @Test
     fun `🔴 500ms 콜백 밖에서 세션을 즉시 비우지 않는다`() {
         val body = executeBody()
-        // 500ms 기다림은 장부로 건다(WaitBook «판결 버튼») — 콜백 끝(recycle) 뒤가 «콜백 밖»이다
+        // 500ms 기다림은 장부로 건다(WaitBook «결재 버튼») — 콜백 끝(recycle) 뒤가 «콜백 밖»이다
         val afterDelay = body.substring(body.lastIndexOf("rootNode.recycle()") + "rootNode.recycle()".length)
         assertFalse("콜백 밖(즉시)에서 resetSessionState() 를 부른다 — 버튼을 누르기 전에 세션이 비워진다",
             afterDelay.contains("resetSessionState()"))
@@ -40,7 +40,7 @@ class DecisionExecutionTest {
     @Test
     fun `🔴 세션 비우기는 버튼을 눌렀든 못 찾았든 그 뒤 - 비상 보고 뒤·recycle 앞`() {
         val body = executeBody()
-        val callback = body.substring(body.indexOf("waitBook.schedule(\"판결 버튼\"", body.indexOf("val targetBtnStr")))
+        val callback = body.substring(body.indexOf("waitBook.schedule(\"결재 버튼\"", body.indexOf("val targetBtnStr")))
         val report = callback.indexOf("sendEmergencyReport(")
         val recycle = callback.indexOf("rootNode.recycle()")
         val reset = callback.lastIndexOf("resetSessionState()")

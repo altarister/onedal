@@ -1,5 +1,6 @@
 package com.onedal.app
 
+import com.onedal.app.core.KeepCloseWait
 import android.accessibilityservice.AccessibilityService
 import com.onedal.app.core.LogTag
 import android.graphics.Rect
@@ -776,6 +777,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 if (com.onedal.app.core.HandFirst.isClickHand(android.os.SystemClock.elapsedRealtime(), touchManager.lastAppTapAtMs)) {
                     onHand("누름")
                     releaseFoldOnHand("상세 누름")
+                    if (telemetryManager.currentScreenContext != ScreenContext.LIST) lastDetailHandAtMs = android.os.SystemClock.elapsedRealtime()   // 👆 KEEP «닫기»가 본다
                 }
                 val nodeTexts = mutableListOf<String>()
                 event.source?.let { gatherNodeTexts(it, nodeTexts) }
@@ -802,7 +804,10 @@ class HijackService : AccessibilityService(), ScanContext {
             val t = android.os.SystemClock.elapsedRealtime()
             lastTargetEventMs = t; eventSinceRead = true
             // ⏩ 상세 안 스크롤은 기사님 손 — 앱이 연 콜의 빨리 접기를 푼다
-            if (event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) releaseFoldOnHand("상세 스크롤")
+            if (event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+                releaseFoldOnHand("상세 스크롤")
+                if (telemetryManager.currentScreenContext != ScreenContext.LIST) lastDetailHandAtMs = t   // 👆 KEEP «닫기»가 본다
+            }
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
                 recentContentEvents.addLast(t)
                 while (recentContentEvents.isNotEmpty() && t - recentContentEvents.first() > com.onedal.app.core.AlarmHold.MOVING_WINDOW_MS) recentContentEvents.removeFirst()
@@ -2016,35 +2021,65 @@ class HijackService : AccessibilityService(), ScanContext {
         AppLogger.roadmap(LogTag.DECISION, "🛡️ 관제탑 판결 수신 (Action: $decision) → '$targetBtnStr' 버튼 클릭 집행 개시", telemetryManager.currentScreenContext.name)
         AppLogger.d(TAG, LogTag.DECISION, "⚡ 판결 집행: 행동=$decision, 누를버튼=$targetBtnStr (버튼클릭을 시작합니다), 500ms 지연")
         
-        // ⏳ 판결 몫 — «취소» 누름이 곧 계약 취소라, 그 사이 콜이 끝나도(목록 오탐 리셋) 거두지 않는다
-        waitBook.schedule("판결 버튼", com.onedal.app.core.WaitBook.DECISION, 500) {
-            val rootNode = rootInActiveWindow
-            if (rootNode == null) {
-                resetSessionState()
-                return@schedule
-            }
-            if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = effectiveMode)) {
-                touchManager.noteAppLeft()   // 🚪 판결 버튼으로 떠난 목록 복귀는 기사님 손이 아니다
-                if (decision == "KEEP") {
-                    AppLogger.roadmap(LogTag.DECISION, "✅ 판결 KEEP 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 합짐 콜 잡기 루프 회귀", telemetryManager.currentScreenContext.name)
-                } else {
-                    AppLogger.roadmap(LogTag.DECISION, "❌ 판결 CANCEL 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 기존 모드 루프 회귀", telemetryManager.currentScreenContext.name)
-                }
-                AppLogger.d(TAG, LogTag.DECISION, "🎉 행동 완료! 타겟($targetBtnStr) 명중.")
-            } else {
-                AppLogger.e(TAG, "❌ 대상 버튼($targetBtnStr)을 찾을 수 없음.")
-                sendEmergencyReport(EmergencyReason.BUTTON_NOT_FOUND, "판결 $decision 의 대상 $targetBtnStr 버튼 누락")
-            }
-            /**
-             * 🛡️ **세션은 버튼을 누른 뒤에 비운다** (18번 1.1.9 · 코드리뷰 C-2).
-             *    500ms 콜백 밖에서 즉시 비우면 ① 버튼을 못 찾았을 때 위 비상 보고의 콜 id 가 이미 비어
-             *    `unknown` 으로 나가고 ② 그 500ms 동안 «잡는 중이 아님»이라 다음 스캔이 끼어들며
-             *    ③ 서버는 버튼이 눌리기도 전에 «리스트로 돌아왔다»(홀드 해제)를 받는다.
-             *    눌렀든 못 찾았든 여기 한 곳이다 — 검사: `DecisionExecutionTest`.
-             */
-            resetSessionState()
-            rootNode.recycle()
+        // ⏳ 결재 몫 — «취소» 누름이 곧 계약 취소라, 그 사이 콜이 끝나도(목록 오탐 리셋) 거두지 않는다
+        val firstAtMs = android.os.SystemClock.elapsedRealtime() + 500
+        val screenAtFirst = telemetryManager.currentScreenContext
+        val orderAtFirst = session.currentOrderId
+        waitBook.schedule("결재 버튼", com.onedal.app.core.WaitBook.DECISION, 500) {
+            pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = false)
         }
+    }
+
+    /** 👆 상세 안 기사님 손의 마지막 시각(누름 · 스크롤) — KEEP «닫기»가 기다릴지 본다 (`KeepCloseWait`) */
+    private var lastDetailHandAtMs = 0L
+
+    /**
+     * 🛡️ **결재 버튼 한 번 누르기** — KEEP «닫기»는 기사님 손이 상세에 있으면 멈출 때까지(최대 3초) 같은 이름으로 다시 건다.
+     * 다시 걸었다 누를 때는 화면·콜을 다시 본다 — 그사이 상세를 떠났거나 다른 콜이면 누르지 않는다(`KeepCloseWait.skipWhy`).
+     */
+    private fun pressDecisionButton(decision: String, targetBtnStr: String, firstAtMs: Long,
+                                    screenAtFirst: ScreenContext, orderAtFirst: String, waited: Boolean) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (waited) com.onedal.app.core.KeepCloseWait.skipWhy(screenAtFirst, telemetryManager.currentScreenContext, orderAtFirst, session.currentOrderId)?.let { why ->
+            AppLogger.i(TAG, LogTag.DECISION, "⏭️ [닫기 건너뜀] $why — 누르지 않는다")
+            return
+        }
+        val wait = if (decision == "KEEP") KeepCloseWait.waitMs(now, firstAtMs, lastDetailHandAtMs) else null
+        if (wait != null) {
+            AppLogger.i(TAG, LogTag.DECISION, "⏳ [닫기 미룸] 상세 손 ${now - lastDetailHandAtMs}ms 전 · ${wait}ms 뒤 다시")
+            waitBook.schedule("결재 버튼", com.onedal.app.core.WaitBook.DECISION, wait) {
+                pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = true)
+            }
+            return
+        }
+        if (decision == "KEEP" && now >= firstAtMs + KeepCloseWait.MAX_MS && now - lastDetailHandAtMs < KeepCloseWait.QUIET_MS)
+            AppLogger.i(TAG, LogTag.DECISION, "👆 [닫기] 손이 계속 있어 ${KeepCloseWait.MAX_MS / 1000}초 뒤 누름")
+        val rootNode = rootInActiveWindow
+        if (rootNode == null) {
+            resetSessionState()
+            return
+        }
+        if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = effectiveMode)) {
+            touchManager.noteAppLeft()   // 🚪 결재 버튼으로 떠난 목록 복귀는 기사님 손이 아니다
+            if (decision == "KEEP") {
+                AppLogger.roadmap(LogTag.DECISION, "✅ 판결 KEEP 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 합짐 콜 잡기 루프 회귀", telemetryManager.currentScreenContext.name)
+            } else {
+                AppLogger.roadmap(LogTag.DECISION, "❌ 판결 CANCEL 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 기존 모드 루프 회귀", telemetryManager.currentScreenContext.name)
+            }
+            AppLogger.d(TAG, LogTag.DECISION, "🎉 행동 완료! 타겟($targetBtnStr) 명중.")
+        } else {
+            AppLogger.e(TAG, "❌ 대상 버튼($targetBtnStr)을 찾을 수 없음.")
+            sendEmergencyReport(EmergencyReason.BUTTON_NOT_FOUND, "판결 $decision 의 대상 $targetBtnStr 버튼 누락")
+        }
+        /**
+         * 🛡️ **세션은 버튼을 누른 뒤에 비운다** (18번 1.1.9 · 코드리뷰 C-2).
+         *    500ms 콜백 밖에서 즉시 비우면 ① 버튼을 못 찾았을 때 위 비상 보고의 콜 id 가 이미 비어
+         *    `unknown` 으로 나가고 ② 그 500ms 동안 «잡는 중이 아님»이라 다음 스캔이 끼어들며
+         *    ③ 서버는 버튼이 눌리기도 전에 «리스트로 돌아왔다»(홀드 해제)를 받는다.
+         *    눌렀든 못 찾았든 여기 한 곳이다 — 검사: `DecisionExecutionTest`.
+         */
+        resetSessionState()
+        rootNode.recycle()
     }
 
     private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "") {
