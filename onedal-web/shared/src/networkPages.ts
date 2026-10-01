@@ -37,6 +37,13 @@ export interface NetworkPageSpec {
     excludeScan: PageField[];
     /** 그 칸들로 정한 까닭 한 줄(기사님 말) */
     excludeScanWhy: string;
+    /**
+     * 🏠 **주소 다듬기** — 서버가 카카오 주소 찾기 전에 콜 주소에서 이 정규식에 맞는 부분을 지우고 앞뒤 공백을 자른다(reviews/34 3단계 5②).
+     * null 이면 앞뒤 공백만. 원달앱은 읽지 않는다 · gen:pages 는 이 칸을 뽑지 않는다.
+     */
+    addressCut: string | null;
+    /** 그렇게 다듬는 까닭 한 줄 */
+    addressCutWhy: string;
 }
 
 export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
@@ -44,6 +51,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "about": ["📄 **인성 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/인성 · 시뮬 onedal-sim).", "⚠️ 실물 인성 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처 몇 장이 근거다. 설치하면 이 표부터 다시 본다."],
     "excludeScan": ["memo", "payment", "tags"],
     "excludeScanWhy": "기사님 «인성은 적요»(+ 결제 괄호 «(착불)» · 구분 «왕복») — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다",
+    "addressCut": "\\(.*?\\)$",
+    "addressCutWhy": "끝에 붙는 «(건물명)»을 지운다 — 첫 «(»부터 끝까지(서버 옛 InsungPlugin.normalizeAddress 와 같은 답)",
     "pages": {
       "list": [
         {"field": "pickup", "where": "출발지 칸", "sample": "@초이동 · @남양주(오남", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},
@@ -64,7 +73,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "commission", "where": "수수료 줄", "sample": "수수료 : 23%", "seen": "REAL", "handling": "UNUSED"},
         {"field": "tags", "where": "구분 줄", "sample": "구분 : 편도", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «편도» · «왕복» · 원달앱은 이 칸을 안 읽는다", "read": "구분\\s*:\\s*(?!\\S*\\s*:)(\\S+)"},
         {"field": "reservation", "where": "형태 줄", "sample": "형태 : 보통 (실물에서 «예약»은 못 봄)", "seen": "UNKNOWN", "handling": "UNUSED"},
-        {"field": "memo", "where": "적요 칸 · 적요 상세 팝업", "sample": "1시상차 6박스 카트가지고 고객님앞 갖다주세요", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — 원달앱 상세 원문의 «[적요상세/정보]» 팝업 글 · 원달앱은 이 칸을 안 읽는다", "read": "적요 내용\\s+([\\s\\S]*?)(?=\\s*(?:닫기|\\[출발지상세\\]|\\[도착지상세\\])|$)"},
+        {"field": "memo", "where": "적요 칸 · 적요 상세 팝업", "sample": "1시상차 6박스 카트가지고 고객님앞 갖다주세요", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — 본문 «적요상세» 줄(없으면 팝업 «적요 내용»)부터 출발지 · 도착지 팝업 머리 앞까지(적요 팝업을 못 연 상세도 본문 적요를 본다 · «[적요상세/정보]» 머리표는 시작으로 안 친다 · 사이의 버튼 글 «출발지 · 도착지 · 확정 · 취소 · 닫기»도 든다) · 원달앱은 이 칸을 안 읽는다", "read": "(?:적요상세(?!/)|적요 내용)\\s+([\\s\\S]*?)(?=\\s*(?:\\[출발지상세\\]|\\[도착지상세\\])|$)"},
         {"field": "pickupDistance", "where": "적요 칸 둘째 줄", "sample": "현위치 → 상차지(직선)23.5KM", "seen": "REAL", "handling": "UNUSED"},
         {"field": "deliveryDistance", "where": "적요 칸 셋째 줄", "sample": "상차지 → 하차지(직선)35.9KM", "seen": "REAL", "handling": "UNUSED"},
         {"field": "pickup", "where": "출발지 상세 팝업 «위치»", "sample": "경기 용인시 처인구 양지면 …", "seen": "SIM", "handling": "READ", "usedAt": "InsungPopupAddress"},
@@ -90,6 +99,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "about": ["📄 **화물24시 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/화물24시).", "⚠️ 실물 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처가 근거다. 시뮬 상세 화면은 실물과 모양이 달라(머리 «배차내역») 상세까지 못 간다."],
     "excludeScan": ["memo", "payment"],
     "excludeScanWhy": "기사님 «화물24시는 화물정보»(+ 결제방법 «착불») — 화주 이름 줄(«화물과퀵») · «60분 안보기» · 버튼 · 주소는 안 본다",
+    "addressCut": ",[\\s\\S]*$",
+    "addressCutWhy": "첫 쉼표부터 끝(뒤 상세 주소)을 지운다(서버 옛 Hwamul24Plugin.normalizeAddress 와 같은 답)",
     "pages": {
       "list": [
         {"field": "pickup", "where": "왼쪽 윗줄", "sample": "경기 시흥 정왕동", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse"},
@@ -130,6 +141,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "about": ["📄 **카카오 픽커 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/카카오픽커/실물_2026 · 실물 로그).", "칸 이름은 세 배차망 공통(`PageField`) — 여기에는 «어디서 · 어떤 글자로»만 적는다.", "안 읽는·버리는 칸(UNUSED·DROPPED)이 다음에 읽을 재료다."],
     "excludeScan": ["itemSize", "memo"],
     "excludeScanWhy": "기사님 «카카오픽커는 물품정보»+«가» 유의사항 — 둘 다 «최종 수익» · 버튼 앞에서 끝난다 · 픽업지 주소 · 목록 잔상은 안 본다",
+    "addressCut": null,
+    "addressCutWhy": "지우지 않는다 — 원달앱이 이미 «구 동»으로 정리해 보낸다(앞뒤 공백만)",
     "pages": {
       "list": [
         {"field": "fare", "where": "목록 줄 오른쪽", "sample": "16,093", "seen": "REAL", "handling": "READ", "usedAt": "KakaoPickerParser.parse"},

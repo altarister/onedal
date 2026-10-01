@@ -77,3 +77,24 @@ describe('제외어 찾는 칸 (excludeScan)', () => {
         }
     });
 });
+
+/**
+ * 🏠 **주소 다듬기(addressCut)** — 서버 옛 플러그인 normalizeAddress 와 글자까지 같은 답(reviews/34 3단계 5② · 판정 무변화 · onedal-46).
+ * 옛 함수를 글자 그대로 옮겨 견본마다 대조한다 — 정규식을 «더 맞게» 고치면(예: 인성 `\([^)]*\)$`) 여기서 빨개진다.
+ */
+describe('주소 다듬기 (addressCut)', () => {
+    const OLD: Record<string, (a: string) => string> = {
+        insung: a => a.replace(/\(.*?\)$/g, '').trim(),
+        hwamul24: a => a.split(',')[0].trim(),
+        kakaopicker: a => a.trim(),
+    };
+    const SAMPLES = ['서울 강남구 역삼동 123 (역삼빌딩)', '가 (나) 다 (라)', '경기 군포 부곡동, 101동 1호', ' 용산 한남 ', '경기 광주시 경안동', '(앞괄호) 서울 중구', '', ',앞쉼표'];
+    it('배차망마다 칸이 있고 · 공통 문법 · 옛 플러그인과 같은 답', () => {
+        for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
+            expect(spec.addressCut === null || typeof spec.addressCut === 'string', `${net} addressCut`).toBe(true);
+            if (spec.addressCut) expect(spec.addressCut, `${net} — 금지 문법`).not.toMatch(/\\p\{|\(\?<[A-Za-z]|\+\+|\*\+|\?\+|\(\?[imsx]|\\[bBwW]/);
+            const cutOf = (a: string) => (spec.addressCut ? a.replace(new RegExp(spec.addressCut), '') : a).trim();
+            for (const a of SAMPLES) expect(cutOf(a), `${net} «${a}»`).toBe(OLD[net](a));
+        }
+    });
+});
