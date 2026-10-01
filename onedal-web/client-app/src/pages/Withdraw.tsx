@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@onedal/ui/button';
 import { Checkbox } from '@onedal/ui/checkbox';
+import { useAuth } from '../contexts/AuthContext';
 import { submitWithdraw } from '../api/join';
 import { ContentSlot, JoinShell, SectionCard } from './JoinSteps';
 
 /**
  * 🚪 **탈퇴 — 안내 → 확인 → 끝** (reviews/29 6장 «탈퇴 · 파기»).
  *    무엇을 지우고 무엇을 몇 달 남기나는 개인정보 처리방침과 짝으로 정한다 — 지금은 목록 자리만 있다.
- *    🔴 서버가 하는 일은 «탈퇴 시각을 적고 폰 보고를 거절»까지 — `api/join.ts` 가 부른다.
+ *    🔴 서버가 하는 일은 «탈퇴 시각을 적고 폰 보고를 거절»까지(`POST /api/join/withdraw`) — `api/join.ts` 가 부른다. 끝나면 로그아웃.
  */
 
 /** 형식 — 실제 항목과 기간은 처리방침(운영센터 «페이지 글»)이 정한다 */
@@ -23,10 +24,16 @@ export default function Withdraw() {
     const [confirmed, setConfirmed] = useState(false);
     const [done, setDone] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const { logout } = useAuth();
 
     const run = async () => {
         setBusy(true);
-        try { await submitWithdraw(); setDone(true); } finally { setBusy(false); }
+        setError(null);
+        try { await submitWithdraw(); setDone(true); }
+        catch { setError('탈퇴를 보내지 못했습니다 — 잠시 뒤 다시 눌러 주세요.'); }
+        finally { setBusy(false); }
     };
 
     if (done) {
@@ -37,13 +44,14 @@ export default function Withdraw() {
                     <div className="font-bold">이 계정의 폰 보고는 이제 거절됩니다</div>
                     <p className="text-sm text-text-muted">자료는 위 목록의 시점에 지워집니다. 다시 쓰려면 새로 가입하세요.</p>
                 </div>
-                <Button asChild variant="outline" className="w-full"><Link to="/join">가입 화면으로</Link></Button>
+                <Button type="button" variant="outline" className="w-full" onClick={async () => { await logout(); navigate('/login', { replace: true }); }}>로그아웃</Button>
             </JoinShell>
         );
     }
 
     return (
         <JoinShell title="탈퇴" subtitle="되돌릴 수 없습니다 — 천천히 읽어 주세요">
+            {error && <div className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm">{error}</div>}
             <ContentSlot kind="withdrawGuide" placeholder="예: 탈퇴하면 무엇이 지워지고 무엇이 남는지 한 문단" />
             <SectionCard title="지워지는 것">
                 <ul className="space-y-2 text-sm">

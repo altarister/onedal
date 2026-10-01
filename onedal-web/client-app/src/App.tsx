@@ -12,6 +12,10 @@ import JoinApps from "./pages/JoinApps";
 import Pending from "./pages/Pending";
 import Withdraw from "./pages/Withdraw";
 import Terms from "./pages/Terms";
+import Blocked from "./pages/Blocked";
+import { fetchMeSafe } from "./api/join";
+import { gateDecision, type GateDecision } from "./lib/joinFlow";
+import type { ContentKind } from "@onedal/shared";
 import { logRoadmapEvent, startMemoryWatch } from "./lib/roadmapLogger";
 import { useAuth } from "./contexts/AuthContext";
 import { useNativeLocation } from "./hooks/useNativeLocation";
@@ -42,6 +46,38 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
   
   return <>{children}</>;
+}
+
+/**
+ * 🚪 **로그인 뒤 문지기** — `/api/join/me` 를 한 번 읽어 승인 전이면 승인 대기로, 막힘(정지 · 탈퇴 · 유료 기한)이면 «이용이 멈췄습니다»로 보낸다.
+ *    갈래는 `lib/joinFlow` 의 `gateDecision` 하나 — 🔴 문이 안 되면(옛 서버 · 장애) `ok` 라 기사님 운행을 막지 않는다.
+ *    🔴 읽는 동안 지금 화면을 막지 않는다 — 먼저 그리고, 답이 오면 보낸다 (관제 화면 지연 0).
+ *    🔴 다시 동의할 약관(reconsent)은 화면을 옮기지 않는다 — 운전 중 결재를 못 막게 띠 한 줄만 (`/join?reconsent=1`).
+ */
+function MemberGate() {
+  const location = useLocation();
+  const [decision, setDecision] = useState<GateDecision>('ok');
+  const [reconsent, setReconsent] = useState<ContentKind[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetchMeSafe().then(r => {
+      if (!alive) return;
+      setDecision(gateDecision(r.me, r.failed));
+      setReconsent(r.me?.reconsent ?? []);
+    });
+    return () => { alive = false; };
+  }, []);
+  if (decision === 'pending' && location.pathname !== '/pending') return <Navigate to="/pending" replace />;
+  if (decision === 'blocked' && location.pathname !== '/blocked') return <Navigate to="/blocked" replace />;
+  if (reconsent.length > 0 && location.pathname === '/') {
+    return (
+      <div className="mx-3 mt-3 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-[13px] font-bold text-warning flex items-center gap-2">
+        <span className="flex-1">📄 새 약관 — 동의해 주세요</span>
+        <Link to="/join?reconsent=1" className="shrink-0 rounded-lg bg-warning/20 px-2.5 py-1.5 text-[12px] font-black">동의하러</Link>
+      </div>
+    );
+  }
+  return null;
 }
 
 // Navigation Wrapper
@@ -100,6 +136,8 @@ function AppLayout() {
     <div className="min-h-screen">
       {/* 🛡️ 단일 세션 인계 관리 — 다른 기기에서 열었을 때 충돌 팝업 및 종료 처리 */}
       <SessionGuard />
+      {/* 🚪 승인 전 · 막힘 → 보냄 · 새 약관 → 띠 (문이 안 되면 그대로) */}
+      <MemberGate />
 
       {/* 🧭 **조용히 끄지 않는다** — 이 브라우저를 나중에 관제로 쓸 때
           «왜 궤적이 안 남지»를 헤매지 않도록 화면이 먼저 말한다 (관제웹 규칙:
@@ -120,6 +158,8 @@ function AppLayout() {
         <Route path="/settlement" element={<Settlement />} />
         {/* 🚪 탈퇴 — 로그인한 기사만 (reviews/29 «관제웹 기사 쪽 페이지») */}
         <Route path="/withdraw" element={<Withdraw />} />
+        {/* 🚫 이용이 멈췄습니다 — 정지 · 탈퇴 · 유료 기한 (MemberGate 가 보낸다) */}
+        <Route path="/blocked" element={<Blocked />} />
         {/* 🧭 내비 한 장 자리 — 개인 폰(아이폰)이 여는 화면을 새로 만들면 여기 건다. 지금은 이 줄이 없어
             `/navi` 도 아래 줄로 홈에 간다. 위치는 위에서 끈다 (관제폰과 좌표가 섞이면 도착 판정이 흔들린다) */}
         <Route path="*" element={<Navigate to="/" replace />} />

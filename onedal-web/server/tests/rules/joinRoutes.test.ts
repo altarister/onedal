@@ -26,9 +26,23 @@ describe('📝 가입 쪽 주소', () => {
         }
     });
 
-    it('🔴 탈퇴는 로그인 안(AppLayout)에만 있다', () => {
-        expect(layoutPart).toContain('path="/withdraw"');
-        expect(appPart).not.toContain('path="/withdraw"');
+    it('🔴 탈퇴 · 멈춤은 로그인 안(AppLayout)에만 있다', () => {
+        for (const p of ['/withdraw', '/blocked']) {
+            expect(layoutPart).toContain(`path="${p}"`);
+            expect(appPart).not.toContain(`path="${p}"`);
+        }
+    });
+
+    it('🔴 문지기(MemberGate)가 관제 화면 안에 있고, 문이 안 되면 통과한다 — 기사님 운행을 막지 않는다', () => {
+        expect(layoutPart).toContain('<MemberGate />');
+        expect(layoutPart).toContain('gateDecision(r.me, r.failed)');
+        const flow = readFileSync(join(SRC, 'lib/joinFlow.ts'), 'utf8');
+        expect(flow).toMatch(/if \(failed \|\| !me\) return 'ok'/);
+    });
+
+    it('🔴 다시 동의할 약관은 화면을 옮기지 않는다 — 띠 한 줄만 (운전 중 결재를 못 막게)', () => {
+        expect(layoutPart).not.toMatch(/Navigate to="\/join/);
+        expect(layoutPart).toContain('to="/join?reconsent=1"');
     });
 
     it('🔴 관제 · 정산 줄은 그대로다 — 가입 쪽을 더하며 기사 화면을 건드리지 않는다', () => {
@@ -38,7 +52,7 @@ describe('📝 가입 쪽 주소', () => {
     });
 
     it('🔴 가입 쪽 화면은 서버를 직접 부르지 않는다 — api/join.ts 한 곳', () => {
-        for (const f of ['Join', 'JoinApps', 'Pending', 'Withdraw', 'Terms', 'JoinSteps']) {
+        for (const f of ['Join', 'JoinApps', 'Pending', 'Withdraw', 'Terms', 'JoinSteps', 'Blocked']) {
             const src = readFileSync(join(SRC, 'pages', `${f}.tsx`), 'utf8');
             expect(src).not.toMatch(/apiClient|axios|fetch\(/);
         }
