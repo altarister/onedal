@@ -21,7 +21,7 @@ describe('📰 낱말 표', () => {
     });
 
     it('목록 보고가 screenWords 를 넘긴다 — 없는 보고(옛 앱)는 그냥 지나간다', () => {
-        expect(read('routes/scrap.ts')).toContain('if (body.screenWords) noteScreenWords(userId, targetApp, body.screenWords, req.app.get("io"));');
+        expect(read('routes/scrap.ts')).toContain('if (body.screenWords) noteScreenWords(userId, targetApp, body.screenWords);');
     });
 
     it('아는 낱말은 60초마다 한 트랜잭션으로 모아 쓴다', () => {
@@ -36,10 +36,10 @@ describe('📰 낱말 표', () => {
         expect(s).not.toMatch(/const (SCREEN_PAGES|WORD_KINDS) = \[/);
     });
 
-    it('처음 본 낱말은 경고 한 줄과 관제웹 이벤트', () => {
+    it('처음 본 낱말은 경고 한 줄 — 관제웹 알림은 없다(듣는 곳 0 · 운영센터는 /ops/board/member 의 newWords 로 읽는다)', () => {
         const s = read('services/screenWords.ts');
         expect(s).toContain('📰 [새 글자]');
-        expect(s).toContain("emit('screen-word-new'");
+        expect(s).not.toContain("screen-word-new");
         expect(s).toContain('📰 [조용한 첫 하루 끝]');
     });
 });

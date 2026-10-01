@@ -94,7 +94,7 @@ router.post("/", (req, res) => {
         const targetApp = isTargetApp((req.body as any).targetApp)
             ? (req.body as any).targetApp as TargetAppType : DEFAULT_TARGET_APP;
         /* 📰 화면에서 정의에 없거나 잡음으로 뺀 글자 — 모아 센다 (reviews/24 · 없는 보고는 지나간다) */
-        if (body.screenWords) noteScreenWords(userId, targetApp, body.screenWords, req.app.get("io"));
+        if (body.screenWords) noteScreenWords(userId, targetApp, body.screenWords);
 
         // logRoadmapEvent("서버", "방대한 스크랩 배열값을 intel 테이블 DB 저장");
         // 2. 비동기 Write Queue를 통해 밀려들어오는 데이터를 오류 없이 INSERT

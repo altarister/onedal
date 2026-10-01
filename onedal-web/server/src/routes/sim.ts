@@ -20,8 +20,6 @@ import { ICHEON_ROUND_TRIP, ICHEON_FIVE_OK } from "../core/simScenarioIcheon";
 import { GANGNAM_FIVE_OK } from "../core/simScenarioGangnam";
 import { slog } from "../utils/fileLogger";
 import { waitsOf, globalWaits } from "../state/waits";
-import { intelRowsOf } from "../services/intelRows";
-import type { SimIntelReply } from "@onedal/shared";
 
 const router = Router();
 
@@ -110,46 +108,6 @@ router.get("/driver-location", (_req, res) => {
          */
         source: loc.source,
     });
-});
-
-/**
- * 📋 **올라온 콜을 그대로 읽는 문** (현황판 담당 요청 ③).
- *
- * 담당: *"데이터는 이미 `intel` 에 다 있습니다. 제 화면은 이 규격을 기다리는 상태라
- * 서버가 채우면 제 쪽 수정 없이 바로 뜹니다."*
- *
- * 담당이 판단을 구한 둘에 이렇게 답했다:
- *
- * 🔴 **`type` 이 전부 `INTEL_BULK` 라 «잡은 콜»과 «버린 콜»이 안 갈린다** —
- *    1단계는 **«올라온 콜 전부»** 로 간다. 사유별 구분은 **앱이 «왜 버렸나»를 함께
- *    보내야** 성립하는 별건이다. 서버가 지금 있는 값으로 지어내면 **틀린 사유가
- *    화면에 뜬다** (규칙 ④ — 없는 것을 지어내지 않는다).
- *
- * 🔴 **주소가 `addressOf`(shared · 배차망 정의 표 addressCut)를 거친 짧은 이름이다** (`분당구` → `구미동`) —
- *    **그대로 낸다.** 여기서 되돌리면 원장(`intel`)과 화면이 다른 말을 한다 (규칙 ③).
- *
- * 🔴 **라이브에서는 404 다.** 기사님께 올라온 콜 목록이 통째로 나가는 문이라
- *    `/driver-location`·`/preflight` 와 **같은 문지기**를 쓴다.
- * ⚠️ 지금 41행이지만 **4만 행이 될 날이 온다** — `limit` 에 상한을 건다.
- */
-router.get("/intel", (req, res) => {
-    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
-
-    /* 상한 200 · 기본 40 — 숫자가 아니면 기본으로 (지어내지 않고 되묻지도 않는다) */
-    const asked = Number.parseInt(String(req.query.limit ?? ''), 10);
-    const limit = Math.min(200, Math.max(1, Number.isFinite(asked) ? asked : 40));
-
-    /* 📋 리스트 화면이 준 것을 그대로 — 원장 읽기는 services/intelRows 한 곳(운영센터 현황판과 같이) */
-    const { rows, total } = intelRowsOf({ limit });
-
-    const body: SimIntelReply = {
-        ok: true,
-        limit,
-        /** 🔴 **«전부»가 아니라 «최근 N»이다** — 화면이 그렇게 말할 수 있게 총수를 함께 낸다 */
-        total,
-        rows,
-    };
-    return res.json(body);
 });
 
 /**

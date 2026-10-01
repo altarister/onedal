@@ -121,38 +121,10 @@ describe('② 폰이 든 필터 지문을 남긴다 (현황판 ②)', () => {
  * ③ 올라온 콜을 읽는 문
  * ══════════════════════════════════════════════════════════════════════════ */
 
-/**
- * 📋 **올라온 콜을 읽는 문 — 데이터는 원장에 있다** (현황판 담당 요청 ③).
- *
- * 담당이 판단을 구한 둘에 답한다:
- *   · `type` 이 전부 `INTEL_BULK` 라 **잡은 콜과 버린 콜이 안 갈린다**
- *     → 지금은 **«올라온 콜 전부»** 를 낸다. 사유별 구분은 **앱이 함께 보내야** 하는 별건이다
- *   · 주소가 `addressOf`(shared · 배차망 정의 표 addressCut)를 거친 짧은 이름(`분당구` → `구미동`)이다
- *     → 그대로 낸다. 여기서 되돌리면 **원장과 화면이 다른 말**을 한다 (규칙 ③)
- *
- * 🔴 **라이브에서는 404 다.** 기사님의 콜 목록이 통째로 나가는 문이라
- *    `/driver-location`·`/preflight` 와 **같은 문지기**를 쓴다.
- */
-describe('③ 올라온 콜을 읽는 문 (현황판 ③)', () => {
-    const sim = read('routes/sim.ts');
-
-    it('🔴 /intel 라우트가 있다', () => {
-        expect(sim).toMatch(/router\.get\(["']\/intel["']/);
-    });
-
-    it('🔴 개발 빌드에서만 열린다 — 기사님 콜 목록이 나가는 문이다', () => {
-        const i = sim.indexOf(`router.get("/intel"`);
-        expect(i).toBeGreaterThan(-1);
-        /* **그 라우트 안만** 본다 — 다른 라우트의 문지기에 걸려 거짓 초록이 되지 않게 */
-        const body = sim.slice(i, sim.indexOf('\n});', i));
-        expect(body).toMatch(/isDevBuild\(\)/);
-        expect(body).toMatch(/404/);
-    });
-
-    it('🔴 limit 은 받되 상한이 있다 — 41행이 4만 행이 될 날이 온다', () => {
-        const i = sim.indexOf(`router.get("/intel"`);
-        const body = sim.slice(i, sim.indexOf('\n});', i));
-        expect(body).toMatch(/limit/);
-        expect(body).toMatch(/Math\.min/);
+/** 📋 **올라온 콜(원장 intel)을 사람에게 보이는 문은 운영센터 하나** — 줄 읽기는 services/intelRows 한 곳 */
+describe('③ 올라온 콜을 읽는 문', () => {
+    it('🔴 원장(intel)을 사람에게 보이는 문은 운영센터 /board/intel 하나 — 관제웹 개발 빌드 /sim/intel 문은 없다(현황판 칸을 걷음 · ea 7303f2fb)', () => {
+        expect(read('routes/sim.ts')).not.toMatch(/router\.get\(["']\/intel["']/);
     });
 });
+

@@ -1,4 +1,3 @@
-import type { OpsBoardIntel } from './ops';
 
 /**
  * 📦 **서버 응답 · 소켓 알림의 모양 — 한 곳** (공통 함수 6 · `sharedReplies` 검사).
@@ -65,10 +64,6 @@ export interface FilterPassAlarm {
     at: number;
 }
 
-// ── 원장(GET /api/sim/intel · 개발 빌드 · 관제웹 현황판 «버린 콜») ──────────
-
-/** 운영센터 현황판(OpsBoardIntel)과 같은 줄 · 총수 + 개발 문의 표식 둘 */
-export type SimIntelReply = OpsBoardIntel & { ok: true; limit: number };
 
 // ── 서버 상태(GET /api/health · 로그인 없이) ────────────────────────
 

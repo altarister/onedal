@@ -140,24 +140,7 @@ describe('🚪 앱 필터를 읽는 문 둘', () => {
         expect(out.app).toBeNull();
         expect(peekUserSession(U)).toBeUndefined();
     });
-    it('🔴 관제웹 /app-filter — 본인 폰이면 폰이 받는 값', async () => {
-        clearUserSession(U);
-        await report(false);
-        const h = handlerOf(devicesRouter, '/app-filter', 'get');
-        expect(h).not.toBeNull();
-        const { status, out } = await run(h, { user: { id: U }, query: { deviceId: DEV } });
-        const s = getUserSession(U);
-        expect(status).toBe(200);
-        expect(out.filter).toEqual(appFilterOf(s, U, DEV, s.reservedPickup ?? null).filter);
-    });
-    it('🔴 관제웹 /app-filter — 남의 폰이면 404 · 세션 없으면 null 이고 세션 안 만듦', async () => {
-        const h = handlerOf(devicesRouter, '/app-filter', 'get');
-        expect(h).not.toBeNull();
-        expect((await run(h, { user: { id: O }, query: { deviceId: DEV } })).status).toBe(404);
-        clearUserSession(U);
-        const { status, out } = await run(h, { user: { id: U }, query: { deviceId: DEV } });
-        expect(status).toBe(200);
-        expect(out.filter).toBeNull();
-        expect(peekUserSession(U)).toBeUndefined();
+    it('🔴 앱 필터를 사람에게 보이는 문은 운영센터 /board/filter 하나 — 관제웹 /app-filter 문은 없다(현황판 칸을 걷음 · ea 7303f2fb)', () => {
+        expect(handlerOf(devicesRouter, '/app-filter', 'get')).toBeNull();
     });
 });

@@ -267,8 +267,6 @@ export type AppFilter = Record<string, unknown>;
 /** 필터 전문 — active 는 오늘 세션이 있을 때만(없으면 null · 세션을 만들지 않는다) · base 는 평소 설정 · app 은 그 회원 폰마다(세션 없으면 null) */
 export interface OpsBoardFilter { active: AutoDispatchFilter | null; base: AutoDispatchFilter; app: Array<{ deviceId: string; filter: AppFilter }> | null }
 
-/** 관제웹 본인 폰 하나의 앱 필터 — 세션이 없으면 null(세션을 만들지 않는다) */
-export interface AppFilterReply { filter: AppFilter | null }
 
 /**
  * 🗺️ 현황판 «카카오 호출 — 오늘 / 이달» — 이달(1일~오늘)에 한 번이라도 센 주인만 줄로 · 합계는 화면이 줄을 더한다.

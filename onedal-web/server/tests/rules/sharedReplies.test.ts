@@ -32,7 +32,6 @@ describe('📦 응답 모양 shared', () => {
         expect(read('server/src/routes/devices.ts')).toMatch(/: FilterPassAlarm = /);
         expect(read('server/src/routes/health.ts')).toMatch(/: HealthReply = /);
         expect(read('server/src/routes/logbook/filterDays.ts')).toMatch(/: FilterDaysReply = /);
-        expect(read('server/src/routes/sim.ts')).toMatch(/: SimIntelReply = /);
         expect(read('shared/src/index.ts')).toMatch(/export \* from '\.\/replies'/);
     });
 });

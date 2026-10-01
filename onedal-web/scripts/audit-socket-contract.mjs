@@ -36,10 +36,7 @@ const BUILTIN = new Set(['connect', 'disconnect', 'connect_error', 'reconnect', 
  *
  * ⚠️ 이미 구현된 이벤트가 여기 남아 있으면, 이 검사가 막으려던 사고를 이 검사가 만든다.
  */
-const KNOWN_GAPS = {
-    /* 📰 관제웹 현황판 «새 글자» 칸이 운영센터 회원 «폰 · 필터»로 갔다 — 서버 쪽 알림을 걷을지는 서버 몫(onedal-46). 걷히면 이 줄을 뺀다 */
-    'screen-word-new': '듣는 곳 없음 — 새 글자 칸은 운영센터(GET /api/ops/board/member) · 서버 알림 걷기 대기',
-};
+const KNOWN_GAPS = {};
 
 function walk(dir, out = []) {
     for (const name of readdirSync(dir)) {

@@ -88,7 +88,7 @@ const stmtUpsert = db.prepare(`
     ON CONFLICT (target_app, page, word, kind) DO UPDATE SET last_seen = excluded.last_seen, seen_count = seen_count + excluded.seen_count
 `);
 
-export function noteScreenWords(userId: string, targetApp: string, report: LooseReport, io?: any): void {
+export function noteScreenWords(userId: string, targetApp: string, report: LooseReport): void {
     try {
         const r = wordsOf(report);
         if (!r || r.words.length === 0) return;
@@ -114,7 +114,6 @@ export function noteScreenWords(userId: string, targetApp: string, report: Loose
             if (quiet) continue;
             console.warn(`📰 [새 글자] ${targetApp} ${SCREEN_PAGE_LABEL[r.page]} ‹${word}› 처음 봄 (${WORD_KIND_LABEL[kind]})`
                 + (sample ? ` — 예: ${sample.slice(0, 60)}` : ''));
-            io?.to(userId).emit('screen-word-new', { targetApp, page: r.page, word, kind, firstSeen: now, sample });
         }
     } catch (e) {
         console.error('📰 [새 글자] 기록 실패 (보고는 계속):', (e as Error).message);
