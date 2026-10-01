@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { NavLink, Link, useLocation } from 'react-router-dom';
+import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { COLOR_DOT, opsMemberStatus, wonText, type OpsMember } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 import { Badge } from '@onedal/ui/badge';
 import {
-    AlertTriangle, BarChart3, FileText, Map as MapIcon, Megaphone, Moon, MoreHorizontal, Package, Phone, ScrollText, Smartphone, Sun, Users, Wrench, X,
+    AlertTriangle, BarChart3, FileText, LogOut, Map as MapIcon, Megaphone, Moon, MoreHorizontal, Package, Phone, ScrollText, Smartphone, Sun, Users, Wrench, X,
 } from 'lucide-react';
 import { api, currentAdminName, subscribe, useTick } from './api/ops';
+import { logout } from './api/client';
 export { useTick };
 
 /**
@@ -39,6 +40,13 @@ function NavBadge({ n }: { n: number }) {
 export function Shell({ children }: { children: ReactNode }) {
     useTick();
     const location = useLocation();
+    const navigate = useNavigate();
+    const leave = async () => { await logout(); navigate('/login', { replace: true }); };
+    const logoutButton = (
+        <button type="button" onClick={() => void leave()} className="flex items-center gap-1 text-xs text-text-muted rounded-md px-2 py-1 hover:bg-surface-alt" aria-label="로그아웃">
+            <LogOut className="size-3.5" /> 로그아웃
+        </button>
+    );
     const { theme, toggleTheme } = useTheme();   // 관제웹과 같은 토글 · localStorage 에 남는다
     const dark = theme === 'dark';
     const [more, setMore] = useState(false);
@@ -70,7 +78,7 @@ export function Shell({ children }: { children: ReactNode }) {
                     ))}
                 </nav>
                 <div className="mt-auto px-4 py-4 space-y-2 text-[11px] text-text-muted">
-                    {themeButton}
+                    <div className="flex gap-1">{themeButton}{logoutButton}</div>
                     <div>관리자: {currentAdminName()}</div>
                     <div>열람은 기록에 남습니다</div>
                 </div>
@@ -110,6 +118,7 @@ export function Shell({ children }: { children: ReactNode }) {
                                 <NavLink key={n.to} to={n.to} className={({ isActive }) => `flex items-center gap-2 rounded-xl px-3 py-3 text-sm ${isActive ? 'bg-info/15 text-info font-bold' : 'bg-surface-alt'}`}>{n.icon}<span>{n.label}</span></NavLink>
                             ))}
                         </div>
+                        <div className="mt-3 flex justify-between text-xs text-text-muted"><span>관리자: {currentAdminName()}</span>{logoutButton}</div>
                     </div>
                 </div>
             )}

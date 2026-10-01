@@ -40,7 +40,8 @@ describe('🏢 운영센터는 따로 살고 부품은 @onedal/ui 한 곳', () =
             }
         }
         expect(offenders).toEqual([]);
-        const vite = readFileSync(join(WEB, 'ops/vite.config.ts'), 'utf8');
+        // `envDir: '../client-app'` 한 줄은 허용 — 구글 웹 클라이언트 ID(.env.local)를 한 벌만 둔다(코드가 아니라 설정 파일을 읽는다)
+        const vite = readFileSync(join(WEB, 'ops/vite.config.ts'), 'utf8').replace(/^\s*envDir: '\.\.\/client-app',\s*$/m, '');
         expect(vite).not.toMatch(/client-app/);
     });
 

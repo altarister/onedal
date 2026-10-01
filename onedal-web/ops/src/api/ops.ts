@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CONTENT_KINDS } from '@onedal/shared';
 import type { OpsAudit, OpsCall, OpsCallNote, OpsContent, OpsContentKind, OpsMember, OpsNotice, OpsRelease } from '@onedal/shared';
+import { session } from './client';
 import { ANOMALIES, AUDIT, BOARD_DROPPED, BOARD_FILTER_FULL, BOARD_PHONE_DETAIL, BOARD_SERVER, CALLS, CHECKS, CONTENTS, KAKAO_USAGE, MEMBERS, MONTH_CODE, NOTICES, PHONES, RELEASES, SCREEN_WORDS, STATS_ROWS } from '../mock/data';
 
 /**
@@ -10,9 +11,8 @@ import { ANOMALIES, AUDIT, BOARD_DROPPED, BOARD_FILTER_FULL, BOARD_PHONE_DETAIL,
  *    날짜 칸(`paidUntil` · `autoUntil` …)은 한국 날 `YYYY-MM-DD` 다 — UTC 로 세지 않는다.
  */
 
-/** 지금 보는 관리자 — 목업은 한 명. 서버가 생기면 로그인한 사람(`opsAllowedAt` 이 있는 회원)의 이름 */
-const ADMIN_NAME = '와이프 (관리자)';
-export function currentAdminName(): string { return ADMIN_NAME; }
+/** 지금 보는 관리자 — 로그인한 사람의 이름(`client.ts` 의 `session` · 문지기가 `/auth/me` 로 채운다) */
+export function currentAdminName(): string { return session.name || '관리자'; }
 
 const now = () => new Date().toISOString();
 const localDay = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
@@ -38,7 +38,7 @@ export function useTick() {
 }
 
 function log(action: string, targetMemberId: string | null, detail: string) {
-    AUDIT.unshift({ id: auditSeq++, at: now(), admin: ADMIN_NAME, action, targetMemberId, detail });
+    AUDIT.unshift({ id: auditSeq++, at: now(), admin: currentAdminName(), action, targetMemberId, detail });
 }
 
 /** 열람 기록 — 같은 열람이 3초 안에 두 번 오면(StrictMode · 다시 그리기) 한 줄만 */
@@ -117,7 +117,7 @@ export const api = {
     },
     writeCallNote(callId: string, note: Omit<OpsCallNote, 'writtenBy' | 'writtenAt'>) {
         const c = CALLS.find(x => x.id === callId); if (!c) return;
-        c.callNote = { ...note, writtenBy: ADMIN_NAME, writtenAt: now() };
+        c.callNote = { ...note, writtenBy: currentAdminName(), writtenAt: now() };
         c.needsCall = false;
         log('통화 결과 적음', c.memberId, `${callId} · ${note.cargoSize}${note.counterpartCancelled ? ' · 상대 취소' : ''}`); notify();
     },

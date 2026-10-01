@@ -13,6 +13,7 @@
 
 ## 지금은 목업이다
 
+- **로그인은 실제다** — 구글 로그인(관제웹과 같은 웹 클라이언트 ID · `vite.config.ts` 의 `envDir` 가 관제웹 `.env.local` 을 읽는다) → 서버 `/api/ops/counts` 한 번. 403 이면 «허락이 없는 계정»(`users.ops_allowed_at`). 화면은 role 을 읽지 않는다(`opsLogin` 검사). 서버를 부르는 길은 `src/api/client.ts` 하나.
 - 자료는 `src/mock/` 의 예시(세 사람 · 콜 몇 건 · 폰 넷)다. 서버 문 `/api/ops/*` 가 생기면 `src/api/ops.ts` 만 채운다.
 - 부품(버튼 · 표 · 배지 …)은 `@onedal/ui`(`onedal-web/ui/`)에서 온다 — 관제웹 파일을 직접 가져오지 않는다(`opsIsolated` 검사). `index.css` 의 `@source "../../ui/src"` 가 빠지면 부품이 회색으로 그려진다.
 - 🔴 관제웹은 `ops/` 를 가져다 쓰지 않는다 (`opsIsolated` 검사) — 기사 폰이 받는 파일에 운영센터 코드가 섞이지 않게.
