@@ -28,9 +28,10 @@ const enumOf = (name) => {
 const PAGE = enumOf('Page');
 const FIELD = enumOf('PageField');
 
-const kstr = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$')}"`;
+/* 🔴 바꾸기 글자 대신 함수로 — 바꾸기 글자 안의 «$'» · «$&» 는 JS 가 특수 기호로 읽는다 */
+const kstr = (s) => `"${String(s).replace(/\\/g, () => '\\\\').replace(/"/g, () => '\\"').replace(/\$/g, () => '\\$')}"`;
 /* 정규식은 코틀린 날 글자("""…""")로 — 그 안에서도 $ 는 틀 글자라 ${'$'} 로 */
-const kregex = (s) => s.includes('"""') ? `Regex(${kstr(s)})` : `Regex("""${s.replace(/\$/g, "${'$'}")}""")`;
+const kregex = (s) => s.includes('"""') ? `Regex(${kstr(s)})` : `Regex("""${s.replace(/\$/g, () => "${'$'}")}""")`;
 
 const TARGETS = [
     ['insung', 'plugins/insung/InsungPages.kt', 'com.onedal.app.plugins.insung', 'InsungPages'],

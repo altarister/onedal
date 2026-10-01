@@ -34,8 +34,10 @@ object KakaoPickerPages {
             FieldSpec(PageField.PICKUP_DISTANCE, "사진 정거장 오른쪽", "픽업 4.7km", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — straightKm 읽고 안 씀"),
             FieldSpec(PageField.DELIVERY_DISTANCE, "사진 정거장 오른쪽", "배송 26.4km", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — straightKm 읽고 안 씀"),
             FieldSpec(PageField.CLOCK, "사진 정거장 시각", "내일 17:49 · 12:39까지", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — 하차 at 읽고 안 씀"),
-            FieldSpec(PageField.ITEM_SIZE, "사진 물품 정보", "중형 세 변의 합 140cm · 20kg 이하", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail"),
-            FieldSpec(PageField.MEMO, "사진 유의사항", "바로 배송가주실 분만 잡아주세요", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.ITEM_SIZE, "사진 물품 정보", "중형 세 변의 합 140cm · 20kg 이하", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail · 서버 제외어 찾는 칸(excludeScan) — 접근성 글에서 «최종 수익» · «유의사항» · 버튼 앞까지",
+                read = Regex("""물품\s*정보\s+([\s\S]*?)(?=\s+유의사항|\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
+            FieldSpec(PageField.MEMO, "사진 유의사항", "바로 배송가주실 분만 잡아주세요", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «유의사항» 다음 «최종 수익» · 버튼 앞 · 원달앱은 이 칸을 안 읽는다(사진 판독도 안 씀)",
+                read = Regex("""유의사항\s+([\s\S]*?)(?=\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
             FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.UNUSED),
         ),
         Page.CONFIRM to listOf(

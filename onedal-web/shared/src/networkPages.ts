@@ -31,20 +31,19 @@ export interface NetworkPageSpec {
     about: string[];
     pages: Record<ScreenPage, NetworkFieldSpec[]>;
     /**
-     * 🚫 **콜 한 벌의 글** — 상세 원문에서 화면 머리 · 버튼 · 목록 잔상을 빼고 콜 부분만 꺼내는 정규식 원문(1번 묶음).
-     * 서버 제외어 검사가 이 범위에서만 찾는다(`pageRead.callTextOf` · reviews/34 3단계 5③). 못 맞으면 빈 글 — 지어내지 않는다.
-     * 원달앱은 읽지 않는다(원달앱 제외어는 목록 카드 글에서만 찾는다) · gen:pages 는 이 칸을 뽑지 않는다.
+     * 🚫 **제외어를 찾는 칸** — 상세 화면(detail)의 이 칸들 값에서만 기사님 제외어를 찾는다(기사님 «배차망별 칸에서만» · reviews/34 3단계 5③).
+     * 칸마다 그 화면 정의 줄의 읽는 법(read)으로 읽는다 — 주소 · 화주 이름 · 화면 머리 · 버튼 · 목록 잔상은 빠진다. 서버가 읽는다 · 원달앱 제외어는 목록 카드 글에서만(무변화) · gen:pages 는 이 칸을 뽑지 않는다.
      */
-    callText: string;
-    /** 그 범위로 잡은 까닭 한 줄 */
-    callTextWhy: string;
+    excludeScan: PageField[];
+    /** 그 칸들로 정한 까닭 한 줄(기사님 말) */
+    excludeScanWhy: string;
 }
 
 export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
   "insung": {
     "about": ["📄 **인성 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/인성 · 시뮬 onedal-sim).", "⚠️ 실물 인성 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처 몇 장이 근거다. 설치하면 이 표부터 다시 본다."],
-    "callText": "([\\s\\S]*)",
-    "callTextWhy": "상세 원문은 팝업까지 모은 글이라 머리 · 버튼 글이 없다 — 통째(«구분 : 왕복»도 본다)",
+    "excludeScan": ["memo", "payment", "tags"],
+    "excludeScanWhy": "기사님 «인성은 적요»(+ 결제 괄호 «(착불)» · 구분 «왕복») — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다",
     "pages": {
       "list": [
         {"field": "pickup", "where": "출발지 칸", "sample": "@초이동 · @남양주(오남", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},
@@ -61,11 +60,11 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "itemSize", "where": "물품 줄", "sample": "물품 :", "seen": "REAL", "handling": "UNUSED"},
         {"field": "vehicleType", "where": "차량 줄", "sample": "차량 : 트럭-1t · 다마스", "seen": "REAL", "handling": "READ", "usedAt": "서버 detail.ts pageFieldOf — 원달앱 값 · 목록 차종이 없을 때만(원달앱은 아직 이 칸을 안 읽는다)", "read": "차량\\s*:\\s*(?!\\S*\\s*:)([^\\s(]+)", "note": "🚚 빈 «차량 :» 뒤의 다음 이름표(«탁송료 :»)를 차종으로 잡지 않는다 — 값 토막 뒤가 바로 «:» 이면 이름표다"},
         {"field": "fare", "where": "요금 줄", "sample": "요금 : 85,000(신용)(계산서)", "seen": "REAL", "handling": "READ", "usedAt": "목록 값 · 목록 줄을 못 찾은 손 상세는 PageFieldRead(PreConfirmSequence)", "read": "요금\\s*:\\s*([\\d,]+)(?![\\d.])"},
-        {"field": "payment", "where": "요금 줄 괄호", "sample": "(신용)(계산서)", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "payment", "where": "요금 줄 괄호", "sample": "(신용)(계산서)", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «(착불)» · «(신용)(계산서)» · 원달앱은 이 칸을 안 읽는다", "read": "요금\\s*:\\s*[\\d,]+((?:\\([^)]*\\))+)"},
         {"field": "commission", "where": "수수료 줄", "sample": "수수료 : 23%", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "tags", "where": "구분 줄", "sample": "구분 : 편도", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "tags", "where": "구분 줄", "sample": "구분 : 편도", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «편도» · «왕복» · 원달앱은 이 칸을 안 읽는다", "read": "구분\\s*:\\s*(?!\\S*\\s*:)(\\S+)"},
         {"field": "reservation", "where": "형태 줄", "sample": "형태 : 보통 (실물에서 «예약»은 못 봄)", "seen": "UNKNOWN", "handling": "UNUSED"},
-        {"field": "memo", "where": "적요 칸 · 적요 상세 팝업", "sample": "1시상차 6박스 카트가지고 고객님앞 갖다주세요", "seen": "REAL", "handling": "UNUSED", "usedAt": "서버가 원문으로 받는다"},
+        {"field": "memo", "where": "적요 칸 · 적요 상세 팝업", "sample": "1시상차 6박스 카트가지고 고객님앞 갖다주세요", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — 원달앱 상세 원문의 «[적요상세/정보]» 팝업 글 · 원달앱은 이 칸을 안 읽는다", "read": "적요 내용\\s+([\\s\\S]*?)(?=\\s*(?:닫기|\\[출발지상세\\]|\\[도착지상세\\])|$)"},
         {"field": "pickupDistance", "where": "적요 칸 둘째 줄", "sample": "현위치 → 상차지(직선)23.5KM", "seen": "REAL", "handling": "UNUSED"},
         {"field": "deliveryDistance", "where": "적요 칸 셋째 줄", "sample": "상차지 → 하차지(직선)35.9KM", "seen": "REAL", "handling": "UNUSED"},
         {"field": "pickup", "where": "출발지 상세 팝업 «위치»", "sample": "경기 용인시 처인구 양지면 …", "seen": "SIM", "handling": "READ", "usedAt": "InsungPopupAddress"},
@@ -89,8 +88,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
   },
   "hwamul24": {
     "about": ["📄 **화물24시 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/화물24시).", "⚠️ 실물 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처가 근거다. 시뮬 상세 화면은 실물과 모양이 달라(머리 «배차내역») 상세까지 못 간다."],
-    "callText": "(상차지[\\s\\S]*?)(?=배차신청|$)",
-    "callTextWhy": "«상차지»부터 «배차신청» 앞까지 — 화주 이름 줄(«화물과퀵»)·«60분 안보기» 버튼·잔액 머리와 아래 버튼을 뺀다(실물 캡처 18 · 시뮬은 «60분 안보기»가 없어 «상차지»로 잡는다)",
+    "excludeScan": ["memo", "payment"],
+    "excludeScanWhy": "기사님 «화물24시는 화물정보»(+ 결제방법 «착불») — 화주 이름 줄(«화물과퀵») · «60분 안보기» · 버튼 · 주소는 안 본다",
     "pages": {
       "list": [
         {"field": "pickup", "where": "왼쪽 윗줄", "sample": "경기 시흥 정왕동", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse"},
@@ -109,11 +108,11 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "pickup", "where": "상차지 칸", "sample": "경기 군포 부곡동 [당상][수] 5Km", "seen": "REAL", "handling": "UNUSED", "usedAt": "목록 값을 쓴다"},
         {"field": "dropoff", "where": "하차지 칸", "sample": "서울 중구 을지로6가 [당착][수]", "seen": "REAL", "handling": "UNUSED", "usedAt": "목록 값을 쓴다"},
         {"field": "deliveryDistance", "where": "하차지 칸 오른쪽", "sample": "36Km", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "memo", "where": "화물정보 칸", "sample": "지금상 당착 59박스 수/수-A [독차]", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "memo", "where": "화물정보 칸", "sample": "지금상 당착 59박스 수/수-A [독차]", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «화물정보» 다음 «톤수» 앞(배지 «독차» 포함) · 원달앱은 이 칸을 안 읽는다", "read": "화물정보\\s+(?!톤수)([\\s\\S]*?)(?=\\s+톤수|$)"},
         {"field": "vehicleType", "where": "톤수 · 차종 · 적재중량", "sample": "1톤 · 전체 · 1톤", "seen": "REAL", "handling": "UNUSED"},
         {"field": "tags", "where": "운행방법", "sample": "편도", "seen": "REAL", "handling": "UNUSED"},
         {"field": "fare", "where": "운송료 · 부가세 · 수납금액", "sample": "60,000 · 6,000 · 65,144", "seen": "REAL", "handling": "READ", "usedAt": "목록 줄을 못 찾은 손 상세는 PageFieldRead(PreConfirmSequence)", "read": "운송료\\s*:?\\s*([\\d,]+)", "note": "💰 목록 요금과 같은 «운송료»만 — 실물은 «운송료» · «60,000» 이 다른 노드, 시뮬은 «60,000원» (부가세 · 수납금액은 안 읽음)"},
-        {"field": "payment", "where": "결제방법", "sample": "카드", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "payment", "where": "결제방법", "sample": "카드", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «카드» · «착불» · 원달앱은 이 칸을 안 읽는다", "read": "결제방법\\s+(?!\\S*\\s*:)(\\S+)"},
         {"field": "commission", "where": "수수료 줄", "sample": "수수료 = (운송료+부가세) x1.298%", "seen": "REAL", "handling": "UNUSED"}
       ],
       "confirm": [
@@ -129,8 +128,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
   },
   "kakaopicker": {
     "about": ["📄 **카카오 픽커 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/카카오픽커/실물_2026 · 실물 로그).", "칸 이름은 세 배차망 공통(`PageField`) — 여기에는 «어디서 · 어떤 글자로»만 적는다.", "안 읽는·버리는 칸(UNUSED·DROPPED)이 다음에 읽을 재료다."],
-    "callText": "[\\s\\S]*(픽업지[\\s\\S]*?)(?=넘기기|수락하기|$)",
-    "callTextWhy": "마지막 «픽업지»부터 «넘기기»/«수락하기» 앞까지 — 앞은 목록 잔상, 뒤는 버튼(서버 옛 callTextOf 와 같은 답)",
+    "excludeScan": ["itemSize", "memo"],
+    "excludeScanWhy": "기사님 «카카오픽커는 물품정보»+«가» 유의사항 — 둘 다 «최종 수익» · 버튼 앞에서 끝난다 · 픽업지 주소 · 목록 잔상은 안 본다",
     "pages": {
       "list": [
         {"field": "fare", "where": "목록 줄 오른쪽", "sample": "16,093", "seen": "REAL", "handling": "READ", "usedAt": "KakaoPickerParser.parse"},
@@ -150,8 +149,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "pickupDistance", "where": "사진 정거장 오른쪽", "sample": "픽업 4.7km", "seen": "REAL", "handling": "DROPPED", "usedAt": "PickerScreenOcr — straightKm 읽고 안 씀"},
         {"field": "deliveryDistance", "where": "사진 정거장 오른쪽", "sample": "배송 26.4km", "seen": "REAL", "handling": "DROPPED", "usedAt": "PickerScreenOcr — straightKm 읽고 안 씀"},
         {"field": "clock", "where": "사진 정거장 시각", "sample": "내일 17:49 · 12:39까지", "seen": "REAL", "handling": "DROPPED", "usedAt": "PickerScreenOcr — 하차 at 읽고 안 씀"},
-        {"field": "itemSize", "where": "사진 물품 정보", "sample": "중형 세 변의 합 140cm · 20kg 이하", "seen": "REAL", "handling": "READ", "usedAt": "PickerScreenOcr.parseDetail"},
-        {"field": "memo", "where": "사진 유의사항", "sample": "바로 배송가주실 분만 잡아주세요", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "itemSize", "where": "사진 물품 정보", "sample": "중형 세 변의 합 140cm · 20kg 이하", "seen": "REAL", "handling": "READ", "usedAt": "PickerScreenOcr.parseDetail · 서버 제외어 찾는 칸(excludeScan) — 접근성 글에서 «최종 수익» · «유의사항» · 버튼 앞까지", "read": "물품\\s*정보\\s+([\\s\\S]*?)(?=\\s+유의사항|\\s+최종 수익|\\s+넘기기|\\s+수락하기|$)"},
+        {"field": "memo", "where": "사진 유의사항", "sample": "바로 배송가주실 분만 잡아주세요", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «유의사항» 다음 «최종 수익» · 버튼 앞 · 원달앱은 이 칸을 안 읽는다(사진 판독도 안 씀)", "read": "유의사항\\s+([\\s\\S]*?)(?=\\s+최종 수익|\\s+넘기기|\\s+수락하기|$)"},
         {"field": "fare", "where": "상세 아래 최종 수익", "sample": "최종 수익 2,387", "seen": "REAL", "handling": "UNUSED"}
       ],
       "confirm": [

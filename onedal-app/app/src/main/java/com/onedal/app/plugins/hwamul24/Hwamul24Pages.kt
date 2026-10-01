@@ -32,13 +32,15 @@ object Hwamul24Pages {
             FieldSpec(PageField.PICKUP, "상차지 칸", "경기 군포 부곡동 [당상][수] 5Km", Seen.REAL, Handling.UNUSED, "목록 값을 쓴다"),
             FieldSpec(PageField.DROPOFF, "하차지 칸", "서울 중구 을지로6가 [당착][수]", Seen.REAL, Handling.UNUSED, "목록 값을 쓴다"),
             FieldSpec(PageField.DELIVERY_DISTANCE, "하차지 칸 오른쪽", "36Km", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.MEMO, "화물정보 칸", "지금상 당착 59박스 수/수-A [독차]", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.MEMO, "화물정보 칸", "지금상 당착 59박스 수/수-A [독차]", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «화물정보» 다음 «톤수» 앞(배지 «독차» 포함) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""화물정보\s+(?!톤수)([\s\S]*?)(?=\s+톤수|${'$'})""")),
             FieldSpec(PageField.VEHICLE_TYPE, "톤수 · 차종 · 적재중량", "1톤 · 전체 · 1톤", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.TAGS, "운행방법", "편도", Seen.REAL, Handling.UNUSED),
             /* 💰 목록 요금과 같은 «운송료»만 — 실물은 «운송료» · «60,000» 이 다른 노드, 시뮬은 «60,000원» (부가세 · 수납금액은 안 읽음) */
             FieldSpec(PageField.FARE, "운송료 · 부가세 · 수납금액", "60,000 · 6,000 · 65,144", Seen.REAL, Handling.READ, "목록 줄을 못 찾은 손 상세는 PageFieldRead(PreConfirmSequence)",
                 read = Regex("""운송료\s*:?\s*([\d,]+)""")),
-            FieldSpec(PageField.PAYMENT, "결제방법", "카드", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.PAYMENT, "결제방법", "카드", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «카드» · «착불» · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""결제방법\s+(?!\S*\s*:)(\S+)""")),
             FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 = (운송료+부가세) x1.298%", Seen.REAL, Handling.UNUSED),
         ),
         Page.CONFIRM to listOf(
