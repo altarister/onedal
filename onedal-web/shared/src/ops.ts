@@ -3,6 +3,7 @@ import type { TargetAppType, DeviceSession, AutoDispatchFilter } from './index';
 import type { ContentKind } from './join';
 import type { WordKind } from './pageFields';
 import type { CargoUnit } from './cargoUnits';
+import { kstDateText } from './format';
 
 /**
  * 🏢 **운영센터 API 규격 — 타입 + 회원 상태 규칙(순수)** (reviews/29 · 운영센터 `ops/` 와 서버 문 `/api/ops/*` 가 같은 모양을 읽는다).
@@ -195,13 +196,24 @@ type AccountFacts = Pick<OpsMember, 'approvedAt' | 'suspendedAt' | 'suspendAfter
 /**
  * 🔴 **새 일을 받지 않는가 — 판단은 여기 한 곳** (reviews/29 · 서버의 폰 보고 거절 · `JoinMeReply.blocked` · `opsMemberStatus` 가 같이 부른다).
  * 참: 탈퇴 · 즉시 정지 · 승인 전 · «끝난 뒤» 정지와 유료 기한 지남(둘 다 «끝난 뒤 멈춤»과 같은 길 — 진행 중 콜이 있으면 끝날 때까지 아직 막지 않는다. 중간에 끊으면 안전취소가 멈춘다).
+ * 🔴 봐주는 것은 그날까지 — «끝난 뒤» 정지는 정지 건 한국 날, 유료 기한은 기한 다음 날까지만 진행 중 콜을 봐준다. 그 뒤는 콜이 있어도 막는다
+ *    (기획 29 3단계 · 27 Q5 «결재 안 한 콜이 남아도 영업일이 바뀌면 멈춤» — 콜 하나로 정지가 끝없이 미뤄지지 않게).
  * `hasActiveCall` 은 서버만 아는 사실이라 인자로 받는다. `today` 는 한국 날 YYYY-MM-DD.
  */
 export function accountBlocked(m: AccountFacts, today: string, hasActiveCall = false): boolean {
     if (m.withdrawnAt) return true;
     if (!m.approvedAt) return true;
-    if (m.suspendedAt) return m.suspendAfterActive ? !hasActiveCall : true;
-    if (m.paidUntil && m.paidUntil < today) return !hasActiveCall;
+    if (m.suspendedAt) {
+        if (!m.suspendAfterActive) return true;
+        const suspendedDay = kstDateText(m.suspendedAt);
+        if (suspendedDay && suspendedDay < today) return true;
+        return !hasActiveCall;
+    }
+    if (m.paidUntil && m.paidUntil < today) {
+        const graceEnd = kstDateText(Date.parse(`${m.paidUntil}T00:00:00+09:00`) + 86_400_000);   // 기한 다음 날
+        if (graceEnd && graceEnd < today) return true;
+        return !hasActiveCall;
+    }
     return false;
 }
 
@@ -212,7 +224,7 @@ export function accountBlocked(m: AccountFacts, today: string, hasActiveCall = f
 export function opsMemberStatus(m: AccountFacts, today: string, hasActiveCall = false): OpsMemberStatus {
     const blocked = accountBlocked(m, today, hasActiveCall);
     if (m.withdrawnAt) return { blocked, text: '탈퇴', tone: 'muted' };
-    if (m.suspendedAt) return { blocked, text: m.suspendAfterActive ? (hasActiveCall ? '정지 (진행 중 콜 끝난 뒤)' : '정지 (끝난 뒤)') : '정지', tone: 'bad' };
+    if (m.suspendedAt) return { blocked, text: m.suspendAfterActive ? (blocked ? '정지 (끝난 뒤)' : '정지 (진행 중 콜 끝난 뒤)') : '정지', tone: 'bad' };
     if (!m.approvedAt) return { blocked, text: '승인 대기', tone: 'warn' };
     if (m.paidUntil && m.paidUntil < today) {
         const graceDay = Math.round((Date.parse(`${today}T00:00:00`) - Date.parse(`${m.paidUntil}T00:00:00`)) / 86_400_000);

@@ -43,7 +43,8 @@ beforeAll(() => {
     approvedUser(OK);
     user(WD, `approved_at = '2026-01-01T00:00:00', withdrawn_at = '2026-01-02T00:00:00'`);
     user(SUS, `approved_at = '2026-01-01T00:00:00', suspended_at = '2026-01-02T00:00:00', suspend_after_active = 0`);
-    user(AFTER, `approved_at = '2026-01-01T00:00:00', suspended_at = '2026-01-02T00:00:00', suspend_after_active = 1`);
+    /* «끝난 뒤» 정지는 그날까지만 진행 중 콜을 봐준다(shared accountBlocked) — 오늘 건 정지로 둔다 */
+    user(AFTER, `approved_at = '2026-01-01T00:00:00', suspended_at = datetime('now', 'localtime'), suspend_after_active = 1`);
     link(NEW, 'd-gate-new'); link(NEW, 'd-gate-new-tok', 'tok-new');
     link(OK, 'd-gate-ok'); link(WD, 'd-gate-wd'); link(SUS, 'd-gate-sus'); link(AFTER, 'd-gate-after');
 });
