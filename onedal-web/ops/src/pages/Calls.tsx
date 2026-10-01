@@ -64,18 +64,19 @@ export default function Calls() {
 /**
  * 📵 **적은 뒤에 온 취소 소식** — 통화 결과를 이미 적은 콜(적는 칸이 없는 아래 목록)에서 «상대가 취소했다고 함»만 켜고 끈다.
  *    그 사실 칸만 실어 보낸다 — 짐 · 약속 · 메모는 비워 보내 서버가 그대로 둔다. 쪽은 적힌 메모의 쪽, 없으면 상차.
- *    🔴 기사 화면의 경고 글을 켜고 끄는 것뿐이다 — 콜 취소(CANCEL)는 기사가 관제웹에서 누른다. «지우기»는 잘못 누름을 막게 한 번 묻는다.
+ *    🔴 기사 화면의 경고 글을 켜고 끄는 것뿐이다 — 콜 취소(CANCEL)는 기사가 관제웹에서 누른다.
+ *    🔴 지우기는 번복용이 아니다 — 상대가 취소했으면 기사도 취소하고 끝이다. «잘못 누름 지우기»만이고 한 번 묻는다.
  */
 function CancelToggle({ c, reload }: { c: OpsCall; reload: () => void }) {
     const on = !!c.callNote?.counterpartCancelledAt;
     const send = () => {
-        if (on && !window.confirm('«상대가 취소했다고 함» 표시를 지울까요? 기사 화면의 경고 줄이 사라집니다.')) return;
+        if (on && !window.confirm('잘못 누른 표시를 지웁니다 — 상대가 정말 취소했다면 지우지 마세요')) return;
         const note: OpsCallNoteWrite = { stopType: c.callNote?.stopType ?? 'pickup', unit: null, quantity: null, promisedArrivalAt: null, memo: '', counterpartCancelled: !on };
         void write(() => api.writeCallNote(c.id, note), reload);
     };
     return (
         <button type="button" onClick={send} className={`mt-1 text-xs underline underline-offset-2 ${on ? 'text-text-muted' : 'text-danger'}`}>
-            {on ? '취소 표시 지우기' : '상대가 취소했다고 함 적기'}
+            {on ? '잘못 누름 지우기' : '상대가 취소했다고 함 적기'}
         </button>
     );
 }

@@ -33,7 +33,10 @@ describe('📞 통화 도우미 화면', () => {
         expect(calls).toContain('placeholder="통화에서 들은 것"');
         /* 적은 뒤에 온 취소 소식 — 아래 목록 줄의 글 버튼은 그 사실 칸만 싣는다(짐 · 약속 · 메모는 비워 보내 서버가 그대로 둔다) · 지우기는 한 번 묻는다 */
         expect(calls).toContain("unit: null, quantity: null, promisedArrivalAt: null, memo: '', counterpartCancelled: !on");
-        expect(calls).toContain('if (on && !window.confirm(');
+        /* 지우기는 번복용이 아니다(상대가 취소했으면 기사도 취소하고 끝) — «잘못 누름 지우기»만 · 한 번 묻는다 */
+        expect(calls).toContain("if (on && !window.confirm('잘못 누른 표시를 지웁니다 — 상대가 정말 취소했다면 지우지 마세요')) return;");
+        expect(calls).toContain("{on ? '잘못 누름 지우기' : '상대가 취소했다고 함 적기'}");
+        expect(calls).not.toContain('취소 표시 지우기');
         expect(calls).toContain('<CancelToggle c={c} reload={reload} />');
         expect(calls.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/<Button[^>]*>[^<]*(CANCEL|취소)[^<]*<\/Button>|decide|emit\(/);   // 결재는 기사 몫
         expect(calls).toContain('unit: pickup ? unit : null');
