@@ -4,8 +4,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf } from "@onedal/shared";
-import { parseLocationDetails, parseDetailedRawText } from "../utils/parser";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -92,25 +91,20 @@ router.post("/", async (req, res) => {
 
         const rawText = pendingOrder.rawText;
         if (rawText) {
-            // [Dumb Client / Smart Server]
-            // 앱이 보내준 통짜 rawText를 서버의 파서가 완전히 해부하여 속성을 채움
-            const parsedDetails = parseDetailedRawText(rawText);
-            pendingOrder = { ...pendingOrder, ...parsedDetails };
-
-            pendingOrder.pickupDetails = parseLocationDetails(rawText, "[출발지상세]");
-            pendingOrder.dropoffDetails = parseLocationDetails(rawText, "[도착지상세]");
+            // 📄 상세 콜 자료(상태 · 결제 · 수수료 · 구분 · 형태 · 배차사 · 적요 · 출발 · 도착 연락처)는 배차망 정의 표대로 — 못 찾은 칸은 싣지 않는다
+            pendingOrder = { ...pendingOrder, ...detailRecordOf(targetApp, rawText) };
 
             /**
              * 🏠 **상차·하차는 원달앱이 올린 전체 주소 그대로다** (기사님 «상세 데이터엔 짧은 주소가 아니고 전체 주소»).
              * 서버는 팝업 원문에서 주소를 꺼내 콜 주소로 올리지 않는다 — 원달앱이 채우고(인성 팝업 «위치» · 픽커 사진 + 건물명),
-             * 못 채운 콜은 원달앱이 버린다. 위 `parseLocationDetails` 는 연락처·고객 이름을 꺼내는 데 쓴다.
+             * 못 채운 콜은 원달앱이 버린다. 위 `detailRecordOf` 의 출발 · 도착 연락처(pickupDetails · dropoffDetails)는 연락처 · 고객 이름을 꺼내는 데 쓴다.
              */
 
             // 💰 원달앱 요금이 비었을 때만 — 원달앱과 같은 정의 표 · 같은 숫자 규칙으로 읽는다(못 읽으면 0 → [P3] 경고)
             if (!pendingOrder.fare || pendingOrder.fare <= 0) {
                 pendingOrder.fare = pageFareOf(targetApp, 'detail', rawText) ?? 0;
             }
-            // 🚚 차종은 짐작하지 않는다 — /confirm 이 남긴 목록 차종 · 원문 «차종 :» 이름표가 없을 때만 정의 표의 읽는 법(인성 «차량 : 트럭-1t»)으로.
+            // 🚚 차종은 짐작하지 않는다 — /confirm 이 남긴 목록 차종이 없을 때만 정의 표의 읽는 법(인성 «차량 : 트럭-1t»)으로.
             //    그래도 없으면 비워 두고 판정의 차종 문은 건너뛴다
             if (!pendingOrder.vehicleType) {
                 pendingOrder.vehicleType = pageFieldOf(targetApp, 'detail', 'vehicleType', rawText) ?? undefined;

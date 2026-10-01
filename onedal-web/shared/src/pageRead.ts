@@ -1,4 +1,5 @@
-import type { TargetAppType } from './index';
+import type { TargetAppType, LocationDetailInfo, PaymentType, BillingType, DetailedOfficeOrder } from './index';
+import { PAYMENT_TYPES } from './index';
 import type { PageField, ScreenPage } from './pageFields';
 import { NETWORK_PAGES } from './networkPages';
 
@@ -14,7 +15,7 @@ const compiled = new Map<string, RegExp | null>();
 const readOf = (app: TargetAppType, page: ScreenPage, field: PageField, part: string): RegExp | null => {
     const key = `${app}|${page}|${field}|${part}`;
     if (!compiled.has(key)) {
-        const spec = NETWORK_PAGES[app]?.pages[page]?.find(r => r.field === field && ((r as { part?: string }).part ?? '') === part
+        const spec = NETWORK_PAGES[app]?.pages[page]?.find(r => r.field === field && (r.part ?? '') === part
             && r.handling === 'READ' && r.read !== undefined);
         compiled.set(key, spec?.read !== undefined ? new RegExp(spec.read) : null);
     }
@@ -58,4 +59,48 @@ export function addressOf(app: TargetAppType, raw: string): string {
     }
     const re = addressCutRes.get(app);
     return (re ? raw.replace(re, '') : raw).trim();
+}
+
+/** 📄 상세 콜 자료 — 상세 화면 정의 칸(· 조각)이 콜의 어느 자료가 되나. 배차망마다 다른 것은 표의 읽는 법뿐이다 */
+type DetailRecordText = 'receiptStatus' | 'itemDescription' | 'commissionRate' | 'tollFare' | 'tripType' | 'orderForm' | 'dispatcherName' | 'dispatcherPhone';
+const DETAIL_RECORD: ReadonlyArray<readonly [key: DetailRecordText, field: PageField, part?: string]> = [
+    ['receiptStatus', 'stage'], ['itemDescription', 'itemSize'], ['commissionRate', 'commission'],
+    ['tollFare', 'toll'], ['tripType', 'tags'], ['orderForm', 'reservation'],
+    ['dispatcherName', 'contact', 'dispatcher'], ['dispatcherPhone', 'contact', 'dispatcherPhone'],
+];
+/** 연락처 팝업 한 덩어리의 조각 — 출발 · 도착이 같은 꼴이다 */
+const STOP_CONTACT: ReadonlyArray<readonly [key: keyof LocationDetailInfo, field: PageField, part: (side: string) => string]> = [
+    ['customerName', 'contact', s => `${s}.customer`], ['addressDetail', 'pickup', () => ''], ['department', 'contact', s => `${s}.department`],
+    ['contactName', 'contact', s => `${s}.contactName`], ['phone1', 'contact', s => `${s}.phone1`], ['phone2', 'contact', s => `${s}.phone2`],
+];
+
+/**
+ * 📄 **상세 원문의 콜 자료** — 상태 · 물품 · 결제 · 계산서 · 수수료 · 탁송료 · 구분 · 형태 · 배차사 · 적요 · 출발 · 도착 연락처(서버 `/detail` · 기사님 «1~5 모두 가»).
+ *    칸마다 상세 화면 정의 줄의 읽는 법으로 읽는다. 🔴 못 찾은 칸은 싣지 않는다 — `/detail` 이 이 결과를 앞 기억 위에 펼치므로 빈 칸이 아는 값을 지우면 안 된다.
+ *    결제 · 계산서는 알려진 값(PAYMENT_TYPES · 계산서 · 인수증 · 무과세)일 때만 · 적요는 팝업 글(줄바꿈 → 공백)이 먼저, 없으면 본문 «적요상세» 줄(상차 약속 시각이 본문 시각으로 바뀌지 않게).
+ *    출발 · 도착 연락처는 그 팝업 머리표가 원문에 있을 때만 한 덩어리(없으면 빈 목록).
+ */
+const BILLING_TYPES: readonly BillingType[] = ['계산서', '인수증', '무과세'];
+export type DetailRecord = Partial<Pick<DetailedOfficeOrder, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>>
+    & { pickupDetails: LocationDetailInfo[]; dropoffDetails: LocationDetailInfo[] };
+export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecord {
+    const read = (field: PageField, part = '') => pageFieldOf(app, 'detail', field, rawText, part) ?? undefined;
+    const out: Partial<Pick<DetailedOfficeOrder, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>> = {};
+    for (const [key, field, part] of DETAIL_RECORD) { const v = read(field, part); if (v !== undefined) out[key] = v; }
+    const pay = read('payment');
+    if (pay && (PAYMENT_TYPES as readonly string[]).includes(pay)) out.paymentType = pay as PaymentType;
+    const bill = read('billing');
+    if (bill && (BILLING_TYPES as readonly string[]).includes(bill)) out.billingType = bill as BillingType;
+    const memo = read('memo', 'popup')?.replace(/\s+/g, ' ').trim() || read('memo', 'body');
+    if (memo) out.detailMemo = memo;
+    const stopOf = (side: 'pickup' | 'dropoff', tag: string): LocationDetailInfo[] => {
+        if (!rawText.includes(tag)) return [];
+        const info: LocationDetailInfo = {};
+        for (const [key, field, part] of STOP_CONTACT) {
+            const v = read(field === 'pickup' ? side : field, part(side));
+            if (v !== undefined) (info as Record<string, string>)[key] = v;
+        }
+        return [info];
+    };
+    return { ...out, pickupDetails: stopOf('pickup', '[출발지상세]'), dropoffDetails: stopOf('dropoff', '[도착지상세]') };
 }

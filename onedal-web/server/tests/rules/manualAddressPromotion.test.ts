@@ -6,7 +6,7 @@ import { join } from 'path';
  *
  * 원달앱이 상세에서 전체 주소를 채운다(인성 팝업 «위치» · 픽커 사진 + 건물명). 못 채운 콜은 원달앱이 버려 서버에 오지 않는다.
  * 그래서 서버가 팝업 원문에서 주소를 꺼내 콜 주소로 덮던 길(옛 승격)은 없다 — 다시 생기면 두 곳이 주소를 정하게 된다.
- * 서버의 팝업 풀기(`parseLocationDetails`)는 연락처·고객 이름을 꺼내는 데만 쓴다.
+ * 서버의 팝업 풀기(정의 표 `detailRecordOf` 의 출발 · 도착 연락처)는 연락처·고객 이름을 꺼내는 데만 쓴다.
  */
 const SRC = join(__dirname, '../../src');
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
@@ -25,9 +25,7 @@ describe('🏠 서버는 콜 주소를 덮지 않는다', () => {
         expect(read('routes/detail.ts')).not.toMatch(/targetApp\s*===\s*['"]kakaopicker['"]/);
     });
 
-    it('연락처·고객 이름은 여전히 팝업 원문에서 꺼낸다', () => {
-        const c = read('routes/detail.ts');
-        expect(c).toMatch(/parseLocationDetails\(rawText, "\[출발지상세\]"\)/);
-        expect(c).toMatch(/parseLocationDetails\(rawText, "\[도착지상세\]"\)/);
+    it('연락처·고객 이름은 여전히 팝업 원문에서 꺼낸다(정의 표 detailRecordOf 의 출발 · 도착 연락처)', () => {
+        expect(read('routes/detail.ts')).toMatch(/detailRecordOf\(targetApp, rawText\)/);
     });
 });

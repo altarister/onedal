@@ -1,7 +1,6 @@
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { pageFareOf } from '@onedal/shared';
-import { parseDetailedRawText } from '../../src/utils/parser';
+import { pageFareOf, detailRecordOf } from '@onedal/shared';
 
 /**
  * `ex_images/인성/상세-확정(...).png` 판독으로 확인한 실제 화면 표기에 맞춘다.
@@ -63,41 +62,43 @@ describe("인성 상세 요금 — 정의 표대로", () => {
     });
 });
 
-describe("parseDetailedRawText — 결제방법 추출", () => {
+const rec = (raw: string) => detailRecordOf("insung", raw);
+
+describe("인성 상세 결제방법 — 정의 표대로", () => {
     // 실제 화면에는 "결제방법"/"지불"/"결제" 라는 필드가 없다 — 필드명만 찾으면
     // 실측 16건이 전부 null 이 된다. 요금 괄호 안을 읽는다.
     it("요금 괄호 안의 결제방법을 읽는다", () => {
         const raw = ["상태 : 배송", "차량 : 다마스", "요금 : 40,000(신용)", "구분 : 편도"].join("\n");
-        expect(parseDetailedRawText(raw).paymentType).toBe("신용");
+        expect(rec(raw).paymentType).toBe("신용");
     });
 
     it.each(["신용", "선불", "착불", "카드", "현금"])("결제수단 '%s' 를 인식한다", (pay: string) => {
-        expect(parseDetailedRawText(`요금 : 55,000(${pay})`).paymentType).toBe(pay);
+        expect(rec(`요금 : 55,000(${pay})`).paymentType).toBe(pay);
     });
 
     it("괄호가 없으면 paymentType 은 undefined (억지로 만들지 않는다)", () => {
-        expect(parseDetailedRawText("요금 : 55,000").paymentType).toBeUndefined();
+        expect(rec("요금 : 55,000").paymentType).toBeUndefined();
     });
 
     it("괄호 안이 알려진 결제수단이 아니면 무시한다", () => {
         // 예: "요금 : 40,000(협의)" 같은 자유 텍스트를 결제수단으로 오인하면 안 된다
-        expect(parseDetailedRawText("요금 : 40,000(협의)").paymentType).toBeUndefined();
+        expect(rec("요금 : 40,000(협의)").paymentType).toBeUndefined();
     });
 
-    it("기존 '결제방법' 필드 표기도 계속 지원한다", () => {
-        expect(parseDetailedRawText("결제방법 : 착불").paymentType).toBe("착불");
+    it("인성 결제는 요금 괄호에서만 — «결제방법 : 착불» 이름표 줄은 인성 상세에 없다", () => {
+        expect(rec("결제방법 : 착불").paymentType).toBeUndefined();
     });
 });
 
-/* 🔴 못 찾은 칸을 지어내지 않는다 — «편도» · «일반»을 지어내면 관제웹 콜 상세에 화면에 없던 글자가 뜬다 (reviews/34 1단계 ③ · 기사님 «가») */
-describe("parseDetailedRawText — 운송구분 · 오더형태는 원문에 있을 때만", () => {
+/* 🔴 못 찾은 칸을 지어내지 않는다 — «편도» · «일반»을 지어내면 관제웹 콜 상세에 화면에 없던 글자가 뜬다 · 원문에 있으면 표대로 읽는다(기사님 «가») */
+describe("인성 상세 구분 · 형태 — 원문에 있을 때만", () => {
     it("🔴 이름표가 없으면 칸 없음 — «편도» · «일반»을 지어내지 않는다", () => {
-        const got = parseDetailedRawText(["상태 : 신규", "차량 : 다마스", "요금 : 50,000(카드)"].join("\n"));
+        const got = rec(["상태 : 신규", "차량 : 다마스", "요금 : 50,000(카드)"].join("\n"));
         expect(got.tripType).toBeUndefined();
         expect(got.orderForm).toBeUndefined();
     });
-    it("원문에 있으면 그대로 — «오더형태 : 급송» → 급송(급송 표시 길) · «운송구분 : 왕복» → 왕복", () => {
-        const got = parseDetailedRawText(["운송구분 : 왕복", "오더형태 : 급송"].join("\n"));
+    it("🔴 인성 «구분 : 왕복» → tripType · «형태 : 급송» → orderForm(급송 표시 길)", () => {
+        const got = rec(["구분 : 왕복", "형태 : 급송"].join("\n"));
         expect(got.tripType).toBe("왕복");
         expect(got.orderForm).toBe("급송");
     });

@@ -1,4 +1,4 @@
-import { parseDetailedRawText } from '../../src/utils/parser';
+import { detailRecordOf } from '@onedal/shared';
 
 /**
  * 📄 **상세 원문 파서 — 못 찾은 칸으로 아는 값을 덮지 않는다**
@@ -19,14 +19,14 @@ const PICKER_DETAIL = [
 describe('상세 원문 파서 — 못 찾은 칸 (#119)', () => {
 
     it('🔴 못 찾은 칸은 결과에 싣지 않는다 (undefined 로 싣지 않는다)', () => {
-        const r = parseDetailedRawText(PICKER_DETAIL);
+        const r = detailRecordOf('kakaopicker', PICKER_DETAIL);
         const undefinedKeys = Object.entries(r).filter(([, v]) => v === undefined).map(([k]) => k);
         expect(undefinedKeys).toEqual([]);
     });
 
     it('🔴 첫 보고가 넣은 픽커 차종 일반값이 둘째 보고에서 살아남는다', () => {
         const remembered = { vehicleType: '다마스', tagsText: '차종미확인' };
-        const merged = { ...remembered, ...parseDetailedRawText(PICKER_DETAIL) };
+        const merged = { ...remembered, ...detailRecordOf('kakaopicker', PICKER_DETAIL) };
         expect(merged.vehicleType).toBe('다마스');
         expect(merged.tagsText).toBe('차종미확인');
     });
