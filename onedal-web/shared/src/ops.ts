@@ -134,21 +134,30 @@ export interface OpsMemberCheck {
 /** 유예 — 유료 기한이 지난 뒤 확인 번호로 되살릴 수 있는 날 수 (reviews/29 · 첫 값 · 유튜브 결제 실패 재시도 기간 확인 후 조정) */
 export const GRACE_DAYS = 14;
 
-export type OpsMemberStatus = { text: string; tone: 'ok' | 'warn' | 'bad' | 'muted'; graceDay?: number };
+export type OpsMemberStatus = {
+    /** 🔴 서버가 읽는 사실 — 폰 보고를 거절하나 (탈퇴 · 정지 · 승인 전 · 기한 지남 = 참). 글(text)로 가르지 않는다 */
+    blocked: boolean;
+    text: string;
+    tone: 'ok' | 'warn' | 'bad' | 'muted';
+    /** 기한이 지난 날 수 — 기한 안이면 없음 */
+    graceDay?: number;
+};
 
 /**
- * 회원 상태 글 — **사실 시각 칸에서만** 만든다 (`approvedAt` · `suspendedAt` · `withdrawnAt` · `paidUntil`). 상태 이름 칸은 없다.
- * 서버(폰 보고 거절 · 자동 정지)와 운영센터 화면이 같은 규칙을 읽는다.
- * 순서: 탈퇴 → 정지 → 승인 전 → 기한 지남(유예 D+n · GRACE_DAYS 지나면 «유예 끝 — 탈퇴 처리 필요») → 사용 중.
+ * 회원 상태 — **사실 시각 칸에서만** 만든다 (`approvedAt` · `suspendedAt` · `withdrawnAt` · `paidUntil`). 상태 이름 칸은 없다.
+ * 서버(폰 보고 거절 · 자동 정지)와 운영센터 화면이 같은 규칙을 읽는다 — 서버는 `blocked` 만 본다.
+ * 순서: 탈퇴 → 정지 → 승인 전 → 기한 지남(= 자동 정지 · «정지 · 유예 D+n» · GRACE_DAYS 지나면 «정지 · 유예 끝 — 탈퇴 처리 필요», 탈퇴는 관리자 손) → 사용 중 (reviews/29).
  * `today` 는 한국 날 `YYYY-MM-DD` — UTC 로 자르지 않는다.
  */
 export function opsMemberStatus(m: Pick<OpsMember, 'approvedAt' | 'suspendedAt' | 'suspendAfterActive' | 'withdrawnAt' | 'paidUntil'>, today: string): OpsMemberStatus {
-    if (m.withdrawnAt) return { text: '탈퇴', tone: 'muted' };
-    if (m.suspendedAt) return { text: m.suspendAfterActive ? '정지 (끝난 뒤)' : '정지', tone: 'bad' };
-    if (!m.approvedAt) return { text: '승인 대기', tone: 'warn' };
+    if (m.withdrawnAt) return { blocked: true, text: '탈퇴', tone: 'muted' };
+    if (m.suspendedAt) return { blocked: true, text: m.suspendAfterActive ? '정지 (끝난 뒤)' : '정지', tone: 'bad' };
+    if (!m.approvedAt) return { blocked: true, text: '승인 대기', tone: 'warn' };
     if (m.paidUntil && m.paidUntil < today) {
         const graceDay = Math.round((Date.parse(`${today}T00:00:00`) - Date.parse(`${m.paidUntil}T00:00:00`)) / 86_400_000);
-        return graceDay > GRACE_DAYS ? { text: '유예 끝 — 탈퇴 처리 필요', tone: 'bad', graceDay } : { text: `유예 D+${graceDay}`, tone: 'warn', graceDay };
+        return graceDay > GRACE_DAYS
+            ? { blocked: true, text: '정지 · 유예 끝 — 탈퇴 처리 필요', tone: 'bad', graceDay }
+            : { blocked: true, text: `정지 · 유예 D+${graceDay}`, tone: 'bad', graceDay };
     }
-    return { text: '사용 중', tone: 'ok' };
+    return { blocked: false, text: '사용 중', tone: 'ok' };
 }

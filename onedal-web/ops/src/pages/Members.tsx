@@ -15,9 +15,9 @@ export default function Members() {
     const [q, setQ] = useState('');
     const all = api.members().filter(m => m.role !== 'ADMIN');
     const rows = all
-        .filter(m => filter === 'all' || memberStatus(m).text.startsWith(filter))
+        .filter(m => filter === 'all' || memberStatus(m).text.includes(filter))
         .filter(m => !q.trim() || [m.name, m.phone, m.email, m.region, m.vehicle].some(v => v.includes(q.trim())));
-    const count = (t: string) => all.filter(m => memberStatus(m).text.startsWith(t)).length;
+    const count = (t: string) => all.filter(m => memberStatus(m).text.includes(t)).length;
     const nets = (m: OpsMember) => m.networks.map(n => TARGET_APP_LABEL[n]).join(' · ') || '—';
     const allows = (m: OpsMember) => (
         <span className="flex gap-1 flex-wrap">
