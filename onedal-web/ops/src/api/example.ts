@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
-import type { OpsCallNote, OpsRelease } from '@onedal/shared';
-import { session } from './client';
+import type { OpsRelease } from '@onedal/shared';
 import { createListeners } from './listeners';
-import { BOARD_DROPPED, BOARD_FILTER_FULL, BOARD_PHONE_DETAIL, BOARD_SERVER, CALLS, CHECKS, MEMBERS, MONTH_CODE, PHONES, RELEASES } from '../mock/data';
+import { BOARD_DROPPED, BOARD_FILTER_FULL, BOARD_PHONE_DETAIL, BOARD_SERVER, CHECKS, MEMBERS, MONTH_CODE, PHONES, RELEASES } from '../mock/data';
 
 /**
- * 🧪 **예시 자료를 쓰는 쪽** — 서버 문이 아직 없는 쪽만(통화 도우미 5단계 · 앱 배포 4단계 · 멤버 대조 6단계 · 현황판 이사 reviews/31).
+ * 🧪 **예시 자료를 쓰는 쪽** — 서버 문이 아직 없는 쪽만(앱 배포 4단계 · 멤버 대조 6단계 · 현황판 이사 reviews/31).
  *    쪽 머리의 `ExampleBand` 가 «예시 자료 — 서버 문은 N단계»를 적는다. 서버 문이 있는 쪽은 이 파일을 가져오지 않는다(`opsData` 검사).
  *    쓰기는 메모리만 바꾸고 다시 그린다 — 기록(`ops_audit`)에는 안 남는다(서버가 없으니).
  */
-export const EXAMPLE_STAGE = { calls: '5단계 (통화 도우미)', releases: '4단계 (앱 배포)', checks: '6단계 (멤버십)', board: '현황판 이사 (reviews/31) 뒤' } as const;
+export const EXAMPLE_STAGE = { releases: '4단계 (앱 배포)', checks: '6단계 (멤버십)', board: '현황판 이사 (reviews/31) 뒤' } as const;
 
 const now = () => new Date().toISOString();
 const localDay = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
@@ -33,7 +32,6 @@ export function useExampleTick() {
 export const example = {
     members: () => MEMBERS,
     phones: () => PHONES,
-    calls: () => CALLS,
     releases: () => RELEASES,
     checks: () => CHECKS,
     monthCode: () => MONTH_CODE,
@@ -42,12 +40,6 @@ export const example = {
     boardFilterFull: (memberId: string) => BOARD_FILTER_FULL[memberId],
     boardDropped: () => BOARD_DROPPED,
 
-    writeCallNote(callId: string, note: Omit<OpsCallNote, 'writtenBy' | 'writtenAt'>) {
-        const c = CALLS.find(x => x.id === callId); if (!c) return;
-        c.callNote = { ...note, writtenBy: session.name || '관리자', writtenAt: now() };
-        c.needsCall = false;
-        notify();
-    },
     /** 올리기 — «최신»은 versionCode 가 가장 큰 판이다. 낮은 판을 올리면 최신이 되지 않는다(최소 판이 최신보다 높아지지 않게) */
     uploadRelease(app: OpsRelease['app'], version: string, versionCode: number, fileName: string) {
         const maxCode = Math.max(0, ...RELEASES.filter(r => r.app === app).map(r => r.versionCode));

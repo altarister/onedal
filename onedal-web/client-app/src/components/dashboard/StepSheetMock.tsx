@@ -46,6 +46,8 @@ export interface StepViewLike {
     label: string;
     born?: boolean;
     row: Record<string, any>;
+    /** 📞 통화 행을 적은 사람이 기사 본인이 아닐 때만(운영센터 통화 도우미 · 서버가 이름을 준다) — 본인이면 칸 없음 */
+    writtenByName?: string;
 }
 
 const hhmm = (v?: string | null) => hhmmText(v);   // 🕐 한 모양은 shared
@@ -527,10 +529,12 @@ const doneBtn = 'flex-1 py-2.5 rounded-md bg-success text-white text-[13px] font
  * 🚚 ①②: 통화 두 단계 — 행 값으로 시작해, 저장은 다른 화면과 같은 문으로.
  * 상차는 짐 폼 전부, 하차는 방법·후작업만 (짐은 상차에서 정해진다 — 테이블에 칸도 없다).
  */
-function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrevMs, segmentDriveMinutes }: {
+function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrevMs, segmentDriveMinutes, writtenByName }: {
     orderId: string; r: Record<string, any>; pickup: boolean; place?: StepPlace;
     prevName?: string | null; leadMinutes?: number | null;
     departPrevMs?: number | null; segmentDriveMinutes?: number | null;
+    /** 운영센터(통화 도우미)가 적었으면 그 사람 이름 — 짐 · 약속 · 메모는 이미 칸에 들어가 있으니 출처 한 줄만 */
+    writtenByName?: string;
 }) {
     const [cargo, setCargo] = useState<CargoState>(() => cargoOfRow(r));
     const [memo, setMemo] = useState<string>(r.memo ?? '');
@@ -576,6 +580,9 @@ function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrev
             <Sentence r={r} pickup={pickup} place={place}
                 prevName={prevName} leadMinutes={leadMinutes}
                 departPrevMs={departPrevMs} segmentDriveMinutes={segmentDriveMinutes} />
+            {writtenByName && (
+                <div className="text-[11px] text-text-muted">✍️ <b className="text-text-primary">{writtenByName}</b> 적음{r.occurred_at ? <> · <span className="tabular-nums">{hhmm(r.occurred_at)}</span></> : null} — 확인하고 고치면 «다시 저장»</div>
+            )}
             <div className="flex gap-2">
                 <button type="button" className={skipBtn} onClick={() => save('SKIPPED')}>통화 스킵</button>
                 <button type="button" className={mainBtn} onClick={() => save('DECLARED')}>
@@ -864,7 +871,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
             {isCall && (liveNow
                 ? <LiveCall orderId={orderId!} r={r} pickup={pickup} place={place}
                     prevName={prevName} leadMinutes={leadMinutes}
-                    departPrevMs={departPrevMs} segmentDriveMinutes={segmentDriveMinutes} />
+                    departPrevMs={departPrevMs} segmentDriveMinutes={segmentDriveMinutes} writtenByName={view.writtenByName} />
                 : (
                 <>
                     <CargoForm r={r} pickup={pickup} />

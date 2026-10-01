@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
-import { COLOR_DOT, businessDayKey, hhmmText, isoKst, opsMemberStatus, wonText, type OpsCounts, type OpsMember } from '@onedal/shared';
+import { COLOR_DOT, hhmmText, isoKst, kstDateText, opsMemberStatus, wonText, type OpsCounts, type OpsMember } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 import { Badge } from '@onedal/ui/badge';
 import {
@@ -12,7 +12,7 @@ import { logout, session } from './api/client';
 /**
  * 🏢 **운영센터 화면 틀** — PC 는 왼쪽 메뉴 + 윗줄(마지막 갱신 · 관리자), 폰은 윗줄 + 아래 탭 넷(+ 더 보기).
  *    표는 폰 폭에서 카드로 바뀐다(`Table` 의 `card`). 부품은 `@onedal/ui`, 판정 점은 shared `COLOR_DOT` 한 벌.
- *    시각 글자는 shared 의 `hhmmText` · `isoKst` · `businessDayKey` 를 거친다 — 화면이 직접 파싱하지 않는다(`toISOString()` 은 UTC 라 새벽 0~9시에 하루 어긋난다).
+ *    시각 글자는 shared 의 `hhmmText` · `isoKst` · `kstDateText` 를 거친다 — 화면이 직접 파싱하지 않는다(`toISOString()` 은 UTC 라 새벽 0~9시에 하루 어긋난다).
  */
 
 /** 메뉴 옆 숫자는 서버 `/ops/counts`(할 일이 있는 것만) — 틀이 60초마다, 그리고 쓰기 뒤 바로 다시 읽는다 */
@@ -243,10 +243,9 @@ const STATUS_KO: Record<string, string> = { ORDER_CONFIRMED: '진행 중', ORDER
 export function statusKo(status: string): string { return STATUS_KO[status] ?? status.replace('ORDER_', ''); }
 
 /** 한국 날 — 브라우저 시간대(기사님 · 관리자는 한국). `toISOString()` 은 UTC 라 쓰지 않는다 */
-/** 한국 날 `YYYY-MM-DD` — shared 두 함수를 거친다(ISO 글자 → ms → 영업일 키). 브라우저는 한국(기사님 · 관리자) */
+/** 한국 달력 날 `YYYY-MM-DD` — shared `kstDateText` 하나(영업일 키가 아니다 — 화면이 스스로 묶는 자리에만 쓴다 · 서버가 영업일로 센 값은 그대로 센다) */
 export function dayKey(at: Date | string | number = new Date()): string {
-    const ms = at instanceof Date ? at.getTime() : typeof at === 'number' ? at : Date.parse(isoKst(at) ?? '');
-    return businessDayKey(Number.isFinite(ms) ? ms : Date.now());
+    return kstDateText(at) ?? kstDateText(Date.now()) ?? '';
 }
 export function todayKey(): string { return dayKey(new Date()); }
 export function plusDaysKey(n: number, from: Date | string = new Date()): string {
