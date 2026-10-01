@@ -51,6 +51,6 @@ describe('🏠 운영센터 홈 화면', () => {
         expect(mpf).toContain('filterValueRowsOf(shownFilter');
         expect(mpf).toMatch(/<Card title="🧾 필터 전문">\s*<details[^>]*>\s*<summary/);
         const panel = readFileSync(join(SRC, '../../client-app/src/statusboard/StatusBoard.tsx'), 'utf8');
-        expect(panel).toContain('filterValueRowsOf(filter as');   // 관제웹 «필터설정값» 과 한 벌
+        expect(panel).not.toContain('filterValueRowsOf(');   // «필터설정값» 은 운영센터 한 벌 — 관제웹 현황판에 두 벌을 두지 않는다
     });
 });

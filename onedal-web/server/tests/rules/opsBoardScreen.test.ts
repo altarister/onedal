@@ -27,14 +27,14 @@ describe('🧰 운영센터 현황판 화면', () => {
         expect(inspect).toContain("server.errorsToday.count === 0 ? '없음' : `${server.errorsToday.count}줄 · ${server.errorsToday.kinds}가지`");
         expect(inspect).toContain('hint="서버를 다시 띄우면 0"');
     });
-    it('🔴 회원 «폰 · 필터» 칸은 관제웹 현황판의 그 기사 몫과 같은 카드 이름 · 같은 순서 — 기사님이 «같은 것이 다 있나»를 대조하신다', () => {
-        const board = read('client-app/src/statusboard/StatusBoard.tsx');
+    it('🔴 회원 «폰 · 필터» 칸에 관제웹 현황판이 그리던 기사 몫이 그 이름 · 그 순서로 다 있다 — 관제웹 현황판에는 없다(두 벌을 두지 않는다)', () => {
+        const board = read('client-app/src/statusboard/StatusBoard.tsx').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');   // 주석 말고 화면 글자
         const b = read('ops/src/pages/MemberPhoneFilter.tsx');
         const body = b.slice(b.indexOf('export default function MemberPhoneFilter'));
         /* 관제웹 현황판이 그리는 순서(서버 줄 → 앱 줄 → 심사 → 폰 넷) — 🚨 어긋남은 옮길 수 없어 뺀다 */
         const TITLES = ['🖥️ 지금 무엇이 도는가', '📰 새 글자', '📍 내 위치', '🎛️ 필터설정값', '📋 콜 리스트', '🗑️ 버린 콜', '📦 앱에 내려갈 필터', '🎛️ 지금 어떤 판인가', '🗂️ 영역', '🧾 필터 전문', '⚖️ 심사 중'];
         const PHONE = ['📡 이 폰이 든 필터', '👁️ 폰이 일하고 있나', '🔍 이 폰의 성적표', '📊 누적 · 좌표'];
-        for (const title of [...TITLES, ...PHONE]) { expect({ title, 관제웹: board.includes(title) }).toEqual({ title, 관제웹: true }); expect({ title, 운영센터: b.includes(title) }).toEqual({ title, 운영센터: true }); }
+        for (const title of [...TITLES, ...PHONE]) { expect({ title, 관제웹: board.includes(title) }).toEqual({ title, 관제웹: false }); expect({ title, 운영센터: b.includes(title) }).toEqual({ title, 운영센터: true }); }
         const at = ['🖥️ 지금 무엇이 도는가', '<NewWordsCard', '<LocationCard', '🎛️ 필터설정값', '📋 콜 리스트', '🗑️ 버린 콜', '📦 앱에 내려갈 필터', '🎛️ 지금 어떤 판인가', '🗂️ 영역', '🧾 필터 전문', '<JudgingCard', '📱 폰 —'].map(k => body.indexOf(k));
         expect(at.every(i => i > 0)).toBe(true);
         expect([...at].sort((x, y) => x - y)).toEqual(at);
@@ -48,11 +48,11 @@ describe('🧰 운영센터 현황판 화면', () => {
         expect(b).toContain('api.boardMember(memberId)');
         expect(read('ops/src/api/ops.ts')).toContain('/board/member?memberId=');
     });
-    it('🔴 위치 출처 글자는 관제웹 현황판과 같은 한 벌 — 두 파일의 네 줄이 글자까지 같다(관제웹을 안 건드리려 따로 둔 사본)', () => {
-        const pick = (src: string) => ['gps', 'mock', 'manual', 'home'].map(k => src.slice(src.indexOf('const LOCATION_SOURCE_LABEL')).match(new RegExp(`${k}: '([^']+)'`))?.[1]);
-        const web = pick(read('client-app/src/statusboard/StatusBoard.tsx'));
-        expect(web.every(Boolean)).toBe(true);
-        expect(pick(read('ops/src/pages/MemberPhoneFilter.tsx'))).toEqual(web);
+    it('🔴 위치 출처 글자는 운영센터 «📍 내 위치» 한 벌 — 관제웹 현황판은 그 칸을 그리지 않는다', () => {
+        const ops = read('ops/src/pages/MemberPhoneFilter.tsx');
+        const at = ops.slice(ops.indexOf('const LOCATION_SOURCE_LABEL'));
+        for (const [k, v] of [['gps', '📡 GPS'], ['mock', '🧪 모의 주행'], ['manual', '📍 손으로 찍음'], ['home', '🏠 집 주소로 대신']]) expect(at).toContain(`${k}: '${v}'`);
+        expect(read('client-app/src/statusboard/StatusBoard.tsx')).not.toContain('LOCATION_SOURCE_LABEL');
     });
     it('🔴 성적표는 shared summarizeTally · 판정은 옮겨 적기만(다시 재지 않는다)', () => {
         const b = read('ops/src/pages/MemberPhoneFilter.tsx');
@@ -61,9 +61,11 @@ describe('🧰 운영센터 현황판 화면', () => {
         // 필터 값으로 콜을 다시 재는 줄이 없다 — 값을 «보여 주기»(요금 줄)는 하지만 콜의 요금 · 거리와 견주는 식은 없다
         expect(b).not.toMatch(/\.fare\s*[<>]=?|[<>]=?\s*\w+\.(minFare|maxFare)|(minFare|maxFare)\s*[<>]|radiusKm\s*[<>]/);
     });
-    it('🔴 관제웹 현황판은 그대로다 — 운영센터로 간다고 관제웹에서 빼지 않았다(1차)', () => {
-        const s = read('client-app/src/statusboard/StatusBoard.tsx');
-        for (const t of ['🖥️ 지금 무엇이 도는가', '📡 이 폰이 든 필터', '👁️ 폰이 일하고 있나', '🔍 이 폰의 성적표', '🧾 필터 전문', '🗑️ 버린 콜']) expect(s).toContain(t);
+    it('🔴 관제웹 현황판에는 값 카드가 없다 — 🧪 테스트용 구역과 🚨 어긋남만(기사님 «가» · 값은 운영센터 회원 «폰 · 필터»)', () => {
+        const s = read('client-app/src/statusboard/StatusBoard.tsx').replace(/\/\*[\s\S]*?\*\//g, '');
+        for (const title of ['🖥️ 지금 무엇이 도는가', '📡 이 폰이 든 필터', '👁️ 폰이 일하고 있나', '🔍 이 폰의 성적표', '🧾 필터 전문', '🗑️ 버린 콜', '⚖️ 심사 중']) expect({ title, 있나: s.includes(title) }).toEqual({ title, 있나: false });
+        expect(s).toContain('🚨 어긋남');
+        expect(s).toContain('<TestOnlySection');
     });
     it('🔴 축 이름표 두 벌(성적표 짧은 이름 AXES · 버린 콜 까닭 VERDICT_AXIS_LABEL)의 축 키 목록이 같다 — 새 축이 한쪽에만 더해지지 않게', () => {
         const src = read('shared/src/filterTally.ts');
@@ -80,24 +82,19 @@ describe('🧰 운영센터 현황판 화면', () => {
         expect(v).toContain("'/api': API_TARGET");
     });
 
-    it('🔴 «앱에 내려갈 필터»는 폰이 받는 그대로 — 두 현황판이 서버 조립 결과를 읽는다(activeFilter 에서 골라 찍지 않는다)', () => {
+    it('🔴 «앱에 내려갈 필터»는 폰이 받는 그대로 — 운영센터가 서버 조립 결과를 읽는다(activeFilter 에서 골라 찍지 않는다)', () => {
         const b = read('ops/src/pages/MemberPhoneFilter.tsx');
         expect(b).toContain('filter?.app?.find(');
         expect(b).toContain('🎛️ 필터설정값');   // 관제웹 현황판과 같은 이름
         expect(b).toContain('폰이 오늘 아직 보고 안 함');
-        const s = read('client-app/src/statusboard/StatusBoard.tsx');
-        expect(s).toContain('`/devices/app-filter?deviceId=');
-        expect(s).toContain("node: <AppFilterCard devices={devices} />");
-        expect(s).not.toMatch(/APP_FILTER_KEYS\.map\(k => \(\s*<Row key=\{k\} k=\{k\} v=\{\(filter as/);
+        expect(read('client-app/src/statusboard/StatusBoard.tsx')).not.toMatch(/AppFilterCard|devices\/app-filter/);
     });
 
-    it('🔴 useAppFilter 는 현황판 안에서만 — 현황판은 PC 폭에서만 붙어(Dashboard withPanel) 거치대 폰이 이 문을 부르지 않는다', () => {
+    it('🔴 관제웹은 «앱에 내려갈 필터» 문을 부르지 않는다 — 거치대 폰도 PC 폭 현황판도(그 칸은 운영센터)', () => {
         const { readdirSync, statSync } = require('fs') as typeof import('fs');
         const walk = (dir: string): string[] => readdirSync(dir).flatMap(n => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
         const users = walk(join(WEB, 'client-app/src')).filter(f => /\.tsx?$/.test(f) && /useAppFilter|devices\/app-filter/.test(readFileSync(f, 'utf8')));
-        expect(users.map(f => f.replace(WEB, ''))).toEqual(['/client-app/src/statusboard/StatusBoard.tsx']);
-        const d = read('client-app/src/pages/Dashboard.tsx');
-        expect(d).toContain('if (!withPanel) return body;');
+        expect(users.map(f => f.replace(WEB, ''))).toEqual([]);
     });
 
     it('예시 쪽은 멤버 대조 하나 — 예시 자료에 현황판 것이 없다', () => {

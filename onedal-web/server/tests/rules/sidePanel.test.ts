@@ -144,23 +144,30 @@ describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
      *    패널이 제 계산을 하면 «화면은 맞는데 판정은 틀린» 것을 못 잡는다.
      *    그러면 진단 화면이 오히려 오진을 늘린다.
      */
-    it('🔴 앱에 내려갈 값은 표(APP_FILTER_KEYS)에서 온다 — 여기 또 적지 않는다', () => {
+    it('🔴 «앱에 내려갈 필터»는 운영센터 회원 «폰 · 필터»가 표(APP_FILTER_KEYS) 순서로 보인다 — 관제웹 현황판에는 없다', () => {
         const panel = codeOnly(read(PANEL));
-        // 칸은 shared `appFilterRowsOf` 가 만든다 — 그 함수가 표(APP_FILTER_KEYS) 순서로 줄을 낸다(운영센터 현황판과 한 벌)
-        expect(panel).toMatch(/appFilterRowsOf\(/);
-        expect(codeOnly(read(require('path').join(__dirname, '../../../shared/src/index.ts')))).toMatch(/export function appFilterRowsOf[\s\S]{0,200}APP_FILTER_KEYS/);
-        // 키를 손으로 나열한 배열이 없다
-        expect(panel).not.toMatch(/\['isActive',\s*'isSharedMode'/);
+        expect(panel).not.toMatch(/appFilterRowsOf|useAppFilter|devices\/app-filter/);
+        expect(codeOnly(read(join(__dirname, '../../../ops/src/pages/MemberPhoneFilter.tsx')))).toMatch(/appFilterRowsOf\(/);
+        expect(codeOnly(read(join(__dirname, '../../../shared/src/index.ts')))).toMatch(/export function appFilterRowsOf[\s\S]{0,200}APP_FILTER_KEYS/);
     });
 
     /**
-     * 🔴 **칸 순서는 한 곳에서 바꾼다** (기사님: *"순서는 너가 알아서 나중에 바꿀수 있어"*).
-     *    JSX 에 칸을 박아 두면 순서를 바꿀 때마다 큰 덩어리를 옮겨야 한다.
+     * 🔴 **값 카드는 운영센터에 한 벌** (기사님 «가» — 관제웹 현황판의 그 기사 몫은 운영센터 회원 «폰 · 필터»에 같은 이름 · 같은 순서로 있다).
+     *    관제웹 현황판에는 서버로 보내는 시험 도구(🧪 테스트용)와 이 화면에서만 할 수 있는 대조(🚨 어긋남)만 둔다.
      */
-    it('칸 목록이 배열 하나다 — 순서를 한 줄로 바꾼다', () => {
+    it('🔴 «🚨 어긋남»이 견주는 값을 읽는 길 다섯은 남는다 — 카드를 지워도 대조는 지금과 같은 답을 낸다', () => {
         const panel = codeOnly(read(PANEL));
-        expect(panel).toMatch(/const COLUMNS/);
-        expect(panel).toMatch(/COLUMNS\.map/);
+        const m = panel.slice(panel.indexOf('const mismatch = (() => {'));
+        for (const road of ['const driverLoc = useDriverLocation();', 'ensureDriverPositionSubscribed();', 'const driverPos = useDriverPositionStore();',
+            "fetch(`${apiBase()}/health`)", 'const { filter } = useFilterConfig();', 'const devices = useDeviceStore(st => st.devices);']) expect(panel).toContain(road);
+        for (const read_ of ["driverLoc?.source === 'home'", 'driverPos.myPosition', '!health', 'filter.isActive === false', 'devices.forEach(']) expect(m).toContain(read_);
+    });
+
+    it('현황판은 🧪 테스트용 구역 + 🚨 어긋남 한 칸 — 값 카드를 두 벌로 두지 않는다', () => {
+        const panel = codeOnly(read(PANEL));
+        expect(panel).toContain('<TestOnlySection phase={filter?.dispatchPhase} />');
+        expect(panel).toContain('{mismatch}');
+        expect(panel).not.toMatch(/const COLUMNS|const SIDES|PhoneTabs|JudgingSeatCard|ScrapIntelCard|DriverLocationCard|NewWordsCard|AppFilterCard/);
     });
 
     /**
@@ -178,7 +185,7 @@ describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
         const panel = codeOnly(read(PANEL));
         expect(panel).toMatch(/h-full/);                    // 부모가 준 높이를 꽉 채운다
         expect(panel).toMatch(/overflow-y-auto/);           // 세로로 흐른다
-        expect(panel).toMatch(/flex flex-col gap-2/);       // 줄마다 한 단 — 칸이 자리를 안 옮긴다
+        expect(panel).toMatch(/flex-1 min-h-0 overflow-y-auto/);   // 어긋남 칸이 남은 높이를 받아 세로로 흐른다
         expect(panel).not.toMatch(/columnWidth/);           // 신문 단을 되살리지 않는다
         expect(panel).not.toMatch(/overflow-x-auto/);       // 가로로 숨기지 않는다
         // 부모(감싸개)가 창 높이를 정한다 — 그래야 원본과 패널이 같은 높이다

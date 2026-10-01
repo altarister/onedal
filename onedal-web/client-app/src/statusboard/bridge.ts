@@ -21,7 +21,6 @@
  * |---|---|---|
  * | `useFilterConfig` | 소켓(`filter-init`·`filter-updated`) 구독 | 기사 id 를 얹어 같은 소켓을 본다 |
  * | `useDeviceStore`  | 앱폰 텔레메트리 스토어 | 〃 |
- * | `summarizeTally`  | 순수 함수 (앱 성적표 → 문구) | **그대로 쓴다** |
  * | `apiBase`         | 지금 보는 서버 주소 | 어드민 주소로 |
  * | `useMockDriveStore` | 모의 주행 스위치 (개발 전용) | 어드민에서도 같은 스위치 |
  * | `publishLocation` | 소켓 `dashboard-gps-update` 로 좌표를 낸다 | 기사 id 를 얹어 같은 소켓으로 |
@@ -38,7 +37,6 @@
  */
 export { useFilterConfig } from '../hooks/useFilterConfig';
 export { useDeviceStore } from '../stores/deviceStore';
-export { summarizeTally } from '@onedal/shared';
 export { apiBase } from '../lib/serverTarget';
 /**
  * 📍 **서버가 아는 «내 자리»** — 화면이 제 손으로 정한 값과 대조해
@@ -56,10 +54,8 @@ export { useDriverPositionStore, ensureDriverPositionSubscribed } from '../store
  */
 export { useSettingsStore } from '../stores/settingsStore';
 /* 🔴 **인증이 필요한 문은 이걸로 연다** — 토큰을 손으로 붙이면 갱신(리프레시)을 놓친다.
-   테스트용 구역(주소 찾기 · 집)과 «📰 새 글자» 줄이 함께 쓴다 — 새 글자 줄은 라이브에도 남으니 이 줄은 테스트용 구역 밖이다 */
+   테스트용 구역(주소 찾기 · 집 · 콜 생성의 등록 기기 읽기)이 쓴다 */
 export { apiClient } from '../api/apiClient';
-/* 📰 **소켓은 듣기만** — «새 글자» 줄이 `screen-word-new` 를 듣는다. 보내는 일(위치)은 `publishLocation` 한 곳을 지난다 */
-export { socket } from '../lib/socket';
 /* ── 🧪 **여기부터 셋은 «테스트용»이다 — 어드민으로 갈 때 함께 걷는다** ──
    (기사님 지시: *"모의 주행과 내 위치의 주소찾기, 집주소 이렇게 3개의 모듈은
     어드민때는 없어져야 하는것들이야"*)

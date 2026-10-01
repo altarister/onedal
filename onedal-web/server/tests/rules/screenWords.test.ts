@@ -91,20 +91,19 @@ describe('📰 현황판 «새 글자» 줄 — 라이브에서도 보인다', (
         expect(read('index.ts')).toContain('app.use("/api/screen-words", screenWordsRouter);');
     });
 
-    it('현황판이 문으로 채우고 소켓으로 새로 고친다 — 테스트용 묶음 밖', () => {
+    it('«📰 새 글자»는 운영센터 회원 «폰 · 필터»가 보인다 — 관제웹 현황판에는 없다(두 벌을 두지 않는다)', () => {
         const sb = client('statusboard/StatusBoard.tsx');
-        expect(sb).toContain("apiClient.get<{ words: NewWord[] }>('/screen-words/recent?days=7')");
-        expect(sb).toContain("socket.on('screen-word-new', onNew)");
-        expect(sb).toContain("socket.off('screen-word-new', onNew)");
-        const testOnly = sb.slice(sb.indexOf('function TestOnlySection'), sb.indexOf('function TestOnlySection') + 3000);
-        expect(testOnly).not.toContain('NewWordsCard');
+        expect(sb).not.toMatch(/NewWordsCard|screen-words\/recent|screen-word-new/);
+        const ops = readFileSync(join(__dirname, '../../../ops/src/pages/MemberPhoneFilter.tsx'), 'utf8');
+        expect(ops).toContain('function NewWordsCard(');
+        expect(ops).toContain('board?.newWords');
     });
 
-    it('갈래·페이지의 한국어 이름은 shared 한 곳 — 서버 로그와 현황판이 같은 말', () => {
+    it('갈래·페이지의 한국어 이름은 shared 한 곳 — 서버 로그와 운영센터가 같은 말', () => {
         const shared = readFileSync(join(__dirname, '../../../shared/src/pageFields.ts'), 'utf8');
         expect(shared).toContain('export const WORD_KIND_LABEL');
         expect(shared).toContain('export const SCREEN_PAGE_LABEL');
         expect(read('services/screenWords.ts')).toContain('WORD_KIND_LABEL[kind]');
-        expect(client('statusboard/StatusBoard.tsx')).toContain('WORD_KIND_LABEL');
+        expect(readFileSync(join(__dirname, '../../../ops/src/pages/MemberPhoneFilter.tsx'), 'utf8')).toContain('WORD_KIND_LABEL[w.kind as WordKind]');
     });
 });

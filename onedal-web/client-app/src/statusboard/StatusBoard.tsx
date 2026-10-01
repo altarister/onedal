@@ -22,23 +22,19 @@
  *
  * 자리: 무대는 `max-w-2xl`(672px)이고 **패널이 설 때만 왼쪽에 붙는다**(`Dashboard`).
  *       패널은 그 오른쪽 전부를 쓰되 **원본과 형제**로 선다 — 겹치지 않으니 무대는 그대로다.
- *       그 안은 다시 **둘**이다: 🖥️ 서버(심사·통신·저장) · 📱 앱(올라온 보고·내려갈 값).
+ *       그 안은 🧪 테스트용 구역(서버로 보내는 시험 도구)과 🚨 어긋남 한 칸이다.
+ *       서버 · 앱 · 버린 콜 · 심사 중 · 폰 값 카드는 운영센터 회원 «폰 · 필터» 칸에 있다(같은 이름 · 같은 순서) — 여기 두 벌을 두지 않는다.
  */
-import { useEffect, useRef, useState } from 'react';
-import { haversineKm, appFilterRowsOf, filterValueRowsOf, isEvaluating, isTerminal, workStageLabel, isModeApplying,
-         DEVICE_MODE_LABEL, deviceLabel, clockText, wonText } from '@onedal/shared';
-import type { SecuredOrder, DeviceSession, DeviceModeType, AppFilterReply } from '@onedal/shared';
-import { SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind } from '@onedal/shared';
+import { useEffect, useState } from 'react';
+import { haversineKm, deviceLabel, wonText } from '@onedal/shared';
+import type { SecuredOrder } from '@onedal/shared';
 /* 🌉 관제웹 안쪽은 **다리 하나**로만 본다 — 옮길 때 `bridge.ts` 만 새로 쓰면 된다 */
 import { LAB_EVENING,
-         useFilterConfig, useDeviceStore, summarizeTally, apiBase,
+         useFilterConfig, useDeviceStore, apiBase,
          useMockDriveStore, MOCK_DRIVE_SPEEDS, MOCK_DRIVE_DEFAULTS, publishLocation, apiClient,
-         useDriverPositionStore, ensureDriverPositionSubscribed, socket,
+         useDriverPositionStore, ensureDriverPositionSubscribed,
          useSettingsStore, KM_PER_TICK, STOP_OFF_ROAD_KM } from './bridge';
-/* ⚖️ **앱이 내린 판정을 읽는다** — 여기서 다시 재지 않는다 (`callVerdict.ts` 머리 참조).
-   사본을 두면 앱과 갈라진다 */
-import { viewAll, tallyMarks, MARK_SIGN } from './callVerdict';
-import { callStepsOf, handmadeOrderFrom, isHandmade } from './handmadeCall';
+import { callStepsOf, handmadeOrderFrom } from './handmadeCall';
 import { placeFromFound, sentNoteOf, simCallBody } from './simCall';
 import type { SimPlaceDraft } from './simCall';
 import ScenarioCard from './ScenarioCard';
@@ -46,7 +42,6 @@ import ScenarioCard from './ScenarioCard';
 import { simAsk, simFetch, useSimDoor } from './simDoor';
 /* 🎚️ **눈금이 무엇을 못 보게 하나 — 판단은 순수 함수가 한다** (`dialEffect.ts` 머리 참조) */
 import { dialEffectOf } from './dialEffect';
-import type { IntelRow } from '@onedal/shared';   // 🗑️ 원장 한 줄 — 서버 `intel` 행 그대로 · 모양은 shared 한 곳(운영센터 현황판과 같이)
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
    손으로 적으면 `/api` 가 두 번 붙어 실경로가 늘 직선으로 그려진다 */
 
@@ -58,36 +53,6 @@ import type { IntelRow } from '@onedal/shared';   // 🗑️ 원장 한 줄 — 
  *    좋겠어. 항상 윈도우를 풀사이즈로 하는건 힘들어"*). 가로로만 흐르면 창이 작을 때
  *    칸이 **숨는다** — 있는 줄도 모른다. 아래로 쌓으면 휠 한 번에 다 지나간다.
  */
-const COL_MIN = 280;
-
-/**
- * 🖥️📱 **두 쪽 — 왼쪽은 서버, 오른쪽은 앱** (기사님 지시:
- * *"왼쪽은 서버랑 관련된거, 심사하고, 통신하고, 저장하고 그런것들을 담아 주고
- * 오른쪽은 앱에서 주로 일어나서 서버에게 보고하는것, 서버가 내려주는것들"*).
- *
- * ⚠️ 칸을 **한 덩어리로 흘리면**(신문 단) 창 폭이 바뀔 때 칸이 **자리를 옮겨**, 찾던 것이 매번
- *    다른 데 있다 (기사님: *"핀터레스트 같은 구조라 뭐가 어디 있는지 모르겠어"*).
- *    그래서 **어느 쪽인지가 먼저** 정해지고, 칸은 그 쪽 **안에서만** 놓인다.
- *
- * 🔴 **가르는 축은 «누가 그 값을 만드나»다** — 서버가 제 안에서 쥔 것(심사·통신·저장) ↔
- *    앱과 **주고받는 것**(앱이 올린 보고 · 앱에 내려갈 값). 화면 자리로 가르면 칸이 늘 때마다
- *    또 흔들린다.
- */
-const SIDES = [
-    { key: 'server', title: '🖥️ 서버', note: '심사 · 통신 · 저장' },
-    { key: 'app', title: '📱 앱', note: '앱이 올린 보고 · 앱에 내려갈 값' },
-    /**
-     * 🗑️ **버린 콜은 제 줄을 갖는다** (기사님 지시: *"그냥 한 줄로 만들고
-     *    오른쪽에 한 줄 더 파서 서버가 받은 버린콜들의 리스트를 보여주는 공간으로"*).
-     *
-     * 🔴 **다른 칸과 성질이 다르다** — 나머지는 «지금 한 벌»이라 몇 줄이면 끝나는데,
-     *    이것은 **계속 쌓이는 목록**이다. 한 칸에 우겨 넣으면 스크롤 상자 안의 스크롤이 되고,
-     *    그러면 «얼마나 올라왔나»가 눈에 안 들어온다.
-     */
-    { key: 'intel', title: '🗑️ 버린 콜', note: '서버가 받은 것 그대로' },
-] as const;
-type Side = typeof SIDES[number]['key'];
-
 interface Health {
     bootedAt?: string;
     git?: { commit?: string; branch?: string };
@@ -167,47 +132,12 @@ function Card({ title, note, children, tall, fold = true, defaultOpen = true }: 
     );
 }
 
-/** 🕐 시각을 사람이 읽는 모양으로 — **표시**일 뿐 값을 만드는 것이 아니다 */
-function clockOf(ms?: number): string | undefined {
-    return clockText(ms) ?? undefined;   // 🕐 «14시 5분 3초» 가 나오던 자리 — 한 모양은 shared
-}
-
-/**
- * ⏱️ **얼마나 지났나** — 「지금 위치」라 믿을 수 있는 좌표인지는 **나이**가 답한다.
- *    낡은 좌표를 지금 자리로 믿으면 경로를 수십 km 뒤에서 그린다.
- */
-function agoOf(at?: number | null): string | undefined {
-    if (!at) return undefined;
-    const sec = Math.round((Date.now() - at) / 1000);
-    if (sec < 60) return `${sec}초 전`;
-    if (sec < 3600) return `${Math.round(sec / 60)}분 전`;
-    return `${Math.round(sec / 3600)}시간 전`;
-}
-
-/**
- * 🕐 **이 나이를 넘으면 눈에 걸리게 한다** — 판정에 쓰는 값이 **아니다.**
- *    서버는 이 숫자를 모르고, 여기서 콜을 거르지도 않는다. 오직 «이 좌표를 지금 자리로
- *    믿어도 되나»를 기사님 눈에 띄게 하는 **표시 기준**이다 (규칙 ⑤-4 ①: 판정값이면 DB 로 간다).
- */
-const LOCATION_STALE_SEC = 300;
-
-/** 📍 좌표의 출처를 사람 말로 — **«대신 쓰는 중»을 반드시 적는다** */
-const LOCATION_SOURCE_LABEL: Record<string, string> = {
-    gps: '📡 GPS',
-    /* 🧪 **모의 주행은 «GPS» 가 아니다** — 서버가 출처를 «온 그대로» 남기므로
-       이 값이 실제로 온다 (`driverLocationSource`). 가상 좌표를 진짜로 읽으면
-       경로가 통째로 헛것이 된다. */
-    mock: '🧪 모의 주행',
-    manual: '📍 손으로 찍음',
-    home: '🏠 집 주소로 대신',
-};
-
 /* 🗑️ **지도를 찍어 내 위치를 고르는 작은 지도는 두지 않는다** (기사님 지시: *"자리가 모자란다
    찍어서 내위치 찾기는 버리자"* · *"내 위치에서 지도만 빼라고 한거야.. 주소찾기하고 집은 그냥두고"*).
 
-   주소로 찾기 · 「🏠 집」 · 「📍 찍기」는 테스트용 구역의 `LocationPickCard` 에 있다.
-   ⚠️ **표시 칸은 따로 선다** — 이 칸의 존재 이유는 «집 주소로 대신 쓰는 중»을 화면이 말하게
-      하는 것이고, 그건 보내는 기능과 무관하다. 서버로 보내는 문은 `publishLocation` 하나뿐이다. */
+   주소로 찾기 · 「🏠 집」 · 「📍 찍기」는 테스트용 구역의 `LocationPickCard` 에 있다. 서버로 보내는 문은 `publishLocation` 하나뿐이다.
+   «서버가 어디를 내 자리로 아나»를 보이는 칸(📍 내 위치)은 운영센터 회원 «폰 · 필터»에 있다 —
+   여기는 «🚨 어긋남»이 «집 주소로 대신 쓰는 중»을 말하는 데 쓰는 훅(`useDriverLocation`)만 남는다. */
 
 interface DriverLoc {
     ok: boolean;
@@ -249,27 +179,6 @@ function useDriverLocation(): DriverLoc | null {
         return () => { alive = false; clearInterval(t); };
     }, []);
     return loc;
-}
-
-function DriverLocationCard({ loc }: { loc: DriverLoc | null }) {
-    /* 🚪 이 칸도 `/sim/driver-location` **하나로만** 산다 — 문이 닫혔으면 영영 «못 물었다»다 */
-    const door = useSimDoor();
-    const ago = agoOf(loc?.at);
-    const stale = loc?.at != null && Date.now() - loc.at > LOCATION_STALE_SEC * 1000;
-    const src = loc?.source;
-    /* 🔴 출처를 모르면 «모른다»고 적는다 — 지어내지 않는다 (규칙 ④) */
-    const srcText = loc?.ok === false ? undefined : src ? (LOCATION_SOURCE_LABEL[src] ?? src) : undefined;
-
-    if (door === 'closed') return null;
-    return (
-        <Card title="📍 내 위치" note={'서버가 쥔 것\n5초마다 다시 묻는다'}>
-            <Row k="출처" v={srcText} empty={loc?.reason ?? '— 서버에 못 물었다'}
-                 tone={src === 'gps' ? 'ok' : 'warn'} />
-            <Row k="좌표" v={loc?.x != null && loc?.y != null ? `${loc.x.toFixed(5)}, ${loc.y.toFixed(5)}` : undefined} />
-            <Row k="받은 시각" v={loc?.at ? `${clockOf(loc.at)} · ${ago}` : undefined}
-                 empty="— 모름 (받은 적 없다)" tone={stale ? 'warn' : loc?.at ? 'ok' : 'warn'} />
-        </Card>
-    );
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -623,42 +532,6 @@ function SimCallCard() {
     );
 }
 
-/** 📰 서버가 처음 본 화면 낱말 한 줄 — 읽기 문(`/api/screen-words/recent`)과 소켓(`screen-word-new`)이 같은 모양 */
-interface NewWord { targetApp: string; page: string; word: string; kind: string; firstSeen: string; seenCount?: number; sample: string | null }
-
-/**
- * 📰 **새 글자 — 배차망 앱이 바뀐 첫 신호** (reviews/24 · 기사님 «정의되지 않았다고 버리지 말고 모아라»).
- *    원달앱이 화면에서 정의에 없거나 잡음으로 뺀 글자를 서버가 처음 볼 때 한 줄이 선다. 진행 중 화면·소리는 안 쓴다 —
- *    운전 중에는 못 보고 급한 일이 아니다. 🔴 테스트용 묶음 밖에 둔다 — 실물 픽커의 새 글자는 라이브에서 보여야 한다.
- */
-function NewWordsCard() {
-    const [rows, setRows] = useState<NewWord[] | null>(null);
-    useEffect(() => {
-        let alive = true;
-        apiClient.get<{ words: NewWord[] }>('/screen-words/recent?days=7')
-            .then(r => { if (alive) setRows(r.data.words); })
-            .catch(() => { if (alive) setRows(null); });
-        const onNew = (w: NewWord) => setRows(prev => [w, ...(prev ?? [])].slice(0, 20));
-        socket.on('screen-word-new', onNew);
-        return () => { alive = false; socket.off('screen-word-new', onNew); };
-    }, []);
-    const shown = (rows ?? []).slice(0, 5);
-    return (
-        <Card title={shown.length ? `📰 새 글자 — 최근 7일 ${rows!.length}개` : '📰 새 글자'}
-              note={'원달앱이 모르는 글자를 처음 봤을 때\n배차망 앱이 바뀐 첫 신호'}>
-            {rows === null
-                ? <Row k="지금" v="못 읽었다 — 서버에 못 붙었다" tone="warn" />
-                : shown.length === 0
-                    ? <Row k="최근 7일" v="처음 본 글자 없음" tone="ok" />
-                    : shown.map(w => (
-                        <Row key={`${w.targetApp}${w.page}${w.kind}${w.word}`}
-                             k={`${w.targetApp} ${SCREEN_PAGE_LABEL[w.page as ScreenPage] ?? w.page}`}
-                             v={`‹${w.word}› ${WORD_KIND_LABEL[w.kind as WordKind] ?? w.kind}${w.sample ? ` — ${w.sample.slice(0, 40)}` : ''}`} />
-                    ))}
-        </Card>
-    );
-}
-
 /**
  * 🧹 **본 콜 기억 비우기** — 서버가 회차를 올리면 폰이 다음 보고에서 «이미 본 콜» 기억을 비운다.
  *    시나리오 «▶ 시작»은 스스로 회차를 올리므로, 이 버튼은 **시나리오 없이 판을 다시 시작할 때** 쓴다.
@@ -691,130 +564,16 @@ function CallMemoryButton() {
 }
 
 /**
- * 🧪 **테스트용 구역 — 맨 위에 따로 선다** (기사님 지시).
- *    이 구역의 셋만 **서버를 바꾸고**, 아래 줄들은 읽기만 한다 (예외: «버린 콜» 칸 아래 «🖐️ 콜 생성»).
- *    어드민으로 옮기는 날 **이 구역째** 걷는다.
+ * 🖐️ **콜 생성 — 앱이 쓰는 문으로 한 건 올리는 시험 도구** (기사님 지시 *"콜 생성 하면 앱에서 콜을 서버로 올리는 것과 같은 효과를 주면 된다"*).
+ *    서버로 보내는 시험 도구라 🧪 테스트용 구역에 함께 둔다. 올라간 콜은 운영센터 회원 «폰 · 필터»의 «🗑️ 버린 콜»에서 본다.
+ *    🔴 값은 지어내지 않는다 — `labProblems` 의 «볼트 저녁 판», 기사님이 실제로 도신 콜이다.
  */
-function TestOnlySection({ phase }: { phase?: string }) {
-    /**
-     * 🚪 **문이 닫힌 서버(라이브)에서는 이 구역이 통째로 없다** — 서버 `isDevBuild()` 와 짝이다.
-     *    여기 칸은 **전부 시뮬 전용 문으로만 산다.** 라이브에 세워 두면 영영 못 쓰는 칸이
-     *    좁은 현황판의 자리를 차지하고, 5초·1.5초마다 404 를 두드린다.
-     * ⚠️ `unknown`(아직 안 물어봄) 에서는 **세운다** — 세워야 물어보고, 물어봐야 답을 안다.
-     */
-    if (useSimDoor() === 'closed') return null;
-    return (
-        <div className="shrink-0 border-b border-border-card px-2 pt-1.5 pb-2">
-            <div className="flex items-baseline gap-2 px-1 pb-1">
-                <h2 className="text-[11px] font-black text-warning">🧪 테스트용</h2>
-                <span className="text-[9px] text-text-muted">서버를 바꾼다 · 어드민에는 안 간다</span>
-                <CallMemoryButton />
-            </div>
-            <div className="flex flex-wrap items-start gap-2">
-                <div className="flex-1 min-w-[240px]"><MockDriveCard phase={phase} /></div>
-                <div className="flex-1 min-w-[240px]"><LocationPickCard /></div>
-                <div className="flex-1 min-w-[240px]"><SimCallCard /></div>
-            </div>
-            {/* 🎬 시나리오콜 — 줄이 길어 한 줄을 통째로 쓴다 */}
-            <div className="pt-2"><ScenarioCard scenarioKey="icheonRound" title="이천 왕복 하루" /></div>
-            {/* 🎬 빨리 도는 문제 — 성공하는 콜 다섯 (기사님 «이천 왕복하루 아래에») */}
-            <div className="pt-2"><ScenarioCard scenarioKey="icheonFive" title="이천 성공하는 5콜" /></div>
-            {/* 🎬 실전 판정 및 버그 종합 검증 — 강남 진입과 광주 복귀 5콜 */}
-            <div className="pt-2"><ScenarioCard scenarioKey="gangnamFive" title="강남 진입과 광주 복귀 5콜" /></div>
-        </div>
-    );
-}
-
-
-/**
- * 🗑️ **버린 콜 한 줄 — 왼쪽은 콜, 오른쪽은 심사** (기사님 지시:
- *    *"곤지암읍 → 송파구 · 61천 까지 왼쪽 정렬하고 심사를 오른쪽으로 하자"*).
- *
- * 🔴 **`Row` 를 쓰지 않는다.** 그것은 «이름 : 값» 한 쌍이라 값이 오른쪽에 붙는데,
- *    여기는 **콜 한 건이 왼쪽 덩어리**이고 심사는 그 판정이다. 한 칸에 이어 붙이면
- *    구간·요금·사유가 오른쪽으로 밀려 **어디까지가 주소인지** 눈이 못 가른다.
- */
-function IntelLine({ sign, at, call, verdict, tone }: {
-    sign: string; at: string; call: string; verdict: string; tone?: 'warn' | 'ok';
-}) {
-    return (
-        <div className="flex items-baseline justify-between gap-2 py-0.5 border-b border-border-card/50 last:border-0">
-            <span className="min-w-0 flex-1 truncate text-[11px] font-black text-text-primary">
-                <span className="mr-1">{sign}</span>
-                <span className="text-text-muted font-bold mr-1 tabular-nums">{at}</span>
-                {call}
-            </span>
-            <span className={`shrink-0 max-w-[45%] truncate text-[10.5px] font-bold text-right ${
-                tone === 'warn' ? 'text-warning' : tone === 'ok' ? 'text-success' : 'text-text-muted'}`}>
-                {verdict}
-            </span>
-        </div>
-    );
-}
-
-/**
- * 🗑️ **올라온 콜 — 버린 것까지** (기사님 지시:
- *    *"스크렙해서 올라온 버려진 콜들을 볼수 있으면 좋겠다."*).
- *
- * 🔴 **데이터는 서버에 있다.** 앱은 리스트에서 **본 콜을 전부** 올리고
- *    (`HijackService` — 잡은 콜도 «수집»에 센다), `routes/scrap.ts` 가 그것을 통째로
- *    `intel` 테이블에 넣는다(`type='INTEL_BULK'`). **버려진 콜이 거기 다 있다.**
- * 🔴 **꺼내는 문은 서버 `routes/sim.ts` 의 `GET /api/sim/intel?limit=40`** —
- *    `{ ok, limit, total, rows: [{ id, pickup, dropoff, fare, timestamp, targetApp, device_id, verdict, … }] }`
- *    (최근 것이 먼저 · `total` 은 표 전체 크기. 개발 빌드 전용 — `/driver-location` 과 같은 문지기라
- *    라이브에서는 404). 문이 안 열리면 **없다고 화면이 말한다** — 지어내지 않는다 (규칙 ④).
- *
- * ⚖️ **«왜 버려졌나»는 행의 `verdict`** — 앱이 내린 판정(통과 · 떨어뜨린 축 · 잠김)을 그대로 옮긴다.
- */
-function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
-    const [rows, setRows] = useState<IntelRow[] | null>(null);
-    /** 🔢 서버가 함께 주는 **표 전체 크기** — 지금 보는 40건이 몇 중 몇인지 */
-    const [total, setTotal] = useState<number | null>(null);
-    /**
-     * 🧹 **화면에서만 지운다** (기사님 지시: *"서버꺼를 리셋할 필요는 없을꺼 같고
-     *    화면에서 리셋할수 있게 … 많이 싸이면 화면에서 지우고 하나씩 다시 싸으면 보기 편할듯"*).
-     *
-     * 🔴 **서버를 안 건드린다** — `intel` 은 «무엇이 올라왔나»의 원장이다. 화면이 답답하다고
-     *    원장을 지우면 나중에 «그때 그 콜이 올라왔었나»를 물을 데가 없어진다 (규칙 ①의 결).
-     *    그래서 **보는 기준선**만 옮긴다 — 그 줄 뒤에 쌓이는 것만 그린다.
-     * 🔴 **지운 채로 잊지 않게 한다** — 기준선이 살아 있으면 제목이 «지운 뒤»라고 계속 말하고,
-     *    「전부 보기」가 늘 옆에 있다. 안 그러면 «콜이 안 올라온다»로 읽는다.
-     */
-    const [sinceId, setSinceId] = useState<number | null>(() => {
-        try {
-            const v = Number(localStorage.getItem('statusboardIntelSince'));
-            return Number.isFinite(v) && v > 0 ? v : null;
-        } catch { return null; }   // 저장을 막아 둔 브라우저 — 그냥 전부 본다
-    });
-    const setSince = (v: number | null) => {
-        setSinceId(v);
-        try {
-            if (v == null) localStorage.removeItem('statusboardIntelSince');
-            else localStorage.setItem('statusboardIntelSince', String(v));
-        } catch { /* 못 남겨도 이번 판에서는 지워진다 */ }
-    };
-    const [why, setWhy] = useState<string | null>(null);
-    /** 🔁 버튼이 올린 직후 **바로** 다시 묻는 길 — 10초를 기다리면 «안 올라갔나»로 읽힌다 */
-    const [tick, setTick] = useState(0);
+function HandmadeCallCard() {
     /** 🖐️ 손으로 올리는 중 · 그 결과 한 줄 */
     const [making, setMaking] = useState(false);
     const [madeNote, setMadeNote] = useState<string | null>(null);
     /** 누를 때마다 문제지의 다음 콜로 간다 — 같은 콜만 쌓이면 견줄 것이 없다 */
     const [seq, setSeq] = useState(0);
-
-    useEffect(() => {
-        let alive = true;
-        const ask = async () => {
-            const r = await simAsk<{ rows?: IntelRow[]; total?: number }>('/intel?limit=40');
-            if (!alive) return;
-            if (!r.ok) { setRows(null); setWhy(`— ${r.why}`); return; }
-            setRows(r.data.rows ?? []); setTotal(r.data.total ?? null); setWhy(null);
-        };
-        void ask();
-        const t = setInterval(() => { void ask(); }, 10_000);
-        return () => { alive = false; clearInterval(t); };
-    }, [tick]);
-
     /**
      * 🖐️ **콜 하나를 손으로 올린다** (기사님 지시:
      *    *"콜 생성 하면 앱에서 콜을 서버로 올리는 것과 같은 효과를 주면 된다"*).
@@ -844,7 +603,6 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
 
             setSeq(n => n + 1);
             setMadeNote(`✅ ${order.pickup} → ${order.dropoff} · ${wonText(order.fare)}`);
-            setTick(n => n + 1);
         } catch {
             setMadeNote('— 서버에 못 닿았다');
         } finally {
@@ -852,69 +610,9 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
         }
     };
 
-    /**
-     * ⚖️ **판정은 앱이 했다** — 화면은 그 낱말을 한국어로 옮기고, «이미 쥔 콜인가»만 맞춰 본다
-     *    (그것만은 앱이 모른다 — 앱은 제가 올린 뒤의 일을 못 본다).
-     * 🔴 **여기서 다시 재지 않는다.** 다시 재는 사본을 두면 앱과 갈라진다.
-     */
-    const shown = (rows ?? []).filter(r => sinceId == null || (r.id ?? 0) > sinceId);
-    /* 🔴 **한 번에 본다** — 쥔 콜을 한 줄에만 붙이려면 목록 전체를 함께 봐야 한다 */
-    const judged = viewAll(shown, activeRoute ?? []).map(({ row, v }) => ({ r: row, v }));
-    const sum = tallyMarks(judged.map(j => j.v.mark));
-
     return (
-        <Card fold
-              title={rows?.length
-                  ? `🗑️ 버린 콜 — ⭕${sum.missed} 🟢${sum.kept} ❌${sum.dropped}${total ? ` / 쌓인 ${total}` : ''}`
-                  : '🗑️ 버린 콜 — 서버가 받은 것'}
-              note={sinceId != null
-                  ? '앱 → 서버 · 본 콜 전부\n🧹 지운 뒤 것만 보는 중'
-                  : '앱 → 서버 · 본 콜 전부\n지금 필터로 다시 재 본다'}>
-            {/* 🧹 화면에서만 지운다 — 서버 원장(`intel`)은 그대로다 */}
-            <div className="flex items-center gap-1 pb-1">
-                <button type="button"
-                    onClick={() => setSince(Math.max(0, ...(rows ?? []).map(r => r.id ?? 0)) || null)}
-                    disabled={!rows?.length}
-                    className={`px-2 py-1 rounded-md border text-[10.5px] font-black ${rows?.length
-                        ? 'border-border-card text-text-muted hover:text-info hover:border-info/40'
-                        : 'border-border-card/50 text-text-muted/40'}`}>
-                    🧹 화면에서 지우기
-                </button>
-                {sinceId != null && (
-                    <button type="button" onClick={() => setSince(null)}
-                        className="px-2 py-1 rounded-md border border-warning/40 bg-warning/10 text-warning text-[10.5px] font-black">
-                        전부 보기 (지금 {shown.length}건만 보는 중)
-                    </button>
-                )}
-            </div>
-            {why && <Row k="목록" v={undefined} empty={why} tone="warn" />}
-            {rows?.length === 0 && <Row k="(없음)" v={undefined} empty="— 올라온 콜이 없다" />}
-            {rows?.length !== 0 && shown.length === 0 && sinceId != null && (
-                <Row k="지운 뒤" v={undefined} empty="— 아직 새로 올라온 콜이 없다" />
-            )}
-            {judged.map(({ r, v }, i) => {
-                const tone: 'warn' | 'ok' | undefined =
-                    v.mark === 'missed' ? 'warn' : v.mark === 'kept' ? 'ok' : undefined;
-                /* 🔴 심사 칸의 말 — 탈락이면 **사유**가, 아니면 **판정**이 그 자리에 선다 */
-                const verdict = v.why ?? (v.mark === 'kept' ? '잡음'
-                    : v.mark === 'missed' ? '통과인데 안 잡음' : '못 잼');
-                return (
-                    <IntelLine key={r.id ?? i}
-                               sign={MARK_SIGN[v.mark]}
-                               at={(r.timestamp ?? '').slice(11, 16) || '—'}
-                               call={`${isHandmade(r.rawText) ? '🖐️ ' : ''}${r.pickup ?? '—'} → ${r.dropoff ?? '—'}${r.fare ? ` · ${Math.round(r.fare / 1000)}천` : ''}`
-                                   + (r.deliveryDistanceKm != null ? ` · ${r.deliveryDistanceKm}km` : '')
-                                   + (r.vehicleType ? ` · ${r.vehicleType}` : '')
-                                   /* ⏱️ 급송·«낼09시» 원문 — 판정 축은 아직 아니다. 눈으로 본다 */
-                                   + (r.scheduleText ? ` · ${r.scheduleText}` : '')}
-                               verdict={verdict}
-                               tone={tone} />
-                );
-            })}
-
-            {/* 🖐️ **콜 생성 — 이 칸의 맨 아래** (기사님 지시 *"오른쪽 버린콜 하단에"*).
-                🔴 값은 지어내지 않는다 — `labProblems` 의 «볼트 저녁 판», 기사님이 실제로 도신 콜이다. */}
-            <div className="mt-1.5 pt-1.5 border-t border-border-card flex items-center gap-2">
+        <Card title="🖐️ 콜 생성" note={'앱이 쓰는 문(POST /api/scrap)\n콜을 «잡는» 것은 아니다'}>
+            <div className="flex items-center gap-2">
                 <button type="button" onClick={() => { void makeOne(); }} disabled={making}
                     className={`px-2 py-1 rounded-md border text-[10.5px] font-black shrink-0 ${making
                         ? 'border-border-card/50 text-text-muted/40'
@@ -932,244 +630,49 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
 
 
 /**
- * ⚖️ **심사 중 — 서버 쪽 «맨 아래 붙박이»** (기사님 지시:
- *    *"심사중은 하단에 딱 붙여줘 프로젝트와 심사내용을 비교하기 좋을꺼 같아."*).
- *
- * 🔴 **자리가 고정이라야 견줄 수 있다.** 흐르는 칸이면 창을 넓힐 때마다 자리를 옮겨서,
- *    왼쪽 심사석과 번갈아 보려면 매번 눈으로 찾아야 한다. 무대는 판정석이 **시트 맨 아래**라
- *    같은 높이에 두면 **한 줄기 눈으로** 왼쪽 색과 오른쪽 근거를 함께 읽는다.
- * 🔴 **술어는 심사석과 같은 것**(`isEvaluating || isPreview`)이다 — 여기서 다시 지으면
- *    «심사석엔 떴는데 현황판엔 없다»가 생긴다 (규칙 ③).
+ * 🧪 **테스트용 구역 — 맨 위에 따로 선다** (기사님 지시).
+ *    이 구역의 셋만 **서버를 바꾸고**, 아래 줄들은 읽기만 한다 (예외: «버린 콜» 칸 아래 «🖐️ 콜 생성»).
+ *    어드민으로 옮기는 날 **이 구역째** 걷는다.
  */
-function JudgingSeatCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
-    const j = (activeRoute ?? []).find(r => !isTerminal(r.status ?? undefined)
-        && (isEvaluating(r.status ?? undefined) || !!r.isPreview));
+function TestOnlySection({ phase }: { phase?: string }) {
+    /**
+     * 🚪 **문이 닫힌 서버(라이브)에서는 이 구역이 통째로 없다** — 서버 `isDevBuild()` 와 짝이다.
+     *    여기 칸은 **전부 시뮬 전용 문으로만 산다.** 라이브에 세워 두면 영영 못 쓰는 칸이
+     *    좁은 현황판의 자리를 차지하고, 5초·1.5초마다 404 를 두드린다.
+     * ⚠️ `unknown`(아직 안 물어봄) 에서는 **세운다** — 세워야 물어보고, 물어봐야 답을 안다.
+     */
+    if (useSimDoor() === 'closed') return null;
     return (
-        <div className="shrink-0 mt-1.5 pt-1.5 border-t border-border-card">
-            <Card title="⚖️ 심사 중" tall note={'집은 뒤 · 서버가 하는 일\n왼쪽 심사석과 같은 콜'}>
-                {!j
-                    ? <Row k="(없음)" v={undefined} empty="— 지금 심사하는 콜이 없다" />
-                    : <>
-                        <Row k="콜" v={`${j.pickup ?? '—'} → ${j.dropoff ?? '—'}`} />
-                        <Row k="status" v={j.status} />
-                        <Row k="미리보기" v={j.isPreview ? 'true' : 'false'} />
-                        <Row k="요금" v={j.fare} />
-                        {/* 🔴 **색이 곧 결정이다** (규칙 ⑤-3) — 그래서 «왜 그 색인가»까지 적는다.
-                            막은 문(gate)이 있으면 그것부터, 없으면 축 점수를 보여 준다. */}
-                        <Row k="판정" v={j.judgment ? `${j.judgment.color} ${j.judgment.score ?? '못 잼'}` : undefined}
-                             tone={j.judgment ? (j.judgment.color === '사고' ? 'warn' : 'ok') : 'warn'} />
-                        {j.judgment?.gates?.filter(g => !g.pass).map(g => (
-                            <Row key={g.key} k={`⛔ ${g.name}`} v={g.why ?? '막혔다'} tone="warn" />
-                        ))}
-                        {j.judgment?.axes?.map(a => (
-                            <Row key={a.key} k={a.name} v={a.score == null ? `못 잼 (${a.raw})` : `${a.score} · ${a.raw}`} />
-                        ))}
-                    </>}
-            </Card>
-        </div>
-    );
-}
-
-/**
- * 📦 **앱에 내려갈 필터 — 폰이 받는 그대로** (서버 `GET /api/devices/app-filter` · 폰 문과 같은 함수 `appFilterOf`).
- *    🔴 내 필터(activeFilter)에서 골라 찍지 않는다 — 서버가 보낼 때 덮는 칸(자동 반경 · 복귀 목적지)과 얹는 칸(내일 콜 셋 · 경로 순서)이
- *       있어, 골라 찍으면 «폰이 받는 값과 다른 값»을 말하게 된다.
- *    이 훅은 현황판 안에서만 산다 — 현황판은 PC 폭에서만 붙으니(`Dashboard` 의 `withPanel`) 거치대 폰은 이 문을 부르지 않는다.
- */
-function useAppFilter(deviceId: string | undefined): Record<string, unknown> | null {
-    const [app, setApp] = useState<Record<string, unknown> | null>(null);
-    useEffect(() => {
-        if (!deviceId) { setApp(null); return; }
-        let alive = true;
-        const ask = async () => {
-            try {
-                const { data } = await apiClient.get<AppFilterReply>(`/devices/app-filter?deviceId=${encodeURIComponent(deviceId)}`);
-                if (alive) setApp(data.filter ?? null);
-            } catch { if (alive) setApp(null); }
-        };
-        void ask();
-        const t = setInterval(ask, 10_000);   // «지금 무엇이 도는가»와 같은 박자
-        return () => { alive = false; clearInterval(t); };
-    }, [deviceId]);
-    return app;
-}
-
-function AppFilterCard({ devices }: { devices: DeviceSession[] }) {
-    /* 고른 폰은 id 로 기억한다(앱 탭과 같은 까닭) — 사라지면 첫 폰 */
-    const [pickId, setPickId] = useState<string | null>(null);
-    const phone = devices.find(d => d.deviceId === pickId) ?? devices[0];
-    const app = useAppFilter(phone?.deviceId);
-    const rows = app ? appFilterRowsOf(app) : [];
-    return (
-        <Card tall fold
-              title={app ? `📦 앱에 내려갈 필터 — 폰이 받는 그대로 ${rows.length}칸` : '📦 앱에 내려갈 필터'}
-              note={'서버 → 앱\n폰 문과 같은 함수\n(자동 반경 · 복귀 · 내일 콜 · 경로 순서 포함)'}>
-            {devices.length > 1 && (
-                <div className="flex flex-wrap gap-1 pb-1">
-                    {devices.map(d => (
-                        <button key={d.deviceId} type="button" onClick={() => setPickId(d.deviceId)}
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-black ${phone?.deviceId === d.deviceId ? 'bg-info/20 text-info' : 'text-text-muted'}`}>
-                            {deviceLabel(d)}
-                        </button>
-                    ))}
-                </div>
-            )}
-            {!app && <Row k="(없음)" v={undefined} empty={phone ? '폰이 오늘 아직 보고 안 함' : '등록된 폰이 없다'} tone="warn" />}
-            {rows.map(([k, v]) => <Row key={k} k={k} v={v} />)}
-        </Card>
-    );
-}
-
-/**
- * 📱 **폰마다 다른 것은 아래에 탭으로 겹친다** (기사님 지시:
- *    *"공통으로 내려가는건 같을꺼 같고 **폰이 받는 타이밍은 다를꺼 같아.**
- *      공통은 위로 올리고 다른것들은 아래로 내려 텝처리 할까?"*).
- *
- * 🔴 **위(공통)와 아래(폰별)를 섞지 않는다.** 필터는 **한 벌**인데 그것을 **받는 시각은 폰마다
- *    다르다** — 앱은 제 `scrap` 응답 꼬리로 받는다(피기백). 한 칸에 같이 그리면
- *    «이 값이 모든 폰에게 참인가»를 매번 되물어야 한다.
- *
- * 🔴 **왼쪽 폰 패널에 이미 뜨는 것은 안 그린다** (기사님 지시: *"1234 · 인성 ·
- *    알수 없는 화면 · 합짐 · 23:18 · ⏱️ 는 확인 되는거니까 그것 말고 다른것들"*).
- *    여기 담는 것은 그 줄에 **숫자로 안 나오는 것들**이다 — 읽은 노드 수 · 보고 간격(초) ·
- *    탈락 사유별 수 · 누적 · 모드가 폰에 닿았나 · 서버가 받은 좌표 · 앱 버전.
- *    ⚠️ 폰 이름만은 겹친다 — **탭을 고르는 손잡이**라 없으면 무엇을 보는지 모른다.
- */
-function PhoneTabs({ devices }: { devices: DeviceSession[] }) {
-    /* 🔴 **고른 폰은 id 로 기억한다** — 순서(index)로 쥐면 폰이 하나 빠질 때
-       **엉뚱한 폰을 보게 된다.** 그 폰이 사라지면 첫 폰으로 떨어진다. */
-    const [pickId, setPickId] = useState<string | null>(null);
-    const [open, setOpen] = useState(true);
-    const d = devices.find(x => x.deviceId === pickId) ?? devices[0];
-
-    /* 🔴 **낡은 성적표는 안 그린다** — 두 시각이 같을 때만 «이번 보고에 함께 온 것»이다
-       (왼쪽 폰 패널과 같은 규칙. 스캔을 안 하는 폰이 «방금 훑었다»고 말하던 자리다) */
-    const fresh = d != null && d.filterTallyAt != null && d.filterTallyAt === d.lastSeen;
-    const sum = fresh ? summarizeTally(d.filterTally, d.filterTallyAt) : null;
-    /* ⏱️ **직전 보고와 몇 초 만인가** — 뺄셈 하나는 표시다. 판정은 여기서 안 한다 */
-    const gapSec = d?.prevSeen != null ? Math.round((d.lastSeen - d.prevSeen) / 1000) : undefined;
-
-    return (
-        /**
-         * 🔴 **바닥에 붙고, 짜부라지지 않는다** (기사님 지시:
-         *    *"폰마다 다른 것은 아직 하단에 붙어 있지 않아"*).
-         *
-         * ⚠️ `flex-1` 만 주면 **남는 자리를 갖는다**는 뜻이지 «자리를 지킨다»가
-         *    아니다. 위 칸들이 길면 남는 자리가 **0** 이라 폰 영역이 한 줄로 접히듯 사라진다.
-         *    그래서 **안 줄어들고**(`shrink-0`) **최소 높이**를 쥐며, 남는 자리는 그대로 갖는다 —
-         *    줄어드는 쪽은 위 칸 영역이다.
-         */
-        <div className="grow shrink-0 min-h-[280px] flex flex-col mt-1.5 pt-1.5 border-t border-border-card">
-            <div className="shrink-0 flex items-baseline gap-2 px-1 pb-1">
-                {/* 🔽 폰 영역도 접힌다 — «모든 영역» 에는 이 묶음도 든다 */}
-                <h3 className="text-[11px] font-black text-text-primary">
-                    <button type="button" onClick={() => setOpen(o => !o)} className="text-left">
-                        <span className="mr-1">{open ? '▾' : '▸'}</span>📱 폰마다 다른 것
-                    </button>
-                </h3>
-                <span className="text-[9px] text-text-muted">받는 타이밍은 폰마다 다르다</span>
+        <div className="shrink-0 border-b border-border-card px-2 pt-1.5 pb-2">
+            <div className="flex items-baseline gap-2 px-1 pb-1">
+                <h2 className="text-[11px] font-black text-warning">🧪 테스트용</h2>
+                <span className="text-[9px] text-text-muted">서버를 바꾼다 · 어드민에는 안 간다</span>
+                <CallMemoryButton />
             </div>
-            {open && <>
-            {devices.length === 0
-                ? <div className="rounded-xl border border-border-card bg-background p-2.5">
-                      <Row k="폰" v={undefined} empty="붙은 폰 없음" tone="warn" />
-                  </div>
-                : <>
-                    {/* 🔖 탭 — 폰이 몇이든 한 줄에서 고른다. 오프라인이면 이름부터 붉다 */}
-                    <div className="flex flex-wrap gap-1 px-1 pb-1.5">
-                        {devices.map(x => {
-                            const on = x.deviceId === d?.deviceId;
-                            const off = x.status === 'OFFLINE';
-                            return (
-                                <button key={x.deviceId} type="button" onClick={() => setPickId(x.deviceId)}
-                                    className={`px-2 py-1 rounded-md border text-[11px] font-black ${on
-                                        ? 'border-info/40 bg-info/15 text-info'
-                                        : off ? 'border-danger/40 text-danger' : 'border-border-card text-text-muted'}`}>
-                                    {deviceLabel(x)}
-                                </button>
-                            );
-                        })}
-                    </div>
-                    {/* 🔴 **폰 칸도 한 줄이다** — 위쪽 줄들과 같은 규칙 (기사님 지시).
-                        단으로 흘리면 폰 탭 안에서도 «칸이 자리를 옮기는» 일이 생긴다 */}
-                    {d && (
-                        <div className="flex-1 min-h-0 overflow-y-auto">
-                            <div className="flex flex-col gap-2">
-                                <div>
-                                    <Card title="📡 이 폰이 든 필터" note={'폰이 매 scrap 에 지문을 싣는다'}>
-                                        {/* 🔴 앱은 매 scrap 에 `filterVersion`(지문)을 싣고, 서버는 지금 필터와 대조해
-                                            본문 생략까지 한다(`routes/scrap.ts`). 구앱은 안 싣는다 —
-                                            지어내지 않는다, 모르면 **왜 모르는지**를 적는다 (규칙 ④). */}
-                                        {/* ✅ 서버가 `DeviceSession.filterVersion` 에
-                                            폰이 든 지문을 남긴다. 폰이 여럿이면 **이 값이 모두 같아야 정상**이다 —
-                                            다르면 「🚨 어긋남」이 잡는다. */}
-                                        <Row k="든 필터 판" v={d.filterVersion} empty="— 구앱은 안 싣는다"
-                                             tone={d.filterVersion ? 'ok' : 'warn'} />
-                                        <Row k="그 지문을 본 때" v={clockOf(d.filterVersionAt)} empty="— 없다" />
-                                        <Row k="모드 (관제)" v={d.mode ? (DEVICE_MODE_LABEL[d.mode as DeviceModeType] ?? d.mode) : undefined} />
-                                        <Row k="모드 (폰 대답)" v={d.appliedMode} empty="— 구앱은 대답 안 함" />
-                                        <Row k="모드 (실제 도는)" v={d.effectiveMode ? (DEVICE_MODE_LABEL[d.effectiveMode as DeviceModeType] ?? d.effectiveMode) : undefined}
-                                             empty="— 구앱은 안 싣는다" tone={d.effectiveMode && d.effectiveMode !== d.mode ? 'warn' : undefined} />
-                                        <Row k="닿았나" v={d.appliedMode ? (isModeApplying(d) ? '아직 — 가는 중' : '닿았다') : undefined}
-                                             empty="— 모른다" tone={d.appliedMode ? (isModeApplying(d) ? 'warn' : 'ok') : undefined} />
-                                    </Card>
-                                </div>
-                                {/* 🗑️ **「🛰️ 보고」 칸은 따로 두지 않는다** (기사님 확정) —
-                                    배차망·상태·마지막 보고는 **왼쪽 폰 줄에 이미 뜬다**
-                                    (*"1234 · 인성 · 알수 없는 화면 · 합짐 · 23:18 · ⏱️ 는 확인 되는거니까"*).
-                                    보고 간격 · 앱 버전은 아래 칸에 있다. */}
-                                <div>
-                                    <Card title="👁️ 폰이 일하고 있나" note={'왼쪽 줄에 안 나오는 숫자들'}>
-                                        <Row k="직전과 간격" v={gapSec != null ? `${gapSec}초` : undefined} empty="— 첫 보고" />
-                                        <Row k="읽은 노드" v={d.screenNodeCount}
-                                             tone={d.screenNodeCount === 0 ? 'warn' : d.screenNodeCount ? 'ok' : undefined} />
-                                        <Row k="못 읽은 지" v={clockOf(d.blindSince)} empty="— 읽고 있다"
-                                             tone={d.blindSince ? 'warn' : undefined} />
-                                        <Row k="화면 켜짐" v={d.isScreenOn === undefined ? undefined : d.isScreenOn ? '켜짐' : '💤 꺼짐'}
-                                             tone={d.isScreenOn === false ? 'warn' : undefined} />
-                                        <Row k="작업 단계" v={workStageLabel(d) ?? undefined} empty="— 구앱은 안 보냄" />
-                                        <Row k="콜 처리 중" v={d.isHolding === undefined ? undefined : d.isHolding ? 'true' : 'false'} />
-                                        <Row k="앱 버전" v={d.version} />
-                                    </Card>
-                                </div>
-                                <div>
-                                    <Card title="🔍 이 폰의 성적표" tall note={'마지막 보고에 함께 온 것만'}>
-                                        {sum
-                                            ? <>
-                                                <Row k="본 콜" v={sum.seen} />
-                                                <Row k="통과" v={sum.passed} tone={sum.passed > 0 ? 'ok' : 'warn'} />
-                                                {sum.rejects.map(([name, n]) => <Row key={name} k={`탈락 ${name}`} v={n} />)}
-                                                <Row k="잰 시각" v={sum.at} />
-                                            </>
-                                            : <Row k="성적표" v={undefined} empty="— 이번 보고엔 없다" tone="warn" />}
-                                    </Card>
-                                </div>
-                                <div>
-                                    <Card title="📊 누적 · 좌표" note={'이 폰이 지금까지 한 일'}>
-                                        <Row k="리스트 조회" v={d.stats?.polled} />
-                                        <Row k="잡음" v={d.stats?.grabbed} />
-                                        <Row k="취소 통보" v={d.stats?.canceled} />
-                                        <Row k="좌표" v={d.lat != null && d.lng != null ? `${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}` : undefined}
-                                             empty="— 안 보냈다" />
-                                    </Card>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                  </>}
-            </>}
+            <div className="flex flex-wrap items-start gap-2">
+                <div className="flex-1 min-w-[240px]"><MockDriveCard phase={phase} /></div>
+                <div className="flex-1 min-w-[240px]"><LocationPickCard /></div>
+                <div className="flex-1 min-w-[240px]"><SimCallCard /></div>
+                <div className="flex-1 min-w-[240px]"><HandmadeCallCard /></div>
+            </div>
+            {/* 🎬 시나리오콜 — 줄이 길어 한 줄을 통째로 쓴다 */}
+            <div className="pt-2"><ScenarioCard scenarioKey="icheonRound" title="이천 왕복 하루" /></div>
+            {/* 🎬 빨리 도는 문제 — 성공하는 콜 다섯 (기사님 «이천 왕복하루 아래에») */}
+            <div className="pt-2"><ScenarioCard scenarioKey="icheonFive" title="이천 성공하는 5콜" /></div>
+            {/* 🎬 실전 판정 및 버그 종합 검증 — 강남 진입과 광주 복귀 5콜 */}
+            <div className="pt-2"><ScenarioCard scenarioKey="gangnamFive" title="강남 진입과 광주 복귀 5콜" /></div>
         </div>
     );
 }
 
 /**
- * 🔴 **콜 목록은 `Dashboard` 가 쥔 것을 그대로 받는다** — 여기서 다시 만들면
- *    «화면 둘이 다른 콜을 본다»가 된다 (규칙 ③). 지울 때 이 prop 도 함께 사라진다.
+ * 🔴 **`Dashboard` 가 콜 목록을 넘기지만 안 읽는다** — 콜 목록을 쓰는 «🗑️ 버린 콜» · «⚖️ 심사 중»은 운영센터 회원 «폰 · 필터»에 있다.
+ *    받는 모양만 둔다 — 걷으려면 `Dashboard.tsx` 의 한 줄을 고쳐야 하는데 이 폴더 밖이라 따로 한다.
  */
 interface Props { activeRoute?: SecuredOrder[] }
 
-export default function StatusBoard({ activeRoute }: Props) {
-    const { filter, baseFilter } = useFilterConfig();
+export default function StatusBoard(_props: Props) {
+    const { filter } = useFilterConfig();
     const devices = useDeviceStore(st => st.devices);
     const [health, setHealth] = useState<Health | null>(null);
     const driverLoc = useDriverLocation();
@@ -1181,25 +684,6 @@ export default function StatusBoard({ activeRoute }: Props) {
      */
     useEffect(() => { ensureDriverPositionSubscribed(); }, []);
     const driverPos = useDriverPositionStore();
-
-    /**
-     * 📐 **두 쪽을 나란히 둘 자리가 되나** — 재는 것은 **패널 제 폭**이다.
-     *    부모(`Dashboard`)가 재는 것은 «패널이 서느냐»이고, 여기서 재는 것은
-     *    «그 안을 좌우로 가를 수 있느냐»라 **다른 질문이다** (규칙 ⑤-4 ⑤: 읽는 곳이 둘이면 값도 둘).
-     *    한 쪽이 `COL_MIN` 보다 좁아지면 값이 안 읽히므로 그때는 위아래로 쌓는다.
-     */
-    const boxRef = useRef<HTMLDivElement>(null);
-    const [wideEnough, setWideEnough] = useState(true);
-    useEffect(() => {
-        const el = boxRef.current;
-        if (!el) return;
-        const ro = new ResizeObserver(entries => {
-            const w = entries[0]?.contentRect.width ?? 0;
-            setWideEnough(w >= COL_MIN * SIDES.length + 24);   // 24 = 줄 사이 틈과 안쪽 여백
-        });
-        ro.observe(el);
-        return () => ro.disconnect();
-    }, []);
 
     /**
      * 🖥️ **지금 무엇이 돌고 있나** — 이 레포가 반복해서 잃은 시간의 원인이다
@@ -1218,282 +702,70 @@ export default function StatusBoard({ activeRoute }: Props) {
         return () => { alive = false; clearInterval(t); };
     }, []);
 
-    /**
-     * 🗂️ **칸 목록 — 순서도 «어느 쪽인가»도 여기 한 줄로 바꾼다**
-     *    (기사님: *"순서는 너가 알아서 나중에 바꿀수 있어"*).
-     *    JSX 에 칸을 박아 두면 순서를 바꿀 때마다 큰 덩어리를 옮겨야 한다.
-     *
-     * 🔴 **`side` 가 자리를 정한다** — 칸을 옮기려면 그 한 글자만 고친다.
-     *    두는 곳을 JSX 두 군데로 나누면, 옮길 때마다 **덩어리를 들어 날라야** 하고
-     *    그 사이 한쪽에 두 벌이 생긴다.
-     */
-    const COLUMNS: Array<{ key: string; side: Side; node: React.ReactNode }> = [
-        /* ── 🖥️ 서버 — 제 안에서 쥐고 하는 일 ── */
-        {
-            /**
-             * 🚨 **어긋남 — 비교를 사람이 하지 않게** (기사님 확정).
-             *
-             * 이 화면의 일은 «같은 것을 보는 것»이다. **값을 늘어놓기만** 하면
-             * 어긋났는지는 기사님이 칸 열둘을 눈으로 훑어 찾아야 한다 — 그러면 30초가 아니다.
-             *
-             * 🔴 **새 사실을 만들지 않는다.** 여기 있는 것은 전부 **다른 칸에 이미 떠 있는 값**이고,
-             *    이 칸은 그중 «짝이 안 맞는 것»만 골라 올린다 (규칙 ③ — 판정은 서버가 한다).
-             * 🔴 **조용할 때도 말한다** — «이상 없음»이 떠 있어야 «안 뜨는 것»과 구분된다.
-             */
-            key: 'mismatch',
-            side: 'server',
-            node: (() => {
-                /* 📢 **고장이 아닌데 알아야 하는 것** — 빨간 줄과 섞지 않는다 (오탐이 쌓이면 아무도 안 본다) */
-                const note: { k: string; v: string }[] = [];
-                const bad: { k: string; v: string }[] = [];
-                /**
-                 * 📍 **경로 기점과 내 자리가 왜 다른가**.
-                 *
-                 * 🔴 **둘이 다른 것은 고장이 아닐 수 있다.** `originOf` 는 좌표가 5분 넘게
-                 *    낡으면 **집**을 고른다 — 콜 없이 모의 주행을 돌리면 «기점은 집,
-                 *    내 자리는 이천»이 **정상**이다. 그걸 거리로 재서 빨간 줄을 띄우면
-                 *    **오탐이 반복되고, 그러면 진짜 어긋남이 왔을 때 아무도 안 본다.**
-                 * 🔴 그래서 **`isFallback` 이면 어긋남이 아니라 «알림»**으로 적는다 —
-                 *    «경로를 집에서 짜는 중»은 알아야 하는 사실이지 고장이 아니다.
-                 */
-                const pos = driverPos.myPosition, org = driverPos.routeOrigin;
-                if (org?.isFallback) {
-                    note.push({ k: '경로 기점', v: '🏠 집에서 짜는 중 — 좌표가 5분 넘게 안 왔다' });
-                } else if (pos && org) {
-                    const km = haversineKm(pos, org);
-                    if (km > 1) bad.push({ k: '지도 ↔ 경로', v: `${km.toFixed(1)}km 어긋났다` });
-                }
-                if (pos?.isStale) {
-                    note.push({ k: '내 위치', v: `${Math.round(pos.ageMs / 60000)}분 전 자리 — 흐리게 그린다` });
-                }
-                if (!health) bad.push({ k: '서버', v: '못 붙었다 — 로그가 조용하면 다른 서버를 보는 것' });
-                if (!filter) bad.push({ k: '필터', v: '소켓으로 아직 안 왔다' });
-                else {
-                    if (filter.isActive === false) bad.push({ k: '콜 잡기', v: '꺼져 있다 (isActive=false)' });
-                    /* 🔴 «빈 필터는 제한 없음이 아니라 고장이다» (규칙 ④) */
-                    if (!filter.destinationCity) bad.push({ k: '목적지', v: '비어 있다 — 첫짐이 성립하지 않는다' });
-                    if (!filter.destinationKeywords?.length) bad.push({ k: '그물', v: '동이 0개다 — 빈 필터는 고장이다' });
-                }
-                if (driverLoc?.source === 'home') bad.push({ k: '내 위치', v: '집 주소로 대신 쓰는 중 — GPS 가 안 온다' });
-                if (devices.length === 0) bad.push({ k: '폰', v: '붙은 폰이 없다' });
-                /**
-                 * 🧭 **폰들이 같은 필터를 들고 있나** (서버가 남긴 지문으로 본다).
-                 *    필터는 **한 벌**인데 받는 시각은 폰마다 다르다 — 한 폰만 지난 필터를 들고 돌면
-                 *    그 폰은 **다른 조건으로 콜을 거른다.** 여기서 안 드러내면 화면 어디에도 안 보인다.
-                 */
-                const versions = new Set(devices.map(d => d.filterVersion).filter(Boolean));
-                if (versions.size > 1) {
-                    bad.push({ k: '필터 판', v: `폰마다 다르다 (${versions.size}종) — 한 폰이 옛 판으로 거른다` });
-                }
-                devices.forEach(d => {
-                    const name = deviceLabel(d);
-                    if (d.status === 'OFFLINE') bad.push({ k: `폰 ${name}`, v: '오프라인' });
-                    else {
-                        const quiet = Math.round((Date.now() - d.lastSeen) / 1000);
-                        if (quiet > 90) bad.push({ k: `폰 ${name}`, v: `${quiet}초째 조용하다` });
-                        if (d.screenNodeCount === 0) bad.push({ k: `폰 ${name}`, v: '화면을 못 읽는다 (노드 0)' });
-                        if (d.isScreenOn === false) bad.push({ k: `폰 ${name}`, v: '화면이 꺼져 있다 — 스크래핑이 멈춘다' });
-                    }
-                });
-                return (
-                    <Card title={bad.length ? `🚨 어긋남 — ${bad.length}건` : '✅ 어긋남 없음'}
-                          note={'다른 칸의 값끼리 대조만 한다'}>
-                        {bad.length === 0
-                            ? <Row k="지금" v="서버 · 필터 · 폰 모두 짝이 맞는다" tone="ok" />
-                            : bad.map((b, i) => <Row key={`${b.k}${i}`} k={b.k} v={b.v} tone="warn" />)}
-                        {/* 📢 알림 — 고장은 아니지만 «왜 이런가»를 설명하는 줄 */}
-                        {note.map((n, i) => <Row key={`n${n.k}${i}`} k={n.k} v={n.v} />)}
-                    </Card>
-                );
-            })(),
-        },
-        {
-            key: 'health',
-            side: 'server',
-            node: (
-                <Card title="🖥️ 지금 무엇이 도는가" note={'10초마다 다시 묻는다'}>
-                    <Row k="서버" v={health ? '붙었다' : '못 붙었다'} tone={health ? 'ok' : 'warn'} />
-                    <Row k="bootedAt" v={health?.bootedAt} />
-                    <Row k="git" v={health?.git?.commit ? `${health.git.branch ?? ''} ${health.git.commit}`.trim() : undefined} />
-                </Card>
-            ),
-        },
-        { key: 'newWords', side: 'server', node: <NewWordsCard /> },
-        /* 🧪 «🎭 모의 주행»은 서버를 바꾸는 것이라 맨 위 테스트 구역에 있다
-           (기사님 지시: 어드민에서 없어져야 하는 셋). */
-        {
-            /* 📍 «서버가 어디를 내 자리로 아는가» — 통신 칸 바로 옆이 맞다 (같은 «지금 상태») */
-            key: 'driverLocation',
-            side: 'server',
-            node: <DriverLocationCard loc={driverLoc} />,
-        },
-        /* 🔴 **«⚖️ 심사 중»은 흐르는 칸이 아니라 서버 쪽 맨 아래 붙박이**다
-           (기사님 지시: *"심사중은 하단에 딱 붙여줘 프로젝트와 심사내용을
-           비교하기 좋을꺼 같아."*). 왼쪽 무대는 판정석이 **시트 맨 아래**라 같은 높이에서 나란히 읽힌다. */
-        {
-            key: 'values',
-            side: 'server',
-            /**
-             * 🔴 **필터 값은 한 벌이다** — «지금 쓰는 값 한 벌»을 보여 준다.
-             */
-            node: (
-                <Card title="🎛️ 필터설정값" tall note={'지금 쓰는 값\n평소와 다르면 옆에 적는다'}>
-                    {/**
-                      * 🔴 **«평소값»은 따로 칸을 두지 않고 여기 함께 적는다** (기사님 확정).
-                      *    두 칸을 **눈으로 비교**하게 두면 «오늘 뭘 바꿨나»에 아무도 못 답한다. 다른 줄만 **그 자리에서**
-                      *    말하게 한다: `현위반경 10km (평소 15)`.
-                      * 🔴 값을 만드는 것이 아니라 **서버가 준 두 벌을 나란히 놓는 것**이다 —
-                      *    둘 다 서버가 쥔 값이고, 여기서는 같은지 다른지만 본다.
-                      */}
-                    {filterValueRowsOf(filter as Record<string, unknown> | null, baseFilter as Record<string, unknown> | null).map(r => (
-                        <Row key={r.path} k={r.label} v={r.text} tone={r.differs ? 'warn' : undefined} />
-                    ))}
-                    <Row k="마름모" v={`${filter?.srcAngleDeg ?? '—'}° · ${filter?.dstAngleDeg ?? '—'}° · ${filter?.quadRadiusKm ?? '—'}km`} />
-                    <Row k="제외 지역" v={filter?.excludedRegions} empty="— 없다" />
-                    <Row k="요금" v={filter?.minFare != null || filter?.maxFare != null
-                        ? `${filter?.minFare?.toLocaleString() ?? '—'} ~ ${filter?.maxFare?.toLocaleString() ?? '—'}` : undefined} />
-                </Card>
-            ),
-        },
-        {
-            key: 'deck',
-            side: 'server',
-            node: (
-                (() => {
-                    /**
-                     * 🔴 **끝난 콜이 화면을 먹지 않게** (기사님 확정).
-                     *    방출·취소가 쌓이면 «지금 쥔 콜»을 보러 와도 **끝난 것이 자리를 다 쓴다.**
-                     *    진행 중을 앞에 세우고,
-                     *    끝난 것은 **개수만** 제목에 남긴다 (숨겨도 있는 줄은 알게 · 규칙 ④).
-                     */
-                    const all = activeRoute ?? [];
-                    const live = all.filter(r => !isTerminal(r.status ?? undefined));
-                    const done = all.length - live.length;
-                    return (
-                        <Card tall title={`📋 콜 리스트 — ${live.length}건${done ? ` (끝난 것 ${done})` : ''}`}
-                              note={'지금 쥔 콜\n끝난 것은 접혀 있다'}>
-                            {live.length === 0 && <Row k="(없음)" v={undefined} empty="— 진행 중인 콜이 없다" />}
-                            {live.map((r, i) => (
-                                <Row key={r.id ?? i} k={`${i + 1} ${r.status ?? ''}`}
-                                     v={`${r.pickup ?? '—'} → ${r.dropoff ?? '—'}`} />
-                            ))}
-                            {done > 0 && (
-                                <details className="pt-1">
-                                    <summary className="cursor-pointer text-[10px] font-bold text-text-muted">끝난 콜 {done}건 펼치기</summary>
-                                    {all.filter(r => isTerminal(r.status ?? undefined)).map((r, i) => (
-                                        <Row key={r.id ?? `t${i}`} k={r.status ?? '—'}
-                                             v={`${r.pickup ?? '—'} → ${r.dropoff ?? '—'}`} />
-                                    ))}
-                                </details>
-                            )}
-                        </Card>
-                    );
-                })()
-            ),
-        },
-
-        /* ── 📱 앱 — 주고받는 것 (올라온 보고 · 내려갈 값) ── */
-        /* 🔴 **«🔍 앱이 무엇을 봤나»(성적표)는 폰마다 다르므로**
-           아래 「📱 폰마다 다른 것」 탭에 있다 (기사님 지시).
-           위는 **모든 폰에 같은 것**만 둔다. */
-        {
-            /* 🗑️ 제 줄을 갖는다 — 쌓이는 목록이라 한 칸에 안 들어간다 */
-            key: 'intel',
-            side: 'intel',
-            node: <ScrapIntelCard activeRoute={activeRoute} />,
-        },
-        {
-            key: 'appFilter',
-            side: 'app',
-            node: <AppFilterCard devices={devices} />,
-        },
-        {
-            /**
-             * 🚚 **필터에 있는데 다른 칸에 없는 것들** (기사님 지적:
-             *    *"지금 필터 값들이 들어 왔을껀데.. 화면에 없어 … 그런걸 보려고 이 영역을 만든거야."*).
-             *
-             * 🔴 **다른 칸에 안 그려지는 넷**을 여기 그린다 —
-             *    `slotsUsed` · `capacityConfidence` · `driverAction` · `userOverrides`.
-             *    앞의 둘은 **적재**라 합짐 국면의 판정을 좌우하고(목업 하단 「📦 콜 속성 축」에는
-             *    있다), `userOverrides` 는 «서버가 덮어쓰지 못하게 기사님이 손댔다»는 표시다.
-             */
-            key: 'load',
-            side: 'app',
-            node: (
-                <Card title="🎛️ 지금 어떤 판인가" note={'서버 → 앱\n국면 · 적재 · 손댐'}>
-                    {/**
-                      * 🔴 **«🎛️ 지금 국면»과 «🚚 적재 · 손댐»은 한 칸이다** (기사님 확정).
-                      *    `isActive`·`isSharedMode` 는 「📦 앱에 내려갈 필터」에 있으므로 여기 두지 않는다 —
-                      *    같은 값을 두 자리에서 보면 언젠가 «어느 쪽이 참인가»를 묻게 된다 (규칙 ③).
-                      *    남는 둘(`callTarget`·`dispatchPhase`)은 적재와 **같은 질문**에 답한다:
-                      *    «지금 어떤 국면이고, 얼마나 찼나».
-                      */}
-                    <Row k="callTarget" v={filter?.callTarget} empty="— 안 고른다(파생)" />
-                    <Row k="dispatchPhase" v={filter?.dispatchPhase} />
-                    <Row k="slotsUsed" v={filter?.slotsUsed} />
-                    <Row k="capacityConfidence" v={filter?.capacityConfidence} />
-                    <Row k="driverAction" v={filter?.driverAction} />
-                    <Row k="userOverrides" v={filter?.userOverrides === undefined ? undefined : String(filter.userOverrides)}
-                         empty="— 손 안 댔다" tone={filter?.userOverrides ? 'warn' : undefined} />
-                </Card>
-            ),
-        },
-        {
-            key: 'regions',
-            side: 'app',
-            node: (
-                <Card tall fold defaultOpen={false}
-                      title={(() => {
-                          /* 🔴 **닫아도 숫자는 제목에 남는다** — 접어서 «있는 줄도 모르는» 것이
-                             되면 안 된다 (기사님 지시) */
-                          const g = filter?.destinationGroups ?? {};
-                          const sgg = Object.keys(g).length;
-                          const dong = Object.values(g).reduce((n, v) => n + v.length, 0);
-                          return sgg ? `🗂️ 영역 — ${sgg}개 시군구 · ${dong}개 동` : '🗂️ 영역 — 시군구별';
-                      })()}
-                      note={'서버 → 앱\n앱이 하차지를 맞춰 보는 목록'}>
-                    {(() => {
-                        const g = filter?.destinationGroups;
-                        if (!g || Object.keys(g).length === 0) return <Row k="(없음)" v={undefined} tone="warn" />;
-                        return Object.entries(g)
-                            .sort((a, b) => b[1].length - a[1].length)
-                            .map(([region, names]) => <Row key={region} k={region} v={`${names.length}개`} />);
-                    })()}
-                </Card>
-            ),
-        },
-        {
-            /**
-             * 🧾 **전문 — 이 뒤로 «화면에 없는 값»이 생기지 않게** (기사님 지시).
-             *
-             * 🔴 칸을 손으로 늘리는 한 **새 칸이 생길 때마다 또 빠진다.** 오늘이 그랬다.
-             *    전문을 한 벌 두면 **빠질 자리가 없다** — 칸들은 «자주 보는 것»을 앞세우는 노릇만 한다.
-             * 🎨 목업 하단의 「📦 원문 JSON」과 같은 모양이다 — 접어 두고 복사만 바로.
-             */
-            key: 'raw',
-            side: 'app',
-            node: (
-                <Card title="🧾 필터 전문" tall note={'서버가 준 그대로\n칸에 없는 값은 여기 있다'}>
-                    <div className="flex items-center justify-between gap-2 pb-1">
-                        <span className="text-[10px] text-text-muted">
-                            {filter ? `${Object.keys(filter).length}개 칸` : '아직 못 받았다'}
-                        </span>
-                        <button type="button" disabled={!filter}
-                            onClick={() => { navigator.clipboard?.writeText(JSON.stringify(filter, null, 2)).catch(() => { /* 클립보드 막힘 — 무시 */ }); }}
-                            className="text-[10px] font-black text-text-muted hover:text-info">📋 복사</button>
-                    </div>
-                    {filter
-                        ? <details>
-                              <summary className="cursor-pointer text-[10.5px] font-bold text-text-muted">펼쳐 보기</summary>
-                              <pre className="mt-1 text-[9.5px] leading-snug whitespace-pre-wrap break-all text-text-primary">
-                                  {JSON.stringify(filter, null, 1)}
-                              </pre>
-                          </details>
-                        : <Row k="filter" v={undefined} empty="— 소켓으로 아직 안 왔다" tone="warn" />}
-                </Card>
-            ),
-        },
-    ];
+    const mismatch = (() => {
+        /* 📢 **고장이 아닌데 알아야 하는 것** — 빨간 줄과 섞지 않는다 (오탐이 쌓이면 아무도 안 본다) */
+        const note: { k: string; v: string }[] = [];
+        const bad: { k: string; v: string }[] = [];
+        /**
+         * 📍 **경로 기점과 내 자리가 왜 다른가**.
+         *
+         * 🔴 **둘이 다른 것은 고장이 아닐 수 있다.** `originOf` 는 좌표가 5분 넘게
+         *    낡으면 **집**을 고른다 — 콜 없이 모의 주행을 돌리면 «기점은 집,
+         *    내 자리는 이천»이 **정상**이다. 그걸 거리로 재서 빨간 줄을 띄우면
+         *    **오탐이 반복되고, 그러면 진짜 어긋남이 왔을 때 아무도 안 본다.**
+         * 🔴 그래서 **`isFallback` 이면 어긋남이 아니라 «알림»**으로 적는다 —
+         *    «경로를 집에서 짜는 중»은 알아야 하는 사실이지 고장이 아니다.
+         */
+        const pos = driverPos.myPosition, org = driverPos.routeOrigin;
+        if (org?.isFallback) {
+            note.push({ k: '경로 기점', v: '🏠 집에서 짜는 중 — 좌표가 5분 넘게 안 왔다' });
+        } else if (pos && org) {
+            const km = haversineKm(pos, org);
+            if (km > 1) bad.push({ k: '지도 ↔ 경로', v: `${km.toFixed(1)}km 어긋났다` });
+        }
+        if (pos?.isStale) {
+            note.push({ k: '내 위치', v: `${Math.round(pos.ageMs / 60000)}분 전 자리 — 흐리게 그린다` });
+        }
+        if (!health) bad.push({ k: '서버', v: '못 붙었다 — 로그가 조용하면 다른 서버를 보는 것' });
+        if (!filter) bad.push({ k: '필터', v: '소켓으로 아직 안 왔다' });
+        else {
+            if (filter.isActive === false) bad.push({ k: '콜 잡기', v: '꺼져 있다 (isActive=false)' });
+            /* 🔴 «빈 필터는 제한 없음이 아니라 고장이다» (규칙 ④) */
+            if (!filter.destinationCity) bad.push({ k: '목적지', v: '비어 있다 — 첫짐이 성립하지 않는다' });
+            if (!filter.destinationKeywords?.length) bad.push({ k: '그물', v: '동이 0개다 — 빈 필터는 고장이다' });
+        }
+        if (driverLoc?.source === 'home') bad.push({ k: '내 위치', v: '집 주소로 대신 쓰는 중 — GPS 가 안 온다' });
+        if (devices.length === 0) bad.push({ k: '폰', v: '붙은 폰이 없다' });
+        /**
+         * 🧭 **폰들이 같은 필터를 들고 있나** (서버가 남긴 지문으로 본다).
+         *    필터는 **한 벌**인데 받는 시각은 폰마다 다르다 — 한 폰만 지난 필터를 들고 돌면
+         *    그 폰은 **다른 조건으로 콜을 거른다.** 여기서 안 드러내면 화면 어디에도 안 보인다.
+         */
+        const versions = new Set(devices.map(d => d.filterVersion).filter(Boolean));
+        if (versions.size > 1) {
+            bad.push({ k: '필터 판', v: `폰마다 다르다 (${versions.size}종) — 한 폰이 옛 판으로 거른다` });
+        }
+        devices.forEach(d => {
+            const name = deviceLabel(d);
+            if (d.status === 'OFFLINE') bad.push({ k: `폰 ${name}`, v: '오프라인' });
+            else {
+                const quiet = Math.round((Date.now() - d.lastSeen) / 1000);
+                if (quiet > 90) bad.push({ k: `폰 ${name}`, v: `${quiet}초째 조용하다` });
+                if (d.screenNodeCount === 0) bad.push({ k: `폰 ${name}`, v: '화면을 못 읽는다 (노드 0)' });
+                if (d.isScreenOn === false) bad.push({ k: `폰 ${name}`, v: '화면이 꺼져 있다 — 스크래핑이 멈춘다' });
+            }
+        });
+        return (
+            <Card title={bad.length ? `🚨 어긋남 — ${bad.length}건` : '✅ 어긋남 없음'}
+                  note={'다른 칸의 값끼리 대조만 한다'}>
+                {bad.length === 0
+                    ? <Row k="지금" v="서버 · 필터 · 폰 모두 짝이 맞는다" tone="ok" />
+                    : bad.map((b, i) => <Row key={`${b.k}${i}`} k={b.k} v={b.v} tone="warn" />)}
+                {/* 📢 알림 — 고장은 아니지만 «왜 이런가»를 설명하는 줄 */}
+                {note.map((n, i) => <Row key={`n${n.k}${i}`} k={n.k} v={n.v} />)}
+            </Card>
+        );
+    })();
 
     return (
         <aside
@@ -1515,49 +787,9 @@ export default function StatusBoard({ activeRoute }: Props) {
                 {/* 🧪 테스트용 구역 — 어드민 이사 때 이 한 줄과 위 구역을 함께 걷는다 */}
                 <TestOnlySection phase={filter?.dispatchPhase} />
 
-                {/* 🖥️📱🗑️ **세 줄 — 각각 한 단으로 곧게 내려간다** (기사님 지시:
-                    *"컨포넌트가 한줄로 있는 구조가 아니구나.. 그냥 한줄로 만들고"*).
-
-                    ⚠️ 쪽 **안에서 신문 단**(`columns`)으로 흘리면 창 폭에 따라 한 쪽이
-                       2단이 되었다 풀렸다 해서 **칸이 자리를 옮기고**, 찾던 것이 매번 다른 데 있다.
-                       **줄마다 한 단**이라 위아래 순서가 창 폭과 무관하게 고정이다.
-                    ⚠️ **세 줄을 못 세우는 폭이면 위아래로 쌓는다** — 한 줄이 `COL_MIN` 보다
-                       좁아지면 값이 안 읽힌다. */}
-                <div ref={boxRef}
-                     className={`flex-1 min-h-0 p-2 ${wideEnough ? 'flex gap-2 overflow-hidden' : 'flex flex-col gap-2 overflow-y-auto'}`}>
-                    {SIDES.map(s => (
-                        <section key={s.key}
-                                 className={`min-w-0 rounded-xl border border-border-card bg-surface/60 p-1.5 ${wideEnough ? 'flex-1 h-full flex flex-col' : ''}`}>
-                            <div className="shrink-0 flex items-baseline gap-2 px-1 pb-1.5">
-                                <h2 className="text-[12px] font-black text-text-primary">{s.title}</h2>
-                                <span className="text-[9px] text-text-muted">{s.note}</span>
-                            </div>
-                            {/* 🔴 **폰이 우선이다** (기사님 지시: *"폰의 내용이 다 보여야 해
-                                그것이 더 중요하니까"*). 공통 칸 쪽은 자리가 모자라면 **줄어들며 스크롤**하고,
-                                남는 자리는 아래 붙박이(폰 탭 · 심사석)가 갖는다. */}
-                            {/**
-                              * 🔴 **아래 붙박이는 «바닥»에 붙어야 한다** (기사님 지시:
-                              *    *"폰 영역과 심사는 아래에 붙여줘"*).
-                              *
-                              * 🔴 **남는 자리를 누가 갖느냐가 줄마다 다르다** —
-                              *    · 🖥️ 서버: **칸 영역**이 갖는다 → 심사석이 바닥으로 밀린다
-                              *    · 📱 앱: **폰 탭**이 갖는다 (기사님: *"폰의 내용이 다 보여야 해"*)
-                              *    · 🗑️ 버린 콜: 붙박이가 없으니 칸 영역이 줄을 다 쓴다
-                              */}
-                            <div className={wideEnough
-                                ? `min-h-0 overflow-y-auto flex flex-col gap-2 ${s.key === 'app' ? 'shrink' : 'flex-1'}`
-                                : 'flex flex-col gap-2'}>
-                                {COLUMNS.map(c => c.side !== s.key ? null : (
-                                    <div key={c.key}>{c.node}</div>
-                                ))}
-                            </div>
-                            {/* ⚖️ 서버 쪽 붙박이 — 왼쪽 무대의 심사석과 나란히 읽는다 */}
-                            {s.key === 'server' && <JudgingSeatCard activeRoute={activeRoute} />}
-                            {/* 📱 **폰별은 앱 쪽 아래에만** — 서버 쪽엔 폰이 여럿일 일이 없다 */}
-                            {s.key === 'app' && <PhoneTabs devices={devices} />}
-                        </section>
-                    ))}
-                </div>
+                {/* 🚨 **어긋남 한 칸** — 값 카드들(서버 · 앱 · 버린 콜 · 심사 중 · 폰)은 운영센터 회원 «폰 · 필터» 칸에 있다.
+                    이 칸은 관제웹에서만 볼 수 있는 대조(지도 ↔ 경로 · 이 화면의 필터 · 붙은 폰)라 남는다 */}
+                <div className="flex-1 min-h-0 overflow-y-auto p-2">{mismatch}</div>
             </div>
         </aside>
     );

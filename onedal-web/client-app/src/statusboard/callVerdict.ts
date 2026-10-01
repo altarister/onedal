@@ -1,10 +1,9 @@
 import { VERDICT_AXIS_LABEL } from '@onedal/shared';
 /**
- * ⚖️ **앱이 내린 판정을 읽는다** — 여기서 다시 재지 않는다.
+ * ⚖️ **앱이 내린 판정을 읽는 낱말** — 판정 갈래 기호(MARK_SIGN)와 축 이름표(VERDICT_AXIS_LABEL) · 시나리오 칸(ScenarioCard)이 쓴다.
  *
  * ─────────────────────────────────────────────────────────────
- * 🔴 **이 파일에는 «판정»이 없다.** 축 이름을 한국어로 옮기고, 지금 쥔 콜과
- *    맞춰 보는 것뿐이다. 판정은 앱이 콜마다 내려 실어 보낸다 — 앱 함수는 여기서 부를 수
+ * 🔴 **이 파일에는 «판정»이 없다.** 축 이름을 한국어로 옮기고 갈래에 기호를 붙일 뿐이다. 판정은 앱이 콜마다 내려 실어 보낸다 — 앱 함수는 여기서 부를 수
  *    없다(Kotlin ↔ TS · 앱은 요청을 받는 문이 없다).
  *
  *    앱 `InsungParser.decide()` 의 축을 **TS 로 옮겨 적어** 다시 재면 사본이 갈라진다 —
@@ -12,27 +11,6 @@ import { VERDICT_AXIS_LABEL } from '@onedal/shared';
  *    «통과»라 적는 **가짜 ⭕** 가 나온다. 판정 규칙을 여기 들이지 않는다.
  * ─────────────────────────────────────────────────────────────
  */
-
-/** 🗑️ 서버 `intel` 한 행에서 **이 화면이 쓰는 것만** */
-export interface VerdictInput {
-    pickup?: string;
-    dropoff?: string;
-    /** 서버 원장은 요금을 모르면 null — 비교는 이미 «모르는 쪽이 있으면 구간만»(아래 isSameCall) */
-    fare?: number | null;
-    /**
-     * ⚖️ **앱이 내린 판정** — `pass` 이거나 **떨어뜨린 축 이름**.
-     *    `locked` 는 «필터가 잠겨 아예 안 봤다»라 걸러진 것과 다르다 (답신 ①).
-     *    `null` 은 구앱이거나 안 실어 보낸 것 — 지어내지 않는다 (규칙 ④).
-     */
-    verdict?: string | null;
-}
-
-/** 🧾 지금 쥔 콜 한 건 — «이미 잡았나»를 맞춰 보는 데만 쓴다 */
-export interface HeldCall {
-    pickup?: string | null;
-    dropoff?: string | null;
-    fare?: number | null;
-}
 
 export type VerdictMark =
     /** 🟢 지금 쥔 콜에 있다 — 걸러 올린 것이 맞다 */
@@ -44,82 +22,8 @@ export type VerdictMark =
     /** ❔ 앱이 판정을 안 실었거나(구앱) 잠겨서 안 봤다 */
     | 'unknown';
 
-export interface VerdictView {
-    mark: VerdictMark;
-    /** 화면 오른쪽에 적을 말 — 떨어진 축, 또는 «잠겨서 안 봤다» */
-    why?: string;
-}
-
 /** 🔤 축 이름표는 shared `VERDICT_AXIS_LABEL` 한 벌(운영센터 현황판도 같이 쓴다) — 목록에 없는 낱말은 그 낱말을 그대로 적는다 */
 export { VERDICT_AXIS_LABEL };
-
-/**
- * 🔴 **`intel` 의 주소는 짧은 이름이다** (`addressOf` — `'분당구'`·`'구미동'`).
- *    쥔 콜은 긴 주소라 **짧은 쪽이 긴 쪽에 드는가**로 맞춘다. 요금까지 같아야 한 건으로 본다 —
- *    같은 구간이 하루에 여러 번 뜨기 때문이다.
- * ⚠️ 완벽하지 않다. 같은 구간·같은 요금이 둘이면 하나로 본다 (그래서 «맞춰 본다»고 적는다).
- */
-function isSameCall(row: VerdictInput, held: HeldCall): boolean {
-    const p = row.pickup?.trim(), d = row.dropoff?.trim();
-    if (!p || !d) return false;
-    const hp = held.pickup ?? '', hd = held.dropoff ?? '';
-    if (!hp.includes(p) || !hd.includes(d)) return false;
-    /* 요금을 모르는 쪽이 있으면 구간만으로 같다고 본다 — 없는 값을 «다르다»로 읽지 않는다 */
-    if (row.fare == null || held.fare == null) return true;
-    return row.fare === held.fare;
-}
-
-/**
- * 한 행을 네 갈래로 가른다 — **판정은 앱이 했고 여기는 옮겨 적는다.**
- *
- * 🔴 **`verdict` 를 «잡았나»보다 먼저 본다** (실측).
- *    쥔 콜 매칭을 먼저 보면 앱이 **`locked`(잠겨서 안 봤다)** 라고 한 콜까지
- *    🟢 «잡음»으로 뜬다 — **앱이 보지도 않은 콜**이 잡은 것처럼 보인다.
- *    판정이 있는 값이 먼저다 — 그것이 사실이고, 매칭은 **추정**이다.
- *
- * @param heldPool 아직 짝이 안 지어진 쥔 콜들. **짝이 지어지면 호출자가 빼낸다** —
- *                 한 콜에 여러 줄이 붙는 것을 막는다 (`viewAll` 참조).
- */
-export function viewOfVerdict(row: VerdictInput, heldPool: HeldCall[] = []): VerdictView {
-    const v = row.verdict;
-    if (v == null || v === '') return { mark: 'unknown', why: '앱이 판정을 안 실었다' };
-    /* ❔ **잠긴 것은 걸러진 것과 다르다** (답신 ①) — 축 이름으로 적으면 거짓말이 된다 */
-    if (v === 'locked') return { mark: 'unknown', why: '필터가 잠겨 안 봤다' };
-    /* ❌ 앱이 떨어뜨렸으면 잡았을 리 없다 — 매칭을 볼 이유가 없다 */
-    if (v !== 'pass') return { mark: 'dropped', why: VERDICT_AXIS_LABEL[v] ?? v };
-
-    /**
-     * 🟢 **통과한 콜만 «잡았나»를 본다** — 이것만은 앱이 모른다
-     *    (앱은 제가 올린 뒤의 일을 못 본다).
-     * 🔴 **짝이 지어지면 그 쥔 콜을 빼낸다** — 안 빼면 «마장면 → 마장면 · 200천»
-     *    같은 줄이 **여러 건 동시에** 쥔 콜 하나에 붙어 전부 🟢 가 된다. 한 번 잡은 콜은
-     *    한 줄만 설명한다.
-     */
-    const i = heldPool.findIndex(h => isSameCall(row, h));
-    if (i >= 0) { heldPool.splice(i, 1); return { mark: 'kept' }; }
-    return { mark: 'missed', why: '앱은 통과라 했다' };
-}
-
-/**
- * 여러 줄을 한 번에 — **쥔 콜을 한 줄에만 붙인다.**
- *
- * 🔴 목록이 **최신순**이므로 최신 줄이 먼저 짝을 가져간다. 같은 구간·같은 요금이 여러 번
- *    떴을 때 «어느 것이 그 콜이었나»는 `intel` 만으로 알 수 없다 — 콜에 식별자가 없다.
- *    그래서 이것은 **추정**이고, 화면이 그 사실을 적는다.
- */
-export function viewAll<T extends VerdictInput>(
-    rows: readonly T[], held: readonly HeldCall[] = [],
-): Array<{ row: T; v: VerdictView }> {
-    const pool = [...held];
-    return rows.map(row => ({ row, v: viewOfVerdict(row, pool) }));
-}
-
-/** 🔢 한눈에 보는 요약 — 제목에 얹는다 */
-export function tallyMarks(marks: readonly VerdictMark[]): Record<VerdictMark, number> {
-    const out: Record<VerdictMark, number> = { kept: 0, missed: 0, dropped: 0, unknown: 0 };
-    for (const m of marks) out[m] += 1;
-    return out;
-}
 
 /** 🎨 기호 — 화면과 검사가 같은 표를 본다 */
 export const MARK_SIGN: Record<VerdictMark, string> = {
