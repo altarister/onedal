@@ -633,7 +633,7 @@ router.post("/pair", (req, res) => {
         /* 🔢 시도 한도 안에서만 번호를 쓴다 — 잠겼으면 429 · 글자는 PIN_INVALID 그대로(앱은 짝 화면 오류 글) (reviews/29 1단계 F) */
         /* 🚧 승인 전 · 탈퇴 · 정지 계정에는 폰을 잇지 않는다 — 폰 문과 같은 판단(core/accountGate · reviews/29 2단계).
               번호를 지우기 전에 본다 — 막혔으면 번호를 남겨 승인 뒤 같은 번호로 이을 수 있다 */
-        const tried = tryConsumePin(pin, { ip: clientIpOf(req), hopIp: String(req.ip ?? '?'), deviceId }, id => accountGateOf(id).blocked);
+        const tried = tryConsumePin(pin, { ip: clientIpOf(req), deviceId }, id => accountGateOf(id).blocked);
         if (!tried.ok && tried.blockedOwner) {
             slog('통신', `🚫 [계정 막힘] ${tried.blockedOwner} — 폰 연결 거절 (${DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED})`);
             return res.status(403).json({ error: DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED, message: "이 계정은 아직 쓸 수 없습니다. 관제웹에서 가입 상태를 확인해 주세요." });
