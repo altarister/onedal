@@ -12,7 +12,8 @@ const today = new Date();
 const d = (daysAgo: number, hh = 9, mm = 0) => {
     const t = new Date(today); t.setDate(t.getDate() - daysAgo); t.setHours(hh, mm, 0, 0); return t.toISOString();
 };
-const plusDays = (n: number) => { const t = new Date(today); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); };
+const localDay = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+const plusDays = (n: number) => { const t = new Date(today); t.setDate(t.getDate() + n); return localDay(t); };
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
 const tomorrowName = DAY_NAMES[(today.getDay() + 1) % 7];
 
@@ -21,25 +22,25 @@ export const MEMBERS: OpsMember[] = [
         id: 'm-driver1', name: '기사님 (기사1)', email: 'driver1@example.com', phone: '010-1111-2222', vehicle: '1t',
         networks: ['insung', 'hwamul24', 'kakaopicker'], region: '광주 · 이천 · 여주', youtubeChannel: null, role: 'USER',
         createdAt: d(40), approvedAt: d(40, 10), suspendedAt: null, suspendAfterActive: false, withdrawnAt: null,
-        paidUntil: null, autoUntil: plusDays(365), statsUntil: plusDays(365), opsAllowedAt: d(40, 10), phones: [],
+        paidUntil: null, autoAllowedAt: d(40, 10), autoUntil: null, statsAllowedAt: d(40, 10), statsUntil: null, opsAllowedAt: d(40, 10), phones: [],
     },
     {
         id: 'm-driver2', name: '딸 (기사2)', email: 'driver2@example.com', phone: '010-3333-4444', vehicle: '다마스',
         networks: ['insung', 'kakaopicker'], region: '성남 · 광주', youtubeChannel: '화물기사 2호', role: 'USER',
         createdAt: d(3, 21, 12), approvedAt: d(2, 8, 30), suspendedAt: null, suspendAfterActive: false, withdrawnAt: null,
-        paidUntil: plusDays(23), autoUntil: plusDays(365), statsUntil: plusDays(365), opsAllowedAt: null, phones: [],
+        paidUntil: null, autoAllowedAt: d(2, 8, 30), autoUntil: null, statsAllowedAt: d(2, 8, 30), statsUntil: null, opsAllowedAt: null, phones: [],
     },
     {
         id: 'm-admin', name: '와이프 (관리자)', email: 'admin@example.com', phone: '010-5555-6666', vehicle: '',
         networks: [], region: '', youtubeChannel: null, role: 'ADMIN',
         createdAt: d(40), approvedAt: d(40), suspendedAt: null, suspendAfterActive: false, withdrawnAt: null,
-        paidUntil: null, autoUntil: null, statsUntil: null, opsAllowedAt: d(40), phones: [],
+        paidUntil: null, autoAllowedAt: null, autoUntil: null, statsAllowedAt: null, statsUntil: null, opsAllowedAt: d(40), phones: [],
     },
     {
         id: 'm-pending', name: '신청자 (예시)', email: 'new@example.com', phone: '010-7777-8888', vehicle: '라보',
         networks: ['hwamul24'], region: '용인', youtubeChannel: '라보왕', role: 'USER',
         createdAt: d(0, 7, 41), approvedAt: null, suspendedAt: null, suspendAfterActive: false, withdrawnAt: null,
-        paidUntil: null, autoUntil: null, statsUntil: null, opsAllowedAt: null, phones: [],
+        paidUntil: null, autoAllowedAt: null, autoUntil: null, statsAllowedAt: null, statsUntil: null, opsAllowedAt: null, phones: [],
     },
 ];
 
@@ -126,17 +127,17 @@ export const AUDIT: OpsAudit[] = [
     { id: 8, at: d(0, 9, 55), admin: '와이프 (관리자)', action: '통화 결과 적음', targetMemberId: 'm-driver1', detail: 'c-102 · 박스 2 · 10:50 상차 가능' },
     { id: 7, at: d(0, 9, 40), admin: '와이프 (관리자)', action: '위치 봄', targetMemberId: 'm-driver2', detail: '/map' },
     { id: 6, at: d(0, 7, 5), admin: '와이프 (관리자)', action: '공지 올림', targetMemberId: null, detail: '서버 점검 안내' },
-    { id: 5, at: d(2, 8, 30), admin: '와이프 (관리자)', action: '승인', targetMemberId: 'm-driver2', detail: '멤버 확인 번호 일치 · 기한 +1달' },
+    { id: 5, at: d(2, 8, 30), admin: '와이프 (관리자)', action: '승인', targetMemberId: 'm-driver2', detail: '가족 — 유료 기한 없음' },
     { id: 4, at: d(2, 20, 0), admin: '와이프 (관리자)', action: '페이지 글 적음', targetMemberId: null, detail: '가입 안내 v1' },
     { id: 3, at: d(3, 8, 40), admin: '와이프 (관리자)', action: 'APK 올림', targetMemberId: null, detail: '원달앱 2.9.12 (최신)' },
     { id: 2, at: d(3, 9, 0), admin: '와이프 (관리자)', action: '공지 올림', targetMemberId: null, detail: '원달앱 업데이트 안내' },
     { id: 1, at: d(1, 14, 25), admin: '와이프 (관리자)', action: '콜 봄', targetMemberId: 'm-driver1', detail: 'c-105 · 취소 사유 확인' },
 ];
 
-const thisMonth = today.toISOString().slice(0, 7);
+const thisMonth = localDay(today).slice(0, 7);
 export const CHECKS: OpsMemberCheck[] = [
     { memberId: 'm-driver1', month: thisMonth, codeEntered: null, checkedAt: null, result: null },
-    { memberId: 'm-driver2', month: thisMonth, codeEntered: '4821', checkedAt: d(2, 8, 30), result: 'OK' },
+    { memberId: 'm-driver2', month: thisMonth, codeEntered: '4821', checkedAt: null, result: null },
     { memberId: 'm-pending', month: thisMonth, codeEntered: '4812', checkedAt: null, result: null },
 ];
 export const MONTH_CODE = '4821';
@@ -152,4 +153,21 @@ export const STATS_ROWS = [
     { group: '월', from: '성남시 분당구', to: '광주시', calls: 17, fareAvg: 27500, memberId: 'm-driver2' },
     { group: '화', from: '이천시', to: '여주시', calls: 12, fareAvg: 38900, memberId: 'm-driver1' },
     { group: '화', from: '성남시 수정구', to: '성남시 분당구', calls: 9, fareAvg: 9500, memberId: 'm-driver2' },
+];
+
+/** 🧰 현황판(점검) 예시 — 서버 /api/health 와 폰 보고(지문 · 성적표 · 누적)가 주는 것의 모양 */
+export const BOARD_SERVER = { bootedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), commit: 'a9eb50c1', branch: 'main', sockets: 3, lastScrapAt: new Date(Date.now() - 4000).toISOString(), db: 'data.db', tz: 'Asia/Seoul' };
+export const BOARD_PHONE_DETAIL: Record<string, { filterHash: string; filterAgeSec: number; scansPerMin: number; lastList: string; listCount: number; tally: { seen: number; passed: number; blockedFare: number; blockedArea: number; blockedVehicle: number }; cumulative: { collected: number; accepted: number; cancels: number; cancelLimit: number }; screenOn: boolean; nodeCount: number }> = {
+    'd-3f1c9a2e-7b4d-4e8a-9c1d-0a6b2e5f7c11': { filterHash: '7f3a…c9', filterAgeSec: 41, scansPerMin: 28, lastList: '인성 콜리스트', listCount: 37, tally: { seen: 212, passed: 9, blockedFare: 140, blockedArea: 51, blockedVehicle: 12 }, cumulative: { collected: 1240, accepted: 4, cancels: 1, cancelLimit: 3 }, screenOn: true, nodeCount: 412 },
+    'd-5a7c2e19-9d4b-4a3c-8e1f-2b6d9c0a7e33': { filterHash: '7f3a…c9', filterAgeSec: 3600, scansPerMin: 0, lastList: '(접근성 꺼짐)', listCount: 0, tally: { seen: 0, passed: 0, blockedFare: 0, blockedArea: 0, blockedVehicle: 0 }, cumulative: { collected: 210, accepted: 0, cancels: 0, cancelLimit: 3 }, screenOn: false, nodeCount: 0 },
+};
+export const BOARD_FILTER_FULL: Record<string, object> = {
+    'm-driver1': { isActive: true, minFare: 30000, radiusKm: 12, destinations: ['이천시', '여주시'], excludedKeywords: ['냉동', '이사'], vehicle: '1t', capacityBoxes: 100, pickupSlackMin: 20, safeCancelSec: { insung: 180, hwamul24: 120 }, phase: 'GATHERING' },
+    'm-driver2': { isActive: true, minFare: 8000, radiusKm: 6, destinations: ['성남시 분당구'], excludedKeywords: [], vehicle: '다마스', capacityBoxes: 30, pickupSlackMin: 15, safeCancelSec: { insung: 180 }, phase: 'GATHERING' },
+};
+export const BOARD_DROPPED = [
+    { at: new Date(Date.now() - 60000 * 3).toISOString(), memberId: 'm-driver1', app: '인성', line: '광주 초월 → 서울 강남 · 38,000 · 1t', why: '목적지 밖 (강남)' },
+    { at: new Date(Date.now() - 60000 * 7).toISOString(), memberId: 'm-driver1', app: '인성', line: '이천 부발 → 여주 · 22,000 · 다마스', why: '요금 미달 (30,000)' },
+    { at: new Date(Date.now() - 60000 * 9).toISOString(), memberId: 'm-driver2', app: '픽커', line: '분당 정자 → 수지 · 6,500 · 도보', why: '요금 미달 (8,000)' },
+    { at: new Date(Date.now() - 60000 * 15).toISOString(), memberId: 'm-driver1', app: '24시', line: '여주 가남 → 가락시장 · 70,000 · 1t 냉동', why: '제외 낱말 (냉동)' },
 ];

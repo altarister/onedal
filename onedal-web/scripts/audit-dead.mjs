@@ -50,8 +50,11 @@ const load = (files) => files.map(f => ({
 const SERVER = load(walk(join(ROOT, 'server/src'), ['.ts']));
 const TESTS = load(walk(join(ROOT, 'server/tests'), ['.ts']));
 const CLIENT = load(walk(join(ROOT, 'client-app/src'), ['.ts', '.tsx']));
+/* 🏢 운영센터 · 🧩 공통 부품도 shared 를 부른다 — 안 훑으면 그쪽만 쓰는 export 가 «죽었다»로 뜬다 */
+const OPS = load(walk(join(ROOT, 'ops/src'), ['.ts', '.tsx']));
+const UI = load(walk(join(ROOT, 'ui/src'), ['.ts', '.tsx']));
 const SHARED = load(walk(join(ROOT, 'shared/src'), ['.ts']));
-const ALL = [...SERVER, ...TESTS, ...CLIENT, ...SHARED];
+const ALL = [...SERVER, ...TESTS, ...CLIENT, ...OPS, ...UI, ...SHARED];
 
 const C = { d: '\x1b[2m', b: '\x1b[1m', g: '\x1b[32m', y: '\x1b[33m', r: '\x1b[31m', x: '\x1b[0m' };
 const H = (s) => console.log(`\n${C.b}${s}${C.x}\n${'─'.repeat(74)}`);

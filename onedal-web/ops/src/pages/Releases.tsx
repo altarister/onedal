@@ -4,7 +4,7 @@ import { Badge } from '@onedal/ui/badge';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api } from '../api/ops';
-import { Card, PageHeader, Table, fmtTime, useTick, type Column } from '../ui';
+import { Card, KV, PageHeader, Table, fmtTime, useTick, type Column } from '../ui';
 
 /**
  * 📦 앱 배포 — APK 올리기 · 최신 · 최소 판. 파일은 서버(EC2 레포 밖 폴더)에 두고 기사는 가입 페이지 «앱 받기»에서 받는다.
@@ -43,7 +43,14 @@ export default function Releases() {
                 </div>
                 <p className="text-xs text-text-muted">versionCode 는 릴리스마다 올립니다. 서명이 바뀌면 덮어 설치가 안 됩니다 — 키는 git 밖 두 곳에.</p>
             </Card>
-            <Table rows={rows} columns={cols} rowKey={r => `${r.app}-${r.versionCode}`} />
+            <Table rows={rows} columns={cols} rowKey={r => `${r.app}-${r.versionCode}`} card={r => (
+                <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-2"><span className="font-bold">{APP_LABEL[r.app]} {r.version}</span><span className="flex gap-1">{r.isLatest && <Badge variant="outline" className="bg-success/15 text-success border-success/30">최신</Badge>}{r.isMinimum && <Badge variant="outline" className="bg-warning/15 text-warning border-warning/30">최소</Badge>}</span></div>
+                    <KV k="code · 올린 때" v={`${r.versionCode} · ${fmtTime(r.uploadedAt)}`} />
+                    <KV k="파일" v={r.fileName} />
+                    {!r.isMinimum && <Button type="button" size="xs" variant="outline" onClick={() => api.setMinimum(r.app, r.versionCode)}>최소 판으로</Button>}
+                </div>
+            )} />
         </>
     );
 }

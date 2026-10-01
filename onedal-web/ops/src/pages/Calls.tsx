@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { TARGET_APP_LABEL, type OpsCall, type TargetAppType } from '@onedal/shared';
+import { TARGET_APP_LABEL, type OpsCall } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
 import { Checkbox } from '@onedal/ui/checkbox';
 import { Input } from '@onedal/ui/input';
 import { api } from '../api/ops';
-import { Card, PageHeader, Stat, VERDICT_DOT, fmtTime, fmtWon, memberName, useTick } from '../ui';
+import { COLOR_DOT, Card, PageHeader, Stat, StatRow, dayKey, fmtTime, fmtWon, memberName, statusKo, todayKey, useTick } from '../ui';
 
 /**
  * 📞 **통화 도우미** — 기사가 KEEP 했거나 판정이 «통화 필요»인 콜이 맨 위. 관리자가 상차지 · 하차지에 전화해 결과를 적는다 (reviews/29 5단계).
@@ -26,12 +26,12 @@ export default function Calls() {
                     {members.filter(m => m.role !== 'ADMIN').map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
             } />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatRow>
                 <Stat label="전화할 콜" value={todo.length} tone={todo.length ? 'warn' : 'ok'} />
-                <Stat label="오늘 적은 결과" value={all.filter(c => c.callNote && c.callNote.writtenAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length} />
+                <Stat label="오늘 적은 결과" value={all.filter(c => c.callNote && dayKey(c.callNote.writtenAt) === todayKey()).length} />
                 <Stat label="진행 중" value={all.filter(c => c.status === 'ORDER_CONFIRMED').length} />
                 <Stat label="상대 취소" value={all.filter(c => c.callNote?.counterpartCancelled).length} tone="bad" />
-            </div>
+            </StatRow>
             {todo.length === 0 && <Card><p className="text-sm text-text-muted text-center py-4">지금 전화할 콜이 없습니다</p></Card>}
             {todo.map(c => <CallCard key={c.id} c={c} name={memberName(members, c.memberId)} />)}
             {rest.length > 0 && (
@@ -39,8 +39,8 @@ export default function Calls() {
                     {rest.map(c => (
                         <div key={c.id} className="text-sm border-t border-border-card first:border-t-0 pt-2 first:pt-0">
                             <div className="flex justify-between gap-2">
-                                <span>{VERDICT_DOT[c.verdict]} <b>{memberName(members, c.memberId)}</b> · {TARGET_APP_LABEL[c.targetApp as TargetAppType]} · {c.pickup.place} → {c.dropoff.place}</span>
-                                <span className="text-text-muted shrink-0">{fmtWon(c.fare)} · {c.status.replace('ORDER_', '')}</span>
+                                <span>{COLOR_DOT[c.verdict]} <b>{memberName(members, c.memberId)}</b> · {TARGET_APP_LABEL[c.targetApp]} · {c.pickup.place} → {c.dropoff.place}</span>
+                                <span className="text-text-muted shrink-0">{fmtWon(c.fare)} · {statusKo(c.status)}</span>
                             </div>
                             {c.callNote && (
                                 <div className="text-xs text-text-muted mt-0.5">
@@ -62,7 +62,8 @@ function CallCard({ c, name }: { c: OpsCall; name: string }) {
     const [cancelled, setCancelled] = useState(false);
     const [memo, setMemo] = useState('');
     const save = () => {
-        const at = ready ? new Date(`${new Date().toISOString().slice(0, 10)}T${ready}:00`).toISOString() : null;
+        // 상차 가능 시각 — 오늘(한국 날)의 그 시각. toISOString 의 날짜(UTC)를 쓰면 새벽에 전날이 된다
+        const at = ready ? (() => { const [h, mi] = ready.split(':').map(Number); const t = new Date(); t.setHours(h, mi, 0, 0); return t.toISOString(); })() : null;
         api.writeCallNote(c.id, { cargoSize: cargoSize || '(안 물음)', pickupReadyAt: at, counterpartCancelled: cancelled, memo });
     };
     const tel = (p: string | null) => p ? <a href={`tel:${p.replace(/[^\d]/g, '')}`} className="text-info font-bold underline-offset-2 hover:underline">📞 {p}</a> : <span className="text-text-muted">번호 없음</span>;
@@ -70,7 +71,7 @@ function CallCard({ c, name }: { c: OpsCall; name: string }) {
         <Card className="border-warning/40">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="text-sm space-y-1">
-                    <div className="text-base font-black">{VERDICT_DOT[c.verdict]} {name} · {TARGET_APP_LABEL[c.targetApp as TargetAppType]} <span className="text-xs font-normal text-warning">🟡 통화 필요</span></div>
+                    <div className="text-base font-black">{COLOR_DOT[c.verdict]} {name} · {TARGET_APP_LABEL[c.targetApp]} <span className="text-xs font-normal text-warning">🟡 통화 필요</span></div>
                     <div>상차 <b>{c.pickup.place}</b> · {c.pickup.address} · {tel(c.pickup.phone)} {c.pickup.at && <span className="text-text-muted">· {fmtTime(c.pickup.at)}</span>}</div>
                     <div>하차 <b>{c.dropoff.place}</b> · {c.dropoff.address} · {tel(c.dropoff.phone)}</div>
                     <div className="text-text-muted">{fmtWon(c.fare)} · KEEP {fmtTime(c.capturedAt)}</div>

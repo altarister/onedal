@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { deviceLabel } from '@onedal/shared';
 import { api } from '../api/ops';
-import { Card, PageHeader, VERDICT_DOT, fmtTime, memberName, useTick } from '../ui';
+import { COLOR_DOT, Card, PageHeader, fmtTime, memberName, useTick } from '../ui';
 
 /**
  * 🗺️ 지도 — 회원 지금 위치 · 잡은 콜의 상하차. 실제 지도는 관제웹 지도 부품(`ui/` 로 옮긴 뒤)을 쓴다 — 지금은 자리만.
@@ -17,7 +17,8 @@ const STOPS = [
 
 export default function MapPage() {
     useTick();
-    useEffect(() => { api.viewed('위치 봄', null, '/map'); }, []);
+    // 열람 기록 — 누구의 위치를 봤는지 회원마다 한 줄
+    useEffect(() => { for (const p of api.phones().filter(p => p.locationOn)) api.viewed('위치 봄', p.memberId, '/map'); }, []);
     const members = api.members();
     const phones = api.phones().filter(p => p.locationOn);
     const calls = api.calls().filter(c => c.status === 'ORDER_CONFIRMED');
@@ -52,7 +53,7 @@ export default function MapPage() {
                         {phones.length === 0 && <p className="text-sm text-text-muted">없습니다</p>}
                     </Card>
                     <Card title="진행 중 콜">
-                        {calls.map(c => <div key={c.id} className="text-sm">{VERDICT_DOT[c.verdict]} <b>{memberName(members, c.memberId)}</b> · {c.pickup.place} → {c.dropoff.place}</div>)}
+                        {calls.map(c => <div key={c.id} className="text-sm">{COLOR_DOT[c.verdict]} <b>{memberName(members, c.memberId)}</b> · {c.pickup.place} → {c.dropoff.place}</div>)}
                     </Card>
                 </div>
             </div>

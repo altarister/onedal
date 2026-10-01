@@ -1,6 +1,7 @@
-import { TARGET_APP_LABEL, deviceLabel, type OpsAnomaly, type OpsScreenWord, type TargetAppType } from '@onedal/shared';
+import { TARGET_APP_LABEL, deviceLabel, type OpsAnomaly, type OpsScreenWord } from '@onedal/shared';
+import type { TargetAppType } from '@onedal/shared';
 import { api } from '../api/ops';
-import { Card, PageHeader, Table, fmtTime, memberName, useTick, type Column } from '../ui';
+import { Card, KV, PageHeader, Table, fmtTime, memberName, useTick, type Column } from '../ui';
 
 /** ⚠️ 앱 이상 기록 · 배차망 화면 새 글자 — 배차망 앱이 바뀌면 모든 회원이 함께 멈춘다. */
 export default function Anomalies() {
@@ -10,7 +11,7 @@ export default function Anomalies() {
     const phones = api.phones();
     const phoneName = (deviceId: string) => deviceLabel({ deviceId, deviceName: phones.find(p => p.deviceId === deviceId)?.deviceName });
     const words = api.screenWords();
-    const app = (a: string) => TARGET_APP_LABEL[a as TargetAppType] ?? a;
+    const app = (a: TargetAppType) => TARGET_APP_LABEL[a];
     const cols: Column<OpsAnomaly>[] = [
         { key: 'at', label: '시각', render: a => fmtTime(a.at) },
         { key: 'm', label: '회원', render: a => memberName(members, a.memberId) },
@@ -29,8 +30,16 @@ export default function Anomalies() {
     return (
         <>
             <PageHeader title="이상 기록" sub="앱이 화면을 못 읽은 기록 · 처음 보는 글자" />
-            <Card title="앱 이상 기록"><Table rows={rows} columns={cols} rowKey={a => String(a.id)} /></Card>
-            <Card title="배차망 화면 새 글자 — 사전에 없는 낱말 (배차망 앱이 바뀐 신호)"><Table rows={words} columns={wcols} rowKey={w => `${w.targetApp}-${w.page}-${w.word}`} /></Card>
+            <Card title="앱 이상 기록"><Table rows={rows} columns={cols} rowKey={a => String(a.id)} card={a => (
+                <div className="space-y-1">
+                    <div className="flex justify-between gap-2"><span className="font-bold">{app(a.targetApp)} · {a.screen}</span><span className="text-xs text-text-muted">{fmtTime(a.at)}</span></div>
+                    <div className="text-sm">{a.reason}</div>
+                    <KV k="회원 · 폰" v={`${memberName(members, a.memberId)} · ${phoneName(a.deviceId)}`} />
+                </div>
+            )} /></Card>
+            <Card title="배차망 화면 새 글자 — 사전에 없는 낱말 (배차망 앱이 바뀐 신호)"><Table rows={words} columns={wcols} rowKey={w => `${w.targetApp}-${w.page}-${w.word}`} card={w => (
+                <div className="flex justify-between gap-2"><span><b>{w.word}</b> <span className="text-text-muted">· {app(w.targetApp)} · {w.page} · {w.kind}</span></span><span className="text-xs text-text-muted">{fmtTime(w.firstSeenAt)}</span></div>
+            )} /></Card>
         </>
     );
 }

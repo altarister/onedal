@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@onedal/ui/button';
 import { api } from '../api/ops';
-import { Card, PageHeader, StatusBadge, fmtTime, memberName, useTick } from '../ui';
+import { Card, PageHeader, StatusBadge, fmtTime, memberName, todayKey, useTick } from '../ui';
 
 /** 🎫 매달 멤버 대조 (12월 뒤) — 멤버 전용 게시물의 확인 번호와 회원이 적은 번호를 견준다 (reviews/29 Q8) */
 export default function MembersCheck() {
@@ -9,7 +9,7 @@ export default function MembersCheck() {
     const members = api.members();
     const checks = api.checks();
     const code = api.monthCode();
-    const month = new Date().toISOString().slice(0, 7);
+    const month = todayKey().slice(0, 7);
     const expiring = members.filter(m => m.paidUntil && m.role !== 'ADMIN').sort((a, b) => (a.paidUntil! < b.paidUntil! ? -1 : 1));
 
     return (

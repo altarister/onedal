@@ -1,6 +1,6 @@
 import { deviceLabel, type OpsPhone } from '@onedal/shared';
 import { api } from '../api/ops';
-import { PageHeader, Stat, Table, fmtTime, memberName, useTick, type Column } from '../ui';
+import { KV, PageHeader, Stat, StatRow, Table, fmtTime, memberName, useTick, type Column } from '../ui';
 
 /** 📱 모든 폰 — 연결 · 끊긴 까닭 · 마지막 연락 · 앱 버전 · 모드 · 위치 보냄. 모드를 바꾸는 손잡이는 기사 관제웹에 있다(운영센터는 읽기만) */
 export default function Phones() {
@@ -22,13 +22,21 @@ export default function Phones() {
     return (
         <>
             <PageHeader title="폰" sub="연결 상태 · 앱 버전 · 모드 — 회원마다 배차망 폰 · 운전석 폰 두 대" />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatRow>
                 <Stat label="연결" value={phones.filter(p => p.status === 'ONLINE').length} tone="ok" />
                 <Stat label="끊김" value={phones.filter(p => p.status === 'OFFLINE').length} tone={phones.some(p => p.status === 'OFFLINE') ? 'bad' : undefined} />
                 <Stat label="옛 판" value={phones.filter(p => { const l = latest[p.deviceName.includes('배차망') ? 'scanner' : 'dashboard']; return l && l !== p.appVersion; }).length} tone="warn" hint="최신이 아닌 앱" />
                 <Stat label="위치 보냄" value={phones.filter(p => p.locationOn).length} />
-            </div>
-            <Table rows={phones} columns={columns} rowKey={p => p.deviceId} />
+            </StatRow>
+            <Table rows={phones} columns={columns} rowKey={p => p.deviceId} card={p => (
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2"><span className="font-bold">{deviceLabel(p)}</span><span className={p.status === 'ONLINE' ? 'text-success font-bold text-xs' : 'text-danger font-bold text-xs'}>{p.status === 'ONLINE' ? '● 연결' : '● 끊김'}</span></div>
+                    <KV k="회원" v={memberName(members, p.memberId)} />
+                    <KV k="마지막 연락 · 앱" v={`${fmtTime(p.lastSeenAt)} · v${p.appVersion}`} />
+                    <KV k="모드 · 위치" v={`${p.mode === 'AUTO' ? '자동' : p.mode === 'ALARM' ? '알람' : '대기'} · ${p.locationOn ? '보냄' : '안 보냄'}`} />
+                    {p.offlineReason && <KV k="끊긴 까닭" v={<span className="text-danger">{p.offlineReason}</span>} />}
+                </div>
+            )} />
         </>
     );
 }
