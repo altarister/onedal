@@ -141,7 +141,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "vehicleType", "where": "톤수 · 차종 · 적재중량", "sample": "1톤 · 전체 · 1톤", "seen": "REAL", "handling": "UNUSED"},
         {"field": "tags", "where": "운행방법", "sample": "편도", "seen": "REAL", "handling": "UNUSED"},
         {"field": "fare", "where": "운송료 · 부가세 · 수납금액", "sample": "60,000 · 6,000 · 65,144", "seen": "REAL", "handling": "READ", "usedAt": "목록 줄을 못 찾은 손 상세는 PageFieldRead(PreConfirmSequence)", "read": "운송료\\s*:?\\s*([\\d,]+)", "note": "💰 목록 요금과 같은 «운송료»만 — 실물은 «운송료» · «60,000» 이 다른 노드, 시뮬은 «60,000원» (부가세 · 수납금액은 안 읽음)"},
-        {"field": "payment", "where": "결제방법", "sample": "카드", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «카드» · «착불» · 원달앱은 이 칸을 안 읽는다", "read": "결제방법\\s+(?!\\S*\\s*:)(\\S+)"},
+        {"field": "payment", "where": "결제방법", "sample": "카드", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) · 관제웹 결제 칸(서버 pageFieldOf) — «카드» · «착불» · 원달앱은 이 칸을 안 읽는다", "read": "결제방법\\s+(?!\\S*\\s*:)(\\S+)"},
         {"field": "commission", "where": "수수료 줄", "sample": "수수료 = (운송료+부가세) x1.298%", "seen": "REAL", "handling": "UNUSED"}
       ],
       "confirm": [
@@ -180,7 +180,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "pickupDistance", "where": "사진 정거장 오른쪽", "sample": "픽업 4.7km", "seen": "REAL", "handling": "DROPPED", "usedAt": "PickerScreenOcr — straightKm 읽고 안 씀"},
         {"field": "deliveryDistance", "where": "사진 정거장 오른쪽", "sample": "배송 26.4km", "seen": "REAL", "handling": "DROPPED", "usedAt": "PickerScreenOcr — straightKm 읽고 안 씀"},
         {"field": "clock", "where": "사진 정거장 시각", "sample": "내일 17:49 · 12:39까지", "seen": "REAL", "handling": "DROPPED", "usedAt": "PickerScreenOcr — 하차 at 읽고 안 씀"},
-        {"field": "itemSize", "where": "사진 물품 정보", "sample": "중형 세 변의 합 140cm · 20kg 이하", "seen": "REAL", "handling": "READ", "usedAt": "PickerScreenOcr.parseDetail · 서버 제외어 찾는 칸(excludeScan) — 접근성 글에서 «최종 수익» · «유의사항» · 버튼 앞까지", "read": "물품\\s*정보\\s+([\\s\\S]*?)(?=\\s+유의사항|\\s+최종 수익|\\s+넘기기|\\s+수락하기|$)"},
+        {"field": "itemSize", "where": "사진 물품 정보", "sample": "중형 세 변의 합 140cm · 20kg 이하", "seen": "REAL", "handling": "READ", "usedAt": "PickerScreenOcr.parseDetail · 서버 제외어 찾는 칸(excludeScan) — 접근성 글에서 «최종 수익» · «유의사항» · 버튼 앞까지 · 관제웹 물품 칸(서버 pageFieldOf)", "read": "물품\\s*정보\\s+([\\s\\S]*?)(?=\\s+유의사항|\\s+최종 수익|\\s+넘기기|\\s+수락하기|$)"},
         {"field": "memo", "where": "사진 유의사항", "sample": "바로 배송가주실 분만 잡아주세요", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «유의사항» 다음 «최종 수익» · 버튼 앞 · 원달앱은 이 칸을 안 읽는다(사진 판독도 안 씀)", "read": "유의사항\\s+([\\s\\S]*?)(?=\\s+최종 수익|\\s+넘기기|\\s+수락하기|$)"},
         {"field": "fare", "where": "상세 아래 최종 수익", "sample": "최종 수익 2,387", "seen": "REAL", "handling": "UNUSED"}
       ],
