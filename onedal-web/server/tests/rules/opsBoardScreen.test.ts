@@ -12,14 +12,17 @@ const read = (f: string) => readFileSync(join(WEB, f), 'utf8');
 
 describe('🧰 운영센터 현황판 화면', () => {
     it('🔴 서버 문 넷만 읽는다 — 예시 자료 · 쓰기 · 시험 도구 없음', () => {
-        const b = read('ops/src/pages/Board.tsx');
-        for (const f of ['api.boardServer()', 'api.boardPhones()', 'api.boardFilter(memberId)', 'api.boardIntel(memberId)']) expect(b).toContain(f);
-        expect(b).not.toMatch(/api\/example|ExampleBand|write\(|client\.(post|put)/);
+        // 서버 점검은 «점검» 쪽 · 회원 것(폰 · 필터 · 앱이 올린 콜)은 회원 상세의 «폰 · 필터» 칸
+        const inspect = read('ops/src/pages/Inspect.tsx');
+        const b = read('ops/src/pages/MemberPhoneFilter.tsx');
+        expect(inspect).toContain('api.boardServer()');
+        for (const f of ['api.boardPhones(memberId)', 'api.boardFilter(memberId)', 'api.boardIntel(memberId)']) expect(b).toContain(f);
+        for (const src of [inspect, b]) expect(src).not.toMatch(/api\/example|ExampleBand|write\(|client\.(post|put)/);
         const ops = read('ops/src/api/ops.ts');
         for (const p of ["'/board/server'", '/board/phones', '/board/filter?memberId=', '/board/intel?memberId=']) expect(ops).toContain(p);
     });
     it('🔴 성적표는 shared summarizeTally · 판정은 옮겨 적기만(다시 재지 않는다)', () => {
-        const b = read('ops/src/pages/Board.tsx');
+        const b = read('ops/src/pages/MemberPhoneFilter.tsx');
         expect(b).toContain('summarizeTally(p.filterTally, p.filterTallyAt)');
         expect(b).toContain("v === 'pass' ? '통과'");
         expect(b).not.toMatch(/minFare|maxFare|radiusKm\s*[<>]/);   // 필터 값으로 콜을 다시 재는 줄이 없다
@@ -44,7 +47,7 @@ describe('🧰 운영센터 현황판 화면', () => {
     });
 
     it('🔴 «앱에 내려갈 필터»는 폰이 받는 그대로 — 두 현황판이 서버 조립 결과를 읽는다(activeFilter 에서 골라 찍지 않는다)', () => {
-        const b = read('ops/src/pages/Board.tsx');
+        const b = read('ops/src/pages/MemberPhoneFilter.tsx');
         expect(b).toContain('filter?.app?.find(');
         expect(b).toContain('🧾 기사가 정한 값');
         expect(b).toContain('폰이 오늘 아직 보고 안 함');

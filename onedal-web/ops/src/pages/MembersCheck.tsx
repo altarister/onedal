@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@onedal/ui/button';
 import { EXAMPLE_STAGE, example, useExampleTick } from '../api/example';
-import { Card, PageHeader, StatusBadge, fmtTime, memberName, todayKey, ExampleBand } from '../ui';
+import { Card, StatusBadge, fmtTime, memberName, todayKey, ExampleBand } from '../ui';
 
-/** 🎫 매달 멤버 대조 (12월 뒤) — 멤버 전용 게시물의 확인 번호와 회원이 적은 번호를 견준다 (reviews/29 Q8) */
+/** 🎫 매달 멤버 대조(«회원» 쪽의 칸 · 12월 뒤) — 멤버 전용 게시물의 확인 번호와 회원이 적은 번호를 견준다 (reviews/29 Q8) */
 export default function MembersCheck() {
     useExampleTick();
     const members = example.members();
@@ -14,10 +14,9 @@ export default function MembersCheck() {
 
     return (
         <>
-            <PageHeader title="매달 멤버 대조" sub={`${month} · 유튜브 채널 멤버십 확인`} right={<Button asChild variant="ghost" size="sm"><Link to="/members">← 회원</Link></Button>} />
             <ExampleBand stage={EXAMPLE_STAGE.checks} />
             <div className="grid md:grid-cols-3 gap-4">
-                <Card title="이번 달 확인 번호">
+                <Card title={`이번 달 확인 번호 — ${month}`}>
                     <div className="text-4xl font-black tracking-widest">{code}</div>
                     <p className="text-xs text-text-muted">멤버 전용 게시물에 올린 번호. 회원은 관제웹에서 이 번호를 적는다. 다음 달에는 새 번호로.</p>
                     <Button type="button" size="sm" variant="outline" onClick={() => alert('예시입니다 — 6단계에서 서버가 새 번호를 만들고 이전 번호는 닫습니다')}>새 번호 만들기</Button>

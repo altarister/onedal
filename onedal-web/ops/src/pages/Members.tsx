@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TARGET_APP_LABEL, type OpsMember } from '@onedal/shared';
 import { Badge } from '@onedal/ui/badge';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api, useOps } from '../api/ops';
 import { allowState } from '../api/allowance';
+import MembersCheck from './MembersCheck';
 import { Card, ErrorBand, KV, PageHeader, Stat, StatRow, StatusBadge, Table, memberStatus, todayKey, type Column } from '../ui';
 
 /** 👥 회원 목록 — 승인 대기 · 사용 중 · 정지 · 유예는 사실 시각 칸에서 글로만 (ops/CLAUDE.md). 기사님도 한 줄(기사 + 관리자 · reviews/29 기준 4). 폰에서는 줄마다 카드 */
 export default function Members() {
     const navigate = useNavigate();
+    const [params, setParams] = useSearchParams();
+    const checkTab = params.get('tab') === 'check';   // 칸은 주소에 남는다 — 옛 주소 /members/check 가 여기로 넘어온다
     const { data, error, reload } = useOps(() => api.members(), []);
     const [filter, setFilter] = useState<'all' | '승인 대기' | '사용 중' | '정지' | '유예'>('all');
     const [q, setQ] = useState('');
@@ -53,7 +56,12 @@ export default function Members() {
 
     return (
         <>
-            <PageHeader title="회원" sub="모든 회원 — 기사님도 한 줄(기사 + 관리자)" right={<Button asChild variant="outline" size="sm"><Link to="/members/check">매달 멤버 대조</Link></Button>} />
+            <PageHeader title="회원" sub="모든 회원 — 기사님도 한 줄(기사 + 관리자)" right={<>
+                <Button type="button" size="sm" variant={checkTab ? 'outline' : 'default'} onClick={() => setParams({})}>목록</Button>
+                <Button type="button" size="sm" variant={checkTab ? 'default' : 'outline'} onClick={() => setParams({ tab: 'check' })}>매달 멤버 대조</Button>
+            </>} />
+            {checkTab && <MembersCheck />}
+            {!checkTab && <>
             {error && <ErrorBand text={error} onRetry={reload} />}
             <StatRow>
                 <Stat label="승인 대기" value={count('승인 대기')} tone={count('승인 대기') ? 'warn' : undefined} />
@@ -79,6 +87,7 @@ export default function Members() {
                         <div className="flex items-center justify-between gap-2 pt-1"><span className="text-xs text-text-muted">유료 {m.paidUntil ?? '없음'}</span>{allows(m)}</div>
                     </div>
                 )} />
+            </>}
         </>
     );
 }

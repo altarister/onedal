@@ -3,7 +3,7 @@ import { CONSENT_KINDS, type OpsContentKind } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api, useOps, write } from '../api/ops';
-import { Card, ErrorBand, PageHeader, fmtTime } from '../ui';
+import { Card, ErrorBand, fmtTime } from '../ui';
 
 /** 📝 페이지 글 — 약관 · 처리방침 · 위치정보 약관 · 가입 · 설치 · 탈퇴 안내. 글마다 판 번호 — 약관이 바뀌면 회원에게 다시 동의받는다 (기사님이 채우는 자리). 서버는 저장마다 새 판 한 줄 */
 const KIND_TITLE: Record<OpsContentKind, string> = { terms: '이용약관', privacy: '개인정보 처리방침', location: '위치정보 약관', joinGuide: '가입 안내', installGuide: '설치 안내', withdrawGuide: '탈퇴 안내' };
@@ -23,7 +23,6 @@ export default function Contents() {
 
     return (
         <>
-            <PageHeader title="페이지 글" sub="기사가 보는 글 — 비어 있어도 화면은 돌고, 채우면 그 자리에 뜹니다" />
             {error && <ErrorBand text={error} onRetry={reload} />}
             <div className="grid md:grid-cols-[14rem_1fr] gap-4">
                 <Card title="글">

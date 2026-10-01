@@ -4,29 +4,23 @@ import {
     type DeviceModeType, type IntelRow, type OpsBoardPhone,
 } from '@onedal/shared';
 import { api, useOps } from '../api/ops';
-import KakaoUsageCard from './KakaoUsageCard';
-import { Card, ErrorBand, PageHeader, Stat, fmtDateTime, fmtTime, fmtWon, memberName } from '../ui';
+import { Card, ErrorBand, fmtTime, fmtWon } from '../ui';
 
 /**
- * 🧰 **현황판(점검)** — 관제웹 PC 오른쪽 현황판의 점검 칸을 운영센터에서 회원마다 본다(reviews/31 1차 · 서버 `/api/ops/board/*` · 읽기만).
- *    서버 점검 · 폰이 일하고 있나(필터 지문 · 화면 · 성적표 · 누적) · 앱에 내려갈 필터(폰이 받는 그대로) · 기사가 정한 값 · 앱이 올린/버린 콜. 열람 기록은 서버가 남긴다(열어 둔 동안 한 줄).
- *    🔴 관제웹 현황판은 그대로다 — 여기는 «여러 회원을 한눈에»가 더해진 것. 시험 도구(위치 찍기 · 모의 주행 …)와 «어긋남»은 관제웹 화면 안에서만 뜻이 있어 여기 없다.
- *    필터를 고치는 손잡이도 없다 — 기사 관제웹에 있다. 10초마다 다시 읽는다(관제웹 현황판과 같은 박자).
+ * 📱 **회원 상세의 «폰 · 필터» 칸** — 이 회원의 폰이 일하고 있나 · 폰이 받는 필터 · 기사가 정한 값 · 앱이 올린/버린 콜(reviews/33 · 서버 `/api/ops/board/*` · 읽기만).
+ *    «왜 콜을 안 잡았나»를 여기서 본다. 열람 기록은 서버가 남긴다(열어 둔 동안 한 줄). 10초마다 다시 읽는다.
+ *    🔴 필터를 고치는 손잡이는 없다 — 기사 관제웹에 있다. 앱 판정은 옮겨 적기만 한다(다시 재지 않는다).
  */
 const modeKo = (m?: string) => m ? (DEVICE_MODE_LABEL[m as DeviceModeType] ?? m) : undefined;
 /** 앱 판정 낱말 → 글 — 화면은 옮겨 적기만 한다(다시 재지 않는다) */
 const verdictKo = (v: string | null) => v === 'pass' ? '통과' : v === 'locked' ? '잠겨 안 봄' : v ? `막힘 · ${VERDICT_AXIS_LABEL[v] ?? v}` : '— 구앱';
 
-export default function Board() {
+export default function MemberPhoneFilter({ memberId }: { memberId: string }) {
     const [tick, setTick] = useState(0);
     useEffect(() => { const t = setInterval(() => setTick(n => n + 1), 10_000); return () => clearInterval(t); }, []);
-    const top = useOps(() => Promise.all([api.members(), api.boardServer(), api.boardPhones()]), [tick]);
-    const [members, server, phones] = top.data ?? [[], null, []];
-    const [who, setWho] = useState('');
+    const { data, error, reload } = useOps(() => Promise.all([api.boardPhones(memberId), api.boardFilter(memberId), api.boardIntel(memberId)]), [memberId, tick]);
+    const [phones, filter, intel] = data ?? [[], null, null];
     const [phoneId, setPhoneId] = useState('');
-    const memberId = who || members[0]?.id || '';
-    const detail = useOps(() => memberId ? Promise.all([api.boardFilter(memberId), api.boardIntel(memberId)]) : Promise.resolve(null), [memberId, tick]);
-    const [filter, intel] = detail.data ?? [null, null];
     const phone = phones.find(p => p.deviceId === phoneId) ?? phones[0];
     const shownFilter = filter?.active ?? filter?.base ?? null;
     /* 📦 폰이 받는 필터 — 서버가 폰 문과 같은 함수로 조립한 것(회원의 폰마다). 화면은 고르거나 다시 계산하지 않는다 */
@@ -36,37 +30,18 @@ export default function Board() {
 
     return (
         <>
-            <PageHeader title="현황판 (점검)" sub="서버 · 폰이 일하고 있나 · 앱에 내려갈 필터 · 기사가 정한 값 · 앱이 올린 콜 — 읽기만 · 10초마다" />
-            {top.error && <ErrorBand text={top.error} onRetry={top.reload} />}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <Stat label="서버 부팅" value={fmtDateTime(server?.bootedAt)} hint={server ? `${server.branch} · ${server.commit}` : undefined} />
-                <Stat label="붙은 화면" value={server ? `${server.sockets.web} · ${server.sockets.ops}` : '—'} hint="관제웹 · 운영센터" />
-                <Stat label="마지막 폰 보고" value={fmtTime(server?.lastScrapAt)} tone={server?.lastScrapAt ? 'ok' : undefined} />
-                <Stat label="DB" value={server?.dbFile ?? '—'} hint={server ? `커밋 ${fmtDateTime(server.committedAt)}` : undefined} />
-            </div>
-
-            <Card title="📱 폰 — 이 폰이 든 필터 · 일하고 있나 · 성적표 · 누적">
+            {error && <ErrorBand text={error} onRetry={reload} />}
+            <Card title="📱 폰 — 이 폰이 든 필터 · 일하고 있나 · 성적표 · 누적 (배차망 폰만 — 관제앱 폰은 서버가 세지 않습니다)">
                 <div className="flex flex-wrap gap-2">
                     {phones.map(p => (
                         <button key={p.deviceId} type="button" onClick={() => setPhoneId(p.deviceId)} className={`rounded-lg px-3 py-1.5 text-sm ${phone?.deviceId === p.deviceId ? 'bg-info/15 text-info font-bold' : 'bg-surface-alt'}`}>
-                            <span className={p.status === 'ONLINE' ? 'text-success' : 'text-danger'}>●</span> {memberName(members, p.memberId)} · {deviceLabel(p)}
+                            <span className={p.status === 'ONLINE' ? 'text-success' : 'text-danger'}>●</span> {deviceLabel(p)}
                         </button>
                     ))}
-                    {phones.length === 0 && <p className="text-sm text-text-muted">{top.data ? '연결한 폰이 없습니다' : '읽는 중…'}</p>}
+                    {phones.length === 0 && <p className="text-sm text-text-muted">{data ? '연결한 폰이 없습니다' : '읽는 중…'}</p>}
                 </div>
                 {phone && <PhoneCards p={phone} />}
             </Card>
-
-            <KakaoUsageCard members={members} tick={tick} />
-
-            <div className="flex items-center gap-2 text-sm">
-                <span className="text-text-muted">회원</span>
-                <select value={memberId} onChange={e => setWho(e.target.value)} className="rounded-lg border border-border-card bg-surface px-3 py-1.5 text-sm">
-                    {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-                <span className="text-xs text-text-muted">아래 두 칸은 이 회원 것 — 열람은 기록에 남습니다</span>
-            </div>
-            {detail.error && <ErrorBand text={detail.error} onRetry={detail.reload} />}
             <div className="grid lg:grid-cols-2 gap-4">
                 <div className="space-y-4">
                     <Card title={`📦 앱에 내려갈 필터 — 폰이 받는 그대로${appPhone ? ` (${appRows.length}칸)` : ''}`}>

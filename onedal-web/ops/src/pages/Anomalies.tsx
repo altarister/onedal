@@ -1,8 +1,8 @@
 import { TARGET_APP_LABEL, WORD_KIND_LABEL, deviceLabel, type OpsAnomaly, type OpsScreenWord, type TargetAppType } from '@onedal/shared';
 import { api, useOps } from '../api/ops';
-import { Card, ErrorBand, KV, PageHeader, Table, fmtTime, memberName, type Column } from '../ui';
+import { Card, ErrorBand, KV, Table, fmtTime, memberName, type Column } from '../ui';
 
-/** ⚠️ 앱 이상 기록 · 배차망 화면 새 글자 — 배차망 앱이 바뀌면 모든 회원이 함께 멈춘다. 글자 갈래 이름표는 shared `WORD_KIND_LABEL` 한 벌 */
+/** ⚠️ («점검» 쪽의 칸) 앱 이상 기록 · 배차망 화면 새 글자 — 배차망 앱이 바뀌면 모든 회원이 함께 멈춘다. 글자 갈래 이름표는 shared `WORD_KIND_LABEL` 한 벌 */
 export default function Anomalies() {
     const { data, error, reload } = useOps(() => Promise.all([api.members(), api.phones(), api.anomalies()]), []);
     const [members, phones, reply] = data ?? [[], [], { anomalies: [], screenWords: [] }];
@@ -28,7 +28,6 @@ export default function Anomalies() {
     const empty = data ? '없습니다' : '읽는 중…';
     return (
         <>
-            <PageHeader title="이상 기록" sub="앱이 화면을 못 읽은 기록 · 처음 보는 글자" />
             {error && <ErrorBand text={error} onRetry={reload} />}
             <Card title="앱 이상 기록"><Table rows={rows} columns={cols} rowKey={a => String(a.id)} empty={empty} card={a => (
                 <div className="space-y-1">

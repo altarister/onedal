@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { CONTENT_KINDS, TARGET_APP_LABEL, deviceLabel, type OpsAgreement } from '@onedal/shared';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { CONTENT_KINDS, TARGET_APP_LABEL, type OpsAgreement } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api, useOps, write } from '../api/ops';
 import { allowState } from '../api/allowance';
+import MemberPhoneFilter from './MemberPhoneFilter';
 import { COLOR_DOT, Card, ErrorBand, PageHeader, Stat, StatRow, StatusBadge, fmtTime, fmtWon, statusKo, todayKey } from '../ui';
 
 /**
- * 👤 회원 한 명 — 사실 칸 · 폰 · 오늘 콜 · 이상 기록 · 동의 기록 · 카카오 사용량 · 이 회원에 대한 기록. 열람은 서버가 기록에 남긴다(«회원 봄»).
+ * 👤 회원 한 명 — 칸 다섯: 기본(사실 칸 · 관리자가 하는 일 · 숫자) · 폰 · 필터(`MemberPhoneFilter`) · 오늘 콜 · 동의 · 기록(이상 기록 · 이 회원에 대한 기록). 열람은 서버가 기록에 남긴다(«회원 봄»).
  *    허락(자동 잡기 · 통계) · 유료 기한은 서버 `/members/:id/allow` · `/paid-until` 에 적는다 — «지금 살아 있나»는 shared `allowanceLive`(`api/allowance.ts`) 하나. 날짜를 더하는 버튼은 없다(날은 달력 칸으로 고른다).
  */
 const CONTENT_TITLE: Record<string, string> = { terms: '이용약관', privacy: '개인정보 처리방침', location: '위치정보 약관', joinGuide: '가입 안내', installGuide: '설치 안내', withdrawGuide: '탈퇴 안내', ack: '고지 확인' };
@@ -18,11 +19,18 @@ const agreementText = (a: OpsAgreement) => a.kind === 'ack' ? (ACK_TITLE[a.item 
 /** 지난 날을 골랐으면 한 번 묻는다 — «YYYY-MM-DD» 글자 비교(날짜 계산 아님). 오늘 · 뒷날 · 비움은 그대로 통과 */
 const pastOk = (until: string | null, today: string, ask: string) => !until || until >= today || confirm(ask);
 
+/** 칸 — 주소(`?tab=`)에 남는다. «폰 · 필터»는 현황판에서 회원을 골라 보던 것(reviews/33) */
+const TABS = [['basic', '기본'], ['phone', '폰 · 필터'], ['calls', '오늘 콜'], ['agree', '동의'], ['log', '기록']] as const;
+type Tab = typeof TABS[number][0];
+const PURPOSE = { ask: '이 사람은 지금 일하나? 폰은 살아 있나? 왜 콜을 안 잡았나?', can: '칸: 기본 · 폰 · 필터 · 오늘 콜 · 동의 · 기록' };
+
 export default function MemberDetail() {
     const { id = '' } = useParams();
+    const [params, setParams] = useSearchParams();
+    const tab: Tab = TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') as Tab : 'basic';
     const { data, error, reload } = useOps(() => api.member(id), [id]);
-    if (error) return <><PageHeader title="회원" sub={id} /><ErrorBand text={error} onRetry={reload} /></>;
-    if (!data) return <PageHeader title="읽는 중…" sub={id} />;
+    if (error) return <><PageHeader title="회원" sub={id} purpose={PURPOSE} /><ErrorBand text={error} onRetry={reload} /></>;
+    if (!data) return <PageHeader title="읽는 중…" sub={id} purpose={PURPOSE} />;
 
     const m = data.member;
     const { todayCalls, anomalies, audit, agreements, kakaoUsage: usage } = data;
@@ -35,8 +43,13 @@ export default function MemberDetail() {
 
     return (
         <>
-            <PageHeader title={m.name} sub={`${m.email} · 가입 ${m.createdAt.slice(0, 10)}`} right={<><StatusBadge m={m} /><Button asChild variant="ghost" size="sm"><Link to="/members">← 목록</Link></Button></>} />
+            <PageHeader title={m.name} sub={`${m.email} · 가입 ${m.createdAt.slice(0, 10)}`} right={<><StatusBadge m={m} /><Button asChild variant="ghost" size="sm"><Link to="/members">← 목록</Link></Button></>} purpose={PURPOSE} />
 
+            <div className="flex gap-2 flex-wrap">
+                {TABS.map(([k, label]) => <Button key={k} type="button" size="sm" variant={tab === k ? 'default' : 'outline'} onClick={() => setParams(k === 'basic' ? {} : { tab: k })}>{label}</Button>)}
+            </div>
+
+            {tab === 'basic' && <>
             <Card title="사실 칸 — 화면의 «상태»는 이 칸들에서만 만든다">
                 <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
                     <dt className="text-text-muted">승인</dt><dd className="font-semibold">{fmtTime(m.approvedAt)}</dd>
@@ -81,17 +94,9 @@ export default function MemberDetail() {
                 <Stat label="카카오 오늘 / 이달" value={`${usage.today} / ${usage.month}`} hint="길찾기 호출 수" />
                 <Stat label="이상 기록" value={anomalies.length} tone={anomalies.length ? 'warn' : undefined} />
             </StatRow>
-
-            <div className="grid md:grid-cols-2 gap-3 md:gap-4">
-                <Card title="폰 — 배차망 폰만 보입니다 (관제앱 폰은 서버가 세지 않습니다)">
-                    {m.phones.length === 0 && <p className="text-sm text-text-muted">연결된 폰이 없습니다</p>}
-                    {m.phones.map(p => (
-                        <div key={p.deviceId} className="flex items-center justify-between text-sm gap-2">
-                            <div><span className={p.status === 'ONLINE' ? 'text-success' : 'text-danger'}>●</span> <b>{deviceLabel(p)}</b> <span className="text-text-muted">v{p.appVersion || '?'} · {p.mode === 'AUTO' ? '자동' : p.mode === 'ALARM' ? '알람' : '대기'}</span></div>
-                            <div className="text-xs text-text-muted text-right">{p.status === 'ONLINE' ? fmtTime(p.lastSeenAt) : p.offlineReason ?? '끊김'}</div>
-                        </div>
-                    ))}
-                </Card>
+            </>}
+            {tab === 'phone' && <MemberPhoneFilter memberId={m.id} />}
+            {tab === 'calls' && (
                 <Card title="오늘 콜 (구간 · 요금 · 판정)">
                     {todayCalls.length === 0 && <p className="text-sm text-text-muted">오늘은 없습니다</p>}
                     {todayCalls.map(c => (
@@ -101,12 +106,17 @@ export default function MemberDetail() {
                         </div>
                     ))}
                 </Card>
+            )}
+            {tab === 'agree' && (
                 <Card title="동의 기록 — 글 판 · 고지 확인">
                     {agreements.length === 0 && <p className="text-sm text-text-muted">없습니다 (가입 전)</p>}
                     {[...agreements].sort((a, b) => CONTENT_KINDS.indexOf(a.kind as never) - CONTENT_KINDS.indexOf(b.kind as never)).map((a, i) => (
                         <div key={i} className="text-sm flex justify-between gap-2"><span>{agreementText(a)}</span><span className="text-text-muted shrink-0">{fmtTime(a.at)}</span></div>
                     ))}
                 </Card>
+            )}
+            {tab === 'log' && (
+                <div className="grid md:grid-cols-2 gap-3 md:gap-4">
                 <Card title="이상 기록">
                     {anomalies.length === 0 && <p className="text-sm text-text-muted">없습니다</p>}
                     {anomalies.map(a => <div key={a.id} className="text-sm"><span className="text-text-muted">{fmtTime(a.at)}</span> {TARGET_APP_LABEL[a.targetApp]} · {a.screen} — {a.reason}</div>)}
@@ -115,7 +125,8 @@ export default function MemberDetail() {
                     {audit.length === 0 && <p className="text-sm text-text-muted">없습니다</p>}
                     {audit.map(a => <div key={a.id} className="text-sm"><span className="text-text-muted">{fmtTime(a.at)}</span> {a.action} <span className="text-text-muted">{a.detail}</span></div>)}
                 </Card>
-            </div>
+                </div>
+            )}
         </>
     );
 }

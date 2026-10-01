@@ -27,7 +27,7 @@ describe('🗺️ 운영센터 카카오 호출 카드', () => {
         expect(card).toContain('kakaoTotalOf(rows)');
         expect(card).not.toMatch(/api\/example|client\.(post|put)|write\(/);
         expect(card.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/limit|한도|text-danger|bg-danger/);   // 한도 · 경고 색 없음(설명 주석은 뺀다)
-        expect(read('pages/Board.tsx')).toContain('<KakaoUsageCard members={members} tick={tick} />');
+        expect(read('pages/Inspect.tsx')).toContain('<KakaoUsageCard members={members} tick={tick} />');
         expect(read('api/ops.ts')).toContain("get<OpsBoardKakao>('/board/kakao')");
     });
 

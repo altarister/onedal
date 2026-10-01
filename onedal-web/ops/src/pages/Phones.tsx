@@ -1,8 +1,8 @@
 import { deviceLabel, type OpsPhone } from '@onedal/shared';
 import { api, useOps } from '../api/ops';
-import { ErrorBand, KV, PageHeader, Stat, StatRow, Table, fmtTime, memberName, type Column } from '../ui';
+import { ErrorBand, KV, Stat, StatRow, Table, fmtTime, memberName, type Column } from '../ui';
 
-/** 📱 모든 폰 — 연결 · 끊긴 까닭 · 마지막 연락 · 앱 버전 · 모드 · 위치 보냄. 모드를 바꾸는 손잡이는 기사 관제웹에 있다(운영센터는 읽기만). 배차망 폰만 — 관제앱 폰은 서버가 세지 않는다 */
+/** 📱 모든 폰(«점검» 쪽의 칸) — 연결 · 끊긴 까닭 · 마지막 연락 · 앱 버전 · 모드 · 위치 보냄. 모드를 바꾸는 손잡이는 기사 관제웹에 있다(운영센터는 읽기만). 배차망 폰만 — 관제앱 폰은 서버가 세지 않는다 */
 export default function Phones() {
     const { data, error, reload } = useOps(() => Promise.all([api.members(), api.phones()]), []);
     const [members, phones] = data ?? [[], []];
@@ -20,7 +20,6 @@ export default function Phones() {
     ];
     return (
         <>
-            <PageHeader title="폰" sub="배차망 폰만 보입니다 — 관제앱(운전석 폰)은 서버가 세지 않습니다" />
             {error && <ErrorBand text={error} onRetry={reload} />}
             <StatRow>
                 <Stat label="연결" value={phones.filter(p => p.status === 'ONLINE').length} tone="ok" />

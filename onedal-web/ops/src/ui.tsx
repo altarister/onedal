@@ -4,12 +4,12 @@ import { COLOR_DOT, hhmmText, isoKst, kstDateText, opsMemberStatus, wonText, typ
 import { useTheme } from '@onedal/ui/theme';
 import { Badge } from '@onedal/ui/badge';
 import {
-    AlertTriangle, BarChart3, FileText, LogOut, Map as MapIcon, Megaphone, Menu, Moon, Package, Phone, ScrollText, Smartphone, Sun, Users, Wrench, X,
+    BarChart3, House, LogOut, Map as MapIcon, Megaphone, Menu, Moon, Phone, ScrollText, Sun, Users, Wrench, X,
 } from 'lucide-react';
 import { api, countsRefresh, useOps } from './api/ops';
 import { logout, session } from './api/client';
 import { useCallsChanged, useSignalConnected } from './api/socket';
-import { menuBadgeOf } from './api/menuBadge';
+import { menuBadgeOf, tabTitleOf } from './api/menuBadge';
 
 /**
  * 🏢 **운영센터 화면 틀** — PC 는 왼쪽 메뉴 + 윗줄(마지막 갱신 · 관리자), 폰은 윗줄(☰ · 지금 쪽 이름) + ☰ 를 누르면 밀려 나오는 같은 메뉴(`NavList` 한 벌).
@@ -17,20 +17,25 @@ import { menuBadgeOf } from './api/menuBadge';
  *    시각 글자는 shared 의 `hhmmText` · `isoKst` · `kstDateText` 를 거친다 — 화면이 직접 파싱하지 않는다(`toISOString()` 은 UTC 라 새벽 0~9시에 하루 어긋난다).
  */
 
-/** 메뉴 옆 숫자는 서버 `/ops/counts`(할 일이 있는 것만) — 틀이 60초마다, 그리고 쓰기 뒤 바로 다시 읽는다 */
-export const NAV: { to: string; label: string; icon: ReactNode; badge?: (c: OpsCounts) => number }[] = [
-    { to: '/members', label: '회원', icon: <Users className="size-4" />, badge: c => c.pendingMembers },
-    { to: '/calls', label: '통화 도우미', icon: <Phone className="size-4" />, badge: c => c.callsTodo },
-    { to: '/map', label: '지도', icon: <MapIcon className="size-4" /> },
-    { to: '/phones', label: '폰', icon: <Smartphone className="size-4" />, badge: c => c.phonesOffline },
-    { to: '/anomalies', label: '이상 기록', icon: <AlertTriangle className="size-4" /> },
-    { to: '/board', label: '현황판(점검)', icon: <Wrench className="size-4" /> },
-    { to: '/contents', label: '페이지 글', icon: <FileText className="size-4" /> },
-    { to: '/notices', label: '공지', icon: <Megaphone className="size-4" /> },
-    { to: '/releases', label: '앱 배포', icon: <Package className="size-4" /> },
-    { to: '/stats', label: '통계', icon: <BarChart3 className="size-4" /> },
-    { to: '/audit', label: '기록', icon: <ScrollText className="size-4" /> },
+/**
+ * 🧭 **메뉴 — 관리자의 궁금증 순서 · 한 표** (reviews/33). 줄마다 «들어올 때의 궁금증(ask) · 할 수 있는 것(can)»을 같이 적는다 —
+ *    쪽 제목 아래 목적 한 줄(`PagePurposeBar`)이 이 표에서 읽는다(쪽마다 글을 따로 적지 않는다).
+ *    메뉴 옆 숫자는 서버 `/ops/counts`(할 일이 있는 것만) — 틀이 60초마다, 쓰기 뒤, 서버 신호 때 다시 읽는다.
+ */
+export const NAV: { to: string; label: string; icon: ReactNode; ask: string; can: string; badge?: (c: OpsCounts) => number }[] = [
+    { to: '/', label: '홈', icon: <House className="size-4" />, ask: '전체가 괜찮나? 지금 할 일은?', can: '숫자를 눌러 그 쪽으로' },
+    { to: '/calls', label: '통화 도우미', icon: <Phone className="size-4" />, ask: '지금 전화할 콜이 있나?', can: '상차지 · 하차지에 전화하고 결과 적기', badge: c => c.callsTodo },
+    { to: '/members', label: '회원', icon: <Users className="size-4" />, ask: '누가 있고 누가 승인 · 허락이 필요한가?', can: '승인 · 정지 · 탈퇴 · 허락 · 기한', badge: c => c.pendingMembers },
+    { to: '/map', label: '지도', icon: <MapIcon className="size-4" />, ask: '회원들이 지금 어디 있나?', can: '보기만' },
+    { to: '/inspect', label: '점검', icon: <Wrench className="size-4" />, ask: '뭔가 고장 났나? 배차망이 바뀌었나?', can: '기사님(개발)에게 알리기', badge: c => c.phonesOffline },
+    { to: '/manage', label: '운영', icon: <Megaphone className="size-4" />, ask: '기사들에게 알릴 것 · 올릴 앱', can: '공지 · 페이지 글 · 앱 배포' },
+    { to: '/stats', label: '통계', icon: <BarChart3 className="size-4" />, ask: '장사가 잘 되나?', can: '판단 자료' },
+    { to: '/audit', label: '기록', icon: <ScrollText className="size-4" />, ask: '누가 무엇을 했나?', can: '보기만' },
 ];
+/** 지금 주소의 메뉴 줄 — 홈은 정확히 «/», 나머지는 그 주소로 시작하는 것(회원 상세는 «회원») */
+export function navOf(pathname: string) {
+    return NAV.find(n => n.to === '/' ? pathname === '/' : pathname === n.to || pathname.startsWith(`${n.to}/`));
+}
 function NavBadge({ n }: { n: number }) {
     if (!n) return null;
     return <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-warning text-black text-[11px] font-black flex items-center justify-center">{n}</span>;
@@ -44,14 +49,14 @@ function NavList({ c, footer, onPick }: { c: OpsCounts; footer: ReactNode; onPic
     return (
         <>
             <div className="px-4 py-4">
-                <Link to="/members" onClick={onPick} className="flex items-center gap-2">
+                <Link to="/" onClick={onPick} className="flex items-center gap-2">
                     <span className="w-8 h-8 rounded-lg bg-gradient-to-tr from-accent-alt to-info flex items-center justify-center text-white font-black text-sm">1D</span>
                     <span className="font-black">운영센터</span>
                 </Link>
             </div>
             <nav className="flex flex-col px-2 gap-0.5">
                 {NAV.map(n => (
-                    <NavLink key={n.to} to={n.to} onClick={onPick} className={({ isActive }) => `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-info/15 text-info font-bold' : 'text-text-muted hover:bg-surface-alt hover:text-text-primary'}`}>
+                    <NavLink key={n.to} to={n.to} end={n.to === '/'} onClick={onPick} className={({ isActive }) => `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-info/15 text-info font-bold' : 'text-text-muted hover:bg-surface-alt hover:text-text-primary'}`}>
                         {n.icon}<span>{n.label}</span>{n.badge && <NavBadge n={n.badge(c)} />}
                     </NavLink>
                 ))}
@@ -90,7 +95,9 @@ export function Shell({ children }: { children: ReactNode }) {
         return () => { document.body.style.overflow = before; window.removeEventListener('keydown', onKey); };
     }, [menuOpen]);
     /** 지금 쪽 이름 — 주소가 그 메뉴로 시작하는 것(회원 상세 · 멤버 대조는 «회원») */
-    const pageName = NAV.find(n => location.pathname === n.to || location.pathname.startsWith(`${n.to}/`))?.label ?? '운영센터';
+    const pageName = navOf(location.pathname)?.label ?? '운영센터';
+    /* 브라우저 탭 제목 — 전화할 콜이 있으면 숫자가 앞에(다른 탭을 보고 있어도 보이게) */
+    useEffect(() => { document.title = tabTitleOf(c); }, [c.callsTodo]); // eslint-disable-line react-hooks/exhaustive-deps
     const badge = menuBadgeOf(c);
 
     const footer = (
@@ -162,15 +169,30 @@ export function ErrorBand({ text, onRetry }: { text: string; onRetry: () => void
     );
 }
 
-export function PageHeader({ title, sub, right }: { title: string; sub?: string; right?: ReactNode }) {
+/** 쪽 제목 아래 목적 한 줄 — «들어올 때의 궁금증 · 여기서 할 수 있는 것» (reviews/33 · 글은 `NAV` 한 표) */
+export function PagePurposeBar({ ask, can }: { ask: string; can: string }) {
     return (
-        <header className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-                <h1 className="text-xl md:text-2xl font-black tracking-tight">{title}</h1>
-                {sub && <p className="text-xs md:text-sm text-text-muted mt-0.5">{sub}</p>}
-            </div>
-            {right && <div className="flex gap-2 flex-wrap">{right}</div>}
-        </header>
+        <p className="text-xs md:text-sm text-text-muted rounded-lg border border-border-card bg-surface-alt/40 px-3 py-1.5">
+            ❓ {ask} <span className="mx-1 opacity-50">·</span> ✅ {can}
+        </p>
+    );
+}
+
+/** 쪽 머리 — 제목 · 설명 · 오른쪽 버튼 + 목적 한 줄(주소의 메뉴 줄에서 · `purpose` 를 주면 그것 — 회원 상세처럼 메뉴에 없는 쪽) */
+export function PageHeader({ title, sub, right, purpose }: { title: string; sub?: string; right?: ReactNode; purpose?: { ask: string; can: string } }) {
+    const location = useLocation();
+    const p = purpose ?? navOf(location.pathname);
+    return (
+        <>
+            <header className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                    <h1 className="text-xl md:text-2xl font-black tracking-tight">{title}</h1>
+                    {sub && <p className="text-xs md:text-sm text-text-muted mt-0.5">{sub}</p>}
+                </div>
+                {right && <div className="flex gap-2 flex-wrap">{right}</div>}
+            </header>
+            {p && <PagePurposeBar ask={p.ask} can={p.can} />}
+        </>
     );
 }
 

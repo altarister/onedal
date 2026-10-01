@@ -10,7 +10,9 @@ import { join } from 'path';
 const SRC = join(__dirname, '../../../ops/src');
 const read = (f: string) => readFileSync(join(SRC, f), 'utf8');
 const EXAMPLE_PAGES = ['MembersCheck'];
-const SERVER_PAGES = readdirSync(join(SRC, 'pages')).map(f => f.replace(/\.tsx$/, '')).filter(p => !EXAMPLE_PAGES.includes(p) && p !== 'Login');
+/** 칸 셋을 담기만 하는 쪽(운영) — 자료는 그 안의 칸(공지 · 페이지 글 · 앱 배포)이 읽는다 */
+const CONTAINER_PAGES = ['Manage'];
+const SERVER_PAGES = readdirSync(join(SRC, 'pages')).map(f => f.replace(/\.tsx$/, '')).filter(p => !EXAMPLE_PAGES.includes(p) && !CONTAINER_PAGES.includes(p) && p !== 'Login');
 
 describe('🏢 운영센터 자료', () => {
     it('🔴 서버 문이 있는 쪽은 예시 자료를 가져오지 않고 useOps 로 읽는다 · 서버가 안 되면 ErrorBand', () => {

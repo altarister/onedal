@@ -7,22 +7,18 @@ import { connectSignal, disconnectSignal } from './api/socket';
 import Login from './pages/Login';
 
 /** 쪽은 열 때 따로 받는다 — 처음 받는 덩어리를 줄여 폰 브라우저에서 빨리 뜨게. 로그인만 처음부터(첫 화면) */
+const Home = lazy(() => import('./pages/Home'));
+const Calls = lazy(() => import('./pages/Calls'));
 const Members = lazy(() => import('./pages/Members'));
 const MemberDetail = lazy(() => import('./pages/MemberDetail'));
-const MembersCheck = lazy(() => import('./pages/MembersCheck'));
-const Calls = lazy(() => import('./pages/Calls'));
 const MapPage = lazy(() => import('./pages/MapPage'));
-const Phones = lazy(() => import('./pages/Phones'));
-const Anomalies = lazy(() => import('./pages/Anomalies'));
-const Contents = lazy(() => import('./pages/Contents'));
-const Notices = lazy(() => import('./pages/Notices'));
-const Releases = lazy(() => import('./pages/Releases'));
+const Inspect = lazy(() => import('./pages/Inspect'));
+const Manage = lazy(() => import('./pages/Manage'));
 const Stats = lazy(() => import('./pages/Stats'));
 const Audit = lazy(() => import('./pages/Audit'));
-const Board = lazy(() => import('./pages/Board'));
 
 /**
- * 🏢 **운영센터 주소 — reviews/29 5장 그대로.** 로그인(`/login`) 밖은 토큰이 없으면 로그인으로.
+ * 🏢 **운영센터 주소 — 메뉴 여덟(reviews/33).** 로그인(`/login`) 밖은 토큰이 없으면 로그인으로.
  *    들어올 수 있나는 서버가 정한다 — `/api/ops/counts` 한 번에 403 이면 «허락이 없는 계정»(`/denied` · `users.ops_allowed_at` · core/opsAccess).
  *    쓰는 중에 허락을 거둬도 `client.ts` 가 403 을 `/denied` 로 보낸다(한 곳). 화면은 role 을 읽지 않는다.
  */
@@ -88,21 +84,24 @@ export default function App() {
                         <Shell>
                             <Suspense fallback={<p className="text-sm text-text-muted">읽는 중…</p>}>
                             <Routes>
-                                <Route path="/" element={<Navigate to="/members" replace />} />
-                                <Route path="/members" element={<Members />} />
-                                <Route path="/members/check" element={<MembersCheck />} />
-                                <Route path="/members/:id" element={<MemberDetail />} />
+                                <Route path="/" element={<Home />} />
                                 <Route path="/calls" element={<Calls />} />
+                                <Route path="/members" element={<Members />} />
+                                <Route path="/members/:id" element={<MemberDetail />} />
                                 <Route path="/map" element={<MapPage />} />
-                                <Route path="/phones" element={<Phones />} />
-                                <Route path="/anomalies" element={<Anomalies />} />
-                                <Route path="/board" element={<Board />} />
-                                <Route path="/contents" element={<Contents />} />
-                                <Route path="/notices" element={<Notices />} />
-                                <Route path="/releases" element={<Releases />} />
+                                <Route path="/inspect" element={<Inspect />} />
+                                <Route path="/manage" element={<Manage />} />
                                 <Route path="/stats" element={<Stats />} />
                                 <Route path="/audit" element={<Audit />} />
-                                <Route path="*" element={<Navigate to="/members" replace />} />
+                                {/* 옛 주소 일곱 — 새 자리로 넘긴다(즐겨찾기 · 기록에 남은 링크가 죽지 않게) */}
+                                <Route path="/members/check" element={<Navigate to="/members?tab=check" replace />} />
+                                <Route path="/board" element={<Navigate to="/inspect" replace />} />
+                                <Route path="/phones" element={<Navigate to="/inspect" replace />} />
+                                <Route path="/anomalies" element={<Navigate to="/inspect" replace />} />
+                                <Route path="/notices" element={<Navigate to="/manage?tab=notices" replace />} />
+                                <Route path="/contents" element={<Navigate to="/manage?tab=contents" replace />} />
+                                <Route path="/releases" element={<Navigate to="/manage?tab=releases" replace />} />
+                                <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
                             </Suspense>
                         </Shell>

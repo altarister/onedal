@@ -4,7 +4,7 @@ import { Badge } from '@onedal/ui/badge';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api, useOps, write } from '../api/ops';
-import { Card, ErrorBand, KV, PageHeader, Table, fmtTime, type Column } from '../ui';
+import { Card, ErrorBand, KV, Table, fmtTime, type Column } from '../ui';
 
 /**
  * 📦 앱 배포 — APK 올리기 · 최신 · 최소 판(서버 `app_releases` · 파일은 EC2 레포 밖 폴더). 기사는 가입 «앱 받기»에서 10분 주소로 받는다.
@@ -40,7 +40,6 @@ export default function Releases() {
     ];
     return (
         <>
-            <PageHeader title="앱 배포" sub="올리면 «최신»이 되고, «최소»보다 낮은 앱은 «업데이트해야 씁니다»가 뜹니다" />
             {error && <ErrorBand text={error} onRetry={reload} />}
             <Card title="APK 올리기 — 릴리스 서명 키로 개발 PC 에서 서명한 파일만">
                 <div className="grid md:grid-cols-[12rem_8rem_6rem_1fr_auto] gap-2 items-center">

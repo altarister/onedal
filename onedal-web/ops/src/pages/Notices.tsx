@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api, useOps, write } from '../api/ops';
-import { Card, ErrorBand, PageHeader, fmtTime } from '../ui';
+import { Card, ErrorBand, fmtTime } from '../ui';
 
 /** 📢 공지 — 기사 관제웹 상단에 한 줄로 뜬다(서버 `/api/notices/active`) · 글자로만(HTML 안 됨). 내림은 줄을 지우지 않는다 */
 export default function Notices() {
@@ -14,7 +14,6 @@ export default function Notices() {
     const ended = all.filter(n => n.endedAt);
     return (
         <>
-            <PageHeader title="공지" sub="기사 관제웹 상단에 한 줄로 — 운전 중에 읽히게 짧게" />
             {error && <ErrorBand text={error} onRetry={reload} />}
             <Card title="새 공지">
                 <div className="grid md:grid-cols-[1fr_10rem_auto] gap-2">
