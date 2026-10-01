@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-    APP_FILTER_KEYS, DEVICE_MODE_LABEL, TARGET_APP_LABEL, VERDICT_AXIS_LABEL, clockText, deviceLabel, isTargetApp, summarizeTally, workStageLabel,
+    DEVICE_MODE_LABEL, TARGET_APP_LABEL, VERDICT_AXIS_LABEL, appFilterRowsOf, clockText, deviceLabel, isTargetApp, summarizeTally, workStageLabel,
     type DeviceModeType, type IntelRow, type OpsBoardPhone,
 } from '@onedal/shared';
 import { api, useOps } from '../api/ops';
@@ -31,7 +31,7 @@ export default function Board() {
     /* 📦 폰이 받는 필터 — 서버가 폰 문과 같은 함수로 조립한 것(회원의 폰마다). 화면은 고르거나 다시 계산하지 않는다 */
     const [appPhoneId, setAppPhoneId] = useState('');
     const appPhone = filter?.app?.find(a => a.deviceId === appPhoneId) ?? filter?.app?.[0];
-    const appRows = appPhone ? appFilterRows(appPhone.filter) : [];
+    const appRows = appPhone ? appFilterRowsOf(appPhone.filter) : [];
 
     return (
         <>
@@ -67,7 +67,8 @@ export default function Board() {
             <div className="grid lg:grid-cols-2 gap-4">
                 <div className="space-y-4">
                     <Card title={`📦 앱에 내려갈 필터 — 폰이 받는 그대로${appPhone ? ` (${appRows.length}칸)` : ''}`}>
-                        {filter && !filter.app?.length && <p className="text-sm text-text-muted">폰이 오늘 아직 보고 안 함 — 세션이 없어 서버가 조립할 것이 없습니다.</p>}
+                        {filter && filter.app === null && <p className="text-sm text-text-muted">폰이 오늘 아직 보고 안 함 — 세션이 없어 서버가 조립할 것이 없습니다.</p>}
+                        {filter?.app && filter.app.length === 0 && <p className="text-sm text-text-muted">등록된 폰이 없다 — 이 회원 계정에 이어진 배차망 폰이 없습니다.</p>}
                         {filter?.app && filter.app.length > 1 && (
                             <div className="flex flex-wrap gap-2">
                                 {filter.app.map(a => (
@@ -92,17 +93,6 @@ export default function Board() {
             </div>
         </>
     );
-}
-
-/** 칸 순서 — shared `APP_FILTER_KEYS` 먼저, 표에 없는 칸(서버가 더 얹은 것)은 뒤에. 묶음 값은 개수로 줄인다(경로 순서 맵은 수백 칸) */
-function appFilterRows(app: Record<string, unknown>): Array<[string, unknown]> {
-    const known = (APP_FILTER_KEYS as readonly string[]).filter(k => k in app);
-    const rest = Object.keys(app).filter(k => !known.includes(k));
-    return [...known, ...rest].map(k => {
-        const v = app[k];
-        if (Array.isArray(v)) return [k, v.length ? `${v.length}개 · ${v.slice(0, 6).join(', ')}${v.length > 6 ? ' …' : ''}` : '(빈 목록)'];
-        return [k, v && typeof v === 'object' ? `${Object.keys(v).length}개 키` : v];
-    });
 }
 
 function IntelLine({ r }: { r: IntelRow }) {

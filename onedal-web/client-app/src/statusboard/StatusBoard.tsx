@@ -25,7 +25,7 @@
  *       그 안은 다시 **둘**이다: 🖥️ 서버(심사·통신·저장) · 📱 앱(올라온 보고·내려갈 값).
  */
 import { useEffect, useRef, useState } from 'react';
-import { haversineKm, APP_FILTER_KEYS, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabel, isModeApplying,
+import { haversineKm, appFilterRowsOf, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabel, isModeApplying,
          DEVICE_MODE_LABEL, deviceLabel, clockText, wonText } from '@onedal/shared';
 import type { SecuredOrder, DeviceSession, DeviceModeType, AppFilterReply } from '@onedal/shared';
 import { SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind } from '@onedal/shared';
@@ -971,21 +971,6 @@ function JudgingSeatCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
 }
 
 /**
- * 📱 **폰마다 다른 것은 아래에 탭으로 겹친다** (기사님 지시:
- *    *"공통으로 내려가는건 같을꺼 같고 **폰이 받는 타이밍은 다를꺼 같아.**
- *      공통은 위로 올리고 다른것들은 아래로 내려 텝처리 할까?"*).
- *
- * 🔴 **위(공통)와 아래(폰별)를 섞지 않는다.** 필터는 **한 벌**인데 그것을 **받는 시각은 폰마다
- *    다르다** — 앱은 제 `scrap` 응답 꼬리로 받는다(피기백). 한 칸에 같이 그리면
- *    «이 값이 모든 폰에게 참인가»를 매번 되물어야 한다.
- *
- * 🔴 **왼쪽 폰 패널에 이미 뜨는 것은 안 그린다** (기사님 지시: *"1234 · 인성 ·
- *    알수 없는 화면 · 합짐 · 23:18 · ⏱️ 는 확인 되는거니까 그것 말고 다른것들"*).
- *    여기 담는 것은 그 줄에 **숫자로 안 나오는 것들**이다 — 읽은 노드 수 · 보고 간격(초) ·
- *    탈락 사유별 수 · 누적 · 모드가 폰에 닿았나 · 서버가 받은 좌표 · 앱 버전.
- *    ⚠️ 폰 이름만은 겹친다 — **탭을 고르는 손잡이**라 없으면 무엇을 보는지 모른다.
- */
-/**
  * 📦 **앱에 내려갈 필터 — 폰이 받는 그대로** (서버 `GET /api/devices/app-filter` · 폰 문과 같은 함수 `appFilterOf`).
  *    🔴 내 필터(activeFilter)에서 골라 찍지 않는다 — 서버가 보낼 때 덮는 칸(자동 반경 · 복귀 목적지)과 얹는 칸(내일 콜 셋 · 경로 순서)이
  *       있어, 골라 찍으면 «폰이 받는 값과 다른 값»을 말하게 된다.
@@ -1009,22 +994,12 @@ function useAppFilter(deviceId: string | undefined): Record<string, unknown> | n
     return app;
 }
 
-/** 칸 순서 — shared `APP_FILTER_KEYS` 먼저, 표에 없는 칸(서버가 더 얹은 것)은 뒤에. 묶음 값은 개수로 줄인다(경로 순서 맵은 수백 칸) */
-function appFilterRows(app: Record<string, unknown>): Array<[string, unknown]> {
-    const known = (APP_FILTER_KEYS as readonly string[]).filter(k => k in app);
-    const rest = Object.keys(app).filter(k => !known.includes(k));
-    return [...known, ...rest].map(k => {
-        const v = app[k];
-        return [k, v && typeof v === 'object' && !Array.isArray(v) ? `${Object.keys(v).length}개 키` : v];
-    });
-}
-
 function AppFilterCard({ devices }: { devices: DeviceSession[] }) {
     /* 고른 폰은 id 로 기억한다(앱 탭과 같은 까닭) — 사라지면 첫 폰 */
     const [pickId, setPickId] = useState<string | null>(null);
     const phone = devices.find(d => d.deviceId === pickId) ?? devices[0];
     const app = useAppFilter(phone?.deviceId);
-    const rows = app ? appFilterRows(app) : [];
+    const rows = app ? appFilterRowsOf(app) : [];
     return (
         <Card tall fold
               title={app ? `📦 앱에 내려갈 필터 — 폰이 받는 그대로 ${rows.length}칸` : '📦 앱에 내려갈 필터'}
@@ -1045,6 +1020,21 @@ function AppFilterCard({ devices }: { devices: DeviceSession[] }) {
     );
 }
 
+/**
+ * 📱 **폰마다 다른 것은 아래에 탭으로 겹친다** (기사님 지시:
+ *    *"공통으로 내려가는건 같을꺼 같고 **폰이 받는 타이밍은 다를꺼 같아.**
+ *      공통은 위로 올리고 다른것들은 아래로 내려 텝처리 할까?"*).
+ *
+ * 🔴 **위(공통)와 아래(폰별)를 섞지 않는다.** 필터는 **한 벌**인데 그것을 **받는 시각은 폰마다
+ *    다르다** — 앱은 제 `scrap` 응답 꼬리로 받는다(피기백). 한 칸에 같이 그리면
+ *    «이 값이 모든 폰에게 참인가»를 매번 되물어야 한다.
+ *
+ * 🔴 **왼쪽 폰 패널에 이미 뜨는 것은 안 그린다** (기사님 지시: *"1234 · 인성 ·
+ *    알수 없는 화면 · 합짐 · 23:18 · ⏱️ 는 확인 되는거니까 그것 말고 다른것들"*).
+ *    여기 담는 것은 그 줄에 **숫자로 안 나오는 것들**이다 — 읽은 노드 수 · 보고 간격(초) ·
+ *    탈락 사유별 수 · 누적 · 모드가 폰에 닿았나 · 서버가 받은 좌표 · 앱 버전.
+ *    ⚠️ 폰 이름만은 겹친다 — **탭을 고르는 손잡이**라 없으면 무엇을 보는지 모른다.
+ */
 function PhoneTabs({ devices }: { devices: DeviceSession[] }) {
     /* 🔴 **고른 폰은 id 로 기억한다** — 순서(index)로 쥐면 폰이 하나 빠질 때
        **엉뚱한 폰을 보게 된다.** 그 폰이 사라지면 첫 폰으로 떨어진다. */

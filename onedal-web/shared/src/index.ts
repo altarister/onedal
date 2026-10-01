@@ -1048,6 +1048,21 @@ export const APP_FILTER_KEYS = [
 ] as const;
 
 /**
+ * 📦 **앱 필터를 화면 줄로 — 한 벌** (관제웹 현황판 · 운영센터 현황판의 «앱에 내려갈 필터» 칸이 같이 부른다).
+ *    칸 순서는 `APP_FILTER_KEYS` 먼저, 표에 없는 칸(서버가 더 얹은 것)은 뒤에. 묶음 값은 줄인다 —
+ *    목록은 «N개 · 앞 여섯 …», 맵은 «N개 키»(경로 순서 맵은 수백 칸이다). 값을 다시 계산하지 않는다.
+ */
+export function appFilterRowsOf(app: Record<string, unknown>): Array<[string, unknown]> {
+    const known = (APP_FILTER_KEYS as readonly string[]).filter(k => k in app);
+    const rest = Object.keys(app).filter(k => !known.includes(k));
+    return [...known, ...rest].map(k => {
+        const v = app[k];
+        if (Array.isArray(v)) return [k, v.length ? `${v.length}개 · ${v.slice(0, 6).join(', ')}${v.length > 6 ? ' …' : ''}` : '(빈 목록)'];
+        return [k, v && typeof v === 'object' ? `${Object.keys(v).length}개 키` : v];
+    });
+}
+
+/**
  * **타겟** — 기사님이 필터의 복귀 토글로 고른다.
  *
  *   DEST(노선행) ↔ HOME(복귀행) · 관내는 따로 재지 않는다 (목적지 가까이 옴 `filterArea.withNearness`)

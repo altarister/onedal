@@ -146,7 +146,9 @@ describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
      */
     it('🔴 앱에 내려갈 값은 표(APP_FILTER_KEYS)에서 온다 — 여기 또 적지 않는다', () => {
         const panel = codeOnly(read(PANEL));
-        expect(panel).toMatch(/APP_FILTER_KEYS/);
+        // 칸은 shared `appFilterRowsOf` 가 만든다 — 그 함수가 표(APP_FILTER_KEYS) 순서로 줄을 낸다(운영센터 현황판과 한 벌)
+        expect(panel).toMatch(/appFilterRowsOf\(/);
+        expect(codeOnly(read(require('path').join(__dirname, '../../../shared/src/index.ts')))).toMatch(/export function appFilterRowsOf[\s\S]{0,200}APP_FILTER_KEYS/);
         // 키를 손으로 나열한 배열이 없다
         expect(panel).not.toMatch(/\['isActive',\s*'isSharedMode'/);
     });
