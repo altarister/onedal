@@ -48,10 +48,12 @@ export async function receiveApk(input: Readable, opts: { dir: string; app: Rele
     const tmp = path.join(opts.dir, `.upload-${opts.app}-${opts.versionCode}-${process.pid}-${crypto.randomBytes(4).toString("hex")}.tmp`);
     const hash = crypto.createHash("sha256");
     let size = 0;
+    /* 상한 초과는 깃발로도 적는다 — 흐름 묶음(pipeline)은 부하가 크면 이 오류 대신 «일찍 닫힘»을 먼저 돌려줄 수 있어, 그때도 413 이 되게 */
+    let overLimit = false;
     const counter = new Transform({
         transform(chunk: Buffer, _enc, done) {
             size += chunk.length;
-            if (size > opts.limit) return done(new ReleaseError(413, `APK 가 ${Math.round(opts.limit / 1024 / 1024)}MB 를 넘는다`));
+            if (size > opts.limit) { overLimit = true; return done(new ReleaseError(413, `APK 가 ${Math.round(opts.limit / 1024 / 1024)}MB 를 넘는다`)); }
             hash.update(chunk);
             done(null, chunk);
         },
@@ -65,6 +67,7 @@ export async function receiveApk(input: Readable, opts: { dir: string; app: Rele
         return { tmpPath: tmp, sha256: hash.digest("hex"), sizeBytes: size };
     } catch (e) {
         try { fs.unlinkSync(tmp); } catch { /* 이미 없다 */ }
+        if (overLimit) throw new ReleaseError(413, `APK 가 ${Math.round(opts.limit / 1024 / 1024)}MB 를 넘는다`);
         throw e instanceof ReleaseError ? e : new ReleaseError(400, `APK 를 받지 못했다 (${(e as Error).message})`);
     }
 }
