@@ -23,6 +23,7 @@ export interface Agreement {
     version: number;
 }
 
+/** POST /api/join · /api/join/agree 의 몸 — 🔴 동의 판이 지금 최신 판과 다르면 서버가 409 (그 사이 글이 고쳐짐). 화면은 409 면 글을 다시 읽어 동의 단계를 다시 그린다 */
 export interface JoinRequest {
     info: JoinInfo;
     agreements: Agreement[];
@@ -34,11 +35,13 @@ export interface JoinMeReply {
     suspendedAt: string | null;
     suspendAfterActive: boolean;
     withdrawnAt: string | null;
+    /** 6단계 칸 — 그 전엔 서버가 null */
     paidUntil: string | null;
     blocked: boolean;
     info: JoinInfo | null;
     agreed: Agreement[];
-    /** 지금 판보다 낮게 동의한 필수 글 — 비어 있지 않으면 화면이 동의 단계로 보낸다 */
+    /** 다시 동의할 글 — CONSENT_KINDS 가운데 **글(contents)에 그 종류의 판이 있고**, 동의가 없거나 동의 판 < 최신 판인 것.
+     *  글이 없는 종류는 요구하지 않는다(글이 비어도 흐름이 돈다). 비어 있지 않으면 화면이 동의 단계로 보낸다 */
     reconsent: ContentKind[];
 }
 
