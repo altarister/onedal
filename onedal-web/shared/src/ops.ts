@@ -273,6 +273,42 @@ export interface OpsBoardKakao {
     rows: Array<{ memberId: string | null; route: { today: number; month: number }; local: { today: number; month: number } }>;
 }
 
+/** 🗺️ 카카오 호출 합계 — 줄들의 덧셈 한 곳(운영센터 홈 · 현황판 카드가 같이 부른다 · 서버는 따로 합을 저장하지 않는다) */
+export function kakaoTotalOf(rows: OpsBoardKakao['rows']): { route: { today: number; month: number }; local: { today: number; month: number } } {
+    const sum = (pick: (r: OpsBoardKakao['rows'][number]) => number) => rows.reduce((n, r) => n + pick(r), 0);
+    return {
+        route: { today: sum(r => r.route.today), month: sum(r => r.route.month) },
+        local: { today: sum(r => r.local.today), month: sum(r => r.local.month) },
+    };
+}
+
+/**
+ * 🏠 **운영센터 홈 한 장** (reviews/33 2단계 · GET /api/ops/home · 모양은 onedal-ea) — 숫자는 그 쪽 문과 같은 함수로 센다(홈 숫자 = 쪽 숫자).
+ *    기사마다 오늘 콜 수 · 매출은 없다 — 시뮬 콜과 실콜을 가를 칸이 아직 없다(실콜이 생기면 채운다 · onedal-69 «가» Q1).
+ */
+export interface OpsHome {
+    todo: {
+        /** 기사 이상 신호 — 진행 중 콜 + 폰 끊김 · 진행 중 콜 + 운전석 GPS 10분 · 배차망 «비상» */
+        emergencies: number;
+        callsTodo: number;
+        /** 가장 오래된 전화할 콜의 KEEP 시각(ISO) — 화면이 «몇 분 전»을 셈한다 */
+        oldestKeepAt: string | null;
+        pendingMembers: number;
+        /** 유료 · 허락 기한이 7일 안에 끝나는 회원 + 유예 중 */
+        expiringSoon: number;
+        phonesOffline: number;
+        /** 최소 판보다 낮은 폰 */
+        needUpdate: number;
+    };
+    access: { phonesOnline: number; phonesOffline: number; lastScrapAt: string | null; bootedAt: string; sockets: { web: number; ops: number } };
+    networks: Array<{ targetApp: TargetAppType; lastGoodAt: string | null; anomaliesToday: number; anomalies7d: number; newWords: number; level: 'ok' | 'warn' | 'alarm' }>;
+    working: { reporting: number; driving: number; rows: Array<{ memberId: string; stage: string; nextStop: string | null; etaAt: string | null }> };
+    /** 시 · 구 뱃지 — 3단계(GET /api/ops/locations) 전에는 빈 배열 */
+    regions: Array<{ label: string; count: number }>;
+    members: { total: number; active: number; pending: number; suspended: number; grace: number };
+    kakao: { route: { today: number; month: number }; local: { today: number; month: number } };
+}
+
 /** 원장(intel) 한 줄 — 서버 칸 이름 그대로(device_id) · verdict 는 앱 판정(pass · 떨어뜨린 축 · locked · null) — 화면은 옮겨 적기만 */
 export interface IntelRow {
     id: number; type?: string | null; pickup: string; dropoff: string; fare: number | null;

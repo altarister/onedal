@@ -1462,7 +1462,7 @@ export function arrivalCandidates(
  *
  * 활성 콜이 없거나 남은 정거장이 없으면 `null` — **지어내지 않는다** (규칙 ④).
  */
-function nextStopOf(
+export function nextStopOf(
     session: Pick<UserSession, 'myOrders' | 'arrivalFired'>,
     gps: { x: number; y: number },
 ): ArrivalStop | null {

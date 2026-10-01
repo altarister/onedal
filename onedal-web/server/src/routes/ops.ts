@@ -11,8 +11,12 @@ import { BOOTED_AT, GIT_INFO } from "./health";
 import { peekUserSession, baseFilterFromDb } from "../state/userSessionStore";
 import { appFilterOf } from "../state/appFilter";
 import { kakaoUsageOf, kakaoBoardOf } from "../services/kakaoUsage";
+import { networkLevelOf, needsUpdateOf, NETWORK_ALARM, GPS_STALE_MS } from "../services/opsHome";
+import { nextStopOf } from "../services/geoService";
+import { listReleases, scrapReleaseCodes } from "../core/releases";
 import { intelRowsOf } from "../services/intelRows";
-import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer } from "@onedal/shared";
+import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer, OpsHome } from "@onedal/shared";
+import { TARGET_APPS, accountBlocked, kakaoTotalOf, kstDateText } from "@onedal/shared";
 import { latestContent, isContentKind } from "./contents";
 import { noticeOf, type NoticeRow } from "./notices";
 import { slog } from "../utils/fileLogger";
@@ -224,9 +228,7 @@ router.post("/members/:id/withdraw", (req, res) =>
 // ── 폰 · 이상 기록 · 기록 · 숫자 ─────────────────────────
 
 router.get("/phones", (req, res) => {
-    const io = req.app.get("io");
-    const ids = (db.prepare(`SELECT DISTINCT user_id FROM user_devices`).all() as { user_id: string }[]).map(r => r.user_id);
-    res.json(ids.flatMap(id => phonesOf(id, io)));
+    res.json(allPhonesOf(req.app.get("io")));
 });
 
 router.get("/anomalies", (_req, res) => {
@@ -246,14 +248,20 @@ router.get("/audit", (req, res) => {
     res.json(rows.map(auditOf));
 });
 
-router.get("/counts", (req, res) => {
+/** 모든 회원의 폰 — 폰 쪽(/phones) · 메뉴 숫자 · 홈이 같이 부른다 */
+const allPhonesOf = (io: unknown): OpsPhone[] =>
+    (db.prepare(`SELECT DISTINCT user_id FROM user_devices`).all() as { user_id: string }[]).flatMap(r => phonesOf(r.user_id, io));
+
+/** 🔢 메뉴 숫자 — /counts 와 홈이 같이 부른다(홈 숫자 = 메뉴 숫자) */
+function opsCountsOf(io: unknown): OpsCounts {
     const pendingMembers = (db.prepare(`SELECT COUNT(*) n FROM users WHERE approved_at IS NULL AND withdrawn_at IS NULL`).get() as { n: number }).n;
-    const io = req.app.get("io");
-    const ids = (db.prepare(`SELECT DISTINCT user_id FROM user_devices`).all() as { user_id: string }[]).map(r => r.user_id);
-    const phonesOffline = ids.flatMap(id => phonesOf(id, io)).filter(p => p.status !== 'ONLINE').length;
+    const phonesOffline = allPhonesOf(io).filter(p => p.status !== 'ONLINE').length;
     const callsTodo = opsCallsOf(null).filter(c => c.needsCall).length;   // 통화 도우미 화면(/calls)과 같은 함수
-    const counts: OpsCounts = { pendingMembers, callsTodo, phonesOffline };
-    res.json(counts);
+    return { pendingMembers, callsTodo, phonesOffline };
+}
+
+router.get("/counts", (req, res) => {
+    res.json(opsCountsOf(req.app.get("io")));
 });
 
 // ── 통화 도우미 ──────────────────────────────────────────
@@ -306,16 +314,19 @@ router.post("/calls/:id/note", (req, res) => {
 
 const boardMemberOf = (req: Request): string | null => typeof req.query.memberId === 'string' && req.query.memberId ? req.query.memberId : null;
 
-router.get("/board/server", (req, res) => {
-    const io = req.app.get("io");
+/** 🖥️ 서버 점검 — /board/server 와 홈이 같이 부른다 */
+function boardServerOf(io: any): OpsBoardServer {
     const seen = getActiveDevicesSnapshot(io).map(d => d.lastSeen).filter(n => n > 0);
-    const body: OpsBoardServer = {
+    return {
         bootedAt: BOOTED_AT.toISOString(), commit: GIT_INFO.commit, branch: GIT_INFO.branch, committedAt: GIT_INFO.committedAt,
         dbFile: process.env.DB_FILE || "local.db",
         sockets: { web: io?.of("/").sockets.size ?? 0, ops: io?.of("/ops").sockets.size ?? 0 },
         lastScrapAt: seen.length ? new Date(Math.max(...seen)).toISOString() : null,
     };
-    res.json(body);
+}
+
+router.get("/board/server", (req, res) => {
+    res.json(boardServerOf(req.app.get("io")));
 });
 
 router.get("/board/phones", (req, res) => {
@@ -353,6 +364,105 @@ router.get("/board/intel", (req, res) => {
     const limit = Math.min(200, Math.max(1, Number.isFinite(asked) ? asked : 40));
     const body: OpsBoardIntel = intelRowsOf({ userId: memberId, limit });
     res.json(body);
+});
+
+// ── 홈 ─────────────────────────────────────────────────
+
+/**
+ * 🏠 **운영센터 홈 한 장** (reviews/33 2단계 · onedal-69 «가» · 모양은 onedal-ea) — 숫자는 그 쪽 문과 같은 함수로 센다.
+ *    메뉴 숫자 opsCountsOf · 서버 점검 boardServerOf · 콜 opsCallsOf · 폰 phonesOf · 카카오 kakaoBoardOf(+shared kakaoTotalOf).
+ *    🔴 읽기만 · 세션은 peek 만(남의 세션을 만들지 않는다).
+ */
+export function homeOf(io: any): OpsHome {
+    const now = Date.now();
+    const today = kstDateText(now) ?? '';
+    const counts = opsCountsOf(io);
+    const server = boardServerOf(io);
+    const phones = allPhonesOf(io);
+    const calls = opsCallsOf(null);
+
+    /* 👥 회원 갈래 — 사실 칸에서(탈퇴 빼고 셈) · 사용 중은 shared accountBlocked 의 «막히지 않음» */
+    const users = db.prepare(`SELECT approved_at, suspended_at, suspend_after_active, withdrawn_at, paid_until, auto_until, stats_until FROM users WHERE withdrawn_at IS NULL`).all() as
+        Array<{ approved_at: string | null; suspended_at: string | null; suspend_after_active: number | null; withdrawn_at: string | null; paid_until: string | null; auto_until: string | null; stats_until: string | null }>;
+    const factsOf = (u: typeof users[number]) => ({ approvedAt: u.approved_at, suspendedAt: u.suspended_at, suspendAfterActive: !!u.suspend_after_active, withdrawnAt: u.withdrawn_at, paidUntil: u.paid_until });
+    const inGrace = (u: typeof users[number]) => !!u.approved_at && !u.suspended_at && !!u.paid_until && u.paid_until < today;
+    const weekEnd = kstDateText(Date.parse(`${today}T00:00:00+09:00`) + 7 * 86_400_000) ?? '';
+    const endsSoon = (d: string | null) => !!d && d >= today && d <= weekEnd;
+    const members = {
+        total: users.length,
+        active: users.filter(u => !accountBlocked(factsOf(u), today)).length,
+        pending: users.filter(u => !u.approved_at).length,
+        suspended: users.filter(u => !!u.suspended_at).length,
+        grace: users.filter(inGrace).length,
+    };
+
+    /* 🚗 운행 중 — 진행 중 콜(/calls 와 같은 함수)이 있는 기사마다 한 줄 · 다음 정거장은 도착 감지와 같은 nextStopOf(peek 세션 · 운전석 폰 마지막 점) */
+    const byMember = new Map<string, OpsCall[]>();
+    for (const c of calls) byMember.set(c.memberId, [...(byMember.get(c.memberId) ?? []), c]);
+    const alertMembers = new Set<string>();
+    const rows = [...byMember.entries()].map(([memberId, mine]) => {
+        const session = peekUserSession(memberId);
+        const next = session?.lastFix ? nextStopOf(session, session.lastFix) : null;
+        const nextCall = next ? mine.find(c => c.id === next.orderId) : undefined;
+        const stop = nextCall ? (next!.stopType === 'pickup' ? nextCall.pickup : nextCall.dropoff) : null;
+        /* 🚨 진행 중 콜이 있는데 배차망 폰이 하나도 안 붙어 있거나(꺼 둔 예비 폰 하나로는 안 울린다) 운전석 GPS 가 10분 넘게 안 온다 (onedal-69 «가» Q2) */
+        const myPhones = phones.filter(p => p.memberId === memberId);
+        if (myPhones.length > 0 && !myPhones.some(p => p.status === 'ONLINE')) alertMembers.add(memberId);
+        if (!session?.lastFixAt || now - session.lastFixAt > GPS_STALE_MS) alertMembers.add(memberId);
+        return {
+            memberId,
+            stage: mine.some(c => c.status === 'ORDER_PICKED_UP') ? '배송 중' : '상차 가는 중',
+            nextStop: stop?.place ?? null,
+            etaAt: stop?.at ?? null,
+        };
+    });
+
+    /* 📡 배차망마다 — 마지막 실물 읽기 · 못 읽음 오늘 / 7일 · 오늘 처음 보는 글자 · 단계(services/opsHome) */
+    const todayStartIso = new Date(Date.parse(`${today}T00:00:00+09:00`)).toISOString();
+    const windowIso = new Date(now - NETWORK_ALARM.WINDOW_MS).toISOString();
+    const deviceNow = getActiveDevicesSnapshot(io);
+    const one = (sql: string, ...args: unknown[]) => (db.prepare(sql).get(...args) as { n: number }).n;
+    const networks = TARGET_APPS.map(targetApp => {
+        const last = db.prepare(`SELECT MAX(timestamp) t FROM intel WHERE targetApp = ? AND source = 'real'`).get(targetApp) as { t: string | null };
+        const anomaliesToday = one(`SELECT COUNT(*) n FROM telemetry_anomalies WHERE target_app = ? AND created_at >= date('now', 'localtime')`, targetApp);
+        const anomalies7d = one(`SELECT COUNT(*) n FROM telemetry_anomalies WHERE target_app = ? AND created_at >= datetime('now', 'localtime', '-7 days')`, targetApp);
+        const newWords = one(`SELECT COUNT(*) n FROM screen_words WHERE target_app = ? AND first_seen >= ?`, targetApp, todayStartIso);
+        const level = networkLevelOf({
+            shownNow: deviceNow.some(d => d.status === 'ONLINE' && d.targetApp === targetApp),
+            readsInWindow: one(`SELECT COUNT(*) n FROM intel WHERE targetApp = ? AND source = 'real' AND timestamp >= ?`, targetApp, windowIso),
+            failsInWindow: one(`SELECT COUNT(*) n FROM telemetry_anomalies WHERE target_app = ? AND created_at >= datetime('now', 'localtime', ?)`, targetApp, `-${NETWORK_ALARM.WINDOW_MS / 60_000} minutes`),
+            newWords,
+        });
+        return { targetApp, lastGoodAt: last.t, anomaliesToday, anomalies7d, newWords, level };
+    });
+
+    /* 📱 업데이트 필요 — 앱 배포 표의 이름 → 코드가 최소 판보다 낮은 폰 */
+    const releases = listReleases().filter(r => r.app === 'scanner').map(r => ({ versionName: r.version, versionCode: r.versionCode }));
+    const minimum = scrapReleaseCodes().appMinimumCode;
+    const needUpdate = phones.filter(p => needsUpdateOf(p.appVersion, releases, minimum)).length;
+
+    const keepAts = calls.filter(c => c.needsCall).map(c => c.capturedAt).filter(Boolean).sort();
+    return {
+        todo: {
+            emergencies: alertMembers.size + networks.filter(n => n.level === 'alarm').length,
+            callsTodo: counts.callsTodo,
+            oldestKeepAt: keepAts[0] ?? null,
+            pendingMembers: counts.pendingMembers,
+            expiringSoon: users.filter(u => !!u.approved_at && (endsSoon(u.paid_until) || endsSoon(u.auto_until) || endsSoon(u.stats_until) || inGrace(u))).length,
+            phonesOffline: counts.phonesOffline,
+            needUpdate,
+        },
+        access: { phonesOnline: phones.filter(p => p.status === 'ONLINE').length, phonesOffline: counts.phonesOffline, lastScrapAt: server.lastScrapAt, bootedAt: server.bootedAt, sockets: server.sockets },
+        networks,
+        working: { reporting: new Set(phones.filter(p => p.status === 'ONLINE').map(p => p.memberId)).size, driving: byMember.size, rows },
+        regions: [],
+        members,
+        kakao: kakaoTotalOf(kakaoBoardOf().rows),
+    };
+}
+
+router.get("/home", (req, res) => {
+    res.json(homeOf(req.app.get("io")));
 });
 
 // ── 공지 ────────────────────────────────────────────────
