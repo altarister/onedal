@@ -135,7 +135,8 @@ export interface OpsMemberCheck {
 export const GRACE_DAYS = 14;
 
 export type OpsMemberStatus = {
-    /** 🔴 서버가 읽는 사실 — 폰 보고를 거절하나 (탈퇴 · 정지 · 승인 전 · 기한 지남 = 참). 글(text)로 가르지 않는다 */
+    /** 🔴 서버가 읽는 사실 — **새 일을 받지 않는다** (탈퇴 · 정지 · 승인 전 · 기한 지남 = 참). 글(text)로 가르지 않는다.
+     *  진행 중 콜을 끝까지 두는 것(«끝난 뒤» · 기한 지남 — 중간에 끊으면 안전취소가 멈춘다)은 서버가 «진행 중 콜 있음» 사실로 따로 가른다 */
     blocked: boolean;
     text: string;
     tone: 'ok' | 'warn' | 'bad' | 'muted';
