@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { createListeners } from './listeners';
-import { BOARD_DROPPED, BOARD_FILTER_FULL, BOARD_PHONE_DETAIL, BOARD_SERVER, CHECKS, MEMBERS, MONTH_CODE, PHONES } from '../mock/data';
+import { CHECKS, MEMBERS, MONTH_CODE } from '../mock/data';
 import { kstDateText } from '@onedal/shared';
 
 /**
- * 🧪 **예시 자료를 쓰는 쪽** — 서버 문이 아직 없는 쪽만(멤버 대조 6단계 · 현황판 이사 reviews/31).
+ * 🧪 **예시 자료를 쓰는 쪽** — 서버 문이 아직 없는 쪽만(멤버 대조 6단계).
  *    쪽 머리의 `ExampleBand` 가 «예시 자료 — 서버 문은 N단계»를 적는다. 서버 문이 있는 쪽은 이 파일을 가져오지 않는다(`opsData` 검사).
  *    쓰기는 메모리만 바꾸고 다시 그린다 — 기록(`ops_audit`)에는 안 남는다(서버가 없으니).
  */
-export const EXAMPLE_STAGE = { checks: '6단계 (멤버십)', board: '현황판 이사 (reviews/31) 뒤' } as const;
+export const EXAMPLE_STAGE = { checks: '6단계 (멤버십)' } as const;
 
 const now = () => new Date().toISOString();
 const localDay = (t: Date) => kstDateText(t) ?? '';   // 한국 달력 날 — shared 하나
@@ -31,13 +31,8 @@ export function useExampleTick() {
 
 export const example = {
     members: () => MEMBERS,
-    phones: () => PHONES,
     checks: () => CHECKS,
     monthCode: () => MONTH_CODE,
-    boardServer: () => BOARD_SERVER,
-    boardPhoneDetail: (deviceId: string) => BOARD_PHONE_DETAIL[deviceId],
-    boardFilterFull: (memberId: string) => BOARD_FILTER_FULL[memberId],
-    boardDropped: () => BOARD_DROPPED,
 
     checkMember(memberId: string, ok: boolean) {
         const c = CHECKS.find(x => x.memberId === memberId); if (!c) return;

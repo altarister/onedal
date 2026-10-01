@@ -53,3 +53,21 @@ export function summarizeTally(tally?: FilterTally | null, at?: number | null): 
 
     return { seen: tally.seen, passed: tally.passed, rejects, at: clockText(at) };
 }
+
+/**
+ * 🔤 **앱 판정 축 이름표 — 한 벌** (관제웹 현황판 «버린 콜» · 운영센터 현황판이 같이 쓴다). 축 이름은 앱이 보내는 낱말 그대로 받고 여기서 한국어만 입힌다.
+ *    🔴 목록에 없는 낱말이 오면 **그 낱말을 그대로 적는다.** 「기타」로 뭉개면 앱이 새 축을
+ *       더했을 때 화면이 조용히 삼킨다.
+ */
+export const VERDICT_AXIS_LABEL: Record<string, string> = {
+    vehicle: '차종',
+    region: '지역 — 하차지가 그물 밖',
+    fare: '요금·요율',
+    pickup: '상차거리',
+    blacklist: '제외어',
+    routeOrder: '경로순서',
+    /* 📋 상차 목록 — 원달앱 2단계부터 pickup · routeOrder 대신 이 하나 (하차 목록») */
+    pickupList: '상차 목록 — 상차지가 내 위치 둘레 밖',
+    /* 📅 예약콜 축 — «오늘 콜만»인데 내일 이후 예약이거나 날을 모르는 예약 (reviews/23) */
+    reservation: '예약 — 오늘 콜이 아님',
+};

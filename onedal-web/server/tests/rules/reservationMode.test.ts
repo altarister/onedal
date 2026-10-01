@@ -51,7 +51,8 @@ describe('📅 탈락 이유 «reservation» — 셋이 같은 낱말', () => {
         const tally = s.slice(s.indexOf('export interface FilterTally'), s.indexOf('}', s.indexOf('export interface FilterTally')));
         expect(tally).toMatch(/reservation\?: number;/);
         const client = (p: string) => read(join(__dirname, '../../../client-app/src', p));
-        expect(client('statusboard/callVerdict.ts')).toMatch(/reservation: '예약/);
+        expect(read(join(__dirname, '../../../shared/src/filterTally.ts'))).toMatch(/reservation: '예약/);   // 버린 콜 이유 글자 — 이름표는 shared VERDICT_AXIS_LABEL 한 벌(관제웹 callVerdict 가 그것을 다시 내보낸다)
+        expect(client('statusboard/callVerdict.ts')).toContain("export { VERDICT_AXIS_LABEL };");
         expect(read(join(__dirname, '../../../shared/src/filterTally.ts'))).toContain("['예약', 'reservation']");   // 성적표 요약은 shared 한 벌(관제웹 · 운영센터)
     });
 });

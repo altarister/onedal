@@ -31,8 +31,11 @@ function DownloadStep() {
         let alive = true;
         const load = () => { void fetchDownloadLinks().then(x => { if (alive) setR(x); }); };
         load();
-        window.addEventListener('focus', load);   // 받기 주소는 10분 열쇠 — 화면에 돌아오면 다시 받는다(오래 열어 둔 뒤 눌러도 죽은 주소가 아니게)
-        return () => { alive = false; window.removeEventListener('focus', load); };
+        // 받기 주소는 10분 열쇠 — 화면에 돌아오면 다시 받는다(오래 열어 둔 뒤 눌러도 죽은 주소가 아니게). 폰 브라우저는 탭을 오갈 때 focus 가 안 올 때가 있어 visibilitychange 도 듣는다
+        const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+        window.addEventListener('focus', load);
+        document.addEventListener('visibilitychange', onVisible);
+        return () => { alive = false; window.removeEventListener('focus', load); document.removeEventListener('visibilitychange', onVisible); };
     }, [isAuthenticated, isLoading]);
 
     if (!isLoading && !isAuthenticated) return (

@@ -15,6 +15,9 @@ const CONTENT_TITLE: Record<string, string> = { terms: '이용약관', privacy: 
 const ACK_TITLE: Record<string, string> = { thirdParty: '제3자 정보 고지', networkRisk: '배차망 제재 위험 고지' };
 const agreementText = (a: OpsAgreement) => a.kind === 'ack' ? (ACK_TITLE[a.item ?? ''] ?? a.item ?? '고지') : `${CONTENT_TITLE[a.kind] ?? a.kind} ${a.version}판`;
 
+/** 지난 날을 골랐으면 한 번 묻는다 — «YYYY-MM-DD» 글자 비교(날짜 계산 아님). 오늘 · 뒷날 · 비움은 그대로 통과 */
+const pastOk = (until: string | null, today: string, ask: string) => !until || until >= today || confirm(ask);
+
 export default function MemberDetail() {
     const { id = '' } = useParams();
     const { data, error, reload } = useOps(() => api.member(id), [id]);
@@ -64,9 +67,9 @@ export default function MemberDetail() {
                             <Button type="button" size="sm" variant="ghost" onClick={() => { if (confirm('탈퇴 처리는 되돌릴 수 없습니다. 폰 보고가 거절되고 관제웹 연결이 끊깁니다. 기록은 남습니다.')) act(() => api.withdraw(m.id)); }}>탈퇴 처리</Button>
                         </div>
                         <div className="space-y-2 pt-2 border-t border-border-card">
-                            <AllowRow label="자동 잡기" state={auto} until={m.autoUntil} offConfirm="자동 잡기를 끄면 이 회원 폰은 다음 보고부터 알람으로 돕니다. 끌까요?" onSet={(on, until) => act(() => api.setAllow(m.id, 'auto', on, until))} />
-                            <AllowRow label="통계" state={stats} until={m.statsUntil} onSet={(on, until) => act(() => api.setAllow(m.id, 'stats', on, until))} />
-                            <DayRow label="유료 기한" value={m.paidUntil} emptyLabel="없음으로 (가족)" onSet={until => act(() => api.setPaidUntil(m.id, until))} />
+                            <AllowRow label="자동 잡기" state={auto} until={m.autoUntil} offConfirm="자동 잡기를 끄면 이 회원 폰은 다음 보고부터 알람으로 돕니다. 끌까요?" onSet={(on, until) => { if (pastOk(until, today, '기한이 이미 지난 날입니다 — 적는 즉시 «기한 지남»이 됩니다. 그래도 적을까요?')) act(() => api.setAllow(m.id, 'auto', on, until)); }} />
+                            <AllowRow label="통계" state={stats} until={m.statsUntil} onSet={(on, until) => { if (pastOk(until, today, '기한이 이미 지난 날입니다 — 적는 즉시 «기한 지남»이 됩니다. 그래도 적을까요?')) act(() => api.setAllow(m.id, 'stats', on, until)); }} />
+                            <DayRow label="유료 기한" value={m.paidUntil} emptyLabel="없음으로 (가족)" onSet={until => { if (pastOk(until, today, '유료 기한이 이미 지난 날입니다 — 이 회원은 진행 중 콜이 끝나면 바로 막힙니다. 그래도 적을까요?')) act(() => api.setPaidUntil(m.id, until)); }} />
                         </div>
                     </>
                 )}

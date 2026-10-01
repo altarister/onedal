@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RELEASE_UPLOAD_HEADERS } from '@onedal/shared';
 import type {
-    OpsAllowRequest, OpsAnomaliesReply, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsSuspendRequest,
+    OpsAllowRequest, OpsAnomaliesReply, OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPaidUntilRequest, OpsPhone, OpsRelease, OpsSuspendRequest,
 } from '@onedal/shared';
 import { client, errorTextOf, statusOf } from './client';
 import { createListeners } from './listeners';
@@ -11,7 +11,7 @@ import type { FlowsAdminReply } from '@onedal/shared';   // 응답 모양은 sha
  * 🏢 **운영센터가 서버 문 `/api/ops/*` 를 부르는 곳 — 이 파일 하나** (reviews/29 3단계 · 서버 `routes/ops.ts` · 규격 shared `ops.ts`).
  *    쓰기마다 서버가 `ops_audit` 한 줄을 남긴다 — 화면은 기록을 따로 적지 않는다. 회원 상세 열람도 서버가 적는다(«회원 봄»).
  *    🔴 서버가 안 되면 쪽이 «서버 응답이 없습니다 — 다시»를 보인다 — 예시 자료로 대신 그리지 않는다(장애를 가리면 노이즈).
- *    통계는 서버의 관리자 통계 문(`/api/stats/flows/admin`)을 읽는다. 아직 서버 문이 없는 쪽(멤버 대조 · 현황판)은 `example.ts` 의 예시 자료를 쓰고 쪽 머리에 그렇다고 적는다.
+ *    통계는 서버의 관리자 통계 문(`/api/stats/flows/admin`)을 읽는다. 아직 서버 문이 없는 쪽(멤버 대조)은 `example.ts` 의 예시 자료를 쓰고 쪽 머리에 그렇다고 적는다.
  */
 const get = async <T,>(path: string) => (await client.get<T>(`/ops${path}`)).data;
 const post = async <T,>(path: string, body?: unknown) => (await client.post<T>(`/ops${path}`, body)).data;
@@ -61,6 +61,12 @@ export const api = {
             },
             onUploadProgress: e => onProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0),
         })).data,
+
+    /** 🧰 현황판(점검) — 읽기만 · 회원을 고르는 둘(filter · intel)은 서버가 열람 기록을 남긴다(열어 둔 동안 한 줄) */
+    boardServer: () => get<OpsBoardServer>('/board/server'),
+    boardPhones: (memberId?: string) => get<OpsBoardPhone[]>(memberId ? `/board/phones?memberId=${encodeURIComponent(memberId)}` : '/board/phones'),
+    boardFilter: (memberId: string) => get<OpsBoardFilter>(`/board/filter?memberId=${encodeURIComponent(memberId)}`),
+    boardIntel: (memberId: string, limit = 40) => get<OpsBoardIntel>(`/board/intel?memberId=${encodeURIComponent(memberId)}&limit=${limit}`),
 
     /** 📊 콜 흐름 통계(관리자 문 `/api/stats/flows/admin` · 회원 칸 포함) — 기본 최근 28일. 평균은 요금을 아는 콜로만(없으면 null) */
     statsAdmin: async (groupBy: StatsGroupBy) => (await client.get<FlowsAdminReply>('/stats/flows/admin', { params: { groupBy } })).data,

@@ -9,7 +9,7 @@ import { join } from 'path';
  */
 const SRC = join(__dirname, '../../../ops/src');
 const read = (f: string) => readFileSync(join(SRC, f), 'utf8');
-const EXAMPLE_PAGES = ['MembersCheck', 'Board'];
+const EXAMPLE_PAGES = ['MembersCheck'];
 const SERVER_PAGES = readdirSync(join(SRC, 'pages')).map(f => f.replace(/\.tsx$/, '')).filter(p => !EXAMPLE_PAGES.includes(p) && p !== 'Login');
 
 describe('🏢 운영센터 자료', () => {
@@ -18,7 +18,7 @@ describe('🏢 운영센터 자료', () => {
             const src = read(`pages/${p}.tsx`);
             expect(src).not.toMatch(/api\/example|mock\/data/);
             expect(src).toContain('useOps(');
-            expect(src).toContain('<ErrorBand text={error} onRetry={reload} />');
+            expect(src).toMatch(/<ErrorBand text=\{(\w+\.)?error\} onRetry=\{(\w+\.)?reload\} \/>/);
         }
     });
 
