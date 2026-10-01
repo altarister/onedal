@@ -29,6 +29,7 @@ import { noteOrigin } from "../utils/originLog";
 import { logContext, whoLabel } from "../utils/logContext";
 import { clockText, wonText } from "@onedal/shared";
 import { authSocket } from "./authSocket";
+import { webAccountGate } from "./webAccountGate";
 import { registerOpsNamespace } from "./opsSocket";
 
 
@@ -68,8 +69,9 @@ function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any)
 
 export function registerSocketHandlers(io: Server) {
 
-    // 1. Socket.io JWT 핸드셰이크 인증 — 관제웹 · 운영센터(/ops)가 같은 함수(socket/authSocket)
+    // 1. Socket.io JWT 핸드셰이크 인증 — 관제웹 · 운영센터(/ops)가 같은 함수(socket/authSocket) · 관제웹만 계정 막힘을 본다(webAccountGate)
     io.use(authSocket);
+    io.use(webAccountGate);
     registerOpsNamespace(io);
 
     /**
