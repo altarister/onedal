@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockText, hhmmText, manwonText, wonText } from './format';
+import { clockText, hhmmText, isoKst, manwonText, wonText } from './format';
 
 /**
  * 🕐 **시각 글자는 한 모양 — 24시간 «HH:MM:SS» · «HH:MM» · 늘 한국 시각** (onedal-1f 결정 · 공통 함수 1).
@@ -42,5 +42,22 @@ describe('💸 manwonText · wonText', () => {
             expect(manwonText(v)).toBeNull();
             expect(wonText(v)).toBeNull();
         }
+    });
+});
+
+/**
+ * 🕐 **서버 응답 시각은 ISO** — SQLite 지역 시각 글자(«2026-10-01 14:05:03» · 한국 시각 · 시간대 표시 없음)는 Safari 가 못 읽는다.
+ *    응답을 만드는 자리에서 isoKst 로 바꾼다. 날짜만(«2026-10-01» — 날 키)은 그대로.
+ */
+describe('🕐 isoKst', () => {
+    it('🔴 지역 시각 글자 → +09:00 ISO · ISO 는 그대로 · 날짜만은 그대로 · 빈 값 null', () => {
+        expect(isoKst('2026-10-01 14:05:03')).toBe('2026-10-01T14:05:03+09:00');
+        expect(isoKst('2026-10-01T05:05:03.000Z')).toBe('2026-10-01T05:05:03.000Z');
+        expect(isoKst('2026-10-01')).toBe('2026-10-01');
+        for (const v of [null, undefined, '']) expect(isoKst(v)).toBeNull();
+    });
+    it('🔴 시각 글자 함수도 지역 시각 글자를 같은 길로 읽는다', () => {
+        expect(clockText('2026-10-01 14:05:03')).toBe('14:05:03');
+        expect(hhmmText('2026-10-01 00:04:00')).toBe('00:04');
     });
 });

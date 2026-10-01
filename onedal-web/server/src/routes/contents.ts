@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { CONTENT_KINDS, type ContentKind, type ContentReply } from "@onedal/shared";
+import { CONTENT_KINDS, isoKst, type ContentKind, type ContentReply } from "@onedal/shared";
 import db from "../db";
 
 /**
@@ -13,7 +13,7 @@ const router = Router();
 export function latestContent(kind: ContentKind): ContentReply | null {
     const row = db.prepare(`SELECT kind, version, title, body, updated_at FROM contents WHERE kind = ? ORDER BY version DESC LIMIT 1`).get(kind) as
         { kind: ContentKind; version: number; title: string; body: string; updated_at: string } | undefined;
-    return row ? { kind: row.kind, version: row.version, title: row.title, body: row.body, updatedAt: row.updated_at } : null;
+    return row ? { kind: row.kind, version: row.version, title: row.title, body: row.body, updatedAt: isoKst(row.updated_at) ?? '' } : null;
 }
 
 export const isContentKind = (v: unknown): v is ContentKind => CONTENT_KINDS.includes(v as ContentKind);

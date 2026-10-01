@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { ACK_KEYS, CONSENT_KINDS, isTargetApp, type AckKey, type Agreement, type ContentKind, type JoinInfo, type JoinMeReply, type JoinRequest } from "@onedal/shared";
+import { ACK_KEYS, CONSENT_KINDS, isTargetApp, isoKst, type AckKey, type Agreement, type ContentKind, type JoinInfo, type JoinMeReply, type JoinRequest } from "@onedal/shared";
 import db from "../db";
 import { accountGateOf } from "../core/accountGate";
 import { latestContent, isContentKind } from "./contents";
@@ -45,7 +45,8 @@ export function joinMeOf(userId: string): JoinMeReply | null {
     const gate = accountGateOf(userId);
     if (!row || !gate.facts) return null;
     const agreed = agreedOf(userId);
-    return { ...gate.facts, blocked: gate.blocked, info: infoOf(row.phone, row.dispatch_networks), agreed, reconsent: reconsentOf(agreed) };
+    const f = gate.facts;
+    return { ...f, approvedAt: isoKst(f.approvedAt), suspendedAt: isoKst(f.suspendedAt), withdrawnAt: isoKst(f.withdrawnAt), blocked: gate.blocked, info: infoOf(row.phone, row.dispatch_networks), agreed, reconsent: reconsentOf(agreed) };
 }
 
 /** 동의 줄이 모두 지금 최신 판인가 — 아니면 그 종류 이름 */

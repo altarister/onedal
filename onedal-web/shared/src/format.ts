@@ -14,9 +14,20 @@ type At = number | string | Date | null | undefined;
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
+/**
+ * 🕐 **서버 응답 시각은 ISO** — SQLite 지역 시각 글자(«2026-10-01 14:05:03» · 서버는 늘 한국 시각 · 시간대 표시 없음)를
+ *    «2026-10-01T14:05:03+09:00» 으로. Safari 는 지역 글자를 Date 로 못 읽는다. 이미 ISO 면 그대로 · 날짜만(«2026-10-01» — 날 키)도 그대로 · 빈 값 null.
+ *    저장 글자는 바꾸지 않는다 — 서버가 응답을 만드는 자리에서만 부른다(`responseIsoTimes` 검사가 칸 이름 목록으로 문다).
+ */
+export function isoKst(text: string | null | undefined): string | null {
+    if (!text) return null;
+    const m = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}(?:\.\d+)?)$/.exec(text);
+    return m ? `${m[1]}T${m[2]}+09:00` : text;
+}
+
 function kstOf(at: At): Date | null {
     if (at == null || at === '' || at === 0) return null;
-    const ms = at instanceof Date ? at.getTime() : typeof at === 'number' ? at : Date.parse(at);
+    const ms = at instanceof Date ? at.getTime() : typeof at === 'number' ? at : Date.parse(isoKst(at) ?? '');
     return Number.isFinite(ms) ? new Date(ms + KST_MS) : null;
 }
 

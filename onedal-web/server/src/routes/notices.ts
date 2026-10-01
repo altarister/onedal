@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { businessDayKey, type OpsNotice } from "@onedal/shared";
+import { businessDayKey, isoKst, type OpsNotice } from "@onedal/shared";
 import db from "../db";
 
 /**
@@ -9,7 +9,7 @@ import db from "../db";
 const router = Router();
 
 export type NoticeRow = { id: number; text: string; posted_at: string; active_until: string | null; ended_at: string | null };
-export const noticeOf = (r: NoticeRow): OpsNotice => ({ id: r.id, text: r.text, postedAt: r.posted_at, activeUntil: r.active_until, endedAt: r.ended_at });
+export const noticeOf = (r: NoticeRow): OpsNotice => ({ id: r.id, text: r.text, postedAt: isoKst(r.posted_at) ?? '', activeUntil: r.active_until, endedAt: isoKst(r.ended_at) });
 
 router.get("/active", (_req, res) => {
     const today = businessDayKey(Date.now());

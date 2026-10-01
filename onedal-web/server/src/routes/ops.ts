@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import {
-    CONTENT_KINDS, DEVICE_OFFLINE_LABEL, isTargetApp, restoreWindow,
+    CONTENT_KINDS, DEVICE_OFFLINE_LABEL, isTargetApp, isoKst, restoreWindow,
     type ContentKind, type OpsAnomaly, type OpsAudit, type OpsCall, type OpsContent, type OpsCounts, type OpsMember,
     type OpsMemberDetail, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
 } from "@onedal/shared";
@@ -64,8 +64,8 @@ function phonesOf(userId: string, io: unknown): OpsPhone[] {
 function memberOf(r: UserRow, io: unknown): OpsMember {
     return {
         id: r.id, name: r.name, email: r.email, phone: r.phone ?? '', vehicle: r.vehicle_type ?? '', networks: networksOf(r.dispatch_networks),
-        role: r.role, createdAt: r.created_at, approvedAt: r.approved_at, suspendedAt: r.suspended_at,
-        suspendAfterActive: !!r.suspend_after_active, withdrawnAt: r.withdrawn_at, opsAllowedAt: r.ops_allowed_at,
+        role: r.role, createdAt: isoKst(r.created_at) ?? '', approvedAt: isoKst(r.approved_at), suspendedAt: isoKst(r.suspended_at),
+        suspendAfterActive: !!r.suspend_after_active, withdrawnAt: isoKst(r.withdrawn_at), opsAllowedAt: isoKst(r.ops_allowed_at),
         paidUntil: null, autoAllowedAt: null, autoUntil: null, statsAllowedAt: null, statsUntil: null,
         phones: phonesOf(r.id, io),
     };
@@ -80,7 +80,7 @@ function todayCallsOf(userId: string): OpsCall[] {
         FROM orders o LEFT JOIN order_judgments j ON j.orderId = o.id WHERE o.userId = ? AND o.timestamp >= ? ORDER BY o.timestamp DESC`).all(userId, todayStartIso) as any[];
     return rows.map(o => ({
         id: o.id, memberId: userId, targetApp: isTargetApp(o.targetApp) ? o.targetApp : 'insung', status: o.status, verdict: o.color ?? '보통',
-        needsCall: false, callNote: null, fare: o.fare ?? 0, capturedAt: o.capturedAt ?? o.timestamp,
+        needsCall: false, callNote: null, fare: o.fare ?? 0, capturedAt: isoKst(o.capturedAt ?? o.timestamp) ?? '',
         pickup: { place: o.pickup, phone: null, address: o.pickup, at: null },
         dropoff: { place: o.dropoff, phone: null, address: o.dropoff, at: null },
     }));
@@ -90,7 +90,7 @@ type AnomalyRow = { id: number; created_at: string; device_id: string; target_ap
 const ANOMALY_SQL = `SELECT a.id, a.created_at, a.device_id, a.target_app, a.screen_name, a.failure_reason, d.user_id
     FROM telemetry_anomalies a LEFT JOIN user_devices d ON d.device_id = a.device_id`;
 const anomalyOf = (a: AnomalyRow): OpsAnomaly => ({
-    id: a.id, at: a.created_at, memberId: a.user_id, deviceId: a.device_id,
+    id: a.id, at: isoKst(a.created_at) ?? '', memberId: a.user_id, deviceId: a.device_id,
     targetApp: isTargetApp(a.target_app) ? a.target_app : 'insung', screen: a.screen_name ?? '', reason: a.failure_reason,
 });
 
@@ -98,7 +98,7 @@ const anomalyOf = (a: AnomalyRow): OpsAnomaly => ({
 const WORD_KIND_OPS: Record<WordKind, OpsScreenWord['kind']> = { noise: '잡음', unknown: '정의 밖', extra: '남은 토막' };
 
 type AuditRow = { id: number; at: string; admin_name: string | null; admin_id: string; action: string; target_user_id: string | null; detail: string };
-const auditOf = (a: AuditRow): OpsAudit => ({ id: a.id, at: a.at, admin: a.admin_name ?? a.admin_id, action: a.action, targetMemberId: a.target_user_id, detail: a.detail });
+const auditOf = (a: AuditRow): OpsAudit => ({ id: a.id, at: isoKst(a.at) ?? '', admin: a.admin_name ?? a.admin_id, action: a.action, targetMemberId: a.target_user_id, detail: a.detail });
 const AUDIT_SQL = `SELECT a.*, u.name AS admin_name FROM ops_audit a LEFT JOIN users u ON u.id = a.admin_id`;
 
 // ── 회원 ────────────────────────────────────────────────
@@ -165,7 +165,7 @@ router.get("/anomalies", (_req, res) => {
     const words = db.prepare(`SELECT target_app, page, word, kind, first_seen FROM screen_words ORDER BY last_seen DESC LIMIT 100`).all() as
         { target_app: string; page: string; word: string; kind: WordKind; first_seen: string }[];
     const screenWords: OpsScreenWord[] = words.filter(w => isTargetApp(w.target_app) && WORD_KIND_OPS[w.kind])
-        .map(w => ({ targetApp: w.target_app as TargetAppType, page: w.page, word: w.word, kind: WORD_KIND_OPS[w.kind], firstSeenAt: w.first_seen }));
+        .map(w => ({ targetApp: w.target_app as TargetAppType, page: w.page, word: w.word, kind: WORD_KIND_OPS[w.kind], firstSeenAt: isoKst(w.first_seen) ?? '' }));
     res.json({ anomalies, screenWords });
 });
 
