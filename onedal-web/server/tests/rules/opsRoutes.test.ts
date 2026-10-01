@@ -88,7 +88,7 @@ describe('🏢 회원 — 승인 · 정지 · 탈퇴 · 기록', () => {
         const before = auditCount();
         const d = await call(opsRouter, 'get', '/members/:id', { params: { id: M } });
         expect(d.out.member.id).toBe(M);
-        expect(d.out.kakaoUsage).toBeNull();
+        expect(d.out.kakaoUsage).toEqual({ today: 0, month: 0 });   // 카카오를 쓴 적 없는 회원 — 표(kakao_usage_days)를 센다
         await call(opsRouter, 'get', '/members/:id', { params: { id: M } });
         expect(auditCount()).toBe(before + 1);
     });

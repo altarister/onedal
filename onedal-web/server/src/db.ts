@@ -192,6 +192,20 @@ db.exec(`
 `);
 
 /**
+ * 🗺️ **카카오 사용량** (reviews/27 8장 ⑥ ⑭ · 29 5단계 · `services/kakaoUsage`) — 회원 · 한국 날마다 한 줄. 길찾기 · 좌표 찾기는 카카오 한도가 따로라 칸을 나눈다.
+ *    user_id '' 는 «주인 없음»(요청 흐름 밖에서 부른 것). 세기만 한다 — 운행은 이 표를 읽지 않는다.
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS kakao_usage_days (
+        user_id TEXT NOT NULL,
+        day TEXT NOT NULL,
+        route_calls INTEGER NOT NULL DEFAULT 0,
+        local_calls INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (user_id, day)
+    );
+`);
+
+/**
  * 📦 **앱 판** (reviews/29 4장 · 4단계 · `core/releases`) — 운영센터가 올린 APK 한 판에 한 줄. 파일 자체는 레포 밖 폴더(RELEASES_DIR).
  * «최신»은 칸으로 두지 않고 앱마다 version_code 가 가장 큰 줄로 계산한다(두 벌 금지). `is_minimum` 은 앱마다 한 줄만 1.
  * 표가 비면 원달앱 보고 응답에 판 칸이 없다 — 기사 흐름 무변화.

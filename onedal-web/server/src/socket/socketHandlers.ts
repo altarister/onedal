@@ -26,7 +26,7 @@ import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "..
 import { slog } from "../utils/fileLogger";
 import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";
-import { logContext, whoLabel } from "../utils/logContext";
+import { logContext, whoLabel, enterLogWho } from "../utils/logContext";
 import { clockText, wonText } from "@onedal/shared";
 import { authSocket } from "./authSocket";
 import { webAccountGate } from "./webAccountGate";
@@ -47,7 +47,7 @@ import { registerOpsNamespace } from "./opsSocket";
  */
 function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any) {
     /* 🪪 이 이벤트의 로그 줄 끝에 «@기사» — 핸들러의 비동기 흐름 전체에 싣는다 (reviews/29 1단계 J) */
-    socket.on(event, (...args: any[]) => logContext.run({ who: whoLabel(socket.data.user?.name, socket.data.user?.id) }, async () => {
+    socket.on(event, (...args: any[]) => logContext.run({ who: whoLabel(socket.data.user?.name, socket.data.user?.id), userId: socket.data.user?.id }, async () => {
         try {
             await handler(...args);
         } catch (err: any) {
@@ -133,6 +133,7 @@ export function registerSocketHandlers(io: Server) {
     // 2. 개별 유저 연결 수립
     io.on("connection", (socket: Socket) => {
         const userId = socket.data.user.id;
+        enterLogWho(socket.data.user?.name, userId);   // 🪪 연결 처리(하루 준비 등)의 로그 «@기사» · 카카오 사용량 «누구 몫»
         const clientSessionId = (socket.handshake.auth?.clientSessionId as string) ||
                                 (socket.handshake.query?.clientSessionId as string) ||
                                 `anon_${socket.id}`;
@@ -776,7 +777,8 @@ export function registerSocketHandlers(io: Server) {
      */
     setInterval(() => {
         const userIds = getAllActiveUserIds();
-        for (const uid of userIds) {
+        /* 🪪 회원 하나를 다룰 때마다 그 회원 몫으로 — 이 안에서 부르는 일(카카오 사용량 · 로그)이 «주인 없음»으로 빠지지 않게 */
+        for (const uid of userIds) logContext.run({ userId: uid }, () => {
             // [Q4 소켓 브로드캐스트 분리 완료] 각 기사별로 자신의 등록된 기기 목록(+상태)만 전달
             /* 🛟 `io` 를 넘긴다 — 데드맨이 끊김으로 넘기며 그 폰의 미리보기를 치울 때 관제웹에 알려야 한다 (#159 뒤 개정) */
             io.to(uid).emit("telemetry-devices", getUserDevicesSnapshot(uid, io));
@@ -784,7 +786,7 @@ export function registerSocketHandlers(io: Server) {
             const session = getUserSession(uid);
             const sync = buildOrderSync(session);
             const json = JSON.stringify(sync);
-            if (json === session.lastOrderSyncJson) continue;   // 아무것도 안 바뀌었다
+            if (json === session.lastOrderSyncJson) return;   // 아무것도 안 바뀌었다
             session.lastOrderSyncJson = json;
             // 🧹 내용은 1~2초마다 바뀐다(주행 시각 등) — 줄은 콜·상태가 바뀔 때만 적고, 보내기는 늘 한다
             const calls = getActiveCalls(session);
@@ -801,7 +803,7 @@ export function registerSocketHandlers(io: Server) {
                 lastOpsSig.set(uid, opsSig);
                 io.of("/ops").to("admin_room").emit("ops-calls-changed", { memberId: uid });
             }
-        }
+        });
         /**
          * 🔴 `.unref()` — **이 1초 타이머가 서버를 붙잡지 않게 한다**.
          * Node 는 살아 있는 타이머가 하나만 있어도 안 죽는다. Ctrl+C 에

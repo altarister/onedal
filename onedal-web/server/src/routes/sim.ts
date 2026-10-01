@@ -11,6 +11,7 @@ import { getUserDevicesSnapshot } from "./devices";
 import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
 import { BOOTED_AT } from "./health";
 import { calculateSoloRoute } from "../services/kakaoService";
+import { countKakao } from "../services/kakaoUsage";
 import { bumpCallMemoryRound, createSimCallQueue, pushSimCall, readSimCallInput, resetSimCalls, simCallsAfter, withdrawSimCall } from "../core/simCallQueue";
 import { seqsToWithdraw, startScenario, stepScenario, skipScenarioRow } from "../core/simScenario";
 import type { ScenarioState, ScenarioWorld, WorldOrder, WorldIntel, ScenarioRow } from "../core/simScenario";
@@ -552,6 +553,7 @@ router.post("/roads", async (req, res) => {
         for (const [priority, avoid, label] of COMBOS) {
             const url = `https://apis-navi.kakaomobility.com/v1/directions?origin=${origin.x},${origin.y}&destination=${dest.x},${dest.y}${wpParam}`
                 + `&priority=${priority}${avoid ? `&avoid=${avoid}` : ""}&alternatives=false&road_details=true&car_type=1`;
+            countKakao(url);
             const r = await fetch(url, { headers });
             if (!r.ok) continue;                              // 옵션 하나가 막혀도 나머지는 뿌린다
             const d = await r.json() as { routes?: Array<{ result_code: number; summary: { distance: number; duration: number; fare?: { toll?: number } }; sections?: Array<{ roads?: Array<{ name?: string; distance: number; vertexes?: number[] }> }> }> };
@@ -627,6 +629,7 @@ router.post("/chain", async (req, res) => {
             waypoints: waypoints.map((w, i) => ({ name: `wp${i}`, x: String(w.x), y: String(w.y) })),
             priority, car_type: 1, ...(avoid ? { avoid: [avoid] } : {}),
         };
+        countKakao("https://apis-navi.kakaomobility.com/v1/waypoints/directions");
         const r = await fetch("https://apis-navi.kakaomobility.com/v1/waypoints/directions", {
             method: "POST",
             headers: { Authorization: `KakaoAK ${process.env.KAKAO_REST_API_KEY || ""}`, "Content-Type": "application/json" },

@@ -1,4 +1,5 @@
 import { sectionEndsOf , sidoOfPlaceName } from '@onedal/shared';
+import { countKakao } from "./kakaoUsage";
 /**
  * 카카오 모빌리티 API 서비스 (kakaoUtil.ts 리팩토링)
  * 
@@ -29,6 +30,7 @@ const KAKAO_LOCAL_TIMEOUT_MS = 3000;
 export async function kakaoJson(url: string, init: RequestInit, timeoutMs: number, label: string): Promise<any> {
     let res: Response;
     try {
+        countKakao(url);
         res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
     } catch (e: any) {
         if (e?.name === 'TimeoutError' || e?.name === 'AbortError') throw new Error(`카카오 ${label} 응답 없음(${timeoutMs / 1000}초)`);
@@ -66,6 +68,7 @@ export function kakaoJsonHedged(url: string, init: RequestInit, hedgeAfterMs: nu
             const c = new AbortController();
             ctrls.push(c);
             inFlight++;
+            countKakao(url);   // 나란히 한 번 더 보낸 것도 실제 호출이다
             fetch(url, { ...init, signal: c.signal })
                 .then(res => { if (!res.ok) throw new Error(`카카오 ${label} HTTP ${res.status}`); return res.json(); })
                 .then(json => finish(() => resolve(json)), err => {

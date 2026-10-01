@@ -10,6 +10,7 @@ import { getUserDevicesSnapshot, getActiveDevicesSnapshot } from "./devices";
 import { BOOTED_AT, GIT_INFO } from "./health";
 import { peekUserSession, baseFilterFromDb } from "../state/userSessionStore";
 import { appFilterOf } from "../state/appFilter";
+import { kakaoUsageOf } from "../services/kakaoUsage";
 import { intelRowsOf } from "../services/intelRows";
 import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer } from "@onedal/shared";
 import { latestContent, isContentKind } from "./contents";
@@ -181,7 +182,7 @@ router.get("/members/:id", (req, res) => {
         todayCalls: todayCallsOf(r.id),
         anomalies: (db.prepare(`${ANOMALY_SQL} WHERE d.user_id = ? ORDER BY a.id DESC LIMIT 50`).all(r.id) as AnomalyRow[]).map(anomalyOf),
         audit: (db.prepare(`${AUDIT_SQL} WHERE a.target_user_id = ? ORDER BY a.id DESC LIMIT 50`).all(r.id) as AuditRow[]).map(auditOf),
-        kakaoUsage: null,
+        kakaoUsage: kakaoUsageOf(r.id),
         agreements: (db.prepare(`SELECT kind, item, version, agreed_at FROM agreements WHERE user_id = ? ORDER BY id`).all(r.id) as
             { kind: OpsAgreement['kind']; item: string | null; version: number; agreed_at: string }[])
             .map(a => ({ kind: a.kind, item: a.item, version: a.version, at: isoKst(a.agreed_at) ?? '' })),
