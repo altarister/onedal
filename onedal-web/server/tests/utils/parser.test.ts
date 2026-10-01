@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { parseMockupFare, parseDetailedRawText } from '../../src/utils/parser';
+import { pageFareOf } from '@onedal/shared';
+import { parseDetailedRawText } from '../../src/utils/parser';
 
 /**
  * `ex_images/인성/상세-확정(...).png` 판독으로 확인한 실제 화면 표기에 맞춘다.
@@ -8,21 +9,19 @@ import { parseMockupFare, parseDetailedRawText } from '../../src/utils/parser';
  * 확정 상세 화면의 요금 줄은 이렇게 생겼다:
  *     요금 : 40,000(신용)
  *
- * 이 포맷에서 지킬 것 둘:
- *   ① 결제방법이 "결제방법" 필드가 아니라 **요금 값의 괄호 안**에 있다
- *   ② 쉼표가 들어가므로 `\d+`로 읽으면 `40` 에서 끊긴다
+ * 서버는 원달앱과 같은 정의 표(NETWORK_PAGES) · 같은 숫자 규칙(쉼표 떼고 정수)으로 읽는다(shared pageFareOf · reviews/34 3단계).
+ * 만 · 천 · 축약은 짐작하지 않는다 — 상세 화면은 실물 · 시뮬 모두 «85,000» 꼴이다.
  */
-describe("parseMockupFare — 요금 파싱", () => {
-    /* 🔴 화물24시 «수납금액»은 부가세를 더한 합계다 — 요금으로 잡으면 콜이 실제보다 좋아 보인다(노이즈 · onedal-69 «가») */
-    it("🔴 «수납금액»은 요금이 아니다 — 못 읽음 · «요금 : N» · «금액 N» 은 그대로", () => {
-        expect(parseMockupFare("부가세 6,000 수납금액 65,144 결제방법 카드")).toBeUndefined();
-        expect(parseMockupFare("요금 : 50,000(카드)")).toBe(50000);
-        expect(parseMockupFare("금액 30,000")).toBe(30000);
+const fare = (raw: string) => pageFareOf('insung', 'detail', raw) ?? undefined;
+
+describe("인성 상세 요금 — 정의 표대로", () => {
+    it("🔴 «수납금액» · «금액» 은 인성 요금 이름표가 아니다 — 못 읽음 · «요금 : N» 은 그대로", () => {
+        expect(fare("부가세 6,000 수납금액 65,144 결제방법 카드")).toBeUndefined();
+        expect(fare("요금 : 50,000(카드)")).toBe(50000);
+        expect(fare("금액 30,000")).toBeUndefined();
     });
 
-    describe("쉼표가 있으면 원 단위로 확정한다", () => {
-        // 인성콜 축약형("45" = 45,000원)은 쉼표를 쓰지 않는다.
-        // 따라서 쉼표의 존재 자체가 "이건 원 단위다"라는 신호다.
+    describe("쉼표가 있으면 원 단위로 읽는다", () => {
         it.each([
             ["요금 : 40,000(신용)", 40000],
             ["요금 : 100,000(신용)", 100000],
@@ -31,51 +30,36 @@ describe("parseMockupFare — 요금 파싱", () => {
             ["요금 : 9,500", 9500],           // 쉼표에서 끊으면 9원
             ["요금 : 1,250,000", 1250000],
         ])("%s → %i원", (raw: string, expected: number) => {
-            expect(parseMockupFare(raw)).toBe(expected);
+            expect(fare(raw)).toBe(expected);
         });
 
         it("라벨과 값이 줄바꿈으로 나뉘어 있어도 읽는다", () => {
             // 접근성 노드가 라벨/값을 별도 노드로 주면 rawText 에서 줄이 갈린다
-            expect(parseMockupFare("요금\n40,000(신용)")).toBe(40000);
+            expect(fare("요금\n:\n40,000(신용)")).toBe(40000);
         });
     });
 
-    describe("🔴 쉼표 없는 정수를 1000배로 뻥튀기하던 버그", () => {
-        // `val >= 10 && val <= 9999` 를 축약형으로 보고 ×1000 하면
-        // 8000원짜리 똥콜이 800만원 초꿀콜로 판정되어 하한가 필터를 그대로 통과한다.
+    describe("🔴 쉼표 없는 정수를 1000배로 뻥튀기하지 않는다", () => {
+        // ×1000 하면 8000원짜리 똥콜이 800만원 초꿀콜로 판정되어 하한가 필터를 그대로 통과한다.
         it.each([
-            ["요금 : 8000", 8000],    // ×1000 하면 8,000,000원
-            ["요금 : 9900", 9900],    // ×1000 하면 9,900,000원
+            ["요금 : 8000", 8000],
+            ["요금 : 9900", 9900],
             ["요금 : 30000", 30000],
             ["요금 : 45000", 45000],
             ["요금 : 120000", 120000],
         ])("%s → %i원", (raw: string, expected: number) => {
-            expect(parseMockupFare(raw)).toBe(expected);
+            expect(fare(raw)).toBe(expected);
         });
     });
 
-    describe("축약 표기는 그대로 지원한다", () => {
-        it.each([
-            ["요금 : 4.5만", 45000],
-            ["요금 : 45", 45000],      // 인성콜 축약형: 세 자리 미만은 천 단위
-            ["요금 : 42.5", 42500],
-            ["요금 : 800", 800000],    // 800원짜리 퀵은 없다 → 80만원 축약으로 본다
-        ])("%s → %i원", (raw: string, expected: number) => {
-            expect(parseMockupFare(raw)).toBe(expected);
-        });
-    });
-
-    /* 🔴 이름표(«요금» · «금액») 없는 숫자는 요금이 아니다 — 화물번호 · 분 · 거리를 요금으로 잡아 좋은 콜이 떨어졌다 (reviews/34 1단계 ②) */
     it("🔴 이름표 없는 숫자는 못 읽음 — 화물24시 화물번호 · «60분»", () => {
-        expect(parseMockupFare("화물번호:3-9483-2159 경기 광주시 → 서울 용산구 운송료 60,000원")).toBeUndefined();
-        expect(parseMockupFare("상차 60분 안보기 1t 카고")).toBeUndefined();
-        expect(parseMockupFare("요금 : 50,000(카드)")).toBe(50000);
-        expect(parseMockupFare("요금 : 4.5만")).toBe(45000);
+        expect(fare("화물번호:3-9483-2159 경기 광주시 → 서울 용산구 운송료 60,000원")).toBeUndefined();
+        expect(fare("상차 60분 안보기 1t 카고")).toBeUndefined();
     });
 
     it("요금 정보가 없으면 undefined", () => {
-        expect(parseMockupFare("")).toBeUndefined();
-        expect(parseMockupFare("상태 : 배송")).toBeUndefined();
+        expect(fare("")).toBeUndefined();
+        expect(fare("상태 : 배송")).toBeUndefined();
     });
 });
 

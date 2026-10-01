@@ -106,6 +106,9 @@ export function normalizeVehicleType(raw?: string | null): string | null {
      */
     const ton = /^(\d+(?:\.\d+)?)\s*톤(?:[/\s].*)?$/.exec(v);
     if (ton && VEHICLE_CAPACITY[`${ton[1]}t`] !== undefined) return `${ton[1]}t`;
+    /** 🚚 인성 상세 «차량 : 트럭-1t» — 앞 «트럭-» 을 떼고 사전의 톤수만(사전에 없으면 그대로 null) */
+    const truck = /^트럭-(\d+(?:\.\d+)?t)$/.exec(v);
+    if (truck && VEHICLE_CAPACITY[truck[1]] !== undefined) return truck[1];
     return null;
 }
 

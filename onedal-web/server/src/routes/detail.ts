@@ -4,8 +4,8 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
-import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseDetailedRawText } from "../utils/parser";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf } from "@onedal/shared";
+import { parseLocationDetails, parseMockupDistance, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -83,6 +83,9 @@ router.post("/", async (req, res) => {
             isSimulated: deviceMode === 'SIMULATION',
         });
 
+        const rawTargetApp = (payload as any).targetApp;
+        const targetApp = isTargetApp(rawTargetApp) ? rawTargetApp : DEFAULT_TARGET_APP;   // 값 표준은 shared 한 벌
+
         const rawText = pendingOrder.rawText;
         if (rawText) {
             // [Dumb Client / Smart Server]
@@ -99,13 +102,18 @@ router.post("/", async (req, res) => {
              * 못 채운 콜은 원달앱이 버린다. 위 `parseLocationDetails` 는 연락처·고객 이름을 꺼내는 데 쓴다.
              */
 
+            // 💰 원달앱 요금이 비었을 때만 — 원달앱과 같은 정의 표 · 같은 숫자 규칙으로 읽는다(못 읽으면 0 → [P3] 경고)
             if (!pendingOrder.fare || pendingOrder.fare <= 0) {
-                pendingOrder.fare = parseMockupFare(rawText) || 0;
+                pendingOrder.fare = pageFareOf(targetApp, 'detail', rawText) ?? 0;
             }
             if (!pendingOrder.distanceKm) {
                 pendingOrder.distanceKm = parseMockupDistance(rawText) || 0;
             }
-            // 🚚 차종은 짐작하지 않는다 — /confirm 이 남긴 목록 차종 · 원문의 «차종 :» 이름표만. 없으면 비워 두고 판정의 차종 문은 건너뛴다
+            // 🚚 차종은 짐작하지 않는다 — /confirm 이 남긴 목록 차종 · 원문 «차종 :» 이름표가 없을 때만 정의 표의 읽는 법(인성 «차량 : 트럭-1t»)으로.
+            //    그래도 없으면 비워 두고 판정의 차종 문은 건너뛴다
+            if (!pendingOrder.vehicleType) {
+                pendingOrder.vehicleType = pageFieldOf(targetApp, 'detail', 'vehicleType', rawText) ?? undefined;
+            }
         }
 
         const checkMatch = (existingOrder: SecuredOrder | PendingOrder) => {
@@ -203,8 +211,6 @@ router.post("/", async (req, res) => {
         const isSimulated = deviceMode === 'SIMULATION' || pendingOrder.id?.startsWith('SIM-') || !!(pendingOrder as any).isSimulated;
         const isManual = !isPreviewCall && !isSimulated
             && (pendingOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL");
-        const rawTargetApp = (payload as any).targetApp;
-        const targetApp = isTargetApp(rawTargetApp) ? rawTargetApp : DEFAULT_TARGET_APP;   // 값 표준은 shared 한 벌
 
         if (isSimulated) {
             pendingOrder.type = 'SIMULATION';

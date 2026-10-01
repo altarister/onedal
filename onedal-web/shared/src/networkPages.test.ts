@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { NETWORK_PAGES } from './networkPages';
-import { PAGE_FIELDS, SCREEN_PAGES } from './pageFields';
-import { TARGET_APPS } from './index';
+import { PAGE_FIELDS, SCREEN_PAGES, type PageField, type ScreenPage } from './pageFields';
+import { TARGET_APPS, type TargetAppType } from './index';
+import { pageFieldOf, pageFareOf } from './pageRead';
 
 /**
  * 📄 **배차망 화면 정의 표 — 서버가 믿고 읽을 수 있나** (reviews/34 2단계 · onedal-46 3단계 조건).
@@ -39,18 +40,13 @@ describe('배차망 화면 정의 표', () => {
         }
     });
 
-    it('공통 문제지 — JS 로 읽어도 원달앱과 같은 답(같은 표 · 노드를 한 칸 띄어 이음)', () => {
+    it('공통 문제지 — 서버가 쓰는 pageFieldOf · pageFareOf 로 읽어도 원달앱과 같은 답(같은 표 · 노드를 한 칸 띄어 이음)', () => {
         const sheet = JSON.parse(readFileSync(join(__dirname, 'pageReadCases.json'), 'utf8')) as { cases: Array<{ network: string; page: string; field: string; texts: string[]; expect: string | null; fare?: number | null; why: string }> };
         for (const c of sheet.cases) {
-            const rows = (NETWORK_PAGES as Record<string, { pages: Record<string, Array<{ field: string; handling: string; read?: string }>> }>)[c.network].pages[c.page] ?? [];
-            const spec = rows.find(r => r.field === c.field && r.handling === 'READ' && r.read !== undefined);
-            const got = spec ? (new RegExp(spec.read!).exec(c.texts.join(' '))?.[1]?.trim() || null) : null;
-            expect(got, `${c.network} ${c.page} ${c.field} — ${c.why}`).toBe(c.expect);
-            /* 💰 숫자로 바꾼 값 — 원달앱 PageFieldRead.fareOf 와 같은 규칙(쉼표 떼고 정수 · 0 이하 못 읽음) */
-            if (c.fare !== undefined) {
-                const n = got === null ? null : Number.parseInt(got.replace(/,/g, ''), 10);
-                expect(n !== null && Number.isFinite(n) && n > 0 ? n : null, `${c.network} ${c.page} 요금 숫자 — ${c.why}`).toBe(c.fare);
-            }
+            const at = `${c.network} ${c.page} ${c.field} — ${c.why}`;
+            expect(pageFieldOf(c.network as TargetAppType, c.page as ScreenPage, c.field as PageField, c.texts), at).toBe(c.expect);
+            /* 💰 숫자로 바꾼 값 — 원달앱 PageFieldRead.fareOf 와 같은 규칙(쉼표 떼고 정수 · 0 이하 못 읽음) · 서버가 쓰는 함수 그대로 */
+            if (c.fare !== undefined) expect(pageFareOf(c.network as TargetAppType, c.page as ScreenPage, c.texts), `${at} 요금 숫자`).toBe(c.fare);
         }
     });
 });

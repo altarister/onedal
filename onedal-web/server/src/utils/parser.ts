@@ -60,48 +60,6 @@ export function parseLocationDetails(rawText: string, searchTag: "[출발지상�
 }
 
 /**
- * 원시 텍스트에서 요금을 읽는다.
- *
- * ⚠️ 이름은 "Mockup"이지만 **목업 전용이 아니다.** `detail.ts`에서 앱이 요금을 못 긁었을 때
- *    (`fare <= 0`) 실제로 호출되는 폴백 경로다. 앱의 리스트 파서는 차종코드 옆 만 단위
- *    축약값("라 2.2")을 읽도록 만들어져 있어, 확정 상세 화면("요금 : 40,000(신용)")에서는
- *    요금을 못 잡고 0을 보낸다. 그때 이 함수가 판정의 유일한 근거가 된다.
- *
- * 표기가 세 종류라 "이 숫자가 원 단위인가 축약형인가"를 판별해야 한다.
- *   ① 쉼표 있음  `40,000`  → **원 단위 확정**. 축약형은 쉼표를 쓰지 않는다
- *   ② 접미사/소수 `4.5만` `42.5` → 축약형
- *   ③ 맨 정수    `45` `45000` → 크기로 판별 (1000 미만이면 축약형)
- */
-export function parseMockupFare(rawText: string): number | undefined {
-    if (!rawText) return undefined;
-
-    // 이름표 있는 요금만 읽는다 (예: "요금 : 40,000(신용)", "요금: 45000", "금액 4.5만")
-    //    쉼표를 포함해서 잡는다 — `\d+` 는 쉼표에서 멈춰 "40,000"을 40으로 읽는다.
-    //    🔴 «수납금액»(화물24시 — 부가세를 더한 합계)은 요금이 아니다 — 잡으면 콜이 실제보다 좋아 보인다(노이즈)
-    const fareMatch = rawText.match(/(?:요금|(?<!수납)금액)\s*[:]?\s*([\d,]+(?:\.\d+)?)\s*(만|천)?/);
-    if (fareMatch) {
-        const hadComma = fareMatch[1].includes(",");
-        const val = parseFloat(fareMatch[1].replace(/,/g, ""));
-        if (!Number.isFinite(val)) return undefined;
-
-        if (fareMatch[2] === "만") return val * 10000;
-        if (fareMatch[2] === "천") return val * 1000;
-
-        // 쉼표는 "원 단위로 쓴 금액"이라는 확실한 신호다 (40,000 → 40000원)
-        if (hadComma) return val;
-
-        // 🔴 1000원 미만일 때만 축약형으로 보고 ×1000 한다 — 범위를 넓히면 "요금 : 8000"(8천원 똥콜)이
-        //    **800만원 초꿀콜**이 되어 하한가 필터를 그대로 통과한다
-        //    (800원짜리 퀵은 존재하지 않으므로 800은 80만원 축약으로 읽는 게 맞다).
-        if (val < 1000) return val * 1000;
-        return val;
-    }
-
-    // 이름표(«요금» · «금액») 없는 숫자는 짐작하지 않는다 — 화물번호 · «60분» 을 요금으로 잡아 좋은 콜이 떨어진다
-    return undefined;
-}
-
-/**
  * [목업 지원 전용] 거리 텍스트 파싱
  */
 export function parseMockupDistance(rawText: string): number | undefined {
