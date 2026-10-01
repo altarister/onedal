@@ -53,7 +53,7 @@ describe('🛣️ 경유 키워드 — 도시와 무관한 변경에 사라지�
 
         const after = updateActiveFilter(USER, { minFare: 30000 });
 
-        expect(after.destinationKeywords).toEqual(['금촌동', '교하동', '문발동']);
+        expect(after.destinationKeywords).toEqual(expect.arrayContaining(['금촌동', '교하동', '문발동']));   // 행정동(금촌1동 …)이 더해져도 법정동 셋은 그대로 산다 (adminDongs)
         expect(after.customCityFilters).toEqual(['파주시', '파주']);
     });
 
@@ -63,7 +63,7 @@ describe('🛣️ 경유 키워드 — 도시와 무관한 변경에 사라지�
         updateActiveFilter(USER, { isActive: false });
         const after = updateActiveFilter(USER, { isActive: true });
 
-        expect(after.destinationKeywords).toHaveLength(3);
+        expect(after.destinationKeywords).toEqual(expect.arrayContaining(['금촌동', '교하동', '문발동']));   // 행정동이 더해져도 법정동 셋은 그대로 (adminDongs)
     });
 
     /**

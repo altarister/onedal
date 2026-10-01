@@ -11,7 +11,7 @@
  * - activeFilter는 직접 수정하고 직접 읽는 1등 시민(first-class citizen)입니다.
  */
 
-import { isHomeCallSince, SAME_NAME_DONGS, reservedPickupRadiusKmOf, wonText } from "@onedal/shared";
+import { isHomeCallSince, SAME_NAME_DONGS, ADMIN_SAME_NAME_DONGS, withAdminDongs, reservedPickupRadiusKmOf, wonText } from "@onedal/shared";
 import { callTargetToday } from "../core/callTargetEvents";
 import db from "../db";
 import { getActiveCalls, computeLoadedPoints, buildOrderSync, filterVersionOf } from "../core/helpers";
@@ -705,6 +705,7 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
     session.activeFilter.destinationKeywords = Array.from(kept).sort();
     session.activeFilter.destinationGroups = grouped;
     session.activeFilter.customCityFilters = Array.from(aliases);
+    refreshAdminDongs(session);   // 지나간 법정동의 행정동도 걷는다 — 이 길은 refreshKeywordTraps 를 안 지난다
 
     slog('필터', `🔄 [지나온 구간] ${at.toFixed(1)}km 지점 — 동 ${before.length} → ${kept.size}개 ` +
         `(뺀 ${before.length - kept.size}개)`);
@@ -898,9 +899,28 @@ export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): 
  *    🔴 목록을 바꾸는 두 길(`updateActiveFilter` · `rebuildPickupList`)이 **이 함수 하나**를 부른다 — 계산이 두 벌이면 한쪽 목록을 빠뜨린다.
  */
 function refreshKeywordTraps(session: ReturnType<typeof getUserSession>): void {
+    refreshAdminDongs(session);
     const f = session.activeFilter;
     f.keywordTraps = trapsForKeywords([...new Set([...(f.destinationKeywords ?? []), ...(f.pickupKeywords ?? [])])]);
     refreshDongSigungu(session);
+}
+
+/**
+ * 🗺️ **도착 목록에 행정동을 함께 싣는다** (기사님 «가» · onedal-69 · f5) — 판단은 shared `withAdminDongs` 한 곳.
+ *    픽커 화면의 행정동 하차(위례동 · 역삼1동 · 처인구 중앙동)가 목적지 안인데 «경유 이탈»로 떨어졌다. 관할 법정동이 묶음에 있는 행정동만 더하고,
+ *    법정동이 빠지면 걷는다(되풀이해도 같다). 원달앱은 이 목록을 그대로 받아 맞춘다(원달앱 코드 무변화).
+ *    🔴 목록을 바꾸는 길 셋 중 둘은 refreshKeywordTraps 를 지나고, 지나온 구간 빼기(applyTraveledTrim)는 끝에서 이것을 직접 부른다.
+ */
+function refreshAdminDongs(session: ReturnType<typeof getUserSession>): void {
+    const f = session.activeFilter;
+    const before = f.destinationGroups ?? {};
+    const grouped = withAdminDongs(before);
+    const had = new Set(Object.values(before).flat()), now = new Set(Object.values(grouped).flat());
+    const removed = new Set([...had].filter(d => !now.has(d)));
+    const added = [...now].filter(d => !had.has(d));
+    if (!removed.size && !added.length) return;
+    f.destinationGroups = grouped;
+    f.destinationKeywords = [...new Set([...(f.destinationKeywords ?? []).filter(k => !removed.has(k)), ...added])].sort();
 }
 
 /**
@@ -915,7 +935,7 @@ function refreshDongSigungu(session: ReturnType<typeof getUserSession>): void {
     const f = session.activeFilter;
     const out: Record<string, string[]> = {};
     for (const dong of f.destinationKeywords ?? []) {
-        if (!SAME_NAME_DONGS.has(dong)) continue;
+        if (!SAME_NAME_DONGS.has(dong) && !ADMIN_SAME_NAME_DONGS.has(dong)) continue;   // 행정동 겹침 이름(위례동 = 수정구 · 송파구)도
         const forms = new Set<string>();
         for (const [parent, dongs] of Object.entries(f.destinationGroups ?? {})) {
             if (!dongs.includes(dong)) continue;

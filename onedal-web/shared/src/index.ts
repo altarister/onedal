@@ -2237,3 +2237,4 @@ export function safeCancelSecOf(w: WaitTimes, targetApp: string | null | undefin
 export * from './logTags';
 export * from './pageFields';
 export * from './sigungu';
+export * from './adminDongMatch';
