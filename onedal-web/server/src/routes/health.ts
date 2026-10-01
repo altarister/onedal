@@ -21,7 +21,7 @@ const router = Router();
 export const BOOTED_AT = new Date();
 
 /** 부팅 시점에 1회만 읽는다. git이 없거나 배포본이 아니면 unknown */
-const GIT_INFO = (() => {
+export const GIT_INFO = (() => {
     try {
         // stdio: "pipe" — git 에러 메시지가 서버 콘솔로 새지 않게 한다
         const opts = { cwd: __dirname, encoding: "utf-8" as const, stdio: "pipe" as const };

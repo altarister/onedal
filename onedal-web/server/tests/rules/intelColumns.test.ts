@@ -85,7 +85,7 @@ describe('원장 수집 규격 — 앱이 올리는 것과 서버가 담는 것�
     });
 
     it('🔴 현황판이 그 칸을 읽을 수 있다 — 받아만 두고 안 내면 없는 것과 같다', () => {
-        const sim = read(join(__dirname, '../../src/routes/sim.ts'));
+        const sim = read(join(__dirname, '../../src/services/intelRows.ts'));   // 원장 읽기는 한 곳(관제웹 · 운영센터 현황판이 같이)
         const sel = sim.slice(sim.indexOf('FROM intel') - 700, sim.indexOf('FROM intel'));
         for (const c of ['vehicleType', 'deliveryDistanceKm', 'scheduleText']) {
             expect(sel).toContain(c);

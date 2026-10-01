@@ -41,9 +41,10 @@ describe('1단계 · 오늘 판 값의 저장 고리 (조사 ①-5)', () => {
     });
 
     it('🔴 세션 로드가 세 칸을 읽는다 — 재접속에 안 풀린다', () => {
-        const i = us.indexOf('session.baseFilter = {');
+        /* 세션 로드의 평소 설정 조립은 baseFilterFromDb 한 함수(세션 · 운영센터 현황판이 같이) */
+        const i = us.indexOf('export function baseFilterFromDb');
         expect(i).toBeGreaterThan(-1);
-        const body = us.slice(i, us.indexOf('} as AutoDispatchFilter', i));
+        const body = us.slice(i, us.indexOf('\n}\n', i));
         expect(body).toMatch(/radiusAuto/);
         expect(body).toMatch(/radiusBaseKm/);
         expect(body).toMatch(/acceptedVehicleTypes/);
@@ -472,8 +473,8 @@ describe('5단계 · 노선/동선은 필터 값이다 — 서버도 알고 저�
         expect(db).toMatch(/route_mode/);
         const i = fm.indexOf('const stmtUpdateFilter');
         expect(fm.slice(i, fm.indexOf('`);', i))).toMatch(/route_mode = \?/);
-        const j = us.indexOf('session.baseFilter = {');
-        expect(us.slice(j, us.indexOf('} as AutoDispatchFilter', j))).toMatch(/routeMode/);
+        const j = us.indexOf('export function baseFilterFromDb');
+        expect(us.slice(j, us.indexOf('\n}\n', j))).toMatch(/routeMode/);
     });
     it('🔴 서버 그물이 동선이면 라인을 안 쓴다 · 바꾸면 다시 그린다', () => {
         /* 그물 입력은 한 벌(`netOpts`)로 묶어 중심점 그물과 걸친 동이 같이 쓴다 */

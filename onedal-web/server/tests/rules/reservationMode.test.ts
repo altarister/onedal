@@ -52,6 +52,6 @@ describe('📅 탈락 이유 «reservation» — 셋이 같은 낱말', () => {
         expect(tally).toMatch(/reservation\?: number;/);
         const client = (p: string) => read(join(__dirname, '../../../client-app/src', p));
         expect(client('statusboard/callVerdict.ts')).toMatch(/reservation: '예약/);
-        expect(client('lib/filterTally.ts')).toContain("['예약', 'reservation']");
+        expect(read(join(__dirname, '../../../shared/src/filterTally.ts'))).toContain("['예약', 'reservation']");   // 성적표 요약은 shared 한 벌(관제웹 · 운영센터)
     });
 });

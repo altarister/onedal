@@ -1,5 +1,5 @@
-import type { FilterTally } from "@onedal/shared";
-import { clockText } from "@onedal/shared";
+import type { FilterTally } from "./index";
+import { clockText } from "./format";
 
 /**
  * 👁️ **방금 스캔에서 무엇이 걸렀나** — 앱이 매 스캔마다 채워 보내는 성적표를 화면 문구로 바꾼다.

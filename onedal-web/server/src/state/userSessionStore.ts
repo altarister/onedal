@@ -374,6 +374,63 @@ function createDefaultSession(userId: string): UserSession {
     };
 }
 
+/**
+ * 🎛️ **user_filters 한 줄 → 평소 설정(baseFilter)** — 세션을 만들 때와 운영센터 현황판(남의 필터를 «읽기만»)이 같이 부른다.
+ *    🔴 세션을 만들지 않고 DB 에 쓰지 않는다(신규 회원의 기본 줄 INSERT 는 세션 만들기 쪽에만 있다).
+ *    줄이 없으면(신규) 서비스 권장 기본값 + 국면 표 기본값.
+ */
+export function baseFilterFromDb(userId: string, filterRow?: any | null): AutoDispatchFilter {
+    if (filterRow === undefined) filterRow = db.prepare("SELECT * FROM user_filters WHERE user_id = ?").get(userId) ?? null;
+    const firstPatch = (() => {
+        try {
+            const { loadFilterValues } = require('./filterManager');
+            return loadFilterValues(userId);
+        } catch (e) {
+            // 세션 생성을 막지 않는다 — 표 기본값이면 콜 잡기는 돈다
+            console.error('🎛️ [필터 값] 읽기 실패 — 표 기본값으로 계속:', (e as Error).message);
+            return filterValuesFrom(null);
+        }
+    })();
+
+    if (!filterRow) {
+        return {
+            ...SERVICE_DEFAULT_FILTER, ...firstPatch,
+            ratePerKm: rateFloorsFrom(firstPatch.callDiscountPct),
+        } as AutoDispatchFilter;
+    }
+    return {
+        ...firstPatch,
+        /* 🔢 원달앱이 Int 로 받는 칸 — DB 에 소수가 들어 있어도 정수로 읽는다(소수 한 칸이면 폰이 응답 전체를 버린다) */
+        minFare: wholeOrAsIs(filterRow.min_fare),   // 최소 금액 — 🔍 필터 «어떤 콜»에서 고친다
+        maxFare: wholeOrAsIs(filterRow.max_fare),
+        excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
+        isActive: Boolean(filterRow.is_active),
+        // ratePerKm 은 파생값 — 콜할인율(현 국면)과 DB 단가표·수수료에서 매번 만든다.
+        // shared 폴백 상수를 쓰면 설정에서 요율을 바꿔도 앱 필터가 안 바뀐다.
+        ratePerKm: rateFloorsFrom(
+            firstPatch.callDiscountPct,
+            filterRow.vehicle_rates ? JSON.parse(filterRow.vehicle_rates) : undefined,
+            filterRow.agency_fee_percent ?? 23,
+        ),
+        // 📐 마름모의 모양 — 국면 밖 한 벌. 칸이 비었으면 기본값 110/110/25
+        ...quadShapeFrom(filterRow as any),
+        /* 🚫 제외 지역 — 국면 밖 한 벌. 깨진 JSON 은 «없음»으로 (규칙 ④) */
+        excludedRegions: safeJsonArray(filterRow.excluded_regions),
+        /**
+         * 📐🚚 **오늘 판 칸 셋** (전수 조사 ①-5) — 안 읽으면 재접속에 풀린다.
+         *    `radius_base_km` 이 NULL 이면 **모른다**로 둔다 — 화면·서버가 기본값
+         *    (`RADIUS_BASE_KM_DEFAULT`)으로 물러선다. 0 으로 읽지 않는다.
+         */
+        radiusAuto: Boolean(filterRow.radius_auto),
+        radiusBaseKm: Number.isFinite(filterRow.radius_base_km) ? filterRow.radius_base_km : undefined,
+        acceptedVehicleTypes: safeJsonArray(filterRow.accepted_vehicle_types),
+        /* 🛣️🔷 NULL(옛 행)은 노선 — 기본이 노선이다 (조사 ①-9) */
+        routeMode: filterRow.route_mode == null ? true : Boolean(filterRow.route_mode),
+        /* 📅 NULL(옛 행)은 오늘 콜만 — 기본값과 같다 */
+        reservationMode: filterRow.reservation_mode ?? 'today',
+    } as AutoDispatchFilter;
+}
+
 /** 있는 세션만 — 없으면 만들지 않는다(막힌 계정 판단처럼 «읽기만» 하는 자리 · core/accountGate) */
 export function peekUserSession(userId: string): UserSession | undefined {
     return sessions.get(userId);
@@ -424,50 +481,9 @@ export function getUserSession(userId: string): UserSession {
              * 🎛️ **값 다섯의 원천은 `user_filters` 한 행이다**.
              *    require 지연 — filterManager ↔ 여기 순환 방지.
              */
-            const firstPatch = (() => {
-                try {
-                    const { loadFilterValues } = require('./filterManager');
-                    return loadFilterValues(userId);
-                } catch (e) {
-                    // 세션 생성을 막지 않는다 — 표 기본값이면 콜 잡기는 돈다
-                    console.error('🎛️ [필터 값] 읽기 실패 — 표 기본값으로 계속:', (e as Error).message);
-                    return filterValuesFrom(null);
-                }
-            })();
-
             if (filterRow) {
                 // Restore saved filter into baseFilter — 국면 파생 조각 + user_filters 잔여 칸
-                session.baseFilter = {
-                    ...firstPatch,
-                    /* 🔢 원달앱이 Int 로 받는 칸 — DB 에 소수가 들어 있어도 정수로 읽는다(소수 한 칸이면 폰이 응답 전체를 버린다) */
-                    minFare: wholeOrAsIs(filterRow.min_fare),   // 최소 금액 — 🔍 필터 «어떤 콜»에서 고친다
-                    maxFare: wholeOrAsIs(filterRow.max_fare),
-                    excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
-                    isActive: Boolean(filterRow.is_active),
-                    // ratePerKm 은 파생값 — 콜할인율(현 국면)과 DB 단가표·수수료에서 매번 만든다.
-                    // shared 폴백 상수를 쓰면 설정에서 요율을 바꿔도 앱 필터가 안 바뀐다.
-                    ratePerKm: rateFloorsFrom(
-                        firstPatch.callDiscountPct,
-                        filterRow.vehicle_rates ? JSON.parse(filterRow.vehicle_rates) : undefined,
-                        filterRow.agency_fee_percent ?? 23,
-                    ),
-                    // 📐 마름모의 모양 — 국면 밖 한 벌. 칸이 비었으면 기본값 110/110/25
-                    ...quadShapeFrom(filterRow as any),
-                    /* 🚫 제외 지역 — 국면 밖 한 벌. 깨진 JSON 은 «없음»으로 (규칙 ④) */
-                    excludedRegions: safeJsonArray(filterRow.excluded_regions),
-                    /**
-                     * 📐🚚 **오늘 판 칸 셋** (전수 조사 ①-5) — 안 읽으면 재접속에 풀린다.
-                     *    `radius_base_km` 이 NULL 이면 **모른다**로 둔다 — 화면·서버가 기본값
-                     *    (`RADIUS_BASE_KM_DEFAULT`)으로 물러선다. 0 으로 읽지 않는다.
-                     */
-                    radiusAuto: Boolean(filterRow.radius_auto),
-                    radiusBaseKm: Number.isFinite(filterRow.radius_base_km) ? filterRow.radius_base_km : undefined,
-                    acceptedVehicleTypes: safeJsonArray(filterRow.accepted_vehicle_types),
-                    /* 🛣️🔷 NULL(옛 행)은 노선 — 기본이 노선이다 (조사 ①-9) */
-                    routeMode: filterRow.route_mode == null ? true : Boolean(filterRow.route_mode),
-                    /* 📅 NULL(옛 행)은 오늘 콜만 — 기본값과 같다 */
-                    reservationMode: filterRow.reservation_mode ?? 'today',
-                } as AutoDispatchFilter;
+                session.baseFilter = baseFilterFromDb(userId, filterRow);
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)
                 //
@@ -495,10 +511,7 @@ export function getUserSession(userId: string): UserSession {
                 logRoadmapEvent('부팅', "서버", `[Session DB Load] 유저 ${userId} 복구된 원본 필터(Raw DB): \n` + JSON.stringify(filterRow, null, 2));
             } else {
                 // 신규 유저: 서비스 권장 기본값 + 국면 표 기본값(첫짐 파생)으로 초기화
-                session.baseFilter = {
-                    ...SERVICE_DEFAULT_FILTER, ...firstPatch,
-                    ratePerKm: rateFloorsFrom(firstPatch.callDiscountPct),
-                } as AutoDispatchFilter;
+                session.baseFilter = baseFilterFromDb(userId, null);
                 session.activeFilter = {
                     ...session.baseFilter,
                     isSharedMode: false,

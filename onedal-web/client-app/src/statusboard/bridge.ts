@@ -38,7 +38,7 @@
  */
 export { useFilterConfig } from '../hooks/useFilterConfig';
 export { useDeviceStore } from '../stores/deviceStore';
-export { summarizeTally } from '../lib/filterTally';
+export { summarizeTally } from '@onedal/shared';
 export { apiBase } from '../lib/serverTarget';
 /**
  * 📍 **서버가 아는 «내 자리»** — 화면이 제 손으로 정한 값과 대조해

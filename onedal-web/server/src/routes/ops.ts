@@ -6,7 +6,11 @@ import {
     type OpsMemberDetail, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
 } from "@onedal/shared";
 import db from "../db";
-import { getUserDevicesSnapshot } from "./devices";
+import { getUserDevicesSnapshot, getActiveDevicesSnapshot } from "./devices";
+import { BOOTED_AT, GIT_INFO } from "./health";
+import { peekUserSession, baseFilterFromDb } from "../state/userSessionStore";
+import { intelRowsOf } from "../services/intelRows";
+import type { OpsBoardFilter, OpsBoardIntel, OpsBoardPhone, OpsBoardServer } from "@onedal/shared";
 import { latestContent, isContentKind } from "./contents";
 import { noticeOf, type NoticeRow } from "./notices";
 import { slog } from "../utils/fileLogger";
@@ -32,6 +36,21 @@ export function audit(adminId: string, action: string, target: string | null, de
 
 /** 👀 같은 관리자가 같은 회원을 3초 안에 다시 열면 안 적는다 — 화면이 두 번 그려도 한 줄 */
 const lastViewed = new Map<string, number>();
+/**
+ * 🧰 **현황판 열람 — 열어 둔 동안 한 줄** — 현황판은 10초마다 다시 읽는다. 같은 관리자 · 같은 회원(전체 보기는 대상 없음)으로
+ *    마지막 읽기 뒤 60초 안에 다시 읽으면 줄을 안 더하고 «마지막 읽기»만 늘린다 — 60초 넘게 안 보다 다시 열면 새 줄.
+ *    phones · filter · intel 셋이 같은 묶음을 쓴다(셋을 한 번에 읽어도 한 줄).
+ */
+export const BOARD_VIEW_GAP_MS = 60_000;
+const lastBoardRead = new Map<string, number>();
+function auditBoardView(adminId: string, target: string | null): void {
+    const key = `${adminId}|${target ?? '*'}`, now = Date.now();
+    const last = lastBoardRead.get(key);
+    lastBoardRead.set(key, now);
+    if (last != null && now - last <= BOARD_VIEW_GAP_MS) return;
+    audit(adminId, '현황판 봄', target, '/board');
+}
+
 function auditView(adminId: string, target: string, detail: string): void {
     const key = `${adminId}|${target}`, now = Date.now();
     if (now - (lastViewed.get(key) ?? 0) < 3000) return;
@@ -273,6 +292,49 @@ router.post("/calls/:id/note", (req, res) => {
     }
     audit(adminId, '통화 결과 적음', o.userId, `${o.id.slice(-6)} · ${stopType === 'pickup' ? '상차' : '하차'} · ${unit ?? '-'} × ${quantity ?? '-'}${memo ? ` · ${memo.slice(0, 20)}` : ''}`);
     return res.json(opsCallOf(db.prepare(`${ORDER_SQL} WHERE o.id = ?`).get(o.id) as OrderRow));
+});
+
+// ── 현황판(관제웹 현황판과 같은 칸 · 읽기만 · 🔴 남의 세션을 만들거나 깨우지 않는다) ──────────
+
+const boardMemberOf = (req: Request): string | null => typeof req.query.memberId === 'string' && req.query.memberId ? req.query.memberId : null;
+
+router.get("/board/server", (req, res) => {
+    const io = req.app.get("io");
+    const seen = getActiveDevicesSnapshot(io).map(d => d.lastSeen).filter(n => n > 0);
+    const body: OpsBoardServer = {
+        bootedAt: BOOTED_AT.toISOString(), commit: GIT_INFO.commit, branch: GIT_INFO.branch, committedAt: GIT_INFO.committedAt,
+        dbFile: process.env.DB_FILE || "local.db",
+        sockets: { web: io?.of("/").sockets.size ?? 0, ops: io?.of("/ops").sockets.size ?? 0 },
+        lastScrapAt: seen.length ? new Date(Math.max(...seen)).toISOString() : null,
+    };
+    res.json(body);
+});
+
+router.get("/board/phones", (req, res) => {
+    const io = req.app.get("io"), memberId = boardMemberOf(req);
+    auditBoardView(adminOf(req), memberId);
+    const owners = memberId ? [memberId] : (db.prepare(`SELECT DISTINCT user_id FROM user_devices`).all() as { user_id: string }[]).map(r => r.user_id);
+    const body: OpsBoardPhone[] = owners.flatMap(uid => getUserDevicesSnapshot(uid, io).map(({ lat, lng, ...rest }) =>
+        ({ ...rest, memberId: uid, hasLocation: lat != null && lng != null })));
+    res.json(body);
+});
+
+router.get("/board/filter", (req, res) => {
+    const memberId = boardMemberOf(req);
+    if (!memberId) return res.status(400).json({ error: "회원을 골라 주세요." });
+    auditBoardView(adminOf(req), memberId);
+    const session = peekUserSession(memberId);
+    const body: OpsBoardFilter = { active: session?.activeFilter ?? null, base: session?.baseFilter ?? baseFilterFromDb(memberId) };
+    return res.json(body);
+});
+
+router.get("/board/intel", (req, res) => {
+    const memberId = boardMemberOf(req);
+    auditBoardView(adminOf(req), memberId);
+    const asked = Number.parseInt(String(req.query.limit ?? ''), 10);
+    const limit = Math.min(200, Math.max(1, Number.isFinite(asked) ? asked : 40));
+    const body: OpsBoardIntel = intelRowsOf({ userId: memberId, limit });
+    res.json(body);
 });
 
 // ── 공지 ────────────────────────────────────────────────

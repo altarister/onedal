@@ -18,6 +18,7 @@ import { ICHEON_ROUND_TRIP, ICHEON_FIVE_OK } from "../core/simScenarioIcheon";
 import { GANGNAM_FIVE_OK } from "../core/simScenarioGangnam";
 import { slog } from "../utils/fileLogger";
 import { waitsOf, globalWaits } from "../state/waits";
+import { intelRowsOf } from "../services/intelRows";
 
 const router = Router();
 
@@ -135,29 +136,14 @@ router.get("/intel", (req, res) => {
     const asked = Number.parseInt(String(req.query.limit ?? ''), 10);
     const limit = Math.min(200, Math.max(1, Number.isFinite(asked) ? asked : 40));
 
-    const rows = db.prepare(
-        /**
-         * 📋 **리스트 화면이 준 것을 그대로 낸다** (기사님 지시).
-         *    검산이 «못 잰 축»으로 적던 **차종·배송거리**가 여기서 나간다 —
-         *    앱은 늘 보내고 있었고 서버 INSERT 가 버리던 것이다 (`db.ts` intel 주석).
-         * 🔴 **망마다 다른 칸을 만들지 않는다** — 안 주는 망은 null 이고 `targetApp` 이 답한다.
-         *    `scheduleText` 는 «급송·낼09시» 원문 그대로다. **여기서 해석하지 않는다** —
-         *    무엇으로 나눌지는 실제로 오는 말을 세어 본 뒤 정한다 (규칙 ⑤-4 ②).
-         */
-        `SELECT id, type, pickup, dropoff, fare, timestamp, device_id, targetApp,
-                itemSize, pickupDistanceKm, tagsText,
-                vehicleType, deliveryDistanceKm, scheduleText, postTime, rawText,
-                pickupX, pickupY, dropoffX, dropoffY, verdict
-           FROM intel
-          ORDER BY id DESC
-          LIMIT ?`
-    ).all(limit) as Array<Record<string, unknown>>;
+    /* 📋 리스트 화면이 준 것을 그대로 — 원장 읽기는 services/intelRows 한 곳(운영센터 현황판과 같이) */
+    const { rows, total } = intelRowsOf({ limit });
 
     return res.json({
         ok: true,
         limit,
         /** 🔴 **«전부»가 아니라 «최근 N»이다** — 화면이 그렇게 말할 수 있게 총수를 함께 낸다 */
-        total: (db.prepare("SELECT COUNT(*) as c FROM intel").get() as { c: number }).c,
+        total,
         rows,
     });
 });

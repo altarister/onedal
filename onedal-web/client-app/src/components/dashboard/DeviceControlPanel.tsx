@@ -6,7 +6,7 @@ import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "@onedal/shared";
 import { handBandOf } from "../../lib/handBand";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
-import { summarizeTally } from "../../lib/filterTally";
+import { summarizeTally } from "@onedal/shared";
 import type { AutoDispatchFilter } from "@onedal/shared";
 
 

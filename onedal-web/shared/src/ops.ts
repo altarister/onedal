@@ -1,5 +1,5 @@
 import type { Color } from './judge';
-import type { TargetAppType } from './index';
+import type { TargetAppType, DeviceSession, AutoDispatchFilter } from './index';
 import type { ContentKind } from './join';
 import type { WordKind } from './pageFields';
 import type { CargoUnit } from './cargoUnits';
@@ -222,3 +222,35 @@ export function opsMemberStatus(m: AccountFacts, today: string, hasActiveCall = 
     }
     return { blocked, text: '사용 중', tone: 'ok' };
 }
+
+// ── 운영센터 현황판(/api/ops/board/*) — 관제웹 현황판과 같은 칸 · 읽기만 ─────────────
+
+/** 서버 상태 — 부팅 · 빌드 · DB 파일 · 붙은 소켓 수 · 마지막 폰 보고 */
+export interface OpsBoardServer {
+    bootedAt: string;
+    commit: string; branch: string; committedAt: string;
+    dbFile: string;
+    /** web = 기사 관제웹 소켓(기본 이름공간) · ops = 운영센터 소켓(/ops) */
+    sockets: { web: number; ops: number };
+    /** 기기 세션 lastSeen 가운데 가장 늦은 것(ISO) — 붙은 폰이 없으면 null */
+    lastScrapAt: string | null;
+}
+
+/** 폰 한 대 — 기기 세션 칸 그대로(좌표 빼고) + 주인 · 위치 있음 여부(좌표는 지도 문 몫) */
+export type OpsBoardPhone = Omit<DeviceSession, 'lat' | 'lng'> & { memberId: string; hasLocation: boolean };
+
+/** 필터 전문 — active 는 오늘 세션이 있을 때만(없으면 null · 세션을 만들지 않는다) · base 는 평소 설정 */
+export interface OpsBoardFilter { active: AutoDispatchFilter | null; base: AutoDispatchFilter }
+
+/** 원장(intel) 한 줄 — 서버 칸 이름 그대로(device_id) · verdict 는 앱 판정(pass · 떨어뜨린 축 · locked · null) — 화면은 옮겨 적기만 */
+export interface IntelRow {
+    id: number; type?: string | null; pickup: string; dropoff: string; fare: number | null;
+    timestamp: string; device_id: string | null; targetApp: string | null;
+    itemSize?: string | null; pickupDistanceKm: number | null; tagsText?: string | null;
+    vehicleType: string | null; deliveryDistanceKm: number | null; scheduleText: string | null;
+    postTime: string | null; rawText: string | null;
+    pickupX?: number | null; pickupY?: number | null; dropoffX?: number | null; dropoffY?: number | null;
+    verdict: string | null;
+}
+/** 최근 N 줄 + 그 범위의 총수(«전부»가 아니라 «최근 N») */
+export interface OpsBoardIntel { rows: IntelRow[]; total: number }
