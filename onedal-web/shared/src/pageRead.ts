@@ -7,20 +7,23 @@ import { NETWORK_PAGES } from './networkPages';
  * 그 배차망 · 그 화면에서 칸이 맞고 «읽는다(READ)»이며 읽는 법(`read`)이 있는 줄 하나로 읽는다 — 배차망 이름으로 가르지 않는다.
  * 노드 글 목록은 한 칸 띄어 잇는다(원달앱과 같은 꼴). 이미 이은 원문은 그대로 — 읽는 법이 `\s` 로 줄바꿈도 넘는다.
  * 원달앱과 같은 원문에 같은 답을 내는지는 공통 문제지 `pageReadCases.json` 이 묻는다.
+ * 한 화면에 같은 칸이 여러 조각으로 나오면(인성 상세의 배차사 · 출발 고객 · 도착 고객 …) 줄마다 조각 이름 `part` 가 붙는다 —
+ * 조각을 주면 그 조각 줄을, 안 주면 조각 없는 줄을 읽는다.
  */
 const compiled = new Map<string, RegExp | null>();
-const readOf = (app: TargetAppType, page: ScreenPage, field: PageField): RegExp | null => {
-    const key = `${app}|${page}|${field}`;
+const readOf = (app: TargetAppType, page: ScreenPage, field: PageField, part: string): RegExp | null => {
+    const key = `${app}|${page}|${field}|${part}`;
     if (!compiled.has(key)) {
-        const spec = NETWORK_PAGES[app]?.pages[page]?.find(r => r.field === field && r.handling === 'READ' && r.read !== undefined);
+        const spec = NETWORK_PAGES[app]?.pages[page]?.find(r => r.field === field && ((r as { part?: string }).part ?? '') === part
+            && r.handling === 'READ' && r.read !== undefined);
         compiled.set(key, spec?.read !== undefined ? new RegExp(spec.read) : null);
     }
     return compiled.get(key)!;
 };
 
-/** 그 화면 · 그 칸의 값 글자 — 정의에 읽는 법이 없거나 원문에 없으면 null(지어내지 않는다) */
-export function pageFieldOf(app: TargetAppType, page: ScreenPage, field: PageField, text: string | readonly string[]): string | null {
-    const re = readOf(app, page, field);
+/** 그 화면 · 그 칸(· 그 조각)의 값 글자 — 정의에 읽는 법이 없거나 원문에 없으면 null(지어내지 않는다) */
+export function pageFieldOf(app: TargetAppType, page: ScreenPage, field: PageField, text: string | readonly string[], part = ''): string | null {
+    const re = readOf(app, page, field, part);
     if (!re) return null;
     const joined = typeof text === 'string' ? text : text.join(' ');
     return re.exec(joined)?.[1]?.trim() || null;

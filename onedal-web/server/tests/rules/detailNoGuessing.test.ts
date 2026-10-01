@@ -24,7 +24,7 @@ describe('🔎 상세 원문 짐작 없음', () => {
  *    숫자 규칙은 원달앱 PageFieldRead.fareOf 와 같다 — 쉼표 떼고 정수 · 0 이하는 못 읽음(만 · 천 · 축약을 짐작하지 않는다).
  */
 const SHEET = JSON.parse(readFileSync(join(__dirname, '../../../shared/src/pageReadCases.json'), 'utf8')) as
-    { cases: Array<{ network: any; page: any; field: any; texts: string[]; expect: string | null; fare?: number | null; why: string }> };
+    { cases: Array<{ network: any; page: any; field: any; part?: string; texts: string[]; expect: string | null; fare?: number | null; why: string }> };
 
 describe('💰 상세 요금 — 정의 표대로', () => {
     it('🔴 상세 길이 요금을 짐작 함수가 아니라 정의 표로 읽는다', () => {
@@ -34,7 +34,7 @@ describe('💰 상세 요금 — 정의 표대로', () => {
         expect(read('utils/parser.ts')).not.toMatch(/parseMockupFare/);
     });
     it.each(SHEET.cases.map(c => [`${c.network} ${c.page} ${c.field} — ${c.why}`, c] as const))('공통 문제지: %s', (_, c) => {
-        expect(pageFieldOf(c.network, c.page, c.field, c.texts)).toBe(c.expect);
+        expect(pageFieldOf(c.network, c.page, c.field, c.texts, c.part)).toBe(c.expect);   // 조각(part)이 있는 줄은 그 조각으로
         if (c.fare !== undefined) expect(pageFareOf(c.network, c.page, c.texts)).toBe(c.fare);   // 숫자로 바꾼 값도 원달앱 fareOf 와 같다
     });
     it('숫자 규칙 — 원달앱 fareOf 와 같다', () => {
