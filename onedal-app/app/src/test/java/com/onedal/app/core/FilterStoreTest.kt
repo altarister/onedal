@@ -65,6 +65,8 @@ class FilterStoreTest {
 
     @Test fun `깨진 원소(null)만 뺀다 — 목록을 통째로 비우지 않는다`() {
         assertEquals(listOf("가락동"), of("""{"destinationKeywords":["가락동",null]}""").destinationKeywords)
+        /* 섞인 배열 — 객체 · 배열 원소만 빠지고 글자는 남는다(인성 옛것은 목록을 통째로 비웠다 · 일부러 바꾼 것) */
+        assertEquals(listOf("가락동", "문정동"), of("""{"destinationKeywords":["가락동",{"a":1},["x"],"문정동"]}""").destinationKeywords)
     }
 
     @Test fun `정수 칸은 소수면 버림 · 숫자 글자도 읽는다 · 단가표 숫자 아니면 0`() {
