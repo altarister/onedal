@@ -2,6 +2,7 @@ import { Router } from "express";
 import { execSync } from "child_process";
 import { slog } from "../utils/fileLogger";
 import { requireAuth } from "../middlewares/authMiddleware";
+import { isLiveServer } from "../config/env";
 
 const router = Router();
 
@@ -58,7 +59,8 @@ router.get("/", (_req, res) => {
      *    틀어졌을 때 화면과 판정이 갈라진다.
      * 🔴 인증 뒤(`/detail`)가 아니라 **여기**에 둔다 — 로그인 전에도 맞춰야 한다.
      */
-    res.json({ ok: true, now: Date.now(), bootedAt: BOOTED_AT.toISOString(), ...uptime() });
+    /* 🔐 `live` — 로그인 화면이 «개발 우회 로그인» 버튼을 가르는 사실 하나(참/거짓 · onedal-1f). 정찰 정보(커밋 · DB 파일)는 여전히 /detail */
+    res.json({ ok: true, now: Date.now(), bootedAt: BOOTED_AT.toISOString(), live: isLiveServer(), ...uptime() });
 });
 
 /** GET /api/health/detail — 로그인 필요. 배포 진단용 상세 정보 */
