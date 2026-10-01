@@ -61,8 +61,7 @@ export default function Pending() {
                 </SectionCard>
             )}
             <SectionCard title="기다리는 동안">
-                <p className="text-sm text-text-muted">앱 두 개를 미리 받아 설치해 두면 승인 직후 바로 쓸 수 있습니다.</p>
-                <Button asChild className="w-full"><Link to="/join/apps">앱 받기 · 설치 안내</Link></Button>
+                <p className="text-sm text-text-muted">승인되면 설치 안내가 열립니다 — 앱 받기는 승인된 계정만 됩니다.</p>
             </SectionCard>
             <div className="flex gap-2">
                 <Button type="button" variant="outline" className="flex-1" onClick={() => setTick(t => t + 1)}>다시 보기</Button>

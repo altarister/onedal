@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { RELEASE_UPLOAD_HEADERS } from '@onedal/shared';
 import type {
-    OpsAnomaliesReply, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsNotice, OpsNoticePost, OpsPhone, OpsSuspendRequest,
+    OpsAnomaliesReply, OpsAudit, OpsCall, OpsCallNoteWrite, OpsContent, OpsContentKind, OpsContentSave, OpsCounts, OpsMember, OpsMemberDetail, OpsMinimumRelease, OpsNotice, OpsNoticePost, OpsPhone, OpsRelease, OpsSuspendRequest,
 } from '@onedal/shared';
 import { client, errorTextOf, statusOf } from './client';
 import { createListeners } from './listeners';
@@ -9,7 +10,7 @@ import { createListeners } from './listeners';
  * 🏢 **운영센터가 서버 문 `/api/ops/*` 를 부르는 곳 — 이 파일 하나** (reviews/29 3단계 · 서버 `routes/ops.ts` · 규격 shared `ops.ts`).
  *    쓰기마다 서버가 `ops_audit` 한 줄을 남긴다 — 화면은 기록을 따로 적지 않는다. 회원 상세 열람도 서버가 적는다(«회원 봄»).
  *    🔴 서버가 안 되면 쪽이 «서버 응답이 없습니다 — 다시»를 보인다 — 예시 자료로 대신 그리지 않는다(장애를 가리면 노이즈).
- *    통계는 서버의 관리자 통계 문(`/api/stats/flows/admin`)을 읽는다. 아직 서버 문이 없는 쪽(앱 배포 · 멤버 대조 · 현황판)은 `example.ts` 의 예시 자료를 쓰고 쪽 머리에 그렇다고 적는다.
+ *    통계는 서버의 관리자 통계 문(`/api/stats/flows/admin`)을 읽는다. 아직 서버 문이 없는 쪽(멤버 대조 · 현황판)은 `example.ts` 의 예시 자료를 쓰고 쪽 머리에 그렇다고 적는다.
  */
 const get = async <T,>(path: string) => (await client.get<T>(`/ops${path}`)).data;
 const post = async <T,>(path: string, body?: unknown) => (await client.post<T>(`/ops${path}`, body)).data;
@@ -41,6 +42,20 @@ export const api = {
     calls: (memberId?: string) => get<OpsCall[]>(memberId ? `/calls?memberId=${encodeURIComponent(memberId)}` : '/calls'),
     /** 통화 결과 적기 — 서버가 그 콜의 통화 단계 행에 적는다(기사 소켓과 같은 길 · 400 칸 이상 · 404 진행 중 아님 · 409 기사님 현장 실측 있음) */
     writeCallNote: (id: string, note: OpsCallNoteWrite) => post<OpsCall>(`/calls/${id}/note`, note),
+
+    /** 📦 앱 배포 — 올린 판 전부(최신은 판 번호 최대 · 최소는 앱마다 한 줄 — 서버가 정한다) */
+    releases: () => get<OpsRelease[]>('/releases'),
+    setMinimum: (app: OpsRelease['app'], versionCode: number) => (async () => (await client.put<OpsRelease[]>('/ops/releases/minimum', { app, versionCode } satisfies OpsMinimumRelease)).data)(),
+    /** APK 올리기 — 본문은 파일 바이트 그대로(메모리 복사 없음) · 판 정보는 shared 머리 칸 넷(글자는 encodeURIComponent — 서버가 decode) · 같은 판 409 · 상한 413 */
+    uploadRelease: async (file: File, app: OpsRelease['app'], versionName: string, versionCode: number, onProgress: (pct: number) => void) =>
+        (await client.post<OpsRelease[]>('/ops/releases', file, {
+            headers: {
+                'Content-Type': 'application/vnd.android.package-archive',
+                [RELEASE_UPLOAD_HEADERS.app]: app, [RELEASE_UPLOAD_HEADERS.versionCode]: String(versionCode),
+                [RELEASE_UPLOAD_HEADERS.versionName]: encodeURIComponent(versionName), [RELEASE_UPLOAD_HEADERS.fileName]: encodeURIComponent(file.name),
+            },
+            onUploadProgress: e => onProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0),
+        })).data,
 
     /** 📊 콜 흐름 통계(관리자 문 `/api/stats/flows/admin` · 회원 칸 포함) — 기본 최근 28일. 평균은 요금을 아는 콜로만(없으면 null) */
     statsAdmin: async (groupBy: StatsGroupBy) => (await client.get<StatsAdminReply>('/stats/flows/admin', { params: { groupBy } })).data,

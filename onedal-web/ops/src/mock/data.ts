@@ -1,8 +1,8 @@
-import type { OpsMember, OpsMemberCheck, OpsPhone, OpsRelease } from '@onedal/shared';
+import type { OpsMember, OpsMemberCheck, OpsPhone } from '@onedal/shared';
 
 /**
  * 🧪 **예시 자료 — 세 사람(기사님 · 딸 · 와이프) · 폰 넷 · 콜 몇 건** (reviews/29 «가족 1차판»).
- *    서버 문이 아직 없는 쪽(앱 배포 · 멤버 대조 · 현황판)만 `api/example.ts` 로 읽는다 — 서버 쪽은 이 파일을 모른다.
+ *    서버 문이 아직 없는 쪽(멤버 대조 · 현황판)만 `api/example.ts` 로 읽는다 — 서버 쪽은 이 파일을 모른다.
  *    🔴 이름 · 전화 · 주소는 전부 지어낸 것이다. 가족 1차판이라 관리자는 원문을 본다 — 가림은 남을 받을 때 켠다(reviews/29 기준 3).
  */
 
@@ -46,12 +46,6 @@ export const PHONES: OpsPhone[] = [
     { deviceId: 'd-1b9e6c48-3f2a-4d7b-a0c5-7e4f1a8d2c44', deviceName: '딸 운전석 폰', memberId: 'm-driver2', status: 'ONLINE', offlineReason: null, lastSeenAt: d(0, 9, 57), appVersion: '1.0', mode: 'ALARM', locationOn: true },
 ];
 for (const m of MEMBERS) m.phones = PHONES.filter(p => p.memberId === m.id);
-
-export const RELEASES: OpsRelease[] = [
-    { app: 'scanner', version: '2.9.12', versionCode: 59, fileName: 'onedal-app-2.9.12.apk', sha256: 'a3f9…c1e2', uploadedAt: d(3, 8, 40), isLatest: true, isMinimum: false },
-    { app: 'scanner', version: '2.9.11', versionCode: 58, fileName: 'onedal-app-2.9.11.apk', sha256: '77b0…9d4a', uploadedAt: d(10, 8, 40), isLatest: false, isMinimum: true },
-    { app: 'dashboard', version: '1.0', versionCode: 1, fileName: 'onedal-dashboard-1.0.apk', sha256: '0c1d…ee31', uploadedAt: d(10, 8, 45), isLatest: true, isMinimum: true },
-];
 
 const thisMonth = localDay(today).slice(0, 7);
 export const CHECKS: OpsMemberCheck[] = [

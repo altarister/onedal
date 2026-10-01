@@ -1,6 +1,7 @@
 import axios from 'axios';
-import type { Agreement, ContentKind, ContentReply, JoinMeReply, JoinRequest } from '@onedal/shared';
+import type { Agreement, ContentKind, ContentReply, DownloadLink, JoinMeReply, JoinRequest } from '@onedal/shared';
 import { apiClient } from './apiClient';
+import { socketBase } from '../lib/serverTarget';
 
 /**
  * 📝 **가입 · 탈퇴 · 페이지 글 — 서버 문을 부르는 곳은 이 파일 하나** (reviews/29 2단계 · 서버 `routes/join.ts` · `routes/contents.ts`).
@@ -48,4 +49,22 @@ export async function agree(agreements: Agreement[]): Promise<JoinMeReply> {
 
 export async function submitWithdraw(): Promise<{ ok: true }> {
     return (await apiClient.post<{ ok: true }>('/join/withdraw')).data;
+}
+
+/**
+ * 📥 앱 받기 링크 — 앱별 최신 판 + 10분 열쇠 주소(폰 브라우저가 그 주소를 연다 — 머리 칸을 못 실어 서버가 열쇠를 준다).
+ * 🔴 던지지 않는다: 403(승인 전 · 막힘)은 blocked · 로그인 안 됨(401)은 missing · 그 밖은 failed. 표가 비면 links 가 [].
+ */
+export async function fetchDownloadLinks(): Promise<{ links: DownloadLink[]; blocked: boolean; missing: boolean; failed: boolean }> {
+    try {
+        const r = await apiClient.post<DownloadLink[]>('/downloads/links');
+        // 서버가 주는 주소는 `/api/downloads/<열쇠>` — 브라우저는 같은 출처라 그대로, 관제앱(다른 출처)은 서버 주소를 앞에 붙인다
+        const origin = socketBase() ?? '';
+        return { links: (r.data ?? []).map(l => ({ ...l, url: origin + l.url })), blocked: false, missing: false, failed: false };
+    } catch (e) {
+        const status = axios.isAxiosError(e) ? e.response?.status : undefined;
+        if (status === 403) return { links: [], blocked: true, missing: false, failed: false };
+        if (status === 401) return { links: [], blocked: false, missing: true, failed: false };
+        return { links: [], blocked: false, missing: false, failed: true };
+    }
 }

@@ -9,7 +9,7 @@ import { join } from 'path';
  */
 const SRC = join(__dirname, '../../../ops/src');
 const read = (f: string) => readFileSync(join(SRC, f), 'utf8');
-const EXAMPLE_PAGES = ['Releases', 'MembersCheck', 'Board'];
+const EXAMPLE_PAGES = ['MembersCheck', 'Board'];
 const SERVER_PAGES = readdirSync(join(SRC, 'pages')).map(f => f.replace(/\.tsx$/, '')).filter(p => !EXAMPLE_PAGES.includes(p) && p !== 'Login');
 
 describe('🏢 운영센터 자료', () => {

@@ -16,10 +16,13 @@ let socket: Socket | null = null;
 const connectedChanged = createListeners();
 
 export function connectSignal(): void {
-    if (socket) return;
+    if (socket) disconnectSignal();   // 다시 로그인이면 옛 소켓(옛 토큰)을 닫고 새로 — 둘이 살면 신호가 두 번 온다
     socket = io(`${base}/ops`, { transports: ['websocket'], auth: cb => cb({ token: token() }) });
     socket.on('connect', () => connectedChanged.notify());
     socket.on('disconnect', () => connectedChanged.notify());
+    // 서버가 거절한 까닭(«운영센터 허락이 없는 계정» · 토큰) 이 콘솔에 한 줄 — «왜 끊김인지» 보이게. 화면은 «○ 신호 끊김» + 30초 GET 으로 물러선다
+    socket.on('connect_error', e => console.warn(`🔔 [운영센터 신호] 연결 거절 — ${e.message}`));
+    connectedChanged.notify();
 }
 
 export function disconnectSignal(): void {
@@ -39,6 +42,8 @@ export function useSignalConnected(): boolean {
 
 /** «콜이 바뀌었다» 신호를 듣는다(이벤트 이름은 글자 그대로 — audit:socket 이 글자로 센다) — 다시 이어졌을 때도 한 번 부른다(끊긴 사이 놓친 것을 다시 읽게) */
 export function useCallsChanged(handler: (payload: { memberId: string }) => void): void {
+    const [, setN] = useState(0);
+    useEffect(() => connectedChanged.add(() => setN(n => n + 1)), []);   // 소켓이 새로 생기면 새 소켓에 다시 붙는다
     useEffect(() => {
         if (!socket) return;
         const s = socket;
@@ -47,5 +52,5 @@ export function useCallsChanged(handler: (payload: { memberId: string }) => void
         socket.on('ops-calls-changed', onEvent);   // 변수 이름 socket 그대로 — audit:socket 이 `socket.on('…')` 글자로 센다
         socket.on('connect', onReconnect);
         return () => { s.off('ops-calls-changed', onEvent); s.off('connect', onReconnect); };
-    }, [handler]);
+    }, [handler, socket]);   // eslint-disable-line react-hooks/exhaustive-deps
 }

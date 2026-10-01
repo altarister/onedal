@@ -31,6 +31,12 @@ describe('🔔 운영센터 소켓', () => {
         expect(s).not.toMatch(/s\.on\('(orders|steps-synced|filter-init)/); // 자료 이벤트는 듣지 않는다
     });
 
+    it('🔴 다시 로그인하면 옛 소켓(옛 토큰)을 닫고 새로 연다 · 거절 까닭은 콘솔 한 줄', () => {
+        const s = read('ops/src/api/socket.ts');
+        expect(s).toMatch(/export function connectSignal\(\): void \{\s*if \(socket\) disconnectSignal\(\);/);
+        expect(s).toMatch(/socket\.on\('connect_error', e => console\.warn/);
+    });
+
     it('🔴 소켓 감사의 알려진 빈칸에 ops-calls-changed 가 없다 — 들으니 감사가 진짜로 문다', () => {
         expect(read('scripts/audit-socket-contract.mjs')).not.toContain("'ops-calls-changed':");
     });

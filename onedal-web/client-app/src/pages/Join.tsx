@@ -175,7 +175,7 @@ export default function Join() {
             </div>
             {!reconsentOnly && (
                 <p className="text-center text-xs text-text-muted">
-                    이미 신청했나요? <Link to="/pending" className="underline">승인 대기 화면</Link> · 앱을 먼저 받으려면 <Link to="/join/apps" className="underline">앱 받기</Link>
+                    이미 신청했나요? <Link to="/pending" className="underline">승인 대기 화면</Link> · 앱 받기는 승인 뒤에 열립니다
                 </p>
             )}
         </JoinShell>
