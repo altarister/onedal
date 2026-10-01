@@ -1704,6 +1704,8 @@ export interface DeviceSession {
     isHolding?: boolean;    // [Page/Hold 분리] 콜 처리 중 여부 (확정 클릭 ~ 리스트 복귀)
     lat?: number;           // [GPS 텔레메트리] 앱폰(차량) 위도
     lng?: number;           // [GPS 텔레메트리] 앱폰(차량) 경도
+    /** 📍 위치(lat/lng)가 실린 폰 보고를 받은 서버 시각(ms) — 메모리만 · 위치 없는 보고는 안 민다 · 운영센터 홈 «기사 이상»이 관제웹 GPS(lastFixAt)와 늦은 쪽을 본다 */
+    lastLocationAt?: number;
     /**
      * 👁️ **마지막 리스트에서 읽은 텍스트 노드 수** (크리티컬).
      * `0` 이면 접근성 트리가 안 오는 것 — 앱은 살아 있지만 **화면을 못 읽는다.**

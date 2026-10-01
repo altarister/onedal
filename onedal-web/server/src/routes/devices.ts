@@ -215,6 +215,8 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             isHolding: isHolding ?? false,
             lat,
             lng,
+            /* 📍 위치가 실린 보고의 서버 시각 — 위치 없이 시작하면 칸이 없다(모른다) */
+            ...(lat !== undefined && lng !== undefined ? { lastLocationAt: Date.now() } : {}),
             stats: { polled: addedPollCount, grabbed: 0, canceled: 0 }
         };
     } else {
@@ -286,6 +288,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         if (lat !== undefined && lng !== undefined) {
             session.lat = lat;
             session.lng = lng;
+            session.lastLocationAt = session.lastSeen;   // 📍 위치가 실린 보고만 민다 — 운영센터 홈 «기사 이상»이 관제웹 GPS 와 함께 본다
         }
     }
 
