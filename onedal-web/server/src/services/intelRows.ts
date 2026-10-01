@@ -2,8 +2,8 @@ import type { IntelRow } from "@onedal/shared";
 import db from "../db";
 
 /**
- * 🗂️ **원장(intel) 최근 N 줄 · 총수 — 한 곳** — 관제웹 현황판(/api/sim/intel · 개발 빌드)과 운영센터 현황판(/api/ops/board/intel)이 같이 쓴다.
- * 리스트 화면이 준 것을 그대로 낸다 — 해석하지 않는다(sim.ts 주석). userId 를 주면 그 회원 줄만(intel.user_id).
+ * 🗂️ **원장(intel) 최근 N 줄 · 총수 — 한 곳** — 운영센터 현황판(/api/ops/board/intel)이 쓴다.
+ * 리스트 화면이 준 것을 그대로 낸다 — 해석하지 않는다. userId 를 주면 그 회원 줄만(intel.user_id).
  * «전부»가 아니라 «최근 N»이다 — 화면이 그렇게 말할 수 있게 총수를 함께 낸다.
  */
 export function intelRowsOf(opts: { userId?: string | null; limit: number }): { rows: IntelRow[]; total: number } {

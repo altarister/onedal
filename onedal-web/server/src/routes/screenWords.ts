@@ -3,8 +3,7 @@ import { requireAuth, requireOps } from "../middlewares/authMiddleware";
 import { recentNewWords } from "../services/screenWords";
 
 /**
- * 📰 **현황판 «새 글자» 줄의 읽기 문** (reviews/24) — 새로고침해도 최근 처음 본 낱말이 남게.
- *    새 낱말이 생기는 순간은 소켓 `screen-word-new` 가 알린다 — 이 문은 처음 그릴 때 한 번 읽는다.
+ * 📰 **«새 글자» 읽기 문** (reviews/24) — 최근 처음 본 낱말 목록. 운영센터 회원 상세는 같은 함수(`recentNewWords`)를 /api/ops/board/member 로 읽는다.
  *    쓰기는 원달앱 보고(`/api/scrap` 의 screenWords) 한 곳뿐이다.
  */
 const router = Router();
