@@ -91,7 +91,7 @@ describe('OrderEvaluator', () => {
             dropoff: '도착지',
             vehicleType: '1t',
             fare: 3000, // 5000원 절대 하한가 미달 및 10km 하한선(7200원) 미달
-            rawText: '이것은 착불 오더입니다' // 블랙리스트 키워드
+            rawText: '요금 : 3,000(착불)' // 블랙리스트 키워드 — 인성 결제 괄호(제외어 찾는 칸)
         };
 
         process.env.KAKAO_REST_API_KEY = "test-key";

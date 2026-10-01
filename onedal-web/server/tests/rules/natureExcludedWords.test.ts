@@ -12,7 +12,7 @@ import path from 'path';
  * 무조건 빨간불을 낸다. 그러니 **재료를 채워야** 말을 한다 — `[]` 를 박으면 영영 조용하다.
  *
  * 🔴 서버는 이미 제외어를 찾고 있다 — `OrderEvaluator.runStage1ShapeFilter` 가
- *    적요(`detailMemo`)와 원문(`rawText`)까지 합쳐 훑고 «제외키워드(…) 감지»를 남긴다.
+ *    배차망별 «제외어 찾는 칸»(정의 표 excludeScan — 인성 적요 · 결제 괄호 · 구분 등)을 훑고 «제외키워드(…) 감지»를 남긴다.
  *    그 목록이 **판정으로 안 건너가면** 무방비가 아니라 **말을 안 하는 것**이 되어,
  *    기사님이 색만 보시면 놓친다.
  *
@@ -107,34 +107,33 @@ describe('🧪 제외어 — 서버가 찾은 것이 색에 실린다', () => {
  *    위 검사들은 `judgeFacts` 안만 보므로, **형상 필터가 아예 안 모으는 것**을 못 잡는다
  *    (`excludedHits.push` 를 지워도 위 검사들은 초록이다).
  */
-describe('🔗 형상 필터가 적요에서 제외어를 찾는다', () => {
+describe('🔗 형상 필터가 «제외어 찾는 칸»에서 제외어를 찾는다', () => {
     const { OrderEvaluator } = require('../../src/core/engine/OrderEvaluator');
 
     const 훑기 = (order: Record<string, unknown>, excludedKeywords: string[]) => {
         const ev: any = new OrderEvaluator('insung');
         const session = { activeFilter: { excludedKeywords, isSharedMode: false } };
         return ev.runStage1ShapeFilter(
-            { pickup: '', dropoff: '', detailMemo: '', ...order }, session.activeFilter, [], [],
+            { pickup: '', dropoff: '', ...order }, session.activeFilter, [], [],
         ).excludedHits as string[];
     };
+    /** 인성 상세 원문 꼴 — 원달앱이 적요 팝업 글을 «[적요상세/정보]» 머리표 뒤에 붙인다 */
+    const 적요 = (memo: string) => `상태 : 신규\n요금 : 30,000(신용)\n[적요상세/정보]\n적요 내용\n${memo}\n닫기\n`;
 
-    it('🔴 적요에 든 제외어를 찾는다 — 픽커·수동 콜이 여기로 들어온다', () => {
-        expect(훑기({ detailMemo: '착불 · 3층까지' }, ['착불'])).toEqual(['착불']);
+    it('🔴 적요에 든 제외어를 찾는다', () => {
+        expect(훑기({ rawText: 적요('착불 · 3층까지') }, ['착불'])).toEqual(['착불']);
     });
 
-    it('🔴 앱이 안 나눠 준 원문(rawText)도 훑는다 — OCR 콜은 칸이 덜 채워진다', () => {
-        expect(훑기({ rawText: '까대기 있음' }, ['까대기'])).toEqual(['까대기']);
-    });
-
-    it('주소에 든 것도 찾는다', () => {
-        expect(훑기({ dropoff: '수거 전용 창고' }, ['수거'])).toEqual(['수거']);
+    it('🔴 찾는 칸 밖의 원문 · 주소는 안 본다 (기사님 «배차망별 칸에서만» · reviews/34 3단계 5③)', () => {
+        expect(훑기({ rawText: '까대기 있음' }, ['까대기'])).toEqual([]);
+        expect(훑기({ dropoff: '수거 전용 창고', rawText: 적요('1층') }, ['수거'])).toEqual([]);
     });
 
     it('없으면 빈손이다 — 지어내지 않는다 (규칙 ④)', () => {
-        expect(훑기({ detailMemo: '멀쩡한 콜' }, ['착불'])).toEqual([]);
+        expect(훑기({ rawText: 적요('멀쩡한 콜') }, ['착불'])).toEqual([]);
     });
 
     it('설정이 비어 있으면 훑을 것이 없다', () => {
-        expect(훑기({ detailMemo: '착불' }, [])).toEqual([]);
+        expect(훑기({ rawText: 적요('착불') }, [])).toEqual([]);
     });
 });

@@ -8,11 +8,6 @@ export class Hwamul24Plugin implements IAppPlugin {
         return rawAddress.split(',')[0].trim();
     }
 
-    /** 🚫 콜 한 벌의 글 — 상세 팝업 글이 곧 콜 글이다(잔상 보고 없음) */
-    callTextOf(rawText: string): string {
-        return rawText;
-    }
-
     evaluateCustomRules(rawText: string): string[] {
         const reasons: string[] = [];
         // 화물24 전용 룰 예시

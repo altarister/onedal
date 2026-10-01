@@ -11,12 +11,6 @@ export interface IAppPlugin {
     normalizeAddress(rawAddress: string): string;
 
     /**
-     * 🚫 **앱이 보낸 화면 글 가운데 콜 한 벌의 글** — 제외 키워드와 `evaluateCustomRules` 가 이 글에서 찾는다.
-     *    화면 글에는 목록 잔상·메뉴 글자가 섞일 수 있다(픽커 «오더카드 대기 중»). 모든 배차망이 같은 순서로 부르고, 자르는 법만 배차망마다 다르다.
-     */
-    callTextOf(rawText: string): string;
-
-    /**
      * 앱 고유의 '블랙리스트 텍스트'나 특수 룰을 검사합니다.
      */
     evaluateCustomRules(rawText: string): string[];

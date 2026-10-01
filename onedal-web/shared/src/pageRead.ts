@@ -33,3 +33,12 @@ export function pageFareOf(app: TargetAppType, page: ScreenPage, text: string | 
     const n = Number(digits);
     return n > 0 && n <= 2147483647 ? n : null;
 }
+
+/**
+ * 🚫 **제외어를 찾는 글** — 배차망마다 정의 표의 «제외어 찾는 칸»(`excludeScan`) 글만 이어 붙인다(reviews/34 3단계 5③ · 기사님 «가»).
+ *    인성 적요 · 결제 괄호 · 구분 / 화물24시 화물정보 · 결제방법 / 픽커 물품정보 · 유의사항 — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다.
+ *    칸마다 상세 화면의 읽는 법(`pageFieldOf`)으로 읽고, 못 읽은 칸은 빠진다(지어내지 않는다).
+ */
+export function excludeScanTextOf(app: TargetAppType, text: string | readonly string[]): string {
+    return NETWORK_PAGES[app].excludeScan.map(f => pageFieldOf(app, 'detail', f, text)).filter((t): t is string => !!t).join(' ');
+}

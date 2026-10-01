@@ -3,8 +3,8 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey } from '@onedal/shared';
-import type { JudgmentSnapshot, ApproxAddress } from '@onedal/shared';
+import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, isTargetApp, DEFAULT_TARGET_APP } from '@onedal/shared';
+import type { JudgmentSnapshot, ApproxAddress, TargetAppType } from '@onedal/shared';
 import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, trappedOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
@@ -141,12 +141,13 @@ function soloRouteArgsOf(userId: string, originNow: () => { x: number; y: number
 
 export class OrderEvaluator {
     private plugin: IAppPlugin;
-    /** 🌐 이 심사가 어느 배차망의 콜인가 */
-    private targetApp: string;
+    /** 🌐 이 심사가 어느 배차망의 콜인가 — 콜 한 벌의 글 범위(정의 표 callText)를 고른다. 모르는 값은 기본 배차망(플러그인 고르기와 같다) */
+    private targetApp: TargetAppType;
 
     constructor(targetApp: string = 'insung') {
         this.plugin = PluginFactory.getPlugin(targetApp);
-        this.targetApp = targetApp;
+        const lower = targetApp.toLowerCase();
+        this.targetApp = isTargetApp(lower) ? lower : DEFAULT_TARGET_APP;
     }
 
     /**
@@ -987,10 +988,10 @@ export class OrderEvaluator {
             }
         }
 
-        // 4) 제외 키워드 검사 (플러그인 커스텀 룰 혼합) — 콜 한 벌의 글에서만 찾는다: 주소 · 적요 · 물품 · 화면 글 가운데 콜 부분(`callTextOf`)
+        // 4) 제외 키워드 검사 (플러그인 커스텀 룰 혼합) — 배차망별 «제외어 찾는 칸»에서만 찾는다(기사님 «가» · 정의 표 excludeScan · shared `excludeScanTextOf`).
+        //    인성 적요 · 결제 괄호 · 구분 / 화물24시 화물정보 · 결제방법 / 픽커 물품정보 · 유의사항 — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다
         const excludedHits: string[] = [];
-        const rawText = [order.pickup, order.dropoff, order.detailMemo, order.itemDescription,
-            this.plugin.callTextOf((order as any).rawText || '')].filter(Boolean).join(' ');
+        const rawText = excludeScanTextOf(this.targetApp, (order as any).rawText || '');
         if (filter.excludedKeywords && filter.excludedKeywords.length > 0) {
             for (const kw of filter.excludedKeywords) {
                 if (kw && rawText.includes(kw)) {

@@ -4,7 +4,7 @@ import { join } from 'path';
 import { NETWORK_PAGES } from './networkPages';
 import { PAGE_FIELDS, SCREEN_PAGES, type PageField, type ScreenPage } from './pageFields';
 import { TARGET_APPS, type TargetAppType } from './index';
-import { pageFieldOf, pageFareOf } from './pageRead';
+import { pageFieldOf, pageFareOf, excludeScanTextOf } from './pageRead';
 
 /**
  * 📄 **배차망 화면 정의 표 — 서버가 믿고 읽을 수 있나** (reviews/34 2단계 · onedal-46 3단계 조건).
@@ -71,7 +71,7 @@ describe('제외어 찾는 칸 (excludeScan)', () => {
         const sheet = JSON.parse(readFileSync(join(__dirname, 'pageReadCases.json'), 'utf8')) as { excludeCases: Array<{ network: TargetAppType; texts: string[]; hits: string[]; misses: string[]; why: string }> };
         expect(sheet.excludeCases.length).toBeGreaterThan(0);
         for (const c of sheet.excludeCases) {
-            const scanned = NETWORK_PAGES[c.network].excludeScan.map(f => pageFieldOf(c.network, 'detail', f, c.texts) ?? '').join(' ');
+            const scanned = excludeScanTextOf(c.network, c.texts);   // 서버 제외어 검사가 쓰는 함수 그대로
             for (const w of c.hits) expect(scanned, `${c.network} «${w}» 걸림 — ${c.why}`).toContain(w);
             for (const w of c.misses) expect(scanned, `${c.network} «${w}» 안 걸림 — ${c.why}`).not.toContain(w);
         }
