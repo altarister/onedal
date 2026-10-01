@@ -23,36 +23,49 @@ beforeAll(() => { process.env.KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KE
 afterEach(() => { global.fetch = realFetch; });
 afterAll(() => { db.prepare(`DELETE FROM geocode_cache WHERE query LIKE ?`).run(`%${MARK}%`); });
 
+/**
+ * ⏱️ **가짜 시계로 잰다** — 실제 시계(«300ms 안에»)는 검사가 몰리면 흔들려 게이트를 못 믿게 한다.
+ *    정한 만큼만 시계를 앞당겨 «그때 답이 나왔나»를 본다 — 느린 답이 올 시각 전에 끝났으면 그것을 안 기다린 것이다.
+ */
+const settledAfter = async <T>(p: Promise<T>, ms: number) => {
+    let done = false;
+    p.then(() => { done = true; }, () => { done = true; });
+    await jest.advanceTimersByTimeAsync(ms);
+    return done;
+};
+
 describe('🗺️ 좌표 — 1순위가 오면 바로', () => {
-    it('🔴 1순위 50ms · 나머지 1초 → 1순위 좌표를 300ms 안에', async () => {
+    afterEach(() => { jest.useRealTimers(); });
+
+    it('🔴 1순위 50ms · 나머지 1초 → 나머지가 오기 전(60ms)에 1순위 좌표', async () => {
+        jest.useFakeTimers();
         global.fetch = ((url: string) => isFirst(url) ? reply(50, doc('경기', 127.11)) : reply(1000, doc('경기', 127.99))) as any;
-        const t0 = Date.now();
-        const r = await geocodeAddress(q(1));
-        expect(r?.x).toBe(127.11);
-        expect(Date.now() - t0).toBeLessThan(300);
+        const p = geocodeAddress(q(1));
+        expect(await settledAfter(p, 60)).toBe(true);
+        expect((await p)?.x).toBe(127.11);
     });
 
     it('🔴 1순위가 지역 불일치면 건너뛰고 2순위 — 2순위가 오는 대로', async () => {
+        jest.useFakeTimers();
         global.fetch = ((url: string) => isFirst(url) ? reply(20, doc('전남', 126.9))
             : url.includes('/keyword.json') && decodeURIComponent(url.split('query=')[1]) === q(2) ? reply(100, doc('경기', 127.22))
             : reply(1000, doc('경기', 127.99))) as any;
-        const t0 = Date.now();
-        const r = await geocodeAddress(q(2));
-        expect(r?.x).toBe(127.22);
-        expect(Date.now() - t0).toBeLessThan(400);
+        const p = geocodeAddress(q(2));
+        expect(await settledAfter(p, 150)).toBe(true);   // 2순위(100ms)가 온 뒤 · 나머지(1초) 전
+        expect((await p)?.x).toBe(127.22);
     });
 
+    /* 실제 시계 — 가짜 시계가 부르는 타이머에는 판정 칸(hedgeBudget · 비동기 맥락)이 안 따라가 한 번 더를 못 본다.
+       시간 기준 대신 나머지 질의를 영영 안 오게 둔다 — 둘째 답이 나오면 나머지를 안 기다린 것이다(기다리면 3초 마감에 다른 답이 된다) */
     it('🔴 1순위가 멈추면 1.2초 뒤 나란히 한 번 더 — 둘째가 오면 그것 · 다시 1', async () => {
         let firstCalls = 0;
         global.fetch = ((url: string, init: any) => {
             if (isFirst(url)) return ++firstCalls === 1 ? never(init) : reply(50, doc('경기', 127.33));
-            return reply(2500, { documents: [] });
+            return never(init);
         }) as any;
         const budget = { left: 2, used: 0 };
-        const t0 = Date.now();
         const r = await hedgeBudget.run(budget, () => geocodeAddress(q(3)));
         expect(r?.x).toBe(127.33);
-        expect(Date.now() - t0).toBeLessThan(2000);
         expect(budget.used).toBe(1);
     });
 });
