@@ -39,6 +39,13 @@ object DeviceLink {
     /** 식별 id — 폰 이름과 따로 둔 긴 난수(표시 이름은 짝 때 보내는 deviceName) */
     fun newDeviceId(): String = "d-" + java.util.UUID.randomUUID().toString()
 
+    /** 짝 맺기 거절 글 — 서버 까닭 글자를 한글로(모르는 글은 그대로) */
+    fun pairErrorText(error: String): String = when (error) {
+        ERR_ACCOUNT_BLOCKED -> "승인 전이거나 이용이 멈춘 계정입니다"
+        ERR_PIN_INVALID -> "PIN 이 맞지 않거나 시간이 지났습니다"
+        else -> error
+    }
+
     /** 첫 화면 띠 글 — 비면 띠 없음 */
     fun bannerOf(why: String?): String? = when (why) {
         WHY_UNLINKED -> "폰 연결이 끊겼습니다 — 다시 연결"

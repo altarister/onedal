@@ -22,7 +22,15 @@ android {
     }
 
     buildTypes {
+        // 🔴 개발판 — 지금 기사님 폰에 까는 길(installDebug · 로컬 PC 주소 · http)이 그대로다 (`ReleaseBuildTest`)
+        debug {
+            buildConfigField("boolean", "LIVE_DEFAULT", "false")
+            manifestPlaceholders["usesCleartext"] = "true"
+        }
+        // 📦 배포판 — 처음부터 실서버 · https 만 · 개발 도구 숨김. 서명 설정은 기사님 손이라 여기 없다
         release {
+            buildConfigField("boolean", "LIVE_DEFAULT", "true")
+            manifestPlaceholders["usesCleartext"] = "false"
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

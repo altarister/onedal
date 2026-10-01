@@ -1,5 +1,6 @@
 package com.onedal.app.ui
 
+import com.onedal.app.BuildConfig
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
@@ -147,6 +148,7 @@ fun SettingsScreen(viewModel: MainViewModel, onOpenCheck: () -> Unit = {}) {
             }
         }
 
+        if (BuildConfig.DEBUG) {   // 🧪 개발 도구 — 배포판에서는 안 보인다 (`ReleaseBuildTest`)
         // ── 카드 2: 서버 접속 환경 ──
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -214,6 +216,7 @@ fun SettingsScreen(viewModel: MainViewModel, onOpenCheck: () -> Unit = {}) {
             }
         }
 
+        }
         // ── 카드 3: 안전 대기 시간 정보 ──
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -246,6 +249,7 @@ fun SettingsScreen(viewModel: MainViewModel, onOpenCheck: () -> Unit = {}) {
             }
         }
 
+        if (BuildConfig.DEBUG) {   // 🧪 개발 도구 — 배포판에서는 안 보인다 (`ReleaseBuildTest`)
         // ── 카드 4: 디버그 및 모니터링 (TapMarker 토글) ──
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -300,6 +304,8 @@ fun SettingsScreen(viewModel: MainViewModel, onOpenCheck: () -> Unit = {}) {
             }
         }
 
+        }
+        if (BuildConfig.DEBUG) {   // 🧪 개발 도구 — 배포판에서는 안 보인다 (`ReleaseBuildTest`)
         // ── 카드: 📷 화면 찍어 읽기 시험 (0.5초 안에 되는지 이 폰에서 잰다) ──
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -345,6 +351,7 @@ fun SettingsScreen(viewModel: MainViewModel, onOpenCheck: () -> Unit = {}) {
             }
         }
 
+        }
         // ── 버튼: 시스템 접근성 설정 바로가기 ──
         OutlinedButton(
             onClick = {

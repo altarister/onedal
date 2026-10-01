@@ -338,6 +338,9 @@ data class FilterTally(
 
 // 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)
 data class ScrapResponse(
+    /** 📦 원달앱 최신·최소 versionCode — 서버가 아직 안 보내면 null(안내 없음 · `UpdateNotice` · 이름은 onedal-ab 와 같다) */
+    val appLatestCode: Int? = null,
+    val appMinimumCode: Int? = null,
     val success: Boolean,
     // 🔴 응답 한 칸의 모양 때문에 목록 보고 응답을 버리지 않는다 — 서버가 빼거나 null 로 보내도 받는다(쓰는 곳에서 막는다)
     val apiStatus: ApiStatus? = null,

@@ -46,6 +46,13 @@ fun DashboardScreen(viewModel: MainViewModel) {
                 }
             }
         }
+        // 📦 업데이트 안내 — 서버가 최신·최소 판을 보낼 때만 (`UpdateNotice`)
+        viewModel.updateNotice?.let { n ->
+            val required = n.kind == com.onedal.app.core.UpdateNotice.Kind.REQUIRED
+            Surface(color = if (required) Color(0xFFD32F2F) else Color(0xFF1565C0), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                Text(n.text, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(12.dp))
+            }
+        }
         // ── 1. 상단 상태 바 (배지 2개 한 줄) ──
         Row(
             modifier = Modifier.fillMaxWidth(),

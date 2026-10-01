@@ -75,6 +75,10 @@ class MainViewModel {
         batteryExempt = batteryExempt, sdkInt = android.os.Build.VERSION.SDK_INT,
     )
 
+    /** 📦 업데이트 안내 — 서버 응답의 최신·최소 판과 견준다(`UpdateNotice`) · 없으면 null */
+    var updateNotice by mutableStateOf<com.onedal.app.core.UpdateNotice.Notice?>(null)
+        private set
+
     /** 🔐 연결이 풀린 까닭 — 비면 정상(`DeviceLink`) */
     var unlinkedWhy by mutableStateOf<String?>(null)
         private set
@@ -82,10 +86,12 @@ class MainViewModel {
     /** 🩺 점검 사실 읽기 — 켤 때 한 번(첫 탭 고르기)과 1초마다 */
     private fun readCheckFacts(context: Context, prefs: android.content.SharedPreferences) {
         isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
-        isLiveMode = prefs.getBoolean("isLiveMode", false)
+        isLiveMode = com.onedal.app.core.ServerTarget.isLive(prefs)
         lastScrapTime = prefs.getLong("lastScrapTime", 0L)
         unlinkedWhy = prefs.getString(com.onedal.app.core.DeviceLink.PREF_UNLINKED, null)
         hasDeviceToken = prefs.getString(com.onedal.app.core.DeviceLink.PREF_TOKEN, null) != null
+        updateNotice = com.onedal.app.core.UpdateNotice.of(com.onedal.app.BuildConfig.VERSION_CODE,
+            prefs.getInt("appLatestCode", -1).takeIf { it >= 0 }, prefs.getInt("appMinimumCode", -1).takeIf { it >= 0 })
         serverUrl = if (isLiveMode) "1dal.altari.com" else prefs.getString("localPcIp", "172.30.1.89:4000") ?: "172.30.1.89:4000"
         batteryExempt = (context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isIgnoringBatteryOptimizations(context.packageName)
     }
@@ -98,7 +104,7 @@ class MainViewModel {
 
         // 초기값 로드
         deviceId = prefs.getString("deviceId", null) ?: "(서비스 시작 시 자동 생성됨)"
-        isLiveMode = prefs.getBoolean("isLiveMode", false)
+        isLiveMode = com.onedal.app.core.ServerTarget.isLive(prefs)
         showTapMarker = prefs.getBoolean("showTapMarker", false)
         waitTimesLabel = waitTimesLabelOf(prefs.getString("activeFilter", null))
         readCheckFacts(context, prefs)

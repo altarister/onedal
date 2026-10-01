@@ -126,7 +126,7 @@ class ApiClient(private val context: Context) {
      * 타겟 URL 생성 (동적 Local / Live 판별)
      */
     private fun getTargetUrl(endpoint: String): String {
-        val isLiveMode = prefs.getBoolean("isLiveMode", false)
+        val isLiveMode = com.onedal.app.core.ServerTarget.isLive(prefs)
         return if (isLiveMode) {
             "https://1dal.altari.com$endpoint"
         } else {
@@ -314,6 +314,11 @@ class ApiClient(private val context: Context) {
                 if (code == 200) {
                     prefs.edit().putString("api_scrap_res", body).apply()
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
+                    // 📦 최신·최소 판 — 칸이 없으면 지운다(서버가 아직 안 보냄 → 안내 없음 · `UpdateNotice`)
+                    prefs.edit().apply {
+                        scrapRes.appLatestCode?.let { putInt("appLatestCode", it) } ?: remove("appLatestCode")
+                        scrapRes.appMinimumCode?.let { putInt("appMinimumCode", it) } ?: remove("appMinimumCode")
+                    }.apply()
                     // 🔒 «앞 콜 심사 중» 맨 위 칸 — 본문이 생략된 응답에도 온다. 없으면 지워 필터 안 값으로 (`EvaluatingNow`)
                     com.onedal.app.core.EvaluatingNow.topOf(body).let { top ->
                         prefs.edit().apply {
@@ -573,7 +578,7 @@ class ApiClient(private val context: Context) {
                     val msg = resultObj?.message ?: "기기 연동이 완료되었습니다."
                     onResult(true, msg)
                 } else {
-                    val errMsg = resultObj?.error ?: "연동 실패 ($code)"
+                    val errMsg = resultObj?.error?.let { DeviceLink.pairErrorText(it) } ?: "연동 실패 ($code)"
                     onResult(false, errMsg)
                 }
             } catch (e: Exception) {
