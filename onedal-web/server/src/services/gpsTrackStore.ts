@@ -1,6 +1,6 @@
 import { restoreWindow } from '@onedal/shared';
 import db from '../db';
-import { haversineKm } from './geoService';
+import { haversineKm } from '@onedal/shared';
 import { slog } from '../utils/fileLogger';
 
 /**
@@ -109,7 +109,7 @@ export function shouldStoreGpsPoint(
 ): boolean {
     if (!prev) return true;
     if (stopped) return true;
-    const movedKm = haversineKm(prev.y, prev.x, now.y, now.x);
+    const movedKm = haversineKm(prev, now);
     if (movedKm >= GPS_TRACK.MIN_MOVE_KM) return true;
     return (now.atMs - prev.atMs) >= GPS_TRACK.MIN_GAP_MS;
 }

@@ -43,7 +43,7 @@ describe('반경 자동 맞춤 — 서버 (C4-12)', () => {
         const helper = fm.slice(h, fm.indexOf('\n}', h));
         expect(helper).toMatch(/heldRadiusDistanceKm\(\s*session\.activeFilter\.radiusDistanceKm/);
         /* 내 위치 → 목적지로 잰다 — 마지막 하차지(라인 끝)로 재지 않는다. 합짐이면 목적지 근처에서 반경이 사라진다 */
-        expect(helper).toMatch(/haversineKm\(me\.y, me\.x, goal\.lat, goal\.lng\)/);
+        expect(helper).toMatch(/haversineKm\(me, goal\)/);   // 점을 통째로(shared haversineKm · 공통 함수 3) — 숫자 넷 순서 실수 자리가 없다
         const i = fm.indexOf('autoRadii(');
         const around = fm.slice(Math.max(0, i - 900), i + 200);
         expect(around).toMatch(/holdRadiusDistance\(session, city, me\)/);

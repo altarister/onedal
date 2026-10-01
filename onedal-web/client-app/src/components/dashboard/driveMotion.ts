@@ -1,4 +1,4 @@
-import { getDistanceKm } from '../../lib/routeUtils';
+import { haversineKm } from '@onedal/shared';
 
 /**
  * 🚗 **주행/정차 판정 — 순수 함수 한 곳** (기사님 확정).
@@ -40,7 +40,7 @@ export function motionOnFix(st: MotionState, loc: { lat: number; lng: number }, 
              *    양방향 EWMA 는 모의 순항(수천 km/h)에서 0 으로 내려오는 데만 ~17초 — 12초 정차 안에 «5km/h↓ 10초»가 영영 안 찬다.
              *    상한 250 은 GPS 튐(순간 수백 km/h)이 문턱을 흔들지 않게 한다.
              */
-            const measured = Math.min(250, getDistanceKm(st.last.lat, st.last.lng, loc.lat, loc.lng) / h);
+            const measured = Math.min(250, haversineKm(st.last, loc) / h);
             speed = measured < 5 ? measured : ((st.speed ?? 0) * 0.7) + (measured * 0.3);
         } else {
             speed = st.speed;

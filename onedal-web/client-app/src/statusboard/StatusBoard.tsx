@@ -25,7 +25,7 @@
  *       그 안은 다시 **둘**이다: 🖥️ 서버(심사·통신·저장) · 📱 앱(올라온 보고·내려갈 값).
  */
 import { useEffect, useRef, useState } from 'react';
-import { APP_FILTER_KEYS, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabel, isModeApplying,
+import { haversineKm, APP_FILTER_KEYS, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabel, isModeApplying,
          DEVICE_MODE_LABEL, deviceLabel, clockText, wonText } from '@onedal/shared';
 import type { SecuredOrder, DeviceSession, DeviceModeType } from '@onedal/shared';
 import { SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type ScreenPage, type WordKind } from '@onedal/shared';
@@ -164,14 +164,6 @@ function Card({ title, note, children, tall, fold = true, defaultOpen = true }: 
             {(!fold || open) && <div className={tall ? 'max-h-[228px] overflow-y-auto' : ''}>{children}</div>}
         </section>
     );
-}
-
-/** 📏 두 점 사이 km — **판정이 아니라 «얼마나 다른가»를 적으려는 표시다** */
-function haversineKmOf(a: { x: number; y: number }, b: { x: number; y: number }): number {
-    const R = 6371, rad = (d: number) => d * Math.PI / 180;
-    const dLat = rad(b.y - a.y), dLon = rad(b.x - a.x);
-    const s = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.y)) * Math.cos(rad(b.y)) * Math.sin(dLon / 2) ** 2;
-    return 2 * R * Math.asin(Math.sqrt(s));
 }
 
 /** 🕐 시각을 사람이 읽는 모양으로 — **표시**일 뿐 값을 만드는 것이 아니다 */
@@ -1236,7 +1228,7 @@ export default function StatusBoard({ activeRoute }: Props) {
                 if (org?.isFallback) {
                     note.push({ k: '경로 기점', v: '🏠 집에서 짜는 중 — 좌표가 5분 넘게 안 왔다' });
                 } else if (pos && org) {
-                    const km = haversineKmOf(pos, org);
+                    const km = haversineKm(pos, org);
                     if (km > 1) bad.push({ k: '지도 ↔ 경로', v: `${km.toFixed(1)}km 어긋났다` });
                 }
                 if (pos?.isStale) {

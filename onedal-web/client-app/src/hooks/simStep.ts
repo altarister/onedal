@@ -1,6 +1,6 @@
-import { getDistanceKm } from '../lib/routeUtils';
 import { nearestIndex } from './useMockGpsSimulator';
 import { driveStep } from '../lib/driveStep';
+import { haversineKm } from '@onedal/shared';
 
 interface PolylinePoint { x: number; y: number }
 
@@ -125,7 +125,7 @@ export function simStep(
 
     // ── 접근 감속 — 다음 정거장이 1km 안이면 걸음을 ¼로
     const nearKm = unvisited.reduce((m, s) =>
-        Math.min(m, getDistanceKm(herePt.y, herePt.x, s.y, s.x)), Infinity);
+        Math.min(m, haversineKm(herePt, s)), Infinity);
     const full = KM_PER_TICK * multiplier;
     const stepKm = nearKm <= dial.approachKm ? full / Math.max(1, dial.slowFactor) : full;
 
@@ -174,7 +174,7 @@ export function simStep(
     const due = unvisited.find(s => {
         const i = nearestIndex(path, s);
         if (i < from || i >= to) return false;
-        const d = getDistanceKm(herePt.y, herePt.x, s.y, s.x);
+        const d = haversineKm(herePt, s);
         if (d <= reach) return true;
         /**
          * 🔴 **여기서 조용히 지나가면 안 된다** (기사님 지시).

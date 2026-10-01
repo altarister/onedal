@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocationStore } from '../stores/useLocationStore';
 import { publishLocation } from '../lib/gpsBridge';
+import { haversineKm } from '@onedal/shared';
 
 /**
  * GPS 좌표 변경 시 서버에 소켓으로 전송하는 훅.
@@ -25,7 +26,7 @@ export function useGpsTelemetry(enabled = true) {
 
         // 최소 전송 조건 체크
         if (last) {
-            const distanceM = haversineMeters(last.lat, last.lng, lat, lng);
+            const distanceM = haversineKm(last, { lat, lng }) * 1000;
             const elapsedMs = now - last.time;
 
             // 50m 미만 이동 AND 10초 미경과 → 스킵
@@ -43,14 +44,3 @@ export function useGpsTelemetry(enabled = true) {
     }, [lat, lng]);
 }
 
-/** 두 좌표 간 직선 거리(m) 계산 (Haversine) */
-function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-    const R = 6371000; // 지구 반지름 (m)
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLng / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}

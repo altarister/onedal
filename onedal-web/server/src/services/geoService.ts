@@ -3,7 +3,7 @@ import path from 'path';
 import { getActiveCalls } from '../core/helpers';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
-import { DEFAULT_JUDGMENT, isPickupListName, cityCenter, sidoOf, sggList, distToLineKm, aheadOf, isAheadOf, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
+import { haversineKm, DEFAULT_JUDGMENT, isPickupListName, cityCenter, sidoOf, sggList, distToLineKm, aheadOf, isAheadOf, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
 import type { GoalZone, NetPoint, NetParams } from '@onedal/shared';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
@@ -283,7 +283,7 @@ export function getDetourRegions(
      */
     const wholeInSrc = (fb?: number[]): boolean => {
         if (!excludeCircle || !fb) return false;
-        return cornersOf(fb).every(([lng, lat]) => haversineKm(lat, lng, excludeCircle.lat, excludeCircle.lng) <= excludeCircle.km);
+        return cornersOf(fb).every(([lng, lat]) => haversineKm({ lat: lat, lng: lng }, excludeCircle) <= excludeCircle.km);
     };
 
     // 3. 교차점 검사 (Intersect)
@@ -353,11 +353,11 @@ export function getDetourRegions(
                         const at = (snapped.properties?.location as number) ?? 0;
                         // 동의 반지름(bbox 대각선 절반)만큼 여유 — 늦게 빼기 위해
                         const fb = feature.bbox;
-                        const pad = fb ? haversineKm(fb[1], fb[0], fb[3], fb[2]) / 2 : 0;
+                        const pad = fb ? haversineKm({ lat: fb[1], lng: fb[0] }, { lat: fb[3], lng: fb[2] }) / 2 : 0;
                         const prev = progressKm[regionName];
                         // 하차지 원 안(또는 걸친) 동이면 영원히 남긴다
                         const inDest = destCenter
-                            && haversineKm(c.geometry.coordinates[1], c.geometry.coordinates[0], destCenter[1], destCenter[0])
+                            && haversineKm({ lat: c.geometry.coordinates[1], lng: c.geometry.coordinates[0] }, { lat: destCenter[1], lng: destCenter[0] })
                                <= (destinationRadiusKm as number) + pad;
                         const val = inDest ? Infinity : at + pad;
                         // 같은 이름의 동이 여럿이면 **가장 늦은 것**을 남긴다 (역시 늦게 빼기 위해)
@@ -563,7 +563,7 @@ export function regionsTouchingAreaGrouped(area: {
  */
 function circleArea(center: { lng: number; lat: number }, km: number, inArea?: (p: { lng: number; lat: number }) => boolean) {
     const KX = 111.32 * Math.cos((center.lat * Math.PI) / 180), KY = 110.574;
-    const test = inArea ?? ((p: { lng: number; lat: number }) => haversineKm(center.lat, center.lng, p.lat, p.lng) <= km);
+    const test = inArea ?? ((p: { lng: number; lat: number }) => haversineKm(center, p) <= km);
     const bbox: [number, number, number, number] = [center.lng - km / KX, center.lat - km / KY, center.lng + km / KX, center.lat + km / KY];
     const points: Array<{ lng: number; lat: number }> = [];
     const dy = PICKUP_GRID_KM / KY, dx = PICKUP_GRID_KM / KX;
@@ -689,11 +689,11 @@ export function pickupListFor(o: {
     /** ✂️ 현위치에서 **남은 길이 가는 쪽**으로 그은 직각선 — 그 뒤는 띠의 둥근 끝이 덮어도 상차 영역이 아니다 */
     const cut = useBand ? cutTowardGoal(band) : null;
 
-    const inMe = (p: { lng: number; lat: number }) => haversineKm(o.me.y, o.me.x, p.lat, p.lng) <= r;
+    const inMe = (p: { lng: number; lat: number }) => haversineKm(o.me, p) <= r;
     const inBand = (p: { lng: number; lat: number }) =>
         distToLineKm(p, band) <= o.radii.detourRadiusKm && (!cut || isAheadOf(p, cut));
     const inGoal = (p: { lng: number; lat: number }) =>
-        goalPts.some(g => haversineKm(g.lat, g.lng, p.lat, p.lng) <= rGoal);
+        goalPts.some(g => haversineKm(g, p) <= rGoal);
 
     /* 🔴 켜진 조각을 **전부 겹친다**(∩) */
     const inArea = (p: { lng: number; lat: number }) =>
@@ -864,14 +864,7 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): Ci
 
 // ═══ GPS 헬퍼 함수 ═══
 
-/** Haversine 공식으로 두 GPS 좌표 간 거리(km) 계산 */
-export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+/* 📏 두 지점 거리는 shared haversineKm 하나(공통 함수 3) — 여기 숫자 넷 함수는 두지 않는다 */
 
 /**
  * 지금 달리고 있는 경로의 폴리라인.
@@ -1282,7 +1275,7 @@ export function processDriverMovement(
 
     // 첫 좌표는 비교 대상이 없다. 시간을 모르면 속도도 지어내지 않는다 (규칙 ④)
     if (prev && prevAt) {
-        const movedKm = haversineKm(prev.y, prev.x, currentGPS.y, currentGPS.x);
+        const movedKm = haversineKm(prev, currentGPS);
         const elapsedS = Math.max(0.001, (Date.now() - prevAt) / 1000);
         const kmh = (movedKm / elapsedS) * 3600;
         speedKmh = kmh;
@@ -1369,7 +1362,7 @@ export function processDriverMovement(
          *    ⚠️ 필터 변경(`applyFilterCb`)과 **다른 통로**다 — 이유는 인자 주석에 있다.
          */
         const lastTrim = session.lastTrimGPS;
-        const dist = lastTrim ? haversineKm(lastTrim.y, lastTrim.x, lat, lng) : Infinity;
+        const dist = lastTrim ? haversineKm(lastTrim, { lat: lat, lng: lng }) : Infinity;
 
         if (dist > 0.5 && trimTraveledCb && getActivePolyline(session)) {
             session.lastTrimGPS = currentGPS;
@@ -1558,7 +1551,7 @@ function watchArrival(
      */
     if (session.departWatch.size > 0 && onDeparted) {
         for (const [key, w] of [...session.departWatch]) {
-            const away = haversineKm(gps.y, gps.x, w.y, w.x);
+            const away = haversineKm(gps, w);
             if (away >= GPS_ARRIVAL.DEPARTED_KM) {
                 session.departWatch.delete(key);
                 slog('콜단계', `🚚 [떠남 감지] 하차지에서 ${away.toFixed(1)}km 멀어졌습니다 — ` +
@@ -1576,7 +1569,7 @@ function watchArrival(
     if (session.passWatch.size > 0 && onPassed) {
         const passCfg = session.judgment?.pass ?? DEFAULT_JUDGMENT.pass;
         for (const [k, w] of [...session.passWatch]) {
-            const away = haversineKm(gps.y, gps.x, w.y, w.x);
+            const away = haversineKm(gps, w);
             const t = evaluatePassTick(away, passCfg.nearM / 1000, passCfg.awayM / 1000, w.entered);
             // 아직 진입 반경 안에 못 들어왔다면 여기서 «들어왔다»만 갱신한다
             if (t.entered && !w.entered) { w.entered = true; }
@@ -1603,7 +1596,7 @@ function watchArrival(
     const next = stops.find(st => !session.arrivalFired.has(stopKeyOf(st))) ?? null;
     if (next) {
         const nKey = stopKeyOf(next);
-        const nDist = haversineKm(gps.y, gps.x, next.y, next.x);
+        const nDist = haversineKm(gps, next);
         if (nDist < GPS_ARRIVAL.NOTICE_KM && !session.arrivalNoticed.has(nKey)) {
             session.arrivalNoticed.add(nKey);
             slog('콜단계', `📣 [근접 예고] 다음 정거장(${next.stopType === 'pickup' ? '상차지' : '하차지'}) ` +
@@ -1625,7 +1618,7 @@ function watchArrival(
     const pass = session.judgment?.pass ?? DEFAULT_JUDGMENT.pass;
     for (const st of arrivalCandidates(stops, session.arrivalFired)) {
         const key = stopKeyOf(st);
-        const distKm = haversineKm(gps.y, gps.x, st.y, st.x);
+        const distKm = haversineKm(gps, st);
         const label = st.stopType === 'pickup' ? '상차지' : '하차지';
 
         /**

@@ -114,7 +114,7 @@ function holdRadiusDistance(session: ReturnType<typeof getUserSession>, city: st
     let goal: { lng: number; lat: number } | null = null;
     try { goal = cityCenter(city); } catch { goal = null; }
     const measured = me && goal && Number.isFinite(goal.lng) && Number.isFinite(goal.lat)
-        ? haversineKm(me.y, me.x, goal.lat, goal.lng) : null;
+        ? haversineKm(me, goal) : null;
     const distanceKm = heldRadiusDistanceKm(session.activeFilter.radiusDistanceKm, measured);
     session.activeFilter.radiusDistanceKm = distanceKm;
     return distanceKm;
@@ -311,7 +311,8 @@ export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
 
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { planArrivalStops } from '../services/routeComposer';
-import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, regionsTouchingNetGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, haversineKm, originOf, homeOriginOf } from "../services/geoService";
+import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, regionsTouchingNetGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, originOf, homeOriginOf } from "../services/geoService";
+import { haversineKm } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 import { promoteDueReserved } from "../services/reservedOrders";
 

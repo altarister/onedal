@@ -12,7 +12,8 @@ import { stepRecordsOf, dwellLedgerFor, firmPromiseMsOf } from "../../services/s
 import { getUserSession } from "../../state/userSessionStore";
 import { goalCityOf } from "../../state/filterManager";
 import { findLoadConflicts, totalDetourCost, getStopTiming } from "../helpers";
-import { haversineKm, originOf, homeOriginOf } from "../../services/geoService";
+import { originOf, homeOriginOf } from "../../services/geoService";
+import { haversineKm } from "@onedal/shared";
 import { geocodeCallAddress, calculateSoloRoute, prefetchSoloRoute, roadEventWhereOf, type RoadEventCode } from "../../services/kakaoService";
 import { hedgeBudget } from "../../services/kakaoHedgeBudget";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
@@ -278,8 +279,7 @@ export class OrderEvaluator {
                         const me = snap.origin;
                         if (me && securedOrder.pickupX && securedOrder.pickupY
                             && securedOrder.approachDurationMin != null) {
-                            const lineKm = haversineKm(me.y, me.x,
-                                securedOrder.pickupY, securedOrder.pickupX);
+                            const lineKm = haversineKm(me, { lat: securedOrder.pickupY, lng: securedOrder.pickupX });
                             if (lineKm > 0.3) {
                                 slog('판정',
                                     `   - 🧪 [도달 계수 수집] 직선 ${lineKm.toFixed(1)}km → 카카오 ${securedOrder.approachDurationMin}분 ` +

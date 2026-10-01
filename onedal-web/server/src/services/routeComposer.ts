@@ -1,6 +1,6 @@
 import type { MyOrder, PendingOrder } from "@onedal/shared";
 import { isAlreadyLoaded, hasVisitedStop } from "@onedal/shared";
-import { haversineKm } from "./geoService";
+import { haversineKm } from "@onedal/shared";
 import { calculateDetourRoute, calculateSoloRoute } from "./kakaoService";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
 import { slog } from "../utils/fileLogger";
@@ -378,13 +378,13 @@ function baseCacheKey(
 /** 이 자리·이 질문으로 이미 잰 base 가 있나 */
 function reusableBase(key: string | null, origin: Coord | null | undefined): any | null {
     if (!key || !origin) return null;   // 기점을 모르면 «200m 안»을 잴 수 없다 — 되쓰지 않는다
-    /* 🔴 `haversineKm(lat, lng, lat, lng)` — x 는 경도라 (y, x) 순서다. (x, y) 로 넘기면 북쪽 200m 가 121m 로 읽혀
+    /* 🔴 `haversineKm({ lat: lat, lng: lng }, { lat: lat, lng: lng })` — x 는 경도라 (y, x) 순서다. (x, y) 로 넘기면 북쪽 200m 가 121m 로 읽혀
        330m 밖 base 를 되썼다 (코드리뷰 C-6 · 같은 파일의 다른 자리는 전부 (y, x)) */
     const hit = baseRouteCache.find(e =>
-        e.key === key && haversineKm(origin.y, origin.x, e.origin.y, e.origin.x) <= BASE_CACHE_RADIUS_KM);
+        e.key === key && haversineKm(origin, e.origin) <= BASE_CACHE_RADIUS_KM);
     if (!hit) return null;
     const ageSec = Math.round((Date.now() - hit.at) / 1000);
-    const movedM = Math.round(haversineKm(origin.y, origin.x, hit.origin.y, hit.origin.x) * 1000);
+    const movedM = Math.round(haversineKm(origin, hit.origin) * 1000);
     slog('판정', `🗄️ [base 되씀] ${ageSec}초 전에 잰 값 · 기점 ${movedM}m 이동 · 카카오 호출 1회 아낌`);
     return hit.base;
 }
@@ -573,7 +573,7 @@ function orderByPromise<T extends Coord & { orderId: string; stopType: 'pickup' 
         for (let i = 0; i < left.length; i++) {
             const st = left[i];
             if (st.stopType === 'dropoff' && notLoaded.has(st.orderId) && !loaded.has(st.orderId)) continue;
-            const d = haversineKm(at.y, at.x, st.y, st.x);
+            const d = haversineKm(at, st);
             const arrive = tMs + (d / speed) * 3600_000;
             const promise = promiseOf.get(`${st.orderId}|${st.stopType}`) ?? null;
             const lateMin = promise != null ? Math.max(0, Math.round((arrive - promise) / 60_000)) : 0;
@@ -611,7 +611,7 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
         for (let i = 0; i < pool.length; i++) {
             const st = pool[i];
             if (st.stopType === 'dropoff' && notLoaded.has(st.orderId)) continue;
-            const d = haversineKm(here.y, here.x, st.y, st.x);
+            const d = haversineKm(here, st);
             if (d < bestD) { bestD = d; bestIdx = i; }
             const r = rankOf.get(`${st.orderId}|${st.stopType}`);
             if (r != null && r < incRank) { incRank = r; incIdx = i; incD = d; }
@@ -717,7 +717,7 @@ export function findOptimalStopOrder<T extends Coord & { orderId: string; stopTy
                 continue;
             }
 
-            const stepDist = haversineKm(currentLoc.y, currentLoc.x, nextStop.y, nextStop.x);
+            const stepDist = haversineKm(currentLoc, nextStop);
             const nextDist = accumDist + stepDist;
 
             // ✂️ 가지치기 (Branch & Bound): 이미 최단 거리보다 길면 즉시 중단
@@ -750,7 +750,7 @@ export function findOptimalStopOrder<T extends Coord & { orderId: string; stopTy
             let greedyDist = 0;
             let h = startLoc;
             for (const st of greedyOrder) {
-                greedyDist += haversineKm(h.y, h.x, st.y, st.x);
+                greedyDist += haversineKm(h, st);
                 h = st;
             }
             if (greedyDist <= bestDist + STOP_ORDER_TIE_KM) {

@@ -1138,3 +1138,20 @@ describe('✂️ 라인 — 현위치부터 · 시작은 평평하게', () => {
     });
 });
 
+
+/**
+ * 📏 **두 지점 거리는 shared haversineKm 하나** (공통 함수 3). 점은 {lng, lat} 와 주문 좌표 모양 {x, y}(x 는 경도 · y 는 위도) 둘 다 받는다 —
+ *    숫자 넷(lat, lng, lat, lng) 순서 실수가 생길 자리가 없다.
+ */
+describe('📏 haversineKm', () => {
+    it('🔴 두 모양이 같은 답 · 서울↔부산 약 325km · 같은 점 0', async () => {
+        const { haversineKm } = await import('./callNet');
+        const seoul = { lng: 126.978, lat: 37.5665 }, busan = { lng: 129.0756, lat: 35.1796 };
+        const km = haversineKm(seoul, busan);
+        expect(km).toBeGreaterThan(320);
+        expect(km).toBeLessThan(330);
+        expect(haversineKm({ x: seoul.lng, y: seoul.lat }, { x: busan.lng, y: busan.lat })).toBeCloseTo(km, 9);
+        expect(haversineKm(seoul, { x: busan.lng, y: busan.lat })).toBeCloseTo(km, 9);
+        expect(haversineKm(seoul, seoul)).toBe(0);
+    });
+});

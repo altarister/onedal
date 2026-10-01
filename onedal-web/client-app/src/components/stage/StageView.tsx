@@ -5,7 +5,7 @@ import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, lineFrom
     dropoffPartsOf, lastDropOf, lineUntil, dongDotsOf, quadShapeFrom, quadOutline, cityCenter, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { useSidePanelRoom } from '../../hooks/useSidePanelRoom';
-import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
+import { getAddressLabel } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from './StageSheet';
 import { stageStep, initialStageMemory, type StageEvent } from './stageRules';
@@ -33,7 +33,7 @@ function hereStopsOf(trail: Array<{ orderId: string; type: string; x?: number | 
                      me: { x: number; y: number } | null): string[] {
     if (!me) return [];
     return trail
-        .filter(v => v.x != null && v.y != null && getDistanceKm(me.y, me.x, v.y!, v.x!) * 1000 <= ARRIVED_HERE_M)
+        .filter(v => v.x != null && v.y != null && haversineKm(me, { lat: v.y!, lng: v.x! }) * 1000 <= ARRIVED_HERE_M)
         .map(v => `${v.orderId}:${v.type === '상차' ? 'pickup' : 'dropoff'}`);
 }
 import { callNodeFill, callNodeText } from '../../styles/callPalette';
@@ -590,7 +590,7 @@ export default function StageView(props: Props) {
         if (!myLocation) return null;
         for (const v of derived.visitedTrail) {
             if (v.x == null || v.y == null) continue;
-            if (getDistanceKm(myLocation.y, myLocation.x, v.y, v.x) * 1000 > ARRIVED_HERE_M) continue;
+            if (haversineKm(myLocation, { x: v.x, y: v.y }) * 1000 > ARRIVED_HERE_M) continue;
             return { visitNo: v.no, name: v.name, stop: v.type as '상차' | '하차',
                      callNo: derived.callNoOf(v.orderId), orderId: v.orderId };
         }
@@ -606,7 +606,7 @@ export default function StageView(props: Props) {
      *       먼 거리는 아래 `remainKm`(길을 따라)이 답한다 — 둘은 다른 질문이다 (규칙 ⑤-4 ⑤).
      */
     const nearMeters = myLocation && next?.x != null && next?.y != null
-        ? getDistanceKm(myLocation.y, myLocation.x, next.y, next.x) * 1000 : null;
+        ? haversineKm(myLocation, { x: next.x, y: next.y }) * 1000 : null;
 
     /**
      * 🛣️ **길을 따라 남은 km** — «정차» 경우가 쓴다. 카카오 폴리라인이 곧 도로이고 재는 함수도

@@ -23,9 +23,19 @@ import { DONG_CENTROIDS } from './dongCentroids';
 
 const rad = (d: number) => d * Math.PI / 180;
 
-export function haversineKm(a: { lng: number; lat: number }, b: { lng: number; lat: number }): number {
-    const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
-    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+/** 점 하나 — 지도 모양 {lng, lat} 또는 주문 좌표 모양 {x, y}(x 는 경도 · y 는 위도) */
+export type GeoPoint = { lng: number; lat: number } | { x: number; y: number };
+const lngLatOf = (p: GeoPoint): { lng: number; lat: number } => ('lng' in p ? p : { lng: p.x, lat: p.y });
+
+/**
+ * 📏 **두 지점 직선 거리(km) — 몸통과 지구 반지름은 여기 하나** (공통 함수 3 · `oneDistance` 검사).
+ *    숫자 넷(lat, lng, lat, lng) 함수를 두지 않는다 — (x, y) 로 넘기면 북쪽 200m 가 121m 가 되는 순서 실수 자리였다.
+ *    m 가 필요하면 × 1000.
+ */
+export function haversineKm(a: GeoPoint, b: GeoPoint): number {
+    const p = lngLatOf(a), q = lngLatOf(b);
+    const dLat = rad(q.lat - p.lat), dLng = rad(q.lng - p.lng);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(p.lat)) * Math.cos(rad(q.lat)) * Math.sin(dLng / 2) ** 2;
     return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 

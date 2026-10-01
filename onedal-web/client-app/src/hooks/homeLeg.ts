@@ -1,4 +1,4 @@
-import { getDistanceKm } from '../lib/routeUtils';
+import { haversineKm } from '@onedal/shared';
 
 /**
  * 🏠 **모의 주행 — 마지막 하차 뒤 집으로 떠나는 구간** (시험 도구 · 개발 빌드 전용).
@@ -16,5 +16,5 @@ type Pt = { x: number; y: number };
 /** 달릴까 — 집·지금 자리를 알고, 아직 안 달렸고, 떠날 수 있을 만큼(`awayKm`) 집에서 멀 때만 */
 export function homeLegNeeded(at: Pt | null | undefined, home: Pt | null | undefined, awayKm: number, done: boolean): boolean {
     if (done || !at || !home) return false;
-    return getDistanceKm(at.y, at.x, home.y, home.x) > awayKm;
+    return haversineKm(at, home) > awayKm;
 }

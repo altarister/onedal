@@ -1,11 +1,10 @@
-import { sectionLinesOf, aheadOf, callBandsOf, uncoveredSectionsOf } from '@onedal/shared';
+import { haversineKm, sectionLinesOf, aheadOf, callBandsOf, uncoveredSectionsOf } from '@onedal/shared';
 import { SOAK } from './JudgmentSeat';
 import { logStateChange } from '../../lib/roadmapLogger';
 import React, { useRef, useCallback, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
 import { isEvaluating } from "@onedal/shared";
 import sidoDataRaw from '../../mapData/sidoData.json';
-import { getDistanceKm } from '../../lib/routeUtils';
 import { useTheme } from '@onedal/ui/theme';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { offsetScreenPath } from '../../lib/parallelPath';
@@ -900,7 +899,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
         if (myLocation && validPoints.length > 0 && validPolyline.length < 2) {
             const startPt = getScreenPt(myLocation);
             const endPt = getScreenPt(validPoints[0]);
-            const distKm = getDistanceKm(myLocation.y, myLocation.x, validPoints[0].y, validPoints[0].x);
+            const distKm = haversineKm(myLocation, validPoints[0]);
 
             const midX = Math.round((startPt.cx + endPt.cx) / 2);
             const midY = Math.round((startPt.cy + endPt.cy) / 2);

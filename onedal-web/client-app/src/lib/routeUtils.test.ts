@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { getDistanceKm, getMinuteDiff, getAddressLabel, shortStopLabel } from './routeUtils';
+import { haversineKm } from '@onedal/shared';
+import { getMinuteDiff, getAddressLabel, shortStopLabel } from './routeUtils';
 
-describe('getDistanceKm (Haversine Formula)', () => {
+/* 📏 두 지점 거리는 shared haversineKm 하나(공통 함수 3) — 관제웹 복사본 getDistanceKm 은 지웠다 */
+describe('haversineKm (Haversine Formula)', () => {
     it('같은 좌표의 거리는 0km이다', () => {
-        expect(getDistanceKm(37.5, 127.0, 37.5, 127.0)).toBe(0);
+        expect(haversineKm({ lat: 37.5, lng: 127.0 }, { lat: 37.5, lng: 127.0 })).toBe(0);
     });
 
     it('서울-부산 간 직선 거리를 대략적으로 계산한다 (약 320km 내외)', () => {
-        // 서울: 37.5665, 126.9780 (위도, 경도)
-        // 부산: 35.1796, 129.0756
-        const distance = getDistanceKm(37.5665, 126.9780, 35.1796, 129.0756);
+        const distance = haversineKm({ lat: 37.5665, lng: 126.9780 }, { lat: 35.1796, lng: 129.0756 });
         expect(distance).toBeGreaterThan(310);
         expect(distance).toBeLessThan(340);
     });
