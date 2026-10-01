@@ -17,7 +17,8 @@ import { VERDICT_AXIS_LABEL } from '@onedal/shared';
 export interface VerdictInput {
     pickup?: string;
     dropoff?: string;
-    fare?: number;
+    /** 서버 원장은 요금을 모르면 null — 비교는 이미 «모르는 쪽이 있으면 구간만»(아래 isSameCall) */
+    fare?: number | null;
     /**
      * ⚖️ **앱이 내린 판정** — `pass` 이거나 **떨어뜨린 축 이름**.
      *    `locked` 는 «필터가 잠겨 아예 안 봤다»라 걸러진 것과 다르다 (답신 ①).

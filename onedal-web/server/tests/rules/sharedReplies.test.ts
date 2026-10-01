@@ -20,6 +20,7 @@ describe('📦 응답 모양 shared', () => {
             ['logbook/src/components/PlaceInsightBoard.tsx', /interface (HotspotPlace|BlacklistedPlace|PlaceInsights)\b/],
             ['logbook/src/components/KeyMetricsBoard.tsx', /interface SummaryMetrics\b/],
             ['server/src/services/statService.ts', /interface (SummaryMetrics|HotspotPlace|BlacklistedPlace|PlaceInsights)\b/],
+            ['client-app/src/statusboard/StatusBoard.tsx', /interface IntelRow\b/],
         ];
         expect(copies.filter(([f, re]) => re.test(read(f))).map(([f]) => f)).toEqual([]);
     });
@@ -31,6 +32,7 @@ describe('📦 응답 모양 shared', () => {
         expect(read('server/src/routes/devices.ts')).toMatch(/: FilterPassAlarm = /);
         expect(read('server/src/routes/health.ts')).toMatch(/: HealthReply = /);
         expect(read('server/src/routes/logbook/filterDays.ts')).toMatch(/: FilterDaysReply = /);
+        expect(read('server/src/routes/sim.ts')).toMatch(/: SimIntelReply = /);
         expect(read('shared/src/index.ts')).toMatch(/export \* from '\.\/replies'/);
     });
 });

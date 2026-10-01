@@ -46,6 +46,7 @@ import ScenarioCard from './ScenarioCard';
 import { simAsk, simFetch, useSimDoor } from './simDoor';
 /* 🎚️ **눈금이 무엇을 못 보게 하나 — 판단은 순수 함수가 한다** (`dialEffect.ts` 머리 참조) */
 import { dialEffectOf } from './dialEffect';
+import type { IntelRow } from '@onedal/shared';   // 🗑️ 원장 한 줄 — 서버 `intel` 행 그대로 · 모양은 shared 한 곳(운영센터 현황판과 같이)
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
    손으로 적으면 `/api` 가 두 번 붙어 실경로가 늘 직선으로 그려진다 */
 
@@ -724,25 +725,6 @@ function TestOnlySection({ phase }: { phase?: string }) {
     );
 }
 
-/** 🗑️ 스크랩으로 올라온 콜 한 줄 — 서버 `intel` 행 그대로 */
-interface IntelRow {
-    id?: number; pickup?: string; dropoff?: string; fare?: number;
-    timestamp?: string; targetApp?: string;
-    /** 🔴 서버는 **DB 칸 이름 그대로** 준다 — `deviceId` 가 아니라 `device_id` 다 */
-    device_id?: string;
-    pickupDistanceKm?: number | null;
-    /**
-     * ⚖️ **앱이 내린 판정** — `pass` 이거나 떨어뜨린 축, `locked`(잠겨 안 봄), `null`(구앱).
-     *    🔴 화면은 이 값을 옮기기만 한다 — 필터로 다시 재는 사본을 두지 않는다.
-     */
-    verdict?: string | null;
-    /** 🆕 앱이 더 싣는 값들 — **판정에는 안 쓴다.** 눈으로 본다 */
-    vehicleType?: string | null;
-    deliveryDistanceKm?: number | null;
-    scheduleText?: string | null;
-    postTime?: string | null;
-    rawText?: string | null;
-}
 
 /**
  * 🗑️ **버린 콜 한 줄 — 왼쪽은 콜, 오른쪽은 심사** (기사님 지시:

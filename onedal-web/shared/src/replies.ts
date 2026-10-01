@@ -1,3 +1,5 @@
+import type { OpsBoardIntel } from './ops';
+
 /**
  * 📦 **서버 응답 · 소켓 알림의 모양 — 한 곳** (공통 함수 6 · `sharedReplies` 검사).
  * 서버는 보내는 자리에서 이 이름을 붙이고(`const body: XxxReply = …`), 받는 화면(관제웹 · 운영센터 · 운행일지)은 이것을 가져온다.
@@ -62,6 +64,11 @@ export interface FilterPassAlarm {
     openBlocked?: string;
     at: number;
 }
+
+// ── 원장(GET /api/sim/intel · 개발 빌드 · 관제웹 현황판 «버린 콜») ──────────
+
+/** 운영센터 현황판(OpsBoardIntel)과 같은 줄 · 총수 + 개발 문의 표식 둘 */
+export type SimIntelReply = OpsBoardIntel & { ok: true; limit: number };
 
 // ── 서버 상태(GET /api/health · 로그인 없이) ────────────────────────
 

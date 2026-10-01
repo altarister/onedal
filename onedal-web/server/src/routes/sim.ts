@@ -19,6 +19,7 @@ import { GANGNAM_FIVE_OK } from "../core/simScenarioGangnam";
 import { slog } from "../utils/fileLogger";
 import { waitsOf, globalWaits } from "../state/waits";
 import { intelRowsOf } from "../services/intelRows";
+import type { SimIntelReply } from "@onedal/shared";
 
 const router = Router();
 
@@ -139,13 +140,14 @@ router.get("/intel", (req, res) => {
     /* 📋 리스트 화면이 준 것을 그대로 — 원장 읽기는 services/intelRows 한 곳(운영센터 현황판과 같이) */
     const { rows, total } = intelRowsOf({ limit });
 
-    return res.json({
+    const body: SimIntelReply = {
         ok: true,
         limit,
         /** 🔴 **«전부»가 아니라 «최근 N»이다** — 화면이 그렇게 말할 수 있게 총수를 함께 낸다 */
         total,
         rows,
-    });
+    };
+    return res.json(body);
 });
 
 /**
