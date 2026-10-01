@@ -11,6 +11,13 @@ import { parseMockupFare, parseDetailedRawText } from '../../src/utils/parser';
  *   ② 쉼표가 들어가므로 `\d+`로 읽으면 `40` 에서 끊긴다
  */
 describe("parseMockupFare — 요금 파싱", () => {
+    /* 🔴 화물24시 «수납금액»은 부가세를 더한 합계다 — 요금으로 잡으면 콜이 실제보다 좋아 보인다(노이즈 · onedal-69 «가») */
+    it("🔴 «수납금액»은 요금이 아니다 — 못 읽음 · «요금 : N» · «금액 N» 은 그대로", () => {
+        expect(parseMockupFare("부가세 6,000 수납금액 65,144 결제방법 카드")).toBeUndefined();
+        expect(parseMockupFare("요금 : 50,000(카드)")).toBe(50000);
+        expect(parseMockupFare("금액 30,000")).toBe(30000);
+    });
+
     describe("쉼표가 있으면 원 단위로 확정한다", () => {
         // 인성콜 축약형("45" = 45,000원)은 쉼표를 쓰지 않는다.
         // 따라서 쉼표의 존재 자체가 "이건 원 단위다"라는 신호다.

@@ -77,7 +77,8 @@ export function parseMockupFare(rawText: string): number | undefined {
 
     // 1. 명시적 요금 포맷 (예: "요금 : 40,000(신용)", "요금: 45000", "금액 4.5만")
     //    쉼표를 포함해서 잡는다 — `\d+` 는 쉼표에서 멈춰 "40,000"을 40으로 읽는다.
-    const fareMatch = rawText.match(/(?:요금|금액)\s*[:]?\s*([\d,]+(?:\.\d+)?)\s*(만|천)?/);
+    //    🔴 «수납금액»(화물24시 — 부가세를 더한 합계)은 요금이 아니다 — 잡으면 콜이 실제보다 좋아 보인다(노이즈)
+    const fareMatch = rawText.match(/(?:요금|(?<!수납)금액)\s*[:]?\s*([\d,]+(?:\.\d+)?)\s*(만|천)?/);
     if (fareMatch) {
         const hadComma = fareMatch[1].includes(",");
         const val = parseFloat(fareMatch[1].replace(/,/g, ""));
