@@ -531,16 +531,19 @@ async function ledger() {
      *
      * 이 제품의 다음 동작은 언제나 *"KEEP 하고 바로 통화"* 다 (기사님).
      * 연락처가 증발하면 콜을 잡아도 **아무것도 못 한다** — 색이 틀리는 것 다음으로 큰 사고다.
-     * 상세 원문에서 뽑은 `전화1` 이 `places` 까지 살아서 갔는지 본다.
+     * 상세 원문에서 뽑은 `전화1` 이 이 콜의 정거장(`orderStops.phoneSnapshot`)과 기사별 거래처(`user_places.phone1`)까지 살아서 갔는지 본다.
+     * 공용 표 `places` 에는 주소 · 상호만 산다 — 연락처는 기사별 칸이다.
      */
     {
         const c = new Database(dbPath, { readonly: true });
-        const stop = c.prepare(`SELECT p.phone1, p.customerName FROM orderStops s
+        const stop = c.prepare(`SELECT s.phoneSnapshot, u.phone1, p.customerName FROM orderStops s
                                 JOIN places p ON p.id = s.placeId
-                                WHERE s.orderId = ? AND s.stopType = 'pickup'`).get(id);
+                                LEFT JOIN user_places u ON u.place_id = s.placeId AND u.user_id = ?
+                                WHERE s.orderId = ? AND s.stopType = 'pickup'`).get(row.userId, id);
         c.close();
-        check('상세 원문의 상차지 연락처가 장부까지 간다', !!stop?.phone1,
-            stop?.phone1 ? `${stop.customerName} ${stop.phone1}` : '🔴 phone1 이 비었다 — 전화를 걸 수 없다');
+        const ok = !!stop?.phoneSnapshot && !!stop?.phone1;
+        check('상세 원문의 상차지 연락처가 장부까지 간다', ok,
+            ok ? `${stop.customerName} ${stop.phoneSnapshot}` : `🔴 정거장 ${stop?.phoneSnapshot ?? '빈칸'} · 기사별 거래처 ${stop?.phone1 ?? '빈칸'} — 전화를 걸 수 없다`);
     }
 
     const REQUIRED = ['id', 'type', 'status', 'userId', 'pickup', 'dropoff', 'fare',
