@@ -34,8 +34,11 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
     override val pages get() = Hwamul24Pages.pages
     override val screens get() = Hwamul24Pages.screens
 
-    /** ✍️ 배차신청 버튼 글자 — 판별 글자에서 옮긴 값 그대로(«전화걸기»가 든 까닭은 따로 본다) */
-    override val acceptButtons: List<String>? = listOf("배차신청", "전화걸기")
+    /**
+     * ✍️ **배차신청 버튼 글자 — «배차신청» 하나** (기사님 «가»). 실물 잡기 전 상세(캡처 18 · 51) 바닥 버튼은 «배차신청 · 돌아가기»다.
+     * 🔴 둘째 글자를 두지 않는다 — «배차신청»이 안 보이는 순간 «전화걸기»를 눌러 화주에게 전화가 걸릴 수 있었다. 못 찾으면 «버튼 못 찾음» 길(누르지 않고 빠져나옴).
+     */
+    override val acceptButtons: List<String>? = listOf("배차신청")
 
     override val ocrParser: ScreenOcrParser<*>? = null
 

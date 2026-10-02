@@ -31,6 +31,13 @@ class CapturedViaAndTargetAppTest {
         }
     }
 
+    /** 🔴 수락 버튼은 그 버튼 하나 — 둘째 글자(인성 «배차» · 화물24시 «전화걸기»)가 엉뚱한 칸을 누르지 않게 (기사님 «가») */
+    @Test
+    fun `수락 버튼 글자는 인성 확정 · 화물24시 배차신청 하나씩`() {
+        assertEquals(listOf("확정"), com.onedal.app.plugins.DispatchPluginRegistry.get(TargetApp.INSUNG).acceptButtons)
+        assertEquals(listOf("배차신청"), com.onedal.app.plugins.DispatchPluginRegistry.get(TargetApp.HWAMUL24).acceptButtons)
+    }
+
     /**
      * 🎛️ **픽커에는 자동 모드가 없다 — 자동이 오면 알람과 똑같이** (기사님 확정 · 배차망_모드표.md).
      * 이 줄이 «앱이 픽커 수락하기를 누르지 않는다»의 지킴이다: 픽커에서 실제 모드가 자동이 되면
