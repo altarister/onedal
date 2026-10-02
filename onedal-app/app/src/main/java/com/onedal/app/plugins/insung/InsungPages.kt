@@ -34,8 +34,8 @@ object InsungPages {
         Page.DETAIL to listOf(
             FieldSpec(PageField.STAGE, "상태 줄", "상태 : 배송", Seen.REAL, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""상태\s*:\s*(?!\S*\s*:)(\S+)""")),
-            FieldSpec(PageField.ITEM_SIZE, "물품 줄", "물품 :", Seen.REAL, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다",
-                read = Regex("""물품[ \t]*:[ \t]*([^\n]+)""")),
+            FieldSpec(PageField.ITEM_SIZE, "물품 줄", "물품 :", Seen.REAL, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다 · 값이 다음 줄에 있으면 그 줄(다른 칸 줄이면 안 읽는다)",
+                read = Regex("""물품[ \t]*:[ \t]*(?:\n(?![^\n]*:))?([^\n]+)""")),
             /* 🚚 빈 «차량 :» 뒤의 다음 이름표(«탁송료 :»)를 차종으로 잡지 않는다 — 값 토막 뒤가 바로 «:» 이면 이름표다 */
             FieldSpec(PageField.VEHICLE_TYPE, "차량 줄", "차량 : 트럭-1t · 다마스", Seen.REAL, Handling.READ, "서버 detail.ts pageFieldOf — 원달앱 값 · 목록 차종이 없을 때만(원달앱은 아직 이 칸을 안 읽는다)",
                 read = Regex("""차량\s*:\s*(?!\S*\s*:)([^\s(]+)""")),

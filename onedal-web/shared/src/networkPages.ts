@@ -216,7 +216,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       ],
       "detail": [
         {"field": "stage", "where": "상태 줄", "sample": "상태 : 배송", "seen": "REAL", "handling": "READ", "usedAt": "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다", "read": "상태\\s*:\\s*(?!\\S*\\s*:)(\\S+)"},
-        {"field": "itemSize", "where": "물품 줄", "sample": "물품 :", "seen": "REAL", "handling": "READ", "usedAt": "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다", "read": "물품[ \\t]*:[ \\t]*([^\\n]+)"},
+        {"field": "itemSize", "where": "물품 줄", "sample": "물품 :", "seen": "REAL", "handling": "READ", "usedAt": "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다 · 값이 다음 줄에 있으면 그 줄(다른 칸 줄이면 안 읽는다)", "read": "물품[ \\t]*:[ \\t]*(?:\\n(?![^\\n]*:))?([^\\n]+)"},
         {"field": "vehicleType", "where": "차량 줄", "sample": "차량 : 트럭-1t · 다마스", "seen": "REAL", "handling": "READ", "usedAt": "서버 detail.ts pageFieldOf — 원달앱 값 · 목록 차종이 없을 때만(원달앱은 아직 이 칸을 안 읽는다)", "read": "차량\\s*:\\s*(?!\\S*\\s*:)([^\\s(]+)", "note": "🚚 빈 «차량 :» 뒤의 다음 이름표(«탁송료 :»)를 차종으로 잡지 않는다 — 값 토막 뒤가 바로 «:» 이면 이름표다"},
         {"field": "fare", "where": "요금 줄", "sample": "요금 : 85,000(신용)(계산서)", "seen": "REAL", "handling": "READ", "usedAt": "목록 값 · 목록 줄을 못 찾은 손 상세는 PageFieldRead(PreConfirmSequence)", "read": "요금\\s*:\\s*([\\d,]+)(?![\\d.])"},
         {"field": "payment", "where": "요금 줄 괄호", "sample": "(신용)(계산서)", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) · 서버 결제 칸(«착불» 정산) — 첫 괄호 «(카드)» · «(착불)» · 원달앱은 이 칸을 안 읽는다", "read": "요금\\s*:\\s*[\\d,]+\\(([^)]*)\\)"},
