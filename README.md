@@ -138,7 +138,7 @@
 | 콜 필터의 지역 목록 계산 | 🟡 `pnpm net:compare` (그물 계산이 두 벌 — 지도 `callNet` ↔ 서버 turf) |
 | `baseFilter` ↔ `activeFilter` | 🟡 `onedal-web/server/CLAUDE.md` |
 | `destinationKeywords` · `customCityFilters` | ✅ `keepKeepsAliases` — 경유 한 벌은 `filterManager` 한 곳이 조립한다 (`onedal-web/server/CLAUDE.md`) |
-| 서버 낱말 사전 `onedal-web/server/config/keywords_*.json` | 🟡 앱 `FALLBACK_NOISE_WORDS` (일부러 일부만) |
+| 서버 낱말 사전 `onedal-web/server/config/keywords_*.json` | 🟡 앱 `FALLBACK_NOISE_WORDS` (일부러 일부만) · ✅ 화물24시 `Hwamul24NoiseWordsTest`(`keywords_24.json` 이 `Hwamul24Parser` 기본값을 다 담는다) |
 | 배차망 이름 | 🟡 `TargetApp.kt` |
 | DB 스키마 · `onedal-web/shared/` | 🟡 기존 DB 사본으로 부팅 (빈 DB 는 문제를 숨긴다) · 빈 DB 로도 부팅 |
 | 픽커 상세 화면 OCR 파서 | 🟡 앱 `PickerScreenOcr.kt` ↔ 서버 `pickerScreenOcr.ts` (두 검사가 같은 문제지를 문다) |

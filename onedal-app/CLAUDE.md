@@ -51,7 +51,9 @@
   (`app` 은 배차망 이름표 `인성콜`·`24시`·`픽커` — 각 Plugin 의 `label`)
   (서버 파일: `server/config/keywords_inseong.json` · `keywords_24.json` · `keywords_picker.json`).
   배차망이 UI를 바꿔도 앱 재배포 없이 대응하려는 설계다.
-  ⚠️ 다만 **파서에 하드코딩 폴백이 남아 있다** (`InsungParser` 의 `FALLBACK_NOISE_WORDS`).
+  ⚠️ 다만 **파서에 하드코딩 폴백이 남아 있다** (`InsungParser` 의 `FALLBACK_NOISE_WORDS` · `Hwamul24Parser` · `KakaoPickerParser` 의 `NOISE_WORDS`).
+  인성은 서버 낱말을 그대로 쓰고, 화물24시 · 픽커는 서버 낱말에 기본값을 합친다.
+  사전은 부팅 때 그 배차망 몫 하나만 받는다 — 배차망을 갈아타도 다시 받지 않으니 `keywords_24.json` 에는 인성 낱말도 일부러 남아 있다
   통신 실패 시를 위한 것이므로 "하드코딩이 아예 없다"고 전제하지 말 것
 
 - **배차망은 화면 글자로 가른다 — 앱 이름(패키지)으로 가르지 않는다** (`TargetApp.networksOnScreen`).
