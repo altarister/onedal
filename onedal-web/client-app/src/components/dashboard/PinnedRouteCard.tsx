@@ -2,7 +2,7 @@ import { verdictOf, manwonText, wonText } from '@onedal/shared';
 import { BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords, safeCancelSecOf } from "@onedal/shared";
+import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords, safeCancelSecOf, stopPhoneOf, stopPhoneLogOf } from "@onedal/shared";
 import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, telHref } from "../../lib/routeUtils";
@@ -26,6 +26,9 @@ import { clockText, hhmmText } from "@onedal/shared";
  * 🔴 두 값 다 `deriveRouteTimeline` 이 만든다 (규칙 ③) — 카카오 `sectionEtas` 를 그대로 옮기면
  *    **정차를 한 번도 안 세어** 같은 화면의 시트와 다른 시각을 말한다.
  */
+/** 🧾 카드마다 마지막으로 로그에 올린 단계 시트 전화 상태 — 바뀔 때만 찍는다(카드가 다시 그려져도 같은 줄을 또 안 올린다) */
+const lastPhoneLog = new Map<string, string>();
+
 export interface EtaCell {
     pickupEta?: string; dropoffEta?: string;
     /** 앞 정거장들의 실측이 이 정거장을 밀어낸 분. `0` 이면 예측대로 — 안 그린다 */
@@ -189,6 +192,18 @@ export default function PinnedRouteCard({
         return Math.min(last + 1, seededSteps.length - 1);
     })();
     useEffect(() => { setStepNav(null); }, [stepCurIdx, route.id]);
+
+    /**
+     * 🧾 **단계 시트 전화를 그리나 — 바뀔 때만 서버 로그에 한 줄** (기사님 «로그를 넣어서 너가 확인해»).
+     *    판단은 단계 시트에 넘기는 값과 같은 `stopPhoneOf`(shared) 하나 · 번호는 뒤 네 자리만 · 재료는 pickupDetails · dropoffDetails.
+     *    결재 전(심사 중) 카드는 단계 시트가 없어 안 찍는다.
+     */
+    const phoneLog = `${isTerminal(route.status) ? '끝남' : '진행 중'} · 상차 ${stopPhoneLogOf(route.pickupDetails?.[0])} · 하차 ${stopPhoneLogOf(route.dropoffDetails?.[0])}`;
+    useEffect(() => {
+        if (isEvaluating(route.status) || lastPhoneLog.get(route.id) === phoneLog) return;
+        lastPhoneLog.set(route.id, phoneLog);
+        logRoadmapEvent('화면', '웹', `📞 [단계 시트 전화] ${route.id.slice(-6)} ${phoneLog} (pickupDetails · dropoffDetails)`);
+    }, [route.id, route.status, phoneLog]);
 
     /**
      * 🎬 **보여 줄 단계는 시트 상태바가 정한다** (기사님).
@@ -1068,7 +1083,7 @@ export default function PinnedRouteCard({
                                                                             place={{
                                                                                 name: dd?.contactName || dd?.customerName || undefined,
                                                                                 address: dd?.addressDetail || (xPickup ? route.pickup : route.dropoff),
-                                                                                phone: [dd?.phone1, dd?.phone2].find(v => !!v && v !== '*') || undefined,
+                                                                                phone: stopPhoneOf(dd),
                                                                             }}
                                                                             prevName={route.pickupDetails?.[0]?.contactName || route.pickupDetails?.[0]?.customerName}
                                                                             leadMinutes={callPRow?.planned_dwell_min ?? null}

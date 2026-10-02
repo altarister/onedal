@@ -13,3 +13,25 @@ export function maskPhone(text: string): string {
 export function maskPin(pin: string): string {
     return pin ? `${'*'.repeat(Math.max(0, pin.length - 2))}${pin.slice(-2)}` : '';
 }
+
+/** 정거장 연락처 덩어리 — 상차 · 하차 팝업에서 읽은 전화 둘 */
+type StopPhones = { phone1?: string | null; phone2?: string | null } | null | undefined;
+
+/**
+ * 📞 **단계 시트가 그릴 정거장 전화** — 전화1 → 전화2 순서로 첫 «쓸 수 있는» 번호. 빈 값과 «*»(배차망이 비운 칸)는 건너뛴다.
+ *    화면(단계 시트의 📞)과 로그(`stopPhoneLogOf`)가 이 판단 하나를 쓴다 — 둘이 갈라지면 «그렸다»는 로그를 믿을 수 없다.
+ */
+export function stopPhoneOf(d: StopPhones): string | undefined {
+    return [d?.phone1, d?.phone2].find((v): v is string => !!v && v !== '*');
+}
+
+/**
+ * 🧾 **로그에 남길 정거장 전화 상태** — 그렸으면 뒤 네 자리만(번호를 통째로 남기지 않는다 · `maskPin` 과 같은 결),
+ *    못 그렸으면 까닭(«*» · 번호 없음 · 칸 없음).
+ */
+export function stopPhoneLogOf(d: StopPhones): string {
+    const shown = stopPhoneOf(d);
+    if (shown) return `📞 그림 …${shown.replace(/\D/g, '').slice(-4)}`;
+    if (!d) return '안 그림 칸 없음';
+    return d.phone1 === '*' || d.phone2 === '*' ? '안 그림 «*»' : '안 그림 번호 없음';
+}

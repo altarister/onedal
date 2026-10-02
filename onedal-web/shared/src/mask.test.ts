@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { maskPhone, maskPin } from './mask';
+import { maskPhone, maskPin, stopPhoneOf, stopPhoneLogOf } from './mask';
 
 /**
  * 📵 **휴대폰 번호 가림** (reviews/29 1단계 I · 가림 규칙 «010 계열 가운데 넉 자리») — 서버 로그 · 운영센터 · 관제웹이 같은 함수를 쓴다.
@@ -22,5 +22,22 @@ describe('🔑 maskPin', () => {
     it('🔴 폰 연결 번호는 뒤 두 자리만 — 로그에 번호가 통째로 남지 않게', () => {
         expect(maskPin('805718')).toBe('****18');
         expect(maskPin('')).toBe('');
+    });
+});
+
+/** 📞 단계 시트 정거장 전화 — 화면(📞 를 그리나)과 로그가 같은 판단을 쓴다 · 로그엔 뒤 네 자리만 */
+describe('stopPhoneOf · stopPhoneLogOf', () => {
+    it('전화1 → 전화2 순서로 «*»와 빈 값을 건너뛴다', () => {
+        expect(stopPhoneOf({ phone1: '010-1234-5678' })).toBe('010-1234-5678');
+        expect(stopPhoneOf({ phone1: '*', phone2: '031-932-7722' })).toBe('031-932-7722');
+        expect(stopPhoneOf({ phone1: '*', phone2: '' })).toBeUndefined();
+        expect(stopPhoneOf(undefined)).toBeUndefined();
+    });
+    it('로그 글은 그림 · 뒤 네 자리 / «*» / 칸 없음을 가른다 — 번호를 통째로 남기지 않는다', () => {
+        expect(stopPhoneLogOf({ phone1: '010-1234-5678' })).toBe('📞 그림 …5678');
+        expect(stopPhoneLogOf({ phone1: '010-1234-5678' })).not.toContain('1234');
+        expect(stopPhoneLogOf({ phone1: '*' })).toBe('안 그림 «*»');
+        expect(stopPhoneLogOf({})).toBe('안 그림 번호 없음');
+        expect(stopPhoneLogOf(undefined)).toBe('안 그림 칸 없음');
     });
 });
