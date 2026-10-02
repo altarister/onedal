@@ -56,10 +56,19 @@ describe('🧹 관제웹 → 서버 중계 — 유지 목록만 싣는다', () =
         expect(logs).toContain('RELAY_KEEP');
     });
     /* ⚪ 판정 못 함이 그려졌나·보였나 · 🖥️ 창의 코드 판 — 기사님 창을 로그로 가르는 줄 (onedal-1f) */
-    it.each(['심사석', '국면', '필터', '웹 수신', '다녀옴', '주행판정', '⚪', '관제웹 코드'])(
+    it.each(['심사석', '국면', '필터', '웹 수신', '다녀옴', '주행판정', '⚪', '관제웹 코드', '단계 시트 전화'])(
         '유지 목록에 «%s» 이 든다', (word) => {
             expect(logs).toContain(word);
         });
+});
+
+/** 🔄 지나온 구간 줄은 뺀 동의 이름을 싣는다 — 숫자만 있으면 «곧 내릴 하차지 동이 빠졌나»를 로그로 못 가린다 */
+describe('🔄 지나온 구간 줄', () => {
+    it('🔴 뺀 동 이름을 싣는다(많으면 앞 몇 개 + «외 N»)', () => {
+        const fm = readFileSync(join(__dirname, '../../src/state/filterManager.ts'), 'utf8');
+        expect(fm).toMatch(/\[지나온 구간\][^;]*뺀 \$\{[^}]+\}개[^;]*\$\{goneText\}/);
+        expect(fm).toMatch(/goneText = [^;]*외 \$\{/);
+    });
 });
 
 describe('🧹 한 판 400줄 — 되풀이 줄은 바뀔 때만', () => {

@@ -673,8 +673,11 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
     session.activeFilter.customCityFilters = Array.from(aliases);
     refreshAdminDongs(session);   // 지나간 법정동의 행정동도 걷는다 — 이 길은 refreshKeywordTraps 를 안 지난다
 
+    /* 🔄 뺀 동 이름도 싣는다 — 숫자만 있으면 «곧 내릴 하차지 동이 빠졌나»를 로그로 못 가린다 · 많으면 앞 여섯 + 외 N */
+    const gone = before.filter(d => !kept.has(d));
+    const goneText = gone.slice(0, 6).join('·') + (gone.length > 6 ? ` 외 ${gone.length - 6}` : '');
     slog('필터', `🔄 [지나온 구간] ${at.toFixed(1)}km 지점 — 동 ${before.length} → ${kept.size}개 ` +
-        `(뺀 ${before.length - kept.size}개)`);
+        `(뺀 ${before.length - kept.size}개: ${goneText})`);
     return true;
 }
 
