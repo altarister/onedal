@@ -1090,6 +1090,21 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 orderForm: row.orderForm,
                 detailMemo: row.detailMemo,
                 /**
+                 * 🧾 **카드가 그리는 장부 칸도 되살린다** — 🏢 배차사 · 📦 물품 · 수수료 · 예약 시각 · 구분 · 계산서 · 탁송료 ·
+                 *    배송거리 · 게시 시각 · 배차망. 지난 콜 목록(GET /orders)과 같은 칸을 실어야 재시작 뒤 카드와 목록이 같은 말을 한다.
+                 */
+                dispatcherName: row.dispatcherName ?? undefined,
+                dispatcherPhone: row.dispatcherPhone ?? undefined,
+                itemDescription: row.itemDescription ?? undefined,
+                commissionRate: row.commissionRate ?? undefined,
+                scheduleText: row.scheduleText ?? undefined,
+                tripType: row.tripType ?? undefined,
+                billingType: row.billingType ?? undefined,
+                tollFare: row.tollFare ?? undefined,
+                postTime: row.postTime ?? undefined,
+                deliveryDistance: row.deliveryDistance ?? undefined,
+                targetApp: row.targetApp ?? undefined,
+                /**
                  * 🚏 **도착 시각을 되살린다**.
                  * 안 되살리면 재시작 직후 `hasVisitedStop` 이 false 가 되어
                  * **이미 다녀온 정거장으로 되돌아가는 경로**가 다시 그려진다.

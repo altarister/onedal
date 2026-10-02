@@ -197,3 +197,28 @@ describe('📞 재시작 뒤 정거장 연락처', () => {
         expect(c?.dropoffDetails?.[0]).toMatchObject({ customerName: '하차 가게', phone1: '010-3333-4444' });
     });
 });
+
+/**
+ * 🧾 **재시작 뒤 카드 칸** — 되살린 세션 콜이 관제웹 카드가 그리는 장부 칸(🏢 배차사 · 📦 물품 · 수수료 · 예약 시각 · 구분 · 계산서 ·
+ *    탁송료 · 배송거리 · 게시 시각 · 배차망)을 지난 콜 목록(GET /orders)과 같이 싣는다. 안 실으면 재시작 뒤 카드에서 그 칸이 사라진다.
+ */
+describe('🧾 재시작 뒤 카드 칸', () => {
+    const CARD = {
+        dispatcherName: '고양퀵서비스', dispatcherPhone: '031-932-7722', itemDescription: '샘플 박스',
+        commissionRate: '23%', scheduleText: '오후3시6', tripType: '편도', billingType: '계산서',
+        tollFare: '3,000', postTime: '21:42', targetApp: 'hwamul24',
+    } as const;
+    it('🔴 되살린 세션 콜에 카드 칸이 장부 그대로 있다', async () => {
+        const id = `${U}-card1`;
+        insertCall(id, 9);
+        db.prepare(`UPDATE orders SET dispatcherName = ?, dispatcherPhone = ?, itemDescription = ?, commissionRate = ?, scheduleText = ?,
+                    tripType = ?, billingType = ?, tollFare = ?, postTime = ?, targetApp = ?, deliveryDistance = ? WHERE id = ?`)
+            .run(CARD.dispatcherName, CARD.dispatcherPhone, CARD.itemDescription, CARD.commissionRate, CARD.scheduleText,
+                CARD.tripType, CARD.billingType, CARD.tollFare, CARD.postTime, CARD.targetApp, 9.8, id);
+        const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+        await restoreAndRecalculateSession(U, io);
+        log.mockRestore();
+        const c: any = getUserSession(U).myOrders.find((o: any) => o.id === id);
+        expect(c).toMatchObject({ ...CARD, deliveryDistance: 9.8 });
+    });
+});
