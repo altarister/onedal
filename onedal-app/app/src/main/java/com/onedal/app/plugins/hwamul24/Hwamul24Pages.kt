@@ -55,7 +55,7 @@ object Hwamul24Pages {
     )
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 셋째 줄 «낱말/…»(«1톤/전체» · «2.5톤/윙» · «다마스/전체»)의 첫 «/» 앞 낱말 — REAL 은 실물 캡처 17 · 실물 목록, SIM 은 시뮬레이터 목록에서만 봤다) */
-    val vehicleWords: Map<String, String> = mapOf(
+    val vehicleWords: Map<String, String?> = mapOf(
         "1톤" to "1t",
         "1.4톤" to "1.4t",
         "2.5톤" to "2.5t",

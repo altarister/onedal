@@ -36,25 +36,22 @@ class InsungParser(private val context: Context) : IScrapParser {
         private const val TAG = "1DAL_PARSER"
 
         /**
-         * 🚚 **인성 화면의 차종 토큰 — 목록은 여기 하나뿐이다**.
+         * 🚚 **인성 화면의 차종 토큰 — 배차망 정의 표(shared vehicleWords → `InsungPages.vehicleWords`) 한 곳**.
          *
          * 화면은 차종을 한 글자로 쓴다(오·다·라·승·1t·5t…). 앱은 이 토큰을 **닻**으로
          * 카드를 묶고, 바로 다음 노드를 요금으로 읽는다.
          *
-         * 🔴 목록이 여러 벌이면 한 곳만 고쳐진다 — 카드를 묶는 목록(`groupListNodes`)에서 차종이
-         *    빠지면 그 차종 콜은 **카드 그룹이 아예 안 만들어져** «요금 못 읽음»도 «이미 본 콜»도
-         *    안 찍힌다 — 화면엔 떠 있는데 앱에서는 **아무 일도 없는 것처럼 보인다.**
-         *
-         * 목록을 늘릴 일이 있으면 **여기만** 고친다 (규칙 ③ — 경유 4벌·상태목록 3벌과
-         * 같은 클래스다).
+         * 🔴 표에서 빠지면 그 차종 콜은 **카드 그룹이 아예 안 만들어져** «요금 못 읽음»도 «이미 본 콜»도
+         *    안 찍힌다 — 화면엔 떠 있는데 앱에서는 **아무 일도 없는 것처럼 보인다.** 낱말을 늘릴 일이 있으면 그 표만 고친다.
+         * 긴 낱말 먼저 — «2.5t» 가 «2.5» 보다 먼저 맞는다(`InsungVehicleWordsTest` 가 옛 정규식과 같은지 문다).
          */
-        private const val VEHICLE_TOKENS = "오|다|라|승|1t|1\\.4|2\\.5t?|3\\.5t?|5t|11t|14t|18t|25t"
+        private val VEHICLE_TOKENS = InsungPages.vehicleWords.keys.sortedByDescending { it.length }.joinToString("|") { Regex.escape(it) }
 
         /** 노드 하나가 통째로 차종일 때 — 카드 묶기·요금 앵커링이 함께 쓴다 */
-        private val VEHICLE_ONLY = Regex("^($VEHICLE_TOKENS)$")
+        internal val VEHICLE_ONLY = Regex("^($VEHICLE_TOKENS)$")
 
         /** 「라2.2」처럼 차종과 요금이 한 노드로 뭉친 경우 */
-        private val VEHICLE_WITH_FARE = Regex("($VEHICLE_TOKENS)\\s*(\\d+(?:\\.\\d+)?)")
+        internal val VEHICLE_WITH_FARE = Regex("($VEHICLE_TOKENS)\\s*(\\d+(?:\\.\\d+)?)")
 
         /**
          * 🔇 **서버 낱말 사전을 못 받았을 때의 기본 소음 낱말** — 오프라인 안전망 (onedal-app/CLAUDE.md).
@@ -223,21 +220,11 @@ class InsungParser(private val context: Context) : IScrapParser {
          * ⚠️ 규칙 ⑤(*"앱은 느슨하게 올린다"*)와 어긋나지 않는다 — **느슨한 것과 틀린 것은
          *    다르다.** 못 싣는 차종은 애매한 콜이 아니라 **불가능한 콜**이다.
          *
-         * 🔴 인성 리스트는 **한 글자**로 준다(`다`·`오`·`라`·`승`). 톤 차량만 숫자로 온다
-         *    (`1t`·`2.5t`). 그래서 한글은 첫 글자로, 톤은 **정확히 일치**로 가른다.
+         * 🔴 인성 리스트는 **한 글자**로 준다(`다`·`오`·`라`·`승`). 톤 차량만 숫자로 온다(`1t`·`2.5t`).
+         *    화면 낱말을 표(`InsungPages.vehicleWords`)로 우리 차종에 맞춘 뒤 **같은지**로 본다 — 표에 없거나 우리 차종이 없는 낱말(14t · 18t)은 안 맞는다.
          */
-        fun vehicleMatches(allowed: String, parsed: String): Boolean {
-            val a = normalizeVehicle(allowed)
-            val p = normalizeVehicle(parsed)
-            return when (a) {
-                "다마스" -> p == "다" || p == "다마스"
-                "라보" -> p == "라" || p == "라보"
-                "승용차" -> p == "승" || p == "승용차"
-                "오토바이" -> p == "오" || p == "바" || p == "오토바이" || p == "바이"
-                // 톤 차량 — 숫자가 다르면 다른 차다. 담고 있는지로 보지 않는다
-                else -> a == p
-            }
-        }
+        fun vehicleMatches(allowed: String, parsed: String): Boolean =
+            InsungPages.vehicleWords[parsed]?.let { it == normalizeVehicle(allowed) } ?: false
 
         /** `1톤`·`1 t`·`1` 을 전부 `1t` 로 맞춘다 — 화면 표기가 제각각이라 */
         private fun normalizeVehicle(s: String): String {

@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { NETWORK_PAGES } from '@onedal/shared';
 
 /**
  * 🚚 **손으로 나열한 차종 목록은 한 벌이다** (실측)
@@ -17,7 +18,8 @@ import { join } from 'path';
  * 실측: 승용차 콜(문제지 ⑧⑨)이 빠지면 판정도 «요금 못 읽음»도 «이미 본 콜»도 안 남는다.
  * 그 침묵 때문에 원인을 엉뚱한 곳(지문 캐시)에서 찾게 된다.
  *
- * → 목록은 **한 곳**(`VEHICLE_TOKENS`)에서만 쓴다 (규칙 ③).
+ * → 목록은 **한 곳** — shared 배차망 정의 표의 인성 `vehicleWords` 다. 원달앱은 gen:pages 로 받은 `InsungPages.vehicleWords` 에서
+ *   `VEHICLE_TOKENS` 를 만든다(규칙 ③ · 기사님 «기준은 배차망 · 플러그인으로 맞춘다»).
  */
 const PARSER = join(__dirname,
     '../../../../onedal-app/app/src/main/java/com/onedal/app/plugins/insung/InsungParser.kt');
@@ -26,20 +28,17 @@ describe('차종 토큰 — 목록은 한 벌이다', () => {
     const src = () => readFileSync(PARSER, 'utf8');
 
     /**
-     * 🔴 **이 한 건이 파일 전체를 잰다** — 어느 함수가 목록을 따로 나열하든 여기서 걸린다.
-     *    그래서 함수마다 따로 재는 검사를 두지 않는다 (중복이고, 함수 이름을 박아 낡는다).
-     *    변이 검수: 어느 자리든 `VEHICLE_ONLY` 를 손으로 쓴 `Regex("^(오|다|라)$")` 로 바꾸면
-     *    `literals.length` 가 2 가 되어 이 검사가 문다.
+     * 🔴 **원달앱 파서에는 손으로 나열한 토큰이 없다** — 어느 함수가 목록을 따로 나열하든 여기서 걸린다.
+     *    변이 검수: 어느 자리든 `Regex("^(오|다|라)$")` 처럼 손으로 쓰면 `literals.length` 가 1 이 되어 이 검사가 문다.
      */
-    it('🔴 토큰을 손으로 나열한 자리가 하나뿐이다', () => {
-        // 「오|다|라」로 시작하는 나열이 곧 차종 토큰 목록이다
+    it('🔴 InsungParser 에 토큰을 손으로 나열한 자리가 없고 · 토큰은 표(InsungPages.vehicleWords)에서 만든다', () => {
         const literals = src().match(/오\|다\|라[^")]*/g) ?? [];
-        expect(literals.length).toBe(1);
+        expect(literals).toEqual([]);
+        expect(src()).toMatch(/VEHICLE_TOKENS = InsungPages\.vehicleWords\.keys/);
     });
 
-    it('🔴 그 목록에 승(승용차)이 있다', () => {
-        const literals = src().match(/오\|다\|라[^")]*/g) ?? [];
-        expect(literals[0]).toContain('승');
+    it('🔴 그 표에 승(승용차)이 있다', () => {
+        expect(NETWORK_PAGES.insung.vehicleWords?.find(w => w.word === '승')?.vehicle).toBe('승용차');
     });
 
     it('필터 매칭도 승용차를 «승» 으로 본다 (화면 표기와 같아야 한다)', () => {

@@ -61,10 +61,10 @@ for (const [net, file, pkg, obj] of TARGETS) {
         return `        Page.${p} to listOf(\n${lines.join('\n')}\n        ),`;
     });
     const about = (spec.about ?? []).map((l) => ` * ${l}`.trimEnd()).join('\n');
-    /* 🚚 차종 낱말 → 우리 차종 — 없으면 빈 지도(원달앱이 «모름»으로 본다) */
+    /* 🚚 차종 낱말 → 우리 차종 — 없으면 빈 지도(원달앱이 «모름»으로 본다) · null 은 «아는 낱말 · 우리 차종 없음» */
     const words = spec.vehicleWords ?? [];
     const vehicleWords = words.length
-        ? `mapOf(\n${words.map((w) => `        ${kstr(w.word)} to ${kstr(w.vehicle)},`).join('\n')}\n    )`
+        ? `mapOf(\n${words.map((w) => `        ${kstr(w.word)} to ${w.vehicle === null ? 'null' : kstr(w.vehicle)},`).join('\n')}\n    )`
         : 'emptyMap()';
     writeFileSync(join(app, file), `package ${pkg}
 
@@ -86,7 +86,7 @@ ${pages.join('\n')}
     )
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords${spec.vehicleWordsWhy ? ` — ${spec.vehicleWordsWhy}` : ''}) */
-    val vehicleWords: Map<String, String> = ${vehicleWords}
+    val vehicleWords: Map<String, String?> = ${vehicleWords}
 }
 `);
     console.log(`✅ ${file} — 화면 ${Object.keys(spec.pages).length} · 칸 ${Object.values(spec.pages).flat().length}`);

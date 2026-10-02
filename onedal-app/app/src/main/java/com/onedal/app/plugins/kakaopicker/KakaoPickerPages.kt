@@ -56,5 +56,5 @@ object KakaoPickerPages {
     )
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords) */
-    val vehicleWords: Map<String, String> = emptyMap()
+    val vehicleWords: Map<String, String?> = emptyMap()
 }

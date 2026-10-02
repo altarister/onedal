@@ -43,9 +43,9 @@ class NetworkPagesPairTest {
     @Test fun `카카오 픽커 화면 정의는 표와 같다`() = assertEquals(rowsOf("kakaopicker"), rowsOf(KakaoPickerPages.pages))
 
     /** 🚚 차종 낱말 → 우리 차종 — 표의 vehicleWords 와 생성 파일의 vehicleWords 가 같다(없으면 둘 다 빈 지도) */
-    private fun wordsOf(network: String): Map<String, String> =
+    private fun wordsOf(network: String): Map<String, String?> =
         table[network].asJsonObject["vehicleWords"]?.asJsonArray?.associate { w ->
-            w.asJsonObject["word"].asString to w.asJsonObject["vehicle"].asString
+            w.asJsonObject["word"].asString to w.asJsonObject["vehicle"].takeIf { !it.isJsonNull }?.asString
         } ?: emptyMap()
 
     @Test fun `인성 차종 낱말은 표와 같다`() = assertEquals(wordsOf("insung"), InsungPages.vehicleWords)

@@ -101,6 +101,22 @@ object InsungPages {
         ),
     )
 
-    /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords) */
-    val vehicleWords: Map<String, String> = emptyMap()
+    /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록) */
+    val vehicleWords: Map<String, String?> = mapOf(
+        "오" to "오토바이",
+        "다" to "다마스",
+        "라" to "라보",
+        "승" to "승용차",
+        "1t" to "1t",
+        "1.4" to "1.4t",
+        "2.5t" to "2.5t",
+        "2.5" to "2.5t",
+        "3.5t" to "3.5t",
+        "3.5" to "3.5t",
+        "5t" to "5t",
+        "11t" to "11t",
+        "14t" to null,
+        "18t" to null,
+        "25t" to "25t",
+    )
 }

@@ -58,8 +58,8 @@ export interface NetworkPageSpec {
 export interface NetworkVehicleWord {
     /** 배차망 화면의 차종 낱말 그대로 */
     word: string;
-    /** 우리 차종 */
-    vehicle: VehicleType;
+    /** 우리 차종 — null 은 배차망 낱말은 알지만 우리 차종이 없다(인성 14t · 18t → 지금처럼 거른다 · 가까운 차종으로 때우지 않는다 · 이상 기록 안 올림) */
+    vehicle: VehicleType | null;
     /** 본 곳 — 실물 · 시뮬레이터 */
     seen: 'REAL' | 'SIM';
 }
@@ -71,6 +71,24 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "excludeScanWhy": "기사님 «인성은 적요»(+ 결제 괄호 «(착불)» · 구분 «왕복») — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다",
     "addressCut": "\\(.*?\\)$",
     "addressCutWhy": "끝에 붙는 «(건물명)»을 지운다 — 첫 «(»부터 끝까지",
+    "vehicleWords": [
+      {"word": "오", "vehicle": "오토바이", "seen": "SIM"},
+      {"word": "다", "vehicle": "다마스", "seen": "REAL"},
+      {"word": "라", "vehicle": "라보", "seen": "REAL"},
+      {"word": "승", "vehicle": "승용차", "seen": "SIM"},
+      {"word": "1t", "vehicle": "1t", "seen": "REAL"},
+      {"word": "1.4", "vehicle": "1.4t", "seen": "SIM"},
+      {"word": "2.5t", "vehicle": "2.5t", "seen": "SIM"},
+      {"word": "2.5", "vehicle": "2.5t", "seen": "SIM"},
+      {"word": "3.5t", "vehicle": "3.5t", "seen": "SIM"},
+      {"word": "3.5", "vehicle": "3.5t", "seen": "SIM"},
+      {"word": "5t", "vehicle": "5t", "seen": "SIM"},
+      {"word": "11t", "vehicle": "11t", "seen": "SIM"},
+      {"word": "14t", "vehicle": null, "seen": "SIM"},
+      {"word": "18t", "vehicle": null, "seen": "SIM"},
+      {"word": "25t", "vehicle": "25t", "seen": "SIM"}
+    ],
+    "vehicleWordsWhy": "목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록",
     "pages": {
       "list": [
         {"field": "pickup", "where": "출발지 칸", "sample": "@초이동 · @남양주(오남", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},

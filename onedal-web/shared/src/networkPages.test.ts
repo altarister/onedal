@@ -101,10 +101,10 @@ describe('주소 다듬기 (addressCut)', () => {
 });
 
 describe('차종 낱말 (vehicleWords)', () => {
-    it('대응한 우리 차종은 VEHICLE_OPTIONS 안 · 한 배차망에 같은 낱말은 하나 · 표가 있으면 까닭 한 줄도', () => {
+    it('대응한 우리 차종은 VEHICLE_OPTIONS 안(null = 우리 차종 없음) · 한 배차망에 같은 낱말은 하나 · 표가 있으면 까닭 한 줄도', () => {
         for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
             const words = spec.vehicleWords ?? [];
-            for (const w of words) expect(VEHICLE_OPTIONS as readonly string[], `${net} ${w.word}`).toContain(w.vehicle);
+            for (const w of words) if (w.vehicle !== null) expect(VEHICLE_OPTIONS as readonly string[], `${net} ${w.word}`).toContain(w.vehicle);
             expect(new Set(words.map(w => w.word)).size, net).toBe(words.length);
             if (words.length) expect(spec.vehicleWordsWhy, net).toBeTruthy();
         }
