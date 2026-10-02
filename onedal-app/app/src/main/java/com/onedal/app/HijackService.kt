@@ -140,6 +140,8 @@ class HijackService : AccessibilityService(), ScanContext {
     private var lastScreenFingerprint = 0
     /** 📄 마지막으로 찍은 «페이지 + 덧칸» — 바뀔 때만 한 줄 */
     private var lastPageKey: String? = null
+    /** 🧾 마지막 판별 결과 — 알림(«배정» 토스트)이 왔을 때 «알림 때 화면»으로 쓴다 */
+    private var lastScreenRead: com.onedal.app.core.engine.ScreenRead? = null
     /** 🔔 «이 콜로 이미 알람을 냈나» — 상차+하차 열쇠 (`AlarmedRoutes`) */
     private val alarmedRoutes = com.onedal.app.core.AlarmedRoutes()
     /** 🔄 마지막으로 본 필터 버전 · 이미 적은 «버전만 바뀜» 쌍 (목록 스캔 첫머리) */
@@ -855,7 +857,7 @@ class HijackService : AccessibilityService(), ScanContext {
     private fun onNotificationEvent(event: AccessibilityEvent) {
         if (!TargetApp.isPickerToastSource(event.packageName?.toString())) return
         val text = event.text.joinToString(" ")
-        if (!com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.isTakenToast(text)) return
+        val notice = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.takenNoticeOf(text) ?: return
         val rec = touchManager.resolveTakenByOther()
         val card = session.alarmTappedCard
         val foundToTap = if (session.alarmFoundAtMs > 0 && session.alarmTappedAtMs >= session.alarmFoundAtMs)
@@ -865,11 +867,14 @@ class HijackService : AccessibilityService(), ScanContext {
             recentListOrders.firstOrNull { CallMemory.fingerprintOf(it) == fp }?.timestamp
         } ?: "모름"
         val what = card?.let { "${it.fare}원 ${it.pickup}→${it.dropoff}" } ?: "누른 줄 모름"
-        AppLogger.w(TAG, LogTag.TAP, "🏁 [먼저 가져감] 다른 기사가 먼저 — $what · 발견→누름 $foundToTap · 목록에 처음 보인 때 $firstSeen · 누르는 중 ${if (rec != null) "이었다" else "아니었다"}")
+        val tappedPage = session.alarmTappedPage
+        val notifiedPage = lastScreenRead?.page
+        AppLogger.w(TAG, LogTag.TAP, "🏁 [먼저 가져감] 다른 기사가 먼저 — $what · 누른 화면 ${tappedPage ?: "모름"} · 알림 때 화면 ${notifiedPage ?: "표에 없음"} · 발견→누름 $foundToTap · 목록에 처음 보인 때 $firstSeen · 누르는 중 ${if (rec != null) "이었다" else "아니었다"}")
         apiClient.sendAnomalyReport(
             targetApp = currentTargetApp,
-            screenName = telemetryManager.currentScreenContext.name,
-            failureReason = "CALL_TAKEN: 발견→누름 $foundToTap · 처음 보인 때 $firstSeen",
+            /* 🧾 화면 칸 = 누른 화면(앱이 누른 콜) — 손으로 누른 콜이면 알림 때 화면 */
+            screenName = (session.alarmTappedScreen ?: telemetryManager.currentScreenContext).name,
+            failureReason = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.takenReason(notice, tappedPage, notifiedPage, foundToTap, firstSeen),
             listOrderInfo = card?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
             detailParsedText = text.take(200),
             ocrResult = null,
@@ -1029,6 +1034,7 @@ class HijackService : AccessibilityService(), ScanContext {
         // 🖥️ 배차망 정의 표로 화면을 읽는다 — 로딩 같은 건너뛰는 덧칸이 보이면 이 프레임은 처리하지 않는다
         val screenRead = screenDetector.detect(rawScreenStr, com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).screens)
         if (screenRead.skip) { rootNode.recycle(); return }
+        lastScreenRead = screenRead
 
         // 화면 종류 판별 및 서버(텔레메트리) 즉각 동기화
         markRead("지문·로딩")
@@ -1760,6 +1766,8 @@ class HijackService : AccessibilityService(), ScanContext {
                             session.alarmTappedCard = order
                             session.alarmTappedAtMs = alarmTapAtMs
                             session.alarmFoundAtMs = listReadAtMs
+                            session.alarmTappedScreen = telemetryManager.currentScreenContext   // 🧾 누른 화면 — «먼저 가져감» 기록의 화면 칸
+                            session.alarmTappedPage = lastScreenRead?.page
                             // 📊 서버 보고는 루프에서 이미 했다 (`markReportedOnce`) — 여기서 다시 보내지 않는다
                         }
                     }

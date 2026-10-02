@@ -43,8 +43,8 @@ class ScreenDetector {
         return ScreenRead(ScreenContext.UNKNOWN, null, null, skip)
     }
 
-    /** 갈래 중 하나만 맞아도 — 빈 목록은 «아직 모름»이라 안 맞는다 */
-    private fun hits(match: List<ScreenMatch>, text: String): Boolean = match.any { matches(it, text) }
+    /** 갈래 중 하나만 맞아도 — 빈 목록은 «아직 모름»이라 안 맞는다 · 알림 덧칸(화면 글이 아니라 알림 사건 글)도 이것으로 본다 */
+    fun hits(match: List<ScreenMatch>, text: String): Boolean = match.any { matches(it, text) }
 
     private fun matches(m: ScreenMatch, text: String): Boolean {
         if (m.all.isEmpty() && m.any.isEmpty() && m.shape == null) return false

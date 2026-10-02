@@ -237,19 +237,31 @@ object KakaoPickerKeywords {
             QUICK_STAGE_BUTTONS.filter { it.first in ACCEPTED_STAGES }.map { it.second }
 
     // ══════════════════════════════════════════════════════════════
-    //  화면 판별 사전
+    //  배정 알림 · 이름표
     // ══════════════════════════════════════════════════════════════
 
-    /** 🚫 배정 완료 토스트의 글자 — 화면 판별(에러)과 파서(지역에서 뺀다)가 **이 한 곳**을 본다 (규칙 ③) */
+    /** 🚫 배정 완료 토스트의 글자 — 파서가 지역에서 뺀다 · 🔴 일부러 표(«배정» 알림 덧칸 · «배정 실패 오류» 덧칸)와 두 벌 — 파서 정리는 reviews/35 4단계 */
     const val ASSIGNED_TOAST_WORD = "이미 배정이 완료된"
 
     /**
-     * 🏁 **다른 기사가 먼저 가져갔다는 토스트** — «방금 배정된 오더입니다»(실물 09-30 13:08:45) · «이미 배정이 완료된 …».
-     * 토스트는 화면 글자가 아니라 알림 이벤트로 온다(`HijackService` · 접근성 설정 typeNotificationStateChanged).
+     * 🏁 **다른 기사가 먼저 가져갔다는 알림** — 배차망 정의 표의 알림(NOTICE) 덧칸 중 글자가 맞는 것(«배정» 알림 · 실물 09-30 13:08:45 «방금 배정된 오더입니다»).
+     * 토스트는 화면 글자가 아니라 알림 이벤트로 온다(`HijackService.onNotificationEvent` · 접근성 설정 typeNotificationStateChanged).
      */
-    private val TAKEN_TOAST_WORDS = listOf("방금 배정된 오더", ASSIGNED_TOAST_WORD)
+    fun takenNoticeOf(text: String): com.onedal.app.core.OverlaySpec? {
+        val detector = com.onedal.app.core.engine.ScreenDetector()
+        return KakaoPickerPages.screens.flatMap { it.overlays }
+            .firstOrNull { it.kind == com.onedal.app.core.OverlayKind.NOTICE && detector.hits(it.match, text) }
+    }
 
-    fun isTakenToast(text: String): Boolean = TAKEN_TOAST_WORDS.any { text.contains(it) }
+    fun isTakenToast(text: String): Boolean = takenNoticeOf(text) != null
+
+    /**
+     * 🧾 **«먼저 가져감» 이상 기록의 까닭 글** — 운영센터 «이상 기록»의 «까닭» 칸에 그대로 뜬다.
+     * @param tappedPage 누른 화면(배차망 페이지 이름) · @param notifiedPage 알림이 왔을 때의 화면 — 모르면 null
+     */
+    fun takenReason(notice: com.onedal.app.core.OverlaySpec, tappedPage: String?, notifiedPage: String?, foundToTap: String, firstSeen: String): String =
+        "CALL_TAKEN: ${notice.name} — ${notice.meaning} · 누른 화면: ${tappedPage ?: "모름"} · 알림 때 화면: ${notifiedPage ?: "표에 없음"} · " +
+            "발견→누름 $foundToTap · 처음 보인 때 $firstSeen"
 
     /** 픽커 이름표 · 취소 버튼 글자 — 화면을 알아보는 글자는 배차망 정의 표(`KakaoPickerPages.screens`)에 있다 */
     val PICKER = ScreenKeywords(appLabel = "픽커", cancelKeyword = "넘기기")
