@@ -233,7 +233,5 @@ object KakaoPickerKeywords {
     /** 픽커 이름표 · 취소 버튼 글자 — 화면을 알아보는 글자는 배차망 정의 표(`KakaoPickerPages.screens`)에 있다 */
     val PICKER = ScreenKeywords(appLabel = "픽커", cancelKeyword = "넘기기")
 
-    /** 🖥️ 이 배차망 화면에만 있는 글자 묶음 — 원천은 shared 배차망 정의 표의 networkMarkers(`KakaoPickerPages.networkMarkers`) · 여기는 이름만 잇는다(`TargetApp.networksOnScreen` · `NetworkByScreenTest`) */
-    val NETWORK_MARKERS: List<List<String>> get() = KakaoPickerPages.networkMarkers
 
 }
