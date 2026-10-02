@@ -64,6 +64,18 @@ interface IDispatchAppPlugin {
     /** 🏄 **상세 위 팝업(출발지 · 도착지 · 적요)에서 할 일** — 팝업으로 상세를 채우는 배차망(인성)만 · 기본은 아무것도 안 한다 */
     fun onPopup(scan: com.onedal.app.core.engine.ScanContext, context: com.onedal.app.models.ScreenContext, rootNode: android.view.accessibility.AccessibilityNodeInfo, screenTexts: List<String>) {}
 
+    /** 📱 누르면 운행 기록을 끄는 버튼 글자 — 없으면 null (공통 기록 그릇 `AppTrace`) */
+    val traceEndButton: String? get() = null
+
+    /** 📱 이 누름으로 운행 기록을 켜나 — 켜면 그 까닭(로그 · 기록 첫 줄), 아니면 null */
+    fun traceStartReasonOnClick(packageName: String?, label: String?): String? = null
+
+    /**
+     * 🖥️ **화면을 읽은 뒤 이 배차망이 할 일** — 운행 기록 켜기 · 화면 글자 남기기 · 운행 단계 로그(지금 픽커만).
+     * 지금 고른 배차망과 무관하게 모든 배차망 칸이 불린다 — 칸이 패키지(앱 이름)로 제 화면인지 가린다.
+     */
+    fun afterScreenRead(scan: com.onedal.app.core.engine.ScanContext, detected: com.onedal.app.models.ScreenContext, rawScreenStr: String, packageName: String?) {}
+
     /** 🏷️ 공통 흐름이 이 배차망 일로 찍는 logcat 태그 — 상세 대기 · 결재 CANCEL 줄 */
     val logTag: String get() = "1DAL_MVP"
 

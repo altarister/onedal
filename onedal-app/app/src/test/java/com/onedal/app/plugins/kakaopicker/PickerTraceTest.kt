@@ -19,7 +19,7 @@ class PickerTraceTest {
 
     @Test
     fun `켜기 전에는 화면 글자를 안 모은다 - 누름은 늘 모은다 (인성·화물24·픽커 공통)`() {
-        val t = PickerTrace()
+        val t = com.onedal.app.core.AppTrace(endButtons = setOf(KakaoPickerKeywords.TRACE_END_BUTTON))
         assertNull(t.onScreen(t0, "픽업 출발하기", "UNKNOWN"))
         assertTrue(t.drain(50).isEmpty())
         assertTrue(t.onClick(t0, "배차신청", "insung").contains("«배차신청»"))
@@ -28,35 +28,35 @@ class PickerTraceTest {
 
     @Test
     fun `실물 픽커에서 상세를 떠나 목록이 아닌 화면으로 가거나 수락 후 표식이 보이면 켠다 - 시뮬레이터 앱은 켜지 않는다`() {
-        assertTrue(PickerTrace.shouldStart(live = true, afterDetail = KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED, acceptedScreen = false))
-        assertTrue(PickerTrace.shouldStart(live = true, afterDetail = null, acceptedScreen = true))
-        assertFalse(PickerTrace.shouldStart(live = false, afterDetail = KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED, acceptedScreen = true))
-        assertFalse(PickerTrace.shouldStart(live = true, afterDetail = KakaoPickerKeywords.AfterDetail.RETURNED_TO_LIST, acceptedScreen = false))
-        assertFalse(PickerTrace.shouldStart(live = true, afterDetail = KakaoPickerKeywords.AfterDetail.RESIDUE, acceptedScreen = false))
-        assertFalse(PickerTrace.shouldStart(live = true, afterDetail = null, acceptedScreen = false))
+        assertTrue(KakaoPickerKeywords.traceShouldStart(live = true, afterDetail = KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED, acceptedScreen = false))
+        assertTrue(KakaoPickerKeywords.traceShouldStart(live = true, afterDetail = null, acceptedScreen = true))
+        assertFalse(KakaoPickerKeywords.traceShouldStart(live = false, afterDetail = KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED, acceptedScreen = true))
+        assertFalse(KakaoPickerKeywords.traceShouldStart(live = true, afterDetail = KakaoPickerKeywords.AfterDetail.RETURNED_TO_LIST, acceptedScreen = false))
+        assertFalse(KakaoPickerKeywords.traceShouldStart(live = true, afterDetail = KakaoPickerKeywords.AfterDetail.RESIDUE, acceptedScreen = false))
+        assertFalse(KakaoPickerKeywords.traceShouldStart(live = true, afterDetail = null, acceptedScreen = false))
     }
 
     /** 🏠 기사님 지시 — 수락을 안 하는 라이브에서도 리더기가 페이지를 어떻게 읽는지 보려고 «시작하기»부터 켠다 */
     @Test
     fun `실물 픽커 홈에서 시작하기를 누르면 켠다 - 다른 버튼이나 시뮬레이터 앱은 아니다`() {
-        assertTrue(PickerTrace.startsOnClick(live = true, label = "시작하기"))
-        assertTrue(PickerTrace.startsOnClick(live = true, label = " 시작하기 "))
-        assertFalse(PickerTrace.startsOnClick(live = false, label = "시작하기"))
-        assertFalse(PickerTrace.startsOnClick(live = true, label = "넘기기"))
-        assertFalse(PickerTrace.startsOnClick(live = true, label = null))
+        assertTrue(KakaoPickerKeywords.traceStartsOnClick(live = true, label = "시작하기"))
+        assertTrue(KakaoPickerKeywords.traceStartsOnClick(live = true, label = " 시작하기 "))
+        assertFalse(KakaoPickerKeywords.traceStartsOnClick(live = false, label = "시작하기"))
+        assertFalse(KakaoPickerKeywords.traceStartsOnClick(live = true, label = "넘기기"))
+        assertFalse(KakaoPickerKeywords.traceStartsOnClick(live = true, label = null))
     }
 
     @Test
     fun `누름 알림을 놓쳐도 홈에서 리스트로 들어오면 켠다`() {
-        assertTrue(PickerTrace.startsFromHome(live = true, previousWasHome = true, nowList = true))
-        assertFalse(PickerTrace.startsFromHome(live = false, previousWasHome = true, nowList = true))
-        assertFalse(PickerTrace.startsFromHome(live = true, previousWasHome = false, nowList = true))
-        assertFalse(PickerTrace.startsFromHome(live = true, previousWasHome = true, nowList = false))
+        assertTrue(KakaoPickerKeywords.traceStartsFromHome(live = true, previousWasHome = true, nowList = true))
+        assertFalse(KakaoPickerKeywords.traceStartsFromHome(live = false, previousWasHome = true, nowList = true))
+        assertFalse(KakaoPickerKeywords.traceStartsFromHome(live = true, previousWasHome = false, nowList = true))
+        assertFalse(KakaoPickerKeywords.traceStartsFromHome(live = true, previousWasHome = true, nowList = false))
     }
 
     @Test
     fun `켜면 시작 줄을 남긴다 - 이미 켜져 있으면 시작 시각이 안 바뀐다`() {
-        val t = PickerTrace()
+        val t = com.onedal.app.core.AppTrace(endButtons = setOf(KakaoPickerKeywords.TRACE_END_BUTTON))
         assertTrue(t.start(t0, "상세 뒤 목록이 아닌 화면"))
         assertFalse(t.start(t0 + hour, "다시"))
         assertTrue(t.isActive(t0 + 5 * hour))
@@ -68,7 +68,7 @@ class PickerTraceTest {
 
     @Test
     fun `화면 글자를 자르지 않는다`() {
-        val t = PickerTrace()
+        val t = com.onedal.app.core.AppTrace(endButtons = setOf(KakaoPickerKeywords.TRACE_END_BUTTON))
         t.start(t0, "수락")
         val screen = "픽업지 정보 " + "가".repeat(3000) + " 뒤로가기 배정 취소 픽업 출발하기"
         val line = t.onScreen(t0 + 1, screen, "UNKNOWN")
@@ -79,7 +79,7 @@ class PickerTraceTest {
 
     @Test
     fun `같은 화면이 이어지면 한 번만 남긴다`() {
-        val t = PickerTrace()
+        val t = com.onedal.app.core.AppTrace(endButtons = setOf(KakaoPickerKeywords.TRACE_END_BUTTON))
         t.start(t0, "수락")
         assertNotNull(t.onScreen(t0 + 1, "배송 출발해주세요", "UNKNOWN"))
         assertNull(t.onScreen(t0 + 2, "배송 출발해주세요", "UNKNOWN"))
@@ -89,7 +89,7 @@ class PickerTraceTest {
     /** 🔴 빈 글자도 〈글자 없음〉으로 남긴다 — 버리면 누름 줄이 0건일 때 «알림이 안 온다»와 «글자가 비었다»를 못 가른다 */
     @Test
     fun `누른 버튼 글자를 남긴다 - 빈 글자도 글자 없음으로 남긴다`() {
-        val t = PickerTrace()
+        val t = com.onedal.app.core.AppTrace(endButtons = setOf(KakaoPickerKeywords.TRACE_END_BUTTON))
         val line = t.onClick(t0 + 1, "  픽업 출발하기 ", "kakaopicker")
         assertTrue(line.contains("«픽업 출발하기»"))
         assertTrue(line.contains("kakaopicker"))
@@ -99,16 +99,16 @@ class PickerTraceTest {
 
     @Test
     fun `누른 칸 글자 고르기 - 알림 글자 · 설명 · 칸 안 글자 순서 · 길면 자른다`() {
-        assertEquals("수락하기", PickerTrace.clickLabelOf(listOf("수락하기"), null, emptyList()))
-        assertEquals("뒤로가기", PickerTrace.clickLabelOf(listOf(" "), "뒤로가기", listOf("x")))
-        assertEquals("퀵 소형 16.7km 20,790", PickerTrace.clickLabelOf(emptyList(), null, listOf("퀵", "소형", "16.7km", "20,790")))
-        assertNull(PickerTrace.clickLabelOf(null, null, emptyList()))
-        assertEquals(PickerTrace.CLICK_LABEL_MAX, PickerTrace.clickLabelOf(listOf("가".repeat(500)), null, emptyList())!!.length)
+        assertEquals("수락하기", com.onedal.app.core.AppTrace.clickLabelOf(listOf("수락하기"), null, emptyList()))
+        assertEquals("뒤로가기", com.onedal.app.core.AppTrace.clickLabelOf(listOf(" "), "뒤로가기", listOf("x")))
+        assertEquals("퀵 소형 16.7km 20,790", com.onedal.app.core.AppTrace.clickLabelOf(emptyList(), null, listOf("퀵", "소형", "16.7km", "20,790")))
+        assertNull(com.onedal.app.core.AppTrace.clickLabelOf(null, null, emptyList()))
+        assertEquals(com.onedal.app.core.AppTrace.CLICK_LABEL_MAX, com.onedal.app.core.AppTrace.clickLabelOf(listOf("가".repeat(500)), null, emptyList())!!.length)
     }
 
     @Test
     fun `5시간이 지나면 저절로 멈추고 멈췄다고 남긴다`() {
-        val t = PickerTrace()
+        val t = com.onedal.app.core.AppTrace(endButtons = setOf(KakaoPickerKeywords.TRACE_END_BUTTON))
         t.start(t0, "수락")
         assertNotNull(t.onScreen(t0 + 5 * hour, "a", "UNKNOWN"))
         assertNull(t.onScreen(t0 + 5 * hour + 1, "b", "UNKNOWN"))
@@ -118,7 +118,7 @@ class PickerTraceTest {
 
     @Test
     fun `오더 목록 보기를 누르면 그 줄까지 남기고 멈춘다`() {
-        val t = PickerTrace()
+        val t = com.onedal.app.core.AppTrace(endButtons = setOf(KakaoPickerKeywords.TRACE_END_BUTTON))
         t.start(t0, "수락")
         assertNotNull(t.onClick(t0 + 1, "오더 목록 보기"))
         assertFalse(t.isActive(t0 + 2))
@@ -130,7 +130,7 @@ class PickerTraceTest {
 
     @Test
     fun `올리기 - 순서대로 꺼내고 실패하면 앞에 되돌린다`() {
-        val t = PickerTrace()
+        val t = com.onedal.app.core.AppTrace(endButtons = setOf(KakaoPickerKeywords.TRACE_END_BUTTON))
         t.start(t0, "수락")
         t.onScreen(t0 + 1, "하나", "UNKNOWN")
         t.onScreen(t0 + 2, "둘", "UNKNOWN")
@@ -145,11 +145,21 @@ class PickerTraceTest {
 
     @Test
     fun `대기열이 넘치면 오래된 줄부터 버리고 버렸다고 남긴다`() {
-        val t = PickerTrace(maxQueue = 3)
+        val t = com.onedal.app.core.AppTrace(maxQueue = 3, endButtons = setOf(KakaoPickerKeywords.TRACE_END_BUTTON))
         t.start(t0, "수락")
         listOf("가", "나", "다", "라", "마").forEachIndexed { i, s -> t.onScreen(t0 + 1 + i, s, "UNKNOWN") }
         val lines = t.drain(50)
         assertTrue(lines[0].msg.contains("3줄"))
         assertEquals(listOf("다", "라", "마"), lines.drop(1).map { it.msg.takeLast(1) })
+    }
+
+    /** 📱 공통 그릇 + 픽커 칸 — 끄는 버튼 · 켜는 누름은 픽커 칸이 정하고, 까닭 글은 지금과 같다 */
+    @Test
+    fun `픽커 칸이 끄는 버튼과 켜는 누름을 준다 - 실물 앱일 때만`() {
+        val p = KakaoPickerPlugin(null)
+        assertEquals("오더 목록 보기", p.traceEndButton)
+        assertEquals("홈 «시작하기»를 눌렀다", p.traceStartReasonOnClick("com.kakaomobility.flexer", "시작하기"))
+        assertNull(p.traceStartReasonOnClick(com.onedal.app.core.TargetApp.SIMULATOR_PACKAGE, "시작하기"))
+        assertNull(com.onedal.app.plugins.insung.InsungPlugin(null).traceEndButton)
     }
 }

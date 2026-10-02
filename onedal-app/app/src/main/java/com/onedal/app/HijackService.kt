@@ -117,10 +117,11 @@ class HijackService : AccessibilityService(), ScanContext {
 
     // ── 4대 엔진 ──
     override lateinit var apiClient: ApiClient
-    /** 📱 실물 픽커 운행 기록 — 수락부터 «오더 목록 보기»(최대 5시간)까지 (`PickerTrace`) */
-    private val pickerTrace = com.onedal.app.plugins.kakaopicker.PickerTrace()
+    /** 📱 운행 기록 · 누름 기록 — 공통 그릇(`AppTrace`) · 끄는 버튼은 배차망 칸(`traceEndButton`)이 준다 */
+    private val traceEndButtons: Set<String> by lazy { com.onedal.app.plugins.DispatchPluginRegistry.all().mapNotNull { it.traceEndButton }.toSet() }
+    private val appTrace by lazy { com.onedal.app.core.AppTrace(endButtons = traceEndButtons) }
     /** 올리는 중인가 — 한 번에 한 묶음만 보낸다 (순서가 뒤섞이지 않게) */
-    @Volatile private var pickerTraceSending = false
+    @Volatile private var appTraceSending = false
     /** 👆 마지막으로 배차망 화면으로 알아본 앱 — 그 앱의 누름을 남긴다 (인성·화물24 앱 이름을 따로 안 적는다: 배차망은 화면 글자로 가린다) */
     @Volatile private var lastNetworkPackage: String? = null
     override lateinit var telemetryManager: TelemetryManager
@@ -287,12 +288,17 @@ class HijackService : AccessibilityService(), ScanContext {
      * 매 스캔(1초)마다 찍으면 로그가 그 줄로 덮여 다른 줄을 묻는다
      * (같은 줄이 로그를 덮는 계열).
      */
-    private var lastPickerStage: com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.Stage? = null
-
     override fun returnsFromDetailWhoeverOpened(): Boolean =
         com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).getDetailBackTimeoutMs(savedFilter()) != null
 
-    override fun startAppTrace(reason: String) = startPickerTrace(reason)
+    override fun startAppTrace(reason: String) = startTrace(reason)
+
+    override fun traceScreen(text: String, context: String) {
+        appTrace.onScreen(System.currentTimeMillis(), text, context)?.let {
+            AppLogger.i("1DAL_TRACE", LogTag.SCREEN, it)
+            flushTrace()
+        }
+    }
     override fun markRead(name: String) = readSplit.mark(name, android.os.SystemClock.elapsedRealtime())
 
     /**
@@ -633,7 +639,7 @@ class HijackService : AccessibilityService(), ScanContext {
         } ?: ScreenContext.UNKNOWN
         AppLogger.i(TAG, LogTag.BOOT, "🖥️ 붙는 순간 화면: $firstScreen")
         // 📱 새로 깔거나 접근성을 다시 켜면 목록에서 바로 붙는다 — 그 화면이 실물 배차망 목록이면 운행 기록을 켠다
-        if (TargetApp.startsTraceOnAttach(firstPkg, isList = firstScreen == ScreenContext.LIST)) startPickerTrace("붙는 순간 화면이 실물 배차망 목록")
+        if (TargetApp.startsTraceOnAttach(firstPkg, isList = firstScreen == ScreenContext.LIST)) startTrace("붙는 순간 화면이 실물 배차망 목록")
         updateScreenContext(firstScreen)
 
         // [Piggyback V2] 서버(관제탑) 결재 수신 콜백 연결 및 고스트 응답 방어(Ghost Defense)
@@ -729,23 +735,23 @@ class HijackService : AccessibilityService(), ScanContext {
     // ════════════════════════════════════════════════════════════════
 
     /** 📱 운행 기록을 켠다 — 새로 켰을 때만 찍고 올린다 */
-    private fun startPickerTrace(reason: String) {
-        if (pickerTrace.start(System.currentTimeMillis(), reason)) {
-            AppLogger.i("1DAL_TRACE", LogTag.BOOT, "▶️ [기록 시작] $reason — 최대 5시간 · «${com.onedal.app.plugins.kakaopicker.PickerTrace.END_BUTTON}»에서 끝")
-            flushPickerTrace()
+    private fun startTrace(reason: String) {
+        if (appTrace.start(System.currentTimeMillis(), reason)) {
+            AppLogger.i("1DAL_TRACE", LogTag.BOOT, "▶️ [기록 시작] $reason — 최대 5시간 · ${traceEndButtons.joinToString(" · ") { "«$it»" }}에서 끝")
+            flushTrace()
         }
     }
 
     /** 📱 모인 줄을 한 묶음씩 올린다 — 실패하면 앞에 되돌리고 다음 기록 때 다시 보낸다 */
-    private fun flushPickerTrace() {
-        if (pickerTraceSending) return
-        val batch = pickerTrace.drain(com.onedal.app.plugins.kakaopicker.PickerTrace.SEND_BATCH)
+    private fun flushTrace() {
+        if (appTraceSending) return
+        val batch = appTrace.drain(com.onedal.app.core.AppTrace.SEND_BATCH)
         if (batch.isEmpty()) return
-        pickerTraceSending = true
+        appTraceSending = true
         apiClient.sendAppTraceLines(batch) { ok ->
-            if (!ok) pickerTrace.requeueFront(batch)
-            pickerTraceSending = false
-            if (ok && pickerTrace.hasPending()) flushPickerTrace()
+            if (!ok) appTrace.requeueFront(batch)
+            appTraceSending = false
+            if (ok && appTrace.hasPending()) flushTrace()
         }
     }
 
@@ -771,7 +777,6 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
             val pkg = event.packageName?.toString()
-            val live = TargetApp.isKakaoPickerApp(pkg)
             // 👆 픽커 · 시뮬레이터 · 마지막으로 배차망 화면이던 앱(인성·화물24) — 누름은 기록이 꺼져 있어도 늘 남기고 올린다
             if (TargetApp.isNetworkPackage(pkg, lastNetworkPackage)) {
                 // ✋ 앱이 쏜 터치의 메아리가 아니면 기사님 손 (인성·24 · 픽커는 목록 줄 누름에 알림을 안 낸다)
@@ -782,12 +787,11 @@ class HijackService : AccessibilityService(), ScanContext {
                 }
                 val nodeTexts = mutableListOf<String>()
                 event.source?.let { gatherNodeTexts(it, nodeTexts) }
-                val label = com.onedal.app.plugins.kakaopicker.PickerTrace.clickLabelOf(event.text, event.contentDescription, nodeTexts)
-                if (com.onedal.app.plugins.kakaopicker.PickerTrace.startsOnClick(live = live, label = label)) {
-                    startPickerTrace("홈 «시작하기»를 눌렀다")
-                }
-                AppLogger.i("1DAL_TRACE", LogTag.TAP, pickerTrace.onClick(System.currentTimeMillis(), label, currentTargetApp))
-                flushPickerTrace()
+                val label = com.onedal.app.core.AppTrace.clickLabelOf(event.text, event.contentDescription, nodeTexts)
+                /* 📱 이 누름으로 운행 기록을 켜는 배차망이 있나 — 칸이 앱 이름 · 버튼 글자로 정한다 */
+                com.onedal.app.plugins.DispatchPluginRegistry.all().firstNotNullOfOrNull { it.traceStartReasonOnClick(pkg, label) }?.let { startTrace(it) }
+                AppLogger.i("1DAL_TRACE", LogTag.TAP, appTrace.onClick(System.currentTimeMillis(), label, currentTargetApp))
+                flushTrace()
             }
             return
         }
@@ -1210,59 +1214,9 @@ class HijackService : AccessibilityService(), ScanContext {
             return
         }
 
-        /**
-         * 🚚 **운행 단계를 로그로 남긴다** (기사님 지시:
-         * *"페이지만 만들어 두면 오늘 저녁 들어올 때 훨씬 잘 구분할 거야"*).
-         *
-         * 낱말이 2023 자료 추정이라 **인식과 기록만 한다** — 장부(마일스톤)에는
-         * 잇지 않는다. 틀린 낱말로 장부에 쓰면 되돌릴 수 없다 (규칙 ④).
-         *
-         * 🔴 **못 알아본 화면은 글자를 남긴다.** 이 줄들을 모으면 «어느 낱말이
-         *    빠졌는지»를 실물로 고를 수 있다 — 그 글자가 낱말을 고르는 재료다.
-         */
-        /**
-         * 🔴 **픽커 화면일 때만 본다** — 패키지로 가른다 (실측 수리).
-         *
-         * 처음엔 «픽커 모드이고 리스트가 아니면» 으로 걸었더니 **잠금화면·런처까지**
-         * 「모르는 화면」으로 찍혔다(`잠금해제 패턴을 그리세요` · `셀 1 추가됨…`).
-         * 저녁에 볼 로그가 그걸로 덮인다 — 「어느 낱말이 빠졌나」를 못 고른다.
-         *
-         * ✅ **이 조건에 한해서만 앱 이름을 본다** (기사님 확정 ㉯). 배차망은 화면 글자로
-         *    정하지만(위 관문), 이 로그의 목적은 **처음 보는 픽커 화면** — 곧 픽커 글자가 없는 화면 —
-         *    의 글자를 모으는 것이라 화면 글자로는 «픽커 화면인가»를 알 수 없다.
-         *    «직전 배차망이 픽커면»으로 걸면 잠금화면이 다시 찍힌다.
-         * ✅ **시뮬레이터 앱은 운행 단계만 찍는다** (기사님 지시) — 어디까지 찍나는 `TargetApp.pickerLogScope` 한 곳이 정한다.
-         */
-        val pickerLog = TargetApp.pickerLogScope(rootNode.packageName?.toString(), currentTargetApp)
-        // 📱 운행 기록 — 실물 픽커 앱에서만. 수락 후 표식으로도 켜고(상세를 거치지 않고 들어온 경우), 켜져 있으면 화면 글자 전문을 남긴다
-        if (pickerLog == TargetApp.PickerLog.STAGE_AND_UNKNOWN) {
-            val traceNow = System.currentTimeMillis()
-            if (com.onedal.app.plugins.kakaopicker.PickerTrace.shouldStart(true, null,
-                    com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.isAcceptedScreen(rawScreenStr))) {
-                startPickerTrace("수락 후 표식이 보인다")
-            }
-            // 🔴 «바로 앞 화면»이 아니라 «마지막으로 알아본 픽커 단계»로 본다 — 홈 → 리스트 사이에 넘어가는 화면(UNKNOWN)이 서너 번 낀다
-            if (com.onedal.app.plugins.kakaopicker.PickerTrace.startsFromHome(true, lastPickerStage == com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.Stage.HOME, detected == ScreenContext.LIST)) {
-                startPickerTrace("홈에서 리스트로 들어왔다")
-            }
-            pickerTrace.onScreen(traceNow, rawScreenStr, detected.name)?.let {
-                AppLogger.i("1DAL_TRACE", LogTag.SCREEN, it)
-                flushPickerTrace()
-            }
-        }
-        if (pickerLog != TargetApp.PickerLog.NONE && detected != ScreenContext.LIST) {
-            val stage = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.stageOf(rawScreenStr)
-            if (stage != null) {
-                if (stage != lastPickerStage) {
-                    AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.CALL_STAGE, "🚚 [운행 단계] ${lastPickerStage ?: "없음"} → $stage")
-                    lastPickerStage = stage
-                }
-            } else if (detected == ScreenContext.UNKNOWN && pickerLog == TargetApp.PickerLog.STAGE_AND_UNKNOWN) {
-                // 못 알아본 픽커 화면 — 낱말을 고르려면 글자가 있어야 한다
-                AppLogger.w("1DAL_PICKER", "❓ [모르는 화면] ${rawScreenStr.take(300)}")
-            }
-        }
-        if (detected == ScreenContext.LIST) lastPickerStage = null   // 리스트로 나오면 초기화
+        /* 🖥️ 화면을 읽은 뒤 배차망이 할 일 — 운행 기록 · 운행 단계 로그(지금 픽커) · 칸이 앱 이름으로 제 화면인지 가린다 */
+        val screenPkg = rootNode.packageName?.toString()
+        com.onedal.app.plugins.DispatchPluginRegistry.all().forEach { it.afterScreenRead(this, detected, rawScreenStr, screenPkg) }
 
         // 화면별 핸들러 라우팅
         markRead("바뀜 뒤 처리")

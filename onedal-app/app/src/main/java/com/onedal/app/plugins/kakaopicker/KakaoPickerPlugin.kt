@@ -47,6 +47,48 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
 
     override val logTag: String get() = "1DAL_PICKER"
 
+    override val traceEndButton: String get() = KakaoPickerKeywords.TRACE_END_BUTTON
+
+    override fun traceStartReasonOnClick(packageName: String?, label: String?): String? =
+        if (KakaoPickerKeywords.traceStartsOnClick(live = TargetApp.isKakaoPickerApp(packageName), label = label)) "홈 «${KakaoPickerKeywords.TRACE_START_BUTTON}»를 눌렀다" else null
+
+    /** 🚚 마지막으로 알아본 운행 단계 — «바로 앞 화면»이 아니라 이것으로 본다(홈 → 리스트 사이에 넘어가는 화면이 서너 번 낀다) */
+    private var lastStage: KakaoPickerKeywords.Stage? = null
+
+    /**
+     * 🚚 **운행 단계를 로그로 남긴다** (기사님 지시: *"페이지만 만들어 두면 오늘 저녁 들어올 때 훨씬 잘 구분할 거야"*).
+     * 인식과 기록만 한다 — 장부(마일스톤)에는 잇지 않는다(규칙 ④). 못 알아본 화면은 글자를 남긴다 — 낱말을 고르는 재료다.
+     *
+     * 🔴 **픽커 화면일 때만 본다 — 패키지로 가른다** (기사님 확정 ㉯ · 실측 수리). «픽커 모드이고 리스트가 아니면»으로 걸면
+     *    잠금화면 · 런처까지 «모르는 화면»으로 찍힌다. 어디까지 찍나는 `TargetApp.pickerLogScope` 한 곳이 정한다
+     *    (실물 앱 = 운행 단계 + 모르는 화면 · 시뮬레이터 = 운행 단계만).
+     * 📱 운행 기록은 실물 픽커 앱에서만 — 수락 후 표식으로도 켜고(상세를 거치지 않고 들어온 경우), 켜져 있으면 화면 글자 전문을 남긴다.
+     */
+    override fun afterScreenRead(scan: com.onedal.app.core.engine.ScanContext, detected: com.onedal.app.models.ScreenContext, rawScreenStr: String, packageName: String?) {
+        val pickerLog = TargetApp.pickerLogScope(packageName, scan.currentTargetApp)
+        if (pickerLog == TargetApp.PickerLog.STAGE_AND_UNKNOWN) {
+            if (KakaoPickerKeywords.traceShouldStart(true, null, KakaoPickerKeywords.isAcceptedScreen(rawScreenStr))) {
+                scan.startAppTrace("수락 후 표식이 보인다")
+            }
+            if (KakaoPickerKeywords.traceStartsFromHome(true, lastStage == KakaoPickerKeywords.Stage.HOME, detected == com.onedal.app.models.ScreenContext.LIST)) {
+                scan.startAppTrace("홈에서 리스트로 들어왔다")
+            }
+            scan.traceScreen(rawScreenStr, detected.name)
+        }
+        if (pickerLog != TargetApp.PickerLog.NONE && detected != com.onedal.app.models.ScreenContext.LIST) {
+            val stage = KakaoPickerKeywords.stageOf(rawScreenStr)
+            if (stage != null) {
+                if (stage != lastStage) {
+                    com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.CALL_STAGE, "🚚 [운행 단계] ${lastStage ?: "없음"} → $stage")
+                    lastStage = stage
+                }
+            } else if (detected == com.onedal.app.models.ScreenContext.UNKNOWN && pickerLog == TargetApp.PickerLog.STAGE_AND_UNKNOWN) {
+                com.onedal.app.core.AppLogger.w("1DAL_PICKER", "❓ [모르는 화면] ${rawScreenStr.take(300)}")
+            }
+        }
+        if (detected == com.onedal.app.models.ScreenContext.LIST) lastStage = null   // 리스트로 나오면 초기화
+    }
+
     /** 🏁 «배정» 토스트를 믿는 앱 — 실물 픽커 · 시뮬레이터 */
     override val noticeSources: Set<String> = setOf(TargetApp.KAKAOPICKER_PACKAGE, TargetApp.SIMULATOR_PACKAGE)
 
@@ -285,7 +327,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
                 KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED -> {
                     // 📱 실물 픽커면 운행 기록을 켠다 — 미리보기를 안 보낸 콜(손으로 연 상세)도 켠다
                     val live = TargetApp.pickerLogScope(packageName, context.currentTargetApp) == TargetApp.PickerLog.STAGE_AND_UNKNOWN
-                    if (PickerTrace.shouldStart(live, KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED, acceptedScreen = false)) {
+                    if (KakaoPickerKeywords.traceShouldStart(live, KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED, acceptedScreen = false)) {
                         context.startAppTrace("상세를 떠나 목록이 아닌 화면으로 갔다 — 수락으로 본다")
                     }
                     context.reportPickerAccepted(rawScreenStr)

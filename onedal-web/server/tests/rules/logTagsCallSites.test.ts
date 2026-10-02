@@ -42,7 +42,7 @@ describe('🏷️ 로그 호출 자리', () => {
         expect(relay).toContain('if (tag) slog(tag, line);');
         const web = readFileSync(join(__dirname, '../../../client-app/src/lib/roadmapLogger.ts'), 'utf8');
         expect(web).toMatch(/msg: `#\$\{tag\} \$\{line\}`/);
-        const app = readFileSync(join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app/plugins/kakaopicker/PickerTrace.kt'), 'utf8');
+        const app = readFileSync(join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app/core/AppTrace.kt'), 'utf8');
         expect(app.match(/push\(Line\(now, "#\$\{LogTag\./g)?.length).toBe(5);
     });
 

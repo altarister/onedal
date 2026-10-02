@@ -6,7 +6,7 @@ import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 
 /**
  * 🖥️ **관제웹이 스스로 남기는 로그를 받는다** (필드테스트 1회차 ④)
- * 📱 **원달앱의 실물 픽커 운행 기록도 받는다** — `POST /api/logs/app` (`PickerTrace.kt`)
+ * 📱 **원달앱의 운행 기록 · 누름 기록도 받는다** — `POST /api/logs/app` (`AppTrace.kt`)
  *
  * ── 왜 필요한가 ──
  * 실주행이 끝난 뒤 **관제웹이 그때 무엇을 하고 있었는지** 알려면 여기 남은 줄뿐이다 —
@@ -54,7 +54,7 @@ interface ClientLogLine {
 const RELAY_KEEP = /⚠️|❌|🚨|💥|🔴|WARN|ERROR|Error|Geolocation|심사석|국면|필터 변경|반경|\[웹 수신\]|다녀옴|주행판정|⚪|관제웹 코드/;
 
 /**
- * 🏷️ 보낸 쪽이 줄 맨 앞에 «#태그 » 를 싣고 온다(관제웹 `logRoadmapEvent` · 원달앱 `PickerTrace`) —
+ * 🏷️ 보낸 쪽이 줄 맨 앞에 «#태그 » 를 싣고 온다(관제웹 `logRoadmapEvent` · 원달앱 `AppTrace`) —
  * 떼어 서버 파일의 태그 칸으로 올린다. 목록 밖이거나 없으면 null 이고, 그 줄은 파일에 `#없음` 으로 남는다.
  */
 function splitTag(msg: string): { tag: LogTag | null; body: string } {

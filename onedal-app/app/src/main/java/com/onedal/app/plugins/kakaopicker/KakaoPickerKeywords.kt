@@ -106,7 +106,7 @@ object KakaoPickerKeywords {
      * 🚚 **퀵 페이지 안의 차례는 바닥 버튼 하나가 답이다** — 한 페이지에서 버튼만 바뀐다 (기사님 확인 · 실물 17-1 → 17-2 · 22-1 두 장).
      * 출발하기 = 이동(TO) · 완료하기 = 완료 대기(AT) — 도보가 «밀어서 픽업 완료»가 보이는 화면을 AT 로 보는 것과 같은 규칙이라,
      * 퀵 버튼 네 번이 «픽업 이동 → 픽업 도착 → 배송 이동 → 배송 도착» 순서로 찍힌다.
-     * ⚠️ 실물 로그로 본 것은 «픽업 출발하기» 하나다 — 나머지 셋은 사진 글자다 (운행 기록 `PickerTrace` 로 확인한다).
+     * ⚠️ 실물 로그로 본 것은 «픽업 출발하기» 하나다 — 나머지 셋은 사진 글자다 (운행 기록 `AppTrace` 로 확인한다).
      */
     val QUICK_STAGE_BUTTONS: List<Pair<Stage, String>> = listOf(
         Stage.AT_DROPOFF to "배송 완료하기",   // 22-1 출발 뒤
@@ -164,6 +164,23 @@ object KakaoPickerKeywords {
         residue -> AfterDetail.RESIDUE
         else -> AfterDetail.CHECK_ACCEPTED
     }
+
+    // ── 📱 운행 기록 켜고 끄기 (공통 그릇 `AppTrace` · 실물 픽커 앱일 때만 — `TargetApp.pickerLogScope`) ──
+
+    /** 이 버튼을 누르면 한 콜이 끝났다 (실물 31 «오더 목록 보기») */
+    const val TRACE_END_BUTTON = "오더 목록 보기"
+
+    /** 홈의 이 버튼을 누르면 켠다 — 기사님 지시: 수락을 안 하는 라이브에서도 리더기가 페이지를 어떻게 읽는지 본다 */
+    const val TRACE_START_BUTTON = "시작하기"
+
+    fun traceStartsOnClick(live: Boolean, label: String?): Boolean = live && label?.trim() == TRACE_START_BUTTON
+
+    /** 누름 알림을 놓쳤을 때 — 홈에서 리스트로 들어오면 켠다 */
+    fun traceStartsFromHome(live: Boolean, previousWasHome: Boolean, nowList: Boolean): Boolean = live && previousWasHome && nowList
+
+    /** 켜는 때 — 상세를 떠나 목록이 아닌 화면으로 갔을 때(미리보기를 안 보낸 콜도) 또는 수락 후 표식이 보일 때 */
+    fun traceShouldStart(live: Boolean, afterDetail: AfterDetail?, acceptedScreen: Boolean): Boolean =
+        live && (afterDetail == AfterDetail.CHECK_ACCEPTED || acceptedScreen)
 
     /** ⏱️ 자동 복귀가 몇 초 뒤인지는 적지 않는다 — 서버 DB 값이다 */
     const val RETURNED_TO_LIST_LOG = "↩️ [승격 안 함] 상세에서 리스트로 돌아왔다 — 수락하지 않았다 (넘기기 · 뒤로 · 상세 대기 시간 뒤 자동 복귀)"

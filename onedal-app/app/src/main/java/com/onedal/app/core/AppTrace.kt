@@ -1,23 +1,22 @@
-package com.onedal.app.plugins.kakaopicker
-
-import com.onedal.app.core.LogTag
+package com.onedal.app.core
 
 /**
- * 📱 **실물 픽커 운행 기록** — 수락부터 «오더 목록 보기»(최대 5시간)까지 화면 글자 전문과 누른 버튼을 모아 서버로 올린다
+ * 📱 **운행 기록 · 누름 기록 — 공통 그릇** — 켜진 동안 화면 글자 전문과 누른 버튼을 모아 서버로 올린다
  * (서버 `POST /api/logs/app` · 서버 로그 파일에 `📱 [원달앱 …]` 줄).
  *
- * 🔴 **왜 있어야 하나** — 퀵 화면(실물 17-1 · 17-2 · 22-1)은 사진만으로 원달앱이 읽는 글자를 못 맞춘다.
- *    09-13 로그의 «모르는 화면»은 앞 300자에서 잘렸고, 밖에서는 logcat 을 볼 수 없다.
- * 🔴 **실물 픽커 앱일 때만 켠다** (`shouldStart` 의 `live`) — 시뮬레이터 앱에서는 필요 없다.
- * 🔴 **켜는 때** — 상세를 떠나 목록이 아닌 화면으로 갔을 때(`AfterDetail.CHECK_ACCEPTED` · 미리보기를 안 보낸 콜도) 또는 수락 후 표식이 보일 때.
- * 🔴 **끄는 때** — «오더 목록 보기»를 누른 줄까지 남기고, 아니면 켠 지 5시간.
+ * 🔴 **누른 버튼 줄은 기록이 꺼져 있어도 늘** 남긴다(세 배차망 공통). 화면 글자 전문은 켜진 동안만.
+ * 🔴 **언제 켜나 · 무엇을 누르면 끄나는 배차망이 정한다** — 플러그인 칸 `traceStartsOnClick` · `traceEndButton` · `afterScreenRead`(지금 픽커만 · 실물 앱일 때).
+ *    퀵 화면(실물 17-1 · 17-2 · 22-1)은 사진만으로 원달앱이 읽는 글자를 못 맞추고, 밖에서는 logcat 을 볼 수 없어서 둔다.
+ * 🔴 **끄는 때** — 끝 버튼(`endButtons`)을 누른 줄까지 남기고, 아니면 켠 지 5시간.
  *
  * 순수 계산만 한다 — 시각은 부르는 쪽이 넘기고, 전송은 `ApiClient.sendAppTraceLines` 가 한다 (검사가 그대로 문다).
  * 접근성 알림(메인)과 전송 결과(배경 스레드)가 함께 만지므로 전부 `@Synchronized`.
  */
-class PickerTrace(
+class AppTrace(
     private val maxMs: Long = MAX_MS,
     private val maxQueue: Int = MAX_QUEUE,
+    /** 누르면 기록을 끄는 버튼 글자 — 배차망 플러그인 `traceEndButton` 들(픽커 «오더 목록 보기») */
+    private val endButtons: Set<String> = emptySet(),
 ) {
     /** 올릴 한 줄 — 시각은 기록한 순간 (서버 도착 시각과 다르다) */
     data class Line(val atMs: Long, val msg: String)
@@ -32,9 +31,6 @@ class PickerTrace(
          * 넘으면 서버가 413 으로 거절하고, 되돌린 묶음이 영영 못 올라간다
          */
         const val SEND_BATCH = 3
-        /** 이 버튼을 누르면 한 콜이 끝났다 (실물 31 «오더 목록 보기») */
-        const val END_BUTTON = "오더 목록 보기"
-
         /** 누른 칸 글자 한 줄 길이 — 리스트 카드를 누르면 카드 글자가 통째로 온다 */
         const val CLICK_LABEL_MAX = 200
         /** 🔴 글자가 비어도 남긴다 — 버리면 «누름 알림이 안 온다»와 «글자가 비었다»를 못 가른다 (09-16 04:5x 라이브 누름 0건) */
@@ -47,17 +43,6 @@ class PickerTrace(
                 contentDescription?.toString()?.trim(),
                 nodeTexts.joinToString(" ").trim(),
             ).firstOrNull { !it.isNullOrBlank() }?.take(CLICK_LABEL_MAX)
-
-        /** 홈의 이 버튼을 누르면 켠다 — 기사님 지시: 수락을 안 하는 라이브에서도 리더기가 페이지를 어떻게 읽는지 본다 */
-        const val START_BUTTON = "시작하기"
-
-        fun startsOnClick(live: Boolean, label: String?): Boolean = live && label?.trim() == START_BUTTON
-
-        /** 누름 알림을 놓쳤을 때 — 홈에서 리스트로 들어오면 켠다 */
-        fun startsFromHome(live: Boolean, previousWasHome: Boolean, nowList: Boolean): Boolean = live && previousWasHome && nowList
-
-        fun shouldStart(live: Boolean, afterDetail: KakaoPickerKeywords.AfterDetail?, acceptedScreen: Boolean): Boolean =
-            live && (afterDetail == KakaoPickerKeywords.AfterDetail.CHECK_ACCEPTED || acceptedScreen)
     }
 
     private val queue = ArrayDeque<Line>()
@@ -97,15 +82,15 @@ class PickerTrace(
 
     /**
      * 누른 버튼 글자를 남긴다 — **기록이 꺼져 있어도 늘** (인성 · 화물24 · 픽커 공통 · 기사님: «분기도 없고 좋다»).
-     * 빈 글자는 «〈글자 없음〉»으로 남긴다 · 켜져 있을 때 «오더 목록 보기»면 그 줄까지 남기고 끈다
+     * 빈 글자는 «〈글자 없음〉»으로 남긴다 · 켜져 있을 때 끝 버튼(`endButtons`)이면 그 줄까지 남기고 끈다
      */
     @Synchronized
     fun onClick(now: Long, label: String?, app: String = ""): String {
         val l = label?.trim()?.takeIf { it.isNotEmpty() }
         val msg = "👆 [누름${if (app.isNotEmpty()) " $app" else ""}] «${l ?: NO_LABEL}»"
         push(Line(now, "#${LogTag.TAP.word} $msg"))
-        if (l == END_BUTTON && isActive(now)) {
-            push(Line(now, "#${LogTag.CALL_STAGE.word} ⏹️ [기록 끝] «$END_BUTTON»을 눌렀다"))
+        if (l != null && l in endButtons && isActive(now)) {
+            push(Line(now, "#${LogTag.CALL_STAGE.word} ⏹️ [기록 끝] «$l»을 눌렀다"))
             startedAt = null
         }
         return msg

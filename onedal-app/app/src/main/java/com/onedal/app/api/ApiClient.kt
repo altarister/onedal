@@ -486,11 +486,11 @@ class ApiClient(private val context: Context) {
     }
 
     /**
-     * 📱 **실물 픽커 운행 기록을 올린다** — `POST /api/logs/app` (`PickerTrace`).
+     * 📱 **운행 기록 · 누름 기록을 올린다** — `POST /api/logs/app` (`AppTrace`).
      * 결과만 알려 준다 — 실패하면 부르는 쪽이 대기열 앞에 되돌린다.
      * 🔴 기록 줄을 여기서 AppLogger 로 되찍지 않는다 — 부르는 쪽이 이미 찍었다.
      */
-    fun sendAppTraceLines(lines: List<com.onedal.app.plugins.kakaopicker.PickerTrace.Line>, onResult: (Boolean) -> Unit) {
+    fun sendAppTraceLines(lines: List<com.onedal.app.core.AppTrace.Line>, onResult: (Boolean) -> Unit) {
         traceExecutor.submit {
             var conn: java.net.HttpURLConnection? = null
             val ok = try {
