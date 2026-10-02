@@ -543,6 +543,10 @@ class HijackService : AccessibilityService(), ScanContext {
                 detailParsedText = line.take(200),
             )
         }
+        // 🔎 못 알아본 배차망 화면 — 이상 기록 «SCREEN_UNKNOWN: 글 앞부분»(가린 글 · 같은 화면 하루 한 번 · `UnknownScreenReport`)
+        com.onedal.app.core.UnknownScreenReport.sink = { network, reason, text ->
+            apiClient.sendAnomalyReport(targetApp = network, screenName = "UNKNOWN", failureReason = reason, detailParsedText = text)
+        }
         // 👆 «누르기 안 먹힘»은 이상 징후로 — 어느 배차망 · 어느 화면이든 같은 한 줄 (`TapInFlight`)
         touchManager.onTapFailed = { f ->
             apiClient.sendAnomalyReport(
@@ -1034,7 +1038,9 @@ class HijackService : AccessibilityService(), ScanContext {
         markRead("모은 글자")
         touchManager.onScreen(detected, textChanged = true)   // 👆 화면 처리보다 먼저 — 누른 것이 먹혔나 (종류가 바뀌었나)
         if (detected == ScreenContext.UNKNOWN) {
-            AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자): ${rawScreenStr.take(300)}")
+            // 🔎 운영센터 «이상 기록»에도 — 실물 배차망 앱 화면 · 10자 이상 · 같은 화면 하루 한 번 (`UnknownScreenReport`)
+            val toOps = com.onedal.app.core.UnknownScreenReport.record(currentTargetApp, rootNode.packageName?.toString(), rawScreenStr)
+            AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자) · $toOps: ${rawScreenStr.take(300)}")
             /**
              * 🔴 **여기서 «조금 뒤 다시 보기»를 하지 않는다 — 해 봤고, 안 된다**.
              *
