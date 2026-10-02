@@ -33,7 +33,7 @@ export { Hwamul24DispatchBoard } from './hwamul24/Hwamul24DispatchBoard';
 export { Hwamul24CallDetailScreen } from './hwamul24/Hwamul24CallDetailScreen';
 
 // 화물24 표기 — 화물24시 화면만 쓴다 (0단계 0-2 에서 공통 코드에서 옮겨 왔다)
-export { formatHwamul24Region, formatHwamul24Vehicle, toHwamul24Call } from './hwamul24/hwamul24Call';
+export { formatHwamul24Region, formatHwamul24Vehicle, hwamul24RegionOf, toHwamul24Call } from './hwamul24/hwamul24Call';
 
 // 카카오T픽커 — 콜 칸 · 지역 줄임 표기 (2단계 2-1) · 홈 · 리스트 · 배차 화면 (2-2)
 export { formatPickerAddressLine, formatPickerRegion, toPickerCall } from './kakaopicker/pickerCall';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatHwamul24Region, formatHwamul24Vehicle } from './hwamul24Call';
+import { hwamul24RegionOf, formatHwamul24Vehicle } from './hwamul24Call';
 import type { Hwamul24Call } from './hwamul24Call';
 
 interface BoardProps {
@@ -27,8 +27,8 @@ const Hwamul24CallCard = React.memo(({
   call: Hwamul24Call;
   onCardClick: (call: Hwamul24Call) => void;
 }) => {
-  const pickupRegion = formatHwamul24Region(call.pickups[0].fullName);
-  const dropoffRegion = formatHwamul24Region(call.dropoffs[0].fullName);
+  const pickupRegion = hwamul24RegionOf(call.pickups[0].fullName, call.pickupDetails?.[0]?.region);
+  const dropoffRegion = hwamul24RegionOf(call.dropoffs[0].fullName, call.dropoffDetails?.[0]?.region);
   // 🔴 문제지는 차종을 한 번만 적는다 — 여기서 화물24시 말로 옮긴다 (승용차 → 승용)
   const tonnage = call.tonnage || formatHwamul24Vehicle(call.vehicleType);
   const vehicleSpec = call.vehicleSpec || '전체';
@@ -88,6 +88,8 @@ const Hwamul24CallCard = React.memo(({
       {/* 3행: 톤수 / 차종 / 화물 정보 */}
       <div className="text-[13px] text-[#e65100] font-bold mb-1 truncate">
         <span>{tonnage}/{vehicleSpec}</span>
+        {/* 한 칸 — 웹뷰가 두 span 을 붙여 한 글로 주면 «1톤/전체샘플» 이 된다. 실물은 «1톤/전체 지금상 …» */}
+        {itemDesc && ' '}
         {itemDesc && <span className="text-gray-700 font-normal ml-1">{itemDesc}</span>}
       </div>
 

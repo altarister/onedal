@@ -64,6 +64,16 @@ export const formatHwamul24Region = (fullName: string): string => {
 };
 
 /**
+ * 🗺️ **목록 지역 = 시도 · 시군구 · 동** — 실물 목록이 «경기 군포 부곡동» 꼴이다.
+ * 가짜 장소에는 도로명 주소가 섞여(«서울 중구 세종대로 110») 앞 세 토막만 쓰면 «세종대로» 같은 길 이름이 뜬다 — 셋째 토막은 장소의 동(region)으로.
+ * 동이 없으면 `formatHwamul24Region` 답 그대로.
+ */
+export const hwamul24RegionOf = (fullName: string, dong?: string): string => {
+  const head = formatHwamul24Region(fullName).split(' ').slice(0, 2);
+  return dong && head.length === 2 ? [...head, dong].join(' ') : formatHwamul24Region(fullName);
+};
+
+/**
  * 🎨 **화물24시 칸을 입힌다** — 공통 칸만 있는 콜에 요금·결제·계산서·차종·물품·회사.
  * 인성 칸(합짐·급송·분류·상태)은 화물24시 화면이 안 읽으므로 채우지 않는다.
  * 톤수·독차·당상 같은 화물24시 칸은 비워 두고 화면이 기본값을 쓴다.

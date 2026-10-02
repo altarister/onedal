@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     formatHwamul24Region,
     formatHwamul24Vehicle,
+    hwamul24RegionOf,
     formatInsungVehicle,
     formatRegionFullName,
     formatRegionName,
@@ -43,6 +44,13 @@ describe('화물24시 차종·지역 표기', () => {
         expect(formatHwamul24Region('경기 / 광주시 / 경안동')).toBe('경기 광주 경안동');
         expect(formatHwamul24Region('경기 / 양평군 / 양서면')).toBe('경기 양평 양서면');
         expect(formatHwamul24Region('')).toBe('');
+    });
+    it('목록 지역은 시도 · 시군구 · 동 — 가짜 장소가 도로명 주소여도 실물처럼 동으로(실물 캡처 «경기 군포 부곡동»)', () => {
+        expect(hwamul24RegionOf('서울 / 중구 / 세종대로', '태평로')).toBe('서울 중구 태평로');
+        expect(hwamul24RegionOf('경기 / 광주시 / 능평로', '신현동')).toBe('경기 광주 신현동');
+        expect(hwamul24RegionOf('경기 / 광주시 / 경안동', '경안동')).toBe('경기 광주 경안동');
+        expect(hwamul24RegionOf('경기 / 광주시 / 경안동')).toBe(formatHwamul24Region('경기 / 광주시 / 경안동'));
+        expect(hwamul24RegionOf('')).toBe('');
     });
 });
 
