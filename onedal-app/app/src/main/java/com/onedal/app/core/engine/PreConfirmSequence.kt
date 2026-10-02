@@ -268,9 +268,11 @@ private fun ScanContext.handlePreConfirmSnapshot(
     AppLogger.d(TAG, LogTag.CALL_STAGE, "📸 [사진 판독 시작] 연 쪽: ${if (session.openedByApp) "앱" else "손"} · 누른 뒤 시간 창: $opener")
     val matchedListCard = scrapParser.matchDetailOrder(screenTexts, recentListOrders)
 
-    val pickerParser = plugin.ocrParser as? com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser
-    if (pickerParser == null) {
-        AppLogger.w(TAG, "📸 [스냅샷 파서 불일치] ${plugin.code}의 ocrParser가 PickerDetailOcrParser가 아님 — 지어내지 않고 즉시 중단")
+    /* 📸 판독 결과의 모양(T)은 배차망마다 다르다 — 판독기가 낸 것을 그 판독기에 그대로 돌려주므로 Any? 로 받아도 맞는다 */
+    @Suppress("UNCHECKED_CAST")
+    val verifier = plugin.ocrParser as? com.onedal.app.core.DetailVerifier<Any?>
+    if (verifier == null) {
+        AppLogger.w(TAG, "📸 [스냅샷 파서 불일치] ${plugin.code}의 ocrParser가 상세 판독기(DetailVerifier)가 아님 — 지어내지 않고 즉시 중단")
         session.isVerifyingSnapshot = false
         abortPreConfirm()
         return
@@ -278,7 +280,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
 
     screenReader.scheduleReadAndVerifyDetail(
         delayMs = ScreenReader.DETAIL_STABILIZE_IDLE_MS,
-        parser = pickerParser,
+        parser = verifier,
         onSuccess = { detail, lines ->
             // ⏱️ 걸어 둔 때 — main 줄 서기가 얼마나 막혔나(«대기»)를 잰다 (상세 속도 · 라이브 09-30 12:57 1.3초 빈 시간)
             val postedAt = android.os.SystemClock.elapsedRealtime()
@@ -286,75 +288,69 @@ private fun ScanContext.handlePreConfirmSnapshot(
                 val clock = com.onedal.app.core.StepClock(postedAt) { android.os.SystemClock.elapsedRealtime() }
                 clock.mark("대기")
                 try {
-                val verifyResult = pickerParser.verify(detail, tappedCard, matchedListCard, screenTexts, rawScreenStr, recentListOrders)
+                val verifyResult = verifier.verifyOrder(detail, tappedCard, matchedListCard, screenTexts, rawScreenStr, recentListOrders)
                 // 🎯 누른 줄과 달라 손 상세로 돌렸으면(`DetailOwner.KEEP_AS_HAND`) 누른 줄 값을 버리고 손 상세 길로 다시 대조한다
-                fun asHand(): SimplifiedOfficeOrder = when (val r = pickerParser.verify(detail, null, matchedListCard, screenTexts, rawScreenStr, recentListOrders)) {
-                    is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Success -> r.order
-                }
+                fun asHand(): SimplifiedOfficeOrder = verifier.verifyOrder(detail, null, matchedListCard, screenTexts, rawScreenStr, recentListOrders)
                 clock.mark("대조")
-                when (verifyResult) {
-                    is com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser.VerifyResult.Success -> {
-                        var verifiedOrder = verifyResult.order
-                        session.isVerifyingSnapshot = false
-                        if (session.isDetailScrapSent) return@post
-                        if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
-                            AppLogger.w(TAG, "📸 [스냅샷 성공 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
-                            return@post
-                        }
-                        // 📋 필수 요소 최종 대조 — 사진으로 채운 값으로 (세 배차망 같다)
-                        val missing = OrderRequirement.missingDetail(verifiedOrder)
-                        clock.mark("요건")
-                        if (missing.isNotEmpty()) {
-                            apiClient.sendAnomalyReport(
-                                targetApp = currentTargetApp,
-                                screenName = telemetryManager.currentScreenContext.name,
-                                failureReason = "REQUIREMENT_UNMET: ${missing.joinToString(" · ")}",
-                                listOrderInfo = mapOf("fare" to verifiedOrder.fare, "pickup" to verifiedOrder.pickup, "dropoff" to verifiedOrder.dropoff),
-                                detailParsedText = rawScreenStr.take(500),
-                                // 📸 사진 줄을 싣는다 — «무엇을 읽었길래 모자랐나»를 가른다 (판독 실패와 같은 모양)
-                                ocrResult = mapOf(
-                                    "linesCount" to lines.size,
-                                    "lines" to lines.take(60).map { mapOf("y" to it.y, "text" to it.text) },
-                                ),
-                            )
-                            dropUnfilledCall("사진으로 채운 값이 요건 미달 — ${missing.joinToString(" · ")}")
-                            return@post
-                        }
-                        // 🎯 «누른 그 콜인가» — 세 배차망 같은 검증
-                        val notTapped = dropIfNotTappedCall(verifiedOrder, rawScreenStr)
-                        clock.mark("누른 콜")
-                        if (notTapped) return@post
-                        if (tappedCard != null && !session.openedByApp) {
-                            verifiedOrder = asHand()
-                            val stillMissing = OrderRequirement.missingDetail(verifiedOrder)
-                            if (stillMissing.isNotEmpty()) {
-                                dropUnfilledCall("손 상세로 다시 대조 — 요건 미달 ${stillMissing.joinToString(" · ")}")
-                                return@post
-                            }
-                        }
-                        // 🔎 채운 뒤 필터 한 번 — 같은 함수 (앱이 연 콜만 거른다 · 기사님이 연 상세는 그대로 보낸다)
-                        val filteredOut = session.openedByApp && !passesFilterAfterFill(verifiedOrder)
-                        clock.mark("필터")
-                        if (filteredOut) {
-                            AppLogger.w(TAG, LogTag.CALL_STAGE, "🔎 [채운 뒤 탈락] ${verifiedOrder.pickup.take(14)} → ${verifiedOrder.dropoff.take(14)} ${verifiedOrder.fare}원 — 서버에 보내지 않고 목록으로")
-                            session.isDetailScrapSent = true
-                            abortPreConfirm()
-                            return@post
-                        }
-                        ensureSessionId()
-                        val orderWithId = verifiedOrder.copy(
-                            id = session.currentOrderId.ifEmpty { verifiedOrder.id }
-                        )
-                        session.setOrderId(orderWithId.id)
-                        session.lastDetailOrder = orderWithId
-                        session.isPreview = true
-                        session.accumulatedDetailText = rawScreenStr
-
-                        AppLogger.roadmap(LogTag.CALL_STAGE, "📸 [스냅샷 통과] 픽커 상세 검증 완료: ${orderWithId.pickup} → ${orderWithId.dropoff}", telemetryManager.currentScreenContext.name)
-                        sendConfirmOnce(orderWithId, rawScreenStr)
-                        sendDetail(orderWithId)
+                var verifiedOrder = verifyResult
+                session.isVerifyingSnapshot = false
+                if (session.isDetailScrapSent) return@post
+                if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM) {
+                    AppLogger.w(TAG, "📸 [스냅샷 성공 무시] 이미 상세 화면 이탈 (현재: ${telemetryManager.currentScreenContext})")
+                    return@post
+                }
+                // 📋 필수 요소 최종 대조 — 사진으로 채운 값으로 (세 배차망 같다)
+                val missing = OrderRequirement.missingDetail(verifiedOrder)
+                clock.mark("요건")
+                if (missing.isNotEmpty()) {
+                    apiClient.sendAnomalyReport(
+                        targetApp = currentTargetApp,
+                        screenName = telemetryManager.currentScreenContext.name,
+                        failureReason = "REQUIREMENT_UNMET: ${missing.joinToString(" · ")}",
+                        listOrderInfo = mapOf("fare" to verifiedOrder.fare, "pickup" to verifiedOrder.pickup, "dropoff" to verifiedOrder.dropoff),
+                        detailParsedText = rawScreenStr.take(500),
+                        // 📸 사진 줄을 싣는다 — «무엇을 읽었길래 모자랐나»를 가른다 (판독 실패와 같은 모양)
+                        ocrResult = mapOf(
+                            "linesCount" to lines.size,
+                            "lines" to lines.take(60).map { mapOf("y" to it.y, "text" to it.text) },
+                        ),
+                    )
+                    dropUnfilledCall("사진으로 채운 값이 요건 미달 — ${missing.joinToString(" · ")}")
+                    return@post
+                }
+                // 🎯 «누른 그 콜인가» — 세 배차망 같은 검증
+                val notTapped = dropIfNotTappedCall(verifiedOrder, rawScreenStr)
+                clock.mark("누른 콜")
+                if (notTapped) return@post
+                if (tappedCard != null && !session.openedByApp) {
+                    verifiedOrder = asHand()
+                    val stillMissing = OrderRequirement.missingDetail(verifiedOrder)
+                    if (stillMissing.isNotEmpty()) {
+                        dropUnfilledCall("손 상세로 다시 대조 — 요건 미달 ${stillMissing.joinToString(" · ")}")
+                        return@post
                     }
                 }
+                // 🔎 채운 뒤 필터 한 번 — 같은 함수 (앱이 연 콜만 거른다 · 기사님이 연 상세는 그대로 보낸다)
+                val filteredOut = session.openedByApp && !passesFilterAfterFill(verifiedOrder)
+                clock.mark("필터")
+                if (filteredOut) {
+                    AppLogger.w(TAG, LogTag.CALL_STAGE, "🔎 [채운 뒤 탈락] ${verifiedOrder.pickup.take(14)} → ${verifiedOrder.dropoff.take(14)} ${verifiedOrder.fare}원 — 서버에 보내지 않고 목록으로")
+                    session.isDetailScrapSent = true
+                    abortPreConfirm()
+                    return@post
+                }
+                ensureSessionId()
+                val orderWithId = verifiedOrder.copy(
+                    id = session.currentOrderId.ifEmpty { verifiedOrder.id }
+                )
+                session.setOrderId(orderWithId.id)
+                session.lastDetailOrder = orderWithId
+                session.isPreview = true
+                session.accumulatedDetailText = rawScreenStr
+
+                AppLogger.roadmap(LogTag.CALL_STAGE, "📸 [스냅샷 통과] 픽커 상세 검증 완료: ${orderWithId.pickup} → ${orderWithId.dropoff}", telemetryManager.currentScreenContext.name)
+                sendConfirmOnce(orderWithId, rawScreenStr)
+                sendDetail(orderWithId)
                 } finally {
                     // ⏱️ 상세 진입마다 한 줄(사건) — 빠져나간 자리까지의 단계만 찍힌다
                     AppLogger.d(TAG, LogTag.CALL_STAGE, "⏱️ [상세 뒤 시간] ${clock.line()}")

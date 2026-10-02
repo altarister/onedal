@@ -29,3 +29,19 @@ interface ScreenOcrParser<T> {
     /** 3. 파싱이 null 일 때 왜인가 — 없는 쪽을 이름으로(이상 기록에 실린다). 모르면 null */
     fun failureReason(lines: List<OcrLine>): String? = null
 }
+
+/**
+ * 📸 **상세 사진 판독 결과를 콜로 맞추는 판독기** — 사진으로 상세를 채우는 배차망만 구현한다(지금 픽커).
+ * 공통 상세 흐름(`PreConfirmSequence`)은 이 규격만 본다 — 배차망 판독기 클래스를 모른다 (reviews/35 4단계).
+ * @param tappedCard 앱이 누른 목록 줄(손으로 연 상세면 null) · @param matchedListOrder 상세 글로 찾은 목록 줄 · @param recent 최근 목록 줄
+ */
+interface DetailVerifier<T> : ScreenOcrParser<T> {
+    fun verifyOrder(
+        parsed: T,
+        tappedCard: com.onedal.app.models.SimplifiedOfficeOrder?,
+        matchedListOrder: com.onedal.app.models.SimplifiedOfficeOrder?,
+        screenTexts: List<String>,
+        rawScreenStr: String,
+        recent: List<com.onedal.app.models.SimplifiedOfficeOrder>,
+    ): com.onedal.app.models.SimplifiedOfficeOrder
+}

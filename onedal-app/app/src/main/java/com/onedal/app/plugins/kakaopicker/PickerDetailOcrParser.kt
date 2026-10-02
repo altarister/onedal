@@ -15,7 +15,7 @@ import com.onedal.app.models.withReservation
  * - 줄 나누기(parse): PickerScreenOcr.parseDetail 로 픽업지/배송지/물품정보 추출
  * - 조립(verify): 사진 주소(행정동 + 건물명)를 콜에 싣고, 수동 콜은 요금을 복원한다(#119 수호). «누른 그 콜인가»는 공통 `TappedCall`
  */
-class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
+class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFromImage> {
 
     companion object {
         /**
@@ -55,6 +55,18 @@ class PickerDetailOcrParser : ScreenOcrParser<PickerDetailFromImage> {
     override fun failureReason(lines: List<OcrLine>): String {
         val missing = PickerScreenOcr.missingHeads(lines)
         return if (missing.isEmpty()) "행정동 줄 없음" else missing.joinToString("·") + " 머리 없음"
+    }
+
+    /** 📸 공통 규격(`DetailVerifier`) — 대조 결과의 콜 */
+    override fun verifyOrder(
+        parsed: PickerDetailFromImage,
+        tappedCard: SimplifiedOfficeOrder?,
+        matchedListOrder: SimplifiedOfficeOrder?,
+        screenTexts: List<String>,
+        rawScreenStr: String,
+        recent: List<SimplifiedOfficeOrder>,
+    ): SimplifiedOfficeOrder = when (val r = verify(parsed, tappedCard, matchedListOrder, screenTexts, rawScreenStr, recent)) {
+        is VerifyResult.Success -> r.order
     }
 
     sealed class VerifyResult {
