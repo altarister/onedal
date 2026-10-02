@@ -100,4 +100,7 @@ object InsungPages {
             FieldSpec(PageField.CLOCK, "완료 탭 줄", "상차 시각 · 하차 시각", Seen.SIM, Handling.UNUSED),
         ),
     )
+
+    /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords) */
+    val vehicleWords: Map<String, String> = emptyMap()
 }

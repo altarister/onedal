@@ -5,6 +5,7 @@ import { NETWORK_PAGES } from './networkPages';
 import { PAGE_FIELDS, SCREEN_PAGES, type PageField, type ScreenPage } from './pageFields';
 import { TARGET_APPS, type TargetAppType } from './index';
 import { pageFieldOf, pageFareOf, excludeScanTextOf } from './pageRead';
+import { VEHICLE_OPTIONS } from './vehicles';
 
 /**
  * 📄 **배차망 화면 정의 표 — 서버가 믿고 읽을 수 있나** (reviews/34 2단계 · onedal-46 3단계 조건).
@@ -95,6 +96,17 @@ describe('주소 다듬기 (addressCut)', () => {
             if (spec.addressCut) expect(spec.addressCut, `${net} — 금지 문법`).not.toMatch(/\\p\{|\(\?<[A-Za-z]|\+\+|\*\+|\?\+|\(\?[imsx]|\\[bBwW]/);
             const cutOf = (a: string) => (spec.addressCut ? a.replace(new RegExp(spec.addressCut), '') : a).trim();
             for (const a of SAMPLES) expect(cutOf(a), `${net} «${a}»`).toBe(BASE[net](a));
+        }
+    });
+});
+
+describe('차종 낱말 (vehicleWords)', () => {
+    it('대응한 우리 차종은 VEHICLE_OPTIONS 안 · 한 배차망에 같은 낱말은 하나 · 표가 있으면 까닭 한 줄도', () => {
+        for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
+            const words = spec.vehicleWords ?? [];
+            for (const w of words) expect(VEHICLE_OPTIONS as readonly string[], `${net} ${w.word}`).toContain(w.vehicle);
+            expect(new Set(words.map(w => w.word)).size, net).toBe(words.length);
+            if (words.length) expect(spec.vehicleWordsWhy, net).toBeTruthy();
         }
     });
 });

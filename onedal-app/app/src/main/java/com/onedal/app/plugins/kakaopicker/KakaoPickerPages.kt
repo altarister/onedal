@@ -54,4 +54,7 @@ object KakaoPickerPages {
             FieldSpec(PageField.TAGS, "오른쪽 배지", "도보", Seen.REAL, Handling.UNUSED),
         ),
     )
+
+    /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords) */
+    val vehicleWords: Map<String, String> = emptyMap()
 }

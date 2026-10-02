@@ -53,4 +53,19 @@ object Hwamul24Pages {
             FieldSpec(PageField.CLOCK, "하차시간", "2025-11-23 20:43분", Seen.REAL, Handling.UNUSED),
         ),
     )
+
+    /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 셋째 줄 «낱말/…»(«1톤/전체» · «2.5톤/윙» · «다마스/전체»)의 첫 «/» 앞 낱말 — REAL 은 실물 캡처 17 · 실물 목록, SIM 은 시뮬레이터 목록에서만 봤다) */
+    val vehicleWords: Map<String, String> = mapOf(
+        "1톤" to "1t",
+        "1.4톤" to "1.4t",
+        "2.5톤" to "2.5t",
+        "3.5톤" to "3.5t",
+        "5톤" to "5t",
+        "11톤" to "11t",
+        "25톤" to "25t",
+        "다마스" to "다마스",
+        "라보" to "라보",
+        "오토바이" to "오토바이",
+        "승용" to "승용차",
+    )
 }

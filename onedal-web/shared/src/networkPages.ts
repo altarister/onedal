@@ -1,5 +1,6 @@
 import type { TargetAppType } from './index';
 import type { PageField, ScreenPage } from './pageFields';
+import type { VehicleType } from './vehicles';
 
 /**
  * 📄 **배차망 화면 정의 — 한 곳** (reviews/34 · 기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
@@ -46,6 +47,21 @@ export interface NetworkPageSpec {
     addressCut: string | null;
     /** 그렇게 다듬는 까닭 한 줄 */
     addressCutWhy: string;
+    /**
+     * 🚚 **차종 낱말 → 우리 차종** — 배차망이 정의한 차종 글자를 우리 차종(VEHICLE_OPTIONS)에 맞춘다(기사님 «기준은 배차망 · 플러그인으로 맞춘다»).
+     * 원달앱은 gen:pages 로 받는다(…Pages.vehicleWords). 표에 없는 낱말은 원달앱이 이상 기록 «VEHICLE_UNKNOWN: 낱말»로 올린다.
+     */
+    vehicleWords?: NetworkVehicleWord[];
+    /** 차종 낱말을 화면 어디서 읽나 한 줄 */
+    vehicleWordsWhy?: string;
+}
+export interface NetworkVehicleWord {
+    /** 배차망 화면의 차종 낱말 그대로 */
+    word: string;
+    /** 우리 차종 */
+    vehicle: VehicleType;
+    /** 본 곳 — 실물 · 시뮬레이터 */
+    seen: 'REAL' | 'SIM';
 }
 
 export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
@@ -119,6 +135,20 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "excludeScanWhy": "기사님 «화물24시는 화물정보»(+ 결제방법 «착불») — 화주 이름 줄(«화물과퀵») · «60분 안보기» · 버튼 · 주소는 안 본다",
     "addressCut": ",[\\s\\S]*$",
     "addressCutWhy": "첫 쉼표부터 끝(뒤 상세 주소)을 지운다",
+    "vehicleWords": [
+      {"word": "1톤", "vehicle": "1t", "seen": "REAL"},
+      {"word": "1.4톤", "vehicle": "1.4t", "seen": "SIM"},
+      {"word": "2.5톤", "vehicle": "2.5t", "seen": "REAL"},
+      {"word": "3.5톤", "vehicle": "3.5t", "seen": "REAL"},
+      {"word": "5톤", "vehicle": "5t", "seen": "SIM"},
+      {"word": "11톤", "vehicle": "11t", "seen": "SIM"},
+      {"word": "25톤", "vehicle": "25t", "seen": "SIM"},
+      {"word": "다마스", "vehicle": "다마스", "seen": "SIM"},
+      {"word": "라보", "vehicle": "라보", "seen": "SIM"},
+      {"word": "오토바이", "vehicle": "오토바이", "seen": "SIM"},
+      {"word": "승용", "vehicle": "승용차", "seen": "SIM"}
+    ],
+    "vehicleWordsWhy": "목록 셋째 줄 «낱말/…»(«1톤/전체» · «2.5톤/윙» · «다마스/전체»)의 첫 «/» 앞 낱말 — REAL 은 실물 캡처 17 · 실물 목록, SIM 은 시뮬레이터 목록에서만 봤다",
     "pages": {
       "list": [
         {"field": "pickup", "where": "왼쪽 윗줄", "sample": "경기 시흥 정왕동", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse"},

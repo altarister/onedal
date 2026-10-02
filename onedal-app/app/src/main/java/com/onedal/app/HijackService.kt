@@ -534,6 +534,15 @@ class HijackService : AccessibilityService(), ScanContext {
                 }
             }
         }
+        // 🚚 배차망 차종 낱말을 우리 차종에 못 맞췄다 — 이상 기록 «VEHICLE_UNKNOWN: 낱말»(같은 낱말은 하루 한 번 · `VehicleWordMiss`)
+        com.onedal.app.core.VehicleWordMiss.sink = { network, word, line ->
+            apiClient.sendAnomalyReport(
+                targetApp = network,
+                screenName = "LIST",
+                failureReason = "VEHICLE_UNKNOWN: $word",
+                detailParsedText = line.take(200),
+            )
+        }
         // 👆 «누르기 안 먹힘»은 이상 징후로 — 어느 배차망 · 어느 화면이든 같은 한 줄 (`TapInFlight`)
         touchManager.onTapFailed = { f ->
             apiClient.sendAnomalyReport(

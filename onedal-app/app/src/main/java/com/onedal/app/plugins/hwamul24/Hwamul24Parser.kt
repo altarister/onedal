@@ -49,6 +49,12 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
          * 🧪 **판정 본체 — 필터를 인자로 받는다** (인성 `judge` 와 같은 모양).
          * 누름(`shouldClick`)과 장부의 까닭(`withVerdict`)이 **같은 분기**를 쓴다 — 따로 세면 «누름은 요금, 장부는 지역»으로 갈라진다.
          */
+        /** 차종 낱말 꼴 — «N톤» 또는 한글 2~6자. 머리 «성공0건/최대15건» · 화물 글은 낱말로 안 친다 */
+        private val VEHICLE_WORD_SHAPE = Regex("""^(\d+(\.\d+)?톤|[가-힣]{2,6})$""")
+
+        /** 🚚 화면 차종 줄(«다마스/전체» · «1톤/전체»)의 첫 «/» 앞 낱말 → 우리 차종(shared 배차망 정의 표 vehicleWords) · 표에 없으면 null */
+        fun ourVehicleOf(raw: String?): String? = raw?.trim()?.substringBefore('/')?.let { Hwamul24Pages.vehicleWords[it] }
+
         fun judge(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Verdict {
 
             // ── 조건 0: 전체 필터 활성화 여부 ──
@@ -63,20 +69,12 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             val reservationOk = com.onedal.app.core.engine.ReservationGate.passesList(order, filter.reservationMode)
 
             // ── 조건 1: 차종 매칭 (빈 배열이면 전체 허용) ──
+            //    🚚 배차망 낱말(«다마스/전체»의 «다마스»)을 표(Hwamul24Pages.vehicleWords)로 우리 차종에 맞춘 뒤 **같은지**로 본다 —
+            //    «담고 있나»로 보면 «11톤»이 허용 1t 에 걸린다. 표에 없는 낱말은 차종 모름 → 지금처럼 거른다
             val vehicleMatch = if (filter.allowedVehicleTypes.isEmpty()) {
                 true
             } else {
-                order.vehicleType != null && filter.allowedVehicleTypes.any { allowed ->
-                    val normAllowed = allowed.lowercase(Locale.getDefault())
-                    val normParsed = order.vehicleType.lowercase(Locale.getDefault())
-                    // 화물24시는 "2.5톤/윙" 형태이므로 톤수 포함 검사
-                    normParsed.contains(normAllowed) || normAllowed.contains(normParsed) ||
-                    // 크로스 매칭: 서버 "1t" ↔ 파싱 "1톤"
-                    (normAllowed == "1t" && normParsed.contains("1톤")) ||
-                    (normAllowed == "2.5t" && normParsed.contains("2.5톤")) ||
-                    (normAllowed == "3.5t" && normParsed.contains("3.5톤")) ||
-                    (normAllowed == "5t" && normParsed.contains("5톤"))
-                }
+                ourVehicleOf(order.vehicleType)?.let { v -> v in filter.allowedVehicleTypes } ?: false
             }
 
             // ── 조건 2: 도착지 매칭 ──
@@ -265,17 +263,6 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
          */
         val fare = Hwamul24CardGrouping.fareOf(texts)
 
-        // ── 2. 차종(VehicleType) 파싱: "2.5톤/윙", "3.5톤/전체", "1톤/카/윙" 등 ──
-        var vehicleType: String? = null
-        val vehicleRegex = Regex("""(\d+\.?\d*톤)(?:/([가-힣/]+))?""")
-        for (text in texts) {
-            val match = vehicleRegex.find(text.trim())
-            if (match != null) {
-                vehicleType = match.groupValues[0] // 전체 매칭 문자열 (예: "2.5톤/윙")
-                break
-            }
-        }
-
         // ── 3. 지역명 파싱 (LocationTextAnalyzer 활용) ──
         // 화물24시 노이즈 단어 (뱃지, 숫자, UI 요소)
         val noiseWords = setOf(
@@ -285,6 +272,23 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             "홈", "화물정보", "마이페이지", "환경", "환경설정", "배차내역",  // 아래 막대
             "무과세", "계산서"  // 결제 글
         )
+
+        /**
+         * ── 2. 차종(VehicleType): 차종 줄 «낱말/…»(«2.5톤/윙» · «1톤/카/윙» · «다마스/전체마대»)의 첫 «/» 앞 낱말 ──
+         * 🚚 낱말이 배차망 정의 표(Hwamul24Pages.vehicleWords)에 있으면 차종 줄이다 — 값은 화면 글 그대로(«다마스/전체마대») 올리고 비교 때 우리 차종으로 맞춘다.
+         *    노드 하나가 낱말뿐이어도(«1톤») 차종이다. 표에 없는 «낱말/…» 은 차종 모름 → 이상 기록(`VehicleWordMiss`) · 배지(«당착/…»)는 낱말로 안 친다.
+         */
+        val vehicleLine = Regex("""^([^\s/]+)(?:/([가-힣/]*))?""")
+        var vehicleType: String? = null
+        var unknownVehicle: Pair<String, String>? = null
+        for (text in texts) {
+            val m = vehicleLine.find(text.trim()) ?: continue
+            val word = m.groupValues[1]
+            if (word in Hwamul24Pages.vehicleWords) { vehicleType = m.value; break }
+            if (unknownVehicle == null && m.value.contains("/") && word !in noiseWords && VEHICLE_WORD_SHAPE.matches(word))
+                unknownVehicle = word to text.trim()
+        }
+        if (vehicleType == null) unknownVehicle?.let { (word, line) -> com.onedal.app.core.VehicleWordMiss.record("hwamul24", word, line) }
 
         // 🧹 맞대는 글은 앞의 그림 글자·기호를 뗀 글로 — 아래 막대가 «🚚 배차내역» 꼴로 온다
         val trimmed = texts.map { it.trim().replace(Regex("""^[^가-힣A-Za-z0-9]+"""), "").trim() }

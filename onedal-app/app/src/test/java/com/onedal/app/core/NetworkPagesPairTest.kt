@@ -42,6 +42,16 @@ class NetworkPagesPairTest {
     @Test fun `화물24시 화면 정의는 표와 같다`() = assertEquals(rowsOf("hwamul24"), rowsOf(Hwamul24Pages.pages))
     @Test fun `카카오 픽커 화면 정의는 표와 같다`() = assertEquals(rowsOf("kakaopicker"), rowsOf(KakaoPickerPages.pages))
 
+    /** 🚚 차종 낱말 → 우리 차종 — 표의 vehicleWords 와 생성 파일의 vehicleWords 가 같다(없으면 둘 다 빈 지도) */
+    private fun wordsOf(network: String): Map<String, String> =
+        table[network].asJsonObject["vehicleWords"]?.asJsonArray?.associate { w ->
+            w.asJsonObject["word"].asString to w.asJsonObject["vehicle"].asString
+        } ?: emptyMap()
+
+    @Test fun `인성 차종 낱말은 표와 같다`() = assertEquals(wordsOf("insung"), InsungPages.vehicleWords)
+    @Test fun `화물24시 차종 낱말은 표와 같다`() = assertEquals(wordsOf("hwamul24"), Hwamul24Pages.vehicleWords)
+    @Test fun `카카오 픽커 차종 낱말은 표와 같다`() = assertEquals(wordsOf("kakaopicker"), KakaoPickerPages.vehicleWords)
+
     @Test fun `세 Pages_kt 는 생성 파일이다 - 손으로 고치지 않는다`() {
         for (p in listOf("insung/InsungPages.kt", "hwamul24/Hwamul24Pages.kt", "kakaopicker/KakaoPickerPages.kt")) {
             assertTrue("$p 가 생성 파일 머리를 안 단다 — cd onedal-web && pnpm gen:pages",
