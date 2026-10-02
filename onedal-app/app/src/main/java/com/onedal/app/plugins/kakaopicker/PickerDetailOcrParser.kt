@@ -178,8 +178,8 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
     private fun detailReservation(parsed: PickerDetailFromImage): com.onedal.app.core.Reservation {
         if (!parsed.reserved) return com.onedal.app.core.Reservation.NONE
         val now = java.time.LocalDateTime.now()
-        val band = parsed.reservedLine?.let { com.onedal.app.core.ReservationText.read(it, now, bareLaterTimeIsToday = false) }
+        val band = parsed.reservedLine?.let { com.onedal.app.core.ReservationText.read(it, now) }
         if (band != null && band.day != null && band.at != null) return band
-        return com.onedal.app.core.ReservationText.read("예약 ${parsed.pickup.at.orEmpty()}", now, bareLaterTimeIsToday = false)
+        return com.onedal.app.core.ReservationText.read("예약 ${parsed.pickup.at.orEmpty()}", now)
     }
 }

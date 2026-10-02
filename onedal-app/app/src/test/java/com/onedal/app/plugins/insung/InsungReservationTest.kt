@@ -9,7 +9,7 @@ import java.time.LocalDateTime
 /**
  * 📅 **인성 예약은 출발지 칸 앞글자로만 읽는다** — 실물 목록 «@낼7시/초이동» · «@대곡동 → 낼8/중구봉래동».
  * 도착지 칸의 «낼8»은 도착 약속이다 — 상차 날로 읽으면 오늘 상차 콜이 «내일 콜»로 막힌다.
- * 🔴 날 없는 늦은 시각(«21시/»)은 오늘 — 실물 인성은 내일에 «낼»을 적는다(한 화면에 «낼7시/»와 «21시/»가 나란히).
+ * 🔴 날 표시 없는 시각(«21시/»)은 이르든 늦든 오늘 — 실물 인성은 내일에 «낼»을 적는다(한 화면에 «낼7시/»와 «21시/»가 나란히).
  */
 class InsungReservationTest {
     private val now = LocalDateTime.of(2026, 9, 30, 15, 0)
@@ -24,8 +24,9 @@ class InsungReservationTest {
         assertEquals(Reservation.NONE, InsungParser.reservationOf(pickup, now))
     }
 
-    @Test fun `날 없는 늦은 시각은 오늘`() {
+    @Test fun `날 없는 시각은 늦든 이르든 오늘`() {
         val pickup = LocationTextAnalyzer.analyze("@21시/천호동")
         assertEquals(Reservation(true, 0, "21:00"), InsungParser.reservationOf(pickup, now))
+        assertEquals(Reservation(true, 0, "09:00"), InsungParser.reservationOf(LocationTextAnalyzer.analyze("@9시/천호동"), now))
     }
 }

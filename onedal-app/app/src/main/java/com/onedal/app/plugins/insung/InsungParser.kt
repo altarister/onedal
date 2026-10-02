@@ -243,15 +243,11 @@ class InsungParser(private val context: Context) : IScrapParser {
         data class Verdict(val passed: Boolean, val axis: String)
 
         /**
-         * 📅 **날 없는 늦은 시각(«21시/»)은 오늘** — 실물 인성은 내일에 «낼»을 적는다(한 화면에 «낼7시/»와 «21시/»가 나란히).
-         * ⚠️ 근거가 실물 캡처 한 장이다 — 실물 인성을 설치하면 페이지 정의(reviews/24)의 «모름» 칸과 함께 다시 본다.
-         * 거짓이면 상세 출발지 줄도 «1시/»뿐이라 채운 뒤에도 날을 몰라 인성 저녁 예약이 전부 막힌다.
+         * 📅 예약은 **출발지 칸 앞글자**로만 읽는다 — 도착지 칸 «낼8/중구봉래동»은 도착 약속이다 (`InsungReservationTest`).
+         *    실물 인성은 내일에 «낼»을 적는다(한 화면에 «낼7시/»와 «21시/»가 나란히) — 시각만 있으면 오늘(`ReservationText`).
          */
-        private const val BARE_LATER_TIME_IS_TODAY = true
-
-        /** 📅 예약은 **출발지 칸 앞글자**로만 읽는다 — 도착지 칸 «낼8/중구봉래동»은 도착 약속이다 (`InsungReservationTest`) */
         fun reservationOf(pickupInfo: com.onedal.app.core.LocationInfo?, now: java.time.LocalDateTime): com.onedal.app.core.Reservation =
-            com.onedal.app.core.ReservationText.read(pickupInfo?.scheduleText, now, BARE_LATER_TIME_IS_TODAY)
+            com.onedal.app.core.ReservationText.read(pickupInfo?.scheduleText, now)
 
         /** 판정하고 **어느 축에서 걸렸는지**까지 돌려준다 — `decide` 는 이것을 감싼 것이다 */
         fun decide(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Boolean =

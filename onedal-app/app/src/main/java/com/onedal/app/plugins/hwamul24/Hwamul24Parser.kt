@@ -247,7 +247,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             val badge = texts.map { it.trim() }.firstOrNull { it in PICKUP_DAY_BADGES }
             val memoPickup = Hwamul24MemoTimes.split(memo).pickup.ifEmpty { null }
             val source = listOfNotNull(badge, memoPickup, pickupInfo?.scheduleText).joinToString(" ")
-            return com.onedal.app.core.ReservationText.read(source, now, bareLaterTimeIsToday = false)
+            return com.onedal.app.core.ReservationText.read(source, now)
         }
     }
 

@@ -84,4 +84,14 @@ class ReservationGateTest {
         assertEquals("reservation", KakaoPickerParser.verdictAxisOf(tomorrow, 10000, 10.0))
         assertEquals(null, KakaoPickerParser.verdictAxisOf(unknown, 10000, 10.0))
     }
+
+    /** 🌙 시각만 적힌 밤 콜은 오늘 콜이다 — «오늘 콜만»이어도 통과하고, 자동이면 확정한다 (날은 ReservationText 가 정한다) */
+    @Test fun `오늘 콜만 - 시각만 적힌 밤 콜은 통과하고 자동 확정 대상이다`() {
+        val night = java.time.LocalDateTime.of(2026, 10, 2, 23, 15)
+        val r = com.onedal.app.core.ReservationText.read("00:08", night)
+        val o = SimplifiedOfficeOrder(id = "n", pickup = "a", dropoff = "b", fare = 30000, timestamp = "t", reserved = r.marked, reservedDay = r.day)
+        assertTrue(ReservationGate.passesList(o, ReservationGate.TODAY))
+        assertTrue(ReservationGate.passesAfterFill(o, ReservationGate.TODAY))
+        assertTrue(ReservationGate.isToday(o))
+    }
 }

@@ -8,7 +8,7 @@ import org.junit.Test
 
 /**
  * 📅 **픽커 예약 — 목록은 태그 줄, 상세는 사진의 «내일 14:00 픽업예약»이 이긴다** (실물 09-30 08:04 예약 콜).
- * 목록 «예약 18:30»처럼 날 낱말이 없는 늦은 시각은 날 모름 — 사진이 가른다.
+ * 목록 «예약 18:30»처럼 날 낱말 없이 시각만 있으면 오늘 · «예약»만이면 날 모름 — 사진이 가른다.
  */
 class PickerReservationTest {
     private val parser = KakaoPickerParser(null)

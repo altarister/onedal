@@ -8,12 +8,12 @@ import java.time.LocalDateTime
  * 📅 **예약이 언제인가 — 상차 쪽 글자 하나로 읽는다** (예약콜 1단계 · 세 배차망 공통 한 벌).
  * 정답지는 실물 화면 글자다 — 인성 목록 «낼7시/»·«21시/»·«10일/», 픽커 «예약 내일»·«예약 18:30»·«예약 9/30(수)»·«예약»만,
  * 화물24시 «당상»·«당일오후1시상». 날은 달력 기준(폰 날짜)이다.
+ * 📅 내일 콜은 날 표시(낼 · 내일 · 내상 · 모레 · N일 · M/D)가 있을 때만 — 시각만 있으면 오늘 콜이다(짐작하지 않는다 · 기사님).
  */
 class ReservationTextTest {
 
     private val morning = LocalDateTime.of(2026, 9, 30, 12, 27)
-    private fun read(t: String?, now: LocalDateTime = morning, bareLaterIsToday: Boolean = false) =
-        ReservationText.read(t, now, bareLaterIsToday)
+    private fun read(t: String?, now: LocalDateTime = morning) = ReservationText.read(t, now)
 
     @Test fun `글자가 없으면 예약이 아니다`() {
         assertEquals(Reservation.NONE, read(null))
@@ -31,16 +31,25 @@ class ReservationTextTest {
         assertEquals(Reservation(true, 1, "09:30"), read("낼9시반"))
     }
 
-    @Test fun `시각만 - 지금보다 이르면 내일`() {
-        assertEquals(Reservation(true, 1, "08:00"), read("8시"))
-        assertEquals(Reservation(true, 1, "08:30"), read("예약 08:30"))
+    @Test fun `시각만 - 지금보다 일러도 오늘 (짐작하지 않는다)`() {
+        assertEquals(Reservation(true, 0, "08:00"), read("8시"))
+        assertEquals(Reservation(true, 0, "08:30"), read("예약 08:30"))
     }
 
-    @Test fun `시각만 - 지금보다 늦으면 인성은 오늘 · 그 밖은 날 모름`() {
-        assertEquals(Reservation(true, 0, "21:00"), read("@21시", bareLaterIsToday = true))
-        assertEquals(Reservation(true, 0, "19:30"), read("@오후7시30", bareLaterIsToday = true))
-        assertEquals(Reservation(true, null, "18:30"), read("예약 18:30"))
-        assertEquals(Reservation(true, 1, "18:30"), read("예약 18:30", now = LocalDateTime.of(2026, 9, 30, 19, 0)))
+    @Test fun `시각만 - 지금보다 늦어도 오늘 · 배차망 상관없이`() {
+        assertEquals(Reservation(true, 0, "21:00"), read("@21시"))
+        assertEquals(Reservation(true, 0, "19:30"), read("@오후7시30"))
+        assertEquals(Reservation(true, 0, "18:30"), read("예약 18:30"))
+        assertEquals(Reservation(true, 0, "18:30"), read("예약 18:30", now = LocalDateTime.of(2026, 9, 30, 19, 0)))
+    }
+
+    /** 🌙 자정 가까운 밤 — 시각만 있으면 오늘 · «낼» · «내일»이 적혀 있으면 내일 (이천 방향 바퀴 23:15) */
+    @Test fun `밤 23시 15분 - 00시08분은 오늘 · 낼 내일 표시는 내일`() {
+        val night = LocalDateTime.of(2026, 10, 2, 23, 15)
+        assertEquals(Reservation(true, 0, "00:08"), read("00:08", now = night))
+        assertEquals(Reservation(true, 1, "00:10"), read("낼0시10", now = night))
+        assertEquals(Reservation(true, 1, "09:00"), read("낼09시", now = night))
+        assertEquals(Reservation(true, 1, "17:49"), read("내일 17:49 픽업예약", now = night))
     }
 
     /** 🕘 시작 시각 꼴 — «그때부터 실을 수 있다»는 약속 시각이 아니다 (기사님 «가» · 교차 리뷰 ①) */
@@ -48,14 +57,14 @@ class ReservationTextTest {
         val three = LocalDateTime.of(2026, 9, 30, 15, 0)
         assertEquals(0, read("09시 이후 상차", now = three).day)
         assertEquals(1, read("내일 9시 이후", now = three).day)
-        assertEquals(1, read("09:30", now = three).day)
+        assertEquals(0, read("09:30", now = three).day)
         assertEquals(0, read("12시부터 12시30분 사이", now = three).day)
     }
 
     @Test fun `오전 오후 저녁 낮`() {
-        assertEquals(Reservation(true, 0, "19:00"), read("저녁7시", bareLaterIsToday = true))
-        assertEquals(Reservation(true, 0, "12:00"), read("낮12시", now = LocalDateTime.of(2026, 9, 30, 10, 0), bareLaterIsToday = true))
-        assertEquals(Reservation(true, 1, "10:00"), read("오전10시"))
+        assertEquals(Reservation(true, 0, "19:00"), read("저녁7시"))
+        assertEquals(Reservation(true, 0, "12:00"), read("낮12시", now = LocalDateTime.of(2026, 9, 30, 10, 0)))
+        assertEquals(Reservation(true, 0, "10:00"), read("오전10시"))
     }
 
     @Test fun `N일 - 이 달 그날 · 지났으면 다음 달`() {

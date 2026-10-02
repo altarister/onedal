@@ -1205,10 +1205,10 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
     /**
      * 📅 **목록 예약은 태그 줄로 읽는다** — «예약» 태그가 있을 때만(«예약 내일»·«예약 18:30»·«예약 9/30(수)»·«예약»만).
-     * 날 낱말 없는 늦은 시각은 날 모름 — 상세 사진(«내일 14:00 픽업예약»)이 가른다 (`PickerReservationTest`).
+     * 시각만 있으면 오늘 · «예약»만이면 날 모름 — 상세 사진(«내일 14:00 픽업예약»)이 가른다 (`PickerReservationTest`).
      */
     private fun listReservation(tags: List<String>, now: java.time.LocalDateTime): com.onedal.app.core.Reservation =
-        if (RESERVED_TAG in tags) com.onedal.app.core.ReservationText.read(tags.joinToString(" "), now, bareLaterTimeIsToday = false)
+        if (RESERVED_TAG in tags) com.onedal.app.core.ReservationText.read(tags.joinToString(" "), now)
         else com.onedal.app.core.Reservation.NONE
 
     /**
