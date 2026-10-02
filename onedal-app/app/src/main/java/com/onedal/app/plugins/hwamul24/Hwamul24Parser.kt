@@ -215,6 +215,33 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         }
 
         /** 📅 상차 날 배지(당일 상차 · 내일 상차) · 하차 날 배지(당일 도착 · 내일 도착) — 실물 목록 «[당상] … [당착]» */
+        /**
+         * 🔇 **서버 낱말 사전을 못 받았을 때의 잡음 낱말** — 오프라인 안전망 (onedal-app/CLAUDE.md).
+         * 원천은 서버 `keywords_24.json` 의 `uiNoiseWords` 이고 그 사전이 이 낱말을 다 담는다 (`Hwamul24NoiseWordsTest` 가 문다).
+         */
+        internal val NOISE_WORDS = setOf(
+            "당상", "내상", "당착", "내착", "수", "지", "독차", "왕복",  // 날 배지는 지역이 아니다 — 꼬리표·예약으로는 `badgesOf` 가 읽는다
+            "인수증", "선/착불", "전체", "화물정보", "자동새로고침",
+            "오더검색", "자동터치", "성공", "최대", "ON", "OFF",
+            "홈", "마이페이지", "환경", "환경설정", "배차내역",  // 아래 막대
+            "무과세", "계산서"  // 결제 글
+        )
+
+        /**
+         * 🔇 **받아 둔 서버 사전(`targetAppKeywords`)의 `uiNoiseWords` + 기본값** — 픽커 `wordsFrom` 과 같은 꼴.
+         * 🔴 합쳐서 쓴다 — 서버가 죽거나 목록이 비어도 기본값만큼은 거른다 (규칙 ④ — 비면 «전부 통과»가 아니다).
+         */
+        fun noiseWordsOf(savedJson: String?): Set<String> {
+            if (savedJson == null) return NOISE_WORDS
+            return try {
+                val arr = org.json.JSONObject(savedJson).optJSONArray("uiNoiseWords") ?: return NOISE_WORDS
+                val fromServer = (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }.toSet()
+                if (fromServer.isEmpty()) NOISE_WORDS else fromServer + NOISE_WORDS
+            } catch (e: Exception) {
+                NOISE_WORDS
+            }
+        }
+
         private val PICKUP_DAY_BADGES = setOf("당상", "내상")
         private val DROPOFF_DAY_BADGES = setOf("당착", "내착")
 
@@ -235,6 +262,11 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         }
     }
 
+    /** 🔇 잡음 낱말 — 서버에서 받아 둔 사전(`GET /api/config/keywords?app=24시` → `targetAppKeywords`)과 기본값 */
+    private fun noiseWords(): Set<String> = noiseWordsOf(
+        try { context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)?.getString("targetAppKeywords", null) } catch (e: Exception) { null }
+    )
+
     /** 🎛️ 지금 저장된 필터 — 읽기 규칙은 `FilterStore` 한 곳(인성과 같은 규칙 · 단가표 ratePerKm 도 여기서 온다) */
     fun loadCurrentFilter(): FilterConfig = com.onedal.app.core.FilterStore.current(context)
 
@@ -251,7 +283,10 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
      *   "2.5톤/윙", "당착/쿠팡반품건(부천1센터)/4파렛상하차",
      *   "독차", "인수증", "70,000원"
      */
-    override fun parse(texts: List<String>): SimplifiedOfficeOrder {
+    override fun parse(texts: List<String>): SimplifiedOfficeOrder = parseWith(texts, noiseWords())
+
+    /** 🔇 잡음 낱말을 인자로 받는 본체 — 검사가 서버 사전마다 결과를 맞대 본다 */
+    internal fun parseWith(texts: List<String>, noiseWords: Set<String>): SimplifiedOfficeOrder {
         val rawJoined = texts.joinToString(", ")
 
         /**
@@ -264,14 +299,6 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         val fare = Hwamul24CardGrouping.fareOf(texts)
 
         // ── 3. 지역명 파싱 (LocationTextAnalyzer 활용) ──
-        // 화물24시 노이즈 단어 (뱃지, 숫자, UI 요소)
-        val noiseWords = setOf(
-            "당상", "내상", "당착", "내착", "수", "지", "독차", "왕복",  // 날 배지는 지역이 아니다 — 꼬리표·예약으로는 `badgesOf` 가 읽는다
-            "인수증", "선/착불", "전체", "화물정보", "자동새로고침",
-            "오더검색", "자동터치", "성공", "최대", "ON", "OFF",
-            "홈", "화물정보", "마이페이지", "환경", "환경설정", "배차내역",  // 아래 막대
-            "무과세", "계산서"  // 결제 글
-        )
 
         /**
          * ── 2. 차종(VehicleType): 차종 줄 «낱말/…»(«2.5톤/윙» · «1톤/카/윙» · «다마스/전체마대»)의 첫 «/» 앞 낱말 ──
