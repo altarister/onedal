@@ -325,9 +325,9 @@ class HijackService : AccessibilityService(), ScanContext {
         val delayMs = com.onedal.app.core.engine.WaitTimes.detailBackMs(savedFilter(), currentTargetApp)
         // 🔎 누가 열었나 — 기록만 한다 (나중에 `grep "상세 대기"` 로 «손으로 연 상세도 돌아왔나»를 본다)
         val now = android.os.SystemClock.elapsedRealtime()
-        val opener = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.detailOpener(alarmTapAtMs, now)
+        val opener = com.onedal.app.core.engine.DetailOwner.detailOpener(alarmTapAtMs, now)
         alarmTapAtMs = 0L
-        if (opener == com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.OPENER_HAND) onHand("손으로 연 상세")
+        if (opener == com.onedal.app.core.engine.DetailOwner.OPENER_HAND) onHand("손으로 연 상세")
         detailBackOpener = opener
         detailBackArmedAtMs = now
         detailBackDeadlineMs = now + delayMs
@@ -851,13 +851,15 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /**
      * 🏁 **다른 기사가 먼저 가져갔다** (실물 09-30 13:08:45 · 발견→누름 141ms 인데도 빼앗겼다).
-     * 픽커·시뮬 앱의 «배정» 토스트만 본다 — 다른 앱 알림은 글자를 남기지 않는다(개인정보).
+     * 알림을 믿는 앱(플러그인 `noticeSources` — 픽커 · 시뮬)의 «배정» 토스트만 본다 — 다른 앱 알림은 글자를 남기지 않는다(개인정보).
      * 누르는 중이면 «누르기 안 먹힘» 대신 여기서 끝낸다(누르기 실패 수에 안 센다). 빼앗긴 콜을 셀 수 있게 한 줄 + 이상 징후 CALL_TAKEN.
      */
     private fun onNotificationEvent(event: AccessibilityEvent) {
-        if (!TargetApp.isPickerToastSource(event.packageName?.toString())) return
+        val pkg = event.packageName?.toString() ?: return
+        /* 🏁 그 알림을 믿는 배차망 — 지금 고른 배차망이 아니어도 알림을 낸 앱으로 찾는다 */
+        val source = com.onedal.app.plugins.DispatchPluginRegistry.all().firstOrNull { pkg in it.noticeSources } ?: return
         val text = event.text.joinToString(" ")
-        val notice = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.takenNoticeOf(text) ?: return
+        val notice = com.onedal.app.core.CallTakenNote.noticeOf(source.screens, text) ?: return
         val rec = touchManager.resolveTakenByOther()
         val card = session.alarmTappedCard
         val foundToTap = if (session.alarmFoundAtMs > 0 && session.alarmTappedAtMs >= session.alarmFoundAtMs)
@@ -874,7 +876,7 @@ class HijackService : AccessibilityService(), ScanContext {
             targetApp = currentTargetApp,
             /* 🧾 화면 칸 = 누른 화면(앱이 누른 콜) — 손으로 누른 콜이면 알림 때 화면 */
             screenName = (session.alarmTappedScreen ?: telemetryManager.currentScreenContext).name,
-            failureReason = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.takenReason(notice, tappedPage, notifiedPage, foundToTap, firstSeen),
+            failureReason = com.onedal.app.core.CallTakenNote.reason(notice, tappedPage, notifiedPage, foundToTap, firstSeen),
             listOrderInfo = card?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
             detailParsedText = text.take(200),
             ocrResult = null,

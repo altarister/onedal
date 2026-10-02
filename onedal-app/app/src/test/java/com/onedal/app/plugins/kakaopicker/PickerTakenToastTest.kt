@@ -23,10 +23,11 @@ class PickerTakenToastTest {
     }
 
     @Test fun `픽커와 시뮬 앱의 알림만 본다`() {
-        assertTrue(TargetApp.isPickerToastSource("com.kakaomobility.flexer"))
-        assertTrue(TargetApp.isPickerToastSource(TargetApp.SIMULATOR_PACKAGE))
-        assertFalse(TargetApp.isPickerToastSource("com.kakao.talk"))
-        assertFalse(TargetApp.isPickerToastSource(null))
+        val sources = KakaoPickerPlugin(null).noticeSources
+        assertTrue("com.kakaomobility.flexer" in sources)
+        assertTrue(TargetApp.SIMULATOR_PACKAGE in sources)
+        assertFalse("com.kakao.talk" in sources)
+        assertTrue("인성 · 화물24시는 알림 덧칸이 없어 믿는 앱도 없다", com.onedal.app.plugins.insung.InsungPlugin(null).noticeSources.isEmpty() && com.onedal.app.plugins.hwamul24.Hwamul24Plugin(null).noticeSources.isEmpty())
     }
 
     /**
@@ -46,11 +47,11 @@ class PickerTakenToastTest {
     @Test fun `09시48분 원문 - 누른 화면 신규 리스트 · 알림 때 화면 넘어가는 틀 · 알림 이름과 뜻`() {
         val tapped = page(list0948)
         assertEquals("화면 칸은 누른 화면의 화면 값", ScreenContext.LIST, tapped.context)
-        val notice = KakaoPickerKeywords.takenNoticeOf(toast)
+        val notice = com.onedal.app.core.CallTakenNote.noticeOf(KakaoPickerPages.screens, toast)
         assertNotNull(notice)
         assertEquals(
             "CALL_TAKEN: «배정» 알림 — 남이 먼저 잡았다 · 누른 화면: 신규 리스트 · 알림 때 화면: 콜을 누른 직후 넘어가는 틀 · 발견→누름 256ms · 처음 보인 때 2026-10-02T09:48:01.126385+09:00",
-            KakaoPickerKeywords.takenReason(notice!!, tapped.page, page(frame0948).page, "256ms", "2026-10-02T09:48:01.126385+09:00"),
+            com.onedal.app.core.CallTakenNote.reason(notice!!, tapped.page, page(frame0948).page, "256ms", "2026-10-02T09:48:01.126385+09:00"),
         )
     }
 
@@ -59,14 +60,14 @@ class PickerTakenToastTest {
         assertEquals(ScreenContext.LIST, tapped.context)
         assertEquals(
             "CALL_TAKEN: «배정» 알림 — 남이 먼저 잡았다 · 누른 화면: 신규 리스트 · 알림 때 화면: 콜을 누른 직후 넘어가는 틀 · 발견→누름 354ms · 처음 보인 때 2026-10-02T09:53:16.204064+09:00",
-            KakaoPickerKeywords.takenReason(KakaoPickerKeywords.takenNoticeOf(toast)!!, tapped.page, page(frame0953).page, "354ms", "2026-10-02T09:53:16.204064+09:00"),
+            com.onedal.app.core.CallTakenNote.reason(com.onedal.app.core.CallTakenNote.noticeOf(KakaoPickerPages.screens, toast)!!, tapped.page, page(frame0953).page, "354ms", "2026-10-02T09:53:16.204064+09:00"),
         )
     }
 
     @Test fun `손으로 누른 콜 - 누른 화면을 모르면 모름 · 알림 때 화면이 표에 없으면 표에 없음`() {
         assertEquals(
             "CALL_TAKEN: «배정» 알림 — 남이 먼저 잡았다 · 누른 화면: 모름 · 알림 때 화면: 표에 없음 · 발견→누름 모름 · 처음 보인 때 모름",
-            KakaoPickerKeywords.takenReason(KakaoPickerKeywords.takenNoticeOf("방금 배정된 오더입니다")!!, null, null, "모름", "모름"),
+            com.onedal.app.core.CallTakenNote.reason(com.onedal.app.core.CallTakenNote.noticeOf(KakaoPickerPages.screens, "방금 배정된 오더입니다")!!, null, null, "모름", "모름"),
         )
     }
 }

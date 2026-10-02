@@ -10,16 +10,30 @@ package com.onedal.app.core.engine
 object DetailOwner {
     enum class OnMismatch { RETREAT, KEEP_AS_HAND }
 
+    /**
+     * 🔎 **앱이 누른 지 이 시간 안에 열린 상세는 앱이 연 것** — 배차망 무관한 공통 사실(`DetailOpenerTest`).
+     * 앱이 목록 줄을 누른 뒤 상세가 뜨기까지 실측 0.3~0.4초 — 넉넉히 5초. `[상세 대기]` 줄의 «연 쪽»과 손 상세 가르기가 쓴다.
+     */
+    const val ALARM_OPEN_WINDOW_MS = 5_000L
+
+    /** 앱(알람)이 찍어 연 상세 */
+    const val OPENER_ALARM = "알람"
+    /** 기사님이 손으로 연 상세 */
+    const val OPENER_HAND = "손"
+
+    fun detailOpener(alarmTapAtMs: Long, nowMs: Long): String =
+        if (alarmTapAtMs > 0L && nowMs - alarmTapAtMs in 0L..ALARM_OPEN_WINDOW_MS) OPENER_ALARM else OPENER_HAND
+
     /** 판정만 흐름에서 앱이 누른 지 시간 창(`ALARM_OPEN_WINDOW_MS`) 밖에 열린 상세는 손 상세로 본다 */
     fun releaseToHand(openedByApp: Boolean, contractedByApp: Boolean, opener: String): Boolean =
-        openedByApp && !contractedByApp && opener == com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.OPENER_HAND
+        openedByApp && !contractedByApp && opener == OPENER_HAND
 
     /**
      * 👆 **연 쪽은 한 번 정한다** — 정해 둔 값이 있으면 그것, 없으면 지금 창으로 잰다(`OpenerLatchTest`).
      * 채우기(인성 팝업 3장)·사진 판독 뒤에 다시 재면 느린 날 앱이 연 상세가 창 밖으로 나가 손 상세가 됐다.
      */
     fun openerAt(settled: String?, tapAtMs: Long, nowMs: Long): String =
-        settled ?: com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.detailOpener(tapAtMs, nowMs)
+        settled ?: detailOpener(tapAtMs, nowMs)
 
     /** 열린 상세가 앱이 누른 줄과 다를 때 */
     fun onMismatch(contractedByApp: Boolean): OnMismatch = if (contractedByApp) OnMismatch.RETREAT else OnMismatch.KEEP_AS_HAND

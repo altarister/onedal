@@ -1,6 +1,5 @@
 package com.onedal.app.core.engine
 
-import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,12 +13,12 @@ class OpenerLatchTest {
     @Test fun `03-18-47 모양 - 터치 뒤 0_5초에 알아본 상세는 6_6초 뒤 판정에도 앱이 연 것`() {
         val tap = 47_875L
         val settled = DetailOwner.openerAt(null, tap, 48_405L)
-        assertEquals(KakaoPickerKeywords.OPENER_ALARM, settled)
-        assertEquals(KakaoPickerKeywords.OPENER_ALARM, DetailOwner.openerAt(settled, tap, 54_481L))
+        assertEquals(DetailOwner.OPENER_ALARM, settled)
+        assertEquals(DetailOwner.OPENER_ALARM, DetailOwner.openerAt(settled, tap, 54_481L))
     }
 
     @Test fun `정해 둔 값이 없으면 지금 창으로 잰다 - 창 밖은 손`() {
-        assertEquals(KakaoPickerKeywords.OPENER_HAND, DetailOwner.openerAt(null, 47_875L, 54_481L))
+        assertEquals(DetailOwner.OPENER_HAND, DetailOwner.openerAt(null, 47_875L, 54_481L))
     }
 
     @Test fun `상세 처리가 채우기 전에 정하고 · 콜이 끝나면 비운다 · 로그 한 번`() {

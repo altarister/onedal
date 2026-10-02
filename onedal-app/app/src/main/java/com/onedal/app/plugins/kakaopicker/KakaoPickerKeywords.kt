@@ -162,22 +162,6 @@ object KakaoPickerKeywords {
         else -> AfterDetail.CHECK_ACCEPTED
     }
 
-    /**
-     * 🔎 **이 상세를 누가 열었나 — 로그에 적는 기록일 뿐이다** (기사님 지시).
-     * 기사님: *"손으로 연 상세가 60초 뒤 돌아오는지 — 로그캣에 넣어서 나중에 확인할 수 있게 만들어"*
-     * 🔴 동작을 가르지 않는다 — 상세 대기 타이머는 누가 열었든 한 곳에서 걸린다 (#124). `[상세 대기]` 줄에만 붙인다.
-     * 알람이 카드를 누른 뒤 상세가 뜨기까지 실측 0.3~0.4초 — 넉넉히 5초 안이면 알람이 연 것이다 (`DetailOpenerTest`).
-     */
-    const val ALARM_OPEN_WINDOW_MS = 5_000L
-
-    /** 앱(알람)이 찍어 연 상세 */
-    const val OPENER_ALARM = "알람"
-    /** 기사님이 손으로 연 상세 */
-    const val OPENER_HAND = "손"
-
-    fun detailOpener(alarmTapAtMs: Long, nowMs: Long): String =
-        if (alarmTapAtMs > 0L && nowMs - alarmTapAtMs in 0L..ALARM_OPEN_WINDOW_MS) OPENER_ALARM else OPENER_HAND
-
     /** ⏱️ 자동 복귀가 몇 초 뒤인지는 적지 않는다 — 서버 DB 값이다 */
     const val RETURNED_TO_LIST_LOG = "↩️ [승격 안 함] 상세에서 리스트로 돌아왔다 — 수락하지 않았다 (넘기기 · 뒤로 · 상세 대기 시간 뒤 자동 복귀)"
 
@@ -243,25 +227,8 @@ object KakaoPickerKeywords {
     /** 🚫 배정 완료 토스트의 글자 — 파서가 지역에서 뺀다 · 🔴 일부러 표(«배정» 알림 덧칸 · «배정 실패 오류» 덧칸)와 두 벌 — 파서 정리는 reviews/35 4단계 */
     const val ASSIGNED_TOAST_WORD = "이미 배정이 완료된"
 
-    /**
-     * 🏁 **다른 기사가 먼저 가져갔다는 알림** — 배차망 정의 표의 알림(NOTICE) 덧칸 중 글자가 맞는 것(«배정» 알림 · 실물 09-30 13:08:45 «방금 배정된 오더입니다»).
-     * 토스트는 화면 글자가 아니라 알림 이벤트로 온다(`HijackService.onNotificationEvent` · 접근성 설정 typeNotificationStateChanged).
-     */
-    fun takenNoticeOf(text: String): com.onedal.app.core.OverlaySpec? {
-        val detector = com.onedal.app.core.engine.ScreenDetector()
-        return KakaoPickerPages.screens.flatMap { it.overlays }
-            .firstOrNull { it.kind == com.onedal.app.core.OverlayKind.NOTICE && detector.hits(it.match, text) }
-    }
-
-    fun isTakenToast(text: String): Boolean = takenNoticeOf(text) != null
-
-    /**
-     * 🧾 **«먼저 가져감» 이상 기록의 까닭 글** — 운영센터 «이상 기록»의 «까닭» 칸에 그대로 뜬다.
-     * @param tappedPage 누른 화면(배차망 페이지 이름) · @param notifiedPage 알림이 왔을 때의 화면 — 모르면 null
-     */
-    fun takenReason(notice: com.onedal.app.core.OverlaySpec, tappedPage: String?, notifiedPage: String?, foundToTap: String, firstSeen: String): String =
-        "CALL_TAKEN: ${notice.name} — ${notice.meaning} · 누른 화면: ${tappedPage ?: "모름"} · 알림 때 화면: ${notifiedPage ?: "표에 없음"} · " +
-            "발견→누름 $foundToTap · 처음 보인 때 $firstSeen"
+    /** 🏁 다른 기사가 먼저 가져갔다는 알림인가 — 픽커 배차망 정의 표의 알림(NOTICE) 덧칸(`CallTakenNote`) */
+    fun isTakenToast(text: String): Boolean = com.onedal.app.core.CallTakenNote.noticeOf(KakaoPickerPages.screens, text) != null
 
     /** 픽커 이름표 · 취소 버튼 글자 — 화면을 알아보는 글자는 배차망 정의 표(`KakaoPickerPages.screens`)에 있다 */
     val PICKER = ScreenKeywords(appLabel = "픽커", cancelKeyword = "넘기기")

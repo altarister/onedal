@@ -11,7 +11,6 @@ import com.onedal.app.models.ScreenContext
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.DispatchPluginRegistry
 import com.onedal.app.plugins.IDispatchAppPlugin
-import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
 
 private const val TAG = "1DAL_PRE_CONFIRM"
 
@@ -447,7 +446,7 @@ fun ScanContext.settleOpener(): String {
         if (session.openedByApp) AppLogger.i(TAG, LogTag.CALL_STAGE, "👆 [연 쪽 정함] $opener · 터치 뒤 ${now - session.alarmTappedAtMs}ms")
     }
     if (DetailOwner.releaseToHand(session.openedByApp, session.contractedByApp, opener))
-        releaseAppOpened("앱이 누른 지 ${KakaoPickerKeywords.ALARM_OPEN_WINDOW_MS / 1000}초 밖에 열린 상세")
+        releaseAppOpened("앱이 누른 지 ${DetailOwner.ALARM_OPEN_WINDOW_MS / 1000}초 밖에 열린 상세")
     return opener
 }
 

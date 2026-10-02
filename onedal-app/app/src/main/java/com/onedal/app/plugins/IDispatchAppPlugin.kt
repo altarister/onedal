@@ -61,6 +61,9 @@ interface IDispatchAppPlugin {
      */
     val handlesConfirmedDetail: Boolean get() = false
 
+    /** 🏁 «먼저 가져감» 알림(토스트)을 믿는 앱 — 그 밖 앱의 알림은 글자를 남기지 않는다(개인정보) · 알림 덧칸이 없는 배차망은 빈 집합 */
+    val noticeSources: Set<String> get() = emptySet()
+
     /**
      * 📜 **목록 머리줄이 화면에 보이나** — 목록이 내려가면 앱은 오더카드와 목록 줄을 못 가른다(픽커 «리스트 설정»).
      * 화면 종류 이름을 늘리지 않고 이 사실 하나를 보고·로그에 싣는다. 모르는 배차망은 null(모름) — 인성·24시.
