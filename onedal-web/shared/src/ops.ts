@@ -3,6 +3,7 @@ import type { TargetAppType, DeviceSession, AutoDispatchFilter, JudgmentSnapshot
 import type { ContentKind } from './join';
 import type { WordKind } from './pageFields';
 import type { CargoUnit } from './cargoUnits';
+import type { FlowCell, WatchedHour } from './flowViews';
 import { kstDateText } from './format';
 
 /**
@@ -307,6 +308,10 @@ export interface OpsStats {
         /** 버린 콜 중 요금 높은 20 */
         topFares: Array<{ at: string; targetApp: string; pickup: string; dropoff: string; fare: number; axis: string }>;
     };
+    /** 📊 흐름 칸 — 콜 흐름 표(stats_flows)를 요일 시 × 배차망 × 출발 → 도착으로 기사를 합쳐 묶은 합 · 운영센터 «④ 어디로 · 몇 시에»가 shared flowViews 로 센다 */
+    flows: FlowCell[];
+    /** 👀 요일 시마다 폰이 콜을 본 날 수 — ③ 의 나누는 수 · 없는 칸은 «못 봄» */
+    watched: WatchedHour[];
 }
 
 /**

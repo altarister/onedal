@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import db from "../db";
 import { businessDayKey, sigunguOfShort, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO, TARGET_APPS } from "@onedal/shared";
-import type { OpsStats } from "@onedal/shared";
+import type { FlowCell, OpsStats, WatchedHour } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 
 /**
@@ -211,13 +211,18 @@ interface FlowRow {
     drivers: number; calls: number; fare_calls: number; fare_first_sum: number; fare_last_sum: number;
     km_calls: number; km_sum: number; passed_calls: number;
 }
+const weekdayOfDay = (day: string) => {
+    const [y, m, d] = day.split('-').map(Number);
+    return WEEKDAY_KO[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+};
+
 const groupOf = (r: FlowRow, by: FlowGroupBy): string => {
-    const [y, m, d] = r.day.split('-').map(Number);
+    const m = Number(r.day.split('-')[1]);
     if (by === 'hour') return `${r.hour}시`;
     if (by === 'month') return `${m}월`;
     if (by === 'season') return SEASON_OF_MONTH[m - 1];
     if (by === 'day') return r.day;
-    const weekday = WEEKDAY_KO[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+    const weekday = weekdayOfDay(r.day);
     return by === 'weekdayHour' ? `${weekday} ${r.hour}시` : weekday;
 };
 /** 평균은 요금을 아는 콜(fareCalls)로만 나눈다 — 하나도 모르면 null · km 평균도 아는 콜(km_calls)로만(소수 한 자리) */
@@ -282,6 +287,39 @@ export function flowsForAdmin(rows: FlowRow[], by: FlowGroupBy) {
     return [...cells.values()].map(({ rows: rs, ...c }) => ({ ...c, ...sumOf(rs) }));
 }
 
+/**
+ * 📊 **운영센터 «어디로 · 몇 시에»의 재료** (reviews/36) — 요일 시 × 배차망 × 출발 → 도착으로 기사를 합쳐 묶은 합.
+ *    관리자 화면이라 «남 3명 이상» 가림이 없다(운영센터 노선 표와 같다) · 평균은 화면이 shared flowViews 로 아는 값으로만 낸다.
+ */
+export function flowCellsOf(rows: FlowRow[]): FlowCell[] {
+    const cells = new Map<string, FlowCell>();
+    for (const r of rows) {
+        const weekday = weekdayOfDay(r.day);
+        const key = [weekday, r.hour, r.target_app, r.from_sigungu, r.to_sigungu].join('|');
+        const c = cells.get(key) ?? { weekday, hour: r.hour, targetApp: r.target_app, from: r.from_sigungu, to: r.to_sigungu, calls: 0, fareCalls: 0, fareFirstSum: 0, kmCalls: 0, kmSum: 0 };
+        c.calls += r.calls; c.fareCalls += r.fare_calls; c.fareFirstSum += r.fare_first_sum; c.kmCalls += r.km_calls ?? 0; c.kmSum += r.km_sum ?? 0;
+        cells.set(key, c);
+    }
+    return [...cells.values()];
+}
+
+/**
+ * 👀 **요일 시마다 폰이 콜을 본 날 수** (reviews/36 질문 2 «나») — 콜이 한 건이라도 든 (날, 시)만 «본 시간»으로 친다.
+ *    지켜봤는데 콜이 0건인 시간도 «못 봄»이 된다 — 조심하는 쪽으로 틀린다(새 저장 칸 없이 흐름 표로만 센다).
+ */
+export function watchedDaysOf(rows: FlowRow[]): WatchedHour[] {
+    const days = new Map<string, Set<string>>();
+    for (const r of rows) {
+        if (!r.calls) continue;
+        const key = `${weekdayOfDay(r.day)}|${r.hour}`;
+        (days.get(key) ?? days.set(key, new Set()).get(key)!).add(r.day);
+    }
+    return [...days.entries()].map(([k, s]) => {
+        const [weekday, hour] = k.split('|');
+        return { weekday, hour: Number(hour), days: s.size };
+    });
+}
+
 /** 기간의 줄 — 두 문이 같은 줄을 읽는다(읽는 곳 한 곳). 옛 모양 표면 빈 줄 — 모르는 값이 섞인 합으로 평균을 내지 않는다 */
 export function flowRowsBetween(from: string, to: string): FlowRow[] {
     if (!statsTableCurrent()) return [];
@@ -309,7 +347,7 @@ export function clampStatsRange(from: string, to: string): { from: string; to: s
     const earliest = new Date(Date.parse(`${to}T00:00:00Z`) - (OPS_STATS_MAX_DAYS - 1) * DAY_MS).toISOString().slice(0, 10);
     return { from: from < earliest ? earliest : from, to };
 }
-export function marketStatsOf(from: string, to: string): Omit<OpsStats, 'from' | 'to'> {
+export function marketStatsOf(from: string, to: string): Omit<OpsStats, 'from' | 'to' | 'flows' | 'watched'> {
     const rows = flowRowsBetween(from, to);
     const byRoute = new Map<string, FlowRow[]>();
     for (const r of rows) byRoute.set(`${r.from_sigungu}|${r.to_sigungu}`, [...(byRoute.get(`${r.from_sigungu}|${r.to_sigungu}`) ?? []), r]);

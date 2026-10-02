@@ -78,4 +78,13 @@ describe('📊 운영센터 통계', () => {
         expect(out.to).toBe(DAY);
         expect(days).toBe(OPS_STATS_MAX_DAYS);
     });
+    it('🔴 ④ 흐름 칸 — 노선 합과 같은 콜 수 · 요일 시로 묶음(수요일) · 본 시간은 실물 콜이 든 시간만(시뮬 13시 없음) · reviews/36', async () => {
+        const out = await get(opsRouter, '/stats', { from: DAY, to: DAY });
+        const total = (rows: any[]) => rows.reduce((n: number, r: any) => n + r.calls, 0);
+        expect(total(out.flows)).toBe(total(out.routes));
+        expect(new Set(out.flows.map((c: any) => c.weekday))).toEqual(new Set(['수']));
+        expect(out.flows.find((c: any) => c.hour === 9)).toMatchObject({ calls: 1, fareCalls: 1, fareFirstSum: 30000 });   // 같은 콜 두 줄 → 한 콜 · 처음 본 요금
+        expect(out.watched.map((w: any) => `${w.weekday} ${w.hour}시 ${w.days}`).sort())
+            .toEqual(['수 10시 1', '수 11시 1', '수 12시 1', '수 14시 1', '수 9시 1']);
+    });
 });
