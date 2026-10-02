@@ -1104,6 +1104,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                  *    새로 재는 게 아니라 **그때 그 값**이다 — 색은 심사 1회 고정 (v2 ③④).
                  */
                 judgment: OrderRepository.getJudgmentVerdict(row.id) ?? undefined,
+                /** 📞 **상하차지 연락처도 되살린다** — 단계 시트의 📞 이 이것을 읽는다. 안 되살리면 재시작 뒤 진행 중 콜의 전화 버튼이 사라진다 */
+                ...OrderRepository.stopContactsOf(row.id),
             };
             rememberOrder(session, order as any);
         }

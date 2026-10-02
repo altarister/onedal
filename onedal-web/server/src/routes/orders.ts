@@ -22,6 +22,7 @@ import { armWait } from "../state/waits";
 import { rememberOrder } from "../state/orderMemory";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
+import { OrderRepository } from "../repositories/OrderRepository";
 import { isHeldReserved } from "../services/reservedOrders";
 import { getDeviceMode } from "./devices";
 import { parsePolyline, parseSectionEnds, parseSectionStops, parseSectionDriveMin } from "../services/routeComposer";
@@ -87,6 +88,8 @@ router.get("/", requireAuth, (req, res) => {
                  *    넷은 한 운명이라 **같이** 편다.
                  */
                 sectionDriveMin: parseSectionDriveMin(r.sectionDriveMin),
+                /** 📞 상하차지 연락처 — 되살린 세션 콜과 같은 함수(`stopContactsOf`) · 단계 시트의 📞 이 읽는다 */
+                ...OrderRepository.stopContactsOf(r.id),
             })),
         });
     } catch (error) {

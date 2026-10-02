@@ -1,6 +1,6 @@
 import db from "../db";
 import { MyOrder, PendingOrder, SecuredOrder } from "@onedal/shared";
-import type { CargoReport } from "@onedal/shared";
+import type { CargoReport, LocationDetailInfo } from "@onedal/shared";
 
 export class OrderRepository {
     /**
@@ -247,6 +247,33 @@ export class OrderRepository {
     /**
      * 오더에 엮인 장소(경유지 등) 매핑 데이터를 기록합니다.
      */
+    /**
+     * 📞 **콜의 상차 · 하차 연락처를 장부의 정거장에서 되짚는다** — 재시작 뒤 되살리기와 관제웹 이력(GET /orders)이 같이 부른다.
+     *    KEEP 할 때 정거장에 남긴 상호 · 전화(`customerNameSnapshot` · `phoneSnapshot`)와 장소의 상세 주소다.
+     *    담당자 이름 · 전화2 는 장부에 없어 돌아오지 않는다. 상호도 전화도 없는 쪽은 칸을 싣지 않는다.
+     */
+    public static stopContactsOf(orderId: string): { pickupDetails?: LocationDetailInfo[]; dropoffDetails?: LocationDetailInfo[] } {
+        const rows = db.prepare(`
+            SELECT s.stopType, s.customerNameSnapshot AS name, s.phoneSnapshot AS phone, p.addressDetail
+            FROM orderStops s LEFT JOIN places p ON p.id = s.placeId
+            WHERE s.orderId = ? AND s.stopType IN ('pickup', 'dropoff')
+            ORDER BY s.rowid ASC
+        `).all(orderId) as Array<{ stopType: 'pickup' | 'dropoff'; name: string | null; phone: string | null; addressDetail: string | null }>;
+        const out: { pickupDetails?: LocationDetailInfo[]; dropoffDetails?: LocationDetailInfo[] } = {};
+        for (const r of rows) {
+            const key = r.stopType === 'pickup' ? 'pickupDetails' : 'dropoffDetails';
+            /* «배차값없음»은 상호를 못 읽었을 때 정거장에 적는 표지다 — 이름으로 싣지 않는다 */
+            const name = r.name && r.name !== '배차값없음' ? r.name : undefined;
+            if (out[key] || (!name && !r.phone)) continue;
+            out[key] = [{
+                ...(name ? { customerName: name } : {}),
+                ...(r.phone ? { phone1: r.phone } : {}),
+                ...(r.addressDetail ? { addressDetail: r.addressDetail } : {}),
+            }];
+        }
+        return out;
+    }
+
     public static insertOrderStop(orderId: string, placeId: number, stopType: 'pickup' | 'dropoff' | 'waypoint', customerNameSnapshot: string, phoneSnapshot: string | null) {
         db.prepare(`
             INSERT INTO orderStops (orderId, placeId, stopType, customerNameSnapshot, phoneSnapshot) 

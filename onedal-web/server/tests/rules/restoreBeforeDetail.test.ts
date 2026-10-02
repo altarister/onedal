@@ -1,6 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import detailRouter from '../../src/routes/detail';
+import ordersRouter from '../../src/routes/orders';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { bootstrapUserSession, restoreAndRecalculateSession } from '../../src/services/dispatchEngine';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
@@ -160,5 +161,39 @@ describe('🧾 재시작 직후 판정 중 콜은 확정 콜이 아니다', () =
         /* 재열람은 «진짜 ID»(orderId)를 실은 ACK 로 끝난다 — 보통 판정 길의 ACK 에는 orderId 가 없다 */
         expect(body?.orderId).toBeUndefined();
         expect(evaluated).toBe(true);
+    });
+});
+
+/**
+ * 📞 **재시작 뒤에도 진행 중 콜의 상하차지 전화번호가 관제웹 단계 시트에 있다** (관제 «가»).
+ *    단계 시트의 📞 은 콜의 `pickupDetails` · `dropoffDetails` 를 읽는다. 관제웹은 이력(GET /orders)을 바탕에 깔고
+ *    소켓 동기화(되살린 세션 콜)로 덮으니 두 길 다 장부의 정거장 연락처(`orderStops`)를 싣는다.
+ */
+describe('📞 재시작 뒤 정거장 연락처', () => {
+    const insertWithContacts = (id: string) => {
+        insertCall(id, 9);
+        db.prepare(`UPDATE orderStops SET customerNameSnapshot = ?, phoneSnapshot = ? WHERE orderId = ? AND stopType = 'pickup'`).run('상차 가게', '010-1111-2222', id);
+        db.prepare(`UPDATE orderStops SET customerNameSnapshot = ?, phoneSnapshot = ? WHERE orderId = ? AND stopType = 'dropoff'`).run('하차 가게', '010-3333-4444', id);
+    };
+
+    it('🔴 되살린 세션 콜(소켓 동기화)에 상차 · 하차 전화번호가 있다', async () => {
+        insertWithContacts(`${U}-ph1`);
+        const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+        await restoreAndRecalculateSession(U, io);
+        log.mockRestore();
+        const c: any = getUserSession(U).myOrders.find((o: any) => o.id === `${U}-ph1`);
+        expect(c?.pickupDetails?.[0]).toMatchObject({ customerName: '상차 가게', phone1: '010-1111-2222' });
+        expect(c?.dropoffDetails?.[0]).toMatchObject({ customerName: '하차 가게', phone1: '010-3333-4444' });
+    });
+
+    it('🔴 관제웹 이력(GET /orders)에도 상차 · 하차 전화번호가 있다', async () => {
+        insertWithContacts(`${U}-ph2`);
+        let body: any = null;
+        const layer = (ordersRouter as any).stack.find((l: any) => l.route?.path === '/' && l.route.methods.get);
+        const res = { status: () => res, json: (b: any) => { body = b; return res; } };
+        await layer.route.stack[layer.route.stack.length - 1].handle({ user: { id: U }, query: {}, params: {}, headers: {} }, res);
+        const c = body?.orders?.find((o: any) => o.id === `${U}-ph2`);
+        expect(c?.pickupDetails?.[0]).toMatchObject({ customerName: '상차 가게', phone1: '010-1111-2222' });
+        expect(c?.dropoffDetails?.[0]).toMatchObject({ customerName: '하차 가게', phone1: '010-3333-4444' });
     });
 });
