@@ -1,6 +1,6 @@
 import type { MyOrder, PendingOrder } from "@onedal/shared";
 import { isAlreadyLoaded, hasVisitedStop } from "@onedal/shared";
-import { haversineKm } from "@onedal/shared";
+import { haversineKm, nearestDong } from "@onedal/shared";
 import { calculateDetourRoute, calculateSoloRoute } from "./kakaoService";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
 import { slog } from "../utils/fileLogger";
@@ -517,13 +517,17 @@ const STOP_ORDER_TIE_KM = 0.5;
  * 🔴 **첫 정거장만 본다.** 번호가 춤추는 것은 언제나 ⑴ 이 뒤집히는 것으로 드러나고,
  *    전부 찍으면 한 줄이 길어져 되짚기가 더 어렵다.
  */
-let lastOrderTrace = '';
-function logOrderDecision(line: string): void {
+/** 🧭 계획 이름표 — 후보를 넣어 짠 «합짐»과 잡은 콜만의 «기준». 한 판정이 둘 다 짠다 */
+type OrderPlan = '합짐' | '기준';
+/** «바뀔 때만» 기억은 계획마다 따로 — 한 기억을 같이 쓰면 두 계획이 번갈아 «바뀜»이 되어 매번 찍힌다 */
+const lastOrderTrace = new Map<OrderPlan, string>();
+function logOrderDecision(plan: OrderPlan, text: (withPlace: boolean) => string): void {
     // 🧹 거리 숫자는 매 틱 달라 «바뀔 때만»을 무력화한다 — 판단의 골자(숫자 뺀 문구)로 비교한다 (reviews/22 ①-3)
-    const gist = line.replace(/[0-9.]+/g, '');
-    if (gist === lastOrderTrace) return;
-    lastOrderTrace = gist;
-    slog('판정', `🧭 [순서 판단] ${line}`);
+    const gist = text(false).replace(/[0-9.]+/g, '');
+    if (gist === lastOrderTrace.get(plan)) return;
+    lastOrderTrace.set(plan, gist);
+    /* 동 이름은 찍을 때만 찾는다 — 이 함수는 1초 동기화 · GPS 매 틱이 부른다 */
+    slog('판정', `🧭 [순서 판단 · ${plan}] ${text(true)}`);
 }
 
 /**
@@ -593,6 +597,8 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
     startLoc: Coord, pickups: T[], dropoffs: T[],
     /** 직전에 정한 순서 (`holder.sectionStops`) — 없으면 «가장 가까운 곳부터» */
     previous?: Array<{ orderId: string; stopType: string }> | null,
+    /** 🧭 로그의 계획 이름표 — 순서 결정에는 안 쓴다 */
+    plan: OrderPlan = '기준',
 ): T[] {
     const pool = [...pickups, ...dropoffs];
     const notLoaded = new Set(pickups.map(p => p.orderId));   // 아직 안 실은 콜
@@ -635,8 +641,11 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
         const pick = tie ? incIdx : bestIdx;
         /* 📡 **첫 정거장을 왜 그렇게 골랐나** — 번호 춤은 늘 ⑴ 이 뒤집히는 것으로 드러난다 */
         if (out.length === 0) {
-            const nameOf = (s: T) => `${s.orderId.slice(0, 6)}${s.stopType === 'pickup' ? '상차' : '하차'}`;
-            logOrderDecision(
+            /* 콜 번호 끝 6자리 + 상차/하차(+ 동 이름) — 앞 6글자는 «MANUAL-…» 콜끼리 같아 못 가른다 */
+            logOrderDecision(plan, withPlace => {
+            const nameOf = (s: T) => `${s.orderId.slice(-6)}${s.stopType === 'pickup' ? '상차' : '하차'}`
+                + (withPlace ? `(${(d => `${d.region} ${d.name}`)(nearestDong({ lng: s.x, lat: s.y }))})` : '');   // 법정동 — 가까운 중심점
+            return (
                 !previous?.length
                     ? `직전순서 없음 — 편들 재료가 없다 · ⑴ ${nameOf(pool[bestIdx])} (${bestD.toFixed(2)}km)`
                 : incIdx < 0
@@ -650,6 +659,7 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
                     : `⑴ ${nameOf(pool[bestIdx])} ← ${nameOf(pool[incIdx])} 를 밀어냈다 ` +
                       `(${bestD.toFixed(2)}km vs ${incD.toFixed(2)}km · 차 ${(incD - bestD).toFixed(2)}km ` +
                       `> 문턱 ${STOP_ORDER_TIE_KM}km 또는 ${Math.round((STOP_ORDER_HYSTERESIS - 1) * 100)}%)`);
+            });
         }
         const best = pool.splice(pick, 1)[0];
         if (best.stopType === 'pickup') notLoaded.delete(best.orderId);
@@ -888,7 +898,7 @@ export function planMergedStops(
      *    약속을 지키는 순서가 아예 없으면 가장 덜 늦는 순서가 오고, 늦는 분은 판정이 화면에 적는다.
      */
     const ordered = (promiseOpts ? orderByPromise(startLoc, allPickups, allDropoffs, promiseOpts) : null)
-        ?? orderByNearest(startLoc, allPickups, allDropoffs, previousOrder);
+        ?? orderByNearest(startLoc, allPickups, allDropoffs, previousOrder, extra ? '합짐' : '기준');
     const mergedDest = ordered.pop()!;
     const waypoints = ordered;
     /**
