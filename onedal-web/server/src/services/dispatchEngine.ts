@@ -1108,7 +1108,14 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             rememberOrder(session, order as any);
         }
 
-        const allLoaded = Array.from(session.pendingOrdersData.values()) as MyOrder[];
+        /**
+         * 🧾 **확정 콜 목록은 이번에 장부에서 읽은 콜로만 만든다** (기사님 «가»).
+         *    메모리에는 관제웹이 붙기 전에 폰이 올린 판정 중 콜이 먼저 들어와 있을 수 있다 — 그 콜까지 담으면
+         *    «진행 중»으로 세여 국면 · 합짐 · 차종이 바뀌고, 그 콜의 상세 보고가 자기 자신에 맞아 판정을 못 받는다.
+         *    판정 중 콜은 메모리에 그대로 두어 이어지는 상세 보고가 보통 판정을 받는다.
+         */
+        const loadedIds = [...new Set(rows.map(r => r.id as string))];
+        const allLoaded = loadedIds.map(id => session.pendingOrdersData.get(id)).filter(Boolean) as MyOrder[];
         /**
          * 📅 **보관 날이 오늘 뒤인 콜은 예약 보관으로** (reviews/23 B-1) — 영업일 전환과 같은 가름.
          *    새 날에 서버가 뜨면 세션이 오늘로 태어나 영업일 전환이 안 돈다 — 그래서 여기서도 가른다.

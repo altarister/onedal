@@ -117,3 +117,48 @@ describe('🗺️ 되살릴 때 합짐 경로 재사용', () => {
         expect(naviCalls).toBeGreaterThan(0);
     });
 });
+
+/**
+ * 🧾 **되살린 확정 콜 목록은 장부에서 읽은 콜뿐이다** (기사님 «가»).
+ *    재시작 직후 관제웹이 붙기 전에 폰이 올린 판정 중 콜은 메모리에만 있다 — 그 콜이 확정 콜 목록에 섞이면
+ *    «진행 중 1건»으로 세여 국면이 GATHERING · 합짐 · 차종 좁힘이 되고, 같은 콜의 상세 보고가 자기 자신에 맞아
+ *    «기존 확정 콜 재열람»(ACK)으로 끝나 판정을 못 받는다.
+ */
+describe('🧾 재시작 직후 판정 중 콜은 확정 콜이 아니다', () => {
+    const insertReleased = (id: string, h: number) => {
+        db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp)
+                    VALUES (?, 'NEW_ORDER', 'ORDER_RELEASED_BY_ME', ?, ?, ?, '상', '하', 20000, 'insung')`)
+            .run(id, U, todayAt(h), todayAt(h));
+    };
+    const evaluating = (id: string) => ({ id, type: 'MANUAL', status: 'ORDER_SECURED_EVALUATING', pickup: '경기 광주시', dropoff: '경기 이천시',
+        fare: 30000, timestamp: new Date().toISOString(), capturedAt: new Date().toISOString(), capturedDeviceId: DEV });
+
+    it('🔴 장부에 진행 중 콜이 없으면 되살린 뒤 확정 콜 목록에 판정 중 콜이 없고 국면은 STANDBY', async () => {
+        insertReleased(`${U}-rel`, 9);
+        const session = getUserSession(U);
+        session.pendingOrdersData.set(`${U}-eval`, evaluating(`${U}-eval`));
+        const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+        await restoreAndRecalculateSession(U, io);
+        log.mockRestore();
+        expect(session.myOrders.map((o: any) => o.id)).not.toContain(`${U}-eval`);
+        expect(session.activeFilter.dispatchPhase ?? 'STANDBY').toBe('STANDBY');
+        expect(session.pendingOrdersData.has(`${U}-eval`)).toBe(true);
+    });
+
+    it('🔴 관제웹이 붙기 전 그 콜의 상세 보고 — 재열람(ACK)으로 끝나지 않고 판정을 받는다', async () => {
+        insertReleased(`${U}-rel2`, 9);
+        getUserSession(U).pendingOrdersData.set(`${U}-eval2`, evaluating(`${U}-eval2`));
+        let evaluated = false;
+        const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => { evaluated = true; });
+        let body: any = null;
+        const res = { status: () => res, json: (b: any) => { body = b; return res; } };
+        await handlerOf(detailRouter)({ app, body: {
+            step: 'DETAILED', deviceId: DEV, targetApp: 'insung',
+            order: { id: `${U}-eval2`, pickup: '경기 광주시', dropoff: '경기 이천시', fare: 30000, vehicleType: '다마스', rawText: '' },
+        } }, res);
+        spy.mockRestore();
+        /* 재열람은 «진짜 ID»(orderId)를 실은 ACK 로 끝난다 — 보통 판정 길의 ACK 에는 orderId 가 없다 */
+        expect(body?.orderId).toBeUndefined();
+        expect(evaluated).toBe(true);
+    });
+});
