@@ -126,6 +126,12 @@ object InsungPages {
         "25t" to "25t",
     )
 
+    /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금»)) · 묶음 안 글자가 전부 보이면 이 배차망 */
+    val networkMarkers: List<List<String>> = listOf(
+        listOf("신규", "빠른설정"),
+        listOf("적요상세", "요금"),
+    )
+
     /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
         ScreenSpec(

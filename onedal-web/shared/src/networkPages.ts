@@ -56,6 +56,13 @@ export interface NetworkPageSpec {
     vehicleWordsWhy?: string;
     /** 🖥️ 이 배차망의 페이지 전부 — 차례가 판별 차례 · 표에 없는 화면은 리뉴얼이거나 못 모은 화면이다 */
     screens: NetworkScreenSpec[];
+    /**
+     * 🧭 **배차망을 가르는 글자 묶음** — 묶음 안 글자가 전부 보이면 이 배차망 화면이다(원달앱 `TargetApp.networksOnScreen` · 시뮬레이터는 세 배차망을 한 앱으로 띄운다).
+     * 페이지 글자와 따로 둔다 — 다른 배차망 화면에 없는 글자만 고른다(원달앱 `NetworkByScreenTest`). 원달앱은 gen:pages 로 받는다(…Pages.networkMarkers).
+     */
+    networkMarkers: string[][];
+    /** 그 묶음으로 정한 까닭 한 줄 */
+    networkMarkersWhy: string;
 }
 export interface NetworkVehicleWord {
     /** 배차망 화면의 차종 낱말 그대로 */
@@ -160,6 +167,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       {"word": "25t", "vehicle": "25t", "seen": "SIM"}
     ],
     "vehicleWordsWhy": "목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록",
+    "networkMarkers": [["신규", "빠른설정"], ["적요상세", "요금"]],
+    "networkMarkersWhy": "목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금»)",
     "screens": [
       {"name": "확정 뒤 상세", "standard": "DETAIL_CONFIRMED", "match": [{"all": ["적요상세"], "any": ["인수증 전송", "카드 승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"], "overlays": [
         {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "reportAs": "POPUP_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"]},
@@ -272,6 +281,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       {"word": "승용", "vehicle": "승용차", "seen": "SIM"}
     ],
     "vehicleWordsWhy": "목록 셋째 줄 «낱말/…»(«1톤/전체» · «2.5톤/윙» · «다마스/전체»)의 첫 «/» 앞 낱말 — REAL 은 실물 캡처 17 · 실물 목록, SIM 은 시뮬레이터 목록에서만 봤다",
+    "networkMarkers": [["화물정보", "자동새로고침"], ["화물상세정보", "운송료"]],
+    "networkMarkersWhy": "실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료»)",
     "screens": [
       {"name": "화물상세정보", "standard": "DETAIL_PRE_CONFIRM", "match": [{"all": ["화물상세정보", "배차신청"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_회원가입_약관.png (내용은 화물상세정보)"], "overlays": [
         {"name": "배차 실패 오류", "kind": "POPUP", "match": [{"any": ["이미 배차", "배차할 수 없"]}], "meaning": "배차신청이 안 됐다 — 남이 먼저 잡았거나 조건 미달", "reportAs": "POPUP_ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
@@ -364,6 +375,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "excludeScanWhy": "기사님 «카카오픽커는 물품정보»+«가» 유의사항 — 둘 다 «최종 수익» · 버튼 앞에서 끝난다 · 픽업지 주소 · 목록 잔상은 안 본다",
     "addressCut": null,
     "addressCutWhy": "지우지 않는다 — 원달앱이 이미 «구 동»으로 정리해 보낸다(앞뒤 공백만)",
+    "networkMarkers": [["리스트 설정"], ["넘기기", "수락하기"], ["시작하기"], ["물품이 안전하게 전달"], ["밀어서 픽업 완료"], ["밀어서 사진 촬영"], ["배송 시간"], ["물품 파손"], ["픽업 준비"], ["픽업지 근처에"], ["픽업지 정보"], ["도착지 정보"], ["픽업지 주소 복사하기"], ["픽업지에 전화하기"], ["도착지 주소 복사하기"], ["도착지에 전화하기"]],
+    "networkMarkersWhy": "목록 머리 · 수락 전 상세 버튼 둘 · 홈과 수락 뒤 단계 글자 하나씩 · 퀵 흰 페이지 칸 이름 하나씩(퀵 머리 글자는 원달앱이 못 읽는다)",
     "screens": [
       {"name": "홈(출근 전)", "standard": "HOME", "match": [{"all": ["시작하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/01_홈_출근전.png", "ex_images/카카오픽커/실물_20260913_내가찍음/35_홈_관심일거리팝업_0411.png", "ex_images/카카오픽커/실물_20260913_내가찍음/36_홈_관심일거리팝업_1205.png"], "overlays": [
         {"name": "관심 일거리 상자", "kind": "POPUP", "match": [], "meaning": "관심 일거리를 고르라는 광고 상자", "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_20260913_내가찍음/35_홈_관심일거리팝업_0411.png", "ex_images/카카오픽커/실물_20260913_내가찍음/36_홈_관심일거리팝업_1205.png"], "wordsFrom": "server/config/keywords_picker.json adStartWords"},

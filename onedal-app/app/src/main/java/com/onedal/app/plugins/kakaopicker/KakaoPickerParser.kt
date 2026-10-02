@@ -1069,8 +1069,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 TIME_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «17:00»
                 DATE_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «9/23(수)» — 지역이 아니다
                 t in noise -> { ScreenWords.add(t, WordKind.NOISE, sample) /* 화면 메뉴 글자 — 콜 정보가 아니다, 버린다 (서버 목록 + 앱 기본값) */ }
-                // 🚫 배정 완료 토스트가 카드 띠에 섞였다 — 지역이 아니다 (`AssignedToastTest`)
-                t.contains(KakaoPickerKeywords.ASSIGNED_TOAST_WORD) -> ScreenWords.add(t, WordKind.NOISE, sample)
+                // 🚫 배정 토스트(«이미 배정이 완료된» · «방금 배정된 오더»)가 카드 띠에 섞였다 — 지역이 아니다 · 글자는 표의 «배정» 알림 덧칸 (`AssignedToastTest`)
+                KakaoPickerKeywords.isTakenToast(t) -> ScreenWords.add(t, WordKind.NOISE, sample)
                 // «내일 착불» 처럼 태그 여럿이 한 노드로 붙어 오는 판 — 낱낱이 전부 태그면 태그다
                 t.contains(' ') && t.split(' ').all { it in tagSet } -> tags.addAll(t.split(' '))
                 /**

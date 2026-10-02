@@ -23,7 +23,7 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
     override val label: String = "24시"
     override val packageKeywords: List<String> = listOf("logione", "carrier")
     override val keywords: ScreenKeywords = Hwamul24Keywords.TWENTYFOUR
-    override val networkMarkers: List<List<String>> = Hwamul24Keywords.NETWORK_MARKERS
+    override val networkMarkers: List<List<String>> get() = Hwamul24Pages.networkMarkers
     override val parser: IScrapParser by lazy {
         Hwamul24Parser(context ?: throw IllegalStateException("Hwamul24Parser requires non-null Context"))
     }

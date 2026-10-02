@@ -25,7 +25,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
     override val label: String = "픽커"
     override val packageKeywords: List<String> = listOf("flexer")
     override val keywords: ScreenKeywords = KakaoPickerKeywords.PICKER
-    override val networkMarkers: List<List<String>> = KakaoPickerKeywords.NETWORK_MARKERS
+    override val networkMarkers: List<List<String>> get() = KakaoPickerPages.networkMarkers
     override val parser: IScrapParser by lazy { KakaoPickerParser(context) }
 
     /** 🎛️ 픽커에는 자동 모드가 없다 — 수락이 곧 계약이고 되돌릴 수 없어 앱이 수락하기를 누르지 않는다 (기사님 확정) */

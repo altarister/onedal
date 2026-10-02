@@ -154,7 +154,7 @@ class PickerQuickPageTest {
 
     @Test
     fun `퀵 페이지 표식은 배차망 표식에도 들어간다 - 퀵 페이지도 픽커 화면이다`() {
-        k.QUICK_PAGE_MARKERS.forEach { assertTrue(it, listOf(it) in k.NETWORK_MARKERS) }
+        k.QUICK_PAGE_MARKERS.forEach { assertTrue(it, listOf(it) in KakaoPickerPages.networkMarkers) }
         k.QUICK_STAGE_BUTTONS.forEach { (_, button) -> assertTrue(button, k.ACCEPTED_SCREEN_WORDS.contains(button)) }
     }
 }

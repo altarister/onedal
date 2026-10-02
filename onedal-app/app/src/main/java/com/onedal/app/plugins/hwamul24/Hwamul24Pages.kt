@@ -75,6 +75,12 @@ object Hwamul24Pages {
         "승용" to "승용차",
     )
 
+    /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료»)) · 묶음 안 글자가 전부 보이면 이 배차망 */
+    val networkMarkers: List<List<String>> = listOf(
+        listOf("화물정보", "자동새로고침"),
+        listOf("화물상세정보", "운송료"),
+    )
+
     /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
         ScreenSpec(

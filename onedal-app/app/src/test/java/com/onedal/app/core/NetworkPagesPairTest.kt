@@ -81,6 +81,16 @@ class NetworkPagesPairTest {
     @Test fun `화물24시 페이지 목록은 표와 같다`() = assertEquals(screensOf("hwamul24"), screensOf(Hwamul24Pages.screens))
     @Test fun `카카오 픽커 페이지 목록은 표와 같다`() = assertEquals(screensOf("kakaopicker"), screensOf(KakaoPickerPages.screens))
 
+    /** 🧭 배차망을 가르는 글자 묶음 — 표의 networkMarkers 와 생성 파일이 같다 */
+    private fun markersOf(network: String): List<List<String>> =
+        table[network].asJsonObject["networkMarkers"].asJsonArray.map { g -> g.asJsonArray.map { it.asString } }
+
+    @Test fun `배차망 가르는 글자 묶음은 표와 같다`() {
+        assertEquals(markersOf("insung"), InsungPages.networkMarkers)
+        assertEquals(markersOf("hwamul24"), Hwamul24Pages.networkMarkers)
+        assertEquals(markersOf("kakaopicker"), KakaoPickerPages.networkMarkers)
+    }
+
     /** 🧭 우리 기준 페이지 이름 · 차례 — shared STANDARD_SCREENS 와 core/PageSpec.kt StandardScreen 이 같다 */
     @Test fun `우리 기준 페이지 이름은 shared 와 같다`() {
         val ts = File("../../onedal-web/shared/src/networkPages.ts").readText()

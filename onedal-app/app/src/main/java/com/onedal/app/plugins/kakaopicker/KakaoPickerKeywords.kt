@@ -57,7 +57,7 @@ object KakaoPickerKeywords {
      *    「밀어서 …」는 **시트를 올려야** 나오고, 그때 시트가 **헤더를 덮는다**(17·22번).
      *    접근성 트리는 가려진 헤더도 읽으므로 **확정 버튼이 있으면 그것이 답**이다.
      */
-    /* 🔴 일부러 두 벌 — 화면 판별은 표(`KakaoPickerPages.screens` 의 운행 페이지)가 하고, 여기 글자는 수락 확인(`stageOf`)만 쓴다 · reviews/35 4단계에서 표로 */
+    /* 🔴 일부러 두 벌 — 화면 판별은 표(`KakaoPickerPages.screens` 의 운행 페이지)가 하고, 여기 글자는 수락 확인(`stageOf`)만 쓴다 · 표로 옮기는 일은 기사님 여쭘 대기(수락 확인 결과가 인증사진 · 문자 화면에서 바뀐다) */
     val STAGE_WORDS: List<Pair<Stage, List<String>>> = listOf(
         /**
          * 🏠 **홈은 「시작하기」 버튼으로 안다** (기사님 확정:
@@ -224,22 +224,13 @@ object KakaoPickerKeywords {
     //  배정 알림 · 이름표
     // ══════════════════════════════════════════════════════════════
 
-    /** 🚫 배정 완료 토스트의 글자 — 파서가 지역에서 뺀다 · 🔴 일부러 표(«배정» 알림 덧칸 · «배정 실패 오류» 덧칸)와 두 벌 — 파서 정리는 reviews/35 4단계 */
-    const val ASSIGNED_TOAST_WORD = "이미 배정이 완료된"
-
     /** 🏁 다른 기사가 먼저 가져갔다는 알림인가 — 픽커 배차망 정의 표의 알림(NOTICE) 덧칸(`CallTakenNote`) */
     fun isTakenToast(text: String): Boolean = com.onedal.app.core.CallTakenNote.noticeOf(KakaoPickerPages.screens, text) != null
 
     /** 픽커 이름표 · 취소 버튼 글자 — 화면을 알아보는 글자는 배차망 정의 표(`KakaoPickerPages.screens`)에 있다 */
     val PICKER = ScreenKeywords(appLabel = "픽커", cancelKeyword = "넘기기")
 
-    /**
-     * 🖥️ **이 배차망 화면에만 있는 글자 묶음** — 스캔앱이 화면 글자로 배차망을 가를 때 쓴다
-     * (기사님 확정 · `TargetApp.networksOnScreen`). 묶음 안 글자가 **전부** 보여야 이 배차망이다.
-     * 🔴 **일부러 표와 따로 둔다** — 배차망을 가르는 글자는 다른 배차망 화면에 없어야 해서(`NetworkByScreenTest`) 표의 페이지 글자와 고르는 기준이 다르다 · reviews/35 4단계.
-     */
-    /* 픽커는 리스트·상세 말고도 홈·수락 뒤 단계마다 글자가 따로 있다 — `STAGE_WORDS` 는 «그중 하나라도»라서 낱말 하나가 한 묶음이다 */
-    val NETWORK_MARKERS: List<List<String>> =
-        listOf(listOf("리스트 설정"), listOf("넘기기", "수락하기")) + STAGE_WORDS.flatMap { (_, words) -> words.map { listOf(it) } } +
-            QUICK_PAGE_MARKERS.map { listOf(it) }   // 퀵 흰 페이지도 픽커 화면이다 — 머리 글자를 못 읽어 단계 글자로는 안 잡힌다
+    /** 🖥️ 이 배차망 화면에만 있는 글자 묶음 — 원천은 shared 배차망 정의 표의 networkMarkers(`KakaoPickerPages.networkMarkers`) · 여기는 이름만 잇는다(`TargetApp.networksOnScreen` · `NetworkByScreenTest`) */
+    val NETWORK_MARKERS: List<List<String>> get() = KakaoPickerPages.networkMarkers
+
 }

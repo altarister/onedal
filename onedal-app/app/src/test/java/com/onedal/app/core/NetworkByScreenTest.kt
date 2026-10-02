@@ -131,14 +131,14 @@ class NetworkByScreenTest {
 
     @Test
     fun `표식 글자는 각 배차망 폴더에 목록 · 상세 글자로 한 번 - 운행 단계 글자도 표식이다`() {
-        assertTrue(listOf("신규", "빠른설정") in InsungKeywords.NETWORK_MARKERS)
-        assertTrue(listOf("적요상세", "요금") in InsungKeywords.NETWORK_MARKERS)
-        assertTrue(listOf("화물정보", "자동새로고침") in Hwamul24Keywords.NETWORK_MARKERS)
-        assertTrue(listOf("화물상세정보", "운송료") in Hwamul24Keywords.NETWORK_MARKERS)
-        assertTrue(listOf("리스트 설정") in KakaoPickerKeywords.NETWORK_MARKERS)
-        assertTrue(listOf("넘기기", "수락하기") in KakaoPickerKeywords.NETWORK_MARKERS)
+        assertTrue(listOf("신규", "빠른설정") in com.onedal.app.plugins.insung.InsungPages.networkMarkers)
+        assertTrue(listOf("적요상세", "요금") in com.onedal.app.plugins.insung.InsungPages.networkMarkers)
+        assertTrue(listOf("화물정보", "자동새로고침") in com.onedal.app.plugins.hwamul24.Hwamul24Pages.networkMarkers)
+        assertTrue(listOf("화물상세정보", "운송료") in com.onedal.app.plugins.hwamul24.Hwamul24Pages.networkMarkers)
+        assertTrue(listOf("리스트 설정") in com.onedal.app.plugins.kakaopicker.KakaoPickerPages.networkMarkers)
+        assertTrue(listOf("넘기기", "수락하기") in com.onedal.app.plugins.kakaopicker.KakaoPickerPages.networkMarkers)
         KakaoPickerKeywords.STAGE_WORDS.flatMap { it.second }.forEach { w ->
-            assertTrue("픽커 단계 글자 «$w» 가 표식에 없다", listOf(w) in KakaoPickerKeywords.NETWORK_MARKERS)
+            assertTrue("픽커 단계 글자 «$w» 가 표식에 없다", listOf(w) in com.onedal.app.plugins.kakaopicker.KakaoPickerPages.networkMarkers)
         }
     }
 

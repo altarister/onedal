@@ -897,6 +897,14 @@ class AssignedToastTest {
         assertFalse("도착지에 토스트가 들어갔다: ${o.dropoff}", o.dropoff.contains("배정"))
     }
 
+    /** 🏁 «방금 배정된 오더입니다»(실물 09-30 13:08:45 알림 글)도 같은 «배정» 알림이다 — 카드 띠에 섞여도 출발지가 되지 않는다 (표의 «배정» 알림 덧칸) */
+    @Test
+    fun `방금 배정된 오더 토스트도 출발지가 되지 않는다`() {
+        val o = parser.parse(listOf("방금 배정된 오더입니다.", "2,942"))
+        assertEquals(2942, o.fare)
+        assertFalse("출발지에 토스트가 들어갔다: ${o.pickup}", o.pickup.contains("배정"))
+    }
+
     @Test
     fun `토스트가 멀쩡한 카드 띠에 섞여도 지역은 그대로다`() {
         val o = parser.parse(listOf("퀵", "소형", "수지", "14,168", realToast, "15.2km", "중원", "성남", "동천"))

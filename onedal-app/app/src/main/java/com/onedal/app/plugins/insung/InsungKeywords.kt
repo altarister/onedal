@@ -7,13 +7,8 @@ object InsungKeywords {
     /** 인성콜 이름표 · 취소 버튼 글자 — 화면을 알아보는 글자는 배차망 정의 표(`InsungPages.screens`)에 있다 */
     val INSUNG = ScreenKeywords(appLabel = "인성콜", cancelKeyword = "취소")
 
-    /**
-     * 🖥️ **이 배차망 화면에만 있는 글자 묶음** — 스캔앱이 화면 글자로 배차망을 가를 때 쓴다
-     * (기사님 확정 · `TargetApp.networksOnScreen`). 묶음 안 글자가 **전부** 보여야 이 배차망이다.
-     * 🔴 **일부러 표와 따로 둔다** — 표의 페이지 글자를 그대로 쓰면 «완료 + 신규» 같은 묶음이 픽커 화면에도 맞아 배차망을 잘못 가른다.
-     *    표에서 고르는 일은 reviews/35 4단계에서 한다. 목록 · 상세 글자와 같은 값이다(`NetworkByScreenTest`).
-     */
-    val NETWORK_MARKERS: List<List<String>> = listOf(listOf("신규", "빠른설정"), listOf("적요상세", "요금"))
+    /** 🖥️ 이 배차망 화면에만 있는 글자 묶음 — 원천은 shared 배차망 정의 표의 networkMarkers(`InsungPages.networkMarkers`) · 여기는 이름만 잇는다(`TargetApp.networksOnScreen` · `NetworkByScreenTest`) */
+    val NETWORK_MARKERS: List<List<String>> get() = InsungPages.networkMarkers
 
     /**
      * 🏄 **인성 팝업 3장으로 채우는 글자** — 누를 버튼과 «다 떴다»를 알아보는 글자 (배차망_모드표.md 순서 ③).

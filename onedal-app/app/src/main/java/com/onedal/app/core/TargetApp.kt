@@ -58,8 +58,8 @@ object TargetApp {
         com.onedal.app.plugins.DispatchPluginRegistry.get(code).label
 
     /**
-     * 🏷️ **배차망마다 «그 배차망 화면에만 있는 글자 묶음»** — 원천은 각 배차망 폴더의 Keywords 다.
-     * 배차망을 더하면 여기 한 줄 + 그 폴더에 `NETWORK_MARKERS` 하나.
+     * 🏷️ **배차망마다 «그 배차망 화면에만 있는 글자 묶음»** — 원천은 shared 배차망 정의 표의 `networkMarkers`(→ 각 `…Pages.networkMarkers`).
+     * 배차망을 더하면 여기 한 줄 + 표에 그 배차망의 묶음.
      */
     fun networkMarkers(): Map<String, List<List<String>>> =
         com.onedal.app.plugins.DispatchPluginRegistry.all().associate { it.code to it.networkMarkers }
