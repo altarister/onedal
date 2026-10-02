@@ -25,7 +25,7 @@ interface IDispatchAppPlugin {
     val code: String                  // "kakaopicker", "insung", "hwamul24"
     val label: String                 // "픽커", "인성콜", "24시"
     val packageKeywords: List<String>    // ["flexer"], ["insung"], ["logione", "carrier"]
-    val keywords: ScreenKeywords      // 배차망별 화면 키워드 사전
+    val keywords: ScreenKeywords      // 배차망 이름표 · 취소 버튼 글자
     val networkMarkers: List<List<String>> // 배차망 고유 화면 식별 마커 목록
     val parser: IScrapParser          // 리스트/상세 텍스트 파서
 
@@ -37,7 +37,7 @@ interface IDispatchAppPlugin {
 
     /**
      * ✍️ **수락 칸 — 앱이 누를 계약 버튼 글자** (배차망_모드표.md 순서 ⑦). `null` 이면 앱이 누를 계약 버튼이 없다.
-     * 화면 판별 글자(`keywords.confirmKeywords`)와 따로 둔다 — 같은 글자를 판별에도 누르기에도 쓰면,
+     * 화면 판별 글자(배차망 정의 표)와 따로 둔다 — 같은 글자를 판별에도 누르기에도 쓰면,
      * 판별용 낱말이 곧 누를 버튼이 된다(픽커는 판별 낱말이 «수락하기»다).
      * 🔴 비었는지 읽는 곳은 상세 처리의 확정 자리 한 곳뿐이다.
      */
@@ -48,6 +48,18 @@ interface IDispatchAppPlugin {
      * 기본 구현을 두지 않는다 — 배차망마다 제 손으로 적는다. 칸 이름은 공통(`PageField`).
      */
     val pages: com.onedal.app.core.PageSpecs
+
+    /** 🖥️ **페이지 목록 — 화면 판별이 이 차례대로 읽는다** (reviews/35 · 생성 파일 `…Pages.screens`) */
+    val screens: List<com.onedal.app.core.ScreenSpec>
+
+    /** ✋ 팝업이 닫히는 동안 남은 잔상인가 — 팝업이 있는 배차망(인성)만 답한다 */
+    fun isPopupResidue(rawScreenStr: String): Boolean = false
+
+    /**
+     * ✅ **확정 뒤 상세에서 할 일이 있나** — 인성만 참(미리보기 → 확정 알림 · 팝업 채우기).
+     * 화물24시 배차내역 상세 · 픽커 수락 뒤 화면은 확정 뒤 상세로 읽혀도 원달앱이 아무것도 안 한다.
+     */
+    val handlesConfirmedDetail: Boolean get() = false
 
     /**
      * 📜 **목록 머리줄이 화면에 보이나** — 목록이 내려가면 앱은 오더카드와 목록 줄을 못 가른다(픽커 «리스트 설정»).
@@ -63,9 +75,6 @@ interface IDispatchAppPlugin {
 
     /** 상세 화면 머묾 타이머 시간 (ms) — 상세 자동 복귀가 있는 배차망(픽커)만 반환, 인성·24시는 null */
     fun getDetailBackTimeoutMs(filter: FilterConfig): Long? = null
-
-    /** 화면 문맥 판별 (배차망별 특수 해석이 필요할 때 오버라이드) */
-    fun resolveScreenContext(text: String, defaultContext: com.onedal.app.models.ScreenContext): com.onedal.app.models.ScreenContext = defaultContext
 
     /** 패키지명이 해당 배차망에 속하는지 검사 */
     fun isTargetPackage(pkg: String): Boolean = packageKeywords.any { pkg.contains(it, ignoreCase = true) }

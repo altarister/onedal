@@ -4,27 +4,16 @@ import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.engine.PopupFill
 
 object InsungKeywords {
-    /** 인성콜 전용 키워드 */
-    val INSUNG = ScreenKeywords(
-        listRequired = listOf("신규", "빠른설정"),  // 둘 다 있어야 신규 리스트 (완료 탭에는 빠른설정 없음)
-        completedListRequired = listOf("완료", "신규"),  // "완료" + "신규" 둘 다 있고 "빠른설정"은 없으면 완료 리스트
-        detailKeywords = listOf("적요상세", "요금"),
-        confirmKeywords = listOf("확정", "배차"),
-        pickupKeywords = listOf("출발지 상세", "상차지 상세"),
-        dropoffKeywords = listOf("도착지 상세", "하차지 상세"),
-        memoKeywords = listOf("적요 상세", "적요 내용"), // 팝업 타이틀"적요 상세"(띄어쓰기) + 본문 헤더"적요 내용" → 확정화면("적요상세" 붙여쓰기)과 구분
-        errorKeywords = listOf("취소할 수 없", "시간이 지나", "실패"),
-        loadingKeywords = listOf("오더 조회", "기다려 주십"),
-        appLabel = "인성콜",
-        cancelKeyword = "취소"
-    )
+    /** 인성콜 이름표 · 취소 버튼 글자 — 화면을 알아보는 글자는 배차망 정의 표(`InsungPages.screens`)에 있다 */
+    val INSUNG = ScreenKeywords(appLabel = "인성콜", cancelKeyword = "취소")
 
     /**
      * 🖥️ **이 배차망 화면에만 있는 글자 묶음** — 스캔앱이 화면 글자로 배차망을 가를 때 쓴다
      * (기사님 확정 · `TargetApp.networksOnScreen`). 묶음 안 글자가 **전부** 보여야 이 배차망이다.
-     * 🔴 새로 적지 않는다 — 위 화면 판별 글자에서 만든다 (두 곳에 적으면 갈라진다 · 규칙 ③).
+     * 🔴 **일부러 표와 따로 둔다** — 표의 페이지 글자를 그대로 쓰면 «완료 + 신규» 같은 묶음이 픽커 화면에도 맞아 배차망을 잘못 가른다.
+     *    표에서 고르는 일은 reviews/35 4단계에서 한다. 목록 · 상세 글자와 같은 값이다(`NetworkByScreenTest`).
      */
-    val NETWORK_MARKERS: List<List<String>> = listOf(INSUNG.listRequired, INSUNG.detailKeywords)
+    val NETWORK_MARKERS: List<List<String>> = listOf(listOf("신규", "빠른설정"), listOf("적요상세", "요금"))
 
     /**
      * 🏄 **인성 팝업 3장으로 채우는 글자** — 누를 버튼과 «다 떴다»를 알아보는 글자 (배차망_모드표.md 순서 ③).

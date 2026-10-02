@@ -269,7 +269,7 @@ class MeterUnitTest {
  *    으로 «리스트에는 «픽업»이 없다»를 확인하고 그 사실을 여기 박아 둔다.
  */
 class PickerScreenDetectTest {
-    private val kw = KakaoPickerKeywords.PICKER
+    private val kw = KakaoPickerPages.screens
     private val detector = com.onedal.app.core.engine.ScreenDetector()
 
     /** 실물 덤프 02(리스트)의 상단 낱말들 */
@@ -288,12 +288,12 @@ class PickerScreenDetectTest {
 
     @Test
     fun `리스트는 리스트로 읽는다 - 상세로 오인하지 않는다`() {
-        assertEquals(com.onedal.app.models.ScreenContext.LIST, detector.detect(리스트, kw))
+        assertEquals(com.onedal.app.models.ScreenContext.LIST, detector.detect(리스트, kw).context)
     }
 
     @Test
     fun `수락 전 상세는 PRE_CONFIRM - 아직 계약 전이다`() {
-        assertEquals(com.onedal.app.models.ScreenContext.DETAIL_PRE_CONFIRM, detector.detect(수락전상세, kw))
+        assertEquals(com.onedal.app.models.ScreenContext.DETAIL_PRE_CONFIRM, detector.detect(수락전상세, kw).context)
     }
 
     /**
@@ -304,7 +304,7 @@ class PickerScreenDetectTest {
     @Test
     fun `수락 후 화면은 상세로 분류되지 않는다 - 승격은 따로 판정한다`() {
         assertFalse("수락 전 표식이 사라졌으니 상세가 아니다",
-            detector.detect(수락후, kw) == com.onedal.app.models.ScreenContext.DETAIL_PRE_CONFIRM)
+            detector.detect(수락후, kw).context == com.onedal.app.models.ScreenContext.DETAIL_PRE_CONFIRM)
         assertTrue("대신 승격 판정이 참이어야 한다", KakaoPickerKeywords.isAcceptedScreen(수락후))
     }
 
@@ -313,14 +313,14 @@ class PickerScreenDetectTest {
     fun `리스트에 상세 잔상 한 줄이 남아도 상세로 오인하지 않는다 - 0902 실사고`() {
         val 잔상낀리스트 = "픽업지 경기 성남시 분당구 야탑3동 메종드자스민 " +
             "리스트 설정 가까운순 20km 퀵 반나절 소형 예약 09:00 15.4km 중원 도촌 영등포 여의 14,010"
-        assertEquals(com.onedal.app.models.ScreenContext.LIST, detector.detect(잔상낀리스트, kw))
+        assertEquals(com.onedal.app.models.ScreenContext.LIST, detector.detect(잔상낀리스트, kw).context)
         assertFalse("승격도 하지 않는다", KakaoPickerKeywords.isAcceptedScreen(잔상낀리스트))
     }
 
     /**
      * 🔴 실물 덤프 10종 전수 — 리스트 계열에 «픽업»이 하나도 없다는 사실을 잠근다.
      * 리스트에 상세 글자가 섞이면 리스트를 상세로 오인하므로, 리스트 쪽 사실을 실물로 잠가 둔다
-     * (상세 판별 낱말 `detailKeywords` 는 «넘기기»·«수락하기» 둘이다).
+     * (배차망 정의 표의 상세 글자는 «넘기기»·«수락하기» 둘이다).
      */
     @Test
     fun `리스트 계열에는 픽업이라는 낱말이 없다 - 실물 덤프 10종 근거`() {
@@ -540,46 +540,36 @@ class PickerStageTest {
  * 여기서 잠그는 것은 **치환이 빠짐없이 이어지는가**다.
  */
 class PickerScreenContextTest {
-    private val K = KakaoPickerKeywords
+    private val read = { t: String -> com.onedal.app.core.engine.ScreenDetector().detect(t, KakaoPickerPages.screens).context }
 
+    /** 운행 단계 → 배차망 정의 표의 기준 페이지 이름(같은 이름 · 홈은 HOME) */
+    private fun standardOf(stage: KakaoPickerKeywords.Stage): com.onedal.app.core.StandardScreen =
+        if (stage == KakaoPickerKeywords.Stage.HOME) com.onedal.app.core.StandardScreen.HOME
+        else com.onedal.app.core.StandardScreen.valueOf("RUN_${stage.name}")
+
+    /**
+     * 🔴 **단계가 늘면 표에도 페이지가 있어야 한다.** 수락 확인(`stageOf`)만 알고 표에 페이지가 없으면
+     * 그 화면이 조용히 `UNKNOWN` 으로 떨어진다 — 앱이 알아본 화면이 관제웹에 안 간다.
+     */
     @Test
-    fun `운행 단계 다섯이 모두 공통 화면 값으로 바뀐다`() {
-        listOf(
-            KakaoPickerKeywords.Stage.TO_PICKUP  to com.onedal.app.models.ScreenContext.RUN_TO_PICKUP,
-            KakaoPickerKeywords.Stage.AT_PICKUP  to com.onedal.app.models.ScreenContext.RUN_AT_PICKUP,
-            KakaoPickerKeywords.Stage.TO_DROPOFF to com.onedal.app.models.ScreenContext.RUN_TO_DROPOFF,
-            KakaoPickerKeywords.Stage.AT_DROPOFF to com.onedal.app.models.ScreenContext.RUN_AT_DROPOFF,
-            KakaoPickerKeywords.Stage.DONE       to com.onedal.app.models.ScreenContext.RUN_DONE,
-        ).forEach { (stage, screen) -> assertEquals(screen, K.screenContextOf(stage)) }
+    fun `모든 운행 단계 · 홈이 표의 페이지로 있다 - 빠뜨리면 조용히 UNKNOWN 이 된다`() {
+        val standards = KakaoPickerPages.screens.mapNotNull { it.standard }.toSet()
+        KakaoPickerKeywords.Stage.values().forEach { assertTrue("$it 의 페이지가 표에 없다", standardOf(it) in standards) }
     }
 
-    /** 🔴 홈은 운행 화면이 아니다 — 치환하면 «일하는 중»으로 보인다 */
     /**
      * 🏠 **홈은 «모름»이 아니다** (기사님 제보로 갈랐다).
-     *
-     * 기사님: *"픽커는 지금 홈에 있는데. 콜 리스트로 나오고 있어."*
-     * 홈을 `null` 로 두면 낱말 판별로 떨어져 엉뚱한 답(콜 리스트)이 나온다.
-     * 읽었으면 읽었다고 답한다 — 못 읽은 것과 같은 칸에 넣지 않는다.
+     * 기사님: *"픽커는 지금 홈에 있는데. 콜 리스트로 나오고 있어."* — 읽었으면 읽었다고 답한다.
      */
     @Test
     fun `홈은 홈이라고 답한다 - 모름과 같은 칸에 넣지 않는다`() {
-        assertEquals(com.onedal.app.models.ScreenContext.HOME, K.screenContextOf(KakaoPickerKeywords.Stage.HOME))
+        assertEquals(com.onedal.app.models.ScreenContext.HOME, read("미션 3 더보기 어떤 일을 시작할까요? 시작하기"))
     }
 
-    /** 픽커가 아는 화면이 아니면 답하지 않는다 — 낱말 판별에 맡긴다 */
+    /** 표에 없는 글은 «모름» — 지어내지 않는다 */
     @Test
-    fun `모르는 화면은 답하지 않는다`() {
-        assertNull(K.screenContextOf(null))
-    }
-
-    /**
-     * 🔴 **단계가 늘면 치환도 늘어야 한다.** 표만 고치고 치환을 안 고치면 새 화면이
-     * 조용히 `UNKNOWN` 으로 떨어진다 — 앱이 알아본 화면이 관제웹에 안 간다.
-     */
-    @Test
-    fun `모든 단계가 치환된다 - 빠뜨리면 조용히 UNKNOWN 이 된다`() {
-        KakaoPickerKeywords.Stage.values()
-            .forEach { assertNotNull("$it 의 화면 값이 없다", K.screenContextOf(it)) }
+    fun `모르는 화면은 UNKNOWN`() {
+        assertEquals(com.onedal.app.models.ScreenContext.UNKNOWN, read("아무 글자"))
     }
 
     /** 🔴 값 이름이 shared 와 한 글자라도 다르면 서버가 못 읽는다 */
@@ -597,7 +587,7 @@ class PickerScreenContextTest {
  * 🏠 **홈 화면 실물 한 장을 그대로 붙여 둔다** (기사님 폰에서 뜬 것).
  *
  * 🔴 **홈 글자를 로딩 낱말에 넣으면 홈이 통째로 버려진다.** 홈 화면 글자 「어떤 일을 시작할까요」가
- * `loadingKeywords` 에 들어가면 `HijackService` 가 로딩으로 보고 그 프레임을 버려 판별이 **아예 안 돈다** —
+ * 건너뛰는 덧칸(표의 reportAs = SKIP)에 들어가면 `HijackService` 가 로딩으로 보고 그 프레임을 버려 판별이 **아예 안 돈다** —
  * 관제웹은 «알 수 없는 화면»에 굳는다. 홈은 제대로 된 화면(`Stage.HOME`)이라 한 화면을 두 곳이
  * 다르게 답하게 되고, 로딩이 먼저라 늘 이긴다 (규칙 ⑤-4 ⑤).
  *
@@ -624,7 +614,7 @@ class PickerHomeRealDumpTest {
     fun `홈 실물이 로딩으로 버려지지 않는다`() {
         assertFalse(
             "홈 화면이 로딩으로 걸리면 판별 자체를 건너뛴다",
-            com.onedal.app.core.engine.ScreenDetector().isLoading(HOME_REAL, KakaoPickerKeywords.PICKER),
+            com.onedal.app.core.engine.ScreenDetector().detect(HOME_REAL, KakaoPickerPages.screens).skip,
         )
     }
 
@@ -634,7 +624,7 @@ class PickerHomeRealDumpTest {
         assertEquals(KakaoPickerKeywords.Stage.HOME, KakaoPickerKeywords.stageOf(HOME_REAL))
         assertEquals(
             com.onedal.app.models.ScreenContext.HOME,
-            KakaoPickerKeywords.screenContextOf(KakaoPickerKeywords.stageOf(HOME_REAL)),
+            com.onedal.app.core.engine.ScreenDetector().detect(HOME_REAL, KakaoPickerPages.screens).context,
         )
     }
 
@@ -667,7 +657,7 @@ class PickerHomeRealDumpTest {
             "🎄12월 겨울맞이 이벤트! 1000원 프로모션 진행 중 " +
             "공통 서비스 점검 안내 더보기 미션 5 더보기 퀵 10건 배송완료하고 쿠폰 받기 시작하기"
         assertEquals(KakaoPickerKeywords.Stage.HOME, KakaoPickerKeywords.stageOf(다른날_홈))
-        assertFalse(com.onedal.app.core.engine.ScreenDetector().isLoading(다른날_홈, KakaoPickerKeywords.PICKER))
+        assertFalse(com.onedal.app.core.engine.ScreenDetector().detect(다른날_홈, KakaoPickerPages.screens).skip)
     }
 
     /**
@@ -693,23 +683,9 @@ class PickerHomeRealDumpTest {
      * «아직 못 봤다»(완료 리스트)와는 다른 사실이라 표식도 갈라 뒀다.
      */
     @Test
-    fun `로딩 화면은 없다 - 나중에 채우려 하면 걸린다`() {
-        assertEquals(1, KakaoPickerKeywords.PICKER.loadingKeywords.size)
-        assertTrue(
-            "픽커에는 로딩 화면이 없다 — 낱말을 채우면 그 화면이 통째로 버려진다",
-            KakaoPickerKeywords.PICKER.loadingKeywords.single().contains("없다"),
-        )
-    }
-
-    @Test
-    fun `화면을 알아보는 낱말이 로딩 낱말과 겹치지 않는다`() {
-        val stageWords = KakaoPickerKeywords.STAGE_WORDS.flatMap { it.second }
-        val loading = KakaoPickerKeywords.PICKER.loadingKeywords
-        stageWords.forEach { w ->
-            loading.forEach { l ->
-                assertFalse("«$w» 가 로딩 낱말 «$l» 에 걸려 화면이 통째로 버려진다", w.contains(l) || l.contains(w))
-            }
-        }
+    fun `로딩 화면은 없다 - 표에 건너뛰는 덧칸이 없다`() {
+        val skips = KakaoPickerPages.screens.flatMap { it.overlays }.filter { it.reportAs == com.onedal.app.core.ReportAs.SKIP }
+        assertTrue("픽커에는 로딩 화면이 없다 — 건너뛰는 덧칸을 더하면 그 화면이 통째로 버려진다", skips.isEmpty())
     }
 }
 
@@ -893,10 +869,14 @@ class AssignedToastTest {
 
     private val parser = KakaoPickerParser(null)
     private val realToast = "이미 배정이 완료된\n오더입니다."
+    /** 표에서 오류 화면으로 보내는 덧칸의 글자 — 상세 위 «배정 실패 오류» */
+    private val errorWords = KakaoPickerPages.screens.flatMap { it.overlays }
+        .filter { it.reportAs == com.onedal.app.core.ReportAs.POPUP_ERROR }.flatMap { o -> o.match.flatMap { it.any + it.all } }
 
     @Test
     fun `실물 토스트 글자를 에러 화면 글자로 알아본다`() {
-        assertTrue(KakaoPickerKeywords.PICKER.errorKeywords.any { realToast.contains(it) })
+        assertTrue(KakaoPickerKeywords.isTakenToast(realToast))
+        assertTrue("상세 위 «배정 실패 오류» 덧칸 글자에도 든다", errorWords.any { realToast.contains(it) })
     }
 
     @Test
@@ -905,7 +885,7 @@ class AssignedToastTest {
             "서포트모드", "카드설정", "수요지도", "신규", "내 오더", "퀵 오더카드 대기 중...", "퀵 서포트 모드 1장 받기", "0/1건")
         val detailTexts = listOf("뒤로가기", "물품 정보", "초소형 세 변의 합 70cm ∙ 2kg 이하", "최종 수익", "8,200", "배송비", "7,000P", "프로모션", "1,200P", "넘기기", "수락하기")
         (listTexts + detailTexts).forEach { t ->
-            assertFalse("«$t» 가 에러 글자에 걸린다", KakaoPickerKeywords.PICKER.errorKeywords.any { t.contains(it) })
+            assertFalse("«$t» 가 에러 글자에 걸린다", errorWords.any { t.contains(it) })
         }
     }
 

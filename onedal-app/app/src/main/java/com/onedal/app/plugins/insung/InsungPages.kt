@@ -7,6 +7,7 @@ import com.onedal.app.core.OverlaySpec
 import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageSpecs
+import com.onedal.app.core.ReportAs
 import com.onedal.app.core.ScreenMatch
 import com.onedal.app.core.ScreenSpec
 import com.onedal.app.core.Seen
@@ -125,7 +126,7 @@ object InsungPages {
         "25t" to "25t",
     )
 
-    /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 🔴 판별은 아직 이 목록을 안 읽는다 */
+    /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
         ScreenSpec(
             "확정 뒤 상세",
@@ -133,11 +134,11 @@ object InsungPages {
             listOf(ScreenMatch(all = listOf("적요상세"), any = listOf("인수증 전송", "카드 승인"))),
             false,
             listOf(
-                OverlaySpec("출발지 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("출발지 상세", "상차지 상세"))), "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", Seen.REAL, listOf("ex_images/인성/출발지상세.png")),
-                OverlaySpec("도착지 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("도착지 상세", "하차지 상세"))), "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", Seen.REAL, listOf("ex_images/인성/도착지상세.png")),
-                OverlaySpec("적요 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("적요 상세", "적요 내용"))), "적요 전문을 보여 준다", Seen.SIM, listOf("ex_images/인성/적요상세.png (시뮬레이터 화면)"), toCollect = "실물 캡처"),
+                OverlaySpec("출발지 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("출발지 상세", "상차지 상세"))), "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", Seen.REAL, listOf("ex_images/인성/출발지상세.png"), reportAs = ReportAs.POPUP_PICKUP),
+                OverlaySpec("도착지 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("도착지 상세", "하차지 상세"))), "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", Seen.REAL, listOf("ex_images/인성/도착지상세.png"), reportAs = ReportAs.POPUP_DROPOFF),
+                OverlaySpec("적요 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("적요 상세", "적요 내용"))), "적요 전문을 보여 준다", Seen.SIM, listOf("ex_images/인성/적요상세.png (시뮬레이터 화면)"), toCollect = "실물 캡처", reportAs = ReportAs.POPUP_MEMO),
                 OverlaySpec("취소 확인 팝업", OverlayKind.POPUP, emptyList(), "확정 뒤 취소를 누르면 한 번 더 묻는다", Seen.UNKNOWN, listOf(), toCollect = "캡처 · 알아보는 글자"),
-                OverlaySpec("취소 불가 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("취소할 수 없"))), "안전취소 시간이 지나 취소할 수 없다", Seen.UNKNOWN, listOf(), toCollect = "캡처"),
+                OverlaySpec("취소 불가 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("취소할 수 없"), none = listOf("적요상세"))), "안전취소 시간이 지나 취소할 수 없다", Seen.UNKNOWN, listOf(), toCollect = "캡처", reportAs = ReportAs.POPUP_ERROR),
             ),
             Seen.REAL,
             listOf("ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"),
@@ -148,13 +149,13 @@ object InsungPages {
             listOf(ScreenMatch(all = listOf("적요상세", "확정"), any = listOf("요금", "실운임"))),
             false,
             listOf(
-                OverlaySpec("출발지 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("출발지 상세", "상차지 상세"))), "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", Seen.REAL, listOf("ex_images/인성/출발지상세.png")),
-                OverlaySpec("도착지 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("도착지 상세", "하차지 상세"))), "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", Seen.REAL, listOf("ex_images/인성/도착지상세.png")),
-                OverlaySpec("적요 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("적요 상세", "적요 내용"))), "적요 전문을 보여 준다", Seen.SIM, listOf("ex_images/인성/적요상세.png (시뮬레이터 화면)"), toCollect = "실물 캡처"),
+                OverlaySpec("출발지 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("출발지 상세", "상차지 상세"))), "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", Seen.REAL, listOf("ex_images/인성/출발지상세.png"), reportAs = ReportAs.POPUP_PICKUP),
+                OverlaySpec("도착지 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("도착지 상세", "하차지 상세"))), "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", Seen.REAL, listOf("ex_images/인성/도착지상세.png"), reportAs = ReportAs.POPUP_DROPOFF),
+                OverlaySpec("적요 상세 팝업", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("적요 상세", "적요 내용"))), "적요 전문을 보여 준다", Seen.SIM, listOf("ex_images/인성/적요상세.png (시뮬레이터 화면)"), toCollect = "실물 캡처", reportAs = ReportAs.POPUP_MEMO),
                 OverlaySpec("계산서 오더 안내 띠", OverlayKind.BANNER, listOf(ScreenMatch(any = listOf("계산서 발급오더의 경우"))), "계산서 오더 — 위수탁세금계산서 발행에 동의한 기사만 처리 · 부가세 포함 입금", Seen.REAL, listOf("ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png")),
                 OverlaySpec("확정 확인 팝업", OverlayKind.POPUP, emptyList(), "확정을 누르면 한 번 더 묻는다", Seen.UNKNOWN, listOf(), toCollect = "캡처 · 알아보는 글자"),
                 OverlaySpec("이미 배차됨 팝업", OverlayKind.POPUP, emptyList(), "남이 먼저 잡았다", Seen.UNKNOWN, listOf(), toCollect = "캡처 · 알아보는 글자"),
-                OverlaySpec("확정 실패 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("시간이 지나", "실패"))), "확정이 안 됐다 — 적요 글의 «실패» · «시간이 지나»와 가를 머리 글자가 필요하다", Seen.UNKNOWN, listOf(), toCollect = "캡처 · 팝업 머리 글자"),
+                OverlaySpec("확정 실패 팝업", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("시간이 지나", "실패"), none = listOf("적요상세"))), "확정이 안 됐다 — 적요 글의 «실패» · «시간이 지나»와 가를 머리 글자가 필요하다", Seen.UNKNOWN, listOf(), toCollect = "캡처 · 팝업 머리 글자", reportAs = ReportAs.POPUP_ERROR),
             ),
             Seen.REAL,
             listOf("ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"),
@@ -165,9 +166,9 @@ object InsungPages {
             listOf(ScreenMatch(all = listOf("신규", "빠른설정"))),
             false,
             listOf(
-                OverlaySpec("로딩 토스트", OverlayKind.TOAST, listOf(ScreenMatch(any = listOf("오더 조회", "기다려 주십"))), "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", Seen.UNKNOWN, listOf(), toCollect = "캡처"),
+                OverlaySpec("로딩 토스트", OverlayKind.TOAST, listOf(ScreenMatch(any = listOf("오더 조회", "기다려 주십"))), "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", Seen.UNKNOWN, listOf(), toCollect = "캡처", reportAs = ReportAs.SKIP),
                 OverlaySpec("메뉴 드롭다운", OverlayKind.POPUP, emptyList(), "목록 머리 «메뉴»를 누르면 펼쳐진다", Seen.UNKNOWN, listOf(), toCollect = "캡처 · 알아보는 글자"),
-                OverlaySpec("빈 목록 안내", OverlayKind.BANNER, listOf(ScreenMatch(any = listOf("대기 중인 오더가 없"))), "지금 신규 콜이 없다", Seen.UNKNOWN, listOf(), toCollect = "캡처"),
+                OverlaySpec("빈 목록 안내", OverlayKind.BANNER, listOf(ScreenMatch(any = listOf("대기 중인 오더가 없"))), "지금 신규 콜이 없다", Seen.UNKNOWN, listOf(), toCollect = "캡처", reportAs = ReportAs.LIST),
             ),
             Seen.REAL,
             listOf("ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png"),

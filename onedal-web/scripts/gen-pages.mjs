@@ -32,6 +32,7 @@ const pageSpecKt = readFileSync(join(app, 'core/PageSpec.kt'), 'utf8');
 const namesOf = (name) => (pageSpecKt.split(`enum class ${name} {`)[1]?.split('}')[0] ?? '').split(',').map((w) => w.trim()).filter(Boolean);
 const STANDARD = namesOf('StandardScreen');
 const OVERLAY_KIND = namesOf('OverlayKind');
+const REPORT_AS = namesOf('ReportAs');
 const SEEN = ['REAL', 'SIM', 'UNKNOWN'];
 
 /* 🔴 바꾸기 글자 대신 함수로 — 바꾸기 글자 안의 «$'» · «$&» 는 JS 가 특수 기호로 읽는다 */
@@ -63,7 +64,9 @@ const kscreen = (net, s) => {
         const oat = `${at} 덧칸 «${o.name}»`;
         if (!OVERLAY_KIND.includes(o.kind)) fail(`${oat} — 모르는 갈래 «${o.kind}»`);
         if (!SEEN.includes(o.seen)) fail(`${oat} — seen «${o.seen}»`);
-        const args = [kstr(o.name), `OverlayKind.${o.kind}`, kmatches(oat, o.match), kstr(o.meaning), `Seen.${o.seen}`, klist(o.evidence), ...ktail(o)];
+        if (o.reportAs !== undefined && !REPORT_AS.includes(o.reportAs)) fail(`${oat} — 모르는 reportAs «${o.reportAs}» (core/PageSpec.kt ReportAs 에 없다)`);
+        const args = [kstr(o.name), `OverlayKind.${o.kind}`, kmatches(oat, o.match), kstr(o.meaning), `Seen.${o.seen}`, klist(o.evidence), ...ktail(o),
+            ...(o.reportAs ? [`reportAs = ReportAs.${o.reportAs}`] : [])];
         return `                OverlaySpec(${args.join(', ')}),`;
     });
     const args = [kstr(s.name), s.standard === null ? 'null' : `StandardScreen.${s.standard}`, kmatches(at, s.match), String(s.listReturn),
@@ -113,6 +116,7 @@ import com.onedal.app.core.OverlaySpec
 import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageSpecs
+import com.onedal.app.core.ReportAs
 import com.onedal.app.core.ScreenMatch
 import com.onedal.app.core.ScreenSpec
 import com.onedal.app.core.Seen
@@ -131,7 +135,7 @@ ${pages.join('\n')}
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords${spec.vehicleWordsWhy ? ` — ${spec.vehicleWordsWhy}` : ''}) */
     val vehicleWords: Map<String, String?> = ${vehicleWords}
 
-    /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 🔴 판별은 아직 이 목록을 안 읽는다 */
+    /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
 ${(spec.screens ?? fail(`표에 ${net} 페이지 목록(screens)이 없다`)).map((s) => kscreen(net, s)).join('\n')}
     )

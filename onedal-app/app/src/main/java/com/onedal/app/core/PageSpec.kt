@@ -47,7 +47,7 @@ object PageSpecSummary {
  * 🧭 **우리 기준 페이지** — 배차망 페이지를 우리 시스템의 어느 자리로 맞추나(reviews/35).
  * shared `networkPages.ts` 의 `STANDARD_SCREENS` 와 이름 · 차례가 같다(`NetworkPagesPairTest`).
  * TRANSITION = 콜을 누른 직후 넘어가는 틀 · NETWORK_MENU = 배차망 안의 일이 아닌 화면(목록 복귀 아님).
- * 🔴 아직 판별이 읽지 않는다 — 화면 분류는 `ScreenContext` 그대로다(reviews/35 2단계에서 잇는다).
+ * 화면 판별(`ScreenDetector`)이 이 값을 `ScreenContext` 로 바꿔 보낸다.
  */
 enum class StandardScreen {
     HOME, LIST, DETAIL_PRE_CONFIRM, DETAIL_CONFIRMED, MY_ORDERS,
@@ -71,6 +71,12 @@ data class ScreenMatch(
     val shapeMax: Int? = null,
 )
 
+/**
+ * 📮 **이 덧칸이 보이면 보내는 지금 화면 값** — SKIP 은 그 화면을 건너뛴다(로딩).
+ * 팝업 채우기 · 로딩 건너뛰기 · 오류 처리가 아직 옛 화면 값으로 돌아서 둔다 — reviews/35 5단계(페이지 + 덧칸)에서 걷는다.
+ */
+enum class ReportAs { SKIP, LIST, POPUP_PICKUP, POPUP_DROPOFF, POPUP_MEMO, POPUP_ERROR }
+
 /** 🪟 페이지 위에 뜨는 것 하나 — 근거가 비었거나 toCollect 가 있으면 «모을 것» · wordsFrom 은 글자 원천(서버 낱말 사전 자리) */
 data class OverlaySpec(
     val name: String,
@@ -81,6 +87,7 @@ data class OverlaySpec(
     val evidence: List<String>,
     val toCollect: String = "",
     val wordsFrom: String = "",
+    val reportAs: ReportAs? = null,
 )
 
 /**

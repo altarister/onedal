@@ -32,9 +32,10 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
 
     /** 📄 페이지 정의 — `Hwamul24Pages` (reviews/24) */
     override val pages get() = Hwamul24Pages.pages
+    override val screens get() = Hwamul24Pages.screens
 
-    override val acceptButtons: List<String>?
-        get() = keywords.confirmKeywords
+    /** ✍️ 배차신청 버튼 글자 — 판별 글자에서 옮긴 값 그대로(«전화걸기»가 든 까닭은 따로 본다) */
+    override val acceptButtons: List<String>? = listOf("배차신청", "전화걸기")
 
     override val ocrParser: ScreenOcrParser<*>? = null
 

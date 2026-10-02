@@ -36,7 +36,7 @@ fun ScanContext.handlePreConfirmScreen(
     rawScreenStr: String
 ) {
     // 잔상 방어: 팝업이 아직 닫히지 않았으면 무시
-    if (screenDetector.isPopupResidue(rawScreenStr)) {
+    if (com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).isPopupResidue(rawScreenStr)) {
         AppLogger.roadmap(LogTag.SCREEN, "✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
         return
     }

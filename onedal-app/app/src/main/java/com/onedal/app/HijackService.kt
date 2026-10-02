@@ -138,6 +138,8 @@ class HijackService : AccessibilityService(), ScanContext {
     override lateinit var keywords: ScreenKeywords
     override val screenDetector = ScreenDetector()
     private var lastScreenFingerprint = 0
+    /** 📄 마지막으로 찍은 «페이지 + 덧칸» — 바뀔 때만 한 줄 */
+    private var lastPageKey: String? = null
     /** 🔔 «이 콜로 이미 알람을 냈나» — 상차+하차 열쇠 (`AlarmedRoutes`) */
     private val alarmedRoutes = com.onedal.app.core.AlarmedRoutes()
     /** 🔄 마지막으로 본 필터 버전 · 이미 적은 «버전만 바뀜» 쌍 (목록 스캔 첫머리) */
@@ -1024,13 +1026,15 @@ class HijackService : AccessibilityService(), ScanContext {
 
         val rawScreenStr = screenTexts.joinToString(" ")
 
-        // 로딩 화면 → 무시
-        if (screenDetector.isLoading(rawScreenStr, keywords)) { rootNode.recycle(); return }
+        // 🖥️ 배차망 정의 표로 화면을 읽는다 — 로딩 같은 건너뛰는 덧칸이 보이면 이 프레임은 처리하지 않는다
+        val screenRead = screenDetector.detect(rawScreenStr, com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).screens)
+        if (screenRead.skip) { rootNode.recycle(); return }
 
         // 화면 종류 판별 및 서버(텔레메트리) 즉각 동기화
         markRead("지문·로딩")
         telemetryManager.screenPackage = rootNode.packageName?.toString()   // 🏷️ 보고의 실물/시뮬 — 판별과 같은 화면
-        val detected = detectScreenContext(rawScreenStr, rootNode.packageName?.toString())
+        val detected = contextOf(screenRead, rootNode.packageName?.toString())
+        logPageChange(screenRead, detected)
         markRead("판별")
         // 📰 이 화면에서 뺀 글자는 이 페이지 몫 — 목록 글자가 섞인 판(상세 시트가 올라오는 찰나)은 통째로 모으지 않는다
         com.onedal.app.core.ScreenWords.onScreen(com.onedal.app.core.pageOf(detected),
@@ -1117,8 +1121,7 @@ class HijackService : AccessibilityService(), ScanContext {
          *    통과한다. **복귀는 그 자체로 콜의 끝**이니 조건 없이 지우는 것이 맞다.
          */
         val isListScreen = detected == ScreenContext.LIST ||
-                           detected == ScreenContext.LIST_COMPLETED ||
-                           rawScreenStr.contains("대기 중인 오더가 없")
+                           detected == ScreenContext.LIST_COMPLETED
         val wasListScreen = previous == ScreenContext.LIST || previous == ScreenContext.LIST_COMPLETED
         /**
          * 👁️ **리스트를 못 보고 있던 동안을 기록한다** (기사님 요청).
@@ -1270,7 +1273,8 @@ class HijackService : AccessibilityService(), ScanContext {
                 val detailTexts = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).detailTextsOf(screenTexts)
                 handlePreConfirmScreen(rootNode, detailTexts, detailTexts.joinToString(" "))
             }
-            ScreenContext.DETAIL_CONFIRMED -> handleConfirmedScreen(rootNode, screenTexts, rawScreenStr)
+            /* ✅ 확정 뒤 상세 처리는 그 배차망에 할 일이 있을 때만 — 화물24시 배차내역 상세 · 픽커 수락 뒤 화면에서는 아무것도 안 한다 */
+            ScreenContext.DETAIL_CONFIRMED -> if (com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).handlesConfirmedDetail) handleConfirmedScreen(rootNode, screenTexts, rawScreenStr)
             ScreenContext.POPUP_MEMO -> handleMemoPopup(rootNode, screenTexts)
             ScreenContext.POPUP_PICKUP -> handlePickupPopup(rootNode, screenTexts)
             ScreenContext.POPUP_DROPOFF -> handleDropoffPopup(rootNode, screenTexts)
@@ -1920,23 +1924,16 @@ class HijackService : AccessibilityService(), ScanContext {
     /**
      * 🖥️ **이 화면이 무엇인가 — 한 곳에서 답한다** (규칙 ③).
      *
-     * 낱말 판별(`screenDetector`)이 먼저 답하고, **잡기 수순이 없는 배차망**은 그 위에
-     * 자기 운행 화면을 얹는다. 픽커의 「픽업 완료해주세요」 같은 화면은 인성 목록에
-     * 없어서 `UNKNOWN` 으로 떨어지는데, 그러면 관제웹이 «알 수 없는 화면»(빨간 깜빡임)만
-     * 보여 준다 — 기사님이 가장 알고 싶은 순간에 관제가 가장 모르게 된다
-     * (기사님 지시: *"관제에서는 폰의 상황을 잘 알아야 해"*).
-     *
-     * 🔴 **치환은 배차망 폴더 안에서 한다** — 여기는 «부르기»만 한다. 페이지 이름(`Stage`)은
-     *    픽커 폴더 밖으로 안 나오고, 나오는 것은 공통 화면 값 하나뿐이다.
-     *
-     * ⚠️ 인성·24시는 덧씌우지 않는다 — 플러그인 기본(`resolveScreenContext`)이 낱말 판별을 그대로 돌려준다.
+     * 그 배차망 정의 표(`…Pages.screens`)의 차례대로 처음 맞는 페이지가 답이다(`ScreenDetector` · reviews/35).
+     * 표가 모르는 화면이면 패키지로 바탕화면 · 배차망 밖 앱을 가린다.
+     * 붙는 순간 화면은 건너뛰는 덧칸(로딩)을 보지 않고 페이지 값을 쓴다 — «본 것»을 말한다.
      */
-    private fun detectScreenContext(text: String, pkg: String? = null): ScreenContext {
-        val byKeywords = screenDetector.detect(text, keywords)
-        val currentPlugin = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp)
-        val resolved = currentPlugin.resolveScreenContext(text, byKeywords)
+    private fun detectScreenContext(text: String, pkg: String? = null): ScreenContext =
+        contextOf(screenDetector.detect(text, com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).screens), pkg)
 
-        if (resolved != ScreenContext.UNKNOWN) return resolved
+    private fun contextOf(read: com.onedal.app.core.engine.ScreenRead, pkg: String?): ScreenContext {
+        if (read.context != ScreenContext.UNKNOWN) return read.context
+        val currentPlugin = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp)
 
         if (pkg != null) {
             val p = pkg.lowercase()
@@ -1950,6 +1947,14 @@ class HijackService : AccessibilityService(), ScanContext {
             }
         }
         return ScreenContext.UNKNOWN
+    }
+
+    /** 📄 «어느 배차망의 어느 페이지 · 그 위에 뜬 것»을 바뀔 때만 한 줄 — 관제웹 배지는 화면 값만 받는다 */
+    private fun logPageChange(read: com.onedal.app.core.engine.ScreenRead, detected: ScreenContext) {
+        val key = "${currentTargetApp}|${read.page}|${read.overlay}|${detected}"
+        if (key == lastPageKey) return
+        lastPageKey = key
+        AppLogger.i(TAG, LogTag.SCREEN, "📄 [페이지] ${keywords.appLabel} ${read.page ?: "표에 없음"}${read.overlay?.let { " + $it" } ?: ""} → ${detected.name}")
     }
 
     private fun updateScreenContext(context: ScreenContext) {
@@ -2137,7 +2142,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /**
      * 앱별 확정 버튼 텍스트 리스트 중 첫 번째로 발견되는 버튼을 클릭합니다.
-     * 목록은 배차망 플러그인의 `confirmKeywords` 가 정한다 — 여기 손으로 적지 않는다.
+     * 목록은 배차망 플러그인의 `acceptButtons` 가 정한다 — 여기 손으로 적지 않는다.
      * ⚠️ 인성은 둘이다("확정"·"배차").
      */
     override fun clickFirstMatchingButton(rootNode: AccessibilityNodeInfo, buttonTexts: List<String>): Boolean {

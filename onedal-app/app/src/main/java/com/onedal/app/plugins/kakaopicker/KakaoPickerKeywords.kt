@@ -1,7 +1,6 @@
 package com.onedal.app.plugins.kakaopicker
 
 import com.onedal.app.core.ScreenKeywords
-import com.onedal.app.models.ScreenContext
 
 /**
  * 🌐 카카오T픽커(`com.kakaomobility.flexer`) 화면 판별 사전.
@@ -9,25 +8,9 @@ import com.onedal.app.models.ScreenContext
  * 근거 실물: `log/카카오픽커/화면덤프/`(08-28 · 심사 중) + `화면덤프_0830/`(08-30 · 심사 통과).
  * 픽커는 네이티브 앱이라 텍스트 노드가 낱개로 깨끗하게 온다 (인성 웹뷰와 다름).
  *
- * ⚠️ 픽커에는 인성식 팝업(출발지/도착지/적요)이 **없다.** 판별 규칙이 «키워드 전부 포함»
- *    이라 빈 목록을 주면 모든 화면이 그 팝업으로 오인된다 — 절대 안 뜨는 문자열을 박아
- *    그 판별을 사실상 끈다.
+ * 화면을 알아보는 글자는 배차망 정의 표(`KakaoPickerPages.screens`)에 있다 — 여기에는 수락 확인(운행 단계 · 내 오더)에 쓰는 글자만 둔다.
  */
 object KakaoPickerKeywords {
-    /**
-     * 🚫 **그런 화면이 없다** — 확정된 사실. 실제 화면에 절대 안 나오는 문자열로 판별을 끈다.
-     *
-     * 🔴 아래 `NOT_YET_SEEN` 과 **갈라 둔다**. 한 표식이 «없다»와 «아직 못 봤다» 둘 다를
-     *    답하면 나중에 읽는 사람이
-     *    *"이건 채워야 하는 건가, 두는 건가"* 를 알 수 없다.
-     *    한 값에 두 질문을 답하게 두는 형태다
-     *    (CLAUDE.md 규칙 ⑤-4 ⑤).
-     */
-    private const val NO_SUCH_SCREEN = "〈픽커에는 이 화면이 없다〉"
-
-    /** ❓ **아직 실물을 못 봤다** — 있을 수도 있다. 실물이 오면 채운다 (규칙 ④: 지어내지 않는다) */
-    private const val NOT_YET_SEEN = "〈아직 실물을 못 본 화면〉"
-
     /**
      * 🚚 **픽커 콜에 넣는 차종 — 픽커에 차종 축이 없어서 하나로 통일한다**
      * (기사님 확정: *"차종, 짐 등등.. 그건 하나로 통일해서 임의로 넣고"*).
@@ -74,6 +57,7 @@ object KakaoPickerKeywords {
      *    「밀어서 …」는 **시트를 올려야** 나오고, 그때 시트가 **헤더를 덮는다**(17·22번).
      *    접근성 트리는 가려진 헤더도 읽으므로 **확정 버튼이 있으면 그것이 답**이다.
      */
+    /* 🔴 일부러 두 벌 — 화면 판별은 표(`KakaoPickerPages.screens` 의 운행 페이지)가 하고, 여기 글자는 수락 확인(`stageOf`)만 쓴다 · reviews/35 4단계에서 표로 */
     val STAGE_WORDS: List<Pair<Stage, List<String>>> = listOf(
         /**
          * 🏠 **홈은 「시작하기」 버튼으로 안다** (기사님 확정:
@@ -160,28 +144,6 @@ object KakaoPickerKeywords {
     )
 
     /**
-     * 🖥️ **이 화면을 관제웹이 알아볼 이름으로 바꾼다** (기사님 지시).
-     *
-     * 기사님: *"내가 관제앱에서 현 페이지를 확인할 수 있어야 해.. 그래야 일을 시작할 수 있지."*
-     *
-     * 🔴 **치환은 배차망 안에서 한다.** 페이지(`Stage`)는 픽커 폴더 밖으로 나가지 않고,
-     *    나가는 것은 **공통 화면 값 하나**뿐이다 — 마일스톤을 안 늘리는 것과 같은 원리다
-     *   그래야 배차망이 늘어도 공통 목록이 안 부푼다.
-     *
-     * ⚠️ 홈은 `null` 이다 — 홈은 운행 화면이 아니고, 화면 판별이 «로딩»으로 건너뛴다.
-     */
-    fun screenContextOf(stage: Stage?): ScreenContext? = when (stage) {
-        Stage.TO_PICKUP  -> ScreenContext.RUN_TO_PICKUP
-        Stage.AT_PICKUP  -> ScreenContext.RUN_AT_PICKUP
-        Stage.TO_DROPOFF -> ScreenContext.RUN_TO_DROPOFF
-        Stage.AT_DROPOFF -> ScreenContext.RUN_AT_DROPOFF
-        Stage.DONE       -> ScreenContext.RUN_DONE
-        // 🏠 홈은 운행 화면이 아니지만 «모름»도 아니다 — 읽었고, 대기 중이다
-        Stage.HOME       -> ScreenContext.HOME
-        null             -> null              // 픽커가 아는 화면이 아니다 — 낱말 판별에 맡긴다
-    }
-
-    /**
      * ↩️ **수락 전 상세에서 화면이 바뀌었다 — 무엇을 할까** (기사님: *"로그 문구는 오해를 할 수 있는 부분이라 수정"*).
      *
      * 🔴 리스트로 돌아오면 `HijackService` 가 세션(리스트 원본 · 미리보기 딱지)을 **먼저 비운다.** 그 뒤에 승격 확인을 부르면
@@ -252,7 +214,7 @@ object KakaoPickerKeywords {
     /**
      * 📋 **«내 오더» 탭** — «목록 지도»(머리 토글)가 있고 «리스트 설정» · «수락하기»가 없다 (실물 라이브 09-16 04:36).
      * 그날 신규 리스트 기록 4건에는 «목록 지도»가 한 번도 없었다 («수요지도»는 리스트에도 있어 못 쓴다).
-     * 🔴 화면 분류(`ScreenContext`)로는 올리지 않는다 — «완료 리스트»로 두면 리스트 복귀로 읽혀 미리보기 딱지가 비워지고 승격이 막힌다.
+     * 🔴 화면 판별(«내 오더» 화면 값)은 배차망 정의 표가 한다 — 여기는 수락 확인(`isAcceptedEvidence`)만 쓴다(표와 같은 글자 · reviews/35 4단계에서 표로).
      */
     fun isMyOrderTab(rawText: String?): Boolean {
         val t = rawText ?: return false
@@ -264,52 +226,6 @@ object KakaoPickerKeywords {
     private val MAIN_TAB_WORDS = listOf("신규", "내 오더")
     /** 오더가 없을 때만 나오는 글자 — 이 탭은 수락의 증거가 아니다 (실물 라이브 09-16 04:36) */
     private const val MY_ORDER_EMPTY = "진행 중인 오더가 없어요"
-
-    /**
-     * 🖥️ **픽커 화면을 관제웹 이름으로** — 운행 단계가 먼저, 아니면 «내 오더» 탭, 둘 다 아니면 `null`(낱말 판별에 맡긴다).
-     * 🔴 내 오더는 리스트 계열이 아니다 — `HijackService` 의 리스트 복귀(세션 비움)에 안 걸려야 수락 뒤 승격이 산다.
-     */
-    fun pickerScreenContextOf(rawText: String?): ScreenContext? =
-        screenContextOf(stageOf(rawText))
-            ?: if (isMyOrderTab(rawText)) ScreenContext.MY_ORDERS
-            else if (isScrolledList(rawText)) ScreenContext.LIST
-            // 📋 머리줄도 아래 탭도 안 보이는 가운데 토막 — 카드 모양으로 알아본다 (기사님 라이브)
-            else if (looksLikeCardList(rawText)) ScreenContext.LIST
-            else null
-
-    /**
-     * 📋 **스크롤해서 머리줄 «리스트 설정»이 가려진 신규 리스트** (09-16 05:28 라이브 — 상세에서 돌아온 리스트가 «모르는 화면»으로 떴다).
-     * 아래 탭 줄 «신규 내 오더» + 떠 있는 메뉴 «서포트모드»가 있고, 내 오더 표식(«목록 지도») · 상세 표식(«수락하기»)이 없다.
-     * 머리줄이 보이면 원래 판별(`PICKER.listRequired`)에 맡긴다.
-     * 🔴 머리줄이 안 보이는 리스트에서는 알람이 카드를 누르지 않는다 — `KakaoPickerParser.isListCardAnchor` 가 머리줄 Y 없음이면 false (#111)
-     */
-    fun isScrolledList(rawText: String?): Boolean {
-        val t = rawText ?: return false
-        return !t.contains("리스트 설정") && t.contains("신규 내 오더") && t.contains("서포트모드") &&
-            !t.contains(MY_ORDER_TAB_WORD) && !t.contains("수락하기")
-    }
-
-    /** 📋 «14.6km … 7,315» — 거리 뒤에 요금이 오는 카드 한 장의 모양 */
-    private val CARD_SHAPE = Regex("""\d+(?:\.\d+)?km\s.{0,40}?\d{1,3}(?:,\d{3})+""")
-
-    /** 📋 리스트로 보려면 카드가 이만큼은 보여야 한다 — 상세(한 장)와 가르는 선 */
-    private const val CARD_LIST_MIN = 3
-
-    /**
-     * 📋 **위도 아래도 안 보이는 «가운데 토막» 도 리스트다** (기사님 라이브: *"지금도 리스트 페이지야"*).
-     *
-     * 머리줄(«리스트 설정»)이 가려지면 아래 탭 두 글자로 알아보는데(`isScrolledList`),
-     * 목록 한가운데를 보고 있으면 **위도 아래도 안 보인다** — 카드만 가득하다. 그때 관제웹에
-     * «픽커 알 수 없는 화면»이 떴다.
-     *
-     * 🔴 **낱말이 아니라 카드 «모양»으로 알아본다** — 「거리 + 요금」이 세 벌 넘게 되풀이되면 리스트다.
-     *    픽커가 탭 이름을 바꿔도 안 뚫리고, 상세는 카드가 한 장뿐이라 안 걸린다.
-     */
-    fun looksLikeCardList(rawText: String?): Boolean {
-        val t = rawText ?: return false
-        if (t.contains("수락하기") || t.contains(MY_ORDER_TAB_WORD)) return false   // 상세 · 내 오더는 아니다
-        return CARD_SHAPE.findAll(t).count() >= CARD_LIST_MIN
-    }
 
     /** ✅ **수락했다는 증거** — 운행 화면(퀵 흰 페이지 · 도보 «밀어서 …» 등)이거나, 오더가 든 «내 오더» 탭 (수락하면 곧바로 여기로 온다) */
     fun isAcceptedEvidence(rawText: String?): Boolean =
@@ -335,66 +251,16 @@ object KakaoPickerKeywords {
 
     fun isTakenToast(text: String): Boolean = TAKEN_TOAST_WORDS.any { text.contains(it) }
 
-    val PICKER = ScreenKeywords(
-        // 리스트: 상단 고정 헤더 «리스트 설정»이 이 화면에만 있다 (덤프 04~10 · 0830 전부)
-        listRequired = listOf("리스트 설정"),
-        // 완료/수행 내역 화면은 아직 미탐사 — 오인 방지 표식 (실물 뜨면 채운다)
-        completedListRequired = listOf(NOT_YET_SEEN),
-        /**
-         * 🔴 **낱말 둘을 함께 요구한다 — 인성이 쓰는 방식**.
-         *
-         * 낱말 하나(`"픽업"`)면 리스트로 돌아올 때 남은 상세 잔상 한 줄
-          * (「픽업지 경기 성남시 …」)로 리스트가 **상세로 오인**된다.
-         *
-         * 인성은 처음부터 둘을 요구한다 — `listRequired = ["신규","빠른설정"]` ·
-         * `detailKeywords = ["적요상세","요금"]`. 한 낱말이 잔상으로 남아도 나머지가
-         * 없어서 안 걸린다. 픽커도 같게 만든다.
-         *
-         * 실물 덤프 12종을 훑어 **상세 2종 모두에 있고 리스트 7종·홈 3종 어디에도 없는**
-         * 낱말이 정확히 이 둘이다 — 지어낸 것이 아니라 골라낸 것이다.
-         *
-         * ⚠️ 둘 다 «수락 **전**»의 표식이다. 수락하면 사라지므로 **수락 후 화면은 여기로
-         *    안 잡힌다** — 그 판정은 `stageOf` 가 따로 한다 (HijackService 화면 판별 직후).
-         */
-        detailKeywords = listOf("넘기기", "수락하기"),
-        confirmKeywords = listOf("수락하기", "넘기기"),
-        pickupKeywords = listOf(NO_SUCH_SCREEN),
-        dropoffKeywords = listOf(NO_SUCH_SCREEN),
-        memoKeywords = listOf(NO_SUCH_SCREEN),
-        /**
-         * 🚫 **«이미 배정이 완료된 오더입니다» 토스트** — 남이 가져간 콜을 눌렀을 때 리스트 위에 뜬다 (실물 캡처 03).
-         * 🔴 **이 글자를 못 알아보면 카드 출발지로 읽어 가짜 콜을 서버에 올린다.** 토스트가 보이는 동안은 에러 화면으로 보고 리스트를 훑지 않는다.
-         * ⚠️ «다른 기사에게 배정»(2023 자료 · 실물에서는 못 봄)도 함께 둔다 — 틀렸다는 증거도 없다 (규칙 ② 안전장치는 빼지 않는다). 검사: `AssignedToastTest`
-         */
-        errorKeywords = listOf(ASSIGNED_TOAST_WORD, "다른 기사에게 배정"),
-        /**
-         * ⏳ **비워 둔다 — 안 본 것은 안 적는다** (기사님 실측 제보).
-         *
-         * 홈 문구를 여기 적으면 **홈을 로딩으로 위장**시킨다 — 홈은 제대로 된 화면(`Stage.HOME`)인데
-          * 한 화면을 두 곳이 다르게 답하고, 로딩이 먼저라 늘 이겨 `HijackService` 가 홈 프레임을
-          * **통째로 버린다** (관제웹이 «알 수 없는 화면»에 굳는다 · 규칙 ⑤-4 ⑤).
-         *
-         * 🔴 **로딩으로 버리는 것이 틀린 답보다 나쁘다.** 틀린 답은 다음 프레임에
-         *    고쳐지지만, 버려진 프레임은 아무것도 안 남긴다.
-         *
-         * 🔴 **픽커에는 로딩 화면이 아예 없다** (기사님 확정:
-         *    *"픽커는 로딩화면이 없어 그냥 홈 화면만 있어"*).
-         *    그러니 여기는 «아직 못 봤다»가 아니라 **«없다»** 다 — 채울 날이 오지 않는다.
-         *    인성은 있다(「오더 조회」·「기다려 주십」). 배차망마다 다른 것이지
-         *    빠뜨린 것이 아니다.
-         */
-        loadingKeywords = listOf(NO_SUCH_SCREEN),
-        appLabel = "픽커",
-        cancelKeyword = "넘기기"
-    )
+    /** 픽커 이름표 · 취소 버튼 글자 — 화면을 알아보는 글자는 배차망 정의 표(`KakaoPickerPages.screens`)에 있다 */
+    val PICKER = ScreenKeywords(appLabel = "픽커", cancelKeyword = "넘기기")
 
     /**
      * 🖥️ **이 배차망 화면에만 있는 글자 묶음** — 스캔앱이 화면 글자로 배차망을 가를 때 쓴다
      * (기사님 확정 · `TargetApp.networksOnScreen`). 묶음 안 글자가 **전부** 보여야 이 배차망이다.
-     * 🔴 새로 적지 않는다 — 위 화면 판별 글자에서 만든다 (두 곳에 적으면 갈라진다 · 규칙 ③).
+     * 🔴 **일부러 표와 따로 둔다** — 배차망을 가르는 글자는 다른 배차망 화면에 없어야 해서(`NetworkByScreenTest`) 표의 페이지 글자와 고르는 기준이 다르다 · reviews/35 4단계.
      */
     /* 픽커는 리스트·상세 말고도 홈·수락 뒤 단계마다 글자가 따로 있다 — `STAGE_WORDS` 는 «그중 하나라도»라서 낱말 하나가 한 묶음이다 */
     val NETWORK_MARKERS: List<List<String>> =
-        listOf(PICKER.listRequired, PICKER.detailKeywords) + STAGE_WORDS.flatMap { (_, words) -> words.map { listOf(it) } } +
+        listOf(listOf("리스트 설정"), listOf("넘기기", "수락하기")) + STAGE_WORDS.flatMap { (_, words) -> words.map { listOf(it) } } +
             QUICK_PAGE_MARKERS.map { listOf(it) }   // 퀵 흰 페이지도 픽커 화면이다 — 머리 글자를 못 읽어 단계 글자로는 안 잡힌다
 }

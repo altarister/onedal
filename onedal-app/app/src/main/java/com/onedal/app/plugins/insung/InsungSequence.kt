@@ -56,7 +56,7 @@ fun ScanContext.advanceCollect(rootNode: AccessibilityNodeInfo) {
 
 /** 팝업 잔상이 화면에 남아있는지 검사 */
 fun ScanContext.isPopupResidue(rawScreenStr: String): Boolean {
-    val resid = screenDetector.isPopupResidue(rawScreenStr)
+    val resid = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).isPopupResidue(rawScreenStr)
     if (resid) AppLogger.roadmap(LogTag.SCREEN, "✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
     return resid
 }

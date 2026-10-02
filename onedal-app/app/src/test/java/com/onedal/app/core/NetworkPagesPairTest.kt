@@ -58,7 +58,7 @@ class NetworkPagesPairTest {
 
     private fun screensOf(screens: List<ScreenSpec>): List<String> = screens.flatMap { s ->
         listOf("${s.name}|${s.standard?.name}|${s.match.map(::matchText)}|${s.listReturn}|${s.seen.name}|${s.evidence}|${s.toCollect}|${s.wordsFrom}") +
-            s.overlays.map { o -> "  ${o.name}|${o.kind.name}|${o.match.map(::matchText)}|${o.meaning}|${o.seen.name}|${o.evidence}|${o.toCollect}|${o.wordsFrom}" }
+            s.overlays.map { o -> "  ${o.name}|${o.kind.name}|${o.match.map(::matchText)}|${o.meaning}|${o.seen.name}|${o.evidence}|${o.toCollect}|${o.wordsFrom}|${o.reportAs?.name ?: ""}" }
     }
 
     private fun strings(o: JsonObject, k: String): List<String> = o[k]?.asJsonArray?.map { it.asString } ?: emptyList()
@@ -73,7 +73,7 @@ class NetworkPagesPairTest {
         val standard = s["standard"].takeIf { !it.isJsonNull }?.asString
         listOf("${str(s, "name")}|$standard|${matchesOf(s)}|${s["listReturn"].asBoolean}|${str(s, "seen")}|${strings(s, "evidence")}|${str(s, "toCollect")}|${str(s, "wordsFrom")}") +
             s["overlays"].asJsonArray.map { it.asJsonObject }.map { o ->
-                "  ${str(o, "name")}|${str(o, "kind")}|${matchesOf(o)}|${str(o, "meaning")}|${str(o, "seen")}|${strings(o, "evidence")}|${str(o, "toCollect")}|${str(o, "wordsFrom")}"
+                "  ${str(o, "name")}|${str(o, "kind")}|${matchesOf(o)}|${str(o, "meaning")}|${str(o, "seen")}|${strings(o, "evidence")}|${str(o, "toCollect")}|${str(o, "wordsFrom")}|${str(o, "reportAs")}"
             }
     }
 

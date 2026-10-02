@@ -47,6 +47,8 @@ enum class ScreenContext(val value: String) {
      * 인성에는 이 층이 없다(켜면 바로 리스트). 픽커는 「시작하기」가 있는 홈을 거친다.
      * 🔴 «모름»과 갈라 둔다 — 앞은 *"못 읽고 있다"*, 뒤는 *"읽었고 대기 중이다"*.
      */
+    TRANSITION("TRANSITION"),                  // 🔀 콜을 누른 직후 넘어가는 틀 — 서버는 «알 수 없는 화면»처럼 스치는 화면으로 본다
+    NETWORK_MENU("NETWORK_MENU"),              // 🧭 배차망 안의 일이 아닌 화면(메뉴 · 마이페이지 …) — 목록 복귀가 아니다
     MY_ORDERS("MY_ORDERS"),                    // 📋 픽커 내 오더 탭 — 🔴 리스트 계열이 아니다 (리스트 복귀로 읽으면 승격이 막힌다)
     HOME("HOME"),                              // 🏠 배차망 홈
     LAUNCHER("LAUNCHER"),                      // 📱 스마트폰 홈 런처 (바탕화면)

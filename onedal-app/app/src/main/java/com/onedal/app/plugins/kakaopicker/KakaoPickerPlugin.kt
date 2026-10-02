@@ -42,18 +42,15 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
 
     override val acceptButtons: List<String>? = null
 
+    /** 🖥️ 페이지 목록 — `KakaoPickerPages` (reviews/35) */
+    override val screens get() = KakaoPickerPages.screens
+
     override val ocrParser: ScreenOcrParser<*> = PickerDetailOcrParser()
 
     override fun getSafeCancelMs(filter: FilterConfig): Long? = null
 
     override fun getDetailBackTimeoutMs(filter: FilterConfig): Long =
         filter.pickerAlarmDetailSec * 1000L
-
-    override fun resolveScreenContext(
-        text: String,
-        defaultContext: com.onedal.app.models.ScreenContext
-    ): com.onedal.app.models.ScreenContext =
-        KakaoPickerKeywords.pickerScreenContextOf(text) ?: defaultContext
 
     /**
      * 👆 **픽커 목록에서 누르기 전 안전 확인** — 머리줄 위의 요금은 오더카드다, 누르면 그 자리에서 계약이다.

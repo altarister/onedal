@@ -17,6 +17,7 @@ import org.junit.Test
  */
 class PickerQuickPageTest {
     private val k = KakaoPickerKeywords
+    private fun table(t: String) = com.onedal.app.core.engine.ScreenDetector().detect(t, KakaoPickerPages.screens).context
 
     /** 🟢 실물 A24 로그 — 화면 위쪽 (복사 · 전화 버튼 이름이 읽힌다) */
     private val realDepartTop = "픽업지 정보 경기 용인시 기흥구 어정로 100 조영프라자 111,112호 경기 용인시 기흥구 어정로 100 조영프라자 111,112호 " +
@@ -125,20 +126,20 @@ class PickerQuickPageTest {
 
     @Test
     fun `🔴 스크롤해서 리스트 설정이 가려진 리스트도 리스트다 - 아래 탭 줄 + 서포트모드 (09-16 05시28분 라이브)`() {
-        assertEquals(com.onedal.app.models.ScreenContext.LIST, k.pickerScreenContextOf(realScrolledList))
-        assertEquals("내 오더 탭은 여전히 내 오더", com.onedal.app.models.ScreenContext.MY_ORDERS, k.pickerScreenContextOf(realMyOrderEmpty))
-        assertNull("수락 전 상세는 리스트가 아니다", k.pickerScreenContextOf("$realScrolledList 넘기기 수락하기"))
-        assertNull("머리줄이 보이면 원래 판별(리스트 설정)에 맡긴다", k.pickerScreenContextOf(realList))
-        assertNull("아래 탭 줄만으로는 리스트가 아니다", k.pickerScreenContextOf("6.8km 광주 송정 역삼1 신규 내 오더"))
+        assertEquals(com.onedal.app.models.ScreenContext.LIST, table(realScrolledList))
+        assertEquals("내 오더 탭은 여전히 내 오더", com.onedal.app.models.ScreenContext.MY_ORDERS, table(realMyOrderEmpty))
+        assertEquals("수락 전 상세는 리스트가 아니다", com.onedal.app.models.ScreenContext.DETAIL_PRE_CONFIRM, table("$realScrolledList 넘기기 수락하기"))
+        assertEquals("머리줄이 보이면 리스트", com.onedal.app.models.ScreenContext.LIST, table(realList))
+        assertEquals("아래 탭 줄만으로는 리스트가 아니다", com.onedal.app.models.ScreenContext.UNKNOWN, table("6.8km 광주 송정 역삼1 신규 내 오더"))
     }
 
     /** 🖥️ 관제웹에 «알 수 없는 화면» 대신 «내 오더»로 보인다 (기사님 지시) */
     @Test
-    fun `관제웹 화면 이름 - 내 오더 탭은 MY_ORDERS · 퀵 페이지는 운행 화면 · 리스트는 기존 판별에 맡긴다`() {
-        assertEquals(com.onedal.app.models.ScreenContext.MY_ORDERS, k.pickerScreenContextOf(myOrderWithCall))
-        assertEquals(com.onedal.app.models.ScreenContext.MY_ORDERS, k.pickerScreenContextOf(realMyOrderEmpty))
-        assertEquals(com.onedal.app.models.ScreenContext.RUN_TO_PICKUP, k.pickerScreenContextOf(realDepartTop))
-        assertNull(k.pickerScreenContextOf(realList))
+    fun `관제웹 화면 이름 - 내 오더 탭은 MY_ORDERS · 퀵 페이지는 운행 화면 · 리스트는 LIST`() {
+        assertEquals(com.onedal.app.models.ScreenContext.MY_ORDERS, table(myOrderWithCall))
+        assertEquals(com.onedal.app.models.ScreenContext.MY_ORDERS, table(realMyOrderEmpty))
+        assertEquals(com.onedal.app.models.ScreenContext.RUN_TO_PICKUP, table(realDepartTop))
+        assertEquals(com.onedal.app.models.ScreenContext.LIST, table(realList))
     }
 
     @Test

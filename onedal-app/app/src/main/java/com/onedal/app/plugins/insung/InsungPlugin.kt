@@ -35,9 +35,16 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
 
     /** 📄 페이지 정의 — `InsungPages` (reviews/24) */
     override val pages get() = InsungPages.pages
+    override val screens get() = InsungPages.screens
 
-    override val acceptButtons: List<String>?
-        get() = keywords.confirmKeywords
+    /** ✋ 출발지 · 도착지 팝업이 닫히는 애니메이션 동안 글자가 남는다 */
+    override fun isPopupResidue(rawScreenStr: String): Boolean =
+        rawScreenStr.contains("출발지 상세") || rawScreenStr.contains("도착지 상세")
+
+    override val handlesConfirmedDetail: Boolean get() = true
+
+    /** ✍️ 확정 버튼 글자 — 판별 글자에서 옮긴 값 그대로(«배차»가 든 까닭은 따로 본다) */
+    override val acceptButtons: List<String>? = listOf("확정", "배차")
 
     override val ocrParser: ScreenOcrParser<*>? = null
 
