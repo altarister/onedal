@@ -46,7 +46,8 @@
 - ⚠️ **빌드를 식별하는 값에 컴파일 타임 상수(`BuildConfig.VERSION_NAME`)를 쓰지 말 것.**
   호출부에 인라인되어 재컴파일이 생략되면 옛 값이 남는다. 런타임 조회(`AppInfo`)를 쓴다
 
-- **화면 판별·노이즈 단어는 서버에서 받아 온다** — `GET /api/config/keywords?app=인성콜`
+- **화면 판별은 배차망 정의 표다** — shared `networkPages.ts` 의 페이지 목록을 `pnpm gen:pages` 로 배차망마다 생성 파일(`InsungPages.kt` · `Hwamul24Pages.kt` · `KakaoPickerPages.kt`)에 뽑아 `ScreenDetector` 가 읽는다. 원달앱 코드에 화면 글자를 적지 않는다
+- **노이즈 단어는 서버에서 받아 온다** — `GET /api/config/keywords?app=인성콜`
   (`app` 은 배차망 이름표 `인성콜`·`24시`·`픽커` — 각 Plugin 의 `label`)
   (서버 파일: `server/config/keywords_inseong.json` · `keywords_24.json` · `keywords_picker.json`).
   배차망이 UI를 바꿔도 앱 재배포 없이 대응하려는 설계다.
@@ -55,7 +56,7 @@
 
 - **배차망은 화면 글자로 가른다 — 앱 이름(패키지)으로 가르지 않는다** (`TargetApp.networksOnScreen`).
   시뮬레이터 앱은 세 배차망을 한 앱으로 띄우므로 앱 이름으로는 가를 수 없다.
-  배차망마다 Keywords 에 `NETWORK_MARKERS`(그 배차망 화면에만 있는 글자 묶음)를 둔다.
+  배차망마다 shared 배차망 정의 표의 `networkMarkers`(그 배차망 화면에만 있는 글자 묶음)를 둔다 — 원달앱은 생성 파일의 `networkMarkers` 로 받는다.
   🔴 화면 판별 글자를 고치면 **다른 배차망 화면에 그 글자가 없는지** `NetworkByScreenTest` 가 대조한다.
   예외는 하나 — 픽커 로그를 어디까지 남길지만 앱 이름을 본다(`TargetApp.pickerLogScope`):
   실제 픽커 앱은 «운행 단계 + 모르는 화면 글자», 시뮬레이터 앱은 픽커 화면일 때 «운행 단계»만
