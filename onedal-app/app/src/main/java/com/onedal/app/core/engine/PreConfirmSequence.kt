@@ -475,3 +475,17 @@ fun ScanContext.passesFilterAfterFill(order: SimplifiedOfficeOrder): Boolean {
  */
 fun appPressesAccept(contractedByApp: Boolean, acceptButtons: List<String>?, order: SimplifiedOfficeOrder): Boolean =
     contractedByApp && acceptButtons != null && ReservationGate.isToday(order)
+
+/**
+ * 🚪 **앱이 연 상세에서 앱이 계약하나** — 자동 모드이고 **오늘 콜**일 때만 (`AppPressesAcceptTest`).
+ * 📅 내일 콜·날 모름은 자동이어도 기사님이 확정한다 — 상세에서 한 번 더 보는 곳은 `appPressesAccept`.
+ */
+fun appContractsOnOpen(mode: String, order: SimplifiedOfficeOrder): Boolean =
+    mode == "AUTO" && ReservationGate.isToday(order)
+
+/** 🚪 상세 진입 줄의 «무엇을 하나» — 모드가 아니라 «앱이 계약하나» 하나로 말한다(자동인데 내일 콜이면 기사님 확정 · 미리보기) */
+fun openPlanText(mode: String, contracts: Boolean): String = when {
+    contracts -> "앱이 채우고 확정"
+    mode == "AUTO" -> "📅 내일 콜 — 앱이 채우고 확정은 기사님(미리보기)"
+    else -> "판정만 받고 확정·수락은 기사님"
+}

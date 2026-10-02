@@ -196,7 +196,7 @@ describe('🎛️ 앱은 직접 모드에서 누르지 않는다', () => {
     /**
      * 🔴 목록에서 누르는 모드는 자동·체험·알람뿐이다(배차망_모드표.md) — 직접 모드와 모르는 값에서 앱이 누르면
      *    기사님이 안 고른 콜이 열린다. 누르는 곳은 한 곳이고, 그 앞 문이 이 세 모드만 연다.
-     *    계약 버튼(확정)은 자동에서만 — `contractedByApp = currentMode == "AUTO"`.
+     *    계약 버튼(확정)은 자동 · 오늘 콜에서만 — `appContractsOnOpen`(PreConfirmSequence) 하나를 진입 줄과 세션 칸이 함께 쓴다.
      */
     it('🔴 터치는 자동·체험·알람 문 안에서만 일어난다 — 직접은 누르지 않는다', () => {
         const fn = scan();
@@ -208,7 +208,9 @@ describe('🎛️ 앱은 직접 모드에서 누르지 않는다', () => {
         expect(gate).not.toMatch(/MANUAL/);
         const beforeTouch = fn.split('performSimulatedTouch')[0] ?? '';
         expect(beforeTouch).toMatch(/if \(tapsFromList/);
-        expect(fn).toMatch(/contractedByApp = currentMode == "AUTO"/);
+        expect(fn).toMatch(/val willContract = com\.onedal\.app\.core\.engine\.appContractsOnOpen\(currentMode, order\)/);
+        expect(fn).toMatch(/contractedByApp = willContract/);
+        expect(app('core/engine/PreConfirmSequence.kt')).toMatch(/fun appContractsOnOpen\(mode: String, order: SimplifiedOfficeOrder\): Boolean =\s*mode == "AUTO" && ReservationGate\.isToday\(order\)/);
     });
 
     /**

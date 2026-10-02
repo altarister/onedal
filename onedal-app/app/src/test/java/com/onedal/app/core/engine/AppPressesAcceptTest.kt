@@ -1,6 +1,7 @@
 package com.onedal.app.core.engine
 
 import com.onedal.app.models.SimplifiedOfficeOrder
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -28,5 +29,15 @@ class AppPressesAcceptTest {
     @Test fun `앱이 계약하지 않는 콜 · 수락 칸 없는 배차망은 누르지 않는다`() {
         assertFalse(appPressesAccept(false, buttons, call(null, null)))
         assertFalse(appPressesAccept(true, null, call(null, null)))
+    }
+
+    /** 🚪 상세 진입 줄은 모드가 아니라 «앱이 계약하나»(자동이고 오늘 콜) 하나로 말한다 */
+    @Test fun `진입 줄 - 자동이어도 내일 콜이면 기사님 확정(미리보기)을 말한다`() {
+        assertTrue(appContractsOnOpen("AUTO", call(null, null)))
+        assertFalse(appContractsOnOpen("AUTO", call(true, 1)))
+        assertFalse(appContractsOnOpen("MANUAL", call(null, null)))
+        assertEquals("앱이 채우고 확정", openPlanText("AUTO", true))
+        assertEquals("📅 내일 콜 — 앱이 채우고 확정은 기사님(미리보기)", openPlanText("AUTO", false))
+        assertEquals("판정만 받고 확정·수락은 기사님", openPlanText("MANUAL", false))
     }
 }

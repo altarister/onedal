@@ -1704,8 +1704,10 @@ class HijackService : AccessibilityService(), ScanContext {
                                 waitBook.schedule("흐르는 목록 다시 읽기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.ScrollGate.QUIET_MS) { reservedRead("흐르는 목록") }
                             return@handoff
                         }
+                        /* ✍️ 앱이 계약하나 — 진입 줄과 세션 칸이 같은 값 하나를 쓴다(자동이어도 내일 콜이면 기사님 확정 · `appContractsOnOpen`) */
+                        val willContract = com.onedal.app.core.engine.appContractsOnOpen(currentMode, order)
                         AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🚪 [상세 진입] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
-                            "모드 $currentMode — ${if (currentMode == "AUTO") "앱이 채우고 확정" else "판정만 받고 확정·수락은 기사님"} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
+                            "모드 $currentMode — ${com.onedal.app.core.engine.openPlanText(currentMode, willContract)} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
                         AppLogger.d(TAG, LogTag.TAP, "💥 [$currentMode] 꿀콜 조건 통과! 요금 최고 콜 터치 진행!")
                         alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용
                         val fired = touchManager.performSimulatedTouch(freshFare.node, tapRowLeft = tap2.rowLeft, delayMs = tap2.delayMs, tapDy = tap2.dy,
@@ -1726,8 +1728,8 @@ class HijackService : AccessibilityService(), ScanContext {
                             callMemory.markEvaluated(orderHash)
                             alarmedRoutes.markOpened(order, android.os.SystemClock.elapsedRealtime())   // 🔔 요금만 올라도 다시 안 연다
                             session.openedByApp = true // 콜 잡기 시작!
-                            // ✍️ 계약 버튼은 자동 모드에서만 — 모드 이름을 읽는 곳은 여기 한 곳 · 📅 내일 콜은 자동이어도 기사님이 확정 (상세에서 한 번 더: `appPressesAccept`)
-                            session.contractedByApp = currentMode == "AUTO" && com.onedal.app.core.engine.ReservationGate.isToday(order)
+                            // ✍️ 계약 버튼은 자동 모드 · 오늘 콜에서만 — 위 진입 줄과 같은 값 · 📅 상세에서 한 번 더: `appPressesAccept`
+                            session.contractedByApp = willContract
                             session.setOrderId(order.id)
                             session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
                             /**
