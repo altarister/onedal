@@ -192,12 +192,13 @@ export function afterworkMinutes(
  * 하루에 노선 3 + 복귀 3 을 도는데, 잡아 둔 콜을 다 더해 세면 **3~4콜에서 «만재»로 막힌다.**
  * 3번 콜을 싣기 전에 1번을 내리면 그 자리는 돌아온다 — 겹치는 구간만 함께 센다.
  *
- * 두 갈래로 나눠 센다:
+ * 세 갈래로 나눠 센다:
  *   · 실린 것(loaded) — 상차를 마쳤거나 상차지에 와 있어 남은 경로 맨 앞에서 실리는 콜. **처음부터 짐에 든다**
  *   · 실릴 것(toLoad) — 아직 상차 전인 콜. 경로에서 **그 상차지에 닿는 순간부터** 짐에 더한다
+ *   · 내린 것(unloaded) — 하차지에 와 있는 콜(하차 완료 전이어도). **짐에서 뺀다** — 그 자리에서 내리고 떠난다
  *
  * ```
- * 함께 실리는 최대 = 경로를 따라 «실린 것 + 그때까지 실린 실릴 것 − 내린 것»의 가장 큰 값
+ * 함께 실리는 최대 = 경로를 따라 «실린 것 + 그때까지 실린 실릴 것 − 내린 것»의 가장 큰 값 · 하차지에 와 있는 콜은 내린 것
  * 남은 자리       = 내 차 그릇 − 함께 실리는 최대
  * ```
  *
@@ -209,13 +210,17 @@ export function afterworkMinutes(
  * @param orderedStops  남은 경로의 정거장 순서 (`sectionStops`). 없으면 `null`
  * @param loadedIds     실린 것 — 경로에서 상차 정거장이 빠진 콜(`hasVisitedStop(c, 'pickup')`). 경로를 짜는 기준과
  *                      같아야 순서가 콜 전부를 덮는다. 나머지는 실릴 것이다
+ * @param unloadedIds   내린 것 — 경로에서 하차 정거장이 빠진 콜(`hasVisitedStop(c, 'dropoff')`). 셈에서 통째로 뺀다 —
+ *                      안 빼면 «하차가 목록에 없다»로 다 더한 값으로 물러선다
  */
 export function peakLoadPoints(
     pointsByOrder: Record<string, number>,
     orderedStops: ReadonlyArray<{ orderId: string; stopType: 'pickup' | 'dropoff' }> | null | undefined,
     loadedIds: ReadonlyArray<string>,
+    unloadedIds: ReadonlyArray<string> = [],
 ): number {
-    const ids = Object.keys(pointsByOrder);
+    const unloaded = new Set(unloadedIds);
+    const ids = Object.keys(pointsByOrder).filter(id => !unloaded.has(id));
     const sum = ids.reduce((a, id) => a + (pointsByOrder[id] ?? 0), 0);
     if (!orderedStops || orderedStops.length === 0) return sum;
 
@@ -232,7 +237,7 @@ export function peakLoadPoints(
     let peak = now;
     for (const st of orderedStops) {
         const pt = pointsByOrder[st.orderId];
-        if (pt == null) continue;
+        if (pt == null || unloaded.has(st.orderId)) continue;
         if (st.stopType === 'pickup') { if (!loaded.has(st.orderId)) { now += pt; if (now > peak) peak = now; } }
         else now -= pt;
     }

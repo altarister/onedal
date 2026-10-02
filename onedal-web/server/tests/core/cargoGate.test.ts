@@ -160,8 +160,9 @@ describe('📦 필터가 «최대»를 쓴다 (배선)', () => {
         expect(fm).toMatch(/slotsUsed = Math\.min\([\s\S]{0,80}Math\.round\(peak \* 10\)/);
     });
 
-    it('🔴 순서와 «실린 것»을 함께 넘긴다 — 실린 것은 경로 조립과 같은 기준(hasVisitedStop)으로 가른다', () => {
-        expect(fm).toMatch(/peakLoadPoints\(pointsByOrder,\s*orderedStops,\s*loadedIds\)/);
+    it('🔴 순서와 «실린 것» · «내린 것»을 함께 넘긴다 — 둘 다 경로 조립과 같은 기준(hasVisitedStop)으로 가른다', () => {
+        expect(fm).toMatch(/peakLoadPoints\(pointsByOrder,\s*orderedStops,\s*loadedIds,\s*unloadedIds\)/);
+        expect(fm).toMatch(/unloadedIds = activeCalls\.filter\(c => hasVisitedStop\(c, 'dropoff'\)\)/);
         expect(fm).toMatch(/sectionStops\?\.length/);
         expect(fm).toMatch(/loadedIds = activeCalls\.filter\(c => hasVisitedStop\(c, 'pickup'\)\)/);
     });
@@ -208,6 +209,21 @@ describe('📦 실린 것 · 실릴 것 — 거짓 만석을 안 낸다', () => 
             damas('D', { sectionStops: [stop('A', 'dropoff'), stop('C', 'pickup'), stop('B', 'dropoff'), stop('C', 'dropoff'), stop('D', 'pickup'), stop('D', 'dropoff')] }),
         ]);
         expect(allowed).toContain('다마스');
+    });
+
+    it('🔴 하차지에 와 있는 콜은 내린 것이다 — 한 자리에서 05 하차지 도착 · 07 · 06 상차지 도착이 겹쳐도 다마스가 남는다', () => {
+        const uid = 'test-cargo-unloaded-at-drop';
+        const s = getUserSession(uid);
+        s.userVehicleType = '1t';
+        s.activeFilter.dispatchPhase = 'DELIVERING';
+        s.activeFilter.acceptedVehicleTypes = [];
+        s.myOrders = [
+            damas('E', { status: 'ORDER_PICKED_UP', arrivedDropoffAt: '2026-10-02T12:46:33.000Z' }),
+            damas('B', { arrivedPickupAt: '2026-10-02T12:46:33.000Z' }),
+            damas('C', { arrivedPickupAt: '2026-10-02T12:46:33.000Z', sectionStops: [stop('B', 'dropoff'), stop('C', 'dropoff')] }),
+        ];
+        updateActiveFilter(uid, {});
+        expect(s.activeFilter.allowedVehicleTypes).toContain('다마스');
     });
 
     it('🔴 KEEP 길 · 재시작 복구 길은 차종을 따로 세어 넘기지 않는다 — 넘기면 필터 매니저의 셈을 건너뛴다', () => {

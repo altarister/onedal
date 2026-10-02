@@ -540,7 +540,10 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
              *    그사이 거짓 만석이 난다.
              */
             const loadedIds = activeCalls.filter(c => hasVisitedStop(c, 'pickup')).map(c => c.id);
-            const peak = peakLoadPoints(pointsByOrder, orderedStops, loadedIds);
+            /* 📦 **내린 것(unloaded)** — 하차지에 와 있는 콜(하차 완료 전이어도). 경로가 그 하차지를 뺀 것과 같은 판단 하나다 —
+                  짐에 남겨 두면 «하차가 목록에 없다»로 다 더한 값으로 물러서 거짓 만석이 난다 */
+            const unloadedIds = activeCalls.filter(c => hasVisitedStop(c, 'dropoff')).map(c => c.id);
+            const peak = peakLoadPoints(pointsByOrder, orderedStops, loadedIds, unloadedIds);
             session.activeFilter.allowedVehicleTypes = narrow(getRemainingCapacityTypesByPoints(myVehicle, peak));
             session.capacityConfidence = confidence;
             session.activeFilter.capacityConfidence = confidence;
