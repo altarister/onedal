@@ -35,9 +35,9 @@ class PickerAcceptOrderTest {
 
     @Test
     fun `수락 인지(배차망 칸)가 화면 보고보다 앞에 있다`() {
-        val report = hijack.indexOf("updateScreenContext(detected)")
+        val report = hijack.indexOf("updateScreenContext(detected")
         val accept = hijack.indexOf(".onScreenChanged(")
-        assertTrue("`updateScreenContext(detected)` 를 못 찾았다", report > 0)
+        assertTrue("`updateScreenContext(detected …)` 를 못 찾았다", report > 0)
         assertTrue("배차망 칸 `onScreenChanged` 를 부르는 곳을 못 찾았다", accept > 0)
         assertTrue(
             "수락 신고가 화면 보고보다 뒤에 있다 — 서버가 «상세 이탈»로 먼저 치운다",

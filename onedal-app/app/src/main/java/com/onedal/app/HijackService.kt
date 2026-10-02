@@ -201,7 +201,8 @@ class HijackService : AccessibilityService(), ScanContext {
         val texts = mutableListOf<String>()
         gatherNodeTexts(node, texts)
         node.recycle()
-        updateScreenContext(detectScreenContext(texts.joinToString(" ")))
+        val read = readScreen(texts.joinToString(" "))
+        updateScreenContext(contextOf(read, null), read)
     }
 
     /**
@@ -629,18 +630,19 @@ class HijackService : AccessibilityService(), ScanContext {
          * 아직 화면이 없으면(`null`) 그때만 «모름»이라 한다 (규칙 ③ — 파생).
          */
         var firstPkg: String? = null
+        var firstRead: com.onedal.app.core.engine.ScreenRead? = null
         val firstScreen = rootInActiveWindow?.let { node ->
             val texts = mutableListOf<String>()
             gatherNodeTexts(node, texts)
             val pkg = node.packageName?.toString()
             firstPkg = pkg
             node.recycle()
-            detectScreenContext(texts.joinToString(" "), pkg)
+            readScreen(texts.joinToString(" ")).let { firstRead = it; contextOf(it, pkg) }
         } ?: ScreenContext.UNKNOWN
         AppLogger.i(TAG, LogTag.BOOT, "🖥️ 붙는 순간 화면: $firstScreen")
         // 📱 새로 깔거나 접근성을 다시 켜면 목록에서 바로 붙는다 — 그 화면이 실물 배차망 목록이면 운행 기록을 켠다
         if (TargetApp.startsTraceOnAttach(firstPkg, isList = firstScreen == ScreenContext.LIST)) startTrace("붙는 순간 화면이 실물 배차망 목록")
-        updateScreenContext(firstScreen)
+        updateScreenContext(firstScreen, firstRead)
 
         // [Piggyback V2] 서버(관제탑) 결재 수신 콜백 연결 및 고스트 응답 방어(Ghost Defense)
         telemetryManager.decisionCallback = { receivedOrderId, action ->
@@ -1031,7 +1033,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val rawScreenStr = screenTexts.joinToString(" ")
 
         // 🖥️ 배차망 정의 표로 화면을 읽는다 — 로딩 같은 건너뛰는 덧칸이 보이면 이 프레임은 처리하지 않는다
-        val screenRead = screenDetector.detect(rawScreenStr, com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).screens)
+        val screenRead = readScreen(rawScreenStr)
         if (screenRead.skip) { rootNode.recycle(); return }
         lastScreenRead = screenRead
 
@@ -1093,7 +1095,7 @@ class HijackService : AccessibilityService(), ScanContext {
          *    검사: `PickerAcceptOrderTest` 「수락 인지가 화면 보고보다 앞에 있다」
          */
         markRead("배차망 화면 바뀜")
-        updateScreenContext(detected)
+        updateScreenContext(detected, screenRead)
         markRead("화면 바꿈 보고")
 
         /**
@@ -1884,8 +1886,8 @@ class HijackService : AccessibilityService(), ScanContext {
      * 표가 모르는 화면이면 패키지로 바탕화면 · 배차망 밖 앱을 가린다.
      * 붙는 순간 화면은 건너뛰는 덧칸(로딩)을 보지 않고 페이지 값을 쓴다 — «본 것»을 말한다.
      */
-    private fun detectScreenContext(text: String, pkg: String? = null): ScreenContext =
-        contextOf(screenDetector.detect(text, com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).screens), pkg)
+    private fun readScreen(text: String): com.onedal.app.core.engine.ScreenRead =
+        screenDetector.detect(text, com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).screens, lastScreenRead?.page)
 
     private fun contextOf(read: com.onedal.app.core.engine.ScreenRead, pkg: String?): ScreenContext {
         if (read.context != ScreenContext.UNKNOWN) return read.context
@@ -1905,7 +1907,7 @@ class HijackService : AccessibilityService(), ScanContext {
         return ScreenContext.UNKNOWN
     }
 
-    /** 📄 «어느 배차망의 어느 페이지 · 그 위에 뜬 것»을 바뀔 때만 한 줄 — 관제웹 배지는 화면 값만 받는다 */
+    /** 📄 «어느 배차망의 어느 페이지 · 그 위에 뜬 것»을 바뀔 때만 한 줄 */
     private fun logPageChange(read: com.onedal.app.core.engine.ScreenRead, detected: ScreenContext) {
         val key = "${currentTargetApp}|${read.page}|${read.overlay}|${detected}"
         if (key == lastPageKey) return
@@ -1913,12 +1915,23 @@ class HijackService : AccessibilityService(), ScanContext {
         AppLogger.i(TAG, LogTag.SCREEN, "📄 [페이지] ${keywords.appLabel} ${read.page ?: "표에 없음"}${read.overlay?.let { " + $it" } ?: ""} → ${detected.name}")
     }
 
-    private fun updateScreenContext(context: ScreenContext) {
-        if (telemetryManager.currentScreenContext != context) {
-            telemetryManager.currentScreenContext = context
-            // 화면 상태가 변경되면 즉각적으로 상태를 서버에 보고 (카톡 켰을 때 UNKNOWN 등 즉각 반영)
-            telemetryManager.forceFlushEvent()
-        }
+    /**
+     * 📡 화면 값을 정하고 서버에 알린다 — 원달앱 안 값(`context`)과 서버로 보내는 값(페이지 값 · 페이지 이름 · 덧칸 이름)을 함께.
+     * 표가 모르는 화면(바탕화면 · 배차망 밖 · 모름)은 보내는 값도 그 값이고 이름은 없다 (reviews/35 5단계).
+     */
+    private fun updateScreenContext(context: ScreenContext, read: com.onedal.app.core.engine.ScreenRead?) {
+        val known = read != null && read.context != ScreenContext.UNKNOWN
+        val wire = if (known) read!!.wire else context
+        val page = if (known) read!!.page else null
+        val overlay = if (known) read!!.overlay else null
+        val changed = telemetryManager.currentScreenContext != context || telemetryManager.reportedScreen != wire ||
+            telemetryManager.screenPage != page || telemetryManager.screenOverlay != overlay
+        telemetryManager.currentScreenContext = context
+        telemetryManager.reportedScreen = wire
+        telemetryManager.screenPage = page
+        telemetryManager.screenOverlay = overlay
+        // 화면 상태가 변경되면 즉각적으로 상태를 서버에 보고 (카톡 켰을 때 UNKNOWN 등 즉각 반영)
+        if (changed) telemetryManager.forceFlushEvent()
     }
 
     // ════════════════════════════════════════════════════════════════

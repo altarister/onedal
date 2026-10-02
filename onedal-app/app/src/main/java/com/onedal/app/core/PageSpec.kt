@@ -72,10 +72,10 @@ data class ScreenMatch(
 )
 
 /**
- * 📮 **이 덧칸이 보이면 보내는 지금 화면 값** — SKIP 은 그 화면을 건너뛴다(로딩).
- * 팝업 채우기 · 로딩 건너뛰기 · 오류 처리가 아직 옛 화면 값으로 돌아서 둔다 — reviews/35 5단계(페이지 + 덧칸)에서 걷는다.
+ * 🛠️ **이 덧칸이 보이면 원달앱이 할 일** — 건너뛰기(로딩) · 팝업으로 상세 채우기(인성 출발지 · 도착지 · 적요) · 오류(아무것도 안 누름).
+ * 서버로 보내는 화면 값은 페이지 값 그대로이고 덧칸 이름이 따로 간다(reviews/35 5단계).
  */
-enum class ReportAs { SKIP, LIST, POPUP_PICKUP, POPUP_DROPOFF, POPUP_MEMO, POPUP_ERROR }
+enum class OverlayAction { SKIP, FILL_PICKUP, FILL_DROPOFF, FILL_MEMO, ERROR }
 
 /** 🪟 페이지 위에 뜨는 것 하나 — 근거가 비었거나 toCollect 가 있으면 «모을 것» · wordsFrom 은 글자 원천(서버 낱말 사전 자리) */
 data class OverlaySpec(
@@ -87,7 +87,7 @@ data class OverlaySpec(
     val evidence: List<String>,
     val toCollect: String = "",
     val wordsFrom: String = "",
-    val reportAs: ReportAs? = null,
+    val action: OverlayAction? = null,
 )
 
 /**

@@ -587,7 +587,7 @@ class PickerScreenContextTest {
  * 🏠 **홈 화면 실물 한 장을 그대로 붙여 둔다** (기사님 폰에서 뜬 것).
  *
  * 🔴 **홈 글자를 로딩 낱말에 넣으면 홈이 통째로 버려진다.** 홈 화면 글자 「어떤 일을 시작할까요」가
- * 건너뛰는 덧칸(표의 reportAs = SKIP)에 들어가면 `HijackService` 가 로딩으로 보고 그 프레임을 버려 판별이 **아예 안 돈다** —
+ * 건너뛰는 덧칸(표의 action = SKIP)에 들어가면 `HijackService` 가 로딩으로 보고 그 프레임을 버려 판별이 **아예 안 돈다** —
  * 관제웹은 «알 수 없는 화면»에 굳는다. 홈은 제대로 된 화면(`Stage.HOME`)이라 한 화면을 두 곳이
  * 다르게 답하게 되고, 로딩이 먼저라 늘 이긴다 (규칙 ⑤-4 ⑤).
  *
@@ -684,7 +684,7 @@ class PickerHomeRealDumpTest {
      */
     @Test
     fun `로딩 화면은 없다 - 표에 건너뛰는 덧칸이 없다`() {
-        val skips = KakaoPickerPages.screens.flatMap { it.overlays }.filter { it.reportAs == com.onedal.app.core.ReportAs.SKIP }
+        val skips = KakaoPickerPages.screens.flatMap { it.overlays }.filter { it.action == com.onedal.app.core.OverlayAction.SKIP }
         assertTrue("픽커에는 로딩 화면이 없다 — 건너뛰는 덧칸을 더하면 그 화면이 통째로 버려진다", skips.isEmpty())
     }
 }
@@ -871,7 +871,7 @@ class AssignedToastTest {
     private val realToast = "이미 배정이 완료된\n오더입니다."
     /** 표에서 오류 화면으로 보내는 덧칸의 글자 — 상세 위 «배정 실패 오류» */
     private val errorWords = KakaoPickerPages.screens.flatMap { it.overlays }
-        .filter { it.reportAs == com.onedal.app.core.ReportAs.POPUP_ERROR }.flatMap { o -> o.match.flatMap { it.any + it.all } }
+        .filter { it.action == com.onedal.app.core.OverlayAction.ERROR }.flatMap { o -> o.match.flatMap { it.any + it.all } }
 
     @Test
     fun `실물 토스트 글자를 에러 화면 글자로 알아본다`() {

@@ -171,14 +171,15 @@ describe('배차망 페이지 목록 (screens)', () => {
         expect(all.filter(({ s }) => s.listReturn).every(({ s }) => s.standard === 'MY_ORDERS')).toBe(true);
     });
 
-    it('reportAs 는 정해진 여섯 낱말만 · SKIP 은 토스트 · 팝업에만 · 픽커 «배정» 알림은 목록 그대로(reportAs 없음)', () => {
+    it('action 은 정해진 다섯 낱말만 · SKIP 은 토스트 · 팝업에만 · 채우기는 인성 팝업 셋뿐 · 픽커 «배정» 알림은 할 일 없음', () => {
         for (const { net, s } of all) for (const o of s.overlays) {
-            if (o.reportAs === undefined) continue;
-            expect(['SKIP', 'LIST', 'POPUP_PICKUP', 'POPUP_DROPOFF', 'POPUP_MEMO', 'POPUP_ERROR'], `${net} ${o.name}`).toContain(o.reportAs);
-            if (o.reportAs === 'SKIP') expect(['TOAST', 'POPUP'], `${net} ${o.name}`).toContain(o.kind);
+            if (o.action === undefined) continue;
+            expect(['SKIP', 'FILL_PICKUP', 'FILL_DROPOFF', 'FILL_MEMO', 'ERROR'], `${net} ${o.name}`).toContain(o.action);
+            if (o.action === 'SKIP') expect(['TOAST', 'POPUP'], `${net} ${o.name}`).toContain(o.kind);
+            if (o.action.startsWith('FILL_')) expect(net, `${o.name} — 팝업으로 채우는 배차망은 인성뿐`).toBe('insung');
         }
         const assigned = NETWORK_PAGES.kakaopicker.screens.flatMap(s => s.overlays).find(o => o.kind === 'NOTICE' && o.name.includes('배정'));
-        expect(assigned?.reportAs).toBeUndefined();
+        expect(assigned?.action).toBeUndefined();
     });
 
     it('질문 1 · 2 «가» — 픽커 «넘어가는 중» 기준 페이지가 있고 · 배차망 메뉴는 목록 복귀가 아니다', () => {

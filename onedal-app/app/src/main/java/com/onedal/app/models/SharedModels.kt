@@ -228,6 +228,9 @@ data class ScrapPayload(
     val deviceId: String,
     val data: List<SimplifiedOfficeOrder>,
     val screenContext: String? = null,  // [Safety Mode V3] 현재 화면 상태 (물리적 페이지)
+    /** 🧭 배차망 페이지 이름 · 그 위에 뜬 것(덧칸) 이름 — 배차망 정의 표의 이름 · 모르면 null (reviews/35 5단계) */
+    val screenPage: String? = null,
+    val screenOverlay: String? = null,
     val isHolding: Boolean = false,     // [Page/Hold 분리] 콜 처리 중 여부
     val lat: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 위도
     val lng: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 경도

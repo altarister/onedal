@@ -72,6 +72,10 @@ class TelemetryManager(
     // [Safety Mode V3] 현재 화면 상태 (HijackService에서 상태 전이 시 업데이트)
     @Volatile
     var currentScreenContext: ScreenContext = ScreenContext.UNKNOWN
+    /** 📡 서버로 보내는 화면 값 · 배차망 페이지 이름 · 덧칸 이름 — 상세 위 팝업도 페이지 값(DETAIL_*) · 내 오더는 MY_ORDERS (reviews/35 5단계) · 모르면 원달앱 안 값 */
+    var reportedScreen: ScreenContext? = null
+    var screenPage: String? = null
+    var screenOverlay: String? = null
 
     // [Page/Hold 분리] 콜 처리 중 여부 (확정 클릭 ~ 리스트 복귀)
     @Volatile
@@ -304,7 +308,9 @@ class TelemetryManager(
         val payload = ScrapPayload(
             deviceId = apiClient.getDeviceId(),
             data = snapshot,
-            screenContext = currentScreenContext.value,  // [Safety Mode V3] 화면 상태 (물리적 페이지)
+            screenContext = (reportedScreen ?: currentScreenContext).value,  // [Safety Mode V3] 화면 상태 (물리적 페이지) — 서버로 보내는 페이지 값
+            screenPage = screenPage,
+            screenOverlay = screenOverlay,
             isHolding = isHolding,                       // [Page/Hold 분리] 콜 처리 중 여부
             screenNodeCount = screenNodeCount,           // 👁️ 마지막 리스트에서 읽은 텍스트 노드 수
             filterTally = filterTally,                   // 👁️ 축별로 몇 개가 왜 떨어졌나

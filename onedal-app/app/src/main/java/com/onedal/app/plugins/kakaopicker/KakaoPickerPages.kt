@@ -7,7 +7,7 @@ import com.onedal.app.core.OverlaySpec
 import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageSpecs
-import com.onedal.app.core.ReportAs
+import com.onedal.app.core.OverlayAction
 import com.onedal.app.core.ScreenMatch
 import com.onedal.app.core.ScreenSpec
 import com.onedal.app.core.Seen
@@ -244,7 +244,7 @@ object KakaoPickerPages {
             false,
             listOf(
                 OverlaySpec("첫 계약 필수정보", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("필수 정보를 입력해 주세요"))), "이메일 · 거주지를 넣어야 수락할 수 있다(한 번만)", Seen.REAL, listOf("ex_images/카카오픽커/실물_2026/14_첫계약_필수정보입력_팝업_1회성.jpeg")),
-                OverlaySpec("배정 실패 오류", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("이미 배정이 완료된", "다른 기사에게 배정"))), "수락했지만 남이 먼저 잡았다", Seen.UNKNOWN, listOf(), toCollect = "캡처", reportAs = ReportAs.POPUP_ERROR),
+                OverlaySpec("배정 실패 오류", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("이미 배정이 완료된", "다른 기사에게 배정"))), "수락했지만 남이 먼저 잡았다", Seen.UNKNOWN, listOf(), toCollect = "캡처", action = OverlayAction.ERROR),
             ),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/05_상세_지도_수락하기.png", "ex_images/카카오픽커/실물_2026/06_상세_마감시각_준비시간.jpeg", "ex_images/카카오픽커/실물_2026/07_상세_최종수익분해.jpeg", "ex_images/카카오픽커/실물_2026/08_상세_지도_판교.jpeg", "ex_images/카카오픽커/실물_2026/09_상세_가격오르기전_9693.jpeg", "ex_images/카카오픽커/실물_2026/10_상세_가격오른뒤_11393.jpeg", "ex_images/카카오픽커/실물_2026/10-1_상세_시트(상).jpeg", "ex_images/카카오픽커/실물_2026/10-2_상세_시트(중).jpeg", "ex_images/카카오픽커/실물_2026/10-3_상세_시트(하).jpeg", "ex_images/카카오픽커/실물_2026/33_상세_예약콜_위례_삼성2동.png"),

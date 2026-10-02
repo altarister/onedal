@@ -32,7 +32,7 @@ const pageSpecKt = readFileSync(join(app, 'core/PageSpec.kt'), 'utf8');
 const namesOf = (name) => (pageSpecKt.split(`enum class ${name} {`)[1]?.split('}')[0] ?? '').split(',').map((w) => w.trim()).filter(Boolean);
 const STANDARD = namesOf('StandardScreen');
 const OVERLAY_KIND = namesOf('OverlayKind');
-const REPORT_AS = namesOf('ReportAs');
+const OVERLAY_ACTION = namesOf('OverlayAction');
 const SEEN = ['REAL', 'SIM', 'UNKNOWN'];
 
 /* 🔴 바꾸기 글자 대신 함수로 — 바꾸기 글자 안의 «$'» · «$&» 는 JS 가 특수 기호로 읽는다 */
@@ -64,9 +64,9 @@ const kscreen = (net, s) => {
         const oat = `${at} 덧칸 «${o.name}»`;
         if (!OVERLAY_KIND.includes(o.kind)) fail(`${oat} — 모르는 갈래 «${o.kind}»`);
         if (!SEEN.includes(o.seen)) fail(`${oat} — seen «${o.seen}»`);
-        if (o.reportAs !== undefined && !REPORT_AS.includes(o.reportAs)) fail(`${oat} — 모르는 reportAs «${o.reportAs}» (core/PageSpec.kt ReportAs 에 없다)`);
+        if (o.action !== undefined && !OVERLAY_ACTION.includes(o.action)) fail(`${oat} — 모르는 action «${o.action}» (core/PageSpec.kt OverlayAction 에 없다)`);
         const args = [kstr(o.name), `OverlayKind.${o.kind}`, kmatches(oat, o.match), kstr(o.meaning), `Seen.${o.seen}`, klist(o.evidence), ...ktail(o),
-            ...(o.reportAs ? [`reportAs = ReportAs.${o.reportAs}`] : [])];
+            ...(o.action ? [`action = OverlayAction.${o.action}`] : [])];
         return `                OverlaySpec(${args.join(', ')}),`;
     });
     const args = [kstr(s.name), s.standard === null ? 'null' : `StandardScreen.${s.standard}`, kmatches(at, s.match), String(s.listReturn),
@@ -116,7 +116,7 @@ import com.onedal.app.core.OverlaySpec
 import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageSpecs
-import com.onedal.app.core.ReportAs
+import com.onedal.app.core.OverlayAction
 import com.onedal.app.core.ScreenMatch
 import com.onedal.app.core.ScreenSpec
 import com.onedal.app.core.Seen

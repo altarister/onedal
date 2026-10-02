@@ -7,7 +7,7 @@ import com.onedal.app.core.OverlaySpec
 import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageSpecs
-import com.onedal.app.core.ReportAs
+import com.onedal.app.core.OverlayAction
 import com.onedal.app.core.ScreenMatch
 import com.onedal.app.core.ScreenSpec
 import com.onedal.app.core.Seen
@@ -89,7 +89,7 @@ object Hwamul24Pages {
             listOf(ScreenMatch(all = listOf("화물상세정보", "배차신청"))),
             false,
             listOf(
-                OverlaySpec("배차 실패 오류", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("이미 배차", "배차할 수 없"))), "배차신청이 안 됐다 — 남이 먼저 잡았거나 조건 미달", Seen.UNKNOWN, listOf(), toCollect = "캡처", reportAs = ReportAs.POPUP_ERROR),
+                OverlaySpec("배차 실패 오류", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("이미 배차", "배차할 수 없"))), "배차신청이 안 됐다 — 남이 먼저 잡았거나 조건 미달", Seen.UNKNOWN, listOf(), toCollect = "캡처", action = OverlayAction.ERROR),
             ),
             Seen.REAL,
             listOf("ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_회원가입_약관.png (내용은 화물상세정보)"),
@@ -164,7 +164,7 @@ object Hwamul24Pages {
             listOf(ScreenMatch(all = listOf("화물정보", "자동새로고침", "자동터치"), none = listOf("저장 후 검색"))),
             false,
             listOf(
-                OverlaySpec("자동터치 동의", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("자동터치 사용시", "동의하십니까"))), "자동터치를 켤 때 책임 동의를 묻는다", Seen.REAL, listOf("ex_images/화물24시/47_이벤트_안내.png (내용은 실시간 목록 위 «알림» 팝업)"), reportAs = ReportAs.SKIP),
+                OverlaySpec("자동터치 동의", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("자동터치 사용시", "동의하십니까"))), "자동터치를 켤 때 책임 동의를 묻는다", Seen.REAL, listOf("ex_images/화물24시/47_이벤트_안내.png (내용은 실시간 목록 위 «알림» 팝업)"), action = OverlayAction.SKIP),
                 OverlaySpec("저장완료 토스트", OverlayKind.TOAST, listOf(ScreenMatch(all = listOf("저장완료"))), "검색조건을 저장했다", Seen.REAL, listOf("ex_images/화물24시/43_공지사항_리스트.png (내용은 실시간 목록 위 토스트)")),
                 OverlaySpec("자동터치 시작 토스트", OverlayKind.TOAST, listOf(ScreenMatch(all = listOf("자동터치 시작"))), "배차망 자체 자동터치를 켰다", Seen.REAL, listOf("ex_images/화물24시/48_이벤트_상세정보.png (내용은 실시간 목록 위 토스트)")),
             ),

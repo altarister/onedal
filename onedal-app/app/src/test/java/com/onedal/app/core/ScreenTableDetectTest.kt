@@ -48,4 +48,36 @@ class ScreenTableDetectTest {
         }
         assertEquals("표 판별과 다른 줄 ${wrong.size}\n" + wrong.joinToString("\n"), 0, wrong.size)
     }
+
+    /**
+     * 📡 **서버로 보내는 값은 페이지 값** (reviews/35 5단계) — 원달앱 안 값의 팝업(POPUP_*)은 상세(DETAIL_*)로 · 목록 복귀 내 오더(LIST_COMPLETED)는 MY_ORDERS 로.
+     * 그 밖은 안 값과 같다 · 표가 아는 화면이면 페이지 이름이 실린다.
+     */
+    @Test fun `보내는 값은 페이지 값 - 팝업은 상세 · 목록 복귀 내 오더는 MY_ORDERS`() {
+        val wrong = cases.mapNotNull { c ->
+            val r = ScreenDetector().detect(c.text, plugins.getValue(c.network).screens)
+            if (r.skip) return@mapNotNull null
+            val want = when (r.context.name) {
+                "POPUP_PICKUP", "POPUP_DROPOFF", "POPUP_MEMO", "POPUP_ERROR" -> setOf("DETAIL_PRE_CONFIRM", "DETAIL_CONFIRMED")
+                "LIST_COMPLETED" -> setOf("MY_ORDERS")
+                else -> setOf(r.context.name)
+            }
+            val pageOk = r.context.name == "UNKNOWN" || r.page != null
+            if (r.wire.name in want && pageOk) null else "${c.network} ${c.why} — 안 ${r.context} · 보냄 ${r.wire} · 페이지 ${r.page}"
+        }
+        assertEquals(wrong.joinToString("\n"), 0, wrong.size)
+    }
+
+    /** 🧭 실물 인성 팝업은 화면 전체를 덮어 페이지 글자가 없다 — 직전 페이지 위의 팝업으로 본다(확정 전 상세에서 연 출발지 팝업은 확정 전 상세) */
+    @Test fun `페이지 글자 없는 팝업은 직전 페이지 위의 덧칸`() {
+        val popup = "출발지 상세 고객 부서 담당 마일리지 전화1 전화2 출발 위치 닫기 위치보기 위치저장 길안내"
+        val insung = plugins.getValue("insung").screens
+        val r = ScreenDetector().detect(popup, insung, lastPage = "확정 전 상세")
+        assertEquals("POPUP_PICKUP", r.context.name)
+        assertEquals("DETAIL_PRE_CONFIRM", r.wire.name)
+        assertEquals("확정 전 상세", r.page)
+        assertEquals("출발지 상세 팝업", r.overlay)
+        assertEquals("DETAIL_CONFIRMED", ScreenDetector().detect(popup, insung, lastPage = "확정 뒤 상세").wire.name)
+    }
 }
+

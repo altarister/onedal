@@ -112,10 +112,10 @@ interface ScreenOverlay {
     /** 글자의 원천이 서버 낱말 사전이면 그 자리(파일 · 키) — 글자는 표에 옮기지 않는다 */
     wordsFrom?: string;
     /**
-     * 📮 이 덧칸이 보이면 원달앱이 보내는 지금 화면 값 — SKIP 은 그 화면을 건너뛴다(로딩).
-     * 팝업 채우기 · 로딩 건너뛰기 · 오류 처리가 아직 옛 화면 값으로 돌아서 둔다 — reviews/35 5단계(페이지 + 덧칸)에서 걷는다.
+     * 🛠️ **이 덧칸이 보이면 원달앱이 할 일** — SKIP 건너뛰기(로딩) · FILL_PICKUP · FILL_DROPOFF · FILL_MEMO 팝업으로 상세 채우기(인성) · ERROR 오류(아무것도 안 누름).
+     * 서버로 보내는 화면 값은 페이지 값 그대로이고 덧칸 이름이 따로 간다(reviews/35 5단계).
      */
-    reportAs?: 'SKIP' | 'LIST' | 'POPUP_PICKUP' | 'POPUP_DROPOFF' | 'POPUP_MEMO' | 'POPUP_ERROR';
+    action?: 'SKIP' | 'FILL_PICKUP' | 'FILL_DROPOFF' | 'FILL_MEMO' | 'ERROR';
 }
 
 /**
@@ -171,25 +171,25 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "networkMarkersWhy": "목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금»)",
     "screens": [
       {"name": "확정 뒤 상세", "standard": "DETAIL_CONFIRMED", "match": [{"all": ["적요상세"], "any": ["인수증 전송", "카드 승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"], "overlays": [
-        {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "reportAs": "POPUP_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"]},
-        {"name": "도착지 상세 팝업", "kind": "POPUP", "match": [{"any": ["도착지 상세", "하차지 상세"]}], "meaning": "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "reportAs": "POPUP_DROPOFF", "seen": "REAL", "evidence": ["ex_images/인성/도착지상세.png"]},
-        {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "reportAs": "POPUP_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처"},
+        {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"]},
+        {"name": "도착지 상세 팝업", "kind": "POPUP", "match": [{"any": ["도착지 상세", "하차지 상세"]}], "meaning": "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_DROPOFF", "seen": "REAL", "evidence": ["ex_images/인성/도착지상세.png"]},
+        {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "action": "FILL_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처"},
         {"name": "취소 확인 팝업", "kind": "POPUP", "match": [], "meaning": "확정 뒤 취소를 누르면 한 번 더 묻는다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
-        {"name": "취소 불가 팝업", "kind": "POPUP", "match": [{"any": ["취소할 수 없"], "none": ["적요상세"]}], "meaning": "안전취소 시간이 지나 취소할 수 없다", "reportAs": "POPUP_ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
+        {"name": "취소 불가 팝업", "kind": "POPUP", "match": [{"any": ["취소할 수 없"], "none": ["적요상세"]}], "meaning": "안전취소 시간이 지나 취소할 수 없다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
       ]},
       {"name": "확정 전 상세", "standard": "DETAIL_PRE_CONFIRM", "match": [{"all": ["적요상세", "확정"], "any": ["요금", "실운임"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"], "overlays": [
-        {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "reportAs": "POPUP_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"]},
-        {"name": "도착지 상세 팝업", "kind": "POPUP", "match": [{"any": ["도착지 상세", "하차지 상세"]}], "meaning": "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "reportAs": "POPUP_DROPOFF", "seen": "REAL", "evidence": ["ex_images/인성/도착지상세.png"]},
-        {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "reportAs": "POPUP_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처"},
+        {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"]},
+        {"name": "도착지 상세 팝업", "kind": "POPUP", "match": [{"any": ["도착지 상세", "하차지 상세"]}], "meaning": "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_DROPOFF", "seen": "REAL", "evidence": ["ex_images/인성/도착지상세.png"]},
+        {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "action": "FILL_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처"},
         {"name": "계산서 오더 안내 띠", "kind": "BANNER", "match": [{"any": ["계산서 발급오더의 경우"]}], "meaning": "계산서 오더 — 위수탁세금계산서 발행에 동의한 기사만 처리 · 부가세 포함 입금", "seen": "REAL", "evidence": ["ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"]},
         {"name": "확정 확인 팝업", "kind": "POPUP", "match": [], "meaning": "확정을 누르면 한 번 더 묻는다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
         {"name": "이미 배차됨 팝업", "kind": "POPUP", "match": [], "meaning": "남이 먼저 잡았다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
-        {"name": "확정 실패 팝업", "kind": "POPUP", "match": [{"any": ["시간이 지나", "실패"], "none": ["적요상세"]}], "meaning": "확정이 안 됐다 — 적요 글의 «실패» · «시간이 지나»와 가를 머리 글자가 필요하다", "reportAs": "POPUP_ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 팝업 머리 글자"}
+        {"name": "확정 실패 팝업", "kind": "POPUP", "match": [{"any": ["시간이 지나", "실패"], "none": ["적요상세"]}], "meaning": "확정이 안 됐다 — 적요 글의 «실패» · «시간이 지나»와 가를 머리 글자가 필요하다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 팝업 머리 글자"}
       ]},
       {"name": "신규 콜 목록", "standard": "LIST", "match": [{"all": ["신규", "빠른설정"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png"], "overlays": [
-        {"name": "로딩 토스트", "kind": "TOAST", "match": [{"any": ["오더 조회", "기다려 주십"]}], "meaning": "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", "reportAs": "SKIP", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"},
+        {"name": "로딩 토스트", "kind": "TOAST", "match": [{"any": ["오더 조회", "기다려 주십"]}], "meaning": "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", "action": "SKIP", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"},
         {"name": "메뉴 드롭다운", "kind": "POPUP", "match": [], "meaning": "목록 머리 «메뉴»를 누르면 펼쳐진다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
-        {"name": "빈 목록 안내", "kind": "BANNER", "match": [{"any": ["대기 중인 오더가 없"]}], "meaning": "지금 신규 콜이 없다", "reportAs": "LIST", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
+        {"name": "빈 목록 안내", "kind": "BANNER", "match": [{"any": ["대기 중인 오더가 없"]}], "meaning": "지금 신규 콜이 없다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
       ]},
       {"name": "완료 탭", "standard": "MY_ORDERS", "match": [{"all": ["완료", "신규"], "none": ["빠른설정"]}], "listReturn": true, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 메시지함 · GPS 탭과 가를 글자(지금 글자는 그 탭에도 맞는다)", "overlays": []},
       {"name": "메시지함 탭", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
@@ -285,7 +285,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "networkMarkersWhy": "실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료»)",
     "screens": [
       {"name": "화물상세정보", "standard": "DETAIL_PRE_CONFIRM", "match": [{"all": ["화물상세정보", "배차신청"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_회원가입_약관.png (내용은 화물상세정보)"], "overlays": [
-        {"name": "배차 실패 오류", "kind": "POPUP", "match": [{"any": ["이미 배차", "배차할 수 없"]}], "meaning": "배차신청이 안 됐다 — 남이 먼저 잡았거나 조건 미달", "reportAs": "POPUP_ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
+        {"name": "배차 실패 오류", "kind": "POPUP", "match": [{"any": ["이미 배차", "배차할 수 없"]}], "meaning": "배차신청이 안 됐다 — 남이 먼저 잡았거나 조건 미달", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
       ]},
       {"name": "배차내역 상세 · 화주정보 탭", "standard": "DETAIL_CONFIRMED", "match": [{"all": ["배차내역", "02 화주정보", "사업장주소"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/21_화물상세_화주정보_전화번호.png"], "overlays": []},
       {"name": "배차내역 상세 · 결제정보 탭", "standard": "DETAIL_CONFIRMED", "match": [{"all": ["배차내역", "03 결제정보", "수금상태"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/22_화물상세_결제정보.png"], "overlays": []},
@@ -304,7 +304,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"name": "내위치 반경 선택 시트", "kind": "POPUP", "match": [{"all": ["내위치 반경 선택"]}], "meaning": "검색조건의 내 위치 반경(5 ~ 30Km)을 고른다", "seen": "REAL", "evidence": ["ex_images/화물24시/42_설정_알림.png (내용은 검색조건 + 내위치 반경 선택)"]}
       ]},
       {"name": "화물정보(실시간 목록)", "standard": "LIST", "match": [{"all": ["화물정보", "자동새로고침", "자동터치"], "none": ["저장 후 검색"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/17_화물정보_리스트.png", "ex_images/화물24시/32_오더목록_기본.png", "ex_images/화물24시/35_배차완료_내역.png (내용은 실시간 목록)", "ex_images/화물24시/36_화물정보_전체.png", "ex_images/화물24시/37_화물상세_요약.png (내용은 실시간 목록)", "ex_images/화물24시/40_인수증_전송화면.png (내용은 실시간 목록)", "ex_images/화물24시/43_공지사항_리스트.png (내용은 실시간 목록)", "ex_images/화물24시/44_공지_상세내용.png (내용은 실시간 목록)", "ex_images/화물24시/45_고객센터_메뉴.png (내용은 실시간 목록 · 자동새로고침 OFF)", "ex_images/화물24시/46_자주묻는질문.png (내용은 실시간 목록)", "ex_images/화물24시/47_이벤트_안내.png (내용은 실시간 목록)", "ex_images/화물24시/48_이벤트_상세정보.png (내용은 실시간 목록)", "ex_images/화물24시/49_로그아웃_팝업.png (내용은 실시간 목록)", "ex_images/화물24시/50_로그인_입력.png (내용은 실시간 목록)"], "overlays": [
-        {"name": "자동터치 동의", "kind": "POPUP", "match": [{"any": ["자동터치 사용시", "동의하십니까"]}], "meaning": "자동터치를 켤 때 책임 동의를 묻는다", "reportAs": "SKIP", "seen": "REAL", "evidence": ["ex_images/화물24시/47_이벤트_안내.png (내용은 실시간 목록 위 «알림» 팝업)"]},
+        {"name": "자동터치 동의", "kind": "POPUP", "match": [{"any": ["자동터치 사용시", "동의하십니까"]}], "meaning": "자동터치를 켤 때 책임 동의를 묻는다", "action": "SKIP", "seen": "REAL", "evidence": ["ex_images/화물24시/47_이벤트_안내.png (내용은 실시간 목록 위 «알림» 팝업)"]},
         {"name": "저장완료 토스트", "kind": "TOAST", "match": [{"all": ["저장완료"]}], "meaning": "검색조건을 저장했다", "seen": "REAL", "evidence": ["ex_images/화물24시/43_공지사항_리스트.png (내용은 실시간 목록 위 토스트)"]},
         {"name": "자동터치 시작 토스트", "kind": "TOAST", "match": [{"all": ["자동터치 시작"]}], "meaning": "배차망 자체 자동터치를 켰다", "seen": "REAL", "evidence": ["ex_images/화물24시/48_이벤트_상세정보.png (내용은 실시간 목록 위 토스트)"]}
       ]},
@@ -409,7 +409,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       {"name": "도움말", "standard": "NETWORK_MENU", "match": [{"all": ["자주 묻는 질문", "고객센터 연결"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/20_도움말_픽업FAQ_오더번호.jpeg"], "overlays": []},
       {"name": "상세(수락 전 시트)", "standard": "DETAIL_PRE_CONFIRM", "match": [{"all": ["넘기기", "수락하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/05_상세_지도_수락하기.png", "ex_images/카카오픽커/실물_2026/06_상세_마감시각_준비시간.jpeg", "ex_images/카카오픽커/실물_2026/07_상세_최종수익분해.jpeg", "ex_images/카카오픽커/실물_2026/08_상세_지도_판교.jpeg", "ex_images/카카오픽커/실물_2026/09_상세_가격오르기전_9693.jpeg", "ex_images/카카오픽커/실물_2026/10_상세_가격오른뒤_11393.jpeg", "ex_images/카카오픽커/실물_2026/10-1_상세_시트(상).jpeg", "ex_images/카카오픽커/실물_2026/10-2_상세_시트(중).jpeg", "ex_images/카카오픽커/실물_2026/10-3_상세_시트(하).jpeg", "ex_images/카카오픽커/실물_2026/33_상세_예약콜_위례_삼성2동.png"], "overlays": [
         {"name": "첫 계약 필수정보", "kind": "POPUP", "match": [{"all": ["필수 정보를 입력해 주세요"]}], "meaning": "이메일 · 거주지를 넣어야 수락할 수 있다(한 번만)", "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/14_첫계약_필수정보입력_팝업_1회성.jpeg"]},
-        {"name": "배정 실패 오류", "kind": "POPUP", "match": [{"any": ["이미 배정이 완료된", "다른 기사에게 배정"]}], "meaning": "수락했지만 남이 먼저 잡았다", "reportAs": "POPUP_ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
+        {"name": "배정 실패 오류", "kind": "POPUP", "match": [{"any": ["이미 배정이 완료된", "다른 기사에게 배정"]}], "meaning": "수락했지만 남이 먼저 잡았다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
       ]},
       {"name": "내 오더 탭", "standard": "MY_ORDERS", "match": [{"all": ["목록 지도", "신규", "내 오더"], "none": ["리스트 설정", "수락하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/15_내오더탭_픽업준비14분남음.jpeg", "ex_images/카카오픽커/실물_2026/15-1_내오더_오더없을때.jpeg", "ex_images/카카오픽커/실물_2026/15-2_내오더(도보와퀵차이).png"], "overlays": [
         {"name": "오더 없음 안내", "kind": "BANNER", "match": [{"all": ["진행 중인 오더가 없어요"]}], "meaning": "진행 중인 오더가 없다 — 수락의 증거가 아니다", "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/15-1_내오더_오더없을때.jpeg"]},
