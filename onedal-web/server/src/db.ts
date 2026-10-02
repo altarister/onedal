@@ -1182,20 +1182,32 @@ export function seedUserPlaces(ownerId: string): number {
 }
 
 /**
- * 🏪 부팅 때 한 번 — user_places 가 비었고 places 에 줄이 있으면 관리자(기사님) 앞으로 옮긴다.
- *    관리자 계정과 «콜이 가장 많은 기사»가 다르면 누구 것인지 확실하지 않으니 옮기지 않고 한 줄 남긴다(onedal-1f).
+ * 🏪 옛 거래처의 주인 — 관리자, 관리자가 없으면 회원이 하나뿐일 때 그 회원(role 을 바꾸기 전 실서버도 멈추지 않게).
+ *    콜이 가장 많은 기사가 주인과 다르면 누구 것인지 확실하지 않으니 null.
+ */
+export function placesSeedOwnerOf(adminId: string | undefined, userIds: string[], topId: string | undefined): string | null {
+    const owner = adminId ?? (userIds.length === 1 ? userIds[0] : undefined);
+    if (!owner || (topId && topId !== owner)) return null;
+    return owner;
+}
+
+/**
+ * 🏪 부팅 때 한 번 — user_places 가 비었고 places 에 줄이 있으면 주인(placesSeedOwnerOf) 앞으로 옮긴다.
+ *    주인을 못 정하면 옮기지 않고 한 줄 남긴다(onedal-1f).
  */
 (() => {
     const has = (db.prepare(`SELECT COUNT(*) AS n FROM user_places`).get() as { n: number }).n;
     const olds = (db.prepare(`SELECT COUNT(*) AS n FROM places`).get() as { n: number }).n;
     if (has > 0 || olds === 0) return;
     const admin = db.prepare(`SELECT id FROM users WHERE role = 'ADMIN' ORDER BY created_at LIMIT 1`).get() as { id: string } | undefined;
+    const userIds = (db.prepare(`SELECT id FROM users`).all() as { id: string }[]).map(u => u.id);
     const top = db.prepare(`SELECT userId FROM orders WHERE userId IS NOT NULL GROUP BY userId ORDER BY COUNT(*) DESC LIMIT 1`).get() as { userId: string } | undefined;
-    if (!admin || (top && top.userId !== admin.id)) {
-        slog('부팅', `⚠️ [거래처 옮기기] 멈춤 — 관리자 ${admin?.id ?? '없음'} · 콜이 가장 많은 기사 ${top?.userId ?? '없음'} 가 달라 누구 것인지 확실하지 않다 · 옛 거래처 ${olds}곳은 places 에 그대로`);
+    const owner = placesSeedOwnerOf(admin?.id, userIds, top?.userId);
+    if (!owner) {
+        slog('부팅', `⚠️ [거래처 옮기기] 멈춤 — 관리자 ${admin?.id ?? '없음'} · 회원 ${userIds.length}명 · 콜이 가장 많은 기사 ${top?.userId ?? '없음'} — 누구 것인지 확실하지 않다 · 옛 거래처 ${olds}곳은 places 에 그대로`);
         return;
     }
-    slog('부팅', `🏪 [거래처 옮기기] 옛 거래처 ${seedUserPlaces(admin.id)}곳의 개인 칸(별점 · 메모 · 방문 수 · 연락처)을 ${admin.id} 앞으로`);
+    slog('부팅', `🏪 [거래처 옮기기] 옛 거래처 ${seedUserPlaces(owner)}곳의 개인 칸(별점 · 메모 · 방문 수 · 연락처)을 ${owner} 앞으로`);
 })();
 
 export default db;

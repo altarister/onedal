@@ -1,5 +1,5 @@
 // @ts-nocheck
-import db, { seedUserPlaces } from '../../src/db';
+import db, { seedUserPlaces, placesSeedOwnerOf } from '../../src/db';
 import { PlaceRepository } from '../../src/repositories/PlaceRepository';
 import { getPlaceInsights } from '../../src/services/statService';
 import placesRouter from '../../src/routes/logbook/places';
@@ -61,5 +61,21 @@ describe('🏪 거래처 기사별', () => {
         seedUserPlaces('test-up-owner');
         const rows = db.prepare(`SELECT user_id, rating, blacklistMemo, visitCount FROM user_places WHERE place_id = ?`).all(r.id) as any[];
         expect(rows).toEqual([{ user_id: 'test-up-owner', rating: 1.5, blacklistMemo: '옛 메모', visitCount: 7 }]);
+    });
+
+    describe('옛 줄의 주인(placesSeedOwnerOf)', () => {
+        it('관리자가 콜이 가장 많은 기사면 관리자', () => {
+            expect(placesSeedOwnerOf('admin', ['admin', 'u2'], 'admin')).toBe('admin');
+        });
+        it('🔴 관리자가 없어도 회원이 하나뿐이고 콜도 그 회원 것이면 그 회원 — role 을 바꾸지 않은 실서버가 옮기기에서 멈추지 않게', () => {
+            expect(placesSeedOwnerOf(undefined, ['only'], 'only')).toBe('only');
+        });
+        it('관리자가 없고 회원이 둘이면 정하지 않는다', () => {
+            expect(placesSeedOwnerOf(undefined, ['u1', 'u2'], 'u1')).toBeNull();
+        });
+        it('콜이 가장 많은 기사가 주인과 다르면 정하지 않는다', () => {
+            expect(placesSeedOwnerOf('admin', ['admin', 'u2'], 'u2')).toBeNull();
+            expect(placesSeedOwnerOf(undefined, ['only'], 'other')).toBeNull();
+        });
     });
 });
