@@ -27,5 +27,8 @@ object InsungKeywords {
         memoReady = listOf("적요 내용"),
         pickupReady = listOf("전화1", "도착지 상세"),
         dropoffReady = listOf("전화1"),
+        memoHeader = "[적요상세/정보]",
+        pickupHeader = "[출발지상세]",
+        dropoffHeader = "[도착지상세]",
     )
 }

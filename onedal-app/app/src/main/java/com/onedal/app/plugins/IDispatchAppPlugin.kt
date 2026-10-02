@@ -56,10 +56,16 @@ interface IDispatchAppPlugin {
     fun isPopupResidue(rawScreenStr: String): Boolean = false
 
     /**
-     * ✅ **확정 뒤 상세에서 할 일이 있나** — 인성만 참(미리보기 → 확정 알림 · 팝업 채우기).
-     * 화물24시 배차내역 상세 · 픽커 수락 뒤 화면은 확정 뒤 상세로 읽혀도 원달앱이 아무것도 안 한다.
+     * ✅ **확정 뒤 상세에서 할 일** — 인성만(미리보기 → 확정 알림 · 팝업 채우기).
+     * 화물24시 배차내역 상세 · 픽커 수락 뒤 화면은 확정 뒤 상세로 읽혀도 원달앱이 아무것도 안 한다(기본).
      */
-    val handlesConfirmedDetail: Boolean get() = false
+    fun onConfirmedDetail(scan: com.onedal.app.core.engine.ScanContext, rootNode: android.view.accessibility.AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) {}
+
+    /** 🏄 **상세 위 팝업(출발지 · 도착지 · 적요)에서 할 일** — 팝업으로 상세를 채우는 배차망(인성)만 · 기본은 아무것도 안 한다 */
+    fun onPopup(scan: com.onedal.app.core.engine.ScanContext, context: com.onedal.app.models.ScreenContext, rootNode: android.view.accessibility.AccessibilityNodeInfo, screenTexts: List<String>) {}
+
+    /** 🏷️ 공통 흐름이 이 배차망 일로 찍는 logcat 태그 — 상세 대기 · 결재 CANCEL 줄 */
+    val logTag: String get() = "1DAL_MVP"
 
     /** 🏁 «먼저 가져감» 알림(토스트)을 믿는 앱 — 그 밖 앱의 알림은 글자를 남기지 않는다(개인정보) · 알림 덧칸이 없는 배차망은 빈 집합 */
     val noticeSources: Set<String> get() = emptySet()

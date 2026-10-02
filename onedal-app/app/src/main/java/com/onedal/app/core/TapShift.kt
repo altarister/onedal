@@ -16,12 +16,6 @@ object TapShift {
     /** 화면 왼쪽 여백 — 이보다 왼쪽은 찍지 않는다 (폰 픽셀) */
     const val MIN_X = 24
 
-    /**
-     * 픽커 리스트 카드에서 요금 닻으로부터 왼쪽으로 옮기는 거리 (폰 픽셀 · 실물 1080px 화면 기준).
-     * 실물 리스트에서 요금은 오른쪽 끝(x≈980)이고, 300px 왼쪽이면 지역 글자 자리라 **같은 카드 안**이다.
-     */
-    const val PICKER_LIST_LEFT_PX = 300
-
     fun leftOf(centerX: Int, shiftPx: Int): Int = maxOf(MIN_X, centerX - shiftPx)
 
     /** 카드 줄의 왼쪽 끝에서 안쪽으로 이만큼 들어와 찍는다 — 테두리·여백을 피한다 */

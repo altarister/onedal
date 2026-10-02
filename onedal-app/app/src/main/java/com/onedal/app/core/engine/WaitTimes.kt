@@ -1,6 +1,5 @@
 package com.onedal.app.core.engine
 
-import com.onedal.app.core.TargetApp
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.plugins.DispatchPluginRegistry
 
@@ -30,8 +29,6 @@ object WaitTimes {
         return plugin.getDetailBackTimeoutMs(filter) ?: plugin.getSafeCancelMs(filter) ?: pickerAlarmDetailMs(filter)
     }
 
-    /** 픽커 상세를(누가 열었든) 이 시간 뒤 닫고 리스트로 돌아간다 */
-    fun pickerAlarmDetailMs(filter: FilterConfig): Long =
-        DispatchPluginRegistry.get(TargetApp.KAKAOPICKER).getDetailBackTimeoutMs(filter)
-            ?: (filter.pickerAlarmDetailSec * 1000L)
+    /** 상세 대기 설정값(서버 DB `picker_alarm_detail_sec`) — 상세 대기도 안전취소도 없는 배차망의 마지막 대체값 */
+    fun pickerAlarmDetailMs(filter: FilterConfig): Long = filter.pickerAlarmDetailSec * 1000L
 }

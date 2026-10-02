@@ -64,10 +64,10 @@ class RowGroupingTest {
     /** 계측이 «비었다»를 무엇으로 판단하는지 못박는다 */
     @Test
     fun `자리를 안 차지하는 사각형을 가려낸다`() {
-        assertTrue(InsungParser.isEmptyRect(0, 0))
-        assertTrue(InsungParser.isEmptyRect(500, 500))
-        assertTrue("뒤집힌 것도 빈 것으로 본다", InsungParser.isEmptyRect(200, 100))
-        assertFalse(InsungParser.isEmptyRect(100, 148))
+        assertTrue(com.onedal.app.core.NodeText.isEmptyRect(0, 0))
+        assertTrue(com.onedal.app.core.NodeText.isEmptyRect(500, 500))
+        assertTrue("뒤집힌 것도 빈 것으로 본다", com.onedal.app.core.NodeText.isEmptyRect(200, 100))
+        assertFalse(com.onedal.app.core.NodeText.isEmptyRect(100, 148))
     }
 
     // ── 🧲 카드를 묶는 닻 (18번 1.1.10 · 코드리뷰 Part 1 C-3) ──

@@ -83,11 +83,6 @@ class TapShiftTest {
     }
 
     @Test
-    fun `픽커 리스트 카드의 옮김 값은 0 보다 크다 - 요금 자리를 안 찍는다`() {
-        assertTrue(TapShift.PICKER_LIST_LEFT_PX > 0)
-    }
-
-    @Test
     fun `미룬 뒤 자리가 그대로면 쏜다 - 손가락 굵기만큼은 봐준다`() {
         assertTrue(TapShift.sameSpot(660, 1519, 660, 1519))
         assertTrue(TapShift.sameSpot(660, 1519, 668, 1531))

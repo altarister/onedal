@@ -129,9 +129,6 @@ class InsungParser(private val context: Context) : IScrapParser {
             return if (chosen != null) chosen.vehicle to chosen.fare else lastVehicleWithoutFare to 0
         }
 
-        /** 사각형이 자리를 안 차지한다 — 스크롤 밖 노드의 표식일 수 있다 (계측용) */
-        fun isEmptyRect(top: Int, bottom: Int): Boolean = top >= bottom
-
         /** 노드 하나가 통째로 「차종+요금」일 때 — 「라2.2」. 앞뒤에 딴 글자가 붙으면 아니다 */
         private val VEHICLE_FARE_ONLY = Regex("^($VEHICLE_TOKENS)\\s*\\d+(?:\\.\\d+)?$")
 

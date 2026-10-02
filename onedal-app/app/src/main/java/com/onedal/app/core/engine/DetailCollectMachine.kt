@@ -23,6 +23,7 @@ import com.onedal.app.core.AutoTouchManager
  * 🏄 **팝업으로 채울 때 쓰는 글자 한 벌** — 배차망 낱말 파일이 준다(인성: `InsungKeywords.POPUP_FILL`).
  * 수집기는 이 글자만 보고 누르고 기다린다 — 배차망 이름을 모른다.
  * @param memoReady · pickupReady · dropoffReady 팝업 글자가 다 떴다는 표식 — 하나라도 보이면 읽는다
+ * @param memoHeader · pickupHeader · dropoffHeader 서버로 보내는 상세 글에서 팝업 글 앞에 붙이는 머리표 — 서버 배차망 정의 표의 읽는 법이 이 글자로 자른다
  */
 data class PopupFill(
     val memoButton: String,
@@ -32,6 +33,9 @@ data class PopupFill(
     val memoReady: List<String>,
     val pickupReady: List<String>,
     val dropoffReady: List<String>,
+    val memoHeader: String,
+    val pickupHeader: String,
+    val dropoffHeader: String,
 )
 
 class DetailCollectMachine(
@@ -121,7 +125,7 @@ class DetailCollectMachine(
             return false
         }
 
-        session.accumulatedDetailText += "[적요상세/정보]\n$multilineScreenStr\n"
+        session.accumulatedDetailText += "${fill.memoHeader}\n$multilineScreenStr\n"
         AppLogger.d(TAG, LogTag.CALL_STAGE, "📝 적요 스크래핑 성공! 닫기 버튼 누름")
         AppLogger.i(TAG, LogTag.CALL_STAGE, "📋 [SEQ 81-82] 적요상세 추출 완료 → 닫기")
         AppLogger.roadmap(LogTag.CALL_STAGE, "[Current Page: POPUP_MEMO] 진입 완료 (${fill.memoReady} 텍스트 매칭 확인)", "POPUP_MEMO")
@@ -149,7 +153,7 @@ class DetailCollectMachine(
             return false
         }
 
-        session.accumulatedDetailText += "[출발지상세]\n$multilineScreenStr\n"
+        session.accumulatedDetailText += "${fill.pickupHeader}\n$multilineScreenStr\n"
         AppLogger.d(TAG, LogTag.CALL_STAGE, "📝 출발지 스크래핑 성공! 닫기 버튼 누름")
         AppLogger.roadmap(LogTag.CALL_STAGE, "[Current Page: POPUP_PICKUP] 진입 완료 (${fill.pickupReady} 텍스트 매칭 확인)", "POPUP_PICKUP")
         AppLogger.roadmap(LogTag.CALL_STAGE, "출발지 데이터 추출 및 메모리에 누적 저장", "POPUP_PICKUP")
@@ -178,7 +182,7 @@ class DetailCollectMachine(
             return false
         }
 
-        session.accumulatedDetailText += "[도착지상세]\n$multilineScreenStr\n"
+        session.accumulatedDetailText += "${fill.dropoffHeader}\n$multilineScreenStr\n"
         AppLogger.d(TAG, LogTag.CALL_STAGE, "📝 도착지 스크래핑 성공! 닫기 누름 및 전체 내용 /detail 로 발송")
         AppLogger.roadmap(LogTag.CALL_STAGE, "[Current Page: POPUP_DROPOFF] 진입 완료 (${fill.dropoffReady} 텍스트 매칭 확인)", "POPUP_DROPOFF")
         AppLogger.roadmap(LogTag.CALL_STAGE, "도착지 데이터 추출 및 메모리에 누적 저장", "POPUP_DROPOFF")

@@ -2,15 +2,18 @@ package com.onedal.app.core
 
 /**
  * 🧹 **화면 노드 글자 한 칸을 읽는 규칙 — 파싱으로 가는 두 길(`gatherNodeTexts` · `extractAllTextNodes`)이 같이 쓴다** (`NodeTextTest`).
- * 픽커 상세 «픽업지 …» 노드는 끝에 «kotlin.Unit»을 달고 온다 — 픽커 앱 자체 글자다(실물 덤프 09-30 13:40 content-desc).
+ * 어떤 노드는 끝에 «kotlin.Unit»을 달고 온다 — 화면 글이 아니라 앱 쪽 찌꺼기다(픽커 상세 «픽업지 …» 노드 · 실물 덤프 content-desc). 모든 배차망에서 뗀다.
  * 건물 이름에 띄어쓰기 없이 붙어 오기도 해서(«지엔코빌딩kotlin.Unit») 낱말이 아니라 글자로 뗀다.
  */
 object NodeText {
-    private const val PICKER_NOISE = "kotlin.Unit"
+    private const val UNIT_NOISE = "kotlin.Unit"
 
-    /** 앞뒤 공백·픽커 잡음 글자를 뗀 글자 · 남는 것이 없으면 null(모으지 않는다) */
+    /** 앞뒤 공백·찌꺼기 글자를 뗀 글자 · 남는 것이 없으면 null(모으지 않는다) */
     fun clean(raw: CharSequence?): String? =
-        raw?.toString()?.replace(PICKER_NOISE, "")?.trim()?.takeIf { it.isNotEmpty() }
+        raw?.toString()?.replace(UNIT_NOISE, "")?.trim()?.takeIf { it.isNotEmpty() }
+
+    /** 사각형이 자리를 안 차지한다 — 스크롤 밖 노드의 표식일 수 있다 (목록 묶기 계측용) */
+    fun isEmptyRect(top: Int, bottom: Int): Boolean = top >= bottom
 
     /** 좌표 노드에서 빼는 큰 틀 — 이 높이 이상은 목록 줄이 아니라 감싸는 틀이다 */
     const val MAX_TEXT_NODE_HEIGHT_PX = 400

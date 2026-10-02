@@ -41,7 +41,17 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
     override fun isPopupResidue(rawScreenStr: String): Boolean =
         rawScreenStr.contains("출발지 상세") || rawScreenStr.contains("도착지 상세")
 
-    override val handlesConfirmedDetail: Boolean get() = true
+    override fun onConfirmedDetail(scan: com.onedal.app.core.engine.ScanContext, rootNode: android.view.accessibility.AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) =
+        scan.handleConfirmedScreen(rootNode, screenTexts, rawScreenStr)
+
+    override fun onPopup(scan: com.onedal.app.core.engine.ScanContext, context: com.onedal.app.models.ScreenContext, rootNode: android.view.accessibility.AccessibilityNodeInfo, screenTexts: List<String>) = when (context) {
+        com.onedal.app.models.ScreenContext.POPUP_MEMO -> scan.handleMemoPopup(rootNode, screenTexts)
+        com.onedal.app.models.ScreenContext.POPUP_PICKUP -> scan.handlePickupPopup(rootNode, screenTexts)
+        com.onedal.app.models.ScreenContext.POPUP_DROPOFF -> scan.handleDropoffPopup(rootNode, screenTexts)
+        else -> Unit
+    }
+
+    override val logTag: String get() = "1DAL_INSUNG"
 
     /** ✍️ 확정 버튼 글자 — 판별 글자에서 옮긴 값 그대로(«배차»가 든 까닭은 따로 본다) */
     override val acceptButtons: List<String>? = listOf("확정", "배차")

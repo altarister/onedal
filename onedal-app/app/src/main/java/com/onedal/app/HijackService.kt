@@ -12,15 +12,8 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.api.ApiClient
 import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
 import com.onedal.app.plugins.insung.InsungKeywords
-import com.onedal.app.plugins.insung.handleConfirmedScreen
 import com.onedal.app.plugins.kakaopicker.reportPickerAccepted
-import com.onedal.app.plugins.insung.handleMemoPopup
 import com.onedal.app.core.engine.handlePreConfirmScreen
-import com.onedal.app.plugins.insung.buildOrderFromScreen
-import com.onedal.app.plugins.insung.isPopupResidue
-import com.onedal.app.plugins.insung.advanceCollect
-import com.onedal.app.plugins.insung.handleDropoffPopup
-import com.onedal.app.plugins.insung.handlePickupPopup
 import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
 import com.onedal.app.plugins.kakaopicker.KakaoPickerParser
 import com.onedal.app.core.AlarmSignaler
@@ -30,7 +23,6 @@ import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.CallMemory
 import com.onedal.app.core.ScrapParser
 import com.onedal.app.core.TargetApp
-import com.onedal.app.plugins.insung.InsungParser
 import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.core.engine.PreConfirmGate
@@ -104,7 +96,8 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     fun benchScreenRead(delayMs: Long) {
         waitBook.schedule("사진 읽기 시험", com.onedal.app.core.WaitBook.SERVICE, delayMs) {
-            val parser = com.onedal.app.plugins.DispatchPluginRegistry.get(com.onedal.app.core.TargetApp.KAKAOPICKER).ocrParser
+            /* 📷 사진 판독기가 있는 배차망의 것으로 — 지금은 하나뿐이다 */
+            val parser = com.onedal.app.plugins.DispatchPluginRegistry.all().firstNotNullOfOrNull { it.ocrParser }
             screenReader.bench(
                 parser = parser,
                 onDone = { results ->
@@ -260,7 +253,7 @@ class HijackService : AccessibilityService(), ScanContext {
             waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, orig - now) { r.run() }
             detailBackDeadlineMs = orig
         }
-        AppLogger.i("1DAL_PICKER", LogTag.SCREEN,
+        AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN,
             if (folded) "⏩ [빨리 접기 풂] 상세에 손($why) — 원래 마감으로 (${maxOf(0L, (orig ?: now) - now) / 1000}초 남음) · 콜 $orderId"
             else "⏩ [빨리 접기 막음] 상세에 손($why) — 뒤에 오는 빨리 접기를 안 받는다 · 콜 $orderId")
     }
@@ -335,14 +328,14 @@ class HijackService : AccessibilityService(), ScanContext {
         detailFoldOrderId = null
         foldReleasedOrderId = null
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, true)          // ⏱️ [1초 고속 무전] 상세에 머무는 동안 서버 판결(유지/취소)을 1초마다 물어본다
-        AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 (1초 주기 판결 수신 가동) · 연 쪽: $opener")
+        AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 (1초 주기 판결 수신 가동) · 연 쪽: $opener")
         val r = Runnable {
             detailBackRunnable = null
             detailBackDeadlineMs = null
             telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, false)
             // ⏩ 판정 뒤 접기로 당긴 마감이면 — 뒤로 가기 직전 아직 그 콜인지 다시 본다(기사님이 이미 나가셨거나 다른 콜이면 안 누른다)
             if (detailFoldOrderId?.let { it != session.currentOrderId } == true) {
-                AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏹️ [상세 대기] 접을 콜($detailFoldOrderId)이 지금 콜이 아니다 — 뒤로 가지 않는다")
+                AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏹️ [상세 대기] 접을 콜($detailFoldOrderId)이 지금 콜이 아니다 — 뒤로 가지 않는다")
                 detailFoldOrderId = null
                 return@Runnable
             }
@@ -352,12 +345,12 @@ class HijackService : AccessibilityService(), ScanContext {
             // 아직 확정 전 상세에 있고, 앱이 계약하지 않는 콜일 때만 나온다 — 모드·배차망은 가리지 않는다
             if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
                 && !session.contractedByApp) {
-                AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "↩️ [상세 대기] $why — 리스트로 자동 복귀 · 연 쪽: $opener")
+                AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "↩️ [상세 대기] $why — 리스트로 자동 복귀 · 연 쪽: $opener")
                 // 🔴 뒤로 가기도 `touchManager` 한 곳으로 — 거기서 자국을 남긴다 (배차망을 가리지 않는다)
                 lastBackAtMs = android.os.SystemClock.elapsedRealtime()
                 touchManager.performBack(why)
             } else {
-                AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏹️ [상세 대기] ${delayMs / 1000}초가 됐지만 상세가 아니다 — 뒤로 가지 않는다 · 연 쪽: $opener")
+                AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏹️ [상세 대기] ${delayMs / 1000}초가 됐지만 상세가 아니다 — 뒤로 가지 않는다 · 연 쪽: $opener")
             }
         }
         detailBackRunnable = r
@@ -373,7 +366,7 @@ class HijackService : AccessibilityService(), ScanContext {
             else com.onedal.app.core.engine.DetailFold.whyNot(detailBackDeadlineMs, now, remainMs, sameOrder, session.openedByApp, onDetail)
         // 🔎 받은 때와 까닭 — 콜마다 까닭이 바뀔 때만 한 줄 (서버 «⏩ [빨리 접기] 폰에 처음 알림»과 맞댄다)
         if (LogOnce.changed("fold-after:$orderId", why ?: "당김"))
-            AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏩ [foldAfter 받음] 콜 $orderId · 남은 ${"%.1f".format(remainMs / 1000.0)}초 · ${why?.let { "무시 — $it" } ?: "당김"} (지금 콜 ${session.currentOrderId.ifEmpty { "없음" }})")
+            AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏩ [foldAfter 받음] 콜 $orderId · 남은 ${"%.1f".format(remainMs / 1000.0)}초 · ${why?.let { "무시 — $it" } ?: "당김"} (지금 콜 ${session.currentOrderId.ifEmpty { "없음" }})")
         if (why != null) return
         val r = detailBackRunnable ?: return
         val deadline = com.onedal.app.core.engine.DetailFold.newDeadlineMs(detailBackDeadlineMs, now, remainMs,
@@ -382,14 +375,14 @@ class HijackService : AccessibilityService(), ScanContext {
         waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, deadline - now) { r.run() }   // 같은 이름 — 앞의 것을 거두고 당겨 건다
         detailBackDeadlineMs = deadline
         detailFoldOrderId = orderId
-        AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏩ [상세 대기 줄임] 서버 판정 뒤 접기 — ${"%.1f".format(remainMs / 1000.0)}초 뒤 목록으로 (원래 ${leftSec}초 남음) · 콜 $orderId")
+        AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏩ [상세 대기 줄임] 서버 판정 뒤 접기 — ${"%.1f".format(remainMs / 1000.0)}초 뒤 목록으로 (원래 ${leftSec}초 남음) · 콜 $orderId")
     }
 
     private fun cancelDetailBack() {
         detailBackRunnable?.let {
             waitBook.cancel("상세 대기")
             val stayedSec = (android.os.SystemClock.elapsedRealtime() - detailBackArmedAtMs) / 1000
-            AppLogger.i("1DAL_PICKER", LogTag.SCREEN, "⏹️ [상세 대기] 풀었다 — ${stayedSec}초 머묾 · 연 쪽: $detailBackOpener (콜 끝 · 리스트 복귀)")
+            AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏹️ [상세 대기] 풀었다 — ${stayedSec}초 머묾 · 연 쪽: $detailBackOpener (콜 끝 · 리스트 복귀)")
         }
         detailBackRunnable = null
         detailBackDeadlineMs = null
@@ -1261,7 +1254,7 @@ class HijackService : AccessibilityService(), ScanContext {
             val stage = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.stageOf(rawScreenStr)
             if (stage != null) {
                 if (stage != lastPickerStage) {
-                    AppLogger.i("1DAL_PICKER", LogTag.CALL_STAGE, "🚚 [운행 단계] ${lastPickerStage ?: "없음"} → $stage")
+                    AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.CALL_STAGE, "🚚 [운행 단계] ${lastPickerStage ?: "없음"} → $stage")
                     lastPickerStage = stage
                 }
             } else if (detected == ScreenContext.UNKNOWN && pickerLog == TargetApp.PickerLog.STAGE_AND_UNKNOWN) {
@@ -1281,11 +1274,10 @@ class HijackService : AccessibilityService(), ScanContext {
                 val detailTexts = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).detailTextsOf(screenTexts)
                 handlePreConfirmScreen(rootNode, detailTexts, detailTexts.joinToString(" "))
             }
-            /* ✅ 확정 뒤 상세 처리는 그 배차망에 할 일이 있을 때만 — 화물24시 배차내역 상세 · 픽커 수락 뒤 화면에서는 아무것도 안 한다 */
-            ScreenContext.DETAIL_CONFIRMED -> if (com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).handlesConfirmedDetail) handleConfirmedScreen(rootNode, screenTexts, rawScreenStr)
-            ScreenContext.POPUP_MEMO -> handleMemoPopup(rootNode, screenTexts)
-            ScreenContext.POPUP_PICKUP -> handlePickupPopup(rootNode, screenTexts)
-            ScreenContext.POPUP_DROPOFF -> handleDropoffPopup(rootNode, screenTexts)
+            /* ✅ 확정 뒤 상세 · 상세 위 팝업에서 할 일은 그 배차망 칸이 정한다 — 인성만 있다(화물24시 · 픽커는 아무것도 안 한다) */
+            ScreenContext.DETAIL_CONFIRMED -> com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).onConfirmedDetail(this, rootNode, screenTexts, rawScreenStr)
+            ScreenContext.POPUP_MEMO, ScreenContext.POPUP_PICKUP, ScreenContext.POPUP_DROPOFF ->
+                com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).onPopup(this, detected, rootNode, screenTexts)
             else -> {} // UNKNOWN, POPUP_ERROR 등은 현재 별도 처리 없음
         }
         scanHandleMs = android.os.SystemClock.elapsedRealtime() - handleStartMs
@@ -1430,7 +1422,7 @@ class HijackService : AccessibilityService(), ScanContext {
             if (cardTexts.isEmpty()) {
                 emptyCard++
                 val r = fareNode.rect
-                if (InsungParser.isEmptyRect(r.top, r.bottom)) emptyRectAnchor++
+                if (com.onedal.app.core.NodeText.isEmptyRect(r.top, r.bottom)) emptyRectAnchor++
                 if (emptySamples.size < 3) {
                     emptySamples += "\"${fareNode.text}\"@(${r.left},${r.top},${r.right},${r.bottom})"
                 }
@@ -2036,7 +2028,7 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         if (!session.contractedByApp) {
             if (session.openedByApp && decision == "CANCEL") {
-                AppLogger.i("1DAL_PICKER", LogTag.DECISION, "↩️ [결재 CANCEL] 앱이 연 콜 — 바로 목록으로 돌아온다")
+                AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.DECISION, "↩️ [결재 CANCEL] 앱이 연 콜 — 바로 목록으로 돌아온다")
                 waitBook.schedule("결재 CANCEL 뒤 뒤로", com.onedal.app.core.WaitBook.SESSION, 300) {
                     if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
                         lastBackAtMs = android.os.SystemClock.elapsedRealtime()

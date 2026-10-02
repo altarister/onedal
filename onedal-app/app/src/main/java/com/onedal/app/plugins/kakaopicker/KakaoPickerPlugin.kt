@@ -45,6 +45,8 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
     /** 🖥️ 페이지 목록 — `KakaoPickerPages` (reviews/35) */
     override val screens get() = KakaoPickerPages.screens
 
+    override val logTag: String get() = "1DAL_PICKER"
+
     /** 🏁 «배정» 토스트를 믿는 앱 — 실물 픽커 · 시뮬레이터 */
     override val noticeSources: Set<String> = setOf(TargetApp.KAKAOPICKER_PACKAGE, TargetApp.SIMULATOR_PACKAGE)
 
