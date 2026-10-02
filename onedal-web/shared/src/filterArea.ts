@@ -49,13 +49,13 @@ export function goalStateLabel(hasCalls: boolean, departed: boolean): string {
  * 🎯 **목적지 — 둘을 합친 것. 최대 둘이다** (기사님 확정).
  *
  * ```
- * 목적지 = { 필터값 } ∪ { 마지막으로 KEEP 한 콜의 목표값 }
+ * 목적지 = { 필터값 } ∪ { 진행 중인 확정 콜 가운데 마지막 콜의 목표값 }
  * ```
  *
  * 첫 콜을 잡을 때는 그 콜의 목표값이 곧 그때의 필터값이라 **둘이 같아 하나**다.
  * 기사님이 필터값을 바꾸면 마지막 콜의 목표값은 그대로라 **둘**이 된다 — 둘 다 올려야
  * 목적지에 닿기 전에 새 방향 콜을 미리 잡을 수 있다. 새 방향 콜을 잡으면 마지막 콜의 목표값이
- * 그것이 되어 **저절로 하나**가 된다.
+ * 그것이 되어 **저절로 하나**가 된다. 취소 · 방출 · 하차 끝난 콜은 마지막 콜이 아니다 — 남은 확정 콜이 없으면 필터값 하나다.
  *
  * 🔴 **«죽이는» 코드를 두지 않는다** — 마지막 콜이 바뀌면 합쳐진다. 지우는 규칙이 따로 있으면
  *    그 규칙과 이 계산이 갈라진다 (규칙 ③).
@@ -65,7 +65,7 @@ export function goalStateLabel(hasCalls: boolean, departed: boolean): string {
  *    콜의 목표값은 잡던 순간의 필터값이라 이미 답이 적혀 있다.
  *
  * @param filterCity 지금 향하는 곳 — 복귀를 켰으면 집 (서버 `goalCityOf`)
- * @param lastKeptGoalCity 마지막으로 KEEP 한 콜의 목표값 (서버 `session.myOrders` 의 끝)
+ * @param lastKeptGoalCity 진행 중인 확정 콜 가운데 마지막 콜의 목표값 (서버 `goalZonesNow` 가 고른다)
  * @param activeCalls 지금 실린(진행 중인) 콜만
  */
 export function goalZonesOf(o: {

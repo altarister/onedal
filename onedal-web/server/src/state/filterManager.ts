@@ -11,7 +11,7 @@
  * - activeFilter는 직접 수정하고 직접 읽는 1등 시민(first-class citizen)입니다.
  */
 
-import { isHomeCallSince, SAME_NAME_DONGS, ADMIN_SAME_NAME_DONGS, withAdminDongs, reservedPickupRadiusKmOf, wonText } from "@onedal/shared";
+import { isHomeCallSince, IN_PROGRESS_STATUSES, SAME_NAME_DONGS, ADMIN_SAME_NAME_DONGS, withAdminDongs, reservedPickupRadiusKmOf, wonText } from "@onedal/shared";
 import { callTargetToday } from "../core/callTargetEvents";
 import db from "../db";
 import { getActiveCalls, computeLoadedPoints, buildOrderSync, filterVersionOf } from "../core/helpers";
@@ -19,7 +19,7 @@ import { stepRecordsOf } from "../services/stepSeeder";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
-import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
+import type { AutoDispatchFilter, FlatValueKey, OrderStatus } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, nearGoalCitiesOf, goalStateLabel, pickupPartsOf, pickupAreaKey, dropoffPartsOf, lastDropOf, lineUntil, lineFromPoint, mergeDropoffGroups, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, effectiveRadii, pickupListNeedsRebuild, PICKUP_LIST_MOVE_KM, PICKUP_LIST_MIN_GAP_MS, peakLoadPoints } from "@onedal/shared";
 import type { } from "@onedal/shared";
@@ -73,14 +73,10 @@ function boardOf(o: { goalCity?: string; dropoffX?: number; dropoffY?: number })
  * 🏠 **살아 있는 목적지 전부** — 규칙은 shared `filterArea.goalZonesOf`, 세션에서 부르는 곳은 `goalZonesNow` 한 곳.
  *
  * ```
- * 복귀 끔                  [목적지]
- * 복귀 켬 · 복귀콜 없음    [목적지, 집]   그동안 관내콜을 진행한다
- * 복귀 켬 · 복귀콜 잡음    [집]           목적지 콜은 뜨면 안 된다
+ * 목적지 = { 필터값 (복귀를 켰으면 집) } ∪ { 진행 중인 확정 콜 가운데 마지막 콜의 목표값 }   — 최대 둘
  * ```
  *
- * «복귀콜을 잡았나» = **복귀를 켠 뒤에 잡은** 콜 중 판이 집인 콜이 있나 (`homeCallsOf` · #131).
- *    취소·방출한 콜은 안 센다 — 복귀콜을 취소하면 복귀 대기로 돌아간다.
- *    ⚠️ `myOrders` 에는 하차한 콜이 영업일 끝까지 남는다 — 아침 복귀콜이 저녁 복귀를 «잡음»으로 못 만드는 것은 켠 시각이 막는다.
+ * 취소 · 방출 · 하차 끝난 콜은 마지막 콜이 아니다 — 진행 중인 확정 콜이 없으면 목적지는 필터값 하나다.
  */
 export function goalCitiesOf(session: ReturnType<typeof getUserSession>, userId: string): string[] {
     /* `goalZonesOf`(목적지 콜이 남으면 목적지도)의 목적지 이름.
@@ -452,7 +448,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         const radius = session.activeFilter.destinationRadiusKm || 0;
         slog('필터', `🗺️ [FilterManager] 지리 재계산 (city=${city}, radius=${radius}km)`);
         /**
-         * 🕸️ **그물이 목록을 만든다** — 화면이 그리는 그 계산이다. 살아 있는 목적지마다 (복귀 대기면 목적지 ∪ 집).
+         * 🕸️ **그물이 목록을 만든다** — 화면이 그리는 그 계산이다. 살아 있는 목적지마다 (`goalZonesNow`).
          *    제외 지역은 `netKeywordsOf` 안에서 `pruneExcludedRegions` 한 곳이 뺀다 (규칙 ③).
          */
         /**
@@ -960,11 +956,13 @@ function goalZonesNow(session: ReturnType<typeof getUserSession>, userId: string
     const homeOn = f.callTarget === 'HOME';
     const homeCity = homeCityOf(userId);
     /**
-     * 🎯 **목적지 = 필터값 ∪ 마지막으로 KEEP 한 콜의 목표값** (기사님 확정 · shared `goalZonesOf`).
-     *    `myOrders` 는 KEEP 한 차례로 쌓이므로 **끝이 곧 마지막 콜**이다.
+     * 🎯 **목적지 = 필터값 ∪ «진행 중인 확정 콜» 가운데 마지막 콜의 목표값** (기사님 확정 · shared `goalZonesOf`).
+     *    취소 · 방출 · 하차 끝난 콜과 판정 중(KEEP 전) 콜은 마지막 콜이 아니다 — 묻는 것은 «확정됐고 아직 안 끝났나» 하나다.
+     *    차례는 `myOrders` 에 쌓인 차례다 — KEEP 할 때 끝에 붙고, 재시작 때는 `orders.timestamp` 차례로 되살린다 (KEEP 시각 칸은 없다).
      *    새 방향 콜을 잡으면 그 목표값이 필터값과 같아져 저절로 하나가 된다 — 지우는 코드가 없다.
      */
-    const lastKept = session.myOrders[session.myOrders.length - 1];
+    const kept = session.myOrders.filter(o => IN_PROGRESS_STATUSES.includes(o.status as OrderStatus));
+    const lastKept = kept[kept.length - 1];
     const base = goalZonesOf({
         filterCity: goalCityOf(session, userId),
         lastKeptGoalCity: (lastKept as { goalCity?: string } | undefined)?.goalCity ?? null,

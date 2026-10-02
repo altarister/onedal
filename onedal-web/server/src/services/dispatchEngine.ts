@@ -649,7 +649,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
              *
              * 🔴 **하차지 좌표로 «어느 목적지 쪽인가»를 가르지 않는다.** 기사님이 그 필터값으로 콜을 보고 잡으신 것이니
              *    답이 이미 적혀 있다. 좌표로 가르면 마름모 자락에 걸친 콜이 엉뚱한 목적지로 찍혀
-             *    목적지가 잘못 합쳐진다. 목적지는 «필터값 ∪ 마지막 KEEP 콜의 목표값»이다 (shared `goalZonesOf`).
+             *    목적지가 잘못 합쳐진다. 목적지는 «필터값 ∪ 진행 중인 마지막 확정 콜의 목표값»이다 (shared `goalZonesOf`).
              * 🔴 넣기 **전에** 적는다 — 승격본·캐시본 둘 다 (화면·장부가 갈리지 않게)
              */
             confirmedOrder.goalCity = goalCityOf(session, userId) || undefined;

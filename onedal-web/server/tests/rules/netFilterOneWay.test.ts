@@ -187,15 +187,11 @@ describe('🚀 출발 — 주행 감지로 켠다', () => {
 });
 
 /**
- * 🏠 **복귀 대기 — 목적지가 둘이다** (기사님 확정).
+ * 🏠 **목적지는 최대 둘이다** (기사님 확정).
  *
- *   | 상태 | 살아 있는 목적지 |
- *   |---|---|
- *   | 복귀 끔 | 목적지 |
- *   | 복귀 켬 · 복귀콜 없음 | **목적지 ∪ 집** — 그동안 관내콜을 진행한다 |
- *   | 복귀 켬 · 복귀콜 잡음 | 집 하나 — 목적지 콜은 뜨면 안 된다 |
+ *   목적지 = { 필터값 (복귀를 켰으면 집) } ∪ { 진행 중인 확정 콜 가운데 마지막 콜의 목표값 }
  *
- * 복귀를 켜는 순간 목적지를 집 하나로 바꾸면 복귀 대기 동안 목적지 콜이 안 뜬다.
+ * 복귀를 켜도 진행 중인 목적지 콜이 남아 있으면 그 목표값이 함께 산다 — 취소 · 방출 · 하차 끝난 콜은 안 센다.
  * 규칙은 shared `goalZonesOf` 한 곳이고, 서버에서는 `goalZonesNow` 가 그것을 부른다.
  * «복귀콜을 잡았나»는 **콜에 적힌 목표값**(`goalCity` — 확정 순간의 필터값)으로 안다.
  */
@@ -203,14 +199,14 @@ describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
     const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     it('🔴 살아 있는 목적지는 activeGoals 한 곳이 정한다 — 복귀콜을 잡았나는 콜의 판(goalCity) · 취소한 콜은 안 센다', () => {
-        /* 🔴 목적지는 «필터값 ∪ 마지막으로 KEEP 한 콜의 목표값» 한 곳이 정한다 (shared `goalZonesOf`).
-              `myOrders` 는 KEEP 차례로 쌓이므로 끝이 곧 마지막 콜이다 */
+        /* 🔴 목적지는 «필터값 ∪ 진행 중인 마지막 확정 콜의 목표값» 한 곳이 정한다 (shared `goalZonesOf`).
+              마지막 콜은 «확정됐고 아직 안 끝난» 콜 가운데서 고른다 */
         const g = body(fm, 'export function goalCitiesOf');
         expect(g).toMatch(/goalZonesNow\(session, userId/);
         expect(g).not.toMatch(/activeGoals\(/);
         const now = body(fm, 'function goalZonesNow');
         expect(now).toMatch(/filterCity: goalCityOf\(session, userId\)/);
-        expect(now).toMatch(/session\.myOrders\[session\.myOrders\.length - 1\]/);
+        expect(now).toMatch(/session\.myOrders\.filter\(o => IN_PROGRESS_STATUSES\.includes\(/);
         /* «복귀를 켠 뒤에 잡은 콜»로 센다 (#131). 아침 복귀콜이 저녁 복귀를 «잡음»으로 못 만드는 것은 켠 시각이 막는다 */
         const calls = body(fm, 'export function homeCallsOf');
         expect(calls).toMatch(/boardOf\(o\)/);
