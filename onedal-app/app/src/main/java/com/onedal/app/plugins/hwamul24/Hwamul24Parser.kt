@@ -282,10 +282,12 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             "당상", "내상", "당착", "내착", "수", "지", "독차", "왕복",  // 날 배지는 지역이 아니다 — 꼬리표·예약으로는 `badgesOf` 가 읽는다
             "인수증", "선/착불", "전체", "화물정보", "자동새로고침",
             "오더검색", "자동터치", "성공", "최대", "ON", "OFF",
-            "홈", "화물정보", "마이페이지", "환경"
+            "홈", "화물정보", "마이페이지", "환경", "환경설정", "배차내역",  // 아래 막대
+            "무과세", "계산서"  // 결제 글
         )
 
-        val trimmed = texts.map { it.trim() }
+        // 🧹 맞대는 글은 앞의 그림 글자·기호를 뗀 글로 — 아래 막대가 «🚚 배차내역» 꼴로 온다
+        val trimmed = texts.map { it.trim().replace(Regex("""^[^가-힣A-Za-z0-9]+"""), "").trim() }
         // 📰 뺀 글자를 버리지 않고 모은다 — 잡음 낱말 · 지역으로 못 알아본 글자 · 셋째 지역부터 (`ScreenWords`)
         trimmed.filter { it in noiseWords }.forEach { ScreenWords.add(it, WordKind.NOISE, rawJoined) }
         val analyzed = trimmed
@@ -295,6 +297,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 !text.matches(Regex("""^\d+.*""")) && // 숫자로 시작하는 것 제외 (거리, 시간 등)
                 !text.contains("원") && // 요금 제외
                 !text.contains("톤") && // 차종 제외
+                !text.contains("/") && // 🔴 «/» 가 든 글은 주소가 아니다 — 차종 줄(«오토바이/전체서류봉투»)·화물 글(«당착/쿠팡반품건»)
                 text != ">" // 화살표 구분자 제외
             }
             .map { it to LocationTextAnalyzer.analyze(it) }
