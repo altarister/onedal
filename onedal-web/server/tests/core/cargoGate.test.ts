@@ -160,9 +160,61 @@ describe('📦 필터가 «최대»를 쓴다 (배선)', () => {
         expect(fm).toMatch(/slotsUsed = Math\.min\([\s\S]{0,80}Math\.round\(peak \* 10\)/);
     });
 
-    it('🔴 순서와 «이미 실은 콜»을 함께 넘긴다 — 둘 중 하나가 빠지면 셈이 틀린다', () => {
-        expect(fm).toMatch(/peakLoadPoints\(pointsByOrder,\s*orderedStops,\s*pickedUpIds\)/);
+    it('🔴 순서와 «실린 것»을 함께 넘긴다 — 실린 것은 경로 조립과 같은 기준(hasVisitedStop)으로 가른다', () => {
+        expect(fm).toMatch(/peakLoadPoints\(pointsByOrder,\s*orderedStops,\s*loadedIds\)/);
         expect(fm).toMatch(/sectionStops\?\.length/);
-        expect(fm).toMatch(/status === 'ORDER_PICKED_UP'/);
+        expect(fm).toMatch(/loadedIds = activeCalls\.filter\(c => hasVisitedStop\(c, 'pickup'\)\)/);
+    });
+});
+
+/**
+ * 📦 **실린 것과 실릴 것을 갈라 센다 — KEEP 직후에도, 상차지에 와 있는 동안에도**
+ *
+ * 실린 것(loaded) = 상차를 마쳤거나 상차지에 와 있어 남은 경로 맨 앞에서 실리는 콜 · 실릴 것(toLoad) = 아직 상차 전인 콜.
+ * 남은 자리는 «실린 것 + 그때까지 실린 실릴 것 − 내린 것»의 가장 큰 값이다. 잡은 콜을 다 더해 세면 거짓 만석으로 콜 잡기가 멈춘다.
+ * 두 장면은 이천 방향 일곱 지점 한 바퀴(1t · 다마스 콜 30박스)의 KEEP 직후 그대로다.
+ */
+describe('📦 실린 것 · 실릴 것 — 거짓 만석을 안 낸다', () => {
+    const { getUserSession } = require('../../src/state/userSessionStore');
+    const { updateActiveFilter } = require('../../src/state/filterManager');
+    const { StateMachine } = require('../../src/core/engine/StateMachine');
+    const stop = (orderId: string, stopType: 'pickup' | 'dropoff') => ({ orderId, stopType });
+    const damas = (id: string, extra: Record<string, unknown> = {}) =>
+        ({ id, vehicleType: '다마스', status: 'ORDER_CONFIRMED', pickup: '상차', dropoff: '하차', fare: 50000, ...extra }) as any;
+    const keepThenDerive = (uid: string, orders: any[]) => {
+        const s = getUserSession(uid);
+        s.userVehicleType = '1t';
+        s.activeFilter.dispatchPhase = 'DELIVERING';
+        s.activeFilter.acceptedVehicleTypes = [];
+        s.myOrders = orders;
+        updateActiveFilter(uid, StateMachine.advanceOnKeep(s).newFilter!);
+        return s.activeFilter.allowedVehicleTypes as string[];
+    };
+
+    it('🔴 셋째 KEEP — 상차지에 와 있는 첫 콜은 실린 것이다 (같이 실리는 최대 60박스 → 다마스가 남는다)', () => {
+        const allowed = keepThenDerive('test-cargo-loaded-third', [
+            damas('A', { arrivedPickupAt: '2026-10-02T05:34:36.000Z' }),
+            damas('B'),
+            damas('C', { sectionStops: [stop('B', 'pickup'), stop('A', 'dropoff'), stop('C', 'pickup'), stop('B', 'dropoff'), stop('C', 'dropoff')] }),
+        ]);
+        expect(allowed).toContain('다마스');
+    });
+
+    it('🔴 넷째 KEEP — 실린 것 둘(상차 완료 · 상차지 도착)에 실릴 것 둘이어도 만석이 아니다', () => {
+        const allowed = keepThenDerive('test-cargo-loaded-fourth', [
+            damas('A', { status: 'ORDER_PICKED_UP' }),
+            damas('B', { arrivedPickupAt: '2026-10-02T05:35:11.000Z' }),
+            damas('C'),
+            damas('D', { sectionStops: [stop('A', 'dropoff'), stop('C', 'pickup'), stop('B', 'dropoff'), stop('C', 'dropoff'), stop('D', 'pickup'), stop('D', 'dropoff')] }),
+        ]);
+        expect(allowed).toContain('다마스');
+    });
+
+    it('🔴 KEEP 길 · 재시작 복구 길은 차종을 따로 세어 넘기지 않는다 — 넘기면 필터 매니저의 셈을 건너뛴다', () => {
+        const codeOnly = (x: string) => x.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        const engine = codeOnly(readFileSync(join(__dirname, '../../src/services/dispatchEngine.ts'), 'utf8'));
+        expect(engine).not.toMatch(/getRemainingCapacityTypes\(/);
+        const t = StateMachine.advanceOnKeep(getUserSession('test-cargo-transition-shape'));
+        expect('allowedVehicleTypes' in (t.newFilter ?? {})).toBe(false);
     });
 });

@@ -1,4 +1,4 @@
-import { businessDayKey, restoreWhere, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
+import { businessDayKey, restoreWhere, mapVehicleToKakaoCarType, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
@@ -724,16 +724,13 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
 
 
         // ━━━ 3단계 State Machine 적용 ━━━
-        // 합짐 차종: [내 차 용량 − 확정된 콜 전부의 용량]으로 남은 적재 가능 차종을 추론한다.
-        //
-        // 첫 짐 차종 하나만 보고 «첫 짐 이하 등급»을 허용하면, 오토바이급 콜을 잡는 순간
-        // 허용 차종이 [오토바이] 하나로 줄어 합짐 콜 잡기가 멈춘다 — 짐이 작을수록 공간이 더 남는데도.
-        const routingOpts = SettingsRepository.getKakaoRoutingOptions(userId);
-        const myVehicle = routingOpts.vehicleType || '1t';
-        // 방금 push한 confirmedOrder 포함, 현재 적재 중인 활성 콜 전부
+        /**
+         * 🚚 **남은 자리는 필터 매니저 한 곳이 «함께 실리는 최대»로 구한다** — 전이는 차종을 싣지 않으므로
+         *    `updateActiveFilter` 안의 셈이 방금 잡은 콜과 위에서 방금 잰 병합 경로의 정거장 순서(`sectionStops`)로 돈다.
+         *    잡은 콜을 다 더해 세면 KEEP 은 예약인데 3~4콜에서 «만재»로 막힌다.
+         */
+        const myVehicle = SettingsRepository.getKakaoRoutingOptions(userId).vehicleType || '1t';
         const loadedVehicles = getActiveCalls(session).map(c => c.vehicleType || myVehicle);
-        const sharedVehicleTypes = getRemainingCapacityTypes(myVehicle, loadedVehicles);
-        slog('필터', `🚚 [적재 용량] 내 차: ${myVehicle} | 실은 짐: [${loadedVehicles.join(', ')}] → 추가 가능 차종: [${sharedVehicleTypes.join(', ')}]`);
 
         // [자체 리뷰 C] 차종을 인식하지 못하면 보수적으로 "내 차를 가득 채운 것"으로 계산한다.
         // 안전한 방향이지만 그만큼 합짐 콜 잡기 범위가 좁아지므로, 조용히 넘어가면 안 된다.
@@ -743,10 +740,11 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             console.warn(`⚠️ [적재 용량] 차종 인식 실패 ${unknownVehicles.length}건 [${unknownVehicles.join(', ')}] → 만재로 간주(보수적). 합짐 범위가 실제보다 좁아집니다.`);
         }
 
-        // 경유 한 벌은 위의 syncDetourFilter 가 이미 넣었다 — 전이는 국면·차종만 (#81)
-        const transition = StateMachine.advanceOnKeep(session, sharedVehicleTypes);
+        // 경유 한 벌은 위의 syncDetourFilter 가 이미 넣었다 — 전이는 국면과 합짐 표시만 (#81)
+        const transition = StateMachine.advanceOnKeep(session);
         if (transition.changed && transition.newFilter) {
             updateActiveFilter(userId, transition.newFilter, io);
+            slog('필터', `🚚 [적재 용량] 내 차: ${myVehicle} | 잡은 콜: [${loadedVehicles.join(', ')}] → 추가 가능 차종: [${(session.activeFilter.allowedVehicleTypes ?? []).join(', ')}]`);
             slog('콜단계', `🔄 [State Machine] ${transition.reason}`);
         }
         logRoadmapEvent('필터', "서버", "새로 부여된 합짐 필터(isSharedMode)값 메모리 세션 갱신");
@@ -1217,15 +1215,14 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         //    "지금 실려 있는 콜"이 진실인 것은 변하지 않는다.
         const restoredActive = getActiveCalls(session);
         if (restoredActive.length > 0) {
-            const myVehicle = SettingsRepository.getKakaoRoutingOptions(userId).vehicleType || '1t';
-            const loadedVehicles = restoredActive.map(c => c.vehicleType || myVehicle);
             // 복구 시점엔 출발 사실이 없다(서버 재시작으로 세션이 새로 났다) → 모으기부터 다시
             const phase = deriveDispatchPhase(restoredActive.length, !!session.departedAt);
 
+            /* 🚚 차종은 넘기지 않는다 — 필터 매니저가 되살린 콜(상차지 도착 · 상차 완료)과 장부의 경로 순서(`sectionStops`)로
+                  «함께 실리는 최대»를 구한다. 순서를 못 되살린 콜이 있으면 그 셈이 스스로 다 더한 값으로 물러선다 */
             updateActiveFilter(userId, {
                 dispatchPhase: phase,
                 isSharedMode: true,
-                allowedVehicleTypes: getRemainingCapacityTypes(myVehicle, loadedVehicles),
             }, io);
 
             // 경유 키워드는 부트스트랩 ⑤(rebuildDestinationKeywords)가 일괄 처리한다.

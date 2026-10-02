@@ -1865,8 +1865,12 @@ export function isAlreadyLoaded(c: { status?: string | null }): boolean {
  * 뜻이고, **가는 길**은 더 필요 없다.
  *
  * ⚠️ `isAlreadyLoaded`(실었는가)와 **다른 질문**이다. 도착했지만 아직 안 실은 상태가 있고,
- *    그때 단계는 여전히 "상차 완료" 대기다. 적재 계산도 실은 것만 센다.
+ *    그때 단계는 여전히 "상차 완료" 대기다 — 단계는 `isAlreadyLoaded` 로 묻는다.
  *    여기는 오직 **"경로에 남겨 둘 이유가 있는가"** 만 답한다.
+ *
+ * 📦 적재 계산(«함께 실리는 최대» `peakLoadPoints`)은 이 답으로 **실린 것(loaded)** 을 가른다 — 상차지에 와 있는 콜은
+ *    남은 경로 맨 앞에서 실리므로 처음부터 짐에 넣는다. 경로가 뺀 상차를 따로 세면 순서가 콜 전부를 못 덮어
+ *    다 더한 값으로 물러선다.
  */
 export function hasVisitedStop(
     c: { status?: string | null; arrivedPickupAt?: string | null; arrivedDropoffAt?: string | null },

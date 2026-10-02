@@ -24,7 +24,7 @@ describe('#81 KEEP 전이는 경유 한 벌을 건드리지 않는다', () => {
         const s = getUserSession('test-81-transition-shape');
         s.activeFilter.dispatchPhase = 'GATHERING';
 
-        const t = StateMachine.advanceOnKeep(s, ['오토바이', '다마스']);
+        const t = StateMachine.advanceOnKeep(s);
 
         expect(t.changed).toBe(true);
         expect(t.newFilter).toBeDefined();
@@ -44,7 +44,7 @@ describe('#81 KEEP 전이는 경유 한 벌을 건드리지 않는다', () => {
         s.activeFilter.destinationGroups = { '이천시': ['중리동', '신둔면', '관고동'], '광주시': ['초월읍'] };
         s.activeFilter.customCityFilters = ['이천시', '이천', '광주시', '광주'];
 
-        const t = StateMachine.advanceOnKeep(s, ['오토바이', '다마스']);
+        const t = StateMachine.advanceOnKeep(s);
         updateActiveFilter('test-81-aliases-survive', t.newFilter!);
 
         // 별칭이 비면 앱 3단계가 동명이동 주의 동(중리동)을 전부 «동명이동!»으로 죽인다

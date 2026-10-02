@@ -21,7 +21,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey, OrderStatus } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, goalZonesOf, withNearness, nearGoalCitiesOf, goalStateLabel, pickupPartsOf, pickupAreaKey, dropoffPartsOf, lastDropOf, lineUntil, lineFromPoint, mergeDropoffGroups, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, heldRadiusDistanceKm, progressAlongKm, RADIUS_BASE_KM_DEFAULT,
-         EVALUATING_STATUSES, effectiveRadii, pickupListNeedsRebuild, PICKUP_LIST_MOVE_KM, PICKUP_LIST_MIN_GAP_MS, peakLoadPoints } from "@onedal/shared";
+         EVALUATING_STATUSES, effectiveRadii, pickupListNeedsRebuild, PICKUP_LIST_MOVE_KM, PICKUP_LIST_MIN_GAP_MS, peakLoadPoints, hasVisitedStop } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -497,7 +497,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     //    상태를 저장하지 말고 데이터에서 파생시킨다 (규칙 ③).
     if (!changes.allowedVehicleTypes) {
         const myVehicle = session.userVehicleType || '1t';
-        const loaded = getActiveCalls(session);
+        const activeCalls = getActiveCalls(session);
         /**
          * 🚚 **기사님이 «받겠다»고 고른 것으로 한 번 더 좁힌다** — 1톤이어도 합짐을 위해 작은 짐만 받을 수 있다.
          *
@@ -512,7 +512,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         const narrow = (types: string[]) =>
             accepted.length === 0 ? types : types.filter(t => accepted.includes(t));
 
-        if (loaded.length === 0) {
+        if (activeCalls.length === 0) {
             session.activeFilter.allowedVehicleTypes = narrow(getEligibleVehicleTypes(myVehicle));
             session.capacityConfidence = 'CONFIRMED';   // 빈 차는 확실하다
             session.activeFilter.capacityConfidence = 'CONFIRMED';
@@ -520,8 +520,8 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         } else {
             // 통화·현장에서 실제 짐 양을 알면 그걸 쓴다 — 차종만 보면 크게 추정해
             // 그 차이만큼 합짐 기회를 놓친다. 재료는 단계 장부(`stepRecordsOf`)에서.
-            const reports = new Map(loaded.map(c => [c.id, stepRecordsOf(c.id).reports]));
-            const { points, confidence, pointsByOrder } = computeLoadedPoints(loaded, myVehicle, reports);
+            const reports = new Map(activeCalls.map(c => [c.id, stepRecordsOf(c.id).reports]));
+            const { points, confidence, pointsByOrder } = computeLoadedPoints(activeCalls, myVehicle, reports);
             /**
              * 📦 **자리는 «함께 실리는 최대»로 센다 — 잡은 콜을 다 더한 값이 아니다** (기사님: KEEP 은 예약이다).
              *
@@ -531,9 +531,16 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
              * 🔴 **순서를 모르면 다 더한 값으로 물러선다** (규칙 ④) — 낙관하면 «들어갈 줄 알았는데 안 들어가는» 사고다.
              *    순서는 **경로를 실제로 잰 콜**이 들고 있다 (`sectionStops` · `routeComposer` 와 같은 자리에서 읽는다).
              */
-            const orderedStops = [...loaded].reverse().find(c => c.sectionStops?.length)?.sectionStops ?? null;
-            const pickedUpIds = loaded.filter(c => c.status === 'ORDER_PICKED_UP').map(c => c.id);
-            const peak = peakLoadPoints(pointsByOrder, orderedStops, pickedUpIds);
+            const orderedStops = [...activeCalls].reverse().find(c => c.sectionStops?.length)?.sectionStops ?? null;
+            /**
+             * 📦 **실린 것(loaded)과 실릴 것(toLoad)을 가른다** — 판단은 경로 조립과 같은 `hasVisitedStop` 하나.
+             *    실린 것 = 상차를 마쳤거나 상차지에 와 있어 남은 경로 맨 앞에서 실리는 콜(처음부터 짐에 든다) ·
+             *    실릴 것 = 그 밖(경로에서 그 상차지에 닿는 순간부터 짐에 더한다).
+             * 🔴 상태(상차 완료)로 가르면 상차지에 와 있는 콜의 상차가 경로 순서에 없어 다 더한 값으로 물러서고,
+             *    그사이 거짓 만석이 난다.
+             */
+            const loadedIds = activeCalls.filter(c => hasVisitedStop(c, 'pickup')).map(c => c.id);
+            const peak = peakLoadPoints(pointsByOrder, orderedStops, loadedIds);
             session.activeFilter.allowedVehicleTypes = narrow(getRemainingCapacityTypesByPoints(myVehicle, peak));
             session.capacityConfidence = confidence;
             session.activeFilter.capacityConfidence = confidence;

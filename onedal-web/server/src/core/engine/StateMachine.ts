@@ -16,7 +16,6 @@ export class StateMachine {
      */
     public static advanceOnKeep(
         session: UserSession,
-        sharedVehicleTypes: string[]
     ): StateTransitionResult {
         const currentPhase = session.activeFilter.dispatchPhase || 'STANDBY';
 
@@ -26,12 +25,15 @@ export class StateMachine {
          * 전이 직전에 `syncDetourFilter` 가 셋을 **한 벌로** 이미 넣었다. 여기서 키워드만 다시 실으면
          * 필터 매니저가 «묶음이 없으니 별칭을 못 만든다 → 비운다»로 **방금 채운 별칭을 지운다** —
          * 빈 별칭이 앱에 내려가면 동명이동 검증이 주의 동(중리동 등) 하차 콜을 전부 죽인다.
-         * 전이의 일은 국면·차종뿐이다 (규칙 ③).
+         * 전이의 일은 국면과 합짐 표시뿐이다 (규칙 ③).
+         *
+         * 🚚 **차종(`allowedVehicleTypes`)도 싣지 않는다** — 넘기지 않으면 필터 매니저가 지금 콜들의
+         *    «함께 실리는 최대»(실린 것 · 실릴 것)로 다시 구한다(`recalculateDerivedFields`). 여기서 따로 세어 넘기면
+         *    그 셈을 건너뛰어 두 셈이 갈라지고, 잡은 콜을 다 더한 거짓 만석이 원달앱에 간다.
          */
         const newFilter: Partial<AutoDispatchFilter> = {
             isSharedMode: true,
             isActive: true,
-            allowedVehicleTypes: sharedVehicleTypes,
         };
 
         if (currentPhase === 'STANDBY') {
