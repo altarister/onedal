@@ -1,3 +1,4 @@
+import { NETWORK_PAGES } from './networkPages';
 export const VEHICLE_OPTIONS = [
     '오토바이', 
     '다마스', 
@@ -89,27 +90,26 @@ const VEHICLE_ALIASES: Record<string, string> = {
     '1.4': '1.4t', '2.5': '2.5t', '3.5': '3.5t',
 };
 
+/** 배차망 차종 낱말 → 우리 차종 — 모든 배차망 정의 표의 vehicleWords 를 합친다(같은 낱말은 한 뜻 · 서버 검사 vehicleWordsFromTable 이 묶음) */
+const VEHICLE_WORDS = new Map<string, string>(
+    Object.values(NETWORK_PAGES).flatMap(spec => (spec.vehicleWords ?? []).map(w => [w.word, w.vehicle] as const)));
+
 /** 차종 문자열을 VEHICLE_CAPACITY 키로 정규화. 알 수 없으면 null */
 export function normalizeVehicleType(raw?: string | null): string | null {
     if (!raw) return null;
     const v = raw.trim();
     if (VEHICLE_CAPACITY[v] !== undefined) return v;
     if (VEHICLE_ALIASES[v]) return VEHICLE_ALIASES[v];
-    /**
-     * 🚚 **배차망은 «톤»으로 적는다** — 화물24시 파서가 화면 글자를 원문 그대로 올린다
-     *    («2.5톤/윙» · «1톤/카/윙»). 못 읽으면 적재도 상차 방법도 없어 **두 기준이 같이 죽는다**.
-     *
-     * 🔴 사전에 없는 톤수(«1.5톤»)는 그대로 `null` 이다 — 가까운 값으로 때우지 않는다 (규칙 ④).
-     *
-     * ⚠️ 앱에도 같은 다리가 있다 (`Hwamul24Parser` 의 «크로스 매칭»). **일부러 둔 두 벌**이다 —
-     *    앱은 서버가 죽어도 콜을 걸러야 해서 자기 판단을 든다 (루트 README.md 규칙 ③ «앱의 기본값은 예외»).
-     */
-    const ton = /^(\d+(?:\.\d+)?)\s*톤(?:[/\s].*)?$/.exec(v);
-    if (ton && VEHICLE_CAPACITY[`${ton[1]}t`] !== undefined) return `${ton[1]}t`;
     /** 🚚 인성 상세 «차량 : 트럭-1t» — 앞 «트럭-» 을 떼고 사전의 톤수만(사전에 없으면 그대로 null) */
     const truck = /^트럭-(\d+(?:\.\d+)?t)$/.exec(v);
     if (truck && VEHICLE_CAPACITY[truck[1]] !== undefined) return truck[1];
-    return null;
+    /**
+     * 🚚 **배차망의 차종 낱말은 배차망 정의 표(`vehicleWords`)가 원천이다** (기사님 «기준은 배차망 · 그쪽 정의를 플러그인으로 우리 기준에 맞춘다»).
+     *    화물24시 목록은 원문 그대로 온다(«2.5톤/윙» · «다마스/전체») — 첫 «/»·공백 앞 낱말을 표에서 찾는다(«1.4 톤»은 붙여 «1.4톤»).
+     *    표에 없는 낱말(«1.5톤»)은 `null` 이다 — 가까운 값으로 때우지 않는다 (규칙 ④). 원달앱도 같은 표를 gen:pages 로 받는다.
+     */
+    const word = v.replace(/(\d)\s+톤/, '$1톤').split(/[/\s]/)[0];
+    return VEHICLE_WORDS.get(word) ?? null;
 }
 
 /** 차종의 적재 점수. 알 수 없는 차종은 fallback 차종의 점수로 간주(보수적) */
