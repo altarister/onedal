@@ -1083,6 +1083,7 @@ db.exec(`
         created_at         TEXT DEFAULT (datetime('now', 'localtime'))
     )
 `);
+/* 📷 screenshot_path — SHOTS_DIR 안 파일 이름(<배차망>-<id>.jpg) · 보관 날수가 지나면 파일과 함께 NULL · 회원 문으로는 안 낸다 (core/anomalyShots) */
 db.exec(`CREATE INDEX IF NOT EXISTS idx_telemetry_anomalies_target ON telemetry_anomalies(target_app, created_at)`);
 
 /**

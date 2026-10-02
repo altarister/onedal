@@ -30,10 +30,10 @@ export function releasesDir(): string {
     return path.resolve(process.env.RELEASES_DIR || path.join(os.homedir(), "onedal-releases"));
 }
 
-/** 레포 안이면 거부 — 배포(git reset · clean)가 APK 를 지우거나 git 에 올라가지 않게 */
-export function assertOutsideRepo(dir: string, repoRoot = REPO_ROOT): void {
+/** 레포 안이면 거부 — 배포(git reset · clean)가 파일을 지우거나 git 에 올라가지 않게. APK 폴더 · 이상 기록 사진 폴더(`core/anomalyShots`)가 같이 쓴다 */
+export function assertOutsideRepo(dir: string, repoRoot = REPO_ROOT, what = { name: "APK 폴더", env: "RELEASES_DIR" }): void {
     const d = path.resolve(dir), r = path.resolve(repoRoot);
-    if (d === r || d.startsWith(r + path.sep)) throw new ReleaseError(500, `APK 폴더가 레포 안이다 (${d}) — RELEASES_DIR 를 레포 밖으로`);
+    if (d === r || d.startsWith(r + path.sep)) throw new ReleaseError(500, `${what.name}가 레포 안이다 (${d}) — ${what.env} 를 레포 밖으로`);
 }
 
 const ZIP_HEAD = Buffer.from([0x50, 0x4b, 0x03, 0x04]);

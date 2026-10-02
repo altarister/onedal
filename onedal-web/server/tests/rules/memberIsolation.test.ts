@@ -72,6 +72,8 @@ describe('👥 문 5개 — 자기 것만 · 관리자만', () => {
         const devs = new Set(out.data.map((r: any) => r.device_id));
         expect(devs.has(DA)).toBe(true);
         expect(devs.has(DB)).toBe(false);
+        /* 📷 사진은 가리지 않은 원본이라 운영센터 문으로만 연다 — 회원 문은 사진 칸을 안 낸다 (reviews/37) */
+        expect(out.data.every((r: any) => !('screenshot_path' in r))).toBe(true);
     });
     it('🔴 GET /api/screen-words/recent — 관리자만(배차망 화면 글은 모든 기사 공통 자료)', () => {
         expect(handlesOf(screenWordsRouter, 'get', '/recent')).toContain(requireOps);

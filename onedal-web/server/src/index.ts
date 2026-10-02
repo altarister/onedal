@@ -19,6 +19,7 @@ import fs from "fs";
 import db from "./db";   // 🛑 종료 절차에서 닫는다 (아래 shutdown)
 import { pruneGpsTracks, flushGpsBuffer, GPS_TRACK } from "./services/gpsTrackStore";
 import { startStatsRollup } from "./services/callFlowStats";
+import { startShotSweep } from "./core/anomalyShots";
 
 import ordersRouter from "./routes/orders";
 import detailRouter from "./routes/detail";
@@ -79,6 +80,8 @@ app.set("io", io);
 app.use(cors());
 /* 🌐 처음 보는 Origin 을 한 줄 — CORS 를 좁히기 전에 실제로 붙는 출처를 모은다 (reviews/29 1단계 H · 소켓은 socketHandlers) */
 app.use((req, _res, next) => { noteOrigin(req.headers.origin, `HTTP ${req.method} ${req.path}`); next(); });
+/* 📷 이상 보고는 사진(base64)이 실려 전역 한도(100KB)를 넘는다 — 이 문만 1MB. 전역 파서는 이미 읽은 본문을 건너뛴다 (core/anomalyShots) */
+app.use("/api/telemetry/anomalies", express.json({ limit: "1mb" }));
 app.use(express.json());
 
 /**
@@ -199,6 +202,8 @@ httpServer.listen(PORT as number, "0.0.0.0", () => {
     initGeoService();
     /* 📊 콜 흐름 통계 — 뜰 때 한 번(부팅을 안 붙잡는다) + 1시간마다 «어제까지 안 묶은 날» (reviews/25 3단계) */
     startStatsRollup();
+    /* 📷 이상 기록 사진 — 뜰 때 한 번 + 한 시간마다, 보관 날수가 지난 사진 파일을 지운다(줄은 남는다 · core/anomalyShots) */
+    startShotSweep();
     /**
      * 🛰️ 궤적 보관 정리 — **부팅 때 한 번.** 8일째 부팅하면 1일차가 지워진다.
      *    서버 로그가 3일치만 두는 것과 같은 규칙이다 (기사님 확정).
