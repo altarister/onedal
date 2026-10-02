@@ -44,6 +44,10 @@ const COMMON: Partial<Record<ScreenContextType, ScreenLabel>> = {
     UNKNOWN: { label: "⚠️ 미등록 팝업", color: RED_BLINK },
     LAUNCHER: { label: "바탕화면 (홈)", color: GRAY },
     OTHER_APP: { label: "기타 앱 (배차망 밖)", color: AMBER },
+    /** 🔀 콜을 누른 직후 넘어가는 틀 — 일하는 중도 고장도 아니다 */
+    TRANSITION: { label: "넘어가는 중", color: GRAY },
+    /** 🧭 배차망 안의 일이 아닌 화면(메뉴 · 마이페이지 …) — 어느 페이지인지는 배차망 정의 표에 있다 */
+    NETWORK_MENU: { label: "배차망 메뉴", color: GRAY },
 };
 
 /** 🏢 인성콜 — 잡는 수순이 곧 화면이다. 진행은 GPS 가 답한다 */
@@ -60,6 +64,8 @@ export const INSUNG_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel
 /** 🚚 화물24시 — 아직 인성과 같은 모양으로 둔다 (실물로 갈라지면 그때 고친다) */
 export const HWAMUL24_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel>> = {
     ...INSUNG_SCREEN_LABELS,
+    /** 🏠 «전국24시콜화물» 홈 — 인성에는 이 층이 없다 */
+    HOME: { label: "홈", color: GRAY },
 };
 
 /**

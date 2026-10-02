@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deviceScreenBadge } from './screenLabels';
+import { deviceScreenBadge, screenLabelOf } from './screenLabels';
 
 /**
  * 🖥️ **폰 상태 바 — 6번(화면 켜짐)과 9번(화면명)은 배지 하나다**
@@ -119,5 +119,19 @@ describe('deviceScreenBadge — 화면 켜짐과 화면명은 한 배지', () =>
         });
         expect(badge!.network).toBe('픽커');
         expect(badge!.label).toBe('⚠️ 미등록 팝업');
+    });
+});
+
+/** 🧭 reviews/35 2단계 — 표가 낸 기준 값 둘과 화물24시 홈이 관제웹에 이름으로 뜬다(«알 수 없는 화면» 빨간 깜빡임이 아니다) */
+describe('넘어가는 중 · 배차망 메뉴 · 화물24시 홈', () => {
+    it('세 배차망 모두 «넘어가는 중» · «배차망 메뉴»', () => {
+        for (const net of ['insung', 'hwamul24', 'kakaopicker']) {
+            expect(screenLabelOf(net, 'TRANSITION' as any)?.label, net).toBe('넘어가는 중');
+            expect(screenLabelOf(net, 'NETWORK_MENU' as any)?.label, net).toBe('배차망 메뉴');
+        }
+    });
+
+    it('화물24시 홈은 «홈»', () => {
+        expect(screenLabelOf('hwamul24', 'HOME')?.label).toBe('홈');
     });
 });

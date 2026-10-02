@@ -1471,6 +1471,8 @@ export type ScreenContextType =
      * 📋 **픽커 «내 오더» 탭 — 잡은 콜 목록** (기사님 지시 · 09-16 라이브에서 «알 수 없는 화면»으로 떴다).
      * 🔴 `LIST_SCREENS` 에 넣지 않는다 — 수락하면 곧바로 여기로 오는데, 리스트 복귀로 읽으면 서버가 미리보기 콜을 치워 승격이 빈 자리에 들어간다
      */
+    | 'TRANSITION'            // 🔀 콜을 누른 직후 넘어가는 틀 — 스치는 화면(BLIP_SCREENS)
+    | 'NETWORK_MENU'          // 🧭 배차망 안의 일이 아닌 화면(메뉴 · 마이페이지 …) — 목록 복귀가 아니다
     | 'MY_ORDERS'             // 📋 픽커 — 내 오더 탭
     /**
      * 🏠 **일을 안 잡고 있는 화면** (기사님 실측 제보로 신설).
@@ -1579,6 +1581,17 @@ export const DETAIL_SCREENS: ScreenContextType[] = [
     'DETAIL_PRE_CONFIRM', 'DETAIL_CONFIRMED',
     'POPUP_PICKUP', 'POPUP_DROPOFF', 'POPUP_MEMO', 'POPUP_ERROR',
 ];
+
+/**
+ * ⏳ **스치는 화면** — 상세도 이탈도 아직 아니다. 이어진 시간이 `UNKNOWN_LEAVE_SEC` 를 넘어야 이탈로 본다(서버 `devices.leftDetail`).
+ * 알 수 없는 화면은 카드를 여는 순간 잠깐 끼고, 넘어가는 중은 콜을 누른 직후 0.3~0.7초 보인다(reviews/35).
+ */
+export const BLIP_SCREENS: ScreenContextType[] = ['UNKNOWN', 'TRANSITION'];
+
+/** 지금 화면이 스치는 화면인가 (`BLIP_SCREENS`) */
+export function isBlipScreen(screenContext?: string | null): boolean {
+    return !!screenContext && (BLIP_SCREENS as string[]).includes(screenContext);
+}
 
 /** 지금 화면이 상세 계열인가 (`DETAIL_SCREENS`) — `UNKNOWN` 은 «모름»이라 여기서 거짓이다 */
 export function isDetailScreen(screenContext?: string | null): boolean {

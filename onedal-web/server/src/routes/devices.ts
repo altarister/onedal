@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf, openBlockedNeedsHand } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf, openBlockedNeedsHand } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession, peekUserSession, baseFilterFromDb } from "../state/userSessionStore";
 import { generatePin, tryConsumePin } from "../state/pairingStore";
@@ -429,10 +429,10 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
      */
     markDetailSeen(userId, deviceId, screenContext, prevScreen);
     /**
-     * ⏳ **«알 수 없는 화면»이 이어진 시간을 잰다** — 상세든 목록이든 다른 화면이 오면 지운다.
-     *    카드를 여는 순간 잠깐 끼는 것(0.05~0.18초)과 **앱 밖으로 나간 것**을 가르는 값이다 (`leftDetail`).
+     * ⏳ **스치는 화면(`BLIP_SCREENS` — 알 수 없음 · 넘어가는 중)이 이어진 시간을 잰다** — 상세든 목록이든 다른 화면이 오면 지운다.
+     *    카드를 여는 순간 잠깐 끼는 것(0.05~0.7초)과 **앱 밖으로 나간 것**을 가르는 값이다 (`leftDetail`).
      */
-    if (screenContext === 'UNKNOWN') session.unknownSince ??= Date.now();
+    if (isBlipScreen(screenContext)) session.unknownSince ??= Date.now();
     else if (screenContext) session.unknownSince = undefined;
 
     /**
@@ -534,8 +534,8 @@ export function deviceScreenOf(deviceId: string): ScreenContextType | undefined 
     return activeDevices.get(deviceId)?.screenContext;
 }
 
-/** 상세 계열 화면인가 — 목록도 «알 수 없음»도 아니다. 알 수 없음은 카드를 여는 순간 잠깐 끼기도 한다 (실제 픽커 9/02 · 68건 중 3건) */
-const isDetailish = (s?: string | null): boolean => !!s && s !== 'UNKNOWN' && !isListScreen(s);
+/** 상세 계열 화면인가 — 목록도 스치는 화면(알 수 없음 · 넘어가는 중)도 아니다. 홈 · 내 오더 · 배차망 메뉴 · 운행 화면도 여기서는 참이다 */
+const isDetailish = (s?: string | null): boolean => !!s && !isBlipScreen(s) && !isListScreen(s);
 
 /**
  * 👀 **이 폰이 상세를 떠났나 — 미리보기 노출의 유일한 기준** (기사님 확정).
@@ -544,14 +544,14 @@ const isDetailish = (s?: string | null): boolean => !!s && s !== 'UNKNOWN' && !i
  *    그대로 쓰면 전원이 나간 폰의 심사석이 영영 안 꺼진다.
  * 🔴 **«상세»는 양의 목록이다** (`DETAIL_SCREENS`) — 팝업은 상세 위에 뜬 것이라 이탈이 아니고,
  *    `HOME` · `MY_ORDERS` · 운행 화면은 상세가 아니다.
- * ⏳ **«알 수 없음»만 유예가 있다** — 스치는 것(0.05~0.18초)은 이탈이 아니고, 이어지면 이탈이다.
+ * ⏳ **스치는 화면(알 수 없음 · 넘어가는 중)만 유예가 있다** — 스치는 것은 이탈이 아니고, 이어지면 이탈이다.
  *    이것은 콜의 수명을 재는 타이머가 아니라 «이탈»의 정의에 든 시간이다.
  */
 function leftDetail(session: DeviceSession): boolean {
     const now = screenNowOf(session);
     if (!now) return true;
     if (isDetailScreen(now)) return false;
-    if (now === 'UNKNOWN') {
+    if (isBlipScreen(now)) {
         const since = session.unknownSince;
         return !!since && Date.now() - since >= UNKNOWN_LEAVE_SEC * 1000;
     }

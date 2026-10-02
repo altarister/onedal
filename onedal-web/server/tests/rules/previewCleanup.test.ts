@@ -270,6 +270,58 @@ describe('👀 미리보기 노출 — 상세를 보고 있는 동안만', () =>
         expect(s.pendingOrdersData.has('pv-unk')).toBe(false);
     });
 
+    it('🔴 넘어가는 중(콜을 누른 직후 틀)이 스치면 안 치운다 — 알 수 없는 화면과 같은 유예', () => {
+        touch('phone-tr', 'DETAIL_PRE_CONFIRM');
+        const s = preview('phone-tr', 'pv-tr');
+        touch('phone-tr', 'TRANSITION', 'DETAIL_PRE_CONFIRM');
+        expect(s.pendingOrdersData.has('pv-tr')).toBe(true);
+    });
+
+    it('🔴 넘어가는 중이 유예를 넘겨 이어지면 치운다', () => {
+        touch('phone-tr2', 'DETAIL_PRE_CONFIRM');
+        const s = preview('phone-tr2', 'pv-tr2');
+        touch('phone-tr2', 'TRANSITION');
+        expect(s.pendingOrdersData.has('pv-tr2')).toBe(true);
+        jest.spyOn(Date, 'now').mockReturnValue(Date.now() + (UNKNOWN_LEAVE_SEC + 1) * 1000);
+        touch('phone-tr2', 'TRANSITION');
+        expect(s.pendingOrdersData.has('pv-tr2')).toBe(false);
+    });
+
+    it('🔴 목록 → 카드 열기 → 넘어가는 중 → 옛 목록 보고가 와도 안 치운다 — 상세를 아직 못 봤다', () => {
+        touch('phone-tr3', 'LIST');
+        const s = preview('phone-tr3', 'pv-tr3');
+        touch('phone-tr3', 'TRANSITION', 'LIST');
+        expect(s.pendingOrdersData.has('pv-tr3')).toBe(true);
+    });
+
+    /**
+     * 🧭 **배차망 메뉴는 서버에게 홈과 같다** — 상세를 떠난 것(미리보기를 접는다)이고 목록 복귀가 아니다(잡은 콜은 남긴다).
+     * 상세를 봤나(`isDetailish` — 스치는 화면도 목록도 아니면 참)도 홈과 같게 친다: 상세를 안 본 콜도 메뉴를 거쳐 목록에 오면 «목록 이탈 유예»가 걸린다(상세를 본 것으로 친다).
+     */
+    it('🔴 배차망 메뉴는 홈과 같은 결과다 — 미리보기 · 잡은 콜 · 상세를 봤나', () => {
+        const run = (screen: string) => {
+            const tag = screen.toLowerCase();
+            touch(`ph-pv-${tag}`, 'DETAIL_PRE_CONFIRM');
+            const a = preview(`ph-pv-${tag}`, `pv-${tag}`);
+            touch(`ph-pv-${tag}`, screen);
+            const s = getUserSession(ADMIN);
+            touch(`ph-sc-${tag}`, 'DETAIL_PRE_CONFIRM');
+            s.pendingOrdersData.set(`sc-${tag}`, { id: `sc-${tag}`, status: 'ORDER_SECURED_EVALUATING', capturedDeviceId: `ph-sc-${tag}`, capturedAt: new Date().toISOString(), pickup: '오송읍', dropoff: '논현동', fare: 38500, isPreview: false, detailSeen: true } as any);
+            s.deviceEvaluatingMap.set(`ph-sc-${tag}`, `sc-${tag}`);
+            touch(`ph-sc-${tag}`, screen);
+            touch(`ph-un-${tag}`, 'LIST');
+            s.pendingOrdersData.set(`un-${tag}`, { id: `un-${tag}`, status: 'ORDER_SECURED_EVALUATING', capturedDeviceId: `ph-un-${tag}`, capturedAt: new Date().toISOString(), pickup: '오송읍', dropoff: '논현동', fare: 38500, isPreview: false } as any);
+            s.deviceEvaluatingMap.set(`ph-un-${tag}`, `un-${tag}`);
+            touch(`ph-un-${tag}`, screen);
+            const unseenAtMenu = s.pendingOrdersData.has(`un-${tag}`);
+            touch(`ph-un-${tag}`, 'LIST');
+            return { previewKept: a.pendingOrdersData.has(`pv-${tag}`), securedKept: s.pendingOrdersData.has(`sc-${tag}`), unseenAtMenu, listExitArmed: s.entries.has(`listExit_un-${tag}`) };
+        };
+        const home = run('HOME');
+        expect(run('NETWORK_MENU')).toEqual(home);
+        expect(home).toEqual({ previewKept: false, securedKept: true, unseenAtMenu: true, listExitArmed: true });
+    });
+
     it('🔴 상세를 아직 못 봤으면 안 치운다 — 카드가 열리는 중이다 (#154)', () => {
         touch('phone-opening', 'LIST');
         const s = preview('phone-opening', 'pv-opening');
