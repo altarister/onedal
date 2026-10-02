@@ -28,6 +28,8 @@ import { noticeOf, type NoticeRow } from "./notices";
 import { slog } from "../utils/fileLogger";
 import { stepsView } from "../services/stepSeeder";
 import { saveCargoReport, saveCounterpartCancelled, CargoReportError } from "../services/cargoReport";
+import fs from "fs";
+import { shotFileOf } from "../core/anomalyShots";
 
 /**
  * 🏢 **운영센터 서버 문 `/api/ops/*`** (reviews/29 3단계 · shared ops.ts 규격 · 붙일 때 requireAuth + requireOps 한 번 — index.ts).
@@ -170,14 +172,17 @@ function todayCallsOf(userId: string): OpsCall[] {
 const IN_PROGRESS_SQL = `o.status IN (${IN_PROGRESS_STATUSES.map(() => '?').join(', ')}) AND o.timestamp >= ?`;
 const inProgressParams = () => [...IN_PROGRESS_STATUSES, restoreWindow(Date.now()).unfinishedSinceIso];
 
-type AnomalyRow = { id: number; created_at: string; device_id: string; target_app: string; screen_name: string | null; failure_reason: string; user_id: string | null };
-const ANOMALY_SQL = `SELECT a.id, a.created_at, a.device_id, a.target_app, a.screen_name, a.failure_reason, d.user_id
+type AnomalyRow = { id: number; created_at: string; device_id: string; target_app: string; screen_name: string | null; failure_reason: string; detail_parsed_text: string | null; has_shot: number; user_id: string | null };
+/* 📷 사진은 «있나»만 싣는다 — 파일 이름은 안 낸다(여는 문은 아래 /anomalies/:id/shot 하나) */
+const ANOMALY_SQL = `SELECT a.id, a.created_at, a.device_id, a.target_app, a.screen_name, a.failure_reason, a.detail_parsed_text,
+        a.screenshot_path IS NOT NULL AS has_shot, d.user_id
     FROM telemetry_anomalies a LEFT JOIN user_devices d ON d.device_id = a.device_id`;
 const anomalyOf = (a: AnomalyRow): OpsAnomaly => ({
     id: a.id, at: isoKst(a.created_at) ?? '', memberId: a.user_id, deviceId: a.device_id,
     targetApp: isTargetApp(a.target_app) ? a.target_app : 'insung',
     /* 🖥️ 화면 칸은 한글 이름으로 — 옛 값(POPUP_* · LIST_COMPLETED)도 이름표가 있어 뜬다 */
     screen: a.screen_name ? (screenLabelOf(a.target_app, a.screen_name as ScreenContextType)?.label ?? a.screen_name) : '', reason: a.failure_reason,
+    text: a.detail_parsed_text, hasShot: !!a.has_shot,
 });
 
 
@@ -254,6 +259,22 @@ router.get("/anomalies", (_req, res) => {
     const screenWords: OpsScreenWord[] = words.filter(w => isTargetApp(w.target_app) && (WORD_KINDS as readonly string[]).includes(w.kind))
         .map(w => ({ targetApp: w.target_app as TargetAppType, page: w.page, word: w.word, kind: w.kind, firstSeenAt: isoKst(w.first_seen) ?? '' }));
     res.json({ anomalies, screenWords });
+});
+
+/**
+ * 📷 **이상 기록 사진은 이 문 하나로만 연다** — 사진은 가리지 않은 원본이다(core/anomalyShots · reviews/37).
+ *    운영센터 문지기(requireOps) 아래이고, 펼칠 때마다 운영센터 기록 «이상 기록 사진 봄» 한 줄. 보관 날수가 지나 파일이 없으면 404.
+ */
+router.get("/anomalies/:id/shot", (req, res) => {
+    const row = db.prepare(`SELECT a.id, a.target_app, a.screen_name, a.screenshot_path, d.user_id
+        FROM telemetry_anomalies a LEFT JOIN user_devices d ON d.device_id = a.device_id WHERE a.id = ?`).get(Number(req.params.id)) as
+        { id: number; target_app: string; screen_name: string | null; screenshot_path: string | null; user_id: string | null } | undefined;
+    const file = row?.screenshot_path ? shotFileOf(row.screenshot_path) : null;
+    if (!row || !file || !fs.existsSync(file)) return res.status(404).json({ error: "사진이 없거나 보관 날수가 지나 지워졌습니다." });
+    audit(adminOf(req), '이상 기록 사진 봄', row.user_id, `#${row.id} · ${row.target_app} · ${row.screen_name ?? '-'}`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('jpeg');
+    return res.sendFile(file);
 });
 
 router.get("/audit", (req, res) => {

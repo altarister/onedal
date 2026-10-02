@@ -176,3 +176,63 @@ describe('🏢 글 · 공지 · 기록 · 숫자', () => {
         expect(phones.out.some((p: any) => p.deviceId === 'd-ops-m')).toBe(true);
     });
 });
+
+describe('📷 이상 기록 사진 — 운영센터 문으로만 · 펼칠 때 기록 한 줄 (reviews/37 · 사진은 가리지 않은 원본)', () => {
+    const fs = require('fs'), os = require('os'), path = require('path');
+    const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(16, 3)]);
+    const before = process.env.SHOTS_DIR;
+    let dir: string, withShot: number, noShot: number;
+    const sent: { file?: string; type?: string; headers: Record<string, string> } = { headers: {} };
+    const shotCall = async (id: number) => {
+        let status = 200, out: any;
+        sent.file = undefined;
+        const res: any = {
+            status: (s: number) => { status = s; return res; }, json: (b: any) => { out = b; return res; },
+            type: (t: string) => { sent.type = t; return res; }, setHeader: (k: string, v: string) => { sent.headers[k] = v; return res; },
+            sendFile: (f: string) => { sent.file = f; return res; },
+        };
+        await handle(opsRouter, 'get', '/anomalies/:id/shot')({ app, params: { id: String(id) }, query: {}, body: {}, user: { id: ADMIN }, headers: {} }, res);
+        return { status, out };
+    };
+    const shotAudits = () => db.prepare(`SELECT COUNT(*) n FROM ops_audit WHERE admin_id = ? AND action = '이상 기록 사진 봄'`).get(ADMIN).n;
+    beforeAll(() => {
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), 'onedal-shots-ops-'));
+        process.env.SHOTS_DIR = dir;
+        const ins = db.prepare(`INSERT INTO telemetry_anomalies (timestamp, device_id, target_app, screen_name, failure_reason, detail_parsed_text) VALUES (datetime('now'), 'd-ops-m', 'kakaopicker', 'UNKNOWN', 'SCREEN_UNKNOWN: 사진 시험', '사진 시험 화면 글')`);
+        withShot = Number(ins.run().lastInsertRowid);
+        noShot = Number(ins.run().lastInsertRowid);
+        fs.writeFileSync(path.join(dir, `kakaopicker-${withShot}.jpg`), JPEG);
+        db.prepare(`UPDATE telemetry_anomalies SET screenshot_path = ? WHERE id = ?`).run(`kakaopicker-${withShot}.jpg`, withShot);
+    });
+    afterAll(() => {
+        if (before === undefined) delete process.env.SHOTS_DIR; else process.env.SHOTS_DIR = before;
+        fs.rmSync(dir, { recursive: true, force: true });
+        db.prepare(`DELETE FROM telemetry_anomalies WHERE id IN (?, ?)`).run(withShot, noShot);
+    });
+
+    it('🔴 이상 기록 줄에 글 200자 · 사진 있나 — 파일 이름은 안 낸다', async () => {
+        const an = await call(opsRouter, 'get', '/anomalies');
+        const a = an.out.anomalies.find((x: any) => x.id === withShot);
+        const b = an.out.anomalies.find((x: any) => x.id === noShot);
+        expect(a).toMatchObject({ text: '사진 시험 화면 글', hasShot: true });
+        expect(b).toMatchObject({ text: '사진 시험 화면 글', hasShot: false });
+        expect(JSON.stringify(an.out.anomalies)).not.toContain('.jpg');
+    });
+    it('🔴 사진 문 — 있으면 그 파일을 보내고 운영센터 기록 «이상 기록 사진 봄» 한 줄 · 캐시 안 함', async () => {
+        const n = shotAudits();
+        const r = await shotCall(withShot);
+        expect(r.status).toBe(200);
+        expect(sent.file).toBe(path.join(dir, `kakaopicker-${withShot}.jpg`));
+        expect(sent.headers['Cache-Control']).toBe('no-store');
+        expect(shotAudits()).toBe(n + 1);
+    });
+    it('🔴 사진이 없거나 30일이 지나 지워졌으면 404 · 기록 줄 없음', async () => {
+        const n = shotAudits();
+        expect((await shotCall(noShot)).status).toBe(404);
+        expect((await shotCall(99_999_999)).status).toBe(404);
+        fs.rmSync(path.join(dir, `kakaopicker-${withShot}.jpg`));
+        expect((await shotCall(withShot)).status).toBe(404);
+        expect(sent.file).toBeUndefined();
+        expect(shotAudits()).toBe(n);
+    });
+});

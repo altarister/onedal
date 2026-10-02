@@ -77,4 +77,12 @@ describe('🧭 운영센터 틀', () => {
         expect(a).toContain('collectCountOf(collect)');
         expect(a).toContain('rows={collect}');
     });
+
+    it('🔴 이상 기록 사진은 줄을 펼칠 때만 받는다 — 표를 그릴 때 100장을 받지 않는다 (reviews/37)', () => {
+        const a = read('pages/Anomalies.tsx');
+        expect(a.split('api.anomalyShot(').length - 1).toBe(1);
+        expect(a.indexOf('function AnomalyDetail')).toBeGreaterThan(-1);
+        expect(a.indexOf('api.anomalyShot(')).toBeGreaterThan(a.indexOf('function AnomalyDetail'));
+        expect(a).toContain('expand={');
+    });
 });

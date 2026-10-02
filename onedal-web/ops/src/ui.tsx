@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { COLOR_DOT, hhmmText, isoKst, kstDateText, opsMemberStatus, wonText, type OpsCounts, type OpsMember } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
@@ -222,8 +222,11 @@ export function StatRow({ children }: { children: ReactNode }) {
 
 export interface Column<T> { key: string; label: string; render: (row: T) => ReactNode; className?: string }
 
-/** 표 — PC 는 표, 폰은 `card` 가 있으면 줄마다 카드(글자가 세로로 쌓이지 않게) */
-export function Table<T>({ rows, columns, rowKey, empty = '없습니다', onRow, card }: { rows: T[]; columns: Column<T>[]; rowKey: (r: T) => string; empty?: string; onRow?: (r: T) => void; card?: (r: T) => ReactNode }) {
+/**
+ * 표 — PC 는 표, 폰은 `card` 가 있으면 줄마다 카드(글자가 세로로 쌓이지 않게).
+ * `expand` 는 그 줄 바로 아래에 펼쳐 그릴 것 — null 이면 접힘. 펼칠지는 부르는 쪽이 정한다(이 부품은 상태를 안 든다).
+ */
+export function Table<T>({ rows, columns, rowKey, empty = '없습니다', onRow, card, expand }: { rows: T[]; columns: Column<T>[]; rowKey: (r: T) => string; empty?: string; onRow?: (r: T) => void; card?: (r: T) => ReactNode; expand?: (r: T) => ReactNode }) {
     const table = (
         <div className="overflow-x-auto rounded-2xl border border-border-card bg-surface">
             <table className="w-full text-sm">
@@ -232,11 +235,17 @@ export function Table<T>({ rows, columns, rowKey, empty = '없습니다', onRow,
                 </thead>
                 <tbody>
                     {rows.length === 0 && <tr><td colSpan={columns.length} className="px-3 py-8 text-center text-text-muted">{empty}</td></tr>}
-                    {rows.map(r => (
-                        <tr key={rowKey(r)} onClick={onRow ? () => onRow(r) : undefined} className={`border-t border-border-card ${onRow ? 'cursor-pointer hover:bg-surface-alt/50' : ''}`}>
-                            {columns.map(c => <td key={c.key} className={`px-3 py-2 align-top ${c.className ?? ''}`}>{c.render(r)}</td>)}
-                        </tr>
-                    ))}
+                    {rows.map(r => {
+                        const more = expand?.(r);
+                        return (
+                            <Fragment key={rowKey(r)}>
+                                <tr onClick={onRow ? () => onRow(r) : undefined} className={`border-t border-border-card ${onRow ? 'cursor-pointer hover:bg-surface-alt/50' : ''}`}>
+                                    {columns.map(c => <td key={c.key} className={`px-3 py-2 align-top ${c.className ?? ''}`}>{c.render(r)}</td>)}
+                                </tr>
+                                {more && <tr className="bg-surface-alt/30"><td colSpan={columns.length} className="px-3 py-3">{more}</td></tr>}
+                            </Fragment>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
@@ -246,9 +255,15 @@ export function Table<T>({ rows, columns, rowKey, empty = '없습니다', onRow,
         <>
             <div className="md:hidden space-y-2">
                 {rows.length === 0 && <div className="rounded-2xl border border-border-card bg-surface px-3 py-6 text-center text-sm text-text-muted">{empty}</div>}
-                {rows.map(r => (
-                    <div key={rowKey(r)} onClick={onRow ? () => onRow(r) : undefined} className={`rounded-2xl border border-border-card bg-surface p-3 text-sm ${onRow ? 'active:bg-surface-alt/60' : ''}`}>{card(r)}</div>
-                ))}
+                {rows.map(r => {
+                    const more = expand?.(r);
+                    return (
+                        <div key={rowKey(r)} className="space-y-2">
+                            <div onClick={onRow ? () => onRow(r) : undefined} className={`rounded-2xl border border-border-card bg-surface p-3 text-sm ${onRow ? 'active:bg-surface-alt/60' : ''}`}>{card(r)}</div>
+                            {more && <div className="rounded-2xl border border-border-card bg-surface-alt/30 p-3 text-sm">{more}</div>}
+                        </div>
+                    );
+                })}
             </div>
             <div className="hidden md:block">{table}</div>
         </>

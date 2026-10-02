@@ -20,6 +20,8 @@ export const api = {
     member: (id: string) => get<OpsMemberDetail>(`/members/${id}`),
     phones: () => get<OpsPhone[]>('/phones'),
     anomalies: () => get<OpsAnomaliesReply>('/anomalies'),
+    /** 📷 이상 기록 사진 — 줄을 펼칠 때만 받는다(머리 칸 인증이라 `<img src>` 로 바로 못 연다 · 서버가 «사진 봄» 기록을 남긴다 · 지워졌으면 404) */
+    anomalyShot: async (id: number) => (await client.get<Blob>(`/ops/anomalies/${id}/shot`, { responseType: 'blob' })).data,
     contents: () => get<OpsContent[]>('/contents'),
     notices: () => get<OpsNotice[]>('/notices'),
     /** since 가 있으면 그 날(한국 날)부터 전부 · 없으면 최근 200줄 */

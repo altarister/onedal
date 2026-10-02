@@ -87,6 +87,10 @@ export interface OpsAnomaly {
     targetApp: TargetAppType;
     screen: string;
     reason: string;
+    /** 원달앱이 읽은 화면 글(가린 글 · 앞 200자) — 없으면 null */
+    text: string | null;
+    /** 📷 그 순간의 폰 사진이 있나 — 사진은 `/api/ops/anomalies/:id/shot` 으로 펼칠 때만 받는다(가리지 않은 원본 · 보관 날수 뒤 지워짐) */
+    hasShot: boolean;
 }
 
 export interface OpsScreenWord {
