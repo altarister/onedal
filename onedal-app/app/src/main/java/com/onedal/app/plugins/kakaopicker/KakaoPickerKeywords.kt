@@ -57,7 +57,10 @@ object KakaoPickerKeywords {
      *    「밀어서 …」는 **시트를 올려야** 나오고, 그때 시트가 **헤더를 덮는다**(17·22번).
      *    접근성 트리는 가려진 헤더도 읽으므로 **확정 버튼이 있으면 그것이 답**이다.
      */
-    /* 🔴 일부러 두 벌 — 화면 판별은 표(`KakaoPickerPages.screens` 의 운행 페이지)가 하고, 여기 글자는 수락 확인(`stageOf`)만 쓴다 · 표로 옮기는 일은 기사님 여쭘 대기(수락 확인 결과가 인증사진 · 문자 화면에서 바뀐다) */
+    /*
+     * 🔴 일부러 두 벌 — 화면 판별은 표(`KakaoPickerPages.screens` 의 운행 페이지)가 하고, 승격 판단(`stageOf` · `isAcceptedScreen` · `isAcceptedEvidence`)은 이 옛 글자로 한다.
+     *    표로 옮기면 인증사진 촬영 · 촬영 확인 · 문자 전송 화면도 «수락한 뒤»가 되어 그 화면에서 승격 길(늦은 수락 확인)이 열린다 — 승격을 넓히는 것은 운행 동작이라 근거 없이 하지 않는다.
+     */
     val STAGE_WORDS: List<Pair<Stage, List<String>>> = listOf(
         /**
          * 🏠 **홈은 「시작하기」 버튼으로 안다** (기사님 확정:
