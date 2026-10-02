@@ -58,6 +58,8 @@ function DeviceRow({
     currentFilter: AutoDispatchFilter | null;
 }) {
     const isDisconnected = device.status === "OFFLINE";
+    /* ⏳ 서버가 뜬 뒤 이 폰의 보고를 아직 못 들었다 — 끊김이 아니라 «로딩 중»(첫 보고 · 목록 15초 · 그 밖 60초가 오면 풀린다) */
+    const notHeardYet = device.offlineReason === 'NOT_HEARD_YET';
     /**
      * 🖥️ **배차망·화면명·화면 꺼짐은 배지 하나다** (기사님과 확정).
      * 고르는 일은 `shared` 가 한다 — 여기서는 그리기만 한다 (운행일지도 같은 것을 물을 수 있다).
@@ -191,7 +193,7 @@ function DeviceRow({
                         title="누르면 작업 단계·누적·취소 한도·버전이 열립니다"
                         /* 🔤 목업과 같은 크기 — 폰 이름이 이 줄의 머리다 */
                         className={`font-black text-[14px] px-1.5 rounded truncate shrink-0 ${
-                            isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'
+                            notHeardYet ? 'text-text-muted' : isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'
                         } ${more ? 'underline underline-offset-2' : ''}`}>
                         {deviceLabel(device)}
                     </button>
@@ -288,18 +290,18 @@ function DeviceRow({
                     <button type="button" disabled={buttonsLocked}
                         /* ⏱️ «마지막 통신 N초 전»은 줄에 그리지 않는다 — 줄이 좁다.
                            진단에 필요한 값이라 **버리지 않고** 손댈 때 보이게 둔다 */
-                        title={applying
+                        title={notHeardYet ? '로딩 중 — 서버가 이 폰의 첫 보고를 기다립니다' : applying
                             ? `적용중${lastHeardSec != null ? ` · 마지막 통신 ${lastHeardSec}초 전` : ''}`
                             : runningDiffers
                                 ? `명령: ${DEVICE_MODE_LABEL[device.mode]} · 이 배차망에서는 ${DEVICE_MODE_LABEL[running]}으로 돈다`
                                 : '모드를 바꾸려면 누릅니다'}
                         onClick={() => setModeOpen(v => !v)}
                         className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border transition-opacity ${
-                            applying ? 'opacity-40' : ''
+                            applying || notHeardYet ? 'opacity-40' : ''
                         } ${MODE_TONE[running] ?? MODE_TONE[device.mode]}`}>
                         {DEVICE_MODE_LABEL[running] ?? DEVICE_MODE_LABEL[device.mode]}
                     </button>
-                    {applying && (
+                    {(applying || notHeardYet) && (
                         <span className="absolute inset-0 grid place-items-center pointer-events-none">
                             <span className="w-3.5 h-3.5 rounded-full border-2 border-warning/30 border-t-warning animate-spin" />
                         </span>

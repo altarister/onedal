@@ -1319,8 +1319,10 @@ export const DEVICE_OFFLINE_REASONS_APP = ["ACCESSIBILITY_OFF", "APP_SHUTDOWN"] 
  *
  * `NO_CONTACT` 는 데드맨(`DEADMAN_TIMEOUT_MS` 무응답)이 붙인다. 앱이 «앱 꺼짐»을 보내고 죽은 것과
  * **말 없이 사라진 것**은 기사님이 하실 일이 다르다 — 앞은 앱을 켜면 되고, 뒤는 폰·통신을 봐야 한다.
+ * `NOT_HEARD_YET` 은 서버가 뜬 뒤 이 폰의 보고를 아직 한 번도 못 들은 것이다 — 서버 메모리는 다시 뜨면 비어 있다.
+ * 그 사이의 침묵은 폰이 끊긴 것이 아니라 서버가 아직 못 들은 것이다 · 첫 보고(목록 15초 · 그 밖 60초)가 오면 풀린다.
  */
-export const DEVICE_OFFLINE_REASONS_SERVER = ["NO_CONTACT"] as const;
+export const DEVICE_OFFLINE_REASONS_SERVER = ["NO_CONTACT", "NOT_HEARD_YET"] as const;
 
 export const DEVICE_OFFLINE_REASONS = [...DEVICE_OFFLINE_REASONS_APP, ...DEVICE_OFFLINE_REASONS_SERVER] as const;
 export type DeviceOfflineReason = typeof DEVICE_OFFLINE_REASONS[number];
@@ -1335,6 +1337,8 @@ export const DEVICE_OFFLINE_LABEL: Record<DeviceOfflineReason, string> = {
     APP_SHUTDOWN: "🛑 앱 종료됨",
     /* 📡 말이 끊겼다 — 앱이 아무 말도 못 하고 사라졌다 (데드맨). «연결 끊김»보다 무엇이 일어났는지를 말한다 */
     NO_CONTACT: "📵 통신 두절",
+    /* ⏳ 서버가 아직 못 들었다 — 끊겼다고 단언하지 않는다(기사님 «통신 끊김이라고 거짓말한 거야») */
+    NOT_HEARD_YET: "⏳ 로딩 중",
 };
 
 /**

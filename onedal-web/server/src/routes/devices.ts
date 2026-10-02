@@ -33,6 +33,12 @@ const LIST_EXIT_GRACE_MS = 3_000;
 
 // 메모리 내부 세션 저장소 (앱폰 -> 서버 핑 유지용)
 const activeDevices = new Map<string, DeviceSession>();
+/**
+ * ⏳ **서버가 뜬 뒤 한 번이라도 보고를 들은 폰** — 서버 메모리는 다시 뜨면 비어 있다.
+ *    그 사이의 침묵은 폰이 끊긴 것이 아니라 서버가 아직 못 들은 것이다 · 첫 보고(목록 15초 · 그 밖 60초)가 오면 풀린다.
+ *    한 번 들은 뒤 메모리에서 치운 폰(오래 말 없음)은 진짜 끊김이다 — 둘을 이 사실 하나로 가른다.
+ */
+const heardSinceBoot = new Set<string>();
 
 /**
  * 🎛️ **기사님이 고른 모드를 DB 에 적는다** (기사님 확정).
@@ -198,6 +204,7 @@ export interface DeviceStatusExtras {
 }
 
 export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally, targetApp?: TargetAppType, extras?: DeviceStatusExtras): DeviceModeType => {
+    heardSinceBoot.add(deviceId);
     let session = activeDevices.get(deviceId);
     /** 🧹 직전 화면 — 아래에서 덮기 전에 챙긴다. «콜이 생길 때 이미 상세였나»(`markDetailSeen`)가 이 값을 본다 */
     const prevScreen = session?.screenContext;
@@ -978,6 +985,8 @@ export const getUserDevicesSnapshot = (userId: string, io?: any): DeviceSession[
                 deviceName: r.device_name,
                 lastSeen: 0,
                 status: "OFFLINE",
+                /* ⏳ 서버가 뜬 뒤 아직 못 들었으면 «로딩 중» · 들은 뒤 치운 폰이면 진짜 끊김(통신 두절) */
+                offlineReason: heardSinceBoot.has(r.device_id) ? 'NO_CONTACT' : 'NOT_HEARD_YET',
                 mode: viewModeOf(r.device_id, userId),
                 screenContext: "UNKNOWN",
                 stats: { polled: 0, grabbed: 0, canceled: 0 }

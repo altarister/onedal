@@ -13,6 +13,10 @@ import { deviceScreenBadge, screenLabelOf } from './screenLabels';
  *    `isScreenOn` 과 `screenContext` 는 그대로 둔 채, 그리는 자리에서만 하나로 고른다.
  */
 describe('deviceScreenBadge — 화면 켜짐과 화면명은 한 배지', () => {
+    it('🔴 서버가 뜬 뒤 아직 못 들은 폰은 «⏳ 로딩 중» — «통신 끊김»이라고 단언하지 않는다', () => {
+        expect(deviceScreenBadge({ status: 'OFFLINE', offlineReason: 'NOT_HEARD_YET' as any })?.label).toBe('⏳ 로딩 중');
+        expect(deviceScreenBadge({ status: 'OFFLINE' })?.label).toBe('📵 통신 끊김');
+    });
     it('화면이 꺼져 있으면 배지는 «💤 화면 꺼짐» 하나뿐 — 배차망·화면명이 함께 나가지 않는다', () => {
         const badge = deviceScreenBadge({
             status: 'ONLINE',
