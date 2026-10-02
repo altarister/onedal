@@ -1,8 +1,8 @@
 /**
  * 누가: onedal-f5 (기사님 «플러그인스에 있는 값을 서버가 같이 써야» · reviews/34 2단계 · onedal-69 «가»)
- * 언제: shared/src/networkPages.ts(배차망 화면 정의 표)를 고친 뒤
+ * 언제: shared/src/networkPages.ts(배차망 화면 정의 표 — 칸 · 페이지 목록)를 고친 뒤
  * 어디서: onedal-web — `pnpm gen:pages`
- * 무엇을: 표의 배차망 셋을 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt)으로 굳힌다
+ * 무엇을: 표의 배차망 셋(칸 정의 · 페이지 목록 · 차종 낱말)을 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt)으로 굳힌다
  * 왜: 배차망마다 다른 것을 shared 한 곳에만 둔다 — 서버는 표를 바로 읽고 원달앱은 뽑은 코드를 읽는다 · 같은지는 원달앱 NetworkPagesPairTest 가 문다
  */
 import { readFileSync, writeFileSync } from 'fs';
@@ -27,11 +27,49 @@ const enumOf = (name) => {
 };
 const PAGE = enumOf('Page');
 const FIELD = enumOf('PageField');
+/* 이름만 늘어선 enum — 원달앱 core/PageSpec.kt 가 원천(shared STANDARD_SCREENS 와 짝은 NetworkPagesPairTest) */
+const pageSpecKt = readFileSync(join(app, 'core/PageSpec.kt'), 'utf8');
+const namesOf = (name) => (pageSpecKt.split(`enum class ${name} {`)[1]?.split('}')[0] ?? '').split(',').map((w) => w.trim()).filter(Boolean);
+const STANDARD = namesOf('StandardScreen');
+const OVERLAY_KIND = namesOf('OverlayKind');
+const SEEN = ['REAL', 'SIM', 'UNKNOWN'];
 
 /* 🔴 바꾸기 글자 대신 함수로 — 바꾸기 글자 안의 «$'» · «$&» 는 JS 가 특수 기호로 읽는다 */
 const kstr = (s) => `"${String(s).replace(/\\/g, () => '\\\\').replace(/"/g, () => '\\"').replace(/\$/g, () => '\\$')}"`;
 /* 정규식은 코틀린 날 글자("""…""")로 — 그 안에서도 $ 는 틀 글자라 ${'$'} 로 */
 const kregex = (s) => s.includes('"""') ? `Regex(${kstr(s)})` : `Regex("""${s.replace(/\$/g, () => "${'$'}")}""")`;
+
+const klist = (xs) => `listOf(${(xs ?? []).map(kstr).join(', ')})`;
+const kmatch = (at, m) => {
+    const args = [];
+    if (m.all?.length) args.push(`all = ${klist(m.all)}`);
+    if (m.any?.length) args.push(`any = ${klist(m.any)}`);
+    if (m.none?.length) args.push(`none = ${klist(m.none)}`);
+    if (m.shape) {
+        try { new RegExp(m.shape.read); } catch (e) { fail(`${at} — shape 정규식이 JS 에서 깨진다: ${e.message}`); }
+        args.push(`shape = ${kregex(m.shape.read)}`);
+        if (m.shape.min !== undefined) args.push(`shapeMin = ${m.shape.min}`);
+        if (m.shape.max !== undefined) args.push(`shapeMax = ${m.shape.max}`);
+    }
+    return `ScreenMatch(${args.join(', ')})`;
+};
+const kmatches = (at, ms) => ms.length ? `listOf(${ms.map((m) => kmatch(at, m)).join(', ')})` : 'emptyList()';
+const ktail = (o) => [o.toCollect ? `toCollect = ${kstr(o.toCollect)}` : null, o.wordsFrom ? `wordsFrom = ${kstr(o.wordsFrom)}` : null].filter(Boolean);
+const kscreen = (net, s) => {
+    const at = `${net} 페이지 «${s.name}»`;
+    if (s.standard !== null && !STANDARD.includes(s.standard)) fail(`${at} — 모르는 기준 페이지 «${s.standard}» (core/PageSpec.kt StandardScreen 에 없다)`);
+    if (!SEEN.includes(s.seen)) fail(`${at} — seen «${s.seen}»`);
+    const overlays = s.overlays.map((o) => {
+        const oat = `${at} 덧칸 «${o.name}»`;
+        if (!OVERLAY_KIND.includes(o.kind)) fail(`${oat} — 모르는 갈래 «${o.kind}»`);
+        if (!SEEN.includes(o.seen)) fail(`${oat} — seen «${o.seen}»`);
+        const args = [kstr(o.name), `OverlayKind.${o.kind}`, kmatches(oat, o.match), kstr(o.meaning), `Seen.${o.seen}`, klist(o.evidence), ...ktail(o)];
+        return `                OverlaySpec(${args.join(', ')}),`;
+    });
+    const args = [kstr(s.name), s.standard === null ? 'null' : `StandardScreen.${s.standard}`, kmatches(at, s.match), String(s.listReturn),
+        overlays.length ? `listOf(\n${overlays.join('\n')}\n            )` : 'emptyList()', `Seen.${s.seen}`, klist(s.evidence), ...ktail(s)];
+    return `        ScreenSpec(\n            ${args.join(',\n            ')},\n        ),`;
+};
 
 const TARGETS = [
     ['insung', 'plugins/insung/InsungPages.kt', 'com.onedal.app.plugins.insung', 'InsungPages'],
@@ -70,10 +108,15 @@ for (const [net, file, pkg, obj] of TARGETS) {
 
 import com.onedal.app.core.FieldSpec
 import com.onedal.app.core.Handling
+import com.onedal.app.core.OverlayKind
+import com.onedal.app.core.OverlaySpec
 import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageSpecs
+import com.onedal.app.core.ScreenMatch
+import com.onedal.app.core.ScreenSpec
 import com.onedal.app.core.Seen
+import com.onedal.app.core.StandardScreen
 
 /**
 ${about}
@@ -87,7 +130,12 @@ ${pages.join('\n')}
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords${spec.vehicleWordsWhy ? ` — ${spec.vehicleWordsWhy}` : ''}) */
     val vehicleWords: Map<String, String?> = ${vehicleWords}
+
+    /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 🔴 판별은 아직 이 목록을 안 읽는다 */
+    val screens: List<ScreenSpec> = listOf(
+${(spec.screens ?? fail(`표에 ${net} 페이지 목록(screens)이 없다`)).map((s) => kscreen(net, s)).join('\n')}
+    )
 }
 `);
-    console.log(`✅ ${file} — 화면 ${Object.keys(spec.pages).length} · 칸 ${Object.values(spec.pages).flat().length}`);
+    console.log(`✅ ${file} — 화면 ${Object.keys(spec.pages).length} · 칸 ${Object.values(spec.pages).flat().length} · 페이지 ${spec.screens.length}`);
 }

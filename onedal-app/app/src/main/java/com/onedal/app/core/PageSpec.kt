@@ -42,3 +42,59 @@ object PageSpecSummary {
             "버림 ${all.count { it.handling == Handling.DROPPED }} · 안 읽음 ${all.count { it.handling == Handling.UNUSED }}"
     }
 }
+
+/**
+ * 🧭 **우리 기준 페이지** — 배차망 페이지를 우리 시스템의 어느 자리로 맞추나(reviews/35).
+ * shared `networkPages.ts` 의 `STANDARD_SCREENS` 와 이름 · 차례가 같다(`NetworkPagesPairTest`).
+ * TRANSITION = 콜을 누른 직후 넘어가는 틀 · NETWORK_MENU = 배차망 안의 일이 아닌 화면(목록 복귀 아님).
+ * 🔴 아직 판별이 읽지 않는다 — 화면 분류는 `ScreenContext` 그대로다(reviews/35 2단계에서 잇는다).
+ */
+enum class StandardScreen {
+    HOME, LIST, DETAIL_PRE_CONFIRM, DETAIL_CONFIRMED, MY_ORDERS,
+    RUN_TO_PICKUP, RUN_AT_PICKUP, RUN_TO_DROPOFF, RUN_AT_DROPOFF, RUN_DONE,
+    TRANSITION, NETWORK_MENU, OTHER_APP,
+}
+
+/** 🪟 페이지 위에 뜨는 것의 갈래 — 팝업(시트 · 드롭다운 포함) · 알림(알림 사건으로 옴) · 토스트 · 띠 */
+enum class OverlayKind { POPUP, NOTICE, TOAST, BANNER }
+
+/**
+ * 🔎 **알아보는 글자 한 벌** — all 모두 있어야 · any 하나라도(비면 안 봄) · none 하나도 없어야 ·
+ * shape 정규식이 화면 글에서 맞는 횟수가 shapeMin 이상 · shapeMax 이하.
+ */
+data class ScreenMatch(
+    val all: List<String> = emptyList(),
+    val any: List<String> = emptyList(),
+    val none: List<String> = emptyList(),
+    val shape: Regex? = null,
+    val shapeMin: Int? = null,
+    val shapeMax: Int? = null,
+)
+
+/** 🪟 페이지 위에 뜨는 것 하나 — 근거가 비었거나 toCollect 가 있으면 «모을 것» · wordsFrom 은 글자 원천(서버 낱말 사전 자리) */
+data class OverlaySpec(
+    val name: String,
+    val kind: OverlayKind,
+    val match: List<ScreenMatch>,
+    val meaning: String,
+    val seen: Seen,
+    val evidence: List<String>,
+    val toCollect: String = "",
+    val wordsFrom: String = "",
+)
+
+/**
+ * 🖥️ **배차망 페이지 한 줄** — 플러그인 폴더 `…Pages.kt` 의 `screens` 차례가 판별 차례다.
+ * standard 가 null 이면 화면을 못 봐 못 정함 · listReturn 은 LIST 가 아닌 페이지를 목록 복귀로 치나.
+ */
+data class ScreenSpec(
+    val name: String,
+    val standard: StandardScreen?,
+    val match: List<ScreenMatch>,
+    val listReturn: Boolean,
+    val overlays: List<OverlaySpec>,
+    val seen: Seen,
+    val evidence: List<String>,
+    val toCollect: String = "",
+    val wordsFrom: String = "",
+)

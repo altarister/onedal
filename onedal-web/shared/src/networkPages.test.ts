@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { NETWORK_PAGES } from './networkPages';
+import { NETWORK_PAGES, STANDARD_SCREENS } from './networkPages';
 import { PAGE_FIELDS, SCREEN_PAGES, type PageField, type ScreenPage } from './pageFields';
 import { TARGET_APPS, type TargetAppType } from './index';
 import { pageFieldOf, pageFareOf, excludeScanTextOf } from './pageRead';
@@ -108,5 +108,71 @@ describe('차종 낱말 (vehicleWords)', () => {
             expect(new Set(words.map(w => w.word)).size, net).toBe(words.length);
             if (words.length) expect(spec.vehicleWordsWhy, net).toBeTruthy();
         }
+    });
+});
+
+/**
+ * 🖥️ **배차망 페이지 목록** (reviews/35 1단계 · 기사님 «모든 페이지 모든 팝업을 인지»).
+ * 기준 값 · 덧칸 갈래는 정해진 낱말만 · 본 것은 근거가 있다 · 못 정한 것은 «모을 것»이 붙는다 · 목록 복귀는 지금 동작 그대로.
+ */
+describe('배차망 페이지 목록 (screens)', () => {
+    const ROOT = join(__dirname, '../../..');
+    const all = Object.entries(NETWORK_PAGES).flatMap(([net, spec]) => spec.screens.map(s => ({ net, s })));
+    /* 수락 뒤 픽커 캡처 폴더는 .gitignore 가 막는다 — 다른 기계에는 파일이 없다 */
+    const ignored = (p: string) => p.startsWith('ex_images/카카오픽커/실물_2026/');
+
+    it('배차망마다 페이지가 있고 · 한 배차망 안에서 이름이 겹치지 않는다', () => {
+        for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
+            expect(spec.screens.length, net).toBeGreaterThan(0);
+            const names = spec.screens.map(s => s.name);
+            expect(names.filter((n, i) => names.indexOf(n) !== i), net).toEqual([]);
+        }
+    });
+
+    it('기준 페이지는 STANDARD_SCREENS 낱말만 · null 은 «모을 것»이 붙는다', () => {
+        for (const { net, s } of all) {
+            if (s.standard === null) expect(s.toCollect, `${net} ${s.name}`).toBeTruthy();
+            else expect(STANDARD_SCREENS, `${net} ${s.name}`).toContain(s.standard);
+        }
+    });
+
+    it('알아보는 글자가 없으면(빈 match · 빈 갈래) «모을 것»이 붙는다 · 페이지와 덧칸 모두', () => {
+        const empty = (m: { all?: string[]; any?: string[]; none?: string[]; shape?: unknown }) => !m.all?.length && !m.any?.length && !m.shape;
+        for (const { net, s } of all) {
+            for (const x of [s, ...s.overlays]) {
+                if (x.match.length === 0 && !x.wordsFrom) expect(x.toCollect, `${net} ${s.name} · ${x.name}`).toBeTruthy();
+                for (const m of x.match) expect(empty(m), `${net} ${s.name} · ${x.name} — 빈 갈래(all · any · shape 가 다 비면 무엇이든 맞는다)`).toBe(false);
+                for (const m of x.match) if (m.shape) expect(() => new RegExp(m.shape!.read), `${net} ${x.name} shape`).not.toThrow();
+            }
+        }
+    });
+
+    it('덧칸 갈래는 POPUP · NOTICE · TOAST · BANNER 뿐', () => {
+        for (const { net, s } of all) for (const o of s.overlays) expect(['POPUP', 'NOTICE', 'TOAST', 'BANNER'], `${net} ${s.name} · ${o.name}`).toContain(o.kind);
+    });
+
+    it('실물(REAL)로 본 것은 근거가 있다 · 근거가 비면 실물이 아니다', () => {
+        for (const { net, s } of all) for (const x of [s, ...s.overlays]) {
+            if (x.seen === 'REAL') expect(x.evidence.length, `${net} ${s.name} · ${x.name}`).toBeGreaterThan(0);
+            if (x.evidence.length === 0) expect(x.seen, `${net} ${s.name} · ${x.name}`).toBe('UNKNOWN');
+        }
+    });
+
+    it('캡처 근거 파일이 있다 · 근거에 날짜(YYYY-MM-DD)를 적지 않는다', () => {
+        for (const { net, s } of all) for (const x of [s, ...s.overlays]) for (const e of x.evidence) {
+            expect(e, `${net} ${x.name} — 날짜 대신 «폰 파일 시각»`).not.toMatch(/20\d{2}-\d{2}-\d{2}/);
+            const path = e.split(' (')[0];
+            if (path.startsWith('ex_images/') && !ignored(path)) expect(existsSync(join(ROOT, path)), `${net} ${x.name} — ${path}`).toBe(true);
+        }
+    });
+
+    it('목록 복귀(listReturn)는 인성 완료 탭 · 화물24시 배차내역 목록뿐 — 지금 동작(LIST_COMPLETED)과 같다 · 픽커 내 오더는 아니다', () => {
+        expect(all.filter(({ s }) => s.listReturn).map(({ net, s }) => `${net} ${s.name}`).sort()).toEqual(['hwamul24 배차내역 목록', 'insung 완료 탭']);
+        expect(all.filter(({ s }) => s.listReturn).every(({ s }) => s.standard === 'MY_ORDERS')).toBe(true);
+    });
+
+    it('질문 1 · 2 «가» — 픽커 «넘어가는 중» 기준 페이지가 있고 · 배차망 메뉴는 목록 복귀가 아니다', () => {
+        expect(NETWORK_PAGES.kakaopicker.screens.some(s => s.standard === 'TRANSITION')).toBe(true);
+        expect(all.filter(({ s }) => s.standard === 'NETWORK_MENU').every(({ s }) => !s.listReturn)).toBe(true);
     });
 });
