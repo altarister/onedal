@@ -104,7 +104,16 @@ class ScreenReader(private val service: AccessibilityService) {
             return
         }
 
+        /* 📷 방금 다른 사진(못 알아본 화면)을 찍었으면 간격만큼 미뤄 찍는다 — 상세 판독이 «너무 잦음»(code=3)으로 실패해 콜을 놓치지 않게. 평소엔 미루지 않는다 */
+        val waitMs = ShotGap.waitBeforeShotMs(ShotGap.sinceLastShotMs(SystemClock.elapsedRealtime()))
+        if (waitMs > 0) {
+            AppLogger.i(TAG, LogTag.CALL_STAGE, "📷 [상세 판독 미룸] 방금 다른 사진을 찍어 ${waitMs}ms 뒤에 찍는다")
+            scheduleReadAndVerifyDetail(waitMs, parser, onSuccess, onParseFailed, onError)
+            return
+        }
+
         val t0 = SystemClock.elapsedRealtime()
+        ShotGap.mark(t0)
         service.takeScreenshot(Display.DEFAULT_DISPLAY, executor, object : AccessibilityService.TakeScreenshotCallback {
             override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
                 val tCaptured = SystemClock.elapsedRealtime()
@@ -178,6 +187,39 @@ class ScreenReader(private val service: AccessibilityService) {
     }
 
     /**
+     * 📷 **화면 한 장을 그대로** — 못 알아본 화면 사진(`UnknownScreenShot`). 자르지 않고 540폭 · JPEG 60 · 가리지 않는다.
+     * 못 찍으면 (null, 까닭) — 사진은 곁다리라 부르는 쪽은 글만 보낸다. 찍으면 (바이트, «찍기 Nms · 줄이기 Nms · NKB»).
+     */
+    fun captureWhole(onDone: (ByteArray?, String) -> Unit) {
+        if (isClosed || executor.isShutdown) { onDone(null, "서비스 종료됨"); return }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) { onDone(null, "안드로이드 11 미만"); return }
+        val t0 = SystemClock.elapsedRealtime()
+        ShotGap.mark(t0)
+        service.takeScreenshot(Display.DEFAULT_DISPLAY, executor, object : AccessibilityService.TakeScreenshotCallback {
+            override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
+                val tCaptured = SystemClock.elapsedRealtime()
+                val bytes = runCatching {
+                    val hb = screenshot.hardwareBuffer
+                    val hw = Bitmap.wrapHardwareBuffer(hb, screenshot.colorSpace)
+                    hb.close()
+                    hw ?: return@runCatching null
+                    val sw = hw.copy(Bitmap.Config.ARGB_8888, false)
+                    hw.recycle()
+                    val scaled = Bitmap.createScaledBitmap(sw, TARGET_WIDTH, sw.height * TARGET_WIDTH / sw.width, true)
+                    if (scaled !== sw) sw.recycle()
+                    val out = java.io.ByteArrayOutputStream()
+                    scaled.compress(Bitmap.CompressFormat.JPEG, 60, out)
+                    scaled.recycle()
+                    out.toByteArray()
+                }.getOrNull()
+                val note = "찍기 ${tCaptured - t0}ms · 줄이기 ${SystemClock.elapsedRealtime() - tCaptured}ms"
+                if (bytes == null) onDone(null, "비트맵 변환 실패 · $note") else onDone(bytes, "$note · ${bytes.size / 1024}KB")
+            }
+            override fun onFailure(errorCode: Int) { onDone(null, "스크린샷 실패 code=$errorCode") }
+        })
+    }
+
+    /**
      * 찍고 → 전체 화면 540폭으로 읽고 → 같은 그림의 아래 60% 만 540폭으로 다시 읽는다.
      * 둘 다 잰다 — 0.5초는 자른 쪽에서만 나올 가능성이 크다.
      */
@@ -188,6 +230,7 @@ class ScreenReader(private val service: AccessibilityService) {
     ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) { onError("안드로이드 11 미만 — 접근성 스크린샷 없음"); return }
         val t0 = SystemClock.elapsedRealtime()
+        ShotGap.mark(t0)
         service.takeScreenshot(Display.DEFAULT_DISPLAY, executor, object : AccessibilityService.TakeScreenshotCallback {
             override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
                 val tCaptured = SystemClock.elapsedRealtime()
@@ -267,6 +310,24 @@ class ScreenReader(private val service: AccessibilityService) {
         java.io.FileOutputStream(f).use { bmp.compress(Bitmap.CompressFormat.JPEG, 60, it) }
         f.name
     }.getOrNull()
+}
+
+/**
+ * 📷 **접근성 사진 간격 — 두 길이 나눠 쓴다** (상세 판독 · 못 알아본 화면 사진 · 시험 찍기).
+ * 접근성 `takeScreenshot` 은 0.33초에 한 번뿐이라 마지막으로 찍은 시각을 여기 한 곳에 적는다.
+ * 상세 판독은 방금 찍었으면 남은 간격만큼(최대 `SHOT_GAP_MS`) 미뤄 찍는다 — 평소엔 0초.
+ */
+object ShotGap {
+    const val SHOT_GAP_MS = 340L
+    @Volatile private var lastAtMs = 0L
+
+    fun mark(nowMs: Long) { lastAtMs = nowMs }
+
+    /** 마지막 사진에서 지난 ms — 한 번도 안 찍었으면 충분히 길다 */
+    fun sinceLastShotMs(nowMs: Long, lastAtMs: Long = this.lastAtMs): Long = if (lastAtMs == 0L) Long.MAX_VALUE else nowMs - lastAtMs
+
+    /** 지금 찍기 전에 기다릴 ms — 0 ~ `SHOT_GAP_MS` */
+    fun waitBeforeShotMs(sinceLastShotMs: Long): Long = (SHOT_GAP_MS - sinceLastShotMs).coerceIn(0L, SHOT_GAP_MS)
 }
 
 /** 설정 화면이 보는 마지막 시험 결과 — 시험용이라 여기 한 곳에만 둔다 */

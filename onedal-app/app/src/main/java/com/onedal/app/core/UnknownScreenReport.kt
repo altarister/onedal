@@ -13,7 +13,8 @@ import java.time.LocalDate
  * - **같은 배차망 · 같은 지문은 하루 한 번** — 지문은 숫자가 든 토막(거리 · 요금 · 시각)과 3자 이하 토막(지역 · 배지)을 뺀 낱말 집합.
  *   목록 줄만 바뀐 같은 화면이 매번 올라가지 않는다
  * - 전화 · 동호는 가린다(`mask`) — 사람 이름은 꼴로 못 가려 200자로 자른다
- * 보내는 손(`sink`)은 `HijackService` 가 단다(`POST /api/telemetry/anomalies`).
+ * 보내는 손(`sink`)은 `HijackService` 가 단다(`POST /api/telemetry/anomalies`) — 그 손이 1초 뒤 사진을 같이 싣는다(`UnknownScreenShot`).
+ * 사진은 가리지 않은 원본이고 글만 여기서 가린다.
  */
 object UnknownScreenReport {
     private const val MIN_CHARS = 10

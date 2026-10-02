@@ -548,8 +548,29 @@ class HijackService : AccessibilityService(), ScanContext {
             )
         }
         // 🔎 못 알아본 배차망 화면 — 이상 기록 «SCREEN_UNKNOWN: 글 앞부분»(가린 글 · 같은 화면 하루 한 번 · `UnknownScreenReport`)
+        // 📷 1초 뒤에도 모르는 화면이고 상세 사진 판독 중이 아니면 그 순간의 사진을 같이 싣는다(가리지 않은 원본 · `UnknownScreenShot`) — 못 찍으면 글만
         com.onedal.app.core.UnknownScreenReport.sink = { network, reason, text ->
-            apiClient.sendAnomalyReport(targetApp = network, screenName = "UNKNOWN", failureReason = reason, detailParsedText = text)
+            // 이름에 사유 글을 붙인다 — 1초 안에 다른 모르는 화면이 와도 앞의 보고를 거두지 않게 · 콜이 끝나도 거두지 않는 서비스 몫
+            waitBook.schedule("모르는 화면 사진 · ${reason.removePrefix("SCREEN_UNKNOWN: ").take(20)}", com.onedal.app.core.WaitBook.SERVICE, com.onedal.app.core.UnknownScreenShot.WAIT_MS) {
+                val send = { shot: ByteArray? ->
+                    apiClient.sendAnomalyReport(targetApp = network, screenName = "UNKNOWN", failureReason = reason, detailParsedText = text,
+                        screenshotBase64 = shot?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) })
+                }
+                val now = android.os.SystemClock.elapsedRealtime()
+                val why = com.onedal.app.core.UnknownScreenShot.whyNot(
+                    stillUnknown = telemetryManager.currentScreenContext == ScreenContext.UNKNOWN,
+                    verifyingDetail = session.isVerifyingSnapshot,
+                    msSinceLastShot = com.onedal.app.core.ShotGap.sinceLastShotMs(now),
+                    sdk = android.os.Build.VERSION.SDK_INT,
+                ) ?: if (!::screenReader.isInitialized) "사진 판독기 없음" else null
+                if (why != null) {
+                    AppLogger.i(TAG, LogTag.SCREEN, "📷 [모르는 화면 사진 안 찍음] $why — 글만 보낸다")
+                    send(null)
+                } else screenReader.captureWhole { bytes, note ->
+                    AppLogger.i(TAG, LogTag.SCREEN, if (bytes != null) "📷 [모르는 화면 사진] $note" else "📷 [모르는 화면 사진 못 찍음] $note — 글만 보낸다")
+                    send(bytes)
+                }
+            }
         }
         // 👆 «누르기 안 먹힘»은 이상 징후로 — 어느 배차망 · 어느 화면이든 같은 한 줄 (`TapInFlight`)
         touchManager.onTapFailed = { f ->
@@ -1049,7 +1070,7 @@ class HijackService : AccessibilityService(), ScanContext {
         markRead("모은 글자")
         touchManager.onScreen(detected, textChanged = true)   // 👆 화면 처리보다 먼저 — 누른 것이 먹혔나 (종류가 바뀌었나)
         if (detected == ScreenContext.UNKNOWN) {
-            // 🔎 운영센터 «이상 기록»에도 — 실물 배차망 앱 화면 · 10자 이상 · 같은 화면 하루 한 번 (`UnknownScreenReport`)
+            // 🔎 운영센터 «이상 기록»에도 — 실물 배차망 앱 화면 · 10자 이상 · 같은 화면 하루 한 번 (`UnknownScreenReport`) — 사진은 1초 뒤에도 모르는 화면이면 같이 싣는다(`UnknownScreenShot`)
             val toOps = com.onedal.app.core.UnknownScreenReport.record(currentTargetApp, rootNode.packageName?.toString(), rawScreenStr)
             AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자) · $toOps: ${rawScreenStr.take(300)}")
             /**
