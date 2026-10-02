@@ -36,7 +36,6 @@ class CallMemoryTest {
         destinationRadiusKm = 1.0,
         destinationKeywords = listOf("신둔면", "관고동", "중리동"),
         customCityFilters = listOf("이천시", "이천"),
-        orderKm = emptyMap(),
     )
 
     /** 07번 — 터미널→신둔. 다른 콜을 잡는 동안 리스트에 처음 뜨는 콜 */

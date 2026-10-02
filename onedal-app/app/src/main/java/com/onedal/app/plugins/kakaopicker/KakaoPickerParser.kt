@@ -871,7 +871,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "reservedPickupKeywords" to reservedPickupKeywords,
         ))
 
-        /** 피기백 필터 원문 → 알람 조건 — 읽기 규칙은 `FilterStore` 한 곳(도착 목록 = 키워드 ∪ 경유 순서 목록 키 · 못 읽으면 기본값) */
+        /** 피기백 필터 원문 → 알람 조건 — 읽기 규칙은 `FilterStore` 한 곳(하차 목록 = 서버 destinationKeywords · 못 읽으면 기본값) */
         private fun alarmConfigOf(raw: String): AlarmConfig = com.onedal.app.core.FilterStore.parse(raw).let { f ->
             AlarmConfig(
                 minFare = f.minFare,   // 💵 최소 금액 — 인성·화물24시와 같은 칸
@@ -889,7 +889,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
         /**
          * 🔄 **알람 판정이 읽는 필터 값의 지문** (`PickerFilterValuesKeyTest`) — 요금·반경·도착 목록·예약 … 을 `alarmFilterJson` 한 줄로.
-         * 경유 순서 목록의 km 수처럼 알람이 안 읽는 칸만 바뀌면 같다 — 그때는 막은 기억을 비우지 않는다.
+         * 인성 안전취소 초처럼 알람이 안 읽는 칸만 바뀌면 같다 — 그때는 막은 기억을 비우지 않는다.
          */
         fun alarmValuesKeyOf(activeFilter: String): String = alarmConfigOf(activeFilter).let { c ->
             alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu, c.reservedPickupRadiusKm, c.reservedPickupKeywords)

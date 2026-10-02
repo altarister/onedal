@@ -1,7 +1,6 @@
 package com.onedal.app.core
 
 import com.onedal.app.models.SimplifiedOfficeOrder
-import com.onedal.app.plugins.DestinationList
 import com.onedal.app.plugins.kakaopicker.KakaoPickerParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -10,10 +9,10 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🧭 **운행 중 픽커가 경로 밖 하차를 거른다 · 채운 뒤 필터는 두 길이 같은 한 번** (기사님 «하차를 모르면 통과 싹 지워버려»)
+ * 🧭 **운행 중 픽커가 하차 목록 밖 하차를 거른다 · 채운 뒤 필터는 두 길이 같은 한 번** (기사님 «하차를 모르면 통과 싹 지워버려»)
  *
- * 서버는 운행 중 도착 동을 경유 순서 목록(`orderKm`)으로 옮겨 보낸다. 인성·화물24시는 합쳤지만 픽커는 안 읽어
- * 도착 목록이 비고, «비면 통과» 로 경로 밖 하차가 다 울렸다. 또 사진으로 채운 콜은 채운 뒤 필터를 다시 걸지 않았다.
+ * 세 파서가 같은 하차 목록(서버 destinationKeywords · `FilterStore` 한 곳에서 읽음)을 본다 — 한 배차망이라도 다른 목록을 보면
+ * 그 배차망만 경로 밖 하차가 울린다. 사진으로 채운 콜도 채운 뒤 필터를 다시 건다.
  */
 class FilterAfterFillTest {
 
@@ -23,14 +22,8 @@ class FilterAfterFillTest {
     private val root = "src/main/java/com/onedal/app"
 
     @Test
-    fun `도착 목록은 키워드와 경유 순서 목록을 합친다`() {
-        assertEquals(listOf("초월읍", "곤지암읍"), DestinationList.of(emptyList(), listOf("초월읍", "곤지암읍")))
-        assertEquals(listOf("교동", "초월읍"), DestinationList.of(listOf("교동", "초월읍"), listOf("초월읍")))
-    }
-
-    @Test
-    fun `운행 중 픽커 - 합친 도착 목록 밖 하차는 떨어진다`() {
-        val dest = DestinationList.of(emptyList(), listOf("초월읍", "곤지암읍"))
+    fun `운행 중 픽커 - 하차 목록 밖 하차는 떨어진다`() {
+        val dest = listOf("초월읍", "곤지암읍")
         val o = SimplifiedOfficeOrder(
             id = "p", type = "NEW_ORDER", pickup = "경기 광주시 곤지암읍", dropoff = "경기 파주시 금촌동",
             fare = 20000, timestamp = "2026-09-28T12:00:00", pickupDistance = 2.0,
@@ -40,11 +33,11 @@ class FilterAfterFillTest {
     }
 
     @Test
-    fun `세 파서가 같은 도착 목록 함수를 쓴다 - 픽커도 경유 순서 목록을 읽는다`() {
-        /* 필터 읽기는 FilterStore 한 곳 — 거기서 도착 목록을 DestinationList.of(키워드, 경유 순서 목록 키)로 만들고, 세 파서가 그것을 읽는다 */
+    fun `세 파서가 같은 하차 목록을 읽는다 - FilterStore 한 곳`() {
+        /* 필터 읽기는 FilterStore 한 곳 — 하차 목록은 destinationKeywords 그대로이고, 세 파서가 그것을 읽는다 */
         val store = codeOnly("$root/core/FilterStore.kt")
-        assertTrue(store.contains("DestinationList.of("))
-        assertTrue(store.contains("\"orderKm\""))
+        assertTrue(store.contains("\"destinationKeywords\""))
+        assertFalse("옛 경로 순서 칸을 읽는다", store.contains("\"orderKm\""))
         for (f in listOf("insung/InsungParser.kt", "hwamul24/Hwamul24Parser.kt", "kakaopicker/KakaoPickerParser.kt")) {
             assertTrue("$f 가 FilterStore 를 안 읽는다", codeOnly("$root/plugins/$f").contains("FilterStore."))
         }

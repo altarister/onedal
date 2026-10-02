@@ -13,8 +13,7 @@ import org.junit.Test
  * 📋 **상차 목록으로 거른다 — 2단계 원달앱**.
  *
  * 서버는 «내 위치 둘레»로 상차 목록을 보내고(서버 `pickupListGeo.test.ts`), 원달앱은 그 목록으로 상차지를 거른다.
- * 예: 이천터미널에 서서 집 가는 앞길 위 «신둔면 → 곤지암읍» 콜 — 상차 목록에 신둔면이 들어
- * `RouteOrderFilter` 가 «경로 밖 — 상차지(신둔면)가 경유 목록에 없음»으로 막지 않는다.
+ * 예: 이천터미널에 서서 집 가는 앞길 위 «신둔면 → 곤지암읍» 콜 — 상차 목록에 신둔면이 들어 통과한다.
  */
 class PickupListFilterTest {
 
@@ -52,7 +51,7 @@ class PickupListFilterTest {
 
     // ── 인성 파서 판정 ──
 
-    /** 폰이 받는 필터 모양 — 순서표에 신둔면이 빠진 뒤 (서버 로그·logcat 실물) */
+    /** 폰이 받는 필터 모양 (서버 로그·logcat 실물) */
     private fun filter(pickupKeywords: List<String>?) = FilterConfig(
         allowedVehicleTypes = listOf("오토바이", "다마스", "라보", "승용차"),
         isActive = true,
@@ -62,7 +61,6 @@ class PickupListFilterTest {
         destinationCity = "광주시",
         destinationKeywords = listOf("곤지암읍", "초월읍", "도척면", "갈산동", "송정동"),
         customCityFilters = listOf("광주시", "광주", "이천시", "이천"),
-        orderKm = mapOf("곤지암읍" to 20.2, "초월읍" to 27.7, "갈산동" to 9.6, "송정동" to 11.1),
         pickupKeywords = pickupKeywords,
     )
 
@@ -73,8 +71,7 @@ class PickupListFilterTest {
     )
 
     @Test
-    fun `D3 - 옛 서버(칸 없음)면 순서표에 막히고, 상차 목록이 오면 통과한다`() {
-        assertEquals(InsungParser.Companion.Verdict(false, "routeOrder"), InsungParser.judge(d3, filter(pickupKeywords = null)))
+    fun `D3 - 상차 목록에 신둔면이 들면 통과한다`() {
         assertEquals(InsungParser.Companion.Verdict(true, "pass"), InsungParser.judge(d3, filter(pickupKeywords = listOf("중리동", "신둔면", "관고동"))))
     }
 
@@ -95,7 +92,7 @@ class PickupListFilterTest {
     @Test
     fun `상차 목록이 오면 상차 반경 숫자로는 안 막는다 - 첫짐이어도`() {
         val far = d3.copy(pickupDistance = 30.0)
-        val firstLoad = filter(listOf("신둔면")).copy(isSharedMode = false, orderKm = emptyMap())
+        val firstLoad = filter(listOf("신둔면")).copy(isSharedMode = false)
         assertEquals(InsungParser.Companion.Verdict(true, "pass"), InsungParser.judge(far, firstLoad))
         // 상차 목록이 안 오면(null) 같은 콜이 반경(4.55km)에 막힌다
         assertEquals(InsungParser.Companion.Verdict(false, "pickup"), InsungParser.judge(far, firstLoad.copy(pickupKeywords = null)))

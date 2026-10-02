@@ -3,7 +3,6 @@ package com.onedal.app.plugins.insung
 import android.content.Context
 import com.onedal.app.core.LogTag
 import com.onedal.app.core.AppLogger
-import com.onedal.app.plugins.RouteOrderFilter
 import com.onedal.app.plugins.PickupListFilter
 import com.onedal.app.plugins.RegionMatch
 import com.onedal.app.core.IScrapParser
@@ -353,7 +352,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             /**
              * 📋 **상차 목록이 오면 그것으로 거른다** (하차 목록» 2단계).
              * 서버가 «지금 내 위치 둘레»로 만든 읍·면·동 목록에 상차지가 걸리나만 본다 —
-             * 상차 반경 숫자·경로 순서(`RouteOrderFilter`)는 안 쓴다 (이천 왕복 03:08:52 D3 가 순서표에 막혔다).
+             * 상차 반경 숫자는 안 쓴다 — 지역 이름 목록만 본다.
              * 상세(확정 전)에서는 상세 글의 «출발지 ~ 도착지» 사이로 대조한다 — 못 자르면 리스트에서 읽은 상차지로.
              * 🔴 칸이 안 오면(null · 옛 서버) 아래 옛 판정 — 이 되돌아가는 길은 3단계(옛 칸 걷는 날)에 함께 지운다
              */
@@ -401,29 +400,19 @@ class InsungParser(private val context: Context) : IScrapParser {
                             "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
             }
 
-            // ── 조건 5: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정) ──
-            //    합짐·운행중에만 값이 내려온다(첫짐은 빈 맵 → 검사 없음). 국면 분기는 앱에 두지 않는다.
-            // 📋 상차 목록이 오면 순서 검사를 안 한다 — 뒤쪽은 서버가 «내 위치 둘레»로 이미 뺐다
-            val routeOrder = if (pickupListCheck != null) RouteOrderFilter.Result(true, "상차 목록으로 거른다 — 순서 검사 안 함")
-                else RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
+            // 📋 상차지는 상차 목록, 하차지는 하차 목록 — 두 모음에 들면 올린다. 방향은 서버 판정이 본다(규칙 ⑤).
             if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0 && com.onedal.app.core.LogOnce.changed("pick:"+"${order.pickup}|${order.dropoff}|${order.fare}", pickupListCheck.reason)) {
                 AppLogger.d(TAG, LogTag.FILTER, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
             }
-            if (!routeOrder.passed && order.fare > 0) {
-                AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
-            } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
-                // 🔎 «판단 못 해서 통과»도 남긴다 (기사님 요청) — 14:11 역주행 콜이 줄 하나 없이 통과했다
-                AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
-            }
 
-            val result = reservationOk && vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
+            val result = reservationOk && vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear
 
             /**
              * 👁️ **성적표를 채운다** — 첫 번째로 걸린 축에만 센다 (기사님 확정).
              *
              * 여러 축에 걸린 콜을 다 세면 합이 `seen` 을 넘고, *"이 축을 풀면 몇 개가
              * 들어오나"* 를 못 읽는다 — 그게 이 숫자의 쓸모다.
-             * 순서는 화면의 판정 순서와 같다: 차종 → 도착지 → 요금 → 상차지 → 블랙 → 경로순서.
+             * 순서는 화면의 판정 순서와 같다: 차종 → 도착지 → 요금 → 상차지 → 블랙.
              */
             /**
              * 🗳️ **걸린 축을 한 번만 고른다** — 성적표와 `verdict` 가 **같은 분기**를 쓴다.
@@ -437,8 +426,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 !fareMatch       -> "fare"
                 !pickupListMatch -> "pickupList"
                 !distanceMatch   -> "pickup"
-                !blacklistClear  -> "blacklist"
-                else             -> "routeOrder"
+                else             -> "blacklist"
             }
 
             tally?.let { t ->

@@ -34,20 +34,16 @@ class FilterStoreTest {
         assertEquals("tomorrowToo", of("""{"reservationMode":"tomorrowToo"}""").reservationMode)
     }
 
-    @Test fun `도착 목록 = 키워드 ∪ 경유 순서 목록 키 · 빈 글자 빼고 겹침 하나`() {
-        val f = of("""{"destinationKeywords":["가락동","","문정동"],"orderKm":{"한남동":3.2,"가락동":5.0}}""")
-        assertEquals(listOf("가락동", "문정동", "한남동"), f.destinationKeywords)
+    /** 📋 하차 목록은 서버가 보낸 destinationKeywords 그대로다 — 다른 칸(옛 서버의 경로 순서 숫자 등)을 합치지 않는다 */
+    @Test fun `하차 목록 = destinationKeywords 그대로 · 빈 글자 빼고 겹침 하나 · 다른 칸을 안 합친다`() {
+        val f = of("""{"destinationKeywords":["가락동","","문정동","가락동"],"orderKm":{"한남동":3.2}}""")
+        assertEquals(listOf("가락동", "문정동"), f.destinationKeywords)
     }
 
     @Test fun `상차 목록 - 칸이 없으면 null · 빈 목록은 빈 목록 · 빈 글자는 남는다`() {
         assertNull(of("""{}""").pickupKeywords)
         assertEquals(emptyList<String>(), of("""{"pickupKeywords":[]}""").pickupKeywords)
         assertEquals(listOf(""), of("""{"pickupKeywords":[""]}""").pickupKeywords)
-    }
-
-    @Test fun `경유 순서 km 의 null 은 «모름»으로 남는다`() {
-        val f = of("""{"orderKm":{"한남동":null,"가락동":4.5}}""")
-        assertEquals(mapOf("한남동" to null, "가락동" to 4.5), f.orderKm)
     }
 
     @Test fun `함정 · 이름 겹침 목록은 빈 글자를 빼고 배열 아닌 값은 건너뛴다`() {

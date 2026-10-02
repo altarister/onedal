@@ -3,7 +3,6 @@ package com.onedal.app.plugins.hwamul24
 import android.content.Context
 import com.onedal.app.core.LogTag
 import com.onedal.app.core.AppLogger
-import com.onedal.app.plugins.RouteOrderFilter
 import com.onedal.app.plugins.PickupListFilter
 import com.onedal.app.plugins.RegionMatch
 import com.onedal.app.core.IScrapParser
@@ -165,21 +164,12 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                         "블랙=${if(blacklistClear) "✅" else "❌"}", "LIST")
             }
 
-            // ── 조건 6: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정) ──
-            // 📋 상차 목록이 오면 순서 검사를 안 한다 — 뒤쪽은 서버가 «내 위치 둘레»로 이미 뺐다
-            val routeOrder = if (pickupListCheck != null) RouteOrderFilter.Result(true, "상차 목록으로 거른다 — 순서 검사 안 함")
-                else RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
+            // 📋 상차지는 상차 목록, 하차지는 하차 목록 — 두 모음에 들면 올린다. 방향은 서버 판정이 본다(규칙 ⑤).
             if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0 && com.onedal.app.core.LogOnce.changed("pick:"+"${order.pickup}|${order.dropoff}|${order.fare}", pickupListCheck.reason)) {
                 AppLogger.d(TAG, LogTag.FILTER, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
             }
-            if (!routeOrder.passed && order.fare > 0) {
-                AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
-            } else if (routeOrder.reason.endsWith("통과") && order.fare > 0) {
-                // 🔎 «판단 못 해서 통과»도 남긴다 (인성 파서와 같은 줄 · 기사님 요청)
-                AppLogger.d(TAG, LogTag.FILTER, "🧭 [경로 순서] 판단 못 함 → 통과 — ${routeOrder.reason} · ${order.pickup} → ${order.dropoff}")
-            }
 
-            val result = reservationOk && vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear && routeOrder.passed
+            val result = reservationOk && vehicleMatch && regionMatch && fareMatch && pickupListMatch && distanceMatch && blacklistClear
 
             /**
              * 👁️ **성적표를 채운다** — 인성 파서와 **같은 규칙**이다 (첫 축에만 센다).
@@ -193,8 +183,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 !fareMatch       -> "fare"
                 !pickupListMatch -> "pickupList"
                 !distanceMatch   -> "pickup"
-                !blacklistClear  -> "blacklist"
-                else             -> "routeOrder"
+                else             -> "blacklist"
             }
             tally?.let { t ->
                 t.seen++
