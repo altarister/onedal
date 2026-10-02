@@ -11,12 +11,6 @@ import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from '@onedal
  * 원달앱은 상세까지 열고 확정·수락은 누르지 않는다. 기사님이 상세에서 누르신다.
  */
 
-/**
- * 🔇 **알람은 «먼저 오는 것»으로 그친다** (기사님 확정).
- * 그 콜이 리스트에서 사라지거나 10초 — 오래 남지도, 헛되지도 않게.
- * 리스트에서 사라진 것은 **다음 스캔의 성적표**가 알려 준다(통과 0).
- */
-export const FILTER_ALARM_HOLD_MS = 10_000;
 
 /**
  * Safety Mode V3: 비상 알림 & 안전취소 경고 수신 훅
@@ -27,7 +21,6 @@ export const FILTER_ALARM_HOLD_MS = 10_000;
 export function useSystemAlerts() {
     const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
     const [warnings, setWarnings] = useState<SafeCancelWarning[]>([]);
-    const [filterAlarm, setFilterAlarm] = useState<FilterPassAlarm | null>(null);
 
     const dismissAlert = useCallback((timestamp: string) => {
         setAlerts(prev => prev.filter(a => a.timestamp !== timestamp));
@@ -72,8 +65,7 @@ export function useSystemAlerts() {
          */
         const handleFilterAlarm = (alarm: FilterPassAlarm) => {
             console.log("🔔 [필터 통과 알람]", alarm);
-            setFilterAlarm(alarm);
-            if (!alarm.silent) soundManager.playFilterAlarm();
+            soundManager.playFilterAlarm();
         };
 
         socket.on("emergency-alert", handleEmergency);
@@ -91,15 +83,6 @@ export function useSystemAlerts() {
         };
     }, []);
 
-    /**
-     * 🔇 10초가 지나면 스스로 사라진다 — 손으로 끄게 하지 않는다.
-     *    (운전 중에는 입력을 못 한다. 무입력에도 일이 되어야 한다)
-     */
-    useEffect(() => {
-        if (!filterAlarm) return;
-        const t = setTimeout(() => setFilterAlarm(null), FILTER_ALARM_HOLD_MS);
-        return () => clearTimeout(t);
-    }, [filterAlarm]);
 
-    return { alerts, warnings, filterAlarm, dismissAlert, dismissWarning };
+    return { alerts, warnings, dismissAlert, dismissWarning };
 }

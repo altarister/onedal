@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf, openBlockedNeedsHand } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession, peekUserSession, baseFilterFromDb } from "../state/userSessionStore";
 import { generatePin, tryConsumePin } from "../state/pairingStore";
@@ -388,27 +388,16 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         const alarmBody: FilterPassAlarm = {
             deviceId,
             deviceName: session.deviceName,
-            /* 🔢 목록에 보이는 통과 수 — 띠의 «필터 통과 N건». 소리는 새로 통과 수(passedNew)로 가른다 */
+            /* 🔢 목록에 보이는 통과 수 · 소리는 새로 통과 수(passedNew)로 가른다 */
             passed: filterTally.passed,
             passedNew: alarmPassed,
             seen: filterTally.seen,
             at: session.lastSeen,
-            /* 🚧 앱이 안 연 까닭 — 관제웹 띠가 기사님 손이 필요한 까닭일 때만 «직접 여십시오»로 (없으면 앱이 열었다) */
-            ...(openBlocked ? { openBlocked } : {}),
         };
-        const prevBlocked = session.lastOpenBlocked;
-        session.lastOpenBlocked = openBlocked;
         if (runningModeOf(session) === "ALARM" && alarmPassed > 0 && io) {
             io.to(userId).emit("filter-pass-alarm", alarmBody);
             slog('필터', `🔔 [알람] ${deviceLabelOf(deviceId)} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건${filterTally.passedNew != null ? ` (새로 ${filterTally.passedNew}건)` : ''}` +
                 `${openBlocked ? ` · 앱이 못 연 까닭 ${openBlocked}` : ''}. 기사님이 직접 누르십니다`);
-        } else if (runningModeOf(session) === "ALARM" && io && openBlocked !== prevBlocked && openBlockedNeedsHand(openBlocked)) {
-            /**
-             * 🚧 **띠는 소리와 따로** — 첫 읽기 까닭이 곧 풀리는 것(흐르는 목록 등)이었다가 다음 읽기에 «손 필요»(탭 줄 등)로 바뀌면
-             *    새로 통과한 콜이 없어 소리 알림이 안 가 «직접 여십시오» 띠도 못 떴다. 까닭이 «손 필요»로 바뀔 때만(기기별) 소리 없이 띠만 보낸다.
-             */
-            io.to(userId).emit("filter-pass-alarm", { ...alarmBody, silent: true } satisfies FilterPassAlarm);
-            slog('필터', `🚧 [띠만] ${deviceLabelOf(deviceId)} — 통과 ${filterTally.passed}건 · 앱이 못 연 까닭 ${prevBlocked ?? '없음'} → ${openBlocked} (소리 없음)`);
         }
     }
     activeDevices.set(deviceId, session);

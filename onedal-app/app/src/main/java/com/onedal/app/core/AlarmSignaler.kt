@@ -52,7 +52,7 @@ class AlarmSignaler(private val service: AccessibilityService, private val waitB
 
 
     companion object {
-        /** 🔇 테두리·알람이 스스로 걷히는 시간 — 관제웹 띠(FILTER_ALARM_HOLD_MS)와 같은 값 */
+        /** 🔇 테두리·알람이 스스로 걷히는 시간 */
         const val HOLD_MS = 10_000L
         /** 소리 두 번 사이 간격 — 관제웹(soundManager 220ms)과 같은 리듬 */
         private const val BEEP_GAP_MS = 220L

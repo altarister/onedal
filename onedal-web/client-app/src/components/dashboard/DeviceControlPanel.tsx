@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, modeChoicesOf, TARGET_APP_LABEL, deviceLabel, clockText } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, modeChoicesOf, deviceLabel, clockText } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "@onedal/shared";
-import { handBandOf } from "../../lib/handBand";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { summarizeTally } from "@onedal/shared";
 import type { AutoDispatchFilter } from "@onedal/shared";
@@ -59,7 +58,6 @@ function DeviceRow({
     currentFilter: AutoDispatchFilter | null;
 }) {
     const isDisconnected = device.status === "OFFLINE";
-    const handBand = handBandOf(device, device.targetApp ? `${TARGET_APP_LABEL[device.targetApp]} ` : '');
     /**
      * 🖥️ **배차망·화면명·화면 꺼짐은 배지 하나다** (기사님과 확정).
      * 고르는 일은 `shared` 가 한다 — 여기서는 그리기만 한다 (운행일지도 같은 것을 물을 수 있다).
@@ -347,18 +345,6 @@ function DeviceRow({
                 </div>
             )}
 
-            {/* 🔔 손 필요 띠 — 앱이 못 열었고 손이 있어야 풀리는 까닭인 동안만(기기 상태 · handBandOf 가 null 이면 없음). 배차망 이름은 그 폰이 보는 배차망 */}
-            {handBand && (
-                <div className="mx-1 mt-1 rounded border border-info/40 bg-info/15 px-2 py-1.5 flex items-center gap-2 animate-pulse">
-                    <span className="text-base leading-none">🔔</span>
-                    <span className="text-info font-black text-[13px] tracking-tight">
-                        {handBand}
-                    </span>
-                    <span className="ml-auto text-[10px] text-info/70 font-bold tabular-nums shrink-0">
-                        본 {device.filterTally?.seen ?? 0}
-                    </span>
-                </div>
-            )}
 
             {/* 🚨 개별 폰 비상/경고 알림 렌더링 (사람 개입 필요한 경우만 노출) */}
             {(criticalAlerts.length > 0 || deviceWarnings.length > 0) && (
