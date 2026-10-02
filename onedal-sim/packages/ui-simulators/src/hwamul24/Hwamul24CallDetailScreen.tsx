@@ -15,7 +15,8 @@ const mockPhone = () => `0${Math.floor(Math.random() * 2) === 0 ? '10' : '31'}-$
 const mockBizNo = () => `${Math.floor(Math.random() * 900 + 100)}-${Math.floor(Math.random() * 90 + 10)}-${Math.floor(Math.random() * 90000 + 10000)}`;
 
 // ═══════════════════════════════════════════════════════════════
-// 스크린샷 04, 05, 21, 22 기반 — 배차상세 3탭 화면
+// 스크린샷 04, 05, 21, 22 기반 — 배차내역 상세 3탭 화면(잡은 콜 · 배차내역 탭에서 연 콜)
+// 잡기 전 상세는 Hwamul24PreConfirmScreen(실물 18 «화물상세정보»)이다
 // ═══════════════════════════════════════════════════════════════
 export const Hwamul24CallDetailScreen = ({ call, onClose, onAccept }: DetailProps) => {
   const [activeTab, setActiveTab] = useState<DetailTab>('cargo');

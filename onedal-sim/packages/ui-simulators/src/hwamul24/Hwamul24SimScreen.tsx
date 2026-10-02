@@ -7,21 +7,21 @@
 import type { NetScreenProps } from '../nets';
 import { Hwamul24DispatchBoard } from './Hwamul24DispatchBoard';
 import { Hwamul24CallDetailScreen } from './Hwamul24CallDetailScreen';
+import { Hwamul24PreConfirmScreen } from './Hwamul24PreConfirmScreen';
 
 export const Hwamul24SimScreen = (p: NetScreenProps) => {
-  // ── 상세 보기 ──
-  if (p.selectedCall) {
-    return (
-      <Hwamul24CallDetailScreen
-        call={p.selectedCall}
-        onClose={p.closeDetail}
-        onAccept={(call) => {
-          p.acceptCall(call);
-          p.closeDetail();
-          p.setActiveTab('CONFIRMED');
-        }}
-      />
-    );
+  // ── 상세 보기 — 잡은 콜은 배차내역 상세(실물 04 · 05 · 21 · 22), 안 잡은 콜은 화물상세정보(실물 18) ──
+  const selected = p.selectedCall;
+  const accept = (call: NonNullable<NetScreenProps['selectedCall']>) => {
+    p.acceptCall(call);
+    p.closeDetail();
+    p.setActiveTab('CONFIRMED');
+  };
+  if (selected && p.confirmedCalls.some(c => c.id === selected.id)) {
+    return <Hwamul24CallDetailScreen call={selected} onClose={p.closeDetail} onAccept={accept} />;
+  }
+  if (selected) {
+    return <Hwamul24PreConfirmScreen call={selected} onClose={p.closeDetail} onAccept={accept} />;
   }
 
   // ── 리스트 ──

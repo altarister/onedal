@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import {
     Hwamul24CallDetailScreen,
     Hwamul24DispatchBoard,
+    Hwamul24PreConfirmScreen,
     Hwamul24SimScreen,
     InsungCallDetailScreen,
     InsungDispatchBoard,
@@ -77,21 +78,28 @@ describe('배차망 화면 = 예전 DispatchPage 갈래가 고르던 부품', ()
         ));
     });
 
-    it('화물24시 상세', () => {
+    it('화물24시 상세 — 안 잡은 콜은 화물상세정보(실물 18)', () => {
         expect(markup(<Hwamul24SimScreen {...base} selectedCall={callB} />))
+            .toBe(markup(<Hwamul24PreConfirmScreen call={callB} onClose={noop} onAccept={noop} />));
+    });
+
+    it('화물24시 상세 — 잡은 콜은 배차내역 상세', () => {
+        expect(markup(<Hwamul24SimScreen {...base} confirmedCalls={[callB]} selectedCall={callB} />))
             .toBe(markup(<Hwamul24CallDetailScreen call={callB} onClose={noop} onAccept={noop} />));
     });
 
-    it('🔴 화물24시 수락 뒤 — 잡은 콜에 넣고 → 상세를 닫고 → «배차내역» 탭 (예전 순서 그대로)', () => {
-        const order: string[] = [];
-        const el = Hwamul24SimScreen({
-            ...base, selectedCall: callA,
-            acceptCall: () => order.push('accept'),
-            closeDetail: () => order.push('close'),
-            setActiveTab: (t) => order.push(`tab:${t}`),
-        }) as ReactElement<{ onAccept: (c: typeof callA) => void }>;
-        el.props.onAccept(callA);
-        expect(order).toEqual(['accept', 'close', 'tab:CONFIRMED']);
+    it('🔴 화물24시 수락 뒤 — 잡은 콜에 넣고 → 상세를 닫고 → «배차내역» 탭 (배차신청 · 배차내역 상세 «하차완료» 둘 다)', () => {
+        for (const confirmedCalls of [[], [callA]]) {
+            const order: string[] = [];
+            const el = Hwamul24SimScreen({
+                ...base, confirmedCalls, selectedCall: callA,
+                acceptCall: () => order.push('accept'),
+                closeDetail: () => order.push('close'),
+                setActiveTab: (t) => order.push(`tab:${t}`),
+            }) as ReactElement<{ onAccept: (c: typeof callA) => void }>;
+            el.props.onAccept(callA);
+            expect(order).toEqual(['accept', 'close', 'tab:CONFIRMED']);
+        }
     });
 });
 

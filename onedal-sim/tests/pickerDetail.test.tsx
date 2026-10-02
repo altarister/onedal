@@ -12,7 +12,7 @@ import { pickerA, pickerB, pickerC } from './fixtures';
 /**
  * 📄 **픽커 상세 (수락 전)** — 실물 캡처 05 · 06 · 07 · 실물 덤프 11 · 12
  *
- * 원달앱은 «넘기기 + 수락하기» 둘이 다 보이면 수락 전 상세로 알아보고(`KakaoPickerKeywords.PICKER.detailKeywords`),
+ * 원달앱은 «넘기기 + 수락하기» 둘이 다 보이면 수락 전 상세로 알아보고(배차망 정의 표(shared networkPages.ts) 픽커 상세 줄),
  * 상세 글자 원문을 미리보기 콜로 서버에 올린다(`sendDetail` · `isPreview`). 계약(수락하기)은 **기사님 손가락**이다.
  * 「수락하기」를 누르면 잡은 콜로 옮기고 수락 뒤 단계로 간다 (`tests/pickerOngoing.test.tsx`).
  */

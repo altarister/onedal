@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import {
     Hwamul24CallDetailScreen,
     Hwamul24DispatchBoard,
+    Hwamul24PreConfirmScreen,
     InsungCallDetailScreen,
     InsungDispatchBoard,
     InsungDropdownMenu,
@@ -75,5 +76,10 @@ describe('화면 글자 — 고정 콜 · 고정 난수 · 고정 시각', () =>
     it('화물24시 상세', () => {
         expect(textOf(<Hwamul24CallDetailScreen call={callA} onClose={noop} onAccept={noop} />)).toMatchSnapshot();
         expect(textOf(<Hwamul24CallDetailScreen call={callB} onClose={noop} onAccept={noop} />)).toMatchSnapshot();
+    });
+
+    it('화물24시 잡기 전 상세 — 화물상세정보(실물 18)', () => {
+        expect(textOf(<Hwamul24PreConfirmScreen call={callA} onClose={noop} onAccept={noop} />)).toMatchSnapshot();
+        expect(textOf(<Hwamul24PreConfirmScreen call={callB} onClose={noop} onAccept={noop} />)).toMatchSnapshot();
     });
 });

@@ -31,6 +31,7 @@ export { getNextPickupDetail, getNextDropoffDetail } from './insung/insungContac
 // 화물24 UI
 export { Hwamul24DispatchBoard } from './hwamul24/Hwamul24DispatchBoard';
 export { Hwamul24CallDetailScreen } from './hwamul24/Hwamul24CallDetailScreen';
+export { Hwamul24PreConfirmScreen } from './hwamul24/Hwamul24PreConfirmScreen';
 
 // 화물24 표기 — 화물24시 화면만 쓴다 (0단계 0-2 에서 공통 코드에서 옮겨 왔다)
 export { formatHwamul24Region, formatHwamul24Vehicle, hwamul24RegionOf, toHwamul24Call } from './hwamul24/hwamul24Call';
