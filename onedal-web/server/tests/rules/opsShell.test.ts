@@ -70,4 +70,11 @@ describe('🧭 운영센터 틀', () => {
         const v = readFileSync(join(SRC, '../vite.config.ts'), 'utf8');
         expect(v).toContain("moduleSideEffects: (id: string) => id.endsWith('.css') || !id.includes('/shared/src/')");
     });
+
+    it('🔴 «배차망 화면 — 모을 것»은 배차망 정의 표에서 뽑는다(shared collectListOf) — 손으로 적은 목록이 아니다 · 남은 수도 그 목록에서 센다', () => {
+        const a = read('pages/Anomalies.tsx');
+        expect(a).toContain('const collect = collectListOf();');
+        expect(a).toContain('collectCountOf(collect)');
+        expect(a).toContain('rows={collect}');
+    });
 });
