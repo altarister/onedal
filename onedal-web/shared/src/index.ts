@@ -1014,9 +1014,10 @@ export type ReservationMode = 'today' | 'tomorrowToo' | 'tomorrowOnly';
  *    안 넣으면 조용히 앱으로 간다.**
  *    골라 싣는 쪽은 **기본이 «안 간다»** 라 안전하다.
  *
- * ⚠️ **`orderKm` 은 `AutoDispatchFilter` 에 없다** — 조립할 때 얹는다
- *    (경로 순서 맵). 그래서 이 표는 «앱이 읽는 키»이지
- *    «평면 필터의 부분집합»이 아니다.
+ * ⚠️ 내일 콜 상차 칸(`reserved…`)처럼 `AutoDispatchFilter` 에 없는 칸은 조립할 때 얹는다.
+ *    그래서 이 표는 «앱이 읽는 키»이지 «평면 필터의 부분집합»이 아니다.
+ * 📋 앱이 보는 지역은 두 모음이다 — 상차 목록(`pickupKeywords`) · 하차 목록(`destinationKeywords`).
+ *    경로 순서 숫자는 보내지 않는다 — 목적지 가까이 두 목록이 겹치는 곳에서는 방향과 상관없이 올리는 것이 설계다.
  *
  * 🔴 **표 ↔ 앱(Kotlin)이 어긋나면 `appFilterKeys.test.ts` 가 잡는다.** 앱이 읽는데
  *    서버가 안 보내면 **조용한 고장**이고(빈 값으로 거른다), 서버가 보내는데 앱이 안 읽으면
@@ -1028,14 +1029,12 @@ export const APP_FILTER_KEYS = [
     'destinationKeywords', 'customCityFilters', 'keywordTraps',
     /* 🏘️ 이름이 같은 다른 지역 동 — 그 동이 뜻하는 시군구 꼴 (regionMatch · filterManager refreshDongSigungu) */
     'destinationDongSigungu',
-    /* 📋 상차 목록 — 1단계는 옛 칸(pickupRadiusKm · orderKm)과 함께 간다 */
+    /* 📋 상차 목록 — 칸이 없는 옛 서버를 받는 원달앱은 상차 반경(pickupRadiusKm)으로 돌아간다 */
     'pickupKeywords',
     'excludedKeywords', 'allowedVehicleTypes',
     'minFare', 'maxFare', 'ratePerKm',
     /* 📅 예약콜 축 — 원달앱 1차 필터가 읽는다 (reviews/23 · 서버는 이 값으로 거르지 않는다) */
     'reservationMode',
-    /* ⬇️ 평면 필터에 없다 — 조립할 때 얹는다 */
-    'orderKm',
     /* 📅 내일 이후 예약 콜 상차 — scrap 이 조립할 때 얹는다(기본 반경 · 집 둘레 동 목록 · 시군구 묶음) · 원달앱 FilterStore 가 읽는다 */
     'reservedPickupRadiusKm', 'reservedPickupKeywords', 'reservedPickupGroups',
     /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings */
@@ -1053,7 +1052,7 @@ export const APP_FILTER_KEYS = [
 /**
  * 📦 **앱 필터를 화면 줄로 — 한 벌** (관제웹 현황판 · 운영센터 현황판의 «앱에 내려갈 필터» 칸이 같이 부른다).
  *    칸 순서는 `APP_FILTER_KEYS` 먼저, 표에 없는 칸(서버가 더 얹은 것)은 뒤에. 묶음 값은 줄인다 —
- *    목록은 «N개 · 앞 여섯 …», 맵은 «N개 키»(경로 순서 맵은 수백 칸이다). 값을 다시 계산하지 않는다.
+ *    목록은 «N개 · 앞 여섯 …», 맵은 «N개 키». 값을 다시 계산하지 않는다.
  */
 export function appFilterRowsOf(app: Record<string, unknown>): Array<[string, unknown]> {
     const known = (APP_FILTER_KEYS as readonly string[]).filter(k => k in app);

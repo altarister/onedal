@@ -266,14 +266,6 @@ export interface UserSession {
      */
     detourProgressKm: Record<string, number> | null;
     /**
-     * 🧭 경유의 동마다 **경로 몇 km 지점인가 — 순서 전용** (순수 스냅점 · #78).
-     *
-     * `detourProgressKm` 은 트림용이라 pad·Infinity 가 섞여 있다 — 순서 판정에 쓰면
-     * 지리가 뒤집힌다 (곤지암읍이 경로 끝 뒤로 갔다). 앱 피기백(`buildAppOrderKm`)은
-     * 이것만 쓴다. 역시 저장이 아니라 캐시 — 경유를 다시 그리면 같이 바뀐다.
-     */
-    detourOrderKm: Record<string, number> | null;
-    /**
      * 📋 **상차 목록을 마지막으로 만든 자리** (하차 목록») — 여기서 0.5km 넘게 움직이면 다시 만든다.
      *    목록 자체는 `activeFilter.pickupKeywords` 에 산다. 저장이 아니라 «언제 다시 만들까»의 기준점이다.
      */
@@ -350,7 +342,6 @@ function createDefaultSession(userId: string): UserSession {
         isRestored: false,
         isBootstrapping: false,
         detourProgressKm: null,
-        detourOrderKm: null,
         pickupListAt: null,
         pickupNearKey: null,
         reservedPickup: null,

@@ -74,11 +74,11 @@ describe('앱 피기백 규격 — 서버가 싣는 것과 앱이 읽는 것이 
     });
 
     /**
-     * ⚠️ `orderKm` 은 평면 필터에 없다 — 조립할 때 얹는다.
+     * ⚠️ 내일 콜 상차 칸은 평면 필터에 없다 — 조립할 때 얹는다.
      *    그래서 표는 «앱이 읽는 키»이지 «`AutoDispatchFilter` 의 부분집합»이 아니다.
      */
     it('조립할 때 얹는 키도 표에 있다 (표가 곧 앱이 받는 전부다)', () => {
-        for (const k of ['orderKm']) {
+        for (const k of ['reservedPickupRadiusKm', 'reservedPickupKeywords', 'reservedPickupGroups']) {
             expect(`${k} in APP_FILTER_KEYS`).toBe(
                 `${k} ${(APP_FILTER_KEYS as readonly string[]).includes(k) ? 'in' : 'NOT in'} APP_FILTER_KEYS`);
         }

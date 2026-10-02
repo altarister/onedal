@@ -597,55 +597,15 @@ export function trimTraveled(userId: string, io?: any): void {
  */
 export function rememberDetourProgress(
     session: ReturnType<typeof getUserSession>,
-    regions: { progressKm?: Record<string, number>; orderKm?: Record<string, number>; flat?: string[] } | null,
+    regions: { progressKm?: Record<string, number>; flat?: string[] } | null,
 ) {
     session.detourProgressKm = regions?.progressKm ?? null;
-    // 순서용 한 벌도 같은 순간에 — 트림용과 갈라지면 #78 이 되살아난다
-    session.detourOrderKm = regions?.orderKm ?? null;
     /**
      * 🛣️ 경로 위 동 목록도 함께 기억한다.
      * ⚠️ **여기에는 경유만 넣는다.** 도착 목표에서 온 동을 섞으면 «경로 위»로 읽혀
      *    뒤로 돌아가 싣는 콜이 통과한다.
      */
     session.detourFlat = regions?.flat ?? null;
-}
-
-/**
- * 🧭 **앱에 내려보낼 경로 순서 맵** — 앱이 상차지의 경로 순서(역주행)를 볼 재료다.
- *
- * · 키를 **지금 목록(destinationKeywords)으로 좁힌다** — 세션의 순서 맵은
- *   지나온 동도 계속 들고 있어, 그대로 보내면 지나온 동이 "경로 위"로 남는다
- * · 경로 위가 아니거나 값을 모르면 **null** — "순서를 모른다"는 뜻이고 앱은 모르면 막지 않는다
- * · 경로가 없으면(첫짐) **빈 객체** — 앱이 순서 검사를 통째로 건너뛴다
- *
- * 🔴 **읽는 것은 `detourOrderKm`(순서 전용 · 순수 스냅점)이다** (#78).
- *    트림용 `detourProgressKm` 은 하차원 판정까지 부풀려 있어, 순서로 쓰면 길목의 동이
- *    경로 끝으로 밀려 앞길 콜이 «후진»으로 막힌다 (`routeOrderKm.test.ts`).
- */
-export function buildAppOrderKm(
-    session: ReturnType<typeof getUserSession>,
-): Record<string, number | null> {
-    /**
-     * 🔴 진행 중 경로가 없으면(활성 콜 0) 순서도 없다 (#39).
-     * 옛 사이클의 진행도 잔재를 내려보내면 앱 RouteOrderFilter 가 "경로 밖 상차지
-     * 차단"을 **첫짐 탐색에** 발동한다 — 옛 경유 목록 밖 첫짐 후보가 전부 막힌다.
-     * 원천(경로)이 없으면 파생도 빈 것이다 (규칙 ③).
-     */
-    if (getActiveCalls(session).length === 0) return {};
-    const order = session.detourOrderKm;
-    if (!order) return {};
-
-    const out: Record<string, number | null> = {};
-    for (const dong of session.activeFilter.destinationKeywords ?? []) {
-        /* 🔴 **목록에 든 동은 다 싣는다. 경로 위가 아니면 `null`(순서 미상 → 통과).**
-         *    필터는 그렇게 세밀할 수 없다 — 올리고, 판정에서 나쁜 점수를 받으면 기사님이 고르지 않는다 (규칙 ⑤).
-         *    경로 밖 동을 빼서 «경로 밖 — 차단»으로 만들지 않는다 — 목적지 영역 안의 좋은 콜까지 막힌다.
-         *    뒤로 가는 상차는 필터 영역이 뺀다. */
-        const v = order[dong];
-        // 유한하지 않은 값이 섞여 들면 «순서 미상 — 통과» — 느슨한 쪽이 안전하다 (규칙 ⑤)
-        out[dong] = Number.isFinite(v) ? (v as number) : null;
-    }
-    return out;
 }
 
 /**
@@ -769,9 +729,9 @@ export function filterLineOf(session: ReturnType<typeof getUserSession>): Array<
     return line && line.length >= 2 ? line : null;
 }
 
-/** 진행도 한 벌 → 세션이 기억하는 세 칸 (트림용 · 앱 순서용 · 경로 위 목록). 셋이 같은 값에서 나온다 */
+/** 진행도 한 벌 → 세션이 기억하는 두 칸 (트림용 · 경로 위 목록). 둘이 같은 값에서 나온다 */
 function progressOf(progressKm: Record<string, number>) {
-    return { progressKm, orderKm: progressKm, flat: Object.keys(progressKm) };
+    return { progressKm, flat: Object.keys(progressKm) };
 }
 
 /**
@@ -931,7 +891,7 @@ function refreshAdminDongs(session: ReturnType<typeof getUserSession>): void {
  *    도착 목록 가운데 명부에서 이름이 둘 이상 시군구에 있는 동(SAME_NAME_DONGS)만 → 값은 그 동이 든 묶음 부모(시·구)를 cityAliases 로 편 꼴.
  *    앱 RegionMatch · 서버 anyRegionHit 가 «앞에 다른 시·군·구가 보이면 거름 · 목록 페이지에서 상세 주소가 안 보이면 통과»로 쓴다.
  *    🔴 트랩과 같은 자리 하나에서 파생 — 목록을 바꾸는 두 길이 refreshKeywordTraps 를 부른다. 도착 목록 **전체**에서 만든다
- *       (앱에 내릴 때 경유 순서 키로 옮겨 간 동도 여기 있다 · buildAppOrderKm). 부모를 못 찾은 동은 싣지 않는다(= 지금처럼 통과).
+ *       부모를 못 찾은 동은 싣지 않는다(= 지금처럼 통과).
  *    상차 목록은 이번 범위 밖(기사님 «가»는 하차지).
  */
 function refreshDongSigungu(session: ReturnType<typeof getUserSession>): void {
@@ -1119,7 +1079,6 @@ export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, 
                  *    그 동에서 싣는 콜을 허용한다 (뒤로 돌아가 싣는 콜이 통과한다).
                  */
                 progressKm: detour.progressKm,
-                orderKm: detour.orderKm,
                 flat: detour.flat,
             };
         }

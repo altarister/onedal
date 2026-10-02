@@ -148,8 +148,9 @@ describe('상차 목록 배선', () => {
     const SRC = join(__dirname, '../../src');
     const code = (p: string) => readFileSync(join(SRC, p), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-    it('🔴 앱에 실린다 — 옛 칸(상차 반경 · 순서표)도 1단계 동안 함께', () => {
-        for (const k of ['pickupKeywords', 'pickupRadiusKm', 'orderKm']) expect(APP_FILTER_KEYS as readonly string[]).toContain(k);
+    it('🔴 앱에 실린다 — 상차 반경도 함께(칸이 없는 옛 서버를 받는 원달앱이 돌아갈 길) · 경로 순서 숫자는 안 간다', () => {
+        for (const k of ['pickupKeywords', 'pickupRadiusKm']) expect(APP_FILTER_KEYS as readonly string[]).toContain(k);
+        expect(APP_FILTER_KEYS as readonly string[]).not.toContain('orderKm');
     });
 
     it('🔴 그물 목록을 다시 만들 때 · GPS 가 0.5km 움직일 때 다시 만든다 — 목적지 상태는 goalZonesOf · 계산은 pickupListFor 한 곳', () => {

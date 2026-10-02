@@ -7,13 +7,13 @@ import { initGeoService } from '../../src/services/geoService';
 import { APP_FILTER_KEYS, effectiveRadii, reservedPickupRadiusKmOf, callFilterBlocker } from '@onedal/shared';
 import { capacityFullHold, filterVersionOf } from '../../src/core/helpers';
 import { readWaitTimes } from '../../src/core/waitTimes';
-import { buildAppOrderKm, ensureReservedPickupList } from '../../src/state/filterManager';
+import { ensureReservedPickupList } from '../../src/state/filterManager';
 import { getUserSession, peekUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * 📦 **앱에 내려갈 필터는 한 함수(`appFilterOf`)가 만든다 — 폰 응답 · 운영센터 · 관제웹이 같은 값을 본다** (onedal-69 «가» · ea 발견).
- * 화면이 `activeFilter` 만 읽으면 자동 반경 · 복귀 목적지 · 내일 콜 칸 · 경로 순서 · 잠금이 빠져 폰이 받는 값과 다르다.
+ * 화면이 `activeFilter` 만 읽으면 자동 반경 · 복귀 목적지 · 내일 콜 칸 · 잠금이 빠져 폰이 받는 값과 다르다.
  * 🔴 폰 쪽은 그대로다 — 아래 «옛 조립»은 함수로 빼기 전 scrap 의 값 만들기를 옮겨 둔 것이고, 폰 응답과 새 함수가 이것과 깊이 같다.
  * 🔴 읽는 문은 로그를 찍거나 세션을 바꾸지 않는다 — 내일 콜 목록은 폰에 마지막으로 실은 것(`session.reservedPickup`)을 쓴다.
  */
@@ -55,7 +55,6 @@ function oldAssembly(session: any, userId: string, deviceId: string) {
     }
     if (session.activeFilter.goalCity) appFilter.destinationCity = session.activeFilter.goalCity;
     appFilter.evaluatingNow = !!session.deviceEvaluatingMap.get(deviceId);
-    appFilter.orderKm = buildAppOrderKm(session);
     Object.assign(appFilter, readWaitTimes(userId));
     if (session.isBootstrapping) appFilter.isActive = false;
     if (capacityFullHold(session.activeFilter)) appFilter.isActive = false;
@@ -63,10 +62,9 @@ function oldAssembly(session: any, userId: string, deviceId: string) {
     if (callFilterBlocker(session.activeFilter)) appFilter.isActive = false;
     return appFilter;
 }
-/** 🧬 v2 판 글자 — scrap 이 폰에 싣는 그대로(키워드에서 orderKm 키 빼기 · evaluatingNow 빼기) */
+/** 🧬 v2 판 글자 — scrap 이 폰에 싣는 그대로(evaluatingNow 빼기) */
 function v2VersionOf(f: any) {
-    const orderKeys = f.orderKm ?? {};
-    const { evaluatingNow: _live, ...versioned } = { ...f, destinationKeywords: (f.destinationKeywords ?? []).filter((k: string) => !(k in orderKeys)) };
+    const { evaluatingNow: _live, ...versioned } = f;
     return filterVersionOf(versioned);
 }
 
@@ -123,6 +121,29 @@ describe.each(CASES)('📦 앱 필터 — %s', (_name, arrange, shows) => {
         expect(filter).toEqual(oldAssembly(s, U, DEV));
         expect(s.capacityHoldNotified).toBe(before.notified);
         expect(s.reservedPickup).toBe(before.reserved);
+    });
+});
+
+/**
+ * 📋 **앱이 보는 지역은 두 모음이다 — 상차 목록 · 하차 목록.** 경로 위 동도 하차 목록에 그대로 싣고, 경로 순서 숫자(orderKm)는 안 보낸다.
+ *    하차 목록에서 경로 위 동을 빼면 그 목록만 보는 원달앱이 경로 위로 가는 콜을 막는다.
+ */
+describe('📋 앱 필터 — 상차 목록 · 하차 목록 두 모음', () => {
+    const LINE = ['신둔면', '관고동'];
+    beforeEach(() => {
+        clearUserSession(U);
+        const s = getUserSession(U);
+        s.activeFilter = { ...s.activeFilter, isActive: true, destinationKeywords: [...LINE, '중리동'] };
+        s.myOrders = [{ id: 'o-appfilter-line', status: 'ORDER_CONFIRMED', pickup: '초월읍', dropoff: '관고동', fare: 50000 }];
+        s.detourProgressKm = { '신둔면': 6.1, '관고동': 9.4 };
+    });
+    it('🔴 새 원달앱(v2)에 간 하차 목록에 경로 위 동이 있다', async () => {
+        const { out } = await report(true);
+        expect(out.dispatchEngineArgs.destinationKeywords).toEqual(expect.arrayContaining(LINE));
+    });
+    it('🔴 앱 필터에 경로 순서 숫자(orderKm) 칸이 없다', async () => {
+        const { out } = await report(false);
+        expect(out.dispatchEngineArgs).not.toHaveProperty('orderKm');
     });
 });
 

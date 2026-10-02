@@ -19,9 +19,8 @@ import { initGeoService, cityAliases, getDetourRegions } from '../../src/service
  *    규칙 ⑤: 앱은 *"애매하면 올린다"* 여야 하고 *"모르니 버린다"* 가 아니다.
  *
  * ⚠️ **구의 진행도는 지어내지 않는다** (규칙 ④). 구는 넓어서 "몇 km 지점"이 하나로
- *    안 정해진다 — 그래서 `null`(순서 미상)로 싣는다. 앱의 `RouteOrderFilter` 는
- *    이미 `null` 을 *"모르면 통과"* 로 다루므로 **앱을 안 고쳐도 된다.**
- *    경로 위에 있다는 것만 알리고, 정밀한 판정은 서버가 전체 주소로 한다 (규칙 ⑤).
+ *    안 정해진다 — 그래서 `null`(모름)로 둔다. 트림은 모르는 것을 남긴다.
+ *    원달앱에는 하차 목록의 이름으로만 가고, 정밀한 판정은 서버가 전체 주소로 한다 (규칙 ⑤).
  */
 
 beforeAll(() => {
@@ -130,9 +129,7 @@ describe('🧭 경유 목록 — 구도 함께 싣되 진행도는 비운다', (
     /**
      * 🔴 **`progressKm` 에만 넣으면 앱까지 안 간다.**
      *
-     * `buildAppOrderKm` 은 `destinationKeywords` 를 **돌면서** 진행도를 뽑는다
-     * (지나온 구간을 뺄 때 목록과 진행도가 **한 벌로** 줄어야 하기 때문이다).
-     * 그러니 구 이름이 도착 목록(`flat`)에도 있어야 앱이 받는다.
+     * 원달앱은 하차 목록(`destinationKeywords`)만 본다 — 구 이름이 도착 목록(`flat`)에도 있어야 앱이 받는다.
      */
     it('🔴 도착 목록(flat)에도 구 이름이 있다 — 없으면 앱까지 안 간다', () => {
         expect(regions()!.flat).toEqual(expect.arrayContaining(['분당구']));

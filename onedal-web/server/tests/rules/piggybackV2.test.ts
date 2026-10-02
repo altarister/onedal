@@ -6,21 +6,16 @@ const scrap = () => readFileSync(join(__dirname, '../../src/routes/scrap.ts'), '
     .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 /**
- * 🧭 **피기백 규격 v2** (기사님 확정 — "같은 목록을 왜 두 번 보내나")
- *
- * destinationKeywords 와 orderKm 은 **키 집합이 같다**(buildAppOrderKm 이 키워드를 순회해 만든다).
- * 둘 다 보내고 필터가 안 바뀌어도 매 5초 전부 보내면 대기 응답(실측 4.0KB)의 3KB 가까이가 중복이다.
- *
- *   ① 중복 제거 — 신앱은 도착 목록을 `키워드 ∪ orderKm 키` 로 합친다.
- *      서버는 orderKm 에 실린 동을 키워드에서 뺀다
- *   ② 버전 게이트 — 내용 해시가 같으면 필터 본문을 생략한다
+ * 🧭 **피기백 규격 v2** — 버전 게이트: 내용 해시가 같으면 필터 본문을 생략한다.
  *
  * 🔴 신호는 앱이 보내는 `filterVersion` 필드 하나다 — 없으면(구앱·scenario)
- *    지금 그대로 전부 보낸다. scenario 가 구프로토콜로 남아 호환을 상시 검증한다.
+ *    늘 전부 보낸다. scenario 가 구프로토콜로 남아 호환을 상시 검증한다.
+ * 📋 하차 목록은 v2 에도 줄이지 않는다 — 원달앱은 하차 목록만 보므로 빼면 그 동으로 가는 콜이 막힌다
+ *    (행동 검사는 `appFilterOf.test.ts` «상차 목록 · 하차 목록 두 모음»).
  */
 describe('filterVersionOf — 내용 해시 (카운터가 아니다, 규칙 ③)', () => {
     it('같은 내용이면 같은 버전 — 요청마다 흔들리지 않는다', () => {
-        const f = { destinationKeywords: ['금촌동'], isActive: true, orderKm: {} };
+        const f = { destinationKeywords: ['금촌동'], isActive: true };
         expect(filterVersionOf(f)).toBe(filterVersionOf({ ...f }));
     });
 
@@ -36,15 +31,15 @@ describe('scrap 응답 — v2 게이트의 배선', () => {
         expect(scrap()).toMatch(/hasOwnProperty\.call\(req\.body, 'filterVersion'\)/);
     });
 
-    it('🔴 orderKm 에 실린 동을 키워드에서 뺀다 (중복 제거)', () => {
-        expect(scrap()).toMatch(/\.filter\(\(k: string\) => !\(k in orderKeys\)\)/);
+    it('🔴 v2 응답도 하차 목록을 줄이지 않는다 — 걸러 낸 목록으로 갈아 끼우지 않는다', () => {
+        expect(scrap()).not.toMatch(/destinationKeywords:[^\n]*\n?[^\n]*\.filter\(/);
     });
 
     it('🔴 버전이 같으면 본문을 생략한다 — 앱은 저장본을 유지한다', () => {
         expect(scrap()).toMatch(/req\.body\.filterVersion === filterVersion\) responseFilter = undefined/);
     });
 
-    it('빈 필터 고장 검사(callFilterBlocker)는 중복 제거 전 원본 기준이다', () => {
+    it('빈 필터 고장 검사(callFilterBlocker)는 버전 게이트보다 앞이다', () => {
         const s = scrap();
         // callFilterBlocker 호출이 speaksV2 블록보다 앞에 있어야 한다
         expect(s.indexOf('callFilterBlocker(')).toBeLessThan(s.indexOf('speaksV2'));

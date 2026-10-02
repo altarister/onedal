@@ -179,20 +179,17 @@ export interface DetourRegions {
      *    키워드와 **같은 입력에서 같이** 만든다. 따로 만들면 갈라진다(경유 4벌 사고).
      *
      * ⚠️ 동의 반지름(pad)을 더하고, 하차원 안이면 Infinity 다 — «늦게 빼기 위한»
-     *    안전 방향이라 트림에는 맞다. **순서 판정에 쓰면 지리가 뒤집힌다** — 그건
-     *    아래 `orderKm` 의 일이다.
+     *    안전 방향이라 트림에는 맞다. 동의 실제 경로상 자리는 아래 `orderKm` 이 말한다.
      */
     progressKm: Record<string, number>;
     /**
-     * 동마다 **경로 몇 km 지점인가 — 순서 전용** (순수 스냅점 · pad 없음 · Infinity 없음).
+     * 동마다 **경로 몇 km 지점인가 — 동의 실제 자리** (순수 스냅점 · pad 없음 · Infinity 없음).
      *
-     * 🔴 #78: 한 값(progressKm)이 두 사실(트림 안전 시점 / 경로상 위치)을
-     *    답하다가 순서가 뒤집혔다 — 곤지암읍은 pad(수 km)가 하차원 판정까지 부풀려
-     *    «Infinity → 경로 끝(19.2km)»이 됐고, 실제 6km 길목이 경로 끝보다 뒤가 되어
-     *    성당→이천제일(순방향)이 "2.2km 후진"으로 차단됐다 (#76 «한 값이 여러 사실» 동형).
+     * 띠로만 든 동의 지나온 구간 빼기 진행도가 이 값을 읽는다(`filterManager` netOfGoals 의 `touch`).
+     * 트림용 `progressKm` 은 pad · 하차원 Infinity 로 부풀려 있어 동의 자리를 말하지 못한다 — 한 값이 두 사실을 답하지 않게 둘로 둔다.
      *
      * 같은 이름의 동이 여럿이면 **경로에 가장 가까운 것**을 남긴다 — 목록에 든 이유가
-     * 경로와의 근접이므로, 순서의 주인공도 그 동이다 (트림은 반대로 «가장 늦은 것»).
+     * 경로와의 근접이므로, 자리의 주인공도 그 동이다 (트림은 반대로 «가장 늦은 것»).
      */
     orderKm: Record<string, number>;
 }
@@ -406,10 +403,8 @@ export function getDetourRegions(
         if (tail !== parent && /구$/.test(tail) && isUniqueDistrictName(tail) && !(tail in progressKm)) {
             (progressKm as Record<string, number | null>)[tail] = null;
             /**
-             * ⚠️ **도착 목록에도 넣어야 앱까지 간다.** `buildAppOrderKm` 은
-             *    `destinationKeywords` 를 **돌면서** 진행도를 뽑는다 — 지나온 구간을 뺄 때
-             *    목록과 진행도가 **한 벌로** 줄어야 하기 때문이다. 여기만 넣고 목록에서
-             *    빠뜨리면 앱은 구 이름을 영영 못 본다.
+             * ⚠️ **도착 목록에도 넣어야 앱까지 간다.** 원달앱은 하차 목록(`destinationKeywords`)만 본다 —
+             *    지나온 구간을 뺄 때 목록과 진행도가 **한 벌로** 줄어야 하므로 진행도에도 넣는다.
              *    (트림 규칙 ①*"진행도를 모르는 동은 남긴다"* 라 구는 안 빠진다)
              */
             matchedRegionNames.add(tail);
@@ -1820,10 +1815,7 @@ function isProvince(sido: string): boolean {
  * 🔴 **노선인 동안 도착 목표는 안 바뀐다.** 그래서 합짐·주행중에 따로 저장하지 않고
  *    **첫짐에서 파생**한다 (규칙 ③ — 두 벌이 되면 갈라진다).
  *
- * ⚠️ 이 합집합은 **하차지만** 연다. 상차지는 끝까지 경로 위여야 하므로
- *    `buildAppOrderKm` 이 경유에 있는 동만 `progressKm` 으로 내보낸다.
- *    안 그러면 앱이 «순서 미상 — 통과» 로 읽어 **점동면에서 싣는 콜**을 허용한다
- *    (78km 뒤로 돌아가 싣는 콜이 통과한다).
+ * ⚠️ 이 합집합은 **하차지만** 연다 — 상차지는 상차 목록(`pickupKeywords` · 내 위치 둘레)이 따로 거른다.
  */
 export function unionRegions(
     detour: { flat: string[]; grouped: Record<string, string[]>; customCityFilters: string[] },

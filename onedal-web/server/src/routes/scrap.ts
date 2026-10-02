@@ -23,28 +23,6 @@ import { noteScreenWords } from "../services/screenWords";
 import { recalcRouteIfStopsChanged } from "../services/dispatchEngine";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 
-/**
- * 🧭 **경로 순서 맵이 도착지를 얼마나 덮나 — 바뀔 때만 한 줄** (기사님 요청 «콘솔로그에 넣어서 너도 확인할 수 있도록»).
- *
- * 앱의 역주행 검사(`RouteOrderFilter.kt`)는 하차지가 이 맵에 **없으면 «순서 미상 — 통과»**다.
- * 그런데 도착지 목록(`destinationKeywords`)에는 경로 위가 아닌 동도 들어 있어서,
- * **도착지로는 통과하는데 순서는 모르는** 동으로 가는 콜이 역주행이어도 잡힌다
- * («7지점 한 바퀴» ✖06 이천터미널 → 초월읍 — 남은 경로가 이천 안이라 초월읍이 맵에 없었다).
- * 그 동 목록을 로그에 남겨, 다음 판에서 «왜 통과했나»를 로그만으로 읽게 한다.
- * ⚠️ 텔레메트리마다 불리므로 **내용이 바뀔 때만** 찍는다.
- */
-const lastOrderKmSig = new Map<string, string>();
-function logOrderKmCoverage(userId: string, keywords: string[], orderKm: Record<string, number | null>) {
-    if (!orderKm || Object.keys(orderKm).length === 0) return;   // 첫짐 — 앱이 순서 검사를 안 한다
-    const unknown = keywords.filter(k => orderKm[k] === undefined || orderKm[k] === null);
-    const sig = `${keywords.length}|${unknown.join(',')}`;
-    if (lastOrderKmSig.get(userId) === sig) return;
-    lastOrderKmSig.set(userId, sig);
-    const sample = unknown.slice(0, 12).join('·') + (unknown.length > 12 ? ` 외 ${unknown.length - 12}` : '');
-    slog('필터', `🧭 [경로 순서 맵] 도착지 ${keywords.length}곳 중 순서 아는 곳 ${keywords.length - unknown.length}곳 · ` +
-        `모르는 곳 ${unknown.length}곳 — 모르는 곳으로 가는 콜은 앱이 역주행을 못 가린다` +
-        (unknown.length ? ` (${sample})` : ''));
-}
 /** 🚧 앱이 안 연 까닭 열쇠 — 짧은 영문 열쇠만 받는다(모르는 값은 버린다 · 뜻은 shared `OPEN_BLOCKED`) */
 const openBlockedOf = (v: unknown): string | undefined =>
     typeof v === 'string' && /^[a-zA-Z]{1,32}$/.test(v) ? v : undefined;
@@ -251,7 +229,6 @@ router.post("/", (req, res) => {
          */
         const reservedList = ensureReservedPickupList(session, userId);
         const { filter: appFilter, holds } = appFilterOf(session, userId, auth.deviceId, reservedList);
-        logOrderKmCoverage(userId, session.activeFilter.destinationKeywords ?? [], appFilter.orderKm as Record<string, number | null>);
 
         // 부트스트랩이 끝나기 전에는 콜 잡기를 시키지 않는다.
         // 이 구간(1~3초)의 activeFilter 는 아직 경유도 적재 차종도 반영되지 않은 미완성 상태라,
@@ -310,17 +287,10 @@ router.post("/", (req, res) => {
         }
 
         /**
-         * 🧭 **피기백 규격 v2** (기사님 확정 — "같은 목록을 왜 두 번 보내나").
-         * 앱이 `filterVersion` 을 보내면 신프로토콜이다:
-         *   ① 중복 제거 — 운행 중 orderKm 의 키 집합은 destinationKeywords 와 같다
-         *      (buildAppOrderKm 이 키워드를 순회해 만든다). 신앱은 도착 목록을
-         *      `키워드 ∪ orderKm 키` 로 합치므로, orderKm 에 실린 동은 키워드에서 뺀다
-         *   ② 버전 게이트 — 내용 해시가 앱이 든 것과 같으면 본문을 생략한다.
-         *      앱은 응답에 필터가 없으면 저장본을 유지한다 (원래 그 동작이다)
-         * 필드를 안 보내는 구앱·구스크립트에는 지금 그대로 전부 보낸다 — scenario 가
-         * 구프로토콜로 남아 이 호환 경로를 상시 검증한다.
-         * ⚠️ 빈 필터 고장 검사(callFilterBlocker)는 위에서 **원본 기준**으로 끝났다 —
-         *    여기서 비는 키워드는 "고장"이 아니라 "orderKm 쪽에 실려 있음"이다.
+         * 🧭 **피기백 규격 v2** — 앱이 `filterVersion` 을 보내면 버전 게이트를 쓴다:
+         *   내용 해시가 앱이 든 것과 같으면 본문을 생략한다. 앱은 응답에 필터가 없으면 저장본을 유지한다.
+         * 필드를 안 보내는 구앱·구스크립트에는 늘 전부 보낸다 — scenario 가 구프로토콜로 남아 이 길을 상시 검증한다.
+         * 📋 하차 동은 전부 하차 목록(destinationKeywords) 한 칸에 싣는다 — 경로 위 동도 같은 목록이다. 원달앱은 이 목록만 본다.
          */
         const speaksV2 = !!req.body && Object.prototype.hasOwnProperty.call(req.body, 'filterVersion');
         // 기기당 최초 1회만 — 새 APK 가 실제로 v2 로 말하기 시작했는지 서버 로그에서 보인다
@@ -346,12 +316,6 @@ router.post("/", (req, res) => {
         let responseFilter: any = appFilter;
         let filterVersion: string | undefined;
         if (speaksV2) {
-            const orderKeys = (appFilter.orderKm as Record<string, unknown> | undefined) ?? {};
-            responseFilter = {
-                ...appFilter,
-                destinationKeywords: ((appFilter.destinationKeywords as string[] | undefined) ?? [])
-                    .filter((k: string) => !(k in orderKeys)),
-            };
             /* 🧬 판 글자는 설정의 지문이다 — «지금 심사 중인가»(순간 상태)는 넣지 않는다. 넣으면 상세 ↔ 목록마다 판이 갈려 앱이 막아 둔 콜을 다시 판정한다.
                심사 중인가는 응답 맨 위 칸(evaluatingNow)으로 늘 간다. 본문에도 남긴다 — 맨 위를 못 읽는 옛 앱이 판이 바뀔 때 받게 */
             const { evaluatingNow: _live, ...versioned } = responseFilter;

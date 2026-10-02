@@ -2,7 +2,6 @@ import { APP_FILTER_KEYS, callFilterBlocker, effectiveRadii, reservedPickupRadiu
 import type { AppFilter } from "@onedal/shared";
 import { capacityFullHold } from "../core/helpers";
 import { readWaitTimes } from "../core/waitTimes";
-import { buildAppOrderKm } from "./filterManager";
 import type { UserSession } from "./userSessionStore";
 
 /** 🔒 콜 잡기를 멈춘 까닭 넷 — 값은 이미 `isActive=false` 로 들었다 · 로그는 부른 쪽(폰 문)이 찍는다 */
@@ -74,12 +73,6 @@ export function appFilterOf(
      * 🔴 저장하지 않는다 — 심사 중인 콜을 쥔 `deviceEvaluatingMap` 에서 파생시킨다 (규칙 ③).
      */
     filter.evaluatingNow = !!(deviceId && session.deviceEvaluatingMap.get(deviceId));   // 응답 맨 위 칸으로도 간다 · 판 글자에는 안 든다 (scrap)
-
-    // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정)
-    //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)
-    //    🔴 키 이름은 orderKm — #78 이후 실리는 값이 «순서 전용»이라 이름을 한 벌로
-    //       맞췄다 (기사님 확정 · 옛 이름 progressKm 은 트림용에만 남는다)
-    filter.orderKm = buildAppOrderKm(session);
 
     // ⏱️ 배차망별 대기 시간 — 원천은 DB(user_settings), 원달앱은 받아 쓴다
     Object.assign(filter, readWaitTimes(userId));

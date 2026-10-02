@@ -3,10 +3,10 @@ import { join } from 'path';
 import { initGeoService, getDetourRegions } from '../../src/services/geoService';
 
 /**
- * 🕳️ **"순서를 모른다"(null)가 저장에서 사라지지 않게 한다**
+ * 🕳️ **서버가 보낸 null 이 앱 저장에서 사라지지 않게 한다**
  *
- * 서버가 null 을 담아 보내도(예: `progressKm 435 · 분당구 = null`) 앱이 저장하며 null 키를 잃으면
- * 앱이 든 목록이 줄어든다 (435개 → 407개, 차이 28개 = 구 단독형 개수). 그러면 콜을 하나도 못 잡는다.
+ * 서버 원문의 `null` 값이 앱 저장 왕복에서 사라지면 앱이 든 필터가 서버가 보낸 것과 갈라진다.
+ * 서버 쪽 진행도에도 «모름»(null)이 실제로 있다(아래 서버 검사).
  *
  * 🔴 null 을 잃는 곳은 앱의 **저장 왕복**이다:
  *
@@ -15,14 +15,6 @@ import { initGeoService, getDetourRegions } from '../../src/services/geoService'
  *
  * 서버 JSON → Gson 객체 → **다시 JSON**. Gson 은 기본으로 `null` 필드를 직렬화하지
  * 않으므로, `{"분당구": null}` 이 그 왕복에서 **통째로 없어진다.**
- *
- * 🔴 **이건 구 이름만의 문제가 아니다.** `buildAppOrderKm` 은 진행도를 모르는 동에도
- *    `null` 을 넣는다. 그 키가 사라지면 앱의 `RouteOrderFilter` 에서 **뜻이 뒤집힌다**:
- *
- *        키가 있고 값이 null  →  "순서 미상 — 통과"     ← 서버의 의도
- *        키가 아예 없음       →  "경로 밖 — 차단"       ← 저장 후 실제 동작
- *
- *    *"진행도를 모르는 동은 남긴다"* 는 트림 규칙 ①이 **저장 계층에서 조용히 깨진다.**
  *
  * 규칙: **서버가 보낸 JSON을 그대로 보관한다.** 왕복 자체를 두지 않는다 (규칙 ③).
  */
@@ -34,7 +26,7 @@ const code = (src: string) =>
 
 beforeAll(() => { initGeoService(); });
 
-describe('🕳️ 서버 — 모르는 순서는 null 로 보낸다', () => {
+describe('🕳️ 서버 — 모르는 진행도는 null 로 둔다', () => {
     it('진행도를 모르는 지역이 실제로 있다 (전제 확인)', () => {
         const r = getDetourRegions(
             [{ x: 127.258, y: 37.410 }, { x: 127.112, y: 37.393 }, { x: 126.680, y: 37.790 }],
