@@ -135,3 +135,20 @@ describe('넘어가는 중 · 배차망 메뉴 · 화물24시 홈', () => {
         expect(screenLabelOf('hwamul24', 'HOME')?.label).toBe('홈');
     });
 });
+
+/** 🧭 reviews/35 5단계 — 새 원달앱이 싣는 배차망 페이지 이름 · 덧칸 이름을 배지가 그대로 그린다(기사님 «가») · 옛 원달앱은 지금 이름 */
+describe('배지 — 배차망 페이지 이름 · 덧칸', () => {
+    it('페이지 이름 + «· 덧칸 이름» · 색은 화면 값의 색', () => {
+        const b = deviceScreenBadge({ status: 'ONLINE', targetApp: 'insung', screenContext: 'DETAIL_PRE_CONFIRM', isScreenOn: true, screenPage: '확정 전 상세', screenOverlay: '출발지 상세 팝업' } as any);
+        expect(b!.label).toBe('확정 전 상세 · 출발지 상세 팝업');
+        expect(b!.color).toBe(screenLabelOf('insung', 'DETAIL_PRE_CONFIRM')!.color);
+        const c = deviceScreenBadge({ status: 'ONLINE', targetApp: 'kakaopicker', screenContext: 'LIST', isScreenOn: true, screenPage: '신규 리스트' } as any);
+        expect(c!.label).toBe('신규 리스트');
+    });
+
+    it('페이지 이름이 없으면(옛 원달앱) 지금 이름 그대로', () => {
+        const b = deviceScreenBadge({ status: 'ONLINE', targetApp: 'insung', screenContext: 'POPUP_PICKUP', isScreenOn: true });
+        expect(b!.label).toBe('출발지팝업');
+    });
+});
+

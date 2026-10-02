@@ -178,6 +178,8 @@ router.post("/", (req, res) => {
                 filterVersion: appFilterVersion,
                 openBlocked: openBlockedOf((req.body as any).openBlocked),
                 listHeaderHidden: typeof (req.body as any).listHeaderHidden === 'boolean' ? (req.body as any).listHeaderHidden : undefined,
+                screenPage: typeof (req.body as any).screenPage === 'string' ? (req.body as any).screenPage : undefined,
+                screenOverlay: typeof (req.body as any).screenOverlay === 'string' ? (req.body as any).screenOverlay : undefined,
             });
         }
 

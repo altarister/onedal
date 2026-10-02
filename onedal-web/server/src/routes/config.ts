@@ -41,11 +41,7 @@ router.get("/keywords", (req, res) => {
             res.json({
                 appName: "인성콜",
                 // ⚠️ 폴백은 파일이 없을 때만 쓰인다. 진짜 사전은 server/config/keywords_*.json
-                uiNoiseWords: ["출발지", "도착지", "차종", "요금", "설정", "닫기", "콜상세", "전표", "신규", "완료"],
-                confirmButtonText: "확정",
-                cancelButtonText: "취소",
-                pickupButtonText: "출발지",
-                dropoffButtonText: "도착지"
+                uiNoiseWords: ["출발지", "도착지", "차종", "요금", "설정", "닫기", "콜상세", "전표", "신규", "완료"]
             });
         }
     } catch (e) {

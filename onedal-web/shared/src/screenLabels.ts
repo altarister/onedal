@@ -172,6 +172,9 @@ export function deviceScreenBadge(device: {
     screenContext?: ScreenContextType | null;
     isScreenOn?: boolean;
     offlineReason?: DeviceOfflineReason;
+    /** 🧭 배차망 페이지 이름 · 덧칸 이름 — 있으면 그대로 그린다(기사님 «가» · reviews/35 5단계) · 옛 원달앱은 없다 */
+    screenPage?: string | null;
+    screenOverlay?: string | null;
 }): DeviceScreenBadge | null {
     const disconnected = device.status === "OFFLINE";
 
@@ -207,6 +210,12 @@ export function deviceScreenBadge(device: {
         : null;
 
     if (!screen && !network) return null;
+
+    /* 🧭 새 원달앱 — 배차망 페이지 이름 그대로 + «· 덧칸 이름» · 색은 화면 값의 색 */
+    if (device.screenPage) {
+        const label = device.screenOverlay ? `${device.screenPage} · ${device.screenOverlay}` : device.screenPage;
+        return { network, label, color: screen?.color ?? MUTED };
+    }
     
     // 폭을 아끼려고 화면명의 낱말 사이를 붙인다 — «인성 콜리스트» (기사님).
     // ⚠️, 📱 등 이모지나 특수 접두사가 있는 경우는 원문 유지

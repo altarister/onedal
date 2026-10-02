@@ -22,7 +22,7 @@ import { intelRowsOf } from "../services/intelRows";
 import type { OpsBoardFilter, OpsBoardIntel, OpsBoardMember, OpsBoardPhone, OpsBoardServer, OpsHome, OpsLocations, OpsStats } from "@onedal/shared";
 import { marketStatsOf, clampStatsRange } from "../services/callFlowStats";
 import { rangeOf } from "./stats";
-import { TARGET_APPS, accountBlocked, judgingCallOf, kakaoTotalOf, kstDateText, nearestDong } from "@onedal/shared";
+import { TARGET_APPS, accountBlocked, judgingCallOf, kakaoTotalOf, kstDateText, nearestDong, screenLabelOf, type ScreenContextType } from "@onedal/shared";
 import { latestContent, isContentKind } from "./contents";
 import { noticeOf, type NoticeRow } from "./notices";
 import { slog } from "../utils/fileLogger";
@@ -175,7 +175,9 @@ const ANOMALY_SQL = `SELECT a.id, a.created_at, a.device_id, a.target_app, a.scr
     FROM telemetry_anomalies a LEFT JOIN user_devices d ON d.device_id = a.device_id`;
 const anomalyOf = (a: AnomalyRow): OpsAnomaly => ({
     id: a.id, at: isoKst(a.created_at) ?? '', memberId: a.user_id, deviceId: a.device_id,
-    targetApp: isTargetApp(a.target_app) ? a.target_app : 'insung', screen: a.screen_name ?? '', reason: a.failure_reason,
+    targetApp: isTargetApp(a.target_app) ? a.target_app : 'insung',
+    /* 🖥️ 화면 칸은 한글 이름으로 — 옛 값(POPUP_* · LIST_COMPLETED)도 이름표가 있어 뜬다 */
+    screen: a.screen_name ? (screenLabelOf(a.target_app, a.screen_name as ScreenContextType)?.label ?? a.screen_name) : '', reason: a.failure_reason,
 });
 
 

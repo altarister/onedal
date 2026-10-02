@@ -1,8 +1,8 @@
 import { Router } from "express";
 import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
-import { isDetailScreen, isListScreen } from "@onedal/shared";
-import { deviceScreenOf } from "./devices";
+import { isDetailScreen } from "@onedal/shared";
+import { deviceScreenOf, deviceOnList } from "./devices";
 import { slog } from "../utils/fileLogger";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 
@@ -102,7 +102,7 @@ router.post("/anomalies", (req, res) => {
         const reason = unreadableReasonOf(failureReason);
         const io = req.app?.get("io");
         const screenNow = deviceScreenOf(deviceId);
-        if (reason && isDetailScreen(screenName) && screenNow && isListScreen(screenNow)) {
+        if (reason && isDetailScreen(screenName) && screenNow && deviceOnList(deviceId)) {
             slog('화면', `⚪ [판정 못 함 안 띄움] ${reason} — 폰이 이미 목록이다(늦게 닿은 보고)`);
         } else if (reason && isDetailScreen(screenName) && io) {
             io.to(auth.userId).emit("detail-unreadable", {

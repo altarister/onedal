@@ -192,6 +192,9 @@ export interface DeviceStatusExtras {
      *    «이 폰이 아직 옛 필터로 돌고 있다»가 드러난다 (`DeviceSession.filterVersion` 주석).
      */
     filterVersion?: string;
+    /** 🧭 배차망 페이지 이름 · 덧칸 이름 — 새 원달앱만 싣는다(reviews/35 5단계) · 화면 값이 실린 보고에서만 받는다 */
+    screenPage?: string | null;
+    screenOverlay?: string | null;
 }
 
 export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally, targetApp?: TargetAppType, extras?: DeviceStatusExtras): DeviceModeType => {
@@ -265,18 +268,24 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
              * ⚠️ **판정을 적지 않고 사실만 적는다** — «조용/움직임»을 여기서 정하면
              *    같은 값을 두 곳이 각자 판정하게 된다 (규칙 ⑤-4 ⑤ · 판정은 `isDeviceQuiet` 하나).
              */
-            if (session.screenContext !== screenContext) {
+            const newPage = extras?.screenPage ?? undefined;
+            const newOverlay = extras?.screenOverlay ?? undefined;
+            if (session.screenContext !== screenContext || (session.screenPage ?? undefined) !== newPage || (session.screenOverlay ?? undefined) !== newOverlay) {
                 const gap = session.prevSeen ? `${((session.lastSeen - session.prevSeen) / 1000).toFixed(1)}초 만` : '첫 보고';
                 // 배차망은 이 보고에 실려 온 것이 먼저다 — 아래에서 갱신되기 전이라 옛 값을 쓰면
                 // 픽커로 바꾼 첫 보고가 인성 이름표로 찍힌다 («읽지 않고 단언한다» 와 같은 결)
                 const net = targetApp ?? session!.targetApp;
-                const name = (c?: ScreenContextType) => screenLabelOf(net, c)?.label ?? c ?? '모름';
+                /* 🧭 페이지 이름이 실려 오면 그 이름(+ «· 덧칸») · 옛 원달앱은 화면 값의 이름표 */
+                const name = (c?: ScreenContextType, page?: string | null, overlay?: string | null) =>
+                    page ? (overlay ? `${page} · ${overlay}` : page) : (screenLabelOf(net, c)?.label ?? c ?? '모름');
                 slog('화면', `🖥️ [화면 바뀜] ${session.deviceName || deviceId} · ` +
-                    `${name(session.screenContext)} → ${name(screenContext)} · 직전 보고와 ${gap}`);
+                    `${name(session.screenContext, session.screenPage, session.screenOverlay)} → ${name(screenContext, newPage, newOverlay)} · 직전 보고와 ${gap}`);
                 /* ⚪ 상세에서 나가면 평가 자리의 «판정 못 함»을 지운다 — 들어올 때 지우면 먼저 닿은 요건 미달 보고를 곧바로 지운다(다른 길이라 순서가 없다) */
                 if (isDetailScreen(session.screenContext) && !isDetailScreen(screenContext)) io?.to(userId).emit('detail-unreadable-clear');
             }
             session.screenContext = screenContext;
+            session.screenPage = newPage;
+            session.screenOverlay = newOverlay;
         }
         // 🌐 이 폰이 지금 어느 배차망을 보나 — scrap 마다 갱신되는 실시간 상태 (픽커_수집.md §6-전)
         if (targetApp) {
@@ -463,7 +472,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             }
         }
     }
-    if (isListScreen(screenContext)) {
+    if (isListScreen(screenContext, targetApp ?? session.targetApp, extras?.screenPage)) {
         /* 🔑 이 보고를 올린 폰의 기사 — 폰 문(authDevice)이 이미 정했다 · 가짜 기사로 받지 않는다 */
         const userSession = getUserSession(userId);
         const stuckOrderId = userSession.deviceEvaluatingMap.get(deviceId);
@@ -527,6 +536,12 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
 export function userOfDevice(deviceId: string): string | null {
     const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
     return row?.user_id ?? null;
+}
+
+/** 📋 이 기기가 지금 목록 계열 화면인가 — 화면 값 · 배차망 · 페이지 이름으로(`isListScreen`) */
+export function deviceOnList(deviceId: string): boolean {
+    const s = activeDevices.get(deviceId);
+    return !!s && isListScreen(s.screenContext, s.targetApp, s.screenPage);
 }
 
 /** 이 기기가 마지막으로 알린 화면 — 기기 세션이 없으면 undefined(모름) */

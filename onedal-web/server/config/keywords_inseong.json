@@ -68,9 +68,5 @@
     "도착지",
     "출발",
     "도착"
-  ],
-  "confirmButtonText": "확정",
-  "cancelButtonText": "취소",
-  "pickupButtonText": "출발지",
-  "dropoffButtonText": "도착지"
+  ]
 }

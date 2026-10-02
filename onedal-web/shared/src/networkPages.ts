@@ -468,3 +468,13 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     }
   }
 }/*JSON*/ as Record<TargetAppType, NetworkPageSpec>;
+
+/**
+ * 📋 **이 배차망 페이지는 목록 복귀로 치나** — 표의 `listReturn`(인성 완료 탭 · 화물24시 배차내역 목록) (reviews/35 5단계).
+ * 원달앱이 «내 오더»(MY_ORDERS) 화면 값과 함께 싣는 페이지 이름(`screenPage`)으로 찾는다 · 모르면 false.
+ */
+export function listReturnOf(targetApp: string | null | undefined, page: string | null | undefined): boolean {
+    if (!targetApp || !page) return false;
+    return NETWORK_PAGES[targetApp as TargetAppType]?.screens.some(s => s.name === page && s.listReturn) ?? false;
+}
+

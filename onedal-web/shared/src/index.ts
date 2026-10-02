@@ -1,4 +1,5 @@
 import { unitPoints } from './cargoUnits';
+import { listReturnOf } from './networkPages';
 import type { CapacityConfidence } from './vehicles';
 import { businessDayKey } from './timing';
 import { phoneModeOf } from './allowance';
@@ -1564,8 +1565,11 @@ export function runningModeOf(d: { mode?: string; autoAllowed?: boolean; effecti
     return d.effectiveMode || phoneModeOf(d);
 }
 
-export function isListScreen(screenContext?: string | null): boolean {
-    return !!screenContext && (LIST_SCREENS as string[]).includes(screenContext);
+export function isListScreen(screenContext?: string | null, targetApp?: string | null, screenPage?: string | null): boolean {
+    if (!screenContext) return false;
+    if ((LIST_SCREENS as string[]).includes(screenContext)) return true;
+    /* 📋 새 원달앱은 «내 오더» 하나로 보내고 페이지 이름을 싣는다 — 목록 복귀인가는 배차망 정의 표의 사실(reviews/35 5단계) */
+    return screenContext === 'MY_ORDERS' && listReturnOf(targetApp, screenPage);
 }
 
 /**
@@ -1716,6 +1720,9 @@ export interface DeviceSession {
     /** 그 지문을 마지막으로 확인한 시각 (밀리초) — 낡음을 재려면 «언제»가 있어야 한다 */
     filterVersionAt?: number;
     screenContext?: ScreenContextType;  // [Safety Mode V3] 현재 화면 상태 (물리적 페이지)
+    /** 🧭 원달앱이 싣는 배차망 페이지 이름 · 그 위에 뜬 것(덧칸) 이름 — 배차망 정의 표의 이름 · 옛 원달앱은 안 싣는다 (reviews/35 5단계) */
+    screenPage?: string | null;
+    screenOverlay?: string | null;
     isHolding?: boolean;    // [Page/Hold 분리] 콜 처리 중 여부 (확정 클릭 ~ 리스트 복귀)
     lat?: number;           // [GPS 텔레메트리] 앱폰(차량) 위도
     lng?: number;           // [GPS 텔레메트리] 앱폰(차량) 경도

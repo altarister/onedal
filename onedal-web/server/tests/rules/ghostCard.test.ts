@@ -24,7 +24,7 @@ describe('유령 카드 — "리스트로 돌아왔다"의 정의는 하나다',
     const devices = codeOnly(read('routes/devices.ts'));
 
     it('🔴 서버는 화면 종류를 직접 비교하지 않는다 (shared 의 isListScreen 을 쓴다)', () => {
-        expect(devices).toMatch(/isListScreen\(screenContext\)/);
+        expect(devices).toMatch(/isListScreen\(screenContext[,)]/);   // 배차망 · 페이지 이름을 함께 넘길 수 있다(reviews/35 5단계 — 내 오더의 목록 복귀는 표의 사실)
         expect(devices).not.toMatch(/screenContext === 'LIST'/);
     });
 
