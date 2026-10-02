@@ -90,9 +90,12 @@ const VEHICLE_ALIASES: Record<string, string> = {
     '1.4': '1.4t', '2.5': '2.5t', '3.5': '3.5t',
 };
 
-/** 배차망 차종 낱말 → 우리 차종 — 모든 배차망 정의 표의 vehicleWords 를 합친다(같은 낱말은 한 뜻 · 서버 검사 vehicleWordsFromTable 이 묶음) */
-const VEHICLE_WORDS = new Map<string, string>(
-    Object.values(NETWORK_PAGES).flatMap(spec => (spec.vehicleWords ?? []).map(w => [w.word, w.vehicle] as const)));
+/**
+ * 배차망 차종 낱말 → 우리 차종 — 모든 배차망 정의 표의 vehicleWords 를 합친다(같은 낱말은 한 뜻 · 서버 검사 vehicleWordsFromTable 이 묶음).
+ * 값이 null 이면 «배차망 낱말은 알지만 우리 차종이 없다»(인성 14t 등) — 가까운 차종으로 때우지 않는다.
+ */
+const VEHICLE_WORDS = new Map<string, string | null>(
+    Object.values(NETWORK_PAGES).flatMap(spec => (spec.vehicleWords ?? []).map(w => [w.word, (w.vehicle as string | null) ?? null] as const)));
 
 /** 차종 문자열을 VEHICLE_CAPACITY 키로 정규화. 알 수 없으면 null */
 export function normalizeVehicleType(raw?: string | null): string | null {

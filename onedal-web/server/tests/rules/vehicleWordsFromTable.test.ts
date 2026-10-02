@@ -23,12 +23,13 @@ describe('🚚 차종 낱말 — 정의 표', () => {
     it.each(TON_SAMPLES)('톤 차종 %s — 기준 답과 같다', raw => {
         expect([raw, normalizeVehicleType(raw)]).toEqual([raw, BASE(raw)]);
     });
-    it('🔴 같은 낱말이 배차망마다 다른 차종이면 빨강 · 차종은 적재 표(VEHICLE_CAPACITY)의 키', () => {
-        const seen = new Map<string, string>();
+    it('🔴 같은 낱말이 배차망마다 다른 차종이면 빨강(null 도 한 값) · null 이 아닌 차종은 적재 표(VEHICLE_CAPACITY)의 키', () => {
+        /* null = «배차망 낱말은 알지만 우리 차종이 없다» — 한 배차망이 null, 다른 배차망이 차종이면 같은 낱말 두 뜻이라 빨강 */
+        const seen = new Map<string, string | null>();
         for (const [net, spec] of Object.entries(NETWORK_PAGES)) for (const w of spec.vehicleWords ?? []) {
-            expect([net, w.word, w.vehicle in VEHICLE_CAPACITY]).toEqual([net, w.word, true]);
-            if (seen.has(w.word)) expect([w.word, w.vehicle]).toEqual([w.word, seen.get(w.word)]);
-            seen.set(w.word, w.vehicle);
+            expect([net, w.word, w.vehicle == null || w.vehicle in VEHICLE_CAPACITY]).toEqual([net, w.word, true]);
+            if (seen.has(w.word)) expect([w.word, w.vehicle ?? null]).toEqual([w.word, seen.get(w.word)]);
+            seen.set(w.word, w.vehicle ?? null);
         }
         expect(seen.size).toBeGreaterThan(0);
     });
