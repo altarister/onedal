@@ -11,12 +11,16 @@ import org.junit.Test
  * - 목록 줄 «처인 모현»과 사진 «모현읍»을 같은 곳으로 안 봐 요금을 못 가져왔다(«상차 맞음 0» → 요금 없음)
  */
 class PickerDatedStopTest {
+    /** 📅 견본 날짜는 늘 «내일» — 실물 원문의 날짜(10/02)를 그대로 두면 그날이 지나 원달앱이 내년으로 읽어 검사가 저절로 빨개진다 */
+    private val day = java.time.LocalDate.now().plusDays(1)
+    private val dow = "월화수목금토일"[day.dayOfWeek.value - 1]
+    private val md = "%02d/%02d(%s)".format(day.monthValue, day.dayOfMonth, dow)
     private val lines = listOf(
-        OcrLine(30, "퀵승용차 예약"), OcrLine(93, "0 10/2(금) 09:00 픽업예약"),
+        OcrLine(30, "퀵승용차 예약"), OcrLine(93, "0 ${day.monthValue}/${day.dayOfMonth}($dow) 09:00 픽업예약"),
         OcrLine(190, "경기 용인시 처인구 모현읍"), OcrLine(233, "아인라이크"),
         OcrLine(284, "경기 용인시 수지구 죽전3동"), OcrLine(328, "도담마을힐스테이트4차1 단지아"), OcrLine(365, "파트"),
-        OcrLine(465, "물품 정보"), OcrLine(192, "픽업 8.4km"), OcrLine(222, "10/02(금) 09:00"), OcrLine(567, "넘기기"),
-        OcrLine(285, "배송 11.3km"), OcrLine(315, "10/02(금) 10:18"), OcrLine(466, "소형 세 변의 합 100cm. 5kg 이하"), OcrLine(567, "수락하기"),
+        OcrLine(465, "물품 정보"), OcrLine(192, "픽업 8.4km"), OcrLine(222, "$md 09:00"), OcrLine(567, "넘기기"),
+        OcrLine(285, "배송 11.3km"), OcrLine(315, "$md 10:18"), OcrLine(466, "소형 세 변의 합 100cm. 5kg 이하"), OcrLine(567, "수락하기"),
     )
     private val listCard = SimplifiedOfficeOrder(id = "c", pickup = "처인 모현", dropoff = "수지 죽전3", fare = 13013, timestamp = "t", pickupDistance = 8.4)
 
@@ -24,7 +28,7 @@ class PickerDatedStopTest {
         val d = PickerScreenOcr.parseDetail(lines)!!
         assertEquals("경기 용인시 처인구 모현읍", d.pickup.admin)
         assertEquals("아인라이크", d.pickup.place)
-        assertEquals("10/02(금) 09:00", d.pickup.at)
+        assertEquals("$md 09:00", d.pickup.at)
         assertEquals("도담마을힐스테이트4차1 단지아", d.dropoff.place)
     }
 
@@ -38,10 +42,8 @@ class PickerDatedStopTest {
     @Test fun `띠 줄의 날짜를 예약으로 읽는다 - 손으로 연 상세도 판정 콜에 싣는다`() {
         val d = PickerScreenOcr.parseDetail(lines)!!
         val r = PickerDetailOcrParser().verify(d, null, null, emptyList(), "", listOf(listCard)) as PickerDetailOcrParser.VerifyResult.Success
-        val today = java.time.LocalDate.now()
-        val expected = java.time.temporal.ChronoUnit.DAYS.between(today, java.time.LocalDate.of(if (today.monthValue > 10) today.year + 1 else today.year, 10, 2)).toInt()
         assertEquals(true, r.order.reserved)
-        assertEquals(expected, r.order.reservedDay)
+        assertEquals(1, r.order.reservedDay)
         assertEquals("09:00", r.order.reservedAt)
         assertEquals(13013, r.order.fare)
         assertEquals("경기 용인시 처인구 모현읍 아인라이크", r.order.pickup)
