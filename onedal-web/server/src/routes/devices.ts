@@ -208,6 +208,8 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     let session = activeDevices.get(deviceId);
     /** 🧹 직전 화면 — 아래에서 덮기 전에 챙긴다. «콜이 생길 때 이미 상세였나»(`markDetailSeen`)가 이 값을 본다 */
     const prevScreen = session?.screenContext;
+    /** 🖥️ 이 보고로 화면 칸(값 · 페이지 이름 · 덧칸)이 바뀌었나 — 끝에서 관제웹에 한 번 바로 보낸다 */
+    let screenChanged = false;
 
     if (!session) {
         // 최초 세션 생성 시에만 DB에서 deviceName을 1회 조회 (이후 메모리 캐싱)
@@ -278,6 +280,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             const newPage = extras?.screenPage ?? undefined;
             const newOverlay = extras?.screenOverlay ?? undefined;
             if (session.screenContext !== screenContext || (session.screenPage ?? undefined) !== newPage || (session.screenOverlay ?? undefined) !== newOverlay) {
+                screenChanged = true;
                 const gap = session.prevSeen ? `${((session.lastSeen - session.prevSeen) / 1000).toFixed(1)}초 만` : '첫 보고';
                 // 배차망은 이 보고에 실려 온 것이 먼저다 — 아래에서 갱신되기 전이라 옛 값을 쓰면
                 // 픽커로 바꾼 첫 보고가 인성 이름표로 찍힌다 («읽지 않고 단언한다» 와 같은 결)
@@ -524,6 +527,9 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             }
         }
     }
+
+    /* 🖥️ 화면이 바뀐 보고는 관제웹 폰 줄 배지로 곧바로 — 1초 주기 방송(socketHandlers)을 기다리지 않는다 · 이 보고의 칸을 다 적은 뒤 한 번 */
+    if (screenChanged) io?.to(userId).emit("telemetry-devices", getUserDevicesSnapshot(userId, io));
 
     return session.mode;
 };

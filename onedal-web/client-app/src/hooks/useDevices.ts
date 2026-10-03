@@ -3,6 +3,8 @@ import { socket } from "../lib/socket";
 import { apiClient } from "../api/apiClient";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
 import { useDeviceStore } from "../stores/deviceStore";
+import { logRoadmapEvent } from "../lib/roadmapLogger";
+import { screenChangeLines } from "./screenChangeLines";
 
 export function useDevices() {
     const { devices, setDevices, updateDevice } = useDeviceStore();
@@ -16,6 +18,7 @@ export function useDevices() {
             const serialized = JSON.stringify(data);
             if (serialized === prevDataRef.current) return;
             prevDataRef.current = serialized;
+            for (const line of screenChangeLines(useDeviceStore.getState().devices, data || [])) logRoadmapEvent("화면", "웹", line, "관제대시보드");
             setDevices(data || []);
         };
 
