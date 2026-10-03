@@ -988,15 +988,57 @@ class HijackService : AccessibilityService(), ScanContext {
                 com.onedal.app.core.WalkProbe.newLines(before, scanTexts).joinToString(" · ") { com.onedal.app.core.ScreenWords.mask(it) })
     }
 
-    /** 📜 1초마다 — 지켜보는 화면(목록 · 배차망 앱 안의 목록 밖 화면)에서 읽기도 배차망 알림도 5초 넘게 없으면 조용한 다시 읽기 (`ListWatch.shouldRead`) */
+    /** 🧭 지금 화면이 배차망 앱 안인가 — 실물 배차망 앱이거나 배차망 정의 표의 페이지로 읽혔다(시뮬레이터 자기 화면은 표에 없다) */
+    private fun onNetworkPage(): Boolean = TargetApp.sourceOf(telemetryManager.screenPackage) == "real" || lastScreenRead?.page != null
+
+    /**
+     * 🔎 목록 밖 지켜보는 화면에서 알아본 글자가 든 노드 하나 (`SpotCheck`) — 화면이 바뀐 읽기마다 다시 잡거나 버린다(`armSpot`).
+     * 노드는 접근성 서비스가 준 사본이라 이 칸이 놓으면 함께 사라진다 · 화면 읽기는 노드를 recycle 하지 않는다(`collectNodes`).
+     */
+    private class Spot(val node: AccessibilityNodeInfo, val word: String, val label: String) {
+        val tally = com.onedal.app.core.SpotCheck.Tally(label)
+    }
+    private var spot: Spot? = null
+
+    /** 🔎 화면이 바뀐 읽기 — 목록 밖 지켜보는 화면이면 덮개 페이지의 표 글자가 든 노드를 잡고, 아니면 버린다 */
+    private fun armSpot(read: com.onedal.app.core.engine.ScreenRead, detected: ScreenContext, rawText: String) {
+        spot = null
+        if (detected == ScreenContext.LIST || !com.onedal.app.core.ListWatch.watches(detected, onNetworkPage())) return
+        val page = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).screens.firstOrNull { it.name == read.page } ?: return
+        val word = com.onedal.app.core.SpotCheck.wordOf(page, rawText) ?: return
+        val i = com.onedal.app.core.SpotCheck.nodeIndexOf(scanNodes.map { (it.text ?: it.desc)?.toString().orEmpty() }, word) ?: return
+        val node = scanNodes[i].node ?: return
+        spot = Spot(node, word, "${page.name} «$word»")
+    }
+
+    /** 🔎 잡은 자리가 아직 그대로인가 — 노드 하나만 `refresh()` · 사라졌으면 한 줄 남기고 놓는다 */
+    private fun spotStillThere(s: Spot): Boolean {
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        val refreshed = try { s.node.refresh() } catch (e: Exception) { false }
+        val text = (s.node.text ?: s.node.contentDescription)?.toString()
+        val ms = android.os.SystemClock.elapsedRealtime() - t0
+        if (com.onedal.app.core.SpotCheck.verdict(refreshed, text, s.word) == com.onedal.app.core.SpotCheck.Verdict.SAME) {
+            s.tally.record(t0, ms)?.let { AppLogger.d(TAG, LogTag.SCREEN, it) }
+            return true
+        }
+        AppLogger.i(TAG, LogTag.SCREEN, "🔎 [자리 사라짐] ${s.label} · ${s.tally.checks + 1}번째 확인 · ${ms}ms — 전체 읽기로 새 페이지를 정한다")
+        spot = null
+        return false
+    }
+
+    /**
+     * 📜 1초마다 — 지켜보는 화면(목록 · 배차망 앱 안의 목록 밖 화면)에서 읽기도 배차망 알림도 5초 넘게 없으면 조용한 다시 읽기 (`ListWatch.shouldRead`).
+     * 🔎 목록 밖에서 자리를 잡았으면 1초마다 그 자리만 본다 — 사라지면 그때 전체 읽기 · 손 닿은 뒤 1.5초 전체 읽기는 안 하고 5초 받침만 남긴다.
+     */
     private val listWatchdog = object : Runnable {
         override fun run() {
             val now = android.os.SystemClock.elapsedRealtime()
-            /* 🧭 배차망 앱 안인가 — 실물 배차망 앱이거나 배차망 정의 표의 페이지로 읽혔다(시뮬레이터 자기 화면은 표에 없다) */
-            val onNetworkPage = TargetApp.sourceOf(telemetryManager.screenPackage) == "real" || lastScreenRead?.page != null
-            if (com.onedal.app.core.ListWatch.shouldRead(now, lastReadMs, lastTargetEventMs,
-                    watched = com.onedal.app.core.ListWatch.watches(telemetryManager.currentScreenContext, onNetworkPage),
-                    busy = touchManager.tapPending || session.isDetailScrapSent, touchedAtMs = touchedAtMs))
+            val watched = com.onedal.app.core.ListWatch.watches(telemetryManager.currentScreenContext, onNetworkPage())
+            val busy = touchManager.tapPending || session.isDetailScrapSent
+            val held = spot?.takeIf { watched && !busy }
+            if (held != null && !spotStillThere(held)) quietRead("자리 사라짐")
+            else if (com.onedal.app.core.ListWatch.shouldRead(now, lastReadMs, lastTargetEventMs, watched = watched, busy = busy,
+                    touchedAtMs = if (held != null) Long.MIN_VALUE / 2 else touchedAtMs))
                 quietRead(com.onedal.app.core.ListWatch.quietWord(now, lastReadMs, lastTargetEventMs))
             waitBook.schedule("목록 감시", com.onedal.app.core.WaitBook.SERVICE, 1000) { run() }
         }
@@ -1053,6 +1095,7 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager.screenPackage = rootNode.packageName?.toString()   // 🏷️ 보고의 실물/시뮬 — 판별과 같은 화면
         val detected = contextOf(screenRead, rootNode.packageName?.toString())
         logPageChange(screenRead, detected)
+        armSpot(screenRead, detected, rawScreenStr)
         markRead("판별")
         // 📰 이 화면에서 뺀 글자는 이 페이지 몫 — 목록 글자가 섞인 판(상세 시트가 올라오는 찰나)은 통째로 모으지 않는다
         com.onedal.app.core.ScreenWords.onScreen(com.onedal.app.core.pageOf(detected),
