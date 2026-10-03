@@ -285,11 +285,11 @@ object KakaoPickerPages {
         ScreenSpec(
             "메뉴",
             StandardScreen.NETWORK_MENU,
-            listOf(ScreenMatch(all = listOf("수행방법 안내", "포인트 내역", "수행 내역"))),
+            listOf(ScreenMatch(all = listOf("수행방법 안내", "포인트 내역", "수행 내역")), ScreenMatch(all = listOf("프로필 사진", "공지사항"))),
             false,
             emptyList(),
             Seen.REAL,
-            listOf("A24 폰 로그 10-03 08:27:48 (사진은 이름 · 전화가 찍혀 레포에 담지 않는다)", "진입: 신규 리스트 오른쪽 위 «☰»(짐작)"),
+            listOf("A24 폰 로그 10-03 08:27:48 (사진은 이름 · 전화가 찍혀 레포에 담지 않는다)", "A24 폰 로그 10-03 09:14:09 · 09:15:00 (위쪽만 읽힌 프레임 — 아래 칸이 빈 «arrow icon»)", "진입: 신규 리스트 오른쪽 위 «☰»(짐작)"),
         ),
         ScreenSpec(
             "공지사항",
@@ -424,7 +424,7 @@ object KakaoPickerPages {
         ScreenSpec(
             "신규 리스트",
             StandardScreen.LIST,
-            listOf(ScreenMatch(all = listOf("리스트 설정")), ScreenMatch(all = listOf("신규 내 오더"), any = listOf("서포트모드", "서포트 모드"), none = listOf("리스트 설정", "목록 지도", "수락하기")), ScreenMatch(none = listOf("수락하기", "목록 지도"), shape = Regex("""\d+(?:\.\d+)?km\s.{0,40}?\d{1,3}(?:,\d{3})+"""), shapeMin = 3)),
+            listOf(ScreenMatch(all = listOf("리스트 설정")), ScreenMatch(all = listOf("내 배지", "미션 & 혜택"), none = listOf("수락하기", "목록 지도", "오더카드 받기", "시간별 오더 정보", "프로필 사진")), ScreenMatch(all = listOf("신규 내 오더"), any = listOf("서포트모드", "서포트 모드"), none = listOf("리스트 설정", "목록 지도", "수락하기")), ScreenMatch(none = listOf("수락하기", "목록 지도"), shape = Regex("""\d+(?:\.\d+)?km\s.{0,40}?\d{1,3}(?:,\d{3})+"""), shapeMin = 3)),
             false,
             listOf(
                 OverlaySpec("«배정» 알림", OverlayKind.NOTICE, listOf(ScreenMatch(any = listOf("방금 배정된 오더", "이미 배정이 완료된"))), "남이 먼저 잡았다", Seen.REAL, listOf("ex_images/카카오픽커/실물_2026/03_리스트_이미배정완료_토스트.png", "실물 로그 09-30 13:08:45 «방금 배정된 오더»")),
@@ -436,7 +436,8 @@ object KakaoPickerPages {
                 OverlaySpec("서포트 모드 띠", OverlayKind.BANNER, listOf(ScreenMatch(all = listOf("서포트 모드 1장 받기"))), "퀵 서포트 모드 받기 진행 안내", Seen.REAL, listOf("ex_images/카카오픽커/실물_2026/02_리스트_높은가격순_20km.png")),
             ),
             Seen.REAL,
-            listOf("ex_images/카카오픽커/실물_2026/02_리스트_높은가격순_20km.png", "ex_images/카카오픽커/실물_2026/03_리스트_이미배정완료_토스트.png", "ex_images/카카오픽커/실물_2026/11_리스트_추천순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13_리스트_가까운순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13-1_신규_리스트(퀵,중형,반나절,승,예약).jpeg", "ex_images/카카오픽커/실물_2026/13-2_신규_스크롤다운.jpeg (내려감)"),
+            listOf("A24 폰 로그 10-03 09:13:19 (글은 «내 배지 · 미션 & 혜택» — 1초 뒤 사진은 신규 리스트 · 기사님 «리스트 화면» · 오더카드 설정에서 돌아오는 순간)", "ex_images/카카오픽커/실물_2026/02_리스트_높은가격순_20km.png", "ex_images/카카오픽커/실물_2026/03_리스트_이미배정완료_토스트.png", "ex_images/카카오픽커/실물_2026/11_리스트_추천순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13_리스트_가까운순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13-1_신규_리스트(퀵,중형,반나절,승,예약).jpeg", "ex_images/카카오픽커/실물_2026/13-2_신규_스크롤다운.jpeg (내려감)"),
+            toCollect = "«미션 & 혜택» 페이지가 따로 있나(서포트 모드 띠 «›» 뒤로 짐작) — 있으면 «내 배지 · 미션 & 혜택» 갈래를 그 페이지로 옮긴다",
         ),
         ScreenSpec(
             "안드로이드 공유 시트",

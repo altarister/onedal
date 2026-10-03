@@ -3833,6 +3833,27 @@
    "text": "픽업지 경기 하남시 신장1동 백억커피-하남시청역점",
    "was": "UNKNOWN",
    "expect": "TRANSITION"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 09:13:19 · 오더카드 설정에서 목록으로 돌아오는 순간 — 사진(1초 뒤)은 신규 리스트 · 기사님 «리스트 화면»",
+   "text": "내 배지 배지가 없어요 배지를 획득 해보세요 미션 & 혜택 퀵 배송 대리 완료한 미션",
+   "was": "UNKNOWN",
+   "expect": "LIST"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 09:14:09 · 메뉴 위쪽만 읽힌 프레임(앞의 이름 · 전화는 뺐다)",
+   "text": "변경 프로필 사진 기본 아이콘 공지사항 arrow icon 수행방법 안내 arrow icon 포인트 내역 arrow icon arrow icon arrow icon arrow icon arrow icon",
+   "was": "UNKNOWN",
+   "expect": "NETWORK_MENU"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 09:15:00 · 메뉴 위쪽만 읽힌 프레임(앞의 이름 · 전화는 뺐다)",
+   "text": "변경 프로필 사진 기본 아이콘 공지사항 arrow icon 수행방법 안내 arrow icon 포인트 내역 arrow icon",
+   "was": "UNKNOWN",
+   "expect": "NETWORK_MENU"
   }
  ]
 }
