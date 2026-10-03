@@ -67,4 +67,28 @@ class UnknownScreenReportTest {
         assertFalse(m, m.contains("1234") || m.contains("5678") || m.contains("7654321") || m.contains("304동") || m.contains("1002호"))
         assertTrue(m, m.contains("#동 #호") && m.contains("0**-****-****"))
     }
+
+    /**
+     * 🧭 **진입 경로 — 마지막으로 알아본 화면 · 원달앱 마지막 누름(뒤로 포함)** (운영센터 «까닭» 칸 · CALL_TAKEN 까닭 글과 같은 꼴).
+     * 픽커는 버튼을 눌러도 «누름» 알림을 안 내 손 누름 글자는 없다 — 원달앱이 창 안에 안 눌렀으면 손이다.
+     */
+    @Test fun `진입 경로 - 직전 화면과 원달앱 마지막 누름`() {
+        assertEquals("직전: 신규 리스트 · 원달앱 누름: 10초 안 없음", UnknownScreenReport.entryOf("신규 리스트", null, null))
+        assertEquals("직전: 신규 리스트 · 원달앱 누름: 10초 안 없음", UnknownScreenReport.entryOf("신규 리스트", 15_000, 30_000))
+        assertEquals("직전: 상세(수락 전 시트) · 원달앱 누름: 뒤로 0.4초 전", UnknownScreenReport.entryOf("상세(수락 전 시트)", 3_000, 400))
+        assertEquals("직전: 신규 리스트 · 원달앱 누름: 누름 1.2초 전", UnknownScreenReport.entryOf("신규 리스트", 1_200, 20_000))
+        assertEquals("직전: 모름 · 원달앱 누름: 10초 안 없음", UnknownScreenReport.entryOf(null, null, null))
+    }
+
+    @Test fun `진입 경로는 까닭 글 끝에 붙는다 - 같은 화면 하루 한 번은 그대로`() {
+        val reasons = mutableListOf<String>()
+        try {
+            UnknownScreenReport.sink = { _, reason, _ -> reasons += reason }
+            val d = LocalDate.of(2026, 11, 1)
+            val entry = UnknownScreenReport.entryOf("신규 리스트", null, null)
+            UnknownScreenReport.record("kakaopicker", picker, "close dialog 오더 탐색을 종료하시겠어요? 취소 확인", d, entry)
+            UnknownScreenReport.record("kakaopicker", picker, "close dialog 오더 탐색을 종료하시겠어요? 취소 확인", d, "직전: 홈(출근 전) · 원달앱 누름: 10초 안 없음")
+        } finally { UnknownScreenReport.sink = null }
+        assertEquals(listOf("SCREEN_UNKNOWN: close dialog 오더 탐색을 종료하시겠어요? 취소 확인 · 직전: 신규 리스트 · 원달앱 누름: 10초 안 없음"), reasons)
+    }
 }

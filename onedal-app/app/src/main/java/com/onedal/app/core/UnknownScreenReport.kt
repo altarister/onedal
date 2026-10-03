@@ -15,6 +15,7 @@ import java.time.LocalDate
  * - 전화 · 동호는 가린다(`mask`) — 사람 이름은 꼴로 못 가려 200자로 자른다
  * 보내는 손(`sink`)은 `HijackService` 가 단다(`POST /api/telemetry/anomalies`) — 그 손이 1초 뒤 사진을 같이 싣는다(`UnknownScreenShot`).
  * 사진은 가리지 않은 원본이고 글만 여기서 가린다.
+ * 🧭 까닭 글 끝에 진입 경로(`entryOf` — 마지막으로 알아본 화면 · 원달앱 마지막 누름)를 붙인다 — 서버 로그는 3일이면 지워진다.
  */
 object UnknownScreenReport {
     private const val MIN_CHARS = 10
@@ -29,6 +30,26 @@ object UnknownScreenReport {
     private val PHONE = Regex("""0\d{1,2}-?\d{3,4}-?\d{4}""")
     private val DONG_HO = Regex("""\d+동\s?\d+호""")
     private val HAS_DIGIT = Regex("""\d""")
+
+    /** 🧭 진입 경로를 보는 창 — 원달앱 누름 · 뒤로가 이 안에 있었으면 «원달앱이 눌렀다»로 적는다(글자만 · 설정값이 아니다) */
+    const val ENTRY_WINDOW_MS = 10_000L
+
+    /**
+     * 🧭 **진입 경로 한 마디** — «직전: 마지막으로 알아본 화면 · 원달앱 누름: 뒤로 0.4초 전 | 누름 1.2초 전 | 10초 안 없음».
+     * 픽커는 버튼을 눌러도 «누름» 알림을 안 내 손 누름 글자가 없다 — 원달앱이 창 안에 안 눌렀으면 손이다.
+     * @param sinceTapMs · @param sinceBackMs 원달앱 마지막 누름 · 뒤로에서 지난 시간(없으면 null)
+     */
+    fun entryOf(lastKnown: String?, sinceTapMs: Long?, sinceBackMs: Long?): String {
+        val tap = sinceTapMs?.takeIf { it in 0..ENTRY_WINDOW_MS }
+        val back = sinceBackMs?.takeIf { it in 0..ENTRY_WINDOW_MS }
+        fun sec(ms: Long) = String.format(java.util.Locale.ROOT, "%.1f", ms / 1000.0)
+        val app = when {
+            back != null && (tap == null || back <= tap) -> "뒤로 ${sec(back)}초 전"
+            tap != null -> "누름 ${sec(tap)}초 전"
+            else -> "${ENTRY_WINDOW_MS / 1000}초 안 없음"
+        }
+        return "직전: ${lastKnown ?: "모름"} · 원달앱 누름: $app"
+    }
 
     /** 안 올리는 까닭 — null 이면 올린다 */
     fun whyNot(pkg: String?, text: String): String? = when {
@@ -47,12 +68,12 @@ object UnknownScreenReport {
 
     /** 로그에 붙일 한 마디를 돌려준다 — «운영센터 올림» · «운영센터 안 올림(까닭)» */
     @Synchronized
-    fun record(network: String, pkg: String?, text: String, today: LocalDate = LocalDate.now()): String {
+    fun record(network: String, pkg: String?, text: String, today: LocalDate = LocalDate.now(), entry: String? = null): String {
         whyNot(pkg, text)?.let { return "운영센터 안 올림($it)" }
         if (today != day) { day = today; sent.clear() }
         if (!sent.add("$network|${fingerprintOf(text)}")) return "운영센터 안 올림(오늘 같은 화면 올림)"
         val masked = mask(text.trim())
-        sink?.invoke(network, "SCREEN_UNKNOWN: ${masked.take(40)}", masked.take(200))
+        sink?.invoke(network, "SCREEN_UNKNOWN: ${masked.take(40)}${entry?.let { " · $it" } ?: ""}", masked.take(200))
         return "운영센터 올림"
     }
 }

@@ -1071,7 +1071,11 @@ class HijackService : AccessibilityService(), ScanContext {
         touchManager.onScreen(detected, textChanged = true)   // 👆 화면 처리보다 먼저 — 누른 것이 먹혔나 (종류가 바뀌었나)
         if (detected == ScreenContext.UNKNOWN) {
             // 🔎 운영센터 «이상 기록»에도 — 실물 배차망 앱 화면 · 10자 이상 · 같은 화면 하루 한 번 (`UnknownScreenReport`) — 사진은 1초 뒤에도 모르는 화면이면 같이 싣는다(`UnknownScreenShot`)
-            val toOps = com.onedal.app.core.UnknownScreenReport.record(currentTargetApp, rootNode.packageName?.toString(), rawScreenStr)
+            // 🧭 진입 경로 — 마지막으로 알아본 화면(앞 프레임도 모름이면 그 앞) · 원달앱 마지막 누름 · 뒤로 (`UnknownScreenReport.entryOf`)
+            val nowMs = android.os.SystemClock.elapsedRealtime()
+            val entry = com.onedal.app.core.UnknownScreenReport.entryOf(lastKnownScreen,
+                touchManager.lastAppTapAtMs.takeIf { it > 0 }?.let { nowMs - it }, touchManager.lastAppBackAtMs.takeIf { it > 0 }?.let { nowMs - it })
+            val toOps = com.onedal.app.core.UnknownScreenReport.record(currentTargetApp, rootNode.packageName?.toString(), rawScreenStr, entry = entry)
             AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자) · $toOps: ${rawScreenStr.take(300)}")
             /**
              * 🔴 **여기서 «조금 뒤 다시 보기»를 하지 않는다 — 해 봤고, 안 된다**.
@@ -1095,7 +1099,7 @@ class HijackService : AccessibilityService(), ScanContext {
              *    움직여 이벤트가 쏟아지므로 즉시 반영된다(실측). 늦는 곳은 픽커 홈이고,
              *    거기는 일을 안 하고 있는 시간이다.
              */
-        }
+        } else lastKnownScreen = screenRead.page ?: detected.name   // 🧭 진입 경로 — 알아본 화면만 남긴다
         // ⚠️ 아래 복귀 판정이 **직전 화면**을 봐야 하므로 갱신 전에 붙잡아 둔다
         val previous = telemetryManager.currentScreenContext
 
@@ -1931,6 +1935,9 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     /** 📄 «어느 배차망의 어느 페이지 · 그 위에 뜬 것»을 바뀔 때만 한 줄 */
+    /** 🧭 마지막으로 알아본 화면 — 배차망 페이지 이름(없으면 화면 값) · 모르는 화면 보고의 «직전»(`UnknownScreenReport.entryOf`) */
+    private var lastKnownScreen: String? = null
+
     private fun logPageChange(read: com.onedal.app.core.engine.ScreenRead, detected: ScreenContext) {
         val key = "${currentTargetApp}|${read.page}|${read.overlay}|${detected}"
         if (key == lastPageKey) return
