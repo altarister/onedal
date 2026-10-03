@@ -79,5 +79,24 @@ class ScreenTableDetectTest {
         assertEquals("출발지 상세 팝업", r.overlay)
         assertEquals("DETAIL_CONFIRMED", ScreenDetector().detect(popup, insung, lastPage = "확정 뒤 상세").wire.name)
     }
+
+    /**
+     * 🧭 **픽커 목록 위 덧칸 · 목록에서 들어가는 페이지는 이름으로 읽힌다** (운영센터 이상 기록 «미등록» A24 원문).
+     * 덧칸만 보이는 판(시트 · 팝업이 목록을 가린다)은 주인 페이지 «신규 리스트» 위의 덧칸이다 — 원달앱은 그 화면에서 아무것도 안 누른다(action 없음).
+     */
+    @Test fun `픽커 목록 위 덧칸과 목록에서 들어가는 페이지는 이름이 있다`() {
+        val picker = plugins.getValue("kakaopicker").screens
+        fun named(text: String) = ScreenDetector().detect(text, picker, lastPage = "신규 리스트").let { "${it.wire} · ${it.page} · ${it.overlay}" }
+        assertEquals("LIST · 신규 리스트 · 오더 탐색 종료 확인", named("close dialog 오더 탐색을 종료하시겠어요? 취소 확인"))
+        assertEquals("LIST · 신규 리스트 · 정렬 시트", named("정렬 추천순 픽업지 가까운순 check 높은 가격순"))
+        assertEquals("NETWORK_MENU · 퀵 배송 오더카드 설정 · null", named("오더카드 받기 소리 알림 켜기 진동 알림 켜기"))
+        assertEquals("NETWORK_MENU · 수요지도 · null", named("대리 퀵 배송 tracking button 시간별 오더 정보 지금 10분 후 20분 후 30분 후 60분 후"))
+        assertEquals("NETWORK_MENU · 메뉴 · null", named("공지사항 수행방법 안내 포인트 내역 수행 내역 자주묻는질문 고객센터 연결하기 뒤로가기 메뉴"))
+        assertEquals("TRANSITION · 상세 시트가 닫히는 찰나 · null", named("픽업지 경기 하남시 신장1동 백억커피-하남시청역점"))
+        // 덧칸 둘은 할 일이 없다 — 팝업 «확인»(탐색 종료)을 누르는 갈래가 생기면 안 된다
+        val overlays = picker.flatMap { it.overlays }.filter { it.name == "오더 탐색 종료 확인" || it.name == "정렬 시트" }
+        assertEquals(2, overlays.size)
+        assertTrue(overlays.all { it.action == null })
+    }
 }
 

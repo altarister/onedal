@@ -521,7 +521,7 @@
    "why": "A24 폰 로그 10-02 09:14:30",
    "text": "정렬 추천순 픽업지 가까운순 높은 가격순 check",
    "was": "UNKNOWN",
-   "expect": "UNKNOWN"
+   "expect": "LIST"
   },
   {
    "network": "kakaopicker",
@@ -3706,7 +3706,7 @@
    "why": "A24 폰 로그 10-02 11:01:31",
    "text": "정렬 추천순 픽업지 가까운순 check 높은 가격순",
    "was": "UNKNOWN",
-   "expect": "UNKNOWN"
+   "expect": "LIST"
   },
   {
    "network": "kakaopicker",
@@ -3748,7 +3748,7 @@
    "why": "A24 폰 로그 10-02 11:01:58",
    "text": "close dialog 오더 탐색을 종료하시겠어요? 취소 확인",
    "was": "UNKNOWN",
-   "expect": "UNKNOWN"
+   "expect": "LIST"
   },
   {
    "network": "kakaopicker",
@@ -3770,6 +3770,69 @@
    "text": "김윤서님이 관심있는 일거리는 무엇인가요? 🤔 주방 화물·운송 청소·미화·시설관리 콜센터·상담 행사·진행보조 정기배송·운전 전체 일거리 보기 공통 26년 하반기 산재보험 불법행위 특별신고기간 안내 - 근로복지공단 더보기 미션 3 더보기 퀵 1건 배송완료하고 서포트 모드 1장 받기 퀵 3건 배송완료하고 서포트 모드 1장 받기 퀵 5건 배송완료하고 서포트 모드 1장 받기 알림 메뉴 어떤 일을 시작할까요? 수행하려는 일을 선택해주세요 시작하기",
    "was": "HOME",
    "expect": "HOME"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 08:16:13 · 오더 탐색 종료 확인(사진 587)",
+   "text": "close dialog 오더 탐색을 종료하시겠어요? 취소 확인",
+   "was": "UNKNOWN",
+   "expect": "LIST"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 08:24:52 · 정렬 시트(사진 588)",
+   "text": "정렬 추천순 픽업지 가까운순 높은 가격순 check",
+   "was": "UNKNOWN",
+   "expect": "LIST"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 08:25:32 · 오더카드 설정이 열리는 첫 프레임(목록 잔상)",
+   "text": "퀵 2.2km 퀵 18.6km 퀵 14.4km 퀵 15.3km 퀵 15.4km 퀵 18.7km 퀵 12.9km 퀵 17.1km 퀵 중형 예약 10/7(수) 18.2km 분당 판교 수정 신흥2 9,548 퀵 오더카드 대기 중... 오더카드 받기 소리 알림 켜기 진동 알림 켜기 픽업지까지 거리 3km 5km 7km 10km 뒤로가기 퀵 배송 오더카드 설정",
+   "was": "UNKNOWN",
+   "expect": "NETWORK_MENU"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 08:25:32 · 퀵 배송 오더카드 설정(사진 589)",
+   "text": "오더카드 받기 소리 알림 켜기 진동 알림 켜기 픽업지까지 거리 3km 5km 7km 10km 배송지 selected radio button 모든 배송지 받기 가장 많은 오더를 빠르게 받을 수 있습니다. unSelected radio button 직접 설정하기 뒤로가기 퀵 배송 오더카드 설정",
+   "was": "UNKNOWN",
+   "expect": "NETWORK_MENU"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 08:25:48 · 오더카드 설정에서 나가는 찰나",
+   "text": "오더카드 받기 소리 알림 켜기 진동 알림 켜기",
+   "was": "UNKNOWN",
+   "expect": "NETWORK_MENU"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 08:25:50 · 수요지도(사진 591)",
+   "text": "퀵 대리 퀵 배송 tracking button 시간별 오더 정보 지금 10분 후 20분 후 30분 후 60분 후",
+   "was": "UNKNOWN",
+   "expect": "NETWORK_MENU"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 08:25:51 · 수요지도",
+   "text": "대리 퀵 배송 tracking button 시간별 오더 정보 지금 10분 후 20분 후 30분 후 60분 후",
+   "was": "UNKNOWN",
+   "expect": "NETWORK_MENU"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-03 08:27:48 · 메뉴(앞의 이름 · 전화는 뺐다)",
+   "text": "변경 프로필 사진 기본 아이콘 공지사항 arrow icon 수행방법 안내 arrow icon 포인트 내역 arrow icon 수행 내역 arrow icon 자격정보 및 보험 관리 업데이트 arrow icon 서비스 등록 관리 arrow icon 배송수단 관리 arrow icon 일거리 추천 프로필 관리 arrow icon 사고접수/내역 arrow icon 자주묻는질문 arrow icon 고객센터 연결하기 customer center 뒤로가기 메뉴",
+   "was": "UNKNOWN",
+   "expect": "NETWORK_MENU"
+  },
+  {
+   "network": "kakaopicker",
+   "why": "A24 폰 로그 10-02 15:07:59 · 상세 시트가 닫히는 찰나(픽업지 한 줄)",
+   "text": "픽업지 경기 하남시 신장1동 백억커피-하남시청역점",
+   "was": "UNKNOWN",
+   "expect": "TRANSITION"
   }
  ]
 }
