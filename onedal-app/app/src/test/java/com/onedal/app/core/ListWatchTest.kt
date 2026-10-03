@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.ScreenContext
 
 /**
  * 📜 **조용한 목록 다시 읽기** — 픽커가 알림을 안 내면 서비스 캐시가 안 버려져 옛 틀이 남는다(16:18 · 18:45 · 19:46).
@@ -52,19 +53,43 @@ class ListWatchTest {
     @Test fun `손 닿은 뒤 4초 안에 다시 읽는다 - 1초 주기 감시`() {
         val touched = 0L
         val firstRead = (1_000L..4_000L step 1_000).first { now ->
-            ListWatch.shouldRead(now, lastReadMs = 0, lastEventMs = 0, isListScreen = true, busy = false, touchedAtMs = touched)
+            ListWatch.shouldRead(now, lastReadMs = 0, lastEventMs = 0, watched = true, busy = false, touchedAtMs = touched)
         }
         assertTrue("손 닿은 뒤 첫 다시 읽기가 ${firstRead}ms", firstRead <= 4_000)
     }
 
     @Test fun `알림 읽기가 방금 돌았으면 건너뛴다 - 두 번 읽지 않게`() =
-        assertFalse(ListWatch.shouldRead(nowMs = 3_000, lastReadMs = 2_500, lastEventMs = 0, isListScreen = true, busy = false, touchedAtMs = 0))
+        assertFalse(ListWatch.shouldRead(nowMs = 3_000, lastReadMs = 2_500, lastEventMs = 0, watched = true, busy = false, touchedAtMs = 0))
 
     @Test fun `손 닿은 뒤 10초가 지나면 5초로 돌아간다`() {
-        assertFalse(ListWatch.shouldRead(nowMs = 12_000, lastReadMs = 10_000, lastEventMs = 0, isListScreen = true, busy = false, touchedAtMs = 0))
-        assertTrue(ListWatch.shouldRead(nowMs = 15_000, lastReadMs = 10_000, lastEventMs = 0, isListScreen = true, busy = false, touchedAtMs = 0))
+        assertFalse(ListWatch.shouldRead(nowMs = 12_000, lastReadMs = 10_000, lastEventMs = 0, watched = true, busy = false, touchedAtMs = 0))
+        assertTrue(ListWatch.shouldRead(nowMs = 15_000, lastReadMs = 10_000, lastEventMs = 0, watched = true, busy = false, touchedAtMs = 0))
     }
 
-    @Test fun `손 닿은 뒤라도 목록이 아니면 안 돈다`() =
-        assertFalse(ListWatch.shouldRead(nowMs = 2_000, lastReadMs = 0, lastEventMs = 0, isListScreen = false, busy = false, touchedAtMs = 0))
+    /**
+     * 🧭 **목록 밖 배차망 화면도 지켜본다** — 픽커 설정 시트를 «←»로 닫고 목록에 돌아와도 픽커가 알림을 더 안 내
+     * 원달앱이 다음 정각(목록 새로 고침)까지 47초 동안 «설정»으로 알았다(실물 A24 09:46:13 → 09:47:00).
+     * 상세 · 팝업 · 운행 · 넘어가는 중은 알림으로만 읽는다 · 바탕화면 · 다른 앱 · 배차망 앱 밖(시뮬레이터 자기 화면)은 안 본다.
+     */
+    @Test fun `목록 밖 배차망 화면 - 메뉴 · 홈 · 내 오더 · 모름은 지켜본다`() {
+        listOf(ScreenContext.NETWORK_MENU, ScreenContext.HOME, ScreenContext.MY_ORDERS, ScreenContext.UNKNOWN)
+            .forEach { assertTrue("$it", ListWatch.watches(it, onNetworkPage = true)) }
+        assertTrue(ListWatch.watches(ScreenContext.LIST, onNetworkPage = false))
+    }
+
+    @Test fun `상세 · 팝업 · 운행 · 넘어가는 중 · 바탕화면 · 다른 앱은 안 지켜본다`() {
+        listOf(ScreenContext.DETAIL_PRE_CONFIRM, ScreenContext.DETAIL_CONFIRMED, ScreenContext.POPUP_PICKUP, ScreenContext.POPUP_ERROR,
+            ScreenContext.RUN_TO_PICKUP, ScreenContext.TRANSITION, ScreenContext.LAUNCHER, ScreenContext.OTHER_APP)
+            .forEach { assertFalse("$it", ListWatch.watches(it, onNetworkPage = true)) }
+    }
+
+    @Test fun `배차망 앱 밖의 모름(시뮬레이터 자기 화면)은 안 지켜본다`() =
+        assertFalse(ListWatch.watches(ScreenContext.UNKNOWN, onNetworkPage = false))
+
+    @Test fun `목록을 떠난 직후(손 닿음) 메뉴에서 2초 안에 다시 읽는다`() =
+        assertTrue(ListWatch.shouldRead(nowMs = 1_500, lastReadMs = 0, lastEventMs = 0,
+            watched = ListWatch.watches(ScreenContext.NETWORK_MENU, onNetworkPage = true), busy = false, touchedAtMs = 0))
+
+    @Test fun `손 닿은 뒤라도 지켜보는 화면이 아니면 안 돈다`() =
+        assertFalse(ListWatch.shouldRead(nowMs = 2_000, lastReadMs = 0, lastEventMs = 0, watched = false, busy = false, touchedAtMs = 0))
 }

@@ -984,16 +984,18 @@ class HijackService : AccessibilityService(), ScanContext {
         quietReading = true
         try { scanScreen() } finally { quietReading = false }
         if (scanGathered && !scanSameText)
-            AppLogger.i(TAG, LogTag.SCREEN, "📜 [조용한 목록 다시 읽기] $why · 글자가 달라졌다 — 새로 보인 줄: " +
+            AppLogger.i(TAG, LogTag.SCREEN, "📜 [조용한 다시 읽기] ${telemetryManager.currentScreenContext.name} · $why · 글자가 달라졌다 — 새로 보인 줄: " +
                 com.onedal.app.core.WalkProbe.newLines(before, scanTexts).joinToString(" · ") { com.onedal.app.core.ScreenWords.mask(it) })
     }
 
-    /** 📜 1초마다 — 목록에서 읽기도 배차망 알림도 5초 넘게 없으면 조용한 다시 읽기 (`ListWatch.shouldRead`) */
+    /** 📜 1초마다 — 지켜보는 화면(목록 · 배차망 앱 안의 목록 밖 화면)에서 읽기도 배차망 알림도 5초 넘게 없으면 조용한 다시 읽기 (`ListWatch.shouldRead`) */
     private val listWatchdog = object : Runnable {
         override fun run() {
             val now = android.os.SystemClock.elapsedRealtime()
+            /* 🧭 배차망 앱 안인가 — 실물 배차망 앱이거나 배차망 정의 표의 페이지로 읽혔다(시뮬레이터 자기 화면은 표에 없다) */
+            val onNetworkPage = TargetApp.sourceOf(telemetryManager.screenPackage) == "real" || lastScreenRead?.page != null
             if (com.onedal.app.core.ListWatch.shouldRead(now, lastReadMs, lastTargetEventMs,
-                    isListScreen = telemetryManager.currentScreenContext == ScreenContext.LIST,
+                    watched = com.onedal.app.core.ListWatch.watches(telemetryManager.currentScreenContext, onNetworkPage),
                     busy = touchManager.tapPending || session.isDetailScrapSent, touchedAtMs = touchedAtMs))
                 quietRead(com.onedal.app.core.ListWatch.quietWord(now, lastReadMs, lastTargetEventMs))
             waitBook.schedule("목록 감시", com.onedal.app.core.WaitBook.SERVICE, 1000) { run() }
@@ -1011,18 +1013,6 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     private fun scanScreenBody() {
-
-        /**
-         * ⏱️ **창이 바뀌면 한 번으로 안 믿는다** (기사님 실측:
-         * *"바뀌고 나서 1분 가까이 기다려야 하는 것 같아"*).
-         *
-         * 전환 이벤트가 오는 **그 순간의 창은 아직 옛 내용**이다. 그래서 아래 지문 비교에
-         * 걸려 건너뛰고, 새 화면이 정지 화면이면 **아무도 다시 안 본다.**
-         * (프로모션 배너처럼 저절로 움직이는 것이 없으면 계속 굳는다.)
-         *
-         * 그려질 시간을 주고 몇 박자 뒤 다시 본다. 헛읽기가 늘어도 **지문이 막아** 전송은
-         * 안 는다. 재확인은 **읽기만** 한다 — 터치하면 «LIST 오탐 → 세션 리셋»이 난다.
-         */
         val rootNode = (if (scanWay == com.onedal.app.core.WalkProbe.Way.PREFETCH && android.os.Build.VERSION.SDK_INT >= com.onedal.app.core.WalkProbe.PREFETCH_MIN_SDK)
             getRootInActiveWindow(PREFETCH_FLAGS) else rootInActiveWindow) ?: run {
             // 👁️ 화면을 못 얻었다 — 로그 없이 돌아가던 길을 요약에 센다
@@ -1171,6 +1161,8 @@ class HijackService : AccessibilityService(), ScanContext {
             listBlindSinceMs = System.currentTimeMillis()
             alarmHold.clear()   // ⏳ 목록을 떠났다 — 미룬 알람을 버린다
             waitBook.cancelOwner(com.onedal.app.core.WaitBook.LIST)   // 미룬 알람 다시 보기 · 겹친 틀 뒤 읽기도 여기서 거둔다
+            waitBook.cancel("목록 요약"); listWatchTicks = 0   // 👁️ 복귀 요약은 목록에 있는 동안만 — 떠난 뒤 «복귀 N초»로 찍히지 않게
+            touchedAtMs = android.os.SystemClock.elapsedRealtime()   // ✋ 목록을 떠났다 — 손이 닿은 것 · 목록 밖 화면에서 10초 동안 조용한 다시 읽기를 촘촘히(돌아온 것을 곧 알게)
             logPendingWaits("목록 → ${detected.name}")
         }
         if (isListScreen && !wasListScreen) {
