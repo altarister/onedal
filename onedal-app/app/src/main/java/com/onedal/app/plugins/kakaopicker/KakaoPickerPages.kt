@@ -285,11 +285,11 @@ object KakaoPickerPages {
         ScreenSpec(
             "메뉴",
             StandardScreen.NETWORK_MENU,
-            listOf(ScreenMatch(all = listOf("수행방법 안내", "포인트 내역", "수행 내역")), ScreenMatch(all = listOf("프로필 사진", "공지사항"))),
+            listOf(ScreenMatch(all = listOf("수행방법 안내", "포인트 내역", "수행 내역")), ScreenMatch(all = listOf("프로필 사진", "기본 아이콘"))),
             false,
             emptyList(),
             Seen.REAL,
-            listOf("A24 폰 로그 10-03 08:27:48 (사진은 이름 · 전화가 찍혀 레포에 담지 않는다)", "A24 폰 로그 10-03 09:14:09 · 09:15:00 (위쪽만 읽힌 프레임 — 아래 칸이 빈 «arrow icon»)", "진입: 신규 리스트 오른쪽 위 «☰»(짐작)"),
+            listOf("A24 폰 로그 10-03 08:27:48 (사진은 이름 · 전화가 찍혀 레포에 담지 않는다)", "A24 폰 로그 10-03 09:14:09 · 09:15:00 · 09:22:52 · 09:23:00 (위쪽만 읽힌 프레임 — 아래 칸이 빈 «arrow icon» · 맨 위 프로필 칸만)", "진입: 신규 리스트 오른쪽 위 «☰»(짐작)"),
         ),
         ScreenSpec(
             "공지사항",
@@ -402,6 +402,16 @@ object KakaoPickerPages {
             toCollect = "캡처 · 알아보는 글자 (메뉴 «고객센터 연결하기» 뒤) · 전화 앱으로 넘어가는지(그러면 OTHER_APP)",
         ),
         ScreenSpec(
+            "내 활동(미션 & 혜택)",
+            StandardScreen.NETWORK_MENU,
+            listOf(ScreenMatch(all = listOf("내 배지", "미션 & 혜택"))),
+            false,
+            emptyList(),
+            Seen.REAL,
+            listOf("A24 폰 로그 10-03 09:21:09 (머리 «뒤로가기 내 활동» · 서포트 모드 미션 줄)", "A24 폰 로그 10-03 09:13:19 (나가는 찰나 — 1초 뒤 사진은 이미 신규 리스트)", "진입: 신규 리스트 «퀵 서포트 모드 1장 받기 0/1건 ›»(짐작) — 손"),
+            toCollect = "캡처 · «퀵 배송 / 대리» 탭 · 미션을 채운 모습",
+        ),
+        ScreenSpec(
             "상세 시트가 닫히는 찰나",
             StandardScreen.TRANSITION,
             listOf(ScreenMatch(none = listOf("넘기기", "수락하기", "리스트 설정", "물품 정보", "픽업지 정보"), shape = Regex("""^픽업지 \S+ \S+"""), shapeMin = 1, shapeMax = 1)),
@@ -424,11 +434,11 @@ object KakaoPickerPages {
         ScreenSpec(
             "신규 리스트",
             StandardScreen.LIST,
-            listOf(ScreenMatch(all = listOf("리스트 설정")), ScreenMatch(all = listOf("내 배지", "미션 & 혜택"), none = listOf("수락하기", "목록 지도", "오더카드 받기", "시간별 오더 정보", "프로필 사진")), ScreenMatch(all = listOf("신규 내 오더"), any = listOf("서포트모드", "서포트 모드"), none = listOf("리스트 설정", "목록 지도", "수락하기")), ScreenMatch(none = listOf("수락하기", "목록 지도"), shape = Regex("""\d+(?:\.\d+)?km\s.{0,40}?\d{1,3}(?:,\d{3})+"""), shapeMin = 3)),
+            listOf(ScreenMatch(all = listOf("리스트 설정")), ScreenMatch(all = listOf("신규 내 오더"), none = listOf("리스트 설정", "목록 지도", "수락하기", "시작하기", "카테고리가 없습니다"), shape = Regex("""(?:^|\s)Ad(?=\s|${'$'})"""), shapeMin = 1), ScreenMatch(all = listOf("신규 내 오더"), any = listOf("서포트모드", "서포트 모드"), none = listOf("리스트 설정", "목록 지도", "수락하기")), ScreenMatch(none = listOf("수락하기", "목록 지도"), shape = Regex("""\d+(?:\.\d+)?km\s.{0,40}?\d{1,3}(?:,\d{3})+"""), shapeMin = 3)),
             false,
             listOf(
                 OverlaySpec("«배정» 알림", OverlayKind.NOTICE, listOf(ScreenMatch(any = listOf("방금 배정된 오더", "이미 배정이 완료된"))), "남이 먼저 잡았다", Seen.REAL, listOf("ex_images/카카오픽커/실물_2026/03_리스트_이미배정완료_토스트.png", "실물 로그 09-30 13:08:45 «방금 배정된 오더»")),
-                OverlaySpec("광고 줄", OverlayKind.BANNER, emptyList(), "목록 사이에 끼는 일거리 광고", Seen.UNKNOWN, listOf(), toCollect = "캡처", wordsFrom = "server/config/keywords_picker.json adStartWords"),
+                OverlaySpec("광고 줄", OverlayKind.BANNER, emptyList(), "목록 맨 아래 붙는 구인 광고(제목 문구는 바뀐다 · 늘 붙는 것은 광고 표시 «Ad») — 목록을 끝까지 내리면 이것만 보인다(신규 리스트 «Ad» 갈래)", Seen.REAL, listOf("A24 폰 로그 10-03 09:21:19 · 09:21:24 · 09:21:26"), toCollect = "캡처(목록 맨 아래)", wordsFrom = "server/config/keywords_picker.json adStartWords"),
                 OverlaySpec("정렬 시트", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("정렬", "추천순", "픽업지 가까운순", "높은 가격순"))), "목록 정렬(높은 가격순 · 추천순 · 가까운순)을 고른다", Seen.REAL, listOf("ex_images/카카오픽커/실물_2026/35_리스트_정렬시트.jpg", "A24 폰 로그 10-02 09:14:30 · 11:01:31 · 10-03 08:24:52", "진입: 신규 리스트 머리 «높은 가격순 ▾»(사진 · 짐작) — 손")),
                 OverlaySpec("오더 탐색 종료 확인", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("오더 탐색을", "종료하시겠어요"))), "목록에서 뒤로를 누르면 탐색을 끝낼지 묻는다 — «확인»이면 홈(출근 전)으로 나가 콜을 안 받는다 · 원달앱은 아무것도 안 누른다", Seen.REAL, listOf("ex_images/카카오픽커/실물_2026/34_리스트_탐색종료확인_팝업.jpg", "A24 폰 로그 10-02 11:01:58 · 10-03 08:16:13", "진입: 신규 리스트에서 뒤로(짐작) — 손(그 사이 원달앱 뒤로 · 누름 없음)")),
                 OverlaySpec("오더카드 대기 띠", OverlayKind.BANNER, listOf(ScreenMatch(all = listOf("오더카드 대기 중"))), "지금 오더카드 없음 · 대기 중 — 늘 맨 위에 붙는다", Seen.REAL, listOf("ex_images/카카오픽커/실물_2026/02_리스트_높은가격순_20km.png", "ex_images/카카오픽커/실물_2026/11_리스트_추천순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13-2_신규_스크롤다운.jpeg")),
@@ -436,8 +446,7 @@ object KakaoPickerPages {
                 OverlaySpec("서포트 모드 띠", OverlayKind.BANNER, listOf(ScreenMatch(all = listOf("서포트 모드 1장 받기"))), "퀵 서포트 모드 받기 진행 안내", Seen.REAL, listOf("ex_images/카카오픽커/실물_2026/02_리스트_높은가격순_20km.png")),
             ),
             Seen.REAL,
-            listOf("A24 폰 로그 10-03 09:13:19 (글은 «내 배지 · 미션 & 혜택» — 1초 뒤 사진은 신규 리스트 · 기사님 «리스트 화면» · 오더카드 설정에서 돌아오는 순간)", "ex_images/카카오픽커/실물_2026/02_리스트_높은가격순_20km.png", "ex_images/카카오픽커/실물_2026/03_리스트_이미배정완료_토스트.png", "ex_images/카카오픽커/실물_2026/11_리스트_추천순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13_리스트_가까운순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13-1_신규_리스트(퀵,중형,반나절,승,예약).jpeg", "ex_images/카카오픽커/실물_2026/13-2_신규_스크롤다운.jpeg (내려감)"),
-            toCollect = "«미션 & 혜택» 페이지가 따로 있나(서포트 모드 띠 «›» 뒤로 짐작) — 있으면 «내 배지 · 미션 & 혜택» 갈래를 그 페이지로 옮긴다",
+            listOf("A24 폰 로그 10-03 09:21:26 (목록 맨 아래 — 구인 광고 «Ad»와 아래 탭만 · 1초 뒤 사진은 이미 내 오더 탭)", "ex_images/카카오픽커/실물_2026/02_리스트_높은가격순_20km.png", "ex_images/카카오픽커/실물_2026/03_리스트_이미배정완료_토스트.png", "ex_images/카카오픽커/실물_2026/11_리스트_추천순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13_리스트_가까운순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13-1_신규_리스트(퀵,중형,반나절,승,예약).jpeg", "ex_images/카카오픽커/실물_2026/13-2_신규_스크롤다운.jpeg (내려감)"),
         ),
         ScreenSpec(
             "안드로이드 공유 시트",

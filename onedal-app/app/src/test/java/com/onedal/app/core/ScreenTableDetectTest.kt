@@ -93,8 +93,11 @@ class ScreenTableDetectTest {
         assertEquals("NETWORK_MENU · 수요지도 · null", named("대리 퀵 배송 tracking button 시간별 오더 정보 지금 10분 후 20분 후 30분 후 60분 후"))
         assertEquals("NETWORK_MENU · 메뉴 · null", named("공지사항 수행방법 안내 포인트 내역 수행 내역 자주묻는질문 고객센터 연결하기 뒤로가기 메뉴"))
         assertEquals("TRANSITION · 상세 시트가 닫히는 찰나 · null", named("픽업지 경기 하남시 신장1동 백억커피-하남시청역점"))
-        assertEquals("LIST · 신규 리스트 · null", named("내 배지 배지가 없어요 배지를 획득 해보세요 미션 & 혜택 퀵 배송 대리 완료한 미션"))
+        assertEquals("NETWORK_MENU · 내 활동(미션 & 혜택) · null", named("내 배지 배지가 없어요 배지를 획득 해보세요 미션 & 혜택 퀵 배송 대리 완료한 미션"))
+        // 목록을 맨 아래까지 내리면 구인 광고만 남는다 — 광고 표시 «Ad» 와 아래 탭으로 신규 리스트
+        assertEquals("LIST · 신규 리스트 · null", named("픽커에서 알바도 만나보세요 Ad 프로필 등록하고, 다양한 일을 만나보세요 정기배송·운전 경기 하남시 모집 중 월급 263만원 신규 내 오더"))
         assertEquals("NETWORK_MENU · 메뉴 · null", named("변경 프로필 사진 기본 아이콘 공지사항 arrow icon 수행방법 안내 arrow icon 포인트 내역 arrow icon"))
+        assertEquals("NETWORK_MENU · 메뉴 · null", named("변경 프로필 사진 기본 아이콘 arrow icon"))
         // 덧칸 둘은 할 일이 없다 — 팝업 «확인»(탐색 종료)을 누르는 갈래가 생기면 안 된다
         val overlays = picker.flatMap { it.overlays }.filter { it.name == "오더 탐색 종료 확인" || it.name == "정렬 시트" }
         assertEquals(2, overlays.size)
