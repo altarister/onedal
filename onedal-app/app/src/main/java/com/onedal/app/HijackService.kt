@@ -66,6 +66,8 @@ class HijackService : AccessibilityService(), ScanContext {
         /** 🧪 미리 받기 — 깊이 우선(우리 훑기 순서와 같다) · 끊기지 않게 (SDK 33+ · `WalkProbe`) */
         private const val PREFETCH_FLAGS = AccessibilityNodeInfo.FLAG_PREFETCH_DESCENDANTS_DEPTH_FIRST or AccessibilityNodeInfo.FLAG_PREFETCH_UNINTERRUPTIBLE
         private const val TAG = "1DAL_MVP"
+        /** 📱 원달앱 자기 화면을 서버에 보낼 때의 페이지 이름 — 관제앱 배지 «📱 원달앱 화면» (`deviceScreenBadge`) */
+        private const val OWN_SCREEN_PAGE = "원달앱 화면"
 
         /**
          * 🔴 **시각에는 시간대를 함께 실어 보낸다**.
@@ -1986,8 +1988,10 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     private fun updateScreenContext(context: ScreenContext, read: com.onedal.app.core.engine.ScreenRead?) {
         val known = read != null && read.context != ScreenContext.UNKNOWN
-        val wire = if (known) read!!.wire else context
-        val page = if (known) read!!.page else null
+        // 📱 원달앱 자기 화면(설정 등)은 원달앱 안에서는 «모름» 그대로 두고, 보내는 값만 «배차망 밖 · 원달앱 화면» — 관제앱이 «미등록 팝업»으로 그리지 않게
+        val ownScreen = !known && context == ScreenContext.UNKNOWN && telemetryManager.screenPackage == packageName
+        val wire = if (known) read!!.wire else if (ownScreen) ScreenContext.OTHER_APP else context
+        val page = if (known) read!!.page else if (ownScreen) OWN_SCREEN_PAGE else null
         val overlay = if (known) read!!.overlay else null
         val changed = telemetryManager.currentScreenContext != context || telemetryManager.reportedScreen != wire ||
             telemetryManager.screenPage != page || telemetryManager.screenOverlay != overlay

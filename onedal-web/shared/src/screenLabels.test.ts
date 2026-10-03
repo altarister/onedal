@@ -114,6 +114,18 @@ describe('deviceScreenBadge — 화면 켜짐과 화면명은 한 배지', () =>
         expect(badge!.label).toBe('📱 기타 앱 (배차망 밖)');
     });
 
+    it('Tier 2: 원달앱 자기 화면은 실어 온 이름 «📱 원달앱 화면»으로 — «미등록 팝업»이 아니다', () => {
+        const badge = deviceScreenBadge({
+            status: 'ONLINE',
+            targetApp: 'kakaopicker',
+            screenContext: 'OTHER_APP',
+            screenPage: '원달앱 화면',
+            isScreenOn: true,
+        });
+        expect(badge!.network).toBeNull();
+        expect(badge!.label).toBe('📱 원달앱 화면');
+    });
+
     it('Tier 1: 배차망 앱 내에서 미등록 화면/팝업인 경우 «⚠️ 미등록 팝업»으로 표기한다', () => {
         const badge = deviceScreenBadge({
             status: 'ONLINE',

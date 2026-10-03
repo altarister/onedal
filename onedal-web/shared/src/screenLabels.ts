@@ -200,7 +200,8 @@ export function deviceScreenBadge(device: {
         return { network: null, label: "📱 바탕화면 (홈)", color: GRAY };
     }
     if (device.screenContext === "OTHER_APP") {
-        return { network: null, label: "📱 기타 앱 (배차망 밖)", color: AMBER };
+        // 원달앱 자기 화면은 페이지 이름(«원달앱 화면»)을 실어 온다 — 그 이름을 그린다
+        return { network: null, label: `📱 ${device.screenPage ?? "기타 앱 (배차망 밖)"}`, color: AMBER };
     }
 
     // Tier 1: 배차망 내부
