@@ -594,6 +594,9 @@ export function registerSocketHandlers(io: Server) {
              *    관제웹이 보낸 출처를 그대로 적되, 없으면 직접 누른 것으로 본다.
              */
             const source: MilestoneSource = data.source === 'SKIPPED' ? 'SKIPPED' : 'MANUAL_WEB';
+            /* 🕒 받은 시각은 상태 보고 · 단계 기록 두 곳에 쓰인다 — 쓰기 전에 여기서 한 번 본다(통화 결과의 saveCargoReport 와 같은 규칙) */
+            const notTime = (v: unknown) => v != null && (typeof v !== 'string' || !Number.isFinite(Date.parse(v)));
+            if (notTime(data.occurredAt) || notTime(data.predictedAt)) throw new Error("단계 보고의 시각을 확인해 주세요");
             logRoadmapEvent('콜단계', "서버", `관제탑으로부터 ${data.milestone} 보고 수신${source === 'SKIPPED' ? ' (건너뜀)' : ''}`);
             const result = await reportMilestone(userId, data.orderId, data.milestone, source, io, data.occurredAt, data.predictedAt, data.reasons);
             // 🌉 다리 — 단계 행 마감 + 다음 출생
