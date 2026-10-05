@@ -65,7 +65,8 @@ const PORT = 9600 + (process.pid % 300);
 const chrome = spawn(CHROME, [
     '--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run',
     `--remote-debugging-port=${PORT}`, `--window-size=${WIDTH},${HEIGHT}`,
-    '--user-data-dir=/tmp/onedal-shot-profile', 'about:blank',
+    /* 🗂️ `PROFILE` 로 크롬 프로필 자리를 바꾼다 — drive e2e 는 매번 새 프로필(지난 실행의 «서버 고르기» 같은 칸이 시험 화면을 다른 서버로 보내지 않게) */
+    `--user-data-dir=${process.env.PROFILE ?? '/tmp/onedal-shot-profile'}`, 'about:blank',
 ], { stdio: 'ignore' });
 
 let ws, id = 0;

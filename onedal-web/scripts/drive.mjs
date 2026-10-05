@@ -40,8 +40,9 @@
  */
 import { spawn, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, rmSync, mkdirSync, mkdtempSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const SERVER = join(ROOT, 'server');
@@ -301,9 +302,83 @@ async function e2eBlocked(dbPath, userId, tok, deviceId) {
     }
 }
 
+// ─────────────────────────── e2e 실제 화면 (reviews/42 3단계) ───────────────────────────
+/**
+ * 🔨 관제웹 · 운영센터를 빌드한다 — 시험 서버는 **켜질 때** 빌드 폴더가 있는지 보고 내주므로 서버를 띄우기 전에.
+ * 🔴 빌드가 깨지면 화면을 찍지 않는다 — 낡은 dist 로 초록이 나면 «고친 것이 깨졌는데 옛 화면은 멀쩡» 이 된다.
+ * 건너뛰기 인자는 두지 않는다(같은 까닭). client-app/dist · ops/dist 를 새로 만든다(git 무시 · 떠 있는 4000 이 내주는 첫 화면도 새 빌드가 된다).
+ */
+function buildScreens() {
+    for (const [name, dir] of [['관제웹', 'client-app'], ['운영센터', 'ops']]) {
+        try {
+            execSync('pnpm build', { cwd: join(ROOT, dir), stdio: 'pipe' });
+        } catch (e) {
+            const tail = String(e.stdout ?? '').split('\n').filter(l => /error|오류/i.test(l)).slice(0, 3).join(' | ');
+            return { ok: false, why: `${name} 빌드 실패${tail ? ` — ${tail}` : ''}` };
+        }
+    }
+    return { ok: true, why: '' };
+}
+
+/** 🗒️ 시험 서버 로그 파일(포트별 · 한국 날) — 화면이 소켓에 붙었는지를 서버 쪽 줄로 본다(머리줄 글자는 바뀌기 쉽다) */
+const serverLogFile = () => join(SERVER, 'logs', `server-${new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10)}-${PORT}.log`);
+const logSize = () => { try { return statSync(serverLogFile()).size; } catch { return 0; } };
+const logSince = (from) => { try { return readFileSync(serverLogFile()).subarray(from).toString('utf8'); } catch { return ''; } };
+
+/** 화면 안에서 묻는 것 — 어느 서버와 이야기하나(켜진 시각) · 글자가 있나 · 오류 경계의 빨간 상자가 있나 */
+const SCREEN_EVAL = `(async () => {
+    const h = await (await fetch('/api/health')).json();
+    const t = document.body.innerText || '';
+    return { host: location.host, bootedAt: h.bootedAt, chars: t.trim().length, redBox: t.includes('그리지 못했습니다'), apiBase: localStorage.getItem('apiBase') };
+})()`;
+
+/** 📸 shot 으로 한 화면 — 시험 계정(PROBE) · 새 프로필 · 화면 값은 EVAL 의 JSON(📸 줄 앞) */
+function shotScreen(web, out, profile) {
+    const stdout = execSync(`node scripts/shot.mjs / ${JSON.stringify(out)}`, {
+        cwd: ROOT, encoding: 'utf8',
+        env: { ...process.env, WEB: web, API: `http://localhost:${PORT}`, PROBE: '1', PROFILE: profile, WAIT: '4000', EVAL: SCREEN_EVAL },
+    });
+    const json = stdout.slice(0, stdout.indexOf('📸')).trim();
+    try { return JSON.parse(json); } catch { return null; }
+}
+
+/** 🖼️ 관제웹 · 운영센터를 찍어 «시험 서버와 이야기하나 · 하얗지 않나 · 빨간 상자 없나 · 소켓이 붙었나»를 본다 */
+async function e2eScreens(dbPath, bootedAt) {
+    const outDir = join(tmpdir(), 'onedal-e2e');
+    mkdirSync(outDir, { recursive: true });
+    const probe = await (await fetch(`http://localhost:${PORT}/api/auth/bypass`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ probe: true }),
+    })).json();
+    const probeId = JSON.parse(Buffer.from(probe.accessToken.split('.')[1], 'base64').toString()).id;
+    const c = new Database(dbPath);
+    c.prepare(`UPDATE users SET ops_allowed_at = datetime('now', 'localtime') WHERE id = ?`).run(probeId);   // 운영센터 화면용(켜는 문은 허락 있는 사람만)
+    c.close();
+    const screens = [
+        ['관제웹', `http://localhost:${PORT}`, '🔌 [소켓 연결] 유저 접속: 실측(자동)'],
+        ['운영센터', `http://ops.localhost:${PORT}`, '🏢 [운영센터 소켓] 실측(자동) 연결'],
+    ];
+    for (const [name, web, socketLine] of screens) {
+        const profile = mkdtempSync(join(tmpdir(), 'onedal-e2e-profile-'));
+        const out = join(outDir, `${name}.png`);
+        const from = logSize();
+        let v = null;
+        try { v = shotScreen(web, out, profile); } catch (e) { say(`     ⚠️ ${name} 찍기 실패 — ${String(e.message).split('\n')[0]}`); }
+        finally { rmSync(profile, { recursive: true, force: true }); }
+        check(`🖼️ 화면(${name}) — 시험 서버와 이야기한다`, v?.bootedAt === bootedAt && !v?.apiBase,
+            v ? `${v.host} · 켜진 시각 ${v.bootedAt === bootedAt ? '같음' : `다름(${v.bootedAt})`}${v.apiBase ? ` · 저장된 서버 ${v.apiBase}` : ''}` : '값 없음');
+        check(`🖼️ 화면(${name}) — 하얀 화면 아님 · 빨간 상자 없음`, !!v && v.chars > 20 && !v.redBox,
+            v ? `글자 ${v.chars}${v.redBox ? ' · «그리지 못했습니다»' : ''}` : '');
+        check(`🖼️ 화면(${name}) — 소켓이 붙었다(서버 로그)`, logSince(from).includes(socketLine));
+        say(`     📸 ${out}`);
+    }
+}
+
 // ─────────────────────────── 하루를 산다 ───────────────────────────
 async function main() {
     const dbPath = seed();
+    /* 🔨 e2e — 화면을 찍으려면 서버가 켜지기 전에 빌드가 있어야 한다 */
+    const built = E2E ? buildScreens() : null;
+    if (built) check('🔨 관제웹 · 운영센터 빌드', built.ok, built.why);
     const proc = await boot();
     let db;
     try {
@@ -474,6 +549,11 @@ async function main() {
             await e2eSessionConflict(tok);
             await e2eBlocked(dbPath, me.id, tok, DEVICE);
             opsSock?.close();
+            say('\n═══ 🖼️ 실제 화면 — 관제웹 · 운영센터 (시험 계정 · 새 크롬 프로필) ═══');
+            if (built?.ok) {
+                const bootedAt = (await (await fetch(`http://localhost:${PORT}/api/health`)).json()).bootedAt;
+                await e2eScreens(dbPath, bootedAt);
+            } else say('     빌드가 깨져 화면을 찍지 않는다 — 낡은 화면으로 초록이 나지 않게');
             if (!KAKAO_OFF) {
                 const k = new Database(dbPath, { readonly: true });
                 const u = k.prepare(`SELECT COALESCE(SUM(route_calls), 0) r, COALESCE(SUM(local_calls), 0) l FROM kakao_usage_days`).get();
