@@ -258,10 +258,15 @@ export default function Dashboard() {
             onScroll={(e) => { e.currentTarget.scrollTop = 0; e.currentTarget.scrollLeft = 0; }}>
 
             {/* 📍 공통 헤더 컴포넌트 */}
-            <Header isConnected={isConnected} liveCalls={liveCalls} reservedCount={reservedOrders.length} onMenu={() => setDrawerOpen(true)} />
+            {/* 🛡️ 큰 칸마다 경계 — 한 칸이 터지면 그 칸만 빨간 상자, 결재 카드는 살아 있다(ErrorBoundary · regionsRender 검사) */}
+            <ErrorBoundary label="머리줄">
+                <Header isConnected={isConnected} liveCalls={liveCalls} reservedCount={reservedOrders.length} onMenu={() => setDrawerOpen(true)} />
+            </ErrorBoundary>
 
             {/* ☰ 왼쪽 서랍 — 생김새를 정한 자리는 `/mockup/drawer` 다 */}
-            <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} activeRoute={activeRoute} reserved={reservedOrders} onDecision={handleDecision} />
+            <ErrorBoundary label="서랍">
+                <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} activeRoute={activeRoute} reserved={reservedOrders} onDecision={handleDecision} />
+            </ErrorBoundary>
 
             {/* 🛡️ 필터 바깥 터치 시 닫기 백드롭 (운행 중 흔들림에 의한 하단 카드/지도 고스트 클릭 방지 · 어둡지 않고 밝게 유지) */}
             {isFilterOpen && (
@@ -291,7 +296,7 @@ export default function Dashboard() {
                   *    접을 자리가 늘 때마다 같은 다섯 줄이 베껴지고 곧 갈라진다 (규칙 ③).
                   */}
                 <Collapse open={!isFilterOpen}>
-                    <DeviceControlPanel />
+                    <ErrorBoundary label="폰 상태 줄"><DeviceControlPanel /></ErrorBoundary>
                 </Collapse>
 
                 {/**
@@ -303,10 +308,12 @@ export default function Dashboard() {
                       * 🪧 **판정석은 시트 맨 아래다** (기사님 확정) — 그래서 이 슬롯은 **늘 필터**(한 줄 현황판)다.
                       *    둘이 같은 자리를 다투지 않는다.
                       */}
-                    {showMorningCard && <MorningCard />}
-                    <OrderFilterStatus
-                        onOpenFilter={() => setIsFilterOpen(o => !o)}
-                        cancelCounts={cancelCounts} cancelRounds={cancelRounds} />
+                    {showMorningCard && <ErrorBoundary label="아침 칸"><MorningCard /></ErrorBoundary>}
+                    <ErrorBoundary label="필터 상태 줄">
+                        <OrderFilterStatus
+                            onOpenFilter={() => setIsFilterOpen(o => !o)}
+                            cancelCounts={cancelCounts} cancelRounds={cancelRounds} />
+                    </ErrorBoundary>
 
                     {/**
                       * 🪗 **필터 — 요약줄 바로 아래, 제자리에서 열린다**.
@@ -320,12 +327,14 @@ export default function Dashboard() {
                         필터가 스스로 사라져 `Collapse` 가 200ms 동안 빈 상자를 접는다(닫을 때만 «뿅»). 닫힌 뒤에는 `Collapse` 가
                         자식을 버려 훅·구독이 멈추고, 다시 열면 새로 만들어 «열릴 때 한 번» 효과가 다시 돈다 (`ui/collapse` 주석). */}
                     <Collapse open={isFilterOpen}>
-                        <OrderFilterModal
-                            isOpen
-                            onClose={() => setIsFilterOpen(false)}
-                            routeMode={routeMode}
-                            setRouteMode={setRouteMode}
-                        />
+                        <ErrorBoundary label="필터">
+                            <OrderFilterModal
+                                isOpen
+                                onClose={() => setIsFilterOpen(false)}
+                                routeMode={routeMode}
+                                setRouteMode={setRouteMode}
+                            />
+                        </ErrorBoundary>
                     </Collapse>
                 </div>
 
@@ -411,7 +420,7 @@ export default function Dashboard() {
                 ))}
 
                 {/* 🚨 신고 불일치 — 경고에서 사무실 전화·수행 판단까지 한 카드에서 */}
-                <CargoMismatchBanner orders={activeRoute} />
+                <ErrorBoundary label="짐 불일치 띠"><CargoMismatchBanner orders={activeRoute} /></ErrorBoundary>
                 </div>
                 </div>
 
@@ -455,7 +464,7 @@ export default function Dashboard() {
             {/* 🖥️ 왼쪽 — **원본 붙박이.** 폭만 정해 주고 안쪽은 손대지 않는다 */}
             <div id="project" className="shrink-0 w-[42rem] h-full overflow-hidden border-r border-border">{body}</div>
             {/* 🔬 오른쪽 — 현황판. 원본과 형제라 서로 밀지 않는다 */}
-            <div id="statusboard" className="flex-1 min-w-0 h-full"><StatusBoard activeRoute={activeRoute} /></div>
+            <div id="statusboard" className="flex-1 min-w-0 h-full"><ErrorBoundary label="현황판"><StatusBoard activeRoute={activeRoute} /></ErrorBoundary></div>
         </div>
     );
 }

@@ -14,7 +14,7 @@ describe('📊 아침 카드 자리', () => {
         expect(dash).toContain('const keptToday = keptTodayCount([...orders, ...terminatedOrders], Date.now());');
         /* 🌙 밤샘 운행 중 자정에 카드가 뜨지 않게 — 두 사실: 오늘 잡은 콜 0 · 진행 중 콜 0 (1f «가») */
         expect(dash).toContain('const showMorningCard = keptToday === 0 && runningCount(orders) === 0;');
-        const i = dash.indexOf('{showMorningCard && <MorningCard />}');
+        const i = dash.indexOf('{showMorningCard && <ErrorBoundary label="아침 칸"><MorningCard /></ErrorBoundary>}');
         expect(i).toBeGreaterThan(-1);
         expect(dash.indexOf('<OrderFilterStatus', i)).toBeGreaterThan(i);
     });

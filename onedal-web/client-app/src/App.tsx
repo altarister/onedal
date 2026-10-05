@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
+import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { ServerSwitch } from './components/ServerSwitch'
 import { useState, useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
@@ -205,6 +206,8 @@ export default function App() {
           🔴 AuthGuard 안쪽에 두면 로그인이 끝나거나 «로딩 중» 분기가 바뀔 때
              컴포넌트 자체가 사라져 볼륨 업에 아무 반응이 없다. */}
       <ServerSwitch />
+      {/* 🛡️ 바깥 경계 — 큰 칸 경계(Dashboard) 밖에서 난 오류도 하얀 화면 대신 빨간 상자 + 새로고침 */}
+      <ErrorBoundary label="관제앱 화면">
       <Routes>
         <Route path="/login" element={<Login />} />
         {/* 🪗 **시트 아코디언 목업** — 로그인 밖에 둔다 (기사님 요청).
@@ -234,6 +237,7 @@ export default function App() {
           } 
         />
       </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }
