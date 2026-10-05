@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ErrorBoundary } from './ErrorBoundary';
 
@@ -24,7 +25,7 @@ describe('오류 경계', () => {
         expect(ErrorBoundary.getDerivedStateFromError(new Error('뭔가 터짐'))).toEqual({ error: new Error('뭔가 터짐') });
         const b = new ErrorBoundary({ label: '머리줄', children: null });
         b.state = { error: new Error('뭔가 터짐') };
-        const html = renderToStaticMarkup(b.render() as JSX.Element);
+        const html = renderToStaticMarkup(b.render() as ReactElement);
         for (const text of ['머리줄을(를) 그리지 못했습니다', '뭔가 터짐', '다시 그리기', '새로고침']) expect(html).toContain(text);
     });
 

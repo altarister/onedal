@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
@@ -51,8 +52,8 @@ const ODD_DEVICES = [
     { deviceId: 'odd-b', status: undefined, screenContext: null, targetApp: null, screenPage: '', isScreenOn: undefined },
 ] as any[];
 
-const REGIONS: [string, (orders: any[]) => JSX.Element][] = [
-    ['머리줄', (o) => <Header isConnected={false} liveCalls={o.length ? NaN : 0} reservedCount={o.length} onMenu={noop} />],
+const REGIONS: [string, (orders: any[]) => ReactElement][] = [
+    ['머리줄', (o) => <Header isConnected={false} liveCalls={o} reservedCount={o.length ? NaN : 0} onMenu={noop} />],
     ['서랍', (o) => <Drawer open activeRoute={o} reserved={o} onClose={noop} onDecision={noop as any} />],
     ['폰 상태 줄', () => <DeviceControlPanel />],
     ['필터 상태 줄', () => <OrderFilterStatus onOpenFilter={noop} />],
@@ -62,7 +63,7 @@ const REGIONS: [string, (orders: any[]) => JSX.Element][] = [
     ['현황판', (o) => <StatusBoard activeRoute={o} />],
 ];
 
-const draw = (el: JSX.Element) => renderToStaticMarkup(<ThemeProvider><AuthProvider>{el}</AuthProvider></ThemeProvider>);
+const draw = (el: ReactElement) => renderToStaticMarkup(<ThemeProvider><AuthProvider>{el}</AuthProvider></ThemeProvider>);
 
 describe('결재 카드 밖의 큰 칸 — 그리는 중에 예외가 나지 않는다', () => {
     it('서랍은 끝난 콜 줄을 실제로 그린다 — 빈 껍데기만 그려 통과하지 않는다', () => {
