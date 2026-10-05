@@ -57,6 +57,8 @@ export class ErrorBoundary extends Component<Props, State> {
      * 🔴 «자식이 새 객체인가»로 보지 않는다 — JSX 자식은 부모가 그릴 때마다 새 객체라, 그러면 같은 자료로도
      *    그릴 때마다 풀고 다시 터져 React 의 오류 줄이 서버 로그에 쌓인다. 자료 칸(함수가 아닌 값)이 바뀌었을 때만 푼다.
      *    자기 저장소에서 자료를 읽는 칸(넘긴 자료가 없음)은 «다시 그리기» · 접었다 펴기로 푼다.
+     *    콜 목록을 받는 칸은 서버 동기화마다 새 배열을 받아 그때마다 다시 그려 본다 — 같은 오류의 콘솔 줄은
+     *    이 경계(lastLogged)와 React 쪽(main.tsx onCaughtError · lib/caughtErrorLog) 모두 한 번만 찍는다.
      */
     componentDidUpdate(prevProps: Props) {
         if (this.state.error && dataPropsChanged(prevProps.children, this.props.children)) this.setState({ error: null });

@@ -153,7 +153,7 @@ export default function Dashboard() {
     //
     // 🔴 합치는 규칙은 `mergeOrderViews` 한 곳에서 정하고 렌더 없이 테스트한다 —
     //    상태 목록을 여기 손으로 적으면 ORDER_PICKED_UP 같은 상태가 빠져 상차한 콜이 화면에서 사라진다.
-    /* 재료가 바뀔 때만 다시 합친다 — 그릴 때마다 새 배열이면 칸의 오류 경계가 «자료가 바뀌었다»로 읽어 같은 오류를 되풀이한다(ErrorBoundary) */
+    /* 재료가 바뀔 때만 다시 합친다 — 상관없는 다시 그리기(띠 · 서랍 열기)마다 칸의 오류 경계가 «자료가 바뀌었다»로 읽지 않게(ErrorBoundary). 서버 동기화는 재료를 새 배열로 보내므로 동기화마다는 새로 합친다 */
     const activeRoute = useMemo(() => mergeOrderViews(orders, terminatedOrders, liveCalls), [orders, terminatedOrders, liveCalls]);
     /* 🪧 심사 중인 콜은 무대(`StageView`)가 파생 훅에서 직접 고른다 (`d.judging`) */
 
