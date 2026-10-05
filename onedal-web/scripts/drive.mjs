@@ -234,10 +234,10 @@ async function e2eLogin(tok) {
 async function e2eDecision(deviceId, orderId) {
     const first = await scrap(deviceId);
     const d = first.json?.decision;
-    check('🧪 결재 전달 — KEEP 이 원달앱 보고 답에 실려 온다', first.status === 200 && d?.orderId === orderId && d?.action === 'KEEP',
+    check(`🧪 결재 전달(${orderId}) — KEEP 이 원달앱 보고 답에 실려 온다`, first.status === 200 && d?.orderId === orderId && d?.action === 'KEEP',
         `HTTP ${first.status} · ${d ? `${d.orderId} ${d.action}` : '결재 없음'}`);
     const acked = await scrap(deviceId, { ackDecisionId: orderId });
-    check('🧪 결재 전달 — «받았음»을 보내면 다음 답에서 사라진다', acked.status === 200 && !acked.json?.decision,
+    check(`🧪 결재 전달(${orderId}) — «받았음»을 보내면 다음 답에서 사라진다`, acked.status === 200 && !acked.json?.decision,
         acked.json?.decision ? `아직 ${acked.json.decision.orderId}` : '');
 }
 
@@ -258,18 +258,29 @@ async function e2ePair(tok) {
 /** 🧪 ④ 운영센터 — 관리자 콜 목록에 그 콜이 보이고, 운영센터 소켓이 «콜 바뀜»을 받았다 */
 async function e2eOps(tok, orderId, opsSignals) {
     const calls = await call('/api/ops/calls', { token: tok });
-    check('🧪 운영센터 — 관리자 콜 목록에 KEEP 한 콜이 보인다', calls.status === 200 && JSON.stringify(calls.json ?? '').includes(orderId),
-        `HTTP ${calls.status}`);
+    const list = Array.isArray(calls.json) ? calls.json : [];   // opsCallsOf — 진행 중 콜 한 줄씩(OpsCall)
+    check('🧪 운영센터 — 관리자 콜 목록에 KEEP 한 콜이 보인다', calls.status === 200 && list.some(c => c.id === orderId),
+        `HTTP ${calls.status} · ${list.length}건`);
     check('🧪 운영센터 — 소켓이 «콜 바뀜» 신호를 받았다', opsSignals.n > 0, `${opsSignals.n}번`);
 }
 
-/** 🧪 ⑤ 같은 계정으로 관제웹을 하나 더 열면 «다른 창에서 접속 중» 확인이 온다 — 넘겨받지 않고 닫는다 */
+/** 🧪 관제웹 창 번호 — 실제 관제웹은 늘 싣는다(브라우저 세션마다 하나). 첫 소켓도 실어 두 경우가 진짜 모양이 되게 */
+const MAIN_TAB = 'e2e-main-tab';
+
+/**
+ * 🧪 ⑤ 같은 계정 관제웹 둘 — 다른 창이면 «다른 창에서 접속 중» 확인이 오고(넘겨받지 않고 닫음),
+ *    같은 창 번호(새로고침)면 안 온다 — 기사님 화면에서 더 아픈 회귀는 «새로고침했는데 다른 기기 접속 창이 뜬다» 쪽이다.
+ */
 async function e2eSessionConflict(tok) {
-    const { sock, first } = openSocket('', { token: tok, clientSessionId: 'e2e-second-tab' }, 'session-conflict');
-    const got = await first;
-    check('🧪 세션 충돌 — 같은 계정 둘째 관제웹에 «다른 창에서 접속 중»이 온다', got === 'session-conflict', got);
-    sock.emit('cancel-takeover');
-    sock.close();
+    const other = openSocket('', { token: tok, clientSessionId: 'e2e-second-tab' }, 'session-conflict');
+    const got = await other.first;
+    check('🧪 세션 충돌 — 같은 계정 다른 창에 «다른 창에서 접속 중»이 온다', got === 'session-conflict', got);
+    other.sock.emit('cancel-takeover');
+    other.sock.close();
+    const refresh = openSocket('', { token: tok, clientSessionId: MAIN_TAB }, 'session-conflict', 2500);
+    const again = await refresh.first;
+    check('🧪 세션 충돌 — 같은 창 새로고침에는 안 온다', again !== 'session-conflict' && again !== 'connect_error', again === 'timeout' ? '2.5초 동안 없음' : again);
+    refresh.sock.close();
 }
 
 /** 🧪 ⑥ 계정 막힘 — 즉시 정지면 폰 보고 · 연결 번호 · 관제웹 소켓이 함께 막힌다(accountGateOf 한 판단) · 끝나면 풀어 둔다 */
@@ -302,7 +313,7 @@ async function main() {
         const DEVICE = '모의폰-drive';
         registerDevice(dbPath, me.id, DEVICE);
         const st = { arrived: [], approaching: [], routeStops: [], evaluated: new Set() };
-        const s = io(`http://localhost:${PORT}`, { auth: { token: tok }, transports: ['websocket'] });
+        const s = io(`http://localhost:${PORT}`, { auth: E2E ? { token: tok, clientSessionId: MAIN_TAB } : { token: tok }, transports: ['websocket'] });
         await new Promise((res, rej) => {
             s.once('connect', res);
             s.once('connect_error', e => rej(new Error(e.message)));
@@ -377,6 +388,7 @@ async function main() {
         await wait(900);
         await appUploads(DEVICE, '합짐1', CHURCH, JEIL, '합짐1');
         await decide('합짐1');
+        if (E2E) await e2eDecision(DEVICE, '합짐1');   // 첫짐 «받았음»이 합짐 결재까지 지우는 류의 회귀를 잡는다
         showOrder();
         check('합짐1 의 상차(성당)가 첫짐 하차(신둔)보다 앞이다 — 가는 길목이다',
             stopOrder().indexOf('합짐1:pickup') >= 0 &&
