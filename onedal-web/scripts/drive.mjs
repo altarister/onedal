@@ -313,7 +313,8 @@ function buildScreens() {
         try {
             execSync('pnpm build', { cwd: join(ROOT, dir), stdio: 'pipe' });
         } catch (e) {
-            const tail = String(e.stdout ?? '').split('\n').filter(l => /error|오류/i.test(l)).slice(0, 3).join(' | ');
+            const tail = `${e.stdout ?? ''}\n${e.stderr ?? ''}`.split('\n')   // tsc 오류는 stdout · vite 오류(import 못 찾음 등)는 stderr
+                .filter(l => /error|오류/i.test(l)).slice(0, 3).join(' | ');
             return { ok: false, why: `${name} 빌드 실패${tail ? ` — ${tail}` : ''}` };
         }
     }
@@ -322,8 +323,9 @@ function buildScreens() {
 
 /** 🗒️ 시험 서버 로그 파일(포트별 · 한국 날) — 화면이 소켓에 붙었는지를 서버 쪽 줄로 본다(머리줄 글자는 바뀌기 쉽다) */
 const serverLogFile = () => join(SERVER, 'logs', `server-${new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10)}-${PORT}.log`);
-const logSize = () => { try { return statSync(serverLogFile()).size; } catch { return 0; } };
-const logSince = (from) => { try { return readFileSync(serverLogFile()).subarray(from).toString('utf8'); } catch { return ''; } };
+/** 화면 열기 직전의 파일 이름과 크기 — 자정을 넘겨도 같은 파일을 읽는다(서버는 연 파일에 계속 쓴다) */
+const logMark = () => { const file = serverLogFile(); try { return { file, size: statSync(file).size }; } catch { return { file, size: 0 }; } };
+const logSince = ({ file, size }) => { try { return readFileSync(file).subarray(size).toString('utf8'); } catch { return ''; } };
 
 /** 화면 안에서 묻는 것 — 어느 서버와 이야기하나(켜진 시각) · 글자가 있나 · 오류 경계의 빨간 상자가 있나 */
 const SCREEN_EVAL = `(async () => {
@@ -360,7 +362,7 @@ async function e2eScreens(dbPath, bootedAt) {
     for (const [name, web, socketLine] of screens) {
         const profile = mkdtempSync(join(tmpdir(), 'onedal-e2e-profile-'));
         const out = join(outDir, `${name}.png`);
-        const from = logSize();
+        const from = logMark();
         let v = null;
         try { v = shotScreen(web, out, profile); } catch (e) { say(`     ⚠️ ${name} 찍기 실패 — ${String(e.message).split('\n')[0]}`); }
         finally { rmSync(profile, { recursive: true, force: true }); }
