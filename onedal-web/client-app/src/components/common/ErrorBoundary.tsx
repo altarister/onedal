@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, isValidElement, type ErrorInfo, type ReactNode } from 'react';
 
 /**
  * 🔴 **한 컴포넌트가 터져도 관제탑 전체가 죽지는 않는다.**
@@ -22,6 +22,18 @@ interface State {
     error: Error | null;
 }
 
+/** 두 자식(칸 하나)의 자료 칸이 다른가 — 함수 칸(누름 처리)은 그릴 때마다 새것이라 안 본다 */
+function dataPropsChanged(prev: ReactNode, next: ReactNode): boolean {
+    if (!isValidElement(prev) || !isValidElement(next) || prev.type !== next.type) return prev !== next;
+    const a = prev.props as Record<string, unknown>, b = next.props as Record<string, unknown>;
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const k of keys) {
+        if (typeof a[k] === 'function' && typeof b[k] === 'function') continue;
+        if (!Object.is(a[k], b[k])) return true;
+    }
+    return false;
+}
+
 export class ErrorBoundary extends Component<Props, State> {
     state: State = { error: null };
 
@@ -40,12 +52,14 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     /**
-     * 🔁 **부모가 새 자료로 다시 그리면 빨간 상자를 풀고 한 번 다시 그린다** (기사님 «가»).
+     * 🔁 **칸에 넘긴 자료가 바뀌면 빨간 상자를 풀고 한 번 다시 그린다** (기사님 «가»).
      * 운전 중에는 «다시 그리기»를 누를 수 없다 — 다음 소켓 갱신으로 자료가 바로잡히면 칸이 저절로 돌아온다.
-     * 같은 오류면 다시 빨간 상자가 될 뿐이다. 부모가 다시 그리지 않으면(자식이 그대로면) 풀지 않아 되풀이가 없다.
+     * 🔴 «자식이 새 객체인가»로 보지 않는다 — JSX 자식은 부모가 그릴 때마다 새 객체라, 그러면 같은 자료로도
+     *    그릴 때마다 풀고 다시 터져 React 의 오류 줄이 서버 로그에 쌓인다. 자료 칸(함수가 아닌 값)이 바뀌었을 때만 푼다.
+     *    자기 저장소에서 자료를 읽는 칸(넘긴 자료가 없음)은 «다시 그리기» · 접었다 펴기로 푼다.
      */
     componentDidUpdate(prevProps: Props) {
-        if (this.state.error && prevProps.children !== this.props.children) this.setState({ error: null });
+        if (this.state.error && dataPropsChanged(prevProps.children, this.props.children)) this.setState({ error: null });
     }
 
     render() {

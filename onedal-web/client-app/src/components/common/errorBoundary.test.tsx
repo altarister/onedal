@@ -28,16 +28,19 @@ describe('오류 경계', () => {
         for (const text of ['머리줄을(를) 그리지 못했습니다', '뭔가 터짐', '다시 그리기', '새로고침']) expect(html).toContain(text);
     });
 
-    it('부모가 새 자료로 다시 그리면 빨간 상자가 풀려 한 번 다시 그린다 — 운전 중에는 «다시 그리기»를 못 누른다', () => {
-        const first = <b>칸</b>;
-        const b = new ErrorBoundary({ label: '짐 불일치 띠', children: first });
+    it('칸에 넘긴 자료가 바뀌면 빨간 상자가 풀려 한 번 다시 그린다 — 운전 중에는 «다시 그리기»를 못 누른다', () => {
+        const Cell = (_: { orders: unknown[]; onClose: () => void }) => null;
+        const sameOrders: unknown[] = [];
+        const b = new ErrorBoundary({ label: '서랍', children: <Cell orders={sameOrders} onClose={() => {}} /> });
         b.state = { error: new Error('뭔가 터짐') };
         const calls: unknown[] = [];
         b.setState = ((s: unknown) => { calls.push(s); }) as any;
-        b.componentDidUpdate({ label: '짐 불일치 띠', children: first });
-        expect(calls).toEqual([]);                       // 같은 자식(부모가 안 다시 그림) — 그대로
-        b.componentDidUpdate({ label: '짐 불일치 띠', children: <b>옛 칸</b> });
-        expect(calls).toEqual([{ error: null }]);        // 새 자식 — 풀고 다시 그린다
+        /* 부모가 같은 자료로 다시 그림 — 자식 객체 · 함수 칸은 새것이어도 자료가 같으면 풀지 않는다(풀면 그릴 때마다 터져 로그가 쌓인다) */
+        b.componentDidUpdate({ label: '서랍', children: <Cell orders={sameOrders} onClose={() => {}} /> });
+        expect(calls).toEqual([]);
+        /* 새 자료 — 풀고 다시 그린다 */
+        b.componentDidUpdate({ label: '서랍', children: <Cell orders={[]} onClose={() => {}} /> });
+        expect(calls).toEqual([{ error: null }]);
     });
 
     it('같은 오류가 되풀이되면 콘솔 줄은 한 번만 — 다시 그릴 때마다 찍지 않는다', () => {
