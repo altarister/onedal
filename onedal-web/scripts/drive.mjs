@@ -69,6 +69,8 @@ const say = m => console.log(m);
 const ARGS = process.argv.slice(2);
 const E2E = ARGS.includes('e2e');
 const KAKAO_OFF = E2E && !ARGS.includes('kakao');
+/** 🧭 2단계 — 목적지 · 지리 판정은 카카오가 켜져야 돈다(꺼지면 판정이 «판정 불가») → `e2e kakao` 일 때만 */
+const GEO = E2E && !KAKAO_OFF;
 
 /**
  * ── 문제지 — **기사님 운행 축** (초월 → 곤지암 → 신둔 → 이천, 서→동 한 방향) ────────
@@ -232,10 +234,10 @@ async function e2eLogin(tok) {
  * 🧪 ② 결재 전달 — 관제웹이 KEEP 을 누르면 원달앱의 다음 보고 답에 실려 가고, «받았음»을 보내면 다음 답에서 사라진다.
  *    이 고리가 끊기면 «관제웹에서 KEEP 을 눌렀는데 폰이 안 받는다» — 다른 검사는 다 초록인 채로 실주행에서야 드러난다.
  */
-async function e2eDecision(deviceId, orderId) {
+async function e2eDecision(deviceId, orderId, action = 'KEEP') {
     const first = await scrap(deviceId);
     const d = first.json?.decision;
-    check(`🧪 결재 전달(${orderId}) — KEEP 이 원달앱 보고 답에 실려 온다`, first.status === 200 && d?.orderId === orderId && d?.action === 'KEEP',
+    check(`🧪 결재 전달(${orderId}) — ${action} 이 원달앱 보고 답에 실려 온다`, first.status === 200 && d?.orderId === orderId && d?.action === action,
         `HTTP ${first.status} · ${d ? `${d.orderId} ${d.action}` : '결재 없음'}`);
     const acked = await scrap(deviceId, { ackDecisionId: orderId });
     check(`🧪 결재 전달(${orderId}) — «받았음»을 보내면 다음 답에서 사라진다`, acked.status === 200 && !acked.json?.decision,
@@ -375,6 +377,21 @@ async function e2eScreens(dbPath, bootedAt) {
     }
 }
 
+// ─────────────────────────── e2e 목적지 · 지리 (reviews/42 2단계 · e2e kakao) ───────────────────────────
+/** 판정의 한 축 점수 — 없으면 null */
+const axisScore = (judgment, key) => judgment?.axes?.find(a => a.key === key)?.score ?? null;
+
+/** 🧭 관제웹처럼 목적지를 바꾸고 서버가 «필터 바뀜»으로 답하는지 */
+async function e2eDestination(s, city) {
+    const got = new Promise(res => {
+        s.once('filter-updated', p => res(p?.activeFilter?.destinationCity ?? null));
+        setTimeout(() => res('timeout'), 4000);
+    });
+    s.emit('update-filter', { destinationCity: city });
+    const dest = await got;
+    check(`🧭 목적지 — 관제웹이 바꾼 «${city}»가 서버 필터에 들어간다`, dest === city, String(dest));
+}
+
 // ─────────────────────────── 하루를 산다 ───────────────────────────
 async function main() {
     const dbPath = seed();
@@ -382,6 +399,7 @@ async function main() {
     const built = E2E ? buildScreens() : null;
     if (built) check('🔨 관제웹 · 운영센터 빌드', built.ok, built.why);
     const proc = await boot();
+    const geoMark = logMark();   // 🧭 이번 실행의 판정 로그만 본다
     let db;
     try {
         const tok = await token();
@@ -406,6 +424,8 @@ async function main() {
         /* 🧪 e2e — 운영센터 허락을 시험 DB 에 켜고(켜는 문은 허락 있는 사람만이라 닭과 달걀) 운영센터 소켓을 먼저 붙여 둔다 */
         const opsSignals = { n: 0 };
         let opsSock = null;
+        const judgments = new Map();   // 🧭 콜마다 마지막 판정(색 · 점수 · 축) — e2e kakao 의 지리 견주기
+        s.on('order-evaluated', o => judgments.set(o.id, o.judgment ?? null));
         if (E2E) {
             say(`🧪 e2e 모드 — 통신 고리까지 본다 · 카카오 ${KAKAO_OFF ? '끔(판정은 «판정 불가»로 넘어간다)' : '켬'}\n`);
             await e2eLogin(tok);
@@ -416,6 +436,7 @@ async function main() {
             opsSock = ops.sock;
             opsSock.on('ops-calls-changed', () => { opsSignals.n++; });
             check('🧪 운영센터 소켓이 붙는다', await ops.first === 'connect');
+            if (GEO) await e2eDestination(s, '이천시');
         }
 
         const stopOrder = () => st.routeStops.map(r => `${r.orderId}:${r.stopType}`);
@@ -445,6 +466,11 @@ async function main() {
         if (E2E) {
             await e2eDecision(DEVICE, '첫짐');
             await e2eOps(tok, '첫짐', opsSignals);   // 진행 중 KEEP 콜만 운영센터 목록에 있다 — 배송이 끝나기 전에 본다
+            if (GEO) {
+                const j = judgments.get('첫짐');
+                check('🧭 판정 — «판정 불가»가 아니라 색 · 점수로 나온다(카카오 켬)', !!j && j.color !== '사고' && j.score != null,
+                    j ? `${j.color} ${j.score ?? '—'}점` : '판정 없음');
+            }
         }
         check('첫짐이 세션에 실렸다', stopOrder().length === 2, stopOrder().join(' → '));
         showOrder();
@@ -466,6 +492,22 @@ async function main() {
         await appUploads(DEVICE, '합짐1', CHURCH, JEIL, '합짐1');
         await decide('합짐1');
         if (E2E) await e2eDecision(DEVICE, '합짐1');   // 첫짐 «받았음»이 합짐 결재까지 지우는 류의 회귀를 잡는다
+        if (GEO) {
+            /**
+             * 🧭 거꾸로 가는 콜 — 길 위(신둔 상차 · 곤지암 하차)라 원달앱 필터는 통과할 만하지만, 목적지 이천에서 멀어진다.
+             *    상차가 앞쪽이라 «등 뒤 상차 0점»이 아니라 방향 점수로 견준다. 판정만 받고 치운다(SAFE_CANCEL · 관제웹 심사석의 치우기) — 뒤 주행 검사가 그대로 돌게.
+             */
+            await appUploads(DEVICE, '역방향', SINDUN, MODA, '역방향');
+            for (let i = 0; i < 20 && !judgments.has('역방향'); i++) await wait(400);
+            s.emit('decision', { orderId: '역방향', action: 'SAFE_CANCEL' });
+            await wait(1500);
+            await e2eDecision(DEVICE, '역방향', 'CANCEL');   // 취소 결재도 폰에 가고 «받았음» 뒤 사라진다 — 안 지우면 뒤 보고에 계속 실려 엉킨다
+            const same = axisScore(judgments.get('합짐1'), 'geography');
+            const back = axisScore(judgments.get('역방향'), 'geography');
+            const whyOf = id => (judgments.get(id)?.axes?.find(a => a.key === 'geography')?.raw ?? '').slice(0, 40);
+            check('🧭 지리 — 목적지로 가는 합짐이 거꾸로 가는 콜보다 지리 점수가 높다', same != null && back != null && same > back,
+                `같은 방향(합짐1) ${same ?? '—'}점 «${whyOf('합짐1')}» · 거꾸로 ${back ?? (judgments.has('역방향') ? '—' : '판정 없음')}점 «${whyOf('역방향')}»`);
+        }
         showOrder();
         check('합짐1 의 상차(성당)가 첫짐 하차(신둔)보다 앞이다 — 가는 길목이다',
             stopOrder().indexOf('합짐1:pickup') >= 0 &&
@@ -556,6 +598,8 @@ async function main() {
                 const bootedAt = (await (await fetch(`http://localhost:${PORT}/api/health`)).json()).bootedAt;
                 await e2eScreens(dbPath, bootedAt);
             } else say('     빌드가 깨져 화면을 찍지 않는다 — 낡은 화면으로 초록이 나지 않게');
+            if (GEO) check('🧭 지리 — 판정 로그에 «합짐 지리 … 전진율»이 찍힌다(«목적지 미설정»으로 안 잼이 아니다)',
+                /합짐 지리\] 기점 .+ → 전진율/.test(logSince(geoMark)));
             if (!KAKAO_OFF) {
                 const k = new Database(dbPath, { readonly: true });
                 const u = k.prepare(`SELECT COALESCE(SUM(route_calls), 0) r, COALESCE(SUM(local_calls), 0) l FROM kakao_usage_days`).get();
