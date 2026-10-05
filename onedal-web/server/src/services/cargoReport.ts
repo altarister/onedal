@@ -1,5 +1,5 @@
 import type { Server } from "socket.io";
-import { cargoMismatchRatio, clockText, type CargoReport } from "@onedal/shared";
+import { cargoMismatchRatio, clockText, isTimeText, type CargoReport } from "@onedal/shared";
 import { bridgeCargoReport, stepsView, stepRecordsOf, writeCounterpartCancelled } from "./stepSeeder";
 import { routeTlOf } from "./routeTl";
 import { recalcRouteIfStopsChanged } from "./dispatchEngine";
@@ -39,7 +39,7 @@ const REPORT_TIME_FIELDS = [
 function badReportTimeOf(report: CargoReport): string | null {
     for (const [k, label] of REPORT_TIME_FIELDS) {
         const v: unknown = report[k];
-        if (v != null && (typeof v !== 'string' || !Number.isFinite(Date.parse(v)))) return label;
+        if (v != null && !isTimeText(v)) return label;
     }
     return null;
 }

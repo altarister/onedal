@@ -27,7 +27,7 @@ import { slog } from "../utils/fileLogger";
 import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";
 import { logContext, whoLabel } from "../utils/logContext";
-import { clockText, wonText } from "@onedal/shared";
+import { clockText, wonText, isTimeText } from "@onedal/shared";
 import { authSocket } from "./authSocket";
 import { webAccountGate } from "./webAccountGate";
 import { registerOpsNamespace } from "./opsSocket";
@@ -595,8 +595,7 @@ export function registerSocketHandlers(io: Server) {
              */
             const source: MilestoneSource = data.source === 'SKIPPED' ? 'SKIPPED' : 'MANUAL_WEB';
             /* 🕒 받은 시각은 상태 보고 · 단계 기록 두 곳에 쓰인다 — 쓰기 전에 여기서 한 번 본다(통화 결과의 saveCargoReport 와 같은 규칙) */
-            const notTime = (v: unknown) => v != null && (typeof v !== 'string' || !Number.isFinite(Date.parse(v)));
-            if (notTime(data.occurredAt) || notTime(data.predictedAt)) throw new Error("단계 보고의 시각을 확인해 주세요");
+            if ([data.occurredAt, data.predictedAt].some(v => v != null && !isTimeText(v))) throw new Error("단계 보고의 시각을 확인해 주세요");
             logRoadmapEvent('콜단계', "서버", `관제탑으로부터 ${data.milestone} 보고 수신${source === 'SKIPPED' ? ' (건너뜀)' : ''}`);
             const result = await reportMilestone(userId, data.orderId, data.milestone, source, io, data.occurredAt, data.predictedAt, data.reasons);
             // 🌉 다리 — 단계 행 마감 + 다음 출생

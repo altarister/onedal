@@ -39,6 +39,9 @@ import { hhmmText, kstDateText } from './format';
  *      지게차 파레트당 2분(박스당 3초) → 1t 파레트 2개 = **4분**
  *    검수는 **하차의 후작업**이다 (기사님) — 방법은 둘뿐이다.
  */
+/** 🕒 **시각 글자인가** — 받은 시각을 장부에 쓰기 전에 보는 판별 한 곳(통화 결과 · 단계 보고 두 입구가 함께 쓴다) */
+export const isTimeText = (v: unknown): v is string => typeof v === 'string' && Number.isFinite(Date.parse(v));
+
 export const DWELL_BASE: Record<string, number> = { '지게차': 0, '수작업': 0 };
 export const DWELL_PER_POINT: Record<string, number> = { '지게차': 0.05, '수작업': 1 / 3 };   // 박스당 분 — 지게차 3초(파레트 2분) · 수작업 20초
 

@@ -126,6 +126,10 @@ describe('🧮 취소 카운트 — 세는 자리는 한 곳', () => {
             const call = src.indexOf('countCancel(session', cut);
             expect(call).toBeGreaterThan(-1);
             expect(`${f}: ${src.slice(call, call + 200).split(';')[0]}`).toMatch(/wasSimulated/);
+            /* 뽑는 줄이 지우는 줄보다 앞이어야 한다 — 뒤로 가면 글자는 있어도 딱지를 못 본다 */
+            const pick = src.indexOf('const wasSimulated');
+            expect(pick).toBeGreaterThan(-1);
+            expect(pick).toBeLessThan(cut);
         }
     });
 });
