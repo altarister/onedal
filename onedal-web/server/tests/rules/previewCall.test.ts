@@ -114,6 +114,20 @@ describe('🧮 취소 카운트 — 세는 자리는 한 곳', () => {
         const line = src.slice(call, call + 200).split(';')[0];
         expect(line).toMatch(/wasPreview|isPreview/);
     });
+
+    /**
+     * 🐥 **체험 콜도 같은 함정이다** — 캐시를 지운 뒤 세면 `isSimulated` 를 못 봐 체험 콜 취소가 기기 취소 횟수에 든다.
+     * 강제 정리 · 긴급 리셋 둘 다 지우기 전에 뽑은 체험 딱지를 함께 넘긴다.
+     */
+    it('🔴 강제 정리 · 긴급 리셋은 지우기 전에 뽑은 체험 딱지도 넘긴다', () => {
+        for (const f of ['server/src/services/dispatchEngine.ts', 'server/src/routes/emergency.ts']) {
+            const src = code(read(f));
+            const cut = src.indexOf('pendingOrdersData.delete');
+            const call = src.indexOf('countCancel(session', cut);
+            expect(call).toBeGreaterThan(-1);
+            expect(`${f}: ${src.slice(call, call + 200).split(';')[0]}`).toMatch(/wasSimulated/);
+        }
+    });
 });
 
 /**

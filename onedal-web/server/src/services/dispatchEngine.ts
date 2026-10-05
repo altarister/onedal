@@ -172,7 +172,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
         io.to(userId).emit("order-canceled", { id: orderId, status: 'SAFE_CANCEL' });
     }
 
-    countCancel(session, targetDeviceId, orderId, reason, wasPreview, io);
+    countCancel(session, targetDeviceId, orderId, reason, wasPreview || wasSimulated, io);
 
     /**
      * 🔴 콜 잡기 재개(`isActive`)는 **여기서 하지 않는다.**

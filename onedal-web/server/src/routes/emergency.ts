@@ -74,8 +74,9 @@ router.post("/", async (req, res) => {
             slog('경고', `   ✅ 결재 큐(pendingDecisions) 삭제 완료`);
         }
 
-        /* 👀 미리보기 딱지는 캐시를 지우기 전에 뽑는다 — 지운 뒤 세면 딱지를 못 봐 안 잡은 콜을 취소로 센다 (forceCancel 과 같은 규칙) */
+        /* 👀🐥 미리보기 · 체험 딱지는 캐시를 지우기 전에 뽑는다 — 지운 뒤 세면 딱지를 못 봐 안 잡은 콜 · 체험 콜을 취소로 센다 (forceCancel 과 같은 규칙) */
         const wasPreview = !!(session.pendingOrdersData.get(targetOrderId) as any)?.isPreview;
+        const wasSimulated = !!(session.pendingOrdersData.get(targetOrderId) as any)?.isSimulated;
 
         cancelOrderWaits(session, targetOrderId, '긴급 리셋');
 
@@ -92,7 +93,7 @@ router.post("/", async (req, res) => {
         });
 
         // 📈 취소(알림) 카운트 증가 처리 — 세는 규칙은 countCancel 한 곳에 있다
-        countCancel(session, deviceId, targetOrderId, reason, wasPreview, io);
+        countCancel(session, deviceId, targetOrderId, reason, wasPreview || wasSimulated, io);
 
         const existingOrder = session.myOrders.find(c => c.id === targetOrderId);
         if (existingOrder) {

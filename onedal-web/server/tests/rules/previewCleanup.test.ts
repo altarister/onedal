@@ -76,7 +76,7 @@ describe('🧹 심사 콜 정리', () => {
 
     it('🔴 비상 보고는 캐시를 지우기 전에 미리보기 딱지를 뽑아 넘긴다', () => {
         const src = readFileSync(join(__dirname, '../../src/routes/emergency.ts'), 'utf8');
-        expect(src).toMatch(/countCancel\(session, deviceId, targetOrderId, reason, wasPreview, io\)/);
+        expect(src).toMatch(/countCancel\(session, deviceId, targetOrderId, reason, wasPreview \|\| wasSimulated, io\)/);
         expect(src.indexOf('const wasPreview')).toBeGreaterThan(-1);
         expect(src.indexOf('const wasPreview')).toBeLessThan(src.indexOf('session.pendingOrdersData.delete(targetOrderId)'));
     });

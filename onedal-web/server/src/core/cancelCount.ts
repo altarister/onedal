@@ -55,13 +55,13 @@ export function countCancel(
     orderId: string,
     reason: 'DECISION_CANCEL' | 'FORCE_CANCEL' | 'TIMEOUT' | string,
     /**
-     * 👀 **미리 뽑아 둔 미리보기 딱지** (실측으로 추가).
+     * 👀🐥 **미리 뽑아 둔 미리보기 · 체험 딱지** — 둘 중 하나면 세지 않는다.
      *
-     * 🔴 `forceCancelEvaluatingOrder` 는 캐시를 **지운 뒤에** 이 함수를 부른다. 그러면
-     *    세션에서 콜을 못 찾아 딱지를 영영 못 본다 — 미리보기인데 취소 카운트가 올랐다.
+     * 🔴 `forceCancelEvaluatingOrder` · 긴급 리셋은 캐시를 **지운 뒤에** 이 함수를 부른다. 그러면
+     *    세션에서 콜을 못 찾아 딱지를 영영 못 본다 — 미리보기 · 체험 콜인데 취소 카운트가 오른다.
      *    **판단에 쓸 값을 지운 다음에 판단하지 않는다.** 지우기 전에 뽑아 여기로 넘긴다.
      */
-    isPreviewHint?: boolean,
+    notRealHint?: boolean,
     /** 한도 도달을 관제탑에 알리기 위한 소켓 (없으면 판정만 하고 조용히 넘어간다) */
     io?: any,
 ): void {
@@ -71,7 +71,7 @@ export function countCancel(
     const order = session.pendingOrdersData.get(orderId)
         ?? session.myOrders.find(o => o.id === orderId);
 
-    if (isPreviewHint || order?.isPreview || order?.isSimulated) {
+    if (notRealHint || order?.isPreview || order?.isSimulated) {
         slog('콜단계', `   👀 [미리보기/체험] ${orderId} — 확정 전이거나 가상 체험 콜이라 실제 배차망 취소가 없다. 카운트에 넣지 않는다 (reason: ${reason})`);
         return;
     }
