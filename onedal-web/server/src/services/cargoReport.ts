@@ -27,10 +27,25 @@ export function saveCounterpartCancelled(userId: string, orderId: string, stopTy
     io.of("/ops").to("admin_room").emit("ops-calls-changed", { memberId: userId });
 }
 
+/** 🕒 통화 보고의 시각 칸 — 장부에 들어가기 전에 본다 */
+const REPORT_TIME_KEYS = ['promisedArrivalAt', 'promisedArrivalFromAt', 'onwardDeadlineAt', 'deadlineAt'] as const;
+
+/** 시각이 아닌 시각 칸의 이름 — 모두 비었거나 시각이면 null */
+function badReportTimeOf(report: CargoReport): string | null {
+    for (const k of REPORT_TIME_KEYS) {
+        const v: unknown = report[k];
+        if (v != null && (typeof v !== 'string' || !Number.isFinite(Date.parse(v)))) return k;
+    }
+    return null;
+}
+
 export function saveCargoReport(userId: string, orderId: string, report: CargoReport, writerId: string, io: Server): void {
     if (!orderId) throw new Error("orderId 누락");
     /* 📞 관리자(통화 도우미)는 통화 신고만 — 현장 실측 · 건너뜀은 현장 기사만 (reviews/29 5단계) */
     if (writerId !== userId && report.kind !== 'DECLARED') throw new CargoReportError(400, "관리자는 통화 신고만 적을 수 있습니다");
+    /* 🕒 시각 칸은 여기 한 곳에서 본다 — 기사 소켓 · 운영센터 문이 모두 이 입구로 들어온다. 화면이 칸을 눌러 보내도 서버가 받는 값은 서버가 본다 */
+    const badTime = badReportTimeOf(report);
+    if (badTime) throw new CargoReportError(400, `통화 결과의 시각(${badTime})이 시각이 아닙니다`);
     // 단계 행(새 장부)이 유일한 원천이다
     bridgeCargoReport(userId, orderId, report, getUserSession(userId)?.judgment, routeTlOf(userId), writerId);
     /* 적은 소켓이 아니라 기사 화면 전부에 — 관리자가 적어도 기사 관제웹이 바로 닫힌다.

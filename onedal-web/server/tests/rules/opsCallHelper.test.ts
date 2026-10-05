@@ -90,6 +90,15 @@ describe('📞 관리자가 적는다', () => {
         const r = await call('post', '/calls/:id/note', { params: { id: O2 }, body: { stopType: 'pickup', unit: '라면박스', quantity: 1, promisedArrivalAt: null, memo: '' } });
         expect(r.status).toBe(409);
     });
+    it('🔴 시각 칸이 시각이 아니면 장부에 안 들어간다 — 기사 소켓 · 운영센터 문 둘 다(공통 입구 saveCargoReport 한 곳에서 본다)', async () => {
+        const before = rowOf(O1);
+        for (const k of ['promisedArrivalAt', 'promisedArrivalFromAt', 'onwardDeadlineAt', 'deadlineAt'])
+            expect(() => saveCargoReport(D, O1, { ...REPORT, [k]: '시각아님' } as any, D, io as any)).toThrow();
+        expect(rowOf(O1)).toEqual(before);
+        const r = await call('post', '/calls/:id/note', { params: { id: O1 }, body: { stopType: 'pickup', unit: null, quantity: null, promisedArrivalAt: '시각아님', memo: '' } });
+        expect(r.status).toBe(400);
+        expect(rowOf(O1)).toEqual(before);
+    });
     it('🔴 메모는 200자까지(400)', async () => {
         const r = await call('post', '/calls/:id/note', { params: { id: O1 }, body: { stopType: 'pickup', unit: null, quantity: null, promisedArrivalAt: null, memo: '가'.repeat(201) } });
         expect(r.status).toBe(400);

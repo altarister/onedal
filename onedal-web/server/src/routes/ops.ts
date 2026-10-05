@@ -332,7 +332,8 @@ router.post("/calls/:id/note", (req, res) => {
     const stopType = b.stopType === 'pickup' || b.stopType === 'dropoff' ? b.stopType : null;
     const unit = b.unit == null ? null : typeof b.unit === 'string' && UNITS.includes(b.unit) ? b.unit : undefined;
     const quantity = b.quantity == null ? null : typeof b.quantity === 'number' && b.quantity > 0 ? b.quantity : undefined;
-    const promised = b.promisedArrivalAt == null ? null : typeof b.promisedArrivalAt === 'string' && Number.isFinite(Date.parse(b.promisedArrivalAt)) ? b.promisedArrivalAt : undefined;
+    /* 🕒 시각인지는 공통 입구(saveCargoReport · badReportTimeOf)가 본다 — 여기서는 글자인지만 */
+    const promised = b.promisedArrivalAt == null ? null : typeof b.promisedArrivalAt === 'string' ? b.promisedArrivalAt : undefined;
     const memo = typeof b.memo === 'string' ? b.memo.trim() : '';
     /* 📵 상대 취소 — true · false 만 받는다(없으면 그대로) */
     const counterpartCancelled = typeof b.counterpartCancelled === 'boolean' ? b.counterpartCancelled : undefined;
