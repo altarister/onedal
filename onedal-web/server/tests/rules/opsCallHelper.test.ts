@@ -4,7 +4,7 @@ import { join } from 'path';
 import db from '../../src/db';
 import opsRouter from '../../src/routes/ops';
 import { birthFirstStep, bridgeCargoReport, stepsView } from '../../src/services/stepSeeder';
-import { saveCargoReport } from '../../src/services/cargoReport';
+import { saveCargoReport, CargoReportError } from '../../src/services/cargoReport';
 import { clearUserSession } from '../../src/state/userSessionStore';
 
 /**
@@ -93,7 +93,7 @@ describe('📞 관리자가 적는다', () => {
     it('🔴 시각 칸이 시각이 아니면 장부에 안 들어간다 — 기사 소켓 · 운영센터 문 둘 다(공통 입구 saveCargoReport 한 곳에서 본다)', async () => {
         const before = rowOf(O1);
         for (const k of ['promisedArrivalAt', 'promisedArrivalFromAt', 'onwardDeadlineAt', 'deadlineAt'])
-            expect(() => saveCargoReport(D, O1, { ...REPORT, [k]: '시각아님' } as any, D, io as any)).toThrow();
+            expect(() => saveCargoReport(D, O1, { ...REPORT, [k]: '시각아님' } as any, D, io as any)).toThrow(CargoReportError);
         expect(rowOf(O1)).toEqual(before);
         const r = await call('post', '/calls/:id/note', { params: { id: O1 }, body: { stopType: 'pickup', unit: null, quantity: null, promisedArrivalAt: '시각아님', memo: '' } });
         expect(r.status).toBe(400);

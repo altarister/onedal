@@ -9,7 +9,7 @@ export function useSoundManager() {
     const isRinging = useSyncExternalStore(
         (callback) => soundManager.subscribe(callback),
         () => soundManager.getIsRinging(),
-        // 노드에서 그려 보는 검사(regionsRender)도 같은 값을 읽는다 — 관제웹 화면에는 변화 없음
+        // 서버 쪽 그리기(노드에서 그려 보는 검사 regionsRender)도 같은 값을 읽는다
         () => soundManager.getIsRinging()
     );
 

@@ -342,6 +342,7 @@ export default function Dashboard() {
                     아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 */}
                 {/* 🗺️ 필터 줄(과 열리는 필터) 아래 · 지도 위 — 헤더·필터 줄을 가리지 않는다 · 높이 0 그릇이라 지도를 밀지 않는다 (기사님 «지도 위로 하자» · #146) */}
                 <div className="relative h-0 z-30">
+                <ErrorBoundary label="알림 띠">
                 <div className="absolute left-0 right-0 top-0 flex flex-col">
                 {/* 🚚 서버가 대신 찍은 하차 완료·지나침 · 🏠 목적지 자동 전환 — 잠깐 떴다 사라진다 */}
                 {gpsNotice && (
@@ -422,6 +423,7 @@ export default function Dashboard() {
                 {/* 🚨 신고 불일치 — 경고에서 사무실 전화·수행 판단까지 한 카드에서 */}
                 <ErrorBoundary label="짐 불일치 띠"><CargoMismatchBanner orders={activeRoute} /></ErrorBoundary>
                 </div>
+                </ErrorBoundary>
                 </div>
 
                 {/* 🚚 내 차 요약은 헤더 로고 자리에 있다 (기사님 — 영역 절약) */}

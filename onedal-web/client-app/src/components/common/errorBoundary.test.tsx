@@ -36,6 +36,8 @@ describe('오류 경계', () => {
         const dash = src('../../pages/Dashboard.tsx');
         for (const tag of ['Header', 'Drawer', 'DeviceControlPanel', 'MorningCard', 'OrderFilterStatus', 'OrderFilterModal', 'CargoMismatchBanner', 'StageView', 'StatusBoard'])
             expect(insideBoundary(dash, tag), tag).toBe(true);
+        /* 알림 띠(GPS 알림 · 복구 · 오래된 콜 · 처리 실패)는 칸 부품 없이 Dashboard 가 바로 그린다 — 한 경계로 묶는다 */
+        expect(dash).toContain('<ErrorBoundary label="알림 띠">');
     });
 
     it('앱 전체도 바깥 경계 안에 있다 — 큰 칸 밖에서 터지면 하얀 화면 대신 빨간 상자', () => {
