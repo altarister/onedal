@@ -3,9 +3,9 @@
  * 🚚 **모의 주행 — 하루를 순서대로 살아 본다**
  * 누가: 에이전트
  * 언제: 경로 순서 · 도착 감지 · 궤적을 고친 뒤
- * 어디서: cd onedal-web && pnpm drive (폰·카카오 키·개발 서버 불필요)
- * 무엇을: GPS 를 재생해 모든 정거장을 걷는다 — 전용 포트 4014 · 전용 DB drive.db
- * 왜: 주행을 나가야만 보이던 것을 책상에서 잡는다
+ * 어디서: cd onedal-web && pnpm drive (폰·개발 서버 불필요 · 카카오 키는 없어도 돈다 — 있으면 서버가 .env 에서 읽어 부른다) · pnpm drive e2e (통신 고리까지 · 카카오 끔)
+ * 무엇을: GPS 를 재생해 모든 정거장을 걷는다 — 전용 포트 4014 · 전용 DB drive.db · e2e 면 로그인 · 폰 토큰 · 결재 전달 · 운영센터 · 세션 충돌 · 계정 막힘도
+ * 왜: 주행을 나가야만 보이던 것을 책상에서 잡는다 · 고친 것 때문에 통신 고리가 끊기는 것을 올리기 전에 잡는다(기사님 «배포 안 해도 로컬에서 다 확인하고 올리고 싶어»)
  * (잡는 것 · 못 잡는 것 · 검수는 onedal-web/CLAUDE.md 스크립트 표)
  *
  *
@@ -30,8 +30,10 @@
  *    빠지는 자리**라 재현이 안 되고, 검사는 통과해도 **다른 것을 통과한 것**이다. 문제지는 아래 거리로 검산돼 있다.
  *
  * ══ 실행 ══
- *     cd onedal-web && pnpm drive        # 폰·카카오 키·개발 서버 전부 불필요
+ *     cd onedal-web && pnpm drive        # 폰·개발 서버 불필요 (카카오 키가 .env 에 있으면 서버가 부른다)
  *     DRIVE_LOG=1 pnpm drive             # 서버 로그까지
+ *     pnpm drive e2e                     # + 통신 고리 다섯 · 서버에 카카오 키를 빈 값으로 넘겨 안 부른다(판정은 «판정 불가»로 넘어간다)
+ *     pnpm drive e2e kakao               # 위와 같되 카카오를 켠 채 · 끝에 카카오 호출 수
  *
  * 전용 포트 4014 · 전용 DB `drive.db` (빈 DB 로 시작해 끝나면 지운다).
  * 개발 서버(4000)·`local.db` 는 건드리지 않는다.
@@ -57,6 +59,15 @@ const check = (name, ok, detail = '') => {
     console.log(`  ${ok ? '✅' : '🔴'} ${name}${detail ? `  ${detail}` : ''}`);
 };
 const say = m => console.log(m);
+
+/**
+ * 🧪 **e2e 모드** (reviews/42) — `pnpm drive e2e` 이면 주행 사이사이 통신 고리를 더 본다.
+ * 서버는 기동 때 server/.env 를 스스로 읽으므로(dotenv) 카카오를 끄려면 빈 값을 넘긴다 — dotenv 는 이미 있는 값을 안 덮는다.
+ * 인자가 없으면 지금 drive 와 똑같다(카카오도 .env 그대로).
+ */
+const ARGS = process.argv.slice(2);
+const E2E = ARGS.includes('e2e');
+const KAKAO_OFF = E2E && !ARGS.includes('kakao');
 
 /**
  * ── 문제지 — **기사님 운행 축** (초월 → 곤지암 → 신둔 → 이천, 서→동 한 방향) ────────
@@ -123,7 +134,7 @@ async function boot() {
     const bootAfter = Date.now();
     const p = spawn('npx', ['tsx', 'src/index.ts'], {
         cwd: SERVER,
-        env: { ...process.env, DB_FILE: DB, PORT: String(PORT) },
+        env: { ...process.env, DB_FILE: DB, PORT: String(PORT), ...(KAKAO_OFF ? { KAKAO_REST_API_KEY: '' } : {}) },
         stdio: process.env.DRIVE_LOG ? 'inherit' : 'ignore',
     });
     for (let i = 0; i < 40; i++) {
@@ -181,6 +192,104 @@ function registerDevice(dbPath, userId, deviceId) {
     c.close();
 }
 
+// ─────────────────────────── e2e 통신 고리 (reviews/42) ───────────────────────────
+/** HTTP 한 번 — 상태와 몸통(몸통이 JSON 이 아니면 null) */
+async function call(path, { method = 'GET', body, token: tok, deviceToken } = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (tok) headers.Authorization = `Bearer ${tok}`;
+    if (deviceToken) headers['X-Device-Token'] = deviceToken;
+    const r = await fetch(`http://localhost:${PORT}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    let json = null;
+    try { json = await r.json(); } catch { /* 몸통 없음 */ }
+    return { status: r.status, json };
+}
+
+/** 소켓을 열고 «붙음 · 거절 · 기다린 신호» 가운데 먼저 온 것을 돌려준다 — 시간이 지나면 'timeout' */
+function openSocket(path, auth, waitFor, ms = 4000) {
+    const sock = io(`http://localhost:${PORT}${path}`, { auth, transports: ['websocket'], reconnection: false });
+    const first = new Promise(res => {
+        sock.once('connect', () => { if (!waitFor) res('connect'); });
+        sock.once('connect_error', () => res('connect_error'));
+        if (waitFor) sock.once(waitFor, () => res(waitFor));
+        setTimeout(() => res('timeout'), ms);
+    });
+    return { sock, first };
+}
+
+/** 🧪 원달앱 화면 보고 — 실제 앱이 1초마다 보내는 그 문(`/api/scrap`) */
+const scrap = (deviceId, extra = {}, deviceToken) =>
+    call('/api/scrap', { method: 'POST', body: { data: [], deviceId, screenContext: 'DETAIL_CONFIRMED', ...extra }, deviceToken });
+
+/** 🧪 ① 로그인 — 우회 로그인 토큰으로 내 상태를 읽는다 */
+async function e2eLogin(tok) {
+    const me = await call('/api/join/me', { token: tok });
+    check('🧪 로그인 — 내 상태가 «승인 · 막힘 아님»', me.status === 200 && !!me.json?.approvedAt && me.json?.blocked === false,
+        `HTTP ${me.status} · blocked=${me.json?.blocked}`);
+}
+
+/**
+ * 🧪 ② 결재 전달 — 관제웹이 KEEP 을 누르면 원달앱의 다음 보고 답에 실려 가고, «받았음»을 보내면 다음 답에서 사라진다.
+ *    이 고리가 끊기면 «관제웹에서 KEEP 을 눌렀는데 폰이 안 받는다» — 다른 검사는 다 초록인 채로 실주행에서야 드러난다.
+ */
+async function e2eDecision(deviceId, orderId) {
+    const first = await scrap(deviceId);
+    const d = first.json?.decision;
+    check('🧪 결재 전달 — KEEP 이 원달앱 보고 답에 실려 온다', first.status === 200 && d?.orderId === orderId && d?.action === 'KEEP',
+        `HTTP ${first.status} · ${d ? `${d.orderId} ${d.action}` : '결재 없음'}`);
+    const acked = await scrap(deviceId, { ackDecisionId: orderId });
+    check('🧪 결재 전달 — «받았음»을 보내면 다음 답에서 사라진다', acked.status === 200 && !acked.json?.decision,
+        acked.json?.decision ? `아직 ${acked.json.decision.orderId}` : '');
+}
+
+/** 🧪 ③ 폰 연결 — 연결 번호 → 붙이기 → 받은 토큰을 실어 보고(통과) · 틀린 토큰(거절) */
+async function e2ePair(tok) {
+    const DEV = '모의폰-e2e';
+    const pin = await call('/api/devices/pin', { method: 'POST', token: tok });
+    const pair = await call('/api/devices/pair', { method: 'POST', body: { pin: pin.json?.pin, deviceId: DEV, deviceName: 'e2e폰' } });
+    const devToken = pair.json?.deviceToken;
+    check('🧪 폰 연결 — 연결 번호로 붙이면 토큰을 준다', pin.status === 200 && pair.status === 200 && typeof devToken === 'string',
+        `번호 HTTP ${pin.status} · 붙이기 HTTP ${pair.status}`);
+    const good = await scrap(DEV, { screenContext: 'UNKNOWN' }, devToken);
+    const bad = await scrap(DEV, { screenContext: 'UNKNOWN' }, 'e2e-wrong-token');
+    check('🧪 폰 토큰 — 맞는 토큰은 통과 · 틀린 토큰은 거절', good.status === 200 && bad.status === 401,
+        `맞음 HTTP ${good.status} · 틀림 HTTP ${bad.status}`);
+}
+
+/** 🧪 ④ 운영센터 — 관리자 콜 목록에 그 콜이 보이고, 운영센터 소켓이 «콜 바뀜»을 받았다 */
+async function e2eOps(tok, orderId, opsSignals) {
+    const calls = await call('/api/ops/calls', { token: tok });
+    check('🧪 운영센터 — 관리자 콜 목록에 KEEP 한 콜이 보인다', calls.status === 200 && JSON.stringify(calls.json ?? '').includes(orderId),
+        `HTTP ${calls.status}`);
+    check('🧪 운영센터 — 소켓이 «콜 바뀜» 신호를 받았다', opsSignals.n > 0, `${opsSignals.n}번`);
+}
+
+/** 🧪 ⑤ 같은 계정으로 관제웹을 하나 더 열면 «다른 창에서 접속 중» 확인이 온다 — 넘겨받지 않고 닫는다 */
+async function e2eSessionConflict(tok) {
+    const { sock, first } = openSocket('', { token: tok, clientSessionId: 'e2e-second-tab' }, 'session-conflict');
+    const got = await first;
+    check('🧪 세션 충돌 — 같은 계정 둘째 관제웹에 «다른 창에서 접속 중»이 온다', got === 'session-conflict', got);
+    sock.emit('cancel-takeover');
+    sock.close();
+}
+
+/** 🧪 ⑥ 계정 막힘 — 즉시 정지면 폰 보고 · 연결 번호 · 관제웹 소켓이 함께 막힌다(accountGateOf 한 판단) · 끝나면 풀어 둔다 */
+async function e2eBlocked(dbPath, userId, tok, deviceId) {
+    const set = (sql) => { const c = new Database(dbPath); c.prepare(sql).run(userId); c.close(); };
+    set(`UPDATE users SET suspended_at = datetime('now', 'localtime'), suspend_after_active = 0 WHERE id = ?`);
+    try {
+        const report = await scrap(deviceId);
+        const pin = await call('/api/devices/pin', { method: 'POST', token: tok });
+        const { sock, first } = openSocket('', { token: tok, clientSessionId: 'e2e-blocked' });
+        const sockGot = await first;
+        sock.close();
+        check('🧪 계정 막힘 — 폰 보고 · 연결 번호 · 관제웹 소켓이 함께 막힌다',
+            report.status === 403 && pin.status === 403 && sockGot === 'connect_error',
+            `보고 HTTP ${report.status} · 번호 HTTP ${pin.status} · 소켓 ${sockGot}`);
+    } finally {
+        set(`UPDATE users SET suspended_at = NULL, suspend_after_active = NULL WHERE id = ?`);
+    }
+}
+
 // ─────────────────────────── 하루를 산다 ───────────────────────────
 async function main() {
     const dbPath = seed();
@@ -206,6 +315,21 @@ async function main() {
         s.on('sync-active-orders', p => { if (p?.routeStops) st.routeStops = p.routeStops; });
         s.on('order-evaluated', o => st.evaluated.add(o.id));
 
+        /* 🧪 e2e — 운영센터 허락을 시험 DB 에 켜고(켜는 문은 허락 있는 사람만이라 닭과 달걀) 운영센터 소켓을 먼저 붙여 둔다 */
+        const opsSignals = { n: 0 };
+        let opsSock = null;
+        if (E2E) {
+            say(`🧪 e2e 모드 — 통신 고리까지 본다 · 카카오 ${KAKAO_OFF ? '끔(판정은 «판정 불가»로 넘어간다)' : '켬'}\n`);
+            await e2eLogin(tok);
+            const c = new Database(dbPath);
+            c.prepare(`UPDATE users SET ops_allowed_at = datetime('now', 'localtime') WHERE id = ?`).run(me.id);
+            c.close();
+            const ops = openSocket('/ops', { token: tok });
+            opsSock = ops.sock;
+            opsSock.on('ops-calls-changed', () => { opsSignals.n++; });
+            check('🧪 운영센터 소켓이 붙는다', await ops.first === 'connect');
+        }
+
         const stopOrder = () => st.routeStops.map(r => `${r.orderId}:${r.stopType}`);
         const showOrder = () => say(`     방문 순서: ${stopOrder().join(' → ') || '(없음)'}`);
         /** 🗼 관제웹이 KEEP 을 누른다 — 판정이 끝나기를 기다렸다가 */
@@ -230,6 +354,10 @@ async function main() {
         await wait(600);
         await appUploads(DEVICE, '첫짐', MODA, SINDUN, '첫짐');
         await decide('첫짐');
+        if (E2E) {
+            await e2eDecision(DEVICE, '첫짐');
+            await e2eOps(tok, '첫짐', opsSignals);   // 진행 중 KEEP 콜만 운영센터 목록에 있다 — 배송이 끝나기 전에 본다
+        }
         check('첫짐이 세션에 실렸다', stopOrder().length === 2, stopOrder().join(' → '));
         showOrder();
 
@@ -326,6 +454,21 @@ async function main() {
          *    «같은 자리도 주기적으로 보내는가»와 «궤적에 나눈 속도를 남기는가»는 소스가 답한다.
          *    실제 주행은 기사님이 화면과 `gps_tracks` 로 확인하신다 (현황판이 그렇게 잡아 줬다).
          */
+
+        /* 🧪 e2e — 주행이 끝난 뒤 · 관제웹 소켓이 아직 붙어 있을 때(세션 충돌은 첫 소켓이 살아 있어야 난다) */
+        if (E2E) {
+            say('\n═══ 🧪 통신 고리 — 폰 연결 · 세션 충돌 · 계정 막힘 ═══');
+            await e2ePair(tok);
+            await e2eSessionConflict(tok);
+            await e2eBlocked(dbPath, me.id, tok, DEVICE);
+            opsSock?.close();
+            if (!KAKAO_OFF) {
+                const k = new Database(dbPath, { readonly: true });
+                const u = k.prepare(`SELECT COALESCE(SUM(route_calls), 0) r, COALESCE(SUM(local_calls), 0) l FROM kakao_usage_days`).get();
+                k.close();
+                say(`     카카오 호출 — 길찾기 ${u.r} · 좌표 찾기 ${u.l}`);
+            }
+        }
 
         s.close();
     } finally {
