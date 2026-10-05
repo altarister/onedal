@@ -146,7 +146,7 @@ export default function PinnedRouteCard({
      */
     /**
      * 되돌릴 수 없는 동작(방출·사무실 취소)을 누른 뒤 잠근다.
-     * `processingId` 는 PinnedRoute 가 매 렌더 초기화해서(1초 동기화) 방어가 되지 않는다.
+     * `processingId` 는 PinnedRoute 가 콜 자료가 바뀌거나 결재가 실패로 돌아오면 풀어서 방어가 되지 않는다.
      */
     const [locked, setLocked] = useState(false);
 
@@ -916,7 +916,7 @@ export default function PinnedRouteCard({
                         기사님: "특수한 상황에 클릭해야 할 듯."
                         주 버튼(도착·완료)과 같은 자리에 두면 잘못 눌러 콜을 잃는다.
                         ⚠️ decision 은 서버에서 멱등이 아니므로 누른 즉시 잠근다 —
-                           processingId 는 1초 동기화마다 풀려 방어가 되지 않는다. */}
+                           processingId 는 콜 자료가 바뀌거나 결재가 실패하면 풀려 방어가 되지 않는다. */}
                     {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (
                         <details className="mt-3 group" onClick={(e) => e.stopPropagation()}>
                             <summary className="list-none cursor-pointer text-[11px] font-bold text-text-muted py-1.5 select-none">

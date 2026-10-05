@@ -1,5 +1,6 @@
 import type { SecuredOrder, RouteStopInfo } from "@onedal/shared";
 import { useState, useEffect } from 'react';
+import { socket } from '../../lib/socket';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
@@ -58,6 +59,17 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
     useEffect(() => {
         setProcessingId(null);
     }, [activeRoute]);
+    /* 🔓 결재가 실패로 돌아오면 콜 자료가 그대로라 위 효과가 안 돈다 — 실패 응답에서도 잠금을 푼다(안 풀면 KEEP · 거절이 눌리지 않는다) */
+    useEffect(() => {
+        const onAck = (r: { success?: boolean }) => { if (r?.success === false) setProcessingId(null); };
+        const onError = (e: { event?: string }) => { if (e?.event === 'decision') setProcessingId(null); };
+        socket.on('decision-ack', onAck);
+        socket.on('handler-error', onError);
+        return () => {
+            socket.off('decision-ack', onAck);
+            socket.off('handler-error', onError);
+        };
+    }, []);
 
     return (
         /**

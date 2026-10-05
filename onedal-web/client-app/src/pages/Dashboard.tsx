@@ -343,6 +343,7 @@ export default function Dashboard() {
                     아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 */}
                 {/* 🗺️ 필터 줄(과 열리는 필터) 아래 · 지도 위 — 헤더·필터 줄을 가리지 않는다 · 높이 0 그릇이라 지도를 밀지 않는다 (기사님 «지도 위로 하자» · #146) */}
                 <div className="relative h-0 z-30">
+                {/* ⚠️ 이 경계의 자식은 띠 묶음 div 하나라 «자료가 바뀌었나»를 못 가려 그릴 때마다 푼다 — 안의 띠는 글자 · 버튼뿐이고 터질 수 있는 짐 불일치 띠는 제 경계가 따로 받는다 */}
                 <ErrorBoundary label="알림 띠">
                 <div className="absolute left-0 right-0 top-0 flex flex-col">
                 {/* 🚚 서버가 대신 찍은 하차 완료·지나침 · 🏠 목적지 자동 전환 — 잠깐 떴다 사라진다 */}

@@ -175,6 +175,8 @@ const ALLOWED_MULTI = new Map([
     ['next-stop-approaching', [2, '스토어(판단 한 곳) + 대시보드(알림 한 줄)']],
     ['steps-synced',          [2, '카드(제 콜 하나) + 훅(전체 모아 파생) — 보는 범위가 다르다']],
     ['milestone-result',      [2, '오류 표시(useServerErrors) + 시트(성공했을 때만 문을 닫는다) — 보는 것이 다르다']],
+    ['decision-ack',          [2, '오류 표시(useServerErrors) + 결재 카드(실패면 «처리 중» 잠금을 푼다 · PinnedRoute) — 하는 일이 다르다']],
+    ['handler-error',         [2, '오류 표시(useServerErrors) + 결재 카드(결재 실패면 «처리 중» 잠금을 푼다 · PinnedRoute) — 하는 일이 다르다']],
     ['connect',               [3, '재연결 때 각자 제 것을 다시 요청한다 + 운영센터 신호 소켓(다른 앱 · /ops 이름공간)']],
     ['disconnect',            [2, '관제웹 엔진(끊김 표시) + 운영센터 신호 소켓(다른 앱 · /ops 이름공간 — 끊기면 30초 물러서기)']],
 ]);
