@@ -29,9 +29,23 @@ export class ErrorBoundary extends Component<Props, State> {
         return { error };
     }
 
+    /** 마지막으로 콘솔에 남긴 오류 글 — 다시 그릴 때마다 같은 오류가 나도 한 줄만 */
+    private lastLogged: string | null = null;
+
     componentDidCatch(error: Error, info: ErrorInfo) {
-        // 🔴 삼키지 않는다. 원래 예외와 컴포넌트 스택을 그대로 남긴다
+        // 🔴 삼키지 않는다. 원래 예외와 컴포넌트 스택을 그대로 남긴다 — 글이 바뀔 때만(바로 아래 다시 그리기가 같은 오류를 되풀이한다)
+        if (error.message === this.lastLogged) return;
+        this.lastLogged = error.message;
         console.error(`🚨 [화면 오류] ${this.props.label} 렌더링 실패`, error, info.componentStack);
+    }
+
+    /**
+     * 🔁 **부모가 새 자료로 다시 그리면 빨간 상자를 풀고 한 번 다시 그린다** (기사님 «가»).
+     * 운전 중에는 «다시 그리기»를 누를 수 없다 — 다음 소켓 갱신으로 자료가 바로잡히면 칸이 저절로 돌아온다.
+     * 같은 오류면 다시 빨간 상자가 될 뿐이다. 부모가 다시 그리지 않으면(자식이 그대로면) 풀지 않아 되풀이가 없다.
+     */
+    componentDidUpdate(prevProps: Props) {
+        if (this.state.error && prevProps.children !== this.props.children) this.setState({ error: null });
     }
 
     render() {

@@ -28,6 +28,31 @@ describe('오류 경계', () => {
         for (const text of ['머리줄을(를) 그리지 못했습니다', '뭔가 터짐', '다시 그리기', '새로고침']) expect(html).toContain(text);
     });
 
+    it('부모가 새 자료로 다시 그리면 빨간 상자가 풀려 한 번 다시 그린다 — 운전 중에는 «다시 그리기»를 못 누른다', () => {
+        const first = <b>칸</b>;
+        const b = new ErrorBoundary({ label: '짐 불일치 띠', children: first });
+        b.state = { error: new Error('뭔가 터짐') };
+        const calls: unknown[] = [];
+        b.setState = ((s: unknown) => { calls.push(s); }) as any;
+        b.componentDidUpdate({ label: '짐 불일치 띠', children: first });
+        expect(calls).toEqual([]);                       // 같은 자식(부모가 안 다시 그림) — 그대로
+        b.componentDidUpdate({ label: '짐 불일치 띠', children: <b>옛 칸</b> });
+        expect(calls).toEqual([{ error: null }]);        // 새 자식 — 풀고 다시 그린다
+    });
+
+    it('같은 오류가 되풀이되면 콘솔 줄은 한 번만 — 다시 그릴 때마다 찍지 않는다', () => {
+        const logged: unknown[] = [];
+        const orig = console.error;
+        console.error = (...a: unknown[]) => { logged.push(a[0]); };
+        try {
+            const b = new ErrorBoundary({ label: '머리줄', children: null });
+            b.componentDidCatch(new Error('같은 오류'), { componentStack: '' } as any);
+            b.componentDidCatch(new Error('같은 오류'), { componentStack: '' } as any);
+            b.componentDidCatch(new Error('다른 오류'), { componentStack: '' } as any);
+            expect(logged.length).toBe(2);
+        } finally { console.error = orig; }
+    });
+
     it('오류가 없으면 자식을 그대로 그린다 — 칸 배치가 바뀌지 않는다', () => {
         expect(renderToStaticMarkup(<ErrorBoundary label="x"><b>칸</b></ErrorBoundary>)).toBe('<b>칸</b>');
     });
