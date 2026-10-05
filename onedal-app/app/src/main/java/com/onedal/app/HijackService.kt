@@ -891,14 +891,17 @@ class HijackService : AccessibilityService(), ScanContext {
             recentListOrders.firstOrNull { CallMemory.fingerprintOf(it) == fp }?.timestamp
         } ?: "모름"
         val what = card?.let { "${it.fare}원 ${it.pickup}→${it.dropoff}" } ?: "누른 줄 모름"
+        /* ⏳ 그 줄이 우리 목록에 처음 보인 뒤 지난 시간 — 짧으면 목록이 늦게 왔고, 길면 우리가 늦게 눌렀다 (`ListRowLife`) */
+        val listAge = card?.let { com.onedal.app.core.ListRowLife.ageMs(it, android.os.SystemClock.elapsedRealtime()) }
+            ?.let { com.onedal.app.core.ListRowLife.secs(it) } ?: "모름"
         val tappedPage = session.alarmTappedPage
         val notifiedPage = lastScreenRead?.page
-        AppLogger.w(TAG, LogTag.TAP, "🏁 [먼저 가져감] 다른 기사가 먼저 — $what · 누른 화면 ${tappedPage ?: "모름"} · 알림 때 화면 ${notifiedPage ?: "표에 없음"} · 발견→누름 $foundToTap · 목록에 처음 보인 때 $firstSeen · 누르는 중 ${if (rec != null) "이었다" else "아니었다"}")
+        AppLogger.w(TAG, LogTag.TAP, "🏁 [먼저 가져감] 다른 기사가 먼저 — $what · 누른 화면 ${tappedPage ?: "모름"} · 알림 때 화면 ${notifiedPage ?: "표에 없음"} · 발견→누름 $foundToTap · 목록에 처음 보인 때 $firstSeen · 우리 목록에 있던 $listAge · 누르는 중 ${if (rec != null) "이었다" else "아니었다"}")
         apiClient.sendAnomalyReport(
             targetApp = currentTargetApp,
             /* 🧾 화면 칸 = 누른 화면(앱이 누른 콜) — 손으로 누른 콜이면 알림 때 화면 */
             screenName = (session.alarmTappedScreen ?: telemetryManager.currentScreenContext).name,
-            failureReason = com.onedal.app.core.CallTakenNote.reason(notice, tappedPage, notifiedPage, foundToTap, firstSeen),
+            failureReason = com.onedal.app.core.CallTakenNote.reason(notice, tappedPage, notifiedPage, foundToTap, firstSeen, listAge),
             listOrderInfo = card?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
             detailParsedText = text.take(200),
             ocrResult = null,
@@ -1791,6 +1794,13 @@ class HijackService : AccessibilityService(), ScanContext {
         }
         telemetryManager.openBlocked = openBlocked   // 🚧 열었거나 통과 콜이 없으면 null
         if (scanOrders.isNotEmpty()) alarmedRoutes.seen(scanOrders, nowMs)   // 카드 0장 틀은 «안 보였다»가 아니다
+        // ⏳ 목록 줄 수명 — 남이 몇 초 만에 가져가나(`ListRowLife`) · 빈 틀 · 덜 읽힌 줄이 있는 읽기는 넘기지 않는다
+        if (scanOrders.isNotEmpty() && unreadRow == 0) {
+            com.onedal.app.core.ListRowLife.lineOf(com.onedal.app.core.ListRowLife.onRead(scanOrders, nowMs), scanOrders.size)?.let { line ->
+                AppLogger.i(TAG, LogTag.SCREEN, line)
+                if (appTrace.note(System.currentTimeMillis(), LogTag.SCREEN, line)) flushTrace()
+            }
+        }
         // 🔔 알람 테두리 — 가리키던 콜이 이번 스캔에 없으면 걷는다 (잡혔거나 남이 가져감 · §6-③)
         alarmSignaler.onScan(scanHashes)
 

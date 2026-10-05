@@ -80,6 +80,14 @@ class AppTrace(
         return msg
     }
 
+    /** 켜져 있을 때만 한 줄을 남긴다 — 화면 · 누름 말고 운행 기록에 실을 사실(목록 줄 사라짐) */
+    @Synchronized
+    fun note(now: Long, logTag: LogTag, msg: String): Boolean {
+        if (!isActive(now)) return false
+        push(Line(now, "#${logTag.word} $msg"))
+        return true
+    }
+
     /**
      * 누른 버튼 글자를 남긴다 — **기록이 꺼져 있어도 늘** (인성 · 화물24 · 픽커 공통 · 기사님: «분기도 없고 좋다»).
      * 빈 글자는 «〈글자 없음〉»으로 남긴다 · 켜져 있을 때 끝 버튼(`endButtons`)이면 그 줄까지 남기고 끈다

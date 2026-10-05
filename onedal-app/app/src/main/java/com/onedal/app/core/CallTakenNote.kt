@@ -17,8 +17,9 @@ object CallTakenNote {
     /**
      * 🧾 까닭 글 — 운영센터 «이상 기록»의 «까닭» 칸에 그대로 뜬다(`PickerTakenToastTest` 가 09:48 · 09:53 원문으로 잠근다).
      * @param tappedPage 누른 화면(배차망 페이지 이름) · @param notifiedPage 알림이 왔을 때의 화면 — 모르면 null
+     * @param listAge 그 줄이 우리 목록에 있던 시간(`ListRowLife`) — 안 주면 안 붙인다
      */
-    fun reason(notice: OverlaySpec, tappedPage: String?, notifiedPage: String?, foundToTap: String, firstSeen: String): String =
+    fun reason(notice: OverlaySpec, tappedPage: String?, notifiedPage: String?, foundToTap: String, firstSeen: String, listAge: String? = null): String =
         "CALL_TAKEN: ${notice.name} — ${notice.meaning} · 누른 화면: ${tappedPage ?: "모름"} · 알림 때 화면: ${notifiedPage ?: "표에 없음"} · " +
-            "발견→누름 $foundToTap · 처음 보인 때 $firstSeen"
+            "발견→누름 $foundToTap · 처음 보인 때 $firstSeen" + (listAge?.let { " · 우리 목록에 있던 $it" } ?: "")
 }
