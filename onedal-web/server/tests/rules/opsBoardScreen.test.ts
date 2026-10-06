@@ -16,7 +16,7 @@ describe('🧰 운영센터 현황판 화면', () => {
         const inspect = read('ops/src/pages/Inspect.tsx');
         const b = read('ops/src/pages/MemberPhoneFilter.tsx');
         expect(inspect).toContain('api.boardServer()');
-        for (const f of ['api.boardPhones(memberId)', 'api.boardFilter(memberId)', 'api.boardIntel(memberId)']) expect(b).toContain(f);
+        for (const f of ['api.boardPhones(memberId)', 'api.boardFilter(memberId)', 'api.boardIntel(memberId, 40, true)']) expect(b).toContain(f);
         for (const src of [inspect, b]) expect(src).not.toMatch(/api\/example|ExampleBand|write\(|client\.(post|put)/);
         const ops = read('ops/src/api/ops.ts');
         for (const p of ["'/board/server'", '/board/phones', '/board/filter?memberId=', '/board/intel?memberId=']) expect(ops).toContain(p);

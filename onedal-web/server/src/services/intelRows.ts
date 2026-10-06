@@ -6,9 +6,10 @@ import db from "../db";
  * 리스트 화면이 준 것을 그대로 낸다 — 해석하지 않는다. userId 를 주면 그 회원 줄만(intel.user_id).
  * «전부»가 아니라 «최근 N»이다 — 화면이 그렇게 말할 수 있게 총수를 함께 낸다.
  */
-export function intelRowsOf(opts: { userId?: string | null; limit: number }): { rows: IntelRow[]; total: number } {
-    const where = opts.userId ? 'WHERE user_id = ?' : '';
-    const args = opts.userId ? [opts.userId] : [];
+export function intelRowsOf(opts: { userId?: string | null; limit: number; /** 이 시각(ISO) 뒤 줄만 — 운영센터 «버린 콜»의 오늘 */ sinceIso?: string }): { rows: IntelRow[]; total: number } {
+    const conds = [opts.userId ? 'user_id = ?' : '', opts.sinceIso ? 'timestamp >= ?' : ''].filter(Boolean);
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+    const args = [...(opts.userId ? [opts.userId] : []), ...(opts.sinceIso ? [opts.sinceIso] : [])];
     /**
      * 📋 **리스트 화면이 준 것을 그대로 낸다** (기사님 지시).
      *    검산이 «못 잰 축»으로 적던 **차종·배송거리**가 여기서 나간다 —

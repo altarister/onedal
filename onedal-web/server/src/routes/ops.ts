@@ -3,7 +3,7 @@ import {
     CALL_NOTE_MEMO_MAX, CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow, runningModeOf,
     type CargoReport, type CargoUnit, type OpsAgreement, type OpsCallNote,
     type ContentKind, type OpsAnomaly, type OpsAudit, type OpsCall, type OpsContent, type OpsCounts, type OpsMember,
-    type OpsMemberDetail, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
+    type OpsMemberDetail, type OpsJudgedCall, type JudgedCallInfo, type JudgedFilterInfo, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
 } from "@onedal/shared";
 import db from "../db";
 import { getUserDevicesSnapshot, getActiveDevicesSnapshot } from "./devices";
@@ -168,6 +168,31 @@ function todayCallsOf(userId: string): OpsCall[] {
     return (db.prepare(`${ORDER_SQL} WHERE o.userId = ? AND o.timestamp >= ? ORDER BY o.timestamp DESC`).all(userId, todayStartIso) as OrderRow[]).map(opsCallOf);
 }
 
+/**
+ * 🧾 **오늘 판정받은 콜 전부**(회원 상세 «오늘 콜» 탭 · reviews/43) — 잡은 콜 · 안 잡은 콜 · 미리보기 · 체험.
+ * 판정 표가 원천이다(미리보기 · 체험은 orders 에 안 쓰인다). 콜 내용은 판정 때 남긴 것(detail.call) → 없으면 orders 행 →
+ * 없으면 null(기록을 남기기 전의 옛 판정) — 지어내지 않는다. 필터는 판정 때의 서버 필터 요약(detail.filter)뿐이다.
+ */
+function todayJudgedOf(userId: string): OpsJudgedCall[] {
+    const { todayStartIso } = restoreWindow(Date.now());
+    type Row = { orderId: string; color: string; score: number | null; detail: string | null; judgedAt: string;
+                 status: string | null; pickup: string | null; dropoff: string | null; fare: number | null; targetApp: string | null };
+    const rows = db.prepare(`SELECT j.orderId, j.color, j.score, j.detail, j.judgedAt, o.status, o.pickup, o.dropoff, o.fare, o.targetApp
+        FROM order_judgments j LEFT JOIN orders o ON o.id = j.orderId
+        WHERE j.userId = ? AND j.judgedAt >= ? ORDER BY j.judgedAt DESC`).all(userId, todayStartIso) as Row[];
+    return rows.map(r => {
+        let d: { axes?: { name?: string; score?: number | null; raw?: string }[]; call?: JudgedCallInfo | null; filter?: JudgedFilterInfo | null } = {};
+        try { d = JSON.parse(r.detail ?? '{}') ?? {}; } catch { /* 깨진 detail 은 빈 판정으로 — 목록 전체를 버리지 않는다 */ }
+        const fromOrder: JudgedCallInfo | null = r.pickup != null
+            ? { pickup: r.pickup, dropoff: r.dropoff ?? '', fare: r.fare ?? 0, targetApp: r.targetApp, kind: '콜' } : null;
+        return {
+            orderId: r.orderId, judgedAt: isoKst(r.judgedAt) ?? r.judgedAt, color: r.color, score: r.score,
+            axes: (d.axes ?? []).map(a => ({ name: a.name ?? '', score: a.score ?? null, raw: a.raw ?? '' })),
+            call: d.call ?? fromOrder, filter: d.filter ?? null, taken: r.status,
+        };
+    });
+}
+
 /** 진행 중 콜(KEEP 한 · 끝나지 않은 · 재부팅 복구 창) — 미리보기 · 체험 콜은 orders 에 없다 */
 const IN_PROGRESS_SQL = `o.status IN (${IN_PROGRESS_STATUSES.map(() => '?').join(', ')}) AND o.timestamp >= ?`;
 const inProgressParams = () => [...IN_PROGRESS_STATUSES, restoreWindow(Date.now()).unfinishedSinceIso];
@@ -205,6 +230,7 @@ router.get("/members/:id", (req, res) => {
     const detail: OpsMemberDetail = {
         member: memberOf(r, req.app.get("io")),
         todayCalls: todayCallsOf(r.id),
+        todayJudged: todayJudgedOf(r.id),
         anomalies: (db.prepare(`${ANOMALY_SQL} WHERE d.user_id = ? ORDER BY a.id DESC LIMIT 50`).all(r.id) as AnomalyRow[]).map(anomalyOf),
         audit: (db.prepare(`${AUDIT_SQL} WHERE a.target_user_id = ? ORDER BY a.id DESC LIMIT 50`).all(r.id) as AuditRow[]).map(auditOf),
         kakaoUsage: kakaoUsageOf(r.id),
@@ -422,7 +448,9 @@ router.get("/board/intel", (req, res) => {
     auditBoardView(adminOf(req), memberId);
     const asked = Number.parseInt(String(req.query.limit ?? ''), 10);
     const limit = Math.min(200, Math.max(1, Number.isFinite(asked) ? asked : 40));
-    const body: OpsBoardIntel = intelRowsOf({ userId: memberId, limit });
+    /* 📅 today=1 — 오늘(영업일) 줄만 · 개수도 오늘 범위 (회원 상세 «버린 콜» · reviews/43) */
+    const sinceIso = req.query.today === '1' ? restoreWindow(Date.now()).todayStartIso : undefined;
+    const body: OpsBoardIntel = intelRowsOf({ userId: memberId, limit, sinceIso });
     res.json(body);
 });
 

@@ -5,6 +5,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
 import type { DryRunGate } from "@onedal/shared";
 import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress, TargetAppType } from '@onedal/shared';
+import { judgmentRecordOf } from './judgmentRecord';
 import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, trappedOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
@@ -197,6 +198,8 @@ export class OrderEvaluator {
          *    카카오를 기다리는 사이 GPS · 필터 변경 · KEEP 이 끼어들어도 한 판정이 옛 값/새 값을 섞지 않는다.
          */
         const snap = { origin: originNow(), activeCalls: activeCallsNow(), goal: goalNow(), pickupRadiusKm: pickupRadiusNow(), filter: { ...session.activeFilter } };
+        /* 🧾 판정 장부에 함께 남길 콜 내용 · 이 판정의 서버 필터 요약 — 미리보기 · 체험 콜은 orders 에 안 남는다 (reviews/43) */
+        const record = judgmentRecordOf(securedOrder, snap.filter);
         // 📍 낡은 현위치로 우회 비용을 재면 색이 틀린다 (규칙 ⑤-3) — 비우면 내 주소로 메운다.
         //    비움만 부르면 origin 없는 카카오 호출이 되어 합짐이 전부 🔴 로 나온다 (0831 실측)
         // 판정 기준 — 원천은 DB(세션에 로그인 때 실림). 없으면(검사·초기화 전) 기본표로 폴백
@@ -452,7 +455,7 @@ export class OrderEvaluator {
                          */
 
                         // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
-                        if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, dry);
+                        if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, { ...dry, ...record });
                         (securedOrder as any).judgment = dry;
 
                         // 관제웹 카드가 이 문자열의 '꿀'/'똥'/'사고' 표식으로 색을 정한다 (합짐 timeExt 와 같은 규약)
@@ -807,7 +810,7 @@ export class OrderEvaluator {
                              */
 
                             // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
-                            if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, dry);
+                            if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, { ...dry, ...record });
                             (securedOrder as any).judgment = dry;
                             recommend = `'${dry.color}'`;
 
@@ -891,7 +894,7 @@ export class OrderEvaluator {
                 tags: [`판정 불가 — ${why}`, ...approxTagsOf(securedOrder)],
             }), judgmentCfg));
             slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
-            if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, dry);
+            if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, { ...dry, ...record });
             (securedOrder as any).judgment = dry;
         }
 

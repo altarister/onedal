@@ -150,10 +150,53 @@ export interface OpsMemberCheck {
     result: 'OK' | 'MISMATCH' | null;
 }
 
+/** 🧾 판정 때 함께 남긴 콜 내용 — 미리보기 · 체험 콜은 orders 에 안 쓰여 여기에만 있다 */
+export interface JudgedCallInfo {
+    pickup: string;
+    dropoff: string;
+    fare: number;
+    targetApp: string | null;
+    /** 미리보기(손 · 알람이 연 상세 · 안 잡음) · 체험 · 콜(잡을 수 있는 콜) */
+    kind: '미리보기' | '체험' | '콜';
+}
+
+/** 🧾 판정 때의 **서버** 필터 요약 — 원달앱이 걸러 올린 폰 필터와 다음 보고까지 한 판 어긋날 수 있다(화면은 «서버 필터 기준») */
+export interface JudgedFilterInfo {
+    destinationCity: string | null;
+    goalCity: string | null;
+    callTarget: string | null;
+    pickupRadiusKm: number | null;
+    minFare: number | null;
+    isActive: boolean | null;
+    /** 오늘만 바꾼 필터인가(`userOverrides`) */
+    todayOnly: boolean;
+    /** 상차 · 하차 · 제외 낱말 목록 크기 — 낱말은 수백 개라 개수만 */
+    pickupCount: number;
+    dropoffCount: number;
+    excludedCount: number;
+}
+
+/** 🧾 오늘 판정받은 콜 한 줄 — 회원 상세 «오늘 콜» 탭 */
+export interface OpsJudgedCall {
+    orderId: string;
+    judgedAt: string;
+    color: string;
+    score: number | null;
+    /** 축마다 점수와 까닭 글(판정 그대로) */
+    axes: { name: string; score: number | null; raw: string }[];
+    /** 판정 때 남긴 내용 → 없으면 orders 행 → 없으면 null(기록을 남기기 전의 옛 판정) */
+    call: JudgedCallInfo | null;
+    filter: JudgedFilterInfo | null;
+    /** 잡았나 — orders 의 상태(확정 · 무름 · 방출 · 완료) · 없으면 null(안 잡음) */
+    taken: string | null;
+}
+
 /** 회원 한 명 화면 — 열람 기록은 서버가 이 문에서 남긴다 */
 export interface OpsMemberDetail {
     member: OpsMember;
     todayCalls: OpsCall[];
+    /** 오늘 판정받은 콜 전부(잡은 콜 · 안 잡은 콜 · 미리보기 · 체험) — 새 줄이 위 */
+    todayJudged: OpsJudgedCall[];
     anomalies: OpsAnomaly[];
     audit: OpsAudit[];
     /** 카카오 길찾기 호출 수 — 5단계 표(kakao_usage_days)가 생기기 전엔 null(«아직 안 셈») */

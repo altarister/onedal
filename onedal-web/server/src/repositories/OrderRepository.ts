@@ -134,11 +134,14 @@ export class OrderRepository {
         /** 🔴 못 쟀으면 `score` 는 `null` 이다 — 0 으로 지어내지 않는다 */
         v: { color: string; score: number | null; axes: unknown; gates: unknown; tags: unknown;
              /** 🧾 기존 콜 정거장 줄 · 모르는 까닭 — 합짐 심사 때만 (전수표 4단계). 새로고침에 사라지지 않게 같이 둔다 */
-             stops?: unknown; unknownWhy?: string | null; extraMin?: number | null }) {
+             stops?: unknown; unknownWhy?: string | null; extraMin?: number | null;
+             /** 🧾 판정 때의 콜 내용 · 서버 필터 요약(`judgmentRecordOf`) — 운영센터 «오늘 판정받은 콜»이 읽는다 */
+             call?: unknown; filter?: unknown }) {
         db.prepare(`INSERT OR IGNORE INTO order_judgments (orderId, userId, color, score, detail, judgedAt)
                     VALUES (?, ?, ?, ?, ?, ?)`)
           .run(orderId, userId, v.color, v.score,
-               JSON.stringify({ axes: v.axes, gates: v.gates, tags: v.tags, stops: v.stops, unknownWhy: v.unknownWhy ?? null, extraMin: v.extraMin ?? null }), new Date().toISOString());
+               JSON.stringify({ axes: v.axes, gates: v.gates, tags: v.tags, stops: v.stops, unknownWhy: v.unknownWhy ?? null, extraMin: v.extraMin ?? null,
+                                call: v.call ?? null, filter: v.filter ?? null }), new Date().toISOString());
     }
 
     /**

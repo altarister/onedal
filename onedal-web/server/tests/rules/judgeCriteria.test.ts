@@ -407,7 +407,7 @@ describe('갈아탔다 — 채점하는 곳은 하나다', () => {
 
     it('🔴 색·점수·스냅샷이 전부 새 함수에서 나온다', () => {
         expect(ev).toMatch(/toSnapshot\(judge\(CRITERIA,/);
-        expect(ev).toMatch(/saveJudgment\(securedOrder\.id, userId, dry\)/);
+        expect(ev).toMatch(/saveJudgment\(securedOrder\.id, userId, \{ \.\.\.dry, \.\.\.record \}\)/);
         expect(ev).toMatch(/recommend = `'\$\{dry\.color\}'`/);
     });
 
