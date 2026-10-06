@@ -46,3 +46,27 @@ export interface PhoneDecisionAck {
     deviceId: string;
     orderId: string;
 }
+
+/**
+ * 📶 **블루투스 틀 — 관제앱(거는 쪽) ↔ 스캔폰 원달앱(받는 쪽 · 접근성 서비스 안 GATT 서버)** (reviews/50 ①-2).
+ * 관제앱 자바 `BleProtocol.java` 와 원달앱이 같은 값을 쓴다 — 서버 `bleProtocolPair.test.ts` 가 자바를 글자로 읽어 견준다.
+ * 쓰기 칸이 둘이다 — 큰 필터를 쪼개 보내는 도중에도 결재가 조각 사이로 먼저 간다(한 칸이면 틀이 깨져 끼울 수 없다).
+ * - 작은 칸(관제앱 → 폰): 한 번 쓰기에 메시지 하나 `[종류 1][본문 JSON]` — PHONE · DECISION · BREATH
+ * - 큰 칸(관제앱 → 폰): SUPPLY 만 `[길이 4 · 큰 끝][gzip JSON]` 을 512 바이트 조각으로 · 받는 쪽은 길이만큼 모아 푼다
+ * - 알림 칸(폰 → 관제앱): `[종류 1][본문 JSON]` — HELLO · ACK · BREATH
+ */
+export const BLE_UUIDS = {
+    service: '6f1d1000-1da1-4b1e-9e00-0000000000a1',
+    small: '6f1d1001-1da1-4b1e-9e00-0000000000a1',
+    big: '6f1d1002-1da1-4b1e-9e00-0000000000a1',
+    notify: '6f1d1003-1da1-4b1e-9e00-0000000000a1',
+} as const;
+
+/** 메시지 종류 바이트 — HELLO `{deviceId, sig}` · SUPPLY `{filter, filterVersion}` · PHONE `{mode, evaluatingNow}` · DECISION `{orderId, action, foldMs?}` · ACK `{orderId}` · BREATH(관제앱 → 폰은 본문 1바이트 «서버 살아 있음» 1/0 · 폰 → 관제앱은 본문 없음) */
+export const BLE_KINDS = { HELLO: 1, SUPPLY: 2, PHONE: 3, DECISION: 4, ACK: 5, BREATH: 6 } as const;
+
+/** 한 번 쓰기 최대 바이트 — 넘기면 받는 앱이 죽었다(0-3 시험 514) */
+export const BLE_MAX_WRITE = 512;
+/** 숨 간격 · 이만큼 아무것도 못 들으면 끊고 다시 붙는다(0-2 시험) */
+export const BLE_BREATH_MS = 1000;
+export const BLE_SILENT_MS = 5000;

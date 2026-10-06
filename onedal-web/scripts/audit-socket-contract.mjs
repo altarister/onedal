@@ -43,7 +43,7 @@ function walk(dir, out = []) {
         if (name === 'node_modules' || name === 'dist' || name.startsWith('.')) continue;
         const p = join(dir, name);
         if (statSync(p).isDirectory()) walk(p, out);
-        else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(p);
+        else if (/\.(tsx?|java)$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(p);
     }
     return out;
 }
@@ -63,10 +63,22 @@ function collectFromArrays(text, varNamesUsedDynamically) {
     return found;
 }
 
+/**
+ * 📡 **상수로 쓴 사건 이름을 글자로 푼다** — 관제앱 공급 소켓은 이름을 한 곳에 둔다(shared `SUPPLY_EVENTS` · 관제앱 자바 `BleProtocol.EVENT_*`).
+ *    풀지 않으면 그 emit · on 이 이 검사에서 통째로 빠진다(빨개지지도 않는다).
+ */
+const sharedBle = readFileSync(join(ROOT, 'shared/src/bleProtocol.ts'), 'utf8');
+const SUPPLY_EVENTS = Object.fromEntries([...(sharedBle.match(/SUPPLY_EVENTS\s*=\s*\{([\s\S]*?)\}/)?.[1] ?? '').matchAll(/(\w+):\s*'([\w-]+)'/g)].map(m => [m[1], m[2]]));
+const javaBle = readFileSync(join(ROOT, 'client-app/android/app/src/main/java/kr/co/onedal/dashboard/BleProtocol.java'), 'utf8');
+const JAVA_EVENTS = Object.fromEntries([...javaBle.matchAll(/static final String (EVENT_\w+) = "([\w-]+)"/g)].map(m => [m[1], m[2]]));
+const resolveConstants = (text) => text
+    .replace(/SUPPLY_EVENTS\.(\w+)/g, (all, k) => (SUPPLY_EVENTS[k] ? `'${SUPPLY_EVENTS[k]}'` : all))
+    .replace(/BleProtocol\.(EVENT_\w+)/g, (all, k) => (JAVA_EVENTS[k] ? `"${JAVA_EVENTS[k]}"` : all));
+
 function scan(dirs, patterns) {
     const map = new Map();
     for (const file of [].concat(dirs).flatMap(d => walk(d))) {
-        const text = readFileSync(file, 'utf8');
+        const text = resolveConstants(readFileSync(file, 'utf8'));
         const rel = relative(ROOT, file);
         for (const [kind, re] of patterns) {
             for (const m of text.matchAll(re)) {
@@ -93,13 +105,14 @@ function scan(dirs, patterns) {
 // `io.to(...)`, `io?.to(...)`, `socket.emit(...)`, `io.emit(...)` 를 모두 잡는다
 const server = scan(join(ROOT, 'server/src'), [
     ['emit', /io\??(?:\.of\([^)]*\))?\.to\([^)]*\)\.emit\(["']([\w-]+)["']/g],   // 운영센터 이름공간(io.of('/ops'))으로 보내는 것도 센다
+    ['emit', /nsp\.to\([^)]*\)\.emit\(["']([\w-]+)["']/g],   // 📡 관제앱 공급 이름공간(/supply)
     ['emit', /socket\.emit\(["']([\w-]+)["']/g],
     ['emit', /io\??\.emit\(["']([\w-]+)["']/g],
     /* 👥 orderId 를 받는 이벤트는 `orderOn("ev", …)` 으로 붙는다(콜 주인 확인 · socketHandlers) — 듣는 곳으로 센다 */
     ['on', /(?:socket\.on|safeOn\(socket,\s*|orderOn)\(?["']([\w-]+)["']/g],
 ]);
-/* 듣는 쪽은 둘 — 기사 관제웹과 관리자 운영센터(관리자 방 신호) */
-const client = scan([join(ROOT, 'client-app/src'), join(ROOT, 'ops/src')], [
+/* 듣는 쪽은 셋 — 기사 관제웹 · 관리자 운영센터(관리자 방 신호) · 관제앱 공급 서비스(자바 · /supply) */
+const client = scan([join(ROOT, 'client-app/src'), join(ROOT, 'ops/src'), join(ROOT, 'client-app/android/app/src/main/java')], [
     ['emit', /socket\.emit\(["']([\w-]+)["']/g],
     ['on', /socket\.on\(["']([\w-]+)["']/g],
 ]);
@@ -135,8 +148,7 @@ report('═ 관제웹이 듣는데 서버가 안 보내는 이벤트 ═', new S
  *
  * 규칙 ② "안전장치는 겹쳐 둔다, 빼지 않는다" 의 반대다. **문이 둘이면 우회로가 생긴다.**
  *
- * ⚠️ 앱(`onedal-app`)은 소켓을 쓰지 않는다 — REST 피기백이 의도된 설계다.
- *    그러니 서버가 받는 이벤트는 **관제웹이 쏘는 것뿐**이어야 한다.
+ * ⚠️ 원달앱(`onedal-app`)은 소켓을 쓰지 않는다 — 서버가 받는 이벤트는 **관제웹 · 관제앱 공급 서비스가 쏘는 것뿐**이어야 한다.
  */
 report('═ 서버가 받는데 **아무도 안 보내는** 이벤트 (죽은 문) ═',
     new Set([...srvOn].filter(e => !cliEmit.has(e))), server.get('on'));

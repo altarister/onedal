@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiClient } from "../api/apiClient";
 import { socket } from "../lib/socket";
 import { logRoadmapEvent } from "../lib/roadmapLogger";
+import { startSupply, stopSupply } from "../lib/supply";
 
 interface User {
     id: string;
@@ -47,6 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         checkAuth();
     }, []);
 
+    /* 📡 로그인된 동안 관제앱 공급 서비스를 지금 토큰으로 띄운다 — 앱을 열 때 · 로그인할 때 (웹에서는 아무것도 안 함) */
+    useEffect(() => {
+        if (user) startSupply();
+    }, [user]);
+
 
     const loginWithGoogle = async (credential: string) => {
         try {
@@ -88,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem("access_token");
             localStorage.removeItem("refresh_token");
             setUser(null);
+            stopSupply();        // 관제앱 공급 서비스도 내리고 저장한 토큰을 지운다
             socket.disconnect(); // 로그아웃 시 소켓도 끊어주기
             window.location.href = "/login";
         }

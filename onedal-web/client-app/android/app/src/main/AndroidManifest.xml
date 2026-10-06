@@ -26,6 +26,12 @@
             </intent-filter>
         </activity>
 
+        <!-- 📡 공급 서비스 — 서버 공급 소켓 + 블루투스로 스캔폰에 넘김 (SupplyService · reviews/50 ①-2) -->
+        <service
+            android:name=".SupplyService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -53,6 +59,15 @@
 
     <!-- 네이티브 진동 피드백 (꿀콜/똥콜 알림) -->
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- 📡 블루투스 공급 (SupplyService) — 12 이상은 검색 · 연결 둘(검색으로 위치를 안 쓴다) · 11 이하는 옛 권한 둘 + 위치(위에 있음) -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
     <!-- 📞 누르면 바로 걸기 (DirectCallPlugin) — 없으면 다이얼러만 열려 한 번 더 눌러야 한다 -->
     <uses-permission android:name="android.permission.CALL_PHONE" />

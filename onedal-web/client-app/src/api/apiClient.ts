@@ -4,6 +4,7 @@ import axios from "axios";
 // (또는 VITE_API_URL 환경 변수 사용 가능)
 // 🎯 주소를 정하는 곳은 `serverTarget` 하나다 — 여기서 또 읽으면 소켓과 갈라진다 (규칙 ③)
 import { apiBase } from "../lib/serverTarget";
+import { startSupply } from "../lib/supply";
 const baseURL = apiBase();
 
 export const apiClient = axios.create({
@@ -68,6 +69,7 @@ apiClient.interceptors.response.use(
                     
                     apiClient.defaults.headers.common["Authorization"] = `Bearer ${data.accessToken}`;
                     onRefreshed(data.accessToken);
+                    startSupply();   // 📡 관제앱 공급 서비스도 새 토큰으로
                     
                     // retry original request with new token
                     originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
