@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { otherContractingAuto, type PhoneForAuto } from "@onedal/shared";
 import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, runningModeOf } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession, peekUserSession, baseFilterFromDb } from "../state/userSessionStore";
@@ -62,13 +63,18 @@ function saveModePreference(deviceId: string, userId: string, mode: DeviceModeTy
 }
 
 /**
- * 🔁 **자동은 한 폰만 — 같은 기사님의 다른 등록 폰 가운데 명령이 자동인 폰이 있나** (reviews/48 가).
- *    저장하지 않고 그때그때 본다(규칙 ③) — 한 번도 안 고른 폰의 기본값(필터 켜짐이면 자동)도 `getDeviceMode` 가 같이 답한다.
- *    보고 응답(`scrap.ts`)이 이 사실로 자동을 알람으로 내려준다 — 이미 둘이 자동 명령인 옛 DB · 새로 붙인 폰의 안전망.
+ * 🔁 **자동은 한 폰만 — 같은 기사님의 다른 폰 가운데 지금 확정을 누를 수 있는 폰이 있나** (reviews/48 가 · shared `otherContractingAuto`).
+ *    저장하지 않고 그때그때 본다(규칙 ③) — 살아 있는 폰(메모리 세션 · 데드맨 시간 안)만 · 명령(`getDeviceMode` — 한 번도 안 고른 폰의 기본값 포함) 또는 받은 모드가 자동 · 지금 배차망이 자동 확정 가능.
+ *    보고 응답(`scrap.ts`)이 이 사실로 자동을 알람으로 내려준다.
  */
 export function otherAutoPhoneOf(deviceId: string, userId: string): boolean {
-    const others = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ? AND device_id <> ?").all(userId, deviceId) as { device_id: string }[];
-    return others.some(o => getDeviceMode(o.device_id, userId) === 'AUTO');
+    const ids = (db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(userId) as { device_id: string }[]).map(r => r.device_id);
+    const phones: PhoneForAuto[] = [];
+    for (const id of ids) {
+        const s = activeDevices.get(id);
+        if (s) phones.push({ deviceId: id, mode: getDeviceMode(id, userId), appliedMode: s.appliedMode, targetApp: s.targetApp, lastSeen: s.lastSeen });
+    }
+    return otherContractingAuto(deviceId, phones, Date.now(), DEADMAN_TIMEOUT_MS);
 }
 
 /**

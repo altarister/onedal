@@ -51,6 +51,8 @@ export interface ModeActs {
 export interface ModeTable {
     situations: ModeSituation[];
     acts: Record<DeviceModeType, ModeActs>;
+    /** 배차망마다 원달앱이 자동으로 확정 · 수락을 누를 수 있나 — 원달앱 플러그인 `availableModes` 와 같다(`ModeTablePairTest`) */
+    networks: Record<TargetAppType, { autoContract: boolean }>;
 }
 
 export const MODE_TABLE: ModeTable = /*JSON*/{
@@ -112,5 +114,41 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
         "ALARM":      { "tapsList": true,  "sound": true,  "contracts": false, "blocksAccept": false, "frame": "FF22C55E", "label": "알람" },
         "MANUAL":     { "tapsList": false, "sound": false, "contracts": false, "blocksAccept": false, "frame": "FF64748B", "label": "직접" },
         "SIMULATION": { "tapsList": true,  "sound": false, "contracts": false, "blocksAccept": true,  "frame": "FFF59E0B", "label": "체험" }
+    },
+    "networks": {
+        "insung": { "autoContract": true },
+        "hwamul24": { "autoContract": true },
+        "kakaopicker": { "autoContract": false }
     }
 }/*JSON*/ as ModeTable;
+
+/** 이 배차망에서 원달앱이 자동으로 확정할 수 있나 — 모르는 배차망은 «못 한다»(모르면 잡지 않는다 · 규칙 ④) */
+export function networkCanAutoContract(network: string | undefined | null): boolean {
+    return !!network && (MODE_TABLE.networks as Record<string, { autoContract: boolean } | undefined>)[network]?.autoContract === true;
+}
+
+/** 자동은 한 폰만을 가르는 데 쓰는 폰 사실 — 기기 세션에서 그대로 옮긴다 */
+export interface PhoneForAuto {
+    deviceId: string;
+    /** 기사님 명령 */
+    mode: string;
+    /** 폰이 «받았다»고 보고한 모드 — 명령을 옮긴 뒤에도 폰이 아직 자동을 들고 있는지 */
+    appliedMode?: string;
+    /** 지금 화면의 배차망 */
+    targetApp?: string;
+    /** 마지막 보고 시각(ms) */
+    lastSeen: number;
+}
+
+/**
+ * 🔁 **지금 확정을 누를 수 있는 다른 폰이 있나** (reviews/48 가 · onedal-69 리뷰) — 낱개 사실 셋을 모두 본다.
+ * ① 살아 있다(마지막 보고가 `aliveMs` 안 — 서랍 속 등록 폰 · 꺼진 옛 폰이 진짜 폰을 끌어내리지 않게)
+ * ② 자동이다(명령이 자동 **또는** 아직 자동을 받았다고 보고 — 넘기는 순간 앞 폰이 알람을 받기 전까지 새 폰도 기다려 틈 0)
+ * ③ 지금 배차망이 자동으로 확정할 수 있다(픽커는 수락 칸이 없다 — 계약 못 하는 폰이 계약하는 폰을 끌어내리지 않게)
+ */
+export function otherContractingAuto(selfId: string, phones: PhoneForAuto[], now: number, aliveMs: number): boolean {
+    return phones.some(p => p.deviceId !== selfId
+        && now - p.lastSeen <= aliveMs
+        && (p.mode === 'AUTO' || p.appliedMode === 'AUTO')
+        && networkCanAutoContract(p.targetApp));
+}
