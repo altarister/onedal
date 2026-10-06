@@ -261,8 +261,12 @@ class TelemetryManager(
         recomputeMode("공급")
     }
 
-    /** 📶 공급 연결이 살았다 · 끊겼다 */
-    fun onLinked(alive: Boolean) { linked = alive; recomputeMode(if (alive) "공급 연결 살아남" else "공급 연결 끊김") }
+    /** 📶 공급 연결이 살았다 · 끊겼다 — 끊기면 «관제앱 서버 붙음»도 모른다(거짓) · 다시 붙은 관제앱의 숨으로만 다시 켠다(폰 시험 10-06 · 옛 값이 남아 다시 붙자마자 자동이 될 뻔함) */
+    fun onLinked(alive: Boolean) {
+        linked = alive
+        if (!alive) serverAlive = false
+        recomputeMode(if (alive) "공급 연결 살아남" else "공급 연결 끊김")
+    }
 
     /** 📶 관제앱이 «서버에 붙어 있다 · 끊겼다»고 숨으로 알렸다 */
     fun onServerAlive(alive: Boolean) { if (alive != serverAlive) { serverAlive = alive; recomputeMode(if (alive) "관제앱 서버 붙음" else "관제앱 서버 끊김") } }

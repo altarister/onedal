@@ -73,4 +73,15 @@ describe('📶 관제앱 BleProtocol.java = shared bleProtocol.ts', () => {
         expect(kt).toContain('mac(pairSig, "hello|$appNonce")');
         expect(kt).toContain('mac(pairSig, "proof|$phoneNonce")');
     });
+
+    it('🔴 관제앱 서비스는 내려가면 블루투스 일을 다시 하지 않는다 — 검색 · 연결 · 보내기 · 다시 찾기', () => {
+        const service = readFileSync(join(__dirname, '../../../client-app/android/app/src/main/java/kr/co/onedal/dashboard/SupplyService.java'), 'utf8');
+        const onDestroy = service.slice(service.indexOf('public void onDestroy() {'), service.indexOf('public IBinder onBind('));
+        const mark = onDestroy.indexOf('destroyed = true;');
+        expect(mark).toBeGreaterThanOrEqual(0);
+        expect(mark).toBeLessThan(onDestroy.indexOf('closeLink('));
+        expect(onDestroy.indexOf('h.removeCallbacksAndMessages(null);')).toBeGreaterThan(onDestroy.indexOf('closeLink('));
+        for (const gate of ['if (destroyed || scanning ||', 'if (destroyed) return;', 'if (destroyed || !l.ready || l.writing || l.gatt == null) return;'])
+            expect(service).toContain(gate);
+    });
 });

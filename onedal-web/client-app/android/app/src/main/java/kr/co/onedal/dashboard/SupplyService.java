@@ -102,6 +102,8 @@ public class SupplyService extends Service {
     private final ArrayList<JSONObject> pendingAcks = new ArrayList<>();
     private boolean scanning = false;
     private String shownText = "";
+    /** 🔴 내려갔다 — 남은 콜백이 다시 검색 · 연결 · 보내기를 하지 않는다(폰 시험 10-06 23:22 · 로그아웃 뒤에도 A24 에 다시 붙어 옛 공급을 보냈다) */
+    private boolean destroyed = false;
 
     /** 📱 블루투스 연결 하나 = 스캔폰 하나(HELLO 서명이 맞은 뒤) */
     private final class Link {
@@ -167,10 +169,11 @@ public class SupplyService extends Service {
 
     @Override
     public void onDestroy() {
-        h.removeCallbacksAndMessages(null);
+        destroyed = true;
         if (socket != null) { socket.off(); socket.disconnect(); socket = null; }
         stopScan();
         for (Link l : new ArrayList<>(links.values())) closeLink(l, "서비스 내림");
+        h.removeCallbacksAndMessages(null);   // 끊으며 건 «1초 뒤 다시 찾기»까지 거둔다
         Log.i(TAG, "공급 서비스 내려감");
         super.onDestroy();
     }
@@ -324,7 +327,7 @@ public class SupplyService extends Service {
     }
 
     private void startScan() {
-        if (scanning || links.size() >= MAX_PHONES || bt == null || bt.getAdapter() == null || !bt.getAdapter().isEnabled()) return;
+        if (destroyed || scanning || links.size() >= MAX_PHONES || bt == null || bt.getAdapter() == null || !bt.getAdapter().isEnabled()) return;
         BluetoothLeScanner sc = bt.getAdapter().getBluetoothLeScanner();
         if (sc == null) return;
         try {
@@ -347,6 +350,7 @@ public class SupplyService extends Service {
     }
 
     private void onFound(BluetoothDevice d) {
+        if (destroyed) return;
         String addr = d.getAddress();
         Long until = blocked.get(addr);
         if (links.containsKey(addr) || (until != null && until > SystemClock.elapsedRealtime()) || links.size() >= MAX_PHONES) return;
@@ -368,6 +372,7 @@ public class SupplyService extends Service {
         links.remove(l.device.getAddress());
         try { if (l.gatt != null) { l.gatt.disconnect(); l.gatt.close(); } } catch (Exception ignored) { }
         Log.i(TAG, "📴 " + l.name() + " 끊음 — " + why);
+        if (destroyed) return;
         showStatus();
         h.postDelayed(this::updateScan, 1000);
     }
@@ -577,7 +582,7 @@ public class SupplyService extends Service {
 
     /** ✍️ 쓰기 한 번 — 작은 칸 먼저, 없으면 큰 칸 조각 · 큰 칸이 비면 다음 SUPPLY 를 쪼개 넣는다(보내던 틀은 끝까지 보낸다) */
     private void pump(Link l) {
-        if (!l.ready || l.writing || l.gatt == null) return;
+        if (destroyed || !l.ready || l.writing || l.gatt == null) return;
         byte[] value;
         BluetoothGattCharacteristic c;
         if (!l.smallQ.isEmpty()) { value = l.smallQ.poll(); c = l.small; }
