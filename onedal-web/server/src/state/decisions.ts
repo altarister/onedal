@@ -1,5 +1,5 @@
 import { SUPPLY_EVENTS, SUPPLY_NAMESPACE } from "@onedal/shared";
-import type { PhoneDecision, SupplyDecisionAction } from "@onedal/shared";
+import type { PhoneDecision, PhoneFold, SupplyDecisionAction } from "@onedal/shared";
 import type { UserSession } from "./userSessionStore";
 import { cancelOrderWaits } from "./waits";
 import { releaseEvaluatingDevices } from "../core/helpers";
@@ -51,6 +51,22 @@ export function decide(io: any, session: UserSession, userId: string, orderId: s
         slog('결재', `📡 [공급 소켓] ${orderId} 결재(${action})를 관제앱으로 — ${deviceLabelOf(d.deviceId)}`);
     }
     flushSupply(io, userId);
+}
+
+/**
+ * ⏩ 판정 끝 빨리 접기를 관제앱으로 — 그 콜을 쥔 폰마다 한 번(결재가 없는 미리보기 콜 · `applyQuickFold`).
+ *    관제앱이 남은 시간 동안 들고 있다가 그 폰이 다시 붙으면 줄여서 보낸다 — 서버는 한 번만 보낸다.
+ */
+export function sendFold(io: any, session: UserSession, userId: string, orderId: string): void {
+    const remainMs = foldRemainMsOf(session, orderId);
+    const nsp = io?.of?.(SUPPLY_NAMESPACE);
+    if (remainMs == null || !nsp?.adapter?.rooms?.get(userId)?.size) return;
+    for (const [deviceId, id] of session.deviceEvaluatingMap) {
+        if (id !== orderId) continue;
+        const f: PhoneFold = { deviceId, orderId, remainMs };
+        nsp.to(userId).emit(SUPPLY_EVENTS.fold, f);
+        slog('판정', `📡 [공급 소켓] ${orderId.slice(-6)} 빨리 접기 ${(remainMs / 1000).toFixed(1)}초 → 관제앱 — ${deviceLabelOf(deviceId)}`);
+    }
 }
 
 /**

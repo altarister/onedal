@@ -6,7 +6,8 @@ import { DEVICE_LINK_ERRORS, BLE_KINDS, BLE_MAX_WRITE, BLE_BREATH_MS, BLE_SILENT
  * 📶 **관제앱 자바 `BleProtocol.java` = shared `bleProtocol.ts`** (reviews/50 ①-2).
  * 자바는 jest 가 글자로 읽는다 — 한쪽만 고치면 관제앱이 서버 사건을 못 듣거나, 스캔폰과 칸 · 종류 바이트가 갈라져 블루투스로 아무것도 안 간다.
  * 서버가 공급 소켓을 거절하는 글(authSocket · webAccountGate)도 관제앱 `SupplyService.AUTH_REJECTS` 에 다 있어야 한다 — 빠지면 관제앱이 거절된 토큰으로 끝없이 다시 붙는다.
- * 못 잡는 것: 원달앱(코틀린) 쪽 짝(①-3 에서 원달앱 검사가 같은 shared 를 읽는다) · 실제 블루투스로 오가는지(폰 시험).
+ * 원달앱(코틀린) `BleFrames.kt` 도 같은 값을 쓴다(①-3).
+ * 못 잡는 것: 실제 블루투스로 오가는지(폰 시험).
  */
 const java = readFileSync(join(__dirname, '../../../client-app/android/app/src/main/java/kr/co/onedal/dashboard/BleProtocol.java'), 'utf8');
 const str = (name: string) => java.match(new RegExp(`static final String ${name} = "([^"]+)"`))?.[1];
@@ -19,6 +20,7 @@ describe('📶 관제앱 BleProtocol.java = shared bleProtocol.ts', () => {
         expect(str('EVENT_SUPPLY')).toBe(SUPPLY_EVENTS.supply);
         expect(str('EVENT_DECISION')).toBe(SUPPLY_EVENTS.decision);
         expect(str('EVENT_DECISION_ACK')).toBe(SUPPLY_EVENTS.decisionAck);
+        expect(str('EVENT_FOLD')).toBe(SUPPLY_EVENTS.fold);
     });
 
     it('🔴 블루투스 서비스 · 칸 셋', () => {
@@ -42,5 +44,18 @@ describe('📶 관제앱 BleProtocol.java = shared bleProtocol.ts', () => {
         const serverRejects = [...auth.matchAll(/new Error\('([^']+)'\)/g)].map(m => m[1]);
         expect(serverRejects.length).toBeGreaterThan(0);
         for (const why of [...serverRejects, DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED]) expect([why, rejects.includes(why)]).toEqual([why, true]);
+    });
+
+    it('🔴 원달앱 BleFrames.kt 의 칸 · 종류 바이트 · 한 번 쓰기 · 끊김 시간도 shared 와 같다', () => {
+        const kt = readFileSync(join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app/core/BleFrames.kt'), 'utf8');
+        const kuuid = (name: string) => kt.match(new RegExp(`val ${name}: UUID = UUID\\.fromString\\("([^"]+)"\\)`))?.[1];
+        const knum = (name: string) => Number(kt.match(new RegExp(`const val ${name}(?:: Byte)? = (\\d+)`))?.[1]);
+        expect(kuuid('SERVICE')).toBe(BLE_UUIDS.service);
+        expect(kuuid('SMALL')).toBe(BLE_UUIDS.small);
+        expect(kuuid('BIG')).toBe(BLE_UUIDS.big);
+        expect(kuuid('NOTIFY')).toBe(BLE_UUIDS.notify);
+        for (const [k, v] of Object.entries(BLE_KINDS)) expect([k, knum(k)]).toEqual([k, v]);
+        expect(knum('MAX_WRITE')).toBe(BLE_MAX_WRITE);
+        expect(Number(kt.match(/const val SILENT_MS = (\d+)L/)?.[1])).toBe(BLE_SILENT_MS);
     });
 });

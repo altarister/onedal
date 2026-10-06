@@ -367,6 +367,65 @@ class HijackService : AccessibilityService(), ScanContext {
         waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, delayMs) { r.run() }
     }
 
+    // ════════════════════════════════════════════════════════════════
+    //  📶 관제앱 공급 받기 (reviews/50 ①-3 · 한 값 한 길 — 보고 응답으로는 받지 않는다)
+    // ════════════════════════════════════════════════════════════════
+
+    private var bleLink: com.onedal.app.core.BleLink? = null
+    /** 마지막으로 실행한 결재의 콜 번호 — 같은 결재가 다시 오면(관제앱 · 서버 다시 보내기) 실행은 안 하고 «받았음»만 다시 */
+    private var lastExecutedDecisionOrderId: String? = null
+
+    private val bleListener = object : com.onedal.app.core.BleLink.Listener {
+        override fun onSupply(json: String) {
+            com.onedal.app.core.FilterStore.applySupplied(this@HijackService, json)?.let { onFilterArrived(it) }
+        }
+        override fun onPhone(json: String) {
+            val j = org.json.JSONObject(json)
+            /* 🔒 심사 중 — 읽는 두 자리(`EvaluatingNow.of`)가 보는 맨 위 칸 저장에 넣는다(공급 필터에는 서버가 이 칸을 빼고 보낸다) */
+            getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).edit().putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean("evaluatingNow")).apply()
+            j.optString("mode").takeIf { it.isNotEmpty() }?.let { telemetryManager.onSuppliedMode(it) }
+        }
+        override fun onDecision(json: String) {
+            val j = org.json.JSONObject(json)
+            val orderId = j.optString("orderId")
+            val action = j.optString("action")
+            if (orderId.isEmpty() || action.isEmpty()) { AppLogger.w(TAG, LogTag.DECISION, "⚠️ [결재 칸 비어 있음] orderId=$orderId · action=$action — 넘기지 않는다"); return }
+            AppLogger.w(TAG, LogTag.DECISION, "⚡ [결재 수신 · 블루투스] orderId: $orderId, action: $action")
+            when {
+                orderId == lastExecutedDecisionOrderId ->
+                    AppLogger.i(TAG, LogTag.DECISION, "🔁 [같은 결재 다시 옴] $orderId — 이미 실행했다 · «받았음»만 다시")
+                orderId != session.currentOrderId ->
+                    AppLogger.e(TAG, "👻 [Ghost Defense 발동!] 수신된 ID($orderId)가 현재 폰에 열려있는 오더 ID(${session.currentOrderId})와 다릅니다! 과거 허깨비 응답을 폐기합니다.")
+                else -> {
+                    AppLogger.w(TAG, LogTag.DECISION, "🛡️ [정상 결재 수신] ID 일치($orderId). 즉각 폐기/유지 액션을 집행합니다. (Action: $action)")
+                    lastExecutedDecisionOrderId = orderId
+                    executeDecisionImmediately(action)
+                }
+            }
+            bleLink?.ack(orderId)   // 받았다 — 실행했든 버렸든 서버가 같은 결재를 다시 보내지 않게
+        }
+        override fun onFold(json: String) {
+            val f = com.google.gson.Gson().fromJson(json, com.onedal.app.models.FoldAfter::class.java) ?: return
+            onFoldAfter(f.orderId, f.remainMsOrSec())   // ⏩ 앱이 연 나쁜 콜 상세를 남은 시간에 목록으로 (`DetailFold`)
+        }
+        override fun onServerAlive(alive: Boolean) = telemetryManager.onServerAlive(alive)
+        override fun onLinked(alive: Boolean) = telemetryManager.onLinked(alive)
+    }
+
+    /**
+     * 🔄 **새 필터가 닿으면 지금 목록을 곧바로 다시 판정한다** (실물 픽커 09-30 02:52 — 목록 글자가 그대로라 옛 필터로 막힌 콜이 안 울렸다).
+     * 목록일 때만 — 상세·팝업에서는 목록으로 돌아오는 순간 목록 스캔 첫머리(`onFilterVersion`)가 받는다(채우기 단계를 다시 밟지 않는다).
+     */
+    private fun onFilterArrived(v: String) {
+        if (telemetryManager.currentScreenContext == ScreenContext.LIST) {
+            AppLogger.i(TAG, LogTag.FILTER, "🔄 [필터 도착] 버전 $v — 지금 화면을 다시 판정한다")
+            lastScreenFingerprint = 0
+            scanScreen()
+        } else {
+            AppLogger.i(TAG, LogTag.FILTER, "🔄 [필터 도착] 버전 $v — 목록으로 돌아오면 판정한다 (지금 ${telemetryManager.currentScreenContext})")
+        }
+    }
+
     /** ⏩ 판정 뒤 접기 — 걸린 상세 대기의 마감을 서버가 준 남은 초로 당긴다(더 이를 때만) · 조건은 `DetailFold` */
     private fun onFoldAfter(orderId: String, remainMs: Long) {
         val now = android.os.SystemClock.elapsedRealtime()
@@ -525,22 +584,8 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager = TelemetryManager(apiClient, this, waitBook)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
 
         touchManager = AutoTouchManager(this, waitBook)
-        /**
-         * 🔄 **새 필터가 닿으면 지금 목록을 곧바로 다시 판정한다** (실물 픽커 09-30 02:52 — 목록 글자가 그대로라 옛 필터로 막힌 콜이 안 울렸다).
-         * 목록일 때만 — 상세·팝업에서는 목록으로 돌아오는 순간 목록 스캔 첫머리(`onFilterVersion`)가 받는다(채우기 단계를 다시 밟지 않는다).
-         * 쓰는 손이 한 곳인 `currentScreenContext` 를 읽는다.
-         */
-        apiClient.onFilterChanged = { v ->
-            mainHandler.post {
-                if (telemetryManager.currentScreenContext == ScreenContext.LIST) {
-                    AppLogger.i(TAG, LogTag.FILTER, "🔄 [필터 도착] 버전 $v — 지금 화면을 다시 판정한다")
-                    lastScreenFingerprint = 0
-                    scanScreen()
-                } else {
-                    AppLogger.i(TAG, LogTag.FILTER, "🔄 [필터 도착] 버전 $v — 목록으로 돌아오면 판정한다 (지금 ${telemetryManager.currentScreenContext})")
-                }
-            }
-        }
+        /* 📶 관제앱 공급을 블루투스로 받는다 — 필터 · 이 폰 몫(모드 · 심사 중) · 결재 · 빨리 접기 · 숨 (reviews/50 ①-3 · `BleLink`) · 콜백은 메인 스레드 */
+        bleLink = com.onedal.app.core.BleLink(this, { apiClient.getDeviceId() }, bleListener).also { it.start() }
         // 🚚 배차망 차종 낱말을 우리 차종에 못 맞췄다 — 이상 기록 «VEHICLE_UNKNOWN: 낱말»(같은 낱말은 하루 한 번 · `VehicleWordMiss`)
         com.onedal.app.core.VehicleWordMiss.sink = { network, word, line ->
             apiClient.sendAnomalyReport(
@@ -668,18 +713,6 @@ class HijackService : AccessibilityService(), ScanContext {
         if (TargetApp.startsTraceOnAttach(firstPkg, isList = firstScreen == ScreenContext.LIST)) startTrace("붙는 순간 화면이 실물 배차망 목록")
         updateScreenContext(firstScreen, firstRead)
 
-        // [Piggyback V2] 서버(관제탑) 결재 수신 콜백 연결 및 고스트 응답 방어(Ghost Defense)
-        telemetryManager.decisionCallback = { receivedOrderId, action ->
-            if (receivedOrderId.isNotEmpty() && receivedOrderId != session.currentOrderId) {
-                AppLogger.e(TAG, "👻 [Ghost Defense 발동!] 수신된 ID($receivedOrderId)가 현재 폰에 열려있는 오더 ID($session.currentOrderId)와 다릅니다! 과거 허깨비 응답을 폐기합니다.")
-            } else {
-                AppLogger.w(TAG, LogTag.DECISION, "🛡️ [정상 결재 수신] ID 일치($receivedOrderId). 즉각 폐기/유지 액션을 집행합니다. (Action: $action)")
-                executeDecisionImmediately(action)
-            }
-        }
-
-        // ⏩ 판정 뒤 접기 — 앱이 연 나쁜 콜 상세를 서버가 준 남은 초에 목록으로 (`DetailFold`) · 스캔과 같은 메인 스레드에서
-        telemetryManager.foldAfterCallback = { orderId, remainMs -> mainHandler.post { onFoldAfter(orderId, remainMs) } }
 
         // 🧹 서버 회차가 바뀌면 «본 콜» 기억을 비운다 — 스캔 루프와 같은 메인 스레드에서 (CallMemory 는 잠금이 없다)
         telemetryManager.callMemoryRoundCallback = { round ->
@@ -732,6 +765,7 @@ class HijackService : AccessibilityService(), ScanContext {
     override fun onDestroy() {
         // 📜 조용한 목록 다시 읽기 감시를 뗀다 — 서비스가 내려간 뒤 옛 서비스가 읽지 않게
         waitBook.cancelAll()   // 목록 감시 · 겹친 틀 뒤 · 미룬 알람까지 장부 하나로 거둔다
+        bleLink?.stop()   // 📶 광고 · GATT 서버를 닫는다 — 관제앱은 쓰기 실패로 끊김을 안다
         super.onDestroy()
         live = null
         if (::screenReader.isInitialized) screenReader.close()

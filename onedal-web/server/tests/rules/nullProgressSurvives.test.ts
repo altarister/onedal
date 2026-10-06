@@ -53,16 +53,18 @@ describe('🕳️ 서버 — 모르는 진행도는 null 로 둔다', () => {
 });
 
 describe('🕳️ 앱 — 서버가 보낸 필터를 왕복시키지 않는다', () => {
-    const client = () => code(app('api/ApiClient.kt'));
+    /* 필터는 관제앱이 블루투스로 준다 — 받는 자리는 `FilterStore.applySupplied` 한 곳(reviews/50 ①-3) */
+    const store = () => code(app('core/FilterStore.kt'));
 
     /**
      * 🔴 `gson.toJson(...)` 으로 되말면 **null 이 사라진다.** 원본 문자열을 그대로 둔다.
      */
     it('🔴 필터를 Gson 으로 되말아 저장하지 않는다 (null 이 사라진다)', () => {
-        expect(client()).not.toMatch(/gson\.toJson\(\s*scrapRes\.dispatchEngineArgs\s*\)/);
+        expect(store()).not.toMatch(/gson\.toJson\(/i);
     });
 
-    it('🔴 서버가 보낸 원문에서 필터를 꺼내 그대로 보관한다', () => {
-        expect(client()).toMatch(/optJSONObject\("dispatchEngineArgs"\)/);
+    it('🔴 받은 원문에서 필터를 꺼내 그대로 보관한다', () => {
+        expect(store()).toMatch(/root\.optJSONObject\("filter"\)\?\.toString\(\)/);
+        expect(store()).toMatch(/putString\("activeFilter", filterJson\)/);
     });
 });

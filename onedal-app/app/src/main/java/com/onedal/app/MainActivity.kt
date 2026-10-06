@@ -48,6 +48,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         // 🔋 배터리 최적화 예외는 켤 때 창을 바로 띄우지 않는다 — 점검 탭 «예외로 두기» 버튼이 맡는다 (`FirstRunCheck`)
+        /* 📶 «근처 기기» 허락이 없으면 안드로이드 허락 창을 한 번 — 접근성 서비스는 스스로 물을 수 없다 · 거절하면 점검 탭 줄이 빨갛다 (기사님 2 가 · reviews/50 ①-3) */
+        if (android.os.Build.VERSION.SDK_INT >= 31 && !com.onedal.app.core.BleLink.hasPermission(this))
+            requestPermissions(arrayOf(android.Manifest.permission.BLUETOOTH_ADVERTISE, android.Manifest.permission.BLUETOOTH_CONNECT), 3001)
 
         setContent {
             MaterialTheme {

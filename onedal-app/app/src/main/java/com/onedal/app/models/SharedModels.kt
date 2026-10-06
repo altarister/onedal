@@ -234,7 +234,6 @@ data class ScrapPayload(
     val isHolding: Boolean = false,     // [Page/Hold 분리] 콜 처리 중 여부
     val lat: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 위도
     val lng: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 경도
-    val ackDecisionId: String? = null,  // [Piggyback] 수신 확인 응답용 ID
     val targetApp: String = "insung",   // 타겟 앱 (insung, hwamul24 등)
     // 🧭 [피기백 v2] 지금 들고 있는 필터의 버전 — 서버가 같으면 필터 본문을 생략한다.
     //    구서버는 이 필드를 무시하고 늘 전부 보낸다 (호환)
@@ -349,14 +348,8 @@ data class ScrapResponse(
     val success: Boolean,
     // 🔴 응답 한 칸의 모양 때문에 목록 보고 응답을 버리지 않는다 — 서버가 빼거나 null 로 보내도 받는다(쓰는 곳에서 막는다)
     val apiStatus: ApiStatus? = null,
+    /** 본 콜 기억 번호(`callMemoryRound`)만 쓴다 — 모드는 관제앱이 블루투스로 준다(reviews/50 ①-3) */
     val deviceControl: DeviceControl? = null,
-    val dispatchEngineArgs: FilterConfig?,
-    val decision: DecisionPayload? = null,
-    // 🧭 [피기백 v2] 서버가 계산한 필터 버전 — dispatchEngineArgs 와 함께 저장해 뒀다가
-    //    다음 텔레메트리에 실어 보낸다. 구서버 응답에는 없다(null) → 늘 전체 수신 (호환)
-    val filterVersion: String? = null,
-    /** ⏩ 앱이 연 나쁜 콜(🔴·벨 미만) 상세를 접을 남은 초 — 서버 시계로 잰다. 없으면 pickerAlarmDetailSec 그대로 (`DetailFold`) */
-    val foldAfter: FoldAfter? = null,
 )
 
 /**

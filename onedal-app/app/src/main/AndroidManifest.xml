@@ -6,6 +6,11 @@
     <!-- 배터리 최적화 제외 권한 (접근성 서비스 유지용) -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 📶 관제앱 공급을 블루투스로 받기 (BleLink · reviews/50 ①-3) — 12 이상은 광고 · 연결 둘(원달앱을 열 때 묻는다) · 11 이하는 옛 권한 둘 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <!-- 🔔 알람 모드의 강한 진동 (기기_모드.md 2단계). 설치 시 자동 승인 — 기사님이 켤 것 없음 -->
     <uses-permission android:name="android.permission.VIBRATE" />
 

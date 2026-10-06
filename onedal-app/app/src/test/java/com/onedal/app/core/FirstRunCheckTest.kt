@@ -19,9 +19,9 @@ class FirstRunCheckTest {
     )
     private fun row(f: FirstRunCheck.Facts, key: FirstRunCheck.Key) = FirstRunCheck.rows(f).first { it.key == key }
 
-    @Test fun `모두 갖추면 다섯 줄 초록 · 점검 화면을 먼저 띄우지 않는다`() {
+    @Test fun `모두 갖추면 여섯 줄 초록 · 점검 화면을 먼저 띄우지 않는다`() {
         val rows = FirstRunCheck.rows(good)
-        assertEquals(5, rows.size)
+        assertEquals(6, rows.size)
         assertTrue(rows.all { it.ok })
         assertFalse(FirstRunCheck.mustShow(rows))
     }

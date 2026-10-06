@@ -1,5 +1,6 @@
 package com.onedal.app.core.engine
 
+import com.onedal.app.models.FoldAfter
 import com.onedal.app.models.ScrapResponse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -9,7 +10,7 @@ import java.io.File
 
 /**
  * ⏩ **앱이 연 나쁜 콜은 판정 뒤 서버가 준 남은 초에 목록으로** (기사님 «가» · onedal-ab 안 · onedal-1f).
- * 서버가 목록 보고 응답 맨 위에 foldAfter{orderId, remainSec}를 싣는다(🔴·벨 미만 · 앱이 연 콜만 · 서버 시계로 잰 남은 초).
+ * 서버가 판정 끝에 관제앱 공급으로 FOLD{orderId, remainMs}를 보내고 관제앱이 블루투스로 넘긴다(🔴·벨 미만 · 앱이 연 콜만 · 서버 시계로 잰 남은 ms · reviews/50 ①-3).
  * 앱은 10 을 들지 않는다. 없으면 지금처럼 pickerAlarmDetailSec(30초).
  */
 class DetailFoldTest {
@@ -27,10 +28,10 @@ class DetailFoldTest {
     @Test fun `원래 마감이 더 이르면 그대로`() = assertNull(fold(deadline = now + 5_000L))
     @Test fun `걸린 타이머가 없으면 안 건다`() = assertNull(fold(deadline = null))
 
-    @Test fun `목록 보고 응답 맨 위 foldAfter 를 읽는다`() {
-        val r = com.google.gson.Gson().fromJson("""{"success":true,"foldAfter":{"orderId":"o1","remainSec":7}}""", ScrapResponse::class.java)
-        assertEquals("o1", r.foldAfter?.orderId)
-        assertEquals(7, r.foldAfter?.remainWholeSec())
+    @Test fun `블루투스 FOLD 본문을 읽는다`() {
+        val f = com.google.gson.Gson().fromJson("""{"orderId":"o1","remainMs":7000}""", FoldAfter::class.java)
+        assertEquals("o1", f.orderId)
+        assertEquals(7_000L, f.remainMsOrSec())
     }
 
     @Test fun `confirm 에 openedByApp · 뒤로 가기 직전 같은 콜인지 다시 본다`() {
@@ -62,24 +63,23 @@ class DetailFoldTest {
      * 라이브 10-01 00:49:53 «Expected an int but was 1.3 … path $.foldAfter.remainSec» — 빨리 접기 동안 결재·필터·심사 중 값을 모두 잃었다.
      */
     @Test fun `남은 초 소수도 읽는다 · 올림해 정수 초로`() {
-        val r = com.google.gson.Gson().fromJson("""{"success":true,"foldAfter":{"orderId":"o1","remainSec":9.7}}""", ScrapResponse::class.java)
-        assertEquals(9.7, r.foldAfter!!.remainSec, 0.0001)
-        assertEquals(10, r.foldAfter!!.remainWholeSec())
-        assertEquals(0, com.onedal.app.models.FoldAfter("o", 0.0).remainWholeSec())
+        val f = com.google.gson.Gson().fromJson("""{"orderId":"o1","remainSec":9.7}""", FoldAfter::class.java)
+        assertEquals(9.7, f.remainSec, 0.0001)
+        assertEquals(10, f.remainWholeSec())
+        assertEquals(0, FoldAfter("o", 0.0).remainWholeSec())
     }
 
     /** ab 9e767a09 — foldAfter.remainMs(정수 ms)가 있으면 그것(올림 몫 최대 1초가 빠져 막대 끝과 접힘이 더 맞는다), 없으면 remainSec 올림 */
     @Test fun `남은 ms 가 있으면 그것 · 없으면 남은 초 올림`() {
         val g = com.google.gson.Gson()
-        assertEquals(9_650L, g.fromJson("""{"foldAfter":{"orderId":"o","remainSec":10,"remainMs":9650}}""", ScrapResponse::class.java).foldAfter!!.remainMsOrSec())
-        assertEquals(10_000L, g.fromJson("""{"foldAfter":{"orderId":"o","remainSec":9.7}}""", ScrapResponse::class.java).foldAfter!!.remainMsOrSec())
+        assertEquals(9_650L, g.fromJson("""{"orderId":"o","remainSec":10,"remainMs":9650}""", FoldAfter::class.java).remainMsOrSec())
+        assertEquals(10_000L, g.fromJson("""{"orderId":"o","remainSec":9.7}""", FoldAfter::class.java).remainMsOrSec())
     }
 
-    /** 🔴 응답 한 칸의 모양 때문에 결재를 잃지 않는다 — 서버가 칸을 빼거나 null 로 보내도 목록 보고 응답을 받는다(1f) */
-    @Test fun `응답의 기기 제어·결재 칸은 없어도 받는다`() {
+    /** 🔴 응답 한 칸의 모양 때문에 목록 보고 응답을 버리지 않는다 — 서버가 칸을 빼거나 null 로 보내도 받는다(1f) · 결재는 블루투스로 온다(reviews/50 ①-3) */
+    @Test fun `응답의 기기 제어 칸은 없어도 받는다`() {
         val r = com.google.gson.Gson().fromJson("""{"success":true,"decision":{"orderId":"o1","action":null}}""", ScrapResponse::class.java)
         assertEquals(null, r.deviceControl)
-        assertEquals(null, r.decision?.action)
         val model = File("src/main/java/com/onedal/app/models/SharedModels.kt").readText()
         assertTrue(model.contains("val deviceControl: DeviceControl? = null"))
         assertTrue(model.contains("val apiStatus: ApiStatus? = null"))

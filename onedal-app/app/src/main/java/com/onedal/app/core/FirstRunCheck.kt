@@ -13,13 +13,15 @@ object FirstRunCheck {
     /** 안드로이드 13 — 밖에서 받은 앱은 접근성 전에 «제한된 설정 허용»이 먼저 */
     const val RESTRICTED_SETTINGS_SDK = 33
 
-    enum class Key { SERVER, LINK, ACCESSIBILITY, BATTERY, ANDROID }
+    enum class Key { SERVER, LINK, ACCESSIBILITY, NEARBY, BATTERY, ANDROID }
     enum class Action { SETTINGS_TAB, ACCESSIBILITY_SETTINGS, BATTERY_EXEMPT, APP_DETAILS }
 
     data class Facts(
         val live: Boolean, val serverUrl: String, val lastReplyAtMs: Long, val nowMs: Long,
         val hasToken: Boolean, val unlinkedWhy: String?,
         val accessibilityOn: Boolean, val batteryExempt: Boolean, val sdkInt: Int,
+        /** 📶 «근처 기기»(블루투스 광고 · 연결) 허락 — 없으면 관제앱과 못 붙는다(reviews/50 ①-3) */
+        val nearbyPermitted: Boolean = true,
     )
 
     /** @param countsForShow 빨강일 때 앱을 켜면 이 화면을 먼저 띄우나 · @param guide 안내 글 자리(비어도 된다) */
@@ -45,6 +47,9 @@ object FirstRunCheck {
                 if (f.accessibilityOn) "켜짐" else if (restricted) "꺼짐 — 먼저 앱 정보 → ⋮ → 제한된 설정 허용, 그다음 접근성에서 1DAL 켜기" else "꺼짐 — 접근성에서 1DAL 켜기",
                 action = if (f.accessibilityOn) null else Action.ACCESSIBILITY_SETTINGS,
                 action2 = if (!f.accessibilityOn && restricted) Action.APP_DETAILS else null),
+            Row(Key.NEARBY, "근처 기기(블루투스)", f.nearbyPermitted,
+                if (f.nearbyPermitted) "허락됨 — 관제앱과 붙는다" else "근처 기기 허락 없음 — 관제앱과 못 붙음 · 앱 정보 → 권한 → 근처 기기 허용",
+                action = if (f.nearbyPermitted) null else Action.APP_DETAILS),
             Row(Key.BATTERY, "배터리 최적화 예외", f.batteryExempt,
                 if (f.batteryExempt) "예외 — 화면이 꺼져도 돈다" else "최적화 중 — 화면이 꺼지면 보고가 끊길 수 있다",
                 action = if (f.batteryExempt) null else Action.BATTERY_EXEMPT),

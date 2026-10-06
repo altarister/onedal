@@ -38,6 +38,12 @@ describe('네 모드 표 — 서버 쪽', () => {
         }
     });
 
+    it('🔴 공급 연결이 끊기거나 관제앱의 서버 연결이 끊긴 줄은 자동이 알람 — 결재가 올 길이 없다(reviews/50 ①-3)', () => {
+        const cut = MODE_TABLE.situations.filter(x => x.replied && (!x.linked || !x.serverAlive));
+        expect(cut.map(x => x.id).sort()).toEqual(['noLink', 'noServerBreath']);
+        for (const s of cut) expect(s.running.AUTO, s.id).toBe('ALARM');
+    });
+
     it('원달앱이 읽는 JSON 표시 사이가 엄격한 JSON 이다', () => {
         const ts = readFileSync(join(__dirname, 'modeTable.ts'), 'utf8');
         const body = /\/\*JSON\*\/([\s\S]*?)\/\*JSON\*\//.exec(ts)?.[1];

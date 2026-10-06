@@ -13,10 +13,14 @@ export interface ModeSituation {
     id: string;
     /** 기사님 말로 그 상황 */
     say: string;
-    /** 원달앱이 서버 답을 한 번이라도 받았나 */
+    /** 원달앱이 공급 모드를 한 번이라도 받아 저장해 두었나 — 거짓이면 새 폰(reviews/50 ①-3 · 기사님 1 가) */
     replied: boolean;
     /** 원달앱의 마지막 보고가 서버에 닿았나(200) */
     reachable: boolean;
+    /** 관제앱과 블루투스 공급 연결이 살아 있나(쓰기가 5초 안에 왔나) */
+    linked: boolean;
+    /** 관제앱이 «서버에 붙어 있다»고 숨(BREATH)으로 알렸나 */
+    serverAlive: boolean;
     /** 서버가 보는 «이 기사의 관제웹 소켓이 붙어 있나» */
     webAttached: boolean;
     /** 자동 잡기 허락이 살아 있나 */
@@ -25,7 +29,7 @@ export interface ModeSituation {
     otherAuto: boolean;
     /** 지금 화면의 배차망 */
     network: TargetAppType;
-    /** 서버가 보고 응답에 내려주는 모드(명령마다) — 응답이 없는 줄은 null */
+    /** 서버가 공급으로 내려주는 모드(명령마다 · 관제앱 PHONE) — 원달앱 보고가 서버에 안 닿는 줄은 null */
     phone: Record<DeviceModeType, DeviceModeType> | null;
     /** 원달앱이 실제로 도는 모드(명령마다) */
     running: Record<DeviceModeType, DeviceModeType>;
@@ -58,55 +62,69 @@ export interface ModeTable {
 export const MODE_TABLE: ModeTable = /*JSON*/{
     "situations": [
         {
-            "id": "beforeReply", "say": "접근성을 막 활성화 · 서버 답을 아직 못 받음",
-            "replied": false, "reachable": false, "webAttached": true, "autoLive": true, "otherAuto": false, "network": "insung",
+            "id": "beforeReply", "say": "새 폰 — 공급 모드를 한 번도 받은 적 없음(접근성을 막 활성화 · 관제앱에 아직 안 붙음)",
+            "replied": false, "reachable": false, "webAttached": true, "autoLive": true, "otherAuto": false, "linked": false, "serverAlive": false, "network": "insung",
             "phone": null,
             "running": { "AUTO": "MANUAL", "ALARM": "MANUAL", "MANUAL": "MANUAL", "SIMULATION": "MANUAL" }
         },
         {
             "id": "normal", "say": "평소 — 응답 받음 · 관제웹 붙음 · 허락 살아 있음 · 인성",
-            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "network": "insung",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "linked": true, "serverAlive": true, "network": "insung",
             "phone": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" }
         },
         {
             "id": "normalHwamul24", "say": "평소 — 화물24시",
-            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "network": "hwamul24",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "linked": true, "serverAlive": true, "network": "hwamul24",
             "phone": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" }
         },
         {
             "id": "picker", "say": "평소와 같고 화면이 픽커 — 확정 버튼이 없어 자동이 알람으로 돈다",
-            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "network": "kakaopicker",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "linked": true, "serverAlive": true, "network": "kakaopicker",
             "phone": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" }
         },
         {
             "id": "autoNotAllowed", "say": "자동 잡기 허락이 꺼짐",
-            "replied": true, "reachable": true, "webAttached": true, "autoLive": false, "otherAuto": false, "network": "insung",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": false, "otherAuto": false, "linked": true, "serverAlive": true, "network": "insung",
             "phone": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" }
         },
         {
             "id": "noWeb", "say": "서버는 살았고 관제웹이 없음 — 로그인 대기 · 창 닫힘 · 서버 재시작 뒤 아직 안 붙음",
-            "replied": true, "reachable": true, "webAttached": false, "autoLive": true, "otherAuto": false, "network": "insung",
+            "replied": true, "reachable": true, "webAttached": false, "autoLive": true, "otherAuto": false, "linked": true, "serverAlive": true, "network": "insung",
             "phone": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "note": "결재할 관제웹이 없으면 자동으로 잡은 콜은 전부 안전취소로 끝난다 — 서버가 기사님 없이 KEEP 하는 길은 없다 · 관제앱 화면을 꺼 웹 화면 소켓이 끊긴 때도 이 줄이다(관제앱 공급 소켓 /supply 는 셈하지 않는다 · reviews/50 ④ 나)"
         },
         {
             "id": "otherAuto", "say": "같은 기사님의 다른 폰도 자동 명령 — 자동은 한 폰만(새로 자동을 누른 폰이 이기고 앞 폰은 알람으로 옮겨진다 · 이미 둘이면 둘 다 알람)",
-            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": true, "network": "insung",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": true, "linked": true, "serverAlive": true, "network": "insung",
             "phone": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "note": "두 폰이 같은 순간 함께 확정하는 일을 원리상 없앤다 — 다른 폰은 알람(소리 + 미리보기)"
         },
         {
             "id": "noReply", "say": "원달앱이 서버 응답을 못 받음 — 첫 실패 · 200 아님",
-            "replied": true, "reachable": false, "webAttached": true, "autoLive": true, "otherAuto": false, "network": "insung",
+            "replied": true, "reachable": false, "webAttached": true, "autoLive": true, "otherAuto": false, "linked": true, "serverAlive": true, "network": "insung",
             "phone": null,
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
-            "note": "다음 200 응답에서 서버 모드로 돌아온다"
+            "note": "다음 200 응답에서 공급 모드로 돌아온다 · 스캔폰 데이터가 끊기고 블루투스만 살아도 이 줄(폰 줄에서 빠져 PHONE 이 끊긴다)"
+        },
+        {
+            "id": "noLink", "say": "관제앱과 블루투스 공급 연결이 끊김 — 관제앱 폰 없음(PC 로만) · 블루투스 꺼짐 · 5초 동안 쓰기 없음",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "linked": false, "serverAlive": true, "network": "insung",
+            "phone": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
+            "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
+            "note": "마지막으로 받은 공급 모드 · 필터로 알람만 — 확정은 결재가 올 길이 있을 때만(49 ② 가 · 기사님 1 가)"
+        },
+        {
+            "id": "noServerBreath", "say": "관제앱과는 붙었는데 관제앱의 서버 연결이 끊김(숨에 «서버 끊김»)",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "linked": true, "serverAlive": false, "network": "insung",
+            "phone": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
+            "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
+            "note": "관제앱이 결재를 받아 넘길 길이 없다 — 자동만 알람"
         }
     ],
     "acts": {

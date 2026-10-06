@@ -14,6 +14,8 @@ export const SUPPLY_EVENTS = {
     decision: 'phone-decision',
     /** 관제앱 → 서버: 스캔폰이 결재를 실행했다 */
     decisionAck: 'phone-decision-ack',
+    /** 서버 → 관제앱: 한 폰이 알람으로 연 미리보기 콜을 몇 ms 뒤 목록으로 접어라(판정 끝에 한 번 · 결재가 없는 콜) */
+    fold: 'phone-fold',
 } as const;
 
 export type SupplyDecisionAction = 'KEEP' | 'CANCEL' | 'SIMULATED_KEEP';
@@ -44,6 +46,13 @@ export interface PhoneDecision {
     foldMs?: number;
 }
 
+export interface PhoneFold {
+    deviceId: string;
+    orderId: string;
+    /** 접기까지 남은 ms(서버 시계) */
+    remainMs: number;
+}
+
 export interface PhoneDecisionAck {
     deviceId: string;
     orderId: string;
@@ -64,8 +73,8 @@ export const BLE_UUIDS = {
     notify: '6f1d1003-1da1-4b1e-9e00-0000000000a1',
 } as const;
 
-/** 메시지 종류 바이트 — HELLO `{deviceId, sig}` · SUPPLY `{filter, filterVersion}` · PHONE `{mode, evaluatingNow}` · DECISION `{orderId, action, foldMs?}` · ACK `{orderId}` · BREATH(관제앱 → 폰은 본문 1바이트 «서버 살아 있음» 1/0 · 폰 → 관제앱은 본문 없음) */
-export const BLE_KINDS = { HELLO: 1, SUPPLY: 2, PHONE: 3, DECISION: 4, ACK: 5, BREATH: 6 } as const;
+/** 메시지 종류 바이트 — HELLO `{deviceId, sig}` · SUPPLY `{filter, filterVersion}` · PHONE `{mode, evaluatingNow}` · DECISION `{orderId, action, foldMs?}` · ACK `{orderId}` · BREATH(관제앱 → 폰은 본문 1바이트 «서버 살아 있음» 1/0 · 폰 → 관제앱은 본문 없음) · FOLD `{orderId, remainMs}`(작은 칸) */
+export const BLE_KINDS = { HELLO: 1, SUPPLY: 2, PHONE: 3, DECISION: 4, ACK: 5, BREATH: 6, FOLD: 7 } as const;
 
 /** 한 번 쓰기 최대 바이트 — 넘기면 받는 앱이 죽었다(0-3 시험 514) */
 export const BLE_MAX_WRITE = 512;

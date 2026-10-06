@@ -23,6 +23,8 @@ class TelemetryManager(
 
     companion object {
         private const val TAG = "1DAL_TELEMETRY"
+        /** 관제앱이 블루투스로 준 마지막 모드 — 관제앱이 없을 때 알람의 바탕(기사님 1 가 · reviews/50 ①-3) */
+        const val PREF_SUPPLIED_MODE = "suppliedMode"
         /**
          * 💓 **빈 통신 주기 — 목록 화면 15초 · 그 밖 60초 · 결재 대기 1초** (`heartbeatIntervalMs` 한 곳).
          *
@@ -123,11 +125,6 @@ class TelemetryManager(
     private val fastPoll = PollOwners()
     val isWaitingDecision: Boolean get() = fastPoll.any
     fun setFastPoll(owner: String, on: Boolean) { if (fastPoll.set(owner, on)) resetHeartbeatTimer() }
-
-    // [Piggyback V2] 결재 수신 콜백
-    var decisionCallback: ((String, String) -> Unit)? = null
-    /** ⏩ 판정 뒤 접기(foldAfter) — orderId · 남은 초 */
-    var foldAfterCallback: ((String, Long) -> Unit)? = null
 
     // 🧹 서버 회차 수신 콜백 — 본 콜 기억 비우기 (HijackService 가 메인 스레드로 넘긴다)
     var callMemoryRoundCallback: ((Int) -> Unit)? = null
@@ -237,11 +234,46 @@ class TelemetryManager(
      */
     @Volatile
     var currentMode: String = TargetApp.MODE_BEFORE_REPLY
-    /** 🎛️ 서버 모드를 한 번이라도 받았나 — 받기 전 보고에는 «도는 모드»를 싣지 않는다(기본값 MANUAL 이 «명령과 갈렸다»로 읽혔다 · `ModeFirstReportTest`) */
-    private var modeKnown = false
+
+    /**
+     * 🎛️ **도는 모드는 사실 넷으로 정한다** (reviews/50 ①-3 · `TargetApp.runningMode` · 표 shared `modeTable.ts`).
+     * 관제앱이 블루투스로 준 마지막 모드(저장 — 새 폰이면 없음) · 공급 연결 · 관제앱의 서버 연결(숨) · 원달앱 보고가 서버에 닿나(44).
+     * 받기 전 보고에는 «도는 모드»를 싣지 않는다(기본값 MANUAL 이 «명령과 갈렸다»로 읽혔다 · `ModeFirstReportTest`).
+     */
+    @Volatile
+    private var suppliedMode: String? = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)?.getString(PREF_SUPPLIED_MODE, null)
+    @Volatile
+    private var linked = false
+    @Volatile
+    private var serverAlive = false
     /** 📵 마지막 보고가 응답을 못 받았나 — «응답 없음 · 다시 옴» 로그를 바뀔 때만 찍는다 */
     @Volatile
     private var lostReply = false
+    private val modeKnown get() = suppliedMode != null
+
+    /** 📶 관제앱이 블루투스로 이 폰 몫의 모드를 줬다 — 저장해 두고(관제앱이 없을 때 알람의 바탕 · 기사님 1 가) 다시 정한다 */
+    fun onSuppliedMode(mode: String) {
+        if (mode != suppliedMode) context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)?.edit()?.putString(PREF_SUPPLIED_MODE, mode)?.apply()
+        suppliedMode = mode
+        recomputeMode("공급")
+    }
+
+    /** 📶 공급 연결이 살았다 · 끊겼다 */
+    fun onLinked(alive: Boolean) { linked = alive; recomputeMode(if (alive) "공급 연결 살아남" else "공급 연결 끊김") }
+
+    /** 📶 관제앱이 «서버에 붙어 있다 · 끊겼다»고 숨으로 알렸다 */
+    fun onServerAlive(alive: Boolean) { if (alive != serverAlive) { serverAlive = alive; recomputeMode(if (alive) "관제앱 서버 붙음" else "관제앱 서버 끊김") } }
+
+    /** 🎛️ 사실 넷으로 도는 모드를 다시 정한다 — 바뀌면 테두리 · 한 번 더 보고(«받았다»가 다음 보고를 기다리지 않게) */
+    @Synchronized
+    private fun recomputeMode(why: String) {
+        val next = TargetApp.runningMode(suppliedMode, linked, serverAlive, !lostReply)
+        if (next == currentMode) return
+        AppLogger.i(TAG, LogTag.NETWORK, "🎛️ [도는 모드] $currentMode → $next · $why")
+        currentMode = next
+        modeCallback?.invoke(next)
+        android.os.Handler(Looper.getMainLooper()).post { forceHeartbeat() }
+    }
 
     /** 🖼️ 서버에서 모드를 받을 때마다 부른다 — 화면 테두리(`ModeFrame`)가 색을 맞춘다 */
     @Volatile
@@ -361,32 +393,21 @@ class TelemetryManager(
         // [Piggyback V2] ackDecisionId는 ApiClient 내부에서 결합하므로 여기서는 전달 생략 
         apiClient.sendScrapTelemetry(
             payload = payload,
-            onModeReceived = { mode ->
-                val modeChanged = !modeKnown || mode != currentMode
-                modeKnown = true
+            onReplied = {
                 if (lostReply) {
                     lostReply = false
-                    AppLogger.i(TAG, LogTag.NETWORK, "✅ [서버 응답 다시 옴] $mode")
+                    AppLogger.i(TAG, LogTag.NETWORK, "✅ [서버 응답 다시 옴]")
+                    recomputeMode("보고 닿음")
                 }
-                currentMode = mode
-                modeCallback?.invoke(mode)
-                /* 🎛️ 처음이거나 모드가 바뀐 순간 한 번 더 보고 — «받았다»(appliedMode)가 다음 보고(홈 60초)를 기다리면 관제웹 «로딩 중 · 적용중»이 1분 돈다 · 기다림 장부는 화면 스레드에서만 */
-                if (modeChanged) android.os.Handler(Looper.getMainLooper()).post { forceHeartbeat() }
             },
-            /* 📵 응답을 못 받으면 자동만 알람으로 — 결재가 올 길이 없다 · 다음 응답에서 서버 모드로 돌아온다 (reviews/44 2단계) */
+            /* 📵 응답을 못 받으면 자동만 알람으로 — 결재가 올 길이 없다 · 다음 응답에서 공급 모드로 돌아온다 (reviews/44 2단계 · 블루투스만 살아도 남긴다) */
             onNoResponse = {
-                val lowered = TargetApp.modeWithoutServer(currentMode)
                 if (!lostReply) {
                     lostReply = true
-                    if (lowered != currentMode) AppLogger.w(TAG, LogTag.NETWORK, "📵 [서버 응답 없음] $currentMode → $lowered · 확정 안 누름")
-                }
-                if (lowered != currentMode) {
-                    currentMode = lowered
-                    modeCallback?.invoke(lowered)
+                    AppLogger.w(TAG, LogTag.NETWORK, "📵 [서버 응답 없음] 확정 안 누름")
+                    recomputeMode("보고 안 닿음")
                 }
             },
-            onDecisionReceived = decisionCallback,
-            onFoldAfter = foldAfterCallback,
             onCallMemoryRound = callMemoryRoundCallback
         )
 

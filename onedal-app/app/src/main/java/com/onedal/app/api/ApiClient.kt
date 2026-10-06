@@ -278,30 +278,21 @@ class ApiClient(private val context: Context) {
     /**
      * 스크랩 버퍼 벌크 전송 (텔레메트리) - Option B (Piggyback V2) 지원
      * @param payload ScrapPayload 기본 정보
-     * @param onModeReceived 서버로부터 모드(AUTO/MANUAL) 수신 시 콜백
-     * @param onDecisionReceived 서버가 결정(KEEP/CANCEL)을 Piggyback으로 보냈을 때 콜백
+     * 🔴 필터 · 모드 · 심사 중 · 결재 · 빨리 접기는 여기서 받지 않는다 — 관제앱이 블루투스로 준다(`BleLink` · reviews/50 ①-3 · 한 값 한 길).
+     * @param onReplied 서버가 200 으로 답했다 — 받는 쪽이 «보고가 닿는다» 사실을 켠다(44)
      * @param onCallMemoryRound 서버가 시뮬레이터 회차를 실어 보냈을 때 콜백 (본 콜 기억 비우기)
      */
-    /** 🔄 새 필터 버전이 닿았을 때 — 서비스가 잇는다(지금 목록을 다시 판정). 보고 쓰레드에서 불린다 */
-    var onFilterChanged: ((String) -> Unit)? = null
-
     fun sendScrapTelemetry(
-        payload: ScrapPayload, 
-        onModeReceived: (String) -> Unit,
-        onDecisionReceived: ((String, String) -> Unit)? = null,
+        payload: ScrapPayload,
+        onReplied: () -> Unit,
         onCallMemoryRound: ((Int) -> Unit)? = null,
-        onFoldAfter: ((String, Long) -> Unit)? = null,
         /** 📵 서버 응답을 못 받았다 — 첫 실패 · 200 이 아닌 응답 · 응답을 못 읽음 (reviews/44 2단계 · 받는 쪽이 자동을 알람으로 내린다) */
         onNoResponse: () -> Unit = {},
     ) {
         telemetryExecutor.submit {
             val startMs = System.currentTimeMillis()
             try {
-                // 발송 직전에 SharedPreferences에서 pendingAckDecisionId를 가져와서 주입
-                val pendingAck = prefs.getString("pendingAckDecisionId", null)
-                val finalPayload = payload.copy(ackDecisionId = pendingAck)
-
-                val jsonBody = gson.toJson(finalPayload)
+                val jsonBody = gson.toJson(payload)
                 prefs.edit().putString("api_scrap_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/scrap")
 
@@ -327,69 +318,18 @@ class ApiClient(private val context: Context) {
                         scrapRes.appLatestCode?.let { putInt("appLatestCode", it) } ?: remove("appLatestCode")
                         scrapRes.appMinimumCode?.let { putInt("appMinimumCode", it) } ?: remove("appMinimumCode")
                     }.apply()
-                    // 🔒 «앞 콜 심사 중» 맨 위 칸 — 본문이 생략된 응답에도 온다. 없으면 지워 필터 안 값으로 (`EvaluatingNow`)
-                    com.onedal.app.core.EvaluatingNow.topOf(body).let { top ->
+                    // 🔏📶 블루투스 짝 서명 · 광고 표시 — 관제앱에 붙을 때 쓴다(`BleLink`) · 칸이 없으면(옛 서버) 그대로 둔다
+                    JSONObject(body).let { raw ->
                         prefs.edit().apply {
-                            if (top == null) remove(com.onedal.app.core.EvaluatingNow.PREF_KEY)
-                            else putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, top)
+                            raw.optString("blePairSig").takeIf { it.isNotEmpty() }?.let { putString(com.onedal.app.core.BleLink.PREF_PAIR_SIG, it) }
+                            raw.optString("bleAdTag").takeIf { it.isNotEmpty() }?.let { putString(com.onedal.app.core.BleLink.PREF_AD_TAG, it) }
                         }.apply()
                     }
-                    
+
                     val screenName = payload.screenContext ?: "UNKNOWN"
                     // 📤 보고 한 번 = 한 줄 (보내기·응답·건수·걸린 시간) — «콜 0건»은 화면이 바뀔 때만 (`scrapLogLine`)
                     scrapLogLine(screenName, payload.data.size, System.currentTimeMillis() - startMs)?.let { AppLogger.d(TAG, LogTag.NETWORK, it) }
                     
-                    if (scrapRes.dispatchEngineArgs != null) {
-                        /**
-                         * 🕳️ **서버가 보낸 원문을 그대로 보관한다** (기사님 실측).
-                         *
-                         * `gson.toJson(scrapRes.dispatchEngineArgs)` 로 **되말아** 저장하면, Gson 은 기본으로
-                         * `null` 필드를 직렬화하지 않으므로 null 값이 **그 왕복에서 통째로 사라진다** —
-                         * 앱이 든 필터가 서버가 보낸 것과 갈라진다. 화면은 멀쩡해 보여 못 알아챈다.
-                         *
-                         * 원문을 그대로 두면 어떤 값도 잃지 않는다 — 왕복 자체를 없앤다.
-                         *
-                         * ⚠️ 원문을 못 꺼내면 **옛 필터를 지킨다.** 되말기로 폴백하지 않는다 —
-                         *    그건 안전망이 아니라 망가진 동작으로 돌아가는 길이고, 조용히
-                         *    28개를 잃은 채 계속 돈다. 필터가 하나 늦는 편이 낫다 (규칙 ④).
-                         */
-                        val filterJson = JSONObject(body).optJSONObject("dispatchEngineArgs")?.toString()
-                        if (filterJson == null) {
-                            AppLogger.w(TAG, "📋 [필터 원문 없음] 응답에서 dispatchEngineArgs 를 못 꺼냈습니다 — 저장본을 그대로 둡니다")
-                        } else {
-                        val prevFilterJson = prefs.getString("activeFilter", null)
-                        prefs.edit().putString("activeFilter", filterJson).apply()
-                        // 🧭 [피기백 v2] 필터와 함께 온 버전을 저장 — 다음 텔레메트리에 실어 보내면
-                        //    서버가 같을 때 본문을 생략한다. 응답에 필터가 없으면(버전 일치) 저장본 유지
-                        val prevFilterVersion = prefs.getString("filterVersion", null)
-                        val newFilterVersion = scrapRes.filterVersion ?: ""
-                        prefs.edit().putString("filterVersion", newFilterVersion).apply()
-                        // 🔄 새 필터가 닿았다 — 지금 목록을 곧바로 다시 판정하게 알린다. 막 켜져 이전 버전이 없으면 안 부른다(첫 스캔이 어차피 돈다)
-                        if (!prevFilterVersion.isNullOrEmpty() && newFilterVersion != prevFilterVersion) onFilterChanged?.invoke(newFilterVersion)
-
-                        // 서버가 이제 Array로 내려주므로 Gson 파싱(역직렬화) 시 에러(IllegalStateException)가 전혀 발생하지 않음
-                        val updatedFilter = com.onedal.app.core.FilterStore.parse(filterJson)
-
-                        // 로그 다이어트
-                        // 기존에는 필터 전체 스키마(키워드 400여 개 포함, ~10KB)를 매 응답마다 d 레벨로 찍었다.
-                        // 안전취소 대기 중엔 1초 폴링이라 초당 10KB가 쌓여 logcat 버퍼 한계에 걸려
-                        // 문자열이 잘리고, 정작 봐야 할 로그가 묻혔다.
-                        // → 필터가 실제로 바뀐 순간에만 요약 한 줄 + 전체(v 레벨)를 남긴다.
-                        if (prevFilterJson != filterJson) {
-                            // 🔕 필터가 실제로 바뀐 순간만 요약 한 줄 (응답마다 되풀이하지 않는다)
-                            AppLogger.d(
-                                TAG, LogTag.FILTER,
-                                "📋 [필터 동기화] 차종 ${updatedFilter.allowedVehicleTypes.size}종 " +
-                                        "| 키워드 ${updatedFilter.destinationKeywords.size}개 " +
-                                        "| isActive=${updatedFilter.isActive} " +
-                                        "| ${if (updatedFilter.isSharedMode) "합짐" else "첫짐"} " +
-                                        "| minFare=${updatedFilter.minFare}"
-                            )
-                            AppLogger.v(TAG, "📋 [필터 변경 감지] 전체 스키마:\n$updatedFilter")
-                        }
-                        }
-                    }
-
                     scrapRes.apiStatus?.let { prefs.edit().putString("apiStatus", gson.toJson(it)).apply() }
                     scrapRes.deviceControl?.let { prefs.edit().putString("deviceControl", gson.toJson(it)).apply() }
 
@@ -400,30 +340,8 @@ class ApiClient(private val context: Context) {
                         .putString("lastScrapPreview", if (payload.data.isNotEmpty()) "${payload.data.first().pickup} -> ${payload.data.first().dropoff}" else "-")
                         .apply()
 
-                    // Piggyback 판결(Decision) 분실 방지 (수신 처리)
-                    // 결재 두 칸이 다 있을 때만 — 한 칸이 비면 넘기지 않고 적어 둔다(응답을 버리지 않는다)
-                    val decisionId = scrapRes.decision?.orderId
-                    val decisionAction = scrapRes.decision?.action
-                    if (scrapRes.decision != null && (decisionId == null || decisionAction == null))
-                        AppLogger.w(TAG, LogTag.DECISION, "⚠️ [결재 칸 비어 있음] orderId=$decisionId · action=$decisionAction — 넘기지 않는다")
-                    if (decisionId != null && decisionAction != null) {
-                        AppLogger.w(TAG, LogTag.DECISION, "⚡ [Piggyback Decision 수신] orderId: $decisionId, action: $decisionAction")
-                        // 수신 확인증(ACK) 준비 (다음 번 텔레메트리 때 서버로 전송됨)
-                        prefs.edit().putString("pendingAckDecisionId", decisionId).apply()
-                        // 콜백 호출
-                        onDecisionReceived?.invoke(decisionId, decisionAction)
-                    }
-                    // ⏩ 판정 뒤 접기 — 결재(decision)와 다른 사실이라 따로 받는다 (`DetailFold`)
-                    scrapRes.foldAfter?.let { onFoldAfter?.invoke(it.orderId, it.remainMsOrSec()) }
-
-                    // 서버가 pendingAck를 성공적으로 비웠다면 (이 부분은 응답이 성공했으므로 안심하고 로컬에서도 날림)
-                    // (단, 이번 요청에 ackDecisionId를 담아 보낸 경우에만 성공 시 삭해야함)
-                    if (finalPayload.ackDecisionId != null) {
-                        prefs.edit().remove("pendingAckDecisionId").apply()
-                    }
-
                     scrapRes.deviceControl?.callMemoryRound?.let { onCallMemoryRound?.invoke(it) }
-                    scrapRes.deviceControl?.mode?.let { onModeReceived(it) }
+                    onReplied()
                 } else {
                     AppLogger.w(TAG, "📡 [텔레메트리] 서버 에러 응답: $code")
                     onNoResponse()

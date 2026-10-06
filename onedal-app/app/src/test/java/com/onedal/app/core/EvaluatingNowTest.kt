@@ -23,9 +23,9 @@ class EvaluatingNowTest {
         assertEquals(true, EvaluatingNow.topOf("""{"success":true,"filterVersion":"num45a","evaluatingNow":true}"""))
     @Test fun `필터 안에만 있으면 맨 위 값은 없음`() =
         assertNull(EvaluatingNow.topOf("""{"success":true,"dispatchEngineArgs":{"evaluatingNow":true}}"""))
-    @Test fun `목록 보고 응답마다 맨 위 값을 저장하고 클릭 미룸이 그것을 먼저 읽는다`() {
+    @Test fun `관제앱 PHONE 의 심사 중을 맨 위 칸 저장에 넣고 클릭 미룸이 그것을 먼저 읽는다`() {
         val root = "src/main/java/com/onedal/app"
-        assertTrue(File("$root/api/ApiClient.kt").readText().contains("EvaluatingNow.topOf(body)"))
+        assertTrue(File("$root/HijackService.kt").readText().contains("putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean(\"evaluatingNow\"))"))
         assertTrue(File("$root/HijackService.kt").readText().contains("EvaluatingNow.of("))
     }
 }

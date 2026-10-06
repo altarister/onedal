@@ -39,6 +39,32 @@ object FilterStore {
         return cache.of(raw)
     }
 
+    /**
+     * 📦 **관제앱이 블루투스로 준 필터를 저장한다 — 한 곳** (reviews/50 ①-3 · SUPPLY `{filter, filterVersion}`).
+     * 서버가 보낸 원문을 그대로 둔다 — 되말면 null 칸이 사라져 앱 필터가 서버와 갈라진다(org.json 은 null 을 그대로 쓴다).
+     * 판을 함께 저장한다 — 보고에 «들고 있는 판»으로 실어 서버가 견준다(phoneCheck).
+     * @return 판이 바뀌었으면 새 판(부른 쪽이 지금 목록을 다시 판정) · 처음 받았거나 같으면 null
+     */
+    fun applySupplied(context: Context, supplyJson: String): String? {
+        val root = org.json.JSONObject(supplyJson)
+        val filterJson = root.optJSONObject("filter")?.toString() ?: run {
+            AppLogger.w("FilterStore", "📋 [필터 원문 없음] 공급에 filter 가 없다 — 저장본을 그대로 둔다")
+            return null
+        }
+        val version = root.optString("filterVersion", "")
+        val prefs = context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        val prevJson = prefs.getString("activeFilter", null)
+        val prevVersion = prefs.getString("filterVersion", null)
+        prefs.edit().putString("activeFilter", filterJson).putString("filterVersion", version).apply()
+        if (prevJson != filterJson) {
+            val f = parse(filterJson)
+            // 🔕 필터가 실제로 바뀐 순간만 요약 한 줄
+            AppLogger.d("FilterStore", LogTag.FILTER,
+                "📋 [필터 동기화] 판 $version | 차종 ${f.allowedVehicleTypes.size}종 | 키워드 ${f.destinationKeywords.size}개 | isActive=${f.isActive} | ${if (f.isSharedMode) "합짐" else "첫짐"} | minFare=${f.minFare}")
+        }
+        return if (!prevVersion.isNullOrEmpty() && version != prevVersion) version else null
+    }
+
     private fun configOf(j: JsonObject): FilterConfig {
         val d = FilterConfig()
         fun value(key: String): JsonElement? = j.get(key)?.takeIf { !it.isJsonNull }

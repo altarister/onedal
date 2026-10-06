@@ -25,6 +25,7 @@ import { applySoloRoute, composeMergedRoute } from "../../services/routeComposer
 import { getActiveCalls } from "../helpers";
 import { isLaterThan } from "../../services/reservedOrders";
 import { slog } from "../../utils/fileLogger";
+import { sendFold } from "../../state/decisions";
 
 
 /**
@@ -929,6 +930,7 @@ export class OrderEvaluator {
         securedOrder.status = 'ORDER_AWAITING_DECISION';
         slog('판정', `⏱️ [판정 시간] ${securedOrder.id.slice(-6)} · ${timing}`);
         applyQuickFold(securedOrder as QuickFoldTarget, Date.now());
+        sendFold(io, getUserSession(userId), userId, securedOrder.id);   // 📡 관제앱 공급 소켓으로도 — 블루투스로 그 폰에 접기
 
         if (io) {
             slog('판정', `📤 [Socket 푸시] order-evaluated (${securedOrder.id}) - 상태 승급: ORDER_AWAITING_DECISION`);

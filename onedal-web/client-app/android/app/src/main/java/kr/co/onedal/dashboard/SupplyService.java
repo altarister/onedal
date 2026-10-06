@@ -53,7 +53,7 @@ import io.socket.engineio.client.transports.WebSocket;
  * 관제웹 화면(웹뷰) 소켓은 화면을 끄면 1분 안에 끊긴다(0-2b 시험) — 그래서 서버 연결도 이 네이티브 서비스가 직접 쥔다.
  * 포그라운드 서비스(연결 기기 형)라 상단 알림 «1DAL 관제 중»이 늘 뜬다 — 안드로이드가 얼리지 않게 하는 값이다(0-2 시험).
  *
- * - 서버: `phone-supply`(필터 · 폰마다 모드 · 심사 중 · 짝 서명)의 마지막 값을 들고 있다 · `phone-decision` → 그 폰에 DECISION · 폰 ACK → `phone-decision-ack`
+ * - 서버: `phone-supply`(필터 · 폰마다 모드 · 심사 중 · 짝 서명)의 마지막 값을 들고 있다 · `phone-decision` → 그 폰에 DECISION · `phone-fold` → FOLD · 폰 ACK → `phone-decision-ack`
  * - 블루투스: 서비스 UUID 로 검색 → 광고 표시(기사님 · 영업일 · 공급 `adTags`)가 우리 것인 폰에만 붙는다(남의 기사님 폰에 자리를 잡지 않게) →
  *   폰의 HELLO 서명을 마지막 공급의 그 폰 서명과 견준다 — 맞아야 그 연결 = 그 폰 · 다르면 끊고 10분 안 붙음.
  *   폰 줄에 아직 없으면(원달앱이 서버 보고를 하기 전) 붙은 채 기다리고, 30초 넘으면 막지 않고 끊었다 다시 찾는다 — 그동안 원달앱은 «서버 답 받기 전»(수동)이다.
@@ -94,6 +94,9 @@ public class SupplyService extends Service {
     private final Map<String, Long> blocked = new HashMap<>();
     /** 폰마다 «받았음»이 안 온 마지막 결재 — 폰이 (다시) 붙으면 보낸다 */
     private final Map<String, JSONObject> unacked = new HashMap<>();
+    /** 폰마다 마지막 빨리 접기 — 남은 시간이 다할 때까지 들고 있다가 그 폰이 (다시) 붙으면 줄여서 보낸다(서버는 한 번만 보낸다) */
+    private final Map<String, JSONObject> folds = new HashMap<>();
+    private final Map<String, Long> foldAt = new HashMap<>();
     /** 서버 소켓이 끊긴 동안 폰이 보낸 «받았음» — 다시 붙으면 보낸다(서버의 다시 보내기 한 바퀴를 줄인다) */
     private final ArrayList<JSONObject> pendingAcks = new ArrayList<>();
     private boolean scanning = false;
@@ -215,6 +218,7 @@ public class SupplyService extends Service {
         socket.on(Socket.EVENT_CONNECT_ERROR, a -> h.post(() -> onConnectError(a.length > 0 ? a[0] : null)));
         socket.on(BleProtocol.EVENT_SUPPLY, a -> { if (a.length > 0 && a[0] instanceof JSONObject) { JSONObject s = (JSONObject) a[0]; h.post(() -> onSupply(s)); } });
         socket.on(BleProtocol.EVENT_DECISION, a -> { if (a.length > 0 && a[0] instanceof JSONObject) { JSONObject d = (JSONObject) a[0]; h.post(() -> onDecision(d)); } });
+        socket.on(BleProtocol.EVENT_FOLD, a -> { if (a.length > 0 && a[0] instanceof JSONObject) { JSONObject f = (JSONObject) a[0]; h.post(() -> onFold(f)); } });
         socket.connect();
     }
 
@@ -250,6 +254,29 @@ public class SupplyService extends Service {
         Link l = linkOf(deviceId);
         if (l != null) sendDecision(l, d);
         else Log.i(TAG, "⚖️ 결재 " + d.optString("orderId") + " — " + deviceId + " 가 블루투스로 안 붙어 있다(붙으면 보낸다)");
+    }
+
+    private void onFold(JSONObject f) {
+        String deviceId = f.optString("deviceId", null);
+        if (deviceId == null) return;
+        folds.put(deviceId, f);
+        foldAt.put(deviceId, SystemClock.elapsedRealtime());
+        Link l = linkOf(deviceId);
+        if (l != null) sendFold(l);
+    }
+
+    /** ⏩ 그 폰의 마지막 빨리 접기를 남은 ms 만큼 줄여 보낸다 — 이미 지났으면 버린다 */
+    private void sendFold(Link l) {
+        JSONObject f = folds.get(l.deviceId);
+        Long at = foldAt.get(l.deviceId);
+        if (f == null || at == null) return;
+        long remain = f.optLong("remainMs") - (SystemClock.elapsedRealtime() - at);
+        if (remain <= 0) { folds.remove(l.deviceId); foldAt.remove(l.deviceId); return; }
+        try {
+            l.smallQ.add(small(BleProtocol.FOLD, new JSONObject().put("orderId", f.optString("orderId")).put("remainMs", remain).toString()));
+            Log.i(TAG, "⏩ " + l.deviceId + " 에 빨리 접기 " + f.optString("orderId") + " · " + remain + "ms");
+            pump(l);
+        } catch (Exception ignored) { }
     }
 
     // ─────────────────────────── 블루투스 검색 · 연결 ───────────────────────────
@@ -465,6 +492,7 @@ public class SupplyService extends Service {
         pushState(l);
         JSONObject d = unacked.get(l.deviceId);
         if (d != null) sendDecision(l, d);
+        sendFold(l);
     }
 
     // ─────────────────────────── 폰으로 보내기 ───────────────────────────

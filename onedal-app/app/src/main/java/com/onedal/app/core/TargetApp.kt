@@ -36,6 +36,18 @@ object TargetApp {
      */
     fun modeWithoutServer(mode: String): String = if (mode == "AUTO") "ALARM" else mode
 
+    /**
+     * 🎛️ **원달앱이 실제로 도는 모드 — 사실 넷으로** (reviews/50 ①-3 · 표 shared `modeTable.ts` · `ModeTablePairTest`).
+     * @param supplied 관제앱이 블루투스로 마지막에 준 모드(저장) — 한 번도 못 받았으면(새 폰) 수동
+     * @param linked 관제앱과 블루투스 공급 연결이 살아 있나 · @param serverAlive 관제앱이 «서버에 붙어 있다»고 알렸나 · @param replying 원달앱 보고가 서버에 닿나(44)
+     * 셋 중 하나라도 거짓이면 결재가 올 길이 없어 자동만 알람 — 마지막 모드 · 필터로 알람은 계속 한다(기사님 1 가 · 49 ② 가).
+     */
+    fun runningMode(supplied: String?, linked: Boolean, serverAlive: Boolean, replying: Boolean): String = when {
+        supplied == null -> MODE_BEFORE_REPLY
+        !linked || !serverAlive || !replying -> modeWithoutServer(supplied)
+        else -> supplied
+    }
+
     /** 실제 카카오T픽커 앱의 이름 (0830 실측) — 배차망을 정하는 데는 쓰지 않는다 (`isKakaoPickerApp`) */
     const val KAKAOPICKER_PACKAGE = "com.kakaomobility.flexer"
 

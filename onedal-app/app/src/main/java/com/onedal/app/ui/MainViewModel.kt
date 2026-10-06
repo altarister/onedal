@@ -64,6 +64,8 @@ class MainViewModel {
     var hasDeviceToken by mutableStateOf(false)
         private set
     var batteryExempt by mutableStateOf(true)
+    /** 📶 «근처 기기» 허락 — 1초마다 읽는다(허락 화면에서 돌아오면 바로 초록) */
+    var nearbyPermitted by mutableStateOf(true)
         private set
     var serverUrl by mutableStateOf("")
         private set
@@ -73,6 +75,7 @@ class MainViewModel {
         live = isLiveMode, serverUrl = serverUrl, lastReplyAtMs = lastScrapTime, nowMs = System.currentTimeMillis(),
         hasToken = hasDeviceToken, unlinkedWhy = unlinkedWhy, accessibilityOn = isServiceActive,
         batteryExempt = batteryExempt, sdkInt = android.os.Build.VERSION.SDK_INT,
+        nearbyPermitted = nearbyPermitted,
     )
 
     /** 📦 업데이트 안내 — 서버 응답의 최신·최소 판과 견준다(`UpdateNotice`) · 없으면 null */
@@ -94,6 +97,7 @@ class MainViewModel {
             prefs.getInt("appLatestCode", -1).takeIf { it >= 0 }, prefs.getInt("appMinimumCode", -1).takeIf { it >= 0 })
         serverUrl = if (isLiveMode) "1dal.altari.com" else prefs.getString("localPcIp", "172.30.1.89:4000") ?: "172.30.1.89:4000"
         batteryExempt = (context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isIgnoringBatteryOptimizations(context.packageName)
+        nearbyPermitted = com.onedal.app.core.BleLink.hasPermission(context)
     }
 
     /**

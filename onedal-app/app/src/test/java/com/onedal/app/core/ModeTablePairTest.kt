@@ -10,7 +10,7 @@ import java.io.File
 
 /**
  * 🎛️ **네 모드 표 — 원달앱 쪽 짝** (reviews/44 · 원천은 `onedal-web/shared/src/modeTable.ts` 한 장 · 서버 쪽 짝은 shared `modeTable.test.ts`).
- * 상황마다 원달앱이 도는 모드 = 첫 답 전 기본값 · 응답 없음(자동만 알람) · 서버가 내려준 모드에 배차망 규칙(픽커는 자동 없음) — 표의 `running` 과 같다.
+ * 상황마다 원달앱이 도는 모드 = `TargetApp.runningMode`(공급 받은 적 · 공급 연결 · 관제앱 서버 연결 · 보고 닿음)에 배차망 규칙(픽커는 자동 없음) — 표의 `running` 과 같다.
  * 도는 모드마다 하는 일(목록 누름 · 소리 · 확정 · 확정 막기 · 테두리)이 표의 `acts` 와 같다.
  * 못 잡는 것: 응답 실패가 실제로 언제 오는지(폰 · 서버 끄기 시험) · 상세 1~2초 사이에 응답이 실제로 오는지(폰 로그 «🔐 [확정 안 누름]»).
  */
@@ -25,16 +25,15 @@ class ModeTablePairTest {
     private fun src(path: String) = File("src/main/java/com/onedal/app/$path").readText()
 
     @Test
-    fun `🔴 상황마다 원달앱이 도는 모드가 표와 같다 — 첫 답 전 직접 · 응답 없음 자동만 알람 · 픽커는 자동 없음`() {
+    fun `🔴 상황마다 원달앱이 도는 모드가 표와 같다 — 새 폰 직접 · 끊기면 자동만 알람 · 픽커는 자동 없음`() {
         for (s in table["situations"].asJsonArray.map { it.asJsonObject }) {
             val id = s["id"].asString
             val network = s["network"].asString
             for (cmd in modes) {
-                val running = when {
-                    !s["replied"].asBoolean -> TargetApp.MODE_BEFORE_REPLY
-                    !s["reachable"].asBoolean -> TargetApp.effectiveMode(TargetApp.modeWithoutServer(cmd), network)
-                    else -> TargetApp.effectiveMode(s["phone"].asJsonObject[cmd].asString, network)
-                }
+                val supplied = if (!s["replied"].asBoolean) null
+                    else s["phone"]?.takeIf { it.isJsonObject }?.asJsonObject?.get(cmd)?.asString ?: cmd
+                val running = TargetApp.effectiveMode(
+                    TargetApp.runningMode(supplied, s["linked"].asBoolean, s["serverAlive"].asBoolean, s["reachable"].asBoolean), network)
                 assertEquals("$id · $cmd", s["running"].asJsonObject[cmd].asString, running)
             }
         }
@@ -86,7 +85,7 @@ class ModeTablePairTest {
         assertTrue("scrap 이 첫 실패 알림을 넘긴다", api.contains("onAttemptFailed = onNoResponse"))
         assertTrue("200 이 아닌 응답", api.contains("""AppLogger.w(TAG, "📡 [텔레메트리] 서버 에러 응답: ${'$'}code")
                     onNoResponse()"""))
-        assertTrue(src("core/TelemetryManager.kt").contains("TargetApp.modeWithoutServer(currentMode)"))
+        assertTrue(src("core/TelemetryManager.kt").contains("TargetApp.runningMode(suppliedMode, linked, serverAlive, !lostReply)"))
         assertTrue(src("core/TelemetryManager.kt").contains("var currentMode: String = TargetApp.MODE_BEFORE_REPLY"))
     }
 
