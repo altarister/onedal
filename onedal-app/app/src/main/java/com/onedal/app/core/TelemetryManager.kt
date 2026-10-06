@@ -251,6 +251,9 @@ class TelemetryManager(
     private var lostReply = false
     private val modeKnown get() = suppliedMode != null
 
+    /* 🔁 서비스가 (다시) 뜨면 저장된 마지막 공급 모드로 곧바로 정한다 — 관제앱이 아직 안 붙었으니 자동이면 알람(기사님 1 가) · 새 폰은 직접 */
+    init { currentMode = TargetApp.runningMode(suppliedMode, linked = false, serverAlive = false, replying = true) }
+
     /** 📶 관제앱이 블루투스로 이 폰 몫의 모드를 줬다 — 저장해 두고(관제앱이 없을 때 알람의 바탕 · 기사님 1 가) 다시 정한다 */
     fun onSuppliedMode(mode: String) {
         if (mode != suppliedMode) context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)?.edit()?.putString(PREF_SUPPLIED_MODE, mode)?.apply()

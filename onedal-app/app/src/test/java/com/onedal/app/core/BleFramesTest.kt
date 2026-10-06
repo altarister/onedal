@@ -88,6 +88,15 @@ class BleFramesTest {
         assertEquals("SIMULATION", TargetApp.runningMode("SIMULATION", false, true, true))
     }
 
+    /** 실측 10-06 23:05:57 — 접근성 서비스가 다시 뜨자 저장된 «자동»을 두고 «직접»으로 시작했다(관제앱이 없으면 알람이 안 울린다) */
+    @Test fun `🔴 서비스가 다시 뜨면 저장된 마지막 공급 모드로 곧바로 — 관제앱 전이니 자동이면 알람`() {
+        val tm = File("src/main/java/com/onedal/app/core/TelemetryManager.kt").readText()
+        val saved = tm.indexOf("private var suppliedMode: String? =")
+        val init = tm.indexOf("init { currentMode = TargetApp.runningMode(suppliedMode, linked = false, serverAlive = false, replying = true) }")
+        assertTrue("저장 값을 읽은 뒤에 정한다", saved in 0 until init)
+        assertEquals("ALARM", TargetApp.runningMode("AUTO", linked = false, serverAlive = false, replying = true))
+    }
+
     @Test fun `🔴 같은 콜의 결재가 다시 오면 실행은 안 하고 받았음만 — 실행했든 버렸든 받았음은 보낸다`() {
         val svc = File("src/main/java/com/onedal/app/HijackService.kt").readText()
         val block = svc.substringAfter("override fun onDecision(json: String) {").substringBefore("override fun onFold(")
