@@ -36,7 +36,9 @@ export default function Anomalies() {
     const { data, error, reload } = useOps(() => Promise.all([api.members(), api.phones(), api.anomalies()]), []);
     const [members, phones, reply] = data ?? [[], [], { anomalies: [], screenWords: [] }];
     const tabs = anomalyTabsOf(reply.anomalies.map(a => a.reason));
-    const rows = kind === 'ALL' ? reply.anomalies : reply.anomalies.filter(a => anomalyKindOf(a.reason) === kind);
+    /* 고른 갈래가 다시 읽은 100줄에 없으면(새 기록이 밀어냄) «전체»로 그린다 — 빈 표에 눌린 단추가 없는 화면을 만들지 않게 */
+    const current = tabs.some(t => t.kind === kind) ? kind : 'ALL';
+    const rows = current === 'ALL' ? reply.anomalies : reply.anomalies.filter(a => anomalyKindOf(a.reason) === current);
     const words = reply.screenWords;
     const phoneName = (deviceId: string) => deviceLabel({ deviceId, deviceName: phones.find(p => p.deviceId === deviceId)?.deviceName });
     const app = (a: TargetAppType) => TARGET_APP_LABEL[a];
@@ -68,10 +70,10 @@ export default function Anomalies() {
     return (
         <>
             {error && <ErrorBand text={error} onRetry={reload} />}
-            <Card title="앱 이상 기록">
+            <Card title="앱 이상 기록 — 최근 100줄">
                 <div className="flex flex-wrap gap-2 mb-3">
                     {tabs.map(t => (
-                        <Button key={t.kind} type="button" size="sm" variant={kind === t.kind ? 'default' : 'outline'} onClick={() => { setKind(t.kind); setOpen(null); }}>{t.label} {t.count}</Button>
+                        <Button key={t.kind} type="button" size="sm" variant={current === t.kind ? 'default' : 'outline'} onClick={() => { setKind(t.kind); setOpen(null); }}>{t.label} {t.count}</Button>
                     ))}
                 </div>
                 <Table rows={rows} columns={cols} rowKey={a => String(a.id)} empty={empty}
