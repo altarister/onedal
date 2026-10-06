@@ -235,7 +235,7 @@ data class ScrapPayload(
     val lat: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 위도
     val lng: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 경도
     val targetApp: String = "insung",   // 타겟 앱 (insung, hwamul24 등)
-    // 🧭 [피기백 v2] 지금 들고 있는 필터의 버전 — 서버가 같으면 필터 본문을 생략한다.
+    // 🧭 지금 들고 있는 필터의 버전 — 서버가 같으면 필터 본문을 생략한다.
     //    구서버는 이 필드를 무시하고 늘 전부 보낸다 (호환)
     val filterVersion: String? = null,
     /**
@@ -345,7 +345,7 @@ data class FilterTally(
     var reservation: Int = 0,
 )
 
-// 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)
+// 보고 응답 — 원달앱 판 · 본 콜 기억 번호 (필터 · 모드 · 결재는 블루투스로 온다)
 data class ScrapResponse(
     /** 📦 원달앱 최신·최소 versionCode — 서버가 아직 안 보내면 null(안내 없음 · `UpdateNotice` · 이름은 onedal-ab 와 같다) */
     val appLatestCode: Int? = null,
@@ -358,7 +358,7 @@ data class ScrapResponse(
 )
 
 /**
- * ⏩ 서버 빨리 접기 — remainSec 는 서버 시계로 잰 남은 초, 0.1초 단위 소수(scrap.ts · 9.7)다.
+ * ⏩ 서버 빨리 접기 — remainSec 는 서버 시계로 잰 남은 초, 0.1초 단위 소수(관제앱 공급 phone-fold · 9.7)다.
  * 🔴 정수 칸으로 받으면 Gson 이 목록 보고 응답 전체를 버린다(라이브 10-01 00:49:53 «Expected an int but was 1.3»).
  */
 data class FoldAfter(val orderId: String, val remainSec: Double = 0.0, val remainMs: Long? = null) {
@@ -421,7 +421,7 @@ data class FilterConfig(
     /** 서버 기본값과 동일. 0 으로 두면 하한이 사라져 아무 콜이나 잡는다 */
     val minFare: Int = 30000,
     /**
-     * ⏱️ **배차망별 대기 시간 (초)** — 원천 DB(user_settings) → 피기백 (기사님 확정).
+     * ⏱️ **배차망별 대기 시간 (초)** — 원천 DB(user_settings) → 블루투스 공급 (기사님 확정).
      * 인성·화물24시는 안전취소 시간, 픽커는 확정 전 상세를(누가 열었든) 띄워 두는 시간이다 — 읽는 곳은 `WaitTimes` 한 곳.
      * 기본값은 서버가 죽었을 때만 쓰인다 (서버 DB 기본값과 같다).
      */

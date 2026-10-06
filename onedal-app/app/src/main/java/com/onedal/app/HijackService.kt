@@ -337,7 +337,7 @@ class HijackService : AccessibilityService(), ScanContext {
         detailBackOrigDeadlineMs = now + delayMs
         detailFoldOrderId = null
         foldReleasedOrderId = null
-        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, true)          // ⏱️ [1초 고속 무전] 상세에 머무는 동안 서버 판결(유지/취소)을 1초마다 물어본다
+        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, true)          // ⏱️ 상세에 머무는 동안 1초 보고 켬 — 결재는 블루투스로 온다
         AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 (1초 주기 판결 수신 가동) · 연 쪽: $opener")
         val r = Runnable {
             detailBackRunnable = null
@@ -1948,8 +1948,7 @@ class HijackService : AccessibilityService(), ScanContext {
             val previewStr = session.accumulatedDetailText.replace("\n", " ").take(150)
             AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /detail request] $actualMatchType 모드 판결 요청 텍스트: $previewStr...")
 
-            // Option B (Piggyback V2): sendDetail은 202 응답만 확인하고 곧바로 리턴됨.
-            // 실제 판결은 Telemetry 1.0초 폴링을 통해 decisionCallback으로 들어오게 됨.
+            // sendDetail 은 202 만 확인하고 바로 돌아온다 — 판결은 관제앱이 블루투스로 준다(onDecision)
             //
             /**
              * 🔴 **전송이 실패하면 기다리지 않고 바로 뱉는다** (기사님 확정).
@@ -1972,7 +1971,7 @@ class HijackService : AccessibilityService(), ScanContext {
              *    (규칙 ② · 앱의 30초는 최후의 안전장치라 절대 제거하지 않는다).
              */
             apiClient.sendDetail(payload) { failedOrderId, decision ->
-                // 👻 고스트 방어 — 정상 판결 경로(`decisionCallback`)와 **같은 규칙**이다.
+                // 👻 고스트 방어 — 정상 판결 경로(`onDecision`)와 **같은 규칙**이다.
                 //    실패 응답이 늦게 와서 이미 다음 콜로 넘어갔으면 그 콜을 취소하면 안 된다
                 //    (판결에 orderId 를 싣고 대조한다 — 규칙 ②).
                 if (failedOrderId.isNotEmpty() && failedOrderId != session.currentOrderId) {
@@ -2057,7 +2056,7 @@ class HijackService : AccessibilityService(), ScanContext {
     private fun startSafeCancelTimer() {
         // ⏱️ 그 배차망의 안전취소 시간 (서버 DB) — 픽커는 안전취소가 없어 타이머를 걸지 않는다
         val timeoutMs = com.onedal.app.core.engine.WaitTimes.safeCancelMs(savedFilter(), currentTargetApp) ?: return
-        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)  // [Piggyback V2] 1.0초 단위 강제 무전 타격 시작!
+        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)  // 안전취소 동안 1초 보고 켬
         safeCancelTimer.start(timeoutMs, session) {
             sendEmergencyReport(EmergencyReason.AUTO_CANCEL, "안전취소 응답 없음 강제취소")
             executeDecisionImmediately("CANCEL")
@@ -2066,7 +2065,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     private fun cancelSafeCancelTimer() {
         safeCancelTimer.cancel(session)
-        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, false) // [Piggyback V2] 짧은 무전 해제
+        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, false) // 안전취소 1초 보고 끔
     }
 
     /** 서버 판결(KEEP/CANCEL) 결과 행동을 실제 화면 액션으로 쏨 */

@@ -91,7 +91,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
      * 🔴 **심사 중인 콜만 정리한다 — KEEP 된 콜은 절대 취소하지 않는다** (규칙 ①).
      *
      * KEEP 뒤에 앱이 리스트로 돌아가면 화면 이탈 감지가 이 함수를 부른다. 이탈 감지가 보는
-     * deviceEvaluatingMap 은 피기백 ACK 까지 남아 있어야 해서 KEEP 뒤에도 살아 있다 —
+     * deviceEvaluatingMap 은 받았음(`ackDecision`)까지 남아 있어야 해서 KEEP 뒤에도 살아 있다 —
      * 그러니 상태는 여기서 본다 (안 보면 **확정된 콜을 SAFE_CANCEL 로 덮어쓴다**) (호출자 셋이 전부 거친다).
      * 맵은 지우지 않는다 — 지우면 아직 ACK 못 받은 판결이 배달되지 않는다 (규칙 ②).
      */
@@ -492,8 +492,8 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
     }
     const piggybackAction = isKeep ? (isSimulatedMode ? 'SIMULATED_KEEP' : 'KEEP') : 'CANCEL';
 
-    // [Option B] Piggyback 결재 기록: pendingDecisions에 action을 기록하면
-    // 다음 1.0초 텔레메트리(/scrap) 응답에 이 결재가 태워져서 앱으로 전달됩니다.
+    // 결재 기록 — decide 가 큐에 적고 그 순간 관제앱 공급 소켓으로 보낸다(블루투스로 폰에).
+    // 공급 소켓이 안 붙었으면 큐에 남았다가 붙을 때 보낸다(state/decisions)
     if (session.pendingDecisions.has(orderId)) {
         decide(io, session, userId, orderId, piggybackAction);   // ⚖️ 결재 정하기 한 곳 — 공급 소켓에도 그 순간 (state/decisions)
         if (isKeep) logRoadmapEvent('결재', "서버", `앱폰에게 Action=${piggybackAction} 최종 판결을 관제앱 공급 소켓으로`);
@@ -506,12 +506,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         slog('경고', `⚠️ [Piggyback V2] pendingDecisions에 ${orderId}가 없습니다. (MANUAL 건이거나 이미 타임아웃 처리됨)`);
     }
 
-    // [Piggyback V2] deviceEvaluatingMap은 여기서 절대 삭제하지 않습니다!
-    // KEEP이든 CANCEL이든 앱이 다음 /scrap 폴링으로 decision을 가져가야 하므로
-    // scrap.ts → deviceEvaluatingMap.get(deviceId) 조회가 성공해야 합니다.
-    // 실제 삭제는 scrap.ts의 ACK 처리 블록에서만 수행합니다.
-
-    // 삭제됨: 중복된 !isKeep 로직은 하단의 else 블록으로 통합되었습니다.
+    // deviceEvaluatingMap 은 여기서 지우지 않는다 — 폰이 결재를 실행해 받았음이 오면 ackDecision(state/decisions)이 푼다
 
     if (isKeep) {
         logRoadmapEvent('결재', "서버", `관제탑으로 부터 Keep 결재 요청 받음${isSimulatedMode ? ' [가상 체험 모드]' : ''}`);
@@ -687,7 +682,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                          * 재느라 그 주행을 **구조적으로 가질 수 없었다** — 그래서 합짐마다
                          * «배송주행 추정(일반값)» 딱지가 붙고 마감이 거리 환산 위에 섰다.
                          *
-                         * ⚠️ **판결은 이미 큐에 실렸다**(위쪽 피기백 등록). 그러니 이 기다림이
+                         * ⚠️ **판결은 이미 큐에 실렸다**(위쪽 decide). 그러니 이 기다림이
                          *    기사님 폰의 KEEP 을 늦추지 않는다 — 바로 위 병합 연산과 같은 자리다.
                          *
                          * 🔴 승격본(`confirmedOrder`·myOrders)과 캐시본(`cachedOrder`·아래 DB 기록)이

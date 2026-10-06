@@ -6,7 +6,7 @@ package com.onedal.app.core
  */
 class PollOwners {
     companion object {
-        /** 상세에 머무는 동안 서버 판결·빨리 접기를 1초마다 묻는다 (`scheduleDetailBack`) */
+        /** 상세에 머무는 동안 1초 보고 (`scheduleDetailBack`) */
         const val DETAIL_WAIT = "상세 대기"
         /** 안전취소 타이머가 도는 동안 (인성·24) */
         const val SAFE_CANCEL = "안전취소"

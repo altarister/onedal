@@ -871,7 +871,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "reservedPickupKeywords" to reservedPickupKeywords,
         ))
 
-        /** 피기백 필터 원문 → 알람 조건 — 읽기 규칙은 `FilterStore` 한 곳(하차 목록 = 서버 destinationKeywords · 못 읽으면 기본값) */
+        /** 필터 원문(activeFilter) → 알람 조건 — 읽기 규칙은 `FilterStore` 한 곳(하차 목록 = 서버 destinationKeywords · 못 읽으면 기본값) */
         private fun alarmConfigOf(raw: String): AlarmConfig = com.onedal.app.core.FilterStore.parse(raw).let { f ->
             AlarmConfig(
                 minFare = f.minFare,   // 💵 최소 금액 — 인성·화물24시와 같은 칸
@@ -899,7 +899,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         @Volatile private var lastAlarmFilterJson: String? = null
     }
 
-    /** 알람 조건 묶음 — 피기백 필터에서 읽는다. 기본값은 서버 미응답 시 안전망 */
+    /** 알람 조건 묶음 — 필터(activeFilter)에서 읽는다. 기본값은 서버 미응답 시 안전망 */
     private data class AlarmConfig(
         val minFare: Int = FilterConfig().minFare,   // 서버 미응답 안전망 — 인성·화물24시와 같은 기본값
         val pickupRadiusKm: Double = 10.0,   // 🔴 소수로 받는다 — 자동 반경이면 서버가 4.55 처럼 보낸다
@@ -917,7 +917,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     private val configCache = com.onedal.app.core.LastParse(::alarmConfigOf)
     private val valuesKeyCache = com.onedal.app.core.LastParse(::alarmValuesKeyOf)
 
-    /** 피기백 필터에서 알람 조건을 읽는다 — 못 읽으면 기본값 (서버 미응답 안전망) */
+    /** 필터(activeFilter)에서 알람 조건을 읽는다 — 못 읽으면 기본값 (서버 미응답 안전망) */
     private fun alarmConfig(): AlarmConfig {
         val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
             ?: return AlarmConfig()

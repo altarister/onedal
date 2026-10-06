@@ -315,7 +315,7 @@ router.post("/", async (req, res) => {
             return;
         }
 
-        // [Option B] 롱폴링 대기를 풀고, 결재 큐에 올려둔 뒤 즉시 202 Accepted 반환
+        // 결재 큐에 올리고 바로 202 — 결재는 관제앱 공급 소켓으로 간다
         session.pendingDecisions.set(payload.order.id, { action: null, evaluatedAt: Date.now() });
         res.status(202).json({ message: "Accepted. Piggyback evaluation pending" }); // 🚀 즉시 응답
 

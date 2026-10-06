@@ -164,7 +164,7 @@ fun ScanContext.handlePreConfirmScreen(
         if (!appContracts) session.isPreview = true
         sendConfirmOnce(order, rawScreenStr)
 
-        // 수동 클릭이지만 스위치가 AUTO면, 서버가 결재를 보낼 수 있으므로 임시 고속 폴링(1초) 활성화
+        // 손 클릭인데 스위치가 AUTO — 1초 보고를 10초 켠다
         if (!session.contractedByApp && effectiveMode == "AUTO") {
             AppLogger.d(TAG, LogTag.NETWORK, "⚡ [Phase 2] 수동 클릭 + AUTO 스위치 감지. 임시 고속 폴링 10초 활성화")
             telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, true)

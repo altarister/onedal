@@ -55,9 +55,8 @@ class ApiClient(private val context: Context) {
      * 던지는 쪽은 **여전히 기다리지 않는다**(규칙 ② *"HTTP 를 물고 기다리지 않는다"*).
      * 큐가 넣은 순서대로 하나씩 꺼낼 뿐이다.
      *
-     * ⚠️ 스레드 하나로 충분하다 — 피기백 V2 로 `sendDetail` 이 202 만 받고 즉시 리턴하므로
-     *    롱폴링이 스레드를 오래 무는 일이 없다.
-     *    판결은 텔레메트리(별도 스레드)로 온다. 앱 규칙 *"한 번에 하나만 평가한다"* 와도 맞다.
+     * ⚠️ 스레드 하나로 충분하다 — `sendDetail` 이 202 만 받고 바로 돌아와 스레드를 오래 물지 않는다.
+     *    판결은 관제앱이 블루투스로 준다. 앱 규칙 *"한 번에 하나만 평가한다"* 와도 맞다.
      */
     private val dispatchExecutor = Executors.newSingleThreadExecutor()
 
@@ -239,9 +238,9 @@ class ApiClient(private val context: Context) {
     }
 
     /**
-     * 배차 2차 상세(DETAILED) 보고 (Option B: 짧은 무전 방식 지원)
+     * 배차 2차 상세(DETAILED) 보고
      * 서버는 상세 정보를 큐(Queue)에 넣고 즉시 202 Accepted를 반환함. 
-     * 최종 판결(KEEP/CANCEL)은 이후 Telemetry의 Piggyback으로 수신됨.
+     * 최종 판결(KEEP/CANCEL)은 관제앱이 블루투스로 준다.
      */
     fun sendDetail(payload: DispatchDetailedRequest, onDecisionReceived: (String, String) -> Unit) {
         dispatchExecutor.submit {
@@ -257,8 +256,7 @@ class ApiClient(private val context: Context) {
                     if (code == 200 || code == 202) {
                         prefs.edit().putString("api_detail_res", body).apply()
                         AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /detail response / $code] 즉결 접수 완료. Piggyback 대기 시작.")
-                        // 성공적으로 큐에 등록되었으므로 여기서 판단 콜백을 부르지 않고, 
-                        // 이후 Telemetry(Scrap) 폴링이 결재를 물어올 때까지 기다립니다.
+                        // 성공적으로 큐에 등록되었으므로 여기서 판단 콜백을 부르지 않는다 — 결재는 블루투스로 온다
                     } else {
                         AppLogger.e(TAG, LogTag.NETWORK, "❌ [post /detail response / $code] $body")
                         // 타임아웃 등의 이유로 실패 시 CANCEL로 간주하여 뱉기
@@ -276,7 +274,7 @@ class ApiClient(private val context: Context) {
     }
 
     /**
-     * 스크랩 버퍼 벌크 전송 (텔레메트리) - Option B (Piggyback V2) 지원
+     * 스크랩 버퍼 벌크 전송 (텔레메트리)
      * @param payload ScrapPayload 기본 정보
      * 🔴 필터 · 모드 · 심사 중 · 결재 · 빨리 접기는 여기서 받지 않는다 — 관제앱이 블루투스로 준다(`BleLink` · reviews/50 ①-3 · 한 값 한 길).
      * @param onReplied 서버가 200 으로 답했다 — 받는 쪽이 «보고가 닿는다» 사실을 켠다(44)

@@ -36,7 +36,7 @@ class TelemetryManager(
          */
         private const val HEARTBEAT_INTERVAL_MS = 60000L // 60초 (빈 통신 · 목록 밖)
         private const val LIST_IDLE_INTERVAL_MS = 15_000L // 15초 (목록 화면에서 빈 통신)
-        private const val FAST_POLLING_MS = 1000L // 1.0초 (관제탑 결재 대기 시 короткий 폴링)
+        private const val FAST_POLLING_MS = 1000L // 1.0초 (결재 대기 중 1초 보고)
         private const val DEBOUNCE_MS = 300L // 콜 수집 후 모아쏘기 위한 디바운스 대기시간
 
         /** ⏱️ 다음 빈 통신까지 — 결재 대기 1초 · 목록 화면 15초 · 그 밖 60초 */
@@ -120,7 +120,7 @@ class TelemetryManager(
     @Volatile
     var isScreenOn: Boolean = true
 
-    // [Piggyback V2] 관제탑 결재 대기 여부 (1.0초 단위 Short Polling 발동 조건)
+    // 🔁 1초 보고를 켠 쪽들 (결재 대기 여부)
     //    켠 쪽마다 한 칸 — 끄는 쪽은 자기 몫만 끈다 (`PollOwners`)
     private val fastPoll = PollOwners()
     val isWaitingDecision: Boolean get() = fastPoll.any
@@ -380,7 +380,7 @@ class TelemetryManager(
             supplyLinked = linked,
             nearbyPermitted = context?.let { BleLink.hasPermission(it) },
             batteryExempt = context?.let { (it.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isIgnoringBatteryOptimizations(it.packageName) },
-            // 🧭 [피기백 v2] 들고 있는 필터 버전 — 같으면 서버가 본문을 생략한다.
+            // 🧭 들고 있는 필터 버전 — 같으면 서버가 본문을 생략한다.
             // ⚠️ null 이면 Gson 이 필드를 통째로 빼서 서버가 구앱으로 오인한다 —
             //    아직 버전이 없으면 빈 문자열("전체 주세요")을 보낸다
             filterVersion = prefs?.getString("filterVersion", "") ?: ""
@@ -406,7 +406,6 @@ class TelemetryManager(
         // 페이로드 상세는 AppLogger.v (Verbose) 레벨로 확인 가능 (SHOW_VERBOSE_LOGS=true 시)
         AppLogger.v(TAG, "📦 [전송 페이로드] deviceId=${payload.deviceId}, screen=${payload.screenContext}, holding=${payload.isHolding}, 콜=${snapshot.size}건")
 
-        // [Piggyback V2] ackDecisionId는 ApiClient 내부에서 결합하므로 여기서는 전달 생략 
         apiClient.sendScrapTelemetry(
             payload = payload,
             onReplied = {
