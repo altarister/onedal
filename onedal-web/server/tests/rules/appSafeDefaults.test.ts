@@ -20,13 +20,16 @@ const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
 
 describe('🎛️ 앱 기본값 — 모르면 잡지 않는다', () => {
     it('서버 대답을 듣기 전의 모드는 «자동»이 아니다', () => {
-        const src = codeOnly(app('core/TelemetryManager.kt'));
-        const m = src.match(/var\s+currentMode\s*:\s*String\s*=\s*"(\w+)"/);
+        expect(codeOnly(app('core/TelemetryManager.kt'))).toMatch(/var\s+currentMode\s*:\s*String\s*=\s*TargetApp\.MODE_BEFORE_REPLY/);
+        const m = codeOnly(app('core/TargetApp.kt')).match(/const val MODE_BEFORE_REPLY = "(\w+)"/);
         expect(m).not.toBeNull();
         expect(m![1]).not.toBe('AUTO');
     });
 
     it('자동 클릭은 그 모드를 보고 갈린다 — 기본값이 곧 «누를까 말까»다', () => {
-        expect(codeOnly(app('HijackService.kt'))).toContain('currentMode == "AUTO"');
+        expect(codeOnly(app('HijackService.kt'))).toContain('val tapsFromList = ModeActs.of(currentMode).tapsList');
+        const acts = codeOnly(app('core/ModeActs.kt'));
+        expect(acts).toMatch(/"AUTO" -> ModeActs\(tapsList = true, sound = false, contracts = true/);   // 계약은 자동 하나
+        expect(acts.match(/contracts = true/g)?.length).toBe(1);
     });
 });

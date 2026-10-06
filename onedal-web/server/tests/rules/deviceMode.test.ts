@@ -202,15 +202,17 @@ describe('🎛️ 앱은 직접 모드에서 누르지 않는다', () => {
         const fn = scan();
         expect(fn.match(/performSimulatedTouch\(/g)?.length).toBe(1);
         const gate = fn.match(/val tapsFromList = ([^\n]+)/)?.[1] ?? '';
-        expect(gate).toMatch(/currentMode == "AUTO"/);
-        expect(gate).toMatch(/currentMode == "SIMULATION"/);
-        expect(gate).toMatch(/currentMode == "ALARM"/);
-        expect(gate).not.toMatch(/MANUAL/);
+        expect(gate).toMatch(/ModeActs\.of\(currentMode\)\.tapsList/);   // 모드마다 하는 일은 ModeActs 한 곳(표 shared modeTable.ts)
+        const acts = codeOnly(app('core/ModeActs.kt'));
+        expect(acts).toMatch(/"AUTO" -> ModeActs\(tapsList = true/);
+        expect(acts).toMatch(/"ALARM" -> ModeActs\(tapsList = true/);
+        expect(acts).toMatch(/"SIMULATION" -> ModeActs\(tapsList = true/);
+        expect(acts).not.toMatch(/"MANUAL" ->/);   // 직접 · 모르는 값은 else(아무것도 안 함)
         const beforeTouch = fn.split('performSimulatedTouch')[0] ?? '';
         expect(beforeTouch).toMatch(/if \(tapsFromList/);
         expect(fn).toMatch(/val willContract = com\.onedal\.app\.core\.engine\.appContractsOnOpen\(currentMode, order\)/);
         expect(fn).toMatch(/contractedByApp = willContract/);
-        expect(app('core/engine/PreConfirmSequence.kt')).toMatch(/fun appContractsOnOpen\(mode: String, order: SimplifiedOfficeOrder\): Boolean =\s*mode == "AUTO" && ReservationGate\.isToday\(order\)/);
+        expect(app('core/engine/PreConfirmSequence.kt')).toMatch(/fun appContractsOnOpen\(mode: String, order: SimplifiedOfficeOrder\): Boolean =\s*ModeActs\.of\(mode\)\.contracts && ReservationGate\.isToday\(order\)/);
     });
 
     /**
@@ -219,7 +221,8 @@ describe('🎛️ 앱은 직접 모드에서 누르지 않는다', () => {
      */
     it('🔴 필터 판정(shouldClick)은 AUTO 문 밖에서 돈다 (항시 인터셉터)', () => {
         const fn = scan();
-        const beforeGate = fn.split('currentMode == "AUTO"')[0] ?? '';
+        const beforeGate = fn.split('val tapsFromList')[0] ?? '';
+        expect(fn).toContain('val tapsFromList');
         expect(beforeGate).toMatch(/shouldClick\(order, tally\)/);
     });
 });
@@ -325,7 +328,10 @@ describe('🔔 2단계 — 스캐너 폰이 스스로 알린다 (기사님 확�
         const addLine = scan.split('alarmHits.add')[0].slice(-400);
         expect(addLine).toMatch(/isTarget/);
         const beforeFire = scan.split('alarmSignaler.fire')[0];
-        expect(beforeFire.slice(-200)).toMatch(/currentMode == "ALARM"/);
+        expect(beforeFire.slice(-200)).toMatch(/ModeActs\.of\(currentMode\)\.sound/);
+        const acts = codeOnly(app('core/ModeActs.kt'));
+        expect(acts.match(/sound = true/g)?.length).toBe(1);   // 소리는 알람 하나뿐
+        expect(acts).toMatch(/"ALARM" -> ModeActs\(tapsList = true, sound = true/);
         expect(beforeFire).toMatch(/pickBestIndex/);
     });
 
