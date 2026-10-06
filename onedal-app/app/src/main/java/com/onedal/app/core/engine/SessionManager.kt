@@ -67,6 +67,9 @@ class SessionManager {
     /** 이미 /confirm을 보냈는지 (중복 전송 방지) */
     var isDetailScrapSent: Boolean = false
 
+    /** 🧬 세션 세대 — `reset` 마다 1씩 오른다. 따로 도는 일은 시작 때 쥔 세대와 다르면 결과를 버린다(`SessionEpoch`) */
+    var epoch: Long = 0
+
     /** 서버 판결(KEEP/CANCEL) 대기 중인지 */
     var isWaitingForDecision: Boolean = false
 
@@ -164,6 +167,7 @@ class SessionManager {
      * @param onReset 외부 리소스 정리 콜백 (안전취소 타이머 취소, 텔레메트리 flush 등)
      */
     fun reset(onReset: (() -> Unit)? = null) {
+        epoch++   // 🧬 표시를 비우는 자리 = 세대를 올리는 자리(한 곳) — 그 전에 시작한 판독은 돌아와도 아무것도 안 남긴다
         isDetailScrapSent = false
         heldUnfilled = false
         collectState = CollectState.IDLE

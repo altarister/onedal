@@ -40,6 +40,13 @@ fun ScanContext.handlePreConfirmScreen(
         return
     }
 
+    // ⏱️ 누가 열었든(알람·손) · 어느 모드든 — 상세 대기 시간 뒤 리스트로 돌아온다 (#124 · 기사님 확정)
+    //    «이미 처리함» 문보다 먼저 건다 — 표시가 남아도 굳지 않게 · 걸려 있으면 다시 안 건다
+    //    앱이 열었지만 계약하지 않는 콜(체험)도 — 결재가 안 오면 여기서 돌아온다
+    if (returnsFromDetailWhoeverOpened() || (session.openedByApp && !session.contractedByApp)) {
+        scheduleDetailBack()
+    }
+
     // 이미 선점 보고를 했다 — 이 화면에서 할 일이 끝났다
     if (PreConfirmGate.shouldSkip(session.isDetailScrapSent)) return
 
@@ -51,11 +58,6 @@ fun ScanContext.handlePreConfirmScreen(
     if (com.onedal.app.core.LogOnce.changed("detailEnter", session.currentOrderId))
         AppLogger.roadmap(LogTag.SCREEN, "[Current Page: DETAIL_PRE_CONFIRM] 진입 완료 (${plugin.label})", telemetryManager.currentScreenContext.name)
 
-    // ⏱️ 누가 열었든(알람·손) · 어느 모드든 — 상세 대기 시간 뒤 리스트로 돌아온다 (#124 · 기사님 확정)
-    //    앱이 열었지만 계약하지 않는 콜(체험)도 — 결재가 안 오면 여기서 돌아온다
-    if (returnsFromDetailWhoeverOpened() || (session.openedByApp && !session.contractedByApp)) {
-        scheduleDetailBack()
-    }
 
     // 👆 누가 열었나는 처음 알아본 이 읽기에서 정한다 — 채우기·사진 뒤에 다시 재지 않는다(`OpenerLatchTest`)
     settleOpener()
@@ -250,6 +252,15 @@ private fun ScanContext.abortPreConfirm(action: (() -> Unit)? = null) {
  * 3. 수동 콜(`alarmTappedCard == null`): 리스트 매칭 카드로 요금을 살리고 OCR 결과로 오더를 조립하여 정상 전송 (손으로 연 콜 구제).
  * 4. 판독 실패(null) 시: 이상 징후 보고 후, 탭 카드가 있으면 카드 정보로 폴백 전송하여 콜 증발 방지.
  */
+/**
+ * 🧹 **늦게 돌아온 판독** — 그 사이 세션을 비웠다(세대가 바뀜). 표시 · 버리기 · 서버 보고 · 이상 징후 보고 전부 없이 한 줄만.
+ *    이상 징후 보고는 «지금 화면»을 싣기 때문에 늦은 판독에 붙이면 틀린 화면으로 남는다 — 콜 요지만 줄에 남긴다.
+ */
+private fun ScanContext.logLateSnapshot(what: String, startedEpoch: Long, tapped: SimplifiedOfficeOrder?) {
+    AppLogger.w(TAG, LogTag.CALL_STAGE, "🧹 [늦은 판독 버림] $what — 그 사이 콜이 끝났다(세대 $startedEpoch → ${session.epoch})" +
+        (tapped?.let { " · ${it.fare}원 ${it.pickup} → ${it.dropoff}" } ?: ""))
+}
+
 private fun ScanContext.handlePreConfirmSnapshot(
     plugin: IDispatchAppPlugin,
     rootNode: AccessibilityNodeInfo,
@@ -278,6 +289,8 @@ private fun ScanContext.handlePreConfirmSnapshot(
         return
     }
 
+    // 🧬 판독을 시작한 세대 — 돌아왔을 때 다르면 그 사이 콜이 끝난 것이라 아무것도 안 남긴다(`SessionEpoch`)
+    val startedEpoch = session.epoch
     screenReader.scheduleReadAndVerifyDetail(
         delayMs = ScreenReader.DETAIL_STABILIZE_IDLE_MS,
         parser = verifier,
@@ -285,6 +298,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
             // ⏱️ 걸어 둔 때 — main 줄 서기가 얼마나 막혔나(«대기»)를 잰다 (상세 속도 · 라이브 09-30 12:57 1.3초 빈 시간)
             val postedAt = android.os.SystemClock.elapsedRealtime()
             mainHandler.post {
+                if (SessionEpoch.stale(startedEpoch, session.epoch)) { logLateSnapshot("성공", startedEpoch, tappedCard); return@post }
                 val clock = com.onedal.app.core.StepClock(postedAt) { android.os.SystemClock.elapsedRealtime() }
                 clock.mark("대기")
                 try {
@@ -359,6 +373,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
         },
         onParseFailed = { reason, lines ->
             mainHandler.post {
+                if (SessionEpoch.stale(startedEpoch, session.epoch)) { logLateSnapshot("판독 실패 — $reason", startedEpoch, tappedCard); return@post }
                 AppLogger.w(TAG, "⚠️ [스냅샷 판독 실패] $reason -> 이상 징후 보고 뒤 버린다(요건 못 채움)")
                 apiClient.sendAnomalyReport(
                     targetApp = currentTargetApp,
@@ -383,6 +398,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
         },
         onError = { error ->
             mainHandler.post {
+                if (SessionEpoch.stale(startedEpoch, session.epoch)) { logLateSnapshot("에러 — $error", startedEpoch, tappedCard); return@post }
                 AppLogger.e(TAG, "❌ [스냅샷 에러] $error")
                 // 📋 사진을 못 찍거나 못 읽었다 — 요건을 못 채운 것이다. 목록 줄 값으로 대신 보내지 않고 버린다
                 dropUnfilledCall("사진 에러 — $error")
