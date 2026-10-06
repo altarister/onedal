@@ -21,7 +21,7 @@ export const GPS_STALE_MS = 10 * 60_000;
 
 /**
  * 📍 위치가 안 온다 — 운전석 GPS(관제웹 · session.lastFixAt)와 원달앱 폰 위치(기기 세션 lastLocationAt) 중 **늦은 것**이 10분 넘으면 (onedal-69 «나»).
- *    배차망 앱을 앞에 띄우고 달리면 관제웹은 위치를 멈춘다 — 원달앱 폰이 보고에 위치를 실어 보내는 중이면 «안 옴»이 아니다.
+ *    원달앱은 위치 권한이 없어 지금 폰 위치가 오지 않는다 — 배차망 앱을 앞에 띄우고 10분 넘게 달리면 운영센터에 «안 옴»이 뜬다.
  *    둘 다 모르면(받은 적 없음) 안 온 것이다.
  */
 export function locationStaleOf(lastFixAt: number | null | undefined, phoneLocationAts: Array<number | undefined>, now: number): boolean {

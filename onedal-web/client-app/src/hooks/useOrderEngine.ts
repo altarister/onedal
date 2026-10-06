@@ -58,10 +58,6 @@ export function useOrderEngine() {
     const [cancelBudgetToast, setCancelBudgetToast] =
         useState<{ app: string; used: number; limit: number; round: number } | null>(null);
 
-    // 파생 상태 (기존 컴포넌트 호환성 유지)
-    const firstCall = activeOrders.length > 0 ? activeOrders[0] : null;
-    const mergeCalls = activeOrders.length > 1 ? activeOrders.slice(1) : [];
-
     // 🚚 지금 실제로 트럭에 실려 있는 콜. **여기가 유일한 판정처다.**
     //
     // 종료된 콜이 섞여 있으면 소비하는 쪽마다 isTerminal 을 기억해야 하고, 잊는 순간
@@ -389,8 +385,6 @@ export function useOrderEngine() {
         cancelRounds,
         cancelBudgetToast,
         isConnected,
-        firstCall,
-        mergeCalls,
         liveCalls,
         terminatedOrders,
         reservedOrders,

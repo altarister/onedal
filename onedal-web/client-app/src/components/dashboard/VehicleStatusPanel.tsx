@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import { useSettingsStore } from '../../stores/settingsStore';
-import { socket } from "../../lib/socket";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
 import { CAPACITY_CONFIDENCE_LABEL, isAlreadyLoaded, isEvaluating, TRUCK_CAPACITY_SLOTS, manwonText } from '@onedal/shared';
@@ -8,7 +7,6 @@ import { apiClient } from "../../api/apiClient";
 import { logStateChange } from '../../lib/roadmapLogger';
 import { initialMotion, motionOnFix, motionOnTick } from './driveMotion';
 
-import { Badge } from "@onedal/ui/badge";
 
 // 이 패널은 "지금 트럭에 뭐가 실려 있나"만 그린다.
 // 살아 있는 콜만 받는다 — 스스로 거르면 그 필터를 빠뜨리는 순간 취소한 콜까지
@@ -160,119 +158,5 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
                     : 'bg-warning/15 text-warning'}`}>{CAPACITY_CONFIDENCE_LABEL[filter.capacityConfidence]}</span>
             )}
         </span>
-    );
-}
-
-export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOrder[] }) {
-    const { filter } = useFilterConfig();
-
-    /* 🚗 속도는 `useGpsSpeed` 한 곳 — 좌표가 끊기면 모름(null) → 정차로 보인다 (#132) */
-    const { speed: gpsSpeed, isMock: gpsIsMock } = useGpsSpeed();
-    const currentSpeed = gpsSpeed ?? 0;
-
-
-    // 내 차량 정보 (DB 연동)
-    const [dbVehicleType, setDbVehicleType] = useState<string>('1t');
-
-    useEffect(() => {
-        const fetchVehicle = () => {
-            apiClient.get('/settings').then(res => {
-                if (res.data.vehicleType) setDbVehicleType(res.data.vehicleType);
-            }).catch(err => console.error("차량 정보 로드 실패:", err));
-        };
-
-        fetchVehicle();
-
-        const onSettingsUpdated = (newSettings: any) => {
-            if (newSettings.vehicleType) {
-                setDbVehicleType(newSettings.vehicleType);
-            }
-        };
-
-        socket.on("settings-updated", onSettingsUpdated);
-        return () => {
-            socket.off("settings-updated", onSettingsUpdated);
-        };
-    }, []);
-
-
-
-    // «달리는가»는 속도가 답한다 — 시뮬도 같은 잣대(5km/h 초과면 이동 중)
-    const isMoving = currentSpeed > 5;
-    const totalCount = liveCalls.length;
-
-    /**
-     * 🔴 **상차는 추측하지 않는다**.
-     *
-     * GPS 로 상차를 짐작하면 장부는 ORDER_CONFIRMED(상차 보고 없음)인데
-     * 요약만 실었다고 말하는 "한 화면 두 세상"이 된다.
-     * GPS 는 도착까지만 안다. 실었는가의 원천은 기사님의 상차 완료 보고
-     * (ORDER_PICKED_UP) 하나고, 판별은 shared 의 isAlreadyLoaded 하나다.
-     */
-    const reservedItems = liveCalls.filter(o => !isAlreadyLoaded(o));
-    const loadedItems = liveCalls.filter(o => isAlreadyLoaded(o));
-
-    // 내 차량 (DB 설정 우선, 없으면 필터 설정)
-    const myVehicle = dbVehicleType || filter?.allowedVehicleTypes?.[0] || '1t';
-
-    const renderLoadStatus = () => {
-        if (totalCount === 0) {
-            return <span className="text-text-muted">예약 0건</span>;
-        }
-
-        const formatItems = (items: SecuredOrder[], prefix: string) => {
-            if (items.length === 0) return null;
-            const vehicles = items.map(i => i.vehicleType || i.itemDescription || '짐').join(', ');
-            return `${prefix} ${items.length}건 (${vehicles})`;
-        };
-
-        const reservedStr = formatItems(reservedItems, '예약');
-        const loadedStr = formatItems(loadedItems, '상차');
-
-        if (reservedStr && loadedStr) {
-            return <span className="text-warning font-bold">{loadedStr}, {reservedStr}</span>;
-        } else if (loadedStr) {
-            return <span className="text-success font-bold">{loadedStr}</span>;
-        } else if (reservedStr) {
-            return <span className="text-info font-bold">{reservedStr}</span>;
-        }
-        return null;
-    };
-
-    return (
-        <div className="flex flex-row items-center justify-between px-4 py-2 border-b border-border-card">
-            <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-text-primary">{myVehicle}</span>
-                <div className="text-xs mt-0.5 flex items-center gap-1.5">
-                    {renderLoadStatus()}
-                    {/* 잔여 적재량을 얼마나 믿을 수 있는지 드러낸다.
-                        '추정'은 차종만 보고 계산한 값이라 현장에서 안 들어갈 수 있다.
-                        기사님이 그 위험을 알고 합짐을 잡아야 한다. */}
-                    {liveCalls.length > 0 && filter?.capacityConfidence && (
-                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
-                            filter.capacityConfidence === 'CONFIRMED' ? 'bg-success/15 text-success'
-                            : filter.capacityConfidence === 'DECLARED' ? 'bg-info/15 text-info'
-                            : 'bg-warning/15 text-warning'
-                        }`}>
-                            {CAPACITY_CONFIDENCE_LABEL[filter.capacityConfidence]}
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            <div className="flex flex-col items-end gap-1">
-                <Badge variant="outline" className={`gap-1.5 px-2 py-0.5 rounded-full ${isMoving ? 'border-info/30 bg-info/10 text-info' : 'border-border bg-surface-alt text-text-muted'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${isMoving ? 'bg-info animate-pulse' : 'bg-text-muted'}`}></span>
-                    <span className="text-[11px] font-black tracking-wider">
-                        {/* 🔴 «달리는가»는 속도가 답한다 — 모의라고 무조건 주행이라 하지 않는다.
-                            시뮬 정차 연기(18초)가 여기서 묻히면 무대 자막과 반대말을 하게 된다 */}
-                        {gpsIsMock ? '시뮬 ' : ''}{isMoving ? '이동 중' : '정차 중'}
-                    </span>
-                    {isMoving && (
-                        <span className="text-[10px] font-mono text-info/70 ml-1">{Math.round(currentSpeed)} km/h</span>
-                    )}
-                </Badge>
-            </div>
-        </div>
     );
 }

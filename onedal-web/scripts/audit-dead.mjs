@@ -101,8 +101,6 @@ const KEEP = {
      */
     aboveSheet: '시트 위에 무엇을 놓을 때의 bottom 값. fitContent 가 생기며 실제 높이와 갈라져 '
               + '목업은 onHeightChange 로 옮겼다. 실물의 「지금 출발」을 고칠 때 함께 지운다.',
-    requireAdmin: '관리자 라우트를 만들 때 쓸 인증 미들웨어. 지금 관리자 화면이 없어 호출부가 없다. '
-                + '보안 장치라 지우고 다시 만들면 그 사이 구멍이 난다 (규칙 ② 안전장치는 겹쳐 둔다).',
     getGeoCacheStats: '지리 캐시 적중률 진단용. 경유 성능을 다시 잴 때 쓴다.',
     findOptimalStopOrder: '정거장 순열 최적화 알고리즘 (N<=8 DFS Branch & Bound). 탐욕법 orderByNearest와 대조 및 정밀 순서 전환 검토용으로 보존.',
     getActivePinCount: '페어링 PIN 발급 현황 진단용. 기기 등록이 안 될 때 확인하는 유일한 수단.',
@@ -118,16 +116,6 @@ const KEEP = {
      */
     isRouteTruncated: '카카오맵 링크가 경유 5개에서 끊겼는지. 옛 내비 화면을 지우며 호출부가 '
                     + '잠시 비었다 — 새 내비 화면을 만들 때 다시 잇는다 (경로.md §4-0-1).',
-    /**
-     * 판정 기준 다섯 — 이름으로 부르지 않고 `CRITERIA` 배열에 담겨 쓰인다.
-     * 낱개로 내보내는 이유: **검사가 기준 하나만 떼어 시험**할 수 있어야 한다
-     * («이 시험과 관련된 기준만 남긴다» — 기사님).
-     */
-    돈: '판정 기준. `CRITERIA` 배열로 쓰인다. 낱개 export 는 검사가 하나만 떼어 보려고.',
-    약속: '판정 기준. 위와 같다.',
-    공간: '판정 기준. 위와 같다.',
-    성질: '판정 기준. 위와 같다.',
-    지리: '판정 기준. 위와 같다 — 지금은 가중치 0 이라 색에 안 들지만 화면에는 보인다.',
 
     /**
      * 🔴 **아래 다섯은 «지울 게 아니라 이어야 할 것»이다.**
@@ -146,6 +134,13 @@ const KEEP = {
     groupCallOptions: '콜 옵션을 갈래별로 묶어 화면이 그리게 하려던 것. DB 표(`call_options`)와 '
                     + '값은 이미 있는데 **그 화면이 아직 없다** — 지금은 `pnpm options` 로 터미널에서만 본다. '
                     + '화면을 만들지 말지는 기사님 판단이라 todo 에 적어 두고 남긴다.',
+};
+
+/** 🧪 검사만 부르는데 알고 남기는 export — 사유 없이는 못 넣는다 (①-2) */
+const TEST_ONLY_KEEP = {
+};
+/** 🤖 원달앱에서 이름으로 안 불리는데 남기는 fun · const val — 사유 없이는 못 넣는다 (①-3) */
+const KT_KEEP = {
 };
 
 const exports = [];
@@ -186,6 +181,110 @@ if (unused.length === 0) {
     }
     if (shown === 0) console.log(`  ${C.g}볼 것 없음 ✅${C.x} ${C.d}(· 는 라우트 계약 또는 사유와 함께 남겨 둔 것)${C.x}`);
     else console.log(`  ${C.d}⚠ = 볼 것. 남길 거면 스크립트의 KEEP 에 **사유와 함께** 넣는다${C.x}`);
+}
+
+// ═══════════════════════════ ①-2 기본 내보내기 · 검사만 부르는 것 · 사유가 낡은 KEEP
+H('①-2 기본 내보내기를 아무도 안 불러옴 · 검사만 부르는 export · 이미 쓰이는데 KEEP 에 남은 이름');
+
+/** 검사 파일 — 이것만 부르면 «살아 있다»가 아니다 (부품은 실물에서 불려야 산다) */
+const isTestFile = (rel) => /\.test\.tsx?$/.test(rel) || rel.startsWith('server/tests/');
+const NON_TEST = ALL.filter(f => !isTestFile(f.rel));
+let found12 = 0;
+
+/* ⓐ `export default function X` — 이름이 아니라 **파일을 불러오는 곳**으로 산다(불러올 때 이름을 바꿀 수 있다) */
+for (const f of [...SERVER, ...CLIENT, ...SHARED]) {
+    if (ENTRY.test(f.rel) || isTestFile(f.rel) || isRouteFile(f.rel)) continue;
+    const m = /^export\s+default\s+(?:async\s+)?(?:function|class)\s+([\w가-힣]+)/m.exec(f.src);
+    if (!m) continue;
+    const stem = f.base.replace(/\.tsx?$/, '');
+    const importRe = new RegExp(`['"\`][^'"\`]*/${stem}(?:\\.tsx?)?['"\`]`);
+    if (NON_TEST.some(o => o.rel !== f.rel && importRe.test(o.src))) continue;
+    if (KEEP[m[1]]) continue;
+    found12++; problems++;
+    console.log(`  ${C.y}⚠${C.x} ${(m[1] + ' (기본 내보내기)').padEnd(30)} ${C.d}${f.rel} — 이 파일을 불러오는 곳 없음${C.x}`);
+}
+
+/**
+ * ⓑ 검사 파일만 부르는 export — 본 코드에서 안 불리면 검사가 지키는 것은 아무도 안 쓰는 함수다.
+ *    처음 잰 수가 많아 **늘었나**로 문다 — 줄면 아래 수를 내린다. 하나씩 캐서 지우거나 TEST_ONLY_KEEP 에 사유와 함께 넣는다.
+ */
+const TEST_ONLY_MAX = 48;
+const testOnly = [];
+for (const e of exports) {
+    if (KEEP[e.name] || TEST_ONLY_KEEP[e.name]) continue;
+    const re = new RegExp(`\\b${e.name}\\b`);
+    const reG = new RegExp(`\\b${e.name}\\b`, 'g');
+    const own = NON_TEST.find(f => f.rel === e.file);
+    const ownUses = own ? (own.src.match(reG) || []).length : 0;
+    const prodElsewhere = NON_TEST.some(f => f.rel !== e.file && re.test(f.src));
+    if (prodElsewhere || ownUses > 1) continue;
+    const testUse = ALL.find(f => isTestFile(f.rel) && re.test(f.src));
+    if (!testUse) continue;   // 아무도 안 쓰는 것은 ① 이 이미 말했다
+    testOnly.push(`${e.name} ${e.file}:${e.line}`);
+}
+if (testOnly.length > TEST_ONLY_MAX) {
+    found12++; problems++;
+    console.log(`  ${C.y}⚠${C.x} 검사만 부르는 export ${testOnly.length}개 — ${TEST_ONLY_MAX}개에서 늘었다. 새로 넣은 것을 본 코드가 부르게 하거나 지운다${C.x}`);
+    for (const t of testOnly) console.log(`       ${C.d}${t}${C.x}`);
+} else {
+    console.log(`  ${C.d}· 검사만 부르는 export ${testOnly.length}개 (상한 ${TEST_ONLY_MAX} — 줄면 상한을 내린다)${C.x}`);
+}
+
+/* ⓒ KEEP 에 있는데 이제 본 코드가 쓰는 이름 — 남긴 사유가 낡았다. 목록에서 뺀다 (검사가 «안 쓴다»를 지키려 이름을 글자로 품는 것은 쓰임이 아니다) */
+for (const name of Object.keys(KEEP)) {
+    const e = exports.find(x => x.name === name);
+    if (!e) {
+        found12++; problems++;
+        console.log(`  ${C.y}⚠${C.x} ${(name + ' (KEEP · 없는 이름)').padEnd(30)} ${C.d}export 가 없다 — KEEP 줄을 지운다${C.x}`);
+        continue;
+    }
+    const reK = new RegExp(`\\b${name}\\b`, 'g');
+    const usedInProd = NON_TEST.some(f => f.rel !== e.file && reK.test(f.src))
+        || ((NON_TEST.find(f => f.rel === e.file)?.src.match(reK) || []).length > 1);
+    if (usedInProd) {
+        found12++; problems++;
+        console.log(`  ${C.y}⚠${C.x} ${(name + ' (KEEP · 이미 쓰임)').padEnd(30)} ${C.d}${e.file}:${e.line} — 남긴 사유가 낡았다 · KEEP 줄을 지운다${C.x}`);
+    }
+}
+if (found12 === 0) console.log(`  ${C.g}없음 ✅${C.x}`);
+
+// ═══════════════════════════ ①-3 원달앱(코틀린) — 정의 말고 쓰임 0
+H('①-3 원달앱 코틀린 — 아무도 안 부르는 fun · const val (검사만 부르는 것 포함)');
+
+const APP = join(ROOT, '../onedal-app/app/src');
+const KT_MAIN = load(walk(join(APP, 'main'), ['.kt']));
+/** 처음 잰 수 — 원달앱 죽은 코드를 지우며 0 으로 내린다. 늘면 문다 */
+const KT_MAX = 15;
+const ktFound = [];
+const KT_TEST = load(walk(join(APP, 'test'), ['.kt']));
+let foundKt = 0;
+if (KT_MAIN.length === 0) {
+    console.log(`  ${C.d}원달앱 소스가 없다 — 건너뜀${C.x}`);
+} else {
+    const defs = [];
+    for (const f of KT_MAIN) {
+        /* override · 생명주기 콜백은 안드로이드가 부른다 — 이름으로 안 찾는다 */
+        for (const m of f.src.matchAll(/^[ \t]*(?:(?:private|internal|public|protected|inline|suspend|operator|infix|tailrec)\s+)*(?:fun\s+(?:<[^>]*>\s*)?(?:[\w.]+\.)?(\w+)\s*\(|const\s+val\s+(\w+))/gm)) {
+            if (/\boverride\b/.test(m[0])) continue;
+            defs.push({ file: f.rel, name: m[1] || m[2], line: f.src.slice(0, m.index).split('\n').length });
+        }
+    }
+    const countIn = (files, re) => files.reduce((n, f) => n + (f.src.match(re) || []).length, 0);
+    for (const d of defs) {
+        if (KT_KEEP[d.name]) continue;
+        const re = new RegExp(`\\b${d.name}\\b`, 'g');
+        const mainUses = countIn(KT_MAIN, re) - 1;      // 정의 한 번을 뺀다
+        if (mainUses > 0) continue;
+        const testUses = countIn(KT_TEST, re);
+        foundKt++;
+        ktFound.push(`${(d.name + (testUses ? ' (검사만 부름)' : '')).padEnd(30)} ${d.file}:${d.line}`);
+    }
+    if (foundKt > KT_MAX) problems++;
+    const mark = foundKt > KT_MAX ? `${C.y}⚠` : `${C.d}·`;
+    for (const k of ktFound) console.log(`  ${mark}${C.x} ${C.d}${k}${C.x}`);
+    if (foundKt === 0) console.log(`  ${C.g}없음 ✅${C.x} ${C.d}(fun ${defs.length}개 · override 제외)${C.x}`);
+    else if (foundKt > KT_MAX) console.log(`  ${C.y}⚠ ${foundKt}개 — ${KT_MAX}개에서 늘었다. 새로 넣은 것을 부르게 하거나 지운다${C.x}`);
+    else console.log(`  ${C.d}· ${foundKt}개 (상한 ${KT_MAX} — 줄면 상한을 내린다)${C.x}`);
 }
 
 // ═══════════════════════════ ② 세션에 없는 필드 접근

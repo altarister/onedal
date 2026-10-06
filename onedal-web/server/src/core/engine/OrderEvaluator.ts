@@ -935,10 +935,6 @@ export class OrderEvaluator {
         if (io) {
             slog('판정', `📤 [Socket 푸시] order-evaluated (${securedOrder.id}) - 상태 승급: ORDER_AWAITING_DECISION`);
             io.to(userId).emit("order-evaluated", securedOrder);
-
-            if (timeExt.includes("실패")) {
-            } else {
-            }
         }
     }
 

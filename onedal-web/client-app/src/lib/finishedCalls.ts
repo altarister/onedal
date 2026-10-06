@@ -90,12 +90,3 @@ export function countsByView<T extends CallLike>(
     }
     return out;
 }
-
-/** 끝난 콜이 한 건이라도 있나 — 서랍 배지에 쓴다 */
-export function finishedCount<T extends CallLike>(
-    calls: readonly T[],
-    cycleDeckIds: ReadonlySet<string>,
-): number {
-    const c = countsByView(calls, cycleDeckIds);
-    return c.COMPLETED + c.CANCELED + c.RELEASED;
-}

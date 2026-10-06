@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderStatus } from '@onedal/shared';
-import { belongsToView, callsInView, countsByView, finishedCount, FINISHED_TABS } from './finishedCalls';
+import { belongsToView, callsInView, countsByView, FINISHED_TABS } from './finishedCalls';
 
 /**
  * 📋 **끝난 콜 갈래 — ☰ 서랍이 쓰는 규칙 한 벌을 고정한다**
@@ -85,9 +85,5 @@ describe('countsByView — 탭에 적는 숫자', () => {
 
     it('사이클 덱에 있는 하차 완료는 세지 않는다', () => {
         expect(countsByView(list, new Set(['1'])).COMPLETED).toBe(1);
-    });
-
-    it('끝난 콜 합계는 셋의 합이다', () => {
-        expect(finishedCount(list, NONE)).toBe(4);
     });
 });

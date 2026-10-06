@@ -198,7 +198,7 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
         return;
     }
 
-    if (screenNodeCount === undefined) return;          // 옛 APK — 모르는 것은 판단하지 않는다
+    if (screenNodeCount === undefined) return;          // 원달앱이 처음 화면을 읽기 전 · drive 보고에서도 온다 — 모르는 것은 판단하지 않는다
     session.screenNodeCount = screenNodeCount;
 
     if (screenNodeCount > 0) {
@@ -228,8 +228,6 @@ export interface DeviceStatusExtras {
     appVersion?: string;
     /** 🚧 통과 콜이 있는데 앱이 안 연 까닭 열쇠 — 목록 보고에만 · 없으면 앱이 열었다 (원달앱 ScrapPayload.openBlocked · shared `OPEN_BLOCKED`) */
     openBlocked?: string;
-    /** 📦 옛 원달앱(openBlocked 전 판)의 «목록이 내려감» — 참이면 openBlocked scrolledOff 로 받는다 */
-    listHeaderHidden?: boolean;
     workStage?: string;
     workStageStep?: number;
     workStageSeconds?: number;
@@ -443,12 +441,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         // 🎛️ 명령이 아니라 **도는 모드**로 — 픽커는 자동 명령이 알람으로 돌아 폰이 울린다, 관제웹도 함께 (기사님 «가»)
         /* 🔔 새로 알람감이 된 통과 콜만 — 같은 콜이 목록에 남거나 요금만 올라도 다시 울리던 것 (옛 앱은 passedNew 가 없어 passed) */
         const alarmPassed = filterTally.passedNew ?? filterTally.passed;
-        /* 📦 옛 원달앱은 까닭 대신 «목록이 내려감»만 보낸다 — scrolledOff 로 받고, 새 앱을 까시라고 기기마다 한 번 */
-        if (typeof extras?.listHeaderHidden === 'boolean' && !session.oldAppWarned) {
-            session.oldAppWarned = true;
-            slog('필터', `⚠️ [옛 원달앱] ${deviceLabelOf(deviceId)} (판 ${session.version ?? '모름'}) — 목록 보고에 listHeaderHidden 을 싣는 옛 판이다 · 앱이 못 연 까닭은 «목록이 내려감»만 알 수 있다 · 새 앱을 까십시오`);
-        }
-        const openBlocked = extras?.openBlocked ?? (extras?.listHeaderHidden === true ? 'scrolledOff' : undefined);
+        const openBlocked = extras?.openBlocked;
         const alarmBody: FilterPassAlarm = {
             deviceId,
             deviceName: session.deviceName,
