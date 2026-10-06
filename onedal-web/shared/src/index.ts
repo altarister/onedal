@@ -1854,6 +1854,7 @@ export * from './regionMatch';
 export * from './pricing';
 export * from './phases';
 export * from './ops';
+export * from './anomalyKinds';
 export * from './join';
 export * from './callTargetDay';
 export * from './pickupList';
