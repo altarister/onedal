@@ -362,7 +362,7 @@ class TelemetryManager(
         apiClient.sendScrapTelemetry(
             payload = payload,
             onModeReceived = { mode ->
-                val firstMode = !modeKnown
+                val modeChanged = !modeKnown || mode != currentMode
                 modeKnown = true
                 if (lostReply) {
                     lostReply = false
@@ -370,8 +370,8 @@ class TelemetryManager(
                 }
                 currentMode = mode
                 modeCallback?.invoke(mode)
-                /* 🎛️ 첫 모드를 받은 순간 한 번 더 보고 — «받았다»(appliedMode)가 다음 보고(홈 60초)를 기다리면 관제웹 «로딩 중»이 1분 돈다 · 기다림 장부는 화면 스레드에서만 */
-                if (firstMode) android.os.Handler(Looper.getMainLooper()).post { forceHeartbeat() }
+                /* 🎛️ 처음이거나 모드가 바뀐 순간 한 번 더 보고 — «받았다»(appliedMode)가 다음 보고(홈 60초)를 기다리면 관제웹 «로딩 중 · 적용중»이 1분 돈다 · 기다림 장부는 화면 스레드에서만 */
+                if (modeChanged) android.os.Handler(Looper.getMainLooper()).post { forceHeartbeat() }
             },
             /* 📵 응답을 못 받으면 자동만 알람으로 — 결재가 올 길이 없다 · 다음 응답에서 서버 모드로 돌아온다 (reviews/44 2단계) */
             onNoResponse = {
