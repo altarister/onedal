@@ -23,7 +23,8 @@ export function startSupply(): void {
         .catch(e => console.warn('📡 공급 서비스 시작 실패', e));
 }
 
-export function stopSupply(): void {
+/** 🔴 끝나기를 기다릴 수 있게 약속을 돌려준다 — 로그아웃은 곧바로 화면을 새로 고쳐, 기다리지 않으면 내리기 요청이 끊겨 서비스가 옛 로그인으로 계속 공급했다(폰 시험 10-06) */
+export async function stopSupply(): Promise<void> {
     if (!isNativeApp()) return;
-    Supply.stop().catch(e => console.warn('📡 공급 서비스 내리기 실패', e));
+    await Supply.stop().catch(e => console.warn('📡 공급 서비스 내리기 실패', e));
 }

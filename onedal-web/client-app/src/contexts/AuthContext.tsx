@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem("access_token");
             localStorage.removeItem("refresh_token");
             setUser(null);
-            stopSupply();        // 관제앱 공급 서비스도 내리고 저장한 토큰을 지운다
+            await stopSupply();  // 관제앱 공급 서비스도 내리고 저장한 토큰을 지운다 — 새로 고치기 전에 끝을 기다린다
             socket.disconnect(); // 로그아웃 시 소켓도 끊어주기
             window.location.href = "/login";
         }
