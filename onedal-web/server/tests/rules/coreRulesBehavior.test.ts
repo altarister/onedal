@@ -65,6 +65,17 @@ describe('🔒 잡기를 멈추는 셋 — 판정 함수가 아니라 폰에 가
     });
 });
 
+describe('📅 R14 빈 내일 상차 목록은 싣지 않는다 — 원달앱이 빈 목록을 다르게 읽는 날에도 안전하게', () => {
+    it('🔴 빈 목록 → 칸 없음', () => {
+        const { filter } = appFilterOf(readySession(), U, DEV, { keywords: [], groups: {} });
+        expect(filter).not.toHaveProperty('reservedPickupKeywords');
+    });
+    it('대조 — 동이 있으면 싣는다', () => {
+        const { filter } = appFilterOf(readySession(), U, DEV, { keywords: ['신둔면'], groups: { 이천시: ['신둔면'] } });
+        expect(filter.reservedPickupKeywords).toEqual(['신둔면']);
+    });
+});
+
 describe('🛡️ R1 잡은 콜(KEEP)은 서버 강제 정리가 건드리지 않는다 (README 규칙 ①)', () => {
     it('🔴 확정된 콜에 강제 정리를 불러도 그대로', () => {
         const s = readySession();
