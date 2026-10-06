@@ -166,12 +166,12 @@ fun ScanContext.handlePreConfirmScreen(
 
         // 손 클릭인데 스위치가 AUTO — 1초 보고를 10초 켠다
         if (!session.contractedByApp && effectiveMode == "AUTO") {
-            AppLogger.d(TAG, LogTag.NETWORK, "⚡ [Phase 2] 수동 클릭 + AUTO 스위치 감지. 임시 고속 폴링 10초 활성화")
+            AppLogger.d(TAG, LogTag.NETWORK, "⚡ [손 클릭 AUTO] 1초 보고 10초 켬")
             telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, true)
             // ⏳ 세션 몫 — 콜이 끝나면 거두고 1초 보고도 끈다(resetSessionState)
             waitBook.schedule("손 클릭 AUTO 1초 보고", com.onedal.app.core.WaitBook.SESSION, 10_000) {
                 telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, false)
-                AppLogger.d(TAG, LogTag.NETWORK, "⚡ [Phase 2] 임시 고속 폴링 10초 만료. 해제.")
+                AppLogger.d(TAG, LogTag.NETWORK, "⚡ [손 클릭 AUTO] 10초 끝 — 이 몫의 1초 보고 끔")
             }
         }
 

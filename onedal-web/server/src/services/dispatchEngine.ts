@@ -501,9 +501,9 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         slog('결재', `📦 [결재] 관제탑 판결(${piggybackAction})을 큐에 기록 — 관제앱 공급 소켓 → 블루투스로 폰에 (받았음이 올 때까지 들고 있다 · orderId: ${orderId})`);
     } else {
         // pendingDecisions에 없는 경우 (이미 타임아웃으로 삭제되었거나, MANUAL 건)
-        if (isKeep) logRoadmapEvent('결재', "서버", `앱폰에게 Action=${piggybackAction} 최종 판결 응답 전달 (즉시)`);
-        else logRoadmapEvent('결재', "서버", "앱폰에게 Action=Cancel 최종 판결 응답 전달 (즉시)");
-        slog('경고', `⚠️ [Piggyback V2] pendingDecisions에 ${orderId}가 없습니다. (MANUAL 건이거나 이미 타임아웃 처리됨)`);
+        if (isKeep) logRoadmapEvent('결재', "서버", `결재 큐에 없음 — 앱폰에 Action=${piggybackAction} 을 보내지 않음`);
+        else logRoadmapEvent('결재', "서버", "결재 큐에 없음 — 앱폰에 Action=Cancel 을 보내지 않음");
+        slog('경고', `⚠️ [결재] pendingDecisions 에 ${orderId} 가 없다 — 폰에 보내지 않는다 (직접 건이거나 이미 시한 정리됨)`);
     }
 
     // deviceEvaluatingMap 은 여기서 지우지 않는다 — 폰이 결재를 실행해 받았음이 오면 ackDecision(state/decisions)이 푼다

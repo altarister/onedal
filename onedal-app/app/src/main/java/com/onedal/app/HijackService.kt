@@ -338,7 +338,7 @@ class HijackService : AccessibilityService(), ScanContext {
         detailFoldOrderId = null
         foldReleasedOrderId = null
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, true)          // ⏱️ 상세에 머무는 동안 1초 보고 켬 — 결재는 블루투스로 온다
-        AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 (1초 주기 판결 수신 가동) · 연 쪽: $opener")
+        AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 (1초 보고 켬) · 연 쪽: $opener")
         val r = Runnable {
             detailBackRunnable = null
             detailBackDeadlineMs = null

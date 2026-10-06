@@ -224,7 +224,7 @@ class ApiClient(private val context: Context) {
                     if (code == 200) {
                         prefs.edit().putString("api_confirm_res", body).apply()
                         AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /confirm response / $code] $body")
-                        AppLogger.roadmap(LogTag.DECISION, "[HTTP 폴링] 응답 /orders/confirm")
+                        AppLogger.roadmap(LogTag.DECISION, "[확정 보고 응답] /orders/confirm")
                     } else {
                         AppLogger.e(TAG, LogTag.NETWORK, "❌ [post /confirm response / $code] $body")
                     }
@@ -255,7 +255,7 @@ class ApiClient(private val context: Context) {
                     val (code, body) = result
                     if (code == 200 || code == 202) {
                         prefs.edit().putString("api_detail_res", body).apply()
-                        AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /detail response / $code] 즉결 접수 완료. Piggyback 대기 시작.")
+                        AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /detail response / $code] 접수 완료 — 결재는 블루투스로 온다")
                         // 성공적으로 큐에 등록되었으므로 여기서 판단 콜백을 부르지 않는다 — 결재는 블루투스로 온다
                     } else {
                         AppLogger.e(TAG, LogTag.NETWORK, "❌ [post /detail response / $code] $body")

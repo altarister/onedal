@@ -70,7 +70,7 @@ router.post("/", async (req, res) => {
             && session.pendingDecisions.has(realOrderId)
             && !!(prevSame as any).isPreview === !!(payload as any).isPreview && !manualRequest) {
             slog('콜단계', `🔁 [재시도] ${realOrderId} — 같은 상세 보고가 다시 왔다 · 같은 판정을 기다린다`);
-            return res.status(202).json({ message: "Accepted. Piggyback evaluation pending" });
+            return res.status(202).json({ message: "Accepted. Decision follows via supply socket" });
         }
 
         // 🧠 앞의 기억(`/orders/confirm` 이 남긴 것)에서 시작한다 — 날 payload 로 시작하지 않는다.
@@ -317,7 +317,7 @@ router.post("/", async (req, res) => {
 
         // 결재 큐에 올리고 바로 202 — 결재는 관제앱 공급 소켓으로 간다
         session.pendingDecisions.set(payload.order.id, { action: null, evaluatedAt: Date.now() });
-        res.status(202).json({ message: "Accepted. Piggyback evaluation pending" }); // 🚀 즉시 응답
+        res.status(202).json({ message: "Accepted. Decision follows via supply socket" }); // 🚀 즉시 응답
 
         // 백그라운드로 평가 진행 (카카오 API 지연 방어)
         evaluateNewOrder(userId, pendingOrder, io, targetApp).catch(console.error);
