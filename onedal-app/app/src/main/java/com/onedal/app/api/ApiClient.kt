@@ -159,6 +159,8 @@ class ApiClient(private val context: Context) {
         maxRetries: Int = 2,
         /** 1초마다 되풀이되는 보고(scrap)는 시작·완료 줄을 찍지 않는다 — 실패 줄은 그대로 남는다 (reviews/22) */
         quiet: Boolean = false,
+        /** 📵 시도 하나가 실패할 때마다 — 재시도를 기다리지 않고 알아야 하는 쪽(보고의 모드 내리기)만 넘긴다 */
+        onAttemptFailed: (() -> Unit)? = null,
     ): Pair<Int, String>? {
         for (attempt in 1..maxRetries) {
             val startMs = System.currentTimeMillis()
@@ -195,6 +197,7 @@ class ApiClient(private val context: Context) {
                             "사유: ${e.javaClass.simpleName} - ${e.message}",
                     "NETWORK"
                 )
+                onAttemptFailed?.invoke()
                 if (attempt < maxRetries) {
                     Thread.sleep(500) // 500ms 대기 후 재시도
                 }
@@ -288,6 +291,8 @@ class ApiClient(private val context: Context) {
         onDecisionReceived: ((String, String) -> Unit)? = null,
         onCallMemoryRound: ((Int) -> Unit)? = null,
         onFoldAfter: ((String, Long) -> Unit)? = null,
+        /** 📵 서버 응답을 못 받았다 — 첫 실패 · 200 이 아닌 응답 · 응답을 못 읽음 (reviews/44 2단계 · 받는 쪽이 자동을 알람으로 내린다) */
+        onNoResponse: () -> Unit = {},
     ) {
         telemetryExecutor.submit {
             val startMs = System.currentTimeMillis()
@@ -304,7 +309,7 @@ class ApiClient(private val context: Context) {
                 // 기존에는 confirm/detail/emergency만 재시도가 있고 scrap은 맨 요청이라,
                 // 터널·기지국 전환으로 1회만 실패해도 다음 하트비트까지 120초 공백이 생겨
                 // 서버 데드맨이 오작동(기기를 죽은 것으로 판정)하는 원인이 되었습니다.
-                val result = executeWithRetry(targetUrl, jsonBody, "/scrap", timeoutMs = 5000, quiet = true)
+                val result = executeWithRetry(targetUrl, jsonBody, "/scrap", timeoutMs = 5000, quiet = true, onAttemptFailed = onNoResponse)
 
                 if (result == null) {
                     val elapsedMs = System.currentTimeMillis() - startMs
@@ -421,6 +426,7 @@ class ApiClient(private val context: Context) {
                     scrapRes.deviceControl?.mode?.let { onModeReceived(it) }
                 } else {
                     AppLogger.w(TAG, "📡 [텔레메트리] 서버 에러 응답: $code")
+                    onNoResponse()
                 }
             } catch (e: Exception) {
                 val elapsedMs = System.currentTimeMillis() - startMs
@@ -429,6 +435,7 @@ class ApiClient(private val context: Context) {
                     "NETWORK"
                 )
                 AppLogger.e(TAG, "📡 [텔레메트리 통신 실패] ${e.message}")
+                onNoResponse()
             }
             // 커넥션 정리는 executeWithRetry 내부의 finally에서 수행합니다.
         }

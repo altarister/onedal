@@ -354,7 +354,7 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
         isRefire: Boolean = false,
     ): Boolean {
         // 🛑 [체험 모드 하드락] 체험 모드일 때는 수락/확정 관련 텍스트 터치를 물리적으로 100% 원천 차단!
-        if (currentMode == "SIMULATION" && (targetText.contains("수락") || targetText.contains("확정") || targetText == "닫기")) {
+        if (ModeActs.of(currentMode ?: "").blocksAccept && (targetText.contains("수락") || targetText.contains("확정") || targetText == "닫기")) {
             AppLogger.e(TAG, LogTag.TAP, "🛑 [체험 모드 절대 방어] '$targetText' 버튼 터치 시도가 감지되었으나 물리적으로 원천 차단(Block)되었습니다!")
             return false
         }

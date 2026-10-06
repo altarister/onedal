@@ -5,6 +5,7 @@ import com.onedal.app.core.PageFieldRead
 
 import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.core.LogTag
+import com.onedal.app.core.ModeActs
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.ScreenReader
 import com.onedal.app.models.ScreenContext
@@ -145,12 +146,18 @@ fun ScanContext.handlePreConfirmScreen(
         // ✍️ 앱이 계약 버튼을 누르는 콜 — 자동 모드이고 이 배차망에 수락 칸이 있을 때만 (수락 칸이 비었는지 읽는 곳은 여기 한 곳)
         val acceptButtons = plugin.acceptButtons
         /**
-         * 📅 **확정 직전 상세 값으로 한 번 더** — 목록이 오늘이라 앱이 계약하려던 콜도 상세가 내일이면 기사님께 넘긴다.
-         * «앱이 계약한다»를 내려 둬야 결재가 와도 앱이 닫기·취소를 누르지 않고, 안전취소도 돌지 않는다.
+         * 📅🔐 **확정 직전 지금 값으로 한 번 더** — 목록에서 «앱이 계약한다»로 정한 콜도 둘이면 기사님께 넘긴다.
+         * - 상세가 내일 콜이다(목록은 오늘이었어도).
+         * - 상세 1~2초 사이 받은 응답에서 모드가 자동이 아니게 됐다 — 관제웹 없음(서버가 알람) · 서버 응답 없음(원달앱이 알람) (reviews/44 3단계).
+         *   결재가 올 길이 없는데 확정을 누르면 안전취소로 끝나고 그것도 취소 횟수다.
+         * «앱이 계약한다»를 내려 둬야 결재가 와도 앱이 닫기·취소를 누르지 않고, 안전취소도 돌지 않는다 — 미리보기로 올라가 상세 대기 시간 뒤 목록으로.
          */
-        if (session.contractedByApp && !ReservationGate.isToday(order)) {
+        if (session.contractedByApp && !appContractsOnOpen(effectiveMode, order)) {
             session.contractedByApp = false
-            AppLogger.i(TAG, LogTag.DECISION, "📅 [확정 안 누름] 상세가 오늘 콜이 아니다 — 예약 ${ReservationGate.wordOf(order)} ${order.reservedAt ?: ""} · 미리보기로 올리고 기사님이 확정")
+            if (!ReservationGate.isToday(order))
+                AppLogger.i(TAG, LogTag.DECISION, "📅 [확정 안 누름] 상세가 오늘 콜이 아니다 — 예약 ${ReservationGate.wordOf(order)} ${order.reservedAt ?: ""} · 미리보기로 올리고 기사님이 확정")
+            else
+                AppLogger.i(TAG, LogTag.DECISION, "🔐 [확정 안 누름] 지금 모드 $effectiveMode — 관제웹 없음 또는 서버 응답 없음 · 미리보기로 올리고 기사님이 확정")
         }
         val appContracts = appPressesAccept(session.contractedByApp, acceptButtons, order)
         // 👀 계약하지 않는 콜은 미리보기 — 선점 보고 **전에** 켠다. 서버는 이 표시가 있어야 심사한다
@@ -497,7 +504,7 @@ fun appPressesAccept(contractedByApp: Boolean, acceptButtons: List<String>?, ord
  * 📅 내일 콜·날 모름은 자동이어도 기사님이 확정한다 — 상세에서 한 번 더 보는 곳은 `appPressesAccept`.
  */
 fun appContractsOnOpen(mode: String, order: SimplifiedOfficeOrder): Boolean =
-    mode == "AUTO" && ReservationGate.isToday(order)
+    ModeActs.of(mode).contracts && ReservationGate.isToday(order)
 
 /** 🚪 상세 진입 줄의 «무엇을 하나» — 모드가 아니라 «앱이 계약하나» 하나로 말한다(자동인데 내일 콜이면 기사님 확정 · 미리보기) */
 fun openPlanText(mode: String, contracts: Boolean): String = when {

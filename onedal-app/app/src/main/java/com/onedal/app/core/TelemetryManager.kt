@@ -236,9 +236,12 @@ class TelemetryManager(
      *    모르면 잡지 않는다 — 첫 응답이 오면 그때부터 서버 말을 따른다.
      */
     @Volatile
-    var currentMode: String = "MANUAL"
+    var currentMode: String = TargetApp.MODE_BEFORE_REPLY
     /** 🎛️ 서버 모드를 한 번이라도 받았나 — 받기 전 보고에는 «도는 모드»를 싣지 않는다(기본값 MANUAL 이 «명령과 갈렸다»로 읽혔다 · `ModeFirstReportTest`) */
     private var modeKnown = false
+    /** 📵 마지막 보고가 응답을 못 받았나 — «응답 없음 · 다시 옴» 로그를 바뀔 때만 찍는다 */
+    @Volatile
+    private var lostReply = false
 
     /** 🖼️ 서버에서 모드를 받을 때마다 부른다 — 화면 테두리(`ModeFrame`)가 색을 맞춘다 */
     @Volatile
@@ -360,8 +363,24 @@ class TelemetryManager(
             payload = payload,
             onModeReceived = { mode ->
                 modeKnown = true
+                if (lostReply) {
+                    lostReply = false
+                    AppLogger.i(TAG, LogTag.NETWORK, "✅ [서버 응답 다시 옴] $mode")
+                }
                 currentMode = mode
                 modeCallback?.invoke(mode)
+            },
+            /* 📵 응답을 못 받으면 자동만 알람으로 — 결재가 올 길이 없다 · 다음 응답에서 서버 모드로 돌아온다 (reviews/44 2단계) */
+            onNoResponse = {
+                val lowered = TargetApp.modeWithoutServer(currentMode)
+                if (!lostReply) {
+                    lostReply = true
+                    if (lowered != currentMode) AppLogger.w(TAG, LogTag.NETWORK, "📵 [서버 응답 없음] $currentMode → $lowered · 확정 안 누름")
+                }
+                if (lowered != currentMode) {
+                    currentMode = lowered
+                    modeCallback?.invoke(lowered)
+                }
             },
             onDecisionReceived = decisionCallback,
             onFoldAfter = foldAfterCallback,

@@ -7,6 +7,7 @@ import android.graphics.Rect
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.LogOnce
 import com.onedal.app.core.HandFirst
+import com.onedal.app.core.ModeActs
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.api.ApiClient
@@ -1623,7 +1624,7 @@ class HijackService : AccessibilityService(), ScanContext {
          * 앱이 계약 버튼을 누르는 것은 자동뿐이다(`contractedByApp`) — 체험·알람은 판정만 받고 확정·수락은 기사님.
          */
         if (LogOnce.changed("seenCount", "$seenSkipped") && seenSkipped > 0) AppLogger.d(TAG, LogTag.FILTER, "⏭️ [이미 본 콜] 이 스캔 ${seenSkipped}개 건너뜀")
-        val tapsFromList = currentMode == "AUTO" || currentMode == "SIMULATION" || currentMode == "ALARM"
+        val tapsFromList = ModeActs.of(currentMode).tapsList   // 🎛️ 모드마다 하는 일은 `ModeActs` 한 곳(표 shared `modeTable.ts`)
         val bestIdx = AlarmSignaler.pickBestIndex(alarmHits.map { it.first.fare })
         /**
          * ⏳ **목록이 움직이는 틀이면 통과 콜을 미룬다** (`AlarmHold` · 기사님 «가») — 덜 그려진 카드로 울리지 않게.
@@ -1683,7 +1684,7 @@ class HijackService : AccessibilityService(), ScanContext {
                     "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 다음 스캔에서 바로 누릅니다")
             } else {
                 // 🔔 알람이면 소리·진동 — 테두리는 그리지 않는다(앱이 상세까지 들어가 가리킬 줄이 없다 · 기사님 결정 «모든 배차망이 똑같이»)
-                if (currentMode == "ALARM") {
+                if (ModeActs.of(currentMode).sound) {
                     alarmSignaler.fire(
                         fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash,
                         withBorder = false,

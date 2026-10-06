@@ -27,6 +27,15 @@ object TargetApp {
         if (requested == "AUTO" && "AUTO" !in com.onedal.app.plugins.DispatchPluginRegistry.get(code).availableModes) "ALARM"
         else requested
 
+    /** 🎛️ 서버 답을 한 번도 못 받았을 때의 모드 — 모르면 잡지 않는다(`TelemetryManager.currentMode` 첫 값 · 표 shared `modeTable.ts`) */
+    const val MODE_BEFORE_REPLY = "MANUAL"
+
+    /**
+     * 📵 **서버 응답을 못 받았을 때의 모드** (reviews/44 2단계) — 자동만 알람으로 내린다. 결재가 올 길이 없어 자동으로 잡으면 안전취소(취소 횟수)로 끝나기 때문이다.
+     * 알람 · 체험 · 직접은 그대로 — 소리만 내는 알람(픽커 포함)은 끊김 중에도 계속 돈다. 서버 `modeForPhone` 과 같은 꼴(자동만 알람).
+     */
+    fun modeWithoutServer(mode: String): String = if (mode == "AUTO") "ALARM" else mode
+
     /** 실제 카카오T픽커 앱의 이름 (0830 실측) — 배차망을 정하는 데는 쓰지 않는다 (`isKakaoPickerApp`) */
     const val KAKAOPICKER_PACKAGE = "com.kakaomobility.flexer"
 
