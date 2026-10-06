@@ -22,6 +22,9 @@ import { join } from 'path';
 
 const SRC = join(__dirname, '../../src');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+/** 주석은 걷어낸다 — 갈래 안 주석에 이름을 적어도 세지 않게 */
+const code = (src: string) =>
+    src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 // ─────────────────────────────────────────────────────────────────
 // ① 콜의 주인은 기사님이다
@@ -61,8 +64,13 @@ describe('규칙 ① 콜의 주인은 기사님이다', () => {
     });
 
     it('🔴 MANUAL 경로에서 콜을 지우는 것은 평가가 아니라 **확정까지** 실패했을 때뿐이다', () => {
-        const src = read('routes/detail.ts');
-        const branch = src.slice(src.indexOf('if (isManual)'), src.indexOf('// [Option B]'));
+        const src = code(read('routes/detail.ts'));
+        // 끝은 코드 줄(심사 갈래의 결재 큐 등록)로 자른다 — 그 줄을 못 찾으면 범위가 파일 끝까지 늘어나므로 먼저 문다
+        const start = src.indexOf('if (isManual)');
+        const end = src.indexOf('session.pendingDecisions.set(payload.order.id, { action: null');
+        expect(start).toBeGreaterThan(-1);
+        expect(end).toBeGreaterThan(start);
+        const branch = src.slice(start, end);
         const cancels = branch.match(/forceCancelEvaluatingOrder/g) ?? [];
         // 마지막 출구(확정 실패) 하나뿐이어야 한다. 늘어났다면 규칙이 새고 있다
         expect(cancels.length).toBe(1);
