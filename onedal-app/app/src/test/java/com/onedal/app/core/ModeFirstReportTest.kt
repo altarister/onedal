@@ -15,7 +15,7 @@ class ModeFirstReportTest {
     @Test fun `받기 전 보고는 effectiveMode 가 비고 · 받으면 켠다`() {
         assertTrue(src.contains("effectiveMode = if (modeKnown) TargetApp.effectiveMode(currentMode, appCode) else null"))
         val i = src.indexOf("onModeReceived = { mode ->")
-        assertTrue(i > 0 && src.substring(i, i + 120).contains("modeKnown = true"))
+        assertTrue(i > 0 && src.substring(i, src.indexOf("onNoResponse = {", i)).contains("modeKnown = true"))
     }
 
     /** «받았다»(appliedMode)는 다음 보고에 실린다 — 홈 화면은 60초라 활성화 뒤 · 관제웹이 모드를 바꾼 뒤 «로딩 중 · 적용중»이 1분 돌았다. 못 잡는 것: 실제로 1초 안에 풀리는지(폰 · 관제웹) */
