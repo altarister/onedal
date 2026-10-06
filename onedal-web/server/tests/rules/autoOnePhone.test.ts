@@ -23,7 +23,7 @@ describe('🔁 자동은 한 폰만', () => {
     it('🔴 보고 응답은 다른 폰도 자동 명령이면 알람으로 내려준다(이미 둘인 경우의 안전망)', () => {
         expect(supply).toContain('const otherAuto = otherAutoPhoneOf(deviceId, userId, ids);');
         expect(supply).toContain('return modeForPhone(commanded, autoLive, webAttached, otherAuto)');
-        expect(scrap).toContain('const phoneMode = deviceId ? modeSentToPhone(deviceId, userId, deviceMode as DeviceModeType)');
+        expect(scrap).not.toMatch(/modeSentToPhone|deviceControl: \{[^}]*mode:/);   // 모드는 관제앱 공급 한 길(reviews/50 ①-5)
         expect(devices).toMatch(/function otherAutoPhoneOf[\s\S]*?otherContractingAuto\(deviceId, phones, Date\.now\(\), DEADMAN_TIMEOUT_MS\)/);   // 판단은 shared 한 곳 · 동작 검사는 modeTable.test
     });
 });

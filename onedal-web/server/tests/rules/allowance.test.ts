@@ -33,7 +33,7 @@ describe('허락이 살아 있나 · 폰에 내려보낼 모드', () => {
     it('🔴 scrap 응답 모드는 modeForPhone 을 거친다 — 관제앱 공급과 같은 modeSentToPhone', () => {
         expect(SRC('state/phoneSupply.ts')).toContain('const autoLive = allowanceOf(userId).autoLive;');
         expect(SRC('state/phoneSupply.ts')).toContain('return modeForPhone(commanded, autoLive, webAttached, otherAuto)');
-        expect(SRC('routes/scrap.ts')).toContain('const phoneMode = deviceId ? modeSentToPhone(deviceId, userId, deviceMode as DeviceModeType)');
+        expect(SRC('routes/scrap.ts')).not.toMatch(/modeSentToPhone|deviceControl: \{[^}]*mode:/);   // 모드는 관제앱 공급 한 길(reviews/50 ①-5)
     });
 });
 

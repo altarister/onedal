@@ -20,7 +20,7 @@ const handler = (() => {
 const send = async (ip: string, cf?: string) => {
     const res = { status: () => res, json: () => res };
     const headers: Record<string, string> = cf ? { 'cf-connecting-ip': cf } : {};
-    await handler({ app, ip, body: { data: [], deviceId: DEV }, headers, get: (h: string) => headers[h.toLowerCase()] }, res);
+    await handler({ app, ip, body: { data: [], deviceId: DEV, supplyLinked: true }, headers, get: (h: string) => headers[h.toLowerCase()] }, res);
 };
 const warnings = (spy: jest.SpyInstance) => spy.mock.calls.filter(c => String(c[0]).includes('[이중 발신]')).length;
 

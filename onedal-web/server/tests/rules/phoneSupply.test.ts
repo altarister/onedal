@@ -3,7 +3,10 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import * as fileLogger from '../../src/utils/fileLogger';
 import { phoneSupplyOf, serverIdOf } from '../../src/state/phoneSupply';
-import { applyPhoneStatus, phoneStatusOf } from '../../src/state/phoneStatus';
+import { applyPhoneStatus, phoneStatusOf, isAppTooOld } from '../../src/state/phoneStatus';
+import scrapRouter from '../../src/routes/scrap';
+import ordersRouter from '../../src/routes/orders';
+import detailRouter from '../../src/routes/detail';
 import { getUserDevicesSnapshot } from '../../src/routes/devices';
 import { ackDecision, unackedPhoneDecisions } from '../../src/state/decisions';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
@@ -106,4 +109,41 @@ describe('📡 관제앱 공급', () => {
             expect(serverIdOf()).toMatch(/^[0-9a-f]{12}$/);
         });
     });
+
+    describe('🚫 블루투스 받기 전 원달앱 — 서버가 거절 (reviews/50 ①-5 · 기사님 «가»)', () => {
+        const U4 = 'test-app-too-old';
+        const DEV4 = 'dev-too-old-1';
+        const io = { to: () => ({ emit: () => {} }), of: () => ({ adapter: { rooms: new Map() } }) };
+        const app = { get: (k: string) => (k === 'io' ? io : undefined) };
+        const handle = (router: any, path: string) => {
+            const layer = router.stack.find((l: any) => l.route?.path === path && l.route.methods.post);
+            return layer.route.stack[layer.route.stack.length - 1].handle;
+        };
+        const post = async (router: any, path: string, body: any) => {
+            let status = 200, out: any = null;
+            const res = { status: (c: number) => { status = c; return res; }, json: (b: any) => { out = b; return res; } };
+            await handle(router, path)({ app, ip: '1.1.1.1', headers: {}, get: () => undefined, body }, res);
+            return { status, out };
+        };
+        beforeAll(() => {
+            approvedUser(U4);
+            db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U4, DEV4);
+        });
+        it('🔴 «블루투스 공급 연결» 칸이 없는 보고는 426 · 응답에 모드 · 필터 없음 · 기기 목록 «원달앱 새로 깔기 필요» · 확정 · 상세도 426', async () => {
+            const old = await post(scrapRouter, '/', { data: [], deviceId: DEV4 });
+            expect(old.status).toBe(426);
+            expect(old.out.code).toBe('APP_TOO_OLD');
+            expect(old.out).not.toHaveProperty('deviceControl');
+            expect(isAppTooOld(DEV4)).toBe(true);
+            expect(getUserDevicesSnapshot(U4).find(d => d.deviceId === DEV4)?.appTooOld).toBe(true);
+            expect((await post(ordersRouter, '/confirm', { step: 'BASIC', deviceId: DEV4 })).status).toBe(426);
+            expect((await post(detailRouter, '/', { step: 'DETAILED', deviceId: DEV4 })).status).toBe(426);
+        });
+        it('새 원달앱이 보고하면 풀린다', async () => {
+            const ok = await post(scrapRouter, '/', { data: [], deviceId: DEV4, supplyLinked: true });
+            expect(ok.status).toBe(200);
+            expect(isAppTooOld(DEV4)).toBe(false);
+        });
+    });
 });
+

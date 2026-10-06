@@ -26,22 +26,17 @@ describe('filterVersionOf — 내용 해시 (카운터가 아니다, 규칙 ③)
     });
 });
 
-describe('scrap 응답 — v2 게이트의 배선', () => {
-    it('🔴 v2 신호는 filterVersion 필드의 존재다 — 구앱(필드 없음)에는 전부 보낸다', () => {
-        expect(scrap()).toMatch(/hasOwnProperty\.call\(req\.body, 'filterVersion'\)/);
+describe('보고 응답에는 필터 · 결재가 없다 — 관제앱 공급 한 길 (reviews/50 ①-5)', () => {
+    it('🔴 보고 문은 필터 본문 · 판 게이트 · 결재 · 빨리 접기를 싣지 않는다', () => {
+        for (const gone of ['dispatchEngineArgs', 'speaksV2', 'piggybackDecision', 'foldAfter', 'responseFilter']) expect(scrap()).not.toContain(gone);
     });
 
-    it('🔴 v2 응답도 하차 목록을 줄이지 않는다 — 걸러 낸 목록으로 갈아 끼우지 않는다', () => {
-        expect(scrap()).not.toMatch(/destinationKeywords:[^\n]*\n?[^\n]*\.filter\(/);
+    it('🔴 공급도 하차 목록을 줄이지 않는다 — 걸러 낸 목록으로 갈아 끼우지 않는다', () => {
+        const supply = readFileSync(join(__dirname, '../../src/state/phoneSupply.ts'), 'utf8');
+        expect(supply).not.toMatch(/destinationKeywords:[^\n]*\n?[^\n]*\.filter\(/);
     });
 
-    it('🔴 버전이 같으면 본문을 생략한다 — 앱은 저장본을 유지한다', () => {
-        expect(scrap()).toMatch(/req\.body\.filterVersion === filterVersion\) responseFilter = undefined/);
-    });
-
-    it('빈 필터 고장 검사(callFilterBlocker)는 버전 게이트보다 앞이다', () => {
-        const s = scrap();
-        // callFilterBlocker 호출이 speaksV2 블록보다 앞에 있어야 한다
-        expect(s.indexOf('callFilterBlocker(')).toBeLessThan(s.indexOf('speaksV2'));
+    it('빈 필터 고장 검사(callFilterBlocker)는 공급 필터를 만드는 한 곳(appFilterOf)에 있다', () => {
+        expect(readFileSync(join(__dirname, '../../src/state/appFilter.ts'), 'utf8')).toContain('callFilterBlocker(');
     });
 });

@@ -56,7 +56,10 @@ export interface PhoneCheck {
 }
 
 export function phoneCheckOf(d: DeviceSession, sent: SentFilter | undefined, now: number): PhoneCheck {
-    const mode = { want: d.mode, got: d.appliedMode ?? null, ok: !!d.appliedMode && d.appliedMode === d.mode };
+    /* 🎛️ 새 원달앱(받은 모드를 보고)은 «서버가 보내는 모드 = 원달앱이 받은 모드» — 일부러 내려간 알람을 «안 맞음»으로 안 본다 · 공급이 안 닿으면 다름(reviews/50 ①-5 · shared isModeApplying 과 같은 뿌리) */
+    const mode = d.suppliedMode !== undefined
+        ? { want: d.sentMode ?? d.mode, got: d.suppliedMode, ok: d.supplyLinked !== false && !!d.sentMode && d.sentMode === d.suppliedMode }
+        : { want: d.mode, got: d.appliedMode ?? null, ok: !!d.appliedMode && d.appliedMode === d.mode };
 
     let filter: PhoneCheck['filter'];
     if (!sent || !d.filterVersion) filter = { state: 'unknown', ok: false, ageSec: null };

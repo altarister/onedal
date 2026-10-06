@@ -1,20 +1,16 @@
 import { Router } from "express";
-import { modeForPhone } from "@onedal/shared";
-import { allowanceOf } from "../core/allowance";
 import { scrapReleaseCodes } from "../core/releases";
 import { isTargetApp, DEFAULT_TARGET_APP, addressOf } from "@onedal/shared";
-import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType, DeviceModeType } from "@onedal/shared";
+import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
-import { filterVersionOf, reportSourceOf } from "../core/helpers";
-import { rememberSentFilterVersion } from "../core/phoneCheck";
+import { reportSourceOf } from "../core/helpers";
 import { getUserSession } from "../state/userSessionStore";
-import { ensureBusinessDay, ensureReservedPickupList } from "../state/filterManager";
-import { appFilterOf } from "../state/appFilter";
+import { ensureBusinessDay } from "../state/filterManager";
 import { clientIpOf } from "../utils/clientIp";
 
 import { touchDeviceSession } from "./devices";
-import { modeSentToPhone, pairSigOf, bleAdTagOf, serverIdOf } from "../state/phoneSupply";
-import { ackDecision, foldRemainMsOf } from "../state/decisions";
+import { pairSigOf, bleAdTagOf, serverIdOf } from "../state/phoneSupply";
+import { markAppTooOld, clearAppTooOld } from "../state/phoneStatus";
 import { simRoundForPhone } from "./sim";
 import { callMemoryRoundOf } from "../services/callMemoryRound";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -30,28 +26,23 @@ const openBlockedOf = (v: unknown): string | undefined =>
 
 const router = Router();
 
-// 🧭 피기백 v2 로 말하는 기기 — 최초 감지 로그를 1회만 찍기 위한 표식 (메모리)
-const v2Devices = new Set<string>();
 
 // 🛰️ 같은 기기 이름이 서로 다른 곳(IP)에서 동시에 말하는지 감지 — 겹치면 한쪽의 "리스트 화면" 보고가
 // 다른 쪽이 잡은 심사 콜을 강제 취소시킨다
 const senderTrace = new Map<string, { ip: string; at: number; warnedAt: number }>();
-/** ⏩ foldAfter 를 폰에 처음 실어 보낸 콜 — 처음 알림 로그를 한 번만 남긴다(최근 500) */
-const foldNotified = new Set<string>();
 // POST: 탈락 콜 빅데이터 수신 (오답노트용) 및 하트비트
 /** 🧮 intel 누적 수 — 서버 하나에 표 하나라 모듈에 하나 */
 let intelCountCache: number | null = null;
 
 router.post("/", (req, res) => {
     try {
-        const { data, deviceId, screenContext, isHolding, lat, lng, ackDecisionId } = req.body as {
+        const { data, deviceId, screenContext, isHolding, lat, lng } = req.body as {
             data: SimplifiedOfficeOrder[],
             deviceId?: string,
             screenContext?: ScreenContextType,  // [Safety Mode V3] 앱폰 화면 상태 (물리적 페이지)
             isHolding?: boolean,                // [Page/Hold 분리] 콜 처리 중 여부
             lat?: number,                       // [GPS 텔레메트리] 앱폰 위도
             lng?: number,                       // [GPS 텔레메트리] 앱폰 경도
-            ackDecisionId?: string              // [Piggyback V2] 앱이 수신 확인한 오더 ID
         };
 
         if (!data || !Array.isArray(data)) {
@@ -65,6 +56,18 @@ router.post("/", (req, res) => {
         const auth = authDevice(deviceId, deviceTokenOf(req));
         if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
         const userId = auth.userId;
+
+        /**
+         * 🚫 **블루투스 받기 전 원달앱의 보고는 거절한다** (reviews/50 ①-5 · 기사님 «가»).
+         *    서버는 이제 보고 응답에 필터 · 모드 · 결재를 안 싣는다 — 옛 원달앱은 굳은 필터 · 메모리의 마지막 «자동»으로 돌다 결재 없이 안전취소(취소 횟수)로 끝날 수 있다.
+         *    거절하면 옛 원달앱에 든 «서버 응답 없음 → 자동은 알람»(reviews/44)이 스스로 알람으로 내린다 — 새 길이 아니라 «답을 안 줌»이다.
+         *    가름: 블루투스 원달앱은 보고에 «블루투스 공급 연결»(`supplyLinked`) 칸을 늘 싣는다 · 관제웹 폰 칸은 «원달앱 새로 깔기 필요».
+         */
+        if (deviceId && typeof (req.body as any).supplyLinked !== 'boolean') {
+            markAppTooOld(deviceId);
+            return res.status(426).json({ error: '원달앱을 새로 깔아 주세요 — 블루투스 받기 전 판입니다', code: 'APP_TOO_OLD' });
+        }
+        if (deviceId) clearAppTooOld(deviceId);
 
         const timestamp = new Date().toISOString();
 
@@ -135,7 +138,6 @@ router.post("/", (req, res) => {
         // logRoadmapEvent("서버", "앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음");
 
         // 3. 디바이스 생존 신고 및 화면 상태 동기화
-        let deviceMode = "MANUAL";
         if (deviceId) {
             const io = req.app.get("io");
             /**
@@ -146,7 +148,7 @@ router.post("/", (req, res) => {
              */
             const appFilterVersion = typeof (req.body as any)?.filterVersion === 'string'
                 ? (req.body as any).filterVersion as string : undefined;
-            deviceMode = touchDeviceSession(deviceId, userId, data.length, screenContext, io, isHolding, lat, lng, (req.body as any).screenNodeCount, (req.body as any).isScreenOn, (req.body as any).filterTally, targetApp, {
+            touchDeviceSession(deviceId, userId, data.length, screenContext, io, isHolding, lat, lng, (req.body as any).screenNodeCount, (req.body as any).isScreenOn, (req.body as any).filterTally, targetApp, {
                 appVersion: (req.body as any).appVersion,
                 workStage: (req.body as any).workStage,
                 workStageStep: (req.body as any).workStageStep,
@@ -183,29 +185,6 @@ router.post("/", (req, res) => {
             }
         }
 
-        // 3.5. [Piggyback V2] ACK 처리 및 결재(Decision) 탑재 로직
-        let piggybackDecision = undefined;
-
-        if (deviceId) {
-            // 앱이 "저번 결재 무사히 받았습니다" (ACK) 라고 보고하면 치운다 — 관제앱 공급 소켓의 받았음과 같은 함수(state/decisions)
-            if (ackDecisionId) ackDecision(req.app.get("io"), session, userId, ackDecisionId, '보고');
-
-            // 현재 이 기사님이 확정(Confirm)을 누르고 결재를 기다리는 콜이 있는지 찾습니다.
-            const evaluatingOrderId = session.deviceEvaluatingMap.get(deviceId);
-            if (evaluatingOrderId) {
-                // 관제탑이 결재를 내렸는지(KEEP/CANCEL) 큐를 뒤져봅니다.
-                const decisionData = session.pendingDecisions.get(evaluatingOrderId);
-                if (decisionData && decisionData.action !== null) {
-                    // 관제탑 결재가 떨어졌습니다! Piggyback으로 태워서 보냅니다.
-                    piggybackDecision = {
-                        orderId: evaluatingOrderId,
-                        action: decisionData.action // "KEEP" or "CANCEL"
-                    };
-                    slog('결재', `📦 [Piggyback V2] 텔레메트리 편에 결재(${decisionData.action})를 태워 보냅니다! (orderId: ${evaluatingOrderId})`);
-                }
-            }
-        }
-
         /**
          * 앱폰의 GPS 는 관제웹이 마스터이므로 여기서 Trim 연산을 하지 않는다.
          *
@@ -213,82 +192,7 @@ router.post("/", (req, res) => {
          *    교차 검증이 필요해지면 그때 **읽는 쪽과 함께** 만든다.
          */
 
-        /**
-         * 📦 **앱에 내려갈 필터는 `appFilterOf` 한 곳이 만든다** — 운영센터 · 관제웹도 같은 함수로 «폰이 받는 값»을 읽는다.
-         *    함수는 로그 · 세션 쓰기를 안 한다. 내일 콜 목록 재기(세션 캐시)와 아래 로그 · 만석 알림 깃발은 이 폰 문의 몫이다.
-         */
-        const reservedList = ensureReservedPickupList(session, userId);
-        const { filter: appFilter, holds } = appFilterOf(session, userId, auth.deviceId, reservedList);
-
-        // 부트스트랩이 끝나기 전에는 콜 잡기를 시키지 않는다.
-        // 이 구간(1~3초)의 activeFilter 는 아직 경유도 적재 차종도 반영되지 않은 미완성 상태라,
-        // 그대로 내보내면 경로를 벗어난 콜을 잡을 수 있다.
-        // 잘못된 필터로 잡는 것보다 잠깐 멈추는 편이 안전하다.
-        if (holds.bootstrapping) {
-            slog('필터', `⏳ [부트스트랩 중] ${deviceLabelOf(deviceId)} 에게 isActive=false 로 응답 (필터 준비 중)`);
-        }
-
-        /**
-         * ⛔ **적재 만석 — 콜 잡기를 멈춘다** (기사님 확정).
-         * 앱은 빈 allowedVehicleTypes 를 "전체 허용"으로 읽으므로(오프라인 안전망),
-         * 빈 배열을 그대로 보내면 만석인데 모든 차종을 잡으러 든다.
-         * 하차로 공간이 생기면 재계산이 차종 목록을 되살려 자동 복귀한다.
-         * 직접콜(MANUAL)은 필터를 안 타므로 기사님이 잡는 것은 막히지 않는다.
-         */
-        if (holds.capacityFull) {
-            if (!session.capacityHoldNotified) {
-                session.capacityHoldNotified = true;
-                slog('필터', `⛔ [적재 만석] ${deviceLabelOf(deviceId)} 에게 isActive=false 로 응답 (실을 수 있는 차종 없음 — 하차하면 재개)`);
-            }
-        } else if (session.capacityHoldNotified) {
-            session.capacityHoldNotified = false;
-            slog('필터', `✅ [적재 만석 해제] 콜 잡기 재개 (허용 차종: ${(session.activeFilter.allowedVehicleTypes ?? []).join(', ')})`);
-        }
-
-        /**
-         * 🔴 **관제탑이 한 번도 안 붙은 세션은 콜 잡기시키지 않는다.**
-         *
-         * 기사님: *"출근 전 앱을 먼저 연다면 기본값의 필터값이 가서
-         * 잘못된 콜을 잡을 가능성이 있군."*
-         *
-         * `bootstrapUserSession` 은 **관제웹 소켓 접속에만** 걸린다. 앱이 먼저 켜지면
-         * 세션이 DB 기본값으로 만들어지고, `is_active` 가 1 이면 그대로 콜 잡기가 시작된다.
-         * 어제 설정(기본 도시·기본 반경)으로 오늘 콜을 잡는 것이다.
-         *
-         * 위의 `isBootstrapping` 보호는 **부트스트랩이 시작된 뒤**만 막는다.
-         * 시작조차 안 된 상태가 더 위험한데 그건 안 막고 있었다.
-         *
-         * → 하루는 **관제탑을 열어야** 시작된다. 오늘 필터를 확정할 자리가 거기이기 때문이다.
-         */
-        if (holds.notRestored) {
-            slog('필터', `🚦 [콜 잡기 대기] ${deviceLabelOf(deviceId)} — 관제탑이 아직 접속하지 않았습니다. ` +
-                `오늘 필터가 확정되기 전에는 콜을 잡지 않습니다 (관제웹을 열어 주세요)`);
-        }
-
-        /**
-         * 🔴 도착지가 정의되지 않은 필터로는 콜 잡기하지 않는다.
-         *
-         * 이건 "제한 없음"이 아니라 **"필터가 고장났음"** 이다 —
-         * 빈 키워드를 그대로 내보내면 앱이 `isEmpty() → true` 로 읽어
-         * **모든 도착지를 통과**시킨다 (`callFilterBlocker` 주석 참고).
-         */
-        if (holds.blocker) {
-            slog('필터', `🚦 [콜 잡기 보류] ${deviceLabelOf(deviceId)} — ${holds.blocker}`);
-        }
-
-        /**
-         * 🧭 **피기백 규격 v2** — 앱이 `filterVersion` 을 보내면 버전 게이트를 쓴다:
-         *   내용 해시가 앱이 든 것과 같으면 본문을 생략한다. 앱은 응답에 필터가 없으면 저장본을 유지한다.
-         * 필드를 안 보내는 구앱·구스크립트에는 늘 전부 보낸다 — scenario 가 구프로토콜로 남아 이 길을 상시 검증한다.
-         * 📋 하차 동은 전부 하차 목록(destinationKeywords) 한 칸에 싣는다 — 경로 위 동도 같은 목록이다. 원달앱은 이 목록만 본다.
-         */
-        const speaksV2 = !!req.body && Object.prototype.hasOwnProperty.call(req.body, 'filterVersion');
-        // 기기당 최초 1회만 — 새 APK 가 실제로 v2 로 말하기 시작했는지 서버 로그에서 보인다
-        if (speaksV2 && deviceId && !v2Devices.has(deviceId)) {
-            v2Devices.add(deviceId);
-            slog('통신', `🧭 [피기백 v2] ${deviceLabelOf(deviceId)} — 신프로토콜 감지 (버전 게이트·중복 제거 작동)`);
-        }
-
+        /* 📦 필터 · 모드 · 결재 · 빨리 접기 · 심사 중은 보고 응답에 안 싣는다 — 관제앱 공급 소켓 → 블루투스 한 길(reviews/50 ①-5 · state/phoneSupply · 콜 잡기를 멈추는 넷의 로그도 그쪽) */
         // 🛰️ 이중 발신 감지 — 같은 기기 이름이 15초 안에 다른 IP 에서도 말하면 경고 (분당 1회 · 경고 전용 — 다른 일은 이 값을 안 본다)
         //    IP 는 폰의 실제 IP — 실서버는 클라우드플레어를 거쳐 req.ip 가 중계 에지라, 에지가 바뀌면 폰 한 대로도 경고가 났다.
         //    ⚠️ 리허설 스크립트와 실폰이 같은 집 인터넷이면 실제 IP 도 같아 진짜 이중 발신을 못 잡는다(잡으려면 앱이 기동 번호를 보내야 한다).
@@ -303,36 +207,7 @@ router.post("/", (req, res) => {
             }
             senderTrace.set(deviceId, { ip, at: now, warnedAt: prev?.warnedAt ?? 0 });
         }
-        let responseFilter: any = appFilter;
-        let filterVersion: string | undefined;
-        if (speaksV2) {
-            /* 🧬 판 글자는 설정의 지문이다 — «지금 심사 중인가»(순간 상태)는 넣지 않는다. 넣으면 상세 ↔ 목록마다 판이 갈려 앱이 막아 둔 콜을 다시 판정한다.
-               심사 중인가는 응답 맨 위 칸(evaluatingNow)으로 늘 간다. 본문에도 남긴다 — 맨 위를 못 읽는 옛 앱이 판이 바뀔 때 받게 */
-            const { evaluatingNow: _live, ...versioned } = responseFilter;
-            filterVersion = filterVersionOf(versioned);
-            // 📱 폰에 실제로 싣는 이 지문을 기억한다 — 시작 전 점검이 폰의 지문과 비교한다 (core/phoneCheck)
-            if (deviceId) rememberSentFilterVersion(deviceId, filterVersion);
-            if (req.body.filterVersion === filterVersion) responseFilter = undefined;   // 안 바뀜 — 본문 생략
-        }
-
-        /* ⏩ 빨리 접기 — 이 기기의 심사 중 콜에 foldAfterSec 이 있으면 남은 초(서버 시계). 폰은 받은 뒤 그 초에 목록으로 돌아간다 · 판정 시각은 안 보낸다(폰 시계와 섞지 않게) */
-        const foldOrderId = deviceId ? session.deviceEvaluatingMap.get(deviceId) : undefined;
-        /* 🔴 remainSec 은 **정수**(올림) — 원달앱 FoldAfter 가 Int 로 받아 소수(9.5)면 응답 전체를 버린다. 정밀한 값은 remainMs(정수 ms) · 셈은 공급 소켓 결재와 같은 함수 */
-        const foldRemainMs = foldRemainMsOf(session, foldOrderId);
-        const foldAfter = foldOrderId && foldRemainMs != null
-            ? { orderId: foldOrderId, remainSec: Math.ceil(foldRemainMs / 1000), remainMs: foldRemainMs }
-            : undefined;
-        /* ⏩ 이 콜의 foldAfter 를 폰에 처음 실어 보낸 때 한 줄 — «판정 뒤 첫 응답부터 갔나»를 로그로 가른다(폰의 빈 보고는 로그에 안 남아서) */
-        if (foldAfter && !foldNotified.has(foldAfter.orderId)) {
-            foldNotified.add(foldAfter.orderId);
-            if (foldNotified.size > 500) foldNotified.delete(foldNotified.values().next().value as string);
-            slog('판정', `⏩ [빨리 접기] 폰에 처음 알림 ${foldAfter.orderId.slice(-6)} — 남은 ${(foldAfter.remainMs / 1000).toFixed(1)}초`);
-        }
-
-        // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
         const callMemoryRound = callMemoryRoundOf(session.businessDay, simRoundForPhone());
-        /* 🛑 관제웹 없음 · 허락 꺼짐 · 다른 폰도 자동이면 자동 명령도 폰에는 알람 — 관제앱 공급 소켓과 같은 함수(state/phoneSupply · 표 shared `modeTable.ts`) */
-        const phoneMode = deviceId ? modeSentToPhone(deviceId, userId, deviceMode as DeviceModeType) : modeForPhone(deviceMode as DeviceModeType, allowanceOf(userId).autoLive);
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
         res.json({
             success: true,
@@ -341,19 +216,11 @@ router.post("/", (req, res) => {
                 totalItems: totalScrap
             },
             deviceControl: {
-                /* 🎛️ 자동 잡기 허락이 안 살았거나 관제웹이 없으면 AUTO 명령도 폰에는 ALARM — 관제웹 명령은 그대로 (reviews/29 6단계 · reviews/44) */
-                mode: phoneMode,
                 /* 🧹 본 콜 기억 번호 — 영업일이 바뀌거나 (개발) 시뮬 회차가 오르면 바뀌고, 원달앱이 «본 콜» 기억을 비운다 (`services/callMemoryRound.ts`) · 운영도 싣는다 */
                 callMemoryRound
             },
-            ...(filterVersion !== undefined ? { filterVersion } : {}),
-            /* 🔒 심사 중인가 — 판이 같아 필터 본문을 생략할 때도 간다. 앱은 맨 위를 먼저 읽는다(없으면 필터 안 값) */
-            evaluatingNow: appFilter.evaluatingNow,
-            ...(foldAfter ? { foldAfter } : {}),
             /* 📦 원달앱 최신·최소 판 — 표가 비면 칸 없음(앱은 아무것도 안 띄운다 · reviews/29 4단계) */
             ...scrapReleaseCodes(),
-            ...(responseFilter !== undefined ? { dispatchEngineArgs: responseFilter } : {}),
-            decision: piggybackDecision,
             /* 🔏 블루투스 짝 서명 — 원달앱이 관제앱에 붙기 전에 받을 길(reviews/50 ①-1 · 옛 원달앱은 모르는 칸이라 무시) */
             ...(deviceId ? { blePairSig: pairSigOf(userId, deviceId), bleAdTag: bleAdTagOf(userId), serverId: serverIdOf() } : {})   // 📶 광고 표시 — 원달앱이 블루투스 광고에 싣는다
         });

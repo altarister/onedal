@@ -19,6 +19,7 @@ import { ownedByOther } from "../core/orderOwner";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import type { SafeCancelWarning } from "@onedal/shared";
 import { decide } from "../state/decisions";
+import { isAppTooOld } from "../state/phoneStatus";
 
 const router = Router();
 
@@ -29,6 +30,8 @@ router.post("/", async (req, res) => {
         if (payload.step !== 'DETAILED') {
             return res.status(400).json({ error: "step=DETAILED 전용" });
         }
+        /* 🚫 블루투스 받기 전 원달앱은 확정 · 상세도 거절 — 결재가 그 폰에 갈 길이 없다(보고 문이 알아본 폰 · reviews/50 ①-5) */
+        if (isAppTooOld(payload.deviceId)) return res.status(426).json({ error: '원달앱을 새로 깔아 주세요 — 블루투스 받기 전 판입니다', code: 'APP_TOO_OLD' });
 
         logRoadmapEvent('통신', "서버", "앱폰으로 부터 상세 수집이 완료된 '2차 오더 상세' 요청 받음");
 

@@ -18,6 +18,9 @@ describe('📶 연결 배지 — 차례', () => {
         });
         expect(phoneLinkBadgeOf(d as any)).toBeNull();
     });
+    it('🔴 블루투스 받기 전 원달앱(서버가 거절)이면 맨 앞 «원달앱 새로 깔기 필요»', () => {
+        expect(phoneLinkBadgeOf({ appTooOld: true, bleSameServer: false })?.text).toBe('원달앱 새로 깔기 필요');
+    });
     it('옛 원달앱(칸 없음)은 아무것도 안 그린다', () => {
         expect(phoneLinkBadgeOf({})).toBeNull();
     });

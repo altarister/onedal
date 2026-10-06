@@ -78,7 +78,7 @@ export function livePhonesOf(ids: string[], now: number = Date.now()): string[] 
 /**
  * 🔁 **자동은 한 폰만 — 같은 기사님의 다른 폰 가운데 지금 확정을 누를 수 있는 폰이 있나** (reviews/48 가 · shared `otherContractingAuto`).
  *    저장하지 않고 그때그때 본다(규칙 ③) — 살아 있는 폰(메모리 세션 · 데드맨 시간 안)만 · 명령(`getDeviceMode` — 한 번도 안 고른 폰의 기본값 포함) 또는 받은 모드가 자동 · 지금 배차망이 자동 확정 가능.
- *    보고 응답(`scrap.ts`)이 이 사실로 자동을 알람으로 내려준다.
+ *    관제앱 공급(`state/phoneSupply` `modeSentToPhone`)이 이 사실로 자동을 알람으로 내려준다.
  */
 export function otherAutoPhoneOf(deviceId: string, userId: string, ids: string[] = registeredPhonesOf(userId)): boolean {
     const phones: PhoneForAuto[] = [];

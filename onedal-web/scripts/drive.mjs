@@ -220,28 +220,15 @@ function openSocket(path, auth, waitFor, ms = 4000) {
 }
 
 /** 🧪 원달앱 화면 보고 — 실제 앱이 1초마다 보내는 그 문(`/api/scrap`) */
+/* 📶 새 원달앱은 «블루투스 공급 연결»(supplyLinked)을 늘 싣는다 — 없으면 서버가 옛 원달앱으로 보고 거절한다(reviews/50 ①-5) */
 const scrap = (deviceId, extra = {}, deviceToken) =>
-    call('/api/scrap', { method: 'POST', body: { data: [], deviceId, screenContext: 'DETAIL_CONFIRMED', ...extra }, deviceToken });
+    call('/api/scrap', { method: 'POST', body: { data: [], deviceId, screenContext: 'DETAIL_CONFIRMED', supplyLinked: true, ...extra }, deviceToken });
 
 /** 🧪 ① 로그인 — 우회 로그인 토큰으로 내 상태를 읽는다 */
 async function e2eLogin(tok) {
     const me = await call('/api/join/me', { token: tok });
     check('🧪 로그인 — 내 상태가 «승인 · 막힘 아님»', me.status === 200 && !!me.json?.approvedAt && me.json?.blocked === false,
         `HTTP ${me.status} · blocked=${me.json?.blocked}`);
-}
-
-/**
- * 🧪 ② 결재 전달 — 관제웹이 KEEP 을 누르면 원달앱의 다음 보고 답에 실려 가고, «받았음»을 보내면 다음 답에서 사라진다.
- *    이 고리가 끊기면 «관제웹에서 KEEP 을 눌렀는데 폰이 안 받는다» — 다른 검사는 다 초록인 채로 실주행에서야 드러난다.
- */
-async function e2eDecision(deviceId, orderId, action = 'KEEP') {
-    const first = await scrap(deviceId);
-    const d = first.json?.decision;
-    check(`🧪 결재 전달(${orderId}) — ${action} 이 원달앱 보고 답에 실려 온다`, first.status === 200 && d?.orderId === orderId && d?.action === action,
-        `HTTP ${first.status} · ${d ? `${d.orderId} ${d.action}` : '결재 없음'}`);
-    const acked = await scrap(deviceId, { ackDecisionId: orderId });
-    check(`🧪 결재 전달(${orderId}) — «받았음»을 보내면 다음 답에서 사라진다`, acked.status === 200 && !acked.json?.decision,
-        acked.json?.decision ? `아직 ${acked.json.decision.orderId}` : '');
 }
 
 /** 🧪 ③ 폰 연결 — 연결 번호 → 붙이기 → 받은 토큰을 실어 보고(통과) · 틀린 토큰(거절) */
@@ -291,7 +278,9 @@ async function e2eSessionConflict(tok) {
  *    관제웹 소켓이 붙어 있으면 자동 · 끊으면 알람 · 다시 붙이면 자동. 결재할 관제웹이 없을 때 원달앱 혼자 확정 → 안전취소를 되풀이하면 그것도 취소 횟수다.
  *    주행 내내 붙어 있던 관제웹 소켓(`webSock` · 같은 창 번호)을 먼저 닫는다 — 살아 있으면 서버가 그 소켓을 «관제웹 있음»으로 본다(탭 복제 넘김).
  */
-async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock) {
+async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock, supply) {
+    /* 모드는 관제앱 공급 값으로 읽는다(보고 답엔 없다 · reviews/50 ①-5) — 1초 주기가 실어 갈 때까지 기다린다 */
+    const supplied = async () => { await wait(1300); return supply.supplies[supply.supplies.length - 1]?.phones?.[deviceId]?.mode; };
     webSock.close();
     await wait(500);
     const c = new Database(dbPath);
@@ -301,10 +290,11 @@ async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock) {
     const reportWith = async (web) => {
         const sock = web ? openSocket('', { token: tok, clientSessionId: MAIN_TAB }) : null;
         if (sock) { await sock.first; await wait(300); }
-        const r = await scrap(deviceId);
+        await scrap(deviceId);
+        const m = await supplied();
         sock?.sock.close();
         await wait(500);
-        return r.json?.deviceControl?.mode;
+        return m;
     };
     const modes = [await reportWith(true), await reportWith(false), await reportWith(true)];
     check('🧪 관제웹 없음 — 자동 명령의 보고 답이 붙음 자동 · 끊음 알람 · 다시 붙음 자동',
@@ -317,7 +307,8 @@ async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock) {
     await wait(300);
     dup.sock.close();
     await wait(500);
-    const afterDupClosed = (await scrap(deviceId)).json?.deviceControl?.mode;
+    await scrap(deviceId);
+    const afterDupClosed = await supplied();
     first.sock.close();
     await wait(300);
     check('🧪 관제웹 없음 — 같은 창 번호 탭 둘 중 하나를 닫아도 자동 그대로', afterDupClosed === 'AUTO', `${afterDupClosed}`);
@@ -327,7 +318,7 @@ async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock) {
  * 🧪 ⑧ 자동은 한 폰만(reviews/48 가) — 같은 기사님의 두 번째 폰에 자동을 누르면 앞 자동 폰은 알람으로 옮겨지고,
  *    끝에 첫 폰을 다시 자동으로 둔다(다음 확인이 쓴다). 옛 DB 에 둘 다 자동인 경우(서버 재시작 직후)는 서버를 다시 띄우지 않는 이 도구로는 못 만든다.
  */
-async function e2eAutoOnePhone(dbPath, userId, tok, deviceId) {
+async function e2eAutoOnePhone(dbPath, userId, tok, deviceId, supply) {
     const SECOND = '모의폰-둘째';
     registerDevice(dbPath, userId, SECOND);
     /* 자동이 내려가려면 허락이 살아 있고 관제웹이 붙어 있어야 한다 — 그 둘을 이 확인 안에서 갖춘다 */
@@ -338,7 +329,7 @@ async function e2eAutoOnePhone(dbPath, userId, tok, deviceId) {
     await web.first;
     await wait(300);
     const setMode = (id, mode) => call(`/api/devices/${encodeURIComponent(id)}/mode`, { method: 'POST', body: { mode }, token: tok });
-    const modeOf = async (id) => (await scrap(id)).json?.deviceControl?.mode;
+    const modeOf = async (id) => { await scrap(id); await wait(1300); return supply.supplies[supply.supplies.length - 1]?.phones?.[id]?.mode; };   // 모드는 공급 값으로(reviews/50 ①-5)
     await setMode(deviceId, 'AUTO');
     const before = [await modeOf(deviceId), await modeOf(SECOND)];
     await setMode(SECOND, 'AUTO');
@@ -354,16 +345,22 @@ async function e2eAutoOnePhone(dbPath, userId, tok, deviceId) {
  * 🧪 ⑨ 관제앱 공급 소켓(/supply · reviews/50 ①-1) — 결재가 그 순간 관제앱에 가고, 관제앱이 보낸 «받았음»으로 서버가 치운다.
  *    먼저 보고 답에도 그 결재가 있는지 본다 — 앞 콜의 «받았음»이 이 결재까지 지우는 류의 회귀를 함께 잡는다.
  */
-async function e2eSupplyDecision(supply, deviceId, orderId) {
+async function e2eSupplyDecision(supply, deviceId, orderId, action = 'KEEP') {
     const got = supply.decisions.find(d => d.orderId === orderId && d.deviceId === deviceId);
-    check(`🧪 공급 소켓 결재(${orderId}) — KEEP 이 관제앱 공급 소켓에 그 순간 온다`, got?.action === 'KEEP', got ? `${got.action}` : `결재 ${supply.decisions.length}건 중 없음`);
-    const first = await scrap(deviceId);
-    check(`🧪 공급 소켓 결재(${orderId}) — 보고 답에도 실려 있다(두 길 다 같은 결재)`, first.json?.decision?.orderId === orderId, first.json?.decision ? first.json.decision.orderId : '결재 없음');
+    check(`🧪 결재 전달(${orderId}) — ${action} 이 관제앱 공급 소켓에 그 순간 온다`, got?.action === action, got ? `${got.action}` : `결재 ${supply.decisions.length}건 중 없음`);
+    await scrap(deviceId);   // 진짜 폰처럼 보고해 살아 있는 폰이 된다(공급 폰 줄은 살아 있는 폰만)
     supply.sock.emit('phone-decision-ack', { deviceId, orderId });
-    await wait(400);
-    const after = await scrap(deviceId);
-    check(`🧪 공급 소켓 결재(${orderId}) — 관제앱이 보낸 «받았음»으로 치운다(보고 답에 결재 없음 · 심사 중 풀림)`,
-        !after.json?.decision && after.json?.evaluatingNow === false, after.json?.decision ? `아직 ${after.json.decision.orderId}` : `evaluatingNow=${after.json?.evaluatingNow}`);
+    const phone = () => supply.supplies[supply.supplies.length - 1]?.phones?.[deviceId];
+    for (let i = 0; i < 20 && phone()?.evaluatingNow !== false; i++) await wait(100);
+    /* 다시 붙는 관제앱에 그 결재가 또 오나 — 받았음으로 치웠으면 0 */
+    const again = openSocket('/supply', { token: supply.token }, 'phone-supply');
+    const resent = [];
+    again.sock.on('phone-decision', d => resent.push(d));
+    await again.first;
+    await wait(500);
+    again.sock.close();
+    check(`🧪 결재 전달(${orderId}) — 관제앱이 보낸 «받았음»으로 치운다(심사 중 풀림 · 다시 붙어도 그 결재가 안 옴)`,
+        phone()?.evaluatingNow === false && !resent.some(d => d.orderId === orderId), `evaluatingNow=${phone()?.evaluatingNow} · 다시 보냄 ${resent.length}`);
 }
 
 /**
@@ -377,11 +374,11 @@ async function e2eSupplyMode(supply, tok, deviceId) {
         return last()?.phones?.[deviceId]?.mode;
     };
     const noWeb = await waitMode('ALARM');
-    const r = await scrap(deviceId, { filterVersion: '' });
     check('🧪 공급 소켓 — 관제웹이 없으면 공급 값의 폰 모드도 알람(공급 소켓은 «관제웹 있음»으로 셈하지 않음)', noWeb === 'ALARM', `${noWeb}`);
-    check('🧪 공급 소켓 — 필터 판 · 폰 모드가 같은 순간 보고 답과 같다',
-        last()?.filterVersion === r.json?.filterVersion && last()?.phones?.[deviceId]?.mode === r.json?.deviceControl?.mode,
-        `공급 ${last()?.filterVersion}/${last()?.phones?.[deviceId]?.mode} · 보고 ${r.json?.filterVersion}/${r.json?.deviceControl?.mode}`);
+    const r = await scrap(deviceId, { filterVersion: '' });
+    check('🧪 보고 답에는 필터 · 판 · 모드 · 결재가 없다 — 관제앱 공급 한 길(reviews/50 ①-5)',
+        r.status === 200 && !('dispatchEngineArgs' in (r.json ?? {})) && !('filterVersion' in (r.json ?? {})) && !('decision' in (r.json ?? {})) && r.json?.deviceControl?.mode === undefined,
+        `HTTP ${r.status} · 칸 ${Object.keys(r.json ?? {}).join(',')}`);
     const web = openSocket('', { token: tok, clientSessionId: MAIN_TAB });
     await web.first;
     const withWeb = await waitMode('AUTO');
@@ -587,7 +584,7 @@ async function main() {
             check('🧪 운영센터 소켓이 붙는다', await ops.first === 'connect');
             /* 📡 관제앱 공급 소켓 — 관제앱 네이티브 서비스 자리. 붙자마자 공급 값이 한 번 온다 */
             const sup = openSocket('/supply', { token: tok }, 'phone-supply');
-            supply = { sock: sup.sock, supplies: [], decisions: [] };
+            supply = { sock: sup.sock, token: tok, supplies: [], decisions: [] };
             sup.sock.on('phone-supply', p => supply.supplies.push(p));
             sup.sock.on('phone-decision', d => supply.decisions.push(d));
             check('🧪 공급 소켓이 붙고 공급 값이 바로 온다', await sup.first === 'phone-supply');
@@ -619,7 +616,7 @@ async function main() {
         await appUploads(DEVICE, '첫짐', MODA, SINDUN, '첫짐');
         await decide('첫짐');
         if (E2E) {
-            await e2eDecision(DEVICE, '첫짐');
+            await e2eSupplyDecision(supply, DEVICE, '첫짐');
             await e2eOps(tok, '첫짐', opsSignals);   // 진행 중 KEEP 콜만 운영센터 목록에 있다 — 배송이 끝나기 전에 본다
             if (GEO) {
                 const j = judgments.get('첫짐');
@@ -656,7 +653,7 @@ async function main() {
             for (let i = 0; i < 20 && !judgments.has('역방향'); i++) await wait(400);
             s.emit('decision', { orderId: '역방향', action: 'SAFE_CANCEL' });
             await wait(1500);
-            await e2eDecision(DEVICE, '역방향', 'CANCEL');   // 취소 결재도 폰에 가고 «받았음» 뒤 사라진다 — 안 지우면 뒤 보고에 계속 실려 엉킨다
+            await e2eSupplyDecision(supply, DEVICE, '역방향', 'CANCEL');   // 취소 결재도 폰에 가고 «받았음» 뒤 사라진다 — 안 지우면 뒤 보고에 계속 실려 엉킨다
             const same = axisScore(judgments.get('합짐1'), 'geography');
             const back = axisScore(judgments.get('역방향'), 'geography');
             const whyOf = id => (judgments.get(id)?.axes?.find(a => a.key === 'geography')?.raw ?? '').slice(0, 40);
@@ -747,8 +744,8 @@ async function main() {
             await e2ePair(tok);
             await e2eSessionConflict(tok);
             await e2eBlocked(dbPath, me.id, tok, DEVICE);
-            await e2eAutoOnePhone(dbPath, me.id, tok, DEVICE);
-            await e2eNoWeb(dbPath, me.id, tok, DEVICE, s);
+            await e2eAutoOnePhone(dbPath, me.id, tok, DEVICE, supply);
+            await e2eNoWeb(dbPath, me.id, tok, DEVICE, s, supply);
             await e2eSupplyApply(supply, tok, DEVICE);
             await e2eSupplyMode(supply, tok, DEVICE);
             opsSock?.close();

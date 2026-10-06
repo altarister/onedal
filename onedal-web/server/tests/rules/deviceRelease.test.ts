@@ -1,7 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import detailRouter from '../../src/routes/detail';
-import scrapRouter from '../../src/routes/scrap';
+import { ackDecision, unackedPhoneDecisions } from '../../src/state/decisions';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { armWait } from '../../src/state/waits';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
@@ -68,20 +68,19 @@ describe('📱 ④ KEEP 뒤 폰 확인이 안 와도 심사 중 표시가 풀린
         const session = getUserSession(U);
         session.deviceEvaluatingMap.set(DEV, 'rel-b');
         session.pendingDecisions.delete('rel-b');
-        await call(scrapRouter, { data: [], deviceId: DEV, ackDecisionId: 'rel-b' });
+        ackDecision(null, session, U, 'rel-b', '공급 소켓');   // «받았음»은 관제앱 공급 소켓 한 길(reviews/50 ①-5)
         expect(session.deviceEvaluatingMap.has(DEV)).toBe(false);
     });
 });
 
 describe('📱 ⑤ /confirm 없이 /detail 만 와도', () => {
-    it('🔴 비어 있던 기기 칸이 그 콜로 채워지고, KEEP 이 폰 응답에 실린다', async () => {
+    it('🔴 비어 있던 기기 칸이 그 콜로 채워지고, KEEP 이 그 폰에 갈 결재가 된다(관제앱 공급)', async () => {
         const session = getUserSession(U);
         session.deviceEvaluatingMap.delete(DEV);
         await detail('rel-c');
         expect(session.deviceEvaluatingMap.get(DEV)).toBe('rel-c');
         session.pendingDecisions.get('rel-c').action = 'KEEP';
-        const r = await call(scrapRouter, { data: [], deviceId: DEV });
-        expect(r?.decision).toMatchObject({ orderId: 'rel-c', action: 'KEEP' });
+        expect(unackedPhoneDecisions(session)).toContainEqual(expect.objectContaining({ deviceId: DEV, orderId: 'rel-c', action: 'KEEP' }));
     });
 
     it('다른 콜로 차 있으면 건드리지 않는다 — 앞 콜 정리는 /confirm 몫', async () => {

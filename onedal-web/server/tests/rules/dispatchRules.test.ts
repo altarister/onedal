@@ -93,9 +93,8 @@ describe('규칙 ② 안전장치는 겹쳐 둔다', () => {
      *   판결을 한 번 보내고 지우면 그 응답이 유실될 때 **영구 유실**된다.
      */
     it('판결은 앱의 ACK 로만 지운다 — 보내고 나서 지우면 유실된다', () => {
-        // 보고 응답과 관제앱 공급 소켓의 «받았음»이 같은 ackDecision 을 부른다 — 결재를 지우는 곳은 그 함수 안뿐
-        expect(read('routes/scrap.ts')).not.toMatch(/pendingDecisions\.delete\(/);
-        expect(read('routes/scrap.ts')).toContain("if (ackDecisionId) ackDecision(req.app.get(\"io\"), session, userId, ackDecisionId, '보고');");
+        // «받았음»은 관제앱 공급 소켓 한 길(reviews/50 ①-5) — 결재를 지우는 곳은 ackDecision 안뿐 · 보고 문은 결재를 다루지 않는다
+        expect(read('routes/scrap.ts')).not.toMatch(/pendingDecisions\.delete\(|ackDecision/);
         expect(read('socket/supplySocket.ts')).toContain('ackDecision(io, getUserSession(userId), userId, ack.orderId,');
         const src = read('state/decisions.ts');
         const deletes = [...src.matchAll(/pendingDecisions\.delete\(([^)]*)\)/g)];
@@ -108,13 +107,13 @@ describe('규칙 ② 안전장치는 겹쳐 둔다', () => {
      * 출처: README 「이건 버그가 아니라 규칙이다」 ② — *"명령마다 `orderId` 를 싣는다"*
      *   orderId 가 없으면 오더A 의 응답이 오더B 화면에서 실행된다 ("Ghost Response").
      */
-    it('피기백 판결에는 orderId 가 반드시 실린다', () => {
-        const src = read('routes/scrap.ts');
-        const start = src.indexOf('piggybackDecision = {');
+    it('관제앱으로 가는 결재에는 orderId 가 반드시 실린다', () => {
+        const src = read('state/decisions.ts');
+        const start = src.indexOf('out.push({');
         expect(start).toBeGreaterThan(0);
         // 객체 리터럴 **안쪽만** 본다. 근처 로그의 `orderId:` 에 속으면 안 된다
-        const literal = src.slice(start, src.indexOf('}', start));
-        expect(literal).toMatch(/\borderId\s*:/);
+        const literal = src.slice(start, src.indexOf('})', start));
+        expect(literal).toMatch(/\borderId\b/);
     });
 
     /**

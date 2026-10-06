@@ -8,7 +8,8 @@ import { filterVersionOf } from "../core/helpers";
 import { deviceLabelOf } from "../core/deviceAuth";
 import { getDeviceMode, otherAutoPhoneOf, registeredPhonesOf, livePhonesOf } from "../routes/devices";
 import { ensureReservedPickupList } from "./filterManager";
-import { appFilterOf } from "./appFilter";
+import { appFilterOf, type AppFilterHolds } from "./appFilter";
+import { rememberSentFilterVersion } from "../core/phoneCheck";
 import { getUserSession } from "./userSessionStore";
 import { slog } from "../utils/fileLogger";
 
@@ -28,7 +29,7 @@ const otherAutoLowered = new Set<string>();
 const lastSupplyJson = new Map<string, string>();
 
 /**
- * 🎛️ **이 폰이 실제로 돌 모드** — 보고 응답 `deviceControl.mode` 와 `phone-supply` 가 같은 이 함수를 부른다(두 벌 셈 없음).
+ * 🎛️ **이 폰이 실제로 돌 모드** — `phone-supply`(PHONE) 와 기기 목록의 «보낼 모드»(`sentModesOf`)가 이 함수를 부른다(두 벌 셈 없음).
  * 관제웹이 없거나(reviews/44) · 허락이 안 살았거나 · 다른 폰도 자동이면(reviews/48 가) 자동 명령도 알람. 표는 shared `modeTable.ts`.
  * shared `phoneModeOf` 는 관제웹 «적용중» 표시용 다른 함수다.
  */
@@ -87,10 +88,24 @@ export function bleAdTagOf(userId: string, nowMs: number = Date.now()): string {
     return createHmac('sha256', jwtSecret()).update(`ble-ad|${userId}|${businessDayKey(nowMs)}`).digest('hex').slice(0, 8);
 }
 
+/** 🧯 콜 잡기를 멈추는 넷의 마지막 모양 — 바뀔 때만 한 줄(보고마다 찍던 것을 공급 쪽으로 · reviews/50 ①-5) */
+const lastHolds = new Map<string, AppFilterHolds>();
+function noteHolds(userId: string, holds: AppFilterHolds, allowed: string[] | undefined): void {
+    const prev = lastHolds.get(userId);
+    if (prev && JSON.stringify(prev) === JSON.stringify(holds)) return;
+    lastHolds.set(userId, holds);
+    if (holds.bootstrapping && !prev?.bootstrapping) slog('필터', `⏳ [부트스트랩 중] 공급 필터 isActive=false (필터 준비 중)`);
+    if (holds.capacityFull && !prev?.capacityFull) slog('필터', `⛔ [적재 만석] 공급 필터 isActive=false (실을 수 있는 차종 없음 — 하차하면 재개)`);
+    if (!holds.capacityFull && prev?.capacityFull) slog('필터', `✅ [적재 만석 해제] 콜 잡기 재개 (허용 차종: ${(allowed ?? []).join(', ')})`);
+    if (holds.notRestored && !prev?.notRestored) slog('필터', `🚦 [콜 잡기 대기] 관제탑이 아직 접속하지 않았습니다. 오늘 필터가 확정되기 전에는 콜을 잡지 않습니다 (관제웹을 열어 주세요)`);
+    if (holds.blocker && holds.blocker !== prev?.blocker) slog('필터', `🚦 [콜 잡기 보류] ${holds.blocker}`);
+}
+
 /** 📦 이 기사님의 공급 값 — 폰은 살아 있는 등록 폰만(원달앱이 블루투스로 붙는 순간 살아 있는 폰이 되고, 그때 공급을 다시 보낸다 · ①-3) */
 export function phoneSupplyOf(userId: string, modes: Map<string, DeviceModeType> = sentModesOf(userId)): PhoneSupply {
     const session = getUserSession(userId);
-    const { filter } = appFilterOf(session, userId, null, ensureReservedPickupList(session, userId));
+    const { filter, holds } = appFilterOf(session, userId, null, ensureReservedPickupList(session, userId));
+    noteHolds(userId, holds, session.activeFilter.allowedVehicleTypes);
     const { evaluatingNow: _perPhone, ...shared } = filter as Record<string, unknown>;
     const phones: PhoneSupply['phones'] = {};
     for (const [id, mode] of modes) {
@@ -123,6 +138,8 @@ export function flushSupply(io: any, userId: string, force = false, modes?: Map<
         if (!force && json === lastSupplyJson.get(userId)) return;
         lastSupplyJson.set(userId, json);
         nsp.to(userId).emit(SUPPLY_EVENTS.supply, supply);
+        /* 📱 폰마다 «보낸 판»을 기억한다 — 기기 목록 «필터 옛 판» · 시험 전 점검이 폰이 든 판과 견준다(core/phoneCheck) · 안 보냈으면 기억도 안 한다 */
+        for (const id of Object.keys(supply.phones)) rememberSentFilterVersion(id, supply.filterVersion);
     } catch (e) {
         const why = e instanceof Error ? e.message : String(e);
         if (why !== lastSupplyError) {

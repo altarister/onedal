@@ -77,7 +77,7 @@ describe('🌙 같은 날을 본다', () => {
         const session = getUserSession(U);
         session.myOrders = [active(`${U}-c`)];
         session.businessDay = yesterday;
-        const r = await call(scrapRouter, 'post', { body: { data: [], deviceId: DEV } });
+        const r = await call(scrapRouter, 'post', { body: { data: [], deviceId: DEV, supplyLinked: true } });
         expect(r.deviceControl.callMemoryRound % 1000).toBe(0);         // 운영 빌드처럼 회차가 없을 때도
         expect(Math.floor(r.deviceControl.callMemoryRound / 1000)).toBe(Math.floor(callMemoryRoundOf(yesterday, null) / 1000));
     });

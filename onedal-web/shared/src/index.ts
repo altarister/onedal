@@ -1594,8 +1594,9 @@ export function isModeApplying(d: { mode?: string; autoAllowed?: boolean; applie
  * 옛 원달앱(칸 없음)이면 null — 모르는 것을 문제로 그리지 않는다(규칙 ④).
  */
 export interface PhoneLinkBadge { text: string; tone: 'red' | 'amber' | 'gray'; hint: string }
-export function phoneLinkBadgeOf(d: Pick<DeviceSession, 'bleSameServer' | 'nearbyPermitted' | 'bleUnlinkedWhy' | 'supplyLinked' | 'filterStale' | 'batteryExempt'>): PhoneLinkBadge | null {
+export function phoneLinkBadgeOf(d: Pick<DeviceSession, 'appTooOld' | 'bleSameServer' | 'nearbyPermitted' | 'bleUnlinkedWhy' | 'supplyLinked' | 'filterStale' | 'batteryExempt'>): PhoneLinkBadge | null {
     const off = ' · 관제앱은 최근 앱에서 밀어 없애도 공급을 계속합니다 — 끄려면 로그아웃';
+    if (d.appTooOld) return { text: '원달앱 새로 깔기 필요', tone: 'red', hint: '블루투스 받기 전 원달앱이라 서버가 보고를 받지 않습니다 — 그동안 원달앱은 알람으로만 돕니다 · 새 원달앱을 까세요' };
     if (d.bleSameServer === false) return { text: '다른 서버를 봄', tone: 'red', hint: '이 스캔폰이 관제앱과 다른 서버를 봅니다 — 원달앱 설정에서 서버를 맞추세요' };
     if (d.nearbyPermitted === false) return { text: '블루투스 허락 없음', tone: 'red', hint: '원달앱 점검 탭 → 근처 기기 허락' };
     if (d.bleUnlinkedWhy) return { text: '폰 연결 풀림', tone: 'red', hint: `서버가 이 폰의 보고를 받지 않습니다(${d.bleUnlinkedWhy}) — 원달앱 설정에서 다시 연결` };
@@ -1863,6 +1864,8 @@ export interface DeviceSession {
     bleSameServer?: boolean;
     bleUnlinkedWhy?: string | null;
     bleHeardAt?: number;
+    /** 🚫 블루투스 받기 전 원달앱 — 서버가 보고를 거절한다(reviews/50 ①-5) · 기기 목록에만 */
+    appTooOld?: boolean;
     /**
      * 🎛️ **이 회원의 자동 잡기 허락이 지금 살아 있나** — 서버가 폰 보고마다 적는다(메모리 · 저장 칸 아님 · reviews/29 6단계).
      * 꺼지면 AUTO 명령도 폰은 ALARM — 읽을 때는 `phoneModeOf` 를 거친다 · 관제웹 모드 목록은 `modeChoicesOf`.

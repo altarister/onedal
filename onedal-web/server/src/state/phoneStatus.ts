@@ -26,8 +26,25 @@ export function applyPhoneStatus(userId: string, s: PhoneStatus): boolean {
     return true;
 }
 
-/** 기기 목록에 덧붙일 셋 — 들은 적 없으면 빈 것(안 그림) */
-export function phoneStatusOf(deviceId: string): { bleSameServer?: boolean; bleUnlinkedWhy?: string | null; bleHeardAt?: number } {
+/**
+ * 🚫 **블루투스 받기 전 원달앱** — 보고 문이 거절한 폰(reviews/50 ①-5). 확정 · 상세 문도 이것을 보고 거절하고, 관제웹 폰 칸은 «원달앱 새로 깔기 필요».
+ *    새 원달앱이 보고하면 지운다. 메모리만.
+ */
+const tooOld = new Set<string>();
+export function markAppTooOld(deviceId: string): void {
+    if (tooOld.has(deviceId)) return;
+    tooOld.add(deviceId);
+    slog('경고', `🚫 [옛 원달앱] ${deviceLabelOf(deviceId)} — 블루투스 받기 전 판이라 보고를 거절한다(원달앱은 스스로 알람으로 내려간다) · 새로 깔아야 한다`);
+}
+export function clearAppTooOld(deviceId: string): void {
+    if (tooOld.delete(deviceId)) slog('통신', `✅ [옛 원달앱] ${deviceLabelOf(deviceId)} — 새 원달앱으로 보고한다`);
+}
+export function isAppTooOld(deviceId: string | null | undefined): boolean {
+    return !!deviceId && tooOld.has(deviceId);
+}
+
+/** 기기 목록에 덧붙일 것 — 들은 적 없으면 빈 것(안 그림) */
+export function phoneStatusOf(deviceId: string): { bleSameServer?: boolean; bleUnlinkedWhy?: string | null; bleHeardAt?: number; appTooOld?: boolean } {
     const s = statuses.get(deviceId);
-    return s ? { bleSameServer: s.sameServer, bleUnlinkedWhy: s.unlinkedWhy, bleHeardAt: s.heardAt } : {};
+    return { ...(s ? { bleSameServer: s.sameServer, bleUnlinkedWhy: s.unlinkedWhy, bleHeardAt: s.heardAt } : {}), ...(tooOld.has(deviceId) ? { appTooOld: true } : {}) };
 }

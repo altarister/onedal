@@ -34,6 +34,7 @@ import { slog } from "../utils/fileLogger";
 import { reportSourceOf } from "../core/helpers";
 import { ownsOrder, ownedByOther } from "../core/orderOwner";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
+import { isAppTooOld } from "../state/phoneStatus";
 
 const router = Router();
 
@@ -107,6 +108,8 @@ router.post("/confirm", (req, res) => {
         if (payload.step !== 'BASIC') {
             return res.status(400).json({ error: "이 엔드포인트는 step=BASIC 전용입니다. 상세 보고는 POST /api/orders/detail 을 사용하세요." });
         }
+        /* 🚫 블루투스 받기 전 원달앱은 확정 · 상세도 거절 — 결재가 그 폰에 갈 길이 없다(보고 문이 알아본 폰 · reviews/50 ①-5) */
+        if (isAppTooOld(payload.deviceId)) return res.status(426).json({ error: '원달앱을 새로 깔아 주세요 — 블루투스 받기 전 판입니다', code: 'APP_TOO_OLD' });
 
         // 🔑 [하드 락] 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth · reviews/29 1단계 D·E)
         const auth = authDevice(payload.deviceId, deviceTokenOf(req));

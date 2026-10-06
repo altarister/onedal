@@ -1,6 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import scrapRouter from '../../src/routes/scrap';
+import { phoneSupplyOf } from '../../src/state/phoneSupply';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
 
@@ -20,8 +21,8 @@ const handler = (() => {
 const report = async () => {
     let out: any = null;
     const res = { status: () => res, json: (b: any) => { out = b; return res; } };
-    await handler({ app, ip: '1.1.1.1', headers: {}, get: () => undefined, body: { data: [], deviceId: DEV, filterVersion: '' } }, res);
-    return out;
+    await handler({ app, ip: '1.1.1.1', headers: {}, get: () => undefined, body: { data: [], deviceId: DEV, filterVersion: '', supplyLinked: true } }, res);
+    return phoneSupplyOf(U);   // 필터는 관제앱 공급 한 길(reviews/50 ①-5) — 보고는 폰을 살아 있게만 한다
 };
 
 beforeAll(() => {
@@ -41,8 +42,8 @@ describe('📅 앱 알람 필터 — 내일 콜 상차 반경', () => {
         s.baseFilter = { ...s.baseFilter, pickupRadiusKm: 25 };
         s.activeFilter = { ...s.activeFilter, pickupRadiusKm: 25, radiusAuto: true, radiusDistanceKm: 33.747, radiusBaseKm: 50 };
         const r = await report();
-        expect(r.dispatchEngineArgs.pickupRadiusKm).toBeCloseTo(16.87, 1);
-        expect(r.dispatchEngineArgs.reservedPickupRadiusKm).toBe(25);
+        expect(r.filter.pickupRadiusKm).toBeCloseTo(16.87, 1);
+        expect(r.filter.reservedPickupRadiusKm).toBe(25);
     });
     it('🔴 기본 반경이 바뀌면 판이 바뀐다', async () => {
         const s = getUserSession(U);
@@ -56,6 +57,6 @@ describe('📅 앱 알람 필터 — 내일 콜 상차 반경', () => {
         const s = getUserSession(U);
         s.baseFilter = { ...s.baseFilter, pickupRadiusKm: undefined };
         const r = await report();
-        expect(r.dispatchEngineArgs).not.toHaveProperty('reservedPickupRadiusKm');
+        expect(r.filter).not.toHaveProperty('reservedPickupRadiusKm');
     });
 });

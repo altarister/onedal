@@ -1,6 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import scrapRouter from '../../src/routes/scrap';
+import { phoneSupplyOf } from '../../src/state/phoneSupply';
 import opsRouter from '../../src/routes/ops';
 import devicesRouter from '../../src/routes/devices';
 import { initGeoService } from '../../src/services/geoService';
@@ -33,10 +34,15 @@ const run = async (handle: any, req: any) => {
     await handle({ app, ip: '1.1.1.1', headers: {}, get: () => undefined, params: {}, query: {}, body: {}, ...req }, res);
     return { status, out };
 };
-const report = (v2: boolean) => run(handlerOf(scrapRouter, '/', 'post'), { body: { data: [], deviceId: DEV, ...(v2 ? { filterVersion: '' } : {}) } });
+/** 📡 보고는 폰을 살아 있게만 한다 — 폰에 가는 필터는 관제앱 공급 한 길(reviews/50 ①-5) · 공급의 폰 몫 심사 중을 필터 칸으로 붙여 옛 조립과 견준다 */
+const report = async (_v2: boolean) => {
+    const r = await run(handlerOf(scrapRouter, '/', 'post'), { body: { data: [], deviceId: DEV, filterVersion: '', supplyLinked: true } });
+    const sup = phoneSupplyOf(U);
+    return { ...r, out: { dispatchEngineArgs: { ...sup.filter, evaluatingNow: sup.phones[DEV]?.evaluatingNow ?? false }, filterVersion: sup.filterVersion } };
+};
 const appFilterOf = (...a: any[]) => require('../../src/state/appFilter').appFilterOf(...a);
 
-/** 🗄️ 옛 조립 — 함수로 빼기 전 `routes/scrap.ts` 의 값 만들기(로그 · 깃발 빼고) 그대로 */
+/** 🗄️ 옛 조립 — 함수로 빼기 전 `routes/scrap.ts` 의 값 만들기(로그 · 깃발 빼고) 그대로 · 공급(phoneSupplyOf)이 같은 함수를 부른다 */
 function oldAssembly(session: any, userId: string, deviceId: string) {
     const src = session.activeFilter;
     const appFilter: Record<string, unknown> = {};
@@ -104,22 +110,21 @@ describe.each(CASES)('📦 앱 필터 — %s', (_name, arrange, shows) => {
     /* 필터를 켜 둔 채 시작한다 — 꺼져 있으면 잠금 넷(isActive=false)을 빼먹어도 값이 같아 검사가 못 문다 */
     beforeEach(() => { clearUserSession(U); const s = getUserSession(U); s.activeFilter = { ...s.activeFilter, isActive: true }; arrange(s); });
 
-    it('🔴 폰 응답(옛 규격)이 옛 조립과 깊이 같다', async () => {
+    it('🔴 관제앱 공급 필터(+ 폰 몫 심사 중)가 옛 조립과 깊이 같다', async () => {
         const { out } = await report(false);
         shows(out.dispatchEngineArgs);                         // 이 경우가 정말 그 칸을 만든다(빈 비교가 아니다)
         expect(out.dispatchEngineArgs).toEqual(oldAssembly(getUserSession(U), U, DEV));
     });
-    it('🔴 폰 응답(v2) 판 글자가 옛 조립에서 낸 것과 같다', async () => {
+    it('🔴 공급 판 글자가 옛 조립에서 낸 것과 같다(심사 중 빼기)', async () => {
         const { out } = await report(true);
         expect(out.filterVersion).toBe(v2VersionOf(oldAssembly(getUserSession(U), U, DEV)));
     });
     it('🔴 새 함수가 옛 조립과 깊이 같다 · 세션을 바꾸지 않는다', async () => {
         await report(false);                                   // 폰이 한 번 받아 내일 콜 목록이 세션에 앉은 뒤
         const s = getUserSession(U);
-        const before = { notified: s.capacityHoldNotified, reserved: s.reservedPickup };
+        const before = { reserved: s.reservedPickup };
         const { filter } = appFilterOf(s, U, DEV, s.reservedPickup ?? null);
         expect(filter).toEqual(oldAssembly(s, U, DEV));
-        expect(s.capacityHoldNotified).toBe(before.notified);
         expect(s.reservedPickup).toBe(before.reserved);
     });
 });

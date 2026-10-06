@@ -43,8 +43,6 @@ export interface UserSession {
     lastTrackPoint?: { x: number; y: number; atMs: number } | null;
     /** 📱 실기기(native/browser) GPS가 마지막으로 들어온 시각 (PC 모의 주행 mock과의 충돌 방지용 우선순위 게이트) */
     lastRealGpsAt?: number;
-    /** ⛔ 만석 홀드를 이미 알렸는가 — 5초 하트비트마다 같은 로그가 쌓이지 않게 (상태 전환 시에만 찍는다) */
-    capacityHoldNotified?: boolean;
     myOrders: MyOrder[];                    // [계층 2-B] 확정된 내 퀵 배열 (단일 배열, 상태 필터링으로 관리)
     /** 📅 예약 보관 — KEEP 했지만 내일 이후 콜. 진행 중 콜이 아니다 (`services/reservedOrders.ts`) */
     reservedOrders: MyOrder[];
