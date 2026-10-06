@@ -53,11 +53,6 @@ interface IScrapParser {
     fun reservationMode(): String?
 
     /**
-     * rawText에서 상차지 직선거리(숫자)만 파싱합니다.
-     */
-    fun parsePickupDistance(rawText: String): Double?
-
-    /**
      * 상세 화면에서 추출된 텍스트 목록과 최근 리스트 오더 목록을 대조하여
      * 원본 리스트 오더를 매칭합니다. 매칭 실패 시 null을 반환합니다.
      */

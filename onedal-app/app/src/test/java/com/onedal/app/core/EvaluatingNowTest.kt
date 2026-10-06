@@ -21,7 +21,7 @@ class EvaluatingNowTest {
     }
     @Test fun `관제앱 PHONE 의 심사 중을 맨 위 칸 저장에 넣고 클릭 미룸이 그것을 먼저 읽는다`() {
         val root = "src/main/java/com/onedal/app"
-        assertTrue(File("$root/HijackService.kt").readText().contains("putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean(\"evaluatingNow\"))"))
+        assertTrue(File("$root/HijackService.kt").readText().contains("putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean(com.onedal.app.core.EvaluatingNow.KEY))"))
         assertTrue(File("$root/HijackService.kt").readText().contains("EvaluatingNow.of("))
     }
 }

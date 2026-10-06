@@ -140,6 +140,14 @@ const TEST_ONLY_KEEP = {
 };
 /** 🤖 원달앱에서 이름으로 안 불리는데 남기는 fun · const val — 사유 없이는 못 넣는다 (①-3) */
 const KT_KEEP = {
+    SUPPLY: '블루투스 틀 종류 바이트 — 서버 jest `bleProtocolPair` 가 이 파일을 글자로 읽어 shared `BLE_KINDS` 와 견준다(계약 값).',
+    MAX_WRITE: '블루투스 한 번 쓰기 최대 — 관제앱(`BleProtocol.java`)이 조각 크기로 쓰고 `bleProtocolPair` 가 셋을 견준다(계약 값).',
+    PAIR_TOKEN_FIELD: '폰 연결 응답 칸 이름 — 서버 jest `deviceLinkNames` 가 shared `PAIR_TOKEN_FIELD` 와 견준다(계약 값).',
+    sizedForTest: '작은 기억으로 «넘치면 최근 것만 남긴다»를 보는 검사 손잡이 — 기본 크기(2000)로는 그 검사를 못 한다.',
+    onFilterVersion: '`onFilter(v, null)` 의 겉 — «누른 · 통과한 · KEEP 콜은 필터가 바뀌어도 남는다» 검사 다섯이 이것으로 단언한다.',
+    networkOfScreen: '`networksOnScreen` 의 «하나일 때만» 겉 — «글자 없으면 모른다 · 둘이면 모른다» 검사가 이것으로 단언한다.',
+    detect: '`NetworkByScreen.hits` 의 «하나일 때만» 겉 — «빈 글자 묶음은 어느 화면에도 안 맞는다»(hits 의 isNotEmpty) 검사가 이것으로만 닿는다.',
+    groupByFare: '본 코드가 부르는 `groupIndicesByFare` 의 글자 겉 — 카드 나누기 검사 열한 개가 이것으로 같은 본체를 지난다.',
 };
 
 const exports = [];
@@ -253,7 +261,7 @@ H('①-3 원달앱 코틀린 — 아무도 안 부르는 fun · const val (검�
 const APP = join(ROOT, '../onedal-app/app/src');
 const KT_MAIN = load(walk(join(APP, 'main'), ['.kt']));
 /** 처음 잰 수 — 원달앱 죽은 코드를 지우며 0 으로 내린다. 늘면 문다 */
-const KT_MAX = 15;
+const KT_MAX = 0;
 const ktFound = [];
 const KT_TEST = load(walk(join(APP, 'test'), ['.kt']));
 let foundKt = 0;

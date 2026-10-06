@@ -583,32 +583,8 @@ class InsungParser(private val context: Context) : IScrapParser {
      *    폰 주행은 «필터가 맞나」가 아니라 **«GPS·경로·화면이 맞나」** 를 볼 때 쓴다.
      */
 
-    /**
-     * rawText에서 상차지 직선거리를 파싱합니다.
-     * 인성앱 거리 표시 패턴: "2.3 / 45" (상차직선거리 / 배송거리)
-     * 또는 "2.3km" 형태
-     * @return 상차지 직선거리 (km), 파싱 불가 시 null
-     */
     /** 인성 리스트는 요금 줄이 곧 콜 한 줄이다 — 알람 테두리는 닻 줄 그대로 (#84) */
     override fun alarmBandHalfPx(): Int = 0
-
-    override fun parsePickupDistance(rawText: String): Double? {
-        // 패턴1: "숫자 / 숫자" (슬래시 구분, 첫 번째가 상차 직선거리)
-        val slashPattern = Regex("""(\d+\.?\d*)\s*/\s*(\d+\.?\d*)""")
-        val slashMatch = slashPattern.find(rawText)
-        if (slashMatch != null) {
-            return slashMatch.groupValues[1].toDoubleOrNull()
-        }
-
-        // 패턴2: "숫자km" 또는 "숫자 km"
-        val kmPattern = Regex("""(\d+\.?\d*)\s*km""", RegexOption.IGNORE_CASE)
-        val kmMatch = kmPattern.find(rawText)
-        if (kmMatch != null) {
-            return kmMatch.groupValues[1].toDoubleOrNull()
-        }
-
-        return null
-    }
 
     override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
         val tempOrder = parse(screenTexts)

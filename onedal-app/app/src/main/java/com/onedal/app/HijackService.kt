@@ -82,8 +82,6 @@ class HijackService : AccessibilityService(), ScanContext {
         /** 📋 상세가 목록의 어느 줄인가를 찾으려고 들고 있는 최근 목록 콜 — 넘치면 뒤쪽만 남긴다 (같은 콜 기억 크기와 다른 것) */
         private const val RECENT_LIST_ORDERS_MAX = 100
         private const val RECENT_LIST_ORDERS_KEEP = 50
-        internal const val FARE_RANGE_MIN = 10.0
-        internal const val FARE_RANGE_MAX = 9999.0
 
 
         /** 📷 살아 있는 서비스 — 설정 화면의 «화면 찍어 읽기» 시험 버튼이 부른다. 붙으면 채우고 내려가면 비운다 */
@@ -382,7 +380,7 @@ class HijackService : AccessibilityService(), ScanContext {
         override fun onPhone(json: String) {
             val j = org.json.JSONObject(json)
             /* 🔒 심사 중 — 읽는 두 자리(`EvaluatingNow.of`)가 보는 맨 위 칸 저장에 넣는다(공급 필터에는 서버가 이 칸을 빼고 보낸다) */
-            getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).edit().putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean("evaluatingNow")).apply()
+            getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).edit().putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean(com.onedal.app.core.EvaluatingNow.KEY)).apply()
             j.optString("mode").takeIf { it.isNotEmpty() }?.let { telemetryManager.onSuppliedMode(it) }
         }
         override fun onDecision(json: String) {
@@ -1222,8 +1220,8 @@ class HijackService : AccessibilityService(), ScanContext {
          * 🔴 **리셋은 여기 한 곳에서만** 한다 (`sessionEndsWithCall.test.ts`). 리스트 핸들러가 조건 없이 리셋을
          *    부르면 이 판정이 무의미해지고, 앱이 자기가 터치한 콜을 «손으로 연 상세»로 읽어 확정을 안 누른다.
          *
-         * ⚠️ 조건(`hasActiveSession()`)을 걸지 않는다. 그건 `openedByApp`·`isWaitingForDecision`·
-         *    `currentOrderId` 만 보므로 `collectState`·`isPreview` 가 더럽게 남으면 그냥
+         * ⚠️ «세션이 살아 있나»(`openedByApp`·`isWaitingForDecision`·`currentOrderId`) 조건을 걸지 않는다.
+         *    그 셋만 보면 `collectState`·`isPreview` 가 더럽게 남았을 때 그냥
          *    통과한다. **복귀는 그 자체로 콜의 끝**이니 조건 없이 지우는 것이 맞다.
          */
         val isListScreen = detected == ScreenContext.LIST ||
@@ -1787,7 +1785,8 @@ class HijackService : AccessibilityService(), ScanContext {
                         /* ✍️ 앱이 계약하나 — 진입 줄과 세션 칸이 같은 값 하나를 쓴다(자동이어도 내일 콜이면 기사님 확정 · `appContractsOnOpen`) */
                         val willContract = com.onedal.app.core.engine.appContractsOnOpen(currentMode, order)
                         AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🚪 [상세 진입] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
-                            "모드 $currentMode — ${com.onedal.app.core.engine.openPlanText(currentMode, willContract)} · 결재가 없으면 돌아오는 시간 뒤 목록으로")
+                            "모드 $currentMode — ${com.onedal.app.core.engine.openPlanText(currentMode, willContract)} · 결재가 없으면 돌아오는 시간 뒤 목록으로" +
+                            " · 지문 ${CallMemory.fingerprintOf(order)} · 세션 ${order.id}")   // 🔗 목록(지문) · 상세(세션 id) · 결재(orderId) 줄을 한 줄로 잇는다
                         AppLogger.d(TAG, LogTag.TAP, "💥 [$currentMode] 꿀콜 조건 통과! 요금 최고 콜 터치 진행!")
                         alarmTapAtMs = android.os.SystemClock.elapsedRealtime()   // 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용
                         val fired = touchManager.performSimulatedTouch(freshFare.node, tapRowLeft = tap2.rowLeft, delayMs = tap2.delayMs, tapDy = tap2.dy,

@@ -152,23 +152,8 @@ data class DetailedOfficeOrder(
     val pickupY: Double? = null,
     val dropoffX: Double? = null,
     val dropoffY: Double? = null,
-    val pickupDistance: Double? = null,
-    // 상세 추가 필드
-    val distanceKm: Double? = null,
-    val dispatcherName: String? = null,  // 배차사 이름
-    val dispatcherPhone: String? = null, // 배차사 연락처
-    val receiptStatus: String? = null,   // 신규/수정
-    val commissionRate: String? = null,  // 수수료 (23%)
-    val tollFare: String? = null,        // 탁송료
-    val tripType: String? = null,        // 편도/왕복
-    val orderForm: String? = null,       // 급송/일반
-    val detailMemo: String? = null,      // 적요상세 원문
-    val paymentType: String? = null,     // "신용", "착불", "선불" 등
-    val billingType: String? = null,     // "계산서", "인수증", "무과세"
-    val vehicleType: String? = null,     // "다마스", "1t카고" 등
-    val itemDescription: String? = null, // "박스 2개", "마대 1개" 등
-    val companyName: String? = null,     // 화주 상호
-    val pickupTime: String? = null       // 픽업 예약 시간
+    val pickupDistance: Double? = null
+    // 상세 칸(배차사 · 수수료 · 적요 …)은 원달앱이 채우지 않는다 — 서버가 rawText 에서 뽑는다(server/utils/parser.ts)
 )
 
 // ────────────────────────────────────────────────
@@ -210,15 +195,6 @@ data class DispatchDetailedRequest(
     val targetApp: String = "insung",
     /** 👀 미리보기 콜 — 뜻과 규칙은 `DispatchBasicRequest.isPreview` 에 적었다 */
     val isPreview: Boolean = false
-)
-
-// ────────────────────────────────────────────────
-// 4. 서버 응답 규격 (웹의 DispatchConfirmResponse 대응)
-// ────────────────────────────────────────────────
-data class DispatchConfirmResponse(
-    val deviceId: String = "",
-    val action: String = "",  // "KEEP", "CANCEL", or "ACK"
-    val orderId: String? = null
 )
 
 // ────────────────────────────────────────────────

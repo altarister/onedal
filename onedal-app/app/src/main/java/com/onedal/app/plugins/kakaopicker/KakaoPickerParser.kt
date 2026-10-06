@@ -118,10 +118,6 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun isFareAnchor(text: String, centerX: Int): Boolean =
             text.matches(FARE_REGEX) && centerX >= FARE_MIN_CENTER_X
 
-        /** 같은 카드 띠인가 — 요금 중심에서 ±60픽셀 (실측 줄 간격 ±35 · 다음 카드 ±163) */
-        fun inCardBand(fareCenterY: Int, nodeCenterY: Int): Boolean =
-            kotlin.math.abs(fareCenterY - nodeCenterY) <= CARD_BAND_PX
-
         /**
          * 🧲 노드가 붙을 닻 인덱스 — **가장 가까운 닻 하나에만** 붙는다 (0830 실사고 · #86).
          * «±60 안이면 전부» 방식은 리스트 갱신 애니메이션으로 닻들이 눌리는 순간 한 노드를
@@ -1239,11 +1235,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         return pass
     }
 
-    /** 알람 테두리는 요금 닻이 아니라 **카드 띠 전체**를 두른다 — 묶기(inCardBand)와 같은 값 (#83) */
+    /** 알람 테두리는 요금 닻이 아니라 **카드 띠 전체**를 두른다 — 카드 띠 값 `CARD_BAND_PX` 그대로 (#83) */
     override fun alarmBandHalfPx(): Int = CARD_BAND_PX
-
-    override fun parsePickupDistance(rawText: String): Double? =
-        Regex("""(\d+(?:\.\d+)?)km""").find(rawText)?.groupValues?.get(1)?.toDoubleOrNull()
 
     /**
      * 🗳️ **알람 판정에서 떨어진 축을 장부에 싣는다** (기사님 지시).

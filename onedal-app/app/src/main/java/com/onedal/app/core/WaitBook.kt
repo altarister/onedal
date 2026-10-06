@@ -67,8 +67,6 @@ class WaitBook(private val poster: Poster, private val clock: () -> Long) {
 
     fun cancelAll() { entries.keys.toList().forEach { cancel(it) } }
 
-    fun isPending(name: String): Boolean = name in entries
-
     fun pending(): List<Pending> {
         val now = clock()
         return entries.map { (name, e) -> Pending(name, e.owner, e.dueMs - now) }

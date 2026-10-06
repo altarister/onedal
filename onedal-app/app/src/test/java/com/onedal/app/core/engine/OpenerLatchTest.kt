@@ -26,7 +26,8 @@ class OpenerLatchTest {
         assertTrue(pre.indexOf("settleOpener()") in 0 until pre.indexOf("val filling = plugin.executePreConfirmSpecial"))
         assertTrue(pre.contains("👆 [연 쪽 정함]"))
         val ses = File("src/main/java/com/onedal/app/core/engine/SessionManager.kt").readText()
-        val reset = ses.substring(ses.indexOf("fun reset("))
-        assertTrue(reset.substring(0, 800).contains("settledOpener = null"))
+        val from = ses.indexOf("fun reset(")
+        val reset = ses.substring(from, ses.indexOf("\n    }\n", from))   // 함수 끝까지 — 글자 수로 자르면 뒤 함수가 바뀔 때 깨진다
+        assertTrue(reset.contains("settledOpener = null"))
     }
 }

@@ -7,7 +7,6 @@ import android.os.Build
 import com.onedal.app.core.AppLogger
 import com.google.gson.Gson
 import com.onedal.app.models.DispatchBasicRequest
-import com.onedal.app.models.DispatchConfirmResponse
 import com.onedal.app.models.DispatchDetailedRequest
 import com.onedal.app.models.EmergencyReport
 import com.onedal.app.models.FilterConfig
@@ -246,7 +245,6 @@ class ApiClient(private val context: Context) {
         dispatchExecutor.submit {
             try {
                 val jsonBody = gson.toJson(payload)
-                prefs.edit().putString("api_detail_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/orders/detail")
 
                 val result = executeWithRetry(targetUrl, jsonBody, "/detail", timeoutMs = 15000)
@@ -254,7 +252,6 @@ class ApiClient(private val context: Context) {
                 if (result != null) {
                     val (code, body) = result
                     if (code == 200 || code == 202) {
-                        prefs.edit().putString("api_detail_res", body).apply()
                         AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /detail response / $code] 접수 완료 — 결재는 블루투스로 온다")
                         // 성공적으로 큐에 등록되었으므로 여기서 판단 콜백을 부르지 않는다 — 결재는 블루투스로 온다
                     } else {
@@ -335,8 +332,6 @@ class ApiClient(private val context: Context) {
                     // 방금 보낸 스크랩 정보 화면 표시용으로 저장
                     prefs.edit()
                         .putLong("lastScrapTime", System.currentTimeMillis())
-                        .putInt("lastScrapSize", payload.data.size)
-                        .putString("lastScrapPreview", if (payload.data.isNotEmpty()) "${payload.data.first().pickup} -> ${payload.data.first().dropoff}" else "-")
                         .apply()
 
                     scrapRes.deviceControl?.callMemoryRound?.let { onCallMemoryRound?.invoke(it) }
@@ -371,7 +366,6 @@ class ApiClient(private val context: Context) {
             try {
                 val jsonBody = gson.toJson(report)
                 AppLogger.w(TAG, "🚨 [EMERGENCY 전송] reason=${report.reason}, orderId=${report.orderId}")
-                prefs.edit().putString("api_emergency_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/emergency")
 
                 val result = executeWithRetry(targetUrl, jsonBody, "/emergency", timeoutMs = 10000)
@@ -379,7 +373,6 @@ class ApiClient(private val context: Context) {
                 if (result != null) {
                     val (code, body) = result
                     if (code == 200) {
-                        prefs.edit().putString("api_emergency_res", body).apply()
                         AppLogger.w(TAG, "🚨 [EMERGENCY 응답] $body")
                     } else {
                         AppLogger.e(TAG, "🚨 [EMERGENCY 서버 에러] HTTP $code")

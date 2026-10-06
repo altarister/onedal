@@ -412,34 +412,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean =
         judge(order, loadCurrentFilter(), tally).passed
 
-    // ════════════════════════════════════════════════════════════════
-    //  parsePickupDistance(): 화물24시 거리 패턴 파싱
-    // ════════════════════════════════════════════════════════════════
-
-    /**
-     * rawText에서 상차지 직선거리를 파싱합니다.
-     * 화물24시 거리 표시 패턴: "11Km", "15Km", "20Km" (정수 + Km)
-     */
     /** 24시도 요금 줄 기준 — 카드 띠 실측 전까지 닻 줄 그대로 (#84) */
     override fun alarmBandHalfPx(): Int = 0
-
-    override fun parsePickupDistance(rawText: String): Double? {
-        // 패턴1: "숫자Km" 또는 "숫자 Km"
-        val kmPattern = Regex("""(\d+\.?\d*)\s*[Kk]m""")
-        val kmMatch = kmPattern.find(rawText)
-        if (kmMatch != null) {
-            return kmMatch.groupValues[1].toDoubleOrNull()
-        }
-
-        // 패턴2: "숫자km" (소문자)
-        val kmLowerPattern = Regex("""(\d+\.?\d*)\s*km""", RegexOption.IGNORE_CASE)
-        val kmLowerMatch = kmLowerPattern.find(rawText)
-        if (kmLowerMatch != null) {
-            return kmLowerMatch.groupValues[1].toDoubleOrNull()
-        }
-
-        return null
-    }
 
     // ════════════════════════════════════════════════════════════════
     //  groupListNodes(): 화물24시 카드 기반 노드 그룹화

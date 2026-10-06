@@ -172,26 +172,6 @@ class MainViewModel {
         else com.onedal.app.core.FilterStore.parse(activeFilterJson)
     } catch (e: Exception) { null }
 
-    fun getFilterDisplayText(): String = try {
-        val json = JSONObject(activeFilterJson)
-        if (json.length() == 0) "대기 중 (서버 응답 없음)"
-        else {
-            val vehicleArr = json.optJSONArray("allowedVehicleTypes")
-            val vehicleStr = if (vehicleArr != null && vehicleArr.length() > 0) {
-                (0 until vehicleArr.length()).map { vehicleArr.getString(it) }.joinToString(", ")
-            } else "전체 허용"
-            val minFare = json.optInt("minFare", com.onedal.app.models.FilterConfig().minFare)
-            val formatFare = java.text.NumberFormat.getNumberInstance(Locale.KOREA).format(minFare)
-
-            "allowedVehicleTypes: $vehicleStr\n" +
-            "minFare: ${formatFare}원 (최소 금액 · 세 배차망 공통)\n" +
-            "pickupRadiusKm: ${json.optString("pickupRadiusKm", "0")}km\n" +
-            "destinationCity: ${json.optString("destinationCity", "미설정")}\n" +
-            "destinationKeywords: ${json.optString("destinationKeywords", "없음")}\n" +
-            "excludedKeywords: ${json.optString("excludedKeywords", "없음")}"
-        }
-    } catch (e: Exception) { "필터 파싱 오류" }
-
     fun getStatusDisplayText(): String = try {
         val json = JSONObject(apiStatusJson)
         if (json.length() == 0) "대기 중.."

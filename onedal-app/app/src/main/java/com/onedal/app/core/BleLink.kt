@@ -54,7 +54,6 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
         private const val TAG = "BleLink"
         const val PREF_PAIR_SIG = "blePairSig"
         const val PREF_AD_TAG = "bleAdTag"
-        const val PREF_NO_PERMISSION = "bleNoPermission"
         const val PREF_SERVER_ID = "bleServerId"
         private const val UNPROVEN_MS = 10_000L
 
@@ -93,7 +92,6 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
     fun start() {
         if (started) return
         val permitted = hasPermission(ctx)
-        prefs.edit().putBoolean(PREF_NO_PERMISSION, !permitted).apply()
         if (!permitted) {
             if (LogOnce.changed("ble-permission", "없음")) AppLogger.w(TAG, LogTag.NETWORK, "📶 [블루투스] «근처 기기» 허락이 없다 — 관제앱과 못 붙는다(점검 탭) · 허락하면 5초 안에 붙는다")
             h.postDelayed({ start() }, 5000)

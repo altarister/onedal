@@ -189,11 +189,4 @@ class SessionManager {
         onReset?.invoke()
         AppLogger.i(TAG, LogTag.CALL_STAGE, "🔄 세션 상태 완전 초기화")
     }
-
-    /**
-     * 현재 활성 세션이 있는지 여부
-     */
-    fun hasActiveSession(): Boolean {
-        return openedByApp || isWaitingForDecision || currentOrderId.isNotEmpty()
-    }
 }

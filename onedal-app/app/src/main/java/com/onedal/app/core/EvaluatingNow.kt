@@ -9,6 +9,7 @@ package com.onedal.app.core
 object EvaluatingNow {
     fun of(top: Boolean?, inFilter: Boolean): Boolean = top ?: inFilter
 
+    /** 필터 · 관제앱 PHONE 본문의 «심사 중» 칸 이름 — 서버 · 관제앱(SupplyService.java)과 같은 글자 */
     const val KEY = "evaluatingNow"
     /** 앱 저장소 이름 — 관제앱이 블루투스로 준 이 폰 몫(PHONE)의 심사 중 값 (reviews/50 ①-3) */
     const val PREF_KEY = "evaluatingNowTop"

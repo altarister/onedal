@@ -121,14 +121,4 @@ object LogFileSink {
         } catch (_: Throwable) {
         }
     }
-
-    /** 검사·종료용 — 큐가 빌 때까지 기다린다 */
-    fun flushBlocking(timeoutMs: Long = 2_000L) {
-        try {
-            val done = java.util.concurrent.CountDownLatch(1)
-            writer.execute { done.countDown() }
-            done.await(timeoutMs, TimeUnit.MILLISECONDS)
-        } catch (_: Throwable) {
-        }
-    }
 }

@@ -41,7 +41,7 @@ class AlarmSignalerSpanTest {
 
     @Test
     fun `픽커 파서는 카드 띠 반높이를 알람에 알려준다 - 묶기와 같은 값`() {
-        // 카드 묶기(inCardBand)와 테두리가 딴 값을 쓰면 «묶은 카드»와 «두른 카드»가 갈라진다
+        // 카드 띠 값(CARD_BAND_PX)과 테두리가 딴 값을 쓰면 «묶은 카드»와 «두른 카드»가 갈라진다
         assertEquals(KakaoPickerParser.CARD_BAND_PX, KakaoPickerParser(null).alarmBandHalfPx())
     }
 }

@@ -16,7 +16,7 @@ import org.junit.Test
  * 배차망이 리뉴얼되면: 새 덤프를 뜨고 이 문제지와 대조한다.
  *
  * ⚠️ parse() 는 android 클래스를 안 쓰므로 JVM 에서 그대로 돈다.
- *    카드 묶기(rect)는 순수 함수(isFareAnchor·inCardBand·nearestAnchorIndex)로 검사한다 —
+ *    카드 묶기(rect)는 순수 함수(isFareAnchor·nearestAnchorIndex)로 검사한다 —
  *    인성 RowGroupingTest 와 같은 방식이다.
  */
 class KakaoPickerParserTest {
@@ -234,14 +234,6 @@ class KakaoPickerParserTest {
         assertEquals(0, KakaoPickerParser.nearestAnchorIndex(anchors, 1124))
         // 칸은 이웃 요금 사이 간격의 절반(여기서는 50)이다 — 그 밖이면 어디에도 안 붙는다
         assertEquals(-1, KakaoPickerParser.nearestAnchorIndex(anchors, 1350))
-    }
-
-    @Test
-    fun `카드 띠 판별 - 요금 중심 ±60이 한 카드다 (실측 줄 간격 ±35, 다음 카드 ±163)`() {
-        assertTrue(KakaoPickerParser.inCardBand(961, 927))    // 태그줄
-        assertTrue(KakaoPickerParser.inCardBand(961, 991))    // 지역줄
-        assertFalse(KakaoPickerParser.inCardBand(961, 1090))  // 다음 카드 태그줄
-        assertFalse(KakaoPickerParser.inCardBand(961, 795))   // 헤더
     }
 }
 
