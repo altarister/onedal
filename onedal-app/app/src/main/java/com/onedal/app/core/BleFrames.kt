@@ -23,6 +23,8 @@ object BleFrames {
     const val ACK: Byte = 5
     const val BREATH: Byte = 6
     const val FOLD: Byte = 7
+    const val CHALLENGE: Byte = 8
+    const val PROOF: Byte = 9
 
     const val MAX_WRITE = 512
     const val SILENT_MS = 5000L
@@ -37,6 +39,16 @@ object BleFrames {
         if (v[0] == BREATH) return Small(BREATH, "", if (v.size > 1) v[1].toInt() == 1 else null)
         return Small(v[0], String(v, 1, v.size - 1, Charsets.UTF_8), null)
     }
+
+    /** 🔏 주고받기 증명 — HMAC-SHA256(열쇠 = 짝 서명 글자, 글 = nonce) 16진 앞 32자 · 관제앱 `SupplyService.mac` 과 같은 셈 */
+    fun mac(pairSig: String, nonce: String): String {
+        val m = javax.crypto.Mac.getInstance("HmacSHA256")
+        m.init(javax.crypto.spec.SecretKeySpec(pairSig.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+        return m.doFinal(nonce.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }.take(32)
+    }
+
+    /** 아무 숫자 16바이트 16진 */
+    fun nonce(): String = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
 
     /** 광고 표시 16진 글자 → 바이트(홀수 · 깨진 글자는 빈 배열) */
     fun tagBytes(hex: String?): ByteArray {

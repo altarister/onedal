@@ -364,18 +364,12 @@ data class FoldAfter(val orderId: String, val remainSec: Double = 0.0, val remai
     fun remainMsOrSec(): Long = remainMs?.coerceAtLeast(0L) ?: remainWholeSec() * 1000L
 }
 
-data class DecisionPayload(
-    val orderId: String?,
-    val action: String?
-)
-
 data class ApiStatus(
     val success: Boolean = false,
     val totalItems: Int = 0
 )
 
 data class DeviceControl(
-    val mode: String? = "MANUAL",
     // 🧹 시뮬레이터 회차 — 바뀌면 «본 콜» 기억을 비운다 (CallMemory.onRound). 운영 서버는 안 싣는다(null)
     val callMemoryRound: Int? = null
 )

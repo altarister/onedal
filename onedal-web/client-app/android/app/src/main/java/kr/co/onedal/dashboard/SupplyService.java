@@ -55,7 +55,8 @@ import io.socket.engineio.client.transports.WebSocket;
  *
  * - 서버: `phone-supply`(필터 · 폰마다 모드 · 심사 중 · 짝 서명)의 마지막 값을 들고 있다 · `phone-decision` → 그 폰에 DECISION · `phone-fold` → FOLD · 폰 ACK → `phone-decision-ack`
  * - 블루투스: 서비스 UUID 로 검색 → 광고 표시(기사님 · 영업일 · 공급 `adTags`)가 우리 것인 폰에만 붙는다(남의 기사님 폰에 자리를 잡지 않게) →
- *   폰의 HELLO 서명을 마지막 공급의 그 폰 서명과 견준다 — 맞아야 그 연결 = 그 폰 · 다르면 끊고 10분 안 붙음.
+ *   🔏 주고받기 증명(짝 서명은 공중에 안 보낸다): 붙으면 CHALLENGE `{nonce}` → 폰 HELLO `{deviceId, mac, nonce}` 의 mac 이 HMAC(공급의 그 폰 서명, 내 nonce) 와 맞으면
+ *   PROOF `{proof: HMAC(서명, 폰 nonce)}` 를 보내 폰도 이쪽을 믿게 한다 — 맞아야 그 연결 = 그 폰 · 다르면 끊고 10분 안 붙음.
  *   폰 줄에 아직 없으면(원달앱이 서버 보고를 하기 전) 붙은 채 기다리고, 30초 넘으면 막지 않고 끊었다 다시 찾는다 — 그동안 원달앱은 «서버 답 받기 전»(수동)이다.
  *   검색은 공급의 살아 있는 폰 수만큼 붙으면 멈춘다(셋은 상한) · MTU 185 미만 연결은 쓰지 않는다(작은 칸 한 번 쓰기에 결재가 들어가야 한다).
  * - 보내기: 폰마다 쓰기 줄 하나(GATT 는 한 번에 한 작업) · 작은 칸(PHONE · DECISION · BREATH)을 큰 칸(SUPPLY 조각) 사이사이에 먼저 —
@@ -113,7 +114,9 @@ public class SupplyService extends Service {
         boolean writing = false;
         String deviceId;
         String helloDeviceId;
-        String helloSig;
+        String helloMac;
+        String helloNonce;
+        String myNonce;
         long helloAt = 0;
         long lastHeard = SystemClock.elapsedRealtime();
         String sentSupplyVersion;
@@ -243,7 +246,7 @@ public class SupplyService extends Service {
         updateScan();
         for (Link l : new ArrayList<>(links.values())) {
             if (l.deviceId != null) pushState(l);
-            else if (l.helloSig != null) tryVerify(l);
+            else if (l.helloMac != null) tryVerify(l);
         }
     }
 
@@ -416,7 +419,10 @@ public class SupplyService extends Service {
                 l.ready = true;
                 l.lastHeard = SystemClock.elapsedRealtime();
                 l.helloAt = l.lastHeard;
-                Log.i(TAG, "📶 " + l.device.getAddress() + " 준비됨 · MTU " + l.mtu + " — HELLO 를 기다린다");
+                l.myNonce = nonce();
+                try { l.smallQ.add(small(BleProtocol.CHALLENGE, new JSONObject().put("nonce", l.myNonce).toString())); } catch (Exception ignored) { }
+                Log.i(TAG, "📶 " + l.device.getAddress() + " 준비됨 · MTU " + l.mtu + " — CHALLENGE 보내고 HELLO 를 기다린다");
+                pump(l);
             });
         }
         @Override public void onCharacteristicWrite(BluetoothGatt g, BluetoothGattCharacteristic c, int status) {
@@ -452,7 +458,8 @@ public class SupplyService extends Service {
         catch (Exception e) { Log.w(TAG, "📶 " + l.name() + " 본문을 못 읽었다 (종류 " + kind + ")"); return; }
         if (kind == BleProtocol.HELLO) {
             l.helloDeviceId = body.optString("deviceId", null);
-            l.helloSig = body.optString("sig", null);
+            l.helloMac = body.optString("mac", null);
+            l.helloNonce = body.optString("nonce", null);
             l.helloAt = l.lastHeard;
             tryVerify(l);
         } else if (kind == BleProtocol.ACK && l.deviceId != null) {
@@ -473,13 +480,14 @@ public class SupplyService extends Service {
         pendingAcks.clear();
     }
 
-    /** 🔏 HELLO 서명을 마지막 공급의 그 폰 서명과 견준다 — 폰 줄에 아직 없으면 기다린다(onSupply · tick 이 다시 부른다) */
+    /** 🔏 HELLO 의 mac 을 HMAC(공급의 그 폰 서명, 내 nonce) 와 견준다 — 폰 줄에 아직 없으면 기다린다(onSupply · tick 이 다시 부른다) · 맞으면 PROOF */
     private void tryVerify(Link l) {
-        if (l.deviceId != null || l.helloDeviceId == null || l.helloSig == null || lastSupply == null) return;
+        if (l.deviceId != null || l.helloDeviceId == null || l.helloMac == null || l.helloNonce == null || l.myNonce == null || lastSupply == null) return;
         JSONObject phones = lastSupply.optJSONObject("phones");
         JSONObject p = phones == null ? null : phones.optJSONObject(l.helloDeviceId);
         if (p == null) return;
-        if (!l.helloSig.equals(p.optString("pairSig"))) {
+        String sig = p.optString("pairSig");
+        if (sig.isEmpty() || !l.helloMac.equals(mac(sig, l.myNonce))) {
             blocked.put(l.device.getAddress(), SystemClock.elapsedRealtime() + BLOCK_MS);
             closeLink(l, "서명이 다르다 — 다른 기사님 폰 · 10분 안 붙음");
             return;
@@ -487,7 +495,8 @@ public class SupplyService extends Service {
         Link old = linkOf(l.helloDeviceId);
         if (old != null && old != l) closeLink(old, "같은 폰이 다시 붙었다");
         l.deviceId = l.helloDeviceId;
-        Log.i(TAG, "🔏 " + l.deviceId + " 서명 맞음 — 이 연결로 공급");
+        try { l.smallQ.add(small(BleProtocol.PROOF, new JSONObject().put("proof", mac(sig, l.helloNonce)).toString())); } catch (Exception ignored) { }
+        Log.i(TAG, "🔏 " + l.deviceId + " 증명 맞음 — PROOF 보내고 이 연결로 공급");
         showStatus();
         pushState(l);
         JSONObject d = unacked.get(l.deviceId);
@@ -529,6 +538,25 @@ public class SupplyService extends Service {
             Log.i(TAG, "⚖️ " + l.deviceId + " 에 결재 " + d.optString("orderId") + " " + d.optString("action"));
             pump(l);
         } catch (Exception ignored) { }
+    }
+
+    /** 🔏 HMAC-SHA256(열쇠 = 짝 서명 글자, 글 = nonce) 16진 앞 32자 — 원달앱 `BleFrames.mac` 과 같은 셈 */
+    static String mac(String pairSig, String nonce) {
+        try {
+            javax.crypto.Mac m = javax.crypto.Mac.getInstance("HmacSHA256");
+            m.init(new javax.crypto.spec.SecretKeySpec(pairSig.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : m.doFinal(nonce.getBytes(StandardCharsets.UTF_8))) hex.append(String.format("%02x", b));
+            return hex.substring(0, 32);
+        } catch (Exception e) { return ""; }
+    }
+
+    private static String nonce() {
+        byte[] b = new byte[16];
+        new java.security.SecureRandom().nextBytes(b);
+        StringBuilder hex = new StringBuilder();
+        for (byte x : b) hex.append(String.format("%02x", x));
+        return hex.toString();
     }
 
     private static byte[] small(byte kind, String json) {

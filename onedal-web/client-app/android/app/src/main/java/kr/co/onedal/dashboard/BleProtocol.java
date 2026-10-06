@@ -31,6 +31,8 @@ final class BleProtocol {
     static final byte ACK = 5;
     static final byte BREATH = 6;
     static final byte FOLD = 7;
+    static final byte CHALLENGE = 8;
+    static final byte PROOF = 9;
 
     static final int MAX_WRITE = 512;
     static final long BREATH_MS = 1000;

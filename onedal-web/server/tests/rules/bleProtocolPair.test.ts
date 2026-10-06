@@ -58,4 +58,14 @@ describe('📶 관제앱 BleProtocol.java = shared bleProtocol.ts', () => {
         expect(knum('MAX_WRITE')).toBe(BLE_MAX_WRITE);
         expect(Number(kt.match(/const val SILENT_MS = (\d+)L/)?.[1])).toBe(BLE_SILENT_MS);
     });
+
+    it('🔏 주고받기 증명 셈이 관제앱 · 원달앱 같다 — HMAC-SHA256 · 열쇠는 짝 서명 · 16진 앞 32자 · 서명은 공중에 안 보냄', () => {
+        const service = readFileSync(join(__dirname, '../../../client-app/android/app/src/main/java/kr/co/onedal/dashboard/SupplyService.java'), 'utf8');
+        const kt = readFileSync(join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app/core/BleFrames.kt'), 'utf8');
+        expect(service).toContain('javax.crypto.Mac.getInstance("HmacSHA256")');
+        expect(service).toContain('return hex.substring(0, 32);');
+        expect(kt).toContain('javax.crypto.Mac.getInstance("HmacSHA256")');
+        expect(kt).toContain('.take(32)');
+        expect(service).not.toContain('optString("sig"');
+    });
 });

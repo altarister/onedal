@@ -53,6 +53,22 @@ class BleFramesTest {
         assertNull(BleFrames.readSmall(ByteArray(0)))
     }
 
+    /** 기준값은 node `createHmac('sha256', 서명).update(nonce)` 앞 32자 — 서버 · 관제앱(자바)과 같은 셈 */
+    @Test fun `🔏 증명 셈 — HMAC-SHA256 16진 앞 32자`() {
+        assertEquals("1c93d5f384997eaa2abc3fdf7740dccd", BleFrames.mac("0123456789abcdef0123456789abcdef", "nonce-1"))
+        assertEquals(32, BleFrames.nonce().length)
+    }
+
+    @Test fun `🔴 증명 전 기기의 쓰기는 버리고 공급 연결도 안 켠다 — 근처 기기가 «자동»이나 KEEP 을 넣지 못하게`() {
+        val link = File("src/main/java/com/onedal/app/core/BleLink.kt").readText()
+        val onWrite = link.substringAfter("private fun onWrite(p: Peer, u: UUID, v: ByteArray) {").substringBefore("private fun checkProof(")
+        val gate = onWrite.indexOf("if (!p.proven || central !== p) {")
+        assertTrue("증명 문", gate > 0)
+        assertTrue("문이 공급 연결 켜기보다 앞", gate < onWrite.indexOf("setLinked(true)"))
+        assertTrue("문이 리스너보다 앞", gate < onWrite.indexOf("listener.onPhone("))
+        assertTrue("HELLO 에 서명을 싣지 않는다", !link.contains(".put(\"sig\""))
+    }
+
     @Test fun `광고 표시 16진 → 바이트 · 깨지면 빈 배열`() {
         assertArrayEquals(byteArrayOf(0xbd.toByte(), 0x9f.toByte(), 0x27, 0xd8.toByte()), BleFrames.tagBytes("bd9f27d8"))
         assertEquals(0, BleFrames.tagBytes("abc").size)
@@ -78,9 +94,13 @@ class BleFramesTest {
         assertTrue(block.trimEnd().endsWith("}") && block.contains("bleLink?.ack(orderId)"))
     }
 
-    @Test fun `🔴 보고 응답으로는 필터 · 모드 · 결재 · 빨리 접기 · 심사 중을 받지 않는다 — 한 값 한 길`() {
+    @Test fun `🔴 보고 응답으로는 필터 · 모드 · 결재 · 빨리 접기 · 심사 중을 받지 않는다 — 한 값 한 길 · 칸 이름까지`() {
         val api = File("src/main/java/com/onedal/app/api/ApiClient.kt").readText()
-        for (gone in listOf("dispatchEngineArgs", "pendingAckDecisionId", "scrapRes.decision", "scrapRes.foldAfter", "EvaluatingNow.topOf", "onModeReceived"))
+        for (gone in listOf("dispatchEngineArgs", "pendingAckDecisionId", "scrapRes.decision", "scrapRes.foldAfter", "topOf", "onModeReceived"))
             assertTrue(gone, !api.contains(gone))
+        val response = File("src/main/java/com/onedal/app/models/SharedModels.kt").readText().substringAfter("data class ScrapResponse(").substringBefore("\n)\n")
+        for (gone in listOf("dispatchEngineArgs", "decision", "foldAfter", "filterVersion")) assertTrue("ScrapResponse.$gone", !response.contains(gone))
+        val control = File("src/main/java/com/onedal/app/models/SharedModels.kt").readText().substringAfter("data class DeviceControl(").substringBefore("\n)\n")
+        assertTrue("DeviceControl.mode", !control.contains("val mode"))
     }
 }

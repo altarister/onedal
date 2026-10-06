@@ -65,6 +65,10 @@ export interface PhoneDecisionAck {
  * - 작은 칸(관제앱 → 폰): 한 번 쓰기에 메시지 하나 `[종류 1][본문 JSON]` — PHONE · DECISION · BREATH
  * - 큰 칸(관제앱 → 폰): SUPPLY 만 `[길이 4 · 큰 끝][gzip JSON]` 을 512 바이트 조각으로 · 받는 쪽은 길이만큼 모아 푼다
  * - 알림 칸(폰 → 관제앱): `[종류 1][본문 JSON]` — HELLO · ACK · BREATH
+ * 🔏 **주고받기 증명** — 짝 서명(pairSig)은 두 쪽이 서버에서 따로 받아 안다 · 공중에는 안 보낸다:
+ *   관제앱 CHALLENGE `{nonce}` → 폰 HELLO `{deviceId, mac: HMAC(pairSig, 관제앱 nonce), nonce: 폰 nonce}` → 관제앱 PROOF `{proof: HMAC(pairSig, 폰 nonce)}`.
+ *   폰은 PROOF 가 맞기 전까지 그 연결의 공급(SUPPLY · PHONE · DECISION · FOLD · BREATH)을 다 버린다 — 근처 기기가 «자동»이나 KEEP 을 넣지 못하게.
+ *   HMAC-SHA256 · 열쇠는 pairSig 글자 · 결과는 16진 앞 32자.
  */
 export const BLE_UUIDS = {
     service: '6f1d1000-1da1-4b1e-9e00-0000000000a1',
@@ -74,7 +78,7 @@ export const BLE_UUIDS = {
 } as const;
 
 /** 메시지 종류 바이트 — HELLO `{deviceId, sig}` · SUPPLY `{filter, filterVersion}` · PHONE `{mode, evaluatingNow}` · DECISION `{orderId, action, foldMs?}` · ACK `{orderId}` · BREATH(관제앱 → 폰은 본문 1바이트 «서버 살아 있음» 1/0 · 폰 → 관제앱은 본문 없음) · FOLD `{orderId, remainMs}`(작은 칸) */
-export const BLE_KINDS = { HELLO: 1, SUPPLY: 2, PHONE: 3, DECISION: 4, ACK: 5, BREATH: 6, FOLD: 7 } as const;
+export const BLE_KINDS = { HELLO: 1, SUPPLY: 2, PHONE: 3, DECISION: 4, ACK: 5, BREATH: 6, FOLD: 7, CHALLENGE: 8, PROOF: 9 } as const;
 
 /** 한 번 쓰기 최대 바이트 — 넘기면 받는 앱이 죽었다(0-3 시험 514) */
 export const BLE_MAX_WRITE = 512;
