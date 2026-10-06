@@ -374,15 +374,18 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
     });
 
     /**
-     * 🔴 소리는 **짧게 두 번 + 강한 진동** (기사님 확정).
-     *    무한 반복(`playCallRinging`)은 이미 남에게 간 콜에도 계속 울린다.
+     * 🔴 소리는 **콜 하나에 «삑» 한 번 + 강한 진동** (기사님 «한 번으로» · «가»).
+     *    필터 통과 알림에서만 울리고, 선점 수신 · 판정 도착에서는 «삑»을 안 낸다 — 한 콜에 세 군데서 울려 세 번으로 들렸다.
+     *    무한 반복(`playCallRinging`)은 이미 남에게 간 콜에도 계속 울린다 — 좋은 콜 벨만 따로.
      */
-    it('🔴 알람은 짧게 두 번 + 강한 진동이다 (무한 반복이 아니다)', () => {
+    it('🔴 알람은 «삑» 한 번 + 강한 진동이다 (무한 반복이 아니다 · 선점 수신 · 판정 도착은 조용)', () => {
         const c = codeOnly(web('lib/soundManager.ts'));
-        const fn = c.split('playFilterAlarm')[1]?.slice(0, 600) ?? '';
+        const fn = c.split('playFilterAlarm')[1]?.split(/\n    public /)[0] ?? '';
         expect(fn).toBeTruthy();
         expect(fn).toMatch(/NotificationType\.Warning|NotificationType\.Error/);
         expect(fn).not.toMatch(/callAudio|loop/);
+        expect((fn.match(/playBeep\(/g) ?? []).length).toBe(1);
+        expect(codeOnly(web('hooks/useOrderEngine.ts'))).not.toMatch(/playBeep\(/);
     });
 
     /** 🎨 폰 모드 색은 원달앱 테두리와 같다 — 알람 녹색 · 자동 파랑 · 체험 노랑 · 직접 회색. */

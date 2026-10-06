@@ -157,7 +157,6 @@ export function useOrderEngine() {
             logRoadmapEvent("콜단계", "웹", `🟢 [웹 수신] order-evaluating | ID: ${secured.id} | 기기: ${secured.capturedDeviceId} | ${secured.dropoff}`, "관제대시보드");
             logRoadmapEvent("화면", "웹", `확정페이지 진입 (선점 수신으로 상세 모드 구동)`, "관제대시보드");
             logRoadmapEvent("화면", "웹", "PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리", "관제대시보드");
-            soundManager.playBeep();
 
             // ⭐ 같은 기기의 옛 심사 카드만 지운다 — 확정 뒤 단계는 서버가 진실 (#137 · securedArrival)
             setActiveOrders(prev => withSecuredArrival(prev, secured));
@@ -193,7 +192,6 @@ export function useOrderEngine() {
                     logRoadmapEvent("화면", "웹", "예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)", "관제대시보드");
                 }
             }
-            soundManager.playBeep();
             setActiveOrders(prev => prev.map(o => o.id === secured.id ? secured : o));
 
             /**

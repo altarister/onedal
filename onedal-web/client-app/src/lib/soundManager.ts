@@ -153,13 +153,10 @@ class SoundManager {
      *    있는데 계속 울면 «틀어졌다»는 신호가 소음이 된다. 대신 **진동을 세게** 준다 —
      *    운전 중에는 네비 소리·음악이 깔려 있어 짧은 소리 하나가 묻히기 때문이다.
      *
-     * ⚠️ 두 번째 소리는 첫 소리가 **끝난 뒤**에 나야 «두 번»으로 들린다.
-     *    `currentTime = 0` 으로 같은 오디오를 곧바로 되감으면 한 번으로 뭉개진다.
+     * 🔔 콜 하나에 «삑» 한 번 — 선점 수신 · 판정 도착에서는 울리지 않는다(기사님 «한 번으로» · 세 군데서 울려 세 번으로 들렸다).
      */
     public async playFilterAlarm() {
         Haptics.notification({ type: NotificationType.Warning }).catch(() => {});
-        await this.playBeep();
-        await new Promise(r => setTimeout(r, 220));
         await this.playBeep();
     }
 

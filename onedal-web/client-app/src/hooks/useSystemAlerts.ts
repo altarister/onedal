@@ -60,7 +60,7 @@ export function useSystemAlerts() {
         };
 
         /**
-         * 🔔 **소리는 짧게 두 번 + 강한 진동** (기사님 확정).
+         * 🔔 **소리는 «삑» 한 번 + 강한 진동** (기사님 «한 번으로» — 선점 수신 · 판정 도착은 조용).
          * 운전 중이라 소리가 유일한 통로인데, 무한 반복은 이미 남에게 간 콜에도 계속 운다.
          */
         const handleFilterAlarm = (alarm: FilterPassAlarm) => {
