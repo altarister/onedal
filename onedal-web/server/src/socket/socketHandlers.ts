@@ -67,6 +67,13 @@ function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any)
     }));
 }
 
+/** 🪟 관제웹 창 번호 — 관제웹이 브라우저 창마다 하나 싣는다(새로고침해도 같다 · 없으면 소켓마다 다른 값) */
+function clientSessionOf(socket: Socket): string {
+    return (socket.handshake.auth?.clientSessionId as string) ||
+           (socket.handshake.query?.clientSessionId as string) ||
+           `anon_${socket.id}`;
+}
+
 export function registerSocketHandlers(io: Server) {
 
     // 1. Socket.io JWT 핸드셰이크 인증 — 관제웹 · 운영센터(/ops)가 같은 함수(socket/authSocket) · 관제웹만 계정 막힘을 본다(webAccountGate)
@@ -134,9 +141,7 @@ export function registerSocketHandlers(io: Server) {
     /* 🪪 연결 처리(하루 준비 등) 전체를 그 기사 몫으로 — 로그 «@기사» · 카카오 사용량 «누구 몫». 이벤트 감싸기(safeOn)와 같은 run 이라 다른 흐름으로 새지 않는다 */
     io.on("connection", (socket: Socket) => logContext.run({ who: whoLabel(socket.data.user?.name, socket.data.user?.id), userId: socket.data.user?.id }, () => {
         const userId = socket.data.user.id;
-        const clientSessionId = (socket.handshake.auth?.clientSessionId as string) ||
-                                (socket.handshake.query?.clientSessionId as string) ||
-                                `anon_${socket.id}`;
+        const clientSessionId = clientSessionOf(socket);
         const rawDevice = (socket.handshake.auth?.deviceInfo as string) ||
                           (socket.handshake.headers['user-agent'] as string) ||
                           '웹 브라우저';
@@ -763,7 +768,13 @@ export function registerSocketHandlers(io: Server) {
         socket.on("disconnect", () => {
             slog('통신', `❌ [소켓 해제] 클라이언트 종료: ${socket.id}`);
             if (session.activeWebSession?.socketId === socket.id) {
-                session.activeWebSession = null;
+                /**
+                 * 🪟 같은 창 번호의 탭이 하나 더 살아 있으면(크롬 «탭 복제» — 창 번호가 함께 복사된다) 그 소켓으로 넘긴다.
+                 * 비우면 남은 탭이 결재할 수 있는데도 서버가 «관제웹 없음»으로 보고 폰에 자동 대신 알람을 내려준다(reviews/44 · `routes/scrap.ts`).
+                 */
+                const twin = [...io.sockets.sockets.values()].find(other =>
+                    other.id !== socket.id && other.connected && other.data.user?.id === userId && clientSessionOf(other) === clientSessionId);
+                session.activeWebSession = twin ? { ...session.activeWebSession, socketId: twin.id } : null;
             }
         });
     }));

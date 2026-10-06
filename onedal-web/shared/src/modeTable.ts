@@ -6,6 +6,7 @@ import type { DeviceModeType, TargetAppType } from './index';
  * 🔴 **원천이다 — 여기를 고친다.** 서버 쪽은 shared `modeTable.test.ts` 가 `modeForPhone` · `DEVICE_MODE_LABEL` 과 견주고,
  *    원달앱 쪽은 `ModeTablePairTest` 가 같은 표를 읽어 원달앱 함수와 견준다 — 한쪽만 고치면 그쪽 검사가 빨갛다.
  * 겹치면 «덜 자동» 쪽이 이긴다 — 자동을 알람으로 내릴 까닭이 하나라도 있으면 알람. 저장된 명령은 어느 줄에서도 안 바뀐다.
+ * 줄마다 사실이 다르다 — 같은 사실의 설명용 줄을 두지 않는다. 빈틈: 관제웹 탭이 소리 없이 죽으면 서버는 소켓이 끊겼다고 알기까지(socket.io 기본값 · 최대 약 45초) `webAttached` 를 true 로 본다 — 그동안은 «평소» 줄대로 돈다(기사님 «그대로» · 운행 중에는 관제앱을 켜 둔다).
  * 몸통은 JSON 표시 주석 둘(별표 주석 «JSON») 사이의 엄격한 JSON 이다 — 원달앱 검사가 그 사이를 그대로 읽는다. 표시를 지우지 않는다.
  */
 export interface ModeSituation {
@@ -95,13 +96,6 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
             "phone": null,
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "note": "다음 200 응답에서 서버 모드로 돌아온다"
-        },
-        {
-            "id": "webDiedSilently", "say": "관제웹이 소리 없이 죽고 서버가 끊김을 알기 전(최대 약 45초)",
-            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "network": "insung",
-            "phone": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
-            "running": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
-            "note": "빈틈 — 서버는 아직 «붙음»으로 안다(소켓 기본값 · 기사님 «그대로»). 운행 중에는 관제앱을 켜 둔다"
         }
     ],
     "acts": {

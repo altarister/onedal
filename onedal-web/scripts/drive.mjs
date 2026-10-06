@@ -289,9 +289,11 @@ async function e2eSessionConflict(tok) {
 /**
  * 🧪 ⑦ 관제웹이 없으면 자동을 내려주지 않는다(reviews/44 · 표 shared `modeTable.ts`) — 자동 명령인 폰의 보고 답이
  *    관제웹 소켓이 붙어 있으면 자동 · 끊으면 알람 · 다시 붙이면 자동. 결재할 관제웹이 없을 때 원달앱 혼자 확정 → 안전취소를 되풀이하면 그것도 취소 횟수다.
- *    관제웹 소켓을 새로 붙여 시작한다 — 앞 «같은 창 새로고침» 확인이 접속 기록을 그 소켓으로 바꿔 놓고 닫기 때문이다.
+ *    주행 내내 붙어 있던 관제웹 소켓(`webSock` · 같은 창 번호)을 먼저 닫는다 — 살아 있으면 서버가 그 소켓을 «관제웹 있음»으로 본다(탭 복제 넘김).
  */
-async function e2eNoWeb(dbPath, userId, tok, deviceId) {
+async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock) {
+    webSock.close();
+    await wait(500);
     const c = new Database(dbPath);
     c.prepare(`UPDATE users SET auto_allowed_at = datetime('now', 'localtime'), auto_until = NULL WHERE id = ?`).run(userId);
     c.close();
@@ -307,6 +309,18 @@ async function e2eNoWeb(dbPath, userId, tok, deviceId) {
     const modes = [await reportWith(true), await reportWith(false), await reportWith(true)];
     check('🧪 관제웹 없음 — 자동 명령의 보고 답이 붙음 자동 · 끊음 알람 · 다시 붙음 자동',
         set.status === 200 && modes.join(' ') === 'AUTO ALARM AUTO', `명령 HTTP ${set.status} · ${modes.join(' → ')}`);
+    /* 🪟 같은 창 번호의 관제웹 둘(크롬 «탭 복제») — 하나를 닫아도 남은 탭이 결재할 수 있으니 자동 그대로 */
+    const first = openSocket('', { token: tok, clientSessionId: MAIN_TAB });
+    await first.first;
+    const dup = openSocket('', { token: tok, clientSessionId: MAIN_TAB });
+    await dup.first;
+    await wait(300);
+    dup.sock.close();
+    await wait(500);
+    const afterDupClosed = (await scrap(deviceId)).json?.deviceControl?.mode;
+    first.sock.close();
+    await wait(300);
+    check('🧪 관제웹 없음 — 같은 창 번호 탭 둘 중 하나를 닫아도 자동 그대로', afterDupClosed === 'AUTO', `${afterDupClosed}`);
 }
 
 /** 🧪 ⑥ 계정 막힘 —즉시 정지면 폰 보고 · 연결 번호 · 관제웹 소켓이 함께 막힌다(accountGateOf 한 판단) · 끝나면 풀어 둔다 */
@@ -615,7 +629,7 @@ async function main() {
             await e2ePair(tok);
             await e2eSessionConflict(tok);
             await e2eBlocked(dbPath, me.id, tok, DEVICE);
-            await e2eNoWeb(dbPath, me.id, tok, DEVICE);
+            await e2eNoWeb(dbPath, me.id, tok, DEVICE, s);
             opsSock?.close();
             say('\n═══ 🖼️ 실제 화면 — 관제웹 · 운영센터 (시험 계정 · 새 크롬 프로필) ═══');
             if (built?.ok) {

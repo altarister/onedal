@@ -8,6 +8,7 @@ import { join } from 'path';
  * 못 잡는 것: 관제웹 탭이 소리 없이 죽은 뒤 소켓이 끊겼다고 서버가 알기까지(socket.io 기본값) · 원달앱이 응답을 받기 전에 정한 확정(원달앱 3단계).
  */
 const scrap = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
+const sockets = readFileSync(join(__dirname, '../../src/socket/socketHandlers.ts'), 'utf8');
 
 describe('🛑 관제웹이 없으면 자동을 내려주지 않는다', () => {
     it('🔴 보고 응답 모드에 관제웹 소켓 사실을 넘긴다 — 세션의 activeWebSession', () => {
@@ -18,5 +19,10 @@ describe('🛑 관제웹이 없으면 자동을 내려주지 않는다', () => {
     it('바뀔 때만 한 줄 — 관제웹 때문에 자동을 알람으로 내려준 기기', () => {
         expect(scrap).toContain("slog('통신', `🛑 [관제웹 없음] ${deviceLabelOf(deviceId)} 자동 명령을 알람으로 내려줌 — 결재할 관제웹이 없다`)");
         expect(scrap).toContain("slog('통신', `✅ [관제웹 붙음] ${deviceLabelOf(deviceId)} 자동 그대로`)");
+    });
+
+    it('🔴 관제웹 소켓이 끊길 때 같은 창 번호의 살아 있는 탭이 있으면 그 소켓으로 넘긴다(탭 복제) — 없을 때만 비운다', () => {
+        expect(sockets).toContain('clientSessionOf(other) === clientSessionId');
+        expect(sockets).toContain('session.activeWebSession = twin ? { ...session.activeWebSession, socketId: twin.id } : null;');
     });
 });
