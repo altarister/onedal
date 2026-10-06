@@ -110,7 +110,7 @@ describe('개별콜 — 입구와 한 번에 한 종류 (기사님 2026-09-15: �
         expect(page).toMatch(/const individual = presetParams\.get\('calls'\) === 'individual';/);
         expect(page).toMatch(/enabled: !individual && !atHome,/);
         expect(page)
-            .toMatch(/useSimInjectedCalls\(\{ config: generatorConfig, toCall: simNet\.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual \}\)/);
+            .toMatch(/useSimInjectedCalls\(\{ config: generatorConfig, toCall: simNet\.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual && !atHome \}\)/);
     });
 
     it('🔴 거둔 콜은 목록 행만 뺀다 — 폰이 열어 둔 상세는 남기고 · 확정 목록은 안 건드린다 (onedal-b5 2026-09-15)', () => {

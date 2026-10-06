@@ -252,7 +252,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     setStreamingCalls(prev => prev.filter(c => !gone.has(c.id) || c.id === selectedCallId));
   }, [setStreamingCalls, selectedCallId]);
 
-  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual });
+  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual && !atHome });
 
   // 🔴 문제지 이름을 못 찾았다 — 랜덤으로 흘리지 않고 멈춘다 (위 주석 참조)
   // 콜을 고른 상태면 상세가 먼저다 — 순서는 상세 → 문제지 없음 → 리스트
