@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { CONTENT_KINDS, TARGET_APP_LABEL, type OpsAgreement } from '@onedal/shared';
+import { CONTENT_KINDS, TARGET_APP_LABEL, type OpsAgreement, type OpsJudgedCall } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api, useOps, write } from '../api/ops';
@@ -33,7 +33,7 @@ export default function MemberDetail() {
     if (!data) return <PageHeader title="읽는 중…" sub={id} purpose={PURPOSE} />;
 
     const m = data.member;
-    const { todayCalls, anomalies, audit, agreements, kakaoUsage: usage } = data;
+    const { todayCalls, todayJudged, anomalies, audit, agreements, kakaoUsage: usage } = data;
     const activeCalls = todayCalls.filter(c => c.status === 'ORDER_CONFIRMED').length;
     const alive = !m.withdrawnAt;
     const act = (go: () => Promise<unknown>) => void write(go, reload);
@@ -97,6 +97,12 @@ export default function MemberDetail() {
             </>}
             {tab === 'phone' && <MemberPhoneFilter memberId={m.id} />}
             {tab === 'calls' && (
+                <Card title={`오늘 판정받은 콜 — ${todayJudged.length}건 · 잡은 콜 ${todayJudged.filter(j => j.taken).length} (색 · 점수 · 필터는 서버 필터 기준)`}>
+                    {todayJudged.length === 0 && <p className="text-sm text-text-muted">오늘은 없습니다</p>}
+                    {todayJudged.map(j => <JudgedRow key={j.orderId} j={j} />)}
+                </Card>
+            )}
+            {tab === 'calls' && (
                 <Card title="오늘 콜 (구간 · 요금 · 판정)">
                     {todayCalls.length === 0 && <p className="text-sm text-text-muted">오늘은 없습니다</p>}
                     {todayCalls.map(c => (
@@ -132,6 +138,31 @@ export default function MemberDetail() {
 }
 
 /** 허락 한 줄 — [켜기/끄기] + 기한 날(달력 칸) + [기한 적기] + [기한 없애기]. 날짜를 더하지 않는다 */
+/**
+ * 🧾 **오늘 판정받은 콜 한 줄** (reviews/43) — 색 · 점수 · 구간 · 요금 · 잡았나(안 잡은 미리보기 · 체험 포함). 펼치면 축마다 까닭과 그때의 서버 필터.
+ *    콜 내용 · 필터가 없는 줄은 기록을 남기기 전의 옛 판정이다 — 지어내지 않고 «내용 없음»으로.
+ */
+function JudgedRow({ j }: { j: OpsJudgedCall }) {
+    const c = j.call, f = j.filter;
+    const where = c ? `${c.pickup} → ${c.dropoff}` : '내용 없음(옛 판정)';
+    const took = j.taken ? statusKo(j.taken) : c?.kind === '콜' || !c ? '안 잡음' : `안 잡음 · ${c.kind}`;
+    return (
+        <details className="text-sm border-b border-border/50 py-1">
+            <summary className="flex justify-between gap-2 cursor-pointer list-none">
+                <span>{COLOR_DOT[j.color as keyof typeof COLOR_DOT] ?? '⚪'} {j.score ?? '—'}점 · {where}</span>
+                <span className="text-text-muted shrink-0">{c ? fmtWon(c.fare) : ''} · {took} · {fmtTime(j.judgedAt)}</span>
+            </summary>
+            <div className="pl-5 py-1 text-xs text-text-muted space-y-0.5">
+                {j.axes.map((a, i) => <div key={i}>{a.name} {a.score ?? '—'}점 — {a.raw}</div>)}
+                <div>{f
+                    ? `필터(서버): 목적지 ${f.goalCity || f.destinationCity || '없음'} · 상차 반경 ${f.pickupRadiusKm ?? '—'}km · 최소 ${f.minFare != null ? fmtWon(f.minFare) : '—'} · 상차 ${f.pickupCount} · 하차 ${f.dropoffCount} · 제외 ${f.excludedCount}${f.todayOnly ? ' · 오늘만 바꿈' : ''}${f.isActive === false ? ' · 꺼짐' : ''}`
+                    : '필터: 기록 없음(옛 판정)'}</div>
+                {c?.targetApp && <div>배차망 {TARGET_APP_LABEL[c.targetApp as keyof typeof TARGET_APP_LABEL] ?? c.targetApp}</div>}
+            </div>
+        </details>
+    );
+}
+
 function AllowRow({ label, state, until, offConfirm, onSet }: {
     label: string; state: { on: boolean; live: boolean; text: string }; until: string | null; offConfirm?: string; onSet: (on: boolean, until: string | null) => void;
 }) {

@@ -75,7 +75,8 @@ export const api = {
     boardKakao: () => get<OpsBoardKakao>('/board/kakao'),
     /** 📍⚖️📰 관제웹 현황판의 그 기사 몫 셋 — 서버가 쥔 내 위치 · 심사 중인 콜 · 새 글자(모든 폰 공통). 세션이 없으면 위치 · 심사는 null */
     boardMember: (memberId: string) => get<OpsBoardMember>(`/board/member?memberId=${encodeURIComponent(memberId)}`),
-    boardIntel: (memberId: string, limit = 40) => get<OpsBoardIntel>(`/board/intel?memberId=${encodeURIComponent(memberId)}&limit=${limit}`),
+    /* 📅 today — 오늘(영업일) 줄만 · 회원 상세 «버린 콜» (reviews/43) */
+    boardIntel: (memberId: string, limit = 40, today = false) => get<OpsBoardIntel>(`/board/intel?memberId=${encodeURIComponent(memberId)}&limit=${limit}${today ? '&today=1' : ''}`),
 
     /** 📊 통계 — 목록에 뜬 실물 콜만(시뮬레이터 콜은 서버가 안 센다) · 기간은 서버 기본(최근 28일) · 합 · 평균은 서버가 센 그대로 */
     stats: () => get<OpsStats>('/stats'),

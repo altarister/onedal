@@ -28,7 +28,7 @@ const verdictKo = (v: string | null) => v === 'pass' ? '통과' : v === 'locked'
 export default function MemberPhoneFilter({ memberId }: { memberId: string }) {
     const [tick, setTick] = useState(0);
     useEffect(() => { const t = setInterval(() => setTick(n => n + 1), 10_000); return () => clearInterval(t); }, []);
-    const { data, error, reload } = useOps(() => Promise.all([api.boardPhones(memberId), api.boardFilter(memberId), api.boardIntel(memberId), api.boardMember(memberId)]), [memberId, tick]);
+    const { data, error, reload } = useOps(() => Promise.all([api.boardPhones(memberId), api.boardFilter(memberId), api.boardIntel(memberId, 40, true), api.boardMember(memberId)]), [memberId, tick]);
     const [phones, filter, intel, board] = data ?? [[], null, null, null];
     const [phoneId, setPhoneId] = useState('');
     const phone = phones.find(p => p.deviceId === phoneId) ?? phones[0];
@@ -67,7 +67,7 @@ export default function MemberPhoneFilter({ memberId }: { memberId: string }) {
                 <Card title="📋 콜 리스트">
                     <p className="text-sm"><Link to={`/members/${memberId}?tab=calls`} className="text-info hover:underline">이 회원의 «오늘 콜» 칸에서 보기 →</Link></p>
                 </Card>
-                <Card title={`🗑️ 버린 콜 — 최근 ${intel?.rows.length ?? 0}건${intel ? ` / 쌓인 ${intel.total}` : ''} (앱이 올린 콜 · 판정은 앱이 한 것)`}>
+                <Card title={`🗑️ 버린 콜 — 오늘 최근 ${intel?.rows.length ?? 0}건${intel ? ` / 오늘 ${intel.total}` : ''} (앱이 올린 콜 · 판정은 앱이 한 것)`}>
                     <div className="max-h-96 overflow-y-auto space-y-1">
                         {intel?.rows.length === 0 && <p className="text-sm text-text-muted">없습니다</p>}
                         {intel?.rows.map(r => <IntelLine key={r.id} r={r} />)}
