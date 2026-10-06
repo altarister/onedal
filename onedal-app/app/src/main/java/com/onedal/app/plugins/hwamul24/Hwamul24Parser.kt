@@ -113,7 +113,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
              *   400km 에 100,000원 → 단가가 안 나온다        ← `ratePerKm` 가 막는다
              *
              * 🔴 **그런데 이 파서는 아직 `deliveryDistance`(배송거리)를 안 읽는다.**
-             *    24시 카드에 그 숫자가 있는지부터 확인해야 한다(Phase 5 파서 복구 과제).
+             *    24시 카드에 그 숫자가 있는지부터 확인해야 한다.
              *    기사님 확정: «24시 목록엔 상차지거리만 있다» — 배송거리는 실물 화면이 생기면 다시 본다.
              *    없으면 `useRateModel` 이 false 라 **지금은 `minFare` 단독으로만 돈다** —
              *    안전망을 빼지 않으려는 폴백이다 (규칙 ②). 배송거리를 읽게 되는 순간
@@ -482,13 +482,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         return groups
     }
 
-    /**
-     * 🗳️ **판정을 안 싣는다 — 24시는 아직 축을 안 옮겼다**.
-     *    🔴 **«안 함»도 제 손으로 적는다** — 인터페이스에 기본값이 없어
-     *       위임 누락을 컴파일러가 잡는다 (#84).
-     *    실으려면 `InsungParser.withVerdict` 처럼 **판정 함수가 고른 축**을 그대로 넣는다 —
-     *    성적표와 같은 분기를 써야 «성적표는 요금, 화면은 지역»으로 갈라지지 않는다.
-     */
+    /** 📅 서버 필터의 예약콜 값 — 채운 뒤 필터가 읽는다 (`IScrapParser.reservationMode`) */
     override fun reservationMode(): String? = loadCurrentFilter().reservationMode
 
     /** 🗳️ 떨어진 까닭을 콜에 싣는다 — 누름과 같은 판정 (막은 내일 콜이 장부에 «reservation» 으로 남는다) */

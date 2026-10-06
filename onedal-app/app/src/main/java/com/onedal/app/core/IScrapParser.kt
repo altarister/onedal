@@ -5,10 +5,9 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
  * 화면에서 추출된 원시 문자열을 파싱하여 오더 객체로 변환하고,
- * 필터 조건 판정을 수행하는 인터페이스입니다 (축은 여섯 — 차종·도착지·요금·상차거리·블랙·경로순서).
+ * 필터 조건 판정을 수행하는 인터페이스입니다. 걸린 축 이름은 배차망마다 다르다(`withVerdict` 가 싣는 `verdict`).
  *
- * 구현체:
- *   - InsungParser: 진짜 배차 앱 (인성콜) 전용
+ * 구현체: 배차망마다 하나 — InsungParser · Hwamul24Parser · KakaoPickerParser (`ScrapParser` 가 지금 배차망 것에 맡긴다)
  */
 interface IScrapParser {
 

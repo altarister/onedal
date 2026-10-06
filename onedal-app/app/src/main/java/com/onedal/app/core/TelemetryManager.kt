@@ -324,12 +324,8 @@ class TelemetryManager(
         val (snapshot, rowsSource) = scrapBuffer.drain()
 
         // [GPS 텔레메트리] 마지막 알려진 위치 조회 (앱폰 = 차량 거치대, GPS = 차량 위치)
-        //
-        // 🚨 TODO(미구현) — Phase 4에서 복구 예정
-        // AndroidManifest.xml에 ACCESS_FINE_LOCATION 권한이 선언되어 있지 않아
-        // getLastKnownLocation()이 SecurityException을 던지고 아래 catch가 이를 삼킵니다.
-        // 결과적으로 lat/lng는 **항상 null**로 전송되며, 서버의 appLocation 저장 로직도 죽어 있습니다.
-        // 수정 시: Manifest 권한 추가 + 런타임 권한 요청 UI 필요.
+        // 🔴 매니페스트에 위치 권한(ACCESS_FINE_LOCATION)이 없어 getLastKnownLocation() 이 SecurityException 을 던지고
+        //    아래 catch 가 삼킨다 — 그래서 lat/lng 는 늘 null 로 간다
         var lat: Double? = null
         var lng: Double? = null
         try {

@@ -7,7 +7,7 @@ import com.google.gson.JsonParser
 import com.onedal.app.models.FilterConfig
 
 /**
- * 🎛️ **피기백 필터(prefs `activeFilter`) 읽기 — 한 곳** (`FilterStoreTest` · onedal-69(1f) «가»).
+ * 🎛️ **관제앱이 블루투스로 준 필터(prefs `activeFilter`) 읽기 — 한 곳** (`FilterStoreTest` · onedal-69(1f) «가»).
  * 인성 · 화물24시 · 픽커 · 폰 서비스 · 앱 화면이 모두 여기서 읽는다. Gson 이라 JVM 검사에서도 실물로 돈다.
  * 칸마다 인성 읽기 규칙 그대로다 — 판정 결과를 바꾸지 않는다:
  *  - isActive 가 없으면 false(멈춘다) · reservationMode 빈 글자는 null(오늘 콜만)

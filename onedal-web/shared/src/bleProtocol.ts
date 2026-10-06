@@ -23,7 +23,7 @@ export const SUPPLY_EVENTS = {
 export type SupplyDecisionAction = 'KEEP' | 'CANCEL' | 'SIMULATED_KEEP';
 
 export interface PhoneSupplyPhone {
-    /** 그 폰이 실제로 돌 모드 — 서버 `modeSentToPhone` 결과(보고 응답 `deviceControl.mode` 와 같은 셈) */
+    /** 그 폰이 실제로 돌 모드 — 서버 `modeSentToPhone` 결과 */
     mode: DeviceModeType;
     /** 앞 콜을 결재 기다리는 중이라 다음 콜을 누르지 않는다 */
     evaluatingNow: boolean;
@@ -32,7 +32,7 @@ export interface PhoneSupplyPhone {
 }
 
 export interface PhoneSupply {
-    /** 폰에 가는 필터 본문 — 보고 응답 `dispatchEngineArgs` 와 같은 값에서 «심사 중»만 뺀 것 */
+    /** 폰에 가는 필터 본문 — 서버 `appFilterOf` 결과에서 폰마다 다른 «심사 중»만 뺀 것(그 값은 `phones[].evaluatingNow`) */
     filter: Record<string, unknown>;
     filterVersion: string;
     phones: Record<string, PhoneSupplyPhone>;

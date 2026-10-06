@@ -220,7 +220,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /** 🔔 알람 모드의 폰 쪽 신호 — 소리·진동·테두리 */
     private val alarmSignaler by lazy { AlarmSignaler(this, waitBook) }
-    /** 🖼️ 접근성이 켜져 있는 동안 화면 전체를 모드 색으로 두른다 — 녹색 알람 · 파랑 자동 · 주황 직접 */
+    /** 🖼️ 접근성이 켜져 있는 동안 화면 전체를 모드 색으로 두른다 — 녹색 알람 · 파랑 자동 · 회색 직접 · 노랑 체험 */
     private val modeFrame by lazy { com.onedal.app.core.ModeFrame(this) }
 
     /**

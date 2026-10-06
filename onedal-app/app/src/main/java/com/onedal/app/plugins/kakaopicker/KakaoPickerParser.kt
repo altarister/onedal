@@ -17,10 +17,10 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.models.withReservation
 
 /**
- * 🌐 카카오T픽커 리스트 파서 — **수집 전용** (기사님 확정 · 픽커_수집.md).
+ * 🌐 카카오T픽커 리스트 파서 — **잡지 않는다** (수락 누름 없음).
  *
- * 목적은 하나다: 리스트에 뜬 모든 콜을 읽어 서버(intel)에 표본으로 쌓는다.
- * 잡지 않는다 · 알람도 아직 없다 · 판정하지 않는다 — 그래서 `shouldClick` 은 늘 false 다.
+ * 리스트에 뜬 콜을 읽어 서버(intel)에 표본으로 쌓고, 알람 조건(요금 · 상차 · 도착 · 예약)에 맞으면
+ * `shouldClick` 이 true — 앱이 상세에 들어가 소리 · 진동으로 알린다(`shouldClick` 주석).
  *
  * ── 카드의 실물 구조 (덤프 08-28 · 08-30 실측) ──
  *
@@ -32,7 +32,7 @@ import com.onedal.app.models.withReservation
  *    직전까지를 카드로 자르는» 순차 분할을 쓰면 카드가 반 토막 난다.
  *    → 요금 노드를 닻으로 **위아래 ±60픽셀 띠**를 한 카드로 묶는다 (실측 줄 간격 ±35).
  */
-// Context 는 알람 조건(프리퍼런스의 피기백 필터)을 읽을 때만 쓴다 — 유닛 테스트는 null (그때 decide 를 직접 부른다)
+// Context 는 알람 조건(저장된 필터 `activeFilter`)을 읽을 때만 쓴다 — 유닛 테스트는 null (그때 decide 를 직접 부른다)
 class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
     override fun isDetailResidue(texts: List<String>): Boolean = Companion.isDetailResidue(texts)
@@ -1212,7 +1212,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         else com.onedal.app.core.Reservation.NONE
 
     /**
-     * 🔔 알람 판정 위임 — 조건은 피기백 필터(원천 DB)에서 읽는다.
+     * 🔔 알람 판정 위임 — 조건은 관제앱이 블루투스로 준 필터(원천 DB · 저장 이름 `activeFilter`)에서 읽는다.
      * true 면 앱이 **상세까지 들어가** 판정을 받는다(요금 최고 콜 하나 · 알람이면 소리·진동 · 돌아오는 시간 뒤 자동 복귀).
      * **수락(계약) 클릭은 없다** — 픽커에는 자동 모드도 수락 칸도 없다(`KakaoPickerPlugin`). 앱이 들어간 콜은 기억해 콜당 한 번이다.
      */

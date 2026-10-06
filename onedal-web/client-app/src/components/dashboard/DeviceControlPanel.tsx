@@ -13,7 +13,7 @@ import { Badge } from "@onedal/ui/badge";
 import { Button } from "@onedal/ui/button";
 
 /**
- * 🎨 **폰 모드 색 — 원달앱이 폰 화면에 두르는 테두리와 같다**: 알람 녹색 · 자동 파랑 · 직접 주황.
+ * 🎨 **폰 모드 색 — 원달앱이 폰 화면에 두르는 테두리와 같다**: 알람 녹색 · 자동 파랑 · 직접 회색 · 체험 노랑.
  * 버튼과 고르기 목록이 이 표 하나를 쓴다 — 따로 적으면 한쪽만 바뀐다.
  */
 const MODE_TONE: Record<DeviceModeType, string> = {
