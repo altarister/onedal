@@ -86,7 +86,6 @@ const KEEP = {
      *    todo 「관제웹 전면 개편」 에 «이어야 할 것»으로 올려 뒀다.
      */
     MovingBadge: '잇는 자리가 빠졌다 — 현황판으로 간다 (todo). 모의/실측을 가리는 유일한 표시라 안 지운다.',
-    fetchHomeLeg: '모의 주행이 «집으로 떠나기»를 하지 않아 아무도 안 부른다. 파일 지우기는 기사님이 말씀하실 때만 — 그때 homeLeg.ts · homeLeg.test.ts 와 함께.',
     /**
      * 🔴 **틀린 답을 주게 됐다 — 그래서 옮겨 갈 자리를 적어 둔다**.
      *
@@ -208,7 +207,7 @@ for (const f of [...SERVER, ...CLIENT, ...SHARED]) {
  * ⓑ 검사 파일만 부르는 export — 본 코드에서 안 불리면 검사가 지키는 것은 아무도 안 쓰는 함수다.
  *    처음 잰 수가 많아 **늘었나**로 문다 — 줄면 아래 수를 내린다. 하나씩 캐서 지우거나 TEST_ONLY_KEEP 에 사유와 함께 넣는다.
  */
-const TEST_ONLY_MAX = 48;
+const TEST_ONLY_MAX = 47;
 const testOnly = [];
 for (const e of exports) {
     if (KEEP[e.name] || TEST_ONLY_KEEP[e.name]) continue;
