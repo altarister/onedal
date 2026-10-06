@@ -53,6 +53,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
         const val PREF_PAIR_SIG = "blePairSig"
         const val PREF_AD_TAG = "bleAdTag"
         const val PREF_NO_PERMISSION = "bleNoPermission"
+        private const val UNPROVEN_MS = 10_000L
 
         /** 블루투스 «근처 기기» 허락이 있나 — 12 이상은 광고 · 연결 둘, 그 아래는 설치 권한이라 늘 있다 */
         fun hasPermission(c: Context): Boolean = Build.VERSION.SDK_INT < 31 ||
@@ -67,6 +68,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
     private var notifyChr: BluetoothGattCharacteristic? = null
     /** 붙은 기기마다 — 증명 전 · 후 (증명된 하나가 [central]) */
     private class Peer(val device: BluetoothDevice) {
+        val connectedAt = SystemClock.elapsedRealtime()
         var subscribed = false
         var challenge: String? = null
         var myNonce: String? = null
@@ -210,7 +212,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
     private fun checkProof(p: Peer, proof: String) {
         val sig = prefs.getString(PREF_PAIR_SIG, null)
         val nonce = p.myNonce
-        if (sig == null || nonce == null || proof != BleFrames.mac(sig, nonce)) {
+        if (sig == null || nonce == null || proof != BleFrames.proofMac(sig, nonce)) {
             AppLogger.w(TAG, LogTag.NETWORK, "🔏 [블루투스] 증명이 틀렸다 — 그 기기를 끊는다")
             try { server?.cancelConnection(p.device) } catch (_: Exception) {}
             return
@@ -237,7 +239,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
         val sig = prefs.getString(PREF_PAIR_SIG, null) ?: return
         val mine = BleFrames.nonce()
         p.myNonce = mine
-        send(p.device, BleFrames.small(BleFrames.HELLO, JSONObject().put("deviceId", deviceIdOf()).put("mac", BleFrames.mac(sig, challenge)).put("nonce", mine).toString()))
+        send(p.device, BleFrames.small(BleFrames.HELLO, JSONObject().put("deviceId", deviceIdOf()).put("mac", BleFrames.helloMac(sig, challenge)).put("nonce", mine).toString()))
         AppLogger.i(TAG, LogTag.NETWORK, "🔏 [블루투스] HELLO 보냄 — 관제앱의 증명을 기다린다")
     }
 
@@ -280,6 +282,13 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
                 if (server == null && mgr?.adapter?.isEnabled == true) openServer()
                 advertiseIfNeeded()
                 peers.values.forEach { sendHello(it) }
+                /* 🔏 붙고 10초 안에 증명 안 된 기기는 끊는다 — 남이 GATT 연결 자리를 오래 잡지 못하게 */
+                val now = SystemClock.elapsedRealtime()
+                peers.values.filter { !it.proven && now - it.connectedAt > UNPROVEN_MS }.forEach { p ->
+                    AppLogger.w(TAG, LogTag.NETWORK, "🔏 [블루투스] 10초 안에 증명 안 된 기기 — 끊는다")
+                    try { server?.cancelConnection(p.device) } catch (_: Exception) {}
+                    peers.remove(p.device.address)
+                }
                 if (linked && SystemClock.elapsedRealtime() - lastWriteMs > BleFrames.SILENT_MS) setLinked(false)
             } catch (e: Exception) {
                 AppLogger.e(TAG, "📶 [블루투스] 숨 도중 — ${e.message}")

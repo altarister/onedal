@@ -67,5 +67,10 @@ describe('📶 관제앱 BleProtocol.java = shared bleProtocol.ts', () => {
         expect(kt).toContain('javax.crypto.Mac.getInstance("HmacSHA256")');
         expect(kt).toContain('.take(32)');
         expect(service).not.toContain('optString("sig"');
+        // 🔴 두 방향 머리말 — 같으면 HELLO 를 PROOF 로 되비춘다
+        expect(service).toContain('mac(sig, "hello|" + l.myNonce)');
+        expect(service).toContain('mac(sig, "proof|" + l.helloNonce)');
+        expect(kt).toContain('mac(pairSig, "hello|$appNonce")');
+        expect(kt).toContain('mac(pairSig, "proof|$phoneNonce")');
     });
 });

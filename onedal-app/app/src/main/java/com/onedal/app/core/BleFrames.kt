@@ -40,11 +40,17 @@ object BleFrames {
         return Small(v[0], String(v, 1, v.size - 1, Charsets.UTF_8), null)
     }
 
-    /** 🔏 주고받기 증명 — HMAC-SHA256(열쇠 = 짝 서명 글자, 글 = nonce) 16진 앞 32자 · 관제앱 `SupplyService.mac` 과 같은 셈 */
-    fun mac(pairSig: String, nonce: String): String {
+    /**
+     * 🔏 주고받기 증명 — HMAC-SHA256(열쇠 = 짝 서명 글자) 16진 앞 32자 · 관제앱 `SupplyService` 와 같은 셈.
+     * 🔴 두 방향의 글을 머리말로 가른다 — 같으면 근처 기기가 이 폰에게 CHALLENGE 를 하나 더 던져 받은 HELLO 를 PROOF 로 되비춘다(관제 리뷰).
+     */
+    fun helloMac(pairSig: String, appNonce: String): String = mac(pairSig, "hello|$appNonce")
+    fun proofMac(pairSig: String, phoneNonce: String): String = mac(pairSig, "proof|$phoneNonce")
+
+    private fun mac(pairSig: String, text: String): String {
         val m = javax.crypto.Mac.getInstance("HmacSHA256")
         m.init(javax.crypto.spec.SecretKeySpec(pairSig.toByteArray(Charsets.UTF_8), "HmacSHA256"))
-        return m.doFinal(nonce.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }.take(32)
+        return m.doFinal(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }.take(32)
     }
 
     /** 아무 숫자 16바이트 16진 */

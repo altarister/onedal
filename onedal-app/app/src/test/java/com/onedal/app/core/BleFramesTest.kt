@@ -54,8 +54,10 @@ class BleFramesTest {
     }
 
     /** 기준값은 node `createHmac('sha256', 서명).update(nonce)` 앞 32자 — 서버 · 관제앱(자바)과 같은 셈 */
-    @Test fun `🔏 증명 셈 — HMAC-SHA256 16진 앞 32자`() {
-        assertEquals("1c93d5f384997eaa2abc3fdf7740dccd", BleFrames.mac("0123456789abcdef0123456789abcdef", "nonce-1"))
+    @Test fun `🔏 증명 셈 — HMAC-SHA256 16진 앞 32자 · 두 방향 머리말이 달라 HELLO 를 PROOF 로 못 쓴다`() {
+        val sig = "0123456789abcdef0123456789abcdef"
+        assertEquals("6f2662d51a1827e025ef8df87347b78f", BleFrames.helloMac(sig, "nonce-1"))
+        assertEquals("e381a97932a0ca3b20bc3ee318d0bccc", BleFrames.proofMac(sig, "nonce-1"))
         assertEquals(32, BleFrames.nonce().length)
     }
 

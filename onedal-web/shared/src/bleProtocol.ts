@@ -66,7 +66,8 @@ export interface PhoneDecisionAck {
  * - 큰 칸(관제앱 → 폰): SUPPLY 만 `[길이 4 · 큰 끝][gzip JSON]` 을 512 바이트 조각으로 · 받는 쪽은 길이만큼 모아 푼다
  * - 알림 칸(폰 → 관제앱): `[종류 1][본문 JSON]` — HELLO · ACK · BREATH
  * 🔏 **주고받기 증명** — 짝 서명(pairSig)은 두 쪽이 서버에서 따로 받아 안다 · 공중에는 안 보낸다:
- *   관제앱 CHALLENGE `{nonce}` → 폰 HELLO `{deviceId, mac: HMAC(pairSig, 관제앱 nonce), nonce: 폰 nonce}` → 관제앱 PROOF `{proof: HMAC(pairSig, 폰 nonce)}`.
+ *   관제앱 CHALLENGE `{nonce}` → 폰 HELLO `{deviceId, mac: HMAC(pairSig, "hello|" + 관제앱 nonce), nonce: 폰 nonce}` → 관제앱 PROOF `{proof: HMAC(pairSig, "proof|" + 폰 nonce)}`.
+ *   🔴 머리말이 다르다 — 같으면 근처 기기가 폰에게 CHALLENGE 를 하나 더 던져 받은 HELLO 를 PROOF 로 되비춘다.
  *   폰은 PROOF 가 맞기 전까지 그 연결의 공급(SUPPLY · PHONE · DECISION · FOLD · BREATH)을 다 버린다 — 근처 기기가 «자동»이나 KEEP 을 넣지 못하게.
  *   HMAC-SHA256 · 열쇠는 pairSig 글자 · 결과는 16진 앞 32자.
  */

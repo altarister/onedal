@@ -487,7 +487,7 @@ public class SupplyService extends Service {
         JSONObject p = phones == null ? null : phones.optJSONObject(l.helloDeviceId);
         if (p == null) return;
         String sig = p.optString("pairSig");
-        if (sig.isEmpty() || !l.helloMac.equals(mac(sig, l.myNonce))) {
+        if (sig.isEmpty() || !l.helloMac.equals(mac(sig, "hello|" + l.myNonce))) {
             blocked.put(l.device.getAddress(), SystemClock.elapsedRealtime() + BLOCK_MS);
             closeLink(l, "서명이 다르다 — 다른 기사님 폰 · 10분 안 붙음");
             return;
@@ -495,7 +495,7 @@ public class SupplyService extends Service {
         Link old = linkOf(l.helloDeviceId);
         if (old != null && old != l) closeLink(old, "같은 폰이 다시 붙었다");
         l.deviceId = l.helloDeviceId;
-        try { l.smallQ.add(small(BleProtocol.PROOF, new JSONObject().put("proof", mac(sig, l.helloNonce)).toString())); } catch (Exception ignored) { }
+        try { l.smallQ.add(small(BleProtocol.PROOF, new JSONObject().put("proof", mac(sig, "proof|" + l.helloNonce)).toString())); } catch (Exception ignored) { }
         Log.i(TAG, "🔏 " + l.deviceId + " 증명 맞음 — PROOF 보내고 이 연결로 공급");
         showStatus();
         pushState(l);
@@ -540,13 +540,13 @@ public class SupplyService extends Service {
         } catch (Exception ignored) { }
     }
 
-    /** 🔏 HMAC-SHA256(열쇠 = 짝 서명 글자, 글 = nonce) 16진 앞 32자 — 원달앱 `BleFrames.mac` 과 같은 셈 */
-    static String mac(String pairSig, String nonce) {
+    /** 🔏 HMAC-SHA256(열쇠 = 짝 서명 글자) 16진 앞 32자 — 원달앱 `BleFrames` 와 같은 셈 · 글 머리말 «hello|» · «proof|» 로 두 방향을 가른다(되비추기 막기) */
+    static String mac(String pairSig, String text) {
         try {
             javax.crypto.Mac m = javax.crypto.Mac.getInstance("HmacSHA256");
             m.init(new javax.crypto.spec.SecretKeySpec(pairSig.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             StringBuilder hex = new StringBuilder();
-            for (byte b : m.doFinal(nonce.getBytes(StandardCharsets.UTF_8))) hex.append(String.format("%02x", b));
+            for (byte b : m.doFinal(text.getBytes(StandardCharsets.UTF_8))) hex.append(String.format("%02x", b));
             return hex.substring(0, 32);
         } catch (Exception e) { return ""; }
     }
