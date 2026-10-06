@@ -410,6 +410,7 @@ class HijackService : AccessibilityService(), ScanContext {
         }
         override fun onServerAlive(alive: Boolean) = telemetryManager.onServerAlive(alive)
         override fun onLinked(alive: Boolean) = telemetryManager.onLinked(alive)
+        override fun onPermissionGranted() = telemetryManager.reportNow()
     }
 
     /**

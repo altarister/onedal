@@ -256,30 +256,39 @@ class TelemetryManager(
 
     /** 📶 관제앱이 블루투스로 이 폰 몫의 모드를 줬다 — 저장해 두고(관제앱이 없을 때 알람의 바탕 · 기사님 1 가) 다시 정한다 */
     fun onSuppliedMode(mode: String) {
-        if (mode != suppliedMode) context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)?.edit()?.putString(PREF_SUPPLIED_MODE, mode)?.apply()
+        val changed = mode != suppliedMode
+        if (changed) context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)?.edit()?.putString(PREF_SUPPLIED_MODE, mode)?.apply()
         suppliedMode = mode
-        recomputeMode("공급")
+        /* 🎛️ 받은 모드가 바뀌면 도는 모드와 상관없이 곧바로 보고 — 관제웹 «적용중»이 받은 모드로 풀린다(관제 리뷰 · 도는 모드가 알람 그대로여도) */
+        if (!recomputeMode("공급") && changed) reportNow()
     }
 
     /** 📶 공급 연결이 살았다 · 끊겼다 — 끊기면 «관제앱 서버 붙음»도 모른다(거짓) · 다시 붙은 관제앱의 숨으로만 다시 켠다(폰 시험 10-06 · 옛 값이 남아 다시 붙자마자 자동이 될 뻔함) */
     fun onLinked(alive: Boolean) {
+        val changed = alive != linked
         linked = alive
         if (!alive) serverAlive = false
-        recomputeMode(if (alive) "공급 연결 살아남" else "공급 연결 끊김")
+        /* 📶 공급 연결이 바뀌면 도는 모드와 상관없이 곧바로 보고 — 이미 알람인 폰도 관제웹 배지가 60초 늦지 않게(관제 리뷰) */
+        if (!recomputeMode(if (alive) "공급 연결 살아남" else "공급 연결 끊김") && changed) reportNow()
     }
+
+    /** 📤 곧바로 한 번 보고 — 기다림 장부는 화면 스레드에서만 */
+    fun reportNow() { android.os.Handler(Looper.getMainLooper()).post { forceHeartbeat() } }
 
     /** 📶 관제앱이 «서버에 붙어 있다 · 끊겼다»고 숨으로 알렸다 */
     fun onServerAlive(alive: Boolean) { if (alive != serverAlive) { serverAlive = alive; recomputeMode(if (alive) "관제앱 서버 붙음" else "관제앱 서버 끊김") } }
 
     /** 🎛️ 사실 넷으로 도는 모드를 다시 정한다 — 바뀌면 테두리 · 한 번 더 보고(«받았다»가 다음 보고를 기다리지 않게) */
+    /** @return 도는 모드가 바뀌어 보고를 걸었나 */
     @Synchronized
-    private fun recomputeMode(why: String) {
+    private fun recomputeMode(why: String): Boolean {
         val next = TargetApp.runningMode(suppliedMode, linked, serverAlive, !lostReply)
-        if (next == currentMode) return
+        if (next == currentMode) return false
         AppLogger.i(TAG, LogTag.NETWORK, "🎛️ [도는 모드] $currentMode → $next · $why")
         currentMode = next
         modeCallback?.invoke(next)
         android.os.Handler(Looper.getMainLooper()).post { forceHeartbeat() }
+        return true
     }
 
     /** 🖼️ 서버에서 모드를 받을 때마다 부른다 — 화면 테두리(`ModeFrame`)가 색을 맞춘다 */
@@ -371,6 +380,10 @@ class TelemetryManager(
             workStageSeconds = stage?.seconds,
             appliedMode = currentMode,
             effectiveMode = if (modeKnown) TargetApp.effectiveMode(currentMode, appCode) else null,
+            suppliedMode = suppliedMode,
+            supplyLinked = linked,
+            nearbyPermitted = context?.let { BleLink.hasPermission(it) },
+            batteryExempt = context?.let { (it.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isIgnoringBatteryOptimizations(it.packageName) },
             // 🧭 [피기백 v2] 들고 있는 필터 버전 — 같으면 서버가 본문을 생략한다.
             // ⚠️ null 이면 Gson 이 필드를 통째로 빼서 서버가 구앱으로 오인한다 —
             //    아직 버전이 없으면 빈 문자열("전체 주세요")을 보낸다

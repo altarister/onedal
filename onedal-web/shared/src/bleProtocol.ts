@@ -16,6 +16,8 @@ export const SUPPLY_EVENTS = {
     decisionAck: 'phone-decision-ack',
     /** 서버 → 관제앱: 한 폰이 알람으로 연 미리보기 콜을 몇 ms 뒤 목록으로 접어라(판정 끝에 한 번 · 결재가 없는 콜) */
     fold: 'phone-fold',
+    /** 관제앱 → 서버: 블루투스로만 아는 폰 사실(같은 서버를 보나 · 폰 연결 풀린 까닭 · 마지막 숨) — 원달앱 STATUS 를 관제앱이 받아 넘긴다 */
+    status: 'phone-status',
 } as const;
 
 export type SupplyDecisionAction = 'KEEP' | 'CANCEL' | 'SIMULATED_KEEP';
@@ -34,6 +36,8 @@ export interface PhoneSupply {
     filter: Record<string, unknown>;
     filterVersion: string;
     phones: Record<string, PhoneSupplyPhone>;
+    /** 이 서버의 표지 — 관제앱이 원달앱 STATUS 의 표지와 견줘 «다른 서버를 봄»을 안다 */
+    serverId: string;
     /** 블루투스 광고 표시 [오늘 · 어제](영업일) — 원달앱이 광고에 싣고 관제앱은 이것과 맞는 폰에만 붙는다(남의 기사님 폰에 자리를 잡지 않게) */
     adTags: string[];
 }
@@ -53,6 +57,18 @@ export interface PhoneFold {
     remainMs: number;
 }
 
+export interface PhoneStatus {
+    deviceId: string;
+    /** 원달앱이 보는 서버의 표지(서버 `serverIdOf`)가 관제앱이 붙은 서버의 표지와 같나 — 관제앱이 견준다 */
+    sameServer: boolean;
+    /** 폰 연결이 풀린 까닭(원달앱 `DeviceLink`) — 없으면 null */
+    unlinkedWhy: string | null;
+    /** 관제앱이 이 폰의 블루투스를 마지막으로 들은 때(ms · 관제앱 시계) */
+    heardAt: number;
+    /** 설명용 — 원달앱이 보는 서버 주소 */
+    serverUrl?: string;
+}
+
 export interface PhoneDecisionAck {
     deviceId: string;
     orderId: string;
@@ -64,7 +80,7 @@ export interface PhoneDecisionAck {
  * 쓰기 칸이 둘이다 — 큰 필터를 쪼개 보내는 도중에도 결재가 조각 사이로 먼저 간다(한 칸이면 틀이 깨져 끼울 수 없다).
  * - 작은 칸(관제앱 → 폰): 한 번 쓰기에 메시지 하나 `[종류 1][본문 JSON]` — PHONE · DECISION · BREATH
  * - 큰 칸(관제앱 → 폰): SUPPLY 만 `[길이 4 · 큰 끝][gzip JSON]` 을 512 바이트 조각으로 · 받는 쪽은 길이만큼 모아 푼다
- * - 알림 칸(폰 → 관제앱): `[종류 1][본문 JSON]` — HELLO · ACK · BREATH
+ * - 알림 칸(폰 → 관제앱): `[종류 1][본문 JSON]` — HELLO · ACK · BREATH · STATUS `{serverId, serverUrl, unlinkedWhy}`(블루투스로만 아는 폰 사실 · 증명된 뒤)
  * 🔏 **주고받기 증명** — 짝 서명(pairSig)은 두 쪽이 서버에서 따로 받아 안다 · 공중에는 안 보낸다:
  *   관제앱 CHALLENGE `{nonce}` → 폰 HELLO `{deviceId, mac: HMAC(pairSig, "hello|" + 관제앱 nonce), nonce: 폰 nonce}` → 관제앱 PROOF `{proof: HMAC(pairSig, "proof|" + 폰 nonce)}`.
  *   🔴 머리말이 다르다 — 같으면 근처 기기가 폰에게 CHALLENGE 를 하나 더 던져 받은 HELLO 를 PROOF 로 되비춘다.
@@ -79,7 +95,7 @@ export const BLE_UUIDS = {
 } as const;
 
 /** 메시지 종류 바이트 — HELLO `{deviceId, sig}` · SUPPLY `{filter, filterVersion}` · PHONE `{mode, evaluatingNow}` · DECISION `{orderId, action, foldMs?}` · ACK `{orderId}` · BREATH(관제앱 → 폰은 본문 1바이트 «서버 살아 있음» 1/0 · 폰 → 관제앱은 본문 없음) · FOLD `{orderId, remainMs}`(작은 칸) */
-export const BLE_KINDS = { HELLO: 1, SUPPLY: 2, PHONE: 3, DECISION: 4, ACK: 5, BREATH: 6, FOLD: 7, CHALLENGE: 8, PROOF: 9 } as const;
+export const BLE_KINDS = { HELLO: 1, SUPPLY: 2, PHONE: 3, DECISION: 4, ACK: 5, BREATH: 6, FOLD: 7, CHALLENGE: 8, PROOF: 9, STATUS: 10 } as const;
 
 /** 한 번 쓰기 최대 바이트 — 넘기면 받는 앱이 죽었다(0-3 시험 514) */
 export const BLE_MAX_WRITE = 512;

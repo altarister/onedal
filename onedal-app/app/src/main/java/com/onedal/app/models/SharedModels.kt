@@ -276,6 +276,11 @@ data class ScrapPayload(
      * 픽커는 자동이 없어 자동 명령이 알람으로 돈다. 명령과 다르면 관제웹 폰 카드가 둘 다 보인다.
      */
     val effectiveMode: String? = null,
+    /** 📶 관제앱이 블루투스로 준 마지막 모드 · 공급 연결 · 근처 기기 허락 · 배터리 예외 — 서버가 받아 적어 관제웹 «적용중» · 연결 배지를 그린다(reviews/50 ①-4) */
+    val suppliedMode: String? = null,
+    val supplyLinked: Boolean? = null,
+    val nearbyPermitted: Boolean? = null,
+    val batteryExempt: Boolean? = null,
     /**
      * 👁️ **마지막 리스트 화면에서 읽은 텍스트 노드 수** (크리티컬).
      *

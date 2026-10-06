@@ -21,6 +21,7 @@ describe('📶 관제앱 BleProtocol.java = shared bleProtocol.ts', () => {
         expect(str('EVENT_DECISION')).toBe(SUPPLY_EVENTS.decision);
         expect(str('EVENT_DECISION_ACK')).toBe(SUPPLY_EVENTS.decisionAck);
         expect(str('EVENT_FOLD')).toBe(SUPPLY_EVENTS.fold);
+        expect(str('EVENT_STATUS')).toBe(SUPPLY_EVENTS.status);
     });
 
     it('🔴 블루투스 서비스 · 칸 셋', () => {

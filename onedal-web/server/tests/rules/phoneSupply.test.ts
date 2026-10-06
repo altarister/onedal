@@ -2,7 +2,9 @@
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import * as fileLogger from '../../src/utils/fileLogger';
-import { phoneSupplyOf } from '../../src/state/phoneSupply';
+import { phoneSupplyOf, serverIdOf } from '../../src/state/phoneSupply';
+import { applyPhoneStatus, phoneStatusOf } from '../../src/state/phoneStatus';
+import { getUserDevicesSnapshot } from '../../src/routes/devices';
 import { ackDecision, unackedPhoneDecisions } from '../../src/state/decisions';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import db from '../../src/db';
@@ -77,6 +79,29 @@ describe('📡 관제앱 공급', () => {
             expect(unackedPhoneDecisions(s)).toEqual([{ deviceId: 'dev-a', orderId: 'o-ack', action: 'KEEP' }]);
             ackDecision(null, s, U2, 'o-ack', '공급 소켓');
             expect(unackedPhoneDecisions(s)).toEqual([]);
+        });
+    });
+
+    describe('📶 블루투스로만 아는 폰 사실 (reviews/50 ①-4)', () => {
+        const U3 = 'test-phone-status';
+        beforeAll(() => {
+            approvedUser(U3);
+            db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U3, 'dev-status-1');
+        });
+        it('🔴 그 기사님 등록 폰만 받는다 — 남의 폰 번호는 버림', () => {
+            expect(applyPhoneStatus(U3, { deviceId: 'dev-status-1', sameServer: false, unlinkedWhy: null, heardAt: 1 })).toBe(true);
+            expect(applyPhoneStatus(U3, { deviceId: 'someone-else', sameServer: false, unlinkedWhy: null, heardAt: 1 })).toBe(false);
+            expect(phoneStatusOf('dev-status-1').bleSameServer).toBe(false);
+            expect(phoneStatusOf('someone-else')).toEqual({});
+        });
+        it('🔴 보고가 안 오는 폰(등록만)도 기기 목록에 블루투스 사실이 붙는다 · 꺼진 폰은 보낼 모드가 없다(적용중 아님)', () => {
+            const row = getUserDevicesSnapshot(U3).find(d => d.deviceId === 'dev-status-1')!;
+            expect(row.bleSameServer).toBe(false);
+            expect(row.sentMode).toBeUndefined();
+        });
+        it('서버 표지는 다시 불러도 같다 — 다시 떠도 같은 값(호스트 · 포트 · 비밀)', () => {
+            expect(serverIdOf()).toBe(serverIdOf());
+            expect(serverIdOf()).toMatch(/^[0-9a-f]{12}$/);
         });
     });
 });

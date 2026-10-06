@@ -15,6 +15,7 @@ final class BleProtocol {
     static final String EVENT_DECISION = "phone-decision";
     static final String EVENT_DECISION_ACK = "phone-decision-ack";
     static final String EVENT_FOLD = "phone-fold";
+    static final String EVENT_STATUS = "phone-status";
 
     /* 블루투스 — 스캔폰 원달앱이 여는 서비스와 칸 셋 */
     static final UUID SERVICE = UUID.fromString("6f1d1000-1da1-4b1e-9e00-0000000000a1");
@@ -33,6 +34,7 @@ final class BleProtocol {
     static final byte FOLD = 7;
     static final byte CHALLENGE = 8;
     static final byte PROOF = 9;
+    static final byte STATUS = 10;
 
     static final int MAX_WRITE = 512;
     static final long BREATH_MS = 1000;

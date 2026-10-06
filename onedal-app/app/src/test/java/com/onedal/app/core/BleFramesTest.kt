@@ -95,6 +95,22 @@ class BleFramesTest {
         assertTrue(onLinked.indexOf("if (!alive) serverAlive = false") < onLinked.indexOf("recomputeMode("))
     }
 
+    @Test fun `📶 보고에 받은 모드 · 공급 연결 · 허락 · 배터리 넷 — 받은 모드 · 공급 연결이 바뀌면 도는 모드와 상관없이 곧바로 보고`() {
+        val tm = File("src/main/java/com/onedal/app/core/TelemetryManager.kt").readText()
+        for (f in listOf("suppliedMode = suppliedMode,", "supplyLinked = linked,", "nearbyPermitted = context?.let { BleLink.hasPermission(it) },", "batteryExempt = context?.let"))
+            assertTrue(f, tm.contains(f))
+        assertTrue(tm.contains("if (!recomputeMode(\"공급\") && changed) reportNow()"))
+        assertTrue(tm.contains("&& changed) reportNow()\n    }\n\n    /** 📤 곧바로 한 번 보고"))
+    }
+
+    @Test fun `📶 STATUS 는 블루투스로만 아는 셋 — 서버 표지 · 주소 · 폰 연결 풀린 까닭 · 증명된 관제앱에만`() {
+        val link = File("src/main/java/com/onedal/app/core/BleLink.kt").readText()
+        val body = link.substringAfter("private fun sendStatusIfChanged() {").substringBefore("\n    }\n")
+        assertTrue(body.contains("val c = central ?: return"))
+        for (k in listOf("\"serverId\"", "\"serverUrl\"", "\"unlinkedWhy\"")) assertTrue(k, body.contains(k))
+        assertTrue(File("src/main/java/com/onedal/app/api/ApiClient.kt").readText().contains("BleLink.PREF_SERVER_ID"))
+    }
+
     /** 실측 10-06 23:05:57 — 접근성 서비스가 다시 뜨자 저장된 «자동»을 두고 «직접»으로 시작했다(관제앱이 없으면 알람이 안 울린다) */
     @Test fun `🔴 서비스가 다시 뜨면 저장된 마지막 공급 모드로 곧바로 — 관제앱 전이니 자동이면 알람`() {
         val tm = File("src/main/java/com/onedal/app/core/TelemetryManager.kt").readText()

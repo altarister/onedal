@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, modeChoicesOf, deviceLabel, clockText } from "@onedal/shared";
+import { phoneLinkBadgeOf, isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, modeChoicesOf, deviceLabel, clockText } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "@onedal/shared";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
@@ -65,6 +65,10 @@ function DeviceRow({
      * 고르는 일은 `shared` 가 한다 — 여기서는 그리기만 한다 (운행일지도 같은 것을 물을 수 있다).
      */
     const screenBadge = deviceScreenBadge(device);
+    /** 📶 블루투스 · 폰 연결 배지 — 문제일 때만 하나(뿌리부터 · shared `phoneLinkBadgeOf` · reviews/50 ①-4) */
+    const linkBadge = phoneLinkBadgeOf(device);
+    /** 📶 보고는 끊겼어도 관제앱이 블루투스로 10초 안에 들었다 */
+    const bleAlive = device.bleHeardAt != null && Date.now() - device.bleHeardAt < 10_000;
     /** 🚦 지금 무슨 일을 하는 중인가 — 낱말은 `shared` 가 짓는다 (구앱이면 `null`) */
     const stageLabel = workStageLabel(device);
 
@@ -205,6 +209,19 @@ function DeviceRow({
                                 <span className="text-info font-black mr-1">{screenBadge.network}</span>
                             )}
                             {screenBadge.label}
+                        </Badge>
+                    )}
+                    {/* 📶 연결 배지 — 다른 서버 · 허락 없음 · 연결 풀림(빨강) > 관제앱과 끊김 · 필터 옛 판(주황) > 배터리(회색) · 정상이면 안 그린다 */}
+                    {linkBadge && (
+                        <Badge variant="outline" title={linkBadge.hint} className={`text-[12.5px] font-extrabold px-1.5 py-0 shrink-0 ${
+                            linkBadge.tone === 'red' ? 'bg-danger/15 text-danger border-danger/40' : linkBadge.tone === 'amber' ? 'bg-warning/15 text-warning border-warning/40' : 'text-text-muted border-border'
+                        }`}>
+                            {linkBadge.text}
+                        </Badge>
+                    )}
+                    {isDisconnected && bleAlive && (
+                        <Badge variant="outline" title="서버 보고는 끊겼지만 관제앱이 블루투스로 이 폰을 듣고 있습니다" className="text-[12px] px-1.5 py-0 shrink-0 text-info border-info/40">
+                            블루투스로는 살아 있음
                         </Badge>
                     )}
                     {/* 🔤 필터 배지(첫짐·합짐) — 목업 12.5 */}

@@ -31,7 +31,7 @@ import { clockText, wonText, isTimeText } from "@onedal/shared";
 import { authSocket } from "./authSocket";
 import { webAccountGate } from "./webAccountGate";
 import { registerSupplyNamespace } from "./supplySocket";
-import { flushSupply } from "../state/phoneSupply";
+import { flushSupply, sentModesOf } from "../state/phoneSupply";
 import { registerOpsNamespace } from "./opsSocket";
 
 
@@ -797,9 +797,11 @@ export function registerSocketHandlers(io: Server) {
         for (const uid of userIds) logContext.run({ userId: uid }, () => {
             // [Q4 소켓 브로드캐스트 분리 완료] 각 기사별로 자신의 등록된 기기 목록(+상태)만 전달
             /* 🛟 `io` 를 넘긴다 — 데드맨이 끊김으로 넘기며 그 폰의 미리보기를 치울 때 관제웹에 알려야 한다 (#159 뒤 개정) */
-            io.to(uid).emit("telemetry-devices", getUserDevicesSnapshot(uid, io));
+            /* 🎛️ 살아 있는 폰마다 보낼 모드를 한 번 세어 기기 목록(«적용중» 셈)과 공급이 같이 쓴다 (state/phoneSupply `sentModesOf`) */
+            const modes = sentModesOf(uid);
+            io.to(uid).emit("telemetry-devices", getUserDevicesSnapshot(uid, io, modes));
             /* 📡 관제앱 공급 — 붙은 기사님만 · 바뀐 때만 (데드맨 · 허락 시한 · 관제웹 붙음 같은 손 없는 바뀜을 여기서 줍는다 · state/phoneSupply) */
-            flushSupply(io, uid);
+            flushSupply(io, uid, false, modes);
 
             const session = getUserSession(uid);
             const sync = buildOrderSync(session);

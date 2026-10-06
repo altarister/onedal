@@ -123,6 +123,8 @@ public class SupplyService extends Service {
         long lastHeard = SystemClock.elapsedRealtime();
         String sentSupplyVersion;
         String sentPhone;
+        /** 원달앱이 블루투스로 알린 마지막 STATUS(서버 표지 · 주소 · 폰 연결 풀린 까닭) */
+        JSONObject status;
         final ArrayDeque<byte[]> smallQ = new ArrayDeque<>();
         final ArrayDeque<byte[]> bigQ = new ArrayDeque<>();
         byte[] nextSupply;
@@ -200,7 +202,7 @@ public class SupplyService extends Service {
     private void showStatus() {
         int phones = 0;
         for (Link l : links.values()) if (l.deviceId != null) phones++;
-        String text = "폰 " + phones + "대 · 서버 " + (serverAlive ? "붙음" : "끊김");
+        String text = "폰 " + phones + "대 · 서버 " + (serverAlive ? "붙음" : "끊김") + " · 끄려면 로그아웃";   // 최근 앱에서 밀어 없애도 공급은 계속된다
         if (text.equals(shownText)) return;
         shownText = text;
         getSystemService(NotificationManager.class).notify(NOTIFY_ID, buildNotification(text));
@@ -467,6 +469,9 @@ public class SupplyService extends Service {
             l.helloNonce = body.optString("nonce", null);
             l.helloAt = l.lastHeard;
             tryVerify(l);
+        } else if (kind == BleProtocol.STATUS && l.deviceId != null) {
+            l.status = body;
+            sendStatus(l);
         } else if (kind == BleProtocol.ACK && l.deviceId != null) {
             String orderId = body.optString("orderId", null);
             if (orderId == null) return;
@@ -476,6 +481,25 @@ public class SupplyService extends Service {
             Log.i(TAG, "✅ " + l.deviceId + " 결재 " + orderId + " 받았음");
             flushAcks();
         }
+    }
+
+    /**
+     * 📶 블루투스로만 아는 폰 사실을 서버로(`phone-status` · reviews/50 ①-4) — 이 폰이 보는 서버 표지가 내 서버 표지와 같나는 여기서 견준다(주소 글자가 아니라 표지 · 관제 리뷰)
+     * · 관제앱이 들은 마지막 숨 시각을 붙인다 · 숨 갱신은 10초마다(tick).
+     */
+    private void sendStatus(Link l) {
+        if (l.status == null || l.deviceId == null || socket == null || !socket.connected()) return;
+        try {
+            String phoneServer = l.status.isNull("serverId") ? null : l.status.optString("serverId", null);
+            String myServer = lastSupply == null ? null : lastSupply.optString("serverId", null);
+            boolean same = phoneServer == null || myServer == null || phoneServer.equals(myServer);   // 모르면 «같음»(거짓 빨강 배지를 안 낸다)
+            socket.emit(BleProtocol.EVENT_STATUS, new JSONObject()
+                .put("deviceId", l.deviceId)
+                .put("sameServer", same)
+                .put("unlinkedWhy", l.status.isNull("unlinkedWhy") ? JSONObject.NULL : l.status.optString("unlinkedWhy"))
+                .put("serverUrl", l.status.optString("serverUrl", ""))
+                .put("heardAt", System.currentTimeMillis() - (SystemClock.elapsedRealtime() - l.lastHeard)));
+        } catch (Exception ignored) { }
     }
 
     /** ✅ 들고 있던 «받았음»을 서버로 — 소켓이 끊겨 있으면 붙을 때(EVENT_CONNECT) 보낸다 */
@@ -611,9 +635,11 @@ public class SupplyService extends Service {
 
     // ─────────────────────────── 1초 ───────────────────────────
 
+    private int tickCount = 0;
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             long now = SystemClock.elapsedRealtime();
+            if (++tickCount % 10 == 0) for (Link l : new ArrayList<>(links.values())) sendStatus(l);   // 📶 10초마다 마지막 숨 시각
             for (Link l : new ArrayList<>(links.values())) {
                 if (!l.ready) {
                     if (now - l.lastHeard > BleProtocol.SILENT_MS * 3) closeLink(l, "붙기를 못 마쳤다");

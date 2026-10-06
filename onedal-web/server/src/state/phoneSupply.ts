@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { hostname } from "node:os";
 import { businessDayKey, modeForPhone, SUPPLY_EVENTS, SUPPLY_NAMESPACE } from "@onedal/shared";
 import type { DeviceModeType, PhoneSupply } from "@onedal/shared";
 import { jwtSecret } from "../config/env";
@@ -58,6 +59,23 @@ export function modeSentToPhone(deviceId: string, userId: string, commanded: Dev
     return modeForPhone(commanded, autoLive, webAttached, otherAuto) as DeviceModeType;   // 받은 명령이 네 모드 중 하나라 결과도 넷 중 하나
 }
 
+/**
+ * 🪪 **이 서버의 표지** — 관제앱이 원달앱 STATUS 의 표지와 견줘 «다른 서버를 봄»을 안다(주소 글자는 http · 끝 슬래시 · IP · 이름이 달라 못 견준다 · 관제 리뷰).
+ * 🔴 로컬과 라이브가 같은 JWT 비밀을 쓴다 — 비밀만으로 세면 둘이 같아진다. 그래서 호스트 이름 · 포트를 섞는다(다시 떠도 같다 · 저장하지 않는다).
+ */
+export function serverIdOf(): string {
+    return createHmac('sha256', jwtSecret()).update(`server-id|${hostname()}|${process.env.PORT ?? '4000'}`).digest('hex').slice(0, 12);
+}
+
+/**
+ * 🎛️ **살아 있는 폰마다 서버가 보내는 모드 — 1초에 한 번 센다** (관제 리뷰).
+ * 기기 목록(`sentMode` · «적용중» 셈)과 공급(`phone-supply`)이 같은 지도를 받는다 — 같은 셈을 한 초에 두 번 하지 않게. 꺼진 폰(데드맨 밖)은 안 센다.
+ */
+export function sentModesOf(userId: string): Map<string, DeviceModeType> {
+    const ids = registeredPhonesOf(userId);
+    return new Map(livePhonesOf(ids).map(id => [id, modeSentToPhone(id, userId, getDeviceMode(id, userId), ids)] as const));
+}
+
 /** 🔏 블루투스 짝 서명(기사님|폰) — 서버 비밀값에서 그때그때 · 저장하지 않는다 */
 export function pairSigOf(userId: string, deviceId: string): string {
     return createHmac('sha256', jwtSecret()).update(`ble-pair|${userId}|${deviceId}`).digest('hex').slice(0, 32);
@@ -69,21 +87,20 @@ export function bleAdTagOf(userId: string, nowMs: number = Date.now()): string {
 }
 
 /** 📦 이 기사님의 공급 값 — 폰은 살아 있는 등록 폰만(원달앱이 블루투스로 붙는 순간 살아 있는 폰이 되고, 그때 공급을 다시 보낸다 · ①-3) */
-export function phoneSupplyOf(userId: string): PhoneSupply {
+export function phoneSupplyOf(userId: string, modes: Map<string, DeviceModeType> = sentModesOf(userId)): PhoneSupply {
     const session = getUserSession(userId);
     const { filter } = appFilterOf(session, userId, null, ensureReservedPickupList(session, userId));
     const { evaluatingNow: _perPhone, ...shared } = filter as Record<string, unknown>;
-    const ids = registeredPhonesOf(userId);
     const phones: PhoneSupply['phones'] = {};
-    for (const id of livePhonesOf(ids)) {
+    for (const [id, mode] of modes) {
         phones[id] = {
-            mode: modeSentToPhone(id, userId, getDeviceMode(id, userId), ids),
+            mode,
             evaluatingNow: session.deviceEvaluatingMap.has(id),
             pairSig: pairSigOf(userId, id),
         };
     }
     const now = Date.now();
-    return { filter: shared, filterVersion: filterVersionOf(shared), phones, adTags: [bleAdTagOf(userId, now), bleAdTagOf(userId, now - 86_400_000)] };
+    return { filter: shared, filterVersion: filterVersionOf(shared), phones, serverId: serverIdOf(), adTags: [bleAdTagOf(userId, now), bleAdTagOf(userId, now - 86_400_000)] };
 }
 
 /** 🧯 공급이 터진 마지막 까닭 — 같은 까닭은 한 번만 적는다(1초 주기가 같은 오류를 매초 찍지 않게) */
@@ -93,14 +110,14 @@ let lastSupplyError = '';
  * 📮 공급 소켓이 붙은 기사님이면 바뀐 때만(force 면 늘) `phone-supply` — 안 붙었으면 아무것도 안 한다.
  * 🔴 **던지지 않는다** — 필터 바뀜 · 모드 문 · 결재 한가운데서 불리므로, 공급이 터져도 부른 쪽 일은 끝까지 간다.
  */
-export function flushSupply(io: any, userId: string, force = false): void {
+export function flushSupply(io: any, userId: string, force = false, modes?: Map<string, DeviceModeType>): void {
     try {
         const nsp = io?.of?.(SUPPLY_NAMESPACE);
         if (!nsp?.adapter?.rooms?.get(userId)?.size) {
             lastSupplyJson.delete(userId);
             return;
         }
-        const supply = phoneSupplyOf(userId);
+        const supply = phoneSupplyOf(userId, modes);
         const json = JSON.stringify(supply);
         if (!force && json === lastSupplyJson.get(userId)) return;
         lastSupplyJson.set(userId, json);

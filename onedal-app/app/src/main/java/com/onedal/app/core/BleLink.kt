@@ -46,6 +46,8 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
         fun onFold(json: String)
         fun onServerAlive(alive: Boolean)
         fun onLinked(alive: Boolean)
+        /** «근처 기기» 허락이 생겼다 — 곧바로 보고(관제웹 배지가 다음 주기를 기다리지 않게) */
+        fun onPermissionGranted()
     }
 
     companion object {
@@ -53,6 +55,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
         const val PREF_PAIR_SIG = "blePairSig"
         const val PREF_AD_TAG = "bleAdTag"
         const val PREF_NO_PERMISSION = "bleNoPermission"
+        const val PREF_SERVER_ID = "bleServerId"
         private const val UNPROVEN_MS = 10_000L
 
         /** 블루투스 «근처 기기» 허락이 있나 — 12 이상은 광고 · 연결 둘, 그 아래는 설치 권한이라 늘 있다 */
@@ -82,6 +85,8 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
     private var notifying = false
     private val big = BleFrames.BigAssembler()
     private var lastWriteMs = 0L
+    /** 마지막으로 보낸 STATUS — 바뀔 때만 다시 */
+    private var sentStatus: String? = null
     private var linked = false
     private var started = false
 
@@ -94,7 +99,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
             h.postDelayed({ start() }, 5000)
             return
         }
-        LogOnce.changed("ble-permission", "있음")
+        if (LogOnce.changed("ble-permission", "있음")) listener.onPermissionGranted()
         if (mgr?.adapter?.isEnabled != true) AppLogger.w(TAG, LogTag.NETWORK, "📶 [블루투스] 꺼져 있다 — 켜지면 광고한다")
         started = true
         try { openServer() } catch (e: Exception) { AppLogger.e(TAG, "📶 [블루투스] GATT 서버를 못 열었다 — ${e.message}") }
@@ -221,6 +226,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
         p.proven = true
         central = p
         big.reset()
+        sentStatus = null   // 붙자마자 STATUS 한 번
         try { mgr?.adapter?.bluetoothLeAdvertiser?.stopAdvertising(advCb) } catch (_: Exception) {}
         AppLogger.i(TAG, LogTag.NETWORK, "🔏 [블루투스] 관제앱 증명 맞음 — 이 연결로 공급을 받는다 · 광고 멈춤")
     }
@@ -241,6 +247,23 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
         p.myNonce = mine
         send(p.device, BleFrames.small(BleFrames.HELLO, JSONObject().put("deviceId", deviceIdOf()).put("mac", BleFrames.helloMac(sig, challenge)).put("nonce", mine).toString()))
         AppLogger.i(TAG, LogTag.NETWORK, "🔏 [블루투스] HELLO 보냄 — 관제앱의 증명을 기다린다")
+    }
+
+    /**
+     * 📶 STATUS — 블루투스로만 아는 이 폰 사실(이 폰이 보는 서버의 표지 · 주소 · 폰 연결 풀린 까닭) · 증명된 관제앱에 · 바뀔 때만(reviews/50 ①-4).
+     * 다른 서버를 보거나 연결이 풀린 폰의 보고는 관제앱의 서버에 안 가므로, 이 길이 그 값의 유일한 길이다.
+     */
+    private fun sendStatusIfChanged() {
+        val c = central ?: return
+        val live = ServerTarget.isLive(prefs)
+        val status = JSONObject()
+            .put("serverId", prefs.getString(PREF_SERVER_ID, null) ?: JSONObject.NULL)
+            .put("serverUrl", if (live) "1dal.altari.com" else (prefs.getString("localPcIp", null) ?: ""))
+            .put("unlinkedWhy", prefs.getString(DeviceLink.PREF_UNLINKED, null) ?: JSONObject.NULL)
+            .toString()
+        if (status == sentStatus) return
+        sentStatus = status
+        send(c.device, BleFrames.small(BleFrames.STATUS, status))
     }
 
     private fun send(d: BluetoothDevice, b: ByteArray) { outQ.addLast(d to b); pumpOut() }
@@ -282,6 +305,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
                 if (server == null && mgr?.adapter?.isEnabled == true) openServer()
                 advertiseIfNeeded()
                 peers.values.forEach { sendHello(it) }
+                sendStatusIfChanged()
                 /* 🔏 붙고 10초 안에 증명 안 된 기기는 끊는다 — 남이 GATT 연결 자리를 오래 잡지 못하게 */
                 val now = SystemClock.elapsedRealtime()
                 peers.values.filter { !it.proven && now - it.connectedAt > UNPROVEN_MS }.forEach { p ->

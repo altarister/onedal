@@ -1575,7 +1575,10 @@ export function workStageLabel(d: {
  * ⚠️ 대답을 안 싣는 구앱(`undefined`)은 «적용중»이라 하지 않는다 — 모름을
  *    «안 됐다»로 읽으면 영원히 안 풀리는 딤드가 된다 (규칙 ④).
  */
-export function isModeApplying(d: { mode?: string; autoAllowed?: boolean; appliedMode?: string }): boolean {
+export function isModeApplying(d: { mode?: string; autoAllowed?: boolean; appliedMode?: string; suppliedMode?: string; sentMode?: string; supplyLinked?: boolean }): boolean {
+    /* 📶 새 원달앱 — «서버가 보내는 모드가 블루투스로 아직 안 닿았나»만 본다(reviews/50 ①-4). 일부러 내려간 알람(관제앱과 끊김 · 관제웹 없음 …)은 배지가 말한다 ·
+          공급이 끊겼으면 받을 길이 없어 적용중이 아니다 · 꺼진 폰은 sentMode 가 없어 아니다 */
+    if (d.suppliedMode !== undefined) return d.supplyLinked !== false && !!d.sentMode && d.sentMode !== d.suppliedMode;
     if (!d.appliedMode) return false;
     /* 📱 명령이 아니라 폰에 갈 모드와 견준다 — 자동 잡기 허락이 꺼지면 AUTO 명령도 폰은 ALARM 이라, 명령과 견주면 «적용중»이 영영 안 풀린다 */
     return phoneModeOf(d) !== d.appliedMode;
@@ -1585,6 +1588,23 @@ export function isModeApplying(d: { mode?: string; autoAllowed?: boolean; applie
  * 🎛️ **이 배차망에서 도는 모드** — 원달앱이 대답한 값, 없으면(옛 원달앱) 폰에 갈 모드(`phoneModeOf` — 허락이 꺼지면 AUTO 명령도 알람).
  * 관제웹 폰 카드와 알람 소리가 이것을 본다. «명령이 닿았나»(`isModeApplying`)는 명령끼리 대조한다.
  */
+/**
+ * 📶 **폰 칸 연결 배지 — 문제일 때만 하나** (reviews/50 ①-4 · 기사님 «가» · 차례는 뿌리부터).
+ * 다른 서버를 봄 · 허락 없음 · 폰 연결 풀림이면 나머지 값을 믿을 수 없으니 맨 앞 · 공급이 끊기면 옛 판은 그 결과라 끊김만.
+ * 옛 원달앱(칸 없음)이면 null — 모르는 것을 문제로 그리지 않는다(규칙 ④).
+ */
+export interface PhoneLinkBadge { text: string; tone: 'red' | 'amber' | 'gray'; hint: string }
+export function phoneLinkBadgeOf(d: Pick<DeviceSession, 'bleSameServer' | 'nearbyPermitted' | 'bleUnlinkedWhy' | 'supplyLinked' | 'filterStale' | 'batteryExempt'>): PhoneLinkBadge | null {
+    const off = ' · 관제앱은 최근 앱에서 밀어 없애도 공급을 계속합니다 — 끄려면 로그아웃';
+    if (d.bleSameServer === false) return { text: '다른 서버를 봄', tone: 'red', hint: '이 스캔폰이 관제앱과 다른 서버를 봅니다 — 원달앱 설정에서 서버를 맞추세요' };
+    if (d.nearbyPermitted === false) return { text: '블루투스 허락 없음', tone: 'red', hint: '원달앱 점검 탭 → 근처 기기 허락' };
+    if (d.bleUnlinkedWhy) return { text: '폰 연결 풀림', tone: 'red', hint: `서버가 이 폰의 보고를 받지 않습니다(${d.bleUnlinkedWhy}) — 원달앱 설정에서 다시 연결` };
+    if (d.supplyLinked === false) return { text: '관제앱과 끊김 · 알람만', tone: 'amber', hint: '관제앱을 열어 로그인하면 붙습니다 — 그동안 자동은 알람으로만 돕니다' + off };
+    if (d.filterStale) return { text: '필터 옛 판', tone: 'amber', hint: '이 폰이 든 필터가 서버 것과 오래 다릅니다 — 관제앱과 붙었는지 보세요' + off };
+    if (d.batteryExempt === false) return { text: '배터리 최적화 중', tone: 'gray', hint: '원달앱 점검 탭 → 배터리 최적화 예외 — 화면이 꺼지면 보고가 끊길 수 있습니다' };
+    return null;
+}
+
 export function runningModeOf(d: { mode?: string; autoAllowed?: boolean; effectiveMode?: string }): string | undefined {
     return d.effectiveMode || phoneModeOf(d);
 }
@@ -1827,6 +1847,22 @@ export interface DeviceSession {
      * 픽커는 자동이 없어 자동 명령이 알람으로 돈다. 읽을 때는 `runningModeOf` 를 거친다(옛 원달앱은 안 싣는다).
      */
     effectiveMode?: string;
+    /**
+     * 📶 **원달앱 보고가 싣는 블루투스 · 폰 사실 넷** (reviews/50 ①-4 · 원달앱이 원천 · 보고 한 길 · 옛 원달앱은 `undefined` → 안 그림).
+     * `suppliedMode` 관제앱이 블루투스로 준 마지막 모드(저장 값) — «적용중»은 이것과 서버가 보내는 모드(`sentMode`)를 견준다(`isModeApplying`).
+     */
+    suppliedMode?: string;
+    supplyLinked?: boolean;
+    nearbyPermitted?: boolean;
+    batteryExempt?: boolean;
+    /** 🎛️ 서버가 이 폰에 보내는 모드(`modeSentToPhone`) — 기기 목록에만 · 살아 있는 폰만(꺼진 폰은 없음) */
+    sentMode?: string;
+    /** 🧬 폰이 든 필터 판이 서버가 보낸 판과 오래 다르다(`phoneCheck` stale) — 기기 목록에만 */
+    filterStale?: boolean;
+    /** 📶 블루투스로만 아는 셋(관제앱이 `phone-status` 로 · 원달앱 STATUS) — 같은 서버를 보나(서버 표지) · 폰 연결 풀린 까닭 · 관제앱이 들은 마지막 숨(ms) */
+    bleSameServer?: boolean;
+    bleUnlinkedWhy?: string | null;
+    bleHeardAt?: number;
     /**
      * 🎛️ **이 회원의 자동 잡기 허락이 지금 살아 있나** — 서버가 폰 보고마다 적는다(메모리 · 저장 칸 아님 · reviews/29 6단계).
      * 꺼지면 AUTO 명령도 폰은 ALARM — 읽을 때는 `phoneModeOf` 를 거친다 · 관제웹 모드 목록은 `modeChoicesOf`.

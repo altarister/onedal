@@ -17,7 +17,9 @@ import { armWait } from "../state/waits";
 import type { FilterPassAlarm } from "@onedal/shared";
 import { appFilterOf } from "../state/appFilter";
 import { clientIpOf } from "../utils/clientIp";
-import { flushSupply } from "../state/phoneSupply";
+import { flushSupply, sentModesOf } from "../state/phoneSupply";
+import { phoneStatusOf } from "../state/phoneStatus";
+import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
 
 const router = Router();
 
@@ -232,6 +234,11 @@ export interface DeviceStatusExtras {
     workStageStep?: number;
     workStageSeconds?: number;
     appliedMode?: string;
+    /** 📶 관제앱이 블루투스로 준 마지막 모드 · 공급 연결 · 근처 기기 허락 · 배터리 예외(원달앱 보고 · reviews/50 ①-4) */
+    suppliedMode?: string;
+    supplyLinked?: boolean;
+    nearbyPermitted?: boolean;
+    batteryExempt?: boolean;
     /** 🎛️ 이 배차망에서 실제로 도는 모드 — 원달앱이 플러그인 `availableModes` 로 계산한다 (`DeviceSession.effectiveMode`) */
     effectiveMode?: string;
     /**
@@ -365,6 +372,11 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         session.workStageSeconds = extras.workStageSeconds;
     }
     if (extras?.appliedMode) session.appliedMode = extras.appliedMode;
+    /* 📶 블루투스 · 폰 사실 넷 — 받아 적기만(옛 원달앱은 안 보냄 → 그대로 · reviews/50 ①-4) */
+    if (typeof extras?.suppliedMode === 'string') session.suppliedMode = extras.suppliedMode;
+    if (typeof extras?.supplyLinked === 'boolean') session.supplyLinked = extras.supplyLinked;
+    if (typeof extras?.nearbyPermitted === 'boolean') session.nearbyPermitted = extras.nearbyPermitted;
+    if (typeof extras?.batteryExempt === 'boolean') session.batteryExempt = extras.batteryExempt;
     /* 🎛️ 자동 잡기 허락이 지금 살아 있나 — 폰 보고마다 적는다(메모리). 꺼지면 AUTO 명령도 폰은 ALARM 이라 관제웹 «적용중» · 도는 모드가 이것을 본다 (shared `phoneModeOf`) */
     session.autoAllowed = allowanceOf(userId).autoLive;
     /**
@@ -1012,7 +1024,7 @@ export const getActiveDevicesSnapshot = (io?: any): DeviceSession[] => {
  * GET /api/devices (유저별)
  * DB에 등록된 유저의 기기 목록을 바탕으로, 활성 세션 상태(Memory)를 병합하여 반환합니다.
  */
-export const getUserDevicesSnapshot = (userId: string, io?: any): DeviceSession[] => {
+export const getUserDevicesSnapshot = (userId: string, io?: any, modes: Map<string, DeviceModeType> = sentModesOf(userId)): DeviceSession[] => {
     // 1. DB에서 해당 유저의 등록 기기 조회
     const registered = db.prepare("SELECT device_id, device_name FROM user_devices WHERE user_id = ?").all(userId) as any[];
 
@@ -1027,7 +1039,13 @@ export const getUserDevicesSnapshot = (userId: string, io?: any): DeviceSession[
         if (activeItem) {
             // 메모리 객체에 최신 이름 덮어쓰기
             activeItem.deviceName = r.device_name || activeItem.deviceName;
-            result.push(activeItem);
+            /* 📶 기기 목록에만 붙이는 셋 — 서버가 보내는 모드(«적용중» 셈) · 필터 옛 판 · 블루투스로만 아는 폰 사실(reviews/50 ①-4) · 세션은 안 고친다 */
+            result.push({
+                ...activeItem,
+                sentMode: modes.get(r.device_id),
+                filterStale: phoneCheckOf(activeItem, sentFilterVersionOf(r.device_id), Date.now()).filter.state === 'stale',
+                ...phoneStatusOf(r.device_id),
+            });
         } else {
             // 완전 비활성 상태인 등록 기기도 UI 표시용으로 내려줌
             result.push({
@@ -1038,6 +1056,7 @@ export const getUserDevicesSnapshot = (userId: string, io?: any): DeviceSession[
                 /* ⏳ 서버가 뜬 뒤 아직 못 들었으면 «로딩 중» · 들은 뒤 치운 폰이면 진짜 끊김(통신 두절) */
                 offlineReason: heardSinceBoot.has(r.device_id) ? 'NO_CONTACT' : 'NOT_HEARD_YET',
                 mode: viewModeOf(r.device_id, userId),
+                ...phoneStatusOf(r.device_id),   // 보고가 이 서버에 안 오는 폰(다른 서버 · 연결 풀림)도 블루투스로는 안다
                 screenContext: "UNKNOWN",
                 stats: { polled: 0, grabbed: 0, canceled: 0 }
             });

@@ -323,6 +323,7 @@ class ApiClient(private val context: Context) {
                         prefs.edit().apply {
                             raw.optString("blePairSig").takeIf { it.isNotEmpty() }?.let { putString(com.onedal.app.core.BleLink.PREF_PAIR_SIG, it) }
                             raw.optString("bleAdTag").takeIf { it.isNotEmpty() }?.let { putString(com.onedal.app.core.BleLink.PREF_AD_TAG, it) }
+                            raw.optString("serverId").takeIf { it.isNotEmpty() }?.let { putString(com.onedal.app.core.BleLink.PREF_SERVER_ID, it) }   // 🪪 이 폰이 보는 서버의 표지 — 관제앱이 «다른 서버를 봄»을 가른다
                         }.apply()
                     }
 

@@ -25,6 +25,7 @@ object BleFrames {
     const val FOLD: Byte = 7
     const val CHALLENGE: Byte = 8
     const val PROOF: Byte = 9
+    const val STATUS: Byte = 10
 
     const val MAX_WRITE = 512
     const val SILENT_MS = 5000L

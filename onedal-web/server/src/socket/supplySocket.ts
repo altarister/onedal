@@ -1,6 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import { SUPPLY_EVENTS, SUPPLY_NAMESPACE } from "@onedal/shared";
-import type { PhoneDecisionAck } from "@onedal/shared";
+import type { PhoneDecisionAck, PhoneStatus } from "@onedal/shared";
+import { applyPhoneStatus } from "../state/phoneStatus";
 import { authSocket } from "./authSocket";
 import { webAccountGate } from "./webAccountGate";
 import { getUserSession } from "../state/userSessionStore";
@@ -30,6 +31,8 @@ export function onSupplyConnection(io: Server, socket: Socket): void {
         if (typeof ack?.orderId !== 'string') return;
         ackDecision(io, getUserSession(userId), userId, ack.orderId, `공급 소켓 · ${deviceLabelOf(ack.deviceId)}`);
     }));
+    /* 📶 블루투스로만 아는 폰 사실 — 그 기사님 등록 폰만 받는다 (state/phoneStatus) */
+    socket.on(SUPPLY_EVENTS.status, (s: PhoneStatus) => logContext.run({ who: whoLabel(socket.data.user?.name, userId), userId }, () => { applyPhoneStatus(userId, s); }));
     socket.on("disconnect", (reason) => slog('통신', `📡 [공급 소켓] ${socket.data.user.name ?? userId} 관제앱 끊김 (${reason})`));
 }
 
