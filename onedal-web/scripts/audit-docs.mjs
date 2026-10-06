@@ -21,7 +21,8 @@
  *   ④ 죽은 링크        문서→문서 · 코드→문서
  *   ⑤ 손 뗀 자리       문서가 «이 파일이 한다»는 일을 그 파일이 아직 하는가
  *   ⑥ 경위 줄          CLAUDE.md · 루트 README · onedal-web/scripts 아래 .mjs 에 경위(날짜 · 지난 상태 서술 · 옛 경로)가 있나,
- *                     그 밖의 바꾼 코드 주석에는 HEAD 판보다 늘었나, 코드 주석에 날짜 괄호 꼬리가 있나
+ *                     그 밖의 바꾼 코드 주석에는 HEAD 판보다 늘었나, 코드 주석에 날짜 괄호 꼬리가 있나,
+ *                     바꾼 파일에 `reviews/` 를 가리키는 줄이 HEAD 판보다 늘었나
  *
  * ⚠️ **역사 서술은 옛말을 담는 게 당연하다** — 옛일을 적는 줄(→ · 폐기 · 그때)은 ③ 이 넘어간다.
  *
@@ -340,10 +341,11 @@ say('⑥ 경위 줄', '문서·스크립트에 경위가 있나 · 코드 주석
     // 나) 늘면 빨간불
     const watched = (p) => /\.(ts|tsx|kt|mjs|md)$/.test(p) && !strict(p) && p !== SELF;
     const shaped = (p, text) => hits(p, text, OLD_SHAPES).map(h => h.l);
-    const changed = [...new Set([
+    const touched = [...new Set([
         ...git('diff', '--name-only', 'HEAD').split('\n'),
         ...git('ls-files', '--others', '--exclude-standard').split('\n'),
-    ])].filter(p => p && watched(p));
+    ])].filter(Boolean);
+    const changed = touched.filter(watched);
     const before = new Map(changed.map(p => [p, shaped(p, git('show', `HEAD:${p}`))]));
     const moved = new Set([...before.values()].flat());
     for (const p of changed) {
@@ -378,6 +380,21 @@ say('⑥ 경위 줄', '문서·스크립트에 경위가 있나 · 코드 주석
         problems++; bad++;
         console.log(`  ${C.r}⚠${C.x} 코드 주석의 날짜 꼬리 ${C.d}${tailFiles}개 파일 · ${tailLines}줄${C.x}`);
         for (const s of tailShow) console.log(`      ${C.y}${s}${C.x}`);
+    }
+    // 라) `reviews/` 를 가리키는 줄 — 늘면 빨간불. 그 폴더는 git 이 무시해 레포를 받은 사람이 못 연다 (까닭은 주석에 한 줄로)
+    const REVIEWS = /reviews\/[\w가-힣]/;
+    const pointing = (text) => text.split('\n').map(l => l.trim()).filter(l => REVIEWS.test(l));
+    const pointed = touched.filter(p => p !== SELF && /\.(ts|tsx|kt|java|mjs|cjs|js|md)$/.test(p));
+    const pointedBefore = new Map(pointed.map(p => [p, pointing(git('show', `HEAD:${p}`))]));
+    const pointedMoved = new Set([...pointedBefore.values()].flat());
+    for (const p of pointed) {
+        if (!existsSync(join(ROOT, p))) continue;
+        const now = pointing(readFileSync(join(ROOT, p), 'utf8'));
+        const fresh = now.filter(l => !pointedMoved.has(l));
+        if (now.length <= pointedBefore.get(p).length || !fresh.length) continue;
+        problems++; bad++;
+        console.log(`  ${C.r}⚠${C.x} ${p} ${C.d}reviews/ 를 가리키는 줄 ${pointedBefore.get(p).length} → ${now.length}${C.x}`);
+        for (const l of fresh.slice(0, 3)) console.log(`      ${C.y}${l.slice(0, 110)}${C.x}`);
     }
     if (!bad) console.log(`  ${C.g}없음 ✅${C.x} ${C.d}(문서·스크립트 ${strictFiles.length}개 · 바뀐 코드 ${changed.length}개 · 코드 ${codeFiles.length}개 날짜 꼬리 0)${C.x}`);
 }
