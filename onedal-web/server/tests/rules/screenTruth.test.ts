@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { PICKER_SCREEN_LABELS, screenLabelOf } from '@onedal/shared';
+import { NETWORK_PAGES, PICKER_SCREEN_LABELS, screenLabelOf } from '@onedal/shared';
 
 /**
  * 🖥️ **화면 보고는 «본 것»만 말한다** (기사님 실측 제보).
@@ -157,8 +157,13 @@ describe('🏠 픽커 홈은 «홈»이라고 답한다', () => {
         expect(screenLabelOf('kakaopicker', 'HOME')?.label).toContain('홈');
     });
 
-    /** ⚠️ 인성·24시에는 홈 화면 개념이 없다 — 없는 것을 지어내 붙이지 않는다 */
-    it('인성에는 홈이 없다 — 없는 화면을 만들어 붙이지 않는다', () => {
-        expect(screenLabelOf('insung', 'HOME')?.label).toBe('알 수 없는 화면');
+    /**
+     * ⚠️ 없는 화면을 지어내 붙이지 않는다 — 인성 «홈» 이름은 실물 캡처(ex_images/인성/인성홈.png)로 화면 정의 표에
+     *    HOME 줄이 생겨서 있는 것이다(reviews/46 · 기사님 «가»). 표에서 그 줄이 빠지면 이름도 빠져야 한다.
+     */
+    it('인성 «홈» 이름은 화면 정의 표의 인성 HOME 줄과 함께 있다 — 지어낸 이름이 아니다', () => {
+        const insungHasHome = NETWORK_PAGES.insung.screens.some(p => p.standard === 'HOME' && p.seen === 'REAL');
+        expect(insungHasHome).toBe(true);
+        expect(screenLabelOf('insung', 'HOME')?.label).toBe('홈');
     });
 });

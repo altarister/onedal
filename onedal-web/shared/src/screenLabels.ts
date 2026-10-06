@@ -59,13 +59,13 @@ export const INSUNG_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel
     POPUP_DROPOFF: { label: "도착지 팝업", color: BLUE },
     POPUP_MEMO: { label: "적요 팝업", color: PURPLE },
     POPUP_ERROR: { label: "취소 불가 팝업", color: RED_BLINK },
+    /** 🏠 첫 화면 — 인성 «인성퀵화면분할» · 화물24시 «전국24시콜화물» (reviews/46 · 기사님 «가») */
+    HOME: { label: "홈", color: GRAY },
 };
 
 /** 🚚 화물24시 — 아직 인성과 같은 모양으로 둔다 (실물로 갈라지면 그때 고친다) */
 export const HWAMUL24_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel>> = {
     ...INSUNG_SCREEN_LABELS,
-    /** 🏠 «전국24시콜화물» 홈 — 인성에는 이 층이 없다 */
-    HOME: { label: "홈", color: GRAY },
 };
 
 /**

@@ -126,10 +126,11 @@ object InsungPages {
         "25t" to "25t",
     )
 
-    /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금»)) · 묶음 안 글자가 전부 보이면 이 배차망 */
+    /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금») · 첫 화면(«인성퀵화면분할» — 홈에서 바로 알아보기)) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(
         listOf("신규", "빠른설정"),
         listOf("적요상세", "요금"),
+        listOf("인성퀵화면분할"),
     )
 
     /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
@@ -165,6 +166,15 @@ object InsungPages {
             ),
             Seen.REAL,
             listOf("ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"),
+        ),
+        ScreenSpec(
+            "홈 «인성퀵화면분할»",
+            StandardScreen.HOME,
+            listOf(ScreenMatch(all = listOf("인성퀵화면분할"))),
+            false,
+            emptyList(),
+            Seen.REAL,
+            listOf("ex_images/인성/인성홈.png"),
         ),
         ScreenSpec(
             "신규 콜 목록",

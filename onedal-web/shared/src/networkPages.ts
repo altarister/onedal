@@ -167,8 +167,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       {"word": "25t", "vehicle": "25t", "seen": "SIM"}
     ],
     "vehicleWordsWhy": "목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록",
-    "networkMarkers": [["신규", "빠른설정"], ["적요상세", "요금"]],
-    "networkMarkersWhy": "목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금»)",
+    "networkMarkers": [["신규", "빠른설정"], ["적요상세", "요금"], ["인성퀵화면분할"]],
+    "networkMarkersWhy": "목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금») · 첫 화면(«인성퀵화면분할» — 홈에서 바로 알아보기)",
     "screens": [
       {"name": "확정 뒤 상세", "standard": "DETAIL_CONFIRMED", "match": [{"all": ["적요상세"], "any": ["인수증 전송", "카드 승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"], "overlays": [
         {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"]},
@@ -186,6 +186,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"name": "이미 배차됨 팝업", "kind": "POPUP", "match": [], "meaning": "남이 먼저 잡았다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
         {"name": "확정 실패 팝업", "kind": "POPUP", "match": [{"any": ["시간이 지나", "실패"], "none": ["적요상세"]}], "meaning": "확정이 안 됐다 — 적요 글의 «실패» · «시간이 지나»와 가를 머리 글자가 필요하다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 팝업 머리 글자"}
       ]},
+      {"name": "홈 «인성퀵화면분할»", "standard": "HOME", "match": [{"all": ["인성퀵화면분할"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/인성홈.png"], "overlays": []},
       {"name": "신규 콜 목록", "standard": "LIST", "match": [{"all": ["신규", "빠른설정"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png"], "overlays": [
         {"name": "로딩 토스트", "kind": "TOAST", "match": [{"any": ["오더 조회", "기다려 주십"]}], "meaning": "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", "action": "SKIP", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"},
         {"name": "메뉴 드롭다운", "kind": "POPUP", "match": [], "meaning": "목록 머리 «메뉴»를 누르면 펼쳐진다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
@@ -281,8 +282,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       {"word": "승용", "vehicle": "승용차", "seen": "SIM"}
     ],
     "vehicleWordsWhy": "목록 셋째 줄 «낱말/…»(«1톤/전체» · «2.5톤/윙» · «다마스/전체»)의 첫 «/» 앞 낱말 — REAL 은 실물 캡처 17 · 실물 목록, SIM 은 시뮬레이터 목록에서만 봤다",
-    "networkMarkers": [["화물정보", "자동새로고침"], ["화물상세정보", "운송료"]],
-    "networkMarkersWhy": "실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료»)",
+    "networkMarkers": [["화물정보", "자동새로고침"], ["화물상세정보", "운송료"], ["전국24시콜화물"]],
+    "networkMarkersWhy": "실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료») · 첫 화면(«전국24시콜화물» — 홈에서 바로 알아보기)",
     "screens": [
       {"name": "화물상세정보", "standard": "DETAIL_PRE_CONFIRM", "match": [{"all": ["화물상세정보", "배차신청"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_회원가입_약관.png (내용은 화물상세정보)"], "overlays": [
         {"name": "배차 실패 오류", "kind": "POPUP", "match": [{"any": ["이미 배차", "배차할 수 없"]}], "meaning": "배차신청이 안 됐다 — 남이 먼저 잡았거나 조건 미달", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}

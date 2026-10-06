@@ -62,6 +62,9 @@ class NetworkByScreenTest {
     )
 
     // ── 인성 (시뮬레이터) ──
+    /** 🏠 첫 화면(reviews/46) — 인성 «인성퀵화면분할» · 화물24시 «전국24시콜화물» */
+    private val insungHome = listOf("인성퀵화면분할", "인성1,5,6,7그룹", "인성2,3,4그룹", "실행", "설정", "5:5", "종료", "원격지원요청")
+    private val hwamul24Home = listOf("전국24시콜화물", "주요공지", "화물정보", "배차내역", "화물등록", "음성등록", "홈", "마이페이지", "환경설정")
     private val insungList = listOf("신규", "완료", "빠른설정", "출발지", "도착지", "차종", "요금", "경안동", "초월읍", "다", "3.5")
     private val insungDetail = listOf("출발지", "도착지", "요금 : 35,000(신용)", "적요상세", "확정")
 
@@ -71,8 +74,8 @@ class NetworkByScreenTest {
 
     private val allNetworkScreens = mapOf(
         TargetApp.KAKAOPICKER to listOf(pickerList, pickerDetail, pickerHome, pickerToPickup, pickerAtPickup),
-        TargetApp.HWAMUL24 to listOf(hwamul24List, hwamul24Detail),
-        TargetApp.INSUNG to listOf(insungList, insungDetail),
+        TargetApp.HWAMUL24 to listOf(hwamul24List, hwamul24Detail, hwamul24Home),
+        TargetApp.INSUNG to listOf(insungList, insungDetail, insungHome),
     )
 
     @Test

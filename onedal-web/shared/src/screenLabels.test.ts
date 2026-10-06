@@ -147,8 +147,9 @@ describe('넘어가는 중 · 배차망 메뉴 · 화물24시 홈', () => {
         }
     });
 
-    it('화물24시 홈은 «홈»', () => {
+    it('인성 · 화물24시 홈은 «홈» — 인성 첫 화면(«인성퀵화면분할»)이 «미등록»으로 안 보인다 (reviews/46)', () => {
         expect(screenLabelOf('hwamul24', 'HOME')?.label).toBe('홈');
+        expect(screenLabelOf('insung', 'HOME')?.label).toBe('홈');
     });
 });
 
