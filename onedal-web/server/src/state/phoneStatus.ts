@@ -29,6 +29,7 @@ export function applyPhoneStatus(userId: string, s: PhoneStatus): boolean {
 /**
  * 🚫 **블루투스 받기 전 원달앱** — 보고 문이 거절한 폰(reviews/50 ①-5). 확정 · 상세 문도 이것을 보고 거절하고, 관제웹 폰 칸은 «원달앱 새로 깔기 필요».
  *    새 원달앱이 보고하면 지운다. 메모리만.
+ * 못 잡는 것: 서버가 다시 뜬 직후 옛 원달앱이 첫 보고보다 확정을 먼저 보내면 한 번 통과한다 — 다음 보고(15초 안)에서 426 을 받아 스스로 알람으로 내려간다.
  */
 const tooOld = new Set<string>();
 export function markAppTooOld(deviceId: string): void {
