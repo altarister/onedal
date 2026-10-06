@@ -37,6 +37,8 @@ const v2Devices = new Set<string>();
 const senderTrace = new Map<string, { ip: string; at: number; warnedAt: number }>();
 /** ⏩ foldAfter 를 폰에 처음 실어 보낸 콜 — 처음 알림 로그를 한 번만 남긴다(최근 500) */
 const foldNotified = new Set<string>();
+/** 🛑 관제웹이 없어 자동 명령을 알람으로 내려주는 중인 기기 — 바뀔 때만 로그를 남긴다 */
+const noWebLowered = new Set<string>();
 
 // POST: 탈락 콜 빅데이터 수신 (오답노트용) 및 하트비트
 /** 🧮 intel 누적 수 — 서버 하나에 표 하나라 모듈에 하나 */
@@ -343,6 +345,19 @@ router.post("/", (req, res) => {
 
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
         const callMemoryRound = callMemoryRoundOf(session.businessDay, simRoundForPhone());
+        /* 🛑 결재할 관제웹이 안 붙었으면 자동 명령도 폰에는 알람 — 원달앱 혼자 확정 → 안전취소(취소 횟수)를 되풀이하지 않게 (reviews/44 · 표 shared `modeTable.ts`) */
+        const webAttached = !!session.activeWebSession;
+        const autoLive = allowanceOf(userId).autoLive;
+        const loweredByNoWeb = deviceMode === 'AUTO' && autoLive && !webAttached;
+        if (deviceId && loweredByNoWeb !== noWebLowered.has(deviceId)) {
+            if (loweredByNoWeb) {
+                noWebLowered.add(deviceId);
+                slog('통신', `🛑 [관제웹 없음] ${deviceLabelOf(deviceId)} 자동 명령을 알람으로 내려줌 — 결재할 관제웹이 없다`);
+            } else {
+                noWebLowered.delete(deviceId);
+                slog('통신', `✅ [관제웹 붙음] ${deviceLabelOf(deviceId)} 자동 그대로`);
+            }
+        }
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
         res.json({
             success: true,
@@ -351,8 +366,8 @@ router.post("/", (req, res) => {
                 totalItems: totalScrap
             },
             deviceControl: {
-                /* 🎛️ 자동 잡기 허락이 안 살았으면 AUTO 명령도 폰에는 ALARM — 관제웹 명령은 그대로 (reviews/29 6단계) */
-                mode: modeForPhone(deviceMode, allowanceOf(userId).autoLive),
+                /* 🎛️ 자동 잡기 허락이 안 살았거나 관제웹이 없으면 AUTO 명령도 폰에는 ALARM — 관제웹 명령은 그대로 (reviews/29 6단계 · reviews/44) */
+                mode: modeForPhone(deviceMode, autoLive, webAttached),
                 /* 🧹 본 콜 기억 번호 — 영업일이 바뀌거나 (개발) 시뮬 회차가 오르면 바뀌고, 원달앱이 «본 콜» 기억을 비운다 (`services/callMemoryRound.ts`) · 운영도 싣는다 */
                 callMemoryRound
             },

@@ -286,7 +286,30 @@ async function e2eSessionConflict(tok) {
     refresh.sock.close();
 }
 
-/** 🧪 ⑥ 계정 막힘 — 즉시 정지면 폰 보고 · 연결 번호 · 관제웹 소켓이 함께 막힌다(accountGateOf 한 판단) · 끝나면 풀어 둔다 */
+/**
+ * 🧪 ⑦ 관제웹이 없으면 자동을 내려주지 않는다(reviews/44 · 표 shared `modeTable.ts`) — 자동 명령인 폰의 보고 답이
+ *    관제웹 소켓이 붙어 있으면 자동 · 끊으면 알람 · 다시 붙이면 자동. 결재할 관제웹이 없을 때 원달앱 혼자 확정 → 안전취소를 되풀이하면 그것도 취소 횟수다.
+ *    관제웹 소켓을 새로 붙여 시작한다 — 앞 «같은 창 새로고침» 확인이 접속 기록을 그 소켓으로 바꿔 놓고 닫기 때문이다.
+ */
+async function e2eNoWeb(dbPath, userId, tok, deviceId) {
+    const c = new Database(dbPath);
+    c.prepare(`UPDATE users SET auto_allowed_at = datetime('now', 'localtime'), auto_until = NULL WHERE id = ?`).run(userId);
+    c.close();
+    const set = await call(`/api/devices/${encodeURIComponent(deviceId)}/mode`, { method: 'POST', body: { mode: 'AUTO' }, token: tok });
+    const reportWith = async (web) => {
+        const sock = web ? openSocket('', { token: tok, clientSessionId: MAIN_TAB }) : null;
+        if (sock) { await sock.first; await wait(300); }
+        const r = await scrap(deviceId);
+        sock?.sock.close();
+        await wait(500);
+        return r.json?.deviceControl?.mode;
+    };
+    const modes = [await reportWith(true), await reportWith(false), await reportWith(true)];
+    check('🧪 관제웹 없음 — 자동 명령의 보고 답이 붙음 자동 · 끊음 알람 · 다시 붙음 자동',
+        set.status === 200 && modes.join(' ') === 'AUTO ALARM AUTO', `명령 HTTP ${set.status} · ${modes.join(' → ')}`);
+}
+
+/** 🧪 ⑥ 계정 막힘 —즉시 정지면 폰 보고 · 연결 번호 · 관제웹 소켓이 함께 막힌다(accountGateOf 한 판단) · 끝나면 풀어 둔다 */
 async function e2eBlocked(dbPath, userId, tok, deviceId) {
     const set = (sql) => { const c = new Database(dbPath); c.prepare(sql).run(userId); c.close(); };
     set(`UPDATE users SET suspended_at = datetime('now', 'localtime'), suspend_after_active = 0 WHERE id = ?`);
@@ -588,10 +611,11 @@ async function main() {
 
         /* 🧪 e2e — 주행이 끝난 뒤 · 관제웹 소켓이 아직 붙어 있을 때(세션 충돌은 첫 소켓이 살아 있어야 난다) */
         if (E2E) {
-            say('\n═══ 🧪 통신 고리 — 폰 연결 · 세션 충돌 · 계정 막힘 ═══');
+            say('\n═══ 🧪 통신 고리 — 폰 연결 · 세션 충돌 · 계정 막힘 · 관제웹 없음 ═══');
             await e2ePair(tok);
             await e2eSessionConflict(tok);
             await e2eBlocked(dbPath, me.id, tok, DEVICE);
+            await e2eNoWeb(dbPath, me.id, tok, DEVICE);
             opsSock?.close();
             say('\n═══ 🖼️ 실제 화면 — 관제웹 · 운영센터 (시험 계정 · 새 크롬 프로필) ═══');
             if (built?.ok) {

@@ -31,7 +31,8 @@ describe('허락이 살아 있나 · 폰에 내려보낼 모드', () => {
     });
 
     it('🔴 scrap 응답 모드는 modeForPhone 을 거친다', () => {
-        expect(SRC('routes/scrap.ts')).toContain('mode: modeForPhone(deviceMode, allowanceOf(userId).autoLive)');
+        expect(SRC('routes/scrap.ts')).toContain('const autoLive = allowanceOf(userId).autoLive;');
+        expect(SRC('routes/scrap.ts')).toContain('mode: modeForPhone(deviceMode, autoLive, webAttached)');
     });
 });
 
