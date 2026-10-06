@@ -8,6 +8,7 @@ import { join } from 'path';
  * 자동을 누른 폰이 이기고 앞 자동 폰의 명령은 알람으로 옮겨 저장한다. 이미 둘이 자동 명령이면(옛 DB · 한 번도 안 고른 폰의 기본값) 보고 응답이 둘 다 알람으로 내려준다.
  * 못 잡는 것: 실제 두 폰이 같은 순간 콜에 들어가는 운행(실물 두 배차망 자동은 사업자 뒤) · 관제웹 단추가 옮겨진 모드를 다시 그리는 화면 ·
  *   옛 DB 에 둘 다 자동인 채 서버가 다시 뜬 경우(메모리가 비어 `getDeviceMode` 가 DB 를 읽는 길 — drive e2e 는 서버를 다시 띄우지 않아 못 만듦).
+ *   넘기는 도중 앞 폰이 꺼지면 새 폰은 앞 폰이 «살아 있음»에서 빠질 때(데드맨 150초)까지 알람으로 기다린다 — 안전한 쪽.
  */
 const devices = readFileSync(join(__dirname, '../../src/routes/devices.ts'), 'utf8');
 const scrap = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
