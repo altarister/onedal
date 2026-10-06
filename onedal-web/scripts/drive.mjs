@@ -323,6 +323,33 @@ async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock) {
     check('🧪 관제웹 없음 — 같은 창 번호 탭 둘 중 하나를 닫아도 자동 그대로', afterDupClosed === 'AUTO', `${afterDupClosed}`);
 }
 
+/**
+ * 🧪 ⑧ 자동은 한 폰만(reviews/48 가) — 같은 기사님의 두 번째 폰에 자동을 누르면 앞 자동 폰은 알람으로 옮겨지고,
+ *    끝에 첫 폰을 다시 자동으로 둔다(다음 확인이 쓴다). 옛 DB 에 둘 다 자동인 경우(서버 재시작 직후)는 서버를 다시 띄우지 않는 이 도구로는 못 만든다.
+ */
+async function e2eAutoOnePhone(dbPath, userId, tok, deviceId) {
+    const SECOND = '모의폰-둘째';
+    registerDevice(dbPath, userId, SECOND);
+    /* 자동이 내려가려면 허락이 살아 있고 관제웹이 붙어 있어야 한다 — 그 둘을 이 확인 안에서 갖춘다 */
+    const a = new Database(dbPath);
+    a.prepare(`UPDATE users SET auto_allowed_at = datetime('now', 'localtime'), auto_until = NULL WHERE id = ?`).run(userId);
+    a.close();
+    const web = openSocket('', { token: tok, clientSessionId: MAIN_TAB });
+    await web.first;
+    await wait(300);
+    const setMode = (id, mode) => call(`/api/devices/${encodeURIComponent(id)}/mode`, { method: 'POST', body: { mode }, token: tok });
+    const modeOf = async (id) => (await scrap(id)).json?.deviceControl?.mode;
+    await setMode(deviceId, 'AUTO');
+    const before = [await modeOf(deviceId), await modeOf(SECOND)];
+    await setMode(SECOND, 'AUTO');
+    const moved = [await modeOf(deviceId), await modeOf(SECOND)];
+    await setMode(deviceId, 'AUTO');
+    web.sock.close();
+    await wait(300);
+    check('🧪 자동은 한 폰만 — 둘째에 자동을 누르면 첫 폰은 알람으로 옮겨짐',
+        moved.join(' ') === 'ALARM AUTO', `처음 ${before.join('/')} → 둘째 자동 뒤 ${moved.join('/')}`);
+}
+
 /** 🧪 ⑥ 계정 막힘 —즉시 정지면 폰 보고 · 연결 번호 · 관제웹 소켓이 함께 막힌다(accountGateOf 한 판단) · 끝나면 풀어 둔다 */
 async function e2eBlocked(dbPath, userId, tok, deviceId) {
     const set = (sql) => { const c = new Database(dbPath); c.prepare(sql).run(userId); c.close(); };
@@ -625,10 +652,11 @@ async function main() {
 
         /* 🧪 e2e — 주행이 끝난 뒤 · 관제웹 소켓이 아직 붙어 있을 때(세션 충돌은 첫 소켓이 살아 있어야 난다) */
         if (E2E) {
-            say('\n═══ 🧪 통신 고리 — 폰 연결 · 세션 충돌 · 계정 막힘 · 관제웹 없음 ═══');
+            say('\n═══ 🧪 통신 고리 — 폰 연결 · 세션 충돌 · 계정 막힘 · 자동은 한 폰 · 관제웹 없음 ═══');
             await e2ePair(tok);
             await e2eSessionConflict(tok);
             await e2eBlocked(dbPath, me.id, tok, DEVICE);
+            await e2eAutoOnePhone(dbPath, me.id, tok, DEVICE);
             await e2eNoWeb(dbPath, me.id, tok, DEVICE, s);
             opsSock?.close();
             say('\n═══ 🖼️ 실제 화면 — 관제웹 · 운영센터 (시험 계정 · 새 크롬 프로필) ═══');

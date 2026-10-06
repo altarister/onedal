@@ -9,12 +9,13 @@ export function allowanceLive(allowedAt: string | null | undefined, until: strin
 }
 
 /**
- * 📱 **폰에 내려보낼 모드** — 관제웹 명령이 AUTO 인데 자동 잡기 허락이 안 살았거나 결재할 관제웹이 안 붙었으면 ALARM, 아니면 명령 그대로.
+ * 📱 **폰에 내려보낼 모드** — 관제웹 명령이 AUTO 인데 자동 잡기 허락이 안 살았거나 · 결재할 관제웹이 안 붙었거나 · 같은 기사님의 다른 폰도 자동 명령이면 ALARM, 아니면 명령 그대로.
+ * 자동은 한 폰만(reviews/48 가) — 두 폰이 같은 순간 함께 확정하는 일을 원리상 없앤다. `otherAuto` 도 보고 응답만 넘긴다.
  * 원달앱은 받은 모드를 따른다. 관제웹 명령(세션 mode)은 바꾸지 않는다 — 내려보내는 값만. 상황별 표는 `modeTable.ts`.
  * `webAttached` 는 보고 응답(`routes/scrap.ts`)만 넘긴다 — 관제웹이 읽는 «적용중» · 모드 목록은 관제웹이 붙어 있을 때만 그려져 늘 true 다.
  */
-export function modeForPhone(command: string, autoLive: boolean, webAttached = true): string {
-    return command === 'AUTO' && (!autoLive || !webAttached) ? 'ALARM' : command;
+export function modeForPhone(command: string, autoLive: boolean, webAttached = true, otherAuto = false): string {
+    return command === 'AUTO' && (!autoLive || !webAttached || otherAuto) ? 'ALARM' : command;
 }
 
 /**

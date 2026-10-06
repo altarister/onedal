@@ -12,12 +12,12 @@ import { DEVICE_MODES, DEVICE_MODE_LABEL, TARGET_APPS } from './index';
  * 못 잡는 것: 원달앱이 표대로 도는지(원달앱 `ModeTablePairTest`) · 서버 재시작 뒤 관제웹 소켓이 실제로 언제 다시 붙는지(폰 · 관제웹 시험).
  */
 describe('네 모드 표 — 서버 쪽', () => {
-    it('🔴 응답이 있는 줄은 서버가 내려주는 모드가 modeForPhone 과 같다 — 관제웹이 없으면 자동만 알람', () => {
+    it('🔴 응답이 있는 줄은 서버가 내려주는 모드가 modeForPhone 과 같다 — 관제웹이 없거나 다른 폰도 자동이면 자동만 알람', () => {
         for (const s of MODE_TABLE.situations) {
             expect(s.phone === null, `${s.id} — 응답이 없는 줄만 phone 이 비었다`).toBe(!(s.replied && s.reachable));
             if (!s.phone) continue;
             for (const cmd of DEVICE_MODES) {
-                expect(modeForPhone(cmd, s.autoLive, s.webAttached), `${s.id} · ${cmd}`).toBe(s.phone[cmd]);
+                expect(modeForPhone(cmd, s.autoLive, s.webAttached, s.otherAuto), `${s.id} · ${cmd}`).toBe(s.phone[cmd]);
             }
         }
     });

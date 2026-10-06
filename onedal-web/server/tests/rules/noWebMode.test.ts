@@ -13,7 +13,7 @@ const sockets = readFileSync(join(__dirname, '../../src/socket/socketHandlers.ts
 describe('🛑 관제웹이 없으면 자동을 내려주지 않는다', () => {
     it('🔴 보고 응답 모드에 관제웹 소켓 사실을 넘긴다 — 세션의 activeWebSession', () => {
         expect(scrap).toContain('const webAttached = !!session.activeWebSession;');
-        expect(scrap).toContain('mode: modeForPhone(deviceMode, autoLive, webAttached)');
+        expect(scrap).toContain('mode: modeForPhone(deviceMode, autoLive, webAttached, otherAuto)');
     });
 
     it('바뀔 때만 한 줄 — 관제웹 때문에 자동을 알람으로 내려준 기기', () => {

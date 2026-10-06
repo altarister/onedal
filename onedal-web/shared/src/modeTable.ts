@@ -21,6 +21,8 @@ export interface ModeSituation {
     webAttached: boolean;
     /** 자동 잡기 허락이 살아 있나 */
     autoLive: boolean;
+    /** 같은 기사님의 다른 등록 폰도 자동 명령인가 — 자동은 한 폰만(reviews/48 가) */
+    otherAuto: boolean;
     /** 지금 화면의 배차망 */
     network: TargetAppType;
     /** 서버가 보고 응답에 내려주는 모드(명령마다) — 응답이 없는 줄은 null */
@@ -55,44 +57,51 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
     "situations": [
         {
             "id": "beforeReply", "say": "접근성을 막 활성화 · 서버 답을 아직 못 받음",
-            "replied": false, "reachable": false, "webAttached": true, "autoLive": true, "network": "insung",
+            "replied": false, "reachable": false, "webAttached": true, "autoLive": true, "otherAuto": false, "network": "insung",
             "phone": null,
             "running": { "AUTO": "MANUAL", "ALARM": "MANUAL", "MANUAL": "MANUAL", "SIMULATION": "MANUAL" }
         },
         {
             "id": "normal", "say": "평소 — 응답 받음 · 관제웹 붙음 · 허락 살아 있음 · 인성",
-            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "network": "insung",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "network": "insung",
             "phone": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" }
         },
         {
             "id": "normalHwamul24", "say": "평소 — 화물24시",
-            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "network": "hwamul24",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "network": "hwamul24",
             "phone": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" }
         },
         {
             "id": "picker", "say": "평소와 같고 화면이 픽커 — 확정 버튼이 없어 자동이 알람으로 돈다",
-            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "network": "kakaopicker",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": false, "network": "kakaopicker",
             "phone": { "AUTO": "AUTO", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" }
         },
         {
             "id": "autoNotAllowed", "say": "자동 잡기 허락이 꺼짐",
-            "replied": true, "reachable": true, "webAttached": true, "autoLive": false, "network": "insung",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": false, "otherAuto": false, "network": "insung",
             "phone": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" }
         },
         {
             "id": "noWeb", "say": "서버는 살았고 관제웹이 없음 — 로그인 대기 · 창 닫힘 · 서버 재시작 뒤 아직 안 붙음",
-            "replied": true, "reachable": true, "webAttached": false, "autoLive": true, "network": "insung",
+            "replied": true, "reachable": true, "webAttached": false, "autoLive": true, "otherAuto": false, "network": "insung",
             "phone": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "note": "결재할 관제웹이 없으면 자동으로 잡은 콜은 전부 안전취소로 끝난다 — 서버가 기사님 없이 KEEP 하는 길은 없다"
         },
         {
+            "id": "otherAuto", "say": "같은 기사님의 다른 폰도 자동 명령 — 자동은 한 폰만(새로 자동을 누른 폰이 이기고 앞 폰은 알람으로 옮겨진다 · 이미 둘이면 둘 다 알람)",
+            "replied": true, "reachable": true, "webAttached": true, "autoLive": true, "otherAuto": true, "network": "insung",
+            "phone": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
+            "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
+            "note": "두 폰이 같은 순간 함께 확정하는 일을 원리상 없앤다 — 다른 폰은 알람(소리 + 미리보기)"
+        },
+        {
             "id": "noReply", "say": "원달앱이 서버 응답을 못 받음 — 첫 실패 · 200 아님",
-            "replied": true, "reachable": false, "webAttached": true, "autoLive": true, "network": "insung",
+            "replied": true, "reachable": false, "webAttached": true, "autoLive": true, "otherAuto": false, "network": "insung",
             "phone": null,
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "note": "다음 200 응답에서 서버 모드로 돌아온다"

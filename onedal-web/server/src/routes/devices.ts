@@ -62,6 +62,32 @@ function saveModePreference(deviceId: string, userId: string, mode: DeviceModeTy
 }
 
 /**
+ * 🔁 **자동은 한 폰만 — 같은 기사님의 다른 등록 폰 가운데 명령이 자동인 폰이 있나** (reviews/48 가).
+ *    저장하지 않고 그때그때 본다(규칙 ③) — 한 번도 안 고른 폰의 기본값(필터 켜짐이면 자동)도 `getDeviceMode` 가 같이 답한다.
+ *    보고 응답(`scrap.ts`)이 이 사실로 자동을 알람으로 내려준다 — 이미 둘이 자동 명령인 옛 DB · 새로 붙인 폰의 안전망.
+ */
+export function otherAutoPhoneOf(deviceId: string, userId: string): boolean {
+    const others = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ? AND device_id <> ?").all(userId, deviceId) as { device_id: string }[];
+    return others.some(o => getDeviceMode(o.device_id, userId) === 'AUTO');
+}
+
+/**
+ * 🔁 **자동을 누른 폰이 이긴다 — 같은 기사님의 다른 자동 폰은 명령을 알람으로 옮겨 저장한다** (reviews/48 가 · 기사님 «옮긴다»).
+ *    «알람은 기사님이 명시적으로 고를 때만»(아래 기본값 주석)의 예외 — 기사님이 다른 폰에 자동을 고른 것이 곧 이 폰을 알람으로 고른 것이다.
+ *    관제웹 폰 단추는 1초마다 가는 폰 목록(`telemetry-devices`)으로 알람을 그린다.
+ */
+function demoteOtherAutoPhones(deviceId: string, userId: string): void {
+    const others = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ? AND device_id <> ?").all(userId, deviceId) as { device_id: string }[];
+    for (const { device_id: other } of others) {
+        if (getDeviceMode(other, userId) !== 'AUTO') continue;
+        saveModePreference(other, userId, 'ALARM');
+        const s = activeDevices.get(other);
+        if (s) s.mode = 'ALARM';
+        slog('통신', `🔁 [자동은 한 폰] ${deviceLabelOf(other)} 자동 → 알람 — ${deviceLabelOf(deviceId)} 에 자동을 골랐다`);
+    }
+}
+
+/**
  * 기기의 기본 모드: **DB 에 적힌 기사님의 선택 > 필터 활성 여부 추론**.
  *
  * 🔴 추론은 «아직 한 번도 안 고른 기기»를 위한 폴백일 뿐이다. 값이 셋이라 추론으로는
@@ -850,6 +876,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
             console.warn(`⛔ [모드 거절] 기기(${deviceLabelOf(deviceId)}) 는 유저(${userId}) 의 폰이 아닙니다`);
             return res.status(404).json({ error: "등록되지 않았거나 내 기기가 아닙니다." });
         }
+        if (mode === 'AUTO') demoteOtherAutoPhones(deviceId, userId);
 
         if (!session) {
             // 서버 재시작 직후 하트비트가 아직 안 왔을 수도 있음.

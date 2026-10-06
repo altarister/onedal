@@ -13,7 +13,7 @@ import { ensureBusinessDay, ensureReservedPickupList } from "../state/filterMana
 import { appFilterOf } from "../state/appFilter";
 import { clientIpOf } from "../utils/clientIp";
 
-import { touchDeviceSession } from "./devices";
+import { touchDeviceSession, otherAutoPhoneOf } from "./devices";
 import { simRoundForPhone } from "./sim";
 import { callMemoryRoundOf } from "../services/callMemoryRound";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -39,6 +39,8 @@ const senderTrace = new Map<string, { ip: string; at: number; warnedAt: number }
 const foldNotified = new Set<string>();
 /** 🛑 관제웹이 없어 자동 명령을 알람으로 내려주는 중인 기기 — 바뀔 때만 로그를 남긴다 */
 const noWebLowered = new Set<string>();
+/** 🔁 다른 폰도 자동 명령이라 알람으로 내려주는 중인 기기 — 바뀔 때만 로그를 남긴다 */
+const otherAutoLowered = new Set<string>();
 
 // POST: 탈락 콜 빅데이터 수신 (오답노트용) 및 하트비트
 /** 🧮 intel 누적 수 — 서버 하나에 표 하나라 모듈에 하나 */
@@ -349,6 +351,18 @@ router.post("/", (req, res) => {
         const webAttached = !!session.activeWebSession;
         const autoLive = allowanceOf(userId).autoLive;
         const loweredByNoWeb = deviceMode === 'AUTO' && autoLive && !webAttached;
+        /* 🔁 자동은 한 폰만 — 같은 기사님의 다른 폰도 자동 명령이면 이 폰도 알람(reviews/48 가 · 이미 둘인 경우의 안전망) */
+        const otherAuto = !!deviceId && otherAutoPhoneOf(deviceId, userId);
+        const loweredByOtherAuto = deviceMode === 'AUTO' && otherAuto;
+        if (deviceId && loweredByOtherAuto !== otherAutoLowered.has(deviceId)) {
+            if (loweredByOtherAuto) {
+                otherAutoLowered.add(deviceId);
+                slog('통신', `🔁 [자동은 한 폰] ${deviceLabelOf(deviceId)} 다른 폰도 자동 명령 — 알람으로 내려줌(자동으로 둘 폰을 다시 고르시면 풀림)`);
+            } else {
+                otherAutoLowered.delete(deviceId);
+                slog('통신', `✅ [자동은 한 폰] ${deviceLabelOf(deviceId)} 자동 혼자 — 자동 그대로`);
+            }
+        }
         if (deviceId && loweredByNoWeb !== noWebLowered.has(deviceId)) {
             if (loweredByNoWeb) {
                 noWebLowered.add(deviceId);
@@ -367,7 +381,7 @@ router.post("/", (req, res) => {
             },
             deviceControl: {
                 /* 🎛️ 자동 잡기 허락이 안 살았거나 관제웹이 없으면 AUTO 명령도 폰에는 ALARM — 관제웹 명령은 그대로 (reviews/29 6단계 · reviews/44) */
-                mode: modeForPhone(deviceMode, autoLive, webAttached),
+                mode: modeForPhone(deviceMode, autoLive, webAttached, otherAuto),
                 /* 🧹 본 콜 기억 번호 — 영업일이 바뀌거나 (개발) 시뮬 회차가 오르면 바뀌고, 원달앱이 «본 콜» 기억을 비운다 (`services/callMemoryRound.ts`) · 운영도 싣는다 */
                 callMemoryRound
             },
