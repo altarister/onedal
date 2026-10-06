@@ -73,6 +73,28 @@ export const ALL_ORDER_STATUSES: readonly OrderStatus[] = [
     'ORDER_RELEASED_BY_OFFICE',
 ] as const;
 
+/**
+ * 🏷️ **콜 상태 이름표 — 한 벌** · `Record` 라 새 상태를 `OrderStatus` 에 더하면 여기서 타입이 막는다(빠진 이름표가 영어로 새지 않게).
+ *    화면(운영센터 등)은 이 표로만 옮겨 적는다 — 화면마다 따로 적으면 갈라진다.
+ */
+export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
+    ORDER_PRE_SECURED: '선점 중',
+    ORDER_SECURED_EVALUATING: '심사 중',
+    ORDER_AWAITING_DECISION: '결재 기다림',
+    ORDER_CONFIRMED: '진행 중',
+    ORDER_PICKED_UP: '상차 완료',
+    ORDER_DELIVERED: '하차 완료',
+    ORDER_COMPLETED: '완료',
+    ORDER_RELEASED_BY_ME: '방출(기사님)',
+    SAFE_CANCEL: '안전취소',
+    ORDER_RELEASED_BY_OFFICE: '방출(사무실)',
+};
+
+/** 🔙 **잡았다가 무른 콜인가** — 안전취소 · 방출 둘. «잡은 콜» 수에서 따로 센다 (운영센터 «오늘 판정받은 콜») */
+export function isLetGoStatus(status: string | null | undefined): boolean {
+    return status === 'SAFE_CANCEL' || status === 'ORDER_RELEASED_BY_ME' || status === 'ORDER_RELEASED_BY_OFFICE';
+}
+
 /** 종결 상태 (더 이상 상태 전이 없음) */
 export const TERMINAL_STATUSES: readonly OrderStatus[] = [
     // 하차 보고(ORDER_DELIVERED)가 곧 배송 종료다. 여기 있어야 getActiveCalls() 가 제외해

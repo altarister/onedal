@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { CONTENT_KINDS, TARGET_APP_LABEL, type OpsAgreement, type OpsJudgedCall } from '@onedal/shared';
+import { CONTENT_KINDS, TARGET_APP_LABEL, isLetGoStatus, type OpsAgreement, type OpsJudgedCall } from '@onedal/shared';
 import { Button } from '@onedal/ui/button';
 import { Input } from '@onedal/ui/input';
 import { api, useOps, write } from '../api/ops';
@@ -97,7 +97,7 @@ export default function MemberDetail() {
             </>}
             {tab === 'phone' && <MemberPhoneFilter memberId={m.id} />}
             {tab === 'calls' && (
-                <Card title={`오늘 판정받은 콜 — ${todayJudged.length}건 · 잡은 콜 ${todayJudged.filter(j => j.taken).length} (색 · 점수 · 필터는 서버 필터 기준)`}>
+                <Card title={`오늘 판정받은 콜 — ${todayJudged.length}건 · 잡음 ${todayJudged.filter(j => j.taken && !isLetGoStatus(j.taken)).length} · 무름 ${todayJudged.filter(j => isLetGoStatus(j.taken)).length} (색 · 점수 · 필터는 서버 필터 기준)`}>
                     {todayJudged.length === 0 && <p className="text-sm text-text-muted">오늘은 없습니다</p>}
                     {todayJudged.map(j => <JudgedRow key={j.orderId} j={j} />)}
                 </Card>
@@ -155,7 +155,7 @@ function JudgedRow({ j }: { j: OpsJudgedCall }) {
             <div className="pl-5 py-1 text-xs text-text-muted space-y-0.5">
                 {j.axes.map((a, i) => <div key={i}>{a.name} {a.score ?? '—'}점 — {a.raw}</div>)}
                 <div>{f
-                    ? `필터(서버): 목적지 ${f.goalCity || f.destinationCity || '없음'} · 상차 반경 ${f.pickupRadiusKm ?? '—'}km · 최소 ${f.minFare != null ? fmtWon(f.minFare) : '—'} · 상차 ${f.pickupCount} · 하차 ${f.dropoffCount} · 제외 ${f.excludedCount}${f.todayOnly ? ' · 오늘만 바꿈' : ''}${f.isActive === false ? ' · 꺼짐' : ''}`
+                    ? `필터(서버): 목적지 ${f.goalCity || f.destinationCity || '없음'} · 상차 반경 ${f.pickupRadiusKm ?? '—'}km · 최소 ${f.minFare != null ? fmtWon(f.minFare) : '—'} · 상차 지역 ${f.pickupCount}곳 · 하차 지역 ${f.dropoffCount}곳 · 제외 낱말 ${f.excludedCount}개${f.todayOnly ? ' · 오늘만 바꿈' : ''}${f.isActive === false ? ' · 꺼짐' : ''}`
                     : '필터: 기록 없음(옛 판정)'}</div>
                 {c?.targetApp && <div>배차망 {TARGET_APP_LABEL[c.targetApp as keyof typeof TARGET_APP_LABEL] ?? c.targetApp}</div>}
             </div>

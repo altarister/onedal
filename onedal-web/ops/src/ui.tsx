@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
-import { COLOR_DOT, hhmmText, isoKst, kstDateText, opsMemberStatus, wonText, type OpsCounts, type OpsMember } from '@onedal/shared';
+import { COLOR_DOT, ORDER_STATUS_LABEL, hhmmText, isoKst, kstDateText, opsMemberStatus, wonText, type OpsCounts, type OpsMember } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 import { Badge } from '@onedal/ui/badge';
 import {
@@ -287,9 +287,8 @@ export function StatusBadge({ m }: { m: OpsMember }) {
 
 export { COLOR_DOT };
 
-/** 콜 상태 — 영어 코드를 기사님 하루의 말로 */
-const STATUS_KO: Record<string, string> = { ORDER_CONFIRMED: '진행 중', ORDER_DELIVERED: '하차 완료', ORDER_CANCELLED: '취소', ORDER_RELEASED: '방출' };
-export function statusKo(status: string): string { return STATUS_KO[status] ?? status.replace('ORDER_', ''); }
+/** 콜 상태 — 영어 코드를 기사님 하루의 말로 (이름표는 shared `ORDER_STATUS_LABEL` 한 벌) */
+export function statusKo(status: string): string { return (ORDER_STATUS_LABEL as Record<string, string>)[status] ?? status.replace('ORDER_', ''); }
 
 /** 한국 날 — 브라우저 시간대(기사님 · 관리자는 한국). `toISOString()` 은 UTC 라 쓰지 않는다 */
 /** 한국 달력 날 `YYYY-MM-DD` — shared `kstDateText` 하나(영업일 키가 아니다 — 화면이 스스로 묶는 자리에만 쓴다 · 서버가 영업일로 센 값은 그대로 센다) */
