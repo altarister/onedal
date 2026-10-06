@@ -401,6 +401,41 @@ async function e2eSupplyMode(supply, tok, deviceId) {
     supply.sock.close();
 }
 
+/**
+ * 🧪 ⑪ 모드 바꾸기 · 붙기 · 끊기의 서버 쪽 절반(reviews/50 ①-4 · 기사님 «가») — 진짜 폰 · 블루투스 없이.
+ *    ① 관제웹에서 모드를 바꾸면 공급 값의 그 폰 모드가 바로 바뀐다(모드 문이 곧바로 공급) ② 원달앱이 «받은 모드»를 보고하면 기기 목록의 «보낼 모드»와 같아진다(적용중 풀림 — 셈은 shared `isModeApplying`)
+ *    ③ 원달앱이 «공급 끊김»을 보고하면 기기 목록에 그 사실(폰 칸 «관제앱과 끊김 · 알람만»의 재료) · «붙음»이면 사라진다. 끝에 모드를 자동으로 되돌린다.
+ */
+async function e2eSupplyApply(supply, tok, deviceId) {
+    const web = openSocket('', { token: tok, clientSessionId: MAIN_TAB });   // 관제웹이 붙어 있어야 자동 · 알람이 그대로 간다
+    await web.first;
+    await wait(300);
+    const setMode = (mode) => call(`/api/devices/${encodeURIComponent(deviceId)}/mode`, { method: 'POST', body: { mode }, token: tok });
+    const supplied = () => supply.supplies[supply.supplies.length - 1]?.phones?.[deviceId]?.mode;
+    const t0 = Date.now();
+    await setMode('ALARM');
+    for (let i = 0; i < 25 && supplied() !== 'ALARM'; i++) await wait(100);
+    const tookMs = Date.now() - t0;
+    check('🧪 모드 바꾸기 — 관제웹에서 알람으로 바꾸면 공급 값의 그 폰 모드가 1초 안에 알람', supplied() === 'ALARM' && tookMs < 1000, `${supplied()} · ${tookMs}ms`);
+    const row = async () => ((await call('/api/devices', { token: tok })).json?.devices ?? []).find(d => d.deviceId === deviceId);
+    await scrap(deviceId, { suppliedMode: 'AUTO', supplyLinked: true });
+    const before = await row();
+    await scrap(deviceId, { suppliedMode: 'ALARM', supplyLinked: true });
+    const after = await row();
+    check('🧪 모드 바꾸기 — 원달앱이 받은 모드를 보고하면 «보낼 모드»와 같아진다(그 전엔 다름 = 적용중)',
+        before?.sentMode === 'ALARM' && before?.suppliedMode === 'AUTO' && after?.suppliedMode === after?.sentMode,
+        `전 ${before?.sentMode}/${before?.suppliedMode} · 뒤 ${after?.sentMode}/${after?.suppliedMode}`);
+    await scrap(deviceId, { suppliedMode: 'ALARM', supplyLinked: false });
+    const cut = await row();
+    await scrap(deviceId, { suppliedMode: 'ALARM', supplyLinked: true });
+    const back = await row();
+    check('🧪 끊기 · 붙기 — 원달앱이 «공급 끊김»을 보고하면 기기 목록에 끊김 · «붙음»이면 붙음(폰 칸 배지 재료)',
+        cut?.supplyLinked === false && back?.supplyLinked === true, `${cut?.supplyLinked} → ${back?.supplyLinked}`);
+    await setMode('AUTO');
+    web.sock.close();
+    await wait(300);
+}
+
 /** 🧪 ⑥ 계정 막힘 —즉시 정지면 폰 보고 · 연결 번호 · 관제웹 소켓이 함께 막힌다(accountGateOf 한 판단) · 끝나면 풀어 둔다 */
 async function e2eBlocked(dbPath, userId, tok, deviceId) {
     const set = (sql) => { const c = new Database(dbPath); c.prepare(sql).run(userId); c.close(); };
@@ -716,6 +751,7 @@ async function main() {
             await e2eBlocked(dbPath, me.id, tok, DEVICE);
             await e2eAutoOnePhone(dbPath, me.id, tok, DEVICE);
             await e2eNoWeb(dbPath, me.id, tok, DEVICE, s);
+            await e2eSupplyApply(supply, tok, DEVICE);
             await e2eSupplyMode(supply, tok, DEVICE);
             opsSock?.close();
             say('\n═══ 🖼️ 실제 화면 — 관제웹 · 운영센터 (시험 계정 · 새 크롬 프로필) ═══');
