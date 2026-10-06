@@ -388,14 +388,12 @@ async function e2eSupplyMode(supply, tok, deviceId) {
     web.sock.close();
     const closed = await waitMode('ALARM');
     check('🧪 공급 소켓 — 관제웹이 붙으면 2.5초 안에 자동 · 끊으면 다시 알람(1초 주기)', withWeb === 'AUTO' && closed === 'ALARM', `${withWeb} → ${closed}`);
-    /* 📶 블루투스로만 아는 폰 사실(reviews/50 ①-4) — 관제앱이 넘긴 «다른 서버를 봄»이 기기 목록에 붙는다 · 남의 폰 번호는 안 붙는다 */
+    /* 📶 블루투스로만 아는 폰 사실(reviews/50 ①-4) — 관제앱이 넘긴 «다른 서버를 봄»이 기기 목록에 붙는다 · 남의 폰 번호를 버리는 것은 서버 jest `phoneSupply.test` 몫(기기 목록엔 원래 등록 폰만 나와 여기선 못 가른다) */
     supply.sock.emit('phone-status', { deviceId, sameServer: false, unlinkedWhy: null, heardAt: Date.now() });
-    supply.sock.emit('phone-status', { deviceId: '남의폰', sameServer: false, unlinkedWhy: null, heardAt: Date.now() });
     await wait(400);
     const list = (await call('/api/devices', { token: tok })).json?.devices ?? [];
     const row = list.find(d => d.deviceId === deviceId);
-    check('🧪 공급 소켓 — 블루투스 폰 사실(다른 서버를 봄)이 기기 목록에 붙고 남의 폰 번호는 안 붙는다',
-        row?.bleSameServer === false && !list.some(d => d.deviceId === '남의폰'), `${row?.bleSameServer} · ${list.length}대`);
+    check('🧪 공급 소켓 — 블루투스 폰 사실(다른 서버를 봄)이 기기 목록에 붙는다', row?.bleSameServer === false, `${row?.bleSameServer}`);
     supply.sock.emit('phone-status', { deviceId, sameServer: true, unlinkedWhy: null, heardAt: Date.now() });
     await wait(200);
     supply.sock.close();
