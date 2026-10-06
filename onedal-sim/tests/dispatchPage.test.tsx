@@ -31,6 +31,8 @@ describe('배차 화면 — 배차망마다 고르는 부품 (첫 그림)', () =
         // `?net=inseong` 을 `insung` 으로 넘기는 일은 addressRedirect.test.tsx 가 본다
         ['인성', '/dispatch?net=insung'],
         ['화물24시', '/dispatch?net=hwamul24'],
+        ['인성 목록', '/dispatch?net=insung&view=list'],
+        ['화물24시 목록', '/dispatch?net=hwamul24&view=list'],
         ['없는 문제지', '/dispatch?net=hwamul24&preset=없는문제지'],
     ])('%s', (_name, url) => {
         expect({ frame: frameOf(url), text: textOf(url) }).toMatchSnapshot();
@@ -64,9 +66,23 @@ describe('배차 화면 — 픽커', () => {
         expect(text).not.toContain('시작하기');
     });
 
-    it('인성·화물24시는 같은 문제지로 그대로 연다', () => {
-        expect(textOf('/dispatch?net=insung&preset=칠지점')).toContain('신규');
-        expect(textOf('/dispatch?net=hwamul24&preset=칠지점')).toContain('화물정보');
+    it('인성·화물24시는 같은 문제지로 그대로 연다 — 목록(view=list)에서', () => {
+        expect(textOf('/dispatch?net=insung&preset=칠지점&view=list')).toContain('신규');
+        expect(textOf('/dispatch?net=hwamul24&preset=칠지점&view=list')).toContain('자동새로고침');
+    });
+
+    /**
+     * 🏠 **인성 · 화물24시는 첫 화면에서 시작한다** (reviews/46 · 기사님) — 실물처럼 홈 → 목록. 원달앱은 홈 글자로 화면을 가른다:
+     *    인성 «인성퀵화면분할» · 화물24시 «전국24시콜화물». 홈에는 목록 글자(«신규 · 빠른설정» · «자동새로고침»)가 없어야 원달앱이 목록으로 안 읽는다.
+     */
+    it('🏠 인성 · 화물24시는 첫 화면 — 홈 글자가 있고 목록 글자는 없다', () => {
+        const insung = textOf('/dispatch?net=insung&preset=칠지점');
+        expect(insung).toContain('인성퀵화면분할');
+        expect(insung).toContain('실행');
+        expect(insung).not.toContain('빠른설정');
+        const hwamul = textOf('/dispatch?net=hwamul24&preset=칠지점');
+        expect(hwamul).toContain('전국24시콜화물');
+        expect(hwamul).not.toContain('자동새로고침');
     });
 });
 

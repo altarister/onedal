@@ -21,6 +21,8 @@ import { toPickerCall } from './kakaopicker/pickerCall';
 import { PICKER_PRESET_BOOK } from './kakaopicker/pickerPresets';
 import { InsungSimScreen } from './insung/InsungSimScreen';
 import { Hwamul24SimScreen } from './hwamul24/Hwamul24SimScreen';
+import { InsungHomeScreen } from './insung/InsungHomeScreen';
+import { Hwamul24HomeScreen } from './hwamul24/Hwamul24HomeScreen';
 import { PickerSimScreen } from './kakaopicker/PickerSimScreen';
 
 /** 시뮬레이터 리스트·잡은 콜이 담는 콜 — 배차망마다 칸이 다르다 */
@@ -59,6 +61,12 @@ export interface NetScreenProps {
   goSetup: () => void;
 }
 
+/** 🏠 첫 화면이 받는 것 — 목록으로 들어가기(방문 기록에 한 칸) · 준비 화면으로 */
+export interface NetHomeProps {
+  onEnter: () => void;
+  goSetup: () => void;
+}
+
 /** 🧩 배차망 하나가 채울 칸 — 서버의 `IAppPlugin` 과 같은 짜임 */
 export interface SimNet {
   key: NetKey;
@@ -84,9 +92,14 @@ export interface SimNet {
   /**
    * 🔙 상세를 열 때 방문 기록에 한 칸 남기나.
    * 원달앱은 알람으로 상세에 들어간 뒤 30초 무응답이면 «뒤로 가기»를 누른다. 상세가 방문 기록에 없으면
-   * 그 한 번에 설정 화면까지 나가 버린다. 인성·화물24시는 `false` — 상태만 바꾼다.
+   * 그 한 번에 설정 화면까지 나가 버린다 — 세 배차망 모두 남긴다.
    */
   detailInHistory: boolean;
+  /**
+   * 🏠 **첫 화면** — 있으면 배차 화면은 이 화면에서 시작하고(실물 «홈 → 목록»), 들어가면 `?view=list` 로 방문 기록에 한 칸 쌓는다.
+   * 콜은 목록을 볼 때만 흘린다(기사님 «가» — 홈에 있는 동안 흘리면 아무도 못 본 채 지나간다). 픽커는 제 화면 안에 홈이 있어 비운다.
+   */
+  Home?: ComponentType<NetHomeProps>;
 }
 
 export const SIM_NETS: Record<NetKey, SimNet> = {
@@ -98,7 +111,8 @@ export const SIM_NETS: Record<NetKey, SimNet> = {
     Screen: InsungSimScreen,
     setupColors: { toggle: 'bg-blue-600 text-white', start: 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-900/40' },
     presetBook: SHARED_PRESET_BOOK,
-    detailInHistory: false,
+    detailInHistory: true,
+    Home: InsungHomeScreen,
   },
   hwamul24: {
     key: 'hwamul24',
@@ -108,7 +122,8 @@ export const SIM_NETS: Record<NetKey, SimNet> = {
     Screen: Hwamul24SimScreen,
     setupColors: { toggle: 'bg-[#c62828] text-white', start: 'bg-gradient-to-r from-[#c62828] to-[#8e1b1b] shadow-red-900/40' },
     presetBook: SHARED_PRESET_BOOK,
-    detailInHistory: false,
+    detailInHistory: true,
+    Home: Hwamul24HomeScreen,
   },
   kakaopicker: {
     key: 'kakaopicker',

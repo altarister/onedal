@@ -13,7 +13,7 @@ import { DispatchPage } from '../src/pages/DispatchPage';
  * 원달앱은 알람으로 상세에 들어간 뒤 30초 무응답이면 «뒤로 가기»를 누른다(`HijackService` · GLOBAL_ACTION_BACK).
  * 시뮬레이터 앱은 그 뒤로 가기를 웹뷰 방문 기록으로 넘긴다(`webView.goBack()`). 상세가 React 상태뿐이면
  * 방문 기록에 없어서 **설정 화면까지 나가 버린다.**
- * 인성·화물24시는 상세를 방문 기록에 안 남긴다 (`SimNet.detailInHistory` 가 픽커만 켜져 있다) — 이 검사는 픽커 쪽만 본다.
+ * 세 배차망 모두 상세를 방문 기록에 남긴다 (`SimNet.detailInHistory`) · 인성 · 화물24시는 첫 화면(홈)도 기록에 한 칸 — 뒤로: 상세 → 목록 → 홈 (reviews/46).
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -46,6 +46,13 @@ const pressFirstFare = () => {
     const fare = [...host!.querySelectorAll('div')].find(s => s.children.length === 0 && /^\d{1,3}(,\d{3})+$/.test((s.textContent ?? '').trim()));
     if (!fare) throw new Error('요금 글자가 없다');
     act(() => { fare.click(); });
+};
+
+/** 목록 줄 안의 칸 하나를 누른다 — 줄 전체가 눌린다 (인성 요금 «4.6»만원 · 화물24시 «상차 › 하차» — 머리줄의 «잔액 …원»을 피한다) */
+const pressFirstRow = (cellPattern: RegExp) => {
+    const cell = [...host!.querySelectorAll<HTMLElement>('div,span')].find(s => s.children.length === 0 && cellPattern.test((s.textContent ?? '').trim()));
+    if (!cell) throw new Error('목록 줄의 숫자 칸이 없다');
+    act(() => { cell.click(); });
 };
 
 beforeEach(() => {
@@ -111,5 +118,31 @@ describe('픽커', () => {
         expect(host!.textContent).toContain('리스트 설정');
         act(() => { navigateRef!(-1); });
         expect(here).toBe('/');
+    });
+});
+
+/**
+ * 🏠🔙 **인성 · 화물24시 — 홈 → 목록 → 상세, 뒤로는 상세 → 목록 → 홈** (reviews/46 · 기사님).
+ * 원달앱이 상세 대기 끝에 «뒤로»를 누르면 목록으로, 목록에서 한 번 더면 홈으로 — 준비 화면으로 튕기지 않는다.
+ */
+describe.each([
+    ['인성', 'insung', '실행', '인성퀵화면분할', '빠른설정', /^\d+\.\d$/],
+    ['화물24시', 'hwamul24', '화물정보', '전국24시콜화물', '자동새로고침', /›/],
+])('%s', (_name, net, enter, homeWord, listWord, cellPattern) => {
+    it('홈 → 들어가기 → 요금을 누르면 상세 · 뒤로 → 목록 · 뒤로 → 홈', () => {
+        mount(`/dispatch?net=${net}&lon=127.29444&lat=37.37669`);
+        expect(host!.textContent).toContain(homeWord);
+        act(() => { buttonByText(enter)!.click(); });
+        expect(new URLSearchParams(here.split('?')[1]).get('view')).toBe('list');
+        act(() => { vi.advanceTimersByTime(3000); });
+        expect(host!.textContent).toContain(listWord);
+        pressFirstRow(cellPattern);
+        expect(new URLSearchParams(here.split('?')[1]).get('detail')).toBeTruthy();
+        act(() => { navigateRef!(-1); });
+        expect(new URLSearchParams(here.split('?')[1]).get('detail')).toBeNull();
+        expect(host!.textContent).toContain(listWord);
+        act(() => { navigateRef!(-1); });
+        expect(here.startsWith('/dispatch')).toBe(true);
+        expect(host!.textContent).toContain(homeWord);
     });
 });

@@ -121,6 +121,17 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
    */
   const individual = presetParams.get('calls') === 'individual';
 
+  /**
+   * 🏠 **첫 화면** (`SimNet.Home` · reviews/46) — 목록에 들어가기 전에는 실물처럼 홈. 들어가면 `?view=list` 로 방문 기록에 한 칸 쌓는다
+   * (원달앱 «뒤로»: 상세 → 목록 → 홈). 콜은 목록을 볼 때만 흘린다 — 홈에 있는 동안 흘리면 아무도 못 본 채 지나간다(기사님 «가»).
+   */
+  const atHome = !!simNet.Home && presetParams.get('view') !== 'list';
+  const enterList = useCallback(() => {
+    const next = new URLSearchParams(presetParams);
+    next.set('view', 'list');
+    navigate(`/dispatch?${next.toString()}`);
+  }, [presetParams, navigate]);
+
   useSimStreaming({
     config: generatorConfig,
     // 🎨 공통 칸만 만드는 생성기에 배차망 칸을 입힌다 — 무엇으로 입힐지는 배차망이 안다 (nets.ts)
@@ -134,8 +145,8 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     loop,
     /* 📍 기사님 위치를 받은 뒤에 첫 콜 — 기본 자리로 상차 거리를 재지 않는다 */
     ready: locationReady,
-    /* 🚚 개별콜 화면은 흘리지 않는다 — 시드 5건도 주기 콜도 없다 */
-    enabled: !individual,
+    /* 🚚 개별콜 화면은 흘리지 않는다 — 시드 5건도 주기 콜도 없다 · 🏠 첫 화면에서도 안 흘린다(목록부터) */
+    enabled: !individual && !atHome,
   });
 
   /**
@@ -284,7 +295,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
       </div>
     )}
     <div className="contents" style={{ visibility: roundCurtain ? 'hidden' : 'visible' }}>
-    <Screen
+    {atHome && simNet.Home ? <simNet.Home onEnter={enterList} goSetup={() => navigate('/')} /> : <Screen
       streamingCalls={streamingCalls}
       confirmedCalls={confirmedCalls}
       activeTab={activeTab}
@@ -301,7 +312,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
       isFetchingOrder={isFetchingOrder}
       maxPickupKm={simConfig.maxPickupKm}
       goSetup={() => navigate('/')}
-    />
+    />}
     </div>
     </>
   );

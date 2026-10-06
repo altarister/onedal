@@ -119,10 +119,14 @@ describe('배차망 목록 — 한 곳에서만', () => {
         expect(SIM_NET_LIST.map(n => [n.key, n.label])).toEqual([['insung', '인성콜'], ['hwamul24', '화물24시'], ['kakaopicker', '픽커']]);
     });
 
-    it('🔙 방문 기록 — 인성·화물24시는 예전 그대로, 픽커만 상세를 남긴다 (2단계 2-2)', () => {
+    it('🔙 방문 기록 — 세 배차망 모두 상세를 남긴다(원달앱 «뒤로»가 준비 화면으로 안 튕기게 · reviews/46)', () => {
         expect(SIM_NET_LIST.map(n => [n.key, n.detailInHistory])).toEqual([
-            ['insung', false], ['hwamul24', false], ['kakaopicker', true],
+            ['insung', true], ['hwamul24', true], ['kakaopicker', true],
         ]);
+    });
+
+    it('🏠 첫 화면 — 인성 · 화물24시는 배차망 설정에 홈이 있고, 픽커는 제 화면 안에 홈이 있어 비운다', () => {
+        expect(SIM_NET_LIST.map(n => [n.key, !!n.Home])).toEqual([['insung', true], ['hwamul24', true], ['kakaopicker', false]]);
     });
 
     it('🎯 문제지 책 — 인성·화물24시는 지금 문제지(원 단위)를 함께 쓰고, 픽커는 제 문제지(P 단위)를 쓴다 (3단계 3-2)', () => {

@@ -10,11 +10,25 @@ exports[`배차 화면 — 배차망마다 고르는 부품 (첫 그림) > 없�
 exports[`배차 화면 — 배차망마다 고르는 부품 (첫 그림) > 인성 1`] = `
 {
   "frame": "w-full h-dvh py-10 bg-[#111] overflow-hidden relative font-sans text-black",
+  "text": "인성퀵화면분할 ✔ 인성1,5,6,7그룹 ✔ 인성2,3,4그룹 실행 설정 5:5 종료 원격지원요청 INSUNG DATA",
+}
+`;
+
+exports[`배차 화면 — 배차망마다 고르는 부품 (첫 그림) > 인성 목록 1`] = `
+{
+  "frame": "w-full h-dvh py-10 bg-[#111] overflow-hidden relative font-sans text-black",
   "text": "신규 완료(0) 메시지함 GPS 원터치 그룹공지 장터게시판 잠금 빠른설정 거리 출발지 도착지 차종 요금 대기 중인 오더가 없습니다. ◀ 1 / 1 ▶ 15km 전체 리셋 시작 설정 메뉴 정산",
 }
 `;
 
 exports[`배차 화면 — 배차망마다 고르는 부품 (첫 그림) > 화물24시 1`] = `
+{
+  "frame": "w-full h-dvh bg-gray-100 overflow-hidden relative font-sans text-black",
+  "text": "전국24시콜화물 주요공지 ⏻ 위치 : 인천/미추홀구 잔액 : 10,000원 정보망서비스 이용약관 위반시 사용정지 됩니다. 화물정보 배차내역 화물등록 음성등록 스마트배차 협력업체 고객센터 공지사항 가상계좌 차량조회 개인정보처리방침 홈 화물정보 마이페이지 환경설정",
+}
+`;
+
+exports[`배차 화면 — 배차망마다 고르는 부품 (첫 그림) > 화물24시 목록 1`] = `
 {
   "frame": "w-full h-dvh bg-gray-100 overflow-hidden relative font-sans text-black",
   "text": "‹ 화물정보 자동새로고침 ID : 93194 오더검색 🔍 잔액 : 322,641 원 자동터치 OFF ❓ 성공 0 건/최대 15 건 오더가 없습니다. 🏠 홈 🔍 화물정보 🚚 배차내역 ⚙️ 환경설정",

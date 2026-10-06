@@ -108,7 +108,7 @@ describe('개별콜 — 입구와 한 번에 한 종류 (기사님 2026-09-15: �
     it('🔴 개별콜 화면은 흘리지 않고 서버 콜만 받는다 · 다른 화면은 서버 콜을 안 받는다', () => {
         const page = src('src/pages/DispatchPage.tsx');
         expect(page).toMatch(/const individual = presetParams\.get\('calls'\) === 'individual';/);
-        expect(page).toMatch(/enabled: !individual,/);
+        expect(page).toMatch(/enabled: !individual && !atHome,/);
         expect(page)
             .toMatch(/useSimInjectedCalls\(\{ config: generatorConfig, toCall: simNet\.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual \}\)/);
     });
