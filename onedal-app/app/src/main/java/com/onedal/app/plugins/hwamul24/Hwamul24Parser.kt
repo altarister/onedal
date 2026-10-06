@@ -379,8 +379,11 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
         val isValidOrder = fare > 0 || pickup != "배차값없음" || dropoff != "배차값없음"
         if (isValidOrder) {
-            AppLogger.d(TAG, LogTag.FILTER, "📦 [24시 파싱] 상차=$pickup, 하차=$dropoff, 요금=$fare, " +
-                    "차종=$vehicleType, 거리=${pickupDistance}km, 적요=${detailMemo?.take(30)}")
+            /* 🔕 목록을 읽을 때마다 돈다 — 같은 콜(상차 · 하차 · 요금)은 글자가 바뀔 때만 (`ParseLogOnceTest`) */
+            val line = "📦 [24시 파싱] 상차=$pickup, 하차=$dropoff, 요금=$fare, " +
+                    "차종=$vehicleType, 거리=${pickupDistance}km, 적요=${detailMemo?.take(30)}"
+            if (com.onedal.app.core.LogOnce.changed("24시 파싱:$pickup|$dropoff|$fare", line))
+                AppLogger.d(TAG, LogTag.FILTER, line)
         }
 
         return SimplifiedOfficeOrder(
