@@ -17,4 +17,12 @@ class ModeFirstReportTest {
         val i = src.indexOf("onModeReceived = { mode ->")
         assertTrue(i > 0 && src.substring(i, i + 120).contains("modeKnown = true"))
     }
+
+    /** 활성화 뒤 첫 보고는 «직접»을 싣고 가고, «받았다»는 다음 보고에 실린다 — 홈 화면은 60초라 관제웹 «로딩 중»이 1분 돌았다. 못 잡는 것: 실제로 1초 안에 풀리는지(폰 · 관제웹) */
+    @Test fun `첫 모드를 받은 순간 한 번 더 보고한다 — 기다림 장부는 화면 스레드에서`() {
+        val i = src.indexOf("onModeReceived = { mode ->")
+        val block = src.substring(i, src.indexOf("onNoResponse = {", i))
+        assertTrue(block.contains("val firstMode = !modeKnown"))
+        assertTrue(block.contains("if (firstMode) android.os.Handler(Looper.getMainLooper()).post { forceHeartbeat() }"))
+    }
 }
