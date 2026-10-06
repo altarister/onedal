@@ -14,6 +14,13 @@ import org.junit.Test
 class AddressSpacedDongTest {
     @Test fun `죽전 1동은 전체 주소`() = assertTrue(AddressForm.isFull("경기 용인시 수지구 죽전 1동 순창떡"))
 
+    /** 🏘️ 번호가 이름에 붙고 «동»만 띄어 읽힌 행정동 — 픽커 상차 사진 판독 «경기 광주시 광남1 동 티제이팜 분당»(화면 글자는 «광남1동») · 광남1동은 행정동 명부에만 있다 */
+    @Test fun `광남1 동 은 붙여 전체 주소 · 행정동 명부로`() {
+        assertEquals("경기 광주시 광남1동 티제이팜 분당", AddressForm.joinSpacedUnit("경기 광주시 광남1 동 티제이팜 분당"))
+        assertTrue(AddressForm.isFull("경기 광주시 광남1 동 티제이팜 분당"))
+        assertEquals("경기 용인시 수지구 푸르지오2 동", AddressForm.joinSpacedUnit("경기 용인시 수지구 푸르지오2 동"))   // 명부에 없는 이름은 안 붙인다
+    }
+
     @Test fun `한글 공백 숫자 동가 는 붙인다`() {
         assertEquals("경기 용인시 수지구 죽전1동 순창떡", AddressForm.joinSpacedUnit("경기 용인시 수지구 죽전 1동 순창떡"))
         assertEquals("서울 중구 을지로3가", AddressForm.joinSpacedUnit("서울 중구 을지로 3가"))
