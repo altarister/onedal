@@ -21,8 +21,8 @@
 
 앱이 아닌 자리: `ex_images/` 실물 캡처 · `reviews/` 코드리뷰 보고서 · `.claude/skills/` 프로젝트 스킬 · `.claude/hooks/` Claude Code 훅 — 계획 우선(`plan-first.mjs`, 등록은 `.claude/settings.json`)
 
-통신: 앱 → 서버는 REST(`POST /api/scrap`), 서버 → 앱은 **응답 꼬리에 명령을 싣는 피기백**.
-서버 ↔ 관제탑만 Socket.IO. (모바일 웹소켓 끊김을 피하려는 의도된 설계)
+통신: 원달앱 → 서버는 REST(`POST /api/scrap` — 화면 · 콜 보고), 서버 → 원달앱은 **관제앱을 거친 블루투스 공급**(서버 → 관제앱 Socket.IO `/supply` → 블루투스 → 원달앱: 필터 · 모드 · 결재 · 빨리 접기 — 틀은 shared `bleProtocol.ts`).
+서버 ↔ 관제웹은 Socket.IO. 원달앱은 소켓을 쓰지 않는다. (모바일 웹소켓 끊김을 피하려는 의도된 설계)
 
 > **규칙은 두 층에 있다.** 이 문서의 [이건 버그가 아니라 규칙이다](#이건-버그가-아니라-규칙이다--고치기-전에-읽을-것) 는
 > **앱 경계를 넘는 것**만 담는다. 앱 안에서만 참인 것은 각 폴더의 `CLAUDE.md` 에 있다 —
@@ -142,7 +142,8 @@
 | 배차망 이름 | 🟡 `TargetApp.kt` |
 | DB 스키마 · `onedal-web/shared/` | 🟡 기존 DB 사본으로 부팅 (빈 DB 는 문제를 숨긴다) · 빈 DB 로도 부팅 |
 | 픽커 상세 화면 OCR 파서 | 🟡 앱 `PickerScreenOcr.kt` ↔ 서버 `pickerScreenOcr.ts` (두 검사가 같은 문제지를 문다) |
-| 네 모드 표 `onedal-web/shared/src/modeTable.ts` ↔ 서버 `modeForPhone` · 원달앱 `ModeActs` · `TargetApp.modeWithoutServer` | ✅ shared `modeTable.test.ts` · 원달앱 `ModeTablePairTest` |
+| 네 모드 표 `onedal-web/shared/src/modeTable.ts` ↔ 서버 `modeForPhone` · 원달앱 `ModeActs` · `TargetApp.runningMode` | ✅ shared `modeTable.test.ts` · 원달앱 `ModeTablePairTest` |
+| 블루투스 틀 `onedal-web/shared/src/bleProtocol.ts` ↔ 관제앱 `BleProtocol.java` · `SupplyService`(거절 글 · 증명 셈) · 원달앱 `BleFrames.kt` | ✅ 서버 `bleProtocolPair.test.ts` |
 | 배차망 정의 표 `onedal-web/shared/src/networkPages.ts`(칸 · 페이지 목록 · 차종 낱말) ↔ 원달앱 `InsungPages.kt` · `Hwamul24Pages.kt` · `KakaoPickerPages.kt` · `core/PageSpec.kt` 의 `StandardScreen` | ✅ 원달앱 `NetworkPagesPairTest`(표 = 생성 파일 · 기준 페이지 이름) · 다시 뽑기는 `pnpm gen:pages` |
 
 
