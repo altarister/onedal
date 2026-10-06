@@ -257,7 +257,7 @@ public class SupplyService extends Service {
     private final ScanCallback scanCb = new ScanCallback() {
         @Override public void onScanResult(int type, ScanResult r) {
             byte[] tag = r.getScanRecord() == null ? null : r.getScanRecord().getServiceData(new ParcelUuid(BleProtocol.SERVICE));
-            h.post(() -> { if (isOurTag(tag)) onFound(r.getDevice()); });
+            h.post(() -> { if (isOurTag(tag)) onFound(r.getDevice()); else noteOtherTag(r.getDevice().getAddress(), tag); });
         }
         @Override public void onScanFailed(int code) {
             h.post(() -> { scanning = false; Log.w(TAG, "검색 실패 " + code + " — 3초 뒤 다시"); h.postDelayed(SupplyService.this::startScan, 3000); });
@@ -273,6 +273,16 @@ public class SupplyService extends Service {
         if (tags == null) return false;
         for (int i = 0; i < tags.length(); i++) if (hex.toString().equals(tags.optString(i))) return true;
         return false;
+    }
+
+    /** 표시가 다른(또는 없는 — 스캔 응답이 빠진 기기) 폰 — 주소마다 1분에 한 줄만 남긴다 */
+    private final Map<String, Long> otherTagLogged = new HashMap<>();
+    private void noteOtherTag(String addr, byte[] tag) {
+        long now = SystemClock.elapsedRealtime();
+        Long at = otherTagLogged.get(addr);
+        if (at != null && now - at < 60_000) return;
+        otherTagLogged.put(addr, now);
+        Log.i(TAG, "📶 찾음 " + addr + " · 표시 " + (tag == null ? "null(스캔 응답 없음)" : tag.length + "바이트 — 우리 기사님 것 아님") + (lastSupply == null ? " · 공급 아직 없음" : ""));
     }
 
     /** 🔎 붙어야 할 폰 수 = 공급의 살아 있는 폰 수(셋은 상한) — 다 붙었으면 검색을 멈추고, 모자라면 다시 찾는다 */
