@@ -189,7 +189,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
                 }
             }
             /* 🔏 증명 전 기기의 공급은 버린다 — «공급 연결»도 안 켠다 */
-            if (!p.proven || central !== p) {
+            if (!BleFrames.acceptsWrite(p.proven, central === p)) {
                 if (LogOnce.changed("ble-unproven:${p.device.address}", "버림")) AppLogger.w(TAG, LogTag.NETWORK, "🔏 [블루투스] 증명 전 기기의 쓰기를 버린다")
                 return
             }

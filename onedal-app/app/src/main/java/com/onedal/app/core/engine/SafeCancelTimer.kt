@@ -10,7 +10,11 @@ import com.onedal.app.core.AppLogger
  * 오지 않으면 기사님을 보호하기 위해 자동으로 취소를 집행합니다.
  */
 /** @param waitBook 서비스의 기다림 장부 — 🔴 판결 몫(DECISION): 콜이 끝나도(세션 몫 거두기) 안 지운다. 기사님 보호 타이머라 끄는 곳은 [cancel] 뿐 */
-class SafeCancelTimer(private val waitBook: com.onedal.app.core.WaitBook) {
+class SafeCancelTimer(
+    private val waitBook: com.onedal.app.core.WaitBook,
+    /** 부팅 기준 시계 — 검사는 가짜 시계를 넣는다 */
+    private val clock: () -> Long = { android.os.SystemClock.elapsedRealtime() },
+) {
 
     companion object {
         private const val TAG = "1DAL_DEATHVALLEY"
@@ -31,7 +35,7 @@ class SafeCancelTimer(private val waitBook: com.onedal.app.core.WaitBook) {
     val remainSec: Int?
         get() {
             if (deadlineAt == 0L) return null
-            val left = deadlineAt - android.os.SystemClock.elapsedRealtime()
+            val left = deadlineAt - clock()
             return if (left <= 0L) 0 else ((left + 999L) / 1000L).toInt()
         }
 
@@ -50,7 +54,7 @@ class SafeCancelTimer(private val waitBook: com.onedal.app.core.WaitBook) {
         AppLogger.roadmap(LogTag.DECISION, "⏳ 안전취소 타이머 가동 (${timeoutMs / 1000}초 대기 → 서버 판결 대기 시작)", "DEATHVALLEY")
         AppLogger.w(TAG, "⏳ 안전취소 타이머 시작: ${timeoutMs / 1000}초 대기...")
 
-        deadlineAt = android.os.SystemClock.elapsedRealtime() + timeoutMs
+        deadlineAt = clock() + timeoutMs
         runnable = Runnable {
             if (session.isWaitingForDecision) {
                 AppLogger.roadmap(LogTag.DECISION, "🚨 안전취소 타임아웃! 서버 응답 없음 → 기사 보호를 위한 강제 배차 취소 집행", "DEATHVALLEY")

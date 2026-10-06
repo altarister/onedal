@@ -54,6 +54,9 @@ object BleFrames {
         return m.doFinal(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }.take(32)
     }
 
+    /** 🔏 증명된 관제앱(지금 central)의 쓰기만 받는다 — 그 전 쓰기는 버린다(근처 기기가 «자동»이나 KEEP 을 넣지 못하게) */
+    fun acceptsWrite(proven: Boolean, fromCentral: Boolean): Boolean = proven && fromCentral
+
     /** 아무 숫자 16바이트 16진 */
     fun nonce(): String = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
 

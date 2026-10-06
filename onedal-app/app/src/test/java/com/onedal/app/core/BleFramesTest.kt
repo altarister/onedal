@@ -64,7 +64,7 @@ class BleFramesTest {
     @Test fun `🔴 증명 전 기기의 쓰기는 버리고 공급 연결도 안 켠다 — 근처 기기가 «자동»이나 KEEP 을 넣지 못하게`() {
         val link = File("src/main/java/com/onedal/app/core/BleLink.kt").readText()
         val onWrite = link.substringAfter("private fun onWrite(p: Peer, u: UUID, v: ByteArray) {").substringBefore("private fun checkProof(")
-        val gate = onWrite.indexOf("if (!p.proven || central !== p) {")
+        val gate = onWrite.indexOf("if (!BleFrames.acceptsWrite(p.proven, central === p)) {")
         assertTrue("증명 문", gate > 0)
         assertTrue("문이 공급 연결 켜기보다 앞", gate < onWrite.indexOf("setLinked(true)"))
         assertTrue("문이 리스너보다 앞", gate < onWrite.indexOf("listener.onPhone("))
@@ -123,7 +123,7 @@ class BleFramesTest {
     @Test fun `🔴 같은 콜의 결재가 다시 오면 실행은 안 하고 받았음만 — 실행했든 버렸든 받았음은 보낸다`() {
         val svc = File("src/main/java/com/onedal/app/HijackService.kt").readText()
         val block = svc.substringAfter("override fun onDecision(json: String) {").substringBefore("override fun onFold(")
-        assertTrue(block.indexOf("orderId == lastExecutedDecisionOrderId ->") in 0 until block.indexOf("executeDecisionImmediately(action)"))
+        assertTrue(block.indexOf("DecisionReplay.stepOf(orderId, lastExecutedDecisionOrderId, session.currentOrderId)") in 0 until block.indexOf("executeDecisionImmediately(action)"))
         assertTrue(block.contains("lastExecutedDecisionOrderId = orderId"))
         assertTrue(block.trimEnd().endsWith("}") && block.contains("bleLink?.ack(orderId)"))
     }

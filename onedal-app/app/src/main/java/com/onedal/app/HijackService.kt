@@ -391,12 +391,12 @@ class HijackService : AccessibilityService(), ScanContext {
             val action = j.optString("action")
             if (orderId.isEmpty() || action.isEmpty()) { AppLogger.w(TAG, LogTag.DECISION, "⚠️ [결재 칸 비어 있음] orderId=$orderId · action=$action — 넘기지 않는다"); return }
             AppLogger.w(TAG, LogTag.DECISION, "⚡ [결재 수신 · 블루투스] orderId: $orderId, action: $action")
-            when {
-                orderId == lastExecutedDecisionOrderId ->
+            when (com.onedal.app.core.DecisionReplay.stepOf(orderId, lastExecutedDecisionOrderId, session.currentOrderId)) {
+                com.onedal.app.core.DecisionStep.REPLAY ->
                     AppLogger.i(TAG, LogTag.DECISION, "🔁 [같은 결재 다시 옴] $orderId — 이미 실행했다 · «받았음»만 다시")
-                orderId != session.currentOrderId ->
+                com.onedal.app.core.DecisionStep.GHOST ->
                     AppLogger.e(TAG, "👻 [Ghost Defense 발동!] 수신된 ID($orderId)가 현재 폰에 열려있는 오더 ID(${session.currentOrderId})와 다릅니다! 과거 허깨비 응답을 폐기합니다.")
-                else -> {
+                com.onedal.app.core.DecisionStep.EXECUTE -> {
                     AppLogger.w(TAG, LogTag.DECISION, "🛡️ [정상 결재 수신] ID 일치($orderId). 즉각 폐기/유지 액션을 집행합니다. (Action: $action)")
                     lastExecutedDecisionOrderId = orderId
                     executeDecisionImmediately(action)

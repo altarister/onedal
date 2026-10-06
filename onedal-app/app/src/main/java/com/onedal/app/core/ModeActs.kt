@@ -24,5 +24,9 @@ data class ModeActs(
             "SIMULATION" -> ModeActs(tapsList = true, sound = false, contracts = false, blocksAccept = true)
             else -> NOTHING   // 직접 · 모르는 값
         }
+
+        /** 🛑 체험이면 수락 · 확정 · 닫기 글자 버튼을 누르지 않는다 — 판결이 와도 배차망에 실제 계약을 만들지 않게(둘째 겹 · 첫째 겹은 [contracts]) */
+        fun blocksTap(mode: String?, text: String): Boolean =
+            of(mode ?: "").blocksAccept && (text.contains("수락") || text.contains("확정") || text == "닫기")
     }
 }
