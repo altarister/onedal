@@ -2046,7 +2046,11 @@ class HijackService : AccessibilityService(), ScanContext {
             AppLogger.roadmap(LogTag.DECISION, "🐥 [체험 모드] 관제탑 판결 $decision 수신 → 안전한 뒤로가기(Back) 집행", telemetryManager.currentScreenContext.name)
             AppLogger.d(TAG, LogTag.DECISION, "🐥 [체험] 실서버 버튼을 누르지 않고 GLOBAL_ACTION_BACK 실행")
             waitBook.schedule("체험 결재 뒤 뒤로", com.onedal.app.core.WaitBook.SESSION, 300) {
-                performGlobalAction(GLOBAL_ACTION_BACK)
+                // 🔙 다른 자동 뒤로처럼 확정 전 상세일 때만 — 결재가 늦어 이미 목록이면 누르지 않는다(시뮬 홈으로 가 콜이 멈춘다 · reviews/46)
+                if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
+                    lastBackAtMs = android.os.SystemClock.elapsedRealtime()
+                    touchManager.performBack("체험 결재")
+                }
                 resetSessionState()
                 AppLogger.roadmap(LogTag.DECISION, "✅ [체험] 뒤로가기 완료 → 리스트 복귀, 합짐 콜 스캔 대기", telemetryManager.currentScreenContext.name)
             }
