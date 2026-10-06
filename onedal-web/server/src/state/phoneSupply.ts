@@ -1,12 +1,12 @@
 import { createHmac } from "node:crypto";
 import { modeForPhone, SUPPLY_EVENTS, SUPPLY_NAMESPACE } from "@onedal/shared";
 import type { DeviceModeType, PhoneSupply } from "@onedal/shared";
-import db from "../db";
 import { jwtSecret } from "../config/env";
 import { allowanceOf } from "../core/allowance";
 import { filterVersionOf } from "../core/helpers";
 import { deviceLabelOf } from "../core/deviceAuth";
-import { getDeviceMode, otherAutoPhoneOf } from "../routes/devices";
+import { getDeviceMode, otherAutoPhoneOf, registeredPhonesOf, livePhonesOf } from "../routes/devices";
+import { ensureReservedPickupList } from "./filterManager";
 import { appFilterOf } from "./appFilter";
 import { getUserSession } from "./userSessionStore";
 import { slog } from "../utils/fileLogger";
@@ -14,8 +14,8 @@ import { slog } from "../utils/fileLogger";
 /**
  * 📡 **관제앱 공급 소켓(`/supply`)에 갈 값 — 한 곳** (reviews/50 ①-1).
  * 기사님 단위 필터 + 폰마다 모드 · 심사 중 · 짝 서명. 관제앱 서비스가 받아 블루투스로 스캔폰에 넘긴다.
- * 🔴 **읽기만 한다** — 1초 주기가 부르므로 계산 · 로그 · 쓰기가 늘면 안 된다. 내일 콜 목록은 보고 문(scrap)이 센 `session.reservedPickup` 을 읽는다
- *    (`ensureReservedPickupList` 는 0곳이면 붙잡지 않고 다시 세며 로그를 찍는다). 내림 로그 둘은 바뀔 때만 찍는다.
+ * 🔴 1초 주기가 부르므로 계산 · 로그 · 쓰기가 늘면 안 된다 — 내일 콜 목록(`ensureReservedPickupList`)은 집 · 반경 · 지도 열쇠로 붙잡혀 있어 다시 세지 않고,
+ *    폰 줄은 살아 있는 폰만이라 내림 로그 둘도 보고하는 폰 몫만 바뀔 때 찍힌다. 보고가 아직 없어도 같은 값이 나온다(값의 원천은 «보고가 왔나»가 아니다).
  * 보내는 때: 1초 주기(안전망 · 데드맨 · 허락 시한 · 관제웹 붙음) + 기사님 손이 만든 바뀜(모드 문 · 필터 저장 · 결재 · 받았음)은 그 자리에서 바로 — 같은 `flushSupply` 다.
  */
 
@@ -31,10 +31,10 @@ const lastSupplyJson = new Map<string, string>();
  * 관제웹이 없거나(reviews/44) · 허락이 안 살았거나 · 다른 폰도 자동이면(reviews/48 가) 자동 명령도 알람. 표는 shared `modeTable.ts`.
  * shared `phoneModeOf` 는 관제웹 «적용중» 표시용 다른 함수다.
  */
-export function modeSentToPhone(deviceId: string, userId: string, commanded: DeviceModeType = getDeviceMode(deviceId, userId)): DeviceModeType {
+export function modeSentToPhone(deviceId: string, userId: string, commanded: DeviceModeType = getDeviceMode(deviceId, userId), ids?: string[]): DeviceModeType {
     const webAttached = !!getUserSession(userId).activeWebSession;
     const autoLive = allowanceOf(userId).autoLive;
-    const otherAuto = otherAutoPhoneOf(deviceId, userId);
+    const otherAuto = otherAutoPhoneOf(deviceId, userId, ids);
     const loweredByOtherAuto = commanded === 'AUTO' && otherAuto;
     if (loweredByOtherAuto !== otherAutoLowered.has(deviceId)) {
         if (loweredByOtherAuto) {
@@ -63,16 +63,16 @@ export function pairSigOf(userId: string, deviceId: string): string {
     return createHmac('sha256', jwtSecret()).update(`ble-pair|${userId}|${deviceId}`).digest('hex').slice(0, 32);
 }
 
-/** 📦 이 기사님의 공급 값 — 폰은 등록 폰 전부(블루투스로 먼저 붙어도 모드를 안다) */
+/** 📦 이 기사님의 공급 값 — 폰은 살아 있는 등록 폰만(원달앱이 블루투스로 붙는 순간 살아 있는 폰이 되고, 그때 공급을 다시 보낸다 · ①-3) */
 export function phoneSupplyOf(userId: string): PhoneSupply {
     const session = getUserSession(userId);
-    const { filter } = appFilterOf(session, userId, null, session.reservedPickup);
+    const { filter } = appFilterOf(session, userId, null, ensureReservedPickupList(session, userId));
     const { evaluatingNow: _perPhone, ...shared } = filter as Record<string, unknown>;
-    const ids = (db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(userId) as { device_id: string }[]).map(r => r.device_id);
+    const ids = registeredPhonesOf(userId);
     const phones: PhoneSupply['phones'] = {};
-    for (const id of ids) {
+    for (const id of livePhonesOf(ids)) {
         phones[id] = {
-            mode: modeSentToPhone(id, userId),
+            mode: modeSentToPhone(id, userId, getDeviceMode(id, userId), ids),
             evaluatingNow: session.deviceEvaluatingMap.has(id),
             pairSig: pairSigOf(userId, id),
         };

@@ -307,7 +307,7 @@ export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
 
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { planArrivalStops } from '../services/routeComposer';
-import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, regionsTouchingNetGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, originOf, homeOriginOf } from "../services/geoService";
+import { mapFeatureCount, getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, regionsTouchingNetGrouped, cityAliases, getDetourRegions, unionRegions, getActivePolyline, trapsForKeywords, originOf, homeOriginOf } from "../services/geoService";
 import { haversineKm } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 import { promoteDueReserved } from "../services/reservedOrders";
@@ -966,24 +966,25 @@ function goalZonesNow(session: ReturnType<typeof getUserSession>, userId: string
  * 📅 **내일 콜 상차 목록** (기사님 «내일콜 가») — 집 둘레 기본 상차 반경 안의 동.
  *    서버 판정이 내일 콜을 재는 그 두 값(집 `homeOriginOf` · 기본 반경 `reservedPickupRadiusKmOf`)으로 오늘 상차 목록과 같은 함수를 부른다.
  *    원달앱은 집까지 거리를 모르니 이 목록으로 내일 이후 예약 콜의 상차지를 거른다(앱 필터 reservedPickupKeywords · reservedPickupGroups).
- *    집 · 반경이 바뀔 때만 다시 센다 — 영업일 · 자동 반경 · 차 위치와 무관하다. 집이나 기본 반경이 없으면 null(칸을 안 싣는다).
+ *    집 · 반경 · 지도가 바뀔 때만 다시 센다 — 영업일 · 자동 반경 · 차 위치와 무관하다. 집이나 기본 반경이 없으면 null(칸을 안 싣는다).
+ *    관제앱 공급(state/phoneSupply)이 1초마다 불러도 계산 · 로그가 늘지 않는다 — 0곳도 열쇠와 함께 붙잡는다.
  */
 export function ensureReservedPickupList(session: ReturnType<typeof getUserSession>, userId: string): { keywords: string[]; groups: Record<string, string[]> } | null {
     const home = homeOriginOf(userId);
     const radiusKm = reservedPickupRadiusKmOf(session.baseFilter);
     if (!home || radiusKm == null) { session.reservedPickup = null; return null; }
-    const key = `${home.x.toFixed(5)},${home.y.toFixed(5)}|${radiusKm}`;
-    if (session.reservedPickup?.key === key) return session.reservedPickup;
+    const key = `${home.x.toFixed(5)},${home.y.toFixed(5)}|${radiusKm}|${mapFeatureCount()}`;
+    if (session.reservedPickup?.key === key) return session.reservedPickup.keywords.length > 0 ? session.reservedPickup : null;
     const { list, grouped } = pickupListFor({
         me: { x: home.x, y: home.y },
         radii: { pickupRadiusKm: radiusKm, detourRadiusKm: 0 },
         line: null,
         parts: { line: false, goalCities: [] },
     });
-    /* 🔴 빈 목록은 싣지도 붙잡지도 않는다 — 앱은 빈 목록을 «내일 콜 전부 탈락»으로 읽고, 붙잡으면 지도 자료를 못 읽어 한 번 빈 것이 계속 간다 */
+    /* 🔴 빈 목록은 싣지 않는다 — 앱은 빈 목록을 «내일 콜 전부 탈락»으로 읽는다. 붙잡기는 한다 — 열쇠에 지도 지역 수가 들어 지도 자료가 올라오면 열쇠가 바뀌어 다시 센다 */
     if (list.length === 0) {
-        session.reservedPickup = null;
-        slog('필터', `📋 [내일 상차 목록] 집 · 반경 ${radiusKm}km → 0곳 — 싣지 않고 다음에 다시 센다`);
+        session.reservedPickup = { key, keywords: [], groups: {} };
+        slog('필터', `📋 [내일 상차 목록] 집 · 반경 ${radiusKm}km → 0곳 — 싣지 않는다(집 · 반경 · 지도가 바뀌면 다시 센다)`);
         return null;
     }
     session.reservedPickup = { key, keywords: list, groups: grouped };

@@ -500,6 +500,11 @@ export function mapCoverage(): { features: number; sido: string[] } {
     return { features: fs.length, sido: [...sido].sort() };
 }
 
+/** 🗺️ 지금 지도에 실린 지역 수 — 0 이면 지도 자료를 아직 못 읽었다(내일 상차 목록의 열쇠에 든다) */
+export function mapFeatureCount(): number {
+    return mergedMapFeatureCollection?.features?.length ?? 0;
+}
+
 /** 격자 한 칸(km) — 영역 안에 찍는 점 간격. 원(반경 수 km)을 30×30 남짓으로 찍는다 */
 const PICKUP_GRID_KM = 0.3;
 

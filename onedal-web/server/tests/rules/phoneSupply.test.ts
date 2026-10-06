@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import * as fileLogger from '../../src/utils/fileLogger';
 import { phoneSupplyOf } from '../../src/state/phoneSupply';
+import { ackDecision, unackedPhoneDecisions } from '../../src/state/decisions';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import db from '../../src/db';
 import { approvedUser } from '../fixtures/approvedUser';
@@ -44,8 +45,38 @@ describe('📡 관제앱 공급', () => {
         phoneSupplyOf(U);
         phoneSupplyOf(U);
         expect(spy).not.toHaveBeenCalled();
-        expect(phoneSupplyOf(U).phones['dev-supply-1']).toMatchObject({ mode: 'ALARM', evaluatingNow: false });
+        expect(phoneSupplyOf(U).phones['dev-supply-1']).toBeUndefined();   // 보고가 없는 등록 폰(서랍 속)은 폰 줄에 없다 — 셈도 로그도 안 한다
         spy.mockRestore();
         clearUserSession(U);
+    });
+
+    describe('받았음 두 길 · 다시 붙을 때', () => {
+        const U2 = 'test-supply-ack';
+        const setup = () => {
+            const s = getUserSession(U2);
+            s.deviceEvaluatingMap.set('dev-a', 'o-ack');
+            s.pendingDecisions.set('o-ack', { action: 'KEEP', evaluatedAt: Date.now() });
+            return s;
+        };
+        afterEach(() => clearUserSession(U2));
+
+        it.each([['공급 먼저 → 보고 나중', '공급 소켓', '보고'], ['보고 먼저 → 공급 나중', '보고', '공급 소켓']])('🔴 %s — 큐 지움 한 번 · 로그 한 줄', (_n, first, second) => {
+            const s = setup();
+            const del = jest.spyOn(s.pendingDecisions, 'delete');
+            const log = jest.spyOn(fileLogger, 'slog');
+            expect(ackDecision(null, s, U2, 'o-ack', first)).toBe(true);
+            expect(ackDecision(null, s, U2, 'o-ack', second)).toBe(false);
+            expect(del).toHaveBeenCalledTimes(1);
+            expect(log).toHaveBeenCalledTimes(1);
+            expect(s.deviceEvaluatingMap.has('dev-a')).toBe(false);
+            log.mockRestore();
+        });
+
+        it('🔴 다시 붙으면 받았음 안 온 결재가 한 번 · 받았음 뒤에는 0', () => {
+            const s = setup();
+            expect(unackedPhoneDecisions(s)).toEqual([{ deviceId: 'dev-a', orderId: 'o-ack', action: 'KEEP' }]);
+            ackDecision(null, s, U2, 'o-ack', '공급 소켓');
+            expect(unackedPhoneDecisions(s)).toEqual([]);
+        });
     });
 });

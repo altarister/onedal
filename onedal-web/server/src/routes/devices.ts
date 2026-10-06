@@ -63,13 +63,22 @@ function saveModePreference(deviceId: string, userId: string, mode: DeviceModeTy
         .run(mode, deviceId, userId).changes;
 }
 
+/** 📱 이 기사님의 등록 폰 번호 — 여럿을 셀 때 한 번 읽어 넘긴다(폰마다 다시 읽지 않게) */
+export function registeredPhonesOf(userId: string): string[] {
+    return (db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(userId) as { device_id: string }[]).map(r => r.device_id);
+}
+
+/** 📡 등록 폰 가운데 살아 있는 폰(메모리 세션 · 데드맨 시간 안) — 관제앱 공급의 폰 줄(서랍 속 · 꺼진 폰은 셈도 로그도 안 한다) */
+export function livePhonesOf(ids: string[], now: number = Date.now()): string[] {
+    return ids.filter(id => { const s = activeDevices.get(id); return !!s && now - s.lastSeen <= DEADMAN_TIMEOUT_MS; });
+}
+
 /**
  * 🔁 **자동은 한 폰만 — 같은 기사님의 다른 폰 가운데 지금 확정을 누를 수 있는 폰이 있나** (reviews/48 가 · shared `otherContractingAuto`).
  *    저장하지 않고 그때그때 본다(규칙 ③) — 살아 있는 폰(메모리 세션 · 데드맨 시간 안)만 · 명령(`getDeviceMode` — 한 번도 안 고른 폰의 기본값 포함) 또는 받은 모드가 자동 · 지금 배차망이 자동 확정 가능.
  *    보고 응답(`scrap.ts`)이 이 사실로 자동을 알람으로 내려준다.
  */
-export function otherAutoPhoneOf(deviceId: string, userId: string): boolean {
-    const ids = (db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(userId) as { device_id: string }[]).map(r => r.device_id);
+export function otherAutoPhoneOf(deviceId: string, userId: string, ids: string[] = registeredPhonesOf(userId)): boolean {
     const phones: PhoneForAuto[] = [];
     for (const id of ids) {
         const s = activeDevices.get(id);

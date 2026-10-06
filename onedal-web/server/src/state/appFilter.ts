@@ -55,7 +55,7 @@ export function appFilterOf(
         const reservedR = reservedPickupRadiusKmOf(session.baseFilter);
         if (reservedR != null) filter.reservedPickupRadiusKm = reservedR;
         /* 📅 내일 콜 상차 목록 — 집 둘레 같은 반경 안의 동(판정과 같은 집 · 반경) · 집이 없으면 칸이 없다(앱은 옛 길) */
-        if (reserved) {
+        if (reserved?.keywords.length) {   // 빈 목록은 싣지 않는다 — 원달앱은 빈 목록을 «내일 콜 전부 탈락»으로 읽는다
             filter.reservedPickupKeywords = reserved.keywords;
             filter.reservedPickupGroups = reserved.groups;
         }
