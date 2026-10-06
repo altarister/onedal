@@ -10,6 +10,7 @@ import java.io.File
  * 목록으로 돌아와 세션을 비운 뒤 끝난 판독이 «손으로 연 콜 보류» 갈래로 새 세션에 isDetailScrapSent 를 박았고,
  * 다음 알람 상세가 그 표시 때문에 상세 처리 · 복귀 타이머를 둘 다 건너뛰어 굳었다.
  * 판독 흐름은 안드로이드 부품(Handler · 화면 읽기)에 묶여 단위 검사로 못 돌린다 — 순수 판단과 «세 갈래 맨 앞» 차례를 잠근다.
+ * 못 잡는 것: 판독 콜백의 실제 실행 순서(세션 비우기와 판독 도착이 실제로 엇갈리는가) — 폰에서 «🧹 [늦은 판독 버림]» 줄로 본다.
  */
 class SessionEpochTest {
     private fun codeOnly(path: String) = File(path).readText()
