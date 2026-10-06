@@ -311,6 +311,7 @@ import { getCityRegionsWithRadius, pickupListFor, regionsTouchingCircleGrouped, 
 import { haversineKm } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 import { promoteDueReserved } from "../services/reservedOrders";
+import { flushSupply } from "./phoneSupply";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율은 user_filters 의 평면 칸에 산다.
@@ -1119,6 +1120,7 @@ function broadcastFilter(userId: string, session: ReturnType<typeof getUserSessi
     session.lastFilterJson = json;
 
     io.to(userId).emit("filter-updated", payload);
+    flushSupply(io, userId);   // 📡 필터가 바뀐 그 순간 관제앱에도 — 폰에 갈 값이 안 바뀌었으면 안 보낸다 (state/phoneSupply)
 }
 
 /**

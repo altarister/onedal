@@ -17,6 +17,7 @@ import { armWait } from "../state/waits";
 import type { FilterPassAlarm } from "@onedal/shared";
 import { appFilterOf } from "../state/appFilter";
 import { clientIpOf } from "../utils/clientIp";
+import { flushSupply } from "../state/phoneSupply";
 
 const router = Router();
 
@@ -944,6 +945,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
         getUserSession(userId).filterEnabledByMode = hasFilteringDevice;
         updateActiveFilter(userId, { isActive: hasFilteringDevice }, io);
         slog('통신', `⚙️ [모드 전환] 기기(${deviceLabelOf(deviceId)}) → ${mode} | 유저(${userId}) 필터 도는 기기 존재: ${hasFilteringDevice} → filter.isActive → ${hasFilteringDevice}`);
+        flushSupply(io, userId);   // 📡 기사님이 누른 모드는 1초 주기를 기다리지 않고 관제앱으로
 
         res.json({ success: true, mode });
     } catch (error) {

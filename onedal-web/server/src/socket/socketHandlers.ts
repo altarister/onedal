@@ -30,6 +30,8 @@ import { logContext, whoLabel } from "../utils/logContext";
 import { clockText, wonText, isTimeText } from "@onedal/shared";
 import { authSocket } from "./authSocket";
 import { webAccountGate } from "./webAccountGate";
+import { registerSupplyNamespace } from "./supplySocket";
+import { flushSupply } from "../state/phoneSupply";
 import { registerOpsNamespace } from "./opsSocket";
 
 
@@ -80,6 +82,7 @@ export function registerSocketHandlers(io: Server) {
     io.use(authSocket);
     io.use(webAccountGate);
     registerOpsNamespace(io);
+    registerSupplyNamespace(io);   // 📡 관제앱 공급 소켓 — 관제웹 접속 처리와 따로 (socket/supplySocket)
 
     /**
      * 📱 기기 User-Agent 또는 클라이언트 보고값을 깔끔한 한글 기기명으로 정리
@@ -795,6 +798,8 @@ export function registerSocketHandlers(io: Server) {
             // [Q4 소켓 브로드캐스트 분리 완료] 각 기사별로 자신의 등록된 기기 목록(+상태)만 전달
             /* 🛟 `io` 를 넘긴다 — 데드맨이 끊김으로 넘기며 그 폰의 미리보기를 치울 때 관제웹에 알려야 한다 (#159 뒤 개정) */
             io.to(uid).emit("telemetry-devices", getUserDevicesSnapshot(uid, io));
+            /* 📡 관제앱 공급 — 붙은 기사님만 · 바뀐 때만 (데드맨 · 허락 시한 · 관제웹 붙음 같은 손 없는 바뀜을 여기서 줍는다 · state/phoneSupply) */
+            flushSupply(io, uid);
 
             const session = getUserSession(uid);
             const sync = buildOrderSync(session);

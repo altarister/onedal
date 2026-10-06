@@ -92,7 +92,7 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
             "replied": true, "reachable": true, "webAttached": false, "autoLive": true, "otherAuto": false, "network": "insung",
             "phone": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
             "running": { "AUTO": "ALARM", "ALARM": "ALARM", "MANUAL": "MANUAL", "SIMULATION": "SIMULATION" },
-            "note": "결재할 관제웹이 없으면 자동으로 잡은 콜은 전부 안전취소로 끝난다 — 서버가 기사님 없이 KEEP 하는 길은 없다"
+            "note": "결재할 관제웹이 없으면 자동으로 잡은 콜은 전부 안전취소로 끝난다 — 서버가 기사님 없이 KEEP 하는 길은 없다 · 관제앱 화면을 꺼 웹 화면 소켓이 끊긴 때도 이 줄이다(관제앱 공급 소켓 /supply 는 셈하지 않는다 · reviews/50 ④ 나)"
         },
         {
             "id": "otherAuto", "say": "같은 기사님의 다른 폰도 자동 명령 — 자동은 한 폰만(새로 자동을 누른 폰이 이기고 앞 폰은 알람으로 옮겨진다 · 이미 둘이면 둘 다 알람)",

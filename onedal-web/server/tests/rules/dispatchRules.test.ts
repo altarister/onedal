@@ -57,7 +57,7 @@ describe('규칙 ① 콜의 주인은 기사님이다', () => {
     it('MANUAL 콜은 즉시 KEEP 된다 — 서버가 심사하지 않는다', () => {
         const src = read('routes/detail.ts');
         const branch = src.slice(src.indexOf('if (isManual)'));
-        expect(branch).toMatch(/pendingDecisions\.set\([^)]*action:\s*'KEEP'/);
+        expect(branch).toContain("decide(io, session, userId, payload.order.id, 'KEEP');");   // 결재 정하기 한 곳(state/decisions)
     });
 
     it('🔴 MANUAL 경로에서 콜을 지우는 것은 평가가 아니라 **확정까지** 실패했을 때뿐이다', () => {
@@ -93,11 +93,15 @@ describe('규칙 ② 안전장치는 겹쳐 둔다', () => {
      *   판결을 한 번 보내고 지우면 그 응답이 유실될 때 **영구 유실**된다.
      */
     it('판결은 앱의 ACK 로만 지운다 — 보내고 나서 지우면 유실된다', () => {
-        const src = read('routes/scrap.ts');
-        const deletes = [...src.matchAll(/pendingDecisions\.delete\(([^)]*)\)/g)].map(m => m[1].trim());
-        expect(deletes.length).toBeGreaterThan(0);
-        // 지우는 자리가 하나라도 ackDecisionId 가 아니면 at-least-once 가 깨진다
-        expect(deletes.every(arg => arg === 'ackDecisionId')).toBe(true);
+        // 보고 응답과 관제앱 공급 소켓의 «받았음»이 같은 ackDecision 을 부른다 — 결재를 지우는 곳은 그 함수 안뿐
+        expect(read('routes/scrap.ts')).not.toMatch(/pendingDecisions\.delete\(/);
+        expect(read('routes/scrap.ts')).toContain("if (ackDecisionId) ackDecision(req.app.get(\"io\"), session, userId, ackDecisionId, '보고');");
+        expect(read('socket/supplySocket.ts')).toContain('ackDecision(io, getUserSession(userId), userId, ack.orderId,');
+        const src = read('state/decisions.ts');
+        const deletes = [...src.matchAll(/pendingDecisions\.delete\(([^)]*)\)/g)];
+        expect(deletes.length).toBe(1);
+        // 지우는 자리가 받았음 함수 밖이면 at-least-once 가 깨진다
+        expect(deletes[0].index).toBeGreaterThan(src.indexOf('export function ackDecision('));
     });
 
     /**

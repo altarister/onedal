@@ -1837,6 +1837,7 @@ export interface DeviceSession {
 
 export * from './callBands';
 export * from './modeTable';
+export * from './bleProtocol';
 export * from './openBlocked';
 export * from './mask';
 export * from './format';

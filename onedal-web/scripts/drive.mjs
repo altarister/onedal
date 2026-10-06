@@ -350,6 +350,47 @@ async function e2eAutoOnePhone(dbPath, userId, tok, deviceId) {
         moved.join(' ') === 'ALARM AUTO', `처음 ${before.join('/')} → 둘째 자동 뒤 ${moved.join('/')}`);
 }
 
+/**
+ * 🧪 ⑨ 관제앱 공급 소켓(/supply · reviews/50 ①-1) — 결재가 그 순간 관제앱에 가고, 관제앱이 보낸 «받았음»으로 서버가 치운다.
+ *    먼저 보고 답에도 그 결재가 있는지 본다 — 앞 콜의 «받았음»이 이 결재까지 지우는 류의 회귀를 함께 잡는다.
+ */
+async function e2eSupplyDecision(supply, deviceId, orderId) {
+    const got = supply.decisions.find(d => d.orderId === orderId && d.deviceId === deviceId);
+    check(`🧪 공급 소켓 결재(${orderId}) — KEEP 이 관제앱 공급 소켓에 그 순간 온다`, got?.action === 'KEEP', got ? `${got.action}` : `결재 ${supply.decisions.length}건 중 없음`);
+    const first = await scrap(deviceId);
+    check(`🧪 공급 소켓 결재(${orderId}) — 보고 답에도 실려 있다(두 길 다 같은 결재)`, first.json?.decision?.orderId === orderId, first.json?.decision ? first.json.decision.orderId : '결재 없음');
+    supply.sock.emit('phone-decision-ack', { deviceId, orderId });
+    await wait(400);
+    const after = await scrap(deviceId);
+    check(`🧪 공급 소켓 결재(${orderId}) — 관제앱이 보낸 «받았음»으로 치운다(보고 답에 결재 없음 · 심사 중 풀림)`,
+        !after.json?.decision && after.json?.evaluatingNow === false, after.json?.decision ? `아직 ${after.json.decision.orderId}` : `evaluatingNow=${after.json?.evaluatingNow}`);
+}
+
+/**
+ * 🧪 ⑩ 관제앱 공급 소켓은 «관제웹 있음»이 아니다(reviews/50 ④ 나) — 관제웹을 다 끊으면 공급 값의 폰 모드도 알람, 다시 붙이면 1초 주기가 자동을 보낸다.
+ *    공급 값의 필터 판 · 폰 모드가 같은 순간 보고 답과 같은지도 본다(한 함수 · 두 벌 셈 없음).
+ */
+async function e2eSupplyMode(supply, tok, deviceId) {
+    const last = () => supply.supplies[supply.supplies.length - 1];
+    const waitMode = async (mode) => {
+        for (let i = 0; i < 25 && last()?.phones?.[deviceId]?.mode !== mode; i++) await wait(100);
+        return last()?.phones?.[deviceId]?.mode;
+    };
+    const noWeb = await waitMode('ALARM');
+    const r = await scrap(deviceId, { filterVersion: '' });
+    check('🧪 공급 소켓 — 관제웹이 없으면 공급 값의 폰 모드도 알람(공급 소켓은 «관제웹 있음»으로 셈하지 않음)', noWeb === 'ALARM', `${noWeb}`);
+    check('🧪 공급 소켓 — 필터 판 · 폰 모드가 같은 순간 보고 답과 같다',
+        last()?.filterVersion === r.json?.filterVersion && last()?.phones?.[deviceId]?.mode === r.json?.deviceControl?.mode,
+        `공급 ${last()?.filterVersion}/${last()?.phones?.[deviceId]?.mode} · 보고 ${r.json?.filterVersion}/${r.json?.deviceControl?.mode}`);
+    const web = openSocket('', { token: tok, clientSessionId: MAIN_TAB });
+    await web.first;
+    const withWeb = await waitMode('AUTO');
+    web.sock.close();
+    const closed = await waitMode('ALARM');
+    check('🧪 공급 소켓 — 관제웹이 붙으면 2.5초 안에 자동 · 끊으면 다시 알람(1초 주기)', withWeb === 'AUTO' && closed === 'ALARM', `${withWeb} → ${closed}`);
+    supply.sock.close();
+}
+
 /** 🧪 ⑥ 계정 막힘 —즉시 정지면 폰 보고 · 연결 번호 · 관제웹 소켓이 함께 막힌다(accountGateOf 한 판단) · 끝나면 풀어 둔다 */
 async function e2eBlocked(dbPath, userId, tok, deviceId) {
     const set = (sql) => { const c = new Database(dbPath); c.prepare(sql).run(userId); c.close(); };
@@ -488,6 +529,7 @@ async function main() {
         /* 🧪 e2e — 운영센터 허락을 시험 DB 에 켜고(켜는 문은 허락 있는 사람만이라 닭과 달걀) 운영센터 소켓을 먼저 붙여 둔다 */
         const opsSignals = { n: 0 };
         let opsSock = null;
+        let supply = null;   // 📡 관제앱 공급 소켓(e2e) — 받은 공급 값 · 결재
         const judgments = new Map();   // 🧭 콜마다 마지막 판정(색 · 점수 · 축) — e2e kakao 의 지리 견주기
         s.on('order-evaluated', o => judgments.set(o.id, o.judgment ?? null));
         if (E2E) {
@@ -500,6 +542,12 @@ async function main() {
             opsSock = ops.sock;
             opsSock.on('ops-calls-changed', () => { opsSignals.n++; });
             check('🧪 운영센터 소켓이 붙는다', await ops.first === 'connect');
+            /* 📡 관제앱 공급 소켓 — 관제앱 네이티브 서비스 자리. 붙자마자 공급 값이 한 번 온다 */
+            const sup = openSocket('/supply', { token: tok }, 'phone-supply');
+            supply = { sock: sup.sock, supplies: [], decisions: [] };
+            sup.sock.on('phone-supply', p => supply.supplies.push(p));
+            sup.sock.on('phone-decision', d => supply.decisions.push(d));
+            check('🧪 공급 소켓이 붙고 공급 값이 바로 온다', await sup.first === 'phone-supply');
             if (GEO) await e2eDestination(s, '이천시');
         }
 
@@ -555,7 +603,7 @@ async function main() {
         await wait(900);
         await appUploads(DEVICE, '합짐1', CHURCH, JEIL, '합짐1');
         await decide('합짐1');
-        if (E2E) await e2eDecision(DEVICE, '합짐1');   // 첫짐 «받았음»이 합짐 결재까지 지우는 류의 회귀를 잡는다
+        if (E2E) await e2eSupplyDecision(supply, DEVICE, '합짐1');   // 관제앱 공급 소켓 길 · 첫짐 «받았음»이 합짐 결재까지 지우는 류의 회귀도
         if (GEO) {
             /**
              * 🧭 거꾸로 가는 콜 — 길 위(신둔 상차 · 곤지암 하차)라 원달앱 필터는 통과할 만하지만, 목적지 이천에서 멀어진다.
@@ -652,12 +700,13 @@ async function main() {
 
         /* 🧪 e2e — 주행이 끝난 뒤 · 관제웹 소켓이 아직 붙어 있을 때(세션 충돌은 첫 소켓이 살아 있어야 난다) */
         if (E2E) {
-            say('\n═══ 🧪 통신 고리 — 폰 연결 · 세션 충돌 · 계정 막힘 · 자동은 한 폰 · 관제웹 없음 ═══');
+            say('\n═══ 🧪 통신 고리 — 폰 연결 · 세션 충돌 · 계정 막힘 · 자동은 한 폰 · 관제웹 없음 · 관제앱 공급 소켓 ═══');
             await e2ePair(tok);
             await e2eSessionConflict(tok);
             await e2eBlocked(dbPath, me.id, tok, DEVICE);
             await e2eAutoOnePhone(dbPath, me.id, tok, DEVICE);
             await e2eNoWeb(dbPath, me.id, tok, DEVICE, s);
+            await e2eSupplyMode(supply, tok, DEVICE);
             opsSock?.close();
             say('\n═══ 🖼️ 실제 화면 — 관제웹 · 운영센터 (시험 계정 · 새 크롬 프로필) ═══');
             if (built?.ok) {

@@ -3,17 +3,18 @@ import { modeForPhone } from "@onedal/shared";
 import { allowanceOf } from "../core/allowance";
 import { scrapReleaseCodes } from "../core/releases";
 import { isTargetApp, DEFAULT_TARGET_APP, addressOf } from "@onedal/shared";
-import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
+import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType, DeviceModeType } from "@onedal/shared";
 import db from "../db";
-import { filterVersionOf, reportSourceOf, releaseEvaluatingDevices } from "../core/helpers";
+import { filterVersionOf, reportSourceOf } from "../core/helpers";
 import { rememberSentFilterVersion } from "../core/phoneCheck";
 import { getUserSession } from "../state/userSessionStore";
-import { cancelOrderWaits } from "../state/waits";
 import { ensureBusinessDay, ensureReservedPickupList } from "../state/filterManager";
 import { appFilterOf } from "../state/appFilter";
 import { clientIpOf } from "../utils/clientIp";
 
-import { touchDeviceSession, otherAutoPhoneOf } from "./devices";
+import { touchDeviceSession } from "./devices";
+import { modeSentToPhone, pairSigOf } from "../state/phoneSupply";
+import { ackDecision, foldRemainMsOf } from "../state/decisions";
 import { simRoundForPhone } from "./sim";
 import { callMemoryRoundOf } from "../services/callMemoryRound";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -37,11 +38,6 @@ const v2Devices = new Set<string>();
 const senderTrace = new Map<string, { ip: string; at: number; warnedAt: number }>();
 /** ⏩ foldAfter 를 폰에 처음 실어 보낸 콜 — 처음 알림 로그를 한 번만 남긴다(최근 500) */
 const foldNotified = new Set<string>();
-/** 🛑 관제웹이 없어 자동 명령을 알람으로 내려주는 중인 기기 — 바뀔 때만 로그를 남긴다 */
-const noWebLowered = new Set<string>();
-/** 🔁 다른 폰도 자동 명령이라 알람으로 내려주는 중인 기기 — 바뀔 때만 로그를 남긴다 */
-const otherAutoLowered = new Set<string>();
-
 // POST: 탈락 콜 빅데이터 수신 (오답노트용) 및 하트비트
 /** 🧮 intel 누적 수 — 서버 하나에 표 하나라 모듈에 하나 */
 let intelCountCache: number | null = null;
@@ -187,22 +183,8 @@ router.post("/", (req, res) => {
         let piggybackDecision = undefined;
 
         if (deviceId) {
-            // 앱이 "저번 결재 무사히 받았습니다" (ACK) 라고 보고하면, 큐와 타이머에서 깨끗이 지워줍니다.
-            if (ackDecisionId && session.pendingDecisions.has(ackDecisionId)) {
-                // 기다림 청소 — 장부 줄의 콜로 찾는다
-                cancelOrderWaits(session, ackDecisionId, '폰 확인');
-
-                // 큐에서 제거
-                session.pendingDecisions.delete(ackDecisionId);
-
-                // deviceEvaluatingMap 정리 (이 매핑은 Piggyback 전달 완료 후 여기서 삭제)
-                releaseEvaluatingDevices(session, ackDecisionId);
-
-                slog('결재', `🧹 [Piggyback V2] 기사님 폰에서 ${ackDecisionId} 판결 수신 확인(ACK)! 안전하게 큐에서 삭제합니다.`);
-            } else if (ackDecisionId && releaseEvaluatingDevices(session, ackDecisionId) > 0) {
-                /* 📱 큐는 이미 비웠는데(시한 정리) 늦게 온 ACK — 기기 표시만 푼다 (안 풀면 폰이 다음 콜을 안 누른다) */
-                slog('결재', `🧹 [늦은 ACK] ${ackDecisionId} — 큐는 이미 비었다 · 폰 잡기를 다시 연다`);
-            }
+            // 앱이 "저번 결재 무사히 받았습니다" (ACK) 라고 보고하면 치운다 — 관제앱 공급 소켓의 받았음과 같은 함수(state/decisions)
+            if (ackDecisionId) ackDecision(req.app.get("io"), session, userId, ackDecisionId, '보고');
 
             // 현재 이 기사님이 확정(Confirm)을 누르고 결재를 기다리는 콜이 있는지 찾습니다.
             const evaluatingOrderId = session.deviceEvaluatingMap.get(deviceId);
@@ -331,12 +313,10 @@ router.post("/", (req, res) => {
 
         /* ⏩ 빨리 접기 — 이 기기의 심사 중 콜에 foldAfterSec 이 있으면 남은 초(서버 시계). 폰은 받은 뒤 그 초에 목록으로 돌아간다 · 판정 시각은 안 보낸다(폰 시계와 섞지 않게) */
         const foldOrderId = deviceId ? session.deviceEvaluatingMap.get(deviceId) : undefined;
-        const foldOrder = foldOrderId ? session.pendingOrdersData.get(foldOrderId) : undefined;
-        /* 🔴 remainSec 은 **정수**(올림) — 원달앱 FoldAfter 가 Int 로 받아 소수(9.5)면 응답 전체를 버린다. 정밀한 값은 remainMs(정수 ms) */
-        const foldRemainMs = foldOrder?.foldAfterSec != null && foldOrder.judgeUntil != null
-            ? Math.max(0, Math.round(foldOrder.judgeUntil - Date.now())) : undefined;
-        const foldAfter = foldOrder && foldRemainMs != null
-            ? { orderId: foldOrder.id, remainSec: Math.ceil(foldRemainMs / 1000), remainMs: foldRemainMs }
+        /* 🔴 remainSec 은 **정수**(올림) — 원달앱 FoldAfter 가 Int 로 받아 소수(9.5)면 응답 전체를 버린다. 정밀한 값은 remainMs(정수 ms) · 셈은 공급 소켓 결재와 같은 함수 */
+        const foldRemainMs = foldRemainMsOf(session, foldOrderId);
+        const foldAfter = foldOrderId && foldRemainMs != null
+            ? { orderId: foldOrderId, remainSec: Math.ceil(foldRemainMs / 1000), remainMs: foldRemainMs }
             : undefined;
         /* ⏩ 이 콜의 foldAfter 를 폰에 처음 실어 보낸 때 한 줄 — «판정 뒤 첫 응답부터 갔나»를 로그로 가른다(폰의 빈 보고는 로그에 안 남아서) */
         if (foldAfter && !foldNotified.has(foldAfter.orderId)) {
@@ -347,31 +327,8 @@ router.post("/", (req, res) => {
 
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
         const callMemoryRound = callMemoryRoundOf(session.businessDay, simRoundForPhone());
-        /* 🛑 결재할 관제웹이 안 붙었으면 자동 명령도 폰에는 알람 — 원달앱 혼자 확정 → 안전취소(취소 횟수)를 되풀이하지 않게 (reviews/44 · 표 shared `modeTable.ts`) */
-        const webAttached = !!session.activeWebSession;
-        const autoLive = allowanceOf(userId).autoLive;
-        const loweredByNoWeb = deviceMode === 'AUTO' && autoLive && !webAttached;
-        /* 🔁 자동은 한 폰만 — 같은 기사님의 다른 폰도 자동 명령이면 이 폰도 알람(reviews/48 가 · 이미 둘인 경우의 안전망) */
-        const otherAuto = !!deviceId && otherAutoPhoneOf(deviceId, userId);
-        const loweredByOtherAuto = deviceMode === 'AUTO' && otherAuto;
-        if (deviceId && loweredByOtherAuto !== otherAutoLowered.has(deviceId)) {
-            if (loweredByOtherAuto) {
-                otherAutoLowered.add(deviceId);
-                slog('통신', `🔁 [자동은 한 폰] ${deviceLabelOf(deviceId)} 다른 폰도 자동 명령 — 알람으로 내려줌(자동으로 둘 폰을 다시 고르시면 풀림)`);
-            } else {
-                otherAutoLowered.delete(deviceId);
-                slog('통신', `✅ [자동은 한 폰] ${deviceLabelOf(deviceId)} 자동 혼자 — 자동 그대로`);
-            }
-        }
-        if (deviceId && loweredByNoWeb !== noWebLowered.has(deviceId)) {
-            if (loweredByNoWeb) {
-                noWebLowered.add(deviceId);
-                slog('통신', `🛑 [관제웹 없음] ${deviceLabelOf(deviceId)} 자동 명령을 알람으로 내려줌 — 결재할 관제웹이 없다`);
-            } else {
-                noWebLowered.delete(deviceId);
-                slog('통신', `✅ [관제웹 붙음] ${deviceLabelOf(deviceId)} 자동 그대로`);
-            }
-        }
+        /* 🛑 관제웹 없음 · 허락 꺼짐 · 다른 폰도 자동이면 자동 명령도 폰에는 알람 — 관제앱 공급 소켓과 같은 함수(state/phoneSupply · 표 shared `modeTable.ts`) */
+        const phoneMode = deviceId ? modeSentToPhone(deviceId, userId, deviceMode as DeviceModeType) : modeForPhone(deviceMode as DeviceModeType, allowanceOf(userId).autoLive);
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
         res.json({
             success: true,
@@ -381,7 +338,7 @@ router.post("/", (req, res) => {
             },
             deviceControl: {
                 /* 🎛️ 자동 잡기 허락이 안 살았거나 관제웹이 없으면 AUTO 명령도 폰에는 ALARM — 관제웹 명령은 그대로 (reviews/29 6단계 · reviews/44) */
-                mode: modeForPhone(deviceMode, autoLive, webAttached, otherAuto),
+                mode: phoneMode,
                 /* 🧹 본 콜 기억 번호 — 영업일이 바뀌거나 (개발) 시뮬 회차가 오르면 바뀌고, 원달앱이 «본 콜» 기억을 비운다 (`services/callMemoryRound.ts`) · 운영도 싣는다 */
                 callMemoryRound
             },
@@ -392,7 +349,9 @@ router.post("/", (req, res) => {
             /* 📦 원달앱 최신·최소 판 — 표가 비면 칸 없음(앱은 아무것도 안 띄운다 · reviews/29 4단계) */
             ...scrapReleaseCodes(),
             ...(responseFilter !== undefined ? { dispatchEngineArgs: responseFilter } : {}),
-            decision: piggybackDecision
+            decision: piggybackDecision,
+            /* 🔏 블루투스 짝 서명 — 원달앱이 관제앱에 붙기 전에 받을 길(reviews/50 ①-1 · 옛 원달앱은 모르는 칸이라 무시) */
+            ...(deviceId ? { blePairSig: pairSigOf(userId, deviceId) } : {})
         });
     } catch (error) {
         console.error("Scrap POST 에러:", error);

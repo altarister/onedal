@@ -30,9 +30,10 @@ describe('허락이 살아 있나 · 폰에 내려보낼 모드', () => {
         expect(modeForPhone('MANUAL', false)).toBe('MANUAL');
     });
 
-    it('🔴 scrap 응답 모드는 modeForPhone 을 거친다', () => {
-        expect(SRC('routes/scrap.ts')).toContain('const autoLive = allowanceOf(userId).autoLive;');
-        expect(SRC('routes/scrap.ts')).toContain('mode: modeForPhone(deviceMode, autoLive, webAttached, otherAuto)');
+    it('🔴 scrap 응답 모드는 modeForPhone 을 거친다 — 관제앱 공급과 같은 modeSentToPhone', () => {
+        expect(SRC('state/phoneSupply.ts')).toContain('const autoLive = allowanceOf(userId).autoLive;');
+        expect(SRC('state/phoneSupply.ts')).toContain('return modeForPhone(commanded, autoLive, webAttached, otherAuto)');
+        expect(SRC('routes/scrap.ts')).toContain('const phoneMode = deviceId ? modeSentToPhone(deviceId, userId, deviceMode as DeviceModeType)');
     });
 });
 

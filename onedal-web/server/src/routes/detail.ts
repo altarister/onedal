@@ -18,6 +18,7 @@ import { releaseEvaluatingDevices } from "../core/helpers";
 import { ownedByOther } from "../core/orderOwner";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import type { SafeCancelWarning } from "@onedal/shared";
+import { decide } from "../state/decisions";
 
 const router = Router();
 
@@ -246,7 +247,7 @@ router.post("/", async (req, res) => {
                 });
             }
 
-            session.pendingDecisions.set(payload.order.id, { action: 'KEEP', evaluatedAt: Date.now() });
+            decide(io, session, userId, payload.order.id, 'KEEP');   // ⚖️ 결재 정하기 한 곳 — 공급 소켓에도 그 순간 (state/decisions)
             res.json({ deviceId: 'server', action: 'ACK' }); // 🚀 즉시 응답
 
             /**
