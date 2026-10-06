@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { modeForPhone, SUPPLY_EVENTS, SUPPLY_NAMESPACE } from "@onedal/shared";
+import { businessDayKey, modeForPhone, SUPPLY_EVENTS, SUPPLY_NAMESPACE } from "@onedal/shared";
 import type { DeviceModeType, PhoneSupply } from "@onedal/shared";
 import { jwtSecret } from "../config/env";
 import { allowanceOf } from "../core/allowance";
@@ -63,6 +63,11 @@ export function pairSigOf(userId: string, deviceId: string): string {
     return createHmac('sha256', jwtSecret()).update(`ble-pair|${userId}|${deviceId}`).digest('hex').slice(0, 32);
 }
 
+/** 📶 블루투스 광고 표시(기사님 · 영업일) — 4바이트 · 날마다 바뀐다(지나가는 폰이 같은 기사님을 날마다 알아보지 못하게) · 저장하지 않는다 */
+export function bleAdTagOf(userId: string, nowMs: number = Date.now()): string {
+    return createHmac('sha256', jwtSecret()).update(`ble-ad|${userId}|${businessDayKey(nowMs)}`).digest('hex').slice(0, 8);
+}
+
 /** 📦 이 기사님의 공급 값 — 폰은 살아 있는 등록 폰만(원달앱이 블루투스로 붙는 순간 살아 있는 폰이 되고, 그때 공급을 다시 보낸다 · ①-3) */
 export function phoneSupplyOf(userId: string): PhoneSupply {
     const session = getUserSession(userId);
@@ -77,7 +82,8 @@ export function phoneSupplyOf(userId: string): PhoneSupply {
             pairSig: pairSigOf(userId, id),
         };
     }
-    return { filter: shared, filterVersion: filterVersionOf(shared), phones };
+    const now = Date.now();
+    return { filter: shared, filterVersion: filterVersionOf(shared), phones, adTags: [bleAdTagOf(userId, now), bleAdTagOf(userId, now - 86_400_000)] };
 }
 
 /** 🧯 공급이 터진 마지막 까닭 — 같은 까닭은 한 번만 적는다(1초 주기가 같은 오류를 매초 찍지 않게) */

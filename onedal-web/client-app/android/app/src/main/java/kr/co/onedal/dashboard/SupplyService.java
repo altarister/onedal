@@ -54,8 +54,10 @@ import io.socket.engineio.client.transports.WebSocket;
  * 포그라운드 서비스(연결 기기 형)라 상단 알림 «1DAL 관제 중»이 늘 뜬다 — 안드로이드가 얼리지 않게 하는 값이다(0-2 시험).
  *
  * - 서버: `phone-supply`(필터 · 폰마다 모드 · 심사 중 · 짝 서명)의 마지막 값을 들고 있다 · `phone-decision` → 그 폰에 DECISION · 폰 ACK → `phone-decision-ack`
- * - 블루투스: 서비스 UUID 로 검색 → 붙기 → 폰의 HELLO 서명을 마지막 공급의 그 폰 서명과 견준다 — 맞아야 그 연결 = 그 폰 · 다르면 끊고 10분 안 붙음.
- *   폰 줄에 아직 없으면(원달앱이 서버 보고를 하기 전) 붙은 채 기다린다 — 그동안 원달앱은 «서버 답 받기 전»(수동)이다.
+ * - 블루투스: 서비스 UUID 로 검색 → 광고 표시(기사님 · 영업일 · 공급 `adTags`)가 우리 것인 폰에만 붙는다(남의 기사님 폰에 자리를 잡지 않게) →
+ *   폰의 HELLO 서명을 마지막 공급의 그 폰 서명과 견준다 — 맞아야 그 연결 = 그 폰 · 다르면 끊고 10분 안 붙음.
+ *   폰 줄에 아직 없으면(원달앱이 서버 보고를 하기 전) 붙은 채 기다리고, 30초 넘으면 막지 않고 끊었다 다시 찾는다 — 그동안 원달앱은 «서버 답 받기 전»(수동)이다.
+ *   검색은 공급의 살아 있는 폰 수만큼 붙으면 멈춘다(셋은 상한) · MTU 185 미만 연결은 쓰지 않는다(작은 칸 한 번 쓰기에 결재가 들어가야 한다).
  * - 보내기: 폰마다 쓰기 줄 하나(GATT 는 한 번에 한 작업) · 작은 칸(PHONE · DECISION · BREATH)을 큰 칸(SUPPLY 조각) 사이사이에 먼저 —
  *   큰 필터를 보내는 도중에도 결재가 늦지 않는다. SUPPLY 는 판이 바뀔 때와 새로 붙을 때만 · PHONE 은 그 폰 몫이 바뀔 때만.
  * - 1초마다 BREATH(서버 소켓이 붙었나) · 5초 동안 아무것도 못 들으면 끊고 다시 검색.
@@ -75,6 +77,8 @@ public class SupplyService extends Service {
     private static final int MAX_PHONES = 3;
     private static final long HELLO_WAIT_MS = 30_000;
     private static final long BLOCK_MS = 10 * 60_000;
+    private static final long SHORT_BLOCK_MS = 60_000;
+    private static final int MIN_MTU = 185;
 
     /** 서버가 이 까닭으로 거절하면 같은 토큰으로는 다시 붙지 않는다 — 서버 `authSocket` · `webAccountGate` 의 거절 글 */
     private static final String[] AUTH_REJECTS = { "인증 토큰 없음", "토큰 만료 또는 위조", "이 서버에 등록되지 않은 계정", "ACCOUNT_BLOCKED" };
@@ -90,6 +94,8 @@ public class SupplyService extends Service {
     private final Map<String, Long> blocked = new HashMap<>();
     /** 폰마다 «받았음»이 안 온 마지막 결재 — 폰이 (다시) 붙으면 보낸다 */
     private final Map<String, JSONObject> unacked = new HashMap<>();
+    /** 서버 소켓이 끊긴 동안 폰이 보낸 «받았음» — 다시 붙으면 보낸다(서버의 다시 보내기 한 바퀴를 줄인다) */
+    private final ArrayList<JSONObject> pendingAcks = new ArrayList<>();
     private boolean scanning = false;
     private String shownText = "";
 
@@ -147,7 +153,7 @@ public class SupplyService extends Service {
             return START_NOT_STICKY;
         }
         connectSocket(url, token);
-        startScan();
+        updateScan();
         h.removeCallbacks(tick);
         h.post(tick);
         return START_STICKY;
@@ -204,7 +210,7 @@ public class SupplyService extends Service {
             .setReconnection(true)
             .build();
         socket = IO.socket(URI.create(url + BleProtocol.SUPPLY_NAMESPACE), opts);
-        socket.on(Socket.EVENT_CONNECT, a -> h.post(() -> { serverAlive = true; Log.i(TAG, "📡 공급 소켓 붙음 " + url); showStatus(); }));
+        socket.on(Socket.EVENT_CONNECT, a -> h.post(() -> { serverAlive = true; Log.i(TAG, "📡 공급 소켓 붙음 " + url); flushAcks(); showStatus(); }));
         socket.on(Socket.EVENT_DISCONNECT, a -> h.post(() -> { serverAlive = false; Log.i(TAG, "📡 공급 소켓 끊김 " + (a.length > 0 ? a[0] : "")); showStatus(); }));
         socket.on(Socket.EVENT_CONNECT_ERROR, a -> h.post(() -> onConnectError(a.length > 0 ? a[0] : null)));
         socket.on(BleProtocol.EVENT_SUPPLY, a -> { if (a.length > 0 && a[0] instanceof JSONObject) { JSONObject s = (JSONObject) a[0]; h.post(() -> onSupply(s)); } });
@@ -230,6 +236,7 @@ public class SupplyService extends Service {
 
     private void onSupply(JSONObject s) {
         lastSupply = s;
+        updateScan();
         for (Link l : new ArrayList<>(links.values())) {
             if (l.deviceId != null) pushState(l);
             else if (l.helloSig != null) tryVerify(l);
@@ -248,11 +255,33 @@ public class SupplyService extends Service {
     // ─────────────────────────── 블루투스 검색 · 연결 ───────────────────────────
 
     private final ScanCallback scanCb = new ScanCallback() {
-        @Override public void onScanResult(int type, ScanResult r) { h.post(() -> onFound(r.getDevice())); }
+        @Override public void onScanResult(int type, ScanResult r) {
+            byte[] tag = r.getScanRecord() == null ? null : r.getScanRecord().getServiceData(new ParcelUuid(BleProtocol.SERVICE));
+            h.post(() -> { if (isOurTag(tag)) onFound(r.getDevice()); });
+        }
         @Override public void onScanFailed(int code) {
             h.post(() -> { scanning = false; Log.w(TAG, "검색 실패 " + code + " — 3초 뒤 다시"); h.postDelayed(SupplyService.this::startScan, 3000); });
         }
     };
+
+    /** 📶 광고 표시가 이 기사님 것(오늘 · 어제)인가 — 공급을 아직 못 받았으면 아무 폰에도 안 붙는다 */
+    private boolean isOurTag(byte[] tag) {
+        if (tag == null || lastSupply == null) return false;
+        StringBuilder hex = new StringBuilder();
+        for (byte b : tag) hex.append(String.format("%02x", b));
+        org.json.JSONArray tags = lastSupply.optJSONArray("adTags");
+        if (tags == null) return false;
+        for (int i = 0; i < tags.length(); i++) if (hex.toString().equals(tags.optString(i))) return true;
+        return false;
+    }
+
+    /** 🔎 붙어야 할 폰 수 = 공급의 살아 있는 폰 수(셋은 상한) — 다 붙었으면 검색을 멈추고, 모자라면 다시 찾는다 */
+    private void updateScan() {
+        JSONObject phones = lastSupply == null ? null : lastSupply.optJSONObject("phones");
+        int wanted = phones == null ? 0 : Math.min(MAX_PHONES, phones.length());
+        if (links.size() >= wanted) stopScan();
+        else startScan();
+    }
 
     private void startScan() {
         if (scanning || links.size() >= MAX_PHONES || bt == null || bt.getAdapter() == null || !bt.getAdapter().isEnabled()) return;
@@ -285,7 +314,7 @@ public class SupplyService extends Service {
         links.put(addr, l);
         Log.i(TAG, "📶 찾음 " + addr + " → 붙기");
         l.gatt = d.connectGatt(this, false, gattCb, BluetoothDevice.TRANSPORT_LE);
-        if (links.size() >= MAX_PHONES) stopScan();
+        updateScan();
     }
 
     private Link linkOfGatt(BluetoothGatt g) { return links.get(g.getDevice().getAddress()); }
@@ -300,7 +329,7 @@ public class SupplyService extends Service {
         try { if (l.gatt != null) { l.gatt.disconnect(); l.gatt.close(); } } catch (Exception ignored) { }
         Log.i(TAG, "📴 " + l.name() + " 끊음 — " + why);
         showStatus();
-        h.postDelayed(this::startScan, 1000);
+        h.postDelayed(this::updateScan, 1000);
     }
 
     private final BluetoothGattCallback gattCb = new BluetoothGattCallback() {
@@ -315,7 +344,17 @@ public class SupplyService extends Service {
             });
         }
         @Override public void onMtuChanged(BluetoothGatt g, int mtu, int status) {
-            h.post(() -> { Link l = linkOfGatt(g); if (l == null) return; l.mtu = mtu; g.discoverServices(); });
+            h.post(() -> {
+                Link l = linkOfGatt(g);
+                if (l == null) return;
+                if (status != BluetoothGatt.GATT_SUCCESS || mtu < MIN_MTU) {
+                    blocked.put(l.device.getAddress(), SystemClock.elapsedRealtime() + SHORT_BLOCK_MS);
+                    closeLink(l, "MTU " + mtu + " (status " + status + ") — 결재가 한 번 쓰기에 안 들어간다 · 1분 뒤 다시");
+                    return;
+                }
+                l.mtu = mtu;
+                g.discoverServices();
+            });
         }
         @Override public void onServicesDiscovered(BluetoothGatt g, int status) {
             h.post(() -> {
@@ -384,13 +423,17 @@ public class SupplyService extends Service {
             if (orderId == null) return;
             JSONObject last = unacked.get(l.deviceId);
             if (last != null && orderId.equals(last.optString("orderId"))) unacked.remove(l.deviceId);
-            if (socket != null && socket.connected()) {
-                try {
-                    socket.emit(BleProtocol.EVENT_DECISION_ACK, new JSONObject().put("deviceId", l.deviceId).put("orderId", orderId));
-                    Log.i(TAG, "✅ " + l.deviceId + " 결재 " + orderId + " 받았음 → 서버");
-                } catch (Exception ignored) { }
-            } else Log.i(TAG, "✅ " + l.deviceId + " 결재 " + orderId + " 받았음 — 서버 소켓이 끊겨 못 알림(보고 길이 알린다)");
+            try { pendingAcks.add(new JSONObject().put("deviceId", l.deviceId).put("orderId", orderId)); } catch (Exception ignored) { }
+            Log.i(TAG, "✅ " + l.deviceId + " 결재 " + orderId + " 받았음");
+            flushAcks();
         }
+    }
+
+    /** ✅ 들고 있던 «받았음»을 서버로 — 소켓이 끊겨 있으면 붙을 때(EVENT_CONNECT) 보낸다 */
+    private void flushAcks() {
+        if (socket == null || !socket.connected()) return;
+        for (JSONObject a : pendingAcks) socket.emit(BleProtocol.EVENT_DECISION_ACK, a);
+        pendingAcks.clear();
     }
 
     /** 🔏 HELLO 서명을 마지막 공급의 그 폰 서명과 견준다 — 폰 줄에 아직 없으면 기다린다(onSupply · tick 이 다시 부른다) */
@@ -508,8 +551,7 @@ public class SupplyService extends Service {
                 if (now - l.lastHeard > BleProtocol.SILENT_MS) { closeLink(l, (now - l.lastHeard) + "ms 동안 답 없음"); continue; }
                 if (l.deviceId == null) {
                     if (now - l.helloAt > HELLO_WAIT_MS) {
-                        blocked.put(l.device.getAddress(), now + BLOCK_MS);
-                        closeLink(l, "30초 안에 우리 폰으로 확인되지 않았다 · 10분 안 붙음");
+                        closeLink(l, "30초 동안 공급의 폰 줄에 없다 — 막지 않고 다시 찾는다");
                         continue;
                     }
                     tryVerify(l);
@@ -518,7 +560,7 @@ public class SupplyService extends Service {
                 l.smallQ.add(new byte[] { BleProtocol.BREATH, (byte) (serverAlive && socket != null && socket.connected() ? 1 : 0) });
                 pump(l);
             }
-            startScan();
+            updateScan();
             showStatus();
             h.postDelayed(this, BleProtocol.BREATH_MS);
         }

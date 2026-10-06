@@ -13,7 +13,7 @@ import { appFilterOf } from "../state/appFilter";
 import { clientIpOf } from "../utils/clientIp";
 
 import { touchDeviceSession } from "./devices";
-import { modeSentToPhone, pairSigOf } from "../state/phoneSupply";
+import { modeSentToPhone, pairSigOf, bleAdTagOf } from "../state/phoneSupply";
 import { ackDecision, foldRemainMsOf } from "../state/decisions";
 import { simRoundForPhone } from "./sim";
 import { callMemoryRoundOf } from "../services/callMemoryRound";
@@ -351,7 +351,7 @@ router.post("/", (req, res) => {
             ...(responseFilter !== undefined ? { dispatchEngineArgs: responseFilter } : {}),
             decision: piggybackDecision,
             /* 🔏 블루투스 짝 서명 — 원달앱이 관제앱에 붙기 전에 받을 길(reviews/50 ①-1 · 옛 원달앱은 모르는 칸이라 무시) */
-            ...(deviceId ? { blePairSig: pairSigOf(userId, deviceId) } : {})
+            ...(deviceId ? { blePairSig: pairSigOf(userId, deviceId), bleAdTag: bleAdTagOf(userId) } : {})   // 📶 광고 표시 — 원달앱이 블루투스 광고에 싣는다
         });
     } catch (error) {
         console.error("Scrap POST 에러:", error);

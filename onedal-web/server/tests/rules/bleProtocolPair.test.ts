@@ -1,10 +1,11 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { BLE_KINDS, BLE_MAX_WRITE, BLE_BREATH_MS, BLE_SILENT_MS, BLE_UUIDS, SUPPLY_EVENTS, SUPPLY_NAMESPACE } from '@onedal/shared';
+import { DEVICE_LINK_ERRORS, BLE_KINDS, BLE_MAX_WRITE, BLE_BREATH_MS, BLE_SILENT_MS, BLE_UUIDS, SUPPLY_EVENTS, SUPPLY_NAMESPACE } from '@onedal/shared';
 
 /**
  * 📶 **관제앱 자바 `BleProtocol.java` = shared `bleProtocol.ts`** (reviews/50 ①-2).
  * 자바는 jest 가 글자로 읽는다 — 한쪽만 고치면 관제앱이 서버 사건을 못 듣거나, 스캔폰과 칸 · 종류 바이트가 갈라져 블루투스로 아무것도 안 간다.
+ * 서버가 공급 소켓을 거절하는 글(authSocket · webAccountGate)도 관제앱 `SupplyService.AUTH_REJECTS` 에 다 있어야 한다 — 빠지면 관제앱이 거절된 토큰으로 끝없이 다시 붙는다.
  * 못 잡는 것: 원달앱(코틀린) 쪽 짝(①-3 에서 원달앱 검사가 같은 shared 를 읽는다) · 실제 블루투스로 오가는지(폰 시험).
  */
 const java = readFileSync(join(__dirname, '../../../client-app/android/app/src/main/java/kr/co/onedal/dashboard/BleProtocol.java'), 'utf8');
@@ -32,5 +33,14 @@ describe('📶 관제앱 BleProtocol.java = shared bleProtocol.ts', () => {
         expect(num('MAX_WRITE')).toBe(BLE_MAX_WRITE);
         expect(num('BREATH_MS')).toBe(BLE_BREATH_MS);
         expect(num('SILENT_MS')).toBe(BLE_SILENT_MS);
+    });
+
+    it('🔴 서버의 공급 소켓 거절 글이 관제앱 거절 목록에 다 있다', () => {
+        const service = readFileSync(join(__dirname, '../../../client-app/android/app/src/main/java/kr/co/onedal/dashboard/SupplyService.java'), 'utf8');
+        const rejects = [...(service.match(/AUTH_REJECTS = \{([^}]*)\}/)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]);
+        const auth = readFileSync(join(__dirname, '../../src/socket/authSocket.ts'), 'utf8');
+        const serverRejects = [...auth.matchAll(/new Error\('([^']+)'\)/g)].map(m => m[1]);
+        expect(serverRejects.length).toBeGreaterThan(0);
+        for (const why of [...serverRejects, DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED]) expect([why, rejects.includes(why)]).toEqual([why, true]);
     });
 });

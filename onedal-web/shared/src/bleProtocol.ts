@@ -32,6 +32,8 @@ export interface PhoneSupply {
     filter: Record<string, unknown>;
     filterVersion: string;
     phones: Record<string, PhoneSupplyPhone>;
+    /** 블루투스 광고 표시 [오늘 · 어제](영업일) — 원달앱이 광고에 싣고 관제앱은 이것과 맞는 폰에만 붙는다(남의 기사님 폰에 자리를 잡지 않게) */
+    adTags: string[];
 }
 
 export interface PhoneDecision {
