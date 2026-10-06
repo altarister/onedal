@@ -8,7 +8,7 @@ import scrapRouter from '../../src/routes/scrap';
 import ordersRouter from '../../src/routes/orders';
 import detailRouter from '../../src/routes/detail';
 import { getUserDevicesSnapshot } from '../../src/routes/devices';
-import { ackDecision, unackedPhoneDecisions } from '../../src/state/decisions';
+import { ackDecision, unackedPhoneDecisions, decide } from '../../src/state/decisions';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import db from '../../src/db';
 import { approvedUser } from '../fixtures/approvedUser';
@@ -75,6 +75,18 @@ describe('📡 관제앱 공급', () => {
             expect(log).toHaveBeenCalledTimes(1);
             expect(s.deviceEvaluatingMap.has('dev-a')).toBe(false);
             log.mockRestore();
+        });
+
+        it('🔴 같은 콜에 같은 결재를 두 번 정해도 관제앱에는 한 번 — 직접 누른 콜(상세 문 · 결재 처리가 둘 다 KEEP)', () => {
+            const s = setup();
+            s.pendingDecisions.set('o-ack', { action: null, evaluatedAt: Date.now() });
+            const sent: any[] = [];
+            const supplyIo = { of: () => ({ adapter: { rooms: new Map([[U2, new Set(['관제앱'])]]) }, to: () => ({ emit: (ev: string, d: any) => sent.push([ev, d]) }) }) };
+            decide(supplyIo, s, U2, 'o-ack', 'KEEP');
+            decide(supplyIo, s, U2, 'o-ack', 'KEEP');
+            expect(sent.filter(([ev]) => ev === 'phone-decision')).toHaveLength(1);
+            decide(supplyIo, s, U2, 'o-ack', 'CANCEL');   // 행동이 바뀌면 다시 간다
+            expect(sent.filter(([ev]) => ev === 'phone-decision')).toHaveLength(2);
         });
 
         it('🔴 다시 붙으면 받았음 안 온 결재가 한 번 · 받았음 뒤에는 0', () => {

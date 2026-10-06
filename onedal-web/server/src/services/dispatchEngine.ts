@@ -496,9 +496,9 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
     // 다음 1.0초 텔레메트리(/scrap) 응답에 이 결재가 태워져서 앱으로 전달됩니다.
     if (session.pendingDecisions.has(orderId)) {
         decide(io, session, userId, orderId, piggybackAction);   // ⚖️ 결재 정하기 한 곳 — 공급 소켓에도 그 순간 (state/decisions)
-        if (isKeep) logRoadmapEvent('결재', "서버", `앱폰에게 Action=${piggybackAction} 최종 판결 Piggyback 등록`);
-        else logRoadmapEvent('결재', "서버", "앱폰에게 Action=Cancel 최종 판결 Piggyback 등록");
-        slog('결재', `📦 [Piggyback V2] 관제탑 판결(${piggybackAction})을 큐에 기록. 다음 텔레메트리에 태워 보냅니다. (orderId: ${orderId})`);
+        if (isKeep) logRoadmapEvent('결재', "서버", `앱폰에게 Action=${piggybackAction} 최종 판결을 관제앱 공급 소켓으로`);
+        else logRoadmapEvent('결재', "서버", "앱폰에게 Action=Cancel 최종 판결을 관제앱 공급 소켓으로");
+        slog('결재', `📦 [결재] 관제탑 판결(${piggybackAction})을 큐에 기록 — 관제앱 공급 소켓 → 블루투스로 폰에 (받았음이 올 때까지 들고 있다 · orderId: ${orderId})`);
     } else {
         // pendingDecisions에 없는 경우 (이미 타임아웃으로 삭제되었거나, MANUAL 건)
         if (isKeep) logRoadmapEvent('결재', "서버", `앱폰에게 Action=${piggybackAction} 최종 판결 응답 전달 (즉시)`);
