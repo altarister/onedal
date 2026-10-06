@@ -55,7 +55,6 @@ class AlarmSignaler(private val service: AccessibilityService, private val waitB
         /** 🔇 테두리·알람이 스스로 걷히는 시간 */
         const val HOLD_MS = 10_000L
         /** 소리 두 번 사이 간격 — 관제웹(soundManager 220ms)과 같은 리듬 */
-        private const val BEEP_GAP_MS = 220L
         private const val BEEP_MS = 120
 
         /**
@@ -104,18 +103,18 @@ class AlarmSignaler(private val service: AccessibilityService, private val waitB
         // 🔔 같은 콜 한 번은 부르는 쪽이 정한다(`AlarmedRoutes.soundIfNew` · 소리 기억 한 곳)
         val sounded = withSound
         if (sounded) {
-            beepTwice()
+            beepOnce()
             vibrateStrong()
         }
         if (!withBorder) {
-            // 🔕 실제로 울렸을 때만 한 줄 — 울리지 않았는데 «소리 2»를 찍어 15초마다 우는 것처럼 보였다
-            if (sounded) AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [알람] 소리 2 · 진동 — 테두리 없음 (앱이 상세까지 들어간다)")
+            // 🔕 실제로 울렸을 때만 한 줄 — 울리지 않았는데 «소리»를 찍어 15초마다 우는 것처럼 보였다
+            if (sounded) AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [알람] 소리 1 · 진동 — 테두리 없음 (앱이 상세까지 들어간다)")
             return
         }
         val (top, bottom) = borderSpan(anchorRect.top, anchorRect.bottom, bandHalfPx)
         activeBandHalfPx = bandHalfPx
         showBorder(top, bottom, orderHash)
-        AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [알람] 통과 콜 카드에 테두리 ($top~$bottom) · 소리 2 · 진동")
+        AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [알람] 통과 콜 카드에 테두리 ($top~$bottom) · 소리 1 · 진동")
     }
 
     /**
@@ -141,17 +140,14 @@ class AlarmSignaler(private val service: AccessibilityService, private val waitB
         if (activeHash != null) hide("리스트 이탈")
     }
 
-    // ── 소리 — 짧게 두 번 (관제웹과 같은 리듬) ──
-    private fun beepTwice() {
+    // ── 소리 — 짧게 한 번 (기사님 «한 번으로») ──
+    private fun beepOnce() {
         try {
             val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
             tone.startTone(ToneGenerator.TONE_PROP_BEEP, BEEP_MS)
-            // ⏳ 부를 때마다 번호 — 알람 둘이 빨리 겹쳐도 앞 소리의 «풀기»를 지우지 않게(같은 이름이면 장부가 앞 것을 끈다)
+            // ⏳ 부를 때마다 번호 — 알람 둘이 빨리 겹쳐도 앞 소리의 «풀기»를 지우지 않게(같은 이름이면 장부가 앞 것을 거둔다)
             val no = ++beepNo
-            waitBook.schedule("삑 둘째 #$beepNo", WaitBook.SERVICE, BEEP_GAP_MS) {
-                tone.startTone(ToneGenerator.TONE_PROP_BEEP, BEEP_MS)
-                waitBook.schedule("소리 풀기 #$no", WaitBook.SERVICE, 500) { tone.release() }
-            }
+            waitBook.schedule("소리 풀기 #$no", WaitBook.SERVICE, 500) { tone.release() }
         } catch (e: Exception) {
             AppLogger.w("1DAL_ALARM", "🔇 소리 실패: ${e.message}")
         }

@@ -61,7 +61,7 @@ class WaitBookTest {
     @Test fun `안전취소는 판결 몫 - 세션이 끝나도 장부가 지우지 않는다 · 네 부품이 장부 하나를 받는다`() {
         assertTrue(File("$root/core/engine/SafeCancelTimer.kt").readText().contains("WaitBook.DECISION"))
         val alarm = File("$root/core/AlarmSignaler.kt").readText()
-        assertTrue("알람 소리 이름에 번호 — 겹친 알람이 앞 소리 풀기를 지우지 않게", alarm.contains("#\$beepNo"))
+        assertTrue("알람 소리 이름에 번호 — 겹친 알람이 앞 소리 풀기를 지우지 않게", alarm.contains("소리 풀기 #\$no"))
         val svc = File("$root/HijackService.kt").readText()
         listOf("TelemetryManager(apiClient, this, waitBook)", "AutoTouchManager(this, waitBook)", "SafeCancelTimer(waitBook)", "AlarmSignaler(this, waitBook)")
             .forEach { assertTrue(it, svc.contains(it)) }
