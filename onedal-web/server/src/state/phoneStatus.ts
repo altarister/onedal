@@ -18,7 +18,8 @@ export function applyPhoneStatus(userId: string, s: PhoneStatus): boolean {
         return false;
     }
     const prev = statuses.get(s.deviceId);
-    const next = { sameServer: s.sameServer !== false, unlinkedWhy: s.unlinkedWhy ?? null, heardAt: Number(s.heardAt) || Date.now() };
+    /* ⏱️ 들은 때는 서버 시계로 — 관제앱 · 폰 시계와 PC 서버 시계가 어긋나면 «블루투스로는 살아 있음»이 거짓이 된다(관제 리뷰) · 관제앱은 10초마다 보내고 중계는 1초 안 */
+    const next = { sameServer: s.sameServer !== false, unlinkedWhy: s.unlinkedWhy ?? null, heardAt: Date.now() };
     statuses.set(s.deviceId, next);
     if (!prev || prev.sameServer !== next.sameServer || prev.unlinkedWhy !== next.unlinkedWhy)
         slog('통신', `📶 [블루투스 폰 사실] ${deviceLabelOf(s.deviceId)} — 같은 서버 ${next.sameServer ? '예' : '아니오'}${next.unlinkedWhy ? ` · 연결 풀림(${next.unlinkedWhy})` : ''}`);

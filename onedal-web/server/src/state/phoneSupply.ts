@@ -61,7 +61,8 @@ export function modeSentToPhone(deviceId: string, userId: string, commanded: Dev
 
 /**
  * 🪪 **이 서버의 표지** — 관제앱이 원달앱 STATUS 의 표지와 견줘 «다른 서버를 봄»을 안다(주소 글자는 http · 끝 슬래시 · IP · 이름이 달라 못 견준다 · 관제 리뷰).
- * 🔴 로컬과 라이브가 같은 JWT 비밀을 쓴다 — 비밀만으로 세면 둘이 같아진다. 그래서 호스트 이름 · 포트를 섞는다(다시 떠도 같다 · 저장하지 않는다).
+ * 🔴 로컬과 라이브가 같은 JWT 비밀을 쓴다(`authSocket` 주석 · 기사님 실측) — 비밀만으로 세면 둘이 같아진다. 그래서 호스트 이름 · 포트를 섞는다(다시 떠도 같다 · 저장하지 않는다).
+ * 못 잡는 것: 서버를 다른 기계로 옮기면(호스트 이름이 바뀜) 표지가 바뀌어, 폰이 다음 보고를 할 때까지(최대 60초) «다른 서버를 봄»이 잠깐 뜬다.
  */
 export function serverIdOf(): string {
     return createHmac('sha256', jwtSecret()).update(`server-id|${hostname()}|${process.env.PORT ?? '4000'}`).digest('hex').slice(0, 12);

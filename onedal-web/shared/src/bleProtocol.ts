@@ -63,8 +63,8 @@ export interface PhoneStatus {
     sameServer: boolean;
     /** 폰 연결이 풀린 까닭(원달앱 `DeviceLink`) — 없으면 null */
     unlinkedWhy: string | null;
-    /** 관제앱이 이 폰의 블루투스를 마지막으로 들은 때(ms · 관제앱 시계) */
-    heardAt: number;
+    /** 관제앱 시계로 잰 마지막 숨(ms) — 서버는 쓰지 않고 받은 순간의 서버 시계로 적는다(시계 하나) */
+    heardAt?: number;
     /** 설명용 — 원달앱이 보는 서버 주소 */
     serverUrl?: string;
 }

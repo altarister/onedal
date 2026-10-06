@@ -93,6 +93,8 @@ describe('📡 관제앱 공급', () => {
             expect(applyPhoneStatus(U3, { deviceId: 'someone-else', sameServer: false, unlinkedWhy: null, heardAt: 1 })).toBe(false);
             expect(phoneStatusOf('dev-status-1').bleSameServer).toBe(false);
             expect(phoneStatusOf('someone-else')).toEqual({});
+            // ⏱️ 들은 때는 서버 시계 — 관제앱이 보낸 옛 시각(1)을 쓰지 않는다
+            expect(Date.now() - phoneStatusOf('dev-status-1').bleHeardAt!).toBeLessThan(5_000);
         });
         it('🔴 보고가 안 오는 폰(등록만)도 기기 목록에 블루투스 사실이 붙는다 · 꺼진 폰은 보낼 모드가 없다(적용중 아님)', () => {
             const row = getUserDevicesSnapshot(U3).find(d => d.deviceId === 'dev-status-1')!;
