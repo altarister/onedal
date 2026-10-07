@@ -183,11 +183,6 @@ export class OrderEvaluator {
         const session = getUserSession(userId);
         const t0 = Date.now();
         let geoMs = 0, routeMs = 0, merged = false;
-        /** 걸린 시간을 실패해도 센다 — 제한 시간에 걸린 판정도 몇 초 먹었는지 판정 시간 줄에 남는다 */
-        const timed = async <T>(p: Promise<T>, add: (ms: number) => void): Promise<T> => {
-            const start = Date.now();
-            try { return await p; } finally { add(Date.now() - start); }
-        };
         /**
          * 🪦 **아직 이 콜의 판정인가** — 카카오를 기다리는 사이 안전취소(같은 객체의 status)나 새 판정(map 이 다른 객체)이 끼어든다.
          *    두 사실만 본다: map 의 그 객체가 이 객체인가 · 아직 심사 중인가. 아니면 저장도 알림도 안 한다.
@@ -219,37 +214,14 @@ export class OrderEvaluator {
 
         // Stage 1. 형상 필터
         const { excludedHits } = this.runStage1ShapeFilter(securedOrder, snap.filter, reasons, pros);
+        const ctx: EvalCtx = { userId, session, securedOrder, snap, judgmentCfg, reservedLater, alive, record, excludedHits, reasons };
 
         // Stage 1.5 지오코딩 및 카카오 연산
         try {
             const hasApiKey = !!process.env.KAKAO_REST_API_KEY;
             if (hasApiKey) {
 
-                // 지오코딩 (상차지 + 하차지 병렬 실행)
-                const needPickup = !securedOrder.pickupX || !securedOrder.pickupY;
-                const needDropoff = !securedOrder.dropoffX || !securedOrder.dropoffY;
-
-                const [pCoord, dCoord] = await timed(Promise.all([
-                    needPickup ? geocodeCallAddress(securedOrder.pickup) : Promise.resolve(null),
-                    needDropoff ? geocodeCallAddress(securedOrder.dropoff) : Promise.resolve(null),
-                ]), ms => { geoMs = ms; });
-
-                if (needPickup) {
-                    slog('판정', `🌍 [Geocoding] 상차지 변환: '${securedOrder.pickup}' -> ${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
-                    if (pCoord) {
-                        securedOrder.pickupX = pCoord.x;
-                        securedOrder.pickupY = pCoord.y;
-                        securedOrder.pickupApprox = approxNameOf(pCoord.approxArea);
-                    }
-                }
-                if (needDropoff) {
-                    slog('판정', `🌍 [Geocoding] 하차지 변환: '${securedOrder.dropoff}' -> ${dCoord ? `X:${dCoord.x}, Y:${dCoord.y}` : '실패(null)'}`);
-                    if (dCoord) {
-                        securedOrder.dropoffX = dCoord.x;
-                        securedOrder.dropoffY = dCoord.y;
-                        securedOrder.dropoffApprox = approxNameOf(dCoord.approxArea);
-                    }
-                }
+                await this.geocodeStage(securedOrder, ms => { geoMs = ms; });
 
                 // 카카오 라우팅 연산
                 // ⚠️ 두 쪽 모두 X 로 본다 — 아래 else 의 진단문이 X 로 «어느 쪽이 없나»를 가른다
@@ -262,209 +234,7 @@ export class OrderEvaluator {
                     const isSharedEvaluate = activeCalls.length > 0;
 
                     if (!isSharedEvaluate) {
-                        // 단독 오더 연산
-                        const result = await timed(calculateSoloRoute(...soloRouteArgsOf(userId, () => snap.origin,
-                            { x: securedOrder.pickupX!, y: securedOrder.pickupY! },
-                            { x: securedOrder.dropoffX!, y: securedOrder.dropoffY! })), ms => { routeMs = ms; });
-
-                        // 🔴 필드를 손으로 채우지 않는다 — routeComposer 의 규약을 안 타면
-                        //    **접근 구간(현위치 → 상차지)이 통째로 버려진다.** 콜을 잡는 주 경로라 특히 그렇다.
-                        applySoloRoute(securedOrder, result);
-
-                        /**
-                         * 🧪 **도달 계수 수집** (필터 확정안 v2 구현 4 — 계측 단계).
-                         * 도달 시간→반경 계수(분/km)는 감으로 정하지 않는다 (기사님 확정 3).
-                         * 심사마다 (직선거리, 카카오 접근 분) 쌍을 `reach_samples` 장부에
-                         * 남긴다 — 로그는 3일 순환이라 표본이 증발한다. 역산은 `pnpm reach`.
-                         */
-                        const me = snap.origin;
-                        if (me && securedOrder.pickupX && securedOrder.pickupY
-                            && securedOrder.approachDurationMin != null) {
-                            const lineKm = haversineKm(me, { lat: securedOrder.pickupY, lng: securedOrder.pickupX });
-                            if (lineKm > 0.3) {
-                                slog('판정',
-                                    `   - 🧪 [도달 계수 수집] 직선 ${lineKm.toFixed(1)}km → 카카오 ${securedOrder.approachDurationMin}분 ` +
-                                    `(계수 ${(securedOrder.approachDurationMin / lineKm).toFixed(2)}분/km · 잠정 ${REACH_COEF_MIN_PER_KM_TEMP})`);
-                                try {
-                                    db.prepare(`INSERT INTO reach_samples (user_id, captured_at, line_km, kakao_min) VALUES (?, ?, ?, ?)`)
-                                        .run(userId, new Date().toISOString(), Number(lineKm.toFixed(2)), securedOrder.approachDurationMin);
-                                } catch (e) {
-                                    console.error(`   - 🧪 [도달 계수 수집] 표본 저장 실패 (계측이라 심사는 계속):`, (e as Error).message);
-                                }
-                            }
-                        }
-
-                        /**
-                         * 🎯 **첫짐 판정 — 단가로 잰다** (기사님 확정)
-                         *
-                         * 🔴 운행시간 축을 버렸다. 첫짐에서 운행시간이 길다는 건 나쁜 게 아니라
-                         *    **그게 일감**이다. 노선(광주→파주)이 늘 80~100분이라 시간 기준(40/90분)으로 재면
-                         *    잡은 콜이 **전부 똥**이 된다 — 100,000원짜리가 0점이 된다.
-                         *
-                         * 기사님: *"필터는 최저값보다 크기만 하면 올려주니, 내가 판단하는 건
-                         *          단가가 좋은지 아닌지로 하면 된다."*
-                         *
-                         * 앱이 이미 `요금 ≥ 배송거리 × 단가` 로 하한을 넘긴 콜만 올린다.
-                         * 그러므로 서버가 답할 것은 하나다 — **적정가를 넘었는가.**
-                         */
-                        /**
-                         * 🎨 **첫짐 판정 = 시급 축** (판정색 확정안 v2 · 문제지 4/4 통과 후 전환).
-                         * 🔴 요율을 다시 재지 않는다 — 돈은 앱이 이미 걸렀다 (규칙 ⑤-1). 다시 재면 고수의 3만원 콜이
-                         *    «하한 미달 똥»으로 떨어진다.
-                         */
-                        const dwell = totalDetourCost(0, securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
-                        const total = securedOrder.totalDurationMin != null
-                            ? securedOrder.totalDurationMin + dwell.dwell : null;
-                        const tags: string[] = [...approxTagsOf(securedOrder), ...roadEventTagsOf(result.roadEvent)];
-                        if (firstLoadNeedsCall(securedOrder.approachDurationMin, judgmentCfg.unknown.pickupPromiseMin, reservedLater))
-                            tags.push('통화 필수 — 무통보 상차 한계 밖');
-                        if (dwell.hasUnknown) tags.push('정차 미확인(일반값)');
-
-                        /**
-                         * 💸 **미리보기 콜은 단가를 다시 본다** (기사님 확정 · A안).
-                         *
-                         * 규칙 ⑤-1 *"돈은 앱이 이미 걸렀다"* 의 전제는 **앱 필터를 통과한 콜**에만
-                         * 성립한다. 미리보기는 기사님이 리스트에서 **아무 콜이나 눌러 보는 것**이라
-                         * 필터 밖이고, 하한가를 넘겼다는 보장이 없다.
-                         *
-                         * 실측: 시급으로는 🔵 90점인데 요율은
-                         * `55,000원 < 하한 67,144원` 이었다 — 기사님이 평소 안 받던 단가다.
-                         *
-                         * ⚠️ **필터콜은 건드리지 않는다.** 거기서 하한을 되살리면 노하우 13번
-                         *    (3만원짜리 고수의 콜)이 다시 똥으로 낙제한다 — v2 가 그 축을 버린 이유다.
-                         *
-                         * 🔴 **색만 낮추고 점수는 그대로 둔다.** 시급 축은 사실이고 하한 미달도
-                         *    사실이다. 딱지로 이유를 함께 적으므로 숫자가 거짓말하지 않는다 (규칙 ④).
-                         */
-                        /**
-                         * 💸 **표시는 시세로, 점수는 할인율 반영본으로** (기사님 확정).
-                         *
-                         * 기사님이 `call_discount_pct` 를 **100** 으로 두고 계신다 — 유튜버 영상으로
-                         * 문제지를 만드시는데 요금이 낮아 필터를 못 지나가서 문을 열어 두신 것이고,
-                         * *"그것과 상관없이 점수를 나에게 보여주면 될 거라 생각했어"* 하셨다.
-                         *
-                         * 그 전제는 맞다 — 점수 축(`criteria.ts`)은 할인율을 아예 안 본다. 그런데
-                         * **보여 주는 것**이 같이 꺼졌다: 하한이 `요금 × (1 − 할인율/100)` 이라 0원이 되고,
-                         * 「요율 미달」이 영영 안 뜬다. 그러면 첫짐하차 1km 옆에 내리는 1만원짜리가
-                         * «더 드는 시간 2분 · 시급 30만/h · 🔵» 로 보인다 — 실제로는 그 짐을 26km 싣고
-                         * 간 일이고, 그걸 말해 줄 유일한 자리가 이 딱지다.
-                         *
-                         * 🔴 **점수에 들어가는 값은 그대로 둔다** — 아래 `minAcceptableKrw` 는 「돈」의
-                         *    감점 입력이다. 여기에 시세를 넣으면 점수가 바뀐다 (기사님은 «표시만»을 고르셨다).
-                         *    그래서 값이 둘이고 이름으로 갈라 둔다.
-                         */
-                        const rateForScore = (securedOrder as any).isPreview
-                            ? this.loadPricing(securedOrder, userId, snap.filter.callDiscountPct) : null;
-                        /* 💸 화면에 쓸 하한 — 할인율 0 으로 다시 재서 «시세»를 본다 */
-                        const rateForDisplay = (securedOrder as any).isPreview
-                            ? this.loadPricing(securedOrder, userId, 0) : null;
-                        const rateShort = !!rateForScore && securedOrder.fare > 0
-                            && securedOrder.fare < rateForScore.minAcceptable;
-                        if (rateForDisplay && securedOrder.fare > 0
-                            && securedOrder.fare < rateForDisplay.minAcceptable) {
-                            /**
-                             * 💸 **«얼마나 모자라나»를 앞에 둔다** — 기사님이 1~2초에 읽으시는 것은
-                             *    두 절대값이 아니라 차이다. 거절 사유 줄과 한 모양으로 맞춘다.
-                             */
-                            tags.push(`요율 ${manwonText(rateForDisplay.minAcceptable - securedOrder.fare)} 모자람`
-                                + ` — 시세 ${manwonText(rateForDisplay.minAcceptable)} · 실제 ${manwonText(securedOrder.fare)}`);
-                        }
-
-                        /**
-                         * ⚖️ **색은 판정 함수 하나가 낸다** (6단계 갈아타기 완료).
-                         *    옛 채점기는 여기서 손을 뗐다. 갈아타기 전 84건을
-                         *    나란히 대조해 **어긋남 0** 을 확인했다 (검사 73 · 실제 리허설 11).
-                         */
-                        /**
-                         * 🧭 **첫짐은 목적지로 얼마나 전진하나까지 본다** (기사님 확정).
-                         *    빈 차라 「돈」 하나가 색을 정하던 자리다 — 04:54 복정동 → 대치4동(1.1만/h)이
-                         *    강남으로 올라가는 콜인데 🟡 로 떨어졌다. 셈은 `destProgressOf` 한 곳에 있다.
-                         */
-                        const progress = destProgressOf({
-                            me: snap.origin,
-                            dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
-                            goalCity: snap.goal,
-                            destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
-                        });
-                        /**
-                         * 💪 **이 콜의 상·하차 정거장 타이밍** — 손으로 드는 분과 묶는 분이 함께 온다.
-                         *    🔴 합짐이 `totalDetourCost` 로 거치는 그 함수와 **같은 자리**다 (규칙 ③).
-                         */
-                        const firstStop = getStopTiming(securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
-                        const dry: ReturnType<typeof toSnapshot> & { extraMin?: number | null } = toSnapshot(judge(CRITERIA, firstLoadFacts({
-                            fare: securedOrder.fare, totalMinutes: total,
-                            minAcceptableKrw: rateShort ? rateForScore!.minAcceptable : null,
-                            progress,
-                            /**
-                             * ⛽🛣️ **나가는 돈** — 첫짐은 «이 콜의 전체 주행»이 곧 더 쓰는 거리다 (빈 차라 뺄 기준이 없다).
-                             *    기름값은 기사님 설정에서, 통행료는 카카오가 준 값 그대로. 모르면 `null` 이라 안 뺀다 (규칙 ④).
-                             */
-                            extraKm: securedOrder.kakaoSoloDistanceKm ?? null,
-                            fuelCostPerKm: SettingsRepository.getFuelCostPerKm(userId),
-                            tollKrw: result.tollKrw ?? null,
-                            /**
-                             * ⏳ **이 콜이 만드는 여유** — 상차 약속에서 상차지까지 가는 시간을 빼고,
-                             *    배송 주행의 마감 여분(150% 의 50%)을 더한다. 셈은 shared 「콜 대기」 한 곳이다 (규칙 ③).
-                             */
-                            toPickupMinutes: securedOrder.approachDurationMin ?? null,
-                            deliveryMinutes: securedOrder.kakaoSoloDurationMin ?? null,
-                            /* 💪 빈 차에도 짐은 있다 — 이 콜의 상·하차에 팔다리를 얼마나 쓰나 */
-                            handMinutes: firstStop.handMinutes,
-                            protectionMinutes: firstStop.protectionMin,
-                            /**
-                             * 🚚 **정차를 뺀 주행 분** — 첫짐은 «상차지까지 + 배송»이다.
-                             *    🔴 「돈」의 `totalMinutes` 와 다른 값이다 — 저쪽에는 상하차 정차가 들어 있다.
-                             */
-                            driveMinutes: (securedOrder.approachDurationMin ?? 0) + (securedOrder.kakaoSoloDurationMin ?? 0) || null,
-                            /**
-                             * 🔙 **등 뒤 상차** — 첫짐에는 한계 우회가 없어 되돌아가는 거리를
-                             *    「돈」이 못 센다. 그물이 쓰는 식과 한 벌이다 (`isPickupBackward`).
-                             */
-                            pickupBackward: pickupBackwardOf({
-                                me: snap.origin,
-                                pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
-                                goalCity: snap.goal,
-                                pickupRadiusKm: snap.pickupRadiusKm,
-                            }),
-                            // 🏔️ 들어가면 빈 차로 나오는 곳 — 요금으로는 안 보인다 (노하우 148행)
-                            trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
-                            excludedHits,
-                            tags,
-                        }), judgmentCfg));
-
-                        /* ⏱️ 더 쓰는 시간 = 시급의 분모 그대로 — 첫짐은 이 콜 전체 (전수표 #42) */
-                        dry.extraMin = total;
-                        if (rateShort && (dry.color === '꿀' || dry.color === '보통')) {
-                            slog('판정', `   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
-                                `실제 ${wonText(securedOrder.fare)} < 하한 ${wonText(rateForScore!.minAcceptable)})`);
-                            dry.color = '똥';
-                        }
-                        slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
-                        // 🧪 도달 반경 dryRun (구현 4 계측) — 거르지 않는다, 설정 반경과 견주기만
-                        slog('판정', `   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupPromiseMin}분 ` +
-                            `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupPromiseMin)}km (설정 ${snap.filter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
-                        /**
-                         * 🔴 **축 아홉을 사유 문자열에 싣지 않는다** (기사님 확정 · 화면 디자인).
-                         *
-                         * 여기서 「총점 N점 — 돈 … · 노동강도 … · 지리 …」를 한 문자열로 만들어
-                         * `rejectionReasons`(🟡🔴) 또는 `approvalReasons`(🔵🟢)에 넣고 있었다.
-                         * 그런데 **같은 축이 `dry.axes` 로 이미 간다** — 화면의 「근거 ▾」 접이가 그걸 그린다.
-                         *
-                         * 🔴 그 칸은 기사님이 **1~2초에 읽는 자리**다. 판정 설명 전체가 거기 들어가니
-                         *    심사석 카드(158px 고정 · `overflow-hidden`)에서 **넘쳐 잘렸다** — 실측으로
-                         *    「(보통 3.0만 · 꿀」에서 끊긴 화면을 봤다. 걸리는 것만 남긴다.
-                         */
-
-                        // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
-                        if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, { ...dry, ...record });
-                        (securedOrder as any).judgment = dry;
-
-                        // 관제웹 카드가 이 문자열의 '꿀'/'똥'/'사고' 표식으로 색을 정한다 (합짐 timeExt 와 같은 규약)
-                        timeExt = `추천거리 ${securedOrder.kakaoSoloDistanceKm}km, 소요 ${securedOrder.kakaoSoloDurationMin}분`
-                            + (securedOrder.approachDurationMin ? ` (상차지까지 ${securedOrder.approachDurationMin}분)` : '')
-                            + ` '${dry.color}' · ${dry.score}점`;
-
-                        slog('판정', `   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
+                        timeExt = await this.soloStage(ctx, ms => { routeMs = ms; });
                     } else {
                         /**
                          * 합짐(Detour) 연산 — **경유지 조립은 `routeComposer` 한 곳에만 있다.**
@@ -477,357 +247,7 @@ export class OrderEvaluator {
                          *    *"후보 콜은 아직 안 실었으므로 상차지를 남긴다."*
                          */
                         merged = true;
-                        const result = await timed(composeMergedRoute({
-                            calls: activeCalls,
-                            extra: securedOrder,
-                            origin: snap.origin,
-                            priority: routingOptions.defaultPriority,
-                            carType: routingOptions.carType,
-                            /* ⏱️ 판정도 **잡은 뒤와 같은 순서**로 잰다 — 다르면 화면이 말한 늦음과 실제 경로가 갈린다 */
-                            promiseOpts: {
-                                nowMs: Date.now(),
-                                promiseAt: (orderId, stopType) => firmPromiseMsOf(orderId, stopType),
-                                speedKmh: judgmentCfg.speed?.midKmh,
-                                dwellMin: (s: 'pickup' | 'dropoff') => s === 'pickup'
-                                    ? judgmentCfg.unknown.pickupDwellMin : judgmentCfg.unknown.dropoffDwellMin,
-                            },
-                        }), ms => { routeMs = ms; });
-                        if (!result) {
-                            // 좌표가 하나도 없다 — 기존 실패 처리로 떨어뜨린다
-                            throw new Error("합짐 경로 조립 실패: 유효한 좌표가 없습니다");
-                        }
-
-                        let recommend = "'콜'";
-                        const distDiff = parseFloat(result.distDiffKm);
-
-                        /**
-                         * 🎨 **합짐 판정 = 확정안 v2 채점기** (문제지 4/4 통과 후 전환).
-                         * 🔴 우회의 절대 크기는 감점하지 않고 딱지(사실)로만 남긴다 — 절대 문턱으로 재면 긴 우회의 좋은 합짐이
-                         *    «+N분 초과 똥»으로 떨어진다.
-                         * 🔴 카카오의 `timeDiffMin` 은 **주행 delta 뿐**이라 상하차를 더해야 한다.
-                         */
-                        const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
-
-                        const slotsTotal = TRUCK_CAPACITY_SLOTS;
-                        const slotsUsed = snap.filter.slotsUsed ?? 0;
-
-                        // 함께 실을 수 없는 화물인지 (위험물 + 식료품 등) — 문지기 재료
-                        const conflicts = findLoadConflicts(userId, session, securedOrder.id);
-                        for (const [a, b] of conflicts) {
-                            reasons.push(`같이 못 싣는 조합: 실린 화물(${a}) + 이 화물(${b})`);
-                        }
-
-                        {
-                            const secStops = (result.merged as any).sectionStops as
-                                Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }> | undefined;
-                            const secMins = result.merged.sectionDriveMin;
-                            const stopsAfter = secStops && secMins && secStops.length === secMins.length
-                                ? secStops.map((st, i) => ({ ...st, driveMinutes: secMins[i] }))
-                                : [];
-                            // 🔴 손으로 다시 만들지 않는다 — 판정 기준 → 파생 입력은 한 곳이다 (규칙 ③).
-                            //    여기서 따로 조립하면 배송 속도 같은 새 칸이 조용히 빠진다.
-                            const derivation = derivationInputsOf(judgmentCfg, dwellRatesFor(userId));
-                            // ⏱️ 실측 정차와 판정 기준 값을 **함께** 넘긴다 — 넷이 같은 재료를 써야 한다
-                            const dwellLedgerOf = (id: string) => dwellLedgerFor(id);
-                            // 후보를 **포함한** 경로의 타임라인 — 기존 콜 약속이 어떻게 되는지가 문지기다
-                            const tlAfter = stopsAfter.length
-                                ? deriveRouteTimeline(stopsAfter as any, [...activeCalls, securedOrder] as any,
-                                    id => stepRecordsOf(id).reports as any,       // 🔄 파생 치환 ②
-                                    id => stepRecordsOf(id).milestones as any,
-                                    Date.now(), new Date().toISOString(), derivation.rules, derivation.unk, dwellLedgerOf)
-                                : [];
-                            const existing = tlAfter.filter(e => e.orderId !== securedOrder.id);
-                            const late = existing.filter(e => e.lateMinutes > 0);
-                            // 콜 호칭 조합 규칙 — "노선합짐1콜 하차 약속이 깨집니다"
-                            const nameOf = (id: string) => {
-                                const idx = activeCalls.findIndex(c => c.id === id);
-                                return idx >= 0
-                                    ? callName({ target: snap.filter.callTarget, index: idx })
-                                    : id.slice(-6);
-                            };
-                            // ⏰ 깨지는 약속 — 짓는 곳은 `lateStopsOf` 하나다 (규칙 ③)
-                            const lateStops = lateStopsOf(late as never, nameOf);
-                            /**
-                             * ☎️ **전화해 약속을 미뤄야 할 기존 콜 정거장** (기사님 확정).
-                             *
-                             * 세는 규칙 셋 — **아직 안 다녀왔고** · **설정 분 이상** 늦는 곳.
-                             * 🔴 1분 밀림마다 세지 않는다 — 기사님: *"정차 중에 3~4콜을 모으려면 몇 분씩은 밀린다."*
-                             *    그 «몇 분»이 판정 기준 탭의 «지연 — 거의 문제없음» 이다. 새 문턱을 안 만든다.
-                             * 🔴 `existing` 은 **후보를 뺀 기존 콜**만이다 — 내 콜에 내가 전화하지 않는다.
-                             */
-                            const callsToMake = existing.filter(e =>
-                                !e.arrived && e.lateMinutes >= (judgmentCfg.slack?.lateSoftMin ?? 5)).length;
-
-                            const bufAfter = minRouteBuffer(existing);
-
-                            /**
-                             * 🧮 우회는 **한계 비용** — 직전 경로(붙이기 전) 총 소요를 뺀다.
-                             * 카카오 delta(첫짐 단독 대비 누적)를 그대로 쓰면 나중 후보가
-                             * 앞 합짐들의 비용을 뒤집어쓴다 (문제지 16번: +189분, 진짜는 43분).
-                             * 직전 총 소요는 경로 홀더가 들고 있다 — "값이 있는 마지막 콜".
-                             */
-                            /**
-                             * 🧮 **같은 시각·같은 기점의 두 경로를 뺀다** (기사님 실측).
-                             *
-                             * «저장된 직전 총주행»을 빼면 안 된다 — 그 값은 **KEEP 하던 시각·그때의 기점**에서 잰 것이라,
-                             * 기사님이 달린 만큼 짧아진 게 *"우회가 줄었다"* 로 읽힌다(달릴수록 심해지는 치우침).
-                             *
-                             * 이제 `composeMergedRoute` 가 base 를 **기존 활성 콜 전부**로
-                             * 잰다(같은 호출·같은 기점). 그래서 카카오가 준 `timeDiffMin` ·
-                             * `distDiffKm` 이 **그대로 정확한 한계 비용**이다.
-                             */
-                            const marginal = marginalDetourMin(
-                                Math.round(result.merged.duration / 60), null, result.timeDiffMin);
-
-                            // 딱지 — 판단 없이 사실만 (절대치 문턱의 강등 자리). 분·km 둘 다 한계 기준
-                            const marginalKm = distDiff;
-                            const tags = [`우회 ${marginal > 0 ? '+' : ''}${marginal}분 · ${marginalKm > 0 ? '+' : ''}${marginalKm}km`, ...approxTagsOf(securedOrder), ...roadEventTagsOf(result?.roadEvent)];
-                            const candPickup = tlAfter.find(e => e.orderId === securedOrder.id && e.stopType === 'pickup');
-                            /**
-                             * 🛣️ **«길을 벗어나는 분» — 「돈」의 우회 감쇠가 이것만 본다** (기사님 확정).
-                             *
-                             * 셈은 `tailSplitOf` 한 곳이다 (규칙 ③) — 왜 꼬리만 빼는지, 자리가
-                             * 엇갈리면 어떻게 옛 셈으로 떨어지는지 거기 다 적혀 있다.
-                             * 카카오를 한 번도 더 부르지 않는다 — 구간 누적은 병합 경로를 부를 때 함께 받았다.
-                             *
-                             * 🔴 **남은 구멍 — 긴 배송이 꼬리면 감쇠가 꺼진다.** 꼬리는 «후보 자신의 배송»이라
-                             *    배송이 길수록 더 많이 빼게 된다. 오송읍 상차(가는 길 · 삽입 15분) → 아주 먼
-                             *    하차(배송 220분) · 요금 15만 이면 `marginal` 235 · 꼬리 220 · 벗어남 15 라
-                             *    감쇠가 안 걸려 🟡 21 이던 콜이 🔵 71 이 된다 (검산함).
-                             *    합짐에는 「지리」가 안 붙으므로 **합짐의 방향을 보는 축이 하나도 없다.**
-                             *    막는 길은 「지리」를 합짐에도 켜서 후보 하차의 전진을 배수로 보는 것이고,
-                             *    그것은 운행 동작이 바뀌어 기사님 승인이 필요하다 (`detourDecay.test.ts` 가
-                             *    지금 뚫린 자리를 그대로 잠가 두고 있다).
-                             */
-                            const tailSplit = tailSplitOf(stopsAfter, securedOrder.id, marginal);
-                            const offRouteMinutes = tailSplit.offRouteMinutes;
-                            /**
-                             * 🔴 **못 쟀으면 그 까닭을 남긴다** — 이 값이 조용히 `null` 이던 동안
-                             *    «승인받은 꼬리 빼기가 한 번도 안 도는데 아무도 모르는» 일이 실제로
-                             *    일어났고, 딱지의 분을 역산해서야 알아냈다 (실측 판정 다섯 건).
-                             */
-                            if (tailSplit.why) {
-                                slog('판정', `   🛣️ [꼬리 못 잼] 늘어난 주행(${marginal}분)을 그대로 봅니다 — ${tailSplit.why}`);
-                            } else if (offRouteMinutes != null && offRouteMinutes !== marginal) {
-                                slog('판정', `   🛣️ [벗어난 분] ${marginal}분 → ${offRouteMinutes}분 (꼬리 배송 ${marginal - offRouteMinutes}분을 뺐습니다)`);
-                            }
-                            /**
-                             * 📞 **상차 약속을 못 지키면 통화가 필요하다** — 그 약속은 타임라인이
-                             *    이미 만들어 놨다(`promisedUntil`: 통화 > 적요 > 잡은 시각 + 20분).
-                             * 🔴 여기서 `지금 + 설정분` 으로 다시 만들지 않는다 — 기준이 «지금»이 되고
-                             *    적요·통화 갈래가 빠진다 (규칙 ③).
-                             */
-                            const candPromiseMs = candPickup?.promisedUntil
-                                ? Date.parse(candPickup.promisedUntil) : null;
-                            if (candPickup?.etaMs != null && candPromiseMs != null
-                                && candPickup.etaMs > candPromiseMs) tags.push('통화 필수 — 무통보 상차 한계 밖');
-                            if (cost.hasUnknown) tags.push('정차 미확인(일반값)');
-                            /**
-                             * 🚚 **추정으로 채웠으면 화면이 그렇게 말해야 한다** (규칙 ⑤-2).
-                             *    합짐 콜은 단독 경로를 안 재므로 배송거리 ÷ 속도로 채운다.
-                             *    숫자만 쓰고 «추정»을 안 적으면 그게 규칙 ④ 위반이 된다.
-                             */
-                            if (soloMinutesOf(securedOrder as any, derivation.rules).estimated) {
-                                tags.push('배송주행 추정(일반값)');
-                            }
-                            if (!bufAfter) tags.push('버퍼 잴 약속 없음');
-                            /**
-                             * 🧾 **기존 콜 정거장마다 — 이 후보를 받으면** (전수표 4단계 #43 #45 #46 #47 · 목업 «④ 후보콜에 대한 심사 결론»).
-                             *    심사석이 «누가 몇 분 늦어지나»를 말하게 스냅샷에 싣는다. 결론은 관제웹 `seatConclusion` 한 곳이다.
-                             * 🔴 **모르면 모른다고 적는다** — 정거장 순서를 못 받으면 `late` 가 비어 위 관문이 «통과»가 된다.
-                             *    모르는 것이 «약속 보존»으로 읽히면 안 된다. 점수는 안 건드리고 딱지만 붙인다 (규칙 ⑤-2).
-                             */
-                            /**
-                             * 📍 **정거장의 좌표 — 콜 번호와 상차/하차로 찾는다.**
-                             *    정거장 목록(`stopsAfter`)은 «어느 콜의 어느 쪽인가»만 들고 있어, 좌표는
-                             *    여기서 꺼낸다. 🔴 **이 한 곳에서만 꺼낸다** (규칙 ③) — 동 이름도 방향도
-                             *    같은 좌표를 쓴다. 두 벌이면 «화면은 이 동인데 방향은 저 동으로 잰» 일이 난다.
-                             *    좌표를 모르면 `null` — 부르는 쪽이 그때 안 넘긴다 (지어내지 않는다).
-                             */
-                            const coordOf = (orderId: string, stopType: 'pickup' | 'dropoff') => {
-                                /**
-                                 * 🧭 심사 중인 후보도 본다 — 노선 합짐의 보통 경우(후보가 꼬리에 붙음)
-                                 *    기점이 후보 자신의 상차라, 잡은 콜만 보면 방향·약속이 조용히 빠진다.
-                                 *    후보 좌표는 심사 첫머리 지오코딩이 이미 채웠다 (`detourAnchorCoord` 검사).
-                                 */
-                                const o = (orderId === securedOrder.id ? securedOrder
-                                    : activeCalls.find(c => c.id === orderId)) as any;
-                                const x = stopType === 'pickup' ? o?.pickupX : o?.dropoffX;
-                                const y = stopType === 'pickup' ? o?.pickupY : o?.dropoffY;
-                                return Number.isFinite(x) && Number.isFinite(y) ? { x: x as number, y: y as number } : null;
-                            };
-                            /* ☎️ 정거장의 동 이름 — 늦으면 «전화할 곳»이다 (전수표 #42). 좌표를 모르면 null.
-                             *    ⚠️ 동 이름은 중심점 «최근접»이라 경계 근처에선 한 동 어긋날 수 있다 — 표시 전용, 판정은 좌표로 잰다 */
-                            const placeOf = (orderId: string, stopType: 'pickup' | 'dropoff') => {
-                                const c = coordOf(orderId, stopType);
-                                return c ? nearestDong({ lng: c.x, lat: c.y }).name : null;
-                            };
-                            const stopsView = existing.map(e => ({
-                                name: `${nameOf(e.orderId)} ${e.stopType === 'pickup' ? '상차' : '하차'}`,
-                                place: placeOf(e.orderId, e.stopType),
-                                stopType: e.stopType,
-                                promisedAt: e.promisedUntil,
-                                etaAt: e.etaMs != null ? new Date(e.etaMs).toISOString() : null,
-                                /**
-                                 * 🔴 **이 값은 「약속」 축의 `bufferAfterMin` 과 부호만 다른 같은 값이다** —
-                                 *    둘 다 같은 `existing` 배열에서 나온다 (위 `minRouteBuffer(existing)`).
-                                 *    한쪽만 고치면 심사석의 셋째 줄(걸리는 것)과 넷째 줄(대상과 까닭)이
-                                 *    다른 말을 한다. 화면 대조는 `pnpm lab` 이 한다.
-                                 */
-                                lateMin: e.etaMs != null && e.promisedUntil ? Math.round((e.etaMs - Date.parse(e.promisedUntil)) / 60_000) : null,
-                                confirmed: e.promiseConfirmed,
-                                arrived: e.arrived,
-                            }));
-                            const unknownWhy = stopsAfter.length === 0 ? '전체 경로의 정거장 순서를 못 받았다'
-                                : stopsView.some(st => !st.arrived && st.etaAt == null) ? '예정을 못 잰 구간이 있다' : null;
-                            if (unknownWhy) tags.push(`기존 콜 도착 모름 — ${unknownWhy}`);
-
-                            // ⚖️ 색은 판정 함수 하나가 낸다 (6단계 갈아타기 완료)
-                            const dry: ReturnType<typeof toSnapshot> & { stops?: typeof stopsView; unknownWhy?: string | null; extraMin?: number | null } = toSnapshot(judge(CRITERIA, mergeFacts({
-                                fare: securedOrder.fare,
-                                extraMinutes: marginal + cost.dwell,
-                                /* 🛣️ 길을 벗어나는 분 — 「돈」의 우회 감쇠만 본다 (잰 곳은 위 한 곳이다) */
-                                offRouteMinutes,
-                                /**
-                                 * ⛽🛣️ **늘어나는 것만 센다** — 시간(`marginal`)과 **같은 규약**이다.
-                                 *    거리는 카카오가 준 두 경로의 차이(`distDiff`), 통행료도 같은 자리에서 온 차이다.
-                                 *    🔴 한쪽이라도 톨비를 못 받았으면 `null` 로 와서 안 뺀다 (규칙 ④).
-                                 */
-                                extraKm: Number.isFinite(distDiff) ? distDiff : null,
-                                fuelCostPerKm: SettingsRepository.getFuelCostPerKm(userId),
-                                tollKrw: result.tollDiffKrw ?? null,
-                                /**
-                                 * ⏳ **이 콜이 만드는 여유** — 상차지까지 가는 시간은 타임라인이 낸
-                                 *    **후보 상차 도착 예정**에서 지금을 뺀 값이다 (현위치부터 앞 정거장을 다 더한 시각).
-                                 *    🔴 여기서 다시 재지 않는다 (규칙 ③) · 못 쟀으면 `null` 이라 그 항목만 빠진다.
-                                 */
-                                toPickupMinutes: candPickup?.etaMs != null
-                                    ? Math.round((candPickup.etaMs - Date.now()) / 60_000) : null,
-                                deliveryMinutes: soloMinutesOf(securedOrder as any, derivation.rules).minutes,
-                                /* ☎️ 세는 곳은 위 한 곳이다 — 판정은 숫자만 받는다 (규칙 ③) */
-                                callsToMake,
-                                /**
-                                 * 💪 **팔다리를 쓰는 분** — `totalDetourCost` 가 이미 거친 정거장 타이밍에서 그대로 온다.
-                                 *    🔴 여기서 박스를 다시 세지 않는다 (규칙 ③). 짐을 모르면 `null` 이라 「노동강도」가 «잴 게 없다»로 받는다.
-                                 */
-                                handMinutes: cost.handMinutes,
-                                protectionMinutes: cost.protectionMin,
-                                /**
-                                 * 🚚 **이 콜을 잡으면 달리게 되는 길 전체** — 카카오가 준 병합 경로 그대로.
-                                 *    같은 값으로 `:534` 가 `totalDistanceKm`·`totalDurationMin` 을 저장한다.
-                                 *
-                                 * 🔴 **늘어난 것(`marginal`·`distDiff`)을 넘기지 않는다.** 합짐은 길에서
-                                 *    빠져나갔다 되돌아오므로 늘어난 거리는 조금인데 늘어난 시간은 많다 —
-                                 *    76km·110분(41km/h)을 달리는 콜이 «+26km ÷ +50분 = 31km/h» 로 읽혀
-                                 *    14점이 됐다 (실측 06:24). 늘어난 것은 「돈」이 기름값·시급으로 쓴다.
-                                 * 🔴 **그 콜의 «상차→하차» 구간으로는 못 잰다** — 그 실측은 KEEP 뒤에 재고
-                                 *    (`measureSoloDelivery`) 판정은 잡기 전이라, 판정 시점엔 거리를 속도 눈금으로
-                                 *    나눠 만든 추정이 온다. 그걸 되읽으면 눈금값이 그대로 나온다 (실측 31건 중 26건).
-                                 */
-                                driveKm: result.merged.distance / 1000,
-                                driveMinutes: Math.round(result.merged.duration / 60),
-                                bufferAfterMin: bufAfter?.minutes ?? null,
-                                /**
-                                 * 📦 **음수를 0 으로 자르지 않는다.** 자르면 «자리 부족»이 «여유 0%»로 보여
-                                 *    무조건 빨간불이 영영 안 켜진다 — 얼마나 넘치는지도 사라진다 (규칙 ④).
-                                 */
-                                freePct: slotsTotal > 0 ? ((slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
-                                /** 📦 그 적재량을 어떻게 알았나 — 확정값일 때만 색을 덮는다 */
-                                confidence: snap.filter.capacityConfidence ?? null,
-                                conflicts, excludedHits, lateStops,
-                                /**
-                                 * 🧭 **합짐도 방향을 본다 — 기점은 «잡아 둔 콜을 다 내린 곳»이다** (기사님 확정).
-                                 *
-                                 * 후보 하차지가 목적지 쪽인가 반대쪽인가를 배수로 본다. 「돈」의 우회 감쇠가
-                                 * «길을 벗어나는 분»만 보게 되면서(`tailSplitOf`) 배송 방향을 아무도
-                                 * 안 보게 됐다 — 목적지 쪽 220분과 반대쪽 220분이 같은 🔵 71 이었다.
-                                 *
-                                 * 🔴 **현위치로 재지 않는다** — 후보 하차지는 잡아 둔 콜을 다 내린 **다음**에
-                                 *    가는 곳이라, 현위치에서 재면 이미 잡은 콜의 방향이 섞인다. 그 자리는
-                                 *    꼬리의 시작(마지막 직전 정거장)이고, 좌표는 `coordOf` 한 곳에서 꺼낸다.
-                                 * 🔴 **좌표를 못 구하면 안 넘긴다** — 배수 ×1.0 으로 조용히 떨어진다 (규칙 ⑤-2).
-                                 * 🔴 **목적지 반경을 안 넘긴다** — 첫짐은 3km 안이면 방향을 안 보지만(도착했으니
-                                 *    전진할 것이 없다), 합짐은 «다 와 가는데 반대편으로 끌려가는» 자리가 제일
-                                 *    아프다 (기사님 «나»). 짧은 이동 가드는 `destProgressOf` 안에 있다.
-                                 */
-                                progress: (() => {
-                                    const from = tailSplit.tailFrom
-                                        ? coordOf(tailSplit.tailFrom.orderId, tailSplit.tailFrom.stopType)
-                                        : null;
-                                    if (!from) {
-                                        slog('판정', `   🧭 [합짐 지리] 안 잼 — 후보 하차 앞 정거장의 좌표가 없습니다`);
-                                        return undefined;
-                                    }
-                                    const p = destProgressOf({
-                                        me: from,
-                                        dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
-                                        goalCity: snap.goal,
-                                    });
-                                    /**
-                                     * 🔴 **돌았는지 한 줄로 남긴다** — 오늘 꼬리 빼기가 한 나절 조용히 안 돌았고
-                                     *    딱지의 분을 역산해서야 알아냈다. 그 일을 되풀이하지 않는다.
-                                     */
-                                    const fromPlace = placeOf(tailSplit.tailFrom!.orderId, tailSplit.tailFrom!.stopType);
-                                    slog('판정', p.ratio == null
-                                        ? `   🧭 [합짐 지리] 안 잼 — ${p.unknownWhy} (기점 ${fromPlace ?? "?"})`
-                                        : `   🧭 [합짐 지리] 기점 ${fromPlace ?? "?"} → 전진율 ${p.ratio >= 0 ? '+' : ''}${p.ratio.toFixed(2)}`
-                                          /* 🔴 멀어질 때만 적는다 — 음수는 «가까워짐»이라 «-34km 멀어짐»으로
-                                             거꾸로 읽혔다. 가까워지는 콜의 km 는 점수에 아무 일도 안 한다
-                                             (`awayMult` 는 멀어질 때만 1 아래로 내려간다) */
-                                          + `${p.awayKm != null && p.awayKm > 0 ? ` · ${Math.round(p.awayKm)}km 멀어짐` : ''}`);
-                                    return p;
-                                })(),
-                                /**
-                                 * 🏔️ **갇힘은 합짐에도 본다** — 하차 좌표만 보는 판단이라 첫짐·합짐과 무관하고
-                                 *    (`isTrappedRegion`), 다른 축은 갇힘을 아무도 안 본다. 빼면 「합짐일 때는
-                                 *    갇힘을 안 본다」는 칸이 새로 생긴다.
-                                 */
-                                trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
-                                // 🏗️ 정차 중(모으는 중) ↔ 주행 중 — 가르는 곳은 `resolvePhaseKey` 하나다
-                                phase: resolvePhaseKey(snap.filter.callTarget, snap.filter.dispatchPhase),
-                                tags,
-                            }), judgmentCfg));
-                            dry.stops = stopsView;
-                            dry.unknownWhy = unknownWhy;
-                            /* ⏱️ 더 쓰는 시간 = 시급의 분모 그대로 — 합짐은 전체 경로가 늘어나는 만큼 + 정차 (전수표 #42) */
-                            dry.extraMin = marginal + cost.dwell;
-                            slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
-                            // 🧪 도달 반경 dryRun (구현 4 계측) — 앞 일이 많을수록 버퍼가 줄어 반경이 준다 (16-3)
-                            if (bufAfter) slog('판정', `   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +
-                                `≈ ${reachRadiusKm(Math.max(0, bufAfter.minutes))}km (설정 ${snap.filter.pickupRadiusKm}km · 계수 잠정)`);
-
-                            const failedGates = dry.gates.filter(g => !g.pass);
-                            if (failedGates.length) reasons.push(...failedGates.map(g => g.why ?? g.name));
-                            /**
-                             * 🔴 **축 아홉을 사유 문자열에 싣지 않는다** (기사님 확정 · 화면 디자인).
-                             *
-                             * 여기서 「총점 N점 — 돈 … · 노동강도 … · 지리 …」를 한 문자열로 만들어
-                             * `rejectionReasons`(🟡🔴) 또는 `approvalReasons`(🔵🟢)에 넣고 있었다.
-                             * 그런데 **같은 축이 `dry.axes` 로 이미 간다** — 화면의 「근거 ▾」 접이가 그걸 그린다.
-                             *
-                             * 🔴 그 칸은 기사님이 **1~2초에 읽는 자리**다. 판정 설명 전체가 거기 들어가니
-                             *    심사석 카드(158px 고정 · `overflow-hidden`)에서 **넘쳐 잘렸다** — 실측으로
-                             *    「(보통 3.0만 · 꿀」에서 끊긴 화면을 봤다. 걸리는 것만 남긴다.
-                             */
-
-                            // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
-                            if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, { ...dry, ...record });
-                            (securedOrder as any).judgment = dry;
-                            recommend = `'${dry.color}'`;
-
-                            /**
-                             * 🔴 관제웹 카드가 이 문자열의 표식('꿀'/'똥'/'사고')으로 색을 정한다.
-                             *    우회 분·km 는 **한계 기준** — 첫짐 단독 대비 누적(카카오 delta)을
-                             *    적으면 나중 후보가 부풀려 보인다 (문제지 캘리브레이션 1차).
-                             */
-                            timeExt = `${marginalKm > 0 ? '+' : ''}${marginalKm}km, ${marginal > 0 ? '+' : ''}${marginal}분 ${recommend} · ${dry.score}점`;
-                        }
-                        securedOrder.routePolyline = result.merged.polyline;
-                        securedOrder.totalDistanceKm = result.merged.distance / 1000;
-                        securedOrder.totalDurationMin = Math.round(result.merged.duration / 60);
-                        securedOrder.sectionEtas = result.merged.sectionEtas;
-                        
-                        slog('판정', `   - 🗺️ 궤적 길이 (Detour): ${securedOrder.routePolyline?.length || '없음'}`);
+                        timeExt = await this.mergedStage(ctx, activeCalls, routingOptions, ms => { routeMs = ms; });
                     }
                 } else {
                     /**
@@ -854,6 +274,620 @@ export class OrderEvaluator {
         }
         slog('판정', `======================================================\n`);
 
+        this.fallbackJudgmentStage(ctx, timeExt);
+
+        this.finishStage(ctx, io, timeExt, pros, { t0, geoMs, routeMs, merged, activeCallsNow });
+    }
+
+    /** 📍 단계 1 · 좌표 — 상차 · 하차 주소를 카카오 좌표로 (없을 때만) · 걸린 ms 는 실패해도 부르는 쪽에 알린다 */
+    private async geocodeStage(securedOrder: SecuredOrder | PendingOrder, onMs: (ms: number) => void): Promise<void> {
+        let geoMs = 0;
+        try {
+            // 지오코딩 (상차지 + 하차지 병렬 실행)
+            const needPickup = !securedOrder.pickupX || !securedOrder.pickupY;
+            const needDropoff = !securedOrder.dropoffX || !securedOrder.dropoffY;
+
+            const [pCoord, dCoord] = await timed(Promise.all([
+                needPickup ? geocodeCallAddress(securedOrder.pickup) : Promise.resolve(null),
+                needDropoff ? geocodeCallAddress(securedOrder.dropoff) : Promise.resolve(null),
+            ]), ms => { geoMs = ms; });
+
+            if (needPickup) {
+                slog('판정', `🌍 [Geocoding] 상차지 변환: '${securedOrder.pickup}' -> ${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
+                if (pCoord) {
+                    securedOrder.pickupX = pCoord.x;
+                    securedOrder.pickupY = pCoord.y;
+                    securedOrder.pickupApprox = approxNameOf(pCoord.approxArea);
+                }
+            }
+            if (needDropoff) {
+                slog('판정', `🌍 [Geocoding] 하차지 변환: '${securedOrder.dropoff}' -> ${dCoord ? `X:${dCoord.x}, Y:${dCoord.y}` : '실패(null)'}`);
+                if (dCoord) {
+                    securedOrder.dropoffX = dCoord.x;
+                    securedOrder.dropoffY = dCoord.y;
+                    securedOrder.dropoffApprox = approxNameOf(dCoord.approxArea);
+                }
+            }
+        } finally { onMs(geoMs); }
+    }
+
+    /** 🚚 단계 2 · 단독 — 빈 차에 첫짐 · 단독 길찾기 → 첫짐 판정 · 저장 · 길찾기 글을 돌려준다 · 걸린 ms 는 실패해도 알린다 */
+    private async soloStage(ctx: EvalCtx, onRouteMs: (ms: number) => void): Promise<string> {
+        const { userId, securedOrder, snap, judgmentCfg, reservedLater, alive, record, excludedHits } = ctx;
+        let routeMs = 0;
+        let timeExt: string;
+        try {
+            // 단독 오더 연산
+            const result = await timed(calculateSoloRoute(...soloRouteArgsOf(userId, () => snap.origin,
+                { x: securedOrder.pickupX!, y: securedOrder.pickupY! },
+                { x: securedOrder.dropoffX!, y: securedOrder.dropoffY! })), ms => { routeMs = ms; });
+
+            // 🔴 필드를 손으로 채우지 않는다 — routeComposer 의 규약을 안 타면
+            //    **접근 구간(현위치 → 상차지)이 통째로 버려진다.** 콜을 잡는 주 경로라 특히 그렇다.
+            applySoloRoute(securedOrder, result);
+
+            /**
+             * 🧪 **도달 계수 수집** (필터 확정안 v2 구현 4 — 계측 단계).
+             * 도달 시간→반경 계수(분/km)는 감으로 정하지 않는다 (기사님 확정 3).
+             * 심사마다 (직선거리, 카카오 접근 분) 쌍을 `reach_samples` 장부에
+             * 남긴다 — 로그는 3일 순환이라 표본이 증발한다. 역산은 `pnpm reach`.
+             */
+            const me = snap.origin;
+            if (me && securedOrder.pickupX && securedOrder.pickupY
+                && securedOrder.approachDurationMin != null) {
+                const lineKm = haversineKm(me, { lat: securedOrder.pickupY, lng: securedOrder.pickupX });
+                if (lineKm > 0.3) {
+                    slog('판정',
+                        `   - 🧪 [도달 계수 수집] 직선 ${lineKm.toFixed(1)}km → 카카오 ${securedOrder.approachDurationMin}분 ` +
+                        `(계수 ${(securedOrder.approachDurationMin / lineKm).toFixed(2)}분/km · 잠정 ${REACH_COEF_MIN_PER_KM_TEMP})`);
+                    try {
+                        db.prepare(`INSERT INTO reach_samples (user_id, captured_at, line_km, kakao_min) VALUES (?, ?, ?, ?)`)
+                            .run(userId, new Date().toISOString(), Number(lineKm.toFixed(2)), securedOrder.approachDurationMin);
+                    } catch (e) {
+                        console.error(`   - 🧪 [도달 계수 수집] 표본 저장 실패 (계측이라 심사는 계속):`, (e as Error).message);
+                    }
+                }
+            }
+
+            /**
+             * 🎯 **첫짐 판정 — 단가로 잰다** (기사님 확정)
+             *
+             * 🔴 운행시간 축을 버렸다. 첫짐에서 운행시간이 길다는 건 나쁜 게 아니라
+             *    **그게 일감**이다. 노선(광주→파주)이 늘 80~100분이라 시간 기준(40/90분)으로 재면
+             *    잡은 콜이 **전부 똥**이 된다 — 100,000원짜리가 0점이 된다.
+             *
+             * 기사님: *"필터는 최저값보다 크기만 하면 올려주니, 내가 판단하는 건
+             *          단가가 좋은지 아닌지로 하면 된다."*
+             *
+             * 앱이 이미 `요금 ≥ 배송거리 × 단가` 로 하한을 넘긴 콜만 올린다.
+             * 그러므로 서버가 답할 것은 하나다 — **적정가를 넘었는가.**
+             */
+            /**
+             * 🎨 **첫짐 판정 = 시급 축** (판정색 확정안 v2 · 문제지 4/4 통과 후 전환).
+             * 🔴 요율을 다시 재지 않는다 — 돈은 앱이 이미 걸렀다 (규칙 ⑤-1). 다시 재면 고수의 3만원 콜이
+             *    «하한 미달 똥»으로 떨어진다.
+             */
+            const dwell = totalDetourCost(0, securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
+            const total = securedOrder.totalDurationMin != null
+                ? securedOrder.totalDurationMin + dwell.dwell : null;
+            const tags: string[] = [...approxTagsOf(securedOrder), ...roadEventTagsOf(result.roadEvent)];
+            if (firstLoadNeedsCall(securedOrder.approachDurationMin, judgmentCfg.unknown.pickupPromiseMin, reservedLater))
+                tags.push('통화 필수 — 무통보 상차 한계 밖');
+            if (dwell.hasUnknown) tags.push('정차 미확인(일반값)');
+
+            /**
+             * 💸 **미리보기 콜은 단가를 다시 본다** (기사님 확정 · A안).
+             *
+             * 규칙 ⑤-1 *"돈은 앱이 이미 걸렀다"* 의 전제는 **앱 필터를 통과한 콜**에만
+             * 성립한다. 미리보기는 기사님이 리스트에서 **아무 콜이나 눌러 보는 것**이라
+             * 필터 밖이고, 하한가를 넘겼다는 보장이 없다.
+             *
+             * 실측: 시급으로는 🔵 90점인데 요율은
+             * `55,000원 < 하한 67,144원` 이었다 — 기사님이 평소 안 받던 단가다.
+             *
+             * ⚠️ **필터콜은 건드리지 않는다.** 거기서 하한을 되살리면 노하우 13번
+             *    (3만원짜리 고수의 콜)이 다시 똥으로 낙제한다 — v2 가 그 축을 버린 이유다.
+             *
+             * 🔴 **색만 낮추고 점수는 그대로 둔다.** 시급 축은 사실이고 하한 미달도
+             *    사실이다. 딱지로 이유를 함께 적으므로 숫자가 거짓말하지 않는다 (규칙 ④).
+             */
+            /**
+             * 💸 **표시는 시세로, 점수는 할인율 반영본으로** (기사님 확정).
+             *
+             * 기사님이 `call_discount_pct` 를 **100** 으로 두고 계신다 — 유튜버 영상으로
+             * 문제지를 만드시는데 요금이 낮아 필터를 못 지나가서 문을 열어 두신 것이고,
+             * *"그것과 상관없이 점수를 나에게 보여주면 될 거라 생각했어"* 하셨다.
+             *
+             * 그 전제는 맞다 — 점수 축(`criteria.ts`)은 할인율을 아예 안 본다. 그런데
+             * **보여 주는 것**이 같이 꺼졌다: 하한이 `요금 × (1 − 할인율/100)` 이라 0원이 되고,
+             * 「요율 미달」이 영영 안 뜬다. 그러면 첫짐하차 1km 옆에 내리는 1만원짜리가
+             * «더 드는 시간 2분 · 시급 30만/h · 🔵» 로 보인다 — 실제로는 그 짐을 26km 싣고
+             * 간 일이고, 그걸 말해 줄 유일한 자리가 이 딱지다.
+             *
+             * 🔴 **점수에 들어가는 값은 그대로 둔다** — 아래 `minAcceptableKrw` 는 「돈」의
+             *    감점 입력이다. 여기에 시세를 넣으면 점수가 바뀐다 (기사님은 «표시만»을 고르셨다).
+             *    그래서 값이 둘이고 이름으로 갈라 둔다.
+             */
+            const rateForScore = (securedOrder as any).isPreview
+                ? this.loadPricing(securedOrder, userId, snap.filter.callDiscountPct) : null;
+            /* 💸 화면에 쓸 하한 — 할인율 0 으로 다시 재서 «시세»를 본다 */
+            const rateForDisplay = (securedOrder as any).isPreview
+                ? this.loadPricing(securedOrder, userId, 0) : null;
+            const rateShort = !!rateForScore && securedOrder.fare > 0
+                && securedOrder.fare < rateForScore.minAcceptable;
+            if (rateForDisplay && securedOrder.fare > 0
+                && securedOrder.fare < rateForDisplay.minAcceptable) {
+                /**
+                 * 💸 **«얼마나 모자라나»를 앞에 둔다** — 기사님이 1~2초에 읽으시는 것은
+                 *    두 절대값이 아니라 차이다. 거절 사유 줄과 한 모양으로 맞춘다.
+                 */
+                tags.push(`요율 ${manwonText(rateForDisplay.minAcceptable - securedOrder.fare)} 모자람`
+                    + ` — 시세 ${manwonText(rateForDisplay.minAcceptable)} · 실제 ${manwonText(securedOrder.fare)}`);
+            }
+
+            /**
+             * ⚖️ **색은 판정 함수 하나가 낸다** (6단계 갈아타기 완료).
+             *    옛 채점기는 여기서 손을 뗐다. 갈아타기 전 84건을
+             *    나란히 대조해 **어긋남 0** 을 확인했다 (검사 73 · 실제 리허설 11).
+             */
+            /**
+             * 🧭 **첫짐은 목적지로 얼마나 전진하나까지 본다** (기사님 확정).
+             *    빈 차라 「돈」 하나가 색을 정하던 자리다 — 04:54 복정동 → 대치4동(1.1만/h)이
+             *    강남으로 올라가는 콜인데 🟡 로 떨어졌다. 셈은 `destProgressOf` 한 곳에 있다.
+             */
+            const progress = destProgressOf({
+                me: snap.origin,
+                dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
+                goalCity: snap.goal,
+                destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
+            });
+            /**
+             * 💪 **이 콜의 상·하차 정거장 타이밍** — 손으로 드는 분과 묶는 분이 함께 온다.
+             *    🔴 합짐이 `totalDetourCost` 로 거치는 그 함수와 **같은 자리**다 (규칙 ③).
+             */
+            const firstStop = getStopTiming(securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
+            const dry: ReturnType<typeof toSnapshot> & { extraMin?: number | null } = toSnapshot(judge(CRITERIA, firstLoadFacts({
+                fare: securedOrder.fare, totalMinutes: total,
+                minAcceptableKrw: rateShort ? rateForScore!.minAcceptable : null,
+                progress,
+                /**
+                 * ⛽🛣️ **나가는 돈** — 첫짐은 «이 콜의 전체 주행»이 곧 더 쓰는 거리다 (빈 차라 뺄 기준이 없다).
+                 *    기름값은 기사님 설정에서, 통행료는 카카오가 준 값 그대로. 모르면 `null` 이라 안 뺀다 (규칙 ④).
+                 */
+                extraKm: securedOrder.kakaoSoloDistanceKm ?? null,
+                fuelCostPerKm: SettingsRepository.getFuelCostPerKm(userId),
+                tollKrw: result.tollKrw ?? null,
+                /**
+                 * ⏳ **이 콜이 만드는 여유** — 상차 약속에서 상차지까지 가는 시간을 빼고,
+                 *    배송 주행의 마감 여분(150% 의 50%)을 더한다. 셈은 shared 「콜 대기」 한 곳이다 (규칙 ③).
+                 */
+                toPickupMinutes: securedOrder.approachDurationMin ?? null,
+                deliveryMinutes: securedOrder.kakaoSoloDurationMin ?? null,
+                /* 💪 빈 차에도 짐은 있다 — 이 콜의 상·하차에 팔다리를 얼마나 쓰나 */
+                handMinutes: firstStop.handMinutes,
+                protectionMinutes: firstStop.protectionMin,
+                /**
+                 * 🚚 **정차를 뺀 주행 분** — 첫짐은 «상차지까지 + 배송»이다.
+                 *    🔴 「돈」의 `totalMinutes` 와 다른 값이다 — 저쪽에는 상하차 정차가 들어 있다.
+                 */
+                driveMinutes: (securedOrder.approachDurationMin ?? 0) + (securedOrder.kakaoSoloDurationMin ?? 0) || null,
+                /**
+                 * 🔙 **등 뒤 상차** — 첫짐에는 한계 우회가 없어 되돌아가는 거리를
+                 *    「돈」이 못 센다. 그물이 쓰는 식과 한 벌이다 (`isPickupBackward`).
+                 */
+                pickupBackward: pickupBackwardOf({
+                    me: snap.origin,
+                    pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
+                    goalCity: snap.goal,
+                    pickupRadiusKm: snap.pickupRadiusKm,
+                }),
+                // 🏔️ 들어가면 빈 차로 나오는 곳 — 요금으로는 안 보인다 (노하우 148행)
+                trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
+                excludedHits,
+                tags,
+            }), judgmentCfg));
+
+            /* ⏱️ 더 쓰는 시간 = 시급의 분모 그대로 — 첫짐은 이 콜 전체 (전수표 #42) */
+            dry.extraMin = total;
+            if (rateShort && (dry.color === '꿀' || dry.color === '보통')) {
+                slog('판정', `   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
+                    `실제 ${wonText(securedOrder.fare)} < 하한 ${wonText(rateForScore!.minAcceptable)})`);
+                dry.color = '똥';
+            }
+            slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
+            // 🧪 도달 반경 dryRun (구현 4 계측) — 거르지 않는다, 설정 반경과 견주기만
+            slog('판정', `   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupPromiseMin}분 ` +
+                `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupPromiseMin)}km (설정 ${snap.filter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
+            /**
+             * 🔴 **축 아홉을 사유 문자열에 싣지 않는다** (기사님 확정 · 화면 디자인).
+             *
+             * 여기서 「총점 N점 — 돈 … · 노동강도 … · 지리 …」를 한 문자열로 만들어
+             * `rejectionReasons`(🟡🔴) 또는 `approvalReasons`(🔵🟢)에 넣고 있었다.
+             * 그런데 **같은 축이 `dry.axes` 로 이미 간다** — 화면의 「근거 ▾」 접이가 그걸 그린다.
+             *
+             * 🔴 그 칸은 기사님이 **1~2초에 읽는 자리**다. 판정 설명 전체가 거기 들어가니
+             *    심사석 카드(158px 고정 · `overflow-hidden`)에서 **넘쳐 잘렸다** — 실측으로
+             *    「(보통 3.0만 · 꿀」에서 끊긴 화면을 봤다. 걸리는 것만 남긴다.
+             */
+
+            // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
+            if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, { ...dry, ...record });
+            (securedOrder as any).judgment = dry;
+
+            // 관제웹 카드가 이 문자열의 '꿀'/'똥'/'사고' 표식으로 색을 정한다 (합짐 timeExt 와 같은 규약)
+            timeExt = `추천거리 ${securedOrder.kakaoSoloDistanceKm}km, 소요 ${securedOrder.kakaoSoloDurationMin}분`
+                + (securedOrder.approachDurationMin ? ` (상차지까지 ${securedOrder.approachDurationMin}분)` : '')
+                + ` '${dry.color}' · ${dry.score}점`;
+
+            slog('판정', `   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
+        } finally { onRouteMs(routeMs); }
+        return timeExt;
+    }
+
+    /** 🧩 단계 3 · 합짐 — 잡은 콜에 붙여 합짐 길찾기 → 합짐 판정 · 저장 · 합짐 경로를 콜에 싣고 길찾기 글을 돌려준다 · 걸린 ms 는 실패해도 알린다 */
+    private async mergedStage(ctx: EvalCtx, activeCalls: EvalSnap['activeCalls'], routingOptions: ReturnType<typeof SettingsRepository.getKakaoRoutingOptions>, onRouteMs: (ms: number) => void): Promise<string> {
+        const { userId, session, securedOrder, snap, judgmentCfg, alive, record, excludedHits, reasons } = ctx;
+        let routeMs = 0;
+        let timeExt: string;
+        try {
+            const result = await timed(composeMergedRoute({
+                calls: activeCalls,
+                extra: securedOrder,
+                origin: snap.origin,
+                priority: routingOptions.defaultPriority,
+                carType: routingOptions.carType,
+                /* ⏱️ 판정도 **잡은 뒤와 같은 순서**로 잰다 — 다르면 화면이 말한 늦음과 실제 경로가 갈린다 */
+                promiseOpts: {
+                    nowMs: Date.now(),
+                    promiseAt: (orderId, stopType) => firmPromiseMsOf(orderId, stopType),
+                    speedKmh: judgmentCfg.speed?.midKmh,
+                    dwellMin: (s: 'pickup' | 'dropoff') => s === 'pickup'
+                        ? judgmentCfg.unknown.pickupDwellMin : judgmentCfg.unknown.dropoffDwellMin,
+                },
+            }), ms => { routeMs = ms; });
+            if (!result) {
+                // 좌표가 하나도 없다 — 기존 실패 처리로 떨어뜨린다
+                throw new Error("합짐 경로 조립 실패: 유효한 좌표가 없습니다");
+            }
+
+            let recommend = "'콜'";
+            const distDiff = parseFloat(result.distDiffKm);
+
+            /**
+             * 🎨 **합짐 판정 = 확정안 v2 채점기** (문제지 4/4 통과 후 전환).
+             * 🔴 우회의 절대 크기는 감점하지 않고 딱지(사실)로만 남긴다 — 절대 문턱으로 재면 긴 우회의 좋은 합짐이
+             *    «+N분 초과 똥»으로 떨어진다.
+             * 🔴 카카오의 `timeDiffMin` 은 **주행 delta 뿐**이라 상하차를 더해야 한다.
+             */
+            const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
+
+            const slotsTotal = TRUCK_CAPACITY_SLOTS;
+            const slotsUsed = snap.filter.slotsUsed ?? 0;
+
+            // 함께 실을 수 없는 화물인지 (위험물 + 식료품 등) — 문지기 재료
+            const conflicts = findLoadConflicts(userId, session, securedOrder.id);
+            for (const [a, b] of conflicts) {
+                reasons.push(`같이 못 싣는 조합: 실린 화물(${a}) + 이 화물(${b})`);
+            }
+
+            {
+                const secStops = (result.merged as any).sectionStops as
+                    Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }> | undefined;
+                const secMins = result.merged.sectionDriveMin;
+                const stopsAfter = secStops && secMins && secStops.length === secMins.length
+                    ? secStops.map((st, i) => ({ ...st, driveMinutes: secMins[i] }))
+                    : [];
+                // 🔴 손으로 다시 만들지 않는다 — 판정 기준 → 파생 입력은 한 곳이다 (규칙 ③).
+                //    여기서 따로 조립하면 배송 속도 같은 새 칸이 조용히 빠진다.
+                const derivation = derivationInputsOf(judgmentCfg, dwellRatesFor(userId));
+                // ⏱️ 실측 정차와 판정 기준 값을 **함께** 넘긴다 — 넷이 같은 재료를 써야 한다
+                const dwellLedgerOf = (id: string) => dwellLedgerFor(id);
+                // 후보를 **포함한** 경로의 타임라인 — 기존 콜 약속이 어떻게 되는지가 문지기다
+                const tlAfter = stopsAfter.length
+                    ? deriveRouteTimeline(stopsAfter as any, [...activeCalls, securedOrder] as any,
+                        id => stepRecordsOf(id).reports as any,       // 🔄 파생 치환 ②
+                        id => stepRecordsOf(id).milestones as any,
+                        Date.now(), new Date().toISOString(), derivation.rules, derivation.unk, dwellLedgerOf)
+                    : [];
+                const existing = tlAfter.filter(e => e.orderId !== securedOrder.id);
+                const late = existing.filter(e => e.lateMinutes > 0);
+                // 콜 호칭 조합 규칙 — "노선합짐1콜 하차 약속이 깨집니다"
+                const nameOf = (id: string) => {
+                    const idx = activeCalls.findIndex(c => c.id === id);
+                    return idx >= 0
+                        ? callName({ target: snap.filter.callTarget, index: idx })
+                        : id.slice(-6);
+                };
+                // ⏰ 깨지는 약속 — 짓는 곳은 `lateStopsOf` 하나다 (규칙 ③)
+                const lateStops = lateStopsOf(late as never, nameOf);
+                /**
+                 * ☎️ **전화해 약속을 미뤄야 할 기존 콜 정거장** (기사님 확정).
+                 *
+                 * 세는 규칙 셋 — **아직 안 다녀왔고** · **설정 분 이상** 늦는 곳.
+                 * 🔴 1분 밀림마다 세지 않는다 — 기사님: *"정차 중에 3~4콜을 모으려면 몇 분씩은 밀린다."*
+                 *    그 «몇 분»이 판정 기준 탭의 «지연 — 거의 문제없음» 이다. 새 문턱을 안 만든다.
+                 * 🔴 `existing` 은 **후보를 뺀 기존 콜**만이다 — 내 콜에 내가 전화하지 않는다.
+                 */
+                const callsToMake = existing.filter(e =>
+                    !e.arrived && e.lateMinutes >= (judgmentCfg.slack?.lateSoftMin ?? 5)).length;
+
+                const bufAfter = minRouteBuffer(existing);
+
+                /**
+                 * 🧮 우회는 **한계 비용** — 직전 경로(붙이기 전) 총 소요를 뺀다.
+                 * 카카오 delta(첫짐 단독 대비 누적)를 그대로 쓰면 나중 후보가
+                 * 앞 합짐들의 비용을 뒤집어쓴다 (문제지 16번: +189분, 진짜는 43분).
+                 * 직전 총 소요는 경로 홀더가 들고 있다 — "값이 있는 마지막 콜".
+                 */
+                /**
+                 * 🧮 **같은 시각·같은 기점의 두 경로를 뺀다** (기사님 실측).
+                 *
+                 * «저장된 직전 총주행»을 빼면 안 된다 — 그 값은 **KEEP 하던 시각·그때의 기점**에서 잰 것이라,
+                 * 기사님이 달린 만큼 짧아진 게 *"우회가 줄었다"* 로 읽힌다(달릴수록 심해지는 치우침).
+                 *
+                 * 이제 `composeMergedRoute` 가 base 를 **기존 활성 콜 전부**로
+                 * 잰다(같은 호출·같은 기점). 그래서 카카오가 준 `timeDiffMin` ·
+                 * `distDiffKm` 이 **그대로 정확한 한계 비용**이다.
+                 */
+                const marginal = marginalDetourMin(
+                    Math.round(result.merged.duration / 60), null, result.timeDiffMin);
+
+                // 딱지 — 판단 없이 사실만 (절대치 문턱의 강등 자리). 분·km 둘 다 한계 기준
+                const marginalKm = distDiff;
+                const tags = [`우회 ${marginal > 0 ? '+' : ''}${marginal}분 · ${marginalKm > 0 ? '+' : ''}${marginalKm}km`, ...approxTagsOf(securedOrder), ...roadEventTagsOf(result?.roadEvent)];
+                const candPickup = tlAfter.find(e => e.orderId === securedOrder.id && e.stopType === 'pickup');
+                /**
+                 * 🛣️ **«길을 벗어나는 분» — 「돈」의 우회 감쇠가 이것만 본다** (기사님 확정).
+                 *
+                 * 셈은 `tailSplitOf` 한 곳이다 (규칙 ③) — 왜 꼬리만 빼는지, 자리가
+                 * 엇갈리면 어떻게 옛 셈으로 떨어지는지 거기 다 적혀 있다.
+                 * 카카오를 한 번도 더 부르지 않는다 — 구간 누적은 병합 경로를 부를 때 함께 받았다.
+                 *
+                 * 🔴 **남은 구멍 — 긴 배송이 꼬리면 감쇠가 꺼진다.** 꼬리는 «후보 자신의 배송»이라
+                 *    배송이 길수록 더 많이 빼게 된다. 오송읍 상차(가는 길 · 삽입 15분) → 아주 먼
+                 *    하차(배송 220분) · 요금 15만 이면 `marginal` 235 · 꼬리 220 · 벗어남 15 라
+                 *    감쇠가 안 걸려 🟡 21 이던 콜이 🔵 71 이 된다 (검산함).
+                 *    합짐에는 「지리」가 안 붙으므로 **합짐의 방향을 보는 축이 하나도 없다.**
+                 *    막는 길은 「지리」를 합짐에도 켜서 후보 하차의 전진을 배수로 보는 것이고,
+                 *    그것은 운행 동작이 바뀌어 기사님 승인이 필요하다 (`detourDecay.test.ts` 가
+                 *    지금 뚫린 자리를 그대로 잠가 두고 있다).
+                 */
+                const tailSplit = tailSplitOf(stopsAfter, securedOrder.id, marginal);
+                const offRouteMinutes = tailSplit.offRouteMinutes;
+                /**
+                 * 🔴 **못 쟀으면 그 까닭을 남긴다** — 이 값이 조용히 `null` 이던 동안
+                 *    «승인받은 꼬리 빼기가 한 번도 안 도는데 아무도 모르는» 일이 실제로
+                 *    일어났고, 딱지의 분을 역산해서야 알아냈다 (실측 판정 다섯 건).
+                 */
+                if (tailSplit.why) {
+                    slog('판정', `   🛣️ [꼬리 못 잼] 늘어난 주행(${marginal}분)을 그대로 봅니다 — ${tailSplit.why}`);
+                } else if (offRouteMinutes != null && offRouteMinutes !== marginal) {
+                    slog('판정', `   🛣️ [벗어난 분] ${marginal}분 → ${offRouteMinutes}분 (꼬리 배송 ${marginal - offRouteMinutes}분을 뺐습니다)`);
+                }
+                /**
+                 * 📞 **상차 약속을 못 지키면 통화가 필요하다** — 그 약속은 타임라인이
+                 *    이미 만들어 놨다(`promisedUntil`: 통화 > 적요 > 잡은 시각 + 20분).
+                 * 🔴 여기서 `지금 + 설정분` 으로 다시 만들지 않는다 — 기준이 «지금»이 되고
+                 *    적요·통화 갈래가 빠진다 (규칙 ③).
+                 */
+                const candPromiseMs = candPickup?.promisedUntil
+                    ? Date.parse(candPickup.promisedUntil) : null;
+                if (candPickup?.etaMs != null && candPromiseMs != null
+                    && candPickup.etaMs > candPromiseMs) tags.push('통화 필수 — 무통보 상차 한계 밖');
+                if (cost.hasUnknown) tags.push('정차 미확인(일반값)');
+                /**
+                 * 🚚 **추정으로 채웠으면 화면이 그렇게 말해야 한다** (규칙 ⑤-2).
+                 *    합짐 콜은 단독 경로를 안 재므로 배송거리 ÷ 속도로 채운다.
+                 *    숫자만 쓰고 «추정»을 안 적으면 그게 규칙 ④ 위반이 된다.
+                 */
+                if (soloMinutesOf(securedOrder as any, derivation.rules).estimated) {
+                    tags.push('배송주행 추정(일반값)');
+                }
+                if (!bufAfter) tags.push('버퍼 잴 약속 없음');
+                /**
+                 * 🧾 **기존 콜 정거장마다 — 이 후보를 받으면** (전수표 4단계 #43 #45 #46 #47 · 목업 «④ 후보콜에 대한 심사 결론»).
+                 *    심사석이 «누가 몇 분 늦어지나»를 말하게 스냅샷에 싣는다. 결론은 관제웹 `seatConclusion` 한 곳이다.
+                 * 🔴 **모르면 모른다고 적는다** — 정거장 순서를 못 받으면 `late` 가 비어 위 관문이 «통과»가 된다.
+                 *    모르는 것이 «약속 보존»으로 읽히면 안 된다. 점수는 안 건드리고 딱지만 붙인다 (규칙 ⑤-2).
+                 */
+                /**
+                 * 📍 **정거장의 좌표 — 콜 번호와 상차/하차로 찾는다.**
+                 *    정거장 목록(`stopsAfter`)은 «어느 콜의 어느 쪽인가»만 들고 있어, 좌표는
+                 *    여기서 꺼낸다. 🔴 **이 한 곳에서만 꺼낸다** (규칙 ③) — 동 이름도 방향도
+                 *    같은 좌표를 쓴다. 두 벌이면 «화면은 이 동인데 방향은 저 동으로 잰» 일이 난다.
+                 *    좌표를 모르면 `null` — 부르는 쪽이 그때 안 넘긴다 (지어내지 않는다).
+                 */
+                const coordOf = (orderId: string, stopType: 'pickup' | 'dropoff') => {
+                    /**
+                     * 🧭 심사 중인 후보도 본다 — 노선 합짐의 보통 경우(후보가 꼬리에 붙음)
+                     *    기점이 후보 자신의 상차라, 잡은 콜만 보면 방향·약속이 조용히 빠진다.
+                     *    후보 좌표는 심사 첫머리 지오코딩이 이미 채웠다 (`detourAnchorCoord` 검사).
+                     */
+                    const o = (orderId === securedOrder.id ? securedOrder
+                        : activeCalls.find(c => c.id === orderId)) as any;
+                    const x = stopType === 'pickup' ? o?.pickupX : o?.dropoffX;
+                    const y = stopType === 'pickup' ? o?.pickupY : o?.dropoffY;
+                    return Number.isFinite(x) && Number.isFinite(y) ? { x: x as number, y: y as number } : null;
+                };
+                /* ☎️ 정거장의 동 이름 — 늦으면 «전화할 곳»이다 (전수표 #42). 좌표를 모르면 null.
+                 *    ⚠️ 동 이름은 중심점 «최근접»이라 경계 근처에선 한 동 어긋날 수 있다 — 표시 전용, 판정은 좌표로 잰다 */
+                const placeOf = (orderId: string, stopType: 'pickup' | 'dropoff') => {
+                    const c = coordOf(orderId, stopType);
+                    return c ? nearestDong({ lng: c.x, lat: c.y }).name : null;
+                };
+                const stopsView = existing.map(e => ({
+                    name: `${nameOf(e.orderId)} ${e.stopType === 'pickup' ? '상차' : '하차'}`,
+                    place: placeOf(e.orderId, e.stopType),
+                    stopType: e.stopType,
+                    promisedAt: e.promisedUntil,
+                    etaAt: e.etaMs != null ? new Date(e.etaMs).toISOString() : null,
+                    /**
+                     * 🔴 **이 값은 「약속」 축의 `bufferAfterMin` 과 부호만 다른 같은 값이다** —
+                     *    둘 다 같은 `existing` 배열에서 나온다 (위 `minRouteBuffer(existing)`).
+                     *    한쪽만 고치면 심사석의 셋째 줄(걸리는 것)과 넷째 줄(대상과 까닭)이
+                     *    다른 말을 한다. 화면 대조는 `pnpm lab` 이 한다.
+                     */
+                    lateMin: e.etaMs != null && e.promisedUntil ? Math.round((e.etaMs - Date.parse(e.promisedUntil)) / 60_000) : null,
+                    confirmed: e.promiseConfirmed,
+                    arrived: e.arrived,
+                }));
+                const unknownWhy = stopsAfter.length === 0 ? '전체 경로의 정거장 순서를 못 받았다'
+                    : stopsView.some(st => !st.arrived && st.etaAt == null) ? '예정을 못 잰 구간이 있다' : null;
+                if (unknownWhy) tags.push(`기존 콜 도착 모름 — ${unknownWhy}`);
+
+                // ⚖️ 색은 판정 함수 하나가 낸다 (6단계 갈아타기 완료)
+                const dry: ReturnType<typeof toSnapshot> & { stops?: typeof stopsView; unknownWhy?: string | null; extraMin?: number | null } = toSnapshot(judge(CRITERIA, mergeFacts({
+                    fare: securedOrder.fare,
+                    extraMinutes: marginal + cost.dwell,
+                    /* 🛣️ 길을 벗어나는 분 — 「돈」의 우회 감쇠만 본다 (잰 곳은 위 한 곳이다) */
+                    offRouteMinutes,
+                    /**
+                     * ⛽🛣️ **늘어나는 것만 센다** — 시간(`marginal`)과 **같은 규약**이다.
+                     *    거리는 카카오가 준 두 경로의 차이(`distDiff`), 통행료도 같은 자리에서 온 차이다.
+                     *    🔴 한쪽이라도 톨비를 못 받았으면 `null` 로 와서 안 뺀다 (규칙 ④).
+                     */
+                    extraKm: Number.isFinite(distDiff) ? distDiff : null,
+                    fuelCostPerKm: SettingsRepository.getFuelCostPerKm(userId),
+                    tollKrw: result.tollDiffKrw ?? null,
+                    /**
+                     * ⏳ **이 콜이 만드는 여유** — 상차지까지 가는 시간은 타임라인이 낸
+                     *    **후보 상차 도착 예정**에서 지금을 뺀 값이다 (현위치부터 앞 정거장을 다 더한 시각).
+                     *    🔴 여기서 다시 재지 않는다 (규칙 ③) · 못 쟀으면 `null` 이라 그 항목만 빠진다.
+                     */
+                    toPickupMinutes: candPickup?.etaMs != null
+                        ? Math.round((candPickup.etaMs - Date.now()) / 60_000) : null,
+                    deliveryMinutes: soloMinutesOf(securedOrder as any, derivation.rules).minutes,
+                    /* ☎️ 세는 곳은 위 한 곳이다 — 판정은 숫자만 받는다 (규칙 ③) */
+                    callsToMake,
+                    /**
+                     * 💪 **팔다리를 쓰는 분** — `totalDetourCost` 가 이미 거친 정거장 타이밍에서 그대로 온다.
+                     *    🔴 여기서 박스를 다시 세지 않는다 (규칙 ③). 짐을 모르면 `null` 이라 「노동강도」가 «잴 게 없다»로 받는다.
+                     */
+                    handMinutes: cost.handMinutes,
+                    protectionMinutes: cost.protectionMin,
+                    /**
+                     * 🚚 **이 콜을 잡으면 달리게 되는 길 전체** — 카카오가 준 병합 경로 그대로.
+                     *    같은 값으로 `:534` 가 `totalDistanceKm`·`totalDurationMin` 을 저장한다.
+                     *
+                     * 🔴 **늘어난 것(`marginal`·`distDiff`)을 넘기지 않는다.** 합짐은 길에서
+                     *    빠져나갔다 되돌아오므로 늘어난 거리는 조금인데 늘어난 시간은 많다 —
+                     *    76km·110분(41km/h)을 달리는 콜이 «+26km ÷ +50분 = 31km/h» 로 읽혀
+                     *    14점이 됐다 (실측 06:24). 늘어난 것은 「돈」이 기름값·시급으로 쓴다.
+                     * 🔴 **그 콜의 «상차→하차» 구간으로는 못 잰다** — 그 실측은 KEEP 뒤에 재고
+                     *    (`measureSoloDelivery`) 판정은 잡기 전이라, 판정 시점엔 거리를 속도 눈금으로
+                     *    나눠 만든 추정이 온다. 그걸 되읽으면 눈금값이 그대로 나온다 (실측 31건 중 26건).
+                     */
+                    driveKm: result.merged.distance / 1000,
+                    driveMinutes: Math.round(result.merged.duration / 60),
+                    bufferAfterMin: bufAfter?.minutes ?? null,
+                    /**
+                     * 📦 **음수를 0 으로 자르지 않는다.** 자르면 «자리 부족»이 «여유 0%»로 보여
+                     *    무조건 빨간불이 영영 안 켜진다 — 얼마나 넘치는지도 사라진다 (규칙 ④).
+                     */
+                    freePct: slotsTotal > 0 ? ((slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
+                    /** 📦 그 적재량을 어떻게 알았나 — 확정값일 때만 색을 덮는다 */
+                    confidence: snap.filter.capacityConfidence ?? null,
+                    conflicts, excludedHits, lateStops,
+                    /**
+                     * 🧭 **합짐도 방향을 본다 — 기점은 «잡아 둔 콜을 다 내린 곳»이다** (기사님 확정).
+                     *
+                     * 후보 하차지가 목적지 쪽인가 반대쪽인가를 배수로 본다. 「돈」의 우회 감쇠가
+                     * «길을 벗어나는 분»만 보게 되면서(`tailSplitOf`) 배송 방향을 아무도
+                     * 안 보게 됐다 — 목적지 쪽 220분과 반대쪽 220분이 같은 🔵 71 이었다.
+                     *
+                     * 🔴 **현위치로 재지 않는다** — 후보 하차지는 잡아 둔 콜을 다 내린 **다음**에
+                     *    가는 곳이라, 현위치에서 재면 이미 잡은 콜의 방향이 섞인다. 그 자리는
+                     *    꼬리의 시작(마지막 직전 정거장)이고, 좌표는 `coordOf` 한 곳에서 꺼낸다.
+                     * 🔴 **좌표를 못 구하면 안 넘긴다** — 배수 ×1.0 으로 조용히 떨어진다 (규칙 ⑤-2).
+                     * 🔴 **목적지 반경을 안 넘긴다** — 첫짐은 3km 안이면 방향을 안 보지만(도착했으니
+                     *    전진할 것이 없다), 합짐은 «다 와 가는데 반대편으로 끌려가는» 자리가 제일
+                     *    아프다 (기사님 «나»). 짧은 이동 가드는 `destProgressOf` 안에 있다.
+                     */
+                    progress: (() => {
+                        const from = tailSplit.tailFrom
+                            ? coordOf(tailSplit.tailFrom.orderId, tailSplit.tailFrom.stopType)
+                            : null;
+                        if (!from) {
+                            slog('판정', `   🧭 [합짐 지리] 안 잼 — 후보 하차 앞 정거장의 좌표가 없습니다`);
+                            return undefined;
+                        }
+                        const p = destProgressOf({
+                            me: from,
+                            dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
+                            goalCity: snap.goal,
+                        });
+                        /**
+                         * 🔴 **돌았는지 한 줄로 남긴다** — 오늘 꼬리 빼기가 한 나절 조용히 안 돌았고
+                         *    딱지의 분을 역산해서야 알아냈다. 그 일을 되풀이하지 않는다.
+                         */
+                        const fromPlace = placeOf(tailSplit.tailFrom!.orderId, tailSplit.tailFrom!.stopType);
+                        slog('판정', p.ratio == null
+                            ? `   🧭 [합짐 지리] 안 잼 — ${p.unknownWhy} (기점 ${fromPlace ?? "?"})`
+                            : `   🧭 [합짐 지리] 기점 ${fromPlace ?? "?"} → 전진율 ${p.ratio >= 0 ? '+' : ''}${p.ratio.toFixed(2)}`
+                              /* 🔴 멀어질 때만 적는다 — 음수는 «가까워짐»이라 «-34km 멀어짐»으로
+                                 거꾸로 읽혔다. 가까워지는 콜의 km 는 점수에 아무 일도 안 한다
+                                 (`awayMult` 는 멀어질 때만 1 아래로 내려간다) */
+                              + `${p.awayKm != null && p.awayKm > 0 ? ` · ${Math.round(p.awayKm)}km 멀어짐` : ''}`);
+                        return p;
+                    })(),
+                    /**
+                     * 🏔️ **갇힘은 합짐에도 본다** — 하차 좌표만 보는 판단이라 첫짐·합짐과 무관하고
+                     *    (`isTrappedRegion`), 다른 축은 갇힘을 아무도 안 본다. 빼면 「합짐일 때는
+                     *    갇힘을 안 본다」는 칸이 새로 생긴다.
+                     */
+                    trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
+                    // 🏗️ 정차 중(모으는 중) ↔ 주행 중 — 가르는 곳은 `resolvePhaseKey` 하나다
+                    phase: resolvePhaseKey(snap.filter.callTarget, snap.filter.dispatchPhase),
+                    tags,
+                }), judgmentCfg));
+                dry.stops = stopsView;
+                dry.unknownWhy = unknownWhy;
+                /* ⏱️ 더 쓰는 시간 = 시급의 분모 그대로 — 합짐은 전체 경로가 늘어나는 만큼 + 정차 (전수표 #42) */
+                dry.extraMin = marginal + cost.dwell;
+                slog('판정', `   - 🎨 [판정] ${verdictLine(dry)}`);
+                // 🧪 도달 반경 dryRun (구현 4 계측) — 앞 일이 많을수록 버퍼가 줄어 반경이 준다 (16-3)
+                if (bufAfter) slog('판정', `   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +
+                    `≈ ${reachRadiusKm(Math.max(0, bufAfter.minutes))}km (설정 ${snap.filter.pickupRadiusKm}km · 계수 잠정)`);
+
+                const failedGates = dry.gates.filter(g => !g.pass);
+                if (failedGates.length) reasons.push(...failedGates.map(g => g.why ?? g.name));
+                /**
+                 * 🔴 **축 아홉을 사유 문자열에 싣지 않는다** (기사님 확정 · 화면 디자인).
+                 *
+                 * 여기서 「총점 N점 — 돈 … · 노동강도 … · 지리 …」를 한 문자열로 만들어
+                 * `rejectionReasons`(🟡🔴) 또는 `approvalReasons`(🔵🟢)에 넣고 있었다.
+                 * 그런데 **같은 축이 `dry.axes` 로 이미 간다** — 화면의 「근거 ▾」 접이가 그걸 그린다.
+                 *
+                 * 🔴 그 칸은 기사님이 **1~2초에 읽는 자리**다. 판정 설명 전체가 거기 들어가니
+                 *    심사석 카드(158px 고정 · `overflow-hidden`)에서 **넘쳐 잘렸다** — 실측으로
+                 *    「(보통 3.0만 · 꿀」에서 끊긴 화면을 봤다. 걸리는 것만 남긴다.
+                 */
+
+                // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
+                if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, { ...dry, ...record });
+                (securedOrder as any).judgment = dry;
+                recommend = `'${dry.color}'`;
+
+                /**
+                 * 🔴 관제웹 카드가 이 문자열의 표식('꿀'/'똥'/'사고')으로 색을 정한다.
+                 *    우회 분·km 는 **한계 기준** — 첫짐 단독 대비 누적(카카오 delta)을
+                 *    적으면 나중 후보가 부풀려 보인다 (문제지 캘리브레이션 1차).
+                 */
+                timeExt = `${marginalKm > 0 ? '+' : ''}${marginalKm}km, ${marginal > 0 ? '+' : ''}${marginal}분 ${recommend} · ${dry.score}점`;
+            }
+            securedOrder.routePolyline = result.merged.polyline;
+            securedOrder.totalDistanceKm = result.merged.distance / 1000;
+            securedOrder.totalDurationMin = Math.round(result.merged.duration / 60);
+            securedOrder.sectionEtas = result.merged.sectionEtas;
+
+            slog('판정', `   - 🗺️ 궤적 길이 (Detour): ${securedOrder.routePolyline?.length || '없음'}`);
+        } finally { onRouteMs(routeMs); }
+        return timeExt;
+    }
+
+    /** 🎨 단계 4 · 판정 — 위 갈래가 판정을 못 냈으면 «판정 불가»로 낸다 */
+    private fallbackJudgmentStage(ctx: EvalCtx, timeExt: string): void {
+        const { userId, securedOrder, snap, judgmentCfg, alive, record, excludedHits, reasons } = ctx;
         /**
          * 🎨 **판정 없이 끝나지 않는다** (폰 시험).
          *
@@ -898,7 +932,12 @@ export class OrderEvaluator {
             if (alive()) OrderRepository.saveJudgment(securedOrder.id, userId, { ...dry, ...record });
             (securedOrder as any).judgment = dry;
         }
+    }
 
+    /** 📤 단계 5 · 저장 — 길찾기 글 · 요율 · 사유를 콜에 싣고, 아직 이 콜의 판정이면 결재 대기로 올려 관제웹 · 폰에 알린다 */
+    private finishStage(ctx: EvalCtx, io: any, timeExt: string, pros: string[], meter: { t0: number; geoMs: number; routeMs: number; merged: boolean; activeCallsNow: () => EvalSnap['activeCalls'] }): void {
+        const { userId, securedOrder, snap, alive, reasons } = ctx;
+        const { t0, geoMs, routeMs, merged, activeCallsNow } = meter;
         securedOrder.kakaoTimeExt = timeExt;
 
         // Stage 3. 요율 판정 — 콜할인율은 activeFilter.callDiscountPct 한 벌 (원천: user_filters)
@@ -1104,3 +1143,19 @@ export class OrderEvaluator {
         }
     }
 }
+
+/** 걸린 시간을 실패해도 센다 — 제한 시간에 걸린 판정도 몇 초 먹었는지 판정 시간 줄에 남는다 */
+const timed = async <T>(p: Promise<T>, add: (ms: number) => void): Promise<T> => {
+    const start = Date.now();
+    try { return await p; } finally { add(Date.now() - start); }
+};
+
+/** 판정 한 번의 사진 — 시작 때 한 번 뜬 기점 · 잡은 콜 · 목적지 · 반경 · 오늘 필터 */
+type EvalInputs = ReturnType<typeof evaluationInputsOf>;
+type EvalSnap = { origin: ReturnType<EvalInputs['originNow']>; activeCalls: ReturnType<EvalInputs['activeCallsNow']>; goal: string; pickupRadiusKm: number | null; filter: ReturnType<typeof getUserSession>['activeFilter'] };
+/** 판정 한 번의 재료 — 단계 함수들이 같은 한 벌을 받는다 */
+type EvalCtx = {
+    userId: string; session: ReturnType<typeof getUserSession>; securedOrder: SecuredOrder | PendingOrder; snap: EvalSnap;
+    judgmentCfg: typeof DEFAULT_JUDGMENT; reservedLater: boolean; alive: () => boolean;
+    record: ReturnType<typeof judgmentRecordOf>; excludedHits: string[]; reasons: string[];
+};
