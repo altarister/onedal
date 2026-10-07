@@ -12,6 +12,7 @@ const KIND_LABEL: Record<string, string> = {
     SNAPSHOT_MISMATCH: '사진 · 글자 다름',
     VEHICLE_UNKNOWN: '모르는 차종',
     DICT_BROKEN: '낱말 사전 깨짐',
+    INTERRUPT: '접근성 끼어들기',
     OTHER: '기타',
     ALL: '전체',
 };

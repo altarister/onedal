@@ -601,6 +601,15 @@ class HijackService : AccessibilityService(), ScanContext {
                 detailParsedText = line.take(200),
             )
         }
+        // ⚡ 접근성 끼어들기 수 — 이상 기록 «INTERRUPT: N번»(한 시간에 한 번 · `InterruptReport`)
+        com.onedal.app.core.InterruptReport.sink = { n ->
+            apiClient.sendAnomalyReport(
+                targetApp = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).label,
+                screenName = telemetryManager.currentScreenContext.name,
+                failureReason = "INTERRUPT: 끼어들기 ${n}번(지난 기록 뒤)",
+                detailParsedText = null,
+            )
+        }
         // 📕 서버 낱말 사전이 깨졌다 — 이상 기록 «DICT_BROKEN: 까닭»(같은 배차망은 하루 한 번 · `DictBroken`)
         com.onedal.app.core.DictBroken.sink = { network, why ->
             apiClient.sendAnomalyReport(
@@ -770,6 +779,7 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     override fun onInterrupt() {
+        com.onedal.app.core.InterruptReport.record()   // ⚡ 얼마나 자주 오나 먼저 잰다 — 아래 동작을 바꿀지는 그 뒤에
         telemetryManager.stop()
         cancelSafeCancelTimer()
         apiClient.sendOffline("ACCESSIBILITY_OFF") // 접근성 권한 해제 시 오프라인 통보 — 사유 명시
