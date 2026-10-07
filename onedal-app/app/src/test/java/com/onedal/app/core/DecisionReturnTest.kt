@@ -27,11 +27,11 @@ class DecisionReturnTest {
             Regex("""if \(!session\.openedByApp\)\s*cancelDetailBack\(\)""").containsMatchIn(body))
     }
 
+    /** «앱이 연 콜의 CANCEL 만 목록으로»라는 판단은 `DecisionPlanTest` 가 동작으로 본다 — 여기는 그 판단(BACK_TO_LIST)이 뒤로 가기로 이어지는지만 */
     @Test
     fun `앱이 연 콜의 CANCEL 은 바로 뒤로 간다 - 계약 콜 버튼 집행보다 앞에서`() {
-        val beforeContract = body.substringBefore("if (!session.contractedByApp) return")
-        assertTrue("CANCEL 갈래가 없다", beforeContract.contains("decision == \"CANCEL\""))
-        assertTrue("앱이 연 콜만이어야 한다", beforeContract.contains("session.openedByApp"))
+        val beforeContract = body.substringBefore("val targetBtnStr")
+        assertTrue("CANCEL 갈래가 없다", beforeContract.contains("DecisionPlan.BACK_TO_LIST"))
         assertTrue("뒤로 가기가 없다", beforeContract.contains("performBack("))
     }
 }

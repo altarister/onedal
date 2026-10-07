@@ -390,6 +390,12 @@ class HijackService : AccessibilityService(), ScanContext {
             val action = j.optString("action")
             if (orderId.isEmpty() || action.isEmpty()) { AppLogger.w(TAG, LogTag.DECISION, "⚠️ [결재 칸 비어 있음] orderId=$orderId · action=$action — 넘기지 않는다"); return }
             AppLogger.w(TAG, LogTag.DECISION, "⚡ [결재 수신 · 블루투스] orderId: $orderId, action: $action")
+            /* 🛑 모르는 결재 값은 집행하지 않는다 — 계약 취소로 읽지 않는다(규칙 ④) · «다시 온 결재» 판정 전에 걸러 같은 콜의 진짜 결재를 막지 않게 */
+            if (action !in com.onedal.app.core.DecisionPlan.KNOWN) {
+                AppLogger.w(TAG, LogTag.DECISION, "🛑 [모르는 결재 값] $orderId · $action — 집행하지 않는다 · «받았음»만")
+                bleLink?.ack(orderId)
+                return
+            }
             when (com.onedal.app.core.DecisionReplay.stepOf(orderId, lastExecutedDecisionOrderId, session.currentOrderId)) {
                 com.onedal.app.core.DecisionStep.REPLAY ->
                     AppLogger.i(TAG, LogTag.DECISION, "🔁 [같은 결재 다시 옴] $orderId — 이미 실행했다 · «받았음»만 다시")
@@ -2079,13 +2085,16 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /** 서버 판결(KEEP/CANCEL) 결과 행동을 실제 화면 액션으로 쏨 */
     private fun executeDecisionImmediately(decision: String) {
-        cancelSafeCancelTimer() // 타이머 해제
+        /* 🗳️ 무엇을 할지는 `DecisionPlan` 한 곳이 정한다 — 여기는 집행만 */
+        val plan = com.onedal.app.core.DecisionPlan.of(decision, com.onedal.app.core.ModeActs.of(effectiveMode).blocksAccept,
+            session.contractedByApp, session.openedByApp)
+        if (plan == com.onedal.app.core.DecisionPlan.IGNORE_UNKNOWN) return
+        if (plan.stopsSafeCancel) cancelSafeCancelTimer() // 타이머 해제
         // ⏱️ 기사님이 손으로 연 상세 — 결재가 오면 머문다(판정을 보고 기사님이 누르신다). 앱이 연 콜은 아래에서 정한다
         if (!session.openedByApp) cancelDetailBack()
 
         // 🐥 [가상 체험 모드] 판결이 KEEP/CANCEL이어도 실제 수락/취소 버튼을 누르지 않고 안전하게 뒤로가기(Back) 집행!
-        val isSimulated = decision == "SIMULATED_KEEP" || decision == "SIMULATED_CANCEL" || effectiveMode == "SIMULATION"
-        if (isSimulated) {
+        if (plan == com.onedal.app.core.DecisionPlan.SIMULATED_BACK) {
             AppLogger.roadmap(LogTag.DECISION, "🐥 [체험 모드] 관제탑 판결 $decision 수신 → 안전한 뒤로가기(Back) 집행", telemetryManager.currentScreenContext.name)
             AppLogger.d(TAG, LogTag.DECISION, "🐥 [체험] 실서버 버튼을 누르지 않고 GLOBAL_ACTION_BACK 실행")
             waitBook.schedule("체험 결재 뒤 뒤로", com.onedal.app.core.WaitBook.SESSION, 300) {
@@ -2120,8 +2129,8 @@ class HijackService : AccessibilityService(), ScanContext {
          * KEEP 이면 돌아오는 타이머를 그대로 둔다 — 남은 시간 동안 기사님이 판정을 보고 확정·수락하신다.
          * 🔴 기사님이 손으로 연 상세(`openedByApp` 거짓)는 CANCEL 이 와도 뒤로 가지 않는다 — 기사님이 안 누른 방향이다.
          */
-        if (!session.contractedByApp) {
-            if (session.openedByApp && decision == "CANCEL") {
+        if (plan == com.onedal.app.core.DecisionPlan.BACK_TO_LIST || plan == com.onedal.app.core.DecisionPlan.STAY) {
+            if (plan == com.onedal.app.core.DecisionPlan.BACK_TO_LIST) {
                 AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.DECISION, "↩️ [결재 CANCEL] 앱이 연 콜 — 바로 목록으로 돌아온다")
                 waitBook.schedule("결재 CANCEL 뒤 뒤로", com.onedal.app.core.WaitBook.SESSION, 300) {
                     if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
@@ -2134,7 +2143,7 @@ class HijackService : AccessibilityService(), ScanContext {
             return // 앱이 계약하지 않은 콜은 버튼을 누르지 않는다
         }
 
-        val targetBtnStr = if (decision == "KEEP") "닫기" else "취소"
+        val targetBtnStr = if (plan == com.onedal.app.core.DecisionPlan.PRESS_CLOSE) "닫기" else "취소"
         AppLogger.roadmap(LogTag.DECISION, "🛡️ 관제탑 판결 수신 (Action: $decision) → '$targetBtnStr' 버튼 클릭 집행 개시", telemetryManager.currentScreenContext.name)
         AppLogger.d(TAG, LogTag.DECISION, "⚡ 판결 집행: 행동=$decision, 누를버튼=$targetBtnStr (버튼클릭을 시작합니다), 500ms 지연")
         
