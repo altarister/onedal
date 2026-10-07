@@ -27,7 +27,6 @@ import { OrderRepository } from "../repositories/OrderRepository";
 /* 📍 서버가 다시 떠도 «내가 어디 있었나»를 잃지 않는다 */
 import { lastTrackPointOf } from "./gpsTrackStore";
 import { PlaceRepository } from "../repositories/PlaceRepository";
-import { getDeviceMode } from "../state/deviceSessions";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
@@ -479,8 +478,8 @@ export async function handleDecision(userId: string, orderId: string, status: De
     const cachedPending = session.pendingOrdersData.get(orderId);
     const targetDeviceId = cachedPending?.capturedDeviceId
         ?? session.myOrders.find(c => c.id === orderId)?.capturedDeviceId;
-    const isSimulatedMode = (cachedPending as any)?.isSimulated === true
-        || (targetDeviceId ? getDeviceMode(targetDeviceId, userId) === 'SIMULATION' : false);
+    /* 🐥 체험인지는 잡을 때 콜에 적힌 값 하나 — 결재 순간의 폰 모드로 다시 가르지 않는다(심사 중 모드를 바꾸면 진짜 계약 콜이 장부에서 빠졌다) */
+    const isSimulatedMode = (cachedPending as any)?.isSimulated === true;
 
     const isKeep = status === 'ORDER_CONFIRMED';
     /* 🚪 끝난 콜(안전취소 · 방출)에는 KEEP 을 싣지 않는다 — 앱은 이미 취소했는데 서버만 «잡음»이 되면 유령 콜이 적재·경유를 좁힌다 */
