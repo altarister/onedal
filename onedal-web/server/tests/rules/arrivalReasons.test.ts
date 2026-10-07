@@ -111,11 +111,6 @@ describe('저장 — 사유가 장부에 남는다', () => {
         expect(tables).toMatch(/reasons/);
     });
 
-    it('🔴 도착을 기록할 때 사유를 함께 적는다', () => {
-        const engine = read('../../src/services/dispatchEngine.ts');
-        expect(engine).toMatch(/reasons/);
-    });
-
     it('🔴 관제웹이 사유를 보내고, 서버가 그대로 받는다', () => {
         expect(read('../../../client-app/src/components/dashboard/StepSheetMock.tsx')).toMatch(/reasons/);
         expect(read('../../src/socket/socketHandlers.ts')).toMatch(/reasons/);

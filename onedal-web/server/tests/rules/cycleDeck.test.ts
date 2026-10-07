@@ -111,26 +111,6 @@ describe('🔵 사이클 경계 — 어제의 완료분은 안 따라온다', ()
 });
 
 /**
- * 🔴 **하차 시각이 화면까지 닿아야 규칙이 산다.**
- *    `completedAt` 이 장부에만 있고 세션·복구·DTO 어디에도 없으면
- *    관제웹의 `deckOfCycle` 은 영영 "모른다"만 보고 아무것도 못 거른다.
- */
-describe('🚚 하차 시각이 관제웹까지 온다', () => {
-    const server = (p: string) => readFileSync(join(__dirname, '../../src', p), 'utf8');
-
-    it('🔴 재시작 복구가 completedAt 을 되살린다', () => {
-        expect(server('services/dispatchEngine.ts')).toMatch(/completedAt:\s*row\.completedAt/);
-    });
-
-    it('🔴 하차 처리가 장부와 메모리를 함께 갱신한다', () => {
-        // DB 만 쓰고 메모리를 안 쓰면, 재시작 전까지 화면은 하차 시각을 모른다
-        const src = server('services/dispatchEngine.ts');
-        expect(src).toMatch(/completedAt\s*=\s*\?/);              // 장부
-        expect(src).toMatch(/\.completedAt\s*=\s*(occurredAt|deliveredAt)/); // 메모리
-    });
-});
-
-/**
  * 🔴 **완료분은 화면에만 섞인다** — 경로·적재·운임·카운트다운은 진행 중인 콜만 본다.
  *    섞이면 하차한 짐이 계속 실려 있는 것으로 세어지고(적재), 다 내린 콜의 하차지가
  *    경로에 남고, 카운트다운이 끝난 약속을 기준으로 잡는다.

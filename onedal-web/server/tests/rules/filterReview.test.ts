@@ -260,14 +260,6 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         expect(fm.slice(i, fm.indexOf(';', i))).toMatch(/'callTarget' in changes/);
     });
 
-    it('🔴 setCallTarget 이 destinationCity 를 안 보낸다 — 덮어쓰기가 사라진다', () => {
-        const i = de.indexOf('callTarget: phase,');
-        expect(i).toBeGreaterThan(-1);
-        const body = de.slice(i - 200, i + 200);
-        expect(body).not.toMatch(/destinationCity: city/);
-        /* 빈 차 목록도 파생 목적지(복귀면 집 시)를 보는지는 filterListRules 가 동작으로 문다 */
-    });
-
     it('🔴 앱·지도·요약줄이 «그물의 목적지»를 본다', () => {
         const sc = codeOnly(read('state/appFilter.ts'));
         expect(sc).toMatch(/filter\.destinationCity\s*=.*goalCity/);
@@ -275,25 +267,6 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
               (관제웹 stageAreas.test «목적지는 서버가 낸 goalCities 그대로» 가 동작으로 문다) */
         const st = codeOnly(readClient('components/dashboard/OrderFilterStatus.tsx'));
         expect(st).toMatch(/goalCity/);
-    });
-});
-
-describe('3단계 · 집이 있는 시는 «좌표»로 뽑는다 — 주소 글자에 기대지 않는다', () => {
-    /**
-     * 사람이 적는 주소는 «광주시»라고 안 적는다 — 기사님 주소도 `경기도 광주 초월 동광뷰엘` 모양이다.
-     * 집 주소 글자에서 「시」로 끝나는 조각을 찾으면 못 찾아 복귀 토글이 거부된다.
-     * 🔴 집에는 **좌표**가 있다(`home_x/home_y`). `nearestDong` 이 좌표에서 «경기 광주시»를 낸다 —
-     *    그물이 이미 쓰는 그 표(`DONG_CENTROIDS`)다. 주소 글자는 좌표가 없을 때의 물러섬이다.
-     */
-    const fm = codeOnly(read('state/filterManager.ts'));
-    const de = codeOnly(read('services/dispatchEngine.ts'));
-
-    it('🔴 goalCityOf 와 setCallTarget 이 그것을 쓴다 — 주소를 각자 자르지 않는다', () => {
-        /* goalCityOf 쪽(복귀면 좌표로 뽑은 집 시)은 filterListRules 가 동작으로 문다 */
-        const j = de.indexOf('export async function setCallTarget');
-        const body = de.slice(j, de.indexOf('\nexport ', j + 10));
-        expect(body).toMatch(/homeCityOf\(/);
-        expect(body).not.toMatch(/split\(\/\\s\+\/\)\.find/);
     });
 });
 

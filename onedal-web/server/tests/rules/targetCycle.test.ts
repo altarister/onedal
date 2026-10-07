@@ -43,14 +43,4 @@ describe('🔴 방향을 서버가 정하는 길이 없다 (L1 — 코드 모양
         expect(en).not.toMatch(/setCallTarget\([^)]*'auto'\)/);
     });
 
-    it('🔴 복귀를 켜고 끄면 바로 하차 · 상차 목록을 다시 만든다 — 켠 시각을 적은 뒤 (#146)', () => {
-        /* 바로 다시 만들지 않으면 복귀를 꺼도 목록이 서버 재시작까지 «이천 ∪ 광주»로 남고 지도에도 광주 원이 남는다 */
-        const start = en.indexOf('export async function setCallTarget(');
-        expect(start).toBeGreaterThan(-1);
-        const body = en.slice(start, en.indexOf('\n}', start));
-        const rec = body.indexOf('recordCallTarget(');
-        expect(rec).toBeGreaterThan(-1);
-        /* «집으로 가는 콜을 잡았나»가 켠 시각(call_target_events)을 읽으니 적은 뒤에 만든다 */
-        expect(body.indexOf('rebuildNetFilter(userId, io)')).toBeGreaterThan(rec);
-    });
 });

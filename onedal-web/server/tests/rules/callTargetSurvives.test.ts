@@ -27,9 +27,8 @@ describe('복귀 켬 — 바꾼 일을 적고 오늘 줄에서 되살린다', ()
         expect(bodyOf(ev, 'export function recordCallTarget(')).toMatch(/INSERT INTO call_target_events/);
     });
 
-    it('🔴 쓰는 입구는 setCallTarget 하나 — 누가 바꿨는지 함께 적는다', () => {
-        const en = read('src/services/dispatchEngine.ts');
-        expect(bodyOf(en, 'export async function setCallTarget(')).toMatch(/recordCallTarget\(userId, phase, by/);
+    /* 쓰는 입구(setCallTarget)가 누가 바꿨는지 함께 적는 것은 engineFlowRules 가 동작으로 문다 */
+    it('🔴 장부 쪽은 setCallTarget 을 부르지 않는다 — 쓰는 입구는 하나', () => {
         expect(read('src/core/callTargetEvents.ts')).not.toMatch(/setCallTarget/);
     });
 
@@ -50,9 +49,6 @@ describe('콜의 판 — 장부에 적고 되살린다', () => {
         expect(repo).toMatch(/cachedOrder as any\)\.goalCity \?\? null/);
     });
 
-    it('🔴 재기동 복구가 칸을 읽는다 — 칸만 있고 안 읽으면 전부 하차지 시로 조용히 물러난다', () => {
-        expect(read('src/services/dispatchEngine.ts')).toMatch(/goalCity: row\.goalCity \?\? undefined,/);
-    });
 });
 
 describe('모의 주행 켬 — 경로가 잠깐 비어도 기사님이 켠 것은 남는다', () => {

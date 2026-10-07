@@ -55,11 +55,6 @@ describe('🗺️ 가 — 확정 경로는 장부에 남는다', () => {
         expect(ord).toMatch(/parsePolyline|routePolyline/);
     });
 
-    it('🔴 재시작 복구가 장부의 궤적을 먼저 쓴다', () => {
-        const eng = code(read('services/dispatchEngine.ts'));
-        const fn = eng.split('export async function restoreAndRecalculateSession')[1] ?? '';
-        expect(fn).toMatch(/routePolyline/);
-    });
 });
 
 /**

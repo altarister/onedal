@@ -67,13 +67,4 @@ describe('📍 부팅 직후에도 기점은 한 답이다', () => {
         expect(originOf(s, now)).toBeNull();
     });
 
-    it('🔴 복구하는 곳이 임자도 함께 세운다 — 시각은 그 점의 것을 쓴다 (지어내지 않는다)', () => {
-        const en = readFileSync(join(__dirname, '../../src/services/dispatchEngine.ts'), 'utf8')
-            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-        const i = en.indexOf('session.lastFixSource = (lastPt.source');
-        expect(i).toBeGreaterThan(-1);
-        const body = en.slice(i, i + 400);
-        expect(body).toMatch(/lastPt\.source === 'mock'/);
-        expect(body).toMatch(/mockGpsOwner = \{[^}]*at: lastPt\.atMs/);
-    });
 });

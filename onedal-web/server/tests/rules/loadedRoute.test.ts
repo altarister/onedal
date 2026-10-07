@@ -62,20 +62,6 @@ describe('이미 상차한 콜 — 다녀온 상차지를 다시 경유하지 �
         expect(fn).not.toMatch(/=== 'ORDER_PICKED_UP'/);
     });
 
-    /**
-     * 🔴 **단독 경로를 부르는 곳이 셋이다.** 하나만 고치면 나머지가 다시 되돌아간다.
-     *    특히 세션 복구(`복구`)는 상차하고 달리다 **새로고침만 해도** 부르는 자리다.
-     *
-     * ⚠️ 넘기는 판단은 **`hasVisitedStop`** 이다. `isAlreadyLoaded` 를 넘기면 GPS 로만 다녀온
-     *    상차지가 남아, 합짐이 다 하차되어 콜이 1건 남는 순간 단독 경로로 떨어질 때(**사이클 끝마다**)
-     *    여주에서 성남 상차지로 50km 되돌아간다. 근거는 tests/rules/visitedStop.test.ts.
-     */
-    it('🔴 dispatchEngine 의 단독 경로 호출 세 곳이 모두 판단을 넘긴다', () => {
-        const eng = codeOnly(read('services/dispatchEngine.ts'));
-        const calls = [...eng.matchAll(/calculateSoloRoute\(([\s\S]*?)\);/g)];
-        expect(calls.length).toBe(3);
-        for (const c of calls) expect(c[1]).toMatch(/hasVisitedStop\(\w+, 'pickup'\)/);
-    });
 });
 
 /**

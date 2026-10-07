@@ -93,19 +93,6 @@ describe('정의가 두 벌로 갈라지지 않는다', () => {
     });
 });
 
-/** 도착 시각이 콜 객체에 실려야 경로 조립이 DB 조회 없이 판단할 수 있다 */
-describe('도착 시각은 콜 객체에 실린다', () => {
-    it('🔴 마일스톤을 기록할 때 세션 콜에도 도착 시각을 남긴다', () => {
-        const engine = readFileSync(join(__dirname, '../../src/services/dispatchEngine.ts'), 'utf8');
-        expect(engine).toMatch(/arrivedPickupAt|arrivedDropoffAt/);
-    });
-
-    it('🔴 복구 경로도 도착 시각을 되살린다 — 재시작하면 경로가 되돌아가면 안 된다', () => {
-        const engine = readFileSync(join(__dirname, '../../src/services/dispatchEngine.ts'), 'utf8');
-        expect(engine).toMatch(/hydrateVisitedStops|arrivedPickupAt[\s\S]{0,400}getMilestones|getMilestones[\s\S]{0,400}arrivedPickupAt/);
-    });
-});
-
 /**
  * ⚖️ **비교 기준(base)도 다녀온 곳을 뺀다** (기사님 실측)
  *
@@ -163,16 +150,6 @@ describe('우회 비용의 비교 기준', () => {
 describe('단독 경로 — 다녀온 상차지를 경유하지 않는다', () => {
     const engine = () => readFileSync(join(__dirname, '../../src/services/dispatchEngine.ts'), 'utf8')
         .split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
-
-    it('🔴 calculateSoloRoute 의 skipPickup 인자가 hasVisitedStop 이다', () => {
-        const c = engine();
-        const calls = c.match(/calculateSoloRoute\([\s\S]{0,400}?\)\s*;/g) ?? [];
-        expect(calls.length).toBeGreaterThanOrEqual(3);   // 첫짐·후보콜·복구
-        for (const call of calls) {
-            expect(call).toMatch(/hasVisitedStop\(\s*\w+\s*,\s*'pickup'\s*\)/);
-            expect(call).not.toMatch(/isAlreadyLoaded\(/);
-        }
-    });
 
     it('🔴 URL 조립이 실제로 상차지를 뺀다 — 되돌아가는 경유지가 없다', () => {
         const 야탑 = { x: 127.1307, y: 37.4120 };

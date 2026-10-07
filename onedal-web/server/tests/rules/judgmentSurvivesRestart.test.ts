@@ -57,13 +57,4 @@ maybe('🎨 판정 스냅샷은 통째로 되살아난다', () => {
         expect(OrderRepository.getJudgmentVerdict('없는-콜')).toBeNull();
     });
 
-    /**
-     * 🔴 값이 있어도 **붙여 보내지 않으면 없는 것**이다. 이 레포가 여러 번 당한 형태라
-     *    (「고쳤는데 안 돌고 있는 것」) 복구가 실제로 붙이는지 소스로 확인한다.
-     */
-    it('🔴 재시작 복구가 판정을 콜에 붙인다', () => {
-        const src = readFileSync(join(__dirname, '../../src/services/dispatchEngine.ts'), 'utf8');
-        const 복구 = src.slice(src.indexOf('export async function restoreAndRecalculateSession'));
-        expect(복구).toMatch(/getJudgmentVerdict\(/);
-    });
 });

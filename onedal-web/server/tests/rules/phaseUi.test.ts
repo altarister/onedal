@@ -1094,34 +1094,9 @@ describe('국면 전환 — 입구는 하나, 확인창을 거친다', () => {
  *
  * `setCallTarget` 가 `baseFilter.destinationRadiusKm` 를 같이 실어 보내면, 그 값이 `changes` 에 있어
  * "기사님이 방금 고친 값" 으로 보호까지 받아 저장해 둔 반경(첫짐 하차 7km)이 평소값(1km)으로 덮인다.
- * 원천이 둘이면 늘 이렇게 끝난다.
+ * 원천이 둘이면 늘 이렇게 끝난다. 전환이 반경 · 목적지를 안 바꾸는 것은 engineFlowRules 가 동작으로 문다.
  */
 describe('국면 전환 — 반경은 국면 설정만이 정한다', () => {
-
-    const fn = engine.slice(engine.indexOf('export async function setCallTarget'));
-    const body = fn.slice(0, fn.indexOf('\nexport '));
-
-    it('🔴 setCallTarget 는 destinationRadiusKm 를 보내지 않는다', () => {
-        expect(body).not.toMatch(/destinationRadiusKm:/);
-        expect(body).not.toMatch(/baseFilter\.destinationRadiusKm/);
-    });
-
-    /**
-     * 🔴 **국면 전환은 도시를 안 보낸다.** `destinationCity` 를 실어 HOME 이면 집 시로 덮어쓰면,
-     *    돌아올 때 `activeFilter || baseFilter` 가 이미 덮인 값에서 끝나 **목적지(파주)가 집 시(광주)로 굳는다.**
-     *    그물이 향하는 시는 `filterGoals.goalCityOf` 가 `callTarget` 에서 **파생**한다.
-     *    «어디로 가는가»는 여기서만 정한다 — 그 답이 `callTarget` 하나다.
-     */
-    it('국면 전환은 "어디로 가는가"만 정한다 (callTarget 하나 — 도시는 파생이다)', () => {
-        expect(body).toMatch(/callTarget: phase/);
-        expect(body).not.toMatch(/destinationCity: city!/);
-    });
-
-    /** 값이 한 벌이라 돌아갈 도시는 오늘값이 먼저, 없으면 평소값이다 */
-    it('🔄 돌아갈 때의 도시는 오늘값이 먼저, 없으면 평소값', () => {
-        expect(body).toMatch(/session\.activeFilter\.destinationCity/);
-        expect(body).toMatch(/session\.baseFilter\.destinationCity/);
-    });
 
     /**
      * 🔴 **반경을 바꾸면 `updateActiveFilter` 가 `refreshDetourIfNeeded` 를 부른다** — 부르는 곳이 없으면

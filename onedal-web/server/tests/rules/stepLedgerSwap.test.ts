@@ -38,9 +38,4 @@ describe('파생 치환 ② — 계산은 stepRecordsOf 관문 하나', () => {
         expect(tl).not.toMatch(/getCargoReports|getMilestones/);
     });
 
-    it('🔴 복구(hydrateVisitedStops·상태 파생)가 새 장부의 마일스톤을 읽는다', () => {
-        const en = codeOnly(read('services/dispatchEngine.ts'));
-        expect(en).toMatch(/stepRecordsOf\(orderId\)\.milestones/);
-        expect(en).not.toMatch(/OrderRepository\.getMilestones\(orderId\) as \{ milestone: string/);
-    });
 });

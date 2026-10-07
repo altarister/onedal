@@ -1,6 +1,8 @@
 // @ts-nocheck
 import db from '../../src/db';
-import { handleDecision, restoreAndRecalculateSession, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget } from '../../src/services/dispatchEngine';
+import { handleDecision, restoreAndRecalculateSession, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget,
+         recalculateActiveKakaoRoute, recalculateKakaoRoute } from '../../src/services/dispatchEngine';
+import * as filterManager from '../../src/state/filterManager';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import * as cancelCount from '../../src/core/cancelCount';
 import * as kakao from '../../src/services/kakaoService';
@@ -32,6 +34,8 @@ beforeEach(() => {
     db.prepare(`DELETE FROM orderStops WHERE orderId LIKE ?`).run(`${U}-%`);
     db.prepare(`DELETE FROM orders WHERE userId = ?`).run(U);
     db.prepare(`DELETE FROM gps_tracks WHERE user_id = ?`).run(U);
+    db.prepare(`DELETE FROM call_target_events WHERE user_id = ?`).run(U);
+    db.prepare(`DELETE FROM order_judgments WHERE userId = ?`).run(U);
     db.prepare(`UPDATE user_settings SET home_address = NULL, home_x = NULL, home_y = NULL WHERE user_id = ?`).run(U);
     clearUserSession(U);
 });
@@ -124,7 +128,7 @@ function ledgerCall(id: string, extra: Record<string, unknown> = {}) {
     const now = new Date().toISOString();
     db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, routePolyline, paymentType)
                 VALUES (?, 'NEW_ORDER', ?, ?, ?, ?, '상', '하', 20000, 'insung', ?, ?)`)
-        .run(id, extra.status ?? 'ORDER_CONFIRMED', U, now, now, JSON.stringify(LINE), extra.paymentType ?? null);
+        .run(id, extra.status ?? 'ORDER_CONFIRMED', U, now, now, extra.routePolyline === null ? null : JSON.stringify(LINE), extra.paymentType ?? null);
     const place = (x: number, y: number, tag: string) => {
         db.prepare(`INSERT OR IGNORE INTO places (address, x, y, addressDetail, customerName) VALUES (?, ?, ?, ?, ?)`).run(tag, x, y, tag, U);
         return (db.prepare(`SELECT id FROM places WHERE addressDetail = ? AND customerName = ?`).get(tag, U) as any).id;
@@ -161,6 +165,74 @@ describe('♻️ 복구', () => {
         expect(s.lastFix).toEqual({ x: 127.33, y: 37.35 });
         expect(s.lastFixAt).toBe(at);
     });
+
+    it('🔴 장부의 칸을 콜에 되살린다 — 판(목표 시) · 잡은 갈래 · 하차 시각 · 판정 · 궤적', async () => {
+        ledgerCall(`${U}-rf`);
+        db.prepare(`UPDATE orders SET goalCity = ?, capturedVia = ?, completedAt = ? WHERE id = ?`)
+            .run('여주시', 'alarm', '2026-10-07T04:00:00.000Z', `${U}-rf`);
+        OrderRepository.saveJudgment(`${U}-rf`, U, { color: '꿀', score: 82, axes: [], gates: [], tags: [] });
+        await restoreAndRecalculateSession(U, io);
+        const c = getUserSession(U).myOrders[0];
+        expect(c).toMatchObject({ goalCity: '여주시', capturedVia: 'alarm', completedAt: '2026-10-07T04:00:00.000Z' });
+        expect(c.judgment).toMatchObject({ color: '꿀', score: 82 });
+        expect(c.routePolyline).toEqual(LINE);
+    });
+
+    it('🔴 장부에 궤적이 있으면 카카오를 다시 부르지 않는다 · 없으면 잰다 — 다녀온 상차지는 건너뛰고', async () => {
+        process.env.KAKAO_REST_API_KEY = 'test-key';
+        const solo = jest.spyOn(kakao, 'calculateSoloRoute').mockResolvedValue(soloRoute);
+        ledgerCall(`${U}-rk`);
+        await restoreAndRecalculateSession(U, io);
+        expect(solo).not.toHaveBeenCalled();
+        clearUserSession(U);
+        db.prepare(`DELETE FROM orderStops WHERE orderId LIKE ?`).run(`${U}-%`);
+        db.prepare(`DELETE FROM orders WHERE userId = ?`).run(U);
+        ledgerCall(`${U}-rn`, { routePolyline: null });
+        birthFirstStep(U, `${U}-rn`);
+        bridgeMilestone(U, `${U}-rn`, 'ARRIVED_PICKUP', 'MANUAL');
+        await restoreAndRecalculateSession(U, io);
+        expect(solo).toHaveBeenCalledTimes(1);
+        expect(solo.mock.calls[0][7]).toBe(true);
+    });
+
+    it('🔴 마지막 점이 모의 좌표면 출처와 «임자»를 그 점의 시각으로 함께 세운다 — 시각을 지어내지 않는다', async () => {
+        const at = Date.now() - 30_000;
+        db.prepare(`INSERT INTO gps_tracks (user_id, at_ms, x, y, source) VALUES (?, ?, ?, ?, ?)`).run(U, at, 127.33, 37.35, 'mock');
+        await bootstrapUserSession(U, io);
+        const s = getUserSession(U);
+        expect(s.lastFixSource).toBe('mock');
+        expect(s.lastFixIsMock).toBe(true);
+        expect(s.mockGpsOwner).toMatchObject({ at });
+    });
+});
+
+describe('🗺️ 경로 다시 재기 — 다녀온 상차지는 건너뛴다', () => {
+    const one = (o: Record<string, unknown> = {}) => {
+        const s = getUserSession(U);
+        const c = { id: `${U}-w1`, status: 'ORDER_CONFIRMED', pickupX: 127.31, pickupY: 37.36, dropoffX: 127.44, dropoffY: 37.28, ...o } as any;
+        s.myOrders = [c];
+        s.pendingOrdersData.set(c.id, c);
+        return s;
+    };
+
+    it('🔴 남은 콜이 하나면 단독 경로로 — 도착한 상차지면 건너뛰고 · 아니면 들른다', async () => {
+        process.env.KAKAO_REST_API_KEY = 'test-key';
+        const solo = jest.spyOn(kakao, 'calculateSoloRoute').mockResolvedValue(soloRoute);
+        one({ arrivedPickupAt: '2026-10-07T03:00:00.000Z' });
+        await recalculateActiveKakaoRoute(U, io);
+        one();
+        await recalculateActiveKakaoRoute(U, io);
+        expect(solo.mock.calls.map(c => c[7])).toEqual([true, false]);
+    });
+
+    it('🔴 관제웹이 경로를 다시 재라고 하면 — 도착한 상차지는 건너뛴다', async () => {
+        process.env.KAKAO_REST_API_KEY = 'test-key';
+        const solo = jest.spyOn(kakao, 'calculateSoloRoute').mockResolvedValue(soloRoute);
+        one({ status: 'ORDER_PICKED_UP' });
+        await recalculateKakaoRoute(U, `${U}-w1`, 'TIME', io);
+        expect(solo).toHaveBeenCalledTimes(1);
+        expect(solo.mock.calls[0][7]).toBe(true);
+    });
 });
 
 describe('📦 마일스톤', () => {
@@ -182,6 +254,14 @@ describe('📦 마일스톤', () => {
         expect(ledgerRow(`${U}-m1`).status).toBe('ORDER_PICKED_UP');
         await reportMilestone(U, `${U}-m1`, 'DELIVERED', 'MANUAL', io, '2026-10-07T05:00:00.000Z');
         expect(s.myOrders[0]).toMatchObject({ status: 'ORDER_DELIVERED', completedAt: '2026-10-07T05:00:00.000Z' });
+        expect((db.prepare(`SELECT completedAt FROM orders WHERE id = ?`).get(`${U}-m1`) as any).completedAt).toBe('2026-10-07T05:00:00.000Z');
+    });
+
+    it('🔴 도착 사유는 단계 장부(도착 행)에 함께 적힌다', () => {
+        confirmed(`${U}-rsn`);
+        bridgeMilestone(U, `${U}-rsn`, 'ARRIVED_PICKUP', 'MANUAL', '2026-10-07T03:00:00.000Z', ['화주 미준비']);
+        const row = db.prepare(`SELECT reasons FROM step_arrive_pickup WHERE orderId = ?`).get(`${U}-rsn`) as any;
+        expect(JSON.parse(row.reasons)).toEqual(['화주 미준비']);
     });
 
     it('🔴 역행 · 중복은 무시한다 — 상태를 안 바꾼다', async () => {
@@ -240,5 +320,50 @@ describe('🧭 복귀 켬', () => {
         expect(s.activeFilter.callTarget ?? 'DEST').toBe('DEST');
         const d = await setCallTarget(U, 'DEST', io, 'driver');
         expect(d).toMatchObject({ success: true, phase: 'DEST', city: '이천시' });
+    });
+
+    it('🔴 복귀를 켜도 목적지 · 반경 · 콜은 그대로 — 바뀌는 것은 «어디로 가나»(callTarget) 하나 · 집 시는 좌표로', async () => {
+        db.prepare(`UPDATE user_settings SET home_address = ?, home_x = ?, home_y = ? WHERE user_id = ?`)
+            .run('경기도 광주 초월 동광뷰엘', 127.31, 37.36, U);
+        ledgerCall(`${U}-t1`);
+        const s = getUserSession(U);
+        s.activeFilter.destinationCity = '이천시';
+        s.myOrders = [{ id: `${U}-t1`, status: 'ORDER_CONFIRMED' } as any];
+        const radius = s.activeFilter.destinationRadiusKm;
+        const r = await setCallTarget(U, 'HOME', io, 'driver');
+        expect(r).toMatchObject({ success: true, phase: 'HOME', city: '광주시' });
+        expect(s.activeFilter).toMatchObject({ callTarget: 'HOME', destinationCity: '이천시', destinationRadiusKm: radius });
+        expect(s.myOrders[0].status).toBe('ORDER_CONFIRMED');
+        expect(ledgerRow(`${U}-t1`).status).toBe('ORDER_CONFIRMED');
+        /* 파생값(키워드 · 시 묶음)은 필터 매니저가 callTarget 만 받아 만든 것과 같다 — 직접 채우지 않는다 */
+        const derived = { kw: s.activeFilter.destinationKeywords, cf: s.activeFilter.customCityFilters };
+        clearUserSession(U);
+        const t = getUserSession(U);
+        t.activeFilter.destinationCity = '이천시';
+        filterManager.updateActiveFilter(U, { callTarget: 'HOME', isActive: true }, io);
+        expect({ kw: t.activeFilter.destinationKeywords, cf: t.activeFilter.customCityFilters }).toEqual(derived);
+    });
+
+    it('🔴 바꾼 일을 누가 바꿨는지와 함께 적고 · 적은 뒤에 하차 · 상차 목록을 다시 만든다 · 같은 값이면 안 적는다', async () => {
+        db.prepare(`UPDATE user_settings SET home_address = ?, home_x = ?, home_y = ? WHERE user_id = ?`)
+            .run('경기도 광주 초월 동광뷰엘', 127.31, 37.36, U);
+        getUserSession(U).activeFilter.destinationCity = '이천시';
+        const events = () => db.prepare(`SELECT target, by FROM call_target_events WHERE user_id = ? ORDER BY rowid`).all(U) as any[];
+        const seenAtRebuild: number[] = [];
+        const orig = filterManager.rebuildNetFilter;
+        jest.spyOn(filterManager, 'rebuildNetFilter').mockImplementation((...a: any[]) => { seenAtRebuild.push(events().length); return orig(...a); });
+        await setCallTarget(U, 'HOME', io, 'driver');
+        await setCallTarget(U, 'HOME', io, 'driver');
+        await setCallTarget(U, 'DEST', io, 'auto');
+        expect(events()).toEqual([{ target: 'HOME', by: 'driver' }, { target: 'DEST', by: 'auto' }]);
+        expect(seenAtRebuild[0]).toBe(1);
+        expect(seenAtRebuild[seenAtRebuild.length - 1]).toBe(2);
+    });
+
+    it('🔄 노선으로 돌아갈 때의 시는 오늘값이 먼저, 없으면 평소값', async () => {
+        const s = getUserSession(U);
+        s.activeFilter.destinationCity = '';
+        s.baseFilter.destinationCity = '파주시';
+        expect(await setCallTarget(U, 'DEST', io, 'driver')).toMatchObject({ success: true, city: '파주시' });
     });
 });
