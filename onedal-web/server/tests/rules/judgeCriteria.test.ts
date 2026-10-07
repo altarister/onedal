@@ -424,6 +424,6 @@ describe('갈아탔다 — 채점하는 곳은 하나다', () => {
      */
     it('첫짐·합짐 두 자리 모두 갈아탔다 — 한쪽만 바꾸면 두 벌이 된다 (+ 판정 없이 끝날 때 한 자리)', () => {
         expect((ev.match(/toSnapshot\(judge\(CRITERIA,/g) || []).length).toBe(3);
-        expect(ev).toMatch(/if \(!\(securedOrder as any\)\.judgment\) \{[\s\S]{0,200}toSnapshot\(judge\(CRITERIA, firstLoadFacts\(\{[\s\S]{0,120}totalMinutes: null/);
+        /* 판정 없이 끝날 때 «시간 모름»으로 같은 함수를 부르는지는 judgmentBranches(좌표 못 찾음 · 키 없음)가 끝까지 돌려 문다 */
     });
 });

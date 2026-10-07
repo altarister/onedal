@@ -65,8 +65,4 @@ describe('📦 남는 자리를 0 에서 자르지 않는다 (배선)', () => {
     it('🔴 `Math.max(0, …)` 로 음수를 지우지 않는다 — 지우면 무조건 빨간불이 영영 안 켜진다', () => {
         expect(ev).not.toMatch(/freePct:[\s\S]{0,120}Math\.max\(0,\s*slotsTotal/);
     });
-
-    it('🔴 적재 근거를 판정에 실어 준다', () => {
-        expect(ev).toMatch(/confidence:\s*snap\.filter\.capacityConfidence/);   // 오늘 필터는 판정 시작 때 뜬 사본 (서버 병목 15)
-    });
 });

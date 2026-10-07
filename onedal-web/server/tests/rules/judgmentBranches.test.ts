@@ -810,6 +810,29 @@ describe('🎨 판정 갈래 — 같은 콜에 같은 판정', () => {
         savedOnce(o);
     });
 
+    it('🔴 합짐 · 자리가 넘친다 — 적재 근거가 판정에 실린다: 신고한 적재면 공간 0점 · 추정 적재면 «잴 수 없음»', async () => {
+        jest.spyOn(kakao, 'geocodeCallAddress').mockImplementation(async (a) => a.includes('신둔') ? { ...HD_SINDUN, approxArea: null } : { ...BUBAL, approxArea: null });
+        jest.spyOn(kakao, 'calculateDetourRoute').mockResolvedValue({
+            base: { duration: 2400, distance: 25000, polyline: [], tollKrw: 0 },
+            merged: { duration: 3300, distance: 31000, polyline: [MODA, HD_SINDUN, TERMINAL, BUBAL], sectionDriveMin: [8, 20, 35, 45],
+                sectionEtas: ['12:08', '12:20', '12:35', '12:45'], tollKrw: 500 },
+            timeDiffMin: 15, distDiffKm: '6.0', tollDiffKrw: 500, roadEvent: null,
+        });
+        const full = async (u: string, capacityConfidence: string) => {
+            const s = make(u, { dispatchPhase: 'GATHERING', isSharedMode: true, slotsUsed: 120, capacityConfidence });
+            s.myOrders = [{ id: `${u}-kept`, status: 'ORDER_CONFIRMED', pickup: 'A', dropoff: 'B', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y,
+                fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() }];
+            const o = order(`${u}-o`, { pickup: '경기 이천시 신둔면', dropoff: '경기 이천시 부발읍', fare: 30000 });
+            await run(u, o, s);
+            return o.judgment;
+        };
+        const declared = await full('ev-full-d', 'DECLARED');
+        expect(declared.color).toBe('사고');
+        expect(declared.axes.find(a => a.key === 'space')).toMatchObject({ score: 0, raw: '자리 부족 -20% (신고)' });
+        const estimated = await full('ev-full-e', 'ESTIMATED');
+        expect(estimated.axes.find(a => a.key === 'space')).toMatchObject({ score: null, raw: '⚠️ 자리 부족 -20% (추정) — 차종을 못 읽었을 수 있습니다' });
+    });
+
     it('🔴 합짐 — 한계 우회 · 정거장 약속 · 공간 · 지리(꼬리 기점) · 합짐 경로가 콜에 실린다', async () => {
         jest.spyOn(kakao, 'geocodeCallAddress').mockImplementation(async (a) => a.includes('신둔') ? { ...HD_SINDUN, approxArea: null } : { ...BUBAL, approxArea: null });
         const solo = jest.spyOn(kakao, 'calculateSoloRoute');
