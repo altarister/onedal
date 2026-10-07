@@ -1314,7 +1314,7 @@ class HijackService : AccessibilityService(), ScanContext {
         }
 
         // 서버 판결 대기 중에는 화면 내 버튼 탐색이나 상세 수집(클릭 액션) 무시
-        // 🔒 목록으로 돌아와 세션이 비었어도 안전취소가 걸린 콜이 있으면 새 콜을 누르지 않는다 — 한 번에 하나만 평가(새 계약이 옛 타이머를 덮어 보호를 잃지 않게)
+        // 🔒 원달앱이 다시 떠 세션이 비었어도 안전취소가 걸린 콜이 있으면 새 콜을 누르지 않는다 — 한 번에 하나만 평가(새 계약이 옛 타이머를 덮어 보호를 잃지 않게)
         if (session.isWaitingForDecision || safeCancelTimer.armedOrderId != null) {
             rootNode.recycle()
             return
@@ -2115,7 +2115,7 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     /** 서버 판결(KEEP/CANCEL) 결과 행동을 실제 화면 액션으로 쏨 */
-    /** @param orderId 그 결재의 콜 — 목록 복귀로 세션이 비었어도 안전취소 타이머가 지키는 콜이면 «앱이 계약한 콜»로 집행한다(D1 ①) */
+    /** @param orderId 그 결재의 콜 — 원달앱이 다시 떠 세션이 비었어도 안전취소 타이머가 지키는 콜이면 «앱이 계약한 콜»로 집행한다(D1 ②) */
     private fun executeDecisionImmediately(decision: String, orderId: String? = null) {
         val armedHere = orderId != null && orderId == safeCancelTimer.armedOrderId
         /* 🗳️ 무엇을 할지는 `DecisionPlan` 한 곳이 정한다 — 여기는 집행만 */
@@ -2250,7 +2250,7 @@ class HijackService : AccessibilityService(), ScanContext {
         rootNode.recycle()
     }
 
-    /** @param forOrderId 그 콜 번호 — 목록 복귀로 세션이 비었어도 결재 버튼이 쥔 콜로 보낸다 */
+    /** @param forOrderId 그 콜 번호 — 원달앱이 다시 떠 세션이 비었어도 결재 버튼이 쥔 콜로 보낸다 */
     private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "", cancelPressed: Boolean? = null, forOrderId: String? = null) {
         val orderId = forOrderId?.ifEmpty { null } ?: session.currentOrderId.ifEmpty { "unknown" }
         val report = EmergencyReport(
@@ -2278,7 +2278,7 @@ class HijackService : AccessibilityService(), ScanContext {
             ?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏳ [기다림 거둠] 세션 — ${it.joinToString(" · ")}") }
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, false)
         session.reset {
-            /* 🔒 안전취소 타이머는 끄지 않는다 — 끄는 곳은 결재(`DecisionPlan.stopsSafeCancel`)와 시간 끝뿐(목록 복귀 · 오탐으로 계약 콜 보호를 잃지 않게 · D1 ①) */
+            cancelSafeCancelTimer()   // 🔓 목록 복귀 = 이 콜을 놓았다 — 서버도 목록 이탈 유예 3초 뒤 치우고 취소로 센다(같은 규칙 하나 · 기사님 «자동이면 확정까지 된 상태라 취소가 맞다»)
             telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 콜 잡기 모드
             telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 해제 알림
         }

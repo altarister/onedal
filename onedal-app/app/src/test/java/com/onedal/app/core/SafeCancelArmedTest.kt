@@ -19,11 +19,11 @@ class SafeCancelArmedTest {
     private val timer = SafeCancelTimer(book) { 0L }
     private fun contracted(id: String) = SessionManager().apply { contractedByApp = true; setOrderId(id) }
 
-    @Test fun `🔴 걸고 세션을 비워도(목록 복귀) 시간 끝에 운다 · 콜 번호를 쥔다`() {
+    @Test fun `🔴 걸고 세션을 비워도 타이머는 제 콜 번호를 쥐고 시간 끝에 운다`() {
         var fired = 0
         val s = contracted("call-A")
         timer.start(30_000, s) { fired++ }
-        s.reset()                                   // 목록 복귀 — 세션은 비지만 타이머는 끄지 않는다(resetSessionState)
+        s.reset()                                   // 세션만 비움 — 타이머를 끄는 것은 cancel 뿐(목록 복귀는 resetSessionState 가 cancel 을 부른다)
         assertEquals("call-A", timer.armedOrderId)
         posted.single().first.run()
         assertEquals(1, fired)
