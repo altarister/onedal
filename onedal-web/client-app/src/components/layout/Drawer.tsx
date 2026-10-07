@@ -37,7 +37,7 @@ type Props = {
     open: boolean;
     onClose: () => void;
     activeRoute: SecuredOrder[];
-    /** 📅 예약 보관 — 내일 이후 콜 (reviews/23 B-4). 오늘 탭 셋과 따로 머리 아래 칸 하나 */
+    /** 📅 예약 보관 — 내일 이후 콜. 오늘 탭 셋과 따로 머리 아래 칸 하나 */
     reserved?: SecuredOrder[];
     /** 예약 콜 방출 — 오늘 덱의 방출과 같은 결재 문 */
     onDecision?: (orderId: string, status: 'ORDER_RELEASED_BY_ME') => void;
@@ -117,7 +117,7 @@ export default function Drawer({ open, onClose, activeRoute, reserved = [], onDe
                 </div>
 
                 {/**
-                  * 📅 **예약 — 내일 이후 콜** (reviews/23 B-4). 오늘 덱·시트·지도와 안 섞인다 — 그날이 되면 서버가 진행 중으로 올린다.
+                  * 📅 **예약 — 내일 이후 콜**. 오늘 덱·시트·지도와 안 섞인다 — 그날이 되면 서버가 진행 중으로 올린다.
                   *    한 줄은 «날 · 상차 시각 · 상차→하차 · 요금 · 색»(`reservedLineOf`). 🔴 0건이면 칸이 없다.
                   *    «⋯ 방출» 은 한 번 펼친 뒤에 누른다 — 오늘 덱의 «⋯ 이 콜 처리»와 같은 두 단계(잘못 누름 막기).
                   */}

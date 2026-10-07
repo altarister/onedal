@@ -26,7 +26,7 @@
             </intent-filter>
         </activity>
 
-        <!-- 📡 공급 서비스 — 서버 공급 소켓 + 블루투스로 스캔폰에 넘김 (SupplyService · reviews/50 ①-2) -->
+        <!-- 📡 공급 서비스 — 서버 공급 소켓 + 블루투스로 스캔폰에 넘김 (SupplyService) -->
         <service
             android:name=".SupplyService"
             android:exported="false"

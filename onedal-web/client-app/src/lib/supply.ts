@@ -2,7 +2,7 @@ import { registerPlugin } from '@capacitor/core';
 import { isNativeApp, socketBase } from './serverTarget';
 
 /**
- * 📡 **관제앱 공급 서비스 켜고 끄기 — 한 곳** (reviews/50 ①-2 · 관제앱 `SupplyPlugin` · `SupplyService`).
+ * 📡 **관제앱 공급 서비스 켜고 끄기 — 한 곳** (관제앱 `SupplyPlugin` · `SupplyService`).
  * 관제앱에서 로그인하면 네이티브 서비스가 서버 공급 소켓에 붙어 필터 · 모드 · 결재를 블루투스로 스캔폰에 넘긴다 — 화면을 꺼도 끊기지 않는다.
  * 🔴 공급 · 결재 소켓 사건은 웹 화면이 다루지 않는다 — 여기서는 토큰 · 서버 주소만 넘긴다. 웹(PC)에서는 아무것도 안 한다.
  * 관제앱을 열 때 · 토큰을 다시 받을 때마다 다시 `start` — 서비스가 만료 토큰을 쥔 채 멈춰 있지 않게.

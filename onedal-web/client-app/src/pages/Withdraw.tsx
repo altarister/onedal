@@ -7,7 +7,7 @@ import { submitWithdraw } from '../api/join';
 import { ContentSlot, JoinShell, SectionCard } from './JoinSteps';
 
 /**
- * 🚪 **탈퇴 — 안내 → 확인 → 끝** (reviews/29 6장 «탈퇴 · 파기»).
+ * 🚪 **탈퇴 — 안내 → 확인 → 끝**.
  *    무엇을 지우고 무엇을 몇 달 남기나는 개인정보 처리방침과 짝으로 정한다 — 지금은 목록 자리만 있다.
  *    🔴 서버가 하는 일은 «탈퇴 시각을 적고 폰 보고를 거절»까지(`POST /api/join/withdraw`) — `api/join.ts` 가 부른다. 끝나면 로그아웃.
  */

@@ -1,5 +1,5 @@
 /**
- * 📝 **가입 단계 흐름 — 순수 계산** (reviews/29 «페이지는 형식 · 단계 흐름 · 글은 기사님»).
+ * 📝 **가입 단계 흐름 — 순수 계산**.
  *    화면(`pages/Join.tsx` · `JoinApps.tsx` · `App.tsx` 의 MemberGate)은 여기서 «지금 단계 · 다음으로 갈 수 있나 · 어디로 보내나»만 묻는다.
  *    단계는 주소 `?step=` 에 싣는다 — 새로고침 · 뒤로 가기에도 같은 화면.
  *    🔴 서버 문(`/api/join`)은 `api/join.ts` 가 부른다 — 여기서는 서버를 모른다. 규격(가입 칸 · 글 종류)은 shared `join.ts` 하나.
@@ -23,7 +23,7 @@ export interface AgreementItem {
     contentKind?: ContentKind;
 }
 
-/** 가입 때 받는 동의 다섯 (reviews/29 «받는 동의») — 글은 비어 있어도 체크 칸은 있다. 서버에 가는 것은 글이 있는 종류의 판뿐 */
+/** 가입 때 받는 동의 다섯 — 글은 비어 있어도 체크 칸은 있다. 서버에 가는 것은 글이 있는 종류의 판뿐 */
 export const AGREEMENT_ITEMS: readonly AgreementItem[] = [
     { key: 'terms', label: '서비스 약관', required: true, contentKind: 'terms' },
     { key: 'privacy', label: '개인정보 수집 · 이용', required: true, contentKind: 'privacy' },

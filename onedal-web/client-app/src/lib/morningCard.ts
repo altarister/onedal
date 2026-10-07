@@ -2,7 +2,7 @@ import { businessDayKey, isEvaluating, isTerminal, SIGUNGU_AMBIGUOUS, SIGUNGU_UN
 import type { FlowsViewerReply } from '@onedal/shared';   // 응답 모양은 shared 한 곳(공통 함수 6)
 
 /**
- * 📊 **아침 카드 — 오늘 이 시간엔 어디 → 어디가 많다** (reviews/25 4단계 · 기사님 결정 3 · 1f).
+ * 📊 **아침 카드 — 오늘 이 시간엔 어디 → 어디가 많다** (기사님 결정 3 · 1f).
  *
  * 먼발치 1~2초에 읽히게 세 줄 이내: ① 요일·시간 창·기간 ② ③ 콜이 많은 흐름 둘(주마다 N건 · 처음 본 요금 평균).
  * 재료는 관제웹 통계 문(`/api/stats/flows?groupBy=weekdayHour`) 하나 — 같은 요일 · 지금부터 3시간 창만 고른다.

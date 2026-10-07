@@ -65,7 +65,7 @@ function DeviceRow({
      * 고르는 일은 `shared` 가 한다 — 여기서는 그리기만 한다 (운행일지도 같은 것을 물을 수 있다).
      */
     const screenBadge = deviceScreenBadge(device);
-    /** 📶 블루투스 · 폰 연결 배지 — 문제일 때만 하나(뿌리부터 · shared `phoneLinkBadgeOf` · reviews/50 ①-4) */
+    /** 📶 블루투스 · 폰 연결 배지 — 문제일 때만 하나(뿌리부터 · shared `phoneLinkBadgeOf`) */
     const linkBadge = phoneLinkBadgeOf(device);
     /** 📶 보고는 끊겼어도 관제앱이 블루투스로 10초 안에 들었다 */
     const bleAlive = device.bleHeardAt != null && Date.now() - device.bleHeardAt < 10_000;

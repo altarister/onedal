@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 📡 **관제웹 → 공급 서비스 다리** (reviews/50 ①-2) — 로그인하면 `start`, 로그아웃하면 `stop`.
+ * 📡 **관제웹 → 공급 서비스 다리** — 로그인하면 `start`, 로그아웃하면 `stop`.
  * 🔴 **권한을 다 받은 뒤에만 서비스를 띄운다** — 안드로이드 14 이상은 블루투스 허락 없이 연결 기기 형 상단 알림 서비스를 띄우면 앱이 죽는다.
  *    거절이면 띄우지 않고 `{started: false, denied: [...]}` 를 돌려준다.
  * 토큰 · 서버 주소는 앱 전용 저장소에 둔다 — 서비스가 다시 떠도(START_STICKY) 붙게. 관제웹 localStorage 와 같은 값 · 같은 앱 안이다.

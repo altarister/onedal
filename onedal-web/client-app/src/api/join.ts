@@ -4,7 +4,7 @@ import { apiClient } from './apiClient';
 import { socketBase } from '../lib/serverTarget';
 
 /**
- * 📝 **가입 · 탈퇴 · 페이지 글 — 서버 문을 부르는 곳은 이 파일 하나** (reviews/29 2단계 · 서버 `routes/join.ts` · `routes/contents.ts`).
+ * 📝 **가입 · 탈퇴 · 페이지 글 — 서버 문을 부르는 곳은 이 파일 하나** (서버 `routes/join.ts` · `routes/contents.ts`).
  *    화면(`pages/Join*` · `Pending` · `Blocked` · `Withdraw` · `Terms` · `App.tsx` MemberGate)은 **이 파일만** 부른다.
  *    🔴 동의 판이 그 사이 최신 판과 달라지면 서버가 409 — `JoinStaleError` 로 던진다. 화면은 글을 다시 읽어 동의 단계를 다시 그린다.
  */

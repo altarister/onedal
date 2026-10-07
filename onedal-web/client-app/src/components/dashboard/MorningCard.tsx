@@ -6,7 +6,7 @@ import type { FlowsViewerReply } from '@onedal/shared';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 /**
- * 📊 **아침 카드** — 오늘 이 요일 · 이 시간엔 어디 → 어디 콜이 많았나 (reviews/25 4단계).
+ * 📊 **아침 카드** — 오늘 이 요일 · 이 시간엔 어디 → 어디 콜이 많았나.
  *
  * 필터 한 줄 바로 위, **오늘 잡은 콜이 0건일 때만** 부모가 그린다 — 첫 콜을 잡으면 저절로 사라진다.
  * 재료는 관제웹 통계 문 하나(최근 4주 · 어제까지 묶인 날). 못 읽으면 안 그린다.

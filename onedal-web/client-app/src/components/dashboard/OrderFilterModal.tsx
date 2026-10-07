@@ -98,7 +98,7 @@ const toValues = (f: ValueForm, prev: Record<FlatValueKey, any>): Record<FlatVal
 /* 🔴 순서도 목업 그대로 — 현위 → 목적 → 라인 (`MapMockup.tsx:3229~3232`) */
 const KNOB_FIELDS: FlatValueKey[] = ['pickupRadiusKm', 'destinationRadiusKm', 'detourRadiusKm'];
 
-/** 📅 예약콜 세 값 — 기사님 말로 (reviews/23 B-4) */
+/** 📅 예약콜 세 값 — 기사님 말로 */
 const RESERVATION_PICKS: ReadonlyArray<[ReservationMode, string]> = [
     ['today', '오늘 콜만'], ['tomorrowToo', '내일 콜도'], ['tomorrowOnly', '내일 콜만'],
 ];
@@ -1030,7 +1030,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                             </div>
 
                             {/**
-                              * 📅 **예약콜 — 세 값 가운데 하나** (reviews/23 B-4 · 기사님 «가»). 기본은 «오늘 콜만».
+                              * 📅 **예약콜 — 세 값 가운데 하나** (기사님 «가»). 기본은 «오늘 콜만».
                               *    읽는 곳은 원달앱 1차 필터 하나다 — 서버는 이 값으로 거르지 않는다. 받은 내일 콜은 예약 보관에 들고 오늘 목록과 안 섞인다.
                               *    만지는 즉시 오늘 값으로 가고(받을 짐과 같은 길), 💾 가 평소 설정까지 싣는다.
                               */}

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { reservedLineOf, reservedDayLabel, reservedBadgeOf, reservedShortOf } from './reservedLine';
 
 /**
- * 📅 **서랍 «예약» 칸의 한 줄 — 먼발치에서 읽히게** (reviews/23 B-4 · onedal-1f 조건).
+ * 📅 **서랍 «예약» 칸의 한 줄 — 먼발치에서 읽히게** (onedal-1f 조건).
  * 순서는 날 · 상차 시각 · 상차→하차 · 요금 · 색. 모르는 칸은 지어내지 않고 «—»·«--:--» 로 둔다.
  */
 describe('📅 예약 한 줄', () => {

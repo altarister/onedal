@@ -14,7 +14,7 @@ import {
 import { ContentSlot, JoinShell, SectionCard } from './JoinSteps';
 
 /**
- * 📝 **가입 — ① 동의 → ② 가입 정보 → ③ 신청** (reviews/29 «관제웹 기사 쪽 페이지» · 서버 문 `/api/join`).
+ * 📝 **가입 — ① 동의 → ② 가입 정보 → ③ 신청** (서버 문 `/api/join`).
  *    새 계정이 처음 보는 화면. 로그인 밖에 있다 — 주소를 받은 사람이 바로 연다. 신청(③)만 로그인이 필요하다.
  *    단계는 `?step=` 에, 적던 내용은 이 브라우저(`sessionStorage`)에 — 새로고침해도 이어진다.
  *    `?reconsent=1` 이면 **동의 단계만** — 약관 판이 올라 다시 동의할 때(관제 화면 띠에서 온다). 서버로 보내는 곳은 `api/join.ts` 하나.

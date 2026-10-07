@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { morningCardOf, keptTodayCount, runningCount } from './morningCard';
 
 /**
- * 📊 **아침 카드 — 오늘 이 시간엔 어디 → 어디가 많다** (reviews/25 4단계 · 1f 결정).
+ * 📊 **아침 카드 — 오늘 이 시간엔 어디 → 어디가 많다** (1f 결정).
  * 세 줄 이내 · 먼발치 1~2초. 같은 요일 · 지금부터 3시간 창 · 흐름 둘 · 주마다 N건 · 표본 적으면 «(표본 N일)» · 0일이면 한 줄.
  * 모호·모름은 순위에서 빼고 꼬리의 «동네 못 가림 N%»로만. 꼬리 «내 폰이 본 목록 기준».
  */

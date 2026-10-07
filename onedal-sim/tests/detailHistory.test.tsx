@@ -13,7 +13,7 @@ import { DispatchPage } from '../src/pages/DispatchPage';
  * 원달앱은 알람으로 상세에 들어간 뒤 30초 무응답이면 «뒤로 가기»를 누른다(`HijackService` · GLOBAL_ACTION_BACK).
  * 시뮬레이터 앱은 그 뒤로 가기를 웹뷰 방문 기록으로 넘긴다(`webView.goBack()`). 상세가 React 상태뿐이면
  * 방문 기록에 없어서 **설정 화면까지 나가 버린다.**
- * 세 배차망 모두 상세를 방문 기록에 남긴다 (`SimNet.detailInHistory`) · 인성 · 화물24시는 첫 화면(홈)도 기록에 한 칸 — 뒤로: 상세 → 목록 → 홈 (reviews/46).
+ * 세 배차망 모두 상세를 방문 기록에 남긴다 (`SimNet.detailInHistory`) · 인성 · 화물24시는 첫 화면(홈)도 기록에 한 칸 — 뒤로: 상세 → 목록 → 홈.
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -122,7 +122,7 @@ describe('픽커', () => {
 });
 
 /**
- * 🏠🔙 **인성 · 화물24시 — 홈 → 목록 → 상세, 뒤로는 상세 → 목록 → 홈** (reviews/46 · 기사님).
+ * 🏠🔙 **인성 · 화물24시 — 홈 → 목록 → 상세, 뒤로는 상세 → 목록 → 홈** (기사님).
  * 원달앱이 상세 대기 끝에 «뒤로»를 누르면 목록으로, 목록에서 한 번 더면 홈으로 — 준비 화면으로 튕기지 않는다.
  */
 describe.each([

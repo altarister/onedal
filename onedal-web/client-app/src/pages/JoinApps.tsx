@@ -8,7 +8,7 @@ import { APP_STEPS, nextOf, prevOf, stepFromQuery, type AppStep } from '../lib/j
 import { ContentSlot, JoinShell, SectionCard } from './JoinSteps';
 
 /**
- * 📱 **앱 받기 — ④ 받기 → ⑤ 설치 → ⑥ 폰 연결** (reviews/29 «새 기사 한 분이 첫 콜까지» 5~8).
+ * 📱 **앱 받기 — ④ 받기 → ⑤ 설치 → ⑥ 폰 연결**.
  *    APK 최신 판 · 크기 · 받기 주소는 서버가 준다(`/api/downloads/links` · 운영센터 «앱 배포»에서 올린 것 · 주소는 10분 열쇠 — 폰 브라우저가 연다).
  *    🔴 받기는 승인된 계정만 — 승인 전(서버 403)은 «승인되면 설치 안내가 열립니다» 한 줄. 설치 · 폰 연결 글은 누구나 읽는다.
  */

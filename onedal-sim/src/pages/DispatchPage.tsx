@@ -122,7 +122,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   const individual = presetParams.get('calls') === 'individual';
 
   /**
-   * 🏠 **첫 화면** (`SimNet.Home` · reviews/46) — 목록에 들어가기 전에는 실물처럼 홈. 들어가면 `?view=list` 로 방문 기록에 한 칸 쌓는다
+   * 🏠 **첫 화면** (`SimNet.Home`) — 목록에 들어가기 전에는 실물처럼 홈. 들어가면 `?view=list` 로 방문 기록에 한 칸 쌓는다
    * (원달앱 «뒤로»: 상세 → 목록 → 홈). 콜은 목록을 볼 때만 흘린다 — 홈에 있는 동안 흘리면 아무도 못 본 채 지나간다(기사님 «가»).
    */
   const atHome = !!simNet.Home && presetParams.get('view') !== 'list';

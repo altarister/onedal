@@ -14,7 +14,7 @@ import { Button } from "@onedal/ui/button";
 export default function Header({ isConnected, liveCalls, onMenu, reservedCount }: {
     isConnected: boolean;
     liveCalls?: SecuredOrder[];
-    /** 📅 예약 보관 수 — 0 이면 아무것도 안 그린다. 누르면 서랍(«📅 예약» 칸)이 열린다 (reviews/23 B-4) */
+    /** 📅 예약 보관 수 — 0 이면 아무것도 안 그린다. 누르면 서랍(«📅 예약» 칸)이 열린다 */
     reservedCount?: number;
     /** ☰ 를 누르면 왼쪽 서랍이 열린다 — 안 주면 버튼을 안 그린다(로그인 등 서랍 없는 화면) */
     onMenu?: () => void;

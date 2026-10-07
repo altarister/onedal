@@ -160,7 +160,7 @@ function AppLayout() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/settlement" element={<Settlement />} />
-        {/* 🚪 탈퇴 — 로그인한 기사만 (reviews/29 «관제웹 기사 쪽 페이지») */}
+        {/* 🚪 탈퇴 — 로그인한 기사만 */}
         <Route path="/withdraw" element={<Withdraw />} />
         {/* 🚫 이용이 멈췄습니다 — 정지 · 탈퇴 · 유료 기한 (MemberGate 가 보낸다) */}
         <Route path="/blocked" element={<Blocked />} />
@@ -220,7 +220,7 @@ export default function App() {
             새 화면으로 굳히면 옛 화면의 탭 줄이 사라지는데, 폰에서는 현황판도 안 떠 볼 곳이 없어진다.
             고정값만 그리고 서버·소켓·GPS 를 안 쓴다 */}
         <Route path="/mockup/drawer" element={<DrawerMockup />} />
-        {/* 📝 **가입 · 승인 대기 · 앱 받기 · 약관 — 로그인 밖** (reviews/29 «관제웹 기사 쪽 페이지»).
+        {/* 📝 **가입 · 승인 대기 · 앱 받기 · 약관 — 로그인 밖**.
             주소를 받은 새 계정이 로그인 전에 읽는다. 글은 운영센터 «페이지 글»에서 온다 · 서버 문은 `api/join.ts` 한 곳 */}
         <Route path="/join" element={<Join />} />
         <Route path="/join/apps" element={<JoinApps />} />

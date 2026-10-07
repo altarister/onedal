@@ -38,7 +38,7 @@ export function useOrderEngine() {
     const [terminatedOrders, setTerminatedOrders] = useState<SecuredOrder[]>([]);
     /** ⚪ 손으로 연 상세를 앱이 못 읽음 — 평가 자리의 «판정 못 함» 한 줄 (`lib/unreadable`) */
     const [unreadable, setUnreadable] = useState<Unreadable | null>(null);
-    /** 📅 예약 보관 — 내일 이후 콜. 오늘 목록과 안 섞는다 — 서랍 «예약» 칸만 그린다 (reviews/23 B-4) */
+    /** 📅 예약 보관 — 내일 이후 콜. 오늘 목록과 안 섞는다 — 서랍 «예약» 칸만 그린다 */
     const [reservedOrders, setReservedOrders] = useState<SecuredOrder[]>([]);
     /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의) */
     const [routeStops, setRouteStops] = useState<RouteStopInfo[]>([]);

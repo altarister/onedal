@@ -36,7 +36,7 @@ export function reservedBadgeOf(c: ReservedFields): string | null {
 }
 
 /**
- * 📅 **서랍 «예약» 칸의 한 줄** (reviews/23 B-4) — 먼발치 1~2초에 읽히게 «날 · 상차 시각 · 상차→하차 · 요금 · 색» 그 순서.
+ * 📅 **서랍 «예약» 칸의 한 줄** — 먼발치 1~2초에 읽히게 «날 · 상차 시각 · 상차→하차 · 요금 · 색» 그 순서.
  * 🔴 모르는 칸은 지어내지 않는다 — 시각이 없으면 «--:--», 판정이 없으면 «—» (규칙 ④).
  */
 export function reservedLineOf(c: SecuredOrder & { reservedFor?: string; reservedAt?: string | null }): {

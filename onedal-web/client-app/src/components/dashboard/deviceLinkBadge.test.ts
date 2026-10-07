@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 📶 **폰 칸 연결 배지는 그려지는 파일에서 본다** (reviews/50 ①-4 · client-app CLAUDE «소스 글자를 읽는 검사는 그려지는 파일»).
+ * 📶 **폰 칸 연결 배지는 그려지는 파일에서 본다** (client-app CLAUDE «소스 글자를 읽는 검사는 그려지는 파일»).
  * 고르는 일(차례 · 글)은 shared `phoneLinkBadgeOf` 검사가 본다 — 여기는 폰 칸이 그 함수를 그리는지만.
  * 못 잡는 것: 실제 색 · 자리(pnpm shot).
  */

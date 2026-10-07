@@ -1,7 +1,7 @@
 import type { NetHomeProps } from '../nets';
 
 /**
- * 🏠 **인성 첫 화면 «인성퀵화면분할»** — 실물 캡처 `ex_images/인성/인성홈.png` (reviews/46).
+ * 🏠 **인성 첫 화면 «인성퀵화면분할»** — 실물 캡처 `ex_images/인성/인성홈.png`.
  *
  * 원달앱은 글자로 화면을 가른다 — «인성퀵화면분할»은 배차망을 알아보는 글자(networkPages 인성 networkMarkers)라
  * **한 칸으로** 그린다(웹뷰는 칸 글자를 이어 붙여 «들어 있나»로 본다 · 둘로 쪼개면 안 맞는다).
