@@ -150,8 +150,8 @@ export class OrderEvaluator {
 
     /**
      * 앱에서 올라온 PendingOrder를 심사하여 장/단점(pros/reasons)을 주입합니다.
+     * 🪞 판정 한 번마다 «나란히 한 번 더» 추가 호출 상한 2 (`kakaoService.hedgeBudget`)
      */
-    /** 🪞 판정 한 번마다 «나란히 한 번 더» 추가 호출 상한 2 (`kakaoService.hedgeBudget`) */
     public evaluate(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any): Promise<void> {
         return hedgeBudget.run({ left: 2, used: 0 }, () => this.evaluateOnce(userId, securedOrder, io));
     }

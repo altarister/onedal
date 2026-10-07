@@ -53,8 +53,7 @@ export const useFilterStore = create<FilterState>((set) => ({
 /**
  * 🔴 **구독은 컴포넌트 수만큼 늘어나면 안 된다.**
  *
- * `useFilterConfig()` 를 부르는 컴포넌트가 여럿이다(`DeviceControlPanel` · `PinnedRoute` ·
- * `OrderFilterModal` · `VehicleStatusPanel` · `OrderFilterStatus`). **훅마다 `socket.on` 을
+ * `useFilterConfig()` 를 부르는 컴포넌트가 여럿이다. **훅마다 `socket.on` 을
  * 걸면**, 서버가 `filter-updated` 를 **1번** 보낼 때 관제웹에서는 컴포넌트 수만큼 돈다 —
  * 페이로드가 동 179개짜리라 달리는 동안 정규화와 스토어 갱신이 초당 여러 벌 돈다.
  *

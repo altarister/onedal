@@ -78,8 +78,8 @@ function applySoloRouteAndSave(holder: Parameters<typeof applySoloRoute>[0], r: 
     OrderRepository.saveRouteFields(holder as any);
 }
 
-/** 기존 평가 중이던 콜을 외부에서 강제 삭제할 때 호출 */
 /**
+ * 기존 평가 중이던 콜을 외부에서 강제 삭제할 때 호출
  * @param reason 왜 정리하나 — 화면 이탈·새 콜 진입(`FORCE_CANCEL`) · 안전취소 타임아웃(`TIMEOUT`).
  *   🔴 **셈은 여기 한 번이다** — 타임아웃 경로가 이 함수 뒤에 `countCancel` 을 또 불러 보통 콜을 두 번 셌다.
  */
@@ -183,7 +183,6 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     updateActiveFilter(userId, {}, io);
 }
 
-/** 취소/방출 등 메모리 변동 발생 시, 오더가 남아있다면 카카오 경로를 백그라운드에서 재탐색하여 폴리라인 및 소요시간을 복원합니다. */
 /**
  * ⏱️ **경로 순서에 넘길 «굳은 약속» 재료** (기사님 확정: *"전화한 후 한 약속은 지킨다"*).
  *
@@ -225,6 +224,7 @@ export async function recalcRouteIfStopsChanged(userId: string, io: any, why: st
     await recalculateActiveKakaoRoute(userId, io);
 }
 
+/** 취소/방출 등 메모리 변동 발생 시, 오더가 남아있다면 카카오 경로를 백그라운드에서 재탐색하여 폴리라인 및 소요시간을 복원합니다. */
 export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     const session = getUserSession(userId);
 
@@ -345,8 +345,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             if (priority === "TIME") paramLabel = "최단시간";
             if (priority === "DISTANCE") paramLabel = "최단거리";
 
-            // routeComposer 규약으로 기록한다. 손으로 채우면 접근 구간이 또 버려진다
-            // (이 파일에만 같은 기록 로직이 여섯 벌 있었다 — OrderEvaluator 포함)
+            // routeComposer 규약으로 기록한다. 손으로 채우면 접근 구간이 버려진다
             applySoloRouteAndSave(securedOrder, result);
 
             /**
@@ -449,12 +448,11 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 }
 
 /**
- * `recalculateDetourFilter` 는 **`state/filterManager` 로 옮겼다**.
+ * `recalculateDetourFilter` 는 **`state/filterManager` 에 있다**.
  *
- * 국면별 설정(§2-4)이 들어오면서 경유를 다시 그려야 하는 자리가 셋으로 늘었다 —
- * 관제탑 필터 저장 · **국면별 설정 저장** · **국면 전환**. 뒤의 둘은 `filterManager` 안이라
- * 여기(dispatchEngine)를 부르면 순환 참조가 된다. 그래서 함수를 아래(경계가 낮은 쪽)로 옮겼다.
- * 경유 계산은 이 레포에서 이미 **4벌**로 갈라진 적이 있다. 두 벌째를 만들지 않는다.
+ * 경유를 다시 그려야 하는 자리가 셋이다 — 관제탑 필터 저장 · **국면별 설정 저장** · **국면 전환**.
+ * 뒤의 둘은 `filterManager` 안이라 여기(dispatchEngine)를 부르면 순환 참조가 된다 — 그래서 경계가 낮은 쪽에 둔다.
+ * 경유 계산은 한 벌만 둔다. 두 벌째를 만들지 않는다.
  */
 export { recalculateDetourFilter } from "../state/filterManager";
 
@@ -1271,9 +1269,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
     }
 }
 
-// ━━━ [socketHandlers 인라인 로직 추출] ━━━
-// 아래 함수들은 socketHandlers.ts의 소켓 이벤트 핸들러에 85줄+ 인라인되어 있던 
-// 비즈니스 로직을 함수로 추출한 것입니다.
+// ━━━ 소켓 이벤트가 부르는 일 ━━━
+// socketHandlers.ts 의 소켓 이벤트 핸들러는 얇게 두고, 일은 아래 함수가 한다
 
 export interface MilestoneResult {
     success: boolean;
