@@ -12,6 +12,7 @@ import type { CallOption } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { slog } from "../utils/fileLogger";
 import { cancelAllWaits, type Wait } from "./waits";
+import { loadFilterValues } from "./filterValues";
 import { jsonArrayOf } from "@onedal/shared";
 
 // ━━━ 서비스 권장 기본값 (신규 가입자용) ━━━
@@ -373,7 +374,6 @@ export function baseFilterFromDb(userId: string, filterRow?: any | null): AutoDi
     if (filterRow === undefined) filterRow = db.prepare("SELECT * FROM user_filters WHERE user_id = ?").get(userId) ?? null;
     const firstPatch = (() => {
         try {
-            const { loadFilterValues } = require('./filterManager');
             return loadFilterValues(userId);
         } catch (e) {
             // 세션 생성을 막지 않는다 — 표 기본값이면 콜 잡기는 돈다

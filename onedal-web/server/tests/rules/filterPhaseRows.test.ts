@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { FILTER_FIELDS, QUAD_FIELDS, filterValuesFrom, DEFAULT_FILTER_VALUES, reachRadiusKm } from '@onedal/shared';
 import db from '../../src/db';
-import { loadFilterValues } from '../../src/state/filterManager';
+import { loadFilterValues } from '../../src/state/filterValues';
 
 /**
  * 🎛️ **값 다섯의 그릇** — 컬럼·폼·기본값의 원천은 `FILTER_FIELDS` 표 하나다.
