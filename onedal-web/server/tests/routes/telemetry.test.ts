@@ -126,7 +126,7 @@ describe("📸 이상 징후(telemetry) 라우트 및 DB 저장 검증", () => {
         db.prepare("DELETE FROM user_devices WHERE user_id = 'test-user' AND device_id = ?").run(testDeviceId);
     });
 
-    describe("📷 사진이 실린 보고 — 레포 밖 폴더에 쓰고 칸을 채운다 · 사진이 깨져도 글 줄은 남는다 (reviews/37)", () => {
+    describe("📷 사진이 실린 보고 — 레포 밖 폴더에 쓰고 칸을 채운다 · 사진이 깨져도 글 줄은 남는다", () => {
         const DEV = "TEST-DEVICE-SHOT";
         const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(32, 7)]);
         let dir: string;

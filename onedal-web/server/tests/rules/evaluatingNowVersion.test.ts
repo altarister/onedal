@@ -36,7 +36,7 @@ afterAll(() => {
     clearUserSession(U);
 });
 
-describe('🧬 필터 판과 심사 중 — 관제앱 공급(reviews/50 ①-5 · 보고 응답엔 필터가 없다)', () => {
+describe('🧬 필터 판과 심사 중 — 관제앱 공급(보고 응답엔 필터가 없다)', () => {
     it('🔴 같은 설정이면 심사 중이든 아니든 판이 같다 · 그 폰 몫의 evaluatingNow 가 참/거짓', async () => {
         await report('');   // 살아 있는 폰이 되게(공급 폰 줄은 살아 있는 폰만)
         const s = getUserSession(U);

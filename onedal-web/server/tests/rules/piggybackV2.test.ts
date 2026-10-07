@@ -26,7 +26,7 @@ describe('filterVersionOf — 내용 해시 (카운터가 아니다, 규칙 ③)
     });
 });
 
-describe('보고 응답에는 필터 · 결재가 없다 — 관제앱 공급 한 길 (reviews/50 ①-5)', () => {
+describe('보고 응답에는 필터 · 결재가 없다 — 관제앱 공급 한 길', () => {
     it('🔴 보고 문은 필터 본문 · 판 게이트 · 결재 · 빨리 접기를 싣지 않는다', () => {
         for (const gone of ['dispatchEngineArgs', 'speaksV2', 'piggybackDecision', 'foldAfter', 'responseFilter']) expect(scrap()).not.toContain(gone);
     });

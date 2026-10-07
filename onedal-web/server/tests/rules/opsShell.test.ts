@@ -36,7 +36,7 @@ describe('🧭 운영센터 틀', () => {
         expect(readFileSync(join(SRC, '../vite.config.ts'), 'utf8')).not.toContain('chunkSizeWarningLimit');   // 경고 한도를 올려 가리지 않는다
     });
 
-    it('🔴 메뉴는 여덟 — 관리자의 궁금증 순서(reviews/33) · 줄마다 궁금증(ask)과 할 수 있는 것(can)이 비지 않는다', () => {
+    it('🔴 메뉴는 여덟 — 관리자의 궁금증 순서 · 줄마다 궁금증(ask)과 할 수 있는 것(can)이 비지 않는다', () => {
         const ui = read('ui.tsx');
         const nav = ui.slice(ui.indexOf('export const NAV'), ui.indexOf('];', ui.indexOf('export const NAV')));
         const rows = [...nav.matchAll(/\{ to: '([^']+)', label: '([^']+)',[^\n]*ask: '([^']+)', can: '([^']+)'/g)];
@@ -78,7 +78,7 @@ describe('🧭 운영센터 틀', () => {
         expect(a).toContain('rows={collect}');
     });
 
-    it('🔴 이상 기록 사진은 줄을 펼칠 때만 받는다 — 표를 그릴 때 100장을 받지 않는다 (reviews/37)', () => {
+    it('🔴 이상 기록 사진은 줄을 펼칠 때만 받는다 — 표를 그릴 때 100장을 받지 않는다', () => {
         const a = read('pages/Anomalies.tsx');
         expect(a.split('api.anomalyShot(').length - 1).toBe(1);
         expect(a.indexOf('function AnomalyDetail')).toBeGreaterThan(-1);

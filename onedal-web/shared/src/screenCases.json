@@ -1,6 +1,6 @@
 {
  "about": [
-  "🧪 화면 판별 문제지 (reviews/35 2단계) — 원달앱 ScreenTableDetectTest 만 읽는다 · shared index 에서 내보내지 않는다.",
+  "🧪 화면 판별 문제지 — 원달앱 ScreenTableDetectTest 만 읽는다 · shared index 에서 내보내지 않는다.",
   "was = 옛 판별(ScreenKeywords · 픽커 덮어쓰기) · expect = 배차망 정의 표 판별. 둘이 다른 줄이 2단계에서 바뀌는 화면 전부다.",
   "캡처 견본은 사진에서 옮긴 고정 글자 · A24 줄은 원달앱이 서버로 올린 화면 원문(픽커 목록 · 상세 — 사람 이름 · 전화번호 없음)."
  ],
@@ -112,7 +112,7 @@
   },
   {
    "network": "insung",
-   "why": "캡처 · 시뮬 견본 — 홈 «인성퀵화면분할» (인성홈 · reviews/46)",
+   "why": "캡처 · 시뮬 견본 — 홈 «인성퀵화면분할» (인성홈)",
    "text": "인성퀵화면분할 ✔ 인성1,5,6,7그룹 ✔ 인성2,3,4그룹 실행 설정 5:5 종료 원격지원요청 INSUNG DATA",
    "was": "UNKNOWN",
    "expect": "HOME"

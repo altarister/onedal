@@ -177,7 +177,7 @@ describe('🏢 글 · 공지 · 기록 · 숫자', () => {
     });
 });
 
-describe('📷 이상 기록 사진 — 운영센터 문으로만 · 펼칠 때 기록 한 줄 (reviews/37 · 사진은 가리지 않은 원본)', () => {
+describe('📷 이상 기록 사진 — 운영센터 문으로만 · 펼칠 때 기록 한 줄 (사진은 가리지 않은 원본)', () => {
     const fs = require('fs'), os = require('os'), path = require('path');
     const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(16, 3)]);
     const before = process.env.SHOTS_DIR;

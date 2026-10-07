@@ -30,7 +30,7 @@ describe('📅 예약콜 필터 칸', () => {
         expect(s).toMatch(/reservationMode\?: ReservationMode;/);
     });
 
-    it('관제웹 «어떤 콜» 칸에서 세 값을 고른다 — 예약 보관이 섰으니 연다 (reviews/23 B-4)', () => {
+    it('관제웹 «어떤 콜» 칸에서 세 값을 고른다 — 예약 보관이 섰으니 연다', () => {
         const modal = read(join(__dirname, '../../../client-app/src/components/dashboard/OrderFilterModal.tsx'));
         expect(modal).toContain("RESERVATION_PICKS");
         for (const v of ["'today'", "'tomorrowToo'", "'tomorrowOnly'"]) expect(modal).toContain(v);

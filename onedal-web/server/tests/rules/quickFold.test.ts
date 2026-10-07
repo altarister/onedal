@@ -70,7 +70,7 @@ describe('⏩ 판정 끝에 싣기', () => {
     });
 });
 
-describe('⏩ 폰에 알리기 — 관제앱 공급 소켓 phone-fold (reviews/50 ①-5 · 보고 응답엔 없다)', () => {
+describe('⏩ 폰에 알리기 — 관제앱 공급 소켓 phone-fold (보고 응답엔 없다)', () => {
     const sent: any[] = [];
     const supplyIo = { of: () => ({ adapter: { rooms: new Map([[U, new Set(['관제앱'])]]) }, to: () => ({ emit: (ev: string, d: any) => sent.push([ev, d]) }) }) };
     const folds = () => sent.filter(([ev]) => ev === 'phone-fold').map(([, d]) => d);

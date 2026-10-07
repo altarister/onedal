@@ -119,7 +119,7 @@ describe('배차망 목록 — 한 곳에서만', () => {
         expect(SIM_NET_LIST.map(n => [n.key, n.label])).toEqual([['insung', '인성콜'], ['hwamul24', '화물24시'], ['kakaopicker', '픽커']]);
     });
 
-    it('🔙 방문 기록 — 세 배차망 모두 상세를 남긴다(원달앱 «뒤로»가 준비 화면으로 안 튕기게 · reviews/46)', () => {
+    it('🔙 방문 기록 — 세 배차망 모두 상세를 남긴다(원달앱 «뒤로»가 준비 화면으로 안 튕기게)', () => {
         expect(SIM_NET_LIST.map(n => [n.key, n.detailInHistory])).toEqual([
             ['insung', true], ['hwamul24', true], ['kakaopicker', true],
         ]);

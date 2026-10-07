@@ -78,7 +78,7 @@ describe('📊 운영센터 통계', () => {
         expect(out.to).toBe(DAY);
         expect(days).toBe(OPS_STATS_MAX_DAYS);
     });
-    it('🔴 ④ 흐름 칸 — 노선 합과 같은 콜 수 · 요일 시로 묶음(수요일) · 본 시간은 실물 콜이 든 시간만(시뮬 13시 없음) · reviews/36', async () => {
+    it('🔴 ④ 흐름 칸 — 노선 합과 같은 콜 수 · 요일 시로 묶음(수요일) · 본 시간은 실물 콜이 든 시간만(시뮬 13시 없음)', async () => {
         const out = await get(opsRouter, '/stats', { from: DAY, to: DAY });
         const total = (rows: any[]) => rows.reduce((n: number, r: any) => n + r.calls, 0);
         expect(total(out.flows)).toBe(total(out.routes));

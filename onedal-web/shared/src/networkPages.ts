@@ -144,7 +144,7 @@ interface NetworkScreenSpec {
 
 export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
   "insung": {
-    "about": ["📄 **인성 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/인성 · 시뮬 onedal-sim).", "⚠️ 실물 인성 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처 몇 장이 근거다. 설치하면 이 표부터 다시 본다."],
+    "about": ["📄 **인성 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/인성 · 시뮬 onedal-sim).", "⚠️ 실물 인성 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처 몇 장이 근거다. 설치하면 이 표부터 다시 본다."],
     "excludeScan": ["memo", "payment", "tags"],
     "excludeScanWhy": "기사님 «인성은 적요»(+ 결제 괄호 «(착불)» · 구분 «왕복») — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다",
     "addressCut": "\\(.*?\\)$",
@@ -263,7 +263,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     }
   },
   "hwamul24": {
-    "about": ["📄 **화물24시 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/화물24시).", "⚠️ 실물 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처가 근거다. 시뮬 상세 화면은 실물과 모양이 달라(머리 «배차내역») 상세까지 못 간다."],
+    "about": ["📄 **화물24시 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/화물24시).", "⚠️ 실물 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처가 근거다. 시뮬 상세 화면은 실물과 모양이 달라(머리 «배차내역») 상세까지 못 간다."],
     "excludeScan": ["memo", "payment"],
     "excludeScanWhy": "기사님 «화물24시는 화물정보»(+ 결제방법 «착불») — 화주 이름 줄(«화물과퀵») · «60분 안보기» · 버튼 · 주소는 안 본다",
     "addressCut": ",[\\s\\S]*$",
@@ -371,7 +371,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     }
   },
   "kakaopicker": {
-    "about": ["📄 **카카오 픽커 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/카카오픽커/실물_2026 · 실물 로그).", "칸 이름은 세 배차망 공통(`PageField`) — 여기에는 «어디서 · 어떤 글자로»만 적는다.", "안 읽는·버리는 칸(UNUSED·DROPPED)이 다음에 읽을 재료다."],
+    "about": ["📄 **카카오 픽커 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/카카오픽커/실물_2026 · 실물 로그).", "칸 이름은 세 배차망 공통(`PageField`) — 여기에는 «어디서 · 어떤 글자로»만 적는다.", "안 읽는·버리는 칸(UNUSED·DROPPED)이 다음에 읽을 재료다."],
     "excludeScan": ["itemSize", "memo"],
     "excludeScanWhy": "기사님 «카카오픽커는 물품정보»+«가» 유의사항 — 둘 다 «최종 수익» · 버튼 앞에서 끝난다 · 픽업지 주소 · 목록 잔상은 안 본다",
     "addressCut": null,

@@ -97,7 +97,7 @@ describe('📡 관제앱 공급', () => {
         });
     });
 
-    describe('📶 블루투스로만 아는 폰 사실 (reviews/50 ①-4)', () => {
+    describe('📶 블루투스로만 아는 폰 사실', () => {
         const U3 = 'test-phone-status';
         beforeAll(() => {
             approvedUser(U3);
@@ -122,7 +122,7 @@ describe('📡 관제앱 공급', () => {
         });
     });
 
-    describe('🚫 블루투스 받기 전 원달앱 — 서버가 거절 (reviews/50 ①-5 · 기사님 «가»)', () => {
+    describe('🚫 블루투스 받기 전 원달앱 — 서버가 거절 (기사님 «가»)', () => {
         const U4 = 'test-app-too-old';
         const DEV4 = 'dev-too-old-1';
         const io = { to: () => ({ emit: () => {} }), of: () => ({ adapter: { rooms: new Map() } }) };

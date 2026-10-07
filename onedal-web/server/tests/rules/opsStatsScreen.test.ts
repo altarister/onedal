@@ -32,7 +32,7 @@ describe('📊 운영센터 통계 화면', () => {
         expect(code).toContain('rows={d?.topFares ?? []}');
     });
 
-    it('🔴 ④ 어디로 · 몇 시에 — 서버 흐름 칸을 shared flowViews 로 센다(화면이 다시 세지 않는다) · 못 본 시간은 «·» (reviews/36)', () => {
+    it('🔴 ④ 어디로 · 몇 시에 — 서버 흐름 칸을 shared flowViews 로 센다(화면이 다시 세지 않는다) · 못 본 시간은 «·»', () => {
         expect(code).toContain('④ 어디로 · 몇 시에 — 목적지를 고르는 근거');
         for (const call of ['originsOf(s.flows)', 'flowsFromOrigin(s.flows, origin)', 'destinationPairs(s.flows, origin)', 'hourHeat(s.flows, s.watched, origin']) expect(code).toContain(call);
         expect(code).toContain(`못 봄`);

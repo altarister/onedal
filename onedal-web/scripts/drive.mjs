@@ -376,7 +376,7 @@ async function e2eSupplyMode(supply, tok, deviceId) {
     const noWeb = await waitMode('ALARM');
     check('🧪 공급 소켓 — 관제웹이 없으면 공급 값의 폰 모드도 알람(공급 소켓은 «관제웹 있음»으로 셈하지 않음)', noWeb === 'ALARM', `${noWeb}`);
     const r = await scrap(deviceId, { filterVersion: '' });
-    check('🧪 보고 답에는 필터 · 판 · 모드 · 결재가 없다 — 관제앱 공급 한 길(reviews/50 ①-5)',
+    check('🧪 보고 답에는 필터 · 판 · 모드 · 결재가 없다 — 관제앱 공급 한 길',
         r.status === 200 && !('dispatchEngineArgs' in (r.json ?? {})) && !('filterVersion' in (r.json ?? {})) && !('decision' in (r.json ?? {})) && r.json?.deviceControl?.mode === undefined,
         `HTTP ${r.status} · 칸 ${Object.keys(r.json ?? {}).join(',')}`);
     const web = openSocket('', { token: tok, clientSessionId: MAIN_TAB });

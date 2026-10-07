@@ -89,7 +89,7 @@ describe('📱 서버가 «보낸 지문» 기억', () => {
 describe('📱 짝 — 폰에 실제로 보내는 지문을 기억하고, 점검이 그것을 읽는다', () => {
     const code = (rel: string) => readFileSync(join(__dirname, '../../src', rel), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    it('🔴 관제앱 공급이 실제로 보낼 때 폰마다 그 지문을 기억한다(reviews/50 ①-5 · 보고 응답엔 필터가 없다)', () => {
+    it('🔴 관제앱 공급이 실제로 보낼 때 폰마다 그 지문을 기억한다(보고 응답엔 필터가 없다)', () => {
         expect(code('state/phoneSupply.ts')).toMatch(/rememberSentFilterVersion\(\s*id\s*,\s*supply\.filterVersion\s*\)/);
     });
     it('🔴 시작 전 점검이 폰 점검과 «실제로 적용되는» 반경을 싣는다', () => {
@@ -100,7 +100,7 @@ describe('📱 짝 — 폰에 실제로 보내는 지문을 기억하고, 점검
     });
 });
 
-describe('🎛️ 모드 셈 — 새 원달앱은 보낼 모드 = 받은 모드 (reviews/50 ①-5)', () => {
+describe('🎛️ 모드 셈 — 새 원달앱은 보낼 모드 = 받은 모드', () => {
     const base = { deviceId: 'p', lastSeen: 1, status: 'ONLINE', screenContext: 'LIST', stats: { polled: 0, grabbed: 0, canceled: 0 } } as any;
     it('🔴 일부러 내려간 알람(명령 자동 · 보낼 모드 알람 · 받은 모드 알람)은 맞음', () => {
         expect(phoneCheckOf({ ...base, mode: 'AUTO', sentMode: 'ALARM', suppliedMode: 'ALARM', supplyLinked: true, appliedMode: 'ALARM' }, undefined, 2).mode.ok).toBe(true);
