@@ -189,13 +189,6 @@ describe('상차 목록 배선', () => {
     });
     /* 지도 재료도 서버와 같다(판정 중 후보콜은 안 센다 · 동선이면 상차 띠가 없다 · 띠가 없으면 원 전체) — 관제웹 stageAreas.test 가 동작으로 문다 */
 
-    it('✂️ 라인 띠는 현위치부터 · 시작은 평평하게 — 서버 상차 목록 · 지도 «상차» · «하차» 띠가 같은 함수 (기사님 2026-09-15 «2»)', () => {
-        expect(code('services/geoService.ts')).toMatch(/lineFromPoint\(/);
-        expect(code('services/geoService.ts')).toMatch(/isAheadOf\(p, cut\)/);
-        /* 지도 «상차» · «하차» 띠가 lineFromPoint 로 잘리는가는 관제웹 stageAreas.test «상차 띠» · «하차 띠» 가 동작으로 문다.
-           캔버스가 두 띠의 시작을 서버와 같은 aheadOf 로 자르고(상차는 «첫 점 → 끝점») 끝을 둥글게 긋는가는 관제웹 pinnedRouteLayers.test «상차 · 하차 띠» 가 문다 */
-    });
-
     it('🔴 빈 상차 목록은 고장 — 잡지 않는다 (규칙 ④) · 아직 안 만들었으면 막지 않는다', () => {
         const b = { isSharedMode: false, destinationCity: '이천시', destinationKeywords: ['중리동'] } as any;
         expect(callFilterBlocker({ ...b, pickupKeywords: [] })).toMatch(/상차 목록/);

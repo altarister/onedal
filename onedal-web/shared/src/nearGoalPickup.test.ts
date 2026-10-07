@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { pickupPartsOf, nearGoalCitiesOf } from './filterArea';
-
-const codeOnly = (x: string) => x.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-const read = (rel: string) => codeOnly(readFileSync(join(__dirname, '../..', rel), 'utf8'));
 
 /**
  * 🎯 **「목적지에 가까이 옴」이면 상차 조각을 걷는다 — 현위치 원 하나만 남긴다**
@@ -49,17 +44,5 @@ describe('🎯 가까이 옴이면 현위치 원만 본다', () => {
     });
 });
 
-describe('🔌 배선 — 서버와 지도가 같은 조각을 겹친다', () => {
-    it('🔴 서버 상차 목록이 켜진 조각을 전부 겹친다(∩)', () => {
-        const geo = read('server/src/services/geoService.ts');
-        expect(geo).toMatch(/inMe\(p\)\s*&&\s*\(!useBand \|\| inBand\(p\)\)\s*&&\s*\(goalPts\.length === 0 \|\| inGoal\(p\)\)/);
-    });
-
-    it('🔴 서버가 조각을 스스로 다시 고르지 않는다 — 부르는 쪽이 정한 것을 받는다', () => {
-        const geo = read('server/src/services/geoService.ts');
-        expect(geo).toContain('parts: { line: boolean; goalCities: readonly string[] }');
-        expect(geo).not.toMatch(/pickupShapeOf|pickupPartsOf\(/);
-    });
-
-    /* 관제웹도 서버와 같은 `pickupPartsOf` 를 쓴다 — 관제웹 stageAreas.test «목적지 가까이 오면 상차는 조각을 걷는다» 가 동작으로 문다 */
-});
+/* 🔌 배선 — 서버 상차 목록이 받은 조각을 전부 겹치는지(∩)는 서버 pickupListGeo · geoRules 가 실제 지도로 문다 ·
+   관제웹도 서버와 같은 `pickupPartsOf` 를 쓴다 — 관제웹 stageAreas.test «목적지 가까이 오면 상차는 조각을 걷는다» 가 동작으로 문다 */

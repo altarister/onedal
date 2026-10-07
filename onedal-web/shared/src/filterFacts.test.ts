@@ -195,32 +195,5 @@ describe('🎯 목적지 = 필터값 ∪ 진행 중인 마지막 확정 콜의 �
  * - **자름선 방향을 라인 끝 구간에서 가져오는 것**(`aheadOf(band…)`) — 골목이 영역을 통째로 돌린다
  * - 라인을 내 자리에서 **안 끊는 것** — 그러면 지나온 길이 통째로 상차 영역이 된다
  */
-describe('✂️ 상차 띠는 방향으로 자르지 않는다', () => {
-    const geo = readFileSync(join(__dirname, '../../server/src/services/geoService.ts'), 'utf8')
-        .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    const body = geo.slice(geo.indexOf('export function pickupListFor'), geo.indexOf('export function getCityRegionsWithRadius'));
-
-    /**
-     * 🔴 **자름선은 남기되 방향을 «목적지»에서 가져온다.**
-     *
-     * 자름선을 아예 걷으면 띠의 **둥근 끝**이 시작점 둘레로 반경만큼 부풀어 지나온 곳을 덮는다 —
-     * 곤지암에 서면 6km 뒤 초월읍이 다시 든다 (기사님 «뒤를 자르는 Cap»). 그래서 두 겹이 필요하다:
-     * 라인을 내 자리에서 끊어 «길»을 버리고, 자름선으로 둥근 끝이 덮는 «면»을 버린다.
-     * 그 선의 방향을 **마지막 한 구간에서** 가져오면 흔들리고, 남은 길 전체로 보면 안 흔들린다.
-     */
-    it('🔴 자름선의 방향을 라인에서 가져오지 않는다 — 마지막 골목이 영역을 통째로 돌린다', () => {
-        expect(body).not.toMatch(/aheadOf\(band/);
-    });
-
-    it('🔴 자름선의 방향은 «남은 길 전체»다 — 첫 점에서 끝점까지', () => {
-        expect(body).toMatch(/cutTowardGoal\(band\)/);
-    });
-
-    it('🔴 라인은 내 자리에서 끊는다 — 그것만으로 지나온 길이 빠진다', () => {
-        expect(body).toMatch(/lineFromPoint\(full, \{ lng: o\.me\.x, lat: o\.me\.y \}\)/);
-    });
-
-    it('🔴 띠 판정은 «그 잘린 라인까지의 거리» 하나다', () => {
-        expect(body).toMatch(/distToLineKm\(p, band\) <= o\.radii\.detourRadiusKm/);
-    });
-});
+/* 서버 상차 목록이 라인을 내 자리에서 끊고(lineFromPoint) · 자름선 방향을 «남은 길 전체»에서 가져오고(첫 점 → 끝점) ·
+   띠 판정이 «잘린 라인까지의 거리» 하나인지는 서버 pickupListGeo 가 실제 지도로 문다 (각각 변이로 🔴) */

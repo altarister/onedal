@@ -76,8 +76,7 @@ describe('모의 주행 — 서버까지 사실이 간다', () => {
         /* 🔴 «서 있다»가 **거리·시간 문턱보다 먼저** 와야 한다 — 뒤에 두면 이미 걸러진다 */
         expect(body.indexOf('if (stopped) return true')).toBeGreaterThan(-1);
         expect(body.indexOf('if (stopped) return true')).toBeLessThan(body.indexOf('MIN_MOVE_KM'));
-        const geo = codeOnly(read(join(SERVER, 'services/geoService.ts')));
-        expect(geo).toMatch(/shouldStoreGpsPoint\(lastPt, nowPt, stopped\)/);
+        /* GPS 틱이 «서 있다»를 저장 판단에 넘기는지는 geoRules «궤적»이 동작으로 문다 */
     });
 
     it('🔴 ② 배속을 서버까지 실어 보낸다', () => {
@@ -87,13 +86,6 @@ describe('모의 주행 — 서버까지 사실이 간다', () => {
         expect(master).toMatch(/speedMultiplier: mockSpeed/);
         const sock = codeOnly(read(join(SERVER, 'socket/socketHandlers.ts')));
         expect(sock).toMatch(/loc\.speedMultiplier/);
-    });
-
-    it('🔴 ② 궤적에는 «나눈» 속도를 남긴다 — 배속 그대로가 아니다', () => {
-        const geo = codeOnly(read(join(SERVER, 'services/geoService.ts')));
-        const i = geo.indexOf('bufferGpsPoint(');
-        const near = geo.slice(Math.max(0, i - 400), i + 200);
-        expect(near).toMatch(/speedKmh \/ mult/);
     });
 
     it('🔴 ② «얼마로 달렸나»와 «얼마로 돌렸나»는 다른 칸이다 (규칙 ⑤-4 ⑤)', () => {

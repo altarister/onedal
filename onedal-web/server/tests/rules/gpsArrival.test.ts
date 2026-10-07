@@ -63,29 +63,8 @@ describe('도착 판정 한 틱 — 순수 함수 (L2)', () => {
 });
 
 describe('감시 구조 (L1 — 코드 모양)', () => {
-    const geo = codeOnly(read('services/geoService.ts'));
+    /* 감시 쪽(도착 · 떠남 · 지나침 · 근접 예고)은 geoRules 가 GPS 틱을 넣어 동작으로 문다 — 여기서는 소켓이 무엇을 찍나 */
     const sock = codeOnly(read('socket/socketHandlers.ts'));
-
-    it('🔴 감시는 "발화 안 된 다음 정거장 하나"뿐이다', () => {
-        expect(geo).toMatch(/stops\.find\(st => !session\.arrivalFired\.has/);
-    });
-
-    it('🔴 정거장 목록은 routeComposer 의 planArrivalStops 에서만 온다 — 감시가 자기 순서를 만들지 않는다', () => {
-        expect(geo).toMatch(/planArrivalStops\(active, gps\)/);
-        expect(geo).not.toMatch(/getLastDropoffCoord\(session\)[\s\S]{0,200}UNLOADING/);   // 감시가 마지막 하차지 하나를 따로 보지 않는다 — 순서는 planArrivalStops 한 곳이 정한다
-    });
-
-    it('🔴 한 번 찍으면 멈춘다 — 4연발의 해답', () => {
-        expect(geo).toMatch(/session\.arrivalFired\.add\(key\)/);
-    });
-
-    it('🔴 점프 틱은 도착을 판단하지 않는다 (정지 유지도 끊는다)', () => {
-        const fn = geo.slice(geo.indexOf('function watchArrival'));
-        const guard = fn.slice(0, fn.indexOf('planArrivalStops'));
-        expect(guard).toMatch(/if \(jumped\)/);
-        /* 정지 유지 스톱워치는 **정거장별 Map**(`arrivalHeld`)이라 통째로 비워서 끊는다 */
-        expect(guard).toMatch(/arrivalHeld\.clear\(\)/);
-    });
 
     /**
      * 🔴 **GPS 가 하차 완료(DELIVERED)와, 지나친 정거장의 도착·완료를 찍는다** (기사님 확정).
@@ -111,61 +90,16 @@ describe('감시 구조 (L1 — 코드 모양)', () => {
 
         // 하차 완료는 **떠남 감지가 있을 때만** 열린다 — 근거 없이 찍으면 안 된다
         expect(sock).toMatch(/reportMilestone\(uid, orderId, 'DELIVERED', 'GPS'/);
-        expect(geo).toMatch(/DEPARTED_KM/);
-        expect(geo).toMatch(/onDeparted/);
     });
 
     /**
      * 🚚 **지나침 판정** (기사님 확정) — 거리 둘은 판정 기준 탭에서 고친다.
      */
     it('지나침은 상차·하차 둘 다 «도착 → 완료» 순서로 찍는다', () => {
-        expect(geo).toMatch(/evaluatePassTick/);
-        expect(geo).toMatch(/onPassed/);
         // 순서가 곧 규칙이다 — 도착이 먼저다 (역행은 reportMilestone 이 거른다)
         expect(sock).toMatch(/\[arrived, done\]/);
         expect(sock).toMatch(/'ARRIVED_PICKUP' as const : 'ARRIVED_DROPOFF' as const;\s*\n\s*const done/);
         expect(sock).toMatch(/'PICKED_UP' as const : 'DELIVERED' as const/);
-    });
-
-    /**
-     * 🔴 **도착이 찍힌 정거장도 지나침 감시에 넣는다** — 진입(300m) 등록은 «다음 정거장»을 볼 때만
-     * 일어나는데, 도착이 먼저 찍히면 그 정거장은 그 순간 «다녀온 곳»이 되어 **등록 기회를
-     * 영영 잃는다.** 시뮬은 정차 연기만으로 곧바로 도착이 찍히므로 늘 그렇게 된다 —
-     * 그러면 상차지 도착이 다 찍혀도 지나침은 **한 번도 안 걸린다** (실측).
-     */
-    it('도착이 찍힌 정거장도 지나침 감시에 들어간다 — 아니면 완료를 영영 못 찍는다', () => {
-        const i = geo.indexOf("🏁 [도착 감지]");
-        expect(i).toBeGreaterThan(-1);
-        // 도착 발화 뒤에 passWatch 등록이 있어야 한다 (stopType 을 안 가린다)
-        const after = geo.slice(i, i + 2000);
-        expect(after).toMatch(/passWatch\.set/);
-        // 하차 전용 가지(departWatch) 안이 아니라 **밖**이어야 한다
-        /* 도착은 **후보 루프**로 돌고, 그 정거장 이름이 `st` 다 */
-        const dropIdx = after.indexOf("st.stopType === 'dropoff'");
-        const passIdx = after.indexOf('passWatch.set');
-        expect(passIdx).toBeGreaterThan(dropIdx);
-        expect(after.slice(dropIdx, passIdx)).toMatch(/\n\s*\}/);   // 가지가 닫힌 뒤다
-    });
-
-    /**
-     * 🔴 **도착 반경(500m)이 진입(300m)보다 넓다** — 도착만으로 «들어왔다»로 치면
-     * 450m 에서 도착한 콜이 **다음 틱에 400m 이탈**로 곧바로 완료가 된다. 짐을 싣기도 전에.
-     * (순수 함수 검사만으로는 못 잡는다 — 이 규칙을 어기는 것은 **부르는 쪽**이라 그 자리를 본다.)
-     */
-    it('도착만으로는 «진입»으로 치지 않는다 — entered 를 지금 거리로 적는다', () => {
-        const i = geo.indexOf('passWatch.set');
-        const j = geo.indexOf('passWatch.set', i + 1);
-        expect(j).toBeGreaterThan(-1);              // 등록 자리가 둘이다 (진입 · 도착)
-        // 도착 쪽 등록은 거리를 재서 entered 를 정한다 — true 로 박지 않는다
-        const arrivalReg = geo.slice(j - 600, j + 400);
-        expect(arrivalReg).toMatch(/entered:\s*distKm\s*<=/);
-    });
-
-    it('🔴 지나침 거리는 코드에 안 박는다 — 판정 기준(DB)에서 온다 (규칙 ③)', () => {
-        const geoCode = codeOnly(geo);
-        // 300·400 같은 리터럴이 아니라 설정에서 읽어야 한다
-        expect(geoCode).toMatch(/judgment\?\.pass|DEFAULT_JUDGMENT\.pass/);
-        expect(geoCode).not.toMatch(/nearM:\s*\d|awayM:\s*\d/);
     });
 
     it('🔴 통화 단계는 지나침이 안 찍는다 — 안 한 통화를 했다고 적으면 화면이 거짓말한다', () => {
@@ -174,25 +108,9 @@ describe('감시 구조 (L1 — 코드 모양)', () => {
         expect(block).not.toMatch(/'CALLED_PICKUP'|'CALLED_DROPOFF'/);
     });
 
-    it('🚚 떠남은 하차지에서만 본다 — 상차지는 감시하지 않는다', () => {
-        // departWatch 에 넣는 자리가 dropoff 가지 안에 있어야 한다
-        const i = geo.indexOf("st.stopType === 'dropoff'");   // 후보 루프의 정거장 이름이 `st` 다
-        expect(i).toBeGreaterThan(-1);
-        expect(geo.slice(i, i + 400)).toMatch(/departWatch\.set/);
-        // 되돌아와도 다시 안 걸린다 — 한 번 발화하면 지운다
-        expect(geo).toMatch(/departWatch\.delete/);
-    });
-
     it('사이클이 끝나면 도착 상태도 지운다 — 어제 찍은 정거장이 오늘 되살아나지 않는다', () => {
         const fm = codeOnly(read('state/filterManager.ts'));
         expect(fm).toMatch(/arrivalFired\.clear\(\)/);
         expect(fm).toMatch(/arrivalNoticed\.clear\(\)/);
-    });
-
-    it('근접 예고도 정거장당 1회다', () => {
-        /* 근접 예고만 «순서»를 보므로 키 이름이 `nKey` 다
-             (도착·지나침은 거리가 정한다 — `arrivalCandidates`) */
-        expect(geo).toMatch(/session\.arrivalNoticed\.has\(nKey\)/);
-        expect(geo).toMatch(/session\.arrivalNoticed\.add\(nKey\)/);
     });
 });

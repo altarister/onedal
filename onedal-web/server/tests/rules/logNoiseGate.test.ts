@@ -40,11 +40,6 @@ describe('🧹 서버 나레이션 — 걷었다', () => {
         expect(src('routes/detail.ts')).toContain('안전취소 임박');
     });
 
-    it('정차는 매초가 아니라 시작·끝 두 줄이다', () => {
-        expect(src('services/geoService.ts')).toContain('정차 시작');
-        expect(src('services/geoService.ts')).toContain('정차 끝');
-    });
-
     it('필터 변경은 전문이 아니라 바뀐 칸 + 지문이다', () => {
         expect(src('state/filterManager.ts')).toContain('filterVersionOf(session.activeFilter)');
     });

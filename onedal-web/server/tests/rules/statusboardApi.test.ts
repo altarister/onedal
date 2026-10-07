@@ -35,7 +35,6 @@ const codeOnly = (src: string) =>
  */
 describe('① 내 위치의 출처를 그대로 남긴다 (현황판 ①)', () => {
     const store = read('state/userSessionStore.ts');
-    const geo = codeOnly(read('services/geoService.ts'));
     const sim = codeOnly(read('routes/sim.ts'));
 
     it('🔴 세션에 «출처» 칸이 따로 있다 — 모의와 손찍기를 가른다', () => {
@@ -47,12 +46,7 @@ describe('① 내 위치의 출처를 그대로 남긴다 (현황판 ①)', () =
          */
         expect(store).toMatch(/'gps'\s*\|\s*'mock'\s*\|\s*'manual'/);
         expect(codeOnly(store)).not.toMatch(/lastFixSource\??:[^;]*'home'/);
-        /* 네 갈래를 «고르는» 자리에는 넷이 다 있다 */
-        expect(geo).toMatch(/'gps'\s*\|\s*'mock'\s*\|\s*'manual'\s*\|\s*'home'/);
-    });
-
-    it('🔴 좌표가 들어오는 문에서 그 자리에 «온 그대로» 적는다', () => {
-        expect(geo).toMatch(/session\.lastFixSource\s*=/);
+        /* 고르는 자리(originOf)가 넷 중 하나를 내는지는 geoRules «기점»이 동작으로 문다 */
     });
 
     it('🔴 sim 이 «고른 것»을 그대로 답한다 — 제 손으로 다시 판단하지 않는다', () => {
@@ -65,18 +59,6 @@ describe('① 내 위치의 출처를 그대로 남긴다 (현황판 ①)', () =
         /* ⚠️ sim 이 파생식(`lastFixIsMock ? 'manual'`)을 따로 두면 «시뮬인데 손찍음»이라고 말한다 */
         expect(sim).not.toMatch(/lastFixIsMock\s*\?\s*'manual'/);
         expect(sim).not.toMatch(/isFallback\s*\?\s*'home'/);
-    });
-
-    it('🔴 «집 주소로 대신»은 여전히 이긴다 — 좌표가 없다는 사실이 먼저다', () => {
-        const i = geo.indexOf('export function originOf');
-        expect(i).toBeGreaterThan(-1);
-        const body = geo.slice(i, geo.indexOf('\n}', i));
-        /* 고르는 자리에서 «집이면 그렇게 말한다» — 추정으로 쟀다는 것을 숨기지 않는다 (집을 읽는 곳은 homeOriginOf 하나) */
-        expect(body).toMatch(/return homeOriginOf\(session\.userId\)/);
-        const h = geo.indexOf('export function homeOriginOf');
-        const home = geo.slice(h, geo.indexOf('\n}', h));
-        expect(home).toMatch(/source: 'home'/);
-        expect(home).toMatch(/isFallback: true/);
     });
 });
 

@@ -576,7 +576,6 @@ describe('8단계 · 상차지까지도 모의 주행으로 간다 (현황판 �
      *    **실제로 움직이는 중**이라 가짜 좌표를 쓴다.
      */
     const gps = codeOnly(readClient('hooks/useMasterGps.ts'));
-    const geo = codeOnly(read('services/geoService.ts'));
 
     it('🔴 경로가 있으면 국면과 무관하게 켤 수 있다 — 상차지로 갈 수 있어야 한다', () => {
         const i = gps.indexOf('const canMock =');
@@ -584,25 +583,6 @@ describe('8단계 · 상차지까지도 모의 주행으로 간다 (현황판 �
         expect(decl).toMatch(/SIMULATOR_AVAILABLE/);
         expect(decl).toMatch(/activePolyline/);
         expect(decl).not.toMatch(/isDriving/);
-    });
-
-    it('🔴 서버가 콜을 쥔 동안에는 가짜 좌표를 기점으로 쓴다 — 빈 차일 때만 집으로 물러난다', () => {
-        /**
-         * 🔄 **세션 좌표를 지우지 않고 고른다** (기사님 지시). `originOf` 가
-         *    **물을 때마다 고르므로** 지우는 손이 없다 — 지우는 손이 여럿이면 그중 하나를 놓친다.
-         *    그래서 검사도 «고르는 자리»를 본다.
-         */
-        const i = geo.indexOf('export function originOf');
-        expect(i).toBeGreaterThan(-1);
-        const body = geo.slice(i, geo.indexOf('\n}', i));
-        expect(body).toMatch(/GATHERING/);
-        expect(body).toMatch(/DELIVERING/);
-        /* 빈 차(STANDBY)에서 남은 가짜 좌표 대신 집 주소가 기점이다 — 집을 읽는 자리는 homeOriginOf 한 곳(내일 콜 판정도 쓴다) */
-        expect(body).toMatch(/return homeOriginOf\(session\.userId\)/);
-        const h = geo.indexOf('export function homeOriginOf');
-        const home = geo.slice(h, geo.indexOf('\n}', h));
-        expect(home).toMatch(/getHomeLocation/);
-        expect(home).toMatch(/isFallback: true/);
     });
 });
 

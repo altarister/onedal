@@ -45,15 +45,6 @@ describe('지금 기점은 파생이다 — 저장하지도 지우지도 않는�
         expect(guilty).toEqual([]);
     });
 
-    it('🔴 `originOf` 는 세션을 만지지 않는다 — 고르기만 한다', () => {
-        const geo = read(join(SRC, 'services/geoService.ts'));
-        const i = geo.indexOf('export function originOf');
-        expect(i).toBeGreaterThan(-1);
-        const body = codeOnly(geo.slice(i, geo.indexOf('\n}', i)));
-        /* `session.무엇 = ` 이 있으면 고르기가 아니라 쓰기다 */
-        expect(body).not.toMatch(/session\.\w+\s*=[^=]/);
-    });
-
     it('🔴 «집에서 온 값인가»도 파생이다 — 세션이 들고 있지 않는다', () => {
         const store = codeOnly(read(join(SRC, 'state/userSessionStore.ts')));
         expect(store).not.toMatch(/driverLocationIsFallback/);

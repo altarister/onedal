@@ -88,9 +88,4 @@ describe('낡은 현위치 — 경로 기점으로 쓰지 않는다', () => {
         /* 호출부는 «고르는 함수»(originOf) 하나만 부른다. 비우고 채우는 손은 없다 */
         expect(code('../../src/services/dispatchEngine.ts')).toMatch(/originOf\(/);
     });
-
-    it('🔴 좌표를 받을 때 시각을 남긴다', () => {
-        const geo = readFileSync(join(__dirname, '../../src/services/geoService.ts'), 'utf8');
-        expect(geo).toMatch(/lastFixAt\s*=/);
-    });
 });
