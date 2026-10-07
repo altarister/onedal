@@ -15,7 +15,7 @@
  *    목적지 반경 안에 들면 **상차가 현위치 원 하나**가 되어 그 안이 상차·하차 둘 다인 곳이 된다
  *    (지도의 보라색 점 · `pickupPartsOf`).
  *
- * 🔴 **읽는 곳** — 관제웹 «상차» · «하차» 레이어(`StageView`)와 서버 상차 · 하차 목록(`filterManager.goalZonesNow` → `rebuildPickupList` · `netOfGoals`)이
+ * 🔴 **읽는 곳** — 관제웹 «상차» · «하차» 레이어(`useStageAreas`)와 서버 상차 · 하차 목록(`filterManager.goalZonesNow` → `rebuildPickupList` · `netOfGoals`)이
  *    **같은 함수**를 부른다 — 따로 계산하면 지도와 목록이 갈라진다.
  */
 

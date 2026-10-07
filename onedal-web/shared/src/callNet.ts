@@ -467,7 +467,7 @@ function makeInNet(p: NetParams, src: NetPoint, dst: NetPoint, excludeSrc = fals
  *
  * 🔴 **각도 180 을 넘으면 축 «뒤쪽»까지 담긴다** (기사님 선택) — 그린 모양이 판정 그대로라 뒤쪽까지 그려진다.
  */
-/** 마름모 테두리 점 — 그물 그리기와 관제웹 «하차» 레이어(`StageView` · 목적지마다 마름모)가 함께 쓴다 */
+/** 마름모 테두리 점 — 그물 그리기와 관제웹 «하차» 레이어(`useStageAreas` · 목적지마다 마름모)가 함께 쓴다 */
 export function quadOutline(p: NetParams, src: NetPoint, dst: NetPoint): Array<{ lng: number; lat: number }> {
     const inQuad = makeInQuad(p, src, dst);
     const maxKm = haversineKm(src, dst) * 3 + Math.max(0, p.quadRadiusKm) * 2 + 1;
@@ -921,7 +921,7 @@ export function distToLineKm(pt: { lng: number; lat: number }, line: Array<[numb
  * ✂️ **라인을 현위치부터 앞으로만** (기사님 «뒤를 자르는 Cap»).
  * 현위치를 라인에서 가장 가까운 점에 내리고(`progressAlongKm` 과 같은 셈 · 같은 곳을 두 번 지나면 앞 통과) 그 점부터 끝까지 낸다.
  * 앞으로 남은 라인이 없으면(끝을 지남 · 점이 둘보다 적음) 빈 라인 — 부르는 쪽은 «라인 없음»으로 본다 (지어내지 않는다 · 규칙 ④).
- * 읽는 곳: 서버 상차 목록(`geoService.pickupListFor`) · 지도 «상차» 띠 · 운행 뒤 «하차» 띠(`StageView`).
+ * 읽는 곳: 서버 상차 목록(`geoService.pickupListFor`) · 지도 «상차» 띠 · 운행 뒤 «하차» 띠(`useStageAreas`).
  */
 export function lineFromPoint(line: Array<[number, number]>, pt: { lng: number; lat: number }): Array<[number, number]> {
     if (line.length < 2) return [];

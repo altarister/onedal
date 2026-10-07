@@ -651,7 +651,7 @@ export default function StageView(props: Props) {
                     /* 🟡 후보 경로 — 확정 경로 위에 노란 점선으로 겹친다. 영역에는 안 쓴다 (버리면 이 레이어만 사라진다) */
                     candidateHolder={derived.candidateHolder}
                     callColors={derived.callColors}
-                    /* 📋 상차 영역 — 원 중심은 실시간 내 위치 (위 «상차 영역» 주석) */
+                    /* 📋 상차 영역 — 원 중심은 실시간 내 위치 (`useStageAreas` 의 «상차 영역» 주석) */
                     pickupArea={pickupArea}
                     /* 🔵 하차 영역 — 살아 있는 목적지마다 원 · 마름모 · 띠 */
                     dropoffArea={dropoffArea}
