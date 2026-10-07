@@ -244,7 +244,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     color: { honeyMin: 70, normalMin: 40 },
     bell: { scoreMin: 50 },
     // 🔴 여유 곡선은 «어떻게 잴 것인가» 라 여기 산다. 정차 값(박스당 분·검수 분)은
-    //    **화면의 칩에 붙는 숫자**라 콜 옵션 표로 옮겼다 (규칙 ③) —
+    //    **화면의 칩에 붙는 숫자**라 콜 옵션 표에 둔다 (규칙 ③) —
     //    같은 값을 두 그릇에 담지 않는다.
     slack: { fullMin: 30, zeroScore: 95, lateSoftMin: 5, lateWarnMin: 15, lateZeroMin: 30,
              slipCalledMin: 10, slipUncalledMin: 20 },

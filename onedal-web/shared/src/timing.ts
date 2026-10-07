@@ -707,8 +707,8 @@ export function derivationInputsOf(cfg: {
     speed?: { shortKmh: number; midKmh: number; longKmh: number };
 }, /**
  * 🎛️ **정차 값은 콜 옵션 표에서 온다** (그릇을 가른 뒤).
- *    낮에는 판정 기준 설정에 실려 왔는데, 그 셋은 «어떻게 잴 것인가»가 아니라
- *    **화면의 칩에 붙는 숫자**라 자리를 옮겼다 (`dwellRatesOf`).
+ *    그 셋은 «어떻게 잴 것인가»(판정 기준 설정)가 아니라
+ *    **화면의 칩에 붙는 숫자**라 콜 옵션 표에 둔다 (`dwellRatesOf`).
  *    안 넘기면 `timing.ts` 의 옛 상수로 돈다 — 되돌리는 길.
  */
    rates?: { perBoxMin?: { forkliftMin: number; manualMin: number }; afterworkMin?: Record<string, number> },

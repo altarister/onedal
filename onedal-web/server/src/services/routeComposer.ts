@@ -261,7 +261,7 @@ export interface ComposeMergedRouteParams {
 /**
  * **짐을 이미 실었는가.**
  */
-// 정의는 shared 로 옮겼다 (— 관제웹 지도 폴백도 같은 판단을 쓴다). 재수출만 남긴다.
+// 정의는 shared 에 있다(관제웹 지도 폴백도 같은 판단을 쓴다) — 여기는 재수출만.
 // ⚠️ **경로에 상차지를 넣을지는 이걸로 정하지 않는다** — `hasVisitedStop(c, 'pickup')` 이다.
 //    이걸 보면 버튼을 안 누른 채 달릴 때 다녀온 상차지로 되돌아가는 경로가 나온다(예: 여주 → 성남 50km).
 export { isAlreadyLoaded, hasVisitedStop };

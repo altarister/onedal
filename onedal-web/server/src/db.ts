@@ -832,7 +832,7 @@ ensureColumns('orders', { targetApp: 'TEXT',
 // ⚠️ intel 의 ensureColumns 는 여기 있으면 안 된다 — 그 표는 아래 [7] 에서 만들어진다.
 //    `ensureColumns` 는 표가 없으면 조용히 return 하므로(위 :32), 빈 DB 첫 부팅에서
 //    targetApp 이 안 붙은 채 scrap.ts 가 INSERT 해 `no such column` 으로 터졌다.
-//    → CREATE 문 바로 뒤로 옮겼다 (검사 `schemaOrder.test.ts`)
+//    → 그래서 CREATE 문 바로 뒤에 둔다 (검사 `schemaOrder.test.ts`)
 
 /**
  * 🛰️ **주행 궤적** (기사님 확정).

@@ -120,7 +120,7 @@ export function canRewindTo(progress: CallProgress, target: number): boolean {
     return target >= 0 && target < progress.index;
 }
 
-/** 🔴 단계 → 마일스톤 대응은 **이 한 벌**이다 — 장부 복원과 단계 표가 함께 읽는다. 사본을 만들지 않는다 (사본 하나를 걷었다). */
+/** 🔴 단계 → 마일스톤 대응은 **이 한 벌**이다 — 장부 복원과 단계 표가 함께 읽는다. 사본을 만들지 않는다. */
 export const STEP_MILESTONE: Partial<Record<CallStepId, string>> = {
     ARRIVE_PICKUP: 'ARRIVED_PICKUP',
     LOADED: 'PICKED_UP',

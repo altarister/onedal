@@ -268,7 +268,7 @@ const DEFAULT_SIDO = '경기', DEFAULT_SGG = '파주시';
  * ☎️ **통화로 정한 약속의 색** — 보라 (기사님 지정).
  * 판정색 넷(파랑·초록·노랑·빨강)과 안 겹치는 유일한 색이라 **다른 층의 말**로 읽힌다.
  */
-// 🔴 `PROMISE_CALLED` 는 `styles/callPalette` 로 옮겼다 — 실물 타이틀과 한 벌이다
+// 🔴 `PROMISE_CALLED` 는 `styles/callPalette` 에 있다 — 실물 타이틀과 한 벌이다
 
 
 /**
@@ -445,7 +445,7 @@ function NumRow({ label, value, onChange, min = 0, max = 999, mode = 'input', au
  * 🔴 그래서 **색조와 채도는 그대로 두고 밝기만 올린다** — 원천은 같은 `callTone` 하나라
  *    색이 갈라지지 않는다 (규칙 ③). 「상차는 밝고 하차는 깊게」도 그대로 산다.
  */
-// 🔴 `callTextColor` 도 `styles/callPalette` 로 옮겼다 — 같은 이유
+// 🔴 `callTextColor` 도 `styles/callPalette` 에 있다 — 같은 이유
 
 function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMin }: {
     seat: (SecuredOrder & { soloMin?: number | null }) | null;
@@ -554,7 +554,7 @@ function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMi
 }
 
 /**
- * 🎚️ **손잡이 묶음(`KnobGrid`)은 `components/ui/KnobGrid.tsx` 로 옮겼다**.
+ * 🎚️ **손잡이 묶음(`KnobGrid`)은 `components/ui/KnobGrid.tsx` 에 있다**.
  *    실물 필터의 마름모 칸도 같은 손맛이어야 한다 — 두 벌이면 한쪽만 고쳐진다 (규칙 ③).
  *    기사님이 여기서 맞추신 것(슬라이더 레이어 · ± · 닫는 길 셋)이 그대로 실물로 간다.
  */

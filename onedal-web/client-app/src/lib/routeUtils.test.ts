@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { haversineKm } from '@onedal/shared';
 import { getMinuteDiff, getAddressLabel, shortStopLabel } from './routeUtils';
 
-/* 📏 두 지점 거리는 shared haversineKm 하나(공통 함수 3) — 관제웹 복사본 getDistanceKm 은 지웠다 */
+/* 📏 두 지점 거리는 shared haversineKm 하나(공통 함수 3) — 관제웹에 복사본을 두지 않는다 */
 describe('haversineKm (Haversine Formula)', () => {
     it('같은 좌표의 거리는 0km이다', () => {
         expect(haversineKm({ lat: 37.5, lng: 127.0 }, { lat: 37.5, lng: 127.0 })).toBe(0);
