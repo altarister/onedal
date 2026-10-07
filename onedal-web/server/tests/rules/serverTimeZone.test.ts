@@ -38,7 +38,7 @@ console.log(JSON.stringify({ tz: serverTimeZone(), date: new Date(ms).getDate(),
     it('배포 두 겹 — ecosystem 의 두 env 에 TZ · reload 가 새 env 를 먹는다', () => {
         const eco = read('ecosystem.config.cjs');
         expect(eco.match(/TZ: 'Asia\/Seoul'/g)?.length).toBe(2);
-        const deploy = readFileSync(join(WEB, '../.github/workflows/deploy.yml'), 'utf8');
+        const deploy = read('scripts/deploy.sh');   // 배포 순서는 deploy.yml 이 부르는 이 파일 한 곳
         expect(deploy).toContain('pm2 reload ecosystem.config.cjs --env production --update-env');
     });
 
