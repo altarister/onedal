@@ -489,6 +489,11 @@ export async function handleDecision(userId: string, orderId: string, status: De
         return { success: false, action: status };
     }
     const piggybackAction = isKeep ? (isSimulatedMode ? 'SIMULATED_KEEP' : 'KEEP') : 'CANCEL';
+    /* 🧾 KEEP 은 심사 캐시에 콜이 있을 때만 폰에 보낸다 — 없으면 폰은 KEEP 을 받는데 서버는 승격을 못 해 둘이 갈라진다(안전쪽 순서) */
+    if (isKeep && !session.pendingOrdersData.has(orderId)) {
+        slog('경고', `⚠️ [결재] KEEP ${orderId} — 심사 캐시에 없다 · 폰에 보내지 않는다`);
+        return { success: false, action: status };
+    }
 
     // 결재 기록 — decide 가 큐에 적고 그 순간 관제앱 공급 소켓으로 보낸다(블루투스로 폰에).
     // 공급 소켓이 안 붙었으면 큐에 남았다가 붙을 때 보낸다(state/decisions)
