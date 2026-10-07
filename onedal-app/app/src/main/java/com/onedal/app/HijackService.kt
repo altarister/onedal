@@ -705,11 +705,6 @@ class HijackService : AccessibilityService(), ScanContext {
             )
         }
         telemetryManager.start()
-        /* 💾 다시 떴다 — 계약 콜의 안전취소가 걸려 있었으면 남은 시간으로 다시 건다(D1 ②) */
-        safeCancelTimer.restore(session) { onSafeCancelTimeout() }?.let { (id, left) ->
-            telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)
-            AppLogger.w(TAG, LogTag.DECISION, "💾 [안전취소 다시 걺] $id · 남은 ${left / 1000}초 — 원달앱이 다시 떴다")
-        }
         /**
          * 🟢 **붙자마자 한 번 쏜다** (기사님 실측: *"폰이랑 서버랑 연결이 안 되는데?"*).
          *
@@ -717,6 +712,11 @@ class HijackService : AccessibilityService(), ScanContext {
          * 그동안 관제웹에서는 이 폰이 **아예 없는 것처럼** 보인다. 접근성을 껐다 켜면 그 시계가 처음부터 다시 시작한다.
          */
         telemetryManager.forceHeartbeat()
+        /* 💾 다시 떴다 — 계약 콜의 안전취소가 걸려 있었으면 남은 시간으로 다시 건다(D1 ②) */
+        safeCancelTimer.restore(session) { onSafeCancelTimeout() }?.let { (id, left) ->
+            telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)
+            AppLogger.w(TAG, LogTag.DECISION, "💾 [안전취소 다시 걺] $id · 남은 ${left / 1000}초 — 원달앱이 다시 떴다")
+        }
         apiClient.fetchKeywords()
 
         /**
