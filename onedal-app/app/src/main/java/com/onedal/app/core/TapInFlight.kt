@@ -67,4 +67,20 @@ object TapInFlight {
      */
     fun shouldRefire(current: Record?, callbackSeq: Long, screenNow: ScreenContext): Boolean =
         current != null && current.seq == callbackSeq && !current.refired && current.screen == screenNow
+
+    /**
+     * 같은 무엇이 연달아 안 먹힌 횟수 — 보고에 싣는다(다시 누르기 상한을 정할 실측 재료 · 누르기 상한에는 안 쓴다).
+     * 지금 누르는 것 하나만 든다 — **다른 것이 끼면 다시 1부터** 센다(«A 실패 → B 실패 → A 실패»의 A 는 1).
+     * 콜마다 열쇠를 쌓으면 다시 안 누른 콜의 열쇠가 하루 내내 남는다.
+     */
+    class FailStreak {
+        private var key: String? = null
+        private var count = 0
+        /** 이 무엇이 또 안 먹혔다 — 연속 횟수를 돌려준다 */
+        fun fail(k: String): Int { if (k != key) { key = k; count = 0 }; return ++count }
+        /** 먹혔다 · 다른 기사가 가져갔다 — 그 무엇의 셈을 지운다 */
+        fun clear(k: String) { if (k == key) { key = null; count = 0 } }
+        /** 들고 있는 열쇠 수 — 0 또는 1 */
+        val size: Int get() = if (key == null) 0 else 1
+    }
 }

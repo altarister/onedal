@@ -48,8 +48,8 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
     private var inFlightRefire: (() -> Unit)? = null
     /** 지금 화면 종류 — 화면 알림마다 `onScreen` 이 적는다 */
     private var screenNow: ScreenContext = ScreenContext.UNKNOWN
-    /** 같은 무엇이 연달아 안 먹힌 횟수 — 보고에 싣는다(다시 누르기 상한을 정할 실측 재료) */
-    private val failStreak = HashMap<String, Int>()
+    /** 같은 무엇이 연달아 안 먹힌 횟수 (`TapInFlight.FailStreak`) */
+    private val failStreak = TapInFlight.FailStreak()
     /** «누르기 안 먹힘»을 서버 이상 징후로 올리는 길 — 서비스가 잇는다 */
     var onTapFailed: ((TapInFlight.Failure) -> Unit)? = null
 
@@ -61,7 +61,7 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
         val rec = inFlight
         val now = android.os.SystemClock.elapsedRealtime()
         when (TapInFlight.judge(rec, screen, textChanged, now)) {
-            TapInFlight.Verdict.TAKEN -> { failStreak.remove(rec!!.key); lastTaken = rec; inFlight = null; inFlightRefire = null }
+            TapInFlight.Verdict.TAKEN -> { failStreak.clear(rec!!.key); lastTaken = rec; inFlight = null; inFlightRefire = null }
             TapInFlight.Verdict.NOT_TAKEN -> fail(rec!!, "화면 그대로", now)
             TapInFlight.Verdict.EXPIRED -> fail(rec!!, "끝남 알림 없이 ${TapInFlight.SETTLE_MAX_MS}ms", now)
             TapInFlight.Verdict.NONE -> Unit
@@ -75,15 +75,14 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
      */
     fun resolveTakenByOther(): TapInFlight.Record? {
         val rec = inFlight ?: return null
-        failStreak.remove(rec.key)
+        failStreak.clear(rec.key)
         inFlight = null
         inFlightRefire = null
         return rec
     }
 
     private fun fail(rec: TapInFlight.Record, reason: String, now: Long) {
-        val streak = (failStreak[rec.key] ?: 0) + 1
-        failStreak[rec.key] = streak
+        val streak = failStreak.fail(rec.key)
         val waited = now - rec.firedAtMs
         AppLogger.e(TAG, LogTag.TAP, "⌛ [누르기 안 먹힘] «${rec.key.take(20)}» · ${rec.screen} · ${waited}ms · 까닭: $reason · 연속 $streak")
         onTapFailed?.invoke(TapInFlight.Failure(rec.key, rec.screen, waited, reason, streak))
