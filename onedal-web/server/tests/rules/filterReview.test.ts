@@ -27,7 +27,6 @@ const fnBody = (src: string, decl: string) => {
  * ══════════════════════════════════════════════════════════════════════════ */
 describe('1단계 · 오늘 판 값의 저장 고리 (조사 ①-5)', () => {
     const fm = codeOnly(read('state/filterManager.ts'));
-    const us = codeOnly(read('state/userSessionStore.ts'));
     const modal = readClient('components/dashboard/OrderFilterModal.tsx');
     const modalCode = codeOnly(modal);
 
@@ -40,16 +39,7 @@ describe('1단계 · 오늘 판 값의 저장 고리 (조사 ①-5)', () => {
         expect(sql).toMatch(/accepted_vehicle_types = \?/);
     });
 
-    it('🔴 세션 로드가 세 칸을 읽는다 — 재접속에 안 풀린다', () => {
-        /* 세션 로드의 평소 설정 조립은 baseFilterFromDb 한 함수(세션 · 운영센터 현황판이 같이) */
-        const i = us.indexOf('export function baseFilterFromDb');
-        expect(i).toBeGreaterThan(-1);
-        const body = us.slice(i, us.indexOf('\n}\n', i));
-        expect(body).toMatch(/radiusAuto/);
-        expect(body).toMatch(/radiusBaseKm/);
-        expect(body).toMatch(/acceptedVehicleTypes/);
-    });
-
+    /* 세션 로드가 세 칸 · routeMode 를 읽는 것은 sessionCalcFrom 이 동작으로 문다 */
     it('🔴 💾 서버 저장 페이로드에 셋이 실린다', () => {
         const body = fnBody(modalCode, 'const handleSaveToServer');
         expect(body).toMatch(/radiusAuto/);
@@ -377,7 +367,6 @@ describe('5단계 · 노선/동선은 필터 값이다 — 서버도 알고 저�
     const ix = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
     const fm = codeOnly(read('state/filterManager.ts'));
     const db = codeOnly(read('db.ts'));
-    const us = codeOnly(read('state/userSessionStore.ts'));
     const dash = codeOnly(readClient('pages/Dashboard.tsx'));
     const modal = codeOnly(readClient('components/dashboard/OrderFilterModal.tsx'));
 
@@ -386,8 +375,6 @@ describe('5단계 · 노선/동선은 필터 값이다 — 서버도 알고 저�
         expect(db).toMatch(/route_mode/);
         const i = fm.indexOf('const stmtUpdateFilter');
         expect(fm.slice(i, fm.indexOf('`);', i))).toMatch(/route_mode = \?/);
-        const j = us.indexOf('export function baseFilterFromDb');
-        expect(us.slice(j, us.indexOf('\n}\n', j))).toMatch(/routeMode/);
     });
     it('🔴 서버 그물이 동선이면 라인을 안 쓴다 · 바꾸면 다시 그린다', () => {
         /* 동선이면 라인을 안 쓰는지는 filterListRules 가 동작으로 문다 — 여기서는 바꾸면 다시 그리는 조건 */
