@@ -1,5 +1,3 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { judge, CRITERIA, toSnapshot, DEFAULT_JUDGMENT } from '@onedal/shared';
 import { firstLoadFacts } from '../../src/core/engine/judgeFacts';
 
@@ -19,22 +17,8 @@ import { firstLoadFacts } from '../../src/core/engine/judgeFacts';
  * → 구조: 관제웹에 보내기 직전 **한 곳**에서 «판정이 없으면 잴 수 없음 판정»을 남긴다. 실패 갈래가 늘어도 빠지지 않는다.
  */
 
-const SRC = join(__dirname, '../../src');
-const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-const evaluator = codeOnly(readFileSync(join(SRC, 'core/engine/OrderEvaluator.ts'), 'utf8'));
-
+/* 실패 갈래(좌표 못 찾음 · 카카오 키 없음)가 관제웹에 보내기 전에 판정을 남기는지는 judgmentBranches 가 끝까지 돌려 문다 */
 describe('판정 없이 끝나지 않는다 (#123)', () => {
-
-    it('🔴 관제웹에 보내기 전 한 곳에서 — 판정이 없으면 잴 수 없음 판정을 남기고 로그에 적는다', () => {
-        const emit = evaluator.indexOf('io.to(userId).emit("order-evaluated"');
-        const fallback = evaluator.lastIndexOf('if (!(securedOrder as any).judgment)', emit);
-        expect(emit).toBeGreaterThan(-1);
-        expect(fallback).toBeGreaterThan(-1);
-        const block = evaluator.slice(fallback, emit);
-        expect(block).toMatch(/judge\(CRITERIA/);
-        expect(block).toMatch(/OrderRepository\.saveJudgment\(/);
-        expect(block).toMatch(/🎨 \[판정\]/);
-    });
 
     it('좌표가 없어 걸린 시간을 모르면 — 🔴 · 점수 없음 · «잴 수 없음» 딱지 (관제웹이 «판단 불가»로 읽는 모양)', () => {
         const v = toSnapshot(judge(CRITERIA, firstLoadFacts({

@@ -742,7 +742,8 @@ const GOLDEN = {
 
 let saved: any[] = [];
 let emitted: any[] = [];
-const io = { to: () => ({ emit: (ev, o) => { emitted.push([ev, o.id]); } }) };
+/** 관제웹 알림 — 그 순간 콜에 판정이 실려 있었나 · 사유 · 길찾기 글까지 같이 적는다(보내고 나서 싣는 순서를 잡는다) */
+const io = { to: () => ({ emit: (ev, o) => { emitted.push([ev, o.id, o.judgment?.color ?? null, o.kakaoTimeExt ?? null, (o.rejectionReasons ?? []).length]); } }) };
 
 beforeAll(() => { initGeoService(); });
 beforeEach(() => {
@@ -783,7 +784,7 @@ const savedOnce = (o) => {
     /* 장부에는 판정 시작 때의 콜 · 필터 요약이 함께 간다 */
     expect(s.call).toMatchObject({ pickup: o.pickup, dropoff: o.dropoff, fare: o.fare, kind: o.isPreview ? '미리보기' : '콜' });
     expect(s.filter).toMatchObject({ destinationCity: '이천시', pickupRadiusKm: 10 });
-    expect(emitted.filter(e => e[1] === o.id)).toEqual([['order-evaluated', o.id]]);
+    expect(emitted.filter(e => e[1] === o.id)).toEqual([['order-evaluated', o.id, o.judgment.color, o.kakaoTimeExt, o.rejectionReasons.length]]);
 };
 
 const soloGeo = async (a) => a.includes('곤지암') ? { ...GONJIAM, approxArea: null } : { ...TERMINAL, approxArea: '경기 이천시 중리동' };
@@ -857,10 +858,13 @@ describe('🎨 판정 갈래 — 같은 콜에 같은 판정', () => {
 
     it('🔴 좌표를 못 찾으면 «판정 불가»(사고 · 점수 없음)로 끝난다 — 판정 없이 끝나지 않는다', async () => {
         jest.spyOn(kakao, 'geocodeCallAddress').mockResolvedValue(null);
+        const log = jest.spyOn(console, 'log').mockImplementation(() => {});
         const s = make('ev-nocoord');
         const o = order('o-nocoord');
         expect(await run('ev-nocoord', o, s)).toEqual(GOLDEN.noCoord);
         savedOnce(o);
+        /* 서버 로그에도 판정 줄이 남는다 — 판정색은 로그에 있어야 한다 */
+        expect(log.mock.calls.map(c => String(c[0])).filter(l => l.includes('🎨 [판정]') && l.includes('판정 불가')).length).toBe(1);
     });
 
     it('🔴 카카오 키가 없으면 «판정 불가 — API KEY 부재»', async () => {
