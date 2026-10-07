@@ -1,6 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { FILTER_FIELDS, QUAD_FIELDS, filterValuesFrom, DEFAULT_FILTER_VALUES, reachRadiusKm } from '@onedal/shared';
+import db from '../../src/db';
+import { loadFilterValues } from '../../src/state/filterManager';
 
 /**
  * 🎛️ **값 다섯의 그릇** — 컬럼·폼·기본값의 원천은 `FILTER_FIELDS` 표 하나다.
@@ -116,9 +118,15 @@ describe('값 다섯의 원천은 «한 행»이다 (이식 C3-3b · 2026-09-11)
         const store = codeOnly(read('state/userSessionStore.ts'));
         expect(store).toMatch(/loadFilterValues\(userId\)/);
         expect(store).not.toMatch(/loadPhaseRows/);
-        const fm = codeOnly(read('state/filterManager.ts'));
-        const fn = fm.slice(fm.indexOf('function loadFilterValues'));
-        expect(fn.slice(0, fn.indexOf('\n}'))).toMatch(/filterValuesFrom\(row\)/);
+        /* 동작으로 — 행이 없으면 표 기본값 · 행이 있으면 그 행의 값 */
+        const U = 'test-load-filter-values';
+        db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, `${U}@t`, '기사');
+        db.prepare(`DELETE FROM user_filters WHERE user_id = ?`).run(U);
+        expect(loadFilterValues(U)).toEqual(filterValuesFrom(null));
+        const f = FILTER_FIELDS.find(x => !x.text)!;
+        const v = Math.min(f.max, Math.max(f.min, (DEFAULT_FILTER_VALUES as any)[f.path] + 1));
+        db.prepare(`INSERT OR REPLACE INTO user_filters (user_id, ${f.col}) VALUES (?, ?)`).run(U, v);
+        expect((loadFilterValues(U) as any)[f.path]).toBe(v);
     });
 
     /**
