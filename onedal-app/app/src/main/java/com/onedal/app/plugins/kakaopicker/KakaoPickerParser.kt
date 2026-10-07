@@ -942,6 +942,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val fromServer = (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }.toSet()
             if (fromServer.isEmpty()) fallback else fromServer + fallback
         } catch (e: Exception) {
+            com.onedal.app.core.DictBroken.record("픽커", e)   // 📕 깨진 사전 — 기본값으로 거르고 운영센터에 하루 한 번
             fallback
         }
     }

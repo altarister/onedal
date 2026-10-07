@@ -594,6 +594,15 @@ class HijackService : AccessibilityService(), ScanContext {
                 detailParsedText = line.take(200),
             )
         }
+        // 📕 서버 낱말 사전이 깨졌다 — 이상 기록 «DICT_BROKEN: 까닭»(같은 배차망은 하루 한 번 · `DictBroken`)
+        com.onedal.app.core.DictBroken.sink = { network, why ->
+            apiClient.sendAnomalyReport(
+                targetApp = network,
+                screenName = "LIST",
+                failureReason = "DICT_BROKEN: $why",
+                detailParsedText = null,
+            )
+        }
         // 🔎 못 알아본 배차망 화면 — 이상 기록 «SCREEN_UNKNOWN: 글 앞부분»(가린 글 · 같은 화면 하루 한 번 · `UnknownScreenReport`)
         // 📷 1초 뒤에도 모르는 화면이고 상세 사진 판독 중이 아니면 그 순간의 사진을 같이 싣는다(가리지 않은 원본 · `UnknownScreenShot`) — 못 찍으면 글만
         com.onedal.app.core.UnknownScreenReport.sink = { network, reason, text ->

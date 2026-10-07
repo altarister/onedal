@@ -11,6 +11,7 @@ const KIND_LABEL: Record<string, string> = {
     SNAPSHOT_PARSE_FAILED: '사진 판독 실패',
     SNAPSHOT_MISMATCH: '사진 · 글자 다름',
     VEHICLE_UNKNOWN: '모르는 차종',
+    DICT_BROKEN: '낱말 사전 깨짐',
     OTHER: '기타',
     ALL: '전체',
 };

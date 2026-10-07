@@ -227,6 +227,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 val fromServer = (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }.toSet()
                 if (fromServer.isEmpty()) NOISE_WORDS else fromServer + NOISE_WORDS
             } catch (e: Exception) {
+                com.onedal.app.core.DictBroken.record("24시", e)   // 📕 깨진 사전 — 기본값으로 거르고 운영센터에 하루 한 번
                 NOISE_WORDS
             }
         }

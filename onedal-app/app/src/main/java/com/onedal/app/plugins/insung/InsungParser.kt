@@ -477,6 +477,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 FALLBACK_NOISE_WORDS
             }
         } catch(e: Exception) {
+            com.onedal.app.core.DictBroken.record("인성콜", e)   // 📕 깨진 사전 — 기본값으로 거르고 운영센터에 하루 한 번
             FALLBACK_NOISE_WORDS
         }
 
