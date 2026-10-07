@@ -69,6 +69,23 @@ router.post("/", async (req, res) => {
 
         const io = req.app.get("io");
 
+        /**
+         * 🛑 **앱이 취소를 못 눌렀으면 계약이 남아 있다** — 세지 않고(배차망 취소가 아니다) 콜 · 결재 줄을 그대로 두고 관제웹에 알리기만 한다.
+         *    가르는 것은 까닭 이름이 아니라 «눌렀나»(`cancelPressed`) 하나 · 칸이 없으면(옛 원달앱) 아래 옛 길 그대로.
+         */
+        if (report.cancelPressed === false) {
+            slog('경고', `   🛑 [취소 못 누름] ${targetOrderId} — 계약이 남아 있다 · 세지 않고 콜을 그대로 둔다 (까닭: ${reason})`);
+            if (io) {
+                const alert: EmergencyAlert = {
+                    deviceId, orderId: targetOrderId, reason, screenContext,
+                    screenText: screenText?.substring(0, 300),
+                    timestamp: timestamp || new Date().toISOString(),
+                };
+                io.to(userId).emit("emergency-alert", alert);
+            }
+            return res.json({ success: true, message: "비상 보고 수신 — 계약이 남아 있어 콜을 그대로 둔다", clearedOrderId: null });
+        }
+
         if (session.pendingDecisions.has(targetOrderId)) {
             session.pendingDecisions.delete(targetOrderId);
             slog('경고', `   ✅ 결재 큐(pendingDecisions) 삭제 완료`);

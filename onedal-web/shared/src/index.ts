@@ -1616,6 +1616,11 @@ export interface EmergencyReport {
     screenContext: ScreenContextType;
     screenText: string;           // 현재 화면 텍스트 전부 (서버 분석용)
     timestamp: string;
+    /**
+     * 🛑 **앱이 계약 취소 버튼을 실제로 눌렀나** — false 면 계약이 남아 있다(버튼 못 찾음 · 화면 못 얻음).
+     *    서버는 이 사실 하나로 «취소로 세고 콜을 끝내나»를 가른다 — 까닭 이름으로 가르지 않는다. 칸이 없으면(옛 원달앱) 지금처럼 끝낸다.
+     */
+    cancelPressed?: boolean;
 }
 
 export interface ScrapResponse {
