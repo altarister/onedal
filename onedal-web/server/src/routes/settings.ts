@@ -181,12 +181,9 @@ router.put("/", requireAuth, async (req, res) => {
 
         // 🎛️ 콜 필터 켬/끔(isActive)은 기기 모드(AUTO/MANUAL)가 유일한 원천이라 여기서 다루지 않는다
 
-        // 클라이언트(내 차 패널 등)가 실시간으로 갱신될 수 있도록 소켓 이벤트 발송
-        req.app.get("io").to(userId).emit("settings-updated", payload);
-
         // 🔴 DB 만 쓰고 끝내지 않는다 — 세션의 userVehicleType 은 로그인 때 한 번만 읽으므로, 여기서 바꾸지 않으면
         //    필터는 옛 차종으로, 카카오 경로는 새 차종으로 계산해 같은 순간에 두 값이 달라진다.
-        //    관제탑에는 `settings-updated` 로 알린다.
+        //    관제웹에는 차종 세션을 바꾼 뒤 `settings-updated` 로 한 번 알린다 — 머리줄 차종(`VehicleLogoSummary` · `followVehicleType`)이 듣는다.
 
         const io = req.app.get("io");
         if (payload.vehicleType) {
