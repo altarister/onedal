@@ -40,34 +40,6 @@ function ensureColumns(table: string, columns: Record<string, string>, on: Datab
     }
 }
 
-/**
- * 굳어버린 CHECK 제약을 떼어 낸다. **행을 먼저 복사한 뒤에만** 원래 테이블을 지운다.
- * (CLAUDE.md 가 금지한 "조건부 DROP TABLE" 은 데이터가 날아가는 패턴이다.
- *  여기는 복사 → 교체 순서라 한 건도 잃지 않는다. 트랜잭션으로 묶는다)
- */
-function dropStaleCheck(table: string, createSql: string, indexSql: string[]) {
-    const row = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(table) as { sql?: string } | undefined;
-    if (!row?.sql || !row.sql.includes('CHECK(')) return;
-
-    const cols = (db.prepare(`PRAGMA table_info(${table})`).all() as any[]).map(c => c.name).join(', ');
-    const before = (db.prepare(`SELECT COUNT(*) c FROM ${table}`).get() as any).c;
-
-    db.transaction(() => {
-        db.exec(createSql.replace(table, `${table}__new`));
-        db.exec(`INSERT INTO ${table}__new (${cols}) SELECT ${cols} FROM ${table}`);
-        db.exec(`DROP TABLE ${table}`);
-        db.exec(`ALTER TABLE ${table}__new RENAME TO ${table}`);
-        for (const ix of indexSql) db.exec(ix);
-    })();
-
-    const after = (db.prepare(`SELECT COUNT(*) c FROM ${table}`).get() as any).c;
-    slog('부팅', `🔧 [스키마] ${table} CHECK 제약 제거 (${before}건 → ${after}건 보존)`);
-}
-
-
-
-
-
 // ═══════════════════════════════════════
 // [1] 사용자 테이블
 // ═══════════════════════════════════════
@@ -652,7 +624,7 @@ db.exec(ORDER_JUDGMENTS_SQL);
 
 /**
  * 🔧 **굳어버린 `NOT NULL` 을 푼다** — 행을 먼저 옮긴 뒤에만 옛 표를 지운다
- *    (`dropStaleCheck` 와 같은 방식). 이미 풀려 있으면 아무 일도 안 한다.
+ *    (새 표에 복사 → 옛 표 지우기 → 이름 바꾸기 · 한 트랜잭션). 이미 풀려 있으면 아무 일도 안 한다.
  */
 function relaxScoreNotNull() {
     const row = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='order_judgments'")

@@ -43,7 +43,7 @@ logs/server-YYYY-MM-DD-4012.log   다른 포트(검사·재현용)
 
 - **조건부 `DROP TABLE` 마이그레이션을 새로 추가하지 않는다** (`db.ts` — 부팅 경로에서 데이터가 날아감).
   부팅할 때 표를 만지는 옛 코드는 하나 남아 있다. `order_judgments` 를 다시 만드는 코드다. 행을 먼저 복사하고 나서 표를 바꾸므로 데이터는 잃지 않는다.
-  `dropStaleCheck()` 도 같은 방식이지만 지금은 아무 데서도 부르지 않는다. V7 은 표를 지우지 않고 `orders` 의 상태값만 `UPDATE` 로 바꾼다.
+  V7 은 표를 지우지 않고 `orders` 의 상태값만 `UPDATE` 로 바꾼다.
   둘 다 지금 DB 에서는 조건이 맞지 않아 실제로 돌지 않는다
 
 - **기다림(`setTimeout` 한 번짜리)은 `state/waits.ts` 의 `armWait` 로만 건다** — `waitLedger` · `timerKeysCleared` 가 문다 (한 요청 안의 짧은 기다림과 종료 절차만 이름으로 뺀다)
