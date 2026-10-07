@@ -383,9 +383,10 @@ export const DEFAULT_QUAD_SHAPE: QuadShape = { srcAngleDeg: 110, dstAngleDeg: 11
  * 아무 그릇(평면 필터·DB 행·폼)에서 마름모 셋만 꺼낸다. 없거나 이상하면 기본값 —
  * **0 으로 읽지 않는다** (`Number(null) === 0`).
  */
-export function quadShapeFrom(src: Record<string, unknown> | null | undefined): QuadShape {
+export function quadShapeFrom(from: object | null | undefined): QuadShape {
     const out = { ...DEFAULT_QUAD_SHAPE };
-    if (!src) return out;
+    if (!from) return out;
+    const src = from as Record<string, unknown>;   // 필터 · DB 행 · 화면 값 — 어느 그릇이든 칸 이름으로 읽는다
     for (const f of QUAD_FIELDS) {
         const v = src[f.path] ?? src[f.col];
         if (v === null || v === undefined || v === '') continue;
@@ -425,9 +426,10 @@ export function reachRadiusKm(reachMin: number, coefMinPerKm: number = REACH_COE
  * 🔴 **`Number(null) === 0` 을 막는다**. 새 칸은 늘 NULL 로 태어나는데
  *    그냥 `Number()` 를 태우면 **NULL 의 0 이 기본값을 이긴다.** `''` 도 같은 길이다.
  */
-export function filterValuesFrom(src: Record<string, unknown> | null | undefined): Record<FlatValueKey, any> {
+export function filterValuesFrom(from: object | null | undefined): Record<FlatValueKey, any> {
     const out = { ...DEFAULT_FILTER_VALUES } as Record<FlatValueKey, any>;
-    if (!src) return out;
+    if (!from) return out;
+    const src = from as Record<string, unknown>;   // 필터 · DB 행 · 화면 값 — 어느 그릇이든 칸 이름으로 읽는다
     for (const f of FILTER_FIELDS) {
         const v = src[f.path] ?? src[f.col];
         if (v === null || v === undefined || v === '') continue;

@@ -207,8 +207,8 @@ export default function OrderFilterModal({ isOpen, onClose,
     const pickExDongOne = (d: string) => { if (exSgg) { setExDraft(x => toggleDongOne(x, exSido, exSggs(), exSgg, dongList(exSgg), d)); setExDirty(true); } };
     /** ⛔ 「빼는 곳」 칸에 **보이는 이름** — 목적지 칸과 같은 규칙이다 (값은 그대로) */
     const shortEx = (v: string) => v.startsWith(`${exSido} `) ? v.slice(exSido.length + 1) : v;
-    const fillQuad = (src: unknown) => setQuadForm(Object.fromEntries(
-        QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(src as any)[f.path])])));
+    const fillQuad = (src: object | null | undefined) => setQuadForm(Object.fromEntries(
+        QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(src)[f.path])])));
 
     /**
      * 지금 어느 국면인가 — **두 축의 조합**이다 (`callTarget` × `dispatchPhase`).
@@ -309,11 +309,11 @@ export default function OrderFilterModal({ isOpen, onClose,
      */
     const previewValues = (next: ValueForm) => {
         setForm(next);
-        previewFilter(toValues(next, filterValuesFrom(filter as any)));
+        previewFilter(toValues(next, filterValuesFrom(filter)));
     };
     /** 지금 폼 값을 **메모리에** 넣는다 (DB 아님). 손을 뗄 때 서버까지 간다 */
     const commitValues = (next?: ValueForm) => {
-        updateFilter(toValues(next ?? cur, filterValuesFrom(filter as any)));
+        updateFilter(toValues(next ?? cur, filterValuesFrom(filter)));
     };
     /**
      * 고르는 칸(목적지·할인율)은 **고르는 즉시** — 한 번뿐이라 폭주가 없다.
@@ -387,7 +387,7 @@ export default function OrderFilterModal({ isOpen, onClose,
      */
     useEffect(() => {
         if (isOpen && filter) {
-            setForm(toForm(filterValuesFrom(filter as any)));
+            setForm(toForm(filterValuesFrom(filter)));
             /* 📐 마름모는 평면 필터에 실려 온다 — 국면 밖 한 벌이라 */
             fillQuad(filter);
             setQuadDirty(false);
@@ -411,9 +411,9 @@ export default function OrderFilterModal({ isOpen, onClose,
      */
     const unsaved = useMemo(() => {
         if (!baseFilter) return false;
-        const base = toForm(filterValuesFrom(baseFilter as any));
+        const base = toForm(filterValuesFrom(baseFilter));
         if (FILTER_FIELDS.some(f => cur[f.path] !== base[f.path])) return true;
-        const bq = quadShapeFrom(baseFilter as any);
+        const bq = quadShapeFrom(baseFilter);
         if (QUAD_FIELDS.some(f => quadForm[f.path] !== String(bq[f.path]))) return true;
         if (!sameList(exDraft, baseFilter.excludedRegions ?? [])) return true;
         const kw = blacklist ? blacklist.split(',').map(t => t.trim()).filter(Boolean) : [];
@@ -439,7 +439,7 @@ export default function OrderFilterModal({ isOpen, onClose,
      */
     const handleRevert = () => {
         if (!baseFilter) return;
-        const v = toForm(filterValuesFrom(baseFilter as any));
+        const v = toForm(filterValuesFrom(baseFilter));
         setForm(v);
         fillQuad(baseFilter);
         setExDraft(baseFilter.excludedRegions ?? []);
@@ -447,8 +447,8 @@ export default function OrderFilterModal({ isOpen, onClose,
         /* 되돌린 직후 💾 가 헛쓰기를 하지 않게 «담아 둔» 깃발도 내린다 (조사 ①-8 부수) */
         setQuadDirty(false); setExDirty(false); setBlacklistDirty(false);
         updateFilter({
-            ...toValues(v, filterValuesFrom(baseFilter as any)),
-            ...quadShapeFrom(baseFilter as any),
+            ...toValues(v, filterValuesFrom(baseFilter)),
+            ...quadShapeFrom(baseFilter),
             excludedRegions: baseFilter.excludedRegions ?? [],
             excludedKeywords: baseFilter.excludedKeywords ?? [],
             /* 📐🚚 오늘 값 셋도 서버 값으로 (조사 ①-5) */
@@ -497,7 +497,7 @@ export default function OrderFilterModal({ isOpen, onClose,
          * 아니라 파생값이고, 여기서 보내면 서버가 `if (!changes.allowedVehicleTypes)` 에
          * 걸려 자기 계산을 건너뛴다 (사고).
          */
-        updateFilter(toValues(cur, filterValuesFrom(filter as any)), saveAsDefault);
+        updateFilter(toValues(cur, filterValuesFrom(filter)), saveAsDefault);
 
         /**
          * 📐 **마름모는 국면 밖 한 벌이라 평면 통로로 간다** — 고친 때만 보낸다.

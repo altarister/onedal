@@ -798,7 +798,7 @@ describe('요약줄 «N 읍면동» — 서버 하차 목록 수 (2026-09-15)', 
 describe('필터를 열면 폼이 지금 값으로 채워진다 (#108)', () => {
     it('🔴 모달이 열릴 때 filter 로 폼을 채우는 자리가 있다', () => {
         expect(modal).toMatch(/isOpen && filter/);
-        expect(modal).toMatch(/setForm\(toForm\(filterValuesFrom\(filter as any\)\)\)/);
+        expect(modal).toMatch(/setForm\(toForm\(filterValuesFrom\(filter\)\)\)/);
     });
 
     it('🔴 값 다섯뿐 아니라 마름모·제외지역·제외단어까지 함께 채운다', () => {
