@@ -7,7 +7,7 @@ import { allowanceOf } from "../core/allowance";
 import { filterVersionOf } from "../core/helpers";
 import { deviceLabelOf } from "../core/deviceAuth";
 import { getDeviceMode, otherAutoPhoneOf, registeredPhonesOf, livePhonesOf } from "./deviceSessions";
-import { ensureReservedPickupList } from "./filterManager";
+import { ensureReservedPickupList } from "./filterNet";
 import { appFilterOf, type AppFilterHolds } from "./appFilter";
 import { rememberSentFilterVersion } from "../core/phoneCheck";
 import { getUserSession } from "./userSessionStore";

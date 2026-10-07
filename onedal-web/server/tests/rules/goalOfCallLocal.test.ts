@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { getUserSession } from '../../src/state/userSessionStore';
-import { goalCityOf, goalCitiesOf } from '../../src/state/filterManager';
+import { goalCityOf, goalCitiesOf } from '../../src/state/filterGoals';
 import { initGeoService } from '../../src/services/geoService';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 
@@ -52,7 +52,7 @@ describe('🔒 좌표로 되짚는 계산이 없다', () => {
     });
 
     it('🔴 하차지 좌표로 목표값을 고르는 함수가 없다', () => {
-        expect(SRC('state/filterManager.ts')).not.toMatch(/function goalOfCall/);
+        for (const f of ['state/filterManager.ts', 'state/filterGoals.ts']) expect(SRC(f)).not.toMatch(/function goalOfCall/);
         expect(SRC('services/dispatchEngine.ts')).not.toMatch(/goalOfCall\(/);
     });
 

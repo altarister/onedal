@@ -3,7 +3,7 @@ import db from '../../src/db';
 import * as geo from '../../src/services/geoService';
 import * as fileLogger from '../../src/utils/fileLogger';
 const { initGeoService } = geo;
-import { ensureReservedPickupList } from '../../src/state/filterManager';
+import { ensureReservedPickupList } from '../../src/state/filterNet';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 
 /**

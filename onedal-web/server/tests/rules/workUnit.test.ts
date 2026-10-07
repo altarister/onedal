@@ -94,7 +94,7 @@ describe('종결 판정은 한 곳', () => {
     it('🔴 상태 배열을 손으로 만들어 includes 하지 않는다', () => {
         const offenders: string[] = [];
         for (const f of ['routes/emergency.ts', 'routes/orders.ts', 'routes/detail.ts',
-                         'routes/scrap.ts', 'services/dispatchEngine.ts', 'state/filterManager.ts']) {
+                         'routes/scrap.ts', 'services/dispatchEngine.ts', 'state/filterManager.ts', 'state/filterNet.ts', 'state/filterGoals.ts']) {
             const src = codeOnly(read(f));
             if (/\[\s*'ORDER_\w+'\s*,[^\]]*\]\.includes\(/.test(src)) offenders.push(f);
         }

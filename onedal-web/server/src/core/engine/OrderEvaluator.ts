@@ -11,7 +11,7 @@ import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf, dwellLedgerFor, firmPromiseMsOf } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
-import { goalCityOf } from "../../state/filterManager";
+import { goalCityOf } from "../../state/filterGoals";
 import { findLoadConflicts, totalDetourCost, getStopTiming } from "../helpers";
 import { originOf, homeOriginOf } from "../../services/geoService";
 import { haversineKm } from "@onedal/shared";

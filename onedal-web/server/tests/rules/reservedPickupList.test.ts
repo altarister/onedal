@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import db from '../../src/db';
 import { initGeoService } from '../../src/services/geoService';
-import { ensureReservedPickupList } from '../../src/state/filterManager';
+import { ensureReservedPickupList } from '../../src/state/filterNet';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 
 /**

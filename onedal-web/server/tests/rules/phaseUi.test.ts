@@ -1209,9 +1209,11 @@ describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => 
     });
 
     it('🔴 판별 규칙을 서버가 또 쓰지 않는다 (shared 함수 하나로만)', () => {
-        // `S|`·`R|`·`D|` 키 문법을 서버가 직접 뜯어보면 그 순간 규칙이 두 벌이다
-        expect(fm2).not.toMatch(/startsWith\('[SRD]\|'\)/);
-        expect(fm2).not.toMatch(/`D\|\$\{/);
+        // `S|`·`R|`·`D|` 키 문법을 서버가 직접 뜯어보면 그 순간 규칙이 두 벌이다 — 목록을 만드는 filterNet 도 본다
+        for (const src of [fm2, codeOnly(read(join(SERVER, 'state/filterNet.ts')))]) {
+            expect(src).not.toMatch(/startsWith\('[SRD]\|'\)/);
+            expect(src).not.toMatch(/`D\|\$\{/);
+        }
     });
 
     /**

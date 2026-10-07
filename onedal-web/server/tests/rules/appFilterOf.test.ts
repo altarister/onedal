@@ -8,7 +8,7 @@ import { initGeoService } from '../../src/services/geoService';
 import { APP_FILTER_KEYS, effectiveRadii, reservedPickupRadiusKmOf, callFilterBlocker } from '@onedal/shared';
 import { capacityFullHold, filterVersionOf } from '../../src/core/helpers';
 import { readWaitTimes } from '../../src/core/waitTimes';
-import { ensureReservedPickupList } from '../../src/state/filterManager';
+import { ensureReservedPickupList } from '../../src/state/filterNet';
 import { getUserSession, peekUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
 

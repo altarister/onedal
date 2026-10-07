@@ -1,10 +1,9 @@
 // @ts-nocheck
 import { initGeoService, getCityRegionsWithRadius, regionsTouchingCircleGrouped, trapsForKeywords, cityAliases, pickupListFor } from '../../src/services/geoService';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
-import {
-    updateActiveFilter, rebuildNetFilter, rebuildPickupList, applyTraveledTrim, trimTraveled, ensureReservedPickupList,
-    homeCityOf, goalCityOf, goalCitiesOf, homeCallsOf,
-} from '../../src/state/filterManager';
+import { updateActiveFilter, rebuildNetFilter, trimTraveled } from '../../src/state/filterManager';
+import { rebuildPickupList, applyTraveledTrim, ensureReservedPickupList } from '../../src/state/filterNet';
+import { homeCityOf, goalCityOf, goalCitiesOf, homeCallsOf } from '../../src/state/filterGoals';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 import * as callTargetEvents from '../../src/core/callTargetEvents';
 import { cityCenter, haversineKm, netForGoal, quadShapeFrom, progressAlongKm, reservedPickupRadiusKmOf } from '@onedal/shared';
