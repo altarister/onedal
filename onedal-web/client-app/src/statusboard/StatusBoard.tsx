@@ -340,7 +340,9 @@ function MockDriveCard({ phase }: { phase?: string }) {
  *    두 곳에서 같은 좌표를 쏜다.
  */
 function LocationPickCard() {
-    const [home, setHome] = useState<{ lng: number; lat: number; address?: string } | null>(null);
+    /* 🏠 집 좌표는 설정 저장소 한 곳(다리 `useSettingsStore` · 읽기는 관제웹 `loadScreenSettings`) — 못 읽으면 집 버튼이 잠긴다(지어내지 않는다) */
+    const homeX = useSettingsStore(st => st.homeX), homeY = useSettingsStore(st => st.homeY), homeAddress = useSettingsStore(st => st.homeAddress);
+    const home = homeX != null && homeY != null ? { lng: homeX, lat: homeY, address: homeAddress ?? undefined } : null;
     const [addrText, setAddrText] = useState('');
     const [finding, setFinding] = useState(false);
     const [found, setFound] = useState<{ lng: number; lat: number; address: string } | null>(null);
@@ -349,19 +351,6 @@ function LocationPickCard() {
     /** 🔴 **보냈다고 말하기 전에 실제로 나갔는지 본다** — 같은 자리면 안 나간다 */
     const [sentNote, setSentNote] = useState<string | null>(null);
 
-    /* 🏠 집 좌표는 한 번만 읽는다 — 자주 바뀌는 값이 아니다 */
-    useEffect(() => {
-        let alive = true;
-        apiClient.get('/settings')
-            .then(r => {
-                const d = r.data as { homeX?: number | null; homeY?: number | null; homeAddress?: string };
-                if (alive && d.homeX != null && d.homeY != null) {
-                    setHome({ lng: d.homeX, lat: d.homeY, address: d.homeAddress });
-                }
-            })
-            .catch(() => { /* 못 읽으면 집 버튼이 잠긴다 — 지어내지 않는다 */ });
-        return () => { alive = false; };
-    }, []);
 
     const search = async () => {
         const q = addrText.trim();

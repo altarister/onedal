@@ -1,10 +1,8 @@
 import { useEffect, useState, useRef } from "react";
-import { useSettingsStore } from '../../stores/settingsStore';
+import { useSettingsStore, loadScreenSettings } from '../../stores/settingsStore';
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
 import { CAPACITY_CONFIDENCE_LABEL, isAlreadyLoaded, isEvaluating, TRUCK_CAPACITY_SLOTS, manwonText } from '@onedal/shared';
-import { apiClient } from "../../api/apiClient";
-import { socket } from "../../lib/socket";
 import { logStateChange } from '../../lib/roadmapLogger';
 import { initialMotion, motionOnFix, motionOnTick } from './driveMotion';
 
@@ -101,30 +99,15 @@ export function MovingBadge() {
     );
 }
 
-/** 소켓에서 `on` · `off` 만 쓴다 — 검사가 가짜 소켓을 넣는다 */
-type SettingsSocket = { on(ev: 'settings-updated', h: (s: { vehicleType?: string }) => void): unknown; off(ev: 'settings-updated', h: (s: { vehicleType?: string }) => void): unknown };
-
-/**
- * 🚚 **설정 바뀜을 듣고 차종을 다시 적는다** — 설정창 · 다른 창에서 차종을 바꾸면 머리줄이 새로고침 없이 따른다.
- *    서버 `routes/settings.ts` 가 저장 뒤 `settings-updated` 를 보낸다. 차종이 없는 저장은 그대로 둔다. 돌려주는 함수로 끊는다.
- */
-export function followVehicleType(socket: SettingsSocket, setVehicle: (v: string) => void): () => void {
-    const onUpdated = (s: { vehicleType?: string }) => { if (s?.vehicleType) setVehicle(s.vehicleType); };
-    socket.on('settings-updated', onUpdated);   // audit:socket 이 `socket.on(` 글자로 듣는 곳을 센다 — 인자 이름을 socket 으로 둔다
-    return () => { socket.off('settings-updated', onUpdated); };
-}
-
 /**
  * 🚚 **로고 자리 요약** (기사님) — 헤더의 1DAL 로고를 대신한다. 같은 파생
  * (isAlreadyLoaded·capacityConfidence)을 쓰는 압축판 — 파생 두 벌을 만들지 않는다.
  */
 export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] }) {
     const { filter } = useFilterConfig();
-    const [dbVehicleType, setDbVehicleType] = useState<string | null>(null);
-    useEffect(() => {
-        apiClient.get('/settings').then(({ data }) => { if (data?.vehicleType) setDbVehicleType(data.vehicleType); }).catch(() => {});
-        return followVehicleType(socket, setDbVehicleType);
-    }, []);
+    /* 🚚 차종은 설정 저장소 한 곳 — 설정을 바꾸면 저장소가 다시 읽어 머리줄이 따른다(`loadScreenSettings`) */
+    const dbVehicleType = useSettingsStore(st => st.vehicleType);
+    useEffect(() => { void loadScreenSettings(); }, []);
     const myVehicle = dbVehicleType || filter?.allowedVehicleTypes?.[0] || '1t';
     const confirmedCalls = liveCalls.filter(o => !isEvaluating(o.status));
     const reserved = confirmedCalls.filter(o => !isAlreadyLoaded(o));

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { apiClient } from "../../../api/apiClient";
 import { VEHICLE_OPTIONS, DEFAULT_WAIT_TIMES, waitSecOrNull } from "@onedal/shared";
 import type { WaitTimes } from "@onedal/shared";
-import { useSettingsStore } from "../../../stores/settingsStore";
+import { useSettingsStore, loadScreenSettings } from "../../../stores/settingsStore";
 import { Button } from "@onedal/ui/button";
 import { Input } from "@onedal/ui/input";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -28,7 +28,9 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const loadSettings = async () => {
     try {
       setIsLoading(true);
-      const { data } = await apiClient.get('/settings');
+      /* 📡 읽기는 설정 저장소 한 곳 — 창을 열 때마다 서버 값으로 새로 채운다 */
+      await loadScreenSettings(true);
+      const data = useSettingsStore.getState();
       setVehicleType(data.vehicleType || "1t");
       setDefaultPriority(data.defaultPriority || 'RECOMMEND');
       setHomeAddress(data.homeAddress || "");

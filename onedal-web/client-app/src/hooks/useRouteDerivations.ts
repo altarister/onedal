@@ -6,7 +6,7 @@ import { EMPTY_RECORDS } from './records';
 import { useStepRecords } from './useStepRecords';
 import { useJudgmentStore } from '../stores/judgmentStore';
 import { useGpsFocusStore, ensureGpsFocusSubscribed } from '../stores/gpsFocusStore';
-import { loadScreenSettings } from '../stores/settingsStore';
+import { loadScreenSettings, useSettingsStore } from '../stores/settingsStore';
 import { useDrivenTrailStore, ensureDrivenTrailSubscribed, clearDrivenTrail, restoreDrivenTrail } from '../stores/drivenTrailStore';
 /* 📍 서버가 아는 «내 자리» — 화면이 제 손으로 정하지 않는다 */
 /* 📍 구독은 현황판 쪽에서 건다 — 지도는 이 값을 아직 안 쓴다 (아래 🗑️ 주석) */
@@ -14,7 +14,6 @@ import { useFilterConfig } from './useFilterConfig';
 import { useMasterGps } from './useMasterGps';
 import { callLineColor } from '../styles/callPalette';
 import { useTheme } from '@onedal/ui/theme';
-import { apiClient } from '../api/apiClient';
 import { getAddressLabel } from '../lib/routeUtils';
 import { logStateChange } from '../lib/roadmapLogger';
 import { visitedSequenceOf } from '../lib/visitedSequence';
@@ -151,18 +150,15 @@ export function useRouteDerivations(
      * 진짜 위치(GPS)가 언제나 이긴다. 서버도 같은 값을 쓴다 (SettingsRepository.getHomeLocation).
      */
     const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>(null);
+    /* 🏠 집 좌표는 설정 저장소 한 곳 — 설정창에서 집 주소를 바꾸면 저장소가 다시 읽어 출발점이 따른다 */
+    const homeX = useSettingsStore(st => st.homeX), homeY = useSettingsStore(st => st.homeY);
     useEffect(() => {
-        let alive = true;
-        apiClient.get('/settings')
-            .then(({ data }: { data: { homeX?: number; homeY?: number } }) => {
-                const x = data?.homeX, y = data?.homeY;
-                if (!alive || x == null || y == null) return;
-                homeLocation.current = { x, y };
-                setMyLocation(prev => prev ?? { x, y });
-            })
-            .catch(() => {});
-        return () => { alive = false; };
-    }, []);
+        if (homeX == null || homeY == null) return;
+        const prevHome = homeLocation.current;
+        homeLocation.current = { x: homeX, y: homeY };
+        /* GPS 가 없는 동안 출발점이 옛 집이었으면 새 집으로 옮긴다 — 진짜 위치(GPS)는 그대로 이긴다 */
+        setMyLocation(prev => (!prev || (prevHome && prev.x === prevHome.x && prev.y === prevHome.y)) ? { x: homeX, y: homeY } : prev);
+    }, [homeX, homeY]);
     /**
      * 🔄 **모의 주행이 끝나도 화면은 집으로 돌아가지 않는다** (기사님 지시).
      *

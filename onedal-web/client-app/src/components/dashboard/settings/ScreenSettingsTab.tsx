@@ -3,7 +3,7 @@ import { apiClient } from "../../../api/apiClient";
 import { Button } from "@onedal/ui/button";
 import { Input } from "@onedal/ui/input";
 import { MOTION_HOLD_SEC_DEFAULT } from "@onedal/shared";
-import { useSettingsStore } from "../../../stores/settingsStore";
+import { useSettingsStore, loadScreenSettings } from "../../../stores/settingsStore";
 
 /**
  * 🖥️ **화면 설정 탭** — «화면이 어떻게 반응하나»를 정하는 자리 (기사님 제안).
@@ -22,8 +22,9 @@ export default function ScreenSettingsTab() {
     useEffect(() => {
         (async () => {
             try {
-                const { data } = await apiClient.get('/settings');
-                setMotionHoldSec(data?.motionHoldSec ?? MOTION_HOLD_SEC_DEFAULT);
+                /* 📡 읽기는 설정 저장소 한 곳 — 창을 열 때마다 서버 값으로 새로 채운다 */
+                await loadScreenSettings(true);
+                setMotionHoldSec(useSettingsStore.getState().motionHoldSec);
             } catch (e) {
                 console.error("화면 설정을 못 읽었습니다:", e);
             } finally { setLoading(false); }

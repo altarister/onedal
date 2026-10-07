@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
+import { useSettingsStore, loadScreenSettings } from "../../stores/settingsStore";
 import { useFilterStore } from "../../stores/filterStore";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
@@ -11,7 +12,6 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
 import { radiusScaleNoteOf } from '../../lib/radiusNote';
 import type { PhaseKey, FlatValueKey, CallTarget, ReservationMode } from "@onedal/shared";
 import { socket } from "../../lib/socket";
-import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
 import { ALL_KEY, excludedSggsOf, excludedDongsOf, toggleSggAll, toggleSggOne, toggleDongAll, toggleDongOne } from "../../lib/excludePick";
 
@@ -399,13 +399,9 @@ export default function OrderFilterModal({ isOpen, onClose,
     }, [isOpen]);   // eslint-disable-line react-hooks/exhaustive-deps -- 열릴 때 한 번 (위 ⚠️)
 
     /** 복귀 국면의 «목적지는 지금 자동» 줄이 보여 주는 집 주소 — 원천은 ⚙️ 설정이다. 여기서는 읽기만 한다 */
-    const [homeAddress, setHomeAddress] = useState<string>("");
-    useEffect(() => {
-        if (!isOpen) return;
-        apiClient.get('/settings')
-            .then(({ data }) => setHomeAddress(data.homeAddress || ""))
-            .catch(() => setHomeAddress(""));   // 못 읽으면 "자동 · 설정의 집 주소" 로 남는다
-    }, [isOpen]);
+    /* 🏠 «설정의 집 주소»는 설정 저장소 한 곳 — 못 읽으면 "자동 · 설정의 집 주소" 로 남는다 */
+    const homeAddress = useSettingsStore(st => st.homeAddress) ?? "";
+    useEffect(() => { if (isOpen) void loadScreenSettings(); }, [isOpen]);
 
     /**
      * 🔴 **«서버와 다른가»는 파생이다 — 깃발을 손으로 들지 않는다** (규칙 ③).
