@@ -117,17 +117,17 @@ describe('🎨 실험실 사실 → 실물 엔진이 색을 낸다', () => {
     });
 
     /**
-     * 🔴 **추정 적재로 모자라면 «못 쟀다» 다** (규칙 ⑤-2).
-     *    실험실 사실에는 «어떻게 알았나»(`confidence`)가 없어 추정으로 다룬다 — 차종 오독
-     *    하나가 멀쩡한 콜의 평균을 끌어내리지 않게, 0점 대신 가중평균에서 아예 뺀다.
+     * 🔴 **어떻게 알았는지 모르는 적재로 모자라면 «못 쟀다» 다** (규칙 ⑤-2).
+     *    실험실 사실에는 «어떻게 알았나»(`confidence`)가 없다 — 재료가 안 온 것이라 0점 대신
+     *    가중평균에서 아예 빼고, 글은 «어떻게 알았는지 모름»이다 (추정이면 «확인하세요» · 보통).
      */
-    it('📦 자리가 모자라면 «못 쟀다» 로 빠진다 — 추정이라 0점으로 깎지 않는다', () => {
+    it('📦 자리가 모자라면 «못 쟀다» 로 빠진다 — 어떻게 알았는지 몰라 0점으로 깎지 않는다', () => {
         const facts = buildLabFacts({ ...base, slotsUsed: 95, boxes: 20 });
         expect(facts.space?.freePct).toBeLessThan(0);
         const out = judge(CRITERIA, facts, DEFAULT_JUDGMENT).criteria
             .find(c => c.key === 'space')?.outcome;
         expect(out?.kind).toBe('unmeasurable');
-        expect(out?.why).toContain('추정');
+        expect(out?.why).toContain('어떻게 알았는지 모름');
     });
 
     it('🏷️ 성질은 «잴 게 없다»로 지나간다 — 적요가 없는 콜이라 빈 배열이 사실이다', () => {

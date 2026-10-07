@@ -671,8 +671,11 @@ export const SPACE = defineCriterion<SpaceFacts>({
              *    0점을 주면 **오독 하나가 멀쩡한 꿀콜의 평균을 끌어내린다.**
              *    «못 쟀다»는 가중평균에서 아예 빠지고 이유만 화면에 남는다 —
              *    *«모르는 값은 불리하게 가정해 떨어뜨리지 않는다»*.
+             * 🟢 **추정(`ESTIMATED`)이면 «추정이라 못 믿음»을 함께 든다** (기사님 «가») — 색은 🔴 가 아니라 보통 · «확인하세요».
+             *    어떻게 알았는지 모르면(`null`) 재료가 안 온 것이라 그대로 🔴.
              */
-            return unmeasurable(`자리 부족 ${Math.round(f.freePct)}% (${how}) — 차종을 못 읽었을 수 있습니다`);
+            if (f.confidence === 'ESTIMATED') return unmeasurable(`짐 크기 추정 — 확인하세요 · 자리 부족 ${Math.round(f.freePct)}% (${how})`, true);
+            return unmeasurable(`자리 부족 ${Math.round(f.freePct)}% — 짐 크기를 어떻게 알았는지 모름 — 차종을 못 읽었을 수 있습니다`);
         }
         return scored(f.freePct, `여유 ${Math.round(f.freePct)}%`);
     },

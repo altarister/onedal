@@ -33,6 +33,7 @@ import type { JudgmentConfig } from './judgment';
  * | **점수** | 쟀다 | 평균에 든다 |
  * | **잴 게 없다** | 잴 **대상**이 없다 (첫짐엔 지킬 약속이 없다) | 조용히 뺀다. 정상이다 |
  * | **잴 수 없다** | 잴 **재료**가 없다 (카카오가 터졌다) | 🔴 로 보내고 «못 쟀다»고 적는다 |
+ * | 〃 · 추정(`guessed`) | 재료는 있는데 **추정이라 못 믿는다** (차종 글자로 짐작한 적재) | 🟢 보통에 묶고 «확인하세요»를 적는다 |
  *
  * 🔴 이 셋을 뭉뚱그리면 두 가지 사고가 난다 —
  *    ① 재료가 없는데 «괜찮다»고 넘어간다  ② 잴 게 없는 첫짐이 «못 쟀다»로 빨간불이 된다.
@@ -59,8 +60,11 @@ export type Outcome =
         needsCall?: boolean }
     /** 잴 **대상**이 없다 — 첫짐엔 지킬 약속이 없고, 빈 차엔 자리 문제가 없다 */
     | { kind: 'nothing'; why: string }
-    /** 잴 **재료**가 없다 — 카카오가 터졌다, 주소를 못 찾았다 */
-    | { kind: 'unmeasurable'; why: string };
+    /**
+     * 잴 **재료**가 없다 — 카카오가 터졌다, 주소를 못 찾았다.
+     * `guessed` — 재료는 있는데 **추정이라 못 믿는다**. 확인하면 잴 수 있다 (색은 🔴 가 아니라 보통 · 꿀 아님).
+     */
+    | { kind: 'unmeasurable'; why: string; guessed?: true };
 
 export const scored = (score: number, why: string, hardFail = false, value?: number): Outcome =>
     ({ kind: 'scored', score: Math.max(0, Math.min(100, Math.round(score))), why, hardFail, value });
@@ -90,7 +94,8 @@ export const asCeiling = (o: Outcome): Outcome =>
 export const needsCall = (o: Outcome): Outcome =>
     o.kind === 'scored' ? { ...o, needsCall: true } : o;
 export const nothing = (why: string): Outcome => ({ kind: 'nothing', why });
-export const unmeasurable = (why: string): Outcome => ({ kind: 'unmeasurable', why });
+export const unmeasurable = (why: string, guessed = false): Outcome =>
+    guessed ? { kind: 'unmeasurable', why, guessed: true } : { kind: 'unmeasurable', why };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 기준 하나
@@ -189,6 +194,10 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
     /** 색에 드는 것 = 가중치가 있고 실제로 점수가 나온 것 */
     const counted = rows.filter(r => r.weight > 0 && r.outcome.kind === 'scored');
     const cannot = rows.filter(r => r.weight > 0 && r.outcome.kind === 'unmeasurable');
+    /** 재료 자체가 없는 것(🔴)과 추정이라 못 믿는 것(보통 · 확인하세요) — 기준이 스스로 `guessed` 로 말한다 */
+    const isGuessed = (r: JudgedCriterion) => r.outcome.kind === 'unmeasurable' && r.outcome.guessed === true;
+    const missing = cannot.filter(r => !isGuessed(r));
+    const guessed = cannot.filter(isGuessed);
 
     /**
      * 🔴 **역할별로 가른다**
@@ -229,8 +238,9 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
      *         *"색에 여러가지 것들이 섞여있어서 내가 판단하기 어려운거 같아"*
      *
      * 🔴 **행동이 먼저고 점수는 그다음이다.**
-     *      🔴  지금 그대로는 못 잡는다 — 뭔가를 포기해야 한다 (`hardFail` · 잴 수 없음)
+     *      🔴  지금 그대로는 못 잡는다 — 뭔가를 포기해야 한다 (`hardFail` · 재료가 없어 잴 수 없음)
      *      🟡  손이 하나 더 든다 — 전화해서 미룬다 (`needsCall`)
+     *      🟢  추정이라 못 믿는 기준이 있다 — 확인하세요 (`guessed` · 점수가 높아도 꿀이 아니다)
      *      🟢🔵 그냥 잡으면 된다 — 그 안에서 점수가 가른다
      *
      * 🔴 **점수는 색에 안 끌려간다.** 🔴 옆에 90점이 그대로 보여야
@@ -244,8 +254,9 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
     const hardFailed = counted.some(r => (r.outcome as { hardFail?: boolean }).hardFail);
     const callNeeded = counted.some(r => (r.outcome as { needsCall?: boolean }).needsCall);
     const color: Color =
-        hardFailed || cannot.length > 0 || score == null ? '사고'
+        hardFailed || missing.length > 0 || score == null ? '사고'
         : callNeeded ? '똥'
+        : guessed.length > 0 ? '보통'
         : score >= cfg.color.honeyMin ? '꿀' : '보통';
 
     const notes = [...(facts.notes ?? [])];
@@ -256,7 +267,7 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
         notes.push(`${capper?.name ?? '천장'}이 ${ceiling}점이라 총점을 ${raw} → ${score} 로 눌렀습니다 (다른 기준은 깎기만 합니다)`);
     }
     if (score == null) notes.push('잴 수 없음 — 재료가 없어 점수를 못 냅니다');
-    else for (const r of cannot) notes.push(`잴 수 없음 — ${r.name}: ${r.outcome.why}`);
+    else for (const r of cannot) notes.push(isGuessed(r) ? `${r.name}: ${r.outcome.why}` : `잴 수 없음 — ${r.name}: ${r.outcome.why}`);
 
     /* 🔔 벨은 색이 아니라 점수로 (기사님 «가») — 관제웹은 이 한 칸만 읽는다 */
     const bell = score != null && score >= (cfg.bell.scoreMin);

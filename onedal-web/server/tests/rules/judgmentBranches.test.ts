@@ -830,7 +830,9 @@ describe('🎨 판정 갈래 — 같은 콜에 같은 판정', () => {
         expect(declared.color).toBe('사고');
         expect(declared.axes.find(a => a.key === 'space')).toMatchObject({ score: 0, raw: '자리 부족 -20% (신고)' });
         const estimated = await full('ev-full-e', 'ESTIMATED');
-        expect(estimated.axes.find(a => a.key === 'space')).toMatchObject({ score: null, raw: '⚠️ 자리 부족 -20% (추정) — 차종을 못 읽었을 수 있습니다' });
+        expect(estimated.axes.find(a => a.key === 'space')).toMatchObject({ score: null, raw: '⚠️ 짐 크기 추정 — 확인하세요 · 자리 부족 -20% (추정)' });
+        expect(estimated.color).toBe('보통');
+        expect(estimated.tags.some((t: string) => t.includes('짐 크기 추정 — 확인하세요'))).toBe(true);
     });
 
     it('🔴 합짐 — 한계 우회 · 정거장 약속 · 공간 · 지리(꼬리 기점) · 합짐 경로가 콜에 실린다', async () => {

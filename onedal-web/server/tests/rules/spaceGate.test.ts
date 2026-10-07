@@ -66,3 +66,40 @@ describe('📦 남는 자리를 0 에서 자르지 않는다 (배선)', () => {
         expect(ev).not.toMatch(/freePct:[\s\S]{0,120}Math\.max\(0,\s*slotsTotal/);
     });
 });
+
+/**
+ * 🟦 **추정 적재로 넘치면 색은 보통 — «짐 크기 추정 — 확인하세요»** (기사님 «가»)
+ *
+ * 무엇을 막나
+ * - **차종 오독 하나로 합짐이 🔴 가 되는 것** — 추정은 재료가 있는데 못 믿는 것이지, 재료가 없는 것이 아니다
+ * - **확인 안 한 자리로 꿀을 주는 것** — 꿀은 «그냥 잡으면 된다»라 자리를 모르는 콜에 줄 수 없다
+ * - **어떻게 알았는지 모르는 넘침과 재료가 없는 기준까지 보통이 되는 것** — 그건 지금처럼 🔴
+ */
+describe('🟦 추정 적재로 넘치면 보통 · 확인하세요', () => {
+    const 꿀합짐 = (freePct: number | null, confidence: 'CONFIRMED' | 'DECLARED' | 'ESTIMATED' | null): JudgeFacts =>
+        ({ ...합짐(freePct, confidence), money: { fare: 200_000, extraMinutes: 10, firstLoad: false } });
+
+    it('🔴 추정으로 넘치면 사고가 아니라 보통 — 딱지에 «짐 크기 추정 — 확인하세요»', () => {
+        const v = 본다(합짐(-20, 'ESTIMATED'));
+        expect(v.color).toBe('보통');
+        expect(v.notes.some(n => n.includes('짐 크기 추정 — 확인하세요'))).toBe(true);
+        expect(v.notes.some(n => n.startsWith('잴 수 없음'))).toBe(false);
+    });
+
+    it('🔴 점수가 꿀 문턱을 넘어도 추정 넘침이면 보통 — 꿀이 아니다', () => {
+        expect(본다(꿀합짐(40, 'DECLARED')).color).toBe('꿀');
+        expect(본다(꿀합짐(-20, 'ESTIMATED')).color).toBe('보통');
+    });
+
+    it('🔴 어떻게 알았는지 모르면 지금처럼 사고 — 글은 «추정»이 아니라 «어떻게 알았는지 모름»', () => {
+        const v = 본다(합짐(-20, null));
+        expect(v.color).toBe('사고');
+        expect(공간줄(합짐(-20, null)).outcome.why).toContain('짐 크기를 어떻게 알았는지 모름');
+        expect(공간줄(합짐(-20, null)).outcome.why).not.toContain('(추정)');
+    });
+
+    it('🔴 재료가 없는 기준은 그대로 사고 — 적재 상태가 안 오면', () => {
+        const f = { ...꿀합짐(40, 'DECLARED'), space: undefined } as unknown as JudgeFacts;
+        expect(본다(f).color).toBe('사고');
+    });
+});
