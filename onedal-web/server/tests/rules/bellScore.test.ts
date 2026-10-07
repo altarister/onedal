@@ -28,6 +28,13 @@ describe('🔔 벨 점수', () => {
         const high = toSnapshot(judge(CRITERIA, first(50_000, 60), { ...cfg, bell: { scoreMin: (s.score ?? 0) + 1 } }));
         expect(high.bell).toBe(false);
     });
+    it('🔴 경계에서 — 점수가 벨 점수와 같으면 울리고 · 벨 점수가 하나 크면 안 울린다 (이상이다 · 초과가 아니다)', () => {
+        const s = toSnapshot(judge(CRITERIA, first(50_000, 60), cfg));
+        expect(s.score).not.toBeNull();
+        const at = (scoreMin: number) => toSnapshot(judge(CRITERIA, first(50_000, 60), { ...cfg, bell: { scoreMin } })).bell;
+        expect(at(s.score!)).toBe(true);
+        expect(at(s.score! + 1)).toBe(false);
+    });
     it('🔴 빨리 접기 선(foldable)은 점수로 — 점수 < min(벨 점수, 꿀 경계) · 색(🟡 등)으로 가르지 않는다', () => {
         const s = toSnapshot(judge(CRITERIA, first(50_000, 60), cfg));
         expect(s.score).not.toBeNull();
