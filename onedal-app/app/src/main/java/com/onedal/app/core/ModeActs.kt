@@ -25,8 +25,11 @@ data class ModeActs(
             else -> NOTHING   // 직접 · 모르는 값
         }
 
-        /** 🛑 체험이면 수락 · 확정 · 닫기 글자 버튼을 누르지 않는다 — 판결이 와도 배차망에 실제 계약을 만들지 않게(둘째 겹 · 첫째 겹은 [contracts]) */
+        /**
+         * 🛑 체험이면 계약을 만드는 확정 · 수락 글자 버튼만 막는다 — 배차망에 실제 계약을 만들지 않게(둘째 겹 · 첫째 겹은 [contracts]).
+         *    결재를 집행하는 탭(«닫기» · «취소»)은 지금 모드가 아니라 결재 종류로 가른다 — 체험 결재(`SIMULATED_*`)는 `DecisionPlan` 이 버튼 없이 뒤로 보낸다.
+         */
         fun blocksTap(mode: String?, text: String): Boolean =
-            of(mode ?: "").blocksAccept && (text.contains("수락") || text.contains("확정") || text == "닫기")
+            of(mode ?: "").blocksAccept && (text.contains("수락") || text.contains("확정"))
     }
 }

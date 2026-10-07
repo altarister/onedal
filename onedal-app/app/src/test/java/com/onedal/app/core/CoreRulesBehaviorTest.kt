@@ -15,9 +15,14 @@ import org.junit.Test
  */
 class CoreRulesBehaviorTest {
 
-    // ─── R18 체험은 수락 · 확정 · 닫기를 누르지 않는다(둘째 겹) ───
-    @Test fun `🔴 체험이면 수락 · 확정 · 닫기 버튼을 막는다`() {
-        for (t in listOf("수락하기", "배차 확정", "닫기")) assertTrue(t, ModeActs.blocksTap("SIMULATION", t))
+    // ─── R18 체험은 계약을 만드는 수락 · 확정을 누르지 않는다(둘째 겹) · 결재 집행은 결재 종류로 ───
+    @Test fun `🔴 체험이면 수락 · 확정 버튼을 막는다`() {
+        for (t in listOf("수락하기", "배차 확정")) assertTrue(t, ModeActs.blocksTap("SIMULATION", t))
+    }
+    @Test fun `🔴 진짜 KEEP 은 지금 모드가 체험이어도 닫기를 누른다 · 체험 결재는 버튼 없이 뒤로`() {
+        assertEquals(DecisionPlan.PRESS_CLOSE, DecisionPlan.of("KEEP", contractedByApp = true, openedByApp = true))
+        assertFalse(ModeActs.blocksTap("SIMULATION", "닫기"))
+        assertEquals(DecisionPlan.SIMULATED_BACK, DecisionPlan.of("SIMULATED_KEEP", contractedByApp = true, openedByApp = true))
     }
     @Test fun `대조 — 체험이어도 다른 버튼은 누른다 · 자동 · 알람은 막지 않는다`() {
         assertFalse(ModeActs.blocksTap("SIMULATION", "목록"))

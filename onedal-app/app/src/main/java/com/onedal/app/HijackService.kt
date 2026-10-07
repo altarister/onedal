@@ -2223,7 +2223,8 @@ class HijackService : AccessibilityService(), ScanContext {
             resetSessionState()
             return
         }
-        val pressed = touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = effectiveMode)
+        /* 🐥 체험인지는 결재 종류 하나 — 여기 오는 결재는 진짜(KEEP · CANCEL)뿐이라 지금 모드를 넘기지 않는다(심사 중 체험으로 바꿔도 잡은 콜의 «닫기»는 누른다 · 체험 결재는 `DecisionPlan.SIMULATED_BACK`) */
+        val pressed = touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)
         if (pressed) touchManager.noteAppLeft()   // 🚪 결재 버튼으로 떠난 목록 복귀는 기사님 손이 아니다
         com.onedal.app.core.CancelReport.of(decision, byTimeout, pressed)?.let {
             sendEmergencyReport(it.reason, if (pressed) "안전취소 응답 없음 — 취소를 눌렀다" else "판결 $decision 의 대상 $targetBtnStr 버튼 누락", it.cancelPressed, orderAtFirst)
