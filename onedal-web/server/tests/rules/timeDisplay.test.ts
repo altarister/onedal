@@ -123,7 +123,9 @@ describe('🕐 펼친 카드의 상차·하차 줄 — **제 몫이 있을 때�
      * 🔴 **부품 이름(진짜 코드)으로 찾는다** — `벗긴다` 가 주석을 걷어내므로
      *    주석에 표식을 적어 두는 것으로는 이 검사를 만족시킬 수 없다 (일부러 그렇다).
      */
-    const 블록있다 = /function StopDetailBlock/.test(카드);
+    /* 상 · 하차 줄은 부품 파일(StopDetailBlock.tsx)로 옮겼다 — 자격의 기록은 그 부품 바로 위에 산다 */
+    const 블록 = 벗긴다('../../../client-app/src/components/dashboard/StopDetailBlock.tsx');
+    const 블록있다 = /function StopDetailBlock/.test(블록);
 
     /* 줄의 첫 자격 — 구간 거리·분 — 은 관제웹 pinnedRouteCard.test «구간 분은 타임라인의 앞 정거장 → 여기» 가 카드를 그려 문다 */
     /**
@@ -136,7 +138,7 @@ describe('🕐 펼친 카드의 상차·하차 줄 — **제 몫이 있을 때�
 
     it('🔴 왜 이 줄이 자격을 얻었는지가 코드에 남아 있다 — 다음 사람이 또 철거하지 않게', () => {
         const 원문 = readFileSync(join(__dirname,
-            '../../../client-app/src/components/dashboard/PinnedRouteCard.tsx'), 'utf8');
+            '../../../client-app/src/components/dashboard/StopDetailBlock.tsx'), 'utf8');
         expect(원문).toMatch(/PromiseLines[\s\S]{0,200}철거/);      // 0905 의 기록은 남긴다
         // 🔴 이유는 **부품 바로 위**에 있어야 한다 — 멀리 떼어 놓으면 다음 사람이 못 본다
         if (블록있다) expect(원문).toMatch(/타이틀에 없는 둘[\s\S]{0,600}function StopDetailBlock/);

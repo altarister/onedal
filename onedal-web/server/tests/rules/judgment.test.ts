@@ -196,16 +196,7 @@ describe('시트 상태 — 콜마다 새로 선다', () => {
      * `key` 가 **단계 이름**(`CALL_PICKUP` 같은 것)뿐이면 콜이 달라도 같다.
      * 그러면 React 가 컴포넌트를 재사용해 **앞 콜의 `deadlineAt`·물량이 다음 콜 화면에 남는다**.
      */
-    /** 🏗️ 콜이 달라지면 시트 상태가 새로 선다 */
-    it('🔴 시트의 key 에 콜 id 가 들어간다', () => {
-        const card = rc4('components/dashboard/PinnedRouteCard.tsx');
-        const at = card.indexOf('<StepSheetMock');
-        expect(at).toBeGreaterThan(-1);
-        const props = card.slice(at, at + 300);
-        /* 🔴 **성질을 본다** — key 에 «콜 id»와 «단계»가 함께 든다.
-              변수 이름은 갈릴 수 있다 (`\w+`). */
-        expect(props).toMatch(/key=\{`\$\{route\.id\}:\$\{\w+\.step\}`\}/);
-    });
+    /* 콜이 달라지면 시트 상태가 새로 선다(key 에 콜 id 와 단계) — 관제웹 callCardViews.test «시트의 key 에 콜 id 와 단계가 함께» 가 동작으로 문다 */
 
     /**
      * 🏗️ "주행을 몰라도 추천"은 **행이 태어날 때**(시딩) 한다: 시딩이 접근을 모르면

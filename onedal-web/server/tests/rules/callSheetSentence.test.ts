@@ -106,21 +106,7 @@ describe('문장이 검산된다 — 출발 + 주행 + 대기 = 도착', () => {
  * 한 화면의 두 곳이 다른 세상을 보고 화면이 거짓말한다 —
  * 카드가 시트에 넘기는 주행·선행 시간도 타임라인에서 온다.
  */
-describe('통화 시트 — 경로 타임라인 연결', () => {
-    /**
-     * 🏗️ 시트는 타임라인 값을 그리기만 한다 — 단계 화면에서는
-     * 카드(`PinnedRouteCard`)가 `departPrevMs`·`segmentDriveMinutes` 를 타임라인에서 뽑아 넘긴다.
-     */
-    it('🔴 카드가 시트 주행값을 경로 타임라인에서 뽑는다', () => {
-        const card = readFileSync(
-            join(__dirname, '../../../client-app/src/components/dashboard/PinnedRouteCard.tsx'), 'utf8');
-        /* 🔴 성질 — 두 값이 «타임라인에서 찾은 그 정거장»에서 온다 (이름은 갈릴 수 있다) */
-        expect(card).toMatch(/departPrevMs=\{\w+\?\.departPrevMs/);
-        expect(card).toMatch(/timeline\?\.find\(e => e\.orderId === route\.id/);
-        expect(card).toMatch(/segmentDriveMinutes=\{\w+\?\.segmentDriveMinutes/);
-        expect(card).toMatch(/timeline/);
-    });
-});
+/* 카드가 시트 주행값(departPrevMs · segmentDriveMinutes)을 경로 타임라인의 «이 콜 · 이 정거장»에서 뽑는가는 관제웹 callCardViews.test «시트의 주행 · 앞 정거장 출발» 이 동작으로 문다 */
 
 /**
  * ⓘ **추천 근거는 실제 계산과 같은 말을 해야 한다**
