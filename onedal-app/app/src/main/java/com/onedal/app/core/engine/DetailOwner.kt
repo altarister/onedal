@@ -40,7 +40,7 @@ object DetailOwner {
 
     /**
      * 누르기가 안 먹혔다(화면 그대로) — 그 누르기가 세운 «앱이 연 콜»을 되돌리나.
-     * 화면이 목록 그대로라 «목록으로 돌아왔다» 리셋이 안 온다 — 여기서 메우지 않으면 뒤에 기사님이 연 상세를 그 줄과 대조한다(라이브 09-30 22:56→23:01).
+     * 화면이 목록 그대로라 «목록으로 돌아왔다» 리셋이 안 온다 — 여기서 메우지 않으면 뒤에 기사님이 연 상세를 그 줄과 대조한다(라이브).
      */
     fun releaseOnTapFailed(openedByApp: Boolean, failedKey: String, tappedKey: String?, onList: Boolean): Boolean =
         openedByApp && onList && tappedKey != null && failedKey == tappedKey

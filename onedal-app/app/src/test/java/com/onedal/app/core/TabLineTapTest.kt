@@ -8,7 +8,7 @@ import java.io.File
 
 /**
  * 👆 **맨 아래 줄은 탭 줄 위로 보이는 몫의 가운데를 누른다 — 모자라면 보류** (onedal-1f «가»).
- * 라이브 09-30 23:20~23:50 «누르기 안 먹힘» 12번이 모두 Y=2102 — 아래 탭 줄 위끝이 Y=2100(«📏 [아래 탭 줄]»)이라 앱이 누른 곳은 탭 줄이었다.
+ * 라이브 «누르기 안 먹힘» 12번이 모두 Y=2102 — 아래 탭 줄 위끝이 Y=2100(«📏 [아래 탭 줄]»)이라 앱이 누른 곳은 탭 줄이었다.
  * 8,393 줄: 태그 줄 위끝 2042 · 아랫줄 위끝 2102 · 요금 칸 위끝 2069 · 중심 2102(«📐 [4토막 조립]» 23:32:21).
  */
 class TabLineTapTest {
@@ -33,7 +33,7 @@ class TabLineTapTest {
         assertTrue(File("$root/core/AutoTouchManager.kt").readText().contains("rect.centerY() + tapDy"))
     }
 
-    /** 내려간 목록 길도 같은 선 — 라이브 10-01 01:02:56 6,622 «요금 Y=2045» 가 선(2060) 안이라 통과했는데 안 먹혔다(보이는 몫 가운데를 안 눌렀다) */
+    /** 내려간 목록 길도 같은 선 — 라이브 6,622 «요금 Y=2045» 가 선(2060) 안이라 통과했는데 안 먹혔다(보이는 몫 가운데를 안 눌렀다) */
     @Test fun `내려간 목록 길도 탭 줄 선으로 누를 Y 를 정한다`() {
         val plugin = File("src/main/java/com/onedal/app/plugins/kakaopicker/KakaoPickerPlugin.kt").readText()
         val scrolled = plugin.substringAfter("private fun planScrolledTap(").substringBefore("\n    companion object")
@@ -43,7 +43,7 @@ class TabLineTapTest {
     }
 
     /**
-     * 📏 **탭 선은 글자가 아니라 탭 막대 위끝으로** (onedal-1f «가» · 라이브 10-01 01:12:39 7,630 요금 Y 2031 — 글자 «신규» 위끝 2100 − 40 선 안인데 탭 막대 위라 안 열렸다).
+     * 📏 **탭 선은 글자가 아니라 탭 막대 위끝으로** (onedal-1f «가» · 라이브 7,630 요금 Y 2031 — 글자 «신규» 위끝 2100 − 40 선 안인데 탭 막대 위라 안 열렸다).
      * «신규»를 품은 조상 가운데 화면 폭에 가까운 가로 노드(폭 80% 이상 · 높이 400 이하)의 위끝. 못 찾으면 글자 위끝 − 80(여유 40 과 합쳐 −120).
      * 오늘 먹힌 목록 누름 가장 아래 Y 1939 · 안 먹힌 2031 · 2045 · 2102.
      */

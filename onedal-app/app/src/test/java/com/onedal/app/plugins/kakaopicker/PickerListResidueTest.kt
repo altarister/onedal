@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 🩹 **상세 시트가 목록 위로 올라오는 찰나, 목록 글자가 섞인다** — 실물 09-30 09:43:47 (상세로 판별된 판에 목록 광고 글자).
+ * 🩹 **상세 시트가 목록 위로 올라오는 찰나, 목록 글자가 섞인다** — 실물 (상세로 판별된 판에 목록 광고 글자).
  * 목록의 «상세 잔상»(`isDetailResidue`)과 거꾸로다 — 이 판의 글자는 상세 페이지로 통째로 모으지 않는다(광고가 바뀔 때마다 «새 글자»가 된다).
  */
 class PickerListResidueTest {

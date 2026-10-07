@@ -111,7 +111,7 @@ class BleFramesTest {
         assertTrue(File("src/main/java/com/onedal/app/api/ApiClient.kt").readText().contains("BleLink.PREF_SERVER_ID"))
     }
 
-    /** 실측 10-06 23:05:57 — 접근성 서비스가 다시 뜨자 저장된 «자동»을 두고 «직접»으로 시작했다(관제앱이 없으면 알람이 안 울린다) */
+    /** 실측 — 접근성 서비스가 다시 뜨자 저장된 «자동»을 두고 «직접»으로 시작했다(관제앱이 없으면 알람이 안 울린다) */
     @Test fun `🔴 서비스가 다시 뜨면 저장된 마지막 공급 모드로 곧바로 — 관제앱 전이니 자동이면 알람`() {
         val tm = File("src/main/java/com/onedal/app/core/TelemetryManager.kt").readText()
         val saved = tm.indexOf("private var suppliedMode: String? =")

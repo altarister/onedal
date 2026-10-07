@@ -10,7 +10,7 @@ import java.time.LocalDate
  * 🔎 **못 알아본 화면 → 운영센터 이상 기록** (기사님 «어» · onedal-69 ㉠㉡)
  *
  * 실물 배차망 앱 안의 화면만 · 10자 이상만 · 같은 배차망 · 같은 지문은 하루 한 번 · 전화 · 동호는 가린다.
- * 아래 줄은 오늘(10-02) A24 실물 픽커 «🧾 [화면 UNKNOWN]» 12줄 원문 그대로다.
+ * 아래 줄은 오늘 A24 실물 픽커 «🧾 [화면 UNKNOWN]» 12줄 원문 그대로다.
  */
 class UnknownScreenReportTest {
     private val picker = "com.kakaomobility.flexer"

@@ -412,7 +412,7 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     /**
-     * 🔄 **새 필터가 닿으면 지금 목록을 곧바로 다시 판정한다** (실물 픽커 09-30 02:52 — 목록 글자가 그대로라 옛 필터로 막힌 콜이 안 울렸다).
+     * 🔄 **새 필터가 닿으면 지금 목록을 곧바로 다시 판정한다** (실물 픽커 — 목록 글자가 그대로라 옛 필터로 막힌 콜이 안 울렸다).
      * 목록일 때만 — 상세·팝업에서는 목록으로 돌아오는 순간 목록 스캔 첫머리(`onFilterVersion`)가 받는다(채우기 단계를 다시 밟지 않는다).
      */
     private fun onFilterArrived(v: String) {
@@ -472,7 +472,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /** ⏱️ 상세 대기 중 화면 읽기 시간 요약 (1초마다 한 줄) */
     private val detailScanTimer = com.onedal.app.core.ScanTimer()
-    /** 👁️ 목록 화면 읽기 요약 — 알림·읽기가 있던 1초에만 한 줄 (스크롤 뒤 4초 동안 로그 0줄이라 원인을 못 가렸다 · 실물 09-30 16:18) */
+    /** 👁️ 목록 화면 읽기 요약 — 알림·읽기가 있던 1초에만 한 줄 (스크롤 뒤 4초 동안 로그 0줄이라 원인을 못 가렸다 · 실물) */
     private val listScanTimer = com.onedal.app.core.ScanTimer()
 
     /** 요약을 셀 곳과 그 줄 이름표 — 목록·상세 둘만 센다 (로그 이름표에만 쓴다) */
@@ -915,7 +915,7 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     /**
-     * 🏁 **다른 기사가 먼저 가져갔다** (실물 09-30 13:08:45 · 발견→누름 141ms 인데도 빼앗겼다).
+     * 🏁 **다른 기사가 먼저 가져갔다** (실물 · 발견→누름 141ms 인데도 빼앗겼다).
      * 알림을 믿는 앱(플러그인 `noticeSources` — 픽커 · 시뮬)의 «배정» 토스트만 본다 — 다른 앱 알림은 글자를 남기지 않는다(개인정보).
      * 누르는 중이면 «누르기 안 먹힘» 대신 여기서 끝낸다(누르기 실패 수에 안 센다). 빼앗긴 콜을 셀 수 있게 한 줄 + 이상 징후 CALL_TAKEN.
      */
@@ -986,7 +986,7 @@ class HijackService : AccessibilityService(), ScanContext {
     /**
      * 📡 **화면 한 번 읽기 — 입구는 여기 하나** (접근성 알림 · «필터 도착»이 같은 길).
      * 화면 글자(지문)가 바로 전과 같으면 스캔을 건너뛴다 — 필터 도착은 지문을 비우고 불러 같은 글자라도 다시 판정한다.
-     * ⏱️ 읽기 전체(나무 훑기 · 목록 조립 · 보고)를 재서 1초 요약에 싣는다 — 첫 훑기만 재면 실제 무게가 안 보였다(실물 09-30 18:29).
+     * ⏱️ 읽기 전체(나무 훑기 · 목록 조립 · 보고)를 재서 1초 요약에 싣는다 — 첫 훑기만 재면 실제 무게가 안 보였다(실물).
      */
     private fun scanScreen() {
         val ctx = telemetryManager.currentScreenContext
@@ -1410,7 +1410,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val groupedNodes = scrapParser.groupListNodes(allNodes)
         if (scrapParser.lastFrameDiscarded) {
             discardStreak++
-            lastScreenFingerprint = 0   // 다시 읽은 글자가 버린 틀과 같아도 목록을 다시 본다 (라이브 09-30 20:47:00 · 33.1초 멈춤)
+            lastScreenFingerprint = 0   // 다시 읽은 글자가 버린 틀과 같아도 목록을 다시 본다 (라이브 · 33.1초 멈춤)
             touchedAtMs = android.os.SystemClock.elapsedRealtime()   // ✋ 목록이 움직였다 — 10초 동안 촘촘히
             waitBook.cancel("겹친 틀 뒤 읽기")
             com.onedal.app.core.ListWatch.afterDiscard(discardStreak)?.let { waitBook.schedule("겹친 틀 뒤 읽기", com.onedal.app.core.WaitBook.LIST, it) { afterDiscardRead.run() } }
@@ -1674,7 +1674,7 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         /**
          * 🔴 누를 콜은 늘 방금 읽은 화면에서 고른다 — 담아 두지 않는다 (기사님 · onedal-1f).
-         * 담아 둔 사이 줄이 움직이면 엉뚱한 줄·오더카드를 누른다(09-13) — 사라짐·요금 바뀜·더 좋은 콜을 대기열은 모른다.
+         * 담아 둔 사이 줄이 움직이면 엉뚱한 줄·오더카드를 누른다 — 사라짐·요금 바뀜·더 좋은 콜을 대기열은 모른다.
          * ✋ 기사님 손이 먼저 — 소리는 곧바로 울리고(시선이 먼저 옮겨 가야 화면이 바뀐 것을 안다 · 기사님 «가»),
          *    앱의 누르기만 손이 멈춘 뒤 1초 미룬다. 멈추면 곧바로 다시 읽어 그 화면에서 고른다 (`HandFirst`).
          *    소리 → 누름 차례: 같은 읽기면 fire 가 누름 앞이고, 미룬 누름은 뒤 읽기라 늘 소리가 먼저다. 같은 콜 소리는 한 번(`SoundMemory`).
@@ -1746,7 +1746,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 }
                 if (tap != null) {
                     /**
-                     * 📬 **누르기로 정했으면 메인 줄 맨 뒤로 한 번 넘긴다** (onedal-1f 대안 · 라이브 10-01 00:31:20).
+                     * 📬 **누르기로 정했으면 메인 줄 맨 뒤로 한 번 넘긴다** (onedal-1f 대안 · 라이브).
                      * 접근성 알림은 같은 메인 줄로 온다 — 목록 읽기(~900ms) 동안 쌓인 스크롤 알림이 먼저 처리되어 onHand 가 걸린다.
                      * 넘겨받은 쪽이 목록 화면 · 누르는 중 · 손 먼저(알림 시각) · 흐르는 목록(요금 칸 다시 잼)을 다시 보고 괜찮을 때만 쏜다.
                      * 목록 몫 기다림이라 넘기는 사이 목록을 떠나면 거둬진다.
@@ -2273,7 +2273,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /**
      * 🌳 **화면 나무 한 번 훑기** — 지문 글자(`NodeText.textsOf`)와 목록 좌표 노드(`NodeText.textNodesOf`)를 이 한 벌에서 만든다.
-     * 두 번 훑으면 노드마다 접근성 통신(getChild)이 두 배다(목록 한 번 300~500ms · 실물 09-30 18:36). 우리 앱 노드는 건너뛴다.
+     * 두 번 훑으면 노드마다 접근성 통신(getChild)이 두 배다(목록 한 번 300~500ms · 실물). 우리 앱 노드는 건너뛴다.
      */
     private fun collectNodes(node: AccessibilityNodeInfo?, out: MutableList<com.onedal.app.core.RawNode>, prefetch: Boolean = false) {
         if (node == null) return

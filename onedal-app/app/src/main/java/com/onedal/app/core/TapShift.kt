@@ -32,7 +32,7 @@ object TapShift {
     const val MOVING_PX = 40
 
     /**
-     * 🌊 **목록이 흐르는 중인가** (`BundleGuardsTest` · 라이브 10-01 00:31:13 요금 Y 716→849 · 00:31:20 1013→1932 — 흐르는 목록을 누르면 «흐름 멈춤»이 된다).
+     * 🌊 **목록이 흐르는 중인가** (`BundleGuardsTest` · 라이브 요금 Y 716→849 · 1013→1932 — 흐르는 목록을 누르면 «흐름 멈춤»이 된다).
      * 주 판정은 누르기 직전 다시 잰 Y 차이다 — 스캔이 900ms 걸리는 동안 스크롤 알림이 메인 줄에 쌓여 «방금 스크롤»은 늦게 온다. 방금 스크롤은 덧.
      */
     fun listMoving(scanY: Int, nowY: Int, scrolledRecently: Boolean): Boolean =
@@ -40,12 +40,12 @@ object TapShift {
 
     /** 아래 탭 줄 위끝에서 이만큼 위까지만 누른다 (폰 픽셀) */
     const val TAB_GAP_PX = 40
-    /** 탭 막대를 못 찾으면 글자 위끝에서 이만큼 위를 막대 위끝으로 본다 — 여유 [TAB_GAP_PX] 와 합쳐 글자 위끝 − 120 (라이브 10-01 먹힌 가장 아래 1939 · 안 먹힌 2031·2045) */
+    /** 탭 막대를 못 찾으면 글자 위끝에서 이만큼 위를 막대 위끝으로 본다 — 여유 [TAB_GAP_PX] 와 합쳐 글자 위끝 − 120 (라이브 먹힌 가장 아래 1939 · 안 먹힌 2031·2045) */
     const val TAB_TEXT_FALLBACK_PX = 80
 
     /**
      * 📏 **탭 막대 위끝** (`TabLineTapTest`) — «신규» 글자를 품은 조상 가운데 화면 폭 80% 이상 · 높이 400 이하인 첫 가로 노드의 위끝.
-     * 글자 위끝은 막대보다 아래라 그 바로 위 줄을 누르면 막대에 떨어졌다(라이브 10-01 01:12:39 7,630 · Y 2031).
+     * 글자 위끝은 막대보다 아래라 그 바로 위 줄을 누르면 막대에 떨어졌다(라이브 7,630 · Y 2031).
      * @param ancestors (top, width, height) — 가까운 조상부터
      */
     fun barTopOf(ancestors: List<Triple<Int, Int, Int>>, screenWidth: Int): Int? =
@@ -60,7 +60,7 @@ object TapShift {
      * 👆 **맨 아래 줄을 누를 Y — 요금 중심에서 옮길 픽셀, 보류면 null** (onedal-1f «가» · `TabLineTapTest`).
      * 요금 중심이 «탭 줄 위끝 − [TAB_GAP_PX]» 아래면 그 선 위로 보이는 몫(줄 위끝~선)의 가운데를 누른다 —
      * 보이는 몫이 [VISIBLE_MIN_PX] 미만이면 보류. 선 위의 줄·탭 줄을 모르면 0(지금처럼 요금 중심).
-     * 라이브 09-30 23:20~23:50 «누르기 안 먹힘» 12번 모두 Y=2102 — 탭 줄 위끝 2100 위를 눌렀다.
+     * 라이브 «누르기 안 먹힘» 12번 모두 Y=2102 — 탭 줄 위끝 2100 위를 눌렀다.
      */
     fun rowTapDy(fareCenterY: Int, rowTopY: Int, tabTopY: Int?): Int? {
         tabTopY ?: return 0
@@ -123,7 +123,7 @@ object TapShift {
 
     /**
      * 🔴 **미룬 뒤에는 자리를 다시 재고, 그대로일 때만 쏜다.**
-     * 미룬 사이에 리스트가 갱신되면 «잰 자리»에 다른 카드가 와 있다 — 그게 09-13 오배차의 모양이다.
+     * 미룬 사이에 리스트가 갱신되면 «잰 자리»에 다른 카드가 와 있다 — 그게 오배차의 모양이다.
      * 다시 못 쟀으면(노드가 사라졌으면) 안 쏜다 (규칙 ④ — 모르면 손대지 않는다).
      */
     fun sameSpot(oldX: Int, oldY: Int, newX: Int?, newY: Int?): Boolean {

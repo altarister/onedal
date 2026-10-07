@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 📋 **모자란 요건을 이름으로** — «요건 미달»만으로는 요금인지 주소인지 몰라 원인을 사진부터 다시 캐야 했다 (실물 09-30 13:14).
+ * 📋 **모자란 요건을 이름으로** — «요건 미달»만으로는 요금인지 주소인지 몰라 원인을 사진부터 다시 캐야 했다 (실물).
  * 세 배차망 공통 한 줄 — `meetsDetail` 은 이 목록이 비었는가다.
  */
 class OrderRequirementNamesTest {

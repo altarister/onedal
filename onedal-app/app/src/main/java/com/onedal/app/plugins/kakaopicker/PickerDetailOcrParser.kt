@@ -105,7 +105,7 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
             // 🍷 쌍둥이 콜의 낮은 요금으로 골랐으면 꼬리 글(이미 있는 tagsText 칸 · 서버 판정 규칙은 이 칸을 안 읽는다)
             //    목록 줄로 찾았든 사진으로 찾았든 같은 꼬리 글 (`twinNoteOf` 한 벌)
             val twinNote = if (fareUnread) KakaoPickerParser.twinNoteOf(baseOrder, recent) else null
-            // 🧾 손으로 연 상세의 대조 — 요금이 비는 까닭을 로그로 가른다 (실물 09-30 13:25 #42·#45)
+            // 🧾 손으로 연 상세의 대조 — 요금이 비는 까닭을 로그로 가른다 (실물 #42·#45)
             com.onedal.app.core.AppLogger.d("1DAL_PRE_CONFIRM", com.onedal.app.core.LogTag.CALL_STAGE,
                 "🧾 [손 상세 대조] 목록: ${if (matchedListOrder != null) "찾음" else "못 찾음"} · 사진: " +
                     KakaoPickerParser.photoMatchReport(parsed.pickup, parsed.dropoff, recent, fareUnread) +
@@ -173,7 +173,7 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
     /**
      * 📅 **상세 사진의 예약이 목록 값을 덮는다** — «오늘 17:00 픽업예약» 띠 줄을 먼저 읽고, 띠에서 날·시각을 못 읽을 때만
      * 상차 정거장 시각(«내일 14:00»)으로. 띠가 없으면 예약이 아니다 (`PickerReservationTest` · `PickerReservedBandTest`).
-     * 🔴 띠가 «오늘»이면 픽업 줄은 «17:00까지 픽업»(날 없음)이라 픽업 줄만 보면 «날 모름»으로 오늘 콜을 막는다(실물 09-30 14:21).
+     * 🔴 띠가 «오늘»이면 픽업 줄은 «17:00까지 픽업»(날 없음)이라 픽업 줄만 보면 «날 모름»으로 오늘 콜을 막는다(실물).
      */
     private fun detailReservation(parsed: PickerDetailFromImage): com.onedal.app.core.Reservation {
         if (!parsed.reserved) return com.onedal.app.core.Reservation.NONE

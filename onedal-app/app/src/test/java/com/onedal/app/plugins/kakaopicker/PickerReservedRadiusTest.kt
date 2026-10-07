@@ -9,7 +9,7 @@ import org.junit.Test
 /**
  * 📅 **내일 이후 예약 콜은 줄이지 않은 기본 상차 반경으로 거른다** (기사님 «가» · onedal-1f).
  * 자동 반경은 지금 자리에서 줄인 값이라 내일 콜에는 맞지 않다 — 내일은 그 자리에서 출발하지 않는다.
- * 라이브 09-30 21:33:58 — 반경 16.87km 로 내일 콜 셋(신촌 20.0 · 서초 16.9 · 와부 19.4)이 상차에서 떨어졌다. 서버가 reservedPickupRadiusKm 를 싣는다.
+ * 라이브 — 반경 16.87km 로 내일 콜 셋(신촌 20.0 · 서초 16.9 · 와부 19.4)이 상차에서 떨어졌다. 서버가 reservedPickupRadiusKm 를 싣는다.
  */
 class PickerReservedRadiusTest {
     private fun call(fare: Int, km: Double, day: Int?, reserved: Boolean = day != null) =

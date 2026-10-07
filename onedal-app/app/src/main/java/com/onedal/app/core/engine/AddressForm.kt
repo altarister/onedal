@@ -41,7 +41,7 @@ object AddressForm {
     private val registeredDongs: Set<String> by lazy { RegionRegister.withAdmin.values.flatten().toSet() }
 
     /**
-     * 🏘️ **띄어 읽힌 동 번호를 붙인다** (`AddressSpacedDongTest` · 라이브 10-01 00:32:02 «경기 용인시 수지구 죽전 1동 순창떡»이 «하차 주소 짧음»).
+     * 🏘️ **띄어 읽힌 동 번호를 붙인다** (`AddressSpacedDongTest` · 라이브 «경기 용인시 수지구 죽전 1동 순창떡»이 «하차 주소 짧음»).
      * 요건 검사 · 사진 행정동 · 목록 줄 대조 열쇠가 같이 쓴다.
      */
     fun joinSpacedUnit(text: String): String = SPACED_SUFFIX.replace(SPACED_UNIT.replace(text) {

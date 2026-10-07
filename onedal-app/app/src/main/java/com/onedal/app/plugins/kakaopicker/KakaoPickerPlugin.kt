@@ -124,7 +124,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
     override fun detailTextsOf(texts: List<String>): List<String> = KakaoPickerParser.detailTextsOf(texts)
 
     override fun listHeaderVisible(allNodes: List<com.onedal.app.core.ScreenTextNode>): Boolean {
-        // 📏 아래 탭 줄 위끝 — 맨 아래 줄 누르기가 안 먹힌 자리(Y=2102 · 라이브 09-30 22:56 · 23:01)를 가를 재료. 바뀔 때만 한 줄
+        // 📏 아래 탭 줄 위끝 — 맨 아래 줄 누르기가 안 먹힌 자리(Y=2102 · 라이브)를 가를 재료. 바뀔 때만 한 줄
         // 📏 글자 위끝이 바뀔 때만 막대를 찾아 한 줄(조상 걷기를 매 읽기 하지 않는다)
         val tab = allNodes.filter { it.text.trim() in tabWords }
         tab.minOfOrNull { it.rect.top }?.let { y ->
@@ -269,7 +269,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
         val node = fareNode.node ?: return hold("요금 칸 노드가 없다", B.TAP_RECHECK)
         if (!node.refresh()) return hold("찍기 직전 요금 칸을 다시 못 읽었다", B.TAP_RECHECK)
         val bounds = android.graphics.Rect().also { node.getBoundsInScreen(it) }
-        // 🌊 흐르는 목록 — 라이브 10-01 00:31:13 716→849 · 00:31:20 1013→1932
+        // 🌊 흐르는 목록 — 라이브 716→849 · 1013→1932
         if (com.onedal.app.core.TapShift.listMoving(fareY, bounds.centerY(), scrolledRecently = false))
             return hold("목록이 움직이는 중(스캔 Y=$fareY · 지금 Y=${bounds.centerY()})", B.LIST_MOVING)
         KakaoPickerParser.scrolledRowTapBlock(nodes, bounds.centerY())?.let { return hold("찍기 직전 — ${it.why}", it.key) }
@@ -282,7 +282,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
         offerSignInWindow(node)?.let { return hold("찍기 직전 — $it", B.ACCEPT_VISIBLE) }
         com.onedal.app.core.AppLogger.i("1DAL_ALARM", LogTag.TAP,
             "👆 [내려간 목록에서 누름] ${order.fare}원 · 띠 아래끝 Y=${KakaoPickerParser.waitingBandBottom(nodes)} · 요금 Y=${bounds.centerY()}(스캔 $fareY) · 조상 ${chain.joinToString(" < ")}")
-        // 👆 탭 줄 선 — 머리줄 길과 같은 도우미(라이브 10-01 01:02:56 6,622 요금 Y 2045 안 먹힘)
+        // 👆 탭 줄 선 — 머리줄 길과 같은 도우미(라이브 6,622 요금 Y 2045 안 먹힘)
         val dy = tabLineDy(allNodes, fareNode, bounds.centerY()) ?: return hold("탭 줄에 걸림(요금 Y=${bounds.centerY()} · 탭 위끝 ${tabTopOf(allNodes)})", B.TAB_BAR)
         return com.onedal.app.plugins.ListTap(rowLeft = true, delayMs = com.onedal.app.core.TapShift.PREVIEW_MS, dy = dy)
     }

@@ -9,7 +9,7 @@ import java.io.File
 /**
  * 🏘️ **이름이 같은 다른 지역 동 — 서버와 같은 문제지** (`onedal-web/shared/src/regionMatchCases.json` · 서버 `dongSigungu.test.ts` 가 같은 표를 읽는다).
  * 규칙: 동 바로 앞에 다른 시·군·구가 보이면 거른다 · 목록 페이지에서 상세 주소가 안 보이면 통과.
- * 실물 09-30 14:30:27 — 픽커 목록 «평택 고덕» · 상세 «경기 평택시 고덕동 …» 이 도착목표 «고덕동»(서울 강동구)으로 통과했다.
+ * 실물 — 픽커 목록 «평택 고덕» · 상세 «경기 평택시 고덕동 …» 이 도착목표 «고덕동»(서울 강동구)으로 통과했다.
  */
 class RegionMatchTableTest {
     private val table = JsonParser.parseString(File("../../onedal-web/shared/src/regionMatchCases.json").readText()).asJsonObject

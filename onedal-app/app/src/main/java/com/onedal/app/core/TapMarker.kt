@@ -68,7 +68,7 @@ class TapMarker(private val service: AccessibilityService) {
         val label = labelOf(cardText, action)
         /**
          * 🏃 **줄 맨 앞에 세운다** — 화면 그리기는 메인 스레드 한 줄에서 차례로 처리된다.
-         * 줄 끝에 세웠더니(`post`) 목록이 길 때 자국이 **12초 늦게** 떴다 (09-16 실측 14:58).
+         * 줄 끝에 세웠더니(`post`) 목록이 길 때 자국이 **12초 늦게** 떴다 (실측).
          * 찍기 타이머도 같은 줄이라 함께 밀려, 자국이 뜬 지 0.07초 만에 터치가 나갔다.
          */
         handler.postAtFrontOfQueue {

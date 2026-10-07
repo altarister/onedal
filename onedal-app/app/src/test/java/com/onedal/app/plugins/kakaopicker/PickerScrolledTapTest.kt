@@ -8,7 +8,7 @@ import java.io.File
 
 /**
  * 👆 **내려간 목록에서도 콜 줄을 누른다 — 오더카드가 없다는 픽커의 말(«오더카드 대기 중» 띠)이 있을 때만** (기사님 «목록이 내려가 있어도 앱을 열 수 있어야» · onedal-1f «가»).
- * 머리줄(«리스트 설정»)로 오더카드를 가르던 것(#111 · 09-13 오더카드 요금을 눌러 계약)은 머리줄이 보일 때 그대로다.
+ * 머리줄(«리스트 설정»)로 오더카드를 가르던 것(#111 · 오더카드 요금을 눌러 계약)은 머리줄이 보일 때 그대로다.
  * 오늘 로그 LIST 틀 776 중 머리줄 없는 틀 228 — 그중 226 에 «오더카드 대기 중» 띠 · «수락» 0.
  * 띠 좌표는 로그에 없어 실물 13-2 비율로 어림했다(띠 아래끝 ≈280 · 탭 줄 위끝 ≈2090 · 1080×2340).
  * 누르는 자리는 줄 왼쪽 끝 그대로(`TapShift.rowLeftOf` · 오더카드라면 «X» 닫기 쪽).
@@ -17,7 +17,7 @@ class PickerScrolledTapTest {
     private fun n(t: String, top: Int, bottom: Int) = Triple(t, top, bottom)
     private val band = n("퀵 오더카드 대기 중.", 120, 280)
     private val tabs = listOf(n("신규", 2090, 2170), n("내 오더", 2090, 2170))
-    // 라이브 09-30 20:38:29 — 18,130원 닻(965,1778) · 머리줄 없음
+    // 라이브 — 18,130원 닻(965,1778) · 머리줄 없음
     private val rows = listOf(n("퀵", 1700, 1740), n("6.3km", 1760, 1800), n("마포", 1760, 1800), n("18,130", 1750, 1806))
 
     private fun block(nodes: List<Triple<String, Int, Int>>, fareY: Int = 1778) = KakaoPickerParser.scrolledRowTapBlock(nodes, fareY)

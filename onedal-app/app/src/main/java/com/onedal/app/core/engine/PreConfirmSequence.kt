@@ -302,7 +302,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
         delayMs = ScreenReader.DETAIL_STABILIZE_IDLE_MS,
         parser = verifier,
         onSuccess = { detail, lines ->
-            // ⏱️ 걸어 둔 때 — main 줄 서기가 얼마나 막혔나(«대기»)를 잰다 (상세 속도 · 라이브 09-30 12:57 1.3초 빈 시간)
+            // ⏱️ 걸어 둔 때 — main 줄 서기가 얼마나 막혔나(«대기»)를 잰다 (상세 속도 · 라이브 1.3초 빈 시간)
             val postedAt = android.os.SystemClock.elapsedRealtime()
             mainHandler.post {
                 if (SessionEpoch.stale(startedEpoch, session.epoch)) { logLateSnapshot("성공", startedEpoch, tappedCard); return@post }

@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 🧪 **나무 훑기 계측 — 미리 받기(prefetch) 번갈아 재기 · 캐시 낡음 확인** (실물 09-30 18:45 · 같은 훑기가 11ms~930ms · onedal-1f «가»).
+ * 🧪 **나무 훑기 계측 — 미리 받기(prefetch) 번갈아 재기 · 캐시 낡음 확인** (실물 · 같은 훑기가 11ms~930ms · onedal-1f «가»).
  * - 목록 읽기마다 기본/미리 받기를 번갈아 쓴다(읽는 노드는 같다) · SDK 33 미만은 늘 기본
  */
 class WalkProbeTest {

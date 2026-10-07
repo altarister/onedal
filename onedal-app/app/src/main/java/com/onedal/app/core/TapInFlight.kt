@@ -14,13 +14,13 @@ import com.onedal.app.models.ScreenContext
  * 🔗 «쏘기 전» 예약이 쌓이는 것은 `AutoTouchManager.pendingTapAtMs` 가 막는다 — 이것은 «쏜 뒤»다. 다른 질문이라 따로 둔다.
  */
 object TapInFlight {
-    /** «끝났다» 알림(onCompleted)은 2~4초 늦게 온다(09-13 실측 · AutoTouchManager 주석) — 알림이 사라져도 이만큼 뒤엔 스스로 푼다 */
+    /** «끝났다» 알림(onCompleted)은 2~4초 늦게 온다(실측 · AutoTouchManager 주석) — 알림이 사라져도 이만큼 뒤엔 스스로 푼다 */
     const val SETTLE_MAX_MS = 5_000L
 
     /**
      * 누른 뒤 이만큼은 «화면 그대로»를 판정하지 않는다 — 누른 앱이 화면을 바꿀 시간(화면 읽기 한 바퀴쯤).
      * 뒤로 가기는 «끝났다» 알림이 없어 누르는 순간 끝남으로 적고, 화면이 움직이는 0.3~0.5초 사이에도 같은 글자 알림이
-     * 온다(09-29 로그 · 같은 상세 알림이 14ms 간격). 그 알림을 실패로 읽으면 또 눌러 막으려던 두 번 누르기가 난다.
+     * 온다(로그 · 같은 상세 알림이 14ms 간격). 그 알림을 실패로 읽으면 또 눌러 막으려던 두 번 누르기가 난다.
      */
     const val SETTLE_MIN_MS = 1_000L
     /** 뒤로 가기 열쇠 — 판정 최소 시간은 앱 뒤로 가기 메아리(`HandFirst.APP_BACK_ECHO_MS`)와 같다 */
@@ -44,7 +44,7 @@ object TapInFlight {
     /**
      * 같은 무엇 · 같은 화면 종류의 누르기가 아직 진행 중인가 — 그러면 보내지 않는다.
      * `lastTaken` = 먹혔다고 판정한 마지막 누르기. 판정 뒤에도 **누른 지 `SETTLE_MIN_MS` 안에는** 같은 무엇 · 같은 화면 종류를 막는다 —
-     * 팝업이 닫히는 순간 방금 닫은 팝업의 잔상이 잠깐 다른 종류로 읽혀 «먹혔다»로 착각할 수 있다(09-29 02:08:24 «도착지» 두 번).
+     * 팝업이 닫히는 순간 방금 닫은 팝업의 잔상이 잠깐 다른 종류로 읽혀 «먹혔다»로 착각할 수 있다(«도착지» 두 번).
      * 먹혔다면 화면이 이미 넘어갔으니 같은 화면에서 같은 무엇을 1초 안에 다시 누를 일은 없다. 다른 화면 종류(팝업마다 «닫기»)는 막지 않는다.
      */
     fun blocks(rec: Record?, lastTaken: Record?, key: String, screen: ScreenContext, nowMs: Long): Boolean =
@@ -56,7 +56,7 @@ object TapInFlight {
         rec == null -> Verdict.NONE
         screen != rec.screen -> Verdict.TAKEN
         nowMs - rec.firedAtMs >= SETTLE_MAX_MS -> Verdict.EXPIRED
-        // 뒤로 가기는 픽커 상세 → 목록 전환(0.7~0.9초)과 메인 줄 밀림이 겹쳐 1초는 빠듯하다(라이브 10-01 00:32:03) — 메아리 2초
+        // 뒤로 가기는 픽커 상세 → 목록 전환(0.7~0.9초)과 메인 줄 밀림이 겹쳐 1초는 빠듯하다(라이브) — 메아리 2초
         !textChanged && rec.completed && nowMs - rec.firedAtMs >= (if (rec.key == BACK_KEY) HandFirst.APP_BACK_ECHO_MS else SETTLE_MIN_MS) -> Verdict.NOT_TAKEN
         else -> Verdict.NONE
     }

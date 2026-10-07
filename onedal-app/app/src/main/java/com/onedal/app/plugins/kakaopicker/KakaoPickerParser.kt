@@ -22,7 +22,7 @@ import com.onedal.app.models.withReservation
  * 리스트에 뜬 콜을 읽어 서버(intel)에 표본으로 쌓고, 알람 조건(요금 · 상차 · 도착 · 예약)에 맞으면
  * `shouldClick` 이 true — 앱이 상세에 들어가 소리 · 진동으로 알린다(`shouldClick` 주석).
  *
- * ── 카드의 실물 구조 (덤프 08-28 · 08-30 실측) ──
+ * ── 카드의 실물 구조 (덤프 · 실측) ──
  *
  *   태그줄   퀵 · 단거리 · 준비 29분 · 소형 · [도착 시]     ← y 가 같은 한 줄
  *   요금     6,400                                          ← 오른쪽 정렬, 줄 사이에 낌
@@ -48,7 +48,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         private val TIME_REGEX = Regex("""^\d{1,2}:\d{2}$""")
 
         /**
-         * 📅 **예약 날짜 배지 — «9/23(수)»** (실물 카카오T픽커 · 09-16 라이브).
+         * 📅 **예약 날짜 배지 — «9/23(수)»** (실물 카카오T픽커 · 라이브).
          *
          * 시각(«17:30»)은 알아보면서 날짜는 못 알아봐, 날짜가 **지역 이름 자리로 들어갔다.**
          * 그러면 지역 칸이 한 칸씩 밀려 출발·도착이 통째로 틀어진다
@@ -58,7 +58,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         private val DATE_REGEX = Regex("""^\d{1,2}/\d{1,2}\([월화수목금토일]\)$""")
 
         /**
-         * ⏳ **도보 콜의 남은 시간 — «31분» «내»** (실물 카카오T픽커 · 09-16 라이브).
+         * ⏳ **도보 콜의 남은 시간 — «31분» «내»** (실물 카카오T픽커 · 라이브).
          *
          * 도보 카드는 «31분 내 … 가게 이름 … 건물 이름 …» 꼴이다. «준비 29분» 은 한 덩어리로 와서
          * 챙기는데, 앞에 **따로 떨어져 오는 «31분» 과 «내» 는 어디에도 안 걸려 지역 이름으로 샜다** —
@@ -82,7 +82,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "내일", "오늘",  // 예약 콜의 날짜 표식 (시각 노드와 별개)
             "서포트모드",    // 서포트 모드 관련 배지
             "착불",          // 결제 배지 — 실수집에서 도착동으로 오인됐다 («착불 분당»)
-            // 09-16 라이브에서 더 찾은 것 — 🔴 서버 사전(`tagWords`)과 **짝**이다. 한쪽만 넣으면
+            // 라이브에서 더 찾은 것 — 🔴 서버 사전(`tagWords`)과 **짝**이다. 한쪽만 넣으면
             //    서버가 죽었을 때(또는 검사에서) 그 낱말이 통째로 지역 이름으로 샌다.
             "경유",          // 들를 곳이 여럿인 콜 (6만 원짜리도 있었다)
             "비즈",          // 상세 머리의 상품 표시
@@ -95,7 +95,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "수락",                                       // 오더카드(화면 위 제안 카드)의 초록 버튼 (0830 실물)
             // 🔴 서버 사전(`uiNoiseWords`)과 **짝** — 픽커 앱이 뱉는 잡음 글자다 (그쪽 버그)
             "kotlin.Unit", "DerivedState",
-            // 🎈 화면 위에 겹쳐 뜨는 메뉴 — 카드 글자 사이에 섞여 지역 자리를 차지했다 (09-16 라이브 3건)
+            // 🎈 화면 위에 겹쳐 뜨는 메뉴 — 카드 글자 사이에 섞여 지역 자리를 차지했다 (라이브 3건)
             "서포트 모드", "1장 받기", "0/1건",
         )
 
@@ -220,7 +220,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         private val DETAIL_ONLY_WORDS = setOf("픽업지", "물품 정보", "최종 수익", "배송비", "수락하기", "넘기기", "유의사항")
 
         /**
-         * 🩹 **상세에서 목록으로 넘어오는 찰나, 두 화면 글자가 섞여 들어온다** (09-16 실측: 목록 208번 중 23번).
+         * 🩹 **상세에서 목록으로 넘어오는 찰나, 두 화면 글자가 섞여 들어온다** (실측: 목록 208번 중 23번).
          *
          * 그 판으로 만든 카드는 출발·도착이 뒤섞이고(«만안 분당 → 픽업지 서울 송파구…»), 그 이름으로
          * 기억되므로 **같은 콜이 다른 콜로 보인다** — 그래서 이미 누른 콜을 또 누른다.
@@ -325,7 +325,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /**
          * 🔴 **찍기 직전에 한 번 더** (#111 틈 ①) — 스캔 때 잰 좌표로 «리스트 카드»라 판단한 뒤, 누르기 바로 전에
          * 요금 칸 · 머리줄을 **둘 다 다시 읽어** 요금이 여전히 머리줄 아래일 때만 누른다.
-         * 09-13 11:46 은 새 카드가 뜬 1초 뒤에 눌렀다 — 스캔과 누름 사이에 구조가 바뀌면 그 자리는 오더카드(곧 계약)일 수 있다.
+         * 한 번은 새 카드가 뜬 1초 뒤에 눌렀다 — 스캔과 누름 사이에 구조가 바뀌면 그 자리는 오더카드(곧 계약)일 수 있다.
          * 다시 못 읽으면(`null`) 누르지 않는다 (규칙 ④). ⚠️ 이 확인과 실제 주입 사이 수십 ms 는 원리상 못 막는다.
          */
         fun stillListCardAtTap(fareRefreshedY: Int?, headerRefreshedY: Int?): Boolean =
@@ -341,14 +341,14 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun isDetailResidue(texts: List<String>): Boolean = texts.any { it.contains("수락하기") }
 
         /**
-         * 🩹 **목록에만 있는 글자** — 목록 머리 · 광고 머리 · 떠 있는 오더카드 띠 (실물 09-30 09:43:47).
+         * 🩹 **목록에만 있는 글자** — 목록 머리 · 광고 머리 · 떠 있는 오더카드 띠 (실물).
          * 상세 시트가 목록 위로 올라오는 찰나에 섞인다 — `isDetailResidue` 의 거꾸로.
          */
         private val LIST_ONLY_WORDS = listOf("리스트 설정", "이런 일거리 어떤가요", "오더카드 대기 중")
 
         /**
          * 🧹 **상세 글은 «픽업지» 노드부터** (`PickerDetailTextTest`) — 상세 시트가 목록 위로 올라오는 첫 틀에는 목록 글자가 남는다.
-         * 그 글이 서버로 가 «오더카드 대기 중»의 «대기»가 제외 키워드에 걸렸다(라이브 09-30 19:28:59 거짓 빨강) · 목록 줄 대조에도 잔상 지명이 섞였다.
+         * 그 글이 서버로 가 «오더카드 대기 중»의 «대기»가 제외 키워드에 걸렸다(라이브 거짓 빨강) · 목록 줄 대조에도 잔상 지명이 섞였다.
          * 깨끗한 상세 틀은 늘 «픽업지 …» 노드로 시작한다(상단 배지는 노드로 안 온다). «픽업지» 노드가 없는 상세(도보 등)는 그대로.
          */
         private const val DETAIL_FIRST_WORD = "픽업지"
@@ -362,7 +362,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /**
          * 📐 **겹친 틀인가** — 목록이 움직이는(다시 정렬되는) 중간 틀은 두 카드의 글자가 한 칸에 겹친다(`PickerOverlapFrameTest`).
          * 서로 다른 요금 꼴 둘이 같은 칸 · 또는 서로 다른 거리 꼴(«N.Nkm» 노드 전체) 둘이 같은 칸이면 까닭 글, 아니면 null.
-         * 실물 09-30 19:46:00 — «14,168»·«13,783»이 똑같은 칸(878,823,1052,889) · «19.9km·19.8km·15.9km»가 한 줄 한 칸.
+         * 실물 — «14,168»·«13,783»이 똑같은 칸(878,823,1052,889) · «19.9km·19.8km·15.9km»가 한 줄 한 칸.
          * @param nodes (글자, 중심Y, 중심X)
          */
         fun overlappedFrame(nodes: List<Triple<String, Int, Int>>): String? {
@@ -501,7 +501,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          *
          * 픽커엔 배송거리가 없어 단가식이 불가능하고(§2), 차종·경로 순서 축도 없다.
          * 픽업거리는 목록 완독 칸이라 모르면 그 스캔에서 빠진다(`OrderRequirement.listComplete`). 도착지를 모르면(도보 목록) 판정을 채운 뒤로 미룬다.
-         * 예약·내일 콜도 울린다 (기사님 확정 08-30 — 미리 확보할 가치가 있다).
+         * 예약·내일 콜도 울린다 (기사님 확정 — 미리 확보할 가치가 있다).
          * 🔴 이 판정은 «상세로 들어가 판정을 받을까»만 정한다 — 계약 버튼은 누르지 않는다(`KakaoPickerPlugin.acceptButtons = null`).
          */
         /**
@@ -542,7 +542,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
         /**
          * 지역 한 토막의 대조 열쇠 — «광주시»→«광주» · «중원구»→«중원» · «금광2동»→«금광» · «모현읍»→«모현» (리스트 줄임 표기와 만나게).
-         * 목록 줄 찾기 전용이다(필터는 `normalizeRegion` · `RegionMatch`). 읍·면을 안 떼면 사진 «모현읍» ↔ 목록 «처인 모현»이 안 만나 요금을 못 가져왔다(실물 09-30 16:03:36).
+         * 목록 줄 찾기 전용이다(필터는 `normalizeRegion` · `RegionMatch`). 읍·면을 안 떼면 사진 «모현읍» ↔ 목록 «처인 모현»이 안 만나 요금을 못 가져왔다(실물).
          */
         private fun regionKey(s: String): String =
             normalizeRegion(s.trim().removeSuffix("시").removeSuffix("군").removeSuffix("읍").removeSuffix("면"))
@@ -567,7 +567,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun matchListCard(detailTexts: List<String>, recent: List<SimplifiedOfficeOrder>): ListCardMatch {
             val joined = detailTexts.joinToString(" ")
             /**
-             * 🔴 **실물 픽커 상세는 «최종 수익»을 읽는 글자에 안 올린다** (09-16 04:49 라이브) — 요금은 리스트 카드에 있다.
+             * 🔴 **실물 픽커 상세는 «최종 수익»을 읽는 글자에 안 올린다** (라이브) — 요금은 리스트 카드에 있다.
              *    요금이 없으면 픽업지(+물품 크기)로 찾고 요금은 카드 것을 쓴다. 못 찾은 콜은 보내지 않는다 (기사님: «못 찾은 콜은 내 콜이 아닌 거지»).
              */
             val detailFare = PickerFinalIncome.of(detailTexts)
@@ -583,7 +583,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 .distinctBy { Triple(it.pickup, it.dropoff, it.fare) }
             /**
              * 💰 **요금이 같은 줄이 없으면 요금 없이 한 번 더** (기사님 «손으로 연 상세가 평가 안 된다» · 1f «가»).
-             * 픽커는 시간이 지나며 요금을 올린다 — 앱이 기억한 목록 줄은 11,396 인데 상세 최종 수익은 11,796(실물 09-30 13:23→13:25).
+             * 픽커는 시간이 지나며 요금을 올린다 — 앱이 기억한 목록 줄은 11,396 인데 상세 최종 수익은 11,796(실물).
              * 그래도 여럿이면 아래에서 지금처럼 고르지 않는다(추측 금지).
              */
             val withFare = detailFare?.let { byPickupWith(it) }
@@ -612,7 +612,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         }
 
         /**
-         * 🧾 **사진으로 목록 줄을 한 번 더 찾는다** — 손으로 연 상세에서 `matchListCard` 가 못 가를 때 (실물 09-30 13:14 · 1f «가»).
+         * 🧾 **사진으로 목록 줄을 한 번 더 찾는다** — 손으로 연 상세에서 `matchListCard` 가 못 가를 때 (실물 · 1f «가»).
          * 상세 글자에는 하차가 없어 한 매장 오더 여럿(올리브영)을 못 갈랐다 — 사진에는 상차·하차 행정동과 픽업 km 가 있다.
          * 고르는 법 — 카드 상차 토막 ⊂ 사진 상차 · 카드 하차 토막 ⊂ 사진 하차 · 픽업 km 차 0.3 이하. 🔴 **꼭 한 줄일 때만** — 아니면 null(추측하지 않는다).
          */
@@ -656,7 +656,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         }
 
         /**
-         * 🧩 **같은 콜을 동 없이 읽은 줄은 합친다** (`PickerPartialRowMergeTest` · 라이브 09-30 20:47:56 «분당 삼평→강남 일원본» · «분당→강남» 10,920).
+         * 🧩 **같은 콜을 동 없이 읽은 줄은 합친다** (`PickerPartialRowMergeTest` · 라이브 «분당 삼평→강남 일원본» · «분당→강남» 10,920).
          * 요금이 같고 픽업 km 가 같으며(0.1 안), 한 줄의 상차·하차 토막이 다른 줄의 부분집합이면 토막이 적은 줄을 뺀다 —
          * 덜 그려진 카드가 동 없이 읽힌 것이다. 요금이 같으니 합쳐도 고르는 요금이 틀릴 수 없다. 부분집합이 아닌 줄은 그대로 남는다.
          */
@@ -1071,7 +1071,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 // «내일 착불» 처럼 태그 여럿이 한 노드로 붙어 오는 판 — 낱낱이 전부 태그면 태그다
                 t.contains(' ') && t.split(' ').all { it in tagSet } -> tags.addAll(t.split(' '))
                 /**
-                 * 🎈 **떠 있는 메뉴가 한 덩어리로 끼어든다** — «퀵 서포트 모드 1장 받기» (09-16 라이브 3건).
+                 * 🎈 **떠 있는 메뉴가 한 덩어리로 끼어든다** — «퀵 서포트 모드 1장 받기» (라이브 3건).
                  *
                  * 낱말 목록으로는 못 막는다 — 화면이 붙여서 주면 목록에 없는 새 글자가 된다.
                  * 낱낱으로 갈라 봐도 안 된다: 사전에는 «서포트 모드» · «1장 받기» 가 **두 낱말짜리**로
@@ -1226,7 +1226,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         val mark = { ok: Boolean -> if (ok) "✅" else "❌" }
         // 👁️ 축별 판정을 한 줄 남긴다 — «왜 안 울었나»를 로그로 답하기 위해 (첫 실검증 때 수집 데이터로 역추적했다)
         //    🔴 채점기(`pickerAlarmGrade.mjs`)가 이 줄의 모양을 읽는다 — 바꾸면 그 정규식도 같이 바꾼다
-        //    🔕 같은 콜 · 같은 결과 · 같은 필터면 한 번만 — 누르지 못한 콜이 목록이 바뀔 때마다(≈15초) 같은 줄을 되풀이했다 (09-30 13:41)
+        //    🔕 같은 콜 · 같은 결과 · 같은 필터면 한 번만 — 누르지 못한 콜이 목록이 바뀔 때마다(≈15초) 같은 줄을 되풀이했다
         if (com.onedal.app.core.LogOnce.changed("alarm-judge:${com.onedal.app.core.CallMemory.fingerprintOf(order)}", "$pass|$a|${filterJson.hashCode()}"))
         com.onedal.app.core.AppLogger.d("1DAL_PICKER", com.onedal.app.core.LogTag.FILTER,
             "🔔 [알람 판정] ${order.fare}원·픽업 ${order.pickupDistance ?: "?"}km·도착 ${order.dropoff.ifEmpty { "?" }}·예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(order)} — " +

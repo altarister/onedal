@@ -7,7 +7,7 @@ package com.onedal.app.core
  * 손을 가르는 사실(부르는 쪽): 배차망 스크롤 알림(앱은 스크롤하지 않는다) · 앱이 안 쏜 상세 열림 · 앱의 뒤로 가기 없는 상세→목록 ·
  * 앱 터치 뒤 [OWN_TAP_ECHO_MS] 밖의 누름 알림(인성·24 — 픽커는 목록 줄 누름에 알림을 안 낸다).
  * 1초: 기사님 «3초가 너무 긴 것 같은데.. 소리가 나면 내가 손을 떼라는 거지?» → 1.5초 → 30분 셈(손 먼저 놓침 0 · 미룬 누르기 중앙 1.41초) 뒤 «1초 나».
- * (처음 3초의 근거 · 폰 로그 09-30 어림: 상세→목록 복귀 뒤 다음 손 동작 54번 — 3초 안 17 · 5초 안 28 · 중앙 4.5초)
+ * (처음 3초의 근거 · 폰 로그 어림: 상세→목록 복귀 뒤 다음 손 동작 54번 — 3초 안 17 · 5초 안 28 · 중앙 4.5초)
  */
 class HandFirst(private val quietMs: Long = QUIET_MS) {
     companion object {
@@ -21,7 +21,7 @@ class HandFirst(private val quietMs: Long = QUIET_MS) {
 
         /**
          * 🕰️ 알림이 실제로 난 시각(부팅 기준) — AccessibilityEvent.eventTime 은 uptime 기준이다.
-         * 목록 읽기가 길면 알림이 메인 줄에 쌓였다가 늦게 처리된다(라이브 10-01 00:31:20 · 896ms) — 처리 시각이 아니라 난 시각으로 적는다.
+         * 목록 읽기가 길면 알림이 메인 줄에 쌓였다가 늦게 처리된다(라이브 · 896ms) — 처리 시각이 아니라 난 시각으로 적는다.
          */
         fun eventElapsedMs(nowElapsedMs: Long, nowUptimeMs: Long, eventUptimeMs: Long): Long = nowElapsedMs - (nowUptimeMs - eventUptimeMs)
 

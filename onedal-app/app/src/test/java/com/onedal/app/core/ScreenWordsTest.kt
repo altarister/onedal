@@ -90,7 +90,7 @@ class ScreenWordsTest {
         assertEquals(listOf("noise" to "리스트 설정"), words())
     }
 
-    /** 🔒 실물 서버 낱말 표(09-30)에 쌓인 줄 — 주소 통째 · 건물 동 번호 · 포인트 · 개수가 콜마다 새 낱말이었다 */
+    /** 🔒 실물 서버 낱말 표에 쌓인 줄 — 주소 통째 · 건물 동 번호 · 포인트 · 개수가 콜마다 새 낱말이었다 */
     @Test fun `여러 토막 글자도 토막마다 가린다 - 실물 낱말 표의 줄`() {
         ScreenWords.onScreen(Page.DETAIL)
         ScreenWords.add("픽업지 경기 성남시 분당구 이매2동", WordKind.UNKNOWN)
@@ -116,7 +116,7 @@ class ScreenWordsTest {
         assertEquals(listOf("unknown" to "물품 정보"), r.words.map { it.kind to it.word })
     }
 
-    /** 🔒 수락 뒤 화면(실물 캡처 21·22·23 · 09-02) — 붙여 쓴 동·호와 도로명이 가려지지 않았다 */
+    /** 🔒 수락 뒤 화면(실물 캡처 21·22·23) — 붙여 쓴 동·호와 도로명이 가려지지 않았다 */
     @Test fun `붙여 쓴 동호수와 도로명을 가린다 - 수락 뒤 화면 캡처 글자`() {
         assertEquals("<지역> <가게·건물> <동호수>", ScreenWords.mask("쌍용 스윗닷홈아파트 304동1002호"))
         assertEquals("<지역> <도로명> <가게·건물>", ScreenWords.mask("경기 광주시 회안대로 350-23"))

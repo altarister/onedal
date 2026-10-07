@@ -28,7 +28,7 @@ import java.util.concurrent.Executors
  */
 /**
  * 📤 **scrap 보고 한 줄** — 콜이 있으면 늘, «콜 0건»은 화면이 바뀔 때만 (`LogOnceTest`).
- * 상세 대기 중에는 1초마다 «콜 0건» 보고가 가서 하루 2,440줄이 됐다(09-30). 콜이 있던 뒤의 0건은 다시 한 번 찍는다(목록이 비었다는 사실).
+ * 상세 대기 중에는 1초마다 «콜 0건» 보고가 가서 하루 2,440줄이 됐다. 콜이 있던 뒤의 0건은 다시 한 번 찍는다(목록이 비었다는 사실).
  */
 internal fun scrapLogLine(screenName: String, count: Int, ms: Long): String? {
     val line = "📤 [scrap] 화면 $screenName · 콜 ${count}건 · ${ms}ms"

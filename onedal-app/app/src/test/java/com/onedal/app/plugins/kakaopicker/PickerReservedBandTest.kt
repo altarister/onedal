@@ -14,7 +14,7 @@ class PickerReservedBandTest {
             .order.let { Triple(it.reserved, it.reservedDay, it.reservedAt) }
 
     /**
-     * 실물 09-30 14:21:40 사진 ok_1790745697317.jpg — «오늘» 띠가 든 이상 기록이 없어 줄의 y 는 사진 픽셀 자리를 옮겨 적었다.
+     * 실물 사진 ok_1790745697317.jpg — «오늘» 띠가 든 이상 기록이 없어 줄의 y 는 사진 픽셀 자리를 옮겨 적었다.
      */
     @Test fun `띠 줄 오늘 17시 - 픽업 줄이 까지 꼴이어도 오늘`() {
         val lines = listOf(
@@ -28,7 +28,7 @@ class PickerReservedBandTest {
         assertEquals(Triple(true, 0, "17:00"), reservationOf(lines, card))
     }
 
-    /** 실물 09-30 16:18:06 — 서버 이상 기록 512 의 사진 16줄 그대로 */
+    /** 실물 — 서버 이상 기록 512 의 사진 16줄 그대로 */
     @Test fun `띠 줄 내일 12시 20분 - 이상 기록 512`() {
         val lines = listOf(
             OcrLine(30, "퀵 반나절 승용차 예약"), OcrLine(193, "서울 송파구 문정2동"), OcrLine(235, "와인마트 문정점"),

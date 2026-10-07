@@ -14,7 +14,7 @@ import com.onedal.app.models.SimplifiedOfficeOrder
  *
  * - 동 없이 덜 읽은 줄(«분당→강남»)은 토막이 부분집합이면 같은 열쇠다(`mergePartialRows` 와 같은 규칙).
  * - 목록에서 [FORGET_MS] 넘게 안 보이면 잊는다 — 남에게 간 뒤 같은 경로로 새 콜이 뜨면 새 콜이다.
- *   (그날로 잡으면 매일 같은 매장 새 콜을 놓치고, 30분 창이면 종일 남은 콜이 30분마다 다시 운다 · 라이브 09-30 16,093 한남 02:54~22시)
+ *   (그날로 잡으면 매일 같은 매장 새 콜을 놓치고, 30분 창이면 종일 남은 콜이 30분마다 다시 운다 · 라이브 16,093 한남)
  * - 상차나 하차를 모르면 열쇠가 없다 — 지금처럼 지문마다 센다.
  */
 class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
@@ -48,7 +48,7 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
         val fp = CallMemory.fingerprintOf(o)
         return entries.firstOrNull { e ->
             ((e.pickup.containsAll(p) && e.dropoff.containsAll(d)) || (p.containsAll(e.pickup) && d.containsAll(e.dropoff))) &&
-                // 🔔 흔들림 없는 읽기에서만 — 요금이 내려갔거나 같은 읽기의 다른 줄이 쓴 경로면 다른 콜(실물 09-30 «송파→강남 10318 → 9086»)
+                // 🔔 흔들림 없는 읽기에서만 — 요금이 내려갔거나 같은 읽기의 다른 줄이 쓴 경로면 다른 콜(실물 «송파→강남 10318 → 9086»)
                 !(steady && ((o.fare in 1 until e.topFare) || usedThisRead[e]?.let { it != fp } == true))
         }
     }
@@ -80,7 +80,7 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
 
     /**
      * 폰 소리 — 이 열쇠로 처음 울리면 true(울림 함 표시). 스크롤로 화면 밖에 나갔다 돌아와도 다시 안 운다(10분 안 보이면 잊음).
-     * 소리 기억은 여기 한 곳(라이브 10-01 00:31:28 · 00:31:40 16,093 한남이 다시 울었다 — 옛 «이번 스캔에 보인 지문만» 기억).
+     * 소리 기억은 여기 한 곳(라이브 · 16,093 한남이 다시 울었다 — 옛 «이번 스캔에 보인 지문만» 기억).
      */
     fun soundIfNew(o: SimplifiedOfficeOrder, nowMs: Long): Boolean {
         val e = entryOf(o, nowMs) ?: return true

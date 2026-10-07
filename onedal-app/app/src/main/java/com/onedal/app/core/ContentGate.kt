@@ -3,7 +3,7 @@ package com.onedal.app.core
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * 🚦 **«내용 바뀜» 알림을 모아 화면을 읽는 때** (실물 09-30 14:21:37 · `EventRouteTest`).
+ * 🚦 **«내용 바뀜» 알림을 모아 화면을 읽는 때** (실물 · `EventRouteTest`).
  *
  * 픽커 상세는 초당 19~60번 «내용 바뀜»을 내고, 알림마다 트리 전체를 읽어 사진 뒤 일이 3.4초 밀렸다.
  * - 한동안 조용했으면 첫 알림에 **바로** 읽는다 — 목록 새 콜 발견이 늦지 않게

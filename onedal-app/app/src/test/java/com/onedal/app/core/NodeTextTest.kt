@@ -5,7 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * 🧹 **픽커 상세 «픽업지» 노드 글자 끝의 «kotlin.Unit»을 뗀다** — 픽커 앱 자체 글자다(실물 덤프 09-30 13:40:10 · 13:40:25 content-desc).
+ * 🧹 **픽커 상세 «픽업지» 노드 글자 끝의 «kotlin.Unit»을 뗀다** — 픽커 앱 자체 글자다(실물 덤프 · content-desc).
  * 건물 이름에 붙어 오면 건물 이름이 «지엔코빌딩kotlin.Unit»으로 읽힌다.
  */
 class NodeTextTest {
@@ -21,7 +21,7 @@ class NodeTextTest {
 }
 
 /**
- * 🌳 **나무 한 번 훑기 — 지문 글자와 목록 좌표 노드를 한 벌의 훑기에서** (실물 09-30 18:36~38 · 목록 한 번 읽기 300~500ms · 두 번 훑었다).
+ * 🌳 **나무 한 번 훑기 — 지문 글자와 목록 좌표 노드를 한 벌의 훑기에서** (실물 ~38 · 목록 한 번 읽기 300~500ms · 두 번 훑었다).
  * 노드는 실물 덤프 detail_134025.xml(13:40:25) 그대로다(text · content-desc · bounds).
  * ⚠️ 한계: 옛 두 함수(gatherNodeTexts · extractAllTextNodes)는 AccessibilityNodeInfo 를 받아 JVM 검사로 직접 비교할 수 없다 —
  *    그래서 **두 규칙을 표로** 잠근다. 목록 덤프는 없다(uiautomator 금지) — 목록 쪽은 설치 뒤 폰 줄의 «📐»·«🔔» 수로 본다.

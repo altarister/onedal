@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 🚦 **알림이 화면 읽기로 가는 길 — 한 곳** (실물 09-30 14:21:37 · 상세에서 초당 19~60번 트리 전체를 읽어 main 이 0.7~0.9초씩 붙잡혔다).
+ * 🚦 **알림이 화면 읽기로 가는 길 — 한 곳** (실물 · 상세에서 초당 19~60번 트리 전체를 읽어 main 이 0.7~0.9초씩 붙잡혔다).
  * - 스크롤은 목록일 때만 모아 읽기(`ScrollGate`) · 다른 화면에선 아무것도 안 한다
  * - 우리 앱의 «내용 바뀜»(테두리·알람 창 다시 그리기)은 버린다 · 우리 앱 창 바뀜은 그대로(원달앱 화면은 «모름»으로 보인다)
  * - 내용 바뀜은 첫 알림 즉시 · 250ms 안의 나머지는 한 번으로(`ContentGate`) — 목록 새 콜 발견이 최악 +250ms
@@ -47,7 +47,7 @@ class EventRouteTest {
         }
     }
 
-    /** 📜 스크롤 중 «내용 바뀜»은 스크롤 읽기 한 번에 맡긴다 — 스크롤 중 초당 3~4번 읽어 메인 스레드를 0.6~1초 썼다(실물 09-30 18:29) */
+    /** 📜 스크롤 중 «내용 바뀜»은 스크롤 읽기 한 번에 맡긴다 — 스크롤 중 초당 3~4번 읽어 메인 스레드를 0.6~1초 썼다(실물) */
     @Test fun `목록에서 스크롤 300ms 안의 내용 바뀜은 읽지 않는다 - 스크롤 읽기가 곧 읽는다`() {
         assertEquals(EventRoute.Route.IGNORE, EventRoute.of(content, isOwnApp = false, isListScreen = true, scrolledRecently = true))
         assertEquals(EventRoute.Route.SCAN, EventRoute.of(content, isOwnApp = false, isListScreen = true, scrolledRecently = false))

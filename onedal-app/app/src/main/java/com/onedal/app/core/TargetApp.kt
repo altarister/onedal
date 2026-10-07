@@ -114,7 +114,7 @@ object TargetApp {
     fun isNetworkPackage(pkg: String?, lastNetworkPackage: String?): Boolean =
         pkg != null && (isKakaoPickerApp(pkg) || pkg == SIMULATOR_PACKAGE || pkg == lastNetworkPackage)
 
-    /** 📱 붙는 순간 화면이 **실물 배차망 목록**이면 운행 기록을 켠다 — 앱을 새로 깔면 목록에서 바로 붙어 «홈에서 목록으로» 조건이 영영 안 온다(09-30 14:13) */
+    /** 📱 붙는 순간 화면이 **실물 배차망 목록**이면 운행 기록을 켠다 — 앱을 새로 깔면 목록에서 바로 붙어 «홈에서 목록으로» 조건이 영영 안 온다 */
     fun startsTraceOnAttach(pkg: String?, isList: Boolean): Boolean = isList && sourceOf(pkg) == "real"
 
 
@@ -136,7 +136,7 @@ object TargetApp {
      * · 그 밖 → 안 남긴다
      *
      * 🔴 **시뮬레이터에서 «모르는 화면»은 안 모은다** — 시뮬레이터 앱은 설정 화면·인성·화물24시도 띄운다.
-     *    그 글자가 «모르는 픽커 화면»으로 찍히면 09-02 잠금화면 사고처럼 로그가 덮인다.
+     * 그 글자가 «모르는 픽커 화면»으로 찍히면 잠금화면 사고처럼 로그가 덮인다.
      *    모르는 화면을 모으는 까닭은 **실물의 처음 보는 낱말**을 고르는 것이라 실제 앱에서만 뜻이 있다.
      * 🔴 시뮬레이터는 «지금 배차망이 픽커»일 때만 — 인성·화물24시 화면에 운행 단계 낱말(«시작하기» 등)이 우연히 있어도 안 찍힌다.
      */

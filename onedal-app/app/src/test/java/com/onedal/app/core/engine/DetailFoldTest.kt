@@ -60,7 +60,7 @@ class DetailFoldTest {
 
     /**
      * 🔴 **서버는 남은 초를 0.1초 단위 소수로 보낸다**(scrap.ts · 9.7) — 정수 칸으로 받으면 목록 보고 응답 전체가 버려진다.
-     * 라이브 10-01 00:49:53 «Expected an int but was 1.3 … path $.foldAfter.remainSec» — 빨리 접기 동안 결재·필터·심사 중 값을 모두 잃었다.
+     * 라이브 «Expected an int but was 1.3 … path $.foldAfter.remainSec» — 빨리 접기 동안 결재·필터·심사 중 값을 모두 잃었다.
      */
     @Test fun `남은 초 소수도 읽는다 · 올림해 정수 초로`() {
         val f = com.google.gson.Gson().fromJson("""{"orderId":"o1","remainSec":9.7}""", FoldAfter::class.java)
