@@ -1,4 +1,4 @@
-import { incrementDeviceStats } from "../state/deviceSessions";
+import { incrementDeviceStats } from "../state/deviceRegistry";
 import db from "../db";
 import { CANCEL_BUDGET_PER_ROUND } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";

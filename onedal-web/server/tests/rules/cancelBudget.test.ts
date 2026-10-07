@@ -112,7 +112,7 @@ describe('🧮 한 콜은 한 번만 센다 — 부르는 곳이 여럿이어도
 
     it('🔴 같은 콜을 두 길로 취소해도 한 번만 센다', () => {
         const { countCancel } = require('../../src/core/cancelCount');
-        const { incrementDeviceStats } = require('../../src/state/deviceSessions');
+        const { incrementDeviceStats } = require('../../src/state/deviceRegistry');
         const session = makeSession();
         countCancel(session as any, 'dev1', 'order-A', 'DECISION_CANCEL');
         countCancel(session as any, 'dev1', 'order-A', 'AUTO_CANCEL');

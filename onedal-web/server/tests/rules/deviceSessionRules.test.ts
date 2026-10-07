@@ -1,7 +1,8 @@
 // @ts-nocheck
 import db from '../../src/db';
 import devicesRouter from '../../src/routes/devices';
-import { touchDeviceSession, getActiveDevicesSnapshot, otherAutoPhoneOf } from '../../src/state/deviceSessions';
+import { touchDeviceSession, getActiveDevicesSnapshot } from '../../src/state/deviceSessions';
+import { otherAutoPhoneOf } from '../../src/state/deviceRegistry';
 import { getUserSession } from '../../src/state/userSessionStore';
 import * as fileLogger from '../../src/utils/fileLogger';
 import { LIST_SCREENS } from '@onedal/shared';

@@ -6,6 +6,7 @@ import { forceCancelEvaluatingOrder } from '../../src/services/dispatchEngine';
 import { initGeoService } from '../../src/services/geoService';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
 import * as devices from '../../src/state/deviceSessions';
+import * as registry from '../../src/state/deviceRegistry';
 import { UNKNOWN_LEAVE_SEC } from '@onedal/shared';
 
 /**
@@ -58,7 +59,7 @@ describe('🧹 심사 콜 정리', () => {
     it('보통 콜을 정리하면 장부에 SAFE_CANCEL 로 쓰고 취소를 한 번 센다', () => {
         const up = jest.spyOn(OrderRepository, 'upsertOrder').mockImplementation(() => undefined as any);
         const st = jest.spyOn(OrderRepository, 'updateOrderStatus').mockImplementation(() => null);
-        const inc = jest.spyOn(devices, 'incrementDeviceStats').mockImplementation(() => undefined);
+        const inc = jest.spyOn(registry, 'incrementDeviceStats').mockImplementation(() => undefined);
         evaluating('auto-1', false);
         forceCancelEvaluatingOrder(USER, 'auto-1', io, 'TIMEOUT');
         expect([up.mock.calls.length, st.mock.calls[0]?.[2], inc.mock.calls.length]).toEqual([1, 'SAFE_CANCEL', 1]);

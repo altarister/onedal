@@ -12,7 +12,8 @@ import { accountGateOf } from "../core/accountGate";
 import { DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from "@onedal/shared";
 import { clientIpOf } from "../utils/clientIp";
 import { flushSupply } from "../state/phoneSupply";
-import { activeDevices, saveModePreference, demoteOtherAutoPhones, cleanPreviewOfDevice, getUserDevicesSnapshot } from "../state/deviceSessions";
+import { activeDevices, saveModePreference, demoteOtherAutoPhones } from "../state/deviceRegistry";
+import { cleanPreviewOfDevice, getUserDevicesSnapshot } from "../state/deviceSessions";
 
 const router = Router();
 

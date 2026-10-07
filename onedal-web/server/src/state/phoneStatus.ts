@@ -1,5 +1,5 @@
 import type { PhoneStatus } from "@onedal/shared";
-import { registeredPhonesOf } from "./deviceSessions";
+import { registeredPhonesOf } from "./deviceRegistry";
 import { deviceLabelOf } from "../core/deviceAuth";
 import { slog } from "../utils/fileLogger";
 

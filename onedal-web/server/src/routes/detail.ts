@@ -12,7 +12,7 @@ import { armWait } from "../state/waits";
 import { evolveOrder, rememberOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { bootstrapUserSession } from "../state/sessionRestore";
-import { getDeviceMode } from "../state/deviceSessions";
+import { getDeviceMode } from "../state/deviceRegistry";
 import db from "../db";
 import { slog } from "../utils/fileLogger";
 import { releaseEvaluatingDevices } from "../core/helpers";

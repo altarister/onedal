@@ -1,5 +1,5 @@
 // @ts-nocheck
-import * as devices from '../../src/state/deviceSessions';
+import * as devices from '../../src/state/deviceRegistry';
 import ordersRouter from '../../src/routes/orders';
 import { appFilterOf } from '../../src/state/appFilter';
 import { forceCancelEvaluatingOrder, handleDecision } from '../../src/services/dispatchEngine';

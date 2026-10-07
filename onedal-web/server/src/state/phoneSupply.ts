@@ -6,7 +6,7 @@ import { jwtSecret } from "../config/env";
 import { allowanceOf } from "../core/allowance";
 import { filterVersionOf } from "../core/helpers";
 import { deviceLabelOf } from "../core/deviceAuth";
-import { getDeviceMode, otherAutoPhoneOf, registeredPhonesOf, livePhonesOf } from "./deviceSessions";
+import { getDeviceMode, otherAutoPhoneOf, registeredPhonesOf, livePhonesOf } from "./deviceRegistry";
 import { ensureReservedPickupList } from "./filterNet";
 import { appFilterOf, type AppFilterHolds } from "./appFilter";
 import { rememberSentFilterVersion } from "../core/phoneCheck";

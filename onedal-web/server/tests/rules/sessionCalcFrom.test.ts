@@ -3,7 +3,8 @@ import { baseFilterFromDb, baseFilterFrom, busyCountsFrom } from '../../src/stat
 import { filterValuesFrom } from '@onedal/shared';
 import { emergencyTargetFrom, emergencyAlertFrom } from '../../src/routes/emergency';
 import { foldRemainMsFrom, phoneDecisionsFrom } from '../../src/state/decisions';
-import { blindSignalFrom, leftDetailFrom, deadmanFrom, filteringDeviceFrom } from '../../src/state/deviceSessions';
+import { blindSignalFrom, leftDetailFrom } from '../../src/state/deviceSessions';
+import { deadmanFrom, filteringDeviceFrom } from '../../src/state/deviceRegistry';
 
 /**
  * 🧮 **세션 · 기기 · 결재 · 비상 보고의 셈** — 평소 설정 한 줄 읽기를 동작으로, 나머지는 값만 받는 셈(세션 · DB · 지금 시각 없이)으로 문다.
