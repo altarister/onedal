@@ -63,7 +63,7 @@ export function netKeywordsFrom(
     f: Filter,
     city: string,
     radiusKm: number,
-    /** 그 목적지의 조각 — 라인(확정콜의 마지막 하차지까지 자른 것) · 확정콜의 마지막 하차지 · 현위치 원을 넣나 · 🎯 가까이 옴 (shared `dropoffPartsOf`) */
+    /** 그 목적지의 조각 — 라인(확정콜의 마지막 하차지까지 자른 것 · 동선이면 부르는 쪽이 null 로 준다) · 확정콜의 마지막 하차지 · 현위치 원을 넣나 · 🎯 가까이 옴 (shared `dropoffPartsOf`) */
     part: { line: Array<[number, number]> | null; lastDrop: { x: number; y: number } | null; withMe: boolean; nearGoal: boolean },
     /** 📍 그물의 꼭짓점은 «지금 기점» — 낡거나 빈 차의 가짜면 집 주소가 대신한다 (부르는 쪽이 `originOf` 로 낸다) */
     me: { x: number; y: number } | null,
@@ -143,9 +143,7 @@ export function netKeywordsFrom(
             : null;
     /* 그물 입력 한 벌 — 중심점 그물(`netForGoal`)과 걸친 동(`regionsTouchingNetGrouped`)이 같은 입력을 본다 (규칙 ③) */
     const netOpts = {
-        /* 🔷 **동선이면 경로를 안 본다** — 지도(`useStageAreas` 의 `dropoffLine` · `pickupLine`)와 같은 분기다.
-           서버가 이 값을 안 보면 «동선»을 골라도 판정·앱 목록은 노선이 된다 */
-        line: f.routeMode === false ? null : line,
+        line,
         lineRadiusKm: auto ? auto.detourRadiusKm : (f.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
         lastDrop,
         params,
@@ -174,9 +172,8 @@ export function netKeywordsFrom(
      *    상차지가 띠 안인데 동 중심점이 띠 밖이면 목록에 없어 막힌다.
      *    앱은 넉넉하게 올리고 판정이 가른다(규칙 ⑤) — 띠에 걸친 동을 더한다. 폭은 그물 라인과 같은 값(자동이면 줄인 값).
      */
-    const lineUsed = f.routeMode === false ? null : line;
-    const touch = lineUsed
-        ? getDetourRegions(lineUsed.map(([x, y]) => ({ x, y })),
+    const touch = line
+        ? getDetourRegions(line.map(([x, y]) => ({ x, y })),
             auto ? auto.detourRadiusKm : (f.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
             undefined,
             /* ✂️ 하차 조각이라 현위치 원을 도려낸다 — 그물(`netForGoal`) · 걸친 동(`netAreaTesterOf`)과 같은 규칙.
@@ -436,7 +433,8 @@ export function netOfGoalsFrom(o: {
     let measured = false;
     let distanceKm: number | undefined;
     const stops = activeCalls.length ? planArrivalStops(activeCalls, origin) : [];
-    /* 🔷 동선이면 라인이 없다 — 조각(`dropoffPartsOf`)과 그물(`netKeywordsFrom`)이 같은 답을 보게 여기서 끊는다 */
+    /* 🔷 **동선이면 경로를 안 본다 — 정하는 곳은 여기 하나다** · 조각(`dropoffPartsOf`)과 그물(`netKeywordsFrom`)이 이 값을 받는다.
+          지도(`useStageAreas` 의 `dropoffLine` · `pickupLine`)와 같은 분기 · 서버가 이 값을 안 보면 «동선»을 골라도 판정·앱 목록은 노선이 된다 */
     const lineXY = !line || f.routeMode === false ? null : line.map(([x, y]) => ({ x, y }));
     const radius = f.destinationRadiusKm || 0;
     const parts: Array<{ nearGoal: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }> = [];
