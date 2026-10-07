@@ -17,7 +17,9 @@ import { getActiveCalls } from "../core/activeCalls";
 const lastRecoverLogSig = new Map<string, string>();
 /** 🏢 운영센터 신호를 보낸 마지막 콜 지문(콜 · 상태 · 판정 색) — 기사마다 */
 const lastOpsSig = new Map<string, string>();
-import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
+import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
+import { bootstrapUserSession } from "../state/sessionRestore";
+import { reportMilestone, undoMilestone, setCallTarget } from "../services/milestones";
 import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
 import { routeTlOf } from "../services/routeTl";
 import { saveCargoReport } from "../services/cargoReport";

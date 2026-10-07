@@ -3,7 +3,7 @@ import db from '../../src/db';
 import detailRouter from '../../src/routes/detail';
 import ordersRouter from '../../src/routes/orders';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
-import { bootstrapUserSession, restoreAndRecalculateSession } from '../../src/services/dispatchEngine';
+import { bootstrapUserSession, restoreAndRecalculateSession } from '../../src/state/sessionRestore';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
 

@@ -82,7 +82,7 @@ describe('낡은 현위치 — 경로 기점으로 쓰지 않는다', () => {
     it('🔴 낡음을 재는 곳은 한 곳뿐이다', () => {
         const code = (rel: string) => readFileSync(join(__dirname, rel), 'utf8')
             .split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
-        for (const f of ['../../src/services/dispatchEngine.ts', '../../src/core/engine/OrderEvaluator.ts']) {
+        for (const f of ['../../src/services/dispatchEngine.ts', '../../src/services/milestones.ts', '../../src/state/sessionRestore.ts', '../../src/core/engine/OrderEvaluator.ts']) {
             expect(code(f)).not.toMatch(/lastFixAt\s*[<>]/);   // 직접 비교 금지
         }
         /* 호출부는 «고르는 함수»(originOf) 하나만 부른다. 비우고 채우는 손은 없다 */

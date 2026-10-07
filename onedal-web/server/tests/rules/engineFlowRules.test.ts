@@ -1,7 +1,8 @@
 // @ts-nocheck
 import db from '../../src/db';
-import { handleDecision, restoreAndRecalculateSession, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget,
-         recalculateActiveKakaoRoute, recalculateKakaoRoute } from '../../src/services/dispatchEngine';
+import { handleDecision, recalculateActiveKakaoRoute, recalculateKakaoRoute } from '../../src/services/dispatchEngine';
+import { restoreAndRecalculateSession, bootstrapUserSession } from '../../src/state/sessionRestore';
+import { reportMilestone, undoMilestone, setCallTarget } from '../../src/services/milestones';
 import * as filterManager from '../../src/state/filterManager';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import * as cancelCount from '../../src/core/cancelCount';

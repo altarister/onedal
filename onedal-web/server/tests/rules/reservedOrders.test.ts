@@ -1,7 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import db from '../../src/db';
-import { handleDecision, restoreAndRecalculateSession } from '../../src/services/dispatchEngine';
+import { handleDecision } from '../../src/services/dispatchEngine';
+import { restoreAndRecalculateSession } from '../../src/state/sessionRestore';
 import { ensureBusinessDay } from '../../src/state/filterManager';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { buildOrderSync } from '../../src/core/helpers';

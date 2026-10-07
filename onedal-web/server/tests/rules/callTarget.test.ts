@@ -26,7 +26,7 @@ const codeOnly = (src: string) =>
  */
 describe('국면 전환 (CallTarget) — 콜을 건드리지 않는다', () => {
 
-    const engine = codeOnly(read('services/dispatchEngine.ts'));
+    const engine = ['services/dispatchEngine.ts', 'services/milestones.ts', 'state/sessionRestore.ts'].map(f => codeOnly(read(f))).join('\n');
 
     it('🔴 옛 startTwoTrack 은 완전히 사라졌다 — 되살리지 말 것', () => {
         expect(engine).not.toMatch(/function startTwoTrack/);

@@ -228,7 +228,7 @@ describe('📦 실린 것 · 실릴 것 — 거짓 만석을 안 낸다', () => 
 
     it('🔴 KEEP 길 · 재시작 복구 길은 차종을 따로 세어 넘기지 않는다 — 넘기면 필터 매니저의 셈을 건너뛴다', () => {
         const codeOnly = (x: string) => x.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-        const engine = codeOnly(readFileSync(join(__dirname, '../../src/services/dispatchEngine.ts'), 'utf8'));
+        const engine = ['services/dispatchEngine.ts', 'state/sessionRestore.ts'].map(f => codeOnly(readFileSync(join(__dirname, '../../src', f), 'utf8'))).join('\n');
         expect(engine).not.toMatch(/getRemainingCapacityTypes\(/);
         const t = StateMachine.advanceOnKeep(getUserSession('test-cargo-transition-shape'));
         expect('allowedVehicleTypes' in (t.newFilter ?? {})).toBe(false);

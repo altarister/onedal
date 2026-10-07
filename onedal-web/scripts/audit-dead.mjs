@@ -133,10 +133,13 @@ const KEEP = {
     groupCallOptions: '콜 옵션을 갈래별로 묶어 화면이 그리게 하려던 것. DB 표(`call_options`)와 '
                     + '값은 이미 있는데 **그 화면이 아직 없다** — 지금은 `pnpm options` 로 터미널에서만 본다. '
                     + '화면을 만들지 말지는 기사님 판단이라 todo 에 적어 두고 남긴다.',
+    reverseGeocodeToRegion: '본 코드가 안 부른다 — dispatchEngine 의 안 쓰이던 import 가 가리고 있었다(D13 6단계 나누기에서 드러남). '
+                          + '지울지는 관제 결정을 기다린다.',
 };
 
 /** 🧪 검사만 부르는데 알고 남기는 export — 사유 없이는 못 넣는다 (①-2) */
 const TEST_ONLY_KEEP = {
+    homeCallsOf: '본 코드가 안 부른다 — dispatchEngine 의 안 쓰이던 import 가 가리고 있었다(D13 6단계 나누기에서 드러남). 지울지 · 다시 쓸지는 관제 결정을 기다린다.',
 };
 /** 🤖 원달앱에서 이름으로 안 불리는데 남기는 fun · const val — 사유 없이는 못 넣는다 (①-3) */
 const KT_KEEP = {

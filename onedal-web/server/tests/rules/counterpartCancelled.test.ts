@@ -69,7 +69,7 @@ describe('📵 상대 취소 칸', () => {
     });
     it('🔴 판정 · 안전취소 · 필터 · 자동 동작은 이 칸을 읽지 않는다 — 화면에만 보이는 사실', () => {
         const src = (f: string) => readFileSync(join(__dirname, '../../src', f), 'utf8');
-        for (const f of ['core/engine/OrderEvaluator.ts', 'state/waits.ts', 'routes/emergency.ts', 'state/filterManager.ts', 'services/dispatchEngine.ts'])
+        for (const f of ['core/engine/OrderEvaluator.ts', 'state/waits.ts', 'routes/emergency.ts', 'state/filterManager.ts', 'services/dispatchEngine.ts', 'services/milestones.ts', 'state/sessionRestore.ts'])
             expect(src(f)).not.toMatch(/counterpart_?[cC]ancelled/);
     });
 

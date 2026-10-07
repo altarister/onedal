@@ -11,7 +11,7 @@ const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/
 const modal = codeOnly(read(join(CLIENT, "components/dashboard/OrderFilterModal.tsx")));
 const hook = codeOnly(read(join(CLIENT, "hooks/useFilterConfig.ts")));
 const fm = codeOnly(read(join(SERVER, "state/filterManager.ts")));
-const engine = codeOnly(read(join(SERVER, "services/dispatchEngine.ts")));
+const engine = ['services/dispatchEngine.ts', 'services/milestones.ts', 'state/sessionRestore.ts'].map(f => codeOnly(read(join(SERVER, f)))).join("\n");
 const handlers = codeOnly(read(join(SERVER, "socket/socketHandlers.ts")));
 
 /**

@@ -60,7 +60,7 @@ describe('매출은 업무 단위로 센다', () => {
 describe('열린 문 — 상태를 바꾸는 통로는 하나뿐이다', () => {
 
     const handlers = codeOnly(read('socket/socketHandlers.ts'));
-    const engine = codeOnly(read('services/dispatchEngine.ts'));
+    const engine = ['services/dispatchEngine.ts', 'services/milestones.ts', 'state/sessionRestore.ts'].map(f => codeOnly(read(f))).join('\n');
 
     it('🔴 죽은 문 둘이 없다', () => {
         expect(handlers).not.toMatch(/["']update-my-location["']/);
@@ -94,7 +94,7 @@ describe('종결 판정은 한 곳', () => {
     it('🔴 상태 배열을 손으로 만들어 includes 하지 않는다', () => {
         const offenders: string[] = [];
         for (const f of ['routes/emergency.ts', 'routes/orders.ts', 'routes/detail.ts',
-                         'routes/scrap.ts', 'services/dispatchEngine.ts', 'state/filterManager.ts', 'state/filterNet.ts', 'state/filterGoals.ts']) {
+                         'routes/scrap.ts', 'services/dispatchEngine.ts', 'services/milestones.ts', 'state/sessionRestore.ts', 'state/filterManager.ts', 'state/filterNet.ts', 'state/filterGoals.ts']) {
             const src = codeOnly(read(f));
             if (/\[\s*'ORDER_\w+'\s*,[^\]]*\]\.includes\(/.test(src)) offenders.push(f);
         }

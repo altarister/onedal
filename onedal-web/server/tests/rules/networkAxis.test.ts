@@ -58,7 +58,7 @@ describe('«어떻게 잡았나» — 기록 전용 칸', () => {
     it('🔴 보호 분기는 capturedVia 를 읽지 않는다 — #75 재발 방지', () => {
         // 직접콜 보호(강제 취소 면제·즉시 KEEP)는 matchType/type 만 본다.
         // capturedVia 가 보호 조건에 등장하면 기록이 판단으로 새는 것이다.
-        const engine = strip('../../src/services/dispatchEngine.ts');
+        const engine = ['services/dispatchEngine.ts', 'services/milestones.ts', 'state/sessionRestore.ts'].map(f => strip(`../../src/${f}`)).join('\n');
         const detail = strip('../../src/routes/detail.ts');
         const devices = strip('../../src/routes/devices.ts');
         const deviceSessions = strip('../../src/state/deviceSessions.ts');

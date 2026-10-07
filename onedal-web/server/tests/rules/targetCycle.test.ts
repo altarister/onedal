@@ -22,7 +22,7 @@ const sharedCode = (s: string) => readFileSync(join(SHARED, s), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 describe('🔴 방향을 서버가 정하는 길이 없다 (L1 — 코드 모양)', () => {
-    const en = codeOnly('services/dispatchEngine.ts');
+    const en = ['services/dispatchEngine.ts', 'services/milestones.ts', 'state/sessionRestore.ts'].map(f => codeOnly(f)).join('\n');
 
     it('하차를 마쳐도 서버가 복귀를 켜거나 끄지 않는다', () => {
         expect(en).not.toMatch(/decideTargetAfterDelivery/);
