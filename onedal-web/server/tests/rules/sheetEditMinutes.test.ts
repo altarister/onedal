@@ -349,15 +349,7 @@ describe('✏️ 화면이 그 규칙을 지키는가', () => {
         expect(시트).toMatch(/stopPropagation\(\)/);
     });
 
-    /**
-     * 🔴 **그리는 자리를 읽는다** — 옛 판은 덱(`CallDeck`)을 읽었는데, 덱의 접힌 줄은
-     *    지금 «약속 · ± · 예상» 다섯 칸이고 **밀린 분을 안 적는다**. 펼친 카드가 글자로 적는다.
-     */
-    it('🔴 밀린 분을 펼친 카드가 그린다 — 기사님의 「−5분」', () => {
-        const 카드 = 벗긴다('../../../client-app/src/components/dashboard/PinnedRouteCard.tsx');
-        expect(카드).toMatch(/dwellShiftMinutes/);
-        expect(카드).toMatch(/shiftMin !== 0/);      // 0 이면 안 그린다
-    });
+    /* 밀린 분(−5분)을 펼친 카드가 적는가는 관제웹 pinnedRouteCard.test «앞 정거장이 민 분을 적는다» 가 카드를 그려 문다 */
 
     it('🔴 칩 시각의 원천은 타임라인 하나다 — 카카오 구간 ETA 를 따로 안 쓴다', () => {
         expect(경로).toMatch(/routeTimeline/);

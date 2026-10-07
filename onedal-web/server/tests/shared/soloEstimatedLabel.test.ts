@@ -51,34 +51,4 @@ describe('soloEstimated — 계산이 «어림임»을 숨기지 않는다', () 
     });
 });
 
-/**
- * 🔒 **화면이 실제로 말하는지 자리로 지킨다.** 값만 만들어 두고 안 그리면 규칙 ⑤-2 위반이
- * 조용히 성립한다 — «만들고 나중에 노출한다»는 노출이 빠지기 쉬운 모양이다.
- */
-describe('규칙: 콜 카드가 실측/추정과 하차 마감을 접지 않고 보여 준다', () => {
-    const card = readFileSync(
-        join(__dirname, '../../../client-app/src/components/dashboard/PinnedRouteCard.tsx'), 'utf8');
-    /** 주석은 뺀다 — 주석 글자가 «코드에 있다»로 오독되면 안 된다 */
-    const codeOnly = card.split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
-
-    it('🔴 «실측»과 «추정»을 소리 내어 적는다', () => {
-        expect(codeOnly).toMatch(/soloEstimated \? '\(추정\)' : '\(실측\)'/);
-    });
-
-    it('🔴 하차 마감을 카드에 적는다', () => {
-        expect(codeOnly).toMatch(/timing\.dropoffDeadlineAt/);
-    });
-
-    it('🔴 판정 근거 서랍(details) 안으로 접어 넣지 않는다', () => {
-        /**
-         * 🔴 **성질을 본다** — «서랍 **안**에 있나»다. 파일 안 거리로 재면 자리를 옮길 때마다
-         *    깨진다.
-         */
-        const line = codeOnly.indexOf('🚚 배송 주행');
-        expect(line).toBeGreaterThan(0);
-        const open = codeOnly.indexOf('<details', codeOnly.indexOf('판정 근거 · 원본 데이터') - 600);
-        const close = codeOnly.indexOf('</details>', open);
-        const 서랍안 = open > 0 && line > open && line < close;
-        expect(서랍안).toBe(false);          // 펼치지 않아도 보인다
-    });
-});
+/* 🔒 콜 카드가 «실측/추정» · 하차 마감을 판정 근거 서랍 밖에 적는가는 관제웹 pinnedRouteCard.test «배송 주행 · 판정 근거 서랍» 이 카드를 그려 문다 */

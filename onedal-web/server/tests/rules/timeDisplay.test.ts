@@ -125,22 +125,14 @@ describe('🕐 펼친 카드의 상차·하차 줄 — **제 몫이 있을 때�
      */
     const 블록있다 = /function StopDetailBlock/.test(카드);
 
-    it('🔴 줄을 만들었다면 **구간 거리·분**을 적는다 — 타이틀에 없는 것', () => {
-        if (!블록있다) return;                       // 안 만들었으면 이 검사는 할 말이 없다
-        expect(카드).toMatch(/StopDetailBlock[\s\S]{0,3000}legKm/);
-        expect(카드).toMatch(/StopDetailBlock[\s\S]{0,3000}legMin/);
-    });
-
+    /* 줄의 첫 자격 — 구간 거리·분 — 은 관제웹 pinnedRouteCard.test «구간 분은 타임라인의 앞 정거장 → 여기» 가 카드를 그려 문다 */
     /**
      * 🔴 접힌 줄은 밀림을 **기호(▲▼)로만** 말한다 (위 describe 가 지킨다).
      *    그래서 «몇 분 밀렸나»는 펼침에만 있는 정보다 — 그것이 이 줄의 두 번째 자격이다.
      * ⚠️ **원인별 내역**(`└ 합짐2 경유 +7분`)은 이 줄에 아직 없다 —
      *    이 줄이 `shared` 의 `impactOfStop` 을 부르게 되면 이 검사를 한 번 더 조인다.
      */
-    it('🔴 줄을 만들었다면 **밀린 분**을 적는다 — 접힌 줄은 기호로만 말한다', () => {
-        if (!블록있다) return;
-        expect(카드).toMatch(/StopDetailBlock[\s\S]{0,3000}shiftMin/);
-    });
+    /* 둘째 자격 — 밀린 분 — 은 관제웹 pinnedRouteCard.test «앞 정거장이 민 분을 적는다» 가 문다 */
 
     it('🔴 왜 이 줄이 자격을 얻었는지가 코드에 남아 있다 — 다음 사람이 또 철거하지 않게', () => {
         const 원문 = readFileSync(join(__dirname,
@@ -157,11 +149,7 @@ describe('🕐 펼친 카드의 상차·하차 줄 — **제 몫이 있을 때�
      *    옛 판은 덱(`CallDeck`)에서 기호 `▲/▼` 를 찾았는데, 그 기호는 접힌 줄의 **옛 모양**에만 있고
      *    지금 그 모양은 안 그려진다. 펼친 카드는 기호가 아니라 **글자로** 적는다 — 더 분명하다.
      */
-    it('⚠️ 앞 정거장이 밀어낸 분을 펼친 카드가 적는다 — 그것이 «틀어졌나»의 답이다', () => {
-        expect(카드).toMatch(/shiftMin !== 0/);
-        expect(카드).toMatch(/분 밀림/);
-        expect(카드).toMatch(/분 당겨짐/);
-    });
+    /* 앞 정거장이 밀어낸 분을 펼친 카드가 글자로 적는가는 관제웹 pinnedRouteCard.test «앞 정거장이 민 분을 적는다» 가 문다 */
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -262,10 +250,7 @@ describe('🕐 끝난 정거장도 시각을 잃지 않는다', () => {
         expect(stopTimeOfRecords([신고('dropoff', '2026-08-30T03:15:00Z')], [], 'pickup')).toBeNull();
     });
 
-    it('🔴 카드가 경로에 없으면 장부로 폴백한다 — 머리 줄과 펼친 블록 둘 다', () => {
-        expect((카드.match(/stopTimeOfRecords/g) ?? []).length).toBeGreaterThanOrEqual(2);
-        expect(카드).toMatch(/fromRoute\?\.pickupEta \?\?/);
-    });
+    /* 카드가 경로에 없으면 장부로 폴백(경로의 예정이 있으면 그것이 이긴다)은 관제웹 pinnedRouteCard.test «경로에 없는 콜은 장부에서» 가 문다 */
 });
 
 /**
