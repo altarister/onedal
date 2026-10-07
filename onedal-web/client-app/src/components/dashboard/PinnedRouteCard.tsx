@@ -1,4 +1,4 @@
-import { verdictOf, manwonText, wonText } from '@onedal/shared';
+import { verdictOf, manwonText, wonText, type DecisionStatus } from '@onedal/shared';
 import { BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -47,7 +47,7 @@ export interface EtaCell {
 interface Props {
     route: SecuredOrder;
     isExpanded: boolean;
-    onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
+    onDecision?: (id: string, action: DecisionStatus) => void;
     processingId: string | null;
     setProcessingId: (id: string | null) => void;
     etaMap: Map<string, EtaCell>;

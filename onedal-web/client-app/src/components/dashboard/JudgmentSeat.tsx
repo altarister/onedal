@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { SecuredOrder, CallTarget } from '@onedal/shared';
+import type { SecuredOrder, CallTarget, DecisionStatus } from '@onedal/shared';
 import { isManualLineage, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, manwonText } from '@onedal/shared';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { verdictOf, type Color } from '@onedal/shared';
@@ -120,7 +120,7 @@ interface Props {
      */
     inset?: string;
     confirmedActive: number;
-    onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
+    onDecision?: (id: string, action: DecisionStatus) => void;
     processingId?: string | null;
     setProcessingId?: (id: string | null) => void;
 }

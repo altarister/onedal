@@ -12,3 +12,10 @@ export type LetGoStatus = typeof LET_GO_STATUSES[number];
 export function isLetGoStatus(status: string | null | undefined): boolean {
     return (LET_GO_STATUSES as readonly string[]).includes(status ?? '');
 }
+
+/**
+ * 🗳️ **결재 종류 — 진행(KEEP) 하나와 무른 콜 셋.** 관제웹 결재 버튼 · 서버 결재 처리가 이 타입 하나를 쓴다 —
+ *    새 결재 종류가 생기면 여기서 늘리고, 빠진 자리는 tsc 가 짚는다.
+ */
+export const DECISION_STATUSES = ['ORDER_CONFIRMED', ...LET_GO_STATUSES] as const satisfies readonly OrderStatus[];
+export type DecisionStatus = typeof DECISION_STATUSES[number];

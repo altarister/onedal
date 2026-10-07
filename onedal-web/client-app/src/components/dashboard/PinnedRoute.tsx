@@ -1,4 +1,4 @@
-import type { SecuredOrder, RouteStopInfo } from "@onedal/shared";
+import type { SecuredOrder, RouteStopInfo, DecisionStatus } from "@onedal/shared";
 import { useState, useEffect } from 'react';
 import { socket } from '../../lib/socket';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
@@ -25,7 +25,7 @@ interface Props {
     routeHolderId?: string | null;
     /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 */
     previewRouteHolderId?: string | null;
-    onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
+    onDecision?: (id: string, action: DecisionStatus) => void;
     /** 🪗 열린 줄 — 무대가 정한다 (여는 일과 시트 높이를 한 손이 함께 정한다) */
     /** 📏 시트가 «내용만큼» 서는가 — 아코디언의 높이 문법이 갈린다 */
     fit?: boolean;

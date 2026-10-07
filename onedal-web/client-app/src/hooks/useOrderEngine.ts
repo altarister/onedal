@@ -1,4 +1,4 @@
-import { bellOf } from '@onedal/shared';
+import { bellOf, type DecisionStatus } from '@onedal/shared';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { unreadableAfter, type Unreadable } from '../lib/unreadable';
 import { reportWebCode } from '../lib/webCodeVersion';
@@ -364,7 +364,7 @@ export function useOrderEngine() {
         };
     }, []);
 
-    const handleDecision = useCallback((id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => {
+    const handleDecision = useCallback((id: string, action: DecisionStatus) => {
         // 관제탑 → 서버 [Socket] 취소/유지 전달
         logRoadmapEvent("결재", "웹", `[Socket] ${action === 'ORDER_CONFIRMED' ? '유지' : '취소'} 전달`, "관제대시보드");
         socket.emit("decision", { orderId: id, action });

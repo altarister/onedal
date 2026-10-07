@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
-import type { SecuredOrder, RouteStopInfo, GoalZone } from '@onedal/shared';
+import type { SecuredOrder, RouteStopInfo, GoalZone, DecisionStatus } from '@onedal/shared';
 import { hasVisitedStop, effectiveRadii, isDeliveredCall, isEvaluating, lineFromPoint, withNearness, pickupPartsOf, nearGoalCitiesOf,
     dropoffPartsOf, lastDropOf, lineUntil, dongDotsOf, quadShapeFrom, quadOutline, cityCenter, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
@@ -66,7 +66,7 @@ interface Props {
     routeHolderId?: string | null;
     /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 */
     previewRouteHolderId?: string | null;
-    onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
+    onDecision?: (id: string, action: DecisionStatus) => void;
     onRecalculate?: (id: string, priority: string) => void;
     /**
      * 🛣️ **노선 ↔ 🔷 동선 — 기사님이 고르는 그물 모양**.

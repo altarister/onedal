@@ -1,3 +1,4 @@
+import type { DecisionStatus } from '@onedal/shared';
 import { logRoadmapEvent } from './roadmapLogger';
 
 /**
@@ -18,7 +19,7 @@ import { logRoadmapEvent } from './roadmapLogger';
  * 누른 것은 `logRoadmapEvent` 로 남는다 → 서버 로그 파일까지 간다 (`POST /api/logs`).
  */
 
-export type AutoKeepAction = 'ORDER_CONFIRMED' | 'SAFE_CANCEL';
+export type AutoKeepAction = Extract<DecisionStatus, 'ORDER_CONFIRMED' | 'SAFE_CANCEL'>;
 
 /** 켜져 있나 — 개발 빌드 + URL 플래그, 둘 다여야 한다 */
 export function autoKeepEnabled(): boolean {

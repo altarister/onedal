@@ -2,7 +2,7 @@ import { businessDayKey, restoreWhere, mapVehicleToKakaoCarType, deriveDispatchP
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
-         CALL_TARGET_LABEL, isEvaluating, isTerminal, reservedForOf } from "@onedal/shared";
+         CALL_TARGET_LABEL, isEvaluating, isTerminal, reservedForOf, type DecisionStatus } from "@onedal/shared";
 import { isLaterThan, isHeldReserved, takeReserved } from "./reservedOrders";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
@@ -466,7 +466,7 @@ export const syncDetourFilter = (userId: string, io: any) => {
 };
 
 /** 관제사 최종 판정 처리 */
-export async function handleDecision(userId: string, orderId: string, status: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE', io: any) {
+export async function handleDecision(userId: string, orderId: string, status: DecisionStatus, io: any) {
     const session = getUserSession(userId);
 
     /**

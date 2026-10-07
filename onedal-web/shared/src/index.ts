@@ -90,7 +90,7 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
     ORDER_RELEASED_BY_OFFICE: '방출(사무실)',
 };
 
-export { LET_GO_STATUSES, isLetGoStatus, type LetGoStatus } from './orderStatuses';
+export { LET_GO_STATUSES, isLetGoStatus, type LetGoStatus, DECISION_STATUSES, type DecisionStatus } from './orderStatuses';
 import { LET_GO_STATUSES, type LetGoStatus } from './orderStatuses';
 
 /** 종결 상태 (더 이상 상태 전이 없음) */

@@ -3,7 +3,7 @@ import { isLiveServer } from "../config/env";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, CallStepId } from "@onedal/shared";
+import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, CallStepId, DecisionStatus } from "@onedal/shared";
 import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow, deriveRouteTimeline, derivationInputsOf, isTerminal, businessDayKey } from "@onedal/shared";
 import db, { forgetCallOptions, loadCallOptions } from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
@@ -541,7 +541,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // 배차 심사 수락/거절
-        orderOn("decision", async ({ orderId, action }: { orderId: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE' }) => {
+        orderOn("decision", async ({ orderId, action }: { orderId: string, action: DecisionStatus }) => {
             slog('결재', `⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Status Action: ${action}`);
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
