@@ -495,21 +495,19 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
      *    직접 잡은 콜은 서버가 버리지 않는다 (규칙 ①).
      */
     {
-        const userSession = getUserSession(userId);
-        const stuckOrderId = userSession.deviceEvaluatingMap.get(deviceId);
-        const stuck = stuckOrderId ? userSession.pendingOrdersData.get(stuckOrderId) as any : null;
-        if (stuck?.isPreview) {
+        /* 👀 미리보기는 이 한 자리가 치운다 — 목록도 «상세를 떠났다»에 든다(목록 갈래는 미리보기가 아닌 콜만) */
+        const pv = previewOfDevice(getUserSession(userId), deviceId);
+        if (pv) {
             /* 🔴 상세를 아직 못 봤으면 «열리는 중»이다 — 치우지 않는다 (#154) */
-            if (!stuck.detailSeen) {
-                slog('화면', `👀 [상세 못 봄 · 안 치움] ${stuckOrderId} — 카드가 아직 열리는 중이다 (화면: ${screenContext ?? '모름'})`);
+            if (!pv.order.detailSeen) {
+                slog('화면', `👀 [상세 못 봄 · 안 치움] ${pv.id} — 카드가 아직 열리는 중이다 (화면: ${screenContext ?? '모름'})`);
             } else if (leftDetail(session)) {
-                slog('화면', `👀 [상세 이탈] 기기(${deviceLabelOf(deviceId)})가 상세를 떠났다 (화면: ${screenNowOf(session) ?? '끊김'}) — 미리보기를 치운다`);
                 /* ⏩ 빨리 접기 콜이면 막대 끝(judgeUntil)과 실제 접힘의 차이를 한 줄로 — 폰이 한 손이라 1~2초 늦을 수 있다 */
-                if (stuck.foldAfterSec != null && stuck.judgeUntil != null) {
-                    const gap = Date.now() - stuck.judgeUntil;
+                if (pv.order.foldAfterSec != null && pv.order.judgeUntil != null) {
+                    const gap = Date.now() - pv.order.judgeUntil;
                     slog('화면', `⏱️ [빨리 접기] 막대 끝 → 접힘 ${gap >= 0 ? '+' : ''}${gap} ms`);
                 }
-                forceCancelEvaluatingOrder(userId, stuckOrderId!, io);
+                clearPreview(userId, deviceId, pv.id, io, `상세 이탈 — 화면: ${screenNowOf(session) ?? '끊김'}`);
             }
         }
     }
@@ -531,13 +529,11 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
              * 리스트로 돌아갔다 = **이 콜을 안 잡겠다는 뜻**이다. 서버는 그걸 텔레메트리로
              * 이미 알고 있었으면서 30초를 더 기다리고 있었다.
              */
-            const isPreviewStuck = !!(stuckOrder as any)?.isPreview;
-            if (stuckOrder && (isPreviewStuck || !stuckOrder.type?.startsWith("MANUAL")) && !(stuckOrder as any).detailSeen) {
-                slog('화면', `👀 [목록 보고 · 안 치움] ${stuckOrderId} — 이 콜의 상세를 아직 못 봤다 (옛 화면 보고일 수 있다 · 미리보기면 시간·끊김 안전장치가 치운다)`);
-            } else if (stuckOrder && isPreviewStuck) {
-                /* 👀 미리보기는 안 잡은 콜이라 바로 치운다 — 기다릴 것이 없다 */
-                slog('화면', `🚀 [화면 이탈 감지] 기기(${deviceLabelOf(deviceId)})가 리스트 화면으로 이탈함! 👀 미리보기 콜을 즉시 정리합니다 (안 잡은 콜).`);
-                forceCancelEvaluatingOrder(userId, stuckOrderId, io);
+            /* 👀 미리보기는 위 «상세를 떠났다» 한 자리가 치웠다(또는 상세를 아직 못 봐 남겼다) — 여기는 미리보기가 아닌 콜만 */
+            if ((stuckOrder as any)?.isPreview) {
+                /* 같은 일을 두 번 하지 않는다 */
+            } else if (stuckOrder && !stuckOrder.type?.startsWith("MANUAL") && !(stuckOrder as any).detailSeen) {
+                slog('화면', `👀 [목록 보고 · 안 치움] ${stuckOrderId} — 이 콜의 상세를 아직 못 봤다 (옛 화면 보고일 수 있다)`);
             } else if (stuckOrder && !stuckOrder.type?.startsWith("MANUAL")) {
                 /**
                  * 🔴 **잡은 콜은 목록으로 갔다고 바로 죽이지 않는다** (기사님 · 실주행 04:31).
@@ -636,13 +632,23 @@ function markDetailSeen(userId: string, deviceId: string, screenContext?: string
  * @returns 치웠나
  */
 export function cleanPreviewOfDevice(userId: string, deviceId: string, io: any, why: string): boolean {
-    const userSession = getUserSession(userId);
-    const id = userSession.deviceEvaluatingMap.get(deviceId);
-    const o = id ? userSession.pendingOrdersData.get(id) as any : null;
-    if (!id || !o?.isPreview) return false;
-    slog('콜단계', `🛟 [미리보기 정리 · ${why}] ${id} — 기기(${deviceLabelOf(deviceId)})가 보고를 못 보내 서버가 치운다`);
-    forceCancelEvaluatingOrder(userId, id, io, 'TIMEOUT');
+    const pv = previewOfDevice(getUserSession(userId), deviceId);
+    if (!pv) return false;
+    clearPreview(userId, deviceId, pv.id, io, `${why} — 기기가 보고를 못 보내 서버가 치운다`, 'TIMEOUT');
     return true;
+}
+
+/** 👀 이 기기가 지금 심사 중인 미리보기 — 아니면 null. 미리보기를 치우는 두 자리(상세 이탈 · 통신 두절)가 이것 하나로 찾는다 */
+function previewOfDevice(userSession: ReturnType<typeof getUserSession>, deviceId: string): { id: string; order: any } | null {
+    const id = userSession.deviceEvaluatingMap.get(deviceId);
+    const order = id ? userSession.pendingOrdersData.get(id) as any : null;
+    return id && order?.isPreview ? { id, order } : null;
+}
+
+/** 👀 미리보기를 치운다 — 아직 안 잡은 콜이라 기다릴 것이 없다. 치우는 길은 여기 하나 */
+function clearPreview(userId: string, deviceId: string, id: string, io: any, why: string, reason?: 'TIMEOUT'): void {
+    slog('콜단계', `👀 [미리보기 정리 · ${why}] ${id} — 기기(${deviceLabelOf(deviceId)})`);
+    forceCancelEvaluatingOrder(userId, id, io, reason);
 }
 
 /**
