@@ -260,7 +260,8 @@ describe('🔔 2단계 — 스캐너 폰이 스스로 알린다 (기사님 확�
 
 describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
     it('🔴 관제웹이 알람을 듣고 소리를 낸다', () => {
-        const c = codeOnly(web('hooks/useSystemAlerts.ts'));
+        /* 듣기는 화면 밖 저장소에서 한 번(D3 P6-01 · 동작은 client-app stores/alertsStore.test) */
+        const c = codeOnly(web('stores/alertsStore.ts'));
         expect(c).toMatch(/socket\.on\("filter-pass-alarm"/);
         expect(c).toMatch(/soundManager\.playFilterAlarm\(\)/);
     });
