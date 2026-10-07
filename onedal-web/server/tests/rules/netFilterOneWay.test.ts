@@ -80,8 +80,7 @@ describe('🗺️ 지도 — 지나온 곳을 판정과 같게', () => {
         expect(client('components/stage/StageView.tsx')).not.toMatch(/useCallNet|serverKeywords/);
     });
     it('🔴 이동 중이면 하차 띠를 현위치부터 긋는다 — 뒤는 평평하게 자른다 (2026-09-15 «뒤를 자르는 Cap»)', () => {
-        const stage = client('components/stage/StageView.tsx');
-        expect(stage).toMatch(/dropoffDeparted[\s\S]{0,120}lineFromPoint\(/);
+        /* 지도가 넘기는 하차 띠가 출발 뒤 현위치부터인가는 관제웹 stageAreas.test «하차 띠» 가 동작으로 문다 */
         expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/clipAhead\(oc, l\.points, l\.km\)/);
     });
 });
@@ -147,13 +146,7 @@ describe('🧩 필터 영역 — 출발 전 내 영역 · 관내 목적지 원 (
     it('🔴 출발하는 순간 목록을 다시 만든다', () => {
         expect(body(fm, 'export function updateActiveFilter')).toMatch(/rebuildNetFilter\(userId, io\)/);
     });
-    it('🔴 지도도 같은 두 값으로 그린다', () => {
-        const stage = client('components/stage/StageView.tsx');
-        /* 🔴 «출발했나»는 목적지 묶음이 아니라 **조각**이 본다 — 지도도 서버와 같은 사실을 쓴다 */
-        expect(stage).toMatch(/const departed = filter\?\.dispatchPhase === 'DELIVERING'/);
-        expect(stage).toMatch(/pickupPartsOf\(\{\s*\n?\s*departed,/);
-        expect(stage).not.toMatch(/localMode/);
-    });
+    /* 지도도 같은 두 값으로 그린다 — 관제웹 stageAreas.test «상차 띠 — 출발해야 생기고» 가 동작으로 문다 */
 });
 
 /**
@@ -222,10 +215,7 @@ describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
         expect(fm).not.toMatch(/function goalOfCall/);
     });
     it('🔴 지도는 목적지마다 하차 조각을 그리고 마커를 찍는다 · 콜 카드에 판', () => {
-        /* 🔴 지도는 서버가 낸 목적지 목록을 받아 쓴다 — 다시 계산하지 않는다 */
-        const stage = client('components/stage/StageView.tsx');
-        expect(stage).toMatch(/filter\?\.goalCities/);
-        expect(stage).toMatch(/goals: dropoffParts\.map\(/);
+        /* 🔴 지도는 서버가 낸 목적지 목록을 받아 쓴다 — 다시 계산하지 않는다 (관제웹 stageAreas.test «목적지는 서버가 낸 goalCities 그대로») */
         expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/dropoffArea\.goals/);
         expect(client('components/dashboard/CallDeck.tsx')).toMatch(/o\.goalCity/);
     });

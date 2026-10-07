@@ -61,9 +61,5 @@ describe('🔌 배선 — 서버와 지도가 같은 조각을 겹친다', () =>
         expect(geo).not.toMatch(/pickupShapeOf|pickupPartsOf\(/);
     });
 
-    it('🔴 관제웹도 서버와 같은 `pickupPartsOf` 를 쓴다 — 두 벌로 계산하지 않는다', () => {
-        const stage = read('client-app/src/components/stage/StageView.tsx');
-        expect(stage).toContain('pickupPartsOf({');
-        expect(stage).toContain('nearGoalCitiesOf(nearZones)');
-    });
+    /* 관제웹도 서버와 같은 `pickupPartsOf` 를 쓴다 — 관제웹 stageAreas.test «목적지 가까이 오면 상차는 조각을 걷는다» 가 동작으로 문다 */
 });

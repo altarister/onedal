@@ -43,9 +43,7 @@ describe('🟡 후보 경로는 별도 레이어다', () => {
         expect(canvas).toMatch(/candidateHolder\?:/);
     });
 
-    it('🔴 영역 재료는 확정 콜만 본다 — 후보를 세면 앱 목록이 흔들린다', () => {
-        expect(stage).toMatch(/liveRoute\.filter\(o => !isEvaluating\(o\.status\)\)/);
-    });
+    /* 영역 재료는 확정 콜만 본다 — 관제웹 stageAreas.test «하차 영역 재료는 확정 콜만» 이 동작으로 문다 */
 
     it('🔴 후보는 노란 점선이다 — 실선으로 그리지 않는다', () => {
         expect(canvas).toMatch(/setLineDash|\[10, 8\]/);

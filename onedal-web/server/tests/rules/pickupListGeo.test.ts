@@ -213,9 +213,7 @@ describe('상차 목록 배선', () => {
         const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         const CLIENT = join(__dirname, '../../../client-app/src');
         expect(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8')).toMatch(/pickupGroups\?: Record<string, string\[\]>/);
-        const sv = strip(readFileSync(join(CLIENT, 'components/stage/StageView.tsx'), 'utf8'));
-        expect(sv).toMatch(/dongDotsOf\(\{\s*pickupGroups: filter\.pickupGroups/);
-        expect(sv).toMatch(/dropoffGroups: filter\.destinationGroups/);
+        /* 무대가 dongDotsOf(상차 목록 · 하차 목록)로 넘기는가는 관제웹 stageAreas.test «동 점» 이 동작으로 문다 */
         const canvas = strip(readFileSync(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx'), 'utf8'));
         expect(canvas).toMatch(/\['dots', '동 점'\]/);
         expect(canvas).toMatch(/dongDots\.both/);
@@ -223,23 +221,14 @@ describe('상차 목록 배선', () => {
         expect(code('state/userSessionStore.ts')).not.toMatch(/pickupGroups/);
         expect(APP_FILTER_KEYS as readonly string[]).not.toContain('pickupGroups');
     });
-    it('🔴 지도 재료도 서버와 같다 — 판정 중 후보콜은 안 센다 · 동선이면 상차 띠가 없다 · 띠가 없으면 원 전체', () => {
-        const sv = readFileSync(join(__dirname, '../../../client-app/src/components/stage/StageView.tsx'), 'utf8')
-            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-        expect(sv).toMatch(/liveRoute\.filter\(o => !isEvaluating\(o\.status\)\)/);
-        expect(sv).not.toMatch(/activeCalls: liveRoute,/);
-        expect(sv).toMatch(/const drawLine = routeMode/);
-        /* 🔴 띠를 켤지는 조각이 정한다 — 화면이 다시 판단하지 않는다 */
-        expect(sv).toMatch(/const pickupLine = pickupParts\.line \? drawLine : null/);
-    });
+    /* 지도 재료도 서버와 같다(판정 중 후보콜은 안 센다 · 동선이면 상차 띠가 없다 · 띠가 없으면 원 전체) — 관제웹 stageAreas.test 가 동작으로 문다 */
 
     it('✂️ 라인 띠는 현위치부터 · 시작은 평평하게 — 서버 상차 목록 · 지도 «상차» · «하차» 띠가 같은 함수 (기사님 2026-09-15 «2»)', () => {
         expect(code('services/geoService.ts')).toMatch(/lineFromPoint\(/);
         expect(code('services/geoService.ts')).toMatch(/isAheadOf\(p, cut\)/);
         const CLIENT = join(__dirname, '../../../client-app/src');
         const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-        const sv = strip(readFileSync(join(CLIENT, 'components/stage/StageView.tsx'), 'utf8'));
-        expect((sv.match(/lineFromPoint\(/g) || []).length).toBeGreaterThanOrEqual(2);
+        /* 지도 «상차» · «하차» 띠가 lineFromPoint 로 잘리는가는 관제웹 stageAreas.test «상차 띠» · «하차 띠» 가 동작으로 문다 */
         const canvas = strip(readFileSync(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx'), 'utf8'));
         expect(canvas).toMatch(/const clipAhead = /);
         expect((canvas.match(/clipAhead\(/g) || []).length).toBeGreaterThanOrEqual(2);   // 상차 띠 · 하차 띠

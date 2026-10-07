@@ -171,12 +171,7 @@ describe('마름모 모양 — 국면 밖 한 벌', () => {
         expect(modal).not.toMatch(/quadShapeOf/);
     });
 
-    it('🔴 지도는 평면 필터에서 모양을 읽는다 (국면 그릇을 안 본다)', () => {
-        const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
-        /* «상차» · «하차» 레이어는 서버와 같은 `quadShapeFrom(filter)` 로 모양을 읽는다 */
-        expect(stage).toMatch(/quadShapeFrom\(filter\b/);
-        expect(stage).not.toMatch(/phaseSettings\[/);
-    });
+    /* 지도는 평면 필터에서 모양을 읽는다(국면 그릇을 안 본다) — 관제웹 stageAreas.test «마름모 모양은 평면 필터» 가 동작으로 문다 */
 
     /**
      * 🔴 **마름모는 제 표(`QUAD_FIELDS`)로만 그려진다** — 값 묶음(`FILTER_FIELDS`)에 섞이면
@@ -1467,9 +1462,7 @@ describe('노선 ↔ 동선 — 고른 것과 실제를 가른다 (이식)', () 
         expect(stage).toMatch(/routeMode/);
     });
 
-    it('🔴 동선이면 라인을 끈다 — 하차 영역이 마름모로 돌아온다', () => {
-        expect(stage).toMatch(/const dropoffLine = routeMode/);
-    });
+    /* 동선이면 라인을 끈다 — 관제웹 stageAreas.test «동선(routeMode 끔)이면 라인을 안 쓴다» 가 동작으로 문다 */
 
     /**
      * 🔴 **직선으로 지어내지 않는다** (규칙 ④). 경로가 아직 없으면 마름모로 보되

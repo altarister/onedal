@@ -186,11 +186,9 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
      * **요약줄 동 수는 그대로**다 — «지도는 든다는데 판정은 탈락»이 된다 (규칙 ③).
      */
     it('🔴 지도와 필터가 «같은 함수»로 반경을 구한다', () => {
-        const stage = readClient('components/stage/StageView.tsx');
-        expect(stage).toMatch(/effectiveRadii\(/);
+        /* 지도 쪽은 관제웹 stageAreas.test 가 동작으로 문다 — 지도가 받은 반경이 effectiveRadii 의 값인가 */
         expect(modal).toMatch(/effectiveRadii\(/);
         /* 배율을 제 손으로 곱하는 자리가 남아 있으면 안 된다 */
-        expect(codeOnly(stage)).not.toMatch(/radiusScale\s*\*|\*\s*radiusScale/);
         expect(codeOnly(modal)).not.toMatch(/radiusScale\s*\*|\*\s*radiusScale/);
     });
 

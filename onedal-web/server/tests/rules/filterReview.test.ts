@@ -235,12 +235,7 @@ describe('2단계 · 줄인 반경이 앱·요약줄·지도 띠에 간다 — �
         expect(st).toMatch(/effectiveRadii\(/);
         expect(st).not.toMatch(/filter\.pickupRadiusKm \?\? 0/);
     });
-    it('🔴 지도 띠 굵기가 줄인 값이다', () => {
-        const sv = codeOnly(readClient('components/stage/StageView.tsx'));
-        /* 지도 띠는 «하차» 레이어 띠(`km`)가 줄인 값을 쓴다 — `lineRadiusKm` 이 다시 나오면 빨간불 */
-        expect(sv).toMatch(/km: radii\.detourRadiusKm/);
-        expect(sv).not.toMatch(/lineRadiusKm: filter\?\.detourRadiusKm/);
-    });
+    /* 지도 띠 굵기가 줄인 값인가는 관제웹 stageAreas.test «반경은 effectiveRadii 의 값이다» 가 동작으로 문다 */
 });
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -319,11 +314,8 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
     it('🔴 앱·지도·요약줄이 «그물의 목적지»를 본다', () => {
         const sc = codeOnly(read('state/appFilter.ts'));
         expect(sc).toMatch(/filter\.destinationCity\s*=.*goalCity/);
-        const sv = codeOnly(readClient('components/stage/StageView.tsx'));
-        /* 🔴 지도는 목적지 목록을 **다시 계산하지 않는다** — 서버가 낸 `goalCities` 를 그대로 쓴다.
-              마지막 KEEP 순서는 관제웹이 모르므로 여기서 계산하면 서버와 갈라진다 (규칙 ③) */
-        expect(sv).toMatch(/filter\?\.goalCities/);
-        expect(sv).not.toMatch(/goalZonesOf\(/);
+        /* 🔴 지도는 목적지 목록을 **다시 계산하지 않는다** — 서버가 낸 `goalCities` 를 그대로 쓴다
+              (관제웹 stageAreas.test «목적지는 서버가 낸 goalCities 그대로» 가 동작으로 문다) */
         const st = codeOnly(readClient('components/dashboard/OrderFilterStatus.tsx'));
         expect(st).toMatch(/goalCity/);
     });
