@@ -77,7 +77,9 @@ data class EmergencyReport(
     val screenContext: String,
     val screenText: String,
     val timestamp: String,
-    val targetApp: String = "insung"
+    val targetApp: String = "insung",
+    /** 🛑 계약 취소 버튼을 실제로 눌렀나 — false 면 계약이 남아 있다 · 모르면 null (`CancelReport` · shared `EmergencyReport.cancelPressed`) */
+    val cancelPressed: Boolean? = null
 )
 
 // ────────────────────────────────────────────────

@@ -2083,10 +2083,14 @@ class HijackService : AccessibilityService(), ScanContext {
         val timeoutMs = com.onedal.app.core.engine.WaitTimes.safeCancelMs(savedFilter(), currentTargetApp) ?: return
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)  // 안전취소 동안 1초 보고 켬
         safeCancelTimer.start(timeoutMs, session) {
-            sendEmergencyReport(EmergencyReason.AUTO_CANCEL, "안전취소 응답 없음 강제취소")
+            /* 🛑 «자동 취소»는 여기서 안 보낸다 — 버튼을 실제로 누른 뒤에만(`CancelReport`) · 못 누르면 «안 눌렀음» */
+            timeoutCancelOrderId = session.currentOrderId
             executeDecisionImmediately("CANCEL")
         }
     }
+
+    /** 🛑 안전취소 시간 끝으로 누르러 간 콜 — 누른 뒤 «자동 취소 · 눌렀음»을 보낼지 가른다 */
+    private var timeoutCancelOrderId: String? = null
 
     private fun cancelSafeCancelTimer() {
         safeCancelTimer.cancel(session)
@@ -2190,13 +2194,24 @@ class HijackService : AccessibilityService(), ScanContext {
         }
         if (decision == "KEEP" && now >= firstAtMs + KeepCloseWait.MAX_MS && now - lastDetailHandAtMs < KeepCloseWait.QUIET_MS)
             AppLogger.i(TAG, LogTag.DECISION, "👆 [닫기] 손이 계속 있어 ${KeepCloseWait.MAX_MS / 1000}초 뒤 누름")
+        val byTimeout = decision == "CANCEL" && orderAtFirst.isNotEmpty() && orderAtFirst == timeoutCancelOrderId
         val rootNode = rootInActiveWindow
         if (rootNode == null) {
+            /* 🛑 화면을 못 얻었다 — 누르지 못했으니 계약이 남아 있다(조용히 넘기지 않는다 · D1 ④) */
+            com.onedal.app.core.CancelReport.of(decision, byTimeout, pressed = false)?.let {
+                sendEmergencyReport(it.reason, "판결 $decision — 화면을 못 얻음", it.cancelPressed)
+            }
+            if (byTimeout) timeoutCancelOrderId = null
             resetSessionState()
             return
         }
-        if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = effectiveMode)) {
-            touchManager.noteAppLeft()   // 🚪 결재 버튼으로 떠난 목록 복귀는 기사님 손이 아니다
+        val pressed = touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = effectiveMode)
+        if (pressed) touchManager.noteAppLeft()   // 🚪 결재 버튼으로 떠난 목록 복귀는 기사님 손이 아니다
+        com.onedal.app.core.CancelReport.of(decision, byTimeout, pressed)?.let {
+            sendEmergencyReport(it.reason, if (pressed) "안전취소 응답 없음 — 취소를 눌렀다" else "판결 $decision 의 대상 $targetBtnStr 버튼 누락", it.cancelPressed)
+        }
+        if (byTimeout) timeoutCancelOrderId = null
+        if (pressed) {
             if (decision == "KEEP") {
                 AppLogger.roadmap(LogTag.DECISION, "✅ 판결 KEEP 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 합짐 콜 잡기 루프 회귀", telemetryManager.currentScreenContext.name)
             } else {
@@ -2204,8 +2219,7 @@ class HijackService : AccessibilityService(), ScanContext {
             }
             AppLogger.d(TAG, LogTag.DECISION, "🎉 행동 완료! 타겟($targetBtnStr) 명중.")
         } else {
-            AppLogger.e(TAG, "❌ 대상 버튼($targetBtnStr)을 찾을 수 없음.")
-            sendEmergencyReport(EmergencyReason.BUTTON_NOT_FOUND, "판결 $decision 의 대상 $targetBtnStr 버튼 누락")
+            AppLogger.e(TAG, "❌ 대상 버튼($targetBtnStr)을 찾을 수 없음 — 누르지 못했다(계약이 남아 있다)")
         }
         /**
          * 🛡️ **세션은 버튼을 누른 뒤에 비운다** (18번 1.1.9 · 코드리뷰 C-2).
@@ -2218,7 +2232,7 @@ class HijackService : AccessibilityService(), ScanContext {
         rootNode.recycle()
     }
 
-    private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "") {
+    private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "", cancelPressed: Boolean? = null) {
         val orderId = session.currentOrderId.ifEmpty { "unknown" }
         val report = EmergencyReport(
             deviceId = apiClient.getDeviceId(),
@@ -2227,7 +2241,8 @@ class HijackService : AccessibilityService(), ScanContext {
             screenContext = telemetryManager.currentScreenContext.value,
             screenText = extraText,
             timestamp = nowTimestamp(),
-            targetApp = currentTargetApp
+            targetApp = currentTargetApp,
+            cancelPressed = cancelPressed,
         )
         apiClient.sendEmergency(report)
     }
