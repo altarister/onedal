@@ -1,4 +1,4 @@
-import { snapToRoute, progressAlongPolyline } from '../../src/services/geoService';
+import { snapToRoute, progressAlongPolyline } from '../../src/services/geoMotion';
 
 /**
  * 🛣️ **부여받은 경로 ↔ 실제 궤적 — 얼마나 벗어났나** (기사님 지시).

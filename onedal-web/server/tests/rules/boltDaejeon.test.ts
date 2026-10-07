@@ -1,4 +1,5 @@
-import { initGeoService, getCityRegionsWithRadius, trapsForKeywords } from '../../src/services/geoService';
+import { initGeoService, trapsForKeywords } from '../../src/services/geoService';
+import { getCityRegionsWithRadius } from '../../src/services/geoRegions';
 import { anyRegionHit } from '@onedal/shared';
 
 /**

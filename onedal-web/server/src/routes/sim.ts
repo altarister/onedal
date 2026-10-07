@@ -2,7 +2,7 @@ import { Router } from "express";
 import db from "../db";
 import { getAllActiveUserIds, getUserSession } from "../state/userSessionStore";
 import { isLiveServer, PROBE_EMAIL } from "../config/env";
-import { originOf } from "../services/geoService";
+import { originOf } from "../services/geoMotion";
 import { driverLocationOf } from "../services/driverLocation";
 import { getActiveCalls } from "../core/helpers";
 import { mapCoverage } from "../services/geoService";

@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { originOf, MOCK_GPS_OWNER_QUIET_MS } from '../../src/services/geoService';
+import { originOf, MOCK_GPS_OWNER_QUIET_MS } from '../../src/services/geoMotion';
 
 /**
  * 📍 **서버가 다시 떠도 «내가 어디 있나»는 한 답이다** (기사님 실측)

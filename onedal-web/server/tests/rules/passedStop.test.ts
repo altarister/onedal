@@ -1,4 +1,4 @@
-import { evaluatePassTick } from "../../src/services/geoService";
+import { evaluatePassTick } from "../../src/services/geoMotion";
 
 /**
  * 🚚 **지나치면 도착·완료를 대신 찍는다** (기사님 확정)

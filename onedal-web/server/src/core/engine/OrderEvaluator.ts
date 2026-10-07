@@ -17,7 +17,7 @@ import { stepRecordsOf, dwellLedgerFor, firmPromiseMsOf } from "../../services/s
 import { getUserSession } from "../../state/userSessionStore";
 import { goalCityOf } from "../../state/filterGoals";
 import { findLoadConflicts, totalDetourCost, getStopTiming } from "../helpers";
-import { originOf, homeOriginOf } from "../../services/geoService";
+import { originOf, homeOriginOf } from "../../services/geoMotion";
 import { haversineKm } from "@onedal/shared";
 import { geocodeCallAddress, calculateSoloRoute, prefetchSoloRoute, roadEventWhereOf, type RoadEventCode } from "../../services/kakaoService";
 import { hedgeBudget } from "../../services/kakaoHedgeBudget";

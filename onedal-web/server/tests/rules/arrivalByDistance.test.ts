@@ -1,4 +1,4 @@
-import { arrivalCandidates, stopKeyOf } from '../../src/services/geoService';
+import { arrivalCandidates, stopKeyOf } from '../../src/services/geoMotion';
 import type { ArrivalStop } from '../../src/services/routeComposer';
 
 /**

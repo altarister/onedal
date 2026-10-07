@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { initGeoService, getDetourRegions } from '../../src/services/geoService';
+import { initGeoService } from '../../src/services/geoService';
+import { getDetourRegions } from '../../src/services/geoRegions';
 
 /**
  * 🕳️ **서버가 보낸 null 이 앱 저장에서 사라지지 않게 한다**

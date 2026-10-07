@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { initGeoService, pickupListFor } from '../../src/services/geoService';
+import { initGeoService } from '../../src/services/geoService';
+import { pickupListFor } from '../../src/services/geoRegions';
 import { getUserSession } from '../../src/state/userSessionStore';
 import { rebuildPickupList } from '../../src/state/filterNet';
 import { APP_FILTER_KEYS, callFilterBlocker } from '@onedal/shared';

@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { initGeoService, regionsTouchingCircleGrouped, cityAliases } from '../../src/services/geoService';
+import { initGeoService, cityAliases } from '../../src/services/geoService';
+import { regionsTouchingCircleGrouped } from '../../src/services/geoRegions';
 import { homeCityFrom, goalCityFrom, homeCallsFrom, goalZonesFrom } from '../../src/state/filterGoals';
 import { radiusDistanceFrom, netKeywordsFrom, netOfGoalsFrom, adminDongsFrom, dongSigunguFrom, traveledTrimFrom } from '../../src/state/filterNet';
 import { cityCenter, haversineKm, progressAlongKm } from '@onedal/shared';

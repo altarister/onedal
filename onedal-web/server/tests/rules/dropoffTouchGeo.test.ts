@@ -1,4 +1,5 @@
-import { initGeoService, regionsTouchingNetGrouped, getDetourRegions } from '../../src/services/geoService';
+import { initGeoService } from '../../src/services/geoService';
+import { regionsTouchingNetGrouped, getDetourRegions } from '../../src/services/geoRegions';
 import { netForGoal, cityCenter, quadShapeFrom } from '@onedal/shared';
 
 /**

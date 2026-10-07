@@ -1,4 +1,4 @@
-import { originOf } from "./geoService";
+import { originOf } from "./geoMotion";
 
 /**
  * 📍 **기사의 «지금 자리» — 서버가 경로를 그릴 때 쓰는 바로 그 기점** (originOf 가 지금 고른다 · 저장된 칸을 읽지 않는다).

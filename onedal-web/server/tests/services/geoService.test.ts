@@ -1,4 +1,5 @@
-import { initGeoService, getCityRegionsWithRadius, cityAliases } from '../../src/services/geoService';
+import { initGeoService, cityAliases } from '../../src/services/geoService';
+import { getCityRegionsWithRadius } from '../../src/services/geoRegions';
 
 /**
  * 🔴 필터가 조용히 새는 두 길을 막는다.

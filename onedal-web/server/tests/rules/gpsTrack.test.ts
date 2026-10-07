@@ -1,7 +1,7 @@
 import db from '../../src/db';
 import { shouldStoreGpsPoint, GPS_TRACK, pruneGpsTracks, flushGpsBuffer, bufferGpsPoint,
          summarizeTrack, trackOfOrder, trackSegmentsOf } from '../../src/services/gpsTrackStore';
-import { isSpeedSampleUsable, gpsPointOf } from '../../src/services/geoService';
+import { isSpeedSampleUsable, gpsPointOf } from '../../src/services/geoMotion';
 import { planArrivalStops } from '../../src/services/routeComposer';
 
 /**

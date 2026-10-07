@@ -1,5 +1,7 @@
 // @ts-nocheck
-import { processDriverMovement, originOf, getActivePolyline, getLastDropoffCoord, getDetourRegions, initGeoService, pickupListFor, regionsTouchingCircleGrouped } from '../../src/services/geoService';
+import { processDriverMovement, originOf, getActivePolyline, getLastDropoffCoord } from '../../src/services/geoMotion';
+import { getDetourRegions, pickupListFor, regionsTouchingCircleGrouped } from '../../src/services/geoRegions';
+import { initGeoService } from '../../src/services/geoService';
 import * as gpsTrackStore from '../../src/services/gpsTrackStore';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';

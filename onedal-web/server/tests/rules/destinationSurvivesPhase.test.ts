@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { getUserSession } from '../../src/state/userSessionStore';
 import { initGeoService } from '../../src/services/geoService';
-import { unionRegions } from '../../src/services/geoService';
+import { unionRegions } from '../../src/services/geoRegions';
 
 beforeAll(() => { initGeoService(); });
 

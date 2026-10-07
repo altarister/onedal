@@ -21,6 +21,6 @@ describe('📏 두 지점 거리 한 함수', () => {
     it('🔴 옛 이름(숫자 넷 함수 · 복사본)이 남아 있지 않다', () => {
         const hits = files.filter(f => /\b(getDistanceKm|haversineMeters|haversineKmOf)\b/.test(code(f))).map(f => relative(WEB, f));
         expect(hits).toEqual([]);
-        expect(code(join(WEB, 'server/src/services/geoService.ts'))).not.toMatch(/export function haversineKm/);
+        for (const f of ['geoService', 'geoRegions', 'geoMotion']) expect(code(join(WEB, `server/src/services/${f}.ts`))).not.toMatch(/export function haversineKm/);
     });
 });

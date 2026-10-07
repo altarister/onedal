@@ -8,7 +8,8 @@ import { getGroupedRegionsByCity } from "../geoResolver";
 import { saveBaseFilter } from "../state/filterManager";
 import { getUserSession } from "../state/userSessionStore";
 import { recalculateDetourFilter } from "../services/dispatchEngine";
-import { getCityRegionsWithRadius, getSelectableCities } from "../services/geoService";
+import { getCityRegionsWithRadius } from "../services/geoRegions";
+import { getSelectableCities } from "../services/geoService";
 import { slog } from "../utils/fileLogger";
 
 const router = Router();

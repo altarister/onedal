@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import { evaluateArrivalTick, GPS_ARRIVAL } from "../../src/services/geoService";
+import { evaluateArrivalTick, GPS_ARRIVAL } from "../../src/services/geoMotion";
 
 /**
  * 🔴 도착 감지 규칙

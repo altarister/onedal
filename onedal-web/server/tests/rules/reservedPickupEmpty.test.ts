@@ -1,6 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import * as geo from '../../src/services/geoService';
+import * as geoRegions from '../../src/services/geoRegions';
 import * as fileLogger from '../../src/utils/fileLogger';
 const { initGeoService } = geo;
 import { ensureReservedPickupList } from '../../src/state/filterNet';
@@ -30,7 +31,7 @@ describe('📅 빈 내일 상차 목록', () => {
         s.baseFilter = { ...s.baseFilter, pickupRadiusKm: 25 };
         expect(ensureReservedPickupList(s, U)).toBeNull();
         expect(s.reservedPickup?.keywords).toEqual([]);
-        const count = jest.spyOn(geo, 'pickupListFor');
+        const count = jest.spyOn(geoRegions, 'pickupListFor');
         const log = jest.spyOn(fileLogger, 'slog');
         expect(ensureReservedPickupList(s, U)).toBeNull();
         expect(count).not.toHaveBeenCalled();

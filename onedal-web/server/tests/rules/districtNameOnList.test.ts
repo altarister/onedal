@@ -1,4 +1,5 @@
-import { initGeoService, cityAliases, getDetourRegions } from '../../src/services/geoService';
+import { initGeoService, cityAliases } from '../../src/services/geoService';
+import { getDetourRegions } from '../../src/services/geoRegions';
 
 /**
  * 🏙️ **리스트에 "구"로 뜨는 콜을 버리지 않는다** (기사님 지적)

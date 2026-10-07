@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { initGeoService, getDetourRegions } from '../../src/services/geoService';
+import { initGeoService } from '../../src/services/geoService';
+import { getDetourRegions } from '../../src/services/geoRegions';
 
 /**
  * 🧭 **동의 실제 경로상 자리(orderKm)는 지리를 지킨다** — 띠로만 든 동의 지나온 구간 빼기 진행도가 이 값을 읽는다.

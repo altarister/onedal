@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { initGeoService, getCityRegionsWithRadius, regionsTouchingCircleGrouped, trapsForKeywords, cityAliases, pickupListFor } from '../../src/services/geoService';
+import { initGeoService, trapsForKeywords, cityAliases } from '../../src/services/geoService';
+import { getCityRegionsWithRadius, regionsTouchingCircleGrouped, pickupListFor } from '../../src/services/geoRegions';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { updateActiveFilter, rebuildNetFilter, trimTraveled } from '../../src/state/filterManager';
 import { rebuildPickupList, applyTraveledTrim, ensureReservedPickupList } from '../../src/state/filterNet';

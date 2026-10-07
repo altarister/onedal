@@ -8,7 +8,7 @@
  * 쓸 수 있으면 그 자리, 아니면 내 주소. 비우는 쪽과 메우는 쪽을 따로 두면 둘이 다른 시점에 살아
  * 한쪽만 도는 틈이 생긴다(세션 중간 심사 직전에 origin 이 빈다). 고르는 함수 하나면 그 틈이 없다.
  */
-import { originOf } from '../../src/services/geoService';
+import { originOf } from '../../src/services/geoMotion';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 
 jest.mock('../../src/repositories/SettingsRepository', () => ({

@@ -12,7 +12,7 @@ import { peekUserSession, baseFilterFromDb, getAllActiveUserIds } from "../state
 import { appFilterOf } from "../state/appFilter";
 import { kakaoUsageOf, kakaoBoardOf } from "../services/kakaoUsage";
 import { networkLevelOf, needsUpdateOf, locationStaleOf, NETWORK_ALARM } from "../services/opsHome";
-import { nextStopOf } from "../services/geoService";
+import { nextStopOf } from "../services/geoMotion";
 import { listReleases, scrapReleaseCodes } from "../core/releases";
 import { errorsToday } from "../utils/errorTally";
 import { driverLocationOf } from "../services/driverLocation";

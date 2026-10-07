@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { initGeoService, getCityRegionsWithRadius } from '../../src/services/geoService';
+import { initGeoService } from '../../src/services/geoService';
+import { getCityRegionsWithRadius } from '../../src/services/geoRegions';
 
 /**
  * 🗺️ **지도가 담는 범위 — 그물이 안 만들어지면 콜이 하나도 안 올라온다**

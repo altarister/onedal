@@ -1,5 +1,5 @@
 import { getUserSession } from '../../src/state/userSessionStore';
-import { originOf, lastKnownPositionOf, DRIVER_LOCATION_STALE_MS } from '../../src/services/geoService';
+import { originOf, lastKnownPositionOf, DRIVER_LOCATION_STALE_MS } from '../../src/services/geoMotion';
 
 /**
  * 📍 **«내가 지금 어디 있나» 와 «경로를 어디서부터 짤까» 는 다른 질문이다**.

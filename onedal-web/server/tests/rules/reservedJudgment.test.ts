@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import db from '../../src/db';
-import { homeOriginOf } from '../../src/services/geoService';
+import { homeOriginOf } from '../../src/services/geoMotion';
 import { destProgressOf } from '../../src/core/engine/judgeFacts';
 
 /**

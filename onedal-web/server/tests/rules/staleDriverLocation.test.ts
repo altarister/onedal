@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { getUserSession } from '../../src/state/userSessionStore';
-import { originOf, DRIVER_LOCATION_STALE_MS } from '../../src/services/geoService';
+import { originOf, DRIVER_LOCATION_STALE_MS } from '../../src/services/geoMotion';
 
 /**
  * 📍 **낡은 좌표는 «지금 위치»가 아니다** (기사님 실측)

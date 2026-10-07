@@ -8,7 +8,7 @@ import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromR
 import db, { forgetCallOptions, loadCallOptions } from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
-import { lastKnownPositionOf, MOCK_GPS_OWNER_QUIET_MS } from "../services/geoService";
+import { lastKnownPositionOf, MOCK_GPS_OWNER_QUIET_MS } from "../services/geoMotion";
 import { getUserSession, getAllActiveUserIds, UserSession } from "../state/userSessionStore";
 import { buildOrderSync, getActiveCalls } from "../core/helpers";
 
@@ -22,7 +22,8 @@ import { routeTlOf } from "../services/routeTl";
 import { saveCargoReport } from "../services/cargoReport";
 
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, trimTraveled, maybeRebuildPickupList } from "../state/filterManager";
-import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "../services/geoService";
+import { processDriverMovement, GPS_ARRIVAL } from "../services/geoMotion";
+import { getCityRegionsWithRadius } from "../services/geoRegions";
 import { slog } from "../utils/fileLogger";
 import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";

@@ -7,7 +7,7 @@ import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          unitPoints, handMinutesOf, protectionMinutes } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming, JudgmentConfig } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
-import { originOf } from '../services/geoService';
+import { originOf } from '../services/geoMotion';
 import db from '../db';
 import { planArrivalStops } from '../services/routeComposer';
 import type { RouteSnapshot } from '../services/routeComposer';

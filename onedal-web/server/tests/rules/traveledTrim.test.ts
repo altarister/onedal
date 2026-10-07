@@ -6,7 +6,7 @@ const read = (rel: string) => readFileSync(join(SERVER, rel), "utf8");
 /** 주석을 걷어낸 코드만 — 주석이 예로 든 글자에 걸리지 않게 */
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-const geo = codeOnly(read("services/geoService.ts"));
+const geo = ["services/geoService.ts", "services/geoRegions.ts", "services/geoMotion.ts"].map(f => codeOnly(read(f))).join("\n");
 const fm = codeOnly(read("state/filterManager.ts"));
 const engine = codeOnly(read("services/dispatchEngine.ts"));
 
