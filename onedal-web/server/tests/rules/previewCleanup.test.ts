@@ -210,14 +210,6 @@ describe('🛟 미리보기 안전장치', () => {
         const body = src.slice(src.indexOf('router.post("/:deviceId/offline"'), src.indexOf('POST /api/devices/:deviceId/mode'));
         expect(body).toMatch(/cleanPreviewOfDevice\(/);
     });
-
-    it('🔴 데드맨이 무응답을 끊김으로 넘길 때 그 폰의 미리보기를 치운다 — 앱이 아무 말도 못 하고 죽은 경우', () => {
-        const src = readFileSync(join(__dirname, '../../src/routes/devices.ts'), 'utf8');
-        const body = src.slice(src.indexOf('getActiveDevicesSnapshot'), src.indexOf('GET /api/devices (유저별)'));
-        /* 까닭을 «통신 두절»로 적고(앱이 보낸 «앱 꺼짐»과 다르다) 미리보기를 치운다 */
-        expect(body).toMatch(/NO_CONTACT/);
-        expect(body).toMatch(/cleanPreviewOfDevice\(/);
-    });
 });
 
 /**

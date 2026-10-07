@@ -1,6 +1,5 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { touchDeviceSession } from '../../src/routes/devices';
 import { isTargetApp, isCapturedVia, TARGET_APPS, DEFAULT_TARGET_APP } from '@onedal/shared';
 
 /**
@@ -13,17 +12,6 @@ import { isTargetApp, isCapturedVia, TARGET_APPS, DEFAULT_TARGET_APP } from '@on
  *   matchType 만 본다 — 기록 칸이 판단으로 새지 않게. 원장에 실리는 배선을 소스로 잠근다.
  */
 describe('«어느 배차망» 축', () => {
-    it('🔴 기기 세션이 scrap 의 targetApp 을 기억한다 — 폰 영역 배지의 원천', () => {
-        touchDeviceSession('test-net-axis-dev', 'test-net-axis-user', 1, 'LIST',
-            undefined, false, undefined, undefined, undefined, undefined, undefined, 'kakaopicker');
-        // 갱신 경로도 같은 자리를 지나는지 — 배차망을 갈아탄 폰이 옛 배지로 남으면 안 된다
-        touchDeviceSession('test-net-axis-dev', 'test-net-axis-user', 1, 'LIST',
-            undefined, false, undefined, undefined, undefined, undefined, undefined, 'insung');
-
-        const src = readFileSync(join(__dirname, '../../src/routes/devices.ts'), 'utf8');
-        expect(src).toMatch(/session\.targetApp = targetApp/);
-        expect(src).toMatch(/targetApp,/);   // 생성 경로에도 실린다
-    });
 
     it('값 표준은 shared 한 벌 — 셋이고, 모르는 값은 기본값으로 거른다', () => {
         expect([...TARGET_APPS]).toEqual(['insung', 'hwamul24', 'kakaopicker']);

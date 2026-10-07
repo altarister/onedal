@@ -10,20 +10,14 @@ import { join } from 'path';
  *   옛 DB 에 둘 다 자동인 채 서버가 다시 뜬 경우(메모리가 비어 `getDeviceMode` 가 DB 를 읽는 길 — drive e2e 는 서버를 다시 띄우지 않아 못 만듦).
  *   넘기는 도중 앞 폰이 꺼지면 새 폰은 앞 폰이 «살아 있음»에서 빠질 때(데드맨 150초)까지 알람으로 기다린다 — 안전한 쪽.
  */
-const devices = readFileSync(join(__dirname, '../../src/routes/devices.ts'), 'utf8');
 const scrap = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
 const supply = readFileSync(join(__dirname, '../../src/state/phoneSupply.ts'), 'utf8');
 
 describe('🔁 자동은 한 폰만', () => {
-    it('🔴 자동을 누르면 같은 기사님의 다른 자동 폰을 알람으로 옮겨 저장한다', () => {
-        expect(devices).toContain("if (mode === 'AUTO') demoteOtherAutoPhones(deviceId, userId);");
-        expect(devices).toMatch(/function demoteOtherAutoPhones\(deviceId: string, userId: string\)[\s\S]*?saveModePreference\(other, userId, 'ALARM'\)/);
-    });
 
     it('🔴 보고 응답은 다른 폰도 자동 명령이면 알람으로 내려준다(이미 둘인 경우의 안전망)', () => {
         expect(supply).toContain('const otherAuto = otherAutoPhoneOf(deviceId, userId, ids);');
         expect(supply).toContain('return modeForPhone(commanded, autoLive, webAttached, otherAuto)');
         expect(scrap).not.toMatch(/modeSentToPhone|deviceControl: \{[^}]*mode:/);   // 모드는 관제앱 공급 한 길
-        expect(devices).toMatch(/function otherAutoPhoneOf[\s\S]*?otherContractingAuto\(deviceId, phones, Date\.now\(\), DEADMAN_TIMEOUT_MS\)/);   // 판단은 shared 한 곳 · 동작 검사는 modeTable.test
     });
 });

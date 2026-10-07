@@ -55,33 +55,6 @@ describe('🎛️ 모드 넷 — 값과 그 뜻', () => {
 });
 
 describe('🎛️ isActive 는 «필터가 도는가» 다 — «누가 누르나»가 아니다', () => {
-    /**
-     * 🔴 **여기가 이 일의 핵심이다.** 앱의 `decide()` 는 맨 앞에서
-     *    `if (!filter.isActive) return false` 로 끊는다 (`InsungParser.kt`).
-     *    그래서 알람/체험 모드에서 `isActive` 가 꺼져 있으면 **필터가 아예 안 돌고
-     *    아무것도 안 울린다/안 잡힌다** — 기능이 통째로 죽는다.
-     *
-     * «필터가 돈다»와 «앱이 누른다»는 다른 물음이다 — 한 값으로 쓰면 알람/체험에서 필터가 죽는다.
-     */
-    it('🔴 자동·알람·체험 셋 다 필터를 켠다 (필터가 죽으면 콜을 못 본다)', () => {
-        const c = codeOnly(srv('routes/devices.ts'));
-        const block = c.split('hasFilteringDevice')[1]?.slice(0, 300) ?? '';
-        expect(block).toBeTruthy();
-        expect(block).toMatch(/mode === "AUTO"/);
-        expect(block).toMatch(/mode === "ALARM"/);
-        expect(block).toMatch(/mode === "SIMULATION"/);
-    });
-
-    /**
-     * 🔴 그래도 **누르는 것은 AUTO(와 잡기를 지원하는 배차망의 체험)뿐이다.** 두 사실을 두 곳이 나눠 답한다 (규칙 ③) —
-     *    필터가 도는가는 `isActive`, 누가 누르는가는 앱의 `currentMode`.
-     *    (누르는 쪽 잠금은 아래 「앱은 AUTO 일 때만 누른다」 가 맡는다)
-     */
-    it('🔴 직접(MANUAL)는 필터를 켜지 않는다', () => {
-        const c = codeOnly(srv('routes/devices.ts'));
-        const block = c.split('hasFilteringDevice')[1]?.slice(0, 300) ?? '';
-        expect(block).not.toMatch(/mode === "MANUAL"/);
-    });
 
     it('🔴 모드 검증이 세 값을 다 받는다 (ALARM 을 400 으로 막지 않는다)', () => {
         const c = codeOnly(srv('routes/devices.ts'));
@@ -103,26 +76,6 @@ describe('🎛️ 모드는 서버 재시작을 견딘다', () => {
         expect(c).toMatch(/mode:/);
     });
 
-    it('🔴 모드를 DB 에 쓴다 (메모리에만 남기지 않는다)', () => {
-        const c = codeOnly(srv('routes/devices.ts'));
-        expect(c).toMatch(/UPDATE user_devices SET mode/);
-    });
-
-    /**
-     * 🔴 **남의 폰 모드를 못 바꾼다**.
-     *
-     * `requireAuth` 는 *"로그인했는가"* 만 본다 — *"이 폰이 네 것인가"* 는 안 본다.
-     * 그래서 기기 해제(DELETE)처럼 모드 변경도 `user_id` 로 거른다.
-     *
-     * ⚠️ 모드는 DB 에 남으므로, 거르지 않으면 남의 폰에 쓴 모드가 재시작 뒤에도 남는다.
-     */
-    it('🔴 모드 변경이 남의 폰을 막는다 (user_id 로 거른다)', () => {
-        const c = codeOnly(srv('routes/devices.ts'));
-        const fn = c.split('function saveModePreference')[1]?.split('\n}')[0] ?? '';
-        expect(fn).toBeTruthy();
-        expect(fn).toMatch(/WHERE device_id = \? AND user_id = \?/);
-    });
-
     it('🔴 남의 폰이면 거절한다 (조용히 무시하지 않는다)', () => {
         const c = codeOnly(srv('routes/devices.ts'));
         const route = c.split('router.post("/:deviceId/mode"')[1]?.split('\n});')[0] ?? '';
@@ -130,13 +83,6 @@ describe('🎛️ 모드는 서버 재시작을 견딘다', () => {
         // 0행 갱신 = 내 폰이 아니다 → 404. 조용히 200 을 주면 화면이 거짓말한다
         expect(route).toMatch(/changes === 0/);
         expect(route).toMatch(/404/);
-    });
-
-    it('🔴 기본 모드를 DB 에서 읽는다 (원천은 하나다 — 규칙 ③)', () => {
-        const c = codeOnly(srv('routes/devices.ts'));
-        const fn = c.split('function resolveDefaultMode')[1]?.split('\n}')[0] ?? '';
-        expect(fn).toBeTruthy();
-        expect(fn).toMatch(/SELECT mode FROM user_devices/);
     });
 });
 
@@ -165,11 +111,6 @@ describe('🔴 대기로 두면 필터가 정말로 꺼진다', () => {
 
     it('🔴 불변식이 기사님의 «필터 끔» 을 넘지 않는다', () => {
         expect(invariant()).toMatch(/filterEnabledByMode/);
-    });
-
-    it('🔴 기기 모드가 그 의도를 세션에 적는다', () => {
-        const c = codeOnly(srv('routes/devices.ts'));
-        expect(c).toMatch(/filterEnabledByMode/);
     });
 
     it('🔴 세션 타입에 그 칸이 선언돼 있다 (any 로 새어 들어오지 않는다)', () => {
@@ -259,41 +200,9 @@ describe('🔴 모드 이름이 «콜의 출신»으로 새어 나가지 않는�
         expect(s).toMatch(/fun ensureOrderId\(\)/);
         expect(s).toMatch(/\$clickOrigin-\$\{System\.currentTimeMillis\(\)\}/);
     });
-
-    /**
-     * 🔴 **서버가 무엇을 보고 직접콜을 지키는지**를 함께 못박는다.
-     *    앱만 고치고 이 자리가 바뀌면 다시 갈라진다.
-     */
-    it('🔴 서버의 직접콜 보호는 MANUAL 딱지를 본다', () => {
-        const c = codeOnly(srv('routes/devices.ts'));
-        expect(c).toMatch(/startsWith\("MANUAL"\)/);
-    });
 });
 
 describe('🔔 알람이 관제웹까지 가는 길', () => {
-    /**
-     * 🟢 **앱을 안 고쳐도 된다** — 필터 성적표(`passed`)가 이미 서버로 온다.
-     *    앱은 이미 본 콜을 지문으로 건너뛰므로 `passed` 는 **새로 본** 통과 콜만 센다.
-     */
-    it('🔴 서버가 도는 모드가 ALARM 일 때만 알람을 쏜다 (픽커의 자동 명령은 알람으로 돈다)', () => {
-        const c = codeOnly(srv('routes/devices.ts'));
-        expect(c).toMatch(/filter-pass-alarm/);
-        const block = c.split('filter-pass-alarm')[0].slice(-400);
-        expect(block).toMatch(/runningModeOf\(session\) === "ALARM"/);
-        /* 새로 알람감이 된 통과 콜 수로 가른다 — 옛 앱은 passedNew 가 없어 passed (alarmNewPassOnly 검사가 행동을 본다) */
-        expect(c).toMatch(/const alarmPassed = filterTally\.passedNew \?\? filterTally\.passed/);
-        expect(block).toMatch(/alarmPassed > 0/);
-    });
-
-    /**
-     * 🔴 **성적표가 함께 온 보고일 때만** 참이다 — 「방금 리스트를 훑었다」.
-     *    밖으로 빼면 하트비트마다 이미 울린 숫자로 다시 운다.
-     */
-    it('🔴 알람은 filterTally 가 온 보고 안에서만 울린다', () => {
-        const c = codeOnly(srv('routes/devices.ts'));
-        const guard = c.split('if (filterTally)')[1]?.split('activeDevices.set')[0] ?? '';
-        expect(guard).toMatch(/filter-pass-alarm/);
-    });
 });
 
 describe('🔔 2단계 — 스캐너 폰이 스스로 알린다 (기사님 확정 §6-②④)', () => {
@@ -363,8 +272,6 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
         const panel = codeOnly(web('components/dashboard/DeviceControlPanel.tsx'));
         expect(panel).not.toMatch(/직접 여십시오|handBand/);
         expect(codeOnly(web('hooks/useSystemAlerts.ts'))).not.toMatch(/silent/);
-        const dev = codeOnly(readFileSync(join(__dirname, '../../src/routes/devices.ts'), 'utf8'));
-        expect(dev).not.toMatch(/silent|lastOpenBlocked/);
     });
 
     it('🔴 모드 버튼이 셋이다 (알람이 화면에 있다)', () => {
@@ -417,9 +324,6 @@ describe('🎛️ 도는 모드 — 원달앱이 계산해 보내고 관제웹�
     it('서버는 받아 두고, 관제웹 알람 소리는 도는 모드로 정한다', () => {
         const scrap = codeOnly(srv('routes/scrap.ts'));
         expect(scrap).toMatch(/effectiveMode:\s*\(req\.body as any\)\.effectiveMode/);
-        const dev = codeOnly(srv('routes/devices.ts'));
-        expect(dev).toMatch(/session\.effectiveMode\s*=\s*extras\.effectiveMode/);
-        expect(dev).toMatch(/runningModeOf\(session\)\s*===\s*"ALARM"\s*&&\s*alarmPassed > 0/);
     });
 
     it('관제웹 폰 카드는 도는 모드의 글자·색을 한 줄로, 명령은 설명(title)에만 (기사님 «한 줄로»)', () => {

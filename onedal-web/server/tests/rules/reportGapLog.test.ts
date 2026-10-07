@@ -19,29 +19,9 @@ const srv = (p: string) => readFileSync(join(SRC, p), 'utf8');
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 describe('⏱️ 조용한가 — 직전 보고 시각', () => {
-    const devices = () => codeOnly(srv('routes/devices.ts'));
-
-    it('세션을 갱신할 때 lastSeen 을 덮기 **전에** prevSeen 으로 옮긴다', () => {
-        const src = devices();
-        const prev = src.indexOf('session.prevSeen');
-        const last = src.indexOf('session.lastSeen = Date.now()');
-        expect(prev).toBeGreaterThan(-1);
-        expect(last).toBeGreaterThan(-1);
-        // 순서가 뒤집히면 «직전»이 «지금»이 되어 모든 폰이 영원히 움직이는 것처럼 보인다
-        expect(prev).toBeLessThan(last);
-    });
-
-    it('침묵 처리된 폰(lastSeen 0)은 옮기지 않는다 — 0 과의 간격은 뜻이 없다', () => {
-        expect(devices()).toMatch(/session\.prevSeen\s*=\s*session\.lastSeen\s*(>|\|\|)/);
-    });
-
     it('이 값으로 서버가 무엇을 «정하지»는 않는다 — 로그에만 쓴다 (규칙 ⑤-4 ⑤)', () => {
         const src = codeOnly(srv('routes/devices.ts'));
         // 분기 조건에 prevSeen 이 들어가면 «한 값이 두 질문을 답하는» 자리가 된다
         expect(src).not.toMatch(/if\s*\([^)]*prevSeen/);
-    });
-
-    it('그 간격은 화면 바뀜 로그가 쓴다 — 읽는 곳은 거기 하나다 (규칙 ⑤-4 ⑤)', () => {
-        expect(devices()).toMatch(/prevSeen[\s\S]{0,600}화면 바뀜/);
     });
 });

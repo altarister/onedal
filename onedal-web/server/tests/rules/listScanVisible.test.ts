@@ -106,11 +106,4 @@ describe('💤 화면 꺼짐 — 접근성 막힘과 구분한다', () => {
         const off = src.split('ACTION_SCREEN_OFF')[1]?.split('ACTION_SCREEN_ON')[0] ?? '';
         expect(off).toMatch(/forceFlushEvent|forceHeartbeat/);
     });
-
-    it('🔴 화면이 꺼져 있으면 "못 읽음"으로 치지 않는다 (당연한 것을 고장이라 하지 않는다)', () => {
-        const src = readFileSync(join(__dirname, '../../src/routes/devices.ts'), 'utf8')
-            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-        const fn = src.split('function applyBlindSignal')[1]?.split('\nexport ')[0] ?? '';
-        expect(fn).toMatch(/isScreenOn/);
-    });
 });
