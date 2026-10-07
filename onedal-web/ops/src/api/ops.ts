@@ -7,7 +7,7 @@ import { client, errorTextOf, statusOf } from './client';
 import { createListeners } from './listeners';
 
 /**
- * 🏢 **운영센터가 서버 문 `/api/ops/*` 를 부르는 곳 — 이 파일 하나** (reviews/29 3단계 · 서버 `routes/ops.ts` · 규격 shared `ops.ts`).
+ * 🏢 **운영센터가 서버 문 `/api/ops/*` 를 부르는 곳 — 이 파일 하나** (서버 `routes/ops.ts` · 규격 shared `ops.ts`).
  *    쓰기마다 서버가 `ops_audit` 한 줄을 남긴다 — 화면은 기록을 따로 적지 않는다. 회원 상세 열람도 서버가 적는다(«회원 봄»).
  *    🔴 서버가 안 되면 쪽이 «서버 응답이 없습니다 — 다시»를 보인다 — 예시 자료로 대신 그리지 않는다(장애를 가리면 노이즈).
  *    아직 서버 문이 없는 쪽(멤버 대조)은 `example.ts` 의 예시 자료를 쓰고 쪽 머리에 그렇다고 적는다.
@@ -75,7 +75,7 @@ export const api = {
     boardKakao: () => get<OpsBoardKakao>('/board/kakao'),
     /** 📍⚖️📰 관제웹 현황판의 그 기사 몫 셋 — 서버가 쥔 내 위치 · 심사 중인 콜 · 새 글자(모든 폰 공통). 세션이 없으면 위치 · 심사는 null */
     boardMember: (memberId: string) => get<OpsBoardMember>(`/board/member?memberId=${encodeURIComponent(memberId)}`),
-    /* 📅 today — 오늘(영업일) 줄만 · 회원 상세 «버린 콜» (reviews/43) */
+    /* 📅 today — 오늘(영업일) 줄만 · 회원 상세 «버린 콜» */
     boardIntel: (memberId: string, limit = 40, today = false) => get<OpsBoardIntel>(`/board/intel?memberId=${encodeURIComponent(memberId)}&limit=${limit}${today ? '&today=1' : ''}`),
 
     /** 📊 통계 — 목록에 뜬 실물 콜만(시뮬레이터 콜은 서버가 안 센다) · 기간은 서버 기본(최근 28일) · 합 · 평균은 서버가 센 그대로 */

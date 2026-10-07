@@ -9,7 +9,7 @@ import { allowState } from '../api/allowance';
 import MembersCheck from './MembersCheck';
 import { Card, ErrorBand, KV, PageHeader, Stat, StatRow, StatusBadge, Table, memberStatus, todayKey, type Column } from '../ui';
 
-/** 👥 회원 목록 — 승인 대기 · 사용 중 · 정지 · 유예는 사실 시각 칸에서 글로만 (ops/CLAUDE.md). 기사님도 한 줄(기사 + 관리자 · reviews/29 기준 4). 폰에서는 줄마다 카드 */
+/** 👥 회원 목록 — 승인 대기 · 사용 중 · 정지 · 유예는 사실 시각 칸에서 글로만 (ops/CLAUDE.md). 기사님도 한 줄(기사 + 관리자). 폰에서는 줄마다 카드 */
 export default function Members() {
     const navigate = useNavigate();
     const [params, setParams] = useSearchParams();

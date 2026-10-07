@@ -5,7 +5,7 @@ import OpsMapCanvas, { type MapDot } from './OpsMapCanvas';
 import { Card, ErrorBand, KV, PageHeader, dayKey, fmtTime, memberName, todayKey } from '../ui';
 
 /**
- * 🗺️ **지도 — 회원들이 지금 어디 있나** (reviews/33 3단계 · 서버 `GET /api/ops/locations` · 읽기만 · 열람 기록 «위치 봄»은 서버가 남긴다).
+ * 🗺️ **지도 — 회원들이 지금 어디 있나** (서버 `GET /api/ops/locations` · 읽기만 · 열람 기록 «위치 봄»은 서버가 남긴다).
  *    점은 운전석 폰 GPS 의 마지막 자리 · 시 · 구는 서버가 동 명부로 찾는다(카카오를 안 부른다). 뱃지는 서버가 센 것 그대로다(화면이 다시 세지 않는다).
  *    오늘 보고가 아닌 점은 흐리게 — 마지막 시각을 같이 적는다. 30초마다 다시 읽는다(위치는 천천히 바뀐다).
  */

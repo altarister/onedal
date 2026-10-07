@@ -6,7 +6,7 @@ import { useCallsChanged } from '../api/socket';
 import { Card, ErrorBand, KV, PageHeader, fmtDateTime, fmtTime, memberName } from '../ui';
 
 /**
- * 🏠 **홈** — 전체가 괜찮나 · 지금 할 일은(reviews/33 2단계 · 서버 `GET /api/ops/home` 한 번).
+ * 🏠 **홈** — 전체가 괜찮나 · 지금 할 일은(서버 `GET /api/ops/home` 한 번).
  *    숫자는 서버가 각 쪽의 문과 같은 함수로 센다 — 홈 숫자 = 그 쪽 숫자. 숫자를 누르면 그 쪽으로 간다.
  *    칸 순서는 33 의 순위: 지금 할 일 → 접속 상태 · 못 읽는 배차망 화면 → 지금 일하는 사람 · 지역 분포 → 회원 수 · 카카오.
  *    🔴 «몇 분 전» 같은 상대시각은 쓰지 않는다(shared format.ts — 화면이 멈추면 숫자가 거짓이 된다) — KEEP 시각을 그대로 적는다.

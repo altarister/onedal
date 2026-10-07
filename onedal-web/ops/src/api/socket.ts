@@ -4,7 +4,7 @@ import { token } from './client';
 import { createListeners } from './listeners';
 
 /**
- * 🔔 **운영센터 소켓 — 서버 `/ops` 이름공간 · 신호만 듣는다** (reviews/29 5단계 · onedal-1f «KEEP 직후 바로 통화»).
+ * 🔔 **운영센터 소켓 — 서버 `/ops` 이름공간 · 신호만 듣는다** (onedal-1f «KEEP 직후 바로 통화»).
  *    기사 관제웹 소켓 길(세션 충돌 · 기사 세션 부트스트랩)과 다른 길이다 — 서버는 허락(ops_allowed_at)이 있으면 admin_room 에만 넣는다.
  *    자료는 소켓으로 받지 않는다: `ops-calls-changed { memberId }` 가 오면 쪽이 GET 으로 다시 읽는다(요청마다 requireOps 가 허락을 본다).
  *    끊기면 socket.io 가 알아서 다시 잇고, 그동안 쪽은 30초마다 다시 읽는다(물러설 자리). 로그인 뒤(OpsGate)에 한 번 만들고 나갈 때 닫는다.

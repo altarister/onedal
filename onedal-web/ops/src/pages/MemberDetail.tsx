@@ -19,7 +19,7 @@ const agreementText = (a: OpsAgreement) => a.kind === 'ack' ? (ACK_TITLE[a.item 
 /** 지난 날을 골랐으면 한 번 묻는다 — «YYYY-MM-DD» 글자 비교(날짜 계산 아님). 오늘 · 뒷날 · 비움은 그대로 통과 */
 const pastOk = (until: string | null, today: string, ask: string) => !until || until >= today || confirm(ask);
 
-/** 칸 — 주소(`?tab=`)에 남는다. «폰 · 필터»는 현황판에서 회원을 골라 보던 것(reviews/33) */
+/** 칸 — 주소(`?tab=`)에 남는다. «폰 · 필터»는 현황판에서 회원을 골라 보던 것 */
 const TABS = [['basic', '기본'], ['phone', '폰 · 필터'], ['calls', '오늘 콜'], ['agree', '동의'], ['log', '기록']] as const;
 type Tab = typeof TABS[number][0];
 const PURPOSE = { ask: '이 사람은 지금 일하나? 폰은 살아 있나? 왜 콜을 안 잡았나?', can: '칸: 기본 · 폰 · 필터 · 오늘 콜 · 동의 · 기록' };
@@ -139,7 +139,7 @@ export default function MemberDetail() {
 
 /** 허락 한 줄 — [켜기/끄기] + 기한 날(달력 칸) + [기한 적기] + [기한 없애기]. 날짜를 더하지 않는다 */
 /**
- * 🧾 **오늘 판정받은 콜 한 줄** (reviews/43) — 색 · 점수 · 구간 · 요금 · 잡았나(안 잡은 미리보기 · 체험 포함). 펼치면 축마다 까닭과 그때의 서버 필터.
+ * 🧾 **오늘 판정받은 콜 한 줄** — 색 · 점수 · 구간 · 요금 · 잡았나(안 잡은 미리보기 · 체험 포함). 펼치면 축마다 까닭과 그때의 서버 필터.
  *    콜 내용 · 필터가 없는 줄은 기록을 남기기 전의 옛 판정이다 — 지어내지 않고 «내용 없음»으로.
  */
 function JudgedRow({ j }: { j: OpsJudgedCall }) {

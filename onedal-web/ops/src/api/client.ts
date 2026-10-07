@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { HealthReply } from '@onedal/shared';   // 응답 모양은 shared 한 곳(공통 함수 6)
 
 /**
- * 🔑 **운영센터가 서버를 부르는 길 — 이 파일 하나** (reviews/29 3단계 · 서버 문 `/api/auth/*` · `/api/ops/*`).
+ * 🔑 **운영센터가 서버를 부르는 길 — 이 파일 하나** (서버 문 `/api/auth/*` · `/api/ops/*`).
  *    운영센터는 관제웹과 다른 주소(3002 · ops.altari.com)라 저장소가 겹치지 않는다 — 따로 로그인한다(기사님은 관제웹 · 운영센터 두 번).
  *    🔴 관제웹 `api/apiClient.ts` 를 가져오지 않는다 — shared 는 의존 0(axios 못 넣음) · ui 는 React 부품만 · `opsIsolated` 검사가 문다.
  *    새로 받기(refresh)는 없다 — 로그인 30일이고 관리자 화면이라, 401 이면 토큰을 지우고 로그인 화면으로.

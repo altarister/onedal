@@ -3,7 +3,7 @@ import { TILE_MAX_ZOOM, fitViewOf, screenOf, tilesIn, type TileView } from '@one
 import { useTheme } from '@onedal/ui/theme';
 
 /**
- * 🗺️ **운영센터 지도 — 캔버스 한 장** (reviews/33 3단계). 배경은 OpenStreetMap 타일(키 없음 · 회색조로 연하게 · «© OpenStreetMap» 표기),
+ * 🗺️ **운영센터 지도 — 캔버스 한 장**. 배경은 OpenStreetMap 타일(키 없음 · 회색조로 연하게 · «© OpenStreetMap» 표기),
  *    점 · 이름표는 직접 그린다 — 관제웹 지도와 같은 방식(SDK 를 들이지 않는다 · 좌표 일반식은 shared `mapTile` 한 벌).
  *    보기는 점들을 다 담게 맞추고 +/− · «전체 보기» 버튼만 둔다(끌기 · 집기 없음 — 점이 몇 개뿐이다).
  *    타일은 보기가 바뀔 때만 받는다(브라우저 캐시) — OSM 타일 서버는 가벼운 사용만 허용한다.

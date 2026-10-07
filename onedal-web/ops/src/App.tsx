@@ -18,7 +18,7 @@ const Stats = lazy(() => import('./pages/Stats'));
 const Audit = lazy(() => import('./pages/Audit'));
 
 /**
- * 🏢 **운영센터 주소 — 메뉴 여덟(reviews/33).** 로그인(`/login`) 밖은 토큰이 없으면 로그인으로.
+ * 🏢 **운영센터 주소 — 메뉴 여덟.** 로그인(`/login`) 밖은 토큰이 없으면 로그인으로.
  *    들어올 수 있나는 서버가 정한다 — `/api/ops/counts` 한 번에 403 이면 «허락이 없는 계정»(`/denied` · `users.ops_allowed_at` · core/opsAccess).
  *    쓰는 중에 허락을 거둬도 `client.ts` 가 403 을 `/denied` 로 보낸다(한 곳). 화면은 role 을 읽지 않는다.
  */

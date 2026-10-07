@@ -4,11 +4,11 @@ import { api, useOps } from '../api/ops';
 import { Card, ErrorBand, KV, PageHeader, Table, fmtDateTime, fmtWon, type Column } from '../ui';
 
 /**
- * 📊 **통계 — 세 질문** (reviews/33 4단계 · 서버 `GET /api/ops/stats` · 읽기만).
+ * 📊 **통계 — 세 질문** (서버 `GET /api/ops/stats` · 읽기만).
  *    ① 벌이가 어떤가 ② 어느 길이 돈이 되나 ③ 놓친 좋은 콜. 숫자는 «목록에 뜬 실물 콜»만이다 — 시뮬레이터 콜은 서버가 안 센다.
  *    합 · 평균 · 순서는 서버가 센 그대로 그린다(화면이 다시 세면 두 벌이 된다). 기간은 서버 기본(최근 28일) — 머리에 적는다.
  *    ① 은 서버 응답에 없다(잡은 콜에 시뮬레이터 콜과 실제 콜을 가를 칸이 없다) — «실제 콜이 생기면 채워집니다» 한 줄.
- *    ④ 어디로 · 몇 시에(reviews/36)는 서버 흐름 칸(flows · watched)을 shared flowViews 로 센다 — 출발지를 바꿀 때마다 화면이 고르므로 셈은 shared 한 벌.
+ *    ④ 어디로 · 몇 시에는 서버 흐름 칸(flows · watched)을 shared flowViews 로 센다 — 출발지를 바꿀 때마다 화면이 고르므로 셈은 shared 한 벌.
  */
 type Route = OpsStats['routes'][number];
 type Dropped = OpsStats['dropped']['topFares'][number];
@@ -100,7 +100,7 @@ const heatTone = (v: number, max: number) => {
 };
 
 /**
- * 📊 **④ 어디로 · 몇 시에** (reviews/36) — 출발 시군구를 고르면 ① 어디로 가나 ② 목적지 후보(갈 콜 · 돌아올 콜) ③ 요일 × 시간.
+ * 📊 **④ 어디로 · 몇 시에** — 출발 시군구를 고르면 ① 어디로 가나 ② 목적지 후보(갈 콜 · 돌아올 콜) ③ 요일 × 시간.
  *    ① · ② 의 줄을 누르면 ③ 이 그 길로 바뀐다. 못 본 시간(그 시간에 폰이 콜을 한 건도 못 본 날만 있는 칸)은 «·» — 콜이 없었다는 뜻이 아니다.
  */
 function FlowCard({ s }: { s: OpsStats }) {

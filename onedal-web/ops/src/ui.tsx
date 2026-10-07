@@ -18,7 +18,7 @@ import { menuBadgeOf, tabTitleOf } from './api/menuBadge';
  */
 
 /**
- * 🧭 **메뉴 — 관리자의 궁금증 순서 · 한 표** (reviews/33). 줄마다 «들어올 때의 궁금증(ask) · 할 수 있는 것(can)»을 같이 적는다 —
+ * 🧭 **메뉴 — 관리자의 궁금증 순서 · 한 표**. 줄마다 «들어올 때의 궁금증(ask) · 할 수 있는 것(can)»을 같이 적는다 —
  *    쪽 제목 아래 목적 한 줄(`PagePurposeBar`)이 이 표에서 읽는다(쪽마다 글을 따로 적지 않는다).
  *    메뉴 옆 숫자는 서버 `/ops/counts`(할 일이 있는 것만) — 틀이 60초마다, 쓰기 뒤, 서버 신호 때 다시 읽는다.
  */
@@ -169,7 +169,7 @@ export function ErrorBand({ text, onRetry }: { text: string; onRetry: () => void
     );
 }
 
-/** 쪽 제목 아래 목적 한 줄 — «들어올 때의 궁금증 · 여기서 할 수 있는 것» (reviews/33 · 글은 `NAV` 한 표) */
+/** 쪽 제목 아래 목적 한 줄 — «들어올 때의 궁금증 · 여기서 할 수 있는 것» (글은 `NAV` 한 표) */
 export function PagePurposeBar({ ask, can }: { ask: string; can: string }) {
     return (
         <p className="text-xs md:text-sm text-text-muted rounded-lg border border-border-card bg-surface-alt/40 px-3 py-1.5">

@@ -2,9 +2,9 @@ import type { OpsMember, OpsMemberCheck, OpsPhone } from '@onedal/shared';
 import { kstDateText } from '@onedal/shared';
 
 /**
- * 🧪 **예시 자료 — 세 사람(기사님 · 딸 · 와이프) · 폰 넷 · 콜 몇 건** (reviews/29 «가족 1차판»).
+ * 🧪 **예시 자료 — 세 사람(기사님 · 딸 · 와이프) · 폰 넷 · 콜 몇 건**.
  *    서버 문이 아직 없는 쪽(멤버 대조 · 현황판)만 `api/example.ts` 로 읽는다 — 서버 쪽은 이 파일을 모른다.
- *    🔴 이름 · 전화 · 주소는 전부 지어낸 것이다. 가족 1차판이라 관리자는 원문을 본다 — 가림은 남을 받을 때 켠다(reviews/29 기준 3).
+ *    🔴 이름 · 전화 · 주소는 전부 지어낸 것이다. 가족 1차판이라 관리자는 원문을 본다 — 가림은 남을 받을 때 켠다.
  */
 
 const today = new Date();

@@ -3,7 +3,7 @@ import { Button } from '@onedal/ui/button';
 import { EXAMPLE_STAGE, example, useExampleTick } from '../api/example';
 import { Card, StatusBadge, fmtTime, memberName, todayKey, ExampleBand } from '../ui';
 
-/** 🎫 매달 멤버 대조(«회원» 쪽의 칸 · 12월 뒤) — 멤버 전용 게시물의 확인 번호와 회원이 적은 번호를 견준다 (reviews/29 Q8) */
+/** 🎫 매달 멤버 대조(«회원» 쪽의 칸 · 12월 뒤) — 멤버 전용 게시물의 확인 번호와 회원이 적은 번호를 견준다 */
 export default function MembersCheck() {
     useExampleTick();
     const members = example.members();
