@@ -43,7 +43,7 @@ if [[ "$url" == */busy ]]; then
   ans=$(head -n1 "${seq}" 2>/dev/null); [ -n "$ans" ] && sed -i.bak 1d "${seq}"
   echo "curl busy $ans" >> "${log}"
   [ "$ans" = none ] && exit 7
-  echo "{\"busy\":\${ans:-false}}"; exit 0
+  echo '{"busy":'"\${ans:-false}"'}'; exit 0
 fi
 [ -f "${web}/server/NOHEALTH" ] && exit 7; echo '{"ok":true}'; exit 0`);
     tool(bin, 'sudo', 'exit 0'); tool(bin, 'free', 'exit 0'); tool(bin, 'swapon', 'echo on');
