@@ -403,8 +403,8 @@ export function netFilterOf(session: ReturnType<typeof getUserSession>, userId: 
  *
  * 목적지 상태 · 가까이 옴은 `goalZonesNow`(상차 목록과 같은 값), 조각은 shared `dropoffPartsOf`,
  * 확정콜의 마지막 하차지는 경로 순서(`planArrivalStops` — 관제웹 `routeStops` 와 같은 순서)에서 그 목적지 콜의 마지막 하차지(`lastDropOf`),
- * 라인은 얼린 경로를 거기까지 자른 것(`lineUntil`). 합치기는 `mergeDropoffGroups` — 먼 목적지는 **상차 목록 동을 뺀다** · 가까이 온 목적지는 안 뺀다.
- * 🔴 상차 목록이 먼저 만들어져 있어야 한다 — `rebuildNetFilter` 가 그 순서로 부른다.
+ * 라인은 얼린 경로를 거기까지 자른 것(`lineUntil`). 합치기는 `mergeDropoffGroups`.
+ * 🔴 필터는 상차 목록 · 하차 목록 두 모음뿐이다 — 겹치는 지역은 방향과 무관하게 둘 다 든다 · 하차에서 상차를 빼지 않는다.
  * 관내는 따로 재지 않는다 — 가까이 옴이 갈랐다.
  */
 export function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, line: Array<[number, number]> | null) {
@@ -482,7 +482,7 @@ export function netOfGoalsFrom(o: {
         byNet = byNet && kept.byNet;
         pruned += kept.pruned;
     }
-    const merged = mergeDropoffGroups(parts, f.pickupGroups ?? {});
+    const merged = mergeDropoffGroups(parts);
     return { flat: merged.flat, grouped: merged.grouped, byNet, pruned, progressKm: merged.progressKm, goals: zones.map(z => z.city), details, measured, distanceKm };
 }
 

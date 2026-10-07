@@ -700,7 +700,7 @@ export function pickupListFor(o: {
         inMe(p) && (!useBand || inBand(p)) && (goalPts.length === 0 || inGoal(p));
 
     /* 격자 — 영역은 늘 현위치 원 안이라 원을 감싼 사각형만 찍으면 된다 (`circleArea`) */
-    /* 🗂️ 시 · 군 · 구로 묶어서도 낸다 — 하차 목록이 같은 이름의 다른 동을 안 빼게 (`mergeDropoffGroups`) */
+    /* 🗂️ 시 · 군 · 구로 묶어서도 낸다 — 관제웹 지도 «동 점»이 같은 이름의 다른 동을 가르게 (`dongDotsOf`) */
     const grouped = Object.fromEntries(Object.entries(regionsTouchingAreaGrouped(circleArea({ lng: o.me.x, lat: o.me.y }, r, inArea)))
         .map(([region, names]) => [region, names.filter(isPickupListName)] as [string, string[]])
         .filter(([, names]) => names.length > 0));

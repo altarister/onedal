@@ -187,7 +187,7 @@ export function isHomeCallOf(call: { goalCity?: string | null }, o: { homeOn: bo
  * 🔴 **묻는 것이 하나다.** 옛 코드는 목적지 «상태»와 «가까이 옴»까지 셋을 봤는데, 세 갈래가 결국
  *    이 하나로 갈렸다 — 콜이 없으면 마지막 하차지가 없어 라인도 없고, 「가까이 옴」은 재료를 끄지 않는다.
  * 🔴 **「가까이 옴」이 여기 들어오지 않는다** — 받을 수 없으면 끌 수도 없다. 가까이 옴이 하차에서
- *    하는 일은 «상차 목록 동을 안 뺀다» 하나뿐이고 그것은 합치는 쪽(`mergeDropoffGroups`)이 안다.
+ *    하는 일은 «그 동에 진행도를 안 붙인다» 하나뿐이고 그것은 합치는 쪽(`mergeDropoffGroups`)이 안다.
  * 🔴 **현위치 원(A)은 하차 조각에 넣지 않는다** (기사님 확정). A 는 사방으로 퍼진 원이라 넣으면 뒤쪽 동까지
  *    하차 후보가 되고, 그걸 다시 빼다가 **가는 방향의 동까지 지운다** — 예: 광주(집)에서 이천으로 갈 때
  *    신둔면이 상차 반경 안이라는 이유로 하차에서 빠져 «광주 → 신둔면»을 못 잡는다.
@@ -258,14 +258,7 @@ export function lineUntil<T extends { x: number; y: number }>(line: ReadonlyArra
  */
 export function mergeDropoffGroups(
     parts: ReadonlyArray<{ nearGoal: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }>,
-    /**
-     * 상차 목록 — 시 · 군 · 구로 묶은 것 (`geoService.pickupListFor` 의 `grouped`).
-     * 🔴 **이 값은 읽지 않는다** — 하차에서 상차 목록을 빼지 않기 때문이다. 자리를 남겨 둔 것은 서버가 이 꼴로 부르는지
-     *    무는 짝 검사(`netFilterOneWay` · `pickupListGeo`)가 호출 모양을 보기 때문이다.
-     */
-    pickupGroups: Readonly<Record<string, readonly string[]>>,
 ): { grouped: Record<string, string[]>; flat: string[]; progressKm: Record<string, number> } {
-    void pickupGroups;
     const groups: Record<string, Set<string>> = {};
     const progressKm: Record<string, number> = {};
     const unvisited = new Set<string>();

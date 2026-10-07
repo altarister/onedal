@@ -866,7 +866,7 @@ export interface AutoDispatchFilter {
     /**
      * 🗂️ **상차 목록을 시 · 군 · 구로 묶은 것** (기사님 «동 점 다시 넣어줘»).
      *    서버가 `pickupKeywords` 와 함께 만든다(`filterNet.rebuildPickupList`) · 저장하지 않는다 · 원달앱에는 안 간다(`APP_FILTER_KEYS` 밖).
-     *    읽는 곳 둘: 하차 목록이 «시 + 동»으로 뺀다(`mergeDropoffGroups`) · 관제웹 지도 «동 점»이 찍는다(`dongDotsOf`).
+     *    읽는 곳: 관제웹 지도 «동 점»이 찍는다(`dongDotsOf`) — 하차 목록은 상차 목록을 빼지 않으므로 안 읽는다.
      */
     pickupGroups?: Record<string, string[]>;
     /**

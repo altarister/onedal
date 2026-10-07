@@ -3,10 +3,10 @@ import { goalZonesOf, pickupPartsOf, nearGoalCitiesOf, dropoffPartsOf, lastDropO
 
 /**
  * 🔵 **하차 목록 합치기**
- * 막는 것: 싣는 동에 내리는 콜이 새는 것 · 가까이 온 목적지의 관내콜이 빠지는 것 · 먼 도시의 같은 이름 동까지 빠지는 것.
+ * 막는 것: 조각에 든 동이 빠지는 것 · 같은 동이 두 번 드는 것 · 진행도 없이 든 동에 진행도가 붙는 것.
+ * 상차 목록은 받지도 않는다 — 필터는 상차 목록 · 하차 목록 두 모음뿐이고 하차에서 상차를 빼지 않는다.
  */
 describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼지 않는다)', () => {
-    const pickupList = { 광주시: ['초월읍', '곤지암읍'], 이천시: ['중리동'] };
     /**
      * 🔴 **상차 목록을 빼지 않는다** (기사님 확정 — *"하차지에서 상차지 빼는 것을 하지 말자"*).
      *
@@ -18,7 +18,7 @@ describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼
     it('🔴 상차 목록 동도 그대로 남는다 — 가는 방향이면 싣는 곳 근처라도 내린다', () => {
         const r = mergeDropoffGroups([
             { nearGoal: false, grouped: { 광주시: ['초월읍', '곤지암읍'], 이천시: ['신둔면', '중리동'] }, progressKm: { 곤지암읍: 5, 신둔면: 12 } },
-        ], pickupList);
+        ]);
         expect(r.grouped).toEqual({ 광주시: ['곤지암읍', '초월읍'], 이천시: ['신둔면', '중리동'] });
         expect(r.flat).toEqual(['곤지암읍', '신둔면', '중리동', '초월읍']);
         expect(r.progressKm).toEqual({ 곤지암읍: 5, 신둔면: 12 });   // 진행도 없는 동은 안 싣는다
@@ -27,7 +27,7 @@ describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼
         const r = mergeDropoffGroups([
             { nearGoal: true, grouped: { 이천시: ['중리동', '관고동'] }, progressKm: {} },
             { nearGoal: false, grouped: { 광주시: ['초월읍', '경안동'] }, progressKm: {} },
-        ], pickupList);
+        ]);
         // 먼 목적지에서도 안 빼므로 초월읍(상차 목록)도 남는다
         expect(r.grouped).toEqual({ 이천시: ['관고동', '중리동'], 광주시: ['경안동', '초월읍'] });
     });
@@ -35,7 +35,7 @@ describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼
         const r = mergeDropoffGroups([
             { nearGoal: false, grouped: { 이천시: ['신둔면'] }, progressKm: { 신둔면: 12 } },
             { nearGoal: false, grouped: { 이천시: ['신둔면', '사음동'] }, progressKm: { 사음동: 3 } },
-        ], {});
+        ]);
         expect(r.grouped).toEqual({ 이천시: ['사음동', '신둔면'] });
         expect(r.progressKm).toEqual({ 사음동: 3 });
     });
@@ -43,14 +43,14 @@ describe('🔵 하차 목록 — 목적지마다 합친다 (상차 목록은 빼
     it('🔴 상차 목록에 같은 이름이 있어도 하차에서 안 지운다', () => {
         const r = mergeDropoffGroups([
             { nearGoal: false, grouped: { '서울 중구': ['중앙동'], 이천시: ['중리동'] }, progressKm: {} },
-        ], { 광주시: ['중앙동'], 이천시: ['중리동'] });
+        ]);
         expect(r.grouped).toEqual({ '서울 중구': ['중앙동'], 이천시: ['중리동'] });
     });
     it('🔴 가까이 온 목적지에서 든 동은 진행도가 없다 — 먼 쪽 진행도가 있어도 지운다', () => {
         const r = mergeDropoffGroups([
             { nearGoal: true, grouped: { 이천시: ['중리동'] }, progressKm: {} },
             { nearGoal: false, grouped: { 이천시: ['신둔면'] }, progressKm: { 신둔면: 12 } },
-        ], { 이천시: ['중리동'] });
+        ]);
         expect(r.flat).toEqual(['신둔면', '중리동']);
         expect(r.progressKm).toEqual({ 신둔면: 12 });
     });

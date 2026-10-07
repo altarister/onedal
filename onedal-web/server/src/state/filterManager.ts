@@ -336,7 +336,7 @@ export function trimTraveled(userId: string, io?: any): void {
 export function rebuildNetFilter(userId: string, io: any, pickupBuilt = false): void {
     const session = getUserSession(userId);
     const startedAt = Date.now();
-    /* 📋 **상차 목록을 먼저** — 하차 목록이 먼 목적지에서 상차 목록 동을 뺀다 (`mergeDropoffGroups`).
+    /* 📋 **상차 목록 · 하차 목록 둘 다 다시 만든다** — 두 모음은 서로를 안 읽는다(하차에서 상차를 빼지 않는다 · `mergeDropoffGroups`).
        경로 · 출발 · 복귀가 바뀌는 길이 여기로 모인다. 방송은 아래 `updateActiveFilter` 가 한 번에 한다.
        🔴 손으로 고친 필터여도 상차 목록은 만든다 — 하차 목록만 기사님 것이다 (#146 과 같은 모양) */
     const pickupChanged = pickupBuilt || rebuildPickupList(session, userId);
