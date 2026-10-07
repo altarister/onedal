@@ -879,7 +879,7 @@ export interface AutoDispatchFilter {
         at: { x: number; y: number };
         homeCity: string | null;
         homeOn: boolean;
-        /** 집 방향 콜을 쥐었나 (`homeCallsOf`) */
+        /** 집 방향 콜을 쥐었나 (`homeCallsFrom`) */
         homeCaught: boolean;
         /** 라인 띠를 썼나 — 관제웹은 지금 그리는 경로 선으로 띠를 잰다 */
         hasLine: boolean;

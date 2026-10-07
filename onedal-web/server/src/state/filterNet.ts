@@ -559,7 +559,7 @@ export function dongSigunguFrom(keywords: string[], groups: Record<string, strin
  *
  * 목적지 상태는 shared `goalZonesOf`, 계산은 `geoRegions.pickupListFor` 한 곳 — 여기서는 세션 값을 넘기기만 한다.
  * 관제웹 «상차» 레이어가 **같은 `goalZonesOf`** 로 그린다 (규칙 ③).
- * 반경은 앱·지도·그물이 쓰는 그 함수(`effectiveRadii`)에서 — 자동이면 줄인 값. «복귀콜을 잡았나»는 `homeCallsOf` 한 곳.
+ * 반경은 앱·지도·그물이 쓰는 그 함수(`effectiveRadii`)에서 — 자동이면 줄인 값. «복귀콜을 잡았나»는 `homeCallsFrom` 한 곳.
  * @returns 목록이 바뀌었나 (부르는 쪽이 관제웹에 알릴지 정한다)
  */
 /**

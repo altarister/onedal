@@ -72,7 +72,7 @@
 `tsc --noEmit`(server) · `tsc -b`(client) · `npx jest` · `pnpm test:web` · `pnpm audit:dead` ·
 `pnpm lint:gate` · 앱을 고쳤다면 `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest`
 — 전부 통과해야 커밋한다.
-**건드린 것에 따라 더:** 콜 흐름(서버 `services/dispatchEngine.ts` · `routes/` 의 orders·detail·scrap · `state/`) → `pnpm scenario`
+**건드린 것에 따라 더:** 콜 흐름(서버 `services/dispatchEngine.ts` · `services/milestones.ts` · `routes/` 의 orders·detail·scrap · `state/`) → `pnpm scenario`
 (판정 색·필터 계산만 고쳤으면 `jest` 로 충분) · 소켓 이벤트 → `pnpm audit:socket` ·
 `shared/`·DB 스키마 → 기존 DB 사본으로 부팅 · 문서 → `pnpm audit:docs` · 경로·도착·궤적 → `pnpm drive`
 (각 검사가 무엇을 잡고 못 잡는지는 [onedal-web/CLAUDE.md](onedal-web/CLAUDE.md) 스크립트 표)

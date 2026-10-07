@@ -1,7 +1,7 @@
 /**
  * 🎯 **목적지 · 집 셈** — 오늘 어디로 가나(목표 시 · 목적지 원) · 집이 있는 시 · 집으로 오는 콜.
  * 🔴 이 파일은 위(filterNet · filterManager)를 가져오지 않는다 — 방향: filterManager → filterNet → filterGoals.
- * 바깥 일을 하는 함수: homeCityOf(설정 저장소) · goalCityOf · goalCitiesOf · homeCallsOf(설정 저장소 · DB · 지금 시각) · goalZonesNow(세션 · 설정 저장소 · DB · 지금 시각) (나머지는 값만 받는다)
+ * 바깥 일을 하는 함수: homeCityOf(설정 저장소) · goalCityOf · goalCitiesOf · goalZonesNow(세션 · 설정 저장소 · DB · 지금 시각) (나머지는 값만 받는다)
  */
 import { isHomeCallSince, IN_PROGRESS_STATUSES } from "@onedal/shared";
 import { callTargetToday } from "../core/callTargetEvents";
@@ -78,21 +78,10 @@ export function goalCitiesOf(session: ReturnType<typeof getUserSession>, userId:
 }
 
 /**
- * 🏠 **복귀콜만 골라낸다 — 복귀를 켠 뒤에 잡았고 판이 집인 콜** (판단은 shared `isHomeCallSince`).
- * 🔴 **셋이 이 함수 하나로 묻는다** — 목적지 계산(`goalCitiesOf`) · 하차 완료 자동 순환(`dispatchEngine`).
+ * 🏠 **복귀콜만 골라낸다 — 복귀를 켠 뒤에 잡았고 판이 집인 콜** (판단은 shared `isHomeCallSince`) — 값만 받는 셈 (콜들 · 복귀 켠 시각 · 집 시).
  * 🔴 **이번 운행(`deckOfCycle`)으로 세지 않는다** — 그건 진행 중인 콜이 0건이면 빈 목록이라, 콜 0건 틈에 «안 잡음»이 됐다.
- *    켠 시각은 `call_target_events` 오늘 줄에서 읽는다 — 서버를 다시 띄워도 같다.
+ *    켠 시각은 `call_target_events` 오늘 줄에서 읽어 넘긴다(`goalZonesNow`) — 서버를 다시 띄워도 같다.
  */
-export function homeCallsOf<T extends { status?: string; capturedAt?: string; goalCity?: string; dropoffX?: number; dropoffY?: number }>(
-    session: ReturnType<typeof getUserSession>, userId: string, orders: T[],
-): T[] {
-    void session;
-    const home = homeCityOf(userId);
-    const { homeOnAt } = callTargetToday(userId, Date.now());
-    return homeCallsFrom(orders, homeOnAt, home);
-}
-
-/** 🏠 복귀콜 고르기 — 값만 받는 셈 (콜들 · 복귀 켠 시각 · 집 시) */
 export function homeCallsFrom<T extends { status?: string; capturedAt?: string; goalCity?: string; dropoffX?: number; dropoffY?: number }>(
     orders: T[], homeOnAt: string | null, home: string | null,
 ): T[] {

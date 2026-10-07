@@ -4,7 +4,7 @@ import { getCityRegionsWithRadius, regionsTouchingCircleGrouped, pickupListFor }
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { updateActiveFilter, rebuildNetFilter, trimTraveled } from '../../src/state/filterManager';
 import { rebuildPickupList, applyTraveledTrim, ensureReservedPickupList } from '../../src/state/filterNet';
-import { homeCityOf, goalCityOf, goalCitiesOf, homeCallsOf } from '../../src/state/filterGoals';
+import { homeCityOf, goalCityOf, goalCitiesOf, homeCallsFrom } from '../../src/state/filterGoals';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 import * as callTargetEvents from '../../src/core/callTargetEvents';
 import { cityCenter, haversineKm, netForGoal, quadShapeFrom, progressAlongKm, reservedPickupRadiusKmOf } from '@onedal/shared';
@@ -88,8 +88,6 @@ describe('🎯 목적지 · 집 셈', () => {
 
     it('🔴 복귀콜 = 복귀를 켠 뒤에 잡았고 판이 집인 콜 — 하차를 마친 콜도 센다(이번 운행으로 세지 않는다) · 판이 비면 하차지 좌표의 시', () => {
         const on = '2026-10-07T03:00:00.000Z';
-        jest.spyOn(callTargetEvents, 'callTargetToday').mockReturnValue({ target: 'HOME', homeOnAt: on });
-        const s = make('u-homecalls');
         const after = '2026-10-07T04:00:00.000Z', before = '2026-10-07T02:00:00.000Z';
         const orders = [
             { id: 'done', status: 'ORDER_DELIVERED', capturedAt: after, goalCity: '광주시' },
@@ -98,7 +96,7 @@ describe('🎯 목적지 · 집 셈', () => {
             { id: 'other', status: 'ORDER_CONFIRMED', capturedAt: after, goalCity: '이천시' },
             { id: 'cancel', status: 'SAFE_CANCEL', capturedAt: after, goalCity: '광주시' },
         ];
-        expect(homeCallsOf(s, 'u-homecalls', orders).map(o => o.id)).toEqual(['done', 'byDrop']);
+        expect(homeCallsFrom(orders, on, '광주시').map(o => o.id)).toEqual(['done', 'byDrop']);
     });
 
     it('🔴 복귀를 켜면 그물이 집 시를 향한다 — 기사님 목적지는 그대로 · 화면이 읽는 goalCity 는 파생', () => {

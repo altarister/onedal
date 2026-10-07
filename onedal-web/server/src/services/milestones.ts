@@ -333,7 +333,7 @@ export async function setCallTarget(
          *    살아 있는 목적지(`goalCitiesOf`)와 목적지 상태(`goalZonesOf`)가 `callTarget` 에서 파생되는데,
          *    `updateActiveFilter` 는 이 전환으로 목록을 안 만든다 — 여기서 안 만들면 복귀를 꺼도
          *    원달앱 목록과 지도가 복귀 전 목록(«이천 ∪ 광주»)에 남는다.
-         * 🔴 켠 시각을 적은 **뒤**에 만든다 — «복귀콜을 잡았나»(`homeCallsOf`)가 그 시각을 읽는다.
+         * 🔴 켠 시각을 적은 **뒤**에 만든다 — «복귀콜을 잡았나»(`homeCallsFrom`)가 그 시각을 읽는다.
          */
         rebuildNetFilter(userId, io);
 
