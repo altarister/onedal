@@ -152,7 +152,7 @@ export function useOrderEngine() {
             setUnreadable(prev => unreadableAfter(prev, { type: 'evaluating' }));
             logRoadmapEvent("콜단계", "웹", `🟢 [웹 수신] order-evaluating | ID: ${secured.id} | 기기: ${secured.capturedDeviceId} | ${secured.dropoff}`, "관제대시보드");
             logRoadmapEvent("화면", "웹", `확정페이지 진입 (선점 수신으로 상세 모드 구동)`, "관제대시보드");
-            logRoadmapEvent("화면", "웹", "PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리", "관제대시보드");
+            logRoadmapEvent("화면", "웹", "심사석에 심사 중 콜 — 판정 전이라 무채색", "관제대시보드");
 
             // ⭐ 같은 기기의 옛 심사 카드만 지운다 — 확정 뒤 단계는 서버가 진실 (#137 · securedArrival)
             setActiveOrders(prev => withSecuredArrival(prev, secured));
@@ -164,7 +164,7 @@ export function useOrderEngine() {
         // 2단계: 상하차지+적요 수신 (DETAIL 접수) — 경로/적요 섹션 업데이트
         const onOrderDetailReceived = (secured: SecuredOrder) => {
             logRoadmapEvent("콜단계", "웹", `🟡 [웹 수신] order-detail-received | ID: ${secured.id.slice(0, 8)} | ${secured.pickupDetails?.[0]?.addressDetail?.slice(0, 20) || '없음'}`, "관제대시보드");
-            logRoadmapEvent("화면", "웹", "PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링", "관제대시보드");
+            logRoadmapEvent("화면", "웹", "심사석에 상하차지 · 적요 먼저 표시", "관제대시보드");
             setActiveOrders(prev => {
                 const next = prev.map(o => o.id === secured.id ? secured : o);
                 const found = prev.some(o => o.id === secured.id);
@@ -178,14 +178,14 @@ export function useOrderEngine() {
             logRoadmapEvent("판정", "웹", `🔵 [웹 수신] order-evaluated | ID: ${secured.id.slice(0, 8)} | ${secured.kakaoTimeExt || '결과없음'}`, "관제대시보드");
             logRoadmapEvent("화면", "웹", "추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기", "관제대시보드");
             if (secured.kakaoTimeExt?.includes("실패") || secured.kakaoTimeExt?.includes("에러")) {
-                logRoadmapEvent("경고", "웹", "UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현", "관제대시보드");
+                logRoadmapEvent("경고", "웹", "카카오 길찾기 실패 — 심사석 경로 글에 실패가 그대로 보임", "관제대시보드");
             } else {
-                logRoadmapEvent("화면", "웹", "PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리", "관제대시보드");
+                logRoadmapEvent("화면", "웹", "심사석에 경로 글 · 판정 색 표시", "관제대시보드");
                 /* 🔴 직접콜·미리보기에는 결재 버튼이 없다(`JudgmentSeat` 의 manual 갈래) — 로그가 «버튼 활성화»라고 적으면 없는 버튼을 믿게 된다 (폰 시험) */
                 if (secured.isPreview || isManualLineage(secured.type)) {
                     logRoadmapEvent("화면", "웹", "예상 시간/수익률·판정 색 표시 — 직접·미리보기 콜이라 결재 버튼 없음 (결정은 배차망 앱에서)", "관제대시보드");
                 } else {
-                    logRoadmapEvent("화면", "웹", "예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)", "관제대시보드");
+                    logRoadmapEvent("화면", "웹", "예상 시간/수익률·판정 색 표시 — 결재 버튼(KEEP/CANCEL)을 누를 수 있음", "관제대시보드");
                 }
             }
             setActiveOrders(prev => prev.map(o => o.id === secured.id ? secured : o));
@@ -217,7 +217,7 @@ export function useOrderEngine() {
         };
 
         const onOrderConfirmed = (id: string) => {
-            logRoadmapEvent("화면", "웹", "PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리", "관제대시보드");
+            logRoadmapEvent("화면", "웹", "확정 — 이 콜 상태를 ORDER_CONFIRMED 로", "관제대시보드");
             setActiveOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'ORDER_CONFIRMED' } : o));
         };
 
@@ -227,11 +227,11 @@ export function useOrderEngine() {
             
             if (isManual) {
                 // 수동 액션인 경우 삭제하지 않고 상태값만 변경하여 '취소/방출' 탭에 표시되도록 함
-                logRoadmapEvent("화면", "웹", "오더 상태를 취소/방출로 변경하여 탭을 이동시킵니다", "관제대시보드");
+                logRoadmapEvent("화면", "웹", "취소/방출 — 상태만 바꿔 서랍 «끝난 콜»로 옮김", "관제대시보드");
                 setActiveOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
             } else {
                 // 시스템에 의한 자동 삭제인 경우 완전히 지움
-                logRoadmapEvent("화면", "웹", "PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링", "관제대시보드");
+                logRoadmapEvent("화면", "웹", "자동 정리 — 이 콜을 진행 목록에서 지움", "관제대시보드");
                 // 🔴 로그는 updater 밖에서 — StrictMode 가 updater 를 두 번 부른다
                 const before = activeOrdersRef.current;
                 const after = before.filter(o => o.id !== id);
@@ -244,7 +244,7 @@ export function useOrderEngine() {
 
         const onSafeCancelWarning = () => {
             logRoadmapEvent("경고", "웹", "서버로 부터 safecancel-warning 소켓 경고 이벤트 받음", "관제대시보드");
-            logRoadmapEvent("화면", "웹", "상단 비상 알림 배너 팝업 및 타이머 카운트다운 컴포넌트 텍스트 붉은색 렌더링", "관제대시보드");
+            logRoadmapEvent("화면", "웹", "안전취소 경고 — 폰 줄의 안전취소 띠로 보임", "관제대시보드");
         };
 
         socket.on("connect", onConnect);
