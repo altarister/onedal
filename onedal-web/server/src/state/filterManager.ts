@@ -547,7 +547,7 @@ export function saveBaseFilter(
  * [돋보기 + 시스템 전용] 현재 콜 잡는 중인 activeFilter를 직접 수정합니다.
  * 
  * DB에는 절대 접근하지 않습니다. 메모리 + 소켓 전파만 수행합니다.
- * OrderFilterModal(돋보기), dispatchEngine(State Machine), geoService(GPS 트림) 등에서 사용합니다.
+ * OrderFilterModal(돋보기), dispatchEngine(State Machine), geoMotion(GPS 트림) 등에서 사용합니다.
  * 
  * @param userId - 유저 ID
  * @param changes - 변경할 필터 필드 (Partial)

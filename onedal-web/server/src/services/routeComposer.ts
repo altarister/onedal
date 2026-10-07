@@ -854,7 +854,7 @@ export function planMergedStops(
      * 🔇 **여기서 로그를 찍지 않는다**.
      *
      * 이 함수는 순수 계획이라 **1초 동기화(`helpers.buildOrderSync`)와 GPS 매 틱
-     * (`geoService.nextStopOf`)에서도 불린다.** 여기서 찍으면 **같은 줄이 초당 여러 번** 찍혀 로그가 덮인다.
+     * (`geoMotion.nextStopOf`)에서도 불린다.** 여기서 찍으면 **같은 줄이 초당 여러 번** 찍혀 로그가 덮인다.
      *
      * 알림은 **실제로 경로를 만들 때**(`composeMergedRoute`) 한 번만 찍는다.
      * 로그가 너무 자주 울리면 로그가 아니다 — 다른 줄을 묻는다.

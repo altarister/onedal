@@ -902,7 +902,7 @@ export function progressAlongKm(pt: { lng: number; lat: number }, line: Array<[n
 }
 
 /** 점 → 폴리라인 최소 거리 (km 평면 근사 — 이 스케일에서 충분) */
-/** 점에서 라인까지 km — 라인 띠 판정(`lineZoneOf`)과 서버 상차 목록(`geoService.pickupListFor`)이 함께 쓴다 */
+/** 점에서 라인까지 km — 라인 띠 판정(`lineZoneOf`)과 서버 상차 목록(`geoRegions.pickupListFor`)이 함께 쓴다 */
 export function distToLineKm(pt: { lng: number; lat: number }, line: Array<[number, number]>): number {
     const KX = 111.32 * Math.cos(rad(pt.lat)), KY = 110.574;
     let best = Infinity;
@@ -921,7 +921,7 @@ export function distToLineKm(pt: { lng: number; lat: number }, line: Array<[numb
  * ✂️ **라인을 현위치부터 앞으로만** (기사님 «뒤를 자르는 Cap»).
  * 현위치를 라인에서 가장 가까운 점에 내리고(`progressAlongKm` 과 같은 셈 · 같은 곳을 두 번 지나면 앞 통과) 그 점부터 끝까지 낸다.
  * 앞으로 남은 라인이 없으면(끝을 지남 · 점이 둘보다 적음) 빈 라인 — 부르는 쪽은 «라인 없음»으로 본다 (지어내지 않는다 · 규칙 ④).
- * 읽는 곳: 서버 상차 목록(`geoService.pickupListFor`) · 지도 «상차» 띠 · 운행 뒤 «하차» 띠(`useStageAreas`).
+ * 읽는 곳: 서버 상차 목록(`geoRegions.pickupListFor`) · 지도 «상차» 띠 · 운행 뒤 «하차» 띠(`useStageAreas`).
  */
 export function lineFromPoint(line: Array<[number, number]>, pt: { lng: number; lat: number }): Array<[number, number]> {
     if (line.length < 2) return [];
@@ -946,7 +946,7 @@ export function lineFromPoint(line: Array<[number, number]>, pt: { lng: number; 
  * ✂️ **라인 앞쪽 — 시작점(현위치)에서 경로와 직각인 선으로 자른다** (기사님 «경로와 직각으로 잘릴 꺼라 생각했는데» · #151).
  * 경로 방향은 시작점에서 라인을 따라 `lookKm` 만큼 간 곳을 본다 — 첫 선분만 보면 짧게 꺾인 곳에서 방향이 흔들리고,
  * 꺾인 자리의 둥근 이음이 차 뒤를 다시 덮는다. 라인이 점 둘보다 적거나 길이가 없으면 `null`.
- * 읽는 곳: 서버 상차 목록(`geoService.pickupListFor`) · 지도 «상차» · «하차» 띠(`pinnedRouteLayers` 의 `aheadCutOf`).
+ * 읽는 곳: 서버 상차 목록(`geoRegions.pickupListFor`) · 지도 «상차» · «하차» 띠(`pinnedRouteLayers` 의 `aheadCutOf`).
  */
 export function aheadOf(line: Array<[number, number]>, lookKm: number): { start: { lng: number; lat: number }; dir: { x: number; y: number } } | null {
     if (line.length < 2) return null;
@@ -1031,7 +1031,7 @@ export function lineZoneOf(
      *
      * 🔴 점에서 라인까지의 최단거리만 재면 **선분 끝에 반원이 붙어** 라인 시작(출발 자리) 뒤가
      *    띠 반경만큼 통째로 든다 — «도척면에서 잡아 경안동에 내리는» 역방향 콜이 통과한다.
-     *    상차(`geoService.pickupListFor`)·지도(`pinnedRouteLayers` 의 `aheadCutOf`)·여기가 **같은 `aheadOf`** 로 잘라야
+     *    상차(`geoRegions.pickupListFor`)·지도(`pinnedRouteLayers` 의 `aheadCutOf`)·여기가 **같은 `aheadOf`** 로 잘라야
      *    점과 칠이 같은 자리를 말한다.
      */
     const aheadCut = line.length >= 2 ? aheadOf(line, lineRadiusKm) : null;
@@ -1127,7 +1127,7 @@ export function netForGoal(goal: NetPoint, o: {
 
 /**
  * 🔎 **하차 조각 판정 — 이 점이 그 목적지의 하차 조각 안인가** (`netForGoal` 과 **같은 분기**).
- *    그물(`netForGoal`)은 동을 **중심점 하나**로 담는다. 서버가 «걸친 동»을 찾을 때(`geoService.regionsTouchingNetGrouped`)
+ *    그물(`netForGoal`)은 동을 **중심점 하나**로 담는다. 서버가 «걸친 동»을 찾을 때(`geoRegions.regionsTouchingNetGrouped`)
  *    이 판정을 쓴다 — 판정이 두 벌이면 목록과 지도가 갈라진다 (규칙 ③).
  *    라인이 있으면 `lineZoneOf().dropIn`(라인 띠 ∪ 목적지 원 ∪ 확정콜의 마지막 하차지→목적지 마름모 ∪ 현위치 원) · 없으면 `makeInNet`(현위치 원 ∪ 마름모 ∪ 목적지 원).
  */

@@ -6,7 +6,7 @@ import { netForGoal, cityCenter, quadShapeFrom } from '@onedal/shared';
  * 🔵 **먼 목적지의 하차 조각도 «걸친 동»을 넣는다 — 실제 지도로** (기사님 «영역에 지역이 걸치고 있으면 들어가는거야»).
  *
  * 그물(`netForGoal`)은 동을 **중심점 하나**로 본다 — 그것만 쓰면 원 · 마름모 가장자리에 걸쳤는데 중심이 밖인
- * 넓은 읍 · 면이 빠진다 (인천 조건 실측 45곳). 걸침은 상차 목록과 같은 식이다 (`geoService.regionsTouchingAreaGrouped` — 격자 점 ∪ 동 꼭짓점).
+ * 넓은 읍 · 면이 빠진다 (인천 조건 실측 45곳). 걸침은 상차 목록과 같은 식이다 (`geoRegions.regionsTouchingAreaGrouped` — 격자 점 ∪ 동 꼭짓점).
  * 좌표는 이천 왕복 시나리오 실값 · 반경은 그때 자동 반경이 준 값.
  */
 const MODA = { lng: 127.312587, lat: 37.363298, name: '내 위치' };        // 모다아울렛 (초월읍)
