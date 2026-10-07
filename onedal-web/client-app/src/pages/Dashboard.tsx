@@ -14,6 +14,7 @@ import StatusBoard from "../statusboard/StatusBoard";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
 import { ensureJudgmentSocketSubscribed } from "../stores/judgmentStore";
+import { ensureAlertsSocketSubscribed } from "../stores/alertsStore";
 import CargoMismatchBanner from "../components/dashboard/CargoMismatchBanner";
 import { useServerErrors } from "../hooks/useServerErrors";
 import { mountAutoKeepBadge } from "../lib/autoKeep";
@@ -105,6 +106,8 @@ export default function Dashboard() {
     useEffect(() => { mountAutoKeepBadge(); }, []);
 
     useEffect(() => { ensureJudgmentSocketSubscribed(); }, []);
+    /* 🚨 비상 · 안전취소 경고 · 삑 — 폰 칸이 접혀도(필터 펼침) 듣는다 (stores/alertsStore) */
+    useEffect(() => { ensureAlertsSocketSubscribed(); }, []);
 
     // [이슈 W] 서버 재시작으로 진행 중 콜이 복구됐을 때 표시할 배너
     const [restoredInfo, setRestoredInfo] = useState<{ restoredCount: number; dispatchPhase: string } | null>(null);
