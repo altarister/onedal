@@ -519,7 +519,15 @@ class HijackService : AccessibilityService(), ScanContext {
         val p = waitBook.pending()
         com.onedal.app.core.WaitBook.pendingLine(p)?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏳ [걸린 기다림] $where — $it") }
     }
-    private val safeCancelTimer by lazy { SafeCancelTimer(waitBook) }
+    private val safeCancelTimer by lazy {
+        val prefs = getSharedPreferences(com.onedal.app.core.Prefs.NAME, Context.MODE_PRIVATE)
+        SafeCancelTimer(waitBook, store = object : SafeCancelTimer.Store {
+            override fun put(orderId: String, deadlineWallMs: Long) = prefs.edit().putString(com.onedal.app.core.Prefs.SAFE_CANCEL_ARMED, "$orderId|$deadlineWallMs").apply()
+            override fun get(): Pair<String, Long>? = prefs.getString(com.onedal.app.core.Prefs.SAFE_CANCEL_ARMED, null)
+                ?.split('|')?.takeIf { it.size == 2 }?.let { (id, at) -> at.toLongOrNull()?.let { id to it } }
+            override fun clear() = prefs.edit().remove(com.onedal.app.core.Prefs.SAFE_CANCEL_ARMED).apply()
+        })
+    }
 
     /**
      * ⏱️ **서버가 내려준 필터(저장본)** — 배차망별 대기 시간을 여기서 읽는다 (기사님 확정).
@@ -697,6 +705,11 @@ class HijackService : AccessibilityService(), ScanContext {
             )
         }
         telemetryManager.start()
+        /* 💾 다시 떴다 — 계약 콜의 안전취소가 걸려 있었으면 남은 시간으로 다시 건다(D1 ②) */
+        safeCancelTimer.restore(session) { onSafeCancelTimeout() }?.let { (id, left) ->
+            telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)
+            AppLogger.w(TAG, LogTag.DECISION, "💾 [안전취소 다시 걺] $id · 남은 ${left / 1000}초 — 원달앱이 다시 떴다")
+        }
         /**
          * 🟢 **붙자마자 한 번 쏜다** (기사님 실측: *"폰이랑 서버랑 연결이 안 되는데?"*).
          *
@@ -797,7 +810,7 @@ class HijackService : AccessibilityService(), ScanContext {
         modeFrame.hideNow()   // 🖼️ 테두리가 없으면 접근성 꺼짐 — 내려가는 순간 걷는다
         unregisterReceiver(screenOffReceiver)
         telemetryManager.stop()
-        cancelSafeCancelTimer()
+        safeCancelTimer.pauseForShutdown()   // 💾 내려갈 때는 멈추기만 — 적어 둔 안전취소는 다시 뜨면 되살린다(D1 ②)
         /**
          * 📵 **왜 내려가는지 지금 알 수 있다** (기사님 지적).
          * 접근성 스위치를 끄면 안드로이드가 이 서비스를 죽인다. 그 순간 «켜진 접근성
@@ -2083,12 +2096,14 @@ class HijackService : AccessibilityService(), ScanContext {
         // ⏱️ 그 배차망의 안전취소 시간 (서버 DB) — 픽커는 안전취소가 없어 타이머를 걸지 않는다
         val timeoutMs = com.onedal.app.core.engine.WaitTimes.safeCancelMs(savedFilter(), currentTargetApp) ?: return
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)  // 안전취소 동안 1초 보고 켬
-        safeCancelTimer.start(timeoutMs, session) {
-            /* 🛑 «자동 취소»는 여기서 안 보낸다 — 버튼을 실제로 누른 뒤에만(`CancelReport`) · 못 누르면 «안 눌렀음» */
-            val armed = safeCancelTimer.armedOrderId
-            timeoutCancelOrderId = armed
-            executeDecisionImmediately("CANCEL", armed)
-        }
+        safeCancelTimer.start(timeoutMs, session) { onSafeCancelTimeout() }
+    }
+
+    /** ⏱️ 안전취소 시간 끝 — «자동 취소»는 여기서 안 보낸다 · 버튼을 실제로 누른 뒤에만(`CancelReport`) · 못 누르면 «안 눌렀음» */
+    private fun onSafeCancelTimeout() {
+        val armed = safeCancelTimer.armedOrderId
+        timeoutCancelOrderId = armed
+        executeDecisionImmediately("CANCEL", armed)
     }
 
     /** 🛑 안전취소 시간 끝으로 누르러 간 콜 — 누른 뒤 «자동 취소 · 눌렀음»을 보낼지 가른다 */

@@ -31,4 +31,6 @@ object Prefs {
     const val API_SCRAP_RES = "api_scrap_res"
     const val API_CONFIRM_REQ = "api_confirm_req"
     const val API_CONFIRM_RES = "api_confirm_res"
+    /** 💾 걸려 있는 안전취소 «콜 번호|벽시계 마감 ms» — 원달앱이 다시 떠도 되살린다(`SafeCancelTimer.restore`) */
+    const val SAFE_CANCEL_ARMED = "safeCancelArmed"
 }

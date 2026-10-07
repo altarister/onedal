@@ -63,7 +63,7 @@ class WaitBookTest {
         val alarm = File("$root/core/AlarmSignaler.kt").readText()
         assertTrue("알람 소리 이름에 번호 — 겹친 알람이 앞 소리 풀기를 지우지 않게", alarm.contains("소리 풀기 #\$no"))
         val svc = File("$root/HijackService.kt").readText()
-        listOf("TelemetryManager(apiClient, this, waitBook)", "AutoTouchManager(this, waitBook)", "SafeCancelTimer(waitBook)", "AlarmSignaler(this, waitBook)")
+        listOf("TelemetryManager(apiClient, this, waitBook)", "AutoTouchManager(this, waitBook)", "SafeCancelTimer(waitBook,", "AlarmSignaler(this, waitBook)")
             .forEach { assertTrue(it, svc.contains(it)) }
     }
 
