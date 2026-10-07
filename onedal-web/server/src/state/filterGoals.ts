@@ -5,7 +5,7 @@
  */
 import { isHomeCallSince, IN_PROGRESS_STATUSES } from "@onedal/shared";
 import { callTargetToday } from "../core/callTargetEvents";
-import { getActiveCalls } from "../core/helpers";
+import { getActiveCalls } from "../core/activeCalls";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { OrderStatus } from "@onedal/shared";

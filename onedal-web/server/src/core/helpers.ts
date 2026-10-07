@@ -1,12 +1,5 @@
-/**
- * 공통 헬퍼 함수  — 전체 서버에서 한 곳에서만 정의합니다.
- */
-import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
-         findTagConflicts,
-         computeStopTiming, recordsOfSteps,
-         unitPoints, handMinutesOf, protectionMinutes } from '@onedal/shared';
+import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType, findTagConflicts, computeStopTiming, recordsOfSteps, unitPoints, handMinutesOf, protectionMinutes } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming, JudgmentConfig } from '@onedal/shared';
-import { OrderRepository } from '../repositories/OrderRepository';
 import { originOf } from '../services/geoMotion';
 import db from '../db';
 import { planArrivalStops } from '../services/routeComposer';
@@ -14,16 +7,11 @@ import type { RouteSnapshot } from '../services/routeComposer';
 import { stepsView, stepRecordsOf, plannedDwellOf } from '../services/stepSeeder';
 import { slog } from '../utils/fileLogger';
 import { clockText } from "@onedal/shared";
+import { getActiveCalls } from "./activeCalls";
 
 /**
- * 종료되지 않은(활성) 콜만 필터링합니다.
- *
- * "종결"의 정의는 `@onedal/shared` 에만 있다.
- * 여기에 목록을 한 벌 더 두면 shared 에 상태를 더해도 반영되지 않아 하차한 짐이 계속 적재 중으로 세어진다.
+ * 공통 헬퍼 함수  — 전체 서버에서 한 곳에서만 정의합니다.
  */
-export function getActiveCalls(session: { myOrders: MyOrder[] }): MyOrder[] {
-    return session.myOrders.filter(c => !isTerminal(c.status));
-}
 
 /**
  * 지금 실려 있는 짐의 **적재 점수와 확신도**.

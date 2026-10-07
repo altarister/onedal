@@ -33,7 +33,8 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
-import { getActiveCalls, buildOrderSync, setOrderStatus, filterVersionOf } from "../core/helpers";
+import { getActiveCalls } from "../core/activeCalls";
+import { buildOrderSync, setOrderStatus, filterVersionOf } from "../core/helpers";
 
 /** 🧹 sync 푸시 «로그»는 내용이 바뀔 때만 — 푸시 자체는 늘 나간다 (한 판 1,023줄이 같은 내용이었다) */
 const lastSyncLogSig = new Map<string, string>();

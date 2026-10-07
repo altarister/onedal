@@ -12,7 +12,8 @@
  */
 import { wonText } from "@onedal/shared";
 import db from "../db";
-import { getActiveCalls, computeLoadedPoints, buildOrderSync, filterVersionOf } from "../core/helpers";
+import { getActiveCalls } from "../core/activeCalls";
+import { computeLoadedPoints, buildOrderSync, filterVersionOf } from "../core/helpers";
 import { stepRecordsOf } from "../services/stepSeeder";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";

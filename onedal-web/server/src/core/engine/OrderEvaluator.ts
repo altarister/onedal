@@ -26,7 +26,7 @@ import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
 import { SettingsRepository } from "../../repositories/SettingsRepository";
 import { PricingEngine } from "./PricingEngine";
 import { applySoloRoute, composeMergedRoute } from "../../services/routeComposer";
-import { getActiveCalls } from "../helpers";
+import { getActiveCalls } from "../activeCalls";
 import { isLaterThan } from "../../services/reservedOrders";
 import { slog } from "../../utils/fileLogger";
 import { sendFold } from "../../state/decisions";

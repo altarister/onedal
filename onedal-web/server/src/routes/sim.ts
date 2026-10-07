@@ -4,7 +4,7 @@ import { getAllActiveUserIds, getUserSession } from "../state/userSessionStore";
 import { isLiveServer, PROBE_EMAIL } from "../config/env";
 import { originOf } from "../services/geoMotion";
 import { driverLocationOf } from "../services/driverLocation";
-import { getActiveCalls } from "../core/helpers";
+import { getActiveCalls } from "../core/activeCalls";
 import { mapCoverage } from "../services/geoService";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { effectiveRadii } from "@onedal/shared";

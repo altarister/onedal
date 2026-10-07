@@ -10,7 +10,8 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { lastKnownPositionOf, MOCK_GPS_OWNER_QUIET_MS } from "../services/geoMotion";
 import { getUserSession, getAllActiveUserIds, UserSession } from "../state/userSessionStore";
-import { buildOrderSync, getActiveCalls } from "../core/helpers";
+import { buildOrderSync } from "../core/helpers";
+import { getActiveCalls } from "../core/activeCalls";
 
 /** 🧹 복구 보내기 줄을 마지막으로 적었을 때의 콜·상태 — 기사님마다 따로 */
 const lastRecoverLogSig = new Map<string, string>();

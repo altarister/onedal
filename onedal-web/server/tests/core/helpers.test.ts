@@ -1,4 +1,5 @@
-import { buildOrderSync, getActiveCalls, setOrderStatus } from '../../src/core/helpers';
+import { buildOrderSync, setOrderStatus } from '../../src/core/helpers';
+import { getActiveCalls } from '../../src/core/activeCalls';
 
 /**
  * 관제탑 페이로드는 **진행/종료를 나눠서** 보낸다.
