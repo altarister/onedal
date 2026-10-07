@@ -1,12 +1,13 @@
 /**
  * ♻️ **세션 되살리기** — 서버를 다시 띄운 뒤 첫 접속 · 상세 보고 때 장부(DB)의 콜 · 궤적 · 다녀온 정거장 · 마지막 위치를 세션에 되살리고 국면을 다시 세운다(한 번만).
  * 🔴 이 파일은 마일스톤(services/milestones)을 가져오지 않는다 — 방향: sessionRestore · milestones → dispatchEngine(결재 · 경로 재계산).
+ * 바깥 일을 하는 함수: bootstrapUserSession · bootstrapOnce · hydrateVisitedStops · restoreAndRecalculateSession(세션 · 장부(DB) · 단계 장부 · 궤적 저장 · 카카오 · 설정 · 지금 시각 · 소켓 · 로그) (콜 한 줄 · 다녀온 정거장 · 마지막 점 셈 restoredOrderFrom · visitedStopsFrom · restoredFixFrom 은 값만 받는다)
  */
 import { businessDayKey, restoreWhere, deriveDispatchPhase, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, restoreWindow } from "@onedal/shared";
 import { isHeldReserved } from "../services/reservedOrders";
 import type { MyOrder } from "@onedal/shared";
 import { calculateSoloRoute } from "../services/kakaoService";
-import { getUserSession } from "./userSessionStore";
+import { getUserSession, type UserSession } from "./userSessionStore";
 import { rememberOrder } from "./orderMemory";
 import { updateActiveFilter } from "./filterManager";
 import { originOf, lastKnownPositionOf } from "../services/geoMotion";
@@ -94,29 +95,7 @@ async function bootstrapOnce(userId: string, io: any): Promise<void> {
         /* 🔴 «이미 아는 자리가 있나»도 **파생 함수로 묻는다** — 원자료(`lastFix`)를 직접
            읽으면 «기점은 `originOf` 로만 읽는다» 규칙과 구분이 안 된다 (그 검사가 잡았다) */
         if (lastPt && !lastKnownPositionOf(session)) {
-            session.lastFix = { x: lastPt.x, y: lastPt.y };
-            session.lastFixAt = lastPt.atMs;
-            session.lastFixIsMock = lastPt.source === 'mock';
-            session.lastFixSource = (lastPt.source as 'gps' | 'mock' | 'manual') ?? 'gps';
-            /**
-             * 🎭 **모의 좌표면 «임자»도 그 시각으로 함께 되살린다** (기사님 확정).
-             *
-             * 🔴 **안 되살리면 «내가 어디 있나»가 한 순간에 두 답을 낸다.** `originOf` ③ 은
-             *    모의 좌표를 «콜을 쥐었거나 모의 주행이 돌 때만» 믿는데, 그 «돌고 있나»가
-             *    메모리에만 사는 `mockGpsOwner` 다. 서버가 다시 뜨면 그 칸만 비어,
-             *    **같은 좌표를 복구해 놓고 첫 목록은 집 주소로 만든다.**
-             *    실측: 부트스트랩이 집 기준 상차 10곳·하차 26곳을
-             *    «확정 필터»로 관제웹에 보낸 19ms 뒤, 모의 GPS 가 들어오자 이천 기준
-             *    9곳·19곳으로 다시 만들었다. 관제웹은 둘을 겹쳐 받아 **영역은 집 둘레,
-             *    점은 이천**이 되었다 — 기사님: *"녹색원이 저리 작은데 이천시 근처에
-             *    보라 점이 찍힌다는것이 틀린거지."*
-             * 🔴 **시각은 지어내지 않는다** — 그 점을 받은 시각(`atMs`)을 그대로 쓴다.
-             *    그래서 5초 넘게 묵은 점이면 `mockRunning` 이 여전히 거짓이고 집 주소로 간다
-             *    («멈춘 뒤 남은 모의 좌표»를 믿지 않는 원래 방어는 그대로다).
-             */
-            if (lastPt.source === 'mock') {
-                session.mockGpsOwner = { socketId: '복구', at: lastPt.atMs, warned: false };
-            }
+            Object.assign(session, restoredFixFrom(lastPt));
             slog('부팅', `📍 [위치 복구] ${clockText(lastPt.atMs)} 의 마지막 점 — `
                 + `${lastPt.x.toFixed(5)}, ${lastPt.y.toFixed(5)} (출처 ${lastPt.source})`);
         }
@@ -143,14 +122,139 @@ async function bootstrapOnce(userId: string, io: any): Promise<void> {
     }
 }
 
+/** 📍 궤적의 마지막 점으로 되살리는 «내가 어디 있나» — 값만 받는 셈 (마지막 점) */
+export function restoredFixFrom(lastPt: { x: number; y: number; atMs: number; source?: string | null }):
+    Pick<UserSession, 'lastFix' | 'lastFixAt' | 'lastFixIsMock' | 'lastFixSource'> & { mockGpsOwner?: UserSession['mockGpsOwner'] } {
+    return {
+        lastFix: { x: lastPt.x, y: lastPt.y },
+        lastFixAt: lastPt.atMs,
+        lastFixIsMock: lastPt.source === 'mock',
+        lastFixSource: (lastPt.source as 'gps' | 'mock' | 'manual') ?? 'gps',
+        /**
+         * 🎭 **모의 좌표면 «임자»도 그 시각으로 함께 되살린다** (기사님 확정).
+         *
+         * 🔴 **안 되살리면 «내가 어디 있나»가 한 순간에 두 답을 낸다.** `originOf` ③ 은
+         *    모의 좌표를 «콜을 쥐었거나 모의 주행이 돌 때만» 믿는데, 그 «돌고 있나»가
+         *    메모리에만 사는 `mockGpsOwner` 다. 서버가 다시 뜨면 그 칸만 비어,
+         *    **같은 좌표를 복구해 놓고 첫 목록은 집 주소로 만든다.**
+         *    실측: 부트스트랩이 집 기준 상차 10곳·하차 26곳을
+         *    «확정 필터»로 관제웹에 보낸 19ms 뒤, 모의 GPS 가 들어오자 이천 기준
+         *    9곳·19곳으로 다시 만들었다. 관제웹은 둘을 겹쳐 받아 **영역은 집 둘레,
+         *    점은 이천**이 되었다 — 기사님: *"녹색원이 저리 작은데 이천시 근처에
+         *    보라 점이 찍힌다는것이 틀린거지."*
+         * 🔴 **시각은 지어내지 않는다** — 그 점을 받은 시각(`atMs`)을 그대로 쓴다.
+         *    그래서 5초 넘게 묵은 점이면 `mockRunning` 이 여전히 거짓이고 집 주소로 간다
+         *    («멈춘 뒤 남은 모의 좌표»를 믿지 않는 원래 방어는 그대로다).
+         */
+        ...(lastPt.source === 'mock' ? { mockGpsOwner: { socketId: '복구', at: lastPt.atMs, warned: false } } : {}),
+    };
+}
+
 /** 장부의 도착 마일스톤을 콜 객체 칸으로 되살린다 — 재시작해도 다녀온 곳을 기억하게 */
 function hydrateVisitedStops(orderId: string): { arrivedPickupAt?: string; arrivedDropoffAt?: string } {
     // 🔄 파생 치환 ② — 복구의 재료도 새 장부 (단계 행의 occurred_at)
-    const rows = stepRecordsOf(orderId).milestones as { milestone: string; occurredAt: string }[];
+    return visitedStopsFrom(stepRecordsOf(orderId).milestones as { milestone: string; occurredAt?: string }[]);
+}
+
+/** 🚏 다녀온 정거장(도착 시각) — 값만 받는 셈 (단계 장부의 마일스톤 줄) */
+export function visitedStopsFrom(rows: { milestone: string; occurredAt?: string }[]): { arrivedPickupAt?: string; arrivedDropoffAt?: string } {
     const at = (m: string) => rows.find(r => r.milestone === m)?.occurredAt;
     return {
         arrivedPickupAt: at('ARRIVED_PICKUP'),
         arrivedDropoffAt: at('ARRIVED_DROPOFF'),
+    };
+}
+
+/**
+ * ♻️ 장부의 콜 한 줄 → 세션 콜 — 값만 받는 셈 (orders 줄 · 그 콜의 다녀온 정거장 · 판정 스냅샷 · 상하차지 연락처).
+ * 장부의 칸을 하나씩 옮겨 담는다 — 새 칸을 만들면 여기도 실어야 재시작 뒤 살아난다.
+ */
+export function restoredOrderFrom(row: any, got: {
+    visited: ReturnType<typeof visitedStopsFrom>;
+    judgment: ReturnType<typeof OrderRepository.getJudgmentVerdict>;
+    contacts: ReturnType<typeof OrderRepository.stopContactsOf>;
+}): MyOrder {
+    return {
+        id: row.id,
+        type: row.type,
+        pickup: row.pickup,
+        dropoff: row.dropoff,
+        fare: row.fare,
+        timestamp: row.timestamp,
+        status: row.status,
+        capturedAt: row.capturedAt,
+        /** 🎯 판 — 안 읽으면 재기동 뒤 전부 하차지 시로 조용히 물러난다 (#131) */
+        goalCity: row.goalCity ?? undefined,
+        /** 📅 예약 — 안 읽으면 재기동 뒤 예약 콜이 오늘 첫짐이 되고 상차 약속이 오늘로 돌아간다 */
+        reserved: row.reserved == null ? undefined : !!row.reserved,
+        reservedDay: row.reservedDay ?? undefined,
+        reservedAt: row.reservedAt ?? undefined,
+        reservedFor: row.reserved_for ?? undefined,
+        capturedDeviceId: row.capturedDeviceId,
+        vehicleType: row.vehicleType,
+        distanceKm: row.distanceKm,
+        totalDistanceKm: row.totalDistanceKm,
+        totalDurationMin: row.totalDurationMin,
+        /**
+         * 🗺️ **장부에 남은 궤적을 그대로 되살린다** (기사님 확정).
+         * 이게 있으면 아래 카카오 복구 연산을 건너뛴다 — 한 번 잰 경로를 다시 재지 않는다.
+         * 깨진 값이면 없는 것으로 친다 (그러면 아래에서 다시 잰다 — 안전망).
+         */
+        routePolyline: parsePolyline(row.routePolyline),
+        /* 🎨 구간 경계·주인도 함께 편다 — 관제웹 콜 목록(GET /orders)과 같이 셋이 같이 살아야 지도가 색을 내고, 합짐 경로 재사용이 남은 정거장과 견줄 수 있다 */
+        sectionEnds: parseSectionEnds(row.sectionEnds),
+        sectionStops: parseSectionStops(row.sectionStops),
+        kakaoSoloDistanceKm: row.kakaoSoloDistanceKm,
+        kakaoSoloDurationMin: row.kakaoSoloDurationMin,
+        kakaoTimeExt: row.kakaoTimeExt,
+        pickupX: row.pickupX,
+        pickupY: row.pickupY,
+        dropoffX: row.dropoffX,
+        dropoffY: row.dropoffY,
+        // [T8] 착불 여부가 복구에서 빠져 있었다 — 재접속 직후 착불 표시가 사라진다
+        paymentType: row.paymentType,
+        /**
+         * 🏁 **하차 시각** — 화면의 사이클 경계가 이걸 본다.
+         * 없으면 관제웹이 "언제 내렸는지 모른다"가 되어 지난 운행의 완료분을
+         * 못 가른다 (그래도 카드를 지우진 않는다 — 규칙 ④).
+         */
+        completedAt: row.completedAt,
+        isShared: !!row.isShared,
+        isExpress: !!row.isExpress,
+        // 🧭 어떻게 잡았나(자동·알람·직접) — 안 되살리면 재부팅마다 갈래 배지가 사라진다
+        capturedVia: row.capturedVia,
+        orderForm: row.orderForm,
+        detailMemo: row.detailMemo,
+        /**
+         * 🧾 **카드가 그리는 장부 칸도 되살린다** — 🏢 배차사 · 📦 물품 · 수수료 · 예약 시각 · 구분 · 계산서 · 탁송료 ·
+         *    배송거리 · 게시 시각 · 배차망. 지난 콜 목록(GET /orders)과 같은 칸을 실어야 재시작 뒤 카드와 목록이 같은 말을 한다.
+         */
+        dispatcherName: row.dispatcherName ?? undefined,
+        dispatcherPhone: row.dispatcherPhone ?? undefined,
+        itemDescription: row.itemDescription ?? undefined,
+        commissionRate: row.commissionRate ?? undefined,
+        scheduleText: row.scheduleText ?? undefined,
+        tripType: row.tripType ?? undefined,
+        billingType: row.billingType ?? undefined,
+        tollFare: row.tollFare ?? undefined,
+        postTime: row.postTime ?? undefined,
+        deliveryDistance: row.deliveryDistance ?? undefined,
+        targetApp: row.targetApp ?? undefined,
+        /**
+         * 🚏 **도착 시각을 되살린다**.
+         * 안 되살리면 재시작 직후 `hasVisitedStop` 이 false 가 되어
+         * **이미 다녀온 정거장으로 되돌아가는 경로**가 다시 그려진다.
+         */
+        ...got.visited,
+        /**
+         * 🎨 **색도 되살린다** — 심사 스냅샷(DB)을 재시작 뒤 콜에 붙인다. 안 붙이면 관제웹이
+         *    **문장을 뒤져** 색을 정하다가 재탐색 문구(`🍯 (꿀)` — 괄호)를 못 잡아
+         *    **꿀콜이 「보통」 초록**으로 보인다. 🚨 `(사고)` 도 마찬가지다.
+         *    새로 재는 게 아니라 **그때 그 값**이다 — 색은 심사 1회 고정 (v2 ③④).
+         */
+        judgment: got.judgment ?? undefined,
+        /** 📞 **상하차지 연락처도 되살린다** — 단계 시트의 📞 이 이것을 읽는다. 안 되살리면 재시작 뒤 진행 중 콜의 전화 버튼이 사라진다 */
+        ...got.contacts,
     };
 }
 
@@ -225,88 +329,11 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
 
         // 2. session 메모리 재구성
         for (const row of rows) {
-            const order: MyOrder = {
-                id: row.id,
-                type: row.type,
-                pickup: row.pickup,
-                dropoff: row.dropoff,
-                fare: row.fare,
-                timestamp: row.timestamp,
-                status: row.status,
-                capturedAt: row.capturedAt,
-                /** 🎯 판 — 안 읽으면 재기동 뒤 전부 하차지 시로 조용히 물러난다 (#131) */
-                goalCity: row.goalCity ?? undefined,
-                /** 📅 예약 — 안 읽으면 재기동 뒤 예약 콜이 오늘 첫짐이 되고 상차 약속이 오늘로 돌아간다 */
-                reserved: row.reserved == null ? undefined : !!row.reserved,
-                reservedDay: row.reservedDay ?? undefined,
-                reservedAt: row.reservedAt ?? undefined,
-                reservedFor: row.reserved_for ?? undefined,
-                capturedDeviceId: row.capturedDeviceId,
-                vehicleType: row.vehicleType,
-                distanceKm: row.distanceKm,
-                totalDistanceKm: row.totalDistanceKm,
-                totalDurationMin: row.totalDurationMin,
-                /**
-                 * 🗺️ **장부에 남은 궤적을 그대로 되살린다** (기사님 확정).
-                 * 이게 있으면 아래 카카오 복구 연산을 건너뛴다 — 한 번 잰 경로를 다시 재지 않는다.
-                 * 깨진 값이면 없는 것으로 친다 (그러면 아래에서 다시 잰다 — 안전망).
-                 */
-                routePolyline: parsePolyline(row.routePolyline),
-                /* 🎨 구간 경계·주인도 함께 편다 — 관제웹 콜 목록(GET /orders)과 같이 셋이 같이 살아야 지도가 색을 내고, 합짐 경로 재사용이 남은 정거장과 견줄 수 있다 */
-                sectionEnds: parseSectionEnds(row.sectionEnds),
-                sectionStops: parseSectionStops(row.sectionStops),
-                kakaoSoloDistanceKm: row.kakaoSoloDistanceKm,
-                kakaoSoloDurationMin: row.kakaoSoloDurationMin,
-                kakaoTimeExt: row.kakaoTimeExt,
-                pickupX: row.pickupX,
-                pickupY: row.pickupY,
-                dropoffX: row.dropoffX,
-                dropoffY: row.dropoffY,
-                // [T8] 착불 여부가 복구에서 빠져 있었다 — 재접속 직후 착불 표시가 사라진다
-                paymentType: row.paymentType,
-                /**
-                 * 🏁 **하차 시각** — 화면의 사이클 경계가 이걸 본다.
-                 * 없으면 관제웹이 "언제 내렸는지 모른다"가 되어 지난 운행의 완료분을
-                 * 못 가른다 (그래도 카드를 지우진 않는다 — 규칙 ④).
-                 */
-                completedAt: row.completedAt,
-                isShared: !!row.isShared,
-                isExpress: !!row.isExpress,
-                // 🧭 어떻게 잡았나(자동·알람·직접) — 안 되살리면 재부팅마다 갈래 배지가 사라진다
-                capturedVia: row.capturedVia,
-                orderForm: row.orderForm,
-                detailMemo: row.detailMemo,
-                /**
-                 * 🧾 **카드가 그리는 장부 칸도 되살린다** — 🏢 배차사 · 📦 물품 · 수수료 · 예약 시각 · 구분 · 계산서 · 탁송료 ·
-                 *    배송거리 · 게시 시각 · 배차망. 지난 콜 목록(GET /orders)과 같은 칸을 실어야 재시작 뒤 카드와 목록이 같은 말을 한다.
-                 */
-                dispatcherName: row.dispatcherName ?? undefined,
-                dispatcherPhone: row.dispatcherPhone ?? undefined,
-                itemDescription: row.itemDescription ?? undefined,
-                commissionRate: row.commissionRate ?? undefined,
-                scheduleText: row.scheduleText ?? undefined,
-                tripType: row.tripType ?? undefined,
-                billingType: row.billingType ?? undefined,
-                tollFare: row.tollFare ?? undefined,
-                postTime: row.postTime ?? undefined,
-                deliveryDistance: row.deliveryDistance ?? undefined,
-                targetApp: row.targetApp ?? undefined,
-                /**
-                 * 🚏 **도착 시각을 되살린다**.
-                 * 안 되살리면 재시작 직후 `hasVisitedStop` 이 false 가 되어
-                 * **이미 다녀온 정거장으로 되돌아가는 경로**가 다시 그려진다.
-                 */
-                ...hydrateVisitedStops(row.id),
-                /**
-                 * 🎨 **색도 되살린다** — 심사 스냅샷(DB)을 재시작 뒤 콜에 붙인다. 안 붙이면 관제웹이
-                 *    **문장을 뒤져** 색을 정하다가 재탐색 문구(`🍯 (꿀)` — 괄호)를 못 잡아
-                 *    **꿀콜이 「보통」 초록**으로 보인다. 🚨 `(사고)` 도 마찬가지다.
-                 *    새로 재는 게 아니라 **그때 그 값**이다 — 색은 심사 1회 고정 (v2 ③④).
-                 */
-                judgment: OrderRepository.getJudgmentVerdict(row.id) ?? undefined,
-                /** 📞 **상하차지 연락처도 되살린다** — 단계 시트의 📞 이 이것을 읽는다. 안 되살리면 재시작 뒤 진행 중 콜의 전화 버튼이 사라진다 */
-                ...OrderRepository.stopContactsOf(row.id),
-            };
+            const order: MyOrder = restoredOrderFrom(row, {
+                visited: hydrateVisitedStops(row.id),
+                judgment: OrderRepository.getJudgmentVerdict(row.id),
+                contacts: OrderRepository.stopContactsOf(row.id),
+            });
             rememberOrder(session, order as any);
         }
 

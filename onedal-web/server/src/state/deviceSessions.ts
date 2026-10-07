@@ -1,6 +1,7 @@
 /**
  * 📱 **기기 세션 — 폰마다 메모리에 든 상태와 그 셈** (모드 · 데드맨 · 상세 표시 · 기기 목록).
  * 라우터(`routes/devices.ts`)는 이 파일을 불러 쓰고, 다른 서비스도 기기 상태는 여기서 읽는다.
+ * 바깥 일을 하는 함수: saveModePreference · registeredPhonesOf · demoteOtherAutoPhones · userOfDevice(장부(DB)) · livePhonesOf · otherAutoPhoneOf · getDeviceMode · touchDeviceSession · getActiveDevicesSnapshot · getUserDevicesSnapshot · cleanPreviewOfDevice · incrementDeviceStats · deviceOnList · deviceScreenOf(기기 표 · 세션 · 장부(DB) · 지금 시각 · 소켓 · 기다림 · 로그) (화면 못 읽음 · 상세 떠남 · 끊김 · 필터 거는 폰 셈 blindSignalFrom · leftDetailFrom · deadmanFrom · filteringDeviceFrom 은 값만 받는다)
  */
 import { otherContractingAuto, type PhoneForAuto } from "@onedal/shared";
 import { FilterTally, DeviceSession, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, runningModeOf } from "@onedal/shared";
@@ -67,7 +68,12 @@ export function registeredPhonesOf(userId: string): string[] {
 
 /** 📡 등록 폰 가운데 살아 있는 폰(메모리 세션 · 데드맨 시간 안) — 관제앱 공급의 폰 줄(서랍 속 · 꺼진 폰은 셈도 로그도 안 한다) */
 export function livePhonesOf(ids: string[], now: number = Date.now()): string[] {
-    return ids.filter(id => { const s = activeDevices.get(id); return !!s && now - s.lastSeen <= DEADMAN_TIMEOUT_MS; });
+    return ids.filter(id => { const s = activeDevices.get(id); return !!s && !deadmanFrom(s.lastSeen, now); });
+}
+
+/** 📡 말이 끊겼나 — 값만 받는 셈 (마지막 보고 시각 · 지금 시각). 데드맨 시간을 넘으면 끊김 */
+export function deadmanFrom(lastSeen: number, nowMs: number): boolean {
+    return nowMs - lastSeen > DEADMAN_TIMEOUT_MS;
 }
 
 /**
@@ -180,7 +186,26 @@ function lookupDeviceName(deviceId: string): string | undefined {
  *    옛 APK 는 이 값을 안 보내므로(`undefined`) 아무 판단도 하지 않는다 — 호환.
  */
 function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isScreenOn?: boolean): void {
-    if (isScreenOn !== undefined) session.isScreenOn = isScreenOn;
+    const { patch, event } = blindSignalFrom(session, screenNodeCount, isScreenOn, Date.now());
+    Object.assign(session, patch);
+    if (event === 'recovered') {
+        slog('화면', `👁️ [화면 복구] ${deviceLabelOf(session.deviceId)} — 다시 읽고 있습니다 (노드 ${screenNodeCount}개)`);
+    } else if (event === 'started') {
+        console.warn(`👁️ [화면 못 읽음] ${deviceLabelOf(session.deviceId)} — 접근성 트리가 안 옵니다. ` +
+            `${BLIND_GRACE_MS / 1000}초 더 이어지면 관제탑에 알립니다`);
+    }
+}
+
+/**
+ * 👁️ 화면을 못 읽는 중인가 — 값만 받는 셈 (직전 화면 켜짐 · 못 읽기 시작 시각 · 이번 노드 수 · 이번 화면 켜짐 · 지금 시각).
+ * 세션에 쓸 칸(`patch` — 쓸 칸만 든다)과 이번에 생긴 일(되찾음 `recovered` · 못 읽기 시작 `started`)을 돌려준다.
+ */
+export function blindSignalFrom(prev: { isScreenOn?: boolean; blindSince?: number },
+                                screenNodeCount: number | undefined, isScreenOn: boolean | undefined, nowMs: number):
+    { patch: Partial<Pick<DeviceSession, 'isScreenOn' | 'blindSince' | 'screenNodeCount'>>; event: 'recovered' | 'started' | null } {
+    const patch: Partial<Pick<DeviceSession, 'isScreenOn' | 'blindSince' | 'screenNodeCount'>> = {};
+    if (isScreenOn !== undefined) patch.isScreenOn = isScreenOn;
+    const screenOn = isScreenOn !== undefined ? isScreenOn : prev.isScreenOn;
 
     /**
      * 💤 **화면이 꺼져 있으면 노드가 0인 게 당연하다** (기사님 확정).
@@ -188,26 +213,23 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
      * 그걸 "못 읽음"으로 부르면 기사님이 폰을 끌 때마다 거짓 경고가 뜬다 —
      * **당연한 것을 고장이라 하지 않는다.** 화면 꺼짐은 별도로 표시한다(💤).
      */
-    if (session.isScreenOn === false) {
-        session.blindSince = undefined;
-        return;
+    if (screenOn === false) {
+        patch.blindSince = undefined;
+        return { patch, event: null };
     }
 
-    if (screenNodeCount === undefined) return;          // 원달앱이 처음 화면을 읽기 전 · drive 보고에서도 온다 — 모르는 것은 판단하지 않는다
-    session.screenNodeCount = screenNodeCount;
+    if (screenNodeCount === undefined) return { patch, event: null };          // 원달앱이 처음 화면을 읽기 전 · drive 보고에서도 온다 — 모르는 것은 판단하지 않는다
+    patch.screenNodeCount = screenNodeCount;
 
     if (screenNodeCount > 0) {
-        if (session.blindSince) {
-            slog('화면', `👁️ [화면 복구] ${deviceLabelOf(session.deviceId)} — 다시 읽고 있습니다 (노드 ${screenNodeCount}개)`);
-        }
-        session.blindSince = undefined;
-        return;
+        patch.blindSince = undefined;
+        return { patch, event: prev.blindSince ? 'recovered' : null };
     }
-    if (!session.blindSince) {
-        session.blindSince = Date.now();
-        console.warn(`👁️ [화면 못 읽음] ${deviceLabelOf(session.deviceId)} — 접근성 트리가 안 옵니다. ` +
-            `${BLIND_GRACE_MS / 1000}초 더 이어지면 관제탑에 알립니다`);
+    if (!prev.blindSince) {
+        patch.blindSince = nowMs;
+        return { patch, event: 'started' };
     }
+    return { patch, event: null };
 }
 
 /**
@@ -457,9 +479,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     // [모드 동기화] 유저 세션의 filterEnabledByMode 가 현재 기기들의 모드 상태와 일치하는지 확인 및 자동 동기화
     const userSession = getUserSession(userId);
     const userDeviceIds = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(userId).map((r: any) => r.device_id);
-    const hasFilteringDevice = Array.from(activeDevices.values()).some(d =>
-        userDeviceIds.includes(d.deviceId) && (d.mode === "AUTO" || d.mode === "ALARM" || d.mode === "SIMULATION")
-    );
+    const hasFilteringDevice = filteringDeviceFrom(activeDevices.values(), userDeviceIds);
     if (userSession.filterEnabledByMode !== hasFilteringDevice) {
         userSession.filterEnabledByMode = hasFilteringDevice;
         updateActiveFilter(userId, { isActive: hasFilteringDevice }, io);
@@ -572,6 +592,13 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     return session.mode;
 };
 
+/** 🎛️ 이 기사님 폰 가운데 필터를 거는 모드(자동 · 알람 · 시뮬레이션)인 폰이 있나 — 값만 받는 셈 (기기들 · 이 기사님 폰 번호) */
+export function filteringDeviceFrom(devices: Iterable<Pick<DeviceSession, 'deviceId' | 'mode'>>, userDeviceIds: string[]): boolean {
+    return Array.from(devices).some(d =>
+        userDeviceIds.includes(d.deviceId) && (d.mode === "AUTO" || d.mode === "ALARM" || d.mode === "SIMULATION")
+    );
+}
+
 /** 이 기기의 사용자 — `user_devices` 에 없으면 null (연결 안 된 폰 · 가짜 기사로 받지 않는다) */
 export function userOfDevice(deviceId: string): string | null {
     const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
@@ -603,12 +630,16 @@ const isDetailish = (s?: string | null): boolean => !!s && !isBlipScreen(s) && !
  *    이것은 콜의 수명을 재는 타이머가 아니라 «이탈»의 정의에 든 시간이다.
  */
 function leftDetail(session: DeviceSession): boolean {
-    const now = screenNowOf(session);
+    return leftDetailFrom(screenNowOf(session), session.unknownSince, Date.now());
+}
+
+/** 👀 상세를 떠났나 — 값만 받는 셈 (지금 화면 · 스치는 화면이 시작된 시각 · 지금 시각) */
+export function leftDetailFrom(now: ScreenContextType | null | undefined, unknownSince: number | undefined, nowMs: number): boolean {
     if (!now) return true;
     if (isDetailScreen(now)) return false;
     if (isBlipScreen(now)) {
-        const since = session.unknownSince;
-        return !!since && Date.now() - since >= UNKNOWN_LEAVE_SEC * 1000;
+        const since = unknownSince;
+        return !!since && nowMs - since >= UNKNOWN_LEAVE_SEC * 1000;
     }
     return true;
 }
@@ -685,7 +716,7 @@ export const getActiveDevicesSnapshot = (io?: any): DeviceSession[] => {
         // 통신이 끊긴 기기는 어차피 콜을 못 잡으므로 모드를 바꿀 실익이 없는 반면,
         // 한 번 MANUAL로 떨어지면 복귀 후에도 되돌아오지 않아 콜 잡기가 멈추는 부작용만 컸습니다.
         // 관제탑 UI에는 status(OFFLINE)가 별도로 표시되므로 식별에도 문제가 없습니다.
-        if (now - session.lastSeen > DEADMAN_TIMEOUT_MS) {
+        if (deadmanFrom(session.lastSeen, now)) {
             const wasOnline = session.status !== "OFFLINE";
             session.status = "OFFLINE";
             /**

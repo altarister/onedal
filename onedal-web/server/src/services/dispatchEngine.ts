@@ -1,6 +1,10 @@
+/**
+ * ⚖️ **결재 · 경로 다시 재기 · 새 콜 심사 넘기기** — KEEP · 취소 · 강제 정리, 정거장이 바뀌면 카카오로 다시 잰다.
+ * 바깥 일을 하는 함수: applyRouteAndSave · applySoloRouteAndSave · forceCancelEvaluatingOrder · promiseOrderOpts · recalcRouteIfStopsChanged · recalculateActiveKakaoRoute · recalculateKakaoRoute · syncDetourFilter · handleDecision · evaluateNewOrder · rebuildDestinationKeywords(세션 · 장부(DB) · 카카오 · 설정 · 지금 시각 · 소켓 · 로그) (장소 이름 · 장부에 적을 정거장 셈 normalizePlaceName · stopPlaceFrom 은 값만 받는다)
+ */
 import { businessDayKey, normalizeVehicleType, isEvaluating, isTerminal, reservedForOf, type DecisionStatus } from "@onedal/shared";
 import { isLaterThan, takeReserved } from "./reservedOrders";
-import type { SecuredOrder, PendingOrder, MyOrder } from "@onedal/shared";
+import type { SecuredOrder, PendingOrder, MyOrder, LocationDetailInfo } from "@onedal/shared";
 import { calculateSoloRoute } from "./kakaoService";
 import { getUserSession } from "../state/userSessionStore";
 import { cancelOrderWaits } from "../state/waits";
@@ -37,6 +41,19 @@ export const normalizePlaceName = (name?: string) => {
     if (!name) return "배차값없음";
     return name.replace(/\(주\)|주식회사|\s/g, '').trim();
 };
+
+/** 🏷️ 장부에 적을 정거장 한 곳 — 값만 받는 셈 (상세의 첫 줄 · 콜에 적힌 주소 글자 · 좌표) */
+export function stopPlaceFrom(detail: LocationDetailInfo | undefined, text: string, x: number | undefined, y: number | undefined):
+    { name: string; address: string; region: string; x: number | null; y: number | null; phone: string | null } {
+    return {
+        name: normalizePlaceName(detail?.customerName || "배차값없음"),
+        address: detail?.addressDetail || text,
+        region: detail?.region || text.split(' ').slice(0, 2).join(' ') || "배차값없음",
+        x: x || null,
+        y: y || null,
+        phone: detail?.phone1 || null,
+    };
+}
 
 
 
@@ -564,35 +581,17 @@ export async function handleDecision(userId: string, orderId: string, status: De
                     OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
 
                     // 2. places UPSERT 및 orderStops 추가 (상차지)
-                    const pickupName = normalizePlaceName(cachedOrder.pickupDetails?.[0]?.customerName || "배차값없음");
-                    const pickupAddress = cachedOrder.pickupDetails?.[0]?.addressDetail || cachedOrder.pickup;
-                    const pickupRegion = cachedOrder.pickupDetails?.[0]?.region || cachedOrder.pickup.split(' ').slice(0, 2).join(' ') || "배차값없음";
-                
-                    const pPlaceId = PlaceRepository.upsertPlace(userId,
-                        pickupAddress, pickupName, pickupRegion,
-                        cachedOrder.pickupX || null, cachedOrder.pickupY || null,
-                        cachedOrder.pickupDetails?.[0]?.phone1 || null
-                    );
+                    const p = stopPlaceFrom(cachedOrder.pickupDetails?.[0], cachedOrder.pickup, cachedOrder.pickupX, cachedOrder.pickupY);
+                    const pPlaceId = PlaceRepository.upsertPlace(userId, p.address, p.name, p.region, p.x, p.y, p.phone);
                     if (pPlaceId) {
-                        OrderRepository.insertOrderStop(
-                            cachedOrder.id, pPlaceId, 'pickup', pickupName, cachedOrder.pickupDetails?.[0]?.phone1 || null
-                        );
+                        OrderRepository.insertOrderStop(cachedOrder.id, pPlaceId, 'pickup', p.name, p.phone);
                     }
 
                     // 3. places UPSERT 및 orderStops 추가 (하차지)
-                    const dropoffName = normalizePlaceName(cachedOrder.dropoffDetails?.[0]?.customerName || "배차값없음");
-                    const dropoffAddress = cachedOrder.dropoffDetails?.[0]?.addressDetail || cachedOrder.dropoff;
-                    const dropoffRegion = cachedOrder.dropoffDetails?.[0]?.region || cachedOrder.dropoff.split(' ').slice(0, 2).join(' ') || "배차값없음";
-                
-                    const dPlaceId = PlaceRepository.upsertPlace(userId,
-                        dropoffAddress, dropoffName, dropoffRegion,
-                        cachedOrder.dropoffX || null, cachedOrder.dropoffY || null,
-                        cachedOrder.dropoffDetails?.[0]?.phone1 || null
-                    );
+                    const d = stopPlaceFrom(cachedOrder.dropoffDetails?.[0], cachedOrder.dropoff, cachedOrder.dropoffX, cachedOrder.dropoffY);
+                    const dPlaceId = PlaceRepository.upsertPlace(userId, d.address, d.name, d.region, d.x, d.y, d.phone);
                     if (dPlaceId) {
-                        OrderRepository.insertOrderStop(
-                            cachedOrder.id, dPlaceId, 'dropoff', dropoffName, cachedOrder.dropoffDetails?.[0]?.phone1 || null
-                        );
+                        OrderRepository.insertOrderStop(cachedOrder.id, dPlaceId, 'dropoff', d.name, d.phone);
                     }
 
                     slog('결재', `💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);

@@ -1,6 +1,7 @@
 /**
  * 📦 **단계 보고 · 되돌리기 · 복귀 켬** — 도착 · 상차 · 하차 보고의 유일한 진입점 · 잘못 누른 단계 되돌리기 · 노선 ↔ 복귀 전환.
  * 🔴 이 파일은 세션 되살리기(state/sessionRestore)를 가져오지 않는다 — 방향: sessionRestore · milestones → dispatchEngine(결재 · 경로 재계산).
+ * 바깥 일을 하는 함수: undoMilestone · reportMilestone · setCallTarget(세션 · 장부(DB) · 단계 장부 · 경로 다시 재기 · 지금 시각 · 소켓 · 로그) (도착 칸 셈 arrivedFieldFrom 은 값만 받는다)
  */
 import { MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError, deriveStatusFromMilestones, CALL_TARGET_LABEL } from "@onedal/shared";
 import type { Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
@@ -17,6 +18,12 @@ import { stepRecordsOf, stepsView, bridgeUndoMilestone, milestoneAlreadyRecorded
 import { slog } from "../utils/fileLogger";
 import { wonText } from "@onedal/shared";
 import { recalcRouteIfStopsChanged } from "./dispatchEngine";
+
+/** 🚏 도착 마일스톤이 적히는 콜 칸 — 값만 받는 셈 (마일스톤). 도착이 아니면 null */
+export function arrivedFieldFrom(milestone: Milestone): 'arrivedPickupAt' | 'arrivedDropoffAt' | null {
+    return milestone === 'ARRIVED_PICKUP' ? 'arrivedPickupAt'
+         : milestone === 'ARRIVED_DROPOFF' ? 'arrivedDropoffAt' : null;
+}
 
 // ━━━ 소켓 이벤트가 부르는 일 ━━━
 // socketHandlers.ts 의 소켓 이벤트 핸들러는 얇게 두고, 일은 아래 함수가 한다
@@ -42,8 +49,7 @@ export async function undoMilestone(userId: string, orderId: string, milestone: 
     bridgeUndoMilestone(userId, orderId, milestone);
 
     // 🚏 도착을 되돌리면 "다녀왔다"도 되돌린다 — 안 지우면 경로에서 영영 빠진 채 남는다
-    const undoField = milestone === 'ARRIVED_PICKUP' ? 'arrivedPickupAt'
-                    : milestone === 'ARRIVED_DROPOFF' ? 'arrivedDropoffAt' : null;
+    const undoField = arrivedFieldFrom(milestone);
     if (undoField) {
         const o = session.myOrders.find(c => c.id === orderId);
         if (o) delete (o as any)[undoField];
@@ -134,8 +140,7 @@ export async function reportMilestone(
      * 매번 DB 를 뒤지지 않게, 세션 콜에 실어 둔다. `hasVisitedStop` 이 이 값을 본다.
      * 두 기억(myOrders·pendingOrdersData)에 함께 쓴다 — 한쪽만 쓰면 갈라진다 (helpers 규칙).
      */
-    const arrivedField = milestone === 'ARRIVED_PICKUP' ? 'arrivedPickupAt'
-                       : milestone === 'ARRIVED_DROPOFF' ? 'arrivedDropoffAt' : null;
+    const arrivedField = arrivedFieldFrom(milestone);
     if (arrivedField) {
         const at = occurredAt || nowIso;
         (order as any)[arrivedField] = at;

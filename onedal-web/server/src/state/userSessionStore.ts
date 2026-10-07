@@ -1,3 +1,7 @@
+/**
+ * 🧠 **기사님 세션 — 메모리에 든 한 사람의 상태** (콜 · 필터 · 기다림 · 위치 · 판정 기준).
+ * 바깥 일을 하는 함수: baseFilterFromDb · getUserSession(장부(DB) · 필터 값 읽기 · 오늘 복귀 줄 · 지금 시각 · 로그) · clearUserSession(기다림 끄기 · 로그) · peekUserSession · getAllActiveUserIds · busyCountsOfAll(세션 표) (평소 설정 · 바쁨 셈 baseFilterFrom · busyCountsFrom 은 값만 받는다)
+ */
 import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, isTerminal, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom,
          quadShapeFrom, filterValuesFrom, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
 import type { PhaseKey, JudgmentConfig } from "@onedal/shared";
@@ -377,7 +381,11 @@ export function baseFilterFromDb(userId: string, filterRow?: any | null): AutoDi
             return filterValuesFrom(null);
         }
     })();
+    return baseFilterFrom(filterRow, firstPatch);
+}
 
+/** 🎛️ 평소 설정 — 값만 받는 셈 (user_filters 한 줄 · 국면 표 조각). 줄이 없으면(신규) 서비스 권장 기본값 + 국면 표 기본값 */
+export function baseFilterFrom(filterRow: any | null, firstPatch: ReturnType<typeof filterValuesFrom>): AutoDispatchFilter {
     if (!filterRow) {
         return {
             ...SERVICE_DEFAULT_FILTER, ...firstPatch,
@@ -534,8 +542,14 @@ export function getAllActiveUserIds(): string[] {
  *    모든 사용자를 더한다 — 체험 콜도 센다(메모리에만 있어 다시 뜨면 사라진다).
  */
 export function busyCountsOfAll(): { live: number; evaluating: number; decisions: number; waits: number } {
+    return busyCountsFrom(sessions.values());
+}
+
+/** 🚦 바쁨 셈 — 값만 받는 셈 (세션들) */
+export function busyCountsFrom(list: Iterable<Pick<UserSession, 'myOrders' | 'pendingOrdersData' | 'pendingDecisions' | 'entries'>>):
+    { live: number; evaluating: number; decisions: number; waits: number } {
     let live = 0, evaluating = 0, decisions = 0, waits = 0;
-    for (const s of sessions.values()) {
+    for (const s of list) {
         live += s.myOrders.filter(o => !isTerminal(o.status)).length;
         evaluating += s.pendingOrdersData.size;
         decisions += s.pendingDecisions.size;

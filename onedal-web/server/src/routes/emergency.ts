@@ -20,6 +20,8 @@
  *   5. 관제탑에 emergency-alert · order-canceled emit
  *
  * ⚠️ 4번의 기준은 «남은 활성 콜이 있는가» 하나다.
+ *
+ * 바깥 일을 하는 함수: POST / (세션 · 장부(DB) · 소켓 · 기다림 · 셈 · 로그) (가리킨 콜 · 알림 셈 emergencyTargetFrom · emergencyAlertFrom 은 값만 받는다)
  */
 
 import { Router } from "express";
@@ -36,10 +38,32 @@ import type { EmergencyAlert } from "@onedal/shared";
 
 const router = Router();
 
+/** 🔍 비상 보고가 가리키는 콜 — 값만 받는 셈 (보고의 콜 · 심사 중 콜들 · 보고한 폰). 콜이 비었거나 «unknown» 이면 그 폰이 잡은 심사 중 콜로 */
+export function emergencyTargetFrom(orderId: string, pending: Iterable<[string, { capturedDeviceId?: string }]>, deviceId: string): string {
+    if (orderId && orderId !== "unknown") return orderId;
+    for (const [id, order] of pending) {
+        if (order.capturedDeviceId === deviceId) return id;
+    }
+    return orderId;
+}
+
+/** 🚨 관제웹에 갈 비상 알림 — 값만 받는 셈 (보고 · 가리킨 콜 · 지금 시각) */
+export function emergencyAlertFrom(report: EmergencyReport, orderId: string, nowIso: string): EmergencyAlert {
+    const alert: EmergencyAlert = {
+        deviceId: report.deviceId,
+        orderId,
+        reason: report.reason,
+        screenContext: report.screenContext,
+        screenText: report.screenText?.substring(0, 300),
+        timestamp: report.timestamp || nowIso,
+    };
+    return alert;
+}
+
 router.post("/", async (req, res) => {
     try {
         const report = req.body as EmergencyReport;
-        const { deviceId, orderId, reason, screenContext, screenText, timestamp } = report;
+        const { deviceId, orderId, reason, screenContext, screenText } = report;
 
         slog('경고', `\n🚨🚨🚨 [EMERGENCY] 비상 보고 수신 🚨🚨🚨`);
         slog('경고', `   기기: ${deviceLabelOf(deviceId)}`);
@@ -55,17 +79,8 @@ router.post("/", async (req, res) => {
         
         const session = getUserSession(userId);
 
-        let targetOrderId = orderId;
-
-        if (!targetOrderId || targetOrderId === "unknown") {
-            for (const [id, order] of session.pendingOrdersData.entries()) {
-                if (order.capturedDeviceId === deviceId) {
-                    targetOrderId = id;
-                    slog('경고', `   🔍 잃어버린 orderId 역추적 성공: ${targetOrderId}`);
-                    break;
-                }
-            }
-        }
+        const targetOrderId = emergencyTargetFrom(orderId, session.pendingOrdersData.entries(), deviceId);
+        if (targetOrderId !== orderId) slog('경고', `   🔍 잃어버린 orderId 역추적 성공: ${targetOrderId}`);
 
         const io = req.app.get("io");
 
@@ -75,14 +90,7 @@ router.post("/", async (req, res) => {
          */
         if (report.cancelPressed === false) {
             slog('경고', `   🛑 [취소 못 누름] ${targetOrderId} — 계약이 남아 있다 · 세지 않고 콜을 그대로 둔다 (까닭: ${reason})`);
-            if (io) {
-                const alert: EmergencyAlert = {
-                    deviceId, orderId: targetOrderId, reason, screenContext,
-                    screenText: screenText?.substring(0, 300),
-                    timestamp: timestamp || new Date().toISOString(),
-                };
-                io.to(userId).emit("emergency-alert", alert);
-            }
+            if (io) io.to(userId).emit("emergency-alert", emergencyAlertFrom(report, targetOrderId, new Date().toISOString()));
             return res.json({ success: true, message: "비상 보고 수신 — 계약이 남아 있어 콜을 그대로 둔다", clearedOrderId: null });
         }
 
@@ -138,15 +146,7 @@ router.post("/", async (req, res) => {
         }
 
         if (io) {
-            const alert: EmergencyAlert = {
-                deviceId,
-                orderId: targetOrderId,
-                reason,
-                screenContext,
-                screenText: screenText?.substring(0, 300),
-                timestamp: timestamp || new Date().toISOString(),
-            };
-            io.to(userId).emit("emergency-alert", alert);
+            io.to(userId).emit("emergency-alert", emergencyAlertFrom(report, targetOrderId, new Date().toISOString()));
             slog('경고', `   ✅ 관제탑 emergency-alert emit 완료`);
         }
 

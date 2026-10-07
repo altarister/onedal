@@ -8,6 +8,8 @@ import { slog } from "../utils/fileLogger";
 import { deviceLabelOf } from "../core/deviceAuth";
 
 /**
+ * 바깥 일을 하는 함수: foldRemainMsOf(지금 시각) · decide · sendFold · ackDecision(세션 · 소켓 · 지금 시각 · 로그) (빨리 접기 남은 ms · 결재 줄 셈 foldRemainMsFrom · phoneDecisionsFrom 은 값만 받는다)
+ *
  * ⚖️ **결재 정하기 · 받았음 — 한 곳**.
  * 결재 행동(`pendingDecisions[콜].action`)을 쓰는 곳은 `decide` 하나다 — `phoneSupply.test.ts` 가 이 파일 밖의 쓰기를 문다.
  * 결재는 관제앱 공급 소켓(`/supply`)으로 그 순간 `phone-decision` 이 가고 관제앱이 블루투스로 넘긴다 — 보고 응답에는 안 싣는다.
@@ -17,17 +19,27 @@ import { deviceLabelOf } from "../core/deviceAuth";
 /** ⏩ 이 콜의 빨리 접기 남은 ms(서버 시계) — 판정 끝에 정한 초가 없으면 undefined */
 export function foldRemainMsOf(session: Pick<UserSession, 'pendingOrdersData'>, orderId: string | undefined): number | undefined {
     const order = orderId ? session.pendingOrdersData.get(orderId) : undefined;
+    return foldRemainMsFrom(order, Date.now());
+}
+
+/** ⏩ 빨리 접기 남은 ms — 값만 받는 셈 (콜의 접기 초 · 판정 끝 시각 · 지금 시각) */
+export function foldRemainMsFrom(order: { foldAfterSec?: number | null; judgeUntil?: number } | undefined, nowMs: number): number | undefined {
     return order?.foldAfterSec != null && order.judgeUntil != null
-        ? Math.max(0, Math.round(order.judgeUntil - Date.now())) : undefined;
+        ? Math.max(0, Math.round(order.judgeUntil - nowMs)) : undefined;
 }
 
 /** 📮 그 콜을 쥔 폰마다 관제앱에 갈 결재 — 행동이 아직 없으면 빈 목록 */
 function phoneDecisionsOf(session: UserSession, orderId: string): PhoneDecision[] {
     const action = session.pendingDecisions.get(orderId)?.action;
+    return phoneDecisionsFrom(orderId, action, action ? foldRemainMsOf(session, orderId) : undefined, session.deviceEvaluatingMap);
+}
+
+/** 📮 결재 줄 — 값만 받는 셈 (콜 · 행동 · 접기 남은 ms · 폰 → 심사 중 콜) */
+export function phoneDecisionsFrom(orderId: string, action: SupplyDecisionAction | null | undefined, foldMs: number | undefined,
+                                   evaluating: Iterable<[string, string]>): PhoneDecision[] {
     if (!action) return [];
-    const foldMs = foldRemainMsOf(session, orderId);
     const out: PhoneDecision[] = [];
-    for (const [deviceId, id] of session.deviceEvaluatingMap) {
+    for (const [deviceId, id] of evaluating) {
         if (id === orderId) out.push({ deviceId, orderId, action, ...(foldMs != null ? { foldMs } : {}) });
     }
     return out;
