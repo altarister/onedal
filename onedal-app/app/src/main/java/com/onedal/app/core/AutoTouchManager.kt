@@ -90,6 +90,9 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
         inFlightRefire = null
     }
 
+    /** 👆 지금 화면 종류에서 누른 것이 아직 안 끝났나 (`TapInFlight.pendingOn`) */
+    fun pendingOnNow(): Boolean = TapInFlight.pendingOn(inFlight, screenNow, android.os.SystemClock.elapsedRealtime())
+
     /** 같은 무엇 · 같은 화면 종류가 진행 중이면 true (보내지 않는다) */
     private fun blockedInFlight(key: String): Boolean {
         val blocked = TapInFlight.blocks(inFlight, lastTaken, key, screenNow, android.os.SystemClock.elapsedRealtime())

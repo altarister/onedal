@@ -20,6 +20,16 @@ class TapInFlightTest {
     private fun rec(key: String = "출발지", screen: ScreenContext = detail, at: Long = 1_000L, completed: Boolean = false, refired: Boolean = false, seq: Long = 1) =
         Record(seq, key, screen, at, completed, refired)
 
+    // ─── F5 떠나는 화면의 늦은 보고 — KEEP «닫기»(확정 뒤 상세) 0.3초 뒤 같은 종류 보고 (폰 시험 00:41:50) ───
+    @Test fun `🔴 같은 화면 종류에서 누른 것이 진행 중이면 그 종류 보고는 떠나는 화면이다`() =
+        assertTrue(TapInFlight.pendingOn(rec(key = "닫기", screen = ScreenContext.DETAIL_CONFIRMED), ScreenContext.DETAIL_CONFIRMED, 1_320L))
+    @Test fun `대조 - 다른 화면 종류 보고는 떠나는 화면이 아니다 (새로 연 상세)`() =
+        assertFalse(TapInFlight.pendingOn(rec(key = "call:9", screen = ScreenContext.LIST), detail, 1_700L))
+    @Test fun `대조 - 끝났다 알림 없이 오래 지났으면 진행 중이 아니다`() =
+        assertFalse(TapInFlight.pendingOn(rec(key = "닫기", screen = ScreenContext.DETAIL_CONFIRMED), ScreenContext.DETAIL_CONFIRMED, 1_000L + TapInFlight.SETTLE_MAX_MS))
+    @Test fun `대조 - 누른 기록이 없으면 진행 중이 아니다`() =
+        assertFalse(TapInFlight.pendingOn(null, ScreenContext.DETAIL_CONFIRMED, 1_000L))
+
     @Test fun `오늘 사고 - 같은 무엇 같은 화면 47ms 뒤 둘째는 보내지 않는다`() =
         assertTrue(TapInFlight.blocks(rec(), null, "출발지", detail, 1_047L))
 

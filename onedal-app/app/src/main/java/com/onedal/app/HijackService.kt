@@ -1359,6 +1359,16 @@ class HijackService : AccessibilityService(), ScanContext {
         val screenPkg = rootNode.packageName?.toString()
         com.onedal.app.plugins.DispatchPluginRegistry.all().forEach { it.afterScreenRead(this, detected, rawScreenStr, screenPkg) }
 
+        /* ⏸️ 떠나는 화면의 늦은 보고 — 이 화면 종류에서 원달앱이 누른 것(결재 «닫기» · «취소» · 회피)이 아직 안 끝났고 이 화면에서 시작한 일이 없다(콜 번호 없음).
+              그 보고로 상세 읽기 · 채우기를 시작하면 닫히는 화면에 눌러 목록 위에 떨어진다(폰 시험 F5) · 배차망 공통 */
+        if ((detected == ScreenContext.DETAIL_PRE_CONFIRM || detected == ScreenContext.DETAIL_CONFIRMED) &&
+            session.currentOrderId.isEmpty() && touchManager.pendingOnNow()) {
+            if (LogOnce.changed("leaving-echo", "${touchManager.lastAppTapAtMs}"))
+                AppLogger.i(TAG, LogTag.SCREEN, "⏸️ [채우기 안 함] 방금 이 화면에서 누른 것이 아직 안 끝났다 — 떠나는 화면의 보고 (${detected.name})")
+            rootNode.recycle()
+            return
+        }
+
         // 화면별 핸들러 라우팅
         markRead("바뀜 뒤 처리")
         val handleStartMs = android.os.SystemClock.elapsedRealtime()

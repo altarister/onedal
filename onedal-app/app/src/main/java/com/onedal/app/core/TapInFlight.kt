@@ -51,6 +51,13 @@ object TapInFlight {
         (rec != null && rec.key == key && rec.screen == screen && nowMs - rec.firedAtMs < SETTLE_MAX_MS) ||
             (lastTaken != null && lastTaken.key == key && lastTaken.screen == screen && nowMs - lastTaken.firedAtMs < SETTLE_MIN_MS)
 
+    /**
+     * 이 화면 종류에서 누른 것이 아직 먹혔는지 모르나 — 그러면 지금 온 같은 종류 보고는 «떠나는 화면»일 수 있다.
+     * 판정(`judge`)이 종류 바뀜을 보면 기록이 비므로 그 뒤엔 거짓이다.
+     */
+    fun pendingOn(rec: Record?, screen: ScreenContext, nowMs: Long): Boolean =
+        rec != null && rec.screen == screen && nowMs - rec.firedAtMs < SETTLE_MAX_MS
+
     /** 화면 알림마다 — `textChanged` 는 화면 글자(지문)가 바뀌었나 */
     fun judge(rec: Record?, screen: ScreenContext, textChanged: Boolean, nowMs: Long): Verdict = when {
         rec == null -> Verdict.NONE
