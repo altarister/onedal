@@ -100,6 +100,8 @@ public class SupplyService extends Service {
     private final Map<String, Long> foldAt = new HashMap<>();
     /** 서버 소켓이 끊긴 동안 폰이 보낸 «받았음» — 다시 붙으면 보낸다(서버의 다시 보내기 한 바퀴를 줄인다) */
     private final ArrayList<JSONObject> pendingAcks = new ArrayList<>();
+    /** 📴 서버에 아직 못 보낸 «블루투스 닫음» — 소켓이 붙으면 보낸다(`flushClosed`) */
+    private final ArrayList<JSONObject> pendingClosed = new ArrayList<>();
     private boolean scanning = false;
     private String shownText = "";
     /** 🔴 내려갔다 — 남은 콜백이 다시 검색 · 연결 · 보내기를 하지 않는다(폰 시험 · 로그아웃 뒤에도 A24 에 다시 붙어 옛 공급을 보냈다) */
@@ -121,6 +123,8 @@ public class SupplyService extends Service {
         String myNonce;
         long helloAt = 0;
         long lastHeard = SystemClock.elapsedRealtime();
+        /** 붙기 시작한 때 — 닫을 때 «붙어 있던 시간»을 서버 로그에 적는다 */
+        final long bornAt = SystemClock.elapsedRealtime();
         String sentSupplyVersion;
         String sentPhone;
         /** 원달앱이 블루투스로 알린 마지막 STATUS(서버 표지 · 주소 · 폰 연결 풀린 까닭) */
@@ -221,7 +225,7 @@ public class SupplyService extends Service {
             .setReconnection(true)
             .build();
         socket = IO.socket(URI.create(url + BleProtocol.SUPPLY_NAMESPACE), opts);
-        socket.on(Socket.EVENT_CONNECT, a -> h.post(() -> { serverAlive = true; Log.i(TAG, "📡 공급 소켓 붙음 " + url); flushAcks(); showStatus(); }));
+        socket.on(Socket.EVENT_CONNECT, a -> h.post(() -> { serverAlive = true; Log.i(TAG, "📡 공급 소켓 붙음 " + url); flushAcks(); flushClosed(); showStatus(); }));
         socket.on(Socket.EVENT_DISCONNECT, a -> h.post(() -> { serverAlive = false; Log.i(TAG, "📡 공급 소켓 끊김 " + (a.length > 0 ? a[0] : "")); showStatus(); }));
         socket.on(Socket.EVENT_CONNECT_ERROR, a -> h.post(() -> onConnectError(a.length > 0 ? a[0] : null)));
         socket.on(BleProtocol.EVENT_SUPPLY, a -> { if (a.length > 0 && a[0] instanceof JSONObject) { JSONObject s = (JSONObject) a[0]; h.post(() -> onSupply(s)); } });
@@ -374,6 +378,7 @@ public class SupplyService extends Service {
         links.remove(l.device.getAddress());
         try { if (l.gatt != null) { l.gatt.disconnect(); l.gatt.close(); } } catch (Exception ignored) { }
         Log.i(TAG, "📴 " + l.name() + " 끊음 — " + why);
+        reportClosed(l, why);
         if (destroyed) return;
         showStatus();
         h.postDelayed(this::updateScan, 1000);
@@ -500,6 +505,31 @@ public class SupplyService extends Service {
                 .put("serverUrl", l.status.optString("serverUrl", ""))
                 .put("heardAt", System.currentTimeMillis() - (SystemClock.elapsedRealtime() - l.lastHeard)));
         } catch (Exception ignored) { }
+    }
+
+    /**
+     * 📴 블루투스를 닫은 까닭을 서버 로그로 — 원달앱은 «관제앱 끊김 (status N)»만 안다. 기사님 관제폰 logcat 없이 가리게.
+     * 소켓이 끊겨 있으면 들고 있다가 붙을 때 보낸다(최근 20개 · 넘치면 오래된 것부터 버림). 동작은 바꾸지 않는다 — 기록만.
+     */
+    private void reportClosed(Link l, String why) {
+        try {
+            long now = SystemClock.elapsedRealtime();
+            pendingClosed.add(new JSONObject()
+                .put("deviceId", l.deviceId == null ? JSONObject.NULL : l.deviceId)
+                .put("name", l.name())
+                .put("why", why)
+                .put("connectedMs", now - l.bornAt)
+                .put("silentMs", now - l.lastHeard)
+                .put("at", System.currentTimeMillis()));
+            while (pendingClosed.size() > 20) pendingClosed.remove(0);
+        } catch (Exception ignored) { }
+        flushClosed();
+    }
+
+    private void flushClosed() {
+        if (socket == null || !socket.connected()) return;
+        for (JSONObject c : pendingClosed) socket.emit(BleProtocol.EVENT_LINK_CLOSED, c);
+        pendingClosed.clear();
     }
 
     /** ✅ 들고 있던 «받았음»을 서버로 — 소켓이 끊겨 있으면 붙을 때(EVENT_CONNECT) 보낸다 */

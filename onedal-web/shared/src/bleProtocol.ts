@@ -18,6 +18,8 @@ export const SUPPLY_EVENTS = {
     fold: 'phone-fold',
     /** 관제앱 → 서버: 블루투스로만 아는 폰 사실(같은 서버를 보나 · 폰 연결 풀린 까닭 · 마지막 숨) — 원달앱 STATUS 를 관제앱이 받아 넘긴다 */
     status: 'phone-status',
+    /** 관제앱 → 서버: 관제앱이 한 폰의 블루투스 연결을 닫았다 — 까닭 · 붙어 있던 시간 · 마지막으로 들은 때(서버는 로그 한 줄만) */
+    linkClosed: 'phone-link-closed',
 } as const;
 
 export type SupplyDecisionAction = 'KEEP' | 'CANCEL' | 'SIMULATED_KEEP';
@@ -67,6 +69,22 @@ export interface PhoneStatus {
     heardAt?: number;
     /** 설명용 — 원달앱이 보는 서버 주소 */
     serverUrl?: string;
+}
+
+/** 📴 관제앱이 블루투스 연결을 닫은 한 번 — 원달앱은 «관제앱 끊김 (status N)»만 알고 까닭은 관제앱만 안다 */
+export interface PhoneLinkClosed {
+    /** 증명된 폰 번호 — 증명 전이면 null */
+    deviceId: string | null;
+    /** 폰 번호 또는 기기 주소(증명 전) */
+    name: string;
+    /** 관제앱 `closeLink` 의 까닭 글 */
+    why: string;
+    /** 붙기 시작한 뒤 닫을 때까지(ms) */
+    connectedMs: number;
+    /** 그 폰에게서 마지막으로 들은 뒤 닫을 때까지(ms) */
+    silentMs: number;
+    /** 닫은 때 — 관제앱 시계(ms) · 소켓이 끊겨 들고 있다 늦게 보낼 수 있다 */
+    at: number;
 }
 
 export interface PhoneDecisionAck {

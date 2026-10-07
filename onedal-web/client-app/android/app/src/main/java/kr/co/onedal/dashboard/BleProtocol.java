@@ -16,6 +16,7 @@ final class BleProtocol {
     static final String EVENT_DECISION_ACK = "phone-decision-ack";
     static final String EVENT_FOLD = "phone-fold";
     static final String EVENT_STATUS = "phone-status";
+    static final String EVENT_LINK_CLOSED = "phone-link-closed";
 
     /* 블루투스 — 스캔폰 원달앱이 여는 서비스와 칸 셋 */
     static final UUID SERVICE = UUID.fromString("6f1d1000-1da1-4b1e-9e00-0000000000a1");

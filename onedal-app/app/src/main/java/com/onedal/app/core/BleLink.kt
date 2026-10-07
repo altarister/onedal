@@ -143,7 +143,9 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
                 } else {
                     peers.remove(d.address)
                     if (central?.device?.address == d.address) {
-                        AppLogger.i(TAG, LogTag.NETWORK, "📶 [블루투스] 관제앱 끊김 (status $status)")
+                        /* 📴 마지막으로 받은 쓰기(숨 포함) — 5초 넘게 비었으면 관제앱이 «답 없음»으로, 아니면 다른 까닭으로 닫은 것(까닭은 관제앱이 서버 로그로) */
+                        val ago = if (lastWriteMs > 0) "${SystemClock.elapsedRealtime() - lastWriteMs}ms 전" else "없음"
+                        AppLogger.i(TAG, LogTag.NETWORK, "📶 [블루투스] 관제앱 끊김 (status $status) · 마지막으로 받은 쓰기 $ago")
                         central = null
                         outQ.clear(); notifying = false; big.reset()
                         setLinked(false)

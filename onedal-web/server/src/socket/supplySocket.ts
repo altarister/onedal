@@ -1,6 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import { SUPPLY_EVENTS, SUPPLY_NAMESPACE } from "@onedal/shared";
-import type { PhoneDecisionAck, PhoneStatus } from "@onedal/shared";
+import { clockText } from "@onedal/shared";
+import type { PhoneDecisionAck, PhoneLinkClosed, PhoneStatus } from "@onedal/shared";
 import { applyPhoneStatus } from "../state/phoneStatus";
 import { authSocket } from "./authSocket";
 import { webAccountGate } from "./webAccountGate";
@@ -19,6 +20,7 @@ import { deviceLabelOf } from "../core/deviceAuth";
  * - 들어오는 판단: 같은 JWT 검사(authSocket) → 관제웹과 같은 계정 막힘(webAccountGate)
  * - 붙으면 기사님 방에 들고 공급 값을 한 번 + «받았음» 안 온 결재를 다시 보낸다(원달앱은 같은 콜 결재를 한 번만 실행)
  * - 받는 것은 `phone-decision-ack` 하나 — 그 기사님 세션만 치우므로 남의 콜 번호가 와도 할 일이 없다
+ * - 📴 `phone-link-closed` 는 로그 한 줄만 — 관제앱이 블루투스를 닫은 까닭(원달앱은 «관제앱 끊김 (status N)»만 안다)
  */
 export function onSupplyConnection(io: Server, socket: Socket): void {
     const userId = socket.data.user.id as string;
@@ -33,6 +35,7 @@ export function onSupplyConnection(io: Server, socket: Socket): void {
     }));
     /* 📶 블루투스로만 아는 폰 사실 — 그 기사님 등록 폰만 받는다 (state/phoneStatus) */
     socket.on(SUPPLY_EVENTS.status, (s: PhoneStatus) => logContext.run({ who: whoLabel(socket.data.user?.name, userId), userId }, () => { applyPhoneStatus(userId, s); }));
+    socket.on(SUPPLY_EVENTS.linkClosed, (c: PhoneLinkClosed) => logContext.run({ who: whoLabel(socket.data.user?.name, userId), userId }, () => { slog('통신', linkClosedLine(c, Date.now())); }));
     socket.on("disconnect", (reason) => slog('통신', `📡 [공급 소켓] ${socket.data.user.name ?? userId} 관제앱 끊김 (${reason})`));
 }
 
@@ -41,4 +44,13 @@ export function registerSupplyNamespace(io: Server): void {
     nsp.use(authSocket);
     nsp.use(webAccountGate);
     nsp.on("connection", (socket: Socket) => logContext.run({ who: whoLabel(socket.data.user?.name, socket.data.user?.id), userId: socket.data.user?.id }, () => onSupplyConnection(io, socket)));
+}
+
+/** 📴 관제앱이 블루투스를 닫은 한 번 → 로그 한 줄. 소켓이 끊겨 늦게 닿았으면(5초 넘게) «늦게 닿음 N초» — 받은 것은 칸이 비어도 버리지 않는다 */
+export function linkClosedLine(c: Partial<PhoneLinkClosed>, nowMs: number): string {
+    const sec = (ms: unknown) => typeof ms === 'number' && Number.isFinite(ms) ? Math.round(ms / 1000) : '?';
+    const late = typeof c.at === 'number' && nowMs - c.at > 5_000 ? ` · 늦게 닿음 ${sec(nowMs - c.at)}초` : '';
+    const silent = typeof c.silentMs === 'number' ? `${Math.round(c.silentMs)}ms` : '?';
+    return `📴 [블루투스 닫음] 관제앱 → ${c.name ?? c.deviceId ?? '폰 모름'} · ${c.why ?? '까닭 없음'} · 붙어 있던 ${sec(c.connectedMs)}초`
+        + ` · 마지막으로 들은 지 ${silent} · 관제앱 ${clockText(c.at ?? NaN) ?? '--:--:--'}${late}`;
 }
