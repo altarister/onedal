@@ -1109,7 +1109,7 @@ describe('국면 전환 — 반경은 국면 설정만이 정한다', () => {
     /**
      * 🔴 **국면 전환은 도시를 안 보낸다.** `destinationCity` 를 실어 HOME 이면 집 시로 덮어쓰면,
      *    돌아올 때 `activeFilter || baseFilter` 가 이미 덮인 값에서 끝나 **목적지(파주)가 집 시(광주)로 굳는다.**
-     *    그물이 향하는 시는 `filterManager.goalCityOf` 가 `callTarget` 에서 **파생**한다.
+     *    그물이 향하는 시는 `filterGoals.goalCityOf` 가 `callTarget` 에서 **파생**한다.
      *    «어디로 가는가»는 여기서만 정한다 — 그 답이 `callTarget` 하나다.
      */
     it('국면 전환은 "어디로 가는가"만 정한다 (callTarget 하나 — 도시는 파생이다)', () => {

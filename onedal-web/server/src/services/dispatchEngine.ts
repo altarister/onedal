@@ -1550,7 +1550,7 @@ export async function setCallTarget(
             /**
              * 🏠 **시는 좌표로 뽑는다**. 주소 글자에서 「시」를 찾던 코드는 기사님
              *    실제 주소(`경기도 광주 초월 동광뷰엘`)에서 **실패해 복귀를 못 켰다.**
-             *    한 곳(`filterManager.homeCityOf`)이 좌표 → 시를 낸다 — `goalCityOf` 와 같은 답이다.
+             *    한 곳(`filterGoals.homeCityOf`)이 좌표 → 시를 낸다 — `goalCityOf` 와 같은 답이다.
              */
             city = homeCityOf(userId);
             if (!city) {
@@ -1566,7 +1566,7 @@ export async function setCallTarget(
         /**
          * 🔴 **`destinationCity` 를 안 보낸다** (전수 조사 ①-1).
          *    HOME 이면 집 시로 덮어쓰면 돌아올 때 원래 목적지가 없어진다 — 파주가 광주로 굳는다.
-         *    그물이 향하는 시는 `filterManager.goalCityOf` 가 `callTarget` 에서 **파생**한다.
+         *    그물이 향하는 시는 `filterGoals.goalCityOf` 가 `callTarget` 에서 **파생**한다.
          *    위의 `city` 는 «집 주소에서 시를 뽑을 수 있나» 확인과 로그용으로만 남는다.
          */
         const prevTarget = session.activeFilter.callTarget ?? 'DEST';

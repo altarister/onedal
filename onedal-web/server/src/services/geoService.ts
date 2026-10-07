@@ -185,7 +185,7 @@ export interface DetourRegions {
     /**
      * 동마다 **경로 몇 km 지점인가 — 동의 실제 자리** (순수 스냅점 · pad 없음 · Infinity 없음).
      *
-     * 띠로만 든 동의 지나온 구간 빼기 진행도가 이 값을 읽는다(`filterManager` netOfGoals 의 `touch`).
+     * 띠로만 든 동의 지나온 구간 빼기 진행도가 이 값을 읽는다(`filterNet` netKeywordsOf 의 `touch`).
      * 트림용 `progressKm` 은 pad · 하차원 Infinity 로 부풀려 있어 동의 자리를 말하지 못한다 — 한 값이 두 사실을 답하지 않게 둘로 둔다.
      *
      * 같은 이름의 동이 여럿이면 **경로에 가장 가까운 것**을 남긴다 — 목록에 든 이유가
@@ -610,7 +610,7 @@ export function regionsTouchingNetGrouped(o: {
     return regionsTouchingAreaGrouped({ bbox, inArea, points });
 }
 
-/** 🎯 **원에 걸친 읍·면·동 — 시·군·구로 묶어서** — 가까이 온 목적지의 하차 목록 (`filterManager.netKeywordsOf`) */
+/** 🎯 **원에 걸친 읍·면·동 — 시·군·구로 묶어서** — 가까이 온 목적지의 하차 목록 (`filterNet.netKeywordsOf`) */
 export function regionsTouchingCircleGrouped(center: { lng: number; lat: number }, km: number): Record<string, string[]> {
     return regionsTouchingAreaGrouped(circleArea(center, km));
 }
@@ -652,7 +652,7 @@ function cutTowardGoal(band: Array<[number, number]>):
  *    전부 좌표를 모르면 목적지 원 조건이 아예 안 걸린다.
  * 🔴 **목적지 원 여럿은 더한다(∪)** — 겹치면(∩) 두 원이 안 만날 때 영역이 비고, 빈 목록은 «고장»이다.
  * 🔴 **«경로 몇 km»를 안 본다** — 되돌아가는 경로에서 다시 지날 동이 빠지던 자리다.
- * 세션을 모른다 — `filterManager.rebuildPickupList` 가 값을 넘기고, 검사가 실제 지도로 이 함수를 부른다.
+ * 세션을 모른다 — `filterNet.rebuildPickupList` 가 값을 넘기고, 검사가 실제 지도로 이 함수를 부른다.
  */
 export function pickupListFor(o: {
     me: { x: number; y: number };
@@ -857,7 +857,7 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): Ci
  * 돌렸고, 정작 `getActivePolyline` 이 죽어 있어서 **한 번도 실행되지 않았다.**
  *
  * 지금은 경유를 만들 때 동마다 진행도를 같이 기록하고(`DetourRegions.progressKm`),
- * 이동 시에는 그 숫자만 비교한다 — `filterManager.applyTraveledTrim` (0.14ms).
+ * 이동 시에는 그 숫자만 비교한다 — `filterNet.applyTraveledTrim` (0.14ms).
  * 같은 일을 하는 두 번째 구현을 남겨 두지 않는다.
  */
 
@@ -1357,7 +1357,7 @@ export function processDriverMovement(
          *    (`DetourRegions.progressKm`), 지나온 구간 제거는 **숫자 비교**다 — 0.14ms.
          *    경유를 통째로 다시 그리는 것(173ms)보다 1200배 싸니 촘촘히 돌려도 된다. 촘촘할수록 필터가 실제 위치에 가깝다.
          *
-         *    실제 제거는 `filterManager.applyTraveledTrim` 한 곳에서만 한다
+         *    실제 제거는 `filterNet.applyTraveledTrim` 한 곳에서만 한다
          *    (동 목록·시 묶음·별칭을 **한 벌로** 줄여야 하므로). 여기서는 방아쇠만 당긴다.
          *    ⚠️ 필터 변경(`applyFilterCb`)과 **다른 통로**다 — 이유는 인자 주석에 있다.
          */

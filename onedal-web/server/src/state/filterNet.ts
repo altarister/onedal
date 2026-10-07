@@ -85,7 +85,7 @@ function netKeywordsOf(
      *    «내 위치 → 목적지»로 잰다(`holdRadiusDistance`). 합짐마다 «마지막 하차지 → 목적지»로 다시 재면
      *    목적지 앞에서 원이 거의 0 이 되어 관내콜도 가는 길의 좋은 콜도 못 받는다.
      *    비우는 곳: 다시 구하기(`null`) · 목적지 변경(`updateActiveFilter`) · 영업일 전환(`resetToBaseFilter`).
-     * 🔴 **계산은 `shared` 한 곳이다** — 관제웹 지도(`StageView` «상차» · «하차» 레이어 · `effectiveRadii`)가 **같은 함수**를 부른다.
+     * 🔴 **계산은 `shared` 한 곳이다** — 관제웹 지도(`useStageAreas` «상차» · «하차» 레이어 · `effectiveRadii`)가 **같은 함수**를 부른다.
      *    두 벌이면 «지도는 든다는데 판정은 탈락»이 된다 (규칙 ③).
      * ⚠️ **수동이면 손대지 않는다.** 그리고 거리를 못 재면 자동도 **받은 값 그대로** 둔다
      *    (`autoRadii` 안에서 걸러진다 · 규칙 ④).
@@ -130,7 +130,7 @@ function netKeywordsOf(
             : null;
     /* 그물 입력 한 벌 — 중심점 그물(`netForGoal`)과 걸친 동(`regionsTouchingNetGrouped`)이 같은 입력을 본다 (규칙 ③) */
     const netOpts = {
-        /* 🔷 **동선이면 경로를 안 본다** — 지도(`StageView` 의 `dropoffLine` · `pickupLine`)와 같은 분기다.
+        /* 🔷 **동선이면 경로를 안 본다** — 지도(`useStageAreas` 의 `dropoffLine` · `pickupLine`)와 같은 분기다.
            서버가 이 값을 안 보면 «동선»을 골라도 판정·앱 목록은 노선이 된다 */
         line: session.activeFilter.routeMode === false ? null : line,
         lineRadiusKm: auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
@@ -393,7 +393,7 @@ export function netOfGoals(session: ReturnType<typeof getUserSession>, userId: s
         const lastDrop = !z.hasCalls ? null
             : lastDropOf({ isHome: z.isHome, homeOn, homeCity, stops, calls: activeCalls });
         /**
-         * ✂️ **운행 뒤에는 라인을 현위치부터 쓴다** — 관제웹 지도(`StageView` 하차 띠)와 **같은 `lineFromPoint`**.
+         * ✂️ **운행 뒤에는 라인을 현위치부터 쓴다** — 관제웹 지도(`useStageAreas` 하차 띠)와 **같은 `lineFromPoint`**.
          *
          * 🔴 얼린 경로 그대로 쓰면 띠의 시작이 **콜을 잡던 자리**다. 띠 끝을 직각으로 잘라도(`lineZoneOf`)
          *    그 자름은 거기에 그어지므로, 지금 내 뒤에 있는 동이 여전히 «앞»으로 남는다 (#159).

@@ -594,7 +594,7 @@ export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldField
     capturedAt: string;               // 낚아챈 실제 타임스탬프
     /**
      * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
-     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterManager.goalCityOf`) — 좌표로 가르지 않는다.
+     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterGoals.goalCityOf`) — 좌표로 가르지 않는다.
      *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
      */
     goalCity?: string;
@@ -693,7 +693,7 @@ export interface MyOrder extends OfficeOrder {
     capturedAt: string;               // 낚아챈 실제 타임스탬프
     /**
      * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
-     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterManager.goalCityOf`) — 좌표로 가르지 않는다.
+     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterGoals.goalCityOf`) — 좌표로 가르지 않는다.
      *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
      */
     goalCity?: string;
@@ -767,7 +767,7 @@ export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldField
     capturedAt: string;
     /**
      * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
-     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterManager.goalCityOf`) — 좌표로 가르지 않는다.
+     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterGoals.goalCityOf`) — 좌표로 가르지 않는다.
      *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
      */
     goalCity?: string;
@@ -860,12 +860,12 @@ export interface AutoDispatchFilter {
     destinationKeywords: string[];  // (내부망) 앱 파싱용 읍/면/동 50개 키워드 배열
     /**
      * 📋 **상차 목록** — 원달앱이 상차지를 거르는 읍·면·동 목록 (기사님 확정 · 하차 목록»).
-     *    서버가 필터 영역에서 파생한다(`filterManager.rebuildPickupList`) · 저장하지 않는다. 아직 안 만들었으면 undefined.
+     *    서버가 필터 영역에서 파생한다(`filterNet.rebuildPickupList`) · 저장하지 않는다. 아직 안 만들었으면 undefined.
      */
     pickupKeywords?: string[];
     /**
      * 🗂️ **상차 목록을 시 · 군 · 구로 묶은 것** (기사님 «동 점 다시 넣어줘»).
-     *    서버가 `pickupKeywords` 와 함께 만든다(`filterManager.rebuildPickupList`) · 저장하지 않는다 · 원달앱에는 안 간다(`APP_FILTER_KEYS` 밖).
+     *    서버가 `pickupKeywords` 와 함께 만든다(`filterNet.rebuildPickupList`) · 저장하지 않는다 · 원달앱에는 안 간다(`APP_FILTER_KEYS` 밖).
      *    읽는 곳 둘: 하차 목록이 «시 + 동»으로 뺀다(`mergeDropoffGroups`) · 관제웹 지도 «동 점»이 찍는다(`dongDotsOf`).
      */
     pickupGroups?: Record<string, string[]>;
@@ -1041,7 +1041,7 @@ export const APP_FILTER_KEYS = [
     'isActive', 'isSharedMode',
     'pickupRadiusKm', 'destinationCity', 'destinationRadiusKm',
     'destinationKeywords', 'customCityFilters', 'keywordTraps',
-    /* 🏘️ 이름이 같은 다른 지역 동 — 그 동이 뜻하는 시군구 꼴 (regionMatch · filterManager refreshDongSigungu) */
+    /* 🏘️ 이름이 같은 다른 지역 동 — 그 동이 뜻하는 시군구 꼴 (regionMatch · filterNet refreshDongSigungu) */
     'destinationDongSigungu',
     /* 📋 상차 목록 — 칸이 없는 옛 서버를 받는 원달앱은 상차 반경(pickupRadiusKm)으로 돌아간다 */
     'pickupKeywords',
