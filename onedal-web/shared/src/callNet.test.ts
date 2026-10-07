@@ -17,7 +17,7 @@ const flat = (r: ReturnType<typeof buildNet>) => r.groups.flatMap(g => g.names);
  * 🔵 **하차 조각은 현위치 원을 도려낸다** (기사님 확정).
  *
  * 하차 영역은 «마름모 ∪ 목적지 원 − 현위치 원»이다 — 싣는 자리에 그대로 내리는 콜을 막으려는 것이고,
- * 지도 캔버스는 이미 그렇게 그린다(`PinnedRouteCanvas` 의 `destination-out`).
+ * 지도 캔버스는 이미 그렇게 그린다(`pinnedRouteLayers` 의 `paintDropoffMask` — `destination-out`).
  * 서버 판정(`makeInNet` · `excludeSrc`)도 같게 센다 — 현위치 원을 **OR 로 더하면** 같은 «하차 영역»을
  * 두 곳이 다르게 세어 화면과 목록이 갈라진다.
  *

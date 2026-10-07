@@ -946,7 +946,7 @@ export function lineFromPoint(line: Array<[number, number]>, pt: { lng: number; 
  * ✂️ **라인 앞쪽 — 시작점(현위치)에서 경로와 직각인 선으로 자른다** (기사님 «경로와 직각으로 잘릴 꺼라 생각했는데» · #151).
  * 경로 방향은 시작점에서 라인을 따라 `lookKm` 만큼 간 곳을 본다 — 첫 선분만 보면 짧게 꺾인 곳에서 방향이 흔들리고,
  * 꺾인 자리의 둥근 이음이 차 뒤를 다시 덮는다. 라인이 점 둘보다 적거나 길이가 없으면 `null`.
- * 읽는 곳: 서버 상차 목록(`geoService.pickupListFor`) · 지도 «상차» · «하차» 띠(`PinnedRouteCanvas` 의 `clipAhead`).
+ * 읽는 곳: 서버 상차 목록(`geoService.pickupListFor`) · 지도 «상차» · «하차» 띠(`pinnedRouteLayers` 의 `aheadCutOf`).
  */
 export function aheadOf(line: Array<[number, number]>, lookKm: number): { start: { lng: number; lat: number }; dir: { x: number; y: number } } | null {
     if (line.length < 2) return null;
@@ -1031,7 +1031,7 @@ export function lineZoneOf(
      *
      * 🔴 점에서 라인까지의 최단거리만 재면 **선분 끝에 반원이 붙어** 라인 시작(출발 자리) 뒤가
      *    띠 반경만큼 통째로 든다 — «도척면에서 잡아 경안동에 내리는» 역방향 콜이 통과한다.
-     *    상차(`geoService.pickupListFor`)·지도(`PinnedRouteCanvas` 의 `clipAhead`)·여기가 **같은 `aheadOf`** 로 잘라야
+     *    상차(`geoService.pickupListFor`)·지도(`pinnedRouteLayers` 의 `aheadCutOf`)·여기가 **같은 `aheadOf`** 로 잘라야
      *    점과 칠이 같은 자리를 말한다.
      */
     const aheadCut = line.length >= 2 ? aheadOf(line, lineRadiusKm) : null;
