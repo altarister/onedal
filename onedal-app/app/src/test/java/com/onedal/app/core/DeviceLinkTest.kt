@@ -8,7 +8,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🔐 **기기 비밀 토큰 · 연결 풀림** (운영센터 1단계 · reviews/29 · onedal-ab 이름 · onedal-1f «가»).
+ * 🔐 **기기 비밀 토큰 · 연결 풀림** (운영센터 1단계 · onedal-ab 이름 · onedal-1f «가»).
  * 폰 이름(«앱폰-기종-100~999»)만으로 자기를 밝혀, 같은 기종 두 폰이 겹치거나 남이 대입할 수 있었다.
  * 짝 때 받은 토큰을 요청마다 `X-Device-Token` 으로 싣고, 서버가 거절하면 띠를 띄우고 보고를 늦춘다.
  */

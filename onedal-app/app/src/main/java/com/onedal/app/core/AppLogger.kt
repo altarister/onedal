@@ -23,7 +23,7 @@ object AppLogger {
     private val SHOW_VERBOSE_LOGS = BuildConfig.DEBUG
 
     /**
-     * 🏷️ **태그를 말머리 맨 앞에** (reviews/22 2단계) — `#누름 👉 …`. 태그는 logcat 과 파일에 함께 찍힌다.
+     * 🏷️ **태그를 말머리 맨 앞에** — `#누름 👉 …`. 태그는 logcat 과 파일에 함께 찍힌다.
      * 태그 없이 찍으면 logcat 은 원문 그대로, 파일에는 `#없음`(경고·오류는 `#경고`)이 붙는다 — 서버 `fileLogger` 와 같은 방식.
      * 로그를 읽는 도구(채점기 · appLoop)는 줄 안의 글자를 `.*` 로 찾으므로 맨 앞 한 토막이 늘어도 그대로 읽힌다.
      */

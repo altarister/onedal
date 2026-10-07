@@ -44,12 +44,12 @@ interface IDispatchAppPlugin {
     val acceptButtons: List<String>?
 
     /**
-     * 📄 **페이지 정의 — 목록 · 상세 · 확정 · 내 오더의 칸이 화면 어디에 어떤 글자로 오나** (reviews/24).
+     * 📄 **페이지 정의 — 목록 · 상세 · 확정 · 내 오더의 칸이 화면 어디에 어떤 글자로 오나**.
      * 기본 구현을 두지 않는다 — 배차망마다 제 손으로 적는다. 칸 이름은 공통(`PageField`).
      */
     val pages: com.onedal.app.core.PageSpecs
 
-    /** 🖥️ **페이지 목록 — 화면 판별이 이 차례대로 읽는다** (reviews/35 · 생성 파일 `…Pages.screens`) */
+    /** 🖥️ **페이지 목록 — 화면 판별이 이 차례대로 읽는다** (생성 파일 `…Pages.screens`) */
     val screens: List<com.onedal.app.core.ScreenSpec>
 
     /** ✋ 팝업이 닫히는 동안 남은 잔상인가 — 팝업이 있는 배차망(인성)만 답한다 */

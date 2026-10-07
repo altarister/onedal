@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 📄 **세 배차망 모두 페이지 넷을 정의한다** (reviews/24 · 기사님 «정의되지 않았다고 버리는 것이 문제다»).
+ * 📄 **세 배차망 모두 페이지 넷을 정의한다** (기사님 «정의되지 않았다고 버리는 것이 문제다»).
  * 칸이 비었거나 한 페이지에 같은 칸이 둘이면 표가 흐려진다 — 모름 칸 수는 부팅 줄(`PageSpecSummary`)로 본다.
  */
 class PagesDefinedTest {

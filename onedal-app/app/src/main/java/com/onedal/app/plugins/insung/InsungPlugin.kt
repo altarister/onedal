@@ -33,7 +33,7 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
 
     override val availableModes: Set<String> = TargetApp.ALL_MODES
 
-    /** 📄 페이지 정의 — `InsungPages` (reviews/24) */
+    /** 📄 페이지 정의 — `InsungPages` */
     override val pages get() = InsungPages.pages
     override val screens get() = InsungPages.screens
 

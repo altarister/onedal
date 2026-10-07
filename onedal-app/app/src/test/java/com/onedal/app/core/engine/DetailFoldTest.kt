@@ -10,7 +10,7 @@ import java.io.File
 
 /**
  * ⏩ **앱이 연 나쁜 콜은 판정 뒤 서버가 준 남은 초에 목록으로** (기사님 «가» · onedal-ab 안 · onedal-1f).
- * 서버가 판정 끝에 관제앱 공급으로 FOLD{orderId, remainMs}를 보내고 관제앱이 블루투스로 넘긴다(🔴·벨 미만 · 앱이 연 콜만 · 서버 시계로 잰 남은 ms · reviews/50 ①-3).
+ * 서버가 판정 끝에 관제앱 공급으로 FOLD{orderId, remainMs}를 보내고 관제앱이 블루투스로 넘긴다(🔴·벨 미만 · 앱이 연 콜만 · 서버 시계로 잰 남은 ms).
  * 앱은 10 을 들지 않는다. 없으면 지금처럼 pickerAlarmDetailSec(30초).
  */
 class DetailFoldTest {
@@ -76,7 +76,7 @@ class DetailFoldTest {
         assertEquals(10_000L, g.fromJson("""{"orderId":"o","remainSec":9.7}""", FoldAfter::class.java).remainMsOrSec())
     }
 
-    /** 🔴 응답 한 칸의 모양 때문에 목록 보고 응답을 버리지 않는다 — 서버가 칸을 빼거나 null 로 보내도 받는다(1f) · 결재는 블루투스로 온다(reviews/50 ①-3) */
+    /** 🔴 응답 한 칸의 모양 때문에 목록 보고 응답을 버리지 않는다 — 서버가 칸을 빼거나 null 로 보내도 받는다(1f) · 결재는 블루투스로 온다 */
     @Test fun `응답의 기기 제어 칸은 없어도 받는다`() {
         val r = com.google.gson.Gson().fromJson("""{"success":true,"decision":{"orderId":"o1","action":null}}""", ScrapResponse::class.java)
         assertEquals(null, r.deviceControl)

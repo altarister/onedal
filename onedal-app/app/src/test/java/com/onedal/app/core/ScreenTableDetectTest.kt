@@ -12,7 +12,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🧪 **화면 판별은 배차망 정의 표대로** (reviews/35 2단계).
+ * 🧪 **화면 판별은 배차망 정의 표대로**.
  * 문제지 `onedal-web/shared/src/screenCases.json` — 실물 캡처 고정 글자 · 시뮬레이터 견본 · A24 폰이 올린 화면 원문.
  * 줄마다 `expect`(표 판별)와 같아야 한다. `was`(옛 판별)와 다른 줄이 2단계에서 바뀌는 화면 전부다 — 그 밖은 0.
  */
@@ -50,7 +50,7 @@ class ScreenTableDetectTest {
     }
 
     /**
-     * 📡 **서버로 보내는 값은 페이지 값** (reviews/35 5단계) — 원달앱 안 값의 팝업(POPUP_*)은 상세(DETAIL_*)로 · 목록 복귀 내 오더(LIST_COMPLETED)는 MY_ORDERS 로.
+     * 📡 **서버로 보내는 값은 페이지 값** — 원달앱 안 값의 팝업(POPUP_*)은 상세(DETAIL_*)로 · 목록 복귀 내 오더(LIST_COMPLETED)는 MY_ORDERS 로.
      * 그 밖은 안 값과 같다 · 표가 아는 화면이면 페이지 이름이 실린다.
      */
     @Test fun `보내는 값은 페이지 값 - 팝업은 상세 · 목록 복귀 내 오더는 MY_ORDERS`() {

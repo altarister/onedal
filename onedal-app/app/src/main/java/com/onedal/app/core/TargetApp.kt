@@ -31,13 +31,13 @@ object TargetApp {
     const val MODE_BEFORE_REPLY = "MANUAL"
 
     /**
-     * 📵 **서버 응답을 못 받았을 때의 모드** (reviews/44 2단계) — 자동만 알람으로 내린다. 결재가 올 길이 없어 자동으로 잡으면 안전취소(취소 횟수)로 끝나기 때문이다.
+     * 📵 **서버 응답을 못 받았을 때의 모드** — 자동만 알람으로 내린다. 결재가 올 길이 없어 자동으로 잡으면 안전취소(취소 횟수)로 끝나기 때문이다.
      * 알람 · 체험 · 직접은 그대로 — 소리만 내는 알람(픽커 포함)은 끊김 중에도 계속 돈다. 서버 `modeForPhone` 과 같은 꼴(자동만 알람).
      */
     fun modeWithoutServer(mode: String): String = if (mode == "AUTO") "ALARM" else mode
 
     /**
-     * 🎛️ **원달앱이 실제로 도는 모드 — 사실 넷으로** (reviews/50 ①-3 · 표 shared `modeTable.ts` · `ModeTablePairTest`).
+     * 🎛️ **원달앱이 실제로 도는 모드 — 사실 넷으로** (표 shared `modeTable.ts` · `ModeTablePairTest`).
      * @param supplied 관제앱이 블루투스로 마지막에 준 모드(저장) — 한 번도 못 받았으면(새 폰) 수동
      * @param linked 관제앱과 블루투스 공급 연결이 살아 있나 · @param serverAlive 관제앱이 «서버에 붙어 있다»고 알렸나 · @param replying 원달앱 보고가 서버에 닿나(44)
      * 셋 중 하나라도 거짓이면 결재가 올 길이 없어 자동만 알람 — 마지막 모드 · 필터로 알람은 계속 한다(기사님 1 가 · 49 ② 가).

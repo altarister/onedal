@@ -23,7 +23,7 @@ class TelemetryManager(
 
     companion object {
         private const val TAG = "1DAL_TELEMETRY"
-        /** 관제앱이 블루투스로 준 마지막 모드 — 관제앱이 없을 때 알람의 바탕(기사님 1 가 · reviews/50 ①-3) */
+        /** 관제앱이 블루투스로 준 마지막 모드 — 관제앱이 없을 때 알람의 바탕(기사님 1 가) */
         const val PREF_SUPPLIED_MODE = "suppliedMode"
         /**
          * 💓 **빈 통신 주기 — 목록 화면 15초 · 그 밖 60초 · 결재 대기 1초** (`heartbeatIntervalMs` 한 곳).
@@ -74,7 +74,7 @@ class TelemetryManager(
     // [Safety Mode V3] 현재 화면 상태 (HijackService에서 상태 전이 시 업데이트)
     @Volatile
     var currentScreenContext: ScreenContext = ScreenContext.UNKNOWN
-    /** 📡 서버로 보내는 화면 값 · 배차망 페이지 이름 · 덧칸 이름 — 상세 위 팝업도 페이지 값(DETAIL_*) · 내 오더는 MY_ORDERS (reviews/35 5단계) · 모르면 원달앱 안 값 */
+    /** 📡 서버로 보내는 화면 값 · 배차망 페이지 이름 · 덧칸 이름 — 상세 위 팝업도 페이지 값(DETAIL_*) · 내 오더는 MY_ORDERS · 모르면 원달앱 안 값 */
     var reportedScreen: ScreenContext? = null
     var screenPage: String? = null
     var screenOverlay: String? = null
@@ -236,7 +236,7 @@ class TelemetryManager(
     var currentMode: String = TargetApp.MODE_BEFORE_REPLY
 
     /**
-     * 🎛️ **도는 모드는 사실 넷으로 정한다** (reviews/50 ①-3 · `TargetApp.runningMode` · 표 shared `modeTable.ts`).
+     * 🎛️ **도는 모드는 사실 넷으로 정한다** (`TargetApp.runningMode` · 표 shared `modeTable.ts`).
      * 관제앱이 블루투스로 준 마지막 모드(저장 — 새 폰이면 없음) · 공급 연결 · 관제앱의 서버 연결(숨) · 원달앱 보고가 서버에 닿나(44).
      * 받기 전 보고에는 «도는 모드»를 싣지 않는다(기본값 MANUAL 이 «명령과 갈렸다»로 읽혔다 · `ModeFirstReportTest`).
      */
@@ -415,7 +415,7 @@ class TelemetryManager(
                     recomputeMode("보고 닿음")
                 }
             },
-            /* 📵 응답을 못 받으면 자동만 알람으로 — 결재가 올 길이 없다 · 다음 응답에서 공급 모드로 돌아온다 (reviews/44 2단계 · 블루투스만 살아도 남긴다) */
+            /* 📵 응답을 못 받으면 자동만 알람으로 — 결재가 올 길이 없다 · 다음 응답에서 공급 모드로 돌아온다 (블루투스만 살아도 남긴다) */
             onNoResponse = {
                 if (!lostReply) {
                     lostReply = true

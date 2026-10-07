@@ -6,7 +6,7 @@ import java.util.UUID
 import java.util.zip.GZIPInputStream
 
 /**
- * 📶 **관제앱 ↔ 원달앱 블루투스 틀 — 순수 함수** (reviews/50 ①-3 · 원천 shared `bleProtocol.ts` · 서버 jest `bleProtocolPair` 가 이 파일을 글자로 읽어 견준다).
+ * 📶 **관제앱 ↔ 원달앱 블루투스 틀 — 순수 함수** (원천 shared `bleProtocol.ts` · 서버 jest `bleProtocolPair` 가 이 파일을 글자로 읽어 견준다).
  * 작은 칸: 한 번 쓰기에 `[종류 1][본문 JSON]`(PHONE · DECISION · BREATH · FOLD) · 큰 칸: SUPPLY 만 `[길이 4 · 큰 끝][gzip JSON]` 을 조각으로 · 알림 칸(원달앱 → 관제앱): `[종류 1][본문 JSON]`(HELLO · ACK).
  */
 object BleFrames {

@@ -11,7 +11,7 @@ import java.nio.ByteBuffer
 import java.util.zip.GZIPOutputStream
 
 /**
- * 📶 **관제앱 공급을 블루투스로 받기** (reviews/50 ①-3) — 틀 읽기(`BleFrames`) · 도는 모드(`TargetApp.runningMode`) · 같은 결재 두 번.
+ * 📶 **관제앱 공급을 블루투스로 받기** — 틀 읽기(`BleFrames`) · 도는 모드(`TargetApp.runningMode`) · 같은 결재 두 번.
  * 틀 값(UUID · 종류 바이트)이 shared 와 같은지는 서버 jest `bleProtocolPair` 가 이 소스를 읽어 문다.
  * 못 잡는 것: 실제 블루투스로 오가는지 · 관제앱이 끊긴 것을 5초 안에 아는지(폰 시험).
  */

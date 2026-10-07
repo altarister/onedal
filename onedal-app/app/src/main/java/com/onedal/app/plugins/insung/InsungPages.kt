@@ -14,10 +14,10 @@ import com.onedal.app.core.Seen
 import com.onedal.app.core.StandardScreen
 
 /**
- * 📄 **인성 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/인성 · 시뮬 onedal-sim).
+ * 📄 **인성 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/인성 · 시뮬 onedal-sim).
  * ⚠️ 실물 인성 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처 몇 장이 근거다. 설치하면 이 표부터 다시 본다.
  *
- * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/networkPages.ts` 의 «insung» — 서버도 같은 표를 읽는다(reviews/34).
+ * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/networkPages.ts` 의 «insung» — 서버도 같은 표를 읽는다.
  */
 object InsungPages {
     val pages: PageSpecs = mapOf(
@@ -133,7 +133,7 @@ object InsungPages {
         listOf("인성퀵화면분할"),
     )
 
-    /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
+    /** 🖥️ 페이지 전부 — 차례가 판별 차례 · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
         ScreenSpec(
             "확정 뒤 상세",

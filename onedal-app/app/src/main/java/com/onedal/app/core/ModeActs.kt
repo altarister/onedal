@@ -1,7 +1,7 @@
 package com.onedal.app.core
 
 /**
- * 🎛️ **도는 모드 → 원달앱이 하는 일 — 한 곳** (reviews/44 · 표는 shared `modeTable.ts` 의 `acts` · `ModeTablePairTest` 가 견준다).
+ * 🎛️ **도는 모드 → 원달앱이 하는 일 — 한 곳** (표는 shared `modeTable.ts` 의 `acts` · `ModeTablePairTest` 가 견준다).
  * 목록 누름(`HijackService`) · 소리 · 확정(`appContractsOnOpen`) · 확정 막기(`AutoTouchManager`)가 모드 이름을 따로 견주지 않고 여기를 본다.
  * 모르는 모드 값은 누르지도 울리지도 확정하지도 않는다 — 모르면 잡지 않는다(규칙 ④).
  */

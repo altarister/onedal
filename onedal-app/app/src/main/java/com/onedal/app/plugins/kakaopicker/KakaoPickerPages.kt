@@ -14,11 +14,11 @@ import com.onedal.app.core.Seen
 import com.onedal.app.core.StandardScreen
 
 /**
- * 📄 **카카오 픽커 페이지 정의 — 화면 어디에 어떤 글자로 오나** (reviews/24 · 실물 캡처 ex_images/카카오픽커/실물_2026 · 실물 로그).
+ * 📄 **카카오 픽커 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/카카오픽커/실물_2026 · 실물 로그).
  * 칸 이름은 세 배차망 공통(`PageField`) — 여기에는 «어디서 · 어떤 글자로»만 적는다.
  * 안 읽는·버리는 칸(UNUSED·DROPPED)이 다음에 읽을 재료다.
  *
- * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/networkPages.ts` 의 «kakaopicker» — 서버도 같은 표를 읽는다(reviews/34).
+ * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/networkPages.ts` 의 «kakaopicker» — 서버도 같은 표를 읽는다.
  */
 object KakaoPickerPages {
     val pages: PageSpecs = mapOf(
@@ -84,7 +84,7 @@ object KakaoPickerPages {
         listOf("도착지에 전화하기"),
     )
 
-    /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
+    /** 🖥️ 페이지 전부 — 차례가 판별 차례 · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
         ScreenSpec(
             "홈(출근 전)",

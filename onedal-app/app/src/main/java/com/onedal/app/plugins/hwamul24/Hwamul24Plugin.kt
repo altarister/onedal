@@ -30,7 +30,7 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
 
     override val availableModes: Set<String> = TargetApp.ALL_MODES
 
-    /** 📄 페이지 정의 — `Hwamul24Pages` (reviews/24) */
+    /** 📄 페이지 정의 — `Hwamul24Pages` */
     override val pages get() = Hwamul24Pages.pages
     override val screens get() = Hwamul24Pages.screens
 

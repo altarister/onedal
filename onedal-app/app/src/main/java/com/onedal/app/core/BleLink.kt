@@ -26,7 +26,7 @@ import java.io.ByteArrayOutputStream
 import java.util.UUID
 
 /**
- * 📶 **관제앱 공급을 블루투스로 받는다 — 접근성 서비스 안 GATT 서버** (reviews/50 ①-3 · 틀은 `BleFrames`).
+ * 📶 **관제앱 공급을 블루투스로 받는다 — 접근성 서비스 안 GATT 서버** (틀은 `BleFrames`).
  * 관제앱(거는 쪽)이 이 폰에 붙어 필터(SUPPLY) · 이 폰 몫(PHONE: 모드 · 심사 중) · 결재(DECISION) · 빨리 접기(FOLD) · 숨(BREATH: 서버 살아 있음)을 쓴다.
  * - 광고: 서비스 UUID 는 광고 본문, 광고 표시(서버가 보고 답에 준 `bleAdTag` · 기사님 · 영업일)는 스캔 응답(31바이트 한계) — 관제앱은 표시가 맞는 폰에만 붙는다.
  * - 🔏 **주고받기 증명**(서명은 공중에 안 보낸다): 관제앱 CHALLENGE → 이 폰 HELLO `{deviceId, mac, nonce}` → 관제앱 PROOF.
@@ -248,7 +248,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
     }
 
     /**
-     * 📶 STATUS — 블루투스로만 아는 이 폰 사실(이 폰이 보는 서버의 표지 · 주소 · 폰 연결 풀린 까닭) · 증명된 관제앱에 · 바뀔 때만(reviews/50 ①-4).
+     * 📶 STATUS — 블루투스로만 아는 이 폰 사실(이 폰이 보는 서버의 표지 · 주소 · 폰 연결 풀린 까닭) · 증명된 관제앱에 · 바뀔 때만.
      * 다른 서버를 보거나 연결이 풀린 폰의 보고는 관제앱의 서버에 안 가므로, 이 길이 그 값의 유일한 길이다.
      */
     private fun sendStatusIfChanged() {

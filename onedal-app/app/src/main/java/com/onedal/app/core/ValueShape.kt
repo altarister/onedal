@@ -1,7 +1,7 @@
 package com.onedal.app.core
 
 /**
- * 🔢 **글자가 아니라 «값»인 것을 이름표로 바꾼다** — 모은 글자(`ScreenWords`)가 요금·시각마다 새 낱말로 불어나지 않게 (reviews/24).
+ * 🔢 **글자가 아니라 «값»인 것을 이름표로 바꾼다** — 모은 글자(`ScreenWords`)가 요금·시각마다 새 낱말로 불어나지 않게.
  * 짝은 서버 도구 `onedal-web/scripts/lib/wordKinds.mjs` 의 `VALUE_SHAPES` (`ValueShapePairTest` 가 정규식 글자와 이름표를 문다).
  * 모양 자체가 처음 보이면(«9월30일» 꼴) 이름표로 안 바뀐 채 올라간다 — 그게 배차망 형식이 바뀐 신호다.
  */

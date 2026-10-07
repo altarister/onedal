@@ -204,7 +204,7 @@ data class ScrapPayload(
     val deviceId: String,
     val data: List<SimplifiedOfficeOrder>,
     val screenContext: String? = null,  // [Safety Mode V3] 현재 화면 상태 (물리적 페이지)
-    /** 🧭 배차망 페이지 이름 · 그 위에 뜬 것(덧칸) 이름 — 배차망 정의 표의 이름 · 모르면 null (reviews/35 5단계) */
+    /** 🧭 배차망 페이지 이름 · 그 위에 뜬 것(덧칸) 이름 — 배차망 정의 표의 이름 · 모르면 null */
     val screenPage: String? = null,
     val screenOverlay: String? = null,
     val isHolding: Boolean = false,     // [Page/Hold 분리] 콜 처리 중 여부
@@ -245,14 +245,14 @@ data class ScrapPayload(
      * 열었거나 통과 콜이 없거나 누르는 모드가 아니면(알람 꺼짐 등) 안 싣는다. 관제웹 띠가 이 까닭을 따라간다
      */
     val openBlocked: String? = null,
-    /** 📰 칸에 안 들어간 글자 — 한 화면 몫 (`ScreenWords` · reviews/24). 모은 것이 없으면 안 싣는다 */
+    /** 📰 칸에 안 들어간 글자 — 한 화면 몫 (`ScreenWords`). 모은 것이 없으면 안 싣는다 */
     val screenWords: com.onedal.app.core.ScreenWordsReport? = null,
     /**
      * 🎛️ **이 배차망에서 실제로 도는 모드** — 폰 테두리 색과 같은 계산(`TargetApp.effectiveMode`).
      * 픽커는 자동이 없어 자동 명령이 알람으로 돈다. 명령과 다르면 관제웹 폰 카드가 둘 다 보인다.
      */
     val effectiveMode: String? = null,
-    /** 📶 관제앱이 블루투스로 준 마지막 모드 · 공급 연결 · 근처 기기 허락 · 배터리 예외 — 서버가 받아 적어 관제웹 «적용중» · 연결 배지를 그린다(reviews/50 ①-4) */
+    /** 📶 관제앱이 블루투스로 준 마지막 모드 · 공급 연결 · 근처 기기 허락 · 배터리 예외 — 서버가 받아 적어 관제웹 «적용중» · 연결 배지를 그린다 */
     val suppliedMode: String? = null,
     val supplyLinked: Boolean? = null,
     val nearbyPermitted: Boolean? = null,
@@ -329,7 +329,7 @@ data class ScrapResponse(
     val success: Boolean,
     // 🔴 응답 한 칸의 모양 때문에 목록 보고 응답을 버리지 않는다 — 서버가 빼거나 null 로 보내도 받는다(쓰는 곳에서 막는다)
     val apiStatus: ApiStatus? = null,
-    /** 본 콜 기억 번호(`callMemoryRound`)만 쓴다 — 모드는 관제앱이 블루투스로 준다(reviews/50 ①-3) */
+    /** 본 콜 기억 번호(`callMemoryRound`)만 쓴다 — 모드는 관제앱이 블루투스로 준다 */
     val deviceControl: DeviceControl? = null,
 )
 

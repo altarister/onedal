@@ -3,7 +3,7 @@ package com.onedal.app.core
 import com.onedal.app.core.engine.ScreenDetector
 
 /**
- * 🏁 **«먼저 가져감» 이상 기록 — 공통** (reviews/35 3 · 4단계).
+ * 🏁 **«먼저 가져감» 이상 기록 — 공통** (4단계).
  * 알림(토스트)이 배차망 정의 표의 알림(NOTICE) 덧칸에 맞으면 «다른 기사가 먼저 가져갔다»로 보고, 운영센터 «이상 기록»의 까닭 글을 만든다.
  * 어느 앱의 알림을 믿나는 플러그인 칸 `noticeSources` 가 정한다 — 여기에는 배차망 글자가 없다.
  */

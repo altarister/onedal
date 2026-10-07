@@ -7,7 +7,7 @@ enum class Seen { REAL, SIM, UNKNOWN }
 enum class Handling { READ, DROPPED, UNUSED }
 
 /**
- * 📄 **페이지 한 장의 칸 하나** (reviews/24).
+ * 📄 **페이지 한 장의 칸 하나**.
  * @param where 화면 어디 — 줄 · 배지 · 팝업 · 사진
  * @param sample 글자 모양 — 실물 예 그대로 (없으면 시뮬 예)
  * @param usedAt 읽는 곳(파일:함수) — 안 읽으면 빈칸
@@ -44,7 +44,7 @@ object PageSpecSummary {
 }
 
 /**
- * 🧭 **우리 기준 페이지** — 배차망 페이지를 우리 시스템의 어느 자리로 맞추나(reviews/35).
+ * 🧭 **우리 기준 페이지** — 배차망 페이지를 우리 시스템의 어느 자리로 맞추나.
  * shared `networkPages.ts` 의 `STANDARD_SCREENS` 와 이름 · 차례가 같다(`NetworkPagesPairTest`).
  * TRANSITION = 콜을 누른 직후 넘어가는 틀 · NETWORK_MENU = 배차망 안의 일이 아닌 화면(목록 복귀 아님).
  * 화면 판별(`ScreenDetector`)이 이 값을 `ScreenContext` 로 바꿔 보낸다.
@@ -73,7 +73,7 @@ data class ScreenMatch(
 
 /**
  * 🛠️ **이 덧칸이 보이면 원달앱이 할 일** — 건너뛰기(로딩) · 팝업으로 상세 채우기(인성 출발지 · 도착지 · 적요) · 오류(아무것도 안 누름).
- * 서버로 보내는 화면 값은 페이지 값 그대로이고 덧칸 이름이 따로 간다(reviews/35 5단계).
+ * 서버로 보내는 화면 값은 페이지 값 그대로이고 덧칸 이름이 따로 간다.
  */
 enum class OverlayAction { SKIP, FILL_PICKUP, FILL_DROPOFF, FILL_MEMO, ERROR }
 

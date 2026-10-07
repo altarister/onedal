@@ -11,7 +11,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🔗 **짝 — 원달앱 화면 정의 세 벌과 shared 배차망 정의 표가 같다** (reviews/34 2단계 · 기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
+ * 🔗 **짝 — 원달앱 화면 정의 세 벌과 shared 배차망 정의 표가 같다** (기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
  * 원천은 `onedal-web/shared/src/networkPages.ts` 한 장이고, 원달앱 `…Pages.kt` 셋은 `pnpm gen:pages` 가 뽑은 생성 파일이다.
  * 표를 고치고 안 뽑으면(또는 Pages.kt 를 손으로 고치면) 여기서 빨갛다 — 칸 · 자리 글 · 견본 · 본 곳 · 읽나 · 읽는 곳 · 읽는 법까지 견준다.
  */

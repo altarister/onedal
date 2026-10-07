@@ -379,7 +379,7 @@ class InsungParser(private val context: Context) : IScrapParser {
 
             // ── 로그 출력 (디버깅용) ──
             val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
-            // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다 · reviews/22)
+            // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다)
             if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear$isDetailPreConfirmStage")) {
                 val screenCtxLog = if (isDetailPreConfirmStage) "DETAIL" else "LIST"
             

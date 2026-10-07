@@ -9,7 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 🧪 **원달앱 운행 규칙을 동작으로 문다** (reviews/code_review_1007 P0 — 소스 글자 검사로는 뚫리던 규칙).
+ * 🧪 **원달앱 운행 규칙을 동작으로 문다**.
  * 규칙마다 «일어나면 안 되는 경우»와 «일어나야 하는 경우(대조)»를 함께 둔다.
  * 못 잡는 것: 접근성 노드 · 블루투스 GATT · 화면 스레드 위의 실제 배선(함수를 부르는 자리는 BleFramesTest · ModeTablePairTest 의 글자 검사가 본다).
  */

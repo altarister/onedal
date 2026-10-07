@@ -366,7 +366,7 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  📶 관제앱 공급 받기 (reviews/50 ①-3 · 한 값 한 길 — 보고 응답으로는 받지 않는다)
+    //  📶 관제앱 공급 받기 (한 값 한 길 — 보고 응답으로는 받지 않는다)
     // ════════════════════════════════════════════════════════════════
 
     private var bleLink: com.onedal.app.core.BleLink? = null
@@ -570,7 +570,7 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         AppLogger.attachFile(this)
         AppLogger.i(TAG, LogTag.BOOT, "📝 [로그 파일] 여기에 쌓는다 — ${AppLogger.filePath ?: "열지 못했다"}")
-        // 📄 배차망 페이지 정의 — «모름» 칸이 실물 확인 목록 · «버림»·«안 읽음» 칸이 다음에 읽을 재료 (reviews/24)
+        // 📄 배차망 페이지 정의 — «모름» 칸이 실물 확인 목록 · «버림»·«안 읽음» 칸이 다음에 읽을 재료
         for (p in com.onedal.app.plugins.DispatchPluginRegistry.all())
             AppLogger.i(TAG, LogTag.BOOT, "📄 [페이지 정의] ${com.onedal.app.core.PageSpecSummary.line(p.label, p.pages)}")
 
@@ -583,7 +583,7 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager = TelemetryManager(apiClient, this, waitBook)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
 
         touchManager = AutoTouchManager(this, waitBook)
-        /* 📶 관제앱 공급을 블루투스로 받는다 — 필터 · 이 폰 몫(모드 · 심사 중) · 결재 · 빨리 접기 · 숨 (reviews/50 ①-3 · `BleLink`) · 콜백은 메인 스레드 */
+        /* 📶 관제앱 공급을 블루투스로 받는다 — 필터 · 이 폰 몫(모드 · 심사 중) · 결재 · 빨리 접기 · 숨 (`BleLink`) · 콜백은 메인 스레드 */
         bleLink = com.onedal.app.core.BleLink(this, { apiClient.getDeviceId() }, bleListener).also { it.start() }
         // 🚚 배차망 차종 낱말을 우리 차종에 못 맞췄다 — 이상 기록 «VEHICLE_UNKNOWN: 낱말»(같은 낱말은 하루 한 번 · `VehicleWordMiss`)
         com.onedal.app.core.VehicleWordMiss.sink = { network, word, line ->
@@ -1999,7 +1999,7 @@ class HijackService : AccessibilityService(), ScanContext {
     /**
      * 🖥️ **이 화면이 무엇인가 — 한 곳에서 답한다** (규칙 ③).
      *
-     * 그 배차망 정의 표(`…Pages.screens`)의 차례대로 처음 맞는 페이지가 답이다(`ScreenDetector` · reviews/35).
+     * 그 배차망 정의 표(`…Pages.screens`)의 차례대로 처음 맞는 페이지가 답이다(`ScreenDetector`).
      * 표가 모르는 화면이면 패키지로 바탕화면 · 배차망 밖 앱을 가린다.
      * 붙는 순간 화면은 건너뛰는 덧칸(로딩)을 보지 않고 페이지 값을 쓴다 — «본 것»을 말한다.
      */
@@ -2037,7 +2037,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /**
      * 📡 화면 값을 정하고 서버에 알린다 — 원달앱 안 값(`context`)과 서버로 보내는 값(페이지 값 · 페이지 이름 · 덧칸 이름)을 함께.
-     * 표가 모르는 화면(바탕화면 · 배차망 밖 · 모름)은 보내는 값도 그 값이고 이름은 없다 (reviews/35 5단계).
+     * 표가 모르는 화면(바탕화면 · 배차망 밖 · 모름)은 보내는 값도 그 값이고 이름은 없다.
      */
     private fun updateScreenContext(context: ScreenContext, read: com.onedal.app.core.engine.ScreenRead?) {
         val known = read != null && read.context != ScreenContext.UNKNOWN
@@ -2088,7 +2088,7 @@ class HijackService : AccessibilityService(), ScanContext {
             AppLogger.roadmap(LogTag.DECISION, "🐥 [체험 모드] 관제탑 판결 $decision 수신 → 안전한 뒤로가기(Back) 집행", telemetryManager.currentScreenContext.name)
             AppLogger.d(TAG, LogTag.DECISION, "🐥 [체험] 실서버 버튼을 누르지 않고 GLOBAL_ACTION_BACK 실행")
             waitBook.schedule("체험 결재 뒤 뒤로", com.onedal.app.core.WaitBook.SESSION, 300) {
-                // 🔙 다른 자동 뒤로처럼 확정 전 상세일 때만 — 결재가 늦어 이미 목록이면 누르지 않는다(시뮬 홈으로 가 콜이 멈춘다 · reviews/46)
+                // 🔙 다른 자동 뒤로처럼 확정 전 상세일 때만 — 결재가 늦어 이미 목록이면 누르지 않는다(시뮬 홈으로 가 콜이 멈춘다)
                 if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
                     lastBackAtMs = android.os.SystemClock.elapsedRealtime()
                     touchManager.performBack("체험 결재")

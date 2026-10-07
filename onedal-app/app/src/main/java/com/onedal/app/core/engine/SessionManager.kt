@@ -101,7 +101,7 @@ class SessionManager {
     var settledOpener: String? = null
     /** 🏁 그 콜을 누르기로 정한 목록 읽기의 시각(부팅 기준) — «발견→누름 ms» (먼저 가져감 한 줄) */
     var alarmFoundAtMs: Long = 0L
-    /** 🧾 앱이 그 콜을 누른 화면 — 화면 값 · 배차망 페이지 이름 («먼저 가져감» 이상 기록의 화면 칸 · 까닭 글 · reviews/35 3단계) */
+    /** 🧾 앱이 그 콜을 누른 화면 — 화면 값 · 배차망 페이지 이름 («먼저 가져감» 이상 기록의 화면 칸 · 까닭 글) */
     var alarmTappedScreen: com.onedal.app.models.ScreenContext? = null
     var alarmTappedPage: String? = null
 

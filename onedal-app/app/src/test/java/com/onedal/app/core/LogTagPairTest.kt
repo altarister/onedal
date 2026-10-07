@@ -6,7 +6,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🏷️ **로그 태그 — 원달앱과 서버·관제웹이 같은 열 낱말** (reviews/22 2단계 · 기사님 «시작해»)
+ * 🏷️ **로그 태그 — 원달앱과 서버·관제웹이 같은 열 낱말** (기사님 «시작해»)
  * 짝: `onedal-web/shared/src/logTags.ts` ↔ 원달앱 `LogTag.kt`. 한쪽만 바꾸면 여기서 빨갛다.
  */
 class LogTagPairTest {

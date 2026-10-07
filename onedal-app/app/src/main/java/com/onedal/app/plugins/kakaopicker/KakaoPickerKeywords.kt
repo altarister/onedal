@@ -218,7 +218,7 @@ object KakaoPickerKeywords {
     /**
      * 📋 **«내 오더» 탭** — «목록 지도»(머리 토글)가 있고 «리스트 설정» · «수락하기»가 없다 (실물 라이브 09-16 04:36).
      * 그날 신규 리스트 기록 4건에는 «목록 지도»가 한 번도 없었다 («수요지도»는 리스트에도 있어 못 쓴다).
-     * 🔴 화면 판별(«내 오더» 화면 값)은 배차망 정의 표가 한다 — 여기는 수락 확인(`isAcceptedEvidence`)만 쓴다(표와 같은 글자 · reviews/35 4단계에서 표로).
+     * 🔴 화면 판별(«내 오더» 화면 값)은 배차망 정의 표가 한다 — 여기는 수락 확인(`isAcceptedEvidence`)만 쓴다(표와 같은 글자).
      */
     fun isMyOrderTab(rawText: String?): Boolean {
         val t = rawText ?: return false

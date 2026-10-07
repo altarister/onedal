@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** 🔕 같은 말을 되풀이하지 않는다 — 로그 줄이기 ①-3 (reviews/22 · 기사님 «시작해») */
+/** 🔕 같은 말을 되풀이하지 않는다 — 로그 줄이기 ①-3 (기사님 «시작해») */
 class LogOnceTest {
 
     @Test fun `같은 글자는 한 번만 - 바뀌면 다시`() {

@@ -1,7 +1,7 @@
 package com.onedal.app.core
 
 /**
- * 🔐 **기기 비밀 토큰 · 연결 풀림** (운영센터 1단계 · reviews/29 · 이름은 onedal-ab 서버와 같다 · `DeviceLinkTest`).
+ * 🔐 **기기 비밀 토큰 · 연결 풀림** (운영센터 1단계 · 이름은 onedal-ab 서버와 같다 · `DeviceLinkTest`).
  * 짝(`/api/devices/pair`) 때 받은 토큰을 요청마다 [HEADER] 로 싣는다. 서버가 거절하면 까닭을 폰에 적어
  * 첫 화면 띠와 보고 간격(60초)이 읽는다. 짝이 다시 되거나 서버가 다시 받아 주면 지운다.
  */

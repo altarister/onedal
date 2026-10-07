@@ -155,7 +155,7 @@ class ApiClient(private val context: Context) {
         apiName: String,
         timeoutMs: Int = 10000,
         maxRetries: Int = 2,
-        /** 1초마다 되풀이되는 보고(scrap)는 시작·완료 줄을 찍지 않는다 — 실패 줄은 그대로 남는다 (reviews/22) */
+        /** 1초마다 되풀이되는 보고(scrap)는 시작·완료 줄을 찍지 않는다 — 실패 줄은 그대로 남는다 */
         quiet: Boolean = false,
         /** 📵 시도 하나가 실패할 때마다 — 재시도를 기다리지 않고 알아야 하는 쪽(보고의 모드 내리기)만 넘긴다 */
         onAttemptFailed: (() -> Unit)? = null,
@@ -273,7 +273,7 @@ class ApiClient(private val context: Context) {
     /**
      * 스크랩 버퍼 벌크 전송 (텔레메트리)
      * @param payload ScrapPayload 기본 정보
-     * 🔴 필터 · 모드 · 심사 중 · 결재 · 빨리 접기는 여기서 받지 않는다 — 관제앱이 블루투스로 준다(`BleLink` · reviews/50 ①-3 · 한 값 한 길).
+     * 🔴 필터 · 모드 · 심사 중 · 결재 · 빨리 접기는 여기서 받지 않는다 — 관제앱이 블루투스로 준다(`BleLink` · 한 값 한 길).
      * @param onReplied 서버가 200 으로 답했다 — 받는 쪽이 «보고가 닿는다» 사실을 켠다(44)
      * @param onCallMemoryRound 서버가 시뮬레이터 회차를 실어 보냈을 때 콜백 (본 콜 기억 비우기)
      */
@@ -281,7 +281,7 @@ class ApiClient(private val context: Context) {
         payload: ScrapPayload,
         onReplied: () -> Unit,
         onCallMemoryRound: ((Int) -> Unit)? = null,
-        /** 📵 서버 응답을 못 받았다 — 첫 실패 · 200 이 아닌 응답 · 응답을 못 읽음 (reviews/44 2단계 · 받는 쪽이 자동을 알람으로 내린다) */
+        /** 📵 서버 응답을 못 받았다 — 첫 실패 · 200 이 아닌 응답 · 응답을 못 읽음 (받는 쪽이 자동을 알람으로 내린다) */
         onNoResponse: () -> Unit = {},
     ) {
         telemetryExecutor.submit {

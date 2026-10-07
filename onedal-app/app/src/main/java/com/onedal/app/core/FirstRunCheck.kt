@@ -1,7 +1,7 @@
 package com.onedal.app.core
 
 /**
- * 🩺 **첫 실행 점검 — 줄마다 초록/빨강** (운영센터 4단계 · reviews/29 · `FirstRunCheckTest`).
+ * 🩺 **첫 실행 점검 — 줄마다 초록/빨강** (운영센터 4단계 · `FirstRunCheckTest`).
  * 딸 폰에 개발자 없이 설치할 때 기사님 대신 «무엇이 빠졌나»를 한 화면에 보인다. 판단은 여기 한 곳 — 화면은 그리기만 한다.
  * [mustShow] 는 앱을 켤 때 이 화면을 먼저 띄울지 — 고칠 수 없는 빨강(안드로이드 버전)과 «닿은 적 있는 서버의 빨강»은 세지 않는다.
  */
@@ -20,7 +20,7 @@ object FirstRunCheck {
         val live: Boolean, val serverUrl: String, val lastReplyAtMs: Long, val nowMs: Long,
         val hasToken: Boolean, val unlinkedWhy: String?,
         val accessibilityOn: Boolean, val batteryExempt: Boolean, val sdkInt: Int,
-        /** 📶 «근처 기기»(블루투스 광고 · 연결) 허락 — 없으면 관제앱과 못 붙는다(reviews/50 ①-3) */
+        /** 📶 «근처 기기»(블루투스 광고 · 연결) 허락 — 없으면 관제앱과 못 붙는다 */
         val nearbyPermitted: Boolean = true,
     )
 

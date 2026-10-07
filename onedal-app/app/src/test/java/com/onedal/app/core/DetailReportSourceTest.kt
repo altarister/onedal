@@ -8,7 +8,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🏷️ **상세 보고도 실물/시뮬 한 칸을 싣는다** — 목록 보고(`ScrapPayload.source`)와 같은 값 (reviews/25 · 통계는 실물만 센다).
+ * 🏷️ **상세 보고도 실물/시뮬 한 칸을 싣는다** — 목록 보고(`ScrapPayload.source`)와 같은 값 (통계는 실물만 센다).
  * 없으면 픽커 상세 장부 줄의 출처가 비어 실물 거르기에서 빠진다.
  */
 class DetailReportSourceTest {

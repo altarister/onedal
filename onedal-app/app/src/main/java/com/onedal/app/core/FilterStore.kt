@@ -40,7 +40,7 @@ object FilterStore {
     }
 
     /**
-     * 📦 **관제앱이 블루투스로 준 필터를 저장한다 — 한 곳** (reviews/50 ①-3 · SUPPLY `{filter, filterVersion}`).
+     * 📦 **관제앱이 블루투스로 준 필터를 저장한다 — 한 곳** (SUPPLY `{filter, filterVersion}`).
      * 서버가 보낸 원문을 그대로 둔다 — 되말면 null 칸이 사라져 앱 필터가 서버와 갈라진다(org.json 은 null 을 그대로 쓴다).
      * 판을 함께 저장한다 — 보고에 «들고 있는 판»으로 실어 서버가 견준다(phoneCheck).
      * @return 판이 바뀌었으면 새 판(부른 쪽이 지금 목록을 다시 판정) · 처음 받았거나 같으면 null

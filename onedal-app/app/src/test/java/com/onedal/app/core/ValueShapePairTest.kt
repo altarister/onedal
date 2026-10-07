@@ -6,7 +6,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🔢 **값 모양 — 원달앱이 싣기 전에 바꾸는 이름표와 서버 도구의 가름이 한 벌** (reviews/24).
+ * 🔢 **값 모양 — 원달앱이 싣기 전에 바꾸는 이름표와 서버 도구의 가름이 한 벌**.
  * 짝: `onedal-web/scripts/lib/wordKinds.mjs` 의 `VALUE_SHAPES` ↔ `ValueShape.kt`. 정규식 글자와 이름표가 같아야 한다.
  */
 class ValueShapePairTest {

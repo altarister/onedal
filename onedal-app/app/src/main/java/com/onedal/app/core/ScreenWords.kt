@@ -30,7 +30,7 @@ fun pageOf(ctx: com.onedal.app.models.ScreenContext): Page? = when (ctx) {
 data class ScreenWordsReport(val page: String, val words: List<ScreenWord>)
 
 /**
- * 📰 **칸에 안 들어간 글자를 버리지 않고 모으는 한 곳** (reviews/24 · 기사님 «정의되지 않았다고 버리는 것이 문제다 —
+ * 📰 **칸에 안 들어간 글자를 버리지 않고 모으는 한 곳** (기사님 «정의되지 않았다고 버리는 것이 문제다 —
  * 앱이 리뉴얼됐을 때 알아보게»). 파서가 글자를 뺄 때 까닭(잡음 · 못 알아봄 · 남는 토막)과 함께 여기 넣고,
  * 보고를 만들 때(`TelemetryManager`) 한 화면 몫을 꺼내 싣는다. 서버가 배차망 · 페이지 · 낱말별로 처음·마지막·횟수를 센다.
  *

@@ -11,14 +11,14 @@ import com.onedal.app.models.ScreenContext
 /**
  * 🖥️ **이 화면은 무엇인가 — 원달앱이 본 결과**
  * @param context 원달앱 안에서 쓰는 화면 값 — 덧칸이 시키는 일(팝업 채우기 POPUP_* · 오류 POPUP_ERROR)과 목록 복귀(LIST_COMPLETED)를 담는다(처리 갈래 · 상세 대기 · 목록 복귀가 이 값을 본다)
- * @param wire 서버로 보내는 화면 값 — 페이지 값 그대로(상세 위 팝업도 DETAIL_* · 내 오더는 MY_ORDERS) · 덧칸 이름과 페이지 이름이 따로 간다(reviews/35 5단계)
+ * @param wire 서버로 보내는 화면 값 — 페이지 값 그대로(상세 위 팝업도 DETAIL_* · 내 오더는 MY_ORDERS) · 덧칸 이름과 페이지 이름이 따로 간다
  * @param page 배차망 페이지 이름(없으면 null) · @param overlay 그 위에 뜬 것 이름(팝업 · 토스트 · 띠 — 없으면 null)
  * @param skip 건너뛰는 화면(로딩 등)이 덮여 있다 — 이 프레임은 처리하지 않는다
  */
 data class ScreenRead(val context: ScreenContext, val wire: ScreenContext, val page: String?, val overlay: String?, val skip: Boolean)
 
 /**
- * 화면 판별 — **그 배차망 정의 표(`…Pages.screens`)의 차례대로, 처음 맞는 페이지** (reviews/35 2 · 5단계).
+ * 화면 판별 — **그 배차망 정의 표(`…Pages.screens`)의 차례대로, 처음 맞는 페이지** (5단계).
  * 이 파일에는 배차망 글자가 없다 — 글자는 표(shared `networkPages.ts` → `pnpm gen:pages`)에만 있다.
  *
  * 차례:

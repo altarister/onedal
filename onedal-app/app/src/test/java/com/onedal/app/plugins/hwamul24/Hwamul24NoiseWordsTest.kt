@@ -7,7 +7,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🔇 **화물24시 잡음 낱말 — 서버 파일 `keywords_24.json` 과 파서 기본값은 짝이다** (reviews/35 5단계).
+ * 🔇 **화물24시 잡음 낱말 — 서버 파일 `keywords_24.json` 과 파서 기본값은 짝이다**.
  *
  * 원달앱은 서버 사전(`GET /api/config/keywords?app=24시`)을 받아 쓰되, 못 받으면 파서 기본값(`NOISE_WORDS`)으로 돈다.
  * 🔴 `keywords_24.json` 에는 인성 낱말이 일부러 남아 있다 — 사전은 부팅 때 배차망 하나 몫만 받고 갈아타도 다시 안 받아,

@@ -1,7 +1,7 @@
 package com.onedal.app.core
 
 /**
- * 📄 **배차망 페이지 정의의 공통 이름 — 세 배차망이 같은 낱말** (reviews/24).
+ * 📄 **배차망 페이지 정의의 공통 이름 — 세 배차망이 같은 낱말**.
  * 짝은 `onedal-web/shared/src/pageFields.ts` (`PageFieldPairTest` 가 낱말과 차례를 문다).
  * 배차망마다 다른 것은 «화면 어디서 · 어떤 글자로»뿐 — 그것은 플러그인 폴더의 `…Pages.kt` 가 적는다.
  */
