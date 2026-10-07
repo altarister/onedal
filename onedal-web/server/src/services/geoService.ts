@@ -1,3 +1,8 @@
+/**
+ * 🗺️ **지도 읽기 · 이름** — 부팅 때 전국 읍면동 지도를 한 번 읽어 들고(모듈 상태는 여기에만) · 시 별칭 · 지명 사전 · 함정 낱말 · 고를 시 목록 · 좌표 → 동 이름.
+ * 🔴 이 파일은 지역 셈(geoRegions) · 기점 · 도착(geoMotion)을 가져오지 않는다 — 둘이 이 파일을 읽는다.
+ * 바깥 일을 하는 함수: initGeoService(지도 파일 읽기 · 로그) (나머지는 들고 있는 지도 자료와 받은 값만 본다)
+ */
 import fs from 'fs';
 import path from 'path';
 import { sidoOf, sggList } from '@onedal/shared';

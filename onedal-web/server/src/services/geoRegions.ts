@@ -1,6 +1,7 @@
 /**
  * 🗺️ **지역 셈** — 경로 둘레(경유) · 도시 둘레 · 영역에 걸친 읍면동 · 상차 목록 · 도착 목표 합치기. 지도 자료(geoService)를 읽어 동 목록을 낸다.
  * 🔴 이 파일은 위(geoMotion)를 가져오지 않는다 — 방향: geoMotion · geoRegions → geoService(지도 읽기 · 이름).
+ * 바깥 일을 하는 함수: 없음 (모두 값만 받는다 — 지도 자료는 부팅 때 한 번 읽은 것 · getDetourRegions 는 그리기 실패를 오류 로그로 남긴다)
  */
 import { haversineKm, isPickupListName, cityCenter, distToLineKm, aheadOf, isAheadOf, lineFromPoint, netAreaTesterOf } from '@onedal/shared';
 import type { NetPoint, NetParams } from '@onedal/shared';

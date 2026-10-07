@@ -1,6 +1,7 @@
 /**
  * 🧭 **기점 · 위치 · 도착** — 지금 기점(GPS · 집) · 경로 위 위치 · GPS 이동 처리 · 정거장 도착/지나침 감지.
  * 🔴 이 파일은 지역 셈(geoRegions)을 가져오지 않는다 — 방향: geoMotion · geoRegions → geoService(지도 읽기 · 이름).
+ * 바깥 일을 하는 함수: originOf · homeOriginOf(설정 저장소) · processDriverMovement · watchArrival(세션 · 지금 시각 · 궤적 저장 · 로그 · 알림 콜백) (나머지는 값만 받는다 — 경로 위 위치는 turf · 지금 시각은 인자로)
  */
 import { getActiveCalls } from '../core/helpers';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
@@ -275,6 +276,14 @@ export function originOf(
     },
     nowMs: number = Date.now(),
 ): DriverOrigin | null {
+    return originFixFrom(session, nowMs) ?? homeOriginOf(session.userId);
+}
+
+/** 📍 받은 좌표가 지금 기점이 되나 — 값만 받는 셈 (좌표 · 받은 시각 · 가짜인가 · 출처 · 국면 · 모의 주행 임자 · 지금 시각) · 못 쓰면 null */
+export function originFixFrom(
+    session: Omit<Parameters<typeof originOf>[0], 'userId'>,
+    nowMs: number,
+): DriverOrigin | null {
     const fix = session.lastFix;
     const fresh = !!fix && session.lastFixAt != null && nowMs - session.lastFixAt <= DRIVER_LOCATION_STALE_MS;
     /* 🔴 가짜 좌표는 **콜을 쥔 동안에만** «지금 위치»다 (기사님 *"출발을 해야 상차를 하지"*) */
@@ -291,8 +300,7 @@ export function originOf(
     if (fix && fresh && mockUsable) {
         return { x: fix.x, y: fix.y, source: session.lastFixSource ?? 'gps', isFallback: false };
     }
-
-    return homeOriginOf(session.userId);
+    return null;
 }
 
 /**
@@ -357,6 +365,25 @@ export function lastKnownPositionOf(
  * 도착 판정 한 틱 — **순수 함수** (L2 검증용).
  * 속도를 모르면(null) 정지로 치지 않는다 — 없는 숫자를 지어내지 않는다 (규칙 ④).
  */
+/** 🚗 **한 틱의 움직임** — 값만 받는 셈 (직전 좌표 · 직전 시각 · 지금 좌표 · 지금 시각 · 출처). 표본이 작으면 «너무 빠름»을 안 울린다 */
+export function movementFrom(prev: { x: number; y: number }, prevAtMs: number, gps: { x: number; y: number }, nowMs: number, src: string) {
+    const movedKm = haversineKm(prev, gps);
+    const elapsedS = Math.max(0.001, (nowMs - prevAtMs) / 1000);
+    const kmh = (movedKm / elapsedS) * 3600;
+    const teleported = movedKm >= GPS_JUMP_MIN_KM && elapsedS < GPS_JUMP_MAX_GAP_S;
+    // 🔴 표본이 작으면 속도가 거짓말한다 — 경고를 울리지 않는다 (위 주석)
+    const tooFast = src !== 'mock' && isSpeedSampleUsable(movedKm, elapsedS)
+        && kmh > IMPLAUSIBLE_SPEED_KMH;
+    return { movedKm, elapsedS, kmh, teleported, tooFast };
+}
+
+/** 📍 받은 좌표의 출처 — 온 말 그대로 · 모르는 말은 «모른다»(undefined) — 값만 받는 셈 */
+export function fixSourceOf(src: string): 'gps' | 'mock' | 'manual' | undefined {
+    return src === 'mock' || src === 'manual' ? src
+        : src === 'native' || src === 'browser' || src === 'real' ? 'gps'
+        : undefined;
+}
+
 /**
  * 🚚 **지나침 판정 한 틱 — 순수 함수** (기사님 확정).
  *
@@ -471,15 +498,8 @@ export function processDriverMovement(
 
     // 첫 좌표는 비교 대상이 없다. 시간을 모르면 속도도 지어내지 않는다 (규칙 ④)
     if (prev && prevAt) {
-        const movedKm = haversineKm(prev, currentGPS);
-        const elapsedS = Math.max(0.001, (Date.now() - prevAt) / 1000);
-        const kmh = (movedKm / elapsedS) * 3600;
+        const { movedKm, elapsedS, kmh, teleported, tooFast } = movementFrom(prev, prevAt, currentGPS, Date.now(), src);
         speedKmh = kmh;
-
-        const teleported = movedKm >= GPS_JUMP_MIN_KM && elapsedS < GPS_JUMP_MAX_GAP_S;
-        // 🔴 표본이 작으면 속도가 거짓말한다 — 경고를 울리지 않는다 (위 주석)
-        const tooFast = src !== 'mock' && isSpeedSampleUsable(movedKm, elapsedS)
-            && kmh > IMPLAUSIBLE_SPEED_KMH;
         jumped = teleported || tooFast;
 
         if (teleported || tooFast) {
@@ -538,10 +558,7 @@ export function processDriverMovement(
      *    여기가 좌표가 들어오는 **유일한 문**이라 출처도 여기서 남긴다 (규칙 ③).
      *    ⚠️ 모르는 말이 오면 «모른다»로 둔다 — `gps` 로 지어내면 화면이 거짓말한다 (규칙 ④).
      */
-    session.lastFixSource =
-        src === 'mock' || src === 'manual' ? src
-        : src === 'native' || src === 'browser' || src === 'real' ? 'gps'
-        : undefined;
+    session.lastFixSource = fixSourceOf(src);
 
     // [V2] dispatchPhase 기반으로 체크
     const isDelivering = session.activeFilter.dispatchPhase === 'DELIVERING';
