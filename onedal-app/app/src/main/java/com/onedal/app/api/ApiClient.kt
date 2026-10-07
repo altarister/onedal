@@ -1,5 +1,6 @@
 package com.onedal.app.api
 
+import com.onedal.app.core.Prefs
 import com.onedal.app.core.DeviceLink
 import android.content.Context
 import com.onedal.app.core.LogTag
@@ -66,16 +67,16 @@ class ApiClient(private val context: Context) {
     private val telemetryExecutor = Executors.newSingleThreadExecutor()
 
     private val prefs by lazy {
-        context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
     }
 
     /**
      * 기기 고유 ID 획득 (SharedPreferences)
      */
     fun getDeviceId(): String {
-        return prefs.getString("deviceId", null) ?: run {
+        return prefs.getString(Prefs.DEVICE_ID, null) ?: run {
             val generated = DeviceLink.newDeviceId()   // 🔐 식별은 난수 — 사람이 읽는 이름은 짝 때 deviceName
-            prefs.edit().putString("deviceId", generated).apply()
+            prefs.edit().putString(Prefs.DEVICE_ID, generated).apply()
             generated
         }
     }
@@ -131,7 +132,7 @@ class ApiClient(private val context: Context) {
         return if (isLiveMode) {
             "https://1dal.altari.com$endpoint"
         } else {
-            val customIp = prefs.getString("localPcIp", "172.30.1.89:4000") ?: "172.30.1.89:4000"
+            val customIp = prefs.getString(Prefs.LOCAL_PC_IP, "172.30.1.89:4000") ?: "172.30.1.89:4000"
             // 사용자가 'http://'를 안 붙였을 수도 있으니 방어 로직 추가
             val base = if (customIp.startsWith("http")) customIp else "http://$customIp"
             "$base$endpoint"
@@ -213,7 +214,7 @@ class ApiClient(private val context: Context) {
         dispatchExecutor.submit {
             try {
                 val jsonBody = gson.toJson(payload)
-                prefs.edit().putString("api_confirm_req", jsonBody).apply()
+                prefs.edit().putString(Prefs.API_CONFIRM_REQ, jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/orders/confirm")
 
                 val result = executeWithRetry(targetUrl, jsonBody, "/confirm", timeoutMs = 10000)
@@ -221,7 +222,7 @@ class ApiClient(private val context: Context) {
                 if (result != null) {
                     val (code, body) = result
                     if (code == 200) {
-                        prefs.edit().putString("api_confirm_res", body).apply()
+                        prefs.edit().putString(Prefs.API_CONFIRM_RES, body).apply()
                         AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /confirm response / $code] $body")
                         AppLogger.roadmap(LogTag.DECISION, "[확정 보고 응답] /orders/confirm")
                     } else {
@@ -288,7 +289,7 @@ class ApiClient(private val context: Context) {
             val startMs = System.currentTimeMillis()
             try {
                 val jsonBody = gson.toJson(payload)
-                prefs.edit().putString("api_scrap_req", jsonBody).apply()
+                prefs.edit().putString(Prefs.API_SCRAP_REQ, jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/scrap")
 
                 // 생존신고(scrap)에도 1회 자동 재시도를 적용합니다.
@@ -306,7 +307,7 @@ class ApiClient(private val context: Context) {
 
                 val (code, body) = result
                 if (code == 200) {
-                    prefs.edit().putString("api_scrap_res", body).apply()
+                    prefs.edit().putString(Prefs.API_SCRAP_RES, body).apply()
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
                     // 📦 최신·최소 판 — 칸이 없으면 지운다(서버가 아직 안 보냄 → 안내 없음 · `UpdateNotice`)
                     prefs.edit().apply {
@@ -326,12 +327,11 @@ class ApiClient(private val context: Context) {
                     // 📤 보고 한 번 = 한 줄 (보내기·응답·건수·걸린 시간) — «콜 0건»은 화면이 바뀔 때만 (`scrapLogLine`)
                     scrapLogLine(screenName, payload.data.size, System.currentTimeMillis() - startMs)?.let { AppLogger.d(TAG, LogTag.NETWORK, it) }
                     
-                    scrapRes.apiStatus?.let { prefs.edit().putString("apiStatus", gson.toJson(it)).apply() }
-                    scrapRes.deviceControl?.let { prefs.edit().putString("deviceControl", gson.toJson(it)).apply() }
+                    scrapRes.apiStatus?.let { prefs.edit().putString(Prefs.API_STATUS, gson.toJson(it)).apply() }
 
                     // 방금 보낸 스크랩 정보 화면 표시용으로 저장
                     prefs.edit()
-                        .putLong("lastScrapTime", System.currentTimeMillis())
+                        .putLong(Prefs.LAST_SCRAP_TIME, System.currentTimeMillis())
                         .apply()
 
                     scrapRes.deviceControl?.callMemoryRound?.let { onCallMemoryRound?.invoke(it) }
@@ -429,7 +429,7 @@ class ApiClient(private val context: Context) {
         telemetryExecutor.submit {
             var conn: java.net.HttpURLConnection? = null
             try {
-                val targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
+                val targetApp = prefs.getString(Prefs.TARGET_APP, "인성콜") ?: "인성콜"
                 // URLEncoder.encode 가 필요할 수도 있으나 한글 쿼리는 안드로이드에서 종종 깨지므로 기본적으로 안전하게 요청
                 val targetUrl = getTargetUrl("/api/config/keywords?app=$targetApp")
                 conn = open(targetUrl, method = "GET")
@@ -437,7 +437,7 @@ class ApiClient(private val context: Context) {
                 val code = codeOf(conn)
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
-                    prefs.edit().putString("targetAppKeywords", body).apply()
+                    prefs.edit().putString(Prefs.TARGET_APP_KEYWORDS, body).apply()
                     AppLogger.d(TAG, LogTag.BOOT, "🎯 [$targetApp] 키워드 사전 다운로드 성공: $body")
                 } else {
                     AppLogger.e(TAG, "🎯 키워드 서버 에러 응답: $code")

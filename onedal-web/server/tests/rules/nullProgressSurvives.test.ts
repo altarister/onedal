@@ -65,6 +65,6 @@ describe('🕳️ 앱 — 서버가 보낸 필터를 왕복시키지 않는다',
 
     it('🔴 받은 원문에서 필터를 꺼내 그대로 보관한다', () => {
         expect(store()).toMatch(/root\.optJSONObject\("filter"\)\?\.toString\(\)/);
-        expect(store()).toMatch(/putString\("activeFilter", filterJson\)/);
+        expect(store()).toMatch(/putString\(Prefs\.ACTIVE_FILTER, filterJson\)/);
     });
 });

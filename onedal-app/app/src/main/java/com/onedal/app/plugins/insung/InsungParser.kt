@@ -1,5 +1,6 @@
 package com.onedal.app.plugins.insung
 
+import com.onedal.app.core.Prefs
 import android.content.Context
 import com.onedal.app.core.LogTag
 import com.onedal.app.core.AppLogger
@@ -446,7 +447,7 @@ class InsungParser(private val context: Context) : IScrapParser {
 
     private val gson = Gson()
     private val prefs by lazy {
-        context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
     }
 
     /** 🎛️ 지금 저장된 필터 — 읽기 규칙은 `FilterStore` 한 곳(같은 원문은 한 번만 푼다) */
@@ -466,7 +467,7 @@ class InsungParser(private val context: Context) : IScrapParser {
         // ── 2. 지역명 파싱 (동/읍/면/리 로 끝나는 텍스트) ──
         // 서버에서 다운받은 동적 키워드 사전에서 uiNoiseWords 로드, 없으면 기본값
         val uiNoiseWords = try {
-            val keywordsJsonStr = prefs.getString("targetAppKeywords", null)
+            val keywordsJsonStr = prefs.getString(Prefs.TARGET_APP_KEYWORDS, null)
             if (keywordsJsonStr != null) {
                 val keywordsObj = JSONObject(keywordsJsonStr)
                 val arr = keywordsObj.optJSONArray("uiNoiseWords")

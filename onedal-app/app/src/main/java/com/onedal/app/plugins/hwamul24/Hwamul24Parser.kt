@@ -1,5 +1,6 @@
 package com.onedal.app.plugins.hwamul24
 
+import com.onedal.app.core.Prefs
 import android.content.Context
 import com.onedal.app.core.LogTag
 import com.onedal.app.core.AppLogger
@@ -254,7 +255,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
     /** 🔇 잡음 낱말 — 서버에서 받아 둔 사전(`GET /api/config/keywords?app=24시` → `targetAppKeywords`)과 기본값 */
     private fun noiseWords(): Set<String> = noiseWordsOf(
-        try { context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)?.getString("targetAppKeywords", null) } catch (e: Exception) { null }
+        try { context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)?.getString(Prefs.TARGET_APP_KEYWORDS, null) } catch (e: Exception) { null }
     )
 
     /** 🎛️ 지금 저장된 필터 — 읽기 규칙은 `FilterStore` 한 곳(인성과 같은 규칙 · 단가표 ratePerKm 도 여기서 온다) */

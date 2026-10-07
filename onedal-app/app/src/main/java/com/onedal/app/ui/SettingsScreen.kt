@@ -1,5 +1,6 @@
 package com.onedal.app.ui
 
+import com.onedal.app.core.Prefs
 import com.onedal.app.BuildConfig
 import android.content.Intent
 import android.provider.Settings
@@ -35,8 +36,8 @@ fun SettingsScreen(viewModel: MainViewModel, onOpenCheck: () -> Unit = {}) {
     var isPairing by remember { mutableStateOf(false) }
 
     // 로컬 IP (개발 모드 전용)
-    val prefs = remember { context.getSharedPreferences("OneDalPrefs", android.content.Context.MODE_PRIVATE) }
-    var customIp by remember { mutableStateOf(prefs.getString("localPcIp", "172.30.1.89") ?: "172.30.1.89") }
+    val prefs = remember { context.getSharedPreferences(Prefs.NAME, android.content.Context.MODE_PRIVATE) }
+    var customIp by remember { mutableStateOf(prefs.getString(Prefs.LOCAL_PC_IP, "172.30.1.89") ?: "172.30.1.89") }
 
     Column(
         modifier = Modifier

@@ -241,7 +241,7 @@ class TelemetryManager(
      * 받기 전 보고에는 «도는 모드»를 싣지 않는다(기본값 MANUAL 이 «명령과 갈렸다»로 읽혔다 · `ModeFirstReportTest`).
      */
     @Volatile
-    private var suppliedMode: String? = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)?.getString(PREF_SUPPLIED_MODE, null)
+    private var suppliedMode: String? = context?.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)?.getString(PREF_SUPPLIED_MODE, null)
     @Volatile
     private var linked = false
     @Volatile
@@ -257,7 +257,7 @@ class TelemetryManager(
     /** 📶 관제앱이 블루투스로 이 폰 몫의 모드를 줬다 — 저장해 두고(관제앱이 없을 때 알람의 바탕 · 기사님 1 가) 다시 정한다 */
     fun onSuppliedMode(mode: String) {
         val changed = mode != suppliedMode
-        if (changed) context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)?.edit()?.putString(PREF_SUPPLIED_MODE, mode)?.apply()
+        if (changed) context?.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)?.edit()?.putString(PREF_SUPPLIED_MODE, mode)?.apply()
         suppliedMode = mode
         /* 🎛️ 받은 모드가 바뀌면 도는 모드와 상관없이 곧바로 보고 — 관제웹 «적용중»이 받은 모드로 풀린다(관제 리뷰 · 도는 모드가 알람 그대로여도) */
         if (!recomputeMode("공급") && changed) reportNow()
@@ -345,8 +345,8 @@ class TelemetryManager(
         // 🚦 보내는 그 순간의 단계를 묻는다 — 복사본을 들고 있지 않는다
         val stage = workStageProvider?.invoke()
 
-        val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-        val appCode = TargetApp.codeOf(prefs?.getString("targetApp", null))   // 매핑은 TargetApp 한 곳뿐
+        val prefs = context?.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+        val appCode = TargetApp.codeOf(prefs?.getString(Prefs.TARGET_APP, null))   // 매핑은 TargetApp 한 곳뿐
 
         // 📰 모은 글자 한 화면 몫 — 실었으면 한 줄 (폰에서 «상세 낱말이 갔나»를 로그로 본다)
         val screenWords = ScreenWords.drain()
@@ -383,7 +383,7 @@ class TelemetryManager(
             // 🧭 들고 있는 필터 버전 — 같으면 서버가 본문을 생략한다.
             // ⚠️ null 이면 Gson 이 필드를 통째로 빼서 서버가 구앱으로 오인한다 —
             //    아직 버전이 없으면 빈 문자열("전체 주세요")을 보낸다
-            filterVersion = prefs?.getString("filterVersion", "") ?: ""
+            filterVersion = prefs?.getString(Prefs.FILTER_VERSION, "") ?: ""
         )
 
         /**

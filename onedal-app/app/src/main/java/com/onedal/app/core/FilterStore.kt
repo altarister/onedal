@@ -34,7 +34,7 @@ object FilterStore {
 
     /** 지금 저장된 필터 — 원문이 없으면 기본값 */
     fun current(context: Context?): FilterConfig {
-        val raw = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)?.getString("activeFilter", null)
+        val raw = context?.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)?.getString(Prefs.ACTIVE_FILTER, null)
             ?: return FilterConfig()
         return cache.of(raw)
     }
@@ -52,10 +52,10 @@ object FilterStore {
             return null
         }
         val version = root.optString("filterVersion", "")
-        val prefs = context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-        val prevJson = prefs.getString("activeFilter", null)
-        val prevVersion = prefs.getString("filterVersion", null)
-        prefs.edit().putString("activeFilter", filterJson).putString("filterVersion", version).apply()
+        val prefs = context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+        val prevJson = prefs.getString(Prefs.ACTIVE_FILTER, null)
+        val prevVersion = prefs.getString(Prefs.FILTER_VERSION, null)
+        prefs.edit().putString(Prefs.ACTIVE_FILTER, filterJson).putString(Prefs.FILTER_VERSION, version).apply()
         if (prevJson != filterJson) {
             val f = parse(filterJson)
             // 🔕 필터가 실제로 바뀐 순간만 요약 한 줄

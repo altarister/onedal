@@ -178,8 +178,8 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
         if (delayMs > 0L) pendingTapAtMs = now
 
         val showMarkerPref = try {
-            service.getSharedPreferences("OneDalPrefs", android.content.Context.MODE_PRIVATE)
-                .getBoolean("showTapMarker", false)
+            service.getSharedPreferences(Prefs.NAME, android.content.Context.MODE_PRIVATE)
+                .getBoolean(Prefs.SHOW_TAP_MARKER, false)
         } catch (_: Exception) { false }
         val shouldMark = mark && showMarkerPref
 
@@ -412,8 +412,8 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
          * 🔴 설정의 «터치 위치 표시» 스위치가 켜져 있을 때만 그린다.
          */
         val showMarkerPref = try {
-            service.getSharedPreferences("OneDalPrefs", android.content.Context.MODE_PRIVATE)
-                .getBoolean("showTapMarker", false)
+            service.getSharedPreferences(Prefs.NAME, android.content.Context.MODE_PRIVATE)
+                .getBoolean(Prefs.SHOW_TAP_MARKER, false)
         } catch (_: Exception) { false }
         if (showMarkerPref) {
             val dm = service.resources.displayMetrics

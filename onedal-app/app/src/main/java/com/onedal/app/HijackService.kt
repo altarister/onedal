@@ -1,5 +1,6 @@
 package com.onedal.app
 
+import com.onedal.app.core.Prefs
 import com.onedal.app.core.KeepCloseWait
 import android.accessibilityservice.AccessibilityService
 import com.onedal.app.core.LogTag
@@ -174,7 +175,7 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     private fun switchNetworkTo(network: String) {
         val label = TargetApp.labelOf(network)
-        getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).edit().putString("targetApp", label).apply()
+        getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE).edit().putString(Prefs.TARGET_APP, label).apply()
         applyTargetApp(label, isSwitch = true)
         /**
          * 🔴 **지문을 비운다.** 화면 글자는 그대로인데 **읽는 파서만** 바뀌었으므로,
@@ -380,7 +381,7 @@ class HijackService : AccessibilityService(), ScanContext {
         override fun onPhone(json: String) {
             val j = org.json.JSONObject(json)
             /* 🔒 심사 중 — 읽는 두 자리(`EvaluatingNow.of`)가 보는 맨 위 칸 저장에 넣는다(공급 필터에는 서버가 이 칸을 빼고 보낸다) */
-            getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).edit().putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean(com.onedal.app.core.EvaluatingNow.KEY)).apply()
+            getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE).edit().putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean(com.onedal.app.core.EvaluatingNow.KEY)).apply()
             j.optString("mode").takeIf { it.isNotEmpty() }?.let { telemetryManager.onSuppliedMode(it) }
         }
         override fun onDecision(json: String) {
@@ -575,8 +576,8 @@ class HijackService : AccessibilityService(), ScanContext {
             AppLogger.i(TAG, LogTag.BOOT, "📄 [페이지 정의] ${com.onedal.app.core.PageSpecSummary.line(p.label, p.pages)}")
 
         com.onedal.app.plugins.DispatchPluginRegistry.init(this)
-        val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-        val targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
+        val prefs = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+        val targetApp = prefs.getString(Prefs.TARGET_APP, "인성콜") ?: "인성콜"
         applyTargetApp(targetApp)
 
         apiClient = ApiClient(this)
@@ -1468,7 +1469,7 @@ class HijackService : AccessibilityService(), ScanContext {
          * 상차 목록은 차가 0.5km 움직일 때마다 바뀐다 — 옛 목록으로 막힌 콜을 새 목록으로 다시 판정해야
          * «가까워지면 올라온다»가 선다. 누른 콜·통과한 콜·보고한 콜은 그대로다 (`CallMemory` 머리).
          */
-        val filterVersionNow = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).getString("filterVersion", null)
+        val filterVersionNow = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE).getString(Prefs.FILTER_VERSION, null)
         val prevFilterVersion = seenFilterVersion
         if (!filterVersionNow.isNullOrEmpty()) seenFilterVersion = filterVersionNow
         when (callMemory.onFilter(filterVersionNow, scrapParser.judgmentValuesKey())) {
@@ -1717,7 +1718,7 @@ class HijackService : AccessibilityService(), ScanContext {
              * 🔒 **서버가 앞 콜을 심사 중이면 이번 스캔은 누르지 않는다** (기사님 · 실주행 오송읍 · 한 번에 하나만 평가).
              * 판정은 이미 끝났고 기억에도 안 넣었으니, 앞 콜이 결재되는 즉시 다음 스캔에서 **바로** 누른다.
              */
-            val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+            val prefs = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
             val evaluatingTop = if (prefs.contains(com.onedal.app.core.EvaluatingNow.PREF_KEY))
                 prefs.getBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, false) else null
             if (com.onedal.app.core.EvaluatingNow.of(evaluatingTop, savedFilter().evaluatingNow)) {
@@ -1759,7 +1760,7 @@ class HijackService : AccessibilityService(), ScanContext {
                             session.openedByApp || touchManager.tapPending -> "이미 누르는 중" to com.onedal.app.core.OpenBlocked.BUSY
                             handFirst.blocks(nowTap) -> "손 먼저(넘기는 사이 처리된 손 흔적 · $lastHandWhy)" to com.onedal.app.core.OpenBlocked.HAND_FIRST
                             com.onedal.app.core.EvaluatingNow.of(
-                                getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).let { p -> if (p.contains(com.onedal.app.core.EvaluatingNow.PREF_KEY)) p.getBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, false) else null },
+                                getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE).let { p -> if (p.contains(com.onedal.app.core.EvaluatingNow.PREF_KEY)) p.getBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, false) else null },
                                 savedFilter().evaluatingNow) -> "앞 콜 심사 중(넘기는 사이 결재 대기)" to com.onedal.app.core.OpenBlocked.EVALUATING
                             nowY == null -> "요금 칸을 다시 못 읽었다" to com.onedal.app.core.OpenBlocked.TAP_RECHECK
                             com.onedal.app.core.TapShift.listMoving(fareNode.rect.centerY(), nowY, scrollGate.scrolledRecently(nowTap)) ->

@@ -39,8 +39,8 @@ class DictBrokenTest {
     @Test fun `세 파서의 사전 catch 가 기록을 부른다`() {
         val root = "src/main/java/com/onedal/app/plugins"
         val reads = mapOf(
-            "insung/InsungParser.kt" to "targetAppKeywords\", null)",
-            "kakaopicker/KakaoPickerParser.kt" to "targetAppKeywords\", null)",
+            "insung/InsungParser.kt" to "Prefs.TARGET_APP_KEYWORDS, null)",
+            "kakaopicker/KakaoPickerParser.kt" to "Prefs.TARGET_APP_KEYWORDS, null)",
             "hwamul24/Hwamul24Parser.kt" to "fun noiseWordsOf(",
         )
         for ((p, mark) in reads) {

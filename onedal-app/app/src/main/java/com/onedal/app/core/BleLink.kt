@@ -64,7 +64,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
     }
 
     private val h = Handler(Looper.getMainLooper())
-    private val prefs = ctx.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+    private val prefs = ctx.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
     private val mgr = ctx.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
     private var server: BluetoothGattServer? = null
     private var notifyChr: BluetoothGattCharacteristic? = null
@@ -256,7 +256,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
         val live = ServerTarget.isLive(prefs)
         val status = JSONObject()
             .put("serverId", prefs.getString(PREF_SERVER_ID, null) ?: JSONObject.NULL)
-            .put("serverUrl", if (live) "1dal.altari.com" else (prefs.getString("localPcIp", null) ?: ""))
+            .put("serverUrl", if (live) "1dal.altari.com" else (prefs.getString(Prefs.LOCAL_PC_IP, null) ?: ""))
             .put("unlinkedWhy", prefs.getString(DeviceLink.PREF_UNLINKED, null) ?: JSONObject.NULL)
             .toString()
         if (status == sentStatus) return

@@ -1,5 +1,6 @@
 package com.onedal.app.plugins.kakaopicker
 
+import com.onedal.app.core.Prefs
 import android.content.Context
 import com.onedal.app.core.LogTag
 import com.onedal.app.core.OpenBlocked
@@ -915,14 +916,14 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
     /** 필터(activeFilter)에서 알람 조건을 읽는다 — 못 읽으면 기본값 (서버 미응답 안전망) */
     private fun alarmConfig(): AlarmConfig {
-        val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        val prefs = context?.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
             ?: return AlarmConfig()
-        return configCache.of(prefs.getString("activeFilter", null) ?: return AlarmConfig())
+        return configCache.of(prefs.getString(Prefs.ACTIVE_FILTER, null) ?: return AlarmConfig())
     }
 
     /** 🔄 알람 판정이 읽는 값의 지문 (`alarmValuesKeyOf`) — 필터 원문이 없으면 null(버전 글자로 가른다) */
-    override fun judgmentValuesKey(): String? = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-        ?.getString("activeFilter", null)?.let { valuesKeyCache.of(it) }
+    override fun judgmentValuesKey(): String? = context?.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+        ?.getString(Prefs.ACTIVE_FILTER, null)?.let { valuesKeyCache.of(it) }
 
     /**
      * 🧹 **버릴 화면 메뉴 글자 — 서버에서 받는다** (기사님 지시).
@@ -935,9 +936,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
      *    (규칙 ④ — 비면 «전부 통과»가 아니다).
      */
     private fun wordsFrom(key: String, fallback: Set<String>): Set<String> {
-        val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE) ?: return fallback
+        val prefs = context?.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE) ?: return fallback
         return try {
-            val saved = prefs.getString("targetAppKeywords", null) ?: return fallback
+            val saved = prefs.getString(Prefs.TARGET_APP_KEYWORDS, null) ?: return fallback
             val arr = JSONObject(saved).optJSONArray(key) ?: return fallback
             val fromServer = (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }.toSet()
             if (fromServer.isEmpty()) fallback else fromServer + fallback

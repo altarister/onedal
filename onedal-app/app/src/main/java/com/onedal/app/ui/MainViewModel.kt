@@ -1,5 +1,6 @@
 package com.onedal.app.ui
 
+import com.onedal.app.core.Prefs
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -88,12 +89,12 @@ class MainViewModel {
     private fun readCheckFacts(context: Context, prefs: android.content.SharedPreferences) {
         isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
         isLiveMode = com.onedal.app.core.ServerTarget.isLive(prefs)
-        lastScrapTime = prefs.getLong("lastScrapTime", 0L)
+        lastScrapTime = prefs.getLong(Prefs.LAST_SCRAP_TIME, 0L)
         unlinkedWhy = prefs.getString(com.onedal.app.core.DeviceLink.PREF_UNLINKED, null)
         hasDeviceToken = prefs.getString(com.onedal.app.core.DeviceLink.PREF_TOKEN, null) != null
         updateNotice = com.onedal.app.core.UpdateNotice.of(com.onedal.app.BuildConfig.VERSION_CODE,
-            prefs.getInt("appLatestCode", -1).takeIf { it >= 0 }, prefs.getInt("appMinimumCode", -1).takeIf { it >= 0 })
-        serverUrl = if (isLiveMode) "1dal.altari.com" else prefs.getString("localPcIp", "172.30.1.89:4000") ?: "172.30.1.89:4000"
+            prefs.getInt(Prefs.APP_LATEST_CODE, -1).takeIf { it >= 0 }, prefs.getInt(Prefs.APP_MINIMUM_CODE, -1).takeIf { it >= 0 })
+        serverUrl = if (isLiveMode) "1dal.altari.com" else prefs.getString(Prefs.LOCAL_PC_IP, "172.30.1.89:4000") ?: "172.30.1.89:4000"
         batteryExempt = (context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isIgnoringBatteryOptimizations(context.packageName)
         nearbyPermitted = com.onedal.app.core.BleLink.hasPermission(context)
     }
@@ -102,26 +103,26 @@ class MainViewModel {
      * 1초 폴링 시작
      */
     fun startPolling(context: Context) {
-        val prefs = context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
 
         // 초기값 로드
-        deviceId = prefs.getString("deviceId", null) ?: "(서비스 시작 시 자동 생성됨)"
+        deviceId = prefs.getString(Prefs.DEVICE_ID, null) ?: "(서비스 시작 시 자동 생성됨)"
         isLiveMode = com.onedal.app.core.ServerTarget.isLive(prefs)
-        showTapMarker = prefs.getBoolean("showTapMarker", false)
-        waitTimesLabel = waitTimesLabelOf(prefs.getString("activeFilter", null))
+        showTapMarker = prefs.getBoolean(Prefs.SHOW_TAP_MARKER, false)
+        waitTimesLabel = waitTimesLabelOf(prefs.getString(Prefs.ACTIVE_FILTER, null))
         readCheckFacts(context, prefs)
 
         scope.launch {
             while (true) {
                 isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
-                activeFilterJson = prefs.getString("activeFilter", "{}") ?: "{}"
-                apiStatusJson = prefs.getString("apiStatus", "{}") ?: "{}"
-                lastScrapTime = prefs.getLong("lastScrapTime", 0L)
-                apiScrapReq = prefs.getString("api_scrap_req", "없음") ?: "없음"
-                apiScrapRes = prefs.getString("api_scrap_res", "없음") ?: "없음"
-                apiConfirmReq = prefs.getString("api_confirm_req", "없음") ?: "없음"
-                apiConfirmRes = prefs.getString("api_confirm_res", "없음") ?: "없음"
-                showTapMarker = prefs.getBoolean("showTapMarker", false)
+                activeFilterJson = prefs.getString(Prefs.ACTIVE_FILTER, "{}") ?: "{}"
+                apiStatusJson = prefs.getString(Prefs.API_STATUS, "{}") ?: "{}"
+                lastScrapTime = prefs.getLong(Prefs.LAST_SCRAP_TIME, 0L)
+                apiScrapReq = prefs.getString(Prefs.API_SCRAP_REQ, "없음") ?: "없음"
+                apiScrapRes = prefs.getString(Prefs.API_SCRAP_RES, "없음") ?: "없음"
+                apiConfirmReq = prefs.getString(Prefs.API_CONFIRM_REQ, "없음") ?: "없음"
+                apiConfirmRes = prefs.getString(Prefs.API_CONFIRM_RES, "없음") ?: "없음"
+                showTapMarker = prefs.getBoolean(Prefs.SHOW_TAP_MARKER, false)
                 unlinkedWhy = prefs.getString(com.onedal.app.core.DeviceLink.PREF_UNLINKED, null)
                 readCheckFacts(context, prefs)
                 delay(1000)
@@ -179,14 +180,14 @@ class MainViewModel {
 
     fun saveLiveMode(context: Context, checked: Boolean) {
         isLiveMode = checked
-        context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
             .edit().putBoolean("isLiveMode", checked).apply()
     }
 
     fun saveShowTapMarker(context: Context, enabled: Boolean) {
         showTapMarker = enabled
-        context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-            .edit().putBoolean("showTapMarker", enabled).apply()
+        context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean(Prefs.SHOW_TAP_MARKER, enabled).apply()
     }
 
     /**
@@ -202,7 +203,7 @@ class MainViewModel {
     }
 
     fun saveLocalIp(context: Context, ip: String) {
-        context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-            .edit().putString("localPcIp", ip).apply()
+        context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+            .edit().putString(Prefs.LOCAL_PC_IP, ip).apply()
     }
 }
