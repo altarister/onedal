@@ -102,7 +102,7 @@ public class SupplyService extends Service {
     private final ArrayList<JSONObject> pendingAcks = new ArrayList<>();
     private boolean scanning = false;
     private String shownText = "";
-    /** 🔴 내려갔다 — 남은 콜백이 다시 검색 · 연결 · 보내기를 하지 않는다(폰 시험 10-06 23:22 · 로그아웃 뒤에도 A24 에 다시 붙어 옛 공급을 보냈다) */
+    /** 🔴 내려갔다 — 남은 콜백이 다시 검색 · 연결 · 보내기를 하지 않는다(폰 시험 · 로그아웃 뒤에도 A24 에 다시 붙어 옛 공급을 보냈다) */
     private boolean destroyed = false;
 
     /** 📱 블루투스 연결 하나 = 스캔폰 하나(HELLO 서명이 맞은 뒤) */

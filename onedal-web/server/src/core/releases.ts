@@ -16,7 +16,7 @@ import db from "../db";
 export type ReleaseApp = OpsRelease['app'];
 export const RELEASE_APPS: readonly ReleaseApp[] = ['scanner', 'dashboard'];
 
-/** 올리기 상한 — 원달앱 배포판 APK 약 52MB(10-01 assembleRelease 실측 · 개발판 약 55MB)의 네 배 남짓 */
+/** 올리기 상한 — 원달앱 배포판 APK 약 52MB(assembleRelease 실측 · 개발판 약 55MB)의 네 배 남짓 */
 export const RELEASE_LIMIT_BYTES = 200 * 1024 * 1024;
 
 export class ReleaseError extends Error {

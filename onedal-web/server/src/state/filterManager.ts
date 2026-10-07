@@ -1292,7 +1292,7 @@ export function updateActiveFilter(
          */
         if ('radiusDistanceKm' in changes) session.lastFilterJson = null;
         /**
-         * 📏 **[↻ 잰 거리] 는 다시 재되 «넓히기만» 한다** (기사님 확정 2026-09-23:
+         * 📏 **[↻ 잰 거리] 는 다시 재되 «넓히기만» 한다** (기사님 확정:
          *    *"가까워 질수록 범위가 축소되기 때문에 도착해서는 관내근거리 콜을 할수 없다."*).
          *
          * 🔴 목적지 앞에서 다시 재면 거리가 거의 0 이 되어 반경 넷이 함께 쪼그라든다 —

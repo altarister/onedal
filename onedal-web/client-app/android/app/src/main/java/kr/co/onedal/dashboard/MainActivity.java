@@ -6,7 +6,7 @@ import android.view.KeyEvent;
 import com.getcapacitor.BridgeActivity;
 
 /**
- * 🔊 볼륨 업을 누르면 «서버 고르기» 팝업을 띄운다 (기사님 확정 2026-08-25).
+ * 🔊 볼륨 업을 누르면 «서버 고르기» 팝업을 띄운다 (기사님 확정).
  *
  * 기사님: *"볼륨 버튼을 클릭해서 라이브인지 로컬인지 바꿀 수 있으면 더 좋을 것 같은데."*
  *
@@ -14,7 +14,7 @@ import com.getcapacitor.BridgeActivity;
  * 관제앱은 **운전 중에 보는 화면**이라 설정 메뉴를 늘리면 그만큼 읽을 것이 늘어난다.
  * 배차망 시뮬레이터 앱이 이미 같은 방식을 쓰고 있어 손에 익어 있다.
  *
- * ── 🔴 `onKeyDown` 으로는 안 온다 (2026-08-25 실측) ──
+ * ── 🔴 `onKeyDown` 으로는 안 온다 (실측) ──
  * 처음에 `onKeyDown` 으로 만들었더니 팝업이 안 떴다. 로그캣을 보니 이랬다:
  *
  *     MediaSessionService: dispatchVolumeKeyEvent, pkg=kr.co.onedal.dashboard
@@ -47,7 +47,7 @@ public class MainActivity extends BridgeActivity {
         if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP) {
             // 눌렀다 뗄 때 한 번만 연다 — 반복 이벤트로 깜빡이지 않게
             if (event.getAction() == KeyEvent.ACTION_UP && getBridge() != null) {
-                // 여는 순간만 남긴다 — 전건을 찍으면 로그가 묻힌다 (2026-08-25 계측에서 배웠다)
+                // 여는 순간만 남긴다 — 전건을 찍으면 로그가 묻힌다 (계측에서 배웠다)
                 Log.d(TAG, "🔊 서버 고르기 팝업 열기");
                 getBridge().eval(
                     "window.dispatchEvent(new CustomEvent('onedal:volume-up'))",

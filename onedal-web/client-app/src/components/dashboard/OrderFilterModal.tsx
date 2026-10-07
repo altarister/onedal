@@ -669,7 +669,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                 <div className="relative grid grid-cols-3 gap-1">
                                     {/**
                                       * 🛣️ **노선 ↔ 🔷 동선 — 버튼 하나를 눌러 뒤집는다**
-                                      *    (기사님 2026-09-23: *"노선, 동선 버튼은 토글버튼으로 치환이
+                                      *    (기사님: *"노선, 동선 버튼은 토글버튼으로 치환이
                                       *    가능하겠다 … 노선/동선, 시도, 시군구 이렇게 한줄로 3등분해서 보여줘"*).
                                       *
                                       * 🔴 «그물을 어떤 모양으로 볼까»라 **국면(어디로 가나)과 다른 축**이다.
@@ -733,7 +733,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                             : [cur.pickupRadiusKm, cur.destinationRadiusKm, cur.detourRadiusKm].join(' · ')}km · ${radiusAuto ? '기준' : '수동'}`}>
                             {/**
                               * 📐 **기준/수동 · 기준거리 · 잰 거리 — 한 줄 3등분**
-                              *    (기사님 2026-09-23: *"여기가 2줄이 되었는데 그럴필요가 없다 …
+                              *    (기사님: *"여기가 2줄이 되었는데 그럴필요가 없다 …
                               *    input에 100과 버튼의 100km 가중복이라 그것도 버튼에서 뺄수 있다."*)
                               *
                               * 🔴 **버튼은 값을 말하지 않는다** — 바로 옆 칸이 같은 값을 말한다.
@@ -752,7 +752,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                     ))}
                                 </div>
                                 {/**
-                                  * 📏 **기준거리 — 여기서 바로 바꾼다** (기사님 2026-09-23:
+                                  * 📏 **기준거리 — 여기서 바로 바꾼다** (기사님:
                                   *    *"40km 반경을 쉽게 바꿔야 할꺼 같아 … 지금은 사용자 설정에 40을
                                   *    바꿔야 하는 불편한 점이 있다."*).
                                   *
@@ -779,7 +779,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                     }]} />
                                 {/**
                                   * ↻ **잰 거리 — 누르면 다시 잰다. 다만 «넓히기만» 한다**
-                                  *    (기사님 확정 2026-09-23: *"가까워 질수록 범위가 축소되기 때문에
+                                  *    (기사님 확정: *"가까워 질수록 범위가 축소되기 때문에
                                   *    도착해서는 관내근거리 콜을 할수 없다."*).
                                   *
                                   * 🔴 **기준거리를 바꾸는 것으로 대신할 수 없다** — 이 숫자는 서버가 «내 위치 →
@@ -1066,7 +1066,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                             <div className="relative z-20 space-y-1.5">
                                 <div className="relative grid grid-cols-3 gap-1">
                                     {/**
-                                      * ⛔ **세 칸이 「어디로」와 같은 형식이다** (기사님 2026-09-23:
+                                      * ⛔ **세 칸이 「어디로」와 같은 형식이다** (기사님:
                                       *    *"필터의 빼는 곳도 같은 ui형식을 넣으면 좋겠다. 지금은 경기 통째로 ..
                                       *    이런 버튼이 불필요하게 있는것 같아."*).
                                       *

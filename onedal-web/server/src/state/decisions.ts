@@ -41,7 +41,7 @@ export function unackedPhoneDecisions(session: UserSession): PhoneDecision[] {
 
 /**
  * ⚖️ 결재를 정한다 — 기다림 줄이 있으면 행동만 채우고, 없으면 새로 적는다.
- * 같은 콜에 같은 행동이 이미 정해졌으면 관제앱에 다시 보내지 않는다 — 직접 누른 콜은 상세 문과 결재 처리가 둘 다 KEEP 을 정한다(폰 시험 10-07 · 두 번 갔다 · 원달앱이 걸렀다).
+ * 같은 콜에 같은 행동이 이미 정해졌으면 관제앱에 다시 보내지 않는다 — 직접 누른 콜은 상세 문과 결재 처리가 둘 다 KEEP 을 정한다(폰 시험 · 두 번 갔다 · 원달앱이 걸렀다).
  */
 export function decide(io: any, session: UserSession, userId: string, orderId: string, action: SupplyDecisionAction): void {
     const row = session.pendingDecisions.get(orderId);
