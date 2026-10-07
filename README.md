@@ -33,7 +33,7 @@
 ## 포트
 
 🔴 **포트의 원천은 이 표다** (기사님 지시). 번호를 한 파일로 모을 수는 없다 —
-앱 Kotlin · vite 설정 · 배포 yml · PM2 설정이 각자 적어야 돈다. 그래서
+앱 Kotlin · vite 설정 · 배포 스크립트(`onedal-web/scripts/deploy.sh`) · PM2 설정이 각자 적어야 돈다. 그래서
 `onedal-web/server/tests/rules/portsListed.test.ts` 가 **코드에 박힌 번호를 이 표와 대조한다** —
 표에 없는 번호 · 표와 다른 범위 · 서로 겹치는 자리 · 코드가 안 쓰는 번호가 빨간불이다.
 
