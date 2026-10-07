@@ -96,7 +96,7 @@ fun NetworksScreen(viewModel: MainViewModel) {
                     label = "화물24시",
                     badge = "⚡ 자동잡기",
                     color = Color(0xFFE65100),
-                    desc = "목록거리 판정 · 안전취소 ${filterConfig?.safeCancelSecHwamul24 ?: 30}초 · 24시마커"
+                    desc = "최저 요금 · 상차 거리 판정 · 안전취소 ${filterConfig?.safeCancelSecHwamul24 ?: 30}초 · 24시마커"
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 ComparisonRow(
@@ -226,8 +226,9 @@ private fun Hwamul24DetailCard(filterConfig: com.onedal.app.models.FilterConfig?
             // 판정 수식 & 하한
             Text(text = "💰 단가 및 수락 판정", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = Color(0xFFE65100))
             Spacer(modifier = Modifier.height(4.dp))
-            DetailBullet("기본 수식: 요금 ≥ 목록거리(km) × 차종별 단가(원/km)")
+            DetailBullet("판정 축: 예약 · 차종 · 도착 · 최저 요금 · 상차 목록 · 상차 거리 · 블랙")
             DetailBullet("최저 요금 하한: ${numberFormat.format(filterConfig?.minFare ?: 30000)}원")
+            DetailBullet("단가: 배송거리를 못 읽어 지금 안 봄 (아래 단가표는 배송거리를 읽게 되면 쓰인다)")
             DetailBullet("수집 방식: 접근성 노드 텍스트 트리 직접 고속 파싱")
 
             // 차종별 단가표
