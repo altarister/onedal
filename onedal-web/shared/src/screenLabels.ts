@@ -59,7 +59,7 @@ export const INSUNG_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel
     POPUP_DROPOFF: { label: "도착지 팝업", color: BLUE },
     POPUP_MEMO: { label: "적요 팝업", color: PURPLE },
     POPUP_ERROR: { label: "취소 불가 팝업", color: RED_BLINK },
-    /** 🏠 첫 화면 — 인성 «인성퀵화면분할» · 화물24시 «전국24시콜화물» (reviews/46 · 기사님 «가») */
+    /** 🏠 첫 화면 — 인성 «인성퀵화면분할» · 화물24시 «전국24시콜화물» (기사님 «가») */
     HOME: { label: "홈", color: GRAY },
 };
 
@@ -172,7 +172,7 @@ export function deviceScreenBadge(device: {
     screenContext?: ScreenContextType | null;
     isScreenOn?: boolean;
     offlineReason?: DeviceOfflineReason;
-    /** 🧭 배차망 페이지 이름 · 덧칸 이름 — 있으면 그대로 그린다(기사님 «가» · reviews/35 5단계) · 옛 원달앱은 없다 */
+    /** 🧭 배차망 페이지 이름 · 덧칸 이름 — 있으면 그대로 그린다(기사님 «가») · 옛 원달앱은 없다 */
     screenPage?: string | null;
     screenOverlay?: string | null;
 }): DeviceScreenBadge | null {

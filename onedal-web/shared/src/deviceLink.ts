@@ -1,5 +1,5 @@
 /**
- * 🔐 **기기 비밀 토큰 규격 글자 — 한 곳** (운영센터 1단계 · reviews/29 · onedal-ab 서버 · onedal-04 원달앱).
+ * 🔐 **기기 비밀 토큰 규격 글자 — 한 곳** (운영센터 1단계 · onedal-ab 서버 · onedal-04 원달앱).
  * 원달앱은 짝(`POST /api/devices/pair`) 성공 본문의 [PAIR_TOKEN_FIELD] 로 토큰을 한 번 받아, 짝 요청 밖의 모든 요청에
  * [DEVICE_TOKEN_HEADER] 로 싣는다. 서버는 거절 까닭을 [DEVICE_LINK_ERRORS] 글자로 `{ error }` 에 싣는다.
  * 원달앱(코틀린)은 `core/DeviceLink.kt` 에 같은 글자를 둔다 — `server/tests/rules/deviceLinkNames.test.ts` 가 맞대어 본다.
@@ -22,7 +22,7 @@ export const DEVICE_LINK_ERRORS = {
 } as const;
 
 /**
- * 📱 **폰 표시 이름 — 한 곳** (reviews/29 1단계 K) — 이름(user_devices.device_name)이 있으면 이름, 없으면 «이름 없는 폰·id 뒤 4자».
+ * 📱 **폰 표시 이름 — 한 곳** — 이름(user_devices.device_name)이 있으면 이름, 없으면 «이름 없는 폰·id 뒤 4자».
  *    폰 id 는 긴 난수(d-UUID)라 조각으로는 어느 폰인지 못 읽는다. 서버 로그 · 관제웹 · 운영센터가 같은 함수를 쓴다.
  */
 export function deviceLabel(d: { deviceName?: string | null; deviceId: string }): string {

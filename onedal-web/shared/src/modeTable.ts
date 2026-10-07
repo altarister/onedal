@@ -1,7 +1,7 @@
 import type { DeviceModeType, TargetAppType } from './index';
 
 /**
- * 🎛️ **네 모드 표 — 한 곳** (reviews/44 · 기사님 «모든 상황에 대처할 수 있도록 표를 만들어 검수 코드에도 사용하자»).
+ * 🎛️ **네 모드 표 — 한 곳** (기사님 «모든 상황에 대처할 수 있도록 표를 만들어 검수 코드에도 사용하자»).
  * 모드는 두 걸음으로 정해진다 — `situations`(기사님이 누른 단추 × 상황 → 원달앱이 실제로 도는 모드) · `acts`(도는 모드 → 원달앱이 하는 일 · 보이는 것).
  * 🔴 **원천이다 — 여기를 고친다.** 서버 쪽은 shared `modeTable.test.ts` 가 `modeForPhone` · `DEVICE_MODE_LABEL` 과 견주고,
  *    원달앱 쪽은 `ModeTablePairTest` 가 같은 표를 읽어 원달앱 함수와 견준다 — 한쪽만 고치면 그쪽 검사가 빨갛다.
@@ -13,7 +13,7 @@ export interface ModeSituation {
     id: string;
     /** 기사님 말로 그 상황 */
     say: string;
-    /** 원달앱이 공급 모드를 한 번이라도 받아 저장해 두었나 — 거짓이면 새 폰(reviews/50 ①-3 · 기사님 1 가) */
+    /** 원달앱이 공급 모드를 한 번이라도 받아 저장해 두었나 — 거짓이면 새 폰(기사님 1 가) */
     replied: boolean;
     /** 원달앱의 마지막 보고가 서버에 닿았나(200) */
     reachable: boolean;
@@ -25,7 +25,7 @@ export interface ModeSituation {
     webAttached: boolean;
     /** 자동 잡기 허락이 살아 있나 */
     autoLive: boolean;
-    /** 같은 기사님의 다른 등록 폰도 자동 명령인가 — 자동은 한 폰만(reviews/48 가) */
+    /** 같은 기사님의 다른 등록 폰도 자동 명령인가 — 자동은 한 폰만 */
     otherAuto: boolean;
     /** 지금 화면의 배차망 */
     network: TargetAppType;
@@ -159,7 +159,7 @@ export interface PhoneForAuto {
 }
 
 /**
- * 🔁 **지금 확정을 누를 수 있는 다른 폰이 있나** (reviews/48 가 · onedal-69 리뷰) — 낱개 사실 셋을 모두 본다.
+ * 🔁 **지금 확정을 누를 수 있는 다른 폰이 있나** (onedal-69 리뷰) — 낱개 사실 셋을 모두 본다.
  * ① 살아 있다(마지막 보고가 `aliveMs` 안 — 서랍 속 등록 폰 · 꺼진 옛 폰이 진짜 폰을 끌어내리지 않게)
  * ② 자동이다(명령이 자동 **또는** 아직 자동을 받았다고 보고 — 넘기는 순간 앞 폰이 알람을 받기 전까지 새 폰도 기다려 틈 0)
  * ③ 지금 배차망이 자동으로 확정할 수 있다(픽커는 수락 칸이 없다 — 계약 못 하는 폰이 계약하는 폰을 끌어내리지 않게)

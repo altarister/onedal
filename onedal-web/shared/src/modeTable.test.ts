@@ -6,7 +6,7 @@ import { modeForPhone } from './allowance';
 import { DEVICE_MODES, DEVICE_MODE_LABEL, TARGET_APPS } from './index';
 
 /**
- * 🎛️ **네 모드 표 — 서버 쪽 짝** (reviews/44).
+ * 🎛️ **네 모드 표 — 서버 쪽 짝**.
  * 응답이 있는 줄은 서버가 내려주는 모드(`phone`)가 `modeForPhone(명령, 허락, 관제웹)`과 같고, 단추 글자가 `DEVICE_MODE_LABEL` 과 같다.
  * 표 JSON 이 원달앱 검사가 읽을 수 있는 엄격한 JSON 이다.
  * 못 잡는 것: 원달앱이 표대로 도는지(원달앱 `ModeTablePairTest`) · 서버 재시작 뒤 관제웹 소켓이 실제로 언제 다시 붙는지(폰 · 관제웹 시험).

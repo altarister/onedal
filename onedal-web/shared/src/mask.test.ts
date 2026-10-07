@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { maskPhone, maskPin, stopPhoneOf, stopPhoneLogOf } from './mask';
 
 /**
- * 📵 **휴대폰 번호 가림** (reviews/29 1단계 I · 가림 규칙 «010 계열 가운데 넉 자리») — 서버 로그 · 운영센터 · 관제웹이 같은 함수를 쓴다.
+ * 📵 **휴대폰 번호 가림** (가림 규칙 «010 계열 가운데 넉 자리») — 서버 로그 · 운영센터 · 관제웹이 같은 함수를 쓴다.
  * 유선·대표번호(02 · 031 · 1588)는 사업체 번호라 그대로 둔다. 금액·좌표 같은 숫자는 건드리지 않는다.
  */
 describe('📵 maskPhone', () => {

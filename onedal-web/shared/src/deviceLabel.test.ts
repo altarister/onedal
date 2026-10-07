@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { deviceLabel } from './deviceLink';
 
 /**
- * 📱 **폰 표시 이름 — 한 곳** (reviews/29 1단계 K · 04 · onedal-1f «가»).
+ * 📱 **폰 표시 이름 — 한 곳** (04 · onedal-1f «가»).
  * 폰 id 가 긴 난수(d-UUID)가 되면 id 조각으로는 어느 폰인지 못 읽는다 — 이름(user_devices.device_name)을 보이고, 없으면 «이름 없는 폰·뒤 4자».
  */
 describe('📱 deviceLabel', () => {

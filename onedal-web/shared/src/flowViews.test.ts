@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { originsOf, flowsFromOrigin, destinationPairs, hourHeat, type FlowCell } from './flowViews';
 
 /**
- * 📊 **운영센터 «어디로 · 몇 시에» 세 칸의 셈** (reviews/36).
+ * 📊 **운영센터 «어디로 · 몇 시에» 세 칸의 셈**.
  * ① 콜 많은 순 · 평균은 아는 값으로만 · 모호 · 모름은 순위 밖 ② 갈 콜만 많은 곳보다 돌아올 콜이 있는 곳이 먼저 ③ 나누는 수는 «그 시간에 본 날 수» · 못 본 시간은 없다.
  */
 const cell = (from: string, to: string, calls: number, o: Partial<FlowCell> = {}): FlowCell => ({
@@ -11,7 +11,7 @@ const cell = (from: string, to: string, calls: number, o: Partial<FlowCell> = {}
 });
 
 describe('📊 흐름 칸 셈', () => {
-    /* reviews/36 순위 검산 표 그대로 — 광주 → 분당 20건 9,000원 6km · 광주 → 강남 5건 19,000원 25km */
+    /* 순위 검산 표 — 광주 → 분당 20건 9,000원 6km · 광주 → 강남 5건 19,000원 25km */
     const cells: FlowCell[] = [
         cell('광주시', '성남시 분당구', 20, { fareFirstSum: 180_000, kmSum: 120 }),
         cell('광주시', '서울 강남구', 5, { fareFirstSum: 95_000, kmSum: 125 }),

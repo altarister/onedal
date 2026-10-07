@@ -1,7 +1,7 @@
 import type { TargetAppType } from './index';
 
 /**
- * 📝 **가입 · 약관 규격 — 타입만** (reviews/29 2단계 · 서버 문 /api/join/* · /api/contents/:kind).
+ * 📝 **가입 · 약관 규격 — 타입만** (서버 문 /api/join/* · /api/contents/:kind).
  *    가입 칸은 4장에서 «가» 받은 것만 — 연락처 · 배차망. 차종은 기사 설정(user_settings)에 이미 있고, 지역 · 유튜브 채널은 12월 칸이라 받지 않는다.
  *    상태 이름 칸은 없다 — 사실 시각 칸만 주고, 화면 글은 `opsMemberStatus` 가, 거절은 `accountBlocked` 가 정한다.
  */

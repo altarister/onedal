@@ -24,7 +24,7 @@ const needsCollect = (x: { evidence: string[]; toCollect?: string }) => x.eviden
 const placeIn = (toCollect: string | undefined) => toCollect?.match(/\(([^()]+)\)\s*$/)?.[1];
 
 /**
- * 📸 **배차망 화면 — 모을 것** (reviews/35 1-2단계 · 기사님 «모든 페이지 모든 팝업을 인지»).
+ * 📸 **배차망 화면 — 모을 것** (기사님 «모든 페이지 모든 팝업을 인지»).
  * 배차망 정의 표(NETWORK_PAGES)의 페이지 · 그 위에 뜨는 것에서 표 차례대로 뽑는다 — 손으로 적은 목록이 아니다.
  * 이 목록이 0 이 되면 그 배차망 화면을 다 아는 것이다. 운영센터 점검 «이상 기록»이 읽는다.
  */

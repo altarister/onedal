@@ -7,7 +7,7 @@ import type { FlowCell, WatchedHour } from './flowViews';
 import { kstDateText } from './format';
 
 /**
- * 🏢 **운영센터 API 규격 — 타입 + 회원 상태 규칙(순수)** (reviews/29 · 운영센터 `ops/` 와 서버 문 `/api/ops/*` 가 같은 모양을 읽는다).
+ * 🏢 **운영센터 API 규격 — 타입 + 회원 상태 규칙(순수)** (운영센터 `ops/` 와 서버 문 `/api/ops/*` 가 같은 모양을 읽는다).
  *    값 계산은 없다. 회원 상태는 이름 한 칸이 아니라 **사실 시각 칸**이다 — «승인 대기 · 사용 중 · 정지»는 화면이 시각을 보고 글로만 만든다.
  */
 
@@ -25,12 +25,12 @@ export interface OpsMember {
     suspendAfterActive: boolean;
     withdrawnAt: string | null;
     paidUntil: string | null;
-    /** 허락은 «허락 시각»(비면 안 켜짐) + «기한»(비면 기한 없음) 두 칸 — 상태 이름 한 칸이 아니다 (reviews/29 4장) */
+    /** 허락은 «허락 시각»(비면 안 켜짐) + «기한»(비면 기한 없음) 두 칸 — 상태 이름 한 칸이 아니다 */
     autoAllowedAt: string | null;
     autoUntil: string | null;
     statsAllowedAt: string | null;
     statsUntil: string | null;
-    /** 운영센터에 들어올 수 있나 — 비면 못 들어온다 (기사님 = 기사 + 관리자 · reviews/29 기준 4) */
+    /** 운영센터에 들어올 수 있나 — 비면 못 들어온다 (기사님 = 기사 + 관리자) */
     opsAllowedAt: string | null;
     phones: OpsPhone[];
 }
@@ -65,7 +65,7 @@ export interface OpsCall {
 
 /**
  * 통화 도우미가 적는 결과 — 기사가 쓰는 «통화함» 규격과 같은 구조 값(짐을 글자로 받으면 판정이 못 굳는다) + 누가 적었나.
- * «상대가 취소했다»는 지금은 memo 글로만(사실 칸은 기사님 «가» 뒤 · reviews/29 5단계).
+ * «상대가 취소했다»는 지금은 memo 글로만(사실 칸은 기사님 «가» 뒤).
  */
 export interface OpsCallNote {
     stopType: 'pickup' | 'dropoff';
@@ -232,7 +232,7 @@ export type OpsCallNoteWrite = Omit<OpsCallNote, 'writtenBy' | 'writtenAt'> & {
 export const CALL_NOTE_MEMO_MAX = 200;
 export interface OpsMinimumRelease { app: OpsRelease['app']; versionCode: number }
 
-/** 유예 — 유료 기한이 지난 뒤 확인 번호로 되살릴 수 있는 날 수 (reviews/29 · 첫 값 · 유튜브 결제 실패 재시도 기간 확인 후 조정) */
+/** 유예 — 유료 기한이 지난 뒤 확인 번호로 되살릴 수 있는 날 수 (첫 값 · 유튜브 결제 실패 재시도 기간 확인 후 조정) */
 export const GRACE_DAYS = 14;
 
 export type OpsMemberStatus = {
@@ -247,7 +247,7 @@ export type OpsMemberStatus = {
 type AccountFacts = Pick<OpsMember, 'approvedAt' | 'suspendedAt' | 'suspendAfterActive' | 'withdrawnAt' | 'paidUntil'>;
 
 /**
- * 🔴 **새 일을 받지 않는가 — 판단은 여기 한 곳** (reviews/29 · 서버의 폰 보고 거절 · `JoinMeReply.blocked` · `opsMemberStatus` 가 같이 부른다).
+ * 🔴 **새 일을 받지 않는가 — 판단은 여기 한 곳** (서버의 폰 보고 거절 · `JoinMeReply.blocked` · `opsMemberStatus` 가 같이 부른다).
  * 참: 탈퇴 · 즉시 정지 · 승인 전 · «끝난 뒤» 정지와 유료 기한 지남(둘 다 «끝난 뒤 멈춤»과 같은 길 — 진행 중 콜이 있으면 끝날 때까지 아직 막지 않는다. 중간에 끊으면 안전취소가 멈춘다).
  * 🔴 봐주는 것은 그날까지 — «끝난 뒤» 정지는 정지 건 한국 날, 유료 기한은 기한 다음 날까지만 진행 중 콜을 봐준다. 그 뒤는 콜이 있어도 막는다
  *    (기획 29 3단계 · 27 Q5 «결재 안 한 콜이 남아도 영업일이 바뀌면 멈춤» — 콜 하나로 정지가 끝없이 미뤄지지 않게).
@@ -336,7 +336,7 @@ export function kakaoTotalOf(rows: OpsBoardKakao['rows']): { route: { today: num
 }
 
 /**
- * 📊 운영센터 통계 (reviews/33 4단계) — «목록에 뜬 실물 콜»(배차망 화면을 읽어 올린 것 · 시뮬 빼고)로만.
+ * 📊 운영센터 통계 — «목록에 뜬 실물 콜»(배차망 화면을 읽어 올린 것 · 시뮬 빼고)로만.
  *    기사별 벌이는 없다 — 잡은 콜에 시뮬/실콜을 가를 칸이 없다(화면이 «실제 콜이 생기면 채워집니다»).
  */
 export interface OpsStats {
@@ -383,7 +383,7 @@ export interface OpsLocations {
 }
 
 /**
- * 🏠 **운영센터 홈 한 장** (reviews/33 2단계 · GET /api/ops/home · 모양은 onedal-ea) — 숫자는 그 쪽 문과 같은 함수로 센다(홈 숫자 = 쪽 숫자).
+ * 🏠 **운영센터 홈 한 장** (GET /api/ops/home · 모양은 onedal-ea) — 숫자는 그 쪽 문과 같은 함수로 센다(홈 숫자 = 쪽 숫자).
  *    기사마다 오늘 콜 수 · 매출은 없다 — 시뮬 콜과 실콜을 가를 칸이 아직 없다(실콜이 생기면 채운다 · onedal-69 «가» Q1).
  */
 export interface OpsHome {

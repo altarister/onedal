@@ -138,7 +138,7 @@ describe('deviceScreenBadge — 화면 켜짐과 화면명은 한 배지', () =>
     });
 });
 
-/** 🧭 reviews/35 2단계 — 표가 낸 기준 값 둘과 화물24시 홈이 관제웹에 이름으로 뜬다(«알 수 없는 화면» 빨간 깜빡임이 아니다) */
+/** 🧭 표가 낸 기준 값 둘과 화물24시 홈이 관제웹에 이름으로 뜬다(«알 수 없는 화면» 빨간 깜빡임이 아니다) */
 describe('넘어가는 중 · 배차망 메뉴 · 화물24시 홈', () => {
     it('세 배차망 모두 «넘어가는 중» · «배차망 메뉴»', () => {
         for (const net of ['insung', 'hwamul24', 'kakaopicker']) {
@@ -153,7 +153,7 @@ describe('넘어가는 중 · 배차망 메뉴 · 화물24시 홈', () => {
     });
 });
 
-/** 🧭 reviews/35 5단계 — 새 원달앱이 싣는 배차망 페이지 이름 · 덧칸 이름을 배지가 그대로 그린다(기사님 «가») · 옛 원달앱은 지금 이름 */
+/** 🧭 새 원달앱이 싣는 배차망 페이지 이름 · 덧칸 이름을 배지가 그대로 그린다(기사님 «가») · 옛 원달앱은 지금 이름 */
 describe('배지 — 배차망 페이지 이름 · 덧칸', () => {
     it('페이지 이름 + «· 덧칸 이름» · 색은 화면 값의 색', () => {
         const b = deviceScreenBadge({ status: 'ONLINE', targetApp: 'insung', screenContext: 'DETAIL_PRE_CONFIRM', isScreenOn: true, screenPage: '확정 전 상세', screenOverlay: '출발지 상세 팝업' } as any);

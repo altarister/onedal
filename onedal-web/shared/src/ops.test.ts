@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { GRACE_DAYS, accountBlocked, opsMemberStatus } from './ops';
 
-/** 회원 상태는 사실 칸에서만 — 서버는 blocked 만 읽고, 글은 화면 몫 (reviews/29 · 기한 지나면 자동 정지 · 14일 유예 · 탈퇴는 관리자 손) */
+/** 회원 상태는 사실 칸에서만 — 서버는 blocked 만 읽고, 글은 화면 몫 (기한 지나면 자동 정지 · 14일 유예 · 탈퇴는 관리자 손) */
 const base = { approvedAt: '2026-09-01T09:00:00.000Z', suspendedAt: null, suspendAfterActive: false, withdrawnAt: null, paidUntil: null };
 const TODAY = '2026-10-01';
 

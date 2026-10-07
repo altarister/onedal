@@ -605,7 +605,7 @@ export interface TimingOrderFields {
     capturedAt?: string;
     /** ⏱️ 적요 — 상차 시계("HH:MM상차")를 여기서 읽는다 (두 시계 · ⑯) */
     itemDescription?: string;
-    /** 📅 예약 날(0 오늘 · 1 내일 · N)·시각 «HH:MM» — 있으면 상차 시계가 이것으로 날짜를 만든다 (reviews/23 B-2) */
+    /** 📅 예약 날(0 오늘 · 1 내일 · N)·시각 «HH:MM» — 있으면 상차 시계가 이것으로 날짜를 만든다 */
     reservedDay?: number | null;
     reservedAt?: string | null;
     detailMemo?: string;
@@ -743,7 +743,7 @@ export function pickupClockMsOf(
     capturedMs: number, offsetMinutes: number,
 ): number | null {
     /**
-     * 📅 **예약이 먼저다** (reviews/23 B-2) — «잡은 날 + reservedDay 일»의 reservedAt 시각.
+     * 📅 **예약이 먼저다** — «잡은 날 + reservedDay 일»의 reservedAt 시각.
      *    오늘 안의 «예약 18:30»(0일)도 여기서 맞는다. 적요 시각은 날을 모르니 예약이 없을 때만 쓴다.
      */
     const at = /^(\d{1,2}):(\d{2})$/.exec(order.reservedAt ?? '');

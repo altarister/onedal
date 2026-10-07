@@ -4,7 +4,7 @@ import { collectListOf, collectCountOf } from './collectList';
 import type { TargetAppType } from './index';
 
 /**
- * 📸 **모을 것 목록은 배차망 정의 표에서 빠짐없이 뽑힌다** (reviews/35 1-2단계).
+ * 📸 **모을 것 목록은 배차망 정의 표에서 빠짐없이 뽑힌다**.
  * 근거가 비었거나 toCollect 가 적힌 페이지 · 그 위에 뜨는 것은 다 들고, 아닌 것은 안 든다 · 차례는 표 차례 · 어디서 여나가 비지 않는다.
  */
 const key = (network: string, page: string, overlay?: string) => `${network}|${page}|${overlay ?? ''}`;

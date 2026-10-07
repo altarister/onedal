@@ -706,7 +706,7 @@ export interface MyOrder extends OfficeOrder {
      */
     goalCity?: string;
     /**
-     * 📅 **예약 보관 날 `YYYY-MM-DD`** — 잡은 날 + `reservedDay` (reviews/23 B-1). 오늘보다 뒤면 이 콜은 진행 중 콜이 아니라
+     * 📅 **예약 보관 날 `YYYY-MM-DD`** — 잡은 날 + `reservedDay`. 오늘보다 뒤면 이 콜은 진행 중 콜이 아니라
      *    세션의 예약 보관(`reservedOrders`)에 있다. 장부 자리는 `orders.reserved_for`. 오늘 콜이면 비어 있다.
      */
     reservedFor?: string;
@@ -931,7 +931,7 @@ export interface AutoDispatchFilter {
      */
     routeMode?: boolean;
     /**
-     * 📅 **예약콜 축** — 내일 이후 예약 콜을 받나 (reviews/23 · 기사님 결정 기본 «오늘 콜만»).
+     * 📅 **예약콜 축** — 내일 이후 예약 콜을 받나 (기사님 결정 기본 «오늘 콜만»).
      *    읽는 곳은 원달앱 1차 필터 하나다 — 서버는 이 값으로 거르지 않는다. DB 자리는 `user_filters.reservation_mode`.
      * ⚠️ 지금은 `today` 하나만 쓴다 — 내일 콜을 담을 그릇(예약 보관)이 서기 전에는 나머지 둘을 고를 수 없다.
      */
@@ -1055,7 +1055,7 @@ export const APP_FILTER_KEYS = [
     'pickupKeywords',
     'excludedKeywords', 'allowedVehicleTypes',
     'minFare', 'maxFare', 'ratePerKm',
-    /* 📅 예약콜 축 — 원달앱 1차 필터가 읽는다 (reviews/23 · 서버는 이 값으로 거르지 않는다) */
+    /* 📅 예약콜 축 — 원달앱 1차 필터가 읽는다 (서버는 이 값으로 거르지 않는다) */
     'reservationMode',
     /* 📅 내일 이후 예약 콜 상차 — scrap 이 조립할 때 얹는다(기본 반경 · 집 둘레 동 목록 · 시군구 묶음) · 원달앱 FilterStore 가 읽는다 */
     'reservedPickupRadiusKm', 'reservedPickupKeywords', 'reservedPickupGroups',
@@ -1576,7 +1576,7 @@ export function workStageLabel(d: {
  *    «안 됐다»로 읽으면 영원히 안 풀리는 딤드가 된다 (규칙 ④).
  */
 export function isModeApplying(d: { mode?: string; autoAllowed?: boolean; appliedMode?: string; suppliedMode?: string; sentMode?: string; supplyLinked?: boolean }): boolean {
-    /* 📶 새 원달앱 — «서버가 보내는 모드가 블루투스로 아직 안 닿았나»만 본다(reviews/50 ①-4). 일부러 내려간 알람(관제앱과 끊김 · 관제웹 없음 …)은 배지가 말한다 ·
+    /* 📶 새 원달앱 — «서버가 보내는 모드가 블루투스로 아직 안 닿았나»만 본다. 일부러 내려간 알람(관제앱과 끊김 · 관제웹 없음 …)은 배지가 말한다 ·
           공급이 끊겼으면 받을 길이 없어 적용중이 아니다 · 꺼진 폰은 sentMode 가 없어 아니다 */
     if (d.suppliedMode !== undefined) return d.supplyLinked !== false && !!d.sentMode && d.sentMode !== d.suppliedMode;
     if (!d.appliedMode) return false;
@@ -1589,7 +1589,7 @@ export function isModeApplying(d: { mode?: string; autoAllowed?: boolean; applie
  * 관제웹 폰 카드와 알람 소리가 이것을 본다. «명령이 닿았나»(`isModeApplying`)는 명령끼리 대조한다.
  */
 /**
- * 📶 **폰 칸 연결 배지 — 문제일 때만 하나** (reviews/50 ①-4 · 기사님 «가» · 차례는 뿌리부터).
+ * 📶 **폰 칸 연결 배지 — 문제일 때만 하나** (기사님 «가» · 차례는 뿌리부터).
  * 다른 서버를 봄 · 허락 없음 · 폰 연결 풀림이면 나머지 값을 믿을 수 없으니 맨 앞 · 공급이 끊기면 옛 판은 그 결과라 끊김만.
  * 옛 원달앱(칸 없음)이면 null — 모르는 것을 문제로 그리지 않는다(규칙 ④).
  */
@@ -1613,7 +1613,7 @@ export function runningModeOf(d: { mode?: string; autoAllowed?: boolean; effecti
 export function isListScreen(screenContext?: string | null, targetApp?: string | null, screenPage?: string | null): boolean {
     if (!screenContext) return false;
     if ((LIST_SCREENS as string[]).includes(screenContext)) return true;
-    /* 📋 새 원달앱은 «내 오더» 하나로 보내고 페이지 이름을 싣는다 — 목록 복귀인가는 배차망 정의 표의 사실(reviews/35 5단계) */
+    /* 📋 새 원달앱은 «내 오더» 하나로 보내고 페이지 이름을 싣는다 — 목록 복귀인가는 배차망 정의 표의 사실 */
     return screenContext === 'MY_ORDERS' && listReturnOf(targetApp, screenPage);
 }
 
@@ -1633,7 +1633,7 @@ export const DETAIL_SCREENS: ScreenContextType[] = [
 
 /**
  * ⏳ **스치는 화면** — 상세도 이탈도 아직 아니다. 이어진 시간이 `UNKNOWN_LEAVE_SEC` 를 넘어야 이탈로 본다(서버 `devices.leftDetail`).
- * 알 수 없는 화면은 카드를 여는 순간 잠깐 끼고, 넘어가는 중은 콜을 누른 직후 0.3~0.7초 보인다(reviews/35).
+ * 알 수 없는 화면은 카드를 여는 순간 잠깐 끼고, 넘어가는 중은 콜을 누른 직후 0.3~0.7초 보인다.
  */
 export const BLIP_SCREENS: ScreenContextType[] = ['UNKNOWN', 'TRANSITION'];
 
@@ -1765,7 +1765,7 @@ export interface DeviceSession {
     /** 그 지문을 마지막으로 확인한 시각 (밀리초) — 낡음을 재려면 «언제»가 있어야 한다 */
     filterVersionAt?: number;
     screenContext?: ScreenContextType;  // [Safety Mode V3] 현재 화면 상태 (물리적 페이지)
-    /** 🧭 원달앱이 싣는 배차망 페이지 이름 · 그 위에 뜬 것(덧칸) 이름 — 배차망 정의 표의 이름 · 옛 원달앱은 안 싣는다 (reviews/35 5단계) */
+    /** 🧭 원달앱이 싣는 배차망 페이지 이름 · 그 위에 뜬 것(덧칸) 이름 — 배차망 정의 표의 이름 · 옛 원달앱은 안 싣는다 */
     screenPage?: string | null;
     screenOverlay?: string | null;
     isHolding?: boolean;    // [Page/Hold 분리] 콜 처리 중 여부 (확정 클릭 ~ 리스트 복귀)
@@ -1847,7 +1847,7 @@ export interface DeviceSession {
      */
     effectiveMode?: string;
     /**
-     * 📶 **원달앱 보고가 싣는 블루투스 · 폰 사실 넷** (reviews/50 ①-4 · 원달앱이 원천 · 보고 한 길 · 옛 원달앱은 `undefined` → 안 그림).
+     * 📶 **원달앱 보고가 싣는 블루투스 · 폰 사실 넷** (원달앱이 원천 · 보고 한 길 · 옛 원달앱은 `undefined` → 안 그림).
      * `suppliedMode` 관제앱이 블루투스로 준 마지막 모드(저장 값) — «적용중»은 이것과 서버가 보내는 모드(`sentMode`)를 견준다(`isModeApplying`).
      */
     suppliedMode?: string;
@@ -1862,10 +1862,10 @@ export interface DeviceSession {
     bleSameServer?: boolean;
     bleUnlinkedWhy?: string | null;
     bleHeardAt?: number;
-    /** 🚫 블루투스 받기 전 원달앱 — 서버가 보고를 거절한다(reviews/50 ①-5) · 기기 목록에만 */
+    /** 🚫 블루투스 받기 전 원달앱 — 서버가 보고를 거절한다 · 기기 목록에만 */
     appTooOld?: boolean;
     /**
-     * 🎛️ **이 회원의 자동 잡기 허락이 지금 살아 있나** — 서버가 폰 보고마다 적는다(메모리 · 저장 칸 아님 · reviews/29 6단계).
+     * 🎛️ **이 회원의 자동 잡기 허락이 지금 살아 있나** — 서버가 폰 보고마다 적는다(메모리 · 저장 칸 아님).
      * 꺼지면 AUTO 명령도 폰은 ALARM — 읽을 때는 `phoneModeOf` 를 거친다 · 관제웹 모드 목록은 `modeChoicesOf`.
      */
     autoAllowed?: boolean;
@@ -2120,7 +2120,7 @@ export interface OrderSyncPayload {
      * ⚠️ 옛 서버는 안 싣는다 — `undefined` 면 화면이 «모른다»로 그린다.
      */
     /**
-     * 📅 **예약 보관 — 내일 이후 콜** (reviews/23 B-1). 오늘 목록(`active`)에는 없다 — 관제웹 «📅 예약» 칸만 그린다.
+     * 📅 **예약 보관 — 내일 이후 콜**. 오늘 목록(`active`)에는 없다 — 관제웹 «📅 예약» 칸만 그린다.
      * ⚠️ 옛 서버는 안 싣는다.
      */
     reserved?: SecuredOrder[];
@@ -2205,7 +2205,7 @@ export interface FilterTally {
     routeOrder: number;
     /** 📋 상차 목록에 안 걸린 콜 — 원달앱 2.9.7 부터 (옛 앱은 안 보낸다 · 하차 목록») */
     pickupList?: number;
-    /** 📅 예약콜 축에 막힌 콜 — 원달앱 예약 필터부터 (옛 앱은 안 보낸다 · reviews/23) */
+    /** 📅 예약콜 축에 막힌 콜 — 원달앱 예약 필터부터 (옛 앱은 안 보낸다) */
     reservation?: number;
 }
 

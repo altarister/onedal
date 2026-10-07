@@ -3,10 +3,10 @@ import type { PageField, ScreenPage } from './pageFields';
 import type { VehicleType } from './vehicles';
 
 /**
- * 📄 **배차망 화면 정의 — 한 곳** (reviews/34 · 기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
+ * 📄 **배차망 화면 정의 — 한 곳** (기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
  * 배차망(인성 · 화물24시 · 카카오 픽커)마다 «어느 화면 · 어느 칸이 · 어디에 · 어떤 글자로 오고 · 읽나 안 읽나 · 어떻게 읽나»를 여기 한 장에만 적는다.
  * 🔴 **원천이다 — 여기를 고친다.** 원달앱 `plugins/…/…Pages.kt` 셋은 `cd onedal-web && pnpm gen:pages` 가 이 표에서 뽑은 생성 파일이고,
- *    원달앱 `NetworkPagesPairTest` 가 둘이 같은지 문다. 서버는 이 상수를 바로 읽는다(reviews/34 3단계).
+ *    원달앱 `NetworkPagesPairTest` 가 둘이 같은지 문다. 서버는 이 상수를 바로 읽는다.
  * 칸 이름은 `pageFields` 의 낱말(SCREEN_PAGES · PAGE_FIELDS)이다. `read` 는 정규식 원문 글자 — JS 와 코틀린이 같은 뜻으로 읽는 문법만 쓴다(1번 묶음이 값 · 노드 글을 한 칸 띄어 이은 줄에 댄다).
  * 몸통은 JSON 표시 주석 둘(별표 주석 «JSON») 사이의 엄격한 JSON 이다 — 뽑는 스크립트(mjs)와 원달앱 검사가 그 사이를 그대로 읽는다. 표시를 지우지 않는다.
  */
@@ -34,14 +34,14 @@ export interface NetworkPageSpec {
     about: string[];
     pages: Record<ScreenPage, NetworkFieldSpec[]>;
     /**
-     * 🚫 **제외어를 찾는 칸** — 상세 화면(detail)의 이 칸들 값에서만 기사님 제외어를 찾는다(기사님 «배차망별 칸에서만» · reviews/34 3단계 5③).
+     * 🚫 **제외어를 찾는 칸** — 상세 화면(detail)의 이 칸들 값에서만 기사님 제외어를 찾는다(기사님 «배차망별 칸에서만»).
      * 칸마다 그 화면 정의 줄의 읽는 법(read)으로 읽는다 — 주소 · 화주 이름 · 화면 머리 · 버튼 · 목록 잔상은 빠진다. 서버가 읽는다 · 원달앱 제외어는 목록 카드 글에서만(무변화) · gen:pages 는 이 칸을 뽑지 않는다.
      */
     excludeScan: PageField[];
     /** 그 칸들로 정한 까닭 한 줄(기사님 말) */
     excludeScanWhy: string;
     /**
-     * 🏠 **주소 다듬기** — 서버가 카카오 주소 찾기 전에 콜 주소에서 이 정규식에 맞는 부분을 지우고 앞뒤 공백을 자른다(reviews/34 3단계 5②).
+     * 🏠 **주소 다듬기** — 서버가 카카오 주소 찾기 전에 콜 주소에서 이 정규식에 맞는 부분을 지우고 앞뒤 공백을 자른다.
      * null 이면 앞뒤 공백만. 원달앱은 읽지 않는다 · gen:pages 는 이 칸을 뽑지 않는다.
      */
     addressCut: string | null;
@@ -74,7 +74,7 @@ export interface NetworkVehicleWord {
 }
 
 /**
- * 🧭 **우리 기준 페이지** — 배차망 페이지를 우리 시스템의 어느 자리로 맞추나(reviews/35).
+ * 🧭 **우리 기준 페이지** — 배차망 페이지를 우리 시스템의 어느 자리로 맞추나.
  * 원달앱 `core/PageSpec.kt` 의 `StandardScreen` 과 이름 · 차례가 같다(원달앱 `NetworkPagesPairTest`).
  * TRANSITION = 콜을 누른 직후 넘어가는 틀 · NETWORK_MENU = 배차망 안의 일이 아닌 화면(목록 복귀 아님).
  */
@@ -113,15 +113,15 @@ interface ScreenOverlay {
     wordsFrom?: string;
     /**
      * 🛠️ **이 덧칸이 보이면 원달앱이 할 일** — SKIP 건너뛰기(로딩) · FILL_PICKUP · FILL_DROPOFF · FILL_MEMO 팝업으로 상세 채우기(인성) · ERROR 오류(아무것도 안 누름).
-     * 서버로 보내는 화면 값은 페이지 값 그대로이고 덧칸 이름이 따로 간다(reviews/35 5단계).
+     * 서버로 보내는 화면 값은 페이지 값 그대로이고 덧칸 이름이 따로 간다.
      */
     action?: 'SKIP' | 'FILL_PICKUP' | 'FILL_DROPOFF' | 'FILL_MEMO' | 'ERROR';
 }
 
 /**
- * 🖥️ **배차망 페이지 한 줄** (reviews/35 · 기사님 «모든 페이지 모든 팝업을 인지»).
+ * 🖥️ **배차망 페이지 한 줄** (기사님 «모든 페이지 모든 팝업을 인지»).
  * 배열 차례가 판별 차례다 — 위에서부터 처음 맞는 페이지. 배차망 페이지는 묶지 않는다(우리 기준 값은 묶어도 된다).
- * 원달앱 판별은 아직 이 줄을 읽지 않는다(reviews/35 2단계에서 읽는다).
+ * 원달앱 판별은 아직 이 줄을 읽지 않는다.
  */
 interface NetworkScreenSpec {
     /** 배차망이 부르는 페이지 이름 */
@@ -488,7 +488,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
 }/*JSON*/ as Record<TargetAppType, NetworkPageSpec>;
 
 /**
- * 📋 **이 배차망 페이지는 목록 복귀로 치나** — 표의 `listReturn`(인성 완료 탭 · 화물24시 배차내역 목록) (reviews/35 5단계).
+ * 📋 **이 배차망 페이지는 목록 복귀로 치나** — 표의 `listReturn`(인성 완료 탭 · 화물24시 배차내역 목록).
  * 원달앱이 «내 오더»(MY_ORDERS) 화면 값과 함께 싣는 페이지 이름(`screenPage`)으로 찾는다 · 모르면 false.
  */
 export function listReturnOf(targetApp: string | null | undefined, page: string | null | undefined): boolean {
