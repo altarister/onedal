@@ -2252,7 +2252,8 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     override fun clickFirstMatchingButton(rootNode: AccessibilityNodeInfo, buttonTexts: List<String>): Boolean {
         for (btnText in buttonTexts) {
-            if (touchManager.findAndClickByText(rootNode, btnText, isStartsWith = true)) {
+            /* 🛑 지금 모드를 넘긴다 — 체험이면 확정 · 수락 글자 버튼을 막는 둘째 겹(`ModeActs.blocksTap`)이 이 길에도 선다 */
+            if (touchManager.findAndClickByText(rootNode, btnText, isStartsWith = true, currentMode = effectiveMode)) {
                 AppLogger.d(TAG, LogTag.TAP, "✅ 버튼 '$btnText' 클릭 성공!")
                 return true
             }
