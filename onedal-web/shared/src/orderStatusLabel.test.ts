@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_ORDER_STATUSES, ORDER_STATUS_LABEL, isLetGoStatus } from './index';
+import { ALL_ORDER_STATUSES, ORDER_STATUS_LABEL, isLetGoStatus, LET_GO_STATUSES, TERMINAL_STATUSES } from './index';
 
 /**
  * 🏷️ **콜 상태 이름표 한 벌** — 운영센터 화면에 영어 상태(SAFE_CANCEL · ORDER_RELEASED_BY_ME)가 그대로 나오던 것.
@@ -11,5 +11,9 @@ describe('콜 상태 이름표', () => {
     });
     it('무름 = 안전취소 · 기사님 방출 · 사무실 방출 — 진행 중 · 상차 · 하차 · 완료는 아니다', () => {
         expect(ALL_ORDER_STATUSES.filter(isLetGoStatus).sort()).toEqual(['ORDER_RELEASED_BY_ME', 'ORDER_RELEASED_BY_OFFICE', 'SAFE_CANCEL']);
+    });
+    it('무른 콜은 모두 종결 상태다 — 하차 완료 · 완료는 종결이지만 무른 콜이 아니다', () => {
+        for (const s of LET_GO_STATUSES) expect(TERMINAL_STATUSES, s).toContain(s);
+        expect(TERMINAL_STATUSES.filter(s => !isLetGoStatus(s)).sort()).toEqual(['ORDER_COMPLETED', 'ORDER_DELIVERED']);
     });
 });

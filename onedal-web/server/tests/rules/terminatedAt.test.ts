@@ -1,4 +1,7 @@
 import { readFileSync } from 'fs';
+import db from '../../src/db';
+import { OrderRepository } from '../../src/repositories/OrderRepository';
+import { LET_GO_STATUSES } from '@onedal/shared';
 import { join } from 'path';
 
 /**
@@ -24,7 +27,21 @@ describe('🧹 취소·방출 시각', () => {
         const fn = repo.slice(repo.indexOf('updateOrderStatus('), repo.indexOf('insertOrderStop('));
         expect(fn).toMatch(/terminatedAt = CASE/);
         expect(fn).toMatch(/COALESCE\(terminatedAt/);
-        expect(fn).toMatch(/SAFE_CANCEL/);
+    });
+    /** 동작으로 본다 — 무른 콜 셋(shared 원천)이면 시각을 적고 · 두 번째는 첫 시각 그대로 · 진행 중이면 안 적는다 */
+    it('🔴 무른 콜 셋 모두 처음 한 번 시각이 남고 · 진행 중은 안 남는다', () => {
+        const U = 'term-user';
+        db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, `${U}@test`, '기사');
+        const put = (id: string) => db.prepare(`INSERT OR REPLACE INTO orders (id, userId, status, timestamp, capturedAt, pickup, dropoff, fare, vehicleType)
+            VALUES (?, ?, 'ORDER_CONFIRMED', ?, ?, '경기 광주시 경안동', '경기 파주시 금촌동', 30000, '1t')`).run(id, U, new Date().toISOString(), new Date().toISOString());
+        for (const s of LET_GO_STATUSES) {
+            put(`t-${s}`);
+            const first = OrderRepository.updateOrderStatus(`t-${s}`, U, s);
+            expect(first).not.toBeNull();
+            expect(OrderRepository.updateOrderStatus(`t-${s}`, U, s)).toBe(first);
+        }
+        put('t-live');
+        expect(OrderRepository.updateOrderStatus('t-live', U, 'ORDER_PICKED_UP')).toBeNull();
     });
     /**
      * 🔴 **그리는 자리를 읽는다** — 조회 목록은 서랍(`Drawer`)이다.

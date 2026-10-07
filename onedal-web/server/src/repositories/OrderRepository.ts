@@ -1,5 +1,5 @@
 import db from "../db";
-import { MyOrder, PendingOrder, SecuredOrder } from "@onedal/shared";
+import { MyOrder, PendingOrder, SecuredOrder, LET_GO_STATUSES } from "@onedal/shared";
 import type { CargoReport, LocationDetailInfo } from "@onedal/shared";
 
 export class OrderRepository {
@@ -238,10 +238,11 @@ export class OrderRepository {
      * @returns 장부에 있는 취소 시각 — 취소·방출이 아니면 `null`. 부르는 쪽이 메모리 콜에도 적어 화면으로 보낸다
      */
     public static updateOrderStatus(orderId: string, userId: string, status: string): string | null {
+        const letGo = LET_GO_STATUSES.map(() => '?').join(', ');   // 🔙 무른 콜 셋은 shared 원천에서 — SQL 에 손으로 적지 않는다
         db.prepare(`UPDATE orders SET status = ?,
-                        terminatedAt = CASE WHEN ? IN ('SAFE_CANCEL', 'ORDER_RELEASED_BY_ME', 'ORDER_RELEASED_BY_OFFICE')
+                        terminatedAt = CASE WHEN ? IN (${letGo})
                                             THEN COALESCE(terminatedAt, ?) ELSE terminatedAt END
-                    WHERE id = ? AND userId = ?`).run(status, status, new Date().toISOString(), orderId, userId);
+                    WHERE id = ? AND userId = ?`).run(status, status, ...LET_GO_STATUSES, new Date().toISOString(), orderId, userId);
         const row = db.prepare(`SELECT terminatedAt FROM orders WHERE id = ? AND userId = ?`)
             .get(orderId, userId) as { terminatedAt?: string | null } | undefined;
         return row?.terminatedAt ?? null;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { deckOfCycle, type SecuredOrder, manwonText } from '@onedal/shared';
+import { deckOfCycle, type SecuredOrder, manwonText, ORDER_STATUS_LABEL } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { reservedLineOf } from '../../lib/reservedLine';
@@ -60,16 +60,8 @@ const clockOf = (c: SecuredOrder): string => {
     return hhmmText(raw) ?? '—';   // 🕐 한 모양은 shared
 };
 
-/** 왜 끝났나 — 한 마디. 상태값을 그대로 보이면 기사님이 읽을 말이 아니다 */
-const whyOf = (c: SecuredOrder): string => {
-    switch (c.status) {
-        case 'SAFE_CANCEL': return '안전취소';
-        case 'ORDER_RELEASED_BY_ME': return '내가 방출';
-        case 'ORDER_RELEASED_BY_OFFICE': return '사무실이 뺌';
-        case 'ORDER_DELIVERED': return '하차 완료';
-        default: return c.status ?? '—';
-    }
-};
+/** 왜 끝났나 — 한 마디. 상태 이름표는 다른 화면과 한 벌(`ORDER_STATUS_LABEL`) — 상태값을 그대로 보이지 않는다 */
+const whyOf = (c: SecuredOrder): string => (c.status ? ORDER_STATUS_LABEL[c.status] : undefined) ?? '—';
 
 export default function Drawer({ open, onClose, activeRoute, reserved = [], onDecision }: Props) {
     const { theme, setTheme } = useTheme();

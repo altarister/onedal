@@ -7,6 +7,7 @@
  * 🔴 **저장하는 것은 사건뿐이다** — 서버 `call_target_events` 표(`core/callTargetEvents.ts`). 지금 상태는 여기서 계산한다 (규칙 ③).
  */
 import { businessDayKey } from './timing';
+import { isLetGoStatus } from './orderStatuses';
 
 export interface CallTargetEvent {
     target: 'DEST' | 'HOME';
@@ -29,9 +30,6 @@ export function callTargetOfDay(events: CallTargetEvent[], nowMs: number): { tar
     return last?.target === 'HOME' ? { target: 'HOME', homeOnAt: last.at } : { target: 'DEST', homeOnAt: null };
 }
 
-/** 없던 일이 된 콜 — 취소·방출. 하차를 마친 콜은 «한 일»이라 센다 */
-const UNDONE_STATUSES: readonly string[] = ['SAFE_CANCEL', 'ORDER_RELEASED_BY_ME', 'ORDER_RELEASED_BY_OFFICE'];
-
 /**
  * 복귀콜인가 — **복귀를 켠 뒤에 잡았고, 판(`board` — 콜이 통과한 목적지 시)이 집**이며, 취소·방출하지 않은 콜.
  * 🔴 켜기 전에 잡은 콜은 판이 집이어도 안 센다 — 복귀 켬 전의 운행과 섞지 않는다.
@@ -42,7 +40,7 @@ export function isHomeCallSince(
     home: string | null,
 ): boolean {
     if (!homeOnAt || !home || !call.capturedAt) return false;
-    if (UNDONE_STATUSES.includes(call.status ?? '')) return false;
+    if (isLetGoStatus(call.status)) return false;   // 없던 일이 된 콜 — 취소·방출. 하차를 마친 콜은 «한 일»이라 센다
     if (call.board !== home) return false;
     return Date.parse(call.capturedAt) >= Date.parse(homeOnAt);
 }

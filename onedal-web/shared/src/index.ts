@@ -90,10 +90,8 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
     ORDER_RELEASED_BY_OFFICE: '방출(사무실)',
 };
 
-/** 🔙 **잡았다가 무른 콜인가** — 안전취소 · 방출 둘. «잡은 콜» 수에서 따로 센다 (운영센터 «오늘 판정받은 콜») */
-export function isLetGoStatus(status: string | null | undefined): boolean {
-    return status === 'SAFE_CANCEL' || status === 'ORDER_RELEASED_BY_ME' || status === 'ORDER_RELEASED_BY_OFFICE';
-}
+export { LET_GO_STATUSES, isLetGoStatus, type LetGoStatus } from './orderStatuses';
+import { LET_GO_STATUSES, type LetGoStatus } from './orderStatuses';
 
 /** 종결 상태 (더 이상 상태 전이 없음) */
 export const TERMINAL_STATUSES: readonly OrderStatus[] = [
@@ -101,9 +99,7 @@ export const TERMINAL_STATUSES: readonly OrderStatus[] = [
     // 적재 계산·경로 계산·화면 표시가 함께 짐을 내린다 — 빠지면 잔여 용량이 회복되지 않아 다음 짐을 못 잡는다.
     'ORDER_DELIVERED',
     'ORDER_COMPLETED',
-    'ORDER_RELEASED_BY_ME',
-    'SAFE_CANCEL',
-    'ORDER_RELEASED_BY_OFFICE',
+    ...LET_GO_STATUSES,   // 🔙 무른 콜 셋은 원천 하나(`orderStatuses.ts`)에서
 ] as const;
 
 /**
@@ -449,7 +445,7 @@ export type PendingOrderPhase = 'ORDER_PRE_SECURED' | 'ORDER_AWAITING_DECISION';
 // [계층 2-B] 확정 오더 상태 (내가 책임지고 수행해야 하는 퀵)
 // 업계 표준 3단계: 배차확정 → 상차완료(서명) → 하차완료(서명)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export type MyOrderStatus = 'ORDER_CONFIRMED' | 'ORDER_PICKED_UP' | 'ORDER_DELIVERED' | 'ORDER_COMPLETED' | 'ORDER_RELEASED_BY_ME' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_OFFICE';
+export type MyOrderStatus = 'ORDER_CONFIRMED' | 'ORDER_PICKED_UP' | 'ORDER_DELIVERED' | 'ORDER_COMPLETED' | LetGoStatus;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 3] 콜 잡기 전략 단계 — DriverAction + 확정 콜 수에서 파생

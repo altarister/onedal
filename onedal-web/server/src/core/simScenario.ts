@@ -1,4 +1,5 @@
 import type { SimCallInput, SimPlace } from './simCallQueue';
+import { LET_GO_STATUSES } from '@onedal/shared';
 
 /**
  * 🎬 **시나리오콜 — 서버가 사건순으로 콜을 낸다** (기사님 지시).
@@ -127,7 +128,7 @@ export const PASS_WAIT_MS = 15_000;
 export const MATCH_KM = 0.2;
 
 const CONFIRMED = ['ORDER_CONFIRMED', 'ORDER_PICKED_UP', 'ORDER_DELIVERED', 'ORDER_COMPLETED'];
-const CANCELED = ['SAFE_CANCEL', 'ORDER_RELEASED_BY_ME', 'ORDER_RELEASED_BY_OFFICE'];
+const CANCELED: readonly string[] = LET_GO_STATUSES;
 
 const km = (x: number, y: number, p: { lon: number; lat: number }) =>
     Math.hypot((x - p.lon) * 111.32 * Math.cos((p.lat * Math.PI) / 180), (y - p.lat) * 110.574);
