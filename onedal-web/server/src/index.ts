@@ -78,7 +78,7 @@ app.set("io", io);
 
 // 미들웨어 설정
 app.use(cors());
-/* 🌐 처음 보는 Origin 을 한 줄 — CORS 를 좁히기 전에 실제로 붙는 출처를 모은다 (reviews/29 1단계 H · 소켓은 socketHandlers) */
+/* 🌐 처음 보는 Origin 을 한 줄 — CORS 를 좁히기 전에 실제로 붙는 출처를 모은다 (소켓은 socketHandlers) */
 app.use((req, _res, next) => { noteOrigin(req.headers.origin, `HTTP ${req.method} ${req.path}`); next(); });
 /* 📷 이상 보고는 사진(base64)이 실려 전역 한도(100KB)를 넘는다 — 이 문만 1MB. 전역 파서는 이미 읽은 본문을 건너뛴다 (core/anomalyShots) */
 app.use("/api/telemetry/anomalies", express.json({ limit: "1mb" }));
@@ -95,7 +95,7 @@ app.use(express.json());
  */
 const LOG_MUTED_PATHS = ['/api/scrap', '/api/devices', '/api/sim', '/api/health', '/api/logs'];
 
-// 글로벌 HTTP 로깅 미들웨어 — 🧹 GET(상태 조회 폴링)은 찍지 않는다. 쓰기와 오류만 흔적이 필요하다 (reviews/22 ①-3)
+// 글로벌 HTTP 로깅 미들웨어 — 🧹 GET(상태 조회 폴링)은 찍지 않는다. 쓰기와 오류만 흔적이 필요하다
 app.use((req, res, next) => {
     if (req.method !== 'GET' && !LOG_MUTED_PATHS.some(p => req.url.startsWith(p))) {
         slog('통신', `📡 [HTTP 수신] ${req.method} ${req.url} - IP: ${req.ip}`);
@@ -120,11 +120,11 @@ app.use("/api/telemetry", telemetryRouter);
 app.use("/api/emergency", emergencyRouter);  // [Safety Mode V3] 앱폰 비상 보고
 app.use("/api/config", configRouter); // 타겟 앱 키워드 연동
 app.use("/api/auth", authRouter); // OAuth 로그인/인증 라우터
-app.use("/api/join", requireAuth, joinRouter); // 🪪 가입 · 동의 · 내 상태 · 탈퇴 (reviews/29 2단계)
+app.use("/api/join", requireAuth, joinRouter); // 🪪 가입 · 동의 · 내 상태 · 탈퇴
 app.use("/api/contents", contentsRouter); // 📝 약관 · 안내 글 읽기 — 로그인 없이(가입 전에 읽는다)
-app.use("/api/ops", requireAuth, requireOps, opsRouter); // 🏢 운영센터 — 허락 칸(ops_allowed_at) 하나로 들어온다 · 쓰기마다 ops_audit (reviews/29 3단계)
-app.use("/api/ops", requireAuth, requireOps, opsReleasesRouter); // 📦 앱 배포 — 운영센터와 같은 문지기 (reviews/29 4단계)
-app.use("/api/ops", requireAuth, requireOps, opsAllowRouter); // 🎛️ 허락 · 유료 기한 — 운영센터와 같은 문지기 (reviews/29 6단계)
+app.use("/api/ops", requireAuth, requireOps, opsRouter); // 🏢 운영센터 — 허락 칸(ops_allowed_at) 하나로 들어온다 · 쓰기마다 ops_audit
+app.use("/api/ops", requireAuth, requireOps, opsReleasesRouter); // 📦 앱 배포 — 운영센터와 같은 문지기
+app.use("/api/ops", requireAuth, requireOps, opsAllowRouter); // 🎛️ 허락 · 유료 기한 — 운영센터와 같은 문지기
 app.use("/api/downloads", downloadsRouter); // 📥 앱 받기 — 링크는 로그인 · 받기는 10분 열쇠
 app.use("/api/notices", requireAuth, noticesRouter); // 📢 기사가 보는 지금 공지
 app.use("/api/settings", settingsRouter); // 개인화 설정 라우터
@@ -175,7 +175,7 @@ const REHEARSAL_HOST = 'rehearsal.';
 serveForHost(app, REHEARSAL_HOST, path.join(__dirname, '../../../onedal-sim/dist'), '🎯 리허설 배차망');
 
 /**
- * 🏢 **운영센터** — `ops.altari.com` 은 운영센터 화면(onedal-web/ops)을 서빙한다 (reviews/29 3단계).
+ * 🏢 **운영센터** — `ops.altari.com` 은 운영센터 화면(onedal-web/ops)을 서빙한다.
  *    리허설과 같은 자리 · 같은 방식 — /api 는 모든 주소에서 산다(운영센터 화면은 같은 출처의 /api/ops 를 부른다).
  *    🔴 배포(운영센터 빌드 단계 · DNS · 인증서)는 아직 — 빌드가 없으면 건너뛰어 그 주소도 관제웹을 받는다.
  */
@@ -200,7 +200,7 @@ const PORT = process.env.PORT || 4000;
 
 httpServer.listen(PORT as number, "0.0.0.0", () => {
     initGeoService();
-    /* 📊 콜 흐름 통계 — 뜰 때 한 번(부팅을 안 붙잡는다) + 1시간마다 «어제까지 안 묶은 날» (reviews/25 3단계) */
+    /* 📊 콜 흐름 통계 — 뜰 때 한 번(부팅을 안 붙잡는다) + 1시간마다 «어제까지 안 묶은 날» */
     startStatsRollup();
     /* 📷 이상 기록 사진 — 뜰 때 한 번 + 한 시간마다, 보관 날수가 지난 사진 파일을 지운다(줄은 남는다 · core/anomalyShots) */
     startShotSweep();

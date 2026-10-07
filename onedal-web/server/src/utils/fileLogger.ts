@@ -39,7 +39,7 @@ const stamp = () => {
 };
 
 /**
- * 🪪 **파일에 쓰는 줄 꾸미기** (reviews/29 1단계 I·J) — 휴대폰 번호를 가리고, 누구의 일인지 알면 줄 끝에 «@기사».
+ * 🪪 **파일에 쓰는 줄 꾸미기** — 휴대폰 번호를 가리고, 누구의 일인지 알면 줄 끝에 «@기사».
  *    줄 앞머리(시각 · 수준 · #태그)는 `pnpm log` 가 읽는 자리라 건드리지 않는다. 터미널 출력은 원문 그대로다.
  */
 export function decorateFileLine(line: string, who: string | undefined): string {
@@ -141,7 +141,7 @@ export function initFileLogger(): void {
 
         const write = (level: string, args: unknown[]) => {
             /**
-             * 🏷️ 시각 다음 첫 토막은 태그다 (reviews/22 2단계) — `slog` 로 찍은 줄은 «#태그»를 이미
+             * 🏷️ 시각 다음 첫 토막은 태그다 — `slog` 로 찍은 줄은 «#태그»를 이미
              *    이고 있고, 태그 없는 경고·오류 줄은 `#경고`, 그 밖의 줄은 `#없음` 을 인다. 터미널 출력은 원문 그대로다.
              *    옛 날짜 파일(태그 없는 꼴)은 `pnpm log` 가 그대로 읽는다 — 태그는 있으면 쓰는 토막이다.
              */
@@ -171,7 +171,7 @@ export function initFileLogger(): void {
 }
 
 /**
- * 🏷️ **태그 로거** — 호출부가 «#태그» 글자를 직접 쓰지 않는다 (reviews/22 2단계).
+ * 🏷️ **태그 로거** — 호출부가 «#태그» 글자를 직접 쓰지 않는다.
  * 터미널·파일이 같은 «#태그 …» 한 꼴이고, 태그 목록은 shared `LOG_TAGS` 한 곳이다.
  */
 export function slog(tag: LogTag, ...args: unknown[]): void {

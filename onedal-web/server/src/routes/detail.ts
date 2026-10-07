@@ -30,16 +30,16 @@ router.post("/", async (req, res) => {
         if (payload.step !== 'DETAILED') {
             return res.status(400).json({ error: "step=DETAILED 전용" });
         }
-        /* 🚫 블루투스 받기 전 원달앱은 확정 · 상세도 거절 — 결재가 그 폰에 갈 길이 없다(보고 문이 알아본 폰 · reviews/50 ①-5) */
+        /* 🚫 블루투스 받기 전 원달앱은 확정 · 상세도 거절 — 결재가 그 폰에 갈 길이 없다(보고 문이 알아본 폰) */
         if (isAppTooOld(payload.deviceId)) return res.status(426).json({ error: '원달앱을 새로 깔아 주세요 — 블루투스 받기 전 판입니다', code: 'APP_TOO_OLD' });
 
         logRoadmapEvent('통신', "서버", "앱폰으로 부터 상세 수집이 완료된 '2차 오더 상세' 요청 받음");
 
-        // 🔑 [하드 락] 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth · reviews/29 1단계 D·E)
+        // 🔑 [하드 락] 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth)
         const auth = authDevice(payload.deviceId, deviceTokenOf(req));
         if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
         const userId = auth.userId;
-        /* 👥 남의 콜 id 로 온 상세는 받지 않는다 — 기사 둘이 한 서버를 쓴다 (reviews/29 기준 1) */
+        /* 👥 남의 콜 id 로 온 상세는 받지 않는다 — 기사 둘이 한 서버를 쓴다 */
         if (ownedByOther(userId, payload.order?.id)) {
             slog('통신', `🚫 [남의 콜] /detail ${payload.order?.id} — 이 폰의 기사 콜이 아니다`);
             return res.status(403).json({ error: "NOT_YOUR_ORDER" });

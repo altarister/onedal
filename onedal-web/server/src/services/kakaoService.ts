@@ -598,7 +598,7 @@ export async function calculateDetourRoute(
         car_type: carType
     };
     
-    // 🧹 요청 사실 한 줄 — 좌표·경유 수면 되짚기에 족하다 (reviews/22 ①-3 «계산당 한 줄»)
+    // 🧹 요청 사실 한 줄 — 좌표·경유 수면 되짚기에 족하다
     slog('판정', `🚙 [카카오 합짐 경로] 경유 ${wpArray.length}곳 · ${mergedOriginX},${mergedOriginY} → ${mergedDestX},${mergedDestY}`);
     
     const mergedAsked = askIgnoringEndEvents(ignoreEnds => kakaoJsonHedged(KAKAO_WAYPOINTS_URL, {

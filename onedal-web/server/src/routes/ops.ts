@@ -32,7 +32,7 @@ import fs from "fs";
 import { shotFileOf } from "../core/anomalyShots";
 
 /**
- * 🏢 **운영센터 서버 문 `/api/ops/*`** (reviews/29 3단계 · shared ops.ts 규격 · 붙일 때 requireAuth + requireOps 한 번 — index.ts).
+ * 🏢 **운영센터 서버 문 `/api/ops/*`** (shared ops.ts 규격 · 붙일 때 requireAuth + requireOps 한 번 — index.ts).
  * - 🔴 관리자의 쓰기마다 `ops_audit` 한 줄 — `audit()` 하나로만 쓴다. 회원 상세를 열면 서버가 «회원 봄» 한 줄(3초 안 중복 없음)
  * - 기사 운행 값(필터 · 판정 기준 · 결재)은 여기서 쓰지 않는다 (ops/CLAUDE.md)
  * - 즉시 정지 · 탈퇴는 그 회원의 관제웹 소켓을 끊는다. 폰은 폰 문(core/accountGate)이 막는다. «끝난 뒤» 정지는 안 끊는다
@@ -169,7 +169,7 @@ function todayCallsOf(userId: string): OpsCall[] {
 }
 
 /**
- * 🧾 **오늘 판정받은 콜 전부**(회원 상세 «오늘 콜» 탭 · reviews/43) — 잡은 콜 · 안 잡은 콜 · 미리보기 · 체험.
+ * 🧾 **오늘 판정받은 콜 전부**(회원 상세 «오늘 콜» 탭) — 잡은 콜 · 안 잡은 콜 · 미리보기 · 체험.
  * 판정 표가 원천이다(미리보기 · 체험은 orders 에 안 쓰인다). 콜 내용은 판정 때 남긴 것(detail.call) → 없으면 orders 행 →
  * 없으면 null(기록을 남기기 전의 옛 판정) — 지어내지 않는다. 필터는 판정 때의 서버 필터 요약(detail.filter)뿐이다.
  */
@@ -254,7 +254,7 @@ export function memberWrite(req: Request, res: any, action: string, sql: string,
 }
 
 router.post("/members/:id/approve", (req, res) =>
-    /* 🎛️ 승인 때 비어 있는 두 허락을 지금으로 켠다(기한 없음) — 기사는 모두 같은 기능이 기본(reviews/29 기준 2 · 6단계) */
+    /* 🎛️ 승인 때 비어 있는 두 허락을 지금으로 켠다(기한 없음) — 기사는 모두 같은 기능이 기본(6단계) */
     memberWrite(req, res, '승인', `UPDATE users SET approved_at = COALESCE(approved_at, datetime('now', 'localtime')),
         auto_allowed_at = COALESCE(auto_allowed_at, datetime('now', 'localtime')), stats_allowed_at = COALESCE(stats_allowed_at, datetime('now', 'localtime')) WHERE id = ?`, []));
 
@@ -288,7 +288,7 @@ router.get("/anomalies", (_req, res) => {
 });
 
 /**
- * 📷 **이상 기록 사진은 이 문 하나로만 연다** — 사진은 가리지 않은 원본이다(core/anomalyShots · reviews/37).
+ * 📷 **이상 기록 사진은 이 문 하나로만 연다** — 사진은 가리지 않은 원본이다(core/anomalyShots).
  *    운영센터 문지기(requireOps) 아래이고, 펼칠 때마다 운영센터 기록 «이상 기록 사진 봄» 한 줄. 보관 날수가 지나 파일이 없으면 404.
  */
 router.get("/anomalies/:id/shot", (req, res) => {
@@ -448,7 +448,7 @@ router.get("/board/intel", (req, res) => {
     auditBoardView(adminOf(req), memberId);
     const asked = Number.parseInt(String(req.query.limit ?? ''), 10);
     const limit = Math.min(200, Math.max(1, Number.isFinite(asked) ? asked : 40));
-    /* 📅 today=1 — 오늘(영업일) 줄만 · 개수도 오늘 범위 (회원 상세 «버린 콜» · reviews/43) */
+    /* 📅 today=1 — 오늘(영업일) 줄만 · 개수도 오늘 범위 (회원 상세 «버린 콜») */
     const sinceIso = req.query.today === '1' ? restoreWindow(Date.now()).todayStartIso : undefined;
     const body: OpsBoardIntel = intelRowsOf({ userId: memberId, limit, sinceIso });
     res.json(body);
@@ -459,7 +459,7 @@ router.get("/board/intel", (req, res) => {
 /* 📊 시장에 뜬 실물 콜 — 기간은 옛 통계 문과 같은 읽기(rangeOf) · 셈은 services/callFlowStats 한 곳 */
 router.get("/stats", (req, res) => {
     const { from, to } = clampStatsRange(rangeOf(req.query).from, rangeOf(req.query).to);   // 원문을 읽는 문이라 기간 상한
-    const flowRows = flowRowsBetween(from, to);   // 흐름 표 — 운영센터 «④ 어디로 · 몇 시에»(reviews/36)
+    const flowRows = flowRowsBetween(from, to);   // 흐름 표 — 운영센터 «④ 어디로 · 몇 시에»
     const body: OpsStats = { from, to, ...marketStatsOf(from, to), flows: flowCellsOf(flowRows), watched: watchedDaysOf(flowRows) };
     res.json(body);
 });
@@ -467,7 +467,7 @@ router.get("/stats", (req, res) => {
 // ── 위치 ───────────────────────────────────────────────
 
 /**
- * 🗺️ **회원 위치 — 운전석 폰 GPS 마지막 점** (reviews/33 3단계 · 기사님 «가» · onedal-69 «가» Q5).
+ * 🗺️ **회원 위치 — 운전석 폰 GPS 마지막 점** (기사님 «가» · onedal-69 «가» Q5).
  *    세션의 lastFix 중 폰이 보낸 진짜 위치(lastFixSource 'gps')만 — 모의 주행 · 손으로 찍은 점은 «지금 어디 있나»에 섞으면 거짓 위치다.
  *    시 · 구는 동 명부(shared nearestDong · 카카오 안 부름). 세션이 없는 회원은 점이 없다(peek · 세션을 만들지 않는다).
  *    todayOnly: 홈 뱃지는 «지금 어디서 일하나»라 한국 날이 오늘인 점만 · /locations 는 오래된 점도 시각과 함께 다 준다.
@@ -518,7 +518,7 @@ router.get("/board/member", (req, res) => {
 // ── 홈 ─────────────────────────────────────────────────
 
 /**
- * 🏠 **운영센터 홈 한 장** (reviews/33 2단계 · onedal-69 «가» · 모양은 onedal-ea) — 숫자는 그 쪽 문과 같은 함수로 센다.
+ * 🏠 **운영센터 홈 한 장** (onedal-69 «가» · 모양은 onedal-ea) — 숫자는 그 쪽 문과 같은 함수로 센다.
  *    메뉴 숫자 opsCountsOf · 서버 점검 boardServerOf · 콜 opsCallsOf · 폰 phonesOf · 카카오 kakaoBoardOf(+shared kakaoTotalOf).
  *    🔴 읽기만 · 세션은 peek 만(남의 세션을 만들지 않는다).
  */

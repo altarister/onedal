@@ -66,7 +66,7 @@ router.post("/anomalies", (req, res) => {
                 error: "필수 항목(deviceId, targetApp, failureReason)이 누락되었습니다."
             });
         }
-        /* 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth · reviews/29 1단계 D·E) */
+        /* 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth) */
         const auth = authDevice(deviceId, deviceTokenOf(req));
         if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
 
@@ -95,7 +95,7 @@ router.post("/anomalies", (req, res) => {
             ocrResultJson
         );
 
-        /* 📷 사진이 실렸으면 레포 밖 폴더에 쓰고 칸을 채운다 — 못 써도 글 줄은 그대로 (core/anomalyShots · reviews/37) */
+        /* 📷 사진이 실렸으면 레포 밖 폴더에 쓰고 칸을 채운다 — 못 써도 글 줄은 그대로 (core/anomalyShots) */
         if (screenshotBase64) {
             const id = Number(result.lastInsertRowid);
             const shot = saveShot(id, targetApp, screenshotBase64);
@@ -138,7 +138,7 @@ router.post("/anomalies", (req, res) => {
 router.get("/anomalies", requireAuth, (req, res) => {
     try {
         const limit = Math.min(Number(req.query.limit) || 50, 200);
-        /* 👥 자기 폰 기록만 — 관리자는 운영센터 문으로 따로 본다 (reviews/29 기준 1) */
+        /* 👥 자기 폰 기록만 — 관리자는 운영센터 문으로 따로 본다 */
         /* 📷 screenshot_path 는 일부러 뺐다 — 사진은 가리지 않은 원본이라 운영센터 문으로만 연다 (core/anomalyShots · anomalyShotGuards) */
         const rows = db.prepare(`
             SELECT id, timestamp, device_id, target_app, screen_name, failure_reason,

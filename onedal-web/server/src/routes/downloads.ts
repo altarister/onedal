@@ -9,7 +9,7 @@ import { latestRows, releaseOf, releasesDir, type ReleaseApp } from "../core/rel
 import { slog } from "../utils/fileLogger";
 
 /**
- * 📥 **앱 받기** (reviews/29 4단계 · 관제웹 가입 «앱 받기» 쪽이 부른다 · `appReleases` 검사).
+ * 📥 **앱 받기** (관제웹 가입 «앱 받기» 쪽이 부른다 · `appReleases` 검사).
  * 폰 브라우저 내려받기는 머리 칸(Bearer)을 못 실어서, 로그인한 기사가 `POST /links` 로 짧은 열쇠 주소를 받고 그 주소를 연다.
  * 🔴 열쇠는 1회가 아니라 [DOWNLOAD_KEY_MS] 동안 여러 번 — 안드로이드 내려받기 관리자가 같은 주소를 두 번 부른다(머리 확인 · 다시 받기).
  * 이어받기(Range)는 받지 않는다(`Accept-Ranges: none`) — 처음부터 다시 받는다.

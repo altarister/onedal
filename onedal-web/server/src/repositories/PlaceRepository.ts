@@ -3,7 +3,7 @@ import db from "../db";
 export class PlaceRepository {
     /**
      * 장소를 저장하고 그 기사의 방문 횟수를 1 늘린다.
-     * 🏪 공용 칸(주소 · 좌표 · 지역 · 상호)은 `places` 한 줄, 개인 칸(방문 수 · 전화)은 `user_places` 기사별 줄 (reviews/29 1단계 C).
+     * 🏪 공용 칸(주소 · 좌표 · 지역 · 상호)은 `places` 한 줄, 개인 칸(방문 수 · 전화)은 `user_places` 기사별 줄.
      */
     public static upsertPlace(
         userId: string,

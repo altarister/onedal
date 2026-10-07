@@ -1,5 +1,5 @@
 /**
- * 🏠 **운영센터 홈의 판단 둘 — 순수 함수** (reviews/33 2단계 · onedal-69 «가» Q3). 숫자를 모으는 것은 routes/ops.ts 의 homeOf.
+ * 🏠 **운영센터 홈의 판단 둘 — 순수 함수** (onedal-69 «가» Q3). 숫자를 모으는 것은 routes/ops.ts 의 homeOf.
  */
 
 /**

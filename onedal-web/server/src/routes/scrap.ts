@@ -52,15 +52,15 @@ router.post("/", (req, res) => {
         const body = req.body as { source?: unknown; screenWords?: Parameters<typeof noteScreenWords>[2] };
         const source = reportSourceOf(body.source);
 
-        // 1. 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth · reviews/29 1단계 D·E)
+        // 1. 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth)
         const auth = authDevice(deviceId, deviceTokenOf(req));
         if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
         const userId = auth.userId;
 
         /**
-         * 🚫 **블루투스 받기 전 원달앱의 보고는 거절한다** (reviews/50 ①-5 · 기사님 «가»).
+         * 🚫 **블루투스 받기 전 원달앱의 보고는 거절한다** (기사님 «가»).
          *    서버는 이제 보고 응답에 필터 · 모드 · 결재를 안 싣는다 — 옛 원달앱은 굳은 필터 · 메모리의 마지막 «자동»으로 돌다 결재 없이 안전취소(취소 횟수)로 끝날 수 있다.
-         *    거절하면 옛 원달앱에 든 «서버 응답 없음 → 자동은 알람»(reviews/44)이 스스로 알람으로 내린다 — 새 길이 아니라 «답을 안 줌»이다.
+         *    거절하면 옛 원달앱에 든 «서버 응답 없음 → 자동은 알람»이 스스로 알람으로 내린다 — 새 길이 아니라 «답을 안 줌»이다.
          *    가름: 블루투스 원달앱은 보고에 «블루투스 공급 연결»(`supplyLinked`) 칸을 늘 싣는다 · 관제웹 폰 칸은 «원달앱 새로 깔기 필요».
          */
         if (deviceId && typeof (req.body as any).supplyLinked !== 'boolean') {
@@ -74,7 +74,7 @@ router.post("/", (req, res) => {
         // 배차망 코드는 shared 표준 한 벌만 믿는다 — 모르는 값은 기본값으로 (픽커_수집.md §6-전)
         const targetApp = isTargetApp((req.body as any).targetApp)
             ? (req.body as any).targetApp as TargetAppType : DEFAULT_TARGET_APP;
-        /* 📰 화면에서 정의에 없거나 잡음으로 뺀 글자 — 모아 센다 (reviews/24 · 없는 보고는 지나간다) */
+        /* 📰 화면에서 정의에 없거나 잡음으로 뺀 글자 — 모아 센다 (없는 보고는 지나간다) */
         if (body.screenWords) noteScreenWords(userId, targetApp, body.screenWords);
 
         // logRoadmapEvent("서버", "방대한 스크랩 배열값을 intel 테이블 DB 저장");
@@ -113,7 +113,7 @@ router.post("/", (req, res) => {
                 (item as any).dropoffY ?? null,
                 /* 🗳️ 앱이 낸 판정 — 화면이 다시 재지 않게 */
                 (item as any).verdict ?? null,
-                /* 📅 예약 표시·날·시각 — 받아 적기만 (reviews/23 1단계) · 참/거짓이 아니면 모름(NULL) */
+                /* 📅 예약 표시·날·시각 — 받아 적기만 · 참/거짓이 아니면 모름(NULL) */
                 typeof (item as any).reserved === 'boolean' ? ((item as any).reserved ? 1 : 0) : null,
                 (item as any).reservedDay ?? null,
                 (item as any).reservedAt ?? null,
@@ -170,7 +170,7 @@ router.post("/", (req, res) => {
 
         // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.
         // 관제탑보다 앱이 먼저 켜질 수 있으므로 여기에도 둔다 (같은 함수라 두 번 돌아도 무해하다).
-        /* 📅 날이 바뀌며 예약 콜이 오늘 콜이 됐을 수 있다 — 정거장이 바뀌었으면 경로를 다시 잰다 (reviews/23 B-1) */
+        /* 📅 날이 바뀌며 예약 콜이 오늘 콜이 됐을 수 있다 — 정거장이 바뀌었으면 경로를 다시 잰다 */
         if (ensureBusinessDay(userId, req.app.get("io"))) void recalcRouteIfStopsChanged(userId, req.app.get("io"), '영업일 전환');
 
         // 3.2. [Telemetry Ping] 프론트엔드의 타임아웃 진행바를 위한 실시간 핑 발송
@@ -191,7 +191,7 @@ router.post("/", (req, res) => {
          *    교차 검증이 필요해지면 그때 **읽는 쪽과 함께** 만든다.
          */
 
-        /* 📦 필터 · 모드 · 결재 · 빨리 접기 · 심사 중은 보고 응답에 안 싣는다 — 관제앱 공급 소켓 → 블루투스 한 길(reviews/50 ①-5 · state/phoneSupply · 콜 잡기를 멈추는 넷의 로그도 그쪽) */
+        /* 📦 필터 · 모드 · 결재 · 빨리 접기 · 심사 중은 보고 응답에 안 싣는다 — 관제앱 공급 소켓 → 블루투스 한 길(state/phoneSupply · 콜 잡기를 멈추는 넷의 로그도 그쪽) */
         // 🛰️ 이중 발신 감지 — 같은 기기 이름이 15초 안에 다른 IP 에서도 말하면 경고 (분당 1회 · 경고 전용 — 다른 일은 이 값을 안 본다)
         //    IP 는 폰의 실제 IP — 실서버는 클라우드플레어를 거쳐 req.ip 가 중계 에지라, 에지가 바뀌면 폰 한 대로도 경고가 났다.
         //    ⚠️ 리허설 스크립트와 실폰이 같은 집 인터넷이면 실제 IP 도 같아 진짜 이중 발신을 못 잡는다(잡으려면 앱이 기동 번호를 보내야 한다).
@@ -218,9 +218,9 @@ router.post("/", (req, res) => {
                 /* 🧹 본 콜 기억 번호 — 영업일이 바뀌거나 (개발) 시뮬 회차가 오르면 바뀌고, 원달앱이 «본 콜» 기억을 비운다 (`services/callMemoryRound.ts`) · 운영도 싣는다 */
                 callMemoryRound
             },
-            /* 📦 원달앱 최신·최소 판 — 표가 비면 칸 없음(앱은 아무것도 안 띄운다 · reviews/29 4단계) */
+            /* 📦 원달앱 최신·최소 판 — 표가 비면 칸 없음(앱은 아무것도 안 띄운다) */
             ...scrapReleaseCodes(),
-            /* 🔏 블루투스 짝 서명 — 원달앱이 관제앱에 붙기 전에 받을 길(reviews/50 ①-1 · 옛 원달앱은 모르는 칸이라 무시) */
+            /* 🔏 블루투스 짝 서명 — 원달앱이 관제앱에 붙기 전에 받을 길(옛 원달앱은 모르는 칸이라 무시) */
             ...(deviceId ? { blePairSig: pairSigOf(userId, deviceId), bleAdTag: bleAdTagOf(userId), serverId: serverIdOf() } : {})   // 📶 광고 표시 — 원달앱이 블루투스 광고에 싣는다
         });
     } catch (error) {

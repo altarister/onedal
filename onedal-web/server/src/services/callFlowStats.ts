@@ -5,7 +5,7 @@ import type { FlowCell, OpsStats, WatchedHour } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 
 /**
- * 📊 **콜 흐름 통계 — 목록에 뜬 실물 콜을 하루 × 시 × 출발 시군구 × 도착 시군구로 센다** (reviews/25 3단계 · 기사님 결정).
+ * 📊 **콜 흐름 통계 — 목록에 뜬 실물 콜을 하루 × 시 × 출발 시군구 × 도착 시군구로 센다** (기사님 결정).
  *
  * 기사님: *"계절·요일·월초·주초·아침·점심·저녁 등 어느 동네에서 어디로 가는 콜이 많은가를 알고 싶다."*
  *
@@ -288,7 +288,7 @@ export function flowsForAdmin(rows: FlowRow[], by: FlowGroupBy) {
 }
 
 /**
- * 📊 **운영센터 «어디로 · 몇 시에»의 재료** (reviews/36) — 요일 시 × 배차망 × 출발 → 도착으로 기사를 합쳐 묶은 합.
+ * 📊 **운영센터 «어디로 · 몇 시에»의 재료** — 요일 시 × 배차망 × 출발 → 도착으로 기사를 합쳐 묶은 합.
  *    관리자 화면이라 «남 3명 이상» 가림이 없다(운영센터 노선 표와 같다) · 평균은 화면이 shared flowViews 로 아는 값으로만 낸다.
  */
 export function flowCellsOf(rows: FlowRow[]): FlowCell[] {
@@ -304,7 +304,7 @@ export function flowCellsOf(rows: FlowRow[]): FlowCell[] {
 }
 
 /**
- * 👀 **요일 시마다 폰이 콜을 본 날 수** (reviews/36 질문 2 «나») — 콜이 한 건이라도 든 (날, 시)만 «본 시간»으로 친다.
+ * 👀 **요일 시마다 폰이 콜을 본 날 수** — 콜이 한 건이라도 든 (날, 시)만 «본 시간»으로 친다.
  *    지켜봤는데 콜이 0건인 시간도 «못 봄»이 된다 — 조심하는 쪽으로 틀린다(새 저장 칸 없이 흐름 표로만 센다).
  */
 export function watchedDaysOf(rows: FlowRow[]): WatchedHour[] {
@@ -333,7 +333,7 @@ export function rolledUpDaysBetween(from: string, to: string): string[] {
 }
 
 /**
- * 🏢 **운영센터 통계 — 시장에 뜬 실물 콜** (reviews/33 4단계 · onedal-69 «가» Q7 «가»).
+ * 🏢 **운영센터 통계 — 시장에 뜬 실물 콜** (onedal-69 «가» Q7 «가»).
  *    노선 · 배차망은 stats_flows(flowRowsBetween — 옛 문과 같은 줄 · 같은 sumOf), 버린 콜은 원문(intel source='real')을 groupSameCalls 로 묶어 센다.
  *    잠김(locked)과 판정 없음(옛 앱)은 «버린 것»이 아니라 따로 센다. 기사별 벌이는 여기 없다 — 잡은 콜에 시뮬/실콜을 가를 칸이 없다.
  */

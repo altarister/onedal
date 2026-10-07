@@ -4,7 +4,7 @@ import db from "../db";
 import { userIdNow } from "../utils/logContext";
 
 /**
- * 🗺️ **카카오 사용량 — 회원 · 한국 날마다 센다** (reviews/27 8장 ⑥ ⑭ · 29 5단계 · 표 kakao_usage_days).
+ * 🗺️ **카카오 사용량 — 회원 · 한국 날마다 센다** (29 5단계 · 표 kakao_usage_days).
  *    카카오 키는 하나라 한 회원이 한도를 다 쓰면 모두 멈춘다 — 운영센터 회원 상세의 «카카오 오늘 / 이달»이 읽는다.
  *    «누구 몫»은 로그 «@기사»와 같은 맥락(logContext 의 userId) — 주인을 모르면(요청 흐름 밖) '' 로 센다.
  *    길찾기(apis-navi)와 좌표 찾기(dapi 등)는 카카오 한도가 따로라 칸을 나눈다. 실제로 나간 fetch 마다 하나(나란히 한 번 더 보낸 것도).

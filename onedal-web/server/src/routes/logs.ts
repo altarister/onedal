@@ -45,7 +45,7 @@ interface ClientLogLine {
 }
 
 /**
- * 🧹 **관제웹 줄 가운데 서버 파일에 실을 것** (기사님 «가» · reviews/22 ①-2).
+ * 🧹 **관제웹 줄 가운데 서버 파일에 실을 것** (기사님 «가»).
  * 브라우저 콘솔에는 전부 남는다 — 여기서 거르는 것은 **서버 파일로 올라오는 중계**다.
  * 남기는 것: 경고·에러 · 기사님 손(심사석 버튼 · 국면 전환 · 필터·반경 변경) · 콜 수신([웹 수신]) ·
  * [다녀옴] · [주행판정] · ⚪ 판정 못 함(그림·보이는가·지움·평가 자리) · 🖥️ 관제웹 코드 판(창이 어느 코드인가) ·
@@ -70,7 +70,7 @@ function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLe
     return (req: Request, res: Response) => {
         const body = req.body as { deviceId?: string; lines?: ClientLogLine[] };
         const lines = Array.isArray(body?.lines) ? body.lines : [];
-        /* 🔑 원달앱 로그는 연결된 폰만 — 연결 안 된 폰 · 틀린 토큰은 거절 (core/deviceAuth · reviews/29 1단계 D·E) */
+        /* 🔑 원달앱 로그는 연결된 폰만 — 연결 안 된 폰 · 틀린 토큰은 거절 (core/deviceAuth) */
         if (fromDevice) {
             const auth = authDevice(body?.deviceId, deviceTokenOf(req));
             if (!auth.ok) { res.status(auth.status).json({ ok: false, error: auth.error }); return; }
@@ -80,7 +80,7 @@ function logLinesRoute(head: (who: string) => string, fallbackWho: string, maxLe
         res.json({ ok: true, received: Math.min(lines.length, MAX_LINES) });
 
         if (lines.length === 0) return;
-        /* 📱 원달앱 줄은 폰 표시 이름으로 — id 는 긴 난수라 못 읽는다 (reviews/29 1단계 K) */
+        /* 📱 원달앱 줄은 폰 표시 이름으로 — id 는 긴 난수라 못 읽는다 */
         const who = fromDevice && body?.deviceId ? deviceLabelOf(body.deviceId) : String(body?.deviceId ?? fallbackWho).slice(0, 24);
         const shown = lines.slice(0, MAX_LINES);
 

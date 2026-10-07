@@ -8,9 +8,9 @@ import { slog } from "../utils/fileLogger";
 import { deviceLabelOf } from "../core/deviceAuth";
 
 /**
- * ⚖️ **결재 정하기 · 받았음 — 한 곳** (reviews/50 ①-1).
+ * ⚖️ **결재 정하기 · 받았음 — 한 곳**.
  * 결재 행동(`pendingDecisions[콜].action`)을 쓰는 곳은 `decide` 하나다 — `phoneSupply.test.ts` 가 이 파일 밖의 쓰기를 문다.
- * 결재는 관제앱 공급 소켓(`/supply`)으로 그 순간 `phone-decision` 이 가고 관제앱이 블루투스로 넘긴다 — 보고 응답에는 안 싣는다(reviews/50 ①-5).
+ * 결재는 관제앱 공급 소켓(`/supply`)으로 그 순간 `phone-decision` 이 가고 관제앱이 블루투스로 넘긴다 — 보고 응답에는 안 싣는다.
  * 폰이 실행했다는 «받았음»은 어느 길로 오든 `ackDecision` 이 치운다.
  */
 

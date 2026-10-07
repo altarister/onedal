@@ -278,7 +278,7 @@ function logRouteStops(
  * ⚠️ 페이로드를 만드는 곳은 **여기 하나뿐**이어야 한다.
  */
 export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; pendingOrdersData: Map<string, any>;
-                                          /** 📅 예약 보관 — 오늘 목록에서 빼고 따로 싣는다 (reviews/23 B-1) */
+                                          /** 📅 예약 보관 — 오늘 목록에서 빼고 따로 싣는다 */
                                           reservedOrders?: MyOrder[];
                                           /* 📍 기점을 «고르는» 데 드는 것들 — 저장된 «지금 위치»가 아니다 (originOf) */
                                           lastFix: { x: number; y: number } | null;
@@ -583,7 +583,7 @@ export function filterVersionOf(filter: unknown): string {
 }
 
 /**
- * 🏷️ **보고 출처 — 실물 앱(real)인가 시뮬레이터(sim)인가** (reviews/23·25). 목록 보고(`scrap`)와 픽커 상세 보관(`orders`)이 함께 쓴다.
+ * 🏷️ **보고 출처 — 실물 앱(real)인가 시뮬레이터(sim)인가**. 목록 보고(`scrap`)와 픽커 상세 보관(`orders`)이 함께 쓴다.
  *    🔴 둘 말고는 null — 모르는 값·옛 앱(칸 없음)을 지어내지 않는다(규칙 ④). 통계는 real 만 센다.
  */
 export function reportSourceOf(v: unknown): 'real' | 'sim' | null {

@@ -34,7 +34,7 @@ import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
 import { getActiveCalls, buildOrderSync, setOrderStatus, filterVersionOf } from "../core/helpers";
 
-/** 🧹 sync 푸시 «로그»는 내용이 바뀔 때만 — 푸시 자체는 늘 나간다 (reviews/22 ①-3 · 한 판 1,023줄이 같은 내용이었다) */
+/** 🧹 sync 푸시 «로그»는 내용이 바뀔 때만 — 푸시 자체는 늘 나간다 (한 판 1,023줄이 같은 내용이었다) */
 const lastSyncLogSig = new Map<string, string>();
 import { stepRecordsOf, stepsView, bridgeUndoMilestone, milestoneAlreadyRecorded } from "./stepSeeder";
 import { slog } from "../utils/fileLogger";
@@ -614,7 +614,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         };
 
         /**
-         * 📅 **내일 이후 콜은 예약 보관으로** (reviews/23 B-1) — 오늘 하루(진행 중 콜 · 경로 · 적재 · 국면 · 경유)를 안 건드린다.
+         * 📅 **내일 이후 콜은 예약 보관으로** — 오늘 하루(진행 중 콜 · 경로 · 적재 · 국면 · 경유)를 안 건드린다.
          *    이 콜 하나의 사실(보관 날이 오늘 뒤)로 가른다. 장부에는 적고(재시작에도 되살린다), 관제웹에는 알린다.
          *    단계 행(상차지 통화)은 KEEP 받은 쪽(`socketHandlers` 결재)이 여느 콜처럼 낳는다 — 약속은 예약 날·시각이다.
          */
@@ -748,7 +748,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         logRoadmapEvent('결재', "서버", `관제탑으로 부터 수동 취소/방출(${status}) 요청 받음`);
         
         /**
-         * 📅 **버리는 문** — 예약 보관의 콜이면 보관에서 꺼낸다 (reviews/23 B-1). 안 꺼내면 버린 콜이
+         * 📅 **버리는 문** — 예약 보관의 콜이면 보관에서 꺼낸다. 안 꺼내면 버린 콜이
          *    다음 영업일에 진행 중 첫짐으로 올라온다. 꺼낸 콜은 장부 갱신에 쓴다(메모리 두 곳엔 없을 수 있다).
          */
         const takenReserved = takeReserved(session, orderId);
@@ -1044,7 +1044,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 capturedAt: row.capturedAt,
                 /** 🎯 판 — 안 읽으면 재기동 뒤 전부 하차지 시로 조용히 물러난다 (#131) */
                 goalCity: row.goalCity ?? undefined,
-                /** 📅 예약 — 안 읽으면 재기동 뒤 예약 콜이 오늘 첫짐이 되고 상차 약속이 오늘로 돌아간다 (reviews/23 B-1) */
+                /** 📅 예약 — 안 읽으면 재기동 뒤 예약 콜이 오늘 첫짐이 되고 상차 약속이 오늘로 돌아간다 */
                 reserved: row.reserved == null ? undefined : !!row.reserved,
                 reservedDay: row.reservedDay ?? undefined,
                 reservedAt: row.reservedAt ?? undefined,
@@ -1127,7 +1127,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         const loadedIds = [...new Set(rows.map(r => r.id as string))];
         const allLoaded = loadedIds.map(id => session.pendingOrdersData.get(id)).filter(Boolean) as MyOrder[];
         /**
-         * 📅 **보관 날이 오늘 뒤인 콜은 예약 보관으로** (reviews/23 B-1) — 영업일 전환과 같은 가름.
+         * 📅 **보관 날이 오늘 뒤인 콜은 예약 보관으로** — 영업일 전환과 같은 가름.
          *    새 날에 서버가 뜨면 세션이 오늘로 태어나 영업일 전환이 안 돈다 — 그래서 여기서도 가른다.
          */
         const today = businessDayKey(Date.now());

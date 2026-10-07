@@ -48,7 +48,7 @@ router.post("/", async (req, res) => {
         slog('경고', `   화면: ${screenContext}`);
         slog('경고', `   텍스트: ${screenText?.substring(0, 100)}...`);
 
-        /* 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 가짜 기사로 받지 않는다 (core/deviceAuth · reviews/29 1단계 D·E) */
+        /* 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 가짜 기사로 받지 않는다 (core/deviceAuth) */
         const auth = authDevice(deviceId, deviceTokenOf(req));
         if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
         const userId = auth.userId;

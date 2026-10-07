@@ -4,7 +4,7 @@ import { SCREEN_PAGES, WORD_KINDS, SCREEN_PAGE_LABEL, WORD_KIND_LABEL, type Scre
 import { slog } from "../utils/fileLogger";
 
 /**
- * 📰 **모르는 글자는 버리지 않고 모은다** (reviews/24 2-서버 · 기사님: *"정의되지 않았다고 버리는 것이 문제다 —
+ * 📰 **모르는 글자는 버리지 않고 모은다** (기사님: *"정의되지 않았다고 버리는 것이 문제다 —
  * 앱이 리뉴얼됐을 때 쉽게 알아볼 수 있게"*).
  *
  * 원달앱이 보고 본문 한 칸 `screenWords` 에 그 화면에서 페이지 정의 밖의 글자를

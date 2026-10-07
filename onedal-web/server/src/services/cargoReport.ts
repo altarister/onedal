@@ -8,7 +8,7 @@ import { getUserSession } from "../state/userSessionStore";
 import { slog } from "../utils/fileLogger";
 
 /**
- * 📞 **통화 결과 · 현장 실측을 적는 길 하나** (reviews/29 5단계 · 기사 소켓 `save-cargo-report` 와 운영센터 `/api/ops/calls/:id/note` 가 같이 부른다).
+ * 📞 **통화 결과 · 현장 실측을 적는 길 하나** (기사 소켓 `save-cargo-report` 와 운영센터 `/api/ops/calls/:id/note` 가 같이 부른다).
  * - `userId` = 그 콜의 기사 · `writerId` = 적은 사람(기사 자신 또는 관리자). 단계 행 `written_by` 에 남는다 — 나중 것이 이긴다
  * - 관리자는 통화 신고(DECLARED)만. 현장 실측(ACTUAL)이 이미 있는지는 운영센터 문이 먼저 본다(409)
  * - 몸통은 옛 소켓 처리 그대로다 — 기사 흐름이 같은 입력에 같은 단계 행이 되는지 `opsCallHelper` 검사가 문다
@@ -46,7 +46,7 @@ function badReportTimeOf(report: CargoReport): string | null {
 
 export function saveCargoReport(userId: string, orderId: string, report: CargoReport, writerId: string, io: Server): void {
     if (!orderId) throw new Error("orderId 누락");
-    /* 📞 관리자(통화 도우미)는 통화 신고만 — 현장 실측 · 건너뜀은 현장 기사만 (reviews/29 5단계) */
+    /* 📞 관리자(통화 도우미)는 통화 신고만 — 현장 실측 · 건너뜀은 현장 기사만 */
     if (writerId !== userId && report.kind !== 'DECLARED') throw new CargoReportError(400, "관리자는 통화 신고만 적을 수 있습니다");
     /* 🕒 시각 칸은 여기 한 곳에서 본다 — 기사 소켓 · 운영센터 문이 모두 이 입구로 들어온다. 화면이 칸을 눌러 보내도 서버가 받는 값은 서버가 본다 */
     const badTime = badReportTimeOf(report);

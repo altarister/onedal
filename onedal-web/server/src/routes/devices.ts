@@ -76,7 +76,7 @@ export function livePhonesOf(ids: string[], now: number = Date.now()): string[] 
 }
 
 /**
- * 🔁 **자동은 한 폰만 — 같은 기사님의 다른 폰 가운데 지금 확정을 누를 수 있는 폰이 있나** (reviews/48 가 · shared `otherContractingAuto`).
+ * 🔁 **자동은 한 폰만 — 같은 기사님의 다른 폰 가운데 지금 확정을 누를 수 있는 폰이 있나** (shared `otherContractingAuto`).
  *    저장하지 않고 그때그때 본다(규칙 ③) — 살아 있는 폰(메모리 세션 · 데드맨 시간 안)만 · 명령(`getDeviceMode` — 한 번도 안 고른 폰의 기본값 포함) 또는 받은 모드가 자동 · 지금 배차망이 자동 확정 가능.
  *    관제앱 공급(`state/phoneSupply` `modeSentToPhone`)이 이 사실로 자동을 알람으로 내려준다.
  */
@@ -90,7 +90,7 @@ export function otherAutoPhoneOf(deviceId: string, userId: string, ids: string[]
 }
 
 /**
- * 🔁 **자동을 누른 폰이 이긴다 — 같은 기사님의 다른 자동 폰은 명령을 알람으로 옮겨 저장한다** (reviews/48 가 · 기사님 «옮긴다»).
+ * 🔁 **자동을 누른 폰이 이긴다 — 같은 기사님의 다른 자동 폰은 명령을 알람으로 옮겨 저장한다** (기사님 «옮긴다»).
  *    «알람은 기사님이 명시적으로 고를 때만»(아래 기본값 주석)의 예외 — 기사님이 다른 폰에 자동을 고른 것이 곧 이 폰을 알람으로 고른 것이다.
  *    관제웹 폰 단추는 1초마다 가는 폰 목록(`telemetry-devices`)으로 알람을 그린다.
  */
@@ -232,7 +232,7 @@ export interface DeviceStatusExtras {
     workStageStep?: number;
     workStageSeconds?: number;
     appliedMode?: string;
-    /** 📶 관제앱이 블루투스로 준 마지막 모드 · 공급 연결 · 근처 기기 허락 · 배터리 예외(원달앱 보고 · reviews/50 ①-4) */
+    /** 📶 관제앱이 블루투스로 준 마지막 모드 · 공급 연결 · 근처 기기 허락 · 배터리 예외(원달앱 보고) */
     suppliedMode?: string;
     supplyLinked?: boolean;
     nearbyPermitted?: boolean;
@@ -245,7 +245,7 @@ export interface DeviceStatusExtras {
      *    «이 폰이 아직 옛 필터로 돌고 있다»가 드러난다 (`DeviceSession.filterVersion` 주석).
      */
     filterVersion?: string;
-    /** 🧭 배차망 페이지 이름 · 덧칸 이름 — 새 원달앱만 싣는다(reviews/35 5단계) · 화면 값이 실린 보고에서만 받는다 */
+    /** 🧭 배차망 페이지 이름 · 덧칸 이름 — 새 원달앱만 싣는다 · 화면 값이 실린 보고에서만 받는다 */
     screenPage?: string | null;
     screenOverlay?: string | null;
 }
@@ -370,7 +370,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         session.workStageSeconds = extras.workStageSeconds;
     }
     if (extras?.appliedMode) session.appliedMode = extras.appliedMode;
-    /* 📶 블루투스 · 폰 사실 넷 — 받아 적기만(옛 원달앱은 안 보냄 → 그대로 · reviews/50 ①-4) */
+    /* 📶 블루투스 · 폰 사실 넷 — 받아 적기만(옛 원달앱은 안 보냄 → 그대로) */
     if (typeof extras?.suppliedMode === 'string') session.suppliedMode = extras.suppliedMode;
     if (typeof extras?.supplyLinked === 'boolean') session.supplyLinked = extras.supplyLinked;
     if (typeof extras?.nearbyPermitted === 'boolean') session.nearbyPermitted = extras.nearbyPermitted;
@@ -581,7 +581,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     return session.mode;
 };
 
-/** 이 기기의 사용자 — `user_devices` 에 없으면 null (연결 안 된 폰 · 가짜 기사로 받지 않는다 · reviews/29 1단계 E) */
+/** 이 기기의 사용자 — `user_devices` 에 없으면 null (연결 안 된 폰 · 가짜 기사로 받지 않는다) */
 export function userOfDevice(deviceId: string): string | null {
     const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
     return row?.user_id ?? null;
@@ -697,8 +697,8 @@ router.post("/pair", (req, res) => {
 
         logRoadmapEvent('통신', "서버", "앱폰으로 부터 6자리 PIN 인증 요청 받음 및 deviceId 발급 연산");
         // 1. PIN 유효성 검증 및 소비
-        /* 🔢 시도 한도 안에서만 번호를 쓴다 — 잠겼으면 429 · 글자는 PIN_INVALID 그대로(앱은 짝 화면 오류 글) (reviews/29 1단계 F) */
-        /* 🚧 승인 전 · 탈퇴 · 정지 계정에는 폰을 잇지 않는다 — 폰 문과 같은 판단(core/accountGate · reviews/29 2단계).
+        /* 🔢 시도 한도 안에서만 번호를 쓴다 — 잠겼으면 429 · 글자는 PIN_INVALID 그대로(앱은 짝 화면 오류 글) */
+        /* 🚧 승인 전 · 탈퇴 · 정지 계정에는 폰을 잇지 않는다 — 폰 문과 같은 판단(core/accountGate).
               번호를 지우기 전에 본다 — 막혔으면 번호를 남겨 승인 뒤 같은 번호로 이을 수 있다 */
         const tried = tryConsumePin(pin, { ip: clientIpOf(req), deviceId }, id => accountGateOf(id).blocked);
         if (!tried.ok && tried.blockedOwner) {
@@ -728,7 +728,7 @@ router.post("/pair", (req, res) => {
             db.prepare("INSERT INTO user_devices (user_id, device_id, device_name) VALUES (?, ?, ?)").run(userId, deviceId, deviceName || null);
         }
         
-        /* 🔑 연결할 때마다 새 비밀 토큰 — DB 에는 sha256 만, 원문은 응답으로 한 번 (reviews/29 1단계 D) */
+        /* 🔑 연결할 때마다 새 비밀 토큰 — DB 에는 sha256 만, 원문은 응답으로 한 번 */
         const { token, hash } = newDeviceToken();
         db.prepare("UPDATE user_devices SET token_hash = ? WHERE device_id = ?").run(hash, deviceId);
         logRoadmapEvent('통신', "서버", "승인된 디바이스 정보 DB 저장");
@@ -1032,7 +1032,7 @@ export const getUserDevicesSnapshot = (userId: string, io?: any, modes: Map<stri
         if (activeItem) {
             // 메모리 객체에 최신 이름 덮어쓰기
             activeItem.deviceName = r.device_name || activeItem.deviceName;
-            /* 📶 기기 목록에만 붙이는 셋 — 서버가 보내는 모드(«적용중» 셈) · 필터 옛 판 · 블루투스로만 아는 폰 사실(reviews/50 ①-4) · 세션은 안 고친다 */
+            /* 📶 기기 목록에만 붙이는 셋 — 서버가 보내는 모드(«적용중» 셈) · 필터 옛 판 · 블루투스로만 아는 폰 사실 · 세션은 안 고친다 */
             result.push({
                 ...activeItem,
                 sentMode: modes.get(r.device_id),
@@ -1062,7 +1062,7 @@ export const getUserDevicesSnapshot = (userId: string, io?: any, modes: Map<stri
 /**
  * GET /api/devices
  * (예비용) 관제 대시보드 강제 폴링 시 현재 기기 상태 조회
- * 👥 자기 폰만 — 남의 폰 상태·위치를 주지 않는다 (reviews/29 기준 1)
+ * 👥 자기 폰만 — 남의 폰 상태·위치를 주지 않는다
  */
 router.get("/", requireAuth, (req, res) => {
     res.json({ devices: getUserDevicesSnapshot(req.user!.id, req.app.get("io")) });

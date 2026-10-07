@@ -82,7 +82,7 @@ db.exec(`
 `);
 
 /**
- * 🪪 **회원 사실 칸** (reviews/29 4장 · 2·3단계) — 상태 이름 한 칸이 아니라 «언제 그 일이 있었나» 시각 칸이다.
+ * 🪪 **회원 사실 칸** (2·3단계) — 상태 이름 한 칸이 아니라 «언제 그 일이 있었나» 시각 칸이다.
  *    «승인 대기 · 사용 중 · 정지 · 탈퇴»는 화면 글에서만 만든다(shared `opsMemberStatus`). 부품은 자기에게 필요한 칸 하나만 본다.
  *
  * - `approved_at` — 비면 승인 전.
@@ -92,7 +92,7 @@ db.exec(`
  * - `withdrawn_at` — 비면 회원. ③ 탈퇴 문이 씀 · 기기 문 · /me 가 읽음  ④ 운영센터 «탈퇴» · 관제웹 탈퇴 끝 화면  ⑤ 기기 문(거절) · /me · 운영센터
  * - `phone` · `dispatch_networks`(JSON 배열 · shared `TargetAppType` 키 · CHECK 없음 — 파일 머리) — ② 비움 ③ 가입 정보 단계가 씀
  *   ④ 관제웹 가입 1단계 · 운영센터 회원 표  ⑤ 운영센터(연락 · 어느 배차망을 쓰나)만 — 판정 · 필터는 안 읽는다. 차종은 여기 없다(기사 설정 `user_settings`)
- * - `ops_allowed_at` — 비면 운영센터에 못 들어온다. ② 옮기기에서 안 채움 — 실서버는 기사님 손(reviews/26 «push 뒤» — 칸이 push 뒤 첫 부팅에 생긴다)
+ * - `ops_allowed_at` — 비면 운영센터에 못 들어온다. ② 옮기기에서 안 채움 — 실서버는 기사님 손
  *   ③ 운영센터 HTTP(requireOps) · 소켓 관리자 방 입장 때 읽음  ④ 운영센터 회원 상세  ⑤ requireOps · 관리자 방
  * - `suspended_at` · `suspend_after_active` — 비면 정지 아님 · 0. ③ 운영센터 «정지(끝난 뒤) / 즉시»가 씀 · 기기 문이 «진행 중 콜 있음»과 함께 읽음
  *   ④ 운영센터 «정지 · 정지(끝난 뒤)»  ⑤ 기기 문 · 운영센터
@@ -122,7 +122,7 @@ export function migrateAccountColumns(on: Database.Database = db): void {
 migrateAccountColumns();
 
 /**
- * 🎛️ **허락 칸** (reviews/29 4장 · 6단계 · shared `allowanceLive`) — 자동 잡기 · 통계 허락 시각과 기한 · 유료 기한.
+ * 🎛️ **허락 칸** (6단계 · shared `allowanceLive`) — 자동 잡기 · 통계 허락 시각과 기한 · 유료 기한.
  * 기한이 비면 기한 없음. 부품은 «지금 이 허락이 살아 있나» 하나만 본다.
  */
 const ALLOWANCE_COLUMNS: Record<string, string> = {
@@ -146,7 +146,7 @@ export function migrateAllowanceColumns(on: Database.Database = db): void {
 migrateAllowanceColumns();
 
 /**
- * 📝 **글 · 동의 · 운영센터 기록 · 공지** (reviews/29 4장 · shared `OpsContent` · `OpsAudit` · `OpsNotice` 와 같은 칸). 빈 표에서 시작한다.
+ * 📝 **글 · 동의 · 운영센터 기록 · 공지** (shared `OpsContent` · `OpsAudit` · `OpsNotice` 와 같은 칸). 빈 표에서 시작한다.
  * - `contents` — 판마다 한 줄. 동의가 «몇 판에 동의했나»를 가리키니 옛 판을 덮어쓰지 않는다. 읽기는 kind 별 최신 판 · 빈 표면 «글 없음»으로 흐름이 돈다
  * - `agreements` — 회원 · 글 판 · 항목 · 시각. 지우지 않는다(동의 이력)
  * - `ops_audit` — 관리자의 쓰기 · 열람마다 한 줄. 화면의 관리자 이름은 users 와 묶어 읽는다
@@ -192,7 +192,7 @@ db.exec(`
 `);
 
 /**
- * 🗺️ **카카오 사용량** (reviews/27 8장 ⑥ ⑭ · 29 5단계 · `services/kakaoUsage`) — 회원 · 한국 날마다 한 줄. 길찾기 · 좌표 찾기는 카카오 한도가 따로라 칸을 나눈다.
+ * 🗺️ **카카오 사용량** (29 5단계 · `services/kakaoUsage`) — 회원 · 한국 날마다 한 줄. 길찾기 · 좌표 찾기는 카카오 한도가 따로라 칸을 나눈다.
  *    user_id '' 는 «주인 없음»(요청 흐름 밖에서 부른 것). 세기만 한다 — 운행은 이 표를 읽지 않는다.
  */
 db.exec(`
@@ -206,7 +206,7 @@ db.exec(`
 `);
 
 /**
- * 📦 **앱 판** (reviews/29 4장 · 4단계 · `core/releases`) — 운영센터가 올린 APK 한 판에 한 줄. 파일 자체는 레포 밖 폴더(RELEASES_DIR).
+ * 📦 **앱 판** (4단계 · `core/releases`) — 운영센터가 올린 APK 한 판에 한 줄. 파일 자체는 레포 밖 폴더(RELEASES_DIR).
  * «최신»은 칸으로 두지 않고 앱마다 version_code 가 가장 큰 줄로 계산한다(두 벌 금지). `is_minimum` 은 앱마다 한 줄만 1.
  * 표가 비면 원달앱 보고 응답에 판 칸이 없다 — 기사 흐름 무변화.
  */
@@ -276,7 +276,7 @@ db.exec(`
 ensureColumns('user_devices', { mode: `TEXT` });
 
 /**
- * 🔑 **`user_devices.token_hash` — 폰 비밀 토큰의 sha256** (README ⑤-4 다섯 · reviews/29 1단계 D · 기사님 «가»)
+ * 🔑 **`user_devices.token_hash` — 폰 비밀 토큰의 sha256** (README ⑤-4 다섯 · 기사님 «가»)
  *    ① 스키마: 이 표 `token_hash TEXT` — 칸이 없는 DB 는 ensureColumns 가 NULL 로 붙인다. 옛 폰은 NULL(옛 앱 · 이번 단계는 통과).
  *    ② 값: 폰을 연결할 때 서버가 만든 32바이트 난수의 sha256. 원문은 폰(원달앱)에만 있다.
  *    ③ 시점: 연결 성공 때 쓰고(`POST /api/devices/pair`) · 폰 요청마다 읽는다(헤더 `X-Device-Token`).
@@ -394,7 +394,7 @@ const FILTER_VALUE_COLS: Record<string, string> = Object.fromEntries(
 const RADIUS_AUTO_COLS: Record<string, string> = {
     /* 🛣️🔷 노선(1)/동선(0) — 필터 값이다. 관제웹 useState 였던 것을 올렸다 (전수 조사 ①-9) */
     route_mode: 'INTEGER DEFAULT 1',
-    /* 📅 예약콜 축 — today(오늘 콜만) · tomorrowToo · tomorrowOnly. 읽는 곳은 원달앱 1차 필터 하나 (reviews/23) */
+    /* 📅 예약콜 축 — today(오늘 콜만) · tomorrowToo · tomorrowOnly. 읽는 곳은 원달앱 1차 필터 하나 */
     reservation_mode: "TEXT DEFAULT 'today'",
     radius_auto: 'INTEGER DEFAULT 0',
     radius_base_km: `REAL DEFAULT ${RADIUS_BASE_KM_DEFAULT}`,
@@ -775,11 +775,11 @@ ensureColumns('orders', { terminatedAt: 'TEXT' });
  */
 ensureColumns('orders', { goalCity: 'TEXT' });
 /**
- * 📅 **예약 셋** — 앱이 읽어 싣는 값을 적는다(reviews/23). 판정·경로·약속에는 아직 안 쓴다.
+ * 📅 **예약 셋** — 앱이 읽어 싣는 값을 적는다. 판정·경로·약속에는 아직 안 쓴다.
  *    `reserved`(1 예약 표시 있음 · 0 없음 · NULL 모름) — «표시 없음»과 «예약인데 날 모름»은 둘 다 `reservedDay` 가 NULL 이라 이 칸이 가른다.
  */
 ensureColumns('orders', { reserved: 'INTEGER', reservedDay: 'INTEGER', reservedAt: 'TEXT' });
-/** 📅 **예약 보관 날 `YYYY-MM-DD`** — 오늘 뒤면 이 콜은 진행 중이 아니라 예약 보관이다. 서버가 다시 떠도 보관을 되살린다 (reviews/23 B-1 · `services/reservedOrders.ts`) */
+/** 📅 **예약 보관 날 `YYYY-MM-DD`** — 오늘 뒤면 이 콜은 진행 중이 아니라 예약 보관이다. 서버가 다시 떠도 보관을 되살린다 (`services/reservedOrders.ts`) */
 ensureColumns('orders', { reserved_for: 'TEXT' });
 
 // 어느 배차망에서 온 콜인가 (insung/hwamul24/kakaopicker) — 배차망별 콜 검색·분석의 근거 (기사님)
@@ -936,9 +936,9 @@ db.exec(`
 `);
 // 기존 DB 에는 CREATE 가 안 도니 여기서 붙인다 — **CREATE 뒤여야 한다** (위 [3] 끝 주석 참조)
 ensureColumns('intel', { targetApp: 'TEXT',
-    /** 📅 예약 표시(1·0·NULL)·날(0 오늘 · 1 내일 · N · NULL)·시각 «HH:MM» — 앱이 읽어 싣는다 (reviews/23 · orders 칸 주석) */
+    /** 📅 예약 표시(1·0·NULL)·날(0 오늘 · 1 내일 · N · NULL)·시각 «HH:MM» — 앱이 읽어 싣는다 (orders 칸 주석) */
     reserved: 'INTEGER', reservedDay: 'INTEGER', reservedAt: 'TEXT',
-    /** 🏷️ 실물 앱(real)인가 시뮬레이터(sim)인가 — 보고 본문 한 칸에서. 옛 앱은 NULL. 통계는 real 만 센다 (reviews/25) */
+    /** 🏷️ 실물 앱(real)인가 시뮬레이터(sim)인가 — 보고 본문 한 칸에서. 옛 앱은 NULL. 통계는 real 만 센다 */
     source: 'TEXT',
     // 🌐 픽커 수집 필드 셋 (기사님 확정 · 픽커_수집.md §5-①) — 인성 콜은 null
     itemSize: 'TEXT', pickupDistanceKm: 'REAL', tagsText: 'TEXT',
@@ -1087,12 +1087,12 @@ db.exec(`
 db.exec(`CREATE INDEX IF NOT EXISTS idx_telemetry_anomalies_target ON telemetry_anomalies(target_app, created_at)`);
 
 /**
- * 📰 **화면 낱말 표 — 정의에 없는 글자 · 잡음으로 뺀 글자** (reviews/24 · `services/screenWords.ts`).
+ * 📰 **화면 낱말 표 — 정의에 없는 글자 · 잡음으로 뺀 글자** (`services/screenWords.ts`).
  *    배차망 · 페이지 · 낱말 · 갈래마다 한 줄 — 원문을 날마다 쌓지 않아 크기가 안 는다(수천 줄).
  *    `sample` 은 처음 본 줄 원문 200자 — 낱말만으로는 뜻을 못 가린다.
  */
 /**
- * 📊 **콜 흐름 통계** (reviews/25 3단계 · `services/callFlowStats.ts`).
+ * 📊 **콜 흐름 통계** (`services/callFlowStats.ts`).
  *    `stats_flows` — 영업일(KST) × 시 × 배차망 × 출발·도착 시군구(«모호»·«모름» 포함) × 차종 × 기사 한 줄.
  *    기사별 줄(user_id = 기사 · drivers 1)은 90일 뒤 기사 칸을 뺀 합친 줄(user_id '' · drivers = 서로 다른 기사 수)로 다시 묶인다.
  *    `stats_rollup_days` — 그날 묶었나 표지 + 가려진 비율 재료(resolved_calls / calls). 원문(intel)은 이번에 안 지운다.
@@ -1150,7 +1150,7 @@ db.exec(`
 `);
 
 /**
- * 🏪 **`user_places` — 거래처의 개인 칸은 기사별로** (README ⑤-4 다섯 · reviews/29 1단계 C · 기사님 «가»)
+ * 🏪 **`user_places` — 거래처의 개인 칸은 기사별로** (README ⑤-4 다섯 · 기사님 «가»)
  *    ① 스키마: 새 표 · `(user_id, place_id)` 한 줄. `places` 는 공용 칸(주소 · 좌표 · 지역 · 상호)만 계속 쓴다 — 표를 다시 만들지 않는다
  *       (places 는 UNIQUE(addressDetail, customerName) 이고 orderStops 가 places.id 를 가리켜, 기사 칸을 더해도 두 기사의 같은 거래처가 한 줄로 합쳐졌다).
  *    ② 값: 옛 places 의 개인 칸 그대로(rating 기본 3.0). 부팅 때 이 표가 비었으면 옛 줄을 관리자(기사님) 앞으로 한 번 옮긴다(`seedUserPlaces`).

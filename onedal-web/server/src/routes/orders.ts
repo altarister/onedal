@@ -108,14 +108,14 @@ router.post("/confirm", (req, res) => {
         if (payload.step !== 'BASIC') {
             return res.status(400).json({ error: "이 엔드포인트는 step=BASIC 전용입니다. 상세 보고는 POST /api/orders/detail 을 사용하세요." });
         }
-        /* 🚫 블루투스 받기 전 원달앱은 확정 · 상세도 거절 — 결재가 그 폰에 갈 길이 없다(보고 문이 알아본 폰 · reviews/50 ①-5) */
+        /* 🚫 블루투스 받기 전 원달앱은 확정 · 상세도 거절 — 결재가 그 폰에 갈 길이 없다(보고 문이 알아본 폰) */
         if (isAppTooOld(payload.deviceId)) return res.status(426).json({ error: '원달앱을 새로 깔아 주세요 — 블루투스 받기 전 판입니다', code: 'APP_TOO_OLD' });
 
-        // 🔑 [하드 락] 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth · reviews/29 1단계 D·E)
+        // 🔑 [하드 락] 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth)
         const auth = authDevice(payload.deviceId, deviceTokenOf(req));
         if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
         const userId = auth.userId;
-        /* 👥 남의 콜 id 로 온 선점 보고는 받지 않는다 (reviews/29 기준 1) */
+        /* 👥 남의 콜 id 로 온 선점 보고는 받지 않는다 */
         if (ownedByOther(userId, payload.order?.id)) {
             slog('통신', `🚫 [남의 콜] /confirm ${payload.order?.id} — 이 폰의 기사 콜이 아니다`);
             return res.status(403).json({ error: "NOT_YOUR_ORDER" });
@@ -148,7 +148,7 @@ router.post("/confirm", (req, res) => {
                 (payload.order as any).pickupDistance ?? null,
                 (payload.order as any).tagsText ?? null,
                 payload.order.rawText,
-                /* 📅🏷️ 같은 콜의 목록 줄(INTEL_BULK)과 같은 칸 — 상세 행만 빠지면 통계가 «모름»에 쌓인다 (reviews/23·25) */
+                /* 📅🏷️ 같은 콜의 목록 줄(INTEL_BULK)과 같은 칸 — 상세 행만 빠지면 통계가 «모름»에 쌓인다 */
                 typeof (payload.order as any).reserved === 'boolean' ? ((payload.order as any).reserved ? 1 : 0) : null,
                 (payload.order as any).reservedDay ?? null,
                 (payload.order as any).reservedAt ?? null,
@@ -299,11 +299,11 @@ router.post("/decision", async (req, res) => {
         const io = req.app.get("io");
         slog('결재', `⚖️ [REST Decision 수신] ID: ${payload.orderId}, Action: ${payload.action} (앱에서 직통)`);
 
-        // 🔑 [하드 락] 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth · reviews/29 1단계 D·E)
+        // 🔑 [하드 락] 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth)
         const auth = authDevice(payload.deviceId, deviceTokenOf(req));
         if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
         const userId = auth.userId;
-        /* 👥 내 콜에만 결재한다 (reviews/29 기준 1) */
+        /* 👥 내 콜에만 결재한다 */
         if (!ownsOrder(userId, payload.orderId)) {
             slog('결재', `🚫 [남의 콜] /decision ${payload.orderId} — 이 폰의 기사 콜이 아니다`);
             return res.status(403).json({ error: "NOT_YOUR_ORDER" });

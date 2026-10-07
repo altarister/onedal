@@ -3,7 +3,7 @@ import { businessDayKey, isoKst, type OpsNotice } from "@onedal/shared";
 import db from "../db";
 
 /**
- * 📢 **기사가 보는 지금 공지** (reviews/29 3단계 · 붙일 때 requireAuth — index.ts). 올림 · 내림은 운영센터(`/api/ops/notices`).
+ * 📢 **기사가 보는 지금 공지** (붙일 때 requireAuth — index.ts). 올림 · 내림은 운영센터(`/api/ops/notices`).
  * 지금 공지 = 내리지 않았고(ended_at 빔) · 기한이 비었거나 오늘(한국 날) 이후. 내린 공지도 줄은 남는다.
  */
 const router = Router();

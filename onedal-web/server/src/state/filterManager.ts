@@ -349,7 +349,7 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
     if (lastFilterLogSig.get(session) === sig) return;
     lastFilterLogSig.set(session, sig);
     /**
-     * 🧹 전문을 다시 찍지 않는다 — 한 판에 300번 바뀌면 전문 30줄이 9,000줄을 만든다 (reviews/22 ①-3).
+     * 🧹 전문을 다시 찍지 않는다 — 한 판에 300번 바뀌면 전문 30줄이 9,000줄을 만든다.
      *    바뀐 칸의 반영 후 값과 전체 지문만 남긴다 — 전체가 궁금하면 같은 지문의 피기백(`filterVersionOf`)이 답한다.
      */
     const af = session.activeFilter as any;
@@ -1541,7 +1541,7 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
     } catch (e) { console.error('🌅 [영업일 전환] 하차분 정리 실패 (전환은 계속):', (e as Error).message); }
 
     /**
-     * 📅 **그날이 된 예약 콜을 진행 중으로** (reviews/23 B-1 · 나오는 문). 경로는 이 함수를 부른 쪽이
+     * 📅 **그날이 된 예약 콜을 진행 중으로** (나오는 문). 경로는 이 함수를 부른 쪽이
      *    `recalcRouteIfStopsChanged` 로 다시 잰다 — 여기서 배차 엔진을 부르면 가져오기가 돈다.
      */
     const promoted = promoteDueReserved(session, today);

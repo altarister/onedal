@@ -6,7 +6,7 @@ import { enterLogWho } from "../utils/logContext";
 import { accountGateOf } from "./accountGate";
 
 /**
- * 🔑 **폰이 누구인가 — 폰 문 한 곳** (reviews/29 1단계 D·E · 기준 1).
+ * 🔑 **폰이 누구인가 — 폰 문 한 곳** (기준 1).
  *
  * 폰 이름만으로 자기를 밝히면 남이 대입해 다른 기사의 콜을 건드릴 수 있었다. 연결 때 서버가 비밀 토큰을 주고
  * (`user_devices.token_hash` 에는 sha256 만) 폰 요청마다 헤더 `X-Device-Token` 으로 대조한다.
@@ -36,7 +36,7 @@ export function deviceTokenOf(req: { headers?: Record<string, unknown> }): strin
 const toldNoToken = new Set<string>();
 const toldTokenOk = new Set<string>();
 
-/** 📱 서버 로그에 쓰는 폰 이름 — DB 의 이름 · 없으면 «이름 없는 폰·뒤 4자» (shared deviceLabel · reviews/29 1단계 K) */
+/** 📱 서버 로그에 쓰는 폰 이름 — DB 의 이름 · 없으면 «이름 없는 폰·뒤 4자» (shared deviceLabel) */
 export function deviceLabelOf(deviceId: string | null | undefined): string {
     if (!deviceId) return '폰 모름';
     const row = db.prepare("SELECT device_name FROM user_devices WHERE device_id = ?").get(deviceId) as { device_name?: string | null } | undefined;
@@ -65,12 +65,12 @@ export function authDevice(deviceId: string | null | undefined, token: string | 
         toldNoToken.add(deviceId);
         slog('통신', `🔑 [토큰 없는 폰] ${deviceId} — ${row.token_hash ? '토큰을 안 실음(옛 앱)' : '토큰을 받은 적 없음(재연결 전)'} · 이번 단계는 통과`);
     }
-    /* 🚧 계정 사실 — 토큰 갈래 둘(실음 · 안 실음) 뒤 한 자리 (reviews/29 2단계 · onedal-1f) */
+    /* 🚧 계정 사실 — 토큰 갈래 둘(실음 · 안 실음) 뒤 한 자리 (onedal-1f) */
     if (accountGateOf(row.user_id).blocked) {
         if (!toldBlocked.has(deviceId)) { toldBlocked.add(deviceId); slog('통신', `🚫 [계정 막힘] ${row.name ?? row.user_id} · ${deviceLabelOf(deviceId)} — 폰 보고 거절 (${DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED})`); }
         return { ok: false, status: 403, error: DEVICE_LINK_ERRORS.ACCOUNT_BLOCKED };
     }
     toldBlocked.delete(deviceId);
-    enterLogWho(row.name, row.user_id);   // 🪪 이 폰 보고의 로그 줄 끝에 «@기사» (reviews/29 1단계 J)
+    enterLogWho(row.name, row.user_id);   // 🪪 이 폰 보고의 로그 줄 끝에 «@기사»
     return { ok: true, userId: row.user_id, deviceId };
 }

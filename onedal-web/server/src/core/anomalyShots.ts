@@ -6,7 +6,7 @@ import { assertOutsideRepo } from "./releases";
 import { slog } from "../utils/fileLogger";
 
 /**
- * 📷 **못 알아본 배차망 화면의 사진** — 원달앱이 이상 기록(«SCREEN_UNKNOWN …»)에 실어 보낸 사진을 받아 두고 지운다 (reviews/37).
+ * 📷 **못 알아본 배차망 화면의 사진** — 원달앱이 이상 기록(«SCREEN_UNKNOWN …»)에 실어 보낸 사진을 받아 두고 지운다.
  *
  * 🔴 사진은 가리지 않은 원본이다 — 고객 이름 · 전화 · 주소가 찍힐 수 있다. 그래서
  *   ① 파일은 레포 밖 폴더(`SHOTS_DIR` · 기본 홈의 onedal-shots)에만 쓴다 — 폴더는 서버가 만들지 않는다(실서버는 처음 한 번 사람이 만든다)

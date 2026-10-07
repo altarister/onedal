@@ -8,7 +8,7 @@ import {
 import { slog } from "../utils/fileLogger";
 
 /**
- * 📦 **운영센터 앱 배포 문** (reviews/29 4단계 · `/api/ops` 와 같은 문지기 requireAuth + requireOps 로 index.ts 에서 붙는다).
+ * 📦 **운영센터 앱 배포 문** (`/api/ops` 와 같은 문지기 requireAuth + requireOps 로 index.ts 에서 붙는다).
  * 쓰기마다 운영센터 기록(ops.ts `audit`) 한 줄. 올리기는 본문이 APK 바이트 그대로 — 메모리에 안 담고 레포 밖 폴더로 흘려 쓴다(`core/releases`).
  * versionCode 는 관리자가 적는 값이다(APK 를 풀어 읽지 않는다) — 원달앱 build.gradle 의 versionCode 와 같게 적는다.
  */

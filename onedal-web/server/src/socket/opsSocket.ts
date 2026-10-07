@@ -4,7 +4,7 @@ import { opsAllowed } from "../core/opsAccess";
 import { slog } from "../utils/fileLogger";
 
 /**
- * 🏢 **운영센터 소켓 — 이름공간 /ops** (reviews/29 5단계 · onedal-1f «가»).
+ * 🏢 **운영센터 소켓 — 이름공간 /ops** (onedal-1f «가»).
  * socket.io 가 연결 처리를 관제웹과 따로 부른다 — 관제웹의 세션 충돌 · 화면 세션 · 기사 세션 부트스트랩이 이 소켓에 닿을 길이 없다
  * (기사님이 운행 중 관제웹을 띄운 채 운영센터를 열어도 관제웹이 안 끊긴다 · 와이프 계정에 기사 세션이 안 생긴다).
  * - 들어오는 판단: 같은 JWT 검사(authSocket) → 운영센터 허락(opsAllowed) — HTTP requireOps 와 같은 칸

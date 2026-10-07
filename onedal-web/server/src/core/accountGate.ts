@@ -3,7 +3,7 @@ import db from "../db";
 import { peekUserSession } from "../state/userSessionStore";
 
 /**
- * 🚧 **이 계정이 새 일을 받나 — 서버의 판단 자리 하나** (reviews/29 2단계 · shared `accountBlocked` 를 부른다).
+ * 🚧 **이 계정이 새 일을 받나 — 서버의 판단 자리 하나** (shared `accountBlocked` 를 부른다).
  * 폰 문(`authDevice`) · 폰 연결(`/api/devices/pair`) · 내 가입 상태(`/api/join/me`)가 같이 부른다.
  * - 사실 칸: users 의 approved_at · suspended_at · suspend_after_active · withdrawn_at (유료 기한 paid_until 은 6단계 칸 — 그 전엔 null)
  * - 진행 중 콜: 그 기사 세션의 끝나지 않은 콜 **또는** DB orders 의 미완료 콜 — «끝난 뒤» 정지가 운행 중간에 폰을 끊지 않게

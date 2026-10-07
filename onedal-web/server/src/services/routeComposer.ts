@@ -522,7 +522,7 @@ type OrderPlan = '합짐' | '기준';
 /** «바뀔 때만» 기억은 계획마다 따로 — 한 기억을 같이 쓰면 두 계획이 번갈아 «바뀜»이 되어 매번 찍힌다 */
 const lastOrderTrace = new Map<OrderPlan, string>();
 function logOrderDecision(plan: OrderPlan, text: (withPlace: boolean) => string): void {
-    // 🧹 거리 숫자는 매 틱 달라 «바뀔 때만»을 무력화한다 — 판단의 골자(숫자 뺀 문구)로 비교한다 (reviews/22 ①-3)
+    // 🧹 거리 숫자는 매 틱 달라 «바뀔 때만»을 무력화한다 — 판단의 골자(숫자 뺀 문구)로 비교한다
     const gist = text(false).replace(/[0-9.]+/g, '');
     if (gist === lastOrderTrace.get(plan)) return;
     lastOrderTrace.set(plan, gist);

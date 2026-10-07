@@ -14,7 +14,7 @@ import { getUserSession } from "./userSessionStore";
 import { slog } from "../utils/fileLogger";
 
 /**
- * 📡 **관제앱 공급 소켓(`/supply`)에 갈 값 — 한 곳** (reviews/50 ①-1).
+ * 📡 **관제앱 공급 소켓(`/supply`)에 갈 값 — 한 곳**.
  * 기사님 단위 필터 + 폰마다 모드 · 심사 중 · 짝 서명. 관제앱 서비스가 받아 블루투스로 스캔폰에 넘긴다.
  * 🔴 1초 주기가 부르므로 계산 · 로그 · 쓰기가 늘면 안 된다 — 내일 콜 목록(`ensureReservedPickupList`)은 집 · 반경 · 지도 열쇠로 붙잡혀 있어 다시 세지 않고,
  *    폰 줄은 살아 있는 폰만이라 내림 로그 둘도 보고하는 폰 몫만 바뀔 때 찍힌다. 보고가 아직 없어도 같은 값이 나온다(값의 원천은 «보고가 왔나»가 아니다).
@@ -30,7 +30,7 @@ const lastSupplyJson = new Map<string, string>();
 
 /**
  * 🎛️ **이 폰이 실제로 돌 모드** — `phone-supply`(PHONE) 와 기기 목록의 «보낼 모드»(`sentModesOf`)가 이 함수를 부른다(두 벌 셈 없음).
- * 관제웹이 없거나(reviews/44) · 허락이 안 살았거나 · 다른 폰도 자동이면(reviews/48 가) 자동 명령도 알람. 표는 shared `modeTable.ts`.
+ * 관제웹이 없거나 · 허락이 안 살았거나 · 다른 폰도 자동이면 자동 명령도 알람. 표는 shared `modeTable.ts`.
  * shared `phoneModeOf` 는 관제웹 «적용중» 표시용 다른 함수다.
  */
 export function modeSentToPhone(deviceId: string, userId: string, commanded: DeviceModeType = getDeviceMode(deviceId, userId), ids?: string[]): DeviceModeType {
@@ -88,7 +88,7 @@ export function bleAdTagOf(userId: string, nowMs: number = Date.now()): string {
     return createHmac('sha256', jwtSecret()).update(`ble-ad|${userId}|${businessDayKey(nowMs)}`).digest('hex').slice(0, 8);
 }
 
-/** 🧯 콜 잡기를 멈추는 넷의 마지막 모양 — 바뀔 때만 한 줄(보고마다 찍던 것을 공급 쪽으로 · reviews/50 ①-5) */
+/** 🧯 콜 잡기를 멈추는 넷의 마지막 모양 — 바뀔 때만 한 줄(보고마다 찍던 것을 공급 쪽으로) */
 const lastHolds = new Map<string, AppFilterHolds>();
 function noteHolds(userId: string, holds: AppFilterHolds, allowed: string[] | undefined): void {
     const prev = lastHolds.get(userId);

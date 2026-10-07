@@ -1,7 +1,7 @@
 import { kstDateText } from "@onedal/shared";
 
 /**
- * 🧯 **서버 오늘 오류 수 — 쓰는 순간 센다** (reviews/33 · onedal-69 «가» · ERR 만).
+ * 🧯 **서버 오늘 오류 수 — 쓰는 순간 센다** (onedal-69 «가» · ERR 만).
  *    fileLogger 가 ERR 줄(console.error)을 파일에 쓸 때 noteError 를 부른다 — 로그 파일을 통째로 읽지 않는다.
  *    메모리라 한국 날이 바뀌면 0 · 서버를 다시 띄워도 0 이다(화면은 «부팅 뒤 · 오늘»). 운영센터 점검 · 홈이 errorsToday 로 읽는다.
  * 🔴 «같은 모양» 규칙은 pnpm log(scripts/log.mjs 의 UUID · shapeOf)와 글자까지 같다 — mjs 가 TS 를 못 불러 두 곳에 두고 검사 errorTally 가 묶는다.

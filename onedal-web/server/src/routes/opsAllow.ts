@@ -3,7 +3,7 @@ import type { OpsAllowRequest, OpsPaidUntilRequest } from "@onedal/shared";
 import { memberWrite } from "./ops";
 
 /**
- * 🎛️ **운영센터 허락 · 유료 기한 문** (reviews/29 6단계 · `/api/ops` 와 같은 문지기로 index.ts 에서 붙는다 · 기록은 ops.ts `memberWrite` 가 남긴다).
+ * 🎛️ **운영센터 허락 · 유료 기한 문** (`/api/ops` 와 같은 문지기로 index.ts 에서 붙는다 · 기록은 ops.ts `memberWrite` 가 남긴다).
  * 켜기는 허락 시각이 이미 있으면 그대로 · 없으면 지금. 끄기는 허락 시각만 비운다(기한은 둔다). 날짜는 «YYYY-MM-DD» 또는 비움(= 기한 없음).
  */
 const router = Router();

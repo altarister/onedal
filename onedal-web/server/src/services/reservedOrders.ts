@@ -2,7 +2,7 @@ import { isTerminal } from "@onedal/shared";
 import type { MyOrder } from "@onedal/shared";
 
 /**
- * 📅 **예약 보관 — 내일 콜은 오늘 하루에 넣지 않는다** (reviews/23 B-1 · 기사님 «가»).
+ * 📅 **예약 보관 — 내일 콜은 오늘 하루에 넣지 않는다** (기사님 «가»).
  *
  * KEEP 한 콜의 보관 날(`reservedFor`)이 오늘 뒤면 진행 중 콜(`myOrders`)이 아니라 `reservedOrders` 에 둔다.
  * 🔴 진행 중 콜을 모으는 자리(`getActiveCalls` 등 45곳)는 한 줄도 안 바뀐다 — 예약 콜이 거기 **없기** 때문이다.

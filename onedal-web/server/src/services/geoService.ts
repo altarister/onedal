@@ -1101,7 +1101,7 @@ export function originOf(
 
 /**
  * 🏠 **집을 기점으로** — 설정의 집 좌표. 비었으면 null (🔴 지어내지 않는다 — 없으면 없다고 답한다 · 규칙 ④).
- *    `originOf` 가 지금 자리를 못 믿을 때 물러서는 곳이고, 내일 콜 판정이 «그날은 집에서 출발한다»로 쓰는 곳이다(reviews/23 B-3).
+ *    `originOf` 가 지금 자리를 못 믿을 때 물러서는 곳이고, 내일 콜 판정이 «그날은 집에서 출발한다»로 쓰는 곳이다.
  */
 export function homeOriginOf(userId: string): DriverOrigin | null {
     const home = SettingsRepository.getHomeLocation(userId);
@@ -1296,7 +1296,7 @@ export function processDriverMovement(
                 slog('위치', `▶️ [정차 끝] ${stoppedMin}분 서 있다 다시 이동 · 출처 ${src}`);
                 session.stoppedSinceMs = null;
             }
-            // 🧹 이동 로그는 30초에 한 줄 — 궤적은 DB 가 들고 있다 (reviews/22 ①-3)
+            // 🧹 이동 로그는 30초에 한 줄 — 궤적은 DB 가 들고 있다
             if (!session.lastMoveLogAt || Date.now() - session.lastMoveLogAt >= 30_000) {
                 session.lastMoveLogAt = Date.now();
                 slog('위치', `📍 [위치] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} ` +

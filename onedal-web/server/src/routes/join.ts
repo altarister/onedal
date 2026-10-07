@@ -6,7 +6,7 @@ import { latestContent, isContentKind } from "./contents";
 import { slog } from "../utils/fileLogger";
 
 /**
- * 🪪 **가입 · 동의 · 내 상태 · 탈퇴** (reviews/29 2단계 · shared join.ts 규격 · 붙일 때 requireAuth 한 번 — index.ts).
+ * 🪪 **가입 · 동의 · 내 상태 · 탈퇴** (shared join.ts 규격 · 붙일 때 requireAuth 한 번 — index.ts).
  * - 승인은 여기서 하지 않는다 — 새 가입은 approved_at 이 빈 채로 남고 운영센터가 승인한다. 기존 회원은 A1 옮기기로 이미 승인돼 있다
  * - 동의 판은 지금 최신 판과 같아야 받는다 — 다르면 409(그 사이 글이 고쳐졌다 · 화면이 글을 다시 읽어 동의 단계를 다시 그린다)
  * - 탈퇴는 지우지 않는다 — withdrawn_at 만 적는다(기록 · 콜은 남는다 · 파기는 관리자 손). 폰은 폰 문(core/accountGate)이 막는다

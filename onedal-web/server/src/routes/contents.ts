@@ -3,7 +3,7 @@ import { CONTENT_KINDS, isoKst, type ContentKind, type ContentReply } from "@one
 import db from "../db";
 
 /**
- * 📝 **글 읽기 — 약관 · 안내** (reviews/29 2단계 · shared join.ts `ContentReply`).
+ * 📝 **글 읽기 — 약관 · 안내** (shared join.ts `ContentReply`).
  * 🔴 로그인 없이 읽는다 — 약관은 가입 전에 읽는다. 쓰기는 운영센터(/api/ops/contents · 3단계)만.
  * 글은 판마다 한 줄(contents 표) — 여기는 종류별 최신 판 하나. 없으면 null(화면이 «글 자리»를 보인다 · 글이 비어도 흐름이 돈다).
  */

@@ -68,7 +68,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
         }
 
         req.user = decoded; // 이후 라우터 로직에서 req.user.id 접근 가능
-        enterLogWho(decoded?.name, decoded?.id);   // 🪪 이 요청의 로그 줄 끝에 «@기사» (reviews/29 1단계 J)
+        enterLogWho(decoded?.name, decoded?.id);   // 🪪 이 요청의 로그 줄 끝에 «@기사»
         next();
     } catch (err: any) {
         if (err.name === 'TokenExpiredError') {
@@ -84,7 +84,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 
 /**
  * 🏢 **운영센터 권한** — requireAuth 뒤에 붙인다.
- * 🔑 «관리자인가»를 가르는 곳은 여기 하나다 — 토큰의 role 이 아니라 요청마다 `users.ops_allowed_at`(core/opsAccess · reviews/29 기준 4).
+ * 🔑 «관리자인가»를 가르는 곳은 여기 하나다 — 토큰의 role 이 아니라 요청마다 `users.ops_allowed_at`(core/opsAccess).
  *    허락을 끄면 다음 요청부터 막힌다. 운영센터 문 · 현황판 «새 글자» · 관리자 통계가 같이 쓴다.
  */
 export const requireOps = (req: Request, res: Response, next: NextFunction): void => {

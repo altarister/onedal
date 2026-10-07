@@ -62,7 +62,7 @@ function verdictLine(v: JudgmentSnapshot): string {
  */
 export function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string }) {
     /**
-     * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (reviews/23 B-3 · 기사님 결정 3 «가»).
+     * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (기사님 결정 3 «가»).
      *    ① 접근 구간은 지금 자리가 아니라 **집**에서 잰다 — 그날은 집에서 출발한다. 집이 비면 기점이 없다 → 그 축은 «잴 게 없음».
      *    ② **합칠 상대가 없다** — 오늘 실린 짐과 합짐이 아니다(첫짐 단독).
      *    가르는 것은 이 콜 하나의 사실(보관 날이 오늘 뒤)이다. 오늘 콜은 지금처럼 부를 때마다 그때 자리를 읽는다.
@@ -199,7 +199,7 @@ export class OrderEvaluator {
          *    카카오를 기다리는 사이 GPS · 필터 변경 · KEEP 이 끼어들어도 한 판정이 옛 값/새 값을 섞지 않는다.
          */
         const snap = { origin: originNow(), activeCalls: activeCallsNow(), goal: goalNow(), pickupRadiusKm: pickupRadiusNow(), filter: { ...session.activeFilter } };
-        /* 🧾 판정 장부에 함께 남길 콜 내용 · 이 판정의 서버 필터 요약 — 미리보기 · 체험 콜은 orders 에 안 남는다 (reviews/43) */
+        /* 🧾 판정 장부에 함께 남길 콜 내용 · 이 판정의 서버 필터 요약 — 미리보기 · 체험 콜은 orders 에 안 남는다 */
         const record = judgmentRecordOf(securedOrder, snap.filter);
         // 📍 낡은 현위치로 우회 비용을 재면 색이 틀린다 (규칙 ⑤-3) — 비우면 내 주소로 메운다.
         //    비움만 부르면 origin 없는 카카오 호출이 되어 합짐이 전부 🔴 로 나온다 (0831 실측)
@@ -957,7 +957,7 @@ export class OrderEvaluator {
         /**
          * 2) 첫짐 절대 하한가 검사
          *
-         * 🔴 **«원달앱이 이미 걸렀나»로 가른다 — 배차망이 아니라** (reviews/34 3단계 5① · 기사님 «가»).
+         * 🔴 **«원달앱이 이미 걸렀나»로 가른다 — 배차망이 아니라** (기사님 «가»).
          *
          * 원달앱은 세 배차망 모두 목록 판정에서 같은 최소 금액(관제웹 필터 막대)으로 거르고,
          * 통과한 콜만 원달앱이 눌러 연다(`openedByApp` · /confirm 이 싣는다 · 자동 모드도 여기 든다).

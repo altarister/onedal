@@ -48,7 +48,7 @@ import { registerOpsNamespace } from "./opsSocket";
  * 한 오더의 입력이 실패하는 것과 서버가 죽는 것은 전혀 다른 무게다.
  */
 function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any) {
-    /* 🪪 이 이벤트의 로그 줄 끝에 «@기사» — 핸들러의 비동기 흐름 전체에 싣는다 (reviews/29 1단계 J) */
+    /* 🪪 이 이벤트의 로그 줄 끝에 «@기사» — 핸들러의 비동기 흐름 전체에 싣는다 */
     socket.on(event, (...args: any[]) => logContext.run({ who: whoLabel(socket.data.user?.name, socket.data.user?.id), userId: socket.data.user?.id }, async () => {
         try {
             await handler(...args);
@@ -116,7 +116,7 @@ export function registerSocketHandlers(io: Server) {
 
         // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.
         // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 경유를 만든다
-        /* 📅 날이 바뀌며 예약 콜이 오늘 콜이 됐을 수 있다 — 정거장이 바뀌었으면 경로를 다시 잰다 (reviews/23 B-1) */
+        /* 📅 날이 바뀌며 예약 콜이 오늘 콜이 됐을 수 있다 — 정거장이 바뀌었으면 경로를 다시 잰다 */
         if (ensureBusinessDay(userId, io)) void recalcRouteIfStopsChanged(userId, io, '영업일 전환');
 
         // 접속 시 초기 데이터 전송 (유저별 등록 기기 목록 포함)
@@ -154,7 +154,7 @@ export function registerSocketHandlers(io: Server) {
         noteOrigin(socket.handshake.headers.origin, `소켓 · ${deviceInfo}`);   // 🌐 처음 보는 Origin — CORS 좁히기 전 목록 모으기
 
         /**
-         * 👥 **orderId 를 받는 이벤트는 여기로 붙인다** — 그 콜이 이 기사의 것일 때만 핸들러를 부른다 (reviews/29 기준 1).
+         * 👥 **orderId 를 받는 이벤트는 여기로 붙인다** — 그 콜이 이 기사의 것일 때만 핸들러를 부른다.
          *    기사 둘이 한 서버를 쓰면 orderId 만으로 남의 콜 단계 행·결재에 쓸 수 있었다. 남의 콜이면 한 줄 남기고 무시한다.
          */
         const orderOn = <T extends { orderId: string }>(event: string, handler: (data: T) => unknown) =>
@@ -665,7 +665,7 @@ export function registerSocketHandlers(io: Server) {
 
         orderOn("save-cargo-report", (data: { orderId: string } & CargoReport) => {
             const { orderId, ...report } = data;
-            // 📞 적는 길은 하나 — 운영센터 통화 도우미와 같은 함수(services/cargoReport · reviews/29 5단계)
+            // 📞 적는 길은 하나 — 운영센터 통화 도우미와 같은 함수(services/cargoReport)
             saveCargoReport(userId, orderId, report as CargoReport, userId, io);
         });
 
@@ -773,7 +773,7 @@ export function registerSocketHandlers(io: Server) {
             if (session.activeWebSession?.socketId === socket.id) {
                 /**
                  * 🪟 같은 창 번호의 탭이 하나 더 살아 있으면(크롬 «탭 복제» — 창 번호가 함께 복사된다) 그 소켓으로 넘긴다.
-                 * 비우면 남은 탭이 결재할 수 있는데도 서버가 «관제웹 없음»으로 보고 폰에 자동 대신 알람을 내려준다(reviews/44 · `routes/scrap.ts`).
+                 * 비우면 남은 탭이 결재할 수 있는데도 서버가 «관제웹 없음»으로 보고 폰에 자동 대신 알람을 내려준다(`routes/scrap.ts`).
                  */
                 const twin = [...io.sockets.sockets.values()].find(other =>
                     other.id !== socket.id && other.connected && other.data.user?.id === userId && clientSessionOf(other) === clientSessionId);
@@ -816,7 +816,7 @@ export function registerSocketHandlers(io: Server) {
                 slog('통신', `📤 [Socket 푸시] sync-active-orders (복구 · 활성 ${calls.length}건 ${callsSig || '없음'})`);
             }
             io.to(uid).emit("sync-active-orders", sync);
-            /* 🏢 관리자 방에는 «이 기사 콜이 바뀌었다» 신호만 — 자료는 안 싣는다(운영센터가 GET /api/ops/calls 로 다시 읽고, requireOps 가 요청마다 허락을 다시 본다 · reviews/29 5단계 · 04 메모 ①).
+            /* 🏢 관리자 방에는 «이 기사 콜이 바뀌었다» 신호만 — 자료는 안 싣는다(운영센터가 GET /api/ops/calls 로 다시 읽고, requireOps 가 요청마다 허락을 다시 본다 · 04 메모 ①).
                   콜 · 상태 · 판정 색이 바뀔 때만 — 주행 시각 · 위치만 바뀐 1~2초마다의 변화로는 안 보낸다(통화 행이 바뀐 때는 saveCargoReport 가 보낸다) */
             const opsSig = calls.map(c => `${c.id}:${c.status}:${c.judgment?.color ?? ''}`).join(',');
             if (lastOpsSig.get(uid) !== opsSig) {
