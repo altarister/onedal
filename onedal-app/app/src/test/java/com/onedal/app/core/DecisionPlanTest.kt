@@ -10,18 +10,18 @@ import org.junit.Test
  *    체험이면 버튼을 안 누르고, 모르는 값은 아무것도 안 한다(P1-16).
  */
 class DecisionPlanTest {
-    private fun plan(d: String, sim: Boolean = false, contracted: Boolean = true, opened: Boolean = true) =
-        DecisionPlan.of(d, modeBlocksAccept = sim, contractedByApp = contracted, openedByApp = opened)
+    private fun plan(d: String, contracted: Boolean = true, opened: Boolean = true) =
+        DecisionPlan.of(d, contractedByApp = contracted, openedByApp = opened)
 
     @Test fun `앱이 계약한 콜 — KEEP 은 닫기 · CANCEL 은 취소`() {
         assertEquals(DecisionPlan.PRESS_CLOSE, plan("KEEP"))
         assertEquals(DecisionPlan.PRESS_CANCEL, plan("CANCEL"))
     }
 
-    @Test fun `체험 결재나 체험 모드는 계약한 콜이어도 버튼을 안 누른다`() {
+    @Test fun `체험 결재는 계약한 콜이어도 버튼을 안 누른다 · 체험인지는 결재 종류 하나로`() {
         assertEquals(DecisionPlan.SIMULATED_BACK, plan("SIMULATED_KEEP"))
         assertEquals(DecisionPlan.SIMULATED_BACK, plan("SIMULATED_CANCEL"))
-        assertEquals(DecisionPlan.SIMULATED_BACK, plan("KEEP", sim = true))
+        assertEquals(DecisionPlan.PRESS_CLOSE, plan("KEEP"))   // 진짜로 잡은 콜의 KEEP — 폰이 지금 체험이어도(서버가 잡을 때 값으로 KEEP 을 보냄 · D1 ③)
     }
 
     @Test fun `계약 안 한 콜 — 앱이 연 CANCEL 은 목록으로 · 그 밖은 머문다`() {

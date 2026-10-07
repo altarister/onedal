@@ -25,12 +25,10 @@ enum class DecisionPlan {
         /** 서버 · 관제앱이 보내는 결재 값(shared `SupplyDecisionAction`) */
         val KNOWN = setOf("KEEP", "CANCEL", "SIMULATED_KEEP", "SIMULATED_CANCEL")
 
-        /**
-         * @param modeBlocksAccept 지금 도는 모드가 확정을 막나(`ModeActs.blocksAccept` — 체험)
-         */
-        fun of(decision: String, modeBlocksAccept: Boolean, contractedByApp: Boolean, openedByApp: Boolean): DecisionPlan = when {
+        /** 🐥 체험인지는 결재 종류(`SIMULATED_*` — 서버가 잡을 때 적힌 값으로 정함) 하나 — 결재 순간의 폰 모드로 다시 가르지 않는다(D1 ③) */
+        fun of(decision: String, contractedByApp: Boolean, openedByApp: Boolean): DecisionPlan = when {
             decision !in KNOWN -> IGNORE_UNKNOWN
-            decision.startsWith("SIMULATED_") || modeBlocksAccept -> SIMULATED_BACK
+            decision.startsWith("SIMULATED_") -> SIMULATED_BACK
             !contractedByApp -> if (openedByApp && decision == "CANCEL") BACK_TO_LIST else STAY
             decision == "KEEP" -> PRESS_CLOSE
             else -> PRESS_CANCEL

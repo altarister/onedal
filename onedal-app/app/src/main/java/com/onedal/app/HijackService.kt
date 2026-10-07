@@ -2119,8 +2119,7 @@ class HijackService : AccessibilityService(), ScanContext {
     private fun executeDecisionImmediately(decision: String, orderId: String? = null) {
         val armedHere = orderId != null && orderId == safeCancelTimer.armedOrderId
         /* 🗳️ 무엇을 할지는 `DecisionPlan` 한 곳이 정한다 — 여기는 집행만 */
-        val plan = com.onedal.app.core.DecisionPlan.of(decision, com.onedal.app.core.ModeActs.of(effectiveMode).blocksAccept,
-            session.contractedByApp || armedHere, session.openedByApp)
+        val plan = com.onedal.app.core.DecisionPlan.of(decision, session.contractedByApp || armedHere, session.openedByApp)
         if (plan == com.onedal.app.core.DecisionPlan.IGNORE_UNKNOWN) return
         if (plan.stopsSafeCancel) cancelSafeCancelTimer() // 타이머 해제
         // ⏱️ 기사님이 손으로 연 상세 — 결재가 오면 머문다(판정을 보고 기사님이 누르신다). 앱이 연 콜은 아래에서 정한다
