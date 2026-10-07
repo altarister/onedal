@@ -22,6 +22,8 @@ export interface AnomalyPayload {
         [key: string]: any;
     } | null;
     detailParsedText?: string | null;
+    /** 원달앱이 연 상세인가 — 참이면 원달앱이 콜을 버리고 곧바로 떠난다(«판정 못 함»을 안 띄움) · 없으면 옛 원달앱(모름) */
+    openedByApp?: boolean;
     screenshotBase64?: string | null;
     ocrResult?: {
         extractedPickup?: string | null;
@@ -57,7 +59,8 @@ router.post("/anomalies", (req, res) => {
             detailParsedText,
             ocrResult,
             screenshotBase64,
-            timestamp
+            timestamp,
+            openedByApp
         } = payload;
 
         if (!deviceId || !targetApp || !failureReason) {
@@ -112,7 +115,10 @@ router.post("/anomalies", (req, res) => {
         const reason = unreadableReasonOf(failureReason);
         const io = req.app?.get("io");
         const screenNow = deviceScreenOf(deviceId);
-        if (reason && isDetailScreen(screenName) && screenNow && deviceOnList(deviceId)) {
+        if (reason && isDetailScreen(screenName) && openedByApp === true) {
+            /* 🧾 요건 미달은 콜이 아니다(기사님) — 원달앱이 연 상세는 원달앱이 버리고 곧바로 떠나 시트가 올랐다 내려온다(폰 시험 10-08) · 기록만 */
+            slog('화면', `⚪ [판정 못 함 안 띄움] ${reason} — 원달앱이 연 상세(원달앱이 버리고 떠난다)`);
+        } else if (reason && isDetailScreen(screenName) && screenNow && deviceOnList(deviceId)) {
             slog('화면', `⚪ [판정 못 함 안 띄움] ${reason} — 폰이 이미 목록이다(늦게 닿은 보고)`);
         } else if (reason && isDetailScreen(screenName) && io) {
             io.to(auth.userId).emit("detail-unreadable", {

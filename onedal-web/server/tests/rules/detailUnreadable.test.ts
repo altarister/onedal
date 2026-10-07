@@ -18,10 +18,10 @@ const handler = (() => {
     const layer = telemetryRouter.stack.find((l: any) => l.route?.path === '/anomalies' && l.route.methods.post);
     return layer.route.stack[layer.route.stack.length - 1].handle;
 })();
-const report = (screenName: string, failureReason: string) => {
+const report = (screenName: string, failureReason: string, extra: Record<string, unknown> = {}) => {
     const res = { status: () => res, json: () => res };
     handler({ app: { get: (k: string) => (k === 'io' ? io : undefined) },
-        body: { deviceId: DEV, targetApp: 'kakaopicker', screenName, failureReason,
+        body: { ...extra, deviceId: DEV, targetApp: 'kakaopicker', screenName, failureReason,
             listOrderInfo: { fare: 0, pickup: '경기 광주시 광남2동 동대문엽기떡볶이', dropoff: null } } }, res);
 };
 const unreadables = () => emitted.filter(([ev]) => ev === 'detail-unreadable');
@@ -69,6 +69,24 @@ describe('⚪ 소켓 푸시', () => {
         touchDeviceSession(DEV, U, 1, 'DETAIL_PRE_CONFIRM', io);
         report('DETAIL_PRE_CONFIRM', 'REQUIREMENT_UNMET: 요금 없음');
         expect(unreadables()).toHaveLength(1);
+    });
+});
+
+describe('⚪ 누가 열었나 — 요건 미달은 콜이 아니다', () => {
+    it('🔴 원달앱이 연 상세면 안 띄운다(원달앱이 버리고 곧바로 떠난다) · 기록은 남긴다', () => {
+        touchDeviceSession(DEV, U, 1, 'DETAIL_PRE_CONFIRM', io);
+        emitted.length = 0;
+        const before = (db.prepare(`SELECT COUNT(*) c FROM telemetry_anomalies WHERE device_id = ?`).get(DEV) as any).c;
+        report('DETAIL_PRE_CONFIRM', 'REQUIREMENT_UNMET: 상차 주소 짧음(경기 광주 초월읍)', { openedByApp: true });
+        expect(unreadables()).toHaveLength(0);
+        expect((db.prepare(`SELECT COUNT(*) c FROM telemetry_anomalies WHERE device_id = ?`).get(DEV) as any).c).toBe(before + 1);
+    });
+    it('대조 — 손으로 연 상세 · 칸 없는 옛 원달앱은 바로 띄운다(기사님 «가»)', () => {
+        touchDeviceSession(DEV, U, 1, 'DETAIL_PRE_CONFIRM', io);
+        emitted.length = 0;
+        report('DETAIL_PRE_CONFIRM', 'REQUIREMENT_UNMET: 요금 없음', { openedByApp: false });
+        report('DETAIL_PRE_CONFIRM', 'REQUIREMENT_UNMET: 요금 없음');
+        expect(unreadables()).toHaveLength(2);
     });
 });
 
