@@ -11,9 +11,10 @@ enum class DecisionStep {
 }
 
 object DecisionReplay {
-    fun stepOf(orderId: String, lastExecuted: String?, currentOrderId: String): DecisionStep = when {
+    /** @param armedOrderId 안전취소 타이머가 지키는 콜 — 목록 복귀로 세션 번호가 비어도 그 콜의 결재는 집행한다(D1 ①) */
+    fun stepOf(orderId: String, lastExecuted: String?, currentOrderId: String, armedOrderId: String? = null): DecisionStep = when {
         orderId == lastExecuted -> DecisionStep.REPLAY
-        orderId != currentOrderId -> DecisionStep.GHOST
+        orderId != currentOrderId && orderId != armedOrderId -> DecisionStep.GHOST
         else -> DecisionStep.EXECUTE
     }
 }

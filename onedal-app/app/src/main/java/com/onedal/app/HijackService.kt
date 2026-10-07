@@ -396,7 +396,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 bleLink?.ack(orderId)
                 return
             }
-            when (com.onedal.app.core.DecisionReplay.stepOf(orderId, lastExecutedDecisionOrderId, session.currentOrderId)) {
+            when (com.onedal.app.core.DecisionReplay.stepOf(orderId, lastExecutedDecisionOrderId, session.currentOrderId, safeCancelTimer.armedOrderId)) {
                 com.onedal.app.core.DecisionStep.REPLAY ->
                     AppLogger.i(TAG, LogTag.DECISION, "🔁 [같은 결재 다시 옴] $orderId — 이미 실행했다 · «받았음»만 다시")
                 com.onedal.app.core.DecisionStep.GHOST ->
@@ -404,7 +404,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 com.onedal.app.core.DecisionStep.EXECUTE -> {
                     AppLogger.w(TAG, LogTag.DECISION, "🛡️ [정상 결재 수신] ID 일치($orderId). 즉각 폐기/유지 액션을 집행합니다. (Action: $action)")
                     lastExecutedDecisionOrderId = orderId
-                    executeDecisionImmediately(action)
+                    executeDecisionImmediately(action, orderId)
                 }
             }
             bleLink?.ack(orderId)   // 받았다 — 실행했든 버렸든 서버가 같은 결재를 다시 보내지 않게
@@ -1301,7 +1301,8 @@ class HijackService : AccessibilityService(), ScanContext {
         }
 
         // 서버 판결 대기 중에는 화면 내 버튼 탐색이나 상세 수집(클릭 액션) 무시
-        if (session.isWaitingForDecision) {
+        // 🔒 목록으로 돌아와 세션이 비었어도 안전취소가 걸린 콜이 있으면 새 콜을 누르지 않는다 — 한 번에 하나만 평가(새 계약이 옛 타이머를 덮어 보호를 잃지 않게)
+        if (session.isWaitingForDecision || safeCancelTimer.armedOrderId != null) {
             rootNode.recycle()
             return
         }
@@ -2084,8 +2085,9 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)  // 안전취소 동안 1초 보고 켬
         safeCancelTimer.start(timeoutMs, session) {
             /* 🛑 «자동 취소»는 여기서 안 보낸다 — 버튼을 실제로 누른 뒤에만(`CancelReport`) · 못 누르면 «안 눌렀음» */
-            timeoutCancelOrderId = session.currentOrderId
-            executeDecisionImmediately("CANCEL")
+            val armed = safeCancelTimer.armedOrderId
+            timeoutCancelOrderId = armed
+            executeDecisionImmediately("CANCEL", armed)
         }
     }
 
@@ -2098,10 +2100,12 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     /** 서버 판결(KEEP/CANCEL) 결과 행동을 실제 화면 액션으로 쏨 */
-    private fun executeDecisionImmediately(decision: String) {
+    /** @param orderId 그 결재의 콜 — 목록 복귀로 세션이 비었어도 안전취소 타이머가 지키는 콜이면 «앱이 계약한 콜»로 집행한다(D1 ①) */
+    private fun executeDecisionImmediately(decision: String, orderId: String? = null) {
+        val armedHere = orderId != null && orderId == safeCancelTimer.armedOrderId
         /* 🗳️ 무엇을 할지는 `DecisionPlan` 한 곳이 정한다 — 여기는 집행만 */
         val plan = com.onedal.app.core.DecisionPlan.of(decision, com.onedal.app.core.ModeActs.of(effectiveMode).blocksAccept,
-            session.contractedByApp, session.openedByApp)
+            session.contractedByApp || armedHere, session.openedByApp)
         if (plan == com.onedal.app.core.DecisionPlan.IGNORE_UNKNOWN) return
         if (plan.stopsSafeCancel) cancelSafeCancelTimer() // 타이머 해제
         // ⏱️ 기사님이 손으로 연 상세 — 결재가 오면 머문다(판정을 보고 기사님이 누르신다). 앱이 연 콜은 아래에서 정한다
@@ -2164,7 +2168,7 @@ class HijackService : AccessibilityService(), ScanContext {
         // ⏳ 결재 몫 — «취소» 누름이 곧 계약 취소라, 그 사이 콜이 끝나도(목록 오탐 리셋) 거두지 않는다
         val firstAtMs = android.os.SystemClock.elapsedRealtime() + 500
         val screenAtFirst = telemetryManager.currentScreenContext
-        val orderAtFirst = session.currentOrderId
+        val orderAtFirst = session.currentOrderId.ifEmpty { orderId ?: "" }
         waitBook.schedule("결재 버튼", com.onedal.app.core.WaitBook.DECISION, 500) {
             pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = false)
         }
@@ -2199,7 +2203,7 @@ class HijackService : AccessibilityService(), ScanContext {
         if (rootNode == null) {
             /* 🛑 화면을 못 얻었다 — 누르지 못했으니 계약이 남아 있다(조용히 넘기지 않는다 · D1 ④) */
             com.onedal.app.core.CancelReport.of(decision, byTimeout, pressed = false)?.let {
-                sendEmergencyReport(it.reason, "판결 $decision — 화면을 못 얻음", it.cancelPressed)
+                sendEmergencyReport(it.reason, "판결 $decision — 화면을 못 얻음", it.cancelPressed, orderAtFirst)
             }
             if (byTimeout) timeoutCancelOrderId = null
             resetSessionState()
@@ -2208,7 +2212,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val pressed = touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false, currentMode = effectiveMode)
         if (pressed) touchManager.noteAppLeft()   // 🚪 결재 버튼으로 떠난 목록 복귀는 기사님 손이 아니다
         com.onedal.app.core.CancelReport.of(decision, byTimeout, pressed)?.let {
-            sendEmergencyReport(it.reason, if (pressed) "안전취소 응답 없음 — 취소를 눌렀다" else "판결 $decision 의 대상 $targetBtnStr 버튼 누락", it.cancelPressed)
+            sendEmergencyReport(it.reason, if (pressed) "안전취소 응답 없음 — 취소를 눌렀다" else "판결 $decision 의 대상 $targetBtnStr 버튼 누락", it.cancelPressed, orderAtFirst)
         }
         if (byTimeout) timeoutCancelOrderId = null
         if (pressed) {
@@ -2232,8 +2236,9 @@ class HijackService : AccessibilityService(), ScanContext {
         rootNode.recycle()
     }
 
-    private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "", cancelPressed: Boolean? = null) {
-        val orderId = session.currentOrderId.ifEmpty { "unknown" }
+    /** @param forOrderId 그 콜 번호 — 목록 복귀로 세션이 비었어도 결재 버튼이 쥔 콜로 보낸다 */
+    private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "", cancelPressed: Boolean? = null, forOrderId: String? = null) {
+        val orderId = forOrderId?.ifEmpty { null } ?: session.currentOrderId.ifEmpty { "unknown" }
         val report = EmergencyReport(
             deviceId = apiClient.getDeviceId(),
             orderId = orderId,
@@ -2259,7 +2264,7 @@ class HijackService : AccessibilityService(), ScanContext {
             ?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏳ [기다림 거둠] 세션 — ${it.joinToString(" · ")}") }
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, false)
         session.reset {
-            cancelSafeCancelTimer()
+            /* 🔒 안전취소 타이머는 끄지 않는다 — 끄는 곳은 결재(`DecisionPlan.stopsSafeCancel`)와 시간 끝뿐(목록 복귀 · 오탐으로 계약 콜 보호를 잃지 않게 · D1 ①) */
             telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 콜 잡기 모드
             telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 해제 알림
         }

@@ -24,6 +24,13 @@ class SafeCancelTimer(
     private var runnable: Runnable? = null
 
     /**
+     * 🔒 **이 타이머가 지키는 콜** (null = 안 걸림). 타이머가 **제 콜 번호를 스스로 쥔다** — 화면이 목록으로 돌아와
+     *    세션이 비어도(`SessionManager.reset`) 끄지 않고 울린다(D1 ①). 그 뒤 온 결재도 이 번호로 알아본다(`DecisionReplay`).
+     */
+    var armedOrderId: String? = null
+        private set
+
+    /**
      * ⏱️ **언제 끝나는가** (`SystemClock.elapsedRealtime` 기준 · 0 = 안 도는 중).
      * 관제웹이 «안전취소 12초»를 그리려면 **남은 초**가 있어야 한다
      *.
@@ -51,12 +58,13 @@ class SafeCancelTimer(
 
         cancel(session)
         session.isWaitingForDecision = true
+        armedOrderId = session.currentOrderId
         AppLogger.roadmap(LogTag.DECISION, "⏳ 안전취소 타이머 가동 (${timeoutMs / 1000}초 대기 → 서버 판결 대기 시작)", "DEATHVALLEY")
         AppLogger.w(TAG, "⏳ 안전취소 타이머 시작: ${timeoutMs / 1000}초 대기...")
 
         deadlineAt = clock() + timeoutMs
         runnable = Runnable {
-            if (session.isWaitingForDecision) {
+            if (armedOrderId != null) {   // 🔒 세션이 아니라 제 표시를 본다 — 목록 복귀로 세션이 비어도 운다
                 AppLogger.roadmap(LogTag.DECISION, "🚨 안전취소 타임아웃! 서버 응답 없음 → 기사 보호를 위한 강제 배차 취소 집행", "DEATHVALLEY")
                 AppLogger.e(TAG, "🚨 안전취소 타임아웃! 기사님 보호를 위해 강제 배차 취소 집행!")
                 onTimeout()
@@ -73,6 +81,7 @@ class SafeCancelTimer(
         waitBook.cancel(NAME)
         runnable = null
         deadlineAt = 0L
+        armedOrderId = null
         session.isWaitingForDecision = false
     }
 }

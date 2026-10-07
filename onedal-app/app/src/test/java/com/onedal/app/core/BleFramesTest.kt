@@ -123,7 +123,7 @@ class BleFramesTest {
     @Test fun `🔴 같은 콜의 결재가 다시 오면 실행은 안 하고 받았음만 — 실행했든 버렸든 받았음은 보낸다`() {
         val svc = File("src/main/java/com/onedal/app/HijackService.kt").readText()
         val block = svc.substringAfter("override fun onDecision(json: String) {").substringBefore("override fun onFold(")
-        assertTrue(block.indexOf("DecisionReplay.stepOf(orderId, lastExecutedDecisionOrderId, session.currentOrderId)") in 0 until block.indexOf("executeDecisionImmediately(action)"))
+        assertTrue(block.indexOf("DecisionReplay.stepOf(orderId, lastExecutedDecisionOrderId, session.currentOrderId, safeCancelTimer.armedOrderId)") in 0 until block.indexOf("executeDecisionImmediately(action, orderId)"))
         assertTrue(block.contains("lastExecutedDecisionOrderId = orderId"))
         assertTrue(block.trimEnd().endsWith("}") && block.contains("bleLink?.ack(orderId)"))
     }
