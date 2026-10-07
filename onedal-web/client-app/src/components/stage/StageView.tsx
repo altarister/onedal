@@ -3,6 +3,7 @@ import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo, DecisionStatus } from '@onedal/shared';
 import { hasVisitedStop, isDeliveredCall, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
+import { useProcessingLock } from '../../hooks/useProcessingLock';
 import { useStageAreas } from '../../hooks/useStageAreas';
 import { useSidePanelRoom } from '../../hooks/useSidePanelRoom';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -109,8 +110,6 @@ export default function StageView(props: Props) {
     const [priorityOpen, setPriorityOpen] = useState(false);
     /** 🧭 QR 덮개 — «눌러서 크게» (작게 늘 띄우면 못 찍힌다) */
     const [qrOpen, setQrOpen] = useState(false);
-    /** 🪧 결재 처리 중인 콜 — 두 번 눌리는 것을 막는다 (판정석이 스스로 재우지 않는다) */
-    const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
     /* 🎨 상태바 동그라미가 지도·목록과 같은 색을 쓴다 */
     const { theme } = useTheme();
     /**
@@ -153,6 +152,8 @@ export default function StageView(props: Props) {
     const drive = useDriveMotion();
     const mem = useRef(initialStageMemory());
     const judging = derived.judging;
+    /** 🪧 결재 처리 중인 콜 — 두 번 눌리는 것을 막는다 · 판정 콜이 바뀌거나 결재가 실패로 돌아오면 풀린다(목록과 같은 한 함수 · `hooks/useProcessingLock`) */
+    const [seatProcessingId, setSeatProcessingId] = useProcessingLock(judging);
     /** 🪧 평가 자리가 차 있나 — 판정 중 콜 또는 ⚪(손 상세를 못 읽음). 시트 규칙은 둘을 같은 길로 다룬다 */
     const seatBusy = seatOccupied(judging, props.unreadable);
     /**

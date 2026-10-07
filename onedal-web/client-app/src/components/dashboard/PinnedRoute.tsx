@@ -1,6 +1,5 @@
 import type { SecuredOrder, RouteStopInfo, DecisionStatus } from "@onedal/shared";
-import { useState, useEffect } from 'react';
-import { socket } from '../../lib/socket';
+import { useProcessingLock } from '../../hooks/useProcessingLock';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
@@ -54,22 +53,8 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
         routeTimeline, etaMap, visitOrderMap, chronologicalIds, gpsFocus,
     } = d;
 
-    const [processingId, setProcessingId] = useState<string | null>(null);
-    // 서버 통신 완료 시 (상태가 변하거나 삭제될 때) 로딩 상태 즉각 해제
-    useEffect(() => {
-        setProcessingId(null);
-    }, [activeRoute]);
-    /* 🔓 결재가 실패로 돌아오면 콜 자료가 그대로라 위 효과가 안 돈다 — 실패 응답에서도 잠금을 푼다(안 풀면 KEEP · 거절이 눌리지 않는다) */
-    useEffect(() => {
-        const onAck = (r: { success?: boolean }) => { if (r?.success === false) setProcessingId(null); };
-        const onError = (e: { event?: string }) => { if (e?.event === 'decision') setProcessingId(null); };
-        socket.on('decision-ack', onAck);
-        socket.on('handler-error', onError);
-        return () => {
-            socket.off('decision-ack', onAck);
-            socket.off('handler-error', onError);
-        };
-    }, []);
+    /* 🔓 자료가 바뀌거나 결재가 실패로 돌아오면 풀린다 — 판정석과 같은 한 함수 (`hooks/useProcessingLock`) */
+    const [processingId, setProcessingId] = useProcessingLock(activeRoute);
 
     return (
         /**
