@@ -12,14 +12,10 @@ export const EVENT_TYPES = {
 };
 
 export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
-/**
- * 결제수단. 인성앱 확정 상세의 `요금 : 40,000(신용)` 괄호 안에 표기된다.
- * 파서가 괄호 안 자유 텍스트("협의" 등)를 결제수단으로 오인하지 않으려면
- * **런타임에 검사할 목록**이 필요하므로 배열을 진실 공급원으로 두고 타입을 파생시킨다.
- */
-export const PAYMENT_TYPES = ['신용', '선불', '착불', '카드', '현금'] as const;
-export type PaymentType = typeof PAYMENT_TYPES[number];
-export type BillingType = '계산서' | '인수증' | '무과세';
+export * from './paymentTypes';
+import type { PaymentType, BillingType } from './paymentTypes';
+import type { DeviceOfflineReason } from './deviceOffline';
+import { isTargetApp, DEFAULT_TARGET_APP, type TargetAppType } from './targetApps';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 콜(Order) 통합 라이프사이클 상태 (DB 영구 저장 + 메모리 관리)
 // 모든 상태값에 ORDER_ 접두사를 붙여 다른 도메인 상태와 즉각 구분
@@ -1326,39 +1322,7 @@ export interface DispatchConfirmResponse {
  */
 export type DeviceStatusType = "ONLINE" | "OFFLINE";
 
-/**
- * 📵 **앱이 스스로 말해 준 까닭** — 앱만이 «접근성이 꺼졌다»를 사실로 안다 (모르면 `undefined`).
- * 🔴 서버가 판정하는 까닭을 여기 섞지 않는다 — 이 목록은 **앱 입력을 거르는 자**다 (`isDeviceOfflineReason`).
- */
-export const DEVICE_OFFLINE_REASONS_APP = ["ACCESSIBILITY_OFF", "APP_SHUTDOWN"] as const;
-
-/**
- * 📡 **서버가 판정하는 까닭** — 앱은 이 값을 보내지 않는다.
- *
- * `NO_CONTACT` 는 데드맨(`DEADMAN_TIMEOUT_MS` 무응답)이 붙인다. 앱이 «앱 꺼짐»을 보내고 죽은 것과
- * **말 없이 사라진 것**은 기사님이 하실 일이 다르다 — 앞은 앱을 켜면 되고, 뒤는 폰·통신을 봐야 한다.
- * `NOT_HEARD_YET` 은 서버가 뜬 뒤 이 폰의 보고를 아직 한 번도 못 들은 것이다 — 서버 메모리는 다시 뜨면 비어 있다.
- * 그 사이의 침묵은 폰이 끊긴 것이 아니라 서버가 아직 못 들은 것이다 · 첫 보고(목록 15초 · 그 밖 60초)가 오면 풀린다.
- */
-export const DEVICE_OFFLINE_REASONS_SERVER = ["NO_CONTACT", "NOT_HEARD_YET"] as const;
-
-export const DEVICE_OFFLINE_REASONS = [...DEVICE_OFFLINE_REASONS_APP, ...DEVICE_OFFLINE_REASONS_SERVER] as const;
-export type DeviceOfflineReason = typeof DEVICE_OFFLINE_REASONS[number];
-
-/** 📵 **앱이 보낸 까닭인가** — 앱 입력 검증 전용이라 서버 판정 값(`NO_CONTACT`)은 거짓이다 */
-export function isDeviceOfflineReason(v: unknown): v is DeviceOfflineReason {
-    return typeof v === "string" && (DEVICE_OFFLINE_REASONS_APP as readonly string[]).includes(v);
-}
-/** 📵 화면에 적을 말 — 기사님이 **무엇을 하셔야 하는지**가 갈리므로 낱말도 가른다 */
-export const DEVICE_OFFLINE_LABEL: Record<DeviceOfflineReason, string> = {
-    ACCESSIBILITY_OFF: "⚠️ 접근성 꺼짐",
-    APP_SHUTDOWN: "🛑 앱 종료됨",
-    /* 📡 말이 끊겼다 — 앱이 아무 말도 못 하고 사라졌다 (데드맨). «연결 끊김»보다 무엇이 일어났는지를 말한다 */
-    NO_CONTACT: "📵 통신 두절",
-    /* ⏳ 서버가 아직 못 들었다 — 끊겼다고 단언하지 않는다(기사님 «통신 끊김이라고 거짓말한 거야») */
-    NOT_HEARD_YET: "⏳ 로딩 중",
-};
-
+export * from './deviceOffline';
 /**
  * 🎛️ **기기 모드 셋 — 자동 · 알람 · 대기** (기사님 확정).
  *
@@ -1401,31 +1365,7 @@ export const DEVICE_MODE_LABEL: Record<DeviceModeType, string> = {
     SIMULATION: "체험",
 };
 
-/**
- * 🌐 **배차망 값 표준 — 여기 한 벌뿐이다** (기사님 확정 · 픽커_수집.md §6-전).
- *
- * «어느 배차망에서 온 것인가»는 6하원칙의 **어디서**다. 앱이 모든 요청에 싣고,
- * 원장(orders·intel)의 `targetApp` 열에 저장되며, 화면 배지와 통계 필터가 읽는다.
- *
- * 🔴 코드값·라벨·기본값 전부 **여기서만** 늘린다 — 매핑·폴백을 여러 곳에 두면 배차망을 더할 때마다 갈라진다. (앱은 Kotlin 이라 이 파일을 못 읽는다 —
- *    앱 쪽 한 곳은 `core/TargetApp.kt` 이고, 값이 어긋나면 서버 수신이 기본값으로
- *    떨어져 로그에 남는다)
- */
-export const TARGET_APPS = ["insung", "hwamul24", "kakaopicker"] as const;
-export type TargetAppType = typeof TARGET_APPS[number];
-export const DEFAULT_TARGET_APP: TargetAppType = "insung";
-
-export function isTargetApp(v: unknown): v is TargetAppType {
-    return typeof v === "string" && (TARGET_APPS as readonly string[]).includes(v);
-}
-
-/** 화면 배지용 이름 — 지금은 텍스트만 (기사님: 아이콘은 나중에) */
-export const TARGET_APP_LABEL: Record<TargetAppType, string> = {
-    insung: "인성",
-    hwamul24: "24시",
-    kakaopicker: "픽커",
-};
-
+export * from './targetApps';
 /**
  * 🖱️ **잡은 방식 — 6하원칙의 «어떻게»** (기사님 확정).
  *

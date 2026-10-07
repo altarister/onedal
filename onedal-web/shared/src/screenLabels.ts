@@ -1,5 +1,6 @@
-import { TARGET_APP_LABEL, DEVICE_OFFLINE_LABEL } from './index';
-import type { ScreenContextType, TargetAppType, DeviceOfflineReason } from './index';
+import { TARGET_APP_LABEL, type TargetAppType } from './targetApps';
+import { DEVICE_OFFLINE_LABEL, type DeviceOfflineReason } from './deviceOffline';
+import type { ScreenContextType } from './index';
 
 /**
  * 🏷️ **화면 이름표 — 배차망마다 따로 둔다** (기사님 설계).

@@ -1,5 +1,5 @@
-import type { TargetAppType, LocationDetailInfo, PaymentType, BillingType, DetailedOfficeOrder } from './index';
-import { PAYMENT_TYPES } from './index';
+import type { TargetAppType, LocationDetailInfo, DetailedOfficeOrder } from './index';
+import { PAYMENT_TYPES, type PaymentType, type BillingType } from './paymentTypes';
 import type { PageField, ScreenPage } from './pageFields';
 import { NETWORK_PAGES } from './networkPages';
 
