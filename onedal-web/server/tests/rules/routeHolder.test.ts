@@ -44,11 +44,7 @@ describe('경로를 든 콜 — 판정은 서버 한 곳', () => {
         expect(der).not.toMatch(/reverse\(\)[\s\S]{0,80}routePolyline/);
     });
 
-    it('🔴 지도 캔버스는 스스로 홀더를 찾지 않는다 (추측 두 벌 금지)', () => {
-        const canvas = codeOnly(read('components/dashboard/PinnedRouteCanvas.tsx'));
-        expect(canvas).toMatch(/routeHolder\?\.routePolyline/);
-        expect(canvas).not.toMatch(/reverse\(\)[\s\S]{0,80}routePolyline/);
-    });
+    /* 지도 캔버스는 스스로 홀더를 찾지 않는다 — 관제웹 pinnedRouteLayers.test «그리는 선은 routeHolder 의 routePolyline 그대로» 가 동작으로 문다 */
 
     /**
      * ⚠️ **철자가 아니라 성질을 본다**. `routeHolder?.routePolyline…` 같은 **문장을 그대로**

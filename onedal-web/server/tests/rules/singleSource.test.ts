@@ -159,13 +159,5 @@ describe('정거장 번호를 세는 곳은 하나', () => {
         expect(der).toMatch(/for \(const p of routePointsRaw\)/);
     });
 
-    it('🔴 지도 캔버스가 스스로 세지 않는다 — 번호는 실려 온다', () => {
-        /**
-         * 캔버스가 «다녀온 개수 + 남은 목록 인덱스»로 **따로** 세면 이름표는 «1. 곤지암읍»,
-         * 지도 마커는 «2 곤지암읍» 처럼 갈린다 (실측). 그래서 파생만이 아니라 캔버스도 본다.
-         */
-        const canvas = codeOnly(read('client-app/src/components/dashboard/PinnedRouteCanvas.tsx'));
-        expect(canvas).not.toMatch(/trail\.length \+ i \+ 1/);
-        expect(canvas).toMatch(/p\.no/);
-    });
+    /* 지도 캔버스가 스스로 세지 않는다(번호는 실려 온다) — 관제웹 pinnedRouteLayers.test «남은 정거장 번호는 실려 온 p.no 그대로» 가 동작으로 문다 */
 });

@@ -678,7 +678,6 @@ describe('8단계 · 궤적이 카카오 길을 따라간다 (기사님 "궤적�
      *    *"경로와 지나간 길의 오차를 확인하기 위해"* 라서, 궤적이 엉뚱하면 그 목적이 사라진다.
      */
     const store = readClient('stores/drivenTrailStore.ts');
-    const canvas = codeOnly(readClient('components/dashboard/PinnedRouteCanvas.tsx'));
     const sim = codeOnly(readClient('hooks/simStep.ts'));
     /** 👣 쌓는 규칙이 사는 곳 — 목업과 실물이 **같이** 부른다 */
     const trailRule = codeOnly(readClient('lib/driveStep.ts'));
@@ -698,12 +697,7 @@ describe('8단계 · 궤적이 카카오 길을 따라간다 (기사님 "궤적�
         expect(trailRule).toMatch(/TRAIL_JUMP_KM/);
     });
 
-    it('🔴 캔버스가 구간마다 따로 긋는다 — 구간을 이으면 점프가 직선으로 남는다', () => {
-        const i = canvas.indexOf('layers.trail');
-        expect(i).toBeGreaterThan(-1);
-        const body = canvas.slice(i, i + 400);
-        expect(body).toMatch(/for \(const seg of|\.forEach\(seg|drivenTrail\.map/);
-    });
+    /* 캔버스가 구간마다 따로 긋는다 — 관제웹 pinnedRouteLayers.test «구간 하나에 선 하나» 가 동작으로 문다 */
 
     it('🔴 **지나온 점이 다리를 건넌다** — 시뮬 → 관제 → 알림 세 이음매', () => {
         /**

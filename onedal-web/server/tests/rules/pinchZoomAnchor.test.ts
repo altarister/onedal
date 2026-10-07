@@ -14,37 +14,16 @@ import { join } from 'path';
  * 손가락이 가운데서 벗어날수록 쏠린다. 그래서 핀치도 `pinchStep` 으로 기준점을 잡는다.
  *
  * ── 그래서 무엇을 잠그나 ──
- * 계산의 옳음은 `mapProjection.test.ts` 의 `pinchStep` 검사가 본다.
- * 여기서는 **컴포넌트가 그 계산을 실제로 부르는가**를 본다 — 옳은 함수를 만들어 두고
- * 안 부르면 화면은 그대로 틀린다 (이 레포가 반복해 당한 형태).
+ * 계산의 옳음은 `mapProjection.test.ts` 의 `pinchStep` 검사가, 손짓이 그 계산을 부르는가는
+ * 관제웹 `usePinnedRouteGestures.test.ts` 가 본다. 여기서는 **맞춤 버튼이 `pickViewMode` 를 부르는가**를 본다 —
+ * 옳은 함수를 만들어 두고 안 부르면 화면은 그대로 틀린다 (이 레포가 반복해 당한 형태).
  */
 const CANVAS = join(__dirname, '../../../client-app/src/components/dashboard/PinnedRouteCanvas.tsx');
 const src = () => readFileSync(CANVAS, 'utf8');
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-describe('🤏 핀치 줌 — 컴포넌트가 기준점 계산을 부른다', () => {
-    it('핀치 갈래가 pinchStep 을 쓴다', () => {
-        expect(codeOnly(src())).toMatch(/pinchStep\(/);
-    });
-
-    it('🔴 배율만 바꾸던 옛 식이 남아 있지 않다', () => {
-        // `zoomRef.current = ... zoomRef.current + scaleDiff` — 팬을 안 건드리던 그 줄
-        expect(codeOnly(src())).not.toMatch(/zoomRef\.current\s*\+\s*scaleDiff/);
-    });
-
-    it('중간점은 **캔버스 안 좌표**로 넘긴다 — 화면 좌표 그대로면 여백만큼 어긋난다', () => {
-        const c = codeOnly(src());
-        // 두 손가락의 평균에서 캔버스 왼쪽·위를 빼야 캔버스 안 좌표가 된다
-        expect(c).toMatch(/\/ 2 - rect\.left/);
-        expect(c).toMatch(/\/ 2 - rect\.top/);
-        // 그렇게 만든 값을 pinchStep 에 넘긴다
-        expect(c).toMatch(/pinchStep\([^)]*\bmid\b/);
-    });
-
-    it('기준점은 그리는 쪽과 같은 것을 쓴다 (anchorBaseOf · 가림 높이 포함)', () => {
-        expect(codeOnly(src())).toMatch(/anchorBaseOf\([\s\S]{0,120}?occludedNow\.current/);
-    });
-});
+/* 🤏 손짓은 hooks/usePinnedRouteGestures 로 옮겼다 — 핀치가 pinchStep 을 «두 손가락 중간(캔버스 안 좌표) · 그리는 쪽 가림 높이의 기준점»으로 부르는가는
+   관제웹 usePinnedRouteGestures.test «두 손가락 확대» 가 동작으로 문다 (배율만 더하던 옛 식 · 화면 좌표 중간점 · 가림 높이 빠짐 변이 🔴) */
 
 /**
  * 🔭 **맞춤 모드와 손은 층이 다르다** (기사님 지적)
@@ -57,12 +36,7 @@ describe('🤏 핀치 줌 — 컴포넌트가 기준점 계산을 부른다', ()
  * 팬은 모드와 무관하게 쌓이므로 **안 풀어도 손은 이미 이긴다.**
  */
 describe('🔭 지도 맞춤 — 끌어도 배율이 유지된다', () => {
-    it('드래그·핀치가 모드를 되돌리지 않는다', () => {
-        const c = codeOnly(src());
-        // 제스처 갈래(팬 누적 · 핀치)에서 setViewMode 를 부르면 기준이 바뀌어 화면이 튄다
-        expect(c).not.toMatch(/setViewMode\('all'\);\s*\n\s*panRef\.current\.x \+=/);
-        expect(c).not.toMatch(/setViewMode\('all'\);\s*\n\s*const step = pinchStep/);
-    });
+    /* 끌기 · 핀치가 맞춤 모드를 되돌리지 않는다 — 손짓 훅은 setViewMode 를 받지 않는다(타입) · 끌면 팬만 쌓이고 배율은 그대로인 것은 관제웹 usePinnedRouteGestures.test 가 동작으로 문다 */
 
     /**
      * 🔭 **«맞춰 달라»는 한 함수가 한다**

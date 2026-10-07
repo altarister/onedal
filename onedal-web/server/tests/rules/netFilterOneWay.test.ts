@@ -79,10 +79,7 @@ describe('🗺️ 지도 — 지나온 곳을 판정과 같게', () => {
     it('🔴 지도는 동 점을 안 찍는다 — 옛 그물 레이어를 걷었다 (2026-09-15)', () => {
         expect(client('components/stage/StageView.tsx')).not.toMatch(/useCallNet|serverKeywords/);
     });
-    it('🔴 이동 중이면 하차 띠를 현위치부터 긋는다 — 뒤는 평평하게 자른다 (2026-09-15 «뒤를 자르는 Cap»)', () => {
-        /* 지도가 넘기는 하차 띠가 출발 뒤 현위치부터인가는 관제웹 stageAreas.test «하차 띠» 가 동작으로 문다 */
-        expect(client('components/dashboard/PinnedRouteCanvas.tsx')).toMatch(/clipAhead\(oc, l\.points, l\.km\)/);
-    });
+    /* 이동 중이면 하차 띠를 현위치부터 · 뒤는 평평하게 자른다 — 관제웹 stageAreas.test «하차 띠» · 관제웹 pinnedRouteLayers.test «하차 띠는 띠 전체로 방향을 재 자른다» 가 동작으로 문다 */
 });
 
 /**

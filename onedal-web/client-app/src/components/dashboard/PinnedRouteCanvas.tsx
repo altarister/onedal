@@ -1,93 +1,24 @@
-import { haversineKm, sectionLinesOf, aheadOf, callBandsOf, uncoveredSectionsOf } from '@onedal/shared';
-import { SOAK } from './JudgmentSeat';
 import { logStateChange } from '../../lib/roadmapLogger';
 import React, { useRef, useCallback, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
-import { isEvaluating } from "@onedal/shared";
 import sidoDataRaw from '../../mapData/sidoData.json';
 import { useTheme } from '@onedal/ui/theme';
-import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
-import { offsetScreenPath } from '../../lib/parallelPath';
-import { bandStrokeOf } from '../../lib/bandStroke';
-import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
+import { MAP_THEME_COLORS } from '../../styles/themes';
 import {
-    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
-    type Viewport, type GeoBox, pickViewMode, areaBoxOf, stickyFitBox, tileToneFor, capAreaBox, layersByViewFrom, setLayerInView } from '../../lib/mapProjection';
+    computeViewport, toScreenPoint, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
+    type GeoBox, pickViewMode, tileToneFor, layersByViewFrom, setLayerInView } from '../../lib/mapProjection';
 import { occludedPx as occludedOf } from '../../lib/stageLayout';
+/* 🗺️ 그리는 층 — 무엇을 그릴지는 값만 받는 함수가, ctx 에 긋는 것은 얇은 함수가 (`pinnedRouteLayers` 머리) */
+import {
+    collectTiles, drawTiles, drawSidoFill, drawSidoBorder, drawWaiting, drawCredit, fitCoordsOf, polylineOf,
+    pickupTraceOf, paintPickupMask, dropoffTraceOf, paintDropoffMask, dongDotMarksOf, drawDongDots, drawGoalMarkers,
+    drawConeOverlay, straightGuideOf, drawStraightGuide, routeStrokesOf, candidateStrokeOf, trailStrokesOf, drawStrokes,
+    visitedMarksOf, drawVisitedMarks, routeStopMarksOf, drawRouteStopMarks, drawMyLocation,
+} from './pinnedRouteLayers';
+import { usePinnedRouteGestures } from '../../hooks/usePinnedRouteGestures';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
 
-/**
- * 🗺️ **배경 타일 — 회색조로 연하게** (기사님 확정).
- *
- * 지도한테 빌리는 것은 **«어느 동네 어느 도로인가» 하나뿐**이다. 마커·경로선·발자취·
- * 이름표·탭 판정은 전부 우리가 그린다 — 그래서 SDK 를 들이지 않는다. SDK 를 쓰면
- * 줌·팬의 임자를 통째로 내줘야 하는데, 그건 «배경만»이 아니게 된다.
- *
- * 🔴 **키가 없다.** 카카오 지도는 JS 키 + 도메인 등록 + 관제앱(Capacitor)의
- *    `localhost` 오리진 처리가 붙는다. 배경 한 장 때문에 치를 값이 아니다.
- *    표기 의무(© OpenStreetMap)는 캔버스 우하단에 그린다.
- */
-/** 타일 이미지 캐시 — 컴포넌트가 다시 떠도 산다 (재요청 = OSM 서버에 대한 결례) */
-const tileCache = new Map<string, HTMLImageElement>();
-const TILE_CACHE_MAX = 600;
-
-/** `ctx.filter` 는 옛 사파리에 없다 — 없으면 색 그대로 깔리되 투명도로만 눌린다 */
-const supportsCanvasFilter = (ctx: CanvasRenderingContext2D) => typeof ctx.filter === 'string';
-
-/**
- * 🖼️ **지금 화면에 걸치는 타일을 모아 준다** — 아직 안 온 것은 요청만 하고 빼놓는다.
- *
- * 🔴 «없으면 안 그린다»가 맞다. 반쯤 온 배경 위에 시·도 외곽선을 겹쳐 그리면
- *    두 배경이 비쳐 지저분해진다 — 하나라도 오면 타일, 아니면 외곽선(부르는 쪽에서 가른다).
- */
-function collectTiles(
-    v: Viewport, width: number, height: number, onTileReady: () => void,
-): Array<{ img: HTMLImageElement; cx: number; cy: number; size: number }> {
-    const { worldSize, anchorX, anchorY, centerNx, centerNy } = v;
-    const z = Math.max(0, Math.min(TILE_MAX_ZOOM, Math.round(Math.log2(worldSize / TILE_SIZE))));
-    const count = Math.pow(2, z);
-    const tileScreenSize = worldSize / count;
-    if (!Number.isFinite(tileScreenSize) || tileScreenSize <= 0) return [];
-
-    /** 화면 모서리를 정규 좌표로 되돌린다 — 어느 타일이 걸치는지 알려면 */
-    const toNx = (screenX: number) => (screenX - anchorX) / worldSize + centerNx;
-    const toNy = (screenY: number) => (screenY - anchorY) / worldSize + centerNy;
-
-    const txFrom = Math.floor(toNx(0) * count), txTo = Math.floor(toNx(width) * count);
-    const tyFrom = Math.floor(toNy(0) * count), tyTo = Math.floor(toNy(height) * count);
-
-    // 🛟 화면이 아주 넓게 축소되면 타일 수가 폭발한다 — 그럴 땐 외곽선으로 떨어진다
-    if ((txTo - txFrom + 1) * (tyTo - tyFrom + 1) > 120) return [];
-
-    const ready: Array<{ img: HTMLImageElement; cx: number; cy: number; size: number }> = [];
-    for (let tx = txFrom; tx <= txTo; tx++) {
-        for (let ty = tyFrom; ty <= tyTo; ty++) {
-            if (tx < 0 || ty < 0 || tx >= count || ty >= count) continue;
-            const key = `${z}/${tx}/${ty}`;
-            let img = tileCache.get(key);
-            if (!img) {
-                if (tileCache.size >= TILE_CACHE_MAX) {
-                    const oldest = tileCache.keys().next().value;      // 들어온 순서대로 버린다
-                    if (oldest) tileCache.delete(oldest);
-                }
-                img = new Image();
-                img.onload = onTileReady;
-                img.onerror = () => { (img as any).failed = true; };   // 실패해도 다시 안 조른다
-                img.src = `https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`;
-                tileCache.set(key, img);
-            }
-            if (!img.complete || !img.naturalWidth || (img as any).failed) continue;
-            ready.push({
-                img,
-                cx: (tx / count - centerNx) * worldSize + anchorX,
-                cy: (ty / count - centerNy) * worldSize + anchorY,
-                size: tileScreenSize,
-            });
-        }
-    }
-    return ready;
-}
 
 export interface RoutePoint {
     type: string;
@@ -413,13 +344,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
 
         const validPoints = unifiedRoutePoints.filter(p => typeof p.x === 'number' && typeof p.y === 'number') as (RoutePoint & { x: number, y: number })[];
 
-        // 🧭 경로선의 주인은 서버가 정한다 — 여기서 추측하면 판정이 세 벌이 된다
-        const currentPolyline = routeHolder?.routePolyline || [];
-        // 🟡 평가 중 후보를 붙인 경로는 «미리보기»다. 확정 경로인 척하면 안 된다 (#64)
-        const isPreviewRoute = !!routeHolder && isEvaluating(routeHolder.status);
+        // 🧭 경로선의 주인은 서버가 정한다 — 여기서 추측하면 판정이 세 벌이 된다 (`polylineOf`)
+        const { current: currentPolyline, valid: validPolyline } = polylineOf(routeHolder);
         const hasPolyline = currentPolyline.length > 0;
-
-        const validPolyline = currentPolyline.filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
         /* 🗺️ 좌표를 모르는 발자취는 **그릴 수 없다** — 번호는 살아 있고 지도만 건너뛴다.
            술어로 걸러야 뒤에서 좌표를 «있는 것»으로 쓸 수 있다 (지어내지 않는다 · 규칙 ④) */
         const trail = (visitedTrail ?? []).filter(
@@ -447,35 +374,13 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
                     : validPolyline.length === 0 ? '안 그림 — 좌표가 다 깨졌다'
                         : '그렸다'}`,
             "진행중경로");
-        const allCoords = [...validPoints, ...validPolyline, ...trail, ...driven] as { x: number, y: number }[];
-        if (myLocation) allCoords.push(myLocation);
-        /* 🔺 그물을 켜면 그 삼각형까지 보이게 — 안 그러면 현위치만 확대돼 선 하나만 스쳐 간다 */
-        if (coneOverlay) for (const [x, y] of coneOverlay.tri) allCoords.push({ x, y });
-        /* 🔭 상차 · 하차 영역도 화면에 들어오게 — 영역을 감싼 네모를 넣는다. 네모는 영역이 밖으로 나가거나 절반 아래로 줄 때만 새로 잡는다:
-              마름모는 달리는 동안 300m 눈금 · «가까이 옴»으로 계속 바뀌어, 점을 그대로 넣으면 확대가 매번 다시 잡힌다 (#150) */
-        const areaBox = stickyFitBox(fitBoxRef.current, areaBoxOf({
-            circles: [
-                ...(pickupArea ? [{ x: pickupArea.me.x, y: pickupArea.me.y, km: pickupArea.meKm }] : []),
-                ...(dropoffArea ? [...dropoffArea.circles, ...dropoffArea.nearCircles] : []),
-            ],
-            polygons: dropoffArea ? dropoffArea.quads : [],
-            lines: dropoffArea ? dropoffArea.lines : [],
-        }));
-        fitBoxRef.current = areaBox;   // 🔭 흔들림 방지 기억은 **자르기 전** 값이다 — 자른 값을 넣으면 매 프레임 다시 잡힌다
-        /* 🔭 영역은 경로 네모의 2배 안까지만 — 통째로 담으면 먼 원 하나가 화면을 다 먹어 경로가 실처럼 보인다 (`capAreaBox`) */
-        const routeBox = areaBoxOf({ circles: [], polygons: [allCoords], lines: [] });
-        const fitArea = capAreaBox(routeBox, areaBox);
-        if (fitArea) allCoords.push({ x: fitArea.minX, y: fitArea.minY }, { x: fitArea.maxX, y: fitArea.maxY });
-        /* 🎯 목적지 마커 — 움직이지 않는다 */
-        if (dropoffArea) for (const g of dropoffArea.goals) allCoords.push(g);
-        if (coneOverlay?.callPath) for (const p of coneOverlay.callPath) allCoords.push({ x: p.x, y: p.y });
+        /* 🔭 화면에 들어와야 할 좌표 — 영역은 흔들리지 않는 네모로 (`fitCoordsOf` · #150) */
+        const { allCoords, fitBox } = fitCoordsOf({ validPoints, validPolyline, trail, driven, myLocation, coneOverlay,
+            prevFitBox: fitBoxRef.current, pickupArea, dropoffArea });
+        fitBoxRef.current = fitBox;   // 🔭 흔들림 방지 기억은 **자르기 전** 값이다 — 자른 값을 넣으면 매 프레임 다시 잡힌다
 
         if (allCoords.length === 0) {
-            ctx.fillStyle = mapColors.textMuted;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.font = '12px sans-serif';
-            ctx.fillText("위치 데이터를 기다리는 중...", width / 2, height / 2);
+            drawWaiting(ctx, width, height, mapColors);
             return;
         }
 
@@ -509,85 +414,11 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
         // 0. 🗺️ 배경 — 타일이 왔으면 타일, 아직 없으면 시·도 외곽선 (터널·음영에서도 빈 화면이 안 된다)
         const readyTiles = collectTiles(viewport, width, height, () => drawRef.current());
         if (readyTiles.length > 0) {
-            ctx.save();
-            /* 🎨 회색조·연하게 — 배경이 시끄러우면 색 · 영역이 안 읽힌다 (규칙 ⑤-3).
-               배율과 상관없이 늘 같은 톤이다 — 확대해도 제 색으로 안 돌린다 (`mapTileTone`). */
-            /* 🔆 밝은 테마는 지도가 흰 바탕 위라 더 밝게 뜬다 — 조금 더 눌러 준다 */
-            /* 🌓 밝기는 «어둡게» 레이어와 배율이 정한다 — 확대할수록 옅어진다 (`tileToneFor` 한 곳) */
-            const tone = tileToneFor(theme, shownZoom, !!layers.dim);
-            if (supportsCanvasFilter(ctx) && tone.filter) ctx.filter = tone.filter;
-            ctx.globalAlpha = tone.alpha;
-            // 🧅 «배경» 레이어 — 끄면 타일만 빠지고 경계·경로는 남는다
-            if (layers.base) readyTiles.forEach(t => ctx.drawImage(t.img, t.cx, t.cy, t.size + 1, t.size + 1));
-            ctx.restore();
-            if (tone.overlay > 0) {
-                ctx.fillStyle = `rgba(10, 14, 22, ${tone.overlay})`;   // 어두운 테마에서 한 겹 더 눌러 준다
-                ctx.fillRect(0, 0, width, height);
-            }
+            drawTiles(ctx, readyTiles, tileToneFor(theme, shownZoom, !!layers.dim), !!layers.base, width, height);
         } else if (sidoData.features) {
-            const sortedFeatures = [...sidoData.features].sort((a: any, b: any) =>
-                (a.properties?.isGyeonggiSigungu ? 1 : 0) - (b.properties?.isGyeonggiSigungu ? 1 : 0)
-            );
-
-            sortedFeatures.forEach((feature: any) => {
-                const isGyeonggiSigungu = feature.properties?.isGyeonggiSigungu;
-
-                ctx.fillStyle = withAlpha(mapColors.sidoFill, 0.15);
-                ctx.strokeStyle = withAlpha(mapColors.sidoStroke, isGyeonggiSigungu ? 0.4 : 0.3);
-                ctx.lineWidth = isGyeonggiSigungu ? 0.5 : 1;
-                const geom = feature.geometry;
-                if (!geom) return;
-                let polygons: number[][][][] = [];
-                if (geom.type === 'Polygon') polygons = [geom.coordinates];
-                else if (geom.type === 'MultiPolygon') polygons = geom.coordinates;
-
-                polygons.forEach(polygon => {
-                    polygon.forEach(ring => {
-                        ctx.beginPath();
-                        ring.forEach((pt, _i) => {
-                            const mapped = getScreenPt({ x: pt[0], y: pt[1] });
-                            if (_i === 0) ctx.moveTo(mapped.cx, mapped.cy);
-                            else ctx.lineTo(mapped.cx, mapped.cy);
-                        });
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.stroke();
-                    });
-                });
-            });
+            drawSidoFill(ctx, sidoData.features, getScreenPt, mapColors);
         }
-
-        /**
-         * 0.5. 🗺️ **경계선 — 타일 위에도 얹는다** — 구역이 안 나뉘면 «서울로 간 건지 성남으로 간 건지» 모른다
-         *    (자료는 `sidoData` — 서울특별시 + 경기도 시·군·구).
-         *
-         * 🔴 **선만 얹는다. 면은 안 칠한다** — 채우면 회색조 지도가 또 한 겹 탁해져
-         *    판정 색이 안 읽힌다 (규칙 ⑤-3).
-         * 🔴 **배율과 무관하게 선명도를 유지한다** — «확대하면 타일에 경계가 나오니 물러나자»가 아니다.
-         *    이 타일에는 행정 경계가 없다. 물러나면 그냥 사라진다.
-         */
-        if (layers.border && readyTiles.length > 0 && sidoData.features) {   // 🧅 «경계» 레이어
-            ctx.save();
-            ctx.strokeStyle = withAlpha(mapColors.sidoStroke, 0.55);
-            ctx.lineWidth = 1;
-            sidoData.features.forEach((feature: any) => {
-                const geom = feature.geometry;
-                if (!geom) return;
-                const polygons: number[][][][] =
-                    geom.type === 'Polygon' ? [geom.coordinates]
-                        : geom.type === 'MultiPolygon' ? geom.coordinates : [];
-                polygons.forEach(polygon => polygon.forEach(ring => {
-                    ctx.beginPath();
-                    ring.forEach((pt, i) => {
-                        const m = getScreenPt({ x: pt[0], y: pt[1] });
-                        if (i === 0) ctx.moveTo(m.cx, m.cy); else ctx.lineTo(m.cx, m.cy);
-                    });
-                    ctx.closePath();
-                    ctx.stroke();
-                }));
-            });
-            ctx.restore();
-        }
+        if (layers.border && readyTiles.length > 0 && sidoData.features) drawSidoBorder(ctx, sidoData.features, getScreenPt, mapColors);   // 🧅 «경계» 레이어
 
         /**
          * 🕸️ **영역 레이어 (상차 · 하차)**.
@@ -620,575 +451,67 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
             }
             return { off, oc };
         };
-        /**
-         * ✏️ **칠한 모양의 바깥 테두리만 긋는다**.
-         * 틀을 8방향으로 `px` 만큼 밀어 겹친 뒤 원래 틀을 지우면 **바깥 띠만** 남는다 — 원 · 마름모 · 띠가 겹친 안쪽에는 선이 안 생긴다.
-         * ⚠️ 방향을 늘리면 테두리가 더 고르지만 그릴 때마다 전체 화면을 그만큼 더 옮긴다 — 2px 에는 8방향이면 이음새가 안 보인다.
-         */
-        /**
-         * ✂️ **라인 시작(현위치)에서 경로와 직각인 선 앞쪽만 칠하게 자른다** — 서버와 같은 `aheadOf` (#151).
-         *    끝을 평평하게(butt) 그리는 것만으로는 짧게 꺾인 자리의 둥근 이음이 차 뒤를 덮었다 — 선 하나로 자른다.
-         */
-        const clipAhead = (c2d: CanvasRenderingContext2D, pts: ReadonlyArray<{ x: number; y: number }>, km: number) => {
-            const cut = aheadOf(pts.map(p => [p.x, p.y] as [number, number]), km);
-            if (!cut) return;
-            const s = getScreenPt({ x: cut.start.lng, y: cut.start.lat });
-            const f = getScreenPt({
-                x: cut.start.lng + cut.dir.x / (111.32 * Math.cos((cut.start.lat * Math.PI) / 180)),
-                y: cut.start.lat + cut.dir.y / 110.574,
-            });
-            const len = Math.hypot(f.cx - s.cx, f.cy - s.cy) || 1;
-            const dx = (f.cx - s.cx) / len, dy = (f.cy - s.cy) / len;
-            const big = (width + height) * 4;
-            c2d.beginPath();
-            c2d.moveTo(s.cx - dy * big, s.cy + dx * big);
-            c2d.lineTo(s.cx - dy * big + dx * big, s.cy + dx * big + dy * big);
-            c2d.lineTo(s.cx + dy * big + dx * big, s.cy - dx * big + dy * big);
-            c2d.lineTo(s.cx + dy * big, s.cy - dx * big);
-            c2d.closePath();
-            c2d.clip();
-        };
 
-        /**
-         * 🟢 **상차 영역 모양을 그린다 — 한 곳** · 칠하는 색 · 합성 방식은 부르는 쪽이 정한다.
-         *    «상차» 레이어가 칠하고, «하차» 레이어가 같은 모양을 **지운다**(먼 목적지는 상차 영역을 뺀다).
-         */
-        const tracePickup = (c2d: CanvasRenderingContext2D, area: NonNullable<Props['pickupArea']>) => {
-            const c = getScreenPt(area.me);
-            const east = getScreenPt({ x: area.me.x + 1 / (111.32 * Math.cos((area.me.y * Math.PI) / 180)), y: area.me.y });
-            const pxPerKm = Math.abs(east.cx - c.cx);
-            const meR = Math.max(0, area.meKm) * pxPerKm;
-            const band = area.line && area.line.length >= 2 ? area.line : null;
-            c2d.save();
-            /* 🔴 **켜진 조각을 전부 겹친다**(∩) — 하나씩 clip 으로 좁히고 마지막에 한 번 칠한다.
-                  겹쳐 칠하면 합집합으로 보인다 (기사님이 잡아 주신 자리) */
-            c2d.beginPath(); c2d.arc(c.cx, c.cy, meR, 0, Math.PI * 2); c2d.clip();
-            if (area.goals.length) {
-                /* 🎯 가까이 온 목적지 원들은 서로 **더한다**(∪) — 한 경로에 원 여럿을 그리면 합집합으로 clip 된다 */
-                c2d.beginPath();
-                for (const g of area.goals) {
-                    const s = getScreenPt(g.at);
-                    c2d.moveTo(s.cx + Math.max(0, g.km) * pxPerKm, s.cy);
-                    c2d.arc(s.cx, s.cy, Math.max(0, g.km) * pxPerKm, 0, Math.PI * 2);
-                }
-                c2d.clip();
-            }
-            if (band) {
-                /* ✂️ 시작을 평평하게 자른다 — 띠의 둥근 끝이 지나온 곳을 덮지 않게 (서버 `pickupListFor` 와 같다).
-                   🔴 방향은 **첫 점 → 끝점**이다. 마지막 한 구간에서 뽑으면 골목이 영역을 통째로 돌린다 */
-                clipAhead(c2d, [band[0], band[band.length - 1]], area.lineKm);
-                c2d.beginPath();
-                band.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) c2d.moveTo(s.cx, s.cy); else c2d.lineTo(s.cx, s.cy); });
-                c2d.lineWidth = area.lineKm * 2 * pxPerKm;
-                c2d.lineCap = 'round'; c2d.lineJoin = 'round';
-                c2d.stroke();
-            } else {
-                /* 띠가 없으면 여기까지 좁힌 영역을 통째로 칠한다 */
-                c2d.beginPath(); c2d.arc(c.cx, c.cy, meR, 0, Math.PI * 2); c2d.fill();
-            }
-            c2d.restore();
-        };
-
-        /**
-         * 🟢 «상차» 레이어 — 원달앱이 상차지를 거르는 영역.
-         * 현위치 영역 전체를 칠하거나, **내 위치 원으로 잘라(clip)** 그 안에서만 라인 띠를 칠한다 — 원 ∩ 라인이 테두리 매끈하게 나온다.
-         * 틀에 모아 옅게 올리고 **바깥 테두리**를 긋는다. 하차(파랑)와 가르려고 초록으로 칠한다.
-         */
+        /* 🟢 «상차» 레이어 — 원달앱이 상차지를 거르는 영역. 틀에 모아 옅게 올린다 (`paintPickupMask`) */
         if (layers.pickup && pickupArea) {
             const { off, oc } = makeMask();
             if (oc) {
-                oc.fillStyle = '#16a34a'; oc.strokeStyle = '#16a34a';
-                tracePickup(oc, pickupArea);
+                paintPickupMask(oc, pickupTraceOf(pickupArea, getScreenPt, width, height));
                 ctx.save();
                 ctx.globalAlpha = 0.28;
                 ctx.drawImage(off, 0, 0, width, height);
                 ctx.restore();
-                /* 🔴 **테두리는 긋지 않는다** (기사님 지시) — 채움만으로 영역이 읽히고, 폰에서 값이 싸다 */
             }
         }
 
-        /**
-         * 🔵 «하차» 레이어 — 원달앱이 하차지를 거르는 영역.
-         * 원 · 마름모 · 띠의 **합집합**이다. 틀에 불투명으로 모아 그린 뒤 한 번에 옅게 올리고 **바깥 테두리**를 긋는다.
-         * ✂️ 먼 목적지 조각에서 **상차 영역을 지우고**, 🎯 가까이 온 목적지 원은 **지운 뒤에** 칠한다.
-         * ⚠️ 원달앱은 **동 목록**으로 빼고 지도는 **도형**으로 지운다 — 경계에 걸친 큰 읍·면에서 둘이 조금 다를 수 있다.
-         * 🔴 모르는 조각(좌표를 모르는 목적지 · 확정콜의 마지막 하차지)은 부르는 쪽이 이미 뺐다 — 여기서 지어내지 않는다 (규칙 ④).
-         */
+        /* 🔵 «하차» 레이어 — 원달앱이 하차지를 거르는 영역 · 원 · 마름모 · 띠의 합집합 (`paintDropoffMask`).
+           ⚠️ 원달앱은 **동 목록**으로 빼고 지도는 **도형**으로 지운다 — 경계에 걸친 큰 읍·면에서 둘이 조금 다를 수 있다.
+           🔴 모르는 조각(좌표를 모르는 목적지 · 확정콜의 마지막 하차지)은 부르는 쪽이 이미 뺐다 — 여기서 지어내지 않는다 (규칙 ④) */
         if (layers.dropoff && dropoffArea && (dropoffArea.circles.length || dropoffArea.nearCircles.length || dropoffArea.quads.length || dropoffArea.lines.length)) {
             const { off, oc } = makeMask();
             if (oc) {
-                const pxPerKmAt = (p: { x: number; y: number }) => {
-                    const a = getScreenPt(p);
-                    const b = getScreenPt({ x: p.x + 1 / (111.32 * Math.cos((p.y * Math.PI) / 180)), y: p.y });
-                    return Math.abs(b.cx - a.cx);
-                };
-                oc.fillStyle = '#2563eb'; oc.strokeStyle = '#2563eb';
-                for (const c of dropoffArea.circles) {
-                    const s = getScreenPt(c);
-                    oc.beginPath(); oc.arc(s.cx, s.cy, Math.max(0, c.km) * pxPerKmAt(c), 0, Math.PI * 2); oc.fill();
-                }
-                for (const q of dropoffArea.quads) {
-                    if (q.length < 3) continue;
-                    oc.beginPath();
-                    q.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
-                    oc.closePath(); oc.fill();
-                }
-                for (const l of dropoffArea.lines) {
-                    if (l.points.length < 2) continue;
-                    oc.save();
-                    /* ✂️ 시작(운행 뒤면 현위치 — 부르는 쪽이 `lineFromPoint` 로 잘랐다)에서 경로와 직각으로 자른 선 앞쪽만 */
-                    clipAhead(oc, l.points, l.km);
-                    oc.beginPath();
-                    l.points.forEach((p, i) => { const s = getScreenPt(p); if (i === 0) oc.moveTo(s.cx, s.cy); else oc.lineTo(s.cx, s.cy); });
-                    oc.lineWidth = Math.max(3, l.km * 2 * pxPerKmAt(l.points[0]));
-                    oc.lineCap = 'round'; oc.lineJoin = 'round';
-                    oc.stroke();
-                    oc.restore();
-                }
-                /* ✂️ 먼 목적지 조각에서 상차 영역을 지운다 — 상차 레이어를 꺼도 뺀다 (보기 스위치와 규칙은 따로다) */
-                if (pickupArea) {
-                    oc.save();
-                    oc.globalCompositeOperation = 'destination-out';
-                    tracePickup(oc, pickupArea);
-                    oc.restore();
-                }
-                /* 🎯 가까이 온 목적지 원은 지운 뒤에 칠한다 — 빼지 않는다 (관내콜) */
-                for (const c of dropoffArea.nearCircles) {
-                    const s = getScreenPt(c);
-                    oc.beginPath(); oc.arc(s.cx, s.cy, Math.max(0, c.km) * pxPerKmAt(c), 0, Math.PI * 2); oc.fill();
-                }
+                paintDropoffMask(oc, dropoffTraceOf(dropoffArea, getScreenPt, width, height),
+                    pickupArea ? pickupTraceOf(pickupArea, getScreenPt, width, height) : null);
                 ctx.save();
                 ctx.globalAlpha = 0.22;
                 ctx.drawImage(off, 0, 0, width, height);
                 ctx.restore();
-                /* 🔴 **테두리는 긋지 않는다** (기사님 지시) — 채움만으로 영역이 읽히고, 폰에서 값이 싸다 */
             }
         }
 
-        /* 📍 «동 점» 레이어 — 원달앱에 내려간 목록 (🔵 하차 · 🟢 상차 · 둘 다는 파랑 · 테두리 없음 · 목적지 마커 아래) */
-        if (layers.dots && dongDots) {
-            const dot = (p: { x: number; y: number }, fill: string) => {
-                const { cx, cy } = getScreenPt(p);
-                ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-                ctx.fillStyle = fill; ctx.fill();
-            };
-            for (const p of dongDots.dropoff) dot(p, 'rgba(2,132,199,.42)');
-            for (const p of dongDots.pickup) dot(p, 'rgba(22,163,74,.45)');
-            /* 🟣 **둘 다는 보라** — 하차와 같은 파랑으로 찍으면 «이 동이 상차로도 등록됐나»를
-               화면에서 못 가린다 (기사님 지적). 🔴 청록·노랑은 안 된다 — 지도가 이미 쓴다
-               (자취 `#35c3a9` · 목적지 마커 주황). 보라만 남은 자리다 */
-            for (const p of dongDots.both) dot(p, 'rgba(192,132,252,.5)');
-        }
+        /* 📍 «동 점» 레이어 — 원달앱에 내려간 목록 (`dongDotMarksOf`) */
+        if (layers.dots && dongDots) drawDongDots(ctx, dongDotMarksOf(dongDots), getScreenPt);
 
         /* 🎯 목적지 마커 — 살아 있는 목적지마다 */
-        if (layers.dropoff && dropoffArea) {
-            for (const goalPt of dropoffArea.goals) {
-                const g = getScreenPt(goalPt);
-                ctx.fillStyle = mapColors.nodeEvaluating;
-                ctx.beginPath(); ctx.arc(g.cx, g.cy, 6, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.5; ctx.stroke();
-            }
-        }
+        if (layers.dropoff && dropoffArea) drawGoalMarkers(ctx, dropoffArea.goals, getScreenPt, mapColors.nodeEvaluating);
 
-        /* 🔺 첫 콜 그물 (목업 전용) — 통과한 동을 점으로, 삼각형을 선으로 */
-        if (coneOverlay) {
-            ctx.save();
-            for (const p of coneOverlay.pass ?? []) {
-                const { cx, cy } = getScreenPt(p);
-                ctx.fillStyle = 'rgba(56,189,248,0.30)';
-                ctx.beginPath(); ctx.arc(cx, cy, 1.6, 0, Math.PI * 2); ctx.fill();
-            }
-            for (const c of coneOverlay.circles ?? []) {
-                ctx.beginPath();
-                c.ring.forEach(([x, y], i) => {
-                    const { cx, cy } = getScreenPt({ x, y });
-                    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-                });
-                ctx.closePath();
-                ctx.fillStyle = 'rgba(251,191,36,0.10)'; ctx.fill();
-                ctx.strokeStyle = 'rgba(251,191,36,0.85)'; ctx.lineWidth = 1.5;
-                ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
-            }
-            ctx.beginPath();
-            coneOverlay.tri.forEach(([x, y], i) => {
-                const { cx, cy } = getScreenPt({ x, y });
-                if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-            });
-            ctx.closePath();
-            ctx.fillStyle = 'rgba(56,189,248,0.07)'; ctx.fill();
-            ctx.strokeStyle = 'rgba(56,189,248,0.75)'; ctx.lineWidth = 1.5; ctx.stroke();
-            for (const m of coneOverlay.marks ?? []) {
-                const { cx, cy } = getScreenPt(m);
-                ctx.fillStyle = m.inside ? '#38bdf8' : '#f87171';
-                ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, Math.PI * 2); ctx.fill();
-                ctx.font = '700 10px system-ui'; ctx.textAlign = 'center';
-                ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
-                ctx.strokeText(m.name, cx, cy - 8); ctx.fillText(m.name, cx, cy - 8);
-            }
-            /* ⛓️ 잡은 콜의 경로 — 출발지→상차→하차 직선. 이름표는 점 아래(경계 표지는 위라 안 겹친다).
-               구간 색 = 도착점의 color — 기존 경로(장미)와 이번 콜(다른 색)이 갈라 보인다 */
-            if (coneOverlay.callPath?.length) {
-                const path = coneOverlay.callPath;
-                for (let i = 1; i < path.length; i++) {
-                    const a = getScreenPt(path[i - 1]), b = getScreenPt(path[i]);
-                    ctx.beginPath(); ctx.moveTo(a.cx, a.cy); ctx.lineTo(b.cx, b.cy);
-                    ctx.strokeStyle = path[i].color ?? '#fb7185'; ctx.lineWidth = 2.5; ctx.stroke();
-                }
-                for (const p of path) {
-                    const { cx, cy } = getScreenPt(p);
-                    const tone = p.color ?? '#fb7185';
-                    ctx.fillStyle = tone; ctx.beginPath(); ctx.arc(cx, cy, 5.5, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fill();
-                    ctx.font = '800 10px system-ui'; ctx.textAlign = 'center';
-                    ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
-                    ctx.strokeText(p.label, cx, cy + 17); ctx.fillStyle = tone; ctx.fillText(p.label, cx, cy + 17);
-                }
-            }
-            ctx.restore();
-        }
+        /* 🔺 첫 콜 그물 (목업 전용) */
+        if (coneOverlay) drawConeOverlay(ctx, coneOverlay, getScreenPt);
+
+        /* 1.5. 기초 연결선 · «직선 N km» — 경로선이 없을 때만 (`straightGuideOf`) */
+        drawStraightGuide(ctx, straightGuideOf({ validPolyline, myLocation, validPoints }, getScreenPt), mapColors, theme);
 
         /**
-         * 1.5. 기초 연결선 — 정거장을 **직선으로** 잇는 보조 점선.
-         *
-         * 🔴 **경로선이 있으면 안 그린다** — 아래 «직선 N km» 글자와 짝이다 (둘 다 같은 조건으로 끈다).
-         *    카카오가 준 실제 도로 경로가 있는데 그 위에 직선을 겹치면 **길이 두 개**로 보인다.
-         *    경로가 아직 없거나 실패했을 때만 «대충 이 방향»으로 남긴다 (규칙 ④).
+         * 1. 🛣️👣 **두 선을 겹쳐 «얼마나 벗어났나»를 보여 준다** — 🔴 순서가 뜻이다: 계획(카카오가 준 «가야 할 길»)이 **아래**,
+         *    후보 경로가 그 위, 실제(내가 «실제로 간 길» · 얇고 밝은 선)가 **맨 위**. 색을 나눈다 — 투명도로 겹치면 «어느 쪽이 뭔지»를 못 가른다.
          */
-        if (validPolyline.length >= 2) { /* 경로선이 대신 말한다 */ } else {
-        ctx.beginPath();
-        ctx.strokeStyle = withAlpha(mapColors.sidoStroke, 0.4);
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 6]);
+        const baseWidth = routeLineWidth(shownZoom);
+        drawStrokes(ctx, routeStrokesOf({ on: !!layers.route && hasPolyline, routeHolder, callColors, mapColors }), getScreenPt, baseWidth);   // 🧅 «경로»
+        const cand = candidateStrokeOf({ on: !!layers.cand, candidateHolder });   // 🧅 «후보»
+        if (cand) drawStrokes(ctx, [cand], getScreenPt, baseWidth);
+        drawStrokes(ctx, trailStrokesOf({ on: !!layers.trail, segs: drivenSegs, callCount: callColors?.size ?? 1, color: mapColors.drivenLine }), getScreenPt, baseWidth);   // 🧅 «동선»
 
-        let pathStarted = false;
+        /* 1.7. 👣 지나온 발자취 · 2. 남은 정거장 — 그린 자리를 탭 판정에 남긴다 */
+        markerHits.current = [
+            ...drawVisitedMarks(ctx, visitedMarksOf({ trail, rainbowNodes, callColors, mapColors }), getScreenPt),
+            ...drawRouteStopMarks(ctx, routeStopMarksOf({ points: validPoints, rainbowNodes, callColors, mapColors, theme }), getScreenPt),
+        ];
 
-        if (myLocation) {
-            const { cx, cy } = getScreenPt(myLocation);
-            ctx.moveTo(cx, cy);
-            pathStarted = true;
-        }
+        // 3. 내 위치(GPS) — 낡았으면 흐리게 (`drawMyLocation`)
+        if (myLocation) drawMyLocation(ctx, myLocation, { stale: !!myLocationStale, nowSec: Date.now() / 1000, mapColors, theme }, getScreenPt);
 
-        validPoints.forEach((p) => {
-            const { cx, cy } = getScreenPt(p);
-            if (!pathStarted) {
-                ctx.moveTo(cx, cy);
-                pathStarted = true;
-            } else {
-                ctx.lineTo(cx, cy);
-            }
-        });
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        }
-
-        /**
-         * 현위치 - 첫 상차지 간 회색 점선 지점에 직선거리(km) 표기
-         *
-         * 🔴 **경로선이 있으면 안 그린다** — 기사님은 **도로**를 달리지 직선을 달리지 않는다.
-         *    카카오가 준 «주행 68.0km / 106분» 이 더 정확하고, **버퍼·데드라인이 전부 그 값**을 쓴다.
-         *    둘을 나란히 두면 한 화면이 **두 답**을 한다.
-         *
-         *    다만 **경로가 아직 없거나 계산이 실패했을 때**는 «대충 얼마나 먼가»의 유일한
-         *    답이다 — 그때만 남긴다 (규칙 ④: 모르면 모른다고 하되, 아는 만큼은 말한다).
-         *
-         * 🔴 **두 점이 가까워도 안 그린다.** 이 글자는 두 점의 **중간**에 놓여서, 둘이 붙으면
-         *    중간점이 **마커 위에 올라앉아** 현위치와 이름표를 함께 덮는다.
-         */
-        const MIN_GAP_PX = 90;   // 이보다 가까우면 글자가 마커를 덮는다
-        if (myLocation && validPoints.length > 0 && validPolyline.length < 2) {
-            const startPt = getScreenPt(myLocation);
-            const endPt = getScreenPt(validPoints[0]);
-            const distKm = haversineKm(myLocation, validPoints[0]);
-
-            const midX = Math.round((startPt.cx + endPt.cx) / 2);
-            const midY = Math.round((startPt.cy + endPt.cy) / 2);
-            const gapPx = Math.hypot(endPt.cx - startPt.cx, endPt.cy - startPt.cy);
-            /* ⚠️ `return` 을 쓰면 **뒤의 마커까지 통째로 안 그려진다** — 조건으로만 감싼다 */
-            if (gapPx >= MIN_GAP_PX) {
-                const text = `직선 ${distKm.toFixed(1)}km`;
-                ctx.font = 'bold 11px sans-serif';
-                ctx.textAlign = 'center';
-                const tWidth = ctx.measureText(text).width;
-
-                ctx.fillStyle = withAlpha(theme === 'light' ? mapColors.textBgLight : mapColors.textBgDark, theme === 'light' ? 0.8 : 0.7);
-                ctx.fillRect(midX - (tWidth / 2) - 4, midY - 14, tWidth + 8, 18);
-
-                ctx.fillStyle = mapColors.stroke;
-                ctx.fillText(text, midX, midY - 1);
-            }
-        }
-
-        /**
-         * 1. 🛣️👣 **두 선을 겹쳐 «얼마나 벗어났나»를 보여 준다**.
-         *
-         * 🔴 **색을 나눈다. 투명도로 겹치게 하지 않는다** — 같은 색 반투명 둘을 포개면
-         *    «따라갔나»는 보여도 **«어느 쪽이 뭔지»를 못 가른다.**
-         *
-         *      파란 굵은 선   카카오가 준 **가야 할 길**   (아래)
-         *      흰 얇은 선     내가 **실제로 간 길**        (위)
-         *
-         *    벗어나면 흰 선이 파란 길 밖으로 나간다 — 그게 이탈이다.
-         * 🔴 순서가 뜻이다 — 계획이 **아래**, 실제가 **위**. 실제가 계획을 덮는다.
-         */
-        const drawPath = (pts: Array<{ x: number; y: number }>, widthScale: number, dash?: number[],
-            /** 🌈 진행 방향의 직각으로 몇 픽셀 밀어 그린다 — 콜 띠를 나란히 둘 때 (`offsetScreenPath`) */
-            offsetPx = 0) => {
-            if (pts.length < 2) return;
-            ctx.save();
-            ctx.beginPath();
-            ctx.lineWidth = routeLineWidth(shownZoom) * widthScale;
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-            if (dash) ctx.setLineDash(dash);
-            const screen = offsetScreenPath(pts.map(getScreenPt), offsetPx);
-            screen.forEach((p, i) => {
-                if (i === 0) ctx.moveTo(p.cx, p.cy); else ctx.lineTo(p.cx, p.cy);
-            });
-            ctx.stroke();
-            ctx.restore();
-        };
-
-        /**
-         * ① 아래 — 카카오가 준 «가야 할 길».
-         *
-         * 🌈 **구간마다 그 콜의 색으로 칠한다**.
-         *    서버가 구간 경계(`sectionEnds`)와 구간 주인(`sectionStops`)을 함께 보낸다 —
-         *    **둘의 길이가 같고**, 구간 i 는 «정거장 i 에 닿는 길»이다. 그래서 색은 그 정거장의 콜 색이다.
-         * 🔴 **재료가 어긋나면 한 색으로 물러난다** — 길이가 다르거나 색표가 없으면 경로 전체를 한 색으로.
-         *    색이 밀려 그려지는 것보다 한 색이 낫다 (규칙 ④: 지어내지 않는다).
-         * ⚠️ 미리보기(결재 전)는 **노란 점선 한 색**을 지킨다 — «아직 내 콜이 아니다»가 색의 뜻이다.
-         */
-        if (layers.route && hasPolyline && validPolyline.length > 0) {   // 🧅 «경로» 레이어
-            const secStops = routeHolder?.sectionStops;
-            const secLines = sectionLinesOf(validPolyline, routeHolder?.sectionEnds);
-            const sectionsOk = !!secStops && secLines.length > 1 && secLines.length === secStops.length
-                && validPolyline.length === currentPolyline.length;   // 걸러진 점이 있으면 경계가 어긋난다
-            const canPaintPerSection = !isPreviewRoute && !!callColors && sectionsOk;
-            /**
-             * 🗺️ **심사 중 — 이 후보가 늘린 구간을 판정 색으로 굵게** («이 콜을 끼면 이렇게 간다»).
-             *    통째로 노란 점선이면 1~2초에 «어디가 늘었나»가 안 보인다. 구간 주인이 후보 콜이면 판정 색,
-             *    나머지는 노란 점선 그대로 — «아직 내 콜이 아니다»는 지킨다. 판정 전이면 후보 구간도 노랑.
-             * ⚠️ 깜빡이게 하지 않는다 — 캔버스를 0.26초마다 다시 칠해야 한다.
-             */
-            const candidateColor = routeHolder?.judgment?.color ? SOAK[routeHolder.judgment.color].bar : '#e6b422';
-            if (isPreviewRoute && sectionsOk) {
-                secLines.forEach((line, i) => {
-                    const mine = secStops![i].orderId === routeHolder!.id;
-                    ctx.strokeStyle = mine ? candidateColor : '#e6b422';
-                    drawPath(line, mine ? 1.6 : 1, mine ? undefined : [10, 8]);
-                });
-            } else if (canPaintPerSection) {
-                /**
-                 * 🌈 **콜마다 «내 짐이 차에 있는 동안»을 자기 색 띠로 겹쳐 그린다** (기사님 확정).
-                 *
-                 * 구간 하나를 한 콜에만 칠하면 «이 길은 A 만 간다»로 읽힌다 — 그동안 B 도 차에 실려 있다.
-                 * 그래서 콜마다 실으러 가는 구간부터 내리는 구간까지를 **반투명**으로 긋는다.
-                 * 겹친 구간은 두 색이 함께 보여 «둘을 같이 싣고 간다»가 그대로 읽힌다 (`callBandsOf`).
-                 *
-                 * 🔴 **바닥 한 줄을 먼저 긋는다** — 띠가 없는 구간(다 내린 뒤 집으로 가는 길 등)이
-                 *    비어 보이면 경로가 끊긴 것으로 읽힌다.
-                 */
-                /**
-                 * 🩶 **빈 차로 가는 길은 회색 점선** — 어느 콜의 짐도 안 실린 구간이다
-                 *    (다 내리고 다음 상차지로 가는 길 · 마지막 하차 뒤 집으로 가는 길).
-                 *    콜 색으로 그으면 «이 콜을 싣고 간다»로 읽힌다 — 색과 모양을 함께 달리한다.
-                 */
-                ctx.strokeStyle = mapColors.textMuted;
-                for (const i of uncoveredSectionsOf(secStops!, secLines.length)) drawPath(secLines[i], 0.8, [7, 6]);
-                /**
-                 * 🎨 **색은 진하게, 두께는 같게, 자리는 나란히** (기사님 지시 — 투명도로 섞으니 흐려서 안 읽힌다).
-                 *    콜마다 진행 방향의 직각으로 밀어 그린다. 함께 가는 구간은 두 줄로 보인다.
-                 * 🔴 **지금 향하는 콜을 맨 나중에 긋는다** — 겹치는 자리에서 가장 급한 콜이 위로 온다.
-                 */
-                const bands = [...callBandsOf(secStops!)];
-                const nextOrderId = secStops![0]?.orderId;
-                const drawOrder = bands
-                    .map((b, i) => ({ b, i }))
-                    .sort((p, q) => Number(p.b[0] === nextOrderId) - Number(q.b[0] === nextOrderId));
-                for (const { b: [orderId, band], i: bi } of drawOrder) {
-                    const color = callColors!.get(orderId);
-                    if (!color) continue;
-                    /* 🌈 콜이 늘면 두께·간격이 함께 준다 — 전체 폭이 넘치면 굵은 띠 하나로 뭉쳐 보인다 */
-                    const { widthScale, shiftPx } = bandStrokeOf(bands.length, bi);
-                    ctx.strokeStyle = color;
-                    for (let i = band.from; i <= band.to && i < secLines.length; i++) drawPath(secLines[i], widthScale, undefined, shiftPx);
-                }
-            } else {
-                ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
-                // 노란 점선 = 아직 결재 전
-                drawPath(validPolyline, 1, isPreviewRoute ? [10, 8] : undefined);
-            }
-        }
-
-        /**
-         * ①-2 🟡 **후보 경로 — 확정 경로 «위에» 겹쳐 그린다** (기사님 확정).
-         *
-         * *"지금 영역은 그냥 경로에 그려 두고, 새로 추가되는 경로(후보)는 새 레이어에 그리자.
-         * 그러면 기존 경로와 새 경로가 한 지도 위에 보일 거고, 버리면 새 레이어만 리셋하면 되니까."*
-         *
-         * 🔴 **확정 경로를 지우지 않는다** — «가고 있는 길»과 «붙이면 갈 길»을 견주어 1~2초에 누르신다.
-         *    «확정 ?? 후보»로 하나만 고르면 콜을 쥐고 있을 때 이 점선이 안 뜬다.
-         * 🔴 **영역에는 안 쓴다** — 잡지도 않은 콜이 원달앱 상차·하차 목록을 흔들면 안 된다.
-         *    버리면 이 레이어만 사라진다 (`candidateHolder` 가 null 이 된다).
-         * 🌈 늘어난 구간은 판정 색으로 굵게 — 위 «심사 중» 규칙과 같은 모양이다.
-         */
-        const candLine = (candidateHolder?.routePolyline ?? [])
-            .filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
-        if (layers.cand && candidateHolder && candLine.length > 1) {   // 🧅 «후보» 레이어
-            /**
-             * 🔴 **처음부터 끝까지 한 줄로 긋는다** (기사님 확정:
-             *    *"추가 되는경로는 새로 다 그려야 한 라인으로 가는거지.. 이미지처럼 몸이
-             *    분리되 가는거 아니잖아."*).
-             *
-             *    그전에는 **그 후보가 늘린 구간만** 굵게 긋고 나머지는 가는 노란 점선이었다.
-             *    점선이 확정 경로 밑에 깔려 안 보이니, 늘어난 구간만 동떨어져 **한 줄이 끊긴 것**
-             *    처럼 보였다 — 실측에서 오송~성거읍 사이가 두 갈래로 갈라져 보였다.
-             * 🔴 **색은 판정 색, 판정 전이면 노란 점선** — «아직 내 콜이 아니다»는 점선이 지킨다.
-             * 🧅 **끄고 켜는 것은 «후보» 레이어** — 확정 경로를 덮으므로 견주려면 걷을 수 있어야 한다.
-             */
-            const cColor = candidateHolder.judgment?.color ? SOAK[candidateHolder.judgment.color].bar : null;
-            ctx.strokeStyle = cColor ?? '#e6b422';
-            drawPath(candLine, cColor ? 1.6 : 1, cColor ? undefined : [10, 8]);
-        }
-
-        // ② 위 — 내가 «실제로 간 길». 얇고 밝다. 파란 길 밖으로 나가면 그게 이탈이다
-        if (layers.trail) {   // 🧅 «동선» 레이어 — 🔴 구간마다 **따로** 긋는다 (목업과 한 벌)
-            /**
-             * 🔴 **콜이 늘면 동선도 함께 얇아진다** (기사님 지시) — 콜 띠는 콜 수에 맞춰 얇아지는데
-             *    동선만 그대로면 흰 줄이 색 줄을 덮어 «어느 콜의 길인가»가 안 읽힌다.
-             */
-            const trailWidth = 0.55 * (bandStrokeOf(callColors?.size ?? 1, 0).widthScale / 0.9);
-            ctx.strokeStyle = mapColors.drivenLine;
-            for (const seg of drivenSegs) drawPath(seg, trailWidth);
-        }
-
-        /**
-         * 1.7. 👣 지나온 발자취 — 번호는 방문 순서로 동결 (①)
-         *
-         * 🩶 **색표를 켜면 다녀온 곳은 회색 원 · 진한 회색 번호 · 테두리 투명** — 색은 아직 안 간 콜만 쓴다.
-         *    색이 넷이라 다녀온 콜이 색을 들고 있으면 5번째 콜과 같은 색으로 보인다.
-         */
-        markerHits.current = [];
-        trail.forEach((p) => {
-            const { cx, cy } = getScreenPt(p);
-            markerHits.current.push({ cx, cy, orderId: p.orderId });
-            const fill = rainbowNodes && p.callNo ? mapColors.textMuted : null;
-            ctx.beginPath();
-            ctx.arc(cx, cy, fill ? 10 : 9, 0, 2 * Math.PI);
-            ctx.fillStyle = fill ?? withAlpha('#35c3a9', 0.4);       // 초록 채움 = 다녀옴 (색표를 안 쓸 때)
-            ctx.fill();
-            ctx.lineWidth = fill ? 1 : 2.5;
-            ctx.strokeStyle = fill
-                ? callNodeStroke(true, fill)                          // 다녀왔으니 «동그라미»를 친다
-                : (callColors?.get(p.orderId) ?? '#35c3a9');
-            ctx.stroke();
-            ctx.fillStyle = fill ? '#374151' : '#d7f5ee';   // 🩶 다녀온 곳 번호는 진한 회색 — 흰 글자는 회색 원 위에서 여전히 눈을 끈다
-            ctx.font = fill ? 'bold 12.5px sans-serif' : 'bold 10px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(p.no), cx, cy + 0.5);
-        });
-
-        // 2. 노드 렌더링
-        validPoints.forEach((p) => {
-            const { cx, cy } = getScreenPt(p);
-
-            if (p.routeId) markerHits.current.push({ cx, cy, orderId: p.routeId });
-            ctx.beginPath();
-            /* 🔍 마커는 **목록 동그라미와 같은 크기**다 — 크면 지도를 가리고,
-               한 화면에서 같은 것이 두 크기로 보이면 다른 것처럼 읽힌다. */
-            ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
-            const stopKind = p.type === '상차' ? 'pickup' : 'dropoff';
-            /* 🌈 색상=콜 · 밝기=상차/하차 */
-            const rainbowFill = rainbowNodes && p.callNo ? callNodeFill(p.callNo, stopKind, theme) : null;
-            ctx.fillStyle = rainbowFill
-                ?? (p.type === '상차' ? mapColors.nodePickup : mapColors.nodeDropoff);
-
-            if (p.isEvaluating) {
-                ctx.fillStyle = mapColors.nodeEvaluating;
-                ctx.lineWidth = 2.5;
-                ctx.strokeStyle = mapColors.nodeStrokeEvaluating;
-            } else if (rainbowFill) {
-                /* 🖊️ 테두리는 `callNodeStroke` 가 정한다 — 다녀온 곳은 투명, 안 간 곳은 채움과 같은 색이라 링이 따로 안 보인다.
-                   1px 로 얇게 — 목록 동그라미와 같은 두께다 */
-                ctx.lineWidth = 1;
-                ctx.strokeStyle = callNodeStroke(!!p.visited, rainbowFill);
-            } else {
-                ctx.lineWidth = 2.5;
-                // 🎨 테두리 = 콜 색 (②) — 어느 콜의 정거장인지 색으로 읽힌다
-                ctx.strokeStyle = (p.routeId && callColors?.get(p.routeId)) || mapColors.nodeStrokeRegular;
-            }
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = rainbowNodes && p.callNo ? callNodeText(stopKind, theme) : mapColors.textBody;
-            /* 🔍 정거장 번호 — 달리면서 먼발치로 읽는 숫자다. 원만 키우지 말고 글자도 키운다 */
-            ctx.font = rainbowNodes ? 'bold 12.5px sans-serif' : 'bold 11px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            // 🔒 번호는 방문한 개수 다음부터 — 지나간 번호를 재사용하지 않는다 (①)
-            ctx.fillText(String(p.no ?? ''), cx, cy + 1);   // 번호는 stopNoOf 하나에서 온다
-
-            const textWidth = ctx.measureText(p.name).width;
-            ctx.fillStyle = withAlpha(theme === 'light' ? mapColors.textBgLight : mapColors.textBgDark, theme === 'light' ? 0.8 : 0.45);
-            ctx.fillRect(cx - (textWidth / 2) - 6, cy + 14, textWidth + 12, 18);
-
-            ctx.fillStyle = p.isEvaluating ? mapColors.nodeStrokeEvaluating : mapColors.textBody;
-            ctx.textBaseline = 'top';
-            ctx.fillText(p.name, cx, cy + 16);
-        });
-
-        // 3. 내 위치(GPS) 렌더링
-        if (myLocation) {
-            const { cx, cy } = getScreenPt(myLocation);
-
-            /**
-             * 📍 **낡은 자리는 흐리게 — 옮기지도 지우지도 않는다** (기사님 확정).
-             *
-             * 🔴 **맥박(퍼지는 원)은 «지금 여기 있다»는 말**이다. 낡았으면 그 말을 멈춘다 —
-             *    숨 쉬는 마커가 몇 분 전 자리에서 뛰고 있으면 화면이 거짓말한다 (규칙 ⑤-2).
-             * ⚠️ 그래도 **점은 남긴다.** 지우면 «어디 있는지 아무 단서가 없는» 화면이 되고,
-             *    마지막 자리는 집보다 비교가 안 되게 가깝다.
-             */
-            const time = Date.now() / 1000;
-            const pulseRadius = 15 + Math.sin(time * 3) * 5;
-
-            if (!myLocationStale) {
-                ctx.beginPath();
-                ctx.arc(cx, cy, pulseRadius, 0, 2 * Math.PI);
-                ctx.fillStyle = withAlpha(mapColors.myLocationPulse, 0.2);
-                ctx.fill();
-            }
-
-            ctx.beginPath();
-            ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
-            ctx.fillStyle = myLocationStale
-                ? withAlpha(mapColors.myLocationPulse, 0.45)   // 흐리게 — «여기 있었다»
-                : mapColors.myLocationPulse;
-            ctx.strokeStyle = myLocationStale
-                ? withAlpha(mapColors.myLocationStroke, 0.5) : mapColors.myLocationStroke;
-            ctx.lineWidth = 1.5;
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = withAlpha(theme === 'light' ? mapColors.textBgLight : mapColors.textBgDark, 0.45);
-            ctx.fillRect(cx - 20, cy + 10, 40, 16);
-
-            ctx.fillStyle = mapColors.myLocationDotText;
-            ctx.font = 'bold 11px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText("현위치", cx, cy + 22);
-        }
-
-        // 4. © 표기 — 타일을 쓴 화면에만. 빌린 것은 빌렸다고 적는다 (OSM 라이선스)
-        if (readyTiles.length > 0) {
-            ctx.font = '9px sans-serif';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'bottom';
-            ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
-            ctx.fillText('© OpenStreetMap', width - 4, height - 3);
-        }
+        // 4. © 표기 — 타일을 쓴 화면에만
+        if (readyTiles.length > 0) drawCredit(ctx, width, height, mapColors);
     }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, pickupArea, dropoffArea, dongDots, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode, scheduleDraw]);
 
     useEffect(() => {
@@ -1217,125 +540,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, candi
         };
     }, [scheduleDraw]);
 
-    // 제스처 핸들러 (드래그 팬 & 줌)
-    const handlePointerDown = (e: any) => {
-        isDragging.current = true;
-        movedPx.current = 0;
-        if (e.touches && e.touches.length === 1) {
-            lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        } else if (e.clientX !== undefined) {
-            lastPos.current = { x: e.clientX, y: e.clientY };
-        } else if ('touches' in e && e.touches.length === 2) {
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            lastDist.current = Math.hypot(dx, dy);
-        }
-    };
-
-    const handlePointerMove = (e: any) => {
-        if (!isDragging.current) return;
-
-        let clientX = 0; let clientY = 0;
-
-        if (e.touches) {
-            if (e.touches.length === 1) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else if (e.touches.length === 2) {
-                /**
-                 * 🤏 **두 손가락 «중간»을 붙잡은 채 배율만 바꾼다** (#96).
-                 *
-                 * 🔴 `zoomRef` 에 배율만 더하고 팬을 안 건드리면 확대의 중심이 화면이 원래 잡고 있던
-                 *    곳이 되어, 손가락이 가운데서 벗어날수록 쏠린다.
-                 * 🔴 계산은 `pinchStep` 하나에 있다 — 휠·버튼(`zoomAround`)과 **같은 공식**이다.
-                 */
-                const rect = canvasRef.current?.getBoundingClientRect();
-                if (!rect) return;
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
-                const dy = e.touches[0].clientY - e.touches[1].clientY;
-                const dist = Math.hypot(dx, dy);
-                // 중간점은 **캔버스 안 좌표**여야 한다 — 화면 좌표 그대로면 여백만큼 어긋난다
-                const mid = {
-                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left,
-                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top,
-                };
-                // 🪟 그리는 쪽이 지금 쓰는 가림 높이를 그대로 본다 — 두 벌이면 확대점이 어긋난다
-                const base = anchorBaseOf(rect.width, rect.height, occludedNow.current ?? 0);
-                /* ✋ 핀치도 모드를 안 푼다 — 배율은 기준 위에 곱해진다 */
-                const step = pinchStep(lastDist.current, dist, mid, base, zoomRef.current, panRef.current);
-                zoomRef.current = step.zoom;
-                panRef.current = step.pan;
-                lastDist.current = dist;
-                drawMap();
-                return;
-            }
-        } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
-        }
-
-        if (clientX === 0 && clientY === 0) return;
-
-        const deltaX = clientX - lastPos.current.x;
-        const deltaY = clientY - lastPos.current.y;
-
-        /* ✋ **끌어도 모드를 안 푼다** — 구간·현위치를 고른 뒤 끌어도 줌이 유지된다.
-           🔴 여기서 `setViewMode('all')` 을 하지 않는다 — 모드는 **기준 배율**을 정하고 팬·줌은 그
-              **위에 더해지는 값**이라, 모드를 풀면 기준이 통째로 바뀌어 **화면이 튀어나간다.**
-              팬은 모드와 무관하게 그대로 쌓이므로 **안 풀어도 손은 이미 이긴다.** */
-        panRef.current.x += deltaX;
-        panRef.current.y += deltaY;
-        movedPx.current += Math.abs(deltaX) + Math.abs(deltaY);
-
-        lastPos.current = { x: clientX, y: clientY };
-        drawMap();
-    };
-
-    const handlePointerUp = (e?: any) => {
-        isDragging.current = false;
-        if (!onStopTap || movedPx.current > 8) return;   // 팬이었다 — 탭 아님
-        const canvas = canvasRef.current;
-        const pt = e?.changedTouches?.[0] ?? e;
-        if (!canvas || pt?.clientX == null) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = pt.clientX - rect.left, y = pt.clientY - rect.top;
-        const hit = markerHits.current.find(h => Math.hypot(h.cx - x, h.cy - y) <= 20);
-        if (hit) onStopTap(hit.orderId);
-    };
-
-    /**
-     * 🔍 **누른 자리를 붙잡은 채 배율만 바꾼다.**
-     *
-     * 🔴 기준점은 `anchorBaseOf` 다 — 화면 원점(0,0)을 기준으로 삼지 않는다.
-     *    실제 원점은 버튼 여백만큼 밀려 있어 **확대할수록 지도가 옆으로 흐른다.**
-     */
-    const zoomAround = (screenX: number, screenY: number, zoomDelta: number) => {
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
-
-        const newZoom = Math.max(0.5, Math.min(10, zoomRef.current * zoomDelta));
-        const ratio = newZoom / zoomRef.current;
-        // 🪟 그리는 쪽이 지금 쓰고 있는 가림 높이를 그대로 본다 — 두 벌이면 확대점이 어긋난다
-        const base = anchorBaseOf(rect.width, rect.height, occludedNow.current ?? 0);
-
-        panRef.current.x = panAfterZoom(screenX, base.x, panRef.current.x, ratio);
-        panRef.current.y = panAfterZoom(screenY, base.y, panRef.current.y, ratio);
-
-        zoomRef.current = newZoom;
-        drawMap();
-    };
-
-    const handleZoomClick = (zoomDelta: number) => {
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        zoomAround(rect.width / 2, rect.height / 2, zoomDelta);
-    };
-
-    const handleWheel = (e: any) => {
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        zoomAround(e.clientX - rect.left, e.clientY - rect.top, e.deltaY > 0 ? 0.9 : 1.1);
-    };
+    /* 🖐️ 손짓(끌기 · 두 손가락 확대 · 휠 · ＋ − · 마커 탭) — `usePinnedRouteGestures` 가 부품의 ref 로 처리한다 */
+    const { handlePointerDown, handlePointerMove, handlePointerUp, handleZoomClick, handleWheel } = usePinnedRouteGestures({
+        canvasRef, zoomRef, panRef, occludedNow, isDragging, lastPos, lastDist, movedPx, markerHits, drawMap, onStopTap,
+    });
 
     return (
         <div style={{ backgroundColor: mapColors.fill }} className={`relative w-full ${fill ? "h-full" : "h-64"} cursor-grab active:cursor-grabbing overflow-hidden`}>

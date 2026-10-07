@@ -33,6 +33,6 @@ describe('🗺️ 운영센터 지도 화면', () => {
         expect(proj).not.toMatch(/export function projectMercator|export const TILE_SIZE = /);
         const panel = read('client-app/src/components/dashboard/PinnedRouteCanvas.tsx');
         expect(panel).toContain("} from '../../lib/mapProjection';");
-        expect(panel).toContain('https://tile.openstreetmap.org/');
+        /* 타일 주소 · © 표기는 층 파일(pinnedRouteLayers)에 산다 — 관제웹 pinnedRouteLayers.test «배경» 이 동작으로 문다 */
     });
 });

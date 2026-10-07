@@ -759,14 +759,7 @@ describe('요약줄 «N 읍면동» — 서버 하차 목록 수 (2026-09-15)', 
      * 🔴 **화면 맞춤은 영역을 감싼 «흔들리지 않는 네모»를 본다** — 막는 것: 영역이 화면 밖으로 잘림 · 달리는 동안 «전체» 화면이 줄었다 늘었다 함 (#150).
      *    마름모를 그대로 넣으면 300m 눈금 · «가까이 옴»으로 확대가 매번 다시 잡히고, 빼면 영역이 잘린다 — 네모는 `stickyFitBox` 가 쥔다.
      */
-    it('🔴 화면 맞춤에 영역 네모를 넣되 흔들리지 않는 네모로 — 마름모 점을 그대로 넣지 않는다', () => {
-        const canvas = codeOnly(read(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx')));
-        const i = canvas.indexOf('const allCoords');
-        const fit = canvas.slice(i, canvas.indexOf('if (allCoords.length === 0)', i));
-        expect(fit).toMatch(/stickyFitBox\(fitBoxRef\.current, areaBoxOf\(/);
-        expect(fit).not.toMatch(/for \(const q of dropoffArea\.quads\)/);
-        expect(fit).toMatch(/dropoffArea\.goals/);
-    });
+    /* 화면 맞춤에 영역 네모를 넣되 흔들리지 않는 네모로 — 관제웹 pinnedRouteLayers.test «화면 맞춤» 이 동작으로 문다 */
 
     it('🔴 옛 «그물» 레이어 · 훅이 없다 — 지도는 «상차» · «하차» 레이어만', () => {
         expect(require('fs').existsSync(join(CLIENT, 'hooks/useCallNet.ts'))).toBe(false);

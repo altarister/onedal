@@ -16,7 +16,8 @@ const client = (rel: string) => readFileSync(join(__dirname, '../../../client-ap
 
 describe('🗺️ 심사 중 후보 구간 강조', () => {
     it('🔴 미리보기도 구간을 나눠 그리고, 후보 콜 구간은 판정 색으로 칠한다', () => {
-        const cv = client('components/dashboard/PinnedRouteCanvas.tsx');
+        /* 셈은 층 파일의 routeStrokesOf 에 산다 — 동작은 관제웹 pinnedRouteLayers.test «미리보기는 구간을 나눠» 가 문다 */
+        const cv = client('components/dashboard/pinnedRouteLayers.ts');
         expect(cv).not.toMatch(/isPreviewRoute \? \[\] : sectionLinesOf/);
         expect(cv).toMatch(/candidateColor/);
         expect(cv).toMatch(/secStops!?\[i\]\.orderId === routeHolder!?\.id/);

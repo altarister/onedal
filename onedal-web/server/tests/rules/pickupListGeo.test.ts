@@ -216,7 +216,7 @@ describe('상차 목록 배선', () => {
         /* 무대가 dongDotsOf(상차 목록 · 하차 목록)로 넘기는가는 관제웹 stageAreas.test «동 점» 이 동작으로 문다 */
         const canvas = strip(readFileSync(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx'), 'utf8'));
         expect(canvas).toMatch(/\['dots', '동 점'\]/);
-        expect(canvas).toMatch(/dongDots\.both/);
+        /* 둘 다 든 동은 보라로 따로 찍는다 — 관제웹 pinnedRouteLayers.test «동 점» 이 동작으로 문다 */
         /* 묶음은 필터 한 곳에 산다 — 세션에 또 두지 않는다 (규칙 ③) · 원달앱에는 안 간다 (이름 목록 `pickupKeywords` 가 간다) */
         expect(code('state/userSessionStore.ts')).not.toMatch(/pickupGroups/);
         expect(APP_FILTER_KEYS as readonly string[]).not.toContain('pickupGroups');
@@ -226,16 +226,8 @@ describe('상차 목록 배선', () => {
     it('✂️ 라인 띠는 현위치부터 · 시작은 평평하게 — 서버 상차 목록 · 지도 «상차» · «하차» 띠가 같은 함수 (기사님 2026-09-15 «2»)', () => {
         expect(code('services/geoService.ts')).toMatch(/lineFromPoint\(/);
         expect(code('services/geoService.ts')).toMatch(/isAheadOf\(p, cut\)/);
-        const CLIENT = join(__dirname, '../../../client-app/src');
-        const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-        /* 지도 «상차» · «하차» 띠가 lineFromPoint 로 잘리는가는 관제웹 stageAreas.test «상차 띠» · «하차 띠» 가 동작으로 문다 */
-        const canvas = strip(readFileSync(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx'), 'utf8'));
-        expect(canvas).toMatch(/const clipAhead = /);
-        expect((canvas.match(/clipAhead\(/g) || []).length).toBeGreaterThanOrEqual(2);   // 상차 띠 · 하차 띠
-        /* 🔴 상차 띠의 자름 방향은 «첫 점 → 끝점» — 마지막 한 구간에서 뽑으면 골목이 영역을 돌린다 */
-        expect(canvas).toMatch(/clipAhead\(c2d, \[band\[0\], band\[band\.length - 1\]\]/);
-        expect(canvas).not.toMatch(/lineCap = 'butt'/);
-        expect(canvas).not.toMatch(/trimKm/);
+        /* 지도 «상차» · «하차» 띠가 lineFromPoint 로 잘리는가는 관제웹 stageAreas.test «상차 띠» · «하차 띠» 가 동작으로 문다.
+           캔버스가 두 띠의 시작을 서버와 같은 aheadOf 로 자르고(상차는 «첫 점 → 끝점») 끝을 둥글게 긋는가는 관제웹 pinnedRouteLayers.test «상차 · 하차 띠» 가 문다 */
     });
 
     it('🔴 빈 상차 목록은 고장 — 잡지 않는다 (규칙 ④) · 아직 안 만들었으면 막지 않는다', () => {
