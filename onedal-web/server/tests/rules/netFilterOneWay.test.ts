@@ -41,12 +41,8 @@ describe('🕸️ 필터 목록 — 그물 한 벌 (1단계)', () => {
     });
 
     it('🔴 합짐 중 반경 변경도 옛 계산을 안 거친다 — 소켓·refreshDetourIfNeeded', () => {
-        expect(body(fm, 'function refreshDetourIfNeeded')).not.toMatch(/recalculateDetourFilter\(/);
+        /* refreshDetourIfNeeded 가 그물로 다시 그리는지는 filterListRules 가 동작으로 문다 */
         expect(sh).not.toMatch(/recalculateDetourFilter\(/);
-    });
-
-    it('🔴 그물이 진행도를 함께 낸다 — 목록과 진행도가 한 벌 (netKeywordsOf 가 progressKm 을 돌려준다)', () => {
-        expect(body(fm, 'function netKeywordsOf')).toMatch(/progressKm/);
     });
 
     it('🔴 라인은 KEEP 순간에 얼린다 — 경로 재계산(하차·취소)은 라인을 안 바꾼다', () => {
@@ -55,13 +51,6 @@ describe('🕸️ 필터 목록 — 그물 한 벌 (1단계)', () => {
         expect(body(de, 'export async function recalculateActiveKakaoRoute')).not.toMatch(/filterLine\s*=/);
         /* 사이클이 끝나면 비운다 — 어제 경로가 다음 첫짐에 살아나지 않게 */
         expect(fm).toMatch(/session\.filterLine = null/);
-    });
-
-    it('🔴 지나온 동은 얼린 라인 위 GPS 진행도로 뺀다 — 그물과 같은 셈', () => {
-        const trim = body(fm, 'export function applyTraveledTrim');
-        expect(trim).toMatch(/filterLineOf\(session\)/);
-        expect(trim).toMatch(/progressAlongKm\(/);
-        expect(trim).not.toMatch(/progressAlongPolyline\(/);
     });
 });
 
@@ -90,10 +79,6 @@ describe('🗺️ 지도 — 지나온 곳을 판정과 같게', () => {
  *                    **동 경계가 띠에 걸치면 넣는다** (앱은 넉넉하게 올린다 규칙 ⑤)
  */
 describe('🧩 앱은 지역명만 본다 — 동을 넉넉하게', () => {
-    it('🔴 경로 영역은 동 경계가 띠에 걸치면 넣는다 — 그물 목록에 더한다 (03 곤지암읍)', () => {
-        const net = body(fm, 'function netKeywordsOf');
-        expect(net).toMatch(/getDetourRegions\(/);
-    });
 });
 
 /**
@@ -107,16 +92,6 @@ describe('🧩 앱은 지역명만 본다 — 동을 넉넉하게', () => {
  *      → 걸쳐서 **새로 들어온 동에만** 순서를 붙인다
  */
 describe('🧭 지나온 곳 빼기 — 지금 위치로, 경로 영역 동만', () => {
-    it('🔴 빼기는 지금 위치로만 — 묵었거나 집 주소로 대신한 위치면 안 뺀다', () => {
-        const trim = body(fm, 'export function applyTraveledTrim');
-        expect(trim).toMatch(/originOf\(session\b/);
-        expect(trim).toMatch(/isFallback/);
-        expect(trim).not.toMatch(/const gps = session\.lastFix/);
-    });
-    it('🔴 걸쳐서 더한 순서는 그물이 이미 넣은 동에 안 붙는다', () => {
-        const net = body(fm, 'function netKeywordsOf');
-        expect(net).toMatch(/inNet\.has\(name\)/);
-    });
 });
 
 /**
@@ -131,15 +106,6 @@ describe('🧭 지나온 곳 빼기 — 지금 위치로, 경로 영역 동만',
 describe('🧩 필터 영역 — 출발 전 내 영역 · 관내 목적지 원 (2단계)', () => {
     const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    it('🔴 서버 그물은 조각이 넣으라 할 때만 현위치 영역을 쓴다 · 관내를 따로 재지 않는다 — 가까이 온 목적지는 목적지 원에 걸친 동 (2026-09-15 개정)', () => {
-        const net = body(fm, 'function netKeywordsOf');
-        expect(net).toMatch(/me: part\.withMe && me/);
-        expect(net).toMatch(/if \(part\.nearGoal\)/);
-        expect(net).toMatch(/regionsTouchingCircleGrouped\(/);
-        expect(net).not.toMatch(/localMode/);
-        expect(net).not.toMatch(/isLocalPhase\(/);
-        expect(net).not.toMatch(/360/);
-    });
     it('🔴 출발하는 순간 목록을 다시 만든다', () => {
         expect(body(fm, 'export function updateActiveFilter')).toMatch(/rebuildNetFilter\(userId, io\)/);
     });
@@ -173,43 +139,17 @@ describe('🚀 출발 — 주행 감지로 켠다', () => {
 describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
     const client = (rel: string) => readFileSync(join(__dirname, '../../../client-app/src', rel), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    it('🔴 살아 있는 목적지는 activeGoals 한 곳이 정한다 — 복귀콜을 잡았나는 콜의 판(goalCity) · 취소한 콜은 안 센다', () => {
-        /* 🔴 목적지는 «필터값 ∪ 진행 중인 마지막 확정 콜의 목표값» 한 곳이 정한다 (shared `goalZonesOf`).
-              마지막 콜은 «확정됐고 아직 안 끝난» 콜 가운데서 고른다 */
-        const g = body(fm, 'export function goalCitiesOf');
-        expect(g).toMatch(/goalZonesNow\(session, userId/);
-        expect(g).not.toMatch(/activeGoals\(/);
-        const now = body(fm, 'function goalZonesNow');
-        expect(now).toMatch(/filterCity: goalCityOf\(session, userId\)/);
-        expect(now).toMatch(/session\.myOrders\.filter\(o => IN_PROGRESS_STATUSES\.includes\(/);
-        /* «복귀를 켠 뒤에 잡은 콜»로 센다 (#131). 아침 복귀콜이 저녁 복귀를 «잡음»으로 못 만드는 것은 켠 시각이 막는다 */
-        const calls = body(fm, 'export function homeCallsOf');
-        expect(calls).toMatch(/boardOf\(o\)/);
-        expect(calls).toMatch(/isHomeCallSince\(/);
-        expect(calls).not.toMatch(/deckOfCycle\(/);
-        expect(body(fm, 'function boardOf')).toMatch(/o\.goalCity/);
-    });
-    it('🔴 하차 목록은 살아 있는 목적지마다 조각을 만들어 합친다 — 먼 목적지는 상차 목록 동을 뺀다 (2026-09-15 개정)', () => {
-        const n = body(fm, 'function netOfGoals');
-        expect(n).toMatch(/goalZonesNow\(session, userId/);
-        expect(n).toMatch(/planArrivalStops\(/);
-        expect(n).toMatch(/lastDropOf\(/);
-        expect(n).toMatch(/dropoffPartsOf\(/);
-        /* 상차 목록은 시 · 군 · 구와 짝지어 뺀다 (`activeFilter.pickupGroups`) */
-        expect(n).toMatch(/mergeDropoffGroups\(parts, session\.activeFilter\.pickupGroups/);
-        expect(fm).not.toMatch(/session\.activeFilter\.localMode = /);
-    });
     it('🔴 상차 목록을 먼저 만들고 하차 목록을 만든다 · 0.5km 마다 상차 목록이나 가까이 옴이 바뀌면 하차 목록도 (2026-09-15)', () => {
         const r = body(fm, 'export function rebuildNetFilter');
         const pick = r.indexOf('rebuildPickupList(session, userId)');
         expect(pick).toBeGreaterThan(-1);
         expect(pick).toBeLessThan(r.indexOf('netFilterOf(session, userId)'));
         expect(body(fm, 'export function maybeRebuildPickupList')).toMatch(/rebuildNetFilter\(userId, io, true\)/);
-        expect(body(fm, 'export function rebuildPickupList')).toMatch(/pickupNearKey/);
+        /* 가까이 옴이 바뀌면 «바뀌었다»를 내는지는 filterListRules 가 동작으로 문다 */
     });
     it('🔴 확정 순간 그때의 «필터값»을 콜의 목표값으로 적는다 — 좌표로 되짚지 않는다', () => {
         expect(body(de, 'export async function handleDecision')).toMatch(/goalCity = goalCityOf\(session, userId\)/);
-        expect(fm).not.toMatch(/function goalOfCall/);
+        /* 좌표로 되짚는 함수가 없는지는 goalOfCallLocal 이 문다 */
     });
     it('🔴 지도는 목적지마다 하차 조각을 그리고 마커를 찍는다 · 콜 카드에 판', () => {
         /* 🔴 지도는 서버가 낸 목적지 목록을 받아 쓴다 — 다시 계산하지 않는다 (관제웹 stageAreas.test «목적지는 서버가 낸 goalCities 그대로») */

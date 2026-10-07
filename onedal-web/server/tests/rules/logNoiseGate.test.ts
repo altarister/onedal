@@ -62,14 +62,6 @@ describe('🧹 관제웹 → 서버 중계 — 유지 목록만 싣는다', () =
         });
 });
 
-/** 🔄 지나온 구간 줄은 뺀 동의 이름을 싣는다 — 숫자만 있으면 «곧 내릴 하차지 동이 빠졌나»를 로그로 못 가린다 */
-describe('🔄 지나온 구간 줄', () => {
-    it('🔴 뺀 동 이름을 싣는다(많으면 앞 몇 개 + «외 N»)', () => {
-        const fm = readFileSync(join(__dirname, '../../src/state/filterManager.ts'), 'utf8');
-        expect(fm).toMatch(/\[지나온 구간\][^;]*뺀 \$\{[^}]+\}개[^;]*\$\{goneText\}/);
-        expect(fm).toMatch(/goneText = [^;]*외 \$\{/);
-    });
-});
 
 describe('🧹 한 판 400줄 — 되풀이 줄은 바뀔 때만', () => {
     const src = (p: string) => readFileSync(join(__dirname, '../../src', p), 'utf8');

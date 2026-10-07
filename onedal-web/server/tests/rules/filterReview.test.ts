@@ -178,11 +178,6 @@ describe('2단계 · 배율이 아니라 «거리»를 싣는다 — 화면이 �
         expect(body).toMatch(/radiusDistanceKm/);
         expect(body).not.toMatch(/f\.radiusScale/);
     });
-
-    it('🔴 서버는 거리를 싣는다 — 자동이든 수동이든 (수동→자동 미리보기가 그 자리에서 된다)', () => {
-        expect(fm).toMatch(/session\.activeFilter\.radiusDistanceKm\s*=/);
-        expect(fm).not.toMatch(/session\.activeFilter\.radiusScale\s*=/);
-    });
 });
 
 describe('2단계 · 마름모·제외단어도 만지면 바로 (조사 ①-2)', () => {
@@ -260,40 +255,6 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         expect(ix).toMatch(/goalCity\?: string/);
     });
 
-    it('🔴 goalCityOf 한 곳이 목적지를 낸다', () => {
-        expect(fm).toMatch(/export function goalCityOf\(/);
-        const i = fm.indexOf('export function goalCityOf(');
-        const body = fm.slice(i, fm.indexOf('\n}', i));
-        expect(body).toMatch(/'HOME'/);
-        expect(body).toMatch(/destinationCity/);
-    });
-
-    it('🔴 재계산·합짐·경유 조립이 전부 goalCityOf 를 본다 — destinationCity 를 직접 안 읽는다', () => {
-        /* 첫짐 재계산 */
-        const i = fm.indexOf('needsGeoRecalc) {');
-        expect(i).toBeGreaterThan(-1);
-        expect(fm.slice(i, i + 400)).toMatch(/goalCityOf\(/);
-        /* 합짐 갱신 — 목적지가 둘일 수 있다(복귀 대기). 목적지 목록도 파생 한 곳(`goalCitiesOf`)이다 */
-        const j = fm.indexOf('function netOfGoals');
-        expect(j).toBeGreaterThan(-1);
-        /* 🔴 **길이로 자르지 않는다** — 이름이 길어지면 찾는 줄이 창 밖으로 밀려 «없다»가 된다.
-           함수 끝까지 본다 (루트 README.md 규약) */
-        const goalsBody = fm.slice(j, fm.indexOf('\n}', j));
-        /* 목적지마다 상태 · 가까이 옴은 한 곳(`goalZonesNow`)이 낸다. 목적지는 기사님 목적지(destinationCity)와 집에서 파생 — 덮어쓰지 않는다 */
-        expect(goalsBody).toMatch(/goalZonesNow\(session, userId/);
-        expect(goalsBody).toMatch(/netKeywordsOf\(session, userId, z\.city,/);
-        /* 복귀(HOME)를 보는 곳은 목적지 상태 한 곳 `goalZonesNow` 다 (`goalCitiesOf` 는 그 목적지 이름만 낸다) */
-        const g = fm.indexOf('function goalZonesNow(');
-        expect(fm.slice(g, fm.indexOf('\n}', g))).toMatch(/'HOME'/);
-        const gc = fm.indexOf('export function goalCitiesOf(');
-        expect(fm.slice(gc, fm.indexOf('\n}', gc))).toMatch(/goalZonesNow\(session, userId/);
-        /* 경유 ∪ 목적지 조립 */
-        const k = fm.indexOf('const merged = unionRegions(');
-        expect(fm.slice(k, k + 200)).toMatch(/goalCityOf\(/);
-        /* 파생값을 세션에 남긴다 — 화면이 읽는다 */
-        expect(fm).toMatch(/session\.activeFilter\.goalCity\s*=/);
-    });
-
     it('🔴 타겟을 바꾸면 그물을 다시 그린다', () => {
         const i = fm.indexOf('const needsGeoRecalc');
         expect(fm.slice(i, fm.indexOf(';', i))).toMatch(/'callTarget' in changes/);
@@ -304,11 +265,7 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
         expect(i).toBeGreaterThan(-1);
         const body = de.slice(i - 200, i + 200);
         expect(body).not.toMatch(/destinationCity: city/);
-        /* 빈 차 목록도 파생 목적지를 본다 — 부팅·0건·KEEP 이 모두 netFilterOf 한 곳을 지난다 */
-        const j = fm.indexOf('function netFilterOf');
-        expect(j).toBeGreaterThan(-1);
-        /* 목적지 목록(`goalCitiesOf` · 복귀 대기면 둘)을 `netOfGoals` 가 돈다 */
-        expect(fm.slice(j, j + 400)).toMatch(/netOfGoals\(/);
+        /* 빈 차 목록도 파생 목적지(복귀면 집 시)를 보는지는 filterListRules 가 동작으로 문다 */
     });
 
     it('🔴 앱·지도·요약줄이 «그물의 목적지»를 본다', () => {
@@ -331,17 +288,8 @@ describe('3단계 · 집이 있는 시는 «좌표»로 뽑는다 — 주소 글
     const fm = codeOnly(read('state/filterManager.ts'));
     const de = codeOnly(read('services/dispatchEngine.ts'));
 
-    it('🔴 homeCityOf 한 곳이 좌표로 시를 낸다', () => {
-        expect(fm).toMatch(/export function homeCityOf\(/);
-        const i = fm.indexOf('export function homeCityOf(');
-        const body = fm.slice(i, fm.indexOf('\n}', i));
-        expect(body).toMatch(/nearestDong\(/);
-        expect(body).toMatch(/home_x|\.x\b/);
-    });
-
     it('🔴 goalCityOf 와 setCallTarget 이 그것을 쓴다 — 주소를 각자 자르지 않는다', () => {
-        const i = fm.indexOf('export function goalCityOf(');
-        expect(fm.slice(i, fm.indexOf('\n}', i))).toMatch(/homeCityOf\(/);
+        /* goalCityOf 쪽(복귀면 좌표로 뽑은 집 시)은 filterListRules 가 동작으로 문다 */
         const j = de.indexOf('export async function setCallTarget');
         const body = de.slice(j, de.indexOf('\nexport ', j + 10));
         expect(body).toMatch(/homeCityOf\(/);
@@ -469,9 +417,7 @@ describe('5단계 · 노선/동선은 필터 값이다 — 서버도 알고 저�
         expect(us.slice(j, us.indexOf('\n}\n', j))).toMatch(/routeMode/);
     });
     it('🔴 서버 그물이 동선이면 라인을 안 쓴다 · 바꾸면 다시 그린다', () => {
-        /* 그물 입력은 한 벌(`netOpts`)로 묶어 중심점 그물과 걸친 동이 같이 쓴다 */
-        const i = fm.indexOf('const netOpts = {');
-        expect(fm.slice(i, i + 400)).toMatch(/routeMode === false/);
+        /* 동선이면 라인을 안 쓰는지는 filterListRules 가 동작으로 문다 — 여기서는 바꾸면 다시 그리는 조건 */
         const k = fm.indexOf('const needsGeoRecalc');
         expect(fm.slice(k, fm.indexOf(';', k))).toMatch(/'routeMode' in changes/);
     });

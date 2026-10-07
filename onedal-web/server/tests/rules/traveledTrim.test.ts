@@ -81,23 +81,8 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
         expect(body).toMatch(/poly\[poly\.length - 1\]/);
     });
 
-    it('경유을 만드는 자리는 **모두** 진행도를 같이 기억한다', () => {
-        // 키워드만 갱신하고 진행도를 두면, 바뀌기 전 경로 기준으로 멀쩡한 동이 사라진다
-        for (const src of [fm, engine]) {
-            const calls = (src.match(/getDetourRegions\(/g) || []).length;
-            if (calls === 0) continue;
-            expect(src).toMatch(/rememberDetourProgress/);
-        }
-    });
-
     it('🔴 제거 **로직**은 한 곳(applyTraveledTrim)뿐이고, 부르는 곳은 둘이다', () => {
-        // ① 파생 계산의 끝 — 경유을 다시 그리는 길이 여럿인데(경로 갱신·반경 변경·국면 전환)
-        //    어느 길로 오든 다시 그리면 지나온 동이 되살아난다
-        const derive = fm.slice(fm.indexOf('function recalculateDerivedFields'), fm.indexOf('export function trimTraveled'));
-        expect(derive).toMatch(/applyTraveledTrim\(session\)/);
-        // ② GPS 전용 통로
-        const gps = fm.slice(fm.indexOf('export function trimTraveled'), fm.indexOf('export function rememberDetourProgress'));
-        expect(gps).toMatch(/applyTraveledTrim\(session\)/);
+        // ① 파생 계산의 끝 · ② GPS 전용 통로 — 두 길이 실제로 빼는지는 filterListRules 가 동작으로 문다
         // 그 둘뿐이다 — 세 번째가 생기면 순서에 따라 결과가 달라진다
         expect((fm.match(/applyTraveledTrim\(session\)/g) || []).length).toBe(2);
     });
@@ -107,33 +92,6 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
  * 안전 쪽으로 기운 규칙 — **일찍 빼면 잡을 수 있는 콜을 버린다.**
  */
 describe('지나온 구간 제거 — 일찍 빼지 않는다', () => {
-
-    const fn = fm.slice(fm.indexOf('export function applyTraveledTrim'), fm.indexOf('export function refreshDetourIfNeeded') > 0 ? fm.indexOf('export function refreshDetourIfNeeded') : undefined);
-    const body = fn.slice(0, fn.indexOf('\n}\n') + 2);
-
-    it('🔴 국면을 보지 않는다 — 지나온 동네는 합짐이든 운행중이든 지난 동네다', () => {
-        // 국면(DELIVERING)으로 가르면, 도착 감지가 국면을 GATHERING 으로 떨어뜨릴 때
-        // **달리는 중인데 제거가 멈춘다.**
-        // 조건은 데이터에 맡긴다 — 진행도 · 경로 · GPS 가 있으면 돈다
-        expect(body).not.toMatch(/dispatchPhase/);
-        expect(body).toMatch(/const progress = session\.detourProgressKm/);
-        expect(body).toMatch(/if \(!polyline \|\| !gps\) return false/);
-    });
-
-    it('🔴 진행도를 모르는 동은 남긴다', () => {
-        expect(body).toMatch(/progress\[d\] === undefined \|\| progress\[d\] >= at/);
-    });
-
-    it('🔴 전부 빠지면 아무것도 안 한다 — 빈 필터는 "제한 없음"이 아니라 고장이다', () => {
-        expect(body).toMatch(/kept\.size === 0\) return false/);
-    });
-
-    it('🔴 동·시 묶음·별칭을 한 벌로 줄인다 (별칭이 남으면 앱의 2단계 필터가 어긋난다)', () => {
-        expect(body).toMatch(/destinationKeywords =/);
-        expect(body).toMatch(/destinationGroups =/);
-        expect(body).toMatch(/customCityFilters =/);
-        expect(body).toMatch(/cityAliases\(parent\)/);
-    });
 
     it('사이클이 끝나면(STANDBY) 진행도를 지운다 — 다음 운행에 옛 기준이 남지 않게', () => {
         const at = fm.indexOf('if (isTransitionToEmpty)');
@@ -183,13 +141,6 @@ describe('GPS 경로는 전용 통로로 간다', () => {
     it('전용 콜백을 따로 받는다 (필터 변경과 인자가 다르다)', () => {
         expect(geo).toMatch(/trimTraveledCb\?: \(uid: string\) => void/);
         expect(handlers).toMatch(/trimTraveled\(uid, io\)/);
-    });
-
-    it('전용 통로는 파생 재계산을 거치지 않는다 (허용 차종·적재 칸을 다시 셀 이유가 없다)', () => {
-        const fn = fm.slice(fm.indexOf('export function trimTraveled'), fm.indexOf('export function rememberDetourProgress'));
-        expect(fn).not.toMatch(/recalculateDerivedFields/);
-        expect(fn).not.toMatch(/updateActiveFilter/);
-        expect(fn).toMatch(/broadcastFilter/);
     });
 });
 

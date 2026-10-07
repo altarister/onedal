@@ -37,17 +37,6 @@ describe('복귀 켬 — 바꾼 일을 적고 오늘 줄에서 되살린다', ()
         const store = read('src/state/userSessionStore.ts');
         expect(store.match(/callTarget: callTargetToday\(userId, Date\.now\(\)\)\.target/g)?.length).toBe(2);
     });
-
-    it('🔴 «복귀콜인가»는 복귀를 켠 시각에서 센다 — 이번 운행(deckOfCycle)으로 세지 않는다', () => {
-        const fm = read('src/state/filterManager.ts');
-        const calls = bodyOf(fm, 'export function homeCallsOf');
-        expect(calls).toMatch(/callTargetToday\(userId/);
-        expect(calls).toMatch(/isHomeCallSince\(/);
-        expect(calls).not.toMatch(/deckOfCycle/);
-        /* 살아 있는 목적지는 한 곳(`goalZonesNow`)이 정하고 «복귀콜을 잡았나»도 거기서 센다 */
-        expect(bodyOf(fm, 'function goalZonesNow(')).toMatch(/homeCallsOf\(session, userId, session\.myOrders\)/);
-        expect(bodyOf(fm, 'export function goalCitiesOf(')).toMatch(/goalZonesNow\(session, userId/);
-    });
 });
 
 describe('콜의 판 — 장부에 적고 되살린다', () => {

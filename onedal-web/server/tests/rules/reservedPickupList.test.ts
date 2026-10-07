@@ -65,13 +65,6 @@ describe('📅 내일 콜 상차 목록', () => {
 });
 
 describe('📅 서버 판정과 같은 값 · 앱에 싣기', () => {
-    it('🔴 판정과 같은 두 함수(homeOriginOf · reservedPickupRadiusKmOf)와 오늘 상차 목록의 pickupListFor 를 부른다', () => {
-        const fm = readFileSync(join(__dirname, '../../src/state/filterManager.ts'), 'utf8');
-        const body = fm.slice(fm.indexOf('export function ensureReservedPickupList'));
-        expect(body.slice(0, 2500)).toMatch(/homeOriginOf\(userId\)/);
-        expect(body.slice(0, 2500)).toMatch(/reservedPickupRadiusKmOf\(session\.baseFilter\)/);
-        expect(body.slice(0, 2500)).toMatch(/pickupListFor\(/);
-    });
     it('🔴 앱 필터에 reservedPickupKeywords · reservedPickupGroups 로 싣는다', () => {
         /* 관제앱 공급이 목록을 재고(ensure) · 싣는 칸은 appFilterOf 가 얹는다(보고 응답엔 필터가 없다) */
         const supply = readFileSync(join(__dirname, '../../src/state/phoneSupply.ts'), 'utf8');

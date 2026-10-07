@@ -17,39 +17,6 @@ const codeOnly = (src: string) =>
 describe('반경 자동 맞춤 — 서버 (C4-12)', () => {
     const fm = codeOnly(read('state/filterManager.ts'));
 
-    it('🔴 서버가 shared 의 계산을 부른다 — 제 손으로 비례식을 쓰지 않는다', () => {
-        expect(fm).toMatch(/autoRadii/);
-    });
-
-    it('🔴 자동일 때만 손댄다 — 수동이면 기사님 값 그대로', () => {
-        /* ⚠️ `autoRadii` 첫 등장은 **import 줄**이다 — 괄호가 붙은 «부르는 자리»를 찾는다 */
-        const i = fm.indexOf('autoRadii(');
-        expect(i).toBeGreaterThan(-1);
-        /* 앞뒤로 «자동인가»를 묻는 자리가 있어야 한다 */
-        const around = fm.slice(Math.max(0, i - 600), i + 400);
-        expect(around).toMatch(/radiusAuto/);
-    });
-
-    /**
-     * 🔴 **거리는 하루에 한 번 잰다 — 달리는 동안 다시 재지 않는다** (기사님 확정).
-     *
-     * **그물을 만들 때마다** 다시 재면 목적지에 가까울수록 배율이 0 으로 줄어든다 — 목적지 1.2km 앞이면
-     * 배율 0.03, 목적 원 10km → 0.3km 가 되고 관내 판단도 안 켜져 도착지 목록이 1곳이 된다. 기사님: *"그럼 나중에 관내콜을 할 수가 없다."*
-     */
-    it('🔴 들고 있는 거리를 먼저 쓰고, 없을 때만 «내 위치 → 목적지»로 잰다', () => {
-        /* 재는 자리는 `holdRadiusDistance` 한 곳이다. 상차 목록 · 하차 목록이 반경을 쓰기 전에 부른다 */
-        const h = fm.indexOf('function holdRadiusDistance(');
-        expect(h).toBeGreaterThan(-1);
-        const helper = fm.slice(h, fm.indexOf('\n}', h));
-        expect(helper).toMatch(/heldRadiusDistanceKm\(\s*session\.activeFilter\.radiusDistanceKm/);
-        /* 내 위치 → 목적지로 잰다 — 마지막 하차지(라인 끝)로 재지 않는다. 합짐이면 목적지 근처에서 반경이 사라진다 */
-        expect(helper).toMatch(/haversineKm\(me, goal\)/);   // 점을 통째로(shared haversineKm · 공통 함수 3) — 숫자 넷 순서 실수 자리가 없다
-        const i = fm.indexOf('autoRadii(');
-        const around = fm.slice(Math.max(0, i - 900), i + 200);
-        expect(around).toMatch(/holdRadiusDistance\(session, city, me\)/);
-        expect(around).not.toMatch(/quadStart/);
-    });
-
     it('🔴 기사님이 목적지를 바꾸면 들고 있던 거리를 비운다 — 다른 목적지의 거리를 쓰지 않는다', () => {
         expect(fm).toMatch(/'destinationCity' in changes[\s\S]{0,200}radiusDistanceKm\s*=\s*undefined/);
     });

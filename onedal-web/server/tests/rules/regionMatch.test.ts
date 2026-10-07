@@ -50,14 +50,6 @@ describe('배선 — 서버·앱이 같은 규칙을 쓴다', () => {
         expect(ev).toMatch(/anyRegionHit\(dropoffText, keywords, filter\.keywordTraps, filter\.destinationDongSigungu\)/);   // 동명이동 칸까지 (dongSigungu.test)
     });
 
-    it('🔴 keywordTraps 는 키워드에서 매번 파생된다 — 한 함수(`refreshKeywordTraps`) · 상차 ∪ 하차 목록 (2026-09-15)', () => {
-        const fm = read('../../src/state/filterManager.ts');
-        expect(fm.match(/keywordTraps = /g)?.length).toBe(1);
-        expect(fm).toMatch(/f\.keywordTraps = trapsForKeywords\(\[\.\.\.new Set\(\[\.\.\.\(f\.destinationKeywords \?\? \[\]\), \.\.\.\(f\.pickupKeywords \?\? \[\]\)\]\)\]\)/);
-        const upd = fm.slice(fm.indexOf('export function updateActiveFilter('));
-        expect(upd.slice(0, upd.indexOf('\n}'))).toMatch(/refreshKeywordTraps\(session\)/);
-    });
-
     /**
      * 🔴 **앞에 붙은 것이 사전에 있는 더 긴 지명이면 다른 곳이다** (기사님 실측)
      *

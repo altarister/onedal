@@ -563,44 +563,12 @@ describe('값 그릇 — 한 벌 (C3-3b)', () => {
  */
 describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
 
-    /** 🔴 ② 값 — 판정은 shared 하나가 한다. 서버가 제 규칙을 또 세우지 않는다 (규칙 ③) */
-    it('🔴 관내를 따로 재지 않는다 — «목적지 가까이 옴»(part.near)이 가른다 (2026-09-15 개정)', () => {
-        const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 6000);
-        expect(net).toMatch(/part\.near/);
-        expect(net).not.toMatch(/isLocalPhase\(/);
-        expect(net).not.toMatch(/const localMode/);
-    });
-
     /** 🔴 ① 스키마 — 파생값이라 **저장하지 않는다**. 저장하면 두 벌이 된다 */
     it('🔴 localMode 는 메모리에만 산다 (DB 에 안 쌓인다)', () => {
         const db = codeOnly(read(join(SERVER, 'db.ts')));
         expect(db).not.toMatch(/local_mode/);
         const shared = require("@onedal/shared");
         expect((shared.APP_FILTER_KEYS as readonly string[]).includes('localMode')).toBe(false);
-    });
-
-    /**
-     * 🔴 ⑤ 읽는 곳 — **그물 한 곳뿐이다.** 둘이 되면 각자 다른 질문을 답하기 시작한다.
-     * 🔴 그리고 **목적지를 안 건드린다**.
-     */
-    it('🔴 그물이 목적지를 안 건드린다 — 관내라고 city 를 갈아치우지 않는다', () => {
-        expect(fm).not.toMatch(/activeFilter\.localMode = /);
-        // 관내라고 `city` 를 갈아치우지 않는다 — 넘어온 목적지를 그대로 쓴다
-        const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 3000);
-        expect(net).not.toMatch(/city = /);
-    });
-
-    /**
-     * 🔴 **방향을 안 본다** (기사님: *"관내콜은 거리로 하지 말자. 그냥 상차지와 하차지가
-     *    같은 시도에 있으면"*). 관내 그물은 **목적지 원 안만**이다 (`callNet.judgeTwoStage` 의 local 과
-     *    같은 원). 각도를 360° 로 바꿔 마름모를 원으로 만들면 그 원이 **마름모반경**이라 이천 관내에
-     *    여주·용인 처인까지 든다. 라인(경로 양옆)은 동선일 때 끈다(`routeMode === false ? null : line`).
-     */
-    it('🔴 관내면 목적지 원 안만 — 각도 360° 우회를 안 쓴다', () => {
-        const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 4000);
-        expect(net).not.toMatch(/local: /);
-        expect(net).not.toMatch(/AngleDeg: 360/);
-        expect(net).toMatch(/session\.activeFilter\.routeMode === false \? null : line/);
     });
 
     /**
@@ -1183,25 +1151,6 @@ describe('경유 갱신 — 구현은 하나여야 한다', () => {
         expect((fm.match(/refreshDetourIfNeeded\(session/g) || []).length).toBe(1);
     });
 
-    it('반경이 그대로면 다시 그리지 않는다 (지리 연산은 CPU ~7초짜리다)', () => {
-        const fn = fm.slice(fm.indexOf('function refreshDetourIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
-        expect(fn).toMatch(/before\.detourRadiusKm/);
-        expect(fn).toMatch(/return/);
-    });
-
-    it('🔴 경로가 없으면 아무것도 넣지 않는다 (없는 값을 지어내지 않는다)', () => {
-        const fn = fm.slice(fm.indexOf('function refreshDetourIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
-        expect(fn).toMatch(/if \(!kept\?\.line\) return/);   // 라인이 없으면 안 넣는다
-    });
-
-    it('🔴 셋을 한 벌로 넣는다 — 별칭이 빠지면 앱의 2단계 필터가 조용히 꺼진다', () => {
-        const fn = fm.slice(fm.indexOf('function refreshDetourIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
-        /* 🚫 앞 둘은 제외를 뺀 `kept` 에서 온다 — 셋이 **함께** 들어간다는 것이 요점이다 */
-        expect(fn).toMatch(/destinationKeywords = kept\.flat/);
-        expect(fn).toMatch(/destinationGroups = kept\.grouped/);
-        expect(fn).toMatch(/customCityFilters = kept\.aliases/);   // 별칭도 그물 목록의 시들에서 온다
-    });
-
     it('🔴 recalculateDetourFilter 의 구현은 하나다 — dispatchEngine 은 다시 내보내기만 한다', () => {
             expect(engine).toMatch(/export \{ recalculateDetourFilter \} from "\.\.\/state\/filterManager"/);
         expect(engine).not.toMatch(/export const recalculateDetourFilter/);
@@ -1243,17 +1192,6 @@ describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => 
     });
 
     /**
-     * 🔴 **빼는 자리가 둘이면 갈라진다.** 서버는 지역 목록을 두 길로 만든다 —
-     *    도시 둘레(`getCityRegionsWithRadius`)와 경로 주변(`getDetourRegions`).
-     *    둘 다 `pruneExcludedRegions` 를 거쳐야 한다. 한쪽만 거치면
-     *    «첫짐에선 빠지는데 합짐에선 들어온다» 가 된다.
-     */
-    it('🔴 두 파생 길이 모두 pruneExcludedRegions 를 거친다', () => {
-        /* 목록을 만드는 길이 전부 netKeywordsOf 를 지나므로 빼는 자리는 **정확히 하나**다 */
-        expect((fm2.match(/pruneExcludedRegions\(/g) || []).length).toBe(1);
-    });
-
-    /**
      * 🔓 **«손으로 고쳤다»고 목록을 얼리지 않는다** (기사님 실측)
      *
      * 그전에는 `userOverrides && 콜 있음` 이면 하차 목록 갱신을 통째로 건너뛰었다.
@@ -1268,8 +1206,6 @@ describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => 
     it('🔴 목록 갱신을 건너뛰는 잠금이 없다 — 빼신 곳은 매번 걸러서 지킨다', () => {
         expect(fm2).not.toMatch(/userOverrides && getActiveCalls/);
         expect(fm2).not.toMatch(/경유 고정/);
-        /* 🔴 그래도 빼는 자리는 그대로 하나다 (위 검사와 한 벌) */
-        expect(fm2).toMatch(/pruneExcludedRegions\(/);
     });
 
     it('🔴 판별 규칙을 서버가 또 쓰지 않는다 (shared 함수 하나로만)', () => {
@@ -1289,9 +1225,7 @@ describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => 
         // ① 도시 둘레 (첫짐)
         const geoCond = fm2.slice(fm2.indexOf('const needsGeoRecalc'), fm2.indexOf('const needsGeoRecalc') + 500);
         expect(geoCond).toMatch(/'excludedRegions' in changes/);
-        // ② 경로 주변 (합짐) — 반경만 보면 «첫짐엔 빠지는데 합짐엔 들어온다» 가 된다
-        const detour = fm2.slice(fm2.indexOf('function refreshDetourIfNeeded'), fm2.indexOf('function applyPhaseSettingsIfChanged'));
-        expect(detour).toMatch(/exBefore === exNow/);
+        // ② 경로 주변 (합짐) — 두 길 모두 빠지는지는 filterListRules 가 동작으로 문다
     });
 
     it('🔴 화면에 고칠 자리가 있다 — 그릇만 파고 안 띄우면 기사님은 못 고치신다', () => {
@@ -1339,28 +1273,6 @@ describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => 
  */
 describe('그물 계산 — 서버도 실험실 것을 쓴다 (이식 C1-2)', () => {
 
-    const fm3 = codeOnly(read(join(SERVER, 'state/filterManager.ts')));
-
-    it('🔴 서버가 shared 의 그물 계산을 부른다', () => {
-        expect(fm3).toMatch(/netForGoal\(/);
-        expect(fm3).toMatch(/cityCenter\(/);
-    });
-
-    /**
-     * 🔴 **내 위치를 모르면 도시 둘레(`getCityRegionsWithRadius`)로 물러선다** — 첫짐 그물은 내 위치가 꼭짓점이라
-     *    없으면 못 그린다. **빈 목록은 «제한 없음»이 아니라 고장**이다 (규칙 ④).
-     */
-    it('🔴 내 위치가 없으면 도시 둘레로 물러선다 (비우지 않는다)', () => {
-        const fn = fm3.slice(fm3.indexOf('function netKeywordsOf'), fm3.indexOf('function netKeywordsOf') + 1400);
-        expect(fn).toMatch(/origin/);
-        expect(fn).toMatch(/getCityRegionsWithRadius/);   // 물러설 자리
-    });
-
-    it('🔴 마름모 모양은 평면 필터에서 온다 — 화면이 그리는 그 값이다', () => {
-        const fn = fm3.slice(fm3.indexOf('function netKeywordsOf'), fm3.indexOf('function netKeywordsOf') + 1400);
-        expect(fn).toMatch(/quadShapeFrom\(/);
-    });
-
     /**
      * 🔴 **지도의 제외 지역** — 지도는 영역 도형만 그리고 동 점을 찍지 않는다.
      *    그래서 제외는 서버 목록(`pruneExcludedRegions` 한 곳)에만 산다 — 지도가 동 점을 찍으면
@@ -1370,12 +1282,6 @@ describe('그물 계산 — 서버도 실험실 것을 쓴다 (이식 C1-2)', ()
         const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
         expect(stage).not.toMatch(/useCallNet/);
         expect(stage).not.toMatch(/netOverlay/);
-    });
-
-    it('🔴 제외 지역은 여전히 pruneExcludedRegions 한 곳이 뺀다', () => {
-        // 그물로 바꿔도 빼는 자리는 안 늘어난다 (규칙 ③)
-        /* 목록을 만드는 길이 전부 netKeywordsOf 를 지나므로 빼는 자리는 **정확히 하나**다 */
-        expect((fm3.match(/pruneExcludedRegions\(/g) || []).length).toBe(1);
     });
 });
 

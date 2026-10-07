@@ -85,15 +85,6 @@ describe('상차 목록 — 실제 지도', () => {
         expect(noLine.list).toEqual(pickupListFor({ radii, me: TERMINAL, line: null, parts: parts(false) }).list);
     });
 
-    /**
-     * 🔴 **목적지 개수는 조각이 볼 사실이 아니다** — 조각은 «출발했나 · 경로가 있나 · 가까이 온 목적지»만 본다.
-     *    그래서 «목적지를 모르면 빈 목록»은 부르는 쪽(`rebuildPickupList`)이 가른다. 여기서 그 배선을 문다.
-     */
-    it('🔴 목적지가 없으면 빈 목록 — 빈 목록은 고장으로 막힌다 (아래 배선)', () => {
-        const fm = readFileSync(join(__dirname, '../../src/state/filterManager.ts'), 'utf8');
-        expect(fm).toMatch(/zones\.length === 0\s*\n?\s*\? \{ list: \[\] as string\[\]/);
-    });
-
     it('🔴 시 · 군 · 구로 묶은 목록도 낸다 — 하차 목록이 같은 이름의 다른 동을 안 빼게 (리뷰 2026-09-15)', () => {
         const r = pickupListFor({ radii, me: MODA, line: null, parts: parts(false) });
         expect([...new Set(Object.values(r.grouped).flat())].sort()).toEqual([...r.list].sort());
@@ -132,16 +123,6 @@ describe('📏 상차 목록은 자동 반경을 먼저 잰다 (#149)', () => {
         expect(s.activeFilter.pickupKeywords ?? []).not.toContain('목현동');
         expect(s.activeFilter.pickupKeywords ?? []).toContain('초월읍');
     });
-    it('🔴 거리를 재는 자리는 한 곳 — 상차 목록 · 하차 목록이 반경을 쓰기 전에 부른다', () => {
-        const fm = readFileSync(join(__dirname, '../../src/state/filterManager.ts'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-        expect((fm.match(/heldRadiusDistanceKm\(/g) || []).length).toBe(1);
-        const pick = fm.slice(fm.indexOf('export function rebuildPickupList('));
-        const body = pick.slice(0, pick.indexOf('\n}'));
-        expect(body.indexOf('holdRadiusDistance(')).toBeGreaterThan(-1);
-        expect(body.indexOf('holdRadiusDistance(')).toBeLessThan(body.indexOf('effectiveRadii('));
-        const net = fm.slice(fm.indexOf('function netKeywordsOf('));
-        expect(net.slice(0, net.indexOf('autoRadii('))).toMatch(/holdRadiusDistance\(session, city, me\)/);
-    });
 });
 
 describe('상차 목록 배선', () => {
@@ -157,14 +138,7 @@ describe('상차 목록 배선', () => {
         const fm = code('state/filterManager.ts');
         const rebuild = fm.slice(fm.indexOf('export function rebuildNetFilter('));
         expect(rebuild.slice(0, rebuild.indexOf('\n}'))).toMatch(/rebuildPickupList\(session, userId\)/);
-        const pick = fm.slice(fm.indexOf('export function rebuildPickupList('));
-        const body = pick.slice(0, pick.indexOf('\n}'));
-        /* 목적지 상태 · 가까이 옴은 하차 목록과 같은 한 곳 (`goalZonesNow`) */
-        expect(body).toMatch(/goalZonesNow\(session, userId/);
-        expect(body).toMatch(/pickupListFor\(/);
-        expect(body).toMatch(/refreshKeywordTraps\(session\)/);
-        /* 🔴 지도 재료(복귀 켬 · 복귀콜 쥠 · 집 · 라인)가 바뀌어도 «바뀌었다»고 알린다 — 목록만 보면 옛 재료로 그린다 */
-        expect(body).toMatch(/pickupAreaKey\(/);
+        /* 상차 목록 안쪽(목적지 상태 · 함정 낱말 · 지도 재료가 바뀌면 «바뀌었다»)은 filterListRules 가 동작으로 문다 */
         expect(code('socket/socketHandlers.ts')).toMatch(/maybeRebuildPickupList\(userId, io\)/);
     });
 
@@ -200,14 +174,6 @@ describe('상차 목록 배선', () => {
         expect(body.indexOf('rebuildPickupList(session, userId)')).toBeLessThan(body.indexOf('netFilterOf(session, userId)'));
         /* 🔴 중간에 돌아서는 잠금이 없다 */
         expect(body).not.toMatch(/userOverrides/);
-    });
-    it('🔴 하차 목록은 동선이면 라인이 없다고 본다 · 상차 목록은 시 · 군 · 구로 묶어 뺀다', () => {
-        const fm = code('state/filterManager.ts');
-        const n = fm.slice(fm.indexOf('function netOfGoals('));
-        const body = n.slice(0, n.indexOf('\n}'));
-        expect(body).toMatch(/routeMode === false/);
-        expect(body).toMatch(/mergeDropoffGroups\(parts, session\.activeFilter\.pickupGroups/);
-        expect(fm).toMatch(/f\.pickupGroups = grouped/);
     });
     it('📍 지도 동 점 — 서버가 상차 목록 묶음을 필터에 싣고 · 무대가 dongDotsOf 로 · 캔버스 «동 점» 레이어 (기사님 2026-09-15 «다시 넣어줘»)', () => {
         const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
