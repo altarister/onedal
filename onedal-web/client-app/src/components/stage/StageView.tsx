@@ -4,6 +4,7 @@ import type { SecuredOrder, RouteStopInfo, DecisionStatus } from '@onedal/shared
 import { hasVisitedStop, isDeliveredCall, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { useProcessingLock } from '../../hooks/useProcessingLock';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { useStageAreas } from '../../hooks/useStageAreas';
 import { useSidePanelRoom } from '../../hooks/useSidePanelRoom';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -554,6 +555,8 @@ export default function StageView(props: Props) {
         <section id="stage-view" className="relative flex-1 min-h-0">
             {/* 지도 배경 — 캔버스 재사용 (배경 어댑터 자리: 훗날 카카오 타일 실험) */}
             <div className="absolute inset-0">
+                {/* 🗺️ 지도 · 콜 목록 · 판정석은 경계를 따로 — 지도가 던져도 판정석은 남는다 (D3 P6-11) */}
+                <ErrorBoundary label="지도">
                 <PinnedRouteCanvas
                     fill
                     /* 🪟 시트가 올라온 만큼 지도가 위로 비켜 준다 — 반쯤 열면 둘을 같이 본다 */
@@ -714,6 +717,7 @@ export default function StageView(props: Props) {
                       *    snap 이 정한 높이와 실제가 갈라져 버튼이 엉뚱한 자리에 뜬다 (규칙 ③).
                       */}
                 </PinnedRouteCanvas>
+                </ErrorBoundary>
             </div>
 
             {/**
@@ -764,14 +768,15 @@ export default function StageView(props: Props) {
                          *    그러라고 시트가 3단이다 (놓치지 않는다).
                          */
                         bottomBox={derived.judging ? (
-                            <JudgmentSeat
+                            <ErrorBoundary label="판정석"><JudgmentSeat
                                 route={derived.judging}
                                 confirmedActive={cycleDeck.filter(o => o.id !== derived.judging!.id).length}
                                 onDecision={props.onDecision}
                                 processingId={seatProcessingId}
                                 setProcessingId={setSeatProcessingId}
-                            />
+                            /></ErrorBoundary>
                         ) : props.unreadable ? <UnreadableSeat u={props.unreadable} /> : undefined}>
+                <ErrorBoundary label="콜 목록">
                 <PinnedRouteBody {...props} d={derived}
                     /* 🙈 지나간 콜 — 배열에서 빼지 않고 가린다 (`lib/pastCalls` 머리 참조).
                        열어 둔 콜은 끝났어도 안 가린다 — 손이 고른 것이 규칙보다 세다 */
@@ -807,6 +812,7 @@ export default function StageView(props: Props) {
                             setOpenIdx(mv.openIdx);
                         }
                     }} />
+                </ErrorBoundary>
             </StageSheet>
         </section>
     );
