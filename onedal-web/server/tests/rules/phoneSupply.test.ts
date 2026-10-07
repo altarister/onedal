@@ -7,7 +7,7 @@ import { applyPhoneStatus, phoneStatusOf, isAppTooOld } from '../../src/state/ph
 import scrapRouter from '../../src/routes/scrap';
 import ordersRouter from '../../src/routes/orders';
 import detailRouter from '../../src/routes/detail';
-import { getUserDevicesSnapshot } from '../../src/routes/devices';
+import { getUserDevicesSnapshot } from '../../src/state/deviceSessions';
 import { ackDecision, unackedPhoneDecisions, decide } from '../../src/state/decisions';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import db from '../../src/db';

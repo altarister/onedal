@@ -8,7 +8,7 @@ import { getUserSession } from "../state/userSessionStore";
 import { ensureBusinessDay } from "../state/filterManager";
 import { clientIpOf } from "../utils/clientIp";
 
-import { touchDeviceSession } from "./devices";
+import { touchDeviceSession } from "../state/deviceSessions";
 import { pairSigOf, bleAdTagOf, serverIdOf } from "../state/phoneSupply";
 import { markAppTooOld, clearAppTooOld } from "../state/phoneStatus";
 import { simRoundForPhone } from "./sim";

@@ -27,7 +27,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 /* 📍 서버가 다시 떠도 «내가 어디 있었나»를 잃지 않는다 */
 import { lastTrackPointOf } from "./gpsTrackStore";
 import { PlaceRepository } from "../repositories/PlaceRepository";
-import { getDeviceMode } from "../routes/devices";
+import { getDeviceMode } from "../state/deviceSessions";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";

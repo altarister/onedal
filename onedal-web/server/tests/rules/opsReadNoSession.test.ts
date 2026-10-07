@@ -1,7 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import opsRouter from '../../src/routes/ops';
-import { getDeviceMode } from '../../src/routes/devices';
+import { getDeviceMode } from '../../src/state/deviceSessions';
 import { peekUserSession, getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 
 /**

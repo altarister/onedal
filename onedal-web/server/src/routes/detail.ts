@@ -11,7 +11,7 @@ import { getUserSession } from "../state/userSessionStore";
 import { armWait } from "../state/waits";
 import { evolveOrder, rememberOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder, bootstrapUserSession } from "../services/dispatchEngine";
-import { getDeviceMode } from "./devices";
+import { getDeviceMode } from "../state/deviceSessions";
 import db from "../db";
 import { slog } from "../utils/fileLogger";
 import { releaseEvaluatingDevices } from "../core/helpers";

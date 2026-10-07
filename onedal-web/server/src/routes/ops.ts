@@ -6,7 +6,7 @@ import {
     type OpsMemberDetail, type OpsJudgedCall, type JudgedCallInfo, type JudgedFilterInfo, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
 } from "@onedal/shared";
 import db from "../db";
-import { getUserDevicesSnapshot, getActiveDevicesSnapshot } from "./devices";
+import { getUserDevicesSnapshot, getActiveDevicesSnapshot } from "../state/deviceSessions";
 import { BOOTED_AT, GIT_INFO } from "./health";
 import { peekUserSession, baseFilterFromDb, getAllActiveUserIds } from "../state/userSessionStore";
 import { appFilterOf } from "../state/appFilter";

@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { isLiveServer } from "../config/env";
-import { getUserDevicesSnapshot } from "../routes/devices";
+import { getUserDevicesSnapshot } from "../state/deviceSessions";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, CallStepId, DecisionStatus } from "@onedal/shared";

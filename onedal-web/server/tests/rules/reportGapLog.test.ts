@@ -20,7 +20,7 @@ const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
 
 describe('⏱️ 조용한가 — 직전 보고 시각', () => {
     it('이 값으로 서버가 무엇을 «정하지»는 않는다 — 로그에만 쓴다 (규칙 ⑤-4 ⑤)', () => {
-        const src = codeOnly(srv('routes/devices.ts'));
+        const src = codeOnly(srv('state/deviceSessions.ts'));
         // 분기 조건에 prevSeen 이 들어가면 «한 값이 두 질문을 답하는» 자리가 된다
         expect(src).not.toMatch(/if\s*\([^)]*prevSeen/);
     });

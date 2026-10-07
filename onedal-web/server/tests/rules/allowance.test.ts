@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import Database from 'better-sqlite3';
 import { allowanceLive, modeForPhone, runningModeOf, isModeApplying } from '@onedal/shared';
-import { touchDeviceSession, getActiveDevicesSnapshot } from '../../src/routes/devices';
+import { touchDeviceSession, getActiveDevicesSnapshot } from '../../src/state/deviceSessions';
 import db, { migrateAccountColumns, migrateAllowanceColumns } from '../../src/db';
 import { allowanceOf } from '../../src/core/allowance';
 import { accountFactsOf } from '../../src/core/accountGate';

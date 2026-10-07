@@ -24,7 +24,7 @@ import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatch
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { isHeldReserved } from "../services/reservedOrders";
-import { getDeviceMode } from "./devices";
+import { getDeviceMode } from "../state/deviceSessions";
 import { parsePolyline, parseSectionEnds, parseSectionStops, parseSectionDriveMin } from "../services/routeComposer";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";

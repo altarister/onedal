@@ -67,7 +67,8 @@ describe('«어떻게 잡았나» — 기록 전용 칸', () => {
         const engine = strip('../../src/services/dispatchEngine.ts');
         const detail = strip('../../src/routes/detail.ts');
         const devices = strip('../../src/routes/devices.ts');
-        for (const src of [engine, detail, devices]) {
+        const deviceSessions = strip('../../src/state/deviceSessions.ts');
+        for (const src of [engine, detail, devices, deviceSessions]) {
             expect(src).not.toMatch(/capturedVia\s*===|===\s*.{0,20}capturedVia/);
         }
     });

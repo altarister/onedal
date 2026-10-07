@@ -10,6 +10,9 @@ cd "${DEPLOY_DIR:-$PWD}" || exit 1
 HEALTH_URL="${DEPLOY_HEALTH_URL:-localhost:4000/api/health}"
 HEALTH_TRIES="${DEPLOY_HEALTH_TRIES:-15}"
 HEALTH_WAIT="${DEPLOY_HEALTH_WAIT:-2}"
+BUSY_URL="${DEPLOY_BUSY_URL:-localhost:4000/api/health/busy}"
+BUSY_EVERY="${DEPLOY_BUSY_EVERY:-60}"     # 초 — 운행 중이면 이만큼 뒤 다시 묻는다
+BUSY_MAX="${DEPLOY_BUSY_MAX:-14400}"      # 초 — 4시간 넘게 운행 중이면 멈춘다(빨간불)
 
 PREV=$(git rev-parse HEAD)
 CLIENT_SWAPPED=0
@@ -64,6 +67,25 @@ fail() {
     fi
     exit 1
 }
+
+# 🚦 운행 중이면 기다린다 — 다시 뜨면 결재 기다림 · 심사 중 · 안전취소 타이머가 사라진다(서버 메모리). 코드를 갈아 끼우기 **전에** 묻는다.
+#    서버가 답하지 않으면(죽어 있음) 기다릴 것이 없으니 그대로 간다 · 수동 실행의 «운행 중이어도 올림»(DEPLOY_FORCE=true)이면 묻지 않는다
+if [ "${DEPLOY_FORCE:-false}" = true ]; then
+    echo "⚠️ 운행 중이어도 올림 — 수동 실행에서 체크했다"
+else
+    waited=0
+    while true; do
+        ans=$(curl -sf "$BUSY_URL") || { echo "ℹ️ 서버가 운행 여부에 답하지 않는다 — 기다리지 않고 배포"; break; }
+        echo "$ans" | grep -q '"busy":true' || break
+        if [ "$waited" -ge "$BUSY_MAX" ]; then
+            echo "❌ $((BUSY_MAX / 3600))시간 넘게 운행 중 — 배포를 멈춘다(옛 판 그대로) · 운행이 끝난 뒤 GitHub 에서 다시 실행: $ans"
+            exit 1
+        fi
+        echo "🚦 운행 중이라 기다림 — $ans · ${waited}초 지남"
+        sleep "$BUSY_EVERY"
+        waited=$((waited + BUSY_EVERY))
+    done
+fi
 
 # 💾 [0/5] 코드를 갈아끼우기 **전에** DB 를 뜬다 — WAL 모드라 세 파일을 같이 뜬다(본체만 뜨면 최근 기록이 빠진다) · 최근 5벌
 echo "💾 [0/5] 배포 전 DB 백업"

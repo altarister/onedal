@@ -1,6 +1,6 @@
 // @ts-nocheck
 import db from '../../src/db';
-import { touchDeviceSession, getUserDevicesSnapshot } from '../../src/routes/devices';
+import { touchDeviceSession, getUserDevicesSnapshot } from '../../src/state/deviceSessions';
 
 /**
  * ⏳ **서버가 뜬 뒤 아직 못 들은 폰은 «끊김»이 아니라 «로딩 중»** (기사님 «통신이 되지 않았으면 버튼에 로딩 중이 나와야 하는데 · 통신 끊김이라고 거짓말한 거야»).

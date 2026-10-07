@@ -1,6 +1,6 @@
 // @ts-nocheck
 import db from '../../src/db';
-import { touchDeviceSession, getActiveDevicesSnapshot } from '../../src/routes/devices';
+import { touchDeviceSession, getActiveDevicesSnapshot } from '../../src/state/deviceSessions';
 
 /**
  * 📍 **폰 보고에 위치가 실린 마지막 시각** (onedal-69 «나» · 운영센터 홈 «기사 이상»).

@@ -5,7 +5,7 @@ import { cancelWait } from '../../src/state/waits';
 import { forceCancelEvaluatingOrder } from '../../src/services/dispatchEngine';
 import { initGeoService } from '../../src/services/geoService';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
-import * as devices from '../../src/routes/devices';
+import * as devices from '../../src/state/deviceSessions';
 import { UNKNOWN_LEAVE_SEC } from '@onedal/shared';
 
 /**

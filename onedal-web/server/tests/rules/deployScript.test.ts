@@ -36,7 +36,16 @@ fi
 [ "$1" = build ] && exit 1
 exit 0`);
     tool(bin, 'pm2', `echo "pm2 $1 @$(git -C "${web}" rev-parse --short HEAD)" >> "${log}"; exit 0`);
-    tool(bin, 'curl', `[ -f "${web}/server/NOHEALTH" ] && exit 7; echo '{"ok":true}'; exit 0`);
+    /* 🚦 운행 확인(/busy)은 busy.seq 의 줄을 하나씩 꺼내 답한다(true · false · none=답 없음) · 다 쓰면 false */
+    const seq = join(root, 'busy.seq');
+    tool(bin, 'curl', `for a in "$@"; do url=$a; done
+if [[ "$url" == */busy ]]; then
+  ans=$(head -n1 "${seq}" 2>/dev/null); [ -n "$ans" ] && sed -i.bak 1d "${seq}"
+  echo "curl busy $ans" >> "${log}"
+  [ "$ans" = none ] && exit 7
+  echo "{\"busy\":\${ans:-false}}"; exit 0
+fi
+[ -f "${web}/server/NOHEALTH" ] && exit 7; echo '{"ok":true}'; exit 0`);
     tool(bin, 'sudo', 'exit 0'); tool(bin, 'free', 'exit 0'); tool(bin, 'swapon', 'echo on');
     /** origin 에 새 판 하나를 올린다 */
     const pushNew = (extra: string[]) => {
@@ -48,15 +57,16 @@ exit 0`);
         return git(tmp, 'rev-parse', 'HEAD');
     };
     /** deploy.yml 처럼 스크립트를 임시 파일로 꺼내 돌린다(돌던 스크립트를 git 이 덮어쓰지 않게) */
-    const run = (script = SCRIPT) => {
+    const busy = (...answers: string[]) => writeFileSync(seq, answers.join('\n') + '\n');
+    const run = (script = SCRIPT, extra: Record<string, string> = {}) => {
         const copy = join(root, 'deploy-run.sh'); copyFileSync(script, copy);
         const r = spawnSync('bash', [copy], { cwd: web, encoding: 'utf8',
-            env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, HOME: root, DEPLOY_DIR: web, DEPLOY_HEALTH_TRIES: '2', DEPLOY_HEALTH_WAIT: '0' } });
+            env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, HOME: root, DEPLOY_DIR: web, DEPLOY_HEALTH_TRIES: '2', DEPLOY_HEALTH_WAIT: '0', DEPLOY_BUSY_EVERY: '0', DEPLOY_BUSY_MAX: '3', ...extra } });
         return { code: r.status, out: r.stdout + r.stderr, tools: existsSync(log) ? readFileSync(log, 'utf8') : '' };
     };
     const head = () => git(web, 'rev-parse', 'HEAD');
     const shown = () => readFileSync(join(web, 'client-app/dist/index.html'), 'utf8').trim();
-    return { A, pushNew, run, head, shown };
+    return { A, pushNew, run, head, shown, busy };
 }
 
 describe('배포 스크립트 — 실패하면 옛 판이 남는다', () => {
@@ -88,5 +98,37 @@ describe('배포 스크립트 — 실패하면 옛 판이 남는다', () => {
         expect(r.code).toBe(0);
         expect(s.head()).toBe(B);
         expect(s.shown()).toBe(B.slice(0, 7));
+    });
+});
+
+describe('배포 스크립트 — 운행 중이면 기다린다', () => {
+    it('운행 중인 동안은 코드를 안 갈아 끼우고 · 풀리면 새 판으로 간다', () => {
+        const s = stage();
+        const B = s.pushNew([]);
+        s.busy('true', 'true', 'false');
+        const r = s.run();
+        expect(r.code).toBe(0);
+        expect(s.head()).toBe(B);
+        expect(r.out).toMatch(/운행 중이라 기다림/);
+        expect(r.tools.indexOf('curl busy false')).toBeLessThan(r.tools.indexOf('pm2 reload'));   // 풀린 뒤에야 다시 띄운다
+    });
+
+    it('상한을 넘기도록 운행 중이면 옛 판 그대로 멈춘다(빨간불)', () => {
+        const s = stage();
+        s.pushNew([]);
+        s.busy('true', 'true', 'true', 'true', 'true', 'true');
+        const r = s.run(undefined, { DEPLOY_BUSY_EVERY: '1', DEPLOY_BUSY_MAX: '2' });
+        expect(r.code).not.toBe(0);
+        expect(s.head()).toBe(s.A);
+        expect(r.tools).not.toMatch(/pm2 (reload|start)/);
+    });
+
+    it('서버가 운행 여부에 답하지 않으면 기다리지 않고 간다 · «운행 중이어도 올림»이면 묻지 않는다', () => {
+        const s1 = stage(); const B1 = s1.pushNew([]); s1.busy('none');
+        expect(s1.run().code).toBe(0); expect(s1.head()).toBe(B1);
+        const s2 = stage(); const B2 = s2.pushNew([]); s2.busy('true', 'true', 'true', 'true', 'true');
+        const r2 = s2.run(undefined, { DEPLOY_FORCE: 'true', DEPLOY_BUSY_EVERY: '1', DEPLOY_BUSY_MAX: '2' });
+        expect(r2.code).toBe(0); expect(s2.head()).toBe(B2);
+        expect(r2.tools).not.toMatch(/curl busy/);
     });
 });

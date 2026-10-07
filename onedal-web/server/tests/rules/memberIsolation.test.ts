@@ -2,7 +2,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import db from '../../src/db';
-import devicesRouter, { touchDeviceSession } from '../../src/routes/devices';
+import devicesRouter from '../../src/routes/devices';
+import { touchDeviceSession } from '../../src/state/deviceSessions';
 import telemetryRouter from '../../src/routes/telemetry';
 import screenWordsRouter from '../../src/routes/screenWords';
 import detailRouter from '../../src/routes/detail';

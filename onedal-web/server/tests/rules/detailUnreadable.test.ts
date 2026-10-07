@@ -1,7 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import telemetryRouter, { unreadableReasonOf } from '../../src/routes/telemetry';
-import { touchDeviceSession } from '../../src/routes/devices';
+import { touchDeviceSession } from '../../src/state/deviceSessions';
 import { approvedUser } from '../fixtures/approvedUser';
 
 /**

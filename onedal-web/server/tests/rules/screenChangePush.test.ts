@@ -1,6 +1,6 @@
 // @ts-nocheck
 import db from '../../src/db';
-import { touchDeviceSession } from '../../src/routes/devices';
+import { touchDeviceSession } from '../../src/state/deviceSessions';
 import { approvedUser } from '../fixtures/approvedUser';
 
 /**

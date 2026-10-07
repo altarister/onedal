@@ -2,7 +2,7 @@ import { Router } from "express";
 import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { isDetailScreen } from "@onedal/shared";
-import { deviceScreenOf, deviceOnList } from "./devices";
+import { deviceScreenOf, deviceOnList } from "../state/deviceSessions";
 import { slog } from "../utils/fileLogger";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import { saveShot } from "../core/anomalyShots";

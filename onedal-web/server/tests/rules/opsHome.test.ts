@@ -2,7 +2,7 @@
 import db from '../../src/db';
 import opsRouter from '../../src/routes/ops';
 import { networkLevelOf, NETWORK_ALARM, needsUpdateOf, locationStaleOf, GPS_STALE_MS } from '../../src/services/opsHome';
-import { touchDeviceSession } from '../../src/routes/devices';
+import { touchDeviceSession } from '../../src/state/deviceSessions';
 import { homeOf, locationsOf } from '../../src/routes/ops';
 import { getUserSession, peekUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { kakaoTotalOf } from '@onedal/shared';

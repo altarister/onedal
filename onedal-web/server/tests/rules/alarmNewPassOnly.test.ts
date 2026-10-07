@@ -1,6 +1,6 @@
 // @ts-nocheck
 import db from '../../src/db';
-import { touchDeviceSession } from '../../src/routes/devices';
+import { touchDeviceSession } from '../../src/state/deviceSessions';
 
 /**
  * 🔔 **새로 알람감이 된 통과 콜이 있을 때만 알람** (기사님 «뜬금없이 소리만 나고 아무 액션이 없어» · onedal-1f «가»).

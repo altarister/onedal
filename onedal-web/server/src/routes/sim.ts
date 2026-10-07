@@ -8,7 +8,7 @@ import { getActiveCalls } from "../core/helpers";
 import { mapCoverage } from "../services/geoService";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { effectiveRadii } from "@onedal/shared";
-import { getUserDevicesSnapshot } from "./devices";
+import { getUserDevicesSnapshot } from "../state/deviceSessions";
 import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
 import { BOOTED_AT } from "./health";
 import { calculateSoloRoute } from "../services/kakaoService";

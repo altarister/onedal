@@ -3,7 +3,7 @@ import db from '../../src/db';
 import scrapRouter from '../../src/routes/scrap';
 import { applyQuickFold } from '../../src/core/engine/OrderEvaluator';
 import { sendFold } from '../../src/state/decisions';
-import { touchDeviceSession } from '../../src/routes/devices';
+import { touchDeviceSession } from '../../src/state/deviceSessions';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
 
