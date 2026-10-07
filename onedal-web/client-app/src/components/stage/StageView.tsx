@@ -141,7 +141,8 @@ export default function StageView(props: Props) {
     const qrVia = qrSlice.slice(0, -1).map(toNaviStop)
         .filter(Boolean) as { name: string; x: number; y: number }[];
     const { filter, updateFilter } = useFilterConfig();
-    const { confirmedCalls, dropoffLine, pickupArea, dropoffArea, dongDots } = useStageAreas(filter, liveRoute, routeStops, myLocation, routeMode, derived);
+    const { confirmedCalls, dropoffLine, pickupArea, dropoffArea, dongDots } = useStageAreas(filter, liveRoute, routeStops, myLocation, routeMode,
+        derived.drawHolder?.routePolyline);
 
 
     /**
