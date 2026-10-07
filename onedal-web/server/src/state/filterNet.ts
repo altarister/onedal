@@ -1,6 +1,7 @@
 /**
  * 🕸️ **그물 · 상차 목록 셈** — 경유 그물(지나갈 동) · 지나온 몫 걷기 · 함정 낱말 · 상차 목록 · 내일 상차.
  * 🔴 이 파일은 위(filterManager)를 가져오지 않는다 — 방향: filterManager → filterNet → filterGoals.
+ * 바깥 일을 하는 함수: holdRadiusDistance · rememberDetourProgress · applyTraveledTrim · refreshDetourIfNeeded · filterLineOf · netFilterOf · netOfGoals · refreshKeywordTraps · refreshAdminDongs · refreshDongSigungu · ensureReservedPickupList · rebuildPickupList (세션 · 지금 시각 · 설정 저장소 · DB) (나머지는 값만 받는다 — 지도 자료는 부팅 때 한 번 읽은 것)
  */
 import { SAME_NAME_DONGS, ADMIN_SAME_NAME_DONGS, withAdminDongs, reservedPickupRadiusKmOf } from "@onedal/shared";
 import { getActiveCalls } from "../core/helpers";
@@ -13,6 +14,9 @@ import { haversineKm } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 import { goalZonesNow } from "./filterGoals";
 
+type Session = ReturnType<typeof getUserSession>;
+type Filter = Session['activeFilter'];
+
 /**
  * 📏 **자동 반경이 쓸 «잰 거리»를 들고 있게 한다 — 한 곳** (#149).
  *    들고 있으면 그대로, 비어 있으면 «내 위치 → 목적지»로 재서 싣는다(`radiusDistanceKm`).
@@ -21,13 +25,18 @@ import { goalZonesNow } from "./filterGoals";
  *    목적지 좌표를 모르면 재지 않는다 (규칙 ④).
  */
 export function holdRadiusDistance(session: ReturnType<typeof getUserSession>, city: string, me: { x: number; y: number } | null): number | undefined {
+    const distanceKm = radiusDistanceFrom(session.activeFilter.radiusDistanceKm, city, me);
+    session.activeFilter.radiusDistanceKm = distanceKm;
+    return distanceKm;
+}
+
+/** 📏 잰 거리 — 값만 받는 셈 (들고 있는 거리 · 목적지 · 내 위치) */
+export function radiusDistanceFrom(held: number | null | undefined, city: string, me: { x: number; y: number } | null): number | undefined {
     let goal: { lng: number; lat: number } | null = null;
     try { goal = cityCenter(city); } catch { goal = null; }
     const measured = me && goal && Number.isFinite(goal.lng) && Number.isFinite(goal.lat)
         ? haversineKm(me, goal) : null;
-    const distanceKm = heldRadiusDistanceKm(session.activeFilter.radiusDistanceKm, measured);
-    session.activeFilter.radiusDistanceKm = distanceKm;
-    return distanceKm;
+    return heldRadiusDistanceKm(held, measured);
 }
 
 /**
@@ -50,18 +59,23 @@ export function holdRadiusDistance(session: ReturnType<typeof getUserSession>, c
  * ⚠️ 그물은 동을 **중심점 하나**로 담는다 — 원 · 마름모 · 띠 가장자리에 걸친 동은 아래에서 따로 더한다.
  *    도시 둘레(폴리곤)와의 차이는 `pnpm net:compare` 로 잰다.
  */
-function netKeywordsOf(
-    session: ReturnType<typeof getUserSession>,
-    userId: string,
+export function netKeywordsFrom(
+    f: Filter,
     city: string,
     radiusKm: number,
     /** 그 목적지의 조각 — 라인(확정콜의 마지막 하차지까지 자른 것) · 확정콜의 마지막 하차지 · 현위치 원을 넣나 · 🎯 가까이 옴 (shared `dropoffPartsOf`) */
     part: { line: Array<[number, number]> | null; lastDrop: { x: number; y: number } | null; withMe: boolean; nearGoal: boolean },
+    /** 📍 그물의 꼭짓점은 «지금 기점» — 낡거나 빈 차의 가짜면 집 주소가 대신한다 (부르는 쪽이 `originOf` 로 낸다) */
+    me: { x: number; y: number } | null,
 ): { flat: string[]; grouped: Record<string, string[]>; byNet: boolean; pruned: number; progressKm: Record<string, number>;
     /** 🎯 목적지 원 반경(km) — `dstDiamKm / 2` · 가까이 온 목적지의 하차 목록이 쓰는 그 원이다. */
-    destRingKm: number } {
+    destRingKm: number;
+    /** 📏 잰 거리를 썼나 · 그 값 — 부르는 쪽이 세션에 싣는다 (그물을 못 그려 물러설 때는 안 잰다) */
+    measured: boolean; distanceKm: number | undefined } {
     const line = part.line;
-    const excluded = session.activeFilter.excludedRegions ?? [];
+    const excluded = f.excludedRegions ?? [];
+    let measured = false;
+    let distanceKm: number | undefined;
     /** 🚫 제외로 **몇 개가 빠졌나** — 로그가 «왜 줄었는지»를 말할 수 있어야 한다 */
     const prune = (grouped: Record<string, string[]>, byNet: boolean) => {
         const before = new Set(Object.values(grouped).flat()).size;
@@ -69,15 +83,13 @@ function netKeywordsOf(
         return { ...kept, byNet, pruned: before - kept.flat.length };
     };
     /* 🔴 물러선 목록에는 라인이 없다 — 진행도도 없다 (지어내지 않는다 · 규칙 ④) */
-    const fallback = () => ({ ...prune(getCityRegionsWithRadius(city, radiusKm).grouped, false), progressKm: {} as Record<string, number>, destRingKm: radiusKm });
+    const fallback = () => ({ ...prune(getCityRegionsWithRadius(city, radiusKm).grouped, false), progressKm: {} as Record<string, number>, destRingKm: radiusKm, measured, distanceKm });
     const goal = cityCenter(city);
     if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return fallback();
 
-    /* 📍 그물의 꼭짓점은 «지금 기점» — 낡거나 빈 차의 가짜면 집 주소가 대신한다 (파생) */
-    const me = originOf(session as Parameters<typeof originOf>[0]);
     if (!line && !me) return fallback();        // 첫짐인데 꼭짓점이 없다
 
-    const quad = quadShapeFrom(session.activeFilter as any);
+    const quad = quadShapeFrom(f as any);
     /**
      * 📐 **반경 자동 맞춤** — 목적지와의 거리에 따라 반경이 자동으로 바뀐다 · 자동/수동.
      *
@@ -90,19 +102,20 @@ function netKeywordsOf(
      * ⚠️ **수동이면 손대지 않는다.** 그리고 거리를 못 재면 자동도 **받은 값 그대로** 둔다
      *    (`autoRadii` 안에서 걸러진다 · 규칙 ④).
      */
-    const distanceKm = holdRadiusDistance(session, city, me);
-    const auto = session.activeFilter.radiusAuto
+    distanceKm = radiusDistanceFrom(f.radiusDistanceKm, city, me);
+    measured = true;
+    const auto = f.radiusAuto
         ? autoRadii(distanceKm, {
-            pickupRadiusKm: session.activeFilter.pickupRadiusKm ?? 10,
+            pickupRadiusKm: f.pickupRadiusKm ?? 10,
             destinationRadiusKm: radiusKm,
             quadRadiusKm: quad.quadRadiusKm,
-            detourRadiusKm: session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
-        }, session.activeFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT)
+            detourRadiusKm: f.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
+        }, f.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT)
         : null;
     const params = {
         ...quad,
         ...(auto ? { quadRadiusKm: auto.quadRadiusKm } : {}),
-        srcDiamKm: (auto ? auto.pickupRadiusKm : (session.activeFilter.pickupRadiusKm ?? 10)) * 2,
+        srcDiamKm: (auto ? auto.pickupRadiusKm : (f.pickupRadiusKm ?? 10)) * 2,
         dstDiamKm: (auto ? auto.destinationRadiusKm : radiusKm) * 2,
     };
     /**
@@ -119,7 +132,7 @@ function netKeywordsOf(
         const ringKm = Math.max(0, params.dstDiamKm / 2);
         const grouped = regionsTouchingCircleGrouped({ lng: goal.lng, lat: goal.lat }, ringKm);
         if (!Object.keys(grouped).length) return fallback();
-        return { ...prune(grouped, true), progressKm: {}, destRingKm: ringKm };
+        return { ...prune(grouped, true), progressKm: {}, destRingKm: ringKm, measured, distanceKm };
     }
 
     /* 🏁 마름모의 시작 — 그 목적지 콜의 마지막 하차지(`lastDropOf` · 부르는 쪽이 고른다) · 모르면 라인 끝 */
@@ -132,8 +145,8 @@ function netKeywordsOf(
     const netOpts = {
         /* 🔷 **동선이면 경로를 안 본다** — 지도(`useStageAreas` 의 `dropoffLine` · `pickupLine`)와 같은 분기다.
            서버가 이 값을 안 보면 «동선»을 골라도 판정·앱 목록은 노선이 된다 */
-        line: session.activeFilter.routeMode === false ? null : line,
-        lineRadiusKm: auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
+        line: f.routeMode === false ? null : line,
+        lineRadiusKm: auto ? auto.detourRadiusKm : (f.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
         lastDrop,
         params,
         anchor: me ? { name: '내 위치', lng: me.x, lat: me.y } : { name: '내 위치', lng: goal.lng, lat: goal.lat },
@@ -161,10 +174,10 @@ function netKeywordsOf(
      *    상차지가 띠 안인데 동 중심점이 띠 밖이면 목록에 없어 막힌다.
      *    앱은 넉넉하게 올리고 판정이 가른다(규칙 ⑤) — 띠에 걸친 동을 더한다. 폭은 그물 라인과 같은 값(자동이면 줄인 값).
      */
-    const lineUsed = session.activeFilter.routeMode === false ? null : line;
+    const lineUsed = f.routeMode === false ? null : line;
     const touch = lineUsed
         ? getDetourRegions(lineUsed.map(([x, y]) => ({ x, y })),
-            auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
+            auto ? auto.detourRadiusKm : (f.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
             undefined,
             /* ✂️ 하차 조각이라 현위치 원을 도려낸다 — 그물(`netForGoal`) · 걸친 동(`netAreaTesterOf`)과 같은 규칙.
                   `withMe`(출발 전 현위치 원을 **더하는** 경우)면 빼지 않는다 */
@@ -199,7 +212,7 @@ function netKeywordsOf(
         if (inNet.has(name) || progressKm[name] !== undefined || !Number.isFinite(km)) continue;
         progressKm[name] = km;
     }
-    return { ...prune(grouped, true), progressKm, destRingKm: Math.max(0, params.dstDiamKm / 2) };
+    return { ...prune(grouped, true), progressKm, destRingKm: Math.max(0, params.dstDiamKm / 2), measured, distanceKm };
 }
 
 
@@ -248,30 +261,60 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
     const progress = session.detourProgressKm;
     if (!progress) return false;
 
-    /* 🛣️ 얼린 라인 위 GPS 진행도 — 그물이 동마다 붙인 진행도와 **같은 셈**(`progressAlongKm`)이다 */
-    const polyline = filterLineOf(session);
     /**
      * 🧭 **지금 위치로만 뺀다** — 묵었거나 집 주소로 대신한 위치면 안 뺀다.
      *    부팅 때 되살린 지난 위치로 빼면 새 경로의 앞길까지 «지나왔다»며 지운다.
      */
     const here = originOf(session as Parameters<typeof originOf>[0]);
-    const gps = here && !here.isFallback ? here : null;
-    if (!polyline || !gps) return false;
-
-    const at = progressAlongKm({ lng: gps.x, lat: gps.y }, polyline.map(p => [p.x, p.y] as [number, number]));
-    if (at === null || at <= 0) return false;
-
     const before = session.activeFilter.destinationKeywords ?? [];
-    if (before.length === 0) return false;
+    const trim = traveledTrimFrom({
+        progress,
+        polyline: filterLineOf(session),
+        gps: here && !here.isFallback ? here : null,
+        keywords: before,
+        groups: session.activeFilter.destinationGroups ?? {},
+    });
+    if (!trim) return false;
+
+    session.activeFilter.destinationKeywords = trim.keywords;
+    session.activeFilter.destinationGroups = trim.groups;
+    session.activeFilter.customCityFilters = trim.aliases;
+    refreshAdminDongs(session);   // 지나간 법정동의 행정동도 걷는다 — 이 길은 refreshKeywordTraps 를 안 지난다
+
+    /* 🔄 뺀 동 이름도 싣는다 — 숫자만 있으면 «곧 내릴 하차지 동이 빠졌나»를 로그로 못 가린다 · 많으면 앞 여섯 + 외 N */
+    const gone = trim.gone;
+    const goneText = gone.slice(0, 6).join('·') + (gone.length > 6 ? ` 외 ${gone.length - 6}` : '');
+    slog('필터', `🔄 [지나온 구간] ${trim.at.toFixed(1)}km 지점 — 동 ${before.length} → ${trim.keywords.length}개 ` +
+        `(뺀 ${gone.length}개: ${goneText})`);
+    return true;
+}
+
+/** 🔄 지나온 동을 뺀 목록 한 벌 — 값만 받는 셈 (진행도 · 얼린 라인 · 지금 GPS · 목록 · 묶음) · 뺄 게 없으면 null */
+export function traveledTrimFrom(o: {
+    progress: Record<string, number>;
+    polyline: Array<{ x: number; y: number }> | null;
+    gps: { x: number; y: number } | null;
+    keywords: string[];
+    groups: Record<string, string[]>;
+}): { at: number; keywords: string[]; groups: Record<string, string[]>; aliases: string[]; gone: string[] } | null {
+    const { progress, polyline, gps } = o;
+    if (!polyline || !gps) return null;
+
+    /* 🛣️ 얼린 라인 위 GPS 진행도 — 그물이 동마다 붙인 진행도와 **같은 셈**(`progressAlongKm`)이다 */
+    const at = progressAlongKm({ lng: gps.x, lat: gps.y }, polyline.map(p => [p.x, p.y] as [number, number]));
+    if (at === null || at <= 0) return null;
+
+    const before = o.keywords;
+    if (before.length === 0) return null;
 
     // ① 진행도를 모르는 동은 남긴다
     const kept = new Set(before.filter(d => progress[d] === undefined || progress[d] >= at));
-    if (kept.size === before.length) return false;   // 뺄 게 없다
-    if (kept.size === 0) return false;               // ② 전부 빠진다 — 건드리지 않는다
+    if (kept.size === before.length) return null;   // 뺄 게 없다
+    if (kept.size === 0) return null;               // ② 전부 빠진다 — 건드리지 않는다
 
     // ③ 셋을 한 벌로 줄인다
     const grouped: Record<string, string[]> = {};
-    for (const [parent, dongs] of Object.entries(session.activeFilter.destinationGroups ?? {})) {
+    for (const [parent, dongs] of Object.entries(o.groups)) {
         const left = dongs.filter(d => kept.has(d));
         if (left.length > 0) grouped[parent] = left;
     }
@@ -279,18 +322,7 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
     for (const parent of Object.keys(grouped)) {
         for (const a of cityAliases(parent)) aliases.add(a);
     }
-
-    session.activeFilter.destinationKeywords = Array.from(kept).sort();
-    session.activeFilter.destinationGroups = grouped;
-    session.activeFilter.customCityFilters = Array.from(aliases);
-    refreshAdminDongs(session);   // 지나간 법정동의 행정동도 걷는다 — 이 길은 refreshKeywordTraps 를 안 지난다
-
-    /* 🔄 뺀 동 이름도 싣는다 — 숫자만 있으면 «곧 내릴 하차지 동이 빠졌나»를 로그로 못 가린다 · 많으면 앞 여섯 + 외 N */
-    const gone = before.filter(d => !kept.has(d));
-    const goneText = gone.slice(0, 6).join('·') + (gone.length > 6 ? ` 외 ${gone.length - 6}` : '');
-    slog('필터', `🔄 [지나온 구간] ${at.toFixed(1)}km 지점 — 동 ${before.length} → ${kept.size}개 ` +
-        `(뺀 ${before.length - kept.size}개: ${goneText})`);
-    return true;
+    return { at, keywords: Array.from(kept).sort(), groups: grouped, aliases: Array.from(aliases), gone: before.filter(d => !kept.has(d)) };
 }
 
 /**
@@ -377,16 +409,39 @@ export function netFilterOf(session: ReturnType<typeof getUserSession>, userId: 
  */
 export function netOfGoals(session: ReturnType<typeof getUserSession>, userId: string, line: Array<[number, number]> | null) {
     const origin = originOf(session as Parameters<typeof originOf>[0]);
-    const { zones, homeOn, homeCity, departed } = goalZonesNow(session, userId, origin);
-    const activeCalls = getActiveCalls(session);
+    const out = netOfGoalsFrom({
+        filter: session.activeFilter,
+        origin,
+        goals: goalZonesNow(session, userId, origin),
+        activeCalls: getActiveCalls(session),
+        line,
+    });
+    /* 📏 그물이 잰 거리를 싣는다 — 목적지마다 재도 들고 있는 거리를 이어 쓰므로 마지막 값 하나다 */
+    if (out.measured) session.activeFilter.radiusDistanceKm = out.distanceKm;
+    return out;
+}
+
+/** 🔵 하차 목록 — 값만 받는 셈 (필터 · 지금 기점 · 살아 있는 목적지 · 쥔 콜 · 얼린 라인) */
+export function netOfGoalsFrom(o: {
+    filter: Filter;
+    origin: { x: number; y: number } | null;
+    goals: ReturnType<typeof goalZonesNow>;
+    activeCalls: Session['myOrders'];
+    line: Array<[number, number]> | null;
+}) {
+    const { origin, activeCalls, line } = o;
+    const { zones, homeOn, homeCity, departed } = o.goals;
+    /* 📏 잰 거리는 목적지마다 이어 쓴다 — 앞 목적지에서 잰 값을 다음 목적지가 들고 있는 거리로 본다 */
+    let f = o.filter;
+    let measured = false;
+    let distanceKm: number | undefined;
     const stops = activeCalls.length ? planArrivalStops(activeCalls, origin) : [];
-    /* 🔷 동선이면 라인이 없다 — 조각(`dropoffPartsOf`)과 그물(`netKeywordsOf`)이 같은 답을 보게 여기서 끊는다 */
-    const lineXY = !line || session.activeFilter.routeMode === false ? null : line.map(([x, y]) => ({ x, y }));
-    const radius = session.activeFilter.destinationRadiusKm || 0;
+    /* 🔷 동선이면 라인이 없다 — 조각(`dropoffPartsOf`)과 그물(`netKeywordsFrom`)이 같은 답을 보게 여기서 끊는다 */
+    const lineXY = !line || f.routeMode === false ? null : line.map(([x, y]) => ({ x, y }));
+    const radius = f.destinationRadiusKm || 0;
     const parts: Array<{ nearGoal: boolean; grouped: Record<string, string[]>; progressKm: Record<string, number> }> = [];
     /** 🔎 목적지마다 무엇으로 만들었나 — 로그 한 줄로 확인할 수 있게 (`rebuildNetFilter` 가 찍는다) */
     const details: string[] = [];
-    const pickupGroups = session.activeFilter.pickupGroups ?? {};
     let byNet = zones.length > 0, pruned = 0;
     for (const z of zones) {
         /* 🔴 마름모 시작점은 «그 목적지의 마지막 하차지를 아는가»로 정한다 — 「가까이 옴」은 여기 안 든다 */
@@ -403,12 +458,17 @@ export function netOfGoals(session: ReturnType<typeof getUserSession>, userId: s
             : lineXY;
         const goalLine = ridden && lastDrop ? lineUntil(ridden, lastDrop) : [];
         const shape = dropoffPartsOf(goalLine.length >= 2);
-        const kept = netKeywordsOf(session, userId, z.city, radius, {
+        const kept = netKeywordsFrom(f, z.city, radius, {
             line: shape.line ? goalLine.map(p => [p.x, p.y] as [number, number]) : null,
             lastDrop: shape.quadFrom === 'lastDrop' ? lastDrop : null,
             withMe: false,   // 🔴 현위치 원은 하차 조각에 안 넣는다 (shared `dropoffPartsOf` 머리)
             nearGoal: !!z.nearGoal,
-        });
+        }, origin);
+        if (kept.measured) {
+            measured = true;
+            distanceKm = kept.distanceKm;
+            f = { ...f, radiusDistanceKm: kept.distanceKm };
+        }
         parts.push({ nearGoal: !!z.nearGoal, grouped: kept.grouped, progressKm: kept.progressKm });
         const names = [...new Set(Object.values(kept.grouped).flat())];
         /* 🔎 켜진 조각을 그대로 적는다 — 조합을 이름 하나로 뭉치지 않는다 */
@@ -422,8 +482,8 @@ export function netOfGoals(session: ReturnType<typeof getUserSession>, userId: s
         byNet = byNet && kept.byNet;
         pruned += kept.pruned;
     }
-    const merged = mergeDropoffGroups(parts, session.activeFilter.pickupGroups ?? {});
-    return { flat: merged.flat, grouped: merged.grouped, byNet, pruned, progressKm: merged.progressKm, goals: zones.map(z => z.city), details };
+    const merged = mergeDropoffGroups(parts, f.pickupGroups ?? {});
+    return { flat: merged.flat, grouped: merged.grouped, byNet, pruned, progressKm: merged.progressKm, goals: zones.map(z => z.city), details, measured, distanceKm };
 }
 
 /**
@@ -447,14 +507,20 @@ export function refreshKeywordTraps(session: ReturnType<typeof getUserSession>):
  */
 function refreshAdminDongs(session: ReturnType<typeof getUserSession>): void {
     const f = session.activeFilter;
-    const before = f.destinationGroups ?? {};
+    const next = adminDongsFrom(f.destinationGroups ?? {}, f.destinationKeywords ?? []);
+    if (!next) return;
+    f.destinationGroups = next.groups;
+    f.destinationKeywords = next.keywords;
+}
+
+/** 🗺️ 행정동을 더하고 빠진 법정동의 행정동을 걷은 목록 — 값만 받는 셈 · 바뀐 게 없으면 null */
+export function adminDongsFrom(before: Record<string, string[]>, keywords: string[]): { groups: Record<string, string[]>; keywords: string[] } | null {
     const grouped = withAdminDongs(before);
     const had = new Set(Object.values(before).flat()), now = new Set(Object.values(grouped).flat());
     const removed = new Set([...had].filter(d => !now.has(d)));
     const added = [...now].filter(d => !had.has(d));
-    if (!removed.size && !added.length) return;
-    f.destinationGroups = grouped;
-    f.destinationKeywords = [...new Set([...(f.destinationKeywords ?? []).filter(k => !removed.has(k)), ...added])].sort();
+    if (!removed.size && !added.length) return null;
+    return { groups: grouped, keywords: [...new Set([...keywords.filter(k => !removed.has(k)), ...added])].sort() };
 }
 
 /**
@@ -467,11 +533,16 @@ function refreshAdminDongs(session: ReturnType<typeof getUserSession>): void {
  */
 function refreshDongSigungu(session: ReturnType<typeof getUserSession>): void {
     const f = session.activeFilter;
+    f.destinationDongSigungu = dongSigunguFrom(f.destinationKeywords ?? [], f.destinationGroups ?? {});
+}
+
+/** 🏘️ 이름이 같은 다른 지역 동 → 그 동이 뜻하는 시군구 꼴 — 값만 받는 셈 */
+export function dongSigunguFrom(keywords: string[], groups: Record<string, string[]>): Record<string, string[]> {
     const out: Record<string, string[]> = {};
-    for (const dong of f.destinationKeywords ?? []) {
+    for (const dong of keywords) {
         if (!SAME_NAME_DONGS.has(dong) && !ADMIN_SAME_NAME_DONGS.has(dong)) continue;   // 행정동 겹침 이름(위례동 = 수정구 · 송파구)도
         const forms = new Set<string>();
-        for (const [parent, dongs] of Object.entries(f.destinationGroups ?? {})) {
+        for (const [parent, dongs] of Object.entries(groups)) {
             if (!dongs.includes(dong)) continue;
             for (const a of cityAliases(parent)) forms.add(a);
             /* 구가 있는 시(«성남시 분당구»)는 구를 건너뛴 «시 + 동» 주소(«경기 성남시 정자동»)도 받는다 — 시 꼴도 싣는다 (04) */
@@ -480,7 +551,7 @@ function refreshDongSigungu(session: ReturnType<typeof getUserSession>): void {
         }
         if (forms.size) out[dong] = [...forms];
     }
-    f.destinationDongSigungu = out;
+    return out;
 }
 
 /**
