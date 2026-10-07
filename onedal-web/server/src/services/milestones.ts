@@ -18,6 +18,9 @@ import { slog } from "../utils/fileLogger";
 import { wonText } from "@onedal/shared";
 import { recalcRouteIfStopsChanged } from "./dispatchEngine";
 
+// ━━━ 소켓 이벤트가 부르는 일 ━━━
+// socketHandlers.ts 의 소켓 이벤트 핸들러는 얇게 두고, 일은 아래 함수가 한다
+
 export interface MilestoneResult {
     success: boolean;
     /** 이미 같은 마일스톤이 기록돼 있어 아무것도 하지 않음 (오류가 아니다) */

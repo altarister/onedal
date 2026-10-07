@@ -1,7 +1,7 @@
 /**
  * 🧭 **복귀 켬·끔 — 바꾼 일을 적고, 오늘 줄에서 지금 상태를 읽는다** (기사님 확정).
  *
- * 🔴 **쓰는 곳은 `dispatchEngine.setCallTarget` 하나다** — 기사님 버튼(`driver`)과 자동 순환(`auto`)이 둘 다 그리로 간다.
+ * 🔴 **쓰는 곳은 `milestones.setCallTarget` 하나다** — 기사님 버튼(`driver`)과 자동 순환(`auto`)이 둘 다 그리로 간다.
  * 🔴 **오늘 줄만 보는 판단은 읽는 함수 안에 있다** — 부르는 쪽에 안 미룬다 (선례 `gpsTrackStore.lastTrackPointOf`).
  * 판단 자체는 순수 함수 `callTargetOfDay`(shared) — 여기서는 읽고 쓰기만 한다.
  */

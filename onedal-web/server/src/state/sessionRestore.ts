@@ -462,6 +462,3 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         console.error('🚨 [restoreAndRecalculateSession] 오류 발생:', err);
     }
 }
-
-// ━━━ 소켓 이벤트가 부르는 일 ━━━
-// socketHandlers.ts 의 소켓 이벤트 핸들러는 얇게 두고, 일은 아래 함수가 한다
