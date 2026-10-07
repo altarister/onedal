@@ -131,7 +131,9 @@ export const defineCriterion = <F>(c: Criterion<F>): Criterion<any> => c as Crit
 // 결과
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export type Color = '꿀' | '보통' | '똥' | '사고';
+/** 🎨 **판정 색 목록 — 원천 하나.** 타입(`Color`)은 여기서 뽑는다 · 장부 표 `order_judgments.color` 의 CHECK 도 이 넷이다(서버 `judgmentColorsFitDb` 검사가 실제로 넣어 본다) */
+export const JUDGMENT_COLORS = ['꿀', '보통', '똥', '사고'] as const;
+export type Color = typeof JUDGMENT_COLORS[number];
 
 /** 🎨 **색 → 동그라미** — 먼발치에서 읽히는 한 글자. 서버 로그 · 관제웹 · 운행일지가 같은 표 한 곳 (공통 함수 5) */
 export const COLOR_DOT: Record<Color, string> = { 꿀: '🔵', 보통: '🟢', 똥: '🟡', 사고: '🔴' };

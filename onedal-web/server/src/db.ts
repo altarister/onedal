@@ -24,6 +24,8 @@ slog('부팅', `📂 SQLite DB 준비 완료: ${dbPath}`);
 //    CHECK 제약은 더 나쁘다. ALTER 로 못 바꾸는데, 허용값이 늘면 기존 테이블은 새 값을 영영 거부하고,
 //    그 목록은 `@onedal/shared` 와 **두 번째 진실 공급원**이 된다.
 //    → enum 성 컬럼에는 CHECK 를 걸지 않고 검증은 애플리케이션 한 곳에서만 한다.
+//    예외 넷(이미 걸린 것): `users.role` · `app_releases.app` · `user_settings.default_priority` — 값이 늘 일이 드물다.
+//    `order_judgments.color` — shared `JUDGMENT_COLORS` 와 같다(`judgmentColorsFitDb` 가 넣어 본다). 색을 늘리는 날 행을 복사해 CHECK 를 뗀다.
 // ═══════════════════════════════════════════════════════════════
 
 /** 빠진 컬럼만 덧붙인다. **데이터를 건드리지 않는 순수 추가 연산**이다 */
