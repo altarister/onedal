@@ -6,7 +6,7 @@ import { saveCargoReport } from '../../src/services/cargoReport';
 import { clearUserSession } from '../../src/state/userSessionStore';
 
 /**
- * 📞 **통화 도우미 순서 — 가장 급한 콜이 맨 위** (reviews/33 · onedal-69 «가»).
+ * 📞 **통화 도우미 순서 — 가장 급한 콜이 맨 위** (onedal-69 «가»).
  *    통화 필요(🟡 · 상차 통화 전)가 먼저, 그 안에서 KEEP(capturedAt)이 오래된 순 — KEEP 직후 바로 통화.
  *    정렬은 opsCallsOf 한 곳 · 홈 «가장 오래된 KEEP»은 그 목록의 첫 줄과 같은 값(두 벌 없음).
  */

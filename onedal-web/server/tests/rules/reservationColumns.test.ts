@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 📅 **예약 셋 — 받아 적기만** (reviews/23 1단계).
+ * 📅 **예약 셋 — 받아 적기만**.
  *
  * 원달앱이 콜 줄마다 `reserved`(예약 표시가 있나 · true/false/null) · `reservedDay`(0 오늘 · 1 내일 · N 그 뒤 · null 모름) · `reservedAt`(«HH:MM» · null)을 싣는다.
  * 서버는 목록 원문(`intel`)과 장부(`orders`)에 그대로 적는다 — 1단계에서는 판정·경로·약속에 쓰지 않는다.

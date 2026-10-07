@@ -5,7 +5,7 @@ import { sigunguOfShort } from '@onedal/shared';
 import { groupSameCalls, rollupDay, mergeOldDays } from '../../src/services/callFlowStats';
 
 /**
- * 📊 **콜 흐름 통계 — 목록에 뜬 실물 콜을 하루 × 시 × 출발 시군구 × 도착 시군구로 센다** (reviews/25 3단계 · 기사님 결정).
+ * 📊 **콜 흐름 통계 — 목록에 뜬 실물 콜을 하루 × 시 × 출발 시군구 × 도착 시군구로 센다** (기사님 결정).
  *
  * 재료는 intel 의 목록 줄(INTEL_BULK) 가운데 실물 앱(source='real')뿐이고, 시각은 ISO 칸(timestamp)만 읽는다.
  * 같은 콜 = 상차 + 하차 + 30분 창(요금은 처음·마지막). 시군구는 서버 지도 명부(DONG_CENTROIDS) 한 벌 — 둘 이상이면 «모호», 없으면 «모름».

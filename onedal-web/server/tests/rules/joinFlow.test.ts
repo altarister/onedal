@@ -7,7 +7,7 @@ import { clearUserSession } from '../../src/state/userSessionStore';
 import { DEVICE_LINK_ERRORS } from '@onedal/shared';
 
 /**
- * 📝 **가입 · 동의 · 탈퇴 · 글 읽기** (reviews/29 2단계 · shared join.ts 규격 · onedal-1f «가»).
+ * 📝 **가입 · 동의 · 탈퇴 · 글 읽기** (shared join.ts 규격 · onedal-1f «가»).
  * 글이 비어도 흐름이 돈다 — 글이 없는 종류는 동의를 요구하지 않는다. 동의 판이 지금 최신과 다르면 409(화면이 글을 다시 읽는다).
  * 탈퇴는 지우지 않는다 — withdrawn_at 만 적고, 폰은 폰 문에서 막힌다.
  */

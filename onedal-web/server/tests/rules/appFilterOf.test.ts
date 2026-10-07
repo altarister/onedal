@@ -34,7 +34,7 @@ const run = async (handle: any, req: any) => {
     await handle({ app, ip: '1.1.1.1', headers: {}, get: () => undefined, params: {}, query: {}, body: {}, ...req }, res);
     return { status, out };
 };
-/** 📡 보고는 폰을 살아 있게만 한다 — 폰에 가는 필터는 관제앱 공급 한 길(reviews/50 ①-5) · 공급의 폰 몫 심사 중을 필터 칸으로 붙여 옛 조립과 견준다 */
+/** 📡 보고는 폰을 살아 있게만 한다 — 폰에 가는 필터는 관제앱 공급 한 길 · 공급의 폰 몫 심사 중을 필터 칸으로 붙여 옛 조립과 견준다 */
 const report = async (_v2: boolean) => {
     const r = await run(handlerOf(scrapRouter, '/', 'post'), { body: { data: [], deviceId: DEV, filterVersion: '', supplyLinked: true } });
     const sup = phoneSupplyOf(U);

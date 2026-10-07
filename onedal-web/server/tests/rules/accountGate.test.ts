@@ -10,7 +10,7 @@ import { DEVICE_LINK_ERRORS } from '@onedal/shared';
 import { approvedUser } from '../fixtures/approvedUser';
 
 /**
- * 🚧 **막힌 계정의 폰은 받지 않는다** (reviews/29 2단계 · onedal-1f «가»).
+ * 🚧 **막힌 계정의 폰은 받지 않는다** (onedal-1f «가»).
  * 승인 전 · 탈퇴 · 즉시 정지 계정의 폰 연결과 폰 보고는 403 ACCOUNT_BLOCKED — 앱은 «이용이 멈췄습니다» 띠로 받는다(앱 변경 없음).
  * «끝난 뒤» 정지는 진행 중 콜이 있으면 끝날 때까지 받는다 — 중간에 끊으면 안전취소가 멈춘다.
  * 🔴 토큰 없는 옛 길도 같은 문을 지난다 — 막힌 계정이 토큰만 빼면 지나가는 구멍이 없게.

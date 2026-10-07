@@ -12,7 +12,7 @@ import { ownsOrder } from '../../src/core/orderOwner';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 
 /**
- * 👥 **회원끼리 막기 — 문 5개 · 콜 주인** (reviews/29 1단계 A·B · 기사님 «가» · onedal-1f «가»).
+ * 👥 **회원끼리 막기 — 문 5개 · 콜 주인** (기사님 «가» · onedal-1f «가»).
  * 기사가 둘(기사님 · 딸)이 되면 «로그인만 하면 전부 주는 문»이 남의 폰 · 이상 기록을 주고,
  * orderId 만 받는 소켓 이벤트·폰 문이 남의 콜에 쓴다. 기준 1: 모든 자료에 주인 · 서버가 읽고 쓸 때 확인.
  */
@@ -72,7 +72,7 @@ describe('👥 문 5개 — 자기 것만 · 관리자만', () => {
         const devs = new Set(out.data.map((r: any) => r.device_id));
         expect(devs.has(DA)).toBe(true);
         expect(devs.has(DB)).toBe(false);
-        /* 📷 사진은 가리지 않은 원본이라 운영센터 문으로만 연다 — 회원 문은 사진 칸을 안 낸다 (reviews/37) */
+        /* 📷 사진은 가리지 않은 원본이라 운영센터 문으로만 연다 — 회원 문은 사진 칸을 안 낸다 */
         expect(out.data.every((r: any) => !('screenshot_path' in r))).toBe(true);
     });
     it('🔴 GET /api/screen-words/recent — 관리자만(배차망 화면 글은 모든 기사 공통 자료)', () => {

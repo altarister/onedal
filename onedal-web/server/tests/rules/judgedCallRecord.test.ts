@@ -6,7 +6,7 @@ import { OrderRepository } from '../../src/repositories/OrderRepository';
 import { judgmentRecordOf } from '../../src/core/engine/judgmentRecord';
 
 /**
- * 🧾 **판정할 때 «무슨 콜이었고 어떤 필터였나»를 판정 장부에 함께 남긴다** (reviews/43 · 기사님 «1 예»).
+ * 🧾 **판정할 때 «무슨 콜이었고 어떤 필터였나»를 판정 장부에 함께 남긴다** (기사님 «1 예»).
  * 미리보기 · 체험 콜은 orders 에 안 쓰이고 판정 표에만 남는다 — 콜 내용 · 그때의 서버 필터가 같이 없으면
  * 운영센터에서 «오늘 안 잡은 콜이 어떤 필터로 올라와 무슨 색 몇 점이었나»를 못 본다.
  * 못 잡는 것: 원달앱이 덜 읽어 올린 콜 내용 · 폰 필터와 서버 필터의 한 판 어긋남(화면이 «서버 필터 기준»이라 적는다).

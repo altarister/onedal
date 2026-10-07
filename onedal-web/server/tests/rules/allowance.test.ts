@@ -9,7 +9,7 @@ import { allowanceOf } from '../../src/core/allowance';
 import { accountFactsOf } from '../../src/core/accountGate';
 
 /**
- * 🎛️ **허락 칸 — 자동 잡기 · 통계 · 유료 기한** (reviews/29 6단계 · onedal-1f «가»).
+ * 🎛️ **허락 칸 — 자동 잡기 · 통계 · 유료 기한** (onedal-1f «가»).
  * 부품은 «지금 이 허락이 살아 있나» 하나만 본다. 자동 허락이 안 살았으면 서버가 폰에 ALARM 을 내려보낸다(앱 코드 무변화).
  * 🔴🔴 옮기기 — 칸이 새로 생긴 기동에서만 «승인된 회원» 두 허락을 켜고 기한은 비운다. 안 채우면 다음 배포에 기사님 폰이 ALARM 으로 떨어진다.
  */
@@ -33,7 +33,7 @@ describe('허락이 살아 있나 · 폰에 내려보낼 모드', () => {
     it('🔴 scrap 응답 모드는 modeForPhone 을 거친다 — 관제앱 공급과 같은 modeSentToPhone', () => {
         expect(SRC('state/phoneSupply.ts')).toContain('const autoLive = allowanceOf(userId).autoLive;');
         expect(SRC('state/phoneSupply.ts')).toContain('return modeForPhone(commanded, autoLive, webAttached, otherAuto)');
-        expect(SRC('routes/scrap.ts')).not.toMatch(/modeSentToPhone|deviceControl: \{[^}]*mode:/);   // 모드는 관제앱 공급 한 길(reviews/50 ①-5)
+        expect(SRC('routes/scrap.ts')).not.toMatch(/modeSentToPhone|deviceControl: \{[^}]*mode:/);   // 모드는 관제앱 공급 한 길
     });
 });
 

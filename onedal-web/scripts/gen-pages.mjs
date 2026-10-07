@@ -1,5 +1,5 @@
 /**
- * 누가: onedal-f5 (기사님 «플러그인스에 있는 값을 서버가 같이 써야» · reviews/34 2단계 · onedal-69 «가»)
+ * 누가: onedal-f5 (기사님 «플러그인스에 있는 값을 서버가 같이 써야» · onedal-69 «가»)
  * 언제: shared/src/networkPages.ts(배차망 화면 정의 표 — 칸 · 페이지 목록)를 고친 뒤
  * 어디서: onedal-web — `pnpm gen:pages`
  * 무엇을: 표의 배차망 셋(칸 정의 · 페이지 목록 · 차종 낱말)을 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt)으로 굳힌다
@@ -125,7 +125,7 @@ import com.onedal.app.core.StandardScreen
 /**
 ${about}
  *
- * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (\`cd onedal-web && pnpm gen:pages\`). 원천은 \`onedal-web/shared/src/networkPages.ts\` 의 «${net}» — 서버도 같은 표를 읽는다(reviews/34).
+ * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (\`cd onedal-web && pnpm gen:pages\`). 원천은 \`onedal-web/shared/src/networkPages.ts\` 의 «${net}» — 서버도 같은 표를 읽는다.
  */
 object ${obj} {
     val pages: PageSpecs = mapOf(
@@ -140,7 +140,7 @@ ${pages.join('\n')}
 ${(spec.networkMarkers ?? fail(`표에 ${net} networkMarkers 가 없다`)).map((g) => `        ${klist(g)},`).join('\n')}
     )
 
-    /** 🖥️ 페이지 전부 — 차례가 판별 차례(reviews/35) · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
+    /** 🖥️ 페이지 전부 — 차례가 판별 차례 · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
 ${(spec.screens ?? fail(`표에 ${net} 페이지 목록(screens)이 없다`)).map((s) => kscreen(net, s)).join('\n')}
     )

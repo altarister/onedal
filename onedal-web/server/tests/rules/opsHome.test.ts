@@ -8,7 +8,7 @@ import { getUserSession, peekUserSession, clearUserSession } from '../../src/sta
 import { kakaoTotalOf } from '@onedal/shared';
 
 /**
- * 🏠 **운영센터 홈 — 한 번에 읽는 숫자는 그 쪽 문과 같은 함수로** (reviews/33 2단계 · onedal-69 «가» · 모양은 onedal-ea).
+ * 🏠 **운영센터 홈 — 한 번에 읽는 숫자는 그 쪽 문과 같은 함수로** (onedal-69 «가» · 모양은 onedal-ea).
  *    두 벌로 세면 홈과 쪽의 숫자가 갈린다 — 홈 숫자 = 쪽 숫자를 문끼리 대조한다. 읽기만 · 세션을 만들지 않는다.
  */
 const A = 'test-home-admin', D = 'test-home-driver', P = 'test-home-pending', Q = 'test-home-quiet';

@@ -5,7 +5,7 @@ import { getPlaceInsights } from '../../src/services/statService';
 import placesRouter from '../../src/routes/logbook/places';
 
 /**
- * 🏪 **거래처는 공용 한 줄 · 개인 칸은 기사별** (reviews/29 1단계 C · 기준 1 · onedal-1f «가»).
+ * 🏪 **거래처는 공용 한 줄 · 개인 칸은 기사별** (기준 1 · onedal-1f «가»).
  * places 는 UNIQUE(addressDetail, customerName) 라 기사 둘의 같은 거래처가 한 줄로 합쳐져 메모·별점·방문 수가 섞였다.
  * 표를 다시 만들지 않고 개인 칸(별점 · 블랙리스트 메모 · 방문 수 · 연락처)을 user_places 로 옮긴다.
  */

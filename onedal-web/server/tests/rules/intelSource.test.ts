@@ -3,7 +3,7 @@ import { join } from 'path';
 import { reportSourceOf } from '../../src/core/helpers';
 
 /**
- * 🏷️ **목록 원문 줄마다 출처 — 실물 앱인가 시뮬레이터인가** (reviews/23·25 1단계).
+ * 🏷️ **목록 원문 줄마다 출처 — 실물 앱인가 시뮬레이터인가**.
  *
  * 앱이 보고 본문에 `source`('real' | 'sim')를 한 칸 싣는다 — 한 보고는 한 화면·한 앱이다.
  * 서버는 그 보고의 intel 줄마다 적는다. 통계·뉴스레터는 real 만 센다(가짜 흐름을 «많다»고 말하지 않게).

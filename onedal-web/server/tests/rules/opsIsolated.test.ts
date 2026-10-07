@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🏢 **운영센터(`ops/`)는 기사 앱에 섞이지 않고, 공통 부품은 `@onedal/ui` 한 곳에서 온다** (reviews/29 3단계 · ui/CLAUDE.md).
+ * 🏢 **운영센터(`ops/`)는 기사 앱에 섞이지 않고, 공통 부품은 `@onedal/ui` 한 곳에서 온다** (ui/CLAUDE.md).
  *    관제웹 · 운행일지가 `ops/` 를 가져다 쓰면 기사 폰이 받는 파일에 관리자 화면이 딸려 들어간다.
  *    운영센터가 관제웹 파일을 직접 가져오면 두 앱이 얽힌다 — 부품은 `@onedal/ui`, 계산 · 규격은 `@onedal/shared` 만.
  *    🔴 Tailwind v4 는 작업 공간 링크(`node_modules/@onedal/ui`)를 안 훑는다 — 쓰는 앱의 `index.css` 에 `@source` 가 없으면 부품이 회색으로 그려진다.

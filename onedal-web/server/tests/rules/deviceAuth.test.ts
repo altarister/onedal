@@ -13,7 +13,7 @@ import { clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
 
 /**
- * 🔑 **폰은 비밀 토큰으로 자기를 밝힌다 · 연결 안 된 폰은 거절** (reviews/29 1단계 D·E · onedal-1f «가» · 04 와 이름 확정).
+ * 🔑 **폰은 비밀 토큰으로 자기를 밝힌다 · 연결 안 된 폰은 거절** (onedal-1f «가» · 04 와 이름 확정).
  * 폰 이름(앱폰-기종-3자리)만으로 자기를 밝히면 남이 대입해 다른 기사의 콜을 건드릴 수 있었다.
  * 이번 단계: 연결 때 토큰을 주고 받으면 대조 · 틀리면 401 · 없으면 통과(옛 앱 · 기사님 폰 재연결 뒤 강제).
  */

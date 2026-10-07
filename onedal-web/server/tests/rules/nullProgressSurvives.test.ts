@@ -53,7 +53,7 @@ describe('🕳️ 서버 — 모르는 진행도는 null 로 둔다', () => {
 });
 
 describe('🕳️ 앱 — 서버가 보낸 필터를 왕복시키지 않는다', () => {
-    /* 필터는 관제앱이 블루투스로 준다 — 받는 자리는 `FilterStore.applySupplied` 한 곳(reviews/50 ①-3) */
+    /* 필터는 관제앱이 블루투스로 준다 — 받는 자리는 `FilterStore.applySupplied` 한 곳 */
     const store = () => code(app('core/FilterStore.kt'));
 
     /**

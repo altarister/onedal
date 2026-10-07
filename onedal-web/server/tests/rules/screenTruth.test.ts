@@ -159,7 +159,7 @@ describe('🏠 픽커 홈은 «홈»이라고 답한다', () => {
 
     /**
      * ⚠️ 없는 화면을 지어내 붙이지 않는다 — 인성 «홈» 이름은 실물 캡처(ex_images/인성/인성홈.png)로 화면 정의 표에
-     *    HOME 줄이 생겨서 있는 것이다(reviews/46 · 기사님 «가»). 표에서 그 줄이 빠지면 이름도 빠져야 한다.
+     *    HOME 줄이 생겨서 있는 것이다(기사님 «가»). 표에서 그 줄이 빠지면 이름도 빠져야 한다.
      */
     it('인성 «홈» 이름은 화면 정의 표의 인성 HOME 줄과 함께 있다 — 지어낸 이름이 아니다', () => {
         const insungHasHome = NETWORK_PAGES.insung.screens.some(p => p.standard === 'HOME' && p.seen === 'REAL');

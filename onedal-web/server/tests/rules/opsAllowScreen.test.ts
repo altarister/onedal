@@ -3,7 +3,7 @@ import { join } from 'path';
 import { allowState } from '../../../ops/src/api/allowance';
 
 /**
- * 🎛️ **운영센터 허락 화면 — «지금 살아 있나»는 shared allowanceLive 하나** (reviews/29 6단계 · onedal-1f «가»).
+ * 🎛️ **운영센터 허락 화면 — «지금 살아 있나»는 shared allowanceLive 하나** (onedal-1f «가»).
  *    🔴 허락 시각만 보고 «허락됨»이라 그리면 기한이 지난 회원이 켜진 것처럼 보인다 — 폰은 이미 알람으로 도는데 화면이 거짓말한다.
  *    화면은 날짜를 더하거나 빼지 않는다(달력 칸으로 고른 날을 그대로 서버에 적는다).
  */

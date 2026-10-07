@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🔐 **운영센터 로그인 — 들어올 수 있나는 서버가 정한다** (reviews/29 3단계 · `core/opsAccess` · onedal-1f 지시).
+ * 🔐 **운영센터 로그인 — 들어올 수 있나는 서버가 정한다** (`core/opsAccess` · onedal-1f 지시).
  *    🔴 화면이 토큰의 role 을 읽어 가르면 허락을 꺼도 30일 동안 들어온다 — 서버 403 하나로만 가른다.
  *    🔴 «개발 우회 로그인» 버튼은 서버가 `/api/health` 로 «라이브가 아니다»라고 말할 때만 그린다 —
  *       우회 문(`/auth/bypass`)을 불러 보는 것으로 가르면 그 부름 자체가 로그인이 된다.

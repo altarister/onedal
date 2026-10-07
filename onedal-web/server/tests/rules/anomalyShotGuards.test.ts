@@ -3,7 +3,7 @@ import path from "path";
 import { SHOT_KEEP_DAYS } from "../../src/core/anomalyShots";
 
 /**
- * 📷 이상 기록 사진은 가리지 않은 원본이다(reviews/37) — 그래서 두 가지가 꼭 지켜져야 한다.
+ * 📷 이상 기록 사진은 가리지 않은 원본이다 — 그래서 두 가지가 꼭 지켜져야 한다.
  * ① 30일 지우기가 서버 기동과 함께 돈다 ② 사진은 운영센터 문(requireOps) 하나로만 열리고, 회원 문은 사진 칸을 안 낸다.
  */
 const SRC = path.resolve(__dirname, "../../src");

@@ -3,7 +3,7 @@ import { join } from 'path';
 import { LOG_TAGS, NO_TAG } from '@onedal/shared';
 
 /**
- * 🏷️ **로그 태그 열 낱말 — 한 곳(shared)에서만 산다** (reviews/22 2단계).
+ * 🏷️ **로그 태그 열 낱말 — 한 곳(shared)에서만 산다**.
  *
  * 태그는 셋(서버·관제웹·원달앱)이 같은 낱말이어야 `pnpm log --tag` 하나로 찾힌다.
  * 원달앱 짝(`LogTag.kt`)이 생기면 «같다» 검사를 여기에 잇는다 — README 「짝이 있는 것」.

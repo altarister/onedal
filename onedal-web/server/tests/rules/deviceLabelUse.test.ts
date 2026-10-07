@@ -5,7 +5,7 @@ import db from '../../src/db';
 import { authDevice } from '../../src/core/deviceAuth';
 
 /**
- * 📱 **로그 · 화면은 폰 id 가 아니라 표시 이름으로** (reviews/29 1단계 K · 04 · onedal-1f «가»).
+ * 📱 **로그 · 화면은 폰 id 가 아니라 표시 이름으로** (04 · onedal-1f «가»).
  * 폰 id 가 d-UUID 가 되는 날 id 조각을 찍던 로그·화면은 어느 폰인지 읽을 수 없다. 서버 로그는 deviceLabelOf, 관제웹은 shared deviceLabel.
  * 예외: 연결 안 된 폰을 다루는 core/deviceAuth.ts — 이름이 없는 폰이라 id 원문이 곧 단서다.
  */

@@ -3,7 +3,7 @@ import { join } from 'path';
 import { baseDayOf, promisedAtOf } from '../../../ops/src/api/callNote';
 
 /**
- * 📞 **통화 도우미 화면 — 약속 시각의 기준 날은 그 콜의 상차 예정 시각의 한국 달력 날** (onedal-1f · reviews/29 5단계).
+ * 📞 **통화 도우미 화면 — 약속 시각의 기준 날은 그 콜의 상차 예정 시각의 한국 달력 날** (onedal-1f).
  *    오늘로 박으면 내일 상차 콜의 약속이 하루 어긋나고, 영업일 키면 새벽 02:00 상차 콜이 전날로 붙는다.
  *    화면은 서버 문(`/ops/calls` · `/calls/:id/note`)만 부르고, 관제웹 통화 단계는 «✍️ 누가 적음» 한 줄을 그린다.
  */

@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 📅 **예약콜 축 — 필터 칸 하나** (reviews/23 1단계 ① · 기사님 결정 «오늘 콜만»).
+ * 📅 **예약콜 축 — 필터 칸 하나** (기사님 결정 «오늘 콜만»).
  *
  * 값 셋(`today` 오늘 콜만 · `tomorrowToo` 내일 콜도 · `tomorrowOnly` 내일 콜만) 가운데 지금은 `today` 하나만 쓴다 —
  * 내일 콜을 받을 그릇(예약 보관)이 서기 전에는 고를 수 없다. 읽는 곳은 원달앱 1차 필터 하나다.

@@ -101,7 +101,7 @@ describe('규칙 ② 안전장치는 겹쳐 둔다', () => {
      *   판결을 한 번 보내고 지우면 그 응답이 유실될 때 **영구 유실**된다.
      */
     it('판결은 앱의 ACK 로만 지운다 — 보내고 나서 지우면 유실된다', () => {
-        // «받았음»은 관제앱 공급 소켓 한 길(reviews/50 ①-5) — 결재를 지우는 곳은 ackDecision 안뿐 · 보고 문은 결재를 다루지 않는다
+        // «받았음»은 관제앱 공급 소켓 한 길 — 결재를 지우는 곳은 ackDecision 안뿐 · 보고 문은 결재를 다루지 않는다
         expect(read('routes/scrap.ts')).not.toMatch(/pendingDecisions\.delete\(|ackDecision/);
         expect(read('socket/supplySocket.ts')).toContain('ackDecision(io, getUserSession(userId), userId, ack.orderId,');
         const src = read('state/decisions.ts');

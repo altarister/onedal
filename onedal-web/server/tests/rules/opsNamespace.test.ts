@@ -6,7 +6,7 @@ import { opsGate, onOpsConnection, sweepOpsSockets } from '../../src/socket/opsS
 import { peekUserSession } from '../../src/state/userSessionStore';
 
 /**
- * 🏢 **운영센터 소켓은 이름공간 /ops 로 따로 — 서버 쪽** (reviews/29 5단계 · onedal-1f «가» · e7 안 · 화면 쪽 검사는 opsSocket.test.ts).
+ * 🏢 **운영센터 소켓은 이름공간 /ops 로 따로 — 서버 쪽** (onedal-1f «가» · e7 안 · 화면 쪽 검사는 opsSocket.test.ts).
  * 관제웹 연결 처리(세션 충돌 · activeWebSession · 기사 세션 부트스트랩)는 /ops 소켓에 닿을 길이 없다 —
  * 기사님이 운행 중 관제웹을 띄운 채 운영센터를 열어도 «다른 기기에서 접속» 창이 안 뜨고, 와이프 계정에 기사 세션이 안 생긴다.
  * 관리자 방(admin_room)은 /ops 소켓만 · 신호(ops-calls-changed)만 · 30초마다 허락이 사라진 소켓을 끊는다.

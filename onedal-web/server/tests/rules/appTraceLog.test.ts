@@ -20,11 +20,11 @@ const handlerOf = (path: string): Handler => {
 describe('📱 POST /api/logs/app — 원달앱 운행 기록', () => {
     let logs: string[];
     let spy: jest.SpyInstance;
-    /* 🔑 원달앱 로그는 연결된 폰만 받는다 (reviews/29 1단계 D·E) — 이 검사의 폰을 시험 기사에 잇는다(일꾼마다 빈 DB) */
+    /* 🔑 원달앱 로그는 연결된 폰만 받는다 — 이 검사의 폰을 시험 기사에 잇는다(일꾼마다 빈 DB) */
     beforeAll(() => {
         db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES ('test-trace', 'g-test-trace', 'tt@test', 'tt')`).run();
         approvedUser('test-trace');   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
-        /* 📱 줄 머리는 폰 표시 이름(device_name) — 이름을 id 와 같게 둔다 (reviews/29 1단계 K) */
+        /* 📱 줄 머리는 폰 표시 이름(device_name) — 이름을 id 와 같게 둔다 */
         for (const d of ['앱폰-SM-A245N-784', 'a']) db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id, device_name) VALUES ('test-trace', ?, ?)`).run(d, d);
     });
     beforeEach(() => {

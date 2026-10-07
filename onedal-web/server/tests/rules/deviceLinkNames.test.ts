@@ -3,7 +3,7 @@ import { join } from 'path';
 import { DEVICE_TOKEN_HEADER, DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from '@onedal/shared';
 
 /**
- * 🔐 **기기 비밀 토큰 규격 글자 — shared 한 곳 = 원달앱 한 파일** (운영센터 1단계 · reviews/29 · 기사님 «공통으로 할 수 있는 것을 최대한»).
+ * 🔐 **기기 비밀 토큰 규격 글자 — shared 한 곳 = 원달앱 한 파일** (운영센터 1단계 · 기사님 «공통으로 할 수 있는 것을 최대한»).
  * 서버는 shared 를 import 하고, 원달앱(코틀린)은 `core/DeviceLink.kt` 에 같은 글자를 둔다. 둘이 갈리면 폰이 거절을 못 알아보거나
  * 토큰 헤더가 안 읽혀 강제 뒤 모든 폰이 끊긴다 — 그래서 글자를 맞대어 본다(`appFilterKeys.test.ts` 와 같은 모양).
  */

@@ -4,7 +4,7 @@ import { clientIpOf } from '../../src/utils/clientIp';
 import devicesRouter from '../../src/routes/devices';
 
 /**
- * 🔢 **폰 연결 번호(6자리) 시도 한도** (reviews/29 1단계 F · onedal-1f «가» · 코드 상수 — 기사님이 고칠 값이 아니다).
+ * 🔢 **폰 연결 번호(6자리) 시도 한도** (onedal-1f «가» · 코드 상수 — 기사님이 고칠 값이 아니다).
  * 3분 안에 90만 가지를 대입하면 남의 계정에 폰을 붙일 수 있었다. 같은 IP 가 10분에 5번 틀리면 10분 잠그고,
  * 같은 폰(deviceId)이 3번 틀리면 그 폰을 10분 잠근다. 기사님이 번호를 한두 번 잘못 치는 일은 넉넉히 넘긴다.
  * 🌐 IP 는 폰의 진짜 IP(`clientIpOf`)로 센다 — 실서버의 req.ip 는 클라우드플레어 에지라 남끼리 잠금이 섞인다.

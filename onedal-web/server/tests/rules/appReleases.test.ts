@@ -13,7 +13,7 @@ import downloadsRouter from '../../src/routes/downloads';
 import { DEVICE_LINK_ERRORS } from '@onedal/shared';
 
 /**
- * 📦 **앱 배포 서버 문** (reviews/29 4단계 · onedal-1f «가» 셋 고쳐서).
+ * 📦 **앱 배포 서버 문** (onedal-1f «가» 셋 고쳐서).
  * 표가 비면 원달앱 보고 응답에 판 칸이 없다(기사 흐름 무변화) · APK 는 메모리가 아니라 레포 밖 폴더로 흘려 쓴다 ·
  * 받기 열쇠는 10분 동안 여러 번(내려받기 관리자가 같은 주소를 두 번 부른다) · 최소 판은 앱마다 한 줄.
  */

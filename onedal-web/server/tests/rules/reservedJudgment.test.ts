@@ -5,7 +5,7 @@ import { homeOriginOf } from '../../src/services/geoService';
 import { destProgressOf } from '../../src/core/engine/judgeFacts';
 
 /**
- * 📅⚖️ **내일 콜 판정 — 그날 첫 콜로 가정한다** (reviews/23 B-3 · 기사님 결정 3 «가»).
+ * 📅⚖️ **내일 콜 판정 — 그날 첫 콜로 가정한다** (기사님 결정 3 «가»).
  *
  * 내일 이후 콜(보관 날이 오늘 뒤)은 ① 접근 구간을 **지금 자리가 아니라 집**에서 재고 ② **합칠 상대가 없다**(첫짐 단독).
  * 가르는 것은 그 콜 하나의 사실(보관 날)뿐이다 — 모드 이름 조건문이 아니다.

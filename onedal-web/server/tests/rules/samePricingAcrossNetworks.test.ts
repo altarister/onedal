@@ -7,7 +7,7 @@ import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 jest.mock('../../src/repositories/SettingsRepository');
 
 /**
- * 💰 **배차망이 달라도 같은 콜 · 같은 요금이면 적정가 · 하한가가 같다** (reviews/34 1단계 ① · 기사님 «가: 걷는다»).
+ * 💰 **배차망이 달라도 같은 콜 · 같은 요금이면 적정가 · 하한가가 같다** (기사님 «가: 걷는다»).
  *    화물24시만 ×1.15 를 곱하던 것은 «수수료가 이미 빠진 금액이라 가정할 경우»라는 주석 하나가 근거였다 —
  *    원달앱에는 그런 배수가 없고, 화물24시 좋은 콜이 15% 더 비싸야 통과했다.
  */

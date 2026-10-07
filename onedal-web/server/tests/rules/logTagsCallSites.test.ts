@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, relative } from 'path';
 
 /**
- * 🏷️ **서버의 모든 일반 줄은 태그를 이고 나간다** (reviews/22 2단계 · 끝: `#없음` = 0).
+ * 🏷️ **서버의 모든 일반 줄은 태그를 이고 나간다** (끝: `#없음` = 0).
  *
  * 일반 줄은 `slog(태그, …)` 로 찍는다 — `console.log` 를 직접 부르면 파일에 `#없음` 이 붙는다.
  * 경고·오류 줄(`console.warn/error`)은 로거가 `#경고` 를 붙이므로 그대로 둔다.

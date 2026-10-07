@@ -4,7 +4,7 @@ import { pageFieldOf, pageFareOf, normalizeVehicleType } from '@onedal/shared';
 import { applySoloRoute } from '../../src/services/routeComposer';
 
 /**
- * 🔎 **서버는 상세 원문에서 칸을 짐작하지 않는다** (reviews/34 3단계 · 기사님 «가»).
+ * 🔎 **서버는 상세 원문에서 칸을 짐작하지 않는다** (기사님 «가»).
  *    원달앱이 실어 보낸 칸을 쓰고, 없는 칸은 shared 배차망 정의 표(NETWORK_PAGES)의 읽는 법으로만 읽는다.
  *    짐작은 원문 아무 자리의 «다» 한 글자 · «1t» 를 차종으로 잡아 «차종 불일치»로 좋은 콜을 떨궜다.
  */
@@ -66,7 +66,7 @@ describe('🚚 상세 차종 — 정의 표대로', () => {
 });
 
 /**
- * 📏 **거리 칸(distanceKm)은 카카오가 잰 배송 거리다** (reviews/34 3단계 2 · 기사님 «가» · onedal-69 «가»).
+ * 📏 **거리 칸(distanceKm)은 카카오가 잰 배송 거리다** (기사님 «가» · onedal-69 «가»).
  *    원달앱은 거리를 안 싣고, 옛 짐작은 원문의 이름표 없는 소수 · 공백 사이 두 자리 숫자를 거리로 잡았다 — 관제웹 심사석 «Nkm»가 그 숫자였다.
  *    이제 단독 배송을 잰 자리(경로 짜기 · 확정 뒤 재기)에서 kakaoSoloDistanceKm 와 같은 값을 적는다. 못 재면 칸 없음.
  */

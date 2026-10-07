@@ -3,7 +3,7 @@ import { join } from 'path';
 import { flowsForViewer, flowsForAdmin } from '../../src/services/callFlowStats';
 
 /**
- * 📊 **통계 읽는 문 둘** (reviews/25 3단계 · 1f 결정 ②).
+ * 📊 **통계 읽는 문 둘** (1f 결정 ②).
  *
  * 관제웹·뉴스레터 문: **내 줄은 그대로**, 남의 줄이 섞인 칸은 **서로 다른 남의 기사 3명 이상**일 때만 합친 값.
  * 남이 2명 이하면 «내 값만» — 칸 합계를 같이 주지 않는다(합계 − 내 값으로 남의 값이 역산되지 않게). 기사 칸(user_id)은 아예 없다.

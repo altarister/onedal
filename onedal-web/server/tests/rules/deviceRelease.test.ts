@@ -68,7 +68,7 @@ describe('📱 ④ KEEP 뒤 폰 확인이 안 와도 심사 중 표시가 풀린
         const session = getUserSession(U);
         session.deviceEvaluatingMap.set(DEV, 'rel-b');
         session.pendingDecisions.delete('rel-b');
-        ackDecision(null, session, U, 'rel-b', '공급 소켓');   // «받았음»은 관제앱 공급 소켓 한 길(reviews/50 ①-5)
+        ackDecision(null, session, U, 'rel-b', '공급 소켓');   // «받았음»은 관제앱 공급 소켓 한 길
         expect(session.deviceEvaluatingMap.has(DEV)).toBe(false);
     });
 });

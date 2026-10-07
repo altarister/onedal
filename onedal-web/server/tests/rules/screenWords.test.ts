@@ -3,7 +3,7 @@ import { join } from 'path';
 import { isQuietPeriod, wordsOf, QUIET_MS } from '../../src/services/screenWords';
 
 /**
- * 📰 **모르는 글자는 버리지 않고 모은다** (reviews/24 2-서버 · 기사님 «정의되지 않았다고 버리지 말고 모아라»).
+ * 📰 **모르는 글자는 버리지 않고 모은다** (기사님 «정의되지 않았다고 버리지 말고 모아라»).
  *
  * 앱이 보고 본문 한 칸 `screenWords: { page, words: [{ word, kind, sample }] }` 를 싣는다 — 갈래는 noise/unknown/extra, 예는 낱말마다.
  * 서버는 배차망 · 페이지 · 낱말 · 갈래마다 처음 · 마지막 · 횟수를 센다 — 자르는 손은 앱 하나다.

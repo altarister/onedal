@@ -8,7 +8,7 @@ import { logContext, enterLogWho } from '../../src/utils/logContext';
 import { kstDateText } from '@onedal/shared';
 
 /**
- * 🗺️ **카카오 사용량 — 회원 · 한국 날마다 센다** (reviews/27 8장 ⑥ ⑭ · 29 5단계 · onedal-69 «가» Q3 · Q4).
+ * 🗺️ **카카오 사용량 — 회원 · 한국 날마다 센다** (29 5단계 · onedal-69 «가» Q3 · Q4).
  *    카카오 키는 하나라 한 회원이 한도를 다 쓰면 모두 멈춘다 — 누가 얼마나 쓰는지 운영센터 회원 상세에 보인다(«카카오 오늘 / 이달»).
  *    «누구 몫»은 로그 «@기사»와 같은 맥락(logContext 의 userId) 한 벌 — 요청 · 폰 문 · 소켓 이벤트 · 1초 고리의 회원 하나가 싣는다.
  *    주인을 모르면(흐름 밖) '' 로 센다. 길찾기(apis-navi)와 좌표 찾기(dapi 등)는 카카오 한도가 따로라 칸을 나눈다. 세기만 한다(운행 무변화).

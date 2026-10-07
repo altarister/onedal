@@ -5,7 +5,7 @@ import { getDeviceMode } from '../../src/routes/devices';
 import { peekUserSession, getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 
 /**
- * 👀 **운영센터는 읽기만 — 남의 기사 세션을 만들지도 깨우지도 않는다** (onedal-1f · reviews/29 3단계 버그).
+ * 👀 **운영센터는 읽기만 — 남의 기사 세션을 만들지도 깨우지도 않는다** (onedal-1f).
  * 폰 목록이 «등록됐지만 안 붙은 폰»의 모드를 고를 때 getUserSession 을 불러, 운행 안 하는 회원(와이프 · 승인 대기)의
  * 기사 세션이 생기고 user_settings 줄까지 쓰였다 — 그 회원이 1초 고리에 들어갔다.
  * 화면용 모드 판단은 저장된 선택 › 있는 세션의 필터(peek) › MANUAL. 🔴 폰 보고 길(getDeviceMode)은 그대로다.

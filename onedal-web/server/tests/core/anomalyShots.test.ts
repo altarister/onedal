@@ -6,7 +6,7 @@ import { saveShot, shotFileOf, sweepExpiredShots, SHOT_LIMIT_BYTES } from "../..
 
 /**
  * 📷 이상 기록 사진 — 받은 사진을 레포 밖 폴더에 쓰고, 30일이 지나면 파일을 지우고 칸을 비운다(줄은 남는다).
- * 사진은 가리지 않은 원본이라 지우기가 꼭 돌아야 한다 (reviews/37).
+ * 사진은 가리지 않은 원본이라 지우기가 꼭 돌아야 한다.
  */
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 1)]);
 const b64 = (b: Buffer) => b.toString("base64");

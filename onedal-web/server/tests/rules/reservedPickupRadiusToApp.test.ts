@@ -22,7 +22,7 @@ const report = async () => {
     let out: any = null;
     const res = { status: () => res, json: (b: any) => { out = b; return res; } };
     await handler({ app, ip: '1.1.1.1', headers: {}, get: () => undefined, body: { data: [], deviceId: DEV, filterVersion: '', supplyLinked: true } }, res);
-    return phoneSupplyOf(U);   // 필터는 관제앱 공급 한 길(reviews/50 ①-5) — 보고는 폰을 살아 있게만 한다
+    return phoneSupplyOf(U);   // 필터는 관제앱 공급 한 길 — 보고는 폰을 살아 있게만 한다
 };
 
 beforeAll(() => {

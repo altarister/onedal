@@ -14,7 +14,7 @@ import db from '../../src/db';
 import { approvedUser } from '../fixtures/approvedUser';
 
 /**
- * 📡 **관제앱 공급 소켓(`/supply`) — 값 한 곳 · 결재 한 곳** (reviews/50 ①-1).
+ * 📡 **관제앱 공급 소켓(`/supply`) — 값 한 곳 · 결재 한 곳**.
  * 결재 행동을 쓰는 곳은 `state/decisions.ts` 의 `decide` 하나 · 보고 응답과 공급이 같은 모드 함수 · 1초 주기가 불러도 로그가 늘지 않는다.
  * 못 잡는 것: 실제 관제앱 · 블루투스(①-2 · ①-3) · 공급 소켓 위로 오가는 값(drive e2e 몫) · 공급 소켓이 둘일 때의 재전송 순서.
  */

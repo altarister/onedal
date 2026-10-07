@@ -7,7 +7,7 @@ import express from 'express';
 import { serveForHost } from '../../src/utils/hostStatic';
 
 /**
- * 🏢 **ops. 주소로 들어온 요청에는 운영센터 화면** (reviews/29 3단계 · onedal-1f «가» · 코드만 — 배포 설정은 DNS 붙일 때).
+ * 🏢 **ops. 주소로 들어온 요청에는 운영센터 화면** (onedal-1f «가» · 코드만 — 배포 설정은 DNS 붙일 때).
  * rehearsal. 와 같은 자리(API 뒤 · 관제웹 서빙 앞)에서 Host 로만 가른다 — /api 는 모든 주소에서 산다.
  * 운영센터 빌드가 없으면 조용히 건너뛴다 — 기사용 서버가 안 멈추고 그 주소도 관제웹을 받는다.
  * 진짜 HTTP 로 Host 머리만 바꿔 묻는다.

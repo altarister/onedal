@@ -45,7 +45,7 @@ describe('capacityFullHold — 실을 수 있는 차종이 없으면 멈춘다',
 
 describe('연결 — 앱 응답이 만석 홀드를 탄다', () => {
     it('🔴 관제앱 공급이 만석 홀드를 거친다', () => {
-        /* 값은 appFilterOf 가 isActive=false 로 내고, 공급(phoneSupply)은 그 까닭(holds.capacityFull)으로 바뀔 때만 알림을 찍는다(reviews/50 ①-5) */
+        /* 값은 appFilterOf 가 isActive=false 로 내고, 공급(phoneSupply)은 그 까닭(holds.capacityFull)으로 바뀔 때만 알림을 찍는다 */
         const appFilter = readFileSync(join(__dirname, '../../src/state/appFilter.ts'), 'utf8');
         const supply = readFileSync(join(__dirname, '../../src/state/phoneSupply.ts'), 'utf8');
         expect(appFilter).toContain('capacityFullHold(session.activeFilter)');

@@ -46,7 +46,7 @@ describe("📸 이상 징후(telemetry) 라우트 및 DB 저장 검증", () => {
 
     it("정상적인 이상 징후 페이로드가 DB에 정확히 기록되고 조회된다", async () => {
         const testDeviceId = "TEST-DEVICE-A24-999";
-        // 🔑 연결된 폰만 받는다 · 자기 폰 기록만 준다 — 이 폰을 읽는 기사에게 잇는다 (reviews/29 1단계)
+        // 🔑 연결된 폰만 받는다 · 자기 폰 기록만 준다 — 이 폰을 읽는 기사에게 잇는다
         db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES ('test-user', 'g-test-user', 'tu@test', 'tu')`).run();
         approvedUser('test-user');   // 🪪 폰 문은 승인 전 계정을 막는다(core/accountGate)
         db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES ('test-user', ?)`).run(testDeviceId);

@@ -5,7 +5,7 @@ import Database from 'better-sqlite3';
 import db, { migrateAccountColumns } from '../../src/db';
 
 /**
- * 🪪 **회원 사실 칸 · 운영센터 표** (reviews/29 4장 · 2·3단계 · onedal-1f «가»).
+ * 🪪 **회원 사실 칸 · 운영센터 표** (2·3단계 · onedal-1f «가»).
  * 🔴 이미 있는 회원은 approved_at 을 가입 시각으로 채운다 — 안 채우면 실서버 기사님 계정이 다음 배포에 «승인 대기»로 막혀 운행이 선다.
  *    옮기기는 **칸이 이번 기동에 새로 생겼을 때만** 돈다 — 매 기동마다 돌면 승인 대기 회원이 재시작에 저절로 승인된다.
  */

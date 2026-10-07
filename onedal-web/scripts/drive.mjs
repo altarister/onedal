@@ -62,7 +62,7 @@ const check = (name, ok, detail = '') => {
 const say = m => console.log(m);
 
 /**
- * 🧪 **e2e 모드** (reviews/42) — `pnpm drive e2e` 이면 주행 사이사이 통신 고리를 더 본다.
+ * 🧪 **e2e 모드** — `pnpm drive e2e` 이면 주행 사이사이 통신 고리를 더 본다.
  * 서버는 기동 때 server/.env 를 스스로 읽으므로(dotenv) 카카오를 끄려면 빈 값을 넘긴다 — dotenv 는 이미 있는 값을 안 덮는다.
  * 인자가 없으면 지금 drive 와 똑같다(카카오도 .env 그대로).
  */
@@ -195,7 +195,7 @@ function registerDevice(dbPath, userId, deviceId) {
     c.close();
 }
 
-// ─────────────────────────── e2e 통신 고리 (reviews/42) ───────────────────────────
+// ─────────────────────────── e2e 통신 고리 ───────────────────────────
 /** HTTP 한 번 — 상태와 몸통(몸통이 JSON 이 아니면 null) */
 async function call(path, { method = 'GET', body, token: tok, deviceToken } = {}) {
     const headers = { 'Content-Type': 'application/json' };
@@ -220,7 +220,7 @@ function openSocket(path, auth, waitFor, ms = 4000) {
 }
 
 /** 🧪 원달앱 화면 보고 — 실제 앱이 1초마다 보내는 그 문(`/api/scrap`) */
-/* 📶 새 원달앱은 «블루투스 공급 연결»(supplyLinked)을 늘 싣는다 — 없으면 서버가 옛 원달앱으로 보고 거절한다(reviews/50 ①-5) */
+/* 📶 새 원달앱은 «블루투스 공급 연결»(supplyLinked)을 늘 싣는다 — 없으면 서버가 옛 원달앱으로 보고 거절한다 */
 const scrap = (deviceId, extra = {}, deviceToken) =>
     call('/api/scrap', { method: 'POST', body: { data: [], deviceId, screenContext: 'DETAIL_CONFIRMED', supplyLinked: true, ...extra }, deviceToken });
 
@@ -274,12 +274,12 @@ async function e2eSessionConflict(tok) {
 }
 
 /**
- * 🧪 ⑦ 관제웹이 없으면 자동을 내려주지 않는다(reviews/44 · 표 shared `modeTable.ts`) — 자동 명령인 폰의 보고 답이
+ * 🧪 ⑦ 관제웹이 없으면 자동을 내려주지 않는다(표 shared `modeTable.ts`) — 자동 명령인 폰의 보고 답이
  *    관제웹 소켓이 붙어 있으면 자동 · 끊으면 알람 · 다시 붙이면 자동. 결재할 관제웹이 없을 때 원달앱 혼자 확정 → 안전취소를 되풀이하면 그것도 취소 횟수다.
  *    주행 내내 붙어 있던 관제웹 소켓(`webSock` · 같은 창 번호)을 먼저 닫는다 — 살아 있으면 서버가 그 소켓을 «관제웹 있음»으로 본다(탭 복제 넘김).
  */
 async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock, supply) {
-    /* 모드는 관제앱 공급 값으로 읽는다(보고 답엔 없다 · reviews/50 ①-5) — 1초 주기가 실어 갈 때까지 기다린다 */
+    /* 모드는 관제앱 공급 값으로 읽는다(보고 답엔 없다) — 1초 주기가 실어 갈 때까지 기다린다 */
     const supplied = async () => { await wait(1300); return supply.supplies[supply.supplies.length - 1]?.phones?.[deviceId]?.mode; };
     webSock.close();
     await wait(500);
@@ -315,7 +315,7 @@ async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock, supply) {
 }
 
 /**
- * 🧪 ⑧ 자동은 한 폰만(reviews/48 가) — 같은 기사님의 두 번째 폰에 자동을 누르면 앞 자동 폰은 알람으로 옮겨지고,
+ * 🧪 ⑧ 자동은 한 폰만 — 같은 기사님의 두 번째 폰에 자동을 누르면 앞 자동 폰은 알람으로 옮겨지고,
  *    끝에 첫 폰을 다시 자동으로 둔다(다음 확인이 쓴다). 옛 DB 에 둘 다 자동인 경우(서버 재시작 직후)는 서버를 다시 띄우지 않는 이 도구로는 못 만든다.
  */
 async function e2eAutoOnePhone(dbPath, userId, tok, deviceId, supply) {
@@ -329,7 +329,7 @@ async function e2eAutoOnePhone(dbPath, userId, tok, deviceId, supply) {
     await web.first;
     await wait(300);
     const setMode = (id, mode) => call(`/api/devices/${encodeURIComponent(id)}/mode`, { method: 'POST', body: { mode }, token: tok });
-    const modeOf = async (id) => { await scrap(id); await wait(1300); return supply.supplies[supply.supplies.length - 1]?.phones?.[id]?.mode; };   // 모드는 공급 값으로(reviews/50 ①-5)
+    const modeOf = async (id) => { await scrap(id); await wait(1300); return supply.supplies[supply.supplies.length - 1]?.phones?.[id]?.mode; };   // 모드는 공급 값으로
     await setMode(deviceId, 'AUTO');
     const before = [await modeOf(deviceId), await modeOf(SECOND)];
     await setMode(SECOND, 'AUTO');
@@ -342,7 +342,7 @@ async function e2eAutoOnePhone(dbPath, userId, tok, deviceId, supply) {
 }
 
 /**
- * 🧪 ⑨ 관제앱 공급 소켓(/supply · reviews/50 ①-1) — 결재가 그 순간 관제앱에 가고, 관제앱이 보낸 «받았음»으로 서버가 치운다.
+ * 🧪 ⑨ 관제앱 공급 소켓(/supply) — 결재가 그 순간 관제앱에 가고, 관제앱이 보낸 «받았음»으로 서버가 치운다.
  *    먼저 보고 답에도 그 결재가 있는지 본다 — 앞 콜의 «받았음»이 이 결재까지 지우는 류의 회귀를 함께 잡는다.
  */
 async function e2eSupplyDecision(supply, deviceId, orderId, action = 'KEEP') {
@@ -364,7 +364,7 @@ async function e2eSupplyDecision(supply, deviceId, orderId, action = 'KEEP') {
 }
 
 /**
- * 🧪 ⑩ 관제앱 공급 소켓은 «관제웹 있음»이 아니다(reviews/50 ④ 나) — 관제웹을 다 끊으면 공급 값의 폰 모드도 알람, 다시 붙이면 1초 주기가 자동을 보낸다.
+ * 🧪 ⑩ 관제앱 공급 소켓은 «관제웹 있음»이 아니다 — 관제웹을 다 끊으면 공급 값의 폰 모드도 알람, 다시 붙이면 1초 주기가 자동을 보낸다.
  *    공급 값의 필터 판 · 폰 모드가 같은 순간 보고 답과 같은지도 본다(한 함수 · 두 벌 셈 없음).
  */
 async function e2eSupplyMode(supply, tok, deviceId) {
@@ -385,7 +385,7 @@ async function e2eSupplyMode(supply, tok, deviceId) {
     web.sock.close();
     const closed = await waitMode('ALARM');
     check('🧪 공급 소켓 — 관제웹이 붙으면 2.5초 안에 자동 · 끊으면 다시 알람(1초 주기)', withWeb === 'AUTO' && closed === 'ALARM', `${withWeb} → ${closed}`);
-    /* 📶 블루투스로만 아는 폰 사실(reviews/50 ①-4) — 관제앱이 넘긴 «다른 서버를 봄»이 기기 목록에 붙는다 · 남의 폰 번호를 버리는 것은 서버 jest `phoneSupply.test` 몫(기기 목록엔 원래 등록 폰만 나와 여기선 못 가른다) */
+    /* 📶 블루투스로만 아는 폰 사실 — 관제앱이 넘긴 «다른 서버를 봄»이 기기 목록에 붙는다 · 남의 폰 번호를 버리는 것은 서버 jest `phoneSupply.test` 몫(기기 목록엔 원래 등록 폰만 나와 여기선 못 가른다) */
     supply.sock.emit('phone-status', { deviceId, sameServer: false, unlinkedWhy: null, heardAt: Date.now() });
     await wait(400);
     const list = (await call('/api/devices', { token: tok })).json?.devices ?? [];
@@ -397,7 +397,7 @@ async function e2eSupplyMode(supply, tok, deviceId) {
 }
 
 /**
- * 🧪 ⑪ 모드 바꾸기 · 붙기 · 끊기의 서버 쪽 절반(reviews/50 ①-4 · 기사님 «가») — 진짜 폰 · 블루투스 없이.
+ * 🧪 ⑪ 모드 바꾸기 · 붙기 · 끊기의 서버 쪽 절반(기사님 «가») — 진짜 폰 · 블루투스 없이.
  *    ① 관제웹에서 모드를 바꾸면 공급 값의 그 폰 모드가 바로 바뀐다(모드 문이 곧바로 공급) ② 원달앱이 «받은 모드»를 보고하면 기기 목록의 «보낼 모드»와 같아진다(적용중 풀림 — 셈은 shared `isModeApplying`)
  *    ③ 원달앱이 «공급 끊김»을 보고하면 기기 목록에 그 사실(폰 칸 «관제앱과 끊김 · 알람만»의 재료) · «붙음»이면 사라진다. 끝에 모드를 자동으로 되돌린다.
  */
@@ -449,7 +449,7 @@ async function e2eBlocked(dbPath, userId, tok, deviceId) {
     }
 }
 
-// ─────────────────────────── e2e 실제 화면 (reviews/42 3단계) ───────────────────────────
+// ─────────────────────────── e2e 실제 화면 ───────────────────────────
 /**
  * 🔨 관제웹 · 운영센터를 빌드한다 — 시험 서버는 **켜질 때** 빌드 폴더가 있는지 보고 내주므로 서버를 띄우기 전에.
  * 🔴 빌드가 깨지면 화면을 찍지 않는다 — 낡은 dist 로 초록이 나면 «고친 것이 깨졌는데 옛 화면은 멀쩡» 이 된다.
@@ -522,7 +522,7 @@ async function e2eScreens(dbPath, bootedAt) {
     }
 }
 
-// ─────────────────────────── e2e 목적지 · 지리 (reviews/42 2단계 · e2e kakao) ───────────────────────────
+// ─────────────────────────── e2e 목적지 · 지리 (e2e kakao) ───────────────────────────
 /** 판정의 한 축 점수 — 없으면 null */
 const axisScore = (judgment, key) => judgment?.axes?.find(a => a.key === key)?.score ?? null;
 

@@ -11,7 +11,7 @@ import { clearUserSession, getUserSession } from '../../src/state/userSessionSto
 import { DEVICE_LINK_ERRORS } from '@onedal/shared';
 
 /**
- * 🏢 **운영센터 서버 문** (reviews/29 3단계 · shared ops.ts 규격 · onedal-1f «가»).
+ * 🏢 **운영센터 서버 문** (shared ops.ts 규격 · onedal-1f «가»).
  * - 들어오는 판단은 requireOps 하나 — 요청마다 DB 의 users.ops_allowed_at 을 읽는다(로그인 토큰의 role 이 아니다 · 허락을 끄면 다음 요청부터 막힘). 소켓 관리자 방도 같은 칸
  * - 관리자의 쓰기마다 ops_audit 한 줄 · 회원 상세를 열면 서버가 «회원 봄» 한 줄(같은 관리자 · 같은 회원 3초 안 중복 없음)
  * - 즉시 정지 · 탈퇴는 그 회원의 관제웹 소켓을 끊는다 · «끝난 뒤» 정지는 안 끊는다 · 자기 자신 정지는 400

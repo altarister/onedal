@@ -5,7 +5,7 @@ import statsRouter from '../../src/routes/stats';
 import { rollupDay, OPS_STATS_MAX_DAYS } from '../../src/services/callFlowStats';
 
 /**
- * 📊 **운영센터 통계 — 실제로 있는 자료만** (reviews/33 4단계 · onedal-69 «가» Q7 «가»).
+ * 📊 **운영센터 통계 — 실제로 있는 자료만** (onedal-69 «가» Q7 «가»).
  *    노선은 «목록에 뜬 실물 콜»(intel source='real' → stats_flows · 옛 /flows/admin 과 같은 줄 · 같은 합) — 시뮬은 안 센다.
  *    앱이 버린 콜도 실물 목록 줄에서 · 같은 콜은 한 번(groupSameCalls) · 잠김(locked) · 판정 없음은 «버린 것»이 아니다.
  *    어느 배차망 자료인지 함께 준다(sources) — 화면 머리가 «지금은 카카오 픽커만»처럼 사실로 적게.

@@ -144,7 +144,7 @@ describe('🧹 목록으로 돌아왔을 때만 치운다', () => {
      * 목록으로 돌아간 같은 행동이 «안 잡겠다»와 «다음 것도 잡겠다» 두 뜻을 갖는다.
      * 가르는 사실은 **곧 새 선점이 뒤따르는가** 하나다.
      */
-    /** 📋 새 원달앱은 인성 완료 탭을 MY_ORDERS + 페이지 이름으로 보낸다 — 서버가 표에서 목록 복귀를 찾아 옛 LIST_COMPLETED 와 같게 (reviews/35 5단계) */
+    /** 📋 새 원달앱은 인성 완료 탭을 MY_ORDERS + 페이지 이름으로 보낸다 — 서버가 표에서 목록 복귀를 찾아 옛 LIST_COMPLETED 와 같게 */
     it('🔴 인성 완료 탭(MY_ORDERS + «완료 탭»)으로 가면 잡은 콜에 목록 이탈 유예가 걸린다 — 옛 LIST_COMPLETED 와 같다', () => {
         touch('phone-done-tab', 'DETAIL_PRE_CONFIRM');
         const s = secured('phone-done-tab', 'sc-done-tab');

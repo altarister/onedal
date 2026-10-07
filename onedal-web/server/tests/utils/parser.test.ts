@@ -8,7 +8,7 @@ import { pageFareOf, detailRecordOf } from '@onedal/shared';
  * 확정 상세 화면의 요금 줄은 이렇게 생겼다:
  *     요금 : 40,000(신용)
  *
- * 서버는 원달앱과 같은 정의 표(NETWORK_PAGES) · 같은 숫자 규칙(쉼표 떼고 정수)으로 읽는다(shared pageFareOf · reviews/34 3단계).
+ * 서버는 원달앱과 같은 정의 표(NETWORK_PAGES) · 같은 숫자 규칙(쉼표 떼고 정수)으로 읽는다(shared pageFareOf).
  * 만 · 천 · 축약은 짐작하지 않는다 — 상세 화면은 실물 · 시뮬 모두 «85,000» 꼴이다.
  */
 const fare = (raw: string) => pageFareOf('insung', 'detail', raw) ?? undefined;

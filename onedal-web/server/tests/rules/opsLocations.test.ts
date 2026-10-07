@@ -4,7 +4,7 @@ import opsRouter, { homeOf, locationsOf } from '../../src/routes/ops';
 import { getUserSession, peekUserSession, clearUserSession } from '../../src/state/userSessionStore';
 
 /**
- * 🗺️ **회원 위치 — 운전석 폰 GPS 마지막 점** (reviews/33 3단계 · 기사님 «가» · onedal-69 «가» Q5).
+ * 🗺️ **회원 위치 — 운전석 폰 GPS 마지막 점** (기사님 «가» · onedal-69 «가» Q5).
  *    세션의 lastFix 중 폰이 보낸 진짜 위치(gps)만 — 모의 주행 · 손으로 찍은 점은 «지금 어디 있나»에 섞으면 거짓 위치다.
  *    시 · 구는 동 명부(nearestDong · 카카오 안 부름). 오래된 점도 시각과 함께 준다(지어내지 않는다) · 홈 뱃지는 오늘 점만.
  *    좌표를 보는 문이라 열람 기록 «위치 봄» — 같은 관리자가 60초 안에 다시 읽으면 줄을 안 더한다. 세션을 만들지 않는다.

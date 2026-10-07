@@ -5,7 +5,7 @@ import { decorateFileLine } from '../../src/utils/fileLogger';
 import { logContext, whoNow } from '../../src/utils/logContext';
 
 /**
- * 🪪 **로그 파일 줄에 «누구의 일인가» · 휴대폰 번호는 가림** (reviews/29 1단계 I·J · onedal-1f «가»).
+ * 🪪 **로그 파일 줄에 «누구의 일인가» · 휴대폰 번호는 가림** (onedal-1f «가»).
  * 기사가 둘이 되면 한 로그 파일에 두 기사의 콜·폰 줄이 섞인다 — 줄 끝에 «@기사»를 붙여 가른다.
  * 줄 앞머리(시각 · 수준 · #태그)는 `pnpm log` 가 읽는 자리라 건드리지 않는다. 터미널 출력은 원문 그대로다.
  */

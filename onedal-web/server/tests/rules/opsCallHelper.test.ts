@@ -8,7 +8,7 @@ import { saveCargoReport, CargoReportError } from '../../src/services/cargoRepor
 import { clearUserSession } from '../../src/state/userSessionStore';
 
 /**
- * 📞 **통화 도우미 — 관리자가 기사 콜에 통화 결과를 적는다** (reviews/29 5단계 · onedal-1f «가»).
+ * 📞 **통화 도우미 — 관리자가 기사 콜에 통화 결과를 적는다** (onedal-1f «가»).
  * - 적는 길은 하나 — saveCargoReport(driverId, orderId, report, writerId). 기사 소켓과 운영센터 문이 같이 부른다
  * - 🔴 기사 흐름은 그대로 — 같은 입력이면 옛 길(bridgeCargoReport)과 같은 단계 행이 된다
  * - 관리자는 통화 신고(DECLARED)만 · 현장 실측(ACTUAL)은 현장 기사만 · 단계 행 written_by 에 적은 사람 · 나중 것이 이긴다

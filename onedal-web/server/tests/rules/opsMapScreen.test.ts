@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🗺️ **운영센터 지도 화면 — 서버 위치 문 하나 · 키 없는 배경 타일 · 뱃지는 서버가 센 것 그대로** (reviews/33 3단계 · 46 서버 f71abda0 · onedal-69 «가»).
+ * 🗺️ **운영센터 지도 화면 — 서버 위치 문 하나 · 키 없는 배경 타일 · 뱃지는 서버가 센 것 그대로** (46 서버 f71abda0 · onedal-69 «가»).
  *    🔴 관제웹 지도 부품(PinnedRouteCanvas)은 그대로다 — 좌표 일반식 셋만 shared `mapTile` 로 옮겨 같이 쓴다(식이 두 벌이면 한쪽만 고쳐진다).
  *    🔴 카카오 지도 SDK · 키를 들이지 않는다(도메인 등록 · 관제앱 출처 처리가 붙는다) — OpenStreetMap 타일 + «© OpenStreetMap» 표기.
  */

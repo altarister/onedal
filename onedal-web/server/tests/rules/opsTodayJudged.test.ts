@@ -5,7 +5,7 @@ import { OrderRepository } from '../../src/repositories/OrderRepository';
 import { judgmentRecordOf } from '../../src/core/engine/judgmentRecord';
 
 /**
- * 🧾 **운영센터 회원 상세 — 오늘 판정받은 콜** (reviews/43 · 기사님 «오늘 잡지 않은 콜 · 어떤 필터 · 무슨 색 몇 점»).
+ * 🧾 **운영센터 회원 상세 — 오늘 판정받은 콜** (기사님 «오늘 잡지 않은 콜 · 어떤 필터 · 무슨 색 몇 점»).
  * 판정 표의 오늘 줄 전부를 낸다 — 잡은 콜은 orders 상태와 함께, 안 잡은 미리보기 · 체험은 판정 때 남긴 내용으로,
  * 기록을 남기기 전의 옛 판정은 내용 없이(null). 지어내지 않는다.
  * 못 잡는 것: 화면에 무엇이 그려지나(운영센터 shot 몫) · 폰 필터와 서버 필터의 어긋남.

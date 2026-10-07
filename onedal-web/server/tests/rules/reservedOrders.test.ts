@@ -11,7 +11,7 @@ import ordersRouter from '../../src/routes/orders';
 import { birthFirstStep } from '../../src/services/stepSeeder';
 
 /**
- * 📅 **예약 보관 — 내일 콜은 오늘 하루에 넣지 않는다** (reviews/23 B-1·B-2 · 기사님 «가 가 가»).
+ * 📅 **예약 보관 — 내일 콜은 오늘 하루에 넣지 않는다** (기사님 «가 가 가»).
  *
  * KEEP 한 콜이 내일 이후면(`reserved_for` 가 오늘 뒤) 진행 중 콜(`myOrders`)이 아니라 **예약 보관(`reservedOrders`)** 에 둔다.
  * 진행 중 콜을 모으는 45곳은 한 줄도 안 바뀐다 — 들어가는 문(KEEP) · 나오는 문(그날이 되면 옮기기) · 버리는 문(거절) 셋.

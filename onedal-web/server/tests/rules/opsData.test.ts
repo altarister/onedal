@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 /**
- * 🏢 **운영센터 자료 — 서버 문이 있는 쪽은 서버만, 없는 쪽은 예시라고 적는다** (reviews/29 3단계 · onedal-1f «가»).
+ * 🏢 **운영센터 자료 — 서버 문이 있는 쪽은 서버만, 없는 쪽은 예시라고 적는다** (onedal-1f «가»).
  *    🔴 서버 쪽이 예시 자료로 대신 그리면 장애가 가려진다 — 서버 쪽은 `api/example.ts` 를 가져오지 않는다.
  *    🔴 예시 쪽은 머리에 `ExampleBand` — 관리자가 «여기서 누른 것은 기록에 안 남는다»를 안다.
  *    시각 글자는 shared 함수(`hhmmText` · `isoKst` · `businessDayKey`)를 거친다 — 화면이 `new Date(글자)` 로 직접 읽지 않는다(Safari 가 지역 글자를 못 읽는다).

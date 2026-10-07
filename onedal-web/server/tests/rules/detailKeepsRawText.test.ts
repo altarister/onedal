@@ -6,7 +6,7 @@ import { getUserSession, clearUserSession } from '../../src/state/userSessionSto
 import { approvedUser } from '../fixtures/approvedUser';
 
 /**
- * 📝 **상세 보고의 원문이 비면 앞서 받은 원문을 덮지 않는다** (reviews/34 발견 A · 기사님 «가» · onedal-69 «가»).
+ * 📝 **상세 보고의 원문이 비면 앞서 받은 원문을 덮지 않는다** (기사님 «가» · onedal-69 «가»).
  *    원달앱은 상세 보고에 모아 둔 상세 글(accumulatedDetailText)을 싣는데, 화물24시 · 사진 없이 가는 픽커는 그 글이 빈 채로 온다.
  *    빈 글이 /confirm 이 남긴 화면 글을 덮으면 판정의 제외어 검사가 적요 · 유의사항을 못 본다 → 제외어가 든 콜이 통과(노이즈).
  *    비지 않은 원문(인성 팝업 모은 글)은 지금처럼 앞 글을 덮는다.

@@ -5,7 +5,7 @@ import opsRouter, { homeOf } from '../../src/routes/ops';
 import { noteError, errorsToday, errorShapeOf } from '../../src/utils/errorTally';
 
 /**
- * 🧯 **점검 «서버 오늘 오류 수»** (reviews/33 · onedal-69 «가» Q11 «가» — ERR 만).
+ * 🧯 **점검 «서버 오늘 오류 수»** (onedal-69 «가» Q11 «가» — ERR 만).
  *    로그 파일의 ERR 줄(console.error)을 쓰는 순간 메모리에서 센다 — 파일을 통째로 읽지 않는다 · 한국 날이 바뀌면 0 · 서버를 다시 띄우면 0(«부팅 뒤 · 오늘»).
  *    줄 수와 «같은 모양»을 접은 가짓수 둘 — 같은 모양 규칙은 pnpm log(scripts/log.mjs)와 글자까지 같다.
  *    /board/server 와 홈이 같은 함수로 받는다.
