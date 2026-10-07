@@ -1,4 +1,4 @@
-import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom,
+import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, isTerminal, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom,
          quadShapeFrom, filterValuesFrom, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
 import type { PhaseKey, JudgmentConfig } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
@@ -526,6 +526,22 @@ export function getUserSession(userId: string): UserSession {
 
 export function getAllActiveUserIds(): string[] {
     return Array.from(sessions.keys());
+}
+
+/**
+ * 🚦 **지금 운행 중인가 — 서버가 다시 뜨면 사라지는 것을 센다** (배포가 묻는다 · `routes/health.ts` `/busy`).
+ *    진행 중 콜(끝나지 않은 내 콜) · 심사 중 콜 · 결재 기다림(관제앱 «받았음» 전) · 걸린 기다림(안전취소 타이머 등).
+ *    모든 사용자를 더한다 — 체험 콜도 센다(메모리에만 있어 다시 뜨면 사라진다).
+ */
+export function busyCountsOfAll(): { live: number; evaluating: number; decisions: number; waits: number } {
+    let live = 0, evaluating = 0, decisions = 0, waits = 0;
+    for (const s of sessions.values()) {
+        live += s.myOrders.filter(o => !isTerminal(o.status)).length;
+        evaluating += s.pendingOrdersData.size;
+        decisions += s.pendingDecisions.size;
+        waits += s.entries.size;
+    }
+    return { live, evaluating, decisions, waits };
 }
 
 /** 🔢 숫자면 반올림, 아니면(NULL 등) 그대로 — 원달앱이 Int 로 받는 필터 칸을 DB 에서 읽을 때 */

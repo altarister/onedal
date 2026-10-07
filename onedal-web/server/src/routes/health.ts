@@ -4,6 +4,7 @@ import { slog } from "../utils/fileLogger";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { isLiveServer } from "../config/env";
 import type { HealthReply } from "@onedal/shared";
+import { busyCountsOfAll } from "../state/userSessionStore";
 
 const router = Router();
 
@@ -76,6 +77,17 @@ router.get("/detail", requireAuth, (_req, res) => {
         dbFile: process.env.DB_FILE || "local.db",
         node: process.version,
     });
+});
+
+/**
+ * 🚦 GET /api/health/busy — **서버 안(localhost)에서 온 요청만** 답한다. 배포가 «지금 운행 중인가»를 묻는다(`scripts/deploy.sh`).
+ *    밖에서 운행 여부가 보이지 않게, 원격 주소(머리글이 아니라 소켓 주소)가 자기 자신이 아니면 404.
+ */
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+router.get("/busy", (req, res) => {
+    if (!LOOPBACK.has(req.socket.remoteAddress ?? '')) return res.status(404).end();
+    const counts = busyCountsOfAll();
+    res.json({ busy: Object.values(counts).some(n => n > 0), ...counts });
 });
 
 export default router;
