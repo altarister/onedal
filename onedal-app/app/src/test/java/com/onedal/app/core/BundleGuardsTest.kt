@@ -39,7 +39,8 @@ class BundleGuardsTest {
         assertFalse("listHeaderHidden 은 이제 안 보낸다", model.contains("listHeaderHidden"))
         val svc = File("$root/HijackService.kt").readText()
         assertTrue(svc.contains("telemetryManager.openBlocked = openBlocked"))
-        listOf("HAND_FIRST", "ALARM_HELD", "EVALUATING", "BUSY", "LIST_MOVING", "TAP_NOT_SENT").forEach { assertTrue(it, svc.contains("OpenBlocked.$it")) }
+        // 손 먼저 · 알람 미룸 · 심사 중 · 바쁨 · 흐르는 목록 키는 동작으로 `ListTapPickTest` — 서비스에 남은 열쇠만
+        listOf("HAND_FIRST", "LIST_MOVING", "TAP_NOT_SENT").forEach { assertTrue(it, svc.contains("OpenBlocked.$it")) }
         assertTrue(svc.contains("🔔 [새로 셈]"))
         val plugin = File("$root/plugins/kakaopicker/KakaoPickerPlugin.kt").readText()
         assertTrue(plugin.contains("TapShift.listMoving("))

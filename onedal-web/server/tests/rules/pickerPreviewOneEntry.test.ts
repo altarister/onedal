@@ -31,8 +31,12 @@ describe('픽커 상세 — 카드 찾기는 한 곳 (#119)', () => {
         const list = hijack.split('private fun handleListScreen')[1]?.split('\n    private fun ')[0] ?? '';
         const i = list.indexOf('🚪 [상세 진입]');
         expect(i).toBeGreaterThan(-1);
-        expect(list.match(/session\.lastDetailOrder\s*=/g)?.length).toBe(1);
-        expect(list.indexOf('session.lastDetailOrder')).toBeGreaterThan(i);
+        /* 세우는 몸통은 기록 한 곳(`ListTapRecord.recordTapped`) — 목록 처리는 그것을 진입 줄 뒤에서 한 번 부른다 */
+        const record = codeOnly(read(join(APP, 'core/ListTapRecord.kt')));
+        expect(record.match(/session\.lastDetailOrder\s*=/g)?.length).toBe(1);
+        expect(list.match(/session\.lastDetailOrder\s*=/g)).toBeNull();
+        expect(list.match(/ListTapRecord\.recordTapped\(/g)?.length).toBe(1);
+        expect(list.indexOf('ListTapRecord.recordTapped(')).toBeGreaterThan(i);
     });
 
     it('🔴 미리보기는 리스트 카드를 찾는 함수 하나를 거친다', () => {

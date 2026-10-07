@@ -68,7 +68,7 @@ class AlarmedRoutesTest {
         val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
         assertTrue(src.contains("if (alarmedRoutes.countIfNew(order, nowMs)) {"))
         assertTrue(src.contains("tally.passedNew++"))
-        assertTrue(src.contains("alarmedRoutes.markOpened(order, "))
+        // 누른 뒤 «열기 함»은 동작으로 `ListTapPickTest` «누르기 성공 뒤 기록»
         assertTrue(src.contains("if (isTarget && !alarmedRoutes.opened(order)) alarmHits.add("))
     }
 }

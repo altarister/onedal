@@ -152,7 +152,7 @@ describe('🎛️ 앱은 직접 모드에서 누르지 않는다', () => {
         const beforeTouch = fn.split('performSimulatedTouch')[0] ?? '';
         expect(beforeTouch).toMatch(/if \(tapsFromList/);
         expect(fn).toMatch(/val willContract = com\.onedal\.app\.core\.engine\.appContractsOnOpen\(currentMode, order\)/);
-        expect(fn).toMatch(/contractedByApp = willContract/);
+        expect(fn).toMatch(/ListTapRecord\.recordTapped\(\s*callMemory, alarmedRoutes, session, order, orderHash, willContract,/);   // 세션 칸에 싣는 것은 동작으로 ListTapPickTest
         expect(app('core/engine/PreConfirmSequence.kt')).toMatch(/fun appContractsOnOpen\(mode: String, order: SimplifiedOfficeOrder\): Boolean =\s*ModeActs\.of\(mode\)\.contracts && ReservationGate\.isToday\(order\)/);
     });
 
@@ -237,7 +237,8 @@ describe('🔔 2단계 — 스캐너 폰이 스스로 알린다 (기사님 확�
         const addLine = scan.split('alarmHits.add')[0].slice(-400);
         expect(addLine).toMatch(/isTarget/);
         const beforeFire = scan.split('alarmSignaler.fire')[0];
-        expect(beforeFire.slice(-200)).toMatch(/ModeActs\.of\(currentMode\)\.sound/);
+        expect(beforeFire.slice(-200)).toMatch(/if \(gate\.fire\)/);   // 소리는 판단 «fire» 일 때만 — fire 는 sound 일 때만(동작으로 ListTapPickTest)
+        expect(scan).toMatch(/sound = ModeActs\.of\(currentMode\)\.sound/);
         const acts = codeOnly(app('core/ModeActs.kt'));
         expect(acts.match(/sound = true/g)?.length).toBe(1);   // 소리는 알람 하나뿐
         expect(acts).toMatch(/"ALARM" -> ModeActs\(tapsList = true, sound = true/);

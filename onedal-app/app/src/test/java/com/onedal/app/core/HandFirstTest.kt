@@ -44,10 +44,7 @@ class HandFirstTest {
         assertTrue(src.contains("✋ [손 먼저] 기사님 손"))
         assertTrue("소리는 곧바로 · 누르기만 미룬다(기사님 «가»)", src.contains("— 소리는 울림 · 누르기 미룸"))
         assertTrue(src.contains("👆 [미룬 누르기] +\${it}ms · 손 먼저"))
-        // 누르기만 손에 막힌다 — 소리(fire)는 손 문 밖이고, 누름(planListTap)은 손 문 안이다
-        val block = src.substringAfter("val handHeld =").substringBefore("\n    private fun ")
-        assertTrue(block.contains("if (!handHeld) {"))
-        assertTrue(block.indexOf("alarmSignaler.fire(") < block.indexOf("if (!handHeld) {"))
+        // 누르기만 손에 막힌다(소리는 울림) — 동작으로 `ListTapPickTest` «손 먼저면 소리는 울리고 누르기만 미룬다»
         assertTrue(src.contains("누를 콜은 늘 방금 읽은 화면에서 고른다 — 담아 두지 않는다"))
     }
 
@@ -103,7 +100,7 @@ class HandFirstTest {
         val handoff = src.substringAfter("waitBook.schedule(\"누르기 넘김\", com.onedal.app.core.WaitBook.LIST, 0L)").substringBefore("performSimulatedTouch(")
         assertTrue("넘김이 없다", handoff.length < src.length)
         assertTrue(handoff.contains("handFirst.blocks("))
-        assertTrue(handoff.contains("TapShift.listMoving("))
+        // 흐르는 목록 · 차례는 동작으로 `ListTapPickTest` «넘김 뒤 다시 보기»
         assertTrue(handoff.contains("ScreenContext.LIST"))
         assertTrue(src.contains("✋ [누르기 넘김 뒤 멈춤]"))
     }

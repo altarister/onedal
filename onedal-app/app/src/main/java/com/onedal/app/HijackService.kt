@@ -533,6 +533,13 @@ class HijackService : AccessibilityService(), ScanContext {
      * ⏱️ **서버가 내려준 필터(저장본)** — 배차망별 대기 시간을 여기서 읽는다 (기사님 확정).
      * 🔴 원천은 서버 DB 다 — 폰 안 저장소 값은 서버가 모르는 값이 된다. 못 읽으면 `FilterConfig` 기본값(서버 DB 기본값과 같다).
      */
+    /** 🔒 서버가 앞 콜을 심사 중인가 — 블루투스 폰 몫(`EvaluatingNow.PREF_KEY`)이 먼저, 없으면 필터 칸 (`EvaluatingNow.of`) */
+    private fun evaluatingNow(): Boolean {
+        val prefs = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+        val top = if (prefs.contains(com.onedal.app.core.EvaluatingNow.PREF_KEY)) prefs.getBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, false) else null
+        return com.onedal.app.core.EvaluatingNow.of(top, savedFilter().evaluatingNow)
+    }
+
     private fun savedFilter(): com.onedal.app.models.FilterConfig = com.onedal.app.core.FilterStore.current(this)
 
     // 화면 꺼짐/켜짐 감지용 리시버 (퇴근 시 즉시 오프라인 통보 / 출근 시 즉시 생존 신고)
@@ -1723,65 +1730,58 @@ class HijackService : AccessibilityService(), ScanContext {
         // 📬 이번 읽기가 누르기로 다시 정하지 않으면 앞 읽기가 걸어 둔 넘김은 거둔다(뒤 스캔의 보류가 이긴다 · 리뷰)
         waitBook.cancel("누르기 넘김")
         val tapNowMs = android.os.SystemClock.elapsedRealtime()
-        val handHeld = tapsFromList && !session.openedByApp && bestIdx >= 0 && handFirst.blocks(tapNowMs)
+        val best = if (bestIdx >= 0) alarmHits[bestIdx] else null
+        val label = best?.first?.let { "${it.pickup}→${it.dropoff} ${"%,d".format(it.fare)}원 · 예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(it)}" }
+        /* ⏳ 알람 미룸은 상태가 있다 — 목록에서 누르는 모드 · 앱이 안 연 때만 묻는다 */
+        val hold = if (tapsFromList && !session.openedByApp) alarmHold.decide(best?.third, label, scanMoving, android.os.SystemClock.elapsedRealtime()).let { d ->
+            d.dropped?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [알람 미룸 → 탈락] $it") }
+            if (d.kind == com.onedal.app.core.AlarmHold.Kind.FIRE) d.heldMs?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [미룬 알람 울림] +${it}ms · $label") }
+            d.kind
+        } else null
+        /** 🚪 누르러 갈까 — 판단은 `ListTapPick.gate` 한 곳(값만) · 여기는 결과대로 걸고 · 남기고 · 누른다 */
+        val gate = com.onedal.app.core.ListTapPick.gate(com.onedal.app.core.ListTapPick.GateFacts(
+            tapsList = tapsFromList, openedByApp = session.openedByApp, hasBest = bestIdx >= 0,
+            handBlocks = handFirst.blocks(tapNowMs), hold = hold,
+            evaluating = { evaluatingNow() }, sound = ModeActs.of(currentMode).sound,
+        ))
         /** 🚧 통과 콜이 있는데 안 연 까닭 — 목록 보고 openBlocked (`OpenBlocked`) */
-        var openBlocked: String? = if (tapsFromList && bestIdx >= 0 && session.openedByApp) com.onedal.app.core.OpenBlocked.BUSY else null
-        if (handHeld) {
-            openBlocked = com.onedal.app.core.OpenBlocked.HAND_FIRST
+        var openBlocked: String? = gate.openBlocked
+        if (gate.handHeld) {
             handFirst.hold(tapNowMs)
             if (LogOnce.changed("hand-first", "${handFirst.lastHandAtMs}"))
                 AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "✋ [손 먼저] 기사님 손 ${"%.1f".format((tapNowMs - handFirst.lastHandAtMs) / 1000.0)}초 전($lastHandWhy) — 소리는 울림 · 누르기 미룸 · 멈추면 곧바로 다시 읽는다")
         }
-        var holdFires = false
-        if (tapsFromList && !session.openedByApp) {
-            val best = if (bestIdx >= 0) alarmHits[bestIdx] else null
-            val label = best?.first?.let { "${it.pickup}→${it.dropoff} ${"%,d".format(it.fare)}원 · 예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(it)}" }
-            val d = alarmHold.decide(best?.third, label, scanMoving, android.os.SystemClock.elapsedRealtime())
-            d.dropped?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [알람 미룸 → 탈락] $it") }
-            when (d.kind) {
-                com.onedal.app.core.AlarmHold.Kind.HOLD -> {
-                    if (!handHeld) openBlocked = com.onedal.app.core.OpenBlocked.ALARM_HELD
-                    lastScreenFingerprint = 0   // 확인 읽기의 글자가 같아도 목록을 다시 봐야 미룬 알람이 울린다
-                    AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "⏳ [알람 미룸] 목록이 움직이는 중(내용 바뀜 ${recentContentEvents.size}개/300ms) — 다음 읽기에서 같은 조립이면 울린다 · $label")
-                    waitBook.schedule("미룬 알람 다시 보기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.AlarmHold.RECHECK_MS) { heldAlarmRecheck.run() }
-                }
-                com.onedal.app.core.AlarmHold.Kind.FIRE -> {
-                    d.heldMs?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [미룬 알람 울림] +${it}ms · $label") }
-                    holdFires = true
-                }
-                com.onedal.app.core.AlarmHold.Kind.NONE -> Unit
-            }
+        if (gate.heldRecheck) {
+            lastScreenFingerprint = 0   // 확인 읽기의 글자가 같아도 목록을 다시 봐야 미룬 알람이 울린다
+            AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "⏳ [알람 미룸] 목록이 움직이는 중(내용 바뀜 ${recentContentEvents.size}개/300ms) — 다음 읽기에서 같은 조립이면 울린다 · $label")
+            waitBook.schedule("미룬 알람 다시 보기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.AlarmHold.RECHECK_MS) { heldAlarmRecheck.run() }
         }
-        if (tapsFromList && !session.openedByApp && bestIdx >= 0 && holdFires) {
-            val (order, fareNode, orderHash) = alarmHits[bestIdx]
+        if (best != null && (gate.evaluatingStop || gate.fire || gate.planTap)) {
+            val (order, fareNode, orderHash) = best
             /**
              * 🔒 **서버가 앞 콜을 심사 중이면 이번 스캔은 누르지 않는다** (기사님 · 실주행 오송읍 · 한 번에 하나만 평가).
              * 판정은 이미 끝났고 기억에도 안 넣었으니, 앞 콜이 결재되는 즉시 다음 스캔에서 **바로** 누른다.
              */
-            val prefs = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
-            val evaluatingTop = if (prefs.contains(com.onedal.app.core.EvaluatingNow.PREF_KEY))
-                prefs.getBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, false) else null
-            if (com.onedal.app.core.EvaluatingNow.of(evaluatingTop, savedFilter().evaluatingNow)) {
-                openBlocked = com.onedal.app.core.OpenBlocked.EVALUATING
+            if (gate.evaluatingStop) {
                 AppLogger.d(TAG, LogTag.TAP, "⏳ [클릭 미룸] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
                     "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 다음 스캔에서 바로 누릅니다")
-            } else {
-                // 🔔 알람이면 소리·진동 — 테두리는 그리지 않는다(앱이 상세까지 들어가 가리킬 줄이 없다 · 기사님 결정 «모든 배차망이 똑같이»)
-                if (ModeActs.of(currentMode).sound) {
-                    alarmSignaler.fire(
-                        fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash,
-                        withBorder = false,
-                        withSound = alarmedRoutes.soundIfNew(order, android.os.SystemClock.elapsedRealtime()),   // 🔔 같은 경로 한 번(스크롤로 나갔다 와도)
-                    )
-                }
-                if (!handHeld) {
+            }
+            // 🔔 알람이면 소리·진동 — 테두리는 그리지 않는다(앱이 상세까지 들어가 가리킬 줄이 없다 · 기사님 결정 «모든 배차망이 똑같이»)
+            if (gate.fire) {
+                alarmSignaler.fire(
+                    fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash,
+                    withBorder = false,
+                    withSound = alarmedRoutes.soundIfNew(order, android.os.SystemClock.elapsedRealtime()),   // 🔔 같은 경로 한 번(스크롤로 나갔다 와도)
+                )
+            }
+            if (gate.planTap) {
                 // 🌊 방금 스크롤 — 흐르는 목록은 누르지 않고 곧 다시 읽는다(주 판정은 배차망의 누르기 직전 Y 차이 · 이것은 덧)
                 val plugin = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp)
+                val scrolled = scrollGate.scrolledRecently(android.os.SystemClock.elapsedRealtime())
                 // 👆 누르기 전 안전 확인과 누를 자리는 배차망이 정한다 (픽커: 오더카드를 피한다)
-                val tap = if (scrollGate.scrolledRecently(android.os.SystemClock.elapsedRealtime())) null else plugin.planListTap(allNodes, order, fareNode)
+                val tap = if (scrolled) null else plugin.planListTap(allNodes, order, fareNode)
                 if (tap == null) {
-                    openBlocked = if (scrollGate.scrolledRecently(android.os.SystemClock.elapsedRealtime())) com.onedal.app.core.OpenBlocked.LIST_MOVING
-                        else plugin.lastHoldKey ?: com.onedal.app.core.OpenBlocked.HELD
+                    openBlocked = com.onedal.app.core.ListTapPick.afterPlan(scrolled, plugin.lastHoldKey)
                     if (openBlocked == com.onedal.app.core.OpenBlocked.LIST_MOVING)
                         waitBook.schedule("흐르는 목록 다시 읽기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.ScrollGate.QUIET_MS) { reservedRead("흐르는 목록") }
                 }
@@ -1795,18 +1795,14 @@ class HijackService : AccessibilityService(), ScanContext {
                     waitBook.schedule("누르기 넘김", com.onedal.app.core.WaitBook.LIST, 0L) handoff@{
                         val nowTap = android.os.SystemClock.elapsedRealtime()
                         val nowY = fareNode.node?.takeIf { it.refresh() }?.let { n -> android.graphics.Rect().also { n.getBoundsInScreen(it) }.centerY() }
-                        val stop: Pair<String, String>? = when {
-                            telemetryManager.currentScreenContext != ScreenContext.LIST -> "목록이 아니다" to com.onedal.app.core.OpenBlocked.TAP_RECHECK
-                            session.openedByApp || touchManager.tapPending -> "이미 누르는 중" to com.onedal.app.core.OpenBlocked.BUSY
-                            handFirst.blocks(nowTap) -> "손 먼저(넘기는 사이 처리된 손 흔적 · $lastHandWhy)" to com.onedal.app.core.OpenBlocked.HAND_FIRST
-                            com.onedal.app.core.EvaluatingNow.of(
-                                getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE).let { p -> if (p.contains(com.onedal.app.core.EvaluatingNow.PREF_KEY)) p.getBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, false) else null },
-                                savedFilter().evaluatingNow) -> "앞 콜 심사 중(넘기는 사이 결재 대기)" to com.onedal.app.core.OpenBlocked.EVALUATING
-                            nowY == null -> "요금 칸을 다시 못 읽었다" to com.onedal.app.core.OpenBlocked.TAP_RECHECK
-                            com.onedal.app.core.TapShift.listMoving(fareNode.rect.centerY(), nowY, scrollGate.scrolledRecently(nowTap)) ->
-                                "목록이 움직이는 중(스캔 Y=${fareNode.rect.centerY()} · 지금 Y=$nowY)" to com.onedal.app.core.OpenBlocked.LIST_MOVING
-                            else -> null
-                        }
+                        val stop = com.onedal.app.core.ListTapPick.recheckStop(
+                            onList = telemetryManager.currentScreenContext == ScreenContext.LIST,
+                            busy = session.openedByApp || touchManager.tapPending,
+                            handBlocks = handFirst.blocks(nowTap), handWhy = lastHandWhy,
+                            evaluating = { evaluatingNow() },
+                            scanY = fareNode.rect.centerY(), nowY = nowY,
+                            scrolledRecently = scrollGate.scrolledRecently(nowTap),
+                        )
                         if (stop != null) {
                             AppLogger.i("1DAL_ALARM", LogTag.TAP, "✋ [누르기 넘김 뒤 멈춤] ${order.fare}원 — ${stop.first}")
                             telemetryManager.openBlocked = stop.second
@@ -1847,34 +1843,13 @@ class HijackService : AccessibilityService(), ScanContext {
                             //    세우면 화면은 목록 그대로라 «목록으로 돌아왔다» 리셋이 안 오고 다음 스캔부터 아무 콜도 못 누른다
                             AppLogger.w("1DAL_ALARM", LogTag.TAP, "🛑 [진입 실패] ${order.fare}원 — 누르기가 안 됐다. 이번 스캔은 손대지 않고 다음 스캔에 다시 본다")
                         }
-                        if (fired) {
-                            /**
-                             * 📝 **누른 콜을 기억에 넣는다** — 앱이 들어간 콜만 기억한다(기사님 확정).
-                             * 누르기는 이 자리에서 바로 끝나고(동기), 목록 이벤트는 같은 줄 뒤에 오므로 그 사이에 끼지 않는다.
-                             * 넣지 않으면 목록으로 돌아오자마자 처음 보는 콜로 또 눌린다.
-                             * 🔴 «눌렀다»는 필터 버전이 바뀌어도 안 지워진다 (`CallMemory.markEvaluated`).
-                             */
-                            callMemory.markEvaluated(orderHash)
-                            alarmedRoutes.markOpened(order, android.os.SystemClock.elapsedRealtime())   // 🔔 요금만 올라도 다시 안 연다
-                            session.openedByApp = true // 콜 잡기 시작!
-                            // ✍️ 계약 버튼은 자동 모드 · 오늘 콜에서만 — 위 진입 줄과 같은 값 · 📅 상세에서 한 번 더: `appPressesAccept`
-                            session.contractedByApp = willContract
-                            session.setOrderId(order.id)
-                            session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
-                            /**
-                             * 🎯 **찍는 그 카드를 쥐여 둔다** — 앱이 직접 누르고 들어가는 판이라 어느 콜인지 이미 안다.
-                             * 픽커 사진 읽기가 이 카드와 엄격히 대조한다 (`detailOpener` 가 «알람이 연 상세»로 가른다).
-                             */
-                            session.alarmTappedCard = order
-                            session.alarmTappedAtMs = alarmTapAtMs
-                            session.alarmFoundAtMs = listReadAtMs
-                            session.alarmTappedScreen = telemetryManager.currentScreenContext   // 🧾 누른 화면 — «먼저 가져감» 기록의 화면 칸
-                            session.alarmTappedPage = lastScreenRead?.page
-                            // 📊 서버 보고는 루프에서 이미 했다 (`markReportedOnce`) — 여기서 다시 보내지 않는다
-                        }
+                        if (fired) com.onedal.app.core.ListTapRecord.recordTapped(
+                            callMemory, alarmedRoutes, session, order, orderHash, willContract,
+                            nowMs = android.os.SystemClock.elapsedRealtime(), tapAtMs = alarmTapAtMs, foundAtMs = listReadAtMs,
+                            screen = telemetryManager.currentScreenContext, page = lastScreenRead?.page,
+                        )
                     }
                 }
-                }   // ✋ 누르기만 손 문 안
             }
         }
         telemetryManager.openBlocked = openBlocked   // 🚧 열었거나 통과 콜이 없으면 null

@@ -29,7 +29,7 @@ class ListTapFiredTest {
     @Test
     fun `콜 기억은 누르기에 성공한 뒤에 넣는다`() {
         val touch = list.indexOf("touchManager.performSimulatedTouch(freshFare")   // 누르기 넘김이 새로 읽은 노드로 누른다
-        val mark = list.indexOf("callMemory.markEvaluated(orderHash)")
+        val mark = list.indexOf("ListTapRecord.recordTapped(")   // 기록이 바꾸는 것은 동작으로 `ListTapPickTest` «누르기 성공 뒤 기록»
         assertTrue(touch > 0 && mark > 0)
         assertTrue("«눌렀다» 기억이 누르기보다 앞이다 — 실패한 콜도 영영 다시 안 본다", mark > touch)
     }

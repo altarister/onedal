@@ -44,7 +44,7 @@ class BundleReviewTest {
     @Test fun `3 넘긴 누르기 - 보류하는 읽기가 거둔다 · 넘겨받은 쪽이 심사 중을 보고 새로 읽는다`() {
         assertTrue(svc.contains("waitBook.cancel(\"누르기 넘김\")"))
         val handoff = svc.substringAfter("waitBook.schedule(\"누르기 넘김\"").substringBefore("performSimulatedTouch(")
-        assertTrue(handoff.contains("EvaluatingNow.of("))
+        assertTrue(handoff.contains("evaluatingNow()"))   // 심사 중이면 멈추는 차례는 동작으로 `ListTapPickTest`
         assertTrue(handoff.contains("freshScreenNodes()"))
         val plugin = File("src/main/java/com/onedal/app/plugins/kakaopicker/KakaoPickerPlugin.kt").readText()
         assertTrue("머리줄 길도 창 전체 재검색", plugin.substringAfter("override fun planListTap(").substringBefore("private fun planScrolledTap(").contains("offerSignInWindow("))
