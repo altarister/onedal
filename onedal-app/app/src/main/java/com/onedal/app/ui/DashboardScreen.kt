@@ -187,9 +187,6 @@ fun DashboardScreen(viewModel: MainViewModel) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(viewModel.getStatusDisplayText().replace("\n", " · "), style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp))
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(viewModel.getControlDisplayText(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                }
             }
         }
 

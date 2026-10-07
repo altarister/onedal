@@ -89,7 +89,7 @@ fun NetworksScreen(viewModel: MainViewModel) {
                     label = "인성콜",
                     badge = "⚡ 자동잡기",
                     color = Color(0xFF1565C0),
-                    desc = "거리×단가표 · 안전취소 ${filterConfig?.safeCancelSecInsung ?: 30}초 · 팝업검증"
+                    desc = "거리×단가표 · 안전취소 ${filterConfig?.safeCancelSecInsung ?: 30}초 · 팝업 3장 수집"
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 ComparisonRow(
@@ -103,7 +103,7 @@ fun NetworksScreen(viewModel: MainViewModel) {
                     label = "카카오픽커",
                     badge = "🔔 알람전용",
                     color = Color(0xFFF57F17),
-                    desc = "최소 금액 ${NumberFormat.getNumberInstance(Locale.KOREA).format(filter.minFare)}원 · 2차 상단OCR · 상세복귀 ${filterConfig?.pickerAlarmDetailSec ?: 30}초"
+                    desc = "최소 금액 ${NumberFormat.getNumberInstance(Locale.KOREA).format(filter.minFare)}원 · 요금·상차·도착·예약 · 상세복귀 ${filterConfig?.pickerAlarmDetailSec ?: 30}초"
                 )
             }
         }
@@ -175,7 +175,7 @@ private fun InsungDetailCard(filterConfig: com.onedal.app.models.FilterConfig?) 
             Text(text = "⏱️ 안전 대기 & 특수 수순", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = Color(0xFF1565C0))
             Spacer(modifier = Modifier.height(4.dp))
             DetailBullet("안전취소 시간: ${filterConfig?.safeCancelSecInsung ?: 30}초 (오잡기 즉시 안전 취소)")
-            DetailBullet("인성 고유 수순: 상세 진입 시 요율표·거리·동명이동 팝업 3장 연속 수집 및 검증")
+            DetailBullet("인성 고유 수순: 상세 진입 시 적요상세 · 출발지 · 도착지 팝업 3장을 차례로 열어 글 수집")
             DetailBullet("패키지 식별: insung 키워드 포함 앱 감지")
         }
     }
@@ -297,7 +297,7 @@ private fun KakaoPickerDetailCard(
             HorizontalDivider(color = Color(0xFFFFF176))
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 픽커 2단계 정밀 판정 로직 강조 박스
+            // 픽커 알람 판정 강조 박스
             Surface(
                 color = Color(0xFFFFF8E1),
                 shape = RoundedCornerShape(8.dp),
@@ -305,17 +305,15 @@ private fun KakaoPickerDetailCard(
             ) {
                 Column(modifier = Modifier.padding(10.dp)) {
                     Text(
-                        text = "🎯 픽커 고유 2단계 필터링 체계",
+                        text = "🎯 픽커 알람 판정",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelMedium,
                         color = Color(0xFFE65100)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "• 1단계 (목록 수집): 요금 ≥ ${formattedAlarmFare}원 (최소 금액 · 관제웹 필터 막대)\n" +
-                               "  → 걷기/소액 초단거리 똥콜 1차 원천 차단\n" +
-                               "• 2단계 (상세 확인): 상단 스냅샷 OCR 배송거리 판정\n" +
-                               "  → 요금 ≥ OCR 배송거리(km) × 단가표 기준 충족 시 알람",
+                        text = "• 목록에서 판정: 요금 ≥ ${formattedAlarmFare}원 (최소 금액 · 관제웹 필터 막대) · 상차 · 도착(하차 목록) · 예약\n" +
+                               "  → 넷이 다 맞으면 상세에 들어가 소리 · 진동으로 알림 (단가 판정은 없다)",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                         color = Color(0xFF4E342E)
                     )
@@ -329,7 +327,7 @@ private fun KakaoPickerDetailCard(
             Spacer(modifier = Modifier.height(4.dp))
             DetailBullet("안전취소: 🚫 미지원 (픽커는 기사 직접 수락 시 즉시 계약 체결)")
             DetailBullet("상세 복귀 대기: ${filterConfig?.pickerAlarmDetailSec ?: 30}초 (상세 머문 후 목록 자동 복귀)")
-            DetailBullet("차종 처리: 픽커는 크기 구분만 있으므로 [${KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE} (${KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG})] 기준 단가 적용")
+            DetailBullet("차종 처리: 픽커는 크기 구분만 있으므로 [${KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE} (${KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG})] 로 본다")
             DetailBullet("화면 판독: 주소가 노드 트리에 없어 상단 스냅샷 OCR(PickerDetailOcrParser) 탑재")
             DetailBullet("패키지 식별: flexer 키워드 포함 앱 감지")
         }

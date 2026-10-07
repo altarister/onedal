@@ -35,8 +35,6 @@ class MainViewModel {
         private set
     var apiStatusJson by mutableStateOf("{}")
         private set
-    var deviceControlJson by mutableStateOf("{}")
-        private set
 
     // ── 전송 기록 ──
     var lastScrapTime by mutableStateOf(0L)
@@ -118,7 +116,6 @@ class MainViewModel {
                 isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
                 activeFilterJson = prefs.getString("activeFilter", "{}") ?: "{}"
                 apiStatusJson = prefs.getString("apiStatus", "{}") ?: "{}"
-                deviceControlJson = prefs.getString("deviceControl", "{}") ?: "{}"
                 lastScrapTime = prefs.getLong("lastScrapTime", 0L)
                 apiScrapReq = prefs.getString("api_scrap_req", "없음") ?: "없음"
                 apiScrapRes = prefs.getString("api_scrap_res", "없음") ?: "없음"
@@ -178,12 +175,6 @@ class MainViewModel {
         else "• 통신 성공여부: ${json.optBoolean("success")}\n• 누적 수집된 오더: ${json.optInt("totalItems")}건"
     } catch (e: Exception) { "파싱 오류" }
 
-    fun getControlDisplayText(): String = try {
-        val json = JSONObject(deviceControlJson)
-        if (json.length() == 0) "대기 중.."
-        else "• 데스맨 스위치 모드: ${json.optString("mode")}"
-    } catch (e: Exception) { "파싱 오류" }
-
     // ── SharedPreferences 저장 ──
 
     fun saveLiveMode(context: Context, checked: Boolean) {
@@ -206,7 +197,7 @@ class MainViewModel {
         val f = try {
             json?.let { com.onedal.app.core.FilterStore.parse(it) }
         } catch (e: Exception) { null }
-            ?: return "서버 값을 아직 못 받았습니다 — 기본 인성 30초 · 화물24시 30초 · 픽커 상세 60초"
+            ?: return "서버 값을 아직 못 받았습니다 — 기본 인성 30초 · 화물24시 30초 · 픽커 상세 30초"
         return "인성 ${f.safeCancelSecInsung}초 · 화물24시 ${f.safeCancelSecHwamul24}초 · 픽커 상세 ${f.pickerAlarmDetailSec}초"
     }
 
