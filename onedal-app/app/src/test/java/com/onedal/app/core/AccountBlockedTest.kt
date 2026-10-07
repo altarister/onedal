@@ -20,7 +20,7 @@ class AccountBlockedTest {
 
     @Test fun `목록 처리는 막힘이면 판정을 안 하고 · 결재 버튼 길은 막힘을 안 본다`() {
         val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
-        assertTrue(src.contains("val isTarget = !accountBlocked && scrapParser.shouldClick(order, tally)"))
+        // 막힘이면 판정을 안 한다 — 동작으로 `ListRowScanTest` «막힌 계정»
         assertTrue(src.contains("⛔ [계정 막힘]"))
         val press = src.substringAfter("private fun pressDecisionButton(").substringBefore("\n    private fun ")
         assertFalse(press.contains("accountBlocked"))

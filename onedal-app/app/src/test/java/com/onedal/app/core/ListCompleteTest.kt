@@ -43,6 +43,6 @@ class ListCompleteTest {
             assertFalse("$f 에 «상차지거리 모름=통과» 가지가 남아 있다",
                 Regex("""pickupDistance\s*==\s*null""").containsMatchIn(codeOnly("$root/plugins/$f")))
         }
-        assertTrue(codeOnly("$root/HijackService.kt").contains("OrderRequirement.listComplete("))
+        // 목록은 listComplete 로 본다 — 동작으로 `ListRowScanTest` «덜 읽힌 줄»
     }
 }

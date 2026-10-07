@@ -41,7 +41,7 @@ class BundleGuardsTest {
         assertTrue(svc.contains("telemetryManager.openBlocked = openBlocked"))
         // 손 먼저 · 알람 미룸 · 심사 중 · 바쁨 · 흐르는 목록 키는 동작으로 `ListTapPickTest` — 서비스에 남은 열쇠만
         listOf("HAND_FIRST", "LIST_MOVING", "TAP_NOT_SENT").forEach { assertTrue(it, svc.contains("OpenBlocked.$it")) }
-        assertTrue(svc.contains("🔔 [새로 셈]"))
+        assertTrue(File("$root/core/ListRowScan.kt").readText().contains("🔔 [새로 셈]"))
         val plugin = File("$root/plugins/kakaopicker/KakaoPickerPlugin.kt").readText()
         assertTrue(plugin.contains("TapShift.listMoving("))
         assertEquals("보류 자리마다 열쇠를 남긴다", Regex("""return null""").findAll(plugin.substringAfter("override fun planListTap(").substringBefore("\n    /**")).count(),

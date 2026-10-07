@@ -84,8 +84,9 @@ describe('📊 수집 — 잡은 콜도 센다', () => {
          *    그 사본은 갈라진다 (요율 모델이 서면 `minFare` 를 안 보는데 사본은
          *    그것만 봐서 «가짜 통과»). 그래서 «판정을 실은 콜을 올린다»를 문다.
          */
-        const fn = scan();
-        expect(fn).toMatch(/val judged = scrapParser\.withVerdict\(order\)/);
-        expect(fn).not.toMatch(/telemetryManager\.enqueue\(order\)/);
+        const row = code(app('core/ListRowScan.kt'));
+        expect(row).toMatch(/val judged = scrapParser\.withVerdict\(order\)/);
+        expect(row).toMatch(/report\(judged\)/);   // 실린 콜이 보고에 간다 — 동작으로 ListRowScanTest
+        expect(scan()).not.toMatch(/telemetryManager\.enqueue\(order\)/);
     });
 });

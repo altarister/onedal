@@ -64,11 +64,5 @@ class AlarmedRoutesTest {
         assertTrue(r.countIfNew(o("분당 삼평", "강남 일원본", 10920), 0))
     }
 
-    @Test fun `목록 스캔이 passedNew 를 세고 누른 뒤 열기 함을 적는다`() {
-        val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
-        assertTrue(src.contains("if (alarmedRoutes.countIfNew(order, nowMs)) {"))
-        assertTrue(src.contains("tally.passedNew++"))
-        // 누른 뒤 «열기 함»은 동작으로 `ListTapPickTest` «누르기 성공 뒤 기록»
-        assertTrue(src.contains("if (isTarget && !alarmedRoutes.opened(order)) alarmHits.add("))
-    }
+    // 목록 스캔의 새로 셈 · 이미 연 콜은 후보 아님 — 동작으로 `ListRowScanTest` «통과 콜» · «이미 연 콜»
 }

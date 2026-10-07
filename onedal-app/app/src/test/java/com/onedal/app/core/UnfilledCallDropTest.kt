@@ -24,13 +24,7 @@ class UnfilledCallDropTest {
     }
     private val seq by lazy { codeOnly("src/main/java/com/onedal/app/core/engine/PreConfirmSequence.kt") }
 
-    @Test
-    fun `목록 줄은 요건을 본 뒤에 지문을 뜬다`() {
-        val check = list.indexOf("OrderRequirement.listComplete(")   // 목록 완독 = 요건 + 상차지거리
-        val print = list.indexOf("CallMemory.fingerprintOf(order)")
-        assertTrue("목록 줄의 요건 확인이 없다", check > 0)
-        assertTrue("지문을 요건 확인보다 먼저 뜬다", print > check)
-    }
+    // 덜 읽힌 줄은 지문 · 기억 · 보고 없이 그 스캔에서 빠진다 — 동작으로 `ListRowScanTest` «덜 읽힌 줄»
 
     @Test
     fun `상세는 요건을 보고, 못 채우면 목록 줄 값으로 대신 보내지 않는다`() {

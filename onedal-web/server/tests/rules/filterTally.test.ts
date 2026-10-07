@@ -62,7 +62,8 @@ describe('👁️ 앱 — 축별로 몇 개가 떨어졌는지 센다', () => {
         const s = code(app('HijackService.kt'));
         const fn = s.split('private fun handleListScreen')[1]?.split('\n    private fun ')[0] ?? '';
         expect(fn).toMatch(/FilterTally\(\)/);
-        expect(fn).toMatch(/shouldClick\(order, *tally\)/);
+        expect(fn).toMatch(/ListRowScan\(scrapParser, callMemory, alarmedRoutes, tally,/);   // 이번 스캔의 그 그릇으로 줄마다 판정
+        expect(code(app('core/ListRowScan.kt'))).toMatch(/shouldClick\(order, *tally\)/);
     });
 
     it('🔴 그 숫자를 서버로 보낸다 (앱 안에서만 알면 화면은 여전히 모른다)', () => {

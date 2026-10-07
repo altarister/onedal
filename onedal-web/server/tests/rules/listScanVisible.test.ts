@@ -63,8 +63,7 @@ describe('👁️ 리스트 스캔 — 빈 이유를 구분한다', () => {
      * 곧 진단이다. 길게 남기지 않는다 (앞부분이면 차종·요금 자리가 다 보인다).
      */
     it('🔴 요금을 못 읽으면 그 카드의 글자를 남긴다 (숫자만으로는 원인을 못 찾는다)', () => {
-        const fn = scan();
-        expect(fn).toMatch(/요금 못 읽음|cardTexts\.joinToString/);
+        expect(code(app('core/ListRowScan.kt'))).toMatch(/요금 못 읽음|cardTexts\.joinToString/);   // 줄마다 처리는 ListRowScan
     });
 
     /**

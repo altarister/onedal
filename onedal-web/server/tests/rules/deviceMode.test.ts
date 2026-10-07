@@ -164,7 +164,8 @@ describe('🎛️ 앱은 직접 모드에서 누르지 않는다', () => {
         const fn = scan();
         const beforeGate = fn.split('val tapsFromList')[0] ?? '';
         expect(fn).toContain('val tapsFromList');
-        expect(beforeGate).toMatch(/shouldClick\(order, tally\)/);
+        expect(beforeGate).toMatch(/rowScan\.scanRow\(cardTexts\)/);   // 줄마다 처리(판정 포함)는 모드 문 앞에서
+        expect(codeOnly(app('core/ListRowScan.kt'))).toMatch(/shouldClick\(order, tally\)/);   // 그 안에 모드는 없다
     });
 });
 
@@ -235,7 +236,7 @@ describe('🔔 2단계 — 스캐너 폰이 스스로 알린다 (기사님 확�
         // 통과 콜을 모았다가(alarmHits) 루프 뒤에 요금 최고 하나를 고른다 — 소리는 ALARM 일 때만.
         // 불변식 — «모으는 곳»은 통과 조건 아래, fire 는 ALARM 문 안이고 고른 그릇에서만 나온다
         const addLine = scan.split('alarmHits.add')[0].slice(-400);
-        expect(addLine).toMatch(/isTarget/);
+        expect(addLine).toMatch(/row\.addHit/);   // 후보 = 통과 && 아직 안 연 콜 — 동작으로 ListRowScanTest
         const beforeFire = scan.split('alarmSignaler.fire')[0];
         expect(beforeFire.slice(-200)).toMatch(/if \(gate\.fire\)/);   // 소리는 판단 «fire» 일 때만 — fire 는 sound 일 때만(동작으로 ListTapPickTest)
         expect(scan).toMatch(/sound = ModeActs\.of\(currentMode\)\.sound/);

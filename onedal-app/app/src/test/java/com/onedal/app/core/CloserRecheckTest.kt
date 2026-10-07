@@ -39,11 +39,5 @@ class CloserRecheckTest {
         assertNull("옛 km 가 남지 않는다", m.releaseIfCloser(9, nowKm = 1.0, radiusKm = 10.0))
     }
 
-    @Test fun `스캔 고리 - 내일 이후 콜은 빼고 · 상차 축 탈락일 때만 km 를 적는다`() {
-        val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
-        assertTrue(src.contains("callMemory.releaseIfCloser(orderHash, order.pickupDistance, scanRadiusKm)"))
-        assertTrue(src.contains("🔁 [가까워져 다시 판정]"))
-        assertTrue(src.contains("if (judged.verdict == \"pickup\")"))
-        assertTrue(src.contains("(order.reservedDay ?: 0) < 1"))
-    }
+    // 스캔 고리(내일 이후 콜은 안 풂 · 상차 탓 막음만 km) — 동작으로 `ListRowScanTest` «가까워지면» · «내일 이후» · «상차 탓이 아닌»
 }
