@@ -128,15 +128,15 @@ describe('👀 R12 미리보기에는 안전취소 기다림을 걸지 않는다
         expect(r.status).toBe(200);
         expect(getUserSession(U).entries.has('presecured_o-normal')).toBe(true);
     });
-    /* ✋ 사실 ③ 지금 답(29 N4 «지금» 칸 — 손 확정 콜에도 30초 타이머) · 31 P0 S4. P2 에서 이 기댓값이 바뀐다 */
-    it('지금 답 — 손으로 확정한 선점(matchType MANUAL)에도 장부에 안전취소', async () => {
+    /* ✋ 사실 ③ — 안전취소는 원달앱이 확정한 콜만(29 P2 · 27 17 «가» · 31 S4 를 뒤집음: 손 확정 콜의 할 일 없던 30초 타이머를 걷음) */
+    it('🔴 손으로 확정한 선점(matchType MANUAL)에는 안전취소를 걸지 않는다', async () => {
         readySession();
         const r = await post(ordersRouter, '/confirm', {
             step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType: 'MANUAL',
             order: { id: 'o-hand', pickup: '이천시 신둔면', dropoff: '서울 강남구', fare: 30000, rawText: '' },
         });
         expect(r.status).toBe(200);
-        expect(getUserSession(U).entries.has('presecured_o-hand')).toBe(true);
+        expect(getUserSession(U).entries.has('presecured_o-hand')).toBe(false);
     });
 });
 

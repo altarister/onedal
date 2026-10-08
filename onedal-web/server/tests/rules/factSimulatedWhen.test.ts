@@ -26,9 +26,9 @@ const post = async (router: any, path: string, body: any) => {
     await handlerOf(router, path)({ app, body }, res);
 };
 const order = (id: string) => ({ id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 신둔면', fare: 38500, vehicleType: '다마스', rawText: '' });
-const confirm = (id: string) => post(ordersRouter, '/confirm', { step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType: 'AUTO', order: order(id) });
-const detail = (id: string) => post(detailRouter, '/', { step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType: 'AUTO', order: order(id) });
-const modeIs = (mode: string) => activeDevices.set(DEV, { deviceId: DEV, userId: U, lastSeen: Date.now(), status: 'ONLINE', mode } as any);
+const confirm = (id: string, matchType = 'AUTO') => post(ordersRouter, '/confirm', { step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType, order: order(id) });
+const detail = (id: string, matchType = 'AUTO') => post(detailRouter, '/', { step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType, order: order(id) });
+const modeIs = (mode: string) => activeDevices.set(DEV, { deviceId: DEV, userId: U, lastSeen: Date.now(), status: 'ONLINE', mode, stats: { polled: 0, grabbed: 0, canceled: 0 } } as any);
 const simulated = (id: string) => (getUserSession(U).pendingOrdersData.get(id) as any)?.isSimulated;
 let savedKey: string | undefined;
 
@@ -72,5 +72,16 @@ describe('🐥 체험 표시 — 보고 때의 폰 모드', () => {
         modeIs('AUTO');
         await detail('sim-c');
         expect(simulated('sim-c')).toBe(false);
+    });
+});
+
+describe('✋ 계약 안 함 폰에서 기사님이 손으로 확정한 콜은 진짜 콜(29 P2 · 27 15 · 16 «가»)', () => {
+    it('🔴 확정 · 상세 보고 모두 체험 표시 없음 · 콜 갈래는 MANUAL(장부 · 취소 횟수에 든다)', async () => {
+        modeIs('SIMULATION');
+        await confirm('sim-hand', 'MANUAL');
+        expect(simulated('sim-hand')).toBe(false);
+        await detail('sim-hand', 'MANUAL');
+        expect(simulated('sim-hand')).toBe(false);
+        expect(getUserSession(U).pendingOrdersData.get('sim-hand')?.type).toBe('MANUAL');
     });
 });

@@ -69,6 +69,16 @@ export interface DispatchBasicRequest {
     isPreview?: boolean;
 }
 
+/**
+ * ✋ **확정을 누가 눌렀나 — 사실 하나** (29 N4 사실 ③ · P2) — `NONE` 안 눌림(미리보기) · `DRIVER` 기사님 손(`matchType` MANUAL) · `APP` 원달앱.
+ * 서버는 결재 기다림 · 1차 선점 안전취소 · 체험(연습) 표시를 이것으로 가른다 — 모드 이름으로 가르지 않는다.
+ */
+export type WhoConfirmed = 'NONE' | 'APP' | 'DRIVER';
+export function whoConfirmed(r: { isPreview?: boolean; matchType?: string }): WhoConfirmed {
+    if (r.isPreview) return 'NONE';
+    return r.matchType === 'MANUAL' ? 'DRIVER' : 'APP';
+}
+
 // 1-B. 앱폰 -> 서버: 2차 호출 (상세 페이지 진입 후 상세 정보 파싱 완료 시)
 export interface DispatchDetailedRequest {
     step: 'DETAILED';

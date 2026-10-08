@@ -171,8 +171,8 @@ describe('✋ 미리보기 콜 — 확정 전에는 잡지 않는다', () => {
 
     it('🔴 즉시 KEEP 갈래가 미리보기를 먼저 걸러낸다', () => {
         const src = code(read('server/src/routes/detail.ts'));
-        // `isManual` 을 정하는 **그 줄**이 미리보기를 빼야 한다 (다른 곳의 isPreview 로는 안 된다)
-        const line = src.split('\n').find(l => l.includes('const isManual')) ?? '';
+        // 즉시 KEEP 을 가르는 «확정 누른 주체»(`who`)를 정하는 **그 줄**이 미리보기를 넣어야 한다 — 미리보기면 NONE(shared whoConfirmed · 29 P2)
+        const line = src.split('\n').find(l => l.includes('const who = whoConfirmed(')) ?? '';
         expect(line).toMatch(/isPreview/);
     });
 

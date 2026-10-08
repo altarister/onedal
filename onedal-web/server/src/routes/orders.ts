@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, whoConfirmed, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -210,7 +210,8 @@ router.post("/confirm", (req, res) => {
              *    취소 카운트가 새고, 그건 배차망 10회 패널티와 어긋난다.
              */
             isPreview: !!(payload as any).isPreview,
-            isSimulated: modeActsOf(deviceMode).marksSimulated,
+            /* 🐥 연습 콜 — 계약 안 함 폰이 연 콜 가운데 기사님이 손으로 확정하지 않은 콜(29 P2 · 손 확정은 진짜 콜 → 장부 · 취소 횟수) */
+            isSimulated: modeActsOf(deviceMode).marksSimulated && whoConfirmed(payload as any) !== 'DRIVER',
         } as PendingOrder;
 
         if (pendingOrder.id && pendingOrder.id !== "unknown") {
@@ -271,7 +272,7 @@ router.post("/confirm", (req, res) => {
                 const holdSec = cancelSec ?? readWaitTimes(userId).pickerAlarmDetailSec;
                 pendingOrder.judgeUntil = Date.now() + holdSec * 1000;
                 slog('콜단계', `👀 [미리보기] ${pendingOrder.id} — 남은 판정 시간 ${holdSec}초 (표시용 · 끄는 것은 폰 화면이 정한다)`);
-            } else if (cancelSec != null) {
+            } else if (cancelSec != null && whoConfirmed(payload as any) === 'APP') {   // ✋ 원달앱이 확정한 콜만 — 손 확정은 결재가 없다(29 P2 · 27 17 «가»)
                 armWait(session, `presecured_${pendingOrder.id}`,
                     { label: '안전취소(1차 선점)', armedBy: '/confirm', ms: cancelSec * 1000, orderId: pendingOrder.id, tag: '콜단계' }, () => {
                     const cached = session.pendingOrdersData.get(pendingOrder.id);

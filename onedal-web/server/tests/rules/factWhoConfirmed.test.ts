@@ -4,6 +4,7 @@ import detailRouter from '../../src/routes/detail';
 import * as devices from '../../src/state/deviceRegistry';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
+import { whoConfirmed } from '@onedal/shared';
 
 /**
  * ✋ **사실 ③ «확정을 누가 눌렀나» — 서버의 지금 답** (31 P0 · S1~S3).
@@ -21,11 +22,11 @@ const handlerOf = (router: any) => {
     const layer = router.stack.find((l: any) => l.route?.path === '/' && l.route.methods.post);
     return layer.route.stack[layer.route.stack.length - 1].handle;
 };
-const detail = async (id: string, matchType: 'AUTO' | 'MANUAL') => {
+const detail = async (id: string, matchType: 'AUTO' | 'MANUAL', isPreview = false) => {
     let out: any = null, code = 200;
     const res: any = { status: (c: number) => { code = c; return res; }, json: (b: any) => { out = b; return res; } };
     await handlerOf(detailRouter)({ app, body: {
-        step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType,
+        step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType, isPreview,
         order: { id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 신둔면', fare: 38500, vehicleType: '다마스', rawText: '' },
     } }, res);
     return { code, out };
@@ -96,6 +97,30 @@ describe('🤖 원달앱이 확정한 콜 — 결재를 기다린다', () => {
         } finally {
             jest.useRealTimers();
             spy.mockRestore();
+        }
+    });
+});
+
+describe('✋ 확정 누른 주체 — 사실 하나(29 P2 · shared whoConfirmed)', () => {
+    it('🔴 미리보기는 안 눌림 · MANUAL 은 기사님 · 그 밖은 원달앱', () => {
+        expect(whoConfirmed({ isPreview: true, matchType: 'AUTO' })).toBe('NONE');
+        expect(whoConfirmed({ isPreview: true, matchType: 'MANUAL' })).toBe('NONE');
+        expect(whoConfirmed({ isPreview: false, matchType: 'MANUAL' })).toBe('DRIVER');
+        expect(whoConfirmed({ matchType: 'AUTO' })).toBe('APP');
+        expect(whoConfirmed({})).toBe('APP');
+    });
+
+    it('🔴 계약 안 함 폰에서 기사님이 손으로 확정한 콜도 서버가 바로 KEEP · 30초 기다림 없음(27 15 · 16 «가»)', async () => {
+        db.prepare(`UPDATE user_devices SET no_contract = 1 WHERE device_id = ?`).run(DEV);
+        try {
+            const r = await detail('who-hand-nc', 'MANUAL');
+            const s = getUserSession(U);
+            expect(r.out).toEqual({ deviceId: 'server', action: 'ACK' });
+            expect(s.pendingDecisions.get('who-hand-nc')?.action).toBe('KEEP');
+            expect(s.entries.has('timeout_who-hand-nc')).toBe(false);
+            expect((s.pendingOrdersData.get('who-hand-nc') as any)?.isSimulated).toBe(false);
+        } finally {
+            db.prepare(`UPDATE user_devices SET no_contract = 0 WHERE device_id = ?`).run(DEV);
         }
     });
 });
