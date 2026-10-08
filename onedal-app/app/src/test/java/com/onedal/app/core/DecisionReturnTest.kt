@@ -24,7 +24,7 @@ class DecisionReturnTest {
     fun `결재가 오면 타이머를 끄는 것은 기사님이 연 상세뿐이다`() {
         assertEquals("타이머를 끄는 곳은 한 곳이어야 한다", 1, Regex("""cancelDetailBack\(\)""").findAll(body).count())
         assertTrue("기사님이 연 상세에서만 끄지 않는다",
-            Regex("""if \(!session\.openedByApp\)\s*cancelDetailBack\(\)""").containsMatchIn(body))
+            Regex("""if \(com\.onedal\.app\.core\.engine\.DetailBackPolicy\.stopsOnDecision\(session\.openedByApp\)\)\s*cancelDetailBack\(\)""").containsMatchIn(body))
     }
 
     /** «앱이 연 콜의 CANCEL 만 목록으로»라는 판단은 `DecisionPlanTest` 가 동작으로 본다 — 여기는 그 판단(BACK_TO_LIST)이 뒤로 가기로 이어지는지만 */

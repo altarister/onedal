@@ -22,7 +22,7 @@ class SimulatedBackOnDetailTest {
     }
 
     @Test fun `체험 결재 뒤 뒤로는 확정 전 상세일 때만 누른다`() {
-        assertTrue(block.contains("ScreenContext.DETAIL_PRE_CONFIRM"))
+        assertTrue(block.contains("BackGuard.onPreConfirm(telemetryManager.currentScreenContext)"))   // 판단은 DetailBackPolicyTest 가 동작으로
     }
 
     @Test fun `체험 뒤로도 다른 뒤로와 같은 길 - touchManager performBack 으로 자국을 남긴다`() {

@@ -329,8 +329,7 @@ class HijackService : AccessibilityService(), ScanContext {
             val folded = (fire as com.onedal.app.core.engine.DetailBackClock.Fire.Go).folded
             val why = if (folded) "서버 판정 뒤 접기" else "${delayMs / 1000}초 무응답"
             // 아직 확정 전 상세에 있고, 앱이 계약하지 않는 콜일 때만 나온다 — 모드·배차망은 가리지 않는다
-            if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
-                && !session.contractedByApp) {
+            if (com.onedal.app.core.engine.DetailBackPolicy.fires(telemetryManager.currentScreenContext, session.contractedByApp)) {
                 AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "↩️ [상세 대기] $why — 리스트로 자동 복귀 · 연 쪽: $opener")
                 // 🔴 뒤로 가기도 `touchManager` 한 곳으로 — 거기서 자국을 남긴다 (배차망을 가리지 않는다)
                 lastBackAtMs = android.os.SystemClock.elapsedRealtime()
@@ -2034,7 +2033,7 @@ class HijackService : AccessibilityService(), ScanContext {
         if (plan == com.onedal.app.core.DecisionPlan.IGNORE_UNKNOWN) return
         if (plan.stopsSafeCancel) cancelSafeCancelTimer() // 타이머 해제
         // ⏱️ 기사님이 손으로 연 상세 — 결재가 오면 머문다(판정을 보고 기사님이 누르신다). 앱이 연 콜은 아래에서 정한다
-        if (!session.openedByApp) cancelDetailBack()
+        if (com.onedal.app.core.engine.DetailBackPolicy.stopsOnDecision(session.openedByApp)) cancelDetailBack()
 
         // 🐥 [가상 체험 모드] 판결이 KEEP/CANCEL이어도 실제 수락/취소 버튼을 누르지 않고 안전하게 뒤로가기(Back) 집행!
         if (plan == com.onedal.app.core.DecisionPlan.SIMULATED_BACK) {
@@ -2042,7 +2041,7 @@ class HijackService : AccessibilityService(), ScanContext {
             AppLogger.d(TAG, LogTag.DECISION, "🐥 [체험] 실서버 버튼을 누르지 않고 GLOBAL_ACTION_BACK 실행")
             waitBook.schedule("체험 결재 뒤 뒤로", com.onedal.app.core.WaitBook.SESSION, 300) {
                 // 🔙 다른 자동 뒤로처럼 확정 전 상세일 때만 — 결재가 늦어 이미 목록이면 누르지 않는다(시뮬 홈으로 가 콜이 멈춘다)
-                if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
+                if (com.onedal.app.core.engine.BackGuard.onPreConfirm(telemetryManager.currentScreenContext)) {
                     lastBackAtMs = android.os.SystemClock.elapsedRealtime()
                     touchManager.performBack("체험 결재")
                 }
@@ -2076,7 +2075,7 @@ class HijackService : AccessibilityService(), ScanContext {
             if (plan == com.onedal.app.core.DecisionPlan.BACK_TO_LIST) {
                 AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.DECISION, "↩️ [결재 CANCEL] 앱이 연 콜 — 바로 목록으로 돌아온다")
                 waitBook.schedule("결재 CANCEL 뒤 뒤로", com.onedal.app.core.WaitBook.SESSION, 300) {
-                    if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM) {
+                    if (com.onedal.app.core.engine.BackGuard.onPreConfirm(telemetryManager.currentScreenContext)) {
                         lastBackAtMs = android.os.SystemClock.elapsedRealtime()
                         touchManager.performBack("결재 CANCEL")
                     }
