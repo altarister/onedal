@@ -386,6 +386,56 @@ class ApiClient(private val context: Context) {
         }
     }
 
+    /** 🌐 인터넷 길 전용 한 줄 스레드 — 1초 묻기가 늦어도 보고(`telemetryExecutor`) · 비상(`emergencyExecutor`)을 막지 않는다 */
+    private val supplyExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "1dal-supply-net").apply { isDaemon = true }
+    }
+
+    /**
+     * 🌐 **이 폰 몫 공급을 인터넷으로 묻는다** — `GET /api/devices/:deviceId/supply` (`InternetSupply`).
+     * 답 본문을 준다 — 못 받으면 null. 연결이 풀린 폰은 묻지 않는다(보고가 풀림을 다시 잰다).
+     * 실패 로그는 까닭이 바뀔 때만 — 1초마다 같은 줄을 찍지 않는다.
+     */
+    fun fetchSupply(onBody: (String?) -> Unit) {
+        if (isUnlinked()) { onBody(null); return }
+        supplyExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
+            val body = try {
+                val c = open(getTargetUrl("/api/devices/${getDeviceId()}/supply"), method = "GET", connectMs = com.onedal.app.core.InternetSupply.TIMEOUT_MS)
+                conn = c
+                val code = codeOf(c)
+                if (code == 200) c.inputStream.bufferedReader().readText().also { com.onedal.app.core.LogOnce.changed("net-supply", "ok") }
+                else null.also { if (com.onedal.app.core.LogOnce.changed("net-supply", "HTTP $code")) AppLogger.w(TAG, LogTag.NETWORK, "🌐 [인터넷 묻기 실패] HTTP $code") }
+            } catch (e: Exception) {
+                if (com.onedal.app.core.LogOnce.changed("net-supply", "${e.javaClass.simpleName}")) AppLogger.w(TAG, LogTag.NETWORK, "🌐 [인터넷 묻기 실패] ${e.javaClass.simpleName} ${e.message}")
+                null
+            } finally {
+                conn?.disconnect()
+            }
+            onBody(body)
+        }
+    }
+
+    /** 🌐 인터넷으로 받은 결재의 «받았음» — `POST /api/devices/:deviceId/decision-ack` · 못 보내면 서버가 다음 묻기에 같은 결재를 다시 준다 */
+    fun ackDecisionOverNet(orderId: String) {
+        supplyExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
+            try {
+                val c = open(getTargetUrl("/api/devices/${getDeviceId()}/decision-ack"), connectMs = com.onedal.app.core.InternetSupply.TIMEOUT_MS)
+                conn = c
+                c.doOutput = true
+                c.outputStream.use { it.write(gson.toJson(mapOf("orderId" to orderId)).toByteArray(Charsets.UTF_8)) }
+                val code = codeOf(c)
+                if (code == 200) AppLogger.i(TAG, LogTag.DECISION, "🌐 [받았음 · 인터넷] $orderId")
+                else AppLogger.w(TAG, LogTag.DECISION, "🌐 [받았음 · 인터넷 실패] $orderId · HTTP $code — 다음 묻기에 같은 결재가 다시 온다")
+            } catch (e: Exception) {
+                AppLogger.w(TAG, LogTag.DECISION, "🌐 [받았음 · 인터넷 실패] $orderId · ${e.message} — 다음 묻기에 같은 결재가 다시 온다")
+            } finally {
+                conn?.disconnect()
+            }
+        }
+    }
+
     /** 📱 운행 기록 전용 한 줄 스레드 — 서버가 안 닿아 10초씩 걸려도 콜 전송(`telemetryExecutor`)을 막지 않는다 */
     private val traceExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
         Thread(r, "1dal-trace").apply { isDaemon = true }

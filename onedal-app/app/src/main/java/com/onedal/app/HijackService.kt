@@ -348,6 +348,8 @@ class HijackService : AccessibilityService(), ScanContext {
     // ════════════════════════════════════════════════════════════════
 
     private var bleLink: com.onedal.app.core.BleLink? = null
+    /** 🌐 블루투스가 못 닿을 때 같은 값을 인터넷으로 묻는다 — 받은 것은 블루투스와 같은 `supplyIn` 함수로 (`InternetSupply`) */
+    private lateinit var internetSupply: com.onedal.app.core.InternetSupply
     /** 마지막으로 실행한 결재의 콜 번호 — 같은 결재가 다시 오면(관제앱 · 서버 다시 보내기) 실행은 안 하고 «받았음»만 다시 */
     private var lastExecutedDecisionOrderId: String? = null
 
@@ -399,8 +401,8 @@ class HijackService : AccessibilityService(), ScanContext {
         override fun onPhone(json: String) = supplyInPhone(json)
         override fun onDecision(json: String) = supplyInDecision(json, "블루투스") { bleLink?.ack(it) }
         override fun onFold(json: String) = supplyInFold(json)
-        override fun onServerAlive(alive: Boolean) = telemetryManager.onServerAlive(alive)
-        override fun onLinked(alive: Boolean) = telemetryManager.onLinked(alive)
+        override fun onServerAlive(alive: Boolean) { telemetryManager.onServerAlive(alive); internetSupply.refresh() }
+        override fun onLinked(alive: Boolean) { telemetryManager.onLinked(alive); internetSupply.refresh() }
         override fun onPermissionGranted() = telemetryManager.reportNow()
     }
 
@@ -611,6 +613,15 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager = TelemetryManager(apiClient, this, waitBook)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
 
         touchManager = AutoTouchManager(this, waitBook)
+        internetSupply = com.onedal.app.core.InternetSupply(waitBook,
+            facts = { com.onedal.app.core.InternetSupply.Facts(telemetryManager.linked, telemetryManager.serverAlive, safeCancelTimer.armedOrderId != null) },
+            fetch = { onBody -> apiClient.fetchSupply { body -> mainHandler.post { onBody(body) } } },
+            sink = object : com.onedal.app.core.InternetSupply.Sink {
+                override fun supply(json: String) = supplyInFilter(json)
+                override fun phone(json: String) = supplyInPhone(json)
+                override fun decision(json: String) = supplyInDecision(json, "인터넷") { apiClient.ackDecisionOverNet(it) }
+                override fun fold(json: String) = supplyInFold(json)
+            })
         /* 📶 관제앱 공급을 블루투스로 받는다 — 필터 · 이 폰 몫(모드 · 심사 중) · 결재 · 빨리 접기 · 숨 (`BleLink`) · 콜백은 메인 스레드 */
         bleLink = com.onedal.app.core.BleLink(this, { apiClient.getDeviceId() }, bleListener).also { it.start() }
     }
@@ -745,6 +756,7 @@ class HijackService : AccessibilityService(), ScanContext {
             telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)
             AppLogger.w(TAG, LogTag.DECISION, "💾 [안전취소 다시 걺] $id · 남은 ${left / 1000}초 — 원달앱이 다시 떴다")
         }
+        internetSupply.refresh()   // 🌐 막 떴다 — 블루투스가 아직 안 붙었으니 인터넷으로 묻기 시작(붙으면 끈다)
         apiClient.fetchKeywords()
     }
 
@@ -1994,6 +2006,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val timeoutMs = com.onedal.app.core.engine.WaitTimes.safeCancelMs(savedFilter(), currentTargetApp) ?: return
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)  // 안전취소 동안 1초 보고 켬
         safeCancelTimer.start(timeoutMs, session) { onSafeCancelTimeout() }
+        internetSupply.refresh()   // 🌐 안전취소가 걸렸다 — 블루투스가 멀쩡해도 결재를 인터넷으로도 묻는다
     }
 
     /** ⏱️ 안전취소 시간 끝 — «자동 취소»는 여기서 안 보낸다 · 버튼을 실제로 누른 뒤에만(`CancelReport`) · 못 누르면 «안 눌렀음» */
@@ -2009,6 +2022,7 @@ class HijackService : AccessibilityService(), ScanContext {
     private fun cancelSafeCancelTimer() {
         safeCancelTimer.cancel(session)
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, false) // 안전취소 1초 보고 끔
+        internetSupply.refresh()
     }
 
     /** 서버 판결(KEEP/CANCEL) 결과 행동을 실제 화면 액션으로 쏨 */

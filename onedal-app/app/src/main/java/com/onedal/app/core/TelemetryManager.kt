@@ -242,10 +242,13 @@ class TelemetryManager(
      */
     @Volatile
     private var suppliedMode: String? = context?.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)?.getString(PREF_SUPPLIED_MODE, null)
+    /** 📶 공급 연결 · 관제앱의 서버 연결 — 인터넷 길(`InternetSupply`)도 이 두 사실을 읽는다 */
     @Volatile
-    private var linked = false
+    var linked = false
+        private set
     @Volatile
-    private var serverAlive = false
+    var serverAlive = false
+        private set
     /** 📵 마지막 보고가 응답을 못 받았나 — «응답 없음 · 다시 옴» 로그를 바뀔 때만 찍는다 */
     @Volatile
     private var lostReply = false
