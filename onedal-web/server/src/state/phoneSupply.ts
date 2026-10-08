@@ -109,7 +109,7 @@ export function phoneSupplyOf(userId: string, modes: Map<string, DeviceModeType>
     const { evaluatingNow: _perPhone, ...shared } = filter as Record<string, unknown>;
     const phones: PhoneSupply['phones'] = {};
     for (const [id, mode] of modes) {
-        /* 🔔 이 폰이 연 상세(심사 맡긴 콜)가 확정 안 된 벨 콜이면 그 폰이 울린다 — 상세를 떠나면 짝이 지워져 칸도 빠진다(29 P4) */
+        /* 🔔 이 폰이 연 상세(심사 맡긴 콜)가 확정 안 된 벨 콜이면 그 폰이 울린다 — 상세를 떠나면 미리보기 콜이 치워져(clearPreview) 칸도 빠진다(29 P4) */
         const evaluating = session.deviceEvaluatingMap.get(id);
         const order = evaluating ? session.pendingOrdersData.get(evaluating) : undefined;
         phones[id] = {

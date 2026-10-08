@@ -151,6 +151,14 @@ describe('🔔 이 폰이 울릴 콜 — 확정 안 된 벨 콜은 그 콜을 �
         expect(call('get', '/:deviceId/supply', D1).v.phone.ringOrderId).toBe('r1');
         expect(call('get', '/:deviceId/supply', D2).v.phone.ringOrderId).toBeUndefined();
     });
+    it('🔴 상세를 떠나 미리보기 콜이 치워지면 짝이 남아 있어도 칸이 빠진다(ef 리뷰 ④)', () => {
+        const s = getUserSession(U);
+        s.deviceEvaluatingMap.set(D1, 'r5');
+        s.pendingOrdersData.set('r5', judged('r5') as any);
+        expect(phoneSupplyOf(U).phones[D1].ringOrderId).toBe('r5');
+        s.pendingOrdersData.delete('r5');   // clearPreview 가 하는 일
+        expect(phoneSupplyOf(U).phones[D1].ringOrderId).toBeUndefined();
+    });
     it('🔴 원달앱 · 기사님이 확정한 콜 · 벨 아님 · 판정 전이면 안 실린다', () => {
         const s = getUserSession(U);
         for (const [id, x] of [['r2', { isPreview: false }], ['r3', { judgment: { bell: false } }], ['r4', { kakaoTimeExt: undefined }]] as const) {
