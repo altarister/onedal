@@ -137,6 +137,7 @@ const KEEP = {
 
 /** 🧪 검사만 부르는데 알고 남기는 export — 사유 없이는 못 넣는다 (①-2) */
 const TEST_ONLY_KEEP = {
+    isSkipped: 'shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 milestones.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로.',
 };
 /** 🤖 원달앱에서 이름으로 안 불리는데 남기는 fun · const val — 사유 없이는 못 넣는다 (①-3) */
 const KT_KEEP = {
