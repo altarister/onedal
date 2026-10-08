@@ -7,10 +7,11 @@
 ## 이건 버그가 아니라 규칙이다
 
 - **필터는 두 그릇이다.** `baseFilter`(DB · 평소 설정) 와 `activeFilter`(메모리 · 오늘의 콜 필터).
-  base → active 로 되돌리는 때는 **세션을 만들 때와 영업일이 바뀔 때**(`resetToBaseFilter`) 뿐이고, 그 사이에는 따로 논다
+  base → active 로 되돌리는 때는 **세션을 만들 때와 영업일이 바뀔 때**(`resetToBaseFilter`) 뿐이고, 그 사이에는 따로 논다.
+  세션을 만들 때는 그날 관제웹이 «적용»한 값(`user_filter_today` 표 · `core/filterToday.ts`)을 그 위에 얹는다 — 서버가 다시 켜져도 그날 안에는 남는다
   · `saveBaseFilter()` — DB 만, activeFilter 안 건드림
   · `updateActiveFilter()` — 메모리만, DB 안 건드림
-  · 관제웹 💾 저장(`saveAsDefault`)은 둘을 차례로 부른다 (`socketHandlers.ts`) — 그 밖의 길은 한쪽만 바꾼다
+  · 관제웹이 보낸 값(`update-filter`)은 `filterManager.applyWebFilter` 하나로 들어온다 — 💾 저장(`saveAsDefault`)이면 둘을 차례로 부르고, 어느 쪽이든 오늘 줄에도 적는다
 
 - **경유 한 벌(`destinationKeywords` · `destinationGroups` · `customCityFilters`)은 `filterManager` 한 곳에서 조립해 함께 싣는다.**
   다른 호출부는 **입력만** 넘긴다(`destinationCity`·`destinationRadiusKm`).
