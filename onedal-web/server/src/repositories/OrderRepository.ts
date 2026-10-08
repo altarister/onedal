@@ -242,6 +242,11 @@ export class OrderRepository {
         db.prepare(`UPDATE orders SET ackedAt = COALESCE(ackedAt, ?) WHERE id = ?`).run(atIso, orderId);
     }
 
+    /** 🧾 결재 줄 없이 온 받았음 — 장부의 받았음 없는 확정 줄에만 찍는다 · @returns 찍었나 */
+    public static markLateAcked(orderId: string, atIso: string): boolean {
+        return db.prepare(`UPDATE orders SET ackedAt = ? WHERE id = ? AND status = 'ORDER_CONFIRMED' AND ackedAt IS NULL`).run(atIso, orderId).changes > 0;
+    }
+
     /**
      * 수동 취소 등 상태값을 변경합니다.
      * 🧹 **취소·방출이면 그 시각을 `terminatedAt` 에 처음 한 번만 적는다** (전수표 #65) — 다시 취소로 적혀도 첫 시각이 남는다.

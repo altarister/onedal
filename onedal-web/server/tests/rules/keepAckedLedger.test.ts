@@ -100,6 +100,20 @@ describe('🧾 받았음이 없는 확정은 되살리지 않는다', () => {
     });
 });
 
+describe('🧾 서버가 다시 뜬 사이 폰이 KEEP 을 실행했다 — 결재 줄 없이 온 받았음', () => {
+    it('🔴 장부의 받았음 없는 확정 줄에 찍는다 — 안 찍으면 진짜 잡은 콜이 다음 복구에서 빠진다 · 확정이 아닌 줄은 안 건드린다', () => {
+        const ins = db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp)
+                    VALUES (?, 'NEW_ORDER', ?, ?, ?, ?, '상', '하', 30000, 'insung')`);
+        ins.run(`${U}-late`, 'ORDER_CONFIRMED', U, todayAt(10), todayAt(10));
+        ins.run(`${U}-late-cancel`, 'ORDER_RELEASED_BY_ME', U, todayAt(10), todayAt(10));
+        const session = getUserSession(U);   // 다시 뜬 서버 — 결재 줄이 없다
+        ackDecision(io, session, U, `${U}-late`, '검사');
+        ackDecision(io, session, U, `${U}-late-cancel`, '검사');
+        expect(ackedAtOf(`${U}-late`)).not.toBeNull();
+        expect(ackedAtOf(`${U}-late-cancel`)).toBeNull();
+    });
+});
+
 describe('🧾 칸을 처음 붙이는 옛 장부', () => {
     it('🔴 옛 줄은 받았음으로 메운다 — 안 메우면 지금 진행 중인 확정 콜이 다음 재시작에 사라진다', () => {
         const old = new Database(':memory:');

@@ -101,6 +101,7 @@ export function sendFold(io: any, session: UserSession, userId: string, orderId:
 /**
  * 🧹 폰이 결재를 실행했다 — 기다림 끄기 · 결재 지우기 · 그 콜을 쥔 폰의 «심사 중» 풀기.
  * 큐가 이미 비었으면(시한 정리 뒤 늦게 온 받았음) 폰 표시만 푼다 — 안 풀면 폰이 다음 콜을 안 누른다.
+ * 큐가 없는데 장부에 받았음 없는 확정 줄이 있으면(서버가 다시 뜬 사이 폰이 KEEP 을 실행) 장부에 받았음을 찍는다 — 안 찍으면 진짜 잡은 콜이 다음 복구에서 빠진다.
  * @returns 무엇이든 치웠으면 true
  */
 export function ackDecision(io: any, session: UserSession, userId: string, orderId: string, via: string): boolean {
@@ -112,6 +113,11 @@ export function ackDecision(io: any, session: UserSession, userId: string, order
         session.pendingDecisions.delete(orderId);
         releaseEvaluatingDevices(session, orderId);
         slog('결재', `🧹 [받았음 · ${via}] 기사님 폰에서 ${orderId} 판결 수신 확인 — 큐에서 지운다`);
+        done = true;
+    } else if (OrderRepository.markLateAcked(orderId, new Date().toISOString())) {
+        /* 🧾 서버가 다시 뜬 사이 폰이 KEEP 을 실행했다 — 장부만 맞춘다(그날 진행 중 목록에는 안 올림 · 35 X7 남는 것) */
+        releaseEvaluatingDevices(session, orderId);
+        slog('경고', `🧾 [늦은 받았음 · ${via}] ${orderId} — 서버가 다시 뜬 사이 폰이 KEEP 을 실행했다 · 장부에 받았음을 찍는다 — 다음 재시작 때 되살아남`);
         done = true;
     } else if (releaseEvaluatingDevices(session, orderId) > 0) {
         slog('결재', `🧹 [늦은 받았음 · ${via}] ${orderId} — 큐는 이미 비었다 · 폰 잡기를 다시 연다`);
