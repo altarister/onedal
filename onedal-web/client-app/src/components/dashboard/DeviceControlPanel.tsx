@@ -326,8 +326,8 @@ function DeviceRow({
                                        bg-surface border border-border shadow-lg">
                             {modeChoicesOf(CHOSEN_MODES, device).map(m => (
                                 <button key={m} type="button"
-                                    /* 🎛️ 허락이 꺼진 폰의 «자동»은 계약 안 함으로 보낸다(27 21 «가» · 32 P1) — 나머지는 계약 안 함 칸을 안 건드린다(값이 남는다) */
-                                    onClick={() => { setModeOpen(false); onModeChange(device.deviceId, m, device.autoAllowed === false && modeActsOf(m).needsAutoPermission ? true : undefined); }}
+                                    /* 🎛️ 계약 안 함 칸은 안 건드린다(값이 남는다) — 허락이 꺼진 기사님의 «자동»을 계약 안 함으로 받는 것은 서버 모드 문 한 곳 */
+                                    onClick={() => { setModeOpen(false); onModeChange(device.deviceId, m); }}
                                     className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border whitespace-nowrap ${toneOf(m)}`}>
                                     {modeActsOf(m).label}
                                 </button>

@@ -241,6 +241,7 @@ describe('🔁 자동은 한 폰만', () => {
     it('🔴 자동을 누르면 같은 기사님의 다른 자동 폰을 알람으로 옮겨 저장한다 · 알람을 누르면 다른 폰은 그대로', async () => {
         const owner = `${U}-one-auto`;
         approvedUser(owner);
+        db.prepare(`UPDATE users SET auto_allowed_at = datetime('now') WHERE id = ?`).run(owner);   // 진짜 자동 — 허락이 없으면 «자동»은 계약 안 함(32 P1 · modeFacts)
         register('dev-rules-one-a', owner, 'AUTO');
         register('dev-rules-one-b', owner, 'AUTO');
         expect(await setMode('dev-rules-one-a', owner, 'ALARM')).toBe(200);

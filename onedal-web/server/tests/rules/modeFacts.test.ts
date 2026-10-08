@@ -33,7 +33,7 @@ const setMode = (dev: string, mode: string) => call(devicesRouter, '/:deviceId/m
 
 beforeAll(() => {
     for (const id of [U, ADMIN]) db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(id, `g-${id}`, `${id}@test`, id);
-    db.prepare(`UPDATE users SET approved_at = datetime('now') WHERE id = ?`).run(U);
+    db.prepare(`UPDATE users SET approved_at = datetime('now'), auto_allowed_at = datetime('now') WHERE id = ?`).run(U);   // 자동 잡기 허락 있음 — 허락 없는 답은 «계약 안 함» describe 에서
     db.prepare(`UPDATE users SET approved_at = datetime('now'), ops_allowed_at = datetime('now') WHERE id = ?`).run(ADMIN);
 });
 afterAll(() => {
@@ -102,6 +102,18 @@ describe('🎛️ 자동 + 계약 안 함 — 저장은 모드 셋 + 칸 · 명�
         db.prepare(`UPDATE user_devices SET mode = 'SIMULATION' WHERE device_id = ?`).run('dev-mf-nc');
         expect(getDeviceMode('dev-mf-nc', U)).toBe('SIMULATION');
         db.prepare(`UPDATE user_devices SET mode = 'MANUAL' WHERE device_id = ?`).run('dev-mf-nc');
+    });
+
+    it('🔴 자동 잡기 허락이 안 산 기사님의 «자동»은 계약 안 함으로 받는다 — 끄라고 보내도(27 21 «가» · 관제웹을 거치지 않는 요청도)', async () => {
+        db.prepare(`UPDATE users SET auto_allowed_at = NULL WHERE id = ?`).run(U);
+        try {
+            expect((await post('dev-mf-nc', { mode: 'AUTO' })).out.mode).toBe('SIMULATION');
+            expect((await post('dev-mf-nc', { mode: 'AUTO', noContract: false })).out.mode).toBe('SIMULATION');
+            expect((await post('dev-mf-nc', { mode: 'ALARM' })).out.mode).toBe('ALARM');
+        } finally {
+            db.prepare(`UPDATE users SET auto_allowed_at = datetime('now') WHERE id = ?`).run(U);
+        }
+        expect((await post('dev-mf-nc', { mode: 'AUTO', noContract: false })).out.mode).toBe('AUTO');   // 대조 — 허락이 살면 진짜 자동
     });
 
     it('계약 안 함 칸이 참 · 거짓이 아니면 400', async () => {

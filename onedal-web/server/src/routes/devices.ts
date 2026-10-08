@@ -15,6 +15,7 @@ import { flushSupply, phoneSupplyFor } from "../state/phoneSupply";
 import { ackDecision, phoneDecisionsForDevice } from "../state/decisions";
 import { activeDevices, saveModePreference, storedCommandOf, demoteOtherAutoPhones, filteringDeviceFrom } from "../state/deviceRegistry";
 import { cleanPreviewOfDevice, getUserDevicesSnapshot } from "../state/deviceSessions";
+import { allowanceOf } from "../core/allowance";
 
 const router = Router();
 
@@ -285,7 +286,9 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
          * 🔴 **0행이면 내 폰이 아니다.** 조용히 200 을 주면 관제웹은 «바꿨다»고 그리는데
          *    실제로는 아무것도 안 바뀐다 — 화면이 거짓말한다 (규칙 ⑤-4 ④).
          */
-        const changes = saveModePreference(deviceId, userId, mode, noContract);
+        /* 🎛️ 자동 잡기 허락이 안 산 기사님의 «자동»은 계약 안 함이다(27 21 «가» · 확정을 누르는 진짜 자동만 허락이 있어야 한다) — 관제웹을 거치지 않는 요청도 여기서 */
+        const forcedNoContract = modeActsOf(mode).needsAutoPermission && !allowanceOf(userId).autoLive;
+        const changes = saveModePreference(deviceId, userId, mode, forcedNoContract ? true : noContract);
         if (changes === 0) {
             console.warn(`⛔ [모드 거절] 기기(${deviceLabelOf(deviceId)}) 는 유저(${userId}) 의 폰이 아닙니다`);
             return res.status(404).json({ error: "등록되지 않았거나 내 기기가 아닙니다." });
