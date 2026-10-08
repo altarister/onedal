@@ -1660,7 +1660,8 @@ class HijackService : AccessibilityService(), ScanContext {
                 // 👆 누르기 전 안전 확인과 누를 자리는 배차망이 정한다 (픽커: 오더카드를 피한다)
                 val tap = if (scrolled) null else plugin.planListTap(allNodes, order, fareNode)
                 if (tap == null) {
-                    openBlocked = com.onedal.app.core.ListTapPick.afterPlan(scrolled, plugin.lastHoldKey)
+                    /* 🌊 까닭을 정할 때 «방금 스크롤»을 다시 읽는다 — 누를 자리를 고를 때 읽은 값을 다시 쓰지 않는다(옮기기 전 차례 그대로) */
+                    openBlocked = com.onedal.app.core.ListTapPick.afterPlan(scrollGate.scrolledRecently(android.os.SystemClock.elapsedRealtime()), plugin.lastHoldKey)
                     if (openBlocked == com.onedal.app.core.OpenBlocked.LIST_MOVING)
                         waitBook.schedule("흐르는 목록 다시 읽기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.ScrollGate.QUIET_MS) { reservedRead("흐르는 목록") }
                 }
