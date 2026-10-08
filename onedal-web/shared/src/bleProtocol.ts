@@ -44,6 +44,19 @@ export interface PhoneSupply {
     adTags: string[];
 }
 
+/**
+ * 🌐 **인터넷 길로 주는 이 폰 몫 한 벌** — `GET /api/devices/:deviceId/supply` (블루투스가 기본 길 · 끊기면 인터넷이 받침).
+ * 공급 소켓과 같은 원천(필터 · 판 · 이 폰의 모드 · 심사 중 · 결재 큐 · 빨리 접기)이고 길만 다르다. 짝 서명은 블루투스 증명용이라 싣지 않는다.
+ */
+export interface PhoneSupplyOverNet {
+    filter: Record<string, unknown>;
+    filterVersion: string;
+    /** 이 폰 몫 — 서버가 이 폰의 모드를 모르면 null */
+    phone: { mode: DeviceModeType; evaluatingNow: boolean } | null;
+    decisions: PhoneDecision[];
+    folds: PhoneFold[];
+}
+
 export interface PhoneDecision {
     deviceId: string;
     orderId: string;

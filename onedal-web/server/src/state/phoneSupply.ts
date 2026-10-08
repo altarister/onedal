@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { hostname } from "node:os";
 import { businessDayKey, modeForPhone, SUPPLY_EVENTS, SUPPLY_NAMESPACE } from "@onedal/shared";
-import type { DeviceModeType, PhoneSupply } from "@onedal/shared";
+import type { DeviceModeType, PhoneSupply, PhoneSupplyOverNet } from "@onedal/shared";
 import { jwtSecret } from "../config/env";
 import { allowanceOf } from "../core/allowance";
 import { filterVersionOf } from "../core/helpers";
@@ -120,6 +120,18 @@ export function phoneSupplyOf(userId: string, modes: Map<string, DeviceModeType>
 }
 
 /** 🧯 공급이 터진 마지막 까닭 — 같은 까닭은 한 번만 적는다(1초 주기가 같은 오류를 매초 찍지 않게) */
+/**
+ * 🌐 **인터넷 길 — 이 폰 몫 필터 · 모드 · 심사 중** (`GET /api/devices/:deviceId/supply`).
+ * 공급 소켓과 같은 원천(`phoneSupplyOf`) — 길만 둘이다. 짝 서명은 블루투스 증명용이라 안 싣는다.
+ * 보낸 판은 소켓 길처럼 기억한다(`rememberSentFilterVersion` — 기기 목록 «필터 옛 판»이 같은 사실로 선다).
+ */
+export function phoneSupplyFor(userId: string, deviceId: string): Pick<PhoneSupplyOverNet, 'filter' | 'filterVersion' | 'phone'> {
+    const supply = phoneSupplyOf(userId);
+    const p = supply.phones[deviceId];
+    rememberSentFilterVersion(deviceId, supply.filterVersion);
+    return { filter: supply.filter, filterVersion: supply.filterVersion, phone: p ? { mode: p.mode, evaluatingNow: p.evaluatingNow } : null };
+}
+
 let lastSupplyError = '';
 
 /**

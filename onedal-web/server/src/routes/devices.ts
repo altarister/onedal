@@ -11,7 +11,8 @@ import { authDevice, deviceTokenOf, newDeviceToken, deviceLabelOf } from "../cor
 import { accountGateOf } from "../core/accountGate";
 import { DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from "@onedal/shared";
 import { clientIpOf } from "../utils/clientIp";
-import { flushSupply } from "../state/phoneSupply";
+import { flushSupply, phoneSupplyFor } from "../state/phoneSupply";
+import { ackDecision, phoneDecisionsForDevice } from "../state/decisions";
 import { activeDevices, saveModePreference, demoteOtherAutoPhones, filteringDeviceFrom } from "../state/deviceRegistry";
 import { cleanPreviewOfDevice, getUserDevicesSnapshot } from "../state/deviceSessions";
 
@@ -217,6 +218,38 @@ router.post("/:deviceId/offline", (req, res) => {
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: "오프라인 상태 처리 중 서버 에러" });
+    }
+});
+
+/**
+ * 🌐 **인터넷 길 — 이 폰 몫 한 벌** (블루투스가 기본 길 · 끊기면 인터넷이 받침 · A1 S1).
+ * 원달앱이 «블루투스 끊김» · «관제앱 서버 끊김» · «안전취소가 걸림» 사실 중 하나라도 참이면 1초마다 묻는다.
+ * 값은 공급 소켓과 같은 원천(`phoneSupplyFor` · `phoneDecisionsForDevice`) — 폰 문은 보고와 같다(`authDevice`).
+ */
+router.get("/:deviceId/supply", (req, res) => {
+    try {
+        const deviceId = req.params.deviceId as string;
+        const auth = authDevice(deviceId, deviceTokenOf(req));
+        if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+        const { decisions, folds } = phoneDecisionsForDevice(getUserSession(auth.userId), deviceId);
+        res.json({ ...phoneSupplyFor(auth.userId, deviceId), decisions, folds });
+    } catch (error) {
+        res.status(500).json({ error: "공급 처리 중 서버 에러" });
+    }
+});
+
+/** 🌐 인터넷 길 «받았음» — 블루투스 길과 같은 `ackDecision`(두 길로 두 번 와도 큐는 한 번) */
+router.post("/:deviceId/decision-ack", (req, res) => {
+    try {
+        const deviceId = req.params.deviceId as string;
+        const auth = authDevice(deviceId, deviceTokenOf(req));
+        if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+        const orderId = (req.body as { orderId?: unknown })?.orderId;
+        if (typeof orderId !== "string" || !orderId) return res.status(400).json({ error: "콜 번호가 없다" });
+        const done = ackDecision(req.app.get("io"), getUserSession(auth.userId), auth.userId, orderId, `인터넷 · ${deviceLabelOf(deviceId)}`);
+        res.json({ success: true, done });
+    } catch (error) {
+        res.status(500).json({ error: "받았음 처리 중 서버 에러" });
     }
 });
 
