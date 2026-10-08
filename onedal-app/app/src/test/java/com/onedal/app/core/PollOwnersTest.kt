@@ -7,14 +7,14 @@ import java.io.File
 
 /**
  * 🔁 **1초 보고는 켠 쪽마다 한 칸 — 끄는 쪽은 자기 몫만 끈다** (onedal-1f «가» · 앱 시간값 전수).
- * 참/거짓 한 칸을 셋(상세 대기 · 안전취소 · 손 클릭 AUTO 임시 10초)이 나눠 써, 한쪽이 끄면 다른 쪽이 켜 둔 것도 꺼졌다.
+ * 참/거짓 한 칸을 둘(상세 대기 · 안전취소)이 나눠 쓰면 한쪽이 끌 때 다른 쪽이 켜 둔 것도 꺼진다.
  */
 class PollOwnersTest {
-    @Test fun `상세 대기가 켠 채 임시 10초가 끝나도 1초 보고 유지`() {
+    @Test fun `상세 대기가 켠 채 안전취소가 끝나도 1초 보고 유지`() {
         val p = PollOwners()
         p.set(PollOwners.DETAIL_WAIT, true)
-        p.set(PollOwners.HAND_AUTO, true)
-        p.set(PollOwners.HAND_AUTO, false)
+        p.set(PollOwners.SAFE_CANCEL, true)
+        p.set(PollOwners.SAFE_CANCEL, false)
         assertTrue(p.any)
         p.set(PollOwners.DETAIL_WAIT, false)
         assertFalse(p.any)
@@ -32,6 +32,5 @@ class PollOwnersTest {
         val root = "src/main/java/com/onedal/app"
         val all = listOf("HijackService.kt", "core/engine/PreConfirmSequence.kt").joinToString("\n") { File("$root/$it").readText() }
         assertFalse("참/거짓 한 칸에 바로 쓰는 곳", all.contains("isWaitingDecision = "))
-        assertTrue(all.contains("setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, false)"))
     }
 }

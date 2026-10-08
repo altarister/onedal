@@ -417,9 +417,6 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean =
         judge(order, loadCurrentFilter(), tally).passed
 
-    /** 24시도 요금 줄 기준 — 카드 띠 실측 전까지 닻 줄 그대로 (#84) */
-    override fun alarmBandHalfPx(): Int = 0
-
     // ════════════════════════════════════════════════════════════════
     //  groupListNodes(): 화물24시 카드 기반 노드 그룹화
     // ════════════════════════════════════════════════════════════════

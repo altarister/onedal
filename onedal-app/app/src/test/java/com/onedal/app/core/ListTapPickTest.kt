@@ -18,50 +18,45 @@ class ListTapPickTest {
     private var evaluatingReads = 0
     private fun facts(
         tapsList: Boolean = true, openedByApp: Boolean = false, hasBest: Boolean = true, handBlocks: Boolean = false,
-        hold: AlarmHold.Kind? = AlarmHold.Kind.FIRE, evaluating: Boolean = false, sound: Boolean = true,
-    ) = ListTapPick.GateFacts(tapsList, openedByApp, hasBest, handBlocks, hold, { evaluatingReads++; evaluating }, sound)
+        hold: AlarmHold.Kind? = AlarmHold.Kind.FIRE, evaluating: Boolean = false,
+    ) = ListTapPick.GateFacts(tapsList, openedByApp, hasBest, handBlocks, hold, { evaluatingReads++; evaluating })
 
-    @Test fun `다 맑으면 소리를 내고 누르러 간다`() {
+    @Test fun `다 맑으면 누르러 간다`() {
         val g = ListTapPick.gate(facts())
-        assertTrue(g.fire); assertTrue(g.planTap); assertNull(g.openBlocked)
-    }
-
-    @Test fun `소리 없는 모드(자동 · 체험)면 소리는 안 내고 누르러는 간다`() {
-        val g = ListTapPick.gate(facts(sound = false))
-        assertFalse(g.fire); assertTrue(g.planTap)
+        assertTrue(g.planTap); assertNull(g.openBlocked)
     }
 
     @Test fun `직접 모드(목록에서 안 누름)는 아무것도 안 한다`() {
         val g = ListTapPick.gate(facts(tapsList = false))
-        assertFalse(g.fire); assertFalse(g.planTap); assertFalse(g.handHeld); assertNull(g.openBlocked)
+        assertFalse(g.planTap); assertFalse(g.handHeld); assertNull(g.openBlocked)
     }
 
     @Test fun `앱이 연 콜이 있으면 바쁨 — 안 누르고 소리도 없다`() {
         val g = ListTapPick.gate(facts(openedByApp = true, hold = null))
-        assertEquals(OpenBlocked.BUSY, g.openBlocked); assertFalse(g.fire); assertFalse(g.planTap)
+        assertEquals(OpenBlocked.BUSY, g.openBlocked); assertFalse(g.planTap)
     }
 
-    @Test fun `손 먼저면 소리는 울리고 누르기만 미룬다`() {
+    @Test fun `손 먼저면 누르기를 미룬다`() {
         val g = ListTapPick.gate(facts(handBlocks = true))
-        assertTrue(g.handHeld); assertTrue(g.fire); assertFalse(g.planTap)
+        assertTrue(g.handHeld); assertFalse(g.planTap)
         assertEquals(OpenBlocked.HAND_FIRST, g.openBlocked)
     }
 
     @Test fun `알람 미룸이면 안 누르고 다시 보기를 건다 — 손 먼저가 있으면 까닭은 손 먼저`() {
         val held = ListTapPick.gate(facts(hold = AlarmHold.Kind.HOLD))
-        assertTrue(held.heldRecheck); assertFalse(held.fire); assertFalse(held.planTap)
+        assertTrue(held.heldRecheck); assertFalse(held.planTap)
         assertEquals(OpenBlocked.ALARM_HELD, held.openBlocked)
         assertEquals(OpenBlocked.HAND_FIRST, ListTapPick.gate(facts(hold = AlarmHold.Kind.HOLD, handBlocks = true)).openBlocked)
     }
 
     @Test fun `알람 미룸이 «없음»이면 이번 읽기는 안 누른다`() {
         val g = ListTapPick.gate(facts(hold = AlarmHold.Kind.NONE))
-        assertFalse(g.fire); assertFalse(g.planTap); assertFalse(g.heldRecheck)
+        assertFalse(g.planTap); assertFalse(g.heldRecheck)
     }
 
     @Test fun `서버가 앞 콜을 심사 중이면 안 누르고 소리도 없다`() {
         val g = ListTapPick.gate(facts(evaluating = true))
-        assertTrue(g.evaluatingStop); assertFalse(g.fire); assertFalse(g.planTap)
+        assertTrue(g.evaluatingStop); assertFalse(g.planTap)
         assertEquals(OpenBlocked.EVALUATING, g.openBlocked)
     }
 

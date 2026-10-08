@@ -35,9 +35,6 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
 
     override val lastFrameDiscarded: Boolean get() = delegate.lastFrameDiscarded
 
-    // 🔴 위임을 빠뜨리면 컴파일이 안 된다 — 인터페이스에 기본값이 없다 (#84 · IScrapParser 주석 참조)
-    override fun alarmBandHalfPx(): Int = delegate.alarmBandHalfPx()
-
     /**
      * 🗳️ **판정 위임** — 인터페이스에 기본값이 없어, 위임을 잊으면 컴파일이 안 된다
      * (기본값이 있으면 `verdict` 가 조용히 `null` 로 나간다).

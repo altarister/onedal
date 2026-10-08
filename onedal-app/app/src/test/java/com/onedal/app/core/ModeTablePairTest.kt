@@ -69,10 +69,9 @@ class ModeTablePairTest {
     }
 
     @Test
-    fun `🔴 목록 누름 · 소리 · 확정 · 확정 막기는 ModeActs 한 곳을 본다 — 모드 이름을 따로 견주지 않는다`() {
+    fun `🔴 목록 누름 · 확정 · 확정 막기는 ModeActs 한 곳을 본다 — 모드 이름을 따로 견주지 않는다`() {
         val hijack = src("HijackService.kt")
         assertTrue(hijack.contains("val tapsFromList = ModeActs.of(currentMode).tapsList"))
-        assertTrue(hijack.contains("sound = ModeActs.of(currentMode).sound"))
         assertFalse(hijack.contains("""currentMode == "AUTO" || currentMode == "SIMULATION""""))
         assertTrue(src("core/AutoTouchManager.kt").contains("ModeActs.blocksTap(currentMode, targetText, acceptButtons)"))
         assertTrue(src("core/engine/PreConfirmSequence.kt").contains("ModeActs.of(mode).contracts && ReservationGate.isToday(order)"))

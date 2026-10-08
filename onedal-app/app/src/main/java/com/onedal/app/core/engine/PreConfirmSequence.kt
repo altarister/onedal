@@ -163,17 +163,6 @@ fun ScanContext.handlePreConfirmScreen(
         if (!appContracts) session.isPreview = true
         sendConfirmOnce(order, rawScreenStr)
 
-        // 손 클릭인데 스위치가 AUTO — 1초 보고를 10초 켠다
-        if (HandAutoPoll.wanted(session.contractedByApp, com.onedal.app.core.ModeActs.of(effectiveMode).contracts)) {
-            AppLogger.d(TAG, LogTag.NETWORK, "⚡ [손 클릭 AUTO] 1초 보고 10초 켬")
-            telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, true)
-            // ⏳ 세션 몫 — 콜이 끝나면 거두고 1초 보고도 끈다(resetSessionState)
-            waitBook.schedule("손 클릭 AUTO 1초 보고", com.onedal.app.core.WaitBook.SESSION, 10_000) {
-                telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, false)
-                AppLogger.d(TAG, LogTag.NETWORK, "⚡ [손 클릭 AUTO] 10초 끝 — 이 몫의 1초 보고 끔")
-            }
-        }
-
         if (appContracts && acceptButtons != null) {
             /**
              * ✍️ **앱이 계약하는 콜 — 확정을 누르고, 누르기에 성공한 뒤에 상세 보고** (안전취소 시간이 계약 뒤부터 흐른다).

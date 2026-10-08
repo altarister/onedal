@@ -1237,9 +1237,6 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         return pass
     }
 
-    /** 알람 테두리는 요금 닻이 아니라 **카드 띠 전체**를 두른다 — 카드 띠 값 `CARD_BAND_PX` 그대로 (#83) */
-    override fun alarmBandHalfPx(): Int = CARD_BAND_PX
-
     /**
      * 🗳️ **알람 판정에서 떨어진 축을 장부에 싣는다** (기사님 지시).
      *

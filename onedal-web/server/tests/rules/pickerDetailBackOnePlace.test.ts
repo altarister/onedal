@@ -32,7 +32,7 @@ describe('픽커 상세 대기 타이머 — 한 곳 (#124)', () => {
         // 부르는 곳만 센다 — 함수 정의 줄(`fun scheduleDetailBack()`)은 빼고
         expect(countOf(/(?<!fun ScanContext\.|override fun |fun )\bscheduleDetailBack\(\)/g)).toBe(1);
         const alarm = hijack.indexOf('🚪 [상세 진입]');
-        const alarmBlock = hijack.slice(alarm, hijack.indexOf('alarmSignaler.onScan(', alarm));
+        const alarmBlock = hijack.slice(alarm, hijack.indexOf('telemetryManager.screenNodeCount = ', alarm));
         expect(alarm).toBeGreaterThan(-1);
         expect(alarmBlock).not.toMatch(/DetailBack\(\)/);
         expect(sequence).toMatch(/handlePreConfirmScreen[\s\S]*?scheduleDetailBack\(\)/);

@@ -33,8 +33,7 @@ class AlarmedRoutesSplitTest {
         val a = o("수정", "수정", 8000); val b = o("수정", "수정", 9500)
         assertTrue(r.countIfNew(a, 0))
         assertTrue("같은 읽기의 둘째 줄은 다른 콜", r.countIfNew(b, 0))
-        assertTrue("셈 뒤 소리 — 같은 줄", r.soundIfNew(b, 0))
-        assertFalse("같은 줄 소리 두 번째", r.soundIfNew(b, 0))
+        assertFalse("같은 줄을 두 번 세면 두 번째는 안 센다", r.countIfNew(b, 0))
     }
 
     @Test fun `흔들린 읽기에서는 옛 판단 - 같은 경로면 같은 콜`() {

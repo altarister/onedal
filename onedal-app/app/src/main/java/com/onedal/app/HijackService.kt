@@ -1408,8 +1408,6 @@ class HijackService : AccessibilityService(), ScanContext {
         // 🔕 화면 «종류»가 바뀔 때만 — 글자만 바뀐 알림(1초마다)은 되풀이하지 않는다. 목록으로 바뀔 때도 찍힌다(appLoop.mjs 가 읽는다)
         if (LogOnce.changed("screen", detected.value)) AppLogger.roadmap(LogTag.SCREEN, "📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}→$effectiveMode", telemetryManager.currentScreenContext.name)
 
-        // 🔔 리스트를 떠났다 — 남의 화면 위에 알람 테두리를 남기지 않는다 (§6-③)
-        if (detected != ScreenContext.LIST) alarmSignaler.onLeaveList()
         ringPreview()   // 🔔 화면이 바뀌면 판정 소리를 다시 본다 — 울릴 콜이 화면보다 먼저 와도 상세가 서면 시작 · 떠나면 멈춤(ef 리뷰 ②)
         // ⏱️ 상세 대기 타이머를 여기서 끄지 않는다 (#124) — «상세 → 리스트» 한 경우만 보다가 중간 화면이 끼면 안 꺼졌다.
         //    끄는 곳은 `resetSessionState` 한 곳이다 (콜의 끝 · #44 와 같은 자리).
@@ -1701,21 +1699,21 @@ class HijackService : AccessibilityService(), ScanContext {
         val gate = com.onedal.app.core.ListTapPick.gate(com.onedal.app.core.ListTapPick.GateFacts(
             tapsList = tapsFromList, openedByApp = session.openedByApp, hasBest = bestIdx >= 0,
             handBlocks = handFirst.blocks(tapNowMs), hold = hold,
-            evaluating = { evaluatingNow() }, sound = ModeActs.of(currentMode).sound,
+            evaluating = { evaluatingNow() },
         ))
         /** 🚧 통과 콜이 있는데 안 연 까닭 — 목록 보고 openBlocked (`OpenBlocked`) */
         var openBlocked: String? = gate.openBlocked
         if (gate.handHeld) {
             handFirst.hold(tapNowMs)
             if (LogOnce.changed("hand-first", "${handFirst.lastHandAtMs}"))
-                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "✋ [손 먼저] 기사님 손 ${"%.1f".format((tapNowMs - handFirst.lastHandAtMs) / 1000.0)}초 전($lastHandWhy) — 소리는 울림 · 누르기 미룸 · 멈추면 곧바로 다시 읽는다")
+                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "✋ [손 먼저] 기사님 손 ${"%.1f".format((tapNowMs - handFirst.lastHandAtMs) / 1000.0)}초 전($lastHandWhy) — 누르기 미룸 · 멈추면 곧바로 다시 읽는다")
         }
         if (gate.heldRecheck) {
             lastScreenFingerprint = 0   // 확인 읽기의 글자가 같아도 목록을 다시 봐야 미룬 알람이 울린다
             AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "⏳ [알람 미룸] 목록이 움직이는 중(내용 바뀜 ${recentContentEvents.size}개/300ms) — 다음 읽기에서 같은 조립이면 울린다 · $label")
             waitBook.schedule("미룬 알람 다시 보기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.AlarmHold.RECHECK_MS) { heldAlarmRecheck.run() }
         }
-        if (best != null && (gate.evaluatingStop || gate.fire || gate.planTap)) {
+        if (best != null && (gate.evaluatingStop || gate.planTap)) {
             val (order, fareNode, orderHash) = best
             /**
              * 🔒 **서버가 앞 콜을 심사 중이면 이번 스캔은 누르지 않는다** (기사님 · 실주행 오송읍 · 한 번에 하나만 평가).
@@ -1724,14 +1722,6 @@ class HijackService : AccessibilityService(), ScanContext {
             if (gate.evaluatingStop) {
                 AppLogger.d(TAG, LogTag.TAP, "⏳ [클릭 미룸] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
                     "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 다음 스캔에서 바로 누릅니다")
-            }
-            // 🔔 알람이면 소리·진동 — 테두리는 그리지 않는다(앱이 상세까지 들어가 가리킬 줄이 없다 · 기사님 결정 «모든 배차망이 똑같이»)
-            if (gate.fire) {
-                alarmSignaler.fire(
-                    fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash,
-                    withBorder = false,
-                    withSound = alarmedRoutes.soundIfNew(order, android.os.SystemClock.elapsedRealtime()),   // 🔔 같은 경로 한 번(스크롤로 나갔다 와도)
-                )
             }
             if (gate.planTap) {
                 // 🌊 방금 스크롤 — 흐르는 목록은 누르지 않고 곧 다시 읽는다(주 판정은 배차망의 누르기 직전 Y 차이 · 이것은 덧)
@@ -1821,8 +1811,6 @@ class HijackService : AccessibilityService(), ScanContext {
                 if (appTrace.note(System.currentTimeMillis(), LogTag.SCREEN, line)) flushTrace()
             }
         }
-        // 🔔 알람 테두리 — 가리키던 콜이 이번 스캔에 없으면 걷는다 (잡혔거나 남이 가져감 · §6-③)
-        alarmSignaler.onScan(scanHashes)
 
         telemetryManager.screenNodeCount = allNodes.size
         /**
@@ -2221,10 +2209,9 @@ class HijackService : AccessibilityService(), ScanContext {
     /** 세션 상태 전체 초기화 (리스트 복귀 시 호출) */
     override fun resetSessionState() {
         cancelDetailBack()   // ⏱️ 콜이 끝났다 — 상세 대기 타이머도 이 한 곳에서 끈다 (#124)
-        // ⏳ 콜이 끝났다 — 이 콜이 건 기다림(세션 몫)을 한 번에 거둔다. 손 클릭 AUTO 1초 보고는 거두면서 끈다
+        // ⏳ 콜이 끝났다 — 이 콜이 건 기다림(세션 몫)을 한 번에 거둔다
         waitBook.cancelOwner(com.onedal.app.core.WaitBook.SESSION).takeIf { it.isNotEmpty() }
             ?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏳ [기다림 거둠] 세션 — ${it.joinToString(" · ")}") }
-        telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, false)
         session.reset {
             cancelSafeCancelTimer()   // 🔓 목록 복귀 = 이 콜을 놓았다 — 서버도 목록 이탈 유예 3초 뒤 치우고 취소로 센다(같은 규칙 하나 · 기사님 «자동이면 확정까지 된 상태라 취소가 맞다»)
             telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 콜 잡기 모드

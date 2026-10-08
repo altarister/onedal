@@ -208,54 +208,19 @@ describe('🔔 알람이 관제웹까지 가는 길', () => {
 
 describe('🔔 2단계 — 스캐너 폰이 스스로 알린다 (기사님 확정 §6-②④)', () => {
     /**
-     * 관제웹 소리만으로는 부족하다 — 기사님이 보는 화면은 **인성 리스트**다.
-     * 폰이 소리 두 번 + 강한 진동을 내고, 통과한 콜 줄에 테두리를 그린다.
+     * 폰 소리는 상세 보고를 서버가 받은 뒤부터다(삑 · 판정 소리 — 원달앱 `DetailBeepTest`). 목록에서는 울리지 않는다.
      */
     it('🔴 진동 권한이 매니페스트에 있다 (없으면 SecurityException 으로 조용히 죽는다)', () => {
         const m = readFileSync(join(APP, '../../../../AndroidManifest.xml'), 'utf8');
         expect(m).toMatch(/android\.permission\.VIBRATE/);
     });
 
-    it('🔴 테두리는 접근성 오버레이 창이다 — 「다른 앱 위에 표시」 권한을 요구하지 않는다', () => {
-        const s = codeOnly(app('core/AlarmSignaler.kt'));
-        expect(s).toMatch(/TYPE_ACCESSIBILITY_OVERLAY/);
-        expect(s).not.toMatch(/TYPE_APPLICATION_OVERLAY|SYSTEM_ALERT_WINDOW/);
-    });
-
-    /**
-     * 🔴 **터치를 먹으면 안 된다** — 그 줄을 눌러야 하므로 (기사님 확정).
-     */
-    it('🔴 테두리가 터치를 먹지 않는다 (FLAG_NOT_TOUCHABLE)', () => {
-        const s = codeOnly(app('core/AlarmSignaler.kt'));
-        expect(s).toMatch(/FLAG_NOT_TOUCHABLE/);
-    });
-
-    it('🔴 알람은 ALARM 모드 + 필터 통과에서만 난다 (자동·대기는 조용하다)', () => {
+    it('🔴 통과 콜을 모았다가 요금 최고 하나만 연다', () => {
         const s = codeOnly(app('HijackService.kt'));
         const scan = s.split('private fun handleListScreen')[1]?.split('\n    private fun ')[0] ?? '';
-        // 통과 콜을 모았다가(alarmHits) 루프 뒤에 요금 최고 하나를 고른다 — 소리는 ALARM 일 때만.
-        // 불변식 — «모으는 곳»은 통과 조건 아래, fire 는 ALARM 문 안이고 고른 그릇에서만 나온다
         const addLine = scan.split('alarmHits.add')[0].slice(-400);
         expect(addLine).toMatch(/row\.addHit/);   // 후보 = 통과 && 아직 안 연 콜 — 동작으로 ListRowScanTest
-        const beforeFire = scan.split('alarmSignaler.fire')[0];
-        expect(beforeFire.slice(-200)).toMatch(/if \(gate\.fire\)/);   // 소리는 판단 «fire» 일 때만 — fire 는 sound 일 때만(동작으로 ListTapPickTest)
-        expect(scan).toMatch(/sound = ModeActs\.of\(currentMode\)\.sound/);
-        const acts = codeOnly(app('core/ModeActs.kt'));
-        expect(acts.match(/sound = true/g)?.length).toBe(1);   // 소리는 알람 하나뿐
-        expect(acts).toMatch(/"ALARM" -> ModeActs\(tapsList = true, sound = true/);
-        expect(beforeFire).toMatch(/pickBestIndex/);
-    });
-
-    /**
-     * 🔇 «먼저 오는 것»으로 그친다: 그 콜이 리스트에서 사라짐 / 10초.
-     *    리스트가 아닌 화면으로 가도 걷는다 — 남의 화면 위에 테두리가 떠돌면 안 된다.
-     */
-    it('🔴 10초가 지나거나 콜이 리스트에서 사라지면 걷는다', () => {
-        const s = codeOnly(app('core/AlarmSignaler.kt'));
-        expect(s).toMatch(/10_000|10000/);
-        expect(s).toMatch(/fun onScan/);
-        const svc = codeOnly(app('HijackService.kt'));
-        expect(svc).toMatch(/alarmSignaler\.onScan\(/);
+        expect(scan).toMatch(/pickBestIndex/);     // 고르기는 동작으로 원달앱 AlarmBestPickTest
     });
 });
 

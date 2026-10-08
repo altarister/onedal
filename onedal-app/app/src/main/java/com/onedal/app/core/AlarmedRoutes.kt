@@ -8,8 +8,7 @@ import com.onedal.app.models.SimplifiedOfficeOrder
  * 판정용 콜 기억(`CallMemory` · 상차+하차+요금)은 그대로다 — 요금이 오르면 다시 판정한다.
  * 이 기억은 통과한 콜을 두고 둘만 본다:
  * - **셈함** — 성적표 passedNew(서버 필터 알람)에 이미 셌나. 요금만 올라 계속 통과해도 다시 안 센다.
- * - **울림 함** — 폰이 이 경로로 소리를 냈나(스크롤로 화면 밖에 나갔다 와도 다시 안 운다).
- * - **열기 함** — 폰이 소리를 내고 목록 줄을 눌러 열었나. 셈만 하고 못 연 콜(서버 심사 중 · 알람 미룸)은 다음 읽기에 연다.
+ * - **열기 함** — 폰이 목록 줄을 눌러 열었나. 셈만 하고 못 연 콜(서버 심사 중 · 알람 미룸)은 다음 읽기에 연다.
  * 요금이 모자라 떨어졌던 콜이 요금이 올라 처음 통과하면 새로 센다 — 떨어진 콜은 셈한 적이 없다.
  *
  * - 동 없이 덜 읽은 줄(«분당→강남»)은 토막이 부분집합이면 같은 열쇠다(`mergePartialRows` 와 같은 규칙).
@@ -26,7 +25,6 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
         /** 본 가장 높은 요금 — 이보다 낮으면 다른 콜(요금은 내려가지 않는다) */
         var topFare = fare
         var counted = false
-        var sounded = false
         var opened = false
     }
 
@@ -75,17 +73,6 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
         if (e.counted) return false
         e.counted = true
         e.fare = o.fare
-        return true
-    }
-
-    /**
-     * 폰 소리 — 이 열쇠로 처음 울리면 true(울림 함 표시). 스크롤로 화면 밖에 나갔다 돌아와도 다시 안 운다(10분 안 보이면 잊음).
-     * 소리 기억은 여기 한 곳(라이브 · 16,093 한남이 다시 울었다 — 옛 «이번 스캔에 보인 지문만» 기억).
-     */
-    fun soundIfNew(o: SimplifiedOfficeOrder, nowMs: Long): Boolean {
-        val e = entryOf(o, nowMs) ?: return true
-        if (e.sounded) return false
-        e.sounded = true
         return true
     }
 

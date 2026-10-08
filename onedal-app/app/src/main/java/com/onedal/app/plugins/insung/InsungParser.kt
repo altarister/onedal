@@ -585,9 +585,6 @@ class InsungParser(private val context: Context) : IScrapParser {
      *    폰 주행은 «필터가 맞나」가 아니라 **«GPS·경로·화면이 맞나」** 를 볼 때 쓴다.
      */
 
-    /** 인성 리스트는 요금 줄이 곧 콜 한 줄이다 — 알람 테두리는 닻 줄 그대로 (#84) */
-    override fun alarmBandHalfPx(): Int = 0
-
     override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
         val tempOrder = parse(screenTexts)
         return recentOrders.reversed().find { it.fare > 0 && it.fare == tempOrder.fare }

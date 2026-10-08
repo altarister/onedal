@@ -33,7 +33,6 @@ class ListRowScanTest {
         override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? = null
         override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> = emptyList()
         override val lastFrameDiscarded = false
-        override fun alarmBandHalfPx() = 0
     }
 
     private val parser = FakeParser()

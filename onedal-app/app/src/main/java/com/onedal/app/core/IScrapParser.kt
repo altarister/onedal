@@ -42,7 +42,7 @@ interface IScrapParser {
      *
      * 🔴 **기본 구현을 두지 않는다** — 기본값(`= order`)이 있으면 위임자(`ScrapParser`)가 이 메서드를
      *    안 넘겨도 컴파일러가 못 잡고, `verdict` 가 조용히 `null` 로 나간다 (**fail-open 은 조용하다**).
-     *    `alarmBandHalfPx` 도 같은 까닭으로 기본값이 없다 (#84). 안 싣는 파서도 **제 손으로 «안 싣는다»고 적는다.**
+     *    안 싣는 파서도 **제 손으로 «안 싣는다»고 적는다.**
      */
     fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally? = null): SimplifiedOfficeOrder
 
@@ -66,17 +66,6 @@ interface IScrapParser {
 
     /** 📐 바로 앞 groupListNodes 가 틀을 버렸나(목록이 움직이는 중간 틀 등) — 버렸으면 곧 다시 읽는다(`ListWatch`) */
     val lastFrameDiscarded: Boolean
-
-    /**
-     * 🔔 알람 테두리가 요금 닻 중심에서 위아래로 몇 px 을 더 둘러야 **카드 전체**인가.
-     * 0 이면 닻 줄만 두른다 (인성 — 요금 줄이 곧 카드 한 줄). 픽커는 요금이 태그줄과
-     * 지역줄 **사이**에 껴 있어서 띠 반높이(±60)를 알려줘야 카드가 다 들어온다 (#83).
-     *
-     * 🔴 **기본값 없는 추상 메서드다** (#84) — 기본값이 있으면 위임자(ScrapParser)가 위임을 빠뜨려도
-     *    컴파일이 되어, 판정은 픽커인데 띠는 기본값 0 이 되어 테두리가 반 토막 난다.
-     *    이 인터페이스에 메서드를 더할 때도 기본값 없이 더해 위임 누락을 **컴파일러가** 잡게 한다.
-     */
-    fun alarmBandHalfPx(): Int
 
     /**
      * 👻 **상세 글자가 남은 목록 화면인가** — 상세 → 목록 복귀 직후 잔상 판은 버린다. 기본은 «아니다».

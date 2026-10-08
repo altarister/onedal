@@ -30,10 +30,10 @@ class WaitBookTest {
 
     @Test fun `세션 몫만 거두고 목록·판결 몫은 남긴다`() {
         book.schedule("상세 대기", WaitBook.SESSION, 30_000) {}
-        book.schedule("손 클릭 AUTO 1초 보고", WaitBook.SESSION, 10_000) {}
+        book.schedule("안전취소 끝", WaitBook.SESSION, 10_000) {}
         book.schedule("손 멈춤", WaitBook.LIST, 3_050) {}
         book.schedule("결재 버튼", WaitBook.DECISION, 500) {}
-        assertEquals(listOf("상세 대기", "손 클릭 AUTO 1초 보고"), book.cancelOwner(WaitBook.SESSION))
+        assertEquals(listOf("상세 대기", "안전취소 끝"), book.cancelOwner(WaitBook.SESSION))
         assertEquals(listOf("손 멈춤", "결재 버튼"), book.pending().map { it.name })
         assertEquals(2, posted.size)
     }
@@ -76,12 +76,11 @@ class WaitBookTest {
         assertEquals("+늘 도는 1", WaitBook.pendingLine(listOf(WaitBook.Pending("하트비트", WaitBook.SERVICE, 1))))
     }
 
-    @Test fun `결재 버튼은 결재 몫 · 세션이 끝나면 세션 몫을 거두고 손 클릭 AUTO 1초 보고를 끈다`() {
+    @Test fun `결재 버튼은 결재 몫 · 세션이 끝나면 세션 몫을 거둔다`() {
         val src = File("$root/HijackService.kt").readText()
         assertTrue("취소 누름을 잃지 않게 세션 몫에서 뺀다", src.contains("waitBook.schedule(\"결재 버튼\", com.onedal.app.core.WaitBook.DECISION, 500)"))
         val reset = src.substringAfter("override fun resetSessionState() {").substringBefore("\n    }")
         assertTrue(reset.contains("waitBook.cancelOwner(com.onedal.app.core.WaitBook.SESSION)"))
-        assertTrue(reset.contains("setFastPoll(com.onedal.app.core.PollOwners.HAND_AUTO, false)"))
         assertFalse(File("$root/core/engine/PreConfirmSequence.kt").readText().contains("mainHandler.postDelayed"))
     }
 }
