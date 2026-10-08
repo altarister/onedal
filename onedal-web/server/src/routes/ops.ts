@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import {
-    CALL_NOTE_MEMO_MAX, CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow, runningModeOf, modeActsOf,
+    CALL_NOTE_MEMO_MAX, CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow, runningModeOf, isDeviceMode,
     type CargoReport, type CargoUnit, type OpsAgreement, type OpsCallNote,
     type ContentKind, type OpsAnomaly, type OpsAudit, type OpsCall, type OpsContent, type OpsCounts, type OpsMember,
     type OpsMemberDetail, type OpsJudgedCall, type JudgedCallInfo, type JudgedFilterInfo, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
@@ -96,7 +96,8 @@ function phonesOf(userId: string, io: unknown): OpsPhone[] {
             offlineReason: s.offlineReason ? DEVICE_OFFLINE_LABEL[s.offlineReason] : null,
             lastSeenAt: s.lastSeen ? new Date(s.lastSeen).toISOString() : '',
             appVersion: s.version ?? '',
-            mode: modeActsOf(running).opsMode,
+            /* 도는 모드 그대로(29 P5-2 · N7 — 이름 · 색은 운영센터가 네 모드 표로) · 모르는 값이면 명령 */
+            mode: isDeviceMode(running) ? running : s.mode,
             locationOn: s.lat != null && s.lng != null,
         };
     });

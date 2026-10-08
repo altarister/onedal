@@ -61,12 +61,6 @@ export interface ModeActs {
     marksSimulated: boolean;
     /** 이 모드를 누르면 같은 기사님의 다른 폰에서 같은 모드를 알람으로 옮기나(한 폰만) */
     onlyOnePhone: boolean;
-    /** 운영센터 폰 표에 보내는 모드(도는 모드로 찾는다) · 체험을 알람으로 보이는 것은 🔴 기사님 결정 기다림 */
-    opsMode: 'AUTO' | 'ALARM' | 'MANUAL';
-    /** 운영센터 폰 표의 이름(받은 `opsMode` 로 찾는다) · 직접을 «대기»로 적는 것은 🔴 기사님 결정 기다림 */
-    opsName: string;
-    /** 운영센터 폰 표에서 색으로 띄우나 */
-    opsHighlight: boolean;
     /** «자동 모드» 폰 셈 · «지금 확정을 누를 수 있는 다른 폰»에 드나 */
     countedAsAuto: boolean;
     /** 관제웹 모드 단추 색(테일윈드 글자 그대로 — 원달앱 테두리 `frame` 과 같은 계열) */
@@ -156,16 +150,16 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
     ],
     "acts": {
         "AUTO":       { "tapsList": true,  "sound": false, "contracts": true,  "blocksAccept": false, "frame": "FF1D4ED8", "label": "자동", "name": "자동",
-                        "filterRuns": true,  "webBeep": false, "marksSimulated": false, "onlyOnePhone": true,  "opsMode": "AUTO",   "opsName": "자동", "opsHighlight": true,
+                        "filterRuns": true,  "webBeep": false, "marksSimulated": false, "onlyOnePhone": true, 
                         "countedAsAuto": true,  "tone": "bg-info/20 text-info border-info/40", "directBadge": false, "needsAutoPermission": true,  "capturedViaUnlessContracted": "MANUAL" },
         "ALARM":      { "tapsList": true,  "sound": true,  "contracts": false, "blocksAccept": false, "frame": "FF22C55E", "label": "알람", "name": "알람",
-                        "filterRuns": true,  "webBeep": true,  "marksSimulated": false, "onlyOnePhone": false, "opsMode": "ALARM",  "opsName": "알람", "opsHighlight": false,
+                        "filterRuns": true,  "webBeep": true,  "marksSimulated": false, "onlyOnePhone": false,
                         "countedAsAuto": false, "tone": "bg-success/20 text-success border-success/40", "directBadge": false, "needsAutoPermission": false, "capturedViaUnlessContracted": "ALARM" },
         "MANUAL":     { "tapsList": false, "sound": false, "contracts": false, "blocksAccept": false, "frame": "FF64748B", "label": "직접", "name": "직접",
-                        "filterRuns": false, "webBeep": false, "marksSimulated": false, "onlyOnePhone": false, "opsMode": "MANUAL", "opsName": "대기", "opsHighlight": false,
+                        "filterRuns": false, "webBeep": false, "marksSimulated": false, "onlyOnePhone": false,
                         "countedAsAuto": false, "tone": "bg-surface-alt text-text-muted border-border/40", "directBadge": true,  "needsAutoPermission": false, "capturedViaUnlessContracted": "MANUAL" },
         "SIMULATION": { "tapsList": true,  "sound": false, "contracts": false, "blocksAccept": true,  "frame": "FFF59E0B", "label": "자동", "name": "자동(계약 안 함)",
-                        "filterRuns": true,  "webBeep": false, "marksSimulated": true,  "onlyOnePhone": false, "opsMode": "ALARM",  "opsName": "알람", "opsHighlight": false,
+                        "filterRuns": true,  "webBeep": false, "marksSimulated": true,  "onlyOnePhone": false,
                         "countedAsAuto": false, "tone": "bg-amber-400/20 text-amber-400 border-amber-400/40", "directBadge": false, "needsAutoPermission": false, "capturedViaUnlessContracted": "MANUAL" }
     },
     "networks": {
@@ -184,7 +178,7 @@ export function modeActsOf(mode: string | null | undefined): ModeActs {
 }
 const UNKNOWN_MODE_ACTS: ModeActs = {
     tapsList: false, sound: false, contracts: false, blocksAccept: false, frame: '', label: '', name: '',
-    filterRuns: false, webBeep: false, marksSimulated: false, onlyOnePhone: false, opsMode: 'ALARM', opsName: '대기', opsHighlight: false,
+    filterRuns: false, webBeep: false, marksSimulated: false, onlyOnePhone: false,
     countedAsAuto: false, tone: '', directBadge: false, needsAutoPermission: false, capturedViaUnlessContracted: 'MANUAL',
 };
 

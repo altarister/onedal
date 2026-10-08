@@ -1,5 +1,5 @@
 import type { Color } from './judge';
-import type { TargetAppType, DeviceSession, AutoDispatchFilter, JudgmentSnapshot } from './index';
+import type { TargetAppType, DeviceSession, AutoDispatchFilter, JudgmentSnapshot, DeviceModeType } from './index';
 import type { ContentKind } from './join';
 import type { WordKind } from './pageFields';
 import type { CargoUnit } from './cargoUnits';
@@ -43,7 +43,8 @@ export interface OpsPhone {
     offlineReason: string | null;
     lastSeenAt: string;
     appVersion: string;
-    mode: 'AUTO' | 'ALARM' | 'MANUAL';
+    /** 도는 모드(명령 값 넷) — 이름 · 색은 shared 네 모드 표(`modeActsOf().name` · `tone`) */
+    mode: DeviceModeType;
     locationOn: boolean;
 }
 

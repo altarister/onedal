@@ -122,7 +122,7 @@ describe('🎛️ 자동 + 계약 안 함 — 저장은 모드 셋 + 칸 · 명�
 });
 
 describe('🏢 운영센터 회원 폰 모드 — 네 모드', () => {
-    it('자동 · 알람 · 직접은 그대로 · 체험은 알람으로 보인다', async () => {
+    it('네 모드 모두 도는 모드 그대로 보인다(체험 = 자동 + 계약 안 함도)', async () => {
         db.prepare(`DELETE FROM user_devices WHERE user_id = ?`).run(U);
         const got: Record<string, unknown> = {};
         for (const m of DEVICE_MODES) {
@@ -131,7 +131,7 @@ describe('🏢 운영센터 회원 폰 모드 — 네 모드', () => {
             const { out } = await call(opsRouter, '/members/:id', 'get', { params: { id: U }, user: { id: ADMIN } });
             got[m] = out.member.phones.find((p: any) => p.deviceId === 'dev-mf-ops')?.mode;
         }
-        expect(got).toEqual({ AUTO: 'AUTO', ALARM: 'ALARM', MANUAL: 'MANUAL', SIMULATION: 'ALARM' });
+        expect(got).toEqual({ AUTO: 'AUTO', ALARM: 'ALARM', MANUAL: 'MANUAL', SIMULATION: 'SIMULATION' });   // 29 P5-2 · N7 — 운영센터도 도는 모드 그대로(이름 · 색은 네 모드 표)
     });
 });
 

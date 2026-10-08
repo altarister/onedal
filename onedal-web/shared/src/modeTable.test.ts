@@ -89,9 +89,6 @@ describe('네 모드 표 — 하는 일 칸', () => {
         expect(col('webBeep')).toEqual({ AUTO: false, ALARM: true, MANUAL: false, SIMULATION: false });
         expect(col('marksSimulated')).toEqual({ AUTO: false, ALARM: false, MANUAL: false, SIMULATION: true });
         expect(col('onlyOnePhone')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
-        expect(col('opsMode')).toEqual({ AUTO: 'AUTO', ALARM: 'ALARM', MANUAL: 'MANUAL', SIMULATION: 'ALARM' });
-        expect(col('opsName')).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '대기', SIMULATION: '알람' });
-        expect(col('opsHighlight')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
         expect(col('countedAsAuto')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
         expect(col('tone')).toEqual({
             AUTO: 'bg-info/20 text-info border-info/40', ALARM: 'bg-success/20 text-success border-success/40',
@@ -103,11 +100,10 @@ describe('네 모드 표 — 하는 일 칸', () => {
         expect(DEVICE_MODE_LABEL).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '직접', SIMULATION: '자동(계약 안 함)' });
         expect(col('label')).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '직접', SIMULATION: '자동' });   // 접힌 단추 글자 — 계약 안 함은 색(노랑)으로 가른다(32 ③ 가)
     });
-    it('모르는 값은 아무것도 안 한다 — 운영센터 모드 · 이름은 지금 화면의 나머지 갈래(알람 · 대기)', () => {
+    it('모르는 값은 아무것도 안 한다', () => {
         for (const m of [undefined, null, '', 'ALARM_CLICK']) {
             const a = modeActsOf(m);
             expect([a.tapsList, a.sound, a.contracts, a.filterRuns, a.webBeep, a.marksSimulated, a.onlyOnePhone, a.countedAsAuto, a.directBadge, a.needsAutoPermission]).toEqual(Array(10).fill(false));
-            expect([a.opsMode, a.opsName]).toEqual(['ALARM', '대기']);
         }
     });
 });

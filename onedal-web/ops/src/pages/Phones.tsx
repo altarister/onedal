@@ -6,7 +6,7 @@ import { ErrorBand, KV, Stat, StatRow, Table, fmtTime, memberName, type Column }
 export default function Phones() {
     const { data, error, reload } = useOps(() => Promise.all([api.members(), api.phones()]), []);
     const [members, phones] = data ?? [[], []];
-    const modeKo = (p: OpsPhone) => modeActsOf(p.mode).opsName;
+    const modeKo = (p: OpsPhone) => modeActsOf(p.mode).name;
     const columns: Column<OpsPhone>[] = [
         { key: 'st', label: '연결', render: p => <span className={p.status === 'ONLINE' ? 'text-success font-bold' : 'text-danger font-bold'}>{p.status === 'ONLINE' ? '● 연결' : '● 끊김'}</span> },
         { key: 'name', label: '폰', render: p => <b>{deviceLabel(p)}</b> },
@@ -14,7 +14,7 @@ export default function Phones() {
         { key: 'reason', label: '끊긴 까닭', render: p => p.offlineReason ?? <span className="text-text-muted">—</span> },
         { key: 'seen', label: '마지막 연락', render: p => fmtTime(p.lastSeenAt) },
         { key: 'ver', label: '앱', render: p => p.appVersion ? `v${p.appVersion}` : '—' },
-        { key: 'mode', label: '모드', render: p => <span className={modeActsOf(p.mode).opsHighlight ? 'text-info font-bold' : ''}>{modeKo(p)}</span> },
+        { key: 'mode', label: '모드', render: p => <span className={`rounded-md border px-1.5 py-0.5 font-bold ${modeActsOf(p.mode).tone}`}>{modeKo(p)}</span> },   /* 관제웹 모드 단추와 같은 이름 · 색(29 N7) */
         { key: 'loc', label: '위치', render: p => p.locationOn ? '보냄' : <span className="text-text-muted">안 보냄</span> },
         { key: 'id', label: '기기 id', render: p => <span className="text-xs text-text-muted" title={p.deviceId}>…{p.deviceId.slice(-4)}</span> },
     ];
