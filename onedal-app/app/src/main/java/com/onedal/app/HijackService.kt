@@ -351,45 +351,54 @@ class HijackService : AccessibilityService(), ScanContext {
     /** 마지막으로 실행한 결재의 콜 번호 — 같은 결재가 다시 오면(관제앱 · 서버 다시 보내기) 실행은 안 하고 «받았음»만 다시 */
     private var lastExecutedDecisionOrderId: String? = null
 
+    /** 📶🌐 받은 공급(필터) — 블루투스 · 인터넷 두 길이 같은 처리 */
+    private fun supplyInFilter(json: String) {
+        com.onedal.app.core.FilterStore.applySupplied(this@HijackService, json)?.let { onFilterArrived(it) }
+    }
+    /** 📶🌐 받은 이 폰 몫(모드 · 심사 중) — 두 길이 같은 처리 */
+    private fun supplyInPhone(json: String) {
+        val j = org.json.JSONObject(json)
+        /* 🔒 심사 중 — 읽는 두 자리(`EvaluatingNow.of`)가 보는 맨 위 칸 저장에 넣는다(공급 필터에는 서버가 이 칸을 빼고 보낸다) */
+        getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE).edit().putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean(com.onedal.app.core.EvaluatingNow.KEY)).apply()
+        j.optString("mode").takeIf { it.isNotEmpty() }?.let { telemetryManager.onSuppliedMode(it) }
+    }
+    /** 📶🌐 받은 결재 — 두 길이 같은 처리 · 같은 결재 한 번만(`DecisionReplay`) · «받았음»은 온 길로([ack]) */
+    private fun supplyInDecision(json: String, via: String, ack: (String) -> Unit) {
+        val j = org.json.JSONObject(json)
+        val orderId = j.optString("orderId")
+        val action = j.optString("action")
+        if (orderId.isEmpty() || action.isEmpty()) { AppLogger.w(TAG, LogTag.DECISION, "⚠️ [결재 칸 비어 있음] orderId=$orderId · action=$action — 넘기지 않는다"); return }
+        AppLogger.w(TAG, LogTag.DECISION, "⚡ [결재 수신 · $via] orderId: $orderId, action: $action")
+        /* 🛑 모르는 결재 값은 집행하지 않는다 — 계약 취소로 읽지 않는다(규칙 ④) · «다시 온 결재» 판정 전에 걸러 같은 콜의 진짜 결재를 막지 않게 */
+        if (action !in com.onedal.app.core.DecisionPlan.KNOWN) {
+            AppLogger.w(TAG, LogTag.DECISION, "🛑 [모르는 결재 값] $orderId · $action — 집행하지 않는다 · «받았음»만")
+            ack(orderId)
+            return
+        }
+        when (com.onedal.app.core.DecisionReplay.stepOf(orderId, lastExecutedDecisionOrderId, session.currentOrderId, safeCancelTimer.armedOrderId)) {
+            com.onedal.app.core.DecisionStep.REPLAY ->
+                AppLogger.i(TAG, LogTag.DECISION, "🔁 [같은 결재 다시 옴] $orderId — 이미 실행했다 · «받았음»만 다시")
+            com.onedal.app.core.DecisionStep.GHOST ->
+                AppLogger.e(TAG, "👻 [Ghost Defense 발동!] 수신된 ID($orderId)가 현재 폰에 열려있는 오더 ID(${session.currentOrderId})와 다릅니다! 과거 허깨비 응답을 폐기합니다.")
+            com.onedal.app.core.DecisionStep.EXECUTE -> {
+                AppLogger.w(TAG, LogTag.DECISION, "🛡️ [정상 결재 수신] ID 일치($orderId). 즉각 폐기/유지 액션을 집행합니다. (Action: $action)")
+                lastExecutedDecisionOrderId = orderId
+                executeDecisionImmediately(action, orderId)
+            }
+        }
+        ack(orderId)   // 받았다 — 실행했든 버렸든 서버가 같은 결재를 다시 보내지 않게
+    }
+    /** 📶🌐 받은 빨리 접기 — 두 길이 같은 처리 */
+    private fun supplyInFold(json: String) {
+        val f = com.google.gson.Gson().fromJson(json, com.onedal.app.models.FoldAfter::class.java) ?: return
+        onFoldAfter(f.orderId, f.remainMsOrSec())   // ⏩ 앱이 연 나쁜 콜 상세를 남은 시간에 목록으로 (`DetailFold`)
+    }
+
     private val bleListener = object : com.onedal.app.core.BleLink.Listener {
-        override fun onSupply(json: String) {
-            com.onedal.app.core.FilterStore.applySupplied(this@HijackService, json)?.let { onFilterArrived(it) }
-        }
-        override fun onPhone(json: String) {
-            val j = org.json.JSONObject(json)
-            /* 🔒 심사 중 — 읽는 두 자리(`EvaluatingNow.of`)가 보는 맨 위 칸 저장에 넣는다(공급 필터에는 서버가 이 칸을 빼고 보낸다) */
-            getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE).edit().putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean(com.onedal.app.core.EvaluatingNow.KEY)).apply()
-            j.optString("mode").takeIf { it.isNotEmpty() }?.let { telemetryManager.onSuppliedMode(it) }
-        }
-        override fun onDecision(json: String) {
-            val j = org.json.JSONObject(json)
-            val orderId = j.optString("orderId")
-            val action = j.optString("action")
-            if (orderId.isEmpty() || action.isEmpty()) { AppLogger.w(TAG, LogTag.DECISION, "⚠️ [결재 칸 비어 있음] orderId=$orderId · action=$action — 넘기지 않는다"); return }
-            AppLogger.w(TAG, LogTag.DECISION, "⚡ [결재 수신 · 블루투스] orderId: $orderId, action: $action")
-            /* 🛑 모르는 결재 값은 집행하지 않는다 — 계약 취소로 읽지 않는다(규칙 ④) · «다시 온 결재» 판정 전에 걸러 같은 콜의 진짜 결재를 막지 않게 */
-            if (action !in com.onedal.app.core.DecisionPlan.KNOWN) {
-                AppLogger.w(TAG, LogTag.DECISION, "🛑 [모르는 결재 값] $orderId · $action — 집행하지 않는다 · «받았음»만")
-                bleLink?.ack(orderId)
-                return
-            }
-            when (com.onedal.app.core.DecisionReplay.stepOf(orderId, lastExecutedDecisionOrderId, session.currentOrderId, safeCancelTimer.armedOrderId)) {
-                com.onedal.app.core.DecisionStep.REPLAY ->
-                    AppLogger.i(TAG, LogTag.DECISION, "🔁 [같은 결재 다시 옴] $orderId — 이미 실행했다 · «받았음»만 다시")
-                com.onedal.app.core.DecisionStep.GHOST ->
-                    AppLogger.e(TAG, "👻 [Ghost Defense 발동!] 수신된 ID($orderId)가 현재 폰에 열려있는 오더 ID(${session.currentOrderId})와 다릅니다! 과거 허깨비 응답을 폐기합니다.")
-                com.onedal.app.core.DecisionStep.EXECUTE -> {
-                    AppLogger.w(TAG, LogTag.DECISION, "🛡️ [정상 결재 수신] ID 일치($orderId). 즉각 폐기/유지 액션을 집행합니다. (Action: $action)")
-                    lastExecutedDecisionOrderId = orderId
-                    executeDecisionImmediately(action, orderId)
-                }
-            }
-            bleLink?.ack(orderId)   // 받았다 — 실행했든 버렸든 서버가 같은 결재를 다시 보내지 않게
-        }
-        override fun onFold(json: String) {
-            val f = com.google.gson.Gson().fromJson(json, com.onedal.app.models.FoldAfter::class.java) ?: return
-            onFoldAfter(f.orderId, f.remainMsOrSec())   // ⏩ 앱이 연 나쁜 콜 상세를 남은 시간에 목록으로 (`DetailFold`)
-        }
+        override fun onSupply(json: String) = supplyInFilter(json)
+        override fun onPhone(json: String) = supplyInPhone(json)
+        override fun onDecision(json: String) = supplyInDecision(json, "블루투스") { bleLink?.ack(it) }
+        override fun onFold(json: String) = supplyInFold(json)
         override fun onServerAlive(alive: Boolean) = telemetryManager.onServerAlive(alive)
         override fun onLinked(alive: Boolean) = telemetryManager.onLinked(alive)
         override fun onPermissionGranted() = telemetryManager.reportNow()
