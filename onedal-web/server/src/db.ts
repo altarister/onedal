@@ -818,6 +818,27 @@ ensureColumns('orders', { targetApp: 'TEXT',
      *    `tsc`·`jest` 는 통과하고 **실서버에서만** `no such column` 으로 터진다 — 그래서 `ensureColumns` 에도 적는다.
      */
     deliveryDistance: 'REAL' });
+
+/**
+ * 🧾 **받았음 시각** (35 X7 ② · 기사님 «가») — 폰이 KEEP 결재를 실행했다고 답한 때.
+ *    ① 스키마: orders.ackedAt TEXT · 기본값 없음(NULL).
+ *    ② 값: ISO 시각 · NULL 은 «아직 못 받음» — 받았음(`ackDecision`) · 결재 줄 없는 KEEP(받았음이 영영 안 옴) · 시한 끝 KEEP 방어가 찍는다(`OrderRepository.markAcked` · 앞 값을 안 덮음).
+ *    ③ 시점: KEEP 때 장부 줄은 지금처럼 쓰고, 이 칸은 받았음 때 채운다.
+ *    ④ 화면: 안 보임.
+ *    ⑤ 읽는 곳: 복구 창(shared `restoreWhere`) — 받았음이 없는 확정 줄은 서버가 다시 떠도 되살리지 않는다(폰이 안 잡은 유령 콜).
+ * 🔴 **칸이 이번 기동에 새로 생겼을 때만 · 한 묶음**으로 옛 줄을 받았음으로 메운다 — 안 메우면 지금 진행 중인 확정 콜이 다음 재시작에 사라진다.
+ *    매 기동마다 메우면 새 줄의 «아직 못 받음»이 지워진다.
+ */
+export function migrateAckedAtColumn(on: Database.Database = db): void {
+    const had = (on.prepare(`PRAGMA table_info(orders)`).all() as any[]).some(c => c.name === 'ackedAt');
+    on.transaction(() => {
+        ensureColumns('orders', { ackedAt: 'TEXT' }, on);
+        if (had) return;
+        const n = on.prepare(`UPDATE orders SET ackedAt = COALESCE(capturedAt, timestamp) WHERE ackedAt IS NULL`).run().changes;
+        slog('부팅', `🧾 [받았음 칸 옮기기] 옛 콜 ${n}건을 받았음으로 메움`);
+    })();
+}
+migrateAckedAtColumn();
 // ⚠️ intel 의 ensureColumns 는 여기 있으면 안 된다 — 그 표는 아래 [7] 에서 만들어진다.
 //    `ensureColumns` 는 표가 없으면 조용히 return 하므로(위 :32), 빈 DB 첫 부팅에서
 //    targetApp 이 안 붙은 채 scrap.ts 가 INSERT 해 `no such column` 으로 터졌다.

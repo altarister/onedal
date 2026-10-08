@@ -127,8 +127,8 @@ describe('🗑️ 결재 취소', () => {
 /** 장부에 진행 중 콜 한 줄 — 되살리기가 읽는 꼴(places · orderStops) */
 function ledgerCall(id: string, extra: Record<string, unknown> = {}) {
     const now = new Date().toISOString();
-    db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, routePolyline, paymentType)
-                VALUES (?, 'NEW_ORDER', ?, ?, ?, ?, '상', '하', 20000, 'insung', ?, ?)`)
+    db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, routePolyline, paymentType, ackedAt)
+                VALUES (?, 'NEW_ORDER', ?, ?, ?, ?, '상', '하', 20000, 'insung', ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`)
         .run(id, extra.status ?? 'ORDER_CONFIRMED', U, now, now, extra.routePolyline === null ? null : JSON.stringify(LINE), extra.paymentType ?? null);
     const place = (x: number, y: number, tag: string) => {
         db.prepare(`INSERT OR IGNORE INTO places (address, x, y, addressDetail, customerName) VALUES (?, ?, ?, ?, ?)`).run(tag, x, y, tag, U);

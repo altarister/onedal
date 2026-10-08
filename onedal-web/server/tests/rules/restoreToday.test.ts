@@ -15,8 +15,8 @@ import { restoreWhere, RESTORABLE_STATUSES } from '@onedal/shared';
 describe('🗓️ 복구 창 — 오늘 잡은 콜 · 어제 영업일부터의 미완료 · 오늘 하차한 콜', () => {
     const NOW = Date.parse('2026-09-15T01:00:00+09:00');
     const db = new Database(':memory:');
-    db.exec(`CREATE TABLE orders (id TEXT, userId TEXT, status TEXT, timestamp TEXT, completedAt TEXT)`);
-    const put = db.prepare(`INSERT INTO orders VALUES (?, 'u', ?, ?, ?)`);
+    db.exec(`CREATE TABLE orders (id TEXT, userId TEXT, status TEXT, timestamp TEXT, completedAt TEXT, ackedAt TEXT)`);
+    const put = db.prepare(`INSERT INTO orders (id, userId, status, timestamp, completedAt) VALUES (?, 'u', ?, ?, ?)`);
     put.run('오늘잡음', 'ORDER_DELIVERED', '2026-09-15T00:10:00.000Z', '2026-09-15T00:30:00.000Z');
     put.run('어제잡고오늘내림', 'ORDER_DELIVERED', '2026-09-14T14:00:00.000Z', '2026-09-14T15:30:00.000Z');   // KST 00:30
     put.run('어제잡고어제내림', 'ORDER_DELIVERED', '2026-09-14T10:00:00.000Z', '2026-09-14T11:00:00.000Z');

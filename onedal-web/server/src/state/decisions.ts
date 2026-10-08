@@ -6,9 +6,10 @@ import { releaseEvaluatingDevices } from "../core/helpers";
 import { flushSupply } from "./phoneSupply";
 import { slog } from "../utils/fileLogger";
 import { deviceLabelOf } from "../core/deviceAuth";
+import { OrderRepository } from "../repositories/OrderRepository";
 
 /**
- * 바깥 일을 하는 함수: foldRemainMsOf(지금 시각) · decide · sendFold · ackDecision(세션 · 소켓 · 지금 시각 · 로그) (빨리 접기 남은 ms · 결재 줄 셈 foldRemainMsFrom · phoneDecisionsFrom 은 값만 받는다)
+ * 바깥 일을 하는 함수: foldRemainMsOf(지금 시각) · decide · sendFold · ackDecision(세션 · 장부 · 소켓 · 지금 시각 · 로그) (빨리 접기 남은 ms · 결재 줄 셈 foldRemainMsFrom · phoneDecisionsFrom 은 값만 받는다)
  *
  * ⚖️ **결재 정하기 · 받았음 — 한 곳**.
  * 결재 행동(`pendingDecisions[콜].action`)을 쓰는 곳은 `decide` 하나다 — `phoneSupply.test.ts` 가 이 파일 밖의 쓰기를 문다.
@@ -105,6 +106,8 @@ export function sendFold(io: any, session: UserSession, userId: string, orderId:
 export function ackDecision(io: any, session: UserSession, userId: string, orderId: string, via: string): boolean {
     let done = false;
     if (session.pendingDecisions.has(orderId)) {
+        /* 🧾 폰이 KEEP 을 실행했다 — 장부의 확정이 이제 되살릴 값이다 (db.ts ackedAt) */
+        if (session.pendingDecisions.get(orderId)?.action === 'KEEP') OrderRepository.markAcked(orderId, new Date().toISOString());
         cancelOrderWaits(session, orderId, '폰 확인');
         session.pendingDecisions.delete(orderId);
         releaseEvaluatingDevices(session, orderId);

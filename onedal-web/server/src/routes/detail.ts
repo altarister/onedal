@@ -14,6 +14,7 @@ import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "..
 import { bootstrapUserSession } from "../state/sessionRestore";
 import { getDeviceMode } from "../state/deviceRegistry";
 import db from "../db";
+import { OrderRepository } from "../repositories/OrderRepository";
 import { slog } from "../utils/fileLogger";
 import { releaseEvaluatingDevices } from "../core/helpers";
 import { ownedByOther } from "../core/orderOwner";
@@ -360,6 +361,8 @@ router.post("/", async (req, res) => {
             if (decision) {
                 // ✅ [Phase 1 방어] KEEP 결재가 이미 내려진 콜은 절대 취소하지 않는다
                 if (decision.action === 'KEEP') {
+                    /* 🧾 메모리에 남기는 콜은 장부도 받았음으로 — 다시 떠도 같은 말 (db.ts ackedAt · 35 X7 ②-가) */
+                    OrderRepository.markAcked(payload.order.id, new Date().toISOString());
                     session.pendingDecisions.delete(payload.order.id);
                     releaseEvaluatingDevices(session, payload.order.id);
                     slog('결재', `🛡️ [Phase 1 방어] 콜(${payload.order.id})은 KEEP 결재 완료 상태. 앱 ACK 미수신이지만 콜 유지 · 폰 잡기 다시 연다.`);

@@ -32,8 +32,8 @@ const placeOf = (x: number, y: number, tag: string) => {
     return (db.prepare(`SELECT id FROM places WHERE addressDetail = ? AND customerName = ?`).get(tag, U) as any).id;
 };
 const insertCall = (id: string, h: number, extra: Record<string, string | null> = {}) => {
-    db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, routePolyline, sectionStops)
-                VALUES (?, 'NEW_ORDER', 'ORDER_CONFIRMED', ?, ?, ?, '상', '하', 20000, 'insung', ?, ?)`)
+    db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, routePolyline, sectionStops, ackedAt)
+                VALUES (?, 'NEW_ORDER', 'ORDER_CONFIRMED', ?, ?, ?, '상', '하', 20000, 'insung', ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`)
         .run(id, U, todayAt(h), todayAt(h), extra.routePolyline ?? null, extra.sectionStops ?? null);
     const stop = db.prepare(`INSERT INTO orderStops (orderId, placeId, stopType) VALUES (?, ?, ?)`);
     stop.run(id, placeOf(127.1 + h * 0.01, 37.30, `${id}-p`), 'pickup');

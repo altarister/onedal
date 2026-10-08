@@ -120,14 +120,17 @@ export const UNFINISHED_RESTORE_BUSINESS_DAYS = 1;
  *    어긋나면 소켓에는 있는데 HTTP 에는 없는 콜이 생겨 새로고침마다 깜빡인다 (규칙 ③).
  *    · 오늘 잡은 콜 · 어제 영업일부터의 미완료 콜 · **오늘 하차한 콜** — 자정을 넘긴 운행에서 어제 잡고 오늘 내린 콜을 오늘 시트에 올린다
  *      (기사님 확정 *"오늘 내린 콜만 분리해서 오늘 시트에 올린다"*).
- *    `sql` 은 `orders` 의 칸 이름(`timestamp`·`status`·`completedAt`)을 쓴다 — 별칭이 있으면 `prefix` 로 붙인다.
+ *    · 🧾 **폰이 받았다고 답하지 않은 확정은 빼낸다**(`ackedAt` 이 빈 `ORDER_CONFIRMED` · 35 X7 ②) — KEEP 뒤 받았음 전에 서버가 다시 뜨면
+ *      폰은 안 잡았는데 장부엔 «확정»이 남아 유령 콜이 경로 · 적재 · 경유를 좁혔다. 상차 뒤 상태는 안 뺀다(짐을 실었으면 진짜다)
+ *    `sql` 은 `orders` 의 칸 이름(`timestamp`·`status`·`completedAt`·`ackedAt`)을 쓴다 — 별칭이 있으면 `prefix` 로 붙인다.
  */
 export function restoreWhere(nowMs: number, prefix = ''): { sql: string; params: string[] } {
     const { todayStartIso, unfinishedSinceIso } = restoreWindow(nowMs);
     const inProgress = IN_PROGRESS_STATUSES.map(() => '?').join(', ');
     return {
-        sql: `( ${prefix}timestamp >= ? OR (${prefix}status IN (${inProgress}) AND ${prefix}timestamp >= ?) OR ${prefix}completedAt >= ? )`,
-        params: [todayStartIso, ...IN_PROGRESS_STATUSES, unfinishedSinceIso, todayStartIso],
+        sql: `( ${prefix}timestamp >= ? OR (${prefix}status IN (${inProgress}) AND ${prefix}timestamp >= ?) OR ${prefix}completedAt >= ? )`
+            + ` AND NOT (${prefix}status = ? AND ${prefix}ackedAt IS NULL)`,
+        params: [todayStartIso, ...IN_PROGRESS_STATUSES, unfinishedSinceIso, todayStartIso, 'ORDER_CONFIRMED'],
     };
 }
 

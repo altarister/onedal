@@ -596,6 +596,9 @@ export async function handleDecision(userId: string, orderId: string, status: De
                         OrderRepository.insertOrderStop(cachedOrder.id, dPlaceId, 'dropoff', d.name, d.phone);
                     }
 
+                    /* 🧾 결재 줄이 없으면 받았음이 영영 안 온다(직접 건) · 받았음이 이 쓰기보다 먼저 와 줄을 이미 지웠어도 — 지금 찍는다 (db.ts ackedAt) */
+                    if (!session.pendingDecisions.has(orderId)) OrderRepository.markAcked(cachedOrder.id, new Date().toISOString());
+
                     slog('결재', `💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);
                 } else {
                     slog('결재', `🐥 [가상 체험 콜] ${cachedOrder.id} - DB 저장 건너뜀 (메모리 세션에서만 합짐 시뮬레이션 가동)`);

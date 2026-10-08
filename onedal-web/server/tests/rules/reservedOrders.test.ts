@@ -97,8 +97,8 @@ describe('📅 나오는 문 — 그날이 되면 진행 중으로', () => {
     });
 
     it('🔴 서버 재시작 되살리기도 장부의 reserved_for 로 가른다 — 새 날에 뜨면 영업일 전환이 안 돌기 때문', async () => {
-        const ins = db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, reserved, reservedDay, reservedAt, reserved_for)
-            VALUES (?, 'NEW_ORDER', 'ORDER_CONFIRMED', ?, ?, ?, '상', '하', 10000, 'insung', 1, 1, '09:00', ?)`);
+        const ins = db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, reserved, reservedDay, reservedAt, reserved_for, ackedAt)
+            VALUES (?, 'NEW_ORDER', 'ORDER_CONFIRMED', ?, ?, ?, '상', '하', 10000, 'insung', 1, 1, '09:00', ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`);
         ins.run(`${U}-r-later`, U, todayAt(10), todayAt(10), keyAfter(1));
         ins.run(`${U}-r-due`, U, todayAt(10), todayAt(10), todayKey);
         clearUserSession(U);
@@ -195,8 +195,8 @@ describe('📅 보관 중인 콜 한 벌 — 관제웹 콜 목록 문과 재시�
         expect(isHeldReserved({ reservedFor: null, status: 'ORDER_CONFIRMED' }, todayKey)).toBe(false);
     });
 
-    const insRow = db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, reserved, reservedDay, reservedAt, reserved_for)
-        VALUES (?, 'NEW_ORDER', ?, ?, ?, ?, '상', '하', 10000, 'insung', 1, 1, '09:00', ?)`);
+    const insRow = db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, reserved, reservedDay, reservedAt, reserved_for, ackedAt)
+        VALUES (?, 'NEW_ORDER', ?, ?, ?, ?, '상', '하', 10000, 'insung', 1, 1, '09:00', ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`);
 
     it('🔴 관제웹 콜 목록 문(GET /orders)은 보관 중인 내일 콜을 안 주고, 취소한 내일 콜은 오늘 «취소/방출»로 준다', () => {
         db.prepare(`DELETE FROM orders WHERE userId = ?`).run(U);
