@@ -246,7 +246,8 @@ class ApiClient(
      * 서버는 상세 정보를 큐(Queue)에 넣고 즉시 202 Accepted를 반환함. 
      * 최종 판결(KEEP/CANCEL)은 관제앱이 블루투스로 준다.
      */
-    fun sendDetail(payload: DispatchDetailedRequest, onDecisionReceived: (String, String) -> Unit) {
+    /** @param onAccepted 서버가 받았다고 답한 콜 번호 — 화면 스레드로(삑 · 29 P4) */
+    fun sendDetail(payload: DispatchDetailedRequest, onAccepted: (String) -> Unit = {}, onDecisionReceived: (String, String) -> Unit) {
         dispatchExecutor.submit {
             try {
                 val jsonBody = gson.toJson(payload)
@@ -258,6 +259,7 @@ class ApiClient(
                     val (code, body) = result
                     if (code == 200 || code == 202) {
                         AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /detail response / $code] 접수 완료 — 결재는 블루투스로 온다")
+                        callbackExecutor.execute { onAccepted(payload.order.id) }
                         // 성공적으로 큐에 등록되었으므로 여기서 판단 콜백을 부르지 않는다 — 결재는 블루투스로 온다
                     } else {
                         AppLogger.e(TAG, LogTag.NETWORK, "❌ [post /detail response / $code] $body")

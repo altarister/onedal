@@ -65,6 +65,8 @@ import java.util.Locale
 class HijackService : AccessibilityService(), ScanContext {
 
     companion object {
+        /** 🔔 확정 안 된 벨 콜의 2초 반복 — 기다림 장부 이름(29 P4) */
+        private const val RING_WAIT = "판정 소리"
         /** 🧪 미리 받기 — 깊이 우선(우리 훑기 순서와 같다) · 끊기지 않게 (SDK 33+ · `WalkProbe`) */
         private const val PREFETCH_FLAGS = AccessibilityNodeInfo.FLAG_PREFETCH_DESCENDANTS_DEPTH_FIRST or AccessibilityNodeInfo.FLAG_PREFETCH_UNINTERRUPTIBLE
         private const val TAG = "1DAL_MVP"
@@ -355,6 +357,41 @@ class HijackService : AccessibilityService(), ScanContext {
         /* 🔒 심사 중 — 읽는 두 자리(`EvaluatingNow.of`)가 보는 맨 위 칸 저장에 넣는다(공급 필터에는 서버가 이 칸을 빼고 보낸다) */
         getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE).edit().putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean(com.onedal.app.core.EvaluatingNow.KEY)).apply()
         j.optString("mode").takeIf { it.isNotEmpty() }?.let { telemetryManager.onSuppliedMode(it) }
+        /* 🔔 이 폰이 울릴 콜(서버 `previewRings` · 29 P4) — 없으면 null · 받을 때마다 반복을 다시 본다 */
+        ringOrderId = j.optString("ringOrderId").ifEmpty { null }
+        ringPreview()
+    }
+
+    /** 🔔 삑을 울린 마지막 콜 · 이 폰이 울릴 콜(서버가 준 값) — 화면 스레드에서만 */
+    private var lastBeepedOrderId: String? = null
+    private var ringOrderId: String? = null
+
+    /** 🔔 서버가 상세 보고를 받았다 — 그 콜에 한 번 삑(`DetailBeep`) */
+    private fun beepOnAccepted(orderId: String) {
+        if (!com.onedal.app.core.DetailBeep.wanted(orderId, lastBeepedOrderId)) return
+        lastBeepedOrderId = orderId
+        AppLogger.i(TAG, LogTag.DECISION, "🔔 [삑] 서버가 상세 보고를 받았다 — $orderId · 곧 판정이 뜬다")
+        alarmSignaler.beepAndVibrate()
+    }
+
+    /** 🔔 확정 안 된 벨 콜의 상세에 있는 동안 2초마다(`PreviewRing`) — 걸려 있으면 다시 안 건다 · 차례마다 다시 보고 아니면 멈춘다 */
+    private fun ringPreview() {
+        if (!com.onedal.app.core.PreviewRing.rings(ringOrderId, session.currentOrderId, telemetryManager.currentScreenContext)) {
+            if (waitBook.cancel(RING_WAIT)) AppLogger.i(TAG, LogTag.DECISION, "🔕 [판정 소리 멈춤] 울릴 콜이 아니거나 확정 전 상세가 아니다")
+            return
+        }
+        if (waitBook.pending().any { it.name == RING_WAIT }) return
+        AppLogger.i(TAG, LogTag.DECISION, "🔔 [판정 소리] $ringOrderId — 확정 전 상세에 있는 동안 ${com.onedal.app.core.PreviewRing.EVERY_MS / 1000}초마다")
+        ringTick()
+    }
+
+    private fun ringTick() {
+        if (!com.onedal.app.core.PreviewRing.rings(ringOrderId, session.currentOrderId, telemetryManager.currentScreenContext)) {
+            AppLogger.i(TAG, LogTag.DECISION, "🔕 [판정 소리 멈춤] 울릴 콜이 아니거나 확정 전 상세가 아니다")
+            return
+        }
+        alarmSignaler.beepAndVibrate()
+        waitBook.schedule(RING_WAIT, com.onedal.app.core.WaitBook.SERVICE, com.onedal.app.core.PreviewRing.EVERY_MS) { ringTick() }
     }
     /** 📶🌐 받은 결재 — 두 길이 같은 처리 · 같은 결재 한 번만(`DecisionReplay`) · «받았음»은 온 길로([ack]) */
     private fun supplyInDecision(json: String, via: String, ack: (String) -> Unit) {
@@ -1915,7 +1952,7 @@ class HijackService : AccessibilityService(), ScanContext {
              * ⚠️ 안전취소 타이머는 **그대로 둔다** — 이건 겹쳐 두는 것이지 대체가 아니다
              *    (규칙 ② · 앱의 30초는 최후의 안전장치라 절대 제거하지 않는다).
              */
-            apiClient.sendDetail(payload) { failedOrderId, decision ->
+            apiClient.sendDetail(payload, onAccepted = { id -> beepOnAccepted(id) }) { failedOrderId, decision ->
                 // 👻 고스트 방어 — 정상 판결 경로(`onDecision`)와 **같은 규칙**이다.
                 //    실패 응답이 늦게 와서 이미 다음 콜로 넘어갔으면 그 콜을 취소하면 안 된다
                 //    (판결에 orderId 를 싣고 대조한다 — 규칙 ②).

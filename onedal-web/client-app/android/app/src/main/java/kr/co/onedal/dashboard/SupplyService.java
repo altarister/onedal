@@ -578,7 +578,10 @@ public class SupplyService extends Service {
                 l.nextSupply = frameSupply(body.toString().getBytes(StandardCharsets.UTF_8));
                 l.sentSupplyVersion = version;
             }
-            String phone = new JSONObject().put("mode", p.optString("mode")).put("evaluatingNow", p.optBoolean("evaluatingNow")).toString();
+            JSONObject phoneBody = new JSONObject().put("mode", p.optString("mode")).put("evaluatingNow", p.optBoolean("evaluatingNow"));
+            // 🔔 이 폰이 울릴 콜(서버 previewRings · 29 P4) — 있을 때만 옮긴다 · 없으면 칸이 빠져 원달앱이 반복을 멈춘다
+            if (p.has("ringOrderId")) phoneBody.put("ringOrderId", p.optString("ringOrderId"));
+            String phone = phoneBody.toString();
             if (!phone.equals(l.sentPhone)) {
                 l.smallQ.add(small(BleProtocol.PHONE, phone));
                 l.sentPhone = phone;

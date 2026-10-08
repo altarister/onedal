@@ -140,6 +140,12 @@ class AlarmSignaler(private val service: AccessibilityService, private val waitB
         if (activeHash != null) hide("리스트 이탈")
     }
 
+    /** 🔔 삑 한 번 + 강한 진동 — 상세 보고를 서버가 받았을 때 · 확정 안 된 벨 콜의 2초 반복(`DetailBeep` · `PreviewRing` · 29 P4) */
+    fun beepAndVibrate() {
+        beepOnce()
+        vibrateStrong()
+    }
+
     // ── 소리 — 짧게 한 번 (기사님 «한 번으로») ──
     private fun beepOnce() {
         try {
