@@ -138,3 +138,25 @@ describe('🌐 인터넷 길 — «받았음»', () => {
         expect(call('post', '/:deviceId/decision-ack', D1, {}).code).toBe(400);
     });
 });
+
+describe('🔔 이 폰이 울릴 콜 — 확정 안 된 벨 콜은 그 콜을 연 폰에만(29 P4 · Q7 «가»)', () => {
+    const judged = (id: string, x: any = {}) => ({ id, isPreview: true, status: 'ORDER_AWAITING_DECISION', kakaoTimeExt: '14.7km · 26분', judgment: { bell: true }, capturedDeviceId: D1, ...x });
+    it('🔴 미리보기 벨 콜 → 그 폰 칸에만 · 인터넷 길에도', () => {
+        const s = getUserSession(U);
+        s.deviceEvaluatingMap.set(D1, 'r1');
+        s.pendingOrdersData.set('r1', judged('r1') as any);
+        const supply = phoneSupplyOf(U);
+        expect(supply.phones[D1].ringOrderId).toBe('r1');
+        expect(supply.phones[D2].ringOrderId).toBeUndefined();
+        expect(call('get', '/:deviceId/supply', D1).v.phone.ringOrderId).toBe('r1');
+        expect(call('get', '/:deviceId/supply', D2).v.phone.ringOrderId).toBeUndefined();
+    });
+    it('🔴 원달앱 · 기사님이 확정한 콜 · 벨 아님 · 판정 전이면 안 실린다', () => {
+        const s = getUserSession(U);
+        for (const [id, x] of [['r2', { isPreview: false }], ['r3', { judgment: { bell: false } }], ['r4', { kakaoTimeExt: undefined }]] as const) {
+            s.deviceEvaluatingMap.set(D1, id);
+            s.pendingOrdersData.set(id, judged(id, x) as any);
+            expect(phoneSupplyOf(U).phones[D1].ringOrderId).toBeUndefined();
+        }
+    });
+});

@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { hostname } from "node:os";
-import { businessDayKey, modeForPhone, SUPPLY_EVENTS, SUPPLY_NAMESPACE } from "@onedal/shared";
+import { businessDayKey, modeForPhone, previewRings, SUPPLY_EVENTS, SUPPLY_NAMESPACE } from "@onedal/shared";
 import type { DeviceModeType, PhoneSupply, PhoneSupplyOverNet } from "@onedal/shared";
 import { jwtSecret } from "../config/env";
 import { allowanceOf } from "../core/allowance";
@@ -109,9 +109,13 @@ export function phoneSupplyOf(userId: string, modes: Map<string, DeviceModeType>
     const { evaluatingNow: _perPhone, ...shared } = filter as Record<string, unknown>;
     const phones: PhoneSupply['phones'] = {};
     for (const [id, mode] of modes) {
+        /* 🔔 이 폰이 연 상세(심사 맡긴 콜)가 확정 안 된 벨 콜이면 그 폰이 울린다 — 상세를 떠나면 짝이 지워져 칸도 빠진다(29 P4) */
+        const evaluating = session.deviceEvaluatingMap.get(id);
+        const order = evaluating ? session.pendingOrdersData.get(evaluating) : undefined;
         phones[id] = {
             mode,
             evaluatingNow: session.deviceEvaluatingMap.has(id),
+            ...(order && previewRings(order as any) ? { ringOrderId: evaluating } : {}),
             pairSig: pairSigOf(userId, id),
         };
     }
@@ -129,7 +133,7 @@ export function phoneSupplyFor(userId: string, deviceId: string): Pick<PhoneSupp
     const supply = phoneSupplyOf(userId);
     const p = supply.phones[deviceId];
     rememberSentFilterVersion(deviceId, supply.filterVersion);
-    return { filter: supply.filter, filterVersion: supply.filterVersion, phone: p ? { mode: p.mode, evaluatingNow: p.evaluatingNow } : null };
+    return { filter: supply.filter, filterVersion: supply.filterVersion, phone: p ? { mode: p.mode, evaluatingNow: p.evaluatingNow, ...(p.ringOrderId ? { ringOrderId: p.ringOrderId } : {}) } : null };
 }
 
 let lastSupplyError = '';

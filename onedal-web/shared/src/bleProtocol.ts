@@ -29,6 +29,8 @@ export interface PhoneSupplyPhone {
     mode: DeviceModeType;
     /** 앞 콜을 결재 기다리는 중이라 다음 콜을 누르지 않는다 */
     evaluatingNow: boolean;
+    /** 🔔 이 폰이 2초마다 울릴 콜(이 폰이 연 확정 안 된 벨 콜 · shared `previewRings`) — 없으면 안 실음 (29 P4) */
+    ringOrderId?: string;
     /** 블루투스 짝 서명(기사님|폰) — 관제앱은 HELLO 의 서명과 견주기만 하고 저장하지 않는다 */
     pairSig: string;
 }
@@ -52,7 +54,7 @@ export interface PhoneSupplyOverNet {
     filter: Record<string, unknown>;
     filterVersion: string;
     /** 이 폰 몫 — 서버가 이 폰의 모드를 모르면 null */
-    phone: { mode: DeviceModeType; evaluatingNow: boolean } | null;
+    phone: { mode: DeviceModeType; evaluatingNow: boolean; ringOrderId?: string } | null;
     decisions: PhoneDecision[];
     folds: PhoneFold[];
 }

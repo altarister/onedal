@@ -1,5 +1,6 @@
 import type { SecuredOrder } from './index';
 import type { Color } from './judge';
+import { isEvaluating } from './callStatus';
 
 /**
  * 🎨 **색을 정하는 곳은 여기 하나다** — 서버가 값으로 보낸 색(`order.judgment.color`)을 쓴다. 관제웹 · 운영센터가 같은 함수를 쓴다(공통 함수 5).
@@ -75,6 +76,14 @@ const CALL_AFTER = '☎️ 전화해서 약속을 미루세요';
  */
 export function bellOf(order: Judged): boolean {
     return (order.judgment as { bell?: boolean } | null | undefined)?.bell === true;
+}
+
+/**
+ * 🔔 **확정 안 된 콜의 판정 소리 — 원달앱 폰이 2초마다 울릴 콜인가** (29 P4 · N6 ② · 기사님 Q7 «가»).
+ *    확정 안 됨(미리보기) · 심사 중 · 카카오 결과 있음 · 서버 벨. 확정된 콜의 반복(call.mp3)은 관제앱 몫이라 여기서 빠진다.
+ */
+export function previewRings(order: Judged & { isPreview?: boolean; status?: string }): boolean {
+    return !!order.isPreview && isEvaluating(order.status as any) && !!order.kakaoTimeExt && bellOf(order);
 }
 
 export function verdictOf(order: Judged): Verdict {

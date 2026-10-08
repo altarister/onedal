@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { verdictOf, bellOf } from './verdict';
+import { verdictOf, bellOf, previewRings } from './verdict';
 import { COLOR_DOT } from './judge';
 
 /**
@@ -200,5 +200,17 @@ describe('🔔 bellOf', () => {
 describe('🎨 COLOR_DOT', () => {
     it('🔴 네 색이 네 동그라미', () => {
         expect(COLOR_DOT).toEqual({ 꿀: '🔵', 보통: '🟢', 똥: '🟡', 사고: '🔴' });
+    });
+});
+
+/** 🔔 **확정 안 된 콜의 판정 소리 — 원달앱 폰이 2초마다** (29 P4 · N6 ② · 기사님 Q7 «가») */
+describe('🔔 previewRings', () => {
+    const o = (x: any) => ({ isPreview: true, status: 'ORDER_AWAITING_DECISION', kakaoTimeExt: '14.7km · 26분', judgment: { bell: true }, ...x });
+    it('🔴 확정 안 됨 · 심사 중 · 카카오 결과 · 벨 — 넷이 다 맞을 때만', () => {
+        expect(previewRings(o({}))).toBe(true);
+        expect(previewRings(o({ isPreview: false }))).toBe(false);          // 원달앱 · 기사님이 확정한 콜은 관제앱 몫
+        expect(previewRings(o({ status: 'ORDER_CONFIRMED' }))).toBe(false);
+        expect(previewRings(o({ kakaoTimeExt: undefined }))).toBe(false);
+        expect(previewRings(o({ judgment: { bell: false } }))).toBe(false);
     });
 });
