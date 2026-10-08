@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { MODE_TABLE, networkCanAutoContract, otherContractingAuto } from './modeTable';
+import { MODE_TABLE, networkCanAutoContract, otherContractingAuto, modeActsOf } from './modeTable';
 import { modeForPhone } from './allowance';
 import { DEVICE_MODES, DEVICE_MODE_LABEL, TARGET_APPS } from './index';
 
@@ -74,5 +74,39 @@ describe('자동은 한 폰만 — 지금 확정을 누를 수 있는 다른 폰
         const ps = [phone('A', 'AUTO', 'insung'), phone('B', 'AUTO', 'hwamul24')];
         expect(otherContractingAuto('A', ps, now, 150_000)).toBe(true);
         expect(otherContractingAuto('B', ps, now, 150_000)).toBe(true);
+    });
+});
+
+/**
+ * 🎛️ **이 모드면 무엇을 하나 — 칸마다 네 모드의 값** (28 모드 정의 1단계).
+ *    부르는 자리가 모드 이름 대신 이 칸을 읽는다 — 칸 값이 지금 그 자리들의 답과 같아야 동작 · 화면이 그대로다
+ *    (서버 자리의 답은 서버 modeFacts 검사가 라우트로 문다 · 화면 글자는 여기 적은 값이 그 글자다).
+ */
+describe('네 모드 표 — 하는 일 칸', () => {
+    const col = (k: string) => Object.fromEntries(DEVICE_MODES.map(m => [m, (modeActsOf(m) as any)[k]]));
+    it('칸마다 네 모드 값', () => {
+        expect(col('filterRuns')).toEqual({ AUTO: true, ALARM: true, MANUAL: false, SIMULATION: true });
+        expect(col('webBeep')).toEqual({ AUTO: false, ALARM: true, MANUAL: false, SIMULATION: false });
+        expect(col('marksSimulated')).toEqual({ AUTO: false, ALARM: false, MANUAL: false, SIMULATION: true });
+        expect(col('onlyOnePhone')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
+        expect(col('opsMode')).toEqual({ AUTO: 'AUTO', ALARM: 'ALARM', MANUAL: 'MANUAL', SIMULATION: 'ALARM' });
+        expect(col('opsName')).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '대기', SIMULATION: '알람' });
+        expect(col('opsHighlight')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
+        expect(col('countedAsAuto')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
+        expect(col('tone')).toEqual({
+            AUTO: 'bg-info/20 text-info border-info/40', ALARM: 'bg-success/20 text-success border-success/40',
+            MANUAL: 'bg-surface-alt text-text-muted border-border/40', SIMULATION: 'bg-amber-400/20 text-amber-400 border-amber-400/40',
+        });
+        expect(col('directBadge')).toEqual({ AUTO: false, ALARM: false, MANUAL: true, SIMULATION: false });
+        expect(col('needsAutoPermission')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
+        expect(col('capturedViaUnlessContracted')).toEqual({ AUTO: 'MANUAL', ALARM: 'ALARM', MANUAL: 'MANUAL', SIMULATION: 'MANUAL' });
+        expect(DEVICE_MODE_LABEL).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '직접', SIMULATION: '체험' });
+    });
+    it('모르는 값은 아무것도 안 한다 — 운영센터 모드 · 이름은 지금 화면의 나머지 갈래(알람 · 대기)', () => {
+        for (const m of [undefined, null, '', 'ALARM_CLICK']) {
+            const a = modeActsOf(m);
+            expect([a.tapsList, a.sound, a.contracts, a.filterRuns, a.webBeep, a.marksSimulated, a.onlyOnePhone, a.countedAsAuto, a.directBadge, a.needsAutoPermission]).toEqual(Array(10).fill(false));
+            expect([a.opsMode, a.opsName]).toEqual(['ALARM', '대기']);
+        }
     });
 });

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { DeviceModeType, isDeviceMode, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL } from "@onedal/shared";
+import { DeviceModeType, isDeviceMode, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL, modeActsOf } from "@onedal/shared";
 import { getUserSession } from "../state/userSessionStore";
 import { generatePin, tryConsumePin } from "../state/pairingStore";
 import { requireAuth } from "../middlewares/authMiddleware";
@@ -12,7 +12,7 @@ import { accountGateOf } from "../core/accountGate";
 import { DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from "@onedal/shared";
 import { clientIpOf } from "../utils/clientIp";
 import { flushSupply } from "../state/phoneSupply";
-import { activeDevices, saveModePreference, demoteOtherAutoPhones } from "../state/deviceRegistry";
+import { activeDevices, saveModePreference, demoteOtherAutoPhones, filteringDeviceFrom } from "../state/deviceRegistry";
 import { cleanPreviewOfDevice, getUserDevicesSnapshot } from "../state/deviceSessions";
 
 const router = Router();
@@ -253,7 +253,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
             console.warn(`⛔ [모드 거절] 기기(${deviceLabelOf(deviceId)}) 는 유저(${userId}) 의 폰이 아닙니다`);
             return res.status(404).json({ error: "등록되지 않았거나 내 기기가 아닙니다." });
         }
-        if (mode === 'AUTO') demoteOtherAutoPhones(deviceId, userId);
+        if (modeActsOf(mode).onlyOnePhone) demoteOtherAutoPhones(deviceId, userId);
 
         if (!session) {
             // 서버 재시작 직후 하트비트가 아직 안 왔을 수도 있음.
@@ -301,9 +301,7 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
         const io = req.app.get("io");
 
         const userDeviceIds = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(userId).map((r: any) => r.device_id);
-        const hasFilteringDevice = Array.from(activeDevices.values()).some(d =>
-            userDeviceIds.includes(d.deviceId) && (d.mode === "AUTO" || d.mode === "ALARM" || d.mode === "SIMULATION")
-        );
+        const hasFilteringDevice = filteringDeviceFrom(activeDevices.values(), userDeviceIds);
 
         /**
          * 🔴 **의도를 세션에 먼저 적는다** (코드리뷰).

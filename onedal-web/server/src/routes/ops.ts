@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import {
-    CALL_NOTE_MEMO_MAX, CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow, runningModeOf,
+    CALL_NOTE_MEMO_MAX, CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow, runningModeOf, modeActsOf,
     type CargoReport, type CargoUnit, type OpsAgreement, type OpsCallNote,
     type ContentKind, type OpsAnomaly, type OpsAudit, type OpsCall, type OpsContent, type OpsCounts, type OpsMember,
     type OpsMemberDetail, type OpsJudgedCall, type JudgedCallInfo, type JudgedFilterInfo, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
@@ -96,7 +96,7 @@ function phonesOf(userId: string, io: unknown): OpsPhone[] {
             offlineReason: s.offlineReason ? DEVICE_OFFLINE_LABEL[s.offlineReason] : null,
             lastSeenAt: s.lastSeen ? new Date(s.lastSeen).toISOString() : '',
             appVersion: s.version ?? '',
-            mode: running === 'AUTO' || running === 'MANUAL' ? running : 'ALARM',
+            mode: modeActsOf(running).opsMode,
             locationOn: s.lat != null && s.lng != null,
         };
     });

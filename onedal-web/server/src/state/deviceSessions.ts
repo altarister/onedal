@@ -3,7 +3,7 @@
  * 라우터(`routes/devices.ts`)가 이 파일을 불러 쓴다. 기기 표 · 등록 폰 읽기는 아래층 `deviceRegistry` 에 있다 — 공급 · 폰 상태 · 취소 셈은 거기서 읽는다.
  * 바깥 일을 하는 함수: touchDeviceSession · getActiveDevicesSnapshot · getUserDevicesSnapshot · cleanPreviewOfDevice(기기 표 · 세션 · 장부(DB) · 지금 시각 · 소켓 · 기다림 · 로그) (화면 못 읽음 · 상세 떠남 셈 blindSignalFrom · leftDetailFrom 은 값만 받는다)
  */
-import { FilterTally, DeviceSession, DeviceModeType, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, runningModeOf } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceModeType, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, runningModeOf, modeActsOf } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "./userSessionStore";
 import { requireAuth } from "../middlewares/authMiddleware";
@@ -339,7 +339,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             seen: filterTally.seen,
             at: session.lastSeen,
         };
-        if (runningModeOf(session) === "ALARM" && alarmPassed > 0 && io) {
+        if (modeActsOf(runningModeOf(session)).webBeep && alarmPassed > 0 && io) {
             io.to(userId).emit("filter-pass-alarm", alarmBody);
             slog('필터', `🔔 [알람] ${deviceLabelOf(deviceId)} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건${filterTally.passedNew != null ? ` (새로 ${filterTally.passedNew}건)` : ''}` +
                 `${openBlocked ? ` · 앱이 못 연 까닭 ${openBlocked}` : ''}. 기사님이 직접 누르십니다`);

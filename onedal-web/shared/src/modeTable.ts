@@ -50,6 +50,30 @@ export interface ModeActs {
     frame: string;
     /** 관제웹 단추 글자 */
     label: string;
+    /** 서버가 기사님 필터를 돌리나(`isActive`) — 서버는 명령으로 묻는다 */
+    filterRuns: boolean;
+    /** 원달앱 보고에 통과 콜이 있으면 관제웹 «필터 통과» 삑을 보내나 — 도는 모드로 묻는다 */
+    webBeep: boolean;
+    /** 이 폰이 잡은 콜을 체험 콜로 적나(장부 · 취소 횟수에서 빠짐) — 확정 · 상세 보고가 그때 폰 모드로 각자 적는다 · 🔴 기사님 결정 기다림 */
+    marksSimulated: boolean;
+    /** 이 모드를 누르면 같은 기사님의 다른 폰에서 같은 모드를 알람으로 옮기나(한 폰만) */
+    onlyOnePhone: boolean;
+    /** 운영센터 폰 표에 보내는 모드(도는 모드로 찾는다) · 체험을 알람으로 보이는 것은 🔴 기사님 결정 기다림 */
+    opsMode: 'AUTO' | 'ALARM' | 'MANUAL';
+    /** 운영센터 폰 표의 이름(받은 `opsMode` 로 찾는다) · 직접을 «대기»로 적는 것은 🔴 기사님 결정 기다림 */
+    opsName: string;
+    /** 운영센터 폰 표에서 색으로 띄우나 */
+    opsHighlight: boolean;
+    /** «자동 모드» 폰 셈 · «지금 확정을 누를 수 있는 다른 폰»에 드나 */
+    countedAsAuto: boolean;
+    /** 관제웹 모드 단추 색(테일윈드 글자 그대로 — 원달앱 테두리 `frame` 과 같은 계열) */
+    tone: string;
+    /** 관제웹 필터 칸에 «직접 모드» 배지 — 관제웹은 명령으로 묻는다 · 🔴 기사님 결정 기다림 */
+    directBadge: boolean;
+    /** 자동 잡기 허락이 있어야 고를 수 있나 */
+    needsAutoPermission: boolean;
+    /** 원달앱이 계약하지 않은 콜의 «잡은 방식» 기록(원달앱 `SessionManager.capturedVia`) · 🔴 기사님 결정 기다림 */
+    capturedViaUnlessContracted: 'AUTO' | 'ALARM' | 'MANUAL';
 }
 
 export interface ModeTable {
@@ -128,10 +152,18 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
         }
     ],
     "acts": {
-        "AUTO":       { "tapsList": true,  "sound": false, "contracts": true,  "blocksAccept": false, "frame": "FF1D4ED8", "label": "자동" },
-        "ALARM":      { "tapsList": true,  "sound": true,  "contracts": false, "blocksAccept": false, "frame": "FF22C55E", "label": "알람" },
-        "MANUAL":     { "tapsList": false, "sound": false, "contracts": false, "blocksAccept": false, "frame": "FF64748B", "label": "직접" },
-        "SIMULATION": { "tapsList": true,  "sound": false, "contracts": false, "blocksAccept": true,  "frame": "FFF59E0B", "label": "체험" }
+        "AUTO":       { "tapsList": true,  "sound": false, "contracts": true,  "blocksAccept": false, "frame": "FF1D4ED8", "label": "자동",
+                        "filterRuns": true,  "webBeep": false, "marksSimulated": false, "onlyOnePhone": true,  "opsMode": "AUTO",   "opsName": "자동", "opsHighlight": true,
+                        "countedAsAuto": true,  "tone": "bg-info/20 text-info border-info/40", "directBadge": false, "needsAutoPermission": true,  "capturedViaUnlessContracted": "MANUAL" },
+        "ALARM":      { "tapsList": true,  "sound": true,  "contracts": false, "blocksAccept": false, "frame": "FF22C55E", "label": "알람",
+                        "filterRuns": true,  "webBeep": true,  "marksSimulated": false, "onlyOnePhone": false, "opsMode": "ALARM",  "opsName": "알람", "opsHighlight": false,
+                        "countedAsAuto": false, "tone": "bg-success/20 text-success border-success/40", "directBadge": false, "needsAutoPermission": false, "capturedViaUnlessContracted": "ALARM" },
+        "MANUAL":     { "tapsList": false, "sound": false, "contracts": false, "blocksAccept": false, "frame": "FF64748B", "label": "직접",
+                        "filterRuns": false, "webBeep": false, "marksSimulated": false, "onlyOnePhone": false, "opsMode": "MANUAL", "opsName": "대기", "opsHighlight": false,
+                        "countedAsAuto": false, "tone": "bg-surface-alt text-text-muted border-border/40", "directBadge": true,  "needsAutoPermission": false, "capturedViaUnlessContracted": "MANUAL" },
+        "SIMULATION": { "tapsList": true,  "sound": false, "contracts": false, "blocksAccept": true,  "frame": "FFF59E0B", "label": "체험",
+                        "filterRuns": true,  "webBeep": false, "marksSimulated": true,  "onlyOnePhone": false, "opsMode": "ALARM",  "opsName": "알람", "opsHighlight": false,
+                        "countedAsAuto": false, "tone": "bg-amber-400/20 text-amber-400 border-amber-400/40", "directBadge": false, "needsAutoPermission": false, "capturedViaUnlessContracted": "MANUAL" }
     },
     "networks": {
         "insung": { "autoContract": true },
@@ -139,6 +171,19 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
         "kakaopicker": { "autoContract": false }
     }
 }/*JSON*/ as ModeTable;
+
+/**
+ * 🎛️ **이 모드면 무엇을 하나 — 표 한 줄** · 모르는 값(옛 원달앱 · 빈 값)은 «아무것도 안 함» 줄이다(규칙 ④ · 원달앱 `ModeActs.NOTHING` 과 같은 뜻).
+ *    모르는 값의 운영센터 모드 · 이름은 지금 화면의 나머지 갈래(알람 · 대기) 그대로다.
+ */
+export function modeActsOf(mode: string | null | undefined): ModeActs {
+    return (MODE_TABLE.acts as Record<string, ModeActs | undefined>)[mode ?? ''] ?? UNKNOWN_MODE_ACTS;
+}
+const UNKNOWN_MODE_ACTS: ModeActs = {
+    tapsList: false, sound: false, contracts: false, blocksAccept: false, frame: '', label: '',
+    filterRuns: false, webBeep: false, marksSimulated: false, onlyOnePhone: false, opsMode: 'ALARM', opsName: '대기', opsHighlight: false,
+    countedAsAuto: false, tone: '', directBadge: false, needsAutoPermission: false, capturedViaUnlessContracted: 'MANUAL',
+};
 
 /** 이 배차망에서 원달앱이 자동으로 확정할 수 있나 — 모르는 배차망은 «못 한다»(모르면 잡지 않는다 · 규칙 ④) */
 export function networkCanAutoContract(network: string | undefined | null): boolean {

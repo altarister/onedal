@@ -3,7 +3,7 @@
  * 세션 저장소 · 장부만 쓰는 아래층이다 — 보고 처리(`deviceSessions`)와 공급 · 폰 상태 · 취소 셈이 여기서 읽는다(순환 풀기: 아래층은 위층을 모른다).
  * 바깥 일을 하는 함수: saveModePreference · registeredPhonesOf · demoteOtherAutoPhones · userOfDevice · resolveDefaultMode · viewModeOf · lookupDeviceName(장부(DB)) · livePhonesOf · otherAutoPhoneOf · getDeviceMode · incrementDeviceStats · deviceOnList · deviceScreenOf(기기 표 · 지금 시각 · 로그) (끊김 · 필터 거는 폰 셈 deadmanFrom · filteringDeviceFrom 은 값만 받는다)
  */
-import { otherContractingAuto, type PhoneForAuto } from "@onedal/shared";
+import { otherContractingAuto, modeActsOf, type PhoneForAuto } from "@onedal/shared";
 import { DeviceSession, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen } from "@onedal/shared";
 import { getUserSession, peekUserSession, baseFilterFromDb } from "./userSessionStore";
 import db from "../db";
@@ -71,7 +71,7 @@ export function otherAutoPhoneOf(deviceId: string, userId: string, ids: string[]
 export function demoteOtherAutoPhones(deviceId: string, userId: string): void {
     const others = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ? AND device_id <> ?").all(userId, deviceId) as { device_id: string }[];
     for (const { device_id: other } of others) {
-        if (getDeviceMode(other, userId) !== 'AUTO') continue;
+        if (!modeActsOf(getDeviceMode(other, userId)).onlyOnePhone) continue;
         saveModePreference(other, userId, 'ALARM');
         const s = activeDevices.get(other);
         if (s) s.mode = 'ALARM';
@@ -143,7 +143,7 @@ export function lookupDeviceName(deviceId: string): string | undefined {
 /** 🎛️ 이 기사님 폰 가운데 필터를 거는 모드(자동 · 알람 · 시뮬레이션)인 폰이 있나 — 값만 받는 셈 (기기들 · 이 기사님 폰 번호) */
 export function filteringDeviceFrom(devices: Iterable<Pick<DeviceSession, 'deviceId' | 'mode'>>, userDeviceIds: string[]): boolean {
     return Array.from(devices).some(d =>
-        userDeviceIds.includes(d.deviceId) && (d.mode === "AUTO" || d.mode === "ALARM" || d.mode === "SIMULATION")
+        userDeviceIds.includes(d.deviceId) && modeActsOf(d.mode).filterRuns
     );
 }
 

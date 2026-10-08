@@ -1,3 +1,5 @@
+import { MODE_TABLE } from './modeTable';
+
 /**
  * 📱 관제 기기 관리 관련 타입 (Device Telemetry)
  */
@@ -38,12 +40,7 @@ export function isDeviceMode(v: unknown): v is DeviceModeType {
 }
 
 /** 화면에 적히는 이름 — MANUAL 의 화면 이름은 «직접», SIMULATION 의 화면 이름은 «체험» (기사님 확정) */
-export const DEVICE_MODE_LABEL: Record<DeviceModeType, string> = {
-    AUTO: "자동",
-    ALARM: "알람",
-    MANUAL: "직접",
-    SIMULATION: "체험",
-};
+export const DEVICE_MODE_LABEL = Object.fromEntries(DEVICE_MODES.map(m => [m, MODE_TABLE.acts[m].label])) as Record<DeviceModeType, string>;
 
 /**
  * 🖱️ **잡은 방식 — 6하원칙의 «어떻게»** (기사님 확정).

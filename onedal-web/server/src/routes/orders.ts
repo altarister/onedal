@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -207,7 +207,7 @@ router.post("/confirm", (req, res) => {
              *    취소 카운트가 새고, 그건 배차망 10회 패널티와 어긋난다.
              */
             isPreview: !!(payload as any).isPreview,
-            isSimulated: deviceMode === 'SIMULATION',
+            isSimulated: modeActsOf(deviceMode).marksSimulated,
         } as PendingOrder;
 
         if (pendingOrder.id && pendingOrder.id !== "unknown") {
