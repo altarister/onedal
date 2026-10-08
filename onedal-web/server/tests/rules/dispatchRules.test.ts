@@ -57,11 +57,7 @@ describe('규칙 ① 콜의 주인은 기사님이다', () => {
      *    바로 이 규칙 위반이다.
      *    카카오가 잠깐 죽었다고 기사님이 실제로 들고 있는 짐을 서버가 지우는 셈이다.
      */
-    it('MANUAL 콜은 즉시 KEEP 된다 — 서버가 심사하지 않는다', () => {
-        const src = read('routes/detail.ts');
-        const branch = src.slice(src.indexOf('if (isManual)'));
-        expect(branch).toContain("decide(io, session, userId, payload.order.id, 'KEEP');");   // 결재 정하기 한 곳(state/decisions)
-    });
+    /* MANUAL 콜은 즉시 KEEP — 동작 검사 factWhoConfirmed «손으로 확정한 콜은 서버가 바로 KEEP» 가 문다(31 P0 T) */
 
     it('🔴 MANUAL 경로에서 콜을 지우는 것은 평가가 아니라 **확정까지** 실패했을 때뿐이다', () => {
         const src = code(read('routes/detail.ts'));
@@ -82,13 +78,7 @@ describe('규칙 ① 콜의 주인은 기사님이다', () => {
      * 출처: README 「이건 버그가 아니라 규칙이다」 ① — KEEP 된 콜은 절대 취소하지 않는다
      *   (`services/dispatchEngine.ts` 의 `forceCancelEvaluatingOrder` 머리도 같은 말이다)
      */
-    it('KEEP 결재가 내려진 콜은 타임아웃이 취소하지 않는다', () => {
-        const src = read('routes/detail.ts');
-        const start = src.indexOf('armWait(session, `timeout_');
-        expect(start).toBeGreaterThan(-1);
-        const timeout = src.slice(start);
-        expect(timeout).toMatch(/action === 'KEEP'[\s\S]{0,400}return/);
-    });
+    /* KEEP 이면 타임아웃이 취소하지 않음 — 동작 검사 factWhoConfirmed «대조 — KEEP 이 내려진 콜은…» · deviceRelease 가 문다(31 P0 T) */
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -128,11 +118,7 @@ describe('규칙 ② 안전장치는 겹쳐 둔다', () => {
      * 🧟 타이머 좀비
      *   `setTimeout` ID 를 저장하지 않으면 오더가 사라져도 타이머를 못 끈다.
      */
-    it('안전취소 타이머는 장부에 걸어 취소할 수 있어야 한다', () => {
-        const src = read('routes/detail.ts');
-        expect(src).toMatch(/armWait\(session, `warn_/);
-        expect(src).toMatch(/armWait\(session, `timeout_/);
-    });
+    /* 안전취소 경고 · 해제는 장부에 — 동작 검사 factWhoConfirmed «원달앱이 확정한 콜은 결재를 기다린다»(entries 의 warn_ · timeout_) 가 문다(31 P0 T) */
 });
 
 // ─────────────────────────────────────────────────────────────────

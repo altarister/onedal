@@ -25,16 +25,9 @@ describe('«어떻게 잡았나» — 기록 전용 칸', () => {
     const strip = (p: string) => readFileSync(join(__dirname, p), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-    it('🔴 confirm 이 capturedVia 를 검증해 원장 캐시에 싣는다', () => {
-        const orders = strip('../../src/routes/orders.ts');
-        expect(orders).toMatch(/capturedVia: isCapturedVia\(/);
-    });
+    /* confirm 의 capturedVia 거르기 — 동작 검사 factCapturedVia «허용 값은 그대로 · 모르는 값은 비운다» 가 문다(31 P0 T) */
 
-    it('🔴 원장 저장(upsert)에 capturedVia 가 실리고, 재확정 때 지워지지 않는다', () => {
-        const repo = readFileSync(join(__dirname, '../../src/repositories/OrderRepository.ts'), 'utf8');
-        expect(repo).toMatch(/capturedVia/);
-        expect(repo).toMatch(/capturedVia = COALESCE\(excluded\.capturedVia, capturedVia\)/);
-    });
+    /* 장부 upsert 의 capturedVia · COALESCE — 동작 검사 factCapturedVia «장부 줄에 남는다» · «빈 값은 앞 값을 덮지 않는다» 가 문다(31 P0 T) */
 
     it('모르는 값은 null — 지어내지 않는다 (규칙 ④)', () => {
         expect(isCapturedVia('ALARM')).toBe(true);
