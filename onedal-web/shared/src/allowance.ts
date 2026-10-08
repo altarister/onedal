@@ -1,3 +1,4 @@
+import { modeActsOf } from './modeTable';
 /**
  * 🎛️ **허락이 지금 살아 있나 — 한 곳** (서버 `core/allowance` · 운영센터 회원 표가 같이 쓴다).
  * 허락 시각이 있고, 기한이 비었거나(= 기한 없음) 기한 날이 오늘(한국 달력 날 · `kstDateText`) 이후면 산다.
@@ -33,6 +34,6 @@ export function phoneModeOf(d: { mode?: string; autoAllowed?: boolean }): string
  */
 export function modeChoicesOf<M extends string>(modes: readonly M[], d: { mode: M; autoAllowed?: boolean }): M[] {
     const current = (phoneModeOf(d) ?? d.mode) as M;
-    const shown = modes.filter(m => d.autoAllowed !== false || m !== 'AUTO');
+    const shown = modes.filter(m => d.autoAllowed !== false || !modeActsOf(m).needsAutoPermission);
     return [...shown.filter(m => m !== current), current];
 }

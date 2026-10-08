@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { DEVICE_MODES, isDeviceMode, type DeviceModeType } from '@onedal/shared';
+import { DEVICE_MODES, DEVICE_MODE_LABEL, isDeviceMode, modeActsOf, modeChoicesOf, type DeviceModeType } from '@onedal/shared';
 
 /**
  * 🎛️ **기기 모드는 넷이다 — 자동 · 알람 · 직접 · 체험** (기사님 지시)
@@ -278,9 +278,9 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
     });
 
     it('🔴 모드 버튼이 셋이다 (알람이 화면에 있다)', () => {
-        const c = web('components/dashboard/DeviceControlPanel.tsx');
-        expect(c).toMatch(/ALARM/);
-        expect(c).toMatch(/알람/);
+        /* 관제웹 고르기 목록은 shared modeChoicesOf · 이름은 DEVICE_MODE_LABEL — 알람이 목록에 있고 «알람»으로 적힌다 */
+        expect(modeChoicesOf(DEVICE_MODES, { mode: 'AUTO' })).toContain('ALARM');
+        expect(DEVICE_MODE_LABEL.ALARM).toBe('알람');
     });
 
     /**
@@ -299,13 +299,13 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
     });
 
     /** 🎨 폰 모드 색은 원달앱 테두리와 같다 — 알람 녹색 · 자동 파랑 · 체험 노랑 · 직접 회색. */
-    it('🔴 모드 색 — 알람 success · 자동 info · 체험 amber · 직접 surface-alt, 버튼과 고르기 목록이 한 표(MODE_TONE)를 쓴다', () => {
+    it('🔴 모드 색 — 알람 success · 자동 info · 체험 amber · 직접 surface-alt, 버튼과 고르기 목록이 한 칸(shared 네 모드 표 tone)을 쓴다', () => {
+        expect(modeActsOf('ALARM').tone).toMatch(/\bsuccess\b/);
+        expect(modeActsOf('AUTO').tone).toMatch(/\binfo\b/);
+        expect(modeActsOf('SIMULATION').tone).toMatch(/\bamber\b/);
+        expect(modeActsOf('MANUAL').tone).toMatch(/\bsurface-alt\b/);
         const c = codeOnly(web('components/dashboard/DeviceControlPanel.tsx'));
-        expect(c).toMatch(/ALARM:\s*'[^']*\bsuccess\b/);
-        expect(c).toMatch(/AUTO:\s*'[^']*\binfo\b/);
-        expect(c).toMatch(/SIMULATION:\s*'[^']*\bamber\b/);
-        expect(c).toMatch(/MANUAL:\s*'[^']*\bsurface-alt\b/);
-        expect((c.match(/MODE_TONE\[/g) ?? []).length).toBeGreaterThanOrEqual(2);
+        expect((c.match(/toneOf\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
         expect(c).not.toMatch(/mode === 'AUTO' \? 'bg-success/);
     });
 });
@@ -332,7 +332,7 @@ describe('🎛️ 도는 모드 — 원달앱이 계산해 보내고 관제웹�
     it('관제웹 폰 카드는 도는 모드의 글자·색을 한 줄로, 명령은 설명(title)에만 (기사님 «한 줄로»)', () => {
         const c = codeOnly(web('components/dashboard/DeviceControlPanel.tsx'));
         expect(c).toMatch(/runningModeOf\(device\)/);
-        expect(c).toMatch(/MODE_TONE\[running\]/);
+        expect(c).toMatch(/toneOf\(running\)/);
         expect(c).toMatch(/`명령: /);
         expect(c).not.toMatch(/<span className="block[^"]*">\s*명령:/);
     });

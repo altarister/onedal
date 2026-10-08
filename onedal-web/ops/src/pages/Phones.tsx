@@ -1,4 +1,4 @@
-import { deviceLabel, type OpsPhone } from '@onedal/shared';
+import { deviceLabel, modeActsOf, type OpsPhone } from '@onedal/shared';
 import { api, useOps } from '../api/ops';
 import { ErrorBand, KV, Stat, StatRow, Table, fmtTime, memberName, type Column } from '../ui';
 
@@ -6,7 +6,7 @@ import { ErrorBand, KV, Stat, StatRow, Table, fmtTime, memberName, type Column }
 export default function Phones() {
     const { data, error, reload } = useOps(() => Promise.all([api.members(), api.phones()]), []);
     const [members, phones] = data ?? [[], []];
-    const modeKo = (p: OpsPhone) => p.mode === 'AUTO' ? '자동' : p.mode === 'ALARM' ? '알람' : '대기';
+    const modeKo = (p: OpsPhone) => modeActsOf(p.mode).opsName;
     const columns: Column<OpsPhone>[] = [
         { key: 'st', label: '연결', render: p => <span className={p.status === 'ONLINE' ? 'text-success font-bold' : 'text-danger font-bold'}>{p.status === 'ONLINE' ? '● 연결' : '● 끊김'}</span> },
         { key: 'name', label: '폰', render: p => <b>{deviceLabel(p)}</b> },
@@ -14,7 +14,7 @@ export default function Phones() {
         { key: 'reason', label: '끊긴 까닭', render: p => p.offlineReason ?? <span className="text-text-muted">—</span> },
         { key: 'seen', label: '마지막 연락', render: p => fmtTime(p.lastSeenAt) },
         { key: 'ver', label: '앱', render: p => p.appVersion ? `v${p.appVersion}` : '—' },
-        { key: 'mode', label: '모드', render: p => <span className={p.mode === 'AUTO' ? 'text-info font-bold' : ''}>{modeKo(p)}</span> },
+        { key: 'mode', label: '모드', render: p => <span className={modeActsOf(p.mode).opsHighlight ? 'text-info font-bold' : ''}>{modeKo(p)}</span> },
         { key: 'loc', label: '위치', render: p => p.locationOn ? '보냄' : <span className="text-text-muted">안 보냄</span> },
         { key: 'id', label: '기기 id', render: p => <span className="text-xs text-text-muted" title={p.deviceId}>…{p.deviceId.slice(-4)}</span> },
     ];
@@ -24,7 +24,7 @@ export default function Phones() {
             <StatRow>
                 <Stat label="연결" value={phones.filter(p => p.status === 'ONLINE').length} tone="ok" />
                 <Stat label="끊김" value={phones.filter(p => p.status === 'OFFLINE').length} tone={phones.some(p => p.status === 'OFFLINE') ? 'bad' : undefined} />
-                <Stat label="자동 모드" value={phones.filter(p => p.mode === 'AUTO').length} hint="자동 잡기가 켜진 폰" />
+                <Stat label="자동 모드" value={phones.filter(p => modeActsOf(p.mode).countedAsAuto).length} hint="자동 잡기가 켜진 폰" />
                 <Stat label="위치 보냄" value={phones.filter(p => p.locationOn).length} />
             </StatRow>
             <Table rows={phones} columns={columns} rowKey={p => p.deviceId} empty={data ? '연결한 폰이 없습니다' : '읽는 중…'} card={p => (

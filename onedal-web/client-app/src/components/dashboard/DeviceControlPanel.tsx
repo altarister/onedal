@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { phoneLinkBadgeOf, isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, modeChoicesOf, deviceLabel, clockText } from "@onedal/shared";
+import { phoneLinkBadgeOf, isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, modeChoicesOf, deviceLabel, clockText, modeActsOf } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "@onedal/shared";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
@@ -14,14 +14,9 @@ import { Button } from "@onedal/ui/button";
 
 /**
  * 🎨 **폰 모드 색 — 원달앱이 폰 화면에 두르는 테두리와 같다**: 알람 녹색 · 자동 파랑 · 직접 회색 · 체험 노랑.
- * 버튼과 고르기 목록이 이 표 하나를 쓴다 — 따로 적으면 한쪽만 바뀐다.
+ * 버튼과 고르기 목록이 shared 네 모드 표의 `tone` 한 칸을 쓴다 — 따로 적으면 한쪽만 바뀐다. 모르는 값은 색 없음(undefined).
  */
-const MODE_TONE: Record<DeviceModeType, string> = {
-    ALARM: 'bg-success/20 text-success border-success/40',
-    AUTO: 'bg-info/20 text-info border-info/40',
-    MANUAL: 'bg-surface-alt text-text-muted border-border/40',
-    SIMULATION: 'bg-amber-400/20 text-amber-400 border-amber-400/40',
-};
+const toneOf = (mode: string | undefined) => modeActsOf(mode).tone || undefined;
 
 const EMERGENCY_LABELS: Record<string, string> = {
     AUTO_CANCEL: "⏱️ 자동취소 실행됨",
@@ -128,7 +123,7 @@ function DeviceRow({
     if (currentFilter) {
         // 🚨 전역 isActive가 아닌, 이 기기 자체의 mode를 1순위로 검사합니다!
         // isActive = "필터가 도는가" (유저별), device.mode = "누가 누르나" (폰별)
-        if (device.mode === "MANUAL") {
+        if (modeActsOf(device.mode).directBadge) {
             filterLabel = '직접 모드';
             filterColor = 'bg-surface-alt text-text-muted border-border';
         } else {
@@ -315,7 +310,7 @@ function DeviceRow({
                         onClick={() => setModeOpen(v => !v)}
                         className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border transition-opacity ${
                             applying || notHeardYet ? 'opacity-40' : ''
-                        } ${MODE_TONE[running] ?? MODE_TONE[device.mode]}`}>
+                        } ${toneOf(running) ?? toneOf(device.mode)}`}>
                         {DEVICE_MODE_LABEL[running] ?? DEVICE_MODE_LABEL[device.mode]}
                     </button>
                     {(applying || notHeardYet) && (
@@ -330,7 +325,7 @@ function DeviceRow({
                             {modeChoicesOf(DEVICE_MODES, device).map(m => (
                                 <button key={m} type="button"
                                     onClick={() => { setModeOpen(false); onModeChange(device.deviceId, m); }}
-                                    className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border whitespace-nowrap ${MODE_TONE[m]}`}>
+                                    className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border whitespace-nowrap ${toneOf(m)}`}>
                                     {DEVICE_MODE_LABEL[m]}
                                 </button>
                             ))}
