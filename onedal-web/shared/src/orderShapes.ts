@@ -125,7 +125,10 @@ export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder 
     targetApp?: string;
     /** 🖱️ 잡은 방식 — 6하원칙의 «어떻게» (CAPTURED_VIA · 기록 전용, 보호 분기는 matchType).
      *  구앱·모르는 값은 null — 지어내지 않는다 (기사님 확정) */
-    capturedVia?: string | null; }
+    capturedVia?: string | null;
+    /** 🖱️ 잡은 방식 — 그때 도는 모드(명령 값 · 화면 이름은 네 모드 표 name) · 상세페이지로 진입시킨 주체 (29 P5-1 · 기록 전용 · 모르면 null) */
+    capturedMode?: string | null;
+    openedBy?: 'APP' | 'DRIVER' | null; }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 2-A] 심사 중 오더 — 서버 메모리 전용 (아직 내 퀵이 아님)

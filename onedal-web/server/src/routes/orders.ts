@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -24,7 +24,7 @@ import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatch
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { isHeldReserved } from "../services/reservedOrders";
-import { getDeviceMode } from "../state/deviceRegistry";
+import { getDeviceMode, activeDevices } from "../state/deviceRegistry";
 import { parsePolyline, parseSectionEnds, parseSectionStops, parseSectionDriveMin } from "../services/routeComposer";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
@@ -198,6 +198,9 @@ router.post("/confirm", (req, res) => {
             capturedVia: isCapturedVia((payload as any).capturedVia) ? (payload as any).capturedVia : null,
             /* ⏩ 앱이 알람 모드로 목록에서 눌러 연 상세인가 — 빨리 접기 대상(판단용 · capturedVia 는 기록 전용이라 따로) · 모르면 없음 */
             ...(typeof (payload as any).openedByApp === 'boolean' ? { openedByApp: (payload as any).openedByApp } : {}),
+            /* 🖱️ 잡은 방식 = 그때 도는 모드 + 진입 주체(29 P5-1) — 원천은 원달앱(보고의 도는 모드 · 이 확정 보고의 openedByApp) · 서버는 옮겨 적기만 · 모르면 null */
+            capturedMode: ((m) => isDeviceMode(m) ? m : null)(runningModeOf(activeDevices.get(payload.deviceId) ?? {})),
+            openedBy: (payload as any).openedByApp === true ? 'APP' : (payload as any).openedByApp === false ? 'DRIVER' : null,
             /**
              * 👀 **미리보기 콜** — 확정 전에 팝업 3장을 읽어 판정만 받아 보는 콜.
              *

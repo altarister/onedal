@@ -223,6 +223,8 @@ export function restoredOrderFrom(row: any, got: {
         isExpress: !!row.isExpress,
         // 🧭 어떻게 잡았나(자동·알람·직접) — 안 되살리면 재부팅마다 갈래 배지가 사라진다
         capturedVia: row.capturedVia,
+        capturedMode: row.capturedMode ?? null,
+        openedBy: row.openedBy ?? null,
         orderForm: row.orderForm,
         detailMemo: row.detailMemo,
         /**

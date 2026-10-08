@@ -801,6 +801,16 @@ ensureColumns('orders', { targetApp: 'TEXT',
     // 🖱️ 잡은 방식(자동·알람·직접) — 6하원칙 «어떻게», 기록 전용 (보호는 matchType · #75 · 픽커_수집.md §6-전)
     capturedVia: 'TEXT',
     /**
+     * 🖱️ **잡은 방식 = 그때 도는 모드 + 상세페이지로 진입시킨 주체** (29 P5-1 · 기사님 Q8 가 · 옛 capturedVia 칸 · 옛 줄 그대로).
+     *    ① 스키마: orders.capturedMode TEXT · orders.openedBy TEXT · 새 콜부터 적는다.
+     *    ② 값: capturedMode = 명령 값(AUTO · ALARM · MANUAL · SIMULATION — 화면 이름은 shared 네 모드 표 name) · openedBy = 'APP'(원달앱) · 'DRIVER'(기사) · 모르면 NULL(지어내지 않음 · 규칙 ④). 기본값 없음(NULL).
+     *    ③ 시점: /confirm 에서 원달앱이 보고한 도는 모드(세션 effectiveMode)와 확정 보고의 openedByApp 를 옮겨 적고 · KEEP 때 장부에 쓴다(빈 값은 앞 값을 안 덮음).
+     *    ④ 화면: 지금은 안 보임(기록 · 일지 · 통계 재료) — 표시는 29 P5 뒤 단계.
+     *    ⑤ 읽는 곳: 일지 · 통계(«알람 모드가 실제로 벌어 줬나» · «손 진입 콜은 얼마나») — 보호 · 판정 갈래에는 안 쓴다(그건 matchType · 사실 ③).
+     */
+    capturedMode: 'TEXT',
+    openedBy: 'TEXT',
+    /**
      * 🚚 **배송거리** — 앱이 인성 화면에서 읽어 보내는 값 (리스트 두 번째 숫자).
      *    합짐 콜의 단독 주행 추정 입력이다 (`soloMinutesOf`).
      *
