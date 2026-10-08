@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import * as shared from '@onedal/shared';
 
 /**
  * 🎛️ **관제웹 폰 모드 고르기 — 자동 잡기 허락이 꺼진 폰은 «자동» 버튼이 없다** (기사님 결정 · onedal-69).
@@ -18,8 +19,10 @@ describe('🎛️ 관제웹 폰 모드 고르기', () => {
     });
 
     it('🔴 «허락이 꺼졌습니다» 안내 줄 · 버튼 설명 문구가 관제웹 · shared 어디에도 없다', () => {
-        for (const f of ['client-app/src/components/dashboard/DeviceControlPanel.tsx', 'shared/src/allowance.ts', 'shared/src/index.ts'])
+        for (const f of ['client-app/src/components/dashboard/DeviceControlPanel.tsx', 'shared/src/allowance.ts'])
             expect(read(f)).not.toMatch(/modeHeldWhy|heldWhy|자동 잡기 허락이 꺼졌습니다/);
+        /* 그 안내 줄을 내던 shared 함수(modeHeldWhy)가 어느 파일에서든 되살아나지 않는다 */
+        expect(Object.keys(shared).filter(k => /heldWhy/i.test(k))).toEqual([]);
     });
 
     it('🔴 목록의 어느 자리든 누르면 그 모드 명령이 나간다 — 끝자리(지금 고른 자리)도 건너뛰지 않는다', () => {
@@ -28,6 +31,9 @@ describe('🎛️ 관제웹 폰 모드 고르기', () => {
     });
     it('🔴 «적용중» 고침은 그대로 — 폰에 갈 모드와 견준다', () => {
         expect(panel).toContain('const applying = isModeApplying(device);');
-        expect(read('shared/src/index.ts')).toContain('return phoneModeOf(d) !== d.appliedMode;');
+        /* 허락이 꺼진 폰: 명령은 자동 · 폰에 갈 모드는 알람 — 알람이라 대답했으면 적용중이 아니다(명령과 견주면 영영 적용중) */
+        expect(shared.isModeApplying({ mode: 'AUTO', autoAllowed: false, appliedMode: 'ALARM' })).toBe(false);
+        expect(shared.isModeApplying({ mode: 'AUTO', autoAllowed: false, appliedMode: 'AUTO' })).toBe(true);
+        expect(shared.isModeApplying({ mode: 'AUTO', autoAllowed: true, appliedMode: 'AUTO' })).toBe(false);
     });
 });

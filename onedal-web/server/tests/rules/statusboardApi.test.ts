@@ -1,8 +1,8 @@
 import { readFileSync } from "fs";
 import { join } from "path";
+import type { DeviceSession } from "@onedal/shared";
 
 const read = (rel: string) => readFileSync(join(__dirname, "../../src", rel), "utf8");
-const readShared = (rel: string) => readFileSync(join(__dirname, "../../../shared/src", rel), "utf8");
 
 /** 주석을 걷어낸 **코드만** — 주석에 적힌 이름이 거짓 초록을 만들지 않게 */
 const codeOnly = (src: string) =>
@@ -78,16 +78,13 @@ describe('① 내 위치의 출처를 그대로 남긴다 (현황판 ①)', () =
  * ⚠️ `shared/` 는 세 앱이 함께 쓰는 겹치는 영역이라 고칠 때 서로 알린다.
  */
 describe('② 폰이 든 필터 지문을 남긴다 (현황판 ②)', () => {
-    const dto = readShared('index.ts');
     const scrap = codeOnly(read('routes/scrap.ts'));
 
     it('🔴 DeviceSession 에 칸 둘이 있다 — 지문과 «언제 확인했나»', () => {
-        const i = dto.indexOf('export interface DeviceSession');
-        expect(i).toBeGreaterThan(-1);
-        /* **그 인터페이스 안만** 본다 — 파일 전체를 훑으면 다른 타입의 같은 이름에 걸린다 */
-        const body = dto.slice(i, dto.indexOf('\n}', i));
-        expect(body).toMatch(/filterVersion\?: string/);
-        expect(body).toMatch(/filterVersionAt\?: number/);
+        /* **그 인터페이스의** 칸이다 — 없거나 모양이 다르면 타입 오류다 · 옛 앱(칸 없음)도 받는다 */
+        const seen: Pick<DeviceSession, 'filterVersion' | 'filterVersionAt'> = { filterVersion: 'v1', filterVersionAt: 1 };
+        const oldApp: Pick<DeviceSession, 'filterVersion' | 'filterVersionAt'> = {};
+        expect([seen, oldApp]).toHaveLength(2);
     });
 
     it('🔴 scrap 이 «폰이 보낸» 지문을 남긴다 — 서버가 준 것이 아니다', () => {

@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import type { DeviceSession, FilterTally } from '@onedal/shared';
 
 /**
  * 👁️ **필터가 왜 하나도 안 잡는지 화면이 말해 준다** (기사님 확정)
@@ -34,7 +35,6 @@ import { join } from 'path';
 const APP = join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app');
 const app = (p: string) => readFileSync(join(APP, p), 'utf8');
 const srv = (p: string) => readFileSync(join(__dirname, '../../src', p), 'utf8');
-const shared = () => readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8');
 const client = (p: string) => readFileSync(join(__dirname, '../../../client-app/src', p), 'utf8');
 const code = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
@@ -88,7 +88,11 @@ describe('👁️ 앱 — 축별로 몇 개가 떨어졌는지 센다', () => {
 
 describe('👁️ 서버 — 받아서 기기 세션에 둔다', () => {
     it('🔴 기기 세션이 마지막 스캔 결과를 들고 있다', () => {
-        expect(code(shared())).toMatch(/filterTally\?:/);
+        /* 기기 세션의 칸이다 — 없으면 타입 오류 · 옛 앱(안 보냄)이면 비어 있다 */
+        const tally: FilterTally = { seen: 3, passed: 1, vehicle: 1, region: 1, fare: 0, pickup: 0, blacklist: 0, routeOrder: 0 };
+        const held: Pick<DeviceSession, 'filterTally'> = { filterTally: tally };
+        const oldApp: Pick<DeviceSession, 'filterTally'> = {};
+        expect([held, oldApp]).toHaveLength(2);
     });
 
     it('🔴 스크랩이 그 값을 세션에 옮긴다', () => {
@@ -105,7 +109,9 @@ describe('👁️ 서버 — 받아서 기기 세션에 둔다', () => {
      * 10분 전 숫자가 그대로 `방금` 이라고 적힌 채 남는다 — 문구가 같이 멈춘다.
      */
     it('🔴 언제 온 것인지도 들고 있다 (숫자만 있으면 멈춘 건지 알 수 없다)', () => {
-        expect(code(shared())).toMatch(/filterTallyAt\?: *number/);
+        const at: Pick<DeviceSession, 'filterTallyAt'> = { filterTallyAt: Date.now() };
+        const notYet: Pick<DeviceSession, 'filterTallyAt'> = {};
+        expect([at, notYet]).toHaveLength(2);
     });
 
     /**

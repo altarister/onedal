@@ -148,7 +148,7 @@ describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
         const panel = codeOnly(read(PANEL));
         expect(panel).not.toMatch(/appFilterRowsOf|useAppFilter|devices\/app-filter/);
         expect(codeOnly(read(join(__dirname, '../../../ops/src/pages/MemberPhoneFilter.tsx')))).toMatch(/appFilterRowsOf\(/);
-        expect(codeOnly(read(join(__dirname, '../../../shared/src/index.ts')))).toMatch(/export function appFilterRowsOf[\s\S]{0,200}APP_FILTER_KEYS/);
+        /* 줄 순서가 APP_FILTER_KEYS 를 따르는지는 shared appFilterRows.test 가 동작으로 문다 */
     });
 
     /**

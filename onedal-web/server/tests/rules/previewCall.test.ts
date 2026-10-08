@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import type { DispatchBasicRequest, DispatchDetailedRequest, SimplifiedOfficeOrder } from '@onedal/shared';
 
 /**
  * 👀 **미리보기 콜 — 확정 전에 판정만 받는다** (기사님 확정)
@@ -54,15 +55,21 @@ const app = (p: string) => (p === 'HijackService.kt' ? SEQUENCE_FILES : [p])
 const code = (src: string) => src.split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
 
 describe('👀 미리보기 콜 — 규격', () => {
+    const order: SimplifiedOfficeOrder = { id: 'c1', type: 'NEW_ORDER', pickup: '경기 광주 오포', dropoff: '이천시 신둔면', fare: 45000, timestamp: '2026-01-01T00:00:00.000Z' };
+    const base = { deviceId: 'phone-1', capturedAt: '2026-01-01T00:00:00.000Z', matchType: 'AUTO' as const };
+
     it('🔴 앱↔서버 규격에 미리보기 표시가 있다', () => {
-        const shared = read('shared/src/index.ts');
-        expect(shared).toMatch(/isPreview\?:\s*boolean/);
+        /* 두 요청 모두 칸이 없거나 참거짓이 아니면 타입 오류다 */
+        const basic: DispatchBasicRequest = { step: 'BASIC', order, ...base, isPreview: true };
+        const detailed: DispatchDetailedRequest = { step: 'DETAILED', order, ...base, isPreview: true };
+        expect([basic.isPreview, detailed.isPreview]).toEqual([true, true]);
     });
 
     it('🔴 없으면 옛 동작이다 — 필드가 선택적이라 옛 APK 가 그대로 돈다', () => {
-        const shared = read('shared/src/index.ts');
-        // `isPreview: boolean`(필수)이면 이 칸을 안 보내는 앱의 요청이 규격에서 탈락한다
-        expect(shared).not.toMatch(/isPreview:\s*boolean/);
+        // `isPreview: boolean`(필수)이면 이 칸을 안 보내는 앱의 요청이 규격에서 탈락한다 — 그때 아래 두 줄이 타입 오류다
+        const basic: DispatchBasicRequest = { step: 'BASIC', order, ...base };
+        const detailed: DispatchDetailedRequest = { step: 'DETAILED', order, ...base };
+        expect([basic.isPreview, detailed.isPreview]).toEqual([undefined, undefined]);
     });
 });
 

@@ -21,7 +21,6 @@ import { MOTION_HOLD_SEC_DEFAULT } from '@onedal/shared';
 
 const SERVER = join(__dirname, '../../src');
 const CLIENT = join(__dirname, '../../../client-app/src');
-const SHARED = join(__dirname, '../../../shared/src');
 const read = (abs: string) => readFileSync(abs, 'utf8');
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
@@ -29,7 +28,6 @@ describe('S16 — 주행·정차로 굳는 시간은 고칠 수 있다', () => {
 
     it('② 값 — 기본은 10초이고 원천은 shared 한 곳이다', () => {
         expect(MOTION_HOLD_SEC_DEFAULT).toBe(10);
-        expect(codeOnly(read(join(SHARED, 'index.ts')))).toMatch(/MOTION_HOLD_SEC_DEFAULT = 10/);
     });
 
     it('① 스키마 — 저장할 칸이 있다 (기존 DB 에도 붙는다)', () => {

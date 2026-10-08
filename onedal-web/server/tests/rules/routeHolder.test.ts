@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import type { OrderSyncPayload } from '@onedal/shared';
 
 /**
  * 🧭 **경로를 든 콜을 «추측»하지 않는다** (기사님 확정 · 잔상 수리)
@@ -65,11 +66,10 @@ describe('경로를 든 콜 — 판정은 서버 한 곳', () => {
     });
 
     it('🔴 폴리라인을 경로 봉투에 한 벌 더 담지 않는다 (초당 237KB 사고 재발 방지)', () => {
-        const shared = readFileSync(
-            join(__dirname, '../../../shared/src/index.ts'), 'utf8');
-        const envelope = shared.slice(shared.indexOf('export interface OrderSyncPayload'));
-        const body = envelope.slice(0, envelope.indexOf('\n}'));
-        expect(codeOnly(body)).not.toMatch(/routePolyline/);
+        /* 봉투에 선 칸이 생기면 아래 기대가 쓸데없어져 타입 오류(TS2578)다 */
+        const envelope = {} as OrderSyncPayload;
+        // @ts-expect-error — 경로 봉투에는 routePolyline 이 없다
+        expect(envelope.routePolyline).toBeUndefined();
     });
 });
 

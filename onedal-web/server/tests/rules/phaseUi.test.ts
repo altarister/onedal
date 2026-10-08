@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import { join } from "path";
+import type { AutoDispatchFilter, CallTarget } from "@onedal/shared";
 
 const CLIENT = join(__dirname, "../../../client-app/src");
 const SERVER = join(__dirname, "../../src");
@@ -582,9 +583,9 @@ describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
      */
     it('🔴 고르는 국면은 둘뿐이다 — 노선 ↔ 복귀', () => {
         const shared = require("@onedal/shared");
-        /* 타입은 런타임에 없으니 «그 값을 쓰는 코드»가 없는지로 본다 */
-        const idx = codeOnly(read(join(CLIENT, '../../shared/src/index.ts')));
-        expect(idx).toMatch(/export type CallTarget = 'DEST' \| 'HOME';/);
+        /* 타입은 컴파일러가 본다 — 국면이 늘거나 줄면 이 표가 타입 오류다 */
+        const targets: Record<CallTarget, true> = { DEST: true, HOME: true };
+        expect(Object.keys(targets)).toEqual(['DEST', 'HOME']);
         expect(shared.CALL_TARGET_LABEL.LOCAL).toBeUndefined();
     });
 
@@ -1162,8 +1163,10 @@ describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => 
     });
 
     it('🔴 평면 DTO 에 칸이 있다 — 관제웹이 읽고 고칠 자리', () => {
-        const dto = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
-        expect(dto).toMatch(/excludedRegions\?: string\[\]/);
+        /* 칸이 없거나 글자 목록이 아니면 타입 오류다 · 비워도 된다 */
+        const set: Pick<AutoDispatchFilter, 'excludedRegions'> = { excludedRegions: ['S|서울'] };
+        const unset: Pick<AutoDispatchFilter, 'excludedRegions'> = {};
+        expect([set, unset]).toHaveLength(2);
     });
 
     /**

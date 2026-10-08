@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import { join } from "path";
+import type { AutoDispatchFilter } from "@onedal/shared";
 
 const read = (rel: string) => readFileSync(join(__dirname, "../../src", rel), "utf8");
 const CLIENT = join(__dirname, "../../../client-app/src");
@@ -151,13 +152,17 @@ describe('2단계 · 배율이 아니라 «거리»를 싣는다 — 화면이 �
      * 없어, 기준거리를 끄는 동안 지도가 **안 따라온다.**
      * 서버는 **재료(마름모 축 길이)** 만 싣고, 배율은 `shared` 한 함수가 어디서든 낸다 (규칙 ③).
      */
-    const ix = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
     const ph = codeOnly(readFileSync(join(__dirname, '../../../shared/src/phases.ts'), 'utf8'));
     const fm = codeOnly(read('state/filterManager.ts'));
 
     it('🔴 DTO 는 거리를 싣고 배율은 안 싣는다', () => {
-        expect(ix).toMatch(/radiusDistanceKm\?: number/);
-        expect(ix).not.toMatch(/radiusScale\?: number/);
+        /* 거리 칸은 있다(못 재면 비거나 null) · 배율 칸이 되살아나면 아래 기대가 쓸데없어져 타입 오류(TS2578)다 */
+        const measured: Pick<AutoDispatchFilter, 'radiusDistanceKm'> = { radiusDistanceKm: 42 };
+        const unknown: Pick<AutoDispatchFilter, 'radiusDistanceKm'> = {};
+        expect([measured, unknown]).toHaveLength(2);
+        const f = {} as AutoDispatchFilter;
+        // @ts-expect-error — 배율은 싣지 않는다
+        expect(f.radiusScale).toBeUndefined();
     });
 
     it('🔴 effectiveRadii 가 거리·기준으로 배율을 직접 낸다', () => {
@@ -239,10 +244,11 @@ describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜�
      */
     const fm = codeOnly(read('state/filterManager.ts'));
     const de = codeOnly(read('services/dispatchEngine.ts'));
-    const ix = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
 
     it('🔴 DTO 에 파생 `goalCity` 가 있다 — 읽기 전용', () => {
-        expect(ix).toMatch(/goalCity\?: string/);
+        const derived: Pick<AutoDispatchFilter, 'goalCity'> = { goalCity: '이천시' };
+        const notYet: Pick<AutoDispatchFilter, 'goalCity'> = {};
+        expect([derived, notYet]).toHaveLength(2);
     });
 
     it('🔴 타겟을 바꾸면 그물을 다시 그린다', () => {
@@ -345,14 +351,15 @@ describe('5단계 · 관내 표시를 걷었다 — «목적지 가까이 옴»�
     const sv = codeOnly(readClient('components/stage/StageView.tsx'));
     const modal = codeOnly(readClient('components/dashboard/OrderFilterModal.tsx'));
     const board = codeOnly(readClient('statusboard/StatusBoard.tsx'));
-    const ix = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
     const net = codeOnly(readFileSync(join(__dirname, '../../../shared/src/callNet.ts'), 'utf8'));
     it('🔴 관제웹이 localMode 를 안 읽는다 — 무대 · 필터 판 · 현황판', () => {
         for (const src of [sv, modal, board]) expect(src).not.toMatch(/localMode/);
         expect(modal).not.toMatch(/isLocal/);
     });
     it('🔴 필터 타입에 localMode 칸이 없다 · 그물에 관내 원(local · buildRingNet)이 없다', () => {
-        expect(ix).not.toMatch(/localMode\?: boolean/);
+        const f = {} as AutoDispatchFilter;
+        // @ts-expect-error — 필터 타입에 localMode 칸이 없다
+        expect(f.localMode).toBeUndefined();
         expect(net).not.toMatch(/buildRingNet/);
         expect(net).not.toMatch(/local\?: boolean/);
     });
@@ -364,14 +371,15 @@ describe('5단계 · 노선/동선은 필터 값이다 — 서버도 알고 저�
      * «동선»을 골라도 **판정·앱 목록은 계속 노선**이고, 새로고침하면 노선으로 돌아간다.
      * 목업이 그 모양이다 — 노선/동선은 그물의 모양을 정하는 **필터 값**이다.
      */
-    const ix = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
     const fm = codeOnly(read('state/filterManager.ts'));
     const db = codeOnly(read('db.ts'));
     const dash = codeOnly(readClient('pages/Dashboard.tsx'));
     const modal = codeOnly(readClient('components/dashboard/OrderFilterModal.tsx'));
 
     it('🔴 DTO·DB·저장·로드에 routeMode 가 있다', () => {
-        expect(ix).toMatch(/routeMode\?: boolean/);
+        const line: Pick<AutoDispatchFilter, 'routeMode'> = { routeMode: true };
+        const unset: Pick<AutoDispatchFilter, 'routeMode'> = {};
+        expect([line, unset]).toHaveLength(2);
         expect(db).toMatch(/route_mode/);
         const i = fm.indexOf('const stmtUpdateFilter');
         expect(fm.slice(i, fm.indexOf('`);', i))).toMatch(/route_mode = \?/);

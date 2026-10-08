@@ -5,6 +5,8 @@ const tsJestTransformCfg = createDefaultPreset().transform;
 /** @type {import("jest").Config} **/
 module.exports = {
   testEnvironment: "node",
+  // 🧪 형 검사를 늘 새로 — ts-jest 는 검사 파일이 안 바뀌면 저장해 둔 형 검사 결과를 다시 써서, shared 타입만 바뀐 날 `@ts-expect-error` · `Pick<…>` 타입 검사가 초록으로 남는다
+  cache: false,
   transform: {
     ...tsJestTransformCfg,
   },

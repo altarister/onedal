@@ -22,7 +22,6 @@ import {
 
 const SERVER = join(__dirname, '../../src');
 const CLIENT = join(__dirname, '../../../client-app/src');
-const SHARED = join(__dirname, '../../../shared/src');
 const APP = join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app');
 const read = (abs: string) => readFileSync(abs, 'utf8');
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
@@ -145,7 +144,6 @@ describe('배차망별 대기 시간 — ⑤ 읽는 곳에 30초가 박혀 있�
     });
 
     it('기본값은 shared 한 곳이다 — 서버 읽기 도구가 그것을 쓴다', () => {
-        expect(codeOnly(read(join(SHARED, 'index.ts')))).toMatch(/SAFE_CANCEL_SEC_DEFAULT = 30/);
         expect(codeOnly(read(join(SERVER, 'core/waitTimes.ts')))).toMatch(/DEFAULT_WAIT_TIMES/);
     });
 });

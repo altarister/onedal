@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import type { AutoDispatchFilter, FilterTally, ReservationMode } from '@onedal/shared';
 
 /**
  * 📅 **예약콜 축 — 필터 칸 하나** (기사님 결정 «오늘 콜만»).
@@ -25,9 +26,12 @@ describe('📅 예약콜 필터 칸', () => {
     });
 
     it('shared 필터 타입에 값 셋이 있다', () => {
-        const s = read(join(__dirname, '../../../shared/src/index.ts'));
-        expect(s).toContain("export type ReservationMode = 'today' | 'tomorrowToo' | 'tomorrowOnly';");
-        expect(s).toMatch(/reservationMode\?: ReservationMode;/);
+        /* 값이 늘거나 줄면 이 표가 타입 오류다 */
+        const modes: Record<ReservationMode, true> = { today: true, tomorrowToo: true, tomorrowOnly: true };
+        expect(Object.keys(modes)).toEqual(['today', 'tomorrowToo', 'tomorrowOnly']);
+        const picked: Pick<AutoDispatchFilter, 'reservationMode'> = { reservationMode: 'tomorrowToo' };
+        const oldRow: Pick<AutoDispatchFilter, 'reservationMode'> = {};
+        expect([picked, oldRow]).toHaveLength(2);
     });
 
     it('관제웹 «어떤 콜» 칸에서 세 값을 고른다 — 예약 보관이 섰으니 연다', () => {
@@ -47,9 +51,9 @@ describe('📅 예약콜 필터 칸', () => {
 
 describe('📅 탈락 이유 «reservation» — 셋이 같은 낱말', () => {
     it('필터 성적표(shared) · 버린 콜 이유 글자 · 성적표 요약 축이 «reservation» 을 안다', () => {
-        const s = read(join(__dirname, '../../../shared/src/index.ts'));
-        const tally = s.slice(s.indexOf('export interface FilterTally'), s.indexOf('}', s.indexOf('export interface FilterTally')));
-        expect(tally).toMatch(/reservation\?: number;/);
+        const blocked: Pick<FilterTally, 'reservation'> = { reservation: 2 };
+        const oldApp: Pick<FilterTally, 'reservation'> = {};
+        expect([blocked, oldApp]).toHaveLength(2);
         const client = (p: string) => read(join(__dirname, '../../../client-app/src', p));
         expect(read(join(__dirname, '../../../shared/src/filterTally.ts'))).toMatch(/reservation: '예약/);   // 버린 콜 이유 글자 — 이름표는 shared VERDICT_AXIS_LABEL 한 벌(관제웹 callVerdict 가 그것을 다시 내보낸다)
         expect(client('statusboard/callVerdict.ts')).toContain("export { VERDICT_AXIS_LABEL };");

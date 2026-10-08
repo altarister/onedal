@@ -4,7 +4,7 @@ import { initGeoService } from '../../src/services/geoService';
 import { pickupListFor } from '../../src/services/geoRegions';
 import { getUserSession } from '../../src/state/userSessionStore';
 import { rebuildPickupList } from '../../src/state/filterNet';
-import { APP_FILTER_KEYS, callFilterBlocker } from '@onedal/shared';
+import { APP_FILTER_KEYS, callFilterBlocker, type AutoDispatchFilter } from '@onedal/shared';
 
 /**
  * 📋 **상차 목록 — 실제 지도로** (기사님 확정 · 모양 검사 `shared/src/filterArea.test.ts`).
@@ -179,7 +179,10 @@ describe('상차 목록 배선', () => {
     it('📍 지도 동 점 — 서버가 상차 목록 묶음을 필터에 싣고 · 무대가 dongDotsOf 로 · 캔버스 «동 점» 레이어 (기사님 2026-09-15 «다시 넣어줘»)', () => {
         const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         const CLIENT = join(__dirname, '../../../client-app/src');
-        expect(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8')).toMatch(/pickupGroups\?: Record<string, string\[\]>/);
+        /* 필터에 시 · 군 · 구 묶음 칸이 있다 — 없거나 모양이 다르면 타입 오류다 · 비워도 된다 */
+        const groups: Pick<AutoDispatchFilter, 'pickupGroups'> = { pickupGroups: { '이천시': ['신둔면'] } };
+        const none: Pick<AutoDispatchFilter, 'pickupGroups'> = {};
+        expect([groups, none]).toHaveLength(2);
         /* 무대가 dongDotsOf(상차 목록 · 하차 목록)로 넘기는가는 관제웹 stageAreas.test «동 점» 이 동작으로 문다 */
         const canvas = strip(readFileSync(join(CLIENT, 'components/dashboard/PinnedRouteCanvas.tsx'), 'utf8'));
         expect(canvas).toMatch(/\['dots', '동 점'\]/);

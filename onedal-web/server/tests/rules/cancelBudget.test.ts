@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { CANCEL_BUDGET_PER_ROUND, type OrderSyncPayload } from '@onedal/shared';
 
 /**
  * 🚫 **취소 예산 10회 — 다 쓰면 알리고 새 차례를 연다** (기사님 확정)
@@ -24,7 +25,6 @@ import { join } from 'path';
 const SRC = join(__dirname, '../../src');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
 const code = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-const shared = () => readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8');
 const client = (p: string) => readFileSync(join(__dirname, '../../../client-app/src', p), 'utf8');
 
 describe('🚫 한도는 한 곳에서 정한다', () => {
@@ -33,7 +33,7 @@ describe('🚫 한도는 한 곳에서 정한다', () => {
      *    서버가 판정하려면(`cancelCount.ts`) 관제웹과 같은 값을 봐야 한다 — 두 벌이면 갈라진다 (규칙 ⑤-4 ①).
      */
     it('🔴 취소 한도가 shared 에 있다 (화면 문자열에 박아 두지 않는다)', () => {
-        expect(code(shared())).toMatch(/CANCEL_BUDGET_PER_ROUND/);
+        expect(typeof CANCEL_BUDGET_PER_ROUND).toBe('number');
     });
 
     /**
@@ -68,7 +68,9 @@ describe('🚫 다 쓰면 알리고 새 판을 연다', () => {
      */
     it('🔴 몇 판째인지 함께 내보낸다 (총량이 사라지지 않게)', () => {
         expect(code(read('core/helpers.ts'))).toMatch(/cancelRounds/);
-        expect(code(shared())).toMatch(/cancelRounds/);
+        /* 동기화 봉투에 망별 판수 칸이 있다 — 없거나 모양이 다르면 타입 오류다 */
+        const rounds: Pick<OrderSyncPayload, 'cancelRounds'> = { cancelRounds: { insung: 1 } };
+        expect(rounds.cancelRounds?.insung).toBe(1);
     });
 
     /** 🔴 판정도 **세는 자리에서** 한다 — 호출부 넷이 각자 보면 갈라진다 */
