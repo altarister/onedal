@@ -21,6 +21,19 @@ class PickerFilterValuesKeyTest {
     @Test fun `최소 요금이 바뀌면 다른 지문`() =
         assertNotEquals(KakaoPickerParser.alarmValuesKeyOf(filter(6000, 30)), KakaoPickerParser.alarmValuesKeyOf(filter(7000, 30)))
 
+    private fun held(hold: String) = filter(6000, 30).dropLast(1) + ""","captureHold":"$hold"}"""
+
+    /** 🔒 잡기 보류(만석 · 필터 고장 · 35 X6 ①) — 보류 동안 «탈락»으로 막은 콜이 풀린 뒤 다시 울리려면 지문이 바뀌어야 한다 */
+    @Test fun `잡기 보류가 걸리고 풀리면 다른 지문`() =
+        assertNotEquals(KakaoPickerParser.alarmValuesKeyOf(filter(6000, 30)), KakaoPickerParser.alarmValuesKeyOf(held("만석")))
+
+    @Test fun `잡기 보류 까닭 — 칸이 있으면 그 글 · 없거나 비면 null(옛 서버 · 보류 없음은 지금처럼 판정)`() {
+        assertEquals("만석", KakaoPickerParser.heldBy(held("만석")))
+        assertEquals(null, KakaoPickerParser.heldBy(filter(6000, 30)))
+        assertEquals(null, KakaoPickerParser.heldBy(held("")))
+        assertEquals(null, KakaoPickerParser.heldBy(null))
+    }
+
     @Test fun `목록 스캔이 판정 값 지문으로 막은 기억을 가르고 버전만 바뀌면 한 줄`() {
         val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
         assertTrue(src.contains("callMemory.onFilter(filterVersionNow, scrapParser.judgmentValuesKey())"))

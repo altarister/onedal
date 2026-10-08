@@ -85,5 +85,12 @@ export function appFilterOf(
         blocker: callFilterBlocker(session.activeFilter) || null,
     };
     if (holds.bootstrapping || holds.capacityFull || holds.notRestored || holds.blocker) filter.isActive = false;
+    /**
+     * 🔒 **픽커가 읽는 보류 까닭** (`captureHold` · 35 X6 ① · 기사님 «가: 넷 다 픽커도 멈춘다») — isActive 와 따로 싣는다.
+     *    만석 · 필터 고장(callFilterBlocker 넷 — 인성 · 화물24시를 멈추는 것과 같은 한 벌)만. 부트스트랩 · 복구 전은 비운다(픽커는 그때 지금처럼 울린다).
+     *    원달앱 픽커는 칸이 있으면 알람 · 상세 열기를 멈추고, 없으면(옛 서버 · 보류 없음) 지금처럼 판정한다. 저장하지 않는다.
+     */
+    const captureHold = holds.capacityFull ? '만석' : holds.blocker;
+    if (captureHold) filter.captureHold = captureHold;
     return { filter, holds };
 }

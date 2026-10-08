@@ -252,6 +252,11 @@ export const APP_FILTER_KEYS = [
      * 오송읍 셋을 잡는 데 3분 25초가 걸렸다. 이 칸이 있으면 앱은 **판정은 하고 클릭만 미룬다.**
      */
     'evaluatingNow',
+    /**
+     * 🔒 **콜 잡기 보류 까닭 — 만석 · 필터 고장** (35 X6 ①) — isActive 와 따로. 서버가 조립할 때 holds 에서 얹고(`appFilter.ts`) 저장하지 않는다.
+     *    픽커는 isActive 를 안 읽고 이것만 본다 — 있으면 알람 · 상세 열기를 멈춘다(부트스트랩 · 복구 전에는 안 실려 울린다).
+     */
+    'captureHold',
 ] as const;
 
 /**

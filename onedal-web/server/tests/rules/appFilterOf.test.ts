@@ -66,6 +66,9 @@ function oldAssembly(session: any, userId: string, deviceId: string) {
     if (capacityFullHold(session.activeFilter)) appFilter.isActive = false;
     if (!session.isRestored) appFilter.isActive = false;
     if (callFilterBlocker(session.activeFilter)) appFilter.isActive = false;
+    /* 🔒 픽커가 읽는 보류 까닭 — 만석 · 필터 고장만 (captureHold.test 가 갈래를 문다) */
+    const captureHold = capacityFullHold(session.activeFilter) ? '만석' : callFilterBlocker(session.activeFilter);
+    if (captureHold) appFilter.captureHold = captureHold;
     return appFilter;
 }
 /** 🧬 v2 판 글자 — scrap 이 폰에 싣는 그대로(evaluatingNow 빼기) */

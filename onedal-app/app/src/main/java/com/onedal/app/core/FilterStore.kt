@@ -72,6 +72,7 @@ object FilterStore {
             allowedVehicleTypes = strings(value("allowedVehicleTypes")),
             isActive = bool(value("isActive")) ?: false,
             evaluatingNow = bool(value(EvaluatingNow.KEY)) ?: false,
+            captureHold = text(value("captureHold"))?.ifEmpty { null },
             reservationMode = text(value("reservationMode"))?.ifEmpty { null },
             isSharedMode = bool(value("isSharedMode")) ?: false,
             pickupRadiusKm = number(value("pickupRadiusKm")) ?: d.pickupRadiusKm,

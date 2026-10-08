@@ -881,15 +881,23 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 reservedPickupRadiusKm = f.reservedPickupRadiusKm,
                 reservedPickupKeywords = f.reservedPickupKeywords,
                 reservedPickupGroups = f.reservedPickupGroups,
+                captureHold = f.captureHold,
             )
         }
+
+        /** 🔒 서버가 건 콜 잡기 보류 까닭(만석 · 필터 고장) — 있으면 픽커는 알람 · 상세 열기를 멈춘다 · 없으면 null (`FilterConfig.captureHold`) */
+        fun heldBy(activeFilter: String?): String? = activeFilter?.let { holdCache.of(it).captureHold }
+        /** ♻️ 같은 필터 원문은 한 번만 푼다 — 목록 줄마다 부른다 */
+        private val holdCache = com.onedal.app.core.LastParse(::alarmConfigOf)
 
         /**
          * 🔄 **알람 판정이 읽는 필터 값의 지문** (`PickerFilterValuesKeyTest`) — 요금·반경·도착 목록·예약 … 을 `alarmFilterJson` 한 줄로.
          * 인성 안전취소 초처럼 알람이 안 읽는 칸만 바뀌면 같다 — 그때는 막은 기억을 비우지 않는다.
          */
         fun alarmValuesKeyOf(activeFilter: String): String = alarmConfigOf(activeFilter).let { c ->
-            alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu, c.reservedPickupRadiusKm, c.reservedPickupKeywords)
+            // 🔒 보류도 지문에 — 보류 동안 «탈락»으로 막은 콜이 풀린 뒤 다시 울린다 (채점기가 읽는 «알람 필터» 줄 모양은 그대로)
+            alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu, c.reservedPickupRadiusKm, c.reservedPickupKeywords) +
+                "|hold=${c.captureHold ?: ""}"
         }
 
         /** 마지막으로 남긴 알람 필터 — 같으면 다시 안 적는다 (판정은 스캔마다 돈다 · 로그가 그 줄로 덮이지 않게) */
@@ -908,6 +916,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         val reservedPickupKeywords: List<String>? = null,   // 📅 내일 이후 예약 콜 상차 — 집 둘레 기본 반경 안의 동 목록(서버 pickupListFor · 없으면 반경 길)
         val reservedPickupRadiusKm: Double? = null,   // 📅 내일 이후 예약 콜의 상차 반경 — 없으면 pickupRadiusKm (`pickupRadiusFor`)
         val dongSigungu: Map<String, List<String>> = emptyMap(),   // 🏘️ 이름이 겹치는 도착 동 → 뜻하는 시군구 꼴 (`destinationDongSigungu`)
+        val captureHold: String? = null,   // 🔒 서버가 건 잡기 보류 까닭(만석 · 필터 고장) — 있으면 알람 · 상세 열기 멈춤 (`heldBy`)
     )
 
     /** ♻️ 같은 필터 원문은 한 번만 푼다 — 목록 줄마다 2~4번 부른다(`LastParse`) */
@@ -1215,6 +1224,11 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
      * **수락(계약) 클릭은 없다** — 픽커에는 자동 모드도 수락 칸도 없다(`KakaoPickerPlugin`). 앱이 들어간 콜은 기억해 콜당 한 번이다.
      */
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
+        // 🔒 서버가 잡기를 보류했다(만석 · 필터 고장) — 인성 · 화물24시가 멈추는 것과 같은 한 벌로 픽커도 알람 · 상세 열기를 멈춘다 (35 X6 ①)
+        val hold = heldBy(context?.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)?.getString(Prefs.ACTIVE_FILTER, null))
+        if (com.onedal.app.core.LogOnce.changed("picker-hold", hold ?: "") && hold != null)
+            com.onedal.app.core.AppLogger.i("1DAL_PICKER", LogTag.FILTER, "🔒 [픽커 잡기 보류] $hold — 알람 · 상세 열기를 멈춘다")
+        if (hold != null) return false
         val c = alarmConfig()
         // 🧾 판정에 쓴 필터가 바뀌었으면 먼저 한 줄 — 채점기가 이 판정의 정답을 이 필터로 다시 계산한다 (3단계 3-2)
         val filterJson = alarmFilterJson(c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, c.reservationMode, c.dongSigungu, c.reservedPickupRadiusKm, c.reservedPickupKeywords)

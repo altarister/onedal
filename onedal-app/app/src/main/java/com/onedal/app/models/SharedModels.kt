@@ -387,6 +387,12 @@ data class FilterConfig(
      * 키가 없으면 false — 옛 서버는 이 칸을 안 보내고, 그때는 지금처럼 돈다.
      */
     val evaluatingNow: Boolean = false,
+    /**
+     * 🔒 **콜 잡기 보류 까닭 — 만석 · 필터 고장** (서버 `captureHold` · 35 X6 ①) — isActive 와 따로 온다.
+     *    픽커는 isActive 를 안 읽고 이 칸만 본다: 있으면 알람 · 상세 열기를 멈춘다. 부트스트랩 · 복구 전 · 관제앱 안 붙음은 서버가 안 싣는다(그때는 울린다).
+     *    키가 없거나 비면 null — 옛 서버면 지금처럼 판정한다.
+     */
+    val captureHold: String? = null,
     /** 📅 예약콜 필터 — today · tomorrowToo · tomorrowOnly. 없으면 오늘 콜만(`ReservationGate.modeOf`) */
     val reservationMode: String? = null,
     val isSharedMode: Boolean = false,
