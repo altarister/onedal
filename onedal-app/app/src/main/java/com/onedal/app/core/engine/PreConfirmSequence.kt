@@ -84,8 +84,8 @@ fun ScanContext.handlePreConfirmScreen(
             rawText = rawScreenStr
         )
     } else {
-        // 캐시 매칭 실패 시 화면에서 파싱 폴백
-        val tempOrder = scrapParser.parse(screenTexts)
+        // 캐시 매칭 실패 시 화면에서 파싱 폴백 — 요금은 상세 화면의 요금 칸 정의가 먼저(세 배차망 같은 순서 · 29 X12)
+        val tempOrder = PageFieldRead.fareFirst(scrapParser.parse(screenTexts), plugin.pages, Page.DETAIL, screenTexts)
         tempOrder.copy(
             id = session.currentOrderId.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
             type = "MANUAL_CLICK",

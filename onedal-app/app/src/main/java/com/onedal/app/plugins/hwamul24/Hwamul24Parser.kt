@@ -53,6 +53,15 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         private val VEHICLE_WORD_SHAPE = Regex("""^(\d+(\.\d+)?톤|[가-힣]{2,6})$""")
 
         /** 🚚 화면 차종 줄(«다마스/전체» · «1톤/전체»)의 첫 «/» 앞 낱말 → 우리 차종(shared 배차망 정의 표 vehicleWords) · 표에 없으면 null */
+        /** 상세 칸이 시작하는 낱말 — 실물 캡처 18 «상차지» (픽커 «픽업지»와 같은 꼴) */
+        private const val DETAIL_FIRST_WORD = "상차지"
+
+        /** 🧹 상세 글을 «상차지»부터 — 없으면(머리 없는 글 · 시뮬 다른 꼴) 그대로 */
+        fun detailTextsOf(texts: List<String>): List<String> {
+            val i = texts.indexOfFirst { it.trim() == DETAIL_FIRST_WORD }
+            return if (i <= 0) texts else texts.drop(i)
+        }
+
         fun ourVehicleOf(raw: String?): String? = raw?.trim()?.substringBefore('/')?.let { Hwamul24Pages.vehicleWords[it] }
 
         fun judge(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Verdict {
@@ -214,7 +223,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             "인수증", "선/착불", "전체", "화물정보", "자동새로고침",
             "오더검색", "자동터치", "성공", "최대", "ON", "OFF",
             "홈", "마이페이지", "환경", "환경설정", "배차내역",  // 아래 막대
-            "무과세", "계산서"  // 결제 글
+            "무과세", "계산서",  // 결제 글
+            "상차지", "하차지", "톤수", "차종", "적재중량", "운행방법", "운송료", "부가세", "결제방법", "수납금액",  // 잡기 전 상세 칸 이름(캡처 18) — 지역이 아니다(29 X12)
         )
 
         /**
@@ -465,8 +475,9 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
     override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder =
         order.copy(verdict = judge(order, loadCurrentFilter(), tally).axis)
 
+    /** 🔎 목록 줄 대조 — 상세의 «운송료» 칸(정의 표)으로 견준다 · 칸이 없으면 읽은 요금(머리 «잔액»에 속지 않게 · 29 X12) */
     override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
-        val tempOrder = parse(screenTexts)
-        return recentOrders.reversed().find { it.fare > 0 && it.fare == tempOrder.fare }
+        val fare = com.onedal.app.core.PageFieldRead.fareOf(Hwamul24Pages.pages, com.onedal.app.core.Page.DETAIL, screenTexts) ?: parse(screenTexts).fare
+        return recentOrders.reversed().find { it.fare > 0 && it.fare == fare }
     }
 }

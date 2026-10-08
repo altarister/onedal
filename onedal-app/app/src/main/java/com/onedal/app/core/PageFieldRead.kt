@@ -18,6 +18,13 @@ object PageFieldRead {
     fun fareOf(pages: PageSpecs, page: Page, texts: List<String>): Int? =
         fieldOf(pages, page, PageField.FARE, texts)?.replace(",", "")?.toIntOrNull()?.takeIf { it > 0 }
 
+    /**
+     * 화면에서 읽은 콜의 요금은 그 화면의 요금 칸 정의가 먼저 — 칸이 없거나 못 읽으면 읽은 값 그대로 (29 X12 · 세 배차망 같은 순서).
+     * 목록 파서로 읽은 상세는 머리 «잔액» · 바닥 «산재보험료» 같은 «…원» 조각을 요금으로 집을 수 있다(화물24시).
+     */
+    fun fareFirst(order: SimplifiedOfficeOrder, pages: PageSpecs, page: Page, texts: List<String>): SimplifiedOfficeOrder =
+        fareOf(pages, page, texts)?.let { order.copy(fare = it) } ?: order
+
     /** 콜에 요금이 비었을 때만 그 화면의 정의로 채운다 — 이미 있는 값(앱이 연 콜의 목록 값)은 그대로 */
     fun withFare(order: SimplifiedOfficeOrder, pages: PageSpecs, page: Page, texts: List<String>): SimplifiedOfficeOrder =
         if (order.fare > 0) order else fareOf(pages, page, texts)?.let { order.copy(fare = it) } ?: order
