@@ -7,9 +7,8 @@ import com.onedal.app.models.ScreenContext
  * 서비스 안 세 자리의 식을 그대로 옮긴 값 함수 — 기다림 걸기 · 뒤로 가기 · 로그는 부르는 쪽이 한다.
  */
 object DetailBackPolicy {
-    /** 상세에 들어오면 대기를 건다 — 누가 열었든 돌아오는 배차망이거나(플러그인이 대기 시간을 준다) · 원달앱이 열었고 계약하지 않는 콜 */
-    fun arms(whoeverOpened: Boolean, openedByApp: Boolean, contractedByApp: Boolean): Boolean =
-        whoeverOpened || (openedByApp && !contractedByApp)
+    /** 상세에 들어오면 대기를 건다 — 세 배차망 모두 · 누가 진입시켰든 원달앱이 계약하지 않는 콜(29 P3 — 계약하는 콜은 결재를 기다린다) */
+    fun arms(contractedByApp: Boolean): Boolean = !contractedByApp
 
     /** 대기 시간이 되면 — 아직 확정 전 상세이고 원달앱이 계약하지 않는 콜일 때만 뒤로 간다(모드 · 배차망 · 연 쪽은 안 본다) */
     fun fires(screen: ScreenContext, contractedByApp: Boolean): Boolean =

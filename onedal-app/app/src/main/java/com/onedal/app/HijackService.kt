@@ -272,14 +272,6 @@ class HijackService : AccessibilityService(), ScanContext {
         }
     }
 
-    /**
-     * 🚚 마지막으로 알아본 픽커 운행 단계 — **바뀔 때만 로그를 남기려고** 들고 있다.
-     * 매 스캔(1초)마다 찍으면 로그가 그 줄로 덮여 다른 줄을 묻는다
-     * (같은 줄이 로그를 덮는 계열).
-     */
-    override fun returnsFromDetailWhoeverOpened(): Boolean =
-        com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).getDetailBackTimeoutMs(savedFilter()) != null
-
     override fun startAppTrace(reason: String) = startTrace(reason)
 
     override fun traceScreen(text: String, context: String) {

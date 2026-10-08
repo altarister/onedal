@@ -41,10 +41,9 @@ fun ScanContext.handlePreConfirmScreen(
         return
     }
 
-    // ⏱️ 누가 열었든(알람·손) · 어느 모드든 — 상세 대기 시간 뒤 리스트로 돌아온다 (#124 · 기사님 확정)
+    // ⏱️ 세 배차망 모두 · 누가 진입시켰든(알람 · 손) · 어느 모드든 — 원달앱이 계약하지 않는 콜이면 상세 대기 시간 뒤 리스트로 돌아온다 (29 P3 · 27 7줄 «픽커처럼»)
     //    «이미 처리함» 문보다 먼저 건다 — 표시가 남아도 굳지 않게 · 걸려 있으면 다시 안 건다
-    //    앱이 열었지만 계약하지 않는 콜(체험)도 — 결재가 안 오면 여기서 돌아온다
-    if (DetailBackPolicy.arms(returnsFromDetailWhoeverOpened(), session.openedByApp, session.contractedByApp)) {
+    if (DetailBackPolicy.arms(session.contractedByApp)) {
         scheduleDetailBack()
     }
 

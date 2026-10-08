@@ -96,9 +96,6 @@ interface ScanContext {
     /** ⏱️ 상세 화면 진입 시 설정된 대기 시간 후 자동으로 리스트로 복귀하는 타이머를 작동 */
     fun scheduleDetailBack()
 
-    /** ⏱️ 이 배차망은 누가 열었든 상세에서 돌아오는가 — 상세 대기 시간 값이 있는 배차망(픽커) */
-    fun returnsFromDetailWhoeverOpened(): Boolean
-
     /** 🧹 앱이 누른 콜을 «눌렀다»에서 «막았다»로 내린다 — 누를 때 쥔 목록 줄로 지문을 뜬다. 처리 비우기 **앞**에 부른다 */
     fun demoteTappedCall(reason: String)
 
