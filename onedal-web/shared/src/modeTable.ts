@@ -150,7 +150,7 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
     ],
     "acts": {
         "AUTO":       { "tapsList": true,  "sound": false, "contracts": true,  "blocksAccept": false, "frame": "FF1D4ED8", "label": "자동", "name": "자동",
-                        "filterRuns": true,  "webBeep": false, "marksSimulated": false, "onlyOnePhone": true, 
+                        "filterRuns": true,  "webBeep": false, "marksSimulated": false, "onlyOnePhone": true,
                         "countedAsAuto": true,  "tone": "bg-info/20 text-info border-info/40", "directBadge": false, "needsAutoPermission": true,  "capturedViaUnlessContracted": "MANUAL" },
         "ALARM":      { "tapsList": true,  "sound": true,  "contracts": false, "blocksAccept": false, "frame": "FF22C55E", "label": "알람", "name": "알람",
                         "filterRuns": true,  "webBeep": true,  "marksSimulated": false, "onlyOnePhone": false,

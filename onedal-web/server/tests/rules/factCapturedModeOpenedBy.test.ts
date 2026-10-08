@@ -5,6 +5,7 @@ import { OrderRepository } from '../../src/repositories/OrderRepository';
 import { touchDeviceSession } from '../../src/state/deviceSessions';
 import { activeDevices } from '../../src/state/deviceRegistry';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
+import { restoredOrderFrom } from '../../src/state/sessionRestore';
 import { approvedUser } from '../fixtures/approvedUser';
 
 /**
@@ -60,6 +61,16 @@ describe('🖱️ 잡은 방식 — 그때 도는 모드 + 진입 주체', () =>
     it('🔴 모르면 지어내지 않는다 — 진입 주체를 안 실은 옛 원달앱은 비움', async () => {
         report('MANUAL');
         expect((await confirm('mode-c', undefined)).openedBy).toBeNull();
+    });
+
+    it('🔴 원달앱 보고가 아직 없는 폰(세션 없음)이면 도는 모드를 지어내지 않는다', async () => {
+        activeDevices.delete(DEV);
+        expect((await confirm('mode-e', true)).capturedMode).toBeNull();
+    });
+
+    it('🔴 서버가 다시 떠도 장부 줄에서 두 칸을 되살린다', () => {
+        const o = restoredOrderFrom({ id: 'mode-f', capturedMode: 'SIMULATION', openedBy: 'DRIVER' }, { visited: {}, judgment: null, contacts: {} }) as any;
+        expect([o.capturedMode, o.openedBy]).toEqual(['SIMULATION', 'DRIVER']);
     });
 
     it('🔴 장부에 다시 쓸 때 빈 값은 앞 값을 덮지 않는다', async () => {
