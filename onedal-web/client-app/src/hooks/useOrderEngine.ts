@@ -6,12 +6,13 @@ import { setRouteOrigin } from '../stores/driverPositionStore';
 import { socket } from "../lib/socket";
 import { apiBase } from "../lib/serverTarget";   // 🎯 주소를 정하는 곳은 하나다 (규칙 ③)
 import type { SecuredOrder, OrderSyncPayload, RouteStopInfo } from "@onedal/shared";
-import { isTerminal, isManualLineage } from "@onedal/shared";
+import { isTerminal } from "@onedal/shared";
 import { logRoadmapEvent, logStateChange } from "../lib/roadmapLogger";
 import { soundManager } from "../lib/soundManager";
 import { withSecuredArrival } from "./securedArrival";
 import { ringsNow } from "./ringsNow";
 import { autoKeepEnabled, autoKeepLoadedCount, logAutoKeep } from "../lib/autoKeep";
+import { drawsDecisionButtons } from "../lib/callBadges";
 
 export function useOrderEngine() {
     /**
@@ -170,11 +171,11 @@ export function useOrderEngine() {
                 logRoadmapEvent("경고", "웹", "카카오 길찾기 실패 — 심사석 경로 글에 실패가 그대로 보임", "관제대시보드");
             } else {
                 logRoadmapEvent("화면", "웹", "심사석에 경로 글 · 판정 색 표시", "관제대시보드");
-                /* 🔴 직접콜·미리보기에는 결재 버튼이 없다(`JudgmentSeat` 의 manual 갈래) — 로그가 «버튼 활성화»라고 적으면 없는 버튼을 믿게 된다 (폰 시험) */
-                if (secured.isPreview || isManualLineage(secured.type)) {
-                    logRoadmapEvent("화면", "웹", "예상 시간/수익률·판정 색 표시 — 직접·미리보기 콜이라 결재 버튼 없음 (결정은 배차망 앱에서)", "관제대시보드");
-                } else {
+                /* 🔴 로그는 화면과 같은 함수로 «결재 버튼이 있나»를 읽는다(lib/callBadges) — 로그가 없는 버튼을 말하거나 있는 버튼을 숨기면 그 말을 믿게 된다 (폰 시험) */
+                if (drawsDecisionButtons(secured)) {
                     logRoadmapEvent("화면", "웹", "예상 시간/수익률·판정 색 표시 — 결재 버튼(KEEP/CANCEL)을 누를 수 있음", "관제대시보드");
+                } else {
+                    logRoadmapEvent("화면", "웹", "예상 시간/수익률·판정 색 표시 — 직접·미리보기 콜이라 결재 버튼 없음 (결정은 배차망 앱에서)", "관제대시보드");
                 }
             }
             setActiveOrders(prev => prev.map(o => o.id === secured.id ? secured : o));

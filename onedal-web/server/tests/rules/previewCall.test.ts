@@ -181,10 +181,9 @@ describe('✋ 미리보기 콜 — 확정 전에는 잡지 않는다', () => {
      *    잡히지 않는다 — 결재는 **인성 앱의 확정 버튼**으로 한다. 관제웹은 색만 보여준다.
      */
     it('🔴 미리보기 카드에는 결재 버튼이 없다', () => {
-        // 직접 갈래 판별은 isManualLineage 한 곳이다
+        // «버튼을 그리나»는 관제웹 값 함수 하나(lib/callBadges drawsDecisionButtons · 미리보기 → 안 그림은 callBadges.test 가 동작으로 문다) — 목록 줄이 그 함수로 버튼을 거는지만 본다
         const card = code(read('client-app/src/components/dashboard/PinnedRouteCard.tsx'));
-        const line = card.split('\n').find(l => l.includes('!isManualLineage(route.type)') && l.includes('onDecision')) ?? '';
-        expect(line).toMatch(/!route\.isPreview/);
+        expect(card).toMatch(/drawsDecisionButtons\(route\) && onDecision/);
         // 심사석(JudgmentSeat)의 직접·알람 갈래에도 결재 버튼이 없다 — 버튼은 자동 갈래(else)에만 산다
         const seat = code(read('client-app/src/components/dashboard/JudgmentSeat.tsx'));
         expect(seat).toMatch(/if \(manual\)/);

@@ -7,6 +7,7 @@ import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { telHref } from "../../lib/routeUtils";
 import { callNow } from "../../lib/phoneCall";
+import { drawsDecisionButtons, practiceBadgeOf, capturedHowOf } from "../../lib/callBadges";
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 
 
@@ -325,12 +326,12 @@ export default function PinnedRouteCard({
                         기사님이 보는 덱에는 안 나온다). 알람 듣고 잡음=알람콜 · 손=직접콜 */}
                     {!evaluating && isManualLineage(route.type) && route.status !== 'ORDER_COMPLETED' && (
                         <span className="px-1.5 py-0.5 rounded bg-info/15 text-info text-[11px] font-black">
-                            {route.capturedVia === 'ALARM' ? '🔔 알람콜' : '직접콜'}
+                            {capturedHowOf(route).label}
                         </span>
                     )}
                     {/* 🐥 연습 콜은 운행으로 안 올라간다 — 결재(KEEP · 거절)가 오면 둘 다 연습 끝으로 닫혀 취소/방출 탭에 이 배지로 남는다 */}
                     {route.isSimulated && isTerminal(route.status) && (
-                        <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/40 text-[11px] font-black">🐥 연습 끝</span>
+                        <span className={`px-1.5 py-0.5 rounded border text-[11px] font-black ${practiceBadgeOf(route)?.tone}`}>{practiceBadgeOf(route)?.text}</span>
                     )}
                     {evaluating && <span className="text-warning font-black animate-pulse">평가중</span>}
                     {/* 🎨 판정색 칩 — KEEP 버튼 배경에만 색을 두면, 버튼 없는 직접·알람 콜은
@@ -401,8 +402,8 @@ export default function PinnedRouteCard({
                         갇히면 직접·알람 콜은 근거를 통째로 못 보므로, 근거는 버튼 블록 밖에 둔다. */}
                     {(evaluating || route.isPreview) && (
                         <>
-                            {/* 🐥 가상 체험 모드(isSimulated)에서는 픽커 미리보기 콜이어도 관제탑에서 결재 버튼을 활성화한다 */}
-                            {(!route.isPreview || route.isSimulated) && (!isManualLineage(route.type) || route.isSimulated) && onDecision && (
+                            {/* 🔘 결재 버튼 — 연습 콜은 미리보기 · 직접 갈래여도 그린다 · 결재석 · 심사석 로그와 한 함수 (lib/callBadges) */}
+                            {drawsDecisionButtons(route) && onDecision && (
                             <div className="mt-1 flex gap-3">
                                 <Button 
                                     variant="destructive"
