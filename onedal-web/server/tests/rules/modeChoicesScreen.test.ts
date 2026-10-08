@@ -3,9 +3,9 @@ import { join } from 'path';
 import * as shared from '@onedal/shared';
 
 /**
- * 🎛️ **관제웹 폰 모드 고르기 — 자동 잡기 허락이 꺼진 폰은 «자동» 버튼이 없다** (기사님 결정 · onedal-69).
- *    못 쓰는 버튼을 보이고 «허락이 꺼졌습니다»라고 설명하지 않는다 — 버튼 자체를 그리지 않는다.
- *    목록은 shared `modeChoicesOf` 하나가 정한다(셈은 shared `deviceStage.test` — 허락 켜짐 · 사실 없음은 지금 그대로).
+ * 🎛️ **관제웹 폰 모드 고르기 — 단추 셋 + 자동의 «계약 안 함» 켬/끔** (32 P1 · 기사님 10-08 «가»).
+ *    허락이 꺼진 폰의 «자동»은 계약 안 함이다(27 21 «가») — «허락이 꺼졌습니다» 설명은 여전히 없다.
+ *    목록은 shared `modeChoicesOf` 하나가 정한다(셈은 shared `deviceStage.test`).
  */
 const WEB = join(__dirname, '../../..');
 const read = (f: string) => readFileSync(join(WEB, f), 'utf8');
@@ -14,8 +14,8 @@ describe('🎛️ 관제웹 폰 모드 고르기', () => {
     const panel = read('client-app/src/components/dashboard/DeviceControlPanel.tsx');
 
     it('🔴 목록은 shared modeChoicesOf 가 정한다 — 화면이 셋을 직접 늘어놓지 않는다', () => {
-        expect(panel).toContain('{modeChoicesOf(DEVICE_MODES, device).map(m => (');
-        expect(panel).not.toContain('DEVICE_MODES.filter(');
+        expect(panel).toContain('{modeChoicesOf(CHOSEN_MODES, device).map(m => (');
+        expect(panel).not.toContain('CHOSEN_MODES.filter(');
     });
 
     it('🔴 «허락이 꺼졌습니다» 안내 줄 · 버튼 설명 문구가 관제웹 · shared 어디에도 없다', () => {
@@ -27,7 +27,7 @@ describe('🎛️ 관제웹 폰 모드 고르기', () => {
 
     it('🔴 목록의 어느 자리든 누르면 그 모드 명령이 나간다 — 끝자리(지금 고른 자리)도 건너뛰지 않는다', () => {
         /* 허락이 꺼진 폰의 끝자리 «알람»을 누르면 저장된 명령이 자동 → 알람으로 바뀐다 — 기사가 알람을 고른 것으로 본다(기사님 «가») */
-        expect(panel).toContain('onClick={() => { setModeOpen(false); onModeChange(device.deviceId, m); }}');
+        expect(panel).toContain('onClick={() => { setModeOpen(false); onModeChange(device.deviceId, m, ');
     });
     it('🔴 «적용중» 고침은 그대로 — 폰에 갈 모드와 견준다', () => {
         expect(panel).toContain('const applying = isModeApplying(device);');

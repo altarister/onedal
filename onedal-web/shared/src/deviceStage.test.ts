@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { workStageLabel, isModeApplying, runningModeOf, modeChoicesOf, DEVICE_MODES } from './index';
+import { workStageLabel, isModeApplying, runningModeOf, modeChoicesOf, DEVICE_MODES, CHOSEN_MODES, commandModeOf, storedOf, chosenModeOf } from './index';
 
 /**
  * 🚦 **관제웹이 폰의 «지금 하는 일»과 «모드가 닿았나»를 읽는 자리**
@@ -71,14 +71,15 @@ describe('🎛️ 허락이 꺼져 폰이 알람으로 도는 때', () => {
     it('도는 모드는 알람 — 앱이 아직 도는 모드를 안 실어도', () => {
         expect(runningModeOf({ mode: 'AUTO', autoAllowed: false })).toBe('ALARM');
     });
-    it('🔴 모드 고르기 목록 — 허락이 꺼진 폰은 «자동»이 어디에도 없다(명령이 AUTO 로 남아 있어도 끝자리는 알람)', () => {
-        for (const mode of DEVICE_MODES) expect(modeChoicesOf(DEVICE_MODES, { mode, autoAllowed: false })).not.toContain('AUTO');
-        expect(modeChoicesOf(DEVICE_MODES, { mode: 'AUTO', autoAllowed: false }).at(-1)).toBe('ALARM');
-        expect(modeChoicesOf(DEVICE_MODES, { mode: 'MANUAL', autoAllowed: false }).at(-1)).toBe('MANUAL');
+    it('🔴 모드 고르기 목록 — 허락이 꺼진 폰도 «자동»은 있다(= 자동(계약 안 함) · 32 P1) · 명령 AUTO 가 남아 있으면 끝자리는 알람', () => {
+        for (const mode of DEVICE_MODES) expect(modeChoicesOf(CHOSEN_MODES, { mode, autoAllowed: false })).toContain('AUTO');
+        expect(modeChoicesOf(CHOSEN_MODES, { mode: 'AUTO', autoAllowed: false }).at(-1)).toBe('ALARM');
+        expect(modeChoicesOf(CHOSEN_MODES, { mode: 'MANUAL', autoAllowed: false }).at(-1)).toBe('MANUAL');
+        expect(modeChoicesOf(CHOSEN_MODES, { mode: 'SIMULATION', autoAllowed: false }).at(-1)).toBe('AUTO');
     });
-    it('🔴 허락이 켜졌거나 허락 사실이 없는 폰은 지금 그대로 — 셋 다 · 고른 것이 맨 뒤', () => {
+    it('🔴 고르는 단추는 셋 — 고른 것이 맨 뒤 · 계약 안 함(SIMULATION)은 «자동» 자리', () => {
         for (const autoAllowed of [true, undefined]) for (const mode of DEVICE_MODES)
-            expect(modeChoicesOf(DEVICE_MODES, { mode, autoAllowed })).toEqual([...DEVICE_MODES.filter(m => m !== mode), mode]);
+            expect(modeChoicesOf(CHOSEN_MODES, { mode, autoAllowed })).toEqual([...CHOSEN_MODES.filter(m => m !== chosenModeOf(mode)), chosenModeOf(mode)]);
     });
     it('허락을 켜면 폰에 갈 모드는 AUTO — 다음 보고가 AUTO 일 때까지 «적용중»', () => {
         expect(isModeApplying({ mode: 'AUTO', autoAllowed: true, appliedMode: 'ALARM' })).toBe(true);
@@ -86,5 +87,39 @@ describe('🎛️ 허락이 꺼져 폰이 알람으로 도는 때', () => {
     });
     it('허락 꺼진 폰에 관제웹이 MANUAL 을 누르면 바로 «적용중»', () => {
         expect(isModeApplying({ mode: 'MANUAL', autoAllowed: false, appliedMode: 'ALARM' })).toBe(true);
+    });
+});
+
+/**
+ * 🎛️ **자동 + «계약 안 함» — 저장 · 명령 · 고르는 단추** (29 N1 · 32 P1 · 기사님 10-08 «가»).
+ * 저장은 고른 모드 셋 + 계약 안 함 칸 · 서버 · 폰 · 판정이 읽는 명령 값은 지금 그대로 SIMULATION.
+ */
+describe('🎛️ 자동 + 계약 안 함', () => {
+    it('고르는 모드는 셋', () => {
+        expect([...CHOSEN_MODES]).toEqual(['AUTO', 'ALARM', 'MANUAL']);
+    });
+    it('🔴 저장 → 명령 — 자동 + 계약 안 함만 SIMULATION · 알람 · 직접은 칸이 켜져 있어도 그대로 · 옛 저장값 SIMULATION 도 같은 답', () => {
+        expect(commandModeOf('AUTO', true)).toBe('SIMULATION');
+        expect(commandModeOf('AUTO', false)).toBe('AUTO');
+        expect(commandModeOf('ALARM', true)).toBe('ALARM');
+        expect(commandModeOf('MANUAL', true)).toBe('MANUAL');
+        expect(commandModeOf('SIMULATION', false)).toBe('SIMULATION');
+        expect(commandModeOf('ROBOT', true)).toBeUndefined();
+        expect(commandModeOf(null, false)).toBeUndefined();
+    });
+    it('🔴 명령 → 저장 — SIMULATION 은 자동 + 계약 안 함 · 나머지는 칸을 건드리지 않는다(바꿔도 값이 남는다 · 기사님 «가»)', () => {
+        expect(storedOf('SIMULATION')).toEqual({ mode: 'AUTO', noContract: true });
+        expect(storedOf('AUTO')).toEqual({ mode: 'AUTO' });
+        expect(storedOf('ALARM')).toEqual({ mode: 'ALARM' });
+        expect(storedOf('MANUAL')).toEqual({ mode: 'MANUAL' });
+    });
+    it('명령 → 단추 — 계약 안 함은 «자동» 단추', () => {
+        expect(DEVICE_MODES.map(chosenModeOf)).toEqual(['AUTO', 'ALARM', 'MANUAL', 'AUTO']);
+    });
+    it('저장 → 명령 → 저장이 돌아온다', () => {
+        for (const mode of CHOSEN_MODES) for (const noContract of [true, false]) {
+            const cmd = commandModeOf(mode, noContract)!;
+            expect(commandModeOf(storedOf(cmd).mode, storedOf(cmd).noContract ?? noContract)).toBe(cmd);
+        }
     });
 });

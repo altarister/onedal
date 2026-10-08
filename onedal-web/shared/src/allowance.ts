@@ -1,4 +1,5 @@
 import { modeActsOf } from './modeTable';
+import { chosenModeOf, commandModeOf, isDeviceMode } from './deviceModes';
 /**
  * 🎛️ **허락이 지금 살아 있나 — 한 곳** (서버 `core/allowance` · 운영센터 회원 표가 같이 쓴다).
  * 허락 시각이 있고, 기한이 비었거나(= 기한 없음) 기한 날이 오늘(한국 달력 날 · `kstDateText`) 이후면 산다.
@@ -28,12 +29,14 @@ export function phoneModeOf(d: { mode?: string; autoAllowed?: boolean }): string
 }
 
 /**
- * 🎛️ **관제웹 모드 고르기 목록** — 자동 잡기 허락이 꺼진 폰(`autoAllowed === false`)은 «자동»을 그리지 않는다(못 쓰는 버튼을 보이지 않는다).
- * 끝자리는 지금 고른 것 — 폰에 갈 모드(`phoneModeOf`)라 허락이 꺼진 폰에 AUTO 명령이 남아 있어도 «알람»으로 그린다(저장된 명령은 안 건드린다).
- * 허락이 켜졌거나 허락 사실이 없는 폰은 셋 그대로 · 고른 것이 맨 뒤.
+ * 🎛️ **관제웹 모드 고르기 목록** — 고르는 단추 셋(`CHOSEN_MODES`) · 고른 것이 맨 뒤 · 계약 안 함(SIMULATION)은 «자동» 자리.
+ * 끝자리는 폰에 갈 모드(`phoneModeOf`)라 허락이 꺼진 폰에 AUTO 명령이 남아 있어도 «알람»으로 그린다(저장된 명령은 안 건드린다).
+ * 허락이 꺼진 폰도 «자동» 단추는 보인다 — 그 폰의 자동은 계약 안 함이다(관제웹이 계약 안 함을 켜서 보낸다 · 27 21 «가»).
  */
-export function modeChoicesOf<M extends string>(modes: readonly M[], d: { mode: M; autoAllowed?: boolean }): M[] {
-    const current = (phoneModeOf(d) ?? d.mode) as M;
-    const shown = modes.filter(m => d.autoAllowed !== false || !modeActsOf(m).needsAutoPermission);
+export function modeChoicesOf<M extends string>(modes: readonly M[], d: { mode: string; autoAllowed?: boolean }): M[] {
+    const phone = phoneModeOf(d) ?? d.mode;
+    const current = (isDeviceMode(phone) ? chosenModeOf(phone) : phone) as M;
+    /* 허락이 꺼진 폰도 «자동»은 보인다 — 그때 자동은 계약 안 함(허락이 필요 없다 · 27 21 «가») */
+    const shown = modes.filter(m => d.autoAllowed !== false || !modeActsOf(commandModeOf(m, true) ?? m).needsAutoPermission);
     return [...shown.filter(m => m !== current), current];
 }

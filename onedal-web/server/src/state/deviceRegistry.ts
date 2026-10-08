@@ -4,7 +4,7 @@
  * 바깥 일을 하는 함수: saveModePreference · registeredPhonesOf · demoteOtherAutoPhones · userOfDevice · resolveDefaultMode · viewModeOf · lookupDeviceName(장부(DB)) · livePhonesOf · otherAutoPhoneOf · getDeviceMode · incrementDeviceStats · deviceOnList · deviceScreenOf(기기 표 · 지금 시각 · 로그) (끊김 · 필터 거는 폰 셈 deadmanFrom · filteringDeviceFrom 은 값만 받는다)
  */
 import { otherContractingAuto, modeActsOf, type PhoneForAuto } from "@onedal/shared";
-import { DeviceSession, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen } from "@onedal/shared";
+import { DeviceSession, DeviceModeType, ScreenContextType, isListScreen, commandModeOf, storedOf } from "@onedal/shared";
 import { getUserSession, peekUserSession, baseFilterFromDb } from "./userSessionStore";
 import db from "../db";
 import { slog } from "../utils/fileLogger";
@@ -29,9 +29,18 @@ export const activeDevices = new Map<string, DeviceSession>();
  *
  * @returns 갱신된 행 수. **0 이면 등록 안 됐거나 남의 폰이다**
  */
-export function saveModePreference(deviceId: string, userId: string, mode: DeviceModeType): number {
-    return db.prepare("UPDATE user_devices SET mode = ? WHERE device_id = ? AND user_id = ?")
-        .run(mode, deviceId, userId).changes;
+export function saveModePreference(deviceId: string, userId: string, mode: DeviceModeType, noContract?: boolean): number {
+    /* 🎛️ 저장은 고른 모드 셋 + 계약 안 함 칸(32 P1) — 명령 SIMULATION 은 자동 + 계약 안 함으로 · 계약 안 함을 안 넘기면 칸은 그대로(기사님 «가») */
+    const stored = storedOf(mode);
+    const nc = noContract ?? stored.noContract;
+    return db.prepare("UPDATE user_devices SET mode = ?, no_contract = COALESCE(?, no_contract) WHERE device_id = ? AND user_id = ?")
+        .run(stored.mode, nc === undefined ? null : (nc ? 1 : 0), deviceId, userId).changes;
+}
+
+/** 🎛️ DB 에 저장된 명령 — 고른 모드 + 계약 안 함 → 명령 값(shared `commandModeOf`) · 고른 적 없으면 undefined */
+export function storedCommandOf(deviceId: string): DeviceModeType | undefined {
+    const row = db.prepare("SELECT mode, no_contract FROM user_devices WHERE device_id = ?").get(deviceId) as { mode?: string; no_contract?: number } | undefined;
+    return commandModeOf(row?.mode, row?.no_contract === 1);
 }
 
 /** 📱 이 기사님의 등록 폰 번호 — 여럿을 셀 때 한 번 읽어 넘긴다(폰마다 다시 읽지 않게) */
@@ -86,8 +95,8 @@ export function demoteOtherAutoPhones(deviceId: string, userId: string): void {
  *    `ALARM` 이 절대 안 나온다 — 알람은 **기사님이 명시적으로 고를 때만** 켜진다.
  */
 export function resolveDefaultMode(deviceId: string, userId: string): DeviceModeType {
-    const row = db.prepare("SELECT mode FROM user_devices WHERE device_id = ?").get(deviceId) as { mode?: string } | undefined;
-    if (isDeviceMode(row?.mode)) return row.mode;
+    const stored = storedCommandOf(deviceId);
+    if (stored) return stored;
     return getUserSession(userId).activeFilter?.isActive ? "AUTO" : "MANUAL";
 }
 
@@ -99,8 +108,8 @@ export function resolveDefaultMode(deviceId: string, userId: string): DeviceMode
  *    🔴 폰 보고 길(getDeviceMode)은 그대로 resolveDefaultMode — 보고하는 회원은 운행 중이라 세션이 있다.
  */
 export function viewModeOf(deviceId: string, userId: string): DeviceModeType {
-    const row = db.prepare("SELECT mode FROM user_devices WHERE device_id = ?").get(deviceId) as { mode?: string } | undefined;
-    if (isDeviceMode(row?.mode)) return row.mode;
+    const stored = storedCommandOf(deviceId);
+    if (stored) return stored;
     return (peekUserSession(userId)?.activeFilter ?? baseFilterFromDb(userId)).isActive ? "AUTO" : "MANUAL";
 }
 
@@ -114,8 +123,8 @@ export function getDeviceMode(deviceId: string, userId?: string): DeviceModeType
         return resolveDefaultMode(deviceId, userId);
     }
     try {
-        const row = db.prepare("SELECT mode FROM user_devices WHERE device_id = ?").get(deviceId) as { mode?: string } | undefined;
-        if (isDeviceMode(row?.mode)) return row.mode;
+        const stored = storedCommandOf(deviceId);
+        if (stored) return stored;
     } catch {}
     return "MANUAL";
 }

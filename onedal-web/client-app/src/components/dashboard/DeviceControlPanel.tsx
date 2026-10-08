@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { phoneLinkBadgeOf, isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, modeChoicesOf, deviceLabel, clockText, modeActsOf } from "@onedal/shared";
+import { phoneLinkBadgeOf, isDeviceBlind, CHOSEN_MODES, chosenModeOf, storedOf, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet, runningModeOf, modeChoicesOf, deviceLabel, clockText, modeActsOf } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "@onedal/shared";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
@@ -45,7 +45,7 @@ function DeviceRow({
     currentFilter,
 }: {
     device: DeviceSession;
-    onModeChange: (id: string, mode: DeviceModeType) => void;
+    onModeChange: (id: string, mode: DeviceModeType, noContract?: boolean) => void;
     deviceAlerts: EmergencyAlert[];
     deviceWarnings: SafeCancelWarning[];
     onDismissAlert: (timestamp: string) => void;
@@ -87,6 +87,8 @@ function DeviceRow({
     const [applyingSince, setApplyingSince] = useState<number | null>(null);
     /** 🎛️ 모드 고르는 레이어가 열렸나 — **폰마다 하나씩**이라 여기(줄 안)에 산다 */
     const [modeOpen, setModeOpen] = useState(false);
+    /** 🎛️ 자동의 «계약 안 함»이 켜져 있나 — 명령이 SIMULATION 이면 켬(shared `storedOf` 한 곳) */
+    const noContract = storedOf(device.mode).noContract === true;
     /**
      * 📂 **접힌 셋** — 작업 단계 · 누적(수집·수락) · 취소 한도 · 버전.
      * 🔴 넷 다 **달리면서 볼 것이 아니다.** 줄에 늘어놓으면 «지금 뭘 하고 있나»가 묻힌다
@@ -306,12 +308,12 @@ function DeviceRow({
                             ? `적용중${lastHeardSec != null ? ` · 마지막 통신 ${lastHeardSec}초 전` : ''}`
                             : runningDiffers
                                 ? `명령: ${DEVICE_MODE_LABEL[device.mode]} · 이 배차망에서는 ${DEVICE_MODE_LABEL[running]}으로 돈다`
-                                : '모드를 바꾸려면 누릅니다'}
+                                : `${DEVICE_MODE_LABEL[running] ?? DEVICE_MODE_LABEL[device.mode]} — 모드를 바꾸려면 누릅니다`}
                         onClick={() => setModeOpen(v => !v)}
                         className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border transition-opacity ${
                             applying || notHeardYet ? 'opacity-40' : ''
                         } ${toneOf(running) ?? toneOf(device.mode)}`}>
-                        {DEVICE_MODE_LABEL[running] ?? DEVICE_MODE_LABEL[device.mode]}
+                        {modeActsOf(running).label || modeActsOf(device.mode).label}
                     </button>
                     {(applying || notHeardYet) && (
                         <span className="absolute inset-0 grid place-items-center pointer-events-none">
@@ -322,13 +324,23 @@ function DeviceRow({
                         <span style={{ right: -5 }}
                             className="absolute top-1/2 -translate-y-1/2 z-30 flex gap-1 p-1 rounded-lg
                                        bg-surface border border-border shadow-lg">
-                            {modeChoicesOf(DEVICE_MODES, device).map(m => (
+                            {modeChoicesOf(CHOSEN_MODES, device).map(m => (
                                 <button key={m} type="button"
-                                    onClick={() => { setModeOpen(false); onModeChange(device.deviceId, m); }}
+                                    /* 🎛️ 허락이 꺼진 폰의 «자동»은 계약 안 함으로 보낸다(27 21 «가» · 32 P1) — 나머지는 계약 안 함 칸을 안 건드린다(값이 남는다) */
+                                    onClick={() => { setModeOpen(false); onModeChange(device.deviceId, m, device.autoAllowed === false && modeActsOf(m).needsAutoPermission ? true : undefined); }}
                                     className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border whitespace-nowrap ${toneOf(m)}`}>
-                                    {DEVICE_MODE_LABEL[m]}
+                                    {modeActsOf(m).label}
                                 </button>
                             ))}
+                            {/* 🎛️ 자동의 «계약 안 함» 켬/끔 — 고른 단추가 자동일 때만 · 허락이 꺼진 폰은 늘 켬(누를 수 없음) (32 P1 ③ 가) */}
+                            {modeActsOf(chosenModeOf(device.mode)).contracts && (
+                                <button type="button" disabled={device.autoAllowed === false}
+                                    title={noContract ? '계약 안 함 — 원달앱이 확정 · 수락을 누르지 않습니다' : '계약함 — 원달앱이 확정까지 누릅니다'}
+                                    onClick={() => { setModeOpen(false); onModeChange(device.deviceId, 'AUTO', !noContract); }}
+                                    className={`px-1.5 py-0.5 rounded-md text-[12px] font-black border whitespace-nowrap ${noContract ? toneOf('SIMULATION') : 'text-text-muted border-border/40'}`}>
+                                    계약 안 함 {noContract ? '켬' : '끔'}
+                                </button>
+                            )}
                         </span>
                     )}
                 </div>

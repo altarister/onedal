@@ -3,6 +3,7 @@ import devicesRouter from '../../src/routes/devices';
 import ordersRouter from '../../src/routes/orders';
 import opsRouter from '../../src/routes/ops';
 import { touchDeviceSession, getActiveDevicesSnapshot } from '../../src/state/deviceSessions';
+import { getDeviceMode } from '../../src/state/deviceRegistry';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { DEVICE_MODES, DEVICE_MODE_LABEL, otherContractingAuto } from '@onedal/shared';
 
@@ -68,6 +69,46 @@ describe('🎛️ 모드 바꾸기 — 네 모드', () => {
     });
 });
 
+describe('🎛️ 자동 + 계약 안 함 — 저장은 모드 셋 + 칸 · 명령은 SIMULATION 그대로 (32 P1)', () => {
+    const noContractInDb = (dev: string) => (db.prepare(`SELECT no_contract FROM user_devices WHERE device_id = ?`).get(dev) as any)?.no_contract;
+    const post = (dev: string, body: any) => call(devicesRouter, '/:deviceId/mode', 'post', { params: { deviceId: dev }, body, user: { id: U } });
+    beforeEach(() => { register('dev-mf-nc', 'MANUAL'); db.prepare(`UPDATE user_devices SET no_contract = 0 WHERE device_id = ?`).run('dev-mf-nc'); });
+
+    it('🔴 옛 관제앱이 SIMULATION 을 보내면 DB 는 자동 + 계약 안 함 · 명령은 SIMULATION', async () => {
+        const r = await post('dev-mf-nc', { mode: 'SIMULATION' });
+        expect([r.code, r.out.mode, modeInDb('dev-mf-nc'), noContractInDb('dev-mf-nc')]).toEqual([200, 'SIMULATION', 'AUTO', 1]);
+        expect(getDeviceMode('dev-mf-nc', U)).toBe('SIMULATION');
+    });
+
+    it('🔴 계약 안 함 켬 · 끔 — 자동 단추 옆 스위치', async () => {
+        expect((await post('dev-mf-nc', { mode: 'AUTO', noContract: true })).out.mode).toBe('SIMULATION');
+        expect((await post('dev-mf-nc', { mode: 'AUTO', noContract: false })).out.mode).toBe('AUTO');
+        expect(noContractInDb('dev-mf-nc')).toBe(0);
+    });
+
+    it('🔴 알람으로 바꿨다가 자동을 다시 눌러도 계약 안 함이 남는다(기사님 «가»)', async () => {
+        await post('dev-mf-nc', { mode: 'AUTO', noContract: true });
+        expect((await post('dev-mf-nc', { mode: 'ALARM' })).out.mode).toBe('ALARM');
+        expect(noContractInDb('dev-mf-nc')).toBe(1);
+        expect((await post('dev-mf-nc', { mode: 'AUTO' })).out.mode).toBe('SIMULATION');
+    });
+
+    it('🔴 DB 에 SIMULATION 값이 남지 않는다', async () => {
+        await post('dev-mf-nc', { mode: 'SIMULATION' });
+        expect((db.prepare(`SELECT COUNT(*) n FROM user_devices WHERE mode = 'SIMULATION'`).get() as any).n).toBe(0);
+    });
+
+    it('옛 저장값 SIMULATION 행도 명령은 SIMULATION 으로 읽는다', async () => {
+        db.prepare(`UPDATE user_devices SET mode = 'SIMULATION' WHERE device_id = ?`).run('dev-mf-nc');
+        expect(getDeviceMode('dev-mf-nc', U)).toBe('SIMULATION');
+        db.prepare(`UPDATE user_devices SET mode = 'MANUAL' WHERE device_id = ?`).run('dev-mf-nc');
+    });
+
+    it('계약 안 함 칸이 참 · 거짓이 아니면 400', async () => {
+        expect((await post('dev-mf-nc', { mode: 'AUTO', noContract: 'yes' })).code).toBe(400);
+    });
+});
+
 describe('🏢 운영센터 회원 폰 모드 — 네 모드', () => {
     it('자동 · 알람 · 직접은 그대로 · 체험은 알람으로 보인다', async () => {
         db.prepare(`DELETE FROM user_devices WHERE user_id = ?`).run(U);
@@ -115,7 +156,7 @@ describe('🔔 관제웹 «필터 통과» 삑 — 도는 모드', () => {
 
 describe('🏷️ 이름 · 자동 폰 셈 — 네 모드', () => {
     it('단추 이름', () => {
-        expect(DEVICE_MODE_LABEL).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '직접', SIMULATION: '체험' });
+        expect(DEVICE_MODE_LABEL).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '직접', SIMULATION: '자동(계약 안 함)' });   // 32 P1 — 체험은 자동의 «계약 안 함»
     });
     it('«지금 확정을 누를 수 있는 다른 폰» — 명령이나 받은 모드가 자동인 폰만 센다', () => {
         const now = 1_000_000;

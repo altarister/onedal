@@ -5,7 +5,7 @@ import type { DeviceModeType, TargetAppType } from './index';
  * 모드는 두 걸음으로 정해진다 — `situations`(기사님이 누른 단추 × 상황 → 원달앱이 실제로 도는 모드) · `acts`(도는 모드 → 원달앱이 하는 일 · 보이는 것).
  * 🔴 **원천이다 — 여기를 고친다.** 서버 쪽은 shared `modeTable.test.ts` 가 `modeForPhone` · `DEVICE_MODE_LABEL` 과 견주고,
  *    원달앱 쪽은 `ModeTablePairTest` 가 같은 표를 읽어 원달앱 함수와 견준다 — 한쪽만 고치면 그쪽 검사가 빨갛다.
- * 🔴 체험(SIMULATION) 줄은 기사님 검토 중 — 체험을 모드로 둘지 «계약 안 함» 스위치로 둘지. 지금은 지금 동작 그대로 적는다.
+ * SIMULATION 줄은 «자동 + 계약 안 함»의 명령 값이다 — 관제앱은 셋 + 스위치로 고르고(`CHOSEN_MODES`), 저장 · 명령 바꾸기는 `commandModeOf` · `storedOf` 한 곳(32 P1).
  * 겹치면 «덜 자동» 쪽이 이긴다 — 자동을 알람으로 내릴 까닭이 하나라도 있으면 알람. 저장된 명령은 어느 줄에서도 안 바뀐다.
  * 줄마다 사실이 다르다 — 같은 사실의 설명용 줄을 두지 않는다. 빈틈: 관제웹 탭이 소리 없이 죽으면 서버는 소켓이 끊겼다고 알기까지(socket.io 기본값 · 최대 약 45초) `webAttached` 를 true 로 본다 — 그동안은 «평소» 줄대로 돈다(기사님 «그대로» · 운행 중에는 관제앱을 켜 둔다).
  * 몸통은 JSON 표시 주석 둘(별표 주석 «JSON») 사이의 엄격한 JSON 이다 — 원달앱 검사가 그 사이를 그대로 읽는다. 표시를 지우지 않는다.
@@ -49,8 +49,10 @@ export interface ModeActs {
     blocksAccept: boolean;
     /** 원달앱 테두리 색(ARGB 16진) */
     frame: string;
-    /** 관제웹 단추 글자 */
+    /** 관제웹 단추 글자(접힌 모드 단추 · 고르는 단추) — 계약 안 함은 «자동» 글자에 색으로 가른다 */
     label: string;
+    /** 모드 이름(설명 · 운영센터 화면) — `DEVICE_MODE_LABEL` 의 원천 */
+    name: string;
     /** 서버가 기사님 필터를 돌리나(`isActive`) — 서버는 명령으로 묻는다 */
     filterRuns: boolean;
     /** 원달앱 보고에 통과 콜이 있으면 관제웹 «필터 통과» 삑을 보내나 — 도는 모드로 묻는다 */
@@ -153,16 +155,16 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
         }
     ],
     "acts": {
-        "AUTO":       { "tapsList": true,  "sound": false, "contracts": true,  "blocksAccept": false, "frame": "FF1D4ED8", "label": "자동",
+        "AUTO":       { "tapsList": true,  "sound": false, "contracts": true,  "blocksAccept": false, "frame": "FF1D4ED8", "label": "자동", "name": "자동",
                         "filterRuns": true,  "webBeep": false, "marksSimulated": false, "onlyOnePhone": true,  "opsMode": "AUTO",   "opsName": "자동", "opsHighlight": true,
                         "countedAsAuto": true,  "tone": "bg-info/20 text-info border-info/40", "directBadge": false, "needsAutoPermission": true,  "capturedViaUnlessContracted": "MANUAL" },
-        "ALARM":      { "tapsList": true,  "sound": true,  "contracts": false, "blocksAccept": false, "frame": "FF22C55E", "label": "알람",
+        "ALARM":      { "tapsList": true,  "sound": true,  "contracts": false, "blocksAccept": false, "frame": "FF22C55E", "label": "알람", "name": "알람",
                         "filterRuns": true,  "webBeep": true,  "marksSimulated": false, "onlyOnePhone": false, "opsMode": "ALARM",  "opsName": "알람", "opsHighlight": false,
                         "countedAsAuto": false, "tone": "bg-success/20 text-success border-success/40", "directBadge": false, "needsAutoPermission": false, "capturedViaUnlessContracted": "ALARM" },
-        "MANUAL":     { "tapsList": false, "sound": false, "contracts": false, "blocksAccept": false, "frame": "FF64748B", "label": "직접",
+        "MANUAL":     { "tapsList": false, "sound": false, "contracts": false, "blocksAccept": false, "frame": "FF64748B", "label": "직접", "name": "직접",
                         "filterRuns": false, "webBeep": false, "marksSimulated": false, "onlyOnePhone": false, "opsMode": "MANUAL", "opsName": "대기", "opsHighlight": false,
                         "countedAsAuto": false, "tone": "bg-surface-alt text-text-muted border-border/40", "directBadge": true,  "needsAutoPermission": false, "capturedViaUnlessContracted": "MANUAL" },
-        "SIMULATION": { "tapsList": true,  "sound": false, "contracts": false, "blocksAccept": true,  "frame": "FFF59E0B", "label": "체험",
+        "SIMULATION": { "tapsList": true,  "sound": false, "contracts": false, "blocksAccept": true,  "frame": "FFF59E0B", "label": "자동", "name": "자동(계약 안 함)",
                         "filterRuns": true,  "webBeep": false, "marksSimulated": true,  "onlyOnePhone": false, "opsMode": "ALARM",  "opsName": "알람", "opsHighlight": false,
                         "countedAsAuto": false, "tone": "bg-amber-400/20 text-amber-400 border-amber-400/40", "directBadge": false, "needsAutoPermission": false, "capturedViaUnlessContracted": "MANUAL" }
     },
@@ -181,7 +183,7 @@ export function modeActsOf(mode: string | null | undefined): ModeActs {
     return (MODE_TABLE.acts as Record<string, ModeActs | undefined>)[mode ?? ''] ?? UNKNOWN_MODE_ACTS;
 }
 const UNKNOWN_MODE_ACTS: ModeActs = {
-    tapsList: false, sound: false, contracts: false, blocksAccept: false, frame: '', label: '',
+    tapsList: false, sound: false, contracts: false, blocksAccept: false, frame: '', label: '', name: '',
     filterRuns: false, webBeep: false, marksSimulated: false, onlyOnePhone: false, opsMode: 'ALARM', opsName: '대기', opsHighlight: false,
     countedAsAuto: false, tone: '', directBadge: false, needsAutoPermission: false, capturedViaUnlessContracted: 'MANUAL',
 };

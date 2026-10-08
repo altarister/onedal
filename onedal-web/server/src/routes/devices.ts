@@ -13,7 +13,7 @@ import { DEVICE_LINK_ERRORS, PAIR_TOKEN_FIELD } from "@onedal/shared";
 import { clientIpOf } from "../utils/clientIp";
 import { flushSupply, phoneSupplyFor } from "../state/phoneSupply";
 import { ackDecision, phoneDecisionsForDevice } from "../state/decisions";
-import { activeDevices, saveModePreference, demoteOtherAutoPhones, filteringDeviceFrom } from "../state/deviceRegistry";
+import { activeDevices, saveModePreference, storedCommandOf, demoteOtherAutoPhones, filteringDeviceFrom } from "../state/deviceRegistry";
 import { cleanPreviewOfDevice, getUserDevicesSnapshot } from "../state/deviceSessions";
 
 const router = Router();
@@ -261,7 +261,7 @@ router.post("/:deviceId/decision-ack", (req, res) => {
 router.post("/:deviceId/mode", requireAuth, (req, res) => {
     try {
         const deviceId = req.params.deviceId as string;
-        const { mode } = req.body as { mode: DeviceModeType };
+        const { mode, noContract } = req.body as { mode: DeviceModeType; noContract?: unknown };
 
         /**
          * 🔴 **값을 손으로 나열하지 않는다** — `isDeviceMode` 한 곳이 목록의 원천이다.
@@ -269,6 +269,10 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
          */
         if (!isDeviceMode(mode)) {
             return res.status(400).json({ error: "올바르지 않은 모드입니다." });
+        }
+        /* 🎛️ 자동의 «계약 안 함» 스위치(32 P1) — 안 보내면 저장된 값 그대로 · 옛 관제앱의 SIMULATION 은 자동 + 계약 안 함으로 받는다(storedOf) */
+        if (noContract !== undefined && typeof noContract !== 'boolean') {
+            return res.status(400).json({ error: "계약 안 함 값이 올바르지 않습니다." });
         }
 
         const userId = req.user!.id;
@@ -281,12 +285,14 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
          * 🔴 **0행이면 내 폰이 아니다.** 조용히 200 을 주면 관제웹은 «바꿨다»고 그리는데
          *    실제로는 아무것도 안 바뀐다 — 화면이 거짓말한다 (규칙 ⑤-4 ④).
          */
-        const changes = saveModePreference(deviceId, userId, mode);
+        const changes = saveModePreference(deviceId, userId, mode, noContract);
         if (changes === 0) {
             console.warn(`⛔ [모드 거절] 기기(${deviceLabelOf(deviceId)}) 는 유저(${userId}) 의 폰이 아닙니다`);
             return res.status(404).json({ error: "등록되지 않았거나 내 기기가 아닙니다." });
         }
-        if (modeActsOf(mode).onlyOnePhone) demoteOtherAutoPhones(deviceId, userId);
+        /* 🎛️ 저장한 뒤의 명령 — «자동»을 눌러도 계약 안 함이 남아 있으면 SIMULATION(기사님 «가») · 아래는 모두 이 값을 쓴다 */
+        const command = storedCommandOf(deviceId) ?? mode;
+        if (modeActsOf(command).onlyOnePhone) demoteOtherAutoPhones(deviceId, userId);
 
         if (!session) {
             // 서버 재시작 직후 하트비트가 아직 안 왔을 수도 있음.
@@ -306,10 +312,10 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
                 stats: { polled: 0, grabbed: 0, canceled: 0 }
             };
             activeDevices.set(deviceId, session);
-            slog('통신', `⚙️ [모드 선제 적용] 메모리 미등록 기기 세션 생성 후 모드 설정: ${deviceLabelOf(deviceId)} → ${mode}`);
+            slog('통신', `⚙️ [모드 선제 적용] 메모리 미등록 기기 세션 생성 후 모드 설정: ${deviceLabelOf(deviceId)} → ${command}`);
         }
 
-        session.mode = mode;
+        session.mode = command;
         activeDevices.set(deviceId, session);
 
         /**
@@ -345,10 +351,10 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
          */
         getUserSession(userId).filterEnabledByMode = hasFilteringDevice;
         updateActiveFilter(userId, { isActive: hasFilteringDevice }, io);
-        slog('통신', `⚙️ [모드 전환] 기기(${deviceLabelOf(deviceId)}) → ${mode} | 유저(${userId}) 필터 도는 기기 존재: ${hasFilteringDevice} → filter.isActive → ${hasFilteringDevice}`);
+        slog('통신', `⚙️ [모드 전환] 기기(${deviceLabelOf(deviceId)}) → ${command} | 유저(${userId}) 필터 도는 기기 존재: ${hasFilteringDevice} → filter.isActive → ${hasFilteringDevice}`);
         flushSupply(io, userId);   // 📡 기사님이 누른 모드는 1초 주기를 기다리지 않고 관제앱으로
 
-        res.json({ success: true, mode });
+        res.json({ success: true, mode: command });
     } catch (error) {
         res.status(500).json({ error: "서버 에러" });
     }

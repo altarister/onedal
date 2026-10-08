@@ -28,7 +28,7 @@ describe('네 모드 표 — 서버 쪽', () => {
             expect(Object.keys(s.running).sort(), s.id).toEqual([...DEVICE_MODES].sort());
         }
         expect(Object.keys(MODE_TABLE.acts).sort()).toEqual([...DEVICE_MODES].sort());
-        for (const m of DEVICE_MODES) expect(MODE_TABLE.acts[m].label, m).toBe(DEVICE_MODE_LABEL[m]);
+        for (const m of DEVICE_MODES) expect(MODE_TABLE.acts[m].name, m).toBe(DEVICE_MODE_LABEL[m]);
     });
 
     it('«덜 자동»만 — 알람 · 직접 · 체험 명령은 서버 답이 온 뒤 어느 줄에서도 그대로', () => {
@@ -100,7 +100,8 @@ describe('네 모드 표 — 하는 일 칸', () => {
         expect(col('directBadge')).toEqual({ AUTO: false, ALARM: false, MANUAL: true, SIMULATION: false });
         expect(col('needsAutoPermission')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
         expect(col('capturedViaUnlessContracted')).toEqual({ AUTO: 'MANUAL', ALARM: 'ALARM', MANUAL: 'MANUAL', SIMULATION: 'MANUAL' });
-        expect(DEVICE_MODE_LABEL).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '직접', SIMULATION: '체험' });
+        expect(DEVICE_MODE_LABEL).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '직접', SIMULATION: '자동(계약 안 함)' });
+        expect(col('label')).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '직접', SIMULATION: '자동' });   // 접힌 단추 글자 — 계약 안 함은 색(노랑)으로 가른다(32 ③ 가)
     });
     it('모르는 값은 아무것도 안 한다 — 운영센터 모드 · 이름은 지금 화면의 나머지 갈래(알람 · 대기)', () => {
         for (const m of [undefined, null, '', 'ALARM_CLICK']) {

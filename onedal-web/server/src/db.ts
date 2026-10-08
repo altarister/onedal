@@ -248,6 +248,11 @@ db.exec(`
  *    낡은 `CHECK` 는 새 값을 **런타임에서만** 조용히 거부한다 (server/CLAUDE.md 함정).
  */
 ensureColumns('user_devices', { mode: `TEXT` });
+/**
+ * 🎛️ **자동의 «계약 안 함» 스위치** (29 N1 · 32 P1 · 기사님 10-08 «가») — 0 계약함(기본) · 1 계약 안 함.
+ *    자동일 때만 뜻이 있고, 알람 · 직접으로 바꿔도 값은 남는다(다시 자동을 누르면 그대로). 명령 값은 shared `commandModeOf` 한 곳이 만든다.
+ */
+ensureColumns('user_devices', { no_contract: `INTEGER NOT NULL DEFAULT 0` });
 
 /**
  * 🔑 **`user_devices.token_hash` — 폰 비밀 토큰의 sha256** (README ⑤-4 다섯 · 기사님 «가»)

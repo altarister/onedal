@@ -39,8 +39,34 @@ export function isDeviceMode(v: unknown): v is DeviceModeType {
     return typeof v === "string" && (DEVICE_MODES as readonly string[]).includes(v);
 }
 
-/** 화면에 적히는 이름 — MANUAL 의 화면 이름은 «직접», SIMULATION 의 화면 이름은 «체험» (기사님 확정) */
-export const DEVICE_MODE_LABEL = Object.fromEntries(DEVICE_MODES.map(m => [m, MODE_TABLE.acts[m].label])) as Record<DeviceModeType, string>;
+/** 화면에 적히는 이름 — MANUAL 의 화면 이름은 «직접», SIMULATION 의 화면 이름은 «자동(계약 안 함)» (기사님 확정 · 32 P1) */
+export const DEVICE_MODE_LABEL = Object.fromEntries(DEVICE_MODES.map(m => [m, MODE_TABLE.acts[m].name])) as Record<DeviceModeType, string>;
+
+/**
+ * 🎛️ **관제앱이 고르는 모드는 셋 — «계약 안 함»은 넷째 모드가 아니라 자동의 스위치** (29 N1 · 32 P1 · 기사님 10-08 «가»).
+ * 저장(`user_devices.mode` + `no_contract`)은 이 셋 + 칸이고, 서버 세션 · 폰 공급 · 판정이 읽는 명령 값(`DEVICE_MODES`)은 지금 그대로 넷이다 —
+ * 자동 + 계약 안 함의 명령 값이 `SIMULATION` 이라 원달앱 · 체험 콜 표시는 한 줄도 안 바뀐다(옛 원달앱도 같은 값을 받는다).
+ */
+export const CHOSEN_MODES = ["AUTO", "ALARM", "MANUAL"] as const;
+export type ChosenModeType = typeof CHOSEN_MODES[number];
+/** 자동 + 계약 안 함의 명령 값 */
+const NO_CONTRACT_COMMAND: DeviceModeType = "SIMULATION";
+
+/** 저장 → 명령 — 확정을 누르는 모드(자동)에 계약 안 함이 켜져 있으면 SIMULATION · 옛 저장값 SIMULATION 도 SIMULATION · 모르는 값은 undefined */
+export function commandModeOf(stored: unknown, noContract: boolean): DeviceModeType | undefined {
+    if (!isDeviceMode(stored)) return undefined;
+    return MODE_TABLE.acts[stored].contracts && noContract ? NO_CONTRACT_COMMAND : stored;
+}
+
+/** 명령 → 저장 — SIMULATION 은 자동 + 계약 안 함 · 나머지는 계약 안 함 칸을 건드리지 않는다(알람 · 직접으로 바꿨다 돌아와도 값이 남는다 · 기사님 «가») */
+export function storedOf(command: DeviceModeType): { mode: ChosenModeType; noContract?: true } {
+    return command === NO_CONTRACT_COMMAND ? { mode: "AUTO", noContract: true } : { mode: command as ChosenModeType };
+}
+
+/** 명령 → 관제앱 단추 — 계약 안 함은 «자동» 단추 */
+export function chosenModeOf(command: DeviceModeType): ChosenModeType {
+    return storedOf(command).mode;
+}
 
 /**
  * 🖱️ **잡은 방식 — 6하원칙의 «어떻게»** (기사님 확정).
