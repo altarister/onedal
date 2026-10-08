@@ -18,7 +18,7 @@ const lastRecoverLogSig = new Map<string, string>();
 /** 🏢 운영센터 신호를 보낸 마지막 콜 지문(콜 · 상태 · 판정 색) — 기사마다 */
 const lastOpsSig = new Map<string, string>();
 import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
-import { bootstrapUserSession } from "../state/sessionRestore";
+import { bootstrapUserSession, filterInitOf } from "../state/sessionRestore";
 import { reportMilestone, undoMilestone, setCallTarget } from "../services/milestones";
 import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
 import { routeTlOf } from "../services/routeTl";
@@ -133,10 +133,7 @@ export function registerSocketHandlers(io: Server) {
             bootstrapUserSession(userId, io);
         } else {
             // 이미 부트스트랩이 끝난 세션(단순 새로고침·재연결)은 현재 확정 필터를 즉시 전달
-            socket.emit("filter-init", {
-                activeFilter: session.activeFilter,
-                baseFilter: session.baseFilter,
-            });
+            socket.emit("filter-init", filterInitOf(session));
             logRoadmapEvent('필터', "서버", `관제탑에게 확정 필터(filter-init) 전달 — minFare=${session.activeFilter.minFare}`);
         }
 
@@ -302,10 +299,7 @@ export function registerSocketHandlers(io: Server) {
                 slog('통신', `⏳ [부트스트랩 중] filter-init 응답 보류 — 확정 후 자동 전송됩니다`);
                 return;
             }
-            socket.emit("filter-init", { 
-                activeFilter: session.activeFilter,
-                baseFilter: session.baseFilter,
-            });
+            socket.emit("filter-init", filterInitOf(session));
             logRoadmapEvent('필터', "서버", `관제탑 요청으로 필터(filter-init) 정보 재전달\n - activeFilter(현재 콜 필터): minFare=${session.activeFilter.minFare}\n - baseFilter(기본설정): minFare=${session.baseFilter.minFare}`);
         });
 

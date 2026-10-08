@@ -15,6 +15,7 @@ import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
 import { ensureJudgmentSocketSubscribed } from "../stores/judgmentStore";
 import { ensureAlertsSocketSubscribed } from "../stores/alertsStore";
+import { useFilterStore } from "../stores/filterStore";
 import CargoMismatchBanner from "../components/dashboard/CargoMismatchBanner";
 import { useServerErrors } from "../hooks/useServerErrors";
 import { mountAutoKeepBadge } from "../lib/autoKeep";
@@ -60,6 +61,7 @@ export default function Dashboard() {
      *    필터 값으로 바꾼다 — 지도·서버·💾 가 같은 값을 본다 (규칙 ③).
      */
     const { filter, draft, previewFilter } = useFilterConfig();
+    const restoreFailed = useFilterStore(s => s.restoreFailed);
     /* 🔍 노선/동선 단추는 필터창 안에 있다 — 다른 칸처럼 초안에 적고 «적용» 때 원달앱으로 간다. 지도는 초안 값으로 그린다 */
     const routeMode = (draft?.routeMode ?? filter?.routeMode) ?? true;
     const setRouteMode = (v: boolean) => previewFilter({ routeMode: v });
@@ -425,6 +427,13 @@ export default function Dashboard() {
                             className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1">닫기</button>
                     </div>
                 ))}
+
+                {/* 🚨 하루 복구 실패 — 서버가 원달앱 콜 잡기를 멈춘 채 둔다 · 새로고침이 다시 시도한다 */}
+                {restoreFailed && (
+                    <p className="mx-3 mt-3 rounded-md border border-danger/45 bg-surface px-4 py-2 text-sm font-bold text-danger">
+                        🚨 하루 복구 실패 — 콜 잡기 대기 (새로고침하면 다시 시도)
+                    </p>
+                )}
 
                 {/* 🚨 신고 불일치 — 경고에서 사무실 전화·수행 판단까지 한 카드에서 */}
                 <ErrorBoundary label="짐 불일치 띠"><CargoMismatchBanner orders={activeRoute} /></ErrorBoundary>

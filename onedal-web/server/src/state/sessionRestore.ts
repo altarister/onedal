@@ -114,12 +114,16 @@ async function bootstrapOnce(userId: string, io: any): Promise<void> {
         `차종=${(f.allowedVehicleTypes || []).length}종 키워드=${(f.destinationKeywords || []).length}개`);
     logRoadmapEvent('부팅', "서버", `[Bootstrap] 완료 (${Date.now() - t0}ms) — 관제탑에 확정 필터 1회 전송, 앱폰 콜 잡기 재개`);
 
-    if (io) {
-        io.to(userId).emit("filter-init", {
-            activeFilter: session.activeFilter,
-            baseFilter: session.baseFilter,
-        });
-    }
+    if (io) io.to(userId).emit("filter-init", filterInitOf(session));
+}
+
+/** 📤 관제웹 filter-init 한 벌 — 확정 필터 두 벌 + «하루 복구 실패» (보내는 세 자리가 같은 모양) */
+export function filterInitOf(session: UserSession) {
+    return {
+        activeFilter: session.activeFilter,
+        baseFilter: session.baseFilter,
+        restoreFailed: session.restoreFailedAt !== null,
+    };
 }
 
 /** 📍 궤적의 마지막 점으로 되살리는 «내가 어디 있나» — 값만 받는 셈 (마지막 점) */
@@ -266,8 +270,8 @@ export function restoredOrderFrom(row: any, got: {
  */
 export async function restoreAndRecalculateSession(userId: string, io: any) {
     const session = getUserSession(userId);
-    if (session.isRestored) return; // 이미 복구했으면 스킵
-    session.isRestored = true;
+    if (session.isRestored) return; // 이미 복구했으면 스킵 — «복구됨»은 몸통이 끝난 뒤에 켠다 (던지면 꺼진 채 · 잡기 멈춤)
+    session.restoreFailedAt = null;
 
     try {
         const { todayStartIso, unfinishedSinceIso } = restoreWindow(Date.now());
@@ -488,6 +492,10 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         }
 
     } catch (err) {
+        session.restoreFailedAt = Date.now();
         console.error('🚨 [restoreAndRecalculateSession] 오류 발생:', err);
+        slog('경고', `🚨 [하루 복구 실패] 원달앱 콜 잡기를 멈춘 채 둔다 — 관제웹 재접속 · 상세 진입이 다시 시도한다`);
+    } finally {
+        session.isRestored = session.restoreFailedAt === null;   // 되살릴 콜이 없어 일찍 끝난 날도 성공이다
     }
 }

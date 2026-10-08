@@ -36,6 +36,9 @@ interface FilterState {
      */
     draft: Partial<AutoDispatchFilter> | null;
 
+    /** 🚨 서버가 하루 복구에 실패했나 — 실패한 날은 서버가 원달앱 콜 잡기를 멈춘다 (filter-init 이 싣는다) */
+    restoreFailed: boolean;
+
     // ── Actions ──
     /** 고친 칸을 초안에 덧붙인다 */
     editDraft: (changes: Partial<AutoDispatchFilter>) => void;
@@ -51,6 +54,7 @@ export const useFilterStore = create<FilterState>((set) => ({
     baseFilter: null,
     netUsedLine: null,
     draft: null,
+    restoreFailed: false,
 
     editDraft: (changes) => set(st => ({ draft: { ...(st.draft ?? {}), ...changes } })),
     clearDraft: () => set({ draft: null }),
@@ -81,6 +85,7 @@ let subscribed = false;
 type FilterPayload = {
     activeFilter: AutoDispatchFilter;
     baseFilter: AutoDispatchFilter;
+    restoreFailed?: boolean;   // filter-init 만 싣는다
 };
 
 export function ensureFilterSocketSubscribed(): void {
@@ -99,6 +104,7 @@ export function ensureFilterSocketSubscribed(): void {
     socket.on('filter-init', (p: FilterPayload) => {
         logRoadmapEvent("필터", '웹', '서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음');
         apply(p);
+        useFilterStore.setState({ restoreFailed: p.restoreFailed === true });
     });
     socket.on('filter-updated', (p: FilterPayload) => {
         logRoadmapEvent("필터", '웹', '서버로 부터 filter-updated 소켓 이벤트 받음');

@@ -133,7 +133,9 @@ export interface UserSession {
     /** 📍 마지막 «[위치]» 로그 시각 (epoch ms) — 이동 로그 30초 요약용. 궤적 자체는 DB 가 든다 */
     lastMoveLogAt: number | null;
     userVehicleType: string; // user_settings의 내 차종 (동적 허용 차종 생성용)
-    isRestored: boolean;     // [방안 1] 서버 재시작 복구 로직 1회 실행 여부 플래그
+    isRestored: boolean;     // [방안 1] 서버 재시작 복구가 **성공했나** — 실패면 false 로 남아 원달앱 잡기가 멈추고 다음 접속이 다시 시도한다
+    /** 🚨 마지막 복구가 던진 시각 (epoch ms) — 관제웹 «하루 복구 실패» 한 줄의 재료 · 성공하면 null · 저장하지 않는다 */
+    restoreFailedAt: number | null;
     /**
      * 이 세션이 마지막으로 활동한 **영업일** (`YYYY-MM-DD`, 자정 경계).
      * 날짜가 넘어가면 오늘 필터를 기본 설정으로 되돌린다 (`ensureBusinessDay`).
@@ -344,6 +346,7 @@ function createDefaultSession(userId: string): UserSession {
         capacityConfidence: 'ESTIMATED',
         businessDay: businessDayKey(Date.now()),
         isRestored: false,
+        restoreFailedAt: null,
         isBootstrapping: false,
         detourProgressKm: null,
         pickupListAt: null,
