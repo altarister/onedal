@@ -229,34 +229,20 @@ class HijackService : AccessibilityService(), ScanContext {
      * 🔴 거는 곳은 상세 화면 처리 한 곳 · 끄는 곳은 `resetSessionState` 한 곳 — 거는 길이나 끄는 길이
      *    한쪽에만 있으면, 중간 화면이 낄 때 안 꺼진 타이머가 기사님이 손으로 연 다음 상세를 닫는다.
      */
-    private var detailBackRunnable: Runnable? = null
+    private val detailBack = com.onedal.app.core.engine.DetailBackClock()   // ⏱️ 상세 대기 · 빨리 접기의 칸과 차례 (`DetailBackClock`)
     /** 🔎 `[상세 대기]` 로그의 «연 쪽» 기록용 — 알람이 카드를 누른 시각(부팅 기준) · 동작은 안 가른다 */
     private var alarmTapAtMs = 0L
-    private var detailBackOpener = ""
-    private var detailBackArmedAtMs = 0L
-    /** ⏩ 상세 대기 마감(부팅 기준) · 판정 뒤 접기로 당겼으면 그 콜 (`DetailFold`) */
-    private var detailBackDeadlineMs: Long? = null
-    private var detailFoldOrderId: String? = null
-    /** ⏩ 상세 대기 원래 마감(빨리 접기 풂에 되돌릴 자리) · 기사님 손으로 빨리 접기를 푼 콜 */
-    private var detailBackOrigDeadlineMs: Long? = null
-    private var foldReleasedOrderId: String? = null
 
     /** ⏩ 앱이 연 상세에서 기사님 손(스크롤·누름) — 빨리 접기를 풀어 원래 마감으로 (기사님이 보고 계신 콜을 앱이 닫지 않는다 · 1f «가») */
     private fun releaseFoldOnHand(why: String) {
         if (telemetryManager.currentScreenContext != ScreenContext.DETAIL_PRE_CONFIRM || !session.openedByApp) return
         val orderId = session.currentOrderId.ifEmpty { return }
-        if (foldReleasedOrderId == orderId) return
-        // ⏩ 빨리 접기가 오기 전이어도 기억한다 — 뒤에 오는 foldAfter 를 받지 않는다(리뷰)
-        foldReleasedOrderId = orderId
-        val folded = detailFoldOrderId != null
-        detailFoldOrderId = null
-        val r = detailBackRunnable
-        val orig = detailBackOrigDeadlineMs
         val now = android.os.SystemClock.elapsedRealtime()
-        if (folded && r != null && orig != null && orig > now) {
-            waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, orig - now) { r.run() }
-            detailBackDeadlineMs = orig
-        }
+        // ⏩ 빨리 접기가 오기 전이어도 기억한다 — 뒤에 오는 foldAfter 를 받지 않는다(리뷰)
+        val rel = detailBack.releaseOnHand(orderId, now) ?: return
+        val folded = rel.folded
+        val orig = rel.origDeadlineMs
+        rel.rescheduleMs?.let { ms -> val r = rel.action!!; waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, ms) { r.run() } }
         AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN,
             if (folded) "⏩ [빨리 접기 풂] 상세에 손($why) — 원래 마감으로 (${maxOf(0L, (orig ?: now) - now) / 1000}초 남음) · 콜 $orderId"
             else "⏩ [빨리 접기 막음] 상세에 손($why) — 뒤에 오는 빨리 접기를 안 받는다 · 콜 $orderId")
@@ -322,7 +308,7 @@ class HijackService : AccessibilityService(), ScanContext {
     }
 
     override fun scheduleDetailBack() {
-        if (detailBackRunnable != null) return            // 이미 걸려 있다 — 상세 글자가 바뀔 때마다 새로 걸지 않는다
+        if (detailBack.armed) return            // 이미 걸려 있다 — 상세 글자가 바뀔 때마다 새로 걸지 않는다
         // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec)
         val delayMs = com.onedal.app.core.engine.WaitTimes.detailBackMs(savedFilter(), currentTargetApp)
         // 🔎 누가 열었나 — 기록만 한다 (나중에 `grep "상세 대기"` 로 «손으로 연 상세도 돌아왔나»를 본다)
@@ -330,26 +316,17 @@ class HijackService : AccessibilityService(), ScanContext {
         val opener = com.onedal.app.core.engine.DetailOwner.detailOpener(alarmTapAtMs, now)
         alarmTapAtMs = 0L
         if (opener == com.onedal.app.core.engine.DetailOwner.OPENER_HAND) onHand("손으로 연 상세")
-        detailBackOpener = opener
-        detailBackArmedAtMs = now
-        detailBackDeadlineMs = now + delayMs
-        detailBackOrigDeadlineMs = now + delayMs
-        detailFoldOrderId = null
-        foldReleasedOrderId = null
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, true)          // ⏱️ 상세에 머무는 동안 1초 보고 켬 — 결재는 블루투스로 온다
         AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏱️ [상세 대기] 걸었다 — ${delayMs / 1000}초 뒤 리스트로 (1초 보고 켬) · 연 쪽: $opener")
         val r = Runnable {
-            detailBackRunnable = null
-            detailBackDeadlineMs = null
-            telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, false)
             // ⏩ 판정 뒤 접기로 당긴 마감이면 — 뒤로 가기 직전 아직 그 콜인지 다시 본다(기사님이 이미 나가셨거나 다른 콜이면 안 누른다)
-            if (detailFoldOrderId?.let { it != session.currentOrderId } == true) {
-                AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏹️ [상세 대기] 접을 콜($detailFoldOrderId)이 지금 콜이 아니다 — 뒤로 가지 않는다")
-                detailFoldOrderId = null
+            val fire = detailBack.fire(session.currentOrderId)
+            telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, false)
+            if (fire is com.onedal.app.core.engine.DetailBackClock.Fire.Skip) {
+                AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏹️ [상세 대기] 접을 콜(${fire.foldOrderId})이 지금 콜이 아니다 — 뒤로 가지 않는다")
                 return@Runnable
             }
-            val folded = detailFoldOrderId != null
-            detailFoldOrderId = null
+            val folded = (fire as com.onedal.app.core.engine.DetailBackClock.Fire.Go).folded
             val why = if (folded) "서버 판정 뒤 접기" else "${delayMs / 1000}초 무응답"
             // 아직 확정 전 상세에 있고, 앱이 계약하지 않는 콜일 때만 나온다 — 모드·배차망은 가리지 않는다
             if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
@@ -362,7 +339,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏹️ [상세 대기] ${delayMs / 1000}초가 됐지만 상세가 아니다 — 뒤로 가지 않는다 · 연 쪽: $opener")
             }
         }
-        detailBackRunnable = r
+        detailBack.arm(now, delayMs, opener, r)
         waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, delayMs) { r.run() }
     }
 
@@ -437,33 +414,23 @@ class HijackService : AccessibilityService(), ScanContext {
         val now = android.os.SystemClock.elapsedRealtime()
         val sameOrder = orderId == session.currentOrderId
         val onDetail = telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
-        val why = if (foldReleasedOrderId == orderId) "상세에 손 · 풂"
-            else com.onedal.app.core.engine.DetailFold.whyNot(detailBackDeadlineMs, now, remainMs, sameOrder, session.openedByApp, onDetail)
+        val why = detailBack.foldWhyNot(orderId, now, remainMs, sameOrder, session.openedByApp, onDetail)
         // 🔎 받은 때와 까닭 — 콜마다 까닭이 바뀔 때만 한 줄 (서버 «⏩ [빨리 접기] 폰에 처음 알림»과 맞댄다)
         if (LogOnce.changed("fold-after:$orderId", why ?: "당김"))
             AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏩ [foldAfter 받음] 콜 $orderId · 남은 ${"%.1f".format(remainMs / 1000.0)}초 · ${why?.let { "무시 — $it" } ?: "당김"} (지금 콜 ${session.currentOrderId.ifEmpty { "없음" }})")
         if (why != null) return
-        val r = detailBackRunnable ?: return
-        val deadline = com.onedal.app.core.engine.DetailFold.newDeadlineMs(detailBackDeadlineMs, now, remainMs,
-            sameOrder = sameOrder, openedByApp = session.openedByApp, onPreConfirmDetail = onDetail) ?: return
-        val leftSec = ((detailBackDeadlineMs ?: now) - now) / 1000
-        waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, deadline - now) { r.run() }   // 같은 이름 — 앞의 것을 거두고 당겨 건다
-        detailBackDeadlineMs = deadline
-        detailFoldOrderId = orderId
+        val pull = detailBack.pullFold(orderId, now, remainMs, sameOrder = sameOrder, openedByApp = session.openedByApp, onDetail = onDetail) ?: return
+        val r = pull.action
+        val leftSec = pull.leftSec
+        waitBook.schedule("상세 대기", com.onedal.app.core.WaitBook.SESSION, pull.deadlineMs - now) { r.run() }   // 같은 이름 — 앞의 것을 거두고 당겨 건다
         AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏩ [상세 대기 줄임] 서버 판정 뒤 접기 — ${"%.1f".format(remainMs / 1000.0)}초 뒤 목록으로 (원래 ${leftSec}초 남음) · 콜 $orderId")
     }
 
     private fun cancelDetailBack() {
-        detailBackRunnable?.let {
+        detailBack.cancel(android.os.SystemClock.elapsedRealtime())?.let { c ->
             waitBook.cancel("상세 대기")
-            val stayedSec = (android.os.SystemClock.elapsedRealtime() - detailBackArmedAtMs) / 1000
-            AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏹️ [상세 대기] 풀었다 — ${stayedSec}초 머묾 · 연 쪽: $detailBackOpener (콜 끝 · 리스트 복귀)")
+            AppLogger.i(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).logTag, LogTag.SCREEN, "⏹️ [상세 대기] 풀었다 — ${c.stayedSec}초 머묾 · 연 쪽: ${c.opener} (콜 끝 · 리스트 복귀)")
         }
-        detailBackRunnable = null
-        detailBackDeadlineMs = null
-        detailFoldOrderId = null
-        detailBackOrigDeadlineMs = null
-        foldReleasedOrderId = null
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.DETAIL_WAIT, false)         // ⏱️ 상세 대기 해제 시 1초 무전 종료
     }
     override lateinit var collectMachine: DetailCollectMachine

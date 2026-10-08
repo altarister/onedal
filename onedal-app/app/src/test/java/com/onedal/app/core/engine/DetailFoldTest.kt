@@ -37,7 +37,7 @@ class DetailFoldTest {
     @Test fun `confirm 에 openedByApp · 뒤로 가기 직전 같은 콜인지 다시 본다`() {
         val src = File("src/main/java/com/onedal/app/HijackService.kt").readText()
         assertTrue(src.contains("openedByApp = session.openedByApp,"))
-        assertTrue(src.contains("detailFoldOrderId?.let { it != session.currentOrderId } == true"))
+        // 뒤로 가기 직전 «접은 콜이 지금 콜인가» — 동작으로 `DetailBackClockTest` «접은 콜이 지금 콜이 아니면 뒤로 가지 않는다»
     }
 
     /** 📏 ab 실측 «막대 끝 → 접힘» 중앙 1.2초 — 뒤로 간 뒤 목록 확인까지 ms 를 남기고, 접기로 돌아간 것을 «무응답»이라 적지 않는다 */

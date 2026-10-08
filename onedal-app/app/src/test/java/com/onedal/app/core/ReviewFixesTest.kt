@@ -50,7 +50,7 @@ class ReviewFixesTest {
 
     @Test fun `F 상세에 손이 오면 빨리 접기를 푼다`() {
         assertTrue(svc.contains("⏩ [빨리 접기 풂] 상세에 손"))
-        assertTrue(svc.substringAfter("private fun onFoldAfter(").substringBefore("\n    }").contains("foldReleasedOrderId"))
+        // 손으로 푼 콜의 접기는 안 받는다 — 동작으로 `DetailBackClockTest` «손이 닿으면 … 그 콜의 접기를 더 안 받는다»
     }
 
     /**
