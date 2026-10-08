@@ -3,8 +3,9 @@
 
 /* 🔴 공통 부품(@onedal/ui)은 작업 공간 링크라 Tailwind 가 안 훑는다 — 알려 준다 (ui/CLAUDE.md) */
 @source "../../ui/src";
-/* 🔴 모드 표의 색(tone — 자동 파랑 · 계약 안 함 노랑 · 알람 초록 · 직접 회색 · 29 N7)도 shared 라 안 훑는다 — 그 한 파일만 알려 준다 */
-@source "../../shared/src/modeTable.ts";
+/* 🔴 shared 의 색 글자(모드 표 tone · 화면 배지 색 …)도 작업 공간 밖이라 안 훑는다 — shared 소스 전체를 알려 준다(검사 파일 빼고) · 파일을 하나씩 더하면 다음 파일에서 또 빠진다 */
+@source "../../shared/src";
+@source not "../../shared/src/**/*.test.ts";
 
 @plugin "tailwindcss-animate";
 
