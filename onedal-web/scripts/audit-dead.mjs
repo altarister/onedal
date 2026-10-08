@@ -75,6 +75,8 @@ const isRouteFile = (rel) => rel.includes('/routes/');
  * 남길 이유가 사라지면 목록에서 빼고 코드도 지운다.
  */
 const KEEP = {
+    /** 🧾 shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 deviceModes.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로 */
+    CAPTURED_VIA_LABEL: 'index 나누기로 처음 세임 · 옮기기만 · 지울지는 따로',
     /**
      * 🚗 **«이동 중 42km/h · 정차 중» 배지 — 잇는 자리가 빠졌다** (옛 화면을 걷으며).
      *
