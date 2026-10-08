@@ -53,6 +53,6 @@ class BundleReviewTest {
     @Test fun `4 빨리 접기 전 상세 손도 기억한다`() {
         val release = svc.substringAfter("private fun releaseFoldOnHand(").substringBefore("\n    }")
         assertTrue(release.contains("session.openedByApp"))
-        assertFalse("빨리 접기가 안 걸렸어도 기억한다", release.contains("val orderId = detailFoldOrderId ?: return"))
+        // 빨리 접기가 안 걸렸어도 기억한다 — 동작으로 `DetailBackClockTest` «접기 전 손 — … 뒤에 오는 접기를 안 받는다»
     }
 }
