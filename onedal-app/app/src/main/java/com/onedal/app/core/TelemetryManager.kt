@@ -252,6 +252,8 @@ class TelemetryManager(
     /** 📵 마지막 보고가 응답을 못 받았나 — «응답 없음 · 다시 옴» 로그를 바뀔 때만 찍는다 */
     @Volatile
     private var lostReply = false
+    /** 🌐 원달앱 보고가 서버에 닿나 — 마지막 보고가 응답을 받았나 */
+    val replying: Boolean get() = !lostReply
     private val modeKnown get() = suppliedMode != null
 
     /* 🔁 서비스가 (다시) 뜨면 저장된 마지막 공급 모드로 곧바로 정한다 — 관제앱이 아직 안 붙었으니 자동이면 알람(기사님 1 가) · 새 폰은 직접 */

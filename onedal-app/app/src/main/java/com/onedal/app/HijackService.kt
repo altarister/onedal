@@ -359,6 +359,7 @@ class HijackService : AccessibilityService(), ScanContext {
     /** 📶🌐 받은 이 폰 몫(모드 · 심사 중) — 두 길이 같은 처리 */
     private fun supplyInPhone(json: String) {
         val j = org.json.JSONObject(json)
+        phoneHeardSinceStart = true
         /* 🔒 심사 중 — 읽는 두 자리(`EvaluatingNow.of`)가 보는 맨 위 칸 저장에 넣는다(공급 필터에는 서버가 이 칸을 빼고 보낸다) */
         getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE).edit().putBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, j.optBoolean(com.onedal.app.core.EvaluatingNow.KEY)).apply()
         j.optString("mode").takeIf { it.isNotEmpty() }?.let { telemetryManager.onSuppliedMode(it) }
@@ -514,8 +515,11 @@ class HijackService : AccessibilityService(), ScanContext {
     private fun evaluatingNow(): Boolean {
         val prefs = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
         val top = if (prefs.contains(com.onedal.app.core.EvaluatingNow.PREF_KEY)) prefs.getBoolean(com.onedal.app.core.EvaluatingNow.PREF_KEY, false) else null
-        return com.onedal.app.core.EvaluatingNow.of(top, savedFilter().evaluatingNow)
+        val trusted = com.onedal.app.core.EvaluatingNow.trusted(phoneHeardSinceStart, telemetryManager.linked, telemetryManager.serverAlive, telemetryManager.replying)
+        return com.onedal.app.core.EvaluatingNow.of(top, savedFilter().evaluatingNow, trusted)
     }
+    /** 🔓 서비스가 뜬 뒤 이 폰 몫(모드 · 심사 중)을 한 번이라도 받았나 — 다시 뜨면 저장된 «심사 중»은 옛 값이다 (`EvaluatingNow.trusted`) */
+    @Volatile private var phoneHeardSinceStart = false
 
     private fun savedFilter(): com.onedal.app.models.FilterConfig = com.onedal.app.core.FilterStore.current(this)
 
