@@ -547,11 +547,34 @@ class HijackService : AccessibilityService(), ScanContext {
     //  기능 1: 시동 걸기
     // ════════════════════════════════════════════════════════════════
 
+    /**
+     * 🟢 **시동 — 준비 차례가 뜻이다** (로그 파일이 먼저 · 보고 시작 뒤 첫 보고 → 안전취소 되살리기 · 첫 화면은 보고 시작 뒤).
+     * 차례를 바꾸지 않는다 — 각 준비는 아래 이름 붙은 함수 하나.
+     */
     override fun onServiceConnected() {
         super.onServiceConnected()
+        startListWatch()
+        openLogFile()
+        initNetworks()
+        buildClients()
+        wireAnomalySinks()
+        buildReaders()
+        wireTelemetryFacts()
+        startReporting()
+        readFirstScreen()
+        wireCallbacks()
+        registerScreenOff()
+        logBootBanner()
+    }
+
+    /** 📜 조용한 목록 다시 읽기 감시를 건다 */
+    private fun startListWatch() {
         // 📜 조용한 목록 다시 읽기 — 1초마다 살핀다(`ListWatch`)
         waitBook.schedule("목록 감시", com.onedal.app.core.WaitBook.SERVICE, 1000) { listWatchdog.run() }
+    }
 
+    /** 📝 로그 파일을 연다 — 가장 먼저 */
+    private fun openLogFile() {
         /**
          * 📝 **가장 먼저 로그 파일을 연다** — 이 아래에서 무슨 일이 나든 남게 한다.
          *    logcat 은 우리 로그를 세 시간도 못 지킨다 (몇 시간 전 앱 로그가 0줄로 남는다).
@@ -559,6 +582,10 @@ class HijackService : AccessibilityService(), ScanContext {
          */
         AppLogger.attachFile(this)
         AppLogger.i(TAG, LogTag.BOOT, "📝 [로그 파일] 여기에 쌓는다 — ${AppLogger.filePath ?: "열지 못했다"}")
+    }
+
+    /** 📄 배차망 정의를 찍고 저장된 배차망을 적용한다 */
+    private fun initNetworks() {
         // 📄 배차망 페이지 정의 — «모름» 칸이 실물 확인 목록 · «버림»·«안 읽음» 칸이 다음에 읽을 재료
         for (p in com.onedal.app.plugins.DispatchPluginRegistry.all())
             AppLogger.i(TAG, LogTag.BOOT, "📄 [페이지 정의] ${com.onedal.app.core.PageSpecSummary.line(p.label, p.pages)}")
@@ -567,13 +594,20 @@ class HijackService : AccessibilityService(), ScanContext {
         val prefs = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
         val targetApp = prefs.getString(Prefs.TARGET_APP, "인성콜") ?: "인성콜"
         applyTargetApp(targetApp)
+    }
 
+    /** 📡 통신 · 보고 · 누르기 · 블루투스를 만든다 */
+    private fun buildClients() {
         apiClient = ApiClient(this)
         telemetryManager = TelemetryManager(apiClient, this, waitBook)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
 
         touchManager = AutoTouchManager(this, waitBook)
         /* 📶 관제앱 공급을 블루투스로 받는다 — 필터 · 이 폰 몫(모드 · 심사 중) · 결재 · 빨리 접기 · 숨 (`BleLink`) · 콜백은 메인 스레드 */
         bleLink = com.onedal.app.core.BleLink(this, { apiClient.getDeviceId() }, bleListener).also { it.start() }
+    }
+
+    /** 🚨 이상 기록 보내는 길을 잇는다 — 차종 낱말 · 끼어들기 · 사전 깨짐 · 모르는 화면 · 누르기 안 먹힘 */
+    private fun wireAnomalySinks() {
         // 🚚 배차망 차종 낱말을 우리 차종에 못 맞췄다 — 이상 기록 «VEHICLE_UNKNOWN: 낱말»(같은 낱말은 하루 한 번 · `VehicleWordMiss`)
         com.onedal.app.core.VehicleWordMiss.sink = { network, word, line ->
             apiClient.sendAnomalyReport(
@@ -651,11 +685,18 @@ class HijackService : AccessibilityService(), ScanContext {
                 }
             }
         }
+    }
+
+    /** 📷 채우기 기계 · 화면 판독기를 만든다 */
+    private fun buildReaders() {
         collectMachine = DetailCollectMachine(touchManager)
         screenReader = com.onedal.app.core.ScreenReader(this)
         screenReader.warmUp()   // 📷 첫 인식이 느리다 — 붙을 때 모델을 올려 둔다
         live = this
+    }
 
+    /** 🚦 보고에 실을 사실을 꽂는다 — 화면 켜짐 · 앱 판 · 하는 일 */
+    private fun wireTelemetryFacts() {
         /**
          * 💤 시작할 때의 화면 상태는 **물어봐서** 세운다 — 기본값(켜짐)으로 두면
          * 화면이 꺼진 채 서비스가 붙었을 때 첫 보고부터 거짓말한다.
@@ -678,6 +719,10 @@ class HijackService : AccessibilityService(), ScanContext {
                 isDetailScrapSent = session.isDetailScrapSent,
             )
         }
+    }
+
+    /** 🟢 보고를 시작한다 — 첫 보고 · 안전취소 되살리기 · 낱말 사전 */
+    private fun startReporting() {
         telemetryManager.start()
         /**
          * 🟢 **붙자마자 한 번 쏜다** (기사님 실측: *"폰이랑 서버랑 연결이 안 되는데?"*).
@@ -692,7 +737,10 @@ class HijackService : AccessibilityService(), ScanContext {
             AppLogger.w(TAG, LogTag.DECISION, "💾 [안전취소 다시 걺] $id · 남은 ${left / 1000}초 — 원달앱이 다시 떴다")
         }
         apiClient.fetchKeywords()
+    }
 
+    /** 🖥️ 붙는 순간 화면을 읽어 세운다 */
+    private fun readFirstScreen() {
         /**
          * 🖥️ **첫 보고는 «본 것»이어야 한다** (기사님 실측 제보).
          *
@@ -723,8 +771,10 @@ class HijackService : AccessibilityService(), ScanContext {
         // 📱 새로 깔거나 접근성을 다시 켜면 목록에서 바로 붙는다 — 그 화면이 실물 배차망 목록이면 운행 기록을 켠다
         if (TargetApp.startsTraceOnAttach(firstPkg, isList = firstScreen == ScreenContext.LIST)) startTrace("붙는 순간 화면이 실물 배차망 목록")
         updateScreenContext(firstScreen, firstRead)
+    }
 
-
+    /** 🧹 서버 회차 · 모드 테두리 콜백을 잇는다 */
+    private fun wireCallbacks() {
         // 🧹 서버 회차가 바뀌면 «본 콜» 기억을 비운다 — 스캔 루프와 같은 메인 스레드에서 (CallMemory 는 잠금이 없다)
         telemetryManager.callMemoryRoundCallback = { round ->
             mainHandler.post {
@@ -737,14 +787,20 @@ class HijackService : AccessibilityService(), ScanContext {
         /* 🖼️ 모드 테두리 — 붙자마자 지금 모드로 두르고, 서버에서 모드를 받을 때마다 색을 맞춘다. 서비스가 내려가면 걷는다(onDestroy) */
         telemetryManager.modeCallback = { _ -> modeFrame.show(effectiveMode) }   // 관제웹이 보낸 값이 아니라 이 배차망에서 도는 모드로
         modeFrame.show(effectiveMode)
+    }
 
+    /** 💤 화면 켜짐 · 꺼짐을 받는다 */
+    private fun registerScreenOff() {
         // 화면 켜짐/꺼짐 이벤트 수신 등록
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_SCREEN_ON)
         }
         registerReceiver(screenOffReceiver, filter)
+    }
 
+    /** ✅ 시작 줄을 남긴다 */
+    private fun logBootBanner() {
         AppLogger.roadmap(LogTag.BOOT, "🟢 1DAL 서비스 가동 완료 (접근성 권한 승인, Telemetry·GPS 엔진 가동)", "STARTUP")
         AppLogger.i(TAG, LogTag.BOOT, "✅ 1DAL Service Connected!")
         // 어떤 빌드가 실제로 돌고 있는지 로그로 못박아 둔다 (설치 버전 혼동 방지)
