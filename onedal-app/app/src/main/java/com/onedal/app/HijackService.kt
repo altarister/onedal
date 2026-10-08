@@ -382,7 +382,8 @@ class HijackService : AccessibilityService(), ScanContext {
         }
         if (waitBook.pending().any { it.name == RING_WAIT }) return
         AppLogger.i(TAG, LogTag.DECISION, "🔔 [판정 소리] $ringOrderId — 확정 전 상세에 있는 동안 ${com.onedal.app.core.PreviewRing.EVERY_MS / 1000}초마다")
-        ringTick()
+        /* 첫 소리는 한 차례 뒤 — 받았음 삑(beepOnAccepted)과 거의 붙어 두 번 나지 않게(ef 리뷰 ①) */
+        waitBook.schedule(RING_WAIT, com.onedal.app.core.WaitBook.SERVICE, com.onedal.app.core.PreviewRing.EVERY_MS) { ringTick() }
     }
 
     private fun ringTick() {
@@ -1409,6 +1410,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
         // 🔔 리스트를 떠났다 — 남의 화면 위에 알람 테두리를 남기지 않는다 (§6-③)
         if (detected != ScreenContext.LIST) alarmSignaler.onLeaveList()
+        ringPreview()   // 🔔 화면이 바뀌면 판정 소리를 다시 본다 — 울릴 콜이 화면보다 먼저 와도 상세가 서면 시작 · 떠나면 멈춤(ef 리뷰 ②)
         // ⏱️ 상세 대기 타이머를 여기서 끄지 않는다 (#124) — «상세 → 리스트» 한 경우만 보다가 중간 화면이 끼면 안 꺼졌다.
         //    끄는 곳은 `resetSessionState` 한 곳이다 (콜의 끝 · #44 와 같은 자리).
 
