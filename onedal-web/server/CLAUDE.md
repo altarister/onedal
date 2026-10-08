@@ -24,8 +24,10 @@
 - **취소·수락을 세는 자리는 `core/cancelCount.ts` 하나다.** 콜이 끝나는 길(결재 취소 · 화면 이탈 · 안전취소 시간 초과 · 긴급 리셋 · 새 콜 선점)은 여럿이어도
   배차망 취소 패널티를 세는 조건은 여기서만 판단한다 — 미리보기 콜 · 체험 콜은 세지 않는다
 
-- **체험 콜은 메모리에만 있다.** 기기 모드가 `SIMULATION` 인 콜은 `session.myOrders` 에는 올라가지만 `orders` · `places` 표에는 안 쓰인다.
-  DB 행을 전제하는 호출(`birthFirstStep` 등)은 `!isSimulated` 로 막는다.
+- **연습 콜은 운행으로 안 올라간다.** 잡을 때 콜에 적힌 `isSimulated` 하나로 가른다(결재 순간의 폰 모드로 다시 가르지 않는다).
+  결재가 오면 KEEP 이든 거절이든 `SAFE_CANCEL` 로 닫혀 취소/방출 탭에 남고(폰에는 KEEP 이면 `SIMULATED_KEEP`),
+  `session.myOrders` · `orders` · `places` 표 · 취소 횟수 어디에도 안 들어간다.
+  DB 행을 전제하는 호출(`birthFirstStep` 등)은 장부에 오른 콜(운행 목록 `myOrders` · 예약 보관 `reservedOrders`)에만 부른다 (`simulatedByCallOnly` 가 문다)
   ⚠️ 배차망 시뮬레이터(`onedal-sim`) 화면에서 잡은 콜은 체험 콜이 아니다 — 보통 콜처럼 DB 에 쓰인다
 
 ## 로그는 파일에도 남는다

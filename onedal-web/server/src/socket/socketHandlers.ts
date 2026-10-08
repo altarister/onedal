@@ -17,10 +17,10 @@ import { getActiveCalls } from "../core/activeCalls";
 const lastRecoverLogSig = new Map<string, string>();
 /** 🏢 운영센터 신호를 보낸 마지막 콜 지문(콜 · 상태 · 판정 색) — 기사마다 */
 const lastOpsSig = new Map<string, string>();
-import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
+import { recalculateDetourFilter, handleDecision, birthStepsOnKeep, recalculateKakaoRoute, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
 import { bootstrapUserSession, filterInitOf } from "../state/sessionRestore";
 import { reportMilestone, undoMilestone, setCallTarget } from "../services/milestones";
-import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
+import { bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
 import { routeTlOf } from "../services/routeTl";
 import { saveCargoReport } from "../services/cargoReport";
 
@@ -524,32 +524,7 @@ export function registerSocketHandlers(io: Server) {
             slog('결재', `⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Status Action: ${action}`);
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
-            /**
-             * 🌱 **KEEP 하면 여섯 단계가 생긴다** (기사님 — 시험 버튼 대체).
-             *    "콜을 잡는 순간 모든 상세값이 임시로 정해진다" — 그 순간이 여기다.
-             *    실패해도 결재는 이미 끝났다 — 시딩이 KEEP 을 막으면 안 된다.
-             */
-            const session = getUserSession(userId);
-            const confirmedCall = session.myOrders.find((o: any) => o.id === orderId);
-            const isSimulated = confirmedCall?.isSimulated;
-
-            if (action === 'ORDER_CONFIRMED' && !isSimulated) {
-                try {
-                    // 🌱 출생 모델 (기사님): KEEP 은 **첫 행(상차지 통화)만** 낳는다.
-                    //    나머지는 각 단계가 끝날 때 앞 값을 물려받아 태어난다 — 뒤 행을 찾아다니며
-                    //    고치는 코드가 없어야 화면·장부가 갈라질 수 없다.
-                    const judgment = session?.judgment;
-                    const tl = routeTlOf(userId);
-                    birthFirstStep(userId, orderId, judgment, tl);
-                    // 🧭 합짐이 붙으면 **경로 위 모든 콜**의 흐르는 예상이 민다 — 굳은 약속은 불변
-                    for (const c of session.myOrders.filter((o: any) => !isTerminal(o.status) && !o.isSimulated)) {
-                        refreshPlannedSteps(userId, c.id, judgment, tl);
-                        io.to(userId).emit("steps-synced", { orderId: c.id, steps: stepsView(c.id, judgment) });
-                    }
-                } catch (e) {
-                    console.error(`🌱 [단계 출생 실패] ${orderId.slice(-6)}:`, (e as Error).message);
-                }
-            }
+            if (action === 'ORDER_CONFIRMED') birthStepsOnKeep(userId, orderId, io);   // 🌱 단계 출생 — 장부에 오른 콜에만 (dispatchEngine)
         });
 
         // 카카오 경로 재탐색

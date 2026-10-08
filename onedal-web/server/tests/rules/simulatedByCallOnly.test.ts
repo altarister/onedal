@@ -1,6 +1,9 @@
 import db from '../../src/db';
-import { handleDecision } from '../../src/services/dispatchEngine';
+import { handleDecision, birthStepsOnKeep } from '../../src/services/dispatchEngine';
+import * as steps from '../../src/services/stepSeeder';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
+import * as devices from '../../src/state/deviceRegistry';
+import { OrderRepository } from '../../src/repositories/OrderRepository';
 
 /**
  * 🐥 **체험인지는 잡을 때 콜에 적힌 값 하나** (D1 ③ · 기사님 «가») — 심사 중에 그 폰을 체험 모드로 바꿔도
@@ -34,5 +37,52 @@ describe('체험 판정 — 콜에 적힌 값', () => {
         const s = seed('sim-1', true);
         await handleDecision(U, 'sim-1', 'ORDER_CONFIRMED', io);
         expect(s.pendingDecisions.get('sim-1')?.action).toBe('SIMULATED_KEEP');
+    });
+
+    /* 🐥 연습 KEEP 은 운행으로 올라가지 않는다 — 연습 거절과 같은 끝(SAFE_CANCEL · 장부 · 취소 횟수 없음) (29 P2 ⑤ · 기사님 «가») */
+    it('🔴 연습 KEEP — 폰에는 SIMULATED_KEEP · 운행(myOrders)에 없음 · SAFE_CANCEL 로 끝 · 장부 · 취소 횟수 0', async () => {
+        const stats = jest.spyOn(devices, 'incrementDeviceStats').mockImplementation(() => {});
+        const ledger = jest.spyOn(OrderRepository, 'upsertOrder');
+        try {
+            const s = seed('sim-2', true);
+            await handleDecision(U, 'sim-2', 'ORDER_CONFIRMED', io);
+            expect(s.pendingDecisions.get('sim-2')?.action).toBe('SIMULATED_KEEP');
+            expect(s.myOrders.some(o => o.id === 'sim-2')).toBe(false);
+            expect((s.pendingOrdersData.get('sim-2') as any)?.status).toBe('SAFE_CANCEL');
+            expect(ledger).not.toHaveBeenCalled();
+            expect(stats).not.toHaveBeenCalled();
+        } finally { stats.mockRestore(); ledger.mockRestore(); }
+    });
+
+    it('대조 — 진짜 KEEP 은 운행에 올라간다', async () => {
+        const s = seed('real-2', false);
+        await handleDecision(U, 'real-2', 'ORDER_CONFIRMED', io);
+        expect(s.myOrders.some(o => o.id === 'real-2')).toBe(true);
+    });
+
+    /* 🌱 단계 행은 장부에 오른 콜(운행 · 예약 보관)에만 낳는다 — 연습 콜은 orders 행이 없어 낳으면 외래 키에 막힌다 */
+    describe('KEEP 뒤 단계 출생', () => {
+        let birth: jest.SpyInstance;
+        beforeEach(() => { birth = jest.spyOn(steps, 'birthFirstStep').mockImplementation(() => undefined as any); });
+        afterEach(() => birth.mockRestore());
+
+        it('🔴 연습 KEEP — 단계 출생 0번', async () => {
+            seed('sim-3', true);
+            await handleDecision(U, 'sim-3', 'ORDER_CONFIRMED', io);
+            birthStepsOnKeep(U, 'sim-3', io);
+            expect(birth).not.toHaveBeenCalled();
+        });
+        it('대조 — 진짜 KEEP 은 한 번', async () => {
+            seed('real-3', false);
+            await handleDecision(U, 'real-3', 'ORDER_CONFIRMED', io);
+            birthStepsOnKeep(U, 'real-3', io);
+            expect(birth).toHaveBeenCalledTimes(1);
+        });
+        it('대조 — 예약 보관에만 있는 콜(운행 목록 밖)도 한 번', () => {
+            const s = getUserSession(U);
+            s.reservedOrders.push({ id: 'resv-3', status: 'ORDER_CONFIRMED', pickup: '경기 광주시 경안동', dropoff: '경기 파주시 금촌동' } as any);
+            birthStepsOnKeep(U, 'resv-3', io);
+            expect(birth).toHaveBeenCalledTimes(1);
+        });
     });
 });

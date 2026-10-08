@@ -13,7 +13,8 @@ import { updateActiveFilter, rebuildNetFilter } from "../state/filterManager";
 import { goalCityOf } from "../state/filterGoals";
 import { getActivePolyline, originOf } from "./geoMotion";
 import { composeMergedRoute, planArrivalStops, type PromiseOrderOpts, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, type RouteHolder } from "./routeComposer";
-import { firmPromiseMsOf } from "./stepSeeder";
+import { firmPromiseMsOf, birthFirstStep, refreshPlannedSteps, stepsView } from "./stepSeeder";
+import { routeTlOf } from "./routeTl";
 import { DEFAULT_JUDGMENT, routeNeedsRecompute } from "@onedal/shared";
 import type { JudgmentConfig } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -518,24 +519,20 @@ export async function handleDecision(userId: string, orderId: string, status: De
 
     // deviceEvaluatingMap 은 여기서 지우지 않는다 — 폰이 결재를 실행해 받았음이 오면 ackDecision(state/decisions)이 푼다
 
-    if (isKeep) {
-        logRoadmapEvent('결재', "서버", `관제탑으로 부터 Keep 결재 요청 받음${isSimulatedMode ? ' [가상 체험 모드]' : ''}`);
+    /* 🐥 연습 KEEP 은 운행으로 올리지 않는다 — 폰에는 SIMULATED_KEEP 을 보내고, 서버는 연습 거절과 같은 끝(SAFE_CANCEL)으로 닫는다 */
+    if (isKeep && !isSimulatedMode) {
+        logRoadmapEvent('결재', "서버", "관제탑으로 부터 Keep 결재 요청 받음");
         const cachedOrder = session.pendingOrdersData.get(orderId);
 
         if (!cachedOrder) return { success: false, action: status };
 
-        /**
-         * ✅ **수락을 센다** (가상 체험 콜은 실제 수락 카운트에 산입하지 않음).
-         */
-        if (!isSimulatedMode && !(cachedOrder as any).isSimulated) {
-            countKeep(session, targetDeviceId, orderId, !!(cachedOrder as any).isPreview);
-        }
+        /** ✅ **수락을 센다** */
+        countKeep(session, targetDeviceId, orderId, !!(cachedOrder as any).isPreview);
 
         // [V2 핵심] PendingOrder → MyOrder 승격 (심사 완료 → 내 퀵 확정)
         const confirmedOrder: MyOrder = {
             ...cachedOrder,
             status: 'ORDER_CONFIRMED',
-            isSimulated: isSimulatedMode || !!(cachedOrder as any).isSimulated,
         };
         // phase 및 isPreview는 심사(PendingOrder) 전용이므로 확정 시 완전 제거
         delete (confirmedOrder as any).phase;
@@ -578,31 +575,27 @@ export async function handleDecision(userId: string, orderId: string, status: De
                 // isExpress: 파서가 추출한 orderForm이 "급송"이면 true
                 const isExpress = (cachedOrder.orderForm === '급송') ? 1 : 0;
 
-                if (!confirmedOrder.isSimulated) {
-                    // 1. orders 등록 (v5 전체 컬럼)
-                    OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
+                // 1. orders 등록 (v5 전체 컬럼)
+                OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
 
-                    // 2. places UPSERT 및 orderStops 추가 (상차지)
-                    const p = stopPlaceFrom(cachedOrder.pickupDetails?.[0], cachedOrder.pickup, cachedOrder.pickupX, cachedOrder.pickupY);
-                    const pPlaceId = PlaceRepository.upsertPlace(userId, p.address, p.name, p.region, p.x, p.y, p.phone);
-                    if (pPlaceId) {
-                        OrderRepository.insertOrderStop(cachedOrder.id, pPlaceId, 'pickup', p.name, p.phone);
-                    }
-
-                    // 3. places UPSERT 및 orderStops 추가 (하차지)
-                    const d = stopPlaceFrom(cachedOrder.dropoffDetails?.[0], cachedOrder.dropoff, cachedOrder.dropoffX, cachedOrder.dropoffY);
-                    const dPlaceId = PlaceRepository.upsertPlace(userId, d.address, d.name, d.region, d.x, d.y, d.phone);
-                    if (dPlaceId) {
-                        OrderRepository.insertOrderStop(cachedOrder.id, dPlaceId, 'dropoff', d.name, d.phone);
-                    }
-
-                    /* 🧾 결재 줄이 없으면 받았음이 영영 안 온다(직접 건) · 받았음이 이 쓰기보다 먼저 와 줄을 이미 지웠어도 — 지금 찍는다 (db.ts ackedAt) */
-                    if (!session.pendingDecisions.has(orderId)) OrderRepository.markAcked(cachedOrder.id, new Date().toISOString());
-
-                    slog('결재', `💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);
-                } else {
-                    slog('결재', `🐥 [가상 체험 콜] ${cachedOrder.id} - DB 저장 건너뜀 (메모리 세션에서만 합짐 시뮬레이션 가동)`);
+                // 2. places UPSERT 및 orderStops 추가 (상차지)
+                const p = stopPlaceFrom(cachedOrder.pickupDetails?.[0], cachedOrder.pickup, cachedOrder.pickupX, cachedOrder.pickupY);
+                const pPlaceId = PlaceRepository.upsertPlace(userId, p.address, p.name, p.region, p.x, p.y, p.phone);
+                if (pPlaceId) {
+                    OrderRepository.insertOrderStop(cachedOrder.id, pPlaceId, 'pickup', p.name, p.phone);
                 }
+
+                // 3. places UPSERT 및 orderStops 추가 (하차지)
+                const d = stopPlaceFrom(cachedOrder.dropoffDetails?.[0], cachedOrder.dropoff, cachedOrder.dropoffX, cachedOrder.dropoffY);
+                const dPlaceId = PlaceRepository.upsertPlace(userId, d.address, d.name, d.region, d.x, d.y, d.phone);
+                if (dPlaceId) {
+                    OrderRepository.insertOrderStop(cachedOrder.id, dPlaceId, 'dropoff', d.name, d.phone);
+                }
+
+                /* 🧾 결재 줄이 없으면 받았음이 영영 안 온다(직접 건) · 받았음이 이 쓰기보다 먼저 와 줄을 이미 지웠어도 — 지금 찍는다 (db.ts ackedAt) */
+                if (!session.pendingDecisions.has(orderId)) OrderRepository.markAcked(cachedOrder.id, new Date().toISOString());
+
+                slog('결재', `💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);
             } catch (dbErr) {
                 console.error("DB 저장 에러:", dbErr);
             }
@@ -611,7 +604,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
         /**
          * 📅 **내일 이후 콜은 예약 보관으로** — 오늘 하루(진행 중 콜 · 경로 · 적재 · 국면 · 경유)를 안 건드린다.
          *    이 콜 하나의 사실(보관 날이 오늘 뒤)로 가른다. 장부에는 적고(재시작에도 되살린다), 관제웹에는 알린다.
-         *    단계 행(상차지 통화)은 KEEP 받은 쪽(`socketHandlers` 결재)이 여느 콜처럼 낳는다 — 약속은 예약 날·시각이다.
+         *    단계 행(상차지 통화)은 `birthStepsOnKeep` 이 여느 콜처럼 낳는다 — 약속은 예약 날·시각이다.
          */
         const reservedFor = reservedForOf(confirmedOrder);
         if (isLaterThan(reservedFor, businessDayKey(Date.now()))) {
@@ -740,7 +733,8 @@ export async function handleDecision(userId: string, orderId: string, status: De
         logRoadmapEvent('필터', "서버", "새로 부여된 합짐 필터(isSharedMode)값 메모리 세션 갱신");
         logRoadmapEvent('필터', "서버", "앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달");
     } else {
-        logRoadmapEvent('결재', "서버", `관제탑으로 부터 수동 취소/방출(${status}) 요청 받음`);
+        const endStatus = isKeep ? 'SAFE_CANCEL' : status;
+        logRoadmapEvent('결재', "서버", isKeep ? "관제탑으로 부터 연습 Keep 결재 — 연습 끝(SAFE_CANCEL)" : `관제탑으로 부터 수동 취소/방출(${status}) 요청 받음`);
         
         /**
          * 📅 **버리는 문** — 예약 보관의 콜이면 보관에서 꺼낸다. 안 꺼내면 버린 콜이
@@ -750,7 +744,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
 
         // 메모리에서 완전히 지우지 않고 상태값만 갱신하여 프론트엔드 취소/방출 탭에 보존
         // (두 메모리를 함께 갱신 — 여기는 원래 둘 다 쓰고 있었지만 규약으로 통일한다)
-        setOrderStatus(session, orderId, status);
+        setOrderStatus(session, orderId, endStatus);
 
         const cachedForLedger = session.myOrders.find(c => c.id === orderId)
             ?? session.pendingOrdersData.get(orderId) ?? takenReserved;
@@ -761,9 +755,9 @@ export async function handleDecision(userId: string, orderId: string, status: De
                 const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
                 const isExpress = (cachedForLedger as any).orderForm === '급송' ? 1 : 0;
                 OrderRepository.upsertOrder(cachedForLedger as any, userId, isShared, isExpress);
-                const terminatedAt = OrderRepository.updateOrderStatus(orderId, userId, status);
+                const terminatedAt = OrderRepository.updateOrderStatus(orderId, userId, endStatus);
                 if (terminatedAt) (cachedForLedger as any).terminatedAt = terminatedAt;   // 🧹 화면으로 가는 메모리 콜에도 (전수표 #65)
-                slog('콜단계', `✅ [상태 동기화] ${orderId} - DB 업데이트 완료 (상태: ${status})`);
+                slog('콜단계', `✅ [상태 동기화] ${orderId} - DB 업데이트 완료 (상태: ${endStatus})`);
             } catch (e) {
                 console.error("DB 업데이트 에러:", e);
             }
@@ -777,7 +771,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
 
         if (io) {
             logRoadmapEvent('콜단계', "서버", "관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달");
-            io.to(userId).emit("order-canceled", { id: orderId, status, isManual: true });
+            io.to(userId).emit("order-canceled", { id: orderId, status: endStatus, isManual: true });
         }
 
         const activeCalls = getActiveCalls(session);
@@ -824,4 +818,32 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
 export function rebuildDestinationKeywords(userId: string, io: any): void {
     /* 🕸️ 부팅·콜 0건도 그물 한 곳(`rebuildNetFilter`)이 목록을 만든다 */
     rebuildNetFilter(userId, io);
+}
+
+/**
+ * 🌱 **KEEP 하면 여섯 단계가 생긴다** (기사님 — 시험 버튼 대체).
+ *    "콜을 잡는 순간 모든 상세값이 임시로 정해진다" — 그 순간이 여기다.
+ *    장부에 오른 콜(운행 목록 · 예약 보관)에만 낳는다 — 연습 콜은 둘 다에 안 올라가 orders 행이 없다.
+ *    실패해도 결재는 이미 끝났다 — 시딩이 KEEP 을 막으면 안 된다.
+ */
+export function birthStepsOnKeep(userId: string, orderId: string, io: any) {
+    const session = getUserSession(userId);
+    const keptCall = session.myOrders.find(o => o.id === orderId)
+        ?? session.reservedOrders.find(o => o.id === orderId);
+    if (!keptCall || (keptCall as any).isSimulated) return;
+    try {
+        // 🌱 출생 모델 (기사님): KEEP 은 **첫 행(상차지 통화)만** 낳는다.
+        //    나머지는 각 단계가 끝날 때 앞 값을 물려받아 태어난다 — 뒤 행을 찾아다니며
+        //    고치는 코드가 없어야 화면·장부가 갈라질 수 없다.
+        const judgment = session.judgment;
+        const tl = routeTlOf(userId);
+        birthFirstStep(userId, orderId, judgment, tl);
+        // 🧭 합짐이 붙으면 **경로 위 모든 콜**의 흐르는 예상이 민다 — 굳은 약속은 불변
+        for (const c of session.myOrders.filter((o: any) => !isTerminal(o.status) && !o.isSimulated)) {
+            refreshPlannedSteps(userId, c.id, judgment, tl);
+            io.to(userId).emit("steps-synced", { orderId: c.id, steps: stepsView(c.id, judgment) });
+        }
+    } catch (e) {
+        console.error(`🌱 [단계 출생 실패] ${orderId.slice(-6)}:`, (e as Error).message);
+    }
 }

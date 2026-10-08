@@ -328,24 +328,9 @@ export default function PinnedRouteCard({
                             {route.capturedVia === 'ALARM' ? '🔔 알람콜' : '직접콜'}
                         </span>
                     )}
-                    {route.isSimulated && !isTerminal(route.status) && (
-                        <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/40 text-[11px] font-black flex items-center gap-1">
-                            <span>🐥 체험 운행 중</span>
-                            {onDecision && (
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        logRoadmapEvent("결재", "웹", "체험 콜 종료 버튼 클릭");
-                                        onDecision(route.id, 'SAFE_CANCEL');
-                                    }}
-                                    className="ml-1 text-[10px] text-danger hover:underline font-bold"
-                                    title="가상 체험 콜 종료"
-                                >
-                                    [체험 종료]
-                                </button>
-                            )}
-                        </span>
+                    {/* 🐥 연습 콜은 운행으로 안 올라간다 — 결재(KEEP · 거절)가 오면 둘 다 연습 끝으로 닫혀 취소/방출 탭에 이 배지로 남는다 */}
+                    {route.isSimulated && isTerminal(route.status) && (
+                        <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/40 text-[11px] font-black">🐥 연습 끝</span>
                     )}
                     {evaluating && <span className="text-warning font-black animate-pulse">평가중</span>}
                     {/* 🎨 판정색 칩 — KEEP 버튼 배경에만 색을 두면, 버튼 없는 직접·알람 콜은

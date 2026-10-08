@@ -74,13 +74,14 @@ describe('✅ 결재 KEEP', () => {
         expect(sent('order-confirmed').map(e => e[1])).toEqual([`${U}-k1`]);
     });
 
-    it('🔴 체험 콜 — 수락을 안 세고 장부에 안 적는다 · 메모리엔 확정', async () => {
+    it('🔴 연습 콜 — 수락을 안 세고 장부에 안 적는다 · 운행에 안 올라가고 연습 끝(SAFE_CANCEL)', async () => {
         const keep = jest.spyOn(cancelCount, 'countKeep');
         const s = seed(`${U}-sim`, { isSimulated: true });
         await handleDecision(U, `${U}-sim`, 'ORDER_CONFIRMED', io);
         expect(keep).not.toHaveBeenCalled();
         expect(ledgerRow(`${U}-sim`)).toBeUndefined();
-        expect(s.myOrders[0]).toMatchObject({ id: `${U}-sim`, status: 'ORDER_CONFIRMED', isSimulated: true });
+        expect(s.myOrders).toEqual([]);
+        expect(s.pendingOrdersData.get(`${U}-sim`)).toMatchObject({ status: 'SAFE_CANCEL', isSimulated: true });
     });
 
     it('🔴 둘째 콜은 합짐으로 장부에 적는다', async () => {
