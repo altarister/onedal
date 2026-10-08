@@ -1,5 +1,5 @@
 import db from '../../src/db';
-import { handleDecision, birthStepsOnKeep } from '../../src/services/dispatchEngine';
+import { handleDecision } from '../../src/services/dispatchEngine';
 import * as steps from '../../src/services/stepSeeder';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import * as devices from '../../src/state/deviceRegistry';
@@ -60,8 +60,9 @@ describe('체험 판정 — 콜에 적힌 값', () => {
         expect(s.myOrders.some(o => o.id === 'real-2')).toBe(true);
     });
 
-    /* 🌱 단계 행은 장부에 오른 콜(운행 · 예약 보관)에만 낳는다 — 연습 콜은 orders 행이 없어 낳으면 외래 키에 막힌다 */
-    describe('KEEP 뒤 단계 출생', () => {
+    /* 🌱 단계 행은 장부에 오른 콜(운행 · 예약 보관)에만 낳는다 — 연습 콜은 orders 행이 없어 낳으면 외래 키에 막힌다
+          🔴 결재가 어느 길로 오든(소켓 · 서버 안 손 확정 /detail · 인터넷) handleDecision 하나가 낳는다 — 소켓 핸들러에만 붙어 있으면 손 확정 콜은 상차지 도착 때에야 태어났다(70판 R4) */
+    describe('KEEP 뒤 단계 출생 — 결재 하나로', () => {
         let birth: jest.SpyInstance;
         beforeEach(() => { birth = jest.spyOn(steps, 'birthFirstStep').mockImplementation(() => undefined as any); });
         afterEach(() => birth.mockRestore());
@@ -69,19 +70,19 @@ describe('체험 판정 — 콜에 적힌 값', () => {
         it('🔴 연습 KEEP — 단계 출생 0번', async () => {
             seed('sim-3', true);
             await handleDecision(U, 'sim-3', 'ORDER_CONFIRMED', io);
-            birthStepsOnKeep(U, 'sim-3', io);
             expect(birth).not.toHaveBeenCalled();
         });
-        it('대조 — 진짜 KEEP 은 한 번', async () => {
+        it('🔴 진짜 KEEP — 결재만으로 한 번(따로 부르지 않아도 · 두 번 아님)', async () => {
             seed('real-3', false);
             await handleDecision(U, 'real-3', 'ORDER_CONFIRMED', io);
-            birthStepsOnKeep(U, 'real-3', io);
             expect(birth).toHaveBeenCalledTimes(1);
+            expect(birth.mock.calls[0][1]).toBe('real-3');
         });
-        it('대조 — 예약 보관에만 있는 콜(운행 목록 밖)도 한 번', () => {
-            const s = getUserSession(U);
-            s.reservedOrders.push({ id: 'resv-3', status: 'ORDER_CONFIRMED', pickup: '경기 광주시 경안동', dropoff: '경기 파주시 금촌동' } as any);
-            birthStepsOnKeep(U, 'resv-3', io);
+        it('🔴 예약 KEEP(내일 콜 · 예약 보관 갈래) — 결재만으로 한 번', async () => {
+            const s = seed('resv-3', false);
+            Object.assign(s.pendingOrdersData.get('resv-3') as any, { reserved: true, reservedDay: 1, reservedAt: '09:00' });
+            await handleDecision(U, 'resv-3', 'ORDER_CONFIRMED', io);
+            expect(s.reservedOrders.some(o => o.id === 'resv-3')).toBe(true);
             expect(birth).toHaveBeenCalledTimes(1);
         });
     });

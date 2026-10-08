@@ -620,6 +620,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
             saveConfirmedToLedger(0);
             slog('결재', `📅 [예약 보관] ${orderId.slice(0, 8)} → ${reservedFor} ${(cachedOrder as any).reservedAt ?? ''} — 오늘 하루에 안 넣는다`);
             io.to(userId).emit("order-confirmed", orderId);
+            birthStepsOnKeep(userId, orderId, io);   // 🌱 상차지 통화 단계 — 결재가 어느 길로 오든 여기 한 곳
             return { success: true, action: status };
         }
 
@@ -732,6 +733,8 @@ export async function handleDecision(userId: string, orderId: string, status: De
         }
         logRoadmapEvent('필터', "서버", "새로 부여된 합짐 필터(isSharedMode)값 메모리 세션 갱신");
         logRoadmapEvent('필터', "서버", "앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달");
+        /* 🌱 상차지 통화 단계 — 결재가 어느 길로 오든(소켓 · 서버 안 손 확정 /detail · 인터넷) 여기 한 곳 · 연습 KEEP 은 이 갈래를 안 탄다 */
+        birthStepsOnKeep(userId, orderId, io);
     } else {
         const endStatus = isKeep ? 'SAFE_CANCEL' : status;
         logRoadmapEvent('결재', "서버", isKeep ? "관제탑으로 부터 연습 Keep 결재 — 연습 끝(SAFE_CANCEL)" : `관제탑으로 부터 수동 취소/방출(${status}) 요청 받음`);
@@ -828,7 +831,7 @@ export function rebuildDestinationKeywords(userId: string, io: any): void {
  *    장부에 오른 콜(운행 목록 · 예약 보관)에만 낳는다 — 연습 콜은 둘 다에 안 올라가 orders 행이 없다.
  *    실패해도 결재는 이미 끝났다 — 시딩이 KEEP 을 막으면 안 된다.
  */
-export function birthStepsOnKeep(userId: string, orderId: string, io: any) {
+function birthStepsOnKeep(userId: string, orderId: string, io: any) {
     const session = getUserSession(userId);
     const keptCall = session.myOrders.find(o => o.id === orderId)
         ?? session.reservedOrders.find(o => o.id === orderId);

@@ -17,7 +17,7 @@ import { getActiveCalls } from "../core/activeCalls";
 const lastRecoverLogSig = new Map<string, string>();
 /** 🏢 운영센터 신호를 보낸 마지막 콜 지문(콜 · 상태 · 판정 색) — 기사마다 */
 const lastOpsSig = new Map<string, string>();
-import { recalculateDetourFilter, handleDecision, birthStepsOnKeep, recalculateKakaoRoute, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
+import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, recalcRouteIfStopsChanged } from "../services/dispatchEngine";
 import { bootstrapUserSession, filterInitOf } from "../state/sessionRestore";
 import { reportMilestone, undoMilestone, setCallTarget } from "../services/milestones";
 import { bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
@@ -524,7 +524,6 @@ export function registerSocketHandlers(io: Server) {
             slog('결재', `⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Status Action: ${action}`);
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
-            if (action === 'ORDER_CONFIRMED') birthStepsOnKeep(userId, orderId, io);   // 🌱 단계 출생 — 장부에 오른 콜에만 (dispatchEngine)
         });
 
         // 카카오 경로 재탐색
