@@ -85,6 +85,30 @@ export function goalZonesOf(o: {
 }
 
 /**
+ * 🗺️ **필터창 초안의 목적지 — 적용 전에도 지도에 그린다** (기사님: 고르는 동안 지도에 영역이 바로 보여야 한다).
+ *
+ * 서버가 낸 목적지 목록(`goalCities` = `goalZonesOf` 의 이름)에서 **필터 도시(`goalCity`) 자리만** 초안 도시로 바꾼다.
+ * 마지막 KEEP 콜의 목표 도시는 관제웹이 모른다(KEEP 차례를 모른다) — 서버 목록에 남은 그대로 쓴다.
+ * 순서와 «같으면 하나»는 `goalZonesOf` 와 같다 — 필터 도시가 먼저, KEEP 목표가 같으면 하나.
+ * ⚠️ KEEP 목표가 옛 필터 도시와 같았으면 서버 목록에 하나로 접혀 있어 초안에서는 빠져 보인다 — «적용» 뒤 서버 목록이 맞는다.
+ *
+ * @param draftFilterCity 초안이 만들 필터 도시 — `undefined` 면 초안이 필터 도시를 안 바꾼다(서버 목록 그대로)
+ */
+export function draftGoalCitiesOf(o: {
+    goalCities: readonly string[];
+    goalCity: string | null | undefined;
+    draftFilterCity: string | undefined;
+}): string[] {
+    if (o.draftFilterCity === undefined) return [...o.goalCities];
+    const names: string[] = [];
+    if (o.draftFilterCity) names.push(o.draftFilterCity);
+    for (const city of o.goalCities) {
+        if (city !== o.goalCity && !names.includes(city)) names.push(city);
+    }
+    return names;
+}
+
+/**
  * 🟢 **상차 조각 — 각자 자기 사실만 본다**.
  *
  * 상차의 주어는 **나**다. 「내가 20분 안에 가서 실을 수 있고, 내가 지금 달리는 길에 있는 곳」이다.

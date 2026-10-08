@@ -1,6 +1,6 @@
 /**
  * 🧠 **기사님 세션 — 메모리에 든 한 사람의 상태** (콜 · 필터 · 기다림 · 위치 · 판정 기준).
- * 바깥 일을 하는 함수: baseFilterFromDb · getUserSession(장부(DB) · 필터 값 읽기 · 오늘 복귀 줄 · 지금 시각 · 로그) · clearUserSession(기다림 끄기 · 로그) · peekUserSession · getAllActiveUserIds · busyCountsOfAll(세션 표) (평소 설정 · 바쁨 셈 baseFilterFrom · busyCountsFrom 은 값만 받는다)
+ * 바깥 일을 하는 함수: baseFilterFromDb · getUserSession(장부(DB) · 필터 값 읽기 · 오늘 복귀 줄 · 오늘 필터 줄 · 지금 시각 · 로그) · clearUserSession(기다림 끄기 · 로그) · peekUserSession · getAllActiveUserIds · busyCountsOfAll(세션 표) (평소 설정 · 바쁨 셈 baseFilterFrom · busyCountsFrom 은 값만 받는다)
  */
 import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, isTerminal, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom,
          quadShapeFrom, filterValuesFrom, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
@@ -8,6 +8,7 @@ import type { PhaseKey, JudgmentConfig } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
 import db, { seedCallOptions, loadCallOptions } from "../db";
 import { callTargetToday } from "../core/callTargetEvents";
+import { filterTodayOf } from "../core/filterToday";
 import type { CallOption } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { slog } from "../utils/fileLogger";
@@ -489,6 +490,8 @@ export function getUserSession(userId: string): UserSession {
                 // 안 하면 진행 중인 콜이 여럿이어도 필터가 첫짐인 채로 콜 잡기가 돌아 경로를 벗어난 콜을 잡는다.
                 session.activeFilter = {
                     ...session.baseFilter,
+                    /* 🔍 그날 «적용»한 값 — 서버가 다시 켜져도 그날 안에는 남는다(`core/filterToday`). 아래 칸들은 그 위에 다시 정한다 */
+                    ...filterTodayOf(userId, session.businessDay),
                     isSharedMode: false,
                     driverAction: 'WAITING',      // [V2] 세션 복구 시 항상 대기 상태
                     dispatchPhase: 'STANDBY',     // [V2] 세션 복구 시 항상 첫짐 탐색
@@ -508,6 +511,7 @@ export function getUserSession(userId: string): UserSession {
                 session.baseFilter = baseFilterFromDb(userId, null);
                 session.activeFilter = {
                     ...session.baseFilter,
+                    ...filterTodayOf(userId, session.businessDay),   // 🔍 위 갈래와 같다
                     isSharedMode: false,
                     driverAction: 'WAITING',      // [V2]
                     dispatchPhase: 'STANDBY',     // [V2]

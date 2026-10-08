@@ -1,4 +1,5 @@
 import { useFilterConfig } from "../../hooks/useFilterConfig";
+import { hasUnappliedDraft } from "../../lib/filterDraft";
 import { effectiveRadii } from "@onedal/shared";
 import type { CallTarget } from "@onedal/shared";
 
@@ -36,7 +37,9 @@ export default function OrderFilterStatus({ onOpenFilter }:
         /** 🚫 몇 차례째인가 — 총량이 사라지지 않게 */
         cancelRounds?: Record<string, number>;
     }) {
-    const { filter } = useFilterConfig();
+    const { filter, draft } = useFilterConfig();
+    /** 🔍 필터창에서 고치고 «적용»하지 않은 값이 남았나 — 이 줄은 원달앱이 쓰는 값(서버 값)을 말하므로 따로 표시한다 */
+    const unapplied = hasUnappliedDraft(filter, draft);
 
 
     /**
@@ -140,6 +143,11 @@ export default function OrderFilterStatus({ onOpenFilter }:
             {filter.userOverrides && (
                 <span title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
                     className="shrink-0 text-[11px] text-warning">🔒</span>
+            )}
+            {/* 🔍 적용 안 한 초안 — 창을 닫아도 남는다. 이 표시가 없으면 적용된 줄 알고 운전을 시작하신다 */}
+            {unapplied && (
+                <span title="필터창에서 고친 값이 아직 원달앱에 안 갔습니다 — 필터를 열어 ✅ 적용을 누르세요"
+                    className="shrink-0 rounded px-1 text-[10.5px] font-black bg-warning/20 text-warning">적용 안 함</span>
             )}
             <span className="shrink-0 text-[11.5px] font-black" style={{ color: v14.c }}>{label}</span>
         </button>

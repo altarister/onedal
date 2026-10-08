@@ -10,6 +10,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
          resolvePhaseKey, effectiveRadii, radiusScaleOf,
          VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT, wonText } from "@onedal/shared";
 import { radiusScaleNoteOf } from '../../lib/radiusNote';
+import { draftViewOf, hasUnappliedDraft, changedFrom } from '../../lib/filterDraft';
 import type { PhaseKey, FlatValueKey, CallTarget, ReservationMode } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
@@ -20,6 +21,8 @@ import { Input } from "@onedal/ui/input";
 /* 🎛️ 고르기 칸은 목업과 **같은 부품**이다 (규칙 ③) */
 import { PickLayer } from "../ui/PickLayer";
 import { KnobGrid } from "../ui/KnobGrid";
+import { FilterRow } from "./FilterRow";
+import type { RowId } from "./FilterRow";
 
 /**
  * 콜할인율 단계 — 시세 대비 허용 할인 %.
@@ -103,29 +106,6 @@ const RESERVATION_PICKS: ReadonlyArray<[ReservationMode, string]> = [
     ['today', '오늘 콜만'], ['tomorrowToo', '내일 콜도'], ['tomorrowOnly', '내일 콜만'],
 ];
 
-/** 🧰 **필터의 행** — 어디로 · 얼마나 넓게 · 어떤 콜 · 빼는 곳 (기사님 확정) */
-type RowId = 'where' | 'wide' | 'call' | 'exclude';
-
-/**
- * 🧰 **행 하나 — 머리를 누르면 열리고 닫힌다.** 안쪽 상자 없이 구분선만 긋는다 (필터가 이미 상자다).
- *    닫혀 있어도 머리의 요약으로 값이 읽힌다 — 지도를 가리지 않으려고 닫아 두는 것이지 감추는 것이 아니다.
- */
-function FilterRow({ id, title, summary, open, onToggle, danger = false, children }: {
-    id: RowId; title: string; summary: string; open: boolean; onToggle: (id: RowId) => void; danger?: boolean; children: React.ReactNode;
-}) {
-    return (
-        <div id={id} className="border-b border-border-card last:border-b-0">
-            <button type="button" aria-expanded={open} onClick={() => onToggle(id)}
-                className="w-full min-h-[40px] flex items-center gap-2 px-3 py-2 text-left hover:bg-surface-hover/30">
-                <span className={`shrink-0 text-[13px] font-black ${danger ? 'text-danger' : open ? 'text-info' : 'text-text-primary'}`}>{title}</span>
-                <span className="flex-1 min-w-0 truncate text-right text-[12px] font-bold text-text-muted tabular-nums">{summary}</span>
-                <span className={`inline-block shrink-0 text-[10px] text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
-            </button>
-            {open && <div className="px-3 pb-2.5 space-y-1.5">{children}</div>}
-        </div>
-    );
-}
-
 interface OrderFilterModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -140,7 +120,14 @@ interface OrderFilterModalProps {
 
 export default function OrderFilterModal({ isOpen, onClose,
                                            routeMode, setRouteMode }: OrderFilterModalProps) {
-    const { filter, baseFilter, updateFilter, previewFilter } = useFilterConfig();
+    const { filter: served, baseFilter, draft, updateFilter, previewFilter, applyDraft, clearDraft } = useFilterConfig();
+    /**
+     * 🔍 **필터창이 보이는 값 — 서버 값 위에 고치던 초안을 얹는다** (`lib/filterDraft`).
+     *    필터창 안에서 고친 것은 초안에만 적힌다(`previewFilter`) — 원달앱에는 «✅ 적용» 한 번에 간다 (기사님 «가»).
+     */
+    const filter = useMemo(() => draftViewOf(served, draft), [served, draft]);
+    /** 🔍 «적용 안 함» — 초안과 서버 값을 견줘 파생한다 (깃발을 들지 않는다) */
+    const unapplied = hasUnappliedDraft(served, draft);
     /** 🛣️ 무대가 «라인으로 쟀나» — ⏳ 경로 대기 문구가 본다 (store · 모르면 null) */
     const netUsedLine = useFilterStore(st => st.netUsedLine);
 
@@ -151,13 +138,13 @@ export default function OrderFilterModal({ isOpen, onClose,
      * 자리는 `user_filters` 한 행. 지금 안 쓰는 칸은 감추지 않고 목업처럼
      * **다 꺼내 두고 흐리게** 한다.
      */
-    const [cur, setForm] = useState<ValueForm>(() => toForm(DEFAULT_FILTER_VALUES));
+    const [cur, setForm] = useState<ValueForm>(() => toForm(filter ? filterValuesFrom(filter) : DEFAULT_FILTER_VALUES));
     /**
      * 📐 **마름모의 모양 — 국면 밖 한 벌**.
      *    국면 값 묶음과 **따로** 산다. 저장도 평면 통로(`updateFilter`)다.
      */
     const [quadForm, setQuadForm] = useState<Record<string, string>>(
-        () => Object.fromEntries(QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(null)[f.path])])));
+        () => Object.fromEntries(QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(filter)[f.path])])));
     const [quadDirty, setQuadDirty] = useState(false);
     /**
      * 🎚️ **지금 펼쳐진 손잡이 하나**. 하나뿐이라 다른 칸을 열면
@@ -174,7 +161,7 @@ export default function OrderFilterModal({ isOpen, onClose,
      *    그 지역이 곧장 살아나면 안 되므로 **💾 를 눌러야** 저장 대상이 된다.
      *    키 문법(`S|도`·`R|시군구`·`D|시군구|동`)은 `shared/callNet.ts` 하나가 안다.
      */
-    const [exDraft, setExDraft] = useState<string[]>([]);
+    const [exDraft, setExDraft] = useState<string[]>(() => filter?.excludedRegions ?? []);
     const [exDirty, setExDirty] = useState(false);
     const [exSido, setExSido] = useState<string>('경기');
     const [exSgg, setExSgg] = useState<string | null>(null);
@@ -188,11 +175,11 @@ export default function OrderFilterModal({ isOpen, onClose,
     /** 초안이 «지금 그물»에 들어가 있나 — 인라인 💾 저장의 «완료» 표시 */
     const exApplied = sameList(exDraft, filter?.excludedRegions ?? []);
     /**
-     * 💾 **인라인 저장 — 초안을 «그물(메모리)»에 넣는다.** 전역 💾 서버 저장(DB)과 다른 일이다.
+     * 💾 **인라인 저장 — 고른 칩을 필터 초안에 담는다** (원달앱에는 ✅ 적용 때). 전역 💾 서버 저장(DB)과 다른 일이다.
      *    칩 하나 잘못 눌러 그 지역이 곧장 살아나면 안 되므로 제외지역만 초안을 둔다 (목업과 같다).
      */
     const applyExcluded = () => {
-        updateFilter({ excludedRegions: exDraft, userOverrides: true });
+        previewFilter({ excludedRegions: exDraft, userOverrides: true });
     };
     const toggleEx = (key: string) => { setExDraft(x => x.includes(key) ? x.filter(k => k !== key) : [...x, key]); setExDirty(true); };
     /**
@@ -265,7 +252,7 @@ export default function OrderFilterModal({ isOpen, onClose,
          * 다섯을 다 고른 것은 «모두»와 같은 뜻이라 빈 배열로 되돌린다.
          */
         const next = accepted.includes(v) ? accepted.filter(x => x !== v) : [...accepted, v];
-        updateFilter({ acceptedVehicleTypes: next.length === VEHICLE_PICKS.length ? [] : next });
+        previewFilter({ acceptedVehicleTypes: next.length === VEHICLE_PICKS.length ? [] : next });
     };
 
     /**
@@ -283,14 +270,11 @@ export default function OrderFilterModal({ isOpen, onClose,
     };
 
     /**
-     * 💾 **저장은 두 갈래다 — 메모리와 서버**.
+     * 💾 **보내는 것은 둘이다 — ✅ 적용(오늘 값)과 💾 서버 저장(평소 설정까지)** (기사님 «가»).
+     *    필터창 안에서 고친 것은 초안에만 적힌다 — 창을 닫아도 남고, 원달앱에는 안 간다.
      *
-     * 기사님: *"오늘만, 계속, 평소값 **이것이 말이 안 되는것 같다**. 서버저장과 메모리 저장
-     * 뭐 이렇게만 있으면 될 것 같은데 … **그냥 닫으면 앱메모리에 자동저장** 되는거지."*
-     *
-     * 🔴 **`setField` 는 화면만 움직인다.** 서버로 보내는 것은 `commitValues` 한 번이고,
-     *    슬라이더는 **손가락을 뗄 때** 그것을 부른다 — 끄는 동안 픽셀마다 보내면
-     *    서버가 경유 지역을 매번 다시 그려(지리 연산 수 초) 폭주한다.
+     * 🔴 **`setField` 는 화면만 움직인다.** 초안에 적는 것은 `commitValues` 이고,
+     *    슬라이더는 **손가락을 뗄 때** 그것을 부른다.
      * 🔴 **«저장 안 한 변경»은 손으로 든 깃발로 세지 않는다.** 깃발은 켜고 끄는 것을
      *    잊는 순간 거짓말을 한다 — «서버와 다른가»는 아래 `unsaved` 가 **파생**한다 (규칙 ③).
      */
@@ -303,31 +287,35 @@ export default function OrderFilterModal({ isOpen, onClose,
      * 기사님: *"값을 조절할때 움직일때 **영역을 바꿔 주면 좋겠어**.
      * 그래야 그걸 보고 **한번에 조절** 하니까."*
      *
-     * 🔴 소켓을 안 탄다 — 끄는 동안 서버로 쏘면 매번 경유 지역을 다시 파생해 **앱에까지**
-     *    내려간다. 지도 «상차» · «하차» 레이어는 **클라에서** 다시 그린다.
-     * ⚠️ 짝이 있다: 손을 뗄 때 아래 `commitValues` 가 **같은 값을 서버로** 한 번 보낸다.
+     * 🔴 소켓을 안 탄다 — 초안에 적고, 지도 «상차» · «하차» 레이어는 그 초안으로 **클라에서** 다시 그린다.
+     *    손을 뗄 때 아래 `commitValues` 가 같은 값을 초안에 한 번 더 적는다.
      */
-    const previewValues = (next: ValueForm) => {
+    const previewValues = (key: FlatValueKey, value: string) => {
+        const next = { ...cur, [key]: value };
         setForm(next);
-        previewFilter(toValues(next, filterValuesFrom(filter)));
-    };
-    /** 지금 폼 값을 **메모리에** 넣는다 (DB 아님). 손을 뗄 때 서버까지 간다 */
-    const commitValues = (next?: ValueForm) => {
-        updateFilter(toValues(next ?? cur, filterValuesFrom(filter)));
+        previewFilter({ [key]: toValues(next, filterValuesFrom(filter))[key] });   // 고친 그 칸만 (아래 `commitValues`)
     };
     /**
-     * 고르는 칸(목적지·할인율)은 **고르는 즉시** — 한 번뿐이라 폭주가 없다.
+     * 고친 **그 칸만** 초안에 적는다 — 원달앱에는 ✅ 적용 때 간다.
+     * 🔴 다섯 칸을 통째로 담지 않는다 — 담으면 안 고친 칸의 옛 값이 초안에 남아, 날이 바뀌거나 ⚙️ 설정이 반경을 바꿔도
+     *    낡은 값이 서버 값을 덮고 «적용 안 함»이 선다.
+     */
+    const commitValues = (key: FlatValueKey, next: ValueForm) => {
+        previewFilter({ [key]: toValues(next, filterValuesFrom(filter))[key] });
+    };
+    /**
+     * 고르는 칸(목적지·할인율)은 **고르는 즉시** 초안에 적는다.
      * 🔴 **값을 인자로 받아 합쳐 보낸다** — `setForm` 은 예약일 뿐이라
      *    바로 뒤에서 `cur` 을 읽으면 **한 칸 뒤처진다** (`KnobGrid` 의 ± 가 그 모양이다).
      */
     const pickField = (key: FlatValueKey, value: string) => {
         const next = { ...cur, [key]: value };
         setForm(next);
-        commitValues(next);
+        commitValues(key, next);
     };
 
     /** 제외 키워드는 **국면과 무관한 한 벌**이라 평면 필터에 있다 */
-    const [blacklist, setBlacklist] = useState<string>("");
+    const [blacklist, setBlacklist] = useState<string>(() => filter?.excludedKeywords ? filter.excludedKeywords.join(',') : "");
     const [blacklistDirty, setBlacklistDirty] = useState(false);
 
     /**
@@ -435,7 +423,7 @@ export default function OrderFilterModal({ isOpen, onClose,
     /**
      * ↩︎ **되돌리기 — 서버에 저장된 값으로**.
      *
-     * 🔴 폼만 되돌리지 않고 **메모리까지** 되돌린다. 화면과 콜 잡기가 갈라지면 안 된다.
+     * 🔴 폼만 되돌리지 않고 **초안까지** 되돌린다 — ✅ 적용을 누르면 오늘 값도 평소 설정으로 돌아간다.
      */
     const handleRevert = () => {
         if (!baseFilter) return;
@@ -446,19 +434,24 @@ export default function OrderFilterModal({ isOpen, onClose,
         setBlacklist(baseFilter.excludedKeywords ? baseFilter.excludedKeywords.join(',') : "");
         /* 되돌린 직후 💾 가 헛쓰기를 하지 않게 «담아 둔» 깃발도 내린다 (조사 ①-8 부수) */
         setQuadDirty(false); setExDirty(false); setBlacklistDirty(false);
-        updateFilter({
-            ...toValues(v, filterValuesFrom(baseFilter)),
-            ...quadShapeFrom(baseFilter),
-            excludedRegions: baseFilter.excludedRegions ?? [],
-            excludedKeywords: baseFilter.excludedKeywords ?? [],
+        /* 🔍 초안을 갈아 쓴다 — 평소 설정 가운데 지금 서버 값과 다른 칸만 담는다(통째로 담으면 낡은 값이 서버 값을 덮는다).
+              양쪽을 같은 모양(빈 칸은 같은 기본값)으로 펴서 견준다 — 안 그러면 «없음»과 기본값이 다르다고 나온다 */
+        clearDraft();
+        const shapeOf = (f: NonNullable<typeof baseFilter>) => ({
+            ...filterValuesFrom(f),
+            ...quadShapeFrom(f),
+            excludedRegions: f.excludedRegions ?? [],
+            excludedKeywords: f.excludedKeywords ?? [],
             /* 📐🚚 오늘 값 셋도 서버 값으로 (조사 ①-5) */
-            radiusAuto: !!baseFilter.radiusAuto,
-            radiusBaseKm: baseFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
-            acceptedVehicleTypes: baseFilter.acceptedVehicleTypes ?? [],
-            routeMode: baseFilter.routeMode ?? true,   // 🛣️🔷 (조사 ①-9)
-            minFare: baseFilter.minFare ?? 0,          // 💵
-            reservationMode: baseFilter.reservationMode ?? 'today',   // 📅
+            radiusAuto: !!f.radiusAuto,
+            radiusBaseKm: f.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
+            acceptedVehicleTypes: f.acceptedVehicleTypes ?? [],
+            routeMode: f.routeMode ?? true,   // 🛣️🔷 (조사 ①-9)
+            minFare: f.minFare ?? 0,          // 💵
+            reservationMode: f.reservationMode ?? 'today',   // 📅
         });
+        const back = served ? changedFrom(shapeOf(served) as typeof served, shapeOf(baseFilter)) : shapeOf(baseFilter);
+        if (Object.keys(back).length) previewFilter(back);
     };
 
     if (!isOpen) return null;
@@ -475,7 +468,7 @@ export default function OrderFilterModal({ isOpen, onClose,
     }
 
     /**
-     * 💾 **서버 저장 — 지금 메모리에 있는 것을 DB 에 박는다**.
+     * 💾 **서버 저장 — 필터창에 보이는 값(오늘 값 + 고치던 초안)을 오늘 값과 DB 에 함께 박는다**.
      *
      * 저장은 **메모리와 DB 둘뿐이다** — 메모리는 **닫기만 해도** 들어가고,
      * «평소값»은 저장이 아니라 **되돌리기**(`↩︎ 되돌리기`)다.
@@ -486,6 +479,16 @@ export default function OrderFilterModal({ isOpen, onClose,
     const handleSaveToServer = () => {
         logRoadmapEvent("필터", "웹", `필터 서버 저장 — ${unsaved ? '값 변경 있음' : '값 변경 없음'}`);
         const saveAsDefault = true;
+        /**
+         * 🔍 **지금 보이는 값 전부를 먼저 싣는다** — 오늘 «적용»한 값 위에 고치던 초안(`filter`).
+         *    아래 «고친 때만» 깃발(`quadDirty` 등)은 창을 다시 열면 내려가 있어, 앞서 적용한 마름모 · 제외 지역 · 제외 단어가
+         *    평소 설정에 안 가고 다시 켤 때 사라진다. 그 뒤 깃발 줄은 창 안에서 아직 담지 않은 것만 덧싣는다.
+         */
+        updateFilter({
+            ...quadShapeFrom(filter),
+            excludedRegions: filter.excludedRegions ?? [],
+            excludedKeywords: filter.excludedKeywords ?? [],
+        }, saveAsDefault);
 
         /**
          * 🔴 **값 다섯은 평면 통로 하나로 간다**.
@@ -515,8 +518,8 @@ export default function OrderFilterModal({ isOpen, onClose,
         }
 
         /**
-         * 📐🚚💵 **오늘 값들은 이미 메모리에 있다 — 여기서는 DB 까지 보낸다** (조사 ①-5).
-         *    이 값들은 만지는 즉시 `saveAsDefault` 없이 `updateFilter(…)` 로 간다.
+         * 📐🚚💵 **오늘 값들도 DB 까지 보낸다** (조사 ①-5).
+         *    이 값들은 만지면 초안에 적히고 ✅ 적용 때 `saveAsDefault` 없이 간다.
          *    💾 가 안 실으면 서버 `baseFilter` 에 닿지 않아 자정에 풀린다.
          */
         updateFilter({
@@ -528,6 +531,7 @@ export default function OrderFilterModal({ isOpen, onClose,
             reservationMode: filter?.reservationMode ?? 'today',   // 📅 user_filters.reservation_mode
         }, saveAsDefault);
 
+        clearDraft();   // 🔍 보냈다 — 오늘 값과 평소 설정이 이 값이 된다
         onClose();
     };
 
@@ -558,18 +562,20 @@ export default function OrderFilterModal({ isOpen, onClose,
      *    그릇을 바꾸지 않는다 — 칩을 눌러도 자유 입력칸을 고쳐도 **같은 한 곳**에 쓴다 (규칙 ③).
      */
     const blacklistWords = blacklist.split(',').map(t => t.trim()).filter(Boolean);
-    /* 칩은 한 번뿐이라 **누르는 즉시** 메모리로 (목업과 같다 · 전수 조사 ①-2). `blacklistDirty` 는 💾 용 */
+    /* 칩은 한 번뿐이라 **누르는 즉시** 초안에 (목업과 같다 · 전수 조사 ①-2). `blacklistDirty` 는 💾 용 */
     const setBlacklistWords = (words: string[]) => {
         setBlacklist(words.join(', ')); setBlacklistDirty(true);
-        updateFilter({ excludedKeywords: words, userOverrides: true });
+        previewFilter({ excludedKeywords: words, userOverrides: true });
     };
     /**
-     * 자유 입력칸은 **손을 뗄 때**(blur·Enter) 보낸다 — 글자마다 보내면 「착」「착불」이
+     * 자유 입력칸은 **손을 뗄 때**(blur·Enter) 초안에 적는다 — 글자마다 적으면 「착」「착불」이
      * 차례로 앱에 내려가 그 사이 콜을 엉뚱하게 거른다.
      */
     const commitBlacklist = () => {
         const words = blacklist.split(',').map(t => t.trim()).filter(Boolean);
-        updateFilter({ excludedKeywords: words, userOverrides: true });
+        /* 🔴 단어가 실제로 바뀐 때만 — 손만 떼도 적으면 고친 것 없이 «적용 안 함»이 선다 */
+        if (sameList(words, filter?.excludedKeywords ?? [])) return;
+        previewFilter({ excludedKeywords: words, userOverrides: true });
     };
 
     const handleBlacklistChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -740,7 +746,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                 <div className="flex rounded-lg border border-border-card overflow-hidden">
                                     {([true, false] as const).map(on => (
                                         <button key={String(on)} type="button"
-                                            onClick={() => updateFilter({ radiusAuto: on })}
+                                            onClick={() => previewFilter({ radiusAuto: on })}
                                             className={`flex-1 px-1 py-1 text-[11px] font-bold ${
                                                 radiusAuto === on ? 'bg-info/15 border-info/55 text-info font-black' : 'text-text-muted'}`}>
                                             {on ? '기준 반경' : '수동'}
@@ -770,8 +776,8 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         dim: !radiusAuto,
                                         set: (v: number) => previewFilter({ radiusBaseKm: v }),
                                         onPreview: (v: number) => previewFilter({ radiusBaseKm: v }),
-                                        /* 🔴 뗄 때 서버로 — ⚙️ 설정과 같은 통로다 */
-                                        onCommit: (v: number) => updateFilter({ radiusBaseKm: v }),
+                                        /* 🔍 뗄 때도 초안에 — 원달앱에는 «적용» 때 (⚙️ 설정 칸은 따로 바로 저장한다) */
+                                        onCommit: (v: number) => previewFilter({ radiusBaseKm: v }),
                                     }]} />
                                 {/**
                                   * ↻ **잰 거리 — 누르면 다시 잰다. 다만 «넓히기만» 한다**
@@ -842,12 +848,12 @@ export default function OrderFilterModal({ isOpen, onClose,
                                             max: f.max,
                                             step: f.step,
                                             /**
-                                             * 🔴 **끌면 지도가 따라오고, 뗄 때 서버로** — 반경 셋과 같은 규칙 (전수 조사 ①-2).
+                                             * 🔴 **끌면 지도가 따라오고, 뗄 때 초안에** — 반경 셋과 같은 규칙 (전수 조사 ①-2).
                                              *    `quadDirty` 는 💾(DB) 용으로 그대로 든다.
                                              */
-                                            set: (v: number) => { const next = { ...quadForm, [f.path]: String(toRaw(v)) }; setQuadForm(next); setQuadDirty(true); previewFilter(quadShapeFrom(next)); },
-                                            onPreview: (v: number) => previewFilter(quadShapeFrom({ ...quadForm, [f.path]: String(toRaw(v)) })),
-                                            onCommit: (v: number) => updateFilter(quadShapeFrom({ ...quadForm, [f.path]: String(toRaw(v)) })),
+                                            set: (v: number) => { const next = { ...quadForm, [f.path]: String(toRaw(v)) }; setQuadForm(next); setQuadDirty(true); previewFilter({ [f.path]: quadShapeFrom(next)[f.path] }); },
+                                            onPreview: (v: number) => previewFilter({ [f.path]: quadShapeFrom({ ...quadForm, [f.path]: String(toRaw(v)) })[f.path] }),
+                                            onCommit: (v: number) => previewFilter({ [f.path]: quadShapeFrom({ ...quadForm, [f.path]: String(toRaw(v)) })[f.path] }),
                                         };
                                     })} />
                             </div>
@@ -905,8 +911,8 @@ export default function OrderFilterModal({ isOpen, onClose,
                                          */
                                         set: (v: number) => setField(path, String(toRaw(v))),
                                         /* 🔴 끄는 동안은 **지도까지** 따라 온다 — 소켓은 안 탄다 */
-                                        onPreview: (v: number) => previewValues({ ...cur, [path]: String(toRaw(v)) }),
-                                        /* 🔴 **뗄 때** 서버로 */
+                                        onPreview: (v: number) => previewValues(path, String(toRaw(v))),
+                                        /* 🔴 **뗄 때** 초안에 — 원달앱에는 ✅ 적용 때 */
                                         onCommit: (v: number) => pickField(path, String(toRaw(v))),
                                     };
                                 })]} />
@@ -937,7 +943,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                   *    *"버튼으로 하지 말고 위 처럼 프로그래스바로 … 0~10 만원까지 1000원 단위로"*).
                                   *    막대 값은 **만 원**이다(0.1 = 1,000원) — 칸에 «3만»처럼 짧게 선다. 서버로는 원으로 보낸다.
                                   * 🔴 `inline` — 레이어가 **줄 전체 폭**으로 떠야 폰에서 끈다 (기준거리 칸과 같다).
-                                  * 🔴 끄는 동안은 화면만(`previewFilter`), **뗄 때** 서버로(`updateFilter`).
+                                  * 🔴 끄는 동안도 뗄 때도 초안에(`previewFilter`) — 원달앱에는 ✅ 적용 때.
                                   */}
                                 <KnobGrid open={openKnob} onOpen={setOpenKnob} inline
                                     knobs={[{
@@ -948,7 +954,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         min: 0, max: 10, step: 0.1,
                                         set: (v: number) => previewFilter({ minFare: Math.round(v * 10) * 1000 }),
                                         onPreview: (v: number) => previewFilter({ minFare: Math.round(v * 10) * 1000 }),
-                                        onCommit: (v: number) => updateFilter({ minFare: Math.round(v * 10) * 1000 }),
+                                        onCommit: (v: number) => previewFilter({ minFare: Math.round(v * 10) * 1000 }),
                                     }]} />
                                 <PickLayer label="💰 콜할인율"
                                     value={callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`}
@@ -1028,14 +1034,14 @@ export default function OrderFilterModal({ isOpen, onClose,
                             {/**
                               * 📅 **예약콜 — 세 값 가운데 하나** (기사님 «가»). 기본은 «오늘 콜만».
                               *    읽는 곳은 원달앱 1차 필터 하나다 — 서버는 이 값으로 거르지 않는다. 받은 내일 콜은 예약 보관에 들고 오늘 목록과 안 섞인다.
-                              *    만지는 즉시 오늘 값으로 가고(받을 짐과 같은 길), 💾 가 평소 설정까지 싣는다.
+                              *    만지면 초안에 적히고(받을 짐과 같은 길) ✅ 적용 때 오늘 값으로, 💾 가 평소 설정까지 싣는다.
                               */}
                             <div className="pt-1.5 flex items-center gap-1">
                                 <span className="text-[10.5px] text-text-muted shrink-0">📅 예약콜</span>
                                 {RESERVATION_PICKS.map(([v, label]) => {
                                     const on = (filter?.reservationMode ?? 'today') === v;
                                     return (
-                                        <button key={v} type="button" onClick={() => updateFilter({ reservationMode: v })}
+                                        <button key={v} type="button" onClick={() => previewFilter({ reservationMode: v })}
                                             className={`px-2 py-0.5 rounded-md border text-[10.5px] font-black ${on
                                                 ? 'border-info/50 bg-info/15 text-info' : 'border-border-card text-text-muted'}`}>
                                             {label}
@@ -1173,7 +1179,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                               *    목업이라 고정이고, 실물은 기사님이 **아무 단어나** 넣으실 수 있어야 한다 —
                               *    목록만 남기면 기능이 준다. 그래서 레이어 «안»에 입력칸을 그대로 둔다.
                               * 🔴 기사님: *"제외 단어는 입력이 필요하다. 펼치면 내용을 볼 수 있다."*
-                              * 🔴 제외 지역과 달리 💾 를 따로 안 누른다 — 누르는 즉시 메모리로 간다.
+                              * 🔴 제외 지역과 달리 💾 를 따로 안 누른다 — 누르는 즉시 초안에 적힌다.
                               */}
                             <div className="relative grid grid-cols-3 gap-1 mt-1.5">
                                 <PickLayer label="🚫 제외 단어" tone="warning" keepOpen
@@ -1199,8 +1205,8 @@ export default function OrderFilterModal({ isOpen, onClose,
 
                 {/**
                   * 💾 **저장 줄 — 스크롤 밖 필터 바닥에 늘 보인다** (기사님: *"한번에 저장버튼이 보이지 않아서 불편하고"*).
-                  * 🔴 저장은 둘뿐이다 — 💾 서버 저장(DB) · ↩︎ 되돌리기(서버 값으로). 값을 만지면 바로 메모리에 들어간다.
-                  * ⚠️ 제외 지역의 인라인 💾 저장(메모리)은 «🚫 빼는 곳» 안에 그대로 있다 — 칩 하나 잘못 눌러 곧장 살아나지 않게.
+                  * 🔴 보내는 것은 둘이다 — ✅ 적용(오늘 값) · 💾 서버 저장(평소 설정까지). ↩︎ 되돌리기는 서버 값을 초안에 적는다. 값을 만지면 초안에 적힌다.
+                  * ⚠️ 제외 지역의 인라인 💾 저장(초안에 담기)은 «🚫 빼는 곳» 안에 그대로 있다 — 칩 하나 잘못 눌러 곧장 담기지 않게.
                   */}
                 <div data-save-bar className="shrink-0 relative z-10 flex items-center gap-1.5 border-t border-border bg-bg-base px-3 py-1.5">
                     {/**
@@ -1229,10 +1235,11 @@ export default function OrderFilterModal({ isOpen, onClose,
                     <span className="flex-1 min-w-0 text-[11px] font-bold leading-tight text-text-muted">
                         {unsaved ? <b className="text-warning">서버와 다름</b> : '서버와 같음'}
                         <span className="block text-[9.5px] font-bold opacity-80">
-                            {unsaved ? '지금 적용 중 · 💾 누르면 내일 아침에도' : <>값을 만지면 <b>바로 적용</b>된다 · 제외 지역만 따로 💾</>}
+                            {unapplied ? <>고친 값은 <b>✅ 적용</b>을 눌러야 원달앱에 갑니다</>
+                                : unsaved ? '적용 중 · 💾 누르면 내일 아침에도' : <>고친 뒤 <b>✅ 적용</b> · 내일 아침에도 쓰려면 💾</>}
                         </span>
                     </span>
-                    {/* ↩︎ **되돌리기** — 서버에 저장된 값으로. 메모리까지 함께 되돌린다 */}
+                    {/* ↩︎ **되돌리기** — 서버에 저장된 값으로. 초안까지 함께 되돌린다 */}
                     <Button
                         onClick={handleRevert}
                         disabled={!baseFilter || !unsaved}
@@ -1241,7 +1248,22 @@ export default function OrderFilterModal({ isOpen, onClose,
                     >
                         ↩︎ 되돌리기
                     </Button>
-                    {/* 💾 **서버 저장** — 하나뿐인 저장 */}
+                    {/**
+                      * ✅ **적용 — 고친 값을 한 번에 원달앱으로** (평소 설정은 그대로 · 기사님 «가»).
+                      * 🔴 적용하지 않은 값이 남았으면 버튼에 «적용 안 함»을 단다 — 창을 닫아도 초안이 남으니,
+                      *    표시가 없으면 적용된 줄 알고 운전을 시작하신다. 필터 줄(`OrderFilterStatus`)에도 같은 표시가 선다.
+                      */}
+                    <Button
+                        onClick={applyDraft}
+                        disabled={!unapplied}
+                        title="고친 값을 원달앱에 보냅니다 (평소 설정은 그대로)"
+                        className={`h-8 shrink-0 rounded-lg font-black text-[12px] px-2.5 flex flex-col items-center justify-center leading-none disabled:opacity-40 ${
+                            unapplied ? 'bg-warning text-white' : 'bg-surface-alt text-text-muted'}`}
+                    >
+                        ✅ 적용
+                        {unapplied && <span className="text-[9.5px] font-bold">적용 안 함</span>}
+                    </Button>
+                    {/* 💾 **서버 저장** — 평소 설정(DB)까지. 고치던 초안도 함께 싣는다 */}
                     <Button
                         onClick={handleSaveToServer}
                         title="지금 값을 DB에 저장합니다 (내일 아침에도 이 조건으로 시작)"

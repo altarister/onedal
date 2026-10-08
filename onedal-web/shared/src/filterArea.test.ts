@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { goalZonesOf, pickupPartsOf, nearGoalCitiesOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups, dongDotsOf } from './filterArea';
+import { goalZonesOf, draftGoalCitiesOf, pickupPartsOf, nearGoalCitiesOf, dropoffPartsOf, lastDropOf, lineUntil, isNearGoal, withNearness, mergeDropoffGroups, dongDotsOf } from './filterArea';
 
 /**
  * 🔵 **하차 목록 합치기**
@@ -162,5 +162,27 @@ describe('라인을 확정콜의 마지막 하차지까지 자른다', () => {
     it('끝점이 확정콜의 마지막 하차지면 통째로 · 점이 둘보다 적으면 빈 라인', () => {
         expect(lineUntil(line, { x: 0.03, y: 0 })).toEqual(line);
         expect(lineUntil([{ x: 0, y: 0 }], { x: 0, y: 0 })).toEqual([]);
+    });
+});
+
+/**
+ * 🗺️ **필터창 초안의 목적지 — 적용 전에도 지도에 그린다** (기사님 «고르는 동안 지도에 영역이 바로 보여야 한다»).
+ * 막는 것: 초안 도시를 골라도 목적지 원이 옛 도시에 남는 것 · 마지막 KEEP 콜의 목표 도시가 초안에 밀려 사라지는 것.
+ */
+describe('🗺️ 초안 목적지 — 서버 목록에서 필터 도시만 바꾼다', () => {
+    it('초안 도시가 필터 도시 자리에 선다', () => {
+        expect(draftGoalCitiesOf({ goalCities: ['이천시'], goalCity: '이천시', draftFilterCity: '서울 용산구' })).toEqual(['서울 용산구']);
+    });
+    it('마지막 KEEP 콜의 목표 도시는 남는다', () => {
+        expect(draftGoalCitiesOf({ goalCities: ['이천시', '여주시'], goalCity: '이천시', draftFilterCity: '서울 용산구' })).toEqual(['서울 용산구', '여주시']);
+    });
+    it('초안 도시가 KEEP 목표와 같으면 하나다 — 서버 `goalZonesOf` 와 같은 규칙', () => {
+        expect(draftGoalCitiesOf({ goalCities: ['이천시', '여주시'], goalCity: '이천시', draftFilterCity: '여주시' })).toEqual(['여주시']);
+    });
+    it('초안이 필터 도시를 안 바꾸면 서버 목록 그대로', () => {
+        expect(draftGoalCitiesOf({ goalCities: ['이천시', '여주시'], goalCity: '이천시', draftFilterCity: undefined })).toEqual(['이천시', '여주시']);
+    });
+    it('초안 도시를 비우면 KEEP 목표만 남는다', () => {
+        expect(draftGoalCitiesOf({ goalCities: ['이천시', '여주시'], goalCity: '이천시', draftFilterCity: '' })).toEqual(['여주시']);
     });
 });

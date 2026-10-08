@@ -621,12 +621,7 @@ describe('저장 — 메모리와 서버 둘 (C4-10)', () => {
         expect(modal).not.toMatch(/📌 계속/);
     });
 
-    /** 🔴 값을 만지면 **바로** 메모리로 — 따로 누를 것이 없다 (기사님: *"그냥 닫으면"*) */
-    it('🔴 값을 만지면 바로 메모리에 들어간다', () => {
-        const commit = modal.slice(modal.indexOf('const commitValues'), modal.indexOf('const commitValues') + 600);
-        expect(commit).toMatch(/updateFilter\(/);
-        expect(commit).not.toMatch(/saveAsDefault/);   // 메모리는 DB 까지 안 간다
-    });
+    /* 값을 만지면 초안에만 적히고 «✅ 적용» 한 번에 간다 — 관제웹 `components/dashboard/filterDraft.test.tsx` 가 동작으로 문다 */
 
     /**
      * 🔴 **슬라이더는 손가락을 뗄 때 한 번만 보낸다.**
@@ -676,7 +671,6 @@ describe('끄는 동안 영역이 바뀐다 (C4-11)', () => {
         const i = hook.indexOf('const previewFilter');
         expect(i).toBeGreaterThan(-1);
         const body = hook.slice(i, hook.indexOf('};', i));
-        expect(body).toMatch(/setFilter\(/);
         expect(body).not.toMatch(/socket\.emit/);
     });
 
@@ -691,11 +685,7 @@ describe('끄는 동안 영역이 바뀐다 (C4-11)', () => {
         expect(body).not.toMatch(/updateFilter\(/);
     });
 
-    it('🔴 «뗄 때» 는 여전히 서버로 간다 — 새로고침에 안 사라진다', () => {
-        const i = modal.indexOf('const commitValues');
-        const body = modal.slice(i, modal.indexOf('\n    };', i));
-        expect(body).toMatch(/updateFilter\(/);
-    });
+    /* «뗄 때»도 초안에 적고 «✅ 적용» 때 간다 — 관제웹 `filterDraft.test.tsx` 가 동작으로 문다 */
 
     it('🔴 손잡이가 «끄는 동안»과 «뗄 때» 를 둘 다 받는다', () => {
         const knob = codeOnly(read(join(CLIENT, 'components/ui/KnobGrid.tsx')));
@@ -1361,7 +1351,7 @@ describe('노선 ↔ 동선 — 고른 것과 실제를 가른다 (이식)', () 
      */
     it('🔴 노선/동선은 필터 값이다 — localStorage 가 아니라 서버 값에서 온다', () => {
         expect(dash3).not.toMatch(/const \[routeMode, setRouteMode\] = useState/);
-        expect(dash3).toMatch(/const routeMode = filter\?\.routeMode \?\? true/);
+        expect(dash3).toMatch(/const routeMode = \(draft\?\.routeMode \?\? filter\?\.routeMode\) \?\? true/);
         expect(dash3).not.toMatch(/routeMode[^\n]*localStorage/);
     });
 });

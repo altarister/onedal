@@ -179,20 +179,20 @@ describe('2단계 · 마름모·제외단어도 만지면 바로 (조사 ①-2)'
     const modal = readClient('components/dashboard/OrderFilterModal.tsx');
     const modalCode = codeOnly(modal);
 
-    it('🔴 마름모 셋을 끌면 지도가 따라오고 뗄 때 서버로 간다', () => {
+    it('🔴 마름모 셋을 끌면 지도가 따라오고 뗄 때 초안에 적는다 — 원달앱에는 «✅ 적용» 때', () => {
         const i = modal.indexOf('knobs={QUAD_FIELDS.map(');
         expect(i).toBeGreaterThan(-1);
         const body = modal.slice(i, modal.indexOf('})} />', i));
         expect(body).toMatch(/onPreview:/);
-        expect(body).toMatch(/previewFilter\(quadShapeFrom\(/);
+        expect(body).toMatch(/previewFilter\(\{ \[f\.path\]: quadShapeFrom\(/);
         expect(body).toMatch(/onCommit:/);
-        expect(body).toMatch(/updateFilter\(quadShapeFrom\(/);
+        expect(body).not.toMatch(/updateFilter\(/);
     });
 
-    it('🔴 제외 단어 칩을 누르면 바로 메모리로 간다', () => {
+    it('🔴 제외 단어 칩을 누르면 바로 초안에 적는다', () => {
         const body = fnBody(modalCode, 'const setBlacklistWords');
         expect(body === '' ? modalCode.slice(modalCode.indexOf('const setBlacklistWords'), modalCode.indexOf('const setBlacklistWords') + 300) : body)
-            .toMatch(/updateFilter\(\{ excludedKeywords/);
+            .toMatch(/previewFilter\(\{ excludedKeywords/);
     });
 
     it('🔴 자유 입력칸은 **손을 뗄 때**(blur·Enter) 메모리로 — 글자마다 앱에 보내지 않는다', () => {
@@ -292,10 +292,10 @@ describe('4단계 · ⛔ 제외 칩 줄 — 목업 그대로 (조사 ② · MapM
         expect(modal.slice(i - 600, i + 200)).not.toMatch(/toggleEx\(/);
     });
 
-    it('🔴 인라인 💾 저장이 «그물(메모리)»에 넣는다 — 전역 💾 서버 저장과 다른 일이다', () => {
+    it('🔴 인라인 💾 저장이 고른 칩을 필터 초안에 담는다 — 전역 💾 서버 저장과 다른 일이다', () => {
         expect(modal).toMatch(/const applyExcluded/);
         const body = fnBody(codeOnly(modal), 'const applyExcluded');
-        expect(body).toMatch(/updateFilter\(\{ excludedRegions: exDraft/);
+        expect(body).toMatch(/previewFilter\(\{ excludedRegions: exDraft/);
         /* 인라인 되돌리기는 «지금 그물»로 — 서버 값이 아니다 */
         expect(modal).toMatch(/setExDraft\(filter\?\.excludedRegions/);
     });
@@ -332,8 +332,8 @@ describe('4단계 · 목적지 설명줄 · 경로 대기 문구 · 저장 안�
         expect(modal.slice(i - 400, i)).toMatch(/netUsedLine === false/);
     });
 
-    it('🔴 저장 안내가 참이다 — 제외 지역만 💾 를 눌러야 그물에 든다', () => {
-        expect(modal).toMatch(/값을 만지면 <b>바로 적용<\/b>된다.*제외 지역/);
+    it('🔴 저장 안내가 참이다 — 고친 뒤 ✅ 적용을 눌러야 원달앱에 간다', () => {
+        expect(modal).toMatch(/고친 뒤 <b>✅ 적용<\/b>/);
     });
 });
 
@@ -391,7 +391,7 @@ describe('5단계 · 노선/동선은 필터 값이다 — 서버도 알고 저�
     });
     it('🔴 화면은 필터 값을 읽는다 — useState 가 아니다', () => {
         expect(dash).not.toMatch(/const \[routeMode, setRouteMode\] = useState/);
-        expect(dash).toMatch(/filter\?\.routeMode \?\? true/);
+        expect(dash).toMatch(/draft\?\.routeMode \?\? filter\?\.routeMode\) \?\? true/);
     });
     it('🔴 💾·되돌리기·«서버와 다름» 이 routeMode 를 본다', () => {
         expect(fnBody(modal, 'const handleSaveToServer')).toMatch(/routeMode/);
@@ -429,7 +429,8 @@ describe('6단계 · 칸 바깥 스타일을 목업 어휘로 (조사 ③)', () 
      *    *"지금 너무 공간낭비가 많아"*). 네 행 구조에서는 행 사이 틈이 곧 낭비다.
      */
     it('🔴 행은 구분선으로 나눈다 — 행 사이 틈을 두지 않는다', () => {
-        expect(modal).toMatch(/border-b border-border-card last:border-b-0/);
+        /* 행 부품은 제 파일(`FilterRow.tsx`)에서 그려진다 — 그 파일을 읽는다 */
+        expect(readClient('components/dashboard/FilterRow.tsx')).toMatch(/border-b border-border-card last:border-b-0/);
         const i = modal.indexOf('custom-scrollbar relative z-10">');
         expect(i).toBeGreaterThan(-1);
         expect(modal.slice(i, i + 400)).not.toMatch(/<div className="space-y-2">/);

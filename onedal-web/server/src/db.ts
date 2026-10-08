@@ -1055,6 +1055,26 @@ db.exec(`
 `);
 
 // ═══════════════════════════════════════
+// 🔍 오늘 «적용»한 콜 필터 값 — 사람마다 한 줄 (기사님 «가»)
+//
+//    ① 스키마: 이 표 · 사람마다 한 줄(user_id) · 그 값의 영업일(day · `businessDayKey`) · 값(values_json · 관제웹이 보낸 필터 칸 그대로) · 마지막 적용 시각(applied_at)
+//    ② 값: 기본값 없음 — 줄이 없거나 날이 다르면 평소 설정(`user_filters`)으로 시작한다
+//    ③ 시점: 관제웹 «적용» · «서버 저장»(`filterManager.applyWebFilter`)이 같은 날이면 칸을 덧붙여 쓰고 날이 바뀌었으면 갈아 쓴다 ·
+//       세션을 만들 때(`userSessionStore.getUserSession`) 오늘 줄만 읽어 오늘 값에 얹는다. 날이 다른 줄은 읽지 않을 뿐 지우지 않는다
+//    ④ 화면: 따로 없다 — 관제웹 필터창이 오늘 값(activeFilter)으로 그린다
+//    ⑤ 읽는 곳: `core/filterToday.filterTodayOf` 하나 — «서버가 다시 켜졌을 때 오늘 값이 무엇이었나»
+//    `user_filters` 는 평소 설정만 담는다 — 오늘 값을 거기 섞지 않는다
+// ═══════════════════════════════════════
+db.exec(`
+    CREATE TABLE IF NOT EXISTS user_filter_today (
+        user_id     TEXT PRIMARY KEY,
+        day         TEXT NOT NULL,
+        values_json TEXT NOT NULL DEFAULT '{}',
+        applied_at  TEXT NOT NULL
+    )
+`);
+
+// ═══════════════════════════════════════
 // 📸 이상 징후 (스냅샷 검증 실패 및 배차망 UI 변경 텔레메트리)
 // ═══════════════════════════════════════
 db.exec(`

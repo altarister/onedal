@@ -38,13 +38,13 @@ describe('📅 예약콜 필터 칸', () => {
         const modal = read(join(__dirname, '../../../client-app/src/components/dashboard/OrderFilterModal.tsx'));
         expect(modal).toContain("RESERVATION_PICKS");
         for (const v of ["'today'", "'tomorrowToo'", "'tomorrowOnly'"]) expect(modal).toContain(v);
-        expect(modal).toContain('updateFilter({ reservationMode: v })');
+        expect(modal).toContain('previewFilter({ reservationMode: v })');
     });
 
     it('🔴 «오늘 값» 네 자리가 예약콜을 안다 — 저장 안 함 판단 · 되돌리기 · 💾 저장 (하나라도 빠지면 거짓말하거나 자정에 풀린다)', () => {
         const modal = read(join(__dirname, '../../../client-app/src/components/dashboard/OrderFilterModal.tsx'));
         expect(modal).toContain("if ((filter?.reservationMode ?? 'today') !== (baseFilter.reservationMode ?? 'today')) return true;");
-        expect(modal).toContain("reservationMode: baseFilter.reservationMode ?? 'today',");
+        expect(modal).toContain("reservationMode: f.reservationMode ?? 'today',");
         expect(modal).toContain("reservationMode: filter?.reservationMode ?? 'today',");
     });
 });

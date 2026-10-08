@@ -16,7 +16,7 @@ vi.hoisted(() => {
     g.localStorage ??= { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => mem.set(k, String(v)), removeItem: (k: string) => mem.delete(k), clear: () => mem.clear() };
 });
 
-const box = vi.hoisted(() => ({ canvas: null as any, derived: null as any, filter: null as any }));
+const box = vi.hoisted(() => ({ canvas: null as any, derived: null as any, filter: null as any, draft: null as any }));
 
 vi.mock('../../lib/socket', () => {
     const noop = () => {};
@@ -25,7 +25,7 @@ vi.mock('../../lib/socket', () => {
 });
 vi.mock('../dashboard/PinnedRouteCanvas', () => ({ default: (p: any) => { box.canvas = p; return null; } }));
 vi.mock('../../hooks/useRouteDerivations', () => ({ useRouteDerivations: () => box.derived }));
-vi.mock('../../hooks/useFilterConfig', () => ({ useFilterConfig: () => ({ filter: box.filter, updateFilter: () => {} }) }));
+vi.mock('../../hooks/useFilterConfig', () => ({ useFilterConfig: () => ({ filter: box.filter, draft: box.draft, updateFilter: () => {} }) }));
 vi.mock('../../hooks/useSidePanelRoom', () => ({ useSidePanelRoom: () => false }));
 vi.mock('../dashboard/DepartureCountdown', () => ({ useDepartureDue: () => null }));
 vi.mock('../dashboard/VehicleStatusPanel', () => ({ useDriveMotion: () => 'idle' }));
@@ -52,8 +52,9 @@ const call = (o: Record<string, unknown> = {}) => ({
 
 function setUp(o: { filter?: Record<string, unknown>; calls?: any[]; me?: { x: number; y: number } | null } = {}) {
     const calls = o.calls ?? [call()];
+    box.draft = null;
     box.filter = {
-        goalCities: ['이천시'], pickupArea: { homeOn: false, homeCity: null }, dispatchPhase: 'GATHERING',
+        goalCity: '이천시', goalCities: ['이천시'], pickupArea: { homeOn: false, homeCity: null }, dispatchPhase: 'GATHERING',
         pickupRadiusKm: 10, destinationRadiusKm: 8, detourRadiusKm: 3, quadRadiusKm: 25, srcAngleDeg: 110, dstAngleDeg: 110,
         pickupGroups: {}, destinationGroups: {}, ...o.filter,
     };
@@ -106,6 +107,15 @@ describe('🗺️ 무대 지도 영역 — shared 함수와 같은 답', () => {
         expect(draw().dropoffArea.goals).toEqual([center('이천시')]);
         setUp({ filter: { goalCities: ['이천시', '여주시'] } });
         expect(draw().dropoffArea.goals).toEqual([center('이천시'), center('여주시')]);
+    });
+
+    it('🔴 필터창에서 고치는 중인 초안도 그린다 — «적용» 전에 목적지 원 · 반경이 따라온다', () => {
+        setUp({ filter: { goalCities: ['이천시', '여주시'] } });
+        box.draft = { destinationCity: '서울 용산구', pickupRadiusKm: 4 };
+        const c = draw();
+        /* 필터 도시 자리만 초안 도시로 — 마지막 KEEP 콜의 목표(여주시)는 남는다 */
+        expect(c.dropoffArea.goals).toEqual([center('서울 용산구'), center('여주시')]);
+        expect(c.pickupArea.meKm).toBeCloseTo(effectiveRadii({ ...box.filter, pickupRadiusKm: 4 }).pickupRadiusKm, 9);
     });
 
     it('🔴 하차 띠 — 출발 전에는 마지막 하차지까지 통째로 · 출발 뒤에는 현위치부터 (lineFromPoint)', () => {

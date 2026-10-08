@@ -28,7 +28,18 @@ interface FilterState {
      */
     netUsedLine: boolean | null;
 
+    /**
+     * 🔍 **필터창에서 고치고 아직 «적용»하지 않은 값** — 서버로 안 간다 (기사님 «가»).
+     *    메모리에만 산다 — 필터창이 닫혀도(콜이 와서 · 바깥 터치) 남고, 새로고침하면 사라진다.
+     *    서버가 보낸 `filter` 와 따로 둔다 — 서버가 필터를 다시 보내도 고치던 값이 안 덮인다.
+     *    «적용 안 함»은 이 값과 `filter` 를 견줘 파생한다(`lib/filterDraft.hasUnappliedDraft`) — 깃발을 따로 두지 않는다.
+     */
+    draft: Partial<AutoDispatchFilter> | null;
+
     // ── Actions ──
+    /** 고친 칸을 초안에 덧붙인다 */
+    editDraft: (changes: Partial<AutoDispatchFilter>) => void;
+    clearDraft: () => void;
     setNetUsedLine: (v: boolean | null) => void;
     setFilter: (filter: AutoDispatchFilter) => void;
     setBaseFilter: (filter: AutoDispatchFilter) => void;
@@ -39,7 +50,10 @@ export const useFilterStore = create<FilterState>((set) => ({
     filter: null,
     baseFilter: null,
     netUsedLine: null,
+    draft: null,
 
+    editDraft: (changes) => set(st => ({ draft: { ...(st.draft ?? {}), ...changes } })),
+    clearDraft: () => set({ draft: null }),
     setNetUsedLine: (v) => set({ netUsedLine: v }),
     setFilter: (filter) => set({ filter }),
     setBaseFilter: (filter) => set({ baseFilter: filter }),

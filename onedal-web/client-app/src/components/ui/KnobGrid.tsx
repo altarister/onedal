@@ -42,12 +42,10 @@ export type KnobDef = {
     step?: number;
     set: (v: number) => void;
     /**
-     * 🔴 **손가락을 뗄 때 한 번** — 이때 서버로 보낸다.
+     * 🔴 **손가락을 뗄 때 한 번** — 무엇을 할지는 부르는 쪽이 정한다(필터창은 초안에 적는다 · ⚙️ 설정은 바로 저장한다).
      *
-     * `input[type=range]` 의 `onChange` 는 **끄는 동안 픽셀마다** 발화한다.
-     * 실물은 값이 바뀔 때마다 **서버가 경유 지역을 다시 그린다**(지리 연산 수 초) —
-     * 목업은 로컬이라 괜찮지만 여기선 폭주한다.
-     * `set` 은 화면만 움직이고, 서버로 가는 것은 이 한 번이다.
+     * `input[type=range]` 의 `onChange` 는 **끄는 동안 픽셀마다** 발화한다 — 픽셀마다 저장하면 폭주한다.
+     * `set` 은 화면만 움직이고, 저장 쪽으로 가는 것은 이 한 번이다.
      *
      * 🔴 **값을 함께 넘긴다.** ± 는 `set` 과 **같은 클릭 안에서** 커밋하는데, 그때 리액트는
      *    아직 다시 그리지 않았다 — 인자 없이 부르면 받는 쪽이 **한 칸 뒤처진 값**을 읽는다.
@@ -60,7 +58,7 @@ export type KnobDef = {
      * **한번에 조절** 하니까."* — 끌면서 지도가 따라 움직여야 한 번에 맞출 수 있다.
      *
      * 🔴 `set` 과 무엇이 다른가: `set` 은 **이 칸의 숫자**만 바꾸고, 이쪽은 **그물까지**
-     *    다시 그리게 한다. 소켓은 안 탄다 — 서버로 가는 것은 `onCommit` 뿐이다.
+     *    다시 그리게 한다. 소켓은 안 탄다.
      */
     onPreview?: (v: number) => void;
     /** 지금 안 쓰이는 칸 — 감추지 않고 흐리게 둔다 (감추면 화면이 조용히 거짓말한다) */
@@ -111,10 +109,10 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3, inline = false }: {
                                 rounded-xl border border-info/55 bg-surface shadow-lg px-1.5 py-2">
                     <button type="button" onClick={() => onOpen(null)}
                         className="shrink-0 text-[10px] font-black text-text-muted px-0.5">{cur.label} ✕</button>
-                    {/* ± 는 한 칸씩이라 **누르는 즉시** 보내도 폭주가 없다 */}
+                    {/* ± 는 한 칸씩이라 **누르는 즉시** `onCommit` 해도 폭주가 없다 */}
                     <button type="button" onClick={() => { const v = clamp(cur, cur.value - (cur.step ?? 1)); cur.set(v); cur.onCommit?.(v); }}
                         className="w-8 h-8 shrink-0 rounded-lg border border-border-hover bg-background text-[16px] font-black">−</button>
-                    {/* 🔴 끄는 동안은 화면만 · **뗄 때** 서버로 (`onPointerUp`) — 키보드도 같다
+                    {/* 🔴 끄는 동안은 화면만 · **뗄 때** `onCommit` (`onPointerUp`) — 키보드도 같다
                         🎨 `accent-info` 는 hex 가 아니라 테마 토큰 — 라이트에서도 맞는다 (조사 ③) */}
                     <input type="range" min={cur.min ?? 0} max={cur.max} step={cur.step ?? 1} value={cur.value}
                         onChange={e => { const v = Number(e.target.value); cur.set(v); cur.onPreview?.(v); }}

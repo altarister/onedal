@@ -25,6 +25,7 @@ import { getDetourRegions, unionRegions } from "../services/geoRegions";
 import { originOf } from "../services/geoMotion";
 import { slog } from "../utils/fileLogger";
 import { promoteDueReserved } from "../services/reservedOrders";
+import { recordFilterToday } from "../core/filterToday";
 import { flushSupply } from "./phoneSupply";
 import { goalCitiesOf, goalCityOf } from "./filterGoals";
 import { applyTraveledTrim, filterLineOf, holdRadiusDistance, netFilterOf, netOfGoals, progressOf, rebuildPickupList, refreshDetourIfNeeded, refreshKeywordTraps, rememberDetourProgress } from "./filterNet";
@@ -525,6 +526,35 @@ export function saveBaseFilter(
     if (io) {
         broadcastFilter(userId, session, io);
     }
+}
+
+/**
+ * 🔍 **관제웹이 보낸 필터 값(`update-filter`) — 들어오는 문은 여기 하나다**.
+ *
+ * `saveAsDefault` — 💾 서버 저장일 때만 평소 설정(baseFilter · DB)까지 바꾼다. 없으면 오늘 값(activeFilter)만.
+ * 기사님: *"사용자 설정에서 디폴트 값을 저장해 두고 … 운행중을 시작하기 전 오늘 콜이 많이 나올 만한 곳으로
+ * 필터 값을 바꾸고, 복귀콜이나 그런 것 하면 그 값으로 돌아오게 하려는 의도였다."*
+ */
+export function applyWebFilter(
+    userId: string,
+    newFilter: Partial<AutoDispatchFilter> & { saveAsDefault?: boolean },
+    io?: any
+): void {
+    const { saveAsDefault, ...filterChanges } = newFilter;
+    if (saveAsDefault) {
+        logRoadmapEvent('필터', "서버", "관제탑이 '앞으로 계속' 로 저장 요청 — baseFilter(평소 설정)까지 갱신");
+        saveBaseFilter(userId, filterChanges, io);
+    } else {
+        logRoadmapEvent('필터', "서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (오늘만 — DB 저장 안함)");
+    }
+    updateActiveFilter(userId, filterChanges, io);
+    /**
+     * 🔍 **오늘 값은 그 영업일 줄에도 적는다** — 서버가 다시 켜져도 그날 안에는 남는다(`userSessionStore.getUserSession` 이 읽는다).
+     *    저장(saveAsDefault)이면 보낸 칸만 오늘 줄에서 뺀다 — 안 빼면 옛 «적용» 값이 다시 켜질 때 평소 설정을 덮고, 다 비우면 안 보낸 칸의 «적용» 값을 잃는다.
+     *    날은 세션의 영업일이다 — 진행 중 콜 때문에 영업일 전환을 미룬 사이에 적용한 값은 그 전날 값이라 전환 뒤 되살아나지 않는다.
+     */
+    try { recordFilterToday(userId, getUserSession(userId).businessDay, filterChanges, Date.now(), !!saveAsDefault); }
+    catch (e) { console.error('🔍 [오늘 필터 적기] 실패 — 메모리 값은 그대로 · 서버가 다시 켜지면 평소 설정:', (e as Error).message); }
 }
 
 /**

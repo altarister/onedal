@@ -87,7 +87,7 @@ describe('🎚️ KnobGrid — 칸은 보여 주고, 조절은 레이어에서',
  *    *"배차망 모두 통일해서 가는것이 맞을꺼 같다"*).
  *
  * 최소 금액은 `user_filters.min_fare` 한 칸이다 — 필터 창이 고치는 자리도 여기 하나다.
- * 🔴 «오늘 값»이라 만지는 즉시 메모리로 가고, 💾 가 DB 까지 싣고, ↩︎ 가 되돌리고, «서버와 다름»이 센다 —
+ * 🔴 «오늘 값»이라 만지면 초안에 적혀 «✅ 적용» 때 가고, 💾 가 DB 까지 싣고, ↩︎ 가 되돌리고, «서버와 다름»이 센다 —
  *    넷 중 하나라도 빠지면 자정에 풀리거나 화면이 «서버와 같음»이라 거짓말한다.
  */
 describe('💰 어떤 콜 · 🚫 빼는 곳 — 칸 배치', () => {
@@ -115,14 +115,14 @@ describe('💰 어떤 콜 · 🚫 빼는 곳 — 칸 배치', () => {
         expect(knob).toMatch(/<KnobGrid[^>]*inline/);                       // 레이어가 줄 전체 폭
         expect(knob).toMatch(/value: minFare \/ 10000/);                    // 막대 값은 만 원
         expect(knob).toMatch(/min: 0, max: 10, step: 0\.1/);                // 0 ~ 10만 · 0.1만 = 1,000원
-        expect(knob).toMatch(/onCommit: \(v: number\) => updateFilter\(\{ minFare: Math\.round\(v \* 10\) \* 1000/);
+        expect(knob).toMatch(/onCommit: \(v: number\) => previewFilter\(\{ minFare: Math\.round\(v \* 10\) \* 1000/);
     });
 
-    it('🔴 최소 금액은 뗄 때 메모리로 · 💾 가 DB 로 · ↩︎ 가 되돌리고 · «서버와 다름»이 센다', () => {
-        expect(callRow).toMatch(/updateFilter\(\{ minFare/);
+    it('🔴 최소 금액은 뗄 때 초안에 · 💾 가 DB 로 · ↩︎ 가 되돌리고 · «서버와 다름»이 센다', () => {
+        expect(callRow).toMatch(/previewFilter\(\{ minFare/);
         const body = (name: string) => code.slice(code.indexOf(name), code.indexOf(name) + 2600);
         expect(body('const handleSaveToServer')).toMatch(/minFare: filter\?\.minFare/);
-        expect(body('const handleRevert')).toMatch(/minFare: baseFilter\.minFare/);
+        expect(body('const handleRevert')).toMatch(/minFare: f\.minFare/);
         expect(body('const unsaved')).toMatch(/filter\?\.minFare/);
     });
 });

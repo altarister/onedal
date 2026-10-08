@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo, DecisionStatus } from '@onedal/shared';
 import { hasVisitedStop, isDeliveredCall, haversineKm } from '@onedal/shared';
@@ -45,6 +45,7 @@ import { useDepartureDue } from '../dashboard/DepartureCountdown';
 import { useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
+import { draftViewOf } from '../../lib/filterDraft';
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 import { socket } from '../../lib/socket';
 /* 🗺️ 지도 아래 두 귀퉁이 — 규칙과 이름은 한 곳에서 온다 (규칙 ③) */
@@ -140,8 +141,10 @@ export default function StageView(props: Props) {
     const qrStop = qrSlice.length ? toNaviStop(qrSlice[qrSlice.length - 1]) : null;
     const qrVia = qrSlice.slice(0, -1).map(toNaviStop)
         .filter(Boolean) as { name: string; x: number; y: number }[];
-    const { filter, updateFilter } = useFilterConfig();
-    const { confirmedCalls, dropoffLine, pickupArea, dropoffArea, dongDots } = useStageAreas(filter, liveRoute, routeStops, myLocation, routeMode,
+    const { filter, draft, updateFilter } = useFilterConfig();
+    /* 🔍 지도는 필터창에서 고치는 중인 초안까지 얹어 그린다 — «적용» 전에도 영역이 따라온다 (`lib/filterDraft`) */
+    const areaFilter = useMemo(() => draftViewOf(filter, draft), [filter, draft]);
+    const { confirmedCalls, dropoffLine, pickupArea, dropoffArea, dongDots } = useStageAreas(areaFilter, liveRoute, routeStops, myLocation, routeMode,
         derived.drawHolder?.routePolyline);
 
 

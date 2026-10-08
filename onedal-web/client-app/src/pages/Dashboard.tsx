@@ -57,11 +57,12 @@ export default function Dashboard() {
      * 🛣️🔷 **노선/동선은 필터 값이다**.
      *    화면 상태로만 두면 **서버가 몰라** «동선»을 골라도 판정·앱 목록은 노선이고,
      *    새로고침하면 노선으로 돌아간다. 그래서 `filter.routeMode` 를 읽고
-     *    `updateFilter` 로 바꾼다 — 지도·서버·💾 가 같은 값을 본다 (규칙 ③).
+     *    필터 값으로 바꾼다 — 지도·서버·💾 가 같은 값을 본다 (규칙 ③).
      */
-    const { filter, updateFilter } = useFilterConfig();
-    const routeMode = filter?.routeMode ?? true;
-    const setRouteMode = (v: boolean) => updateFilter({ routeMode: v });
+    const { filter, draft, previewFilter } = useFilterConfig();
+    /* 🔍 노선/동선 단추는 필터창 안에 있다 — 다른 칸처럼 초안에 적고 «적용» 때 원달앱으로 간다. 지도는 초안 값으로 그린다 */
+    const routeMode = (draft?.routeMode ?? filter?.routeMode) ?? true;
+    const setRouteMode = (v: boolean) => previewFilter({ routeMode: v });
     /** ☰ 왼쪽 서랍 — 끝난 콜(완료됨·취소·방출)이 사는 자리 (기사님 확정) */
     const [drawerOpen, setDrawerOpen] = useState(false);
     /**

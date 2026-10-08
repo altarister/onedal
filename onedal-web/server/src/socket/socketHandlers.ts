@@ -24,7 +24,7 @@ import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone
 import { routeTlOf } from "../services/routeTl";
 import { saveCargoReport } from "../services/cargoReport";
 
-import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, trimTraveled, maybeRebuildPickupList } from "../state/filterManager";
+import { updateActiveFilter, ensureBusinessDay, trimTraveled, maybeRebuildPickupList, applyWebFilter } from "../state/filterManager";
 import { processDriverMovement, GPS_ARRIVAL } from "../services/geoMotion";
 import { getCityRegionsWithRadius } from "../services/geoRegions";
 import { slog } from "../utils/fileLogger";
@@ -328,26 +328,7 @@ export function registerSocketHandlers(io: Server) {
             /* 🕸️ 합짐 중 반경을 바꾸면 `updateActiveFilter` → `refreshDetourIfNeeded` 가 그물로 다시 그린다.
                예전엔 여기서 옛 경로 버퍼로 먼저 조립했다 (전수표 1단계 · 2026-09-14) */
             
-            /**
-             * `saveAsDefault` — **"앞으로 계속"** 을 고르셨을 때만 평소 설정까지 바꾼다.
-             *
-             * 기사님이 이 화면의 의도를 이렇게 설명하셨다:
-             *   *"사용자 설정에서 디폴트 값을 저장해 두고 … 운행중을 시작하기 전
-             *     오늘 콜이 많이 나올 만한 곳으로 필터 값을 바꾸고, 복귀콜이나 그런 것 하면
-             *     그 값으로 돌아오게 하려는 의도였다."*
-             *
-             * 그래서 기본은 **오늘만**이다 (activeFilter, 자정에 되돌아간다).
-             * 관제웹은 어느 쪽인지 **명시적으로 말한다** — 안 그러면 "왜 내일 또 원래대로냐"를 알 수 없다.
-             */
-            const { saveAsDefault, ...filterChanges } = newFilter as Partial<AutoDispatchFilter> & { saveAsDefault?: boolean };
-
-            if (saveAsDefault) {
-                logRoadmapEvent('필터', "서버", "관제탑이 '앞으로 계속' 로 저장 요청 — baseFilter(평소 설정)까지 갱신");
-                saveBaseFilter(userId, filterChanges, io);
-            } else {
-                logRoadmapEvent('필터', "서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (오늘만 — DB 저장 안함)");
-            }
-            updateActiveFilter(userId, filterChanges, io);
+            applyWebFilter(userId, newFilter, io);
         });
 
         /**

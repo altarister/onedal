@@ -12,7 +12,7 @@ import { useFilterStore, ensureFilterSocketSubscribed } from "../stores/filterSt
  *    **부른 수만큼 처리한다**. 이유는 `stores/filterStore.ts` 에 적어 뒀다.
  */
 export function useFilterConfig() {
-    const { filter, baseFilter, setFilter, setBaseFilter } = useFilterStore();
+    const { filter, baseFilter, draft, setFilter, setBaseFilter, editDraft, clearDraft } = useFilterStore();
 
     useEffect(() => { ensureFilterSocketSubscribed(); }, []);
 
@@ -49,29 +49,32 @@ export function useFilterConfig() {
     };
 
     /**
-     * 🎚️ **끄는 동안 — 화면만 바꾼다. 소켓을 안 탄다**.
+     * 🔍 **필터창 안에서 고친 값 — 초안에 적기만 한다. 소켓을 안 탄다** (기사님 «가»).
      *
      * 기사님: *"값을 조절할때 움직일때 **영역을 바꿔 주면 좋겠어**. 그래야 그걸 보고
      * **한번에 조절** 하니까."*
      *
-     * 🔴 **지도는 서버를 안 기다린다.** «상차» · «하차» 레이어가 shared 함수(`goalZonesOf` · `quadOutline`)를 **클라에서** 부른다
-     *    계산이 가벼워 손가락을 따라간다. 그러니 손가락이 움직이는 동안
-     *    화면을 바꾸는 데 필요한 것은 `setFilter` 하나뿐이다.
-     * 🔴 **그런데도 소켓은 안 탄다.** 끄는 동안 픽셀마다 `update-filter` 를 쏘면 서버가
-     *    그때마다 경유 지역을 다시 파생하고(지리 연산) 그 결과를 **앱에까지** 내려보낸다.
-     *    바뀌는 것이 보여야 하는 것은 **기사님 화면**이지 앱이 아니다.
-     * ⚠️ 그래서 이것으로 바꾼 값은 **손을 뗄 때 `updateFilter` 로 한 번 더** 보내야 한다.
-     *    안 보내면 새로고침에 사라진다 — 부르는 쪽이 짝을 맞춘다.
+     * 🔴 **지도는 서버를 안 기다린다.** «상차» · «하차» 레이어가 shared 함수를 **클라에서** 부르고,
+     *    무대는 서버 값에 초안을 얹은 값(`lib/filterDraft.draftViewOf`)으로 그린다 — 고르는 동안 영역이 따라온다.
+     * 🔴 **원달앱에는 «적용»(`applyDraft`) 한 번에 간다** — 도착지 «서울»을 고르고 «용산구»로 들어가는 사이,
+     *    반경 ± 를 아홉 번 누르는 사이에 콜이 쏟아지거나 서버가 매번 경유 지역을 다시 그리지 않게.
+     * 🔴 초안은 필터창이 닫혀도 남는다 — 저장소에 산다.
      */
     const previewFilter = (newFilter: Partial<AutoDispatchFilter>) => {
-        if (filter) {
-            setFilter({ ...filter, ...newFilter });
-        }
+        editDraft(newFilter);
+    };
+
+    /** 🔍 **«적용» — 초안을 한 번에 보낸다** (오늘 값 · 평소 설정은 그대로). 보낸 뒤 초안을 비운다 */
+    const applyDraft = () => {
+        if (!draft) return;
+        logRoadmapEvent("필터", "웹", `필터 «적용» — 칸 ${Object.keys(draft).join(' · ')}`);
+        updateFilter(draft);
+        clearDraft();
     };
 
     /**
      * 🥣 **국면 값 다섯도 `updateFilter` 하나로 간다** — 마름모·제외지역과 같은 길이다.
      *    값이 한 벌이라 «어느 국면의 값인가»를 따로 실어 보낼 것이 없다.
      */
-    return { filter, baseFilter, updateFilter, previewFilter };
+    return { filter, baseFilter, draft, updateFilter, previewFilter, applyDraft, clearDraft };
 }
