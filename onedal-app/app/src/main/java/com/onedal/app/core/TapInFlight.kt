@@ -76,18 +76,18 @@ object TapInFlight {
         current != null && current.seq == callbackSeq && !current.refired && current.screen == screenNow
 
     /**
-     * 같은 무엇이 연달아 안 먹힌 횟수 — 보고에 싣는다(다시 누르기 상한을 정할 실측 재료 · 누르기 상한에는 안 쓴다).
-     * 지금 누르는 것 하나만 든다 — **다른 것이 끼면 다시 1부터** 센다(«A 실패 → B 실패 → A 실패»의 A 는 1).
-     * 콜마다 열쇠를 쌓으면 다시 안 누른 콜의 열쇠가 하루 내내 남는다.
+     * 그 무엇(콜 · 단추)이 안 먹힌 횟수 — **콜마다 따로 센다**(«A 실패 → B 실패 → A 실패»의 A 는 2). 둘째 실패면 서비스가 그 콜을 «막았다»로 내린다.
+     * 열쇠가 하루 내내 쌓이지 않게 지우는 때는 셋: 먹혔다 · 다른 기사가 가져갔다 · «막았다»로 넘김(`clear`) · 목록에서 사라짐(`retainOnly`).
      */
     class FailStreak {
-        private var key: String? = null
-        private var count = 0
-        /** 이 무엇이 또 안 먹혔다 — 연속 횟수를 돌려준다 */
-        fun fail(k: String): Int { if (k != key) { key = k; count = 0 }; return ++count }
-        /** 먹혔다 · 다른 기사가 가져갔다 — 그 무엇의 셈을 지운다 */
-        fun clear(k: String) { if (k == key) { key = null; count = 0 } }
-        /** 들고 있는 열쇠 수 — 0 또는 1 */
-        val size: Int get() = if (key == null) 0 else 1
+        private val counts = HashMap<String, Int>()
+        /** 이 무엇이 또 안 먹혔다 — 이 무엇의 몇 번째인지 돌려준다 */
+        fun fail(k: String): Int { val n = (counts[k] ?: 0) + 1; counts[k] = n; return n }
+        /** 먹혔다 · 다른 기사가 가져갔다 · «막았다»로 넘겼다 — 그 무엇의 셈을 지운다 */
+        fun clear(k: String) { counts.remove(k) }
+        /** 목록을 읽었다 — 화면에 있는 것의 셈만 남긴다(사라진 콜 · 단추의 열쇠를 지운다) */
+        fun retainOnly(keys: Set<String>) { counts.keys.retainAll(keys) }
+        /** 들고 있는 열쇠 수 */
+        val size: Int get() = counts.size
     }
 }

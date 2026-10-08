@@ -684,7 +684,7 @@ class HijackService : AccessibilityService(), ScanContext {
             apiClient.sendAnomalyReport(
                 targetApp = currentTargetApp,
                 screenName = f.screen.name,
-                failureReason = "TAP_FAILED: ${f.key.take(30)} · ${f.reason} · ${f.waitedMs}ms · 연속 ${f.streak}",
+                failureReason = "TAP_FAILED: ${f.key.take(30)} · ${f.reason} · ${f.waitedMs}ms · 이 콜 ${f.streak}번째",
             )
             // 👆 안 먹힌 누르기가 세운 «앱이 연 콜»을 되돌린다 — 목록 그대로라 목록 리셋이 안 온다 (`DetailOwner.releaseOnTapFailed`)
             mainHandler.post {
@@ -692,9 +692,10 @@ class HijackService : AccessibilityService(), ScanContext {
                 if (com.onedal.app.core.engine.DetailOwner.releaseOnTapFailed(session.openedByApp, f.key, tappedKey, f.screen == ScreenContext.LIST)) {
                     session.alarmTappedCard?.let { alarmedRoutes.clearOpened(it) }   // 🔔 «열기 함»도 지운다 — 다음 읽기에서 다시 연다
                     if (f.streak >= 2) {
-                        // 같은 콜이 연속 두 번 안 먹혔다 — 늘 안 먹히는 자리(탭 막대 등)에서 끝없이 되풀이하지 않게 «막았다»로 내린다
-                        AppLogger.i(TAG, LogTag.TAP, "👆 [앱이 연 콜 되돌림] 누르기 연속 ${f.streak}번 안 먹힘 — «막았다»로 내린다 · ${f.key}")
-                        demoteTappedCall("누르기 연속 안 먹힘")
+                        // 같은 콜이 두 번 안 먹혔다(사이에 다른 콜을 눌렀어도) — 늘 안 먹히는 자리(탭 막대 등)에서 끝없이 되풀이하지 않게 «막았다»로 내린다
+                        AppLogger.i(TAG, LogTag.TAP, "👆 [앱이 연 콜 되돌림] 누르기 이 콜 ${f.streak}번째 안 먹힘 — «막았다»로 내린다 · ${f.key}")
+                        demoteTappedCall("누르기 두 번 안 먹힘")
+                        touchManager.forgetFails(f.key)
                     } else {
                         // 🔁 누르기는 일어나지 않았다 — «판정 안 함»으로 돌려 다음 읽기에서 다시 판정·선택(«막았다»로 내리면 필터가 바뀔 때까지 건너뛴다 · ab 리뷰 높음 1)
                         AppLogger.i(TAG, LogTag.TAP, "👆 [앱이 연 콜 되돌림] 누르기 안 먹힘 — 다음 읽기에서 다시 판정 · ${f.key}")
@@ -1598,6 +1599,7 @@ class HijackService : AccessibilityService(), ScanContext {
             if (row.kind == com.onedal.app.core.ListRowScan.Kind.SEEN) { seenSkipped++; continue }
             if (row.addHit) alarmHits.add(Triple(row.order, fareNode, row.orderHash))
         }
+        touchManager.keepFailsOnly(scanHashes.keys.mapTo(HashSet()) { "call:$it" })   // ⌛ 화면에서 사라진 콜의 «안 먹힘» 셈을 지운다
 
         /**
          * 👁️ **리스트가 빈 이유를 구분해 남긴다** (기사님 확정 · 크리티컬).

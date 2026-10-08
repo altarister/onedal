@@ -48,7 +48,7 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
     private var inFlightRefire: (() -> Unit)? = null
     /** 지금 화면 종류 — 화면 알림마다 `onScreen` 이 적는다 */
     private var screenNow: ScreenContext = ScreenContext.UNKNOWN
-    /** 같은 무엇이 연달아 안 먹힌 횟수 (`TapInFlight.FailStreak`) */
+    /** 그 무엇이 안 먹힌 횟수 — 콜마다 (`TapInFlight.FailStreak`) */
     private val failStreak = TapInFlight.FailStreak()
     /** «누르기 안 먹힘»을 서버 이상 징후로 올리는 길 — 서비스가 잇는다 */
     var onTapFailed: ((TapInFlight.Failure) -> Unit)? = null
@@ -84,11 +84,17 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
     private fun fail(rec: TapInFlight.Record, reason: String, now: Long) {
         val streak = failStreak.fail(rec.key)
         val waited = now - rec.firedAtMs
-        AppLogger.e(TAG, LogTag.TAP, "⌛ [누르기 안 먹힘] «${rec.key.take(20)}» · ${rec.screen} · ${waited}ms · 까닭: $reason · 연속 $streak")
+        AppLogger.e(TAG, LogTag.TAP, "⌛ [누르기 안 먹힘] «${rec.key.take(20)}» · ${rec.screen} · ${waited}ms · 까닭: $reason · 이 콜 ${streak}번째")
         onTapFailed?.invoke(TapInFlight.Failure(rec.key, rec.screen, waited, reason, streak))
         inFlight = null
         inFlightRefire = null
     }
+
+    /** 🫳 «막았다»로 넘긴 콜 — 그 뒤로는 `CallMemory` 가 기억하니 셈을 지운다 */
+    fun forgetFails(key: String) = failStreak.clear(key)
+
+    /** 📋 목록을 읽었다 — 화면에 있는 콜의 셈만 남긴다 */
+    fun keepFailsOnly(keys: Set<String>) = failStreak.retainOnly(keys)
 
     /** 👆 지금 화면 종류에서 누른 것이 아직 안 끝났나 (`TapInFlight.pendingOn`) */
     fun pendingOnNow(): Boolean = TapInFlight.pendingOn(inFlight, screenNow, android.os.SystemClock.elapsedRealtime())
