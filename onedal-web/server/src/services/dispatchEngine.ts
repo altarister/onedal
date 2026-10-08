@@ -283,12 +283,14 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
                 carType: routingOptions.carType,
                 promiseOpts: promiseOrderOpts(session),
             });
-            if (!result) return;
+            /* 🗺️ 정거장 계획이 없으면(좌표 있는 콜 없음 · 갈 하차지 없음) 경로 적용만 건너뛴다 — 아래 그물 다시 세우기 · 관제웹 알림은 간다 */
+            if (!result) slog('경고', `⚠️ [사후 재계산] 합짐 정거장 계획 없음 — 경로 적용만 건너뜀`);
+            else {
+                applyRouteAndSave(pickRouteHolder(activeCalls, activeMain), result.merged);
 
-            applyRouteAndSave(pickRouteHolder(activeCalls, activeMain), result.merged);
-
-            if (result.merged.approachDistance && result.merged.approachDuration) {
-                slog('판정', `🗺️ [사후 재계산 - 합짐] 현위치 접근: ${result.merged.approachDistance}m (${result.merged.approachDuration}초) / 총 이동: ${result.merged.distance}m`);
+                if (result.merged.approachDistance && result.merged.approachDuration) {
+                    slog('판정', `🗺️ [사후 재계산 - 합짐] 현위치 접근: ${result.merged.approachDistance}m (${result.merged.approachDuration}초) / 총 이동: ${result.merged.distance}m`);
+                }
             }
         }
         slog('판정', `🗺️ [사후 재계산 완료] 취소 반영 후 경로/소요시간 갱신 완료.`);
