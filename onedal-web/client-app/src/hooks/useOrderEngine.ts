@@ -1,4 +1,4 @@
-import { bellOf, type DecisionStatus } from '@onedal/shared';
+import { type DecisionStatus } from '@onedal/shared';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { unreadableAfter, type Unreadable } from '../lib/unreadable';
 import { reportWebCode } from '../lib/webCodeVersion';
@@ -6,10 +6,11 @@ import { setRouteOrigin } from '../stores/driverPositionStore';
 import { socket } from "../lib/socket";
 import { apiBase } from "../lib/serverTarget";   // 🎯 주소를 정하는 곳은 하나다 (규칙 ③)
 import type { SecuredOrder, OrderSyncPayload, RouteStopInfo } from "@onedal/shared";
-import { isEvaluating, isTerminal, isManualLineage } from "@onedal/shared";
+import { isTerminal, isManualLineage } from "@onedal/shared";
 import { logRoadmapEvent, logStateChange } from "../lib/roadmapLogger";
 import { soundManager } from "../lib/soundManager";
 import { withSecuredArrival } from "./securedArrival";
+import { ringsNow } from "./ringsNow";
 import { autoKeepEnabled, autoKeepLoadedCount, logAutoKeep } from "../lib/autoKeep";
 
 export function useOrderEngine() {
@@ -73,19 +74,7 @@ export function useOrderEngine() {
     // 신규 콜(평가 중)이 존재하는지 모니터링하여 루프 알림음을 제어합니다.
     // UX 개선: 똥콜이거나 에러난 콜은 알림음을 울리지 않고, '양호' 이상의 연산 결과가 나왔을 때만 울리게 합니다.
     useEffect(() => {
-        const hasGoodCall = activeOrders.some(order => {
-            // 1. 관제 대기 중(평가 상태)이 아니면 무시
-            if (!isEvaluating(order.status)) return false;
-            
-            // 2. 카카오 연산 결과가 없으면(기다리는 중) 무시 (이 구간 동안 약 1~2초 침묵 발생)
-            if (!order.kakaoTimeExt) return false;
-            
-            /**
-             * 3. 🔔 **벨은 색이 아니라 점수로** (기사님 «가» — «색 말고 점수가 50점 이상이면»).
-             *    서버가 판정 때 정한 bell(점수 ≥ 판정 기준 «🔔 벨») 한 칸만 읽는다 — 여기서 문턱을 다시 셈하지 않는다 (규칙 ③).
-             */
-            return bellOf(order);
-        });
+        const hasGoodCall = activeOrders.some(ringsNow);
 
         if (hasGoodCall) {
             soundManager.playCallRinging();
