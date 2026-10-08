@@ -384,7 +384,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear$isDetailPreConfirmStage")) {
                 val screenCtxLog = if (isDetailPreConfirmStage) "DETAIL" else "LIST"
             
-                AppLogger.roadmap(LogTag.FILTER, "🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
+                AppLogger.roadmap(LogTag.FILTER, "🔍 [타겟 콜 필터 결과] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
                             "도착지(${filter.destinationKeywords.size}중 ${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
                             (if (useRateModel)
                                 "요금/단가(${order.deliveryDistance}km × ${rateFloor}원 = ${((order.deliveryDistance ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "

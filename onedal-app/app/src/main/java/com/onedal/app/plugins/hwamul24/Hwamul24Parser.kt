@@ -155,7 +155,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
             // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다)
             if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear")) {
-                AppLogger.roadmap(LogTag.FILTER, "🔍 [24시 필터] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
+                AppLogger.roadmap(LogTag.FILTER, "🔍 [24시 필터] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
                         "도착지(${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
                         "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
                         (if (pickupListCheck != null)
