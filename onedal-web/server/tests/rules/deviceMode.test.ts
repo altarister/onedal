@@ -225,16 +225,9 @@ describe('🔔 2단계 — 스캐너 폰이 스스로 알린다 (기사님 확�
 });
 
 describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
-    it('🔴 관제웹이 알람을 듣고 소리를 낸다', () => {
-        /* 듣기는 화면 밖 저장소에서 한 번(D3 P6-01 · 동작은 client-app stores/alertsStore.test) */
-        const c = codeOnly(web('stores/alertsStore.ts'));
-        expect(c).toMatch(/socket\.on\("filter-pass-alarm"/);
-        expect(c).toMatch(/soundManager\.playFilterAlarm\(\)/);
-    });
-
     /**
      * 🔕 **«필터 통과 N건 — 앱이 못 열었습니다 … 직접 여십시오» 띠는 없다** (기사님 «가»).
-     *    필터 통과는 소리로만 알린다 — 띠를 그리는 함수 · 기기 상태 칸 · 소리 없는 띠 알림을 두지 않는다.
+     *    띠를 그리는 함수 · 기기 상태 칸 · 소리 없는 띠 알림을 두지 않는다.
      */
     it('🔴 관제웹에 «직접 여십시오» 띠가 없다 · 소리 없는 띠 알림도 없다', () => {
         const panel = codeOnly(web('components/dashboard/DeviceControlPanel.tsx'));
@@ -246,21 +239,6 @@ describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
         /* 관제웹 고르기 목록은 shared modeChoicesOf · 이름은 DEVICE_MODE_LABEL — 알람이 목록에 있고 «알람»으로 적힌다 */
         expect(modeChoicesOf(DEVICE_MODES, { mode: 'AUTO' })).toContain('ALARM');
         expect(DEVICE_MODE_LABEL.ALARM).toBe('알람');
-    });
-
-    /**
-     * 🔴 소리는 **콜 하나에 «삑» 한 번 + 강한 진동** (기사님 «한 번으로» · «가»).
-     *    필터 통과 알림에서만 울리고, 선점 수신 · 판정 도착에서는 «삑»을 안 낸다 — 한 콜에 세 군데서 울려 세 번으로 들렸다.
-     *    무한 반복(`playCallRinging`)은 이미 남에게 간 콜에도 계속 울린다 — 좋은 콜 벨만 따로.
-     */
-    it('🔴 알람은 «삑» 한 번 + 강한 진동이다 (무한 반복이 아니다 · 선점 수신 · 판정 도착은 조용)', () => {
-        const c = codeOnly(web('lib/soundManager.ts'));
-        const fn = c.split('playFilterAlarm')[1]?.split(/\n    public /)[0] ?? '';
-        expect(fn).toBeTruthy();
-        expect(fn).toMatch(/NotificationType\.Warning|NotificationType\.Error/);
-        expect(fn).not.toMatch(/callAudio|loop/);
-        expect((fn.match(/playBeep\(/g) ?? []).length).toBe(1);
-        expect(codeOnly(web('hooks/useOrderEngine.ts'))).not.toMatch(/playBeep\(/);
     });
 
     /** 🎨 폰 모드 색은 원달앱 테두리와 같다 — 알람 녹색 · 자동 파랑 · 체험 노랑 · 직접 회색. */

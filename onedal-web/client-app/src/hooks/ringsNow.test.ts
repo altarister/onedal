@@ -3,8 +3,8 @@ import type { SecuredOrder } from '@onedal/shared';
 import { ringsNow } from './ringsNow';
 
 /**
- * 🔔 **사실 ④ — call.mp3 반복의 지금 답** (31 P0 C1 · 29 N6 «지금» 칸).
- * 심사 중 · 카카오 결과 있음 · 서버 벨 — 셋이 다 맞을 때만. 모드는 안 본다 — P4 에서 «클릭할 곳»으로 바뀌면 이 기댓값이 바뀐다.
+ * 🔔 **사실 ④ — call.mp3 반복** (31 P0 C1 · 34 P4-3).
+ * 원달앱이 확정한 콜 · 심사 중 · 카카오 결과 있음 · 서버 벨 — 넷이 다 맞을 때만. 모드는 안 본다.
  * 못 잡는 것: 소리 재생 자체(`soundManager`) · 콜 목록이 바뀔 때 켜고 끄는 배선(`useOrderEngine`).
  */
 const order = (o: Partial<SecuredOrder> & { bell?: boolean }): SecuredOrder => ({
@@ -25,5 +25,11 @@ describe('🔔 call.mp3 를 반복할 콜인가', () => {
     });
     it('서버 벨이 아니면 안 울린다', () => {
         expect(ringsNow(order({ bell: false }))).toBe(false);
+    });
+    it('🔴 확정 안 된 미리보기 벨 콜은 관제앱이 안 울린다(원달앱 폰이 판정 소리)', () => {
+        expect(ringsNow(order({ isPreview: true }))).toBe(false);
+    });
+    it('🔴 손 확정 갈래는 안 울린다', () => {
+        expect(ringsNow(order({ type: 'MANUAL' } as Partial<SecuredOrder>))).toBe(false);
     });
 });

@@ -86,7 +86,6 @@ describe('네 모드 표 — 하는 일 칸', () => {
     const col = (k: string) => Object.fromEntries(DEVICE_MODES.map(m => [m, (modeActsOf(m) as any)[k]]));
     it('칸마다 네 모드 값', () => {
         expect(col('filterRuns')).toEqual({ AUTO: true, ALARM: true, MANUAL: false, SIMULATION: true });
-        expect(col('webBeep')).toEqual({ AUTO: false, ALARM: true, MANUAL: false, SIMULATION: false });
         expect(col('marksSimulated')).toEqual({ AUTO: false, ALARM: false, MANUAL: false, SIMULATION: true });
         expect(col('onlyOnePhone')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
         expect(col('countedAsAuto')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
@@ -103,7 +102,7 @@ describe('네 모드 표 — 하는 일 칸', () => {
     it('모르는 값은 아무것도 안 한다', () => {
         for (const m of [undefined, null, '', 'ALARM_CLICK']) {
             const a = modeActsOf(m);
-            expect([a.tapsList, a.sound, a.contracts, a.filterRuns, a.webBeep, a.marksSimulated, a.onlyOnePhone, a.countedAsAuto, a.directBadge, a.needsAutoPermission]).toEqual(Array(10).fill(false));
+            expect([a.tapsList, a.contracts, a.filterRuns, a.marksSimulated, a.onlyOnePhone, a.countedAsAuto, a.directBadge, a.needsAutoPermission]).toEqual(Array(8).fill(false));
         }
     });
 });

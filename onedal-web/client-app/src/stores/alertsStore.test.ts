@@ -8,26 +8,24 @@ vi.mock('../lib/socket', () => ({
         off: () => {},
     },
 }));
-const sound = { playEmergencyAlarm: vi.fn(), playFilterAlarm: vi.fn() };
+const sound = { playEmergencyAlarm: vi.fn() };
 vi.mock('../lib/soundManager', () => ({ soundManager: sound }));
 const fire = (ev: string, p: unknown) => (handlers.get(ev) ?? []).forEach(h => h(p));
 
 /**
- * 🚨 **필터를 펼쳐 폰 칸이 접혀도 사이렌 · 경고 · 삑이 난다** (D3 P6-01).
+ * 🚨 **필터를 펼쳐 폰 칸이 접혀도 사이렌 · 경고가 난다** (D3 P6-01).
  * 듣기가 폰 칸 부품 안에 살면 접히는 동안 놓친다 — 저장소가 앱 전체에서 한 번 듣는다.
  */
 describe('alertsStore — 부품 없이도 듣는다', () => {
-    beforeEach(() => { sound.playEmergencyAlarm.mockClear(); sound.playFilterAlarm.mockClear(); });
+    beforeEach(() => { sound.playEmergencyAlarm.mockClear(); });
 
-    it('🔴 부품을 그리지 않아도 비상 → 사이렌 한 번 · 목록에 남음 · 필터 통과 → 삑', async () => {
+    it('🔴 부품을 그리지 않아도 비상 → 사이렌 한 번 · 목록에 남음', async () => {
         const { ensureAlertsSocketSubscribed, useAlertsStore } = await import('./alertsStore');
         ensureAlertsSocketSubscribed();
         ensureAlertsSocketSubscribed();   // 두 번 불러도 구독은 한 번
         fire('emergency-alert', { timestamp: 't1', deviceId: 'd1' });
         expect(sound.playEmergencyAlarm).toHaveBeenCalledTimes(1);
         expect(useAlertsStore.getState().alerts).toHaveLength(1);
-        fire('filter-pass-alarm', { orderId: 'o1' });
-        expect(sound.playFilterAlarm).toHaveBeenCalledTimes(1);
     });
 
     it('🔴 안전취소 경고는 쌓이고, 그 콜이 취소({id}) · 확정(문자열)되면 지워진다', async () => {

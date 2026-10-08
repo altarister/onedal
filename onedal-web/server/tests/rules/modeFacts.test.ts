@@ -150,18 +150,18 @@ describe('🐥 확정 보고의 체험 표시 — 폰 모드로', () => {
     });
 });
 
-describe('🔔 관제웹 «필터 통과» 삑 — 도는 모드', () => {
-    it('알람으로 돌 때만', () => {
+describe('🔔 관제웹 «필터 통과» 삑 — 없다', () => {
+    it('🔴 어느 모드로 돌아도 안 보낸다(34 P4-2)', () => {
         register('dev-mf-beep', 'MANUAL');
         const got: Record<string, unknown> = {};
         for (const m of DEVICE_MODES) {
             const sent: any[] = [];
             const io = { to: () => ({ emit: (ev: string, p: any) => { if (ev === 'filter-pass-alarm') sent.push(p); } }) };
             touchDeviceSession('dev-mf-beep', U, 0, 'LIST', io, false, undefined, undefined, undefined, true,
-                { seen: 3, passed: 1, passedNew: 1 } as any, 'insung', { effectiveMode: m });
+                { seen: 3, passed: 1 } as any, 'insung', { effectiveMode: m });
             got[m] = sent.length;
         }
-        expect(got).toEqual({ AUTO: 0, ALARM: 1, MANUAL: 0, SIMULATION: 0 });
+        expect(got).toEqual({ AUTO: 0, ALARM: 0, MANUAL: 0, SIMULATION: 0 });
         expect(getActiveDevicesSnapshot().some(d => d.deviceId === 'dev-mf-beep')).toBe(true);
     });
 });

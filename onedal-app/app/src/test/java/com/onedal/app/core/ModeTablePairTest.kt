@@ -46,7 +46,6 @@ class ModeTablePairTest {
             val want = acts[m].asJsonObject
             val got = ModeActs.of(m)
             assertEquals("$m 목록 누름", want["tapsList"].asBoolean, got.tapsList)
-            assertEquals("$m 소리", want["sound"].asBoolean, got.sound)
             assertEquals("$m 확정", want["contracts"].asBoolean, got.contracts)
             assertEquals("$m 확정 막기", want["blocksAccept"].asBoolean, got.blocksAccept)
             assertEquals("$m 테두리", want["frame"].asString.toLong(16).toInt(), ModeFrame.colorOf(m))
@@ -63,9 +62,9 @@ class ModeTablePairTest {
     }
 
     @Test
-    fun `모르는 모드 값은 누르지도 울리지도 확정하지도 않는다(규칙 ④)`() {
+    fun `모르는 모드 값은 누르지도 확정하지도 않는다(규칙 ④)`() {
         val unknown = ModeActs.of("UNKNOWN")
-        assertFalse(unknown.tapsList || unknown.sound || unknown.contracts)
+        assertFalse(unknown.tapsList || unknown.contracts)
     }
 
     @Test

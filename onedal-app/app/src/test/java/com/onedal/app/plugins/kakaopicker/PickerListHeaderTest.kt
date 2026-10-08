@@ -32,10 +32,10 @@ class PickerListHeaderTest {
         // 경로 기억은 AlarmedRoutes «셈함» 한 곳 — 목록 스캔은 카드 0장 틀에서 seen 을 부르지 않는다(HijackService)
         val r = com.onedal.app.core.AlarmedRoutes()
         val c = com.onedal.app.models.SimplifiedOfficeOrder(id = "c", pickup = "광주 경안", dropoff = "용산 한남", fare = 1, timestamp = "t", pickupDistance = 1.0)
-        assertTrue(r.countIfNew(c, 0))
-        assertFalse("못 읽은 틀 뒤에 또 셌다", r.countIfNew(c, 1_000))
+        assertTrue(r.notePassing(c, 0))
+        assertFalse("못 읽은 틀 뒤에 또 셌다", r.notePassing(c, 1_000))
         r.seen(emptyList(), 11 * 60_000L)
-        assertTrue("정말 사라진(10분) 콜은 잊는다", r.countIfNew(c, 11 * 60_000L))
+        assertTrue("정말 사라진(10분) 콜은 잊는다", r.notePassing(c, 11 * 60_000L))
     }
 
     @Test fun `오더카드 기록 - 수락 노드가 있을 때만 · 값과 지명은 이름표로`() {

@@ -1,11 +1,9 @@
 import callSoundPath from '../assets/sound/call.mp3';
-import beepSoundPath from '../assets/sound/beep.mp3';
 import emergencySoundPath from '../assets/sound/emergency.mp3';
-import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { Haptics, NotificationType } from '@capacitor/haptics';
 
 class SoundManager {
     private callAudio: HTMLAudioElement;
-    private beepAudio: HTMLAudioElement;
     private emergencyAudio: HTMLAudioElement;
 
     // 현재 플레이 상태 추적을 통해 불필요한 DOM 에러 방지
@@ -20,7 +18,6 @@ class SoundManager {
     constructor() {
         this.callAudio = new Audio(callSoundPath);
         this.callAudio.loop = true;
-        this.beepAudio = new Audio(beepSoundPath);
         this.emergencyAudio = new Audio(emergencySoundPath);
 
         // 저장된 볼륨 설정 불러오기 (기본값 1.0)
@@ -36,7 +33,6 @@ class SoundManager {
         
         // 볼륨 일괄 적용
         this.callAudio.volume = this.volume;
-        this.beepAudio.volume = this.volume;
         this.emergencyAudio.volume = this.volume;
     }
 
@@ -46,7 +42,6 @@ class SoundManager {
     public setVolume(value: number) {
         this.volume = Math.max(0, Math.min(1, value));
         this.callAudio.volume = this.volume;
-        this.beepAudio.volume = this.volume;
         this.emergencyAudio.volume = this.volume;
         localStorage.setItem('onedal_sound_volume', this.volume.toString());
     }
@@ -127,37 +122,6 @@ class SoundManager {
     public stopAll() {
         this.stopCallRinging();
         // 필요시 다른 루프 사운드(비상 알람 루프 등)도 여기서 중단
-    }
-
-    /**
-     * 2. 오더 상태 변경 (선점 수신, 카카오 연산 완료 등) 시 울리는 짧은 비프음
-     */
-    public async playBeep() {
-        try {
-            // 네이티브 경미한 진동 (상태 변경 알림)
-            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
-            this.beepAudio.currentTime = 0;
-            await this.beepAudio.play();
-        } catch (e) {
-            console.error("[SoundManager] 오류: 비프음 재생 실패", e);
-        }
-    }
-
-    /**
-     * 🔔 **콜 필터 알람 — «삑» 한 번 + 강한 진동** (기사님 확정).
-     *
-     * 「알람」 모드에서 필터를 통과한 콜이 리스트에 떴을 때 울린다.
-     * 기사님은 이 소리를 듣고 **인성 리스트에서 직접 누른다**.
-     *
-     * 🔴 **무한 반복(`playCallRinging`)을 쓰지 않는다.** 그 콜은 이미 남에게 갔을 수도
-     *    있는데 계속 울면 «틀어졌다»는 신호가 소음이 된다. 대신 **진동을 세게** 준다 —
-     *    운전 중에는 네비 소리·음악이 깔려 있어 짧은 소리 하나가 묻히기 때문이다.
-     *
-     * 🔔 콜 하나에 «삑» 한 번 — 선점 수신 · 판정 도착에서는 울리지 않는다(기사님 «한 번으로» · 세 군데서 울려 세 번으로 들렸다).
-     */
-    public async playFilterAlarm() {
-        Haptics.notification({ type: NotificationType.Warning }).catch(() => {});
-        await this.playBeep();
     }
 
     /**

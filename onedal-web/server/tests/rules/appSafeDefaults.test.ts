@@ -29,7 +29,7 @@ describe('🎛️ 앱 기본값 — 모르면 잡지 않는다', () => {
     it('자동 클릭은 그 모드를 보고 갈린다 — 기본값이 곧 «누를까 말까»다', () => {
         expect(codeOnly(app('HijackService.kt'))).toContain('val tapsFromList = ModeActs.of(currentMode).tapsList');
         const acts = codeOnly(app('core/ModeActs.kt'));
-        expect(acts).toMatch(/"AUTO" -> ModeActs\(tapsList = true, sound = false, contracts = true/);   // 계약은 자동 하나
+        expect(acts).toMatch(/"AUTO" -> ModeActs\(tapsList = true, contracts = true/);   // 계약은 자동 하나
         expect(acts.match(/contracts = true/g)?.length).toBe(1);
     });
 });

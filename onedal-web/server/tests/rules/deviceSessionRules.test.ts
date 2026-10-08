@@ -207,7 +207,7 @@ describe('🎛️ 모드 — DB 가 원천', () => {
     });
 });
 
-describe('🔔 알람 — 도는 모드가 알람이고 성적표가 온 보고에서만', () => {
+describe('🔔 목록 보고 — 관제웹 «필터 통과» 알람은 없다 · 도는 모드는 받아 둔다', () => {
     const alarmsFrom = (dev: string, tally: any, effectiveMode?: string) => {
         const sent: any[] = [];
         const io = { to: () => ({ emit: (ev: string, p: any) => { if (ev === 'filter-pass-alarm') sent.push(p); } }) };
@@ -216,24 +216,12 @@ describe('🔔 알람 — 도는 모드가 알람이고 성적표가 온 보고�
         return sent;
     };
 
-    it('🔴 서버는 원달앱이 보낸 도는 모드를 받아 두고, 그것이 ALARM 일 때만 알람 — 자동 · 직접으로 돌면 조용하다', () => {
-        const tally = { seen: 3, passed: 1, passedNew: 1 };
+    it('🔴 서버는 원달앱이 보낸 도는 모드를 받아 두고, 통과 콜이 있어도 어느 모드에서나 알람을 안 보낸다(소리는 원달앱 상세 삑부터 · 34 P4-2)', () => {
+        const tally = { seen: 3, passed: 1 };
         expect(alarmsFrom('dev-rules-alarm-auto', tally, 'AUTO')).toHaveLength(0);
         expect(sessionOf('dev-rules-alarm-auto')?.effectiveMode).toBe('AUTO');
-        expect(alarmsFrom('dev-rules-alarm-manual', tally, 'MANUAL')).toHaveLength(0);
-        expect(alarmsFrom('dev-rules-alarm-on', tally, 'ALARM')).toHaveLength(1);
+        expect(alarmsFrom('dev-rules-alarm-on', tally, 'ALARM')).toHaveLength(0);
         expect(sessionOf('dev-rules-alarm-on')?.effectiveMode).toBe('ALARM');
-    });
-
-    it('🔴 성적표(filterTally)가 없는 보고는 알람이 없다 · 있으면 난다', () => {
-        expect(alarmsFrom('dev-rules-alarm-notally', undefined, 'ALARM')).toHaveLength(0);
-        expect(alarmsFrom('dev-rules-alarm-notally', { seen: 2, passed: 1, passedNew: 1 }, 'ALARM')).toHaveLength(1);
-    });
-
-    it('🔴 알람에 «조용히» · «못 연 까닭» 같은 칸이 없다 — 관제웹은 받으면 늘 소리를 낸다', () => {
-        const [alarm] = alarmsFrom('dev-rules-alarm-body', { seen: 2, passed: 1, passedNew: 1 }, 'ALARM');
-        expect(alarm).toBeDefined();
-        expect(Object.keys(alarm).sort()).toEqual(['at', 'deviceId', 'deviceName', 'passed', 'passedNew', 'seen']);
     });
 });
 

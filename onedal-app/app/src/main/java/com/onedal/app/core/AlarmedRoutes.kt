@@ -3,13 +3,13 @@ package com.onedal.app.core
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
- * 🔔 **«이 콜로 이미 알람을 냈나» — 열쇠는 상차+하차(요금 뺌)** (기사님 «금액이 바뀌면 다시 판정» · `AlarmedRoutesTest`).
+ * 🔔 **«이 경로의 통과 콜을 이미 봤나 · 열었나» — 열쇠는 상차+하차(요금 뺌)** (기사님 «금액이 바뀌면 다시 판정» · `AlarmedRoutesTest`).
  *
  * 판정용 콜 기억(`CallMemory` · 상차+하차+요금)은 그대로다 — 요금이 오르면 다시 판정한다.
  * 이 기억은 통과한 콜을 두고 둘만 본다:
- * - **셈함** — 성적표 passedNew(서버 필터 알람)에 이미 셌나. 요금만 올라 계속 통과해도 다시 안 센다.
- * - **열기 함** — 폰이 목록 줄을 눌러 열었나. 셈만 하고 못 연 콜(서버 심사 중 · 알람 미룸)은 다음 읽기에 연다.
- * 요금이 모자라 떨어졌던 콜이 요금이 올라 처음 통과하면 새로 센다 — 떨어진 콜은 셈한 적이 없다.
+ * - **적어 둠** — 이 경로의 통과 콜을 이미 봤나. 요금만 올라 계속 통과해도 같은 콜이다. 읽을 때마다 적어야 같은 읽기의 다른 줄 · 내려간 요금을 다른 콜로 가른다.
+ * - **열기 함** — 폰이 목록 줄을 눌러 열었나. 적어 두기만 하고 못 연 콜(서버 심사 중 · 알람 미룸)은 다음 읽기에 연다.
+ * 요금이 모자라 떨어졌던 콜이 요금이 올라 처음 통과하면 새로 적는다 — 떨어진 콜은 적은 적이 없다.
  *
  * - 동 없이 덜 읽은 줄(«분당→강남»)은 토막이 부분집합이면 같은 열쇠다(`mergePartialRows` 와 같은 규칙).
  * - 목록에서 [FORGET_MS] 넘게 안 보이면 잊는다 — 남에게 간 뒤 같은 경로로 새 콜이 뜨면 새 콜이다.
@@ -24,7 +24,7 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
     private class Entry(var pickup: Set<String>, var dropoff: Set<String>, var lastSeenMs: Long, var fare: Int) {
         /** 본 가장 높은 요금 — 이보다 낮으면 다른 콜(요금은 내려가지 않는다) */
         var topFare = fare
-        var counted = false
+        var noted = false
         var opened = false
     }
 
@@ -67,11 +67,11 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
         entries.removeAll { nowMs - it.lastSeenMs > forgetMs }
     }
 
-    /** 통과한 콜 — 이 열쇠로 처음 세면 true(셈함 표시). 열쇠가 없으면 늘 true */
-    fun countIfNew(o: SimplifiedOfficeOrder, nowMs: Long): Boolean {
+    /** 통과한 콜을 적어 둔다 — 이 열쇠로 처음 적으면 true. 열쇠가 없으면 늘 true */
+    fun notePassing(o: SimplifiedOfficeOrder, nowMs: Long): Boolean {
         val e = entryOf(o, nowMs) ?: return true
-        if (e.counted) return false
-        e.counted = true
+        if (e.noted) return false
+        e.noted = true
         e.fare = o.fare
         return true
     }
@@ -83,9 +83,9 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
     fun clearOpened(o: SimplifiedOfficeOrder) { find(o)?.opened = false }
 
     fun markOpened(o: SimplifiedOfficeOrder, nowMs: Long) {
-        entryOf(o, nowMs)?.let { it.opened = true; it.counted = true }
+        entryOf(o, nowMs)?.let { it.opened = true; it.noted = true }
     }
 
-    /** 처음 셈했을 때의 요금 — 로그용 */
+    /** 처음 적었을 때의 요금 — 로그용 */
     fun firstFareOf(o: SimplifiedOfficeOrder): Int? = find(o)?.fare
 }

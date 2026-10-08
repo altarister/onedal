@@ -17,29 +17,29 @@ class AlarmedRoutesSplitTest {
 
     @Test fun `요금이 내려가면 다른 콜 - 실물 송파→강남 10318 뒤 9086`() {
         val r = AlarmedRoutes()
-        r.beginRead(steady = true); assertTrue(r.countIfNew(o("송파", "강남", 10318), 0))
-        r.beginRead(steady = true); assertTrue("다른 콜로 센다", r.countIfNew(o("송파", "강남", 9086), 1000))
+        r.beginRead(steady = true); assertTrue(r.notePassing(o("송파", "강남", 10318), 0))
+        r.beginRead(steady = true); assertTrue("다른 콜로 센다", r.notePassing(o("송파", "강남", 9086), 1000))
     }
 
     @Test fun `요금이 오르면 같은 콜 - 6700 뒤 6800`() {
         val r = AlarmedRoutes()
-        r.beginRead(steady = true); assertTrue(r.countIfNew(o("분당 야탑1", "분당 야탑1", 6700), 0))
-        r.beginRead(steady = true); assertFalse(r.countIfNew(o("분당 야탑1", "분당 야탑1", 6800), 1000))
+        r.beginRead(steady = true); assertTrue(r.notePassing(o("분당 야탑1", "분당 야탑1", 6700), 0))
+        r.beginRead(steady = true); assertFalse(r.notePassing(o("분당 야탑1", "분당 야탑1", 6800), 1000))
     }
 
     @Test fun `한 읽기에 같은 경로 두 줄이면 둘 다 센다 · 같은 줄을 두 번 불러도 한 콜`() {
         val r = AlarmedRoutes()
         r.beginRead(steady = true)
         val a = o("수정", "수정", 8000); val b = o("수정", "수정", 9500)
-        assertTrue(r.countIfNew(a, 0))
-        assertTrue("같은 읽기의 둘째 줄은 다른 콜", r.countIfNew(b, 0))
-        assertFalse("같은 줄을 두 번 세면 두 번째는 안 센다", r.countIfNew(b, 0))
+        assertTrue(r.notePassing(a, 0))
+        assertTrue("같은 읽기의 둘째 줄은 다른 콜", r.notePassing(b, 0))
+        assertFalse("같은 줄을 두 번 세면 두 번째는 안 센다", r.notePassing(b, 0))
     }
 
     @Test fun `흔들린 읽기에서는 옛 판단 - 같은 경로면 같은 콜`() {
         val r = AlarmedRoutes()
-        r.beginRead(steady = true); assertTrue(r.countIfNew(o("송파", "강남", 10318), 0))
-        r.beginRead(steady = false); assertFalse(r.countIfNew(o("송파", "강남", 9086), 1000))
+        r.beginRead(steady = true); assertTrue(r.notePassing(o("송파", "강남", 10318), 0))
+        r.beginRead(steady = false); assertFalse(r.notePassing(o("송파", "강남", 9086), 1000))
     }
 
     @Test fun `목록 처리가 읽기마다 흔들림 사실을 넘긴다`() {

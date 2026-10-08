@@ -68,16 +68,15 @@ class ListRowScanTest {
         assertEquals(0, tally.seen); assertTrue(reported.isEmpty()); assertFalse(out.addHit)
     }
 
-    @Test fun `통과 콜은 누를 후보가 되고 새로 세고 보고는 한 번 — 기억에는 안 넣는다`() {
+    @Test fun `통과 콜은 누를 후보가 되고 보고는 한 번 — 기억에는 안 넣는다`() {
         val first = scan().scanRow(row())
         assertEquals(ListRowScan.Kind.SCANNED, first.kind)
-        assertTrue(first.addHit); assertEquals(1, tally.passedNew); assertEquals(1, reported.size)
+        assertTrue(first.addHit); assertEquals(1, reported.size)
         assertFalse("통과 콜을 기억하면 이번에 안 누른 둘째 좋은 콜이 다음 스캔에 «이미 본 콜»로 사라진다", memory.alreadyEvaluated(first.orderHash))
         tally = FilterTally()
         val again = scan().scanRow(row())
         assertEquals(ListRowScan.Kind.SCANNED, again.kind); assertTrue(again.addHit)
         assertEquals("보고는 콜당 한 번", 1, reported.size)
-        assertEquals("이미 알람감이 된 콜은 새로 안 센다", 0, tally.passedNew)
     }
 
     @Test fun `막힌 콜은 기억에 넣고 후보가 아니다 — 보고에는 판정이 실린다`() {

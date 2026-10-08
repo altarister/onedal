@@ -14,7 +14,7 @@ describe('📦 응답 모양 shared', () => {
         const copies: [string, RegExp][] = [
             ['client-app/src/lib/morningCard.ts', /interface (FlowsReply|ViewerCell|Sum)\b/],
             ['ops/src/api/ops.ts', /interface (StatsAdminReply|StatsAdminCell)\b/],
-            ['client-app/src/hooks/useSystemAlerts.ts', /interface (EmergencyAlert|SafeCancelWarning|FilterPassAlarm)\b/],
+            ['client-app/src/hooks/useSystemAlerts.ts', /interface (EmergencyAlert|SafeCancelWarning)\b/],
             ['ops/src/api/client.ts', /interface ServerHealth\b/],
             ['logbook/src/components/FilterDayBoard.tsx', /interface FilterDay\b/],
             ['logbook/src/components/PlaceInsightBoard.tsx', /interface (HotspotPlace|BlacklistedPlace|PlaceInsights)\b/],
@@ -29,7 +29,6 @@ describe('📦 응답 모양 shared', () => {
         expect(read('server/src/routes/stats.ts')).toMatch(/: FlowsAdminReply = /);
         expect(read('server/src/routes/emergency.ts')).toMatch(/: EmergencyAlert = /);
         expect(read('server/src/routes/detail.ts')).toMatch(/: SafeCancelWarning = /);
-        expect(read('server/src/state/deviceSessions.ts')).toMatch(/: FilterPassAlarm = /);
         expect(read('server/src/routes/health.ts')).toMatch(/: HealthReply = /);
         expect(read('server/src/routes/logbook/filterDays.ts')).toMatch(/: FilterDaysReply = /);
         expect(read('shared/src/index.ts')).toMatch(/export \* from '\.\/replies'/);

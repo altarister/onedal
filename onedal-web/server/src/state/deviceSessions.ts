@@ -3,7 +3,7 @@
  * 라우터(`routes/devices.ts`)가 이 파일을 불러 쓴다. 기기 표 · 등록 폰 읽기는 아래층 `deviceRegistry` 에 있다 — 공급 · 폰 상태 · 취소 셈은 거기서 읽는다.
  * 바깥 일을 하는 함수: touchDeviceSession · getActiveDevicesSnapshot · getUserDevicesSnapshot · cleanPreviewOfDevice(기기 표 · 세션 · 장부(DB) · 지금 시각 · 소켓 · 기다림 · 로그) (화면 못 읽음 · 상세 떠남 셈 blindSignalFrom · leftDetailFrom 은 값만 받는다)
  */
-import { FilterTally, DeviceSession, DeviceModeType, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, runningModeOf, modeActsOf } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceModeType, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "./userSessionStore";
 import { requireAuth } from "../middlewares/authMiddleware";
@@ -13,7 +13,6 @@ import { slog } from "../utils/fileLogger";
 import { authDevice, deviceLabelOf } from "../core/deviceAuth";
 import { allowanceOf } from "../core/allowance";
 import { armWait } from "./waits";
-import type { FilterPassAlarm } from "@onedal/shared";
 import { sentModesOf } from "./phoneSupply";
 import { phoneStatusOf } from "./phoneStatus";
 import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
@@ -312,38 +311,6 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
          *    그 물음이 곧 *"지금 훑고 있는 것이 맞나"* 다.
          */
         session.filterTallyAt = session.lastSeen;
-
-        /**
-         * 🔔 **알람 모드 — 필터를 통과한 콜이 떴다** (기사님 확정).
-         *
-         * 앱은 이 모드에서 **확정·수락을 누르지 않는다.** 원달앱이 상세까지 열고 기사님이 누르므로,
-         * 서버가 할 일은 *"통과한 콜이 지금 리스트에 있다"* 를 관제웹에 알리는 것뿐이다.
-         *
-         * 🔴 **새로 알람감이 된 통과 콜로 가른다**(`passedNew`) — `passed` 는 같은 콜이 목록에 남거나 픽커가 요금만 올려도
-         *    다시 차서, 같은 콜에 15~45초마다 삑이 났다. 앱이 이미 알람을 낸 콜(상차+하차)을 기억해 새 것만 센다.
-         *    옛 앱은 `passedNew` 가 없어 `passed` 로 가른다.
-         *
-         * 🔴 **여기 안에서만 본다.** `filterTally` 가 함께 온 보고, 즉 «방금 리스트를 훑었다»
-         *    일 때만 참이다. 밖으로 빼면 하트비트마다 옛 숫자로 다시 울린다.
-         */
-        // 🎛️ 명령이 아니라 **도는 모드**로 — 픽커는 자동 명령이 알람으로 돌아 폰이 울린다, 관제웹도 함께 (기사님 «가»)
-        /* 🔔 새로 알람감이 된 통과 콜만 — 같은 콜이 목록에 남거나 요금만 올라도 다시 울리던 것 (옛 앱은 passedNew 가 없어 passed) */
-        const alarmPassed = filterTally.passedNew ?? filterTally.passed;
-        const openBlocked = extras?.openBlocked;
-        const alarmBody: FilterPassAlarm = {
-            deviceId,
-            deviceName: session.deviceName,
-            /* 🔢 목록에 보이는 통과 수 · 소리는 새로 통과 수(passedNew)로 가른다 */
-            passed: filterTally.passed,
-            passedNew: alarmPassed,
-            seen: filterTally.seen,
-            at: session.lastSeen,
-        };
-        if (modeActsOf(runningModeOf(session)).webBeep && alarmPassed > 0 && io) {
-            io.to(userId).emit("filter-pass-alarm", alarmBody);
-            slog('필터', `🔔 [알람] ${deviceLabelOf(deviceId)} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건${filterTally.passedNew != null ? ` (새로 ${filterTally.passedNew}건)` : ''}` +
-                `${openBlocked ? ` · 앱이 못 연 까닭 ${openBlocked}` : ''}. 기사님이 직접 누르십니다`);
-        }
     }
     activeDevices.set(deviceId, session);
 

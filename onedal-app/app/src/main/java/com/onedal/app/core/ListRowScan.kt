@@ -125,16 +125,14 @@ class ListRowScan(
          * 자동·체험·알람 모두 «목록을 끝까지 보고 요금 최고 하나»를 누른다. 요금이 같으면 먼저 읽힌 콜이다.
          */
         if (isTarget) {
-            // 🔔 이 콜로 처음 알람감이 됐나 — 요금만 오른 같은 콜은 passedNew 에 안 센다(판정은 위에서 다시 했다)
+            // 🔔 이 경로의 통과 콜을 적어 둔다 — 요금만 오른 같은 콜은 같은 콜(판정은 위에서 다시 했다)
             val firstFare = alarmedRoutes.firstFareOf(order)
-            if (alarmedRoutes.countIfNew(order, nowMs)) {
-                tally.passedNew++
-                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [새로 셈] ${order.pickup}→${order.dropoff} ${order.fare}원")
-            }
+            if (alarmedRoutes.notePassing(order, nowMs))
+                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [새 통과 콜] ${order.pickup}→${order.dropoff} ${order.fare}원")
             else if (LogOnce.changed("alarmed-route:${order.pickup}→${order.dropoff}", "${order.fare}"))
-                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [이미 알람 낸 콜] ${order.pickup}→${order.dropoff} · 요금 ${firstFare ?: "?"} → ${order.fare} — 셈·알람 안 함")
+                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [이미 본 콜] ${order.pickup}→${order.dropoff} · 요금 ${firstFare ?: "?"} → ${order.fare}")
         }
-        // 폰이 이미 알람을 내고 연 콜은 요금만 올라도 다시 안 연다 — 셈만 하고 못 연 콜(심사 중·미룸)은 연다
+        // 폰이 이미 연 콜은 요금만 올라도 다시 안 연다 — 적어 두기만 하고 못 연 콜(심사 중·미룸)은 연다
         val addHit = isTarget && !alarmedRoutes.opened(order)
 
         // 4) 신규 콜 → 서버에 텔레메트리 보고 — **보고는 콜당 한 번** (평가와 딴 그릇 · #79)

@@ -12,7 +12,7 @@ import java.io.File
  * ① 흐르는 목록은 누르지 않는다 — 내려간 목록 누름 #1 요금 Y 716→849 · #2 1013→1932(흐름 멈춤이 됐다)
  * ② 뒤로 가기 «안 먹힘» 판정은 최소 2초 — 00:32:03 뒤로(픽커 전환 0.7~0.9초 + 메인 줄 밀림)를 «안 먹힘»으로 봤다
  * ③ 목록 보고에 «통과 콜이 있는데 앱이 안 연 까닭» 열쇠 하나(openBlocked) — listHeaderHidden 은 이제 안 보낸다
- * ④ 새로 셈한 콜을 한 줄로 — «🔕 이미 알람 낸 콜»만 남아 새로 센 쪽을 못 갈랐다
+ * ④ 새 통과 콜을 한 줄로 — «🔕 이미 본 콜»만 남아 새 쪽을 못 갈랐다
  */
 class BundleGuardsTest {
     @Test fun `흐르는 목록 - 누르기 직전 Y 가 40px 넘게 다르거나 방금 스크롤이면 보류`() {
@@ -33,7 +33,7 @@ class BundleGuardsTest {
 
     private val root = "src/main/java/com/onedal/app"
 
-    @Test fun `openBlocked 칸 · 열쇠 · 새로 셈 줄`() {
+    @Test fun `openBlocked 칸 · 열쇠 · 새 통과 콜 줄`() {
         val model = File("$root/models/SharedModels.kt").readText()
         assertTrue(model.contains("val openBlocked: String? = null"))
         assertFalse("listHeaderHidden 은 이제 안 보낸다", model.contains("listHeaderHidden"))
@@ -41,7 +41,7 @@ class BundleGuardsTest {
         assertTrue(svc.contains("telemetryManager.openBlocked = openBlocked"))
         // 손 먼저 · 알람 미룸 · 심사 중 · 바쁨 · 흐르는 목록 키는 동작으로 `ListTapPickTest` — 서비스에 남은 열쇠만
         listOf("HAND_FIRST", "LIST_MOVING", "TAP_NOT_SENT").forEach { assertTrue(it, svc.contains("OpenBlocked.$it")) }
-        assertTrue(File("$root/core/ListRowScan.kt").readText().contains("🔔 [새로 셈]"))
+        assertTrue(File("$root/core/ListRowScan.kt").readText().contains("🔔 [새 통과 콜]"))
         val plugin = File("$root/plugins/kakaopicker/KakaoPickerPlugin.kt").readText()
         assertTrue(plugin.contains("TapShift.listMoving("))
         assertEquals("보류 자리마다 열쇠를 남긴다", Regex("""return null""").findAll(plugin.substringAfter("override fun planListTap(").substringBefore("\n    /**")).count(),

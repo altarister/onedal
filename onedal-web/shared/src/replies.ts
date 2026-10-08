@@ -47,19 +47,6 @@ export interface SafeCancelWarning {
     timestamp: string;
 }
 
-/** filter-pass-alarm — 알람 모드 폰이 필터를 통과한 콜을 봤다 */
-export interface FilterPassAlarm {
-    deviceId: string;
-    deviceName?: string;
-    /** 이번 스캔에서 필터를 통과한 콜 수 — 목록에 보이는 수 */
-    passed: number;
-    /** 그중 새로 알람감이 된 콜 수 — 소리는 이것으로 가른다(서버) */
-    passedNew?: number;
-    /** 이번 스캔에서 판정한 콜 수 */
-    seen: number;
-    at: number;
-}
-
 
 // ── 서버 상태(GET /api/health · 로그인 없이) ────────────────────────
 

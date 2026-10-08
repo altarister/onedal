@@ -41,8 +41,6 @@ export interface ModeSituation {
 export interface ModeActs {
     /** 목록에서 통과 콜(요금 최고 하나)을 누르나 */
     tapsList: boolean;
-    /** 통과 콜에 소리 · 진동을 내나 */
-    sound: boolean;
     /** 원달앱이 확정 · 수락을 누를 수 있나(오늘 콜 · 확정 버튼 있는 배차망일 때) */
     contracts: boolean;
     /** 확정 · 수락 누르기 자체를 막나 */
@@ -55,8 +53,6 @@ export interface ModeActs {
     name: string;
     /** 서버가 기사님 필터를 돌리나(`isActive`) — 서버는 명령으로 묻는다 */
     filterRuns: boolean;
-    /** 원달앱 보고에 통과 콜이 있으면 관제웹 «필터 통과» 삑을 보내나 — 도는 모드로 묻는다 */
-    webBeep: boolean;
     /** 이 폰이 잡은 콜을 체험 콜로 적나(장부 · 취소 횟수에서 빠짐) — 확정 · 상세 보고가 그때 폰 모드로 각자 적는다 · 🔴 기사님 결정 기다림 */
     marksSimulated: boolean;
     /** 이 모드를 누르면 같은 기사님의 다른 폰에서 같은 모드를 알람으로 옮기나(한 폰만) */
@@ -149,17 +145,17 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
         }
     ],
     "acts": {
-        "AUTO":       { "tapsList": true,  "sound": false, "contracts": true,  "blocksAccept": false, "frame": "FF1D4ED8", "label": "자동", "name": "자동",
-                        "filterRuns": true,  "webBeep": false, "marksSimulated": false, "onlyOnePhone": true,
+        "AUTO":       { "tapsList": true,  "contracts": true,  "blocksAccept": false, "frame": "FF1D4ED8", "label": "자동", "name": "자동",
+                        "filterRuns": true,  "marksSimulated": false, "onlyOnePhone": true,
                         "countedAsAuto": true,  "tone": "bg-info/20 text-info border-info/40", "directBadge": false, "needsAutoPermission": true,  "capturedViaUnlessContracted": "MANUAL" },
-        "ALARM":      { "tapsList": true,  "sound": true,  "contracts": false, "blocksAccept": false, "frame": "FF22C55E", "label": "알람", "name": "알람",
-                        "filterRuns": true,  "webBeep": true,  "marksSimulated": false, "onlyOnePhone": false,
+        "ALARM":      { "tapsList": true,  "contracts": false, "blocksAccept": false, "frame": "FF22C55E", "label": "알람", "name": "알람",
+                        "filterRuns": true,  "marksSimulated": false, "onlyOnePhone": false,
                         "countedAsAuto": false, "tone": "bg-success/20 text-success border-success/40", "directBadge": false, "needsAutoPermission": false, "capturedViaUnlessContracted": "ALARM" },
-        "MANUAL":     { "tapsList": false, "sound": false, "contracts": false, "blocksAccept": false, "frame": "FF64748B", "label": "직접", "name": "직접",
-                        "filterRuns": false, "webBeep": false, "marksSimulated": false, "onlyOnePhone": false,
+        "MANUAL":     { "tapsList": false, "contracts": false, "blocksAccept": false, "frame": "FF64748B", "label": "직접", "name": "직접",
+                        "filterRuns": false, "marksSimulated": false, "onlyOnePhone": false,
                         "countedAsAuto": false, "tone": "bg-surface-alt text-text-muted border-border/40", "directBadge": true,  "needsAutoPermission": false, "capturedViaUnlessContracted": "MANUAL" },
-        "SIMULATION": { "tapsList": true,  "sound": false, "contracts": false, "blocksAccept": true,  "frame": "FFF59E0B", "label": "자동", "name": "자동(계약 안 함)",
-                        "filterRuns": true,  "webBeep": false, "marksSimulated": true,  "onlyOnePhone": false,
+        "SIMULATION": { "tapsList": true,  "contracts": false, "blocksAccept": true,  "frame": "FFF59E0B", "label": "자동", "name": "자동(계약 안 함)",
+                        "filterRuns": true,  "marksSimulated": true,  "onlyOnePhone": false,
                         "countedAsAuto": false, "tone": "bg-amber-400/20 text-amber-400 border-amber-400/40", "directBadge": false, "needsAutoPermission": false, "capturedViaUnlessContracted": "MANUAL" }
     },
     "networks": {
@@ -177,8 +173,8 @@ export function modeActsOf(mode: string | null | undefined): ModeActs {
     return (MODE_TABLE.acts as Record<string, ModeActs | undefined>)[mode ?? ''] ?? UNKNOWN_MODE_ACTS;
 }
 const UNKNOWN_MODE_ACTS: ModeActs = {
-    tapsList: false, sound: false, contracts: false, blocksAccept: false, frame: '', label: '', name: '',
-    filterRuns: false, webBeep: false, marksSimulated: false, onlyOnePhone: false,
+    tapsList: false, contracts: false, blocksAccept: false, frame: '', label: '', name: '',
+    filterRuns: false, marksSimulated: false, onlyOnePhone: false,
     countedAsAuto: false, tone: '', directBadge: false, needsAutoPermission: false, capturedViaUnlessContracted: 'MANUAL',
 };
 

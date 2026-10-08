@@ -793,7 +793,9 @@ export async function handleDecision(userId: string, orderId: string, status: De
      * ⚠️ 여기서는 아무것도 지우지 않는다. KEEP 은 오히려 승격본을 캐시에 **덮어써 남긴다**(위 `set` — 롤백 방지).
      * 로그는 하는 일만 말한다 — «삭제»라고 쓰면 좀비 잠금 진단이 늦어진다.
      */
-    slog('결재', `🛡️ [서버] 결재 처리 완료 (${orderId} · ${status}) — 심사 캐시는 KEEP 승격본으로 유지된다`);
+    slog('결재', isKeep && isSimulatedMode
+        ? `🐥 [서버] 연습 결재 처리 완료 (${orderId} · 연습 끝 SAFE_CANCEL) — 운행에 안 올린다`
+        : `🛡️ [서버] 결재 처리 완료 (${orderId} · ${status}) — 심사 캐시는 KEEP 승격본으로 유지된다`);
     return { success: true, action: status };
 }
 

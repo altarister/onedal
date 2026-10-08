@@ -2,15 +2,15 @@ import { create } from 'zustand';
 import { socket } from '../lib/socket';
 import { soundManager } from '../lib/soundManager';
 import { orderIdOf } from '../lib/socketPayload';
-import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from '@onedal/shared';   // 소켓 알림 모양은 shared 한 곳(공통 함수 6)
+import type { EmergencyAlert, SafeCancelWarning } from '@onedal/shared';   // 소켓 알림 모양은 shared 한 곳(공통 함수 6)
 
 /**
- * 🚨 **비상 알림 · 안전취소 경고 · 필터 통과 «삑» — 듣기는 화면이 아니라 여기서 산다** (D3 P6-01).
+ * 🚨 **비상 알림 · 안전취소 경고 — 듣기는 화면이 아니라 여기서 산다** (D3 P6-01).
  *
  * emergency-alert: 앱폰이 POST /emergency로 보고한 비상 상황
  * safecancel-warning: 서버의 안전취소 시간(배차망별 DB 값)이 다 됐을 때 관제탑 경고 (안전취소 만료 임박)
  *
- * 🔴 필터를 펼치면 폰 칸이 접히며 화면에서 빠진다(`ui/collapse`) — 듣기가 그 부품 안에 있으면 그동안 사이렌 · 경고 · 삑을 놓친다.
+ * 🔴 필터를 펼치면 폰 칸이 접히며 화면에서 빠진다(`ui/collapse`) — 듣기가 그 부품 안에 있으면 그동안 사이렌 · 경고를 놓친다.
  *    구독은 앱 전체에서 단 한 번(`judgmentStore` 와 같은 꼴) · 폰 칸은 받은 목록을 읽기만 한다.
  */
 interface AlertsState {
@@ -58,18 +58,8 @@ export function ensureAlertsSocketSubscribed(): void {
         useAlertsStore.setState(s => ({ warnings: s.warnings.filter(w => w.orderId !== orderId) }));
     };
 
-    /**
-     * 🔔 **소리는 «삑» 한 번 + 강한 진동** (기사님 «한 번으로» — 선점 수신 · 판정 도착은 조용).
-     * 운전 중이라 소리가 유일한 통로인데, 무한 반복은 이미 남에게 간 콜에도 계속 운다.
-     */
-    const handleFilterAlarm = (alarm: FilterPassAlarm) => {
-        console.log("🔔 [필터 통과 알람]", alarm);
-        soundManager.playFilterAlarm();
-    };
-
     socket.on("emergency-alert", handleEmergency);
     socket.on("safecancel-warning", handleSafeCancel);
     socket.on("order-canceled", handleOrderCleared);
     socket.on("order-confirmed", handleOrderCleared);
-    socket.on("filter-pass-alarm", handleFilterAlarm);
 }
