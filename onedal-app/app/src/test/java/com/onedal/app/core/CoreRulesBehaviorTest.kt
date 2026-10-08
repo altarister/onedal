@@ -24,6 +24,15 @@ class CoreRulesBehaviorTest {
         assertFalse(ModeActs.blocksTap("SIMULATION", "닫기"))
         assertEquals(DecisionPlan.SIMULATED_BACK, DecisionPlan.of("SIMULATED_KEEP", contractedByApp = true, openedByApp = true))
     }
+    /* 🔴1(29 P5-4) — 막을 버튼에 그 배차망의 확정 글자(플러그인 acceptButtons)를 더한다: 화물24시 «배차신청»은 «수락 · 확정» 글자가 아니라 전에는 안 막혔다 */
+    @Test fun `🔴 체험이면 그 배차망의 확정 버튼 글자도 막는다 — 화물24시 배차신청`() {
+        assertTrue(ModeActs.blocksTap("SIMULATION", "배차신청", acceptButtons = listOf("배차신청")))
+        assertTrue("지금 막던 글자는 그대로", ModeActs.blocksTap("SIMULATION", "수락하기", acceptButtons = emptyList()))
+    }
+    @Test fun `대조 — 확정 글자가 아닌 버튼 · 자동이면 그 배차망 확정 글자도 안 막는다`() {
+        assertFalse(ModeActs.blocksTap("SIMULATION", "돌아가기", acceptButtons = listOf("배차신청")))
+        assertFalse(ModeActs.blocksTap("AUTO", "배차신청", acceptButtons = listOf("배차신청")))
+    }
     @Test fun `대조 — 체험이어도 다른 버튼은 누른다 · 자동 · 알람은 막지 않는다`() {
         assertFalse(ModeActs.blocksTap("SIMULATION", "목록"))
         assertFalse(ModeActs.blocksTap("SIMULATION", "닫기 버튼 옆"))

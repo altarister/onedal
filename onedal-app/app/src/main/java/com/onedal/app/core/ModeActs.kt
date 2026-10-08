@@ -27,9 +27,10 @@ data class ModeActs(
 
         /**
          * 🛑 체험이면 계약을 만드는 확정 · 수락 글자 버튼만 막는다 — 배차망에 실제 계약을 만들지 않게(둘째 겹 · 첫째 겹은 [contracts]).
+         *    «수락 · 확정» 글자에 더해 그 배차망의 확정 글자([acceptButtons] — 플러그인 · 화물24시 «배차신청»)도 막는다(29 P5-4 · 더하기만 — 지금 막는 것은 그대로).
          *    결재를 집행하는 탭(«닫기» · «취소»)은 지금 모드가 아니라 결재 종류로 가른다 — 체험 결재(`SIMULATED_*`)는 `DecisionPlan` 이 버튼 없이 뒤로 보낸다.
          */
-        fun blocksTap(mode: String?, text: String): Boolean =
-            of(mode ?: "").blocksAccept && (text.contains("수락") || text.contains("확정"))
+        fun blocksTap(mode: String?, text: String, acceptButtons: List<String> = emptyList()): Boolean =
+            of(mode ?: "").blocksAccept && (text.contains("수락") || text.contains("확정") || acceptButtons.any { text.contains(it) })
     }
 }

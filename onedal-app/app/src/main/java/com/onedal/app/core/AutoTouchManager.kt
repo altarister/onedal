@@ -360,9 +360,11 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
         mark: Boolean = true,
         currentMode: String? = null,
         isRefire: Boolean = false,
+        /** 이 배차망의 확정 버튼 글자 — 체험이면 이것도 막는다(`ModeActs.blocksTap`) · 확정을 누르는 길만 넘긴다 */
+        acceptButtons: List<String> = emptyList(),
     ): Boolean {
         // 🛑 [체험 모드 하드락] 체험 모드일 때는 수락/확정 관련 텍스트 터치를 물리적으로 100% 원천 차단!
-        if (ModeActs.blocksTap(currentMode, targetText)) {
+        if (ModeActs.blocksTap(currentMode, targetText, acceptButtons)) {
             AppLogger.e(TAG, LogTag.TAP, "🛑 [체험 모드 절대 방어] '$targetText' 버튼 터치 시도가 감지되었으나 물리적으로 원천 차단(Block)되었습니다!")
             return false
         }
@@ -371,7 +373,7 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
         if (targetNode != null) {
             AppLogger.roadmap(LogTag.TAP, "'$targetText' 버튼 인식 ➡️ 클릭 시도", "")
             // 다시 누를 때는 버튼을 지금 화면에서 다시 찾는다
-            val refind = { service.rootInActiveWindow?.let { findAndClickByText(it, targetText, isStartsWith, false, currentMode, isRefire = true) }; Unit }
+            val refind = { service.rootInActiveWindow?.let { findAndClickByText(it, targetText, isStartsWith, false, currentMode, isRefire = true, acceptButtons = acceptButtons) }; Unit }
             val result = performSimulatedTouch(targetNode, mark = mark, tapKey = targetText, isRefire = isRefire, refire = refind)
             targetNode.recycle()
             return result

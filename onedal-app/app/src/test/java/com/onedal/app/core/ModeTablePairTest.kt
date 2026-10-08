@@ -74,7 +74,7 @@ class ModeTablePairTest {
         assertTrue(hijack.contains("val tapsFromList = ModeActs.of(currentMode).tapsList"))
         assertTrue(hijack.contains("sound = ModeActs.of(currentMode).sound"))
         assertFalse(hijack.contains("""currentMode == "AUTO" || currentMode == "SIMULATION""""))
-        assertTrue(src("core/AutoTouchManager.kt").contains("ModeActs.blocksTap(currentMode, targetText)"))
+        assertTrue(src("core/AutoTouchManager.kt").contains("ModeActs.blocksTap(currentMode, targetText, acceptButtons)"))
         assertTrue(src("core/engine/PreConfirmSequence.kt").contains("ModeActs.of(mode).contracts && ReservationGate.isToday(order)"))
     }
 
