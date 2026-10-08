@@ -9,8 +9,6 @@ import com.onedal.app.HijackService
 import com.onedal.app.isAccessibilityServiceEnabled
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.Locale
 
@@ -112,23 +110,24 @@ class MainViewModel {
         waitTimesLabel = waitTimesLabelOf(prefs.getString(Prefs.ACTIVE_FILTER, null))
         readCheckFacts(context, prefs)
 
-        scope.launch {
-            while (true) {
-                isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
-                activeFilterJson = prefs.getString(Prefs.ACTIVE_FILTER, "{}") ?: "{}"
-                apiStatusJson = prefs.getString(Prefs.API_STATUS, "{}") ?: "{}"
-                lastScrapTime = prefs.getLong(Prefs.LAST_SCRAP_TIME, 0L)
-                apiScrapReq = prefs.getString(Prefs.API_SCRAP_REQ, "없음") ?: "없음"
-                apiScrapRes = prefs.getString(Prefs.API_SCRAP_RES, "없음") ?: "없음"
-                apiConfirmReq = prefs.getString(Prefs.API_CONFIRM_REQ, "없음") ?: "없음"
-                apiConfirmRes = prefs.getString(Prefs.API_CONFIRM_RES, "없음") ?: "없음"
-                showTapMarker = prefs.getBoolean(Prefs.SHOW_TAP_MARKER, false)
-                unlinkedWhy = prefs.getString(com.onedal.app.core.DeviceLink.PREF_UNLINKED, null)
-                readCheckFacts(context, prefs)
-                delay(1000)
-            }
-        }
+        poll = com.onedal.app.core.PollLoop(scope, 1000) {
+            isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
+            activeFilterJson = prefs.getString(Prefs.ACTIVE_FILTER, "{}") ?: "{}"
+            apiStatusJson = prefs.getString(Prefs.API_STATUS, "{}") ?: "{}"
+            lastScrapTime = prefs.getLong(Prefs.LAST_SCRAP_TIME, 0L)
+            apiScrapReq = prefs.getString(Prefs.API_SCRAP_REQ, "없음") ?: "없음"
+            apiScrapRes = prefs.getString(Prefs.API_SCRAP_RES, "없음") ?: "없음"
+            apiConfirmReq = prefs.getString(Prefs.API_CONFIRM_REQ, "없음") ?: "없음"
+            apiConfirmRes = prefs.getString(Prefs.API_CONFIRM_RES, "없음") ?: "없음"
+            showTapMarker = prefs.getBoolean(Prefs.SHOW_TAP_MARKER, false)
+            unlinkedWhy = prefs.getString(com.onedal.app.core.DeviceLink.PREF_UNLINKED, null)
+            readCheckFacts(context, prefs)
+        }.also { it.start() }
     }
+
+    /** 🔁 1초 읽기 — 화면이 사라지면 끈다(`stop` · MainActivity 의 DisposableEffect) */
+    private var poll: com.onedal.app.core.PollLoop? = null
+    fun stop() { poll?.stop() }
 
     // ── 파싱된 표시 문자열 및 모델 (computed) ──
 

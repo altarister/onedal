@@ -37,7 +37,11 @@ internal fun scrapLogLine(screenName: String, count: Int, ms: Long): String? {
     return if (com.onedal.app.core.LogOnce.changed("scrap-empty", screenName)) line else null
 }
 
-class ApiClient(private val context: Context) {
+class ApiClient(
+    private val context: Context,
+    /** 🧵 상세 보고 실패를 알릴 실행기 — 화면 스레드(콜백이 화면 스레드 전용 상태를 만진다 · `DetailFailure`) */
+    private val callbackExecutor: java.util.concurrent.Executor = java.util.concurrent.Executor { r -> android.os.Handler(android.os.Looper.getMainLooper()).post(r) },
+) {
 
     companion object {
         private const val TAG = "1DAL_API"
@@ -258,15 +262,15 @@ class ApiClient(private val context: Context) {
                     } else {
                         AppLogger.e(TAG, LogTag.NETWORK, "❌ [post /detail response / $code] $body")
                         // 타임아웃 등의 이유로 실패 시 CANCEL로 간주하여 뱉기
-                        onDecisionReceived(payload.order.id, "CANCEL")
+                        DetailFailure.notify(callbackExecutor, payload.order.id, onDecisionReceived)
                     }
                 } else {
                     AppLogger.e(TAG, LogTag.NETWORK, "❌ [Detail 전송 실패] 재시도 포함 모든 시도 실패")
-                    onDecisionReceived(payload.order.id, "CANCEL")
+                    DetailFailure.notify(callbackExecutor, payload.order.id, onDecisionReceived)
                 }
             } catch (e: Exception) {
                 AppLogger.e(TAG, LogTag.NETWORK, "❌ [Detail 전송 실패] ${e.message}")
-                onDecisionReceived(payload.order.id, "CANCEL")
+                DetailFailure.notify(callbackExecutor, payload.order.id, onDecisionReceived)
             }
         }
     }

@@ -63,6 +63,8 @@ class MainActivity : ComponentActivity() {
 
                     // 폴링 시작 (1회만) — 켤 때 사실을 한 번 읽어 첫 탭을 고른다
                     remember { vm.startPolling(context); true }
+                    /* 🔁 화면이 사라지면 1초 읽기를 끈다 — 다시 만들어질 때마다 루프가 늘지 않게 */
+                    DisposableEffect(vm) { onDispose { vm.stop() } }
 
                     // 4탭 구조: 대시보드 / 배차망 / 설정 / 점검 — 🩺 켤 때 빨강(먼저 띄울 것)이 있으면 점검 탭부터
                     var selectedTab by remember { mutableStateOf(if (com.onedal.app.core.FirstRunCheck.mustShow(com.onedal.app.core.FirstRunCheck.rows(vm.checkFacts()))) 3 else 0) }
