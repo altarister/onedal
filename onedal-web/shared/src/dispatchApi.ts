@@ -1,3 +1,4 @@
+import { isManualLineage } from './callStatus';
 import type { SimplifiedOfficeOrder, OfficeOrder } from './orderShapes';
 import type { AutoDispatchFilter } from './dispatchFilter';
 import type { DeviceModeType } from './deviceModes';
@@ -70,13 +71,14 @@ export interface DispatchBasicRequest {
 }
 
 /**
- * ✋ **확정을 누가 눌렀나 — 사실 하나** (29 N4 사실 ③ · P2) — `NONE` 안 눌림(미리보기) · `DRIVER` 기사님 손(`matchType` MANUAL) · `APP` 원달앱.
+ * ✋ **확정을 누가 눌렀나 — 사실 하나** (29 N4 사실 ③ · P2) — `NONE` 안 눌림(미리보기) · `DRIVER` 기사님 손(`matchType` MANUAL 이거나 콜 갈래가 MANUAL — `isManualLineage`) · `APP` 원달앱.
+ * 서버 세 자리(/confirm · /detail 앞 기억 · /detail 갈래)가 같은 입력을 넘긴다 — 갈래만 MANUAL 이고 matchType 이 AUTO 인 옛 보고도 한 답.
  * 서버는 결재 기다림 · 1차 선점 안전취소 · 체험(연습) 표시를 이것으로 가른다 — 모드 이름으로 가르지 않는다.
  */
 export type WhoConfirmed = 'NONE' | 'APP' | 'DRIVER';
-export function whoConfirmed(r: { isPreview?: boolean; matchType?: string }): WhoConfirmed {
+export function whoConfirmed(r: { isPreview?: boolean; matchType?: string; type?: string | null }): WhoConfirmed {
     if (r.isPreview) return 'NONE';
-    return r.matchType === 'MANUAL' ? 'DRIVER' : 'APP';
+    return r.matchType === 'MANUAL' || isManualLineage(r.type) ? 'DRIVER' : 'APP';
 }
 
 // 1-B. 앱폰 -> 서버: 2차 호출 (상세 페이지 진입 후 상세 정보 파싱 완료 시)

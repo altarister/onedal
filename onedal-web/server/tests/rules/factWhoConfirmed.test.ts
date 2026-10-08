@@ -108,6 +108,8 @@ describe('✋ 확정 누른 주체 — 사실 하나(29 P2 · shared whoConfirme
         expect(whoConfirmed({ isPreview: false, matchType: 'MANUAL' })).toBe('DRIVER');
         expect(whoConfirmed({ matchType: 'AUTO' })).toBe('APP');
         expect(whoConfirmed({})).toBe('APP');
+        expect(whoConfirmed({ matchType: 'AUTO', type: 'MANUAL_CLICK' })).toBe('DRIVER');   // 갈래만 MANUAL 인 옛 보고도 기사님(ef 리뷰 ③)
+        expect(whoConfirmed({ isPreview: true, type: 'MANUAL_CLICK' })).toBe('NONE');
     });
 
     it('🔴 계약 안 함 폰에서 기사님이 손으로 확정한 콜도 서버가 바로 KEEP · 30초 기다림 없음(27 15 · 16 «가»)', async () => {

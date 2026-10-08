@@ -89,7 +89,7 @@ router.post("/", async (req, res) => {
             // 👀 미리보기 딱지는 두 요청이 같은 말을 해야 한다 — 확정을 누르면 둘 다 false 로 온다
             isPreview: !!(payload as any).isPreview,
             /* 🐥 연습 콜 — 계약 안 함 폰이 연 콜 가운데 기사님이 손으로 확정하지 않은 콜(29 P2) */
-            isSimulated: modeActsOf(deviceMode).marksSimulated && whoConfirmed({ isPreview: !!(payload as any).isPreview, matchType: manualRequest ? 'MANUAL' : payload.matchType }) !== 'DRIVER',
+            isSimulated: modeActsOf(deviceMode).marksSimulated && whoConfirmed({ isPreview: !!(payload as any).isPreview, matchType: payload.matchType, type: payload.order.type }) !== 'DRIVER',
         });
 
         const rawTargetApp = (payload as any).targetApp;
@@ -210,7 +210,7 @@ router.post("/", async (req, res) => {
          */
         const isPreviewCall = !!(payload as any).isPreview;
         /* ✋ 확정 누른 주체 하나로 가른다(29 P2) — 기사님 손이면 계약 안 함 폰이어도 진짜 콜 · 바로 KEEP */
-        const who = whoConfirmed({ isPreview: isPreviewCall, matchType: pendingOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL" ? 'MANUAL' : payload.matchType });
+        const who = whoConfirmed({ isPreview: isPreviewCall, matchType: payload.matchType, type: pendingOrder.type });
         const isSimulated = who !== 'DRIVER'
             && (modeActsOf(deviceMode).marksSimulated || pendingOrder.id?.startsWith('SIM-') || !!(pendingOrder as any).isSimulated);
         const isManual = who === 'DRIVER';
