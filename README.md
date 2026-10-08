@@ -72,6 +72,8 @@
 `tsc --noEmit`(server) · `tsc -b`(client) · `npx jest` · `pnpm test:web` · `pnpm audit:dead` ·
 `pnpm lint:gate` · 앱을 고쳤다면 `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest`
 — 전부 통과해야 커밋한다.
+**원달앱 · 관제앱과 서버가 같이 바뀌면 폰 먼저 · 서버 나중** — 서버는 `main` 에 올라가면 실서버에 자동 배포되지만 두 앱은 손으로 깐다.
+서버가 새 칸 · 새 길을 기대하면 옛 원달앱 · 관제앱은 그 칸을 모른 채 돈다(예: 블루투스 받기 전 판은 426 `APP_TOO_OLD`(`routes/scrap.ts`)를 받아 알람 모드로 바뀐다 — 자동 잡기가 멈춘 줄 모를 수 있다) → 새 판을 폰에 깔고 본 뒤 서버를 올린다.
 **건드린 것에 따라 더:** 콜 흐름(서버 `services/dispatchEngine.ts` · `services/milestones.ts` · `routes/` 의 orders·detail·scrap · `state/`) → `pnpm scenario`
 (판정 색·필터 계산만 고쳤으면 `jest` 로 충분) · 소켓 이벤트 → `pnpm audit:socket` ·
 `shared/`·DB 스키마 → 기존 DB 사본으로 부팅 · 문서 → `pnpm audit:docs` · 경로·도착·궤적 → `pnpm drive`
