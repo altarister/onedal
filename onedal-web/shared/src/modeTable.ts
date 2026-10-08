@@ -65,8 +65,6 @@ export interface ModeActs {
     directBadge: boolean;
     /** 자동 잡기 허락이 있어야 고를 수 있나 */
     needsAutoPermission: boolean;
-    /** 원달앱이 계약하지 않은 콜의 «잡은 방식» 기록(원달앱 `SessionManager.capturedVia`) · 🔴 기사님 결정 기다림 */
-    capturedViaUnlessContracted: 'AUTO' | 'ALARM' | 'MANUAL';
 }
 
 export interface ModeTable {
@@ -147,16 +145,16 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
     "acts": {
         "AUTO":       { "tapsList": true,  "contracts": true,  "blocksAccept": false, "frame": "FF1D4ED8", "label": "자동", "name": "자동",
                         "filterRuns": true,  "marksSimulated": false, "onlyOnePhone": true,
-                        "countedAsAuto": true,  "tone": "bg-info/20 text-info border-info/40", "directBadge": false, "needsAutoPermission": true,  "capturedViaUnlessContracted": "MANUAL" },
+                        "countedAsAuto": true,  "tone": "bg-info/20 text-info border-info/40", "directBadge": false, "needsAutoPermission": true },
         "ALARM":      { "tapsList": true,  "contracts": false, "blocksAccept": false, "frame": "FF22C55E", "label": "알람", "name": "알람",
                         "filterRuns": true,  "marksSimulated": false, "onlyOnePhone": false,
-                        "countedAsAuto": false, "tone": "bg-success/20 text-success border-success/40", "directBadge": false, "needsAutoPermission": false, "capturedViaUnlessContracted": "ALARM" },
+                        "countedAsAuto": false, "tone": "bg-success/20 text-success border-success/40", "directBadge": false, "needsAutoPermission": false },
         "MANUAL":     { "tapsList": false, "contracts": false, "blocksAccept": false, "frame": "FF64748B", "label": "직접", "name": "직접",
                         "filterRuns": false, "marksSimulated": false, "onlyOnePhone": false,
-                        "countedAsAuto": false, "tone": "bg-surface-alt text-text-muted border-border/40", "directBadge": true,  "needsAutoPermission": false, "capturedViaUnlessContracted": "MANUAL" },
+                        "countedAsAuto": false, "tone": "bg-surface-alt text-text-muted border-border/40", "directBadge": true,  "needsAutoPermission": false },
         "SIMULATION": { "tapsList": true,  "contracts": false, "blocksAccept": true,  "frame": "FFF59E0B", "label": "자동", "name": "자동(계약 안 함)",
                         "filterRuns": true,  "marksSimulated": true,  "onlyOnePhone": false,
-                        "countedAsAuto": false, "tone": "bg-amber-400/20 text-amber-400 border-amber-400/40", "directBadge": false, "needsAutoPermission": false, "capturedViaUnlessContracted": "MANUAL" }
+                        "countedAsAuto": false, "tone": "bg-amber-400/20 text-amber-400 border-amber-400/40", "directBadge": false, "needsAutoPermission": false }
     },
     "networks": {
         "insung": { "autoContract": true },
@@ -175,7 +173,7 @@ export function modeActsOf(mode: string | null | undefined): ModeActs {
 const UNKNOWN_MODE_ACTS: ModeActs = {
     tapsList: false, contracts: false, blocksAccept: false, frame: '', label: '', name: '',
     filterRuns: false, marksSimulated: false, onlyOnePhone: false,
-    countedAsAuto: false, tone: '', directBadge: false, needsAutoPermission: false, capturedViaUnlessContracted: 'MANUAL',
+    countedAsAuto: false, tone: '', directBadge: false, needsAutoPermission: false,
 };
 
 /** 이 배차망에서 원달앱이 자동으로 확정할 수 있나 — 모르는 배차망은 «못 한다»(모르면 잡지 않는다 · 규칙 ④) */

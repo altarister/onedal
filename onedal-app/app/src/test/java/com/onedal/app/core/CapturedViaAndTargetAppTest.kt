@@ -9,7 +9,7 @@ import org.junit.Test
  *
  * · TargetApp: 라벨→코드 매핑은 이 한 곳에만 둔다.
  *   배차망을 더할 때 여기 한 곳만 늘린다 — 값이 갈라지면 서버가 기본값으로 받는다.
- * · capturedVia: 6하원칙의 «어떻게»(자동·알람·직접) — **원장 기록 전용**이다.
+ * · 잡은 방식은 원달앱이 따로 세지 않는다 — 서버가 그때 도는 모드(capturedMode) · 진입 주체(openedBy)로 적는다(36 P6).
  *   보호 분기는 여전히 clickOrigin(둘)이 만든 matchType 만 본다 (#75 재발 방지).
  */
 class CapturedViaAndTargetAppTest {
@@ -64,35 +64,11 @@ class CapturedViaAndTargetAppTest {
     }
 
     @Test
-    fun `매크로가 눌렀으면 어떤 모드든 자동이다`() {
-        val s = SessionManager()
-        s.contractedByApp = true
-        assertEquals("AUTO", s.capturedVia("AUTO"))
-        assertEquals("AUTO", s.capturedVia("ALARM"))   // 알람 모드여도 누른 건 매크로다
-    }
-
-    @Test
-    fun `알람 모드에서 기사님이 누르면 알람이다 - 일지가 알람의 성과를 세는 칸`() {
+    fun `기사님이 누른 콜의 출신은 직접(MANUAL)이다 - 서버 보호가 보는 값`() {
         val s = SessionManager()
         s.contractedByApp = false
-        assertEquals("ALARM", s.capturedVia("ALARM"))
-    }
-
-    @Test
-    fun `그 외 기사님 클릭은 직접이다`() {
-        val s = SessionManager()
-        s.contractedByApp = false
-        assertEquals("MANUAL", s.capturedVia("MANUAL"))
-        assertEquals("MANUAL", s.capturedVia("AUTO"))   // 자동 스위치인 채 손으로 눌러도 직접 (#75)
-    }
-
-    @Test
-    fun `기록이 보호를 바꾸지 않는다 - 알람 클릭의 출신은 여전히 직접(MANUAL)이다`() {
-        val s = SessionManager()
-        s.contractedByApp = false
-        // capturedVia 가 ALARM 이어도 서버 보호가 보는 출신은 MANUAL — #75 의 경계 그대로
+        // 알람 모드에서 누른 콜도 서버 보호가 보는 출신은 MANUAL — #75 의 경계 그대로
         assertEquals("MANUAL", s.clickOrigin)
-        assertEquals("ALARM", s.capturedVia("ALARM"))
     }
 }
 

@@ -9,7 +9,7 @@ import { approvedUser } from '../fixtures/approvedUser';
  * 🖱️ **잡은 방식 기록 — 원달앱이 보낸 값 그대로 · 모르면 비움** (31 P0 · S6 · 29 N2 «지금» 칸).
  *    서버는 잡은 방식을 스스로 정하지 않는다 — `/confirm` 의 capturedVia 를 허용 값(AUTO · ALARM · MANUAL)이면 싣고, 아니면 null.
  *    장부에 쓸 때 빈 값은 앞 값을 덮지 않는다(COALESCE). P5 에서 «모드 + 진입 주체»로 바뀌면 이 기댓값이 바뀐다.
- * 못 잡는 것: 원달앱이 무엇을 보내나(원달앱 `SessionManager.capturedVia` · CapturedViaAndTargetAppTest).
+ * 못 잡는 것: 원달앱이 무엇을 보내나(옛 원달앱만 보낸다 · 새 원달앱은 안 보냄 — 36 P6).
  */
 const U = 'test-fact-captured-via';
 const DEV = 'dev-fact-via';

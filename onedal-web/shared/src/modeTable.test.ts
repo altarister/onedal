@@ -95,7 +95,6 @@ describe('네 모드 표 — 하는 일 칸', () => {
         });
         expect(col('directBadge')).toEqual({ AUTO: false, ALARM: false, MANUAL: true, SIMULATION: false });
         expect(col('needsAutoPermission')).toEqual({ AUTO: true, ALARM: false, MANUAL: false, SIMULATION: false });
-        expect(col('capturedViaUnlessContracted')).toEqual({ AUTO: 'MANUAL', ALARM: 'ALARM', MANUAL: 'MANUAL', SIMULATION: 'MANUAL' });
         expect(DEVICE_MODE_LABEL).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '직접', SIMULATION: '자동(계약 안 함)' });
         expect(col('label')).toEqual({ AUTO: '자동', ALARM: '알람', MANUAL: '직접', SIMULATION: '자동' });   // 접힌 단추 글자 — 계약 안 함은 색(노랑)으로 가른다(32 ③ 가)
     });
