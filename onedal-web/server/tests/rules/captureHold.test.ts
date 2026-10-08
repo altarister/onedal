@@ -50,6 +50,31 @@ describe('🔒 captureHold — 픽커가 멈추는 까닭', () => {
         expect(r2.captureHold).toBeUndefined();
     });
 
+    /**
+     * 🔴 서버가 다시 켜진 뒤 관제웹이 붙기 전에는 하차 목록이 아직 안 지어져 «지역을 못 찾았습니다»가 함께 걸린다(로그 10-09 05:52).
+     *    지어지지 않은 필터의 고장 · 진행 중 콜을 모르는 만석은 아직 사실이 아니다 — 칸을 싣지 않아 픽커는 지금처럼 울린다.
+     */
+    it('🔴 복구 전 · 부트스트랩 중에는 하차 목록이 비었거나 만석이어도 칸이 없다', () => {
+        const a = ready();
+        a.isRestored = false;
+        a.activeFilter.destinationKeywords = [];
+        expect(appFilterOf(a, U, null, null).filter.captureHold).toBeUndefined();
+        const b = ready();
+        b.isRestored = false;
+        b.activeFilter.allowedVehicleTypes = [];
+        expect(appFilterOf(b, U, null, null).filter.captureHold).toBeUndefined();
+        const c = ready();
+        c.isBootstrapping = true;
+        c.activeFilter.allowedVehicleTypes = [];
+        expect(appFilterOf(c, U, null, null).filter.captureHold).toBeUndefined();
+    });
+
+    it('대조 — 복구 뒤 하차 목록이 비면 그 까닭 글', () => {
+        const s = ready();
+        s.activeFilter.destinationKeywords = [];
+        expect(appFilterOf(s, U, null, null).filter.captureHold).toBe('이천시 에서 지역을 못 찾았습니다');
+    });
+
     it('보류가 없으면 칸이 없다', () => {
         expect(appFilterOf(ready(), U, null, null).filter.captureHold).toBeUndefined();
     });

@@ -67,7 +67,8 @@ function oldAssembly(session: any, userId: string, deviceId: string) {
     if (!session.isRestored) appFilter.isActive = false;
     if (callFilterBlocker(session.activeFilter)) appFilter.isActive = false;
     /* 🔒 픽커가 읽는 보류 까닭 — 만석 · 필터 고장만 (captureHold.test 가 갈래를 문다) */
-    const captureHold = capacityFullHold(session.activeFilter) ? '만석' : callFilterBlocker(session.activeFilter);
+    const filterBuilt = !session.isBootstrapping && session.isRestored;
+    const captureHold = filterBuilt ? (capacityFullHold(session.activeFilter) ? '만석' : callFilterBlocker(session.activeFilter)) : null;
     if (captureHold) appFilter.captureHold = captureHold;
     return appFilter;
 }
