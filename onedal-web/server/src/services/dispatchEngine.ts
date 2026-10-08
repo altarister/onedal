@@ -251,10 +251,10 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     const activeMain = activeCalls[0];
     const activeSubs = activeCalls.slice(1);
 
-    try {
-        const apiKey = process.env.KAKAO_REST_API_KEY || "";
-        if (!apiKey) return;
-
+    /* 🗺️ 키가 없으면 경로 연산만 건너뛴다 — 아래 그물 다시 세우기 · 관제웹 알림은 간다(키를 빈 값으로 넘기는 시험이 실주행과 같은 길을 타게) */
+    const apiKey = process.env.KAKAO_REST_API_KEY || "";
+    if (!apiKey) slog('판정', `🗺️ [경로 연산 건너뜀] 카카오 키 없음 — 그물 · 관제웹 알림은 그대로`);
+    else try {
         const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
 
         if (activeSubs.length === 0) {
