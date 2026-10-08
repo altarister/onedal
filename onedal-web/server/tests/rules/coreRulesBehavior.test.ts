@@ -128,6 +128,16 @@ describe('👀 R12 미리보기에는 안전취소 기다림을 걸지 않는다
         expect(r.status).toBe(200);
         expect(getUserSession(U).entries.has('presecured_o-normal')).toBe(true);
     });
+    /* ✋ 사실 ③ 지금 답(29 N4 «지금» 칸 — 손 확정 콜에도 30초 타이머) · 31 P0 S4. P2 에서 이 기댓값이 바뀐다 */
+    it('지금 답 — 손으로 확정한 선점(matchType MANUAL)에도 장부에 안전취소', async () => {
+        readySession();
+        const r = await post(ordersRouter, '/confirm', {
+            step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType: 'MANUAL',
+            order: { id: 'o-hand', pickup: '이천시 신둔면', dropoff: '서울 강남구', fare: 30000, rawText: '' },
+        });
+        expect(r.status).toBe(200);
+        expect(getUserSession(U).entries.has('presecured_o-hand')).toBe(true);
+    });
 });
 
 describe('📈 R13 미리보기 · 체험 콜 취소는 취소 횟수에 안 든다 — 배차망에서 취소한 일이 없다', () => {
