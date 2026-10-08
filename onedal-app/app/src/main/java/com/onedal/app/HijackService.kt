@@ -814,7 +814,7 @@ class HijackService : AccessibilityService(), ScanContext {
          *
          * 배차망 이름을 글자로 박으면 픽커로 돌 때도 «인성콜»이라 찍혀, 로그를 믿고 헛짚는다.
          *
-         * 같은 자리의 «붙는 순간 화면»(위 `firstScreen`)과 **같은 클래스**다 —
+         * «붙는 순간 화면»(`readFirstScreen` 의 `firstScreen`)과 **같은 클래스**다 —
          * 읽지 않고 단언하는 것. 인스턴스를 하나씩 고치는 대신 규칙으로 잠갔다
          * (`tests/rules/screenTruth.test.ts`).
          */
