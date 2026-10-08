@@ -10,6 +10,7 @@ import type { AutoDispatchFilter } from "@onedal/shared";
 
 
 import { Badge } from "@onedal/ui/badge";
+import { directBadgeOf } from "./deviceModeBadge";
 import { Button } from "@onedal/ui/button";
 
 /**
@@ -125,7 +126,7 @@ function DeviceRow({
     if (currentFilter) {
         // 🚨 전역 isActive가 아닌, 이 기기 자체의 mode를 1순위로 검사합니다!
         // isActive = "필터가 도는가" (유저별), device.mode = "누가 누르나" (폰별)
-        if (modeActsOf(device.mode).directBadge) {
+        if (directBadgeOf(device)) {   // 🏷️ 옆 모드 단추와 같은 값(도는 모드) — 29 P5-3
             filterLabel = '직접 모드';
             filterColor = 'bg-surface-alt text-text-muted border-border';
         } else {
