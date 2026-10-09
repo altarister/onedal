@@ -132,6 +132,11 @@ interface NetworkScreenSpec {
     match: ScreenMatch[];
     /** 목록 복귀로 치나 — LIST 가 아닌 페이지에서 참이면 서버가 심사 중 콜을 치우고 원달앱이 진행을 처음부터 한다 */
     listReturn: boolean;
+    /**
+     * 🖐️ 수락(신청)하면 배차망이 스스로 이 페이지로 보내나 — 참이면 목록 복귀여도 «잡은 콜을 놓음»이 아니다(서버 목록 이탈 · 원달앱 목록 복귀 리셋 · 38 F42).
+     * 화물24시 «배차내역 목록»이 그렇다 — 시뮬 Hwamul24SimScreen.tsx «신청하면 그 자리에서 ‹배차내역› 탭으로 넘어간다» · 실물 캡처 03_배차내역_리스트. 없으면 거짓.
+     */
+    landsAfterAccept?: boolean;
     overlays: ScreenOverlay[];
     seen: 'REAL' | 'SIM' | 'UNKNOWN';
     /** 근거 — 캡처 경로(이름과 내용이 다르면 괄호에 내용) 또는 로그 «폰 파일 시각» · 비면 «모을 것» */
@@ -297,7 +302,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"name": "세금계산서 발행 창", "kind": "POPUP", "match": [{"all": ["계산서발행", "작성일자"], "none": ["수정사유", "공급가액변동"]}], "meaning": "세금계산서를 처음 발행한다(공급자 · 공급받는자 입력)", "seen": "REAL", "evidence": ["ex_images/화물24시/12_세금계산서_발행폼.png", "ex_images/화물24시/23_세금계산서발행_입력창.png"]}
       ]},
       {"name": "화물배차정보요약", "standard": "DETAIL_CONFIRMED", "match": [{"all": ["화물배차정보요약"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/14_화물배차정보요약.png", "ex_images/화물24시/15_화물배차정보요약_메뉴.png (녹화 앱 메뉴가 겹침)"], "overlays": []},
-      {"name": "배차내역 목록", "standard": "MY_ORDERS", "match": [{"all": ["배차내역", "자세히 보기"], "none": ["02 화주정보"]}], "listReturn": true, "seen": "REAL", "evidence": ["ex_images/화물24시/03_배차내역_리스트.png", "ex_images/화물24시/11_배차내역_수금목록.png", "ex_images/화물24시/20_배차내역_목록.png"], "overlays": [
+      {"name": "배차내역 목록", "standard": "MY_ORDERS", "match": [{"all": ["배차내역", "자세히 보기"], "none": ["02 화주정보"]}], "listReturn": true, "landsAfterAccept": true, "seen": "REAL", "evidence": ["ex_images/화물24시/03_배차내역_리스트.png", "ex_images/화물24시/11_배차내역_수금목록.png", "ex_images/화물24시/20_배차내역_목록.png"], "overlays": [
         {"name": "안내 띠", "kind": "BANNER", "match": [], "meaning": "전자세금계산서 · 수금 안내 — 글이 바뀐다", "seen": "REAL", "evidence": ["ex_images/화물24시/03_배차내역_리스트.png", "ex_images/화물24시/20_배차내역_목록.png"], "toCollect": "바뀌지 않는 알아볼 글자"}
       ]},
       {"name": "화물정보 검색조건", "standard": "NETWORK_MENU", "match": [{"all": ["화물정보", "검색조건", "저장 후 검색"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/38_세금계산서_목록.png (내용은 검색조건)", "ex_images/화물24시/39_계산서_발행폼.png (내용은 검색조건)", "ex_images/화물24시/41_마이페이지_메인.png (내용은 검색조건 + 하차일 선택)", "ex_images/화물24시/42_설정_알림.png (내용은 검색조건 + 내위치 반경 선택)"], "overlays": [
@@ -494,5 +499,11 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
 export function listReturnOf(targetApp: string | null | undefined, page: string | null | undefined): boolean {
     if (!targetApp || !page) return false;
     return NETWORK_PAGES[targetApp as TargetAppType]?.screens.some(s => s.name === page && s.listReturn) ?? false;
+}
+
+/** 🖐️ **이 배차망 페이지는 수락 뒤 배차망이 스스로 보내는 곳인가** — 표의 `landsAfterAccept`(화물24시 배차내역 목록) · 모르면 거짓 */
+export function landsAfterAcceptOf(targetApp: string | null | undefined, page: string | null | undefined): boolean {
+    if (!targetApp || !page) return false;
+    return NETWORK_PAGES[targetApp as TargetAppType]?.screens.some(s => s.name === page && s.landsAfterAccept) ?? false;
 }
 

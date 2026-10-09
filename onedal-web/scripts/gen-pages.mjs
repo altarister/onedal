@@ -70,7 +70,8 @@ const kscreen = (net, s) => {
         return `                OverlaySpec(${args.join(', ')}),`;
     });
     const args = [kstr(s.name), s.standard === null ? 'null' : `StandardScreen.${s.standard}`, kmatches(at, s.match), String(s.listReturn),
-        overlays.length ? `listOf(\n${overlays.join('\n')}\n            )` : 'emptyList()', `Seen.${s.seen}`, klist(s.evidence), ...ktail(s)];
+        overlays.length ? `listOf(\n${overlays.join('\n')}\n            )` : 'emptyList()', `Seen.${s.seen}`, klist(s.evidence), ...ktail(s),
+        ...(s.landsAfterAccept ? ['landsAfterAccept = true'] : [])];
     return `        ScreenSpec(\n            ${args.join(',\n            ')},\n        ),`;
 };
 

@@ -3,7 +3,7 @@
  * 라우터(`routes/devices.ts`)가 이 파일을 불러 쓴다. 기기 표 · 등록 폰 읽기는 아래층 `deviceRegistry` 에 있다 — 공급 · 폰 상태 · 취소 셈은 거기서 읽는다.
  * 바깥 일을 하는 함수: touchDeviceSession · getActiveDevicesSnapshot · getUserDevicesSnapshot · cleanPreviewOfDevice(기기 표 · 세션 · 장부(DB) · 지금 시각 · 소켓 · 기다림 · 로그) (화면 못 읽음 · 상세 떠남 셈 blindSignalFrom · leftDetailFrom 은 값만 받는다)
  */
-import { FilterTally, DeviceSession, DeviceModeType, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, leftForOtherNetwork } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceModeType, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, leftForOtherNetwork, isLetGoScreen } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "./userSessionStore";
 import { requireAuth } from "../middlewares/authMiddleware";
@@ -410,6 +410,9 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                 const screenNet = targetApp ?? session.targetApp;
                 if (leftForOtherNetwork((stuckOrder as any).targetApp, screenNet)) {
                     slog('화면', `📲 [다른 배차망 화면] ${stuckOrderId}(${(stuckOrder as any).targetApp}) — 화면은 ${screenNet} · 놓음이 아니다 · 원달앱이 끝까지 책임진다`);
+                } else if (!isLetGoScreen(screenContext, screenNet, extras?.screenPage)) {
+                    /* 🖐️ 배차망이 수락 뒤 스스로 보내는 페이지(화물24시 «신청» 뒤 배차내역 목록)는 계약한 화면이지 놓은 화면이 아니다 (38 F42) */
+                    slog('화면', `📋 [수락 뒤 배차망이 보낸 화면] ${stuckOrderId} — ${screenContext}${extras?.screenPage ? ` · ${extras.screenPage}` : ''} · 놓음이 아니다`);
                 } else if (!userSession.entries.has(key)) {
                     slog('화면', `🚀 [화면 이탈 감지] 기기(${deviceLabelOf(deviceId)})가 리스트 화면으로 이탈함! 그 사이 다음 콜을 잡으면 안 치웁니다.`);
                     armWait(userSession, key,

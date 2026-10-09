@@ -101,14 +101,22 @@ describe('⏱️ KEEP 했는데 폰이 못 받아 취소함', () => {
         expect(ledger('k-5').status).toBe('SAFE_CANCEL');
     });
 
-    it('대조 — KEEP 안 된(심사 중) 콜 · 다른 까닭 · 칸 없는 옛 원달앱은 지금처럼 방출 · keepLost 없음', async () => {
+    /* 🧾 «KEEP 못 감»은 까닭 이름이 아니라 «내려간 결재가 KEEP 이었나 + 원달앱이 취소를 눌렀나» 두 사실로 가른다 (38 F36 · 71) */
+    it('🔴 까닭 이름이 «자동 취소»가 아니어도 — KEEP 된 콜 + 눌렀음이면 안전취소 · keepLost', async () => {
+        const s = kept('k-6');
+        await report('k-6', 'APP_LEFT_DETAIL', true);
+        expect(s.myOrders.find(o => o.id === 'k-6')?.status).toBe('SAFE_CANCEL');
+        expect(alertOf()?.keepLost).toBe(true);
+    });
+
+    it('대조 — KEEP 안 된(심사 중) 콜 · 칸 없는 옛 원달앱은 지금처럼 방출 · keepLost 없음', async () => {
         const s = getUserSession(U);
         s.pendingOrdersData.set('n-1', { id: 'n-1', capturedDeviceId: DEV } as any);
         await report('n-1', 'AUTO_CANCEL', true);
         expect(alertOf()?.keepLost).toBeFalsy();
         events.length = 0;
         const t = kept('n-2');
-        await report('n-2', 'APP_LEFT_DETAIL', true);
+        await report('n-2', 'APP_LEFT_DETAIL');
         expect(t.myOrders.find(o => o.id === 'n-2')?.status).toBe('ORDER_RELEASED_BY_OFFICE');
         expect(alertOf()?.keepLost).toBeFalsy();
         events.length = 0;

@@ -1,4 +1,4 @@
-import { listReturnOf } from './networkPages';
+import { listReturnOf, landsAfterAcceptOf } from './networkPages';
 
 /**
  * 🛡️ Safety Mode V3: 앱폰 화면 상태 타입
@@ -69,6 +69,15 @@ export type ScreenContextType =
  * 콜 잡기가 멈춘다. 같은 판단을 두 곳에서 따로 정의하면 갈라진다 — 화면이 늘어나면 **이 배열에만** 넣는다.
  */
 export const LIST_SCREENS: ScreenContextType[] = ['LIST', 'LIST_COMPLETED'];
+
+/**
+ * 🖐️ **이 화면이 «잡은 콜을 놓았다»를 뜻하나 — 목록 복귀이되, 배차망이 수락 뒤 스스로 보내는 페이지는 아니다** (38 F42).
+ * 화물24시는 «신청» 즉시 «배차내역 목록»으로 넘어간다 — 계약한 화면이지 놓은 화면이 아니다(표의 `landsAfterAccept`).
+ * 인성 «완료 탭»은 기사님이 손으로 가는 목록이라 놓음이다. 서버 목록 이탈 유예가 쓴다 · 미리보기 정리 · 목록 복귀 알림은 `isListScreen` 그대로.
+ */
+export function isLetGoScreen(screenContext?: string | null, targetApp?: string | null, screenPage?: string | null): boolean {
+    return isListScreen(screenContext, targetApp, screenPage) && !landsAfterAcceptOf(targetApp, screenPage);
+}
 
 /** 지금 화면이 "콜에서 손을 뗀" 상태인가 (= 서버가 쥐고 있던 콜을 놓아도 되는가) */
 export function isListScreen(screenContext?: string | null, targetApp?: string | null, screenPage?: string | null): boolean {

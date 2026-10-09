@@ -92,7 +92,7 @@ data class OverlaySpec(
 
 /**
  * 🖥️ **배차망 페이지 한 줄** — 플러그인 폴더 `…Pages.kt` 의 `screens` 차례가 판별 차례다.
- * standard 가 null 이면 화면을 못 봐 못 정함 · listReturn 은 LIST 가 아닌 페이지를 목록 복귀로 치나.
+ * standard 가 null 이면 화면을 못 봐 못 정함 · listReturn 은 LIST 가 아닌 페이지를 목록 복귀로 치나 · landsAfterAccept 는 수락 뒤 배차망이 보내는 페이지인가.
  */
 data class ScreenSpec(
     val name: String,
@@ -104,4 +104,6 @@ data class ScreenSpec(
     val evidence: List<String>,
     val toCollect: String = "",
     val wordsFrom: String = "",
+    /** 🖐️ 수락 뒤 배차망이 스스로 보내는 페이지 — 목록 복귀여도 «잡은 콜을 놓음»이 아니다(shared `landsAfterAccept` · 38 F42) */
+    val landsAfterAccept: Boolean = false,
 )

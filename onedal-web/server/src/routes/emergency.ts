@@ -120,7 +120,8 @@ router.post("/", async (req, res) => {
             slog('경고', `   🔁 [다시 온 비상 보고] ${targetOrderId} — 이미 끝난 콜(${endedStatus}) · 상태 · 경보 그대로`);
             return res.json({ success: true, message: "이미 끝난 콜 — 다시 온 비상 보고", clearedOrderId: null });
         }
-        const keepLost = report.reason === 'AUTO_CANCEL' && report.cancelPressed === true && keptCall?.status === 'ORDER_CONFIRMED';
+        /* 🧾 까닭 이름이 아니라 두 사실 — 내려간 결재가 KEEP 이었나(kept) + 원달앱이 취소를 실제로 눌렀나 (38 F36) */
+        const keepLost = report.cancelPressed === true && kept;
         const endStatus = keepLost ? 'SAFE_CANCEL' : 'ORDER_RELEASED_BY_OFFICE';
         if (keepLost) slog('경고', `   ⏱️ [KEEP 못 감] ${targetOrderId} — KEEP 한 콜을 원달앱이 결재를 못 받아 취소함 · 안전취소로 적는다`);
 

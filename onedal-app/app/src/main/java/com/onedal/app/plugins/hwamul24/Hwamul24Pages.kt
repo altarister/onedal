@@ -146,6 +146,7 @@ object Hwamul24Pages {
             ),
             Seen.REAL,
             listOf("ex_images/화물24시/03_배차내역_리스트.png", "ex_images/화물24시/11_배차내역_수금목록.png", "ex_images/화물24시/20_배차내역_목록.png"),
+            landsAfterAccept = true,
         ),
         ScreenSpec(
             "화물정보 검색조건",

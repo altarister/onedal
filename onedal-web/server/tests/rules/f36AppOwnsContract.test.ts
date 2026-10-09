@@ -25,8 +25,8 @@ const evaluating = (id: string, targetApp: string) => {
     s.deviceEvaluatingMap.set(DEV, id);
     return s;
 };
-const touch = (screen: string, targetApp: string) =>
-    touchDeviceSession(DEV, U, 0, screen, quiet, undefined, undefined, undefined, undefined, undefined, undefined, targetApp);
+const touch = (screen: string, targetApp: string, screenPage?: string) =>
+    touchDeviceSession(DEV, U, 0, screen, quiet, undefined, undefined, undefined, undefined, undefined, undefined, targetApp, screenPage ? { screenPage } : undefined);
 
 const events: { ev: string; body: any }[] = [];
 const recorder = { to: () => ({ emit: (ev: string, body: any) => { events.push({ ev, body }); } }) };
@@ -63,6 +63,21 @@ describe('📲 원달앱이 계약한 콜 — 다른 배차망 화면은 놓음�
         const t = evaluating('f36-same', 'insung');
         touch('LIST', 'insung');
         expect(t.entries.has('listExit_f36-same')).toBe(true);
+    });
+});
+
+describe('🖐️ 화물24시 «신청» 뒤 배차내역 목록은 놓음이 아니다 (38 F42)', () => {
+    it('🔴 화물24시 자동 계약 심사 중 · 배차내역 목록(내 오더) 보고 → 목록 이탈 유예를 안 건다 · 화물24시 콜 목록이면 건다(대조)', () => {
+        touch('DETAIL_PRE_CONFIRM', 'hwamul24');
+        const s = evaluating('f42-mine', 'hwamul24');
+        touch('MY_ORDERS', 'hwamul24', '배차내역 목록');
+        expect(s.entries.has('listExit_f42-mine')).toBe(false);
+
+        clearUserSession(U);
+        touch('DETAIL_PRE_CONFIRM', 'hwamul24');
+        const t = evaluating('f42-list', 'hwamul24');
+        touch('LIST', 'hwamul24');
+        expect(t.entries.has('listExit_f42-list')).toBe(true);
     });
 });
 
