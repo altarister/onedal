@@ -252,6 +252,8 @@ class TelemetryManager(
     /** 📵 마지막 보고가 응답을 못 받았나 — «응답 없음 · 다시 옴» 로그를 바뀔 때만 찍는다 */
     @Volatile
     private var lostReply = false
+    /** 📮 보고가 서버에 닿을 때마다(보고 스레드) — 받는 쪽이 화면 스레드로 넘긴다 */
+    @Volatile var onReplyArrived: (() -> Unit)? = null
     /** 🌐 원달앱 보고가 서버에 닿나 — 마지막 보고가 응답을 받았나 */
     val replying: Boolean get() = !lostReply
     private val modeKnown get() = suppliedMode != null
@@ -414,6 +416,7 @@ class TelemetryManager(
         apiClient.sendScrapTelemetry(
             payload = payload,
             onReplied = {
+                onReplyArrived?.invoke()   // 📮 보고가 닿았다 — 못 보낸 비상 보고를 다시 보낼 때(40 S2-3)
                 if (lostReply) {
                     lostReply = false
                     AppLogger.i(TAG, LogTag.NETWORK, "✅ [서버 응답 다시 옴]")

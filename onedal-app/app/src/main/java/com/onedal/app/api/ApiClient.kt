@@ -367,7 +367,8 @@ class ApiClient(
      *
      * ⚠️ emergencyExecutor 전용 — 다른 작업에 의해 절대 블로킹되지 않음
      */
-    fun sendEmergency(report: EmergencyReport) {
+    /** @param onResult 서버가 200 으로 받았나 — 화면 스레드로(못 보낸 «자동 취소»를 들고 있는 재료 · 40 S2-3) */
+    fun sendEmergency(report: EmergencyReport, onResult: (delivered: Boolean) -> Unit = {}) {
         emergencyExecutor.submit {
             try {
                 val jsonBody = gson.toJson(report)
@@ -386,8 +387,11 @@ class ApiClient(
                 } else {
                     AppLogger.e(TAG, "🚨 [EMERGENCY 전송 실패] 재시도 포함 모든 시도 실패")
                 }
+                val delivered = result?.first == 200
+                callbackExecutor.execute { onResult(delivered) }
             } catch (e: Exception) {
                 AppLogger.e(TAG, "🚨 [EMERGENCY 전송 실패] ${e.message}")
+                callbackExecutor.execute { onResult(false) }
             }
         }
     }

@@ -33,4 +33,10 @@ object Prefs {
     const val API_CONFIRM_RES = "api_confirm_res"
     /** 💾 걸려 있는 안전취소 «콜 번호|벽시계 마감 ms» — 원달앱이 다시 떠도 되살린다(`SafeCancelTimer.restore`) */
     const val SAFE_CANCEL_ARMED = "safeCancelArmed"
+    /**
+     * 📮 못 보낸 «자동 취소 · 눌렀음» 비상 보고(JSON 목록) — 원달앱이 다시 떠도 남게(40 S2-3 · 23 · 기사님 답 3 «저장 칸 하나»).
+     *    값: `PendingEmergency.toJson` · 비면 없음 · 같은 콜은 한 줄 / 적는 때: 보고가 재시도까지 못 닿음 / 지우는 때: 다시 보낸 보고가 200 /
+     *    화면: 안 보임 / 읽는 곳: 보고가 서버에 닿을 때마다 `HijackService.flushPendingEmergency`.
+     */
+    const val PENDING_AUTO_CANCEL = "pendingAutoCancel"
 }

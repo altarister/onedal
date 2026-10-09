@@ -644,6 +644,7 @@ class HijackService : AccessibilityService(), ScanContext {
     private fun buildClients() {
         apiClient = ApiClient(this)
         telemetryManager = TelemetryManager(apiClient, this, waitBook)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
+        telemetryManager.onReplyArrived = { mainHandler.post { flushPendingEmergency() } }
 
         touchManager = AutoTouchManager(this, waitBook)
         internetSupply = com.onedal.app.core.InternetSupply(waitBook,
@@ -2197,7 +2198,35 @@ class HijackService : AccessibilityService(), ScanContext {
             targetApp = currentTargetApp,
             cancelPressed = cancelPressed,
         )
-        apiClient.sendEmergency(report)
+        apiClient.sendEmergency(report) { delivered ->
+            if (!com.onedal.app.core.PendingEmergency.holds(report, delivered)) return@sendEmergency
+            savePendingEmergency(com.onedal.app.core.PendingEmergency.merge(loadPendingEmergency(), report))
+            AppLogger.w(TAG, LogTag.NETWORK, "📮 [못 보낸 자동 취소 보고] ${report.orderId} — 들고 있다가 보고가 닿으면 다시 보낸다")
+        }
+    }
+
+    private fun pendingPrefs() = getSharedPreferences(com.onedal.app.core.Prefs.NAME, Context.MODE_PRIVATE)
+    private fun loadPendingEmergency() = com.onedal.app.core.PendingEmergency.fromJson(pendingPrefs().getString(com.onedal.app.core.Prefs.PENDING_AUTO_CANCEL, null))
+    private fun savePendingEmergency(list: List<EmergencyReport>) {
+        pendingPrefs().edit().apply { if (list.isEmpty()) remove(com.onedal.app.core.Prefs.PENDING_AUTO_CANCEL) else putString(com.onedal.app.core.Prefs.PENDING_AUTO_CANCEL, com.onedal.app.core.PendingEmergency.toJson(list)) }.apply()
+    }
+    /** 📮 다시 보내는 중 — 보고가 1초마다 닿아도 겹쳐 안 보낸다(화면 스레드에서만 만짐) */
+    private var pendingFlushing = false
+
+    /** 📮 보고가 서버에 닿았다 — 들고 있던 «자동 취소» 보고를 한 줄씩 다시 보내고, 닿으면 지운다(40 S2-3) · 비었으면 아무것도 안 함 */
+    private fun flushPendingEmergency() {
+        if (pendingFlushing) return
+        val pending = loadPendingEmergency()
+        if (pending.isEmpty()) return
+        pendingFlushing = true
+        AppLogger.w(TAG, LogTag.NETWORK, "📮 [못 보낸 자동 취소 보고] ${pending.size}건 다시 보냄")
+        var left = pending.size
+        for (report in pending) {
+            apiClient.sendEmergency(report) { delivered ->
+                if (delivered) savePendingEmergency(com.onedal.app.core.PendingEmergency.remove(loadPendingEmergency(), report.orderId))
+                if (--left == 0) pendingFlushing = false
+            }
+        }
     }
 
     // ════════════════════════════════════════════════════════════════
