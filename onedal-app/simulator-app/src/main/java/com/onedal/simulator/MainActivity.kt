@@ -4,9 +4,11 @@ import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.text.InputType
+import android.util.Log
 import android.view.KeyEvent
 import android.view.ViewGroup
 import android.webkit.GeolocationPermissions
@@ -53,6 +55,10 @@ class MainActivity : Activity() {
     }
 
     private lateinit var webView: WebView
+
+    /** 🔀 아직 웹 화면에 못 넘긴 «배차망 바꿔» 신호 — 페이지가 뜨고 화면이 설 때까지 다시 넘긴다 */
+    private var pendingNet: String? = null
+    private var netTries = 0
     private val prefs by lazy { getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,11 +71,45 @@ class MainActivity : Activity() {
         webView.loadUrl(currentUrl())
 
         applySystemBarInsets()
+        takeNet(intent)
 
         // 📍 위치 권한이 없으면 한 번 청한다 — 거부해도 시뮬은 돈다 (서버·고정 좌표로 폴백)
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1001)
+        }
+    }
+
+    /**
+     * 🔀 **«배차망 바꿔» 신호 — 다시 켜지 않고 웹 화면의 배차망만 바꾼다** (38 F36 · 71 «가»).
+     * 실물은 배차망마다 다른 앱이라, 원달앱은 그 앱을 앞으로 불러온다. 시뮬은 한 앱이라 «시뮬 앱을 앞으로 + net 인자»가 같은 순서다
+     * (`am start -n com.onedal.simulator/.MainActivity --es net kakaopicker` · 원달앱 NetworkFront 도 같은 모양).
+     * 🔴 화면에 탭을 얹지 않는다 — 탭 글자가 접근성 트리에 섞이면 원달앱이 두 배차망 글자를 함께 읽는다(이 파일 머리 규칙).
+     * singleTask 라 이미 떠 있으면 onNewIntent 로 온다 — 웹뷰 · 잡은 콜 · 연 상세가 그대로다.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        takeNet(intent)
+    }
+
+    private fun takeNet(intent: Intent?) {
+        val net = intent?.getStringExtra("net") ?: return
+        intent.removeExtra("net")
+        /* 글자만 웹에 넘긴다 — 배차망 이름은 영소문자 · 숫자뿐(insung · hwamul24 · kakaopicker) */
+        if (!Regex("^[a-z0-9]{1,20}$").matches(net)) { Log.w("OnedalSim", "🔀 [배차망 바꿈] 모르는 모양 «$net» — 넘기지 않음"); return }
+        pendingNet = net
+        netTries = 0
+        pushNet()
+    }
+
+    /** 웹 화면의 바꾸기 문(`window.__onedalSimSwitch`)이 설 때까지 0.5초마다 · 20번(10초)까지 다시 넘긴다 — 설정 화면(/)에는 문이 없다 */
+    private fun pushNet() {
+        val net = pendingNet ?: return
+        webView.evaluateJavascript("(function(){if(window.__onedalSimSwitch){window.__onedalSimSwitch('$net');return 'ok'}return 'wait'})()") { r ->
+            if (r == "\"ok\"") { Log.i("OnedalSim", "🔀 [배차망 바꿈] $net"); pendingNet = null; return@evaluateJavascript }
+            if (++netTries >= 20) { Log.w("OnedalSim", "🔀 [배차망 바꿈] $net — 배차 화면이 아니라 못 넘김(10초)"); pendingNet = null; return@evaluateJavascript }
+            webView.postDelayed({ pushNet() }, 500)
         }
     }
 
