@@ -30,7 +30,8 @@ import { isTerminal } from "@onedal/shared";
 import { getUserSession } from "../state/userSessionStore";
 import { cancelOrderWaits } from "../state/waits";
 import { updateActiveFilter } from "../state/filterManager";
-import db from "../db";
+import { OrderRepository } from "../repositories/OrderRepository";
+import { takeReserved } from "../services/reservedOrders";
 import { countCancel } from "../core/cancelCount";
 import { slog } from "../utils/fileLogger";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
@@ -48,7 +49,7 @@ export function emergencyTargetFrom(orderId: string, pending: Iterable<[string, 
 }
 
 /** 🚨 관제웹에 갈 비상 알림 — 값만 받는 셈 (보고 · 가리킨 콜 · 지금 시각) */
-export function emergencyAlertFrom(report: EmergencyReport, orderId: string, nowIso: string): EmergencyAlert {
+export function emergencyAlertFrom(report: EmergencyReport, orderId: string, nowIso: string, keepLost = false): EmergencyAlert {
     const alert: EmergencyAlert = {
         deviceId: report.deviceId,
         orderId,
@@ -56,6 +57,7 @@ export function emergencyAlertFrom(report: EmergencyReport, orderId: string, now
         screenContext: report.screenContext,
         screenText: report.screenText?.substring(0, 300),
         timestamp: report.timestamp || nowIso,
+        ...(keepLost ? { keepLost: true } : {}),
     };
     return alert;
 }
@@ -94,6 +96,15 @@ router.post("/", async (req, res) => {
             return res.json({ success: true, message: "비상 보고 수신 — 계약이 남아 있어 콜을 그대로 둔다", clearedOrderId: null });
         }
 
+        /**
+         * ⏱️ **KEEP 한 콜을 폰이 결재를 못 받아 취소했나** — «서버가 이 콜을 KEEP 해 운행 · 예약에 올려 두었나» 사실 하나로 가른다(40 S2-1).
+         *    결재 줄로 가르면 늦게 온 보고(원달앱 인터넷이 늦게 돌아옴)를 놓친다 — 시한 끝 KEEP 방어가 줄을 먼저 지운다.
+         */
+        const keptCall = session.myOrders.find(c => c.id === targetOrderId) ?? session.reservedOrders.find(c => c.id === targetOrderId);
+        const keepLost = report.reason === 'AUTO_CANCEL' && report.cancelPressed === true && keptCall?.status === 'ORDER_CONFIRMED';
+        const endStatus = keepLost ? 'SAFE_CANCEL' : 'ORDER_RELEASED_BY_OFFICE';
+        if (keepLost) slog('경고', `   ⏱️ [KEEP 못 감] ${targetOrderId} — KEEP 한 콜을 원달앱이 결재를 못 받아 취소함 · 안전취소로 적는다`);
+
         if (session.pendingDecisions.has(targetOrderId)) {
             session.pendingDecisions.delete(targetOrderId);
             slog('경고', `   ✅ 결재 큐(pendingDecisions) 삭제 완료`);
@@ -120,12 +131,19 @@ router.post("/", async (req, res) => {
         // 📈 취소(알림) 카운트 증가 처리 — 세는 규칙은 countCancel 한 곳에 있다
         countCancel(session, deviceId, targetOrderId, reason, wasPreview || wasSimulated, io);
 
+        /* 📅 예약 보관의 콜이면 보관에서 꺼낸다 — 안 꺼내면 끝낸 콜이 다음 영업일에 진행 중 첫짐으로 올라온다(handleDecision 취소 갈래와 같은 규칙) */
+        const takenReserved = takeReserved(session, targetOrderId);
+        if (takenReserved) {
+            takenReserved.status = endStatus;
+            try { OrderRepository.updateOrderStatus(targetOrderId, userId, endStatus); } catch (e) { console.error("Emergency DB 업데이트 에러:", e); }
+        }
         const existingOrder = session.myOrders.find(c => c.id === targetOrderId);
         if (existingOrder) {
-            existingOrder.status = 'ORDER_RELEASED_BY_OFFICE';
+            existingOrder.status = endStatus;
             try {
-                const stmt = db.prepare("UPDATE orders SET status = 'ORDER_RELEASED_BY_OFFICE' WHERE id = ? AND userId = ?");
-                stmt.run(targetOrderId, userId);
+                /* 🧹 상태와 함께 취소 시각(terminatedAt)도 — 한 함수(전수표 #65) */
+                const terminatedAt = OrderRepository.updateOrderStatus(targetOrderId, userId, endStatus);
+                if (terminatedAt) (existingOrder as any).terminatedAt = terminatedAt;
             } catch (e) {
                 console.error("Emergency DB 업데이트 에러:", e);
             }
@@ -146,13 +164,13 @@ router.post("/", async (req, res) => {
         }
 
         if (io) {
-            io.to(userId).emit("emergency-alert", emergencyAlertFrom(report, targetOrderId, new Date().toISOString()));
+            io.to(userId).emit("emergency-alert", emergencyAlertFrom(report, targetOrderId, new Date().toISOString(), keepLost));
             slog('경고', `   ✅ 관제탑 emergency-alert emit 완료`);
         }
 
         if (io) {
             slog('경고', `📤 [Socket 푸시] order-canceled (${targetOrderId})`);
-            io.to(userId).emit("order-canceled", { id: targetOrderId, status: 'ORDER_RELEASED_BY_OFFICE' });
+            io.to(userId).emit("order-canceled", { id: targetOrderId, status: endStatus });
         }
 
         slog('경고', `🚨🚨🚨 [EMERGENCY] 처리 완료 🚨🚨🚨\n`);

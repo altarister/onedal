@@ -49,13 +49,13 @@ describe('비상 보고 — 눌렀나', () => {
         expect(events).toEqual(['emergency-alert']);
     });
 
-    it('대조 — 눌렀으면(true) 지금처럼 끝낸다 · 칸이 없으면(옛 원달앱)도 지금처럼', async () => {
-        for (const [id, pressed] of [['o-yes', true], ['o-old', undefined]] as const) {
+    it('대조 — 눌렀으면(true) 끝낸다(KEEP 된 콜의 자동 취소는 안전취소 · emergencyKeepLost) · 칸이 없으면(옛 원달앱) 지금처럼 방출', async () => {
+        for (const [id, pressed, end] of [['o-yes', true, 'SAFE_CANCEL'], ['o-old', undefined, 'ORDER_RELEASED_BY_OFFICE']] as const) {
             events.length = 0;
             const s = seed(id);
             const r = await report(id, pressed);
             expect([id, r.code, r.body?.error]).toEqual([id, 200, undefined]);
-            expect(s.myOrders.find(o => o.id === id)?.status).toBe('ORDER_RELEASED_BY_OFFICE');
+            expect(s.myOrders.find(o => o.id === id)?.status).toBe(end);
             expect(s.pendingDecisions.has(id)).toBe(false);
             expect(events).toContain('order-canceled');
         }

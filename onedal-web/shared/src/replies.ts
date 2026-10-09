@@ -35,6 +35,8 @@ export interface EmergencyAlert {
     /** 화면 글자 앞 300자 — 없으면 없음 */
     screenText?: string;
     timestamp: string;
+    /** ⏱️ KEEP 한 콜을 원달앱이 결재를 못 받아 «자동 취소 · 눌렀음»으로 끝냈다 — 서버가 그 콜을 안전취소로 적었다(23 · 40 S2-1) · 소켓 칸 · 저장하지 않음 */
+    keepLost?: boolean;
 }
 
 /** safecancel-warning — 안전취소 시간이 되도록 결재가 없다 */
