@@ -2,6 +2,7 @@ package com.onedal.app.core
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
@@ -14,7 +15,10 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
@@ -34,6 +38,7 @@ import java.util.UUID
  *   증명된 관제앱이 붙어 있는 동안은 광고를 멈춘다 · 끊기면 다시.
  * - 증명된 관제앱의 쓰기가 5초 동안 없으면 «공급 연결 끊김» — 원달앱은 자동을 알람으로 내린다(`TargetApp.runningMode`).
  * - 표시 · 서명이 바뀌면(영업일 · 다시 연결) 광고를 다시 한다. 블루투스 «근처 기기» 허락이 없으면 아무것도 안 띄운다(점검 탭 줄).
+ * - 블루투스가 꺼지면 서버 · 연결 · 광고를 버린다(`dropServer` — 스택이 서버 등록을 지워 빈 껍데기가 된다) · 켜지면 1초 틱이 다시 연다(`BleAdapterLife` · 38 F07).
  * 모든 콜백은 메인 핸들러로 옮겨 한 줄로 돈다.
  */
 @SuppressLint("MissingPermission")
@@ -100,16 +105,41 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
         if (LogOnce.changed("ble-permission", "있음")) listener.onPermissionGranted()
         if (mgr?.adapter?.isEnabled != true) AppLogger.w(TAG, LogTag.NETWORK, "📶 [블루투스] 꺼져 있다 — 켜지면 광고한다")
         started = true
+        try { ctx.registerReceiver(adapterRx, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)) } catch (e: Exception) { AppLogger.e(TAG, "📶 [블루투스] 켜짐 · 꺼짐 듣기를 못 걸었다 — ${e.message}") }
         try { openServer() } catch (e: Exception) { AppLogger.e(TAG, "📶 [블루투스] GATT 서버를 못 열었다 — ${e.message}") }
         h.post(tick)
     }
 
     fun stop() {
         h.removeCallbacksAndMessages(null)
+        try { ctx.unregisterReceiver(adapterRx) } catch (_: Exception) {}
+        dropServer()
+        started = false
+    }
+
+    /** 📶 블루투스 켜짐 · 꺼짐 — 꺼지면 서버 · 연결 · 광고를 버린다(켜지면 1초 틱이 다시 연다) */
+    private val adapterRx = object : BroadcastReceiver() {
+        override fun onReceive(c: Context?, i: Intent?) {
+            val state = i?.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) ?: return
+            if (!BleAdapterLife.dropsOn(state)) return
+            h.post {
+                if (server == null) return@post
+                AppLogger.w(TAG, LogTag.NETWORK, "📶 [블루투스] 꺼짐 — 서버 · 광고를 비운다(켜지면 1초 안에 다시 연다)")
+                dropServer()
+            }
+        }
+    }
+
+    /** 🗑️ 서버 · 붙은 기기 · 증명된 관제앱 · 보낼 줄 · 광고를 한 번에 버린다 — stop() 과 블루투스 꺼짐이 같이 쓴다 */
+    private fun dropServer() {
         try { mgr?.adapter?.bluetoothLeAdvertiser?.stopAdvertising(advCb) } catch (_: Exception) {}
         try { server?.close() } catch (_: Exception) {}
         server = null
-        started = false
+        notifyChr = null
+        peers.clear()
+        central = null
+        outQ.clear(); notifying = false; big.reset()
+        advertisedTag = null
         setLinked(false)
     }
 
@@ -302,7 +332,7 @@ class BleLink(private val ctx: Context, private val deviceIdOf: () -> String, pr
     private val tick = object : Runnable {
         override fun run() {
             try {
-                if (server == null && mgr?.adapter?.isEnabled == true) openServer()
+                if (BleAdapterLife.reopens(server != null, mgr?.adapter?.isEnabled == true)) openServer()
                 advertiseIfNeeded()
                 peers.values.forEach { sendHello(it) }
                 sendStatusIfChanged()
