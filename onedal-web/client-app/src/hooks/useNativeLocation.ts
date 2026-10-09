@@ -52,7 +52,7 @@ export function useNativeLocation(enabled = true) {
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
                 const { latitude, longitude, accuracy } = position.coords;
-                setLocation(latitude, longitude, accuracy || 0);
+                setLocation(latitude, longitude, accuracy || 0, position.timestamp || undefined);   // 측정 시각 = 한 점의 이름
             },
             (error) => {
                 console.error('[1DAL GPS] 위치 획득 실패:', error.message);

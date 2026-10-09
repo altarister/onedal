@@ -57,7 +57,7 @@ export function useMasterGps(
     stops?: PolylinePoint[],
 ) {
     const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number } | null>(null);
-    const { lat: nativeLat, lng: nativeLng } = useLocationStore();
+    const { lat: nativeLat, lng: nativeLng, timestamp: nativeFixAt } = useLocationStore();
 
     /** 실 좌표가 마지막으로 온 시각. 0 = 아직 한 번도 안 왔다 */
     const lastRealFixAt = useRef(0);
@@ -80,7 +80,7 @@ export function useMasterGps(
     useEffect(() => {
         if (nativeLat === null || nativeLng === null) return;
         pushReal({ lat: nativeLat, lng: nativeLng });
-    }, [nativeLat, nativeLng]);
+    }, [nativeLat, nativeLng, nativeFixAt]);   // 서 있어 좌표가 같아도 새 측정이면 «실 GPS 가 살아 있다»
 
     // ── 1-B. 원격 실기기(S23 실폰)가 서버로 쏘아 올린 실제 위치 수신 (PC 관제 브라우저 화면 동기화)
     useEffect(() => {

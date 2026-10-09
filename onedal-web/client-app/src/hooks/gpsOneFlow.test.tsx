@@ -96,4 +96,44 @@ describe('관제앱 — 저장소 좌표 하나 → 화면 알림 하나 · 운�
         expect(r.flowed).toBe(r.fixes);
         expect(r.mode).toBe('drive');
     });
+
+    /**
+     * 서 있을 때(F09 후속): 폰은 서 있어도 새 측정을 낸다(실측 — 실내 진짜 GPS 8초 안팎 · JoyStick 1초).
+     * 한 점의 이름은 좌표가 아니라 측정 시각이다 — 좌표가 같아도 새 측정이면 흐르고(«아직 여기 있다»),
+     * 캐시된 같은 측정(같은 측정 시각)이 다시 오면 한 번만 흐른다(F09 가 안 되살아남).
+     */
+    async function stand20s(repeatCached: boolean) {
+        const { useLocationStore } = await import('../stores/useLocationStore');
+        const { useGpsTelemetry } = await import('./useGpsTelemetry');
+        const { useMasterGps } = await import('./useMasterGps');
+        const { useDriveMotion } = await import('../components/dashboard/VehicleStatusPanel');
+        let mode: 'drive' | 'idle' = 'drive';
+        function Probe() { useGpsTelemetry(true); useMasterGps(false, null); mode = useDriveMotion(); return null; }
+        act(() => root.render(<Probe />));
+        let screen = 0; const on = () => { screen++; };
+        window.addEventListener('local-gps-update', on);
+        const setFix = (fixAt: number) => (useLocationStore.getState().setLocation as (a: number, b: number, c: number, d?: number) => void)(37.3, 127.3, 5, fixAt);
+        const t0 = Date.now();
+        for (let s = 0; s < 20; s++) {
+            act(() => setFix(t0 + s * 1000));
+            if (repeatCached) { act(() => { vi.advanceTimersByTime(2); }); act(() => setFix(t0 + s * 1000)); }   // 같은 측정이 캐시로 한 번 더
+            act(() => { vi.advanceTimersByTime(repeatCached ? 998 : 1000); });
+        }
+        window.removeEventListener('local-gps-update', on);
+        const sent = emit.mock.calls.filter(c => c[0] === 'dashboard-gps-update').length;
+        return { screen, sent, mode };
+    }
+
+    it('🔴 정차 20초 · 같은 좌표 · 새 측정 매초 — 화면은 측정마다 · 서버는 6초마다 «아직 여기» · «서 있음»', async () => {
+        const r = await stand20s(false);
+        expect(r.screen).toBe(20);                     // 같은 좌표라도 새 측정이면 흐른다
+        expect(r.sent).toBeGreaterThanOrEqual(3);      // 서버는 gpsBridge 6초 규칙으로 «아직 여기 있다»
+        expect(r.sent).toBeLessThanOrEqual(5);
+        expect(r.mode).toBe('idle');
+    });
+
+    it('🔴 캐시된 같은 측정이 2ms 뒤 한 번 더 와도 한 번만 흐른다', async () => {
+        const r = await stand20s(true);
+        expect(r.screen).toBe(20);
+    });
 });
