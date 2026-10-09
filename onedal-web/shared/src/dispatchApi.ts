@@ -81,6 +81,25 @@ export function whoConfirmed(r: { isPreview?: boolean; matchType?: string; type?
     return r.matchType === 'MANUAL' || isManualLineage(r.type) ? 'DRIVER' : 'APP';
 }
 
+/**
+ * 📲 **폰 화면이 그 콜과 다른 배차망인가** (38 F36 · 기사님 «원달앱이 확정한 콜은 원달앱이 끝까지 책임진다»).
+ * 다른 배차망 화면은 «콜을 놓음»이 아니다 — 원달앱이 그 콜의 배차망으로 돌아가 결재를 집행한다. 하나라도 모르면 거짓(지금처럼).
+ */
+export function leftForOtherNetwork(orderNet?: string | null, screenNet?: string | null): boolean {
+    return !!orderNet && !!screenNet && orderNet !== screenNet;
+}
+
+/**
+ * ⏱️ **안전취소 시한이 지났을 때 서버가 할 일** (38 F36).
+ * 원달앱이 계약한 진짜 콜은 서버 시계로 세지 않는다 — 원달앱이 «취소»를 실제로 누르고 보고한 뒤에 센다(못 눌렀으면 경보).
+ * 미리보기 · 체험 · 손 확정은 원달앱이 계약하지 않았으니 지금처럼 서버가 치운다.
+ */
+export type TimeoutAction = 'KEEP_GUARD' | 'WAIT_APP_REPORT' | 'FORCE_CANCEL';
+export function timeoutActionOf(r: { keep: boolean; who: WhoConfirmed; simulated: boolean }): TimeoutAction {
+    if (r.keep) return 'KEEP_GUARD';
+    return r.who === 'APP' && !r.simulated ? 'WAIT_APP_REPORT' : 'FORCE_CANCEL';
+}
+
 // 1-B. 앱폰 -> 서버: 2차 호출 (상세 페이지 진입 후 상세 정보 파싱 완료 시)
 export interface DispatchDetailedRequest {
     step: 'DETAILED';

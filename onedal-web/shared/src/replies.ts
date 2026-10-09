@@ -39,7 +39,12 @@ export interface EmergencyAlert {
     keepLost?: boolean;
     /** 🌐 그 배차망(원달앱 보고의 targetApp 그대로) — 경보 글 «{배차망}에서 취소됨»의 재료(40 S2-2) · 없으면 «배차망» */
     targetApp?: string;
+    /** ⚠️ 취소 결재(결재 없음 · 거절 · 시한 끝)인데 원달앱이 «취소»를 못 눌렀다 — 배차망에 계약이 남아 있다(38 F36) · KEEP 의 «닫기»를 못 누른 것은 안 싣는다 · 서버가 결재로 가른다 */
+    cancelPressed?: false;
 }
+
+/** 📵 서버가 내는 경보 까닭 — 원달앱이 계약한 콜인데 안전취소 시한 + APP_REPORT_GRACE_SEC 가 지나도 «눌렀음 · 못 눌렀음» 보고가 없다(38 F36) · 세지 않고 결재석에 둔다 */
+export const APP_NO_REPORT_REASON = 'APP_NO_REPORT';
 
 /** safecancel-warning — 안전취소 시간이 되도록 결재가 없다 */
 export interface SafeCancelWarning {

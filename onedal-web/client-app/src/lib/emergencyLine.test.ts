@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { showsInPanel, emergencyLabelOf } from './emergencyLine';
+import { APP_NO_REPORT_REASON } from '@onedal/shared';
 
 /**
  * ⏱️ **KEEP 이 폰에 못 가 배차망에서 취소된 경보는 폰 칸 빨간 줄에 보인다** (40 S2-2 · 23 · 71 «다»).
@@ -21,6 +22,19 @@ describe('⏱️ 비상 경보 빨간 줄', () => {
         expect(emergencyLabelOf(alert({ keepLost: true, targetApp: 'hwamul24' }))).toBe('⏱️ KEEP 이 폰에 못 갔습니다 — 24시에서 자동 취소됨');
         expect(emergencyLabelOf(alert({ keepLost: true }))).toBe('⏱️ KEEP 이 폰에 못 갔습니다 — 배차망에서 자동 취소됨');
         expect(emergencyLabelOf(alert({ keepLost: true, targetApp: '모르는앱' }))).toBe('⏱️ KEEP 이 폰에 못 갔습니다 — 배차망에서 자동 취소됨');
+    });
+
+    it('🔴 원달앱 보고 없음(38 F36)은 빨간 줄에 보이고 그 배차망 이름으로 — 모르면 «배차망»', () => {
+        expect(showsInPanel(alert({ reason: APP_NO_REPORT_REASON }))).toBe(true);
+        expect(emergencyLabelOf(alert({ reason: APP_NO_REPORT_REASON, targetApp: 'insung' }))).toBe('📵 원달앱 보고 없음 — 인성에 계약이 남았을 수 있습니다');
+        expect(emergencyLabelOf(alert({ reason: APP_NO_REPORT_REASON }))).toBe('📵 원달앱 보고 없음 — 배차망에 계약이 남았을 수 있습니다');
+    });
+
+    it('🔴 취소 결재인데 원달앱이 «취소»를 못 눌렀다(서버가 cancelPressed false 를 실음)는 빨간 줄 · 눌렀으면 루틴이라 안 보임(38 F36)', () => {
+        expect(showsInPanel(alert({ reason: 'BUTTON_NOT_FOUND', cancelPressed: false }))).toBe(true);
+        expect(emergencyLabelOf(alert({ reason: 'BUTTON_NOT_FOUND', cancelPressed: false, targetApp: 'insung' }))).toBe('⚠️ 취소 못 누름 — 인성에 계약이 남아 있습니다');
+        expect(showsInPanel(alert({ reason: 'AUTO_CANCEL', cancelPressed: true }))).toBe(false);
+        expect(showsInPanel(alert({ reason: 'BUTTON_NOT_FOUND' }))).toBe(false);   // KEEP 의 «닫기»를 못 누름 — 서버가 칸을 안 실음
     });
 
     it('다른 까닭은 지금 글 · 모르는 까닭은 까닭 글자 그대로', () => {

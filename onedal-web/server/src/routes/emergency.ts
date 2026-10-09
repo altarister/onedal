@@ -33,6 +33,7 @@ import { updateActiveFilter } from "../state/filterManager";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { takeReserved } from "../services/reservedOrders";
 import { countCancel } from "../core/cancelCount";
+import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { slog } from "../utils/fileLogger";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import type { EmergencyAlert } from "@onedal/shared";
@@ -91,9 +92,14 @@ router.post("/", async (req, res) => {
          * 🛑 **앱이 취소를 못 눌렀으면 계약이 남아 있다** — 세지 않고(배차망 취소가 아니다) 콜 · 결재 줄을 그대로 두고 관제웹에 알리기만 한다.
          *    가르는 것은 까닭 이름이 아니라 «눌렀나»(`cancelPressed`) 하나 · 칸이 없으면(옛 원달앱) 아래 옛 길 그대로.
          */
+        /* ✅ 이 콜에 내려간 결재가 KEEP 인가 — 서버가 아는 사실 하나(결재 줄 · 운행 · 예약). KEEP 뒤에도 심사 캐시는 남으니 캐시로 가르지 않는다 (38 F36) */
+        const kept = session.pendingDecisions.get(targetOrderId)?.action === 'KEEP'
+            || [...session.myOrders, ...session.reservedOrders].some(c => c.id === targetOrderId && c.status === 'ORDER_CONFIRMED');
+
         if (report.cancelPressed === false) {
-            slog('경고', `   🛑 [취소 못 누름] ${targetOrderId} — 계약이 남아 있다 · 세지 않고 콜을 그대로 둔다 (까닭: ${reason})`);
-            if (io) io.to(userId).emit("emergency-alert", emergencyAlertFrom(report, targetOrderId, new Date().toISOString()));
+            /* ⚠️ «취소를 못 눌렀다»는 내려간 결재가 취소였을 때만 — KEEP 의 «닫기»를 못 누른 것은 계약이 남는 것이 맞다 */
+            slog('경고', `   🛑 [${kept ? '닫기 못 누름' : '취소 못 누름'}] ${targetOrderId} — 계약이 남아 있다 · 세지 않고 콜을 그대로 둔다 (까닭: ${reason})`);
+            if (io) io.to(userId).emit("emergency-alert", { ...emergencyAlertFrom(report, targetOrderId, new Date().toISOString()), ...(kept ? {} : { cancelPressed: false as const }) });
             return res.json({ success: true, message: "비상 보고 수신 — 계약이 남아 있어 콜을 그대로 둔다", clearedOrderId: null });
         }
 
@@ -115,6 +121,17 @@ router.post("/", async (req, res) => {
         const keepLost = report.reason === 'AUTO_CANCEL' && report.cancelPressed === true && keptCall?.status === 'ORDER_CONFIRMED';
         const endStatus = keepLost ? 'SAFE_CANCEL' : 'ORDER_RELEASED_BY_OFFICE';
         if (keepLost) slog('경고', `   ⏱️ [KEEP 못 감] ${targetOrderId} — KEEP 한 콜을 원달앱이 결재를 못 받아 취소함 · 안전취소로 적는다`);
+
+        /**
+         * 📲 **원달앱이 심사 중(KEEP 안 된) 콜의 «취소»를 실제로 눌렀다** (38 F36) — KEEP 된 콜의 자동 취소는 아래 «KEEP 못 감» 길 — 서버는 시한에 스스로 세지 않고 이 보고를 기다린다(`detail.ts` WAIT_APP_REPORT).
+         *    장부 SAFE_CANCEL · 캐시 · 기기 짝 · order-canceled · 셈 한 번은 forceCancelEvaluatingOrder 한 곳이 한다 — 다시 온 보고는 위 «이미 끝난 콜»이 막는다.
+         */
+        if (report.cancelPressed === true && !kept && session.pendingOrdersData.has(targetOrderId)) {
+            slog('경고', `   📲 [원달앱이 취소 누름] ${targetOrderId} — 안전취소로 적고 한 번 센다`);
+            forceCancelEvaluatingOrder(userId, targetOrderId, io, 'APP_PRESSED');
+            if (io) io.to(userId).emit("emergency-alert", emergencyAlertFrom(report, targetOrderId, new Date().toISOString()));   // 🔔 지금처럼 사이렌 · 빨간 줄은 루틴이라 안 뜸
+            return res.json({ success: true, message: "원달앱이 취소를 눌렀다 — 안전취소로 적음", clearedOrderId: targetOrderId });
+        }
 
         if (session.pendingDecisions.has(targetOrderId)) {
             session.pendingDecisions.delete(targetOrderId);

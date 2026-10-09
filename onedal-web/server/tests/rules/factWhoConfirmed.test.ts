@@ -71,15 +71,21 @@ describe('🤖 원달앱이 확정한 콜 — 결재를 기다린다', () => {
         expect(s.entries.has('timeout_who-app')).toBe(true);
     });
 
-    it('🔴 결재 없이 해제 시한이 지나면 서버가 취소하고 취소 횟수를 한 번 센다', async () => {
+    /* 📲 원달앱이 계약한 콜은 원달앱이 끝까지 책임진다(38 F36) — 서버 시계로 세지 않고 «눌렀음» 보고를 기다린다 · 끝내 없으면 경보만 */
+    it('🔴 결재 없이 해제 시한이 지나도 서버는 세지 않고 결재석에 둔다 · 시한 + 60초에 «원달앱 보고 없음» 경보만(셈 0)', async () => {
         const spy = jest.spyOn(devices, 'incrementDeviceStats').mockImplementation(() => {});
         jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
         try {
             await detail('who-timeout', 'AUTO');
             const s = getUserSession(U);
+            emitted.length = 0;
             jest.advanceTimersByTime(60_000);
-            expect(s.pendingDecisions.has('who-timeout')).toBe(false);
-            expect(spy.mock.calls.filter(c => c[0] === DEV && c[1] === 'canceled')).toHaveLength(1);
+            expect(s.pendingDecisions.has('who-timeout')).toBe(true);
+            expect(emitted).not.toContain('emergency-alert');
+            jest.advanceTimersByTime(60_000);
+            expect(emitted).toContain('emergency-alert');
+            expect(s.pendingDecisions.has('who-timeout')).toBe(true);
+            expect(spy.mock.calls.filter(c => c[0] === DEV && c[1] === 'canceled')).toHaveLength(0);
         } finally {
             jest.useRealTimers();
             spy.mockRestore();

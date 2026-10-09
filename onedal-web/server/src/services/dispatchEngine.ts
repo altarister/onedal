@@ -86,10 +86,10 @@ export function applySoloRouteAndSave(holder: Parameters<typeof applySoloRoute>[
 
 /**
  * 기존 평가 중이던 콜을 외부에서 강제 삭제할 때 호출
- * @param reason 왜 정리하나 — 화면 이탈·새 콜 진입(`FORCE_CANCEL`) · 안전취소 타임아웃(`TIMEOUT`).
+ * @param reason 왜 정리하나 — 화면 이탈·새 콜 진입(`FORCE_CANCEL`) · 안전취소 타임아웃(`TIMEOUT`) · 원달앱이 취소를 눌렀다는 보고(`APP_PRESSED` · 38 F36).
  *   🔴 **셈은 여기 한 번이다** — 타임아웃 경로가 이 함수 뒤에 `countCancel` 을 또 불러 보통 콜을 두 번 셌다.
  */
-export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: any, reason: 'FORCE_CANCEL' | 'TIMEOUT' = 'FORCE_CANCEL') {
+export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: any, reason: 'FORCE_CANCEL' | 'TIMEOUT' | 'APP_PRESSED' = 'FORCE_CANCEL') {
     const session = getUserSession(userId);
     let targetDeviceId: string | undefined;
 

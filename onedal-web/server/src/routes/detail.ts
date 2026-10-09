@@ -3,8 +3,8 @@
  */
 
 import { Router } from "express";
-import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, modeActsOf, whoConfirmed } from "@onedal/shared";
+import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder, EmergencyAlert } from "@onedal/shared";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -359,14 +359,24 @@ router.post("/", async (req, res) => {
             { label: '안전취소 해제', armedBy: '/detail', ms: (cancelSec + SERVER_CLEANUP_EXTRA_SEC) * 1000, orderId, tag: '결재' }, () => {
             const decision = session.pendingDecisions.get(payload.order.id);
             if (decision) {
+                const action = timeoutActionOf({ keep: decision.action === 'KEEP', who, simulated: isSimulated });
                 // ✅ [Phase 1 방어] KEEP 결재가 이미 내려진 콜은 절대 취소하지 않는다
-                if (decision.action === 'KEEP') {
+                if (action === 'KEEP_GUARD') {
                     /* 🧾 메모리에 남기는 콜은 장부도 받았음으로 — 다시 떠도 같은 말 (db.ts ackedAt · 35 X7 ②-가) */
                     OrderRepository.markAcked(payload.order.id, new Date().toISOString());
                     session.pendingDecisions.delete(payload.order.id);
                     releaseEvaluatingDevices(session, payload.order.id);
                     slog('결재', `🛡️ [Phase 1 방어] 콜(${payload.order.id})은 KEEP 결재 완료 상태. 앱 ACK 미수신이지만 콜 유지 · 폰 잡기 다시 연다.`);
                     return; // 취소하지 않고 리턴
+                }
+
+                /**
+                 * 📲 **원달앱이 계약한 콜은 서버 시계로 세지 않는다** (38 F36 · 기사님 «원달앱이 확정한 콜은 원달앱이 끝까지 책임진다»).
+                 *    원달앱이 그 배차망에서 «취소»를 실제로 누르고 보고하면(`emergency.ts`) 그때 센다 · 결재석은 그대로 둔다(늦은 KEEP 도 받는다).
+                 */
+                if (action === 'WAIT_APP_REPORT') {
+                    slog('결재', `⏳ [원달앱 보고 기다림] ${payload.order.id} — 원달앱이 계약한 콜 · 셈은 원달앱 «눌렀음» 보고가 한다`);
+                    return;
                 }
 
                 // KEEP이 아닌 경우(미결재/CANCEL)만 기존 로직대로 취소
@@ -378,6 +388,23 @@ router.post("/", async (req, res) => {
                 forceCancelEvaluatingOrder(userId, payload.order.id, io, 'TIMEOUT');
             }
         });
+
+        /**
+         * 📵 **원달앱 보고가 끝내 없다** (38 F36) — 원달앱이 계약한 콜인데 시한 + APP_REPORT_GRACE_SEC 가 지나도 «눌렀음 · 못 눌렀음»이 안 왔다.
+         *    세지 않고 결재석에 둔 채 경보만 낸다 — 배차망에 계약이 남았을 수 있다. 콜이 끝나면 기다림 장부가 이것도 끈다(`cancelOrderWaits`).
+         */
+        if (timeoutActionOf({ keep: false, who, simulated: isSimulated }) === 'WAIT_APP_REPORT') {
+            armWait(session, `noreport_${orderId}`,
+                { label: '원달앱 보고 없음', armedBy: '/detail', ms: (cancelSec + APP_REPORT_GRACE_SEC) * 1000, orderId, tag: '결재' }, () => {
+                if (!session.pendingOrdersData.has(orderId) || session.pendingDecisions.get(orderId)?.action === 'KEEP') return;
+                slog('경고', `🛑 [원달앱 보고 없음] ${orderId} — 배차망에 계약이 남았을 수 있다 · 세지 않음 · 결재석에 둔다`);
+                const alert: EmergencyAlert = {
+                    deviceId: payload.deviceId, orderId, reason: APP_NO_REPORT_REASON,
+                    screenContext: '', timestamp: new Date().toISOString(), targetApp,
+                };
+                io?.to(userId).emit("emergency-alert", alert);
+            });
+        }
 
     } catch (error) {
         res.status(500).json({ error: "Fail" });

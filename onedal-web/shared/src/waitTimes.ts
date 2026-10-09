@@ -28,6 +28,8 @@ export const SAFE_CANCEL_SEC_DEFAULT = 30;
 export const PICKER_ALARM_DETAIL_SEC_DEFAULT = 30;
 /** 서버는 원달앱이 취소한 **뒤에** 메모리를 치운다 — 그 간격 (옛 30초 경고 · 35초 해제의 차이) */
 export const SERVER_CLEANUP_EXTRA_SEC = 5;
+/** 원달앱이 계약한 콜 — 안전취소 시한 뒤 원달앱의 «눌렀음 · 못 눌렀음» 보고를 이만큼 기다리고, 안 오면 경보만 낸다(세지 않음 · 38 F36) */
+export const APP_REPORT_GRACE_SEC = 60;
 
 /**
  * ⏳ **«알 수 없는 화면»이 이만큼 이어지면 상세를 떠난 것으로 본다**.
