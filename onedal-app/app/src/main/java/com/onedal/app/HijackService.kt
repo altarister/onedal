@@ -23,6 +23,7 @@ import com.onedal.app.core.NetworkSwitchGate
 import com.onedal.app.core.WorkStage
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.CallMemory
+import com.onedal.app.core.RoundReset
 import com.onedal.app.core.ScrapParser
 import com.onedal.app.core.TargetApp
 import com.onedal.app.core.ScreenKeywords
@@ -831,11 +832,11 @@ class HijackService : AccessibilityService(), ScanContext {
 
     /** 🧹 서버 회차 · 모드 테두리 콜백을 잇는다 */
     private fun wireCallbacks() {
-        // 🧹 서버 회차가 바뀌면 «본 콜» 기억을 비운다 — 스캔 루프와 같은 메인 스레드에서 (CallMemory 는 잠금이 없다)
+        // 🧹 서버 회차가 바뀌면 «본 콜» · «같은 길» 기억을 함께 비운다 — 스캔 루프와 같은 메인 스레드에서 (두 기억 다 잠금이 없다)
         telemetryManager.callMemoryRoundCallback = { round ->
             mainHandler.post {
-                if (callMemory.onRound(round)) {
-                    AppLogger.w(TAG, "🧹 [본 콜 기억 비움] 서버 회차 $round — 이전 콜을 리셋했다 (시나리오 다시 시작)")
+                if (RoundReset.apply(round, callMemory, alarmedRoutes)) {
+                    AppLogger.w(TAG, "🧹 [본 콜 기억 비움] 서버 회차 $round — 이전 콜을 리셋했다 · 같은 길 기억도 (영업일 바뀜 · 시나리오 다시 시작)")
                 }
             }
         }
