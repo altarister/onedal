@@ -127,6 +127,8 @@ export interface EmergencyReport {
      *    서버는 이 사실 하나로 «취소로 세고 콜을 끝내나»를 가른다 — 까닭 이름으로 가르지 않는다. 칸이 없으면(옛 원달앱) 지금처럼 끝낸다.
      */
     cancelPressed?: boolean;
+    /** 🌐 어느 배차망 화면에서 났나 — 원달앱이 늘 싣는다(`TargetApp` 코드값) · 옛 원달앱은 없을 수 있다 */
+    targetApp?: string;
 }
 
 export interface ScrapResponse {

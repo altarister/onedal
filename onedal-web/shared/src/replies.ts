@@ -37,6 +37,8 @@ export interface EmergencyAlert {
     timestamp: string;
     /** ⏱️ KEEP 한 콜을 원달앱이 결재를 못 받아 «자동 취소 · 눌렀음»으로 끝냈다 — 서버가 그 콜을 안전취소로 적었다(23 · 40 S2-1) · 소켓 칸 · 저장하지 않음 */
     keepLost?: boolean;
+    /** 🌐 그 배차망(원달앱 보고의 targetApp 그대로) — 경보 글 «{배차망}에서 취소됨»의 재료(40 S2-2) · 없으면 «배차망» */
+    targetApp?: string;
 }
 
 /** safecancel-warning — 안전취소 시간이 되도록 결재가 없다 */

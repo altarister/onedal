@@ -58,6 +58,7 @@ export function emergencyAlertFrom(report: EmergencyReport, orderId: string, now
         screenText: report.screenText?.substring(0, 300),
         timestamp: report.timestamp || nowIso,
         ...(keepLost ? { keepLost: true } : {}),
+        ...(report.targetApp ? { targetApp: report.targetApp } : {}),
     };
     return alert;
 }

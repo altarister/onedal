@@ -12,6 +12,7 @@ import type { AutoDispatchFilter } from "@onedal/shared";
 import { Badge } from "@onedal/ui/badge";
 import { directBadgeOf } from "./deviceModeBadge";
 import { Button } from "@onedal/ui/button";
+import { showsInPanel, emergencyLabelOf } from "../../lib/emergencyLine";
 
 /**
  * 🎨 **폰 모드 색 — 원달앱이 폰 화면에 두르는 테두리와 같다**: 알람 녹색 · 자동 파랑 · 직접 회색 · 체험 노랑.
@@ -19,13 +20,6 @@ import { Button } from "@onedal/ui/button";
  */
 const toneOf = (mode: string | undefined) => modeActsOf(mode).tone || undefined;
 
-const EMERGENCY_LABELS: Record<string, string> = {
-    AUTO_CANCEL: "⏱️ 자동취소 실행됨",
-    CANCEL_EXPIRED: "🔴 취소 불가 팝업! 배차실 직접 취소 요망!",
-    UNKNOWN_SCREEN: "🟠 알 수 없는 화면에 진입함",
-    POPUP_ORDER_MISSING: "⚠️ 팝업 감지 실패",
-    BUTTON_NOT_FOUND: "⚠️ 버튼 감지 실패",
-};
 
 /**
  * 📱 **폰 한 대의 카드**
@@ -159,8 +153,8 @@ function DeviceRow({
         }
     }
 
-    // 알아서 잘 취소된 루틴 알림은 무시하고 오직 배차실 개입 등 치명적 알림만 선별
-    const criticalAlerts = deviceAlerts.filter(a => a.reason !== 'AUTO_CANCEL' && a.reason !== 'BUTTON_NOT_FOUND');
+    // 알아서 잘 취소된 루틴 알림은 무시하고 배차실 개입 · KEEP 못 감 같은 치명적 알림만 선별 (lib/emergencyLine)
+    const criticalAlerts = deviceAlerts.filter(showsInPanel);
 
     /** 🕐 **마지막 보고 시각** — 하트비트를 포함한 *"이 폰이 살아 있다"* */
     const lastSeenAt = clockText(device.lastSeen);
@@ -380,7 +374,7 @@ function DeviceRow({
                         <div key={alert.timestamp} className="bg-danger/10 border border-danger/30 rounded flex items-center justify-between px-2 py-1.5 animate-pulse">
                             <div className="flex flex-col gap-0.5 overflow-hidden pr-2">
                                 <span className="text-danger font-extrabold text-[11px] tracking-tight truncate">
-                                    🚨 {EMERGENCY_LABELS[alert.reason] || alert.reason}
+                                    🚨 {emergencyLabelOf(alert)}
                                 </span>
                                 {alert.screenText && (
                                     <span className="text-danger/70 truncate text-[10px] font-medium min-w-0 tracking-tight">

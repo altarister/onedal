@@ -19,7 +19,7 @@ const nowIso = () => new Date().toISOString();
 
 async function report(orderId: string, reason: string, cancelPressed?: boolean) {
     const layer: any = (emergencyRouter as any).stack.find((l: any) => l.route?.path === '/' && l.route.methods.post);
-    const req: any = { body: { deviceId: DEV, orderId, reason, screenContext: 'LIST', screenText: '', timestamp: nowIso(), ...(cancelPressed === undefined ? {} : { cancelPressed }) }, headers: {}, app: { get: () => io } };
+    const req: any = { body: { deviceId: DEV, orderId, reason, screenContext: 'LIST', screenText: '', timestamp: nowIso(), targetApp: 'insung', ...(cancelPressed === undefined ? {} : { cancelPressed }) }, headers: {}, app: { get: () => io } };
     const out: any = { code: 200 };
     const res: any = { status(c: number) { out.code = c; return res; }, json(b: any) { out.body = b; return res; } };
     await layer.route.stack[0].handle(req, res, () => {});
@@ -54,6 +54,7 @@ describe('⏱️ KEEP 했는데 폰이 못 받아 취소함', () => {
         counted.mockRestore();
         expect(s.myOrders.find(o => o.id === 'k-1')?.status).toBe('SAFE_CANCEL');
         expect(alertOf()?.keepLost).toBe(true);
+        expect(alertOf()?.targetApp).toBe('insung');   // 경보 글이 «어느 배차망에서»를 맞게 쓰는 재료(S2-2)
         expect(canceledOf()?.status).toBe('SAFE_CANCEL');
         expect(ledger('k-1').status).toBe('SAFE_CANCEL');
         expect(ledger('k-1').terminatedAt).toBeTruthy();
