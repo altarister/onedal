@@ -35,7 +35,7 @@ import { clockText, wonText, isTimeText } from "@onedal/shared";
 import { authSocket } from "./authSocket";
 import { webAccountGate } from "./webAccountGate";
 import { registerSupplyNamespace } from "./supplySocket";
-import { flushSupply, sentModesOf } from "../state/phoneSupply";
+import { flushSupply, sentModesOf, WEB_GAP_MS } from "../state/phoneSupply";
 import { registerOpsNamespace } from "./opsSocket";
 
 
@@ -208,6 +208,7 @@ export function registerSocketHandlers(io: Server) {
                     deviceInfo,
                     connectedAt: Date.now()
                 };
+                session.webLeftAt = null;
                 activateUserSocket(socket, userId, session, io);
                 socket.emit("takeover-approved");
             });
@@ -224,6 +225,7 @@ export function registerSocketHandlers(io: Server) {
                 deviceInfo,
                 connectedAt: currentActive?.connectedAt || Date.now()
             };
+            session.webLeftAt = null;
             activateUserSocket(socket, userId, session, io);
         }
 
@@ -731,6 +733,11 @@ export function registerSocketHandlers(io: Server) {
                 const twin = [...io.sockets.sockets.values()].find(other =>
                     other.id !== socket.id && other.connected && other.data.user?.id === userId && clientSessionOf(other) === clientSessionId);
                 session.activeWebSession = twin ? { ...session.activeWebSession, socketId: twin.id } : null;
+                if (!twin) {
+                    /* ⏳ 짧은 끊김은 «관제웹 없음»이 아니다 — 이 시각부터 WEB_GAP_MS 안에 다시 붙으면 자동 그대로 (phoneSupply.webAttachedOf · 40 X1-a) */
+                    session.webLeftAt = Date.now();
+                    slog('통신', `⏳ [관제웹 잠깐 끊김] ${WEB_GAP_MS / 1000}초 안에 다시 붙으면 자동 그대로 — 지나면 알람으로 내려줌`);
+                }
             }
         });
     }));

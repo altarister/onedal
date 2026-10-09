@@ -41,6 +41,8 @@ export interface UserSession {
     userId: string;
     /** 🖥️ 단일 활성 관제탑 웹 세션 — 다른 기기나 탭 접속 시 인계/차단 기준 */
     activeWebSession?: ActiveWebSession | null;
+    /** ⏳ 마지막 관제웹 소켓이 끊긴 시각(ms) — 관제웹이 붙으면 null · 저장하지 않는다 · 짧은 끊김을 «관제웹 없음»으로 읽지 않는 재료(`phoneSupply.webAttachedOf` · 40 X1-a) */
+    webLeftAt?: number | null;
     /**
      * 🛰️ **궤적에 마지막으로 남긴 점** — 솎기 기준.
      *    `lastFix` 과 다르다: 저것은 «지금 위치»(매 좌표 갱신),
@@ -323,6 +325,7 @@ function createDefaultSession(userId: string): UserSession {
     return {
         userId,
         activeWebSession: null,
+        webLeftAt: null,
         lastTrackPoint: null,
         myOrders: [],
         reservedOrders: [],

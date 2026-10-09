@@ -12,8 +12,8 @@ const supply = readFileSync(join(__dirname, '../../src/state/phoneSupply.ts'), '
 const sockets = readFileSync(join(__dirname, '../../src/socket/socketHandlers.ts'), 'utf8');
 
 describe('🛑 관제웹이 없으면 자동을 내려주지 않는다', () => {
-    it('🔴 보고 응답 모드에 관제웹 소켓 사실을 넘긴다 — 세션의 activeWebSession', () => {
-        expect(supply).toContain('const webAttached = !!getUserSession(userId).activeWebSession;');
+    it('🔴 보고 응답 모드에 관제웹 소켓 사실을 넘긴다 — 세션의 activeWebSession(+ 끊긴 뒤 5초 · 동작은 noWebGap.test)', () => {
+        expect(supply).toContain('const webAttached = webAttachedOf(getUserSession(userId), Date.now());');
         expect(supply).toContain('return modeForPhone(commanded, autoLive, webAttached, otherAuto)');
         expect(scrap).not.toMatch(/modeSentToPhone|deviceControl: \{[^}]*mode:/);   // 모드는 관제앱 공급 한 길
     });

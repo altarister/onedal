@@ -29,12 +29,25 @@ const otherAutoLowered = new Set<string>();
 const lastSupplyJson = new Map<string, string>();
 
 /**
+ * ⏳ **관제웹이 끊긴 뒤 이만큼은 «관제웹 있음»으로 센다** (40 X1-a · 기사님 Q1 «가») — 코드 상수 · 설정창 없음.
+ *    관제앱 안 관제웹 소켓이 다시 붙는 사이(새로고침 · 네트워크 순간 끊김)를 «관제웹 없음»으로 읽어 자동을 알람으로 내리면
+ *    그 몇 초 동안 원달앱이 확정을 못 누른다(66판 «자동 → 알람 → 자동» 2초). 10-06~09 로그의 짧은 끊김은 0.6~4.4초였다.
+ *    그 사이 정말 관제웹이 없어도 자동이 확정한 콜은 원달앱 안전취소가 지킨다.
+ */
+export const WEB_GAP_MS = 5_000;
+
+/** 🖥️ 결재할 관제웹이 있나 — 붙어 있거나, 끊긴 지 WEB_GAP_MS 안 · 한 번도 안 붙었으면(webLeftAt null) 없음 */
+export function webAttachedOf(s: { activeWebSession?: unknown; webLeftAt?: number | null }, nowMs: number): boolean {
+    return !!s.activeWebSession || (s.webLeftAt != null && nowMs - s.webLeftAt < WEB_GAP_MS);
+}
+
+/**
  * 🎛️ **이 폰이 실제로 돌 모드** — `phone-supply`(PHONE) 와 기기 목록의 «보낼 모드»(`sentModesOf`)가 이 함수를 부른다(두 벌 셈 없음).
  * 관제웹이 없거나 · 허락이 안 살았거나 · 다른 폰도 자동이면 자동 명령도 알람. 표는 shared `modeTable.ts`.
  * shared `phoneModeOf` 는 관제웹 «적용중» 표시용 다른 함수다.
  */
 export function modeSentToPhone(deviceId: string, userId: string, commanded: DeviceModeType = getDeviceMode(deviceId, userId), ids?: string[]): DeviceModeType {
-    const webAttached = !!getUserSession(userId).activeWebSession;
+    const webAttached = webAttachedOf(getUserSession(userId), Date.now());
     const autoLive = allowanceOf(userId).autoLive;
     const otherAuto = otherAutoPhoneOf(deviceId, userId, ids);
     const loweredByOtherAuto = commanded === 'AUTO' && otherAuto;

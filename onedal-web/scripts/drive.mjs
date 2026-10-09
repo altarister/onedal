@@ -296,9 +296,12 @@ async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock, supply) {
         await wait(500);
         return m;
     };
-    const modes = [await reportWith(true), await reportWith(false), await reportWith(true)];
-    check('🧪 관제웹 없음 — 자동 명령의 보고 답이 붙음 자동 · 끊음 알람 · 다시 붙음 자동',
-        set.status === 200 && modes.join(' ') === 'AUTO ALARM AUTO', `명령 HTTP ${set.status} · ${modes.join(' → ')}`);
+    /* ⏳ 끊긴 뒤 5초(WEB_GAP_MS)는 «관제웹 있음» — 짧은 끊김에 자동이 안 멈춘다(40 X1-a) · 그 뒤 1초 주기가 알람으로 */
+    const modes = [await reportWith(true), await reportWith(false)];
+    await wait(4500);
+    modes.push(await supplied(), await reportWith(true));
+    check('🧪 관제웹 없음 — 자동 명령이 붙음 자동 · 끊고 5초 안에는 자동 그대로 · 5초가 지나면 알람 · 다시 붙음 자동',
+        set.status === 200 && modes.join(' ') === 'AUTO AUTO ALARM AUTO', `명령 HTTP ${set.status} · ${modes.join(' → ')}`);
     /* 🪟 같은 창 번호의 관제웹 둘(크롬 «탭 복제») — 하나를 닫아도 남은 탭이 결재할 수 있으니 자동 그대로 */
     const first = openSocket('', { token: tok, clientSessionId: MAIN_TAB });
     await first.first;
@@ -370,7 +373,7 @@ async function e2eSupplyDecision(supply, deviceId, orderId, action = 'KEEP') {
 async function e2eSupplyMode(supply, tok, deviceId) {
     const last = () => supply.supplies[supply.supplies.length - 1];
     const waitMode = async (mode) => {
-        for (let i = 0; i < 25 && last()?.phones?.[deviceId]?.mode !== mode; i++) await wait(100);
+        for (let i = 0; i < 70 && last()?.phones?.[deviceId]?.mode !== mode; i++) await wait(100);   // 끊고 알람은 5초 뒤(WEB_GAP_MS) · 넉넉히 7초
         return last()?.phones?.[deviceId]?.mode;
     };
     const noWeb = await waitMode('ALARM');
@@ -384,7 +387,7 @@ async function e2eSupplyMode(supply, tok, deviceId) {
     const withWeb = await waitMode('AUTO');
     web.sock.close();
     const closed = await waitMode('ALARM');
-    check('🧪 공급 소켓 — 관제웹이 붙으면 2.5초 안에 자동 · 끊으면 다시 알람(1초 주기)', withWeb === 'AUTO' && closed === 'ALARM', `${withWeb} → ${closed}`);
+    check('🧪 공급 소켓 — 관제웹이 붙으면 곧 자동 · 끊으면 5초 뒤 다시 알람(1초 주기)', withWeb === 'AUTO' && closed === 'ALARM', `${withWeb} → ${closed}`);
     /* 📶 블루투스로만 아는 폰 사실 — 관제앱이 넘긴 «다른 서버를 봄»이 기기 목록에 붙는다 · 남의 폰 번호를 버리는 것은 서버 jest `phoneSupply.test` 몫(기기 목록엔 원래 등록 폰만 나와 여기선 못 가른다) */
     supply.sock.emit('phone-status', { deviceId, sameServer: false, unlinkedWhy: null, heardAt: Date.now() });
     await wait(400);
