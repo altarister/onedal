@@ -100,4 +100,37 @@ class AddressFormTest {
         assertTrue(AddressForm.isFull(full))
         assertEquals(AddressForm.isFull("중원 도촌"), AddressForm.isFull("중원 도촌"))
     }
+
+    /**
+     * ✂️ **시 · 군을 뺀 꼴도 같은 시군이다** (39 X12 · 실물 화물24시 캡처 18 «경기 군포 부곡동» · 시뮬 «경기 광주 초월읍»).
+     * 주소 글자는 그대로 두고 판정만 넓힌다 — 세 배차망 같은 한 판정.
+     */
+    @Test fun `시 · 군을 뺀 도 아래 꼴 - 구 없는 시 · 구 있는 시 · 구 없이 시만`() {
+        assertTrue(AddressForm.isFull("거나도 거너 더러읍", reg))
+        assertTrue(AddressForm.isFull("자차 카타구 파하동", reg))
+        assertTrue(AddressForm.isFull("자차 파하동", reg))
+        assertFalse("시군 뒤에 동 · 읍 · 도로가 없으면 여전히 짧다", AddressForm.isFull("거나도 거너 스타벅스", reg))
+        assertTrue(AddressForm.knownDong("거나도 거너", "머버동", reg))
+    }
+
+    @Test fun `실물 · 시뮬 화물24시 꼴 - 기본 명부`() {
+        assertTrue(AddressForm.isFull("경기 군포 부곡동"))
+        assertTrue(AddressForm.isFull("경기 광주 초월읍"))
+        assertTrue(AddressForm.isFull("광주 초월읍"))
+        assertTrue(AddressForm.isFull("경기 성남 분당구 정자동"))
+        assertTrue("시를 붙인 꼴(인성 · 픽커)은 그대로", AddressForm.isFull("경기 광주시 초월읍"))
+        assertFalse("시를 붙인 꼴의 대조도 그대로", AddressForm.isFull("경기 광주시 스타벅스"))
+        assertFalse(AddressForm.isFull("경기 광주 스타벅스"))
+        assertTrue(AddressForm.knownDong("경기 광주", "초월읍"))
+    }
+
+    /** 🔴 시 · 군을 뗀 이름이 겹치면 한 주소가 두 시로 풀린다 — 명부를 넓히는 날(«광주» 광역시 · «고성») 여기서 막는다 */
+    @Test fun `명부 - 시 · 군을 뗀 이름이 서로 · 광역 이름과 겹치지 않는다`() {
+        val firsts = RegionRegister.withAdmin.keys.map { it.split(' ')[0] }.toSet()
+        val wide = firsts.filterNot { it.endsWith("시") || it.endsWith("군") }.toSet()
+        val short = firsts.filter { it.endsWith("시") || it.endsWith("군") }.groupBy { it.dropLast(1) }
+        assertEquals("뗀 이름이 겹치는 시군", emptyMap<String, List<String>>(), short.filterValues { it.size > 1 })
+        assertEquals("뗀 이름이 광역 이름과 같다", emptySet<String>(), short.keys.intersect(wide))
+        assertTrue("한 글자 이름은 다른 토막과 헷갈린다", short.keys.none { it.length < 2 })
+    }
 }

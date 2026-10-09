@@ -54,10 +54,9 @@ class Hwamul24DetailReadTest {
         assertEquals(60_000, readHandDetail(split).fare)
     }
 
-    /** 시뮬 상세 꼴(시 · 구가 붙은 주소) — 요건을 넘어 서버로 간다. 실물의 «경기 군포»(시 생략)는 주소 온전 검사 몫이라 여기 밖 */
-    @Test fun `🔴 시뮬 꼴 상세는 요건을 넘는다 — 요금 없음 · 주소 짧음이 없다`() {
-        val sim = real18.map { when (it) { "경기 군포 부곡동" -> "경기 군포시 부곡동"; else -> it } }
-        val o = readHandDetail(sim)
+    /** 실물 꼴(«경기 군포» — 시를 뺌 · 39 X12) 그대로 요건을 넘어 서버로 간다 */
+    @Test fun `🔴 실물 꼴 상세는 요건을 넘는다 — 요금 없음 · 주소 짧음이 없다`() {
+        val o = readHandDetail(real18)
         assertEquals(o.toString(), emptyList<String>(), OrderRequirement.missingDetail(o))
     }
 
