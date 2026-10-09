@@ -1,7 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import { handleDecision } from '../../src/services/dispatchEngine';
-import * as cancelCount from '../../src/core/cancelCount';
+import * as devices from '../../src/state/deviceRegistry';
 import { writesLedger } from '../../src/core/cancelCount';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
@@ -40,15 +40,15 @@ describe('🧾 장부에 적나', () => {
 
     it('🔴 확정 전 미리보기를 결재석에서 거절 — 장부 행 없음 · 메모리에서 지움 · 서랍에 안 남기는 신호(isManual 없음) · 셈 0', async () => {
         const s = pending('f40-pv', { isPreview: true });
-        const counted = jest.spyOn(cancelCount, 'countCancel');
+        const stats = jest.spyOn(devices, 'incrementDeviceStats').mockImplementation(() => {});
         await handleDecision(U, 'f40-pv', 'SAFE_CANCEL', io);
         expect(ledger('f40-pv')).toBeUndefined();
         expect(s.pendingOrdersData.has('f40-pv')).toBe(false);
         const c = events.find(e => e.ev === 'order-canceled')?.body;
         expect(c?.id).toBe('f40-pv');
         expect(c?.isManual).toBeFalsy();
-        expect(counted.mock.calls.every(call => call[4] === true)).toBe(true);   // 미리보기 딱지를 넘겨 세지 않게
-        counted.mockRestore();
+        expect(stats.mock.calls.filter(c => c[1] === 'canceled')).toHaveLength(0);   // 셈 0 — 캐시를 지운 뒤에도 미리보기 딱지로 안 셈
+        stats.mockRestore();
     });
 
     it('대조 — 진짜(원달앱 계약) 콜 거절은 장부 SAFE_CANCEL · 서랍에 남기는 신호(isManual) · 연습 콜은 장부 없이 서랍에 남김', async () => {
