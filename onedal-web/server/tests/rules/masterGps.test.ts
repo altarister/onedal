@@ -62,9 +62,10 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
     });
 
     it('실 GPS 감시는 테스트 중에도 멈추지 않는다 (살아나면 즉시 넘겨받아야 하니까)', () => {
-        const watch = gps.slice(gps.indexOf('watchPosition') - 400, gps.indexOf('watchPosition') + 200);
-        expect(watch).not.toMatch(/if \(isTestMode\) return/);
-        expect(gps).toMatch(/if \(!isDriving \|\| !\("geolocation" in navigator\)\) return/);
+        /* 위치 감시는 App 의 `useNativeLocation` 하나 — 그 좌표가 저장소로 오면 국면과 상관없이 «실 GPS 가 왔다»를 올린다 (38 F09) */
+        expect(gps).not.toMatch(/isTestMode/);
+        expect(gps).toMatch(/pushReal\(\{ lat: nativeLat, lng: nativeLng \}\)/);
+        expect(gps).toMatch(/lastRealFixAt\.current = Date\.now\(\)/);
     });
 
     it('🔴 신호가 오락가락할 때 갈아타지 않는다 (떨림 방지 — 유예 시간이 있다)', () => {
@@ -92,9 +93,13 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
         expect(gps).toMatch(/const useMock = mockDriveOn\(\{ simulator: SIMULATOR_AVAILABLE, running: mockRunning, realLive: realIsLive, hasLine: canMock, parked \}\)/);
     });
 
-    it('좌표를 내보내는 자리는 실 GPS 한 곳 · 시뮬레이터 한 곳', () => {
-        expect((gps.match(/publishLocation\(/g) || []).length).toBe(2);
-        expect(gps).toMatch(/const pushReal =/);
+    /* 실 GPS 를 보내는 자리는 `useGpsTelemetry` 하나다 — 관제 화면(`useMasterGps`)은 실 좌표를 받기만 한다 (38 F09 · 한 점이 두 번 흐르면 «주행판정»이 0 으로 떨어짐) */
+    it('좌표를 내보내는 자리는 실 GPS 한 곳(useGpsTelemetry) · 시뮬레이터 한 곳(useMasterGps)', () => {
+        expect((gps.match(/publishLocation\(/g) || []).length).toBe(1);
+        expect(gps).toMatch(/publishLocation\(loc\.lat, loc\.lng, 'mock'/);
+        const tele = codeOnly(read("hooks/useGpsTelemetry.ts"));
+        expect((tele.match(/publishLocation\(/g) || []).length).toBe(1);
+        expect(tele).toMatch(/publishLocation\(lat, lng, 'native'/);
     });
 });
 

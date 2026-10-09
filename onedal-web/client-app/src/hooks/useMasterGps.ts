@@ -64,18 +64,22 @@ export function useMasterGps(
     /** 지금 좌표를 누가 대고 있나 — 화면·로그에 그대로 쓴다 */
     const [source, setSource] = useState<'real' | 'mock' | 'none'>('none');
 
-    /** 실 좌표를 받았다 — 한 곳에서만 처리한다 */
-    const pushReal = (loc: { lat: number; lng: number }, from: 'native' | 'browser') => {
+    /**
+     * 실 좌표를 받았다 — **받기만 한다. 서버 · 화면으로 보내는 자리는 `useGpsTelemetry` 하나다** (38 F09).
+     * 🔴 여기서도 `publishLocation` 하면 좌표 하나가 두 번 흘러, 같은 좌표가 수 ms 뒤 한 번 더 온 `driveMotion` 이
+     *    속도를 0 으로 내린다 — 달리는데 «서 있음», 🚀 출발이 안 선다 (`gpsOneFlow.test.tsx`).
+     */
+    const pushReal = (loc: { lat: number; lng: number }) => {
         lastRealFixAt.current = Date.now();
         setSource('real');
         setCurrentGps(loc);
-        publishLocation(loc.lat, loc.lng, from);
     };
 
-    // ── 1. 네이티브(앱 웹뷰)가 밀어 주는 좌표
+    // ── 1. 네이티브(앱 웹뷰)가 밀어 주는 좌표 — 위치 감시는 App 의 `useNativeLocation` 하나다. 실 GPS 가 살아나면
+    //      여기서 `lastRealFixAt` 이 올라 시뮬레이터를 밀어낸다(테스트 중에도 · 국면과 상관없이)
     useEffect(() => {
         if (nativeLat === null || nativeLng === null) return;
-        pushReal({ lat: nativeLat, lng: nativeLng }, 'native');
+        pushReal({ lat: nativeLat, lng: nativeLng });
     }, [nativeLat, nativeLng]);
 
     // ── 1-B. 원격 실기기(S23 실폰)가 서버로 쏘아 올린 실제 위치 수신 (PC 관제 브라우저 화면 동기화)
@@ -108,19 +112,7 @@ export function useMasterGps(
         });
     }, [nativeLat, nativeLng]);
 
-    // ── 2. 브라우저 위치 — **테스트 중에도 계속 지켜본다.**
-    //      실 GPS 가 살아나면 그 순간 시뮬레이터를 밀어내야 하기 때문이다
-    useEffect(() => {
-        if (!isDriving || !("geolocation" in navigator)) return;
-        const watchId = navigator.geolocation.watchPosition(
-            (position) => pushReal({ lat: position.coords.latitude, lng: position.coords.longitude }, 'browser'),
-            (error) => console.warn(`📍 [Master GPS] 실 위치를 못 받습니다 (${error.message}) — 시뮬레이터가 대신 달립니다`),
-            { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
-        );
-        return () => navigator.geolocation.clearWatch(watchId);
-    }, [isDriving]);
-
-    // ── 3. 실 GPS 가 있나 없나를 주기적으로 판정 (없으면 시뮬레이터 차례)
+    // ── 2. 실 GPS 가 있나 없나를 주기적으로 판정 (없으면 시뮬레이터 차례)
     const [realIsLive, setRealIsLive] = useState(false);
     useEffect(() => {
         if (!isDriving) { setRealIsLive(false); return; }
@@ -153,7 +145,7 @@ export function useMasterGps(
      *    이미 들어 있다(`useRouteDerivations.mockStops`).
      * ⚠️ 서버는 가짜 좌표를 기점으로 쓸지 `originOf` 가 물을 때마다 고르고, 콜을 쥔 동안에는
      *    그 자리를 그대로 쓴다 — 여기서 켜는 조건과 같이 본다.
-     * ⚠️ 아래 실 GPS 감시(`watchPosition`)는 여전히 `isDriving` 일 때만 돈다 — 그래서
+     * ⚠️ 위 «실 GPS 가 있나» 판정(2.)은 여전히 `isDriving` 일 때만 돈다 — 그래서
      *    GATHERING 에서 모의를 켜면 **실 GPS 로 자동 전환이 안 된다.** 테스트용이라 그대로 둔다.
      */
     const canMock = SIMULATOR_AVAILABLE && !!activePolyline?.length;
