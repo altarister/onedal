@@ -28,7 +28,7 @@ import { Router } from "express";
 import type { EmergencyReport } from "@onedal/shared";
 import { isTerminal } from "@onedal/shared";
 import { getUserSession } from "../state/userSessionStore";
-import { cancelOrderWaits } from "../state/waits";
+import { cancelOrderWaits, cancelWait } from "../state/waits";
 import { updateActiveFilter } from "../state/filterManager";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { takeReserved } from "../services/reservedOrders";
@@ -85,6 +85,8 @@ router.post("/", async (req, res) => {
 
         const targetOrderId = emergencyTargetFrom(orderId, session.pendingOrdersData.entries(), deviceId);
         if (targetOrderId !== orderId) slog('경고', `   🔍 잃어버린 orderId 역추적 성공: ${targetOrderId}`);
+        /* 📮 원달앱 보고가 왔다(눌렀음이든 못 눌렀음이든) — «원달앱 보고 없음» 기다림은 여기 한 곳에서 끝난다 (detail.ts noreport_ · 38 F36) */
+        cancelWait(session, `noreport_${targetOrderId}`, '원달앱 보고 옴');
 
         const io = req.app.get("io");
 

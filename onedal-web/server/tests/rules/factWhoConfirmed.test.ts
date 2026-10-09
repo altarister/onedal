@@ -1,6 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import detailRouter from '../../src/routes/detail';
+import emergencyRouter from '../../src/routes/emergency';
 import * as devices from '../../src/state/deviceRegistry';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
@@ -9,7 +10,7 @@ import { whoConfirmed } from '@onedal/shared';
 /**
  * ✋ **사실 ③ «확정을 누가 눌렀나» — 서버의 지금 답** (31 P0 · S1~S3).
  *    `/detail` 의 matchType 이 MANUAL(기사님 손 확정)이면 서버가 바로 KEEP 하고 30초 기다림을 걸지 않는다.
- *    AUTO(원달앱 확정)면 결재를 기다리며 경고 · 해제 기다림을 걸고, 결재 없이 해제 시한이 지나면 서버가 취소하고 한 번 센다.
+ *    AUTO(원달앱 확정)면 결재를 기다리며 경고 · 해제 기다림을 걸고, 결재 없이 해제 시한이 지나도 서버는 세지 않고 원달앱 보고를 기다린다(38 F36).
  *    실제 라우트를 부른다 — 소스 글자는 안 읽는다. 판정은 카카오 키를 지워 곧바로 끝나게 한다(deviceRelease 와 같은 방법).
  * 못 잡는 것: 원달앱이 matchType 을 무엇으로 보내나(원달앱 `SessionManager.clickOrigin` · ClickOriginTest) · 관제웹 경고 화면.
  */
@@ -89,6 +90,22 @@ describe('🤖 원달앱이 확정한 콜 — 결재를 기다린다', () => {
         } finally {
             jest.useRealTimers();
             spy.mockRestore();
+        }
+    });
+
+    /* 📮 원달앱 보고가 오면(눌렀음이든 못 눌렀음이든) 보고 기다림은 끝난다 — 보고가 왔는데 «보고 없음»을 또 띄우지 않는다(38 F36 · 24 리뷰) */
+    it('🔴 «못 눌렀음» 보고가 온 뒤에는 시한 + 60초에도 «원달앱 보고 없음» 경보가 안 간다', async () => {
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+        try {
+            await detail('who-reported', 'AUTO');
+            jest.advanceTimersByTime(31_000);
+            const res: any = { status() { return res; }, json() { return res; } };
+            await handlerOf(emergencyRouter)({ app, headers: {}, body: { deviceId: DEV, orderId: 'who-reported', reason: 'BUTTON_NOT_FOUND', cancelPressed: false, screenContext: 'LIST', screenText: '', timestamp: new Date().toISOString(), targetApp: 'insung' } }, res);
+            expect(emitted.filter(e => e === 'emergency-alert')).toHaveLength(1);   // «⚠️ 취소 못 누름» 하나
+            jest.advanceTimersByTime(90_000);
+            expect(emitted.filter(e => e === 'emergency-alert')).toHaveLength(1);
+        } finally {
+            jest.useRealTimers();
         }
     });
 
