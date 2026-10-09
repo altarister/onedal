@@ -83,7 +83,7 @@ describe('🎯 목적지 · 집 셈', () => {
         s.myOrders = [{ id: 'g1', status: 'ORDER_CONFIRMED', goalCity: '여주시' }, { id: 'g2', status: 'SAFE_CANCEL', goalCity: '양평군' }];
         expect(goalCitiesOf(s, 'u-goals')).toEqual(['이천시', '여주시']);
         s.activeFilter.callTarget = 'HOME';
-        expect(goalCitiesOf(s, 'u-goals')).toEqual(['광주시', '여주시']);
+        expect(goalCitiesOf(s, 'u-goals')).toEqual(['광주시', '이천시', '여주시']);   // 복귀 켬 · 복귀콜 없음 → 목적지(이천 · 남은 목표 여주) ∪ 집 (38 F41)
     });
 
     it('🔴 복귀콜 = 복귀를 켠 뒤에 잡았고 판이 집인 콜 — 하차를 마친 콜도 센다(이번 운행으로 세지 않는다) · 판이 비면 하차지 좌표의 시', () => {
@@ -99,14 +99,14 @@ describe('🎯 목적지 · 집 셈', () => {
         expect(homeCallsFrom(orders, on, '광주시').map(o => o.id)).toEqual(['done', 'byDrop']);
     });
 
-    it('🔴 복귀를 켜면 그물이 집 시를 향한다 — 기사님 목적지는 그대로 · 화면이 읽는 goalCity 는 파생', () => {
+    it('🔴 복귀를 켜면 그물이 집 시도 향한다 — 복귀콜을 잡기 전까지 이천(관내)도 남는다 · 기사님 목적지는 그대로 · 화면이 읽는 goalCity 는 파생 (38 F41)', () => {
         const s = make('u-home-net', GONJIAM_STAR, { callTarget: 'HOME' });
         updateActiveFilter('u-home-net', { destinationRadiusKm: 6 });
         expect(s.activeFilter.goalCity).toBe('광주시');
         expect(s.activeFilter.destinationCity).toBe('이천시');
         expect(Object.keys(s.activeFilter.destinationGroups)).toContain('광주시');
-        expect(kw(s)).not.toContain('중리동');
-        expect(s.activeFilter.goalCities).toEqual(['광주시']);
+        expect(kw(s)).toContain('중리동');
+        expect(s.activeFilter.goalCities).toEqual(['광주시', '이천시']);
     });
 
     it('🔴 상차 목록이 싣는 지도 재료 — 복귀 켬 · 집 시 · 복귀콜 쥠은 목적지 셈 한 곳에서', () => {

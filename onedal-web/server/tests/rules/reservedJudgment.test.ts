@@ -55,8 +55,8 @@ describe('🏠 집 기점 — homeOriginOf', () => {
 });
 
 describe('🧭 방향 축의 목적지 — 내일 콜은 내일의 목적지(기본 설정)로', () => {
-    it('goalNow() 하나 — 내일 콜이면 baseFilter 목적지, 아니면 지금처럼 goalCityOf', () => {
-        expect(evaluator).toMatch(/const goalNow = \(\) => reservedLater \? \(session\.baseFilter\.destinationCity \?\? ''\) : goalCityOf\(session, userId\);/);
+    it('goalNow() 하나 — 내일 콜이면 baseFilter 목적지, 아니면 KEEP 과 같은 목표 시(관내는 목적지 시 · 그 밖 goalCityOf · 38 F41)', () => {
+        expect(evaluator).toMatch(/const goalNow = \(\) => reservedLater \? \(session\.baseFilter\.destinationCity \?\? ''\)\s*: keepGoalCityOf\(\{[^}]*fallback: goalCityOf\(session, userId\) \}\)\.city;/);
         expect(evaluator.match(/goalCityOf\(session, userId\)/g)?.length).toBe(1);
     });
 

@@ -61,3 +61,23 @@ export function regionKeywordHit(text: string, keyword: string, traps?: string[]
 export function anyRegionHit(text: string, keywords: string[], traps?: Record<string, string[]>, dongSigungu?: Record<string, string[]>): boolean {
     return keywords.some(k => regionKeywordHit(text, k, traps?.[k], dongSigungu?.[k]));
 }
+
+/**
+ * 🏙️ **하차가 이 시들 가운데 어느 행정 시에 있나** (38 F41 · 71 결정) — 하차 글에 시 이름(«이천시» · 토막 «이천»)이 있거나,
+ *    하차 동이 목적지 동→시군구 표(`destinationDongSigungu`)에서 그 시이면 그 시. 모르면 null(부르는 쪽이 물러선다).
+ *    좌표를 쓰지 않는다 — 시 이름 · 동 이름만.
+ */
+export function cityOfDropoff(dropoff: string, cities: string[], dongSigungu?: Record<string, string[]>): string | null {
+    const tokens = (dropoff ?? '').split(/[\s,()]+/).filter(Boolean);
+    const short = (city: string) => city.replace(/(시|군|구)$/, '');
+    for (const city of cities) {
+        if (!city) continue;
+        if (tokens.some(t => t === city || t === short(city))) return city;
+    }
+    for (const t of tokens) {
+        const owners = dongSigungu?.[t];
+        const hit = owners && cities.find(city => city && owners.some(o => o === city || o.split(' ').includes(city)));
+        if (hit) return hit;
+    }
+    return null;
+}

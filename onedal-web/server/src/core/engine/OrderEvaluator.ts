@@ -15,7 +15,7 @@ import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf, dwellLedgerFor, firmPromiseMsOf } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
-import { goalCityOf } from "../../state/filterGoals";
+import { goalCityOf, destCitiesOf, keepGoalCityOf } from "../../state/filterGoals";
 import { findLoadConflicts, totalDetourCost, getStopTiming } from "../helpers";
 import { originOf, homeOriginOf } from "../../services/geoMotion";
 import { haversineKm } from "@onedal/shared";
@@ -64,7 +64,7 @@ function verdictLine(v: JudgmentSnapshot): string {
  * 판정 입력 — 기점 · 잡은 콜 · 목적지. 판정(`evaluate`)과 1차 신호 미리 출발(`prefetch`)이 같은 한 벌을 쓴다.
  * 세션을 읽기만 한다 — 부를 때마다 그때 값을 읽는다.
  */
-export function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string }) {
+export function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string; dropoff?: string }) {
     /**
      * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (기사님 결정 3 «가»).
      *    ① 접근 구간은 지금 자리가 아니라 **집**에서 잰다 — 그날은 집에서 출발한다. 집이 비면 기점이 없다 → 그 축은 «잴 게 없음».
@@ -78,7 +78,9 @@ export function evaluationInputsOf(userId: string, session: ReturnType<typeof ge
      * 🧭 방향 축의 목적지 — 내일 콜은 **내일의 목적지**(자정에 활성 필터가 되돌아가는 기본 설정 값)로 매긴다.
      *    오늘만 바꾼 목적지로 내일 콜을 매기면 색이 틀린다. 비면 방향은 «목적지 미설정»(깎지 않는다 · 빨강 아님).
      */
-    const goalNow = () => reservedLater ? (session.baseFilter.destinationCity ?? '') : goalCityOf(session, userId);
+    /* 🏠 오늘 콜은 KEEP 과 같은 목표 시(관내 콜은 그 목적지 시 · 그 밖은 필터값) — 복귀를 켠 뒤 관내 콜을 «집 방향»으로 깎지 않는다 (38 F41 · `keepGoalCityOf`) */
+    const goalNow = () => reservedLater ? (session.baseFilter.destinationCity ?? '')
+        : keepGoalCityOf({ dropoff: String(order.dropoff ?? ''), destCities: destCitiesOf(session), dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) }).city;
     /**
      * 🔙 등 뒤 상차의 여유(상차 반경) — 내일 콜은 **내일의 반경**(기본 설정 값). 오늘 자동 반경으로 줄인 값으로 재면 내일 콜을 등 뒤로 깎는다.
      *    기본 값이 비면 오늘 반경으로 물러서지 않고 «모름»(null) — 깎지 않는다.

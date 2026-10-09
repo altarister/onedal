@@ -8,8 +8,8 @@ import { callTargetToday } from "../core/callTargetEvents";
 import { getActiveCalls } from "../core/activeCalls";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
-import type { OrderStatus } from "@onedal/shared";
-import { goalZonesOf, withNearness, nearestDong, effectiveRadii } from "@onedal/shared";
+import type { OrderStatus, GoalZone } from "@onedal/shared";
+import { goalZonesOf, withNearness, nearestDong, effectiveRadii, activeGoals, cityOfDropoff } from "@onedal/shared";
 
 type Session = ReturnType<typeof getUserSession>;
 type Filter = Session['activeFilter'];
@@ -125,19 +125,51 @@ export function goalZonesFrom(o: {
      */
     const kept = o.myOrders.filter(c => IN_PROGRESS_STATUSES.includes(c.status as OrderStatus));
     const lastKept = kept[kept.length - 1];
-    const base = goalZonesOf({
-        filterCity: goalCityFrom(f, homeCity),
+    const activeCalls = getActiveCalls({ myOrders: o.myOrders });
+    /**
+     * 🏠 **복귀는 세 상태다 — 살아 있는 목적지는 shared `activeGoals` 하나가 정한다** (38 F41 · 기사님 «복귀콜이 나오기 전까지 관내콜을 진행한다 ·
+     *    복귀콜의 첫번째 콜을 킵한 순간 관내콜을 잡는 필터가 사라진다»). 목적지 쪽은 지금처럼 «목적지 ∪ 마지막 콜의 목표값»(goalZonesOf) —
+     *    복귀 끔 → 그것 · 복귀 켬 · 복귀콜 없음 → 그것 ∪ 집 · 복귀콜 잡음 → 집 하나.
+     *    «복귀콜인가»는 콜의 목표값(KEEP 순간 · `keepGoalCityOf` — 관내 콜은 목적지 시 · 그 밖은 필터값)이 집인가다(`homeCallsFrom`).
+     */
+    const homeCaught = homeOn && homeCallsFrom(o.myOrders, o.homeOnAt, homeCity).length > 0;
+    const dest = goalZonesOf({
+        filterCity: f.destinationCity ?? null,
         lastKeptGoalCity: (lastKept as { goalCity?: string } | undefined)?.goalCity ?? null,
         homeCity,
-        activeCalls: getActiveCalls({ myOrders: o.myOrders }),
-    });
+        activeCalls,
+    }).map(z => z.city);
+    /* 복귀 켬이면 집을 앞에 — 지금까지의 차례(필터값이 먼저 · 지도 · 로그 모양 그대로) */
+    const live = activeGoals(dest, homeCity ? [homeCity] : [], { homeOn, homeCaught });
+    const names = [...new Set((homeOn ? [...live].reverse() : live).flat())];
+    const base: GoalZone[] = names.map(city => ({ city, isHome: !!homeCity && city === homeCity, hasCalls: activeCalls.some(c => (c as { goalCity?: string }).goalCity === city) }));
     /* 🎯 가까이 옴은 **목적지 반경 하나**로 잰다 — 현위치 반경을 더하지 않는다 (shared `isNearGoal`) */
     const zones = me ? withNearness(base, {
         me: { x: me.x, y: me.y },
         destinationRadiusKm: eff.destinationRadiusKm,
     }) : base;
     /* 🔴 «출발했나»는 목적지마다가 아니라 **하나**다 — 조각이 이 값을 직접 본다 */
-    /* ⏭️ `homeCaught` 는 아직 관제웹·소켓 규격이 읽는다 — 목적지 계산에는 안 쓴다 (걷어내기는 다음 걸음) */
-    const homeCaught = homeOn && homeCallsFrom(o.myOrders, o.homeOnAt, homeCity).length > 0;
     return { zones, homeOn, homeCity, homeCaught, departed: !!o.departedAt };
+}
+
+/** 🏙️ 오늘 목적지 시들 — 기사님 목적지 시 · 진행 중 확정 콜의 목표 시(관내 콜을 가를 때 «이천 → 이천»의 이천) */
+export function destCitiesOf(session: { activeFilter: Pick<Filter, 'destinationCity'>; myOrders: Session['myOrders'] }): string[] {
+    const kept = session.myOrders.filter(c => IN_PROGRESS_STATUSES.includes(c.status as OrderStatus)).map(c => (c as { goalCity?: string }).goalCity);
+    return [...new Set([session.activeFilter.destinationCity, ...kept].filter((c): c is string => !!c))];
+}
+
+/**
+ * 🎯 **KEEP 순간 이 콜의 목표 시 — 관내 콜은 그 목적지 시 · 그 밖은 필터값** (38 F41 · 71 결정 · 기사님 «복귀콜이 나오기 전까지 관내콜을 진행 ·
+ *    복귀콜의 첫번째 콜을 킵한 순간 관내콜을 잡는 필터가 사라진다» + «하차지 좌표로 가르지 않는다»).
+ *    하차의 행정 시가 오늘 목적지 시면 그 시(관내 «이천 → 이천» — 마름모 · 원과 상관없이) · 아니면 필터값(복귀 켬이면 집) · 하차 시를 모르면 필터값.
+ *    KEEP(dispatchEngine)과 판정 방향(OrderEvaluator)이 이것 하나를 같이 부른다.
+ */
+export function keepGoalCityOf(o: {
+    dropoff: string;
+    destCities: string[];
+    dongSigungu?: Record<string, string[]>;
+    fallback: string;
+}): { city: string; from: '하차 시' | '필터값' } {
+    const city = cityOfDropoff(o.dropoff, o.destCities, o.dongSigungu);
+    return city ? { city, from: '하차 시' } : { city: o.fallback, from: '필터값' };
 }

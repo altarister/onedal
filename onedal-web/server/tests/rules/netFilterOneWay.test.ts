@@ -147,8 +147,8 @@ describe('🏠 복귀 대기 — 목적지 둘 (3단계)', () => {
         expect(body(fm, 'export function maybeRebuildPickupList')).toMatch(/rebuildNetFilter\(userId, io, true\)/);
         /* 가까이 옴이 바뀌면 «바뀌었다»를 내는지는 filterListRules 가 동작으로 문다 */
     });
-    it('🔴 확정 순간 그때의 «필터값»을 콜의 목표값으로 적는다 — 좌표로 되짚지 않는다', () => {
-        expect(body(de, 'export async function handleDecision')).toMatch(/goalCity = goalCityOf\(session, userId\)/);
+    it('🔴 확정 순간 콜의 목표값 — 관내 콜은 목적지 시 · 그 밖은 «필터값» · 좌표로 되짚지 않는다(38 F41)', () => {
+        expect(body(de, 'export async function handleDecision')).toMatch(/keepGoalCityOf\(\{[^}]*fallback: goalCityOf\(session, userId\)/);
         /* 좌표로 되짚는 함수가 없는지는 goalOfCallLocal 이 문다 */
     });
     it('🔴 지도는 목적지마다 하차 조각을 그리고 마커를 찍는다 · 콜 카드에 판', () => {

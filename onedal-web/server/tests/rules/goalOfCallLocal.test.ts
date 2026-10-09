@@ -1,20 +1,21 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { getUserSession } from '../../src/state/userSessionStore';
-import { goalCityOf, goalCitiesOf } from '../../src/state/filterGoals';
+import { goalCityOf, goalCitiesOf, keepGoalCityOf } from '../../src/state/filterGoals';
 import { initGeoService } from '../../src/services/geoService';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 
 /**
- * 🎯 **콜의 목표값은 잡던 순간의 «필터값»이다 — 하차지 좌표로 가르지 않는다** (기사님 확정).
+ * 🎯 **콜의 목표값 — 관내 콜(하차의 행정 시가 오늘 목적지 시)은 그 시 · 그 밖은 잡던 순간의 «필터값»** (기사님 확정 + 38 F41 · 71 결정).
  *
- * 목적지는 «필터값 ∪ 진행 중인 확정 콜 가운데 마지막 콜의 목표값»이고 최대 둘이다. 그 계산이 맞으려면
- * 콜에 적히는 목표값이 **틀림없어야** 한다. 기사님이 그 필터값을 보고 잡으신 것이니 답이 이미 적혀 있다.
+ * 목적지는 «복귀 켬 · 복귀콜을 잡았나»(shared activeGoals)가 정하고, «복귀콜인가»는 콜의 목표값이 집인가다.
+ * 그 계산이 맞으려면 콜에 적히는 목표값이 **틀림없어야** 한다.
  *
  * 무엇을 막나
- * - **좌표로 되짚는 것** — 하차지가 어느 목적지 권역에 드는지로 가르면, 집 방향 마름모의
- *   꼭짓점이 차 바로 옆이라 **관내 하차지가 집 목표로 찍히고**, 그 한 건으로 목적지가 잘못 합쳐져
- *   관내콜이 막힌다. 그래서 KEEP 할 때 그때의 필터값(`goalCityOf`)을 그대로 적는다
+ * - **좌표 · 마름모 조각으로 되짚는 것** — 하차지가 어느 목적지 권역에 드는지로 가르면, 집 방향 마름모의
+ *   꼭짓점이 차 바로 옆이라 **관내 하차지가 집 목표로 찍히고**, 그 한 건으로 관내콜이 막힌다.
+ *   그래서 권역이 아니라 하차의 **행정 시**(시 이름 · 동 이름)로 가른다 — 이천 동은 마름모와 상관없이 늘 이천이다(`keepGoalCityOf`)
+ * - **복귀 켬 뒤의 관내 콜을 필터값(집)으로 적는 것** — 첫 관내 KEEP 에서 «복귀콜»로 세어 관내 필터가 사라졌다(기사님 «복귀콜이 나오기 전까지 관내콜을 진행»)
  * - **목표값을 메모리에만 두는 것** — 재기동하면 마지막 KEEP 콜의 목표값을 잃는다 (DB 칸 `orders.goalCity`)
  */
 const USER = 'test-goal-city-of';
@@ -45,10 +46,15 @@ describe('🎯 목표값은 그때의 필터값이다', () => {
     });
 });
 
-describe('🔒 좌표로 되짚는 계산이 없다', () => {
-    it('🔴 KEEP 할 때 필터값을 그대로 적는다', () => {
+describe('🔒 좌표 · 마름모로 되짚는 계산이 없다', () => {
+    it('🔴 KEEP 할 때 keepGoalCityOf 하나로 적는다 — 관내가 아니면 필터값', () => {
         const eng = SRC('services/dispatchEngine.ts');
-        expect(eng).toMatch(/confirmedOrder\.goalCity = goalCityOf\(session, userId\)/);
+        expect(eng).toMatch(/keepGoalCityOf\(\{[^}]*fallback: goalCityOf\(session, userId\)/);
+        expect(eng).toMatch(/confirmedOrder\.goalCity = goal\.city/);
+    });
+
+    it('🔴 옛 실패 장면 — 복귀 켬 · 차 옆 이천 동(집 마름모에만 걸침)으로 가는 콜도 이천으로 적힌다', () => {
+        expect(keepGoalCityOf({ dropoff: '경기 이천시 신둔면 수광리 12', destCities: ['이천시'], fallback: '광주시' }).city).toBe('이천시');
     });
 
     it('🔴 하차지 좌표로 목표값을 고르는 함수가 없다', () => {

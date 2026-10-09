@@ -10,7 +10,7 @@ import { getUserSession } from "../state/userSessionStore";
 import { cancelOrderWaits } from "../state/waits";
 import { rememberOrder } from "../state/orderMemory";
 import { updateActiveFilter, rebuildNetFilter } from "../state/filterManager";
-import { goalCityOf } from "../state/filterGoals";
+import { goalCityOf, destCitiesOf, keepGoalCityOf } from "../state/filterGoals";
 import { getActivePolyline, originOf } from "./geoMotion";
 import { composeMergedRoute, planArrivalStops, type PromiseOrderOpts, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, type RouteHolder } from "./routeComposer";
 import { firmPromiseMsOf, birthFirstStep, refreshPlannedSteps, stepsView } from "./stepSeeder";
@@ -629,16 +629,18 @@ export async function handleDecision(userId: string, orderId: string, status: De
 
         if (!isAlreadyIncluded) {
                 /**
-             * 🎯 **목표값 — 이 콜을 잡던 순간의 필터값** (기사님 확정).
+             * 🎯 **목표값 — 관내 콜은 그 목적지 시 · 그 밖은 잡던 순간의 필터값** (38 F41 · 기사님 «복귀콜의 첫번째 콜을 킵한 순간 관내콜을 잡는 필터가 사라진다»).
              *
-             * 🔴 **하차지 좌표로 «어느 목적지 쪽인가»를 가르지 않는다.** 기사님이 그 필터값으로 콜을 보고 잡으신 것이니
-             *    답이 이미 적혀 있다. 좌표로 가르면 마름모 자락에 걸친 콜이 엉뚱한 목적지로 찍혀
-             *    목적지가 잘못 합쳐진다. 목적지는 «필터값 ∪ 진행 중인 마지막 확정 콜의 목표값»이다 (shared `goalZonesOf`).
+             * 🔴 필터값으로만 적으면 복귀를 켠 뒤의 관내 콜(이천 → 이천)도 «집»으로 적혀 «복귀콜»로 셌다 — 관내 필터가 일찍 사라졌다.
+             * 🔴 하차지 좌표 · 마름모 조각으로 가르지 않는다 — 집 마름모가 차 옆에서 시작해 관내 하차지가 집으로 찍힌다(기사님 확정).
+             *    하차의 **행정 시**가 오늘 목적지 시인가 하나로 가른다(`keepGoalCityOf`).
              * 🔴 넣기 **전에** 적는다 — 승격본·캐시본 둘 다 (화면·장부가 갈리지 않게)
              */
-            confirmedOrder.goalCity = goalCityOf(session, userId) || undefined;
+            const goal = keepGoalCityOf({ dropoff: String((cachedOrder as any).dropoff ?? ''), destCities: destCitiesOf(session),
+                dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) });
+            confirmedOrder.goalCity = goal.city || undefined;
             (cachedOrder as any).goalCity = confirmedOrder.goalCity;
-            if (confirmedOrder.goalCity) slog('결재', `🎯 [목표] ${orderId.slice(0, 8)} → ${confirmedOrder.goalCity}`);
+            if (confirmedOrder.goalCity) slog('결재', `🎯 [목표] ${orderId.slice(0, 8)} → ${confirmedOrder.goalCity} (${goal.from})`);
             session.myOrders.push(confirmedOrder);
             
             try {
