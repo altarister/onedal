@@ -89,6 +89,18 @@ describe('⏱️ KEEP 했는데 폰이 못 받아 취소함', () => {
         expect(events).toEqual([]);
     });
 
+    /* 🔁 서버가 다시 뜬 뒤 — 세션 셈(countedAlready) · 운행 목록이 비어 있어도 장부의 «끝남»으로 다시 온 보고를 막는다(인성은 취소 10번마다 페널티) */
+    it('🔴 세션엔 없고 장부에 이미 끝난(SAFE_CANCEL) 콜의 보고 — 셈 0 · 경보 0 · 장부 그대로', async () => {
+        db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, terminatedAt)
+                    VALUES ('k-5', 'NEW_ORDER', 'SAFE_CANCEL', ?, ?, ?, '상', '하', 30000, 'insung', ?)`).run(U, nowIso(), nowIso(), nowIso());
+        const counted = jest.spyOn(cancelCount, 'countCancel');
+        await report('k-5', 'AUTO_CANCEL', true);
+        expect(counted).not.toHaveBeenCalled();
+        counted.mockRestore();
+        expect(events).toEqual([]);
+        expect(ledger('k-5').status).toBe('SAFE_CANCEL');
+    });
+
     it('대조 — KEEP 안 된(심사 중) 콜 · 다른 까닭 · 칸 없는 옛 원달앱은 지금처럼 방출 · keepLost 없음', async () => {
         const s = getUserSession(U);
         s.pendingOrdersData.set('n-1', { id: 'n-1', capturedDeviceId: DEV } as any);

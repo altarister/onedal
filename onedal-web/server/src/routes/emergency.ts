@@ -106,8 +106,10 @@ router.post("/", async (req, res) => {
          * 🔁 **이미 끝낸 콜에 다시 온 보고는 그대로 둔다** (40 S2-3) — 원달앱은 «못 보냈다»고 본 보고(닿고 응답만 잃음)를 다시 보낸다.
          *    다시 타면 첫 보고가 적은 안전취소를 «방출(사무실)»로 덮고 경보 · 취소 신호가 한 번 더 간다.
          */
-        if (keptCall && isTerminal(keptCall.status)) {
-            slog('경고', `   🔁 [다시 온 비상 보고] ${targetOrderId} — 이미 끝난 콜(${keptCall.status}) · 상태 · 경보 그대로`);
+        /* 📒 세션에 없으면 장부를 본다 — 서버가 다시 떠 세션 셈 · 운행 목록이 비어도 같은 사실(장부의 끝남)로 막는다(인성은 취소 10번마다 페널티) */
+        const endedStatus = keptCall ? keptCall.status : (session.pendingOrdersData.has(targetOrderId) ? null : OrderRepository.statusOf(targetOrderId, userId));
+        if (endedStatus && isTerminal(endedStatus)) {
+            slog('경고', `   🔁 [다시 온 비상 보고] ${targetOrderId} — 이미 끝난 콜(${endedStatus}) · 상태 · 경보 그대로`);
             return res.json({ success: true, message: "이미 끝난 콜 — 다시 온 비상 보고", clearedOrderId: null });
         }
         const keepLost = report.reason === 'AUTO_CANCEL' && report.cancelPressed === true && keptCall?.status === 'ORDER_CONFIRMED';

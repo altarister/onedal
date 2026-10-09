@@ -125,6 +125,11 @@ export class OrderRepository {
     }
 
     /** 한 오더의 정산 상태 (착불 수령 여부 표시용) */
+    /** 📒 장부에 적힌 이 기사님 콜의 상태 — 줄이 없으면 null */
+    public static statusOf(orderId: string, userId: string): string | null {
+        return (db.prepare(`SELECT status FROM orders WHERE id = ? AND userId = ?`).get(orderId, userId) as { status?: string } | undefined)?.status ?? null;
+    }
+
     public static getSettlement(orderId: string): { settlementStatus?: string; unpaidAmount?: number; settledAt?: string } {
         return (db.prepare(`SELECT settlementStatus, unpaidAmount, settledAt FROM orders WHERE id = ?`)
                   .get(orderId) as any) || {};
