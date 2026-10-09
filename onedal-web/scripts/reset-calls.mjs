@@ -17,6 +17,8 @@
  *    매번 필터를 다시 맞추거나 카카오를 다시 부르면 시뮬이 느려지고 돈이 든다.
  *    (지우는 것은 손으로·의도적으로 — 루트 README.md. 그래서 부팅 경로가 아니라 이 스크립트다.)
  *
+ * 🛰️ **궤적은 콜과 함께 지운다 — 콜이 없으면 간 곳도 없다(기사님).** 완료된 콜이 남아 있으면 궤적도 남고, 콜을 다 비우면 궤적(gps_tracks)도 통째로 비운다.
+ *
  * 🔴 **local.db 에만 한다.** 실서버 data.db 는 손대지 않는다. DB_FILE 이 data.db 면 막는다.
  *
  * 🔄 **비운 뒤 서버도 스스로 다시 띄운다** (기사님 지시).
@@ -46,7 +48,7 @@ if (!existsSync(dbPath)) {
   process.exit(0);
 }
 
-// 콜의 생애에 속하는 표만. 설정(user_settings)·필터(user_filters·user_filter_phases)·
+// 콜의 생애에 속하는 표만(궤적 gps_tracks 포함 — 콜과 함께 간다). 설정(user_settings)·필터(user_filters·user_filter_phases)·
 // 장소(places)·좌표캐시(geocode_cache)는 건드리지 않는다.
 const CALL_TABLES = [
   'orders',
@@ -60,6 +62,7 @@ const CALL_TABLES = [
   'step_arrive_dropoff',
   'step_delivered',
   'cancel_budget_resets',
+  'gps_tracks',
 ];
 
 const db = new Database(dbPath);

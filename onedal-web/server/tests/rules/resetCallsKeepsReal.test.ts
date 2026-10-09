@@ -23,10 +23,12 @@ beforeAll(() => {
     clean();
     const db = new Database(PATH);
     db.exec(`CREATE TABLE intel (id INTEGER PRIMARY KEY AUTOINCREMENT, pickup TEXT, source TEXT);
-             CREATE TABLE orders (id TEXT PRIMARY KEY);`);
+             CREATE TABLE orders (id TEXT PRIMARY KEY);
+             CREATE TABLE gps_tracks (id INTEGER PRIMARY KEY AUTOINCREMENT, at_ms INTEGER, x REAL, y REAL);`);
     const ins = db.prepare(`INSERT INTO intel (pickup, source) VALUES (?, ?)`);
     ins.run('실물', 'real'); ins.run('실물2', 'real'); ins.run('시뮬', 'sim'); ins.run('옛앱', null);
     db.prepare(`INSERT INTO orders (id) VALUES ('o1')`).run();
+    db.prepare(`INSERT INTO gps_tracks (at_ms, x, y) VALUES (1, 127.3, 37.4), (2, 127.31, 37.41)`).run();
     db.close();
 });
 afterAll(clean);
@@ -37,6 +39,8 @@ describe('🧹 reset:calls — 실물 읽기는 남긴다', () => {
         const db = new Database(PATH, { readonly: true });
         expect(db.prepare(`SELECT pickup FROM intel ORDER BY id`).all().map((r: any) => r.pickup)).toEqual(['실물', '실물2']);
         expect(db.prepare(`SELECT COUNT(*) n FROM orders`).get().n).toBe(0);
+        /* 🛰️ 궤적은 콜과 함께 지운다 — 콜이 없으면 간 곳도 없다(기사님) */
+        expect(db.prepare(`SELECT COUNT(*) n FROM gps_tracks`).get().n).toBe(0);
         db.close();
         expect(out).toContain('실물 2 건 남김');
     });
