@@ -18,7 +18,7 @@ import { routeTlOf } from "./routeTl";
 import { DEFAULT_JUDGMENT, routeNeedsRecompute } from "@onedal/shared";
 import type { JudgmentConfig } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { countCancel, countKeep } from "../core/cancelCount";
+import { countCancel, countKeep, writesLedger } from "../core/cancelCount";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
@@ -153,7 +153,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
          * 👀 **미리보기/가상체험은 장부에 안 쓴다** — 인성·픽커에서 아무 일도 없던 콜이다.
          *    써 두면 관제웹 취소 수(`helpers` 의 SAFE_CANCEL 행 수)가 미리보기만큼 부풀었다. 장부에 들어가는 길이 이 한 줄뿐이라 남는 행도 없다.
          */
-        if (!wasPreview && !wasSimulated) try {
+        if (writesLedger({ preview: wasPreview, simulated: wasSimulated })) try {
             const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
             const isExpress = (cached as any).orderForm === '급송' ? 1 : 0;
             OrderRepository.upsertOrder(cached as any, userId, isShared, isExpress);
@@ -745,15 +745,24 @@ export async function handleDecision(userId: string, orderId: string, status: De
          */
         const takenReserved = takeReserved(session, orderId);
 
-        // 메모리에서 완전히 지우지 않고 상태값만 갱신하여 프론트엔드 취소/방출 탭에 보존
-        // (두 메모리를 함께 갱신 — 여기는 원래 둘 다 쓰고 있었지만 규약으로 통일한다)
-        setOrderStatus(session, orderId, endStatus);
-
         const cachedForLedger = session.myOrders.find(c => c.id === orderId)
             ?? session.pendingOrdersData.get(orderId) ?? takenReserved;
-        const isSimulatedOrder = (cachedForLedger as any)?.isSimulated;
+        const isSimulatedOrder = !!(cachedForLedger as any)?.isSimulated;
+        /* 👀 확정 전 미리보기 딱지 — 지우기 전에 뽑는다(장부 · 셈 · 서랍이 이것으로 갈린다 · 38 F40) */
+        const wasPreview = !!(cachedForLedger as any)?.isPreview;
+        /**
+         * 👀 **확정 전에 거절한 미리보기는 «끝난 콜»로 남기지 않는다** (38 F40) — 화면 이탈 정리(forceCancelEvaluatingOrder)와 같은 끝:
+         *    메모리에서 지우고 · 장부에 안 적고 · 관제웹엔 «자동 정리» 신호(isManual 없음 — 진행 목록에서 지우고 장부를 다시 읽음).
+         *    연습 콜은 지금처럼 메모리에 SAFE_CANCEL 로 남겨 서랍에 «🐥 연습 끝»으로 그린다(장부엔 없음).
+         */
+        const dropsFromView = wasPreview && !isSimulatedOrder;
 
-        if (cachedForLedger && !isSimulatedOrder) {
+        // 메모리에서 완전히 지우지 않고 상태값만 갱신하여 프론트엔드 취소/방출 탭에 보존
+        // (두 메모리를 함께 갱신 — 여기는 원래 둘 다 쓰고 있었지만 규약으로 통일한다)
+        if (dropsFromView) session.pendingOrdersData.delete(orderId);
+        else setOrderStatus(session, orderId, endStatus);
+
+        if (cachedForLedger && writesLedger({ preview: wasPreview, simulated: isSimulatedOrder })) {
             try {
                 const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
                 const isExpress = (cachedForLedger as any).orderForm === '급송' ? 1 : 0;
@@ -767,14 +776,14 @@ export async function handleDecision(userId: string, orderId: string, status: De
         }
 
         if (!isSimulatedOrder) {
-            countCancel(session, targetDeviceId, orderId, 'DECISION_CANCEL', undefined, io);
+            countCancel(session, targetDeviceId, orderId, 'DECISION_CANCEL', wasPreview, io);
         } else {
             slog('콜단계', `🐥 [가상 체험 콜 종료] ${orderId} - 패널티 카운트 없이 안전하게 세션 정리 완료`);
         }
 
         if (io) {
             logRoadmapEvent('콜단계', "서버", "관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달");
-            io.to(userId).emit("order-canceled", { id: orderId, status: endStatus, isManual: true });
+            io.to(userId).emit("order-canceled", dropsFromView ? { id: orderId, status: endStatus } : { id: orderId, status: endStatus, isManual: true });
         }
 
         const activeCalls = getActiveCalls(session);

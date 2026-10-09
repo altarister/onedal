@@ -49,6 +49,14 @@ function countedAlready(
     return false;
 }
 
+/**
+ * 🧾 **이 콜을 장부(orders)에 적나 — 한 곳** (38 F40). 미리보기(안 잡은 콜) · 연습(체험) 콜은 배차망에서 아무 일도 없던 콜이라 안 적는다 —
+ * 적으면 관제웹 취소 수(장부 SAFE_CANCEL 행 수)가 부풀고 서랍 «취소»에 진짜 안전취소와 섞인다. 화면 이탈 정리 · 결재 취소 두 길이 같이 부른다.
+ */
+export function writesLedger(o: { preview: boolean; simulated: boolean }): boolean {
+    return !o.preview && !o.simulated;
+}
+
 export function countCancel(
     session: { pendingOrdersData: Map<string, any>; myOrders: any[]; userId?: string; countedOnce?: Set<string> },
     deviceId: string | undefined,
