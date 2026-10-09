@@ -1705,7 +1705,7 @@ class HijackService : AccessibilityService(), ScanContext {
             tapsList = tapsFromList, openedByApp = session.openedByApp, hasBest = bestIdx >= 0,
             handBlocks = handFirst.blocks(tapNowMs), hold = hold,
             evaluating = { evaluatingNow() },
-            armed = safeCancelTimer.armedOrderId != null,
+            armed = com.onedal.app.core.DecisionRun.busy(safeCancelTimer.armedOrderId, waitBook.pending().map { it.name }),
         ))
         /** 🚧 통과 콜이 있는데 안 연 까닭 — 목록 보고 openBlocked (`OpenBlocked`) */
         var openBlocked: String? = gate.openBlocked
@@ -1753,7 +1753,7 @@ class HijackService : AccessibilityService(), ScanContext {
                         val nowY = fareNode.node?.takeIf { it.refresh() }?.let { n -> android.graphics.Rect().also { n.getBoundsInScreen(it) }.centerY() }
                         val stop = com.onedal.app.core.ListTapPick.recheckStop(
                             onList = telemetryManager.currentScreenContext == ScreenContext.LIST,
-                            busy = session.openedByApp || touchManager.tapPending || safeCancelTimer.armedOrderId != null,
+                            busy = session.openedByApp || touchManager.tapPending || com.onedal.app.core.DecisionRun.busy(safeCancelTimer.armedOrderId, waitBook.pending().map { it.name }),
                             handBlocks = handFirst.blocks(nowTap), handWhy = lastHandWhy,
                             evaluating = { evaluatingNow() },
                             scanY = fareNode.rect.centerY(), nowY = nowY,
@@ -2049,6 +2049,11 @@ class HijackService : AccessibilityService(), ScanContext {
 
     private fun cancelSafeCancelTimer() {
         safeCancelTimer.cancel(session)
+        afterSafeCancelOff()
+    }
+
+    /** 타이머가 꺼진 뒤 — 안전취소 1초 보고를 끄고 인터넷 공급을 다시 정한다 */
+    private fun afterSafeCancelOff() {
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, false) // 안전취소 1초 보고 끔
         internetSupply.refresh()
     }
@@ -2060,7 +2065,9 @@ class HijackService : AccessibilityService(), ScanContext {
         /* 🗳️ 무엇을 할지는 `DecisionPlan` 한 곳이 정한다 — 여기는 집행만 */
         val plan = com.onedal.app.core.DecisionPlan.of(decision, session.contractedByApp || armedHere, session.openedByApp)
         if (plan == com.onedal.app.core.DecisionPlan.IGNORE_UNKNOWN) return
-        if (plan.stopsSafeCancel) cancelSafeCancelTimer() // 타이머 해제
+        /* 🛡️ 지킨 계약(콜 · 배차망 · 패키지)을 떠 둔 뒤 타이머를 끈다 — 끈 뒤에는 배차망이 지워진다 · 그 뒤 모든 단계는 이 값만 읽는다 (`DecisionRun` · 24 리뷰) */
+        val target = if (plan.stopsSafeCancel) com.onedal.app.core.DecisionRun.begin(safeCancelTimer, orderId, session).also { afterSafeCancelOff() }
+            else com.onedal.app.core.DecisionRun.peek(safeCancelTimer, orderId)
         // ⏱️ 기사님이 손으로 연 상세 — 결재가 오면 머문다(판정을 보고 기사님이 누르신다). 앱이 연 콜은 아래에서 정한다
         if (com.onedal.app.core.engine.DetailBackPolicy.stopsOnDecision(session.openedByApp)) cancelDetailBack()
 
@@ -2115,7 +2122,7 @@ class HijackService : AccessibilityService(), ScanContext {
         }
 
         /* 🛡️ 누를 글자는 그 콜의 배차망 낱말 한 곳 — 지키는 계약이면 그 배차망 · 아니면 지금 배차망 (`DecisionWord` · 38 F36 · F38) */
-        val wordNet = (if (armedHere) safeCancelTimer.armedNetwork else null) ?: currentTargetApp
+        val wordNet = target?.network ?: currentTargetApp
         val targetBtnStr = com.onedal.app.core.DecisionWord.of(plan, com.onedal.app.plugins.DispatchPluginRegistry.get(wordNet).keywords)
         AppLogger.roadmap(LogTag.DECISION, "🛡️ 관제탑 판결 수신 (Action: $decision) → '${targetBtnStr ?: "누를 단추 없음"}' 버튼 클릭 집행 개시", telemetryManager.currentScreenContext.name)
         AppLogger.d(TAG, LogTag.DECISION, "⚡ 판결 집행: 행동=$decision, 누를버튼=$targetBtnStr (버튼클릭을 시작합니다), 500ms 지연")
@@ -2125,7 +2132,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val screenAtFirst = telemetryManager.currentScreenContext
         val orderAtFirst = session.currentOrderId.ifEmpty { orderId ?: "" }
         waitBook.schedule("결재 버튼", com.onedal.app.core.WaitBook.DECISION, 500) {
-            pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = false, returnSinceMs = null)
+            pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = false, returnSinceMs = null, target = target)
         }
     }
 
@@ -2138,7 +2145,8 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     /** @param targetBtnStr 그 배차망 낱말(없으면 null — KEEP 은 누를 것 없음 · CANCEL 은 못 누름) · @param returnSinceMs 그 배차망으로 돌아가기 시작한 때(아니면 null) */
     private fun pressDecisionButton(decision: String, targetBtnStr: String?, firstAtMs: Long,
-                                    screenAtFirst: ScreenContext, orderAtFirst: String, waited: Boolean, returnSinceMs: Long? = null) {
+                                    screenAtFirst: ScreenContext, orderAtFirst: String, waited: Boolean, returnSinceMs: Long? = null,
+                                    target: com.onedal.app.core.DecisionRun.Target? = null) {
         val now = android.os.SystemClock.elapsedRealtime()
         if (waited) com.onedal.app.core.KeepCloseWait.skipWhy(screenAtFirst, telemetryManager.currentScreenContext, orderAtFirst, session.currentOrderId)?.let { why ->
             AppLogger.i(TAG, LogTag.DECISION, "⏭️ [닫기 건너뜀] $why — 누르지 않는다")
@@ -2148,7 +2156,7 @@ class HijackService : AccessibilityService(), ScanContext {
         if (wait != null) {
             AppLogger.i(TAG, LogTag.DECISION, "⏳ [닫기 미룸] 상세 손 ${now - lastDetailHandAtMs}ms 전 · ${wait}ms 뒤 다시")
             waitBook.schedule("결재 버튼", com.onedal.app.core.WaitBook.DECISION, wait) {
-                pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = true, returnSinceMs = returnSinceMs)
+                pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = true, returnSinceMs = returnSinceMs, target = target)
             }
             return
         }
@@ -2159,11 +2167,11 @@ class HijackService : AccessibilityService(), ScanContext {
          * ↩️ **그 콜의 배차망 화면이 아니면 먼저 돌아간다** (38 F36 · 기사님 «원달앱이 확정한 콜은 원달앱이 끝까지 책임진다» · `ReturnStep`).
          *    다른 배차망 화면의 글자를 누르지 않는다 · 5초 안에 못 돌아가면 누르지 않고 «취소 못 누름»(계약이 남음).
          */
-        val armedNet = if (orderAtFirst.isNotEmpty() && orderAtFirst == safeCancelTimer.armedOrderId) safeCancelTimer.armedNetwork else null
+        val armedNet = target?.network
         val since = returnSinceMs ?: now
-        when (com.onedal.app.core.ReturnStep.of(currentTargetApp, armedNet, now - since)) {
-            com.onedal.app.core.ReturnStep.Step.RETURN_FIRST -> {
-                val how = com.onedal.app.core.NetworkFront.of(armedNet!!, safeCancelTimer.armedPackage)
+        when (com.onedal.app.core.DecisionRun.next(target, currentTargetApp, targetBtnStr, decision, now - since)) {
+            com.onedal.app.core.DecisionRun.Step.RETURN -> {
+                val how = com.onedal.app.core.NetworkFront.of(armedNet!!, target.pkg)
                 if (returnSinceMs == null) {
                     val sent = bringNetworkForward(how)
                     AppLogger.i(TAG, LogTag.DECISION, "↩️ [그 배차망으로 돌아감] $orderAtFirst ${currentTargetApp} → $armedNet (${how.kind}${how.pkg?.let { " · $it" } ?: ""}) — ${if (sent) "불러옴" else "불러오지 못함"}")
@@ -2172,21 +2180,21 @@ class HijackService : AccessibilityService(), ScanContext {
                         AppLogger.i(TAG, LogTag.DECISION, "↩️ [돌아감 1초 뒤] 화면 배차망 = $currentTargetApp (지킨 배차망 $armedNet)")
                     }
                 }
-                waitBook.schedule("결재 버튼", com.onedal.app.core.WaitBook.DECISION, 500) {
-                    pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = false, returnSinceMs = since)
+                waitBook.schedule(com.onedal.app.core.DecisionRun.BUTTON_WAIT, com.onedal.app.core.WaitBook.DECISION, 500) {
+                    pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = false, returnSinceMs = since, target = target)
                 }
                 return
             }
-            com.onedal.app.core.ReturnStep.Step.GIVE_UP -> { giveUpDecision(decision, byTimeout, orderAtFirst, armedNet, "${com.onedal.app.core.ReturnStep.LIMIT_MS / 1000}초 안에 그 배차망으로 못 돌아옴(화면 $currentTargetApp)"); return }
-            com.onedal.app.core.ReturnStep.Step.PRESS -> Unit
-        }
-        /* 🛡️ 이 배차망에 누를 단추가 없다 — KEEP 은 누를 것 없음(수락하면 곧바로 목록으로 가는 배차망) · CANCEL 은 못 누름(계약이 남음) */
-        if (targetBtnStr == null) {
-            if (decision == "KEEP") {
+            com.onedal.app.core.DecisionRun.Step.NOT_PRESSED -> {
+                val why = if (targetBtnStr == null && (armedNet == null || armedNet == currentTargetApp)) "이 배차망의 잡은 뒤 취소 단추를 모름"
+                    else "${com.onedal.app.core.ReturnStep.LIMIT_MS / 1000}초 안에 그 배차망으로 못 돌아옴(화면 $currentTargetApp)"
+                giveUpDecision(decision, byTimeout, orderAtFirst, armedNet, why); return
+            }
+            com.onedal.app.core.DecisionRun.Step.NOTHING_TO_PRESS -> {
                 AppLogger.roadmap(LogTag.DECISION, "✅ 판결 KEEP 집행 완료 — 이 배차망은 잡으면 곧바로 목록으로 간다 · 누를 단추 없음", telemetryManager.currentScreenContext.name)
-                resetSessionState()
-            } else giveUpDecision(decision, byTimeout, orderAtFirst, armedNet, "이 배차망의 잡은 뒤 취소 단추를 모름")
-            return
+                resetSessionState(); return
+            }
+            com.onedal.app.core.DecisionRun.Step.PRESS -> Unit
         }
         val rootNode = rootInActiveWindow
         if (rootNode == null) {
@@ -2199,7 +2207,7 @@ class HijackService : AccessibilityService(), ScanContext {
             return
         }
         /* 🐥 체험인지는 결재 종류 하나 — 여기 오는 결재는 진짜(KEEP · CANCEL)뿐이라 지금 모드를 넘기지 않는다(심사 중 체험으로 바꿔도 잡은 콜의 «닫기»는 누른다 · 체험 결재는 `DecisionPlan.SIMULATED_BACK`) */
-        val pressed = touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)
+        val pressed = targetBtnStr != null && touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)
         if (pressed) touchManager.noteAppLeft()   // 🚪 결재 버튼으로 떠난 목록 복귀는 기사님 손이 아니다
         com.onedal.app.core.CancelReport.of(decision, byTimeout, pressed)?.let {
             sendEmergencyReport(it.reason, if (pressed) "안전취소 응답 없음 — 취소를 눌렀다" else "판결 $decision 의 대상 $targetBtnStr 버튼 누락", it.cancelPressed, orderAtFirst, armedNet)
