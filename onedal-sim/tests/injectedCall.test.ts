@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateBaseCall, takeInjected, toInjectedForced } from '../packages/core-simulator/src/index';
+import { generateBaseCall, injectedTakes, takeInjected, toInjectedForced } from '../packages/core-simulator/src/index';
 import type { InjectedCall } from '../packages/core-simulator/src/index';
 import { SIM_NET_LIST } from '../packages/ui-simulators/src/nets';
 
@@ -110,7 +110,7 @@ describe('개별콜 — 입구와 한 번에 한 종류 (기사님 2026-09-15: �
         expect(page).toMatch(/const individual = presetParams\.get\('calls'\) === 'individual';/);
         expect(page).toMatch(/enabled: !individual && !atHome,/);
         expect(page)
-            .toMatch(/useSimInjectedCalls\(\{ config: generatorConfig, toCall: simNet\.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual && !atHome \}\)/);
+            .toMatch(/useSimInjectedCalls\(\{ config: generatorConfig, toCall: simNet\.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual && !atHome, net: simNet\.key, visible \}\)/);
     });
 
     it('🔴 거둔 콜은 목록 행만 뺀다 — 폰이 열어 둔 상세는 남기고 · 확정 목록은 안 건드린다 (onedal-b5 2026-09-15)', () => {
@@ -139,5 +139,21 @@ describe('개별콜 — 입구와 한 번에 한 종류 (기사님 2026-09-15: �
         expect(body).toMatch(/handleCloseDetail\(\);/);
         expect(body).toMatch(/setStreamingCalls\(\[\]\);/);
         expect(body).toMatch(/setConfirmedCalls\(\[\]\);/);
+    });
+});
+
+/**
+ * 🔀 **누가 받나 — 받을 배차망(net)이 있으면 그 칸만, 없으면 보이는 칸만** (38 F36 · 71 «가»).
+ * 시뮬은 한 번 본 배차망마다 칸을 들고 있어 모든 칸이 같은 서버 줄을 묻는다. 칸마다 다 넣으면 한 콜이 세 배차망에 뜬다.
+ */
+describe('개별콜 — 받을 칸', () => {
+    it.each([
+        ['net 이 내 배차망 · 보이는 칸', 'insung', 'insung', true, true],
+        ['net 이 내 배차망 · 숨은 칸 — 실물처럼 뒤에 있는 앱에도 콜이 쌓인다', 'insung', 'insung', false, true],
+        ['net 이 남의 배차망 · 보이는 칸', 'kakaopicker', 'insung', true, false],
+        ['net 없음(옛 호출) · 보이는 칸', undefined, 'insung', true, true],
+        ['net 없음(옛 호출) · 숨은 칸', undefined, 'insung', false, false],
+    ])('%s', (_why, net, mine, visible, want) => {
+        expect(injectedTakes(injected({ net }), mine, visible)).toBe(want);
     });
 });

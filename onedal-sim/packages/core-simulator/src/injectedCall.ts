@@ -28,6 +28,8 @@ export interface InjectedCall {
     dropoff: InjectedPlace;
     fare: number;
     vehicleType?: string;
+    /** 🔀 받을 배차망 — 서버 · 원달앱과 같은 이름(이 파일은 이름을 모른다 · 글자로만 맞춘다). 없으면 보이는 칸이 받는다 */
+    net?: string;
 }
 
 /** 서버 `GET /api/sim/calls` 의 답 — 짝: 서버 `simCallQueue.ts` 의 `SimCallBatch` */
@@ -74,6 +76,14 @@ export function toInjectedForced(c: InjectedCall): ForcedPair {
  *   · 회차가 바뀌었다 → 이전 콜을 리셋했다(시나리오 다시 시작). **목록을 비우고** 내 번호 뒤의 콜을 낸다
  *   · 그 밖 → 내 번호 뒤의 콜을 번호 순서대로
  */
+/**
+ * 🔀 **이 칸이 이 콜을 받나** (38 F36) — 시뮬은 한 번 본 배차망마다 칸을 들고 있어 칸마다 같은 서버 줄을 묻는다.
+ * 받을 배차망이 적혀 있으면 그 칸만(숨은 칸도 — 실물처럼 뒤에 있는 앱에도 콜이 쌓인다), 없으면(옛 호출) 보이는 칸만.
+ */
+export function injectedTakes(call: InjectedCall, myNet: string, visible: boolean): boolean {
+    return call.net ? call.net === myNet : visible;
+}
+
 export function takeInjected(cursor: InjectedCursor | null, batch: InjectedBatch): { cursor: InjectedCursor; calls: InjectedCall[]; clear: boolean; withdrawn: number[] } {
     /* 🫳 거둔 번호는 그대로 넘긴다 — 목록 행과 짝짓는 것은 받은 콜을 기억하는 훅이다. 칸이 없으면 빈 목록으로 본다 */
     const withdrawn = Array.isArray(batch.withdrawn) ? batch.withdrawn : [];

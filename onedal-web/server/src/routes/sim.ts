@@ -137,7 +137,7 @@ router.post("/calls", (req, res) => {
     if (!read.ok) return res.status(400).json({ ok: false, error: read.error });
     const now = Date.now();
     const queued = pushSimCall(simCalls, read.call, now);
-    slog('통신', `🚚 [개별콜] #${queued.seq} 받음 — ${queued.pickup.region} → ${queued.dropoff.region} · ${queued.fare}`);
+    slog('통신', `🚚 [개별콜] #${queued.seq} 받음 — ${queued.pickup.region} → ${queued.dropoff.region} · ${queued.fare}${queued.net ? ` · ${queued.net} 칸` : ' · 보이는 칸'}`);
     return res.json({
         ok: true,
         seq: queued.seq,

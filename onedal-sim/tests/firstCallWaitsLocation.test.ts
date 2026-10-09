@@ -40,7 +40,7 @@ describe('📍 첫 콜은 위치를 받은 뒤', () => {
     it('🔴 배차 화면이 «받았음»을 훅에 넘기고, 주소창에 위치가 있으면 처음부터 켠다 · 기본 자리로 시작하면 경고한다', () => {
         const page = src('src/pages/DispatchPage.tsx');
         expect(page).toMatch(/ready: locationReady/);
-        expect(page).toMatch(/initialLocationKnown=\{searchParams\.has\('lon'\) && searchParams\.has\('lat'\)\}/);
+        expect(page).toMatch(/initialLocationKnown=\{params\.has\('lon'\) && params\.has\('lat'\)\}/);
         expect(page).toMatch(/locationFallback &&/);
     });
 });

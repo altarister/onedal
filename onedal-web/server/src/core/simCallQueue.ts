@@ -23,6 +23,8 @@
  * 🔴 **메모리에만 둔다** — 서버를 다시 띄우면 비고 번호도 처음부터다. 시뮬레이터는 «서버 번호가 내 번호보다 작다»를 다시 띄운 것으로 읽는다.
  * 🔴 **값을 채우지 않는다** (규칙 ④) — 칸이 틀리면 받지 않고 무엇이 틀렸는지 말한다.
  */
+import { isTargetApp } from '@onedal/shared';
+import type { TargetAppType } from '@onedal/shared';
 
 export interface SimPlace {
     /** 전체 주소 — «경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점» */
@@ -48,6 +50,8 @@ export interface SimCallInput {
     fare: number;
     /** 차종 — 없으면 시뮬레이터가 고른다 */
     vehicleType?: string;
+    /** 🔀 받을 배차망 — 시뮬이 배차망마다 칸을 들고 있다(38 F36). 없으면 그 순간 보이는 배차망이 받는다 */
+    net?: TargetAppType;
 }
 
 export interface QueuedSimCall extends SimCallInput {
@@ -118,10 +122,17 @@ export function readSimCallInput(body: unknown): { ok: true; call: SimCallInput 
     const dropoff = readPlace(b.dropoff, '하차지');
     if (typeof dropoff === 'string') return { ok: false, error: dropoff };
     if (!isNumber(b.fare) || !Number.isInteger(b.fare) || b.fare < 1) return { ok: false, error: '요금은 1 이상의 정수다' };
-    if (b.vehicleType === undefined) return { ok: true, call: { pickup, dropoff, fare: b.fare } };
-    const vehicleType = textOf(b.vehicleType, 20);
-    if (!vehicleType) return { ok: false, error: '차종이 비었다' };
-    return { ok: true, call: { pickup, dropoff, fare: b.fare, vehicleType } };
+    const call: SimCallInput = { pickup, dropoff, fare: b.fare };
+    if (b.vehicleType !== undefined) {
+        const vehicleType = textOf(b.vehicleType, 20);
+        if (!vehicleType) return { ok: false, error: '차종이 비었다' };
+        call.vehicleType = vehicleType;
+    }
+    if (b.net !== undefined) {
+        if (!isTargetApp(b.net)) return { ok: false, error: '모르는 배차망이다 (insung · hwamul24 · kakaopicker)' };
+        call.net = b.net;
+    }
+    return { ok: true, call };
 }
 
 export function pushSimCall(q: SimCallQueue, call: SimCallInput, now: number): QueuedSimCall {

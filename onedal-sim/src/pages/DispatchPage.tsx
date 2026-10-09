@@ -8,7 +8,7 @@
  * 이 페이지는 배차망마다 한 벌씩 두지 않는다 — 한 벌씩이면 **한쪽만 자라** 한 배차망만 `fillers` 를 안 읽는 식으로
  * 갈라진다. 같은 질문에 두 답이 있으면 언젠가 갈라진다 (규칙 ③).
  */
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, createContext, useContext } from 'react';
 import { useSearchParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { SimulationProvider, useSimulationContext } from '@altari/ui-simulators';
 import { useSimStreaming, useSimInjectedCalls } from '@altari/ui-simulators';
@@ -51,8 +51,21 @@ function UnknownNetScreen({ netKey }: { netKey: string | null }) {
   );
 }
 
+/**
+ * 🔀 **배차망 칸마다 제 주소 값 · 제 이동** (38 F36 · 71 «가»).
+ * 보이는 칸은 진짜 주소와 방문 기록을 쓴다. 숨은 칸은 떠날 때 떠 둔 주소 값만 고친다 —
+ * 🔴 숨은 인성 상세가 뒤에서 스스로 닫혀도(10초 귀환) 보이는 배차망의 방문 기록을 한 칸 빼면 원달앱 «뒤로»가 엉뚱한 곳으로 간다.
+ */
+type NetNav = (to: string | number) => void;
+const NetViewContext = createContext<{ params: URLSearchParams; nav: NetNav; visible: boolean } | null>(null);
+function useNetView() {
+  const v = useContext(NetViewContext);
+  if (!v) throw new Error('배차망 칸 밖에서 그렸다 — NetSlot 안에서만 쓴다');
+  return v;
+}
+
 function DispatchContent({ simNet }: { simNet: SimNet }) {
-  const navigate = useNavigate();
+  const { params: presetParams, nav: navigate, visible } = useNetView();
   const {
     streamingCalls, confirmedCalls, setConfirmedCalls,
     setStreamingCalls, selectedCallId, setSelectedCallId,
@@ -74,7 +87,6 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     targetRegion: simConfig.targetRegion,
   }), [driverLocation, simConfig]);
 
-  const [presetParams] = useSearchParams();
 
   /**
    * 🧱 **`?fillers=N` — 시간을 만드는 채움 콜을 앞에서 N개만 쓴다** (기사님 확정).
@@ -252,7 +264,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
     setStreamingCalls(prev => prev.filter(c => !gone.has(c.id) || c.id === selectedCallId));
   }, [setStreamingCalls, selectedCallId]);
 
-  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual && !atHome });
+  useSimInjectedCalls({ config: generatorConfig, toCall: simNet.toCall, appendCall, resetCalls, removeCalls, ready: locationReady, enabled: individual && !atHome, net: simNet.key, visible });
 
   // 🔴 문제지 이름을 못 찾았다 — 랜덤으로 흘리지 않고 멈춘다 (위 주석 참조)
   // 콜을 고른 상태면 상세가 먼저다 — 순서는 상세 → 문제지 없음 → 리스트
@@ -318,6 +330,13 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   );
 }
 
+declare global {
+  interface Window {
+    /** 🔀 시뮬 껍데기 앱이 받은 «배차망 바꿔» 신호(`am start … --es net <코드>` → onNewIntent)를 넘기는 문 — 화면에 탭을 얹지 않는다(README) */
+    __onedalSimSwitch?: (net: string) => void;
+  }
+}
+
 export function DispatchPage() {
   const [searchParams] = useSearchParams();
   const netKey = searchParams.get('net');
@@ -331,36 +350,115 @@ export function DispatchPage() {
   }
 
   // 🔴 모르는 배차망이면 멈춘다 — 짐작해서 한 배차망으로 그리지 않는다 (nets.ts)
-  const simNet = simNetOf(netKey);
-  if (!simNet) return <UnknownNetScreen netKey={netKey} />;
+  if (!simNetOf(netKey)) return <UnknownNetScreen netKey={netKey} />;
 
+  return <NetSlots searchParams={searchParams} />;
+}
 
+/**
+ * 🔀 **한 번 본 배차망마다 칸 하나 — 실물처럼 «다른 앱을 봤다 돌아옴»** (38 F36 · 71 «가»).
+ * 실물은 배차망마다 다른 앱이라 인성에서 잡은 콜 · 연 상세가 픽커를 보는 동안에도 남는다. 칸을 내리면 그것이 사라진다(SimulationProvider 상태).
+ * 안 보이는 칸은 display:none — 폰 접근성 트리에서 빠져 원달앱이 두 배차망 글자를 함께 읽지 않는다(아래 회차 준비 화면과 같은 사실).
+ * 바꾸는 길은 `window.__onedalSimSwitch` 하나 — 갈 배차망의 방문 기록(홈 → 목록 → 상세)을 다시 쌓아 원달앱 «뒤로»가 그 배차망 안에서 돈다.
+ */
+function NetSlots({ searchParams }: { searchParams: URLSearchParams }) {
+  const navigate = useNavigate();
+  const visible = searchParams.get('net')!;
+  /* 숨은 칸의 주소 값 — 떠날 때 떠 두고, 숨은 칸이 뒤에서 움직이면(상세 닫힘) 여기만 고친다 */
+  const [saved, setSaved] = useState<Record<string, string>>({});
+  const [seen, setSeen] = useState<string[]>([visible]);
+  const nets = seen.includes(visible) ? seen : [...seen, visible];
+  useEffect(() => { if (!seen.includes(visible)) setSeen(nets); }, [seen, visible, nets]);
+
+  const latest = useRef({ saved, searchParams, visible });
+  latest.current = { saved, searchParams, visible };
+
+  const switchTo = useCallback((net: string) => {
+    const { saved: now, searchParams: url, visible: cur } = latest.current;
+    if (!simNetOf(net) || renamedNetKey(net)) { console.log(`🔀 [배차망 바꿈] 모르는 이름 «${net}» — 그대로 둔다`); return; }
+    if (net === cur) return;
+    setSaved(s => ({ ...s, [cur]: url.toString() }));
+    const target = new URLSearchParams(now[net] ?? '');
+    if (!now[net]) { url.forEach((v, k) => target.set(k, v)); target.set('net', net); target.delete('view'); target.delete('detail'); }
+    const home = new URLSearchParams(target); home.delete('view'); home.delete('detail');
+    navigate(`/dispatch?${home.toString()}`, { replace: true });
+    if (target.get('view') === 'list') { const list = new URLSearchParams(target); list.delete('detail'); navigate(`/dispatch?${list.toString()}`); }
+    if (target.get('detail')) navigate(`/dispatch?${target.toString()}`);
+    console.log(`🔀 [배차망 바꿈] ${cur} → ${net}${now[net] ? ' (보던 화면 그대로)' : ' (처음 — 홈)'}`);
+  }, [navigate]);
+
+  useEffect(() => {
+    window.__onedalSimSwitch = switchTo;
+    return () => { if (window.__onedalSimSwitch === switchTo) delete window.__onedalSimSwitch; };
+  }, [switchTo]);
+
+  /* 보이는 칸의 이동 — 진짜 방문 기록. 숫자(-1)와 주소를 한 모양으로 받는다 */
+  const go = useCallback((to: string | number) => { if (typeof to === 'number') navigate(to); else navigate(to); }, [navigate]);
+
+  /* 숨은 칸의 이동 — 진짜 방문 기록은 건드리지 않고 떠 둔 값만. 뒤로(-1)는 상세 → 목록 → 홈 차례로 한 칸 */
+  const hiddenNav = useCallback((net: string, to: string | number) => {
+    setSaved(s => {
+      const p = new URLSearchParams(s[net] ?? '');
+      if (to === -1) { if (p.get('detail')) p.delete('detail'); else p.delete('view'); }
+      else if (typeof to === 'string' && to.startsWith('/dispatch?')) return { ...s, [net]: to.slice('/dispatch?'.length) };
+      else return s;
+      return { ...s, [net]: p.toString() };
+    });
+  }, []);
+
+  return (
+    <>
+      {nets.map(net => (
+        <NetSlot key={net} net={net} visible={net === visible}
+          qs={net === visible ? searchParams.toString() : saved[net]}
+          navigate={go} hiddenNav={hiddenNav} />
+      ))}
+    </>
+  );
+}
+
+function NetSlot({ net, visible, qs: qsRaw, navigate, hiddenNav }: {
+  net: string; visible: boolean; qs: string | undefined;
+  navigate: (to: string | number) => void; hiddenNav: (net: string, to: string | number) => void;
+}) {
+  /* 떠 둔 값이 없으면(브라우저 뒤로로 배차망이 바뀜) 마지막으로 본 값 — 숨은 칸이 빈 주소로 다시 그려지지 않게 */
+  const last = useRef(qsRaw ?? '');
+  const qs = qsRaw ?? last.current;
+  last.current = qs;
+  const params = useMemo(() => new URLSearchParams(qs), [qs]);
+  const nav = useCallback<NetNav>(to => (visible ? navigate(to) : hiddenNav(net, to)), [visible, navigate, hiddenNav, net]);
+  const view = useMemo(() => ({ params, nav, visible }), [params, nav, visible]);
+  const simNet = simNetOf(net)!;
+
+  /* 위치 · 설정은 칸이 처음 설 때의 주소 값 — 칸이 서 있는 동안 바뀌지 않는다(SimulationProvider 는 처음 값만 쓴다) */
   const driverLocation = {
     /* 📍 기본값은 시작 전 점검과 한 곳에서 — 점검이 «첫 문제는 여기서 잰다»를 같은 값으로 말한다 */
-    lon: Number(searchParams.get('lon') || String(SIM_DEFAULT_START.lon)),
-    lat: Number(searchParams.get('lat') || String(SIM_DEFAULT_START.lat)),
-    name: searchParams.get('name') || SIM_DEFAULT_START.name,
+    lon: Number(params.get('lon') || String(SIM_DEFAULT_START.lon)),
+    lat: Number(params.get('lat') || String(SIM_DEFAULT_START.lat)),
+    name: params.get('name') || SIM_DEFAULT_START.name,
   };
 
   const simConfig = {
-    maxPickupKm: Number(searchParams.get('maxKm') || '15'),
-    minFare: Number(searchParams.get('minFare') || '30000'),
-    targetRegion: searchParams.get('target') || '',
+    maxPickupKm: Number(params.get('maxKm') || '15'),
+    minFare: Number(params.get('minFare') || '30000'),
+    targetRegion: params.get('target') || '',
     /**
      * 🕐 콜이 뜨는 간격 — 실제 배차망처럼 **5초**(기사님 확정).
      * 설정 화면은 10초로 시작한다(앱이 콜 하나를 처리하는 데 약 12초).
      * 천천히 보고 싶으면 `?interval=20000` 처럼 직접 지정한다.
      */
-    intervalMs: Number(searchParams.get('interval') || '5000'),
+    intervalMs: Number(params.get('interval') || '5000'),
   };
 
   return (
-    <SimulationProvider initialDriver={driverLocation} initialConfig={simConfig}
-      initialLocationKnown={searchParams.has('lon') && searchParams.has('lat')}>
-      {/* 겉 테두리도 배차망마다 다르다 — 인성은 검은 테두리 안의 창, 화물24시는 흰 바탕 (nets.ts) */}
-      <div className={simNet.frameClassName}>
-        <DispatchContent simNet={simNet} />
-      </div>
-    </SimulationProvider>
+    <NetViewContext.Provider value={view}>
+      <SimulationProvider initialDriver={driverLocation} initialConfig={simConfig}
+        initialLocationKnown={params.has('lon') && params.has('lat')}>
+        {/* 겉 테두리도 배차망마다 다르다 — 인성은 검은 테두리 안의 창, 화물24시는 흰 바탕 (nets.ts) · 숨은 칸은 display:none(테두리 class 의 flex 보다 앞선다) */}
+        <div className={simNet.frameClassName} hidden={!visible} style={visible ? undefined : { display: 'none' }}>
+          <DispatchContent simNet={simNet} />
+        </div>
+      </SimulationProvider>
+    </NetViewContext.Provider>
   );
 }

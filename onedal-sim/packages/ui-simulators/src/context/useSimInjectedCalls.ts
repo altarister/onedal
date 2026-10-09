@@ -9,7 +9,7 @@
  * 🔴 **서버가 없으면 조용히 넘어간다** — 개별콜이 없을 뿐 시뮬레이터는 돈다 (필드에서 라이브 서버는 이 문을 닫아 둔다).
  */
 import { useEffect, useRef } from 'react';
-import { generateBaseCall, takeInjected, toInjectedForced } from '@altari/core-simulator';
+import { generateBaseCall, injectedTakes, takeInjected, toInjectedForced } from '@altari/core-simulator';
 import type { SimGeneratorConfig, CallDraft, CallOptions, InjectedBatch, InjectedCursor } from '@altari/core-simulator';
 import type { SimCall } from '../nets';
 import { simApiBase } from './simApi';
@@ -33,13 +33,16 @@ interface UseSimInjectedCallsProps {
   ready?: boolean;
   /** 받나 — 개별콜 화면에서만 `true` */
   enabled: boolean;
+  /** 🔀 이 칸의 배차망 · 지금 보이나 — 받을 배차망이 적힌 콜은 그 칸만, 안 적힌 콜은 보이는 칸만 받는다 (`injectedTakes` · 38 F36) */
+  net: string;
+  visible: boolean;
 }
 
-export const useSimInjectedCalls = ({ config, toCall, appendCall, resetCalls, removeCalls, ready = true, enabled }: UseSimInjectedCallsProps) => {
-  const latest = useRef({ config, toCall, appendCall, resetCalls, removeCalls });
+export const useSimInjectedCalls = ({ config, toCall, appendCall, resetCalls, removeCalls, ready = true, enabled, net, visible }: UseSimInjectedCallsProps) => {
+  const latest = useRef({ config, toCall, appendCall, resetCalls, removeCalls, net, visible });
   useEffect(() => {
-    latest.current = { config, toCall, appendCall, resetCalls, removeCalls };
-  }, [config, toCall, appendCall, resetCalls, removeCalls]);
+    latest.current = { config, toCall, appendCall, resetCalls, removeCalls, net, visible };
+  }, [config, toCall, appendCall, resetCalls, removeCalls, net, visible]);
 
   useEffect(() => {
     if (!ready || !enabled) return;
@@ -59,10 +62,12 @@ export const useSimInjectedCalls = ({ config, toCall, appendCall, resetCalls, re
         if (!alive || !d?.ok) return;
         const taken = takeInjected(cursor, d as InjectedBatch);
         cursor = taken.cursor;
-        const { config: cfg, toCall: dress, appendCall: add, resetCalls, removeCalls } = latest.current;
+        const { config: cfg, toCall: dress, appendCall: add, resetCalls, removeCalls, net: mine, visible: shown } = latest.current;
         if (taken.clear) console.log(`🧹 [개별콜] 회차 ${taken.cursor.round} — 이전 콜을 리셋한다 (목록 비움)`);
         if (taken.clear) { resetCalls(); idOfSeq.clear(); }
         for (const c of taken.calls) {
+          /* 🔀 남의 칸 콜은 건너뛴다 — 커서는 이미 앞으로 갔으니 이 칸이 다시 보여도 옛 콜이 몰려오지 않는다 */
+          if (!injectedTakes(c, mine, shown)) { console.log(`🔀 [개별콜] #${c.seq} ${mine} 칸은 안 받음 — ${c.net ? `${c.net} 콜` : '받을 배차망 없음 · 보이는 칸이 받음'}`); continue; }
           const forced = toInjectedForced(c);
           const draft = generateBaseCall(cfg, forced);
           if (!draft) continue;
