@@ -74,6 +74,20 @@ describe('⏱️ KEEP 했는데 폰이 못 받아 취소함', () => {
         expect(alertOf()?.keepLost).toBe(true);
     });
 
+    /* 🔁 원달앱이 «못 보냈다»고 본 보고가 실제로는 닿고 응답만 잃었으면 같은 보고가 다시 온다(재시도 · 40 S2-3 다시 보내기) */
+    it('🔴 같은 보고가 두 번 와도 — 상태 SAFE_CANCEL 그대로 · 경보 한 번 · 셈 한 번', async () => {
+        const s = kept('k-4');
+        const counted = jest.spyOn(cancelCount, 'countCancel');
+        await report('k-4', 'AUTO_CANCEL', true);
+        events.length = 0;
+        await report('k-4', 'AUTO_CANCEL', true);
+        expect(counted).toHaveBeenCalledTimes(1);
+        counted.mockRestore();
+        expect(s.myOrders.find(o => o.id === 'k-4')?.status).toBe('SAFE_CANCEL');
+        expect(ledger('k-4').status).toBe('SAFE_CANCEL');
+        expect(events).toEqual([]);
+    });
+
     it('대조 — KEEP 안 된(심사 중) 콜 · 다른 까닭 · 칸 없는 옛 원달앱은 지금처럼 방출 · keepLost 없음', async () => {
         const s = getUserSession(U);
         s.pendingOrdersData.set('n-1', { id: 'n-1', capturedDeviceId: DEV } as any);

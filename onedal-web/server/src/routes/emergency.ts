@@ -101,6 +101,14 @@ router.post("/", async (req, res) => {
          *    결재 줄로 가르면 늦게 온 보고(원달앱 인터넷이 늦게 돌아옴)를 놓친다 — 시한 끝 KEEP 방어가 줄을 먼저 지운다.
          */
         const keptCall = session.myOrders.find(c => c.id === targetOrderId) ?? session.reservedOrders.find(c => c.id === targetOrderId);
+        /**
+         * 🔁 **이미 끝낸 콜에 다시 온 보고는 그대로 둔다** (40 S2-3) — 원달앱은 «못 보냈다»고 본 보고(닿고 응답만 잃음)를 다시 보낸다.
+         *    다시 타면 첫 보고가 적은 안전취소를 «방출(사무실)»로 덮고 경보 · 취소 신호가 한 번 더 간다.
+         */
+        if (keptCall && isTerminal(keptCall.status)) {
+            slog('경고', `   🔁 [다시 온 비상 보고] ${targetOrderId} — 이미 끝난 콜(${keptCall.status}) · 상태 · 경보 그대로`);
+            return res.json({ success: true, message: "이미 끝난 콜 — 다시 온 비상 보고", clearedOrderId: null });
+        }
         const keepLost = report.reason === 'AUTO_CANCEL' && report.cancelPressed === true && keptCall?.status === 'ORDER_CONFIRMED';
         const endStatus = keepLost ? 'SAFE_CANCEL' : 'ORDER_RELEASED_BY_OFFICE';
         if (keepLost) slog('경고', `   ⏱️ [KEEP 못 감] ${targetOrderId} — KEEP 한 콜을 원달앱이 결재를 못 받아 취소함 · 안전취소로 적는다`);
