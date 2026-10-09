@@ -116,6 +116,14 @@ const stmtUpsert = db.prepare(`
         last_used = datetime('now','localtime')
 `);
 
+/**
+ * 🗝️ **캐시 열쇠** — 번지 없는 질의는 판 글자(«a1|»)를 붙인다(29 X13 · 기사님 «가»). 순서를 바꾸기 전 키워드 좌표로 굳은 옛 줄을 안 쓰고 한 번 다시 묻는다.
+ *    옛 줄은 지우지 않는다(같은 표 · 같은 칸). 번지 있는 질의는 순서가 그대로라 열쇠도 그대로.
+ */
+function geoCacheKeyOf(cleanQuery: string): string {
+    return /\d/.test(cleanQuery) ? cleanQuery : `a1|${cleanQuery}`;
+}
+
 function geoCacheGet(key: string): {x: number, y: number} | undefined {
     // L1 히트
     const l1 = geoL1.get(key);
@@ -745,9 +753,10 @@ export function geocodeAddress(query: string): Promise<{x: number, y: number} | 
 async function geocodeOnce(query: string): Promise<{x: number, y: number} | null> {
     try {
         const cleanQuery = cleanQueryOf(query);
+        const cacheKey = geoCacheKeyOf(cleanQuery);
 
         // ━━━ [P0] 캐시 히트 체크 ━━━
-        const cached = geoCacheGet(cleanQuery);
+        const cached = geoCacheGet(cacheKey);
         if (cached) {
             slog('판정', `🗺️ [GeoCache HIT] '${cleanQuery}' → X:${cached.x}, Y:${cached.y} (API 호출 스킵)`);
             return cached;
@@ -772,11 +781,15 @@ async function geocodeOnce(query: string): Promise<{x: number, y: number} | null
             fallbackQueries.push({ type: 'address', text: addressPart });
         }
         
+        /* 🗺️ 번지 없는 주소는 주소 검색(읍 · 동 중심)이 먼저 — 키워드가 먼저면 «경기 광주시 초월읍»이 읍 안의 아무 장소(4.55km)로 찍혔다(29 X13).
+           장소 이름이 붙은 꼴(«… 곤지암읍 곤지암성당»)은 주소 검색이 0건이라 키워드가 그대로 이긴다 · 번지 있는 꼴은 위 [시도 1]이 먼저 */
+        if (lastNumberIndex === -1) fallbackQueries.push({ type: 'address', text: cleanQuery });
+
         // [시도 2] 원본 텍스트 전체로 키워드 검색 (장소 우선)
         fallbackQueries.push({ type: 'keyword', text: cleanQuery });
 
         // [시도 3] 원본 텍스트 전체로 주소 검색
-        fallbackQueries.push({ type: 'address', text: cleanQuery });
+        if (lastNumberIndex !== -1) fallbackQueries.push({ type: 'address', text: cleanQuery });
 
         // [시도 4] 괄호 텍스트 (신주소/구주소 병기된 경우)
         const parenMatch = query.match(/\(([^)]+)\)/);
@@ -843,7 +856,7 @@ async function geocodeOnce(query: string): Promise<{x: number, y: number} | null
         const chosen = await firstAcceptable(promises, res => regionMatches(res.doc, expectedRegion, query));
         if (chosen) {
             // ━━━ 캐시에 저장 (L1 + L2) ━━━
-            geoCacheSet(cleanQuery, chosen.result);
+            geoCacheSet(cacheKey, chosen.result);
             slog('판정', `🗺️ [GeoCache SET] '${cleanQuery}' → X:${chosen.result.x}, Y:${chosen.result.y} (L1: ${geoL1.size}개)`);
             return chosen.result;
         }
