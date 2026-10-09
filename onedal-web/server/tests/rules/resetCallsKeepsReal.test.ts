@@ -43,6 +43,8 @@ describe('🧹 reset:calls — 실물 읽기는 남긴다', () => {
         expect(db.prepare(`SELECT COUNT(*) n FROM gps_tracks`).get().n).toBe(0);
         db.close();
         expect(out).toContain('실물 2 건 남김');
+        /* 🧮 끝 글이 궤적 줄을 «콜 N 건»으로 읽히게 섞지 않는다 — 실주행 하루면 궤적이 수천 줄이다(24 리뷰) */
+        expect(out).toMatch(/궤적 2 줄/);
     });
     it('🔴 원장(intel)을 조건 없이 지우지 않는다', () => {
         const src = readFileSync(SCRIPT, 'utf8');

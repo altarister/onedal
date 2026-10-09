@@ -71,6 +71,7 @@ const existing = new Set(
 );
 
 let total = 0;
+let trackRows = 0;   // 🛰️ 궤적 줄은 콜 수와 따로 센다 — 실주행 하루면 수천 줄이라 «콜 N 건»으로 섞으면 거짓이 된다
 /* 🔴 원장은 실물(source 'real')을 남긴다 — source 칸이 없는 옛 모양 표는 실물을 가를 수 없어 지금처럼 다 지운다 */
 const hasSource = (t) => db.prepare(`PRAGMA table_info(${t})`).all().some(c => c.name === 'source');
 const wipe = db.transaction(() => {
@@ -82,7 +83,7 @@ const wipe = db.transaction(() => {
     if (n > 0) {
       db.prepare(`DELETE FROM ${t}${where}`).run();
       console.log(`  🧹 ${t.padEnd(22)} ${n} 건 지움`);
-      total += n;
+      if (t === 'gps_tracks') trackRows += n; else total += n;
     }
     if (keepReal) console.log(`  🔒 ${t.padEnd(22)} 실물 ${db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n} 건 남김`);
   }
@@ -90,8 +91,8 @@ const wipe = db.transaction(() => {
 wipe();
 db.close();
 
-console.log(total > 0
-  ? `✅ 콜 ${total} 건을 비웠습니다 (${dbFile}). 설정·필터·좌표캐시는 그대로입니다.`
+console.log(total + trackRows > 0
+  ? `✅ 콜 생애 ${total} 줄 · 궤적 ${trackRows} 줄을 비웠습니다 (${dbFile}). 설정·필터·좌표캐시는 그대로입니다.`
   : `✅ 이미 비어 있습니다 (${dbFile}).`);
 
 /**
