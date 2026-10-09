@@ -16,6 +16,8 @@ object ListTapPick {
         val handBlocks: Boolean,
         val hold: AlarmHold.Kind?,
         val evaluating: () -> Boolean,
+        /** 📲 안전취소가 지키는 계약이 있나(armedOrderId) — 있으면 새 콜을 안 연다(새 계약이 옛 타이머를 덮지 않게 · 38 F36) */
+        val armed: Boolean = false,
     )
 
     /**
@@ -34,16 +36,17 @@ object ListTapPick {
     )
 
     /**
-     * 🚪 누르러 갈까 — 바쁨(앱이 연 콜이 있음) · ✋ 손 먼저(누르기 미룸) · ⏳ 알람 미룸 · 🔒 심사 중 · 👆 누름.
+     * 🚪 누르러 갈까 — 바쁨(앱이 연 콜 · 안전취소가 지키는 계약) · ✋ 손 먼저(누르기 미룸) · ⏳ 알람 미룸 · 🔒 심사 중 · 👆 누름.
      * 누르는 것은 알람 미룸이 «울림(FIRE)»일 때뿐이다 — 미룸 · 없음이면 이번 읽기는 안 누른다.
      */
     fun gate(f: GateFacts): Gate {
-        val handHeld = f.tapsList && !f.openedByApp && f.hasBest && f.handBlocks
-        var openBlocked: String? = if (f.tapsList && f.hasBest && f.openedByApp) OpenBlocked.BUSY else null
+        val busy = f.openedByApp || f.armed   // 앱이 연 콜이 있거나 안전취소가 지키는 계약이 있다 — 둘 다 «바쁨»
+        val handHeld = f.tapsList && !busy && f.hasBest && f.handBlocks
+        var openBlocked: String? = if (f.tapsList && f.hasBest && busy) OpenBlocked.BUSY else null
         if (handHeld) openBlocked = OpenBlocked.HAND_FIRST
         var heldRecheck = false
         var holdFires = false
-        if (f.tapsList && !f.openedByApp) {
+        if (f.tapsList && !busy) {
             when (f.hold) {
                 AlarmHold.Kind.HOLD -> {
                     if (!handHeld) openBlocked = OpenBlocked.ALARM_HELD
@@ -55,7 +58,7 @@ object ListTapPick {
         }
         var evaluatingStop = false
         var planTap = false
-        if (f.tapsList && !f.openedByApp && f.hasBest && holdFires) {
+        if (f.tapsList && !busy && f.hasBest && holdFires) {
             if (f.evaluating()) {
                 openBlocked = OpenBlocked.EVALUATING
                 evaluatingStop = true

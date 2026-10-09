@@ -165,7 +165,8 @@ class HijackService : AccessibilityService(), ScanContext {
         scrapParser = ScrapParser(this, label)
         if (isSwitch) {
             callMemory.clear()
-            resetSessionState()
+            /* 📲 배차망 전환은 놓음이 아니다 — 지키는 계약이 있으면 안전취소를 둔다(원달앱이 그 배차망으로 돌아가 결재를 집행 · 38 F36) */
+            resetSessionState(keepSafeCancel = com.onedal.app.core.SafeCancelKeep.onSwitch(safeCancelTimer.armedOrderId))
         }
         AppLogger.i(TAG, LogTag.BOOT, "🎯 타겟 앱 ${if (isSwitch) "자동 전환" else "설정"} 완료: ${plugin.label}")
         // 🖼️ 배차망이 바뀌면 실제 모드도 바뀔 수 있다 (자동인데 픽커 → 알람) — 테두리를 다시 칠한다
@@ -531,9 +532,8 @@ class HijackService : AccessibilityService(), ScanContext {
     private val safeCancelTimer by lazy {
         val prefs = getSharedPreferences(com.onedal.app.core.Prefs.NAME, Context.MODE_PRIVATE)
         SafeCancelTimer(waitBook, store = object : SafeCancelTimer.Store {
-            override fun put(orderId: String, deadlineWallMs: Long) = prefs.edit().putString(com.onedal.app.core.Prefs.SAFE_CANCEL_ARMED, "$orderId|$deadlineWallMs").apply()
-            override fun get(): Pair<String, Long>? = prefs.getString(com.onedal.app.core.Prefs.SAFE_CANCEL_ARMED, null)
-                ?.split('|')?.takeIf { it.size == 2 }?.let { (id, at) -> at.toLongOrNull()?.let { id to it } }
+            override fun put(armed: SafeCancelTimer.Armed) = prefs.edit().putString(com.onedal.app.core.Prefs.SAFE_CANCEL_ARMED, armed.encode()).apply()
+            override fun get(): SafeCancelTimer.Armed? = SafeCancelTimer.Armed.decode(prefs.getString(com.onedal.app.core.Prefs.SAFE_CANCEL_ARMED, null))
             override fun clear() = prefs.edit().remove(com.onedal.app.core.Prefs.SAFE_CANCEL_ARMED).apply()
         })
     }
@@ -1374,8 +1374,11 @@ class HijackService : AccessibilityService(), ScanContext {
             logPendingWaits("목록 → ${detected.name}")
         }
         if (isListScreen && !wasListScreen) {
-            AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
-            resetSessionState()
+            /* 🖐️ 수락 뒤 배차망이 스스로 보낸 페이지(화물24시 배차내역 목록)는 놓음이 아니다 — 안전취소를 둔다 · 콜 목록은 그 콜을 놓은 것(4db86b2a · 38 F42) */
+            val keepSafeCancel = com.onedal.app.core.SafeCancelKeep.onListReturn(safeCancelTimer.armedOrderId,
+                com.onedal.app.core.SafeCancelKeep.landsAfterAccept(com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).screens, screenRead.page))
+            AppLogger.d(TAG, LogTag.SCREEN, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 해제${if (keepSafeCancel) " · 안전취소는 지킴(수락 뒤 배차망이 보낸 페이지)" else " · 안전취소 락 해제"}")
+            resetSessionState(keepSafeCancel)
             logPendingWaits("${previous.name} → 목록")
             // 📏 앱이 뒤로 간 복귀면 목록 확인까지 ms — 목록 보고는 화면이 바뀐 순간 곧바로 나간다(`updateScreenContext`)
             // ✋ 앱이 뒤로 가기를 안 보냈는데 목록으로 왔다 — 기사님 손(넘기기·뒤로)
@@ -1702,6 +1705,7 @@ class HijackService : AccessibilityService(), ScanContext {
             tapsList = tapsFromList, openedByApp = session.openedByApp, hasBest = bestIdx >= 0,
             handBlocks = handFirst.blocks(tapNowMs), hold = hold,
             evaluating = { evaluatingNow() },
+            armed = safeCancelTimer.armedOrderId != null,
         ))
         /** 🚧 통과 콜이 있는데 안 연 까닭 — 목록 보고 openBlocked (`OpenBlocked`) */
         var openBlocked: String? = gate.openBlocked
@@ -1749,7 +1753,7 @@ class HijackService : AccessibilityService(), ScanContext {
                         val nowY = fareNode.node?.takeIf { it.refresh() }?.let { n -> android.graphics.Rect().also { n.getBoundsInScreen(it) }.centerY() }
                         val stop = com.onedal.app.core.ListTapPick.recheckStop(
                             onList = telemetryManager.currentScreenContext == ScreenContext.LIST,
-                            busy = session.openedByApp || touchManager.tapPending,
+                            busy = session.openedByApp || touchManager.tapPending || safeCancelTimer.armedOrderId != null,
                             handBlocks = handFirst.blocks(nowTap), handWhy = lastHandWhy,
                             evaluating = { evaluatingNow() },
                             scanY = fareNode.rect.centerY(), nowY = nowY,
@@ -2029,7 +2033,7 @@ class HijackService : AccessibilityService(), ScanContext {
         // ⏱️ 그 배차망의 안전취소 시간 (서버 DB) — 픽커는 안전취소가 없어 타이머를 걸지 않는다
         val timeoutMs = com.onedal.app.core.engine.WaitTimes.safeCancelMs(savedFilter(), currentTargetApp) ?: return
         telemetryManager.setFastPoll(com.onedal.app.core.PollOwners.SAFE_CANCEL, true)  // 안전취소 동안 1초 보고 켬
-        safeCancelTimer.start(timeoutMs, session) { onSafeCancelTimeout() }
+        safeCancelTimer.start(timeoutMs, session, network = currentTargetApp, pkg = lastNetworkPackage) { onSafeCancelTimeout() }
         internetSupply.refresh()   // 🌐 안전취소가 걸렸다 — 블루투스가 멀쩡해도 결재를 인터넷으로도 묻는다
     }
 
@@ -2110,8 +2114,10 @@ class HijackService : AccessibilityService(), ScanContext {
             return // 앱이 계약하지 않은 콜은 버튼을 누르지 않는다
         }
 
-        val targetBtnStr = if (plan == com.onedal.app.core.DecisionPlan.PRESS_CLOSE) "닫기" else "취소"
-        AppLogger.roadmap(LogTag.DECISION, "🛡️ 관제탑 판결 수신 (Action: $decision) → '$targetBtnStr' 버튼 클릭 집행 개시", telemetryManager.currentScreenContext.name)
+        /* 🛡️ 누를 글자는 그 콜의 배차망 낱말 한 곳 — 지키는 계약이면 그 배차망 · 아니면 지금 배차망 (`DecisionWord` · 38 F36 · F38) */
+        val wordNet = (if (armedHere) safeCancelTimer.armedNetwork else null) ?: currentTargetApp
+        val targetBtnStr = com.onedal.app.core.DecisionWord.of(plan, com.onedal.app.plugins.DispatchPluginRegistry.get(wordNet).keywords)
+        AppLogger.roadmap(LogTag.DECISION, "🛡️ 관제탑 판결 수신 (Action: $decision) → '${targetBtnStr ?: "누를 단추 없음"}' 버튼 클릭 집행 개시", telemetryManager.currentScreenContext.name)
         AppLogger.d(TAG, LogTag.DECISION, "⚡ 판결 집행: 행동=$decision, 누를버튼=$targetBtnStr (버튼클릭을 시작합니다), 500ms 지연")
         
         // ⏳ 결재 몫 — «취소» 누름이 곧 계약 취소라, 그 사이 콜이 끝나도(목록 오탐 리셋) 거두지 않는다
@@ -2119,7 +2125,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val screenAtFirst = telemetryManager.currentScreenContext
         val orderAtFirst = session.currentOrderId.ifEmpty { orderId ?: "" }
         waitBook.schedule("결재 버튼", com.onedal.app.core.WaitBook.DECISION, 500) {
-            pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = false)
+            pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = false, returnSinceMs = null)
         }
     }
 
@@ -2130,8 +2136,9 @@ class HijackService : AccessibilityService(), ScanContext {
      * 🛡️ **결재 버튼 한 번 누르기** — KEEP «닫기»는 기사님 손이 상세에 있으면 멈출 때까지(최대 3초) 같은 이름으로 다시 건다.
      * 다시 걸었다 누를 때는 화면·콜을 다시 본다 — 그사이 상세를 떠났거나 다른 콜이면 누르지 않는다(`KeepCloseWait.skipWhy`).
      */
-    private fun pressDecisionButton(decision: String, targetBtnStr: String, firstAtMs: Long,
-                                    screenAtFirst: ScreenContext, orderAtFirst: String, waited: Boolean) {
+    /** @param targetBtnStr 그 배차망 낱말(없으면 null — KEEP 은 누를 것 없음 · CANCEL 은 못 누름) · @param returnSinceMs 그 배차망으로 돌아가기 시작한 때(아니면 null) */
+    private fun pressDecisionButton(decision: String, targetBtnStr: String?, firstAtMs: Long,
+                                    screenAtFirst: ScreenContext, orderAtFirst: String, waited: Boolean, returnSinceMs: Long? = null) {
         val now = android.os.SystemClock.elapsedRealtime()
         if (waited) com.onedal.app.core.KeepCloseWait.skipWhy(screenAtFirst, telemetryManager.currentScreenContext, orderAtFirst, session.currentOrderId)?.let { why ->
             AppLogger.i(TAG, LogTag.DECISION, "⏭️ [닫기 건너뜀] $why — 누르지 않는다")
@@ -2141,18 +2148,51 @@ class HijackService : AccessibilityService(), ScanContext {
         if (wait != null) {
             AppLogger.i(TAG, LogTag.DECISION, "⏳ [닫기 미룸] 상세 손 ${now - lastDetailHandAtMs}ms 전 · ${wait}ms 뒤 다시")
             waitBook.schedule("결재 버튼", com.onedal.app.core.WaitBook.DECISION, wait) {
-                pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = true)
+                pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = true, returnSinceMs = returnSinceMs)
             }
             return
         }
         if (decision == "KEEP" && now >= firstAtMs + KeepCloseWait.MAX_MS && now - lastDetailHandAtMs < KeepCloseWait.QUIET_MS)
             AppLogger.i(TAG, LogTag.DECISION, "👆 [닫기] 손이 계속 있어 ${KeepCloseWait.MAX_MS / 1000}초 뒤 누름")
         val byTimeout = decision == "CANCEL" && orderAtFirst.isNotEmpty() && orderAtFirst == timeoutCancelOrderId
+        /**
+         * ↩️ **그 콜의 배차망 화면이 아니면 먼저 돌아간다** (38 F36 · 기사님 «원달앱이 확정한 콜은 원달앱이 끝까지 책임진다» · `ReturnStep`).
+         *    다른 배차망 화면의 글자를 누르지 않는다 · 5초 안에 못 돌아가면 누르지 않고 «취소 못 누름»(계약이 남음).
+         */
+        val armedNet = if (orderAtFirst.isNotEmpty() && orderAtFirst == safeCancelTimer.armedOrderId) safeCancelTimer.armedNetwork else null
+        val since = returnSinceMs ?: now
+        when (com.onedal.app.core.ReturnStep.of(currentTargetApp, armedNet, now - since)) {
+            com.onedal.app.core.ReturnStep.Step.RETURN_FIRST -> {
+                val how = com.onedal.app.core.NetworkFront.of(armedNet!!, safeCancelTimer.armedPackage)
+                if (returnSinceMs == null) {
+                    val sent = bringNetworkForward(how)
+                    AppLogger.i(TAG, LogTag.DECISION, "↩️ [그 배차망으로 돌아감] $orderAtFirst ${currentTargetApp} → $armedNet (${how.kind}${how.pkg?.let { " · $it" } ?: ""}) — ${if (sent) "불러옴" else "불러오지 못함"}")
+                    if (!sent) { giveUpDecision(decision, byTimeout, orderAtFirst, armedNet, "그 배차망 앱을 불러오지 못함"); return }
+                    waitBook.schedule("결재 버튼 · 돌아감 확인", com.onedal.app.core.WaitBook.DECISION, 1_000) {
+                        AppLogger.i(TAG, LogTag.DECISION, "↩️ [돌아감 1초 뒤] 화면 배차망 = $currentTargetApp (지킨 배차망 $armedNet)")
+                    }
+                }
+                waitBook.schedule("결재 버튼", com.onedal.app.core.WaitBook.DECISION, 500) {
+                    pressDecisionButton(decision, targetBtnStr, firstAtMs, screenAtFirst, orderAtFirst, waited = false, returnSinceMs = since)
+                }
+                return
+            }
+            com.onedal.app.core.ReturnStep.Step.GIVE_UP -> { giveUpDecision(decision, byTimeout, orderAtFirst, armedNet, "${com.onedal.app.core.ReturnStep.LIMIT_MS / 1000}초 안에 그 배차망으로 못 돌아옴(화면 $currentTargetApp)"); return }
+            com.onedal.app.core.ReturnStep.Step.PRESS -> Unit
+        }
+        /* 🛡️ 이 배차망에 누를 단추가 없다 — KEEP 은 누를 것 없음(수락하면 곧바로 목록으로 가는 배차망) · CANCEL 은 못 누름(계약이 남음) */
+        if (targetBtnStr == null) {
+            if (decision == "KEEP") {
+                AppLogger.roadmap(LogTag.DECISION, "✅ 판결 KEEP 집행 완료 — 이 배차망은 잡으면 곧바로 목록으로 간다 · 누를 단추 없음", telemetryManager.currentScreenContext.name)
+                resetSessionState()
+            } else giveUpDecision(decision, byTimeout, orderAtFirst, armedNet, "이 배차망의 잡은 뒤 취소 단추를 모름")
+            return
+        }
         val rootNode = rootInActiveWindow
         if (rootNode == null) {
             /* 🛑 화면을 못 얻었다 — 누르지 못했으니 계약이 남아 있다(조용히 넘기지 않는다 · D1 ④) */
             com.onedal.app.core.CancelReport.of(decision, byTimeout, pressed = false)?.let {
-                sendEmergencyReport(it.reason, "판결 $decision — 화면을 못 얻음", it.cancelPressed, orderAtFirst)
+                sendEmergencyReport(it.reason, "판결 $decision — 화면을 못 얻음", it.cancelPressed, orderAtFirst, armedNet)
             }
             if (byTimeout) timeoutCancelOrderId = null
             resetSessionState()
@@ -2162,7 +2202,7 @@ class HijackService : AccessibilityService(), ScanContext {
         val pressed = touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)
         if (pressed) touchManager.noteAppLeft()   // 🚪 결재 버튼으로 떠난 목록 복귀는 기사님 손이 아니다
         com.onedal.app.core.CancelReport.of(decision, byTimeout, pressed)?.let {
-            sendEmergencyReport(it.reason, if (pressed) "안전취소 응답 없음 — 취소를 눌렀다" else "판결 $decision 의 대상 $targetBtnStr 버튼 누락", it.cancelPressed, orderAtFirst)
+            sendEmergencyReport(it.reason, if (pressed) "안전취소 응답 없음 — 취소를 눌렀다" else "판결 $decision 의 대상 $targetBtnStr 버튼 누락", it.cancelPressed, orderAtFirst, armedNet)
         }
         if (byTimeout) timeoutCancelOrderId = null
         if (pressed) {
@@ -2186,8 +2226,8 @@ class HijackService : AccessibilityService(), ScanContext {
         rootNode.recycle()
     }
 
-    /** @param forOrderId 그 콜 번호 — 원달앱이 다시 떠 세션이 비었어도 결재 버튼이 쥔 콜로 보낸다 */
-    private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "", cancelPressed: Boolean? = null, forOrderId: String? = null) {
+    /** @param forOrderId 그 콜 번호 — 원달앱이 다시 떠 세션이 비었어도 결재 버튼이 쥔 콜로 보낸다 · @param forNetwork 그 콜의 배차망(지키는 계약) — 없으면 지금 배차망 */
+    private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "", cancelPressed: Boolean? = null, forOrderId: String? = null, forNetwork: String? = null) {
         val orderId = forOrderId?.ifEmpty { null } ?: session.currentOrderId.ifEmpty { "unknown" }
         val report = EmergencyReport(
             deviceId = apiClient.getDeviceId(),
@@ -2196,7 +2236,7 @@ class HijackService : AccessibilityService(), ScanContext {
             screenContext = telemetryManager.currentScreenContext.value,
             screenText = extraText,
             timestamp = nowTimestamp(),
-            targetApp = currentTargetApp,
+            targetApp = forNetwork ?: currentTargetApp,
             cancelPressed = cancelPressed,
         )
         apiClient.sendEmergency(report) { delivered ->
@@ -2205,6 +2245,35 @@ class HijackService : AccessibilityService(), ScanContext {
             AppLogger.w(TAG, LogTag.NETWORK, "📮 [못 보낸 자동 취소 보고] ${report.orderId} — 들고 있다가 보고가 닿으면 다시 보낸다")
         }
     }
+
+    /**
+     * 🛑 **결재 버튼을 못 누르고 끝낸다** — 화면 · 단추 · 그 배차망으로 못 돌아옴 · 단추 글자 모름 모두 같은 끝(계약이 남음 · `CancelReport` 못 눌렀음).
+     */
+    private fun giveUpDecision(decision: String, byTimeout: Boolean, orderAtFirst: String, armedNet: String?, why: String) {
+        AppLogger.e(TAG, "❌ 판결 $decision 못 누름 — $why (계약이 남아 있다)")
+        com.onedal.app.core.CancelReport.of(decision, byTimeout, pressed = false)?.let {
+            sendEmergencyReport(it.reason, "판결 $decision — $why", it.cancelPressed, orderAtFirst, armedNet)
+        }
+        if (byTimeout) timeoutCancelOrderId = null
+        resetSessionState()
+    }
+
+    /**
+     * 📲 **그 배차망 앱을 앞으로 불러온다** (`NetworkFront` · 38 F36) — 시뮬레이터는 «net» 신호(다시 켜지 않음) · 실물은 그 패키지 실행.
+     *    접근성 서비스는 배경에서 화면을 여는 제한의 예외로 안다 — 막히면 false 가 아니라 화면이 안 바뀌어 5초 뒤 포기(`ReturnStep`).
+     */
+    private fun bringNetworkForward(how: com.onedal.app.core.NetworkFront.How): Boolean = runCatching {
+        val intent = when (how.kind) {
+            com.onedal.app.core.NetworkFront.Kind.SIMULATOR -> android.content.Intent()
+                .setComponent(android.content.ComponentName(TargetApp.SIMULATOR_PACKAGE, com.onedal.app.core.NetworkFront.SIMULATOR_ACTIVITY))
+                .putExtra(com.onedal.app.core.NetworkFront.NET_EXTRA, how.net)
+            com.onedal.app.core.NetworkFront.Kind.LAUNCH -> packageManager.getLaunchIntentForPackage(how.pkg!!) ?: return false
+            com.onedal.app.core.NetworkFront.Kind.NONE -> return false
+        }
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        true
+    }.getOrElse { e -> AppLogger.e(TAG, "↩️ [그 배차망으로 돌아감] 실패 — ${e.message}"); false }
 
     private fun pendingPrefs() = getSharedPreferences(com.onedal.app.core.Prefs.NAME, Context.MODE_PRIVATE)
     private fun loadPendingEmergency() = com.onedal.app.core.PendingEmergency.fromJson(pendingPrefs().getString(com.onedal.app.core.Prefs.PENDING_AUTO_CANCEL, null))
@@ -2235,13 +2304,17 @@ class HijackService : AccessibilityService(), ScanContext {
     // ════════════════════════════════════════════════════════════════
 
     /** 세션 상태 전체 초기화 (리스트 복귀 시 호출) */
-    override fun resetSessionState() {
+    override fun resetSessionState() = resetSessionState(keepSafeCancel = false)
+
+    /** @param keepSafeCancel 세션은 비우되 안전취소 타이머는 둔다 — 배차망 전환 · 수락 뒤 배차망이 보낸 페이지(`SafeCancelKeep` · 38 F36 · F42) */
+    private fun resetSessionState(keepSafeCancel: Boolean) {
         cancelDetailBack()   // ⏱️ 콜이 끝났다 — 상세 대기 타이머도 이 한 곳에서 끈다 (#124)
         // ⏳ 콜이 끝났다 — 이 콜이 건 기다림(세션 몫)을 한 번에 거둔다
         waitBook.cancelOwner(com.onedal.app.core.WaitBook.SESSION).takeIf { it.isNotEmpty() }
             ?.let { AppLogger.d(TAG, LogTag.SCREEN, "⏳ [기다림 거둠] 세션 — ${it.joinToString(" · ")}") }
+        if (keepSafeCancel) safeCancelTimer.armedOrderId?.let { AppLogger.i(TAG, LogTag.DECISION, "🛡️ [안전취소 유지] $it — 세션은 비우되 타이머는 둔다 · 원달앱이 끝까지 책임진다") }
         session.reset {
-            cancelSafeCancelTimer()   // 🔓 목록 복귀 = 이 콜을 놓았다 — 서버도 목록 이탈 유예 3초 뒤 치우고 취소로 센다(같은 규칙 하나 · 기사님 «자동이면 확정까지 된 상태라 취소가 맞다»)
+            if (!keepSafeCancel) cancelSafeCancelTimer()   // 🔓 목록 복귀 = 이 콜을 놓았다 — 서버도 목록 이탈 유예 3초 뒤 치우고 취소로 센다(같은 규칙 하나 · 기사님 «자동이면 확정까지 된 상태라 취소가 맞다»)
             telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 콜 잡기 모드
             telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 해제 알림
         }

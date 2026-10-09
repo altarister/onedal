@@ -18,8 +18,15 @@ class ListTapPickTest {
     private var evaluatingReads = 0
     private fun facts(
         tapsList: Boolean = true, openedByApp: Boolean = false, hasBest: Boolean = true, handBlocks: Boolean = false,
-        hold: AlarmHold.Kind? = AlarmHold.Kind.FIRE, evaluating: Boolean = false,
-    ) = ListTapPick.GateFacts(tapsList, openedByApp, hasBest, handBlocks, hold, { evaluatingReads++; evaluating })
+        hold: AlarmHold.Kind? = AlarmHold.Kind.FIRE, evaluating: Boolean = false, armed: Boolean = false,
+    ) = ListTapPick.GateFacts(tapsList, openedByApp, hasBest, handBlocks, hold, { evaluatingReads++; evaluating }, armed = armed)
+
+    /* 📲 안전취소가 지키는 계약이 있는 동안(다른 배차망 화면 · 화물24시 배차내역)은 새 콜을 안 연다 — 새 계약이 옛 타이머를 덮지 않게 (38 F36) */
+    @Test fun `🔴 지키는 계약이 있으면 바쁨 — 안 누른다`() {
+        val g = ListTapPick.gate(facts(armed = true))
+        assertEquals(OpenBlocked.BUSY, g.openBlocked)
+        assertEquals(false, g.planTap)
+    }
 
     @Test fun `다 맑으면 누르러 간다`() {
         val g = ListTapPick.gate(facts())

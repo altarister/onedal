@@ -79,7 +79,7 @@ class WaitBookTest {
     @Test fun `결재 버튼은 결재 몫 · 세션이 끝나면 세션 몫을 거둔다`() {
         val src = File("$root/HijackService.kt").readText()
         assertTrue("취소 누름을 잃지 않게 세션 몫에서 뺀다", src.contains("waitBook.schedule(\"결재 버튼\", com.onedal.app.core.WaitBook.DECISION, 500)"))
-        val reset = src.substringAfter("override fun resetSessionState() {").substringBefore("\n    }")
+        val reset = src.substringAfter("private fun resetSessionState(keepSafeCancel: Boolean) {").substringBefore("\n    }")
         assertTrue(reset.contains("waitBook.cancelOwner(com.onedal.app.core.WaitBook.SESSION)"))
         assertFalse(File("$root/core/engine/PreConfirmSequence.kt").readText().contains("mainHandler.postDelayed"))
     }

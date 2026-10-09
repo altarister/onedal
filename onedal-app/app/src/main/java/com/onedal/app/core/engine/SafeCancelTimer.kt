@@ -21,9 +21,26 @@ class SafeCancelTimer(
 ) {
     /** 💾 안전취소 저장 손잡이 — 실물은 원달앱 저장소(`Prefs.SAFE_CANCEL_ARMED`) · 검사는 가짜 */
     interface Store {
-        fun put(orderId: String, deadlineWallMs: Long)
-        fun get(): Pair<String, Long>?
+        fun put(armed: Armed)
+        fun get(): Armed?
         fun clear()
+    }
+
+    /**
+     * 💾 **적어 두는 지키는 계약** — 콜 번호 · 벽시계 마감 · 그 콜의 배차망 · 계약 때 본 패키지(38 F36 · 같은 칸의 값이 정확해진 것).
+     *    옛 값(«콜|마감» 두 칸)은 배차망 · 패키지 없이 읽는다 — 그때는 지금 화면에서 누른다(`ReturnStep`).
+     */
+    data class Armed(val orderId: String, val deadlineWallMs: Long, val network: String? = null, val pkg: String? = null) {
+        fun encode(): String = listOf(orderId, deadlineWallMs.toString(), network ?: "", pkg ?: "").joinToString("|")
+
+        companion object {
+            fun decode(raw: String?): Armed? {
+                val p = raw?.split('|') ?: return null
+                if (p.size != 2 && p.size != 4) return null
+                val at = p[1].toLongOrNull() ?: return null
+                return Armed(p[0], at, p.getOrNull(2)?.ifEmpty { null }, p.getOrNull(3)?.ifEmpty { null })
+            }
+        }
     }
 
     companion object {
@@ -34,10 +51,17 @@ class SafeCancelTimer(
     private var runnable: Runnable? = null
 
     /**
-     * 🔒 **이 타이머가 지키는 콜** (null = 안 걸림). 타이머가 **제 콜 번호를 스스로 쥔다** — 화면이 목록으로 돌아와
-     *    세션이 비어도(`SessionManager.reset`) 끄지 않고 울린다(D1 ①). 그 뒤 온 결재도 이 번호로 알아본다(`DecisionReplay`).
+     * 🔒 **이 타이머가 지키는 콜** (null = 안 걸림). 타이머가 **제 콜 번호를 스스로 쥔다** — 세션을 비워도(`SessionManager.reset`)
+     *    끄지 않는 한 운다: 배차망 전환 · 수락 뒤 배차망이 보낸 페이지는 끄지 않고(38 F36 · F42 · `SafeCancelKeep`),
+     *    콜 목록으로 돌아온 것은 그 콜을 놓은 것이라 끈다(4db86b2a). 그 뒤 온 결재도 이 번호로 알아본다(`DecisionReplay`).
      */
     var armedOrderId: String? = null
+        private set
+
+    /** 🌐 지키는 콜의 배차망 · 계약 때 본 패키지 — 결재 · 시간 끝에 그 배차망으로 돌아가 누른다(`ReturnStep` · `NetworkFront`) · 모르면 null */
+    var armedNetwork: String? = null
+        private set
+    var armedPackage: String? = null
         private set
 
     /**
@@ -61,19 +85,22 @@ class SafeCancelTimer(
      *
      * @param timeoutMs 타임아웃 밀리초 (기본 30000)
      * @param session 세션 매니저 (isWaitingForDecision 관리)
+     * @param network 그 콜의 배차망 · @param pkg 계약 때 본 패키지 — 돌아가 누르는 재료(모르면 null)
      * @param onTimeout 타임아웃 시 호출될 콜백
      */
-    fun start(timeoutMs: Long, session: SessionManager, onTimeout: () -> Unit) {
+    fun start(timeoutMs: Long, session: SessionManager, network: String? = null, pkg: String? = null, onTimeout: () -> Unit) {
         if (!session.contractedByApp) return // 앱이 계약하지 않은 콜은 서버가 취소권한 없음
 
         cancel(session)
         session.isWaitingForDecision = true
         armedOrderId = session.currentOrderId
+        armedNetwork = network
+        armedPackage = pkg
         AppLogger.roadmap(LogTag.DECISION, "⏳ 안전취소 타이머 가동 (${timeoutMs / 1000}초 대기 → 서버 판결 대기 시작)", "DEATHVALLEY")
         AppLogger.w(TAG, "⏳ 안전취소 타이머 시작: ${timeoutMs / 1000}초 대기...")
 
         deadlineAt = clock() + timeoutMs
-        store?.put(armedOrderId ?: "", wallClock() + timeoutMs)
+        store?.put(Armed(armedOrderId ?: "", wallClock() + timeoutMs, network, pkg))
         arm(timeoutMs, onTimeout)
     }
 
@@ -83,9 +110,12 @@ class SafeCancelTimer(
      * @return 되살린 콜과 남은 ms (적어 둔 것이 없으면 null)
      */
     fun restore(session: SessionManager, onTimeout: () -> Unit): Pair<String, Long>? {
-        val (id, deadlineWall) = store?.get() ?: return null
-        val left = (deadlineWall - wallClock()).coerceAtLeast(0L)
+        val saved = store?.get() ?: return null
+        val id = saved.orderId
+        val left = (saved.deadlineWallMs - wallClock()).coerceAtLeast(0L)
         armedOrderId = id
+        armedNetwork = saved.network
+        armedPackage = saved.pkg
         session.isWaitingForDecision = true
         deadlineAt = clock() + left
         arm(left, onTimeout)
@@ -94,7 +124,7 @@ class SafeCancelTimer(
 
     private fun arm(timeoutMs: Long, onTimeout: () -> Unit) {
         runnable = Runnable {
-            if (armedOrderId != null) {   // 🔒 세션이 아니라 제 표시를 본다 — 목록 복귀로 세션이 비어도 운다
+            if (armedOrderId != null) {   // 🔒 세션이 아니라 제 표시를 본다 — 배차망 전환 등으로 세션이 비어도 운다
                 AppLogger.roadmap(LogTag.DECISION, "🚨 안전취소 타임아웃! 서버 응답 없음 → 기사 보호를 위한 강제 배차 취소 집행", "DEATHVALLEY")
                 AppLogger.e(TAG, "🚨 안전취소 타임아웃! 기사님 보호를 위해 강제 배차 취소 집행!")
                 onTimeout()
@@ -118,6 +148,8 @@ class SafeCancelTimer(
         runnable = null
         deadlineAt = 0L
         armedOrderId = null
+        armedNetwork = null
+        armedPackage = null
         store?.clear()
         session.isWaitingForDecision = false
     }

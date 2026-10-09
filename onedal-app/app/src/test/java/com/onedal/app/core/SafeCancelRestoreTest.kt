@@ -12,8 +12,8 @@ import org.junit.Test
  */
 class SafeCancelRestoreTest {
     private class FakeStore : SafeCancelTimer.Store {
-        var v: Pair<String, Long>? = null
-        override fun put(orderId: String, deadlineWallMs: Long) { v = orderId to deadlineWallMs }
+        var v: SafeCancelTimer.Armed? = null
+        override fun put(armed: SafeCancelTimer.Armed) { v = armed }
         override fun get() = v
         override fun clear() { v = null }
     }

@@ -61,8 +61,9 @@ describe('🔚 세션은 콜이 끝날 때만 지운다', () => {
         const s = src();
         const i = s.indexOf('isListScreen && !wasListScreen');
         expect(i).toBeGreaterThan(-1);
-        const block = s.slice(i, i + 400);
-        expect(block).toMatch(/resetSessionState\(\)/);
+        const block = s.slice(i, i + 900);
+        /* 인자는 안전취소 타이머만 가른다(수락 뒤 배차망이 보낸 페이지면 둠 · 38 F42) — 세션은 늘 지운다 */
+        expect(block).toMatch(/resetSessionState\(/);
         expect(block).not.toMatch(/hasActiveSession\(\)/);
     });
 
@@ -75,7 +76,9 @@ describe('🔚 세션은 콜이 끝날 때만 지운다', () => {
         // 배차망 자동 전환(applyTargetApp) — 다른 배차망으로 갈아타는 순간
         // 체험(SIMULATION) 뒤로가기 복귀 · 알람에서 앱이 연 콜이 결재 CANCEL 을 받아 목록으로 돌아올 때
         // 앱이 누른 목록 줄이 안 먹혔을 때(화면 그대로 · 목록 리셋이 안 온다 — `DetailOwner.releaseOnTapFailed`)
-        const hits = src().match(/(?<!fun )resetSessionState\(\)/g) ?? [];
-        expect(hits.length).toBe(8);
+        // 결재를 못 누르고 끝냄(giveUpDecision · 38 F36) · 누를 단추 없는 KEEP 끝(화물24시) · 인자 없는 부름을 넘기는 한 줄(override)
+        // 안전취소 타이머를 둘지는 인자(keepSafeCancel)가 가른다 — 세션을 지우는 자리라는 뜻은 같아 함께 센다
+        const hits = src().match(/(?<!fun )resetSessionState\(/g) ?? [];
+        expect(hits.length).toBe(11);
     });
 });
