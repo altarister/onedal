@@ -101,14 +101,3 @@ describe('🚚 배송 주행 · 판정 근거 서랍', () => {
         expect(text(html)).toContain('단독 14.7km / 22분');
     });
 });
-
-describe('🐥 연습 콜 — 운행이 아니다', () => {
-    it('🔴 끝난 연습 콜(KEEP · 거절 모두 SAFE_CANCEL 로 닫힘)에는 «🐥 연습 끝» 한 줄 · 체험 운행 · 종료 단추 없음', () => {
-        const t = text(draw({ route: { ...ROUTE, isSimulated: true, status: 'SAFE_CANCEL' } }));
-        expect(t).toContain('🐥 연습 끝');
-        expect(t).not.toContain('체험');
-    });
-    it('진짜 콜이 끝나면 배지 없음', () => {
-        expect(text(draw({ route: { ...ROUTE, status: 'SAFE_CANCEL' } }))).not.toContain('연습 끝');
-    });
-});

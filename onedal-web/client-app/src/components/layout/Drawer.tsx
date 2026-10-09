@@ -5,6 +5,7 @@ import { getAddressLabel } from '../../lib/routeUtils';
 import { reservedLineOf } from '../../lib/reservedLine';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { callsInView, countsByView, FINISHED_TABS, type CallView } from '../../lib/finishedCalls';
+import { practiceBadgeOf } from '../../lib/callBadges';
 import { hhmmText } from "@onedal/shared";
 
 /**
@@ -168,7 +169,14 @@ export default function Drawer({ open, onClose, activeRoute, reserved = [], onDe
                                 </span>
                             </div>
                             <div className="flex items-baseline justify-between gap-2 mt-0.5">
-                                <span className="text-[10px] text-text-muted">{whyOf(c)}</span>
+                                {/* 🐥 끝난 연습 콜을 그리는 곳은 서랍 하나다 — 덱(`deckOfCycle`)은 SAFE_CANCEL 을 안 담는다.
+                                    «안전취소» 대신 결재석과 같은 노란 «🐥 연습 끝»(판단은 `practiceBadgeOf` 하나) — 취소 횟수에 드는 진짜 안전취소와 가른다 */}
+                                {(() => {
+                                    const practice = practiceBadgeOf(c);
+                                    return practice
+                                        ? <span className={`px-1.5 py-0.5 rounded border text-[10px] font-black ${practice.tone}`}>{practice.text}</span>
+                                        : <span className="text-[10px] text-text-muted">{whyOf(c)}</span>;
+                                })()}
                                 <span className="text-[10px] tabular-nums text-text-muted">{clockOf(c)}</span>
                             </div>
                         </div>

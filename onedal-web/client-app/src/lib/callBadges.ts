@@ -2,7 +2,7 @@ import { isManualLineage, isTerminal, modeActsOf } from '@onedal/shared';
 import type { SecuredOrder } from '@onedal/shared';
 
 /**
- * 🏷️ **결재석 · 목록 줄이 같은 콜을 같은 말 · 같은 색으로** (29 N7 «어디서나 같게» · 34 P5).
+ * 🏷️ **결재석(심사 중 «🐥 연습») · 서랍(끝난 «🐥 연습 끝») · 덱 머리글이 같은 콜을 같은 말 · 같은 색으로** (29 N7 «어디서나 같게» · 34 P5).
  *    두 화면과 심사석 로그(`useOrderEngine`)가 이 함수들을 읽는다 — 자리마다 따로 세면 한쪽만 바뀌어 화면과 로그가 다른 말을 한다.
  */
 type CallFacts = Pick<SecuredOrder, 'type' | 'status' | 'isSimulated' | 'isPreview' | 'capturedVia'> & { capturedMode?: string | null };

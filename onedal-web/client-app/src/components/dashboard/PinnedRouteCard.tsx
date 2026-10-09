@@ -7,7 +7,7 @@ import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { telHref } from "../../lib/routeUtils";
 import { callNow } from "../../lib/phoneCall";
-import { drawsDecisionButtons, practiceBadgeOf, capturedHowOf } from "../../lib/callBadges";
+import { drawsDecisionButtons, capturedHowOf } from "../../lib/callBadges";
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 
 
@@ -328,10 +328,6 @@ export default function PinnedRouteCard({
                         <span className="px-1.5 py-0.5 rounded bg-info/15 text-info text-[11px] font-black">
                             {capturedHowOf(route).label}
                         </span>
-                    )}
-                    {/* 🐥 연습 콜은 운행으로 안 올라간다 — 결재(KEEP · 거절)가 오면 둘 다 연습 끝으로 닫혀 취소/방출 탭에 이 배지로 남는다 */}
-                    {route.isSimulated && isTerminal(route.status) && (
-                        <span className={`px-1.5 py-0.5 rounded border text-[11px] font-black ${practiceBadgeOf(route)?.tone}`}>{practiceBadgeOf(route)?.text}</span>
                     )}
                     {evaluating && <span className="text-warning font-black animate-pulse">평가중</span>}
                     {/* 🎨 판정색 칩 — KEEP 버튼 배경에만 색을 두면, 버튼 없는 직접·알람 콜은
