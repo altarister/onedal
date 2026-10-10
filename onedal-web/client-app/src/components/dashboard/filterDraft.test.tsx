@@ -203,6 +203,7 @@ describe('📏 저장 줄 — 버튼만', () => {
         const html = openWindow();
         expect(html).not.toContain('서버와 같음');
         expect(text(saveButton().children)).not.toContain('저장 전');
+        expect(text(box.buttons.find(b => String(b.title ?? '').includes('서버에 저장된 값으로'))?.children)).toBe('되돌리기');
     });
     it('서버와 다르면 💾 버튼 안에 «저장 전» · 줄에 «서버와 다름» 글은 없다', () => {
         useFilterStore.setState({ filter: { ...SERVED, minFare: 7000 }, baseFilter: SERVED } as any);
