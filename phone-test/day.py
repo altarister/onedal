@@ -439,6 +439,12 @@ def act(a):
         tap(v)
     elif k in ('keep', 'reject'): seat(k, v)
     elif k == 'keep_server': keep_server(v)
+    elif k == 'mark_srv':   # 서버 기록 기준점을 지금으로 — 뒤 wait_srv 가 이 뒤에 선 줄만 본다(같은 줄이 장면 앞쪽에 먼저 찍혀도 헷갈리지 않게 · 105판 S02)
+        if DRY: log('  📍 서버 기준점'); return
+        PENDING['smark2'] = srv_mark()
+    elif k == 'wait_srv':   # {re · sec} — mark_srv 뒤에 그 서버 줄이 서기를 기다림
+        if DRY: log(f'  ⏳ srv «{v["re"]}» {v["sec"]}초(기준점 뒤)'); return
+        wait_for('srv', PENDING.get('smark2') or srv_mark(), v['re'], v['sec'], v['re']); note(CUR[0], f'srv(기준점 뒤): {v["re"][:40]}', True, '섬')
     elif k == 'expect_app_filter':   # {칸: 값} — 원달앱이 받은 필터가 그 값이 될 때까지 20초 · 장면 가운데 확인(적용 뒤 · 저장 뒤)
         if DRY: log(f'  🔎 원달앱 필터 {v} 기다림'); return
         end = time.time() + 20

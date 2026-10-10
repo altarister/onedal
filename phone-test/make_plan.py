@@ -51,6 +51,8 @@ def act(k, v):
     if k == 'expect_app_filter': return (T, 'A24', '원달앱 필터가 ' + ' · '.join(f'{a} {b}' for a, b in v.items()) + ' 인가', '원달앱 설정 파일(activeFilter)을 20초까지 읽어 그 값이 되나 봄')
     if k == 'mode_net_matrix':
         return (T, 'A24 · S23', '모드 ' + ' → '.join(MODE.get(m, m) for m in v.get('modes', [])) + ' × 배차망 모두', '모드마다: 관제앱 모드 단추로 바꿈 → 배차망 목록(원달앱 플러그인 · 시뮬 SIM_NET_LIST 에서 그때 읽음)을 하나씩 시뮬 «배차망 바꿈» 신호로 열기 → 원달앱 «타겟 앱 자동 전환 완료: …» 25초 → 원달앱이 받은 필터(목적지 · 최저 · 켜짐 · 키워드 수 · 차종)를 칸별로 기록하고 키워드 수를 서버가 보낸 것과 견줌 · 끝은 마지막 모드 · 인성')
+    if k == 'mark_srv': return (T, '—', '서버 기록 기준점 표시', '이 뒤에 찍힌 서버 기록만 본다')
+    if k == 'wait_srv': return ('서버 스스로', '맥', '서버 기록 «' + v['re'].replace('\\', '')[:30] + '» 기다림(기준점 뒤)', f'«서버 저장» 단추를 누른 뒤의 서버 기록에서 {v["sec"]}초 안에')
     if k == 'sim_all_nets': return (T, 'A24', '배차망 모두 차례로 바꿈', '')
     if k == 'home_off_if_mine': return (T, 'S23', '이번 판에 스크립트가 켠 귀가만 끔', '')
     if k == 'filter_revert_if_unsaved': return (T, 'S23', '«저장 전»이면 «되돌리기»', '')

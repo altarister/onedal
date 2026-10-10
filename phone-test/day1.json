@@ -220,7 +220,16 @@
      "tap": "s23.filter.minfare.minus"
     },
     {
+     "mark_srv": {}
+    },
+    {
      "tap": "s23.filter.save"
+    },
+    {
+     "wait_srv": {
+      "re": "영구 설정\\(baseFilter\\) DB 저장 완료",
+      "sec": 20
+     }
     },
     {
      "expect_app_filter": {
@@ -228,12 +237,7 @@
      }
     }
    ],
-   "wait": [
-    {
-     "server": "영구 설정\\(baseFilter\\) DB 저장 완료",
-     "sec": 20
-    }
-   ],
+   "wait": [],
    "check": {
     "app_filter_city": {
      "city": "이천시"
