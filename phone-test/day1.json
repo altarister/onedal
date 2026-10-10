@@ -1,0 +1,1267 @@
+{
+ "id": "day1",
+ "title": "하루 일과 한 벌 — 7콜(이천 가는 길 3 · 이천 관내 1 · 복귀 3) · 인성 · 화물24시 · 픽커(시뮬) 섞음",
+ "about": "기사님 결정(10-10 · 71 전달): «데이터 지우고 서버랑 연결된거 확인하면 필터 이천방면으로 … 적용 · 첫콜 두 개 중 높은걸 · 합짐 · 경로 받아서 모의 주행 · 픽커가 나오면 알림으로 · 7콜 · 필요한 모든 단추 · 필터 수정 저장 · 모든 이벤트가 시퀀스처럼». 실행기 phone-test/day.py 가 이 파일을 읽어 차례로 돈다 — 시나리오를 바꿀 때는 이 파일만 고친다. 누를 자리는 taps.json 한 곳. expect · wrong 은 ef 가 코드 근거로 채운다.",
+ "vocab": {
+  "reset_calls": "R0 — 9e 가 `pnpm reset:calls`(콜 생애 · 궤적만 · 기사님 허락 · 서버 다시 뜸) 한 뒤 «계속»",
+  "check": "connected — 서버 health · 관제웹 소켓 · 원달앱 보고 · 블루투스 공급 연결",
+  "snapshot": "user_filters · user_settings 를 떠 둔다(끝에 같은지 견줌)",
+  "mode": "ALARM · AUTO · MANUAL · SIMULATION — run.set_mode(접힘 · 펼침 사진으로 가름)",
+  "sim": "insung · hwamul24 · picker — run.sim_open(그 목록이면 다시 안 켬)",
+  "call": "{net · pick · drop · fare · veh · tag · bind} — 시뮬 개별콜 · pick/drop 은 places 이름 또는 dest:far(그 순간 하차 목록 가운데 경로에서 먼 동) · bind 는 결재 뒤 콜 번호를 이름으로 기억",
+  "tap": "taps.json 이름 — 누르기 전 앞 창 · 색 확인 · 좌표 null 이면 ⚪",
+  "keep · reject": "결재석 KEEP / 거절 — 서버가 그 콜을 안 치웠을 때만(run.keep_on_seat)",
+  "joystick": "{leg} — «🟡 9e: {leg} 시작» 찍고 기다림 · mock 으로 움직이면 10초 섞임 감시(g.mock_guard)",
+  "ble": "off · on — A24 블루투스(cmd bluetooth_manager)",
+  "photo": "S23 · A24 사진",
+  "wait": "[{server|app: 정규식 · sec}] — {C1} 같은 이름은 bind 한 콜 번호 앞 8자리로 바뀜",
+  "onFail": "tool=⚪ 적고 다음 · stop=정리 뒤 멈춤 · skip=적지 않고 다음"
+ },
+ "places": {
+  "home": [
+   "경기 광주시 초월읍 경충대로1127번길 15",
+   "초월읍",
+   127.294001,
+   37.377178
+  ],
+  "moda": [
+   "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
+   "초월읍",
+   127.312588,
+   37.3633
+  ],
+  "gonjiam41": [
+   "경기 광주시 곤지암읍 경충대로 41 서민행복주유소",
+   "곤지암읍",
+   127.394927,
+   37.328137
+  ],
+  "gj487": [
+   "경기 광주시 곤지암읍 경충대로 487 금강에너지주유소",
+   "곤지암읍",
+   127.351492,
+   37.343645
+  ],
+  "gj765": [
+   "경기 광주시 곤지암읍 경충대로 765 스타벅스 곤지암IC DT점",
+   "곤지암읍",
+   127.325242,
+   37.355649
+  ],
+  "woori": [
+   "경기 이천시 신둔면 경충대로 3282 우리주유소",
+   "신둔면",
+   127.397183,
+   37.3174
+  ],
+  "ian": [
+   "경기 이천시 신둔면 경충대로 3035-1 이안로지스",
+   "신둔면",
+   127.407889,
+   37.29766
+  ],
+  "gwango": [
+   "경기 이천시 관고동 107-5 이천제일식자재마트",
+   "관고동",
+   127.42923,
+   37.285068
+  ],
+  "jungri": [
+   "경기 이천시 중리동 219-1 이천터미널",
+   "중리동",
+   127.446936,
+   37.277421
+  ],
+  "cw1021": [
+   "경기 광주시 초월읍 경충대로 1021 CJ대한통운 경기고속주유소",
+   "초월읍",
+   127.302786,
+   37.370096
+  ],
+  "cw1066": [
+   "경기 광주시 초월읍 경충대로 1066 초월역",
+   "초월읍",
+   127.299992,
+   37.373355
+  ],
+  "daewol": [
+   "경기 이천시 대월면 대장로 190 쿠팡 이천3센터",
+   "대월면",
+   127.469346152223,
+   37.2194373417632
+  ]
+ },
+ "routes": {
+  "how": "서버 POST /api/sim/route(개발 빌드 · 카카오 · 구간마다 1번)로 points 를 잇고 legs 를 이어 GPX 로 쓴다(day.py route) · 9e 가 S23 Download 로 넣음 · 한 번 만들면 파일을 다시 씀(카카오 다시 안 부름) · JoyStick 은 GPX 시각을 안 보고 앱 속도 칸(100km/h)으로 걷고 «도착시 멈춤»은 끝에서만 선다 — 그래서 서야 하는 곳마다 경로를 끊는다(바꾸는 횟수는 F28 때문에 최소 — 귀가를 마지막 관내 하차 뒤에 두려고 L3 를 L3a · L3b 로 나눔)",
+  "L1": {
+   "points": [
+    "home",
+    "moda"
+   ],
+   "gpx": "onedal-day1-L1.gpx",
+   "stopAt": "moda",
+   "say": "집 → 모다아울렛(첫짐 상차 · 서서 도착 감지)"
+  },
+  "L2": {
+   "points": [
+    "moda",
+    "gj487",
+    "gonjiam41",
+    "woori",
+    "ian",
+    "gwango"
+   ],
+   "gpx": "onedal-day1-L2.gpx",
+   "stopAt": "gwango",
+   "say": "모다 → 곤지암 → 신둔(합짐 하차 · 첫짐 하차 지나침) → 이천 관고동(서서 · 관내 상차 · 자동 합짐 하차)"
+  },
+  "L3a": {
+   "points": [
+    "gwango",
+    "jungri"
+   ],
+   "gpx": "onedal-day1-L3a.gpx",
+   "stopAt": "jungri",
+   "say": "관고동 → 중리동(서서 · 관내 C4 하차 도착 → 손 하차 완료)"
+  },
+  "L3b": {
+   "points": [
+    "jungri",
+    "ian",
+    "gj487",
+    "gj765",
+    "cw1021",
+    "cw1066",
+    "home"
+   ],
+   "gpx": "onedal-day1-L3b.gpx",
+   "stopAt": "home",
+   "say": "중리동 → 신둔 → 곤지암 → 초월 → 집(복귀 셋 · 마지막 하차 서서 도착)"
+  }
+ },
+ "steps": [
+  {
+   "id": "S01",
+   "say": "판 시작 — 시뮬을 새로 켜 인성 «신규 콜 목록»(개별콜 · 콜 0건) · 원달앱 «이미 본 콜» 기억 비우기 · 관제앱 다시 열기(통계 띠 닫기) · 블루투스 공급 연결 확인 · 시작 때 필터 · 설정 · 모드 기록(S99 기준) — JoyStick 끄기 · reset:calls 는 에이전트가 먼저 함",
+   "phone": "both",
+   "do": [
+    {
+     "sim": {
+      "net": "insung",
+      "fresh": true
+     }
+    },
+    {
+     "forget_seen": "판 시작"
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "dashboard_fresh": {}
+    },
+    {
+     "wait_app": {
+      "re": "공급 연결 살아남",
+      "sec": 60
+     }
+    },
+    {
+     "snapshot": {}
+    },
+    {
+     "tidy_s23": {
+      "mustSee": "A24"
+     }
+    }
+   ],
+   "wait": [
+    {
+     "app": "\\[페이지\\] 인성콜 신규 콜 목록 → LIST",
+     "sec": 30
+    }
+   ],
+   "expect": "인성 목록 0건 · 원달앱 기억 비움 · 관제앱 «진행 중인 콜이 없습니다» · 원달앱 «📶 [블루투스] 공급 연결 살아남» · 시작 때 필터 · 설정 · 모드 기록",
+   "wrong": "블루투스가 끊긴 채 인터넷 길로만 붙음 · 원달앱 «필터 옛 판»(phoneCheck.ts:17 · 70초) 표시",
+   "onFail": "stop",
+   "limitSec": 120,
+   "start": true,
+   "needs": []
+  },
+  {
+   "id": "S02",
+   "say": "운행 시작 — 원달앱 모드를 «알람»으로 · 원달앱이 아는 배차망을 모두(목록은 원달앱 플러그인 · 시뮬 SIM_NET_LIST 에서 그때 읽음) 시뮬에서 다시 켜지 않고 차례로 바꿔도 원달앱이 화면을 따라 배차망을 바꾸고 두 배차망 글자를 함께 읽지 않는다 · 끝은 인성",
+   "phone": "both",
+   "do": [
+    {
+     "mode": "ALARM"
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "sim_all_nets": {}
+    }
+   ],
+   "wait": [
+    {
+     "app": "\\[페이지\\] 인성콜 .*→ LIST",
+     "sec": 20
+    }
+   ],
+   "expect": "원달앱 모드 테두리가 ALARM 색 · 시뮬 인성 목록 화면을 원달앱이 «목록»으로 읽음",
+   "wrong": "테두리가 다른 모드 · 화면을 목록으로 못 읽음(목록 읽기 줄 없음)",
+   "onFail": "stop",
+   "limitSec": 120,
+   "check": {
+    "none_app": [
+     "두 배차망 글자가 함께 보인다"
+    ]
+   },
+   "needs": [
+    "S01"
+   ]
+  },
+  {
+   "id": "S03",
+   "say": "필터를 열어 «🎯 어디로 → 경기 → 이천시»로 고르고 최소 금액 손잡이 «+»를 한 번(+1,000원) 눌러 «적용» — 원달앱에 내려가고 제외 지역에 이천이 없다",
+   "phone": "S23",
+   "do": [
+    {
+     "tap": "s23.filter.open"
+    },
+    {
+     "tap": "s23.filter.dest.row"
+    },
+    {
+     "tap": "s23.filter.dest.sido"
+    },
+    {
+     "tap": "s23.filter.dest.sido.gyeonggi"
+    },
+    {
+     "tap": "s23.filter.dest.sigungu"
+    },
+    {
+     "tap": "s23.filter.dest.sigungu.icheon"
+    },
+    {
+     "tap": "s23.filter.callkind.row"
+    },
+    {
+     "tap": "s23.filter.minfare"
+    },
+    {
+     "tap": "s23.filter.minfare.plus"
+    },
+    {
+     "tap": "s23.filter.apply"
+    }
+   ],
+   "wait": [
+    {
+     "server": "변경 적용된 필터\\(filter-updated\\).*오늘만",
+     "sec": 15
+    },
+    {
+     "app": "\\[필터 도착\\]|\\[필터 바뀜\\]",
+     "sec": 30
+    }
+   ],
+   "check": {
+    "app_filter_city": {
+     "city": "이천시"
+    },
+    "app_filter": {
+     "minFare": "snapshot+1000"
+    }
+   },
+   "expect": "«🎯 어디로 → 경기 → 이천시» · 최저 요금 시작+1,000 → «✅ 적용»(useFilterConfig.ts:68 update-filter) → 서버 «관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (오늘만 — DB 저장 안함)»(filterManager.ts:548) · 필터 지문 바뀜 → 원달앱 «📋 [필터 동기화] 판 X»(FilterStore.kt:61) → «🔄 [필터 도착]»(HijackService.kt:446/450) → 다음 스캔 «🔄 [필터 바뀜] 버전 X»(:1603) · 원달앱 목적지 이천시 · minFare 시작+1,000 · 제외 지역 칸은 그대로(이천 없음) · user_filters 는 안 바뀜(오늘만)",
+   "wrong": "«적용 안 함» 표시가 남음(초안만 · 원달앱에 안 감) · 서버 지문은 바뀌었는데 원달앱 판이 70초 넘게 옛 판(phoneCheck.ts:17) · 값이 바뀌었는데 «🧾 [필터 버전만 바뀜] … 다시 판정 안 함» · 제외 지역에 이천이 들어감 · user_filters 가 바뀜",
+   "onFail": "tool",
+   "limitSec": 180,
+   "needs": [
+    "S01"
+   ]
+  },
+  {
+   "id": "S04",
+   "say": "최소 금액 손잡이 «−»를 한 번 눌러 시작 값으로 되돌려 «💾 서버 저장» — DB 에 저장되고 원달앱에 내려간다(목적지도 함께 저장됨 · 시작 목적지가 이천이 아니면 S99 에서 되돌림)",
+   "phone": "S23",
+   "do": [
+    {
+     "tap": "s23.filter.minfare"
+    },
+    {
+     "tap": "s23.filter.minfare.minus"
+    },
+    {
+     "tap": "s23.filter.save"
+    }
+   ],
+   "wait": [
+    {
+     "server": "영구 설정\\(baseFilter\\) DB 저장 완료",
+     "sec": 15
+    },
+    {
+     "app": "\\[필터 도착\\]|\\[필터 바뀜\\]",
+     "sec": 30
+    }
+   ],
+   "check": {
+    "app_filter": {
+     "minFare": "snapshot"
+    }
+   },
+   "expect": "최저 요금을 시작 값으로 → «💾 서버 저장» → 서버 «영구 설정(baseFilter) DB 저장 완료» · 원달앱 판 바뀜(S03 과 같은 세 줄) · 원달앱 minFare = 시작 값 · user_filters 는 시작과 같거나(시작 목적지가 이천이었을 때) 목적지만 다름(아니면 S99 가 되돌림)",
+   "wrong": "DB 저장 줄은 섰는데 원달앱 minFare 가 시작+1,000 그대로 · user_filters 의 최저 요금이 시작과 다름",
+   "onFail": "tool",
+   "limitSec": 180,
+   "needs": [
+    "S03"
+   ]
+  },
+  {
+   "id": "S05",
+   "say": "연습 한 번 — 계약 안 함(체험)에서 콜 하나가 열리면 결재석이 뜨고 판정 색이 서지만 원달앱은 계약하지 않는다(결재석은 «보기만» · 누르지 않음) · 초월역 → 중리동",
+   "phone": "both",
+   "do": [
+    {
+     "mode": "SIMULATION"
+    },
+    {
+     "call": {
+      "net": "insung",
+      "pick": "cw1066",
+      "drop": "jungri",
+      "fare": 30000,
+      "veh": "filter",
+      "tag": "practice",
+      "bind": "P1"
+     }
+    },
+    {
+     "wait_app": {
+      "re": "상세 진입\\] {fare:P1}원 .*모드 SIMULATION",
+      "sec": 40
+     }
+    },
+    {
+     "mode": "ALARM"
+    }
+   ],
+   "wait": [
+    {
+     "server": "판정 색 표시",
+     "sec": 30
+    }
+   ],
+   "expect": "원달앱 «🚪 [상세 진입] {요금}원 … 모드 SIMULATION — 판정만 받고 확정·수락은 기사님» · 관제웹 결재석에 판정 색(«보기만» 칸 · JudgmentSeat.tsx:270 manual · 누르지 않음) · 원달앱 «[AUTO] 확정 버튼 클릭» 없음 · 취소 셈 0",
+   "wrong": "원달앱이 확정을 누름(계약 안 함인데 계약) · 결재석이 안 뜸 · «취소 카운트 +1»",
+   "onFail": "tool",
+   "limitSec": 180,
+   "check": {
+    "none_app": [
+     "\\[AUTO\\] 확정 버튼 클릭"
+    ],
+    "count_server": {
+     "취소 카운트 \\+1": 0
+    }
+   },
+   "needs": [
+    "S02"
+   ]
+  },
+  {
+   "id": "S07",
+   "say": "첫 콜 — 인성 콜 하나(모다아울렛 → 이안로지스 4만)를 넣고, 원달앱이 상세를 열면(알람 «삑») 기사님 대신 확정 → KEEP → 닫기",
+   "phone": "both",
+   "do": [
+    {
+     "call": {
+      "net": "insung",
+      "pick": "moda",
+      "drop": "ian",
+      "fare": 40000,
+      "veh": "filter",
+      "tag": "fare_low_score_high",
+      "bind": "C1"
+     }
+    },
+    {
+     "decide": {
+      "bind": "C1",
+      "how": "hand",
+      "net": "insung",
+      "sec": 60
+     }
+    }
+   ],
+   "wait": [
+    {
+     "app": "상세 진입\\] {fare:C1}원",
+     "sec": 40
+    },
+    {
+     "server": "출생\\].*상차지 통화",
+     "sec": 20
+    }
+   ],
+   "expect": "열린 콜의 서버 «🎨 [판정] 🔵 …점 — 돈 {요금}만»(판정 색 설정이 매김) → 손 «확정»(인성 확정 전 상세에서만) → «결재 처리 완료 (그 콜 · ORDER_CONFIRMED)» → «닫기» · 🔵 아닌 콜은 안 누름(보기만)",
+   "wrong": "🔵 콜인데 안 잡음 · 🔵 아닌 콜을 잡음 · 둘 다 🔵 아니면 ⚪ «파랑 콜 없음»(제품 문제 아님 · 그 판의 판정)",
+   "onFail": "tool",
+   "limitSec": 240,
+   "note": "S-b 결과는 기사님께 보여 드릴 재료(71) — 거절 뒤 둘째 콜이 안 열리면 그 자체가 결과",
+   "needs": [
+    "S02"
+   ]
+  },
+  {
+   "id": "S08",
+   "say": "L1 모의 주행 — 집 → 모다아울렛 · 첫짐 상차지에 서면 «도착 감지»(상차 완료는 안 섬)",
+   "phone": "S23",
+   "do": [
+    {
+     "joystick": {
+      "leg": "L1"
+     }
+    }
+   ],
+   "wait": [
+    {
+     "server": "도착 감지\\] 상차지",
+     "sec": 300
+    }
+   ],
+   "check": {
+    "not_server": "상차 완료\\] {C1}",
+    "count_server": {
+     "도착 감지\\] 상차지": 1
+    }
+   },
+   "expect": "모의 주행으로 모다아울렛 500m 안에서 서면 «🏁 [도착 감지] 상차지 500m 이내 (출처 …) — 1회 발화»(geoMotion.ts:858) · 상차 완료는 기사님 손이라 «📦 [상차 완료] C1» 없음",
+   "wrong": "도착 감지가 두 번 이상 · 서지도 않았는데 도착 · 손 없이 «📦 [상차 완료]» 줄",
+   "onFail": "tool",
+   "limitSec": 360,
+   "needs": [
+    "S07"
+   ]
+  },
+  {
+   "id": "S08b",
+   "say": "상차지에 선 채 손 «✅ 상차 완료» — 단계가 넘어간다",
+   "phone": "S23",
+   "do": [
+    {
+     "tap": "s23.step.nav.pickedup"
+    },
+    {
+     "tap": "s23.step.pickedup"
+    }
+   ],
+   "wait": [
+    {
+     "server": "상차 완료\\] {C1}",
+     "sec": 20
+    }
+   ],
+   "expect": "단계 시트 «✅ 상차 완료» → 서버 «📦 [상차 완료] C1 (…) → …»(milestones.ts:181 · MILESTONE_LABEL) · 관제웹 단계가 하차 쪽으로 넘어감",
+   "wrong": "누른 뒤 20초 안에 단계 줄 없음 · 다른 콜(C2 · C3)이 상차 완료로 찍힘",
+   "onFail": "tool",
+   "limitSec": 120,
+   "needs": [
+    "S08"
+   ]
+  },
+  {
+   "id": "S09",
+   "say": "합짐(화물24시 · 알람) — 원달앱이 스스로 상세를 열면 «확정» → KEEP(곤지암 41 → 신둔 우리주유소)",
+   "phone": "both",
+   "do": [
+    {
+     "sim": "hwamul24"
+    },
+    {
+     "call": {
+      "net": "hwamul24",
+      "pick": "gonjiam41",
+      "drop": "woori",
+      "fare": 25000,
+      "veh": "filter",
+      "tag": "merge",
+      "bind": "C2"
+     }
+    },
+    {
+     "decide": {
+      "bind": "C2",
+      "how": "hand",
+      "net": "hwamul24",
+      "sec": 60
+     }
+    }
+   ],
+   "wait": [
+    {
+     "app": "\\[페이지\\][^\\n]*배차내역 목록",
+     "sec": 30
+    },
+    {
+     "app": "✋ \\[손 수락\\]",
+     "sec": 30
+    },
+    {
+     "server": "\\[Two-Track MANUAL\\]",
+     "sec": 20
+    },
+    {
+     "server": "추가 콜 확정",
+     "sec": 20
+    },
+    {
+     "server": "경유 갱신\\]",
+     "sec": 20
+    },
+    {
+     "server": "적재 용량\\]",
+     "sec": 20
+    }
+   ],
+   "check": {
+    "app_filter_eq_server": true
+   },
+   "expect": "알람이라 원달앱이 통과 콜을 스스로 엶 → «🚪 [상세 진입] {요금}원 (곤지암…→신둔…) … 모드 ALARM»(HijackService.kt:1785) → 실행기가 화물24시 상세 «확정»(기사님 손 — matchType MANUAL) → 서버 «✋ [Two-Track MANUAL] 기사님 직접 터치 콜. 즉시 KEEP 처리.»(detail.ts:224) → «🔄 [State Machine] 추가 콜 확정 (GATHERING 유지)» · «🗺️ [경유 갱신] KEEP 후 destinationKeywords N개» · «🚚 [적재 용량] …» · 원달앱 필터 = 서버 필터",
+   "wrong": "원달앱이 상세를 안 엶(알람 필터 밖) · 손 확정인데 결재석에 KEEP/거절이 뜸(MANUAL 즉시 KEEP 이 안 됨) · 첫짐 C1 이 밀려남 · «차종 인식 실패 → 만재로 간주»",
+   "onFail": "tool",
+   "limitSec": 240,
+   "needs": [
+    "S07",
+    "S08"
+   ]
+  },
+  {
+   "id": "S10",
+   "say": "자동으로 바꾸고 인성 합짐 하나를 원달앱이 스스로 잡는다(곤지암 487 → 이천 관고동) — 결재석 KEEP",
+   "phone": "both",
+   "do": [
+    {
+     "mode": "AUTO"
+    },
+    {
+     "sim": "insung"
+    },
+    {
+     "call": {
+      "net": "insung",
+      "pick": "gj487",
+      "drop": "gwango",
+      "fare": 30000,
+      "veh": "filter",
+      "tag": "auto_merge",
+      "bind": "C3"
+     }
+    },
+    {
+     "decide": {
+      "bind": "C3",
+      "how": "auto",
+      "sec": 60
+     }
+    }
+   ],
+   "wait": [
+    {
+     "app": "\\[AUTO\\] 확정 버튼 클릭",
+     "sec": 40
+    },
+    {
+     "app": "판결 KEEP 집행 완료",
+     "sec": 40
+    }
+   ],
+   "expect": "자동 · 인성 → 원달앱이 스스로 눌러 «💥 [AUTO] …» · «[AUTO] 확정 버튼 클릭» → 안전취소 30초 타이머 · 결재석 KEEP → 원달앱 «판결 KEEP 집행 완료» · 서버 «추가 콜 확정»",
+   "wrong": "자동인데 확정을 안 누름 · KEEP 뒤에도 30초 뒤 «안전취소 타임아웃» · 합짐 경유 밖 콜인데 열림",
+   "onFail": "tool",
+   "limitSec": 240,
+   "check": {
+    "none_app": [
+     "안전취소 타임아웃"
+    ]
+   },
+   "needs": [
+    "S07"
+   ]
+  },
+  {
+   "id": "S11",
+   "say": "L2 모의 주행 시작 — 모다 → 이천 관고동 · 달리기 시작하면 «운행 중» · 🚀 출발",
+   "phone": "S23",
+   "do": [
+    {
+     "joystick": {
+      "leg": "L2"
+     }
+    }
+   ],
+   "wait": [],
+   "check": {
+    "web_drive": true
+   },
+   "expect": "첫짐(C1)을 잡은 뒤 처음 달릴 때 서버 «🚀 [출발] 이제 모으지 않고 갑니다 — 운행 중 유지»(filterManager.ts:707) 한 번 — 콜이 0건이 될 때까지 다시 안 찍힌다(L1 에서 이미 찍혔으면 그것으로 섬) · 관제웹 운행 중 화면",
+   "wrong": "정차 중인데 출발 · 출발 뒤 정류장에서 다시 «모으는 중»으로 풀림",
+   "onFail": "tool",
+   "limitSec": 300,
+   "needs": [
+    "S08b"
+   ]
+  },
+  {
+   "id": "S12",
+   "say": "달리는 중 픽커 콜(시뮬) — 자동이어도 픽커에서는 알림으로 바뀐다 · 잡지 않고 거절",
+   "phone": "both",
+   "do": [
+    {
+     "sim": "picker"
+    },
+    {
+     "call": {
+      "net": "picker",
+      "pick": "woori",
+      "drop": "dest:near:4",
+      "fare": 20000,
+      "veh": "snapshot",
+      "tag": "picker",
+      "bind": "P2"
+     }
+    },
+    {
+     "wait_app": {
+      "re": "타겟 앱 자동 전환 완료: 픽커",
+      "sec": 30
+     }
+    },
+    {
+     "wait_app": {
+      "re": "모드 테두리\\] AUTO → ALARM",
+      "sec": 30
+     }
+    },
+    {
+     "decide": {
+      "bind": "P2",
+      "how": "view",
+      "sec": 40
+     }
+    },
+    {
+     "sim": "insung"
+    }
+   ],
+   "wait": [
+    {
+     "app": "모드 테두리\\] ALARM → AUTO",
+     "sec": 60
+    }
+   ],
+   "expect": "픽커 화면이 되면 원달앱 «🎯 타겟 앱 자동 전환 완료: 카카오T픽커»(HijackService.kt:170) → «🖼️ [모드 테두리] AUTO → ALARM»(ModeFrame.kt:91 · 규칙 TargetApp.kt:26 · 픽커는 AUTO 없음 KakaoPickerPlugin.kt:32) → 픽커 콜 상세 «모드 ALARM — 판정만 받고 확정·수락은 기사님»(PreConfirmSequence.kt:501) → 결재석 거절 → 인성으로 돌아오면 «🖼️ [모드 테두리] ALARM → AUTO». «🎛️ [도는 모드]»(TelemetryManager.kt:294)는 배차망 규칙 전 값이라 픽커에서도 AUTO — 그 줄로 보지 않는다 · 이 순간 결재를 기다리는 계약은 없다(C3 KEEP 집행 뒤)",
+   "wrong": "픽커에서 원달앱이 수락 칸을 누름(실물이면 계약) · 테두리가 AUTO 그대로 · 인성으로 돌아와도 ALARM 에 머묾 · 픽커 콜이 필터(거리 · 차종)에 막혀 결재석에 안 뜸 — 그러면 reject 는 ⚪",
+   "onFail": "tool",
+   "limitSec": 240,
+   "needs": [
+    "S11"
+   ]
+  },
+  {
+   "id": "S13",
+   "say": "노선 하차 둘을 달리며 지나침 — 합짐 C2(우리주유소) → 첫짐 C1(이안로지스 · 노선 하차 가운데 마지막에서 두 번째)",
+   "phone": "S23",
+   "do": [],
+   "wait": [
+    {
+     "server": "\\[지나침\\] 하차지[^\\n]*{C2}",
+     "sec": 600,
+     "ifBound": "C2"
+    },
+    {
+     "server": "하차지 도착\\] {C1}",
+     "sec": 600
+    }
+   ],
+   "check": {
+    "via": {
+     "C2": "지나침",
+     "C1": "지나침"
+    }
+   },
+   "expect": "C2 우리주유소: «👣 [지나침 감시 시작] 하차지» → «🚚 [지나침] 하차지에서 Nm 멀어졌습니다 — 도착·완료를 순차로 찍습니다 (C2 앞 8자)»(geoMotion.ts:791) → 단계 «📦 [하차지 도착] C2» · «📦 [하차 완료] C2» · C1 이안로지스도 같은 길로 «📦 [하차지 도착] C1»(달리며 지나치면 지나침 · 서면 도착 감지 · 어느 쪽이든 단계 줄은 같음)",
+   "wrong": "지나쳤는데 지나침 줄 없음(사슬 멈춤) · C1 보다 C2 가 늦게 찍힘(순서 뒤집힘) · 하차 뒤 상차가 다시 찍힘",
+   "onFail": "tool",
+   "limitSec": 900,
+   "needs": [
+    "S11"
+   ]
+  },
+  {
+   "id": "S18",
+   "say": "귀가 단추 — 노선 마지막에서 두 번째 하차지(C1 이안로지스)에 도착한 순간 «↩️ 복귀 켬»(기사님: «마지막에서 2번째 하차지에 도착하면 누른다»)",
+   "phone": "S23",
+   "do": [
+    {
+     "tap": "s23.filter.open"
+    },
+    {
+     "tap": "s23.filter.home.on"
+    },
+    {
+     "tidy_s23": {
+      "mustSee": "A24"
+     }
+    }
+   ],
+   "wait": [
+    {
+     "server": "국면 전환\\] DEST → HOME",
+     "sec": 20
+    },
+    {
+     "app": "\\[필터 도착\\]|\\[필터 바뀜\\]",
+     "sec": 40
+    }
+   ],
+   "expect": "C1 하차지 도착 순간 «↩️ 복귀 켬» → 서버 «🧭 [국면 전환] DEST → HOME»(milestones.ts:262) → «🧭 [국면 전환] 완료 → … · 목적 광주시»(:340) → 목적지 = 집 시 ∪ 진행 중 마지막 확정 콜(C3 · 목표 이천)의 목표 시 → «🕸️ [필터 목록] 목적지 광주시 ∪ 이천시»(filterManager.ts:362) · «🔵 [하차 목록] 광주시:콜 없음 [마름모(현위치)·원] … | 이천시:…·가까이 […원(가까이 옴 · 상차 동 안 뺌)]» → 원달앱 판 바뀜(«📋 [필터 동기화]» → «🔄 [필터 도착]»)",
+   "wrong": "«완료» 줄 없이 «설정에 집 주소가 없습니다» · 필터 목록이 «광주시» 하나(이천 콜 C3 가 진행 중인데 이천이 빠짐) · 원달앱 판이 안 바뀜",
+   "onFail": "stop",
+   "limitSec": 120,
+   "needs": [
+    "S13"
+   ]
+  },
+  {
+   "id": "S13b",
+   "say": "L2 끝 관고동에서 서서 노선 마지막 하차(자동 합짐 C3) «도착 감지» — 귀가는 켠 채",
+   "phone": "S23",
+   "do": [],
+   "wait": [
+    {
+     "server": "하차지 도착\\] {C3}",
+     "sec": 600
+    }
+   ],
+   "check": {
+    "via": {
+     "C3": "도착 감지"
+    },
+    "count_server": {
+     "도착 감지\\] 하차지": 1
+    }
+   },
+   "expect": "관고동에서 서면 «🏁 [도착 감지] 하차지 500m 이내 … — 1회 발화» → «📦 [하차지 도착] C3» · 귀가 켠 채 C3 가 아직 진행 중이라 목적지는 «광주시 ∪ 이천시» 그대로",
+   "wrong": "도착 감지 두 번 · 도착 뒤 필터 목록이 «광주시» 하나로 접힘(C3 를 끝난 콜로 셈)",
+   "onFail": "tool",
+   "limitSec": 700,
+   "needs": [
+    "S18",
+    "S10"
+   ]
+  },
+  {
+   "id": "S14",
+   "say": "귀가 뒤 · 첫 복귀콜 KEEP 전 — 이천 관내 콜(화물24시 · 자동 · 관고동 → 중리동)이 아직 열린다(기사님: «복귀콜이 나오기 전까지 관내콜을 진행»)",
+   "phone": "both",
+   "do": [
+    {
+     "sim": "hwamul24"
+    },
+    {
+     "call": {
+      "net": "hwamul24",
+      "pick": "gwango",
+      "drop": "jungri",
+      "fare": 15000,
+      "veh": "filter",
+      "tag": "local",
+      "bind": "C4"
+     }
+    },
+    {
+     "decide": {
+      "bind": "C4",
+      "how": "auto",
+      "sec": 60
+     }
+    }
+   ],
+   "wait": [
+    {
+     "app": "\\[AUTO\\] 확정 버튼 클릭",
+     "sec": 40
+    },
+    {
+     "server": "도착 감지\\] 상차지",
+     "sec": 120,
+     "orHand": [
+      "s23.step.nav.call.pickup",
+      "s23.step.call.skip",
+      "s23.step.nav.call.dropoff",
+      "s23.step.call.skip",
+      "s23.step.nav.arrive.pickup",
+      "s23.step.arrive"
+     ],
+     "handRe": "\\[상차지 도착\\] .*\\(MANUAL_WEB\\)",
+     "why": "사용설명서 2장 «화물24시 상차지 도착이 저절로 안 설 수 있습니다 — 관제앱 단계 시트에서 손으로»"
+    }
+   ],
+   "expect": "기사님 규칙: 귀가 뒤 · 첫 복귀콜 KEEP 전이라 관내 필터가 산다 — 이천 «가까이 옴»(filterArea.ts:166 · 내 위치 ↔ 이천 중심 ≤ 목적 반경)이면 상차 = 현위치 원 · 하차 = 이천 원 전체(filterNet.ts:133-138) → 관고동 → 중리동 C4 가 통과 → «[AUTO] 확정 버튼 클릭» → KEEP → 서 있는 자리라 «🏁 [도착 감지] 상차지» · 고친 뒤 기대: C4 KEEP 뒤에도 «🕸️ [필터 목록] 목적지 광주시 ∪ 이천시» 그대로(관내콜은 복귀콜이 아님)",
+   "wrong": "지금 코드(71 에게 «다름» 보고): C4 를 KEEP 하면 목표 시가 그 순간 필터값 «광주시»로 적혀(dispatchEngine.ts:639 goalCity = goalCityOf) 마지막 콜이 C4 가 되고 목적지가 «광주시» 하나로 접힌다(filterArea.ts:79) — C4 KEEP 직후 «🕸️ [필터 목록] 목적지 광주시»가 찍히면 이 결함 · 첫 복귀콜 전에 관내 필터가 사라짐 · C4 자체가 안 열리면 반경(F37) 또는 C3 가 끝난 콜로 셈 · 판정: C4 KEEP 뒤 서버 마지막 «🕸️ [필터 목록] 목적지» 가 모음 {이천시 · 광주시}(차례 무관)가 아니면 🔴 — «광주시» 하나면 F41",
+   "onFail": "tool",
+   "limitSec": 300,
+   "check": {
+    "server_last_set": {
+     "re": "필터 목록\\] 목적지 (.+?) · ",
+     "want": [
+      "이천시",
+      "광주시"
+     ]
+    }
+   },
+   "needs": [
+    "S18",
+    "S13b"
+   ]
+  },
+  {
+   "id": "S15",
+   "say": "안전취소 한 번 — 자동으로 잡힌 콜을 결재 안 함 → 30초 뒤 원달앱이 취소(취소 횟수 +1)",
+   "phone": "both",
+   "do": [
+    {
+     "call": {
+      "net": "hwamul24",
+      "pick": "gwango",
+      "drop": "dest:near:2",
+      "fare": 18000,
+      "veh": "filter",
+      "tag": "safe_cancel",
+      "bind": "X1"
+     }
+    }
+   ],
+   "wait": [
+    {
+     "app": "\\[AUTO\\] 확정 버튼 클릭",
+     "sec": 40
+    },
+    {
+     "app": "안전취소 타임아웃",
+     "sec": 50
+    },
+    {
+     "server": "취소 카운트 \\+1",
+     "sec": 30
+    }
+   ],
+   "expect": "자동 확정 → 결재 안 함 → 30초 «🚨 안전취소 타임아웃! 기사님 보호를 위해 강제 배차 취소 집행!»(SafeCancelTimer.kt:99) → 원달앱이 취소 버튼을 누름 → 서버 «📈 기기(…) 취소 카운트 +1 반영»(cancelCount.ts:80) · 관제웹 서랍 «취소» 탭 빨간 안전취소",
+   "wrong": "취소 셈 +2(두 길이 둘 다 셈) · 취소 버튼을 못 찾았는데(«안 눌렀음») 셈 +1 · 30초 전에 결재석에서 사라짐",
+   "onFail": "tool",
+   "limitSec": 180,
+   "check": {
+    "count_server": {
+     "취소 카운트 \\+1": 1
+    }
+   },
+   "needs": [
+    "S18"
+   ]
+  },
+  {
+   "id": "S17",
+   "say": "블루투스 껐다 켬 — 60초 안에 공급이 다시 붙고 원달앱이 자동으로 돌아온다(F07)",
+   "phone": "A24",
+   "do": [
+    {
+     "ble": "off"
+    },
+    {
+     "sleep": 5
+    },
+    {
+     "ble": "on"
+    }
+   ],
+   "wait": [
+    {
+     "app": "공급 연결 살아남",
+     "sec": 60
+    }
+   ],
+   "expect": "블루투스 끔 → 원달앱 «📶 [블루투스] 공급 연결 끊김 — 자동은 알람으로» · GATT 서버를 버림(BleAdapterLife.kt dropsOn) → 켬 → 1초 틱이 다시 열고(reopens) 관제앱이 붙어 «📶 [블루투스] 공급 연결 살아남»(BleLink.kt:267) · 모드가 원래대로",
+   "wrong": "켜도 60초 안에 안 붙음 · 관제앱 «공급 서비스 칸이 없다» 되풀이(F07 이전 모양) · 접근성을 다시 켜야 붙음",
+   "onFail": "tool",
+   "limitSec": 120,
+   "checkBy": "F07",
+   "needs": [
+    "S01"
+   ]
+  },
+  {
+   "id": "S17b",
+   "say": "L3a 모의 주행 — 관고동 → 중리동 · 서서 관내 C4 하차 «도착 감지»(귀가 켠 채)",
+   "phone": "S23",
+   "do": [
+    {
+     "joystick": {
+      "leg": "L3a"
+     }
+    }
+   ],
+   "wait": [
+    {
+     "server": "하차지 도착\\] {C4}",
+     "sec": 300
+    }
+   ],
+   "check": {
+    "via": {
+     "C4": "도착 감지"
+    }
+   },
+   "expect": "L3a 끝 중리동에서 서면 «🏁 [도착 감지] 하차지 500m 이내 … — 1회 발화»(geoMotion.ts:858) → «📦 [하차지 도착] C4»",
+   "wrong": "서기 전에 도착 · 도착 감지 두 번 · C4 가 아닌 콜에 하차지 도착",
+   "onFail": "tool",
+   "limitSec": 360,
+   "needs": [
+    "S14"
+   ]
+  },
+  {
+   "id": "S17c",
+   "say": "중리동에서 손 «🏁 하차 완료»(관내 콜 C4 끝 — 귀가는 이미 켠 채 · 이 뒤 첫 복귀콜)",
+   "phone": "S23",
+   "do": [
+    {
+     "tap": "s23.step.nav.delivered"
+    },
+    {
+     "tap": "s23.step.delivered"
+    }
+   ],
+   "wait": [
+    {
+     "server": "하차 완료\\] {C4}",
+     "sec": 30
+    },
+    {
+     "server": "적재 회복\\]",
+     "sec": 30
+    }
+   ],
+   "expect": "단계 시트 «🏁 하차 완료»(확인 창 없음) → «📦 [하차 완료] C4 (…) → ORDER_DELIVERED»(milestones.ts:181) → «🚚 [적재 회복] 하차 완료 → 남은 활성 콜 N건 기준으로 필터 재계산»(:206) · 관내 콜 끝",
+   "wrong": "완료 뒤 C4 가 진행 중에 남음 · 적재 회복 줄 없음(필터가 짐 실린 그대로)",
+   "onFail": "tool",
+   "limitSec": 120,
+   "needs": [
+    "S17b"
+   ]
+  },
+  {
+   "id": "S19",
+   "say": "첫 복귀콜 S-a — 이안 → 곤지암487(요금 높고 점수 높음 C5 · KEEP) · 이안 → 먼 동(요금 낮고 점수 낮음 C5x · 거절)",
+   "phone": "both",
+   "do": [
+    {
+     "sim": "insung"
+    },
+    {
+     "call": {
+      "net": "insung",
+      "pick": "ian",
+      "drop": "gj487",
+      "fare": 22000,
+      "veh": "filter",
+      "tag": "home1_high",
+      "bind": "C5"
+     }
+    },
+    {
+     "decide": {
+      "bind": "C5",
+      "how": "auto",
+      "sec": 60
+     }
+    },
+    {
+     "call": {
+      "net": "insung",
+      "pick": "ian",
+      "drop": "dest:far",
+      "fare": 12000,
+      "veh": "filter",
+      "tag": "home1_low",
+      "bind": "C5x"
+     }
+    },
+    {
+     "decide": {
+      "bind": "C5x",
+      "how": "auto",
+      "sec": 60,
+      "want": "reject"
+     }
+    }
+   ],
+   "wait": [],
+   "expect": "자동 · 인성: C5(22,000 · 이안 → 곤지암487 · 집 쪽)가 먼저 열림(요금 최고 · HijackService.kt:1679) → «[AUTO] 확정 버튼 클릭» → 결재석 KEEP → 원달앱 «판결 KEEP 집행 완료» → 기사님 규칙: 첫 복귀콜 KEEP 순간 관내 필터가 사라진다 → «🕸️ [필터 목록] 목적지 광주시»(이천 빠짐) · 원달앱 판 바뀜 → C5x 는 다음 스캔에 열려 자동 계약 → 결재석 거절 → 원달앱이 «취소» 누름 → «취소 카운트 +1»(자동 계약을 놓음 · 셈이 맞음)",
+   "wrong": "C5x 가 먼저 열림 · C5 결재 전에 C5x 가 열림 · C5 KEEP 뒤에도 «목적지 광주시 ∪ 이천시»(관내 필터가 안 사라짐) · 지금 코드는 S14 의 C4 KEEP 에서 이미 «광주시» 하나로 접혀 있어 이 단계의 «사라짐»을 볼 수 없음(S14 wrong 과 같은 결함) · C5x 거절이 셈 0 또는 +2",
+   "onFail": "tool",
+   "limitSec": 600,
+   "needs": [
+    "S17c",
+    "S18"
+   ]
+  },
+  {
+   "id": "S19b",
+   "say": "첫 복귀콜 KEEP 직후 관내 콜 하나 더(중리동 → 대월면 쿠팡 이천3센터 · 집 반대쪽) — 이제는 안 열린다(기사님: «복귀콜의 첫번째 콜을 킵한 순간 관내콜을 잡는 필터가 사라진다»)",
+   "phone": "A24",
+   "do": [
+    {
+     "sim": "hwamul24"
+    },
+    {
+     "call": {
+      "net": "hwamul24",
+      "pick": "jungri",
+      "drop": "daewol",
+      "fare": 15000,
+      "veh": "filter",
+      "tag": "local_after_home",
+      "bind": "L2x"
+     }
+    },
+    {
+     "sleep": 30
+    }
+   ],
+   "wait": [],
+   "check": {
+    "none_app": [
+     "상세 진입\\] {fare:L2x}원"
+    ],
+    "server_last_set": {
+     "re": "필터 목록\\] 목적지 (.+?) · ",
+     "want": [
+      "광주시"
+     ]
+    }
+   },
+   "expect": "기사님 규칙: 첫 복귀콜 KEEP 뒤 목적지는 집 하나(shared callNet.ts:1166 activeGoals «복귀 켬 · 복귀콜 잡음 → [집]») — 서버 «🕸️ [필터 목록] 목적지 광주시» · 하차지 대월면(이천 남동쪽 · 집 반대쪽)은 광주 마름모 · 원 밖이라 «🚪 [상세 진입]» 없음. ⚠️ 이 초록은 S14 가 초록(C4 KEEP 뒤 «이천시 ∪ 광주시»)일 때만 규칙 때문이다 — S14 가 «광주시» 하나로 🔴(F41)면 관내 필터는 C4 KEEP 에서 이미 사라졌고 여기 초록은 그 결함의 결과다",
+   "wrong": "대월면 하차 콜이 «🚪 [상세 진입]»으로 열림 = 첫 복귀 KEEP 뒤에도 관내 필터가 남음 · 서버 목적지가 광주시 하나가 아님",
+   "onFail": "tool",
+   "limitSec": 180,
+   "needs": [
+    "S19"
+   ]
+  },
+  {
+   "id": "S19c",
+   "say": "나머지 복귀콜 — 곤지암 765 → 초월역(화물24시 자동 C6) · 초월 1021 → 집(인성 손 확정 C7)",
+   "phone": "both",
+   "do": [
+    {
+     "call": {
+      "net": "hwamul24",
+      "pick": "gj765",
+      "drop": "cw1066",
+      "fare": 18000,
+      "veh": "filter",
+      "tag": "home2",
+      "bind": "C6"
+     }
+    },
+    {
+     "decide": {
+      "bind": "C6",
+      "how": "auto",
+      "sec": 60
+     }
+    },
+    {
+     "mode": "ALARM"
+    },
+    {
+     "sim": "insung"
+    },
+    {
+     "call": {
+      "net": "insung",
+      "pick": "cw1021",
+      "drop": "home",
+      "fare": 16000,
+      "veh": "filter",
+      "tag": "home3",
+      "bind": "C7"
+     }
+    },
+    {
+     "decide": {
+      "bind": "C7",
+      "how": "hand",
+      "net": "insung",
+      "sec": 60
+     }
+    }
+   ],
+   "wait": [],
+   "expect": "화물24시 자동 C6(곤지암765 → 초월역) → «[AUTO] 확정 버튼 클릭» → KEEP → 원달앱 «판결 KEEP 집행 완료»(화물24시 상세의 «닫기») · 알람 인성 C7(초월1021 → 집) «🚪 [상세 진입] {요금}원» → 손 확정 → «✋ [Two-Track MANUAL] … 즉시 KEEP» → «닫기» · 목적지 «광주시» 하나 그대로",
+   "wrong": "C6 KEEP 뒤 «판결 KEEP 집행 완료» 없음(화물24시 «닫기» 글자 — F38 과 같은 뿌리) · C7 이 안 열림(집 하차가 하차 목록 밖) · 이천 방향 콜이 열림",
+   "onFail": "tool",
+   "limitSec": 400,
+   "needs": [
+    "S19"
+   ]
+  },
+  {
+   "id": "S20",
+   "say": "L3b 모의 주행 — 중리동 → 복귀 셋 지나침 → 집에서 서서 마지막 하차 «도착 감지»",
+   "phone": "S23",
+   "do": [
+    {
+     "joystick": {
+      "leg": "L3b"
+     }
+    }
+   ],
+   "wait": [
+    {
+     "server": "하차지 도착\\] {C7}",
+     "sec": 1500
+    }
+   ],
+   "check": {
+    "via": {
+     "C5": "지나침",
+     "C6": "지나침",
+     "C7": "도착 감지"
+    }
+   },
+   "expect": "C4 하차지 지나침 «🚚 [지나침] 하차지 … (C4)» · 복귀 셋 하차 지나침 · 집에서 서서 «🏁 [도착 감지] 하차지» → «📦 [하차지 도착] C7»",
+   "wrong": "S13 과 같음 · 집 도착이 다른 콜로 찍힘",
+   "onFail": "tool",
+   "limitSec": 1800,
+   "needs": [
+    "S19",
+    "S19c"
+   ]
+  },
+  {
+   "id": "S21",
+   "say": "집에서 «🏁 하차 완료» — 착불 콜이면 «💵 받았음»부터",
+   "phone": "S23",
+   "do": [
+    {
+     "tap": "s23.step.nav.delivered"
+    },
+    {
+     "tap_if_cod": "s23.step.cod.received"
+    },
+    {
+     "tap": "s23.step.delivered"
+    }
+   ],
+   "wait": [
+    {
+     "server": "하차 완료\\] {C7}",
+     "sec": 30
+    },
+    {
+     "server": "적재 회복\\]",
+     "sec": 30
+    }
+   ],
+   "expect": "착불 콜이면 단계 시트 «💵 착불 {금액} — 지금 받으세요» → «받았음» → cod-collected → «💵 [착불 수령] …»(socketHandlers.ts:636) · «🏁 하차 완료»(확인 창 없음) → «📦 [하차 완료] C7 (…) → ORDER_DELIVERED»(milestones.ts:181) → «🚚 [적재 회복] 하차 완료 → 남은 활성 콜 N건 기준으로 필터 재계산»(:206)",
+   "wrong": "착불인데 안 고르고 완료 → 미수금으로 잡힘(milestones.ts:195 · console.warn 만 · 콜단계 로그에 안 남음) · 하차 완료 되돌려도 미수금 그대로 · 픽커 콜은 결제 칸이 비어 착불 안내 없음",
+   "onFail": "tool",
+   "limitSec": 120,
+   "note": "시뮬 개별콜은 결제 방식 칸이 없다(simCallQueue.ts:120-124) — 착불 장면은 착불 콜이 올 때만(없으면 skip · 장부 기록 거리)",
+   "needs": [
+    "S20"
+   ]
+  },
+  {
+   "id": "S22",
+   "say": "서랍 확인 — 완료됨 · 취소(연습 끝 🐥 · 안전취소) 탭 사진",
+   "phone": "S23",
+   "do": [
+    {
+     "tap": "s23.drawer.open"
+    },
+    {
+     "tap": "s23.drawer.tab.done"
+    },
+    {
+     "photo": "S23"
+    },
+    {
+     "tap": "s23.drawer.tab.cancel"
+    },
+    {
+     "photo": "S23"
+    },
+    {
+     "tap": "s23.drawer.close"
+    }
+   ],
+   "wait": [],
+   "expect": "완료됨 탭: C1 · C2 · C3 · C4 · C5 · C6 · C7 · 취소 탭(SAFE_CANCEL 만 · finishedCalls.ts belongsToView): 🐥 연습 끝(S05 · 노란) · 안전취소 X1(S15) · X2(S16) · 자동 계약을 놓은 C5x(S19) — 확정 전에 거절한 알람 미리보기 C1x(S07)는 취소 탭에 안 보임 · 셈 0 · 장부 행 없음(F40 고친 뒤 · 지금 코드는 handleDecision 이 미리보기도 장부에 SAFE_CANCEL 로 적어 ❌ 로 보임 → 고치기 전 판에서는 빨강이 결과)",
+   "wrong": "C1x 가 ❌ 로 보임(F40 그대로) · 연습 콜이 빨간 안전취소로 · 완료 콜이 취소 탭에 · X2 가 안 보임(F36 장면이 장부에서 사라짐) · C5x 가 안 보임(자동 계약 취소가 장부에서 빠짐)",
+   "onFail": "tool",
+   "limitSec": 120
+  },
+  {
+   "id": "S99",
+   "say": "끝 정리 — 필터 · 설정이 시작 때와 같은지 · 모드는 시작 값과 다를 때만 되돌림 · 귀가는 이번 판에 스크립트가 켰을 때만 끔(아니면 적기만) · JoyStick 중단(9e)",
+   "phone": "both",
+   "do": [
+    {
+     "home_off_if_mine": {}
+    },
+    {
+     "filter_revert_if_unsaved": {}
+    },
+    {
+     "restore_dest": {}
+    },
+    {
+     "tidy_s23": {
+      "mustSee": "A24"
+     }
+    },
+    {
+     "restore": {}
+    }
+   ],
+   "wait": [],
+   "check": {
+    "db_same_as_snapshot": [
+     "user_filters",
+     "user_settings"
+    ],
+    "s23_no_mock": {
+     "sec": 180
+    }
+   },
+   "expect": "user_filters · user_settings 가 처음 사진과 같음 · 모드 처음 값 · 귀가: 스크립트가 켰으면 «↩️ 복귀 켬» 단추로 끔, 아니면 켜져 있어도 «기사님 손 — 귀가 켜져 있음» 적기만 · JoyStick 꺼짐 · 필터 💾 서버 저장 안에 «저장 전»이 보이면 «되돌리기»를 눌러 «저장 전»이 사라짐",
+   "wrong": "S03 오늘만 값이 DB 에 남음 · 복귀 켬(callTarget HOME)이 다음 날로 넘어감",
+   "onFail": "stop",
+   "limitSec": 120,
+   "always": true
+  }
+ ],
+ "cannotSee": [
+  "시뮬 개별콜에 결제 칸 없음 — 착불 «받았음» 못 봄(simCallQueue.ts:120-124 · S21 은 착불 콜이 올 때만)",
+  "진짜 GPS 흔들림 · 터널 · 신호 끊김 · 적재 · 톨비(승용차 실주행과 같음) · 실물 인성 · 화물24시 화면"
+ ],
+ "needsHow": "needs = 그 장면이 기대는 앞 장면(그 콜 · 그 도착 · 그 모드). 이번 판에 그 앞 장면의 동작 · 기다림이 다 서지 않았으면 이 장면은 돌리지 않고 ⚪ «앞 장면 없음»(day.py)",
+ "decideHow": "기사님이 고르는 자리(KEEP · 거절 · 손 확정)는 시나리오에 박지 않고 그 순간 서버 판정 색으로 정한다 — 🔵 = 잡음(알람 · 직접: 손 확정 / 자동: 결재석 KEEP) · 아니면 안 누름 / 결재석 거절(실행서 5-1) · 판정이 기대와 달라 장면이 갈리면 기록할 사실(day.py decide · 71 · 기사님)"
+}

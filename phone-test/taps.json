@@ -1,0 +1,396 @@
+{
+  "about": "누를 자리 사전 — 이름 → {폰 · x · y · 색 확인(check) · 근거}. 화면이 바뀌면 이 한 곳만 고친다. 좌표는 1080x2340 원본. x · y 가 null 이면 사진이 아직 없다(실행기가 ⚪ 시험 도구로 멈춤). check 는 day.py CHECKS 의 이름. expect = 누르기 전에 기대한 화면(A24 page: 원달앱 마지막 «📄 [페이지]» 줄 정규식 · S23 see/notSee: 보여야/안 보여야 할 글자) — 없으면 좌표를 누르지 않는다(day.py screen_ok · 71). skipIf = 누른 뒤 될 상태가 이미 서 있으면(그 글자가 다 보이면) 누르지 않고 지나감(펼침 · 열기는 다시 누르면 닫힌다). S23 은 좌표를 누르지 않는다 — text(find.mjs 문법: 글자 · =같음 · ^시작 · aria: · title: · in:범위>)로 그 순간 찾아 누른다(71 «가»).",
+  "taps": {
+    "a24.sim.tab.insung": {
+      "phone": "A24",
+      "x": 690,
+      "y": 135,
+      "check": "any",
+      "from": "70판 · run.py SIM_TAB"
+    },
+    "a24.sim.tab.hwamul24": {
+      "phone": "A24",
+      "x": 846,
+      "y": 135,
+      "check": "any",
+      "from": "70판 · run.py SIM_TAB"
+    },
+    "a24.sim.tab.picker": {
+      "phone": "A24",
+      "x": 989,
+      "y": 135,
+      "check": "any",
+      "from": "70판 · run.py SIM_TAB"
+    },
+    "a24.sim.individual": {
+      "phone": "A24",
+      "x": 883,
+      "y": 316,
+      "check": "any",
+      "from": "70판 «개별콜»"
+    },
+    "a24.sim.start": {
+      "phone": "A24",
+      "x": 538,
+      "y": 2112,
+      "check": "any",
+      "from": "70판 «화면으로 시작»"
+    },
+    "a24.insung.home.list": {
+      "phone": "A24",
+      "x": 300,
+      "y": 916,
+      "check": "any",
+      "from": "70판 인성 홈 → 목록",
+      "expect": {
+        "page": "^인성콜 홈"
+      }
+    },
+    "a24.hwamul24.home.list": {
+      "phone": "A24",
+      "x": 281,
+      "y": 541,
+      "check": "any",
+      "from": "70판 화물24시 홈 → 목록",
+      "expect": {
+        "page": "^화물24시 홈"
+      }
+    },
+    "a24.picker.home.list": {
+      "phone": "A24",
+      "x": 538,
+      "y": 2088,
+      "check": "any",
+      "from": "70판 픽커 홈 → 목록",
+      "expect": {
+        "page": "^픽커 홈"
+      }
+    },
+    "a24.insung.detail.confirm": {
+      "phone": "A24",
+      "x": 156,
+      "y": 2001,
+      "check": "teal",
+      "from": "70판 · 인성 상세 «확정»(38,166,154)",
+      "expect": {
+        "page": "^인성콜 확정 전 상세 → DETAIL_PRE_CONFIRM"
+      }
+    },
+    "a24.insung.detail.close": {
+      "phone": "A24",
+      "x": 127,
+      "y": 2001,
+      "check": "teal",
+      "from": "74판 9e · 확정 뒤 상세 «닫기»",
+      "expect": {
+        "page": "^인성콜 확정 뒤 상세 → DETAIL_CONFIRMED"
+      }
+    },
+    "a24.hwamul24.list.fare": {
+      "phone": "A24",
+      "x": 962,
+      "y": 733,
+      "check": "not_white",
+      "from": "71판 V1 · 목록 요금 글자(손 진입)",
+      "expect": {
+        "page": "^화물24시 화물정보\\(실시간 목록\\) → LIST"
+      }
+    },
+    "s23.seat.keep": {
+      "phone": "S23",
+      "x": 722,
+      "y": 2001,
+      "check": "seat_up",
+      "from": "71판 · 결재석 KEEP(서버가 콜을 안 치웠을 때만) · ⛔ day1 은 안 씀(결재석은 day.py seat_tap 이 «seat:요금» 으로 찾음 · 손잡이는 글자 없음) — 좌표 그대로 두되 tap() 은 S23 좌표를 누르지 않음"
+    },
+    "s23.seat.reject": {
+      "phone": "S23",
+      "x": 140,
+      "y": 2001,
+      "check": "seat_up",
+      "from": "71판 사진 · 결재석 «거절» 칸 · ⛔ day1 은 안 씀(결재석은 day.py seat_tap 이 «seat:요금» 으로 찾음 · 손잡이는 글자 없음) — 좌표 그대로 두되 tap() 은 S23 좌표를 누르지 않음"
+    },
+    "s23.drawer.open": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "bright",
+      "from": "글자로 찾아 손 누름(find.mjs «aria:메뉴 열기») — Header.tsx:67 aria-label «메뉴 열기»",
+      "skipIf": {
+        "see": [
+          "완료됨"
+        ]
+      },
+      "text": "aria:메뉴 열기"
+    },
+    "s23.drawer.tab.cancel": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "text_row",
+      "from": "글자로 찾아 손 누름(find.mjs «in:완료됨>^취소») — Drawer.tsx 탭 «취소 N» — 서랍 탭 줄 안에서만",
+      "text": "in:완료됨>^취소"
+    },
+    "s23.drawer.tab.done": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "text_row",
+      "from": "글자로 찾아 손 누름(find.mjs «^완료됨») — Drawer.tsx 탭 «완료됨 N»(finishedCalls.ts:31)",
+      "text": "^완료됨"
+    },
+    "s23.drawer.close": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "text_row",
+      "from": "글자로 찾아 손 누름(find.mjs «in:완료됨>aria:닫기») — Drawer.tsx:105 aria-label «닫기» — 서랍 안에서만",
+      "text": "in:완료됨>aria:닫기"
+    },
+    "s23.sheet.handle": {
+      "phone": "S23",
+      "x": 539,
+      "y": 672,
+      "check": "handle",
+      "from": "71판 · 경로 시트 손잡이(펼친 때) · ⛔ day1 은 안 씀(결재석은 day.py seat_tap 이 «seat:요금» 으로 찾음 · 손잡이는 글자 없음) — 좌표 그대로 두되 tap() 은 S23 좌표를 누르지 않음"
+    },
+    "s23.filter.open": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs «여기서») — OrderFilterStatus.tsx:111 상태 줄 «🛣️ 노선 · 여기서 …» <button>(여닫기)",
+      "skipIf": {
+        "see": [
+          "어디로"
+        ]
+      },
+      "text": "여기서"
+    },
+    "s23.filter.dest.sido": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs «🎯 시·도») — PickLayer.tsx:36 «🎯 시·도 · 값» 칸",
+      "text": "🎯 시·도"
+    },
+    "s23.filter.dest.sigungu": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs «^시·군·구») — PickLayer «시·군·구 · 값» 칸",
+      "text": "^시·군·구"
+    },
+    "s23.filter.minfare": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs «^💵 최소 금액») — KnobGrid.tsx:95 «💵 최소 금액 · 값» 칸(누르면 − / + 손잡이가 뜸)",
+      "text": "^💵 최소 금액",
+      "skipIf": {
+        "see": [
+          "최소 금액 ✕"
+        ]
+      }
+    },
+    "s23.filter.apply": {
+      "phone": "S23",
+      "x": 705,
+      "y": 1193,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs) — 단추줄은 위 칸을 펼친 만큼 내려감(사진 y 410 · 467 · 510) · OrderFilterModal.tsx:1262 · x · y 는 9e 사진 참고값",
+      "text": "✅ 적용"
+    },
+    "s23.filter.save": {
+      "phone": "S23",
+      "x": 923,
+      "y": 1193,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs) — 단추줄은 위 칸을 펼친 만큼 내려감(사진 y 410 · 467 · 510) · OrderFilterModal.tsx:1273 · x · y 는 9e 사진 참고값",
+      "text": "💾 서버 저장"
+    },
+    "s23.step.delivered": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs · 71 «가») — 단계 시트는 높이 · 착불 칸에 따라 자리가 바뀜 · 그 단계가 현재일 때만 진짜 <button>(StepSheetMock.tsx:762-772 · 착불 :738)",
+      "text": "🏁 하차 완료"
+    },
+    "s23.step.cod.received": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs · 71 «가») — 단계 시트는 높이 · 착불 칸에 따라 자리가 바뀜 · 그 단계가 현재일 때만 진짜 <button>(StepSheetMock.tsx:762-772 · 착불 :738)",
+      "text": "받았음"
+    },
+    "s23.filter.dest.sido.gyeonggi": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs «=경기») — 시·도 고름 창의 «경기» 칩(글이 똑같은 단추)",
+      "text": "=경기"
+    },
+    "s23.filter.dest.sigungu.icheon": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs «=이천시») — 시·군·구 고름 창의 «이천시» 칩(글이 똑같은 단추)",
+      "text": "=이천시"
+    },
+    "s23.step.pickedup": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "from": "글자로 찾아 손 누름(find.mjs · 71 «가») — 단계 시트는 높이 · 착불 칸에 따라 자리가 바뀜 · 그 단계가 현재일 때만 진짜 <button>(StepSheetMock.tsx:762-772 · 착불 :738)",
+      "text": "📦 상차 완료"
+    },
+    "a24.hwamul24.detail.confirm": {
+      "phone": "A24",
+      "x": 281,
+      "y": 2113,
+      "check": "any",
+      "from": "9e taps_52 · 시뮬 화물24시 상세 «배차신청»(실제 좌표) · 옆 «돌아가기»는 (799,2113)",
+      "expect": {
+        "page": "^화물24시 화물상세정보 → DETAIL_PRE_CONFIRM"
+      }
+    },
+    "s23.filter.dest.row": {
+      "phone": "S23",
+      "check": "any",
+      "x": null,
+      "y": null,
+      "from": "글자로 찾아 손 누름(find.mjs «^🎯 어디로») — FilterRow.tsx:15 머리 단추 «🎯 어디로 …»",
+      "skipIf": {
+        "see": [
+          "어떻게 보나"
+        ]
+      },
+      "text": "^🎯 어디로"
+    },
+    "s23.filter.callkind.row": {
+      "phone": "S23",
+      "check": "any",
+      "x": null,
+      "y": null,
+      "from": "글자로 찾아 손 누름(find.mjs «^💰 어떤 콜») — FilterRow 머리 단추 «💰 어떤 콜 …»",
+      "skipIf": {
+        "see": [
+          "최소 금액"
+        ]
+      },
+      "text": "^💰 어떤 콜"
+    },
+    "s23.filter.home.on": {
+      "phone": "S23",
+      "x": 143,
+      "y": 960,
+      "check": "any",
+      "from": "글자로 찾아 손 누름 — «↩️ 복귀 끔»(꺼져 있을 때만 있는 글자 · 누르면 켜짐) · 켜져 있으면 단추가 없어 안 누름(⚪) · OrderFilterModal.tsx:1231",
+      "text": "↩️ 복귀 끔"
+    },
+    "s23.filter.home.off": {
+      "phone": "S23",
+      "x": 143,
+      "y": 960,
+      "check": "any",
+      "from": "글자로 찾아 손 누름 — «↩️ 복귀 켬»(켜져 있을 때만 있는 글자 · 누르면 꺼짐) · 이번 판에 스크립트가 켰을 때만 S99 가 부름",
+      "text": "↩️ 복귀 켬"
+    },
+    "s23.filter.toggle": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "여기서",
+      "from": "글자로 찾아 손 누름 — 필터 상태 줄 «🛣️ 노선 · 여기서 …»(OrderFilterStatus.tsx:111 <button> · 누르면 필터 창이 열리고 닫힘) · 출발 화면 맞추기(tidy_s23)가 펼친 창을 접을 때만 씀"
+    },
+    "s23.filter.minfare.plus": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "in:최소 금액>=+",
+      "from": "글자로 찾아 손 누름 — 최소 금액 손잡이 «+»(0.1만 = 1,000원 · KnobGrid.tsx:122) · 손잡이 안에서만(지도 +/− 와 안 섞임)"
+    },
+    "s23.filter.minfare.minus": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "in:최소 금액>=−",
+      "from": "글자로 찾아 손 누름 — 최소 금액 손잡이 «−»(KnobGrid.tsx:113)"
+    },
+    "s23.filter.revert": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "되돌리기",
+      "from": "글자로 찾아 손 누름 — «되돌리기»(OrderFilterModal.tsx 저장 줄 · 서버에 저장된 값으로 · 서버와 같으면 꺼짐 · 관제앱 c0ba1918 부터 «↩︎» 없음)"
+    },
+    "s23.step.nav.pickedup": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "aria:상차 완료",
+      "from": "글자로 찾아 손 누름 — 단계 막대의 «상차 완료» 점(CallStepTrack.tsx:60 aria-label · 누르면 그 단계 시트로 넘어감 · 단계 시트는 옆으로 넘기는 칸이라 다음 단계 단추는 화면 옆 밖에 있다)"
+    },
+    "s23.step.nav.delivered": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "aria:하차 완료",
+      "from": "글자로 찾아 손 누름 — 단계 막대의 «하차 완료» 점(CallStepTrack.tsx:60)"
+    },
+    "s23.step.nav.arrive.pickup": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "aria:상차지 도착",
+      "from": "글자로 찾아 손 누름 — 단계 막대의 «상차지 도착» 점(CallStepTrack.tsx:60 aria-label · 누르면 그 단계 시트로)"
+    },
+    "s23.step.arrive": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "📍 도착",
+      "from": "글자로 찾아 손 누름 — 단계 시트 도착 단계의 «📍 도착»(StepSheetMock.tsx:641 · 그 단계가 현재일 때만 진짜 <button>) · 사용설명서 2장"
+    },
+    "s23.step.nav.call.pickup": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "aria:상차지 통화",
+      "from": "글자로 찾아 손 누름 — 단계 막대의 «상차지 통화» 점(CallStepTrack.tsx:60 · shared callSteps CALL_PICKUP)"
+    },
+    "s23.step.call.skip": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "=통화 스킵",
+      "from": "글자로 찾아 손 누름 — 상차지 통화 단계의 «통화 스킵»(StepSheetMock.tsx:588 · 시험은 실제 통화가 없어 스킵) · 이 단계가 현재여야 다음 «📍 도착»이 진짜 단추"
+    },
+    "s23.step.nav.call.dropoff": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "aria:하차지 통화",
+      "from": "글자로 찾아 손 누름 — 단계 막대의 «하차지 통화» 점(shared callSteps CALL_DROPOFF · 상차지 통화 다음 · 상차지 도착 앞)"
+    }
+  }
+}

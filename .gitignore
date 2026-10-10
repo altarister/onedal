@@ -73,3 +73,11 @@ ex_images/카카오픽커/실물_2026/
 
 # 📝 리뷰 및 분석 문서 — 로컬 전용으로 관리하며 깃에 올리지 않는다
 reviews/
+
+# 실폰 e2e 실행 기록 · 판 상태(phone-test)
+phone-test/out/
+phone-test/runs/
+phone-test/__pycache__/
+phone-test/fare_seq.json
+phone-test/round_seq.json
+phone-test/used_calls.json
