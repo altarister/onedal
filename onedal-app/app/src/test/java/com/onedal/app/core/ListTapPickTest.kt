@@ -21,6 +21,14 @@ class ListTapPickTest {
         hold: AlarmHold.Kind? = AlarmHold.Kind.FIRE, evaluating: Boolean = false, armed: Boolean = false,
     ) = ListTapPick.GateFacts(tapsList, openedByApp, hasBest, handBlocks, hold, { evaluatingReads++; evaluating }, armed = armed)
 
+    /* ⏳ 미룬 콜은 다시 볼 때를 스스로 건다 — 같은 글자면 읽기가 지문에서 멈춰, 걸지 않으면 심사가 끝나도 영영 안 연다(87판 · 71 «가») */
+    @Test fun `🔴 심사 중 미룸은 1초 뒤 다시 본다 · 알람 미룸은 RECHECK_MS · 누르러 가거나 바쁨이면 안 건다`() {
+        assertEquals(1_000L, ListTapPick.gate(facts(evaluating = true)).recheckAfterMs)
+        assertEquals(AlarmHold.RECHECK_MS, ListTapPick.gate(facts(hold = AlarmHold.Kind.HOLD)).recheckAfterMs)
+        assertNull(ListTapPick.gate(facts()).recheckAfterMs)
+        assertNull(ListTapPick.gate(facts(openedByApp = true)).recheckAfterMs)
+    }
+
     /* 📲 안전취소가 지키는 계약이 있는 동안(다른 배차망 화면 · 화물24시 배차내역)은 새 콜을 안 연다 — 새 계약이 옛 타이머를 덮지 않게 (38 F36) */
     @Test fun `🔴 지키는 계약이 있으면 바쁨 — 안 누른다`() {
         val g = ListTapPick.gate(facts(armed = true))

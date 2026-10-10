@@ -23,9 +23,11 @@ object ListTapPick {
     /**
      * @property openBlocked 통과 콜이 있는데 안 연 까닭(`OpenBlocked`) — 열러 가면 null(뒤 단계가 다시 정한다)
      * @property handHeld 기사님 손이 먼저 — 서비스는 `handFirst.hold` 를 걸고 «손 먼저» 줄을 남긴다
-     * @property heldRecheck 알람 미룸 — 서비스는 지문을 비우고 «미룬 알람 다시 보기»를 건다
+     * @property heldRecheck 알람 미룸 — 서비스는 «⏳ [알람 미룸]» 줄을 남긴다(다시 보기는 [recheckAfterMs])
      * @property evaluatingStop 서버가 앞 콜을 심사 중이라 안 누름
      * @property planTap 배차망에게 누를 자리를 묻는다(`planListTap`)
+     * @property recheckAfterMs 미룬 콜을 다시 볼 때 — 알람 미룸 [AlarmHold.RECHECK_MS] · 심사 중 미룸 [EVALUATING_RECHECK_MS] · 아니면 null.
+     *   목록 글자가 같으면 읽기가 지문에서 멈추므로, 미룬 쪽이 «같은 글자여도 다시 보는» 읽기를 스스로 건다(87판)
      */
     data class Gate(
         val openBlocked: String?,
@@ -33,7 +35,11 @@ object ListTapPick {
         val heldRecheck: Boolean,
         val evaluatingStop: Boolean,
         val planTap: Boolean,
+        val recheckAfterMs: Long? = null,
     )
+
+    /** ⏳ 앞 콜 심사 중 미룬 콜을 다시 보는 간격 — 심사가 풀린 첫 읽기에서 누른다 */
+    const val EVALUATING_RECHECK_MS = 1_000L
 
     /**
      * 🚪 누르러 갈까 — 바쁨(앱이 연 콜 · 안전취소가 지키는 계약) · ✋ 손 먼저(누르기 미룸) · ⏳ 알람 미룸 · 🔒 심사 중 · 👆 누름.
@@ -66,7 +72,12 @@ object ListTapPick {
                 planTap = !handHeld
             }
         }
-        return Gate(openBlocked, handHeld, heldRecheck, evaluatingStop, planTap)
+        val recheckAfterMs = when {
+            heldRecheck -> AlarmHold.RECHECK_MS
+            evaluatingStop -> EVALUATING_RECHECK_MS
+            else -> null
+        }
+        return Gate(openBlocked, handHeld, heldRecheck, evaluatingStop, planTap, recheckAfterMs)
     }
 
     /** 🌊 배차망이 누를 자리를 못 정했다 — 방금 스크롤이면 흐르는 목록(곧 다시 읽음), 아니면 배차망이 남긴 보류 까닭(없으면 HELD) */

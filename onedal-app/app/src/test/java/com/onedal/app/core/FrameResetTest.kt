@@ -33,7 +33,7 @@ class FrameResetTest {
         val leave = src.substringAfter("if (!isListScreen && wasListScreen) {").substringBefore("\n        }")
         // 둘 다 목록 몫(WaitBook.LIST)으로 걸고 — 떠날 때 목록 몫을 한꺼번에 거둔다
         assertTrue(leave.contains("waitBook.cancelOwner(com.onedal.app.core.WaitBook.LIST)"))
-        assertTrue(src.contains("waitBook.schedule(\"미룬 알람 다시 보기\", com.onedal.app.core.WaitBook.LIST"))
+        assertTrue(src.contains("waitBook.schedule(\"미룬 콜 다시 보기\", com.onedal.app.core.WaitBook.LIST"))
         assertTrue(src.contains("waitBook.schedule(\"겹친 틀 뒤 읽기\", com.onedal.app.core.WaitBook.LIST"))
     }
 

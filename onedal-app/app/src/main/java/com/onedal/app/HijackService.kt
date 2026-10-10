@@ -1091,7 +1091,7 @@ class HijackService : AccessibilityService(), ScanContext {
     private val recentContentEvents = ArrayDeque<Long>()
     private var scanMoving = false
     private val alarmHold = com.onedal.app.core.AlarmHold()
-    private val heldAlarmRecheck = Runnable { reservedRead("미룬 알람 확인") }
+    private val heldAlarmRecheck = Runnable { reservedRead("미룬 콜 확인") }
     private var eventSinceRead = false
     /** 📜 조용한 목록 다시 읽기 — 마지막 읽기 시각 · 이번 읽기가 조용한 다시 읽기인가 · 겹친 틀 연달아 버린 수 (`ListWatch`) */
     private var lastReadMs = 0L
@@ -1368,7 +1368,7 @@ class HijackService : AccessibilityService(), ScanContext {
         if (!isListScreen && wasListScreen) {
             listBlindSinceMs = System.currentTimeMillis()
             alarmHold.clear()   // ⏳ 목록을 떠났다 — 미룬 알람을 버린다
-            waitBook.cancelOwner(com.onedal.app.core.WaitBook.LIST)   // 미룬 알람 다시 보기 · 겹친 틀 뒤 읽기도 여기서 거둔다
+            waitBook.cancelOwner(com.onedal.app.core.WaitBook.LIST)   // 미룬 콜 다시 보기 · 겹친 틀 뒤 읽기도 여기서 거둔다
             waitBook.cancel("목록 요약"); listWatchTicks = 0   // 👁️ 복귀 요약은 목록에 있는 동안만 — 떠난 뒤 «복귀 N초»로 찍히지 않게
             touchedAtMs = android.os.SystemClock.elapsedRealtime()   // ✋ 목록을 떠났다 — 손이 닿은 것 · 목록 밖 화면에서 10초 동안 조용한 다시 읽기를 촘촘히(돌아온 것을 곧 알게)
             logPendingWaits("목록 → ${detected.name}")
@@ -1714,20 +1714,22 @@ class HijackService : AccessibilityService(), ScanContext {
             if (LogOnce.changed("hand-first", "${handFirst.lastHandAtMs}"))
                 AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "✋ [손 먼저] 기사님 손 ${"%.1f".format((tapNowMs - handFirst.lastHandAtMs) / 1000.0)}초 전($lastHandWhy) — 누르기 미룸 · 멈추면 곧바로 다시 읽는다")
         }
-        if (gate.heldRecheck) {
-            lastScreenFingerprint = 0   // 확인 읽기의 글자가 같아도 목록을 다시 봐야 미룬 알람이 울린다
+        if (gate.heldRecheck)
             AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "⏳ [알람 미룸] 목록이 움직이는 중(내용 바뀜 ${recentContentEvents.size}개/300ms) — 다음 읽기에서 같은 조립이면 울린다 · $label")
-            waitBook.schedule("미룬 알람 다시 보기", com.onedal.app.core.WaitBook.LIST, com.onedal.app.core.AlarmHold.RECHECK_MS) { heldAlarmRecheck.run() }
+        /* ⏳ 미룬 콜(알람 미룸 · 앞 콜 심사 중)은 다시 볼 때를 스스로 건다 — 목록 글자가 같으면 읽기가 지문에서 멈춰, 걸지 않으면 영영 안 연다(87판) · 언제는 gate 한 곳 · 같은 이름이라 늘 하나 · 목록 몫이라 목록을 떠나면 거둬진다 */
+        gate.recheckAfterMs?.let { ms ->
+            lastScreenFingerprint = 0   // 확인 읽기의 글자가 같아도 목록을 다시 봐야 미룬 콜이 열린다
+            waitBook.schedule("미룬 콜 다시 보기", com.onedal.app.core.WaitBook.LIST, ms) { heldAlarmRecheck.run() }
         }
         if (best != null && (gate.evaluatingStop || gate.planTap)) {
             val (order, fareNode, orderHash) = best
             /**
              * 🔒 **서버가 앞 콜을 심사 중이면 이번 스캔은 누르지 않는다** (기사님 · 실주행 오송읍 · 한 번에 하나만 평가).
-             * 판정은 이미 끝났고 기억에도 안 넣었으니, 앞 콜이 결재되는 즉시 다음 스캔에서 **바로** 누른다.
+             * 판정은 이미 끝났고 기억에도 안 넣었으니, 1초마다 같은 글자여도 다시 보고(위 «미룬 콜 다시 보기») 심사가 풀린 첫 읽기에서 누른다.
              */
             if (gate.evaluatingStop) {
                 AppLogger.d(TAG, LogTag.TAP, "⏳ [클릭 미룸] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
-                    "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 다음 스캔에서 바로 누릅니다")
+                    "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 1초 뒤 다시 보고 풀리면 바로 누릅니다")
             }
             if (gate.planTap) {
                 // 🌊 방금 스크롤 — 흐르는 목록은 누르지 않고 곧 다시 읽는다(주 판정은 배차망의 누르기 직전 Y 차이 · 이것은 덧)
