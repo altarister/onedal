@@ -60,6 +60,17 @@ describe('🧭 화물24시 상세 ↔ 배차망 정의 표', () => {
         expect(pagesOf(textOf(<Hwamul24SimScreen {...base} confirmedCalls={[callA]} />))[0]).toBe('배차내역 상세 · 화물정보 탭');
     });
 
+    /**
+     * 🔴 «배차신청» 뒤 넘어가는 배차내역 탭은 «배차내역 목록» 줄에만 맞는다 (실물 03 · 20 · 91판 S09).
+     * 실물 바닥 줄(«합계 …» · «산재보험료 부담액» · «자세히 보기»)이 없거나 실시간 목록의 «자동새로고침» · «자동터치»가 남으면
+     * 원달앱이 그 화면을 실시간 목록으로 읽어 기사님 손 신청(표의 landsAfterAccept)을 못 알아본다.
+     */
+    it('🔴 배차내역 탭은 «배차내역 목록» 줄에만 맞는다', () => {
+        const text = textOf(<Hwamul24SimScreen {...base} selectedCall={null} selectedCallId={null} confirmedCalls={[callA]} activeTab="CONFIRMED" />);
+        expect(pagesOf(text)).toEqual(['배차내역 목록']);
+        expect(text).toMatch(new RegExp(`합계: ?${(callA as Hwamul24Call).fare.toLocaleString()} ?원`));
+    });
+
     it('잡기 전 상세를 표의 상세 칸 읽는 법으로 읽으면 운송료 · 결제방법 · 화물정보가 콜 값이다', () => {
         const text = textOf(<Hwamul24SimScreen {...base} />);
         const call = callA as Hwamul24Call;

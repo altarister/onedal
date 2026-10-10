@@ -122,6 +122,7 @@ export const Hwamul24DispatchBoard = ({
 }: BoardProps) => {
 
   const calls = activeTab === 'ALL' ? streamingCalls : confirmedCalls;
+  const confirmedSum = confirmedCalls.reduce((sum, c) => sum + c.fare, 0);
 
   const handleCardClick = React.useCallback((call: Hwamul24Call) => {
     if (onCallClick) onCallClick(call);
@@ -136,7 +137,7 @@ export const Hwamul24DispatchBoard = ({
           <span className="text-white text-[12px] bg-black/30 rounded-full w-6 h-6 flex items-center justify-center font-bold">‹</span>
           <span className="text-white text-[17px] font-extrabold tracking-wide">{activeTab === 'CONFIRMED' ? '배차내역' : '화물정보'}</span>
         </div>
-        <div className="flex items-center gap-2">
+        {activeTab === 'ALL' && <div className="flex items-center gap-2">
           {/* 🔴 «자동새로고침» 이다 — 원달앱이 «화물정보» + «자동새로고침» 둘로 화물24시 리스트를 알아본다
               (Hwamul24Keywords · 실물 캡처 ex_images/화물24시/17·36). 한 글자만 빠져도
               시뮬레이터 리스트가 원달앱에게 화물24시로 안 읽힌다 */}
@@ -144,7 +145,7 @@ export const Hwamul24DispatchBoard = ({
           <div className={`w-10 h-5 rounded-full flex items-center px-0.5 cursor-pointer transition-colors ${!isTimerPaused ? 'bg-[#4caf50]' : 'bg-gray-500'}`} onClick={onToggleTimer}>
             <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${!isTimerPaused ? 'translate-x-5' : 'translate-x-0'}`} />
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* ── 서브 헤더: ID / 오더검색 / 잔액 ── */}
@@ -157,15 +158,15 @@ export const Hwamul24DispatchBoard = ({
         <span className="text-white font-bold">잔액 : <span className="text-[#ffab00]">{(Math.floor(Math.random() * 500000) + 50000).toLocaleString()}</span>원</span>
       </div>
 
-      {/* ── 자동터치 / 성공 건 표시줄 ── */}
-      <div className="flex items-center justify-between bg-white border-b border-gray-300 px-3 py-1.5 shrink-0 text-[12px]">
+      {/* ── 자동터치 / 성공 건 표시줄 — 실시간 목록에만 (배차내역 탭에 «자동새로고침» · «자동터치»가 남으면 원달앱이 실시간 목록으로 읽는다) ── */}
+      {activeTab === 'ALL' && <div className="flex items-center justify-between bg-white border-b border-gray-300 px-3 py-1.5 shrink-0 text-[12px]">
         <div className="flex items-center gap-2">
           <span className="text-gray-700 font-bold">자동터치</span>
           <span className="bg-gray-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">OFF</span>
           <span className="text-gray-400 text-[14px] font-bold">❓</span>
         </div>
         <span className="text-gray-700 font-bold">성공<span className="text-[#ff6600]">{confirmedCalls.length}</span>건/최대<span className="text-[#ff6600]">15</span>건</span>
-      </div>
+      </div>}
 
       {/* ── 리스트 본문 ── */}
       <div className="relative flex flex-col overflow-y-auto flex-1 bg-white">
@@ -189,6 +190,19 @@ export const Hwamul24DispatchBoard = ({
           />
         ))}
       </div>
+
+      {/* ── 배차내역 바닥 줄 (실물 03 · 20) — 원달앱이 «배차내역» + «자세히 보기»로 배차내역 목록을 알아본다 ── */}
+      {activeTab === 'CONFIRMED' && (
+        <div className="bg-white border-t border-gray-300 shrink-0 text-[13px] text-gray-700">
+          <div className="text-center py-1.5 border-b border-dashed border-gray-300">
+            <span>합계:<span className="text-[#e53935] font-bold">{confirmedSum.toLocaleString()}</span>원 (운:{confirmedSum.toLocaleString()}원|수:0원)</span>
+          </div>
+          <div className="flex items-center justify-center gap-2 py-1.5">
+            <span>산재보험료 부담액 : <span className="text-[#1e88e5] font-bold">{(Math.round(confirmedSum * 0.004 / 10) * 10).toLocaleString()}</span>원</span>
+            <button className="border border-[#c9a227] rounded-sm px-2 py-0.5 text-gray-700">자세히 보기</button>
+          </div>
+        </div>
+      )}
 
       {/* ── 하단 네비게이션 바 ── */}
       <div className="flex bg-[#2a2a2a] border-t border-gray-600 shrink-0">
