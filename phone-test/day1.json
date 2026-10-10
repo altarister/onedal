@@ -226,26 +226,18 @@
   },
   {
    "id": "S03",
-   "say": "필터를 열어 «🎯 어디로 → 경기 → 이천시»로 고르고 최소 금액 손잡이 «+»를 한 번(+1,000원) 눌러 «적용» — 원달앱에 내려가고 제외 지역에 이천이 없다",
+   "say": "시험용 필터로 맞춘 뒤(목적지 이천시 · 제외 지역 없음 · 최소 6천 — 서버 저장) 관제앱에서 최소 금액 «+»를 한 번 눌러 «적용» — 원달앱에 7천이 내려간다",
    "phone": "S23",
    "do": [
     {
+     "set_filter": {
+      "destinationCity": "이천시",
+      "excludedRegions": [],
+      "minFare": 6000
+     }
+    },
+    {
      "tap": "s23.filter.open"
-    },
-    {
-     "tap": "s23.filter.dest.row"
-    },
-    {
-     "tap": "s23.filter.dest.sido"
-    },
-    {
-     "tap": "s23.filter.dest.sido.gyeonggi"
-    },
-    {
-     "tap": "s23.filter.dest.sigungu"
-    },
-    {
-     "tap": "s23.filter.dest.sigungu.icheon"
     },
     {
      "tap": "s23.filter.callkind.row"
@@ -275,7 +267,7 @@
      "city": "이천시"
     },
     "app_filter": {
-     "minFare": "snapshot+1000"
+     "minFare": 7000
     }
    },
    "expect": "«🎯 어디로 → 경기 → 이천시» · 최저 요금 시작+1,000 → «✅ 적용»(useFilterConfig.ts:68 update-filter) → 서버 «관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (오늘만 — DB 저장 안함)»(filterManager.ts:548) · 필터 지문 바뀜 → 원달앱 «📋 [필터 동기화] 판 X»(FilterStore.kt:61) → «🔄 [필터 도착]»(HijackService.kt:446/450) → 다음 스캔 «🔄 [필터 바뀜] 버전 X»(:1603) · 원달앱 목적지 이천시 · minFare 시작+1,000 · 제외 지역 칸은 그대로(이천 없음) · user_filters 는 안 바뀜(오늘만)",
@@ -285,11 +277,11 @@
    "needs": [
     "S01"
    ],
-   "purpose": "관제앱에서 고친 필터(오늘만 · 목적지 · 최소 금액)가 서버와 원달앱에 바로 가는가"
+   "purpose": "시작 필터가 무엇이든 시험용 필터로 맞추고, 관제앱에서 고친 필터(적용 · 오늘만)가 서버와 원달앱에 바로 가는가"
   },
   {
    "id": "S04",
-   "say": "최소 금액 손잡이 «−»를 한 번 눌러 시작 값으로 되돌려 «💾 서버 저장» — DB 에 저장되고 원달앱에 내려간다(목적지도 함께 저장됨 · 시작 목적지가 이천이 아니면 S99 에서 되돌림)",
+   "say": "최소 금액 «−»를 한 번 눌러 6천으로 되돌려 «💾 서버 저장» — DB 에 저장되고 원달앱에 내려간다",
    "phone": "S23",
    "do": [
     {
@@ -314,7 +306,7 @@
    ],
    "check": {
     "app_filter": {
-     "minFare": "snapshot"
+     "minFare": 6000
     }
    },
    "expect": "최저 요금을 시작 값으로 → «💾 서버 저장» → 서버 «영구 설정(baseFilter) DB 저장 완료» · 원달앱 판 바뀜(S03 과 같은 세 줄) · 원달앱 minFare = 시작 값 · user_filters 는 시작과 같거나(시작 목적지가 이천이었을 때) 목적지만 다름(아니면 S99 가 되돌림)",
@@ -1246,7 +1238,7 @@
   },
   {
    "id": "S99",
-   "say": "끝 정리 — 필터 · 설정이 시작 때와 같은지 · 모드는 시작 값과 다를 때만 되돌림 · 귀가는 이번 판에 스크립트가 켰을 때만 끔(아니면 적기만) · JoyStick 중단(9e)",
+   "say": "끝 정리 — 필터를 S01 이 떠 둔 기사님 필터(목적지 · 제외 지역 · 최저)로 되돌리고 · 모드는 시작 값과 다를 때만 되돌림 · 귀가는 이번 판에 스크립트가 켰을 때만 끔 · JoyStick 끄기(에이전트)",
    "phone": "both",
    "do": [
     {
@@ -1256,7 +1248,7 @@
      "filter_revert_if_unsaved": {}
     },
     {
-     "restore_dest": {}
+     "restore_filter": {}
     },
     {
      "tidy_s23": {

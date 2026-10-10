@@ -200,21 +200,13 @@ def place(key, ref=None):
         return cands[-k] if parts[1] == 'far' else cands[k - 1]
     raise ToolStop(f'⚪ 시험 도구 — 장소 «{key}» 없음')
 
-def fare_lift(net):
-    """💰 콜이 시작 최저 금액에 걸리지 않게 — 시작 최저(S01 떠 둔 minFare)가 시나리오 인성 · 화물24시 콜의 가장 낮은 요금보다 높으면,
-       그 콜들 모두에 같은 만큼 더한다(콜끼리 요금 차 · 높낮이는 그대로 · 장소는 그대로라 경로도 그대로). 픽커는 요금 단위가 달라 안 건드림"""
-    if net not in ('insung', 'hwamul24'): return 0
-    floor = int((SNAP.get('filter') or {}).get('minFare') or 0)
-    low = min((d['call']['fare'] for s in SCEN['steps'] for d in s.get('do', []) if 'call' in d and d['call']['net'] in ('insung', 'hwamul24')), default=0)
-    return max(0, -(-floor // 1000) * 1000 - low + 1000) if floor else 0
-
 def do_call(c):
     pick, drop = place(c['pick']), place(c['drop'], c['pick'])
     if c['veh'] == 'filter': veh = None if DRY else (run.app_filter().get('allowedVehicleTypes') or ['1t'])[0]
     elif c['veh'] == 'snapshot': veh = None if DRY else ((SNAP.get('filter') or {}).get('allowedVehicleTypes') or ['1t'])[0]   # 그 순간 필터를 통과하는 차종(S01 떠 둔 값)
     else: veh = c['veh']
     if DRY: log(f'  📦 {c["net"]} {pick[0]} → {drop[0]} · {c["fare"]} · {veh} · {c.get("tag")} · bind {c.get("bind")}'); return
-    n = app_mark(); sm = srv_mark(); fare = c['fare'] + fare_lift(c['net']) + (run.fare_bump() // 1000 % 10) * 1000   # 끝수 0~9천 원 — 시나리오 요금 차(높음/낮음)를 안 뒤집게
+    n = app_mark(); sm = srv_mark(); fare = c['fare'] + (run.fare_bump() // 1000 % 10) * 1000   # 끝수 0~9천 원 — 시나리오 요금 차(높음/낮음)를 안 뒤집게
     body = {'pickup': dict(zip(('addressDetail', 'region', 'lon', 'lat'), pick)), 'dropoff': dict(zip(('addressDetail', 'region', 'lon', 'lat'), drop)), 'fare': fare, 'vehicleType': veh,
             'net': run.SIM_CODE[c['net']]}   # 🔀 받을 배차망 — 시뮬은 배차망마다 칸을 들고 있어 «누가 받나»가 시험의 사실이 되게(71 «가»)
     r = urllib.request.urlopen(urllib.request.Request('http://localhost:4000/api/sim/calls', json.dumps(body).encode(), {'Content-Type': 'application/json'}))
@@ -364,6 +356,8 @@ def act(a):
     elif k == 'snapshot':
         with sqlite3.connect(run.DB) as c:
             for t in ('user_filters', 'user_settings'): SNAP[t] = c.execute(f'SELECT * FROM {t}').fetchall()
+            c.row_factory = sqlite3.Row
+            SNAP['filter_rows'] = [dict(r) for r in c.execute('SELECT * FROM user_filters').fetchall()]   # S99 가 시작 필터로 되돌릴 때 칸 이름으로 읽는다
         SNAP['mode'] = run.supplied_mode(); SNAP['filter'] = run.app_filter()
         log(f'📸 떠 둠 — 필터 · 설정 · 모드 {SNAP["mode"]} · 목적지 {SNAP["filter"].get("destinationCity")} · 최저 {SNAP["filter"].get("minFare")}')
         if SNAP['filter'].get('destinationCity') != '이천시': log(f'⚠️ 시작 목적지가 이천시가 아님 — S04 저장이 목적지까지 DB 에 넣는다 · S99 에서 되돌림 필요(ef)')
@@ -406,6 +400,24 @@ def act(a):
         else: log('  필터 💾 안 «저장 전» 없음 — 되돌릴 것 없음')
     elif k == 'home_off_if_mine':   # 판 끝 귀가 — 이번 판에 스크립트가 켰을 때만 «↩️ 복귀 켬» 단추로 끈다 · 아니면 켜져 있어도 적기만(71 · 실행서 5-1)
         home_off_if_mine()
+    elif k == 'set_filter':   # 시험용 필터로 맞춤 — 관제앱 «서버 저장»과 같은 길(소켓 update-filter + saveAsDefault) · 시작 필터가 무엇이든 시험이 같은 조건에서 돈다
+        if DRY: log(f'  🎛️ 시험용 필터 {v} — 서버 저장'); return
+        sm, am = srv_mark(), app_mark()
+        log('🎛️ ' + run.sh('node', os.path.join(HERE, 'set_filter.mjs'), json.dumps(v, ensure_ascii=False), check=True).strip())
+        wait_for('srv', sm, r'영구 설정\(baseFilter\) DB 저장 완료', 15, '서버 저장')
+        wait_for('app', am, r'\[필터 도착\]|\[필터 바뀜\]', 20, '원달앱 필터 받음')
+        f = run.app_filter(); bad = {k2: f.get(k2) for k2, v2 in v.items() if k2 in ('destinationCity', 'minFare') and f.get(k2) != v2}
+        if bad: raise Stop(f'시험용 필터가 원달앱에 안 감 — {bad}')
+        log(f'🎛️ 시험용 필터 맞춤 — 원달앱 목적지 {f.get("destinationCity")} · 최저 {f.get("minFare")}')
+    elif k == 'restore_filter':   # 판 끝 — S01 이 떠 둔 기사님 필터(목적지 · 제외 지역 · 최저)로 같은 길로 되돌린다
+        start = (SNAP.get('filter') or {})
+        row = next((r for r in SNAP.get('filter_rows') or [] if r.get('destination_city') == start.get('destinationCity') and r.get('min_fare') == start.get('minFare')), None)
+        if DRY: log('  🎛️ 시작 필터로 되돌림(목적지 · 제외 지역 · 최저)'); return
+        if not row: raise ToolStop('⚪ 시험 도구 — 시작 필터 기록이 없음(S01 을 이번 판에 돌렸나)')
+        back = {'destinationCity': row['destination_city'], 'excludedRegions': json.loads(row['excluded_regions'] or '[]'), 'minFare': row['min_fare']}
+        sm = srv_mark(); log('🎛️ ' + run.sh('node', os.path.join(HERE, 'set_filter.mjs'), json.dumps(back, ensure_ascii=False), check=True).strip())
+        wait_for('srv', sm, r'영구 설정\(baseFilter\) DB 저장 완료', 15, '서버 저장')
+        log(f'🎛️ 시작 필터로 되돌림 — {back}')
     elif k == 'restore_dest':   # 시작 목적지가 «이천시»가 아니었으면 UI 로 시작 값을 다시 골라 저장해야 한다(DB 에 직접 안 씀 · ef)
         start = (SNAP.get('filter') or {}).get('destinationCity')
         if start in (None, '이천시'): log(f'목적지 되돌림 필요 없음(시작 {start})'); return
