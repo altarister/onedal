@@ -194,3 +194,20 @@ describe('🔍 «적용 안 함» 표시 — 초안이 서버 값과 다를 때�
         expect(openWindow()).not.toContain('적용 안 함');
     });
 });
+
+/* 📏 저장 줄은 한 줄 — 가운데 안내 글 칸이 없고 «서버와 다른가»는 💾 버튼 안 작은 글이 말한다(기사님 «가»). 못 잡는 것: 360 폭에서 실제로 한 줄인가(사진) */
+describe('📏 저장 줄 — 버튼만', () => {
+    const saveButton = () => box.buttons.find(b => String(b.title ?? '').includes('DB에 저장'));
+    const text = (node: any): string => typeof node === 'string' ? node : Array.isArray(node) ? node.map(text).join('') : node?.props ? text(node.props.children) : '';
+    it('서버와 같으면 💾 에 «저장 전»이 없고 · 줄에 «서버와 같음» 글이 없다', () => {
+        const html = openWindow();
+        expect(html).not.toContain('서버와 같음');
+        expect(text(saveButton().children)).not.toContain('저장 전');
+    });
+    it('서버와 다르면 💾 버튼 안에 «저장 전» · 줄에 «서버와 다름» 글은 없다', () => {
+        useFilterStore.setState({ filter: { ...SERVED, minFare: 7000 }, baseFilter: SERVED } as any);
+        const html = openWindow();
+        expect(html).not.toContain('서버와 다름');
+        expect(text(saveButton().children)).toContain('저장 전');
+    });
+});

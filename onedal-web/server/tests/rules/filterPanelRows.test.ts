@@ -39,7 +39,7 @@ describe('🧰 필터 판 — 네 행 · 하나만 열림 · 저장 줄 고정',
         const bar = code.indexOf('data-save-bar');
         expect(bar).toBeGreaterThan(-1);
         expect(code.indexOf('💾 서버 저장', bar)).toBeGreaterThan(bar);
-        expect(code.indexOf('↩︎ 되돌리기', bar)).toBeGreaterThan(bar);
+        expect(code.indexOf('되돌리기', bar)).toBeGreaterThan(bar);
     });
 
     /**

@@ -1207,8 +1207,9 @@ export default function OrderFilterModal({ isOpen, onClose,
                   * 💾 **저장 줄 — 스크롤 밖 필터 바닥에 늘 보인다** (기사님: *"한번에 저장버튼이 보이지 않아서 불편하고"*).
                   * 🔴 보내는 것은 둘이다 — ✅ 적용(오늘 값) · 💾 서버 저장(평소 설정까지). ↩︎ 되돌리기는 서버 값을 초안에 적는다. 값을 만지면 초안에 적힌다.
                   * ⚠️ 제외 지역의 인라인 💾 저장(초안에 담기)은 «🚫 빼는 곳» 안에 그대로 있다 — 칩 하나 잘못 눌러 곧장 담기지 않게.
+                  * 📏 **한 줄 · 버튼만** (기사님: *"글을 줄여서라도 한 줄로"*) — «적용 안 함» · «저장 전»은 그 버튼 안 작은 글이 말한다. 설명 문장은 사용설명서 몫.
                   */}
-                <div data-save-bar className="shrink-0 relative z-10 flex items-center gap-1.5 border-t border-border bg-bg-base px-3 py-1.5">
+                <div data-save-bar className="shrink-0 relative z-10 flex items-center gap-1.5 whitespace-nowrap border-t border-border bg-bg-base px-3 py-1.5">
                     {/**
                       * ↩️ **복귀 — 저장 줄 맨 왼쪽** (기사님: *"2번 터치해야 들어가는 건 불편하다"*).
                       *
@@ -1224,7 +1225,7 @@ export default function OrderFilterModal({ isOpen, onClose,
                             <Button
                                 onClick={() => goPhase(homeOn ? 'DEST' : 'HOME')}
                                 title={homeOn ? '끄면 원래 목적지로 돌아갑니다' : '켜면 집 방향 콜을 찾습니다'}
-                                className={`h-8 shrink-0 rounded-lg border font-black text-[12px] px-3 ${homeOn
+                                className={`h-8 shrink-0 rounded-lg border font-black text-[12px] px-2 ${homeOn
                                     ? 'bg-warning/25 border-warning text-warning'
                                     : 'bg-surface-alt border-border-card text-text-muted'}`}
                             >
@@ -1232,21 +1233,15 @@ export default function OrderFilterModal({ isOpen, onClose,
                             </Button>
                         );
                     })()}
-                    <span className="flex-1 min-w-0 text-[11px] font-bold leading-tight text-text-muted">
-                        {unsaved ? <b className="text-warning">서버와 다름</b> : '서버와 같음'}
-                        <span className="block text-[9.5px] font-bold opacity-80">
-                            {unapplied ? <>고친 값은 <b>✅ 적용</b>을 눌러야 원달앱에 갑니다</>
-                                : unsaved ? '적용 중 · 💾 누르면 내일 아침에도' : <>고친 뒤 <b>✅ 적용</b> · 내일 아침에도 쓰려면 💾</>}
-                        </span>
-                    </span>
+                    <span className="flex-1" />
                     {/* ↩︎ **되돌리기** — 서버에 저장된 값으로. 초안까지 함께 되돌린다 */}
                     <Button
                         onClick={handleRevert}
                         disabled={!baseFilter || !unsaved}
                         title="서버에 저장된 값으로 되돌립니다"
-                        className="h-8 shrink-0 rounded-lg bg-surface-alt text-text-primary font-black text-[12px] px-2.5 disabled:opacity-40"
+                        className="h-8 shrink-0 rounded-lg bg-surface-alt text-text-primary font-black text-[12px] px-2 disabled:opacity-40"
                     >
-                        ↩︎ 되돌리기
+                        되돌리기
                     </Button>
                     {/**
                       * ✅ **적용 — 고친 값을 한 번에 원달앱으로** (평소 설정은 그대로 · 기사님 «가»).
@@ -1263,13 +1258,14 @@ export default function OrderFilterModal({ isOpen, onClose,
                         ✅ 적용
                         {unapplied && <span className="text-[9.5px] font-bold">적용 안 함</span>}
                     </Button>
-                    {/* 💾 **서버 저장** — 평소 설정(DB)까지. 고치던 초안도 함께 싣는다 */}
+                    {/* 💾 **서버 저장** — 평소 설정(DB)까지. 고치던 초안도 함께 싣는다 · 서버 값과 다르면 «저장 전»(«적용 안 함»과 같은 꼴) */}
                     <Button
                         onClick={handleSaveToServer}
                         title="지금 값을 DB에 저장합니다 (내일 아침에도 이 조건으로 시작)"
-                        className={`h-8 shrink-0 rounded-lg font-black text-[12px] px-3 text-white ${unsaved ? 'bg-success' : 'bg-success/50'}`}
+                        className={`h-8 shrink-0 rounded-lg font-black text-[12px] px-3 text-white flex flex-col items-center justify-center leading-none ${unsaved ? 'bg-success' : 'bg-success/50'}`}
                     >
                         💾 서버 저장
+                        {unsaved && <span className="text-[9.5px] font-bold">저장 전</span>}
                     </Button>
                 </div>
             </section>
