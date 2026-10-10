@@ -1309,6 +1309,21 @@ class HijackService : AccessibilityService(), ScanContext {
             .onScreenChanged(this, previous, detected, screenTexts, rawScreenStr, rootNode.packageName?.toString())
 
         /**
+         * ✋ **손 수락 — 수락 전 상세에서 «수락하면 배차망이 스스로 보내는 페이지»로 넘어갔다** (91판 S09 · `HandAccept` · 표의 landsAfterAccept).
+         * 🔴 화면 보고(아래 `updateScreenContext`)보다 먼저 보낸다 — 서버가 «상세 이탈»로 미리보기를 먼저 치우면 관제웹에서 콜이 지워졌다 다시 선다.
+         *    앞 페이지는 아직 안 바뀐 `telemetryManager.screenPage` 다.
+         */
+        val pageSpecs = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).screens
+        if (com.onedal.app.core.HandAccept.of(pageSpecs.firstOrNull { it.name == telemetryManager.screenPage },
+                pageSpecs.firstOrNull { it.name == screenRead.page }, session.isPreview, session.heldUnfilled)) {
+            AppLogger.roadmap(LogTag.CALL_STAGE, "✋ [손 수락] ${telemetryManager.screenPage} → ${screenRead.page} — 기사님이 수락하셨다 · 딱지를 벗고 상세 보고(화면 보고보다 먼저)",
+                telemetryManager.currentScreenContext.name)
+            session.isPreview = false
+            session.heldUnfilled = false
+            session.lastDetailOrder?.let { order -> sendDetail(order) }
+        }
+
+        /**
          * 📡 **화면 이름은 뜻을 정한 뒤에 알린다** (체험 · 로그 분석).
          *
          * 🔴 **위 수락 신고가 이 줄보다 반드시 먼저다.** `updateScreenContext` 는 바뀌는 즉시 서버로 쏘는데,
