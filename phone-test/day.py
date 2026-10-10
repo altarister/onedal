@@ -21,6 +21,8 @@ PLACES = SCEN['places']
 BIND = {}          # 이름 → 콜 번호 앞 8자리
 RESULTS = {}
 SNAP = {}
+START_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out', 'start_filter.json')   # 시험 전 기사님 필터 · 모드 — S99 가 되돌린 뒤에만 지운다
+RESTORED = [False]
 
 def arg(name):
     a = sys.argv
@@ -353,14 +355,18 @@ def act(a):
         urllib.request.urlopen('http://localhost:4000/api/health', timeout=5)
         wait_for('app', max(0, app_mark() - 400), r'scrap\] 화면', 30, '원달앱 보고')
         if 'kr.co.onedal.dashboard' not in run.focus_of(S23): __import__('g').revive_G5()
-    elif k == 'snapshot':
+    elif k == 'snapshot':   # 시작 때 기사님 필터 · 설정 · 모드 — out/start_filter.json 에 따로 남김 · 이미 있으면(앞 판이 S99 로 되돌리지 못함) 덮지 않고 그 값을 쓴다
+        if os.path.exists(START_FILE):
+            SNAP.update(json.load(open(START_FILE)))
+            log(f'📸 아직 되돌리지 않은 시작 값이 있음 — 덮지 않음({START_FILE}) · 모드 {SNAP.get("mode")} · 목적지 {(SNAP.get("filter") or {}).get("destinationCity")} · 최저 {(SNAP.get("filter") or {}).get("minFare")}')
+            return
         with sqlite3.connect(run.DB) as c:
-            for t in ('user_filters', 'user_settings'): SNAP[t] = c.execute(f'SELECT * FROM {t}').fetchall()
+            for t in ('user_filters', 'user_settings'): SNAP[t] = [list(r) for r in c.execute(f'SELECT * FROM {t}').fetchall()]
             c.row_factory = sqlite3.Row
             SNAP['filter_rows'] = [dict(r) for r in c.execute('SELECT * FROM user_filters').fetchall()]   # S99 가 시작 필터로 되돌릴 때 칸 이름으로 읽는다
         SNAP['mode'] = run.supplied_mode(); SNAP['filter'] = run.app_filter()
-        log(f'📸 떠 둠 — 필터 · 설정 · 모드 {SNAP["mode"]} · 목적지 {SNAP["filter"].get("destinationCity")} · 최저 {SNAP["filter"].get("minFare")}')
-        if SNAP['filter'].get('destinationCity') != '이천시': log(f'⚠️ 시작 목적지가 이천시가 아님 — S04 저장이 목적지까지 DB 에 넣는다 · S99 에서 되돌림 필요(ef)')
+        json.dump({k2: SNAP[k2] for k2 in ('user_filters', 'user_settings', 'filter_rows', 'mode', 'filter')}, open(START_FILE, 'w'), ensure_ascii=False, indent=1, default=list)
+        log(f'📸 떠 둠({START_FILE}) — 필터 · 설정 · 모드 {SNAP["mode"]} · 목적지 {SNAP["filter"].get("destinationCity")} · 최저 {SNAP["filter"].get("minFare")}')
     elif k == 'mode': run.set_mode(v)
     elif k == 'sim':   # «picker» 또는 {net · noReopen} — noReopen 이면 신호로 못 바꿀 때 다시 켜지 않고 ⚪
         if isinstance(v, dict): run.sim_open(v['net'], no_reopen=v.get('noReopen', False), fresh=v.get('fresh', False))
@@ -417,7 +423,7 @@ def act(a):
         back = {'destinationCity': row['destination_city'], 'excludedRegions': json.loads(row['excluded_regions'] or '[]'), 'minFare': row['min_fare']}
         sm = srv_mark(); log('🎛️ ' + run.sh('node', os.path.join(HERE, 'set_filter.mjs'), json.dumps(back, ensure_ascii=False), check=True).strip())
         wait_for('srv', sm, r'영구 설정\(baseFilter\) DB 저장 완료', 15, '서버 저장')
-        log(f'🎛️ 시작 필터로 되돌림 — {back}')
+        log(f'🎛️ 시작 필터로 되돌림 — {back}'); RESTORED[0] = True
     elif k == 'restore_dest':   # 시작 목적지가 «이천시»가 아니었으면 UI 로 시작 값을 다시 골라 저장해야 한다(DB 에 직접 안 씀 · ef)
         start = (SNAP.get('filter') or {}).get('destinationCity')
         if start in (None, '이천시'): log(f'목적지 되돌림 필요 없음(시작 {start})'); return
@@ -433,6 +439,30 @@ def act(a):
         tap(v)
     elif k in ('keep', 'reject'): seat(k, v)
     elif k == 'keep_server': keep_server(v)
+    elif k == 'expect_app_filter':   # {칸: 값} — 원달앱이 받은 필터가 그 값이 될 때까지 20초 · 장면 가운데 확인(적용 뒤 · 저장 뒤)
+        if DRY: log(f'  🔎 원달앱 필터 {v} 기다림'); return
+        end = time.time() + 20
+        while time.time() < end:
+            f = run.app_filter()
+            if all(f.get(k2) == v2 for k2, v2 in v.items()): break
+            time.sleep(1)
+        for k2, v2 in v.items(): note(CUR[0], f'원달앱 {k2} = {v2}', f.get(k2) == v2, f'원달앱 {f.get(k2)}')
+    elif k == 'mode_net_matrix':   # 모드마다 · 배차망마다 목록 페이지에 들어가 원달앱이 받은 필터를 서버가 보낸 것과 견주고 칸별로 기록 · 끝은 알람 · 인성
+        modes = v.get('modes') or ['AUTO', 'MANUAL', 'SIMULATION', 'ALARM']
+        app_nets = app_networks(); sim_keys = sim_networks(); to_run = {x: y for y, x in run.SIM_CODE.items()}
+        order = [c for c in app_nets if c != 'insung'] + (['insung'] if 'insung' in app_nets else [])
+        for md in modes:
+            if DRY: log(f'  🎛️ 모드 {md} → 배차망 {", ".join(order)} — 칸마다 원달앱 필터 = 서버'); continue
+            run.set_mode(md)
+            for c in order:
+                if c not in sim_keys or c not in to_run: note(CUR[0], f'{md} · {c}', None, '⚪ 시뮬에 없음'); continue
+                m = app_mark(); sm = srv_mark(); run.sim_open(to_run[c], no_reopen=True)
+                wait_for('app', m, f'타겟 앱 자동 전환 완료: {app_nets[c]}', 25, f'{md} · {c} 자동 전환')
+                time.sleep(2); f = run.app_filter(); t = srv_since(sm) or srv_since(STEP_MARK[0])
+                nk = re.findall(r'destinationKeywords (\d+)개', srv_since(STEP_MARK[0]))
+                same = bool(nk) and len(f.get('destinationKeywords') or []) == int(nk[-1])
+                note(CUR[0], f'{md} · {c} 원달앱 필터', same if nk else None,
+                     f'목적지 {f.get("destinationCity")} · 최저 {f.get("minFare")} · 켜짐 {f.get("isActive")} · 키워드 {len(f.get("destinationKeywords") or [])}/{nk[-1] if nk else "?"} · 차종 {len(f.get("allowedVehicleTypes") or [])}')
     elif k == 'sim_all_nets':   # 배차망을 모두 차례로 — 목록은 상수가 아니라 원달앱 플러그인(code · label)과 시뮬 SIM_NET_LIST 에서 그때 읽는다 · 끝은 인성
         app_nets = app_networks(); sim_keys = sim_networks()
         to_run = {v: k for k, v in run.SIM_CODE.items()}   # 시뮬 코드 → 시험 스크립트 이름(kakaopicker → picker)
@@ -563,6 +593,8 @@ def load_state():
 
 def restore():
     if SNAP.get('mode') and run.supplied_mode() != SNAP['mode']: run.set_mode(SNAP['mode'])
+    if RESTORED[0] and os.path.exists(START_FILE) and (not SNAP.get('mode') or run.supplied_mode() == SNAP['mode']):
+        os.remove(START_FILE); log(f'📸 필터 · 모드를 시작 값으로 되돌림 — {START_FILE} 지움(다음 판 S01 이 새로 뜸)')
     log('🟡 9e: JoyStick «중단» → 앱 완전 종료 · S23 dumpsys 로 mock 없음 확인')
 
 def build_routes():
