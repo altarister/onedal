@@ -50,7 +50,7 @@ def act(k, v):
     if k == 'set_filter': return (T, '맥 → 서버', f'시험용 필터로 모든 칸({len(v)}칸) 맞춤 — 목적지 {v.get("destinationCity")} · 최소 {v.get("minFare")} · 제외 없음 · 받을 짐 전부', '`node set_filter.mjs \'' + json.dumps(v, ensure_ascii=False) + '\'` — 관제앱 «💾 서버 저장»과 같은 신호(소켓 update-filter + saveAsDefault) · DB 에 직접 안 씀 · 서버 «DB 저장 완료» · 원달앱 «필터 도착» · 그 뒤 DB 필터 줄을 칸마다 읽어 모두 시험용 값인지 확인')
     if k == 'expect_app_filter': return (T, 'A24', '원달앱 필터가 ' + ' · '.join(f'{a} {b}' for a, b in v.items()) + ' 인가', '원달앱 설정 파일(activeFilter)을 20초까지 읽어 그 값이 되나 봄')
     if k == 'mode_net_matrix':
-        return (T, 'A24 · S23', '모드 ' + ' → '.join(MODE.get(m, m) for m in v.get('modes', [])) + ' × 배차망 모두', '모드마다: 관제앱 모드 단추로 바꿈 → 배차망 목록(원달앱 플러그인 · 시뮬 SIM_NET_LIST 에서 그때 읽음)을 하나씩 시뮬 «배차망 바꿈» 신호로 열기 → 원달앱 «타겟 앱 자동 전환 완료: …» 25초 → 원달앱이 받은 필터(목적지 · 최저 · 켜짐 · 키워드 수 · 차종)를 칸별로 기록하고 키워드 수를 서버가 보낸 것과 견줌 · 끝은 마지막 모드 · 인성')
+        return (T, 'A24 · S23', '모드 ' + ' → '.join(MODE.get(m, m) for m in v.get('modes', [])) + ' × 배차망 모두', '모드마다: 관제앱 모드 단추로 바꿈 → 배차망 목록(원달앱 플러그인 · 시뮬 SIM_NET_LIST 에서 그때 읽음)을 하나씩 시뮬 «배차망 바꿈» 신호로 열기 → 원달앱 «타겟 앱 자동 전환 완료: …» 25초 → 그 배차망 «[페이지] … → LIST»(목록까지) 25초 — 원달앱이 홈을 못 알아보면 8초 뒤 홈 단추 색으로 보고 목록 단추를 누름 → 원달앱이 받은 필터(목적지 · 최저 · 켜짐 · 키워드 수 · 차종)를 칸별로 기록 · 한 칸이 막혀도 다음 칸 · 다음 모드로 · 끝은 마지막 모드 · 인성')
     if k == 'mark_srv': return (T, '—', '서버 기록 기준점 표시', '이 뒤에 찍힌 서버 기록만 본다')
     if k == 'wait_srv': return ('서버 스스로', '맥', '서버 기록 «' + v['re'].replace('\\', '')[:30] + '» 기다림(기준점 뒤)', f'«서버 저장» 단추를 누른 뒤의 서버 기록에서 {v["sec"]}초 안에')
     if k == 'sim_all_nets': return (T, 'A24', '배차망 모두 차례로 바꿈', '')

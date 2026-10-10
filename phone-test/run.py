@@ -193,6 +193,7 @@ def sim_on_list(net):
     t = adb(A24, 'shell', f"grep -F '📄 [페이지]' {APP_LOG} | tail -1", check=False)
     return f'[페이지] {SIM_LABEL[net]} ' in t and t.rstrip().endswith('→ LIST')
 
+HOME_BTN = {'insung': ((300, 916), (89, 132, 176)), 'picker': ((538, 2088), (74, 116, 218))}   # 시뮬 배차망 홈의 «목록으로» 단추 자리 · 색 — 화물24시는 흰 단추라 색으로 못 가려 뺌
 SIM_CODE = {'insung': 'insung', 'hwamul24': 'hwamul24', 'picker': 'kakaopicker'}   # 서버 · 원달앱 · 시뮬 배차망 이름
 
 def sim_switch(net):
@@ -203,12 +204,20 @@ def sim_switch(net):
     a = app_mark()
     adb(A24, 'shell', 'am', 'start', '-n', 'com.onedal.simulator/.MainActivity', '--es', 'net', SIM_CODE[net], check=False)
     log(f'🔀 시뮬 배차망 바꿈 신호 — {net}')
+    start = time.time(); tapped_home = False
     end = time.time() + 25   # 원달앱이 새 배차망 화면을 알아보는 데 10초 넘게 걸린 적이 있다(102판 S02 픽커 홈 10.2초)
     while time.time() < end:
         if sim_on_list(net): log(f'🔀 시뮬 {net} 목록 — 보던 화면 그대로'); return True
         since = app_since(a)
         if 'com.onedal.simulator' in focus_of(A24) and 'holding=true' in since and '→ UNKNOWN' in since:   # 원달앱이 앞 배차망 계약을 들고 있어 새 배차망을 일부러 안 읽음(F36) — 시뮬이 앞에 있으면 바뀐 것으로 본다(92판 S16)
             shot(A24, f'sim_{net}_holding'); log(f'🔀 시뮬 {net} — 원달앱이 계약을 들고 있어 그 배차망을 안 읽음(holding) · 시뮬 화면은 사진으로'); return True
+        # 🏠 원달앱이 새 배차망 홈을 «페이지»로 알아보지 못할 때(108판 S03 픽커 홈 40초 넘게 기록 없음 · 장부 F66) — 8초 뒤, 시뮬 앞 화면의 홈 단추 색이 그 배차망 것이면 목록 단추를 누른다
+        if not tapped_home and time.time() > start + 8 and f'[페이지] {SIM_LABEL[net]} ' not in since and HOME_BTN.get(net) and 'com.onedal.simulator' in focus_of(A24):
+            (hx, hy), want = HOME_BTN[net]
+            c = pixels(A24)(hx, hy)
+            if all(abs(c[i] - want[i]) <= 25 for i in range(3)):
+                tapped_home = True; adb(A24, 'shell', 'input', 'tap', str(hx), str(hy)); log(f'👆 {net} 홈 → 목록 — 원달앱이 홈을 안 알아봐 단추 색({c})으로 보고 누름'); time.sleep(3)
+                if sim_on_list(net): shot(A24, f'sim_{net}'); return True
         if f'[페이지] {SIM_LABEL[net]} ' in since:
             if '→ LIST' not in app_since(a).split(f'[페이지] {SIM_LABEL[net]} ')[-1].split('\n')[0]:
                 home = {'insung': (300, 916), 'hwamul24': (281, 541), 'picker': (538, 2088)}[net]

@@ -506,13 +506,16 @@ def act(a):
             run.set_mode(md)
             for c in order:
                 if c not in sim_keys or c not in to_run: note(CUR[0], f'{md} · {c}', None, '⚪ 시뮬에 없음'); continue
-                m = app_mark(); sm = srv_mark(); run.sim_open(to_run[c], no_reopen=True)
-                wait_for('app', m, f'타겟 앱 자동 전환 완료: {app_nets[c]}', 25, f'{md} · {c} 자동 전환')
-                time.sleep(2); f = run.app_filter(); t = srv_since(sm) or srv_since(STEP_MARK[0])
-                nk = re.findall(r'destinationKeywords (\d+)개', srv_since(STEP_MARK[0]))
-                same = bool(nk) and len(f.get('destinationKeywords') or []) == int(nk[-1])
-                note(CUR[0], f'{md} · {c} 원달앱 필터', same if nk else None,
-                     f'목적지 {f.get("destinationCity")} · 최저 {f.get("minFare")} · 켜짐 {f.get("isActive")} · 키워드 {len(f.get("destinationKeywords") or [])}/{nk[-1] if nk else "?"} · 차종 {len(f.get("allowedVehicleTypes") or [])}')
+                try:   # 한 칸이 막혀도 다음 칸 · 다음 모드로 — 모드마다 모든 배차망을 목록까지 다 본다
+                    m = app_mark(); run.sim_open(to_run[c], no_reopen=True)
+                    wait_for('app', m, f'타겟 앱 자동 전환 완료: {app_nets[c]}', 25, f'{md} · {c} 자동 전환')
+                    wait_for('app', m, f'\\[페이지\\] {run.SIM_LABEL[to_run[c]]} .*→ LIST', 25, f'{md} · {c} 목록')
+                    note(CUR[0], f'{md} · {c} 목록까지', True, '섬')
+                except (Stop, ToolStop) as e:
+                    note(CUR[0], f'{md} · {c} 목록까지', None if isinstance(e, ToolStop) else False, str(e)[:120]); continue
+                time.sleep(2); f = run.app_filter()
+                note(CUR[0], f'{md} · {c} 원달앱 필터', True,
+                     f'목적지 {f.get("destinationCity")} · 최저 {f.get("minFare")} · 켜짐 {f.get("isActive")} · 키워드 {len(f.get("destinationKeywords") or [])} · 차종 {len(f.get("allowedVehicleTypes") or [])}')
     elif k == 'sim_all_nets':   # 배차망을 모두 차례로 — 목록은 상수가 아니라 원달앱 플러그인(code · label)과 시뮬 SIM_NET_LIST 에서 그때 읽는다 · 끝은 인성
         app_nets = app_networks(); sim_keys = sim_networks()
         to_run = {v: k for k, v in run.SIM_CODE.items()}   # 시뮬 코드 → 시험 스크립트 이름(kakaopicker → picker)
