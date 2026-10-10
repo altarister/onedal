@@ -1,0 +1,1025 @@
+{
+  "summary": {
+    "total": 19,
+    "needed": 15,
+    "dropped": [
+      {
+        "id": "4",
+        "why": "손이 많이 든다(판단) — 배선(phoneHeardSinceStart · 끊김 사실)은 단위 검사가 못 봄"
+      },
+      {
+        "id": "7",
+        "why": "떠 있는 서버를 꺼야 한다 · captureHold.test 가 하차 목록이 빈 복구 전 세션까지 묾(2edf2de5)"
+      },
+      {
+        "id": "14",
+        "why": "직접 모드에서 원달앱이 안 누르는 것은 옛 동작 · ModeActs · factCapturedVia 가 묾"
+      },
+      {
+        "id": "18",
+        "why": "운영센터는 PC 화면 — adb 로 못 봄 · modeTable.test 가 이름 · 색을 묾"
+      }
+    ],
+    "rounds": 5,
+    "minutes": 30
+  },
+  "tests": [
+    {
+      "id": "1",
+      "what": "알람 — 목록에 맞는 콜이 떠도 폰 · 관제앱 모두 조용, 원달앱이 상세를 열면 삑 한 번",
+      "change": "6 가(P4-2) · P4 ④",
+      "needed": "꼭 — 소리 자리가 바뀐 한가운데",
+      "unitCovered": "목록 소리 · 필터 통과 알림이 없다는 것은 원달앱 ListTapPickTest · 서버 deviceSessionRules · modeFacts 가 문다 → 폰에서는 «실제로 귀에 안 들리나 · 삑은 나나»만",
+      "round": "R1"
+    },
+    {
+      "id": "2",
+      "what": "알람 — 확정 안 된 벨 콜은 원달앱 폰만 2초마다 울리고 관제앱 call.mp3 는 안 울림, 목록으로 오면 멈춤",
+      "change": "P4 ④ C · P4-②",
+      "needed": "꼭 — 관제앱이 울리던 자리가 바뀜",
+      "unitCovered": "관제웹 ringsNow.test(미리보기 → 안 울림) · 원달앱 DetailBeepTest → 폰에서는 두 폰 소리를 귀로",
+      "round": "R1"
+    },
+    {
+      "id": "3",
+      "what": "알람 — 기사님 손이 목록에 닿은 몇 초는 소리 없음, 손을 떼면 원달앱이 상세를 열고 삑",
+      "change": "6 가(ef 판단)",
+      "needed": "꼭 — «알람인데 소리 없음»이 새로 생긴 경우",
+      "unitCovered": "손 먼저 판단은 ListTapPickTest · HandFirstTest → 폰에서는 손 · 스크롤 시점",
+      "round": "R1"
+    },
+    {
+      "id": "1-2",
+      "what": "화물24시 — 손으로 연 상세에서도 삑과 판정이 선다(상차 · 하차 · 요금이 목록과 같음)",
+      "change": "X12",
+      "needed": "꼭 — 69판에서 판정이 안 서던 자리",
+      "unitCovered": "Hwamul24DetailReadTest(실물 캡처 18 노드) → 폰에서는 시뮬 화면 글자 차례가 견본과 같은가",
+      "round": "R1"
+    },
+    {
+      "id": "7-2",
+      "what": "알람에서 기사님이 손으로 확정한 콜 — 관제웹 목록 줄 «🔔 알람콜» · 장부 capturedMode ALARM",
+      "change": "P6 · P5 나머지",
+      "needed": "꼭 — 잡은 방식 표시가 새 칸으로 바뀜",
+      "unitCovered": "callBadges.test · factCapturedVia → 폰에서는 /confirm 길에 그 칸이 실제로 적히나",
+      "round": "R1"
+    },
+    {
+      "id": "8",
+      "what": "자동 — 원달앱이 확정한 벨 콜에 관제앱 call.mp3 가 울리고 KEEP 누르면 멈춤, 원달앱은 판정 소리 없음",
+      "change": "P4 ④ C · P4-③ · P6(장부 AUTO)",
+      "needed": "꼭 — 관제앱이 울리는 유일한 자리",
+      "unitCovered": "ringsNow.test · PreviewRing 검사 → 폰에서는 소리 · 멈춤 시점",
+      "round": "R2"
+    },
+    {
+      "id": "5",
+      "what": "픽커 — 만석이면 원달앱이 상세를 안 열고 삑도 없음(로그 «🔒 픽커 잡기 보류»)",
+      "change": "7번(X6 ①)",
+      "needed": "있으면 좋음 — 만석(captureHold «만석»)이 생겼을 때만 · H 안에서 봄",
+      "unitCovered": "서버 captureHold.test · 원달앱 PickerFilterValuesKeyTest → 폰에서는 픽커 화면에서 실제로 멈추나",
+      "round": "R4"
+    },
+    {
+      "id": "6",
+      "what": "픽커 — 하차 완료로 보류가 풀리면 같은 콜을 다시 열고 삑",
+      "change": "7번",
+      "needed": "있으면 좋음 — 5 와 함께 · H 의 하차로 봄(15 와 같은 손)",
+      "unitCovered": "지문에 보류가 들어간 것은 PickerFilterValuesKeyTest → 폰에서는 다시 엶",
+      "round": "R4"
+    },
+    {
+      "id": "11",
+      "what": "관제앱 모드 고르기 — «직접 · 알람 · 자동» + «계약 안 함 켬/끔», 켜면 노랑 · 원달앱이 확정 안 누름(화물24시 «배차신청»도)",
+      "change": "P1 · P6",
+      "needed": "꼭 — 69판에서 못 함",
+      "unitCovered": "modeFacts · deviceModes · ModeActs 검사 → 폰에서는 단추 · 테두리 색 · 새로고침 뒤 유지",
+      "round": "R3"
+    },
+    {
+      "id": "12",
+      "what": "연습 콜 — 결재석 «🐥 연습» 노랑, KEEP 해도 운행에 안 올라가고 취소/방출 탭 «🐥 연습 끝»",
+      "change": "P2 ⑤⑥ · P5 나머지",
+      "needed": "꼭 — 운행 동작이 바뀜",
+      "unitCovered": "서버 simulatedByCallOnly · engineFlowRules · 관제웹 pinnedRouteCard · callBadges → 폰에서는 두 화면이 같은 배지인가",
+      "round": "R3"
+    },
+    {
+      "id": "13",
+      "what": "계약 안 함에서 기사님이 손으로 확정 — 바로 KEEP · 장부에 들어감 · 연습 배지 없음",
+      "change": "P2-⑦",
+      "needed": "꼭 — 69판에서 못 함",
+      "unitCovered": "서버 factSimulatedWhen · whoConfirmed → 폰에서는 손 확정이 /confirm 으로 DRIVER 가 되나",
+      "round": "R3"
+    },
+    {
+      "id": "9",
+      "what": "손 확정은 목록 줄 «✋ 직접콜»",
+      "change": "P5 나머지",
+      "needed": "꼭 — 13 과 같은 손 동작이라 13 에 합침",
+      "unitCovered": "callBadges.test → 폰에서는 글자 그대로",
+      "round": "R3"
+    },
+    {
+      "id": "14",
+      "what": "직접 모드 — 원달앱은 목록을 안 누르고, 기사님이 열어 확정하면 «✋ 직접콜» · 장부 MANUAL",
+      "change": "P6",
+      "needed": "뺌(자동 시나리오) — 원달앱이 직접 모드에서 안 누르는 것은 바뀌지 않은 옛 동작이고 ModeActs(tapsList) · factCapturedVia 가 문다",
+      "unitCovered": "ModeActs(tapsList) · factCapturedVia → 폰에서는 원달앱이 정말 안 누르나",
+      "round": "없음"
+    },
+    {
+      "id": "18",
+      "what": "운영센터 폰 표의 모드 이름 · 색이 관제앱과 같다(직접 «직접» · 계약 안 함 «자동(계약 안 함)» 노랑) · 직접 모드 배지도 도는 모드로",
+      "change": "P5-2 · P5-3",
+      "needed": "일부만 — 관제앱 직접 배지(P5-3)는 R3 끝 사진 한 장 · 운영센터 PC 화면은 modeTable.test 가 묾",
+      "unitCovered": "shared modeTable.test(이름 · tone) · 관제웹 배지 검사 → 폰에서는 운영센터 · 관제앱 두 화면을 나란히",
+      "round": "R3"
+    },
+    {
+      "id": "15",
+      "what": "모의 주행 — 하차하면 만석이 풀리고 픽커가 다시 상세를 열고 삑",
+      "change": "7번(X6 ①)",
+      "needed": "꼭 — 하차 → 보류 풀림은 움직여야만 생긴다",
+      "unitCovered": "서버 경로 순서 · 도착 · 궤적은 pnpm drive 가 묾 · captureHold 조립은 captureHold.test → 폰에서는 풀린 필터가 원달앱에 내려가 다시 여나",
+      "round": "R4"
+    },
+    {
+      "id": "16",
+      "what": "모의 주행 — 손 확정 콜(F · G 에서 잡은 콜)의 «상차지 통화» 단계가 관제웹에 선다",
+      "change": "P2 ⑤ birthStepsOnKeep",
+      "needed": "꼭 — 단계 출생을 함수로 옮김(소켓 결재 연결은 단위 검사가 못 봄)",
+      "unitCovered": "simulatedByCallOnly(연습 0 · 진짜 1 · 예약 1) → 폰에서는 소켓 결재 한 줄 연결이 실제로 단계를 낳나",
+      "round": "R4"
+    },
+    {
+      "id": "17",
+      "what": "모의 주행 — 움직이는 동안 바뀐 필터(합짐 · 적재 회복)가 원달앱에 다시 내려감(블루투스 · 인터넷)",
+      "change": "P4-⑤ · A1 S1(인터넷 묻기)",
+      "needed": "꼭 — 공급 길 둘이 움직이는 중에도 도나",
+      "unitCovered": "서버 phoneSupply · supplyOverNet · drive e2e 공급 소켓 → 폰에서는 원달앱 필터 글자가 바뀌나",
+      "round": "R4"
+    },
+    {
+      "id": "4",
+      "what": "블루투스 · 데이터를 끊은 동안 «심사 중»에 안 막힘",
+      "change": "X5-a",
+      "needed": "뺌 — 손이 많이 든다(판단)",
+      "unitCovered": "원달앱 EvaluatingNowTest 가 값 함수(of · trusted)를 문다 — HijackService 의 phoneHeardSinceStart · 끊김 사실 배선은 단위 검사가 못 본다(빼는 대가)",
+      "round": "없음"
+    },
+    {
+      "id": "7",
+      "what": "관제웹이 붙기 전(서버 다시 켬)에는 픽커가 지금처럼 엶",
+      "change": "7번",
+      "needed": "뺌 — 떠 있는 서버를 꺼야 한다 · 서버 검사가 문다(ef 2edf2de5 로 빈틈을 고친 뒤)",
+      "unitCovered": "captureHold.test «복구 전 · 부트스트랩 중에는 하차 목록이 비었거나 만석이어도 칸이 없다» + 대조 «복구 뒤 하차 목록이 비면 그 까닭 글» — 하차 목록이 빈 복구 전 세션까지 묾",
+      "round": "없음"
+    }
+  ],
+  "rounds": [
+    {
+      "id": "R0 · 앞 준비",
+      "mode": "—",
+      "network": "—",
+      "filter": {
+        "목적지": "읽기만",
+        "반경": "읽기만",
+        "최저 요금": "읽기만",
+        "예약": "읽기만",
+        "차종": "읽기만",
+        "그 밖": "원달앱 activeFilter 의 isActive · captureHold"
+      },
+      "filterWhy": "필터는 바꾸지 않는다 — 지금 값을 읽어 뒤 묶음의 시뮬 콜을 맞춘다",
+      "setup": "두 폰을 동시에 adb 로 — USB 허브로 둘 다 꽂거나, 한 폰은 무선 adb(adb -s <번호> tcpip 5555 → adb connect <폰IP>:5555)",
+      "tests": [],
+      "steps": [
+        {
+          "do": "adb devices -l",
+          "find": "",
+          "expect": "SM_A245N 과 SM_S711N 이 둘 다 device",
+          "timeoutSec": 10,
+          "ifFail": "멈추고 71 — 기사님께 허브 · 무선 adb 한 번 여쭘"
+        },
+        {
+          "do": "curl -s localhost:4000/api/health",
+          "find": "",
+          "expect": "bootedAt 이 2edf2de5 커밋 뒤",
+          "timeoutSec": 5,
+          "ifFail": "멈추고 71(서버를 우리가 켜지 않음)"
+        },
+        {
+          "do": "S23(R5CWB2NGN2D · 관제앱 kr.co.onedal.dashboard): adb shell am start -n kr.co.onedal.dashboard/.MainActivity → screencap",
+          "find": "관제앱 첫 화면(로그인됨)",
+          "expect": "서버 로그 «소켓 연결» · 부트스트랩 «필터 도는 기기 존재: true → isActive true»",
+          "timeoutSec": 30,
+          "ifFail": "새로고침(관제앱 아래로 당김 swipe) 한 번 다시 → 안 되면 멈추고 71"
+        },
+        {
+          "do": "A24(R59W600X91K · 원달앱 com.onedal.app · 시뮬 앱 com.onedal.simulator): adb shell run-as com.onedal.app cat shared_prefs/OneDalPrefs.xml",
+          "find": "activeFilter",
+          "expect": "isActive true · captureHold 없음 · 목적지 · minFare · 반경을 적어 둠",
+          "timeoutSec": 20,
+          "ifFail": "isActive false 면 30초 다시 읽기 → 그대로면 멈추고 71"
+        },
+        {
+          "do": "서버 진행 중 콜 읽기(server/local.db orders 의 진행 중 상태 · 읽기만)",
+          "find": "",
+          "expect": "진행 중 0건",
+          "timeoutSec": 5,
+          "ifFail": "있으면 R1 의 콜을 합짐 값에 맞춰 지음(필터를 다시 읽음)"
+        },
+        {
+          "do": "S23(R5CWB2NGN2D · 관제앱 kr.co.onedal.dashboard): 모의 위치 한 점 — adb shell appops set com.android.shell android:mock_location allow → cmd location providers add-test-provider gps → set-test-provider-enabled gps true → set-test-provider-location gps --location <집 좌표> --accuracy 5",
+          "find": "",
+          "expect": "서버 로그에 관제앱 위치 보고가 그 좌표로 · 관제웹 지도 점이 그 자리 — R4 가 같은 길로 정거장까지 간다",
+          "timeoutSec": 30,
+          "ifFail": "명령이 안 먹으면(관제앱 위치 플러그인은 Fused) network · fused 시험 공급원도 더해 한 번 → 그래도면 R4 를 못 하니 멈추고 71"
+        },
+        {
+          "do": "A24: 시뮬 앱 am force-stop → monkey 로 다시 켜기 → 사진으로 «인성콜» 탭 · «개별콜» · «…화면으로 시작» → 홈 «실행»",
+          "find": "인성 목록",
+          "expect": "원달앱 기록 «[페이지] 인성콜 신규 콜 목록 → LIST»(새 판을 깐 뒤 떠 있던 시뮬 WebView 는 글자 0자 — 다시 켜야 읽힘)",
+          "timeoutSec": 30,
+          "ifFail": "멈추고 71"
+        }
+      ],
+      "ifCall": "—",
+      "ifNoCall": "—",
+      "pass": "두 폰 adb · 콜 잡기 켜짐 · 모의 위치 한 점 · 시뮬 인성 목록",
+      "risk": "지킬 것: uiautomator 금지(접근성이 끊김) — 화면은 adb exec-out screencap -p 사진으로 찾고 그 글자 가운데를 input tap · 실물 카카오 픽커는 열지 않음(시뮬만) · 시뮬 배차망만 확정 · 방향 버튼(복귀 등) 안 누름 · 막히면 그 자리에서 멈추고 71",
+      "restore": "—"
+    },
+    {
+      "id": "R1 · 알람 — 소리 셋 · 화물24시 손 진입",
+      "mode": "알람",
+      "network": "인성 → 화물24시(시뮬)",
+      "filter": {
+        "목적지": "R0 에서 읽은 값(지금 서울 송파구)",
+        "반경": "R0 값(서버 «내 위치» 기준 상차 목록)",
+        "최저 요금": "R0 값(6,000)",
+        "예약": "오늘만",
+        "차종": "1t 파생",
+        "그 밖": "진행 중 콜 0"
+      },
+      "filterWhy": "시뮬 콜을 지금 필터에 맞춘다 — 필터를 바꾸지 않는다",
+      "setup": "S23 관제앱에서 A24 모드가 «알람»인지 screencap 으로 확인(아니면 모드 단추 → «알람»)",
+      "tests": [
+        "3",
+        "1",
+        "2",
+        "1-2",
+        "7-2"
+      ],
+      "steps": [
+        {
+          "do": "A24(R59W600X91K · 원달앱 com.onedal.app · 시뮬 앱 com.onedal.simulator): input swipe 540 1600 540 900 1500 을 2초마다 되풀이(손 스크롤 흉내) · 그동안 curl -s -X POST localhost:4000/api/sim/calls -H 'Content-Type: application/json' -d '{\"pickup\":{상차 목록 안 동 — 실행 전 서버 «내 위치» 상차 목록에서 고름},\"dropoff\":{서울 송파구 동},\"fare\":50000,\"vehicleType\":\"1t\"}' — 장소 칸은 {addressDetail, region, lon, lat} 넷(simCallQueue.ts:88-104 · 빠지면 400) · 시뮬 앱이 지금 연 배차망(인성) 목록에 3초 안에 뜬다",
+          "find": "",
+          "expect": "A24 logcat «✋ [손 먼저] … 누르기 미룸» · «🔔 [삑]» 없음",
+          "timeoutSec": 15,
+          "ifFail": "«예약(내일)=❌»이면 콜 다시 넣기 · 콜이 안 뜨면 다시 넣기 · 두 번 안 되면 넘김"
+        },
+        {
+          "do": "swipe 멈춤",
+          "find": "",
+          "expect": "A24 logcat «🔔 [삑] 서버가 상세 보고를 받았다» 한 번(손 뗀 뒤 약 1초 · 원달앱이 상세 엶)",
+          "timeoutSec": 10,
+          "ifFail": "넘김 · 결과에 적음"
+        },
+        {
+          "do": "기다림(아무것도 안 누름)",
+          "find": "",
+          "expect": "A24 «🔔 [판정 소리]» 2초마다 · S23 logcat «[SoundManager] 🎵 콜 알림음 재생 시작» 없음 → 상세 대기 끝나 목록 «🔕 [판정 소리 멈춤]»",
+          "timeoutSec": 45,
+          "ifFail": "판정 소리 없으면 그 콜 점수가 벨 밑인지 서버 판정 로그로 보고 요금을 올려 한 번 더"
+        },
+        {
+          "do": "A24 시뮬 앱 볼륨 위 → 루트 → «화물24시» → «화물정보»(screencap 으로 찾음) · 콜 넣기: 요금 5,000(원달앱 최저 6,000 밑 — 원달앱이 알람으로 안 누르게 · 손 진입만 남김) · 장소 칸은 {addressDetail, region, lon, lat} 넷(simCallQueue.ts:88-104 · 빠지면 400)",
+          "find": "화물24시 목록의 그 콜",
+          "expect": "원달앱 logcat 그 콜 «막힘(요금)» · 원달앱이 안 엶",
+          "timeoutSec": 15,
+          "ifFail": "콜이 안 뜨면 다시 넣기"
+        },
+        {
+          "do": "A24 screencap → 그 콜 요금 글자 가운데 input tap(손 진입 — 원달앱 필터와 상관없이 상세 보고 뒤 서버 판정 · 삑이 선다)",
+          "find": "화물상세정보 · 배차신청",
+          "expect": "A24 «🔔 [삑]» · «요건 미달» 없음 · 서버 판정 로그에 상차 · 하차 · 요금 5,000(넣은 값 — 잔액 50,000 이 아님)",
+          "timeoutSec": 15,
+          "ifFail": "«요건 미달 — 상차 주소 짧음»이면 X12 실패로 적고 원문 로그 남김 · 넘김"
+        },
+        {
+          "do": "A24(R59W600X91K · 원달앱 com.onedal.app · 시뮬 앱 com.onedal.simulator): screencap → «배차신청» input tap(시뮬 확정)",
+          "find": "배차신청",
+          "expect": "서버 KEEP 로그(30초 기다림 없음) · pnpm db ledger 최근 줄 capturedMode ALARM · S23 screencap 목록 줄 «🔔 알람콜»",
+          "timeoutSec": 20,
+          "ifFail": "넘김 · 결과에 적음"
+        }
+      ],
+      "ifCall": "위 steps",
+      "ifNoCall": "콜을 넣고 10초 안에 목록에 없으면 다시 넣기 · 시뮬 예약 15% 면 다시 넣기 · 기다리지 않는다",
+      "pass": "스크롤 중 무음 → 손 떼면 삑 → 폰만 2초 · 관제앱 조용 · 화물24시 손 상세 삑 · 판정(요금이 운송료) · 확정하면 🔔 알람콜",
+      "risk": "지킬 것: uiautomator 금지(접근성이 끊김) — 화면은 adb exec-out screencap -p 사진으로 찾고 그 글자 가운데를 input tap · 실물 카카오 픽커는 열지 않음(시뮬만) · 시뮬 배차망만 확정 · 방향 버튼(복귀 등) 안 누름 · 막히면 그 자리에서 멈추고 71 · 이 확정으로 진행 중 콜 1(다음 묶음 필터가 합짐)",
+      "restore": "시뮬 앱을 인성 목록으로"
+    },
+    {
+      "id": "R2 · 자동 — 관제앱 call.mp3",
+      "mode": "자동",
+      "network": "인성(시뮬)",
+      "filter": {
+        "목적지": "다시 읽음(합짐)",
+        "반경": "다시 읽음",
+        "최저 요금": "다시 읽음",
+        "예약": "오늘만",
+        "차종": "다시 읽음",
+        "그 밖": "R1 콜이 진행 중"
+      },
+      "filterWhy": "진행 중 콜이 생겨 서버가 합짐으로 바꿨다 — 원달앱 필터를 다시 읽어 그 값에 맞는 콜을 짓는다",
+      "setup": "원달앱 필터 다시 읽기 · S23 관제앱 A24 모드 단추 → «자동»(screencap 으로 찾음) · A24 시뮬 앱을 인성 목록으로",
+      "tests": [
+        "8"
+      ],
+      "steps": [
+        {
+          "do": "S23(R5CWB2NGN2D · 관제앱 kr.co.onedal.dashboard): screencap → A24 줄의 모드 단추 tap → «자동» tap",
+          "find": "«자동» 파랑",
+          "expect": "서버 로그 A24 «받은 모드» AUTO · 원달앱 logcat 모드 AUTO",
+          "timeoutSec": 20,
+          "ifFail": "노랑(계약 안 함)으로 보이면 자동 허락이 없는 것 — 결과에 적고 R3 로"
+        },
+        {
+          "do": "벨 콜 넣기(합짐 값에 맞게) curl -s -X POST localhost:4000/api/sim/calls -H 'Content-Type: application/json' -d '{\"pickup\":{상차 목록 안 동 — 실행 전 서버 «내 위치» 상차 목록에서 고름},\"dropoff\":{서울 송파구 동},\"fare\":50000,\"vehicleType\":\"1t\"}' — 장소 칸은 {addressDetail, region, lon, lat} 넷(simCallQueue.ts:88-104 · 빠지면 400) · 시뮬 앱이 지금 연 배차망(인성) 목록에 3초 안에 뜬다",
+          "find": "",
+          "expect": "A24 원달앱이 상세 열고 확정(logcat «확정 버튼 클릭») · A24 «🔔 [판정 소리]» 없음 · S23 «콜 알림음 재생 시작»",
+          "timeoutSec": 30,
+          "ifFail": "합짐 값에 맞는 상차지를 못 지으면 R4 하차 뒤로 미룸"
+        },
+        {
+          "do": "S23(R5CWB2NGN2D · 관제앱 kr.co.onedal.dashboard): screencap → «KEEP» tap",
+          "find": "KEEP",
+          "expect": "S23 «콜 알림음 정지» · A24 «닫기» 한 번 · ledger capturedMode AUTO · openedBy APP",
+          "timeoutSec": 15,
+          "ifFail": "넘김"
+        }
+      ],
+      "ifCall": "위 steps",
+      "ifNoCall": "R1 과 같음",
+      "pass": "관제앱만 울리고 KEEP 에 멈춤",
+      "risk": "지킬 것: uiautomator 금지(접근성이 끊김) — 화면은 adb exec-out screencap -p 사진으로 찾고 그 글자 가운데를 input tap · 실물 카카오 픽커는 열지 않음(시뮬만) · 시뮬 배차망만 확정 · 방향 버튼(복귀 등) 안 누름 · 막히면 그 자리에서 멈추고 71",
+      "restore": "—"
+    },
+    {
+      "id": "R3 · 자동 + 계약 안 함 — 연습 · 손 확정",
+      "mode": "자동 + 계약 안 함",
+      "network": "인성(시뮬)",
+      "filter": {
+        "목적지": "다시 읽음",
+        "반경": "다시 읽음",
+        "최저 요금": "다시 읽음",
+        "예약": "오늘만",
+        "차종": "다시 읽음",
+        "그 밖": "연습 콜은 운행에 안 올라가 필터를 안 바꿈"
+      },
+      "filterWhy": "R2 뒤 값 그대로",
+      "setup": "S23 관제앱 A24 모드 펼침 → «계약 안 함 켬»",
+      "tests": [
+        "11",
+        "12",
+        "13",
+        "9",
+        "18"
+      ],
+      "steps": [
+        {
+          "do": "S23(R5CWB2NGN2D · 관제앱 kr.co.onedal.dashboard): screencap → A24 모드 단추 tap → 펼친 줄 «직접 · 알람 · 자동» + «계약 안 함 끔» 확인 → «계약 안 함 켬» tap → 관제앱 아래로 당겨 새로고침",
+          "find": "«자동» 노랑",
+          "expect": "새로고침 뒤에도 노랑 · A24 원달앱 테두리 노랑(A24 screencap) · 서버 «받은 모드» SIMULATION",
+          "timeoutSec": 30,
+          "ifFail": "풀리면 P1 실패로 적고 계속"
+        },
+        {
+          "do": "콜 넣기 curl -s -X POST localhost:4000/api/sim/calls -H 'Content-Type: application/json' -d '{\"pickup\":{상차 목록 안 동 — 실행 전 서버 «내 위치» 상차 목록에서 고름},\"dropoff\":{서울 송파구 동},\"fare\":50000,\"vehicleType\":\"1t\"}' — 장소 칸은 {addressDetail, region, lon, lat} 넷(simCallQueue.ts:88-104 · 빠지면 400) · 시뮬 앱이 지금 연 배차망(인성) 목록에 3초 안에 뜬다",
+          "find": "",
+          "expect": "A24 원달앱이 상세 열고 «🔐 [확정 안 누름]» · S23 결재석 «🐥 연습» 노랑(screencap)",
+          "timeoutSec": 30,
+          "ifFail": "다시 넣기"
+        },
+        {
+          "do": "S23(R5CWB2NGN2D · 관제앱 kr.co.onedal.dashboard): 결재석 «KEEP» tap",
+          "find": "KEEP",
+          "expect": "서버 «🐥 [서버] 연습 결재 처리 완료 … 연습 끝» · S23 취소/방출 탭 «🐥 연습 끝»(탭 열어 screencap) · 운행 목록에 없음 · ledger 에 없음",
+          "timeoutSec": 20,
+          "ifFail": "운행 목록에 올라가면 P2 ⑤ 실패 — 멈추고 71"
+        },
+        {
+          "do": "콜 하나 더 넣기 → 원달앱이 연 상세에서 A24(R59W600X91K · 원달앱 com.onedal.app · 시뮬 앱 com.onedal.simulator) screencap → «확정» input tap(시뮬 확정 · 손 흉내 — 인성 상세 대기 30초 안에)",
+          "find": "확정",
+          "expect": "서버 바로 KEEP(30초 기다림 없음) · S23 목록 줄 «✋ 직접콜» · 연습 배지 없음 · ledger 에 들어감",
+          "timeoutSec": 30,
+          "ifFail": "넘김"
+        },
+        {
+          "do": "S23 관제앱 A24 모드 단추 → «직접» → screencap 한 장(콜 없이)",
+          "find": "«직접» 회색 배지",
+          "expect": "관제앱 모드 단추 · 폰 줄 배지가 «직접»(P5-3 직접 배지도 도는 모드로)",
+          "timeoutSec": 10,
+          "ifFail": "넘김 · 결과에 적음"
+        }
+      ],
+      "ifCall": "위 steps",
+      "ifNoCall": "R1 과 같음",
+      "pass": "노랑 유지 · 확정 안 누름 · 연습 KEEP 은 «연습 끝» · 손 확정은 진짜 ✋",
+      "risk": "지킬 것: uiautomator 금지(접근성이 끊김) — 화면은 adb exec-out screencap -p 사진으로 찾고 그 글자 가운데를 input tap · 실물 카카오 픽커는 열지 않음(시뮬만) · 시뮬 배차망만 확정 · 방향 버튼(복귀 등) 안 누름 · 막히면 그 자리에서 멈추고 71 · adb input tap 은 원달앱에 «손»으로 보인다(앱이 누른 것이 아님) — 그래서 손 확정 흉내가 됨",
+      "restore": "—"
+    },
+    {
+      "id": "R4 · 모의 주행(S23 adb 시험 위치)",
+      "mode": "알람(되돌림 · 계약 안 함 끔)",
+      "network": "인성 · 픽커(시뮬)",
+      "filter": {
+        "목적지": "정거장마다 다시 읽음",
+        "반경": "정거장마다 다시 읽음",
+        "최저 요금": "다시 읽음",
+        "예약": "오늘만",
+        "차종": "다시 읽음",
+        "그 밖": "R1 · R2 · R3 에서 잡은 진행 중 콜들"
+      },
+      "filterWhy": "하차마다 합짐 · 적재가 바뀐다 — 바뀐 필터가 원달앱에 내려가는지가 시험",
+      "setup": "S23 관제앱 A24 → «알람» · «계약 안 함 끔» · 정거장 좌표를 local.db(orders · places)에서 읽음(읽기만) · 원달앱 필터 captureHold 읽기(«만석»이면 5 · 6 도) — 위치는 S23 adb 시험 위치(관제앱의 실제 GPS 길 native 를 그대로 탐 · 적히는 곳은 로컬 시험 DB 뿐 · 관제웹 모의 주행은 개발 빌드 전용이고 같은 계정 관제웹이 둘이 되어 부딪혀 안 씀 — 71)",
+      "tests": [
+        "16",
+        "17",
+        "15",
+        "5",
+        "6"
+      ],
+      "steps": [
+        {
+          "do": "S23 관제앱 screencap 한 장",
+          "find": "«모의 주행 시작» 버튼(관제앱 운영 빌드라 import.meta.env.DEV 거짓 — 없을 가능성이 큼)",
+          "expect": "있나 없나를 결과에 적음 — 길은 어느 쪽이든 adb 시험 위치(실 GPS 가 살아 있으면 모의 주행이 안 돈다 · mockDriveOn realLive)",
+          "timeoutSec": 10,
+          "ifFail": "—"
+        },
+        {
+          "do": "관제웹 R3 손 확정 콜 screencap(S23)",
+          "find": "«상차지 통화» 단계",
+          "expect": "서버 단계 출생 로그 · 단계가 섬(16)",
+          "timeoutSec": 10,
+          "ifFail": "넘김 · 결과에 적음"
+        },
+        {
+          "do": "S23: 경로 순서대로 정거장 좌표로 cmd location providers set-test-provider-location gps --location <위도,경도> --accuracy 5 — 정거장 사이 직선 위 점을 2초마다 · 정거장 30m 안에서 40초 머묾",
+          "find": "",
+          "expect": "서버 도착 로그 · 상차지 도착 신호 · 서버 궤적 source=native",
+          "timeoutSec": 300,
+          "ifFail": "도착이 안 잡히면 그 점에 40초 더 · 그래도면 멈추고 71(방향 버튼 안 누름)"
+        },
+        {
+          "do": "S23(R5CWB2NGN2D · 관제앱 kr.co.onedal.dashboard): 하차지에서 관제앱 screencap → «하차 완료» tap",
+          "find": "하차 완료",
+          "expect": "서버 «적재 회복» · 필터 다시 조립 → A24 원달앱 필터 글자가 바뀜(run-as 로 다시 읽기 · 원달앱 «📋 [필터 동기화] 판 … | 키워드 N개 | isActive=…» — 블루투스 또는 «🌐 인터넷 묻기»)(17)",
+          "timeoutSec": 60,
+          "ifFail": "필터가 안 바뀌면 17 실패 — 결과에 적고 계속"
+        },
+        {
+          "do": "A24(R59W600X91K · 원달앱 com.onedal.app · 시뮬 앱 com.onedal.simulator): 시뮬 앱 → 픽커 목록 → 콜 넣기(픽커)",
+          "find": "",
+          "expect": "보류 없음 → 원달앱이 상세 열고 «🔔 [삑]»(15) · 출발 전 만석이었으면 그때 «🔒 [픽커 잡기 보류] 만석» → 하차 뒤 다시 엶(5 · 6)",
+          "timeoutSec": 30,
+          "ifFail": "넘김"
+        },
+        {
+          "do": "S23: R0 의 시험 위치를 지움 — cmd location providers remove-test-provider gps · appops set com.android.shell android:mock_location default",
+          "find": "",
+          "expect": "관제앱 위치가 실제 GPS 로",
+          "timeoutSec": 10,
+          "ifFail": "멈추고 71(시험 위치를 남기지 않는다)"
+        }
+      ],
+      "ifCall": "위 steps",
+      "ifNoCall": "진행 중 콜이 없으면 R3 손 확정 콜만으로 · 픽커 콜이 안 뜨면 다시 넣기",
+      "pass": "단계가 서고 · 하차 뒤 필터가 원달앱에 내려가고 · 픽커가 다시 엶 — 결과에 «서버 궤적 source=native(시험 위치)» 한 줄",
+      "risk": "지킬 것: uiautomator 금지(접근성이 끊김) — 화면은 adb exec-out screencap -p 사진으로 찾고 그 글자 가운데를 input tap · 실물 카카오 픽커는 열지 않음(시뮬만) · 시뮬 배차망만 확정 · 방향 버튼(복귀 등) 안 누름 · 막히면 그 자리에서 멈추고 71 · 시험 도구는 «하차 완료» 말고 방향 버튼을 누르지 않는다 · 잡아 둔 콜 정리는 «하차 완료»까지(취소 · 복귀 안 누름)",
+      "restore": "A24 «알람» · «계약 안 함 끔» 확인 · 시험 위치 지움(remove-test-provider · appops default) · 진행 중 콜은 하차 완료로 끝남(남으면 그대로 두고 적음)"
+    }
+  ],
+  "order": "R0 → R1(알람 · 진행 중 콜 0 인 지금 필터) → R2(자동) → R3(계약 안 함) → R4(알람으로 되돌린 뒤 모의 주행(S23 adb 시험 위치)). 모드는 알람 → 자동 → 계약 안 함 → 알람 한 방향 · 잡은 콜 정리는 맨 끝 하차에 모은다",
+  "review": "ef 교차 검증 반영(10-09): 빠진 시험 하나 더함(18 · 운영센터 폰 표 이름 · 색과 직접 배지 — 손 0) · «뺌» 둘의 까닭을 더 적음(7 은 ef 가 찾은 서버 빈틈을 고친 뒤 서버 검사로 대신 · 4 는 배선을 못 보는 대가) · A 시작 전 확인 둘(원달앱 «콜 잡기 켜짐» · 관제앱 진행 중 목록이 비었나) · 만석 묶음(D)을 모의 주행(H)에 합쳐 묶음 7개 · 모드는 알람 → 자동 → 계약 안 함 → 직접 → 알람 한 방향. 걸림: A24 USB 를 다시 연결해 주세요(지금 컴퓨터에서 빠져 있음).",
+  "logs": {
+    "A24": "adb -s A24 logcat -v time | grep -E '1DAL|HijackService'",
+    "S23": "adb -s S23 logcat -v time | grep -E 'Capacitor/Console|SoundManager'",
+    "서버": "onedal-web 에서 pnpm log --since <시각> (서버 로그 파일)"
+  },
+  "lessons": [
+    "새 원달앱 판을 깔면 떠 있던 시뮬 앱을 껐다 켠다 — 안 그러면 원달앱이 글자 0자(UNKNOWN)",
+    "같은 상차+하차 경로는 요금만 바꿔도 원달앱이 «이미 본 콜»로 다시 안 연다 — 콜마다 하차 동을 바꾼다",
+    "인성 시뮬 상세는 10초 뒤 스스로 목록으로 — 결재석 KEEP · 상세 «확정»은 raw 화면 색으로 자리를 확인한 뒤 곧바로 탭(사람 눈 확인은 늦음)",
+    "확정 기다림은 관제앱 logcat «콜 알림음 재생 시작» 줄 개수나 원달앱 파일 기록(/sdcard/Android/data/com.onedal.app/files/logs/1dal-날짜.log)으로 — 원달앱 logcat 은 거의 안 찍힘",
+    "합짐 뒤 원달앱 차종이 줄어든다(1t 콜 뒤 오토바이 · 승용차) — 필터를 다시 읽어 콜 차종을 맞춘다",
+    "알람에서는 «계약 안 함» 칸이 안 보인다 — 끄려면 자동으로 잠깐 가서 끈 뒤 알람으로",
+    "S23 adb 시험 위치는 실제 위치와 번갈아 들어간다(gps · network · fused 시험 공급원 셋 다 넣어도) — 모의 주행은 PC 관제웹 길"
+  ],
+  "results": {
+    "when": "2026-10-09 06:39 ~ 07:31 · 원달앱 70판(1f4738d7) · 관제앱 같은 HEAD(07:07 fb68ed51 로 다시 깜) · 로컬 서버 bootedAt 06:25:35",
+    "rows": [
+      {
+        "id": "R0",
+        "result": "통과(고침 하나)",
+        "note": "70판을 깐 뒤 떠 있던 시뮬 WebView 글자 0자 → 시뮬 앱 다시 켜니 읽힘 · S23 adb 시험 위치는 실제 위치와 번갈아 들어감(R4 는 PC 길)"
+      },
+      {
+        "id": "3·1·2",
+        "result": "통과",
+        "note": "손 먼저(스크롤) 미룸 → 손 떼고 상세 · 삑 → 판정 소리 2초 → 목록에 멈춤 · 관제앱 SoundManager 0"
+      },
+      {
+        "id": "1-2",
+        "result": "반",
+        "note": "화물24시 상세를 상세로 읽음(상차 «경기 광주 초월읍») · 그러나 시 생략 주소를 «상차 주소 짧음»으로 버림 — AddressForm.isFull 빈틈(기록만)"
+      },
+      {
+        "id": "7-2",
+        "result": "못 봄",
+        "note": "손 «배차신청»이 상세 대기 끝과 겹침 · 버린 콜이라 /confirm 없음 · 시뮬 «하차완료» 오탭(시뮬 안 · 영향 없음)"
+      },
+      {
+        "id": "8",
+        "result": "통과",
+        "note": "원달앱 확정 → 관제앱 call.mp3 → KEEP 같은 초에 정지 · 원달앱 판정 소리 0 · 장부 AUTO · APP(앞 두 번은 KEEP 늦어 안전취소 — 그때도 결재 때 정지)"
+      },
+      {
+        "id": "11",
+        "result": "통과(색은 고친 뒤)",
+        "note": "펼친 줄 · 원달앱 노랑 테두리 · 새로고침 유지 · 관제앱 노랑은 Tailwind 가 shared 를 안 훑어 빠짐 → fb68ed51 · 299d309a 뒤 노랑 확인"
+      },
+      {
+        "id": "12",
+        "result": "통과",
+        "note": "연습 KEEP → SIMULATED_KEEP · «🐥 연습 결재 처리 완료 · 연습 끝» · 운행 정거장 그대로 · 장부 0 · «연습 끝» 배지는 폰 화면에서 탭 못 찾음"
+      },
+      {
+        "id": "13·9",
+        "result": "서버 통과 · 글자 못 봄",
+        "note": "손 확정 → 약 2초 KEEP · ORDER_CONFIRMED · type MANUAL · 운행에 올라감 · «✋ 직접콜» 글자는 폰 화면에서 못 찾음"
+      },
+      {
+        "id": "18(P5-3)",
+        "result": "통과",
+        "note": "«직접» 회색 단추 · «직접 모드» 배지"
+      },
+      {
+        "id": "16",
+        "result": "❌",
+        "note": "손 확정 콜은 KEEP 때 «상차지 통화» 단계가 안 섬(서버 안 KEEP 길은 birthStepsOnKeep 안 탐) — 도착 때 «지나친 단계 채움»으로만 · ef 고침 중"
+      },
+      {
+        "id": "17",
+        "result": "통과",
+        "note": "움직이는 동안 «📋 필터 동기화 … 합짐» 세 번"
+      },
+      {
+        "id": "15",
+        "result": "통과(만석 없음)",
+        "note": "하차 뒤 보류 없음 · 시뮬 픽커 콜을 알람으로 열고 삑"
+      },
+      {
+        "id": "①",
+        "result": "안 생김",
+        "note": "PC 관제웹이 화면을 가져가도 S23 블루투스 공급 유지 → 인터넷 묻기 안 켜짐(69판 장면 9 에서 통과한 길)"
+      },
+      {
+        "id": "끝",
+        "result": "되돌림",
+        "note": "A24 알람 · 계약 안 함 끔 · S23 시험 위치 · appops default · S23 관제 세션 되찾음 · 진행 중 콜 0(방이동은 실제 GPS 로 돌아오며 «하차지 2km 벗어나 하차 완료(GPS)» 자동)"
+      }
+    ]
+  },
+  "v71": {
+    "what": "71판 — 70판에서 못 본 것 + 그 뒤 고친 것만 · 자동(adb) · 기사님 손 0 · 판은 기사님이 시험을 정하실 때 HEAD",
+    "before": [
+      "이 판에 든 것(원달앱 71 · 6ddecfb3 · 판 70 1f4738d7 뒤): 21dce435 시 · 군 뺀 주소(«경기 광주 초월읍»)도 온전한 주소 — 화물24시 손 · 알람 상세 판정(39 X12) · 152a8ab2 못 보낸 «자동 취소 · 눌렀음» 비상 보고를 저장 칸에 들고 있다가 보고가 닿으면 다시 보냄(40 S2-3) — 서버 · 관제웹 쪽(c4cf89e1 · 2f7aa89e · 99f0d6d6 · d8b7a7b1 · 33a73cf1)은 로컬 서버 · 관제앱 빌드에 이미 들어 있음",
+      "판: 원달앱 versionCode +1 → A24 install · 관제앱 pnpm build(끝값 0 · 빌드 CSS 에 shared 색 클래스 29 다 있나 셈) → cap sync → assembleDebug → S23 install",
+      "새 판을 깐 뒤 A24 시뮬 앱 force-stop → 다시 켜기(안 그러면 원달앱 글자 0자)",
+      "서버 bootedAt 이 마지막 서버 커밋 뒤인지 · S23 관제앱 열어 A24 «콜 잡기 켜짐» · 진행 중 콜 0 · A24 알람 · 계약 안 함 끔",
+      "누르기 전마다 사진(또는 raw 화면 색)으로 그 자리의 글자 · 단추를 확인한 뒤 탭 — 인성 시뮬 상세 10초 · 결재석은 raw 색 확인 뒤 곧바로",
+      "uiautomator 금지 · 시뮬만 확정 · 실물 픽커 안 엶 · 방향 버튼 안 누름 · 막히면 멈추고 71"
+    ],
+    "logs": "원달앱 파일 기록 /sdcard/Android/data/com.onedal.app/files/logs/1dal-<날짜>.log(시작 줄 수를 적어 두고 그 뒤만 grep -E) · S23 logcat Capacitor/Console · 서버 logs/server-<날짜>.log",
+    "call": "POST localhost:4000/api/sim/calls — 장소 {addressDetail, region, lon, lat} 네 칸 · 콜마다 하차 동을 바꾼다(같은 경로는 «이미 본 콜») · 상차는 서버 «내 위치» 기준 상차 목록 안 동 · 차종은 지금 원달앱 필터 차종 안에서",
+    "rounds": [
+      {
+        "id": "V1 · 화물24시 손 진입(X12 · 21dce435)",
+        "mode": "알람",
+        "tests": [
+          "①"
+        ],
+        "steps": [
+          {
+            "do": "A24 시뮬 «화물24시 · 개별콜» → «화물정보» · 콜 하나 넣기(요금 5,000 — 원달앱 최저 6,000 밑이라 원달앱이 안 엶 · 손 진입만)",
+            "expect": "목록에 «경기 광주 초월읍»(시 뺀 꼴) 콜",
+            "timeoutSec": 15,
+            "ifFail": "다시 넣기"
+          },
+          {
+            "do": "사진으로 그 콜 요금 글자 자리 확인 → 탭(손 진입)",
+            "expect": "원달앱 «[페이지] 화물24시 화물상세정보» → «🔔 [삑]» · «요건 미달» 없음 · 서버 판정 줄 상차 «경기 광주 초월읍» · 요금 5,000(운송료)",
+            "timeoutSec": 15,
+            "ifFail": "«상차 주소 짧음»이면 X12 실패 — 원문 남기고 71"
+          }
+        ],
+        "restore": "상세 대기 30초 뒤 목록(배차신청 안 누름)"
+      },
+      {
+        "id": "V2 · 손 확정 → 상차지 통화 바로(70e4f860) · 관제앱 배지 글자 · 색(299d309a)",
+        "mode": "알람(손 확정 🔔) → 자동 + 계약 안 함(연습 · ✋)",
+        "tests": [
+          "②",
+          "③"
+        ],
+        "steps": [
+          {
+            "do": "A24 시뮬 «인성 · 개별콜» · 알람 · 벨 콜 하나 → 원달앱이 연 상세에서 raw 색으로 «확정» 자리(청록) 확인 뒤 탭",
+            "expect": "서버 KEEP · 같은 초에 «🌱 [출생] … 상차지 통화»(도착 전) · S23 관제앱 진행 중 콜 «상차지 통화 · 지금 할 것» · 목록 줄 «🔔 알람콜»(사진)",
+            "timeoutSec": 20,
+            "ifFail": "출생이 없으면 ② 실패 — 71"
+          },
+          {
+            "do": "S23 모드 «자동» → «계약 안 함 켬»(사진 확인) · 콜 하나 → 결재석 raw 색 확인 뒤 KEEP",
+            "expect": "결재석 «🐥 연습» 노랑 · 서버 «연습 끝» · S23 취소/방출 쪽 «🐥 연습 끝» 노랑(관제앱에서 탭을 찾음 — ☰ 메뉴 · 시트를 사진으로 훑음 · 못 찾으면 PC «pnpm shot» 로 관제웹 한 장)",
+            "timeoutSec": 30,
+            "ifFail": "배지가 회색이면 ③ 실패(빌드 CSS 셈 다시)"
+          },
+          {
+            "do": "같은 모드 · 콜 하나 → 원달앱이 연 상세에서 «확정» 손 탭",
+            "expect": "진짜 콜 · «✋ 직접콜» 글자(사진) · 연습 배지 없음 · 상차지 통화 단계 바로",
+            "timeoutSec": 20,
+            "ifFail": "넘김"
+          },
+          {
+            "do": "관제웹 폰 칸 화면 배지 중 보라(accent-alt) 상태가 뜨면 사진 한 장 — 뜨는 상태를 고를 수 없으면 «빌드 CSS 셈 29/29»로 대신",
+            "expect": "보라 바탕 · 테두리",
+            "timeoutSec": 10,
+            "ifFail": "—"
+          }
+        ],
+        "restore": "A24 «자동»에서 «계약 안 함 끔» → «알람»(알람에서는 그 칸이 안 보임)"
+      },
+      {
+        "id": "V3 · 만석 → 픽커 멈춤(7번) — 만들 수 있을 때만",
+        "mode": "자동(차종 맞춘 콜을 원달앱이 확정) → 알람",
+        "tests": [
+          "④"
+        ],
+        "steps": [
+          {
+            "do": "원달앱 필터의 차종 · 적재를 읽고, 남은 차종(합짐이면 오토바이 · 승용차) 콜을 하나씩 넣어 원달앱 자동 확정 → 관제앱 KEEP(raw 색 확인) — 매번 원달앱 필터 captureHold 를 읽음",
+            "expect": "captureHold «만석»이 되면 멈춤",
+            "timeoutSec": 300,
+            "ifFail": "다섯 콜로도 «만석»이 안 되면 뺌 — 근거: 적재 셈이 콜 크기를 시뮬 입력으로 못 정함(70판 1t 콜이 80/100 · 그 뒤 오토바이 · 승용차는 1씩) · 서버 captureHold.test 가 묾"
+          },
+          {
+            "do": "A24 «알람» · 시뮬 «픽커 · 개별콜» · 맞는 콜 하나",
+            "expect": "원달앱 «🔒 [픽커 잡기 보류] 만석 — 알람 · 상세 열기를 멈춘다» · 상세 안 엶 · 삑 없음",
+            "timeoutSec": 20,
+            "ifFail": "엶이면 ④ 실패 — 71"
+          }
+        ],
+        "restore": "진행 중 콜은 PC 관제웹 모의 주행(71)으로 하차 · 끝나면 S23 관제앱 «이 기기에서 다시 시작»"
+      },
+      {
+        "id": "V4 · 관제앱 화면 줄만 끊었다 붙임(X1-a · d8b7a7b1)",
+        "mode": "자동",
+        "tests": [
+          "⑤"
+        ],
+        "steps": [
+          {
+            "do": "S23 관제앱 am force-stop → 다시 켜기 — force-stop 은 관제앱 전체(화면 · 블루투스 · 공급 소켓)가 끊김(포그라운드 서비스까지 죽음) · X1-a(관제웹만 끊김)를 따로 떼어 보지 못함",
+            "expect": "서버 «⏳ [관제웹 잠깐 끊김]» → 다시 붙음 시각 차를 적음 · 블루투스 끊김으로 원달앱 AUTO → ALARM · 인터넷 묻기 켬이 나오면 «함께 끊긴 것» · 블루투스 다시 붙음(원달앱 · 관제앱 한 줄씩)과 걸린 초를 덤으로 적음",
+            "timeoutSec": 30,
+            "ifFail": "흔들리면 ⑤ 실패 — 71"
+          }
+        ],
+        "restore": "A24 알람"
+      },
+      {
+        "id": "V5 · KEEP 이 폰에 못 감(S2-1 · S2-2 · S2-3)",
+        "mode": "자동(진짜 자동 · 계약 안 함 끔)",
+        "tests": [
+          "S2"
+        ],
+        "rules": "콜은 onedal-sim 인성 콜만(카카오 픽커는 안 건드림) · 버튼은 아래 적힌 것만 · 알림 창이 뜨면 멈추고 71",
+        "before": "진행 중 콜 0 · 시작 전에 셈 둘을 적어 둠: ① 서버 로그 «📈 기기(A24…) 취소 카운트 +1 반영» 줄 수 ② 장부 SAFE_CANCEL 줄 수(insung · 그날 · `SELECT COUNT(*) FROM orders WHERE status='SAFE_CANCEL' AND COALESCE(targetApp,'insung')='insung'`)",
+        "steps": [
+          {
+            "do": "A24 AUTO · 오토바이 콜(남은 칸에 맞춤)",
+            "expect": "원달앱 «[AUTO] 확정 버튼 클릭»(상세 보고는 그 앞)",
+            "timeoutSec": 30,
+            "ifFail": "멈춤"
+          },
+          {
+            "do": "자동 확정을 본 순간 S23 블루투스 끔 + A24 wifi · 데이터 끔 — A24 블루투스는 건드리지 않는다(껐다 켜면 원달앱 공급이 다시 안 붙음)",
+            "expect": "원달앱 결재를 못 받음",
+            "timeoutSec": 5,
+            "ifFail": "되돌림"
+          },
+          {
+            "do": "S23 결재석 KEEP(바탕색 아님 + 서버가 콜을 안 치움 확인 뒤)",
+            "expect": "서버 «결재 처리 완료 · ORDER_CONFIRMED»",
+            "timeoutSec": 15,
+            "ifFail": "되돌림"
+          },
+          {
+            "do": "기다림",
+            "expect": "원달앱 안전취소 «취소» · «📮 못 보낸 자동 취소 보고 … 들고 있다가»",
+            "timeoutSec": 70,
+            "ifFail": "되돌림"
+          },
+          {
+            "do": "A24 다시 켬",
+            "expect": "«📮 … 다시 보냄» → 서버 «⏱️ [KEEP 못 감]» 1번 · SAFE_CANCEL +1 · 취소 카운트 +1",
+            "timeoutSec": 120,
+            "ifFail": "S2-3 실패"
+          },
+          {
+            "do": "S23 사진",
+            "expect": "폰 칸 빨간 줄 «⏱️ KEEP 이 폰에 못 갔습니다 — 인성에서 자동 취소됨» — 관제앱이 99f0d6d6 뒤 빌드여야 보인다",
+            "timeoutSec": 10,
+            "ifFail": "S2-2 실패"
+          }
+        ],
+        "pass": [
+          "서버 로그 «KEEP 못 감 · 안전취소» 정확히 한 번",
+          "그 콜의 장부 상태 SAFE_CANCEL",
+          "그날 취소 횟수가 정확히 1 늚 — 시작 전 셈 둘(로그 «취소 카운트 +1» · 장부 SAFE_CANCEL)이 각각 +1 · 저장 칸이 다시 보내도 +2 가 되면 빨강",
+          "관제웹 빨간 줄 사진 한 장(99f0d6d6 «못 잡는 것» 칸이 이 사진)"
+        ],
+        "restore": "A24 svc wifi enable · svc data enable · S23 cmd bluetooth_manager enable → adb 로 셋 다 켜짐을 읽어 확인 · A24 모드 알람",
+        "note": "원달앱은 블루투스가 끊기면 자동 → 알람(TargetApp.runningMode) — S23 블루투스를 먼저 끄면 자동 확정 · 안전취소가 안 선다. 그래서 자동 확정을 본 뒤 A24 만 끊는다"
+      }
+    ],
+    "end": "A24 알람 · 계약 안 함 끔 · 진행 중 콜 0 · S23 관제 세션 되찾음 · S23 시험 위치는 안 씀(모의 주행은 PC) · 결과는 v71.results 에",
+    "minutes": 30,
+    "results": {
+      "찾은 것": [
+        "서랍 «취소» 탭 줄에 «🐥 연습 끝» 배지가 없다 — 배지는 PinnedRouteCard 덱 머리글(isSimulated && isTerminal)에만 있고 Drawer.tsx · finishedCalls.ts 에는 연습 표시가 없다 · PinnedRouteCard:332 주석 «취소/방출 탭에 이 배지로 남는다»와 다르다 (14:09 · out/140934_drawer_cancel_tab.png)",
+        "결재 없이 치운 연습 콜(오늘 넷 — aeac03c3 · cf3583d6 · f148223e · 단월동 콜)은 서랍 «취소»에 없다 · KEEP 결재를 받은 연습 콜 1a8d3201 하나만 남는다(판단 · 코드 확인 전)",
+        "연습 KEEP 이 가능한 시간 = 결재석 약 8초(시뮬 상세 10초 귀환 − 원달앱 팝업 읽기 · 판정 약 2초) · 실물 인성은 원달앱 대기 30초라 약 28초로 봄(실측 아님)",
+        "관제앱 force-stop 은 블루투스 공급까지 끊어 원달앱이 AUTO → ALARM(3.56초) — X1-a(관제웹만 끊김)는 이 장면으로 판정 못 함 · 블루투스 다시 붙음 3.05초",
+        "관제앱은 관제웹을 앱 안에 품는다(server.url 없음) — 관제웹 커밋을 폰에서 보려면 관제앱을 다시 깔아야 한다 · 71판 S23 관제앱 07:07 빌드",
+        "A24 블루투스를 껐다 켜면(14:12:45) 원달앱 공급이 다시 안 붙는다 — 14:12:48 «광고 시작»만 · 관제앱 다시 켜기로도 안 붙음 · 기사님이 A24 접근성을 다시 활성화해 18:34 에 붙음 · 원달앱 쪽 공급 서비스가 블루투스 껐다 켬 뒤 다시 안 서는 것으로 봄(코드 확인 전)"
+      ],
+      "장면": {
+        "V1": "통과 · 13:08:27.340 삑 · 요건 미달 없음 · 결재석 🔔",
+        "V2": "통과(셋) · 13:10:52 알람 손 확정 출생 · 14:00:54 연습 끝 SAFE_CANCEL(취소 횟수 · 장부 0) · 14:02:03 계약 안 함 손 확정 출생 · ✋ 직접콜",
+        "V3": "통과 · 7콜로 만석 · 14:07:13 «픽커 잡기 보류 만석» · 상세 안 엶 · 실물 픽커 앞에 안 옴",
+        "V4": "판정 못 함 · force-stop 이 블루투스까지 끊어 AUTO → ALARM 3.56초 · 관제웹 끊김 2.2초 · 블루투스 다시 붙음 3.05초",
+        "V5": "통과 · 18:52:09.945 서버 «KEEP 못 감» 1번(12004ed8) · SAFE_CANCEL +1 · 취소 카운트 +1 · S23 폰 칸 빨간 줄 «⏱️ KEEP 이 폰에 못 갔습니다 — 인성에서 자동 취소됨» 보임(out/185215_V5_red_line.png · 새 관제앱 18:50:31) · 블루투스 다시 붙음 18:52:05.631(S23 블루투스 켬 뒤 약 2초) · 첫 시도 14:13 은 S23 관제앱 07:07 빌드라 빨간 줄 판정 못 함"
+      }
+    }
+  },
+  "v72": {
+    "summary": "72판 — S23 이 길을 따라 움직이는 장면(기사님 «가» · 71 전달) · 실행은 판이 정해진 뒤",
+    "script": "scratchpad/v71/m1.py (24 · JoyStick 화면은 안 누름)",
+    "rounds": [
+      {
+        "id": "M1 · 실제 폰 위 모의 주행(도착 · 지나침 · 단계 · 블루투스 유지)",
+        "mode": "알람(장면 끝에 시작 때 모드로 되돌림)",
+        "means": "S23 GPS JoyStick 무료판 경로 재생 — JoyStick 조작은 71 이 함(기사님이 맡기심)",
+        "route": "S23 Download/onedal-home-icheon.gpx · 232점 · 29.67km · 집 37.3776,127.2947 → 신둔 37.2957,127.4130 · 55km/h 로 약 32분 · 서버에는 «출처 native»로 들어옴",
+        "call": "시뮬 인성 개별콜 1 · 손 확정 · 오토바이 · 상차 «경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점»(경로 2.26km · 경로 위 0m) · 하차 «경기 이천시 신둔면 경충대로 3035-1 이안로지스»(경로 19.76km 에서 131m · 끝점에서 501m) — 둘 다 서버 지오 캐시에 있어 카카오 0번",
+        "now": "서버 도착 규칙(geoMotion.ts) — «도착 감지»는 500m 안 + 30초 정지 · 정지 없이 지나치면 «지나침»(지금 DB pass_near_m 300 · pass_away_m 400 — 300m 안에 들었다 400m 벗어나면 도착 · 완료를 차례로 찍음). 경로 재생은 중간에 안 서므로 상차 · 하차 둘 다 «지나침»으로 선다. 끝점은 하차지에서 501m 라 끝점 정차로는 «도착 감지»가 안 선다(반경 500m)",
+        "steps": [
+          {
+            "who": "24",
+            "do": "A24 알람으로(시작 모드 적어 둠) · 필터에 신둔면 · 오토바이 있나 읽기(필터는 안 바꿈)",
+            "expect": "도는 모드 ALARM"
+          },
+          {
+            "who": "24",
+            "do": "시뮬 인성 콜 1 → 원달앱 상세 · 삑 뒤 확정(손)",
+            "expect": "서버 «🌱 [출생] … 상차지 통화»"
+          },
+          {
+            "who": "71",
+            "do": "S23 JoyStick 경로 재생 시작(55km/h) — 24 스크립트가 «🟡 준비됨»을 찍은 뒤",
+            "expect": "서버 위치가 집에서 150m 벗어남"
+          },
+          {
+            "who": "24",
+            "do": "따라가며 기록 · 3 · 12 · 22분에 S23 관제앱 사진",
+            "expect": "① «위치 점프» 0번 · 속도 중앙값 55 안팎 ② 상차 «👣 지나침 감시 시작 상차지» → «🚚 [지나침] 상차지 … 도착·완료» (시각 · 그때 위치 · 상차지 거리) ③ 하차 19.76km 지점 «지나침 감시 시작 하차지» → «[지나침] 하차지» ④ 원달앱 «공급 연결 끊김» 0번 ⑤ 지도 차 표시가 길을 따라감"
+          },
+          {
+            "who": "71",
+            "do": "JoyStick «중단» → 앱 완전 종료 → S23 dumpsys 로 mock 표시 없음 확인 · 진행 중 콜 하차 정리",
+            "expect": "S23 위치가 진짜 GPS"
+          },
+          {
+            "who": "24",
+            "do": "A24 모드를 시작 때 값으로 되돌림",
+            "expect": "원달앱 suppliedMode = 시작 값"
+          }
+        ],
+        "cannotCatch": "실제 GPS 흔들림 · 터널 · 신호 끊김 · 정차(재생은 안 섬 → «도착 감지» 30초 정지 규칙은 이 장면으로 못 봄) · 적재 · 톨비(승용차 실주행과 같음)",
+        "driverDay": "좋은 콜 · 노이즈 그대로(시험 장면) · 기사님 손 없음 — JoyStick 은 71"
+      }
+    ],
+    "results": {
+      "찾은 것": [
+        "S23 관제앱이 뒤로 가면 관제웹 소켓이 끊겨(19:05:09) 5초 뒤 A24 자동 → 알람 · 위치도 서버에 안 감 — 관제앱 폰에서 다른 앱을 앞에 띄우면 생김(실주행에서 내비를 같은 폰에 띄우면 생길 수 있음) · 코드 확인 전",
+        "관제웹 «주행판정»이 19:12:35 drive 35 → idle 0km/h 뒤 19:29:48 까지 17분 동안 idle — 경로 재생으로 움직이는 동안 관제웹은 «서 있음»으로 봄(코드 확인 전)",
+        "서버 «📍 [위치]» 줄은 한 업데이트에 GPS_LOG_MIN_KM 넘게 움직여야 적혀 촘촘한 위치에서는 주행 내내 0줄 — 속도 확인 수단이 로그에 없음(geoMotion.ts:509-518)",
+        "24 스크립트 실수: 시작 모드를 원달앱 «도는 모드» 기록으로만 읽어(블루투스 끊김 때 ALARM) 받은 모드 AUTO 를 놓침 → 주행 내내 AUTO · 끝에 ALARM 으로 바꿨다가 19:31:52 AUTO 로 되돌림 — run.py running_mode 를 저장 칸(suppliedMode) 기준으로 고침"
+      ],
+      "M1": {
+        "판정": "통과(②③ 지나침 · ① 점프 0 · ④ 블루투스 끊김 0 · ⑤ 지도) — 단 앞 조건(알람)을 못 지킴: A24 는 주행 내내 AUTO(새 콜이 없어 잡힌 것은 0)",
+        "①": "움직임 시작 19:12:33 뒤 «위치 점프» 0번 · 서버 «📍 [위치]»는 한 번에 GPS_LOG_MIN_KM 넘게 + 30초일 때만 적혀 주행 중 0줄 → 속도 셈 못 함 · 거리/시간 어림: 상차 지나침까지 2.66km/약 3분 ≈ 53km/h · 하차 지나침까지 20.16km/17.2분 ≈ 70km/h(판단)",
+        "②": "19:14:25.371 지나침 감시 시작 상차지 286m → 19:15:27.489 [지나침] 상차지 412m → 상차지 도착 · 상차 완료(ORDER_PICKED_UP) · 하차지 도착 단계 출생 — 관제앱 알림 «상차지를 지나쳐 도착·완료로 기록했습니다 (GPS)»",
+        "③": "19:29:20.116 지나침 감시 시작 하차지 297m → 19:29:44.809 [지나침] 하차지 412m → 하차지 도착 · 하차 완료(ORDER_DELIVERED) · 착불 미확인 27,000 미수금 경고",
+        "④": "원달앱 «공급 연결 끊김» 0번(19:12:33 뒤)",
+        "⑤": "out/191537_M1_map_3m.png · 192435_M1_map_12m.png · 193048_M1_end.png — 현위치가 경로를 따라감",
+        "사진": "out/190305_M1_ready.png"
+      }
+    }
+  },
+  "gaps": {
+    "title": "실제 폰 시나리오 빈칸 표 — 다음 판에 넣을 장면 고르기",
+    "filterNow": "10-09 20:20 로컬 서버 값 그대로 씁니다(시험 때문에 필터를 바꾸지 않음) — 목적지 이천시 · 상차 반경 자동(지금 9.1km · 25곳) · 하차 목록 이천 쪽 30곳 · 경유 반경 16km · 목적지 반경 22km · 차종 1t · 귀가 단계 상차 10km · 하차 10km · 집 광주 초월 동광뷰엘(37.3767, 127.2944)",
+    "howRegion": "상차 · 하차 동은 판을 시작할 때 그 순간의 상차 목록 · 하차 목록에서 고릅니다(목록에 없는 동을 넣으면 원달앱이 «도착지 ❌»로 안 엶 — 71판 V2 에서 겪음). 아래 지역은 지금 목록에 든 것으로 정한 첫 후보입니다.",
+    "rows": [
+      {
+        "id": "G1",
+        "scene": "30초 서 있으면 «도착 감지»",
+        "why": "M1 은 경로 재생이 서지 않아 «지나침» 길만 봄",
+        "pickup": "초월읍 모다아울렛 곤지암점",
+        "dropoff": "이천 신둔면 이안로지스",
+        "dest": "이천시(지금 값)",
+        "filter": "지금 값 그대로",
+        "route": "경로 둘(S23 Download) — onedal-g1a-to-pickup(상차지 1km 앞 → 모다아울렛 · 1.1km · 0.7분) → 40초 서 있음 → onedal-g1b-pickup-to-drop(모다아울렛 → 이안로지스 128m 앞 · 17.5km · 10.5분) → 끝에서 40초 · 시속 100km",
+        "hand": "없음",
+        "min": 15,
+        "can": "가능",
+        "expect": "상차지 500m 안 · 시속 5km 아래로 30초 → 서버 «🏁 [도착 감지] 상차지 500m 이내 … 1회 발화» → «📦 [상차지 도착] (GPS)» 단계만 섬(geoMotion.ts:851 · GPS_ARRIVAL 코드 상수 500m · 5km/h · 30초). 상차 완료는 서 있는 것으로는 안 섬 — 손으로 누르거나 400m 벗어나 «🚚 [지나침]»일 때만. 하차지에 서면 «하차지 도착»만 서고, 하차 완료는 2km 떠나면 «🚚 [떠남 감지]»로 섬.",
+        "wrong": "30초가 지나도 «도착 감지» 없음 · 서 있기만 했는데 상차 완료가 찍힘 · 같은 콜에 «도착 감지» 두 번. ⚠️ 함정: 좌표가 완전히 같은 점이 되풀이되면 서버가 «같은 자리»로 보고 30초 시계를 안 돌림(geoMotion.ts:611) — GPS JoyStick 의 «유휴 범위 0.25m»가 좌표를 흔들어 주면 섬. 안 서면 이 함정인지 로그로 먼저 가름(실주행은 GPS 가 늘 흔들려 해당 없음)"
+      },
+      {
+        "id": "G2",
+        "scene": "첫짐 + 합짐 둘을 실은 채 경유하며 달리기",
+        "why": "M1 은 콜 하나뿐 — 경유 순서 · 합짐 필터 바뀜 · 적재 회복을 실제 폰으로 못 봄",
+        "pickup": "첫짐 모다아울렛 · 합짐 곤지암읍(경로 위)",
+        "dropoff": "첫짐 신둔면 · 합짐 이천 갈산동/부발읍(그 순간 하차 목록)",
+        "dest": "이천시(지금 값)",
+        "filter": "지금 값 그대로(합짐 단계 상차 10km · 경유 3km 는 서버가 단계에 맞춰 바꿈)",
+        "route": "G1 경로 둘에 곤지암 합짐을 얹음(합짐 상차는 g1b 경로 위 · 합짐 하차는 이안로지스 근처 그 순간 하차 목록) · 시속 100km",
+        "hand": "없음",
+        "min": 20,
+        "can": "가능",
+        "expect": "합짐 KEEP → «🔄 [State Machine] 추가 콜 확정 (GATHERING 유지)» · «🗺️ [경유 갱신] KEEP 후 destinationKeywords N개로 재계산» · «📦 [적재] 함께 실리는 최대 …»(적재는 더하지 않고 함께 실리는 최대). 경로 순서가 두 콜을 섞어 다시 섬(카카오 키가 있을 때). 원달앱은 바뀐 필터(합짐 · 경유 키워드 · 실을 수 있는 차종)를 블루투스로 받음. 달리면서 합짐 상차 · 하차는 «지나침»으로 차례로 섬.",
+        "wrong": "경유 갱신 없음 · 적재가 두 콜을 더한 값으로 만석 · 원달앱 필터가 첫짐 때 그대로 · 경로 순서가 하차를 상차보다 먼저 둠"
+      },
+      {
+        "id": "G3",
+        "scene": "하차 뒤 집으로 돌아가며 귀가 콜",
+        "why": "노선 3 + 복귀 3 의 «복귀» 쪽을 실제 폰으로 안 봄",
+        "pickup": "이천 쪽(마지막 하차지 10km 안)",
+        "dropoff": "광주 초월읍(집 10km 안)",
+        "dest": "귀가 단계(집)",
+        "filter": "귀가 단계 값(상차 10km · 하차 10km) — 서버가 마지막 하차 뒤 귀가로 넘기는지가 볼 것",
+        "route": "이안로지스 → 집 방향 경로를 새로 만듦(10km 만 · 6분) · 시속 100km",
+        "hand": "귀가 버튼 한 번(기사님) — 스크립트는 필터 단추를 안 누름",
+        "min": 12,
+        "can": "기사님 손 한 번이 있으면 가능",
+        "expect": "마지막 하차 완료 → «🚚 [적재 회복] … 남은 활성 콜 0건» · «🔗 [불변식] dispatchPhase DELIVERING → STANDBY». 귀가(집 방향)로 저절로 넘어가는 코드는 없음 — 기사님이 필터 창의 귀가 버튼을 누르셔야 «🧭 [국면 전환] DEST → HOME».",
+        "wrong": "하차 뒤에도 국면이 DELIVERING 에 남음 · 적재가 안 풀림. (귀가로 저절로 안 넘어가는 것은 지금 설계라 틀린 것이 아님 — 아래 «정하실 것» ③)"
+      },
+      {
+        "id": "G4",
+        "scene": "화물24시 콜을 자동으로 잡기",
+        "why": "화물24시는 손으로 연 장면(V1)만 봄",
+        "pickup": "초월읍",
+        "dropoff": "이천시 동 하나",
+        "dest": "이천시(지금 값)",
+        "filter": "지금 값 그대로",
+        "route": "움직이지 않음",
+        "hand": "없음",
+        "min": 10,
+        "can": "가능(시뮬 화물24시)",
+        "expect": "자동에서 원달앱이 화물24시 «배차신청»을 누름 → 안전취소 타이머 30초(safe_cancel_sec_hwamul24) · «⏳ 안전취소 타이머 가동». 결재석 KEEP 이 오면 «✅ 판결 KEEP 집행 완료» · 닫기 · 서버 «받았음» 시각. 30초 안에 안 오면 «🚨 안전취소 타임아웃 … 강제 배차 취소» · 취소 누름 · 비상 보고.",
+        "wrong": "자동인데 확정을 안 누름 · KEEP 이 왔는데 취소함 · 30초가 지나도 취소 안 함"
+      },
+      {
+        "id": "G5",
+        "scene": "관제앱이 뒤로 갔을 때(다른 앱을 앞에 띄움)",
+        "why": "🔴 71판 찾은 것 — 위치가 서버에 안 가고 5초 뒤 자동 → 알람",
+        "pickup": "—",
+        "dropoff": "—",
+        "dest": "—",
+        "filter": "—",
+        "route": "G1 g1b 를 달리는 중 S23 에 다른 앱을 1분 띄움 · 한도 1분 — 넘으면 🔴 · 되살리기: 관제앱을 앞으로(am start) · 맨 끝에서 두 번째",
+        "hand": "없음",
+        "min": 3,
+        "can": "가능 — 판정은 «정하실 것 ①» 답에 따라",
+        "expect": "지금 설계: 관제앱 위치는 화면(웹뷰)에서만 서버로 감 — 뒤로 가면 화면 연결이 끊겨 위치도 끊김(백그라운드 위치 설계 없음). 5초 뒤 «🛑 [관제웹 없음] … 자동 명령을 알람으로» = 결재할 화면이 없으면 자동을 알람으로 내리는 것은 의도(phoneSupply.ts:66). 5분 넘게 위치가 없으면 경로 기점이 집으로 바뀜.",
+        "wrong": "지금 설계대로면 71판 결과는 «설계대로». 이것이 맞는 동작인지는 기사님이 정하실 일 — 아래 «정하실 것» ①"
+      },
+      {
+        "id": "G6",
+        "scene": "원달앱 폰 블루투스를 껐다 켬",
+        "why": "🔴 71판 찾은 것 — 접근성을 다시 활성화할 때까지 안 붙음",
+        "pickup": "—",
+        "dropoff": "—",
+        "dest": "—",
+        "filter": "—",
+        "route": "움직이지 않음 · A24 블루투스 껐다 켬 · 한도 60초 — 안 붙으면 🔴 · 되살리기: adb 로 원달앱 접근성을 비활성화 → 활성화(기사님이 손으로 하신 것과 같은 일) · 맨 끝",
+        "hand": "없음(되살리기도 adb)",
+        "min": 3,
+        "can": "가능(고치기 전에는 실패로 나옴)",
+        "expect": "설계 없음 — 원달앱(BleLink.kt)은 블루투스 켜짐 · 꺼짐을 듣지 않고, 공급 창구(GATT 서버)를 다시 만들지 않음. 그래서 관제앱이 «공급 서비스 칸이 없다»로 붙었다 끊기를 되풀이함.",
+        "wrong": "지금은 실패가 맞게 나옴(🔴 고칠 것). 맞는 동작 안: 블루투스가 다시 켜지면 원달앱이 공급 창구를 새로 열고 60초 안에 «공급 연결 살아남» — 아래 «정하실 것» ②"
+      },
+      {
+        "id": "G7",
+        "scene": "움직이는 동안 관제웹 «운행 중» 판정",
+        "why": "M1 찾은 것 — 17분 내내 «서 있음»",
+        "pickup": "—",
+        "dropoff": "—",
+        "dest": "—",
+        "filter": "—",
+        "route": "G1 · G2 에 얹어 함께 봄",
+        "hand": "없음",
+        "min": 0,
+        "can": "가능",
+        "expect": "관제웹 «주행판정»은 시속 20km 이상이 10초(motion_hold_sec) 이어지면 «운행 중», 5km 이하가 10초면 «서 있음». 표시만이 아님 — 합짐을 모으는 중에 «운행 중»이 되면 «🚀 [출발] 이제 모으지 않고 갑니다» · GATHERING → DELIVERING(StageView.tsx:387).",
+        "wrong": "시속 55~100km 로 달리는데 «서 있음». 코드로 본 원인 후보: 같은 위치 한 점이 두 길로 두 번 들어와 속도가 0 으로 되돌아감(gpsBridge.ts:100) — 실기기 확인 전. 이러면 «출발»이 늦거나 안 섬 = 실주행에도 생길 수 있음"
+      },
+      {
+        "id": "G8",
+        "scene": "관제웹만 잠깐 끊김(블루투스는 그대로)",
+        "why": "V4 는 관제앱 강제 종료라 블루투스까지 끊겨 따로 못 봄",
+        "pickup": "—",
+        "dropoff": "—",
+        "dest": "—",
+        "filter": "—",
+        "route": "움직이지 않음 · S23 wifi · 데이터를 3초 끊음",
+        "hand": "없음",
+        "min": 5,
+        "can": "가능",
+        "expect": "관제웹 연결만 끊기고 5초 안에 다시 붙으면 «⏳ [관제웹 잠깐 끊김]» → 붙음 · 원달앱 자동 그대로(WEB_GAP_MS 5초 · 코드 상수). 5초를 넘기면 «🛑 [관제웹 없음]»으로 알람 → 다시 붙으면 «✅ [관제웹 붙음] … 자동 그대로».",
+        "wrong": "5초 안에 다시 붙었는데 원달앱이 알람으로 내려감 · 다시 붙었는데 자동으로 안 돌아옴"
+      },
+      {
+        "id": "G9",
+        "scene": "진행 중 콜이 있는 채 서버 다시 켬",
+        "why": "서버 다시 뜬 뒤 폰 쪽 복구는 e2e 로만 봄",
+        "pickup": "G2 콜 그대로",
+        "dropoff": "—",
+        "dest": "—",
+        "filter": "—",
+        "route": "G2 중간에",
+        "hand": "로컬 서버(pnpm dev) 껐다 켜기는 기사님 허락",
+        "min": 10,
+        "can": "허락이 있어야",
+        "expect": "서버가 다시 뜨면 관제웹이 붙을 때까지 «⏳ [부트스트랩 중]» · 잡기 멈춤 → 진행 중 콜을 장부에서 되살림(폰이 «받았음»을 안 보낸 확정 콜은 안 되살림) · «📍 [위치 복구]» · 국면은 GATHERING 으로 시작 → «✅ [Bootstrap 완료]» 뒤 필터를 내려보냄. 실패하면 «🚨 [하루 복구 실패]» 로 잡기를 멈춘 채 둠.",
+        "wrong": "진행 중 콜이 사라짐 · 부트스트랩 중에 콜을 잡음 · 복구 뒤 단계가 처음으로 돌아감"
+      },
+      {
+        "id": "G10",
+        "scene": "오래 켜 둠 — 화면 꺼짐 · 절전 · 배터리 · 발열",
+        "why": "몇 분짜리 장면만 봄",
+        "pickup": "—",
+        "dropoff": "—",
+        "dest": "—",
+        "filter": "—",
+        "route": "두 폰을 2시간 켜 둠(밤새도 가능)",
+        "hand": "없음",
+        "min": 120,
+        "can": "가능",
+        "expect": "원달앱은 목록 화면에서 15초마다 살아 있음 보고 · 150초 동안 소식이 없으면 서버가 «📵 통신 두절». 원달앱 폰 화면이 꺼지면 «📵 화면 꺼짐 → 퇴근(OFFLINE)» 보고(설계된 동작). 관제앱은 화면을 켜 둠(KeepAwake) · 블루투스는 1초 숨 · 5초 조용하면 끊음. 관제앱 화면 절전(doze) 대응은 설계 없음.",
+        "wrong": "2시간 동안 «통신 두절» · 블루투스 끊김이 생김 · 배터리 · 온도가 크게 오름(숫자는 첫 측정을 기준으로 삼음)"
+      }
+    ],
+    "never": "시뮬레이터로 끝까지 못 보는 것 — 진짜 인성 · 화물24시 화면과 팝업(사업자 뒤) · 진짜 GPS 흔들림 · 터널 · 신호 끊김 · 적재 · 톨비 · 운전 중 기사님 손 · 카카오 픽커 폰 가짜 위치(계정 위험)",
+    "failRule": "실패해도 판은 계속 갑니다 — 장면마다 한도 시간을 두고, 넘으면 🔴 로 적고 사진 · 로그 시각을 남긴 뒤 «되살리기»를 하고 다음 장면으로 갑니다. 되살리기를 해도 안 살아나면 그 뒤 장면 가운데 그 상태가 필요 없는 것만 돌립니다. 실패할 것으로 아는 G5 · G6 은 맨 끝에 둡니다.",
+    "speedPlan": "시간 줄이기 — ① 경로를 장면에 필요한 구간만 자릅니다(상차지 1km 앞에서 시작 · 하차지에서 끝) ② 점 간격을 30m 로 촘촘히 채워 시속 100km 에서도 1초마다 점 하나씩 길을 따라갑니다(원래 점 간격은 최대 300m 라 빠르면 모퉁이를 가로지름) ③ GPS JoyStick 걷는 속도 · 달리는 속도를 100km/h 로 ④ «30초 서 있음»은 경로를 둘로 나눠 첫 경로 끝(«도착시 멈춤»)에서 40초 둡니다. 서버 판단 기준(지나침 감시 300m · 400m 벗어남 · 도착 500m 안 30초)은 속도와 상관없이 맞습니다. 시속 100km 는 위치 점프 경고 기준(시속 수백 km)보다 한참 아래입니다. 경로를 불러올 때마다 광고가 1분쯤 붙습니다.",
+    "recommend": "추천 묶음 — G1 + G2 + G7(한 번에 · 약 25분) → G8(5분) → G5(3분) → G6(3분) = 약 40분 · 기사님 손 없음",
+    "decide": [
+      "① 관제앱이 뒤로 가도(같은 폰에 내비 등) 위치를 서버로 보내고 자동을 유지해야 하나 — 지금은 «화면에서만 보냄 · 5초 뒤 알람»이 설계. 가: 지금 설계대로(관제앱은 늘 앞에 둔다) / 나: 뒤로 가도 위치 · 자동 유지(새 동작 — 리팩터링 기간 뒤) · 추천: 기사님이 실주행 때 관제앱 폰에 내비를 함께 띄우시는지가 답",
+      "② 원달앱 폰 블루투스를 껐다 켜면 원달앱이 스스로 다시 붙어야 하나 — 지금은 설계 없음(접근성을 다시 활성화해야 붙음). 추천: 가(스스로 다시 붙음) — 좋은 콜을 자동으로 잡던 것이 알람으로 내려간 채 남는 길이라",
+      "③ 마지막 하차 뒤 귀가로 저절로 넘어가야 하나 — 지금은 기사님이 필터 창 귀가 버튼을 누르셔야 함. G3 은 그 버튼을 스크립트가 누를 수 없어(필터 단추 금지) 기사님 손 한 번이 듦",
+      "④ 판을 시작할 때마다 로컬 시험 콜을 지우고(pnpm reset:calls) 로컬 서버를 다시 띄워도 되나 — 가: 판마다 그때 «지워»를 받음 / 나: 로컬 시험 DB 에 한해 판 시작 때는 늘 해도 됨(실서버는 언제나 따로 여쭘)"
+    ],
+    "prep": {
+      "id": "R0",
+      "scene": "판 시작 전 정리 — 오늘 시험 콜 지우기(pnpm reset:calls)",
+      "why": "하루에 시험 콜이 쌓이면 시험이 흐려진다 — ① 안전취소가 그날 취소 횟수에 쌓여(인성은 10번마다 페널티) 페널티 쪽 동작이 시험 중에 끼어들 수 있음 ② 관제앱 «오늘 N콜 마침» · 서랍 목록이 길어져 사진 판정이 어려움 ③ 하루 운행 셈(노선 · 복귀)이 시험 콜로 채워짐",
+      "what": "local.db 의 콜 생애만 지움 — 설정 · 필터 · 장소 · 좌표 캐시 · 픽커 실물 읽기는 남김 · 실서버(data.db)는 막혀 있음. 지운 뒤 떠 있는 로컬 서버를 스스로 다시 띄움(세션 메모리의 옛 콜을 비우려고)",
+      "expect": "서버 다시 뜸 → 관제웹이 붙으면 «✅ [Bootstrap 완료]» · 진행 중 콜 0 · 관제앱 «오늘 0콜» · 취소 횟수 0 · 필터 값은 그대로(목적지 이천시 · 반경 그대로)",
+      "wrong": "필터 · 설정이 지워짐 · 서버가 안 뜸 · 관제앱에 옛 콜이 남음",
+      "hand": "지우기와 서버 다시 띄우기는 기사님 말씀이 있어야 함 — 아래 «정하실 것» ④",
+      "min": 2,
+      "route": "local.db 의 콜 생애만 지움 — 설정 · 필터 · 장소 · 좌표 캐시 · 픽커 실물 읽기는 남김 · 실서버(data.db)는 막혀 있음. 지운 뒤 떠 있는 로컬 서버를 스스로 다시 띄움(세션 메모리의 옛 콜을 비우려고)",
+      "can": "기사님 «정하실 것 ④» 답 뒤"
+    }
+  }
+}
