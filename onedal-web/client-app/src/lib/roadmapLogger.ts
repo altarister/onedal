@@ -9,7 +9,7 @@
  * ── 왜 HTTP 인가 ──
  * 🔴 **소켓이 끊긴 걸 소켓으로 보낼 수는 없다.** 가장 알고 싶은 것이 *"주행 중 소켓이
  *    몇 번 끊겼나"* 인데 그 순간 소켓은 못 쓴다. 끊긴 동안 여기 쌓아 두었다가
- *    통신이 되면 한꺼번에 올린다.
+ *    통신이 되면 앞에서부터 64KB 아래 묶음으로 차례로 올린다(`batchOf`).
  *
  * ⚠️ **화면을 멈추지 않는다.** 실패해도 조용히 넘어가고 버퍼만 지킨다 —
  *    로그 때문에 관제웹이 느려지면 그게 더 큰 사고다 (기사님: *"관제앱이 너무 느림"*).
@@ -46,15 +46,45 @@ function deviceId(): string {
     }
 }
 
+/** 한 요청 본문의 상한(바이트) — 브라우저는 keepalive 본문이 64KB 를 넘으면 보내기 전에 거절한다 */
+const MAX_BATCH_BYTES = 60_000;
+const enc = new TextEncoder();
+const jsonBytes = (v: unknown) => enc.encode(JSON.stringify(v)).length;
+
+/**
+ * 📦 **한 번에 보낼 앞 묶음 — 64KB 아래만** (92판 · `roadmapLogger.test`).
+ * 버퍼 전부를 한 요청에 담으면, 끊겼다 돌아와 쌓인 묶음이 상한을 넘어 브라우저가 거절하고, 되돌려 놓아 묶음이 영영 안 줄었다.
+ * 앞에서부터 본문(JSON) 바이트가 상한 아래인 만큼만 고른다. 첫 줄 하나가 혼자 넘으면 그 줄 글을 잘라 넣는다(혼자 큰 한 줄이 막지 않게).
+ */
+export function batchOf(lines: Line[], maxBytes: number = MAX_BATCH_BYTES): { take: number; lines: Line[] } {
+    if (lines.length === 0) return { take: 0, lines: [] };
+    const head = { deviceId: '관제웹', lines: [] as Line[] };
+    let size = jsonBytes(head);
+    const out: Line[] = [];
+    for (const l of lines) {
+        const add = jsonBytes(l) + (out.length ? 1 : 0);
+        if (size + add > maxBytes) break;
+        out.push(l); size += add;
+    }
+    if (out.length > 0) return { take: out.length, lines: out };
+    const first = lines[0];
+    let keep = Math.max(0, Math.floor((maxBytes - size - 200) / 3));   // 한글 3바이트 기준 · 앞뒤 칸 몫
+    while (keep > 0 && jsonBytes({ ...first, msg: first.msg.slice(0, keep) + ` …(잘림 ${first.msg.length - keep}자)` }) + size > maxBytes) keep = Math.floor(keep * 0.9);
+    return { take: 1, lines: [{ ...first, msg: first.msg.slice(0, keep) + ` …(잘림 ${first.msg.length - keep}자)` }] };
+}
+
 async function flush(): Promise<void> {
     if (timer) { clearTimeout(timer); timer = null; }
     if (BUFFER.length === 0) return;
 
-    const lines = BUFFER.splice(0, BUFFER.length);
     if (dropped > 0) {
-        lines.unshift({ at: lines[0]?.at ?? '', msg: `#경고 ⚠️ 버퍼가 차서 ${dropped}줄을 버렸습니다` });
+        BUFFER.unshift({ at: BUFFER[0]?.at ?? '', msg: `#경고 ⚠️ 버퍼가 차서 ${dropped}줄을 버렸습니다` });
         dropped = 0;
     }
+    /* 📦 한 번에 한 묶음(64KB 아래) — 진행 중 keepalive 합계도 상한 아래 · 남으면 곧바로 다음 묶음 */
+    const batch = batchOf(BUFFER);
+    BUFFER.splice(0, batch.take);
+    const lines = batch.lines;
     try {
         await fetch(`${apiBase()}/logs`, {
             method: 'POST',
@@ -64,8 +94,9 @@ async function flush(): Promise<void> {
         });
         backoffMs = 0;          // 통했다 — 평소 간격으로 돌아간다
         warnedOnce = false;     // 다음에 또 끊기면 그때 한 번 더 알린다
+        if (BUFFER.length > 0) schedule(0);   // 📦 남은 묶음은 곧바로 이어서
     } catch {
-        // 🔴 못 보냈으면 **되돌려 놓는다.** 통신이 끊긴 구간이야말로 나중에 봐야 할 자리다
+        // 🔴 못 보냈으면 그 묶음을 **되돌려 놓는다.** 통신이 끊긴 구간이야말로 나중에 봐야 할 자리다
         BUFFER.unshift(...lines);
         while (BUFFER.length > MAX_BUFFER) { BUFFER.shift(); dropped++; }
         if (!warnedOnce) {
@@ -82,7 +113,7 @@ async function flush(): Promise<void> {
          *    그러니 줄일 방법은 **덜 시도하는 것**뿐이다 — 2초 → 30초로 물러선다(15배 줄어든다).
          *
          * 🔴 **포기하지는 않는다.** 서버가 돌아오면 첫 성공에서 `backoffMs` 가 0이 되고
-         *    쌓아 둔 줄이 한꺼번에 올라간다. 끊긴 구간의 로그는 여전히 보존된다.
+         *    쌓아 둔 줄이 64KB 아래 묶음으로 차례로 올라간다(`batchOf`). 끊긴 구간의 로그는 여전히 보존된다.
          */
         backoffMs = Math.min(backoffMs ? backoffMs * 2 : FLUSH_MS * 2, MAX_BACKOFF_MS);
         schedule(backoffMs);
