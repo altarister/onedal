@@ -509,6 +509,8 @@ def act(a):
                 try:   # 한 칸이 막혀도 다음 칸 · 다음 모드로 — 모드마다 모든 배차망을 목록까지 다 본다
                     m = app_mark(); run.sim_open(to_run[c], no_reopen=True)
                     wait_for('app', m, f'타겟 앱 자동 전환 완료: {app_nets[c]}', 25, f'{md} · {c} 자동 전환')
+                    if run.HOME_MISSED[0] == to_run[c]:
+                        note(CUR[0], f'{md} · {c} 원달앱이 홈을 알아봄', False, f'🔴 원달앱이 {run.SIM_LABEL[to_run[c]]} 홈을 8초 안에 «페이지»로 못 알아봄 — 다음 칸을 보려고 시험 스크립트가 목록 단추를 눌러 넘김(판정은 🔴 그대로)')
                     wait_for('app', m, f'\\[페이지\\] {run.SIM_LABEL[to_run[c]]} .*→ LIST', 25, f'{md} · {c} 목록')
                     note(CUR[0], f'{md} · {c} 목록까지', True, '섬')
                 except (Stop, ToolStop) as e:
