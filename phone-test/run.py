@@ -213,7 +213,13 @@ def sim_switch(net):
         if 'com.onedal.simulator' in focus_of(A24) and 'holding=true' in since and '→ UNKNOWN' in since:   # 원달앱이 앞 배차망 계약을 들고 있어 새 배차망을 일부러 안 읽음(F36) — 시뮬이 앞에 있으면 바뀐 것으로 본다(92판 S16)
             shot(A24, f'sim_{net}_holding'); log(f'🔀 시뮬 {net} — 원달앱이 계약을 들고 있어 그 배차망을 안 읽음(holding) · 시뮬 화면은 사진으로'); return True
         # 🏠 원달앱이 새 배차망 홈을 «페이지»로 알아보지 못할 때(108판 S03 픽커 홈 40초 넘게 기록 없음 · 장부 F66) — 8초 뒤, 시뮬 앞 화면의 홈 단추 색이 그 배차망 것이면 목록 단추를 누른다
-        if not tapped_home and time.time() > start + 8 and f'[페이지] {SIM_LABEL[net]} ' not in since and HOME_BTN.get(net) and 'com.onedal.simulator' in focus_of(A24):
+        # 🏠 원달앱이 홈을 알아봤나 — «📄 [페이지] …» 줄을 안 찍고 «읽기 나눔 → HOME» · 서버 보고 «[scrap] 화면 HOME» 으로만 남길 때가 있다(108판 픽커 — 관제앱 폰 칸엔 «홈(출근 전)»)
+        home_seen = re.search(r'\[scrap\] 화면 HOME|읽기 나눔\] \S+→HOME', since) and f'자동 전환 완료' in since
+        if home_seen and not tapped_home and HOME_BTN.get(net) and 'com.onedal.simulator' in focus_of(A24):
+            (hx, hy), _ = HOME_BTN[net]
+            tapped_home = True; tap_if(A24, hx, hy, any_px, f'{net} 홈 → 목록(원달앱이 홈을 알아봄 — 서버 보고 화면 HOME)'); time.sleep(3)
+            if sim_on_list(net): shot(A24, f'sim_{net}'); return True
+        if not tapped_home and time.time() > start + 8 and f'[페이지] {SIM_LABEL[net]} ' not in since and not home_seen and HOME_BTN.get(net) and 'com.onedal.simulator' in focus_of(A24):
             (hx, hy), want = HOME_BTN[net]
             c = pixels(A24)(hx, hy)
             if all(abs(c[i] - want[i]) <= 25 for i in range(3)):
