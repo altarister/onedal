@@ -17,6 +17,12 @@ def find_s23():
     """📡 S23 adb 이름 — 환경 변수 S23 이 있으면 그것, 없으면 `adb mdns services` 의 _adb-tls-connect 줄 가운데 모델이 S23 인 것 하나.
        박힌 옛 포트로 돌지 않는다(76판 — 옛 포트로 S08 · S08b 가 S23 을 못 본 채 S09 가 진행됨 · 71). 못 찾거나 둘 이상이면 None — 실행기가 시작 전에 멈춘다"""
     if os.environ.get('S23'): return os.environ['S23']
+    # 이미 붙은 폰부터 — 무선 adb 알림(mdns)은 붙어 있어도 잠시 비는 때가 있다(102판 S03 · 붙어 있는데 «이름 없음»으로 멈춤)
+    try: devs = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10).stdout
+    except Exception: devs = ''
+    on = [l.split()[0] for l in devs.splitlines()[1:] if l.strip().endswith('device') and re.match(r'\d+\.\d+\.\d+\.\d+:\d+$', l.split()[0])]
+    hit = [a for a in on if subprocess.run(['adb', '-s', a, 'shell', 'getprop', 'ro.product.model'], capture_output=True, text=True, timeout=10).stdout.strip() == S23_MODEL]
+    if len(hit) == 1: return hit[0]
     try: out = subprocess.run(['adb', 'mdns', 'services'], capture_output=True, text=True, timeout=10).stdout
     except Exception: return None
     hits = []
