@@ -200,13 +200,21 @@ def place(key, ref=None):
         return cands[-k] if parts[1] == 'far' else cands[k - 1]
     raise ToolStop(f'⚪ 시험 도구 — 장소 «{key}» 없음')
 
+def fare_lift(net):
+    """💰 콜이 시작 최저 금액에 걸리지 않게 — 시작 최저(S01 떠 둔 minFare)가 시나리오 인성 · 화물24시 콜의 가장 낮은 요금보다 높으면,
+       그 콜들 모두에 같은 만큼 더한다(콜끼리 요금 차 · 높낮이는 그대로 · 장소는 그대로라 경로도 그대로). 픽커는 요금 단위가 달라 안 건드림"""
+    if net not in ('insung', 'hwamul24'): return 0
+    floor = int((SNAP.get('filter') or {}).get('minFare') or 0)
+    low = min((d['call']['fare'] for s in SCEN['steps'] for d in s.get('do', []) if 'call' in d and d['call']['net'] in ('insung', 'hwamul24')), default=0)
+    return max(0, -(-floor // 1000) * 1000 - low + 1000) if floor else 0
+
 def do_call(c):
     pick, drop = place(c['pick']), place(c['drop'], c['pick'])
     if c['veh'] == 'filter': veh = None if DRY else (run.app_filter().get('allowedVehicleTypes') or ['1t'])[0]
     elif c['veh'] == 'snapshot': veh = None if DRY else ((SNAP.get('filter') or {}).get('allowedVehicleTypes') or ['1t'])[0]   # 그 순간 필터를 통과하는 차종(S01 떠 둔 값)
     else: veh = c['veh']
     if DRY: log(f'  📦 {c["net"]} {pick[0]} → {drop[0]} · {c["fare"]} · {veh} · {c.get("tag")} · bind {c.get("bind")}'); return
-    n = app_mark(); sm = srv_mark(); fare = c['fare'] + (run.fare_bump() // 1000 % 10) * 1000   # 끝수 0~9천 원 — 시나리오 요금 차(높음/낮음)를 안 뒤집게
+    n = app_mark(); sm = srv_mark(); fare = c['fare'] + fare_lift(c['net']) + (run.fare_bump() // 1000 % 10) * 1000   # 끝수 0~9천 원 — 시나리오 요금 차(높음/낮음)를 안 뒤집게
     body = {'pickup': dict(zip(('addressDetail', 'region', 'lon', 'lat'), pick)), 'dropoff': dict(zip(('addressDetail', 'region', 'lon', 'lat'), drop)), 'fare': fare, 'vehicleType': veh,
             'net': run.SIM_CODE[c['net']]}   # 🔀 받을 배차망 — 시뮬은 배차망마다 칸을 들고 있어 «누가 받나»가 시험의 사실이 되게(71 «가»)
     r = urllib.request.urlopen(urllib.request.Request('http://localhost:4000/api/sim/calls', json.dumps(body).encode(), {'Content-Type': 'application/json'}))
@@ -568,7 +576,8 @@ def main():
     if arg('--only'): steps = [s for s in steps if s['id'] in arg('--only').split(',')]
     last = [] if '--no-cleanup' in sys.argv else [s for s in SCEN['steps'] if s.get('always')]   # 한 장면씩 돌릴 때는 끝 정리(S99)를 붙이지 않는다
     started = datetime.datetime.now(); stop_all = False; halted = None
-    if arg('--from') and not DRY: load_state()
+    # 📂 S01(판 시작)이 빠진 실행이면 앞 실행의 판 상태(묶은 콜 · 시작 기록 SNAP)를 되살린다 — 한 장면씩(--only) 돌릴 때도(102판 S03: 시작 최저 6000 을 몰라 «0 + 1000» 으로 셈)
+    if (arg('--from') or arg('--only')) and 'S01' not in [x['id'] for x in steps] and not DRY: load_state()
     # ⛔ --failed S09,… — 그 장면은 안 섰다고 치고(제품 🔴 로 기록됨) 기대는 뒤 장면은 ⚪ «앞 장면 없음»으로 넘긴다 · 판은 안 세운다(71 «최대한 진행»)
     if arg('--stood'):   # 도구가 멈춘 뒤 설명서대로 손으로 마친 장면 — 선 것으로 치고 뒤 장면이 기댄다(93판 S14)
         for x in arg('--stood').split(','): STOOD.add(x); ATTEMPTED.add(x)
