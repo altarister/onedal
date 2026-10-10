@@ -19,6 +19,7 @@ th{font-size:12px;letter-spacing:.04em;color:var(--mute);font-weight:500;positio
 tr.hand td{background:var(--hand)}
 tr.skip td{opacity:.55}
 td.id{font-family:"JetBrains Mono",monospace;font-weight:500;white-space:nowrap}
+td.purpose{min-width:220px;font-weight:700;color:var(--accent)}
 td.say{min-width:240px;font-weight:500}
 ol.acts{margin:0;padding-left:18px;min-width:380px}
 ol.acts li{margin-bottom:4px}
@@ -64,11 +65,11 @@ Promise.all([fetch('scenes.json').then(r=>r.json()),fetch('runs.json').then(r=>r
   document.getElementById('t').textContent=D.title;
   const last={};R.forEach(r=>(r.scenes||[]).forEach(s=>{last[s.id]={...s,run:r.id,date:r.date}}));
   const rows=D.scenes.map(s=>{const l=last[s.id];
-    return `<tr class="${s.hand?'hand':''} ${s.skip?'skip':''}"><td class="id">${esc(s.id)}</td><td class="say">${esc(s.say)}${s.skip?`<br><span class="r-na">⛔ 뺌 — ${esc(s.skip)}</span>`:''}</td>
+    return `<tr class="${s.hand?'hand':''} ${s.skip?'skip':''}"><td class="id">${esc(s.id)}</td><td class="purpose">${esc(s.purpose||'')}</td><td class="say">${esc(s.say)}${s.skip?`<br><span class="r-na">⛔ 뺌 — ${esc(s.skip)}</span>`:''}</td>
     <td>${acts(s.acts)}</td><td class="wait">${s.waits.map(esc).join('<br>')||'—'}</td>
     <td>${s.needs.map(n=>`<span class="chip">${esc(n)}</span>`).join('')}</td>
     <td class="res">${l?`<span class="${cls(l.result)}">${esc(l.result)} ${esc(l.label)}</span><br><span class="r-na">${esc(l.run)} · ${esc(l.date)}</span><br>${esc(l.note).slice(0,220)}`:'<span class="r-na">아직 안 돎</span>'}</td></tr>`}).join('');
-  document.getElementById('scenes').innerHTML=`<div class="scroll"><table><thead><tr><th>번호</th><th>장면</th><th>누가 · 어느 폰 · 무엇을 (차례대로)</th><th>맞으면 서는 기록</th><th>기대는 앞 장면</th><th>마지막 결과</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  document.getElementById('scenes').innerHTML=`<div class="scroll"><table><thead><tr><th>번호</th><th>목적</th><th>장면</th><th>누가 · 어느 폰 · 무엇을 (차례대로)</th><th>맞으면 서는 기록</th><th>기대는 앞 장면</th><th>마지막 결과</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   const hs=D.scenes.filter(s=>s.hand);
   document.getElementById('hand').innerHTML='<div class="list">'+hs.map(s=>`<div class="card"><h2>${esc(s.id)} · ${esc(s.say)}</h2>${acts(s.acts.filter(a=>a.who.startsWith('에이전트') && !/한 장면만|10초마다|맞으면 서는|결과 알림/.test(a.short+a.detail)))}<div class="meta">시험 스크립트(day.py)는 이 자리에서 «🟡 9e: JoyStick …» 안내만 찍고 3분 동안 S23 위치가 움직이는지 봅니다. 안 움직이면 «시험 도구»로 판을 멈춥니다.</div></div>`).join('')+'</div>';
   document.getElementById('routes').innerHTML='<div class="list">'+Object.entries(D.routes).map(([k,r])=>`<div class="card"><h2>${esc(k)} · ${esc(r.gpx)}</h2><div>${esc(r.say)}</div><div class="meta">지나는 곳: ${esc((r.points||[]).join(' → '))} · 서는 곳: ${esc(r.stopAt)}</div></div>`).join('')+'</div>';
