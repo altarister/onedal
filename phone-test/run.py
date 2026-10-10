@@ -192,12 +192,12 @@ SIM_CODE = {'insung': 'insung', 'hwamul24': 'hwamul24', 'picker': 'kakaopicker'}
 def sim_switch(net):
     """🔀 시뮬이 배차 화면에 떠 있으면 다시 켜지 않고 «배차망 바꿔» 신호로만 바꾼다(38 F36 · 71 «가») — 앞 배차망의 잡은 콜 · 연 상세가 남는다.
        껍데기 앱이 `--es net` 을 웹 화면 `window.__onedalSimSwitch` 로 넘긴다. 처음 보는 배차망은 홈에서 시작하니 홈 → 목록 한 번.
-       못 바꾸면(시뮬이 안 떠 있음 · 설정 화면 · 10초 안에 그 배차망 페이지가 안 섬) False — 부른 쪽이 «시뮬 이상»으로 다시 켠다"""
+       못 바꾸면(시뮬이 안 떠 있음 · 설정 화면 · 25초 안에 그 배차망 페이지가 안 섬) False — 부른 쪽이 «시뮬 이상»으로 다시 켠다"""
     if not adb(A24, 'shell', 'pidof', 'com.onedal.simulator', check=False).strip(): return False
     a = app_mark()
     adb(A24, 'shell', 'am', 'start', '-n', 'com.onedal.simulator/.MainActivity', '--es', 'net', SIM_CODE[net], check=False)
     log(f'🔀 시뮬 배차망 바꿈 신호 — {net}')
-    end = time.time() + 10
+    end = time.time() + 25   # 원달앱이 새 배차망 화면을 알아보는 데 10초 넘게 걸린 적이 있다(102판 S02 픽커 홈 10.2초)
     while time.time() < end:
         if sim_on_list(net): log(f'🔀 시뮬 {net} 목록 — 보던 화면 그대로'); return True
         since = app_since(a)
