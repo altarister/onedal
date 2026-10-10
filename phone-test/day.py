@@ -407,7 +407,9 @@ def act(a):
         SNAP['mode'] = run.supplied_mode(); SNAP['filter'] = run.app_filter()
         json.dump({k2: SNAP[k2] for k2 in ('user_filters', 'user_settings', 'filter_rows', 'mode', 'filter')}, open(START_FILE, 'w'), ensure_ascii=False, indent=1, default=list)
         log(f'📸 떠 둠({START_FILE}) — 필터 · 설정 · 모드 {SNAP["mode"]} · 목적지 {SNAP["filter"].get("destinationCity")} · 최저 {SNAP["filter"].get("minFare")}')
-    elif k == 'mode': run.set_mode(v)
+    elif k == 'mode':   # 모드 단추는 관제앱 폰 줄(«A24»)에 있다 — 필터 창 · 서랍이 가리면 못 찾으니 먼저 화면을 정리한다(108판 S05)
+        if not DRY: tidy_s23('A24')
+        run.set_mode(v)
     elif k == 'sim':   # «picker» 또는 {net · noReopen} — noReopen 이면 신호로 못 바꿀 때 다시 켜지 않고 ⚪
         if isinstance(v, dict): run.sim_open(v['net'], no_reopen=v.get('noReopen', False), fresh=v.get('fresh', False))
         else: run.sim_open(v)
