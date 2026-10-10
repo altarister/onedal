@@ -32,6 +32,8 @@ const MAX_BUFFER = 500;
 const MAX_BACKOFF_MS = 30_000;
 
 let timer: ReturnType<typeof setTimeout> | null = null;
+/** 📦 보내는 중 — 한 번에 한 요청(떠 있는 keepalive 합이 64KB 를 넘지 않게) · 보내는 중에 부르면 다음 차례로 미룬다 */
+let sending = false;
 let dropped = 0;
 let warnedOnce = false;
 /** 0 이면 평소 간격. 실패할 때마다 두 배씩 물러선다 (2 → 4 → 8 → 16 → 30초) */
@@ -74,6 +76,7 @@ export function batchOf(lines: Line[], maxBytes: number = MAX_BATCH_BYTES): { ta
 }
 
 async function flush(): Promise<void> {
+    if (sending) { schedule(); return; }   // 📦 앞 묶음이 떠 있다 — 끝나면 schedule(0) 이 이어 보낸다
     if (timer) { clearTimeout(timer); timer = null; }
     if (BUFFER.length === 0) return;
 
@@ -85,6 +88,7 @@ async function flush(): Promise<void> {
     const batch = batchOf(BUFFER);
     BUFFER.splice(0, batch.take);
     const lines = batch.lines;
+    sending = true;
     try {
         await fetch(`${apiBase()}/logs`, {
             method: 'POST',
@@ -94,7 +98,10 @@ async function flush(): Promise<void> {
         });
         backoffMs = 0;          // 통했다 — 평소 간격으로 돌아간다
         warnedOnce = false;     // 다음에 또 끊기면 그때 한 번 더 알린다
-        if (BUFFER.length > 0) schedule(0);   // 📦 남은 묶음은 곧바로 이어서
+        if (BUFFER.length > 0) {   // 📦 남은 묶음은 곧바로 이어서 — 보내는 중에 들어온 줄이 건 2초 타이머는 지우고
+            if (timer) { clearTimeout(timer); timer = null; }
+            schedule(0);
+        }
     } catch {
         // 🔴 못 보냈으면 그 묶음을 **되돌려 놓는다.** 통신이 끊긴 구간이야말로 나중에 봐야 할 자리다
         BUFFER.unshift(...lines);
@@ -117,6 +124,8 @@ async function flush(): Promise<void> {
          */
         backoffMs = Math.min(backoffMs ? backoffMs * 2 : FLUSH_MS * 2, MAX_BACKOFF_MS);
         schedule(backoffMs);
+    } finally {
+        sending = false;
     }
 }
 
