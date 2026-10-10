@@ -61,6 +61,23 @@ export function addressOf(app: TargetAppType, raw: string): string {
     return (re ? raw.replace(re, '') : raw).trim();
 }
 
+type GeoSide = 'pickup' | 'dropoff';
+/** 지오코딩 재료 — 콜 글 · 상세 팝업 주소 · 지금 좌표 · 그 좌표를 찍은 글(메모리만 · 저장 칸 아님) */
+export type GeocodeSource = Partial<Record<GeoSide, string> & Record<`${GeoSide}X` | `${GeoSide}Y`, number>
+    & Record<`${GeoSide}GeoText`, string>
+    & Record<`${GeoSide}Details`, ReadonlyArray<{ addressDetail?: string }>>>;
+/**
+ * 📍 **이 콜을 어느 글로 지오코딩하나 · 다시 찍나 — 한 곳** (90판 · 71 «가» · `geocodeTarget.test`).
+ *    상세 팝업에서 읽은 주소(`…Details[0].addressDetail`)가 있으면 그것이 먼저 · 없으면 콜 글 — 둘 다 `addressOf` 로 다듬는다.
+ *    좌표는 «고른 글»을 따라가는 값이라, 좌표가 없거나 찍은 글이 지금 고른 글과 다르면 다시 찍는다(짧은 목록 글로 먼저 찍힌 콜에 상세 주소가 오면).
+ */
+export function geocodeTargetOf(app: TargetAppType, order: GeocodeSource, side: GeoSide): { text: string; need: boolean } {
+    const detail = order[`${side}Details`]?.[0]?.addressDetail?.trim();
+    const text = addressOf(app, detail || order[side] || '');
+    const need = !order[`${side}X`] || !order[`${side}Y`] || order[`${side}GeoText`] !== text;
+    return { text, need };
+}
+
 /** 📄 상세 콜 자료 — 상세 화면 정의 칸(· 조각)이 콜의 어느 자료가 되나. 배차망마다 다른 것은 표의 읽는 법뿐이다 */
 type DetailRecordText = 'receiptStatus' | 'itemDescription' | 'commissionRate' | 'tollFare' | 'tripType' | 'orderForm' | 'dispatcherName' | 'dispatcherPhone';
 const DETAIL_RECORD: ReadonlyArray<readonly [key: DetailRecordText, field: PageField, part?: string]> = [
