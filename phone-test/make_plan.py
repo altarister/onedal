@@ -47,7 +47,7 @@ def act(k, v):
     if k == 'wait_app_supply': return ('', '', '', '')
     if k == 'snapshot': return (T, '맥', '시작 때 필터 · 설정 · 모드 기록', '서버 DB 필터 · 설정(칸 이름까지)과 원달앱 모드 · 목적지 · 최저를 phone-test/out/start_filter.json 에 따로 남김 — 이 파일이 이미 있으면(앞 판이 S99 로 되돌리지 못함) 덮지 않고 그 값을 씀 · S99 가 필터 · 모드를 되돌린 뒤에만 지움')
     if k == 'tidy_s23': return (T, 'S23', '관제앱 출발 화면 확인', '필터 창 접기 · 서랍 닫기(값은 안 바꿈 · 이미 그렇면 안 누름) · 모드 줄 «A24» 보임')
-    if k == 'set_filter': return (T, '맥 → 서버', '시험용 필터로 맞춤 — ' + ' · '.join(f'{a} {b}' for a, b in v.items()), '`node set_filter.mjs \'' + json.dumps(v, ensure_ascii=False) + '\'` — 관제앱 «💾 서버 저장»과 같은 신호(소켓 update-filter + saveAsDefault) · DB 에 직접 안 씀 · 서버 «DB 저장 완료» · 원달앱 «필터 도착»')
+    if k == 'set_filter': return (T, '맥 → 서버', f'시험용 필터로 모든 칸({len(v)}칸) 맞춤 — 목적지 {v.get("destinationCity")} · 최소 {v.get("minFare")} · 제외 없음 · 받을 짐 전부', '`node set_filter.mjs \'' + json.dumps(v, ensure_ascii=False) + '\'` — 관제앱 «💾 서버 저장»과 같은 신호(소켓 update-filter + saveAsDefault) · DB 에 직접 안 씀 · 서버 «DB 저장 완료» · 원달앱 «필터 도착» · 그 뒤 DB 필터 줄을 칸마다 읽어 모두 시험용 값인지 확인')
     if k == 'expect_app_filter': return (T, 'A24', '원달앱 필터가 ' + ' · '.join(f'{a} {b}' for a, b in v.items()) + ' 인가', '원달앱 설정 파일(activeFilter)을 20초까지 읽어 그 값이 되나 봄')
     if k == 'mode_net_matrix':
         return (T, 'A24 · S23', '모드 ' + ' → '.join(MODE.get(m, m) for m in v.get('modes', [])) + ' × 배차망 모두', '모드마다: 관제앱 모드 단추로 바꿈 → 배차망 목록(원달앱 플러그인 · 시뮬 SIM_NET_LIST 에서 그때 읽음)을 하나씩 시뮬 «배차망 바꿈» 신호로 열기 → 원달앱 «타겟 앱 자동 전환 완료: …» 25초 → 원달앱이 받은 필터(목적지 · 최저 · 켜짐 · 키워드 수 · 차종)를 칸별로 기록하고 키워드 수를 서버가 보낸 것과 견줌 · 끝은 마지막 모드 · 인성')
@@ -56,7 +56,7 @@ def act(k, v):
     if k == 'sim_all_nets': return (T, 'A24', '배차망 모두 차례로 바꿈', '')
     if k == 'home_off_if_mine': return (T, 'S23', '이번 판에 스크립트가 켠 귀가만 끔', '')
     if k == 'filter_revert_if_unsaved': return (T, 'S23', '«저장 전»이면 «되돌리기»', '')
-    if k == 'restore_filter': return (T, '맥 → 서버', '필터를 시작 값으로 되돌림(목적지 · 제외 지역 · 최저)', 'S01 이 떠 둔 기사님 필터 줄에서 읽어 set_filter.mjs 로 같은 길(서버 저장)')
+    if k == 'restore_filter': return (T, '맥 → 서버', '필터를 시작 값으로 되돌림(모든 칸)', 'S01 이 떠 둔 기사님 필터 줄의 모든 칸(18칸)을 set_filter.mjs 로 같은 길(서버 저장) · 그 뒤 DB 줄을 칸마다 읽어 시작 값과 같은지 확인')
     if k == 'restore': return (T, 'S23', '모드를 시작 값으로', '시작 모드와 다를 때만 누름')
     return (T, '—', k, '')
 

@@ -91,6 +91,46 @@ def sim_networks():
     t = open(_SIM_NETS).read(); m = re.search(r'SIM_NET_LIST[^=]*=\s*\[([^\]]*)\]', t)
     return re.findall(r'SIM_NETS\.(\w+)', m.group(1)) if m else []
 
+# 🎛️ 필터 칸 — DB user_filters 칸 ↔ 관제앱이 보내는 필터 칸(서버 baseFilterFrom · shared phases.ts QUAD_FIELDS · FILTER_FIELDS) · 시험용 필터 맞춤 · 되돌림 · 확인이 모두 이 표 하나를 쓴다
+FILTER_COLS = {
+    'destination_city': 'destinationCity', 'min_fare': 'minFare', 'max_fare': 'maxFare', 'excluded_keywords': 'excludedKeywords',
+    'excluded_regions': 'excludedRegions', 'is_active': 'isActive', 'accepted_vehicle_types': 'acceptedVehicleTypes',
+    'pickup_radius_km': 'pickupRadiusKm', 'detour_radius_km': 'detourRadiusKm', 'destination_radius_km': 'destinationRadiusKm',
+    'src_angle_deg': 'srcAngleDeg', 'dst_angle_deg': 'dstAngleDeg', 'quad_radius_km': 'quadRadiusKm',
+    'call_discount_pct': 'callDiscountPct', 'radius_auto': 'radiusAuto', 'radius_base_km': 'radiusBaseKm',
+    'route_mode': 'routeMode', 'reservation_mode': 'reservationMode'}
+_JSON_COLS = ('excluded_keywords', 'excluded_regions', 'accepted_vehicle_types')
+_BOOL_COLS = ('is_active', 'radius_auto', 'route_mode')
+def filter_of_row(row):
+    """DB 필터 줄 → 관제앱이 보내는 필터 칸(되돌릴 때)"""
+    out = {}
+    for col, key in FILTER_COLS.items():
+        if col not in row: continue
+        v = row[col]
+        if col in _JSON_COLS: v = json.loads(v or '[]')
+        elif col in _BOOL_COLS: v = bool(v)
+        out[key] = v
+    return out
+def start_row():
+    """S01 이 떠 둔 기사님 필터 줄 — 원달앱이 받은 목적지 · 최저가 같은 줄"""
+    start = SNAP.get('filter') or {}
+    return next((r for r in SNAP.get('filter_rows') or [] if r.get('destination_city') == start.get('destinationCity') and r.get('min_fare') == start.get('minFare')), None)
+def db_filter_row():
+    with sqlite3.connect(run.DB) as c:
+        c.row_factory = sqlite3.Row
+        uid = (start_row() or {}).get('user_id')
+        rows = [dict(r) for r in c.execute('SELECT * FROM user_filters').fetchall()]
+    return next((r for r in rows if uid and r['user_id'] == uid), None) or next((r for r in rows if r.get('is_active')), rows[0] if rows else {})
+def filter_diff(want):
+    """want(필터 칸) 와 지금 DB 줄이 다른 칸 {칸: (원함, DB)}"""
+    have = filter_of_row(db_filter_row()); bad = {}
+    for k, v in want.items():
+        h = have.get(k)
+        if isinstance(v, float) or isinstance(h, float):
+            if h is None or abs(float(h) - float(v)) > 1e-6: bad[k] = (v, h)
+        elif h != v: bad[k] = (v, h)
+    return bad
+
 def s23_sees(w):
     return json.loads(run.sh('node', os.path.join(HERE, 'find.mjs'), S23, f'see:{w}', str(run.MENU_Y), check=False).strip().splitlines()[-1])['state'] == 'ok'
 
@@ -412,18 +452,22 @@ def act(a):
         log('🎛️ ' + run.sh('node', os.path.join(HERE, 'set_filter.mjs'), json.dumps(v, ensure_ascii=False), check=True).strip())
         wait_for('srv', sm, r'영구 설정\(baseFilter\) DB 저장 완료', 15, '서버 저장')
         wait_for('app', am, r'\[필터 도착\]|\[필터 바뀜\]', 20, '원달앱 필터 받음')
-        f = run.app_filter(); bad = {k2: f.get(k2) for k2, v2 in v.items() if k2 in ('destinationCity', 'minFare') and f.get(k2) != v2}
-        if bad: raise Stop(f'시험용 필터가 원달앱에 안 감 — {bad}')
+        bad = filter_diff(v)
+        if bad: raise Stop(f'시험용 필터가 DB 에 다 안 들어감 — {bad}')
+        note(CUR[0], f'DB 필터 {len(v)}칸 = 시험용', True, '같음')
+        f = run.app_filter()
         log(f'🎛️ 시험용 필터 맞춤 — 원달앱 목적지 {f.get("destinationCity")} · 최저 {f.get("minFare")}')
     elif k == 'restore_filter':   # 판 끝 — S01 이 떠 둔 기사님 필터(목적지 · 제외 지역 · 최저)로 같은 길로 되돌린다
         start = (SNAP.get('filter') or {})
-        row = next((r for r in SNAP.get('filter_rows') or [] if r.get('destination_city') == start.get('destinationCity') and r.get('min_fare') == start.get('minFare')), None)
+        row = start_row()
         if DRY: log('  🎛️ 시작 필터로 되돌림(목적지 · 제외 지역 · 최저)'); return
         if not row: raise ToolStop('⚪ 시험 도구 — 시작 필터 기록이 없음(S01 을 이번 판에 돌렸나)')
-        back = {'destinationCity': row['destination_city'], 'excludedRegions': json.loads(row['excluded_regions'] or '[]'), 'minFare': row['min_fare']}
+        back = filter_of_row(row)
         sm = srv_mark(); log('🎛️ ' + run.sh('node', os.path.join(HERE, 'set_filter.mjs'), json.dumps(back, ensure_ascii=False), check=True).strip())
         wait_for('srv', sm, r'영구 설정\(baseFilter\) DB 저장 완료', 15, '서버 저장')
-        log(f'🎛️ 시작 필터로 되돌림 — {back}'); RESTORED[0] = True
+        bad = filter_diff(back)
+        if bad: raise Stop(f'시작 필터로 다 안 돌아감 — {bad}')
+        log(f'🎛️ 시작 필터 {len(back)}칸으로 되돌림 — DB 와 같음'); RESTORED[0] = True
     elif k == 'restore_dest':   # 시작 목적지가 «이천시»가 아니었으면 UI 로 시작 값을 다시 골라 저장해야 한다(DB 에 직접 안 씀 · ef)
         start = (SNAP.get('filter') or {}).get('destinationCity')
         if start in (None, '이천시'): log(f'목적지 되돌림 필요 없음(시작 {start})'); return

@@ -182,14 +182,29 @@
     "S01"
    ],
    "onFail": "tool",
-   "say": "필터 — 시험용 필터로 맞춤(목적지 이천시 · 제외 지역 없음 · 최소 6천 · 서버 저장) → 관제앱 «+» → «적용»(원달앱 7천 · 오늘만) → «−» → «💾 서버 저장»(DB · 원달앱 6천)",
+   "say": "필터 — 시험용 필터로 모든 칸을 맞춤(목적지 이천시 · 최소 6천 · 최대 100만 · 제외 단어 · 제외 지역 없음 · 받을 짐 전부 · 반경 · 각도 · 할인율 · 자동 반경 꺼짐 · 오늘 · 서버 저장) → 관제앱 «+» → «적용»(원달앱 7천 · 오늘만) → «−» → «💾 서버 저장»(DB · 원달앱 6천)",
    "purpose": "시작 필터가 무엇이든 시험용 필터로 맞추고, 관제앱 «적용»(오늘만)과 «서버 저장»이 서버 · 원달앱에 바로 가는가",
    "do": [
     {
      "set_filter": {
       "destinationCity": "이천시",
+      "minFare": 6000,
+      "maxFare": 1000000,
+      "excludedKeywords": [],
       "excludedRegions": [],
-      "minFare": 6000
+      "isActive": true,
+      "acceptedVehicleTypes": [],
+      "pickupRadiusKm": 25.0,
+      "detourRadiusKm": 16.0,
+      "destinationRadiusKm": 22.0,
+      "srcAngleDeg": 110,
+      "dstAngleDeg": 120,
+      "quadRadiusKm": 49.0,
+      "callDiscountPct": 100,
+      "radiusAuto": false,
+      "radiusBaseKm": 50.0,
+      "routeMode": true,
+      "reservationMode": "today"
      }
     },
     {
