@@ -165,7 +165,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
    * 🔙 **상세를 방문 기록에 남기는 배차망** (`SimNet.detailInHistory`).
    * 원달앱의 «뒤로 가기»(시뮬레이터 앱은 웹뷰 방문 기록으로 넘긴다)가 상세만 닫게, 상세를 열 때 `?detail=<콜 id>` 를 **한 칸 쌓는다.**
    * 닫을 때는 그 칸을 되돌리고, 주소에서 `detail` 이 사라지면(뒤로 가기) 상세를 닫는다 — 닫는 길이 둘이어도 답은 주소 하나다.
-   * 인성·화물24시는 방문 기록에 쌓지 않고 상태만 바꾼다.
+   * 세 배차망 모두 쌓는다(`nets.ts`).
    */
   const detailId = simNet.detailInHistory ? presetParams.get('detail') : null;
 
@@ -185,9 +185,11 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   }, [setSelectedCallId]);
 
   const handleCloseDetail = useCallback(() => {
-    // 방문 기록에 쌓은 칸이 있으면 되돌린다 — 아래 useEffect 가 상세를 닫는다
+    /* 🔴 고른 콜은 그 자리에서 비운다 — 방문 기록 되돌리기는 한 박자 늦게 그려져, 기다리면 화물24시 «배차신청» 뒤
+          «잡은 콜에 든 고른 콜»이 배차내역 상세로 한 번 그려지고 원달앱이 손 수락을 놓친다(92판 S09 · detailHistory 검사).
+          방문 기록에 쌓은 칸은 그 뒤에 되돌린다 — 아래 useEffect 는 고른 콜이 이미 비어 있어 아무것도 안 한다 */
+    clearSelection();
     if (simNet.detailInHistory && presetParams.get('detail')) navigate(-1);
-    else clearSelection();
   }, [simNet.detailInHistory, presetParams, navigate, clearSelection]);
 
   /**
