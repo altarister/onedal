@@ -56,7 +56,9 @@ const stmtUpdateFilter = db.prepare(`
         ${VALUE_COLS.map(c => `${c} = ?`).join(', ')},
         radius_auto = ?, radius_base_km = ?, accepted_vehicle_types = ?,
         route_mode = ?,
-        reservation_mode = ?
+        reservation_mode = ?,
+        pickup_radius_km_auto = ?, destination_radius_km_auto = ?,
+        detour_radius_km_auto = ?, quad_radius_km_auto = ?
     WHERE user_id = ?
 `);
 
@@ -144,6 +146,11 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         'srcAngleDeg' in changes ||
         'dstAngleDeg' in changes ||
         'quadRadiusKm' in changes ||
+        /* 📐 기준반경(자동) 전용 넷 — 수동 넷과 다른 칸이라 따로 적는다 (위와 같은 까닭) */
+        'pickupRadiusKmAuto' in changes ||
+        'destinationRadiusKmAuto' in changes ||
+        'detourRadiusKmAuto' in changes ||
+        'quadRadiusKmAuto' in changes ||
         (!session.activeFilter.destinationKeywords || session.activeFilter.destinationKeywords.length === 0);
 
     if (changes.destinationKeywords) {
@@ -509,6 +516,11 @@ export function saveBaseFilter(
             JSON.stringify(b.acceptedVehicleTypes || []),
             b.routeMode === false ? 0 : 1,   // 🛣️🔷 기본은 노선
             b.reservationMode ?? 'today',
+            /* 📐 기준반경(자동) 전용 넷 — 수동 넷과 다른 칸이다 (기사님 확정) */
+            Number.isFinite(b.pickupRadiusKmAuto as number) ? b.pickupRadiusKmAuto : null,
+            Number.isFinite(b.destinationRadiusKmAuto as number) ? b.destinationRadiusKmAuto : null,
+            Number.isFinite(b.detourRadiusKmAuto as number) ? b.detourRadiusKmAuto : null,
+            Number.isFinite(b.quadRadiusKmAuto as number) ? b.quadRadiusKmAuto : null,
             userId
         );
     } catch (e) {

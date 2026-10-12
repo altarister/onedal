@@ -1,6 +1,7 @@
 import type { CallOption } from '@onedal/shared';
 import { dwellRatesOf, JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, buildDefaultCallOptions,
-         STEP_TABLES, FILTER_FIELDS, QUAD_FIELDS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
+         STEP_TABLES, FILTER_FIELDS, QUAD_FIELDS, RADIUS_BASE_KM_DEFAULT,
+         DEFAULT_FILTER_VALUES, DEFAULT_QUAD_SHAPE } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
 import { slog } from "./utils/fileLogger";
@@ -367,8 +368,11 @@ const FILTER_VALUE_COLS: Record<string, string> = Object.fromEntries(
 );
 /**
  * 📐 **반경 자동 맞춤의 자리**.
- *    🔴 **반경 넷은 여기 없다 — 파생이다** (규칙 ③). 사는 것은 «자동인가»와 «기준 거리» 둘.
+ *    🔴 **수동 넷(`FILTER_VALUE_COLS`·`QUAD_COLS`)과 기준반경 넷은 처음부터 다른 칸이다**
+ *    (기사님 확정) — 사는 것은 «자동인가»·«기준 거리»·기준반경 전용 넷, 모두 다섯 자리다.
+ *    배율을 곱해 둘 중 하나를 고르는 것은 `shared` 의 `effectiveRadii` 한 곳이다(규칙 ③).
  *    기본값 40 의 근거는 `shared` 의 `RADIUS_BASE_KM_DEFAULT` 주석에 있다 (실측 역산).
+ *    🔴 기준반경 넷의 기본값은 수동 넷과 같은 숫자다 — 처음 켤 때 두 탭이 같은 값으로 시작한다.
  */
 const RADIUS_AUTO_COLS: Record<string, string> = {
     /* 🛣️🔷 노선(1)/동선(0) — 필터 값이다. 관제웹 useState 였던 것을 올렸다 (전수 조사 ①-9) */
@@ -377,6 +381,10 @@ const RADIUS_AUTO_COLS: Record<string, string> = {
     reservation_mode: "TEXT DEFAULT 'today'",
     radius_auto: 'INTEGER DEFAULT 0',
     radius_base_km: `REAL DEFAULT ${RADIUS_BASE_KM_DEFAULT}`,
+    pickup_radius_km_auto: `REAL DEFAULT ${DEFAULT_FILTER_VALUES.pickupRadiusKm}`,
+    destination_radius_km_auto: `REAL DEFAULT ${DEFAULT_FILTER_VALUES.destinationRadiusKm}`,
+    detour_radius_km_auto: `REAL DEFAULT ${DEFAULT_FILTER_VALUES.detourRadiusKm}`,
+    quad_radius_km_auto: `REAL DEFAULT ${DEFAULT_QUAD_SHAPE.quadRadiusKm}`,
 };
 /**
  * 🚚 **기사님이 «받겠다»고 고른 차종**.

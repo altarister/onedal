@@ -40,7 +40,7 @@ describe('📅 앱 알람 필터 — 내일 콜 상차 반경', () => {
     it('🔴 오늘은 자동으로 줄인 반경 · 내일 콜은 줄이지 않은 기본 반경', async () => {
         const s = getUserSession(U);
         s.baseFilter = { ...s.baseFilter, pickupRadiusKm: 25 };
-        s.activeFilter = { ...s.activeFilter, pickupRadiusKm: 25, radiusAuto: true, radiusDistanceKm: 33.747, radiusBaseKm: 50 };
+        s.activeFilter = { ...s.activeFilter, pickupRadiusKm: 25, pickupRadiusKmAuto: 25, radiusAuto: true, radiusDistanceKm: 33.747, radiusBaseKm: 50 };
         const r = await report();
         expect(r.filter.pickupRadiusKm).toBeCloseTo(16.87, 1);
         expect(r.filter.reservedPickupRadiusKm).toBe(25);

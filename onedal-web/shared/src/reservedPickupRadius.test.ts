@@ -9,7 +9,7 @@ import { reservedPickupRadiusKmOf, effectiveRadii } from './phases';
 describe('📅 내일 콜 상차 반경', () => {
     it('🔴 기본 상차 반경 그대로 — 자동 배율과 무관', () => {
         const base = { pickupRadiusKm: 25 };
-        const today = { pickupRadiusKm: 25, radiusAuto: true, radiusDistanceKm: 33.747, radiusBaseKm: 50 };
+        const today = { pickupRadiusKm: 25, pickupRadiusKmAuto: 25, radiusAuto: true, radiusDistanceKm: 33.747, radiusBaseKm: 50 };
         expect(effectiveRadii(today).pickupRadiusKm).toBeCloseTo(16.87, 1);
         expect(reservedPickupRadiusKmOf(base)).toBe(25);
     });

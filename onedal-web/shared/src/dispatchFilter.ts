@@ -100,11 +100,21 @@ export interface AutoDispatchFilter {
      * 기사님: *"목적지와의 거리에 따라 … **자동으로 바뀌어 주면 좋겠다.
      * 그래서 자동, 수동으로** 만들어 주는 거야."*
      *
-     * 🔴 **반경 넷은 여기 저장되지 않는다 — 파생이다** (규칙 ③). 저장하는 것은
-     *    «자동인가»와 «기준 거리» 둘뿐이고, 값은 `shared` 의 `autoRadii` 가 그때그때 낸다.
+     * 🔴 **수동 값과 기준반경(자동) 값은 처음부터 독립된 두 벌이다**(기사님 확정 ·
+     *    탭을 바꿔도 서로 안 섞이게). 수동이면 `pickupRadiusKm` 등 넷을 그대로 쓰고,
+     *    기준반경이면 아래 `*Auto` 넷에 배율(거리 ÷ `radiusBaseKm`)을 곱한다 —
+     *    둘 중 어느 쪽을 쓸지와 그 배율은 `effectiveRadii` 한 곳이 정한다(규칙 ③).
      *    앱에는 **계산된 반경**이 내려간다 — 앱은 모드를 모른다.
      * ⚠️ 각도 둘은 자동이 손대지 않는다 — 거리와 무관한 «방향 허용폭»이다.
      */
+    /** 기준반경(자동) 전용 — 현위반경. DB 자리는 `user_filters.pickup_radius_km_auto` */
+    pickupRadiusKmAuto?: number;
+    /** 기준반경(자동) 전용 — 목적반경. DB 자리는 `user_filters.destination_radius_km_auto` */
+    destinationRadiusKmAuto?: number;
+    /** 기준반경(자동) 전용 — 라인반경. DB 자리는 `user_filters.detour_radius_km_auto` */
+    detourRadiusKmAuto?: number;
+    /** 기준반경(자동) 전용 — 마름모반경. DB 자리는 `user_filters.quad_radius_km_auto` */
+    quadRadiusKmAuto?: number;
     /**
      * 🛣️🔷 **노선 / 동선 — 그물을 어떤 모양으로 볼까**.
      *    노선(true)은 경로 양옆(라인반경) ∪ 목적지, 동선(false)은 내 위치 → 목적지 마름모 하나.

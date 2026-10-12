@@ -101,6 +101,16 @@ const toValues = (f: ValueForm, prev: Record<FlatValueKey, any>): Record<FlatVal
 /* 🔴 순서도 목업 그대로 — 현위 → 목적 → 라인 (`MapMockup.tsx:3229~3232`) */
 const KNOB_FIELDS: FlatValueKey[] = ['pickupRadiusKm', 'destinationRadiusKm', 'detourRadiusKm'];
 
+/**
+ * 📐 **수동 칸 → 기준반경(자동) 칸 — 저장 자리가 다르다** (기사님 확정).
+ *    탭을 바꿔도 서로 안 섞이게, 처음부터 독립된 칸에 산다 (`shared` `effectiveRadii`).
+ */
+const AUTO_PATH_OF: Record<string, 'pickupRadiusKmAuto' | 'destinationRadiusKmAuto' | 'detourRadiusKmAuto'> = {
+    pickupRadiusKm: 'pickupRadiusKmAuto',
+    destinationRadiusKm: 'destinationRadiusKmAuto',
+    detourRadiusKm: 'detourRadiusKmAuto',
+};
+
 /** 📅 예약콜 세 값 — 기사님 말로 */
 const RESERVATION_PICKS: ReadonlyArray<[ReservationMode, string]> = [
     ['today', '오늘 콜만'], ['tomorrowToo', '내일 콜도'], ['tomorrowOnly', '내일 콜만'],
@@ -416,9 +426,15 @@ export default function OrderFilterModal({ isOpen, onClose,
         if ((filter?.routeMode ?? true) !== (baseFilter.routeMode ?? true)) return true;   // 🛣️🔷 (조사 ①-9)
         if ((filter?.minFare ?? 0) !== (baseFilter.minFare ?? 0)) return true;             // 💵
         if ((filter?.reservationMode ?? 'today') !== (baseFilter.reservationMode ?? 'today')) return true;   // 📅
+        /* 📐 기준반경(자동) 전용 넷 — 수동 넷과 다른 칸이라 여기서도 따로 견준다 */
+        if ((filter?.pickupRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.pickupRadiusKm as number)) !== (baseFilter.pickupRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.pickupRadiusKm as number))) return true;
+        if ((filter?.destinationRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.destinationRadiusKm as number)) !== (baseFilter.destinationRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.destinationRadiusKm as number))) return true;
+        if ((filter?.detourRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.detourRadiusKm as number)) !== (baseFilter.detourRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.detourRadiusKm as number))) return true;
+        if ((filter?.quadRadiusKmAuto ?? quadShapeFrom(null).quadRadiusKm) !== (baseFilter.quadRadiusKmAuto ?? quadShapeFrom(null).quadRadiusKm)) return true;
         return false;
     }, [baseFilter, cur, quadForm, exDraft, blacklist,
-        filter?.radiusAuto, filter?.radiusBaseKm, filter?.acceptedVehicleTypes, filter?.routeMode, filter?.minFare, filter?.reservationMode]);
+        filter?.radiusAuto, filter?.radiusBaseKm, filter?.acceptedVehicleTypes, filter?.routeMode, filter?.minFare, filter?.reservationMode,
+        filter?.pickupRadiusKmAuto, filter?.destinationRadiusKmAuto, filter?.detourRadiusKmAuto, filter?.quadRadiusKmAuto]);
 
     /**
      * ↩︎ **되돌리기 — 서버에 저장된 값으로**.
@@ -449,6 +465,11 @@ export default function OrderFilterModal({ isOpen, onClose,
             routeMode: f.routeMode ?? true,   // 🛣️🔷 (조사 ①-9)
             minFare: f.minFare ?? 0,          // 💵
             reservationMode: f.reservationMode ?? 'today',   // 📅
+            /* 📐 기준반경(자동) 전용 넷도 서버 값으로 — 수동 넷과 다른 칸이다 */
+            pickupRadiusKmAuto: f.pickupRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.pickupRadiusKm as number),
+            destinationRadiusKmAuto: f.destinationRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.destinationRadiusKm as number),
+            detourRadiusKmAuto: f.detourRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.detourRadiusKm as number),
+            quadRadiusKmAuto: f.quadRadiusKmAuto ?? quadShapeFrom(null).quadRadiusKm,
         });
         const back = served ? changedFrom(shapeOf(served) as typeof served, shapeOf(baseFilter)) : shapeOf(baseFilter);
         if (Object.keys(back).length) previewFilter(back);
@@ -529,6 +550,11 @@ export default function OrderFilterModal({ isOpen, onClose,
             routeMode: filter?.routeMode ?? true,   // 🛣️🔷 필터 값이다 (조사 ①-9)
             minFare: filter?.minFare ?? 0,          // 💵 user_filters.min_fare
             reservationMode: filter?.reservationMode ?? 'today',   // 📅 user_filters.reservation_mode
+            /* 📐 기준반경(자동) 전용 넷 — 수동 넷과 다른 칸이라 여기서도 따로 싣는다 */
+            pickupRadiusKmAuto: filter?.pickupRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.pickupRadiusKm as number),
+            destinationRadiusKmAuto: filter?.destinationRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.destinationRadiusKm as number),
+            detourRadiusKmAuto: filter?.detourRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.detourRadiusKm as number),
+            quadRadiusKmAuto: filter?.quadRadiusKmAuto ?? quadShapeFrom(null).quadRadiusKm,
         }, saveAsDefault);
 
         clearDraft();   // 🔍 보냈다 — 오늘 값과 평소 설정이 이 값이 된다
@@ -826,34 +852,32 @@ export default function OrderFilterModal({ isOpen, onClose,
                                 <KnobGrid open={openKnob} onOpen={setOpenKnob}
                                     knobs={QUAD_FIELDS.map(f => {
                                         /**
-                                         * 📐 **마름모반경도 자동을 따른다**.
+                                         * 📐 **마름모반경도 기준반경(자동)을 따른다 — 수동과 다른 저장 칸이다** (기사님 확정).
                                          *    각도 둘은 «방향 허용폭»이라 거리와 무관 — **안 건드린다.**
-                                         * 🔴 안 따르면 서버와 지도는 줄인 값(예: 6.2km)을 쓰는데
-                                         *    이 칸만 원값(25km)을 적는다 (규칙 ⑤-4 ④ — 화면이 조용히 거짓말).
                                          */
-                                        const isRadius = f.path === 'quadRadiusKm';
-                                        const auto = radiusAuto && isRadius;
-                                        const rawQ = Number(quadForm[f.path] ?? 0);
-                                        const shownQ = auto ? Math.round(shownRadii.quadRadiusKm * 10) / 10 : rawQ;
-                                        /* 🎚️ 자동이어도 민다 — 칸에서 움직인 만큼(줄인 값의 변화량) 원래 값에 더한다 · 자동은 그대로 (기사님 «오토이면 왜 딤드» · 안 2) */
-                                        const toRaw = (v: number) => auto ? Math.min(f.max, Math.max(f.min ?? 0, Math.round((rawQ + (v - shownQ)) * 10) / 10)) : v;
+                                        const auto = radiusAuto && f.path === 'quadRadiusKm';
+                                        const value = auto
+                                            ? Number(filter?.quadRadiusKmAuto ?? quadForm[f.path] ?? 0)
+                                            : Number(quadForm[f.path] ?? 0);
+                                        const setAuto = (v: number) => previewFilter({ quadRadiusKmAuto: v });
                                         return {
                                             key: f.path,
                                             label: f.label,
                                             unit: f.unit,
-                                            value: auto
-                                                ? Math.round(shownRadii.quadRadiusKm * 10) / 10
-                                                : Number(quadForm[f.path] ?? 0),
+                                            value,
                                             min: f.min,
                                             max: f.max,
                                             step: f.step,
                                             /**
-                                             * 🔴 **끌면 지도가 따라오고, 뗄 때 초안에** — 반경 셋과 같은 규칙 (전수 조사 ①-2).
-                                             *    `quadDirty` 는 💾(DB) 용으로 그대로 든다.
+                                             * 🔴 **기준반경 칸은 다른 저장 칸이라 `quadDirty` 를 안 켠다** — 그 깃발은
+                                             *    수동 칸(`quadForm`)을 💾 때 다시 보낼지만 가른다.
                                              */
-                                            set: (v: number) => { const next = { ...quadForm, [f.path]: String(toRaw(v)) }; setQuadForm(next); setQuadDirty(true); previewFilter({ [f.path]: quadShapeFrom(next)[f.path] }); },
-                                            onPreview: (v: number) => previewFilter({ [f.path]: quadShapeFrom({ ...quadForm, [f.path]: String(toRaw(v)) })[f.path] }),
-                                            onCommit: (v: number) => previewFilter({ [f.path]: quadShapeFrom({ ...quadForm, [f.path]: String(toRaw(v)) })[f.path] }),
+                                            set: (v: number) => {
+                                                if (auto) { setAuto(v); return; }
+                                                const next = { ...quadForm, [f.path]: String(v) }; setQuadForm(next); setQuadDirty(true); previewFilter({ [f.path]: quadShapeFrom(next)[f.path] });
+                                            },
+                                            onPreview: (v: number) => auto ? setAuto(v) : previewFilter({ [f.path]: quadShapeFrom({ ...quadForm, [f.path]: String(v) })[f.path] }),
+                                            onCommit: (v: number) => auto ? setAuto(v) : previewFilter({ [f.path]: quadShapeFrom({ ...quadForm, [f.path]: String(v) })[f.path] }),
                                         };
                                     })} />
                             </div>
@@ -882,38 +906,29 @@ export default function OrderFilterModal({ isOpen, onClose,
                             <KnobGrid open={openKnob} onOpen={setOpenKnob} cols={3}
                                 knobs={[...KNOB_FIELDS.map(path => {
                                     const f = FILTER_FIELDS.find(x => x.path === path)!;
+                                    const autoPath = AUTO_PATH_OF[path];
                                     /**
-                                     * 🔴 **자동이면 «줄인 값»을 보여 준다** — 기사님이 정한 원값에
-                                     *    서버가 실어 보낸 배율을 곱한다. 원값은 **안 건드린다** (규칙 ④):
-                                     *    수동으로 돌리면 그 값이 그대로 살아 있다.
+                                     * 🔴 **수동 칸과 기준반경 칸은 처음부터 다른 자리다** (기사님 확정) —
+                                     *    탭을 바꿔도 서로 안 섞인다. 배율은 `effectiveRadii` 가 기준반경 칸에만 곱한다.
                                      */
-                                    const raw = Number(cur[path] ?? 0);
-                                    const KEY = { pickupRadiusKm: 'pickupRadiusKm', destinationRadiusKm: 'destinationRadiusKm',
-                                                  detourRadiusKm: 'detourRadiusKm' } as const;
-                                    const shown = radiusAuto
-                                        ? Math.round(shownRadii[KEY[path as keyof typeof KEY]] * 10) / 10
-                                        : raw;
-                                    /* 🎚️ 자동이어도 민다 — 칸에서 움직인 만큼(줄인 값의 변화량) 원래 값에 더한다 · 자동은 그대로 (기사님 안 2) */
-                                    const toRaw = (v: number) => radiusAuto ? Math.min(f.max, Math.max(f.min ?? 0, Math.round((raw + (v - shown)) * 10) / 10)) : v;
+                                    const value = radiusAuto
+                                        ? Number(filter?.[autoPath] ?? cur[path] ?? 0)
+                                        : Number(cur[path] ?? 0);
                                     return {
                                         key: path,
                                         label: f.label,
                                         unit: f.unit,
-                                        value: shown,
+                                        value,
                                         min: f.min,
                                         max: f.max,
                                         step: f.step,
                                         /* 🔴 **감추지 않고 흐리게** — 지금 안 쓰이는 칸만 (자동이라고 흐리지 않는다 · 기사님) */
                                         dim: !inUse(path),
-                                        /**
-                                         * 🎚️ **자동이어도 민다** (기사님: *"오토이면 왜 딤드여야 하는거지? 그냥 풀어줘도 되는거잖아"* · 안 2).
-                                         *    칸은 줄인 값을 보여 주고, 움직인 만큼 **원래 값**에 더한다 — 자동은 그대로 켜져 있다.
-                                         */
-                                        set: (v: number) => setField(path, String(toRaw(v))),
+                                        set: (v: number) => radiusAuto ? previewFilter({ [autoPath]: v }) : setField(path, String(v)),
                                         /* 🔴 끄는 동안은 **지도까지** 따라 온다 — 소켓은 안 탄다 */
-                                        onPreview: (v: number) => previewValues(path, String(toRaw(v))),
-                                        /* 🔴 **뗄 때** 초안에 — 원달앱에는 ✅ 적용 때 */
-                                        onCommit: (v: number) => pickField(path, String(toRaw(v))),
+                                        onPreview: (v: number) => radiusAuto ? previewFilter({ [autoPath]: v }) : previewValues(path, String(v)),
+                                        /* 🔴 **뗄 때** 초안에 — 원달앱에는 ✅ 적용 때. 기준반경 칸은 늘 초안 직행(오늘 값들 — 💾 때 다시 보낸다) */
+                                        onCommit: (v: number) => radiusAuto ? previewFilter({ [autoPath]: v }) : pickField(path, String(v)),
                                     };
                                 })]} />
                     </FilterRow>

@@ -279,10 +279,12 @@ export function reservedPickupRadiusKmOf(base: { pickupRadiusKm?: number | null 
 }
 
 /**
- * 📐 **지금 실제로 쓰이는 반경 넷** — 자동이면 줄인 값, 수동이면 기사님 값.
+ * 📐 **지금 실제로 쓰이는 반경 넷** — 수동이면 수동 값, 기준반경이면 기준반경 값 × 배율.
  *
  * 🔴 **여기가 유일한 곳이다** (규칙 ③). 필터 화면·무대 지도·서버가 **전부** 이것을 부른다.
  *    곱하는 코드가 두 곳이면 **서버는 줄였는데 지도는 안 준다.**
+ * 🔴 **수동 값과 기준반경 값은 처음부터 다른 칸이다**(기사님 확정) — 기준반경으로 바꿔도
+ *    수동 칸은 안 건드리고, 수동으로 돌아와도 기준반경 칸은 그대로 남는다.
  * ⚠️ 거리(`radiusDistanceKm`)는 **서버가 재서 실어 보낸다** — 화면은 «내 위치 → 목적지»를
  *    모른다. 배율은 여기서 `radiusScaleOf` 로 낸다. 거리를 못 받았으면 `1`(손대지 않음).
  */
@@ -291,17 +293,28 @@ export function effectiveRadii(f: {
     destinationRadiusKm?: number | null;
     quadRadiusKm?: number | null;
     detourRadiusKm?: number | null;
+    pickupRadiusKmAuto?: number | null;
+    destinationRadiusKmAuto?: number | null;
+    quadRadiusKmAuto?: number | null;
+    detourRadiusKmAuto?: number | null;
     radiusAuto?: boolean;
     radiusDistanceKm?: number | null;
     radiusBaseKm?: number;
 } | null | undefined): RadiusSet {
+    if (!f?.radiusAuto) {
+        return {
+            pickupRadiusKm: f?.pickupRadiusKm ?? (DEFAULT_FILTER_VALUES.pickupRadiusKm as number),
+            destinationRadiusKm: f?.destinationRadiusKm ?? (DEFAULT_FILTER_VALUES.destinationRadiusKm as number),
+            quadRadiusKm: f?.quadRadiusKm ?? quadShapeFrom(null).quadRadiusKm,
+            detourRadiusKm: f?.detourRadiusKm ?? (DEFAULT_FILTER_VALUES.detourRadiusKm as number),
+        };
+    }
     const base: RadiusSet = {
-        pickupRadiusKm: f?.pickupRadiusKm ?? (DEFAULT_FILTER_VALUES.pickupRadiusKm as number),
-        destinationRadiusKm: f?.destinationRadiusKm ?? (DEFAULT_FILTER_VALUES.destinationRadiusKm as number),
-        quadRadiusKm: f?.quadRadiusKm ?? quadShapeFrom(null).quadRadiusKm,
-        detourRadiusKm: f?.detourRadiusKm ?? (DEFAULT_FILTER_VALUES.detourRadiusKm as number),
+        pickupRadiusKm: f.pickupRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.pickupRadiusKm as number),
+        destinationRadiusKm: f.destinationRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.destinationRadiusKm as number),
+        quadRadiusKm: f.quadRadiusKmAuto ?? quadShapeFrom(null).quadRadiusKm,
+        detourRadiusKm: f.detourRadiusKmAuto ?? (DEFAULT_FILTER_VALUES.detourRadiusKm as number),
     };
-    if (!f?.radiusAuto) return base;
     const scale = radiusScaleOf(f.radiusDistanceKm, f.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT);
     return {
         pickupRadiusKm: base.pickupRadiusKm * scale,

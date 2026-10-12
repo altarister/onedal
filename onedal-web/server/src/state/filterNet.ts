@@ -106,12 +106,17 @@ export function netKeywordsFrom(
      */
     distanceKm = radiusDistanceFrom(f.radiusDistanceKm, city, me);
     measured = true;
+    /**
+     * 🔴 **기준반경 값은 수동 값과 다른 칸이다**(기사님 확정) — 수동일 때 쓰던
+     *    `f.pickupRadiusKm` 등이 아니라 `*Auto` 넷을 기준으로 배율을 곱한다.
+     *    못 정했으면 수동 값으로 물러선다(규칙 ④ — 모르면 지어내지 않는다).
+     */
     const auto = f.radiusAuto
         ? autoRadii(distanceKm, {
-            pickupRadiusKm: f.pickupRadiusKm ?? 10,
-            destinationRadiusKm: radiusKm,
-            quadRadiusKm: quad.quadRadiusKm,
-            detourRadiusKm: f.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
+            pickupRadiusKm: f.pickupRadiusKmAuto ?? f.pickupRadiusKm ?? 10,
+            destinationRadiusKm: f.destinationRadiusKmAuto ?? radiusKm,
+            quadRadiusKm: f.quadRadiusKmAuto ?? quad.quadRadiusKm,
+            detourRadiusKm: f.detourRadiusKmAuto ?? f.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
         }, f.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT)
         : null;
     const params = {

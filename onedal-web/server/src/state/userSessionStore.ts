@@ -424,6 +424,11 @@ export function baseFilterFrom(filterRow: any | null, firstPatch: ReturnType<typ
          */
         radiusAuto: Boolean(filterRow.radius_auto),
         radiusBaseKm: Number.isFinite(filterRow.radius_base_km) ? filterRow.radius_base_km : undefined,
+        /* 📐 기준반경(자동) 전용 넷 — 수동 넷과 다른 칸이다 (기사님 확정). 0 으로 읽지 않는다(규칙 ④) */
+        pickupRadiusKmAuto: Number.isFinite(filterRow.pickup_radius_km_auto) ? filterRow.pickup_radius_km_auto : undefined,
+        destinationRadiusKmAuto: Number.isFinite(filterRow.destination_radius_km_auto) ? filterRow.destination_radius_km_auto : undefined,
+        detourRadiusKmAuto: Number.isFinite(filterRow.detour_radius_km_auto) ? filterRow.detour_radius_km_auto : undefined,
+        quadRadiusKmAuto: Number.isFinite(filterRow.quad_radius_km_auto) ? filterRow.quad_radius_km_auto : undefined,
         acceptedVehicleTypes: safeJsonArray(filterRow.accepted_vehicle_types),
         /* 🛣️🔷 NULL(옛 행)은 노선 — 기본이 노선이다 (조사 ①-9) */
         routeMode: filterRow.route_mode == null ? true : Boolean(filterRow.route_mode),

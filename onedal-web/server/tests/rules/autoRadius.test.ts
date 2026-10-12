@@ -54,21 +54,24 @@ describe('반경 자동 맞춤 — 서버 (C4-12)', () => {
         expect(body).toMatch(/'radiusBaseKm' in changes/);
     });
 
-    it('🔴 반경 넷을 DB 에 쓰지 않는다 — 파생이다 (규칙 ③)', () => {
+    it('🔴 기준반경(자동) 넷은 수동 넷과 처음부터 다른 칸에 저장된다 (기사님 확정)', () => {
         const db = codeOnly(read('db.ts'));
         expect(db).toMatch(/radius_auto/);
         expect(db).toMatch(/radius_base_km/);
-        /* 저장되는 것은 모드와 기준 둘뿐이다 */
-        expect(db).not.toMatch(/auto_pickup_radius|auto_quad_radius/);
+        /* 수동 넷(pickup_radius_km 등)과 따로, 기준반경 전용 넷도 저장된다 — 파생이 아니다 */
+        expect(db).toMatch(/pickup_radius_km_auto/);
+        expect(db).toMatch(/destination_radius_km_auto/);
+        expect(db).toMatch(/detour_radius_km_auto/);
+        expect(db).toMatch(/quad_radius_km_auto/);
     });
 });
 
 /**
  * 🖥️ **화면 — 손잡이는 그대로 두고 위에 토글 하나** (규칙 ⑤-4 ④).
  *
- * 🔴 **자동일 때도 숫자는 보이고 흐리게 하지 않는다.** 칸은 «지금 실제로 쓰는 값»(배율을 먹인 뒤)을
- *    보여 주고, − / + 로 움직이면 원래 값이 바뀐다 — 반경은 상황에 따라 넓게도 좁게도 쓰는 값이라
- *    늘 손이 닿아야 한다. 감추면 «이 값이 어디 갔나»가 된다.
+ * 🔴 **자동일 때도 숫자는 보이고 흐리게 하지 않는다.** 수동 탭이면 수동 칸, 기준반경 탭이면
+ *    기준반경 칸(`*Auto`)을 그대로 보여 주고 끌면 그 칸에 적힌다 — 둘은 처음부터 다른 자리라
+ *    서로 안 섞인다. 감추면 «이 값이 어디 갔나»가 된다.
  */
 describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
     const modal = readClient('components/dashboard/OrderFilterModal.tsx');
@@ -127,8 +130,7 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
 
     /**
      * 🔴 **자동이어도 흐리거나 잠그지 않는다** (기사님: *"오토이면 왜 딤드여야 하는거지? 그냥 풀어줘도 되는거잖아"*).
-     *    칸은 여전히 «줄인 값»을 보여 주고, − / + · 슬라이더로 움직인 만큼 **원래 값**에 더한다 — 자동은 그대로 켜져 있다.
-     *    ⚠️ 그래서 +0.5 를 눌러도 칸은 배율만큼(×0.46 이면 +0.23) 움직인다 — 기사님이 고르신 모양이다.
+     *    기준반경 칸은 수동 칸과 다른 저장 자리에 산다 — 끌면 그 칸에 바로 적힌다. 자동은 그대로 켜져 있다.
      */
     it('🔴 자동이어도 반경·마름모반경 손잡이를 흐리거나 잠그지 않는다 — 누르면 원래 값이 바뀐다', () => {
         /* ⚠️ `KNOB_FIELDS` 첫 등장은 **선언부**다 — 손잡이를 만드는 «쓰는 자리»를 본다 */
@@ -160,32 +162,29 @@ describe('반경 자동 맞춤 — 화면 (C4-12)', () => {
     });
 
     /**
-     * 🔴 **마름모반경도 자동을 따른다**.
-     *    반경 셋(`KNOB_FIELDS`)만 따르게 하면 **서버와 지도는 줄인 값으로 그리는데
-     *    마름모 칸만 원값을 적는다.** 각도 둘은 자동과 무관하다.
-     *    지키는 뜻은 **칸이 줄인 값을 보여 준다**는 것이다 — 칸을 흐리지는 않는다.
+     * 🔴 **마름모반경도 기준반경(자동)을 따른다 — 수동과 다른 저장 칸이다** (기사님 확정).
+     *    반경 셋(`KNOB_FIELDS`)만 따르게 하면 **서버와 지도는 기준반경 값으로 그리는데
+     *    마름모 칸만 수동 값을 적는다.** 각도 둘은 자동과 무관하다.
      */
-    it('🔴 마름모반경도 자동을 따른다 — 칸이 줄인 값을 보여 준다 · 각도 둘은 아니다', () => {
+    it('🔴 마름모반경도 기준반경(자동)을 따른다 — 수동과 다른 저장 칸 · 각도 둘은 아니다', () => {
         /* ⚠️ `QUAD_FIELDS.map(` 은 세 곳이다(초기화·채우기·손잡이) — **손잡이 자리**를 집는다 */
         const i = modal.indexOf('knobs={QUAD_FIELDS.map(');
         expect(i).toBeGreaterThan(-1);
         const body = modal.slice(i, i + 2400);
-        expect(body).toMatch(/const auto = radiusAuto && isRadius/);
-        expect(body).toMatch(/shownRadii\.quadRadiusKm/);
+        expect(body).toMatch(/const auto = radiusAuto && f\.path === 'quadRadiusKm'/);
+        expect(body).toMatch(/quadRadiusKmAuto/);
     });
 
     /**
-     * 🔴 **자동이어도 민다** (기사님: *"오토이면 왜 딤드여야 하는거지? 그냥 풀어줘"*).
-     *    칸에서 움직인 만큼(줄인 값의 변화량)을 **원래 값**에 더한다 —
-     *    화면은 계속 원래 값 × 배율이라 둘은 갈라지지 않는다.
+     * 🔴 **자동이어도 잠그지 않는다** (기사님: *"오토이면 왜 딤드여야 하는거지? 그냥 풀어줘"*).
+     *    끌면 기준반경 칸(`*Auto`)에 바로 적힌다 — 수동 칸과 다른 자리라 역산이 필요 없다.
      */
-    it('🔴 자동이어도 민다 — 움직인 만큼 원래 값에 더해 저장한다', () => {
+    it('🔴 기준반경 손잡이는 수동과 다른 칸에 바로 적는다 — 역산 없이', () => {
         const i = modal.indexOf('KNOB_FIELDS.map(');
-        /* ⚠️ 주석이 길어 `onCommit` 은 첫 줄에서 3000자 넘게 아래다 — 넉넉히 자른다 */
-        const body = modal.slice(i, i + 4000);
-        expect(body).toMatch(/const toRaw = \(v: number\) => radiusAuto \?/);
-        expect(body).toMatch(/set: \(v: number\) => setField\(path, String\(toRaw\(v\)\)\)/);
-        expect(body).toMatch(/onCommit: \(v: number\) => pickField\(path, String\(toRaw\(v\)\)\)/);
+        const body = modal.slice(i, i + 2400);
+        expect(body).toMatch(/const autoPath = AUTO_PATH_OF\[path\]/);
+        expect(body).toMatch(/set: \(v: number\) => radiusAuto \? previewFilter\(\{ \[autoPath\]: v \}\) : setField\(path, String\(v\)\)/);
+        expect(body).toMatch(/onCommit: \(v: number\) => radiusAuto \? previewFilter\(\{ \[autoPath\]: v \}\) : pickField\(path, String\(v\)\)/);
     });
 
     /**

@@ -102,7 +102,7 @@ afterAll(() => {
 /** 네 경우 — 기본 · 자동 반경 켬 · 복귀(+ 이 폰이 심사 중) · 내일 콜(집 + 기본 반경) */
 const CASES: Array<[string, (s: any) => void, (f: any) => void]> = [
     ['기본', () => setHome(null), f => expect(f).not.toHaveProperty('reservedPickupKeywords')],
-    ['자동 반경 켬', s => { s.activeFilter = { ...s.activeFilter, pickupRadiusKm: 25, radiusAuto: true, radiusDistanceKm: 33.747, radiusBaseKm: 50 }; },
+    ['자동 반경 켬', s => { s.activeFilter = { ...s.activeFilter, pickupRadiusKm: 25, pickupRadiusKmAuto: 25, radiusAuto: true, radiusDistanceKm: 33.747, radiusBaseKm: 50 }; },
         f => expect(f.pickupRadiusKm).toBeCloseTo(16.87, 1)],
     ['복귀 · 심사 중', s => { setHome(HOME); s.activeFilter = { ...s.activeFilter, destinationCity: '서울 강남구', callTarget: 'HOME' }; s.deviceEvaluatingMap.set(DEV, 'o-appfilter'); },
         f => { expect(f.destinationCity).toContain('이천'); expect(f.evaluatingNow).toBe(true); }],
