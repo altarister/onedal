@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { useSettingsStore, loadScreenSettings } from "../../stores/settingsStore";
 import { useFilterStore } from "../../stores/filterStore";
+import { useLocationStore } from "../../stores/useLocationStore";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
-         resolvePhaseKey, effectiveRadii, radiusScaleOf,
+         resolvePhaseKey, effectiveRadii, radiusScaleOf, cityCenter, haversineKm,
          VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT, wonText } from "@onedal/shared";
 import { radiusScaleNoteOf } from '../../lib/radiusNote';
 import { draftViewOf, hasUnappliedDraft, changedFrom } from '../../lib/filterDraft';
@@ -52,6 +53,15 @@ const COMMON_EXCLUDED_WORDS = ['착불', '수거', '까대기', '직접운반', 
 
 /** 하한표에 보여줄 차종 — 내 차(1t)로 수행 가능한 등급만, 칸이 작은 순 */
 const RATE_TABLE_ORDER = ['오토바이', '다마스', '승용차', '라보', '1t'];
+
+/**
+ * 📍 **내 위치 → 그 시 중심 거리 — 못 재면 undefined** (지도에 없는 시군구면 `cityCenter` 가 던진다).
+ *    `try/catch` 를 훅 콜백 밖에 둔다 — 안에 두면 리액트 컴파일러가 메모를 못 지킨다.
+ */
+const distanceToCityOf = (lat: number, lng: number, city: string): number | undefined => {
+    try { return haversineKm({ lng, lat }, cityCenter(city)); }
+    catch { return undefined; }
+};
 
 /**
  * 🔴 **국면 탭이 없다 — 값은 한 벌이고, 지금 안 쓰는 칸은 흐리게 둔다** (기사님 확정 *"그 기준은 바꿔"* ·
@@ -232,13 +242,25 @@ export default function OrderFilterModal({ isOpen, onClose,
 
     /**
      * 📐 **반경을 거리에 맞춰 자동으로 줄이나**.
-     *    거리(`radiusDistanceKm`)는 **서버가 재서 실어 보낸다** — 이 화면은 «내 위치 → 목적지»
-     *    를 모른다. 배율은 `effectiveRadii` 가 그 거리와 기준으로 낸다 — 그래서 기준거리를
-     *    끄는 동안에도 지도가 따라온다. 못 받았으면 손대지 않는다 (규칙 ④).
+     *    진짜 필터링에 쓰이는 거리(`radiusDistanceKm`)는 서버가 하루에 한 번 재서 싣는다 —
+     *    ✅ 적용 전에는 안 바뀐다. 아래 **미리보기**는 그와 별개다.
      */
     const radiusAuto = !!filter?.radiusAuto;
+    /**
+     * 📍 **목적지를 바꾸면 미리보기만 그 자리에서 다시 잰다** (기사님 확정).
+     *    관제웹은 앱이 뜰 때부터 내 위치를 들고 있다(`useLocationStore` — `App.tsx` 가 켠다).
+     *    서버 응답(✅ 적용)을 기다리지 않고 "지금 필터링 값" 미리보기에만 쓴다 —
+     *    실제 필터링 거리(`radiusDistanceKm`)는 안 건드린다(규칙 ④ · 소켓도 안 탄다).
+     */
+    const myLocLat = useLocationStore(s => s.lat);
+    const myLocLng = useLocationStore(s => s.lng);
+    /* 🔴 memo 로 안 묶는다 — haversineKm·cityCenter 는 가벼워 매 렌더 다시 재도 된다 */
+    const draftDistanceKm = (myLocLat == null || myLocLng == null || !filter?.goalCity)
+        ? undefined : distanceToCityOf(myLocLat, myLocLng, filter.goalCity);
+    /** 🔴 **미리보기용 거리만 바꿔 끼운다** — 서버가 보낸 `radiusDistanceKm`(실제 필터링 값)은 그대로 둔다 */
+    const previewFilterForRadii = draftDistanceKm != null ? { ...filter, radiusDistanceKm: draftDistanceKm } : filter;
     /** 🔴 **지금 실제로 쓰이는 반경** — 무대 지도가 부르는 **그 함수**다 (규칙 ③) */
-    const shownRadii = effectiveRadii(filter);
+    const shownRadii = effectiveRadii(previewFilterForRadii);
     /**
      * 📏 **배율이 왜 이 값인지 한 줄로 말한다** (기사님 실측 02:32 — «기준거리 변경 또 작동 안 함»).
      *
@@ -247,7 +269,7 @@ export default function OrderFilterModal({ isOpen, onClose,
      * 화면이 아무 말도 안 해 «안 먹는다»로 보였다. 규칙은 그대로, **까닭만 보인다** — 숫자는 전부
      * 이미 있는 값(`radiusDistanceKm` · `radiusBaseKm` · `radiusScaleOf`)에서 온다.
      */
-    const radiusScaleNote = radiusScaleNoteOf(filter, baseFilter);   // 📅 내일 콜 반경까지 (lib/radiusNote)
+    const radiusScaleNote = radiusScaleNoteOf(previewFilterForRadii, baseFilter);   // 📅 내일 콜 반경까지 (lib/radiusNote)
 
     /**
      * 🚚 **기사님이 «받겠다»고 고른 차종**.
@@ -862,12 +884,16 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         const setAuto = (v: number) => previewFilter({ quadRadiusKmAuto: v });
                                         return {
                                             key: f.path,
-                                            label: f.label,
+                                            /* 🔴 **기준반경 칸은 다른 이름이다** (기사님 확정) — 이 손잡이는 필터링 값이 아니라
+                                                  그 값을 낳는 «기준값»이다. 같은 이름이면 둘을 헷갈린다 */
+                                            label: auto ? `${f.label}기준값` : f.label,
                                             unit: f.unit,
                                             value,
                                             min: f.min,
                                             max: f.max,
                                             step: f.step,
+                                            /* 📏 **기준값 칸엔 지금 실제 값도 보인다** — 위아래로 눈을 옮기지 않게 한 칸에 (기사님 확정) */
+                                            note: auto ? `지금 ${Math.round(shownRadii.quadRadiusKm * 10) / 10}km` : undefined,
                                             /**
                                              * 🔴 **기준반경 칸은 다른 저장 칸이라 `quadDirty` 를 안 켠다** — 그 깃발은
                                              *    수동 칸(`quadForm`)을 💾 때 다시 보낼지만 가른다.
@@ -916,12 +942,15 @@ export default function OrderFilterModal({ isOpen, onClose,
                                         : Number(cur[path] ?? 0);
                                     return {
                                         key: path,
-                                        label: f.label,
+                                        /* 🔴 **기준반경 칸은 다른 이름이다** (기사님 확정) — 필터링 값이 아니라 그 값을 낳는 «기준값»이다 */
+                                        label: radiusAuto ? `${f.label}기준값` : f.label,
                                         unit: f.unit,
                                         value,
                                         min: f.min,
                                         max: f.max,
                                         step: f.step,
+                                        /* 📏 **기준값 칸엔 지금 실제 값도 보인다** — 위아래로 눈을 옮기지 않게 한 칸에 (기사님 확정) */
+                                        note: radiusAuto ? `지금 ${Math.round(shownRadii[path as 'pickupRadiusKm' | 'destinationRadiusKm' | 'detourRadiusKm'] * 10) / 10}km` : undefined,
                                         /* 🔴 **감추지 않고 흐리게** — 지금 안 쓰이는 칸만 (자동이라고 흐리지 않는다 · 기사님) */
                                         dim: !inUse(path),
                                         set: (v: number) => radiusAuto ? previewFilter({ [autoPath]: v }) : setField(path, String(v)),

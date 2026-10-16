@@ -37,13 +37,15 @@ describe('반경 자동 맞춤 (C4-12)', () => {
         expect(r.detourRadiusKm).toBeCloseTo(3, 5);
     });
 
-    it('🔴 멀어도 «지금 값»을 넘지 않는다 — 잘 도는 것을 안 깬다', () => {
-        /**
-         * 순수 비례면 파주(62km)가 676 → **778동**으로 되레 넓어진다.
-         * 멀리 갈 때는 지금도 넷이 다 일하고 있어 고칠 이유가 없다 — **가까울 때만 줄인다.**
-         */
-        expect(autoRadii(62, BASE, 40)).toEqual(BASE);
-        expect(autoRadii(200, BASE, 40)).toEqual(BASE);
+    it('🔴 멀면 기준값보다 더 커진다 — 가는 길에 좀 더 돌아가도 된다 (기사님 확정)', () => {
+        /* 62km 는 기준 40km 의 1.55배 — 넷 다 그만큼 커진다 */
+        const r = autoRadii(62, BASE, 40);
+        expect(r.pickupRadiusKm).toBeCloseTo(15.5, 5);
+        expect(r.destinationRadiusKm).toBeCloseTo(23.25, 5);
+        expect(r.quadRadiusKm).toBeCloseTo(38.75, 5);
+        expect(r.detourRadiusKm).toBeCloseTo(9.3, 5);
+        /* 200km 는 기준의 5배 */
+        expect(autoRadii(200, BASE, 40).pickupRadiusKm).toBeCloseTo(50, 5);
     });
 
     it('🔴 거리를 모르면 손대지 않는다 — 지어내지 않는다 (규칙 ④)', () => {

@@ -63,6 +63,12 @@ export type KnobDef = {
     onPreview?: (v: number) => void;
     /** 지금 안 쓰이는 칸 — 감추지 않고 흐리게 둔다 (감추면 화면이 조용히 거짓말한다) */
     dim?: boolean;
+    /**
+     * 📏 **칸 밑에 작게 — «이 값이 지금 실제로 얼마로 쓰이나»** (기사님 확정).
+     *    기준값과 실제값이 따로 적힌 문장을 눈으로 오가며 맞추던 것을, 한 칸에 모은다.
+     *    없으면 안 그린다 — 다른 칸(목업 등)은 이 줄이 늘지 않는다.
+     */
+    note?: string;
 };
 
 export function KnobGrid({ knobs, open, onOpen, cols = 3, inline = false }: {
@@ -100,6 +106,9 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3, inline = false }: {
                         <span className="w-full text-center text-[14px] font-black text-text-primary tabular-nums leading-tight whitespace-nowrap">
                             {k.value}<span className="text-[9.5px] font-bold text-text-muted">{k.unit}</span>
                         </span>
+                        {k.note && (
+                            <span className="w-full text-center text-[9px] font-bold text-info tabular-nums leading-tight whitespace-nowrap">{k.note}</span>
+                        )}
                     </button>
     ));
     /* 🔴 아래 레이어는 **z-30** — `PickLayer` 와 같은 층이다. 제외지역 블록이
