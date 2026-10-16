@@ -8,6 +8,7 @@
 //   단추 고르기(글자 자리): «글자»(단추 글에 듦) · «=글자»(단추 글이 똑같음) · «^글자»(단추 글이 그것으로 시작) · «aria:이름»(aria-label 이 똑같음) · «title:조각»(title 에 듦)
 //     앞에 «in:<글자>>»를 붙이면 그 글자가 든 잎에서 위로 올라가 처음 만나는 상자 안의 단추만 본다(예: in:A24>title:모드를 바꾸려면 · in:최소 금액>=+)
 //   화면 확인: «see:<글자>» — 그 글자가 든 잎 요소가 화면 안에 보이나(ok · none) · 좌표 누름 전에 «기대한 화면인가»를 본다(71)
+//   단추 아닌 자리: «leaf:<글자>» — 그 글자가 든 보이는 잎이 딱 하나면 그 가운데(ok) · 없으면 none · 둘 이상이면 many
 import { execFileSync } from 'node:child_process';
 
 const [dev, want, menuYArg = '176'] = process.argv.slice(2);
@@ -42,6 +43,15 @@ try {
                     const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < H && r.right > 0 && r.left < W && getComputedStyle(e).visibility !== 'hidden';   /* 닫힌 서랍은 화면 왼쪽 밖에 그려져 있다 — 가로도 본다 */
                 });
                 return { state: vis ? 'ok' : 'none', text: t, offsetY };
+            }
+            if (want.startsWith('leaf:')) {   /* 단추가 아닌 누를 자리(결재석 미리보기 칸 본문 등) — 그 글자가 든 보이는 잎 하나의 가운데 */
+                const t = want.slice(5);
+                const hit = [...document.querySelectorAll('body *')].filter(e => e.children.length === 0 && norm(e.textContent).includes(t)).filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < H && r.right > 0 && r.left < W; });
+                if (hit.length !== 1) return { state: hit.length ? 'many' : 'none', text: t, offsetY };
+                /* 글줄이 화면 끝에 반쯤 걸리면 그 자리는 폰 단추 줄이다(판 6 S12) — 글줄을 품은 칸(높이 100px 이상인 첫 조상)의 화면 안 부분 가운데를 누른다 */
+                let box = hit[0]; while (box.parentElement && box.getBoundingClientRect().height < 100) box = box.parentElement;
+                const r = box.getBoundingClientRect(), top = Math.max(0, r.top), bot = Math.min(H, r.bottom);
+                return { state: 'ok', x: Math.round((r.left + r.width / 2) * dpr), y: Math.round((top + bot) / 2 * dpr + offsetY), w: Math.round(r.width * dpr), h: Math.round((bot - top) * dpr), text: t, offsetY: Math.round(offsetY) };
             }
             let all;
             if (want.startsWith('seat:')) {

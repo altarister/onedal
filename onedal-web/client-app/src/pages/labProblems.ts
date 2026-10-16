@@ -249,6 +249,42 @@ export const LAB_RETURN_WRONGWAY: LabStep[] = [
     roadCall('NB', C.seungseung, C.woori, '5.4km'),
 ];
 
+/**
+ * 🧪 **하루 일과 시험** — 폰 시험(`phone-e2e-test/day1.json`)이 넣는 콜 순서 그대로. 좌표도 그 파일의 장소 표 값이다.
+ * 동그라미 번호는 하루 경로의 경유지 순서(① 집 → … → ⑭ 집)다.
+ * 하차지가 «그때 하차 목록에서 고름»인 콜(주행 중 합짐 · P2 · X1 · C5x)은 자리가 없어 넣지 않는다 — 문제 설명에만 적는다.
+ */
+const DAY1 = {
+    home: { lng: 127.294001, lat: 37.377178 },
+    moda: { lng: 127.312588, lat: 37.3633 },
+    gj487: { lng: 127.351492, lat: 37.343645 },
+    gonjiam41: { lng: 127.394927, lat: 37.328137 },
+    woori: { lng: 127.397183, lat: 37.3174 },
+    ian: { lng: 127.407889, lat: 37.29766 },
+    gwango: { lng: 127.42923, lat: 37.285068 },
+    jungri: { lng: 127.446936, lat: 37.277421 },
+    gj765: { lng: 127.325242, lat: 37.355649 },
+    cw1021: { lng: 127.302786, lat: 37.370096 },
+    cw1066: { lng: 127.299992, lat: 37.373355 },
+    daewol: { lng: 127.469346, lat: 37.219437 },
+};
+const dayCall = (where: string, from: LabPt, to: LabPt, confirm = true): LabStep => ({ kind: 'call', where, from, to, confirm });
+export const LAB_DAY1: LabStep[] = [
+    dayCall('C1 첫짐 · 인성 알람 · ② 모다아울렛 → ⑥ 이안로지스 (40,000)', DAY1.moda, DAY1.ian),
+    dayCall('C1b 출발 전 합짐 · 인성 자동 · ③ 곤지암 487 → ⑦ 관고동 (30,000)', DAY1.gj487, DAY1.gwango),
+    { kind: 'drive', to: DAY1.moda, where: '② 모다아울렛 (서서 상차)' },
+    dayCall('C2 합짐 · 화물24시 알람 · ④ 곤지암 41 → ⑤ 우리주유소 (25,000)', DAY1.gonjiam41, DAY1.woori),
+    dayCall('C3 합짐 · 인성 자동 · ③ 곤지암 487 → ⑦ 관고동 (30,000)', DAY1.gj487, DAY1.gwango),
+    { kind: 'drive', to: DAY1.gwango, where: '⑦ 이천 관고동 (서서 · ④ ⑤ ⑥ 지나침)' },
+    dayCall('C4 관내 · 화물24시 자동 · ⑦ 관고동 → ⑧ 중리동 (15,000)', DAY1.gwango, DAY1.jungri),
+    { kind: 'drive', to: DAY1.jungri, where: '⑧ 이천 중리동 (서서 · 관내 하차)' },
+    dayCall('C5 첫 복귀 · 인성 · ⑨ 이안로지스 → ⑩ 곤지암 487 (22,000)', DAY1.ian, DAY1.gj487),
+    dayCall('L2x 관내 · 화물24시 · ⑧ 중리동 → 대월면 쿠팡 (15,000) — 복귀콜 KEEP 뒤라 걸러지는지 봄', DAY1.jungri, DAY1.daewol, false),
+    dayCall('C6 복귀 · 화물24시 자동 · ⑪ 곤지암 765 → ⑬ 초월역 (18,000)', DAY1.gj765, DAY1.cw1066),
+    dayCall('C7 복귀 · 인성 · ⑫ 초월 1021 → ⑭ 집 (16,000)', DAY1.cw1021, DAY1.home),
+    { kind: 'drive', to: DAY1.home, where: '⑭ 집 (마지막 하차)', home: true },
+];
+
 export const LAB_PROBLEMS: LabProblem[] = [
     {
         name: '🌅 볼트 오전',
@@ -288,5 +324,10 @@ export const LAB_PROBLEMS: LabProblem[] = [
         name: '🔼 복귀 🔴',
         why: '🔼 집으로 오는 중인데 ③④의 **상차지가 남행 차선**이다 — 상차 4.4·6.0km, 하차는 집 쪽 전진. 좌표로는 꿀콜이라 🔴 **앉은 자리에서 넷 다 통과한다** (실측 2026-09-12). ⚠️ 되돌아가는 콜(좌표 역주행)은 지금도 ❌ 하차 역주행으로 잡혀서 이 판에서 뺐다 — **아직 못 잡는 것** 하나만 본다',
         dst: { sido: '경기', sgg: '광주시' }, start: ROAD_PLACES.outlet, steps: LAB_RETURN_WRONGWAY,
+    },
+    {
+        name: '🧪 하루 일과 시험',
+        why: '🧪 폰 시험 하루 — 집에서 첫짐 · 출발 전 합짐을 잡고 ② 모다(상차) → ⑦ 관고동 → ⑧ 중리동 → ⑭ 집으로 돈다. L2x 는 후보(안 잡음). 지도에 없는 콜 넷: 곤지암읍에 들어설 때 주행 중 합짐 · P2 픽커(거절) · X1(안전취소) · C5x(점수 낮음) — 하차지를 그때 하차 목록에서 고른다',
+        dst: { sido: '경기', sgg: '이천시' }, start: DAY1.home, steps: LAB_DAY1,
     },
 ];

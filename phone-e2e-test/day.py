@@ -4,7 +4,7 @@
 쓰는 법: S23=172.30.1.18:<포트> RUN_ID=76판 python3 -u day.py day1.json [--from S05] [--only S03,S04] [--no-cleanup] [--dry]
   --dry : 폰 · 서버 없이 단계 · 이름 · 좌표 · 장소를 풀어 보기만(빈 좌표 · 모르는 낱말을 미리 찾음)
 """
-import glob, json, os, re, sys, time, signal, datetime, math, sqlite3, urllib.request
+import glob, json, threading, os, re, subprocess, sys, time, signal, datetime, math, sqlite3, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 DRY = '--dry' in sys.argv
 if not DRY:
@@ -57,6 +57,7 @@ def check_of(name, x, y):
 
 STARTED_AT = [time.time()]
 HOME_BY_SCRIPT = [False]   # 이번 판에 스크립트가 귀가를 켰나(S18 «↩️ 복귀 끔» 누름이 섬)
+RUN_MARK = [None]   # 판 시작 때 서버 기록 줄 수 — 장면이 기대는 사실(phone-e2e-test needs)은 이 뒤에서만 찾는다 · 날짜 파일 하나 안에서만 맞다(자정을 넘는 판은 SRV_LOG 가 안 바뀐다)
 
 def server_fresh(sec, window_min):
     """🟢 서버가 R0 뒤 새로 섰다 = 셋이 다 참: /api/health 200 · bootedAt 이 판 시작 {window_min}분 전 이후(R0 가 서버를 다시 띄움) · 콜 장부(orders)가 빔.
@@ -113,8 +114,12 @@ def filter_of_row(row):
     return out
 def start_row():
     """S01 이 떠 둔 기사님 필터 줄 — 원달앱이 받은 목적지 · 최저가 같은 줄"""
-    start = SNAP.get('filter') or {}
-    return next((r for r in SNAP.get('filter_rows') or [] if r.get('destination_city') == start.get('destinationCity') and r.get('min_fare') == start.get('minFare')), None)
+    start, rows = SNAP.get('filter') or {}, SNAP.get('filter_rows') or []
+    hit = next((r for r in rows if r.get('destination_city') == start.get('destinationCity') and r.get('min_fare') == start.get('minFare')), None)
+    if hit: return hit
+    # 원달앱이 받은 목적지는 그 순간 국면 값이라(귀가면 집 쪽 시) DB 평소 목적지와 다를 수 있다 — 최저가 같은 줄이 딱 하나면 그 줄(판 5)
+    same = [r for r in rows if r.get('min_fare') == start.get('minFare')]
+    return same[0] if len(same) == 1 else None
 def db_filter_row():
     with sqlite3.connect(run.DB) as c:
         c.row_factory = sqlite3.Row
@@ -148,12 +153,17 @@ def tidy_s23(must_see):
         raise ToolStop(f'⛔ S23 출발 화면을 못 맞춤 — {", ".join(f"«{w}» 아직 보임" for w in left) or f"«{must_see}»(모드 줄) 안 보임"}')
     log(f'🧭 S23 출발 화면 — 필터 접힘 · 서랍 닫힘 · «{must_see}» 보임')
 
+def home_on():
+    """귀가가 켜져 있나 — «↩️ 복귀 켬» 단추 글자는 필터 창을 열어야 보인다(닫힌 채 보면 늘 «꺼짐» · 판 6 S99 · 판 7 S01) · (켜짐, 이번에 창을 열었나) — 연 창은 부른 쪽이 닫는다(이미 열려 있던 창은 안 닫음)"""
+    was_open = s23_sees('어디로')
+    tap('s23.filter.open')
+    return s23_sees('복귀 켬'), not was_open
+
 def home_off_if_mine():
-    on = json.loads(run.sh('node', os.path.join(HERE, 'find.mjs'), S23, 'see:복귀 켬', str(run.MENU_Y), check=False).strip().splitlines()[-1])['state'] == 'ok'
-    if not HOME_BY_SCRIPT[0]:
-        if on: note(CUR[0], '귀가', None, '기사님 손 — 귀가 켜져 있음(이번 판에 스크립트가 켜지 않아 안 끔)')
-        else: log('  귀가 꺼져 있음 — 할 것 없음')
-        return
+    on, _ = home_on()
+    if not on: log('  귀가 꺼져 있음 — 할 것 없음'); return
+    if not HOME_BY_SCRIPT[0] and SNAP.get('home') is not False:   # 판 시작 때도 켜져 있었거나(기사님 손) 시작 값을 모름 — 안 끔
+        note(CUR[0], '귀가', None, '귀가 켜져 있음 — 판 시작 때도 켜져 있었거나 시작 값을 몰라 안 끔'); return
     tap('s23.filter.open'); tap('s23.filter.home.off')
 
 def screen_ok(name, t, sec=5):
@@ -185,9 +195,12 @@ def tap(name):
     if t['phone'] == 'S23' and not t.get('text'): raise ToolStop(f'⚪ 시험 도구 — «{name}» 은 S23 좌표 자리라 안 누름(글자 자리 필요)')
     # ⏭️ 누른 뒤 될 상태가 이미 서 있으면(필터 창이 이미 열림 · 칸이 이미 펼쳐짐) 누르지 않는다 — 누르면 도로 닫힌다
     if t.get('skipIf') and t['phone'] == 'S23' and not DRY:
-        if all(json.loads(run.sh('node', os.path.join(HERE, 'find.mjs'), S23, f'see:{w}', str(run.MENU_Y), check=False).strip().splitlines()[-1])['state'] == 'ok' for w in t['skipIf']['see']):
+        if s23_sees_all(t['skipIf']['see']):
             log(f'  ⏭️ {name} — 이미 그 상태(«{" · ".join(t["skipIf"]["see"])}» 보임) · 안 누름'); return
-    if t.get('text'): return tap_text(name, t)
+    if t.get('text'):
+        if name.startswith('s23.call.') and not DRY:   # 콜 줄 — 시트가 접혀 보이면 글자 찾기 도구가 «펼친 자리»를 알려 줘 지도 위를 누른다(판 9 · 10 · 12) · 시트를 위로 한 번 밀어 펼친 뒤 찾는다(펼쳐져 있으면 목록이 조금 올라갈 뿐)
+            run.guard(S23); run.adb(S23, 'shell', 'input', 'swipe', '540', '2050', '540', '700', '400'); time.sleep(1.5)
+        return tap_text(name, t)
     if t['x'] is None: raise ToolStop(f'⚪ 시험 도구 — «{name}» 좌표 없음(사진 필요: {t["from"]})')
     if DRY: log(f'  👆 {name} ({t["x"]},{t["y"]}) {t["phone"]} · 기대 화면 {t.get("expect") or "⛔ 없음"}'); return
     screen_ok(name, t)
@@ -213,6 +226,16 @@ def tap_text(name, t):
         raise ToolStop(f'⚪ 시험 도구 — «{t["text"]}» 단추 {r["state"]}: {r.get("why", "")} (자리 {r.get("x")},{r.get("y")})')
     if r['h'] < 96: log(f'  ⚠️ {name} 단추 높이 {r["h"]}px — 손가락(약 9mm ≈ 96px)보다 작음')
     run.tap_if(S23, r['x'], r['y'], run.any_px, f'{name} «{r["text"]}» (웹뷰 높이 {r["offsetY"]})'); time.sleep(1.5)
+    # 🎯 누른 뒤 될 상태(skipIf)가 안 섰으면 글자 왼쪽 끝을 한 번 더 — 웹뷰 밖 겹창(JoyStick 띠 · 위치 단추)은 find.mjs 가 못 봐서 가운데 누름이 먹히지 않은 적이 있다(판 4 S18)
+    if t.get('skipIf') and not s23_sees_all(t['skipIf']['see']):
+        x = r['x'] - r.get('w', 0) // 2 + min(60, r.get('w', 0) // 4)   # 단추 안 — 좁은 단추에서 옆 단추를 누르지 않게
+        log(f'  ↩️ {name} — 누른 뒤 «{" · ".join(t["skipIf"]["see"])}» 안 보임 · 왼쪽 끝({x},{r["y"]})을 다시 누름')
+        run.tap_if(S23, x, r['y'], run.any_px, f'{name} 왼쪽 끝'); time.sleep(1.5)
+        if not s23_sees_all(t['skipIf']['see']): shot(S23, f'notopen_{name}'); raise ToolStop(f'⚪ 시험 도구 — «{name}» 두 자리를 눌러도 «{" · ".join(t["skipIf"]["see"])}» 안 보임')
+
+def s23_sees_all(words):
+    """S23 웹뷰에 그 글자들이 다 보이나 — 글자 하나는 s23_sees"""
+    return all(s23_sees(w) for w in words)
 
 # ── 장소 · 콜 ──
 def hav_m(a, b):
@@ -225,15 +248,15 @@ def place(key, ref=None):
     if key in PLACES: return tuple(PLACES[key])
     if key.startswith('dest:'):
         if DRY: return (f'(그 순간 하차 목록 · {key})', '?', 0, 0)
-        f = run.app_filter(); groups = f.get('reservedPickupGroups', {}) or {}
-        city_of = {d: c for c, ds in groups.items() for d in ds}
+        f = run.app_filter(); two = f.get('destinationDongSigungu', {}) or {}   # 이름이 두 시에 있는 동 → 그 하차 목록의 시(예: 송정동 → 이천시 · 광주시 송정동이 아님)
+        cities = [c for c in (f.get('customCityFilters') or []) if c.endswith('시') and ' ' not in c]
         cands = []
         with sqlite3.connect(run.DB) as c:
             for d in f.get('destinationKeywords', []) or []:
-                if d not in city_of: continue
-                addr = f'경기 {city_of[d]} {d}'
-                r = c.execute('SELECT x, y FROM geocode_cache WHERE query IN (?, ?)', (addr, f'a1|{addr}')).fetchone()
-                if r: cands.append((addr, d, r[0], r[1]))
+                for city in ([two[d][0]] if d in two else cities):
+                    addr = f'경기 {city} {d}'
+                    r = c.execute('SELECT x, y FROM geocode_cache WHERE query IN (?, ?)', (addr, f'a1|{addr}')).fetchone()
+                    if r: cands.append((addr, d, r[0], r[1])); break
         if not cands: raise ToolStop('⚪ 시험 도구 — 하차 목록 동 가운데 서버 캐시에 있는 주소가 없음')
         r0 = PLACES.get(ref or 'ian'); base = (r0[2], r0[3])
         cands.sort(key=lambda p: hav_m(base, (p[2], p[3])))
@@ -321,18 +344,35 @@ def open_is(b):
 def color_of(b):
     """그 콜의 판정 색 — 서버 «🎨 [판정] 🔵 70점 — 돈 3.7만 …» 줄(OrderEvaluator.ts:387 · 판정 색 설정이 매긴 결과)을 그 콜을 넣기 직전 자리 뒤에서 «돈 {요금}만»으로 찾는다 · 아직이면 None"""
     t = srv_since(SMARK.get(b) or 0)
-    m = re.findall(rf'🎨 \[판정\] (\S+) (\d+)점[^\n]*?— 돈 {FARES[b] / 10000:.1f}만', t)   # 점수 뒤에 «· 잡으면 사고 — N분 늦음(…)» 같은 덧말이 끼기도 한다(93판 S19)
-    return m[-1] if m else None
+    m = re.findall(rf'🎨 \[판정\] (\S+) (\d+)점([^\n]*?)— 돈 {FARES[b] / 10000:.1f}만', t)   # 점수 뒤에 «· 잡으면 사고 — N분 늦음(…)» 같은 덧말(= 까닭 · 셋째 칸)이 끼기도 한다(93판 S19)
+    if m: return m[-1]
+    # 점수 없는 판정(«🔴 잴 수 없음 — 돈 ⚠️ …» · 카카오 실패 등)에는 요금이 안 찍힌다 — 이 콜을 넣은 뒤 다음 콜을 넣기 전 사이에 그런 줄이 딱 하나면 이 콜의 것(판 4 S12)
+    later = [v for k, v in SMARK.items() if k != b and v > (SMARK.get(b) or 0)]
+    if later: t = ''.join(t.splitlines(True)[:min(later) - (SMARK.get(b) or 0)])
+    m = re.findall(r'🎨 \[판정\] (\S+) 잴 수 없음([^\n]*)', t)
+    return (m[0][0], '?', m[0][1]) if len(m) == 1 else None
+
+def dismiss_preview(b):
+    """👀 결재석 미리보기 칸 본문을 눌러 치운다(기사님이 하는 것 · JudgmentSeat «미리보기 — 눌러서 치우기») — 안 보이면 ⚪ · 누른 뒤에도 남으면 ⚪(판 5 S12)"""
+    end = time.time() + 10; r = None
+    while time.time() < end:
+        r = json.loads(run.sh('node', os.path.join(HERE, 'find.mjs'), S23, 'leaf:눌러서 치우기', str(run.MENU_Y), check=False).strip().splitlines()[-1])
+        if r['state'] == 'ok': break
+        time.sleep(1)
+    if not r or r['state'] != 'ok': raise ToolStop(f'⚪ 시험 도구 — {b} 결재석 미리보기 칸을 못 찾음({(r or {}).get("state")})')
+    run.tap_if(S23, r['x'], r['y'], run.any_px, f'{b} 결재석 미리보기 치우기'); time.sleep(1.5)
+    if s23_sees('눌러서 치우기'): shot(S23, f'preview_left_{b}'); raise ToolStop(f'⚪ 시험 도구 — {b} 미리보기를 눌렀는데 그대로 있음')
+    log(f'  👀 {b} 결재석 미리보기 치움')
 
 CONFIRM = {'insung': 'a24.insung.detail.confirm', 'hwamul24': 'a24.hwamul24.detail.confirm'}   # 손 확정 단추(인성 «확정» · 화물24시 «배차신청»)
 CLOSE = {'insung': 'a24.insung.detail.close'}   # 손 확정 뒤 KEEP 이 오면 기사님이 누르는 «닫기»(화물24시는 신청하면 배차내역으로 가서 없음)
 
 def decide(v):
-    """🎨 기사님이 고르는 자리를 그 순간 판정 색 하나로(기사님 «알람이든 자동이든 필터를 통과하면 판정이 서고, 판정을 보고 고른다» · 71).
-       v = {bind · how: hand|auto|view · net · sec}
-       hand(알람 · 직접): 원달앱이 연 그 콜이 🔵 면 손 확정(→ KEEP → 닫기) · 아니면 안 누름
-       auto(자동): 원달앱 확정 뒤 결재석 판정 — 🔵 면 결재석 KEEP · 아니면 결재석 거절(실행서 5-1 «결재석 KEEP / 거절»)
-       view(픽커 등 안 잡는 자리): 누르지 않고 색만 적음
+    """🎨 기사님이 고르는 자리 — 판정 색은 기록만 하고, 잡을지는 시나리오(want · 없으면 keep)대로 한다(기사님 «색으로 거르지 않는다 · 그냥 시험이니까 진행»).
+       v = {bind · how: hand|auto|view · net · sec · want: keep|reject}
+       hand(알람 · 직접): 원달앱이 그 콜 상세를 열면 want 대로 — keep 이면 손 확정(→ KEEP → 닫기)
+       auto(자동): 원달앱 확정 뒤 결재석 — keep 이면 결재석 KEEP · reject 면 결재석 거절(실행서 5-1)
+       view(픽커 · 문제 콜처럼 안 잡는 자리): 원달앱 상세 진입을 기다려 색만 적고 누르지 않음
        판정이 기대와 달라 장면이 갈리면 도구 문제가 아니라 기록할 사실 — 🔵 아닌 손 확정 자리는 ⚪ «판정 ○ — 안 잡음»(뒤 장면은 앞 장면 없음)"""
     b, how = v.get('bind'), v['how']
     if DRY: log(f'  🎨 {b} — 판정 색으로({how}: 🔵 면 {"손 확정" if how == "hand" else "결재석 KEEP" if how == "auto" else "보기만"} · 아니면 {"안 누름" if how != "auto" else "결재석 거절"})'); return
@@ -345,7 +385,10 @@ def decide(v):
     want = v.get('want', 'keep')
     log(f'  🎨 {b} {FARES[b]}원 판정 {c[0]} {c[1]}점(기록만) → 시나리오대로 {"잡음" if want == "keep" else "거절"}')
     blue = want == 'keep'   # 색으로 거르지 않는다 — 시나리오가 잡기로 한 콜은 잡는다(기사님 «합짐은 🔵만 그런 거 없어 · 그냥 시험이니까 진행해» · 71)
-    if how == 'view': note(CUR[0], f'{b} 판정(보기만)', True, f'{c[0]} {c[1]}점 · 안 누름'); return
+    if how == 'view':
+        note(CUR[0], f'{b} 판정(보기만)', True, f'{c[0]} {c[1]}점 · 안 누름')
+        if v.get('dismiss'): dismiss_preview(b)
+        return
     if how == 'auto':
         seat('keep' if blue else 'reject', {'bind': b})
         note(CUR[0], f'{b} 판정 → 결재석', True, f'{c[0]} {c[1]}점 → {"KEEP" if blue else "거절"}')
@@ -405,7 +448,9 @@ def act(a):
             c.row_factory = sqlite3.Row
             SNAP['filter_rows'] = [dict(r) for r in c.execute('SELECT * FROM user_filters').fetchall()]   # S99 가 시작 필터로 되돌릴 때 칸 이름으로 읽는다
         SNAP['mode'] = run.supplied_mode(); SNAP['filter'] = run.app_filter()
-        json.dump({k2: SNAP[k2] for k2 in ('user_filters', 'user_settings', 'filter_rows', 'mode', 'filter')}, open(START_FILE, 'w'), ensure_ascii=False, indent=1, default=list)
+        SNAP['home'], opened = home_on()
+        if opened: tidy_s23('A24')   # 판 시작 때 귀가 — S99 는 이 값으로 되돌린다(손으로 대신 켠 귀가도 끔 · 판 4 → 판 5) · 보려고 연 필터 창은 닫는다
+        json.dump({k2: SNAP[k2] for k2 in ('user_filters', 'user_settings', 'filter_rows', 'mode', 'filter', 'home')}, open(START_FILE, 'w'), ensure_ascii=False, indent=1, default=list)
         log(f'📸 떠 둠({START_FILE}) — 필터 · 설정 · 모드 {SNAP["mode"]} · 목적지 {SNAP["filter"].get("destinationCity")} · 최저 {SNAP["filter"].get("minFare")}')
     elif k == 'mode':   # 모드 단추는 관제앱 폰 줄(«A24»)에 있다 — 필터 창 · 서랍이 가리면 못 찾으니 먼저 화면을 정리한다(108판 S05)
         if not DRY: tidy_s23('A24')
@@ -451,9 +496,15 @@ def act(a):
     elif k == 'set_filter':   # 시험용 필터로 맞춤 — 관제앱 «서버 저장»과 같은 길(소켓 update-filter + saveAsDefault) · 시작 필터가 무엇이든 시험이 같은 조건에서 돈다
         if DRY: log(f'  🎛️ 시험용 필터 {v} — 서버 저장'); return
         sm, am = srv_mark(), app_mark()
+        before = run.app_filter()   # 보내기 전 원달앱 필터 — 이미 같으면 서버가 lastFilterJson 캐시로 다시 안 보낸다(filterManager.broadcastFilter) · 장면이 안 서면 S99 정리를 안 돌리는 게 설계라(기사님 «가») 판이 멈춘 채 다시 돌면 이미 같은 값일 수 있다
+        def _eq(a, b):   # 9 와 9.0 처럼 같은 숫자를 글자 비교로 다르다고 보면 안 된다
+            if isinstance(a, (int, float)) and isinstance(b, (int, float)) and not isinstance(a, bool) and not isinstance(b, bool): return float(a) == float(b)
+            return a == b
+        already_same = all(_eq(before.get(k2), v2) for k2, v2 in v.items() if k2 in before)
         log('🎛️ ' + run.sh('node', os.path.join(HERE, 'set_filter.mjs'), json.dumps(v, ensure_ascii=False), check=True).strip())
         wait_for('srv', sm, r'영구 설정\(baseFilter\) DB 저장 완료', 15, '서버 저장')
-        wait_for('app', am, r'\[필터 도착\]|\[필터 바뀜\]', 20, '원달앱 필터 받음')
+        if already_same: log('📭 원달앱 필터 이미 같음 — 서버가 다시 안 보냄(캐시) · «필터 도착» 기다림 건너뜀')
+        else: wait_for('app', am, r'\[필터 도착\]|\[필터 바뀜\]', 20, '원달앱 필터 받음')
         bad = filter_diff(v)
         if bad: raise Stop(f'시험용 필터가 DB 에 다 안 들어감 — {bad}')
         note(CUR[0], f'DB 필터 {len(v)}칸 = 시험용', True, '같음')
@@ -547,11 +598,40 @@ def act(a):
     elif k == 'mark':   # 원달앱 기다림의 기준 줄을 지금으로 — 그 뒤에 선 줄만 본다(S16: 픽커로 바꾼 뒤의 «인성콜» 페이지)
         PENDING['amark'] = app_mark(); log('  📍 원달앱 기준 줄을 지금으로')
     elif k == 'wait_app': wait_for('app', PENDING.get('amark') or max(0, app_mark() - 200), sub(v['re']), v['sec'], v['re'])
-    elif k == 'joystick':
-        leg = v['leg']; r = SCEN['routes'][leg]
-        if DRY: log(f'  🟡 9e: JoyStick {leg} ({r["gpx"]}) 시작 — {r["say"]}'); return
-        log(f'🟡 9e: JoyStick «중단 → {r["gpx"]} 고름 → 시작» — {r["say"]}')
-        __import__('g').mock_guard(leg)
+    elif k == 'joystick':   # 하루 경로 한 벌(DAY) — start: 에이전트가 손으로 한 번 걸고 시험 스크립트가 집에서 일시정지 · stopAt: «재생» → S23 위치가 그곳 450m 앞이면 «일시정지»(뒤에서 지켜봄 · 집은 경로 끝이라 저절로 섬)
+        r = SCEN['routes']['DAY']
+        if v.get('start'):
+            if DRY: log(f'  🟡 에이전트: JoyStick «{r["gpx"]}» 걸기(텔레포트 시작) → 시험 스크립트가 집에서 일시정지'); return
+            log(f'🟡 에이전트: JoyStick «경로 설정 → {r["gpx"]} → 도착시 멈춤 · 텔레포트 시작 → 시작» — 집으로 뛰면 시험 스크립트가 일시정지')
+            g = __import__('g'); P = SCEN['places'][r['stops'][0]]; end = time.time() + 900   # JoyStick 시작 전 광고가 6~9분 걸린 적 있어(110판) 5분 → 15분
+            while time.time() < end:   # 집 300m 안에 mock 위치가 서면 곧바로 — 움직임 확인을 먼저 하면 그 사이 집을 지나친다
+                f = g.fused_last(); xy = g._latlng(f)
+                if 'mock' in f and xy and g._dist_m(xy, (P[3], P[2])) < 300: break
+                time.sleep(1)
+            else: raise ToolStop('⚪ 시험 도구 — 15분 안에 JoyStick 위치가 집으로 안 옴(경로 걸기 확인)')
+            adb(S23, 'shell', 'monkey', '-p', 'kr.co.onedal.dashboard', '-c', 'android.intent.category.LAUNCHER', '1'); time.sleep(1.5)   # JoyStick 화면이 앞이면 tap_if 가 막는다 — 관제앱을 먼저 앞으로
+            for _ in range(4):   # 경로를 건 직후에는 띠가 늦게 뜬다 — ❚❚ 를 3초 간격으로 다시 찾는다 · 이미 서 있으면(▶ 보임) 안 누른다
+                if joy_find(TAPS['joy.play']['color']): break
+                try: joy_tap('joy.pause'); break
+                except Stop: time.sleep(3)
+            joy_still('집')
+            bad = [f for f in (g.fused_last() for _ in range(5)) if 'mock' not in f]
+            if bad: raise ToolStop(f'⚪ 시험 도구 — 위치 섞임(진짜 fused {len(bad)}/5)')
+            return
+        stop = v['stopAt']
+        if DRY: log(f'  ▶️ JoyStick 재생 → ' + (f'{stop} 450m 앞에서 일시정지' if stop != r['stops'][-1] else '경로 끝(집)에서 저절로 섬')); return
+        if joy_find(TAPS['joy.pause']['color']): log('▶ 안 누름 — 띠에 ❚❚ 가 보임(이미 달리는 중)')
+        else: joy_tap_wait('joy.play')
+        if not joy_moving():   # 경로를 건 직후 JoyStick 이 한 번 더 스스로 서는 버릇 — ▶ 가 아직 보이면 한 번 더 누른다(이미 달리면 ▶ 대신 ❚❚ 라 못 찾음 → 건너뜀)
+            log('▶ 눌렀는데 10초 안에 안 움직임 — 한 번 더')
+            try: joy_tap_wait('joy.play')
+            except Stop: pass
+            if not joy_moving(): raise ToolStop(f'⚪ 시험 도구 — ▶ 를 두 번 눌러도 S23 위치가 안 움직임({stop} 가는 길)')
+        __import__('g').mock_guard(f'DAY → {stop}')
+        if v.get('wait'):   # 설 때까지 기다림 — 선 뒤에 할 일이 있는 장면(S20: 곤지암 765 지나 서서 C7 넣기 · 집에 닿은 뒤 하차 확인) · 없으면 뒤에서 지켜보고 다음 줄로(S11 · S12 처럼 달리며 할 일)
+            if stop == r['stops'][-1]: joy_arrive_end(SCEN['places'][stop])
+            elif not joy_pause_near(stop, strict=True): raise ToolStop(f'⚪ 시험 도구 — {stop} 앞에서 일시정지 못 함(위 줄 참고)')
+        elif stop != r['stops'][-1]: threading.Thread(target=joy_pause_near, args=(stop,), daemon=True).start()
     elif k == 'ble':
         adb(A24, 'shell', 'cmd', 'bluetooth_manager', 'enable' if v == 'on' else 'disable'); log(f'A24 블루투스 {v}')
     elif k == 'sleep': time.sleep(v)
@@ -559,6 +639,101 @@ def act(a):
     elif k == 'restore': restore()
     else: raise ToolStop(f'⚪ 시험 도구 — 모르는 동작 «{k}»')
 CUR = ['']
+
+JOY_STOP, JOY_BACK = (244, 67, 54), (33, 150, 243)   # 띠의 빨간 ■ 과 그 오른쪽 약 230픽셀의 파란 ◀◀ — 띠를 알아보는 표지
+
+def joy_find(color, y0=300, y1=1600, step=3, tol=30):
+    """JoyStick 가로 띠 안에서 그 색(▶ 초록 · ❚❚ 노랑) 덩어리의 가운데 — 띠는 끌어 옮길 수 있어 자리를 고정하지 않는다.
+       먼저 «빨간 ■ 오른쪽 200~260픽셀에 파란 ◀◀» 인 자리를 띠로 잡고, 찾는 색은 그 줄 안(■ 와 ◀◀ 사이)에서만 본다 — 지도 위 비슷한 색(길 · 표지)을 안 잡게.
+       폰 안에서 찍은 원본(raw)에서 y0~y1 줄만 한 번에 받는다(무선 adb 로 전체 png 를 받아 풀면 느림) · 아래 단계 시트(높이 약 1780)는 범위 밖"""
+    adb(S23, 'shell', 'screencap', '/data/local/tmp/joy.raw')
+    w = int(adb(S23, 'shell', 'dd if=/data/local/tmp/joy.raw bs=4 count=1 2>/dev/null | od -An -tu4').split()[0])
+    off, n = 16 + y0 * w * 4, (y1 - y0) * w * 4
+    raw = subprocess.run(['adb', '-s', S23, 'exec-out', f'tail -c +{off + 1} /data/local/tmp/joy.raw | head -c {n}'], capture_output=True, timeout=30).stdout
+    rows = len(raw) // (w * 4)
+    at = lambda x, y: raw[(y * w + x) * 4:(y * w + x) * 4 + 3]
+    near = lambda c, want: all(abs(c[i] - want[i]) < tol for i in range(3))
+    bar = [(x, y) for y in range(0, rows, step) for x in range(0, w - 260, step)
+           if near(at(x, y), JOY_STOP) and any(near(at(x + d, y), JOY_BACK) for d in range(200, 261, 3))]
+    if len(bar) < 5: return None
+    bx, by = sorted(b[0] for b in bar)[len(bar) // 2], sorted(b[1] for b in bar)[len(bar) // 2]
+    hits = [(x, y) for y in range(max(0, by - 40), min(rows, by + 40)) for x in range(bx, min(w, bx + 230))
+            if near(at(x, y), color)]
+    if len(hits) < 10: return None
+    xs, ys = sorted(h[0] for h in hits), sorted(h[1] for h in hits)
+    return xs[len(xs) // 2], y0 + ys[len(ys) // 2]
+
+def joy_tap(name):   # JoyStick 경로 띠(가로 띠 · 설정 «조이스틱 유형»)의 ❚❚/▶ — 화면에서 그 색 덩어리를 찾아 누른다 · 색은 taps.json · 못 찾으면 안 누르고 멈춤(실행기가 사람 몫으로 넘김)
+    t = TAPS[name]; run.guard(S23)
+    at = joy_find(t['color'])   # ▶ · ❚❚ 만 쓰면 띠는 늘 떠 있다 — ■(중단)를 누르거나 경로가 끝나야 사라진다(기사님) · 펼치려고 다른 아이콘을 누르지 않는다(헛누름)
+    if not at: shot(S23, f'nofind_{name}'); raise Stop(f'«{t["say"]}» 를 화면의 경로 띠에서 못 찾음(경로가 끝났거나 ■ 로 멈춤) — 안 누르고 멈춤')
+    adb(S23, 'shell', 'input', 'tap', str(at[0]), str(at[1])); log(f'👆 {t["say"]} ({at[0]},{at[1]}) — 색으로 찾음')
+
+def joy_tap_wait(name, limit_s=1800):
+    """JoyStick ▶/❚❚ 를 누른다 — 못 찾으면(광고 · Play 스토어 창 · 띠 가림) 넘어가지 않고 사진 찍고 기사님을 불러 기다린다(기사님: «못 찾았으면 나에게 이야기하고 대기»)
+       화면이 관제앱으로 돌아오고 그 단추가 다시 보이면 3초 안에 눌러 이어 간다 · 한도를 넘기면 ⚪"""
+    try: return joy_tap(name)
+    except Stop as e: why = str(e)
+    t = TAPS[name]; log(f'  ⏳ 기사님: [S23] JoyStick «{t["say"]}» 를 못 찾음 — {why} · 화면을 관제앱(경로 띠 보임)으로 돌려 주시면 이어 감')
+    end = time.time() + limit_s
+    while time.time() < end:
+        time.sleep(3)
+        if 'kr.co.onedal.dashboard' in run.focus_of(S23) and joy_find(t['color']): log(f'  ▶ 다시 보임 — 이어 감'); return joy_tap(name)
+    raise ToolStop(f'⚪ 시험 도구 — {limit_s}초 안에 JoyStick «{t["say"]}» 가 다시 안 보임')
+
+def joy_moving(sec=10, m=30):   # ▶ 가 먹었나 — sec 초 안에 mock 위치가 m 넘게 움직이면 참
+    g = __import__('g'); a = g._latlng(g.fused_last()); end = time.time() + sec
+    while time.time() < end:
+        time.sleep(2); b = g._latlng(g.fused_last())
+        if a and b and g._dist_m(a, b) > m: return True
+    return False
+
+def joy_off_at_end():
+    """경로 끝에 선 뒤 JoyStick 을 끈다 — 끝에서 왼쪽 세로 메뉴를 저절로 펼쳐 관제앱 손짓을 막는다(판 10 · 12 S21) · 파란 단추는 안 누른다(판 8)
+       끈 뒤에도 마지막 모의 위치가 «마지막 위치»로 남아 위치가 튀지 않는다(S01 · S99 에서 확인) · S99 가 어차피 끄는 앱"""
+    time.sleep(3); adb(S23, 'shell', 'am', 'force-stop', 'com.theappninjas.fakegpsjoystick')
+    adb(S23, 'shell', 'monkey', '-p', 'kr.co.onedal.dashboard', '-c', 'android.intent.category.LAUNCHER', '1', check=False); time.sleep(2)
+    log('  ⏹ 경로 끝 — JoyStick 끔(메뉴가 손짓을 막지 않게) · 관제앱 앞으로')
+
+def joy_arrive_end(P, limit_s=1800):   # 경로 끝(집)에 닿아 «도착시 멈춤»으로 설 때까지 — 100m 안 + 5초 사이 30m 안
+    g = __import__('g'); to = (P[3], P[2]); end = time.time() + limit_s; idle = 0
+    while time.time() < end:
+        a = g._latlng(g.fused_last())
+        if not (a and g._dist_m(a, to) < 100):   # 끝이 아닌데 JoyStick 이 서 있으면(▶ 보임) 영영 안 닿는다 — 15초 넘으면 곧바로 멈춘다(판 8: 30분 헛기다림)
+            idle = idle + 2 if joy_find(TAPS['joy.play']['color']) else 0
+            if idle >= 15: raise ToolStop(f'⚪ 시험 도구 — JoyStick 이 서 있는데 {P[0].split()[-1]} 가 아님(누가 세웠거나 경로가 끝남)')
+        if a and g._dist_m(a, to) < 100:   # 경로 끝 점은 집에서 17m — 사람 · hold_drive 가 끝 근처에서 세운 것을 «끝»으로 읽지 않게 좁게
+            time.sleep(5); b = g._latlng(g.fused_last())
+            if b and g._dist_m(a, b) < 30:
+                log(f'⏹ JoyStick 경로 끝 — {P[0].split()[-1]}에 섬'); joy_off_at_end(); return
+        time.sleep(2)
+    raise ToolStop(f'⚪ 시험 도구 — {limit_s}초 안에 경로 끝({P[0].split()[-1]})에 안 섬')
+
+def joy_still(where, sec=15):   # 일시정지가 먹었나 — 5초 사이 mock 위치가 30m 안이면 섬
+    g = __import__('g'); end = time.time() + sec
+    while time.time() < end:
+        a = g._latlng(g.fused_last()); time.sleep(5); b = g._latlng(g.fused_last())
+        if a and b and g._dist_m(a, b) < 30: log(f'⏸ JoyStick 일시정지 — {where}에 섬'); return
+    raise ToolStop(f'⚪ 시험 도구 — 일시정지를 눌렀는데 {sec}초 안에 안 섬({where})')
+
+JOY_LOCK = __import__('threading').Lock()   # ❚❚/▶ 는 한 단추라 두 길(목표 앞 감시 · 실행기 사람 기다림)이 겹쳐 누르면 두 번 눌려 도로 달린다 — 상태 보기와 누르기를 이 자물쇠 안에서 한 번에
+
+def joy_pause_near(stop, near_m=450, limit_s=1800, strict=False):   # 뒤에서 지켜보다 그곳 450m 앞에서 일시정지 — 200km/h 면 1초에 55m · 누르는 사이 지나가도 서버 도착 500m 안
+    g = __import__('g'); P = SCEN['places'][stop]; to = (P[3], P[2]); end = time.time() + limit_s
+    try:
+        idle = 0
+        while time.time() < end:
+            xy = g._latlng(g.fused_last())
+            if strict and not (xy and g._dist_m(xy, to) < near_m):   # 기다림 줄 — 목표 앞이 아닌데 서 있으면 15초 안에 멈춤(뒤 감시는 사람 기다림 동안 세운 것일 수 있어 안 봄)
+                idle = idle + 1 if joy_find(TAPS['joy.play']['color']) else 0
+                if idle >= 15: log(f'🔴 시험 도구 — JoyStick 이 서 있는데 {stop} 앞이 아님(누가 세웠거나 경로가 끝남)'); return False
+            if xy and g._dist_m(xy, to) < near_m:
+                with JOY_LOCK:
+                    if joy_find(TAPS['joy.pause']['color']): joy_tap_wait('joy.pause')
+                joy_still(P[0].split()[-1]); return True
+            time.sleep(1)
+        log(f'🔴 시험 도구 — {limit_s}초 안에 {stop} 450m 앞에 안 옴 · 일시정지 안 누름')
+    except Exception as e: log(f'🔴 시험 도구 — {stop} 일시정지 실패: {e}')
 
 def checks(step, ck):
     if DRY or not ck: return
@@ -626,6 +801,20 @@ def checks(step, ck):
             g = __import__('g'); end = time.time() + v.get('sec', 180); f = g.fused_last()
             while 'mock' in f and time.time() < end: time.sleep(5); f = g.fused_last()
             note(step, 'S23 가짜 위치 꺼짐(mock 0)', 'mock' not in f, f[:80])
+        elif k == 's23_no_net_location':   # «Google 위치 정확도» 꺼짐 — 켜져 있으면 와이파이 · 기지국 위치가 JoyStick 사이에 끼어 도착이 안 선다(판 2 · 3) · 위치 기록의 network provider 가 enabled=false
+            t = adb(S23, 'shell', 'dumpsys', 'location', check=False)
+            m = re.search(r'network provider:(?:\n(?![^\n]*provider:)[^\n]*?){0,8}?\n\s*enabled=(\w+)', t)   # 그 provider 칸 안의 첫 enabled= (다른 provider 칸으로 넘어가지 않음)
+            note(step, 'S23 «Google 위치 정확도» 꺼짐', (m.group(1) == 'false') if m else None, f'network provider enabled={m.group(1)}' if m else '⚪ 위치 기록 모양을 모름(network provider 칸의 enabled= 를 못 찾음)')
+        elif k == 'app_pickup_has':   # 원달앱이 받은 상차 목록(pickupKeywords)에 그 동이 있나 — 콜을 넣기 전에 «상차 목록 밖»으로 헛 ⚪ 가 날 자리를 가린다(판 6 · 7 C7) · 서버 상차 목록 줄은 곳 수만 찍어 못 씀
+            end = time.time() + v.get('sec', 30); kws = []
+            while time.time() < end:
+                kws = run.app_filter().get('pickupKeywords') or []
+                if v['dong'] in kws: break
+                time.sleep(2)
+            note(step, f'원달앱 상차 목록에 {v["dong"]}', v['dong'] in kws, f'{len(kws)}곳' + ('' if v['dong'] in kws else ' — 없음'))
+        elif k == 's23_joy_off':   # JoyStick 이 꺼졌나 — 프로세스로 본다(끈 뒤에도 마지막 위치는 진짜 위치가 들어오기 전까지 mock 으로 남는다 · 판 4 S99)
+            pid = adb(S23, 'shell', 'pidof', 'com.theappninjas.fakegpsjoystick', check=False).strip()
+            note(step, 'S23 JoyStick 꺼짐(프로세스 없음)', not pid, f'pid {pid}' if pid else '없음')
         elif k == 'web_drive':
             t = srv_since(SMARK.get('C1', STEP_MARK[0])); dv = re.findall(r'주행판정\] ([^\n]*)', t)   # 운행 중은 첫 출발에 한 번 — 첫짐을 잡은 때부터 센다
             note(step, '관제웹 «운행 중»', any('→ drive' in d or d.startswith('drive') for d in dv), ' | '.join(d[:30] for d in dv) or '주행판정 줄 0')
@@ -636,7 +825,7 @@ STATE = os.path.join(HERE, 'out', 'day_state.json')   # 판 상태 — 막힌 �
 def save_state():
     if DRY: return
     st = {'BIND': BIND, 'FARES': FARES, 'DROPS': DROPS, 'CMARK': CMARK, 'SMARK': SMARK, 'SNAP': SNAP, 'STOOD': sorted(STOOD),
-          'HOME_BY_SCRIPT': HOME_BY_SCRIPT[0], 'PENDING': {k: PENDING[k] for k in ('bind', 'mark', 'drop', 'fare', 'cmark') if k in PENDING},
+          'HOME_BY_SCRIPT': HOME_BY_SCRIPT[0], 'RUN_MARK': RUN_MARK[0], 'PENDING': {k: PENDING[k] for k in ('bind', 'mark', 'drop', 'fare', 'cmark') if k in PENDING},
           'RUN_ID': os.environ.get('RUN_ID'), 'at': datetime.datetime.now().isoformat(timespec='seconds')}
     json.dump(st, open(STATE, 'w'), ensure_ascii=False, indent=1, default=list)
 
@@ -645,8 +834,85 @@ def load_state():
     try: st = json.load(open(STATE))
     except Exception: log('⚠️ 판 상태 파일 없음 — 앞 장면이 묶은 콜은 모름'); return
     for d, k in ((BIND, 'BIND'), (FARES, 'FARES'), (DROPS, 'DROPS'), (CMARK, 'CMARK'), (SMARK, 'SMARK'), (SNAP, 'SNAP'), (PENDING, 'PENDING')): d.update(st.get(k) or {})
-    STOOD.update(st.get('STOOD') or []); HOME_BY_SCRIPT[0] = bool(st.get('HOME_BY_SCRIPT'))
+    STOOD.update(st.get('STOOD') or []); HOME_BY_SCRIPT[0] = bool(st.get('HOME_BY_SCRIPT')); RUN_MARK[0] = st.get('RUN_MARK')
     log(f'📂 판 상태 되살림 — {st.get("RUN_ID")} {st.get("at")} · 묶은 콜 {", ".join(f"{k}={v}" for k, v in BIND.items()) or "없음"} · 선 장면 {len(STOOD)}개')
+
+PROGRESS_DIR = os.path.join(HERE, 'out', 'progress')   # 판마다 파일 하나 — plan.html 이 progress.json 을 1초마다 다시 읽어 체크박스를 켠다
+PROGRESS_LATEST = os.path.join(PROGRESS_DIR, 'progress.json')   # 화면이 늘 같은 이름으로 fetch
+PROGRESS = [None]   # None = 이번 실행은 기록 안 함(--dry 등)
+PREV_SCENES = {}    # 판 시작 전 progress.json 에 있던 덜 끝난 장면 — 판 전에 장면 표에서 눌러 둔 손 줄을 이어받는다
+
+def read_latest():
+    try: return json.load(open(PROGRESS_LATEST))
+    except Exception: return None
+
+def save_progress():
+    """장면 표에서 사람이 누른 체크(dev 서버가 같은 파일에 적음)를 덮지 않는다 — 손 줄(handIdx)은 파일이 이기고,
+    day.py 가 적는 줄은 day.py 가 아직 안 적은 자리만 파일 값을 받는다"""
+    if PROGRESS[0] is None: return
+    disk = read_latest()
+    if disk and disk.get('file') == PROGRESS[0]['file']:
+        by = {sc['id']: sc for sc in disk.get('scenes', [])}
+        for sc in PROGRESS[0]['scenes']:
+            d = by.get(sc['id'])
+            if not d or len(d.get('steps', [])) != len(sc['steps']): continue
+            hand = sc.get('handIdx')   # 없으면 day.py 가 아직 시작 안 한 장면 — 줄 전부 사람 몫
+            for i, v in enumerate(d['steps']):
+                if hand is None or i in hand or (sc['steps'][i] is None and v is not None): sc['steps'][i] = v
+    for p in (PROGRESS[0]['file'], PROGRESS_LATEST):
+        json.dump(PROGRESS[0], open(p, 'w'), ensure_ascii=False, indent=1, default=list)
+
+def start_progress(run_id, started):
+    if DRY: return
+    os.makedirs(PROGRESS_DIR, exist_ok=True)
+    old_latest = read_latest() or {}
+    PREV_SCENES.update({sc['id']: sc for sc in old_latest.get('scenes', []) if not sc.get('done')})
+    f = os.path.join(PROGRESS_DIR, f'{started:%Y%m%d_%H%M%S}_{run_id}.json')
+    # 덜 끝난 장면(판 전에 장면 표에서 누른 손 줄)을 새 기록에 바로 옮긴다 — 장면이 시작되기 전에 화면에서 체크가 사라지지 않게
+    PROGRESS[0] = {'file': f, 'run_id': run_id, 'started': started.isoformat(timespec='seconds'),
+                   'scenes': [{k: v for k, v in sc.items() if k != 'handIdx'} for sc in PREV_SCENES.values()]}
+    save_progress()
+    old = sorted(p for p in glob.glob(os.path.join(PROGRESS_DIR, '*.json')) if p not in (PROGRESS_LATEST, f))
+    for p in old[:-4]: os.remove(p)   # 방금 만든 파일 + 지난 4개 = 5개만 남긴다(방금 파일은 후보에서 뺌 — 이름 정렬에 안 기댐)
+
+def progress_scene_start(s):
+    """장면 하나를 시작 — plan.html 의 <ol> 과 같은 전체 줄 수(사람이 미리 하는 것 · 명령 자체 · do 항목 ·
+    설명서대로 손 · 사람이 나중에 하는 것 · 결과 알림)만큼 ⬜(None)을 만들어 둔다. 무엇을 했다는 말은 안
+    담는다 — plan.html 이 day1.json 을 labels.js 의 sceneRows() 로 다시 풀어 쓴다"""
+    if PROGRESS[0] is None: return
+    pre, do, post = s.get('agentPre', []), s.get('do', []), s.get('agentPost', [])
+    or_hand = [w for w in s.get('wait', []) if w.get('orHand')]
+    do_start = len(pre) + 1
+    or_hand_start = do_start + len(do)
+    total = or_hand_start + len(or_hand) + len(post) + 1
+    steps = [None] * total
+    steps[len(pre)] = True   # 명령 자체 — 이 장면이 지금 실제로 돌고 있으니 참
+    post_start = or_hand_start + len(or_hand)
+    hand_idx = list(range(len(pre))) + list(range(post_start, post_start + len(post)))   # day.py 가 안 하는 줄 — 사람이 장면 표에서 누른다
+    scenes = PROGRESS[0]['scenes']
+    prev = next((x for x in scenes if x['id'] == s['id']), None)   # 판을 열 때 옮겨 둔 장면 — 사람이 누른 손 줄을 이어받고 자리를 넘긴다
+    if prev:
+        if len(prev.get('steps', [])) == total:
+            for i in range(len(pre)): steps[i] = prev['steps'][i]
+        scenes.remove(prev)
+    scenes.append({'id': s['id'], 'done': False, 'ok': None, 'doStart': do_start,
+                                   'orHandStart': or_hand_start, 'handIdx': hand_idx, 'steps': steps})
+    save_progress()
+
+def progress_step(i, ok):
+    if PROGRESS[0] is None: return
+    sc = PROGRESS[0]['scenes'][-1]; sc['steps'][sc['doStart'] + i] = ok
+    save_progress()
+
+def progress_or_hand(j, ok):
+    if PROGRESS[0] is None: return
+    sc = PROGRESS[0]['scenes'][-1]; sc['steps'][sc['orHandStart'] + j] = ok
+    save_progress()
+
+def progress_scene_done(ok):
+    if PROGRESS[0] is None: return
+    sc = PROGRESS[0]['scenes'][-1]; sc['done'] = True; sc['ok'] = ok; sc['steps'][-1] = ok
+    save_progress()
 
 def restore():
     if SNAP.get('mode') and run.supplied_mode() != SNAP['mode']: run.set_mode(SNAP['mode'])
@@ -677,6 +943,7 @@ def main():
     if arg('--only'): steps = [s for s in steps if s['id'] in arg('--only').split(',')]
     last = [] if '--no-cleanup' in sys.argv else [s for s in SCEN['steps'] if s.get('always')]   # 한 장면씩 돌릴 때는 끝 정리(S99)를 붙이지 않는다
     started = datetime.datetime.now(); stop_all = False; halted = None
+    start_progress(os.environ.get('RUN_ID', '판 이름 없음'), started)
     # 📂 S01(판 시작)이 빠진 실행이면 앞 실행의 판 상태(묶은 콜 · 시작 기록 SNAP)를 되살린다 — 한 장면씩(--only) 돌릴 때도(102판 S03: 시작 최저 6000 을 몰라 «0 + 1000» 으로 셈)
     if (arg('--from') or arg('--only')) and 'S01' not in [x['id'] for x in steps] and not DRY: load_state()
     # ⛔ --failed S09,… — 그 장면은 안 섰다고 치고(제품 🔴 로 기록됨) 기대는 뒤 장면은 ⚪ «앞 장면 없음»으로 넘긴다 · 판은 안 세운다(71 «최대한 진행»)
@@ -703,6 +970,8 @@ def main():
             for name, dev, why in bad: log(f'⛔ {name}({dev or "이름 없음"}) 안 닿음 — {why}')
             log('⛔ 두 폰이 다 닿지 않아 시작하지 않음 — 무선 adb 를 다시 켜거나 S23=<ip:포트> 를 주고 다시'); return
         log(f'📡 두 폰 닿음 — A24 {A24} · S23 {S23}')
+        if os.environ.get('JOY_RESUME'):   # 앞 판이 주행 중에 멈췄을 때 — 그 주행 장면을 다시 돌지 않고 재생 · 그곳 앞 일시정지 감시만 다시 건다
+            stop = os.environ['JOY_RESUME']; joy_tap('joy.play'); threading.Thread(target=joy_pause_near, args=(stop,), daemon=True).start(); log(f'▶️ 이어 가기 — JoyStick 재생 · {stop} 앞 일시정지 감시')
         # 🔁 이어 가기는 막힌 장면이 같은 길 콜을 다시 넣는다 — 앞 시도에서 연 길은 원달앱이 «이미 본 콜»로 다시 안 연다(91판 S09) · 그래서 기억부터 비운다
         if arg('--from'): run.forget_seen(f'이어 가기 {arg("--from")} — 앞 시도에서 연 같은 길 콜을 다시 볼 수 있게')
         signal.signal(signal.SIGINT, lambda *a: (_ for _ in ()).throw(KeyboardInterrupt()))
@@ -728,8 +997,13 @@ def main():
             ATTEMPTED.add(s['id'])
             if not DRY: STEP_MARK[0] = srv_mark(); PENDING['amark'] = app_mark()
             t0 = time.time()
+            progress_scene_start(s)
             try:
-                for a in s.get('do', []): act(a)
+                for i, a in enumerate(s.get('do', [])):
+                    try: act(a)
+                    except BaseException: progress_step(i, False); raise
+                    progress_step(i, True)
+                or_hand_j = 0
                 for w in s.get('wait', []):
                     if w.get('ifBound') and w['ifBound'] not in BIND and not DRY:   # 그 콜을 못 잡은 판(제품 🔴 로 기록) — 그 콜을 보는 기다림만 건너뛴다
                         note(s['id'], f'{w["ifBound"]} 기다림', None, f'{w["ifBound"]} 콜이 이번 판에 없음 — 건너뜀'); continue
@@ -737,12 +1011,16 @@ def main():
                     if DRY: log(f'  ⏳ {src} «{rx}» {w["sec"]}초'); continue
                     mk = SMARK.get(w['sinceBind'], STEP_MARK[0]) if w.get('sinceBind') and src == 'srv' else (STEP_MARK[0] if src == 'srv' else PENDING['amark'])   # 한 번만 찍히는 줄(출발)은 그 콜을 잡은 때부터 센다
                     if w.get('orHand'):   # 사용설명서 주의 — 저절로 안 서면 기사님 손으로(관제앱 단계 시트) · 🔴 가 아니라 «설명서대로 손»(71 · 기사님 «가»)
-                        try: t = wait_for(src, mk, sub(rx), w['sec'], sub(rx)); note(s['id'], f'{src}: {rx[:40]}', True, '섬')
+                        j = or_hand_j; or_hand_j += 1
+                        try:
+                            t = wait_for(src, mk, sub(rx), w['sec'], sub(rx)); note(s['id'], f'{src}: {rx[:40]}', True, '섬')
+                            progress_or_hand(j, True)
                         except Stop as e:
                             hm = srv_mark()
                             for name in w['orHand']: tap(name)
                             t = wait_for('srv', hm, w['handRe'], 30, w['handRe'])
                             note(s['id'], f'{rx[:30]} → 손', None, f'설명서 주의대로 손 — {w.get("why", "")} ({e})')
+                            progress_or_hand(j, True)
                         continue
                     t = wait_for(src, mk, sub(rx), w['sec'], sub(rx))
                     note(s['id'], f'{src}: {rx[:40]}', True, '섬')
@@ -759,6 +1037,7 @@ def main():
                 note(s['id'], '장면', False, str(e))
                 if not DRY: shot(S23, f'day_{s["id"]}_fail')
                 if s.get('onFail') == 'stop': stop_all = True
+            progress_scene_done(s['id'] in STOOD)
             save_state()
             # ⏸ 처음 막힌 장면에서 멈춘다 — 고친 뒤 그 장면부터 --from 으로 이어 간다 · 그 사이 R0 · S99 정리는 안 한다(이어 갈 콜 · 위치를 지우지 않음 · 71 · 기사님 «가»)
             if not DRY and s['id'] not in STOOD: halted = s['id']; break

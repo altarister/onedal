@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>폰 시험 장면 표</title>
+<style>
+:root{--bg:#f6f5f1;--panel:#fff;--fg:#1d2126;--mute:#6a6f76;--line:#dedbd2;--accent:#1f6f5c;--ok:#1f7a45;--bad:#b3261e;--chip:#ece9e0;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181b;--panel:#1d2125;--fg:#e6e4de;--mute:#9aa0a6;--line:#30353b;--accent:#5fc3a6;--ok:#3fa86a;--bad:#e5534b;--chip:#262b30;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15181b;--panel:#1d2125;--fg:#e6e4de;--mute:#9aa0a6;--line:#30353b;--accent:#5fc3a6;--ok:#3fa86a;--bad:#e5534b;--chip:#262b30;color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif}
+.wrap{max-width:1600px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:14px}
+h1{font-size:22px;margin:0}
+.bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;color:var(--mute)}
+.bar button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+.scene{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.scene>header{padding:12px 14px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.scene>header b{font-family:ui-monospace,Menlo,monospace}
+.scene>header .purpose{color:var(--accent);font-weight:600;width:100%}
+.res{font-size:12px;padding:1px 8px;border-radius:10px;background:var(--chip)}
+.res.ok{background:var(--ok);color:#fff}.res.bad{background:var(--bad);color:#fff}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:1100px;table-layout:fixed}
+col.n{width:44px}col.cmk{width:52px}col.who{width:190px}col.wr{width:110px}col.where{width:150px}col.ev{width:26%}col.tg{width:84px}col.of{width:60px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font-size:12px;color:var(--mute);font-weight:500}
+td.n{color:var(--mute);width:28px;text-align:right}
+td.who,td.wr,td.where{color:var(--mute);font-size:13px}
+td.task .desc{color:var(--mute);font-size:12px}
+td.task .note{color:var(--bad);font-size:12px}
+.gap{font-size:11px;padding:0 6px;border-radius:8px;background:var(--chip);color:var(--mute);white-space:nowrap}
+td.ev{font-size:13px}
+td.tg,td.of{white-space:nowrap;font-size:13px}
+.mk{width:22px;height:22px;padding:0;border:2px solid var(--fg);border-radius:4px;background:var(--panel);color:#fff;font:700 15px/18px system-ui;cursor:pointer}
+.mk.on{background:var(--ok);border-color:var(--ok)}.mk.bad{background:var(--bad);border-color:var(--bad)}
+.err{color:var(--bad)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="t">폰 시험 장면 표</h1>
+  <div class="bar"><span id="now">결과지 불러오는 중…</span><button id="new" type="button">새 판</button><span>체크박스를 누르면 ⬜ → ✅ → 🔴 → ⬜</span></div>
+  <div id="scenes"></div>
+</div>
+<script>
+// 줄 · 글자는 문제지(problems.json)에서, 체크는 최신 결과지(out/result_*.json)에서 — 화면은 둘을 그대로 그린다
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let D=null;
+function place(P,k){
+  if(k in P) return P[k][1]+' '+P[k][0].split(' ').pop();
+  if(typeof k==='string'&&k.startsWith('dest:')) return {far:'먼 동',near:'가까운 동'}[k.split(':')[1]]??k;
+  return k;
+}
+function val(k,v){
+  const N=D.names;
+  if(k==='net') return N.net[v]??v;
+  if(k==='mode') return N.mode[v]??v;
+  if(k==='modes') return v.map(m=>N.mode[m]??m).join(' → ');
+  if(k==='state') return N.state[v]??v;
+  if(k==='want') return N.want[v]??v;
+  if(k==='pick'||k==='drop'||k==='stopAt') return place(D.places,v);
+  if(Array.isArray(v)) return v.join(', ');
+  if(v&&typeof v==='object') return JSON.stringify(v);
+  return String(v).replace(/\\/g,'');
+}
+const fill=(t,a)=>t.replace(/\{(\w+)\}/g,(m,k)=>k==='args'?Object.entries(a).map(([x,y])=>`${x} ${val(x,y)}`).join(' · '):(k in a?val(k,a[k]):m));
+const target=t=>!t?'—':t.sec?`${t.sec}초 안`:esc(JSON.stringify(t));
+function draw(){
+  document.getElementById('t').textContent=D.title;
+  document.getElementById('scenes').innerHTML=D.scenes.map(s=>`<section class="scene" data-s="${esc(s.id)}">
+    <header><b>${esc(s.id)}</b><span>${esc(s.say)}</span><span class="res" data-res="${esc(s.id)}">⬜</span>${s.purpose?`<span class="purpose">${esc(s.purpose)}</span>`:''}</header>
+    <div class="scroll"><table><colgroup><col class="n"><col class="cmk"><col class="who"><col class="wr"><col class="where"><col><col class="ev"><col class="tg"><col class="of"></colgroup><thead><tr><th>번호</th><th>체크</th><th>누가</th><th>적는 쪽</th><th>어디서</th><th>할 일</th><th>무엇을 보고</th><th>목표치</th><th>틀리면</th></tr></thead><tbody>
+    ${s.checks.map((c,i)=>`<tr><td class="n">${i+1}</td><td><button type="button" class="mk" data-id="${esc(c.id)}"></button></td>
+      <td class="who">${esc(c.who)}</td><td class="wr">${esc(c.writer)}</td><td class="where">${esc(c.where)}</td>
+      <td class="task">${esc(fill(c.task,c.args))}${c.knownGap?` <span class="gap" title="${esc((D.knownGaps?.[c.knownGap]||{}).what||'')}">알려진 빈칸 ${esc(c.knownGap)}</span>`:''}${c.desc?`<div class="desc">${esc(fill(c.desc,c.args))}</div>`:''}<div class="note" data-note="${esc(c.id)}"></div></td>
+      <td class="ev">${esc(fill(c.evidence,c.args))}</td><td class="tg">${target(c.target)}</td><td class="of">${c.onFail==='stop'?'멈춤':'계속'}</td></tr>`).join('')}
+    </tbody></table></div></section>`).join('');
+}
+function show(m,ok){const c=ok===true?'mk on':ok===false?'mk bad':'mk';if(m.className!==c){m.className=c;m.textContent=ok===true?'✓':ok===false?'✕':'';}m.dataset.ok=String(ok);}
+async function tick(){
+  let r={file:null,checks:{},notes:{}};
+  try{r=await (await fetch('result',{cache:'no-store'})).json();}catch(e){}
+  const ck=r.checks||{},nt=r.notes||{};
+  document.querySelectorAll('.mk').forEach(m=>show(m,ck[m.dataset.id]??null));
+  document.querySelectorAll('[data-note]').forEach(n=>{const t=nt[n.dataset.note]||'';if(n.textContent!==t)n.textContent=t;});
+  D.scenes.forEach(s=>{const v=s.checks.map(c=>ck[c.id]??null);const b=document.querySelector(`[data-res="${CSS.escape(s.id)}"]`);
+    const [t,c]=v.includes(false)?['🔴 안 섬','res bad']:v.every(x=>x===true)?['✅ 섬','res ok']:[`⬜ ${v.filter(x=>x!==null).length}/${v.length}`,'res'];
+    if(b.textContent!==t){b.textContent=t;b.className=c;}});
+  document.getElementById('now').textContent=r.file?`결과지: ${r.file} · 만든 시각 ${r.made}`:'결과지 없음 — «새 판»을 누르거나 체크박스를 누르면 만들어집니다';
+}
+document.addEventListener('click',async e=>{
+  const m=e.target.closest('.mk');
+  if(m){const ok=m.dataset.ok==='true'?false:m.dataset.ok==='false'?null:true;show(m,ok);
+    await fetch('mark',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:m.dataset.id,ok})});tick();return;}
+  if(e.target.id==='new'){await fetch('new',{method:'POST'});tick();}
+});
+fetch('problems.json',{cache:'no-store'}).then(r=>r.json()).then(j=>{D=j;draw();tick();setInterval(tick,1000);})
+  .catch(e=>{document.getElementById('scenes').innerHTML=`<p class="err">문제지를 못 불러옴 — ${esc(e.message)}</p>`;});
+</script>
+</body>
+</html>

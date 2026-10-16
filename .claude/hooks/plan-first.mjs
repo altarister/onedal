@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 계획 우선 훅 (PreToolUse) — «계획을 먼저 말하기 전에는 도구를 못 쓴다» (기사님 지시).
+ * 계획 우선 훅 (PreToolUse) — «계획을 먼저 말하기 전에는 도구를 못 쓴다 다만 모의주행만 예외사항으로 그때는 쓴다» (기사님 지시).
  *
  * 무엇을 막나: 기사님의 **직전** 말씀 이후로 제가 «계획:» 으로 시작하는 줄을 쓰지 않았으면
  *   모든 도구 호출을 막는다 (종료 코드 2 · 까닭은 stderr 로 저에게 돌아온다).
@@ -14,12 +14,14 @@
  *   막힌 뒤 다시 부르면 앞 메시지의 계획이 보여 통과한다.
  * 왜 프로그램으로 막나: CLAUDE.md 의 글은 제가 «일의 종류»를 정하는 첫 순간에 읽히지 않는다.
  * 안 막는 것: 하위 에이전트(agent_id 가 있음) — 계획은 주 세션이 쓴다.
+ *   모의 주행 실행기(phone-e2e-test/runner.py)가 떠 있는 동안 — 판 한가운데 일시정지 · 확인을 기사님 답 왕복 없이 해야 한다. 판이 끝나면 다시 막는다.
  * 기사님 말씀으로 안 세는 것: 배경 작업 알림 · 다른 에이전트의 메시지 · 대화 요약 이어 붙임 · 슬래시 명령 기록.
  *   이것들도 기록에 user 로 실려, 세면 그 차례마다 «새 지시»가 되어 도구가 막힌다.
  *   가르는 기준은 기록의 `turnOrigin` 칸(기사님 글 = 'human')이 먼저다 — 칸이 없는 옛 기록만 글 맨 앞 모양으로 가른다.
  *   글 맨 앞만 본다 — 기사님이 알림 글을 붙여 넣으신 말씀은 그대로 센다.
  */
 import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 
 const PLAN_LINE = /^\s*(?:\*\*|__)?\s*계획\s*[:：]/m;
 
@@ -35,6 +37,9 @@ function block(reason) {
 const input = (() => { try { return JSON.parse(readStdin() || '{}'); } catch { return {}; } })();
 
 if (input.agent_id) process.exit(0);
+
+// 모의 주행(판 · phone-e2e-test/runner.py)이 도는 동안은 막지 않는다 — 판 한가운데 일시정지 · 확인을 기사님 답 왕복 없이 해야 한다(기사님)
+try { execSync('pgrep -f phone-e2e-test/runner.py', { stdio: 'ignore' }); process.exit(0); } catch { /* 안 돌면 아래 검사 */ }
 
 let lines = [];
 try { lines = readFileSync(input.transcript_path, 'utf8').split('\n').filter(Boolean); }
@@ -54,7 +59,7 @@ function isRealUserMessage(rec) {
     if (typeof rec.turnOrigin === 'string') return rec.turnOrigin === 'human';
     const raw = typeof c === 'string' ? c
         : Array.isArray(c) ? c.filter(b => b?.type === 'text').map(b => b.text).join('\n')
-        : null;
+            : null;
     if (raw == null) return false;
     return !NOT_DRIVER.test(raw);
 }

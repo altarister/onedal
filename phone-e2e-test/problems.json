@@ -1,0 +1,4286 @@
+{
+ "title": "하루 일과 폰 시험 — 문제지",
+ "fields": {
+  "id": "줄 이름표 — 뜻 없는 난수(숫자로만 된 것은 안 씀 — 브라우저가 숫자 이름을 앞으로 끌어올려 결과지 차례가 바뀐다). 줄을 넣고 빼고 다른 장면으로 옮겨도 안 바뀐다 · 결과지의 키",
+  "who": "그 일을 하는 쪽 — 에이전트 · 기사님 · 스크립트 · 원달앱 · 관제앱 · 서버",
+  "writer": "체크를 적는 쪽 — 스크립트면 실행기가 적고, 에이전트 · 기사님이면 장면 표에서 누른다",
+  "where": "어느 기기 · 화면",
+  "task": "할 일 — {이름} 자리는 그릴 때 args 값으로 채운다",
+  "desc": "자세한 설명",
+  "evidence": "무엇을 보고 맞았다고 하나",
+  "target": "목표치 — sec(몇 초 안) 등 · 없으면 null",
+  "onFail": "틀리면 — stop(판을 멈춤) · continue(기록하고 다음 줄)",
+  "run": "writer 가 스크립트일 때 실행기가 부를 동작 이름 — 없으면 null",
+  "args": "run 과 task 의 {이름} 자리에 쓰는 값",
+  "knownGap": "이 줄이 지금 틀리는 까닭이 이미 아는 제품 빈칸이면 그 빈칸 이름(맨 위 knownGaps) — 줄은 그대로 🔴 로 적히고, 빈칸이 메워지면 ✅ 로 바뀐다",
+  "offRoute": "맨 위 — 하루 경로(gpx)에서 일부러 먼 장소와 그 까닭 · 문제지 검사가 «경로 밖»으로 안 찍는다"
+ },
+ "scenes": [
+  {
+   "id": "S01",
+   "say": "판 시작 — 관제앱 다시 열기(통계 띠 닫기) · 블루투스 공급 연결 확인 · 시작 때 필터 · 설정 · 모드 기록(S99 기준) · 관제앱 출발 화면 확인",
+   "purpose": "시험을 깨끗한 상태에서 시작한다 — 지난 판 콜 · 궤적을 지우고, 서버 · 관제앱 · 블루투스가 붙었는지, 끝 정리(S99)가 견줄 시작 값을 기록",
+   "checks": [
+    {
+     "id": "1b699f",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "맥 Chrome",
+     "task": "Mac 관제웹 탭 닫기",
+     "desc": "localhost:3000/ 관제웹 탭이 열려 있으면 서버 · dev 서버가 다시 뜰 때 그 탭이 다시 붙어 관제 자리를 가져가고, S23 관제앱에 «기존 관제 세션 감지» 창이 덮인다 — 장면 표(/e2e-test/1day/)는 남긴다",
+     "evidence": "Chrome 에 localhost:3000/ 관제웹 탭이 하나도 없다",
+     "target": null,
+     "onFail": "stop",
+     "run": null,
+     "args": {}
+    },
+    {
+     "id": "ae1c79",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "맥",
+     "task": "떠 있는 시험 스크립트 끄기",
+     "desc": "pkill -f \"day.py\" → pgrep -f \"day.py\"",
+     "evidence": "pgrep 이 아무것도 안 찍는다",
+     "target": null,
+     "onFail": "stop",
+     "run": null,
+     "args": {}
+    },
+    {
+     "id": "59cccf",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "S23",
+     "task": "JoyStick 이 켜져 있으면 끄기",
+     "desc": "adb -s <S23 주소> shell pidof com.theappninjas.fakegpsjoystick 가 번호를 찍으면 am force-stop",
+     "evidence": "pidof 가 빈다 — 마지막 fused 줄에 mock 이 남아 있어도 된다(«Google 위치 정확도»를 끄면 새 진짜 위치가 안 들어와 옛 mock 점이 «마지막»으로 남음)",
+     "target": {
+      "sec": 15
+     },
+     "onFail": "stop",
+     "run": null,
+     "args": {}
+    },
+    {
+     "id": "eb31f8",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23 설정 → 위치 → 위치 서비스",
+     "task": "S23 «Google 위치 정확도» 꺼짐 확인",
+     "desc": "켜져 있으면 구글이 와이파이 · 기지국으로 셈한 진짜 위치를 31초마다 끼워 넣어(관제앱 웹뷰 위치), JoyStick 이 서 있어도 서버가 1.8km 순간이동으로 읽는다 — 도착 감지(30초 정지)가 안 서고 헛 지나침이 찍힌다(판 2 · 판 3 S06). 같은 화면의 Wi-Fi 검색 · 블루투스 검색도 끔 · JoyStick 이 돌면 network provider 를 모의 위치로 덮어 이 설정이 안 보인다 — 그래서 «JoyStick 끄기» 뒤에 본다(판 6)",
+     "evidence": "S23 위치 기록(dumpsys location)의 network provider 가 enabled=false",
+     "target": null,
+     "onFail": "stop",
+     "run": "check",
+     "args": {
+      "kind": "s23_no_net_location"
+     }
+    },
+    {
+     "id": "4f0a7a",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "맥 → 서버",
+     "task": "시험 콜 비우기(reset:calls)",
+     "desc": "cd onedal-web && pnpm reset:calls — 로컬 시험 서버만 · 실서버 · 필터 · 설정 · 좌표 캐시는 안 건드림",
+     "evidence": "«✅ 재기동 확인 (bootedAt …)» 줄",
+     "target": null,
+     "onFail": "stop",
+     "run": null,
+     "args": {}
+    },
+    {
+     "id": "0d18c0",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "stop",
+     "run": "scene_start",
+     "args": {
+      "scene": "S01"
+     }
+    },
+    {
+     "id": "8b048f",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 기준점 표시",
+     "desc": "이 뒤에 찍힌 원달앱 기록만 본다",
+     "evidence": "원달앱 로그의 기준 줄을 잡았다",
+     "target": null,
+     "onFail": "stop",
+     "run": "mark",
+     "args": {
+      "what": "app"
+     }
+    },
+    {
+     "id": "e9d1ac",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23 관제앱",
+     "task": "관제앱 다시 열기 · 통계 띠 닫기",
+     "desc": "관제앱을 닫았다 다시 엶(서버를 다시 띄워도 관제앱은 옛 콜을 들고 있음) → «📊 … 내 폰이 본 목록 기준» 띠가 보이면 «오늘은 닫기»(✕)",
+     "evidence": "화면 글자 «진행 중인 콜이 없습니다»",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "stop",
+     "run": "dashboard_fresh",
+     "args": {}
+    },
+    {
+     "id": "52cc0b",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "관제앱 ↔ 원달앱 블루투스 공급이 붙었는지",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 60
+     },
+     "onFail": "stop",
+     "run": "wait_app",
+     "args": {
+      "re": "공급 연결 살아남"
+     }
+    },
+    {
+     "id": "e84847",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 DB · A24 설정)",
+     "task": "시작 때 필터 · 설정 · 모드 기록",
+     "desc": "서버 DB 필터 · 설정(칸 이름까지)과 원달앱 모드 · 목적지 · 최저를 따로 남긴다 — 이미 있으면(앞 판이 S99 로 되돌리지 못함) 덮지 않고 그 값을 씀 · S99 가 되돌린 뒤에만 지움",
+     "evidence": "start_filter.json 에 서버 필터 · 설정 · 원달앱 모드가 있다",
+     "target": null,
+     "onFail": "stop",
+     "run": "snapshot",
+     "args": {}
+    },
+    {
+     "id": "9b26d9",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23 관제앱",
+     "task": "관제앱 출발 화면 확인",
+     "desc": "필터 창 접기 · 서랍 닫기(값은 안 바꿈 · 이미 그렇면 안 누름)",
+     "evidence": "필터 창 접힘 · 서랍 닫힘 · 모드 줄에 «{mustSee}»",
+     "target": null,
+     "onFail": "stop",
+     "run": "tidy_s23",
+     "args": {
+      "mustSee": "A24"
+     }
+    },
+    {
+     "id": "9176ca",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S02",
+   "phone": "S23",
+   "onFail": "tool",
+   "say": "필터 — 시험용 필터로 모든 칸을 맞춤(목적지 이천시 · 최소 6천 · 최대 100만 · 제외 단어 · 제외 지역 없음 · 받을 짐 전부 · 현위 반경 9 · 목적 반경 9 · 라인 반경 6km · 각도 · 할인율 · 반경 수동 · 오늘 · 서버 저장) → 관제앱 «+» → «적용»(원달앱 7천 · 오늘만) → «−» → «💾 서버 저장»(DB · 원달앱 6천)",
+   "purpose": "시작 필터가 무엇이든 시험용 필터로 맞추고, 관제앱 «적용»(오늘만)과 «서버 저장»이 서버 · 원달앱에 바로 가는가",
+   "checks": [
+    {
+     "id": "eb0f92",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S02"
+     }
+    },
+    {
+     "id": "20121d",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥 → 서버",
+     "task": "시험용 필터로 맞춤 — 목적지 {destinationCity} · 최소 {minFare}",
+     "desc": "node set_filter.mjs — 관제앱 «💾 서버 저장»과 같은 신호(소켓 update-filter + saveAsDefault) · DB 에 직접 안 씀",
+     "evidence": "서버 «DB 저장 완료» · 원달앱 «필터 도착» · DB 필터 줄이 칸마다 시험용 값",
+     "target": null,
+     "onFail": "continue",
+     "run": "set_filter",
+     "args": {
+      "destinationCity": "이천시",
+      "minFare": 6000,
+      "maxFare": 1000000,
+      "excludedKeywords": [],
+      "excludedRegions": [],
+      "isActive": true,
+      "acceptedVehicleTypes": [],
+      "pickupRadiusKm": 9.0,
+      "detourRadiusKm": 6.0,
+      "destinationRadiusKm": 9.0,
+      "srcAngleDeg": 110,
+      "dstAngleDeg": 120,
+      "quadRadiusKm": 49.0,
+      "callDiscountPct": 100,
+      "radiusAuto": false,
+      "radiusBaseKm": 50.0,
+      "routeMode": true,
+      "reservationMode": "today"
+     }
+    },
+    {
+     "id": "59888b",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.filter.open"
+     }
+    },
+    {
+     "id": "a22b92",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.filter.callkind.row"
+     }
+    },
+    {
+     "id": "e4a083",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.filter.minfare"
+     }
+    },
+    {
+     "id": "439fbb",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.filter.minfare.plus"
+     }
+    },
+    {
+     "id": "9c202a",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.filter.apply"
+     }
+    },
+    {
+     "id": "c452a2",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 필터가 {args} 인가",
+     "desc": "원달앱 설정 파일(activeFilter)을 읽어 그 값이 되나 본다",
+     "evidence": "원달앱 activeFilter 의 그 칸 값",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "expect_app_filter",
+     "args": {
+      "minFare": 7000,
+      "destinationCity": "이천시"
+     }
+    },
+    {
+     "id": "570ad8",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.filter.minfare"
+     }
+    },
+    {
+     "id": "c7173a",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.filter.minfare.minus"
+     }
+    },
+    {
+     "id": "b1204b",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 기준점 표시",
+     "desc": "이 뒤에 찍힌 서버 기록만 본다",
+     "evidence": "서버 로그의 기준 줄을 잡았다",
+     "target": null,
+     "onFail": "continue",
+     "run": "mark_srv",
+     "args": {}
+    },
+    {
+     "id": "45ccad",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.filter.save"
+     }
+    },
+    {
+     "id": "cab6be",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "«서버 저장» 단추를 누른 뒤의 서버 기록에서",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait_srv",
+     "args": {
+      "re": "영구 설정\\(baseFilter\\) DB 저장 완료"
+     }
+    },
+    {
+     "id": "65d363",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 필터가 {args} 인가",
+     "desc": "원달앱 설정 파일(activeFilter)을 읽어 그 값이 되나 본다",
+     "evidence": "원달앱 activeFilter 의 그 칸 값",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "expect_app_filter",
+     "args": {
+      "minFare": 6000
+     }
+    },
+    {
+     "id": "fd09cd",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 필터 목적지가 «{city}»인가",
+     "desc": "",
+     "evidence": "원달앱 activeFilter 목적지",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "app_filter_city",
+      "city": "이천시"
+     }
+    },
+    {
+     "id": "770a1c",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S03",
+   "phone": "both",
+   "onFail": "stop",
+   "say": "배차망 × 모드 — 시뮬을 새로 켜 인성 목록 · 원달앱 기억 비우기 → 모드 넷(자동 · 직접 · 체험 · 알람)마다 배차망 모두를 다시 켜지 않고 차례로 바꾸며 목록에 들어가, 원달앱이 받은 필터를 서버가 보낸 것과 견줌 · 끝은 알람 · 인성",
+   "purpose": "배차망마다 · 모드마다 원달앱이 목록에 들어가 화면을 따라 배차망을 바꾸고, 그때 받은 필터가 서버가 보낸 것과 같은가 · 두 배차망 글자를 섞어 읽지 않는가",
+   "checks": [
+    {
+     "id": "28d47c",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "stop",
+     "run": "scene_start",
+     "args": {
+      "scene": "S03"
+     }
+    },
+    {
+     "id": "e8d050",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬레이터 새로 열기 — {net} «신규 콜 목록»(콜 0건)",
+     "desc": "시뮬 껍데기 앱을 닫았다 다시 켬(앞 판 콜 지움) → 설정 화면 그 배차망 탭 → «개별콜» → «화면으로 시작» → 홈 → 목록",
+     "evidence": "원달앱 기록 «[페이지] … 신규 콜 목록 → LIST»",
+     "target": null,
+     "onFail": "stop",
+     "run": "sim",
+     "args": {
+      "net": "insung",
+      "fresh": true
+     }
+    },
+    {
+     "id": "db60e2",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 «이미 본 콜» 기억 비우기",
+     "desc": "서버 회차를 앞 판보다 크게 올림 → 원달앱이 다음 보고의 응답으로 비움",
+     "evidence": "«✅ 원달앱이 본 콜 기억을 비움»",
+     "target": null,
+     "onFail": "stop",
+     "run": "forget_seen",
+     "args": {}
+    },
+    {
+     "id": "ac187a",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 기준점 표시",
+     "desc": "이 뒤에 찍힌 원달앱 기록만 본다",
+     "evidence": "원달앱 로그의 기준 줄을 잡았다",
+     "target": null,
+     "onFail": "stop",
+     "run": "mark",
+     "args": {
+      "what": "app"
+     }
+    },
+    {
+     "id": "318fc6",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 · S23",
+     "task": "모드 {modes} × 배차망 모두",
+     "desc": "모드마다 관제앱 모드 단추로 바꿈 → 배차망을 하나씩 시뮬 «배차망 바꿈» 신호로 열기 → 원달앱이 받은 필터를 칸별로 기록 · 한 칸이 막혀도 다음 칸",
+     "evidence": "모드 · 배차망마다 원달앱 «타겟 앱 자동 전환 완료» · «[페이지] … → LIST»",
+     "target": null,
+     "onFail": "stop",
+     "run": "mode_net_matrix",
+     "args": {
+      "modes": [
+       "AUTO",
+       "MANUAL",
+       "SIMULATION",
+       "ALARM"
+      ]
+     }
+    },
+    {
+     "id": "b5f144",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "stop",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[페이지\\] 인성콜 .*→ LIST"
+     }
+    },
+    {
+     "id": "2c2b5e",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록에 «{re}» 줄이 없어야 함",
+     "desc": "",
+     "evidence": "장면 안 원달앱 로그",
+     "target": null,
+     "onFail": "stop",
+     "run": "check",
+     "args": {
+      "kind": "none_app",
+      "re": "두 배차망 글자가 함께 보인다"
+     }
+    },
+    {
+     "id": "e049ea",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S04",
+   "say": "첫 콜 — 인성 콜 하나(모다아울렛 → 이안로지스 4만)를 넣고, 원달앱이 상세를 열면(알람 «삑») 기사님 대신 확정 → KEEP → 닫기",
+   "phone": "both",
+   "expect": "열린 콜의 서버 «🎨 [판정] 🔵 …점 — 돈 {요금}만»(판정 색 설정이 매김) → 손 «확정»(인성 확정 전 상세에서만) → «결재 처리 완료 (그 콜 · ORDER_CONFIRMED)» → «닫기» · 🔵 아닌 콜은 안 누름(보기만)",
+   "wrong": "🔵 콜인데 안 잡음 · 🔵 아닌 콜을 잡음 · 둘 다 🔵 아니면 ⚪ «파랑 콜 없음»(제품 문제 아님 · 그 판의 판정)",
+   "onFail": "tool",
+   "limitSec": 240,
+   "note": "S-b 결과는 기사님께 보여 드릴 재료(71) — 거절 뒤 둘째 콜이 안 열리면 그 자체가 결과",
+   "purpose": "알람 모드 첫 콜 — 기사님이 손으로 확정하면 서버가 바로 KEEP 하고 운행에 오르는가(손 확정 길)",
+   "checks": [
+    {
+     "id": "8def58",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S04"
+     }
+    },
+    {
+     "id": "032a3b",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "moda",
+      "drop": "ian",
+      "fare": 40000,
+      "veh": "filter",
+      "tag": "fare_low_score_high",
+      "bind": "C1"
+     }
+    },
+    {
+     "id": "53a88f",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "{net} 상세에서 확정 → KEEP",
+     "desc": "원달앱이 그 콜 상세를 연 뒤(삑) 확정 단추를 누름 · 판정 색은 기록만",
+     "evidence": "서버 «KEEP» 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C1",
+      "how": "hand",
+      "net": "insung",
+      "sec": 60
+     }
+    },
+    {
+     "id": "57f06f",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "상세 진입\\] {fare:C1}원"
+     }
+    },
+    {
+     "id": "20f611",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "출생\\].*상차지 통화"
+     }
+    },
+    {
+     "id": "12ff61",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S05",
+   "phone": "both",
+   "needs": [
+    "C1 KEEP"
+   ],
+   "onFail": "tool",
+   "say": "출발 전 합짐(자동) — 첫 콜을 잡고 아직 집에 있을 때 자동 모드로 바꾸고, 인성 콜(곤지암 487 → 이천 관고동)을 원달앱이 스스로 확정하면 결재석 KEEP · 끝에 알람으로 되돌림(S09 손 확정이 알람)",
+   "purpose": "출발 전에 자동 모드로 합짐을 잡을 수 있는가 — 원달앱이 스스로 확정하고 결재석 KEEP 이 원달앱에 집행되어 첫 콜과 함께 운행에 오르는가",
+   "checks": [
+    {
+     "id": "7367e3",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S05"
+     }
+    },
+    {
+     "id": "dcbf9e",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "원달앱 모드를 «{mode}»로",
+     "desc": "관제앱 모드 단추를 글자로 찾아 누름 · 이미 그 모드면 안 누름",
+     "evidence": "원달앱이 받은 모드가 {mode}",
+     "target": null,
+     "onFail": "continue",
+     "run": "mode",
+     "args": {
+      "mode": "AUTO"
+     }
+    },
+    {
+     "id": "406a96",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "insung"
+     }
+    },
+    {
+     "id": "4849f0",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "gj487",
+      "drop": "gwango",
+      "fare": 30000,
+      "veh": "filter",
+      "tag": "merge_before_depart",
+      "bind": "C1b"
+     }
+    },
+    {
+     "id": "0b278c",
+     "who": "원달앱이 확정 → 스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23 결재석",
+     "task": "결재석 {want}",
+     "desc": "원달앱이 스스로 확정한 뒤 결재석 그 요금 칸의 단추를 누름 · 판정 색은 기록만",
+     "evidence": "서버 결재 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C1b",
+      "how": "auto",
+      "sec": 60,
+      "want": "keep"
+     }
+    },
+    {
+     "id": "18595c",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "원달앱 모드를 «{mode}»로",
+     "desc": "관제앱 모드 단추를 글자로 찾아 누름 · 이미 그 모드면 안 누름",
+     "evidence": "원달앱이 받은 모드가 {mode}",
+     "target": null,
+     "onFail": "continue",
+     "run": "mode",
+     "args": {
+      "mode": "ALARM"
+     }
+    },
+    {
+     "id": "936f6c",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[AUTO\\] 확정 버튼 클릭"
+     }
+    },
+    {
+     "id": "f6b841",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "판결 KEEP 집행 완료"
+     }
+    },
+    {
+     "id": "50a30a",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록에 «{re}» 줄이 없어야 함",
+     "desc": "",
+     "evidence": "장면 안 원달앱 로그",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "none_app",
+      "re": "안전취소 타임아웃"
+     }
+    },
+    {
+     "id": "0b216a",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S06",
+   "say": "JoyStick 하루 경로 걸고 집에서 일시정지(한 번만) → 주행 ① 집 → 모다아울렛 — 재생 → 모다 앞에서 일시정지 · 첫짐 상차지에 서면 «도착 감지»(상차 완료는 안 섬)",
+   "phone": "S23",
+   "expect": "모의 주행으로 모다아울렛 500m 안에서 서면 «🏁 [도착 감지] 상차지 500m 이내 (출처 …) — 1회 발화»(geoMotion.ts:858) · 상차 완료는 기사님 손이라 «📦 [상차 완료] C1» 없음",
+   "wrong": "도착 감지가 두 번 이상 · 서지도 않았는데 도착 · 손 없이 «📦 [상차 완료]» 줄",
+   "onFail": "tool",
+   "limitSec": 1800,
+   "needs": [
+    "C1 KEEP"
+   ],
+   "purpose": "모의 주행으로 상차지에 서면 서버가 «도착»을 저절로 알아보는가",
+   "checks": [
+    {
+     "id": "466b15",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S06"
+     }
+    },
+    {
+     "id": "64d865",
+     "who": "기사님",
+     "writer": "스크립트",
+     "where": "S23 GPS JoyStick",
+     "task": "하루 경로 걸기(한 번만)",
+     "desc": "JoyStick 열기 → 광고 닫기 → «경로 설정» → 하루 경로 gpx → «도착시 멈춤» · «텔레포트 시작» → «시작» → 관제앱을 앞으로 · 집으로 뛰면 조작 띠의 일시정지",
+     "evidence": "S23 mock 위치가 집 300m 안에 서고 일시정지됨",
+     "target": {
+      "sec": 900
+     },
+     "onFail": "continue",
+     "run": "joystick",
+     "args": {
+      "start": true
+     }
+    },
+    {
+     "id": "64d10f",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23 GPS JoyStick",
+     "task": "재생 → {stopAt} 앞에서 일시정지",
+     "desc": "조작 띠의 ▶ 를 화면에서 색으로 찾아 누름(관제앱은 앞에 그대로) → 1초마다 위치를 읽어 그곳 450m 앞이면 ❚❚ 를 색으로 찾아 누름 · ■ 는 안 누름(띠가 사라짐) · 못 누르면 기사님 몫으로 넘김",
+     "evidence": "S23 위치가 {stopAt} 450m 앞에 섬",
+     "target": null,
+     "onFail": "continue",
+     "run": "joystick",
+     "args": {
+      "stopAt": "moda"
+     }
+    },
+    {
+     "id": "d56919",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 600
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "도착 감지\\] 상차지"
+     }
+    },
+    {
+     "id": "6008b4",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록에 «{re}» 줄이 없어야 함",
+     "desc": "",
+     "evidence": "장면 안 서버 로그",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "not_server",
+      "re": "상차 완료\\] {C1}"
+     }
+    },
+    {
+     "id": "e896e2",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}» 정확히 {n}번",
+     "desc": "",
+     "evidence": "장면 안 서버 로그 줄 수",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "count_server",
+      "re": "도착 감지\\] 상차지",
+      "n": 1
+     }
+    },
+    {
+     "id": "ac32e5",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S06b",
+   "say": "상차지에 선 채 손 «✅ 상차 완료» — 단계가 넘어간다",
+   "phone": "S23",
+   "expect": "단계 시트 «✅ 상차 완료» → 서버 «📦 [상차 완료] C1 (…) → …»(milestones.ts:181 · MILESTONE_LABEL) · 관제웹 단계가 하차 쪽으로 넘어감",
+   "wrong": "누른 뒤 20초 안에 단계 줄 없음 · 다른 콜(C2 · C3)이 상차 완료로 찍힘",
+   "onFail": "tool",
+   "limitSec": 120,
+   "needs": [
+    "C1 상차지 도착"
+   ],
+   "purpose": "단계 시트 «상차 완료»가 단계를 넘기는가",
+   "checks": [
+    {
+     "id": "58a950",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S06b"
+     }
+    },
+    {
+     "id": "7ed366",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.call.c1row"
+     }
+    },
+    {
+     "id": "a969e2",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json) · 못 누르면(점이 머리줄에 가림 · 시트가 덜 열림) 사람에게 넘기지 않고 다음 줄 — 다음 줄의 완료 단추 찾기가 단계 칸을 옆으로 밀어 찾는다(판 9)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.step.nav.pickedup"
+     }
+    },
+    {
+     "id": "0d4dd4",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.step.pickedup"
+     }
+    },
+    {
+     "id": "8795fc",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "상차 완료\\] {C1}"
+     }
+    },
+    {
+     "id": "27c937",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S09",
+   "say": "합짐 문제 콜(화물24시 · 알람) — 주소가 읍 · 면까지만 들어오는 C2(곤지암 41 → 신둔 우리주유소): 판정이 🔴인지 보고 확정 안 누름(보기만) · 취소 횟수 그대로",
+   "phone": "both",
+   "expect": "알람이라 원달앱이 통과 콜을 스스로 엶 → «🚪 [상세 진입] {요금}원 (곤지암…→신둔…) … 모드 ALARM»(HijackService.kt:1785) → 실행기가 화물24시 상세 «확정»(기사님 손 — matchType MANUAL) → 서버 «✋ [Two-Track MANUAL] 기사님 직접 터치 콜. 즉시 KEEP 처리.»(detail.ts:224) → «🔄 [State Machine] 추가 콜 확정 (GATHERING 유지)» · «🗺️ [경유 갱신] KEEP 후 destinationKeywords N개» · «🚚 [적재 용량] …» · 원달앱 필터 = 서버 필터",
+   "wrong": "원달앱이 상세를 안 엶(알람 필터 밖) · 손 확정인데 결재석에 KEEP/거절이 뜸(MANUAL 즉시 KEEP 이 안 됨) · 첫짐 C1 이 밀려남 · «차종 인식 실패 → 만재로 간주»",
+   "onFail": "tool",
+   "limitSec": 240,
+   "needs": [
+    "C1 상차지 도착"
+   ],
+   "purpose": "주소가 덜 찬 콜(정거장이 읍 · 면 가운데 점)을 판정이 빨강으로 매기는가 — 알람이라 확정 전에 끝나고 취소 횟수는 안 는다",
+   "checks": [
+    {
+     "id": "1e7e08",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S09"
+     }
+    },
+    {
+     "id": "0d5107",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "hwamul24"
+     }
+    },
+    {
+     "id": "26f14a",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "hwamul24",
+      "pick": "gonjiam41",
+      "drop": "woori",
+      "fare": 25000,
+      "veh": "filter",
+      "tag": "merge",
+      "bind": "C2"
+     }
+    },
+    {
+     "id": "aca658",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23 결재석",
+     "task": "확정 안 누름(보기만)",
+     "desc": "알람이라 원달앱은 상세를 열어 미리보기만 — 실행기는 판정 색만 적고 확정을 누르지 않는다 · 원달앱은 정해진 시간 뒤 목록으로 돌아감",
+     "evidence": "원달앱이 C2 상세를 열었다(«상세 진입] {요금}원») — 이 문제 콜이 필터를 통과했다는 증거(알려진 빈칸 addr-partial 의 반쪽)",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C2",
+      "how": "view",
+      "net": "hwamul24",
+      "sec": 60
+     },
+     "knownGap": "addr-partial"
+    },
+    {
+     "id": "8afd70",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 판정)",
+     "task": "C2 판정 색이 «{want}»인가",
+     "desc": "확인 줄 — 장면이 섰는지 셀 때 빠진다(뒤 장면을 안 막음). 지금 제품은 🟡 를 내서 이 줄은 🔴 로 적히고, 알려진 빈칸 addr-partial 이 메워지면 ✅",
+     "evidence": "서버 판정 색(그 콜)",
+     "target": {
+      "sec": 60
+     },
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "judge_color",
+      "bind": "C2",
+      "want": "🔴",
+      "because": "주소"
+     },
+     "knownGap": "addr-partial"
+    },
+    {
+     "id": "0e7fec",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록에 «{re}» 줄이 없어야 함",
+     "desc": "확정 안 누름 — 아무도 확정을 안 눌렀는지",
+     "evidence": "장면 안 원달앱 로그",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "none_app",
+      "re": "✋ \\[손 수락\\]"
+     }
+    },
+    {
+     "id": "e4a6cf",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}» 정확히 {n}번",
+     "desc": "확정 전에 끝났으니 취소 횟수가 안 는다",
+     "evidence": "장면 안 서버 로그 줄 수",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "count_server",
+      "re": "취소 카운트 \\+1",
+      "n": 0
+     }
+    },
+    {
+     "id": "55ba62",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가 · S22 서랍 사진에 치운 C2 가 한 줄 더 보이면 그 줄은 이 장면의 문제 콜",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S09b",
+   "say": "합짐(인성 · 알람) — 통과용 C2b(곤지암 41 → 신둔 우리주유소): 원달앱이 스스로 상세를 열면 «확정» → KEEP",
+   "phone": "both",
+   "expect": "원달앱 «✋ [손 수락]» · 서버 «[Two-Track MANUAL]» · «추가 콜 확정» · «경유 갱신]» · «적재 용량]» · 원달앱 필터 = 서버 필터",
+   "wrong": "«이미 본 콜»로 안 열림(같은 길 기억 — 앞 줄에서 비움) · 확정 안 됨",
+   "onFail": "tool",
+   "limitSec": 300,
+   "needs": [
+    "C1 상차지 도착"
+   ],
+   "purpose": "S09 의 문제 콜과 같은 길을 번지까지 들어오는 인성 콜로 — 뒤 장면(S13 지나침 · 귀가 셈)이 이 콜로 돈다",
+   "checks": [
+    {
+     "id": "b0477a",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S09b"
+     }
+    },
+    {
+     "id": "c9cacd",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 «이미 본 콜» 기억 비우기",
+     "desc": "S09 C2 와 같은 «곤지암읍 → 신둔면»이라 10분 안이면 원달앱이 «이미 본 콜»로 안 연다 — 시뮬이 같은 주소를 다시 써서 생기는 시험 도구 몫으로 비운다. 실제 하루에서는 이 기억이 다른 배차망의 좋은 콜을 막을 수 있다(알려진 빈칸 seen-cross-net — 확인할 것)",
+     "evidence": "«✅ 원달앱이 본 콜 기억을 비움»",
+     "target": null,
+     "onFail": "continue",
+     "run": "forget_seen",
+     "args": {},
+     "knownGap": "seen-cross-net"
+    },
+    {
+     "id": "4bbbcd",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "insung"
+     }
+    },
+    {
+     "id": "0d1354",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "gonjiam41",
+      "drop": "woori",
+      "fare": 26000,
+      "veh": "filter",
+      "tag": "merge",
+      "bind": "C2b"
+     }
+    },
+    {
+     "id": "ab9e1c",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "{net} 상세에서 확정 → KEEP",
+     "desc": "원달앱이 그 콜 상세를 연 뒤(삑) 확정 단추를 누름 · 판정 색은 기록만",
+     "evidence": "서버 «KEEP» 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C2b",
+      "how": "hand",
+      "net": "insung",
+      "sec": 60
+     }
+    },
+    {
+     "id": "5afd20",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "\\[Two-Track MANUAL\\]"
+     }
+    },
+    {
+     "id": "560e36",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "추가 콜 확정"
+     }
+    },
+    {
+     "id": "ca6adb",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "경유 갱신\\]"
+     }
+    },
+    {
+     "id": "1d39bb",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "적재 용량\\]"
+     }
+    },
+    {
+     "id": "281ecb",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 · 맥",
+     "task": "원달앱 필터 = 서버 필터",
+     "desc": "",
+     "evidence": "원달앱 activeFilter 와 서버가 보낸 필터 칸마다",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "app_filter_eq_server"
+     }
+    },
+    {
+     "id": "a63ad5",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S10",
+   "say": "자동으로 바꾸고 인성 합짐 하나를 원달앱이 스스로 잡는다(곤지암 487 → 이천 관고동) — 결재석 KEEP",
+   "phone": "both",
+   "expect": "자동 · 인성 → 원달앱이 스스로 눌러 «💥 [AUTO] …» · «[AUTO] 확정 버튼 클릭» → 안전취소 30초 타이머 · 결재석 KEEP → 원달앱 «판결 KEEP 집행 완료» · 서버 «추가 콜 확정»",
+   "wrong": "자동인데 확정을 안 누름 · KEEP 뒤에도 30초 뒤 «안전취소 타임아웃» · 합짐 경유 밖 콜인데 열림",
+   "onFail": "tool",
+   "limitSec": 240,
+   "needs": [
+    "C1 KEEP"
+   ],
+   "purpose": "자동 모드 합짐 — 원달앱이 스스로 확정하고 결재석 KEEP 이 원달앱에 집행되는가",
+   "checks": [
+    {
+     "id": "ad943c",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S10"
+     }
+    },
+    {
+     "id": "e910d4",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "원달앱 모드를 «{mode}»로",
+     "desc": "관제앱 모드 단추를 글자로 찾아 누름 · 이미 그 모드면 안 누름",
+     "evidence": "원달앱이 받은 모드가 {mode}",
+     "target": null,
+     "onFail": "continue",
+     "run": "mode",
+     "args": {
+      "mode": "AUTO"
+     }
+    },
+    {
+     "id": "53cd30",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "insung"
+     }
+    },
+    {
+     "id": "e9cc4b",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "gj487",
+      "drop": "gwango",
+      "fare": 30000,
+      "veh": "filter",
+      "tag": "auto_merge",
+      "bind": "C3"
+     }
+    },
+    {
+     "id": "7bd4de",
+     "who": "원달앱이 확정 → 스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23 결재석",
+     "task": "결재석 {want}",
+     "desc": "원달앱이 스스로 확정한 뒤 결재석 그 요금 칸의 단추를 누름 · 판정 색은 기록만",
+     "evidence": "서버 결재 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C3",
+      "how": "auto",
+      "sec": 60,
+      "want": "keep"
+     }
+    },
+    {
+     "id": "c0df87",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[AUTO\\] 확정 버튼 클릭"
+     }
+    },
+    {
+     "id": "9c9bfe",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "판결 KEEP 집행 완료"
+     }
+    },
+    {
+     "id": "ffded7",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록에 «{re}» 줄이 없어야 함",
+     "desc": "",
+     "evidence": "장면 안 원달앱 로그",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "none_app",
+      "re": "안전취소 타임아웃"
+     }
+    },
+    {
+     "id": "cf7e88",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S11",
+   "say": "주행 ② 모다 → 이천 관고동 — 재생 · 달리기 시작하면 «운행 중» · 🚀 출발 · 관고동 앞에서 일시정지",
+   "phone": "S23",
+   "expect": "첫짐(C1)을 잡은 뒤 처음 달릴 때 서버 «🚀 [출발] 이제 모으지 않고 갑니다 — 운행 중 유지»(filterManager.ts:707) 한 번 — 콜이 0건이 될 때까지 다시 안 찍힌다(L1 에서 이미 찍혔으면 그것으로 섬) · 관제웹 운행 중 화면",
+   "wrong": "정차 중인데 출발 · 출발 뒤 정류장에서 다시 «모으는 중»으로 풀림",
+   "onFail": "tool",
+   "limitSec": 300,
+   "needs": [
+    "C1 상차 완료"
+   ],
+   "purpose": "상차 뒤 이천 쪽으로 달리기 시작하면 관제웹이 «운행 중»으로 보는가",
+   "checks": [
+    {
+     "id": "6be627",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S11"
+     }
+    },
+    {
+     "id": "88b091",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23 GPS JoyStick",
+     "task": "재생 → {stopAt} 앞에서 일시정지",
+     "desc": "조작 띠의 ▶ 를 화면에서 색으로 찾아 누름(관제앱은 앞에 그대로) → 1초마다 위치를 읽어 그곳 450m 앞이면 ❚❚ 를 색으로 찾아 누름 · ■ 는 안 누름(띠가 사라짐) · 못 누르면 기사님 몫으로 넘김",
+     "evidence": "S23 위치가 {stopAt} 450m 앞에 섬",
+     "target": null,
+     "onFail": "continue",
+     "run": "joystick",
+     "args": {
+      "stopAt": "gwango"
+     }
+    },
+    {
+     "id": "98b653",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "관제웹 «운행 중»",
+     "desc": "",
+     "evidence": "서버 «주행판정» 줄이 drive",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "web_drive"
+     }
+    },
+    {
+     "id": "3044d5",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S12",
+   "say": "달리는 중 픽커 콜(시뮬) — 자동이어도 픽커에서는 알림으로 바뀐다 · 잡지 않고 거절",
+   "phone": "both",
+   "expect": "픽커 화면이 되면 원달앱 «🎯 타겟 앱 자동 전환 완료: 카카오T픽커»(HijackService.kt:170) → «🖼️ [모드 테두리] AUTO → ALARM»(ModeFrame.kt:91 · 규칙 TargetApp.kt:26 · 픽커는 AUTO 없음 KakaoPickerPlugin.kt:32) → 픽커 콜 상세 «모드 ALARM — 판정만 받고 확정·수락은 기사님»(PreConfirmSequence.kt:501) → 결재석 거절 → 인성으로 돌아오면 «🖼️ [모드 테두리] ALARM → AUTO». «🎛️ [도는 모드]»(TelemetryManager.kt:294)는 배차망 규칙 전 값이라 픽커에서도 AUTO — 그 줄로 보지 않는다 · 이 순간 결재를 기다리는 계약은 없다(C3 KEEP 집행 뒤)",
+   "wrong": "픽커에서 원달앱이 수락 칸을 누름(실물이면 계약) · 테두리가 AUTO 그대로 · 인성으로 돌아와도 ALARM 에 머묾 · 픽커 콜이 필터(거리 · 차종)에 막혀 결재석에 안 뜸 — 그러면 reject 는 ⚪",
+   "onFail": "tool",
+   "limitSec": 240,
+   "purpose": "달리는 중 픽커 콜 — 자동이어도 픽커에서는 알람으로 바뀌고, 보기만 하면 다시 자동으로 돌아오는가",
+   "checks": [
+    {
+     "id": "f96369",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S12"
+     }
+    },
+    {
+     "id": "b46239",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "picker"
+     }
+    },
+    {
+     "id": "2994de",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "picker",
+      "pick": "woori",
+      "drop": "dest:near:4",
+      "fare": 20000,
+      "veh": "snapshot",
+      "tag": "picker",
+      "bind": "P2"
+     }
+    },
+    {
+     "id": "e2c226",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "원달앱 스스로 그 줄을 찍는지 기다린다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait_app",
+     "args": {
+      "re": "타겟 앱 자동 전환 완료: 픽커"
+     }
+    },
+    {
+     "id": "a8d3ef",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "원달앱 스스로 그 줄을 찍는지 기다린다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait_app",
+     "args": {
+      "re": "모드 테두리\\] AUTO → ALARM"
+     }
+    },
+    {
+     "id": "07be27",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23 결재석",
+     "task": "보기만 · 미리보기 손으로 치움",
+     "desc": "결재석 칸 본문을 눌러 치움",
+     "evidence": "결재석 칸이 치워짐",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "P2",
+      "how": "view",
+      "sec": 40,
+      "dismiss": true
+     }
+    },
+    {
+     "id": "450ff5",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "insung"
+     }
+    },
+    {
+     "id": "a8b6ed",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 60
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "모드 테두리\\] ALARM → AUTO"
+     }
+    },
+    {
+     "id": "f1344c",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S13",
+   "say": "노선 하차 둘을 달리며 지나침 — 합짐 C2b(우리주유소) → 첫짐 C1(이안로지스 · 노선 하차 가운데 마지막에서 두 번째)",
+   "phone": "S23",
+   "expect": "C2b 우리주유소: «👣 [지나침 감시 시작] 하차지» → «🚚 [지나침] 하차지에서 Nm 멀어졌습니다 — 도착·완료를 순차로 찍습니다 (C2b 앞 8자)»(geoMotion.ts:791) → 단계 «📦 [하차지 도착] C2b» · «📦 [하차 완료] C2b» · C1 이안로지스도 같은 길로 «📦 [하차지 도착] C1»(달리며 지나치면 지나침 · 서면 도착 감지 · 어느 쪽이든 단계 줄은 같음)",
+   "wrong": "지나쳤는데 지나침 줄 없음(사슬 멈춤) · C1 보다 C2b 가 늦게 찍힘(순서 뒤집힘) · 하차 뒤 상차가 다시 찍힘",
+   "onFail": "tool",
+   "limitSec": 900,
+   "needs": [
+    "C1 상차 완료",
+    "C2b KEEP"
+   ],
+   "purpose": "노선 하차 둘을 달리며 지나칠 때 «지나침» · «하차지 도착»이 서는가",
+   "checks": [
+    {
+     "id": "48089c",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S13"
+     }
+    },
+    {
+     "id": "a8935a",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "그 콜({ifBound})이 이번 판에 없으면 건너뜀 · 장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 600
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "\\[지나침\\] 하차지[^\\n]*{C2b}",
+      "ifBound": "C2b"
+     }
+    },
+    {
+     "id": "83906f",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 600
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "하차지 도착\\] {C1}"
+     }
+    },
+    {
+     "id": "00ca29",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "{call} 하차 — «{kind_of}»",
+     "desc": "",
+     "evidence": "서버 로그의 그 콜 하차 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "via",
+      "call": "C2b",
+      "kind_of": "지나침"
+     }
+    },
+    {
+     "id": "80a26e",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "{call} 하차 — «{kind_of}»",
+     "desc": "",
+     "evidence": "서버 로그의 그 콜 하차 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "via",
+      "call": "C1",
+      "kind_of": "지나침"
+     }
+    },
+    {
+     "id": "1f4b6c",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S18",
+   "say": "귀가 단추 — 노선 마지막에서 두 번째 하차지(C1 이안로지스)에 도착한 순간 «↩️ 복귀 켬»(기사님: «마지막에서 2번째 하차지에 도착하면 누른다»)",
+   "phone": "S23",
+   "expect": "C1 하차지 도착 순간 «↩️ 복귀 켬» → 서버 «🧭 [국면 전환] DEST → HOME»(milestones.ts:262) → «🧭 [국면 전환] 완료 → … · 목적 광주시»(:340) → 목적지 = 집 시 ∪ 진행 중 마지막 확정 콜(C3 · 목표 이천)의 목표 시 → «🕸️ [필터 목록] 목적지 광주시 ∪ 이천시»(filterManager.ts:362) · «🔵 [하차 목록] 광주시:콜 없음 [마름모(현위치)·원] … | 이천시:…·가까이 […원(가까이 옴 · 상차 동 안 뺌)]» → 원달앱 판 바뀜(«📋 [필터 동기화]» → «🔄 [필터 도착]»)",
+   "wrong": "«완료» 줄 없이 «설정에 집 주소가 없습니다» · 필터 목록이 «광주시» 하나(이천 콜 C3 가 진행 중인데 이천이 빠짐) · 원달앱 판이 안 바뀜",
+   "onFail": "stop",
+   "limitSec": 120,
+   "needs": [
+    "C1 하차지 도착"
+   ],
+   "purpose": "마지막에서 두 번째 하차지에 닿아 귀가 단추를 누르면 국면이 집 쪽(HOME)으로 바뀌는가",
+   "checks": [
+    {
+     "id": "5067cc",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "stop",
+     "run": "scene_start",
+     "args": {
+      "scene": "S18"
+     }
+    },
+    {
+     "id": "70dbdc",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "stop",
+     "run": "tap",
+     "args": {
+      "name": "s23.filter.open"
+     }
+    },
+    {
+     "id": "56604c",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "stop",
+     "run": "tap",
+     "args": {
+      "name": "s23.filter.home.on"
+     }
+    },
+    {
+     "id": "c55bce",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23 관제앱",
+     "task": "관제앱 출발 화면 확인",
+     "desc": "필터 창 접기 · 서랍 닫기(값은 안 바꿈 · 이미 그렇면 안 누름)",
+     "evidence": "필터 창 접힘 · 서랍 닫힘 · 모드 줄에 «{mustSee}»",
+     "target": null,
+     "onFail": "stop",
+     "run": "tidy_s23",
+     "args": {
+      "mustSee": "A24"
+     }
+    },
+    {
+     "id": "7d2a67",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "stop",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "국면 전환\\] DEST → HOME"
+     }
+    },
+    {
+     "id": "90ea4a",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "stop",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[필터 도착\\]|\\[필터 바뀜\\]"
+     }
+    },
+    {
+     "id": "38ca77",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S13b",
+   "say": "L2 끝 관고동에서 서서 노선 마지막 하차(자동 합짐 C3) «도착 감지» — 귀가는 켠 채",
+   "phone": "S23",
+   "expect": "관고동에서 서면 «🏁 [도착 감지] 하차지 500m 이내 … — 1회 발화» → «📦 [하차지 도착] C3» · 귀가 켠 채 C3 가 아직 진행 중이라 목적지는 «광주시 ∪ 이천시» 그대로",
+   "wrong": "도착 감지 두 번 · 도착 뒤 필터 목록이 «광주시» 하나로 접힘(C3 를 끝난 콜로 셈)",
+   "onFail": "tool",
+   "limitSec": 700,
+   "needs": [
+    "귀가 켬",
+    "C3 KEEP"
+   ],
+   "purpose": "노선 마지막 하차지에 서면 «도착»이 서는가(귀가 켠 채)",
+   "checks": [
+    {
+     "id": "2a4ff8",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S13b"
+     }
+    },
+    {
+     "id": "78cc53",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 600
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "하차지 도착\\] {C3}"
+     }
+    },
+    {
+     "id": "9810ae",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "{call} 하차 — «{kind_of}»",
+     "desc": "",
+     "evidence": "서버 로그의 그 콜 하차 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "via",
+      "call": "C3",
+      "kind_of": "도착 감지"
+     }
+    },
+    {
+     "id": "3ff7f1",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}» 정확히 {n}번",
+     "desc": "관고동 하차지는 C1b(S05)와 C3(S10) 둘 — 하차지가 같은 다른 콜 둘이라 도착 감지도 둘",
+     "evidence": "장면 안 서버 로그 줄 수",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "count_server",
+      "re": "도착 감지\\] 하차지",
+      "n": 2
+     }
+    },
+    {
+     "id": "46ed3d",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S14",
+   "say": "귀가 뒤 · 첫 복귀콜 KEEP 전 — 이천 관내 콜(화물24시 · 자동 · 관고동 → 중리동)이 아직 열린다(기사님: «복귀콜이 나오기 전까지 관내콜을 진행») — C4(화물24시)는 주소가 읍 · 면까지만이라 문제 콜(확정 뒤 결재석 거절 · 판정 🔴 · 취소 +1), 관내 상차는 같은 길 인성 C4b",
+   "phone": "both",
+   "expect": "기사님 규칙: 귀가 뒤 · 첫 복귀콜 KEEP 전이라 관내 필터가 산다 — 이천 «가까이 옴»(filterArea.ts:166 · 내 위치 ↔ 이천 중심 ≤ 목적 반경)이면 상차 = 현위치 원 · 하차 = 이천 원 전체(filterNet.ts:133-138) → 관고동 → 중리동 C4 가 통과 → «[AUTO] 확정 버튼 클릭» → KEEP → 서 있는 자리라 «🏁 [도착 감지] 상차지» · 고친 뒤 기대: C4 KEEP 뒤에도 «🕸️ [필터 목록] 목적지 광주시 ∪ 이천시» 그대로(관내콜은 복귀콜이 아님)",
+   "wrong": "지금 코드(71 에게 «다름» 보고): C4 를 KEEP 하면 목표 시가 그 순간 필터값 «광주시»로 적혀(dispatchEngine.ts:639 goalCity = goalCityOf) 마지막 콜이 C4 가 되고 목적지가 «광주시» 하나로 접힌다(filterArea.ts:79) — C4 KEEP 직후 «🕸️ [필터 목록] 목적지 광주시»가 찍히면 이 결함 · 첫 복귀콜 전에 관내 필터가 사라짐 · C4 자체가 안 열리면 반경(F37) 또는 C3 가 끝난 콜로 셈 · 판정: C4 KEEP 뒤 서버 마지막 «🕸️ [필터 목록] 목적지» 가 모음 {이천시 · 광주시}(차례 무관)가 아니면 🔴 — «광주시» 하나면 F41",
+   "onFail": "tool",
+   "limitSec": 300,
+   "needs": [
+    "귀가 켬",
+    "C3 하차지 도착"
+   ],
+   "purpose": "귀가 뒤 첫 복귀콜을 잡기 전에는 이천 관내 콜이 아직 열리는가",
+   "checks": [
+    {
+     "id": "73affd",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S14"
+     }
+    },
+    {
+     "id": "d7923e",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "hwamul24"
+     }
+    },
+    {
+     "id": "57714f",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "hwamul24",
+      "pick": "gwango",
+      "drop": "jungri",
+      "fare": 15000,
+      "veh": "filter",
+      "tag": "local",
+      "bind": "C4"
+     },
+     "knownGap": "addr-partial"
+    },
+    {
+     "id": "2bb444",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[AUTO\\] 확정 버튼 클릭"
+     }
+    },
+    {
+     "id": "06a059",
+     "who": "원달앱이 확정 → 스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23 결재석",
+     "task": "결재석 {want}",
+     "desc": "원달앱이 스스로 확정한 뒤 결재석 그 요금 칸의 단추를 누름 · 판정 색은 기록만 — 문제 콜이라 거절",
+     "evidence": "서버 결재 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C4",
+      "how": "auto",
+      "sec": 60,
+      "want": "reject"
+     },
+     "knownGap": "addr-partial"
+    },
+    {
+     "id": "f3d9ac",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "결재석 거절을 원달앱이 화물24시에서 끝까지 집행했는지 — 이걸 기다린 뒤에 배차망을 바꿔야 원달앱이 취소하러 돌아가는 사이에 다음 콜이 안 들어온다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "판결 CANCEL 집행 완료"
+     },
+     "knownGap": "hw24-no-cancel"
+    },
+    {
+     "id": "efcc87",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 판정)",
+     "task": "C4 판정 색이 «{want}»인가",
+     "desc": "확인 줄 — 장면 섬 셈에서 빠짐. 화물24시 콜은 정거장이 읍 · 면 가운데 점이라 걸러지거나 빨강이어야 한다 — 지금 제품은 아니어서 🔴 로 적힘",
+     "evidence": "서버 판정 색(그 콜)",
+     "target": {
+      "sec": 60
+     },
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "judge_color",
+      "bind": "C4",
+      "want": "🔴",
+      "because": "주소"
+     },
+     "knownGap": "addr-partial"
+    },
+    {
+     "id": "e93700",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}» 정확히 {n}번",
+     "desc": "자동 모드 문제 콜 — 원달앱이 확정한 뒤 결재석에서 거절했으니 취소 횟수가 한 번 는다",
+     "evidence": "장면 안 서버 로그 줄 수",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "count_server",
+      "re": "취소 카운트 \\+1",
+      "n": 1
+     }
+    },
+    {
+     "id": "6f1180",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 «이미 본 콜» 기억 비우기",
+     "desc": "C4 와 같은 «관고동 → 중리동» — 시뮬이 같은 주소를 다시 써서 생기는 시험 도구 몫으로 비운다. 실제 하루에서는 이 기억이 다른 배차망의 좋은 콜을 막을 수 있다(알려진 빈칸 seen-cross-net)",
+     "evidence": "«✅ 원달앱이 본 콜 기억을 비움»",
+     "target": null,
+     "onFail": "continue",
+     "run": "forget_seen",
+     "args": {},
+     "knownGap": "seen-cross-net"
+    },
+    {
+     "id": "a0f057",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "insung"
+     }
+    },
+    {
+     "id": "379f69",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "gwango",
+      "drop": "jungri",
+      "fare": 16000,
+      "veh": "filter",
+      "tag": "local",
+      "bind": "C4b"
+     }
+    },
+    {
+     "id": "2ee387",
+     "who": "원달앱이 확정 → 스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23 결재석",
+     "task": "결재석 {want}",
+     "desc": "원달앱이 스스로 확정한 뒤 결재석 그 요금 칸의 단추를 누름 · 판정 색은 기록만",
+     "evidence": "서버 결재 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C4b",
+      "how": "auto",
+      "sec": 60,
+      "want": "keep"
+     }
+    },
+    {
+     "id": "b89989",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄 — 안 서면 설명서대로 손(관제앱 단계 시트) 뒤 «{handRe}»",
+     "target": {
+      "sec": 120
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "도착 감지\\] 상차지",
+      "orHand": [
+       "s23.step.nav.call.pickup",
+       "s23.step.call.skip",
+       "s23.step.nav.call.dropoff",
+       "s23.step.call.skip",
+       "s23.step.nav.arrive.pickup",
+       "s23.step.arrive"
+      ],
+      "handRe": "\\[상차지 도착\\] .*\\(MANUAL_WEB\\)",
+      "why": "사용설명서 2장 «화물24시 상차지 도착이 저절로 안 설 수 있습니다 — 관제앱 단계 시트에서 손으로»"
+     }
+    },
+    {
+     "id": "82d348",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 마지막 «{re}» 값 모음 = {want}",
+     "desc": "",
+     "evidence": "서버 로그 마지막 그 줄(차례 무관)",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "server_last_set",
+      "re": "필터 목록\\] 목적지 (.+?) · ",
+      "want": [
+       "이천시",
+       "광주시"
+      ]
+     }
+    },
+    {
+     "id": "34a8a7",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S15",
+   "say": "안전취소 한 번 — 자동으로 잡힌 콜을 결재 안 함 → 30초 뒤 원달앱이 취소(취소 횟수 +1)",
+   "phone": "both",
+   "expect": "자동 확정 → 결재 안 함 → 30초 «🚨 안전취소 타임아웃! 기사님 보호를 위해 강제 배차 취소 집행!»(SafeCancelTimer.kt:99) → 원달앱이 취소 버튼을 누름 → 서버 «📈 기기(…) 취소 카운트 +1 반영»(cancelCount.ts:80) · 관제웹 서랍 «취소» 탭 빨간 안전취소",
+   "wrong": "취소 셈 +2(두 길이 둘 다 셈) · 취소 버튼을 못 찾았는데(«안 눌렀음») 셈 +1 · 30초 전에 결재석에서 사라짐",
+   "onFail": "tool",
+   "limitSec": 180,
+   "needs": [
+    "귀가 켬"
+   ],
+   "purpose": "자동으로 잡힌 콜을 결재하지 않으면 30초 뒤 원달앱이 안전취소하고 취소 횟수가 1 느는가",
+   "checks": [
+    {
+     "id": "43c53e",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S15"
+     }
+    },
+    {
+     "id": "5f5c35",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "gwango",
+      "drop": "ian",
+      "fare": 18000,
+      "veh": "filter",
+      "tag": "safe_cancel",
+      "bind": "X1"
+     }
+    },
+    {
+     "id": "8d8672",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[AUTO\\] 확정 버튼 클릭"
+     }
+    },
+    {
+     "id": "0092ed",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 50
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "안전취소 타임아웃"
+     }
+    },
+    {
+     "id": "fde11a",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "취소 카운트 \\+1"
+     }
+    },
+    {
+     "id": "26af12",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}» 정확히 {n}번",
+     "desc": "",
+     "evidence": "장면 안 서버 로그 줄 수",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "count_server",
+      "re": "취소 카운트 \\+1",
+      "n": 1
+     }
+    },
+    {
+     "id": "0595ab",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S17",
+   "say": "블루투스 껐다 켬 — 60초 안에 공급이 다시 붙고 원달앱이 자동으로 돌아온다(F07)",
+   "phone": "A24",
+   "expect": "블루투스 끔 → 원달앱 «📶 [블루투스] 공급 연결 끊김 — 자동은 알람으로» · GATT 서버를 버림(BleAdapterLife.kt dropsOn) → 켬 → 1초 틱이 다시 열고(reopens) 관제앱이 붙어 «📶 [블루투스] 공급 연결 살아남»(BleLink.kt:267) · 모드가 원래대로",
+   "wrong": "켜도 60초 안에 안 붙음 · 관제앱 «공급 서비스 칸이 없다» 되풀이(F07 이전 모양) · 접근성을 다시 켜야 붙음",
+   "onFail": "tool",
+   "limitSec": 120,
+   "checkBy": "F07",
+   "purpose": "블루투스를 껐다 켜면 60초 안에 관제앱 ↔ 원달앱 공급이 다시 붙는가",
+   "checks": [
+    {
+     "id": "ed3d21",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S17"
+     }
+    },
+    {
+     "id": "186ebf",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "블루투스 {state}",
+     "desc": "",
+     "evidence": "A24 블루투스 상태",
+     "target": null,
+     "onFail": "continue",
+     "run": "ble",
+     "args": {
+      "state": "off"
+     }
+    },
+    {
+     "id": "c020b0",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "—",
+     "task": "{sec}초 기다림",
+     "desc": "",
+     "evidence": "그만큼 지남",
+     "target": null,
+     "onFail": "continue",
+     "run": "sleep",
+     "args": {
+      "sec": 5
+     }
+    },
+    {
+     "id": "703ce0",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "블루투스 {state}",
+     "desc": "",
+     "evidence": "A24 블루투스 상태",
+     "target": null,
+     "onFail": "continue",
+     "run": "ble",
+     "args": {
+      "state": "on"
+     }
+    },
+    {
+     "id": "3abdaa",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 60
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "공급 연결 살아남"
+     }
+    },
+    {
+     "id": "4e71d8",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S17b",
+   "say": "주행 ③ 관고동 → 중리동 — 재생 → 중리동 앞에서 일시정지 · 관내 C4b 하차 «도착 감지»(귀가 켠 채)",
+   "phone": "S23",
+   "expect": "L3a 끝 중리동에서 서면 «🏁 [도착 감지] 하차지 500m 이내 … — 1회 발화»(geoMotion.ts:858) → «📦 [하차지 도착] C4»",
+   "wrong": "서기 전에 도착 · 도착 감지 두 번 · C4 가 아닌 콜에 하차지 도착",
+   "onFail": "tool",
+   "limitSec": 360,
+   "needs": [
+    "C4b KEEP"
+   ],
+   "purpose": "관내 콜 하차지에 서면 «도착»이 서는가",
+   "checks": [
+    {
+     "id": "c88f4e",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S17b"
+     }
+    },
+    {
+     "id": "64823b",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23 GPS JoyStick",
+     "task": "재생 → {stopAt} 앞에서 일시정지",
+     "desc": "조작 띠의 ▶ 를 화면에서 색으로 찾아 누름(관제앱은 앞에 그대로) → 1초마다 위치를 읽어 그곳 450m 앞이면 ❚❚ 를 색으로 찾아 누름 · ■ 는 안 누름(띠가 사라짐) · 못 누르면 기사님 몫으로 넘김",
+     "evidence": "S23 위치가 {stopAt} 450m 앞에 섬",
+     "target": null,
+     "onFail": "continue",
+     "run": "joystick",
+     "args": {
+      "stopAt": "jungri"
+     }
+    },
+    {
+     "id": "23bab5",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 300
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "하차지 도착\\] {C4b}"
+     }
+    },
+    {
+     "id": "1b993b",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "{call} 하차 — «{kind_of}»",
+     "desc": "",
+     "evidence": "서버 로그의 그 콜 하차 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "via",
+      "call": "C4b",
+      "kind_of": "도착 감지"
+     }
+    },
+    {
+     "id": "318f5e",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S17c",
+   "say": "중리동에서 손 «🏁 하차 완료»(관내 콜 C4b 끝 — 귀가는 이미 켠 채 · 이 뒤 첫 복귀콜)",
+   "phone": "S23",
+   "expect": "단계 시트 «🏁 하차 완료»(확인 창 없음) → «📦 [하차 완료] C4 (…) → ORDER_DELIVERED»(milestones.ts:181) → «🚚 [적재 회복] 하차 완료 → 남은 활성 콜 N건 기준으로 필터 재계산»(:206) · 관내 콜 끝",
+   "wrong": "완료 뒤 C4 가 진행 중에 남음 · 적재 회복 줄 없음(필터가 짐 실린 그대로)",
+   "onFail": "tool",
+   "limitSec": 120,
+   "needs": [
+    "C4b 하차지 도착"
+   ],
+   "purpose": "단계 시트 «하차 완료»로 관내 콜이 끝나고 적재가 돌아오는가",
+   "checks": [
+    {
+     "id": "bbed26",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S17c"
+     }
+    },
+    {
+     "id": "9a47ca",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.call.c4brow"
+     }
+    },
+    {
+     "id": "c5a83c",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json) · 못 누르면(점이 머리줄에 가림 · 시트가 덜 열림) 사람에게 넘기지 않고 다음 줄 — 다음 줄의 완료 단추 찾기가 단계 칸을 옆으로 밀어 찾는다(판 9)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.step.nav.delivered"
+     }
+    },
+    {
+     "id": "34491a",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.step.delivered"
+     }
+    },
+    {
+     "id": "9694f9",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "하차 완료\\] {C4b}"
+     }
+    },
+    {
+     "id": "8d7d4f",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "적재 회복\\]"
+     }
+    },
+    {
+     "id": "f56174",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S19",
+   "say": "첫 복귀콜 S-a — 이안 → 곤지암487(요금 높고 점수 높음 C5 · KEEP) · 이안 → 먼 동(요금 낮고 점수 낮음 C5x · 거절)",
+   "phone": "both",
+   "expect": "자동 · 인성: C5(22,000 · 이안 → 곤지암487 · 집 쪽)가 먼저 열림(요금 최고 · HijackService.kt:1679) → «[AUTO] 확정 버튼 클릭» → 결재석 KEEP → 원달앱 «판결 KEEP 집행 완료» → 기사님 규칙: 첫 복귀콜 KEEP 순간 관내 필터가 사라진다 → «🕸️ [필터 목록] 목적지 광주시»(이천 빠짐) · 원달앱 판 바뀜 → C5x 는 다음 스캔에 열려 자동 계약 → 결재석 거절 → 원달앱이 «취소» 누름 → «취소 카운트 +1»(자동 계약을 놓음 · 셈이 맞음)",
+   "wrong": "C5x 가 먼저 열림 · C5 결재 전에 C5x 가 열림 · C5 KEEP 뒤에도 «목적지 광주시 ∪ 이천시»(관내 필터가 안 사라짐) · 지금 코드는 S14 의 C4 KEEP 에서 이미 «광주시» 하나로 접혀 있어 이 단계의 «사라짐»을 볼 수 없음(S14 wrong 과 같은 결함) · C5x 거절이 셈 0 또는 +2",
+   "onFail": "tool",
+   "limitSec": 600,
+   "needs": [
+    "귀가 켬",
+    "C4b 하차 완료"
+   ],
+   "purpose": "첫 복귀콜 — 자동 결재석에서 하나는 KEEP · 하나는 거절이 맞게 집행되는가",
+   "checks": [
+    {
+     "id": "d0067e",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S19"
+     }
+    },
+    {
+     "id": "7d1ec7",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "insung"
+     }
+    },
+    {
+     "id": "6d10a0",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "ian",
+      "drop": "gj487",
+      "fare": 22000,
+      "veh": "filter",
+      "tag": "home1_high",
+      "bind": "C5"
+     }
+    },
+    {
+     "id": "a50ea8",
+     "who": "원달앱이 확정 → 스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23 결재석",
+     "task": "결재석 {want}",
+     "desc": "원달앱이 스스로 확정한 뒤 결재석 그 요금 칸의 단추를 누름 · 판정 색은 기록만",
+     "evidence": "서버 결재 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C5",
+      "how": "auto",
+      "sec": 60,
+      "want": "keep"
+     }
+    },
+    {
+     "id": "c6ba54",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "ian",
+      "drop": "dest:far",
+      "fare": 12000,
+      "veh": "filter",
+      "tag": "home1_low",
+      "bind": "C5x"
+     }
+    },
+    {
+     "id": "51771f",
+     "who": "원달앱이 확정 → 스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23 결재석",
+     "task": "결재석 {want}",
+     "desc": "원달앱이 스스로 확정한 뒤 결재석 그 요금 칸의 단추를 누름 · 판정 색은 기록만",
+     "evidence": "서버 결재 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C5x",
+      "how": "auto",
+      "sec": 60,
+      "want": "reject"
+     }
+    },
+    {
+     "id": "a813f8",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S19b",
+   "say": "첫 복귀콜 KEEP 직후 관내 콜 하나 더(중리동 → 대월면 쿠팡 이천3센터 · 집 반대쪽) — 이제는 안 열린다(기사님: «복귀콜의 첫번째 콜을 킵한 순간 관내콜을 잡는 필터가 사라진다»)",
+   "phone": "A24",
+   "expect": "기사님 규칙: 첫 복귀콜 KEEP 뒤 목적지는 집 하나(shared callNet.ts:1166 activeGoals «복귀 켬 · 복귀콜 잡음 → [집]») — 서버 «🕸️ [필터 목록] 목적지 광주시» · 하차지 대월면(이천 남동쪽 · 집 반대쪽)은 광주 마름모 · 원 밖이라 «🚪 [상세 진입]» 없음. ⚠️ 이 초록은 S14 가 초록(C4 KEEP 뒤 «이천시 ∪ 광주시»)일 때만 규칙 때문이다 — S14 가 «광주시» 하나로 🔴(F41)면 관내 필터는 C4 KEEP 에서 이미 사라졌고 여기 초록은 그 결함의 결과다",
+   "wrong": "대월면 하차 콜이 «🚪 [상세 진입]»으로 열림 = 첫 복귀 KEEP 뒤에도 관내 필터가 남음 · 서버 목적지가 광주시 하나가 아님",
+   "onFail": "tool",
+   "limitSec": 180,
+   "needs": [
+    "C5 KEEP"
+   ],
+   "purpose": "첫 복귀콜 KEEP 뒤에는 이천 관내 콜이 더 안 열리는가",
+   "checks": [
+    {
+     "id": "893e93",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S19b"
+     }
+    },
+    {
+     "id": "97dc38",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "hwamul24"
+     }
+    },
+    {
+     "id": "0c963b",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "hwamul24",
+      "pick": "jungri",
+      "drop": "daewol",
+      "fare": 15000,
+      "veh": "filter",
+      "tag": "local_after_home",
+      "bind": "L2x"
+     }
+    },
+    {
+     "id": "c691d4",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "—",
+     "task": "{sec}초 기다림",
+     "desc": "",
+     "evidence": "그만큼 지남",
+     "target": null,
+     "onFail": "continue",
+     "run": "sleep",
+     "args": {
+      "sec": 30
+     }
+    },
+    {
+     "id": "9e4cc5",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록에 «{re}» 줄이 없어야 함",
+     "desc": "",
+     "evidence": "장면 안 원달앱 로그",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "none_app",
+      "re": "상세 진입\\] {fare:L2x}원"
+     }
+    },
+    {
+     "id": "765a0e",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 마지막 «{re}» 값 모음 = {want}",
+     "desc": "",
+     "evidence": "서버 로그 마지막 그 줄(차례 무관)",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "server_last_set",
+      "re": "필터 목록\\] 목적지 (.+?) · ",
+      "want": [
+       "광주시"
+      ]
+     }
+    },
+    {
+     "id": "cf0f9c",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S19c",
+   "say": "나머지 복귀콜 — 곤지암 765 → 초월역(화물24시 자동 C6 — 문제 콜: 결재석 거절 · 판정 🔴 · 취소 +1 / 같은 길 인성 자동 C6b 로 잡음) · 초월 1021 → 집(인성 손 확정 C7)",
+   "phone": "both",
+   "expect": "화물24시 자동 C6(곤지암765 → 초월역) → «[AUTO] 확정 버튼 클릭» → KEEP → 원달앱 «판결 KEEP 집행 완료»(화물24시 상세의 «닫기») · 알람 인성 C7(초월1021 → 집) «🚪 [상세 진입] {요금}원» → 손 확정 → «✋ [Two-Track MANUAL] … 즉시 KEEP» → «닫기» · 목적지 «광주시» 하나 그대로",
+   "wrong": "C6 KEEP 뒤 «판결 KEEP 집행 완료» 없음(화물24시 «닫기» 글자 — F38 과 같은 뿌리) · C7 이 안 열림(집 하차가 하차 목록 밖) · 이천 방향 콜이 열림",
+   "onFail": "tool",
+   "limitSec": 400,
+   "needs": [
+    "C5 KEEP"
+   ],
+   "purpose": "나머지 복귀콜 둘 — 화물24시 자동 확정 · 인성 손 확정이 둘 다 운행에 오르는가",
+   "checks": [
+    {
+     "id": "f83fbb",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S19c"
+     }
+    },
+    {
+     "id": "fd6b0f",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "hwamul24",
+      "pick": "gj765",
+      "drop": "cw1066",
+      "fare": 18000,
+      "veh": "filter",
+      "tag": "home2",
+      "bind": "C6"
+     },
+     "knownGap": "addr-partial"
+    },
+    {
+     "id": "6c47fd",
+     "who": "원달앱이 확정 → 스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23 결재석",
+     "task": "결재석 {want}",
+     "desc": "원달앱이 스스로 확정한 뒤 결재석 그 요금 칸의 단추를 누름 · 판정 색은 기록만 — 문제 콜이라 거절",
+     "evidence": "서버 결재 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C6",
+      "how": "auto",
+      "sec": 60,
+      "want": "reject"
+     },
+     "knownGap": "addr-partial"
+    },
+    {
+     "id": "2d7f6e",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "결재석 거절을 원달앱이 화물24시에서 끝까지 집행했는지 — 이걸 기다린 뒤에 배차망을 바꿔야 원달앱이 취소하러 돌아가는 사이에 다음 콜이 안 들어온다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "판결 CANCEL 집행 완료"
+     },
+     "knownGap": "hw24-no-cancel"
+    },
+    {
+     "id": "6e18d6",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 판정)",
+     "task": "C6 판정 색이 «{want}»인가",
+     "desc": "확인 줄 — 장면 섬 셈에서 빠짐. 화물24시 콜은 정거장이 읍 · 면 가운데 점이라 걸러지거나 빨강이어야 한다 — 지금 제품은 아니어서 🔴 로 적힘",
+     "evidence": "서버 판정 색(그 콜)",
+     "target": {
+      "sec": 60
+     },
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "judge_color",
+      "bind": "C6",
+      "want": "🔴",
+      "because": "주소"
+     },
+     "knownGap": "addr-partial"
+    },
+    {
+     "id": "dcd58b",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}» 정확히 {n}번",
+     "desc": "자동 모드 문제 콜 — 원달앱이 확정한 뒤 결재석에서 거절했으니 취소 횟수가 한 번 는다",
+     "evidence": "장면 안 서버 로그 줄 수",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "count_server",
+      "re": "취소 카운트 \\+1",
+      "n": 1
+     }
+    },
+    {
+     "id": "f679d2",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 «이미 본 콜» 기억 비우기",
+     "desc": "C6 와 같은 «곤지암읍 → 초월읍» — 시뮬이 같은 주소를 다시 써서 생기는 시험 도구 몫으로 비운다. 실제 하루에서는 이 기억이 다른 배차망의 좋은 콜을 막을 수 있다(알려진 빈칸 seen-cross-net)",
+     "evidence": "«✅ 원달앱이 본 콜 기억을 비움»",
+     "target": null,
+     "onFail": "continue",
+     "run": "forget_seen",
+     "args": {},
+     "knownGap": "seen-cross-net"
+    },
+    {
+     "id": "37a36b",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "insung"
+     }
+    },
+    {
+     "id": "1d09bb",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "gj765",
+      "drop": "cw1066",
+      "fare": 19000,
+      "veh": "filter",
+      "tag": "home2",
+      "bind": "C6b"
+     }
+    },
+    {
+     "id": "55d5c7",
+     "who": "원달앱이 확정 → 스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23 결재석",
+     "task": "결재석 {want}",
+     "desc": "원달앱이 스스로 확정한 뒤 결재석 그 요금 칸의 단추를 누름 · 판정 색은 기록만",
+     "evidence": "서버 결재 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C6b",
+      "how": "auto",
+      "sec": 60,
+      "want": "keep"
+     }
+    },
+    {
+     "id": "38bec7",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S20",
+   "say": "주행 ④ 중리동 → 곤지암 765 앞에서 일시정지 · 알람으로 바꾸고 C7(초월 1021 → 집 · 인성 손 확정) → 재생 · 복귀 셋 지나침 → 집 — 경로 끝 집에서 저절로 섬 · 마지막 하차 «도착 감지»",
+   "phone": "S23",
+   "expect": "C4 하차지 지나침 «🚚 [지나침] 하차지 … (C4)» · 복귀 셋 하차 지나침 · 집에서 서서 «🏁 [도착 감지] 하차지» → «📦 [하차지 도착] C7»",
+   "wrong": "S13 과 같음 · 집 도착이 다른 콜로 찍힘",
+   "onFail": "tool",
+   "limitSec": 1800,
+   "needs": [
+    "C5 KEEP",
+    "C6b KEEP"
+   ],
+   "purpose": "복귀 셋을 달리며 지나치고, 집에서 마지막 하차 «도착»이 서는가",
+   "checks": [
+    {
+     "id": "08417e",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S20"
+     }
+    },
+    {
+     "id": "de091a",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23 GPS JoyStick",
+     "task": "재생 → {stopAt} 앞에서 일시정지(설 때까지 기다림)",
+     "desc": "C7(초월 1021 → 집)은 초월 가까이 와서야 상차 목록에 든다(판 6: 중리동에서 넣으니 «상차지(초월읍)가 상차 목록 28곳에 없음» · 16.4km). 일시정지 자리는 곤지암 765 를 지난 뒤(450m 앞에서 서면 약 1.2km 지남 · 초월 1021 까지 1.3km) — gj765 500m 안에서 서면 C6b 상차가 «지나침» 대신 «도착»이 된다(기사님 «가» · c8 리뷰)",
+     "evidence": "S23 위치가 {stopAt} 450m 앞에 섬",
+     "target": null,
+     "onFail": "continue",
+     "run": "joystick",
+     "args": {
+      "stopAt": "gj765p",
+      "wait": true
+     }
+    },
+    {
+     "id": "8508a6",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "원달앱 모드를 «{mode}»로",
+     "desc": "관제앱 모드 단추를 글자로 찾아 누름 · 이미 그 모드면 안 누름",
+     "evidence": "원달앱이 받은 모드가 {mode}",
+     "target": null,
+     "onFail": "continue",
+     "run": "mode",
+     "args": {
+      "mode": "ALARM"
+     }
+    },
+    {
+     "id": "5a2373",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "insung"
+     }
+    },
+    {
+     "id": "4efb34",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 상차 목록에 «{dong}» 있음",
+     "desc": "C7 상차지(초월 1021)가 상차 목록 안인가 — 귀가 국면 상차 목록은 «현위치 원 ∩ 남은 라인»이라(shared/filterArea.ts 설계) 멀면 빠진다 · 서버 상차 목록 줄은 곳 수만 찍음",
+     "evidence": "원달앱이 받은 필터 pickupKeywords 에 «초월읍»",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "app_pickup_has",
+      "dong": "초월읍",
+      "sec": 30
+     }
+    },
+    {
+     "id": "452dfb",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 목록 맨 위에 콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 그때 필터",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "cw1021",
+      "drop": "home",
+      "fare": 15000,
+      "veh": "filter",
+      "tag": "home3",
+      "bind": "C7"
+     }
+    },
+    {
+     "id": "0d2ef0",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "{net} 상세에서 확정 → KEEP",
+     "desc": "원달앱이 그 콜 상세를 연 뒤(삑) 확정 단추를 누름 · 판정 색은 기록만",
+     "evidence": "서버 «KEEP» 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C7",
+      "how": "hand",
+      "net": "insung",
+      "sec": 60
+     }
+    },
+    {
+     "id": "f1904f",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23 GPS JoyStick",
+     "task": "재생 → 경로 끝(집)에서 저절로 섬(설 때까지 기다림)",
+     "desc": "조작 띠의 ▶ 를 화면에서 색으로 찾아 누름(관제앱은 앞에 그대로) → 경로 끝(집)에서 «도착시 멈춤»으로 저절로 섬",
+     "evidence": "S23 위치가 경로 끝에 섬",
+     "target": null,
+     "onFail": "continue",
+     "run": "joystick",
+     "args": {
+      "stopAt": "home",
+      "wait": true
+     }
+    },
+    {
+     "id": "35e7c9",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 1500
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "하차지 도착\\] {C7}"
+     }
+    },
+    {
+     "id": "e69489",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "{call} 하차 — «{kind_of}»",
+     "desc": "",
+     "evidence": "서버 로그의 그 콜 하차 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "via",
+      "call": "C5",
+      "kind_of": "지나침"
+     }
+    },
+    {
+     "id": "56f960",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "{call} 하차 — «{kind_of}»",
+     "desc": "",
+     "evidence": "서버 로그의 그 콜 하차 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "via",
+      "call": "C6b",
+      "kind_of": "지나침"
+     }
+    },
+    {
+     "id": "a10c7a",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "{call} 하차 — «{kind_of}»",
+     "desc": "",
+     "evidence": "서버 로그의 그 콜 하차 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "via",
+      "call": "C7",
+      "kind_of": "도착 감지"
+     }
+    },
+    {
+     "id": "01b082",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S21",
+   "say": "집에서 «🏁 하차 완료» — 착불 콜이면 «💵 받았음»부터",
+   "phone": "S23",
+   "expect": "착불 콜이면 단계 시트 «💵 착불 {금액} — 지금 받으세요» → «받았음» → cod-collected → «💵 [착불 수령] …»(socketHandlers.ts:636) · «🏁 하차 완료»(확인 창 없음) → «📦 [하차 완료] C7 (…) → ORDER_DELIVERED»(milestones.ts:181) → «🚚 [적재 회복] 하차 완료 → 남은 활성 콜 N건 기준으로 필터 재계산»(:206)",
+   "wrong": "착불인데 안 고르고 완료 → 미수금으로 잡힘(milestones.ts:195 · console.warn 만 · 콜단계 로그에 안 남음) · 하차 완료 되돌려도 미수금 그대로 · 픽커 콜은 결제 칸이 비어 착불 안내 없음",
+   "onFail": "tool",
+   "limitSec": 120,
+   "note": "시뮬 개별콜은 결제 방식 칸이 없다(simCallQueue.ts:120-124) — 착불 장면은 착불 콜이 올 때만(없으면 skip · 장부 기록 거리)",
+   "needs": [
+    "C7 하차지 도착"
+   ],
+   "purpose": "집에서 «하차 완료»(착불이면 «받았음»부터)로 하루가 끝나는가",
+   "checks": [
+    {
+     "id": "20b7d6",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S21"
+     }
+    },
+    {
+     "id": "c7714d",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.call.c7row"
+     }
+    },
+    {
+     "id": "e913cc",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json) · 못 누르면(점이 머리줄에 가림 · 시트가 덜 열림) 사람에게 넘기지 않고 다음 줄 — 다음 줄의 완료 단추 찾기가 단계 칸을 옆으로 밀어 찾는다(판 9)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.step.nav.delivered"
+     }
+    },
+    {
+     "id": "3f8e90",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "착불이면 «💵 받았음»",
+     "desc": "착불 콜일 때만 그 단추가 있음",
+     "evidence": "착불이면 눌렀다 · 아니면 단추 없음",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap_if_cod",
+     "args": {
+      "name": "s23.step.cod.received"
+     }
+    },
+    {
+     "id": "67d5fb",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.step.delivered"
+     }
+    },
+    {
+     "id": "106ed8",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "하차 완료\\] {C7}"
+     }
+    },
+    {
+     "id": "8cb55e",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "장면 시작 기준점부터 센다",
+     "evidence": "기준점 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "적재 회복\\]"
+     }
+    },
+    {
+     "id": "6be8f8",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S22",
+   "say": "서랍 확인 — 완료됨 · 취소(연습 끝 🐥 · 안전취소) 탭 사진",
+   "phone": "S23",
+   "expect": "완료됨 탭: C1 · C2 · C3 · C4 · C5 · C6 · C7 · 취소 탭(SAFE_CANCEL 만 · finishedCalls.ts belongsToView): 🐥 연습 끝(S05 · 노란) · 안전취소 X1(S15) · X2(S16) · 자동 계약을 놓은 C5x(S19) — 확정 전에 거절한 알람 미리보기 C1x(S07)는 취소 탭에 안 보임 · 셈 0 · 장부 행 없음(F40 고친 뒤 · 지금 코드는 handleDecision 이 미리보기도 장부에 SAFE_CANCEL 로 적어 ❌ 로 보임 → 고치기 전 판에서는 빨강이 결과)",
+   "wrong": "C1x 가 ❌ 로 보임(F40 그대로) · 연습 콜이 빨간 안전취소로 · 완료 콜이 취소 탭에 · X2 가 안 보임(F36 장면이 장부에서 사라짐) · C5x 가 안 보임(자동 계약 취소가 장부에서 빠짐)",
+   "onFail": "tool",
+   "limitSec": 120,
+   "purpose": "서랍 «완료됨 · 취소» 탭에 하루의 콜이 맞게 남았는가(연습 끝 · 안전취소)",
+   "checks": [
+    {
+     "id": "b24213",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S22"
+     }
+    },
+    {
+     "id": "13f937",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.drawer.open"
+     }
+    },
+    {
+     "id": "505bfc",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.drawer.tab.done"
+     }
+    },
+    {
+     "id": "98ae7f",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "화면 사진",
+     "desc": "",
+     "evidence": "out/shots 에 사진",
+     "target": null,
+     "onFail": "continue",
+     "run": "photo",
+     "args": {
+      "phone": "S23"
+     }
+    },
+    {
+     "id": "88b692",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.drawer.tab.cancel"
+     }
+    },
+    {
+     "id": "0d5973",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "화면 사진",
+     "desc": "",
+     "evidence": "out/shots 에 사진",
+     "target": null,
+     "onFail": "continue",
+     "run": "photo",
+     "args": {
+      "phone": "S23"
+     }
+    },
+    {
+     "id": "3d386b",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.drawer.close"
+     }
+    },
+    {
+     "id": "29616a",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가 · 취소 탭에는 S15 안전취소 X1 과 함께 S14 C4 · S19c C6(화물24시 문제 콜 — 결재석 거절)이 찍힌다. 취소 페널티(한 판 10회)는 배차망별이라 셋 다 화물24시 판이고 인성 판은 그대로 · 판마다 S01 reset:calls 가 셈을 비운다",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S99",
+   "say": "끝 정리 — 필터를 S01 이 떠 둔 기사님 필터(목적지 · 제외 지역 · 최저)로 되돌리고 · 모드는 시작 값과 다를 때만 되돌림 · 귀가는 이번 판에 스크립트가 켰을 때만 끔 · JoyStick 끄기(에이전트)",
+   "phone": "both",
+   "expect": "user_filters · user_settings 가 처음 사진과 같음 · 모드 처음 값 · 귀가: 스크립트가 켰으면 «↩️ 복귀 켬» 단추로 끔, 아니면 켜져 있어도 «기사님 손 — 귀가 켜져 있음» 적기만 · JoyStick 꺼짐 · 필터 💾 서버 저장 안에 «저장 전»이 보이면 «되돌리기»를 눌러 «저장 전»이 사라짐",
+   "wrong": "S03 오늘만 값이 DB 에 남음 · 복귀 켬(callTarget HOME)이 다음 날로 넘어감",
+   "onFail": "stop",
+   "limitSec": 120,
+   "always": true,
+   "purpose": "판 끝 정리 — 모드 · 필터 · 귀가를 시작 때로 되돌리고 JoyStick 을 끄고, 필터 · 설정이 시작 때와 같은가",
+   "checks": [
+    {
+     "id": "6310bb",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "stop",
+     "run": "scene_start",
+     "args": {
+      "scene": "S99"
+     }
+    },
+    {
+     "id": "7aba49",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "이번 판에 스크립트가 켠 귀가만 끔",
+     "desc": "",
+     "evidence": "귀가 꺼짐 · 기사님이 켠 귀가는 그대로",
+     "target": null,
+     "onFail": "stop",
+     "run": "home_off_if_mine",
+     "args": {}
+    },
+    {
+     "id": "f9d14c",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "«저장 전»이면 «되돌리기»",
+     "desc": "",
+     "evidence": "«저장 전» 표시가 없음",
+     "target": null,
+     "onFail": "stop",
+     "run": "filter_revert_if_unsaved",
+     "args": {}
+    },
+    {
+     "id": "5d8338",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥 → 서버",
+     "task": "필터를 시작 값으로 되돌림(모든 칸)",
+     "desc": "S01 이 떠 둔 기사님 필터 줄의 모든 칸을 set_filter.mjs 로 같은 길(서버 저장)",
+     "evidence": "DB 필터 줄이 칸마다 시작 값과 같음",
+     "target": null,
+     "onFail": "stop",
+     "run": "restore_filter",
+     "args": {}
+    },
+    {
+     "id": "1e1e0b",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23 관제앱",
+     "task": "관제앱 출발 화면 확인",
+     "desc": "필터 창 접기 · 서랍 닫기(값은 안 바꿈 · 이미 그렇면 안 누름)",
+     "evidence": "필터 창 접힘 · 서랍 닫힘 · 모드 줄에 «{mustSee}»",
+     "target": null,
+     "onFail": "stop",
+     "run": "tidy_s23",
+     "args": {
+      "mustSee": "A24"
+     }
+    },
+    {
+     "id": "c566d8",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "모드를 시작 값으로",
+     "desc": "시작 모드와 다를 때만 누름",
+     "evidence": "원달앱이 받은 모드가 시작 모드",
+     "target": null,
+     "onFail": "stop",
+     "run": "restore",
+     "args": {}
+    },
+    {
+     "id": "abb1f2",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "S23 GPS JoyStick",
+     "task": "JoyStick 끄기",
+     "desc": "`am force-stop com.theappninjas.fakegpsjoystick` → 15초 뒤 pidof 가 비고 fused 줄에 mock 없음",
+     "evidence": "`am force-stop com.theappninjas.fakegpsjoystick` → 15초 뒤 pidof 가 비고 fused 줄에 mock 없음",
+     "target": null,
+     "onFail": "stop",
+     "run": null,
+     "args": {}
+    },
+    {
+     "id": "d2b8ab",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 DB)",
+     "task": "DB {tables} 가 시작 때와 같음",
+     "desc": "",
+     "evidence": "DB 줄과 start_filter.json",
+     "target": null,
+     "onFail": "stop",
+     "run": "check",
+     "args": {
+      "kind": "db_same_as_snapshot",
+      "tables": [
+       "user_filters",
+       "user_settings"
+      ]
+     }
+    },
+    {
+     "id": "99bcae",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "S23 JoyStick 꺼짐",
+     "desc": "",
+     "evidence": "JoyStick 프로세스 없음(pidof 빈칸) — 마지막 위치의 모의 표시는 실제 위치가 들어오기 전까지 남아서 안 봄",
+     "target": null,
+     "onFail": "stop",
+     "run": "check",
+     "args": {
+      "kind": "s23_joy_off"
+     }
+    },
+    {
+     "id": "714a9c",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  }
+ ],
+ "about": "기사님 결정(10-10 · 71 전달): «데이터 지우고 서버랑 연결된거 확인하면 필터 이천방면으로 … 적용 · 첫콜 두 개 중 높은걸 · 합짐 · 경로 받아서 모의 주행 · 픽커가 나오면 알림으로 · 7콜 · 필요한 모든 단추 · 필터 수정 저장 · 모든 이벤트가 시퀀스처럼». 실행기 day.py 가 이 파일을 읽어 차례로 돈다 — 시나리오를 바꿀 때는 이 파일만 고친다. 누를 자리는 taps.json 한 곳. expect · wrong 은 ef 가 코드 근거로 채운다.",
+ "vocab": {
+  "reset_calls": "R0 — 9e 가 `pnpm reset:calls`(콜 생애 · 궤적만 · 기사님 허락 · 서버 다시 뜸) 한 뒤 «계속»",
+  "check": "connected — 서버 health · 관제웹 소켓 · 원달앱 보고 · 블루투스 공급 연결",
+  "snapshot": "user_filters · user_settings 를 떠 둔다(끝에 같은지 견줌)",
+  "mode": "ALARM · AUTO · MANUAL · SIMULATION — run.set_mode(접힘 · 펼침 사진으로 가름)",
+  "sim": "insung · hwamul24 · picker — run.sim_open(그 목록이면 다시 안 켬)",
+  "call": "{net · pick · drop · fare · veh · tag · bind} — 시뮬 개별콜 · pick/drop 은 places 이름 또는 dest:far(그 순간 하차 목록 가운데 경로에서 먼 동) · bind 는 결재 뒤 콜 번호를 이름으로 기억",
+  "tap": "taps.json 이름 — 누르기 전 앞 창 · 색 확인 · 좌표 null 이면 ⚪",
+  "keep · reject": "결재석 KEEP / 거절 — 서버가 그 콜을 안 치웠을 때만(run.keep_on_seat)",
+  "joystick": "{leg} — «🟡 9e: {leg} 시작» 찍고 기다림 · mock 으로 움직이면 10초 섞임 감시(g.mock_guard)",
+  "ble": "off · on — A24 블루투스(cmd bluetooth_manager)",
+  "photo": "S23 · A24 사진",
+  "wait": "[{server|app: 정규식 · sec}] — {C1} 같은 이름은 bind 한 콜 번호 앞 8자리로 바뀜",
+  "onFail": "tool=⚪ 적고 다음 · stop=정리 뒤 멈춤 · skip=적지 않고 다음"
+ },
+ "places": {
+  "home": [
+   "경기 광주시 초월읍 경충대로1127번길 15",
+   "초월읍",
+   127.294001,
+   37.377178
+  ],
+  "moda": [
+   "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
+   "초월읍",
+   127.312588,
+   37.3633
+  ],
+  "gonjiam41": [
+   "경기 광주시 곤지암읍 경충대로 41 서민행복주유소",
+   "곤지암읍",
+   127.394927,
+   37.328137
+  ],
+  "gj487": [
+   "경기 광주시 곤지암읍 경충대로 487 금강에너지주유소",
+   "곤지암읍",
+   127.351492,
+   37.343645
+  ],
+  "gj765": [
+   "경기 광주시 곤지암읍 경충대로 765 스타벅스 곤지암IC DT점",
+   "곤지암읍",
+   127.325242,
+   37.355649
+  ],
+  "woori": [
+   "경기 이천시 신둔면 경충대로 3282 우리주유소",
+   "신둔면",
+   127.397183,
+   37.3174
+  ],
+  "ian": [
+   "경기 이천시 신둔면 경충대로 3035-1 이안로지스",
+   "신둔면",
+   127.407889,
+   37.29766
+  ],
+  "gwango": [
+   "경기 이천시 관고동 107-5 이천제일식자재마트",
+   "관고동",
+   127.42923,
+   37.285068
+  ],
+  "jungri": [
+   "경기 이천시 중리동 219-1 이천터미널",
+   "중리동",
+   127.446936,
+   37.277421
+  ],
+  "cw1021": [
+   "경기 광주시 초월읍 경충대로 1021 CJ대한통운 경기고속주유소",
+   "초월읍",
+   127.302786,
+   37.370096
+  ],
+  "cw1066": [
+   "경기 광주시 초월읍 경충대로 1066 초월역",
+   "초월읍",
+   127.299992,
+   37.373355
+  ],
+  "daewol": [
+   "경기 이천시 대월면 대장로 190 쿠팡 이천3센터",
+   "대월면",
+   127.469346152223,
+   37.2194373417632
+  ],
+  "gj765p": [
+   "경충대로 일시정지 자리(곤지암 765 지나 1.6km · C7 넣는 곳)",
+   "곤지암읍",
+   127.310992,
+   37.364808
+  ]
+ },
+ "routes": {
+  "how": "하루 경로 한 벌(DAY) — 네 구간(집 → 모다 · 모다 → 관고동 · 관고동 → 중리동 · 중리동 → 집)을 서버 POST /api/sim/route(카카오)로 받아 이은 것. JoyStick 에는 S01 에서 한 번만 걸고 곧바로 일시정지(집에 섬). 그 뒤 joystick 장면마다 시험 스크립트가 «재생»을 누르고, S23 위치가 stopAt 450m 앞에 들면 «일시정지»(200km/h 면 1초에 55m — 누르는 사이 지나가도 서버의 도착 500m 안에 서게). 집은 경로 끝이라 «도착시 멈춤»으로 선다 · 곤지암41 근처(경로 254~359번 점)는 세 번 지난다 — 금강에너지(gj487) → 서민행복(gonjiam41) 구간에서 카카오 길이 왕복 분리 도로 맞은편 정거장을 약 2km 지나쳐 되돌아온다. 위치 튐이 아니라 실제로도 그렇게 달리는 길이다",
+  "DAY": {
+   "points": [
+    "home",
+    "moda",
+    "gj487",
+    "gonjiam41",
+    "woori",
+    "ian",
+    "gwango",
+    "jungri",
+    "ian",
+    "gj487",
+    "gj765",
+    "cw1021",
+    "cw1066",
+    "home"
+   ],
+   "gpx": "onedal-day1-all.gpx",
+   "stops": [
+    "home",
+    "moda",
+    "gwango",
+    "jungri",
+    "home"
+   ],
+   "say": "집 → 모다(첫짐 상차) → 곤지암 → 신둔 → 관고동(관내 상차) → 중리동(관내 하차) → 신둔 → 곤지암 → 초월 → 집"
+  }
+ },
+ "cannotSee": [
+  "시뮬 개별콜에 결제 칸 없음 — 착불 «받았음» 못 봄(simCallQueue.ts:120-124 · S21 은 착불 콜이 올 때만)",
+  "진짜 GPS 흔들림 · 터널 · 신호 끊김 · 적재 · 톨비(승용차 실주행과 같음) · 실물 인성 · 화물24시 화면"
+ ],
+ "needsHow": "needs = 그 장면이 기대는 사실(«콜 이름 사실» 또는 «귀가 켬») — 사실마다 facts 의 서버 기록 줄이 이번 판(결과지 srvMark 뒤)에 찍혔나로 본다. 하나라도 없으면 이 장면은 돌리지 않고 ⚪ «사실 없음». 앞 장면이 섰나는 보지 않는다 — 뒤에 필요 없는 🔴 하나가 뒤 장면을 다 막지 않게 · 사실 값이 {re, notAfter} 이면 re 줄 뒤에 notAfter 줄이 없어야 한다(KEEP 을 보낸 뒤 안전취소로 닫힌 콜은 KEEP 사실 아님)",
+ "decideHow": "기사님이 고르는 자리(KEEP · 거절 · 손 확정)는 시나리오에 박지 않고 그 순간 서버 판정 색으로 정한다 — 🔵 = 잡음(알람 · 직접: 손 확정 / 자동: 결재석 KEEP) · 아니면 안 누름 / 결재석 거절(실행서 5-1) · 판정이 기대와 달라 장면이 갈리면 기록할 사실(day.py decide · 71 · 기사님)",
+ "names": {
+  "net": {
+   "insung": "인성",
+   "hwamul24": "화물24시",
+   "picker": "픽커"
+  },
+  "mode": {
+   "ALARM": "알람",
+   "AUTO": "자동",
+   "SIMULATION": "체험(계약 안 함)",
+   "MANUAL": "직접"
+  },
+  "state": {
+   "on": "켬",
+   "off": "끔"
+  },
+  "want": {
+   "reject": "거절",
+   "keep": "KEEP"
+  }
+ },
+ "knownGaps": {
+  "addr-partial": {
+   "what": "상차 · 하차 주소가 읍 · 면까지만 들어온 콜(화물24시 — 원달앱이 잡은 뒤 배차내역에서 번지를 다시 안 읽음)이 필터에서 안 떨어지고, 판정도 정상(🟡 54점)으로 서며, 정거장 좌표가 읍 · 면 가운데 점(이번 판 C2: 실제 곳에서 4.5km)이 된다 — 도착 · 지나침이 안 찍혀 사슬이 멈춤",
+   "should": "필터에서 떨어지거나 판정 🔴(퀵사에 전화해 방출할 콜) — 기사님",
+   "found": "첫 판 S13 · 서버 orders.pickup «경기 광주 곤지암읍» · geoMotion 지나침 300m",
+   "state": "기록만",
+   "check": "판정 색 줄은 색이 🔴 이어도 까닭에 «주소»가 없으면 ⚪(다른 까닭 — 늦음 · 카카오 실패 — 의 🔴 로 빈칸이 메워졌다고 읽지 않게 · 판 5 S09)",
+   "serverKnows": "서버는 이미 안다 — OrderEvaluator.ts approxTagsOf 가 판정 줄 끝에 «딱지: 주소 대략 — 상차 곤지암읍 중심»을 붙이지만 색은 안 건드린다(기사님 «가»). 빈칸은 «모른다»가 아니라 «알면서 색에 안 넣기로 함» · because «주소»는 넓다(«주소를 찾지 못했습니다» 잴 수 없음에도 맞음) — 제품이 사유 글을 정하면 그 글로 좁힌다"
+  },
+  "seen-cross-net": {
+   "what": "치운(또는 본) 콜과 같은 길의 다른 배차망 콜을 원달앱이 10분 동안 «이미 본 콜»로 안 열 수 있다 — 같은 짐이 화물24시(읍 · 면)와 인성(번지)에 함께 올라오면 인성 쪽 좋은 콜을 놓침",
+   "should": "확인됨 — 원달앱이 배차망을 바꿀 때(HijackService.applyTargetApp) callMemory 만 비우고, 같은 길 기억(alarmedRoutes)은 서버 회차가 바뀔 때(RoundReset)만 비운다. 다만 열쇠가 그 배차망 목록에서 읽힌 «상차→하차» 글자라, 두 배차망이 같은 곳을 같은 글자로 적을 때만 겹친다",
+   "found": "첫 판 S10 «🔕 [이미 본 콜] 곤지암읍→관고동» · onedal-c8 리뷰",
+   "state": "기록만"
+  },
+  "hw24-no-cancel": {
+   "what": "화물24시 콜을 잡은 뒤 원달앱이 그 배차망의 취소 단추를 모른다 — 결재석 거절 · 안전취소 타임아웃 둘 다 «❌ 판결 CANCEL 못 누름 (계약이 남아 있다)». 서버 장부는 SAFE_CANCEL · 취소 +1 로 적어 장부와 배차망이 갈린다",
+   "should": "기록만 — 화물24시 실물 앱이 없어 잡은 뒤 화면을 모름(사업자 없음). 설명서 주의: «화물24시 콜을 결재석에서 거절하면 배차망에서 직접 취소»",
+   "found": "판 4 S14 C4 · 원달앱 18:12:48 «판결 CANCEL 못 누름 — 이 배차망의 잡은 뒤 취소 단추를 모름»",
+   "state": "기록만 — 안전취소 장면(S15)은 인성으로 보므로 화물24시 안전취소는 어느 장면도 안 봄"
+  },
+  "home-pickup-line": {
+   "what": "귀가 때 상차 목록은 집 원을 안 보고 «현위치 원 ∩ 남은 라인»만 따른다 — 남은 라인이 집까지 안 이어지는 순간(마지막 하차가 집 앞이 아닐 때)엔 집 근처 상차가 빠질 수 있음",
+   "should": "설계 표(shared/filterArea.ts:120)가 있는 규칙 — 버그 아님 · 기록만",
+   "found": "판 6 · 7 C7(중리동에서 넣음 · 초월읍 16km)",
+   "state": "기록만"
+  }
+ },
+ "offRoute": {
+  "daewol": "첫 복귀콜 KEEP 뒤 관내 콜이 «안 열리는지» 보는 장소(S19b) — 거기로 안 간다"
+ },
+ "facts": {
+  "KEEP": {
+   "re": "\\[공급 소켓\\] {call}\\S* 결재\\(KEEP\\)",
+   "notAfter": "\\[공급 소켓\\] {call}\\S* 결재\\(CANCEL\\)|결재 처리 완료 \\({call}\\S* · SAFE_CANCEL"
+  },
+  "상차지 도착": "상차지 도착\\] {call}",
+  "상차 완료": "상차 완료\\] {call}",
+  "하차지 도착": "하차지 도착\\] {call}",
+  "하차 완료": "하차 완료\\] {call}",
+  "귀가 켬": "국면 전환\\] DEST → HOME"
+ }
+}

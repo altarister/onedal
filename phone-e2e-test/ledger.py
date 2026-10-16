@@ -1,5 +1,5 @@
 """
-시험 장부(phone-test/ledger.json)에 한 판을 덧붙인다 — 덮어쓰지 않고 읽어서 붙인 뒤 쓴다(71 · 기사님 지시).
+시험 장부(ledger.json)에 한 판을 덧붙인다 — 덮어쓰지 않고 읽어서 붙인 뒤 쓴다(71 · 기사님 지시).
 - runs 끝에 판 하나: 장면마다 ✅(다 맞음) · 🔴(하나라도 틀림) · ⚪(설계대로 · 건너뜀만)
 - finds: 장면이 ✅ 이고 그 장면으로 확인하기로 한 F(checkBy 칸 = 장면)가 있으면 verified · now 를 «✅ 확인됨»으로
          장면이 🔴 인데 그 장면에 묶인 F 가 없으면 새 F(F18 부터) — state 열림 · now «🔴 …»
@@ -7,7 +7,7 @@
 import json, os, re, subprocess, datetime
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-LEDGER = os.path.join(REPO, 'phone-test/ledger.json')   # 시험 장부 — 판 결과(runs) · 찾은 것(finds) · git 에 올라감
+LEDGER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ledger.json')   # 시험 장부 — 판 결과(runs) · 찾은 것(finds) · git 에 올라감
 SRV_LOG = f'{REPO}/onedal-web/server/logs/server-{datetime.date.today():%Y-%m-%d}.log'
 
 def sh(*a):

@@ -72,10 +72,9 @@ onedal-web/server/local.db.backup-*
 ex_images/카카오픽커/실물_2026/
 
 
-# 실폰 e2e 실행 기록 · 판 상태(phone-test)
-phone-test/out/
-phone-test/runs/
-phone-test/__pycache__/
-phone-test/fare_seq.json
-phone-test/round_seq.json
-phone-test/used_calls.json
+# 실폰 e2e 결과지(phone-e2e-test) — 판마다 하나 · 최근 5개
+phone-e2e-test/out/
+phone-e2e-test/__pycache__/
+phone-e2e-test/fare_seq.json
+phone-e2e-test/round_seq.json
+phone-e2e-test/used_calls.json

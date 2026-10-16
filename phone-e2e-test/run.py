@@ -8,7 +8,7 @@
   - 단계 단추(«하차 완료» 등)는 아예 안 누름 — 하차가 필요한 장면은 PC 관제웹(71)
   - 필터 · 설정 단추는 안 누름 · 콜은 onedal-sim 개별콜만(카카오 픽커 실물은 안 엶)
 """
-import os, json, re, struct, subprocess, sys, time, urllib.request, sqlite3, datetime
+import math, os, json, re, struct, subprocess, sys, time, urllib.request, sqlite3, datetime
 
 A24 = 'R59W600X91K'
 S23_MODEL = 'SM-S711N'   # S23 FE — 무선 adb 포트는 켤 때마다 바뀐다
@@ -43,7 +43,7 @@ def phones_ready():
         if r.stdout.strip() != 'device': bad.append((name, dev, (r.stderr or r.stdout).strip()[:120] or '응답 없음'))
     return bad
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
-REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))   # 레포 맨 위 — phone-test 는 레포 바로 아래
+REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))   # 레포 맨 위 — 이 폴더는 레포 바로 아래
 SRV_LOG = f'{REPO}/onedal-web/server/logs/server-{datetime.date.today():%Y-%m-%d}.log'
 DB = f'{REPO}/onedal-web/server/local.db'
 APP_LOG = f'/sdcard/Android/data/com.onedal.app/files/logs/1dal-{datetime.date.today():%Y-%m-%d}.log'
@@ -91,15 +91,25 @@ def picker_watch():
 def guard(dev):
     """앞 창이 알림 · 권한 창 · 실물 픽커면 사진 찍고 멈춤"""
     cur = focus_of(dev)
+    if dev == S23 and 'fakegpsjoystick' in cur and 'AdActivity' in cur:   # JoyStick 광고(경로를 건 직후 등 · 판 9 S06) — 뒤로 가기로 닫고 관제앱을 앞으로 · 광고 단추는 안 누른다
+        shot(dev, 'joy_ad')
+        if 'AdActivity' in focus_of(dev): adb(dev, 'shell', 'input', 'keyevent', 'KEYCODE_BACK'); time.sleep(2)   # 본 그 순간에도 광고면만 — 저절로 닫힌 뒤 BACK 이 JoyStick 화면에 가면 그 앱을 뒤로 보낸다
+        adb(dev, 'shell', 'monkey', '-p', 'kr.co.onedal.dashboard', '-c', 'android.intent.category.LAUNCHER', '1', check=False); time.sleep(2)
+        cur = focus_of(dev); log(f'📺 JoyStick 광고 닫음(뒤로 가기) — 앞 창 {cur}')
+        if 'kr.co.onedal.dashboard' not in cur: shot(dev, 'joy_ad_after'); raise Stop(f'JoyStick 광고를 닫았는데 앞 창이 관제앱이 아님: {cur} — 멈춤(사진)')
     if PICKER_PKG in cur: shot(dev, 'picker_front'); raise Stop(f'앞 화면이 실물 픽커: {cur} — 안 누르고 멈춤(사진)')
     if any(k in cur for k in ('Dialog', 'permission', 'Permission', 'Alert', 'Chooser')) or not any(p in cur for p in FOCUS_OK[dev]):
         shot(dev, 'guard_stop'); raise Stop(f'앞 창이 예상 밖: {cur} — 멈춤(사진)')
+
+JOY_BUTTON = (213, 462)   # S23 화면 위 JoyStick 파란 위치 단추 가운데(1080×2340 · 판 8 사진) — 이 둘레는 누르지 않는다
 
 def tap_if(dev, x, y, pred, what):
     guard(dev)
     px = pixels(dev)
     c = px(x, y)
     if not pred(c, px): shot(dev, f'no_{what}'); raise Stop(f'«{what}» 자리 색이 아님 {c} — 안 누르고 멈춤')
+    if dev == S23 and math.hypot(x - JOY_BUTTON[0], y - JOY_BUTTON[1]) < 70 and c[2] > 200 and c[0] < 80:   # JoyStick 파란 위치 단추 — 판 8 에 이것을 누른 뒤 메뉴가 펼쳐지고 경로 띠가 사라졌다(까닭은 재현 전) · 실행기는 안 누름
+        shot(dev, f'joybutton_{what}'); raise Stop(f'«{what}» 자리가 JoyStick 위치 단추 — 안 누르고 멈춤(메뉴 · 경로 띠를 건드림)')
     adb(dev, 'shell', 'input', 'tap', str(x), str(y)); log(f'👆 {what} ({x},{y}) 색 {c}')
 
 # 색 판별(70판 raw 값 · 1080x2340)
