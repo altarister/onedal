@@ -46,12 +46,7 @@ object KakaoPickerPages {
                 read = Regex("""유의사항\s+([\s\S]*?)(?=\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
             FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.UNUSED),
         ),
-        Page.CONFIRM to listOf(
-            FieldSpec(PageField.STAGE, "픽업 시트 머리", "지금 바로 출발해 주세요 · 픽업이 지연되고 있어요", Seen.REAL, Handling.READ, "KakaoPickerKeywords.stageOf (단계 낱말만)"),
-            FieldSpec(PageField.REMAINING, "시트 머리", "준비 13분 · 배송 33분", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.PICKUP, "시트 픽업지", "[태전점]롯데리아", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.DROPOFF, "시트 배송지", "쌍용 스윗닷홈아파트 304동1002호", Seen.REAL, Handling.UNUSED),
-        ),
+        Page.CONFIRM to emptyList<FieldSpec>(),
         Page.MY_ORDERS to listOf(
             FieldSpec(PageField.STAGE, "내 오더 줄 머리", "픽업 준비 14분 남음", Seen.REAL, Handling.READ, "KakaoPickerKeywords.stageOf (단계 낱말만)"),
             FieldSpec(PageField.REMAINING, "내 오더 줄 머리", "14분 남음", Seen.REAL, Handling.UNUSED),
@@ -60,13 +55,18 @@ object KakaoPickerPages {
             FieldSpec(PageField.TAGS, "오른쪽 배지", "도보", Seen.REAL, Handling.UNUSED),
         ),
         Page.MY_ORDER to listOf(
-            FieldSpec(PageField.PICKUP, "오더 전체 보기 픽업지", "[태전점]롯데리아 · 경기 광주시 고불로 43-1", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.DROPOFF, "오더 전체 보기 배송지", "쌍용 스윗닷홈아파트 304동1002호", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.STAGE, "운행 시트 머리", "지금 바로 출발해 주세요 · 픽업이 지연되고 있어요", Seen.REAL, Handling.READ, "KakaoPickerKeywords.stageOf (단계 낱말만)"),
+            FieldSpec(PageField.REMAINING, "운행 시트 머리", "준비 13분 · 배송 33분", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.PICKUP, "운행 시트 픽업지 · 오더 전체 보기 픽업지", "[태전점]롯데리아", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.DROPOFF, "운행 시트 배송지 · 오더 전체 보기 배송지", "쌍용 스윗닷홈아파트 304동1002호", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.FARE, "오더 전체 보기 최종 수익", "최종 수익 2,387P", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.MEMO, "오더 전체 보기 고객 요청", "문 앞에 놔주세요 (벨 O) 비대면 배달 / 사진 필수", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.ORDER_NO, "오더 전체 보기 오더 확인", "260902091827593", Seen.REAL, Handling.UNUSED),
         ),
     )
+
+    /** 🚫 그 배차망에 없는 페이지 → 까닭(shared absentPages — 칸이 빈 것은 «없다고 확인함») */
+    val absentPages: Map<Page, String> = mapOf(Page.CONFIRM to "수락하면 확정 화면 없이 바로 내 오더 — 기사님 확인")
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords) */
     val vehicleWords: Map<String, String?> = emptyMap()

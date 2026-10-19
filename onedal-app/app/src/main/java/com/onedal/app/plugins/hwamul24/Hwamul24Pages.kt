@@ -53,23 +53,34 @@ object Hwamul24Pages {
             FieldSpec(PageField.STAGE, "배차신청 뒤 화면", "(실물 캡처 없음)", Seen.UNKNOWN, Handling.UNUSED),
         ),
         Page.MY_ORDERS to listOf(
-            FieldSpec(PageField.DROPOFF, "배차내역 상세 하차지", "서울 강서 외발산동 [당착] 92Km", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.MEMO, "배차내역 상세 화물정보", "예약 당일오후1시상 당착 다발무상.하차해줌", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.RESERVATION, "배차내역 상세 배지", "[예약]", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.CLOCK, "하차시간", "2025-11-23 20:43분", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.STAGE, "배차내역 줄 오른쪽 상태", "배차완료", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.PICKUP, "배차내역 줄 상차", "경기 군포 당정동 공단로124번길 4 (크레텍)", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.DROPOFF, "배차내역 줄 하차", "경기 화성 신동 703", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.FARE, "배차내역 줄 요금", "250,000원", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.RESERVATION, "배차내역 줄 상차 · 하차 배지", "당상 · 당착", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.TAGS, "배차내역 줄 배지(미수금 — 수금 상태 · 지 — 뜻 모름)", "미수금 · 지 · 독차", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.PAYMENT, "배차내역 줄 결제", "인수증", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.VEHICLE_TYPE, "배차내역 줄 톤 · 차종", "5톤 · 윙바디", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.CLOCK, "배차내역 줄 오른쪽 시각", "12-30 14:53", Seen.REAL, Handling.UNUSED),
         ),
         Page.MY_ORDER to listOf(
             FieldSpec(PageField.PICKUP, "배차내역 상세 상차지", "경기 군포 당정동 공단로124번길 4 (크레텍)", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.DROPOFF, "배차내역 상세 하차지", "경기 화성 신동 703", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.DELIVERY_DISTANCE, "배차내역 상세 하차지 끝", "34Km", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.RESERVATION, "배차내역 상세 상차지 · 하차지 배지", "당상 · 당착", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.TAGS, "배차내역 상세 배지", "지 · 독차", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.RESERVATION, "배차내역 상세 상차지 · 하차지 배지 · 예약 배지", "당상 · 당착 · [예약]", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.TAGS, "배차내역 상세 배지(지 — 뜻 모름)", "지 · 독차", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.ORDER_NO, "배차내역 상세 화물번호", "3-4991-0836", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.MEMO, "배차내역 상세 화물정보", "당일상 당착 #연계#쿠팡 24시(군포-부천)새벽02시(부천-동탄)가는대로 하차", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.VEHICLE_TYPE, "배차내역 상세 톤 수 · 차종", "5톤 · 윙바디", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.CLOCK, "배차시간", "배차시간: 12-30 14:53", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.CLOCK, "배차내역 상세 배차시간", "배차시간: 12-30 14:53", Seen.REAL, Handling.UNUSED, "",
+                part = "배차"),
+            FieldSpec(PageField.CLOCK, "배차내역 상세 하차시간", "하차시간 2025-11-23 20:43분", Seen.REAL, Handling.UNUSED, "",
+                part = "하차"),
         ),
     )
+
+    /** 🚫 그 배차망에 없는 페이지 → 까닭(shared absentPages — 칸이 빈 것은 «없다고 확인함») */
+    val absentPages: Map<Page, String> = emptyMap()
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 셋째 줄 «낱말/…»(«1톤/전체» · «2.5톤/윙» · «다마스/전체»)의 첫 «/» 앞 낱말 — REAL 은 실물 캡처 17 · 실물 목록, SIM 은 시뮬레이터 목록에서만 봤다) */
     val vehicleWords: Map<String, String?> = mapOf(

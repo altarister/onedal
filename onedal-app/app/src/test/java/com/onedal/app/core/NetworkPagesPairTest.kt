@@ -28,12 +28,20 @@ class NetworkPagesPairTest {
             pages.getValue(page).map { f -> listOf(page.word, f.field.word, f.where, f.sample, f.seen.name, f.handling.name, f.usedAt, f.read?.pattern, f.part) }
         }
 
+    /** 같은 칸 페이지(`sameFieldsAs`)는 가리키는 페이지 칸을 seen 약한 쪽으로 — 뽑기 · shared `fieldsOf` 와 같은 규칙 */
+    private val seenRank = mapOf("UNKNOWN" to 0, "SIM" to 1, "REAL" to 2)
+
     private fun rowsOf(network: String): List<List<String?>> {
-        val pages = table[network].asJsonObject["pages"].asJsonObject
-        return pages.entrySet().flatMap { (page, rows) ->
+        val spec = table[network].asJsonObject
+        val pages = spec["pages"].asJsonObject
+        val same = spec["sameFieldsAs"]?.asJsonObject
+        return pages.entrySet().flatMap { (page, rows0) ->
+            val sm = same?.get(page)?.asJsonObject
+            val rows = if (sm != null) pages[sm["as"].asString] else rows0
             rows.asJsonArray.map { it.asJsonObject }.map { r ->
                 fun s(k: String) = r[k]?.takeIf { !it.isJsonNull }?.asString
-                listOf(page, s("field"), s("where"), s("sample"), s("seen"), s("handling"), s("usedAt") ?: "", s("read"), s("part") ?: "")
+                val seen = s("seen")!!.let { own -> sm?.get("seen")?.asString?.takeIf { seenRank.getValue(it) < seenRank.getValue(own) } ?: own }
+                listOf(page, s("field"), s("where"), s("sample"), seen, s("handling"), s("usedAt") ?: "", s("read"), s("part") ?: "")
             }
         }
     }

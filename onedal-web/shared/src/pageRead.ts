@@ -1,7 +1,7 @@
 import type { TargetAppType, LocationDetailInfo, DetailedOfficeOrder } from './index';
 import { PAYMENT_TYPES, type PaymentType, type BillingType } from './paymentTypes';
 import type { PageField, ScreenPage } from './pageFields';
-import { NETWORK_PAGES } from './networkPages';
+import { NETWORK_PAGES, fieldsOf } from './networkPages';
 
 /**
  * 📄 **화면 칸을 배차망 정의 표대로 읽는다 — 서버 쪽 한 곳** (원달앱 짝 `core/PageFieldRead.kt`).
@@ -15,7 +15,7 @@ const compiled = new Map<string, RegExp | null>();
 const readOf = (app: TargetAppType, page: ScreenPage, field: PageField, part: string): RegExp | null => {
     const key = `${app}|${page}|${field}|${part}`;
     if (!compiled.has(key)) {
-        const spec = NETWORK_PAGES[app]?.pages[page]?.find(r => r.field === field && (r.part ?? '') === part
+        const spec = fieldsOf(app, page).find(r => r.field === field && (r.part ?? '') === part
             && r.handling === 'READ' && r.read !== undefined);
         compiled.set(key, spec?.read !== undefined ? new RegExp(spec.read) : null);
     }

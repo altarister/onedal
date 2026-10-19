@@ -9,15 +9,23 @@ import org.junit.Test
 
 /**
  * 📄 **세 배차망 모두 칸을 적는 페이지를 다 정의한다** (기사님 «정의되지 않았다고 버리는 것이 문제다»).
- * 칸이 비었거나 한 페이지에 같은 칸이 둘이면 표가 흐려진다 — 모름 칸 수는 부팅 줄(`PageSpecSummary`)로 본다.
+ * 칸이 비었거나(그 배차망에 없는 페이지는 까닭과 함께 비운다) 한 페이지에 같은 칸이 둘이면 표가 흐려진다 — 모름 칸 수는 부팅 줄(`PageSpecSummary`)로 본다.
  */
 class PagesDefinedTest {
     private val all = mapOf("픽커" to KakaoPickerPages.pages, "인성" to InsungPages.pages, "24시" to Hwamul24Pages.pages)
 
-    @Test fun `세 배차망 모두 칸을 적는 페이지가 다 있고 칸이 비지 않는다`() {
+    /** 그 배차망에 없는 페이지(shared `absentPages` · 생성 파일로 옴) — 칸을 비우고 까닭을 적는다 */
+    private val absent = mapOf("픽커" to KakaoPickerPages.absentPages, "인성" to InsungPages.absentPages, "24시" to Hwamul24Pages.absentPages)
+
+    @Test fun `세 배차망 모두 칸을 적는 페이지가 다 있고 칸이 비지 않는다 — 없는 페이지만 비운다`() {
         for ((name, pages) in all) {
             assertEquals("$name 페이지", Page.values().toSet(), pages.keys)
-            pages.forEach { (page, fields) -> assertTrue("$name $page 칸이 비었다", fields.isNotEmpty()) }
+            val none = absent.getValue(name)
+            pages.forEach { (page, fields) ->
+                if (page in none) assertTrue("$name $page 없는 페이지인데 칸이 있다", fields.isEmpty())
+                else assertTrue("$name $page 칸이 비었다", fields.isNotEmpty())
+            }
+            none.forEach { (page, why) -> assertTrue("$name $page 없는 까닭이 비었다", why.isNotBlank()) }
         }
     }
 

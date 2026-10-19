@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { NETWORK_PAGES, STANDARD_SCREENS } from './networkPages';
+import { NETWORK_PAGES, STANDARD_SCREENS, fieldsOf } from './networkPages';
 import { PAGE_FIELDS, SCREEN_PAGES, BASE_PAGES, type PageField, type ScreenPage } from './pageFields';
 import { TARGET_APPS, type TargetAppType } from './index';
 import { pageFieldOf, pageFareOf, excludeScanTextOf } from './pageRead';
@@ -229,6 +229,54 @@ describe('정의 표 — 화면 줄의 기준 칸', () => {
         for (const net of TARGET_APPS) for (const base of ['home', 'list', 'detail', 'myorders', 'myorder']) {
             expect(screensOf(net).some((s) => (s.bases ?? []).includes(base)), `${net} ${base}`).toBe(true);
         }
+    });
+});
+
+/**
+ * 🚫🪞 **없는 페이지(`absentPages`) · 같은 칸 페이지(`sameFieldsAs`)** — «비어 있음 = 없다고 확인함»만 참이 되게.
+ * 막는 것: 근거 없이 비운 페이지 · 없다면서 그 기준 화면 줄이 있는 것 · 같은 칸을 두 벌 적는 것 · 두 앱이 같은 표를 다르게 읽는 것.
+ */
+describe('정의 표 — 없는 페이지 · 같은 칸 페이지', () => {
+    const specOf = (net: string) => (NETWORK_PAGES as any)[net];
+
+    it('없는 페이지는 칸을 적는 페이지 낱말 · 까닭과 근거가 있고 · 칸이 비고 · 그 기준 화면 줄이 없다', () => {
+        for (const net of TARGET_APPS) {
+            const spec = specOf(net);
+            for (const [page, a] of Object.entries<any>(spec.absentPages ?? {})) {
+                const at = `${net} 없는 페이지 ${page}`;
+                expect(SCREEN_PAGES as readonly string[], at).toContain(page);
+                expect(a.why, `${at} 까닭`).toBeTruthy();
+                expect(a.evidence, `${at} 근거`).toBeTruthy();
+                expect(spec.pages[page], `${at} 칸이 있다`).toEqual([]);
+                expect(spec.screens.filter((s: any) => (s.bases ?? []).includes(page)).map((s: any) => s.name), `${at} 그 기준 화면 줄`).toEqual([]);
+                expect(spec.sameFieldsAs?.[page], `${at} 같은 칸 페이지와 함께`).toBeUndefined();
+            }
+        }
+        expect(specOf('kakaopicker').absentPages?.confirm?.why, '픽커 — 수락하면 확정 화면 없이 바로 내 오더').toMatch(/바로 내 오더/);
+    });
+
+    it('같은 칸 페이지는 표에 칸이 비고 · 가리키는 페이지는 칸이 있다', () => {
+        for (const net of TARGET_APPS) {
+            const spec = specOf(net);
+            for (const [page, s] of Object.entries<any>(spec.sameFieldsAs ?? {})) {
+                const at = `${net} 같은 칸 ${page} → ${s.as}`;
+                expect(SCREEN_PAGES as readonly string[], at).toContain(page);
+                expect(SCREEN_PAGES as readonly string[], at).toContain(s.as);
+                expect(['REAL', 'SIM', 'UNKNOWN'], `${at} seen`).toContain(s.seen);
+                expect(s.why, `${at} 까닭`).toBeTruthy();
+                expect(spec.pages[page], `${at} 표에 칸이 있다(두 벌)`).toEqual([]);
+                expect(spec.pages[s.as].length, `${at} 가리키는 페이지 칸`).toBeGreaterThan(0);
+            }
+        }
+        expect(specOf('insung').sameFieldsAs?.myorder?.as, '인성 내 오더 콜 = 확정 뒤 상세').toBe('confirm');
+    });
+
+    it('fieldsOf 는 같은 칸 페이지를 따라가고 seen 은 약한 쪽이다', () => {
+        const same = fieldsOf('insung', 'myorder');
+        const confirm = fieldsOf('insung', 'confirm');
+        expect(same.map((r) => `${r.field}|${r.part ?? ''}`)).toEqual(confirm.map((r) => `${r.field}|${r.part ?? ''}`));
+        expect(same.every((r) => r.seen !== 'REAL'), '완료 탭에서 연 모습은 시뮬레이터로만 봤다').toBe(true);
+        expect(fieldsOf('kakaopicker', 'confirm')).toEqual([]);
     });
 });
 

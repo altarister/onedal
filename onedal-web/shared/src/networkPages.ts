@@ -34,6 +34,16 @@ export interface NetworkPageSpec {
     about: string[];
     pages: Record<ScreenPage, NetworkFieldSpec[]>;
     /**
+     * 🚫 **그 배차망에 없는 페이지** — 실물로 없다고 확인한 것만(까닭 · 근거 캡처). 칸은 비운다.
+     * 모르는 페이지는 비우지 않고 `seen: UNKNOWN` 줄로 둔다 — «비어 있음 = 없다고 확인함»만 참이 되게.
+     */
+    absentPages?: Partial<Record<ScreenPage, { why: string; evidence: string }>>;
+    /**
+     * 🪞 **같은 화면이라 칸이 같은 페이지** — 이 페이지 칸은 비우고 `as` 페이지 칸을 쓴다(`fieldsOf` · 원달앱은 뽑을 때 복사).
+     * `seen` 은 «이 페이지가 그 모양이다»를 본 정도 — 복사한 칸은 원래 칸과 이것 중 약한 쪽이 된다.
+     */
+    sameFieldsAs?: Partial<Record<ScreenPage, { as: ScreenPage; seen: 'REAL' | 'SIM' | 'UNKNOWN'; why: string }>>;
+    /**
      * 🚫 **제외어를 찾는 칸** — 상세 화면(detail)의 이 칸들 값에서만 기사님 제외어를 찾는다(기사님 «배차망별 칸에서만»).
      * 칸마다 그 화면 정의 줄의 읽는 법(read)으로 읽는다 — 주소 · 화주 이름 · 화면 머리 · 버튼 · 목록 잔상은 빠진다. 서버가 읽는다 · 원달앱 제외어는 목록 카드 글에서만(무변화) · gen:pages 는 이 칸을 뽑지 않는다.
      */
@@ -214,6 +224,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       {"name": "인수증 전송", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (확정 뒤 상세 «인수증 전송» 버튼 뒤)", "overlays": []},
       {"name": "로그인", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []}
     ],
+    "sameFieldsAs": {"myorder": {"as": "confirm", "seen": "SIM", "why": "완료 탭에서 연 콜 — 확정 뒤 상세와 같은 모양 · 시뮬레이터 InsungOngoingDetailScreen 로만 봄"}},
     "pages": {
       "list": [
         {"field": "pickup", "where": "출발지 칸", "sample": "@초이동 · @남양주(오남", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},
@@ -274,17 +285,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "contact", "where": "완료 탭 줄", "sample": "회사 이름", "seen": "SIM", "handling": "UNUSED"},
         {"field": "clock", "where": "완료 탭 줄", "sample": "상차 시각 · 하차 시각", "seen": "SIM", "handling": "UNUSED"}
       ],
-      "myorder": [
-        {"field": "stage", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 상태 줄", "sample": "상태 : 배송", "seen": "SIM", "handling": "UNUSED"},
-        {"field": "pickup", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 출발지 줄", "sample": "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", "seen": "SIM", "handling": "UNUSED"},
-        {"field": "dropoff", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 도착지 줄", "sample": "서울강남구 / 역삼동 / 이희억", "seen": "SIM", "handling": "UNUSED"},
-        {"field": "fare", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 요금 줄", "sample": "요금 : 40,000(신용)", "seen": "SIM", "handling": "UNUSED"},
-        {"field": "vehicleType", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 차량 줄", "sample": "차량 : 다마스", "seen": "SIM", "handling": "UNUSED"},
-        {"field": "toll", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 탁송료 줄", "sample": "탁송료 : 0", "seen": "SIM", "handling": "UNUSED"},
-        {"field": "commission", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 수수료 줄", "sample": "수수료 : 23%", "seen": "SIM", "handling": "UNUSED"},
-        {"field": "contact", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 머리 줄", "sample": "(주)신한로직스-1588-5480", "seen": "SIM", "handling": "UNUSED"},
-        {"field": "memo", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 적요 칸", "sample": "1시상차 6박스 …", "seen": "SIM", "handling": "UNUSED"}
-      ]
+      "myorder": []
     }
   },
   "hwamul24": {
@@ -388,21 +389,27 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "stage", "where": "배차신청 뒤 화면", "sample": "(실물 캡처 없음)", "seen": "UNKNOWN", "handling": "UNUSED"}
       ],
       "myorders": [
-        {"field": "dropoff", "where": "배차내역 상세 하차지", "sample": "서울 강서 외발산동 [당착] 92Km", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "memo", "where": "배차내역 상세 화물정보", "sample": "예약 당일오후1시상 당착 다발무상.하차해줌", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "reservation", "where": "배차내역 상세 배지", "sample": "[예약]", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "clock", "where": "하차시간", "sample": "2025-11-23 20:43분", "seen": "REAL", "handling": "UNUSED"}
+        {"field": "stage", "where": "배차내역 줄 오른쪽 상태", "sample": "배차완료", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "pickup", "where": "배차내역 줄 상차", "sample": "경기 군포 당정동 공단로124번길 4 (크레텍)", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "dropoff", "where": "배차내역 줄 하차", "sample": "경기 화성 신동 703", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "fare", "where": "배차내역 줄 요금", "sample": "250,000원", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "reservation", "where": "배차내역 줄 상차 · 하차 배지", "sample": "당상 · 당착", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "tags", "where": "배차내역 줄 배지(미수금 — 수금 상태 · 지 — 뜻 모름)", "sample": "미수금 · 지 · 독차", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "payment", "where": "배차내역 줄 결제", "sample": "인수증", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "vehicleType", "where": "배차내역 줄 톤 · 차종", "sample": "5톤 · 윙바디", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "clock", "where": "배차내역 줄 오른쪽 시각", "sample": "12-30 14:53", "seen": "REAL", "handling": "UNUSED"}
       ],
       "myorder": [
         {"field": "pickup", "where": "배차내역 상세 상차지", "sample": "경기 군포 당정동 공단로124번길 4 (크레텍)", "seen": "REAL", "handling": "UNUSED"},
         {"field": "dropoff", "where": "배차내역 상세 하차지", "sample": "경기 화성 신동 703", "seen": "REAL", "handling": "UNUSED"},
         {"field": "deliveryDistance", "where": "배차내역 상세 하차지 끝", "sample": "34Km", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "reservation", "where": "배차내역 상세 상차지 · 하차지 배지", "sample": "당상 · 당착", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "tags", "where": "배차내역 상세 배지", "sample": "지 · 독차", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "reservation", "where": "배차내역 상세 상차지 · 하차지 배지 · 예약 배지", "sample": "당상 · 당착 · [예약]", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "tags", "where": "배차내역 상세 배지(지 — 뜻 모름)", "sample": "지 · 독차", "seen": "REAL", "handling": "UNUSED"},
         {"field": "orderNo", "where": "배차내역 상세 화물번호", "sample": "3-4991-0836", "seen": "REAL", "handling": "UNUSED"},
         {"field": "memo", "where": "배차내역 상세 화물정보", "sample": "당일상 당착 #연계#쿠팡 24시(군포-부천)새벽02시(부천-동탄)가는대로 하차", "seen": "REAL", "handling": "UNUSED"},
         {"field": "vehicleType", "where": "배차내역 상세 톤 수 · 차종", "sample": "5톤 · 윙바디", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "clock", "where": "배차시간", "sample": "배차시간: 12-30 14:53", "seen": "REAL", "handling": "UNUSED"}
+        {"field": "clock", "where": "배차내역 상세 배차시간", "sample": "배차시간: 12-30 14:53", "seen": "REAL", "handling": "UNUSED", "part": "배차"},
+        {"field": "clock", "where": "배차내역 상세 하차시간", "sample": "하차시간 2025-11-23 20:43분", "seen": "REAL", "handling": "UNUSED", "part": "하차"}
       ]
     }
   },
@@ -483,6 +490,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       {"name": "메시지 앱 문자 작성", "standard": "OTHER_APP", "bases": [], "match": [], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/29_문자작성_배송완료MMS.jpeg"], "toCollect": "패키지 이름", "overlays": []},
       {"name": "메시지 앱 채팅+ 안내", "standard": "OTHER_APP", "bases": [], "match": [], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/28_채팅플러스_안내.jpeg"], "toCollect": "패키지 이름", "overlays": []}
     ],
+    "absentPages": {"confirm": {"why": "수락하면 확정 화면 없이 바로 내 오더 — 기사님 확인", "evidence": "ex_images/카카오픽커/실물_2026/15_내오더탭_픽업준비14분남음.jpeg"}},
     "pages": {
       "list": [
         {"field": "fare", "where": "목록 줄 오른쪽", "sample": "16,093", "seen": "REAL", "handling": "READ", "usedAt": "KakaoPickerParser.parse"},
@@ -506,12 +514,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "memo", "where": "사진 유의사항", "sample": "바로 배송가주실 분만 잡아주세요", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «유의사항» 다음 «최종 수익» · 버튼 앞 · 원달앱은 이 칸을 안 읽는다(사진 판독도 안 씀)", "read": "유의사항\\s+([\\s\\S]*?)(?=\\s+최종 수익|\\s+넘기기|\\s+수락하기|$)"},
         {"field": "fare", "where": "상세 아래 최종 수익", "sample": "최종 수익 2,387", "seen": "REAL", "handling": "UNUSED"}
       ],
-      "confirm": [
-        {"field": "stage", "where": "픽업 시트 머리", "sample": "지금 바로 출발해 주세요 · 픽업이 지연되고 있어요", "seen": "REAL", "handling": "READ", "usedAt": "KakaoPickerKeywords.stageOf (단계 낱말만)"},
-        {"field": "remaining", "where": "시트 머리", "sample": "준비 13분 · 배송 33분", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "pickup", "where": "시트 픽업지", "sample": "[태전점]롯데리아", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "dropoff", "where": "시트 배송지", "sample": "쌍용 스윗닷홈아파트 304동1002호", "seen": "REAL", "handling": "UNUSED"}
-      ],
+      "confirm": [],
       "myorders": [
         {"field": "stage", "where": "내 오더 줄 머리", "sample": "픽업 준비 14분 남음", "seen": "REAL", "handling": "READ", "usedAt": "KakaoPickerKeywords.stageOf (단계 낱말만)"},
         {"field": "remaining", "where": "내 오더 줄 머리", "sample": "14분 남음", "seen": "REAL", "handling": "UNUSED"},
@@ -520,8 +523,10 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "tags", "where": "오른쪽 배지", "sample": "도보", "seen": "REAL", "handling": "UNUSED"}
       ],
       "myorder": [
-        {"field": "pickup", "where": "오더 전체 보기 픽업지", "sample": "[태전점]롯데리아 · 경기 광주시 고불로 43-1", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "dropoff", "where": "오더 전체 보기 배송지", "sample": "쌍용 스윗닷홈아파트 304동1002호", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "stage", "where": "운행 시트 머리", "sample": "지금 바로 출발해 주세요 · 픽업이 지연되고 있어요", "seen": "REAL", "handling": "READ", "usedAt": "KakaoPickerKeywords.stageOf (단계 낱말만)"},
+        {"field": "remaining", "where": "운행 시트 머리", "sample": "준비 13분 · 배송 33분", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "pickup", "where": "운행 시트 픽업지 · 오더 전체 보기 픽업지", "sample": "[태전점]롯데리아", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "dropoff", "where": "운행 시트 배송지 · 오더 전체 보기 배송지", "sample": "쌍용 스윗닷홈아파트 304동1002호", "seen": "REAL", "handling": "UNUSED"},
         {"field": "fare", "where": "오더 전체 보기 최종 수익", "sample": "최종 수익 2,387P", "seen": "REAL", "handling": "UNUSED"},
         {"field": "memo", "where": "오더 전체 보기 고객 요청", "sample": "문 앞에 놔주세요 (벨 O) 비대면 배달 / 사진 필수", "seen": "REAL", "handling": "UNUSED"},
         {"field": "orderNo", "where": "오더 전체 보기 오더 확인", "sample": "260902091827593", "seen": "REAL", "handling": "UNUSED"}
@@ -529,6 +534,15 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     }
   }
 }/*JSON*/ as Record<TargetAppType, NetworkPageSpec>;
+
+const SEEN_RANK = { UNKNOWN: 0, SIM: 1, REAL: 2 } as const;
+/** 📄 그 배차망 · 그 페이지의 칸 — 같은 칸 페이지(`sameFieldsAs`)면 가리키는 페이지 칸을 seen 약한 쪽으로(원달앱 생성 파일과 같은 답) */
+export function fieldsOf(app: TargetAppType, page: ScreenPage): NetworkFieldSpec[] {
+    const spec = NETWORK_PAGES[app];
+    const same = spec?.sameFieldsAs?.[page];
+    if (!same) return spec?.pages[page] ?? [];
+    return (spec.pages[same.as] ?? []).map((r) => (SEEN_RANK[r.seen] <= SEEN_RANK[same.seen] ? r : { ...r, seen: same.seen }));
+}
 
 /**
  * 📋 **이 배차망 페이지는 목록 복귀로 치나** — 표의 `listReturn`(인성 완료 탭 · 화물24시 배차내역 목록).

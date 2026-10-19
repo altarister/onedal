@@ -88,8 +88,27 @@ const TARGETS = [
 for (const [net, file, pkg, obj] of TARGETS) {
     const spec = table[net];
     if (!spec) fail(`표에 배차망 ${net} 이 없다`);
-    const pages = Object.entries(spec.pages).map(([page, rows]) => {
+    /* 🪞 같은 칸 페이지 — 표에 칸이 비어 있어야 하고(한 벌) 가리키는 페이지 칸을 seen 약한 쪽으로 복사한다(shared fieldsOf 와 같은 답) */
+    const RANK = { UNKNOWN: 0, SIM: 1, REAL: 2 };
+    const same = spec.sameFieldsAs ?? {};
+    for (const [pg, sm] of Object.entries(same)) {
+        if ((spec.pages[pg] ?? []).length) fail(`${net} 같은 칸 페이지 «${pg}» — 표에 칸이 있다(두 벌)`);
+        if (!(spec.pages[sm.as] ?? []).length) fail(`${net} 같은 칸 페이지 «${pg}» → «${sm.as}» — 가리키는 페이지에 칸이 없다`);
+        if (!(sm.seen in RANK)) fail(`${net} 같은 칸 페이지 «${pg}» — seen «${sm.seen}»`);
+    }
+    const rowsOf = (page, rows) => same[page]
+        ? spec.pages[same[page].as].map((r) => (RANK[r.seen] <= RANK[same[page].seen] ? r : { ...r, seen: same[page].seen }))
+        : rows;
+    /* 🚫 없는 페이지 — 키는 원달앱 Page 낱말 · 까닭이 있어야 한다 */
+    const absent = Object.entries(spec.absentPages ?? {}).map(([pg, a]) => {
+        const p = PAGE[pg] ?? fail(`${net} 없는 페이지 «${pg}» — core/PageField.kt Page 에 없다`);
+        if (!a.why || !a.evidence) fail(`${net} 없는 페이지 «${pg}» — 까닭 · 근거가 비었다`);
+        return `Page.${p} to ${kstr(a.why)}`;
+    });
+    const pages = Object.entries(spec.pages).map(([page, rows0]) => {
         const p = PAGE[page] ?? fail(`${net} — 모르는 화면 «${page}» (core/PageField.kt Page 에 없다)`);
+        const rows = rowsOf(page, rows0);
+        if (!rows.length) return `        Page.${p} to emptyList<FieldSpec>(),`;
         const lines = rows.map((r) => {
             const f = FIELD[r.field] ?? fail(`${net} ${page} — 모르는 칸 «${r.field}»`);
             if (!['REAL', 'SIM', 'UNKNOWN'].includes(r.seen)) fail(`${net} ${page} ${r.field} — seen «${r.seen}»`);
@@ -136,6 +155,9 @@ object ${obj} {
     val pages: PageSpecs = mapOf(
 ${pages.join('\n')}
     )
+
+    /** 🚫 그 배차망에 없는 페이지 → 까닭(shared absentPages — 칸이 빈 것은 «없다고 확인함») */
+    val absentPages: Map<Page, String> = ${absent.length ? `mapOf(${absent.join(', ')})` : 'emptyMap()'}
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords${spec.vehicleWordsWhy ? ` — ${spec.vehicleWordsWhy}` : ''}) */
     val vehicleWords: Map<String, String?> = ${vehicleWords}
