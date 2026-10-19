@@ -1306,6 +1306,453 @@
    "purpose": "서랍 «완료됨 · 취소» 탭에 하루의 콜이 맞게 남았는가(연습 끝 · 안전취소)"
   },
   {
+   "id": "P1",
+   "say": "기준 페이지 — 인성 여섯 칸: 홈 → 목록 → 상세 → 확정 → 내 오더 리스트(완료 탭) → 내 오더 콜(완료 줄 상세) · 직접 모드에서 실행기가 손으로 걷는다",
+   "purpose": "원달앱이 인성 기준 페이지 여섯을 정의 표의 화면 줄로 읽는가(화면 낱말이 그 페이지 몫으로 쌓이는 바탕)",
+   "phone": "both",
+   "needs": [],
+   "onFail": "tool",
+   "limitSec": 300,
+   "do": [
+    {
+     "mode": "MANUAL"
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "sim": {
+      "net": "insung",
+      "fresh": true
+     }
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 인성콜 홈",
+      "sec": 30
+     }
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 인성콜 신규 콜 목록 → LIST",
+      "sec": 30
+     }
+    },
+    {
+     "call": {
+      "net": "insung",
+      "pick": "cw1066",
+      "drop": "gj765",
+      "fare": 21000,
+      "veh": "filter",
+      "tag": "page_walk",
+      "bind": "Q1"
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.insung.list.row"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 인성콜 확정 전 상세",
+      "sec": 20
+     }
+    },
+    {
+     "wait_app": {
+      "re": "상세 수집 종료",
+      "sec": 25
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.insung.detail.confirm"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 인성콜 확정 뒤 상세 → DETAIL_CONFIRMED",
+      "sec": 20
+     }
+    },
+    {
+     "sleep": 8
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.insung.detail.close"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 인성콜 (신규 콜 목록|완료 탭)",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.insung.tab.done"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 인성콜 완료 탭 → LIST_COMPLETED",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.insung.done.row"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 인성콜 확정 뒤 상세",
+      "sec": 20
+     }
+    },
+    {
+     "sleep": 8
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.insung.detail.close"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 인성콜 완료 탭",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.insung.tab.new"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 인성콜 신규 콜 목록 → LIST",
+      "sec": 20
+     }
+    }
+   ],
+   "expect": "홈 «인성퀵화면분할» · 신규 콜 목록 · 확정 전 상세 · 확정 뒤 상세(확정 직후) · 완료 탭(LIST_COMPLETED) · 확정 뒤 상세(완료 줄에서 연 콜) 모두 📄 줄로 섬",
+   "wrong": "어느 칸이 «표에 없음 → UNKNOWN» · 다른 화면 줄로 읽힘"
+  },
+  {
+   "id": "P2",
+   "say": "기준 페이지 — 화물24시 여섯 칸: 홈 → 목록 → 화물상세정보 → 배차신청 뒤 → 배차내역 목록 → 배차내역 상세",
+   "purpose": "원달앱이 화물24시 기준 페이지 여섯을 읽는가 · 배차신청 뒤 «배차내역»이 배차내역 목록으로 가는가",
+   "phone": "both",
+   "needs": [],
+   "onFail": "tool",
+   "limitSec": 300,
+   "do": [
+    {
+     "mode": "MANUAL"
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "sim": {
+      "net": "hwamul24",
+      "fresh": true
+     }
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 화물24시 홈",
+      "sec": 30
+     }
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 화물24시 화물정보\\(실시간 목록\\) → LIST",
+      "sec": 30
+     }
+    },
+    {
+     "call": {
+      "net": "hwamul24",
+      "pick": "gj765",
+      "drop": "cw1066",
+      "fare": 22000,
+      "veh": "filter",
+      "tag": "page_walk",
+      "bind": "Q2"
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.hwamul24.list.fare"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 화물24시 화물상세정보 → DETAIL_PRE_CONFIRM",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.hwamul24.detail.confirm"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 화물24시 배차신청 뒤 화물상세정보",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.hwamul24.after.myorders"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 화물24시 배차내역 목록 → LIST_COMPLETED",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.hwamul24.myorders.row"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 화물24시 배차내역 상세 · 화물정보 탭 → DETAIL_CONFIRMED",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.hwamul24.myorder.back"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 화물24시 배차내역 목록",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.hwamul24.tab.list"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 화물24시 화물정보\\(실시간 목록\\) → LIST",
+      "sec": 20
+     }
+    }
+   ],
+   "expect": "홈 «전국24시콜화물» · 화물정보(실시간 목록) · 화물상세정보 · 배차신청 뒤 화물상세정보 · 배차내역 목록(LIST_COMPLETED) · 배차내역 상세 · 화물정보 탭 모두 📄 줄로 섬",
+   "wrong": "신청 뒤 화면이 화물상세정보(확정 전)로 읽힘 · «배차내역» 단추가 목록으로 안 감"
+  },
+  {
+   "id": "P3",
+   "say": "기준 페이지 — 픽커 다섯 칸(확정 칸 없음): 홈 → 신규 리스트 → 상세 → 수락 → 내 오더 탭 → 운행 단계(퀵 픽업 출발하기 ~ 배송 완료) · 시뮬 콜이라 실물 계약 없음",
+   "purpose": "원달앱이 픽커 기준 페이지(홈 · 목록 · 상세 · 내 오더 리스트 · 내 오더 콜)를 읽는가 · 수락하면 확정 화면 없이 내 오더로 가는가",
+   "phone": "both",
+   "needs": [],
+   "onFail": "tool",
+   "limitSec": 420,
+   "do": [
+    {
+     "mode": "MANUAL"
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "sim": {
+      "net": "picker",
+      "fresh": true
+     }
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 홈|\\[scrap\\] 화면 HOME|읽기 나눔\\] \\S+→HOME",
+      "sec": 30
+     }
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 신규 리스트 → LIST",
+      "sec": 30
+     }
+    },
+    {
+     "call": {
+      "net": "picker",
+      "pick": "cw1021",
+      "drop": "gonjiam41",
+      "fare": 18000,
+      "veh": "오토바이",
+      "tag": "page_walk",
+      "bind": "Q3"
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.list.card"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 상세\\(수락 전 시트\\) → DETAIL_PRE_CONFIRM",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.detail.accept"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 내 오더 탭 → MY_ORDERS",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.myorders.card"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 퀵 픽업 출발하기 → RUN_TO_PICKUP",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.run.next"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 퀵 픽업 완료하기",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.run.next"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 퀵 배송 출발하기",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.run.next"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 퀵 배송 완료하기",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.run.next"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 인증사진 촬영",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.run.next"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 촬영 확인",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.run.next"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 문자 전송",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.run.done"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 배송 완료 → RUN_DONE",
+      "sec": 20
+     }
+    },
+    {
+     "mark": "app"
+    },
+    {
+     "tap": "a24.picker.run.tolist"
+    },
+    {
+     "wait_app": {
+      "re": "\\[페이지\\] 픽커 신규 리스트 → LIST",
+      "sec": 20
+     }
+    },
+    {
+     "sim": "insung"
+    }
+   ],
+   "expect": "홈(📄 줄 또는 «화면 HOME» 보고 — 장부 F66) · 신규 리스트 · 상세(수락 전 시트) · 내 오더 탭(MY_ORDERS) · 퀵 픽업 출발하기 ~ 배송 완료(운행 단계 여덟) 모두 섬",
+   "wrong": "수락 뒤 내 오더로 안 감 · 운행 단계가 다른 줄로 읽힘"
+  },
+  {
    "id": "S99",
    "say": "끝 정리 — 필터를 S01 이 떠 둔 기사님 필터(목적지 · 제외 지역 · 최저)로 되돌리고 · 모드는 시작 값과 다를 때만 되돌림 · 귀가는 이번 판에 스크립트가 켰을 때만 끔 · JoyStick 끄기(에이전트)",
    "phone": "both",
