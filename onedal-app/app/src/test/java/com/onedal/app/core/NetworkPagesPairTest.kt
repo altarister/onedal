@@ -13,7 +13,7 @@ import java.io.File
 /**
  * 🔗 **짝 — 원달앱 화면 정의 세 벌과 shared 배차망 정의 표가 같다** (기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
  * 원천은 `onedal-web/shared/src/networkPages.ts` 한 장이고, 원달앱 `…Pages.kt` 셋은 `pnpm gen:pages` 가 뽑은 생성 파일이다.
- * 표를 고치고 안 뽑으면(또는 Pages.kt 를 손으로 고치면) 여기서 빨갛다 — 칸 · 자리 글 · 견본 · 본 곳 · 읽나 · 읽는 곳 · 읽는 법까지 견준다.
+ * 표를 고치고 안 뽑으면(또는 Pages.kt 를 손으로 고치면) 여기서 빨갛다 — 칸 · 자리 글 · 견본 · 본 곳 · 읽나 · 읽는 곳 · 읽는 법 · 페이지 목록의 기준 페이지 · 단추까지 견준다.
  */
 class NetworkPagesPairTest {
     private val table: JsonObject by lazy {
@@ -65,7 +65,7 @@ class NetworkPagesPairTest {
         "all=${m.all} any=${m.any} none=${m.none} shape=${m.shape?.pattern} min=${m.shapeMin} max=${m.shapeMax}"
 
     private fun screensOf(screens: List<ScreenSpec>): List<String> = screens.flatMap { s ->
-        listOf("${s.name}|${s.standard?.name}|${s.match.map(::matchText)}|${s.listReturn}|${s.landsAfterAccept}|${s.seen.name}|${s.evidence}|${s.toCollect}|${s.wordsFrom}|${s.buttons?.let { b -> listOf(b.accept, b.filterOut, b.keep, b.cancel) }}") +
+        listOf("${s.name}|${s.standard?.name}|${s.match.map(::matchText)}|${s.listReturn}|${s.landsAfterAccept}|${s.seen.name}|${s.evidence}|${s.toCollect}|${s.wordsFrom}|${s.bases}|${s.buttons?.let { b -> listOf(b.accept, b.filterOut, b.keep, b.cancel) }}") +
             s.overlays.map { o -> "  ${o.name}|${o.kind.name}|${o.match.map(::matchText)}|${o.meaning}|${o.seen.name}|${o.evidence}|${o.toCollect}|${o.wordsFrom}|${o.action?.name ?: ""}" }
     }
 
@@ -79,7 +79,7 @@ class NetworkPagesPairTest {
 
     private fun screensOf(network: String): List<String> = table[network].asJsonObject["screens"].asJsonArray.map { it.asJsonObject }.flatMap { s ->
         val standard = s["standard"].takeIf { !it.isJsonNull }?.asString
-        listOf("${str(s, "name")}|$standard|${matchesOf(s)}|${s["listReturn"].asBoolean}|${s["landsAfterAccept"]?.asBoolean ?: false}|${str(s, "seen")}|${strings(s, "evidence")}|${str(s, "toCollect")}|${str(s, "wordsFrom")}|${s["buttons"]?.asJsonObject?.let { b -> listOf("accept", "filterOut", "keep", "cancel").map { k -> b[k]?.asString } }}") +
+        listOf("${str(s, "name")}|$standard|${matchesOf(s)}|${s["listReturn"].asBoolean}|${s["landsAfterAccept"]?.asBoolean ?: false}|${str(s, "seen")}|${strings(s, "evidence")}|${str(s, "toCollect")}|${str(s, "wordsFrom")}|${strings(s, "bases")}|${s["buttons"]?.asJsonObject?.let { b -> listOf("accept", "filterOut", "keep", "cancel").map { k -> b[k]?.asString } }}") +
             s["overlays"].asJsonArray.map { it.asJsonObject }.map { o ->
                 "  ${str(o, "name")}|${str(o, "kind")}|${matchesOf(o)}|${str(o, "meaning")}|${str(o, "seen")}|${strings(o, "evidence")}|${str(o, "toCollect")}|${str(o, "wordsFrom")}|${str(o, "action")}"
             }
