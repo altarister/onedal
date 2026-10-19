@@ -411,7 +411,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                 if (leftForOtherNetwork((stuckOrder as any).targetApp, screenNet)) {
                     slog('화면', `📲 [다른 배차망 화면] ${stuckOrderId}(${(stuckOrder as any).targetApp}) — 화면은 ${screenNet} · 놓음이 아니다 · 원달앱이 끝까지 책임진다`);
                 } else if (!isLetGoScreen(screenContext, screenNet, extras?.screenPage)) {
-                    /* 🖐️ 배차망이 수락 뒤 스스로 보내는 페이지(화물24시 «신청» 뒤 배차내역 목록)는 계약한 화면이지 놓은 화면이 아니다 (38 F42) */
+                    /* 🖐️ 배차망이 수락 뒤 스스로 보내는 페이지(화물24시 «신청» 뒤 «배차내역»으로 오는 배차내역 목록)는 계약한 화면이지 놓은 화면이 아니다 (38 F42) */
                     slog('화면', `📋 [수락 뒤 배차망이 보낸 화면] ${stuckOrderId} — ${screenContext}${extras?.screenPage ? ` · ${extras.screenPage}` : ''} · 놓음이 아니다`);
                 } else if (!userSession.entries.has(key)) {
                     slog('화면', `🚀 [화면 이탈 감지] 기기(${deviceLabelOf(deviceId)})가 리스트 화면으로 이탈함! 그 사이 다음 콜을 잡으면 안 치웁니다.`);

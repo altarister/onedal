@@ -107,15 +107,29 @@ object Hwamul24Pages {
     /** 🖥️ 페이지 전부 — 차례가 판별 차례 · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
         ScreenSpec(
+            "배차신청 뒤 화물상세정보",
+            StandardScreen.DETAIL_CONFIRMED,
+            listOf(ScreenMatch(all = listOf("화물상세정보", "배차취소하기")), ScreenMatch(all = listOf("화물상세정보", "전화걸기", "배차내역"))),
+            false,
+            listOf(
+                OverlaySpec("배차신청 성공 토스트", OverlayKind.TOAST, listOf(ScreenMatch(all = listOf("배차신청에 성공"))), "배차신청이 됐다 — 위 «배차취소하기» 막대가 차는 동안만 앱에서 취소할 수 있다", Seen.REAL, listOf("ex_images/화물24시/54_화물상세정보_배차신청뒤.png")),
+            ),
+            Seen.REAL,
+            listOf("ex_images/화물24시/54_화물상세정보_배차신청뒤.png"),
+            toCollect = "머리 «<»(뒤로) · «배차취소하기» · «전화걸기»를 누른 뒤 화면 · 막대가 다 차는 시간",
+            landsAfterAccept = true,
+            bases = listOf("confirm"),
+        ),
+        ScreenSpec(
             "화물상세정보",
             StandardScreen.DETAIL_PRE_CONFIRM,
-            listOf(ScreenMatch(all = listOf("화물상세정보", "배차신청"))),
+            listOf(ScreenMatch(all = listOf("화물상세정보", "배차신청"), none = listOf("배차취소하기", "전화걸기"))),
             false,
             listOf(
                 OverlaySpec("배차 실패 오류", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("이미 배차", "배차할 수 없"))), "배차신청이 안 됐다 — 남이 먼저 잡았거나 조건 미달", Seen.UNKNOWN, listOf(), toCollect = "캡처", action = OverlayAction.ERROR),
             ),
             Seen.REAL,
-            listOf("ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_화물상세정보.png"),
+            listOf("ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_화물상세정보.png", "ex_images/화물24시/53_화물상세정보_배차신청전.png"),
             bases = listOf("detail"),
         ),
         ScreenSpec(
@@ -258,16 +272,6 @@ object Hwamul24Pages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/화물24시/02_마이페이지.png", "ex_images/화물24시/19_마이페이지_메뉴.png"),
-        ),
-        ScreenSpec(
-            "배차신청 누른 뒤",
-            null,
-            emptyList(),
-            false,
-            emptyList(),
-            Seen.UNKNOWN,
-            listOf(),
-            toCollect = "캡처 · 알아보는 글자 · 우리 기준 페이지",
         ),
         ScreenSpec(
             "환경설정",

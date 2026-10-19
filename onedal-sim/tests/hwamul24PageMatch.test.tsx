@@ -56,12 +56,19 @@ describe('🧭 화물24시 상세 ↔ 배차망 정의 표', () => {
         expect(pagesOf(textOf(<Hwamul24SimScreen {...base} />))).toEqual(['화물상세정보']);
     });
 
-    it('잡은 콜 상세는 처음 맞는 줄이 «배차내역 상세 · 화물정보 탭»이다', () => {
-        expect(pagesOf(textOf(<Hwamul24SimScreen {...base} confirmedCalls={[callA]} />))[0]).toBe('배차내역 상세 · 화물정보 탭');
+    it('배차내역 탭에서 연 잡은 콜 상세는 처음 맞는 줄이 «배차내역 상세 · 화물정보 탭»이다', () => {
+        expect(pagesOf(textOf(<Hwamul24SimScreen {...base} activeTab="CONFIRMED" confirmedCalls={[callA]} />))[0]).toBe('배차내역 상세 · 화물정보 탭');
+    });
+
+    /** 🔴 배차신청 뒤 같은 화면(실물 54) — 토스트에 «배차신청» 글자가 있어도 확정 전 «화물상세정보»로 읽히면 안 된다 */
+    it('🔴 배차신청 뒤 화면은 처음 맞는 줄이 «배차신청 뒤 화물상세정보»다', () => {
+        const pages = pagesOf(textOf(<Hwamul24SimScreen {...base} confirmedCalls={[callA]} />));
+        expect(pages[0]).toBe('배차신청 뒤 화물상세정보');
+        expect(pages).not.toContain('화물상세정보');
     });
 
     /**
-     * 🔴 «배차신청» 뒤 넘어가는 배차내역 탭은 «배차내역 목록» 줄에만 맞는다 (실물 03 · 20 · 91판 S09).
+     * 🔴 배차신청 뒤 «배차내역»을 누르면 오는 배차내역 탭은 «배차내역 목록» 줄에만 맞는다 (실물 03 · 20 · 55).
      * 실물 바닥 줄(«합계 …» · «산재보험료 부담액» · «자세히 보기»)이 없거나 실시간 목록의 «자동새로고침» · «자동터치»가 남으면
      * 원달앱이 그 화면을 실시간 목록으로 읽어 기사님 손 신청(표의 landsAfterAccept)을 못 알아본다.
      */

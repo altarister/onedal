@@ -72,7 +72,7 @@ export const LIST_SCREENS: ScreenContextType[] = ['LIST', 'LIST_COMPLETED'];
 
 /**
  * 🖐️ **이 화면이 «잡은 콜을 놓았다»를 뜻하나 — 목록 복귀이되, 배차망이 수락 뒤 스스로 보내는 페이지는 아니다** (38 F42).
- * 화물24시는 «신청» 즉시 «배차내역 목록»으로 넘어간다 — 계약한 화면이지 놓은 화면이 아니다(표의 `landsAfterAccept`).
+ * 화물24시는 «신청» 뒤 같은 화면의 «배차내역»을 누르면 «배차내역 목록»으로 간다 — 계약한 화면이지 놓은 화면이 아니다(표의 `landsAfterAccept`).
  * 인성 «완료 탭»은 기사님이 손으로 가는 목록이라 놓음이다. 서버 목록 이탈 유예가 쓴다 · 미리보기 정리 · 목록 복귀 알림은 `isListScreen` 그대로.
  */
 export function isLetGoScreen(screenContext?: string | null, targetApp?: string | null, screenPage?: string | null): boolean {

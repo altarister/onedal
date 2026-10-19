@@ -27,7 +27,7 @@ object DecisionRun {
 
     /**
      * 다음 할 일 — 지금 화면이 그 배차망이 아니면 돌아감(5초 안) · 넘으면 못 누름 · 그 배차망 단추가 없으면
-     * KEEP 은 누를 것 없음(수락하면 곧바로 목록으로 가는 배차망) · CANCEL 은 못 누름.
+     * KEEP 은 누를 것 없음(수락 뒤 누를 결재 단추가 없는 배차망) · CANCEL 은 못 누름.
      */
     fun next(target: Target?, screenNet: String?, word: String?, decision: String, elapsedMs: Long): Step =
         when (ReturnStep.of(screenNet, target?.network, elapsedMs)) {

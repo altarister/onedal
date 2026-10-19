@@ -57,7 +57,7 @@ interface IDispatchAppPlugin {
 
     /**
      * ✅ **확정 뒤 상세에서 할 일** — 인성만(미리보기 → 확정 알림 · 팝업 채우기).
-     * 화물24시 배차내역 상세 · 픽커 수락 뒤 화면은 확정 뒤 상세로 읽혀도 원달앱이 아무것도 안 한다(기본).
+     * 화물24시 배차신청 뒤 화물상세정보 · 배차내역 상세 · 픽커 수락 뒤 화면은 확정 뒤 상세로 읽혀도 원달앱이 아무것도 안 한다(기본).
      */
     fun onConfirmedDetail(scan: com.onedal.app.core.engine.ScanContext, rootNode: android.view.accessibility.AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) {}
 

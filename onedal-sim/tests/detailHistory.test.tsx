@@ -148,12 +148,12 @@ describe.each([
 });
 
 /**
- * 🔴 **화물24시 «배차신청» → 곧바로 배차내역 목록 — 확정 뒤 상세를 한 번도 그리지 않는다** (92판 S09 · 71 «가»).
- * 실물은 신청하면 그 자리에서 배차내역으로 간다(표의 landsAfterAccept). 상세 닫기가 방문 기록 되돌리기를 한 박자 늦게 따라가면
- * «고른 콜이 잡은 콜에 들어간» 화면 — 배차내역 상세(«02 화주정보») — 이 한 번 그려지고, 원달앱은 그것을 읽어 손 수락을 놓친다.
- * 못 잡는 것: 폰 웹뷰의 실제 그리기 간격 — 92판 다음 판 S09 의 원달앱 «📄 [페이지]» 줄로 본다.
+ * 🔴 **화물24시 «배차신청» → 같은 화면에 머문다 — 확정 뒤 상세를 한 번도 그리지 않는다** (실물 54).
+ * 실물은 신청하면 «화물상세정보»에 머물고 위에 «배차취소하기» 막대 · 아래 «전화걸기 · 배차내역»이 뜬다(표의 «배차신청 뒤 화물상세정보»).
+ * 그사이 배차내역 상세(«02 화주정보»)가 한 번 그려지면 원달앱은 그것을 읽어 손 수락을 놓친다. «배차내역»을 누르면 배차내역 목록으로 간다.
+ * 못 잡는 것: 폰 웹뷰의 실제 그리기 간격 — 폰 시험의 원달앱 «📄 [페이지]» 줄로 본다.
  */
-it('화물24시 배차신청 — 확정 뒤 상세(«02 화주정보»)가 한 번도 안 그려지고 배차내역 목록으로', () => {
+it('화물24시 배차신청 — 확정 뒤 상세(«02 화주정보»)가 한 번도 안 그려지고 같은 화면에 «배차취소하기» · «배차내역»을 누르면 배차내역 목록', () => {
     mount('/dispatch?net=hwamul24&lon=127.29444&lat=37.37669');
     act(() => { buttonByText('화물정보')!.click(); });
     act(() => { vi.advanceTimersByTime(3000); });
@@ -166,6 +166,10 @@ it('화물24시 배차신청 — 확정 뒤 상세(«02 화주정보»)가 한 �
     for (const r of watch.takeRecords()) for (const n of r.addedNodes) seen.push(n.textContent ?? '');
     watch.disconnect();
     expect(seen.some(t => t.includes('02 화주정보'))).toBe(false);
+    expect(host!.textContent).toContain('화물상세정보');
+    expect(host!.textContent).toContain('배차취소하기');
+    expect(host!.textContent).toContain('전화걸기');
+    act(() => { buttonByText('배차내역')!.click(); });
     expect(new URLSearchParams(here.split('?')[1]).get('detail')).toBeNull();
     expect(host!.textContent).toContain('자세히 보기');
 });

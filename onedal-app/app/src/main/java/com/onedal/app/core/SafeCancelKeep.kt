@@ -9,7 +9,7 @@ object SafeCancelKeep {
     /** 🔄 배차망 전환 — 지키는 계약이 있으면 둔다 */
     fun onSwitch(armedOrderId: String?): Boolean = armedOrderId != null
 
-    /** 📋 목록 복귀 — 수락 뒤 배차망이 보낸 페이지(화물24시 배차내역 목록)면 둔다 · 그 밖의 목록은 놓음 */
+    /** 📋 목록 복귀 — 수락 뒤 배차망이 보낸 페이지(화물24시 배차신청 뒤 «배차내역»으로 오는 배차내역 목록)면 둔다 · 그 밖의 목록은 놓음 */
     fun onListReturn(armedOrderId: String?, landsAfterAccept: Boolean): Boolean = armedOrderId != null && landsAfterAccept
 
     /** 🖐️ 그 배차망 정의 표에서 이 페이지가 수락 뒤 배차망이 보내는 곳인가 — 모르면 거짓 */

@@ -5,7 +5,16 @@ interface PreConfirmProps {
   call: Hwamul24Call;
   onClose: () => void;
   onAccept: (call: Hwamul24Call) => void;
+  /** 있으면 배차신청 뒤 같은 화면(실물 54) — 바닥 «배차내역»이 부른다 */
+  onMyOrders?: () => void;
+  /** 위 «배차취소하기» 막대 — 누른 뒤 실물 화면은 모른다(목록으로 둔다) */
+  onCancelApply?: (call: Hwamul24Call) => void;
 }
+
+/** 🕒 «배차취소하기» 막대가 다 차 사라지는 시간 — 실측 전 · 시뮬레이터만 쓰는 값(실물 막대 시간은 아직 안 쟀다) */
+const APPLY_CANCEL_BAR_SECONDS = 60;
+/** 🍞 «배차신청에 성공하였습니다» 토스트가 떠 있는 시간 — 시뮬레이터만 쓰는 값 */
+const APPLY_TOAST_SECONDS = 3;
 
 /** 실물 18 의 수수료 줄 «(운송료+부가세) x1.298%» — 수납금액은 거기서 수수료를 뺀 값(60,000 · 6,000 → 65,144) */
 const FEE_RATE = 0.01298;
@@ -31,10 +40,13 @@ const Badge = ({ text, color }: { text: string; color: string }) => (
 );
 
 // ═══════════════════════════════════════════════════════════════
-// 실물 18 «화물상세정보» — 잡기 전 상세(배차신청 · 돌아가기)
-// 잡은 뒤(배차내역 탭에서 연 콜)는 Hwamul24CallDetailScreen 이다
+// 실물 18 · 53 «화물상세정보» — 잡기 전 상세(배차신청 · 돌아가기)
+// 배차신청 뒤(실물 54)는 같은 화면 — 화주 줄이 빠지고 위 «배차취소하기» 막대 · 아래 «전화걸기 · 배차내역» · 성공 토스트
+// 잡은 뒤 배차내역 탭에서 연 콜은 Hwamul24CallDetailScreen 이다
+// 머리 «‹»(뒤로)를 누른 뒤 실물 화면은 모른다 — 신청 전 · 뒤 모두 목록으로 둔다
 // ═══════════════════════════════════════════════════════════════
-export const Hwamul24PreConfirmScreen = ({ call, onClose, onAccept }: PreConfirmProps) => {
+export const Hwamul24PreConfirmScreen = ({ call, onClose, onAccept, onMyOrders, onCancelApply }: PreConfirmProps) => {
+  const applied = !!onMyOrders;
   const pickup = hwamul24RegionOf(call.pickups[0].fullName, call.pickupDetails?.[0]?.region);
   const dropoff = hwamul24RegionOf(call.dropoffs[0].fullName, call.dropoffDetails?.[0]?.region);
   // 🔴 문제지는 차종을 한 번만 적는다 — 여기서 화물24시 말로 옮긴다 (승용차 → 승용)
@@ -70,9 +82,20 @@ export const Hwamul24PreConfirmScreen = ({ call, onClose, onAccept }: PreConfirm
         <span className="text-gray-300">잔액 : <span className="text-white font-bold">{(Math.floor(Math.random() * 100) * 10000).toLocaleString()}원</span></span>
       </div>
 
+      {/* ══ 배차신청 뒤: 배차취소하기 막대 — 배경이 차오르고 다 차면 사라진다 ══ */}
+      {applied && (
+        <div className="px-3 pt-3 shrink-0" style={{ animation: `h24-gone 0s linear ${APPLY_CANCEL_BAR_SECONDS}s forwards` }}>
+          <style>{'@keyframes h24-fill{from{width:0}to{width:100%}}@keyframes h24-gone{to{visibility:hidden}}'}</style>
+          <button className="relative w-full py-3 rounded-lg bg-black text-white font-extrabold text-[16px] overflow-hidden" onClick={() => onCancelApply?.(call)}>
+            <span className="absolute inset-y-0 left-0 bg-gray-500" style={{ animation: `h24-fill ${APPLY_CANCEL_BAR_SECONDS}s linear forwards` }} />
+            <span className="relative">배차취소하기</span>
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto">
-        {/* ══ 화주 · 화물번호 · 등록시간 ══ */}
-        <div className="px-4 pt-3 pb-2">
+        {/* ══ 화주 · 화물번호 · 등록시간 — 배차신청 뒤에는 없다(실물 54) ══ */}
+        {!applied && <div className="px-4 pt-3 pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-[20px] font-extrabold">{companyName}</span>
@@ -84,7 +107,7 @@ export const Hwamul24PreConfirmScreen = ({ call, onClose, onAccept }: PreConfirm
             <span>화물번호:{freightId}</span>
             <span>[ 등록시간:{registered} ]</span>
           </div>
-        </div>
+        </div>}
 
         {/* ══ 상차지 · 하차지 · 화물정보 · 톤수 · 적재중량 ══ */}
         <table className="w-full border-collapse border-t border-gray-200">
@@ -123,15 +146,30 @@ export const Hwamul24PreConfirmScreen = ({ call, onClose, onAccept }: PreConfirm
         <div className="px-4 py-2 text-[13px] text-[#d32f2f]">[산재보험료(차주부담액): {Math.round(fare * 0.0043).toLocaleString()}원]</div>
       </div>
 
+      {/* ══ 바닥: 배차신청 뒤 — 전화걸기 · 배차내역 + 성공 토스트 ══ */}
+      {applied && (
+        <div className="relative flex gap-2 px-3 py-2 shrink-0">
+          <span className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-700 text-white text-[14px] px-4 py-2 rounded-full whitespace-nowrap" style={{ animation: `h24-gone 0s linear ${APPLY_TOAST_SECONDS}s forwards` }}>
+            배차신청에 성공하였습니다.
+          </span>
+          <button className="flex-1 py-3 rounded-lg bg-[#2a8aa0] text-white font-extrabold text-[16px] active:bg-[#21707f]">
+            전화걸기
+          </button>
+          <button className="flex-1 py-3 rounded-lg bg-[#9e9e9e] text-white font-extrabold text-[16px] active:bg-[#757575]" onClick={onMyOrders}>
+            배차내역
+          </button>
+        </div>
+      )}
+
       {/* ══ 바닥: 배차신청 · 돌아가기 ══ */}
-      <div className="flex gap-2 px-3 py-2 shrink-0">
+      {!applied && <div className="flex gap-2 px-3 py-2 shrink-0">
         <button className="flex-1 py-3 rounded-lg bg-[#2a8aa0] text-white font-extrabold text-[16px] active:bg-[#21707f]" onClick={() => onAccept(call)}>
           배차신청
         </button>
         <button className="flex-1 py-3 rounded-lg bg-[#9e9e9e] text-white font-extrabold text-[16px] active:bg-[#757575]" onClick={onClose}>
           돌아가기
         </button>
-      </div>
+      </div>}
     </div>
   );
 };

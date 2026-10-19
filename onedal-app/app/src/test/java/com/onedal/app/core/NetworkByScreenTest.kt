@@ -60,6 +60,11 @@ class NetworkByScreenTest {
         "독차", "톤수", "1톤", "차종", "전체", "운송료", "60,000", "부가세", "6,000",
         "결제방법", "카드", "배차신청", "돌아가기",
     )
+    /** 배차신청 뒤 같은 화면 — 위 «배차취소하기» 막대 · 아래 «전화걸기 · 배차내역» (실물 54) */
+    private val hwamul24AfterApply = listOf(
+        "화물상세정보", "ID : 90075", "배차취소하기", "상차지", "경기 군포 당정동", "하차지", "경기 화성 신동 703",
+        "톤수", "5톤", "차종", "윙바디", "운송료", "250,000", "결제방법", "인수증", "전화걸기", "배차내역", "배차신청에 성공하였습니다.",
+    )
 
     // ── 인성 (시뮬레이터) ──
     /** 🏠 첫 화면 — 인성 «인성퀵화면분할» · 화물24시 «전국24시콜화물» */
@@ -74,7 +79,7 @@ class NetworkByScreenTest {
 
     private val allNetworkScreens = mapOf(
         TargetApp.KAKAOPICKER to listOf(pickerList, pickerDetail, pickerHome, pickerToPickup, pickerAtPickup),
-        TargetApp.HWAMUL24 to listOf(hwamul24List, hwamul24Detail, hwamul24Home),
+        TargetApp.HWAMUL24 to listOf(hwamul24List, hwamul24Detail, hwamul24AfterApply, hwamul24Home),
         TargetApp.INSUNG to listOf(insungList, insungDetail, insungHome),
     )
 
@@ -88,9 +93,10 @@ class NetworkByScreenTest {
     }
 
     @Test
-    fun `🔴 화물24시 화면은 화물24시다 - 실물 리스트·상세`() {
+    fun `🔴 화물24시 화면은 화물24시다 - 실물 리스트·상세·배차신청 뒤`() {
         assertEquals(TargetApp.HWAMUL24, TargetApp.networkOfScreen(hwamul24List))
         assertEquals(TargetApp.HWAMUL24, TargetApp.networkOfScreen(hwamul24Detail))
+        assertEquals(TargetApp.HWAMUL24, TargetApp.networkOfScreen(hwamul24AfterApply))
     }
 
     @Test

@@ -185,8 +185,8 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
   }, [setSelectedCallId]);
 
   const handleCloseDetail = useCallback(() => {
-    /* 🔴 고른 콜은 그 자리에서 비운다 — 방문 기록 되돌리기는 한 박자 늦게 그려져, 기다리면 화물24시 «배차신청» 뒤
-          «잡은 콜에 든 고른 콜»이 배차내역 상세로 한 번 그려지고 원달앱이 손 수락을 놓친다(92판 S09 · detailHistory 검사).
+    /* 🔴 고른 콜은 그 자리에서 비운다 — 방문 기록 되돌리기는 한 박자 늦게 그려져, 기다리면 화물24시 배차신청 뒤 «배차내역»을 누를 때
+          «잡은 콜에 든 고른 콜»이 배차내역 상세로 한 번 그려진다(detailHistory 검사).
           방문 기록에 쌓은 칸은 그 뒤에 되돌린다 — 아래 useEffect 는 고른 콜이 이미 비어 있어 아무것도 안 한다 */
     clearSelection();
     if (simNet.detailInHistory && presetParams.get('detail')) navigate(-1);
@@ -214,7 +214,7 @@ function DispatchContent({ simNet }: { simNet: SimNet }) {
       return [...prev, call];
     });
     setSelectedCallId(call.id);
-    // 수락 뒤에 무엇을 보일지는 배차망 화면이 정한다 — 화물24시는 «배차내역» 탭으로 넘어간다 (Hwamul24SimScreen)
+    // 수락 뒤에 무엇을 보일지는 배차망 화면이 정한다 — 화물24시는 같은 상세에 머물고 «배차취소하기» 막대를 띄운다 (Hwamul24SimScreen)
   }, [setStreamingCalls, setConfirmedCalls, setSelectedCallId]);
 
   const handleCancelCall = useCallback((call: SimCall) => {

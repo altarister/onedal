@@ -83,23 +83,38 @@ describe('배차망 화면 = 예전 DispatchPage 갈래가 고르던 부품', ()
             .toBe(markup(<Hwamul24PreConfirmScreen call={callB} onClose={noop} onAccept={noop} />));
     });
 
-    it('화물24시 상세 — 잡은 콜은 배차내역 상세', () => {
-        expect(markup(<Hwamul24SimScreen {...base} confirmedCalls={[callB]} selectedCall={callB} />))
+    it('화물24시 상세 — 배차내역 탭에서 연 잡은 콜은 배차내역 상세', () => {
+        expect(markup(<Hwamul24SimScreen {...base} activeTab="CONFIRMED" confirmedCalls={[callB]} selectedCall={callB} />))
             .toBe(markup(<Hwamul24CallDetailScreen call={callB} onClose={noop} onAccept={noop} />));
     });
 
-    it('🔴 화물24시 수락 뒤 — 잡은 콜에 넣고 → 상세를 닫고 → «배차내역» 탭 (배차신청 · 배차내역 상세 «하차완료» 둘 다)', () => {
-        for (const confirmedCalls of [[], [callA]]) {
-            const order: string[] = [];
-            const el = Hwamul24SimScreen({
-                ...base, confirmedCalls, selectedCall: callA,
-                acceptCall: () => order.push('accept'),
-                closeDetail: () => order.push('close'),
-                setActiveTab: (t) => order.push(`tab:${t}`),
-            }) as ReactElement<{ onAccept: (c: typeof callA) => void }>;
-            el.props.onAccept(callA);
-            expect(order).toEqual(['accept', 'close', 'tab:CONFIRMED']);
-        }
+    it('🔴 화물24시 배차신청 뒤 — 잡은 콜에 넣기만 하고 같은 화면에 머문다(실물 54) · «배차내역»을 누르면 상세를 닫고 → «배차내역» 탭', () => {
+        const order: string[] = [];
+        const props = {
+            ...base, selectedCall: callA,
+            acceptCall: () => order.push('accept'),
+            closeDetail: () => order.push('close'),
+            setActiveTab: (t: 'ALL' | 'CONFIRMED') => order.push(`tab:${t}`),
+        };
+        const before = Hwamul24SimScreen(props) as ReactElement<{ onAccept: (c: typeof callA) => void }>;
+        before.props.onAccept(callA);
+        expect(order).toEqual(['accept']);
+        const after = Hwamul24SimScreen({ ...props, confirmedCalls: [callA] }) as ReactElement<{ onMyOrders?: () => void }>;
+        expect(after.props.onMyOrders).toBeTypeOf('function');
+        after.props.onMyOrders!();
+        expect(order).toEqual(['accept', 'close', 'tab:CONFIRMED']);
+    });
+
+    it('화물24시 배차내역 상세 «하차완료» — 상세를 닫고 → «배차내역» 탭', () => {
+        const order: string[] = [];
+        const el = Hwamul24SimScreen({
+            ...base, activeTab: 'CONFIRMED', confirmedCalls: [callA], selectedCall: callA,
+            acceptCall: () => order.push('accept'),
+            closeDetail: () => order.push('close'),
+            setActiveTab: (t) => order.push(`tab:${t}`),
+        }) as ReactElement<{ onAccept: (c: typeof callA) => void }>;
+        el.props.onAccept(callA);
+        expect(order).toEqual(['accept', 'close', 'tab:CONFIRMED']);
     });
 });
 

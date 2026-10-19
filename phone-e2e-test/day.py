@@ -365,7 +365,7 @@ def dismiss_preview(b):
     log(f'  👀 {b} 결재석 미리보기 치움')
 
 CONFIRM = {'insung': 'a24.insung.detail.confirm', 'hwamul24': 'a24.hwamul24.detail.confirm'}   # 손 확정 단추(인성 «확정» · 화물24시 «배차신청»)
-CLOSE = {'insung': 'a24.insung.detail.close'}   # 손 확정 뒤 KEEP 이 오면 기사님이 누르는 «닫기»(화물24시는 신청하면 배차내역으로 가서 없음)
+CLOSE = {'insung': 'a24.insung.detail.close'}   # 손 확정 뒤 KEEP 이 오면 기사님이 누르는 «닫기»(화물24시는 신청 뒤 같은 화면에 머문다 — 누를 닫기가 없고 다음 장면이 시뮬레이터를 목록으로 다시 연다)
 
 def decide(v):
     """🎨 기사님이 고르는 자리 — 판정 색은 기록만 하고, 잡을지는 시나리오(want · 없으면 keep)대로 한다(기사님 «색으로 거르지 않는다 · 그냥 시험이니까 진행»).

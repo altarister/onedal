@@ -149,7 +149,8 @@ interface NetworkScreenSpec {
     listReturn: boolean;
     /**
      * 🖐️ 수락(신청)하면 배차망이 스스로 이 페이지로 보내나 — 참이면 목록 복귀여도 «잡은 콜을 놓음»이 아니다(서버 목록 이탈 · 원달앱 목록 복귀 리셋 · 38 F42).
-     * 화물24시 «배차내역 목록»이 그렇다 — 시뮬 Hwamul24SimScreen.tsx «신청하면 그 자리에서 ‹배차내역› 탭으로 넘어간다» · 실물 캡처 03_배차내역_리스트. 없으면 거짓.
+     * 화물24시가 그렇다 — 배차신청하면 «배차신청 뒤 화물상세정보»에 머물고(실물 54), 거기서 «배차내역»을 누르면 «배차내역 목록»으로 간다. 없으면 거짓.
+     * 확정 전 상세에서 이 페이지로 넘어가면 원달앱은 기사님 손 수락으로 본다(`HandAccept`).
      */
     landsAfterAccept?: boolean;
     overlays: ScreenOverlay[];
@@ -311,7 +312,10 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "networkMarkers": [["화물정보", "자동새로고침"], ["화물상세정보", "운송료"], ["전국24시콜화물"]],
     "networkMarkersWhy": "실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료») · 첫 화면(«전국24시콜화물» — 홈에서 바로 알아보기)",
     "screens": [
-      {"name": "화물상세정보", "standard": "DETAIL_PRE_CONFIRM", "bases": ["detail"], "match": [{"all": ["화물상세정보", "배차신청"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_화물상세정보.png"], "overlays": [
+      {"name": "배차신청 뒤 화물상세정보", "standard": "DETAIL_CONFIRMED", "bases": ["confirm"], "match": [{"all": ["화물상세정보", "배차취소하기"]}, {"all": ["화물상세정보", "전화걸기", "배차내역"]}], "listReturn": false, "landsAfterAccept": true, "seen": "REAL", "evidence": ["ex_images/화물24시/54_화물상세정보_배차신청뒤.png"], "toCollect": "머리 «<»(뒤로) · «배차취소하기» · «전화걸기»를 누른 뒤 화면 · 막대가 다 차는 시간", "overlays": [
+        {"name": "배차신청 성공 토스트", "kind": "TOAST", "match": [{"all": ["배차신청에 성공"]}], "meaning": "배차신청이 됐다 — 위 «배차취소하기» 막대가 차는 동안만 앱에서 취소할 수 있다", "seen": "REAL", "evidence": ["ex_images/화물24시/54_화물상세정보_배차신청뒤.png"]}
+      ]},
+      {"name": "화물상세정보", "standard": "DETAIL_PRE_CONFIRM", "bases": ["detail"], "match": [{"all": ["화물상세정보", "배차신청"], "none": ["배차취소하기", "전화걸기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_화물상세정보.png", "ex_images/화물24시/53_화물상세정보_배차신청전.png"], "overlays": [
         {"name": "배차 실패 오류", "kind": "POPUP", "match": [{"any": ["이미 배차", "배차할 수 없"]}], "meaning": "배차신청이 안 됐다 — 남이 먼저 잡았거나 조건 미달", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
       ]},
       {"name": "배차내역 상세 · 화주정보 탭", "standard": "DETAIL_CONFIRMED", "bases": ["myorder"], "match": [{"all": ["배차내역", "02 화주정보", "사업장주소"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/21_화물상세_화주정보_전화번호.png"], "overlays": []},
@@ -343,7 +347,6 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       {"name": "세금계산서 발행내역 상세", "standard": "NETWORK_MENU", "bases": [], "match": [{"all": ["전자세금계산서 정보", "국세청승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/30_세금계산서_발행내역상세.png"], "overlays": []},
       {"name": "세금계산서 발행내역 목록", "standard": "NETWORK_MENU", "bases": [], "match": [{"all": ["세금계산서 발행내역", "승인번호"], "none": ["국세청승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/29_세금계산서_발행내역목록.png", "ex_images/화물24시/31_세금계산서_발행내역목록2.png"], "overlays": []},
       {"name": "마이페이지", "standard": "NETWORK_MENU", "bases": [], "match": [{"all": ["마이페이지", "가상계좌 정보", "적재물보험 정보"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/02_마이페이지.png", "ex_images/화물24시/19_마이페이지_메뉴.png"], "overlays": []},
-      {"name": "배차신청 누른 뒤", "standard": null, "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 · 우리 기준 페이지", "overlays": []},
       {"name": "환경설정", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (아래 탭 «환경설정» 뒤)", "overlays": []},
       {"name": "로그인", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
       {"name": "화물등록", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (홈 «화물등록» 칸 뒤)", "overlays": []},
@@ -553,7 +556,7 @@ export function listReturnOf(targetApp: string | null | undefined, page: string 
     return NETWORK_PAGES[targetApp as TargetAppType]?.screens.some(s => s.name === page && s.listReturn) ?? false;
 }
 
-/** 🖐️ **이 배차망 페이지는 수락 뒤 배차망이 스스로 보내는 곳인가** — 표의 `landsAfterAccept`(화물24시 배차내역 목록) · 모르면 거짓 */
+/** 🖐️ **이 배차망 페이지는 수락 뒤 배차망이 스스로 보내는 곳인가** — 표의 `landsAfterAccept`(화물24시 배차신청 뒤 화물상세정보 · 배차내역 목록) · 모르면 거짓 */
 export function landsAfterAcceptOf(targetApp: string | null | undefined, page: string | null | undefined): boolean {
     if (!targetApp || !page) return false;
     return NETWORK_PAGES[targetApp as TargetAppType]?.screens.some(s => s.name === page && s.landsAfterAccept) ?? false;
