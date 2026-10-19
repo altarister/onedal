@@ -54,10 +54,10 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
     override val logTag: String get() = "1DAL_INSUNG"
 
     /**
-     * ✍️ **확정 버튼 글자 — «확정» 하나** (기사님 «가»). 실물 확정 전 상세 바닥 버튼은 늘 «확정(N)»이다(캡처 3장).
+     * ✍️ **확정 버튼 글자 — «확정» 하나** (기사님 «가»). 글자는 정의 표 잡기 전 상세 기준 페이지의 `buttons.accept`(실물 확정 전 상세 바닥 버튼은 늘 «확정(N)» · 캡처 3장).
      * 🔴 둘째 글자를 두지 않는다 — «확정»이 안 보이는 순간 «배차…»로 시작하는 엉뚱한 칸(적요 줄 등)을 누를 수 있었다. 못 찾으면 «버튼 못 찾음» 길(누르지 않고 빠져나옴).
      */
-    override val acceptButtons: List<String>? = listOf("확정")
+    override val acceptButtons: List<String>? = listOfNotNull(com.onedal.app.core.buttonsOn(InsungPages.screens, "detail")?.accept)
 
     override val ocrParser: ScreenOcrParser<*>? = null
 

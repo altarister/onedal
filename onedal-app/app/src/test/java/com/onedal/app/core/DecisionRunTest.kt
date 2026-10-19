@@ -2,8 +2,6 @@ package com.onedal.app.core
 
 import com.onedal.app.core.engine.SafeCancelTimer
 import com.onedal.app.core.engine.SessionManager
-import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
-import com.onedal.app.plugins.insung.InsungKeywords
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -33,7 +31,7 @@ class DecisionRunTest {
         val target = DecisionRun.begin(timer, "call-A", s)
         assertNull("타이머는 꺼졌다", timer.armedOrderId)
         assertEquals(DecisionRun.Target("call-A", "insung", TargetApp.SIMULATOR_PACKAGE), target)
-        val word = DecisionWord.of(DecisionPlan.PRESS_CANCEL, InsungKeywords.INSUNG)
+        val word = DecisionWord.of(DecisionPlan.PRESS_CANCEL, target!!.network, TargetApp.KAKAOPICKER)
         assertEquals(DecisionRun.Step.RETURN, DecisionRun.next(target, TargetApp.KAKAOPICKER, word, "CANCEL", 0))
         assertEquals(DecisionRun.Step.PRESS, DecisionRun.next(target, TargetApp.INSUNG, word, "CANCEL", 600))
         assertEquals(DecisionRun.Step.NOT_PRESSED, DecisionRun.next(target, TargetApp.KAKAOPICKER, word, "CANCEL", 5_000))
@@ -41,8 +39,8 @@ class DecisionRunTest {
 
     @Test fun `단추 없는 배차망 — KEEP 은 누를 것 없음 · CANCEL 은 못 누름 · 지키지 않는 결재는 지금 화면에서`() {
         val t = DecisionRun.Target("call-B", TargetApp.HWAMUL24, null)
-        assertEquals(DecisionRun.Step.NOTHING_TO_PRESS, DecisionRun.next(t, TargetApp.HWAMUL24, DecisionWord.of(DecisionPlan.PRESS_CLOSE, Hwamul24Keywords.TWENTYFOUR), "KEEP", 0))
-        assertEquals(DecisionRun.Step.NOT_PRESSED, DecisionRun.next(t, TargetApp.HWAMUL24, DecisionWord.of(DecisionPlan.PRESS_CANCEL, Hwamul24Keywords.TWENTYFOUR), "CANCEL", 0))
+        assertEquals(DecisionRun.Step.NOTHING_TO_PRESS, DecisionRun.next(t, TargetApp.HWAMUL24, DecisionWord.of(DecisionPlan.PRESS_CLOSE, t.network, TargetApp.HWAMUL24), "KEEP", 0))
+        assertEquals(DecisionRun.Step.NOT_PRESSED, DecisionRun.next(t, TargetApp.HWAMUL24, DecisionWord.of(DecisionPlan.PRESS_CANCEL, t.network, TargetApp.HWAMUL24), "CANCEL", 0))
         assertEquals(DecisionRun.Step.PRESS, DecisionRun.next(null, TargetApp.KAKAOPICKER, "취소", "CANCEL", 0))
     }
 

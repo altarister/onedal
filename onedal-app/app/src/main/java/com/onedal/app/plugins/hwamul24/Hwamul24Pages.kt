@@ -8,6 +8,7 @@ import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageSpecs
 import com.onedal.app.core.OverlayAction
+import com.onedal.app.core.ScreenButtons
 import com.onedal.app.core.ScreenMatch
 import com.onedal.app.core.ScreenSpec
 import com.onedal.app.core.Seen
@@ -131,6 +132,7 @@ object Hwamul24Pages {
             Seen.REAL,
             listOf("ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_화물상세정보.png", "ex_images/화물24시/53_화물상세정보_배차신청전.png"),
             bases = listOf("detail"),
+            buttons = ScreenButtons(accept = "배차신청", filterOut = "돌아가기"),
         ),
         ScreenSpec(
             "배차내역 상세 · 화주정보 탭",

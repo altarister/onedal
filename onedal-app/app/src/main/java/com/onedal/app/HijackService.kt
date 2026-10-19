@@ -2139,9 +2139,8 @@ class HijackService : AccessibilityService(), ScanContext {
             return // 앱이 계약하지 않은 콜은 버튼을 누르지 않는다
         }
 
-        /* 🛡️ 누를 글자는 그 콜의 배차망 낱말 한 곳 — 지키는 계약이면 그 배차망 · 아니면 지금 배차망 (`DecisionWord` · 38 F36 · F38) */
-        val wordNet = target?.network ?: currentTargetApp
-        val targetBtnStr = com.onedal.app.core.DecisionWord.of(plan, com.onedal.app.plugins.DispatchPluginRegistry.get(wordNet).keywords)
+        /* 🛡️ 누를 글자는 그 콜의 배차망 확정 기준 페이지 단추 — 지키는 계약이면 그 배차망 · 아니면 지금 배차망 (`DecisionWord` · 38 F36 · F38) */
+        val targetBtnStr = com.onedal.app.core.DecisionWord.of(plan, target?.network, currentTargetApp)
         AppLogger.roadmap(LogTag.DECISION, "🛡️ 관제탑 판결 수신 (Action: $decision) → '${targetBtnStr ?: "누를 단추 없음"}' 버튼 클릭 집행 개시", telemetryManager.currentScreenContext.name)
         AppLogger.d(TAG, LogTag.DECISION, "⚡ 판결 집행: 행동=$decision, 누를버튼=$targetBtnStr (버튼클릭을 시작합니다), 500ms 지연")
         
@@ -2354,7 +2353,6 @@ class HijackService : AccessibilityService(), ScanContext {
     /**
      * 앱별 확정 버튼 텍스트 리스트 중 첫 번째로 발견되는 버튼을 클릭합니다.
      * 목록은 배차망 플러그인의 `acceptButtons` 가 정한다 — 여기 손으로 적지 않는다.
-     * ⚠️ 인성은 둘이다("확정"·"배차").
      */
     override fun clickFirstMatchingButton(rootNode: AccessibilityNodeInfo, buttonTexts: List<String>): Boolean {
         for (btnText in buttonTexts) {

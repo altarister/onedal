@@ -247,8 +247,8 @@ object KakaoPickerKeywords {
     /** 🏁 다른 기사가 먼저 가져갔다는 알림인가 — 픽커 배차망 정의 표의 알림(NOTICE) 덧칸(`CallTakenNote`) */
     fun isTakenToast(text: String): Boolean = com.onedal.app.core.CallTakenNote.noticeOf(KakaoPickerPages.screens, text) != null
 
-    /** 픽커 이름표 · 취소 버튼 글자 — 화면을 알아보는 글자는 배차망 정의 표(`KakaoPickerPages.screens`)에 있다 */
-    val PICKER = ScreenKeywords(appLabel = "픽커", cancelKeyword = "넘기기")
+    /** 픽커 이름표 — 화면을 알아보는 글자 · 단추 글자는 배차망 정의 표(`KakaoPickerPages.screens`)에 있다 */
+    val PICKER = ScreenKeywords(appLabel = "픽커")
 
 
 }

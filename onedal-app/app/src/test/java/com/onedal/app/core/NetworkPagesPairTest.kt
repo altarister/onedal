@@ -65,7 +65,7 @@ class NetworkPagesPairTest {
         "all=${m.all} any=${m.any} none=${m.none} shape=${m.shape?.pattern} min=${m.shapeMin} max=${m.shapeMax}"
 
     private fun screensOf(screens: List<ScreenSpec>): List<String> = screens.flatMap { s ->
-        listOf("${s.name}|${s.standard?.name}|${s.match.map(::matchText)}|${s.listReturn}|${s.landsAfterAccept}|${s.seen.name}|${s.evidence}|${s.toCollect}|${s.wordsFrom}") +
+        listOf("${s.name}|${s.standard?.name}|${s.match.map(::matchText)}|${s.listReturn}|${s.landsAfterAccept}|${s.seen.name}|${s.evidence}|${s.toCollect}|${s.wordsFrom}|${s.buttons?.let { b -> listOf(b.accept, b.filterOut, b.keep, b.cancel) }}") +
             s.overlays.map { o -> "  ${o.name}|${o.kind.name}|${o.match.map(::matchText)}|${o.meaning}|${o.seen.name}|${o.evidence}|${o.toCollect}|${o.wordsFrom}|${o.action?.name ?: ""}" }
     }
 
@@ -79,7 +79,7 @@ class NetworkPagesPairTest {
 
     private fun screensOf(network: String): List<String> = table[network].asJsonObject["screens"].asJsonArray.map { it.asJsonObject }.flatMap { s ->
         val standard = s["standard"].takeIf { !it.isJsonNull }?.asString
-        listOf("${str(s, "name")}|$standard|${matchesOf(s)}|${s["listReturn"].asBoolean}|${s["landsAfterAccept"]?.asBoolean ?: false}|${str(s, "seen")}|${strings(s, "evidence")}|${str(s, "toCollect")}|${str(s, "wordsFrom")}") +
+        listOf("${str(s, "name")}|$standard|${matchesOf(s)}|${s["listReturn"].asBoolean}|${s["landsAfterAccept"]?.asBoolean ?: false}|${str(s, "seen")}|${strings(s, "evidence")}|${str(s, "toCollect")}|${str(s, "wordsFrom")}|${s["buttons"]?.asJsonObject?.let { b -> listOf("accept", "filterOut", "keep", "cancel").map { k -> b[k]?.asString } }}") +
             s["overlays"].asJsonArray.map { it.asJsonObject }.map { o ->
                 "  ${str(o, "name")}|${str(o, "kind")}|${matchesOf(o)}|${str(o, "meaning")}|${str(o, "seen")}|${strings(o, "evidence")}|${str(o, "toCollect")}|${str(o, "wordsFrom")}|${str(o, "action")}"
             }

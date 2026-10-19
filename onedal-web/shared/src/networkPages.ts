@@ -143,6 +143,11 @@ interface NetworkScreenSpec {
      * 비면 기준 밖(넘어가는 틀 · 배차망 메뉴 · 다른 앱). 서버로 보내는 화면 값은 `standard` 그대로다.
      */
     bases: BasePage[];
+    /**
+     * 🔘 배차망 화면의 단추 글자 — accept 수락 · filterOut 잡기 전 물러남 · keep 잡은 뒤 결재 KEEP · cancel 잡은 뒤 결재 취소.
+     * 원달앱이 누를지는 플러그인이 정한다(픽커는 «수락하기»를 안 누른다). 결재 글자는 그 배차망 확정 기준 페이지 줄 하나에서만 읽는다.
+     */
+    buttons?: { accept?: string; filterOut?: string; keep?: string; cancel?: string };
     /** 알아보는 글자 — 갈래 중 하나만 맞아도 이 페이지 · 빈 배열은 아직 모름(toCollect 가 있어야 한다) */
     match: ScreenMatch[];
     /** 목록 복귀로 치나 — LIST 가 아닌 페이지에서 참이면 서버가 심사 중 콜을 치우고 원달앱이 진행을 처음부터 한다 */
@@ -191,14 +196,14 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
     "networkMarkers": [["신규", "빠른설정"], ["적요상세", "요금"], ["인성퀵화면분할"]],
     "networkMarkersWhy": "목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금») · 첫 화면(«인성퀵화면분할» — 홈에서 바로 알아보기)",
     "screens": [
-      {"name": "확정 뒤 상세", "standard": "DETAIL_CONFIRMED", "bases": ["confirm", "myorder"], "match": [{"all": ["적요상세"], "any": ["인수증 전송", "카드 승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"], "overlays": [
+      {"name": "확정 뒤 상세", "standard": "DETAIL_CONFIRMED", "bases": ["confirm", "myorder"], "buttons": {"keep": "닫기", "cancel": "취소"}, "match": [{"all": ["적요상세"], "any": ["인수증 전송", "카드 승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"], "overlays": [
         {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"]},
         {"name": "도착지 상세 팝업", "kind": "POPUP", "match": [{"any": ["도착지 상세", "하차지 상세"]}], "meaning": "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_DROPOFF", "seen": "REAL", "evidence": ["ex_images/인성/도착지상세.png"]},
         {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "action": "FILL_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처"},
         {"name": "취소 확인 팝업", "kind": "POPUP", "match": [], "meaning": "확정 뒤 취소를 누르면 한 번 더 묻는다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
         {"name": "취소 불가 팝업", "kind": "POPUP", "match": [{"any": ["취소할 수 없"], "none": ["적요상세"]}], "meaning": "안전취소 시간이 지나 취소할 수 없다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
       ]},
-      {"name": "확정 전 상세", "standard": "DETAIL_PRE_CONFIRM", "bases": ["detail"], "match": [{"all": ["적요상세", "확정"], "any": ["요금", "실운임"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"], "overlays": [
+      {"name": "확정 전 상세", "standard": "DETAIL_PRE_CONFIRM", "bases": ["detail"], "buttons": {"accept": "확정", "filterOut": "취소"}, "match": [{"all": ["적요상세", "확정"], "any": ["요금", "실운임"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"], "overlays": [
         {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"]},
         {"name": "도착지 상세 팝업", "kind": "POPUP", "match": [{"any": ["도착지 상세", "하차지 상세"]}], "meaning": "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_DROPOFF", "seen": "REAL", "evidence": ["ex_images/인성/도착지상세.png"]},
         {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "action": "FILL_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처"},
@@ -315,7 +320,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       {"name": "배차신청 뒤 화물상세정보", "standard": "DETAIL_CONFIRMED", "bases": ["confirm"], "match": [{"all": ["화물상세정보", "배차취소하기"]}, {"all": ["화물상세정보", "전화걸기", "배차내역"]}], "listReturn": false, "landsAfterAccept": true, "seen": "REAL", "evidence": ["ex_images/화물24시/54_화물상세정보_배차신청뒤.png"], "toCollect": "머리 «<»(뒤로) · «배차취소하기» · «전화걸기»를 누른 뒤 화면 · 막대가 다 차는 시간", "overlays": [
         {"name": "배차신청 성공 토스트", "kind": "TOAST", "match": [{"all": ["배차신청에 성공"]}], "meaning": "배차신청이 됐다 — 위 «배차취소하기» 막대가 차는 동안만 앱에서 취소할 수 있다", "seen": "REAL", "evidence": ["ex_images/화물24시/54_화물상세정보_배차신청뒤.png"]}
       ]},
-      {"name": "화물상세정보", "standard": "DETAIL_PRE_CONFIRM", "bases": ["detail"], "match": [{"all": ["화물상세정보", "배차신청"], "none": ["배차취소하기", "전화걸기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_화물상세정보.png", "ex_images/화물24시/53_화물상세정보_배차신청전.png"], "overlays": [
+      {"name": "화물상세정보", "standard": "DETAIL_PRE_CONFIRM", "bases": ["detail"], "buttons": {"accept": "배차신청", "filterOut": "돌아가기"}, "match": [{"all": ["화물상세정보", "배차신청"], "none": ["배차취소하기", "전화걸기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_화물상세정보.png", "ex_images/화물24시/53_화물상세정보_배차신청전.png"], "overlays": [
         {"name": "배차 실패 오류", "kind": "POPUP", "match": [{"any": ["이미 배차", "배차할 수 없"]}], "meaning": "배차신청이 안 됐다 — 남이 먼저 잡았거나 조건 미달", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
       ]},
       {"name": "배차내역 상세 · 화주정보 탭", "standard": "DETAIL_CONFIRMED", "bases": ["myorder"], "match": [{"all": ["배차내역", "02 화주정보", "사업장주소"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/화물24시/21_화물상세_화주정보_전화번호.png"], "overlays": []},
@@ -438,7 +443,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       {"name": "퀵 픽업 완료하기", "standard": "RUN_AT_PICKUP", "bases": ["myorder"], "match": [{"all": ["픽업 완료하기"], "any": ["픽업지 정보", "도착지 정보", "픽업지 주소 복사하기", "픽업지에 전화하기", "도착지 주소 복사하기", "도착지에 전화하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/17-2_픽업이_지연되고_있어요.jpeg"], "overlays": [
         {"name": "픽업 지연 제목", "kind": "BANNER", "match": [{"any": ["픽업이 지연되고 있어요"]}], "meaning": "픽업이 늦었다", "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/17-2_픽업이_지연되고_있어요.jpeg"], "toCollect": "원달앱이 읽는 글자인지(퀵 머리 글자는 로그에 안 나온다)"}
       ]},
-      {"name": "퀵 픽업 출발하기", "standard": "RUN_TO_PICKUP", "bases": ["myorder"], "match": [{"all": ["픽업 출발하기"], "any": ["픽업지 정보", "도착지 정보", "픽업지 주소 복사하기", "픽업지에 전화하기", "도착지 주소 복사하기", "도착지에 전화하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/17-1_픽업_출발해주세요_지금_바로_출발해_주세요.jpeg", "ex_images/카카오픽커/실물_20260913_내가찍음/37_기사님캡처_1158_요기요2883.jpg", "A24 폰 로그 09-13 11:55:15 · 11:56:32"], "overlays": [
+      {"name": "퀵 픽업 출발하기", "standard": "RUN_TO_PICKUP", "bases": ["myorder"], "buttons": {"cancel": "배정 취소"}, "match": [{"all": ["픽업 출발하기"], "any": ["픽업지 정보", "도착지 정보", "픽업지 주소 복사하기", "픽업지에 전화하기", "도착지 주소 복사하기", "도착지에 전화하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/17-1_픽업_출발해주세요_지금_바로_출발해_주세요.jpeg", "ex_images/카카오픽커/실물_20260913_내가찍음/37_기사님캡처_1158_요기요2883.jpg", "A24 폰 로그 09-13 11:55:15 · 11:56:32"], "overlays": [
         {"name": "출발 독촉 제목", "kind": "BANNER", "match": [{"any": ["지금 바로 출발해 주세요"]}], "meaning": "픽업이 늦었다 — 바로 출발하라", "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/17-1_픽업_출발해주세요_지금_바로_출발해_주세요.jpeg"], "toCollect": "원달앱이 읽는 글자인지(A24 로그 11:55~11:56 에 안 나옴)"}
       ]},
       {"name": "도보 픽업지 도착", "standard": "RUN_AT_PICKUP", "bases": ["myorder"], "match": [{"all": ["밀어서 픽업 완료"], "none": ["수락하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/17_픽업시트_밀어서픽업완료.jpeg"], "overlays": []},
@@ -454,7 +459,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       ]},
       {"name": "수락 후 오더 전체", "standard": "DETAIL_CONFIRMED", "bases": ["myorder"], "match": [], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/23_수락후_오더전체_최종수익2387.jpeg"], "toCollect": "원달앱이 읽는 글자(로그)", "overlays": []},
       {"name": "도움말", "standard": "NETWORK_MENU", "bases": [], "match": [{"all": ["자주 묻는 질문", "고객센터 연결"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/20_도움말_픽업FAQ_오더번호.jpeg"], "overlays": []},
-      {"name": "상세(수락 전 시트)", "standard": "DETAIL_PRE_CONFIRM", "bases": ["detail"], "match": [{"all": ["넘기기", "수락하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/05_상세_지도_수락하기.png", "ex_images/카카오픽커/실물_2026/06_상세_마감시각_준비시간.jpeg", "ex_images/카카오픽커/실물_2026/07_상세_최종수익분해.jpeg", "ex_images/카카오픽커/실물_2026/08_상세_지도_판교.jpeg", "ex_images/카카오픽커/실물_2026/09_상세_가격오르기전_9693.jpeg", "ex_images/카카오픽커/실물_2026/10_상세_가격오른뒤_11393.jpeg", "ex_images/카카오픽커/실물_2026/10-1_상세_시트(상).jpeg", "ex_images/카카오픽커/실물_2026/10-2_상세_시트(중).jpeg", "ex_images/카카오픽커/실물_2026/10-3_상세_시트(하).jpeg", "ex_images/카카오픽커/실물_2026/33_상세_예약콜_위례_삼성2동.png"], "overlays": [
+      {"name": "상세(수락 전 시트)", "standard": "DETAIL_PRE_CONFIRM", "bases": ["detail"], "buttons": {"accept": "수락하기", "filterOut": "넘기기"}, "match": [{"all": ["넘기기", "수락하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/05_상세_지도_수락하기.png", "ex_images/카카오픽커/실물_2026/06_상세_마감시각_준비시간.jpeg", "ex_images/카카오픽커/실물_2026/07_상세_최종수익분해.jpeg", "ex_images/카카오픽커/실물_2026/08_상세_지도_판교.jpeg", "ex_images/카카오픽커/실물_2026/09_상세_가격오르기전_9693.jpeg", "ex_images/카카오픽커/실물_2026/10_상세_가격오른뒤_11393.jpeg", "ex_images/카카오픽커/실물_2026/10-1_상세_시트(상).jpeg", "ex_images/카카오픽커/실물_2026/10-2_상세_시트(중).jpeg", "ex_images/카카오픽커/실물_2026/10-3_상세_시트(하).jpeg", "ex_images/카카오픽커/실물_2026/33_상세_예약콜_위례_삼성2동.png"], "overlays": [
         {"name": "첫 계약 필수정보", "kind": "POPUP", "match": [{"all": ["필수 정보를 입력해 주세요"]}], "meaning": "이메일 · 거주지를 넣어야 수락할 수 있다(한 번만)", "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/14_첫계약_필수정보입력_팝업_1회성.jpeg"]},
         {"name": "배정 실패 오류", "kind": "POPUP", "match": [{"any": ["이미 배정이 완료된", "다른 기사에게 배정"]}], "meaning": "수락했지만 남이 먼저 잡았다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
       ]},

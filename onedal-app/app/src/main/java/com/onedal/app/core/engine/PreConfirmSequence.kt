@@ -192,12 +192,13 @@ fun ScanContext.handlePreConfirmScreen(
     } else {
         // [AUTO 모드이면서 2차 필터 실패] -> 공통 즉시 취소/뒤로가기 회피 기동
         session.isDetailScrapSent = true // 다음 사이클 스킵을 위해 마킹
-        val cancelBtnForReject = keywords.cancelKeyword
-        AppLogger.d(TAG, LogTag.FILTER, "⚠️ [2차 필터 실패] 상세 정보를 확인한 결과 똥콜(블랙리스트 등)로 판명됨. '$cancelBtnForReject' 회피 기동!")
+        // 🔘 물러날 글자는 그 배차망 잡기 전 상세 기준 페이지의 단추(`buttons.filterOut`) — 없거나 못 찾으면 뒤로
+        val cancelBtnForReject = com.onedal.app.core.buttonsOn(plugin.screens, "detail")?.filterOut
+        AppLogger.d(TAG, LogTag.FILTER, "⚠️ [2차 필터 실패] 상세 정보를 확인한 결과 똥콜(블랙리스트 등)로 판명됨. '${cancelBtnForReject ?: "뒤로"}' 회피 기동!")
 
-        AppLogger.roadmap(LogTag.TAP, "상세페이지에서 '$cancelBtnForReject' 추출 후 클릭", telemetryManager.currentScreenContext.name)
+        AppLogger.roadmap(LogTag.TAP, "상세페이지에서 '${cancelBtnForReject ?: "뒤로"}' 추출 후 클릭", telemetryManager.currentScreenContext.name)
         abortPreConfirm {
-            if (!touchManager.findAndClickByText(rootNode, cancelBtnForReject, isStartsWith = true)) {
+            if (cancelBtnForReject == null || !touchManager.findAndClickByText(rootNode, cancelBtnForReject, isStartsWith = true)) {
                 touchManager.performBack()
             }
         }

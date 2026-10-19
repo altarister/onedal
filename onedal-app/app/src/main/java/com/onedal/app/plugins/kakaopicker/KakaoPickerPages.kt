@@ -8,6 +8,7 @@ import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageSpecs
 import com.onedal.app.core.OverlayAction
+import com.onedal.app.core.ScreenButtons
 import com.onedal.app.core.ScreenMatch
 import com.onedal.app.core.ScreenSpec
 import com.onedal.app.core.Seen
@@ -162,6 +163,7 @@ object KakaoPickerPages {
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/17-1_픽업_출발해주세요_지금_바로_출발해_주세요.jpeg", "ex_images/카카오픽커/실물_20260913_내가찍음/37_기사님캡처_1158_요기요2883.jpg", "A24 폰 로그 09-13 11:55:15 · 11:56:32"),
             bases = listOf("myorder"),
+            buttons = ScreenButtons(cancel = "배정 취소"),
         ),
         ScreenSpec(
             "도보 픽업지 도착",
@@ -270,6 +272,7 @@ object KakaoPickerPages {
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/05_상세_지도_수락하기.png", "ex_images/카카오픽커/실물_2026/06_상세_마감시각_준비시간.jpeg", "ex_images/카카오픽커/실물_2026/07_상세_최종수익분해.jpeg", "ex_images/카카오픽커/실물_2026/08_상세_지도_판교.jpeg", "ex_images/카카오픽커/실물_2026/09_상세_가격오르기전_9693.jpeg", "ex_images/카카오픽커/실물_2026/10_상세_가격오른뒤_11393.jpeg", "ex_images/카카오픽커/실물_2026/10-1_상세_시트(상).jpeg", "ex_images/카카오픽커/실물_2026/10-2_상세_시트(중).jpeg", "ex_images/카카오픽커/실물_2026/10-3_상세_시트(하).jpeg", "ex_images/카카오픽커/실물_2026/33_상세_예약콜_위례_삼성2동.png"),
             bases = listOf("detail"),
+            buttons = ScreenButtons(accept = "수락하기", filterOut = "넘기기"),
         ),
         ScreenSpec(
             "내 오더 탭",

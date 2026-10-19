@@ -192,6 +192,26 @@ describe('배차망 페이지 목록 (screens)', () => {
  * 🧭 **화면 줄마다 기준 칸 `bases`** — 배차망 화면이 기준 페이지(BASE_PAGES) 가운데 어디에 속하나.
  * 막는 것: 기준 밖이 아닌 화면이 소속 없이 남는 것 · 나누는 법과 다른 소속 · 같은 모양 두 기준의 차례가 바뀌어 화면 낱말이 다른 기준으로 쌓이는 것.
  */
+describe('정의 표 — 화면 단추 글자', () => {
+    type Buttons = { accept?: string; filterOut?: string; keep?: string; cancel?: string };
+    const rowsOf = (net: string, base: string) => ((NETWORK_PAGES as any)[net].screens as Array<{ name: string; bases: string[]; buttons?: Buttons }>)
+        .filter(s => s.bases.includes(base) && s.buttons);
+    it('배차망마다 잡기 전 상세(detail) 단추 줄은 하나 — 수락 · 물러남 글자가 있다(원달앱이 누를지는 플러그인이 정한다)', () => {
+        const want: Record<string, Buttons> = {
+            insung: { accept: '확정', filterOut: '취소' }, hwamul24: { accept: '배차신청', filterOut: '돌아가기' }, kakaopicker: { accept: '수락하기', filterOut: '넘기기' },
+        };
+        for (const net of Object.keys(NETWORK_PAGES)) {
+            const rows = rowsOf(net, 'detail');
+            expect(rows.length, net).toBe(1);
+            expect(rows[0].buttons, net).toEqual(want[net]);
+        }
+    });
+    it('확정(confirm) 단추 줄은 배차망마다 0 또는 1 — 결재 단추가 두 갈래가 되지 않게 · 인성은 닫기 · 취소', () => {
+        for (const net of Object.keys(NETWORK_PAGES)) expect(rowsOf(net, 'confirm').length, net).toBeLessThanOrEqual(1);
+        expect(rowsOf('insung', 'confirm')[0]?.buttons).toEqual({ keep: '닫기', cancel: '취소' });
+    });
+});
+
 describe('정의 표 — 화면 줄의 기준 칸', () => {
     const OUTSIDE = new Set(['TRANSITION', 'NETWORK_MENU', 'OTHER_APP']);
     const BY_STANDARD: Record<string, string[]> = {

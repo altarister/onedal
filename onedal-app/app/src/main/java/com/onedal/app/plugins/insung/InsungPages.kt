@@ -8,6 +8,7 @@ import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageSpecs
 import com.onedal.app.core.OverlayAction
+import com.onedal.app.core.ScreenButtons
 import com.onedal.app.core.ScreenMatch
 import com.onedal.app.core.ScreenSpec
 import com.onedal.app.core.Seen
@@ -169,6 +170,7 @@ object InsungPages {
             Seen.REAL,
             listOf("ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"),
             bases = listOf("confirm", "myorder"),
+            buttons = ScreenButtons(keep = "닫기", cancel = "취소"),
         ),
         ScreenSpec(
             "확정 전 상세",
@@ -187,6 +189,7 @@ object InsungPages {
             Seen.REAL,
             listOf("ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"),
             bases = listOf("detail"),
+            buttons = ScreenButtons(accept = "확정", filterOut = "취소"),
         ),
         ScreenSpec(
             "홈 «인성퀵화면분할»",

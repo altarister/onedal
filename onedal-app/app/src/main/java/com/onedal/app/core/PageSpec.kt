@@ -108,4 +108,13 @@ data class ScreenSpec(
     val landsAfterAccept: Boolean = false,
     /** 🧭 이 화면이 속한 기준 페이지(shared `BASE_PAGES` 낱말) — 원천 설명은 shared `networkPages.ts` `bases` · `Page` 에는 홈이 없어(홈은 칸을 안 적는다) 낱말로 둔다 */
     val bases: List<String> = emptyList(),
+    /** 🔘 배차망 화면의 단추 글자(shared `buttons`) — 원달앱이 누를지는 플러그인이 정한다 */
+    val buttons: ScreenButtons? = null,
 )
+
+/** 🔘 화면 단추 글자 — accept 수락 · filterOut 잡기 전 물러남 · keep 잡은 뒤 결재 KEEP · cancel 잡은 뒤 결재 취소 */
+data class ScreenButtons(val accept: String? = null, val filterOut: String? = null, val keep: String? = null, val cancel: String? = null)
+
+/** 🔘 그 기준 페이지(`bases` 낱말)의 단추 — 단추가 적힌 화면 줄 하나(shared 검사가 배차망마다 하나임을 문다) · 없으면 null */
+fun buttonsOn(screens: List<ScreenSpec>, base: String): ScreenButtons? =
+    screens.firstOrNull { base in it.bases && it.buttons != null }?.buttons

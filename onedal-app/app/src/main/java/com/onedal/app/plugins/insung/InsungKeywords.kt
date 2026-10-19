@@ -4,8 +4,8 @@ import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.engine.PopupFill
 
 object InsungKeywords {
-    /** 인성콜 이름표 · 취소 버튼 글자 — 화면을 알아보는 글자는 배차망 정의 표(`InsungPages.screens`)에 있다 */
-    val INSUNG = ScreenKeywords(appLabel = "인성콜", cancelKeyword = "취소", contractCancelButton = "취소", contractCloseButton = "닫기")   // 🛡️ 확정 뒤 상세 «취소» · «닫기»(실물 캡처 «상세-확정» · 시뮬 InsungOngoingDetailScreen)
+    /** 인성콜 이름표 — 화면을 알아보는 글자 · 단추 글자는 배차망 정의 표(`InsungPages.screens`)에 있다 */
+    val INSUNG = ScreenKeywords(appLabel = "인성콜")
 
 
     /**

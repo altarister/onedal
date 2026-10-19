@@ -63,6 +63,13 @@ const kscreen = (net, s) => {
     /* 기준 페이지 = 홈 + 원달앱 Page 낱말(shared BASE_PAGES 와 같은 집합 — PageFieldPairTest 가 Page ↔ SCREEN_PAGES 를 묶는다) · 원달앱은 낱말 목록이라 오타를 여기서 막는다 */
     if (!Array.isArray(s.bases)) fail(`${at} — bases 칸이 없다`);
     for (const b of s.bases) if (b !== 'home' && !Object.keys(PAGE).includes(b)) fail(`${at} — 모르는 기준 «${b}» (홈 · core/PageField.kt Page 밖)`);
+    /* 단추 글자 — 넷 낱말만 · 빈 글자 막기 */
+    const BUTTON_KEYS = ['accept', 'filterOut', 'keep', 'cancel'];
+    const buttons = s.buttons ? Object.entries(s.buttons) : [];
+    for (const [k, v] of buttons) {
+        if (!BUTTON_KEYS.includes(k)) fail(`${at} — 모르는 단추 «${k}» (${BUTTON_KEYS.join(' · ')})`);
+        if (typeof v !== 'string' || !v) fail(`${at} — 단추 «${k}» 글자가 비었다`);
+    }
     const overlays = s.overlays.map((o) => {
         const oat = `${at} 덧칸 «${o.name}»`;
         if (!OVERLAY_KIND.includes(o.kind)) fail(`${oat} — 모르는 갈래 «${o.kind}»`);
@@ -75,7 +82,8 @@ const kscreen = (net, s) => {
     const args = [kstr(s.name), s.standard === null ? 'null' : `StandardScreen.${s.standard}`, kmatches(at, s.match), String(s.listReturn),
         overlays.length ? `listOf(\n${overlays.join('\n')}\n            )` : 'emptyList()', `Seen.${s.seen}`, klist(s.evidence), ...ktail(s),
         ...(s.landsAfterAccept ? ['landsAfterAccept = true'] : []),
-        ...(s.bases.length ? [`bases = listOf(${s.bases.map((b) => kstr(b)).join(', ')})`] : [])];
+        ...(s.bases.length ? [`bases = listOf(${s.bases.map((b) => kstr(b)).join(', ')})`] : []),
+        ...(buttons.length ? [`buttons = ScreenButtons(${buttons.map(([k, v]) => `${k} = ${kstr(v)}`).join(', ')})`] : [])];
     return `        ScreenSpec(\n            ${args.join(',\n            ')},\n        ),`;
 };
 
@@ -141,6 +149,7 @@ import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageSpecs
 import com.onedal.app.core.OverlayAction
+import com.onedal.app.core.ScreenButtons
 import com.onedal.app.core.ScreenMatch
 import com.onedal.app.core.ScreenSpec
 import com.onedal.app.core.Seen
