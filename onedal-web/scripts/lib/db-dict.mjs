@@ -150,10 +150,10 @@ if (unknown.length === 0) {
 
 // ── ⑥ 폰이 모은 화면 낱말 (screen_words) ────────────────────────────────────
 /**
- * 📰 위 ①~⑤ 는 장부 원문(목록)에서 서버가 다시 가른 것이다. 여기는 **원달앱이 자른 그대로** 페이지 넷에서 모은 것 —
+ * 📰 위 ①~⑤ 는 장부 원문(목록)에서 서버가 다시 가른 것이다. 여기는 **원달앱이 자른 그대로** 칸을 적는 페이지(shared `SCREEN_PAGES`)에서 모은 것 —
  *    잡음으로 뺀 글자까지 보인다(원문 분석으로는 «뺀 것»이 안 보인다). 표가 없으면(옛 DB) 한 줄만.
  */
-console.log('\n⑥ 폰이 모은 화면 낱말 — 원달앱이 자른 그대로 · 페이지 넷 (screen_words)');
+console.log('\n⑥ 폰이 모은 화면 낱말 — 원달앱이 자른 그대로 · 칸을 적는 페이지별 (screen_words)');
 const hasScreenWords = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'screen_words'`).get();
 if (!hasScreenWords) {
     console.log('     표 없음 — 서버가 screen_words 를 만들기 전 DB 다');

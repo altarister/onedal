@@ -99,6 +99,10 @@ object InsungPages {
                 read = Regex("""요금\s*:\s*([\d,]+)(?![\d.])""")),
             FieldSpec(PageField.CONTACT, "머리 줄", "(주)신한로직스-1588-5480", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.MEMO, "적요 칸", "1시상차 6박스 …", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.STAGE, "상태 줄", "상태 : 배송", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.VEHICLE_TYPE, "차량 줄", "차량 : 다마스", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.TOLL, "탁송료 줄", "탁송료 : 0", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 : 23%", Seen.REAL, Handling.UNUSED),
         ),
         Page.MY_ORDERS to listOf(
             FieldSpec(PageField.STAGE, "완료 탭 줄 배지", "완료", Seen.SIM, Handling.UNUSED),
@@ -106,10 +110,15 @@ object InsungPages {
             FieldSpec(PageField.CLOCK, "완료 탭 줄", "상차 시각 · 하차 시각", Seen.SIM, Handling.UNUSED),
         ),
         Page.MY_ORDER to listOf(
-            FieldSpec(PageField.STAGE, "진행 중 상세 상태 줄", "상태 : 배송", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.PICKUP, "출발지 줄", "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.DROPOFF, "도착지 줄", "서울강남구 / 역삼동 / 이희억", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.FARE, "요금 줄", "요금 : 40,000(신용)", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.STAGE, "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 상태 줄", "상태 : 배송", Seen.SIM, Handling.UNUSED),
+            FieldSpec(PageField.PICKUP, "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 출발지 줄", "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", Seen.SIM, Handling.UNUSED),
+            FieldSpec(PageField.DROPOFF, "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 도착지 줄", "서울강남구 / 역삼동 / 이희억", Seen.SIM, Handling.UNUSED),
+            FieldSpec(PageField.FARE, "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 요금 줄", "요금 : 40,000(신용)", Seen.SIM, Handling.UNUSED),
+            FieldSpec(PageField.VEHICLE_TYPE, "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 차량 줄", "차량 : 다마스", Seen.SIM, Handling.UNUSED),
+            FieldSpec(PageField.TOLL, "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 탁송료 줄", "탁송료 : 0", Seen.SIM, Handling.UNUSED),
+            FieldSpec(PageField.COMMISSION, "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 수수료 줄", "수수료 : 23%", Seen.SIM, Handling.UNUSED),
+            FieldSpec(PageField.CONTACT, "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 머리 줄", "(주)신한로직스-1588-5480", Seen.SIM, Handling.UNUSED),
+            FieldSpec(PageField.MEMO, "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 적요 칸", "1시상차 6박스 …", Seen.SIM, Handling.UNUSED),
         ),
     )
 

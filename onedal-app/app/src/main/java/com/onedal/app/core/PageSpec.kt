@@ -31,7 +31,7 @@ data class FieldSpec(
     val part: String = "",
 )
 
-/** 📄 배차망 하나의 페이지 정의 — 페이지 넷 × 칸들. 플러그인 폴더의 `…Pages.kt` 가 적는다 */
+/** 📄 배차망 하나의 페이지 정의 — 칸을 적는 페이지(shared `SCREEN_PAGES`) × 칸들. 플러그인 폴더의 `…Pages.kt` 가 적는다 */
 typealias PageSpecs = Map<Page, List<FieldSpec>>
 
 object PageSpecSummary {

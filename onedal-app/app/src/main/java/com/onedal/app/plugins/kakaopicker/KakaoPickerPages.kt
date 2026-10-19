@@ -64,6 +64,7 @@ object KakaoPickerPages {
             FieldSpec(PageField.DROPOFF, "오더 전체 보기 배송지", "쌍용 스윗닷홈아파트 304동1002호", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.FARE, "오더 전체 보기 최종 수익", "최종 수익 2,387P", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.MEMO, "오더 전체 보기 고객 요청", "문 앞에 놔주세요 (벨 O) 비대면 배달 / 사진 필수", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.ORDER_NO, "오더 전체 보기 오더 확인", "260902091827593", Seen.REAL, Handling.UNUSED),
         ),
     )
 

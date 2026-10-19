@@ -4,7 +4,7 @@ package com.onedal.app.core
 data class ScreenWord(val word: String, val kind: String, val sample: String?)
 
 /**
- * 📄 **화면 종류 → 페이지** — 페이지 정의(`…Pages.kt`)와 모은 글자가 같은 넷으로 갈린다.
+ * 📄 **화면 종류 → 페이지** — 페이지 정의(`…Pages.kt`)와 모은 글자가 같은 페이지(shared `SCREEN_PAGES`)로 갈린다.
  * 모르는 화면(UNKNOWN · 로딩 · 오류 팝업)은 null — 그 화면 글자는 모으지 않는다.
  */
 fun pageOf(ctx: com.onedal.app.models.ScreenContext): Page? = when (ctx) {

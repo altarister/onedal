@@ -60,7 +60,11 @@ object Hwamul24Pages {
         ),
         Page.MY_ORDER to listOf(
             FieldSpec(PageField.PICKUP, "배차내역 상세 상차지", "경기 군포 당정동 공단로124번길 4 (크레텍)", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.DROPOFF, "배차내역 상세 하차지", "경기 화성 신동 703 [당착] 34Km", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.DROPOFF, "배차내역 상세 하차지", "경기 화성 신동 703", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.DELIVERY_DISTANCE, "배차내역 상세 하차지 끝", "34Km", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.RESERVATION, "배차내역 상세 상차지 · 하차지 배지", "당상 · 당착", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.TAGS, "배차내역 상세 배지", "지 · 독차", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.ORDER_NO, "배차내역 상세 화물번호", "3-4991-0836", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.MEMO, "배차내역 상세 화물정보", "당일상 당착 #연계#쿠팡 24시(군포-부천)새벽02시(부천-동탄)가는대로 하차", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.VEHICLE_TYPE, "배차내역 상세 톤 수 · 차종", "5톤 · 윙바디", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.CLOCK, "배차시간", "배차시간: 12-30 14:53", Seen.REAL, Handling.UNUSED),

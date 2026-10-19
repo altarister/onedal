@@ -258,7 +258,11 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "dropoff", "where": "도착지 줄", "sample": "서울강남구 / 역삼동 / 이희억", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen"},
         {"field": "fare", "where": "요금 줄", "sample": "요금 : 40,000(신용)", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen — PageFieldRead", "read": "요금\\s*:\\s*([\\d,]+)(?![\\d.])"},
         {"field": "contact", "where": "머리 줄", "sample": "(주)신한로직스-1588-5480", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "memo", "where": "적요 칸", "sample": "1시상차 6박스 …", "seen": "REAL", "handling": "UNUSED"}
+        {"field": "memo", "where": "적요 칸", "sample": "1시상차 6박스 …", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "stage", "where": "상태 줄", "sample": "상태 : 배송", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "vehicleType", "where": "차량 줄", "sample": "차량 : 다마스", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "toll", "where": "탁송료 줄", "sample": "탁송료 : 0", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "commission", "where": "수수료 줄", "sample": "수수료 : 23%", "seen": "REAL", "handling": "UNUSED"}
       ],
       "myorders": [
         {"field": "stage", "where": "완료 탭 줄 배지", "sample": "완료", "seen": "SIM", "handling": "UNUSED"},
@@ -266,10 +270,15 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "clock", "where": "완료 탭 줄", "sample": "상차 시각 · 하차 시각", "seen": "SIM", "handling": "UNUSED"}
       ],
       "myorder": [
-        {"field": "stage", "where": "진행 중 상세 상태 줄", "sample": "상태 : 배송", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "pickup", "where": "출발지 줄", "sample": "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "dropoff", "where": "도착지 줄", "sample": "서울강남구 / 역삼동 / 이희억", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "fare", "where": "요금 줄", "sample": "요금 : 40,000(신용)", "seen": "REAL", "handling": "UNUSED"}
+        {"field": "stage", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 상태 줄", "sample": "상태 : 배송", "seen": "SIM", "handling": "UNUSED"},
+        {"field": "pickup", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 출발지 줄", "sample": "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", "seen": "SIM", "handling": "UNUSED"},
+        {"field": "dropoff", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 도착지 줄", "sample": "서울강남구 / 역삼동 / 이희억", "seen": "SIM", "handling": "UNUSED"},
+        {"field": "fare", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 요금 줄", "sample": "요금 : 40,000(신용)", "seen": "SIM", "handling": "UNUSED"},
+        {"field": "vehicleType", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 차량 줄", "sample": "차량 : 다마스", "seen": "SIM", "handling": "UNUSED"},
+        {"field": "toll", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 탁송료 줄", "sample": "탁송료 : 0", "seen": "SIM", "handling": "UNUSED"},
+        {"field": "commission", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 수수료 줄", "sample": "수수료 : 23%", "seen": "SIM", "handling": "UNUSED"},
+        {"field": "contact", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 머리 줄", "sample": "(주)신한로직스-1588-5480", "seen": "SIM", "handling": "UNUSED"},
+        {"field": "memo", "where": "진행 중 상세(완료 탭에서 연 콜 — 시뮬레이터로만 봄 · 글자는 확정 직후 실물 캡처) 적요 칸", "sample": "1시상차 6박스 …", "seen": "SIM", "handling": "UNUSED"}
       ]
     }
   },
@@ -381,7 +390,11 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
       ],
       "myorder": [
         {"field": "pickup", "where": "배차내역 상세 상차지", "sample": "경기 군포 당정동 공단로124번길 4 (크레텍)", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "dropoff", "where": "배차내역 상세 하차지", "sample": "경기 화성 신동 703 [당착] 34Km", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "dropoff", "where": "배차내역 상세 하차지", "sample": "경기 화성 신동 703", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "deliveryDistance", "where": "배차내역 상세 하차지 끝", "sample": "34Km", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "reservation", "where": "배차내역 상세 상차지 · 하차지 배지", "sample": "당상 · 당착", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "tags", "where": "배차내역 상세 배지", "sample": "지 · 독차", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "orderNo", "where": "배차내역 상세 화물번호", "sample": "3-4991-0836", "seen": "REAL", "handling": "UNUSED"},
         {"field": "memo", "where": "배차내역 상세 화물정보", "sample": "당일상 당착 #연계#쿠팡 24시(군포-부천)새벽02시(부천-동탄)가는대로 하차", "seen": "REAL", "handling": "UNUSED"},
         {"field": "vehicleType", "where": "배차내역 상세 톤 수 · 차종", "sample": "5톤 · 윙바디", "seen": "REAL", "handling": "UNUSED"},
         {"field": "clock", "where": "배차시간", "sample": "배차시간: 12-30 14:53", "seen": "REAL", "handling": "UNUSED"}
@@ -505,7 +518,8 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "pickup", "where": "오더 전체 보기 픽업지", "sample": "[태전점]롯데리아 · 경기 광주시 고불로 43-1", "seen": "REAL", "handling": "UNUSED"},
         {"field": "dropoff", "where": "오더 전체 보기 배송지", "sample": "쌍용 스윗닷홈아파트 304동1002호", "seen": "REAL", "handling": "UNUSED"},
         {"field": "fare", "where": "오더 전체 보기 최종 수익", "sample": "최종 수익 2,387P", "seen": "REAL", "handling": "UNUSED"},
-        {"field": "memo", "where": "오더 전체 보기 고객 요청", "sample": "문 앞에 놔주세요 (벨 O) 비대면 배달 / 사진 필수", "seen": "REAL", "handling": "UNUSED"}
+        {"field": "memo", "where": "오더 전체 보기 고객 요청", "sample": "문 앞에 놔주세요 (벨 O) 비대면 배달 / 사진 필수", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "orderNo", "where": "오더 전체 보기 오더 확인", "sample": "260902091827593", "seen": "REAL", "handling": "UNUSED"}
       ]
     }
   }
