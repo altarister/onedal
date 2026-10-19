@@ -25,7 +25,7 @@ interface IDispatchAppPlugin {
     val code: String                  // "kakaopicker", "insung", "hwamul24"
     val label: String                 // "픽커", "인성콜", "24시"
     val packageKeywords: List<String>    // ["flexer"], ["insung"], ["logione", "carrier"]
-    val keywords: ScreenKeywords      // 배차망 이름표 · 취소 버튼 글자
+    val keywords: ScreenKeywords      // 배차망 이름표 — 단추 글자는 정의 표 `buttons`(`buttonsOn`)
     val networkMarkers: List<List<String>> // 배차망 고유 화면 식별 마커 목록
     val parser: IScrapParser          // 리스트/상세 텍스트 파서
 
