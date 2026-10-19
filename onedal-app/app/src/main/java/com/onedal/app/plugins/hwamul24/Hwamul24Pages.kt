@@ -58,6 +58,13 @@ object Hwamul24Pages {
             FieldSpec(PageField.RESERVATION, "배차내역 상세 배지", "[예약]", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.CLOCK, "하차시간", "2025-11-23 20:43분", Seen.REAL, Handling.UNUSED),
         ),
+        Page.MY_ORDER to listOf(
+            FieldSpec(PageField.PICKUP, "배차내역 상세 상차지", "경기 군포 당정동 공단로124번길 4 (크레텍)", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.DROPOFF, "배차내역 상세 하차지", "경기 화성 신동 703 [당착] 34Km", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.MEMO, "배차내역 상세 화물정보", "당일상 당착 #연계#쿠팡 24시(군포-부천)새벽02시(부천-동탄)가는대로 하차", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.VEHICLE_TYPE, "배차내역 상세 톤 수 · 차종", "5톤 · 윙바디", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.CLOCK, "배차시간", "배차시간: 12-30 14:53", Seen.REAL, Handling.UNUSED),
+        ),
     )
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 셋째 줄 «낱말/…»(«1톤/전체» · «2.5톤/윙» · «다마스/전체»)의 첫 «/» 앞 낱말 — REAL 은 실물 캡처 17 · 실물 목록, SIM 은 시뮬레이터 목록에서만 봤다) */

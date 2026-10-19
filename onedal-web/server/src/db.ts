@@ -1173,6 +1173,7 @@ db.exec(`
     )
 `);
 
+/* 📰 `page` 값은 shared `SCREEN_PAGES`(칸을 적는 페이지) — CHECK 없음 */
 db.exec(`
     CREATE TABLE IF NOT EXISTS screen_words (
         target_app  TEXT NOT NULL,

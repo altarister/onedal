@@ -10,6 +10,7 @@ enum class Page(val word: String) {
     DETAIL("detail"),       // 상세 (확정 전)
     CONFIRM("confirm"),     // 확정 (계약 직후)
     MY_ORDERS("myorders"),  // 내 오더 · 배차내역 · 완료
+    MY_ORDER("myorder"),    // 내 오더 콜 — 탭에서 연 확정된 콜 한 건 · 운행
 }
 
 /** 📰 모은 글자의 갈래 — 잡음 낱말로 뺀 글자 · 정의에 없어 못 알아본 글자 · 칸이 다 차서 남는 토막 */

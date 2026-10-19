@@ -8,13 +8,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 📄 **세 배차망 모두 페이지 넷을 정의한다** (기사님 «정의되지 않았다고 버리는 것이 문제다»).
+ * 📄 **세 배차망 모두 칸을 적는 페이지를 다 정의한다** (기사님 «정의되지 않았다고 버리는 것이 문제다»).
  * 칸이 비었거나 한 페이지에 같은 칸이 둘이면 표가 흐려진다 — 모름 칸 수는 부팅 줄(`PageSpecSummary`)로 본다.
  */
 class PagesDefinedTest {
     private val all = mapOf("픽커" to KakaoPickerPages.pages, "인성" to InsungPages.pages, "24시" to Hwamul24Pages.pages)
 
-    @Test fun `세 배차망 모두 페이지 넷이 있고 칸이 비지 않는다`() {
+    @Test fun `세 배차망 모두 칸을 적는 페이지가 다 있고 칸이 비지 않는다`() {
         for ((name, pages) in all) {
             assertEquals("$name 페이지", Page.values().toSet(), pages.keys)
             pages.forEach { (page, fields) -> assertTrue("$name $page 칸이 비었다", fields.isNotEmpty()) }

@@ -264,6 +264,12 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "stage", "where": "완료 탭 줄 배지", "sample": "완료", "seen": "SIM", "handling": "UNUSED"},
         {"field": "contact", "where": "완료 탭 줄", "sample": "회사 이름", "seen": "SIM", "handling": "UNUSED"},
         {"field": "clock", "where": "완료 탭 줄", "sample": "상차 시각 · 하차 시각", "seen": "SIM", "handling": "UNUSED"}
+      ],
+      "myorder": [
+        {"field": "stage", "where": "진행 중 상세 상태 줄", "sample": "상태 : 배송", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "pickup", "where": "출발지 줄", "sample": "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "dropoff", "where": "도착지 줄", "sample": "서울강남구 / 역삼동 / 이희억", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "fare", "where": "요금 줄", "sample": "요금 : 40,000(신용)", "seen": "REAL", "handling": "UNUSED"}
       ]
     }
   },
@@ -372,6 +378,13 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "memo", "where": "배차내역 상세 화물정보", "sample": "예약 당일오후1시상 당착 다발무상.하차해줌", "seen": "REAL", "handling": "UNUSED"},
         {"field": "reservation", "where": "배차내역 상세 배지", "sample": "[예약]", "seen": "REAL", "handling": "UNUSED"},
         {"field": "clock", "where": "하차시간", "sample": "2025-11-23 20:43분", "seen": "REAL", "handling": "UNUSED"}
+      ],
+      "myorder": [
+        {"field": "pickup", "where": "배차내역 상세 상차지", "sample": "경기 군포 당정동 공단로124번길 4 (크레텍)", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "dropoff", "where": "배차내역 상세 하차지", "sample": "경기 화성 신동 703 [당착] 34Km", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "memo", "where": "배차내역 상세 화물정보", "sample": "당일상 당착 #연계#쿠팡 24시(군포-부천)새벽02시(부천-동탄)가는대로 하차", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "vehicleType", "where": "배차내역 상세 톤 수 · 차종", "sample": "5톤 · 윙바디", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "clock", "where": "배차시간", "sample": "배차시간: 12-30 14:53", "seen": "REAL", "handling": "UNUSED"}
       ]
     }
   },
@@ -487,6 +500,12 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = /*JSON*/{
         {"field": "pickup", "where": "픽업 배지 옆", "sample": "[태전점]롯데리아", "seen": "REAL", "handling": "UNUSED"},
         {"field": "dropoff", "where": "배송지 줄", "sample": "배송지: 쌍용 스윗닷홈아파트 304동1002호", "seen": "REAL", "handling": "UNUSED"},
         {"field": "tags", "where": "오른쪽 배지", "sample": "도보", "seen": "REAL", "handling": "UNUSED"}
+      ],
+      "myorder": [
+        {"field": "pickup", "where": "오더 전체 보기 픽업지", "sample": "[태전점]롯데리아 · 경기 광주시 고불로 43-1", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "dropoff", "where": "오더 전체 보기 배송지", "sample": "쌍용 스윗닷홈아파트 304동1002호", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "fare", "where": "오더 전체 보기 최종 수익", "sample": "최종 수익 2,387P", "seen": "REAL", "handling": "UNUSED"},
+        {"field": "memo", "where": "오더 전체 보기 고객 요청", "sample": "문 앞에 놔주세요 (벨 O) 비대면 배달 / 사진 필수", "seen": "REAL", "handling": "UNUSED"}
       ]
     }
   }

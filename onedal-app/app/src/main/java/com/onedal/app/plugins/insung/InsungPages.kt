@@ -105,6 +105,12 @@ object InsungPages {
             FieldSpec(PageField.CONTACT, "완료 탭 줄", "회사 이름", Seen.SIM, Handling.UNUSED),
             FieldSpec(PageField.CLOCK, "완료 탭 줄", "상차 시각 · 하차 시각", Seen.SIM, Handling.UNUSED),
         ),
+        Page.MY_ORDER to listOf(
+            FieldSpec(PageField.STAGE, "진행 중 상세 상태 줄", "상태 : 배송", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.PICKUP, "출발지 줄", "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.DROPOFF, "도착지 줄", "서울강남구 / 역삼동 / 이희억", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.FARE, "요금 줄", "요금 : 40,000(신용)", Seen.REAL, Handling.UNUSED),
+        ),
     )
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록) */
