@@ -141,12 +141,24 @@ class ScreenWordsTest {
         assertEquals(js, ScreenWords.ROAD.pattern)
     }
 
-    @Test fun `화면 종류는 네 페이지 가운데 하나로 - 모르는 화면은 안 모은다`() {
-        assertEquals(Page.LIST, pageOf(com.onedal.app.models.ScreenContext.LIST))
-        assertEquals(Page.DETAIL, pageOf(com.onedal.app.models.ScreenContext.POPUP_MEMO))
-        assertEquals(Page.CONFIRM, pageOf(com.onedal.app.models.ScreenContext.RUN_TO_PICKUP))
-        assertEquals(Page.MY_ORDERS, pageOf(com.onedal.app.models.ScreenContext.MY_ORDERS))
-        assertNull(pageOf(com.onedal.app.models.ScreenContext.HOME))
-        assertNull(pageOf(com.onedal.app.models.ScreenContext.UNKNOWN))
+    private fun screen(screens: List<ScreenSpec>, name: String) = screens.first { it.name == name }
+
+    @Test fun `페이지는 정의 표 화면 줄의 첫 기준 칸 - 홈 · 기준 칸 없는 화면 · 오류 팝업은 안 모은다`() {
+        val insung = com.onedal.app.plugins.insung.InsungPages.screens
+        val hwamul = com.onedal.app.plugins.hwamul24.Hwamul24Pages.screens
+        val picker = com.onedal.app.plugins.kakaopicker.KakaoPickerPages.screens
+        assertEquals(Page.LIST, pageOf(screen(insung, "신규 콜 목록"), null))
+        assertEquals(Page.DETAIL, pageOf(screen(insung, "확정 전 상세"), "적요 상세 팝업"))
+        assertEquals(Page.CONFIRM, pageOf(screen(insung, "확정 뒤 상세"), null))
+        // 출발지 팝업은 확정 전 · 뒤 상세 둘 위에 뜬다 — 주인 화면 줄을 따른다
+        assertEquals(Page.CONFIRM, pageOf(screen(insung, "확정 뒤 상세"), "출발지 상세 팝업"))
+        assertEquals(Page.MY_ORDERS, pageOf(screen(insung, "완료 탭"), null))
+        assertEquals(Page.MY_ORDER, pageOf(screen(hwamul, "배차내역 상세 · 화물정보 탭"), null))
+        assertEquals(Page.MY_ORDER, pageOf(screen(picker, "퀵 픽업 출발하기"), null))
+        assertEquals(Page.MY_ORDER, pageOf(screen(picker, "배송 완료"), null))
+        assertNull(pageOf(screen(insung, "홈 «인성퀵화면분할»"), null))
+        assertNull(pageOf(screen(insung, "환경설정"), null))
+        assertNull(pageOf(screen(insung, "확정 전 상세"), "확정 실패 팝업"))
+        assertNull(pageOf(null, null))
     }
 }

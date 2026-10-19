@@ -1263,7 +1263,8 @@ class HijackService : AccessibilityService(), ScanContext {
         armSpot(screenRead, detected, rawScreenStr)
         markRead("판별")
         // 📰 이 화면에서 뺀 글자는 이 페이지 몫 — 목록 글자가 섞인 판(상세 시트가 올라오는 찰나)은 통째로 모으지 않는다
-        com.onedal.app.core.ScreenWords.onScreen(com.onedal.app.core.pageOf(detected),
+        val screenSpec = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).screens.firstOrNull { it.name == screenRead.page }
+        com.onedal.app.core.ScreenWords.onScreen(com.onedal.app.core.pageOf(screenSpec, screenRead.overlay),
             if (scrapParser.isListResidue(screenTexts)) emptyList() else screenTexts, rawScreenStr)
         markRead("모은 글자")
         touchManager.onScreen(detected, textChanged = true)   // 👆 화면 처리보다 먼저 — 누른 것이 먹혔나 (종류가 바뀌었나)

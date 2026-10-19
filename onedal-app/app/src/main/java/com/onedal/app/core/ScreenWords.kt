@@ -4,26 +4,14 @@ package com.onedal.app.core
 data class ScreenWord(val word: String, val kind: String, val sample: String?)
 
 /**
- * 📄 **화면 종류 → 페이지** — 페이지 정의(`…Pages.kt`)와 모은 글자가 같은 페이지(shared `SCREEN_PAGES`)로 갈린다.
- * 모르는 화면(UNKNOWN · 로딩 · 오류 팝업)은 null — 그 화면 글자는 모으지 않는다.
+ * 📄 **화면 줄 → 페이지** — 정의 표(shared `networkPages.ts`) 화면 줄의 첫 기준 칸(`bases`)이 모은 글자의 페이지다.
+ * 홈 · 기준 칸이 없는 화면(메뉴 · 넘어가는 틀 · 다른 앱) · 모르는 화면 · 할 일이 «오류»인 팝업은 null — 그 화면 글자는 모으지 않는다.
  */
-fun pageOf(ctx: com.onedal.app.models.ScreenContext): Page? = when (ctx) {
-    com.onedal.app.models.ScreenContext.LIST -> Page.LIST
-    com.onedal.app.models.ScreenContext.DETAIL_PRE_CONFIRM,
-    com.onedal.app.models.ScreenContext.POPUP_PICKUP,
-    com.onedal.app.models.ScreenContext.POPUP_DROPOFF,
-    com.onedal.app.models.ScreenContext.POPUP_MEMO -> Page.DETAIL
-    // 확정(계약 직후) — 인성·24시의 확정 뒤 상세 · 픽커의 수락 뒤 운행 화면(픽업 이동 · 픽업 · 배송 중 · 배송지)
-    com.onedal.app.models.ScreenContext.DETAIL_CONFIRMED,
-    com.onedal.app.models.ScreenContext.RUN_TO_PICKUP,
-    com.onedal.app.models.ScreenContext.RUN_AT_PICKUP,
-    com.onedal.app.models.ScreenContext.RUN_TO_DROPOFF,
-    com.onedal.app.models.ScreenContext.RUN_AT_DROPOFF -> Page.CONFIRM
-    // 내 오더 — 인성 완료 탭 · 24시 배차내역 · 픽커 내 오더 탭 · 배송 완료
-    com.onedal.app.models.ScreenContext.LIST_COMPLETED,
-    com.onedal.app.models.ScreenContext.MY_ORDERS,
-    com.onedal.app.models.ScreenContext.RUN_DONE -> Page.MY_ORDERS
-    else -> null
+fun pageOf(spec: ScreenSpec?, overlay: String?): Page? {
+    if (spec == null) return null
+    if (spec.overlays.any { it.name == overlay && it.action == OverlayAction.ERROR }) return null
+    val base = spec.bases.firstOrNull() ?: return null
+    return Page.values().firstOrNull { it.word == base }
 }
 
 /** 📰 한 보고 몫 — 한 보고는 한 화면이라 페이지는 한 번 */

@@ -205,6 +205,12 @@ describe('정의 표 — 화면 줄의 기준 칸', () => {
         kakaopicker: { '수락 후 오더 전체': ['myorder'] },
     };
     const screensOf = (net: string) => (NETWORK_PAGES as any)[net].screens as Array<{ name: string; standard: string | null; bases?: string[] }>;
+    it('한 배차망 안에서 화면 줄 이름은 하나뿐 — 원달앱이 이름으로 화면 줄을 찾아 기준 칸을 읽는다(ScreenWords.pageOf)', () => {
+        for (const net of Object.keys(NETWORK_PAGES)) {
+            const names = screensOf(net).map(s => s.name);
+            expect(names.filter((n, i) => names.indexOf(n) !== i), net).toEqual([]);
+        }
+    });
 
     it('낱말은 BASE_PAGES 것만 · 기준 밖이 아니면 비지 않는다', () => {
         for (const net of TARGET_APPS) for (const s of screensOf(net)) {
