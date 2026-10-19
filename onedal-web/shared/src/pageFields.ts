@@ -7,10 +7,13 @@
 
 /**
  * 칸을 적는 페이지 — 목록 · 상세(확정 전) · 확정(계약 직후) · 내 오더(확정된 콜 탭) · 내 오더 콜(탭에서 연 확정된 콜 한 건 · 운행).
- * 기준 페이지는 여기에 홈을 더한 여섯이다(홈 → 목록 → 상세 → 확정 → 내 오더 → 내 오더 콜) — 홈은 콜 자료가 없어 칸을 적지 않는다.
+ * 기준 페이지(`BASE_PAGES`)는 여기에 홈을 앞에 더한 것이다 — 홈은 콜 자료가 없어 칸을 적지 않는다.
  */
 export const SCREEN_PAGES = ['list', 'detail', 'confirm', 'myorders', 'myorder'] as const;
 export type ScreenPage = typeof SCREEN_PAGES[number];
+/** 기준 페이지 — 모든 배차망이 같은 순서(홈 → 목록 → 상세 → 확정 → 내 오더 → 내 오더 콜) · 배차망 화면 줄은 정의 표 `bases` 로 여기 속한다 */
+export const BASE_PAGES = ['home', ...SCREEN_PAGES] as const;
+export type BasePage = typeof BASE_PAGES[number];
 /** 사람이 읽는 이름 — 서버 로그와 운영센터 화면 낱말 표가 같은 말을 쓴다 */
 export const SCREEN_PAGE_LABEL: Record<ScreenPage, string> = { list: '목록', detail: '상세', confirm: '확정', myorders: '내 오더', myorder: '내 오더 콜' };
 

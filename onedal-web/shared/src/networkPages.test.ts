@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { NETWORK_PAGES, STANDARD_SCREENS } from './networkPages';
-import { PAGE_FIELDS, SCREEN_PAGES, type PageField, type ScreenPage } from './pageFields';
+import { PAGE_FIELDS, SCREEN_PAGES, BASE_PAGES, type PageField, type ScreenPage } from './pageFields';
 import { TARGET_APPS, type TargetAppType } from './index';
 import { pageFieldOf, pageFareOf, excludeScanTextOf } from './pageRead';
 import { VEHICLE_OPTIONS } from './vehicles';
@@ -187,3 +187,48 @@ describe('배차망 페이지 목록 (screens)', () => {
         expect(all.filter(({ s }) => s.standard === 'NETWORK_MENU').every(({ s }) => !s.listReturn)).toBe(true);
     });
 });
+
+/**
+ * 🧭 **화면 줄마다 기준 칸 `bases`** — 배차망 화면이 기준 페이지(BASE_PAGES) 가운데 어디에 속하나.
+ * 막는 것: 기준 밖이 아닌 화면이 소속 없이 남는 것 · 나누는 법과 다른 소속 · 같은 모양 두 기준의 차례가 바뀌어 화면 낱말이 다른 기준으로 쌓이는 것.
+ */
+describe('정의 표 — 화면 줄의 기준 칸', () => {
+    const OUTSIDE = new Set(['TRANSITION', 'NETWORK_MENU', 'OTHER_APP']);
+    const BY_STANDARD: Record<string, string[]> = {
+        HOME: ['home'], LIST: ['list'], DETAIL_PRE_CONFIRM: ['detail'], DETAIL_CONFIRMED: ['confirm'], MY_ORDERS: ['myorders'],
+        RUN_TO_PICKUP: ['myorder'], RUN_AT_PICKUP: ['myorder'], RUN_TO_DROPOFF: ['myorder'], RUN_AT_DROPOFF: ['myorder'], RUN_DONE: ['myorder'],
+    };
+    /** 나누는 법의 예외 — 같은 모양이면 둘(첫 칸 = 화면만 보고 정하는 뜻) · 내 오더 콜 화면이 확정 화면 값으로 적힌 줄 */
+    const EXCEPT: Record<string, Record<string, string[]>> = {
+        insung: { '확정 뒤 상세': ['confirm', 'myorder'] },
+        hwamul24: { '배차내역 상세 · 화주정보 탭': ['myorder'], '배차내역 상세 · 결제정보 탭': ['myorder'], '배차내역 상세 · 화물정보 탭': ['myorder'], '화물배차정보요약': ['myorder'] },
+        kakaopicker: { '수락 후 오더 전체': ['myorder'] },
+    };
+    const screensOf = (net: string) => (NETWORK_PAGES as any)[net].screens as Array<{ name: string; standard: string | null; bases?: string[] }>;
+
+    it('낱말은 BASE_PAGES 것만 · 기준 밖이 아니면 비지 않는다', () => {
+        for (const net of TARGET_APPS) for (const s of screensOf(net)) {
+            const at = `${net} «${s.name}»`;
+            expect(Array.isArray(s.bases), `${at} bases 칸이 없다`).toBe(true);
+            for (const b of s.bases ?? []) expect(BASE_PAGES as readonly string[], `${at} 모르는 기준 ${b}`).toContain(b);
+            const outside = s.standard === null || OUTSIDE.has(s.standard);
+            if (outside) expect(s.bases, `${at} 기준 밖인데 bases 가 있다`).toEqual([]);
+            else expect((s.bases ?? []).length, `${at} 기준 밖이 아닌데 bases 가 비었다`).toBeGreaterThan(0);
+        }
+    });
+
+    it('나누는 법대로 — 예외 줄은 이름으로 · 차례까지', () => {
+        for (const net of TARGET_APPS) for (const s of screensOf(net)) {
+            if (s.standard === null || OUTSIDE.has(s.standard)) continue;
+            const want = EXCEPT[net]?.[s.name] ?? BY_STANDARD[s.standard];
+            expect(s.bases, `${net} «${s.name}» (${s.standard})`).toEqual(want);
+        }
+    });
+
+    it('배차망마다 홈 · 목록 · 상세 · 내 오더 · 내 오더 콜 화면 줄이 하나 이상', () => {
+        for (const net of TARGET_APPS) for (const base of ['home', 'list', 'detail', 'myorders', 'myorder']) {
+            expect(screensOf(net).some((s) => (s.bases ?? []).includes(base)), `${net} ${base}`).toBe(true);
+        }
+    });
+});
+

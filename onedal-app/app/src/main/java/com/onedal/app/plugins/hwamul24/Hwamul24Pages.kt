@@ -105,6 +105,7 @@ object Hwamul24Pages {
             ),
             Seen.REAL,
             listOf("ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_회원가입_약관.png (내용은 화물상세정보)"),
+            bases = listOf("detail"),
         ),
         ScreenSpec(
             "배차내역 상세 · 화주정보 탭",
@@ -114,6 +115,7 @@ object Hwamul24Pages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/화물24시/21_화물상세_화주정보_전화번호.png"),
+            bases = listOf("myorder"),
         ),
         ScreenSpec(
             "배차내역 상세 · 결제정보 탭",
@@ -123,6 +125,7 @@ object Hwamul24Pages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/화물24시/22_화물상세_결제정보.png"),
+            bases = listOf("myorder"),
         ),
         ScreenSpec(
             "배차내역 상세 · 화물정보 탭",
@@ -137,6 +140,7 @@ object Hwamul24Pages {
             ),
             Seen.REAL,
             listOf("ex_images/화물24시/04_배차상세_화물정보_상단.png", "ex_images/화물24시/05_배차상세_화물정보_하단.png", "ex_images/화물24시/06_배차상세_계산서발행.png", "ex_images/화물24시/10_배차상세_인수증.png", "ex_images/화물24시/13_배차상세_예약건.png", "ex_images/화물24시/24_세금계산서발행_계좌입력.png (내용은 화물정보 탭 위 «인수증 전송» 팝업)", "ex_images/화물24시/52_앱접근성_권한.png (내용은 화물정보 탭)"),
+            bases = listOf("myorder"),
         ),
         ScreenSpec(
             "화물배차정보요약",
@@ -146,6 +150,7 @@ object Hwamul24Pages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/화물24시/14_화물배차정보요약.png", "ex_images/화물24시/15_화물배차정보요약_메뉴.png (녹화 앱 메뉴가 겹침)"),
+            bases = listOf("myorder"),
         ),
         ScreenSpec(
             "배차내역 목록",
@@ -158,6 +163,7 @@ object Hwamul24Pages {
             Seen.REAL,
             listOf("ex_images/화물24시/03_배차내역_리스트.png", "ex_images/화물24시/11_배차내역_수금목록.png", "ex_images/화물24시/20_배차내역_목록.png"),
             landsAfterAccept = true,
+            bases = listOf("myorders"),
         ),
         ScreenSpec(
             "화물정보 검색조건",
@@ -183,6 +189,7 @@ object Hwamul24Pages {
             ),
             Seen.REAL,
             listOf("ex_images/화물24시/17_화물정보_리스트.png", "ex_images/화물24시/32_오더목록_기본.png", "ex_images/화물24시/35_배차완료_내역.png (내용은 실시간 목록)", "ex_images/화물24시/36_화물정보_전체.png", "ex_images/화물24시/37_화물상세_요약.png (내용은 실시간 목록)", "ex_images/화물24시/40_인수증_전송화면.png (내용은 실시간 목록)", "ex_images/화물24시/43_공지사항_리스트.png (내용은 실시간 목록)", "ex_images/화물24시/44_공지_상세내용.png (내용은 실시간 목록)", "ex_images/화물24시/45_고객센터_메뉴.png (내용은 실시간 목록 · 자동새로고침 OFF)", "ex_images/화물24시/46_자주묻는질문.png (내용은 실시간 목록)", "ex_images/화물24시/47_이벤트_안내.png (내용은 실시간 목록)", "ex_images/화물24시/48_이벤트_상세정보.png (내용은 실시간 목록)", "ex_images/화물24시/49_로그아웃_팝업.png (내용은 실시간 목록)", "ex_images/화물24시/50_로그인_입력.png (내용은 실시간 목록)"),
+            bases = listOf("list"),
         ),
         ScreenSpec(
             "홈 «전국24시콜화물»",
@@ -192,6 +199,7 @@ object Hwamul24Pages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/화물24시/01_메인_홈화면.png", "ex_images/화물24시/28_인수증_업로드.png (내용은 홈)", "ex_images/화물24시/33_오더상세_지도.png (내용은 홈)"),
+            bases = listOf("home"),
         ),
         ScreenSpec(
             "가상계좌 정보",

@@ -164,6 +164,7 @@ object InsungPages {
             ),
             Seen.REAL,
             listOf("ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"),
+            bases = listOf("confirm", "myorder"),
         ),
         ScreenSpec(
             "확정 전 상세",
@@ -181,6 +182,7 @@ object InsungPages {
             ),
             Seen.REAL,
             listOf("ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"),
+            bases = listOf("detail"),
         ),
         ScreenSpec(
             "홈 «인성퀵화면분할»",
@@ -190,6 +192,7 @@ object InsungPages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/인성/인성홈.png"),
+            bases = listOf("home"),
         ),
         ScreenSpec(
             "신규 콜 목록",
@@ -203,6 +206,7 @@ object InsungPages {
             ),
             Seen.REAL,
             listOf("ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png"),
+            bases = listOf("list"),
         ),
         ScreenSpec(
             "완료 탭",
@@ -213,6 +217,7 @@ object InsungPages {
             Seen.UNKNOWN,
             listOf(),
             toCollect = "캡처 · 메시지함 · GPS 탭과 가를 글자(지금 글자는 그 탭에도 맞는다)",
+            bases = listOf("myorders"),
         ),
         ScreenSpec(
             "메시지함 탭",

@@ -106,4 +106,6 @@ data class ScreenSpec(
     val wordsFrom: String = "",
     /** 🖐️ 수락 뒤 배차망이 스스로 보내는 페이지 — 목록 복귀여도 «잡은 콜을 놓음»이 아니다(shared `landsAfterAccept` · 38 F42) */
     val landsAfterAccept: Boolean = false,
+    /** 🧭 이 화면이 속한 기준 페이지(shared `BASE_PAGES` 낱말) — 원천 설명은 shared `networkPages.ts` `bases` · `Page` 에는 홈이 없어(홈은 칸을 안 적는다) 낱말로 둔다 */
+    val bases: List<String> = emptyList(),
 )
