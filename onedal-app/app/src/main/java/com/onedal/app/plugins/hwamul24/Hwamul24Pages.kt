@@ -115,7 +115,7 @@ object Hwamul24Pages {
                 OverlaySpec("배차 실패 오류", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("이미 배차", "배차할 수 없"))), "배차신청이 안 됐다 — 남이 먼저 잡았거나 조건 미달", Seen.UNKNOWN, listOf(), toCollect = "캡처", action = OverlayAction.ERROR),
             ),
             Seen.REAL,
-            listOf("ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_회원가입_약관.png (내용은 화물상세정보)"),
+            listOf("ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_화물상세정보.png"),
             bases = listOf("detail"),
         ),
         ScreenSpec(
@@ -144,13 +144,13 @@ object Hwamul24Pages {
             listOf(ScreenMatch(all = listOf("배차내역", "02 화주정보", "배차시간"))),
             false,
             listOf(
-                OverlaySpec("인수증 전송 확인", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("인수증을 전송하시겠습니까"))), "인수증 사진을 화주에게 보낼지 묻는다", Seen.REAL, listOf("ex_images/화물24시/24_세금계산서발행_계좌입력.png (내용은 «인수증 전송» 팝업)")),
+                OverlaySpec("인수증 전송 확인", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("인수증을 전송하시겠습니까"))), "인수증 사진을 화주에게 보낼지 묻는다", Seen.REAL, listOf("ex_images/화물24시/24_화물정보탭_인수증전송팝업.png")),
                 OverlaySpec("세금계산서 수정발행 창", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("계산서발행"), any = listOf("수정사유", "공급가액변동"))), "발행한 세금계산서를 고쳐 다시 발행한다", Seen.REAL, listOf("ex_images/화물24시/08_세금계산서_수정발행_팝업.png", "ex_images/화물24시/09_세금계산서_수정발행_입력.png")),
                 OverlaySpec("계좌입력 확인", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("입금계좌에 계좌정보를 입력하시겠습니까"))), "세금계산서 창에서 입금계좌를 넣을지 묻는다", Seen.REAL, listOf("ex_images/화물24시/08_세금계산서_수정발행_팝업.png")),
                 OverlaySpec("세금계산서 발행 창", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("계산서발행", "작성일자"), none = listOf("수정사유", "공급가액변동"))), "세금계산서를 처음 발행한다(공급자 · 공급받는자 입력)", Seen.REAL, listOf("ex_images/화물24시/12_세금계산서_발행폼.png", "ex_images/화물24시/23_세금계산서발행_입력창.png")),
             ),
             Seen.REAL,
-            listOf("ex_images/화물24시/04_배차상세_화물정보_상단.png", "ex_images/화물24시/05_배차상세_화물정보_하단.png", "ex_images/화물24시/06_배차상세_계산서발행.png", "ex_images/화물24시/10_배차상세_인수증.png", "ex_images/화물24시/13_배차상세_예약건.png", "ex_images/화물24시/24_세금계산서발행_계좌입력.png (내용은 화물정보 탭 위 «인수증 전송» 팝업)", "ex_images/화물24시/52_앱접근성_권한.png (내용은 화물정보 탭)"),
+            listOf("ex_images/화물24시/04_배차상세_화물정보_상단.png", "ex_images/화물24시/05_배차상세_화물정보_하단.png", "ex_images/화물24시/06_배차상세_계산서발행.png", "ex_images/화물24시/10_배차상세_인수증.png", "ex_images/화물24시/13_배차상세_예약건.png", "ex_images/화물24시/24_화물정보탭_인수증전송팝업.png", "ex_images/화물24시/52_배차내역상세_화물정보탭.png"),
             bases = listOf("myorder"),
         ),
         ScreenSpec(
@@ -182,11 +182,11 @@ object Hwamul24Pages {
             listOf(ScreenMatch(all = listOf("화물정보", "검색조건", "저장 후 검색"))),
             false,
             listOf(
-                OverlaySpec("하차일 선택 시트", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("하차일 선택"))), "검색조건의 하차일(전체 · 당착 · 내착 · 월착)을 고른다", Seen.REAL, listOf("ex_images/화물24시/41_마이페이지_메인.png (내용은 검색조건 + 하차일 선택)")),
-                OverlaySpec("내위치 반경 선택 시트", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("내위치 반경 선택"))), "검색조건의 내 위치 반경(5 ~ 30Km)을 고른다", Seen.REAL, listOf("ex_images/화물24시/42_설정_알림.png (내용은 검색조건 + 내위치 반경 선택)")),
+                OverlaySpec("하차일 선택 시트", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("하차일 선택"))), "검색조건의 하차일(전체 · 당착 · 내착 · 월착)을 고른다", Seen.REAL, listOf("ex_images/화물24시/41_검색조건_하차일선택.png")),
+                OverlaySpec("내위치 반경 선택 시트", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("내위치 반경 선택"))), "검색조건의 내 위치 반경(5 ~ 30Km)을 고른다", Seen.REAL, listOf("ex_images/화물24시/42_검색조건_내위치반경선택.png")),
             ),
             Seen.REAL,
-            listOf("ex_images/화물24시/38_세금계산서_목록.png (내용은 검색조건)", "ex_images/화물24시/39_계산서_발행폼.png (내용은 검색조건)", "ex_images/화물24시/41_마이페이지_메인.png (내용은 검색조건 + 하차일 선택)", "ex_images/화물24시/42_설정_알림.png (내용은 검색조건 + 내위치 반경 선택)"),
+            listOf("ex_images/화물24시/38_검색조건.png", "ex_images/화물24시/39_검색조건.png", "ex_images/화물24시/41_검색조건_하차일선택.png", "ex_images/화물24시/42_검색조건_내위치반경선택.png"),
         ),
         ScreenSpec(
             "화물정보(실시간 목록)",
@@ -194,12 +194,12 @@ object Hwamul24Pages {
             listOf(ScreenMatch(all = listOf("화물정보", "자동새로고침", "자동터치"), none = listOf("저장 후 검색"))),
             false,
             listOf(
-                OverlaySpec("자동터치 동의", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("자동터치 사용시", "동의하십니까"))), "자동터치를 켤 때 책임 동의를 묻는다", Seen.REAL, listOf("ex_images/화물24시/47_이벤트_안내.png (내용은 실시간 목록 위 «알림» 팝업)"), action = OverlayAction.SKIP),
-                OverlaySpec("저장완료 토스트", OverlayKind.TOAST, listOf(ScreenMatch(all = listOf("저장완료"))), "검색조건을 저장했다", Seen.REAL, listOf("ex_images/화물24시/43_공지사항_리스트.png (내용은 실시간 목록 위 토스트)")),
-                OverlaySpec("자동터치 시작 토스트", OverlayKind.TOAST, listOf(ScreenMatch(all = listOf("자동터치 시작"))), "배차망 자체 자동터치를 켰다", Seen.REAL, listOf("ex_images/화물24시/48_이벤트_상세정보.png (내용은 실시간 목록 위 토스트)")),
+                OverlaySpec("자동터치 동의", OverlayKind.POPUP, listOf(ScreenMatch(any = listOf("자동터치 사용시", "동의하십니까"))), "자동터치를 켤 때 책임 동의를 묻는다", Seen.REAL, listOf("ex_images/화물24시/47_실시간목록_알림팝업.png"), action = OverlayAction.SKIP),
+                OverlaySpec("저장완료 토스트", OverlayKind.TOAST, listOf(ScreenMatch(all = listOf("저장완료"))), "검색조건을 저장했다", Seen.REAL, listOf("ex_images/화물24시/43_실시간목록_토스트.png")),
+                OverlaySpec("자동터치 시작 토스트", OverlayKind.TOAST, listOf(ScreenMatch(all = listOf("자동터치 시작"))), "배차망 자체 자동터치를 켰다", Seen.REAL, listOf("ex_images/화물24시/48_실시간목록_토스트.png")),
             ),
             Seen.REAL,
-            listOf("ex_images/화물24시/17_화물정보_리스트.png", "ex_images/화물24시/32_오더목록_기본.png", "ex_images/화물24시/35_배차완료_내역.png (내용은 실시간 목록)", "ex_images/화물24시/36_화물정보_전체.png", "ex_images/화물24시/37_화물상세_요약.png (내용은 실시간 목록)", "ex_images/화물24시/40_인수증_전송화면.png (내용은 실시간 목록)", "ex_images/화물24시/43_공지사항_리스트.png (내용은 실시간 목록)", "ex_images/화물24시/44_공지_상세내용.png (내용은 실시간 목록)", "ex_images/화물24시/45_고객센터_메뉴.png (내용은 실시간 목록 · 자동새로고침 OFF)", "ex_images/화물24시/46_자주묻는질문.png (내용은 실시간 목록)", "ex_images/화물24시/47_이벤트_안내.png (내용은 실시간 목록)", "ex_images/화물24시/48_이벤트_상세정보.png (내용은 실시간 목록)", "ex_images/화물24시/49_로그아웃_팝업.png (내용은 실시간 목록)", "ex_images/화물24시/50_로그인_입력.png (내용은 실시간 목록)"),
+            listOf("ex_images/화물24시/17_화물정보_리스트.png", "ex_images/화물24시/32_오더목록_기본.png", "ex_images/화물24시/35_실시간목록.png", "ex_images/화물24시/36_화물정보_전체.png", "ex_images/화물24시/37_실시간목록.png", "ex_images/화물24시/40_실시간목록.png", "ex_images/화물24시/43_실시간목록_토스트.png", "ex_images/화물24시/44_실시간목록.png", "ex_images/화물24시/45_실시간목록_자동새로고침OFF.png", "ex_images/화물24시/46_실시간목록.png", "ex_images/화물24시/47_실시간목록_알림팝업.png", "ex_images/화물24시/48_실시간목록_토스트.png", "ex_images/화물24시/49_실시간목록.png", "ex_images/화물24시/50_실시간목록.png"),
             bases = listOf("list"),
         ),
         ScreenSpec(
@@ -209,7 +209,7 @@ object Hwamul24Pages {
             false,
             emptyList(),
             Seen.REAL,
-            listOf("ex_images/화물24시/01_메인_홈화면.png", "ex_images/화물24시/28_인수증_업로드.png (내용은 홈)", "ex_images/화물24시/33_오더상세_지도.png (내용은 홈)"),
+            listOf("ex_images/화물24시/01_메인_홈화면.png", "ex_images/화물24시/28_홈.png", "ex_images/화물24시/33_홈.png"),
             bases = listOf("home"),
         ),
         ScreenSpec(
@@ -219,7 +219,7 @@ object Hwamul24Pages {
             false,
             emptyList(),
             Seen.REAL,
-            listOf("ex_images/화물24시/34_배차신청_확인.png (내용은 가상계좌 정보)"),
+            listOf("ex_images/화물24시/34_가상계좌정보.png"),
         ),
         ScreenSpec(
             "인수증 보관",
@@ -230,7 +230,7 @@ object Hwamul24Pages {
                 OverlaySpec("인수증 전송 창", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("인수증 등록방법 선택"))), "인수증 사진을 카메라 · 갤러리에서 올린다", Seen.REAL, listOf("ex_images/화물24시/26_인수증전송_팝업.png")),
             ),
             Seen.REAL,
-            listOf("ex_images/화물24시/07_인수증_목록.png", "ex_images/화물24시/25_배차내역_목록2.png (내용은 인수증 보관)", "ex_images/화물24시/27_인수증_보관함.png"),
+            listOf("ex_images/화물24시/07_인수증_목록.png", "ex_images/화물24시/25_인수증보관.png", "ex_images/화물24시/27_인수증_보관함.png"),
         ),
         ScreenSpec(
             "세금계산서 발행내역 상세",
@@ -239,7 +239,7 @@ object Hwamul24Pages {
             false,
             emptyList(),
             Seen.REAL,
-            listOf("ex_images/화물24시/30_세금계산서_미발행목록.png (내용은 발행내역 상세)"),
+            listOf("ex_images/화물24시/30_세금계산서_발행내역상세.png"),
         ),
         ScreenSpec(
             "세금계산서 발행내역 목록",
@@ -248,7 +248,7 @@ object Hwamul24Pages {
             false,
             emptyList(),
             Seen.REAL,
-            listOf("ex_images/화물24시/29_세금계산서_수신내역.png (내용은 발행내역 목록)", "ex_images/화물24시/31_세금계산서_발행완료목록.png (내용은 발행내역 목록)"),
+            listOf("ex_images/화물24시/29_세금계산서_발행내역목록.png", "ex_images/화물24시/31_세금계산서_발행내역목록2.png"),
         ),
         ScreenSpec(
             "마이페이지",
