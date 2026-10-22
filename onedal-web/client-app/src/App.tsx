@@ -4,6 +4,7 @@ import { ServerSwitch } from './components/ServerSwitch'
 import { useState, useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
 import SheetMockup from "./pages/SheetMockup";
+import StepScreenMockup from "./pages/StepScreenMockup";
 import MapMockup from "./pages/MapMockup";
 import DrawerMockup from "./pages/DrawerMockup";
 import Settlement from "./pages/Settlement";
@@ -213,6 +214,7 @@ export default function App() {
         {/* 🪗 **시트 아코디언 목업** — 로그인 밖에 둔다 (기사님 요청).
             고정값만 그리고 서버·소켓·GPS 를 안 쓴다. 디자인을 두 테마로 보는 자리다. */}
         <Route path="/mockup/sheet" element={<SheetMockup />} />
+        <Route path="/mockup/steps" element={<StepScreenMockup />} />
         {/* 🗺️ **지도 실험실** — 필터 두 단계(영역→거리)를 지도 클릭으로 검증한다 (기사님).
             자기 캔버스로만 그리고 서버·소켓·GPS 를 안 쓴다 — 다른 화면에 영향 없음 */}
         <Route path="/mockup/map" element={<MapMockup />} />
