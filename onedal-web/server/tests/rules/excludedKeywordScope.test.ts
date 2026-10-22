@@ -29,6 +29,13 @@ describe('🚫 제외 키워드 — 배차망별 칸', () => {
     it('🔴 픽커 유의사항의 «대기»에는 걸린다 — 유의사항도 찾는 칸이다(기사님 «가»)', () => {
         expect(hitsOf('kakaopicker', WITH_NOTE, '대기')).toEqual(['대기']);
     });
+    it('🔴 픽커 — 접근성에 유의사항이 없고 [사진] 줄에만 있으면 거기서 찾는다(글자 먼저, 모자라면 사진 · 101ab2c3)', () => {
+        expect(hitsOf('kakaopicker', `${LIVE}\n[사진]\n유의사항 경비실 앞 대기 부탁드립니다\n최종 수익 11,396`, '대기')).toEqual(['대기']);
+    });
+    it('🔴 픽커 — 접근성에 유의사항이 있으면 접근성 것만(판독기가 틀리게 읽은 글자가 덮지 않는다)', () => {
+        const acc = LIVE.replace('최종 수익', '유의사항 경비실 앞 부탁드립니다 최종 수익');
+        expect(hitsOf('kakaopicker', `${acc}\n[사진]\n유의사항 경비실 앞 대기 부탁드립니다\n최종 수익 11,396`, '대기')).toEqual([]);
+    });
     it('🔴 화물24시 — 화물정보 · 결제방법은 보고, 화주 이름(«화물과퀵») · 버튼 · 주소는 안 본다', () => {
         expect(hitsOf('hwamul24', HW, '퀵')).toEqual([]);
         expect(hitsOf('hwamul24', HW, '배차신청')).toEqual([]);

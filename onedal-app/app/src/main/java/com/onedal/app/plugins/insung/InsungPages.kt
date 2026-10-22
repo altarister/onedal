@@ -35,6 +35,7 @@ object InsungPages {
         Page.DETAIL to listOf(
             FieldSpec(PageField.STAGE, "상태 줄", "상태 : 배송", Seen.REAL, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""상태\s*:\s*(?!\S*\s*:)(\S+)""")),
+            /* 실물: 이름표 «물품 :» 은 확정 전 3/3 늘 있지만 값은 0/7(확정 전 «--» · 확정 뒤 빈칸) — 읽는 법은 값을 읽으니 분류하지 않는다(늘 있음이면 «사라짐» 거짓 경고) */
             FieldSpec(PageField.ITEM_SIZE, "물품 줄", "물품 :", Seen.REAL, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다 · 값이 다음 줄에 있으면 그 줄(다른 칸 줄이면 안 읽는다)",
                 read = Regex("""물품[ \t]*:[ \t]*(?:\n(?![^\n]*:))?([^\n]+)""")),
             /* 🚚 빈 «차량 :» 뒤의 다음 이름표(«탁송료 :»)를 차종으로 잡지 않는다 — 값 토막 뒤가 바로 «:» 이면 이름표다 */

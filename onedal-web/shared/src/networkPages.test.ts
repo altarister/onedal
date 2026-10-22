@@ -4,7 +4,7 @@ import { join } from 'path';
 import { NETWORK_PAGES, STANDARD_SCREENS, fieldsOf } from './networkPages';
 import { PAGE_FIELDS, SCREEN_PAGES, BASE_PAGES, type PageField, type ScreenPage } from './pageFields';
 import { TARGET_APPS, type TargetAppType } from './index';
-import { pageFieldOf, pageFareOf, excludeScanTextOf } from './pageRead';
+import { pageFieldOf, pageFareOf, excludeScanTextOf, missingAlwaysOf } from './pageRead';
 import { VEHICLE_OPTIONS } from './vehicles';
 
 /**
@@ -333,5 +333,21 @@ describe('🧾 칸의 늘 있음 / 있다 없다', () => {
         const at = (part: string) => NETWORK_PAGES.kakaopicker.pages.detail.find(r => r.field === 'clock' && r.part === part)?.presence;
         expect(at('dropoff')).toBe('ALWAYS');
         expect(at('pickup')).toBe('SOMETIMES');
+    });
+});
+
+/**
+ * 🧾 **늘 있던 칸이 없으면 리뉴얼 신호** (58 ②) — 표의 ALWAYS · 읽는 법 있는 칸만 본다.
+ * 못 잡는 것: 읽는 법이 없는 늘 있음 칸(퀵 꼬리표 · km 머리 · 최종 수익 · 배송비 — 표식 글자가 필요).
+ */
+describe('🧾 늘 있던 칸이 없나', () => {
+    const ACC = '픽업지 경기 성남시 수정구 신촌동 물품 정보 소형 세 변의 합 100cm ∙ 5kg 이하 최종 수익 10,830 넘기기 수락하기';
+    const PHOTO = '[사진]\n퀵 비즈\n서울 광진구 자양2동 배송 9.7km\n18:28까지 배송\nNC이스트폴';
+    it('🔴 실물 16:51 픽커 — 접근성 + 판독 줄이면 빠진 것 없음 · 판독 줄이 없으면 배송 시각이 없다', () => {
+        expect(missingAlwaysOf('kakaopicker', 'detail', `${ACC}\n${PHOTO}`)).toEqual([]);
+        expect(missingAlwaysOf('kakaopicker', 'detail', ACC)).toEqual(['clock.dropoff']);
+    });
+    it('물품 정보 이름표가 바뀌면(리뉴얼) 그 칸이 빠졌다고 말한다', () => {
+        expect(missingAlwaysOf('kakaopicker', 'detail', `${ACC.replace('물품 정보', '배송 물품')}\n${PHOTO}`)).toEqual(['itemSize']);
     });
 });

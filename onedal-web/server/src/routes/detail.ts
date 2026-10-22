@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder, EmergencyAlert } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, missingAlwaysOf, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -80,7 +80,7 @@ router.post("/", async (req, res) => {
         // 🧠 앞의 기억(`/orders/confirm` 이 남긴 것)에서 시작한다 — 날 payload 로 시작하지 않는다.
         //    payload 에 없는 키(예: `targetApp`)가 여기서 증발하던 자리다.
         const deviceMode = getDeviceMode(payload.deviceId, userId);
-        /* 📝 빈 원문은 앞 기억의 원문(/confirm 이 남긴 화면 글)을 덮지 않는다 — 화물24시 · 사진 없이 가는 픽커는 상세 글이 빈 채로 온다.
+        /* 📝 빈 원문은 앞 기억의 원문(/confirm 이 남긴 화면 글)을 덮지 않는다 — 옛 원달앱 · 상세 글을 못 모은 길에서만 빈 채로 온다.
               덮으면 판정의 제외어 검사가 적요 · 유의사항을 못 본다. 비지 않은 원문(인성 팝업 모은 글)은 덮는다 */
         const { rawText: reportedRawText, ...reportedOrder } = payload.order;
         let pendingOrder: PendingOrder = evolveOrder(session, realOrderId, {
@@ -105,6 +105,9 @@ router.post("/", async (req, res) => {
         if (rawText) {
             // 📄 상세 콜 자료(상태 · 결제 · 수수료 · 구분 · 형태 · 배차사 · 적요 · 출발 · 도착 연락처)는 배차망 정의 표대로 — 못 찾은 칸은 싣지 않는다
             pendingOrder = { ...pendingOrder, ...detailRecordOf(targetApp, rawText) };
+            /* 🧾 늘 있던 칸이 이 상세에 없으면 한 줄 — 배차망 화면이 바뀌었을 수 있다(58 ② · 리뉴얼 신호 · 판정은 그대로) */
+            const missingAlways = missingAlwaysOf(targetApp, 'detail', rawText);
+            if (missingAlways.length) slog('화면', `🧾 [늘 있던 칸이 없다] ${targetApp} 상세 — ${missingAlways.join(' · ')} · 화면이 바뀌었나(리뉴얼) · 콜 ${realOrderId}`);
 
             /**
              * 🏠 **상차·하차는 원달앱이 올린 전체 주소 그대로다** (기사님 «상세 데이터엔 짧은 주소가 아니고 전체 주소»).

@@ -47,6 +47,17 @@ export function excludeScanTextOf(app: TargetAppType, text: string | readonly st
     return NETWORK_PAGES[app].excludeScan.map(f => pageFieldOf(app, 'detail', f, text)).filter((t): t is string => !!t).join(' ');
 }
 
+/**
+ * 🧾 **늘 있던 칸이 이 원문에 없나** — 표에서 «늘 있음»(ALWAYS)이고 읽는 법이 있는 칸 가운데 못 읽은 것(칸 · 조각 이름).
+ * 비지 않으면 배차망 화면이 바뀌었을 수 있다(58 ② · 리뉴얼 신호). 읽는 법이 없는 늘 있음 칸은 여기서 못 본다(표식 글자가 필요 — 남은 일).
+ */
+export function missingAlwaysOf(app: TargetAppType, page: ScreenPage, text: string | readonly string[]): string[] {
+    return fieldsOf(app, page)
+        .filter(r => r.presence === 'ALWAYS' && r.handling === 'READ' && r.read !== undefined)
+        .filter(r => pageFieldOf(app, page, r.field, text, r.part ?? '') === null)
+        .map(r => (r.part ? `${r.field}.${r.part}` : r.field));
+}
+
 const addressCutRes = new Map<TargetAppType, RegExp | null>();
 /**
  * 🏠 **카카오에 묻기 전 콜 주소 다듬기** — 정의 표의 배차망 단위 칸 `addressCut` 에 맞는 부분을 지우고 앞뒤 공백을 자른다.
