@@ -288,10 +288,23 @@ function CardNew() {
                 <b className="text-[15px]">2/6 하차지 통화</b>
                 <span className="ml-auto px-1.5 rounded border border-info text-info text-[11px] font-bold">지금 할 것</span>
             </div>
+            {/* 🪪 지금 칸에서 고른 값 미리 보기 — 시트 칩과 같은 낱말 · 칩마다 정차 분 · 맨 끝에 정차 합 */}
             <div className="rounded-lg border border-border-card p-2.5 flex flex-col gap-2">
-                <div className="text-[14px]">약속 15:28 <span className="text-[11px] text-text-muted">· 🚚 차종 기본값</span></div>
+                <div className="flex flex-wrap gap-1.5 text-[12.5px]">
+                    {[['짐', '마대 1개'], ['하차방법', '수작업 10분'], ['후작업', '정리 1분'], ['성질', '📦 일반화물']].map(([k, v]) => (
+                        <span key={k} className="px-2 py-1 rounded-md bg-surface-alt/70 border border-border"><span className="text-text-muted">{k}</span> <b>{v}</b></span>
+                    ))}
+                </div>
+                <div className="text-[13px]">기타 : 지하 2층, 경비실 통과</div>
+                <div className="flex items-center gap-2 text-[14px]">
+                    <span>약속 <b>15:28</b></span>
+                    <span className="text-text-muted">·</span>
+                    <span>정차 <b>11분</b></span>
+                    <span className="ml-auto text-[11px] text-text-muted">📄 적요에서 읽음</span>
+                </div>
                 <div className="flex gap-2"><span className="flex-1 py-3 rounded-md bg-surface-alt text-center font-black text-[15px]">스킵</span><span className="flex-[2] py-3 rounded-md bg-info text-white text-center font-black text-[15px]">통화</span></div>
             </div>
+            <div className="text-[11px] text-text-muted leading-snug">칸마다 미리 보는 것 — 상차지 통화: 짐 · 상차방법 · 보호 · 성질 · 기타 · 약속 · 정차 / 하차지 통화: 하차방법 · 후작업 · 기타 · 약속 · 정차 / 도착: 예정 · 사유 / 상차 · 하차 완료: 실측 짐 · 방법 · 정차 · 착불</div>
         </div>
     );
 }
