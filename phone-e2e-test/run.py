@@ -97,6 +97,11 @@ def guard(dev):
         adb(dev, 'shell', 'monkey', '-p', 'kr.co.onedal.dashboard', '-c', 'android.intent.category.LAUNCHER', '1', check=False); time.sleep(2)
         cur = focus_of(dev); log(f'📺 JoyStick 광고 닫음(뒤로 가기) — 앞 창 {cur}')
         if 'kr.co.onedal.dashboard' not in cur: shot(dev, 'joy_ad_after'); raise Stop(f'JoyStick 광고를 닫았는데 앞 창이 관제앱이 아님: {cur} — 멈춤(사진)')
+    if dev == S23 and cur == 'com.android.systemui':   # 이름 없는 시스템 창 — «온도가 낮아 충전이 느려짐 · 확인»(10-23 00:55 · 01:00 S23 사진 · 폰이 차가우면 몇 분마다) · 알림 서랍은 NotificationShade 라 안 걸린다
+        shot(dev, 'sys_dialog')
+        for key in ('KEYCODE_ENTER', 'KEYCODE_DPAD_CENTER'):   # 기본 단추(확인)에 초점 · 누름 — 좌표는 안 누른다
+            if focus_of(dev) == 'com.android.systemui': adb(dev, 'shell', 'input', 'keyevent', key); time.sleep(1)
+        cur = focus_of(dev); log(f'🔔 S23 시스템 창 닫음(기본 단추 키) — 앞 창 {cur}')
     if PICKER_PKG in cur: shot(dev, 'picker_front'); raise Stop(f'앞 화면이 실물 픽커: {cur} — 안 누르고 멈춤(사진)')
     if any(k in cur for k in ('Dialog', 'permission', 'Permission', 'Alert', 'Chooser')) or not any(p in cur for p in FOCUS_OK[dev]):
         shot(dev, 'guard_stop'); raise Stop(f'앞 창이 예상 밖: {cur} — 멈춤(사진)')
