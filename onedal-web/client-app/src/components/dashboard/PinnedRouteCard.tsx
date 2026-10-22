@@ -378,7 +378,7 @@ export default function PinnedRouteCard({
                  * 🔴 자리가 모자라면 이 본문이 스크롤하고, 자리가 있으면 스텝이 `flex-1` 로 서서
                  *    **장 안에서** 스크롤한다 — 스텝은 최소 220px 을 지킨다.
                  */
-                <div className={`px-4 pb-4 pt-2 text-sm border-t border-border bg-surface ${
+                <div className={`${judging ? 'px-4 pb-4 pt-2' : 'px-3 pb-3 pt-1'} text-sm border-t border-border bg-surface ${
                     'flex-1 min-h-0 flex flex-col overflow-y-auto'}`}>
 
                     {/* 🕐 **펼친 자리는 원래 시각을 따로 적지 않는다** — 접힌 줄(덱)은 «틀어졌나»만 기호로 답하고(안 C),
@@ -614,7 +614,7 @@ export default function PinnedRouteCard({
                     {/* 📏 **사슬을 잇는다** — 여기가 auto 면 아래 스텝의 `flex-1` 이 기댈 곳이
                         없어 **내용대로 끝없이 자란다**. 그러면 본문이 넘쳐
                         «콜 컨텐츠 전체»가 스크롤된다 — 기사님이 «스텝만 스크롤»이라 하신 것과 다르다. */}
-                    <div className={`flex flex-col gap-2 text-[13px] leading-tight mt-3 ${
+                    <div className={`flex flex-col gap-2 text-[13px] leading-tight ${judging ? 'mt-3' : 'mt-0'} ${
                         'flex-1 min-h-0'}`}>
                         {(() => {
                             /* 🏗️ pDetail/dDetail/phonesOf 는 새 단계 화면이 자기 자리에서 꺼낸다 */
@@ -672,7 +672,6 @@ export default function PinnedRouteCard({
                                     {/* 🏗️ **통화·현장 기록은 아래 단계 화면(StepSheetMock) 하나가 받는다** (기사님).
                                         같은 문(save-cargo-report · report-milestone)으로 저장하고, 열 때마다 계산하지 않고
                                         저장된 단계 행만 그린다. 통화·현장 규칙은 시딩·StepSheetMock 이 잇는다. */}
-                                    {!evaluating && <hr className="border-border-card" />}
 
                                     {/* 🏢 퀵사무실 — 심사 중 카드는 한 줄 링크 그대로(잡은 뒤 카드는 아래 «🏢 · ▸ 더보기» 줄) */}
                                     {judging && quickPhone && (
@@ -721,7 +720,7 @@ export default function PinnedRouteCard({
                                             {quickPhone ? (
                                                 <a href={telHref(quickPhone)} onClick={e => { e.stopPropagation(); e.preventDefault(); callNow(quickPhone); }}
                                                    className="min-w-0 truncate font-bold text-info">🏢 {quickClean}</a>
-                                            ) : quickName ? <span className="min-w-0 truncate text-text-muted">🏢 {quickClean}</span> : null}
+                                            ) : <span className="min-w-0 truncate text-text-muted">🏢 {quickName ? quickClean : '콜사 정보 없음'}</span>}
                                             <span className="ml-auto shrink-0 text-text-muted font-bold">
                                                 <span className="group-open/more:hidden">▸ 더보기</span>
                                                 <span className="hidden group-open/more:inline">▾ 접기</span>
