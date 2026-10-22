@@ -1559,7 +1559,7 @@
      "onFail": "continue",
      "run": "see",
      "args": {
-      "text": "마감 ",
+      "text": "마감",
       "sec": 10
      }
     },
@@ -1570,12 +1570,12 @@
      "where": "S23",
      "task": "S23 «{text}» 보임",
      "desc": "관제앱 화면 글자(find.mjs)",
-     "evidence": "상차 덩어리가 전화 자리 — 시험 콜 번호(기사님 휴대폰)가 있어 «상차 시험 상차지 전화» 링크",
+     "evidence": "상차 덩어리가 전화 자리(기사님 휴대폰 번호) — 이름은 담당자 칸이 먼저라 시뮬 콜은 «*»(callCardViews contactName || customerName)",
      "target": null,
      "onFail": "continue",
      "run": "see",
      "args": {
-      "text": "aria:상차 시험 상차지 전화",
+      "text": "aria:상차 * 전화",
       "sec": 10
      }
     },
@@ -1586,12 +1586,12 @@
      "where": "S23",
      "task": "S23 «{text}» 보임",
      "desc": "관제앱 화면 글자(find.mjs)",
-     "evidence": "하차 덩어리도 전화 자리 «하차 시험 하차지 전화»",
+     "evidence": "하차 덩어리도 전화 자리 «하차 * 전화»",
      "target": null,
      "onFail": "continue",
      "run": "see",
      "args": {
-      "text": "aria:하차 시험 하차지 전화",
+      "text": "aria:하차 * 전화",
       "sec": 10
      }
     },

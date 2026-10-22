@@ -38,10 +38,12 @@ try {
             if (!menu) return { state: 'tool', why: '☰(메뉴 열기)를 못 찾아 웹뷰 높이를 못 잼' };
             const mr = menu.getBoundingClientRect();
             const offsetY = ${Number(menuYArg)} - (mr.top + mr.height / 2) * dpr;
+            /* 잘라내는 조상 상자(overflow 가 visible 아님 — 옆으로 넘기는 단계 칸 · 스크롤 상자) 밖으로 잘린 글자는 안 보이는 것이다(S05a 판 3 «통화로 정함») */
+            const unclipped = (e, r) => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { const c = getComputedStyle(p); if (c.overflowX === 'visible' && c.overflowY === 'visible') continue; const q = p.getBoundingClientRect(); if (r.right <= q.left || r.left >= q.right || r.bottom <= q.top || r.top >= q.bottom) return false; } return true; };
             if (want.startsWith('see:')) {
                 const t = want.slice(4);
                 const vis = [...document.querySelectorAll('body *')].filter(e => e.children.length === 0 && norm(e.textContent).includes(t)).some(e => {
-                    const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < H && r.right > 0 && r.left < W && getComputedStyle(e).visibility !== 'hidden';   /* 닫힌 서랍은 화면 왼쪽 밖에 그려져 있다 — 가로도 본다 */
+                    const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < H && r.right > 0 && r.left < W && getComputedStyle(e).visibility !== 'hidden' && unclipped(e, r);   /* 닫힌 서랍은 화면 왼쪽 밖에 그려져 있다 — 가로도 본다 */
                 });
                 return { state: vis ? 'ok' : 'none', text: t, offsetY };
             }
