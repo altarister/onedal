@@ -5,16 +5,22 @@
  * 무엇을: 표의 배차망 셋(칸 정의 · 페이지 목록 · 차종 낱말)을 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt)으로 굳힌다
  * 왜: 배차망마다 다른 것을 shared 한 곳에만 둔다 — 서버는 표를 바로 읽고 원달앱은 뽑은 코드를 읽는다 · 같은지는 원달앱 NetworkPagesPairTest 가 문다
  */
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fail = (msg) => { console.error(`❌ ${msg}`); process.exit(1); };
 
-/* 🗂️ 배차망마다 한 파일(networkPages.<배차망>.ts)의 JSON 표시 사이를 읽어 한 표로 */
+/* 🗂️ 배차망마다 한 파일(networkPages.<배차망>.ts)의 JSON 표시 사이를 읽어 한 표로 —
+   배차망 목록은 shared targetApps.ts 의 TARGET_APPS 하나 · 배차망 파일 묶음이 그것과 다르면 멈춘다(배차망을 더하고 한 곳을 빠뜨리면 조용히 안 뽑히던 자리) */
+const sharedDir = join(here, '../shared/src');
+const NETWORKS = JSON.parse(readFileSync(join(sharedDir, 'targetApps.ts'), 'utf8').match(/TARGET_APPS = (\[[^\]]*\])/)?.[1]?.replace(/'/g, '"') ?? 'null')
+    ?? fail('targetApps.ts 에서 TARGET_APPS 를 못 찾았다');
+const files = readdirSync(sharedDir).map((f) => f.match(/^networkPages\.(\w+)\.ts$/)?.[1]).filter((n) => n && n !== 'test').sort();
+if (JSON.stringify(files) !== JSON.stringify([...NETWORKS].sort())) fail(`배차망 파일(${files}) ≠ TARGET_APPS(${NETWORKS})`);
 const table = {};
-for (const net of ['insung', 'hwamul24', 'kakaopicker']) {
+for (const net of NETWORKS) {
     const name = `networkPages.${net}.ts`;
     const src = readFileSync(join(here, '../shared/src', name), 'utf8');
     const body = src.match(/\/\*JSON\*\/([\s\S]*?)\/\*JSON\*\//)?.[1];
@@ -97,6 +103,7 @@ const TARGETS = [
     ['kakaopicker', 'plugins/kakaopicker/KakaoPickerPages.kt', 'com.onedal.app.plugins.kakaopicker', 'KakaoPickerPages'],
 ];
 
+if (JSON.stringify(TARGETS.map(([n]) => n).sort()) !== JSON.stringify([...NETWORKS].sort())) fail('생성 대상(TARGETS) ≠ TARGET_APPS — 배차망을 더하면 생성 파일 자리도 적는다');
 for (const [net, file, pkg, obj] of TARGETS) {
     const spec = table[net];
     if (!spec) fail(`표에 배차망 ${net} 이 없다`);

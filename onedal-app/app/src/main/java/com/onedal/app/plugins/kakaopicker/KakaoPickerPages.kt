@@ -18,6 +18,7 @@ import com.onedal.app.core.StandardScreen
  * 📄 **카카오 픽커 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/카카오픽커/실물_2026 · 실물 로그).
  * 칸 이름은 세 배차망 공통(`PageField`) — 여기에는 «어디서 · 어떤 글자로»만 적는다.
  * 안 읽는·버리는 칸(UNUSED·DROPPED)이 다음에 읽을 재료다.
+ * 상세의 칸 밖 요소(실물 15건): 지도 · 핀 · ← 늘 있음(시트를 끝까지 올리면 가려짐) · 현위치 단추 한 번만 · 넘기기 · 수락하기 늘 있음(화면 판별 글자) · 도보 상세는 배치가 달라 모름(1장).
  *
  * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/networkPages.kakaopicker.ts` — 서버도 같은 표를 읽는다.
  */
@@ -34,18 +35,36 @@ object KakaoPickerPages {
             FieldSpec(PageField.DROPOFF, "꼬리표 줄 오른쪽 구 + 몸통 줄 오른쪽 동", "용산 한남", Seen.REAL, Handling.READ, "KakaoPickerParser.parse"),
         ),
         Page.DETAIL to listOf(
-            FieldSpec(PageField.TAGS, "사진 위쪽 꼬리표 줄", "퀵 반나절 예약", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.TAGS, "시트 맨 위 꼬리표 줄 첫 낱말", "퀵", Seen.REAL, Handling.UNUSED, "",
+                part = "kind"),
+            FieldSpec(PageField.TAGS, "시트 맨 위 꼬리표 줄 «퀵» 뒤 — 차례: 급송 → 단거리/반나절 → 승용차 → 예약 → 비즈ⓘ", "퀵 반나절 예약", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.RESERVATION, "사진 띠", "내일 14:00 픽업예약", Seen.REAL, Handling.READ, "PickerDetailOcrParser.detailReservation"),
+            FieldSpec(PageField.REMAINING, "꼬리표 아래 시계 상자", "배송 31분 남음 준비 17분 포함", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "사진 첫 정거장 — 행정동 + 건물", "경기 광주시 경안동 / 람미당", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail"),
-            FieldSpec(PageField.DROPOFF, "사진 둘째 정거장", "서울 용산구 한남동 / 아라마크", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail"),
+            FieldSpec(PageField.CONTACT, "픽업 주소 아래 회색 상호", "분당스퀘어", Seen.REAL, Handling.UNUSED, "",
+                part = "pickup.customer"),
             FieldSpec(PageField.PICKUP_DISTANCE, "사진 정거장 오른쪽", "픽업 4.7km", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — straightKm 읽고 안 씀"),
+            FieldSpec(PageField.CLOCK, "픽업 상호 오른쪽 회색", "15:00까지 픽업", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — 예약 보충에만(PickerDetailOcrParser.detailReservation)",
+                part = "pickup"),
+            FieldSpec(PageField.DROPOFF, "사진 둘째 정거장", "서울 용산구 한남동 / 아라마크", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail"),
+            FieldSpec(PageField.CONTACT, "배송 주소 아래 회색 상호", "NC이스트폴", Seen.REAL, Handling.UNUSED, "",
+                part = "dropoff.customer"),
             FieldSpec(PageField.DELIVERY_DISTANCE, "사진 정거장 오른쪽", "배송 26.4km", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — straightKm 읽고 안 씀"),
-            FieldSpec(PageField.CLOCK, "사진 정거장 시각", "내일 17:49 · 12:39까지", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — 하차 at 읽고 안 씀"),
+            FieldSpec(PageField.CLOCK, "배송 상호 오른쪽 회색", "18:28까지 배송", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — 하차 at 읽고 안 씀",
+                part = "dropoff"),
+            FieldSpec(PageField.MEMO, "회색 상자 첫 줄 «픽업 장소»", "매장 직원에게 문의", Seen.REAL, Handling.UNUSED, "",
+                part = "pickupPlace"),
+            FieldSpec(PageField.ORDER_NO, "픽업 장소 줄 오더번호", "F2609011638JDU17", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.ITEM_SIZE, "사진 물품 정보", "중형 세 변의 합 140cm · 20kg 이하", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail · 서버 제외어 찾는 칸(excludeScan) — 접근성 글에서 «최종 수익» · «유의사항» · 버튼 앞까지 · 관제웹 물품 칸(서버 pageFieldOf)",
                 read = Regex("""물품\s*정보\s+([\s\S]*?)(?=\s+유의사항|\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
             FieldSpec(PageField.MEMO, "사진 유의사항", "바로 배송가주실 분만 잡아주세요", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «유의사항» 다음 «최종 수익» · 버튼 앞 · 원달앱은 이 칸을 안 읽는다(사진 판독도 안 씀)",
                 read = Regex("""유의사항\s+([\s\S]*?)(?=\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
-            FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.UNUSED),
+            /* 같은 콜의 최종 수익이 보는 중에 오른다(배송비 그대로 · 실물 4번) — 판독 뒤 오른 값은 모른다 */
+            FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "PickerDetailOcrParser.detailFare(사진 판독 · 판정 요금)"),
+            FieldSpec(PageField.FARE, "최종 수익 아래 배송비", "배송비 9,730P", Seen.REAL, Handling.UNUSED, "",
+                part = "deliveryFee"),
+            FieldSpec(PageField.FARE, "배송비 아래 프로모션", "프로모션 1,100P", Seen.REAL, Handling.UNUSED, "",
+                part = "promotion"),
         ),
         Page.CONFIRM to emptyList<FieldSpec>(),
         Page.MY_ORDERS to listOf(

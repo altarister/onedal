@@ -146,7 +146,7 @@
 | 픽커 상세 화면 OCR 파서 | 🟡 앱 `PickerScreenOcr.kt` ↔ 서버 `pickerScreenOcr.ts` (두 검사가 같은 문제지를 문다) |
 | 네 모드 표 `onedal-web/shared/src/modeTable.ts` ↔ 서버 `modeForPhone` · 원달앱 `ModeActs` · `TargetApp.runningMode` | ✅ shared `modeTable.test.ts` · 원달앱 `ModeTablePairTest` |
 | 블루투스 틀 `onedal-web/shared/src/bleProtocol.ts` ↔ 관제앱 `BleProtocol.java` · `SupplyService`(거절 글 · 증명 셈) · 원달앱 `BleFrames.kt` | ✅ 서버 `bleProtocolPair.test.ts` |
-| 배차망 정의 표 `onedal-web/shared/src/networkPages.ts`(칸 · 페이지 목록 · 기준 페이지 `bases` · 단추 `buttons` · 차종 낱말) ↔ 원달앱 `InsungPages.kt` · `Hwamul24Pages.kt` · `KakaoPickerPages.kt` · `core/PageSpec.kt` 의 `StandardScreen` | ✅ 원달앱 `NetworkPagesPairTest`(표 = 생성 파일 — 칸 · 페이지 목록 · 기준 페이지 `bases` · 단추 `buttons` · 기준 페이지 이름) · 다시 뽑기는 `pnpm gen:pages` |
+| 배차망 정의 표 `onedal-web/shared/src/networkPages.ts`(칸 · 페이지 목록 · 기준 페이지 `bases` · 단추 `buttons` · 차종 낱말 — 배차망 몫은 `networkPages.<배차망>.ts`) ↔ 원달앱 `InsungPages.kt` · `Hwamul24Pages.kt` · `KakaoPickerPages.kt` · `core/PageSpec.kt` 의 `StandardScreen` | ✅ 원달앱 `NetworkPagesPairTest`(표 = 생성 파일 — 칸 · 페이지 목록 · 기준 페이지 `bases` · 단추 `buttons` · 기준 페이지 이름) · 다시 뽑기는 `pnpm gen:pages` |
 
 
 ## 도메인 용어

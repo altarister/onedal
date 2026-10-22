@@ -306,3 +306,32 @@ describe('정의 표 — 없는 페이지 · 같은 칸 페이지', () => {
     });
 });
 
+
+/**
+ * 🧾 **늘 있음 / 있다 없다 — 분류 규칙대로 적혔나** (59 2단계 · 기사님 «모든 캡처에 있는 것 = 늘 있는 것, 일부에만 있는 것 = 있다 없다»).
+ * 규칙은 networkPages.ts 머리 · 세 배차망 같다. 근거(seen/of)와 분류가 어긋나면 빨갛다.
+ * 못 잡는 것: 센 숫자가 캡처와 맞는지(사람이 센다 — 근거 from 에 캡처 자리) · 캡처에 없던 모양.
+ */
+describe('🧾 칸의 늘 있음 / 있다 없다', () => {
+    const rows = Object.entries(NETWORK_PAGES).flatMap(([net, spec]) =>
+        Object.entries(spec.pages).flatMap(([page, rs]) => rs.map(r => ({ at: `${net} ${page} ${r.field}${r.part ? `.${r.part}` : ''}`, r }))));
+    it('🔴 모름이 아니면 실물(REAL)이고 근거가 있다 · 분류가 근거 숫자와 맞다', () => {
+        for (const { at, r } of rows) {
+            if (!r.presence || r.presence === 'UNKNOWN') continue;
+            expect(r.seen, `${at} — 실물로만 매긴다`).toBe('REAL');
+            const e = r.presenceEvidence;
+            expect(e && e.of > 0 && e.seen >= 0 && e.seen <= e.of && e.from.length > 0, `${at} 근거`).toBe(true);
+            if (r.presence === 'ALWAYS') expect(e!.seen, `${at} 늘 있음 = 보인 콜 전부`).toBe(e!.of);
+            if (r.presence === 'ONCE') expect(e!.seen, `${at} 한 번만`).toBe(1);
+            if (r.presence === 'SOMETIMES') expect(e!.seen > 1 && e!.seen < e!.of, `${at} 있다 없다 = 일부(둘 이상 · 전부 아님)`).toBe(true);
+        }
+    });
+    it('🔴 픽커 상세는 칸마다 분류가 있다(실물 캡처로 셌다)', () => {
+        for (const r of NETWORK_PAGES.kakaopicker.pages.detail) expect(r.presence, `kakaopicker detail ${r.field}${r.part ? `.${r.part}` : ''}`).toBeTruthy();
+    });
+    it('픽커 상세 — 배송 시각은 늘 있음 · 픽업 시각은 있다 없다(기사님 물음 «~까지 픽업도 사라짐에 드나»의 답)', () => {
+        const at = (part: string) => NETWORK_PAGES.kakaopicker.pages.detail.find(r => r.field === 'clock' && r.part === part)?.presence;
+        expect(at('dropoff')).toBe('ALWAYS');
+        expect(at('pickup')).toBe('SOMETIMES');
+    });
+});

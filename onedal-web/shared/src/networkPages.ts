@@ -11,6 +11,11 @@ import { KAKAO_PICKER_PAGES } from './networkPages.kakaopicker';
  * 🔴 **원천이다 — 여기를 고친다.** 원달앱 `plugins/…/…Pages.kt` 셋은 `cd onedal-web && pnpm gen:pages` 가 이 표에서 뽑은 생성 파일이고,
  *    원달앱 `NetworkPagesPairTest` 가 둘이 같은지 문다. 서버는 이 상수를 바로 읽는다.
  * 칸 이름은 `pageFields` 의 낱말(SCREEN_PAGES · PAGE_FIELDS)이다. `read` 는 정규식 원문 글자 — JS 와 코틀린이 같은 뜻으로 읽는 문법만 쓴다(1번 묶음이 값 · 노드 글을 한 칸 띄어 이은 줄에 댄다).
+ * 🧾 **늘 있음 / 있다 없다 — 분류 규칙(세 배차망 같음 · 칸의 `presence` · `presenceEvidence`)**
+ *    · 그 칸 자리가 보인 **실물** 콜(서로 다른 콜 — 같은 콜을 여러 장 찍었으면 한 건)을 센다 · 잘리거나 가려져 그 자리가 안 보인 캡처는 세지 않는다
+ *    · 보인 콜 전부에 있음 = 늘 있음(ALWAYS) · 일부에 있음 = 있다 없다(SOMETIMES) · 한 건에만 = 한 번만(ONCE)
+ *    · 실물 캡처가 없거나 `seen` 이 REAL 이 아니면 = 모름(UNKNOWN) — 시뮬레이터 화면으로 늘 있음을 매기지 않는다
+ *    · 늘 있음 칸이 안 보이면 리뉴얼을 의심한다(58) · 있다 없다 칸은 여러 건 잇달아 안 보일 때만
  * 🗂️ **공통은 여기, 배차망 몫은 배차망마다 한 파일** — `networkPages.insung.ts` · `networkPages.hwamul24.ts` · `networkPages.kakaopicker.ts`(배차망이 늘면 파일 하나와 아래 `NETWORK_PAGES` 한 줄을 더한다).
  *    배차망 파일의 몸통은 JSON 표시 주석 둘(별표 주석 «JSON») 사이의 엄격한 JSON 이다 — 뽑는 스크립트(mjs)와 원달앱 검사가 그 사이를 그대로 읽는다. 표시를 지우지 않는다.
  */
@@ -32,7 +37,16 @@ export interface NetworkFieldSpec {
     part?: string;
     /** 한 줄 덧말(생성 파일에 주석으로 실린다) */
     note?: string;
+    /**
+     * 🧾 **이 칸이 화면에 늘 있나** — 실물 캡처를 세어 정한다(분류 규칙은 파일 머리 «늘 있음 / 있다 없다»).
+     * 없으면 «모름»(UNKNOWN)이다. 서버 · shared 만 읽는다 — 원달앱 생성 파일에는 싣지 않는다(원달앱 런타임이 안 쓴다).
+     */
+    presence?: Presence;
+    /** 그렇게 정한 근거 — 그 칸 자리가 보인 실물 콜 수(of) 가운데 있던 수(seen) · 어느 캡처들인가(from) */
+    presenceEvidence?: { seen: number; of: number; from: string };
 }
+/** 🧾 늘 있음 · 있다 없다 · 한 번만 · 모름 */
+export type Presence = 'ALWAYS' | 'SOMETIMES' | 'ONCE' | 'UNKNOWN';
 export interface NetworkPageSpec {
     /** 그 배차망 정의의 머리 글(생성 파일 머리에 실린다) */
     about: string[];

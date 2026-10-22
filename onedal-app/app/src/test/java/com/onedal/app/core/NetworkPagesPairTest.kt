@@ -17,9 +17,10 @@ import java.io.File
  */
 class NetworkPagesPairTest {
     /** 배차망마다 한 파일(`networkPages.<배차망>.ts`)의 JSON 표시 사이를 읽어 한 표로 — 뽑는 스크립트(gen-pages.mjs)와 같은 읽기 */
+    private val networks = listOf(TargetApp.INSUNG, TargetApp.HWAMUL24, TargetApp.KAKAOPICKER)
     private val table: JsonObject by lazy {
         JsonObject().apply {
-            for (net in listOf("insung", "hwamul24", "kakaopicker")) {
+            for (net in networks) {
                 val ts = File("../../onedal-web/shared/src/networkPages.$net.ts").readText()
                 val body = Regex("""/\*JSON\*/([\s\S]*?)/\*JSON\*/""").find(ts)?.groupValues?.get(1)
                     ?: error("networkPages.$net.ts 에서 /*JSON*/ 표시 사이를 못 찾았다")
@@ -117,5 +118,13 @@ class NetworkPagesPairTest {
             assertTrue("$p 가 생성 파일 머리를 안 단다 — cd onedal-web && pnpm gen:pages",
                 File("src/main/java/com/onedal/app/plugins/$p").readText().contains("생성 파일이다 — 손으로 고치지 않는다"))
         }
+    }
+
+    /** 🗂️ 배차망 파일 묶음(`networkPages.<배차망>.ts`)과 여기서 견주는 배차망이 같다 — 배차망을 더하고 이 검사를 안 고치면 빨갛다 */
+    @Test
+    fun `배차망 파일 묶음 = 견주는 배차망`() {
+        val files = File("../../onedal-web/shared/src").listFiles().orEmpty()
+            .mapNotNull { Regex("""^networkPages\.(\w+)\.ts$""").find(it.name)?.groupValues?.get(1) }.filter { it != "test" }.sorted()
+        assertEquals(networks.sorted(), files)
     }
 }
