@@ -112,6 +112,8 @@ fun ScanContext.handlePreConfirmScreen(
     // 🏠 채운 값을 콜에 싣는다 — 인성은 팝업 «위치»를 전체 주소로 (서버가 꺼내지 않는다)
     val order = plugin.fillDetail(this, finalOrder)
     session.lastDetailOrder = order
+    // 📝 글자로 읽은 상세도 /detail 원문으로 — 모은 글(인성 팝업)이 있으면 그대로 · 칸 나누기는 서버가 한다(57 3단계)
+    if (session.accumulatedDetailText.isEmpty()) session.accumulatedDetailText = rawScreenStr
 
     // 📸 그래도 필수 요소(전체 주소·요금)가 모자라면 사진 — 사진 판독기가 있는 배차망만. 배차망 이름이 아니라 «모자란가»가 방아쇠다
     if (!OrderRequirement.meetsDetail(order) && plugin.ocrParser != null) {
@@ -350,13 +352,16 @@ private fun ScanContext.handlePreConfirmSnapshot(
                     return@post
                 }
                 ensureSessionId()
+                /* 📸 서버로 가는 상세 글에 판독 줄을 함께 — 접근성에 없는 하차 줄 · 시각 · 거리(57 3단계 · PhotoDetailText) */
+                val detailText = PhotoDetailText.of(rawScreenStr, lines)
                 val orderWithId = verifiedOrder.copy(
-                    id = session.currentOrderId.ifEmpty { verifiedOrder.id }
+                    id = session.currentOrderId.ifEmpty { verifiedOrder.id },
+                    rawText = detailText,
                 )
                 session.setOrderId(orderWithId.id)
                 session.lastDetailOrder = orderWithId
                 session.isPreview = true
-                session.accumulatedDetailText = rawScreenStr
+                session.accumulatedDetailText = detailText
 
                 AppLogger.roadmap(LogTag.CALL_STAGE, "📸 [스냅샷 통과] 픽커 상세 검증 완료: ${orderWithId.pickup} → ${orderWithId.dropoff}", telemetryManager.currentScreenContext.name)
                 sendConfirmOnce(orderWithId, rawScreenStr)
