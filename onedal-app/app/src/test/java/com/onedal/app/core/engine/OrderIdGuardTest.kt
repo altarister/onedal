@@ -17,7 +17,7 @@ class OrderIdGuardTest {
 
     @Test
     fun `빈 번호 콜은 번호가 생긴다 — 잡은 방식-시각 모양`() {
-        val s = SessionManager()
+        val s = SessionManager()   // 새 세션 — 출신(clickOrigin)을 아무도 안 정해도 AUTO · MANUAL 둘 중 하나다(빈 앞머리 «-시각»이 안 된다)
         val sent = s.withOrderId(order(""))
         assertTrue(sent.id.matches(Regex("""(AUTO|MANUAL)-\d+""")))
     }

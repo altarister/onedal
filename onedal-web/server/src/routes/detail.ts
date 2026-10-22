@@ -57,6 +57,8 @@ router.post("/", async (req, res) => {
         const realOrderId = (payload.order.id === "unknown" || !payload.order.id)
             ? (session.deviceEvaluatingMap.get(payload.deviceId) || "unknown")
             : payload.order.id;
+        /* 🔢 번호 없는 콜 — 원달앱은 보내기 전에 번호를 붙인다(SessionManager.withOrderId) · 여기 오면 옛 원달앱이거나 다른 폰이다 */
+        if (payload.order.id === "unknown" || !payload.order.id) slog('통신', `🔢 [번호 없는 콜] /detail — 기기 ${deviceLabelOf(payload.deviceId)} → ${realOrderId}`);
 
         payload.order.id = realOrderId;
 
@@ -95,6 +97,8 @@ router.post("/", async (req, res) => {
 
         const rawTargetApp = (payload as any).targetApp;
         const targetApp = isTargetApp(rawTargetApp) ? rawTargetApp : DEFAULT_TARGET_APP;   // 값 표준은 shared 한 벌
+        /* 🌐 배차망은 콜에도 남긴다 — /confirm 기억이 없는 길(재시작 뒤 · 번호 없이 온 콜)에서 판정에만 넘기면 확정 행이 빈 값이 된다 */
+        pendingOrder = { ...pendingOrder, targetApp };
 
         const rawText = pendingOrder.rawText;
         if (rawText) {

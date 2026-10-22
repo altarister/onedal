@@ -216,6 +216,9 @@ router.post("/confirm", (req, res) => {
 
         if (pendingOrder.id && pendingOrder.id !== "unknown") {
             rememberOrder(session, pendingOrder);
+        } else {
+            /* 🔢 번호 없는 콜 — 원달앱은 보내기 전에 번호를 붙인다(SessionManager.withOrderId) · 여기 오면 옛 원달앱이거나 다른 폰이다 */
+            slog('통신', `🔢 [번호 없는 콜] /confirm — 기기 ${deviceLabelOf(payload.deviceId)} · 기억하지 않는다`);
         }
 
         if (io) {
