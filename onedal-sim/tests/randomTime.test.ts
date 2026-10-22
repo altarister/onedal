@@ -25,9 +25,12 @@ describe('🎲 randomTime', () => {
         expect(draft.pickupTime).toBe('23:36');
         expect(insungTimeLabel(draft.pickupAt!, draft.pickupTime!, at(23, 16))?.isTomorrow).toBe(false);
     });
-    it('끄면 자정을 넘길 자리는 오늘 23:59 로 당긴다', () => {
-        const { pickupAt } = fixedTimesOf(at(23, 50));
+    it('끄면 자정을 넘길 자리는 오늘 23:59 로 당긴다 — 상차도 하차도', () => {
+        const { pickupAt, dropoffAt } = fixedTimesOf(at(23, 50));
         expect([pickupAt.getDate(), pickupAt.getHours(), pickupAt.getMinutes()]).toEqual([22, 23, 59]);
+        expect([dropoffAt.getDate(), dropoffAt.getHours(), dropoffAt.getMinutes()]).toEqual([22, 23, 59]);
+        const day = fixedTimesOf(at(10, 0));
+        expect([day.pickupAt.getHours(), day.pickupAt.getMinutes(), day.dropoffAt.getHours(), day.dropoffAt.getMinutes()]).toEqual([10, 20, 11, 50]);
     });
     it('켜면(없으면) 전처럼 무작위 — 난수 0 이면 예약(지금 + 2시간)', () => {
         vi.useFakeTimers(); vi.setSystemTime(at(10, 0));

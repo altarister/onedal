@@ -55,7 +55,7 @@ const RESERVED_RATE = 0.15;      // 예약콜 비율
 const RESERVED_MIN = 120;        // 예약콜 — 지금 + 2~5시간
 const RESERVED_SPAN = 180;
 /**
- * 🎲 **무작위를 끈 콜(시험 콜)** — 예약 없이 «지금 + 20분» · 하차는 상차 + 90분 · 상차는 오늘 안(자정을 넘으면 오늘 23:59).
+ * 🎲 **무작위를 끈 콜(시험 콜)** — 예약 없이 «지금 + 20분» · 하차는 상차 + 90분 · 둘 다 오늘 안(자정을 넘으면 오늘 23:59 — 픽커 «까지 배송»이 과거 시각으로 읽히지 않게).
  * 정해진 시험이 돌리는 시각에 따라 «낼»(내일 예약)이 되어 필터에서 떨어지던 것(10-22 23:16 S04 «@낼0시15») — 문제지가 정한 대로만 나오게.
  */
 const FIXED_PICKUP_MIN = 20;
@@ -95,14 +95,13 @@ export interface CallOptions {
  * 🔴 상차지·하차지가 **맨 앞**이다 — 그래서 배차망별 칸의 난수가 바뀌어도 같은 씨앗이면
  *    주소·좌표·거리가 똑같다 (`tests/commonFields.test.ts` 가 씨앗마다 스냅숏으로 문다).
  */
-/** 🎲 무작위를 끈 콜의 상차 · 하차 — 상차는 오늘 안(자정을 넘으면 오늘 23:59 · 그래도 지금보다 앞이면 지금) */
+/** 🎲 무작위를 끈 콜의 상차 · 하차 — 둘 다 오늘 안(자정을 넘으면 오늘 23:59 · 그래도 지금보다 앞이면 지금 · 하차는 상차보다 앞서지 않는다) */
 export function fixedTimesOf(now: Date): { pickupAt: Date; dropoffAt: Date } {
-  let pickupAt = new Date(now.getTime() + FIXED_PICKUP_MIN * 60_000);
-  if (pickupAt.getDate() !== now.getDate()) {
-    const endOfDay = new Date(now); endOfDay.setHours(23, 59, 0, 0);
-    pickupAt = endOfDay.getTime() > now.getTime() ? endOfDay : now;
-  }
-  return { pickupAt, dropoffAt: new Date(pickupAt.getTime() + FIXED_DELIVERY_MIN * 60_000) };
+  const endOfDay = new Date(now); endOfDay.setHours(23, 59, 0, 0);
+  const lastToday = Math.max(endOfDay.getTime(), now.getTime());
+  const pickupAt = new Date(Math.min(now.getTime() + FIXED_PICKUP_MIN * 60_000, lastToday));
+  const dropoffAt = new Date(Math.max(pickupAt.getTime(), Math.min(pickupAt.getTime() + FIXED_DELIVERY_MIN * 60_000, lastToday)));
+  return { pickupAt, dropoffAt };
 }
 
 export function generateBaseCall(config: SimGeneratorConfig, forced?: ForcedPair, rng: RandomSource = Math.random): CallDraft | null {

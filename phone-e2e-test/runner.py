@@ -2,7 +2,7 @@
 """실행기 — 문제지(problems.json)를 장면 · 줄 차례로 돌려 최신 결과지(out/result_*.json)에 줄마다 적는다.
 적는 쪽이 스크립트인 줄은 day.py 의 동작 · 기다림 · 확인을 불러 돌리고, 사람 줄은 장면 표에서 체크될 때까지 기다린다
 (그 장면의 마지막 스크립트 줄보다 뒤에 있는 사람 줄 — 결과 알림 — 은 안 기다림). 틀리면 onFail 대로: stop 은 판을 멈추고, continue 는 까닭을 notes 에 적고 다음 줄.
-쓰는 법: python3 phone-e2e-test/runner.py [--new] [--only S01,S02] [--from S05] [--dry]"""
+쓰는 법: python3 phone-e2e-test/runner.py [--new] [--only S01,S02] [--from S05] [--dry] [--midnight — 자정 30분 안에도 돌림]"""
 import glob, json, os, re, sys, time
 
 import sheet
@@ -21,6 +21,11 @@ if DRY:   # 폰 없이 볼 때는 문제지 검사를 먼저 — 판에서 헛 �
     jc = __import__('subprocess').run([sys.executable, os.path.join(HERE, 'joy_check.py')], capture_output=True, text=True)   # JoyStick 흐름(설 때까지 기다림 · 뒤 감시)을 가짜 JoyStick 으로 — 판 7 · 8 S20 같은 도구 실수를 판 전에
     log((jc.stdout.strip().splitlines() or ['JoyStick 흐름 검사 — 출력 없음'])[-1] + ('' if jc.returncode == 0 else ' — 🔴 joy_check.py 를 따로 돌려 볼 것'))
 
+# 🌙 자정 30분 안에는 판을 시작하지 않는다 — 자정은 영업일 경계(필터가 평소 값으로 돌고 예약 보관이 넘어감)라 자정을 걸치는 판은 콜 시각과 무관하게 갈린다(10-22 23:16 S04) · 굳이 돌리려면 --midnight
+if not DRY and '--midnight' not in A:
+    _now = time.localtime()
+    if _now.tm_hour == 23 and _now.tm_min >= 30:
+        log(f'⛔ 자정 {60 - _now.tm_min}분 전 — 판이 영업일 경계를 걸친다 · 자정 뒤에 돌리거나 --midnight'); sys.exit(1)
 # ── 결과지 — 실행기는 자기가 돈 줄 하나만 적는다(장면 표에서 누른 다른 줄을 덮지 않게 매번 읽고 고쳐 씀)
 def result_path():
     if '--new' in A or not glob.glob(os.path.join(HERE, 'out', 'result_*.json')): return make_result.make()
