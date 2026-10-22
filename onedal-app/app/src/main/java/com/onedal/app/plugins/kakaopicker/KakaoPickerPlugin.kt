@@ -23,13 +23,13 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
 
     override val code: String = TargetApp.KAKAOPICKER
     override val label: String = "픽커"
-    override val packageKeywords: List<String> = listOf("flexer")
+    override val packageKeywords: List<String> get() = KakaoPickerPages.packageKeywords
     override val keywords: ScreenKeywords = KakaoPickerKeywords.PICKER
     override val networkMarkers: List<List<String>> get() = KakaoPickerPages.networkMarkers
     override val parser: IScrapParser by lazy { KakaoPickerParser(context) }
 
-    /** 🎛️ 픽커에는 자동 모드가 없다 — 수락이 곧 계약이고 되돌릴 수 없어 앱이 수락하기를 누르지 않는다 (기사님 확정) */
-    override val availableModes: Set<String> = TargetApp.ALL_MODES - "AUTO"
+    /** 🎛️ 픽커에는 자동 모드가 없다 — 수락이 곧 계약이고 되돌릴 수 없어 앱이 수락하기를 누르지 않는다 (기사님 확정) · 값은 배차망 정의 표 */
+    override val availableModes: Set<String> get() = KakaoPickerPages.modes
 
     /**
      * ✍️ **픽커에는 앱이 누를 계약 버튼이 없다** (기사님 확정).
@@ -94,10 +94,10 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
 
     override val ocrParser: ScreenOcrParser<*> = PickerDetailOcrParser()
 
-    override fun getSafeCancelMs(filter: FilterConfig): Long? = null
+    /** ⏱️ 어느 설정 칸인지는 배차망 정의 표(`KakaoPickerPages.safeCancelSecKey` — 없음 · `detailBackSecKey`) */
+    override fun getSafeCancelMs(filter: FilterConfig): Long? = filter.secOf(KakaoPickerPages.safeCancelSecKey)?.times(1000L)
 
-    override fun getDetailBackTimeoutMs(filter: FilterConfig): Long =
-        filter.pickerAlarmDetailSec * 1000L
+    override fun getDetailBackTimeoutMs(filter: FilterConfig): Long? = filter.secOf(KakaoPickerPages.detailBackSecKey)?.times(1000L)
 
     /**
      * 👆 **픽커 목록에서 누르기 전 안전 확인** — 머리줄 위의 요금은 오더카드다, 누르면 그 자리에서 계약이다.

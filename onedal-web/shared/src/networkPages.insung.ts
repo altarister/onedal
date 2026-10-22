@@ -6,6 +6,11 @@ import type { NetworkPageSpec } from './networkPages';
  */
 export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
   "about": ["📄 **인성 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/인성 · 시뮬 onedal-sim).", "⚠️ 실물 인성 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처 몇 장이 근거다. 설치하면 이 표부터 다시 본다."],
+  "modes": ["AUTO", "MANUAL", "SIMULATION", "ALARM"],
+  "packageKeywords": ["insung"],
+  "safeCancelSec": "safeCancelSecInsung",
+  "detailBackSec": null,
+  "rulesWhy": "자동에서 원달앱이 확정을 누르고 안전취소 시간 안에 결재를 기다린다 · 상세 머묾 시간은 없다(팝업 셋을 다 읽고 보낸다)",
   "excludeScan": ["memo", "payment", "tags"],
   "excludeScanWhy": "기사님 «인성은 적요»(+ 결제 괄호 «(착불)» · 구분 «왕복») — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다",
   "addressCut": "\\(.*?\\)$",

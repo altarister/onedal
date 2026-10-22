@@ -187,6 +187,12 @@ ${pages.join('\n')}
 ${(spec.networkMarkers ?? fail(`표에 ${net} networkMarkers 가 없다`)).map((g) => `        ${klist(g)},`).join('\n')}
     )
 
+    /** ⚙️ 배차망 규칙(shared modes · packageKeywords · safeCancelSec · detailBackSec — ${spec.rulesWhy ?? ''}) · 시간은 값이 아니라 설정 칸 이름(FilterConfig.secOf) */
+    val modes: Set<String> = setOf(${(spec.modes ?? fail(`표에 ${net} modes 가 없다`)).map(kstr).join(', ')})
+    val packageKeywords: List<String> = ${klist(spec.packageKeywords ?? fail(`표에 ${net} packageKeywords 가 없다`))}
+    val safeCancelSecKey: String? = ${spec.safeCancelSec ? kstr(spec.safeCancelSec) : 'null'}
+    val detailBackSecKey: String? = ${spec.detailBackSec ? kstr(spec.detailBackSec) : 'null'}
+
     /** 🖥️ 페이지 전부 — 차례가 판별 차례 · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
 ${(spec.screens ?? fail(`표에 ${net} 페이지 목록(screens)이 없다`)).map((s) => kscreen(net, s)).join('\n')}

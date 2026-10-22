@@ -446,7 +446,15 @@ data class FilterConfig(
     val reservedPickupKeywords: List<String>? = null,
     /** 📅 내일 상차 목록의 시군구 → 동(이름이 같은 다른 시군구 동을 가른다) · 비면 null */
     val reservedPickupGroups: Map<String, List<String>>? = null,
-)
+) {
+    /** ⏱️ 배차망 정의 표가 가리키는 설정 칸(초) — `…Pages.safeCancelSecKey` · `detailBackSecKey` · 칸 이름은 shared WaitTimes 와 같다 · 모르면 null */
+    fun secOf(key: String?): Int? = when (key) {
+        "safeCancelSecInsung" -> safeCancelSecInsung
+        "safeCancelSecHwamul24" -> safeCancelSecHwamul24
+        "pickerAlarmDetailSec" -> pickerAlarmDetailSec
+        else -> null
+    }
+}
 
 // ────────────────────────────────────────────────
 // 7. 기기 PIN 연동 (POST /api/devices/pair 대응)

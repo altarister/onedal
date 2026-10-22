@@ -153,6 +153,12 @@ object InsungPages {
         listOf("인성퀵화면분할"),
     )
 
+    /** ⚙️ 배차망 규칙(shared modes · packageKeywords · safeCancelSec · detailBackSec — 자동에서 원달앱이 확정을 누르고 안전취소 시간 안에 결재를 기다린다 · 상세 머묾 시간은 없다(팝업 셋을 다 읽고 보낸다)) · 시간은 값이 아니라 설정 칸 이름(FilterConfig.secOf) */
+    val modes: Set<String> = setOf("AUTO", "MANUAL", "SIMULATION", "ALARM")
+    val packageKeywords: List<String> = listOf("insung")
+    val safeCancelSecKey: String? = "safeCancelSecInsung"
+    val detailBackSecKey: String? = null
+
     /** 🖥️ 페이지 전부 — 차례가 판별 차례 · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
         ScreenSpec(

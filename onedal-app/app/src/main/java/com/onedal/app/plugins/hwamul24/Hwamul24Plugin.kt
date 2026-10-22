@@ -21,14 +21,14 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
 
     override val code: String = TargetApp.HWAMUL24
     override val label: String = "24시"
-    override val packageKeywords: List<String> = listOf("logione", "carrier")
+    override val packageKeywords: List<String> get() = Hwamul24Pages.packageKeywords
     override val keywords: ScreenKeywords = Hwamul24Keywords.TWENTYFOUR
     override val networkMarkers: List<List<String>> get() = Hwamul24Pages.networkMarkers
     override val parser: IScrapParser by lazy {
         Hwamul24Parser(context ?: throw IllegalStateException("Hwamul24Parser requires non-null Context"))
     }
 
-    override val availableModes: Set<String> = TargetApp.ALL_MODES
+    override val availableModes: Set<String> get() = Hwamul24Pages.modes
 
     /** 📄 페이지 정의 — `Hwamul24Pages` */
     override val pages get() = Hwamul24Pages.pages
@@ -45,6 +45,8 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
 
     override val ocrParser: ScreenOcrParser<*>? = null
 
-    override fun getSafeCancelMs(filter: FilterConfig): Long =
-        filter.safeCancelSecHwamul24 * 1000L
+    /** ⏱️ 어느 설정 칸인지는 배차망 정의 표(`Hwamul24Pages.safeCancelSecKey`) */
+    override fun getSafeCancelMs(filter: FilterConfig): Long? = filter.secOf(Hwamul24Pages.safeCancelSecKey)?.times(1000L)
+
+    override fun getDetailBackTimeoutMs(filter: FilterConfig): Long? = filter.secOf(Hwamul24Pages.detailBackSecKey)?.times(1000L)
 }

@@ -1,4 +1,5 @@
 import { isTargetApp, DEFAULT_TARGET_APP } from './targetApps';
+import { NETWORK_PAGES } from './networkPages';
 
 /**
  * ⏱️ **«주행·정차»로 굳는 데 걸리는 초 — 기본값** (기사님 확정 · 화면규칙 S16).
@@ -67,9 +68,8 @@ export function waitSecOrNull(v: unknown): number | null {
     return sec >= 1 ? sec : null;
 }
 
-/** 그 배차망의 안전취소 초 — 픽커는 안전취소가 없어 `null` · 모르는 배차망은 기본 배차망(인성) */
+/** 그 배차망의 안전취소 초 — 어느 설정 칸인지는 배차망 정의 표(`safeCancelSec`) · 없으면(픽커) `null` · 모르는 배차망은 기본 배차망(인성) */
 export function safeCancelSecOf(w: WaitTimes, targetApp: string | null | undefined): number | null {
-    const app = isTargetApp(targetApp) ? targetApp : DEFAULT_TARGET_APP;
-    if (app === 'kakaopicker') return null;
-    return app === 'hwamul24' ? w.safeCancelSecHwamul24 : w.safeCancelSecInsung;
+    const key = NETWORK_PAGES[isTargetApp(targetApp) ? targetApp : DEFAULT_TARGET_APP].safeCancelSec;
+    return key ? w[key] : null;
 }

@@ -24,14 +24,14 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
 
     override val code: String = TargetApp.INSUNG
     override val label: String = "인성콜"
-    override val packageKeywords: List<String> = listOf("insung")
+    override val packageKeywords: List<String> get() = InsungPages.packageKeywords
     override val keywords: ScreenKeywords = InsungKeywords.INSUNG
     override val networkMarkers: List<List<String>> get() = InsungPages.networkMarkers
     override val parser: IScrapParser by lazy {
         InsungParser(context ?: throw IllegalStateException("InsungParser requires non-null Context"))
     }
 
-    override val availableModes: Set<String> = TargetApp.ALL_MODES
+    override val availableModes: Set<String> get() = InsungPages.modes
 
     /** 📄 페이지 정의 — `InsungPages` */
     override val pages get() = InsungPages.pages
@@ -61,8 +61,10 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
 
     override val ocrParser: ScreenOcrParser<*>? = null
 
-    override fun getSafeCancelMs(filter: FilterConfig): Long =
-        filter.safeCancelSecInsung * 1000L
+    /** ⏱️ 어느 설정 칸인지는 배차망 정의 표(`InsungPages.safeCancelSecKey`) */
+    override fun getSafeCancelMs(filter: FilterConfig): Long? = filter.secOf(InsungPages.safeCancelSecKey)?.times(1000L)
+
+    override fun getDetailBackTimeoutMs(filter: FilterConfig): Long? = filter.secOf(InsungPages.detailBackSecKey)?.times(1000L)
 
     override fun executePreConfirmSpecial(
         context: ScanContext,

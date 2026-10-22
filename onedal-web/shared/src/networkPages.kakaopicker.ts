@@ -6,6 +6,11 @@ import type { NetworkPageSpec } from './networkPages';
  */
 export const KAKAO_PICKER_PAGES: NetworkPageSpec = /*JSON*/{
   "about": ["📄 **카카오 픽커 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/카카오픽커/실물_2026 · 실물 로그).", "칸 이름은 세 배차망 공통(`PageField`) — 여기에는 «어디서 · 어떤 글자로»만 적는다.", "안 읽는·버리는 칸(UNUSED·DROPPED)이 다음에 읽을 재료다.", "상세의 칸 밖 요소(실물 15건): 지도 · 핀 · ← 늘 있음(시트를 끝까지 올리면 가려짐) · 현위치 단추 한 번만 · 넘기기 · 수락하기 늘 있음(화면 판별 글자) · 도보 상세는 배치가 달라 모름(1장)."],
+  "modes": ["MANUAL", "SIMULATION", "ALARM"],
+  "packageKeywords": ["flexer"],
+  "safeCancelSec": null,
+  "detailBackSec": "pickerAlarmDetailSec",
+  "rulesWhy": "자동이 없다 — 수락이 곧 계약이고 되돌릴 수 없어 원달앱이 수락하기를 누르지 않는다(기사님 확정) · 안전취소가 없다 · 상세를 띄워 두는 시간만 있다",
   "excludeScan": ["itemSize", "memo"],
   "excludeScanWhy": "기사님 «카카오픽커는 물품정보»+«가» 유의사항 — 둘 다 «최종 수익» · 버튼 앞에서 끝난다 · 픽업지 주소 · 목록 잔상은 안 본다",
   "addressCut": null,

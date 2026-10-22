@@ -6,6 +6,11 @@ import type { NetworkPageSpec } from './networkPages';
  */
 export const HWAMUL24_PAGES: NetworkPageSpec = /*JSON*/{
   "about": ["📄 **화물24시 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/화물24시).", "⚠️ 실물 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처가 근거다. 시뮬 상세 화면은 실물과 모양이 달라(머리 «배차내역») 상세까지 못 간다."],
+  "modes": ["AUTO", "MANUAL", "SIMULATION", "ALARM"],
+  "packageKeywords": ["logione", "carrier"],
+  "safeCancelSec": "safeCancelSecHwamul24",
+  "detailBackSec": null,
+  "rulesWhy": "자동에서 원달앱이 배차신청을 누르고 안전취소 시간 안에 결재를 기다린다 · 상세 머묾 시간은 없다",
   "excludeScan": ["memo", "payment"],
   "excludeScanWhy": "기사님 «화물24시는 화물정보»(+ 결제방법 «착불») — 화주 이름 줄(«화물과퀵») · «60분 안보기» · 버튼 · 주소는 안 본다",
   "addressCut": ",[\\s\\S]*$",

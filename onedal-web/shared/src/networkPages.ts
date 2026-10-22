@@ -69,6 +69,17 @@ export interface NetworkPageSpec {
     /** 그 칸들로 정한 까닭 한 줄(기사님 말) */
     excludeScanWhy: string;
     /**
+     * ⚙️ **배차망 규칙 넷** — 원달앱 플러그인 · 서버가 이 표 값을 읽는다(손으로 따로 적지 않는다 · 배차망_모드표.md 의 «모드» · «시간» 장이 이것을 가리킨다).
+     * `modes` 그 배차망에서 되는 모드(관제웹이 보내는 이름) · `packageKeywords` 배차망 앱을 알아보는 패키지 글자 ·
+     * `safeCancelSec` · `detailBackSec` 는 **시간 값이 아니라 «어느 설정 칸을 쓰나»**(user_settings · WaitTimes 칸 이름 — 값은 설정이 낸다 · 없으면 null).
+     */
+    modes: Array<'AUTO' | 'MANUAL' | 'SIMULATION' | 'ALARM'>;
+    packageKeywords: string[];
+    safeCancelSec: 'safeCancelSecInsung' | 'safeCancelSecHwamul24' | null;
+    detailBackSec: 'pickerAlarmDetailSec' | null;
+    /** 그 규칙의 까닭 한 줄 */
+    rulesWhy: string;
+    /**
      * 🏠 **주소 다듬기** — 서버가 카카오 주소 찾기 전에 콜 주소에서 이 정규식에 맞는 부분을 지우고 앞뒤 공백을 자른다.
      * null 이면 앞뒤 공백만. 원달앱은 읽지 않는다 · gen:pages 는 이 칸을 뽑지 않는다.
      */

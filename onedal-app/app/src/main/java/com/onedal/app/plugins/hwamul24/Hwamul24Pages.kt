@@ -105,6 +105,12 @@ object Hwamul24Pages {
         listOf("전국24시콜화물"),
     )
 
+    /** ⚙️ 배차망 규칙(shared modes · packageKeywords · safeCancelSec · detailBackSec — 자동에서 원달앱이 배차신청을 누르고 안전취소 시간 안에 결재를 기다린다 · 상세 머묾 시간은 없다) · 시간은 값이 아니라 설정 칸 이름(FilterConfig.secOf) */
+    val modes: Set<String> = setOf("AUTO", "MANUAL", "SIMULATION", "ALARM")
+    val packageKeywords: List<String> = listOf("logione", "carrier")
+    val safeCancelSecKey: String? = "safeCancelSecHwamul24"
+    val detailBackSecKey: String? = null
+
     /** 🖥️ 페이지 전부 — 차례가 판별 차례 · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
         ScreenSpec(
