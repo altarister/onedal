@@ -9,6 +9,7 @@
 //   단추 고르기(글자 자리): «글자»(단추 글에 듦) · «=글자»(단추 글이 똑같음) · «^글자»(단추 글이 그것으로 시작) · «aria:이름»(aria-label 이 똑같음) · «title:조각»(title 에 듦)
 //     앞에 «in:<글자>>»를 붙이면 그 글자가 든 잎에서 위로 올라가 처음 만나는 상자 안의 단추만 본다(예: in:A24>title:모드를 바꾸려면 · in:최소 금액>=+)
 //   화면 확인: «see:<글자>» — 그 글자가 든 잎 요소가 화면 안에 보이나(ok · none) · 좌표 누름 전에 «기대한 화면인가»를 본다(71)
+//   작은 글자 자리: «spot:<글자>» — 글자가 똑같은 보이는 잎 하나의 가운데(접힘 머리 «▸ 더보기»)
 //   단추 아닌 자리: «leaf:<글자>» — 그 글자가 든 보이는 잎이 딱 하나면 그 가운데(ok) · 없으면 none · 둘 이상이면 many
 import { execFileSync } from 'node:child_process';
 
@@ -40,12 +41,33 @@ try {
             const offsetY = ${Number(menuYArg)} - (mr.top + mr.height / 2) * dpr;
             /* 잘라내는 조상 상자(overflow 가 visible 아님 — 옆으로 넘기는 단계 칸 · 스크롤 상자) 밖으로 잘린 글자는 안 보이는 것이다(S05a 판 3 «통화로 정함») */
             const unclipped = (e, r) => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { const c = getComputedStyle(p); if (c.overflowX === 'visible' && c.overflowY === 'visible') continue; const q = p.getBoundingClientRect(); if (r.right <= q.left || r.left >= q.right || r.bottom <= q.top || r.top >= q.bottom) return false; } return true; };
+            /* 요소가 직접 품은 글자 — 잎이면 전부, 아니면 자식 요소 사이의 글(«<span>잡은 시각 <b>00:37</b></span>» 의 «잡은 시각» · S05a 판 6) */
+            const own = e => e.children.length === 0 ? norm(e.textContent) : norm([...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' '));
             if (want.startsWith('see:')) {
                 const t = want.slice(4);
-                const vis = [...document.querySelectorAll('body *')].filter(e => e.children.length === 0 && norm(e.textContent).includes(t)).some(e => {
+                const vis = [...document.querySelectorAll('body *')].filter(e => own(e).includes(t)).some(e => {
                     const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < H && r.right > 0 && r.left < W && getComputedStyle(e).visibility !== 'hidden' && unclipped(e, r);   /* 닫힌 서랍은 화면 왼쪽 밖에 그려져 있다 — 가로도 본다 */
                 });
-                return { state: vis ? 'ok' : 'none', text: t, offsetY };
+                if (vis) return { state: 'ok', text: t, offsetY };
+                /* 그려져 있는데 세로 스크롤 상자 밖으로 잘렸으면 밀 자리를 준다(더보기를 펼친 아래 줄 등 · S05a 판 6) */
+                for (const e of [...document.querySelectorAll('body *')].filter(e => own(e).includes(t))) {
+                    const r = e.getBoundingClientRect(); if (r.width === 0 || r.height === 0 || r.right <= 0 || r.left >= W) continue;
+                    let side = false; for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) { if (getComputedStyle(a).overflowX === 'visible') continue; const k = a.getBoundingClientRect(); if (r.right <= k.left || r.left >= k.right) { side = true; break; } }
+                    if (side) continue;   /* 옆으로 넘긴 칸(다른 단계 장)에 있는 글자는 세로로 밀어도 안 나온다 */
+                    let p = e.parentElement; while (p && !(p.scrollHeight > p.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(p).overflowY))) p = p.parentElement;
+                    if (!p) continue;
+                    const q = p.getBoundingClientRect(), top = Math.max(0, q.top), bot = Math.min(H, q.bottom);
+                    if (r.top < bot && r.bottom > top) continue;
+                    return { state: r.top >= bot ? 'below' : 'above', text: t, offsetY, swipe: { x: Math.round((Math.max(0, q.left) + Math.min(W, q.right)) / 2 * dpr), y1: Math.round((top + (bot - top) * 0.85) * dpr + offsetY), y2: Math.round((top + (bot - top) * 0.15) * dpr + offsetY) } };
+                }
+                return { state: 'none', text: t, offsetY };
+            }
+            if (want.startsWith('spot:')) {   /* 글자 그 자체의 가운데 — 접힘 머리 «▸ 더보기»처럼 작은 누를 자리(leaf: 는 높이 100px 조상 가운데라 다른 줄을 누른다 · S05a 판 6) */
+                const t = want.slice(5);
+                const hit = [...document.querySelectorAll('body *')].filter(e => e.children.length === 0 && norm(e.textContent) === t).filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && unclipped(e, r) && r.bottom > 0 && r.top < H; });
+                if (hit.length !== 1) return { state: hit.length ? 'many' : 'none', text: t, offsetY };
+                const r = hit[0].getBoundingClientRect();
+                return { state: 'ok', x: Math.round((r.left + r.width / 2) * dpr), y: Math.round((r.top + r.height / 2) * dpr + offsetY), w: Math.round(r.width * dpr), h: Math.round(r.height * dpr), text: t, offsetY: Math.round(offsetY) };
             }
             if (want.startsWith('leaf:')) {   /* 단추가 아닌 누를 자리(결재석 미리보기 칸 본문 등) — 그 글자가 든 보이는 잎 하나의 가운데 */
                 const t = want.slice(5);

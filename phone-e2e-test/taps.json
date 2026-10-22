@@ -648,7 +648,7 @@
       "x": null,
       "y": null,
       "check": "any",
-      "text": "leaf:▸ 더보기",
+      "text": "spot:▸ 더보기",
       "from": "글자로 찾아 손 누름(find.mjs · 정확 · 머리 · 이름표 글자만 — 포함 글자로 누르면 카드 덩어리를 눌러 전화가 걸릴 수 있다) — 잡은 뒤 카드 «🏢 사무실 · ▸ 더보기» 접힘 머리(PinnedRouteCard details/summary)"
     },
     "s23.stop.pickup.call": {
