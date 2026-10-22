@@ -6,6 +6,7 @@ import StepSummary from './StepSummary';
 import StepEditPopup from './StepEditPopup';
 import StepSwipeTrack from './StepSwipeTrack';
 import { stepDoneOf, stepViewOf, stepPaneOf } from './callCardViews';
+import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 /**
  * 🌱 **6단계 트랙** — 펼친 콜 카드(`PinnedRouteCard`)의 «스텝 영역»: 머리(단계명 · 점 · n/6) · 상태 줄 · 한 장씩 넘기는 장.
@@ -133,14 +134,14 @@ export default function CallStepTrack({ route, timeline, seededSteps, shownStepI
                                             codAmount={pane.codAmount}
                                             view={stepViewOf(x, seededSteps)}
                                             hideButtons={editIdx !== null}
-                                            onOpen={() => setEditIdx(k)} />
+                                            onOpen={() => { logRoadmapEvent('화면', '웹', `✏️ [단계 수정 팝업 열림] ${route.id.slice(-6)} ${x.label}`); setEditIdx(k); }} />
                                     </section>
                                 );
                             }} />
                         {/* ✏️ 수정 팝업 — 시트 서랍(움직이는 층) 밖, 문서 맨 위층에 그린다(덮는 창이 서랍 안에 갇히지 않게) */}
                         {editIdx !== null && createPortal(
                             <StepEditPopup route={route} seededSteps={seededSteps} timeline={timeline} startIdx={editIdx}
-                                onClose={() => setEditIdx(null)} />,
+                                onClose={(why) => { logRoadmapEvent('화면', '웹', `✏️ [단계 수정 팝업 닫힘] ${route.id.slice(-6)} ${seededSteps[editIdx]?.label ?? ''} — ${why}`); setEditIdx(null); }} />,
                             document.body)}
                     </div>
                 );

@@ -40,7 +40,7 @@ import {
 import type { CargoUnit } from '@onedal/shared';
 import { hhmmText, wonText } from "@onedal/shared";
 import { jsonArrayOf } from '@onedal/shared';
-import { draftKeyOf, draftFor, syncDraft } from '../../stores/stepDraftStore';
+import { draftKeyOf, draftFor, syncDraft, stepFactOf } from '../../stores/stepDraftStore';
 
 /** 서버 `stepsView()` 가 주는 한 단계 */
 export interface StepViewLike {
@@ -558,18 +558,18 @@ function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrev
     /* ✍️ 적던 것 — 시작 값과 «행이 바뀌면 다시 맞추기»가 같은 함수(`startOf`)를 부른다(마운트 때 다시 맞추기가 적던 것을 지우지 않게) */
     const dKey = draftKeyOf(orderId, pickup ? 'CALL_PICKUP' : 'CALL_DROPOFF');
     const rowState = () => ({ cargo: cargoOfRow(r), memo: (r.memo ?? '') as string, pick: { touched: false } as SlotPick });
-    const startOf = () => ({ ...rowState(), ...(draftFor(dKey, r.recorded_at) as Partial<ReturnType<typeof rowState>> | null) });
+    const startOf = () => ({ ...rowState(), ...(draftFor(dKey, stepFactOf(r)) as Partial<ReturnType<typeof rowState>> | null) });
     const [cargo, setCargo] = useState<CargoState>(() => startOf().cargo);
     const [memo, setMemo] = useState<string>(() => startOf().memo);
     const [pick, setPick] = useState<SlotPick>(() => startOf().pick);
     /**
-     * 저장(steps-synced)이 오면 행이 바뀐다 — 그때 상태를 행에 다시 맞춘다(적던 것은 행이 바뀌면 버려진다).
-     * recorded_at 이 안 바뀌었으면 기사님이 고치는 중일 수 있으니 덮지 않는다.
+     * 저장(steps-synced)으로 칸의 사실(상태 · 일어난 시각)이 바뀌면 행에 다시 맞춘다(적던 것도 그때 버려진다).
+     * 정차 배지는 사실을 안 바꾸니 고치던 입력이 그대로다.
      */
     useEffect(() => {
         const s0 = startOf(); setCargo(s0.cargo); setMemo(s0.memo); setPick(s0.pick);
-    }, [r.recorded_at, r.occurred_at]);
-    useEffect(() => { syncDraft(dKey, r.recorded_at, rowState(), { cargo, memo, pick }); }, [cargo, memo, pick]);
+    }, [r.status, r.occurred_at]);
+    useEffect(() => { syncDraft(dKey, stepFactOf(r), rowState(), { cargo, memo, pick }); }, [cargo, memo, pick]);
 
     const done = r.status === 'DONE' || r.status === 'SKIPPED';
     const save = (kind: 'DECLARED' | 'SKIPPED') => sendCallSave(orderId, pickup, kind, { cargo, memo, pick });
@@ -608,11 +608,11 @@ function LiveArrive({ orderId, r, step }: { orderId: string; r: Record<string, a
     /* ✍️ 적던 것 — 통화 칸과 같은 규칙 */
     const dKey = draftKeyOf(orderId, step);
     const rowState = () => ({ reasons: parse(r.reasons), reasonMemo: '' });
-    const startOf = () => ({ ...rowState(), ...(draftFor(dKey, r.recorded_at) as Partial<ReturnType<typeof rowState>> | null) });
+    const startOf = () => ({ ...rowState(), ...(draftFor(dKey, stepFactOf(r)) as Partial<ReturnType<typeof rowState>> | null) });
     const [reasons, setReasons] = useState<string[]>(() => startOf().reasons);
     const [reasonMemo, setReasonMemo] = useState(() => startOf().reasonMemo);
-    useEffect(() => { const s0 = startOf(); setReasons(s0.reasons); setReasonMemo(s0.reasonMemo); }, [r.recorded_at, r.occurred_at]);
-    useEffect(() => { syncDraft(dKey, r.recorded_at, rowState(), { reasons, reasonMemo }); }, [reasons, reasonMemo]);
+    useEffect(() => { const s0 = startOf(); setReasons(s0.reasons); setReasonMemo(s0.reasonMemo); }, [r.status, r.occurred_at]);
+    useEffect(() => { syncDraft(dKey, stepFactOf(r), rowState(), { reasons, reasonMemo }); }, [reasons, reasonMemo]);
 
     const milestone = step === 'ARRIVE_PICKUP' ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF';
     const arrived = !!r.occurred_at;
@@ -663,14 +663,14 @@ function LiveDone({ orderId, r, step, codAmount }: {
     /* ✍️ 적던 것 — 통화 칸과 같은 규칙 */
     const dKey = draftKeyOf(orderId, step);
     const rowState = () => ({ cargo: actualOf(r), reasons: parse(r.reasons), reasonMemo: '' });
-    const startOf = () => ({ ...rowState(), ...(draftFor(dKey, r.recorded_at) as Partial<ReturnType<typeof rowState>> | null) });
+    const startOf = () => ({ ...rowState(), ...(draftFor(dKey, stepFactOf(r)) as Partial<ReturnType<typeof rowState>> | null) });
     const [cargo, setCargo] = useState<CargoState>(() => startOf().cargo);
     const [reasons, setReasons] = useState<string[]>(() => startOf().reasons);
     const [reasonMemo, setReasonMemo] = useState(() => startOf().reasonMemo);
     useEffect(() => {
         const s0 = startOf(); setCargo(s0.cargo); setReasons(s0.reasons); setReasonMemo(s0.reasonMemo);
-    }, [r.recorded_at, r.occurred_at]);
-    useEffect(() => { syncDraft(dKey, r.recorded_at, rowState(), { cargo, reasons, reasonMemo }); }, [cargo, reasons, reasonMemo]);
+    }, [r.status, r.occurred_at]);
+    useEffect(() => { syncDraft(dKey, stepFactOf(r), rowState(), { cargo, reasons, reasonMemo }); }, [cargo, reasons, reasonMemo]);
 
     const done = !!r.occurred_at;
     const milestone = pickup ? 'PICKED_UP' : 'DELIVERED';

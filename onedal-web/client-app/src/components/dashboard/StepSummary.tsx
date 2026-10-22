@@ -1,7 +1,7 @@
 import type { StepViewRow } from '@onedal/shared';
 import { stepSummaryOf, type StepCardButton } from './callCardViews';
 import { sendCallSave, sendArrive, sendSkip, sendDone, sendCod, actualCargoOf, cargoOfRow } from './StepSheetMock';
-import { useStepDraftStore, draftKeyOf, draftFor } from '../../stores/stepDraftStore';
+import { useStepDraftStore, draftKeyOf, draftFor, stepFactOf } from '../../stores/stepDraftStore';
 
 /**
  * 🪪 **카드 안 단계 한 장 — 보기만 한다** (기사님 «가»).
@@ -21,13 +21,13 @@ export default function StepSummary({ orderId, view, codAmount, hideButtons, onO
 }) {
     const r: Record<string, any> = view.row ?? {};
     const key = draftKeyOf(orderId, view.step);
-    const draft = useStepDraftStore(s => key in s.drafts);
+    const draft = useStepDraftStore(s => s.drafts[key]?.fact === stepFactOf(r));   // 사실이 바뀐 옛 초안은 «적다 만 것»이 아니다
     const s = stepSummaryOf(view, { codAmount, draft });
     const born = view.born !== false;
 
     const press = (b: StepCardButton) => {
         if (b.popup) { onOpen(); return; }
-        const d = draftFor(key, r.recorded_at) as Record<string, any> | null;
+        const d = draftFor(key, stepFactOf(r)) as Record<string, any> | null;
         const milestoneOf: Record<string, string> = { ARRIVE_PICKUP: 'ARRIVED_PICKUP', ARRIVE_DROPOFF: 'ARRIVED_DROPOFF', LOADED: 'PICKED_UP' };
         switch (b.kind) {
             case 'skip':
