@@ -22,6 +22,7 @@ if DRY:   # 폰 없이 볼 때는 문제지 검사를 먼저 — 판에서 헛 �
     log((jc.stdout.strip().splitlines() or ['JoyStick 흐름 검사 — 출력 없음'])[-1] + ('' if jc.returncode == 0 else ' — 🔴 joy_check.py 를 따로 돌려 볼 것'))
 
 # 🌙 자정 30분 안에는 판을 시작하지 않는다 — 자정은 영업일 경계(필터가 평소 값으로 돌고 예약 보관이 넘어감)라 자정을 걸치는 판은 콜 시각과 무관하게 갈린다(10-22 23:16 S04) · 굳이 돌리려면 --midnight
+#    «30분»은 판이 30분 안에 끝난다는 가정이다 — 하루 경로 전체처럼 긴 판은 그보다 일찍 시작해도 자정을 걸친다(시작 시각을 판 길이만큼 당겨 고른다)
 if not DRY and '--midnight' not in A:
     _now = time.localtime()
     if _now.tm_hour == 23 and _now.tm_min >= 30:
