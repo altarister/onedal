@@ -554,7 +554,7 @@ def act(a):
         end = time.time() + sec
         while True:
             r = json.loads(run.sh('node', os.path.join(HERE, 'find.mjs'), S23, spec, str(run.MENU_Y), check=False).strip().splitlines()[-1])
-            if (r['state'] == 'ok') == want: break
+            if (r['state'] == 'ok' if want else r['state'] == 'none'): break   # «안 보임»은 none 일 때만 — 밀려 있는(below/above) 것은 아직 있다(onedal-1e 리뷰)
             if want and r['state'] in ('below', 'above') and r.get('swipe'):   # 단추가 화면 밖 · 떠 있는 줄 밑이면 기사님처럼 밀어 다시 본다(S05a 판 1)
                 sw = r['swipe']; y1, y2 = (sw['y1'], sw['y2']) if r['state'] == 'below' else (sw['y2'], sw['y1'])
                 run.guard(S23); run.adb(S23, 'shell', 'input', 'swipe', str(sw['x']), str(y1), str(sw['x']), str(y2), '400'); time.sleep(1); continue
@@ -575,7 +575,11 @@ def act(a):
             time.sleep(0.5)
         log(f'  📞 관제앱이 나가는 전화를 넘김({made[-1]}) — 끊고 관제앱으로')
         if call_state() != 0: run.guard(S23); run.adb(S23, 'shell', 'input', 'keyevent', 'KEYCODE_ENDCALL'); time.sleep(2)
-        if 'incallui' in run.focus_of(S23): run.adb(S23, 'shell', 'input', 'tap', '540', '2074'); time.sleep(1)   # 끊김 사유 창 «긴급 전화만 가능합니다 · 확인»의 확인(뒤로 단추는 안 먹는다 · 10-23 00:33 사진)
+        if 'incallui' in run.focus_of(S23):   # 끊김 사유 창 «긴급 전화만 가능합니다 · 확인» — 기본 단추 키를 먼저, 안 먹으면 taps.json 자리
+            for key in ('KEYCODE_ENTER', 'KEYCODE_DPAD_CENTER'):   # ENTER 로 단추에 초점 · 가운데 키로 누름(10-23 00:49 S23 — ENTER 만으로는 안 닫힘)
+                if 'incallui' in run.focus_of(S23): run.adb(S23, 'shell', 'input', 'keyevent', key); time.sleep(1)
+            if 'incallui' in run.focus_of(S23):   # 시스템 창이라 관제앱 화면 확인(expect)을 못 해 tap() 대신 자리만 읽어 누른다
+                ok = TAPS['s23.incall.restricted.ok']; run.adb(S23, 'shell', 'input', 'tap', str(ok['x']), str(ok['y'])); time.sleep(1)
         if call_state() != 0: shot(S23, f'nohang_{CUR[0]}'); raise Stop('S23 전화가 안 끊김 — 손으로 끊어 주세요')
         if 'kr.co.onedal.dashboard' not in run.focus_of(S23):
             run.adb(S23, 'shell', 'am', 'start', '-n', 'kr.co.onedal.dashboard/.MainActivity'); time.sleep(2)
