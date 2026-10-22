@@ -25,6 +25,17 @@ class ScreenWordsTest {
         assertEquals(listOf("noise" to "<거리>"), words())
     }
 
+    /** ⏱️ 낱말 안의 값도 이름표로 — «15:00까지 픽업»이 시각마다 새 글자가 되어 새 글자 경고의 절반을 채웠다(58 ②-1 · 서버 로그 10-22) */
+    @Test fun `낱말 안의 시각 · 거리 · 남은 분 · 금액은 이름표로 - 같은 꼴은 한 낱말`() {
+        ScreenWords.onScreen(Page.DETAIL)
+        ScreenWords.add("15:00까지 픽업", WordKind.UNKNOWN)
+        ScreenWords.add("16:25까지 픽업", WordKind.UNKNOWN)
+        ScreenWords.add("배송 9.7km", WordKind.UNKNOWN)
+        ScreenWords.add("배송 31분 남음", WordKind.UNKNOWN)
+        ScreenWords.add("배송비 9,730P", WordKind.UNKNOWN)
+        assertEquals(listOf("unknown" to "<시각>까지 픽업", "unknown" to "배송 <거리>", "unknown" to "배송 <남은 시간> 남음", "unknown" to "배송비 <포인트>"), words())
+    }
+
     @Test fun `키 값 줄은 키만`() {
         ScreenWords.onScreen(Page.DETAIL)
         ScreenWords.add("고객 : 홍길동", WordKind.UNKNOWN)

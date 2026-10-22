@@ -132,6 +132,7 @@ object ScreenWords {
             val shaped = ValueShape.normalize(t)
             val m = when {
                 shaped != t -> shaped
+                CLOCK_HEAD.matches(t) -> CLOCK_HEAD.replace(t, "<시각>$2")   // «15:00까지» — 시각 뒤에 글자가 붙은 토막(58 ②-1)
                 isRegion(t) -> REGION
                 ROAD.matches(t) -> "<도로명>"
                 PLACE.containsMatchIn(t) -> "<가게·건물>"
@@ -143,6 +144,8 @@ object ScreenWords {
         return out.joinToString(" ")
     }
     private const val REGION = "<지역>"
+    /** ⏱️ 시각으로 시작하고 글자가 붙은 토막(«15:00까지» · «18:28가지» — 한글이 붙은 것만 · «09:30~18:30» 같은 범위는 그대로) — 시각만 이름표로, 붙은 글자는 그대로(형식이 바뀌면 드러난다) */
+    private val CLOCK_HEAD = Regex("""^(\d{1,2}:\d{2})([가-힣].*)$""")
 
     /** 한 보고 몫(먼저 모은 페이지 하나)을 꺼낸다 — 다른 페이지 것은 다음 보고로. 모은 것이 없으면 null (보고에 안 싣는다) */
     @Synchronized fun drain(): ScreenWordsReport? {
